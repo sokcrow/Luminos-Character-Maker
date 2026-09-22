@@ -594,12 +594,6 @@ body.global-map-mode #globalMapActions{display:block}
     <button class="paper-menu-hex" type="button" data-player-menu-action="character" data-label="Personaje" aria-label="Personaje" disabled>
       <img src="../../../Assets/Images/Buttons/Player.svg" alt=""><span class="paper-menu-label">Personaje</span>
     </button>
-    <button class="paper-menu-hex" type="button" data-player-menu-action="quests" data-label="Misiones" aria-label="Misiones" disabled>
-      <svg viewBox="0 0 24 24" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="14" y2="17"/></svg><span class="paper-menu-label">Misiones</span>
-    </button>
-    <button class="paper-menu-hex" type="button" data-player-menu-action="map" data-label="Mapa" aria-label="Mapa" disabled>
-      <svg viewBox="0 0 24 24" stroke-width="2"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21 3 6"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg><span class="paper-menu-label">Mapa</span>
-    </button>
   </div>
 </nav>
 
@@ -8443,6 +8437,22 @@ function luminousMapItemIcon(itemOrId){
   if(!item)return null;
   return window.LuminousItemIconRegistry?.resolveIcon?.(item.iconFamily,{fallback:false})||null;
 }
+function makeCanonicalWorldItemDisplay(g,itemId,x,z,{y=1.34,scale=.54}={}){
+  const icon=luminousMapItemIcon(itemId);
+  if(!icon)return null;
+  const anchor=new THREE.Group();
+  anchor.position.set(wt(x),y,wt(z));
+  anchor.userData.canonicalItemId=String(itemId);
+  g.add(anchor);
+  new THREE.TextureLoader().load(icon,tex=>{
+    tex.colorSpace=THREE.SRGBColorSpace;
+    const material=new THREE.SpriteMaterial({map:tex,transparent:true,depthWrite:false});
+    const sprite=new THREE.Sprite(material);
+    sprite.scale.set(scale,scale,1);
+    anchor.add(sprite);
+  },undefined,()=>{});
+  return anchor;
+}
 let luminousInventoryAdapter=null;
 const pendingItemGrants=[];
 async function requestLuminousItemGrant(itemId,quantity=1,context={}){
@@ -8915,19 +8925,17 @@ inventoryTorchLight.position.set(0,1.45,.08);
 player.add(inventoryTorchLight);
 registerSpriteLocalLight(inventoryTorchLight,{brightRadius:wt(TORCH_BRIGHT_RADIUS_TILES),dimRadius:wt(TORCH_DIM_RADIUS_TILES),spriteStrength:.92});
 
-const PAPER_INV_STORAGE_KEY='paperdnd.inventory.v1';
+const PAPER_INV_STORAGE_KEY='paperdnd.inventory.v2';
 const PAPER_INV_ACTIVE_LIMIT=10;
 const PAPER_INV_SLOT_LABELS={mainHand:'MAIN HAND',offHand:'OFF HAND',armor:'ARMOR',shield:'SHIELD',accessory0:'ACCESSORY A',accessory1:'ACCESSORY B'};
 const PAPER_ITEM_DEFS={
-  practiceSword:{id:'practiceSword',name:'Espada de práctica',tier:'I',value:8,category:'weapon',tags:['Arma','Cuerpo a cuerpo'],slots:['mainHand'],quality:'STANDARD',description:'Hoja de entrenamiento equilibrada. Sirve para probar equipamiento antes de conectar el sistema de combate.',icon:window.LuminousItemIconRegistry?.resolveIcon?.('weapon_sword')||'sword'},
-  woodenShield:{id:'woodenShield',name:'Escudo de madera',tier:'I',value:6,category:'weapon',tags:['Arma','Defensa'],slots:['shield','offHand'],quality:'STANDARD',description:'Escudo ligero de tablones. Por ahora registra el slot equipado; sus bonificadores se conectarán al combate después.',icon:window.LuminousItemIconRegistry?.resolveIcon?.('shield')||'shield'},
-  travelTorch:{id:'travelTorch',name:'Antorcha de viaje',tier:'I',value:2,category:'utility',tags:['Utilidad','Luz'],quality:'STANDARD',description:'Fuente de luz portátil. Emite 10 pies (2 tiles) de luz brillante y 10 pies adicionales de luz tenue: 20 pies / 4 tiles en total.',icon:'torch',use:'toggleTorch'},
-  ration:{id:'ration',name:'Ración de viaje',tier:'I',value:1,category:'consumable',tags:['Consumible','Comida'],quality:'STANDARD',description:'Provisión compacta. En esta fase consumirla demuestra el flujo de uso y cantidad; más adelante puede alimentar descansos.',icon:window.LuminousItemIconRegistry?.resolveIcon?.('ration')||'ration',use:'consume'},
-  rope:{id:'rope',name:'Cuerda de 50 pies',tier:'I',value:3,category:'utility',tags:['Utilidad','Exploración'],quality:'STANDARD',description:'Cuerda de exploración. Queda preparada para conectarse a interacciones de mapa, desniveles y puzzles.',icon:'rope'}
+  practiceSword:{id:'practiceSword',name:'Espada de práctica',tier:'I',value:8,category:'weapon',tags:['Arma','Cuerpo a cuerpo'],slots:['mainHand'],quality:'STANDARD',description:'Hoja de entrenamiento equilibrada. Sirve para probar equipamiento antes de conectar el sistema de combate.',icon:window.LuminousItemIconRegistry?.resolveIcon?.('weapon_sword',{fallback:false})||null},
+  woodenShield:{id:'woodenShield',name:'Escudo de madera',tier:'I',value:6,category:'weapon',tags:['Arma','Defensa'],slots:['shield','offHand'],quality:'STANDARD',description:'Escudo ligero de tablones. Por ahora registra el slot equipado; sus bonificadores se conectarán al combate después.',icon:window.LuminousItemIconRegistry?.resolveIcon?.('shield',{fallback:false})||null},
+  ration:{id:'ration',name:'Ración de viaje',tier:'I',value:1,category:'consumable',tags:['Consumible','Comida'],quality:'STANDARD',description:'Provisión compacta. En esta fase consumirla demuestra el flujo de uso y cantidad; más adelante puede alimentar descansos.',icon:window.LuminousItemIconRegistry?.resolveIcon?.('ration',{fallback:false})||null,use:'consume'}
 };
 function paperDefaultInventory(){
   return {
-    active:{sword_01:{definitionId:'practiceSword',quantity:1,condition:100},shield_01:{definitionId:'woodenShield',quantity:1,condition:100},torch_01:{definitionId:'travelTorch',quantity:3,condition:100},ration_01:{definitionId:'ration',quantity:2,condition:100},rope_01:{definitionId:'rope',quantity:1,condition:100}},
+    active:{sword_01:{definitionId:'practiceSword',quantity:1,condition:100},shield_01:{definitionId:'woodenShield',quantity:1,condition:100},ration_01:{definitionId:'ration',quantity:2,condition:100}},
     stash:{},equipment:{mainHand:null,offHand:null,armor:null,shield:null,accessory0:null,accessory1:null},flags:{torchOn:false},serial:10
   };
 }
@@ -8950,13 +8958,7 @@ function paperItemIcon(kind=null){
     const safe=raw.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     return `<img src="${safe}" alt="" loading="lazy" decoding="async">`;
   }
-  const common='viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"';
-  if(kind==='sword')return `<svg ${common}><path d="M14.5 17.5L3 6V3h3l11.5 11.5"/><path d="M13 19l6-6"/><path d="M16 16l4 4"/><path d="M19 21l2-2"/></svg>`;
-  if(kind==='shield')return `<svg ${common}><path d="M12 2l7 3v6c0 5-3.2 8.7-7 11-3.8-2.3-7-6-7-11V5l7-3z"/><path d="M12 6v11"/></svg>`;
-  if(kind==='torch')return `<svg ${common}><path d="M9 22h6"/><path d="M10 18h4l1-8H9l1 8z"/><path d="M12 2c3 2 3 5 0 7-3-2-3-5 0-7z"/></svg>`;
-  if(kind==='ration')return `<svg ${common}><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 9h8M8 13h5"/></svg>`;
-  if(kind==='rope')return `<svg ${common}><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3"/><path d="M17 17l4 4"/></svg>`;
-  return `<svg ${common}><rect x="4" y="4" width="16" height="16"/><path d="M4 9l8 4 8-4"/></svg>`;
+  return '';
 }
 function paperInvEntries(container){return Object.entries(paperInventory[container]||{}).filter(([,i])=>i&&Number(i.quantity||0)>0)}
 function paperFindItem(key){return paperInventory.active[key]||paperInventory.stash[key]||null}
@@ -13423,15 +13425,30 @@ function buildSwampLab(){
     onTalk:configureSwampMissionNpc
   });
 
-  // ---------- MERCADER · SHOP MODAL LIMBUS ----------
-  // Cerca del spawn para probar rápido el bridge de tienda sin alterar el resto del mapa.
+  // ---------- PUESTO FÍSICO · MERCADER ----------
+  // Comercio de camino: NPC + mostrador + mercancía 2D canónica. No carga un interior;
+  // interactuar con el puesto abre el mismo ShopProvider que usa el Game Engine.
+  counterTable(ext,4.5,-5.45,2);
+  box(ext,.10,1.85,.10,wt(3.52),.93,wt(-5.82),mat('wood'));
+  box(ext,.10,1.85,.10,wt(5.48),.93,wt(-5.82),mat('wood'));
+  box(ext,wt(2.15),.09,wt(1.25),wt(4.5),1.86,wt(-5.82),mat('cloth'));
+  paperHerbBundle(ext,5.18,-5.48,{elevation:1.30});
+  makeCanonicalWorldItemDisplay(ext,'apple',3.92,-5.43,{y:1.37,scale:.46});
+  makeCanonicalWorldItemDisplay(ext,'medicinal_herb',4.48,-5.43,{y:1.38,scale:.50});
+  makeCanonicalWorldItemDisplay(ext,'harvesting_tools',5.02,-5.43,{y:1.38,scale:.50});
+
   makePaperNPC(ext,'aldeana',4.5,-6.4,{
-    name:'Mercader',height:1.48,initialFacing:-1,
-    message:'Tengo unas cuantas cosas a la venta.',
+    name:'Mercader del camino',height:1.48,initialFacing:-1,
+    message:'Lo que ves en el mostrador es parte de mi mercancía.',
     options:[
-      {label:'Ver mercancía',onSelect:()=>window.LuminousShop.open('swamp-herbalist')},
-      {label:'¿Qué vendes?',response:'Hierbas, provisiones y lo que haya conseguido esta semana.'}
+      {label:'Comprar',onSelect:()=>window.LuminousShop.open('forest-roadside-store')},
+      {label:'¿Qué vendes?',response:'Fruta, hierbas y herramientas para quien todavía tiene camino por delante.'}
     ]
+  });
+  interactions.push({
+    kind:'object',layer:'exterior',label:'Comprar',
+    point:new THREE.Vector3(wt(4.5),0,wt(-4.72)),radius:1.15,
+    onUse:()=>window.LuminousShop.open('forest-roadside-store')
   });
 
   // ---------- OBJETIVO DE MISIÓN · BITTERROOT ----------
@@ -13441,8 +13458,6 @@ function buildSwampLab(){
   const questSampleGroup=new THREE.Group();
   questSampleGroup.position.set(wt(questSampleX),0,wt(questSampleZ));
   ext.add(questSampleGroup);
-  const questSampleFallback=paperScrap(questSampleGroup,0,0,.12);
-  questSampleFallback.position.y=.03;
   const questSampleIcon=luminousMapItemIcon('bitterroot');
   if(questSampleIcon){
     new THREE.TextureLoader().load(questSampleIcon,tex=>{
@@ -13450,7 +13465,7 @@ function buildSwampLab(){
       const sm=new THREE.SpriteMaterial({map:tex,transparent:true,depthWrite:false});
       const spr=new THREE.Sprite(sm);
       spr.scale.set(.72,.72,1);spr.position.y=.42;
-      questSampleGroup.add(spr);questSampleFallback.visible=false;
+      questSampleGroup.add(spr);
     },undefined,()=>{});
   }
   questSampleGroup.visible=false;
@@ -13505,11 +13520,8 @@ function buildSwampLab(){
   const pickupGroup=new THREE.Group();
   pickupGroup.position.set(wt(hiddenX),0,wt(hiddenZ));
   ext.add(pickupGroup);
-  // ACTION_TEXTURES.item sigue siendo sólo la POSE Zelda del jugador.
-  // El objeto del mundo usa ahora el icono canónico del PR #777; paperScrap queda
-  // como fallback si la textura externa no carga.
-  const pickupFallback=paperScrap(pickupGroup,0,0,.18);
-  pickupFallback.position.y=.04;
+  // ACTION_TEXTURES.item sigue siendo sólo la POSE del jugador.
+  // El objeto del mundo usa exclusivamente el icono canónico del PR #777.
   const pickupIconUrl=luminousMapItemIcon('medicinal_herb');
   if(pickupIconUrl){
     new THREE.TextureLoader().load(pickupIconUrl,tex=>{
@@ -13517,7 +13529,7 @@ function buildSwampLab(){
       const sm=new THREE.SpriteMaterial({map:tex,transparent:true,depthWrite:false});
       const spr=new THREE.Sprite(sm);
       spr.scale.set(.82,.82,1);spr.position.y=.48;
-      pickupGroup.add(spr);pickupFallback.visible=false;
+      pickupGroup.add(spr);
     },undefined,()=>{});
   }
   pickupGroup.visible=false;
