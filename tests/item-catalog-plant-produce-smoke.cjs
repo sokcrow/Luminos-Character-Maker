@@ -48,7 +48,13 @@ const { pathToFileURL } = require('node:url');
     'grain_seed_raw',
     'spice_herb_raw',
     'medicinal_herb_raw',
+    'herb_healing',
+    'herb_antidote',
+    'herb_calming',
+    'herb_toxic',
     'fungus_raw',
+    'fungus_medicinal',
+    'fungus_toxic',
     'botanical_extract_raw',
   ]);
 
