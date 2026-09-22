@@ -497,6 +497,9 @@ body.global-map-mode #globalMapActions{display:block}
 
 
 /* 0.3.2-97 · SCALE LAB · herramienta interna visual-only */
+
+.paper-inv-icon img,.paper-inv-detail-icon img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 2px 5px #000b)}
+.paper-inv-icon img{max-width:38px;max-height:38px}.paper-inv-detail-icon img{max-width:64px;max-height:64px}
 </style>
 </head>
 <body>
@@ -705,6 +708,11 @@ addEventListener('unhandledrejection',e=>{
 
 
 
+
+<script src="../../../js/item-icon-registry.js"></script>
+<script src="../../../js/item-catalog-plant-produce.js"></script>
+<script src="../../../js/item-catalog-tools.js"></script>
+<script src="../../../js/item-economy-standard.js"></script>
 
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js';
@@ -8933,6 +8941,11 @@ function paperSaveInventory(){try{localStorage.setItem(PAPER_INV_STORAGE_KEY,JSO
 function paperDef(item){return item?PAPER_ITEM_DEFS[item.definitionId]||{id:item.definitionId,name:item.definitionId||'Item',tier:'I',value:0,category:'utility',tags:['Item'],description:'Sin descripción.',icon:'box'}:null}
 function paperItemName(item){return paperDef(item)?.name||'Item'}
 function paperItemIcon(kind='box'){
+  const raw=String(kind||'box').trim();
+  if(/^(https?:|data:|blob:)/i.test(raw)){
+    const safe=raw.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    return `<img src="${safe}" alt="" loading="lazy" decoding="async">`;
+  }
   const common='viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"';
   if(kind==='sword')return `<svg ${common}><path d="M14.5 17.5L3 6V3h3l11.5 11.5"/><path d="M13 19l6-6"/><path d="M16 16l4 4"/><path d="M19 21l2-2"/></svg>`;
   if(kind==='shield')return `<svg ${common}><path d="M12 2l7 3v6c0 5-3.2 8.7-7 11-3.8-2.3-7-6-7-11V5l7-3z"/><path d="M12 6v11"/></svg>`;
