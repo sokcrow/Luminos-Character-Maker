@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { spawnSync } from "node:child_process";
 
 const [index, main, game, inventoryRuntime, itemBridge] = await Promise.all([
   readFile(new URL("../lab/index.html", import.meta.url), "utf8"),
@@ -92,6 +95,21 @@ assert.match(game, /treeInterval=displayLandscapeMobile\(\)\?50/);
 assert.match(game, /LuminousDisplayPerformance/);
 assert.match(game, /DISPLAY_SHADOW_SIZE=DISPLAY_DEVICE_MOBILE\?512:1024/);
 assert.match(game, /Forest Floor Ecology/);
+
+// Parse the embedded ES module with Node's syntax checker. The Lab is a large HTML
+// file, so regex smoke alone can miss malformed ternaries/template literals that
+// leave the browser stuck behind the loader.
+const moduleMatch = game.match(/<script type="module">([\s\S]*?)<\/script>/);
+assert.ok(moduleMatch?.[1], "embedded game module must exist");
+const syntaxDir = await mkdtemp(join(tmpdir(), "luminous-lab-syntax-"));
+const syntaxFile = join(syntaxDir, "forest-lab-module.mjs");
+try {
+  await writeFile(syntaxFile, moduleMatch[1], "utf8");
+  const checked = spawnSync(process.execPath, ["--check", syntaxFile], { encoding: "utf8" });
+  assert.equal(checked.status, 0, checked.stderr || checked.stdout || "embedded module syntax check failed");
+} finally {
+  await rm(syntaxDir, { recursive: true, force: true });
+}
 
 assert.match(inventoryRuntime, /function insertItem\(/);
 assert.match(inventoryRuntime, /luminous:item-inserted/);
