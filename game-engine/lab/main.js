@@ -13,15 +13,14 @@ engine.setPlayer(player);
 const $ = (id) => document.getElementById(id);
 const frame = $("gameFrame");
 const mirroredDefinitionIds = new Set();
-const eventLines = [];
 let gameConnected = false;
 let syncTimer = null;
 let shopProvider = null;
 
 function log(type, payload = {}) {
-  eventLines.unshift(`${new Date().toLocaleTimeString()}  ${type}\n${JSON.stringify(payload, null, 2)}`);
-  eventLines.splice(24);
-  $("eventLog").textContent = eventLines.join("\n\n");
+  if (new URLSearchParams(location.search).has("debugLab")) {
+    console.debug("[LuminousLab]", type, payload);
+  }
 }
 
 function containerCount(container) {
@@ -45,14 +44,6 @@ function render() {
   $("offStat").textContent = String(player.combatLevels?.offensive?.total ?? player.stats?.offensiveLevel ?? "—");
   $("defStat").textContent = String(player.combatLevels?.defensive?.total ?? player.stats?.defensiveLevel ?? "—");
 
-  $("engineSummary").textContent = metrics.running
-    ? `ACTIVO · ${metrics.systemsEnabled} sistemas · ${metrics.frames} frames`
-    : "DETENIDO";
-  $("itemSummary").textContent = status.available
-    ? `LISTO · schema ${status.inventorySchemaVersion} · runtime ${status.inventoryVersion}`
-    : "NO DISPONIBLE";
-  $("bridgeSummary").textContent = gameConnected ? "CONECTADO · Forest ↔ Game Engine" : "ESPERANDO FOREST";
-  $("playerSummary").textContent = `${player.name || player.id} · ${activeCount} activos · ${stashCount} stash`;
 
   const badge = $("bridgeBadge");
   badge.textContent = gameConnected ? "Forest ↔ Items conectado" : "Conectando juego…";
@@ -388,12 +379,6 @@ async function grantHerbFromDm() {
   setTimeout(openGameInventory, 80);
 }
 
-function setDebug(open) {
-  $("debugDrawer").classList.toggle("open", open);
-  $("debugDrawer").setAttribute("aria-hidden", String(!open));
-  $("toggleDebug").setAttribute("aria-expanded", String(open));
-}
-
 ["engine:start", "engine:stop", "items:moved", "items:used", "items:inserted", "items:acquired-lab", "shop:purchased", "dm:player-flag"]
   .forEach(type => engine.events.on(type, payload => {
     log(type, payload);
@@ -402,11 +387,6 @@ function setDebug(open) {
 
 $("openInventory").addEventListener("click", openGameInventory);
 $("grantHerb").addEventListener("click", grantHerbFromDm);
-$("toggleDebug").addEventListener("click", () => setDebug(!$("debugDrawer").classList.contains("open")));
-$("closeDebug").addEventListener("click", () => setDebug(false));
-$("inspectPlayer").addEventListener("click", () => {
-  $("dmState").textContent = JSON.stringify(dm.execute({ type: "inspect_player" }), null, 2);
-});
 async function lockLandscapeForFullscreen() {
   const orientation = screen.orientation;
   if (!orientation?.lock) {
