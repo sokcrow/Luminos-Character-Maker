@@ -308,7 +308,6 @@
 
   function bindStashFilters() {
     const search = doc.getElementById("buscador-items-stash");
-    const buttons = [...doc.querySelectorAll("#filtros-stash .inv-filter-btn")];
     if (search && search.dataset.v2Bound !== "true") {
       search.dataset.v2Bound = "true";
       let timer = null;
@@ -317,24 +316,42 @@
         timer = global.setTimeout(applyStashFilter, 120);
       });
     }
-    buttons.forEach((button) => {
-      if (button.dataset.v2Bound === "true") return;
-      button.dataset.v2Bound = "true";
+    refreshStashFilters();
+  }
+
+  function refreshStashFilters() {
+    const host = doc.getElementById("filtros-stash");
+    if (!host) return;
+    const previous = normalizeId(host.querySelector(".inv-filter-btn.active")?.dataset.filter || "all") || "all";
+    const categories = [...new Set(entries(state.unit?.inventario_stash || {})
+      .filter(([, item]) => item && quantityOf(item) > 0)
+      .map(([, item]) => normalizeId(itemCategory(item)) || "item"))]
+      .sort((a, b) => categoryLabel(a).localeCompare(categoryLabel(b)));
+    const filters = ["all", ...categories];
+    const active = filters.includes(previous) ? previous : "all";
+    host.innerHTML = "";
+    filters.forEach((filter) => {
+      const button = doc.createElement("button");
+      button.type = "button";
+      button.className = `inv-filter-btn${filter === active ? " active" : ""}`;
+      button.dataset.filter = filter;
+      button.textContent = filter === "all" ? "ALL / TODO" : categoryLabel(filter);
       button.addEventListener("click", () => {
-        buttons.forEach((entry) => entry.classList.remove("active"));
+        host.querySelectorAll(".inv-filter-btn").forEach((entry) => entry.classList.remove("active"));
         button.classList.add("active");
         applyStashFilter();
       });
+      host.appendChild(button);
     });
   }
 
   function applyStashFilter() {
     const search = String(doc.getElementById("buscador-items-stash")?.value || "").trim().toLowerCase();
-    const activeFilter = String(doc.querySelector("#filtros-stash .inv-filter-btn.active")?.dataset.filter || "todo").toLowerCase();
+    const activeFilter = normalizeId(doc.querySelector("#filtros-stash .inv-filter-btn.active")?.dataset.filter || "all") || "all";
     doc.querySelectorAll("#inv-stash-grid .item-slot[data-key]").forEach((slot) => {
-      const haystack = `${slot.dataset.name || ""} ${slot.dataset.tier || ""} ${slot.dataset.tags || ""}`;
+      const haystack = `${slot.dataset.name || ""} ${slot.dataset.tier || ""} ${slot.dataset.tags || ""} ${slot.dataset.category || ""}`;
       const matchesSearch = !search || haystack.includes(search);
-      const matchesFilter = activeFilter === "todo" || (slot.dataset.tags || "").includes(activeFilter);
+      const matchesFilter = activeFilter === "all" || normalizeId(slot.dataset.category) === activeFilter;
       slot.hidden = !(matchesSearch && matchesFilter);
     });
   }
@@ -407,7 +424,10 @@
     }
     grid.appendChild(fragment);
     decorateGrid(containerType);
-    if (!active) applyStashFilter();
+    if (!active) {
+      refreshStashFilters();
+      applyStashFilter();
+    }
   }
 
   function renderCarryCount() {
