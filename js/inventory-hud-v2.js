@@ -20,13 +20,22 @@
   const qualityNames = { 1: "LOW", 2: "STANDARD", 3: "GOOD", 4: "FINE", 5: "EXCEPTIONAL" };
   const romanTiers = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
   const slotSpecs = [
-    { id: "mainHand", label: "MAIN HAND", hint: "WEAPON", className: "inv2-eq-main" },
+    { id: "mainHand", label: "MAIN HAND", hint: "WEAPON / SHIELD", className: "inv2-eq-main" },
     { id: "offHand", label: "OFF HAND", hint: "WEAPON / SHIELD", className: "inv2-eq-off" },
     { id: "armor", label: "ARMOR", hint: "BODY", className: "inv2-eq-armor" },
-    { id: "shield", label: "SHIELD", hint: "DEFENSE", className: "inv2-eq-shield" },
+    { id: "shield", label: "SHIELD SOURCE", hint: "ACTIVE DEFENSE", className: "inv2-eq-shield" },
     { id: "accessory0", label: "ACCESSORY A", hint: "ACCESSORY", className: "inv2-eq-acc-a" },
     { id: "accessory1", label: "ACCESSORY B", hint: "ACCESSORY", className: "inv2-eq-acc-b" },
+    { id: "augment0", label: "AUGMENT A", hint: "BODY / TECH", className: "inv2-eq-aug-a" },
+    { id: "augment1", label: "AUGMENT B", hint: "BODY / TECH", className: "inv2-eq-aug-b" },
   ];
+
+  const categoryLabels = Object.freeze({
+    item: "OTHER", weapon: "WEAPON", armor: "ARMOR", shield: "SHIELD", accessory: "ACCESSORY",
+    augmentation: "AUGMENT", augment: "AUGMENT", consumable: "CONSUMABLE", ammo: "AMMO", ammunition: "AMMO",
+    tool: "TOOL", upgrade: "UPGRADE", material: "MATERIAL", component: "COMPONENT", ingredient: "INGREDIENT",
+    food: "FOOD", medicine: "MEDICINE", medical: "MEDICAL", chemical: "CHEMICAL", scrap: "SCRAP",
+  });
 
   const runtime = () => global.LuminousItemRuntime || global.LuminousItemInventoryRuntime || null;
   const inventory = () => global.LuminousItemInventoryRuntime || runtime();
@@ -70,6 +79,20 @@
 
   function itemCategory(item = {}) {
     return String(runtime()?.categoryOf?.(item) || item.tipo_categoria || item.category || item.itemType || item.type || "item");
+  }
+
+  function normalizeId(value) {
+    return String(runtime()?.normalizeId?.(value) || value || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+  }
+
+  function categoryLabel(value) {
+    const id = normalizeId(value) || "item";
+    return categoryLabels[id] || id.replace(/_/g, " ").toUpperCase();
+  }
+
+  function equipmentKind(item = {}) {
+    const schema = bridge()?.schemaOf?.(item) || runtime()?.equipmentSchema?.(item) || item.equipment || item.equipmentSchema || {};
+    return normalizeId(schema.kind || itemCategory(item)) || "item";
   }
 
   function quantityOf(item = {}) {
@@ -226,6 +249,8 @@
     extra.className = "inventory-v2-detail-extra";
     extra.innerHTML = `
       <div class="inventory-v2-detail-grid">
+        <div><span>CATEGORY</span><b data-v2-detail="category">—</b></div>
+        <div><span>STACK</span><b data-v2-detail="stack">—</b></div>
         <div><span>QUALITY</span><b data-v2-detail="quality">—</b></div>
         <div><span>CONDITION</span><b data-v2-detail="condition">—</b></div>
         <div><span>MANUFACTURER</span><b data-v2-detail="manufacturer">—</b></div>
@@ -236,8 +261,8 @@
         <div><span>INSTANCE</span><b data-v2-detail="instance">—</b></div>
       </div>
       <div class="inventory-v2-modules">
-        <span>MODULES / STRUCTURAL TECH</span>
-        <div data-v2-detail="modules">NO INSTALLED MODULES</div>
+        <span>INSTALLED / INSTANCE TRAITS</span>
+        <div data-v2-detail="modules">NO INSTALLED MODIFIERS</div>
       </div>
       <div class="inventory-v2-actions" id="inventory-v2-actions"></div>
       <div class="inventory-v2-action-status" id="inventory-v2-action-status"></div>`;
@@ -320,20 +345,32 @@
     slot.className = "item-slot inv-item-slot inventory-v2-runtime-slot";
     slot.dataset.key = key;
     slot.dataset.container = containerType;
+    const category = normalizeId(itemCategory(item)) || "item";
+    const kind = equipmentKind(item);
+    const equipable = (bridge()?.compatibleSlots?.(item) || []).length > 0;
     slot.dataset.name = itemName(item).toLowerCase();
     slot.dataset.tier = tierRoman(item).toLowerCase();
     slot.dataset.tags = itemTags(item).join(",").toLowerCase();
+    slot.dataset.category = category;
+    slot.dataset.equipmentKind = kind;
+    slot.classList.toggle("inventory-v2-equipable", equipable);
     slot.style.position = "relative";
     slot.draggable = containerType === "active";
+    slot.title = `${itemName(item)} // ${categoryLabel(category)}`;
+    slot.setAttribute("aria-label", `${itemName(item)}, ${categoryLabel(category)}, quantity ${quantityOf(item)}`);
 
     const icon = itemIcon(item);
     const quantity = quantityOf(item);
     slot.innerHTML = `
       <span class="tier">${escapeHtml(tierRoman(item))}</span>
+      <span class="inventory-v2-item-category">${escapeHtml(categoryLabel(category))}</span>
       <div class="item-display">
-        <div class="item-icon"${icon ? ` style="background-image:url('${escapeHtml(icon)}')"` : ""}></div>
+        <div class="item-icon${icon ? " has-icon" : ""}"${icon ? ` style="background-image:url(&quot;${escapeHtml(icon)}&quot;)"` : ""}>
+          <span class="inventory-v2-icon-fallback">${escapeHtml(categoryLabel(category).slice(0, 3))}</span>
+        </div>
         <span class="item-name">${escapeHtml(itemName(item))}</span>
       </div>
+      ${equipable ? '<span class="inventory-v2-equip-marker">EQUIP</span>' : ""}
       <div class="item-quantity">x${quantity}</div>`;
 
     if (containerType === "active") {
@@ -514,12 +551,15 @@
       const target = card.querySelector(`[data-v2-detail="${name}"]`);
       if (target) target.textContent = value;
     };
+    const compatible = bridge()?.compatibleSlots?.(item) || [];
+    set("category", `${categoryLabel(itemCategory(item))} // ${categoryLabel(equipmentKind(item))}`);
+    set("stack", `x${quantityOf(item)} // ${state.selectedContainer.toUpperCase()}`);
     set("quality", `${qualityNames[quality] || `Q${quality}`} // Q${quality}`);
     set("condition", `${conditionPercent}% // ${String(conditionState?.state || conditionState || "SERVICEABLE").toUpperCase()}`);
     set("manufacturer", manufacturerName(item));
     set("product-line", productLineName(item));
     set("serial", item.productSerial || item.product_serial || "—");
-    set("equipment", equippedSlot ? String(equippedSlot).toUpperCase() : "NOT EQUIPPED");
+    set("equipment", equippedSlot ? String(equippedSlot).toUpperCase() : (compatible.length ? `READY // ${compatible.map((slot) => String(slot).toUpperCase()).join(" / ")}` : "NOT EQUIPPABLE"));
     set("charges", charges?.current == null ? "—" : `${charges.current} / ${charges.max ?? "∞"}`);
     set("instance", item.instanceId || item.instance_id || state.selected?.key || "—");
 
@@ -890,7 +930,7 @@
   else boot();
 
   global.LuminousInventoryHudV2 = Object.freeze({
-    version: 3,
+    version: 4,
     state,
     boot,
     dispose,
