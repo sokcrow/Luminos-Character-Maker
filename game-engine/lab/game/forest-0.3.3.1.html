@@ -922,7 +922,7 @@ function displayPixelRatio(){return Math.min(Number(devicePixelRatio)||1,display
 
 const camera=new THREE.PerspectiveCamera(40,innerWidth/innerHeight,.1,180);
 const CAMERA_VISIBILITY_REFERENCE_ASPECT=16/9;
-const LOCAL_CAMERA_FIXED_PROFILE=Object.freeze({distance:.60,height:.72,fovBias:-3.25,deadZone:.72,lookAhead:.62});
+const LOCAL_CAMERA_FIXED_PROFILE=Object.freeze({distance:.42,height:.72,fovBias:-3.25,deadZone:.72,lookAhead:.62});
 function cameraFixedVisibilityFov(baseFov,cam=camera){
   const base=Math.max(10,Number(baseFov)||40);
   const aspect=Math.max(.35,Number(cam?.aspect)||innerWidth/Math.max(1,innerHeight));
