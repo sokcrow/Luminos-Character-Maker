@@ -197,74 +197,87 @@ function buildShopProvider(win) {
   const toolCatalog = win?.LuminousToolCatalog;
   const plantItems = plantCatalog?.list?.() || [];
   const toolItems = toolCatalog?.list?.() || [];
-
-  const plantById = new Map(plantItems.map(item => [String(item?.id || ""), item]));
-  const toolById = new Map(toolItems.map(item => [String(item?.id || ""), item]));
-  const preferredIds = [
-    "apple",
-    "carrot",
-    "medicinal_herb",
-    "bitterroot",
-    "feverleaf",
-    "calming_herb",
-    "harvesting_tools",
-    "herbalism_botanical_gathering_kit",
-    "cooks_utensils",
-    "repair_kit"
-  ];
-  const chosen = preferredIds
-    .map(id => plantById.get(id) || toolById.get(id))
-    .filter(item => item?.id && canonicalPrice(item) > 0);
-
+  const definitions = new Map(
+    [...plantItems, ...toolItems]
+      .filter(item => item?.id)
+      .map(item => [String(item.id), item])
+  );
   const stock = new Map();
-  const definitions = new Map();
-  const storeItems = chosen.map((definition, index) => {
-    const id = String(definition.id);
-    const qty = index < 10 ? 6 : 2;
-    stock.set(id, qty);
-    definitions.set(id, definition);
-    return {
-      id,
-      nombre: definition.name || definition.nombre || id,
-      descripcion: shopDescription(definition),
-      tier: 1,
-      precio: canonicalPrice(definition),
-      stock_actual: qty,
-      icono: canonicalIcon(win, definition),
-      canonical: true,
-      definition
-    };
-  });
 
-  const store = {
-    id: "forest-roadside-store",
-    nombre: "Puesto del Camino",
-    items: storeItems
-  };
+  function makeStore(id, nombre, preferredIds, defaultStock = 4) {
+    const items = preferredIds
+      .map(itemId => definitions.get(itemId))
+      .filter(item => item?.id && canonicalPrice(item) > 0)
+      .map((definition, index) => {
+        const itemId = String(definition.id);
+        const qty = Math.max(1, defaultStock - Math.floor(index / 4));
+        stock.set(`${id}:${itemId}`, qty);
+        return {
+          id: itemId,
+          nombre: definition.name || definition.nombre || itemId,
+          descripcion: shopDescription(definition),
+          tier: 1,
+          precio: canonicalPrice(definition),
+          stock_actual: qty,
+          icono: canonicalIcon(win, definition),
+          canonical: true,
+          definition
+        };
+      });
+    return { id, nombre, items };
+  }
+
+  const stores = [
+    makeStore("forest-roadside-store", "Puesto del Camino", [
+      "apple",
+      "carrot",
+      "medicinal_herb",
+      "bitterroot",
+      "feverleaf",
+      "calming_herb",
+      "harvesting_tools",
+      "herbalism_botanical_gathering_kit"
+    ], 6),
+    makeStore("canal-general-store", "Tienda del Canal", [
+      "apple",
+      "carrot",
+      "cooks_utensils",
+      "cartographers_tools",
+      "calligraphers_supplies",
+      "harvesting_tools",
+      "repair_kit"
+    ], 4)
+  ];
+  const storeById = new Map(stores.map(store => [store.id, store]));
 
   return {
     id: "game-engine-market",
     label: "GAME ENGINE · CANONICAL MARKET",
-    async listStores() { return [store]; },
+    async listStores() { return stores; },
     async getShop(id) {
-      if (String(id) !== store.id) return null;
-      store.items.forEach(item => { item.stock_actual = stock.get(item.id) ?? 0; });
+      const store = storeById.get(String(id));
+      if (!store) return null;
+      store.items.forEach(item => {
+        item.stock_actual = stock.get(`${store.id}:${item.id}`) ?? 0;
+      });
       return store;
     },
     async getBalance() { return Number(player.wallet?.AHN || 0); },
     async purchase(shopId, itemId) {
-      if (String(shopId) !== store.id) return { ok: false, message: "Tienda no disponible." };
+      const store = storeById.get(String(shopId));
+      if (!store) return { ok: false, message: "Tienda no disponible." };
       const item = store.items.find(entry => entry.id === String(itemId));
       const definition = definitions.get(String(itemId));
       if (!item || !definition) return { ok: false, message: "El artículo ya no está disponible." };
 
-      const available = Number(stock.get(item.id) ?? 0);
+      const stockKey = `${store.id}:${item.id}`;
+      const available = Number(stock.get(stockKey) ?? 0);
       const price = Number(item.precio || 0);
       const balance = Number(player.wallet?.AHN || 0);
       if (available <= 0) return { ok: false, message: "AGOTADO" };
       if (balance < price) return { ok: false, message: "Ahn insuficiente para esta compra." };
 
-      stock.set(item.id, available - 1);
+      stock.set(stockKey, available - 1);
       player.wallet.AHN = balance - price;
       render();
 
