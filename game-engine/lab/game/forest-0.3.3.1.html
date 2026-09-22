@@ -16387,9 +16387,21 @@ function viewportCameraProfile(){
   const aspect=Math.max(.35,Math.min(2.4,camera.aspect||innerWidth/Math.max(1,innerHeight)));
   const portraitTarget=.5625; // 9:16
 
+  if(displayLandscapeMobile()){
+    // Móvil horizontal: el viewport ya enseña mucho más mundo por su relación de aspecto.
+    // No lo compensamos alejando todavía más la cámara. Encuadre deliberadamente cercano
+    // para mantener al personaje protagonista y reducir el bosque simultáneamente visible.
+    return {
+      distance:.58,
+      height:.68,
+      fovBias:-2.6,
+      deadZone:.70,
+      lookAhead:.62
+    };
+  }
+
   if(aspect>=1){
-    // Desktop / landscape: objetivo principal de esta pasada.
-    // 16:9 queda en 70% de la distancia histórica; ultrawide solo retrocede ligeramente.
+    // Desktop landscape conserva su composición propia.
     const wide=THREE.MathUtils.clamp((aspect-(16/9))/((21/9)-(16/9)),0,1);
     return {
       distance:THREE.MathUtils.lerp(.70,.74,wide),
@@ -17213,6 +17225,7 @@ window.LuminousDisplayPerformance=Object.freeze({
     basePixelRatioCap:displayBasePixelRatioCap(),
     adaptiveScale:DISPLAY_PERFORMANCE_RUNTIME.adaptiveScale,
     targetFps:DISPLAY_PERFORMANCE_RUNTIME.targetFps,
+    cameraProfile:typeof viewportCameraProfile==='function'?viewportCameraProfile():null,
     shadowSize:DISPLAY_SHADOW_SIZE,
     dynamicShadows:renderer.shadowMap.enabled,
     antialias:!DISPLAY_DEVICE_MOBILE,
