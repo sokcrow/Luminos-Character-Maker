@@ -31,6 +31,8 @@ assert.match(main, /canal-general-store/);
 assert.match(main, /shop:purchased/);
 assert.match(main, /items\.insert\(/);
 assert.match(main, /screen\.orientation/);
+assert.match(main, /goToRoadsideShop/);
+assert.match(main, /merchantTile/);
 assert.match(main, /lock\("landscape"\)/);
 assert.match(main, /fullscreenchange/);
 assert.match(main, /engine\.start\(\)/);
@@ -57,6 +59,9 @@ assert.doesNotMatch(game, /questSampleFallback/);
 assert.doesNotMatch(game, /pickupFallback/);
 assert.match(game, /paperItemIcon/);
 assert.match(game, /https\?:\|data:\|blob:/);
+assert.match(game, /FOREST_STRESS_DEVICE_MOBILE/);
+assert.match(game, /navigator\.userAgentData/);
+assert.match(game, /deviceMobile/);
 assert.match(game, /Forest Floor Ecology/);
 
 assert.match(inventoryRuntime, /function insertItem\(/);
