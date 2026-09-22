@@ -25,6 +25,14 @@ button{font:800 11px/1 ui-monospace,SFMono-Regular,Consolas,monospace;letter-spa
   display:flex;align-items:center;gap:7px;padding:7px 9px;
   border:1px solid #45351f;background:#0b0907;color:#b8aa93;font-size:9px;white-space:nowrap
 }
+.lab-stat-strip{display:flex;align-items:center;gap:5px}
+.lab-stat{
+  min-width:48px;height:34px;padding:4px 7px;display:flex;align-items:center;justify-content:center;gap:5px;
+  border:1px solid #46361f;background:#0c0907;color:#e2c993;font-size:9px
+}
+.lab-stat svg{width:16px;height:16px;fill:currentColor;stroke:currentColor}
+.lab-stat b{color:#f0dfbd;font-size:9px;white-space:nowrap}
+.lab-stat-text i{font-style:normal;color:#d8a84f;font-weight:900;font-size:9px;letter-spacing:.08em}
 .lab-dot{width:8px;height:8px;border-radius:50%;background:#805b2c;box-shadow:0 0 0 2px #000}
 .lab-dot.on{background:#91a968;box-shadow:0 0 10px #91a96877}
 .lab-actions{margin-left:auto;display:flex;gap:6px;min-width:0}
@@ -82,6 +90,10 @@ pre{
   .lab-brand .lab-kicker{font-size:7px}
   .lab-brand strong{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .lab-runtime-pill{display:none}
+  .lab-stat-strip{gap:3px}
+  .lab-stat{min-width:38px;height:32px;padding:3px 5px}
+  .lab-stat svg{width:14px;height:14px}
+  .lab-stat b{font-size:8px}
   .lab-actions{gap:4px}
   .lab-actions button{padding:8px 7px;font-size:9px}
   #fullscreenGame{display:none}
@@ -90,6 +102,7 @@ pre{
 }
 @media(max-width:520px){
   .lab-brand strong{font-size:12px}
+  .lab-stat-strip{display:none}
   .lab-actions button{padding:8px 6px;font-size:8px}
   .lab-actions #grantHerb{max-width:88px}
   .lab-debug-grid{grid-template-columns:1fr 1fr}
