@@ -115,3 +115,8 @@
   .inventory-v2-detail-grid{grid-template-columns:1fr;}
   .inventory-v2-actions{grid-template-columns:1fr;}
 }
+
+/* Inventory V5 capacity telemetry */
+.inventory-v2-stash-count{margin-left:auto;padding:5px 8px;border:1px solid #3a3025;background:#0a0806;color:#9f927e;font:8px "Share Tech Mono",monospace;letter-spacing:.08em;white-space:nowrap;}
+.inventory-v2-stash-count[data-full="true"]{border-color:#8f473d;color:#cf6b60;}
+@media(max-width:760px){.inventory-v2-stash-count{width:100%;box-sizing:border-box;margin-left:0;text-align:right;}.inventory-toolbar{align-items:stretch;}}
