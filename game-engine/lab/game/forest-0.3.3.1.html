@@ -913,8 +913,10 @@ function displayDetectMobileDevice(){
   return coarse&&Number(navigator.maxTouchPoints||0)>0;
 }
 const DISPLAY_DEVICE_MOBILE=displayDetectMobileDevice();
+const DISPLAY_PERFORMANCE_RUNTIME={adaptiveScale:1,lastAdjust:0,lowStreak:0,highStreak:0,targetFps:45,minFps:40,minScale:.68};
 function displayLandscapeMobile(){return DISPLAY_DEVICE_MOBILE&&innerWidth>innerHeight}
-function displayPixelRatioCap(){return DISPLAY_DEVICE_MOBILE?(displayLandscapeMobile()?.80:1.25):1.5}
+function displayBasePixelRatioCap(){return DISPLAY_DEVICE_MOBILE?(displayLandscapeMobile()?.80:1.25):1.5}
+function displayPixelRatioCap(){return displayBasePixelRatioCap()*DISPLAY_PERFORMANCE_RUNTIME.adaptiveScale}
 function displayPixelRatio(){return Math.min(Number(devicePixelRatio)||1,displayPixelRatioCap())}
 
 const camera=new THREE.PerspectiveCamera(40,innerWidth/innerHeight,.1,180);
@@ -1098,7 +1100,6 @@ function applyWorldTimeToSpriteMaterial(material,profile=currentWorldTimeProfile
     lit.lerp(localTarget,sample.influence);
   }
   material.color.copy(lit);
-  material.needsUpdate=true;
   return material;
 }
 function registerTimeReactiveSpriteMaterial(material,{baseColor=null,owner=null}={}){
@@ -16109,6 +16110,7 @@ function forestStressRecordFrame(frameMs,now=performance.now()){
   const ms=Math.max(.01,Number(frameMs)||16.67),fps=1000/ms,k=.08;
   ForestStressRuntime.msEMA=THREE.MathUtils.lerp(ForestStressRuntime.msEMA,ms,k);
   ForestStressRuntime.fpsEMA=THREE.MathUtils.lerp(ForestStressRuntime.fpsEMA,fps,k);
+  updateAdaptiveDisplayPerformance(now);
   const cap=ForestStressRuntime.capture;
   if(cap.active){
     cap.samples.push(ms);cap.maxVisibleProps=Math.max(cap.maxVisibleProps,ForestStressRuntime.visibleProps);
@@ -17136,8 +17138,40 @@ function installDevPanel(){
   document.body.appendChild(p);
 }
 
+function updateAdaptiveDisplayPerformance(now=performance.now()){
+  if(!DISPLAY_DEVICE_MOBILE||!displayLandscapeMobile()){
+    if(DISPLAY_PERFORMANCE_RUNTIME.adaptiveScale!==1){
+      DISPLAY_PERFORMANCE_RUNTIME.adaptiveScale=1;renderer.setPixelRatio(displayPixelRatio());
+    }
+    DISPLAY_PERFORMANCE_RUNTIME.lowStreak=DISPLAY_PERFORMANCE_RUNTIME.highStreak=0;
+    return;
+  }
+  if(now-DISPLAY_PERFORMANCE_RUNTIME.lastAdjust<1200)return;
+  DISPLAY_PERFORMANCE_RUNTIME.lastAdjust=now;
+  const fps=Number(ForestStressRuntime?.fpsEMA)||60;
+  let next=DISPLAY_PERFORMANCE_RUNTIME.adaptiveScale;
+  if(fps<DISPLAY_PERFORMANCE_RUNTIME.minFps){
+    DISPLAY_PERFORMANCE_RUNTIME.lowStreak++;DISPLAY_PERFORMANCE_RUNTIME.highStreak=0;
+    if(DISPLAY_PERFORMANCE_RUNTIME.lowStreak>=2){
+      next=Math.max(DISPLAY_PERFORMANCE_RUNTIME.minScale,next-(fps<30?.10:.07));
+      DISPLAY_PERFORMANCE_RUNTIME.lowStreak=0;
+    }
+  }else if(fps>52){
+    DISPLAY_PERFORMANCE_RUNTIME.highStreak++;DISPLAY_PERFORMANCE_RUNTIME.lowStreak=0;
+    if(DISPLAY_PERFORMANCE_RUNTIME.highStreak>=4){
+      next=Math.min(1,next+.05);DISPLAY_PERFORMANCE_RUNTIME.highStreak=0;
+    }
+  }else{
+    DISPLAY_PERFORMANCE_RUNTIME.lowStreak=DISPLAY_PERFORMANCE_RUNTIME.highStreak=0;
+  }
+  if(Math.abs(next-DISPLAY_PERFORMANCE_RUNTIME.adaptiveScale)>.001){
+    DISPLAY_PERFORMANCE_RUNTIME.adaptiveScale=next;
+    renderer.setPixelRatio(displayPixelRatio());
+  }
+}
 function applyViewportPerformanceProfile(){
   const landscapeMobile=displayLandscapeMobile();
+  if(!landscapeMobile)DISPLAY_PERFORMANCE_RUNTIME.adaptiveScale=1;
   renderer.setPixelRatio(displayPixelRatio());
   renderer.setSize(innerWidth,innerHeight);
   renderer.shadowMap.enabled=!landscapeMobile;
@@ -17150,6 +17184,9 @@ window.LuminousDisplayPerformance=Object.freeze({
     landscapeMobile:displayLandscapeMobile(),
     pixelRatio:renderer.getPixelRatio(),
     pixelRatioCap:displayPixelRatioCap(),
+    basePixelRatioCap:displayBasePixelRatioCap(),
+    adaptiveScale:DISPLAY_PERFORMANCE_RUNTIME.adaptiveScale,
+    targetFps:DISPLAY_PERFORMANCE_RUNTIME.targetFps,
     shadowSize:DISPLAY_SHADOW_SIZE,
     dynamicShadows:renderer.shadowMap.enabled,
     antialias:!DISPLAY_DEVICE_MOBILE,
