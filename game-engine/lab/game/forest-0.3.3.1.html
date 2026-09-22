@@ -1218,7 +1218,7 @@ const GLOBAL_REGIONS=Object.freeze([
   Object.freeze({id:'gN', q: 0,r: 1,label:'Paso Frío',         biome:'tierras altas frías',biomeProfile:'arctic',   landform:Object.freeze({ridges:.62,hills:.28}),hydrology:Object.freeze({type:'none'}),altitude:6.0,temp:2, moisture:.42,canopy:.20,vegetation:.30,rockiness:.68,color:0x818979,seed:73117}),
   Object.freeze({id:'gNE',q: 1,r: 0,label:'Crestas Nevadas',   biome:'montaña ártica',      biomeProfile:'arctic',   landform:Object.freeze({mountain:.78,ridges:.46,cliffs:.18}),hydrology:Object.freeze({type:'none'}),altitude:7.5,temp:-3,moisture:.34,canopy:.08,vegetation:.18,rockiness:.82,color:0x92998d,seed:88241}),
   Object.freeze({id:'gC', q: 0,r: 0,label:'Colinas Templadas', biome:'colinas templadas',  biomeProfile:'temperate',landform:Object.freeze({hills:.72,rolling:.32,ridges:.18}),hydrology:Object.freeze({type:'none'}),altitude:2.6,temp:12,moisture:.58,canopy:.54,vegetation:.78,rockiness:.30,color:0x839c6f,start:true,seed:84521}),
-  Object.freeze({id:'gSW',q:-1,r: 0,label:'Bosque Bajo',       biome:'bosque cerrado',      biomeProfile:'forest',   landform:Object.freeze({rolling:.54,hills:.26}),hydrology:Object.freeze({type:'none'}),altitude:.8,temp:18,moisture:.76,canopy:.84,vegetation:.94,rockiness:.10,color:0x67925f,seed:29387}),
+  Object.freeze({id:'gSW',q:-1,r: 0,label:'Bosque Bajo',       biome:'bosque cerrado',      biomeProfile:'forest',   landform:Object.freeze({rolling:.54,hills:.26}),hydrology:Object.freeze({type:'none'}),altitude:.8,temp:18,moisture:.76,canopy:.84,vegetation:.94,rockiness:.10,color:0x67925f,seed:29387,settlement:Object.freeze({id:'forest-village',label:'Aldea del Bosque',kind:'village',map:'canal'})}),
   Object.freeze({id:'gS', q: 0,r:-1,label:'Pradera de Robles', biome:'pradera templada',    biomeProfile:'grassland',landform:Object.freeze({rolling:.62,hills:.20}),hydrology:Object.freeze({type:'none'}),altitude:1.0,temp:17,moisture:.56,canopy:.18,vegetation:.92,rockiness:.14,color:0x8fa56d,seed:41773}),
   Object.freeze({id:'gSE',q: 1,r:-1,label:'Costa Árida',       biome:'desierto costero',    biomeProfile:'desert',   landform:Object.freeze({dunes:.66,mesas:.14,rolling:.10}),hydrology:Object.freeze({type:'coast',waterLevel:-.25}),altitude:1.4,temp:27,moisture:.10,canopy:.02,vegetation:.07,rockiness:.32,color:0xb99a68,seed:52919})
 ]);
@@ -1948,6 +1948,27 @@ function globalHexLine(radius=.72){
   const geo=new THREE.BufferGeometry().setFromPoints(pts);
   return new THREE.LineLoop(geo,new THREE.LineBasicMaterial({color:0xf3c873,transparent:true,opacity:0,depthWrite:false}));
 }
+function makeGlobalSettlementMarker(settlement){
+  const g=new THREE.Group();
+  const wallMat=globalSceneMaterial(0xd9c19a),roofMat=globalSceneMaterial(0x7d4332),doorMat=globalSceneMaterial(0x493226);
+  const house=new THREE.Mesh(new THREE.BoxGeometry(.82,.54,.66),wallMat);house.position.y=.31;g.add(house);
+  const roof=new THREE.Mesh(new THREE.ConeGeometry(.62,.42,4),roofMat);roof.rotation.y=Math.PI/4;roof.position.y=.78;g.add(roof);
+  const door=new THREE.Mesh(new THREE.BoxGeometry(.18,.30,.035),doorMat);door.position.set(0,.23,.348);g.add(door);
+  const canvas=document.createElement('canvas');canvas.width=512;canvas.height=128;
+  const ctx=canvas.getContext('2d');
+  if(ctx){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle='rgba(20,16,12,.86)';ctx.fillRect(8,20,496,88);
+    ctx.strokeStyle='rgba(243,200,115,.88)';ctx.lineWidth=4;ctx.strokeRect(8,20,496,88);
+    ctx.fillStyle='#f4dfb8';ctx.font='800 34px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(String(settlement?.label||'Villa').toUpperCase(),256,65,468);
+  }
+  const tex=new THREE.CanvasTexture(canvas);tex.needsUpdate=true;
+  const label=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true,depthWrite:false}));
+  label.position.set(0,1.42,0);label.scale.set(3.10,.78,1);label.renderOrder=8;g.add(label);
+  g.userData.settlementId=settlement?.id||null;g.userData.settlementMap=settlement?.map||null;
+  return g;
+}
 function buildGlobalRegionTile(region){
   const center=globalRegionCenter(region),g=new THREE.Group();g.position.copy(center);globalScene.add(g);globalRegionGroups.set(region.id,g);globalRegionCenters.set(region.id,center.clone());
   // CylinderGeometry regular de 6 lados + 30° = hexágono flat-top.
@@ -1982,6 +2003,10 @@ function buildGlobalRegionTile(region){
     }
   }
   const camp=makeGlobalCampMarker();camp.position.set(-2.35,.26,-2.15);g.add(camp);g.userData.campMarker=camp;
+  if(region.settlement){
+    const settlement=makeGlobalSettlementMarker(region.settlement);
+    settlement.position.set(1.85,.24,1.55);g.add(settlement);g.userData.settlementMarker=settlement;
+  }
   return g;
 }
 function globalActorTextureForMoving(moving){
@@ -2091,9 +2116,10 @@ function updateGlobalHud(){
   if(globalMapRegionMeta){
     const night=globalIsNight();
     const hydro=region.hydrology?.type&&region.hydrology.type!=='none'?` · ${region.hydrology.type}`:'';
-    globalMapRegionMeta.textContent=`${region.biome} · ${region.biomeProfile||'temperate'}${hydro} · macro +${region.altitude.toFixed(1)}t · ${globalTemperatureLabel(region.temp)} · 1 hexágono = 3×3 sectores · viaje +${GLOBAL_TRAVEL_HOURS_PER_REGION} h${state.camped?' · campamento':''}${night?' · NOCHE':''}`;
+    const settlement=region.settlement?.label?` · villa: ${region.settlement.label}`:'';
+    globalMapRegionMeta.textContent=`${region.biome} · ${region.biomeProfile||'temperate'}${hydro}${settlement} · macro +${region.altitude.toFixed(1)}t · ${globalTemperatureLabel(region.temp)} · 1 hexágono = 3×3 sectores · viaje +${GLOBAL_TRAVEL_HOURS_PER_REGION} h${state.camped?' · campamento':''}${night?' · NOCHE':''}`;
   }
-  if(globalExploreBtn)globalExploreBtn.textContent='Explorar';
+  if(globalExploreBtn)globalExploreBtn.textContent=region.settlement?.label?`Entrar · ${region.settlement.label}`:'Explorar';
   if(globalCampBtn)globalCampBtn.textContent=state.camped?'Volver al campamento':'Acampar';
 }
 function commitGlobalRegion(region,beforePos){
@@ -2210,6 +2236,19 @@ async function enterLocalFromGlobal(mode='explore'){
   globalWorldState.currentRegionId=region.id;globalWorldState.activeLocalRegionId=region.id;globalWorldState.localEntryMode=mode;
   const st=globalWorldState.regions[region.id]||(globalWorldState.regions[region.id]={visited:false,camped:false,visits:0});st.visited=true;
   if(mode==='camp')st.camped=true;
+  if(mode==='explore'&&region.settlement?.map&&MAP_DATA.maps[region.settlement.map]){
+    const settlement=region.settlement,def=MAP_DATA.maps[settlement.map];
+    fade.classList.remove('off');await new Promise(r=>setTimeout(r,220));
+    globalMapActive=false;document.body.classList.remove('global-map-mode');activeLocalCamp=null;
+    clearProceduralZone();
+    const spawn=new THREE.Vector3(wt(def.spawn.x),wt(def.spawn.y||0),wt(def.spawn.z));
+    loadMap(def.id,spawn,def.defaultLayer||'exterior');
+    area.textContent=`${region.label} · ${settlement.label}`;
+    scaleEl.textContent=`Asentamiento fijo · ${settlement.kind||'village'} · mapa ${def.id}`;
+    if(hintEl)hintEl.textContent='Palanca / WASD · explora la villa · entra a edificios e interactúa con NPCs · Mapa global para regresar';
+    updateCamera(1/60,true);renderer.render(scene,camera);fade.classList.add('off');
+    return;
+  }
   activateProceduralZone(region);
   fade.classList.remove('off');await new Promise(r=>setTimeout(r,220));
   globalMapActive=false;document.body.classList.remove('global-map-mode');activeLocalCamp=null;
@@ -2235,7 +2274,7 @@ if(campHereBtn)campHereBtn.onclick=()=>placeCampAtCurrentLocation();
 window.PaperGlobalMap=Object.freeze({
   regions:()=>GLOBAL_REGIONS.map(r=>({...r,state:{...(globalWorldState.regions[r.id]||{})}})),
   state:()=>({...globalWorldState,regions:JSON.parse(JSON.stringify(globalWorldState.regions))}),
-  activate:activateGlobalMap,explore:()=>enterLocalFromGlobal('explore'),camp:()=>enterLocalFromGlobal('camp'),
+  activate:activateGlobalMap,returnToGlobal:()=>returnToGlobalMap(),explore:()=>enterLocalFromGlobal('explore'),camp:()=>enterLocalFromGlobal('camp'),
   travelHours:GLOBAL_TRAVEL_HOURS_PER_REGION,shape:'hex-flat-top'
 });
 function activeBiomeFieldSample(id=mapId,tx=0,tz=0){
