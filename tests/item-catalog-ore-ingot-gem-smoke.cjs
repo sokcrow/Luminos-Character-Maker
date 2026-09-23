@@ -13,7 +13,7 @@ const { pathToFileURL } = require('node:url');
 
   const catalog = globalThis.LuminousOreIngotGemCatalog;
   assert.ok(catalog);
-  assert.equal(catalog.VERSION, 3);
+  assert.equal(catalog.VERSION, 4);
   assert.equal(catalog.FAMILY, 'ore_ingot_gem');
   assert.equal(catalog.MATERIAL_UNIT, 'material_unit');
   assert.equal(catalog.MATERIAL_UNIT_ABBREVIATION, 'MU');
@@ -123,6 +123,28 @@ const { pathToFileURL } = require('node:url');
   assert.equal(catalog.get('hardened_weapon_steel').id, 'hardened_steel');
   assert.equal(catalog.get('armor_steel').id, 'hardened_steel');
   assert.equal(catalog.get('exotic_alloy').standardUnitValueAhn, 1625000);
+
+  const alloyIcons = {
+    bronze: 'ingot_copper',
+    brass: 'ingot_copper',
+    carbon_steel: 'ingot_iron',
+    high_carbon_steel: 'ingot_iron',
+    stainless_steel: 'ingot_chromium',
+    hardened_steel: 'ingot_iron',
+    nickel_steel: 'ingot_nickel',
+    chrome_steel: 'ingot_chromium',
+    cobalt_alloy: 'ingot_cobalt',
+    tungsten_alloy: 'ingot_tungsten',
+    titanium_alloy: 'ingot_titanium',
+    advanced_titanium_alloy: 'ingot_titanium',
+    superalloy: 'ingot_cobalt',
+    augment_grade_alloy: 'ingot_titanium',
+    corp_composite_alloy: 'material_metamaterial_refined',
+    exotic_alloy: 'material_exotic_refined',
+  };
+  for (const [id, iconFamily] of Object.entries(alloyIcons)) {
+    assert.equal(catalog.get(id).iconFamily, iconFamily, id);
+  }
 
   assert.equal(catalog.get('iron_ore').iconFamily, 'ore_iron');
   assert.equal(catalog.get('iron').iconFamily, 'ingot_iron');
