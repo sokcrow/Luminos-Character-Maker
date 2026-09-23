@@ -15,17 +15,23 @@ const { pathToFileURL } = require('node:url');
 
   const catalog = globalThis.LuminousJewelryValuableCatalog;
   assert.ok(catalog);
-  assert.equal(catalog.VERSION, 1);
+  assert.equal(catalog.VERSION, 2);
   assert.equal(catalog.CURRENCY, 'AHN');
-  assert.equal(catalog.JEWELRY_CHASSIS.length, 18);
+  assert.equal(catalog.JEWELRY_CHASSIS.length, 15);
   assert.equal(catalog.VALUABLE_CHASSIS.length, 8);
-  assert.equal(catalog.CHASSIS.length, 26);
-  assert.equal(new Set(catalog.CHASSIS.map((entry) => entry.id)).size, 26);
+  assert.equal(catalog.CHASSIS.length, 23);
+  assert.equal(new Set(catalog.CHASSIS.map((entry) => entry.id)).size, 23);
 
   assert.equal(catalog.get('ring').itemType, 'accessory');
   assert.equal(catalog.get('ring').iconFamily, 'accessory');
   assert.equal(catalog.get('ornamental_goblet').itemType, 'valuable');
   assert.equal(catalog.get('ornamental_goblet').iconFamily, 'valuable');
+  assert.equal(catalog.get('ornamental_goblet').lootOnly, true);
+  assert.equal(catalog.get('ornamental_goblet').craftable, false);
+  assert.equal(catalog.get('ornamental_goblet').retailAvailable, false);
+  assert.equal(catalog.get('circlet'), null);
+  assert.equal(catalog.get('tiara'), null);
+  assert.equal(catalog.get('crown'), null);
   assert.equal(catalog.get('band').id, 'plain_band');
   assert.equal(catalog.get('scepter').id, 'ornamental_scepter');
 
@@ -92,15 +98,22 @@ const { pathToFileURL } = require('node:url');
   assert.equal(rawMetalRejected.valid, false);
   assert.equal(rawMetalRejected.reason, 'invalid_jewelry_metal');
 
-  const crown = catalog.create('crown', {
-    metalId:'platinum',
-    gems:[{ id:'starstone_exotic_gem', quantity:1 }, { id:'opal', quantity:8 }],
-    quality:'exceptional',
+  const lootOnlyRejected = catalog.create('ornamental_goblet', {
+    metalId:'silver',
   });
-  assert.equal(crown.valid, true);
-  assert.equal(crown.gemCount, 9);
-  assert.equal(crown.quality, 'exceptional');
-  assert.equal(crown.productionValueAhn, crown.standardProductionValueAhn * 2);
+  assert.equal(lootOnlyRejected.valid, false);
+  assert.equal(lootOnlyRejected.reason, 'loot_only_chassis');
+
+  const lootGoblet = catalog.create('ornamental_goblet', {
+    origin:'location_loot',
+    metalId:'silver',
+    gems:[{ id:'ruby', quantity:1 }],
+  });
+  assert.equal(lootGoblet.valid, true);
+  assert.equal(lootGoblet.lootOnly, true);
+  assert.equal(lootGoblet.craftable, false);
+  assert.equal(lootGoblet.retailAvailable, false);
+  assert.equal(lootGoblet.origin, 'location_loot');
 
   console.log(`Jewelry/Valuables catalog smoke: OK (${catalog.CHASSIS.length} generative chassis)`);
 })().catch((error) => {
