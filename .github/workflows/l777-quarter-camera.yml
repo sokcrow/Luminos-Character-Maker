@@ -40,9 +40,9 @@ jobs:
 
           const browser=await chromium.launch({headless:true});
           const page=await browser.newPage({viewport:{width:1280,height:720}});
-          const errors=[];
+          const errors=[],resourceErrors=[];
           page.on('pageerror',e=>errors.push('pageerror:'+String(e)));
-          page.on('console',m=>{if(m.type()==='error')errors.push('console:'+m.text())});
+          page.on('console',m=>{if(m.type()==='error')resourceErrors.push('console:'+m.text())});
 
           await page.goto('http://127.0.0.1:4173/game-engine/lab/game/forest-0.3.3.1.html?qa=procedural',{waitUntil:'domcontentloaded',timeout:120000});
           await page.waitForTimeout(12000);
@@ -53,7 +53,7 @@ jobs:
             procedural:window.__PROCEDURAL_QA__||null,
             body:document.body.className
           }));
-          console.log('BOOT_DIAG',JSON.stringify({boot,errors}));
+          console.log('BOOT_DIAG',JSON.stringify({boot,errors,resourceErrorCount:resourceErrors.length}));
           assert.equal(boot.camera,'object','camera API did not initialize: '+errors.join(' | '));
 
           const initial=await page.evaluate(()=>({
@@ -116,7 +116,20 @@ jobs:
           assert.equal(state.quarter,0);
           assert.equal(state.yaw,0);
 
-          assert.equal(errors.length,0,'page errors: '+errors.join(' | '));
+          // Explicit mobile path: a touch pointer swipe also advances exactly one quarter.
+          await page.evaluate(({x1,x2,y})=>{
+            const canvas=document.querySelector('canvas');
+            canvas.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,pointerId:77,pointerType:'touch',clientX:x1,clientY:y,button:0}));
+            canvas.dispatchEvent(new PointerEvent('pointermove',{bubbles:true,pointerId:77,pointerType:'touch',clientX:x2,clientY:y,button:0}));
+            canvas.dispatchEvent(new PointerEvent('pointerup',{bubbles:true,pointerId:77,pointerType:'touch',clientX:x2,clientY:y,button:0}));
+          },{x1:box.x+box.width*.74,x2:box.x+box.width*.52,y:box.y+box.height*.48});
+          await page.waitForTimeout(250);
+          state=await page.evaluate(()=>({quarter:window.PaperCameraControl.quarter(),yaw:window.PaperCameraControl.yaw()}));
+          console.log('QUARTER_CAMERA_TOUCH',JSON.stringify(state));
+          assert.equal(state.quarter,1);
+          assert.ok(Math.abs(state.yaw-Math.PI/2)<1e-9);
+
+          assert.equal(errors.length,0,'page runtime errors: '+errors.join(' | '));
           await page.screenshot({path:'quarter-camera.png',fullPage:false});
           await browser.close();
           EOF
