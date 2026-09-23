@@ -6,7 +6,7 @@
     return;
   }
 
-  const VERSION = 2;
+  const VERSION = 3;
   const FAMILY = "ore_ingot_gem";
   const CURRENCY = "AHN";
   const AHN_ECONOMY_SCALE = 2.5;
@@ -14,6 +14,14 @@
   const MATERIAL_UNIT = "material_unit";
   const MATERIAL_UNIT_ABBREVIATION = "MU";
   const RAW_MINERAL_PRICING_MODEL = "ahn_material_unit_tiered_v2";
+  const REFINED_PRICING_MODEL = "source_raw_value_x_refinement_multiplier_v2";
+  const REFINEMENT_PROFILES = Object.freeze({
+    basic: Object.freeze({ id:"basic", multiplier:1.50, tier:"generic" }),
+    specialized: Object.freeze({ id:"specialized", multiplier:1.60, tier:"workshop" }),
+    advanced: Object.freeze({ id:"advanced", multiplier:1.70, tier:"workshop" }),
+    corp: Object.freeze({ id:"corp", multiplier:1.85, tier:"corp_wing" }),
+    exotic: Object.freeze({ id:"exotic", multiplier:2.00, tier:"corp_wing" }),
+  });
 
   function safeRequire(path) {
     if (typeof require !== "function") return null;
@@ -77,6 +85,46 @@
     });
   }
 
+  function refinedFromRaw(def) {
+    const sourceRawId = normalizeId(def.sourceRawId);
+    const source = RAW_MINERALS.find((entry) => entry.id === sourceRawId);
+    if (!source) throw new Error(`Unknown raw mineral source for refined material: ${sourceRawId}`);
+    const profileId = normalizeId(def.profile || "basic");
+    const profile = REFINEMENT_PROFILES[profileId];
+    if (!profile) throw new Error(`Unknown refinement profile: ${profileId}`);
+    const form = normalizeId(def.form || "refined_metal");
+    const isIngot = def.ingot !== false;
+    return material({
+      id: normalizeId(def.id),
+      name: def.name,
+      materialNoun: def.name,
+      form,
+      materialClass: "refined_metal",
+      iconFamily: normalizeId(def.iconFamily || "metal_ingot"),
+      standardUnitValueAhn: Math.round(source.standardUnitValueAhn * profile.multiplier),
+      measure: MATERIAL_UNIT,
+      unitAbbreviation: MATERIAL_UNIT_ABBREVIATION,
+      pieceBased: false,
+      processed: true,
+      rawCraftingReagent: false,
+      sourceKinds: ["metallurgy"],
+      sourceRawId,
+      pricingModel: REFINED_PRICING_MODEL,
+      refinementProfile: profile.id,
+      refinementMultiplier: profile.multiplier,
+      processTier: profile.tier,
+      useTags: [
+        "weapons","armor","tools","augments","industrial_fabrication","upgrade_material",
+        ...(def.useTags || [])
+      ],
+      tags: [
+        "ingredient","metal_stock","refined_metal",
+        ...(isIngot ? ["ingot"] : ["processed_material"]),
+        ...(def.tags || [])
+      ],
+    });
+  }
+
   function gemstone(baseId, name, roughValue, cutValue, resonanceTags) {
     return [
       material({
@@ -132,31 +180,34 @@
   ]);
 
   const REFINED_METALS = Object.freeze([
-    refinedMetal("lead", "Lead", 18000),
-    refinedMetal("iron", "Iron", 20000),
-    refinedMetal("aluminum", "Aluminum", 24000),
-    refinedMetal("zinc", "Zinc", 25000),
-    refinedMetal("tin", "Tin", 27000),
-    refinedMetal("copper", "Copper", 30000),
-    refinedMetal("manganese", "Manganese", 34000),
-    refinedMetal("nickel", "Nickel", 40000),
-    refinedMetal("chromium", "Chromium", 50000),
-    refinedMetal("lithium", "Lithium", 58000),
-    refinedMetal("molybdenum", "Molybdenum", 65000),
-    refinedMetal("vanadium", "Vanadium", 70000),
-    refinedMetal("cobalt", "Cobalt", 75000),
-    refinedMetal("silver", "Silver", 90000),
-    refinedMetal("tungsten", "Tungsten", 105000),
-    refinedMetal("titanium", "Titanium", 120000),
-    refinedMetal("gold", "Gold", 130000),
-    refinedMetal("niobium", "Niobium", 140000),
-    refinedMetal("tantalum", "Tantalum", 150000),
-    refinedMetal("rare_earth_refined_material", "Rare-Earth Refined Material", 175000),
-    refinedMetal("refined_uranium_material", "Refined Uranium Material", 220000),
-    refinedMetal("superconductive_material", "Superconductive Material", 300000),
-    refinedMetal("refined_metamaterial", "Refined Metamaterial", 375000),
-    refinedMetal("null_dampening_material", "Null / Dampening Material", 450000),
-    refinedMetal("exotic_refined_material", "Exotic Refined Material", 500000),
+    refinedFromRaw({ id:"lead", name:"Lead", sourceRawId:"lead_ore", profile:"basic", iconFamily:"ingot_lead" }),
+    refinedFromRaw({ id:"iron", name:"Iron", sourceRawId:"iron_ore", profile:"basic", iconFamily:"ingot_iron" }),
+    refinedFromRaw({ id:"aluminum", name:"Aluminum", sourceRawId:"bauxite_aluminum_ore", profile:"basic", iconFamily:"ingot_aluminum" }),
+    refinedFromRaw({ id:"zinc", name:"Zinc", sourceRawId:"zinc_ore", profile:"basic", iconFamily:"ingot_zinc" }),
+    refinedFromRaw({ id:"tin", name:"Tin", sourceRawId:"tin_ore", profile:"basic", iconFamily:"ingot_tin" }),
+    refinedFromRaw({ id:"copper", name:"Copper", sourceRawId:"copper_ore", profile:"basic", iconFamily:"ingot_copper" }),
+    refinedFromRaw({ id:"manganese", name:"Manganese", sourceRawId:"manganese_ore", profile:"basic", iconFamily:"ingot_manganese" }),
+    refinedFromRaw({ id:"nickel", name:"Nickel", sourceRawId:"nickel_ore", profile:"basic", iconFamily:"ingot_nickel" }),
+
+    refinedFromRaw({ id:"chromium", name:"Chromium", sourceRawId:"chromium_ore", profile:"specialized", iconFamily:"ingot_chromium" }),
+    refinedFromRaw({ id:"lithium", name:"Lithium", sourceRawId:"lithium_ore", profile:"specialized", iconFamily:"ingot_lithium" }),
+    refinedFromRaw({ id:"molybdenum", name:"Molybdenum", sourceRawId:"molybdenum_ore", profile:"specialized", iconFamily:"ingot_molybdenum" }),
+    refinedFromRaw({ id:"vanadium", name:"Vanadium", sourceRawId:"vanadium_ore", profile:"specialized", iconFamily:"ingot_vanadium" }),
+    refinedFromRaw({ id:"cobalt", name:"Cobalt", sourceRawId:"cobalt_ore", profile:"specialized", iconFamily:"ingot_cobalt" }),
+    refinedFromRaw({ id:"silver", name:"Silver", sourceRawId:"silver_ore", profile:"specialized", iconFamily:"ingot_silver", useTags:["jewelry_material","precious_metal"], tags:["jewelry_material","precious_metal"] }),
+    refinedFromRaw({ id:"tungsten", name:"Tungsten", sourceRawId:"tungsten_ore", profile:"specialized", iconFamily:"ingot_tungsten" }),
+    refinedFromRaw({ id:"titanium", name:"Titanium", sourceRawId:"titanium_ore", profile:"specialized", iconFamily:"ingot_titanium" }),
+    refinedFromRaw({ id:"gold", name:"Gold", sourceRawId:"gold_ore", profile:"specialized", iconFamily:"ingot_gold", useTags:["jewelry_material","precious_metal"], tags:["jewelry_material","precious_metal"] }),
+    refinedFromRaw({ id:"niobium", name:"Niobium", sourceRawId:"niobium_ore", profile:"specialized", iconFamily:"ingot_niobium" }),
+    refinedFromRaw({ id:"tantalum", name:"Tantalum", sourceRawId:"tantalum_ore", profile:"specialized", iconFamily:"ingot_tantalum" }),
+    refinedFromRaw({ id:"platinum", name:"Platinum", sourceRawId:"platinum_ore", profile:"specialized", iconFamily:"ingot_platinum", useTags:["jewelry_material","precious_metal","precision"], tags:["jewelry_material","precious_metal"] }),
+
+    refinedFromRaw({ id:"rare_earth_refined_material", name:"Rare-Earth Refined Material", sourceRawId:"rare_earth_concentrate", profile:"advanced", iconFamily:"material_rare_earth_refined", ingot:false, form:"refined_material", useTags:["advanced_material","electronics","sensor"], tags:["advanced_material"] }),
+    refinedFromRaw({ id:"refined_uranium_material", name:"Refined Uranium Material", sourceRawId:"uranium_bearing_ore", profile:"advanced", iconFamily:"material_uranium_refined", ingot:false, form:"refined_material", useTags:["advanced_material","regulated_energy","nuclear"], tags:["advanced_material","regulated_material"] }),
+    refinedFromRaw({ id:"superconductive_material", name:"Superconductive Material", sourceRawId:"superconductive_mineral", profile:"corp", iconFamily:"material_superconductive", ingot:false, form:"refined_material", useTags:["advanced_material","superconductive","energy","corp_technology"], tags:["advanced_material","corp_material"] }),
+    refinedFromRaw({ id:"refined_metamaterial", name:"Refined Metamaterial", sourceRawId:"metamaterial_ore", profile:"corp", iconFamily:"material_metamaterial_refined", ingot:false, form:"refined_material", useTags:["advanced_material","advanced_armor","experimental_technology"], tags:["advanced_material","corp_material"] }),
+    refinedFromRaw({ id:"null_dampening_material", name:"Null / Dampening Material", sourceRawId:"null_dampening_mineral", profile:"exotic", iconFamily:"material_null_dampening", ingot:false, form:"refined_material", useTags:["advanced_material","dampening","isolation","special_technology"], tags:["advanced_material","exotic_material"] }),
+    refinedFromRaw({ id:"exotic_refined_material", name:"Exotic Refined Material", sourceRawId:"exotic_industrial_mineral", profile:"exotic", iconFamily:"material_exotic_refined", ingot:false, form:"refined_material", useTags:["advanced_material","exotic_industry","high_tier_crafting"], tags:["advanced_material","exotic_material"] }),
   ]);
 
   const ALLOYS = Object.freeze([
@@ -215,6 +266,8 @@
     carbon_mineral: "graphite_carbon_mineral",
     rare_earth: "rare_earth_concentrate",
     raw_platinum: "platinum_ore",
+    platinum_ingot: "platinum",
+    refined_platinum: "platinum",
     uranium_ore: "uranium_bearing_ore",
     null_mineral: "null_dampening_mineral",
     dampening_mineral: "null_dampening_mineral",
@@ -301,7 +354,7 @@
   }
 
   const API = Object.freeze({
-    VERSION, FAMILY, CURRENCY, DEFAULT_QUALITY, MATERIAL_UNIT, MATERIAL_UNIT_ABBREVIATION, RAW_MINERAL_PRICING_MODEL,
+    VERSION, FAMILY, CURRENCY, DEFAULT_QUALITY, MATERIAL_UNIT, MATERIAL_UNIT_ABBREVIATION, RAW_MINERAL_PRICING_MODEL, REFINED_PRICING_MODEL, REFINEMENT_PROFILES,
     RAW_MINERALS, REFINED_METALS, ALLOYS, ROUGH_GEMS, CUT_GEMS, ITEMS, ALIASES,
     CREATURE_MINERAL_HARVEST_RULE, get, list, unitValueForQuality, canSourceFromCreatureBody, createStack, createCreatureHarvestStack,
   });
