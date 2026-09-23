@@ -4,7 +4,7 @@
     if (typeof module !== "undefined" && module.exports) module.exports = global.LuminousItemIconRegistry;
     return;
   }
-  const VERSION = 26;
+  const VERSION = 27;
   const DEFAULT_GROUP = "generic_item";
   function family(id, label, labelEs, domain, icon) { return Object.freeze({ id, label, labelEs, domain, icon }); }
   const FAMILY_ROWS = Object.freeze([
@@ -394,6 +394,14 @@
     ["valuable_plate_gold","Gold Ornamental Plate","Plato ornamental dorado","utility","https://imgur.com/xMa2boP.png"],
     ["valuable_reliquary_gold","Gold Reliquary","Relicario dorado","utility","https://imgur.com/0zXUly4.png"],
     ["valuable_scepter_gold","Gold Scepter","Cetro dorado","utility","https://imgur.com/UQVxbFH.png"],
+    ["valuable_goblet_gems","Gem-Inlaid Goblet","Copa con gemas","utility","https://imgur.com/IT50muO.png"],
+    ["valuable_chalice_gems","Gem-Inlaid Chalice","Cáliz con gemas","utility","https://imgur.com/etPv6Jn.png"],
+    ["valuable_box_gems","Gem-Inlaid Decorative Box","Caja decorativa con gemas","utility","https://imgur.com/qtHqQEa.png"],
+    ["valuable_statuette_gems","Gem-Inlaid Statuette","Estatuilla con gemas","utility","https://imgur.com/ALqzBwL.png"],
+    ["valuable_mask_gems","Gem-Inlaid Mask","Máscara con gemas","utility","https://imgur.com/7zPQyjN.png"],
+    ["valuable_plate_gems","Gem-Inlaid Ornamental Plate","Plato ornamental con gemas","utility","https://imgur.com/E63cuoq.png"],
+    ["valuable_reliquary_gems","Gem-Inlaid Reliquary","Relicario con gemas","utility","https://imgur.com/VLwx7Gs.png"],
+    ["valuable_scepter_gems","Gem-Inlaid Scepter","Cetro con gemas","utility","https://imgur.com/OIIlikM.png"],
     ["armor_light","Light Armor","Armadura ligera","equipment","https://imgur.com/yO2oNKD.png"],
     ["armor_medium","Medium Armor","Armadura media","equipment","https://imgur.com/Yq7KrcC.png"],
     ["armor_heavy","Heavy Armor","Armadura pesada","equipment","https://imgur.com/Jqri9Tk.png"]
