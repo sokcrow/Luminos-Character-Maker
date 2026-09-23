@@ -15,25 +15,29 @@ const { pathToFileURL } = require('node:url');
 
   const catalog = globalThis.LuminousJewelryValuableCatalog;
   assert.ok(catalog);
-  assert.equal(catalog.VERSION, 2);
+  assert.equal(catalog.VERSION, 3);
   assert.equal(catalog.CURRENCY, 'AHN');
   assert.equal(catalog.JEWELRY_CHASSIS.length, 15);
-  assert.equal(catalog.VALUABLE_CHASSIS.length, 8);
-  assert.equal(catalog.CHASSIS.length, 23);
-  assert.equal(new Set(catalog.CHASSIS.map((entry) => entry.id)).size, 23);
+  assert.equal(catalog.VALUABLE_CHASSIS.length, 2);
+  assert.equal(catalog.CHASSIS.length, 17);
+  assert.equal(new Set(catalog.CHASSIS.map((entry) => entry.id)).size, 17);
 
   assert.equal(catalog.get('ring').itemType, 'accessory');
   assert.equal(catalog.get('ring').iconFamily, 'accessory');
-  assert.equal(catalog.get('ornamental_goblet').itemType, 'valuable');
-  assert.equal(catalog.get('ornamental_goblet').iconFamily, 'valuable');
-  assert.equal(catalog.get('ornamental_goblet').lootOnly, true);
-  assert.equal(catalog.get('ornamental_goblet').craftable, false);
-  assert.equal(catalog.get('ornamental_goblet').retailAvailable, false);
+  assert.equal(catalog.get('gold_relic').itemType, 'valuable');
+  assert.equal(catalog.get('gold_relic').iconFamily, 'valuable');
+  assert.equal(catalog.get('gold_relic').lootOnly, true);
+  assert.equal(catalog.get('gold_relic').craftable, false);
+  assert.equal(catalog.get('gold_relic').retailAvailable, false);
+  assert.equal(catalog.get('gem_inlaid_relic').lootOnly, true);
+  assert.equal(catalog.get('ornamental_goblet'), null);
+  assert.equal(catalog.get('reliquary'), null);
   assert.equal(catalog.get('circlet'), null);
   assert.equal(catalog.get('tiara'), null);
   assert.equal(catalog.get('crown'), null);
   assert.equal(catalog.get('band').id, 'plain_band');
-  assert.equal(catalog.get('scepter').id, 'ornamental_scepter');
+  assert.equal(catalog.get('relic').id, 'gold_relic');
+  assert.equal(catalog.get('jeweled_relic').id, 'gem_inlaid_relic');
 
   const necklace = catalog.create('necklace', {
     metalId: 'gold',
@@ -98,22 +102,33 @@ const { pathToFileURL } = require('node:url');
   assert.equal(rawMetalRejected.valid, false);
   assert.equal(rawMetalRejected.reason, 'invalid_jewelry_metal');
 
-  const lootOnlyRejected = catalog.create('ornamental_goblet', {
-    metalId:'silver',
-  });
+  const lootOnlyRejected = catalog.create('gold_relic', {});
   assert.equal(lootOnlyRejected.valid, false);
   assert.equal(lootOnlyRejected.reason, 'loot_only_chassis');
 
-  const lootGoblet = catalog.create('ornamental_goblet', {
+  const goldRelic = catalog.create('gold_relic', {
     origin:'location_loot',
-    metalId:'silver',
-    gems:[{ id:'ruby', quantity:1 }],
   });
-  assert.equal(lootGoblet.valid, true);
-  assert.equal(lootGoblet.lootOnly, true);
-  assert.equal(lootGoblet.craftable, false);
-  assert.equal(lootGoblet.retailAvailable, false);
-  assert.equal(lootGoblet.origin, 'location_loot');
+  assert.equal(goldRelic.valid, true);
+  assert.equal(goldRelic.lootOnly, true);
+  assert.equal(goldRelic.craftable, false);
+  assert.equal(goldRelic.retailAvailable, false);
+  assert.equal(goldRelic.origin, 'location_loot');
+  assert.equal(goldRelic.metalId, 'gold');
+  assert.equal(goldRelic.gemCount, 0);
+  assert.equal(goldRelic.relicValueTier, 1);
+  assert.equal(goldRelic.displayName, 'Gold Relic');
+
+  const gemRelic = catalog.create('gem_inlaid_relic', {
+    origin:'treasure',
+    gems:[{id:'diamond',quantity:99}],
+  });
+  assert.equal(gemRelic.valid, true);
+  assert.equal(gemRelic.metalId, 'gold');
+  assert.equal(gemRelic.gemCount, 0);
+  assert.equal(gemRelic.relicValueTier, 2);
+  assert.ok(gemRelic.productionValueAhn > goldRelic.productionValueAhn);
+  assert.equal(gemRelic.displayName, 'Gem-Inlaid Relic');
 
   console.log(`Jewelry/Valuables catalog smoke: OK (${catalog.CHASSIS.length} generative chassis)`);
 })().catch((error) => {
