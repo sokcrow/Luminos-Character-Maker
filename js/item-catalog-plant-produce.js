@@ -86,7 +86,7 @@
   }
 
   const ITEMS = Object.freeze([
-    // Fruits — 26
+    // Fruits — 24
     ingredient("apple", "Apple", "fruit", "apple", 300, ["fruit"], ["sweet"], ["bake", "juice", "fermentable"]),
     ingredient("pear", "Pear", "fruit", "pear", 350, ["fruit"], ["sweet"], ["preserve"]),
     ingredient("orange", "Orange", "fruit", "orange", 400, ["fruit"], ["citrus", "acidic"], ["juice", "refreshing"]),
@@ -111,8 +111,6 @@
     ingredient("blueberry", "Blueberry", "fruit", "blueberry", 550, ["fruit"], ["berry", "sweet"], ["dessert", "preserve"]),
     ingredient("raspberry", "Raspberry", "fruit", "raspberry", 600, ["fruit"], ["berry", "sweet", "acidic"], ["dessert", "preserve"]),
     ingredient("red_berry", "Red Berry", "fruit", "red_berry", 500, ["fruit"], ["berry", "sweet"], ["tea", "preserve"]),
-    ingredient("camellia_fruit", "Camellia Fruit", "fruit", "fruit_raw", 1000, ["fruit"], ["aromatic", "exotic"], ["drink", "cocktail", "special_ingredient"]),
-    ingredient("catnip_fruit", "Catnip Fruit", "fruit", "fruit_raw", 800, ["fruit", "herb"], ["aromatic", "fresh"], ["tea", "drink", "special_ingredient"]),
 
     // Vegetables / Produce — 16
     ingredient("potato", "Potato", "vegetable", "vegetable_raw", 200, ["vegetable", "starch"], ["earthy"], ["filling", "stew", "roast"]),
