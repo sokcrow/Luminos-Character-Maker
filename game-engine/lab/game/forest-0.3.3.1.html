@@ -2172,7 +2172,8 @@ function proceduralZoneNatureSample(id,tx,tz){
   const lowShrubFactor=zoneClamp(bushFactor*(1-meadow*.28)+(region.biomeProfile==='grassland'?(.05+meadow*.12):0),0,1.35);
   const leafLitter=zoneClamp((forestDepth*.92+forestEdge*.36+moisture*.12-clearing*.42-meadow*.28)*(forestMode?1:.18),0,1);
   const shoreWet=hydro.type==='coast'?zoneClamp(1-Math.abs(hydro.distanceToCoast-.7)/2.4,0,1):0;
-  const reedFactor=zoneClamp((moisture-.68)*2.3+shoreWet*.58+(hydro.type==='wetland'?hydro.wetness*.72:0),0,1);
+  const inlandWet=Number.isFinite(hydro.distanceToWater)?zoneClamp(1-hydro.distanceToWater/3.6,0,1):0;
+  const reedFactor=zoneClamp((moisture-.68)*2.3+shoreWet*.58+inlandWet*.46+(hydro.type==='wetland'?hydro.wetness*.72:0),0,1);
   const cactusFactor=region.biomeProfile==='desert'?zoneClamp(region.aridity*(1-moisture)*coastVegetation*(1-ridge*.25),0,1):0;
   const coastEco=hydro.type==='coast'?coastV2EcologySample(id,tx,tz,{includeSlope:false}):null;
   return {clearing,meadow,ridge,forestDepth,forestEdge,treeFactor,bushFactor,lowShrubFactor,tallGrass,meadowFloor,wildflowerFactor,leafLitter,moisture,rockiness,vegetation,geography:geo,distanceToWater:hydro.distanceToWater,distanceToCoast:hydro.distanceToCoast,hydroClass:hydro.class,wetness:hydro.wetness,reedFactor,cactusFactor,
@@ -5094,6 +5095,41 @@ function buildProceduralCoastVisual(g,id=mapId){
   const base=new THREE.Mesh(geo,baseMat);base.rotation.x=-Math.PI/2;base.position.set(wt(cx),waterY+.018,wt(cz));base.receiveShadow=true;group.add(base);
   const foamGeo=coastBandGeometryForSector(id,coast,-.16,.18);
   if(foamGeo){const foamMat=legacyKit?.foamMaterial||new THREE.MeshBasicMaterial({color:visual.foam,transparent:true,opacity:.55,side:THREE.DoubleSide,depthWrite:false});const foam=new THREE.Mesh(foamGeo,foamMat);foam.position.y=waterY+.046;foam.renderOrder=-4;group.add(foam)}
+  return group;
+}
+
+function inlandHydrologyWaterMaskTextureForSector(id,bounds,resolution=256){
+  const hydro=activeProceduralZone?.hydrology;if(!hydro||!['river','lake','wetland'].includes(hydro.type))return null;
+  const size=Math.max(96,Math.min(384,Math.round(resolution))),c=document.createElement('canvas');c.width=c.height=size;
+  const x=c.getContext('2d'),img=x.createImageData(size,size),data=img.data;
+  for(let py=0;py<size;py++){
+    const v=(py+.5)/size,tz=THREE.MathUtils.lerp(bounds.z1,bounds.z0,v);
+    for(let px=0;px<size;px++){
+      const u=(px+.5)/size,tx=THREE.MathUtils.lerp(bounds.x0,bounds.x1,u),h=proceduralHydrologySample(id,tx,tz);
+      const signed=Number(h.signedDistanceToWater),edge=Number.isFinite(signed)?zoneClamp((.24-signed)/.34,0,1):(h.water?1:0);
+      const alpha=h.water?1:smooth01(edge),i=(py*size+px)*4,val=Math.round(alpha*255);
+      data[i]=data[i+1]=data[i+2]=val;data[i+3]=255;
+    }
+  }
+  x.putImageData(img,0,0);
+  const tex=new THREE.CanvasTexture(c);tex.wrapS=tex.wrapT=THREE.ClampToEdgeWrapping;tex.magFilter=THREE.LinearFilter;tex.minFilter=THREE.LinearMipmapLinearFilter;tex.needsUpdate=true;
+  return tex;
+}
+function buildProceduralInlandWaterVisual(g,id=mapId){
+  const hydro=activeProceduralZone?.hydrology;if(!hydro||!['river','lake','wetland'].includes(hydro.type))return null;
+  const region=activeProceduralZone.region,visual=region.surfaceStyle||SURFACE_VISUAL_PROFILES.temperate;
+  const mapDef=MAP_DATA.maps[id]||currentMapDef(),bounds=mapDef?.bounds||{x0:-OVERWORLD_HALF,x1:OVERWORLD_HALF,z0:-OVERWORLD_HALF,z1:OVERWORLD_HALF};
+  const mask=inlandHydrologyWaterMaskTextureForSector(id,bounds,256);if(!mask)return null;
+  const kit=window.PaperFX?.createWater?.({baseColor:visual.waterBase,waves:['wavesA','wavesB'],foam:'foam',waveColors:[visual.waveA,visual.waveB],foamColor:visual.foam})||null;
+  const sourceMat=kit?.baseMaterial||new THREE.MeshStandardMaterial({color:visual.waterBase,roughness:.34,side:THREE.DoubleSide});
+  const mat=sourceMat.clone();mat.transparent=true;mat.alphaMap=mask;mat.alphaTest=.02;mat.depthWrite=true;mat.side=THREE.DoubleSide;mat.opacity=.94;mat.needsUpdate=true;
+  const w=bounds.x1-bounds.x0,d=bounds.z1-bounds.z0,cx=(bounds.x0+bounds.x1)*.5,cz=(bounds.z0+bounds.z1)*.5;
+  const geo=new THREE.PlaneGeometry(wt(w),wt(d),1,1);
+  const field=hydro.river||hydro.lake||hydro;
+  const waterTiles=Number.isFinite(field.waterSurfaceTiles)?field.waterSurfaceTiles:(Number.isFinite(hydro.waterTableTiles)?hydro.waterTableTiles:region.altitude-.2);
+  const mesh=new THREE.Mesh(geo,mat);mesh.rotation.x=-Math.PI/2;mesh.position.set(wt(cx),tileY(waterTiles)+.022,wt(cz));mesh.receiveShadow=true;mesh.renderOrder=-5;
+  mesh.userData.paperFXWaterSurface=true;mesh.userData.proceduralHydrologyType=hydro.type;
+  const group=new THREE.Group();group.name=`procedural-${hydro.type}-water`;group.add(mesh);group.userData.paperFXWaterMesh=mesh;g.add(group);
   return group;
 }
 
@@ -9635,7 +9671,7 @@ function swimSurfaceYAtWorld(x,z,layer=currentWorldLayer){
   // Flooded Grove conserva el nivel histórico de laguna. En mapas de grid, cada
   // superficie de nado puede declarar su propia elevación (río = -.25 tile).
   if(mapId==='floodedGrove')return SWIM_WATER_SURFACE_Y;
-  if(isOverworldSector(mapId)&&activeProceduralZone?.hydrology?.type==='coast'){
+  if(isOverworldSector(mapId)&&activeProceduralZone?.hydrology?.type!=='none'){
     const h=proceduralHydrologySample(mapId,x/TILE,z/TILE);
     if(h.water&&Number.isFinite(h.waterSurfaceTiles))return tileY(h.waterSurfaceTiles);
   }
@@ -9645,7 +9681,7 @@ function swimSurfaceYAtWorld(x,z,layer=currentWorldLayer){
 }
 function waterDepthTilesAtWorld(x,z,layer=currentWorldLayer){
   if(mapId==='floodedGrove'&&floodedGroveSwimAtWorld(x,z))return 1.15;
-  if(isOverworldSector(mapId)&&activeProceduralZone?.hydrology?.type==='coast'){
+  if(isOverworldSector(mapId)&&activeProceduralZone?.hydrology?.type!=='none'){
     const h=proceduralHydrologySample(mapId,x/TILE,z/TILE);if(h.water)return Math.max(.02,Number(h.waterDepth)||0);
   }
   const cell=gridCellAtWorld(x,z,layer);
@@ -10499,10 +10535,9 @@ function difficultTerrainContains(t,x,z){
 function locomotionModeAt(x,z){
   if(activeInteriorStage)return 'ground';
   if(mapId==='floodedGrove')return floodedGroveSwimAtWorld(x,z)?'swim':'ground';
-  // 0.3.2-69 · En costa, agua/tierra se consulta en el campo continuo del mundo.
-  // Los tiles siguen sirviendo para permisos/multiplicadores de movimiento, pero NO
-  // deciden dónde empieza físicamente el agua ni cuándo una Unit entra en buoyancy.
-  if(isOverworldSector(mapId)&&activeProceduralZone?.hydrology?.type==='coast'){
+  // Hydrology V1 · costa, río y lago consultan el mismo campo continuo del mundo.
+  // El grid sólo conserva permisos/multiplicadores; la silueta física no nace de tiles.
+  if(isOverworldSector(mapId)&&activeProceduralZone?.hydrology?.type!=='none'){
     return proceduralHydrologySample(mapId,x/TILE,z/TILE).water?'swim':'ground';
   }
   const cell=gridCellAtWorld(x,z,currentWorldLayer);
@@ -14871,7 +14906,9 @@ function biomeValidationV2AuditActiveRegion(id='owC'){
   const reliefWeight=Math.max(weights.rolling||0,weights.hills||0,weights.ridges||0,weights.mountain||0,weights.cliffs||0);
   const requiresSignedGeography=reliefWeight>.12;
   const requiresGeology=(region.rockiness||0)>=.08||Math.max(weights.hills||0,weights.ridges||0,weights.mountain||0,weights.cliffs||0,weights.mesas||0)>.18;
-  const requiresCoast=region.hydrology?.type==='coast';
+  const requestedHydrology=region.hydrology?.type||'none',resolvedHydrology=activeProceduralZone.hydrology?.type||'none';
+  const requiresCoast=requestedHydrology==='coast';
+  const requiresInlandWater=['river','lake','wetland'].includes(resolvedHydrology);
   const requiresForest=region.biomeProfile==='forest';
   let waterSamples=0,landSamples=0,moistureTotal=0,rockinessTotal=0,vegetationTotal=0,natureSamples=0;
   const extent=OVERWORLD_HALF-3,step=4;
@@ -14885,20 +14922,21 @@ function biomeValidationV2AuditActiveRegion(id='owC'){
   const checks=Object.freeze({
     generation:!!generation.ok,
     profile:activeProceduralZone.biomeFamily===region.biomeProfile,
-    hydrology:(activeProceduralZone.hydrology?.type||'none')===(region.hydrology?.type||'none'),
+    hydrology:requestedHydrology==='auto'?resolvedHydrology!=='auto':resolvedHydrology===requestedHydrology,
     macroforms:(activeProceduralZone.macroforms?.length||0)>0,
     signedGeography:!requiresSignedGeography||(activeProceduralZone.geography?.features?.length||0)>0,
     geology:!requiresGeology||geologyCount>0,
     geologyReadable:(generation.geologyOutcrops||0)===0||generation.nearestOutcropDistanceTiles<=22,
     routes:generation.geologyAudit?.ok===true,
     coast:!requiresCoast||(waterSamples>0&&landSamples>0),
+    inlandWater:!requiresInlandWater||(waterSamples>0&&landSamples>0),
     forest:!requiresForest||(activeProceduralZone.forestBiome===true&&forestCorridors>0),
     gridHidden:generation.visibleGridGeometry===false
   });
   return Object.freeze({
     ok:Object.values(checks).every(Boolean),
     regionId:region.id,label:region.label,biomeProfile:region.biomeProfile,sectorId:id,
-    hydrology:activeProceduralZone.hydrology?.type||'none',
+    hydrology:resolvedHydrology,requestedHydrology,
     macroforms:activeProceduralZone.macroforms?.length||0,
     geographyFeatures:activeProceduralZone.geography?.features?.length||0,
     forestCorridors,waterSamples,landSamples,
@@ -15624,11 +15662,9 @@ function buildOverworldSector(){
   // sobre la decoración procedural. Árboles/arbustos/flores no se colocan encima.
   // Puentes y estructuras no pasan por esta función y por eso sí pueden cruzarlo.
   function natureFeatureBlocksDecoration(x,z,radiusTiles=0){
-    const continuousCoast=isProceduralZone&&activeProceduralZone?.hydrology?.type==='coast';
-    // COAST V2: el despeje de decoración también usa el campo continuo. Si aquí
-    // consultáramos rectángulos de water tiles volveríamos a dibujar huecos cuadrados
-    // en palmeras, arbustos y pastos aunque el suelo ya fuera continuo.
-    if(continuousCoast){
+    const continuousHydrology=isProceduralZone&&activeProceduralZone?.hydrology?.type!=='none';
+    // Toda hidrología procedural usa el campo continuo para despejar vegetación.
+    if(continuousHydrology){
       const r=Math.max(0,radiusTiles),samples=[[0,0],[r,0],[-r,0],[0,r],[0,-r],[r*.7,r*.7],[r*.7,-r*.7],[-r*.7,r*.7],[-r*.7,-r*.7]];
       for(const [ox,oz] of samples)if(proceduralHydrologySample(mapId,x+ox,z+oz).water)return true;
     }
@@ -15636,9 +15672,7 @@ function buildOverworldSector(){
     for(const surface of (def?.surfaces||[])){
       if((surface.layer||'exterior')!=='exterior')continue;
       const tags=surface.tags||[];
-      // Las superficies coast-water son índices semánticos del grid; ya fueron sustituidas
-      // arriba por el campo continuo y no deben volver a bloquear decoración por tile.
-      if(continuousCoast&&tags.includes('nature:coast'))continue;
+      if(continuousHydrology&&tags.some(tag=>['nature:coast','nature:river','nature:lake','nature:pond','nature:wetland'].includes(tag)))continue;
       const blocks=tags.includes('water')||tags.includes('void-below')||tags.includes('sunken-water-channel')||tags.includes('nature:waterfall');
       if(!blocks)continue;
       if(!Number.isFinite(surface.x0)||!Number.isFinite(surface.x1)||!Number.isFinite(surface.z0)||!Number.isFinite(surface.z1))continue;
@@ -15829,6 +15863,7 @@ function buildOverworldSector(){
   // villa o cantera puede contener el mismo módulo sin duplicar lógica.
   buildRiverModulesForSector(g,mapId);
   if(isProceduralZone&&activeProceduralZone?.hydrology?.type==='coast')buildProceduralCoastVisual(g,mapId);
+  else if(isProceduralZone&&['river','lake','wetland'].includes(activeProceduralZone?.hydrology?.type))buildProceduralInlandWaterVisual(g,mapId);
 
   // Composición por sector: en una Zona procedural la identidad sale de la receta
   // macro/local, no de los themes legacy del 3×3 de prueba.
@@ -16181,8 +16216,10 @@ function clearMap(){
   clearHitboxDebug();
 }
 function waterSpawnClearanceTilesAtWorld(x,z){
-  if(isOverworldSector(mapId)&&activeProceduralZone?.hydrology?.type==='coast'){
-    const h=proceduralHydrologySample(mapId,x/TILE,z/TILE);return Number.isFinite(h.distanceToCoast)?h.distanceToCoast:Infinity;
+  if(isOverworldSector(mapId)&&activeProceduralZone?.hydrology?.type!=='none'){
+    const h=proceduralHydrologySample(mapId,x/TILE,z/TILE);
+    if(h.water)return -1;
+    return Number.isFinite(h.distanceToWater)?h.distanceToWater:Infinity;
   }
   return locomotionModeAt(x,z,currentWorldLayer)==='swim'?-1:Infinity;
 }
