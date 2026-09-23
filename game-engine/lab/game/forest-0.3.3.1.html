@@ -16304,6 +16304,13 @@ function resolveSafeSpawn(mapDef,desired,{requireDry=true}={}){
   console.error('Spawn safety could not find a collision-free point',mapId);
   return source;
 }
+const SpawnSafetySystem=Object.freeze({
+  candidateAllowed:(x,z,options={})=>spawnCandidateAllowed(x,z,currentMapDef(),options),
+  resolve:(position,options={})=>resolveSafeSpawn(currentMapDef(),position,options),
+  playerIsSafe:(options={})=>spawnCandidateAllowed(player.position.x,player.position.z,currentMapDef(),options)
+});
+window.SpawnSafetySystem=SpawnSafetySystem;
+
 const WaterGameplaySystem=Object.freeze({
   rules:WATER_GAMEPLAY_RULES,
   sampleAt:(x,z,layer=currentWorldLayer)=>waterGameplaySampleAtWorld(x,z,layer),
