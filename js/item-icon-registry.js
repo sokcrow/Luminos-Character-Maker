@@ -4,7 +4,7 @@
     if (typeof module !== "undefined" && module.exports) module.exports = global.LuminousItemIconRegistry;
     return;
   }
-  const VERSION = 27;
+  const VERSION = 28;
   const DEFAULT_GROUP = "generic_item";
   function family(id, label, labelEs, domain, icon) { return Object.freeze({ id, label, labelEs, domain, icon }); }
   const FAMILY_ROWS = Object.freeze([
@@ -278,6 +278,30 @@
     ["organic_material","Organic Material","Material orgánico","material","https://imgur.com/lqQbJds.png"],
     ["plant_herb","Plant / Herb","Planta / Hierba","material","https://imgur.com/DucSfXD.png"],
     ["fruit_raw","Raw Fruit","Fruta cruda","material","https://imgur.com/JA0yMwM.png"],
+    ["apple","Apple","Manzana","material","https://imgur.com/vaEPPe1.png"],
+    ["pear","Pear","Pera","material","https://imgur.com/9aam7EX.png"],
+    ["orange","Orange","Naranja","material","https://imgur.com/9c9Kg4O.png"],
+    ["lemon","Lemon","Limón","material","https://imgur.com/r05jdzP.png"],
+    ["blackberry","Blackberry","Mora","material","https://imgur.com/FQKBdij.png"],
+    ["strawberry","Strawberry","Fresa","material","https://imgur.com/qLBcW1w.png"],
+    ["grape","Grape","Uva","material","https://imgur.com/NKFUBJV.png"],
+    ["peach","Peach","Durazno","material","https://imgur.com/5dwTQBv.png"],
+    ["cherry","Cherry","Cereza","material","https://imgur.com/9aS6zGE.png"],
+    ["melon","Melon","Melón","material","https://imgur.com/qCfLIAH.png"],
+    ["banana","Banana","Plátano","material","https://imgur.com/CBjaF7F.png"],
+    ["dragon_fruit","Dragon Fruit","Pitahaya","material","https://imgur.com/kV5tiq8.png"],
+    ["pineapple","Pineapple","Piña","material","https://imgur.com/Qo11iu8.png"],
+    ["plum","Plum","Ciruela","material","https://imgur.com/GWEDbRC.png"],
+    ["juniper_berry","Juniper Berry","Baya de enebro","material","https://imgur.com/w3wUfu4.png"],
+    ["coconut","Coconut","Coco","material","https://imgur.com/qpTTNUp.png"],
+    ["mango","Mango","Mango","material","https://imgur.com/Nk8HcGv.png"],
+    ["lime","Lime","Lima","material","https://imgur.com/XC2h5uY.png"],
+    ["kiwi","Kiwi","Kiwi","material","https://imgur.com/Xzl1uu0.png"],
+    ["pomegranate","Pomegranate","Granada","material","https://imgur.com/NPHwWUP.png"],
+    ["watermelon","Watermelon","Sandía","material","https://imgur.com/eZhODYw.png"],
+    ["blueberry","Blueberry","Arándano azul","material","https://imgur.com/lno7KtR.png"],
+    ["raspberry","Raspberry","Frambuesa","material","https://imgur.com/tM1PFn4.png"],
+    ["red_berry","Red Berry","Baya roja","material","https://imgur.com/NPbVHQE.png"],
     ["vegetable_raw","Raw Vegetable / Produce","Verdura / hortaliza cruda","material","https://imgur.com/QWUZK4g.png"],
     ["grain_seed_raw","Grain / Legume / Seed / Nut","Grano / legumbre / semilla / nuez","material","https://imgur.com/Z0TuVti.png"],
     ["spice_herb_raw","Spice / Culinary Herb","Especia / hierba culinaria","material","https://imgur.com/zvEvhjc.png"],
