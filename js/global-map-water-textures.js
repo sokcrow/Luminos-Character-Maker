@@ -51,7 +51,9 @@ function lakeWaveIntensity(region) {
 }
 
 function riverWidthKm(route) {
-  return clamp(route?.metadata?.riverWidthKm ?? route?.metadata?.widthKm, 0.2, 80) || DEFAULT_RIVER_WIDTH_KM;
+  const raw = route?.metadata?.riverWidthKm ?? route?.metadata?.widthKm;
+  const value = Number.isFinite(Number(raw)) ? Number(raw) : DEFAULT_RIVER_WIDTH_KM;
+  return clamp(value, 0.2, 80);
 }
 
 function riverFlow(route) {
