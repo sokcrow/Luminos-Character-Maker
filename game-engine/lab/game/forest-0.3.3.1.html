@@ -779,8 +779,11 @@ body.global-map-mode #globalMapActions{display:block}
 <script>
 window.__paperLoaded=false;
 window.__paperLoaderActive=true;
+window.__paperLoadPct=0;
 window.setLoadProgress=(pct,stage,hint)=>{
-  const p=Math.max(0,Math.min(100,Math.round(pct)));
+  const requested=Math.max(0,Math.min(100,Math.round(pct)));
+  const p=window.__paperLoaderActive?Math.max(Number(window.__paperLoadPct)||0,requested):requested;
+  window.__paperLoadPct=p;
   const fill=document.getElementById('loaderFill');
   const pctEl=document.getElementById('loaderPct');
   const stageEl=document.getElementById('loaderStage');
@@ -792,6 +795,7 @@ window.setLoadProgress=(pct,stage,hint)=>{
 };
 window.beginPaperLoad=({pct=4,stage='Preparando escenario',hint='Cargando piezas…'}={})=>{
   window.__paperLoaderActive=true;
+  window.__paperLoadPct=0;
   const loader=document.getElementById('loaderPaper');
   const retry=document.getElementById('loaderRetry');
   if(retry)retry.classList.remove('show');
@@ -18173,7 +18177,7 @@ try{
   loadPlayer().catch(e=>console.warn('Player sprite warmup:',e));
   loadNPCTextures().catch(e=>console.warn('NPC sprite warmup:',e));
   loadCriticalMotionSprites().catch(e=>console.warn('Critical motion sprite warmup:',e));
-  window.setLoadProgress?.(86,'Armando el mapa','Geometría, colisiones y cámara…');
+  window.setLoadProgress?.(30,'Armando el mapa','Geometría, colisiones y cámara…');
   const qp=new URLSearchParams(location.search);
   const testName=qp.get('test');
   const qaMap=qp.get('map');
@@ -18208,7 +18212,7 @@ try{
   }
   warmRemainingSpriteAssets();
   if(qp.has('dev'))installDevPanel();
-  window.setLoadProgress?.(93,'Acomodando cámara','Últimos detalles…');
+  window.setLoadProgress?.(98,'Acomodando cámara','Últimos detalles…');
   if(mapId==='forestIntro'&&!worldFlags.forestIntroSeen)holdPlayerActionPose('fainted');
   updateMissionHud();
   if(globalMapActive){updateGlobalCamera(1/60,true);renderer.render(globalScene,globalCamera);}
