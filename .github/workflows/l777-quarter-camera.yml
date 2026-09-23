@@ -41,7 +41,8 @@ jobs:
           const browser=await chromium.launch({headless:true});
           const page=await browser.newPage({viewport:{width:1280,height:720}});
           const errors=[];
-          page.on('pageerror',e=>errors.push('pageerror:'+String(e)));\n          page.on('console',m=>{if(m.type()==='error')errors.push('console:'+m.text())});
+          page.on('pageerror',e=>errors.push('pageerror:'+String(e)));
+          page.on('console',m=>{if(m.type()==='error')errors.push('console:'+m.text())});
 
           await page.goto('http://127.0.0.1:4173/game-engine/lab/game/forest-0.3.3.1.html?qa=procedural',{waitUntil:'domcontentloaded',timeout:120000});
           await page.waitForFunction(()=>window.PaperCameraControl&&window.__QA__,null,{timeout:120000});
