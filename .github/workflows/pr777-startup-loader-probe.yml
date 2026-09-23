@@ -5,18 +5,26 @@ on:
 permissions:
   contents: read
 jobs:
-  probe:
+  probe-package:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Static startup checks
+        run: |
+          test -f game-engine/vendor/three.module.js
+          test -f game-engine/vendor/three.core.js
+          ! grep -q "cdn.jsdelivr.net/npm/three" game-engine/lab/game/forest-0.3.3.1.html
+          node game-engine/tests/core-smoke.mjs
+          node game-engine/tests/continuous-movement-smoke.mjs
+          node game-engine/tests/visual-lab-smoke.mjs
       - name: Install browser
         run: |
           npm install --no-save --ignore-scripts playwright@1.55.0
           npx playwright install --with-deps chromium
-      - name: Probe normal Lab startup
+      - name: Probe normal Lab startup without remote dependency
         shell: bash
         run: |
           node game-engine/lab-server.mjs > /tmp/lab-server.log 2>&1 &
@@ -25,38 +33,66 @@ jobs:
           sleep 2
           cat > startup-probe.mjs <<'EOF'
           import { chromium } from 'playwright';
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
           const browser=await chromium.launch({headless:true});
           const page=await browser.newPage({viewport:{width:1280,height:720}});
-          const errors=[],consoleRows=[];
+          const errors=[],failed=[],consoleRows=[];
           page.on('pageerror',e=>errors.push(String(e)));
+          page.on('response',r=>{if(r.status()>=400)failed.push({status:r.status(),url:r.url()})});
           page.on('console',m=>consoleRows.push(m.type()+': '+m.text()));
-          await page.goto('http://127.0.0.1:7777/game-engine/lab/',{waitUntil:'domcontentloaded',timeout:120000});
-          for(const ms of [2000,8000,15000,30000]){
-            await page.waitForTimeout(ms-(globalThis.last||0)); globalThis.last=ms;
+          await page.goto('http://127.0.0.1:7777/game-engine/lab/',{waitUntil:'commit',timeout:120000});
+          const states=[];
+          let elapsed=0;
+          for(const ms of [2000,5000,10000,20000]){
+            await page.waitForTimeout(ms-elapsed); elapsed=ms;
             const state=await page.evaluate(()=>{
               const f=document.getElementById('gameFrame'),iw=f?.contentWindow,err=iw?.document?.getElementById('error');
               return {
-                t:performance.now(),
                 outerLoading:document.getElementById('gameLoading')?.className||null,
                 bridge:document.getElementById('bridgeBadge')?.textContent||null,
                 frameReady:iw?.document?.readyState||null,
                 paperLoaded:!!iw?.__paperLoaded,
-                innerLoader:iw?.document?.getElementById('loaderPaper')?.className||null,
                 stage:iw?.document?.getElementById('loaderStage')?.textContent||null,
-                hint:iw?.document?.getElementById('loaderHint')?.textContent||null,
-                retry:iw?.document?.getElementById('loaderRetry')?.className||null,
                 error:err?.textContent||null,
-                errorDisplay:err?.style?.display||null,
                 hasBridge:!!iw?.LuminousMapItemBridge,
                 hasInv:!!iw?.PaperInventory,
                 hasBiome:!!iw?.BiomeComposer
               };
             });
+            states.push({ms,...state});
             console.log('STARTUP_STATE',ms,JSON.stringify(state));
           }
+          const final=states.at(-1);
+          const local404=failed.filter(x=>x.status===404&&x.url.startsWith('http://127.0.0.1:7777/'));
           console.log('PAGE_ERRORS',JSON.stringify(errors));
-          console.log('CONSOLE_TAIL',JSON.stringify(consoleRows.slice(-80)));
-          await page.screenshot({path:'startup-loader.png',fullPage:false});
+          console.log('LOCAL_404',JSON.stringify(local404));
+          console.log('REMOTE_FAILURE_COUNT',failed.filter(x=>!x.url.startsWith('http://127.0.0.1:7777/')).length);
+          assert.equal(errors.length,0,'normal startup must have no JS page errors');
+          assert.equal(local404.length,0,'normal startup must have no missing local files');
+          assert.equal(final.paperLoaded,true,'paper loader must finish');
+          assert.equal(final.hasBridge,true,'map item bridge must exist');
+          assert.equal(final.hasInv,true,'paper inventory must exist');
+          assert.equal(final.hasBiome,true,'BiomeComposer must exist');
+          assert.match(final.outerLoading||'',/\boff\b/,'outer loading overlay must close');
+          await page.screenshot({path:'startup-fixed.png',fullPage:false});
+          fs.writeFileSync('startup-validation.json',JSON.stringify({states,errors,local404,remoteFailures:failed.filter(x=>!x.url.startsWith('http://127.0.0.1:7777/'))},null,2));
           await browser.close();
           EOF
           node startup-probe.mjs
+          rm -f startup-probe.mjs
+      - name: Build fixed project ZIP
+        run: |
+          zip -qr Load777.zip . -x ".git/*" "node_modules/*" "Load777.zip" "startup-fixed.png" "startup-validation.json" ".github/workflows/pr777-startup-loader-probe.yml"
+          unzip -tq Load777.zip
+          unzip -l Load777.zip | grep -q "game-engine/vendor/three.core.js"
+          unzip -l Load777.zip | grep -q "LuminousLab/START_ANDROID.sh"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Load777
+          path: |
+            Load777.zip
+            startup-fixed.png
+            startup-validation.json
+          if-no-files-found: error
+          retention-days: 1
