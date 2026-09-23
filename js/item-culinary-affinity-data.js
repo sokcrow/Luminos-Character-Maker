@@ -109,8 +109,6 @@
     blueberry: "fruit_berry",
     raspberry: "fruit_berry",
     red_berry: "fruit_berry",
-    camellia_fruit: "fruit_exotic",
-    catnip_fruit: "fruit_berry",
 
     potato: "starch",
     carrot: "root",
