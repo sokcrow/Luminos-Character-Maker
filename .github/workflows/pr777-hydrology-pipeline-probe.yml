@@ -1,0 +1,17 @@
+name: PR777 Hydrology pipeline probe
+on:
+  push:
+    branches: [feat/item-icon-families]
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Locate biome geography hydrology runtime
+        run: |
+          echo "=== PIPELINE SYMBOLS ==="
+          grep -R -n -E "BiomeComposer|GeographyField|GeologySystem|elevationHeightTilesAtWorld|BiomeValidationV2|hydrology|Hydrology" --exclude-dir=.git . | head -n 600 || true
+          echo "=== REGION IDS ==="
+          grep -R -n -E "gNW|Costa Boscosa|Crestas Nevadas|Colinas Templadas" --exclude-dir=.git . | head -n 300 || true
