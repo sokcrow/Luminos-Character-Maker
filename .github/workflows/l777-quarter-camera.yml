@@ -45,8 +45,16 @@ jobs:
           page.on('console',m=>{if(m.type()==='error')errors.push('console:'+m.text())});
 
           await page.goto('http://127.0.0.1:4173/game-engine/lab/game/forest-0.3.3.1.html?qa=procedural',{waitUntil:'domcontentloaded',timeout:120000});
-          await page.waitForFunction(()=>window.PaperCameraControl&&window.__QA__,null,{timeout:120000});
-          console.log('PROCEDURAL_CONTEXT',JSON.stringify(await page.evaluate(()=>window.__PROCEDURAL_QA__||null)));
+          await page.waitForTimeout(12000);
+          const boot=await page.evaluate(()=>({
+            ready:document.readyState,
+            camera:typeof window.PaperCameraControl,
+            qa:!!window.__QA__,
+            procedural:window.__PROCEDURAL_QA__||null,
+            body:document.body.className
+          }));
+          console.log('BOOT_DIAG',JSON.stringify({boot,errors}));
+          assert.equal(boot.camera,'object','camera API did not initialize: '+errors.join(' | '));
 
           const initial=await page.evaluate(()=>({
             version:window.PaperCameraControl.version,
