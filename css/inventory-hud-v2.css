@@ -152,4 +152,7 @@
   .inventory-v2-action{min-height:42px;touch-action:manipulation;}
   .inventory-toolbar{position:sticky;top:0;z-index:3;}
 }
-
+/* Jewelry / valuable gemstone composition overlay */
+#inventory-modal.inventory-v2-ready .inventory-v2-runtime-slot .item-icon{position:relative;}
+#inventory-modal.inventory-v2-ready .inventory-v2-gem-overlay{position:absolute;right:-4px;bottom:-4px;width:16px;height:16px;z-index:5;background-position:center;background-size:contain;background-repeat:no-repeat;background-color:#090806;border:1px solid #8d713e;box-shadow:0 1px 5px rgba(0,0,0,.85);pointer-events:none;}
+@media(max-width:760px){#inventory-modal.inventory-v2-ready .inventory-v2-gem-overlay{right:-3px;bottom:-3px;width:13px;height:13px;}}
