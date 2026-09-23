@@ -5351,7 +5351,9 @@ function elevationHeightTilesAtWorld(x,z,id=mapId){
   // La costa modifica la ALTURA del terreno de forma continua; no crea un escalón
   // ni una rampa artificial separada. Física y render consumen la misma función.
   const coastAdjusted=coastGroundHeightTilesAtLocal(id,tx,tz,raw);
-  return Math.max(0,hydrologyPriorityGroundHeightTilesAtLocal(id,tx,tz,coastAdjusted));
+  // Hydrology may legitimately cut below the legacy zero plane. Never clamp the
+  // authoritative water bed back upward after river/lake/coast depth was applied.
+  return hydrologyPriorityGroundHeightTilesAtLocal(id,tx,tz,coastAdjusted);
 }
 const NATURAL_SLOPE_RULES=Object.freeze({normalDeg:24,difficultDeg:34,maxClimbDeg:43,sampleTiles:.24});
 function elevationSlopeAtWorld(x,z,id=mapId){
