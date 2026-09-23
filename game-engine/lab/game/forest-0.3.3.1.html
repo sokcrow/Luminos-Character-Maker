@@ -14762,7 +14762,15 @@ function geologyTraversalAudit(id,features=[]){
   const key=(ix,iz)=>iz*n+ix;
   const nodes=new Uint8Array(n*n);
   const passable=(x,z)=>{
-    if(proceduralHydrologySample(id,x,z).water)return false;
+    const hydro=proceduralHydrologySample(id,x,z);
+    // Inland procedural water is a real locomotion route: Units can swim it.
+    // Geology connectivity therefore must not treat a river/lake as an invisible wall.
+    // Coast/open-ocean remains excluded from this land-anchor audit.
+    if(hydro.water){
+      if(!['river','lake','wetland'].includes(hydro.type))return false;
+      for(const f of features)if(geologyFeatureBlocksPoint(f,x,z,.36))return false;
+      return true;
+    }
     if(elevationSlopeAtWorld(wt(x),wt(z),id).angleDeg>NATURAL_SLOPE_RULES.maxClimbDeg)return false;
     for(const f of features)if(geologyFeatureBlocksPoint(f,x,z,.36))return false;
     return true;
