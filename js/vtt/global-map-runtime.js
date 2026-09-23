@@ -1,7 +1,6 @@
 import '../global-map-core.js';
 import TerrainTextures from '../global-map-terrain-textures.js';
 import WaterTextures from '../global-map-water-textures.js';
-import Hydrology from '../global-map-hydrology.js';
 
 const Core = globalThis.LuminousGlobalMapCore;
 const ROOT = 'campaña/estado_mundo/mapa_global';
@@ -126,9 +125,8 @@ function injectDom(isDm) {
         <button type="button" id="vtt-global-apply" class="brutalist-button">APLICAR</button>
         <button type="button" id="vtt-global-delete" class="brutalist-button">DELETE</button>
       </div>
-      <button type="button" id="vtt-global-hydrology" class="brutalist-button">GENERAR HIDROLOGÍA V1</button>
       <button type="button" id="vtt-global-save" class="brutalist-button vtt-global-save">SAVE WORLD</button>
-      <small id="vtt-global-help">SELECT inspecciona. REGION/ROUTE agregan puntos con click; CERRAR TRAZO finaliza. Montaña usa ESPINAS. GENERAR HIDROLOGÍA V1 crea lagos y ríos deterministas sobre las regiones existentes sin borrar agua previa; quedan UNSAVED hasta pulsar SAVE WORLD.</small>
+      <small id="vtt-global-help">SELECT inspecciona. REGION/ROUTE agregan puntos con click; CERRAR TRAZO finaliza. Montaña usa ESPINAS. REGION WATER y ROUTE WATERWAY permiten autoría manual; la hidrología procedural pertenece al BiomeComposer del mundo local.</small>
     </aside>` : ''}
   `;
   document.body.appendChild(root);
@@ -662,31 +660,6 @@ function start() {
     loaded = true;
   }
 
-  function generateHydrology() {
-    if (!isDm) return false;
-    try {
-      const result = Hydrology.applyHydrology(doc, Core, { seed: doc.seed });
-      if (!result.changed) {
-        const existingWater = result.plan.summary.existingWaterRegions + result.plan.summary.existingWaterways;
-        if (existingWater > 0) notify('AGUA EXISTENTE · RENDER ACTUALIZADO', 'ok');
-        else notify('HIDROLOGÍA: NECESITA REGIONES DE TERRENO', 'error');
-        render();
-        return false;
-      }
-      doc = result.document;
-      selected = null;
-      setDirty(true);
-      updateInspector();
-      render();
-      notify(`HIDRO V1 · +${result.addedLakes} LAGO · +${result.addedRivers} RÍO · UNSAVED`, 'dirty');
-      return true;
-    } catch (error) {
-      console.error('[Luminous] Global hydrology failed:', error);
-      notify(error.message || 'HYDROLOGY FAILED', 'error');
-      return false;
-    }
-  }
-
   async function save() {
     if (!isDm) return false;
     const firebase = hostFirebase(), db = firebase?.database?.();
@@ -730,7 +703,6 @@ function start() {
   document.getElementById('vtt-global-cancel')?.addEventListener('click', () => { draftPoints = []; setTool('select'); });
   document.getElementById('vtt-global-apply')?.addEventListener('click', applyFormToSelection);
   document.getElementById('vtt-global-delete')?.addEventListener('click', deleteSelection);
-  document.getElementById('vtt-global-hydrology')?.addEventListener('click', generateHydrology);
   document.getElementById('vtt-global-save')?.addEventListener('click', () => save().catch((error) => { console.error('[Luminous] Global map save failed:', error); notify('SAVE DENIED', 'error'); }));
 
   canvas.addEventListener('contextmenu', (event) => event.preventDefault());
@@ -756,7 +728,6 @@ function start() {
     close: closeMap,
     fit,
     render,
-    generateHydrology,
     save,
     stop() { closeMap(); unwatch(); window.removeEventListener('resize', resize); dom.toggle.remove(); dom.root.remove(); },
   });
