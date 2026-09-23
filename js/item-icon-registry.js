@@ -4,7 +4,7 @@
     if (typeof module !== "undefined" && module.exports) module.exports = global.LuminousItemIconRegistry;
     return;
   }
-  const VERSION = 23;
+  const VERSION = 24;
   const DEFAULT_GROUP = "generic_item";
   function family(id, label, labelEs, domain, icon) { return Object.freeze({ id, label, labelEs, domain, icon }); }
   const FAMILY_ROWS = Object.freeze([
@@ -250,7 +250,31 @@
     ["material_null_dampening","Null / Dampening Material","Material nulo / amortiguador","material","https://imgur.com/5Hxv3ej.png"],
     ["material_exotic_refined","Exotic Refined Material","Material exótico refinado","material","https://imgur.com/wqb52n6.png"],
     ["gem_rough","Rough Gem","Gema en bruto","material","https://imgur.com/18tq0PQ.png"],
+    ["gem_ruby_rough","Rough Ruby","Rubí en bruto","material","https://imgur.com/HnOR60G.png"],
+    ["gem_sapphire_rough","Rough Sapphire","Zafiro en bruto","material","https://imgur.com/1vE0N73.png"],
+    ["gem_aquamarine_rough","Rough Aquamarine","Aguamarina en bruto","material","https://imgur.com/zqnVOHn.png"],
+    ["gem_topaz_rough","Rough Topaz","Topacio en bruto","material","https://imgur.com/WrTG3z6.png"],
+    ["gem_garnet_rough","Rough Garnet","Granate en bruto","material","https://imgur.com/rZvEklY.png"],
+    ["gem_emerald_rough","Rough Emerald","Esmeralda en bruto","material","https://imgur.com/rW1kdNV.png"],
+    ["gem_amethyst_rough","Rough Amethyst","Amatista en bruto","material","https://imgur.com/DwHJbxN.png"],
+    ["gem_onyx_rough","Rough Onyx","Ónix en bruto","material","https://imgur.com/d8sfrnT.png"],
+    ["gem_moonstone_rough","Rough Moonstone","Piedra lunar en bruto","material","https://imgur.com/MiAsYxw.png"],
+    ["gem_opal_rough","Rough Opal","Ópalo en bruto","material","https://imgur.com/kwaZNP7.png"],
+    ["gem_diamond_rough","Rough Diamond","Diamante en bruto","material","https://imgur.com/lGafeqI.png"],
+    ["gem_starstone_rough","Rough Starstone / Exotic Gem","Piedra estelar / gema exótica en bruto","material","https://imgur.com/NeoNBAH.png"],
     ["gem_cut","Cut / Polished Gem","Gema tallada / pulida","material","https://imgur.com/sDAhiUI.png"],
+    ["gem_ruby_cut","Cut Ruby","Rubí tallado","material","https://imgur.com/dFQSIBL.png"],
+    ["gem_sapphire_cut","Cut Sapphire","Zafiro tallado","material","https://imgur.com/k587uTM.png"],
+    ["gem_aquamarine_cut","Cut Aquamarine","Aguamarina tallada","material","https://imgur.com/Prk4Kz3.png"],
+    ["gem_topaz_cut","Cut Topaz","Topacio tallado","material","https://imgur.com/TufTeFx.png"],
+    ["gem_garnet_cut","Cut Garnet","Granate tallado","material","https://imgur.com/vmcvojW.png"],
+    ["gem_emerald_cut","Cut Emerald","Esmeralda tallada","material","https://imgur.com/6tnPeDJ.png"],
+    ["gem_amethyst_cut","Cut Amethyst","Amatista tallada","material","https://imgur.com/E9LOJUq.png"],
+    ["gem_onyx_cut","Cut Onyx","Ónix tallado","material","https://imgur.com/8FmZlNC.png"],
+    ["gem_moonstone_cut","Cut Moonstone","Piedra lunar tallada","material","https://imgur.com/TOD0LGW.png"],
+    ["gem_opal_cut","Cut Opal","Ópalo tallado","material","https://imgur.com/jqEXcf5.png"],
+    ["gem_diamond_cut","Cut Diamond","Diamante tallado","material","https://imgur.com/NnJgOHn.png"],
+    ["gem_starstone_cut","Cut Starstone / Exotic Gem","Piedra estelar / gema exótica tallada","material","https://imgur.com/qGWxRm5.png"],
     ["organic_material","Organic Material","Material orgánico","material","https://imgur.com/lqQbJds.png"],
     ["plant_herb","Plant / Herb","Planta / Hierba","material","https://imgur.com/DucSfXD.png"],
     ["fruit_raw","Raw Fruit","Fruta cruda","material","https://imgur.com/JA0yMwM.png"],
