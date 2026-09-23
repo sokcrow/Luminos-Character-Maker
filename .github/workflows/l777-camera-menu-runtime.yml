@@ -1,0 +1,129 @@
+name: L777 Camera Menu Runtime Validation
+
+on:
+  push:
+    branches:
+      - feat/item-icon-families
+    paths:
+      - ".github/workflows/l777-camera-menu-runtime.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate-and-package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Static game-engine smoke tests
+        run: |
+          node game-engine/tests/core-smoke.mjs
+          node game-engine/tests/continuous-movement-smoke.mjs
+          node game-engine/tests/visual-lab-smoke.mjs
+
+      - name: Install browser runtime
+        run: |
+          npm install --no-save --ignore-scripts playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Validate camera and menu in browser
+        shell: bash
+        run: |
+          python3 -m http.server 4173 > /tmp/l777-http.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID || true' EXIT
+          sleep 2
+          cat > l777-camera-menu.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import assert from 'node:assert/strict';
+
+          const browser=await chromium.launch({headless:true});
+          const page=await browser.newPage({viewport:{width:1280,height:720}});
+          const errors=[];
+          page.on('pageerror',e=>errors.push(String(e)));
+
+          await page.goto('http://127.0.0.1:4173/game-engine/lab/game/forest-0.3.3.1.html?qa=procedural',{waitUntil:'domcontentloaded',timeout:120000});
+          await page.waitForFunction(()=>window.__PROCEDURAL_QA__?.ok===true&&window.PaperCameraControl&&window.__QA__,null,{timeout:120000});
+
+          const hud=await page.evaluate(()=>({
+            globalReturnExists:!!document.getElementById('globalReturnBtn'),
+            localActionCount:document.querySelectorAll('#localWorldActions .localWorldAction').length,
+            campText:document.getElementById('campHereBtn')?.textContent?.trim(),
+            mapMenuExists:!!document.querySelector('[data-player-menu-action="world-map"]'),
+            cameraVersion:window.PaperCameraControl?.version,
+            cameraAllowed:window.PaperCameraControl?.allowed(),
+            startingYaw:window.PaperCameraControl?.yaw()
+          }));
+          console.log('HUD_CAMERA_QA',JSON.stringify(hud));
+          assert.equal(hud.globalReturnExists,false);
+          assert.equal(hud.localActionCount,1);
+          assert.equal(hud.campText,'Acampar aquí');
+          assert.equal(hud.mapMenuExists,true);
+          assert.equal(hud.cameraVersion,'player-orbit-camera-v1');
+          assert.equal(hud.cameraAllowed,true);
+
+          const canvas=page.locator('canvas').first();
+          const box=await canvas.boundingBox();
+          assert.ok(box);
+          const startYaw=await page.evaluate(()=>window.PaperCameraControl.yaw());
+          await page.mouse.move(box.x+box.width*.72,box.y+box.height*.55);
+          await page.mouse.down();
+          await page.mouse.move(box.x+box.width*.55,box.y+box.height*.55,{steps:8});
+          await page.mouse.up();
+          await page.waitForTimeout(350);
+          const afterDrag=await page.evaluate(()=>({yaw:window.PaperCameraControl.yaw(),camera:window.__QA__.snapshot().camera}));
+          console.log('CAMERA_DRAG_QA',JSON.stringify({startYaw,afterDrag}));
+          assert.ok(Math.abs(afterDrag.yaw-startYaw)>.25,'pointer drag did not rotate camera');
+
+          await page.keyboard.down('e');
+          await page.waitForTimeout(350);
+          await page.keyboard.up('e');
+          const afterKey=await page.evaluate(()=>window.PaperCameraControl.yaw());
+          assert.ok(Math.abs(afterKey-afterDrag.yaw)>.12,'Q/E camera rotation did not change yaw');
+
+          await page.locator('#paperPlayerMenuToggle').click();
+          await page.waitForFunction(()=>document.getElementById('paperPlayerMenu')?.classList.contains('is-open'));
+          await page.screenshot({path:'camera-menu-local.png',fullPage:false});
+          await page.locator('[data-player-menu-action="world-map"]').click();
+          await page.waitForFunction(()=>document.body.classList.contains('global-map-mode'),null,{timeout:30000});
+          const globalState=await page.evaluate(()=>({
+            globalMode:document.body.classList.contains('global-map-mode'),
+            menuOpen:document.getElementById('paperPlayerMenu')?.classList.contains('is-open'),
+            cameraVersion:window.PaperCameraControl?.version
+          }));
+          console.log('GLOBAL_MENU_QA',JSON.stringify(globalState));
+          assert.equal(globalState.globalMode,true);
+          assert.equal(globalState.menuOpen,false);
+          assert.equal(errors.length,0,'page errors: '+errors.join(' | '));
+
+          await browser.close();
+          EOF
+          node l777-camera-menu.mjs
+          rm -f l777-camera-menu.mjs
+
+      - name: Build L777.zip
+        shell: python
+        run: |
+          import os,zipfile
+          root=os.getcwd()
+          out=os.path.join(root,"L777.zip")
+          skip={".git","node_modules"}
+          with zipfile.ZipFile(out,"w",zipfile.ZIP_DEFLATED) as z:
+              for base,dirs,files in os.walk(root):
+                  dirs[:]=[d for d in dirs if d not in skip]
+                  for name in files:
+                      path=os.path.join(base,name)
+                      rel=os.path.relpath(path,root).replace(os.sep,"/")
+                      if rel in {"L777.zip","camera-menu-local.png",".github/workflows/l777-camera-menu-runtime.yml"}: continue
+                      z.write(path,rel)
+
+      - name: Upload validated package
+        uses: actions/upload-artifact@v4
+        with:
+          name: L777-camera-menu-package
+          path: |
+            L777.zip
+            camera-menu-local.png
+          if-no-files-found: error
+          retention-days: 1
