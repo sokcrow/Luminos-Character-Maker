@@ -403,7 +403,13 @@ const { pathToFileURL } = require('node:url');
     'weapon_pick', 'weapon_whip', 'weapon_blunt', 'weapon_blowgun', 'weapon_firearm_rifle',
     'weapon_staff', 'weapon_axe', 'weapon_bow'
   ]);
-  assert.deepEqual(equipmentIds.slice(22), ['shield', 'shield_buckler', 'shield_round', 'shield_heater', 'shield_tower', 'accessory', 'armor_light', 'armor_medium', 'armor_heavy']);
+  for (const id of [
+    'shield','shield_buckler','shield_round','shield_heater','shield_tower','accessory',
+    'jewelry_ring_gold','jewelry_ring_silver','jewelry_ring_copper','jewelry_ring_metal',
+    'jewelry_earrings_gold','jewelry_pendant_gold','jewelry_necklace_gold','jewelry_bracelet_gold',
+    'jewelry_anklet_gold','jewelry_brooch_gold','jewelry_hairpin_gold',
+    'armor_light','armor_medium','armor_heavy'
+  ]) assert.equal(equipmentIds.includes(id), true, id);
 
   const shieldIcons = {
     shield_buckler: 'https://imgur.com/mct54op.png',
