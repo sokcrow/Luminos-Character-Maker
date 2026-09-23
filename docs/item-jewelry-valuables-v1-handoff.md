@@ -65,20 +65,23 @@ Jewelry uses the existing `accessory` icon family and is inventory equipment kin
 
 Head-regalia chassis (`Circlet`, `Tiara`, `Crown`) were removed from the normal catalog because they do not fit the intended modern commercial baseline.
 
-## 8 Valuable-object chassis
+## 2 Relic loot tiers
 
-- Ornamental Goblet
-- Ornamental Chalice
-- Decorative Box
-- Decorative Statuette
-- Ceremonial Mask
-- Ornamental Plate
-- Reliquary
-- Ornamental Scepter
+Group 4 is intentionally abstract and contains only two loot identities:
 
-Valuables use the existing `valuable` icon family.
+- Gold Relic — valuable
+- Gem-Inlaid Relic — more valuable
 
-These eight chassis are **loot-only**: they are not normal retail stock and are not standard craftable merchandise. They may be generated only with a loot/treasure origin such as `location_loot`, `world_loot` or `treasure`.
+These are not specific ceremonial object shapes. The system does not ask which relic form it is and does not record which gemstones are visible in the gem-inlaid version.
+
+Both are **loot-only**:
+
+- `craftable: false`
+- `retailAvailable: false`
+- `lootOnly: true`
+
+The Gem-Inlaid Relic is a higher abstract value tier than the Gold Relic. Its visible gemstone work is part of the loot tier rather than a list of socketed Cut Gems, so it does not create elemental resonance or enchantment metadata.
+
 
 ## Editable material variants
 
@@ -162,8 +165,8 @@ The later Enchantment pass can therefore increase value without rewriting mundan
 ## Validation
 
 - 15 Jewelry chassis
-- 8 Valuable chassis
-- 23 total generative chassis
+- 2 Relic loot tiers
+- 17 total chassis
 - unique/non-stackable jewelry
 - refined metal/alloy validation
 - Cut Gem validation
@@ -172,5 +175,6 @@ The later Enchantment pass can therefore increase value without rewriting mundan
 - resonance aggregation
 - universal Quality value application
 - AHN economy smoke coverage
-- valuables are loot-only and reject normal market/craft generation
+- both relic tiers are loot-only and reject normal market/craft generation
 - Circlet / Tiara / Crown removed from the modern commercial baseline
+- old ornamental valuable chassis removed; Group 4 is Gold Relic / Gem-Inlaid Relic only
