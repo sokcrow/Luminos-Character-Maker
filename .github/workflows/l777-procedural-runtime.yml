@@ -1,0 +1,87 @@
+name: L777 Procedural Runtime Validation
+
+on:
+  push:
+    branches:
+      - feat/item-icon-families
+    paths:
+      - ".github/workflows/l777-procedural-runtime.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate-runtime-and-package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Static game-engine smoke tests
+        run: |
+          node game-engine/tests/core-smoke.mjs
+          node game-engine/tests/continuous-movement-smoke.mjs
+          node game-engine/tests/visual-lab-smoke.mjs
+
+      - name: Install browser runtime
+        run: |
+          npm install --no-save --ignore-scripts playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Run procedural browser smoke
+        shell: bash
+        run: |
+          python3 -m http.server 4173 > /tmp/l777-http.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID || true' EXIT
+          sleep 2
+          cat > /tmp/l777-procedural-runtime.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import assert from 'node:assert/strict';
+          const browser = await chromium.launch({headless:true});
+          const page = await browser.newPage({viewport:{width:1280,height:720}});
+          const errors=[];
+          page.on('pageerror',e=>errors.push(String(e)));
+          page.on('console',m=>{ if(m.type()==='error') errors.push('console:'+m.text()); });
+          await page.goto('http://127.0.0.1:4173/game-engine/lab/game/forest-0.3.3.1.html?qa=procedural', {waitUntil:'domcontentloaded', timeout:120000});
+          await page.waitForFunction(() => window.__PROCEDURAL_QA__ && typeof window.__PROCEDURAL_QA__.ok === 'boolean', null, {timeout:120000});
+          const qa = await page.evaluate(() => window.__PROCEDURAL_QA__);
+          console.log('PROCEDURAL_QA', JSON.stringify(qa));
+          assert.equal(qa.regionId, 'gC');
+          assert.equal(qa.visibleGridGeometry, false);
+          assert.ok(qa.localReliefModules >= 1, 'expected local relief modules');
+          assert.ok(qa.geographyFeatures >= 1, 'expected geography features');
+          assert.ok(qa.reliefSpanTiles >= qa.requiredSpanTiles, 'relief span below biome requirement');
+          assert.equal(qa.geologyAudit?.ok, true, 'geology route audit failed');
+          assert.ok((qa.geologyOutcrops + qa.geologyScree) >= 1, 'expected generated geology');
+          assert.equal(qa.ok, true);
+          if(errors.length) console.log('PAGE_ERRORS', JSON.stringify(errors));
+          await page.screenshot({path:'procedural-owS.png', fullPage:false});
+          await browser.close();
+          EOF
+          node /tmp/l777-procedural-runtime.mjs
+
+      - name: Build L777.zip
+        shell: python
+        run: |
+          import os, zipfile
+          root=os.getcwd()
+          out=os.path.join(root,"L777.zip")
+          skip={".git","node_modules"}
+          with zipfile.ZipFile(out,"w",zipfile.ZIP_DEFLATED) as z:
+              for base,dirs,files in os.walk(root):
+                  dirs[:]=[d for d in dirs if d not in skip]
+                  for name in files:
+                      path=os.path.join(base,name)
+                      rel=os.path.relpath(path,root).replace(os.sep,"/")
+                      if rel in {"L777.zip","procedural-owS.png",".github/workflows/l777-procedural-runtime.yml"}: continue
+                      z.write(path,rel)
+
+      - name: Upload validated package and screenshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: L777-procedural-package
+          path: |
+            L777.zip
+            procedural-owS.png
+          if-no-files-found: error
+          retention-days: 1
