@@ -1,0 +1,146 @@
+name: PR777 Runtime Contracts Validation
+on:
+  push:
+    branches: [feat/item-icon-families]
+permissions:
+  contents: read
+jobs:
+  validate-package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Static regression checks
+        run: |
+          node game-engine/tests/core-smoke.mjs
+          node game-engine/tests/continuous-movement-smoke.mjs
+          node game-engine/tests/visual-lab-smoke.mjs
+          node tests/global-map-terrain-textures-smoke.mjs
+          node tests/global-map-water-textures-smoke.mjs
+          grep -q "window.beginPaperLoad" game-engine/lab/game/forest-0.3.3.1.html
+          grep -q "SpawnSafetySystem" game-engine/lab/game/forest-0.3.3.1.html
+          grep -q "WATER-OWNS-HEIGHT CONTRACT" game-engine/lab/game/forest-0.3.3.1.html
+          test -f LuminousLab/START_ANDROID.sh
+      - name: Install browser runtime
+        run: |
+          npm install --no-save --ignore-scripts playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Validate loader, spawn safety and water height priority
+        shell: bash
+        run: |
+          python3 -m http.server 4173 > /tmp/runtime-contracts-http.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID || true' EXIT
+          sleep 2
+          cat > runtime-contracts-check.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+
+          const browser=await chromium.launch({headless:true});
+          const results={};
+
+          // 1) Runtime transition loader must become visible before heavy local-map generation.
+          {
+            const page=await browser.newPage({viewport:{width:1280,height:720}});
+            const errors=[]; page.on('pageerror',e=>errors.push(String(e)));
+            await page.goto('http://127.0.0.1:4173/game-engine/lab/game/forest-0.3.3.1.html',{waitUntil:'domcontentloaded',timeout:120000});
+            await page.waitForFunction(()=>window.__paperLoaded===true,null,{timeout:120000});
+            await page.waitForFunction(()=>document.getElementById('loaderPaper')?.classList.contains('off')===true,null,{timeout:120000});
+            await page.click('#globalExploreBtn');
+            await page.waitForFunction(()=>document.getElementById('loaderPaper')?.classList.contains('off')===false,null,{timeout:10000});
+            const visible=await page.evaluate(()=>({
+              pct:Number((document.getElementById('loaderPct')?.textContent||'0').replace('%','')),
+              stage:document.getElementById('loaderStage')?.textContent||'',
+              hint:document.getElementById('loaderHint')?.textContent||''
+            }));
+            assert.ok(visible.pct>=10,'transition loader should expose real progress');
+            assert.ok(visible.stage.length>0&&visible.hint.length>0,'transition loader should explain current stage');
+            await page.screenshot({path:'runtime-loader.png',fullPage:false});
+            await page.waitForFunction(()=>document.getElementById('loaderPaper')?.classList.contains('off')===true,null,{timeout:120000});
+            await page.waitForFunction(()=>document.body.classList.contains('global-map-mode')===false,null,{timeout:120000});
+            const safe=await page.evaluate(()=>window.SpawnSafetySystem?.playerIsSafe({requireDry:true}));
+            assert.equal(safe,true,'player must enter local region on collision-free dry spawn');
+            assert.equal(errors.length,0,'normal transition page errors: '+errors.join(' | '));
+            results.loader={visible,safe};
+            await page.close();
+          }
+
+          // 2 + 3) Procedural regions: player spawn is safe and hydrology is always below water surface,
+          // even where elevation modules/geography exist.
+          const cases=[
+            {region:'gC',expected:'river'},
+            {region:'gSW',expected:'lake'},
+            {region:'gNW',expected:'coast'}
+          ];
+          results.regions=[];
+          for(const item of cases){
+            const page=await browser.newPage({viewport:{width:1280,height:720}});
+            const errors=[]; page.on('pageerror',e=>errors.push(String(e)));
+            await page.goto(`http://127.0.0.1:4173/game-engine/lab/game/forest-0.3.3.1.html?qa=procedural&region=${item.region}`,{waitUntil:'domcontentloaded',timeout:120000});
+            await page.waitForFunction(()=>window.__BIOME_VALIDATION_QA__&&window.__paperLoaded===true,null,{timeout:120000});
+            const data=await page.evaluate(({region,expected})=>{
+              const qa=window.__BIOME_VALIDATION_QA__;
+              const active=window.BiomeComposer.active();
+              const snapshot=window.__QA__.snapshot();
+              const playerSafe=window.SpawnSafetySystem.playerIsSafe({requireDry:true});
+              const samples=[];
+              for(let x=-60;x<=60;x+=2)for(let z=-60;z<=60;z+=2){
+                const f=window.BiomeComposer.fieldAt('owC',x,z);
+                if(f.waterDepth>0&&Number.isFinite(f.waterLevelTiles)){
+                  samples.push({x,z,height:f.heightTiles,level:f.waterLevelTiles,depth:f.waterDepth,cls:f.hydrologyClass});
+                  if(samples.length>=80)break;
+                }
+                if(samples.length>=80)break;
+              }
+              const colliders=window.__QA__.colliders();
+              let relocation=null;
+              if(colliders.length){
+                const c=colliders.find(q=>Number.isFinite(q.x)&&Number.isFinite(q.z))||colliders[0];
+                const resolved=window.SpawnSafetySystem.resolve({x:c.x,y:0,z:c.z},{requireDry:false});
+                relocation={
+                  source:{x:c.x,z:c.z},
+                  resolved:{x:resolved.x,z:resolved.z},
+                  safe:window.SpawnSafetySystem.candidateAllowed(resolved.x,resolved.z,{requireDry:false}),
+                  moved:Math.hypot(resolved.x-c.x,resolved.z-c.z)
+                };
+              }
+              return {qa,resolved:active?.hydrology?.type||'none',snapshot,playerSafe,samples,relocation,expected};
+            },item);
+            assert.equal(errors.length,0,`${item.region} page errors: ${errors.join(' | ')}`);
+            assert.equal(data.resolved,item.expected,`${item.region} hydrology mismatch`);
+            assert.equal(data.qa.ok,true,`${item.region} biome QA failed`);
+            assert.equal(data.playerSafe,true,`${item.region} player spawn is not safe`);
+            assert.ok(data.samples.length>0,`${item.region} needs physical water samples`);
+            for(const s of data.samples){
+              assert.ok(s.height<=s.level-s.depth+.025,
+                `${item.region} water bed rose above authoritative depth at ${s.x},${s.z}: h=${s.height} level=${s.level} depth=${s.depth}`);
+            }
+            if(data.relocation){
+              assert.equal(data.relocation.safe,true,`${item.region} safe-spawn resolver returned blocked point`);
+              assert.ok(data.relocation.moved>.01,`${item.region} resolver failed to move away from collider center`);
+            }
+            await page.screenshot({path:`runtime-${item.region}.png`,fullPage:false});
+            results.regions.push({region:item.region,resolved:data.resolved,waterSamples:data.samples.length,player:data.snapshot.player,relocation:data.relocation});
+            await page.close();
+          }
+          await browser.close();
+          fs.writeFileSync('runtime-contracts-validation.json',JSON.stringify(results,null,2));
+          EOF
+          node runtime-contracts-check.mjs
+          rm -f runtime-contracts-check.mjs
+      - name: Build clean project ZIP
+        run: |
+          zip -qr Runtime777.zip . -x ".git/*" "node_modules/*" "Runtime777.zip" "runtime-*.png" "runtime-contracts-validation.json" ".github/workflows/pr777-runtime-contracts-validation.yml"
+          unzip -tq Runtime777.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Runtime777
+          path: |
+            Runtime777.zip
+            runtime-*.png
+            runtime-contracts-validation.json
+          if-no-files-found: error
+          retention-days: 1
