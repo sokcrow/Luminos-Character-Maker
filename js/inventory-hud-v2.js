@@ -38,6 +38,7 @@
   });
 
   const runtime = () => global.LuminousItemRuntime || global.LuminousItemInventoryRuntime || null;
+  const iconRegistry = () => global.LuminousItemIconRegistry || null;
   const inventory = () => global.LuminousItemInventoryRuntime || runtime();
   const bridge = () => global.LuminousItemEquipmentBridge || null;
   const persistence = () => global.LuminousItemPersistenceRuntime || null;
@@ -143,11 +144,29 @@
     return String(raw).split(",").map((entry) => entry.trim()).filter(Boolean);
   }
 
+  function iconFromFamily(family) {
+    const id = String(family || "").trim();
+    if (!id) return "";
+    return String(iconRegistry()?.resolveIcon?.(id) || "").trim();
+  }
+
   function itemIcon(item = {}) {
     const explicit = item.icono || item.icon || item.image || item.img;
     if (explicit) return String(explicit).trim();
+    const familyIcon = iconFromFamily(item.iconFamily || item.icon_family);
+    if (familyIcon) return familyIcon;
     const resolved = runtime()?.resolveItem?.(item) || item;
-    return String(resolved.icono || resolved.icon || resolved.image || resolved.img || "").trim();
+    const resolvedExplicit = resolved.icono || resolved.icon || resolved.image || resolved.img;
+    if (resolvedExplicit) return String(resolvedExplicit).trim();
+    return iconFromFamily(resolved.iconFamily || resolved.icon_family);
+  }
+
+  function itemGemOverlayIcon(item = {}) {
+    const explicit = item.gemOverlayIcon || item.gem_overlay_icon;
+    if (explicit) return String(explicit).trim();
+    const family = item.gemOverlayIconFamily || item.gem_overlay_icon_family;
+    if (family) return iconFromFamily(family);
+    return "";
   }
 
   function itemDescription(item = {}) {
@@ -158,10 +177,10 @@
   }
 
   function itemValue(item = {}) {
-    const explicit = item.valorBase ?? item.costo ?? item.cost ?? item.price ?? item.precio;
+    const explicit = item.valorBase ?? item.costo ?? item.cost ?? item.price ?? item.precio ?? item.productionValueAhn ?? item.totalValueAhn ?? item.unitValueAhn;
     if (explicit != null) return Number(explicit) || 0;
     const resolved = runtime()?.resolveItem?.(item) || item;
-    return Number(resolved.valorBase ?? resolved.costo ?? resolved.cost ?? resolved.price ?? resolved.precio ?? 0) || 0;
+    return Number(resolved.valorBase ?? resolved.costo ?? resolved.cost ?? resolved.price ?? resolved.precio ?? resolved.productionValueAhn ?? resolved.totalValueAhn ?? resolved.unitValueAhn ?? 0) || 0;
   }
 
   function manufacturerName(item = {}) {
@@ -377,6 +396,7 @@
     slot.setAttribute("aria-label", `${itemName(item)}, ${categoryLabel(category)}, quantity ${quantityOf(item)}`);
 
     const icon = itemIcon(item);
+    const gemOverlayIcon = itemGemOverlayIcon(item);
     const quantity = quantityOf(item);
     slot.innerHTML = `
       <span class="tier">${escapeHtml(tierRoman(item))}</span>
@@ -384,6 +404,7 @@
       <div class="item-display">
         <div class="item-icon${icon ? " has-icon" : ""}"${icon ? ` style="background-image:url(&quot;${escapeHtml(icon)}&quot;)"` : ""}>
           <span class="inventory-v2-icon-fallback">${escapeHtml(categoryLabel(category).slice(0, 3))}</span>
+          ${gemOverlayIcon ? `<span class="inventory-v2-gem-overlay" aria-hidden="true" style="background-image:url(&quot;${escapeHtml(gemOverlayIcon)}&quot;)"></span>` : ""}
         </div>
         <span class="item-name">${escapeHtml(itemName(item))}</span>
       </div>
