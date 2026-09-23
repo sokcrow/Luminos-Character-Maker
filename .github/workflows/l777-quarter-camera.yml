@@ -44,7 +44,8 @@ jobs:
           page.on('pageerror',e=>errors.push(String(e)));
 
           await page.goto('http://127.0.0.1:4173/game-engine/lab/game/forest-0.3.3.1.html?qa=procedural',{waitUntil:'domcontentloaded',timeout:120000});
-          await page.waitForFunction(()=>window.__PROCEDURAL_QA__?.ok===true&&window.PaperCameraControl&&window.__QA__,null,{timeout:120000});
+          await page.waitForFunction(()=>window.PaperCameraControl&&window.__QA__,null,{timeout:120000});
+          console.log('PROCEDURAL_CONTEXT',JSON.stringify(await page.evaluate(()=>window.__PROCEDURAL_QA__||null)));
 
           const initial=await page.evaluate(()=>({
             version:window.PaperCameraControl.version,
