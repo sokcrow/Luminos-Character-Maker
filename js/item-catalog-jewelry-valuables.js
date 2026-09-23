@@ -6,7 +6,7 @@
     return;
   }
 
-  const VERSION = 2;
+  const VERSION = 3;
   const FAMILY = "jewelry_valuables";
   const CURRENCY = "AHN";
   const DEFAULT_QUALITY = "standard";
@@ -85,14 +85,8 @@
   ]);
 
   const VALUABLE_CHASSIS = Object.freeze([
-    freezeChassis({ id:"ornamental_goblet", name:"Ornamental Goblet", kind:"valuable", metalUnits:0.55, maxGemCount:12, craftMultiplier:1.55 }),
-    freezeChassis({ id:"ornamental_chalice", name:"Ornamental Chalice", kind:"valuable", metalUnits:0.75, maxGemCount:18, craftMultiplier:1.65 }),
-    freezeChassis({ id:"decorative_box", name:"Decorative Box", kind:"valuable", metalUnits:0.80, maxGemCount:20, craftMultiplier:1.70 }),
-    freezeChassis({ id:"decorative_statuette", name:"Decorative Statuette", kind:"valuable", metalUnits:1.10, maxGemCount:24, craftMultiplier:1.75 }),
-    freezeChassis({ id:"ceremonial_mask", name:"Ceremonial Mask", kind:"valuable", metalUnits:0.90, maxGemCount:20, craftMultiplier:1.75 }),
-    freezeChassis({ id:"ornamental_plate", name:"Ornamental Plate", kind:"valuable", metalUnits:1.20, maxGemCount:24, craftMultiplier:1.70 }),
-    freezeChassis({ id:"reliquary", name:"Reliquary", kind:"valuable", metalUnits:1.00, maxGemCount:30, craftMultiplier:1.90, processTier:"corp_wing" }),
-    freezeChassis({ id:"ornamental_scepter", name:"Ornamental Scepter", kind:"valuable", metalUnits:1.10, maxGemCount:20, craftMultiplier:1.85, processTier:"corp_wing" }),
+    freezeChassis({ id:"gold_relic", name:"Gold Relic", kind:"valuable", metalUnits:1.00, maxGemCount:0, craftMultiplier:1.75, tags:["relic","valuable_tier_1","gold_visual"] }),
+    freezeChassis({ id:"gem_inlaid_relic", name:"Gem-Inlaid Relic", kind:"valuable", metalUnits:1.00, maxGemCount:0, craftMultiplier:2.50, processTier:"corp_wing", tags:["relic","valuable_tier_2","gem_inlaid_visual"] }),
   ]);
 
   const CHASSIS = Object.freeze([...JEWELRY_CHASSIS, ...VALUABLE_CHASSIS]);
@@ -105,13 +99,10 @@
     cuff: "cuff_bracelet",
     pin: "brooch",
     hair_pin: "hairpin",
-    goblet: "ornamental_goblet",
-    chalice: "ornamental_chalice",
-    jewelry_box: "decorative_box",
-    statuette: "decorative_statuette",
-    mask: "ceremonial_mask",
-    plate: "ornamental_plate",
-    scepter: "ornamental_scepter",
+    relic: "gold_relic",
+    golden_relic: "gold_relic",
+    jeweled_relic: "gem_inlaid_relic",
+    gem_relic: "gem_inlaid_relic",
   });
 
   function get(id) {
@@ -184,11 +175,11 @@
       return Object.freeze({ valid:false, reason:"loot_only_chassis", chassisId:chassis.id });
     }
 
-    const metalId = normalizeId(options.metalId || options.metal || DEFAULT_METAL_ID);
+    const metalId = normalizeId(chassis.kind === "valuable" ? "gold" : (options.metalId || options.metal || DEFAULT_METAL_ID));
     const metal = resolveMetal(metalId);
     if (!metal) return Object.freeze({ valid:false, reason:"invalid_jewelry_metal", metalId });
 
-    const requestedGems = normalizeGemSelection(options.gems || options.gemstones || []);
+    const requestedGems = chassis.kind === "valuable" ? [] : normalizeGemSelection(options.gems || options.gemstones || []);
     const gemCount = requestedGems.reduce((sum, entry) => sum + entry.quantity, 0);
     if (gemCount > chassis.maxGemCount) {
       return Object.freeze({ valid:false, reason:"gem_capacity_exceeded", maxGemCount:chassis.maxGemCount, requestedGemCount:gemCount });
@@ -211,14 +202,17 @@
 
     const metalInputValueAhn = Math.round(metal.standardUnitValueAhn * chassis.metalUnits);
     const gemstoneInputValueAhn = gems.reduce((sum, gem) => sum + gem.totalValueAhn, 0);
-    const consumedInputValueAhn = metalInputValueAhn + gemstoneInputValueAhn;
+    const abstractRelicPremiumAhn = chassis.id === "gem_inlaid_relic" ? metalInputValueAhn : 0;
+    const consumedInputValueAhn = metalInputValueAhn + gemstoneInputValueAhn + abstractRelicPremiumAhn;
     const standardProductionValueAhn = Math.round(consumedInputValueAhn * chassis.craftMultiplier);
     const quality = normalizeId(options.quality || DEFAULT_QUALITY) || DEFAULT_QUALITY;
     const productionValueAhn = qualityValue(standardProductionValueAhn, quality);
     const resonance = gemResonanceProfile(gems);
 
     const gemSummary = gems.map((gem) => `${gem.name} ×${gem.quantity}`).join(", ");
-    const displayName = `${metal.name} ${chassis.name}${gemSummary ? ` — ${gemSummary}` : ""}`;
+    const displayName = chassis.kind === "valuable"
+      ? chassis.name
+      : `${metal.name} ${chassis.name}${gemSummary ? ` — ${gemSummary}` : ""}`;
 
     return Object.freeze({
       valid: true,
@@ -251,6 +245,8 @@
       maxGemCount: chassis.maxGemCount,
       gems: Object.freeze(gems),
       gemstoneInputValueAhn,
+      abstractRelicPremiumAhn,
+      relicValueTier: chassis.id === "gem_inlaid_relic" ? 2 : (chassis.id === "gold_relic" ? 1 : null),
       consumedInputValueAhn,
       craftMultiplier: chassis.craftMultiplier,
       processTier: chassis.processTier,
