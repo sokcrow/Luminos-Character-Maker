@@ -22,7 +22,12 @@ const WeaponComposition=globalThis.LuminousWeaponCompositionEngine;
 const Shields=globalThis.LuminousShieldCompositionEngine;
 
 assert.ok(Enhancement&&Armor&&Weapons&&WeaponComposition&&Shields);
+assert.strictEqual(Enhancement.VERSION,2);
 assert.deepStrictEqual(Enhancement.ENCHANTMENT_LEVELS,[1,2,3]);
+assert.ok(Enhancement.ELIGIBLE_KINDS.includes("accessory"));
+assert.ok(Enhancement.ELIGIBLE_KINDS.includes("valuable"));
+assert.strictEqual(Enhancement.validate({itemType:"accessory",enhancementLevel:1,enhancementSource:"enchantment"}).valid,true);
+assert.strictEqual(Enhancement.validate({itemType:"valuable",enhancementLevel:2,enhancementSource:"enchantment"}).valid,true);
 assert.strictEqual(Enhancement.validate({itemType:"weapon",enhancementLevel:-1}).valid,false);
 assert.strictEqual(Enhancement.validate({itemType:"armor",enhancementLevel:-3}).reason,"negative_enhancement_forbidden");
 assert.strictEqual(Enhancement.validate({itemType:"shield",enhancementLevel:4}).valid,false);
