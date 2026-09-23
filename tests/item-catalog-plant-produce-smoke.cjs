@@ -23,15 +23,15 @@ const { pathToFileURL } = require('node:url');
   assert.equal(catalog.CURRENCY, 'AHN');
   assert.equal(catalog.MEASURE, 'market_unit');
   assert.equal(catalog.RECIPES_IMPLEMENTED, false);
-  assert.equal(catalog.ITEMS.length, 100);
-  assert.equal(new Set(catalog.ITEMS.map((entry) => entry.id)).size, 100);
+  assert.equal(catalog.ITEMS.length, 98);
+  assert.equal(new Set(catalog.ITEMS.map((entry) => entry.id)).size, 98);
 
   const groupCounts = Object.fromEntries(
     [...new Set(catalog.ITEMS.map((entry) => entry.group))]
       .map((group) => [group, catalog.list({ group }).length])
   );
   assert.deepEqual(groupCounts, {
-    fruit: 26,
+    fruit: 24,
     vegetable: 16,
     grain_legume: 10,
     nut_seed: 11,
@@ -148,7 +148,7 @@ const { pathToFileURL } = require('node:url');
   assert.equal(driedPotato.processedForm, 'dried');
   assert.equal(driedPotato.affinityTarget, stack.affinityTarget);
 
-  console.log('Plant produce catalog smoke: OK (100 canonical ingredients, recipes deferred)');
+  console.log('Plant produce catalog smoke: OK (98 canonical ingredients, recipes deferred)');
 })().catch((error) => {
   console.error(error);
   process.exitCode = 1;
