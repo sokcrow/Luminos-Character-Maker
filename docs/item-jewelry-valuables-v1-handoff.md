@@ -97,7 +97,7 @@ Each has exactly two loot/value variants:
 - Gold
 - Gems
 
-The Gems version remains a higher-value loot tier. Visually it reuses the Gold base icon and composes a Cut Gem icon as a lower-corner overlay. A concrete `gemId` may be supplied when the loot generator knows which gem is visible; otherwise the generic `gem_cut` overlay is used. The Valuable's fixed Gems-tier price remains authoritative regardless of which overlay gem is shown.
+The Gems version is a higher-value loot tier with its own dedicated `*_gems` artwork. Valuables do **not** use the lower-corner gemstone overlay for this distinction; the dedicated Gems icon already communicates that state.
 
 Standard loot values:
 
@@ -152,7 +152,7 @@ Each chassis has a practical maximum gemstone count. Larger commercial chassis s
 
 ## Gem overlay composition
 
-Gem-bearing Jewelry and Gems-tier Valuables do not require a separate fully-rendered incrustation icon.
+Gem-bearing **Jewelry / Accessories** use the lower-corner gemstone overlay so each metal/form does not need a separate incrustation image.
 
 The inventory card composes:
 
@@ -178,7 +178,7 @@ base icon  -> jewelry_necklace_gold
 overlay    -> gem_ruby_cut
 ```
 
-The complete gemstone list remains on the Item; the overlay is only a compact visual cue.
+The complete gemstone list remains on the Accessory; the overlay is only a compact visual cue. Valuables are separate: their Gold and Gems variants use their dedicated full icons.
 
 ## Stable base value for Enchantment
 
@@ -272,6 +272,6 @@ Gem-bearing pieces additionally expose `enchantmentReady: true` and their mundan
 - all Valuable forms are loot-only and reject normal market/craft generation
 - Circlet / Tiara / Crown removed from the modern commercial baseline
 - Jewelry forms without supplied icons are removed rather than sharing another form's icon
-- lower-right Cut Gem overlay for gem-bearing Jewelry / Valuable variants
+- lower-right Cut Gem overlay for gem-bearing Jewelry / Accessories
 - deterministic mundane base values for later Enchantment multipliers
-- Gold Valuable base art reused for Gems variants; no dedicated incrustation base icon required
+- dedicated Gold and Gems artwork retained for every Valuable form
