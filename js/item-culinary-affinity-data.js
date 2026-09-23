@@ -89,18 +89,26 @@
     pear: "fruit_balanced",
     orange: "fruit_citrus",
     lemon: "fruit_citrus",
-    berry: "fruit_berry",
+    blackberry: "fruit_berry",
     strawberry: "fruit_berry",
     grape: "fruit_balanced",
     peach: "fruit_balanced",
     cherry: "fruit_berry",
     melon: "fruit_balanced",
     banana: "starch",
-    exotic_fruit: "fruit_exotic",
+    dragon_fruit: "fruit_exotic",
     pineapple: "fruit_citrus",
     plum: "fruit_balanced",
     juniper_berry: "fruit_berry",
     coconut: "nut",
+    mango: "fruit_balanced",
+    lime: "fruit_citrus",
+    kiwi: "fruit_balanced",
+    pomegranate: "fruit_balanced",
+    watermelon: "fruit_balanced",
+    blueberry: "fruit_berry",
+    raspberry: "fruit_berry",
+    red_berry: "fruit_berry",
     camellia_fruit: "fruit_exotic",
     catnip_fruit: "fruit_berry",
 
@@ -227,18 +235,28 @@
     meat_exotic_humanoid: "exotic_humanoid_meat",
   });
 
+  const ALIASES = Object.freeze({
+    berry: "blackberry",
+    exotic_fruit: "dragon_fruit",
+  });
+
   function clone(value) {
     return value == null ? value : JSON.parse(JSON.stringify(value));
   }
 
+  function canonicalItemId(itemId) {
+    const key = String(itemId || "").trim();
+    return ALIASES[key] || key;
+  }
+
   function get(itemId) {
-    const profileId = PROFILE_BY_ITEM[String(itemId || "").trim()];
+    const profileId = PROFILE_BY_ITEM[canonicalItemId(itemId)];
     const distribution = profileId ? PROFILES[profileId] : null;
     return distribution ? clone(distribution) : null;
   }
 
   function profileIdFor(itemId) {
-    return PROFILE_BY_ITEM[String(itemId || "").trim()] || null;
+    return PROFILE_BY_ITEM[canonicalItemId(itemId)] || null;
   }
 
   function listItemIds() {
@@ -249,6 +267,8 @@
     VERSION,
     PROFILES,
     PROFILE_BY_ITEM,
+    ALIASES,
+    canonicalItemId,
     get,
     profileIdFor,
     listItemIds,
