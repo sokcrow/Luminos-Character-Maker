@@ -55,6 +55,23 @@ The reusable contracts live under `game-engine/src/world/`. The Forest Lab expos
 
 See `docs/game-engine-continuous-movement-handoff.md` for the integration boundary and the intentionally deferred combat rules.
 
+## Geography + Geology V1
+
+The procedural biome lane now composes physical terrain in this order:
+
+`BiomeComposer -> LandformSystem -> GeographyField -> GeologySystem -> Ecology -> Terrain Semantics`
+
+- `GeographyField` adds signed secondary relief: shoulders rise, gullies/depressions lower terrain and saddles cut natural passes through broad ridges.
+- Procedural non-coast sectors render one continuous ground mesh from the same height function used by physics. The player no longer walks on a flat hidden plate beneath visual hills.
+- `GeologySystem` generates deterministic outcrop and scree candidates from biome relief/rockiness, then accepts blocking outcrops only while land anchors remain connected.
+- Accepted outcrop chains use physical colliders and force local detours. Scree is traversable but canonical difficult terrain (0.5 movement multiplier).
+- Ecology consumes geography: gullies retain more moisture, exposed shoulders increase rockiness, and coherent shrub thickets can become difficult terrain rather than decorative scatter.
+- The global hex map is unchanged. The current validation target is the existing Temperate Hills region so biome depth is proven before expanding world size.
+
+The route audit is a build-time safety contract, not player-visible pathfinding. It protects sector spawn/land transition connectivity while still allowing local rock walls, steep slopes and formations that must be walked around.
+
+See `docs/game-engine-geography-geology-handoff.md`.
+
 ## Run locally on Windows
 
 From this folder, double-click:
