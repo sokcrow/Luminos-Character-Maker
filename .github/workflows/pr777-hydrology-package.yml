@@ -1,0 +1,38 @@
+name: PR777 Hydrology package
+
+on:
+  push:
+    branches:
+      - feat/item-icon-families
+
+permissions:
+  contents: read
+
+jobs:
+  validate-package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate global map terrain water hydrology
+        run: |
+          node --check js/global-map-terrain-textures.js
+          node --check js/global-map-water-textures.js
+          node --check js/global-map-hydrology.js
+          node --check js/vtt/global-map-runtime.js
+          node tests/global-map-terrain-textures-smoke.mjs
+          node tests/global-map-water-textures-smoke.mjs
+          node tests/global-map-hydrology-smoke.mjs
+          test -f LuminousLab/START_ANDROID.sh
+      - name: Build clean project ZIP
+        run: |
+          zip -qr Hydro777.zip . -x ".git/*" "Hydro777.zip" ".github/workflows/pr777-hydrology-package.yml"
+          unzip -tq Hydro777.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Hydro777
+          path: Hydro777.zip
+          if-no-files-found: error
+          retention-days: 1
