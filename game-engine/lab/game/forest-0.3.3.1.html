@@ -2096,20 +2096,22 @@ function composeResolvedZoneRecipe(region,{cache=true}={}){
     const forestCorridors=buildForestWalkCorridors({...region,canopy},s,sectorSeed),geology=GeologySystem.composeCandidates({region,sectorId:id,seed:sectorSeed,rockiness}),modules=[];
     const localReliefWeight=Math.max(region.landform.weights.rolling||0,region.landform.weights.hills||0,region.landform.weights.ridges||0,region.landform.weights.mountain||0,region.landform.weights.cliffs||0,region.landform.weights.mesas||0);
     if(localReliefWeight>.10&&region.biomeProfile!=='desert'){
-      const S=OVERWORLD_SECTOR_SCALE,localCount=localReliefWeight>.52?2:1;
+      const localCount=localReliefWeight>.52?2:1;
       for(let mi=0;mi<localCount;mi++){
         const salt=17+mi*29,sideX=zoneHash(sectorSeed,2+mi,3-mi,salt)>.5?1:-1,sideZ=zoneHash(sectorSeed,3+mi,4+mi,salt+1)>.5?1:-1;
-        const ax=sideX*(7.8+zoneHash(sectorSeed,4+mi,5,salt+2)*6.0)*S,az=sideZ*(6.5+zoneHash(sectorSeed,5,6+mi,salt+3)*6.5)*S;
-        const height=(.52+localReliefWeight*1.10+rockiness*.52)*(mi?0.72:1);
+        // These are LOCAL-sector coordinates. Multiplying by OVERWORLD_SECTOR_SCALE
+        // made the forms too broad and visually flat on the 64x64 runtime sector.
+        const ax=sideX*(5.2+zoneHash(sectorSeed,4+mi,5,salt+2)*5.8),az=sideZ*(4.8+zoneHash(sectorSeed,5,6+mi,salt+3)*6.0);
+        const height=(.92+localReliefWeight*1.90+rockiness*.65)*(mi?0.74:1);
         modules.push(Object.freeze({
           id:`zone-${region.id}-${id}-local-relief-${mi}`,kind:'rolling-ridge',
           center:Object.freeze({x:ax,z:az}),
-          radiusX:(6.4+zoneHash(sectorSeed,6+mi,7,salt+4)*2.8)*S,
-          radiusZ:(5.3+zoneHash(sectorSeed,7,8+mi,salt+5)*2.4)*S,
+          radiusX:4.2+zoneHash(sectorSeed,6+mi,7,salt+4)*2.9,
+          radiusZ:3.4+zoneHash(sectorSeed,7,8+mi,salt+5)*2.5,
           heightTiles:height,seed:((sectorSeed+mi*193)%997)*.013,
-          eastSteepness:.08+localReliefWeight*.22+rockiness*.12,
-          topKind:(localReliefWeight>.62&&rockiness>.42)?'groveStone':profile.groundKind,
-          segmentsX:22,segmentsZ:20
+          eastSteepness:.16+localReliefWeight*.34+rockiness*.14,
+          topKind:(localReliefWeight>.62&&rockiness>.38)?'groveStone':profile.groundKind,
+          segmentsX:24,segmentsZ:22
         }));
       }
     }
@@ -2505,9 +2507,11 @@ async function enterLocalFromGlobal(mode='explore'){
   activateProceduralZone(region);
   fade.classList.remove('off');await new Promise(r=>setTimeout(r,220));
   globalMapActive=false;document.body.classList.remove('global-map-mode');activeLocalCamp=null;
-  // spawn=null hace que loadMap coloque al actor sobre la cota física generada del sector.
-  loadMap('owS',null,'exterior');
-  const start=proceduralSectorRecipe('owS');
+  // A global region opens at its local CENTER. owS was a legacy arrival-sector choice
+  // and could hide the biome's strongest geography outside the first camera view.
+  const localEntrySector='owC';
+  loadMap(localEntrySector,null,'exterior');
+  const start=proceduralSectorRecipe(localEntrySector);
   area.textContent=`${region.label} · ${start?.label||'Zona local'}`;
   const composed=activeProceduralZone?.region,hydroLabel=activeProceduralZone?.hydrology?.type&&activeProceduralZone.hydrology.type!=='none'?` + ${activeProceduralZone.hydrology.type}`:'';
   const landforms=Object.entries(composed?.landform?.weights||{}).filter(([,v])=>v>.08).map(([k])=>k).join('/');
@@ -14477,15 +14481,18 @@ function geologyFeatureProtected(id,feature,reserved=null){
   return false;
 }
 function geologyCandidateScore(id,feature){
-  let score=0,count=0;
+  let score=0,count=0,cx=0,cz=0;
   const points=feature.kind==='outcrop-chain'?(feature.points||[]):[feature.center];
   for(const p of points){
     if(!p)continue;
     const slope=elevationSlopeAtWorld(wt(p.x),wt(p.z),id).angleDeg,nature=proceduralZoneNatureSample(id,p.x,p.z);
     if(proceduralHydrologySample(id,p.x,p.z).water)return -Infinity;
-    score+=Math.min(1,slope/38)*.55+(nature.rockiness||0)*.34+(nature.ridge||0)*.28;count++;
+    score+=Math.min(1,slope/38)*.55+(nature.rockiness||0)*.34+(nature.ridge||0)*.28;cx+=p.x;cz+=p.z;count++;
   }
-  return count?score/count:-Infinity;
+  if(!count)return -Infinity;
+  cx/=count;cz/=count;
+  const centerDistance=Math.hypot(cx,cz),readability=zoneClamp(1-centerDistance/28,0,1);
+  return score/count+readability*.20;
 }
 function geologyTraversalAnchors(id){
   const anchors=[],def=MAP_DATA.maps[id]||currentMapDef(),cfg=OVERWORLD_PLAN[id];
@@ -14605,16 +14612,21 @@ function proceduralGenerationAudit(id=mapId){
     const h=elevationHeightTilesAtWorld(wt(x),wt(z),id),s=elevationSlopeAtWorld(wt(x),wt(z),id).angleDeg;
     minH=Math.min(minH,h);maxH=Math.max(maxH,h);maxSlope=Math.max(maxSlope,s);samples++;
   }
-  const geology=resolveGeologyForSector(id),reliefSpan=Math.max(0,maxH-minH);
-  const requiredSpan=Math.max(.45,(Math.max(activeProceduralZone?.region?.landform?.weights?.hills||0,activeProceduralZone?.region?.landform?.weights?.ridges||0,activeProceduralZone?.region?.landform?.weights?.mountain||0))*1.05);
+  const geology=resolveGeologyForSector(id),reliefSpan=Math.max(0,maxH-minH),weights=activeProceduralZone?.region?.landform?.weights||{};
+  const primaryRelief=Math.max(weights.hills||0,weights.ridges||0,weights.mountain||0,weights.cliffs||0);
+  const requiredSpan=Math.max(.55,primaryRelief*1.35);
+  const requiredSlopeDeg=(weights.mountain||0)>.45||(weights.cliffs||0)>.35?30:(weights.ridges||0)>.40?24:(weights.hills||0)>.45?18:10;
+  let nearestOutcropDistanceTiles=Infinity;
+  for(const f of geology.outcrops)for(const p of (f.points||[]))nearestOutcropDistanceTiles=Math.min(nearestOutcropDistanceTiles,Math.hypot(p.x,p.z));
+  const geologyReadable=geology.outcrops.length===0||nearestOutcropDistanceTiles<=22;
   return Object.freeze({
-    ok:reliefSpan>=requiredSpan,
+    ok:reliefSpan>=requiredSpan&&maxSlope>=requiredSlopeDeg&&geology.audit?.ok===true&&geologyReadable&&!gridHelper,
     id,regionId:activeProceduralZone?.region?.id||null,
     reliefSpanTiles:reliefSpan,minHeightTiles:minH,maxHeightTiles:maxH,maxSlopeDeg:maxSlope,
     localReliefModules:(sector.modules||[]).length,
     geographyFeatures:activeProceduralZone?.geography?.features?.length||0,
-    geologyOutcrops:geology.outcrops.length,geologyScree:geology.scree.length,
-    geologyAudit:geology.audit,samples,requiredSpanTiles:requiredSpan,
+    geologyOutcrops:geology.outcrops.length,geologyScree:geology.scree.length,nearestOutcropDistanceTiles,
+    geologyAudit:geology.audit,samples,requiredSpanTiles:requiredSpan,requiredSlopeDeg,
     visibleGridGeometry:!!gridHelper
   });
 }
@@ -17741,8 +17753,8 @@ try{
     globalWorldState.currentRegionId=qaRegion.id;
     globalWorldState.activeLocalRegionId=qaRegion.id;
     activateProceduralZone(qaRegion);
-    loadMap('owS',null,'exterior');
-    window.__PROCEDURAL_QA__=proceduralGenerationAudit('owS');
+    loadMap('owC',null,'exterior');
+    window.__PROCEDURAL_QA__=proceduralGenerationAudit('owC');
   }else if(FOREST_STRESS_BOOT.enabled&&FOREST_STRESS_BOOT.testMode){
     // Banco aislado opcional; producción estándar inicia por la ruta normal.
     const stressRegion=GLOBAL_REGION_BY_ID.get('gSW')||GLOBAL_REGION_BY_ID.get('gC');
