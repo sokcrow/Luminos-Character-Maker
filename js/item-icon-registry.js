@@ -4,7 +4,7 @@
     if (typeof module !== "undefined" && module.exports) module.exports = global.LuminousItemIconRegistry;
     return;
   }
-  const VERSION = 22;
+  const VERSION = 23;
   const DEFAULT_GROUP = "generic_item";
   function family(id, label, labelEs, domain, icon) { return Object.freeze({ id, label, labelEs, domain, icon }); }
   const FAMILY_ROWS = Object.freeze([
@@ -223,6 +223,32 @@
     ["mineral_exotic_industrial","Exotic Industrial Mineral","Mineral industrial exótico","material","https://imgur.com/pmHRWNP.png"],
     ["ore_platinum","Platinum Ore","Mena de platino","material","https://imgur.com/QBXnv0H.png"],
     ["metal_ingot","Ingot / Refined Metal","Lingote / Metal refinado","material","https://imgur.com/BNTZ6FI.png"],
+    ["ingot_lead","Lead Ingot","Lingote de plomo","material","https://imgur.com/ULLXlJC.png"],
+    ["ingot_iron","Iron Ingot","Lingote de hierro","material","https://imgur.com/fEJJje8.png"],
+    ["ingot_aluminum","Aluminum Ingot","Lingote de aluminio","material","https://imgur.com/WjLTL1g.png"],
+    ["ingot_zinc","Zinc Ingot","Lingote de zinc","material","https://imgur.com/xVhzzKb.png"],
+    ["ingot_tin","Tin Ingot","Lingote de estaño","material","https://imgur.com/S9n4r16.png"],
+    ["ingot_copper","Copper Ingot","Lingote de cobre","material","https://imgur.com/fMf7NPD.png"],
+    ["ingot_manganese","Manganese Ingot","Lingote de manganeso","material","https://imgur.com/QKIdp9T.png"],
+    ["ingot_nickel","Nickel Ingot","Lingote de níquel","material","https://imgur.com/St3kotI.png"],
+    ["ingot_chromium","Chromium Ingot","Lingote de cromo","material","https://imgur.com/mXv6NBK.png"],
+    ["ingot_lithium","Lithium Ingot","Lingote de litio","material","https://imgur.com/dZOv9YI.png"],
+    ["ingot_molybdenum","Molybdenum Ingot","Lingote de molibdeno","material","https://imgur.com/Eg4XnKb.png"],
+    ["ingot_vanadium","Vanadium Ingot","Lingote de vanadio","material","https://imgur.com/RnhRDuB.png"],
+    ["ingot_cobalt","Cobalt Ingot","Lingote de cobalto","material","https://imgur.com/KrDmg3t.png"],
+    ["ingot_silver","Silver Ingot","Lingote de plata","material","https://imgur.com/37EpOkK.png"],
+    ["ingot_tungsten","Tungsten Ingot","Lingote de tungsteno","material","https://imgur.com/1QrmCEn.png"],
+    ["ingot_titanium","Titanium Ingot","Lingote de titanio","material","https://imgur.com/tx5cwFd.png"],
+    ["ingot_gold","Gold Ingot","Lingote de oro","material","https://imgur.com/3gva0mJ.png"],
+    ["ingot_niobium","Niobium Ingot","Lingote de niobio","material","https://imgur.com/SgsVx8i.png"],
+    ["ingot_tantalum","Tantalum Ingot","Lingote de tantalio","material","https://imgur.com/QReOsGZ.png"],
+    ["ingot_platinum","Platinum Ingot","Lingote de platino","material","https://imgur.com/37EpOkK.png"],
+    ["material_rare_earth_refined","Rare-Earth Refined Material","Material refinado de tierras raras","material","https://imgur.com/IC0mFEv.png"],
+    ["material_uranium_refined","Refined Uranium Material","Material de uranio refinado","material","https://imgur.com/NlbXA9w.png"],
+    ["material_superconductive","Superconductive Material","Material superconductor","material","https://imgur.com/xk2LM3h.png"],
+    ["material_metamaterial_refined","Refined Metamaterial","Metamaterial refinado","material","https://imgur.com/gBo2HP4.png"],
+    ["material_null_dampening","Null / Dampening Material","Material nulo / amortiguador","material","https://imgur.com/5Hxv3ej.png"],
+    ["material_exotic_refined","Exotic Refined Material","Material exótico refinado","material","https://imgur.com/wqb52n6.png"],
     ["gem_rough","Rough Gem","Gema en bruto","material","https://imgur.com/18tq0PQ.png"],
     ["gem_cut","Cut / Polished Gem","Gema tallada / pulida","material","https://imgur.com/sDAhiUI.png"],
     ["organic_material","Organic Material","Material orgánico","material","https://imgur.com/lqQbJds.png"],
