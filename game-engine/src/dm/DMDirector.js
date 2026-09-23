@@ -9,6 +9,8 @@ export class DMDirector {
     return {
       player,
       inventory: player && items?.available ? items.snapshot(player) : null,
+      worldSpace: this.engine.session.worldSpace || null,
+      combatMovement: this.engine.session.combatMovement?.snapshot?.() || null,
       engine: this.engine.metrics()
     };
   }
