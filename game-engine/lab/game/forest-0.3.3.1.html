@@ -1642,7 +1642,14 @@ const GeologySystem=Object.freeze({
     const desiredOutcrops=Math.max(relief>.22?1:0,Math.min(4,Math.round(relief*2.2+rockiness*2.1)));
     const desiredScree=Math.min(3,Math.round(rockiness*1.8+(weights.mountain||0)*1.6+(weights.cliffs||0)*1.2));
     for(let i=0;i<14;i++){
-      const cx=rng.range(-extent,extent),cz=rng.range(-extent,extent),angle=rng.range(-Math.PI,Math.PI);
+      const angle=rng.range(-Math.PI,Math.PI);
+      let cx,cz;
+      if(i<7){
+        const radial=rng.range(8.0,17.0);
+        cx=Math.cos(angle)*radial;cz=Math.sin(angle)*radial;
+      }else{
+        cx=rng.range(-extent,extent);cz=rng.range(-extent,extent);
+      }
       const length=rng.range(5.4,11.5)*(1+relief*.22),half=length*.5,nx=-Math.sin(angle),nz=Math.cos(angle),tx=Math.cos(angle),tz=Math.sin(angle),bend=rng.signed()*rng.range(.35,1.15);
       const points=Object.freeze([
         Object.freeze({x:cx-tx*half+nx*bend*.25,z:cz-tz*half+nz*bend*.25}),
@@ -2098,20 +2105,26 @@ function composeResolvedZoneRecipe(region,{cache=true}={}){
     if(localReliefWeight>.10&&region.biomeProfile!=='desert'){
       const localCount=localReliefWeight>.52?2:1;
       for(let mi=0;mi<localCount;mi++){
-        const salt=17+mi*29,sideX=zoneHash(sectorSeed,2+mi,3-mi,salt)>.5?1:-1,sideZ=zoneHash(sectorSeed,3+mi,4+mi,salt+1)>.5?1:-1;
-        // These are LOCAL-sector coordinates. Multiplying by OVERWORLD_SECTOR_SCALE
-        // made the forms too broad and visually flat on the 64x64 runtime sector.
-        const ax=sideX*(5.2+zoneHash(sectorSeed,4+mi,5,salt+2)*5.8),az=sideZ*(4.8+zoneHash(sectorSeed,5,6+mi,salt+3)*6.0);
-        const height=(.92+localReliefWeight*1.90+rockiness*.65)*(mi?0.74:1);
+        const salt=17+mi*29;
+        // The first form is guaranteed inside the entry-view radius so the biome reads
+        // as terrain immediately. Secondary forms keep seeded directional variation.
+        const entryForm=mi===0;
+        const ax=entryForm
+          ?(zoneHash(sectorSeed,4,5,salt+2)-.5)*5.2
+          :(zoneHash(sectorSeed,4+mi,5,salt+2)>.5?1:-1)*(9+zoneHash(sectorSeed,9,5,salt+7)*6.0);
+        const az=entryForm
+          ?7.0+zoneHash(sectorSeed,5,6,salt+3)*4.0
+          :(zoneHash(sectorSeed,5,6+mi,salt+3)>.5?1:-1)*(8+zoneHash(sectorSeed,5,10,salt+8)*7.0);
+        const height=(1.02+localReliefWeight*2.35+rockiness*.78)*(entryForm?1:.72);
         modules.push(Object.freeze({
           id:`zone-${region.id}-${id}-local-relief-${mi}`,kind:'rolling-ridge',
           center:Object.freeze({x:ax,z:az}),
-          radiusX:4.2+zoneHash(sectorSeed,6+mi,7,salt+4)*2.9,
-          radiusZ:3.4+zoneHash(sectorSeed,7,8+mi,salt+5)*2.5,
+          radiusX:entryForm?(4.6+zoneHash(sectorSeed,6,7,salt+4)*1.7):(4.8+zoneHash(sectorSeed,6+mi,7,salt+4)*2.6),
+          radiusZ:entryForm?(3.5+zoneHash(sectorSeed,7,8,salt+5)*1.4):(3.8+zoneHash(sectorSeed,7,8+mi,salt+5)*2.2),
           heightTiles:height,seed:((sectorSeed+mi*193)%997)*.013,
-          eastSteepness:.16+localReliefWeight*.34+rockiness*.14,
-          topKind:(localReliefWeight>.62&&rockiness>.38)?'groveStone':profile.groundKind,
-          segmentsX:24,segmentsZ:22
+          eastSteepness:.22+localReliefWeight*.42+rockiness*.16,
+          topKind:(localReliefWeight>.62&&rockiness>.30)?'groveStone':profile.groundKind,
+          segmentsX:26,segmentsZ:24
         }));
       }
     }
@@ -14607,7 +14620,7 @@ function proceduralGenerationAudit(id=mapId){
   const sector=proceduralSectorRecipe(id);
   if(!sector)return Object.freeze({ok:false,reason:'no_procedural_sector',id});
   let minH=Infinity,maxH=-Infinity,maxSlope=0,samples=0;
-  const extent=OVERWORLD_HALF-4,step=Math.max(4,Math.floor(OVERWORLD_SECTOR_SIZE/10));
+  const extent=OVERWORLD_HALF-4,step=1.5;
   for(let x=-extent;x<=extent+.001;x+=step)for(let z=-extent;z<=extent+.001;z+=step){
     const h=elevationHeightTilesAtWorld(wt(x),wt(z),id),s=elevationSlopeAtWorld(wt(x),wt(z),id).angleDeg;
     minH=Math.min(minH,h);maxH=Math.max(maxH,h);maxSlope=Math.max(maxSlope,s);samples++;
