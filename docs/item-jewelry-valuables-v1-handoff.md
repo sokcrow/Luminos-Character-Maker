@@ -4,7 +4,7 @@
 
 This pass introduces **mundane** jewelry and valuables as generative Items.
 
-It intentionally does not price or resolve enchantments yet.
+It does not define final Enchantment tier multipliers, but gem-bearing variants now expose a stable mundane base value that an Enchantment multiplier can consume.
 
 The goal is to avoid fixed catalog spam such as one Item ID for every metal/gem combination.
 
@@ -41,7 +41,7 @@ consumed_material_value_x_chassis_multiplier_x_quality_v1
 
 Retail markup is not embedded.
 
-Enchantments contribute **0 Ahn in V1** and remain deferred.
+Before an Enchantment is applied, `enchantmentValueAhn` remains **0 Ahn**. Gem-bearing variants expose `baseMundaneValueAhn` and `enchantmentBaseValueAhn`; a later or explicit Enchantment multiplier is applied to that already-composed mundane value rather than recalculating metal or gemstones.
 
 ## 8 Jewelry chassis
 
@@ -97,7 +97,7 @@ Each has exactly two loot/value variants:
 - Gold
 - Gems
 
-The Gems version is an abstract higher-value visual tier. It does not ask which gemstones are embedded and does not generate gemstone resonance or enchantment metadata.
+The Gems version remains a higher-value loot tier. Visually it reuses the Gold base icon and composes a Cut Gem icon as a lower-corner overlay. A concrete `gemId` may be supplied when the loot generator knows which gem is visible; otherwise the generic `gem_cut` overlay is used. The Valuable's fixed Gems-tier price remains authoritative regardless of which overlay gem is shown.
 
 Standard loot values:
 
@@ -150,6 +150,63 @@ This is one generated Item rather than seven separate socket records or a unique
 
 Each chassis has a practical maximum gemstone count. Larger commercial chassis such as Necklaces support more gemstones than Rings.
 
+## Gem overlay composition
+
+Gem-bearing Jewelry and Gems-tier Valuables do not require a separate fully-rendered incrustation icon.
+
+The inventory card composes:
+
+```text
+base item icon
++ Cut Gem overlay in the lower-right corner
+```
+
+Jewelry chooses one display gem from its actual composition:
+
+1. highest quantity;
+2. if tied, highest total gemstone input value;
+3. stable ID tie-break.
+
+Example:
+
+```text
+Gold Necklace
+Diamond ×1
+Ruby ×6
+
+base icon  -> jewelry_necklace_gold
+overlay    -> gem_ruby_cut
+```
+
+The complete gemstone list remains on the Item; the overlay is only a compact visual cue.
+
+## Stable base value for Enchantment
+
+Every gem-bearing generated variant records its mundane value before Enchantment:
+
+```text
+baseMundaneValueAhn
+enchantmentBaseValueAhn
+enchantmentReady: true
+enchantmentMultiplier: 1
+enchantmentValueAhn: 0
+```
+
+Jewelry also receives a deterministic `variantSignature` from chassis + real metal + Quality + gemstone composition.
+
+When a multiplier is supplied:
+
+```text
+Enchanted Total
+= enchantmentBaseValueAhn × Enchantment Multiplier
+
+enchantmentValueAhn
+= Enchanted Total - enchantmentBaseValueAhn
+```
+
+The catalog intentionally does **not** invent the final +1/+2/+3 price multipliers. `applyEnchantmentMultiplier(...)` accepts the multiplier supplied by the later Enchantment rules.
+
+Non-gemmed Jewelry and Gold-only Valuables are not marked `enchantmentReady` by this Jewelry/Valuables contract.
 ## Gem resonance
 
 The generated Item preserves every mounted gem and exposes a compositional resonance summary.
@@ -187,16 +244,17 @@ Fine Quality applies the universal Quality value multiplier after composition.
 
 ## Mundane/enchantment boundary
 
-Every generated V1 piece has:
+Every mundane piece starts with:
 
 ```text
 enchanted: false
 enchantment: null
+enchantmentMultiplier: 1
 enchantmentValueAhn: 0
-enchantmentPricingStatus: deferred
+enchantmentPricingStatus: multiplier_ready
 ```
 
-The later Enchantment pass can therefore increase value without rewriting mundane treasure composition.
+Gem-bearing pieces additionally expose `enchantmentReady: true` and their mundane base value. This lets the later Enchantment pass increase the price without rewriting or double-counting the underlying material/gem composition.
 
 ## Validation
 
@@ -214,3 +272,6 @@ The later Enchantment pass can therefore increase value without rewriting mundan
 - all Valuable forms are loot-only and reject normal market/craft generation
 - Circlet / Tiara / Crown removed from the modern commercial baseline
 - Jewelry forms without supplied icons are removed rather than sharing another form's icon
+- lower-right Cut Gem overlay for gem-bearing Jewelry / Valuable variants
+- deterministic mundane base values for later Enchantment multipliers
+- Gold Valuable base art reused for Gems variants; no dedicated incrustation base icon required
