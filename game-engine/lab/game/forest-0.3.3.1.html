@@ -778,6 +778,7 @@ body.global-map-mode #globalMapActions{display:block}
 
 <script>
 window.__paperLoaded=false;
+window.__paperLoaderActive=true;
 window.setLoadProgress=(pct,stage,hint)=>{
   const p=Math.max(0,Math.min(100,Math.round(pct)));
   const fill=document.getElementById('loaderFill');
@@ -789,10 +790,19 @@ window.setLoadProgress=(pct,stage,hint)=>{
   if(stageEl&&stage)stageEl.textContent=stage;
   if(hintEl&&hint)hintEl.textContent=hint;
 };
-window.finishPaperLoad=()=>{
+window.beginPaperLoad=({pct=4,stage='Preparando escenario',hint='Cargando piezas…'}={})=>{
+  window.__paperLoaderActive=true;
+  const loader=document.getElementById('loaderPaper');
+  const retry=document.getElementById('loaderRetry');
+  if(retry)retry.classList.remove('show');
+  if(loader)loader.classList.remove('off');
+  window.setLoadProgress(pct,stage,hint);
+};
+window.finishPaperLoad=({stage='¡Listo!',hint='Mostrando el mundo…',delay=180}={})=>{
   window.__paperLoaded=true;
-  window.setLoadProgress(100,'¡Listo!','Abriendo el canal…');
-  setTimeout(()=>document.getElementById('loaderPaper')?.classList.add('off'),260);
+  window.__paperLoaderActive=false;
+  window.setLoadProgress(100,stage,hint);
+  setTimeout(()=>document.getElementById('loaderPaper')?.classList.add('off'),Math.max(0,Number(delay)||0));
 };
 window.paperLoadFailed=(msg)=>{
   const stage=document.getElementById('loaderStage');
@@ -2576,8 +2586,12 @@ function activateGlobalMap({initial=false}={}){
 }
 async function returnToGlobalMap(){
   if(globalMapActive||transitioning)return;
-  fade.classList.remove('off');await new Promise(r=>setTimeout(r,220));
+  window.beginPaperLoad?.({pct:12,stage:'Abriendo mapa global',hint:'Guardando la posición local…'});
+  await new Promise(requestAnimationFrame);
+  fade.classList.remove('off');
+  window.setLoadProgress?.(58,'Desplegando regiones','Preparando el mapa global…');
   activateGlobalMap();renderer.render(globalScene,globalCamera);fade.classList.add('off');
+  window.finishPaperLoad?.({stage:'Mapa global listo',hint:'Puedes seguir viajando.',delay:120});
 }
 function markCurrentGlobalCamp(){
   const id=globalWorldState.activeLocalRegionId||globalWorldState.currentRegionId;const st=globalWorldState.regions[id]||(globalWorldState.regions[id]={visited:true,camped:false,visits:1});st.camped=true;updateGlobalRegionVisuals();updateGlobalHud();
@@ -2616,8 +2630,11 @@ async function enterLocalFromGlobal(mode='explore'){
   globalWorldState.currentRegionId=region.id;globalWorldState.activeLocalRegionId=region.id;globalWorldState.localEntryMode=mode;
   const st=globalWorldState.regions[region.id]||(globalWorldState.regions[region.id]={visited:false,camped:false,visits:0});st.visited=true;
   if(mode==='camp')st.camped=true;
+  window.beginPaperLoad?.({pct:10,stage:'Entrando a la región',hint:`${region.label} · preparando semilla ${region.seed}`});
+  await new Promise(requestAnimationFrame);
   activateProceduralZone(region);
-  fade.classList.remove('off');await new Promise(r=>setTimeout(r,220));
+  window.setLoadProgress?.(24,'Componiendo bioma','Relieve, hidrología y ecología…');
+  fade.classList.remove('off');
   globalMapActive=false;document.body.classList.remove('global-map-mode');activeLocalCamp=null;
   // A global region opens at its local CENTER. owS was a legacy arrival-sector choice
   // and could hide the biome's strongest geography outside the first camera view.
@@ -2635,6 +2652,7 @@ async function enterLocalFromGlobal(mode='explore'){
       :'Palanca / WASD · exploración abierta · macroformas, vegetación y props responden a campos compartidos · Acampar aquí en cualquier momento');
   if(mode==='camp')placeCampAtCurrentLocation();
   updateCamera(1/60,true);renderer.render(scene,camera);fade.classList.add('off');
+  window.finishPaperLoad?.({stage:'Región lista',hint:`${region.label} cargada.`,delay:130});
 }
 if(globalExploreBtn)globalExploreBtn.onclick=()=>void enterLocalFromGlobal('explore');
 if(globalCampBtn)globalCampBtn.onclick=()=>void enterLocalFromGlobal('camp');
@@ -5277,7 +5295,7 @@ function elevationHeightTilesInModule(module,tx,tz,id=mapId){
     if(longitudinal<=0||lateral>=half)return 0;
     const along=smooth01(Math.min(1,longitudinal));
     const side=lateral<=core?1:smooth01(1-(lateral-core)/Math.max(.001,half-core));
-    return Math.max(0,(Number(module.heightTiles)||0)*along*side);
+    return Math.max(0,(Number(module.heightTiles)||0)*along*side)*proceduralHydrologyReliefFactor(id,tx,tz);
   }
   if(module.kind==='zone-ridge-curve'||module.kind==='zone-hill'){
     // Macroforma continua. Hydrology sólo modula la costa/playa; no reescribe
@@ -5294,16 +5312,26 @@ function elevationHeightTilesInModule(module,tx,tz,id=mapId){
   if(q>=1)return 0;
   const rise=smooth01(1-q);
   const crown=.96+.04*Math.sin((tx*.72+tz*.49)+seed*2.1);
-  return Math.max(0,(Number(module.heightTiles)||0)*Math.pow(rise,1.08)*crown);
+  return Math.max(0,(Number(module.heightTiles)||0)*Math.pow(rise,1.08)*crown)*proceduralHydrologyReliefFactor(id,tx,tz);
 }
-function inlandHydrologyGroundHeightTilesAtLocal(id,tx,tz,rawHeightTiles){
+function hydrologyPriorityGroundHeightTilesAtLocal(id,tx,tz,rawHeightTiles){
   const raw=Number(rawHeightTiles)||0,h=proceduralHydrologySample(id,tx,tz);
-  if(!['river','lake'].includes(h.type)||!Number.isFinite(h.waterSurfaceTiles))return raw;
-  if(h.water)return Math.min(raw,h.waterSurfaceTiles-Math.max(.06,Number(h.waterDepth)||.06));
-  const bank=Math.max(.45,Number(h.bankWidthTiles)||2),d=Number(h.distanceToWater);
-  if(!Number.isFinite(d)||d>=bank)return raw;
-  const t=smooth01(zoneClamp(d/bank,0,1)),shore=h.waterSurfaceTiles-.045;
-  return Math.min(raw,THREE.MathUtils.lerp(shore,raw,t));
+  // WATER-OWNS-HEIGHT CONTRACT: once a hydrology field marks a point as water,
+  // no hill/ridge/transition/geography elevation is allowed to raise the bed again.
+  if(h.water&&Number.isFinite(h.waterSurfaceTiles)){
+    const depth=Math.max(.04,Number(h.waterDepth)||.04);
+    return Math.min(raw,h.waterSurfaceTiles-depth);
+  }
+  // River/lake banks also grade downward toward the water; authored coast keeps its
+  // specialized grading in coastGroundHeightTilesAtLocal before this final pass.
+  if(['river','lake'].includes(h.type)&&Number.isFinite(h.waterSurfaceTiles)){
+    const bank=Math.max(.45,Number(h.bankWidthTiles)||2),d=Number(h.distanceToWater);
+    if(Number.isFinite(d)&&d<bank){
+      const t=smooth01(zoneClamp(d/bank,0,1)),shore=h.waterSurfaceTiles-.045;
+      return Math.min(raw,THREE.MathUtils.lerp(shore,raw,t));
+    }
+  }
+  return raw;
 }
 function elevationHeightTilesAtWorld(x,z,id=mapId){
   const tx=x/TILE,tz=z/TILE,base=biomeSectorBaseHeightTiles(id);
@@ -5319,7 +5347,7 @@ function elevationHeightTilesAtWorld(x,z,id=mapId){
   // La costa modifica la ALTURA del terreno de forma continua; no crea un escalón
   // ni una rampa artificial separada. Física y render consumen la misma función.
   const coastAdjusted=coastGroundHeightTilesAtLocal(id,tx,tz,raw);
-  return Math.max(0,inlandHydrologyGroundHeightTilesAtLocal(id,tx,tz,coastAdjusted));
+  return Math.max(0,hydrologyPriorityGroundHeightTilesAtLocal(id,tx,tz,coastAdjusted));
 }
 const NATURAL_SLOPE_RULES=Object.freeze({normalDeg:24,difficultDeg:34,maxClimbDeg:43,sampleTiles:.24});
 function elevationSlopeAtWorld(x,z,id=mapId){
@@ -16231,53 +16259,64 @@ function waterSpawnClearanceTilesAtWorld(x,z){
   }
   return locomotionModeAt(x,z,currentWorldLayer)==='swim'?-1:Infinity;
 }
-function waterSpawnCandidateAllowed(x,z,mapDef=currentMapDef()){
+function spawnCandidateAllowed(x,z,mapDef=currentMapDef(),{requireDry=true}={}){
   const b=mapDef?.bounds;if(b){
-    const margin=.45;if(x<wt(b.x0)+margin||x>wt(b.x1)-margin||z<wt(b.z0)+margin||z>wt(b.z1)-margin)return false;
+    const margin=Math.max(.55,PLAYER_RADIUS/TILE+.15);
+    if(x<wt(b.x0)+wt(margin)||x>wt(b.x1)-wt(margin)||z<wt(b.z0)+wt(margin)||z>wt(b.z1)-wt(margin))return false;
   }
   const cell=gridCellAtWorld(x,z,currentWorldLayer);if(!cell?.walkable)return false;
-  if(locomotionModeAt(x,z,currentWorldLayer)==='swim')return false;
-  if(waterSpawnClearanceTilesAtWorld(x,z)<WATER_GAMEPLAY_RULES.spawnDryMarginTiles)return false;
+  const swim=locomotionModeAt(x,z,currentWorldLayer)==='swim';
+  if(requireDry&&swim)return false;
+  if(requireDry&&waterSpawnClearanceTilesAtWorld(x,z)<WATER_GAMEPLAY_RULES.spawnDryMarginTiles)return false;
+  if(!swim&&isOverworldSector(mapId)&&elevationSlopeAtWorld(x,z,mapId).angleDeg>NATURAL_SLOPE_RULES.maxClimbDeg)return false;
   return !circleHitsCollider(x,z,PLAYER_RADIUS);
 }
-function resolveDefaultSpawnAgainstWater(mapDef,desired){
-  if(!isOverworldSector(mapId)||!activeProceduralZone?.hydrology||activeProceduralZone.hydrology.type==='none')return desired;
-  if(waterSpawnCandidateAllowed(desired.x,desired.z,mapDef))return desired;
-  const step=.65,maxR=WATER_GAMEPLAY_RULES.spawnSearchRadiusTiles;
+function resolveSafeSpawn(mapDef,desired,{requireDry=true}={}){
+  const source=desired?.clone?.()||new THREE.Vector3(Number(desired?.x)||0,Number(desired?.y)||0,Number(desired?.z)||0);
+  if(spawnCandidateAllowed(source.x,source.z,mapDef,{requireDry}))return source;
+  const step=.55,maxR=Math.max(12,WATER_GAMEPLAY_RULES.spawnSearchRadiusTiles);
   let best=null,bestScore=Infinity;
   for(let r=step;r<=maxR;r+=step){
-    const samples=Math.max(12,Math.ceil(Math.PI*2*r/step));
+    const samples=Math.max(16,Math.ceil(Math.PI*2*r/step));
     for(let i=0;i<samples;i++){
-      const a=i/samples*Math.PI*2,x=desired.x+wt(Math.cos(a)*r),z=desired.z+wt(Math.sin(a)*r);
-      if(!waterSpawnCandidateAllowed(x,z,mapDef))continue;
-      const clearance=waterSpawnClearanceTilesAtWorld(x,z);
+      const a=i/samples*Math.PI*2,x=source.x+wt(Math.cos(a)*r),z=source.z+wt(Math.sin(a)*r);
+      if(!spawnCandidateAllowed(x,z,mapDef,{requireDry}))continue;
+      const clearance=requireDry?waterSpawnClearanceTilesAtWorld(x,z):0;
       const score=r-Math.min(3,Math.max(0,clearance))*.08;
-      if(score<bestScore){bestScore=score;best=new THREE.Vector3(x,0,z);}
+      if(score<bestScore){bestScore=score;best=new THREE.Vector3(x,source.y,z);}
     }
-    if(best&&r>bestScore+1.2)break;
+    if(best&&r>bestScore+1.0)break;
   }
-  if(best)return best;
-  // Último pase exhaustivo del sector: si existe tierra válida en el sector, el spawn
-  // terrestre la encontrará antes de aceptar agua. No se modifica la hidrología.
   const b=mapDef?.bounds||{x0:-OVERWORLD_HALF,x1:OVERWORLD_HALF,z0:-OVERWORLD_HALF,z1:OVERWORLD_HALF};
-  for(let tz=Math.floor(b.z0);tz<Math.ceil(b.z1);tz++)for(let tx=Math.floor(b.x0);tx<Math.ceil(b.x1);tx++){
-    const x=wt(tx+.5),z=wt(tz+.5);if(!waterSpawnCandidateAllowed(x,z,mapDef))continue;
-    const score=Math.hypot(x-desired.x,z-desired.z);if(score<bestScore){bestScore=score;best=new THREE.Vector3(x,0,z);}
+  if(!best){
+    for(let tz=Math.floor(b.z0);tz<Math.ceil(b.z1);tz++)for(let tx=Math.floor(b.x0);tx<Math.ceil(b.x1);tx++){
+      const x=wt(tx+.5),z=wt(tz+.5);if(!spawnCandidateAllowed(x,z,mapDef,{requireDry}))continue;
+      const score=Math.hypot(x-source.x,z-source.z);if(score<bestScore){bestScore=score;best=new THREE.Vector3(x,source.y,z);}
+    }
   }
-  if(best)return best;
-  console.warn('Water spawn rule: sector without dry spawn candidate; authored spawn preserved.',mapId);return desired;
+  if(best){
+    console.info('Spawn safety relocated blocked spawn',mapId,{from:{x:source.x,z:source.z},to:{x:best.x,z:best.z},requireDry});
+    return best;
+  }
+  // Never knowingly place the player into a collider. If a dry search has no answer,
+  // retry allowing swimmable space before keeping the authored position.
+  if(requireDry)return resolveSafeSpawn(mapDef,source,{requireDry:false});
+  console.error('Spawn safety could not find a collision-free point',mapId);
+  return source;
 }
 const WaterGameplaySystem=Object.freeze({
   rules:WATER_GAMEPLAY_RULES,
   sampleAt:(x,z,layer=currentWorldLayer)=>waterGameplaySampleAtWorld(x,z,layer),
   depthAt:(x,z,layer=currentWorldLayer)=>waterDepthTilesAtWorld(x,z,layer),
   surfaceYAt:(x,z,layer=currentWorldLayer)=>swimSurfaceYAtWorld(x,z,layer),
-  resolveDrySpawn:(mapDef,position)=>resolveDefaultSpawnAgainstWater(mapDef,position)
+  resolveDrySpawn:(mapDef,position)=>resolveSafeSpawn(mapDef,position,{requireDry:true}),
+  resolveSafeSpawn:(mapDef,position,options={})=>resolveSafeSpawn(mapDef,position,options)
 });
 window.WaterGameplaySystem=WaterGameplaySystem;
 
 function loadMap(id,spawn=null,layer=null){
   const stressLoadStart=FOREST_STRESS_BOOT.enabled?performance.now():0;
+  window.setLoadProgress?.(34,'Liberando escenario','Limpiando mapa anterior…');
   clearMap();
   if(OVERWORLD_PLAN[id]){
     const regionId=globalWorldState?.activeLocalRegionId||globalWorldState?.currentRegionId||'gC';
@@ -16297,14 +16336,17 @@ function loadMap(id,spawn=null,layer=null){
   canalCameraYaw=0;
   worldLayerBaseY=wt(mapDef.layers[currentWorldLayer]?.playerBaseY||0);playerBaseY=worldLayerBaseY;
 
+  window.setLoadProgress?.(48,'Trazando terreno','Preparando navegación y superficies…');
   compiledGrid=compileMapGrid(mapDef);
   const gridReport=validateCompiledGrid(mapDef,compiledGrid);
   if(!gridReport.ok)throw new Error('Grid inválido '+mapDef.id+': '+gridReport.errors.join('; '));
   if(gridReport.warnings?.length)console.info('Grid '+mapDef.id+': '+gridReport.warnings.join('; '));
 
+  window.setLoadProgress?.(62,'Levantando el mundo','Terreno, agua, vegetación y colisiones…');
   const renderMap=MAP_RENDERER_REGISTRY[mapDef.renderer]||MAP_RENDERER_REGISTRY.canal;
   root=renderMap();
 
+  window.setLoadProgress?.(78,'Revisando colisiones','Buscando un punto seguro para el jugador…');
   validateSceneGeometry(root);
   scene.add(root);
   applyWorldTimeLighting({immediate:true});
@@ -16319,24 +16361,21 @@ function loadMap(id,spawn=null,layer=null){
     ? `1 tile = ${MAP_DATA.tile.feet} ft · ${mapDef.bounds.x1-mapDef.bounds.x0}×${mapDef.bounds.z1-mapDef.bounds.z0} · bosque ${Math.round(procSector.canopy*100)}% · roca ${Math.round(procSector.rockiness*100)}% · seed ${procSector.seed}`
     : `1 tile = ${MAP_DATA.tile.feet} ft ≈ ${MAP_DATA.tile.worldUnits} unidades · ${mapDef.bounds.x1-mapDef.bounds.x0}×${mapDef.bounds.z1-mapDef.bounds.z0} tiles · ${currentWorldLayer}`;
 
-  let s;
-  if(spawn){
-    s=spawn;
-  }else{
-    s=new THREE.Vector3(wt(mapDef.spawn.x),wt(mapDef.spawn.y||0),wt(mapDef.spawn.z));
-    // Regla de agua: un spawn terrestre nunca crea una isla/parche para justificarse.
-    // Se reubica al punto seco caminable más cercano dentro del mismo mapa.
-    s=resolveDefaultSpawnAgainstWater(mapDef,s);
-  }
+  const authoredSpawn=spawn?.clone?.()||new THREE.Vector3(wt(mapDef.spawn.x),wt(mapDef.spawn.y||0),wt(mapDef.spawn.z));
+  // SPAWN SAFETY CONTRACT: every map entry is checked after the renderer has built
+  // its actual colliders. Default spawns prefer dry land; authored transition spawns
+  // may remain in swimmable water, but never inside a collider/non-walkable cell.
+  const s=resolveSafeSpawn(mapDef,authoredSpawn,{requireDry:!spawn});
 
   player.position.set(s.x,worldLayerBaseY+(s.y||0),s.z);
-  if(isOverworldSector(mapId)&&!spawn)player.position.y=formalGroundYAtWorld(player.position.x,player.position.z,currentWorldLayer);
+  if(isOverworldSector(mapId))player.position.y=formalGroundYAtWorld(player.position.x,player.position.z,currentWorldLayer);
   playerUnit.state.pendingLedgeDrop=null;setUnitOverpassId(playerUnit,null);
   mountBelleForCurrentMap();
   if(FOREST_STRESS_BOOT.enabled&&FOREST_STRESS_BOOT.units>0)forestStressSpawnUnits(root,FOREST_STRESS_BOOT.units);
   if(mapId==='weightYard'&&playerMissionState.status==='active'&&['wake_up','talk_belle','reach_exit','reach_grove','reach_weight_yard'].includes(playerMissionState.stage)){
     setPlayerMissionStage('learn_weights',{source:'weight_yard_direct_entry'});
   }
+  window.setLoadProgress?.(90,'Acomodando cámara','Spawn libre confirmado; preparando vista…');
   camera.fov=mapDef.camera?.fov||meta.fov;
   moveVelX=moveVelZ=0;
   cameraAnchor.copy(player.position);
@@ -16352,6 +16391,8 @@ function loadMap(id,spawn=null,layer=null){
 
   window.__GRID_REPORT__=gridReport;
   setTimeout(()=>runFunctionalAudit(),0);
+  window.setLoadProgress?.(96,'Mapa listo','Última comprobación…');
+  return player.position.clone();
 }
 
 function clearGrid(){
@@ -16590,12 +16631,14 @@ async function triggerZoneTransition(zone,crossingPosition=null){
       exitMoves.push(cinematicMoveBelle(belleExit,belleTravelDuration(belleExit,{min:260,max:1000})));
     }
     await Promise.all(exitMoves);
+    window.beginPaperLoad?.({pct:14,stage:'Cruzando de zona',hint:'Preparando el siguiente sector…'});
+    await new Promise(requestAnimationFrame);
     fade.classList.remove('off');
-    await new Promise(r=>setTimeout(r,300));
 
-    // Water preserves the REAL lateral crossing coordinate captured at trigger time.
-    const arrival=zone.allowWaterTraversal?waterTransitionArrivalForCrossing(zone,crossing):zone.spawn.clone();
-    loadMap(zone.target,arrival,zone.targetLayer||'exterior');
+    // Water preserves the REAL lateral crossing coordinate captured at trigger time,
+    // then loadMap may move it only if that exact point collides.
+    let arrival=zone.allowWaterTraversal?waterTransitionArrivalForCrossing(zone,crossing):zone.spawn.clone();
+    arrival=loadMap(zone.target,arrival,zone.targetLayer||'exterior')||arrival;
     handleMissionMapTransition(fromMap,mapId);
 
     const entryWalkTiles=zone.allowWaterTraversal?WATER_TRANSITION_PLATFORM_STANDARD.entryTravelTiles:(zone.assetStandard===ZONE_TRANSITION_ASSET_STANDARD.id?ZONE_TRANSITION_ASSET_STANDARD.entryWalkTiles:.70);
@@ -16614,6 +16657,7 @@ async function triggerZoneTransition(zone,crossingPosition=null){
 
     updateCamera(1/60,true);renderer.render(scene,camera);
     fade.classList.add('off');
+    window.finishPaperLoad?.({stage:'Sector listo',hint:'Spawn seguro confirmado.',delay:100});
     await new Promise(r=>setTimeout(r,100));
     const travelMs=Math.max(300,wt(entryWalkTiles)/PLAYER_MOVE_SPEED*1000);
     const motions=[cinematicMovePlayer(arrival,travelMs)];
@@ -16758,10 +16802,11 @@ async function useActive(){
     await new Promise(r=>setTimeout(r,90));
   }
 
+  window.beginPaperLoad?.({pct:14,stage:'Cambiando de escenario',hint:'Preparando destino y colisiones…'});
+  await new Promise(requestAnimationFrame);
   fade.classList.remove('off');
-  await new Promise(r=>setTimeout(r,330));
 
-  loadMap(it.target,it.spawn,it.targetLayer||'exterior');
+  const safeTargetSpawn=loadMap(it.target,it.spawn,it.targetLayer||'exterior')||it.spawn;
   handleMissionMapTransition(fromMap,mapId);
   const dest=interactions.find(x=>
     x.kind==='transition'&&x.target===fromMap&&x.door&&
@@ -16774,8 +16819,8 @@ async function useActive(){
     cameraCine={focus:dest.point.clone()};
 
     let belleStart=null,belleArrival=null;
-    const arrival=it.spawn.clone();
-    arrival.y += playerBaseY;
+    const arrival=safeTargetSpawn.clone();
+    arrival.y=player.position.y;
     if(belleIsTravelCompanion()){
       const entryDir=arrival.clone().sub(player.position).setY(0).normalize();
       const entrySide=belleSideSignForDirection(entryDir);
@@ -16790,6 +16835,7 @@ async function useActive(){
     renderer.render(scene,camera);
 
     fade.classList.add('off');
+    window.finishPaperLoad?.({stage:'Destino listo',hint:'Spawn seguro confirmado.',delay:100});
     await new Promise(r=>setTimeout(r,180));
 
     if(dest.door)await animateDoor(dest.door,true,320);
@@ -16806,6 +16852,7 @@ async function useActive(){
     updateCamera(1/60,true);
     renderer.render(scene,camera);
     fade.classList.add('off');
+    window.finishPaperLoad?.({stage:'Destino listo',hint:'Spawn seguro confirmado.',delay:100});
   }
 
   syncBelleTrailToPlayer();
