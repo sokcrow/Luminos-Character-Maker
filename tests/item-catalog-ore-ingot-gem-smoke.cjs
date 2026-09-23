@@ -13,7 +13,7 @@ const { pathToFileURL } = require('node:url');
 
   const catalog = globalThis.LuminousOreIngotGemCatalog;
   assert.ok(catalog);
-  assert.equal(catalog.VERSION, 4);
+  assert.equal(catalog.VERSION, 5);
   assert.equal(catalog.FAMILY, 'ore_ingot_gem');
   assert.equal(catalog.MATERIAL_UNIT, 'material_unit');
   assert.equal(catalog.MATERIAL_UNIT_ABBREVIATION, 'MU');
@@ -148,15 +148,46 @@ const { pathToFileURL } = require('node:url');
 
   assert.equal(catalog.get('iron_ore').iconFamily, 'ore_iron');
   assert.equal(catalog.get('iron').iconFamily, 'ingot_iron');
-  assert.equal(catalog.get('rough_ruby').iconFamily, 'gem_rough');
-  assert.equal(catalog.get('ruby').iconFamily, 'gem_cut');
+  assert.equal(catalog.get('rough_ruby').iconFamily, 'gem_ruby_rough');
+  assert.equal(catalog.get('ruby').iconFamily, 'gem_ruby_cut');
 
-  assert.equal(catalog.get('rough_ruby').standardUnitValueAhn, 37500);
-  assert.equal(catalog.get('ruby').standardUnitValueAhn, 100000);
-  assert.equal(catalog.get('rough_diamond').standardUnitValueAhn, 87500);
-  assert.equal(catalog.get('diamond').standardUnitValueAhn, 250000);
-  assert.equal(catalog.get('rough_starstone_exotic_gem').standardUnitValueAhn, 150000);
-  assert.equal(catalog.get('starstone_exotic_gem').standardUnitValueAhn, 450000);
+  assert.equal(catalog.GEM_PRICING_MODEL, 'rough_value_x_lapidary_multiplier_v2');
+  assert.equal(catalog.LAPIDARY_PROFILES.resonant.multiplier, 2.50);
+  assert.equal(catalog.LAPIDARY_PROFILES.precious.multiplier, 2.75);
+  assert.equal(catalog.LAPIDARY_PROFILES.exotic.multiplier, 3.00);
+
+  const gemstoneV2 = {
+    ruby: ['gem_ruby_rough', 'gem_ruby_cut', 90000, 225000, 'resonant'],
+    sapphire: ['gem_sapphire_rough', 'gem_sapphire_cut', 90000, 225000, 'resonant'],
+    aquamarine: ['gem_aquamarine_rough', 'gem_aquamarine_cut', 95000, 237500, 'resonant'],
+    topaz: ['gem_topaz_rough', 'gem_topaz_cut', 105000, 262500, 'resonant'],
+    garnet: ['gem_garnet_rough', 'gem_garnet_cut', 105000, 262500, 'resonant'],
+    emerald: ['gem_emerald_rough', 'gem_emerald_cut', 120000, 300000, 'resonant'],
+    amethyst: ['gem_amethyst_rough', 'gem_amethyst_cut', 135000, 371250, 'precious'],
+    onyx: ['gem_onyx_rough', 'gem_onyx_cut', 150000, 412500, 'precious'],
+    moonstone: ['gem_moonstone_rough', 'gem_moonstone_cut', 170000, 467500, 'precious'],
+    opal: ['gem_opal_rough', 'gem_opal_cut', 190000, 522500, 'precious'],
+    diamond: ['gem_diamond_rough', 'gem_diamond_cut', 240000, 660000, 'precious'],
+    starstone_exotic_gem: ['gem_starstone_rough', 'gem_starstone_cut', 400000, 1200000, 'exotic'],
+  };
+  for (const [id, [roughIcon, cutIcon, roughValue, cutValue, profile]] of Object.entries(gemstoneV2)) {
+    const rough = catalog.get(`rough_${id}`);
+    const cut = catalog.get(id);
+    assert.ok(rough, `rough_${id}`);
+    assert.ok(cut, id);
+    assert.equal(rough.iconFamily, roughIcon, id);
+    assert.equal(cut.iconFamily, cutIcon, id);
+    assert.equal(rough.standardUnitValueAhn, roughValue, id);
+    assert.equal(cut.standardUnitValueAhn, cutValue, id);
+    assert.equal(rough.lapidaryProfile, profile, id);
+    assert.equal(cut.lapidaryProfile, profile, id);
+    assert.equal(cut.processedFrom, rough.id, id);
+    assert.equal(cut.standardUnitValueAhn, Math.round(rough.standardUnitValueAhn * cut.lapidaryMultiplier), id);
+    assert.equal(rough.enchantmentReady, false, id);
+    assert.equal(cut.enchantmentReady, true, id);
+    assert.equal(cut.useTags.includes('armor_socket'), true, id);
+    assert.equal(cut.useTags.includes('accessory_socket'), true, id);
+  }
 
   assert.deepEqual(catalog.get('ruby').resonanceTags, ['fire', 'heat']);
   assert.deepEqual(catalog.get('sapphire').resonanceTags, ['cold', 'ice']);
@@ -171,8 +202,8 @@ const { pathToFileURL } = require('node:url');
   assert.equal(catalog.get('refined_platinum').id, 'platinum');
   assert.equal(catalog.get('rough_starstone').id, 'rough_starstone_exotic_gem');
 
-  assert.equal(catalog.unitValueForQuality('diamond', 'exceptional'), 500000);
-  assert.equal(catalog.unitValueForQuality('starstone', 'exceptional'), 900000);
+  assert.equal(catalog.unitValueForQuality('diamond', 'exceptional'), 1320000);
+  assert.equal(catalog.unitValueForQuality('starstone', 'exceptional'), 2400000);
   assert.equal(catalog.unitValueForQuality('iron_ore', 'fine'), 45000);
 
   assert.equal(catalog.canSourceFromCreatureBody('iron_ore'), true);
