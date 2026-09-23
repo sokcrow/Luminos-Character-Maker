@@ -769,6 +769,15 @@
     global.LuminousItemRuntime = Object.freeze({ ...baseRuntime, ...inventoryApi, __luminousInventoryRuntimeBridge: true, __luminousItemRuntimeBase: baseRuntime });
   }
 
+  function inventoryRuntimeAssetUrl(src) {
+    if (!global.document || typeof src !== "string") return src;
+    const ownScript = global.document.currentScript
+      || Array.from(global.document.scripts || []).find(node => /\/js\/item-inventory-runtime\.js(?:[?#].*)?$/.test(node.src || ""));
+    if (!ownScript?.src || !src.startsWith("js/")) return src;
+    try { return new URL(src.slice(3), new URL("./", ownScript.src)).href; }
+    catch (_) { return src; }
+  }
+
   function loadExtension(globalName, scriptId, src, next) {
     if (!global.document) return;
     if (global[globalName]) {
@@ -782,7 +791,7 @@
     }
     const script = global.document.createElement("script");
     script.id = scriptId;
-    script.src = src;
+    script.src = inventoryRuntimeAssetUrl(src);
     script.async = false;
     script.addEventListener?.("load", () => next?.(), { once: true });
     global.document.head?.appendChild(script);
