@@ -72,6 +72,28 @@ The route audit is a build-time safety contract, not player-visible pathfinding.
 
 See `docs/game-engine-geography-geology-handoff.md`.
 
+## Biome Validation V2
+
+The seven current global regions now share an explicit runtime validation contract:
+
+- `gNW` Costa Boscosa
+- `gN` Paso Frío
+- `gNE` Crestas Nevadas
+- `gC` Colinas Templadas
+- `gSW` Bosque Bajo
+- `gS` Pradera de Robles
+- `gSE` Costa Árida
+
+`window.BiomeValidationV2` checks the current biome in its local `owC` sector for physical relief, required signed geography, generated geology, readable geology placement, route connectivity, hidden-grid policy, coast land/water coexistence and forest corridor generation.
+
+The validation is profile-aware. Dune/mesa desert regions are not required to generate shoulder/gully/saddle features merely to satisfy a generic counter; their macroforms remain the geography source. Forest and coast regions receive additional ecosystem/hydrology checks.
+
+QA can boot a specific current region directly:
+
+`?qa=procedural&region=gNW`
+
+See `docs/game-engine-biome-validation-v2.md` for the matrix and acceptance rules.
+
 ## Run locally on Windows
 
 From this folder, double-click:
