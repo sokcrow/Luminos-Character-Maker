@@ -8,9 +8,9 @@ const { pathToFileURL } = require('node:url');
   const registry = globalThis.LuminousItemIconRegistry;
 
   assert.ok(registry);
-  assert.equal(registry.VERSION, 25);
+  assert.equal(registry.VERSION, 26);
   assert.equal(registry.DEFAULT_GROUP, 'generic_item');
-  assert.equal(Object.keys(registry.GROUPS).length, 394);
+  assert.equal(Object.keys(registry.GROUPS).length, 386);
 
   const groups = registry.list();
   assert.equal(new Set(groups.map((entry) => entry.id)).size, groups.length);
@@ -239,21 +239,13 @@ const { pathToFileURL } = require('node:url');
     jewelry_hairpin_copper:'https://imgur.com/ouWTgzD.png',
     jewelry_hairpin_metal:'https://imgur.com/0NyhHZz.png',
     valuable_goblet_gold:'https://imgur.com/DrtuUNy.png',
-    valuable_goblet_gems:'https://imgur.com/IT50muO.png',
     valuable_chalice_gold:'https://imgur.com/qe9kXzK.png',
-    valuable_chalice_gems:'https://imgur.com/etPv6Jn.png',
     valuable_box_gold:'https://imgur.com/yz4r74w.png',
-    valuable_box_gems:'https://imgur.com/qtHqQEa.png',
     valuable_statuette_gold:'https://imgur.com/KoaeQuQ.png',
-    valuable_statuette_gems:'https://imgur.com/ALqzBwL.png',
     valuable_mask_gold:'https://imgur.com/8bhFGss.png',
-    valuable_mask_gems:'https://imgur.com/7zPQyjN.png',
     valuable_plate_gold:'https://imgur.com/xMa2boP.png',
-    valuable_plate_gems:'https://imgur.com/E63cuoq.png',
     valuable_reliquary_gold:'https://imgur.com/0zXUly4.png',
-    valuable_reliquary_gems:'https://imgur.com/VLwx7Gs.png',
     valuable_scepter_gold:'https://imgur.com/UQVxbFH.png',
-    valuable_scepter_gems:'https://imgur.com/OIIlikM.png'
   };
   for (const [id, icon] of Object.entries(jewelryValuableIcons)) {
     assert.equal(registry.has(id), true, id);
