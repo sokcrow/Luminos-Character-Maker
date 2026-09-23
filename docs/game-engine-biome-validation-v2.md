@@ -15,11 +15,11 @@ The goal is to prove that the existing biome definitions produce physically cohe
 | Region | Runtime profile | Main landforms | Hydrology |
 | --- | --- | --- | --- |
 | gNW · Costa Boscosa | forest | hills, ridges, rolling | coast |
-| gN · Paso Frío | arctic | ridges, hills | none |
-| gNE · Crestas Nevadas | arctic | mountain, ridges, cliffs | none |
-| gC · Colinas Templadas | temperate | hills, rolling, ridges | none |
-| gSW · Bosque Bajo | forest | rolling, hills | none |
-| gS · Pradera de Robles | grassland | rolling, hills | none |
+| gN · Paso Frío | arctic | ridges, hills | auto → river |
+| gNE · Crestas Nevadas | arctic | mountain, ridges, cliffs | auto → river |
+| gC · Colinas Templadas | temperate | hills, rolling, ridges | auto → river |
+| gSW · Bosque Bajo | forest | rolling, hills | auto → lake |
+| gS · Pradera de Robles | grassland | rolling, hills | auto → river |
 | gSE · Costa Árida | desert | dunes, mesas, rolling | coast |
 
 ## Acceptance contract
@@ -30,7 +30,8 @@ Every region must satisfy:
 
 - procedural generation audit passes;
 - active biome profile matches the global region;
-- active hydrology matches the region definition;
+- authored coast hydrology remains exact, while `auto` hydrology resolves deterministically from moisture, relief, altitude and seed;
+- resolved rivers/lakes contain both sampled land and sampled physical water in the local sector;
 - at least one macroform is generated;
 - required signed geography exists when hills/ridges/mountain/cliffs/rolling justify it;
 - geology exists when rockiness/landforms justify physical geology;
@@ -42,6 +43,14 @@ Additional profile checks:
 
 - coast regions must contain sampled land and sampled water in the same local sector;
 - forest regions must activate forest-biome generation and produce walk corridors.
+
+## Procedural inland hydrology
+
+Interior regions now request `hydrology: auto` instead of carrying empty `none` placeholders. `BiomeComposer` resolves that request inside the shared HydrologySystem; it does not require a DM button or a second generator.
+
+River fields are deterministic continuous quadratic channels with seeded width/bend, bank wetness, depth and current. Lake fields are deterministic rotated basins with seeded center/radii, shore wetness and depth. Both feed the same authoritative heightfield used by rendering and physics, project water semantics to the hidden navigation grid, clear ecology/geology placement from water, and expose swim depth through the existing locomotion contract.
+
+The current seven-region validation set intentionally exercises both forms: the interior hill/highland regions resolve to rivers, while Bosque Bajo resolves to a lake. Coast regions keep their existing coast field unchanged.
 
 ## Desert exception
 
