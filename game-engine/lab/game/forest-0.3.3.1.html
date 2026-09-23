@@ -1535,6 +1535,141 @@ const LandformSystem=Object.freeze({
   modifiers:LandformModifiers,
   compose(ctx){const out=[],root=new SeededRandom(`${ctx.seed}:landform`);for(const key of BIOME_LANDFORM_KEYS){const w=ctx.landform.weights[key]||0;if(w<=0)continue;const fn=LandformModifiers[key];if(fn)fn(ctx,out,root.fork(key),w)}return Object.freeze(out)}
 });
+
+// ============================================================
+// GEOGRAPHY + GEOLOGY V1
+// Geography adds signed secondary relief to the existing macroforms. Geology
+// consumes that terrain to place physical outcrops/scree without becoming a
+// second terrain generator. Rendering, physics and AI all sample the same height.
+// ============================================================
+const GEOGRAPHY_FIELD_SCHEMA_VERSION=1;
+const GEOLOGY_FIELD_SCHEMA_VERSION=1;
+function geographyEllipseInfluence(feature,p){
+  if(!feature||!p)return 0;
+  const rot=Number(feature.rotation)||0,cs=Math.cos(rot),sn=Math.sin(rot);
+  const dx=p.x-(feature.center?.x||0),dz=p.z-(feature.center?.z||0);
+  const lx=dx*cs-dz*sn,lz=dx*sn+dz*cs;
+  const rx=Math.max(.25,Number(feature.radiusX)||1),rz=Math.max(.25,Number(feature.radiusZ)||1);
+  const q=Math.hypot(lx/rx,lz/rz);if(q>=1)return 0;
+  return smooth01(1-q);
+}
+function geographyFeatureDeltaTiles(feature,p){
+  const inf=geographyEllipseInfluence(feature,p);if(inf<=0)return 0;
+  const amplitude=Math.max(0,Number(feature.amplitudeTiles)||0);
+  if(feature.kind==='gully'||feature.kind==='saddle')return -amplitude*Math.pow(inf,feature.kind==='gully'?1.18:.92);
+  if(feature.kind==='shoulder')return amplitude*Math.pow(inf,1.10);
+  return 0;
+}
+const GeographyField=Object.freeze({
+  schemaVersion:GEOGRAPHY_FIELD_SCHEMA_VERSION,
+  compose(region,macroforms=[]){
+    const rng=new SeededRandom(`${region.seed}:geography-v1`),S=OVERWORLD_SECTOR_SCALE;
+    const weights=region.landform?.weights||{},relief=Math.max(weights.hills||0,weights.ridges||0,weights.mountain||0,weights.cliffs||0,weights.rolling||0);
+    const features=[];
+    if(relief>.12){
+      // Saddles cut natural traversable passes through broad ridges. They are terrain,
+      // not invisible navigation corridors, and remain visible in the heightfield.
+      for(const ridge of macroforms.filter(f=>f.kind==='zone-ridge-curve').slice(0,3)){
+        const t=rng.range(.34,.68),p=zoneQuadraticPoint(ridge,t);
+        const p0=zoneQuadraticPoint(ridge,Math.max(0,t-.08)),p1=zoneQuadraticPoint(ridge,Math.min(1,t+.08));
+        const tangent=Math.atan2(p1.z-p0.z,p1.x-p0.x);
+        features.push(Object.freeze({
+          id:`${region.id}-saddle-${features.length}`,kind:'saddle',center:Object.freeze({x:p.x,z:p.z}),
+          radiusX:rng.range(4.8,7.2)*S,radiusZ:rng.range(6.2,9.0)*S,rotation:tangent+Math.PI/2,
+          amplitudeTiles:(.24+relief*.46+region.rockiness*.20),tags:Object.freeze(['geography','pass','saddle'])
+        }));
+      }
+      const gullyCount=1+(relief>.52?1:0)+(region.moisture>.72&&relief>.34?1:0);
+      for(let i=0;i<gullyCount;i++){
+        const rot=rng.range(-Math.PI,Math.PI),long=rng.range(12,20)*S,narrow=rng.range(3.2,6.0)*S;
+        features.push(Object.freeze({
+          id:`${region.id}-gully-${i}`,kind:'gully',
+          center:Object.freeze({x:rng.range(-34,34)*S,z:rng.range(-34,34)*S}),
+          radiusX:long,radiusZ:narrow,rotation:rot,
+          amplitudeTiles:(.20+relief*.36+region.moisture*.18)*(region.biomeProfile==='swamp'?.55:1),
+          tags:Object.freeze(['geography','depression','gully'])
+        }));
+      }
+      const shoulderCount=1+(relief>.42?1:0)+(weights.mountain>.45?1:0);
+      for(let i=0;i<shoulderCount;i++){
+        features.push(Object.freeze({
+          id:`${region.id}-shoulder-${i}`,kind:'shoulder',
+          center:Object.freeze({x:rng.range(-39,39)*S,z:rng.range(-39,39)*S}),
+          radiusX:rng.range(8,15)*S,radiusZ:rng.range(6,12)*S,rotation:rng.range(-Math.PI,Math.PI),
+          amplitudeTiles:.18+relief*.38+region.rockiness*.18,
+          tags:Object.freeze(['geography','shoulder','upland'])
+        }));
+      }
+    }
+    return Object.freeze({schemaVersion:GEOGRAPHY_FIELD_SCHEMA_VERSION,relief,features:Object.freeze(features)});
+  },
+  sample(id=mapId,tx=0,tz=0){
+    if(!activeProceduralZone?.geography)return Object.freeze({deltaTiles:0,gully:0,saddle:0,shoulder:0,tags:Object.freeze([])});
+    const p=zoneLocalToMacroPoint(id,tx,tz);let delta=0,gully=0,saddle=0,shoulder=0;const tags=new Set();
+    for(const f of activeProceduralZone.geography.features||[]){
+      const inf=geographyEllipseInfluence(f,p);if(inf<=0)continue;
+      delta+=geographyFeatureDeltaTiles(f,p);
+      if(f.kind==='gully')gully=Math.max(gully,inf);
+      else if(f.kind==='saddle')saddle=Math.max(saddle,inf);
+      else if(f.kind==='shoulder')shoulder=Math.max(shoulder,inf);
+      for(const tag of (f.tags||[]))tags.add(tag);
+    }
+    return Object.freeze({
+      deltaTiles:Math.max(-1.35,Math.min(1.25,delta)),gully,saddle,shoulder,tags:Object.freeze([...tags])
+    });
+  }
+});
+
+function geologyPointSegmentDistance(px,pz,a,b){
+  const vx=b.x-a.x,vz=b.z-a.z,len2=vx*vx+vz*vz;
+  const t=len2>1e-8?Math.max(0,Math.min(1,((px-a.x)*vx+(pz-a.z)*vz)/len2)):0;
+  const x=a.x+vx*t,z=a.z+vz*t;return {distance:Math.hypot(px-x,pz-z),t,x,z};
+}
+function geologyPolylineNearest(points,px,pz){
+  let best={distance:Infinity,t:0,x:0,z:0,segment:0};
+  for(let i=0;i<points.length-1;i++){
+    const q=geologyPointSegmentDistance(px,pz,points[i],points[i+1]);
+    if(q.distance<best.distance)best={...q,segment:i};
+  }
+  return best;
+}
+const GeologySystem=Object.freeze({
+  schemaVersion:GEOLOGY_FIELD_SCHEMA_VERSION,
+  composeCandidates({region,sectorId,seed,rockiness}){
+    const rng=new SeededRandom(`${seed}:geology-v1`),weights=region.landform?.weights||{};
+    const relief=Math.max(weights.hills||0,weights.ridges||0,weights.mountain||0,weights.cliffs||0,weights.rolling||0);
+    const extent=OVERWORLD_HALF-12,outcrops=[],scree=[];
+    const desiredOutcrops=Math.max(relief>.22?1:0,Math.min(4,Math.round(relief*2.2+rockiness*2.1)));
+    const desiredScree=Math.min(3,Math.round(rockiness*1.8+(weights.mountain||0)*1.6+(weights.cliffs||0)*1.2));
+    for(let i=0;i<14;i++){
+      const cx=rng.range(-extent,extent),cz=rng.range(-extent,extent),angle=rng.range(-Math.PI,Math.PI);
+      const length=rng.range(5.4,11.5)*(1+relief*.22),half=length*.5,nx=-Math.sin(angle),nz=Math.cos(angle),tx=Math.cos(angle),tz=Math.sin(angle),bend=rng.signed()*rng.range(.35,1.15);
+      const points=Object.freeze([
+        Object.freeze({x:cx-tx*half+nx*bend*.25,z:cz-tz*half+nz*bend*.25}),
+        Object.freeze({x:cx+nx*bend,z:cz+nz*bend}),
+        Object.freeze({x:cx+tx*half-nx*bend*.20,z:cz+tz*half-nz*bend*.20})
+      ]);
+      outcrops.push(Object.freeze({
+        id:`${sectorId}-outcrop-candidate-${i}`,kind:'outcrop-chain',points,
+        halfWidthTiles:rng.range(.58,1.02)*(1+rockiness*.22),rockScale:rng.range(.82,1.24)*(1+rockiness*.18),
+        heightScale:rng.range(.92,1.42)*(1+relief*.20),blocking:true,tags:Object.freeze(['geology','rock','outcrop','blocking'])
+      }));
+    }
+    for(let i=0;i<7;i++)scree.push(Object.freeze({
+      id:`${sectorId}-scree-candidate-${i}`,kind:'scree',
+      center:Object.freeze({x:rng.range(-extent,extent),z:rng.range(-extent,extent)}),
+      radiusX:rng.range(2.4,4.8),radiusZ:rng.range(1.8,3.5),rotation:rng.range(-Math.PI,Math.PI),
+      moveMultiplier:.5,tags:Object.freeze(['geology','rock','scree','difficult'])
+    }));
+    return Object.freeze({schemaVersion:GEOLOGY_FIELD_SCHEMA_VERSION,relief,desiredOutcrops,desiredScree,outcrops:Object.freeze(outcrops),scree:Object.freeze(scree)});
+  },
+  activeForSector:(id=mapId)=>resolveGeologyForSector(id),
+  sample:(id=mapId,tx=0,tz=0)=>geologySampleAtLocal(id,tx,tz),
+  audit:(id=mapId,features=null)=>geologyTraversalAudit(id,features||resolveGeologyForSector(id).outcrops)
+});
+window.GeographyField=GeographyField;
+window.GeologySystem=GeologySystem;
+
 let _biomeHydrologySafeAnchors=null;
 function biomeHydrologySafeAnchors(){
   if(_biomeHydrologySafeAnchors)return _biomeHydrologySafeAnchors;
@@ -1676,7 +1811,8 @@ const HydrologySystem=Object.freeze({
 });
 function compositorDebugSignature(recipe){
   const m=(recipe?.macroforms||[]).map(x=>[x.kind,Number(x.heightTiles||0).toFixed(3),Number(x.radiusX||x.halfWidthTiles||0).toFixed(3)]).join(';');
-  const h=recipe?.hydrology?.coast;return `${recipe?.region?.seed}|${recipe?.region?.biomeProfile}|${m}|${h?`${h.angle.toFixed(4)},${h.offset.toFixed(3)},${h.landSign}`:'none'}`;
+  const g=(recipe?.geography?.features||[]).map(x=>[x.kind,Number(x.amplitudeTiles||0).toFixed(3),Number(x.radiusX||0).toFixed(2)]).join(';');
+  const h=recipe?.hydrology?.coast;return `${recipe?.region?.seed}|${recipe?.region?.biomeProfile}|${m}|${g}|${h?`${h.angle.toFixed(4)},${h.offset.toFixed(3)},${h.landSign}`:'none'}`;
 }
 
 // ============================================================
@@ -1687,7 +1823,7 @@ function compositorDebugSignature(recipe){
 // Los gates cardinales conservan X/Z absolutas, pero su Y se toma de la macroforma
 // continua compartida. Los ríos legacy se apagan hasta validar esta topografía.
 // ============================================================
-const PROCEDURAL_ZONE_SCHEMA_VERSION=5;
+const PROCEDURAL_ZONE_SCHEMA_VERSION=6;
 const PROCEDURAL_ZONE_CACHE=new Map();
 let activeProceduralZone=null;
 function zoneHash(seed,a=0,b=0,salt=0){
@@ -1849,7 +1985,7 @@ function proceduralTransitionMacroReliefTiles(id,dir){
 // prefieren ecotonos/bordes y los claros/praderas abren huecos naturales sin dibujar caminos.
 function buildZoneMacroRecipe(region){
   const rng=new SeededRandom(`${region.seed}:zone-macro`),forestBiome=forestLikeRegion(region),S=OVERWORLD_SECTOR_SCALE;
-  const macroforms=LandformSystem.compose(region);
+  const macroforms=LandformSystem.compose(region),geography=GeographyField.compose(region,macroforms);
   const j0=rng.signed(),j1=rng.signed(),j2=rng.signed();
   const clearingScale=forestBiome?1:(region.biomeProfile==='grassland'?1.35:.82);
   const clearings=Object.freeze([
@@ -1868,7 +2004,7 @@ function buildZoneMacroRecipe(region){
     Object.freeze({id:`${region.id}-forest-south-pocket`,center:Object.freeze({x:(-7+j1*7)*S,z:(-43+j2*6)*S}),radiusX:(20+region.canopy*6)*S,radiusZ:(17+region.moisture*5)*S,rotation:-.12+j0*.12,density:.66+region.canopy*.20})
   ]:[]);
   const hydrology=HydrologySystem.compose(region);
-  return Object.freeze({macroforms,clearings,meadows,forestMasses,forestBiome,hydrology});
+  return Object.freeze({macroforms,geography,clearings,meadows,forestMasses,forestBiome,hydrology});
 }
 function proceduralHydrologySample(id,tx,tz){
   if(!activeProceduralZone)return {type:'none',class:'land',distanceToCoast:Infinity,distanceToWater:Infinity,wetness:0,water:false,waterDepth:0,waterSurfaceTiles:null};
@@ -1912,10 +2048,10 @@ function proceduralZoneNatureSample(id,tx,tz){
     if(f.kind==='zone-ridge-curve'){const near=zoneCurveNearest(f,p.x,p.z),w=Math.max(1,Number(f.halfWidthTiles)||10);ridge=Math.max(ridge,near.distance>=w?0:smooth01(1-near.distance/w));}
     else if(f.kind==='zone-hill')ridge=Math.max(ridge,zoneEllipseInfluence(p.x,p.z,f));
   }
-  const hydro=proceduralHydrologySample(id,tx,tz),fieldNoise=biomeFieldNoise(region.seed,p.x,p.z,17);
+  const hydro=proceduralHydrologySample(id,tx,tz),geo=GeographyField.sample(id,tx,tz),fieldNoise=biomeFieldNoise(region.seed,p.x,p.z,17);
   const waterMoisture=Number.isFinite(hydro.distanceToWater)?zoneClamp(1-hydro.distanceToWater/8,0,1)*.18:0;
-  const moisture=zoneClamp(region.moisture+fieldNoise*.07+waterMoisture,0,1);
-  const rockiness=zoneClamp(region.rockiness+ridge*.22+fieldNoise*.045,0,1);
+  const moisture=zoneClamp(region.moisture+fieldNoise*.07+waterMoisture+geo.gully*.11-geo.shoulder*.035,0,1);
+  const rockiness=zoneClamp(region.rockiness+ridge*.22+geo.shoulder*.14+geo.saddle*.06+fieldNoise*.045,0,1);
   const vegetation=zoneClamp(region.vegetationPotential*(.72+moisture*.46),0,1);
   const coastVegetation=Number.isFinite(hydro.distanceToCoast)?smooth01(zoneClamp((hydro.distanceToCoast-.18)/4.8,0,1)):1;
   const clearingEdge=zoneClamp(clearing*(1-clearing)*3.8,0,1),forestMode=!!activeProceduralZone.forestBiome;
@@ -1935,7 +2071,7 @@ function proceduralZoneNatureSample(id,tx,tz){
   const reedFactor=zoneClamp((moisture-.68)*2.3+shoreWet*.58+(hydro.type==='wetland'?hydro.wetness*.72:0),0,1);
   const cactusFactor=region.biomeProfile==='desert'?zoneClamp(region.aridity*(1-moisture)*coastVegetation*(1-ridge*.25),0,1):0;
   const coastEco=hydro.type==='coast'?coastV2EcologySample(id,tx,tz,{includeSlope:false}):null;
-  return {clearing,meadow,ridge,forestDepth,forestEdge,treeFactor,bushFactor,lowShrubFactor,tallGrass,meadowFloor,wildflowerFactor,leafLitter,moisture,rockiness,vegetation,distanceToWater:hydro.distanceToWater,distanceToCoast:hydro.distanceToCoast,hydroClass:hydro.class,wetness:hydro.wetness,reedFactor,cactusFactor,
+  return {clearing,meadow,ridge,forestDepth,forestEdge,treeFactor,bushFactor,lowShrubFactor,tallGrass,meadowFloor,wildflowerFactor,leafLitter,moisture,rockiness,vegetation,geography:geo,distanceToWater:hydro.distanceToWater,distanceToCoast:hydro.distanceToCoast,hydroClass:hydro.class,wetness:hydro.wetness,reedFactor,cactusFactor,
     coastBeach:coastEco?.beach||0,coastBackshore:coastEco?.backshore||0,palmFactor:coastEco?.palm||0,coastalGrass:coastEco?.grass||0,coastalShrub:coastEco?.shrub||0,coastalRock:coastEco?.rock||0};
 }
 function composeResolvedZoneRecipe(region,{cache=true}={}){
@@ -1957,14 +2093,14 @@ function composeResolvedZoneRecipe(region,{cache=true}={}){
     const treeMultiplier=zoneClamp(canopy/.66,.015,1.30);
     const snowCoverage=zoneClamp(region.snowAmount+(2-tempC)*.055+rockiness*.05,0,.90);
     const profile=zoneGroundProfile(region,s,baseHeight,canopy,rockiness,tempC),sectorSeed=Math.floor(region.seed+s.gx*193+s.gz*977+id.length*31);
-    const forestCorridors=buildForestWalkCorridors({...region,canopy},s,sectorSeed),modules=[];
+    const forestCorridors=buildForestWalkCorridors({...region,canopy},s,sectorSeed),geology=GeologySystem.composeCandidates({region,sectorId:id,seed:sectorSeed,rockiness}),modules=[];
     if(h3>.60&&region.biomeProfile!=='desert'){
       const S=OVERWORLD_SECTOR_SCALE,ax=(h0>.5?1:-1)*(11+zoneHash(sectorSeed,2,3,17)*2.2)*S,az=(h1>.5?1:-1)*(10+zoneHash(sectorSeed,3,4,18)*2.0)*S;
       modules.push(Object.freeze({id:`zone-${region.id}-${id}-micro-rise`,kind:'rolling-ridge',center:Object.freeze({x:ax,z:az}),radiusX:(6.8+zoneHash(sectorSeed,4,5,19)*1.8)*S,radiusZ:(5.8+zoneHash(sectorSeed,5,6,20)*1.6)*S,heightTiles:.32+rockiness*.58,seed:(sectorSeed%997)*.013,eastSteepness:.04+rockiness*.10,topKind:profile.groundKind,segmentsX:18,segmentsZ:16}));
     }
-    sectors[id]=Object.freeze({id,label:names[`${s.gx},${s.gz}`]||`Sector ${s.gx},${s.gz}`,seed:sectorSeed,baseHeightTiles:baseHeight,temperatureC:tempC,canopy,vegetation,rockiness,treeMultiplier,snowCoverage,moisture:region.moisture,relief:profile.relief,groundKind:profile.groundKind,pathKind:profile.pathKind,crownColor:profile.crownColor,background:profile.background,forestCorridors,modules:Object.freeze(modules)});
+    sectors[id]=Object.freeze({id,label:names[`${s.gx},${s.gz}`]||`Sector ${s.gx},${s.gz}`,seed:sectorSeed,baseHeightTiles:baseHeight,temperatureC:tempC,canopy,vegetation,rockiness,treeMultiplier,snowCoverage,moisture:region.moisture,relief:profile.relief,groundKind:profile.groundKind,pathKind:profile.pathKind,crownColor:profile.crownColor,background:profile.background,forestCorridors,geology,modules:Object.freeze(modules)});
   }
-  const recipe=Object.freeze({schemaVersion:PROCEDURAL_ZONE_SCHEMA_VERSION,id:`zone:${region.id}:${region.seed}`,region,mode:'procedural-composable',disableLegacyRivers:true,biomeFamily:region.biomeProfile,forestBiome:macro.forestBiome,macroforms:macro.macroforms,clearings:macro.clearings,meadows:macro.meadows,forestMasses:macro.forestMasses,hydrology:macro.hydrology,sectors:Object.freeze(sectors)});
+  const recipe=Object.freeze({schemaVersion:PROCEDURAL_ZONE_SCHEMA_VERSION,id:`zone:${region.id}:${region.seed}`,region,mode:'procedural-composable',disableLegacyRivers:true,biomeFamily:region.biomeProfile,forestBiome:macro.forestBiome,macroforms:macro.macroforms,geography:macro.geography,clearings:macro.clearings,meadows:macro.meadows,forestMasses:macro.forestMasses,hydrology:macro.hydrology,sectors:Object.freeze(sectors)});
   if(cache)PROCEDURAL_ZONE_CACHE.set(cacheKey,recipe);return recipe;
 }
 function composeZoneRecipe(input){return composeResolvedZoneRecipe(resolveBiomeComposition(input),{cache:true})}
@@ -2388,7 +2524,8 @@ function activeBiomeFieldSample(id=mapId,tx=0,tz=0){
     distanceToWater:nature.distanceToWater,distanceToCoast:nature.distanceToCoast,
     waterDepth:Math.max(0,Number(hydro.waterDepth)||0),
     waterLevelTiles:Number.isFinite(hydro.waterSurfaceTiles)?hydro.waterSurfaceTiles:null,
-    hydrologyClass:hydro.class
+    hydrologyClass:hydro.class,slopeDeg:elevationSlopeAtWorld(wx,wz,id).angleDeg,
+    geography:GeographyField.sample(id,tx,tz),geology:geologySampleAtLocal(id,tx,tz)
   });
 }
 const ClimateField=Object.freeze({
@@ -2396,7 +2533,9 @@ const ClimateField=Object.freeze({
 });
 const TerrainField=Object.freeze({
   heightAt:(id=mapId,tx=0,tz=0)=>elevationHeightTilesAtWorld(wt(tx),wt(tz),id),
-  slopeAt:(id=mapId,tx=0,tz=0)=>elevationSlopeAtWorld(wt(tx),wt(tz),id)
+  slopeAt:(id=mapId,tx=0,tz=0)=>elevationSlopeAtWorld(wt(tx),wt(tz),id),
+  geographyAt:(id=mapId,tx=0,tz=0)=>GeographyField.sample(id,tx,tz),
+  geologyAt:(id=mapId,tx=0,tz=0)=>geologySampleAtLocal(id,tx,tz)
 });
 const EcologySystem=Object.freeze({sample:(id=mapId,tx=0,tz=0)=>proceduralZoneNatureSample(id,tx,tz)});
 const SurfaceComposer=Object.freeze({
@@ -2416,7 +2555,7 @@ const PropSpawner=Object.freeze({
 });
 const BiomeComposer=Object.freeze({
   version:'biome-composer-v1',profiles:BIOME_PROFILES,surfaceProfiles:SURFACE_VISUAL_PROFILES,
-  random:SeededRandom,terrain:TerrainField,climate:ClimateField,landforms:LandformSystem,hydrology:HydrologySystem,ecology:EcologySystem,surfaces:SurfaceComposer,props:PropSpawner,SeededRandom,
+  random:SeededRandom,terrain:TerrainField,climate:ClimateField,landforms:LandformSystem,geography:GeographyField,geology:GeologySystem,hydrology:HydrologySystem,ecology:EcologySystem,surfaces:SurfaceComposer,props:PropSpawner,SeededRandom,
   resolve:resolveBiomeComposition,
   generate:(input={})=>composeResolvedZoneRecipe(resolveBiomeComposition(input),{cache:false}),
   generateFromRegion:(region)=>composeResolvedZoneRecipe(resolveBiomeComposition(region),{cache:false}),
@@ -2451,7 +2590,7 @@ window.PaperZoneComposer=Object.freeze({
   schemaVersion:PROCEDURAL_ZONE_SCHEMA_VERSION,
   compose:composeZoneRecipe,activate:activateProceduralZone,clear:clearProceduralZone,
   active:()=>activeProceduralZone,sector:(id)=>proceduralSectorRecipe(id),
-  macroforms:()=>activeProceduralZone?.macroforms||[],hydrology:()=>activeProceduralZone?.hydrology||null,
+  macroforms:()=>activeProceduralZone?.macroforms||[],geography:()=>activeProceduralZone?.geography||null,geology:(id=mapId)=>resolveGeologyForSector(id),hydrology:()=>activeProceduralZone?.hydrology||null,
   forestMasses:()=>activeProceduralZone?.forestMasses||[],
   forestCorridors:(id=mapId)=>proceduralSectorRecipe(id)?.forestCorridors||[],
   natureSample:(id,x,z)=>proceduralZoneNatureSample(id,x,z),fieldAt:(id,x,z)=>activeBiomeFieldSample(id,x,z),
@@ -4913,7 +5052,9 @@ function elevationHeightTilesAtWorld(x,z,id=mapId){
     if(module.kind==='transition-rise')transition=Math.max(transition,d);
     else local=Math.max(local,d);
   }
-  const raw=Math.max(0,base+transition+local);
+  const geo=GeographyField.sample(id,tx,tz),geoMask=proceduralGateReliefMask(id,tx,tz),geoHydro=proceduralHydrologyReliefFactor(id,tx,tz);
+  const geographyDelta=geo.deltaTiles*geoMask*geoHydro;
+  const raw=Math.max(0,base+transition+local+geographyDelta);
   // La costa modifica la ALTURA del terreno de forma continua; no crea un escalón
   // ni una rampa artificial separada. Física y render consumen la misma función.
   return Math.max(0,coastGroundHeightTilesAtLocal(id,tx,tz,raw));
@@ -5724,7 +5865,10 @@ window.DM_RUNTIME={
   validateMapData:validateMapDataContract,
   currentMap:()=>currentMapDef(),
   interactionController:WorldInteractionController,
-  surfaceCurrentAt:(x,z,layer=currentWorldLayer)=>surfaceCurrentAt(x,z,layer)
+  surfaceCurrentAt:(x,z,layer=currentWorldLayer)=>surfaceCurrentAt(x,z,layer),
+  geographyAt:(x,z,id=mapId)=>GeographyField.sample(id,x,z),
+  geologyAt:(x,z,id=mapId)=>geologySampleAtLocal(id,x,z),
+  geologyAudit:(id=mapId)=>resolveGeologyForSector(id).audit
 };
 
 function registerStairZone(z){
@@ -9531,7 +9675,7 @@ function terrainMovementSampleAtWorld(x,z,layer=currentWorldLayer){
 
   for(const t of difficultTerrainZones){
     if(t.map!==mapId||(t.layer||'exterior')!==layer)continue;
-    if(x>=t.x0&&x<=t.x1&&z>=t.z0&&z<=t.z1){
+    if(difficultTerrainContains(t,x,z)){
       mult=Math.min(mult,t.multiplier);
       if(t.multiplier<=.5)difficultTerrain=true;
     }
@@ -9543,6 +9687,7 @@ function terrainMovementSampleAtWorld(x,z,layer=currentWorldLayer){
 
   const tags=[...(cell?.tags||[])];
   if(difficultTerrain&&!tags.includes('difficult'))tags.push('difficult');
+  const geology=geologySampleAtLocal(mapId,x/TILE,z/TILE);for(const tag of geology.tags||[])if(!tags.includes(tag))tags.push(tag);
   const corridor=layer===currentWorldLayer?zoneTransitionCorridorAt(x,z,.05):null;
   return {
     walkable:!!(cell?.walkable||corridor),
@@ -9553,7 +9698,7 @@ function terrainMovementSampleAtWorld(x,z,layer=currentWorldLayer){
     locomotion:cell?.locomotion||locomotionModeAt(x,z),
     hazard:cell?.hazard||null,
     slopeDeg:slope,
-    difficultTerrain
+    difficultTerrain,geology
   };
 }
 function unitTerrainSpeedMultiplier(unit,x=unit?.group?.position?.x,z=unit?.group?.position?.z){
@@ -10128,7 +10273,17 @@ function setFacing(sign){return requestUnitFacing(getLocalControlledUnit()||play
 // LEGACY ADAPTER — all Unit billboards use the same visual rule.
 function billboardPlayer(){for(const unit of activeUnits())if(unit.visual?.billboard)faceBillboardUpright(unit.visual.billboard)}
 function addDifficultTerrain(x0,z0,x1,z1,multiplier=.5,map='canal',layer='exterior'){
-  difficultTerrainZones.push({x0,z0,x1,z1,multiplier,map,layer});
+  difficultTerrainZones.push({shape:'rect',x0,z0,x1,z1,multiplier,map,layer});
+}
+function addDifficultTerrainEllipse(cx,cz,rx,rz,multiplier=.5,map='canal',layer='exterior',meta={}){
+  difficultTerrainZones.push({shape:'ellipse',cx,cz,rx:Math.max(.05,rx),rz:Math.max(.05,rz),rotation:Number(meta.rotation)||0,multiplier,map,layer,source:meta.source||'terrain'});
+}
+function difficultTerrainContains(t,x,z){
+  if(t.shape==='ellipse'){
+    const cs=Math.cos(t.rotation||0),sn=Math.sin(t.rotation||0),dx=x-t.cx,dz=z-t.cz,lx=dx*cs-dz*sn,lz=dx*sn+dz*cs;
+    return (lx*lx)/(t.rx*t.rx)+(lz*lz)/(t.rz*t.rz)<=1;
+  }
+  return x>=t.x0&&x<=t.x1&&z>=t.z0&&z<=t.z1;
 }
 function locomotionModeAt(x,z){
   if(activeInteriorStage)return 'ground';
@@ -14297,9 +14452,162 @@ window.PaperRivers=Object.freeze({
   diagnostics:riverModuleDiagnostics,
   matchingConnector:matchingRiverConnector
 });
+const GEOLOGY_RUNTIME={bySector:new Map(),builtOutcrops:0,builtScree:0,rejectedConnectivity:0};
+function geologyRuntimeKey(id){return `${activeProceduralZone?.id||'legacy'}|${id}`}
+function geologyFeatureDistance(feature,x,z){
+  if(!feature)return Infinity;
+  if(feature.kind==='outcrop-chain')return geologyPolylineNearest(feature.points||[],x,z).distance;
+  if(feature.kind==='scree'){
+    const rot=Number(feature.rotation)||0,cs=Math.cos(rot),sn=Math.sin(rot),dx=x-(feature.center?.x||0),dz=z-(feature.center?.z||0);
+    const lx=dx*cs-dz*sn,lz=dx*sn+dz*cs,rx=Math.max(.1,Number(feature.radiusX)||1),rz=Math.max(.1,Number(feature.radiusZ)||1);
+    return (Math.hypot(lx/rx,lz/rz)-1)*Math.min(rx,rz);
+  }
+  return Infinity;
+}
+function geologyFeatureBlocksPoint(feature,x,z,radius=.25){
+  return feature?.kind==='outcrop-chain'&&geologyFeatureDistance(feature,x,z)<=Math.max(.15,Number(feature.halfWidthTiles)||.65)+Math.max(0,radius);
+}
+function geologyFeatureProtected(id,feature,reserved=null){
+  const points=feature.kind==='outcrop-chain'?(feature.points||[]):[feature.center];
+  const def=MAP_DATA.maps[id]||currentMapDef(),spawn=def?.spawn||{x:0,z:0};
+  for(const p of points){
+    if(!p)continue;
+    if(Math.abs(p.x)>OVERWORLD_HALF-7||Math.abs(p.z)>OVERWORLD_HALF-7)return true;
+    if(Math.hypot(p.x-Number(spawn.x||0),p.z-Number(spawn.z||0))<5.0)return true;
+    if(proceduralHydrologySample(id,p.x,p.z).water)return true;
+    if(activeProceduralZone?.forestBiome&&forestWalkCorridorBlocksDecoration(id,p.x,p.z,1.15))return true;
+    if(typeof reserved==='function'&&reserved(p.x,p.z,2.0))return true;
+  }
+  return false;
+}
+function geologyCandidateScore(id,feature){
+  let score=0,count=0;
+  const points=feature.kind==='outcrop-chain'?(feature.points||[]):[feature.center];
+  for(const p of points){
+    if(!p)continue;
+    const slope=elevationSlopeAtWorld(wt(p.x),wt(p.z),id).angleDeg,nature=proceduralZoneNatureSample(id,p.x,p.z);
+    if(proceduralHydrologySample(id,p.x,p.z).water)return -Infinity;
+    score+=Math.min(1,slope/38)*.55+(nature.rockiness||0)*.34+(nature.ridge||0)*.28;count++;
+  }
+  return count?score/count:-Infinity;
+}
+function geologyTraversalAnchors(id){
+  const anchors=[],def=MAP_DATA.maps[id]||currentMapDef(),cfg=OVERWORLD_PLAN[id];
+  if(def?.spawn)anchors.push({id:'spawn',x:Number(def.spawn.x)||0,z:Number(def.spawn.z)||0});
+  for(const [dir,target] of Object.entries(cfg?.neighbors||{})){
+    const layout=proceduralNeighborTransitionLayout(id,dir,target);if(layout?.mode!=='land')continue;
+    const p=transitionEdgeLocalPoint(dir,layout.lateral,3.25);anchors.push({id:`gate-${dir}`,x:p.x,z:p.z});
+  }
+  return anchors;
+}
+function geologyTraversalAudit(id,features=[]){
+  if(!proceduralSectorRecipe(id))return {ok:true,reason:'non_procedural',anchors:0,reachable:0};
+  const step=2.5,min=-OVERWORLD_HALF+3,max=OVERWORLD_HALF-3,n=Math.floor((max-min)/step)+1;
+  const key=(ix,iz)=>iz*n+ix;
+  const nodes=new Uint8Array(n*n);
+  const passable=(x,z)=>{
+    if(proceduralHydrologySample(id,x,z).water)return false;
+    if(elevationSlopeAtWorld(wt(x),wt(z),id).angleDeg>NATURAL_SLOPE_RULES.maxClimbDeg)return false;
+    for(const f of features)if(geologyFeatureBlocksPoint(f,x,z,.36))return false;
+    return true;
+  };
+  for(let iz=0;iz<n;iz++)for(let ix=0;ix<n;ix++)if(passable(min+ix*step,min+iz*step))nodes[key(ix,iz)]=1;
+  const nearestNode=(a)=>{
+    let best=null,bestD=Infinity;
+    for(let iz=0;iz<n;iz++)for(let ix=0;ix<n;ix++){if(!nodes[key(ix,iz)])continue;const x=min+ix*step,z=min+iz*step,d=Math.hypot(x-a.x,z-a.z);if(d<bestD){bestD=d;best={ix,iz,x,z,d}}}
+    return bestD<=7.5?best:null;
+  };
+  const anchors=geologyTraversalAnchors(id).map(a=>({...a,node:nearestNode(a)}));
+  if(!anchors.length)return {ok:true,reason:'no_land_anchors',anchors:0,reachable:0};
+  if(anchors.some(a=>!a.node))return {ok:false,reason:'anchor_without_land_route',anchors:anchors.length,reachable:anchors.filter(a=>a.node).length};
+  const start=anchors[0].node,seen=new Uint8Array(n*n),queue=[[start.ix,start.iz]];seen[key(start.ix,start.iz)]=1;
+  const dirs=[[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1],[1,-1],[1,1]];
+  for(let qi=0;qi<queue.length;qi++){
+    const [ix,iz]=queue[qi];
+    for(const [dx,dz] of dirs){const nx=ix+dx,nz=iz+dz;if(nx<0||nz<0||nx>=n||nz>=n)continue;const k=key(nx,nz);if(seen[k]||!nodes[k])continue;
+      if(dx&&dz){const mx=min+(ix+dx*.5)*step,mz=min+(iz+dz*.5)*step;if(!passable(mx,mz))continue;}
+      seen[k]=1;queue.push([nx,nz]);
+    }
+  }
+  let reachable=0;for(const a of anchors)if(seen[key(a.node.ix,a.node.iz)])reachable++;
+  return {ok:reachable===anchors.length,reason:reachable===anchors.length?'connected':'land_route_disconnected',anchors:anchors.length,reachable,sampleStepTiles:step};
+}
+function resolveGeologyForSector(id=mapId,{reserved=null}={}){
+  const key=geologyRuntimeKey(id);if(GEOLOGY_RUNTIME.bySector.has(key))return GEOLOGY_RUNTIME.bySector.get(key);
+  const sector=proceduralSectorRecipe(id),cfg=sector?.geology;
+  if(!sector||!cfg){const empty=Object.freeze({outcrops:Object.freeze([]),scree:Object.freeze([]),audit:{ok:true,reason:'none'}});GEOLOGY_RUNTIME.bySector.set(key,empty);return empty;}
+  const baseline=geologyTraversalAudit(id,[]),accepted=[];
+  if(baseline.ok){
+    const ranked=(cfg.outcrops||[]).map(f=>({feature:f,score:geologyCandidateScore(id,f)})).filter(x=>Number.isFinite(x.score)).sort((a,b)=>b.score-a.score);
+    for(const item of ranked){
+      if(accepted.length>=cfg.desiredOutcrops)break;
+      const f=item.feature;if(geologyFeatureProtected(id,f,reserved))continue;
+      if(accepted.some(a=>(a.points||[]).some(p=>geologyFeatureDistance(f,p.x,p.z)<3.0)))continue;
+      const trial=[...accepted,f],audit=geologyTraversalAudit(id,trial);
+      if(!audit.ok){GEOLOGY_RUNTIME.rejectedConnectivity++;continue;}
+      accepted.push(f);
+    }
+  }
+  const scree=[];
+  for(const f of (cfg.scree||[])){
+    if(scree.length>=cfg.desiredScree)break;
+    if(geologyFeatureProtected(id,f,reserved))continue;
+    if(accepted.some(a=>geologyFeatureDistance(a,f.center.x,f.center.z)<2.2))continue;
+    scree.push(f);
+  }
+  const audit=geologyTraversalAudit(id,accepted),result=Object.freeze({outcrops:Object.freeze(accepted),scree:Object.freeze(scree),audit,baseline});
+  GEOLOGY_RUNTIME.bySector.set(key,result);return result;
+}
+function geologySampleAtLocal(id=mapId,tx=0,tz=0){
+  const resolved=resolveGeologyForSector(id),tags=new Set();let outcrop=0,scree=0,blocked=false;
+  for(const f of resolved.outcrops){const d=geologyFeatureDistance(f,tx,tz),w=Math.max(.1,Number(f.halfWidthTiles)||.65);if(d<=w+2.2){outcrop=Math.max(outcrop,zoneClamp(1-d/(w+2.2),0,1));for(const t of f.tags||[])tags.add(t)}if(d<=w+.20)blocked=true;}
+  for(const f of resolved.scree){const d=geologyFeatureDistance(f,tx,tz);if(d<=0){scree=1;for(const t of f.tags||[])tags.add(t)}else if(d<1.4)scree=Math.max(scree,zoneClamp(1-d/1.4,0,1));}
+  return Object.freeze({outcrop,scree,blocked,tags:Object.freeze([...tags]),routeAudit:resolved.audit});
+}
+function geologyFeatureBlocksDecoration(id,x,z,radius=.2){
+  const resolved=resolveGeologyForSector(id);
+  for(const f of resolved.outcrops)if(geologyFeatureDistance(f,x,z)<=Math.max(.2,Number(f.halfWidthTiles)||.65)+radius+1.05)return true;
+  return false;
+}
+function makeGeologicOutcropRock(g,x,z,{scale=1,heightScale=1,seed=1}={}){
+  const grp=new THREE.Group(),baseY=formalGroundYAtWorld(wt(x),wt(z),currentWorldLayer);grp.position.set(wt(x),baseY,wt(z));grp.userData.stressStreamCandidate='rock';grp.userData.geologyOutcrop=true;g.add(grp);
+  const rockMat=mat('stone'),rng=new SeededRandom(`${seed}:${x.toFixed(2)}:${z.toFixed(2)}`);
+  for(let i=0;i<3;i++){
+    const m=new THREE.Mesh(new THREE.DodecahedronGeometry(.5,0),rockMat);
+    const sx=wt((.48+rng.next()*.34)*scale),sy=tileY((.52+rng.next()*.62)*scale*heightScale),sz=wt((.42+rng.next()*.30)*scale);
+    m.position.set((rng.next()-.5)*wt(.34)*scale,sy*.46,(rng.next()-.5)*wt(.30)*scale);m.scale.set(sx,sy,sz);m.rotation.set(rng.signed()*.12,rng.range(-Math.PI,Math.PI),rng.signed()*.10);m.castShadow=m.receiveShadow=true;grp.add(m);
+  }
+  addCollider(wt(x),wt(z),wt(.82*scale),wt(.72*scale),'geology-outcrop',currentColliderScope,{source:'geology-outcrop',geology:true});
+  return grp;
+}
+function buildGeologyForSector(g,id=mapId,{reserved=null}={}){
+  const resolved=resolveGeologyForSector(id,{reserved});
+  for(const f of resolved.outcrops){
+    const points=f.points||[],segments=Math.max(1,points.length-1);
+    for(let si=0;si<segments;si++){
+      const a=points[si],b=points[si+1],len=Math.hypot(b.x-a.x,b.z-a.z),steps=Math.max(2,Math.ceil(len/1.05));
+      for(let k=0;k<=steps;k++){if(si>0&&k===0)continue;const t=k/steps,x=THREE.MathUtils.lerp(a.x,b.x,t),z=THREE.MathUtils.lerp(a.z,b.z,t),seed=(proceduralSectorRecipe(id)?.seed||1)+si*101+k*17;
+        makeGeologicOutcropRock(g,x,z,{scale:f.rockScale*(.84+(k%3)*.08),heightScale:f.heightScale,seed});
+      }
+    }
+    GEOLOGY_RUNTIME.builtOutcrops++;
+  }
+  for(const f of resolved.scree){
+    addDifficultTerrainEllipse(wt(f.center.x),wt(f.center.z),wt(f.radiusX),wt(f.radiusZ),.5,id,currentWorldLayer,{rotation:f.rotation,source:'geology-scree'});
+    const rng=new SeededRandom(`${proceduralSectorRecipe(id)?.seed||1}:${f.id}`);
+    for(let i=0;i<8;i++){const a=rng.range(0,Math.PI*2),r=Math.sqrt(rng.next()),x=f.center.x+Math.cos(a)*f.radiusX*r,z=f.center.z+Math.sin(a)*f.radiusZ*r;makeRockCluster(g,x,z,.20+rng.next()*.22,false);}
+    GEOLOGY_RUNTIME.builtScree++;
+  }
+  return resolved;
+}
+window.LuminousGeographyGeology=Object.freeze({
+  version:'geography-geology-v1',geography:GeographyField,geology:GeologySystem,runtime:GEOLOGY_RUNTIME,
+  sample:(id=mapId,tx=0,tz=0)=>Object.freeze({geography:GeographyField.sample(id,tx,tz),geology:geologySampleAtLocal(id,tx,tz),heightTiles:elevationHeightTilesAtWorld(wt(tx),wt(tz),id),slope:elevationSlopeAtWorld(wt(tx),wt(tz),id)})
+});
+
 window.PaperElevation=Object.freeze({
   schemaVersion:ELEVATION_MODULE_SCHEMA_VERSION,
-  model:'zone-macro-relief-v8-solid-cutaway-closure',
+  model:'zone-macro-relief-v9-signed-geography-geology',
   definitions:OVERWORLD_ELEVATION_MODULES,
   forSector:elevationModulesForSector,
   transitionModules:transitionElevationModulesForSector,
@@ -14315,6 +14623,14 @@ window.PaperElevation=Object.freeze({
   cutawayClosure:Object.freeze({mode:'to-sector-structural-base',structuralDepthTiles:MAP_HEIGHTS.terrainThickness,collision:false})
 });
 
+function buildProceduralLandGroundMesh(g,id=mapId,kind='forestGround'){
+  const def=MAP_DATA.maps[id]||currentMapDef(),bounds=def?.bounds||{x0:-OVERWORLD_HALF,x1:OVERWORLD_HALF,z0:-OVERWORLD_HALF,z1:OVERWORLD_HALF};
+  const mobile=DISPLAY_DEVICE_MOBILE,sx=mobile?52:64,sz=mobile?52:64,stride=sx+1,verts=[],uv=[],indices=[];
+  for(let iz=0;iz<=sz;iz++){const vz=iz/sz,tz=THREE.MathUtils.lerp(bounds.z0,bounds.z1,vz);for(let ix=0;ix<=sx;ix++){const ux=ix/sx,tx=THREE.MathUtils.lerp(bounds.x0,bounds.x1,ux);verts.push(wt(tx),tileY(elevationHeightTilesAtWorld(wt(tx),wt(tz),id))+.003,wt(tz));uv.push(ux,vz);}}
+  for(let iz=0;iz<sz;iz++)for(let ix=0;ix<sx;ix++){const a=iz*stride+ix,b=a+1,cc=a+stride,d=cc+1;if((ix+iz)&1)indices.push(a,cc,b,b,cc,d);else indices.push(a,cc,d,a,d,b);}
+  const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));geo.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));geo.setIndex(indices);geo.computeVertexNormals();geo.computeBoundingSphere();
+  const mtl=mat(kind).clone();mtl.side=THREE.DoubleSide;const mesh=new THREE.Mesh(geo,mtl);mesh.receiveShadow=true;mesh.castShadow=false;mesh.name=`${id}-continuous-geography-ground`;mesh.userData.continuousGeography=true;g.add(mesh);return mesh;
+}
 function elevationModuleMeshBounds(module){
   if(module.kind==='zone-ridge-curve'||module.kind==='zone-hill')return {x0:-OVERWORLD_HALF-.04,x1:OVERWORLD_HALF+.04,z0:-OVERWORLD_HALF-.04,z1:OVERWORLD_HALF+.04};
   if(module.kind==='transition-rise'){
@@ -14890,6 +15206,7 @@ function buildOverworldSector(){
   // 0.3.2-68 · En costa el terreno es UNA malla continua incluso BAJO el agua.
   // No se recorta en celdas: la playa/fondo usa el campo continuo y los tiles quedan sólo para gameplay.
   if(coastTerrainRects)buildProceduralCoastGroundMesh(g,mapId,themeMat);
+  else if(isProceduralZone)buildProceduralLandGroundMesh(g,mapId,themeMat);
   else for(const rect of terrainRects)floorGrid(g,rect.x0,rect.x1,rect.z0,rect.z1,rect.kind||themeMat,sectorBaseY);
   // Toda salida cardinal reutiliza el mismo asset 2×2. Incluso el acceso futuro al templo
   // usa la pestaña estándar, aunque todavía no tenga trigger activo.
@@ -14899,7 +15216,7 @@ function buildOverworldSector(){
   if(hasGate('west'))buildStandardZoneTransitionPlatform(g,'west',themeMat,mapId,transitionHeightForDir('west'),sectorBaseHeightTiles,proceduralNeighborLayouts.west?.spec||null,isProceduralZone);
   // Los módulos de transición existen en TODOS los biomas; si sólo los dibujáramos
   // en cliffs la física crearía rampas invisibles en el resto del 3×3.
-  buildElevationModulesForSector(g,mapId);
+  if(!isProceduralZone)buildElevationModulesForSector(g,mapId);
 
   function sectorDioramaOutline(){
     // Procedural: el borde del diorama no se deforma para fabricar un gate.
@@ -15007,7 +15324,7 @@ function buildOverworldSector(){
     }
     return false;
   }
-  function canPlaceNatureDecoration(x,z,radiusTiles=.2){return !natureFeatureBlocksDecoration(x,z,radiusTiles)}
+  function canPlaceNatureDecoration(x,z,radiusTiles=.2){return !natureFeatureBlocksDecoration(x,z,radiusTiles)&&!geologyFeatureBlocksDecoration(mapId,x,z,radiusTiles)}
 
   // Forest V2: las siluetas ya no son copias del mismo árbol. El clima regional
   // elige una comunidad y cada parche comparte especie dominante con variación menor.
@@ -15115,6 +15432,7 @@ function buildOverworldSector(){
     if(Math.hypot(x,z)<5.35)return true;
     return false;
   }
+  if(isProceduralZone)buildGeologyForSector(g,mapId,{reserved:reservedForRoad});
   const denseTreeSpots=[];
   // Segunda línea irregular. En 256 se ancla al borde de la VENTANA de stress,
   // no al borde lógico del sector, para no materializar árboles que jamás veremos.
@@ -15201,6 +15519,28 @@ function buildOverworldSector(){
       const shrubChance=(activeProceduralZone?.region?.biomeProfile==='grassland'?(.14+macro.lowShrubFactor*.38):zoneClamp(.08+density*.72*macro.bushFactor+macro.forestEdge*.18,0,.96));
       if(treeHash(x,z,122)<shrubChance){const bushField=bushFieldV2Sample(mapId,x,z);paperBushSpeciesV2(g,x,z,.56+treeHash(x,z,123)*.42,false,{mapId,field:bushField,seed:procSector.seed+120});}
     }
+    // Ecology V4 bridge: dense shrub thickets are ecological formations with gameplay.
+    // Individual decorative bushes remain cheap; only coherent clusters become 0.5× terrain.
+    const thicketTarget=activeProceduralZone?.region?.biomeProfile==='desert'?0:
+      Math.max(1,Math.min(4,Math.round((procSector.moisture*.9+density*.7+procSector.vegetation*.6))));
+    let thicketsBuilt=0;
+    for(let i=0;i<attempts(20)&&thicketsBuilt<thicketTarget;i++){
+      const ax=-procExtent+treeHash(i+901,procSector.seed*.0311,390)*procSpan,az=-procExtent+treeHash(i+977,procSector.seed*.0323,391)*procSpan;
+      if(reservedForRoad(ax,az,2.2)||!canPlaceNatureDecoration(ax,az,.75))continue;
+      const macro=proceduralZoneNatureSample(mapId,ax,az),chance=zoneClamp(.08+macro.lowShrubFactor*.54+macro.forestEdge*.30+macro.moisture*.12-macro.meadow*.24,0,.92);
+      if(treeHash(ax,az,392)>chance)continue;
+      const clusterCount=3+(treeHash(ax,az,393)>.55?1:0);
+      let placed=0;
+      for(let j=0;j<clusterCount;j++){
+        const a=j*Math.PI*2/clusterCount+treeHash(ax+j,az-j,394)*.7,r=.38+j*.20;
+        const x=ax+Math.cos(a)*r,z=az+Math.sin(a)*r;
+        if(reservedForRoad(x,z,1.15)||!canPlaceNatureDecoration(x,z,.34))continue;
+        const field=bushFieldV2Sample(mapId,x,z);
+        if(paperBushSpeciesV2(g,x,z,.72+treeHash(x,z,395)*.34,true,{mapId,field,seed:procSector.seed+390+i*11+j}))placed++;
+      }
+      if(placed>=2)thicketsBuilt++;
+    }
+
     // Bosque procedural: el sotobosque se concentra en el borde de las masas forestales
     // y los claros. En el corazón del bosque dominan troncos + hojarasca para no volverlo
     // un muro continuo de arbustos sólidos.
