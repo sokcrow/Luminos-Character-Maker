@@ -99,3 +99,22 @@ Gems:
 - rough gemstone icons / pricing
 - cut gemstone icons / pricing
 - jewelry-ready semantics
+
+
+## Alloy icon reuse
+
+Alloys remain on their legacy Ahn pricing table for now, but no new icon families are required.
+
+Existing refined icons are reused as follows:
+
+- Bronze, Brass → `ingot_copper`
+- Carbon Steel, High-Carbon Steel, Hardened Steel → `ingot_iron`
+- Stainless Steel, Chrome Steel → `ingot_chromium`
+- Nickel Steel → `ingot_nickel`
+- Cobalt Alloy, Superalloy → `ingot_cobalt`
+- Tungsten Alloy → `ingot_tungsten`
+- Titanium Alloy, Advanced Titanium Alloy, Augment-Grade Alloy → `ingot_titanium`
+- Corp Composite Alloy → `material_metamaterial_refined`
+- Exotic Alloy → `material_exotic_refined`
+
+This keeps the alloy catalog visually distinct enough without introducing additional icon work.
