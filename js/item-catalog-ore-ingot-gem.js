@@ -6,7 +6,7 @@
     return;
   }
 
-  const VERSION = 3;
+  const VERSION = 4;
   const FAMILY = "ore_ingot_gem";
   const CURRENCY = "AHN";
   const AHN_ECONOMY_SCALE = 2.5;
@@ -75,10 +75,10 @@
     });
   }
 
-  function refinedMetal(id, name, standardUnitValueAhn, form = "refined_metal") {
+  function refinedMetal(id, name, standardUnitValueAhn, form = "refined_metal", iconFamily = "metal_ingot") {
     return material({
       id, name, materialNoun: name, form, materialClass: form === "alloy" ? "alloy" : "refined_metal",
-      iconFamily: "metal_ingot", standardUnitValueAhn: Math.round(standardUnitValueAhn * AHN_ECONOMY_SCALE), measure: MATERIAL_UNIT, unitAbbreviation: MATERIAL_UNIT_ABBREVIATION,
+      iconFamily: normalizeId(iconFamily || "metal_ingot"), standardUnitValueAhn: Math.round(standardUnitValueAhn * AHN_ECONOMY_SCALE), measure: MATERIAL_UNIT, unitAbbreviation: MATERIAL_UNIT_ABBREVIATION,
       pieceBased: false, processed: true, rawCraftingReagent: false,
       sourceKinds: ["metallurgy"], useTags: ["weapons", "armor", "tools", "augments", "industrial_fabrication", "upgrade_material"],
       tags: ["ingredient", "metal_stock", "ingot", form],
@@ -211,22 +211,22 @@
   ]);
 
   const ALLOYS = Object.freeze([
-    refinedMetal("bronze", "Bronze", 38000, "alloy"),
-    refinedMetal("brass", "Brass", 42000, "alloy"),
-    refinedMetal("carbon_steel", "Carbon Steel", 40000, "alloy"),
-    refinedMetal("high_carbon_steel", "High-Carbon Steel", 55000, "alloy"),
-    refinedMetal("stainless_steel", "Stainless Steel", 70000, "alloy"),
-    refinedMetal("hardened_steel", "Hardened Steel", 90000, "alloy"),
-    refinedMetal("nickel_steel", "Nickel Steel", 100000, "alloy"),
-    refinedMetal("chrome_steel", "Chrome Steel", 115000, "alloy"),
-    refinedMetal("cobalt_alloy", "Cobalt Alloy", 145000, "alloy"),
-    refinedMetal("tungsten_alloy", "Tungsten Alloy", 170000, "alloy"),
-    refinedMetal("titanium_alloy", "Titanium Alloy", 185000, "alloy"),
-    refinedMetal("advanced_titanium_alloy", "Advanced Titanium Alloy", 240000, "alloy"),
-    refinedMetal("superalloy", "Superalloy", 275000, "alloy"),
-    refinedMetal("augment_grade_alloy", "Augment-Grade Alloy", 300000, "alloy"),
-    refinedMetal("corp_composite_alloy", "Corp Composite Alloy", 450000, "alloy"),
-    refinedMetal("exotic_alloy", "Exotic Alloy", 650000, "alloy"),
+    refinedMetal("bronze", "Bronze", 38000, "alloy", "ingot_copper"),
+    refinedMetal("brass", "Brass", 42000, "alloy", "ingot_copper"),
+    refinedMetal("carbon_steel", "Carbon Steel", 40000, "alloy", "ingot_iron"),
+    refinedMetal("high_carbon_steel", "High-Carbon Steel", 55000, "alloy", "ingot_iron"),
+    refinedMetal("stainless_steel", "Stainless Steel", 70000, "alloy", "ingot_chromium"),
+    refinedMetal("hardened_steel", "Hardened Steel", 90000, "alloy", "ingot_iron"),
+    refinedMetal("nickel_steel", "Nickel Steel", 100000, "alloy", "ingot_nickel"),
+    refinedMetal("chrome_steel", "Chrome Steel", 115000, "alloy", "ingot_chromium"),
+    refinedMetal("cobalt_alloy", "Cobalt Alloy", 145000, "alloy", "ingot_cobalt"),
+    refinedMetal("tungsten_alloy", "Tungsten Alloy", 170000, "alloy", "ingot_tungsten"),
+    refinedMetal("titanium_alloy", "Titanium Alloy", 185000, "alloy", "ingot_titanium"),
+    refinedMetal("advanced_titanium_alloy", "Advanced Titanium Alloy", 240000, "alloy", "ingot_titanium"),
+    refinedMetal("superalloy", "Superalloy", 275000, "alloy", "ingot_cobalt"),
+    refinedMetal("augment_grade_alloy", "Augment-Grade Alloy", 300000, "alloy", "ingot_titanium"),
+    refinedMetal("corp_composite_alloy", "Corp Composite Alloy", 450000, "alloy", "material_metamaterial_refined"),
+    refinedMetal("exotic_alloy", "Exotic Alloy", 650000, "alloy", "material_exotic_refined"),
   ]);
 
   const GEMSTONE_PAIRS = Object.freeze([
