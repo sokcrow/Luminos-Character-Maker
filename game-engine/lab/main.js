@@ -20,6 +20,7 @@ const frame = $("gameFrame");
 const mirroredDefinitionIds = new Set();
 let gameConnected = false;
 let syncTimer = null;
+let bridgeWaitTimer = null;
 let shopProvider = null;
 
 function log(type, payload = {}) {
@@ -356,14 +357,24 @@ function connectGameBridge() {
 }
 
 function waitForGameBridge(attempt = 0) {
-  if (connectGameBridge()) return;
-  if (attempt >= 80) {
+  if (gameConnected) {
+    clearTimeout(bridgeWaitTimer);
+    bridgeWaitTimer = null;
+    return;
+  }
+  if (connectGameBridge()) {
+    clearTimeout(bridgeWaitTimer);
+    bridgeWaitTimer = null;
+    return;
+  }
+  if (attempt >= 120) {
     $("gameLoading").classList.add("off");
     $("bridgeBadge").textContent = "Forest abierto · bridge pendiente";
     log("game:bridge-timeout", {});
     return;
   }
-  setTimeout(() => waitForGameBridge(attempt + 1), 250);
+  clearTimeout(bridgeWaitTimer);
+  bridgeWaitTimer = setTimeout(() => waitForGameBridge(attempt + 1), 250);
 }
 
 function openGameInventory() {
@@ -444,8 +455,12 @@ document.addEventListener("fullscreenchange", () => {
 
 frame.addEventListener("load", () => {
   log("game:frame-loaded", { src: frame.getAttribute("src") });
-  waitForGameBridge();
+  if (!gameConnected) waitForGameBridge();
 });
+
+// Do not wait for the iframe load event: remote sprite requests can keep that event
+// pending even after the game bridge is already usable.
+waitForGameBridge();
 
 engine.start();
 render();
@@ -457,5 +472,6 @@ log("lab:ready", {
 
 window.addEventListener("beforeunload", () => {
   clearInterval(syncTimer);
+  clearTimeout(bridgeWaitTimer);
   engine.dispose();
 });
