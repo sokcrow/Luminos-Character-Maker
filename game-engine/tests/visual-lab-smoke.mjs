@@ -103,6 +103,11 @@ assert.match(game, /treeInterval=displayLandscapeMobile\(\)\?50/);
 assert.match(game, /LuminousDisplayPerformance/);
 assert.match(game, /DISPLAY_SHADOW_SIZE=DISPLAY_DEVICE_MOBILE\?512:1024/);
 assert.match(game, /Forest Floor Ecology/);
+assert.match(game, /MOBILE ITEM \/ INVENTORY STANDARD/);
+assert.match(game, /pointer:coarse\) and \(orientation:landscape\) and \(max-height:600px\)/);
+assert.match(game, /grid-template-columns:minmax\(0,1fr\) clamp\(236px,32vw,310px\)/);
+assert.match(game, /paper-inv-equipment-field[\s\S]*grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
+
 
 // Parse the embedded ES module with Node's syntax checker. The Lab is a large HTML
 // file, so regex smoke alone can miss malformed ternaries/template literals that
