@@ -6,12 +6,12 @@
     return;
   }
 
-  const VERSION = 4;
+  const VERSION = 5;
   const FAMILY = "jewelry_valuables";
   const CURRENCY = "AHN";
   const DEFAULT_QUALITY = "standard";
   const PRICING_MODEL = "consumed_material_value_x_chassis_multiplier_x_quality_v1";
-  const ENCHANTMENT_PRICING_STATUS = "deferred";
+  const ENCHANTMENT_PRICING_STATUS = "multiplier_ready";
   const DEFAULT_METAL_ID = "silver";
 
   function safeRequire(path) {
@@ -79,14 +79,14 @@
   ]);
 
   const VALUABLE_CHASSIS = Object.freeze([
-    Object.freeze({ id:"goblet", name:"Goblet", family:FAMILY, category:"valuable", itemType:"valuable", kind:"valuable", stackable:false, lootOnly:true, craftable:false, retailAvailable:false, acquisition:"loot_only", variants:Object.freeze({ gold:Object.freeze({iconFamily:"valuable_goblet_gold", standardValueAhn:420000}), gems:Object.freeze({iconFamily:"valuable_goblet_gems", standardValueAhn:780000}) }) }),
-    Object.freeze({ id:"chalice", name:"Chalice", family:FAMILY, category:"valuable", itemType:"valuable", kind:"valuable", stackable:false, lootOnly:true, craftable:false, retailAvailable:false, acquisition:"loot_only", variants:Object.freeze({ gold:Object.freeze({iconFamily:"valuable_chalice_gold", standardValueAhn:500000}), gems:Object.freeze({iconFamily:"valuable_chalice_gems", standardValueAhn:900000}) }) }),
-    Object.freeze({ id:"decorative_box", name:"Decorative Box", family:FAMILY, category:"valuable", itemType:"valuable", kind:"valuable", stackable:false, lootOnly:true, craftable:false, retailAvailable:false, acquisition:"loot_only", variants:Object.freeze({ gold:Object.freeze({iconFamily:"valuable_box_gold", standardValueAhn:650000}), gems:Object.freeze({iconFamily:"valuable_box_gems", standardValueAhn:1150000}) }) }),
-    Object.freeze({ id:"statuette", name:"Statuette", family:FAMILY, category:"valuable", itemType:"valuable", kind:"valuable", stackable:false, lootOnly:true, craftable:false, retailAvailable:false, acquisition:"loot_only", variants:Object.freeze({ gold:Object.freeze({iconFamily:"valuable_statuette_gold", standardValueAhn:800000}), gems:Object.freeze({iconFamily:"valuable_statuette_gems", standardValueAhn:1450000}) }) }),
-    Object.freeze({ id:"mask", name:"Mask", family:FAMILY, category:"valuable", itemType:"valuable", kind:"valuable", stackable:false, lootOnly:true, craftable:false, retailAvailable:false, acquisition:"loot_only", variants:Object.freeze({ gold:Object.freeze({iconFamily:"valuable_mask_gold", standardValueAhn:700000}), gems:Object.freeze({iconFamily:"valuable_mask_gems", standardValueAhn:1250000}) }) }),
-    Object.freeze({ id:"plate", name:"Ornamental Plate", family:FAMILY, category:"valuable", itemType:"valuable", kind:"valuable", stackable:false, lootOnly:true, craftable:false, retailAvailable:false, acquisition:"loot_only", variants:Object.freeze({ gold:Object.freeze({iconFamily:"valuable_plate_gold", standardValueAhn:850000}), gems:Object.freeze({iconFamily:"valuable_plate_gems", standardValueAhn:1500000}) }) }),
-    Object.freeze({ id:"reliquary", name:"Reliquary", family:FAMILY, category:"valuable", itemType:"valuable", kind:"valuable", stackable:false, lootOnly:true, craftable:false, retailAvailable:false, acquisition:"loot_only", variants:Object.freeze({ gold:Object.freeze({iconFamily:"valuable_reliquary_gold", standardValueAhn:1100000}), gems:Object.freeze({iconFamily:"valuable_reliquary_gems", standardValueAhn:1950000}) }) }),
-    Object.freeze({ id:"scepter", name:"Scepter", family:FAMILY, category:"valuable", itemType:"valuable", kind:"valuable", stackable:false, lootOnly:true, craftable:false, retailAvailable:false, acquisition:"loot_only", variants:Object.freeze({ gold:Object.freeze({iconFamily:"valuable_scepter_gold", standardValueAhn:1250000}), gems:Object.freeze({iconFamily:"valuable_scepter_gems", standardValueAhn:2200000}) }) }),
+    Object.freeze({ id:"goblet", name:"Goblet", family:FAMILY, category:"valuable", itemType:"valuable", kind:"valuable", stackable:false, lootOnly:true, craftable:false, retailAvailable:false, acquisition:"loot_only", variants:Object.freeze({ gold:Object.freeze({iconFamily:"valuable_goblet_gold", standardValueAhn:420000}), gems:Object.freeze({iconFamily:"valuable_goblet_gold", standardValueAhn:780000, gemOverlayRequired:true}) }) }),
+    Object.freeze({ id:"chalice", name:"Chalice", family:FAMILY, category:"valuable", itemType:"valuable", kind:"valuable", stackable:false, lootOnly:true, craftable:false, retailAvailable:false, acquisition:"loot_only", variants:Object.freeze({ gold:Object.freeze({iconFamily:"valuable_chalice_gold", standardValueAhn:500000}), gems:Object.freeze({iconFamily:"valuable_chalice_gold", standardValueAhn:900000, gemOverlayRequired:true}) }) }),
+    Object.freeze({ id:"decorative_box", name:"Decorative Box", family:FAMILY, category:"valuable", itemType:"valuable", kind:"valuable", stackable:false, lootOnly:true, craftable:false, retailAvailable:false, acquisition:"loot_only", variants:Object.freeze({ gold:Object.freeze({iconFamily:"valuable_box_gold", standardValueAhn:650000}), gems:Object.freeze({iconFamily:"valuable_box_gold", standardValueAhn:1150000, gemOverlayRequired:true}) }) }),
+    Object.freeze({ id:"statuette", name:"Statuette", family:FAMILY, category:"valuable", itemType:"valuable", kind:"valuable", stackable:false, lootOnly:true, craftable:false, retailAvailable:false, acquisition:"loot_only", variants:Object.freeze({ gold:Object.freeze({iconFamily:"valuable_statuette_gold", standardValueAhn:800000}), gems:Object.freeze({iconFamily:"valuable_statuette_gold", standardValueAhn:1450000, gemOverlayRequired:true}) }) }),
+    Object.freeze({ id:"mask", name:"Mask", family:FAMILY, category:"valuable", itemType:"valuable", kind:"valuable", stackable:false, lootOnly:true, craftable:false, retailAvailable:false, acquisition:"loot_only", variants:Object.freeze({ gold:Object.freeze({iconFamily:"valuable_mask_gold", standardValueAhn:700000}), gems:Object.freeze({iconFamily:"valuable_mask_gold", standardValueAhn:1250000, gemOverlayRequired:true}) }) }),
+    Object.freeze({ id:"plate", name:"Ornamental Plate", family:FAMILY, category:"valuable", itemType:"valuable", kind:"valuable", stackable:false, lootOnly:true, craftable:false, retailAvailable:false, acquisition:"loot_only", variants:Object.freeze({ gold:Object.freeze({iconFamily:"valuable_plate_gold", standardValueAhn:850000}), gems:Object.freeze({iconFamily:"valuable_plate_gold", standardValueAhn:1500000, gemOverlayRequired:true}) }) }),
+    Object.freeze({ id:"reliquary", name:"Reliquary", family:FAMILY, category:"valuable", itemType:"valuable", kind:"valuable", stackable:false, lootOnly:true, craftable:false, retailAvailable:false, acquisition:"loot_only", variants:Object.freeze({ gold:Object.freeze({iconFamily:"valuable_reliquary_gold", standardValueAhn:1100000}), gems:Object.freeze({iconFamily:"valuable_reliquary_gold", standardValueAhn:1950000, gemOverlayRequired:true}) }) }),
+    Object.freeze({ id:"scepter", name:"Scepter", family:FAMILY, category:"valuable", itemType:"valuable", kind:"valuable", stackable:false, lootOnly:true, craftable:false, retailAvailable:false, acquisition:"loot_only", variants:Object.freeze({ gold:Object.freeze({iconFamily:"valuable_scepter_gold", standardValueAhn:1250000}), gems:Object.freeze({iconFamily:"valuable_scepter_gold", standardValueAhn:2200000, gemOverlayRequired:true}) }) }),
   ]);
 
   const CHASSIS = Object.freeze([...JEWELRY_CHASSIS, ...VALUABLE_CHASSIS]);
@@ -163,6 +163,46 @@
     });
   }
 
+  function dominantGemEntry(gems = []) {
+    const ranked = [...gems].sort((a,b) =>
+      (Number(b.quantity) || 0) - (Number(a.quantity) || 0) ||
+      (Number(b.totalValueAhn) || 0) - (Number(a.totalValueAhn) || 0) ||
+      String(a.id).localeCompare(String(b.id))
+    );
+    return ranked[0] || null;
+  }
+
+  function compositionSignature(chassisId, metalId, quality, gems = []) {
+    const gemPart = [...gems]
+      .sort((a,b) => String(a.id).localeCompare(String(b.id)))
+      .map((gem) => `${normalizeId(gem.id)}x${Math.max(1, Math.trunc(Number(gem.quantity) || 1))}`)
+      .join("+");
+    return [normalizeId(chassisId), normalizeId(metalId), normalizeId(quality || DEFAULT_QUALITY), gemPart || "ungemmed"].join(":");
+  }
+
+  function applyEnchantmentMultiplier(item = {}, multiplier, metadata = {}) {
+    if (!item?.valid) return Object.freeze({ valid:false, reason:"invalid_item" });
+    if (!item.enchantmentReady) return Object.freeze({ valid:false, reason:"item_not_enchantment_ready", itemId:item.id || null });
+    const factor = Number(multiplier);
+    if (!Number.isFinite(factor) || factor < 1) return Object.freeze({ valid:false, reason:"invalid_enchantment_multiplier", multiplier });
+    const base = Math.max(0, Math.round(Number(item.enchantmentBaseValueAhn ?? item.baseMundaneValueAhn ?? item.productionValueAhn) || 0));
+    const total = Math.round(base * factor);
+    const enchanted = factor > 1;
+    return Object.freeze({
+      ...clone(item),
+      enchanted,
+      enchantment: enchanted ? Object.freeze({ multiplier:factor, ...clone(metadata) }) : null,
+      enchantmentMultiplier: factor,
+      enchantmentBaseValueAhn: base,
+      baseMundaneValueAhn: base,
+      enchantmentValueAhn: Math.max(0, total - base),
+      productionValueAhn: total,
+      unitValueAhn: total,
+      totalValueAhn: total,
+      enchantmentPricingStatus: ENCHANTMENT_PRICING_STATUS,
+    });
+  }
+
   function qualityValue(baseValueAhn, quality = DEFAULT_QUALITY) {
     const engine = qualityEngine();
     if (engine?.applyValue) return engine.applyValue(baseValueAhn, quality, { rounding:"round" });
@@ -181,6 +221,12 @@
       const variant = normalizeId(options.variant || options.valueTier || "gold");
       const variantDef = chassis.variants?.[variant];
       if (!variantDef) return Object.freeze({ valid:false, reason:"invalid_valuable_variant", variant });
+      const overlayGemId = normalizeId(options.gemId || options.overlayGemId || "");
+      const overlayGem = overlayGemId ? resolveCutGem(overlayGemId) : null;
+      if (overlayGemId && !overlayGem) return Object.freeze({ valid:false, reason:"invalid_cut_gem", gemId:overlayGemId });
+      const hasGemVariant = variant === "gems";
+      const gemOverlayIconFamily = hasGemVariant ? (overlayGem?.iconFamily || "gem_cut") : null;
+      const baseMundaneValueAhn = variantDef.standardValueAhn;
       return Object.freeze({
         valid:true,
         id:chassis.id,
@@ -191,6 +237,10 @@
         equipmentKind:null,
         kind:"valuable",
         iconFamily:variantDef.iconFamily,
+        hasGemVariant,
+        gemOverlayGemId:hasGemVariant ? (overlayGem?.id || null) : null,
+        gemOverlayIconFamily,
+        gemOverlayCount:hasGemVariant ? 1 : 0,
         name:chassis.name,
         displayName:`${variant === "gems" ? "Gem-Inlaid" : "Gold"} ${chassis.name}`,
         currency:CURRENCY,
@@ -203,10 +253,15 @@
         lootOnly:true,
         origin,
         valuableVariant:variant,
-        standardProductionValueAhn:variantDef.standardValueAhn,
-        productionValueAhn:variantDef.standardValueAhn,
-        unitValueAhn:variantDef.standardValueAhn,
-        totalValueAhn:variantDef.standardValueAhn,
+        variantSignature:`${chassis.id}:${variant}${overlayGem?.id ? `:${overlayGem.id}` : ""}`,
+        standardProductionValueAhn:baseMundaneValueAhn,
+        baseMundaneValueAhn,
+        enchantmentBaseValueAhn:baseMundaneValueAhn,
+        enchantmentReady:hasGemVariant,
+        enchantmentMultiplier:1,
+        productionValueAhn:baseMundaneValueAhn,
+        unitValueAhn:baseMundaneValueAhn,
+        totalValueAhn:baseMundaneValueAhn,
         enchanted:false,
         enchantment:null,
         enchantmentValueAhn:0,
@@ -246,6 +301,7 @@
     const quality = normalizeId(options.quality || DEFAULT_QUALITY) || DEFAULT_QUALITY;
     const productionValueAhn = qualityValue(standardProductionValueAhn, quality);
     const resonance = gemResonanceProfile(gems);
+    const overlayGem = dominantGemEntry(gems);
     const gemSummary = gems.map((gem) => `${gem.name} ×${gem.quantity}`).join(", ");
     const displayName = `${metal.name} ${chassis.name}${gemSummary ? ` — ${gemSummary}` : ""}`;
 
@@ -253,13 +309,23 @@
       valid:true, id:chassis.id, definitionId:chassis.id, family:FAMILY,
       category:chassis.category, itemType:chassis.itemType, equipmentKind:chassis.equipmentKind,
       kind:chassis.kind, iconFamily, iconVisualVariant:visualVariant,
+      hasGemVariant:gemCount > 0,
+      gemOverlayGemId:overlayGem?.id || null,
+      gemOverlayIconFamily:overlayGem?.iconFamily || null,
+      gemOverlayCount:overlayGem?.quantity || 0,
       name:chassis.name, displayName, currency:CURRENCY, quality, qualitySystem:"universal",
       stackable:false, quantity:1, acquisition:"market_or_craft", craftable:true, retailAvailable:true, lootOnly:false,
       origin:origin || "market_or_craft", pricingModel:PRICING_MODEL,
       metalId:metal.id, metalName:metal.name, metalUnits:chassis.metalUnits, metalInputValueAhn,
       gemCount, maxGemCount:chassis.maxGemCount, gems:Object.freeze(gems), gemstoneInputValueAhn,
       consumedInputValueAhn, craftMultiplier:chassis.craftMultiplier, processTier:chassis.processTier,
-      standardProductionValueAhn, productionValueAhn, unitValueAhn:productionValueAhn, totalValueAhn:productionValueAhn,
+      standardProductionValueAhn,
+      baseMundaneValueAhn:productionValueAhn,
+      enchantmentBaseValueAhn:productionValueAhn,
+      enchantmentReady:gemCount > 0,
+      enchantmentMultiplier:1,
+      variantSignature:compositionSignature(chassis.id, metal.id, quality, gems),
+      productionValueAhn, unitValueAhn:productionValueAhn, totalValueAhn:productionValueAhn,
       gemResonanceWeights:resonance.weights, dominantResonanceTags:resonance.dominantTags,
       enchanted:false, enchantment:null, enchantmentValueAhn:0, enchantmentPricingStatus:ENCHANTMENT_PRICING_STATUS,
       tags:Object.freeze([...chassis.tags, metal.id, ...(gemCount ? ["gem_set"] : ["ungemmed"])]),
@@ -269,7 +335,8 @@
   const API = Object.freeze({
     VERSION, FAMILY, CURRENCY, DEFAULT_QUALITY, PRICING_MODEL, ENCHANTMENT_PRICING_STATUS,
     DEFAULT_METAL_ID, JEWELRY_CHASSIS, VALUABLE_CHASSIS, CHASSIS, ALIASES,
-    get, list, resolveMetal, resolveCutGem, metalVisualVariant, normalizeGemSelection, gemResonanceProfile, create,
+    get, list, resolveMetal, resolveCutGem, metalVisualVariant, normalizeGemSelection, gemResonanceProfile,
+    dominantGemEntry, compositionSignature, applyEnchantmentMultiplier, create,
   });
 
   global.LuminousJewelryValuableCatalog = API;
