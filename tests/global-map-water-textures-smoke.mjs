@@ -10,8 +10,9 @@ import WaterTextures, {
 } from '../js/global-map-water-textures.js';
 
 const legacyLake = { id:'legacy-water', layer:'water', terrain:'lake', metadata:null };
-assert.equal(isLakeRegion(legacyLake), false, 'legacy water regions must keep legacy rendering');
-assert.deepEqual(styleForWaterRegion(legacyLake), WaterTextures.LEGACY_WATER_STYLE);
+assert.equal(isLakeRegion(legacyLake), false, 'legacy water stays semantically untyped');
+assert.equal(WaterTextures.isWaterBodyRegion(legacyLake), true, 'legacy water must receive the visual water renderer');
+assert.notDeepEqual(styleForWaterRegion(legacyLake), WaterTextures.LEGACY_WATER_STYLE, 'legacy water should now render with the water-body visual');
 
 const lake = {
   id:'lake_a',
@@ -37,7 +38,8 @@ assert.equal(clampedLake.shoreRoughness, 0);
 assert.equal(clampedLake.waveIntensity, 1);
 
 const legacyWaterway = { id:'old-river', type:'waterway', points:[{xKm:0,yKm:0},{xKm:1,yKm:1}], metadata:null };
-assert.equal(isRiverRoute(legacyWaterway), false, 'legacy waterways must keep legacy rendering');
+assert.equal(isRiverRoute(legacyWaterway), false, 'legacy waterways stay semantically untyped');
+assert.equal(WaterTextures.isWaterwayRoute(legacyWaterway), true, 'legacy waterways must receive the river visual renderer');
 
 const river = {
   id:'river_a',
