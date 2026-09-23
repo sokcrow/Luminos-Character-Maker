@@ -1,0 +1,62 @@
+name: PR777 Startup Loader Probe
+on:
+  push:
+    branches: [feat/item-icon-families]
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser
+        run: |
+          npm install --no-save --ignore-scripts playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Probe normal Lab startup
+        shell: bash
+        run: |
+          node game-engine/lab-server.mjs > /tmp/lab-server.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID || true' EXIT
+          sleep 2
+          cat > startup-probe.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          const browser=await chromium.launch({headless:true});
+          const page=await browser.newPage({viewport:{width:1280,height:720}});
+          const errors=[],consoleRows=[];
+          page.on('pageerror',e=>errors.push(String(e)));
+          page.on('console',m=>consoleRows.push(m.type()+': '+m.text()));
+          await page.goto('http://127.0.0.1:7777/game-engine/lab/',{waitUntil:'domcontentloaded',timeout:120000});
+          for(const ms of [2000,8000,15000,30000]){
+            await page.waitForTimeout(ms-(globalThis.last||0)); globalThis.last=ms;
+            const state=await page.evaluate(()=>{
+              const f=document.getElementById('gameFrame'),iw=f?.contentWindow,err=iw?.document?.getElementById('error');
+              return {
+                t:performance.now(),
+                outerLoading:document.getElementById('gameLoading')?.className||null,
+                bridge:document.getElementById('bridgeBadge')?.textContent||null,
+                frameReady:iw?.document?.readyState||null,
+                paperLoaded:!!iw?.__paperLoaded,
+                innerLoader:iw?.document?.getElementById('loaderPaper')?.className||null,
+                stage:iw?.document?.getElementById('loaderStage')?.textContent||null,
+                hint:iw?.document?.getElementById('loaderHint')?.textContent||null,
+                retry:iw?.document?.getElementById('loaderRetry')?.className||null,
+                error:err?.textContent||null,
+                errorDisplay:err?.style?.display||null,
+                hasBridge:!!iw?.LuminousMapItemBridge,
+                hasInv:!!iw?.PaperInventory,
+                hasBiome:!!iw?.BiomeComposer
+              };
+            });
+            console.log('STARTUP_STATE',ms,JSON.stringify(state));
+          }
+          console.log('PAGE_ERRORS',JSON.stringify(errors));
+          console.log('CONSOLE_TAIL',JSON.stringify(consoleRows.slice(-80)));
+          await page.screenshot({path:'startup-loader.png',fullPage:false});
+          await browser.close();
+          EOF
+          node startup-probe.mjs
