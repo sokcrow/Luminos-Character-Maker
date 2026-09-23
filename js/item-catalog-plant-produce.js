@@ -86,23 +86,31 @@
   }
 
   const ITEMS = Object.freeze([
-    // Fruits — 18
-    ingredient("apple", "Apple", "fruit", "fruit_raw", 300, ["fruit"], ["sweet"], ["bake", "juice", "fermentable"]),
-    ingredient("pear", "Pear", "fruit", "fruit_raw", 350, ["fruit"], ["sweet"], ["preserve"]),
-    ingredient("orange", "Orange", "fruit", "fruit_raw", 400, ["fruit"], ["citrus", "acidic"], ["juice", "refreshing"]),
-    ingredient("lemon", "Lemon", "fruit", "fruit_raw", 350, ["fruit"], ["citrus", "acidic"], ["seasoning", "preservation_support"]),
-    ingredient("berry", "Berry", "fruit", "fruit_raw", 450, ["fruit"], ["berry", "sweet"], ["tea", "preserve"]),
-    ingredient("strawberry", "Strawberry", "fruit", "fruit_raw", 500, ["fruit"], ["berry", "sweet"], ["dessert", "preserve"]),
-    ingredient("grape", "Grape", "fruit", "fruit_raw", 450, ["fruit"], ["sweet"], ["juice", "fermentable"]),
-    ingredient("peach", "Peach", "fruit", "fruit_raw", 500, ["fruit"], ["sweet"], ["preserve", "dessert"]),
-    ingredient("cherry", "Cherry", "fruit", "fruit_raw", 600, ["fruit"], ["berry", "sweet"], ["dessert", "sauce"]),
-    ingredient("melon", "Melon", "fruit", "fruit_raw", 500, ["fruit"], ["juicy", "fresh"], ["refreshing"]),
-    ingredient("banana", "Banana", "fruit", "fruit_raw", 350, ["fruit", "starch"], ["sweet"], ["filling", "dessert"]),
-    ingredient("exotic_fruit", "Exotic Fruit", "fruit", "fruit_raw", 1500, ["fruit"], ["exotic"], ["special_ingredient"], ["alchemy"]),
-    ingredient("pineapple", "Pineapple", "fruit", "fruit_raw", 600, ["fruit"], ["sweet", "acidic", "juicy"], ["juice", "dessert", "grill"]),
-    ingredient("plum", "Plum", "fruit", "fruit_raw", 450, ["fruit"], ["sweet", "acidic"], ["preserve", "fermentable", "juice"]),
-    ingredient("juniper_berry", "Juniper Berry", "fruit", "fruit_raw", 800, ["fruit", "berry", "seasoning"], ["aromatic", "bitter"], ["preserve", "jelly", "seasoning"]),
-    ingredient("coconut", "Coconut", "fruit", "fruit_raw", 700, ["fruit", "fat", "nut"], ["rich", "sweet"], ["oil_source", "milk_source", "dessert", "soup"]),
+    // Fruits — 26
+    ingredient("apple", "Apple", "fruit", "apple", 300, ["fruit"], ["sweet"], ["bake", "juice", "fermentable"]),
+    ingredient("pear", "Pear", "fruit", "pear", 350, ["fruit"], ["sweet"], ["preserve"]),
+    ingredient("orange", "Orange", "fruit", "orange", 400, ["fruit"], ["citrus", "acidic"], ["juice", "refreshing"]),
+    ingredient("lemon", "Lemon", "fruit", "lemon", 350, ["fruit"], ["citrus", "acidic"], ["seasoning", "preservation_support"]),
+    ingredient("blackberry", "Blackberry", "fruit", "blackberry", 450, ["fruit"], ["berry", "sweet"], ["tea", "preserve"]),
+    ingredient("strawberry", "Strawberry", "fruit", "strawberry", 500, ["fruit"], ["berry", "sweet"], ["dessert", "preserve"]),
+    ingredient("grape", "Grape", "fruit", "grape", 450, ["fruit"], ["sweet"], ["juice", "fermentable"]),
+    ingredient("peach", "Peach", "fruit", "peach", 500, ["fruit"], ["sweet"], ["preserve", "dessert"]),
+    ingredient("cherry", "Cherry", "fruit", "cherry", 600, ["fruit"], ["berry", "sweet"], ["dessert", "sauce"]),
+    ingredient("melon", "Melon", "fruit", "melon", 500, ["fruit"], ["juicy", "fresh"], ["refreshing"]),
+    ingredient("banana", "Banana", "fruit", "banana", 350, ["fruit", "starch"], ["sweet"], ["filling", "dessert"]),
+    ingredient("dragon_fruit", "Dragon Fruit", "fruit", "dragon_fruit", 1500, ["fruit"], ["exotic"], ["special_ingredient"], ["alchemy"]),
+    ingredient("pineapple", "Pineapple", "fruit", "pineapple", 600, ["fruit"], ["sweet", "acidic", "juicy"], ["juice", "dessert", "grill"]),
+    ingredient("plum", "Plum", "fruit", "plum", 450, ["fruit"], ["sweet", "acidic"], ["preserve", "fermentable", "juice"]),
+    ingredient("juniper_berry", "Juniper Berry", "fruit", "juniper_berry", 800, ["fruit", "berry", "seasoning"], ["aromatic", "bitter"], ["preserve", "jelly", "seasoning"]),
+    ingredient("coconut", "Coconut", "fruit", "coconut", 700, ["fruit", "fat", "nut"], ["rich", "sweet"], ["oil_source", "milk_source", "dessert", "soup"]),
+    ingredient("mango", "Mango", "fruit", "mango", 600, ["fruit"], ["sweet", "juicy"], ["juice", "dessert", "preserve"]),
+    ingredient("lime", "Lime", "fruit", "lime", 350, ["fruit"], ["citrus", "acidic"], ["juice", "seasoning", "preservation_support"]),
+    ingredient("kiwi", "Kiwi", "fruit", "kiwi", 500, ["fruit"], ["sweet", "acidic"], ["dessert", "juice"]),
+    ingredient("pomegranate", "Pomegranate", "fruit", "pomegranate", 650, ["fruit"], ["sweet", "acidic"], ["juice", "preserve", "dessert"]),
+    ingredient("watermelon", "Watermelon", "fruit", "watermelon", 550, ["fruit"], ["juicy", "fresh"], ["refreshing", "juice"]),
+    ingredient("blueberry", "Blueberry", "fruit", "blueberry", 550, ["fruit"], ["berry", "sweet"], ["dessert", "preserve"]),
+    ingredient("raspberry", "Raspberry", "fruit", "raspberry", 600, ["fruit"], ["berry", "sweet", "acidic"], ["dessert", "preserve"]),
+    ingredient("red_berry", "Red Berry", "fruit", "red_berry", 500, ["fruit"], ["berry", "sweet"], ["tea", "preserve"]),
     ingredient("camellia_fruit", "Camellia Fruit", "fruit", "fruit_raw", 1000, ["fruit"], ["aromatic", "exotic"], ["drink", "cocktail", "special_ingredient"]),
     ingredient("catnip_fruit", "Catnip Fruit", "fruit", "fruit_raw", 800, ["fruit", "herb"], ["aromatic", "fresh"], ["tea", "drink", "special_ingredient"]),
 
@@ -198,6 +206,8 @@
   ]);
 
   const ALIASES = Object.freeze({
+    berry: "blackberry",
+    exotic_fruit: "dragon_fruit",
     mushroom: "common_mushroom",
     common_fungus: "common_mushroom",
     medicinal_plant: "medicinal_herb",
