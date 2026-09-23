@@ -474,6 +474,12 @@ body.inventory-open #joy,body.inventory-open #useBtn,body.inventory-open #allyHu
 }
 
 @media (pointer:coarse) and (orientation:landscape) and (max-height:600px){
+  #paperPlayerMenu{gap:5px}
+  .paper-menu-hex{width:44px;height:44px;min-width:44px;min-height:44px}
+  .paper-menu-hex img{width:24px;height:24px}
+  #paperPlayerMenuStrip{height:50px;gap:5px}
+  #paperPlayerMenu.is-open #paperPlayerMenuStrip{max-width:calc(100vw - 64px);padding:3px 5px}
+  .paper-menu-hex[data-label]::after{display:none!important}
   #gameInventoryModal{padding:0;align-items:stretch;justify-content:stretch}
   #gameInventoryPanel{
     width:100vw;max-width:none;height:100dvh;min-height:0;
@@ -541,7 +547,7 @@ body.inventory-open #joy,body.inventory-open #useBtn,body.inventory-open #allyHu
   .paper-inv-detail-grid{grid-template-columns:1fr 1fr;margin-top:6px;padding-top:6px}
   .paper-inv-detail-grid>div{padding:4px}
   .paper-inv-detail-grid span{font-size:6px}.paper-inv-detail-grid b{font-size:7px}
-  .paper-inv-actions{grid-template-columns:1fr 1fr;gap:5px;margin-top:7px}
+  .paper-inv-actions{position:sticky;bottom:0;z-index:2;grid-template-columns:1fr 1fr;gap:5px;margin-top:7px;padding-top:5px;background:linear-gradient(180deg,rgba(13,10,8,0),#0d0a08 25%)}
   .paper-inv-action{min-height:42px;padding:6px 5px;font-size:8px}
   .paper-inv-status{min-height:16px;margin-top:4px;font-size:7px}
   .paper-inv-toolbar{position:sticky;top:0;z-index:3;padding:5px;gap:5px}
