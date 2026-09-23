@@ -1,4 +1,5 @@
 import '../global-map-core.js';
+import TerrainTextures from '../global-map-terrain-textures.js';
 
 const Core = globalThis.LuminousGlobalMapCore;
 const ROOT = 'campaña/estado_mundo/mapa_global';
@@ -103,7 +104,7 @@ function injectDom(isDm) {
       </select></label>
       <label>DISTRITO ID<input id="vtt-global-district" maxlength="120" placeholder="district_k"></label>
       <label>JURISDICCIÓN<select id="vtt-global-jurisdiction"><option value="outskirts">OUTSKIRTS</option><option value="backstreets">BACKSTREETS</option><option value="nest">NEST</option></select></label>
-      <label>TERRENO<input id="vtt-global-terrain" maxlength="80" value="unknown" placeholder="forest / urban / lake"></label>
+      <label>TERRENO<input id="vtt-global-terrain" maxlength="80" value="unknown" placeholder="forest / mountain / urban / lake"></label>\n      <label>ESPINAS MONTAÑA (0–12)<input id="vtt-global-mountain-spines" type="number" min="0" max="12" step="1" value="5"></label>
       <label>FUENTE<select id="vtt-global-source"><option value="dm">DM OVERRIDE</option><option value="campaign">CAMPAIGN</option><option value="canon">CANON LOCK</option><option value="procedural">PROCEDURAL</option></select></label>
       <label>MARKER<select id="vtt-global-marker-type"><option value="nest">NEST</option><option value="city">CITY</option><option value="town">TOWN</option><option value="villa">VILLA</option><option value="industrial">INDUSTRIAL</option><option value="checkpoint">CHECKPOINT</option><option value="poi">POI</option></select></label>
       <label>RUTA<select id="vtt-global-route-type"><option value="road">ROAD</option><option value="dirt_road">DIRT ROAD</option><option value="trail">TRAIL</option><option value="rail">RAIL</option><option value="waterway">WATERWAY</option></select></label>
@@ -117,7 +118,7 @@ function injectDom(isDm) {
         <button type="button" id="vtt-global-delete" class="brutalist-button">DELETE</button>
       </div>
       <button type="button" id="vtt-global-save" class="brutalist-button vtt-global-save">SAVE WORLD</button>
-      <small id="vtt-global-help">SELECT inspecciona. REGION/ROUTE agregan puntos con click; CERRAR TRAZO finaliza. Arrastra con botón derecho/medio para mover el mapa.</small>
+      <small id="vtt-global-help">SELECT inspecciona. REGION/ROUTE agregan puntos con click; CERRAR TRAZO finaliza. En montaña, más ESPINAS generan más crestas y rugosidad visual. Arrastra con botón derecho/medio para mover el mapa.</small>
     </aside>` : ''}
   `;
   document.body.appendChild(root);
@@ -199,7 +200,7 @@ function start() {
       if (region.jurisdiction === 'backstreets') return { fill: 'rgba(172,132,59,.28)', stroke: '#c9a45e' };
       return { fill: 'rgba(81,105,75,.26)', stroke: '#849c7c' };
     }
-    if (region.layer === 'terrain') return { fill: 'rgba(78,91,75,.38)', stroke: '#77856f' };
+    if (region.layer === 'terrain') return TerrainTextures.styleForRegion(region);
     return { fill: 'rgba(101,82,115,.28)', stroke: '#9480a3' };
   }
 
@@ -219,7 +220,12 @@ function start() {
     const style = colorForRegion(region);
     ctx.fillStyle = style.fill; ctx.strokeStyle = selected?.kind === 'region' && selected.id === region.id ? '#ffffff' : style.stroke;
     ctx.lineWidth = selected?.kind === 'region' && selected.id === region.id ? 3 : region.layer === 'district' ? 2 : 1;
-    ctx.fill(); ctx.stroke();
+    ctx.fill();
+    if (region.layer === 'terrain') {
+      TerrainTextures.drawTerrainTexture(ctx, region, region.polygon.map(worldToScreen), { zoom: camera.zoom, seed: doc.seed });
+      path(region.polygon, true);
+    }
+    ctx.stroke();
     if (region.layer === 'district' && camera.zoom >= 0.12) {
       const center = worldToScreen(centroid(region.polygon));
       ctx.fillStyle = '#e8edf0'; ctx.font = '12px monospace'; ctx.textAlign = 'center';
@@ -317,15 +323,22 @@ function start() {
     render();
   }
 
-  function regionForm() {
+  function regionForm(metadataFallback = null) {
+    const terrain = clean(document.getElementById('vtt-global-terrain')?.value, 'unknown');
+    const metadata = metadataFallback && typeof metadataFallback === 'object' ? { ...metadataFallback } : {};
+    if (TerrainTextures.terrainKind(terrain) === 'mountain') {
+      const rawSpines = Number(document.getElementById('vtt-global-mountain-spines')?.value);
+      metadata.mountainSpines = Math.max(0, Math.min(TerrainTextures.MAX_MOUNTAIN_SPINES, Math.trunc(Number.isFinite(rawSpines) ? rawSpines : TerrainTextures.DEFAULT_MOUNTAIN_SPINES)));
+    }
     return {
       name: clean(document.getElementById('vtt-global-name')?.value, 'Nueva región'),
       layer: document.getElementById('vtt-global-region-layer')?.value || 'terrain',
       districtId: clean(document.getElementById('vtt-global-district')?.value),
       jurisdiction: document.getElementById('vtt-global-jurisdiction')?.value || 'outskirts',
-      terrain: clean(document.getElementById('vtt-global-terrain')?.value, 'unknown'),
+      terrain,
       source: document.getElementById('vtt-global-source')?.value || 'dm',
       visibleToPlayers: document.getElementById('vtt-global-visible')?.checked !== false,
+      metadata: Object.keys(metadata).length ? metadata : null,
     };
   }
 
@@ -383,7 +396,15 @@ function start() {
     const item = selectedItem();
     if (!item) { inspectorBody.textContent = 'Selecciona una región o marcador.'; return; }
     const lines = [item.name || item.id, `ID: ${item.id}`];
-    if (selected.kind === 'region') lines.push(`CAPA: ${item.layer}`, `DISTRITO: ${item.districtId || '—'}`, `LEGAL: ${item.jurisdiction || '—'}`, `TERRENO: ${item.terrain}`, `FUENTE: ${item.source}`, `ÁREA: ${Math.round(item.areaKm2).toLocaleString()} km²`);
+    if (selected.kind === 'region') {
+      lines.push(`CAPA: ${item.layer}`, `DISTRITO: ${item.districtId || '—'}`, `LEGAL: ${item.jurisdiction || '—'}`, `TERRENO: ${item.terrain}`, `FUENTE: ${item.source}`, `ÁREA: ${Math.round(item.areaKm2).toLocaleString()} km²`);
+      if (TerrainTextures.terrainKind(item) === 'mountain') {
+        const spines = TerrainTextures.mountainSpines(item);
+        lines.push(`ESPINAS: ${spines}/${TerrainTextures.MAX_MOUNTAIN_SPINES}`, `RUGOSIDAD: ${Math.round(TerrainTextures.roughnessForSpines(spines) * 100)}%`);
+        const input = document.getElementById('vtt-global-mountain-spines');
+        if (input && document.activeElement !== input) input.value = String(spines);
+      }
+    }
     if (selected.kind === 'marker') lines.push(`TIPO: ${item.type}`, `DISTRITO: ${item.districtId || '—'}`);
     if (selected.kind === 'route') lines.push(`RUTA: ${item.type}`, `DISTRITO: ${item.districtId || '—'}`);
     inspectorBody.innerHTML = lines.map((line, index) => index === 0 ? `<b>${escapeHtml(line)}</b>` : `<span>${escapeHtml(line)}</span>`).join('');
@@ -394,7 +415,7 @@ function start() {
     const item = selectedItem();
     if (!item) return notify('SELECT AN ITEM', 'error');
     if (item.locked) return notify('CANON ITEM LOCKED', 'error');
-    const form = regionForm();
+    const form = regionForm(selected.kind === 'region' ? item.metadata : null);
     try {
       if (selected.kind === 'region') doc = Core.upsertRegion(doc, { ...item, ...form, polygon: item.polygon, regionalOrigin: item.regionalOrigin });
       else if (selected.kind === 'marker') doc = Core.upsertMarker(doc, { ...item, name: form.name, districtId: form.districtId, type: document.getElementById('vtt-global-marker-type')?.value || item.type, visibleToPlayers: form.visibleToPlayers });
