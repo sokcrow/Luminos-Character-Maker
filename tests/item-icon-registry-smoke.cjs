@@ -8,9 +8,9 @@ const { pathToFileURL } = require('node:url');
   const registry = globalThis.LuminousItemIconRegistry;
 
   assert.ok(registry);
-  assert.equal(registry.VERSION, 27);
+  assert.equal(registry.VERSION, 28);
   assert.equal(registry.DEFAULT_GROUP, 'generic_item');
-  assert.equal(Object.keys(registry.GROUPS).length, 394);
+  assert.equal(Object.keys(registry.GROUPS).length, 418);
 
   const groups = registry.list();
   assert.equal(new Set(groups.map((entry) => entry.id)).size, groups.length);
@@ -68,6 +68,38 @@ const { pathToFileURL } = require('node:url');
   for (const [id, icon] of Object.entries(culinaryIcons)) {
     assert.equal(registry.has(id), true, id);
     assert.equal(registry.resolveIcon(id), icon, id);
+  }
+
+  const fruitIcons = {
+    apple:'https://imgur.com/vaEPPe1.png',
+    pear:'https://imgur.com/9aam7EX.png',
+    orange:'https://imgur.com/9c9Kg4O.png',
+    lemon:'https://imgur.com/r05jdzP.png',
+    blackberry:'https://imgur.com/FQKBdij.png',
+    strawberry:'https://imgur.com/qLBcW1w.png',
+    grape:'https://imgur.com/NKFUBJV.png',
+    peach:'https://imgur.com/5dwTQBv.png',
+    cherry:'https://imgur.com/9aS6zGE.png',
+    melon:'https://imgur.com/qCfLIAH.png',
+    banana:'https://imgur.com/CBjaF7F.png',
+    dragon_fruit:'https://imgur.com/kV5tiq8.png',
+    pineapple:'https://imgur.com/Qo11iu8.png',
+    plum:'https://imgur.com/GWEDbRC.png',
+    juniper_berry:'https://imgur.com/w3wUfu4.png',
+    coconut:'https://imgur.com/qpTTNUp.png',
+    mango:'https://imgur.com/Nk8HcGv.png',
+    lime:'https://imgur.com/XC2h5uY.png',
+    kiwi:'https://imgur.com/Xzl1uu0.png',
+    pomegranate:'https://imgur.com/NPHwWUP.png',
+    watermelon:'https://imgur.com/eZhODYw.png',
+    blueberry:'https://imgur.com/lno7KtR.png',
+    raspberry:'https://imgur.com/tM1PFn4.png',
+    red_berry:'https://imgur.com/NPbVHQE.png'
+  };
+  for (const [id, icon] of Object.entries(fruitIcons)) {
+    assert.equal(registry.has(id), true, id);
+    assert.equal(registry.resolveIcon(id), icon, id);
+    assert.equal(registry.get(id).domain, 'material');
   }
 
 
