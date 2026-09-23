@@ -14570,6 +14570,13 @@ function geologyCandidateScore(id,feature){
   const centerDistance=Math.hypot(cx,cz),readability=zoneClamp(1-centerDistance/28,0,1);
   return score/count+readability*.20;
 }
+function geologyFeatureCenterDistance(feature){
+  const points=feature?.kind==='outcrop-chain'?(feature.points||[]):[feature?.center];
+  let cx=0,cz=0,count=0;
+  for(const p of points){if(!p)continue;cx+=Number(p.x)||0;cz+=Number(p.z)||0;count++;}
+  return count?Math.hypot(cx/count,cz/count):Infinity;
+}
+
 function geologyTraversalAnchors(id){
   const anchors=[],def=MAP_DATA.maps[id]||currentMapDef(),cfg=OVERWORLD_PLAN[id];
   if(def?.spawn)anchors.push({id:'spawn',x:Number(def.spawn.x)||0,z:Number(def.spawn.z)||0});
@@ -14617,14 +14624,26 @@ function resolveGeologyForSector(id=mapId,{reserved=null}={}){
   if(!sector||!cfg){const empty=Object.freeze({outcrops:Object.freeze([]),scree:Object.freeze([]),audit:{ok:true,reason:'none'}});GEOLOGY_RUNTIME.bySector.set(key,empty);return empty;}
   const baseline=geologyTraversalAudit(id,[]),accepted=[];
   if(baseline.ok){
-    const ranked=(cfg.outcrops||[]).map(f=>({feature:f,score:geologyCandidateScore(id,f)})).filter(x=>Number.isFinite(x.score)).sort((a,b)=>b.score-a.score);
+    const ranked=(cfg.outcrops||[]).map(f=>({feature:f,score:geologyCandidateScore(id,f),centerDistance:geologyFeatureCenterDistance(f)})).filter(x=>Number.isFinite(x.score)).sort((a,b)=>b.score-a.score);
+    const tryAccept=(item)=>{
+      if(!item||accepted.length>=cfg.desiredOutcrops)return false;
+      const f=item.feature;if(geologyFeatureProtected(id,f,reserved))return false;
+      if(accepted.includes(f))return false;
+      if(accepted.some(a=>(a.points||[]).some(p=>geologyFeatureDistance(f,p.x,p.z)<3.0)))return false;
+      const trial=[...accepted,f],audit=geologyTraversalAudit(id,trial);
+      if(!audit.ok){GEOLOGY_RUNTIME.rejectedConnectivity++;return false;}
+      accepted.push(f);return true;
+    };
+    // V2 readability contract: when this biome wants blocking geology, at least one
+    // accepted outcrop should be encounterable from the local entry area. We still
+    // reject it if it would break spawn/transition connectivity.
+    if(cfg.desiredOutcrops>0){
+      const readable=ranked.filter(x=>x.centerDistance<=22).sort((a,b)=>b.score-a.score);
+      for(const item of readable){if(tryAccept(item))break;}
+    }
     for(const item of ranked){
       if(accepted.length>=cfg.desiredOutcrops)break;
-      const f=item.feature;if(geologyFeatureProtected(id,f,reserved))continue;
-      if(accepted.some(a=>(a.points||[]).some(p=>geologyFeatureDistance(f,p.x,p.z)<3.0)))continue;
-      const trial=[...accepted,f],audit=geologyTraversalAudit(id,trial);
-      if(!audit.ok){GEOLOGY_RUNTIME.rejectedConnectivity++;continue;}
-      accepted.push(f);
+      tryAccept(item);
     }
   }
   const scree=[];
@@ -14710,6 +14729,70 @@ window.LuminousGeographyGeology=Object.freeze({
   version:'geography-geology-v1.1',geography:GeographyField,geology:GeologySystem,runtime:GEOLOGY_RUNTIME,audit:proceduralGenerationAudit,
   sample:(id=mapId,tx=0,tz=0)=>Object.freeze({geography:GeographyField.sample(id,tx,tz),geology:geologySampleAtLocal(id,tx,tz),heightTiles:elevationHeightTilesAtWorld(wt(tx),wt(tz),id),slope:elevationSlopeAtWorld(wt(tx),wt(tz),id)})
 });
+function biomeValidationV2AuditActiveRegion(id='owC'){
+  const region=activeProceduralZone?.region,sector=proceduralSectorRecipe(id);
+  if(!region||!sector)return Object.freeze({ok:false,reason:'no_active_procedural_region',id});
+  const generation=proceduralGenerationAudit(id),weights=region.landform?.weights||{};
+  const reliefWeight=Math.max(weights.rolling||0,weights.hills||0,weights.ridges||0,weights.mountain||0,weights.cliffs||0);
+  const requiresSignedGeography=reliefWeight>.12;
+  const requiresGeology=(region.rockiness||0)>=.08||Math.max(weights.hills||0,weights.ridges||0,weights.mountain||0,weights.cliffs||0,weights.mesas||0)>.18;
+  const requiresCoast=region.hydrology?.type==='coast';
+  const requiresForest=region.biomeProfile==='forest';
+  let waterSamples=0,landSamples=0,moistureTotal=0,rockinessTotal=0,vegetationTotal=0,natureSamples=0;
+  const extent=OVERWORLD_HALF-3,step=4;
+  for(let x=-extent;x<=extent+.001;x+=step)for(let z=-extent;z<=extent+.001;z+=step){
+    const hydro=proceduralHydrologySample(id,x,z),nature=proceduralZoneNatureSample(id,x,z);
+    if(hydro.water)waterSamples++;else landSamples++;
+    moistureTotal+=Number(nature.moisture)||0;rockinessTotal+=Number(nature.rockiness)||0;vegetationTotal+=Number(nature.vegetation)||0;natureSamples++;
+  }
+  const geologyCount=(generation.geologyOutcrops||0)+(generation.geologyScree||0);
+  const forestCorridors=sector.forestCorridors?.length||0;
+  const checks=Object.freeze({
+    generation:!!generation.ok,
+    profile:activeProceduralZone.biomeFamily===region.biomeProfile,
+    hydrology:(activeProceduralZone.hydrology?.type||'none')===(region.hydrology?.type||'none'),
+    macroforms:(activeProceduralZone.macroforms?.length||0)>0,
+    signedGeography:!requiresSignedGeography||(activeProceduralZone.geography?.features?.length||0)>0,
+    geology:!requiresGeology||geologyCount>0,
+    geologyReadable:(generation.geologyOutcrops||0)===0||generation.nearestOutcropDistanceTiles<=22,
+    routes:generation.geologyAudit?.ok===true,
+    coast:!requiresCoast||(waterSamples>0&&landSamples>0),
+    forest:!requiresForest||(activeProceduralZone.forestBiome===true&&forestCorridors>0),
+    gridHidden:generation.visibleGridGeometry===false
+  });
+  return Object.freeze({
+    ok:Object.values(checks).every(Boolean),
+    regionId:region.id,label:region.label,biomeProfile:region.biomeProfile,sectorId:id,
+    hydrology:activeProceduralZone.hydrology?.type||'none',
+    macroforms:activeProceduralZone.macroforms?.length||0,
+    geographyFeatures:activeProceduralZone.geography?.features?.length||0,
+    forestCorridors,waterSamples,landSamples,
+    meanMoisture:natureSamples?moistureTotal/natureSamples:0,
+    meanRockiness:natureSamples?rockinessTotal/natureSamples:0,
+    meanVegetation:natureSamples?vegetationTotal/natureSamples:0,
+    checks,generation
+  });
+}
+function biomeValidationV2AuditRegion(regionId,sectorId='owC'){
+  const region=GLOBAL_REGION_BY_ID.get(regionId);
+  if(!region)return Object.freeze({ok:false,reason:'unknown_region',regionId,sectorId});
+  activateProceduralZone(region);
+  return biomeValidationV2AuditActiveRegion(sectorId);
+}
+function biomeValidationV2AuditAll(sectorId='owC'){
+  const previous=activeProceduralZone?.region?.id||null,rows=[];
+  for(const region of GLOBAL_REGIONS)rows.push(biomeValidationV2AuditRegion(region.id,sectorId));
+  if(previous&&GLOBAL_REGION_BY_ID.has(previous))activateProceduralZone(GLOBAL_REGION_BY_ID.get(previous));
+  return Object.freeze({ok:rows.every(r=>r.ok),sectorId,regions:Object.freeze(rows)});
+}
+window.BiomeValidationV2=Object.freeze({
+  version:'biome-validation-v2',
+  auditActive:biomeValidationV2AuditActiveRegion,
+  auditRegion:biomeValidationV2AuditRegion,
+  auditAll:biomeValidationV2AuditAll,
+  regionIds:Object.freeze(GLOBAL_REGIONS.map(r=>r.id))
+});
+
 
 window.PaperElevation=Object.freeze({
   schemaVersion:ELEVATION_MODULE_SCHEMA_VERSION,
@@ -17861,12 +17944,14 @@ try{
   const qaLayer=qp.get('layer')||'exterior';
   const qaProcedural=qp.get('qa')==='procedural';
   if(qaProcedural){
-    const qaRegion=GLOBAL_REGION_BY_ID.get('gC');
+    const qaRegionId=qp.get('region')||'gC';
+    const qaRegion=GLOBAL_REGION_BY_ID.get(qaRegionId)||GLOBAL_REGION_BY_ID.get('gC');
     globalWorldState.currentRegionId=qaRegion.id;
     globalWorldState.activeLocalRegionId=qaRegion.id;
     activateProceduralZone(qaRegion);
     loadMap('owC',null,'exterior');
     window.__PROCEDURAL_QA__=proceduralGenerationAudit('owC');
+    window.__BIOME_VALIDATION_QA__=biomeValidationV2AuditActiveRegion('owC');
   }else if(FOREST_STRESS_BOOT.enabled&&FOREST_STRESS_BOOT.testMode){
     // Banco aislado opcional; producción estándar inicia por la ruta normal.
     const stressRegion=GLOBAL_REGION_BY_ID.get('gSW')||GLOBAL_REGION_BY_ID.get('gC');
@@ -17900,6 +17985,7 @@ try{
     window.__QA__={
       snapshot:runtimeSnapshot,
       procedural:window.__PROCEDURAL_QA__||null,
+      biomeValidation:window.__BIOME_VALIDATION_QA__||null,
       audit:runFunctionalAudit,
       scenarios:TEST_SCENARIOS,
       loadScenario,
