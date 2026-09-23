@@ -2,12 +2,17 @@ import { GameEngine } from "../src/core/GameEngine.js";
 import { DMDirector } from "../src/dm/DMDirector.js";
 import { createLabPlayer } from "../src/player/createLabPlayer.js";
 import { LuminousItemsBridge } from "../src/bridges/luminous/LuminousItemsBridge.js";
+import { WORLD_SPACE_CONTRACT } from "../src/world/WorldSpaceContract.js";
+import { CombatMovementTracker } from "../src/world/ContinuousMovement.js";
 
 const engine = new GameEngine();
 const player = createLabPlayer();
 const items = engine.registerBridge("luminous-items", new LuminousItemsBridge());
 const dm = new DMDirector(engine);
+const combatMovement = new CombatMovementTracker();
 engine.session.dm = dm;
+engine.session.worldSpace = WORLD_SPACE_CONTRACT;
+engine.session.combatMovement = combatMovement;
 engine.setPlayer(player);
 
 const $ = (id) => document.getElementById(id);
@@ -329,13 +334,19 @@ function connectGameBridge() {
 
   bridge.attachInventoryAdapter({ grantItem: grantFromGame });
   attachShopProvider(win);
+  const movementBridge = win?.LuminousWorldMovementBridge;
+  combatMovement.setTerrainSampler(movementBridge?.sampleTerrain
+    ? (point) => movementBridge.sampleTerrain(point.x, point.z)
+    : null);
   gameConnected = true;
   $("gameLoading").classList.add("off");
   log("game:bridge-connected", {
     mapBridgeVersion: bridge.version || 1,
     itemIconRegistryVersion: win.LuminousItemIconRegistry?.VERSION || null,
     plantCatalogVersion: win.LuminousPlantProduceCatalog?.VERSION || null,
-    toolCatalogVersion: win.LuminousToolCatalog?.VERSION || null
+    toolCatalogVersion: win.LuminousToolCatalog?.VERSION || null,
+    worldMovementContract: movementBridge?.contract || WORLD_SPACE_CONTRACT.id,
+    playerGridVisible: movementBridge?.grid?.playerVisible ?? WORLD_SPACE_CONTRACT.grid.playerVisible
   });
   render();
 
