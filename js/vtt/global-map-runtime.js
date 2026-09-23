@@ -1,5 +1,6 @@
 import '../global-map-core.js';
 import TerrainTextures from '../global-map-terrain-textures.js';
+import WaterTextures from '../global-map-water-textures.js';
 
 const Core = globalThis.LuminousGlobalMapCore;
 const ROOT = 'campaña/estado_mundo/mapa_global';
@@ -105,6 +106,13 @@ function injectDom(isDm) {
       <label>DISTRITO ID<input id="vtt-global-district" maxlength="120" placeholder="district_k"></label>
       <label>JURISDICCIÓN<select id="vtt-global-jurisdiction"><option value="outskirts">OUTSKIRTS</option><option value="backstreets">BACKSTREETS</option><option value="nest">NEST</option></select></label>
       <label>TERRENO<input id="vtt-global-terrain" maxlength="80" value="unknown" placeholder="forest / mountain / urban / lake"></label>\n      <label>ESPINAS MONTAÑA (0–12)<input id="vtt-global-mountain-spines" type="number" min="0" max="12" step="1" value="5"></label>
+      <label>LAGO · PROFUNDIDAD (0–1)<input id="vtt-global-lake-depth" type="number" min="0" max="1" step="0.05" value="0.55"></label>
+      <label>LAGO · ORILLA (0–1)<input id="vtt-global-lake-shore" type="number" min="0" max="1" step="0.05" value="0.35"></label>
+      <label>LAGO · OLEAJE (0–1)<input id="vtt-global-lake-waves" type="number" min="0" max="1" step="0.05" value="0.25"></label>
+      <label>RÍO · ANCHO KM<input id="vtt-global-river-width" type="number" min="0.2" max="80" step="0.5" value="8"></label>
+      <label>RÍO · CORRIENTE (0–1)<input id="vtt-global-river-flow" type="number" min="0" max="1" step="0.05" value="0.5"></label>
+      <label>RÍO · ORILLA (0–1)<input id="vtt-global-river-bank" type="number" min="0" max="1" step="0.05" value="0.35"></label>
+      <label>RÍO · PROFUNDIDAD (0–1)<input id="vtt-global-river-depth" type="number" min="0" max="1" step="0.05" value="0.45"></label>
       <label>FUENTE<select id="vtt-global-source"><option value="dm">DM OVERRIDE</option><option value="campaign">CAMPAIGN</option><option value="canon">CANON LOCK</option><option value="procedural">PROCEDURAL</option></select></label>
       <label>MARKER<select id="vtt-global-marker-type"><option value="nest">NEST</option><option value="city">CITY</option><option value="town">TOWN</option><option value="villa">VILLA</option><option value="industrial">INDUSTRIAL</option><option value="checkpoint">CHECKPOINT</option><option value="poi">POI</option></select></label>
       <label>RUTA<select id="vtt-global-route-type"><option value="road">ROAD</option><option value="dirt_road">DIRT ROAD</option><option value="trail">TRAIL</option><option value="rail">RAIL</option><option value="waterway">WATERWAY</option></select></label>
@@ -118,7 +126,7 @@ function injectDom(isDm) {
         <button type="button" id="vtt-global-delete" class="brutalist-button">DELETE</button>
       </div>
       <button type="button" id="vtt-global-save" class="brutalist-button vtt-global-save">SAVE WORLD</button>
-      <small id="vtt-global-help">SELECT inspecciona. REGION/ROUTE agregan puntos con click; CERRAR TRAZO finaliza. En montaña, más ESPINAS generan más crestas y rugosidad visual. Arrastra con botón derecho/medio para mover el mapa.</small>
+      <small id="vtt-global-help">SELECT inspecciona. REGION/ROUTE agregan puntos con click; CERRAR TRAZO finaliza. Montaña usa ESPINAS. Una REGION con capa WATER crea lago; una ROUTE WATERWAY crea río con ancho, corriente, orilla y profundidad opcionales. Arrastra con botón derecho/medio para mover el mapa.</small>
     </aside>` : ''}
   `;
   document.body.appendChild(root);
@@ -193,7 +201,7 @@ function start() {
   }
 
   function colorForRegion(region) {
-    if (region.layer === 'water') return { fill: 'rgba(32,74,100,.74)', stroke: '#70a7c3' };
+    if (region.layer === 'water') return WaterTextures.styleForWaterRegion(region);
     if (region.layer === 'district') return { fill: 'rgba(0,0,0,.04)', stroke: '#d2d7db' };
     if (region.layer === 'jurisdiction') {
       if (region.jurisdiction === 'nest') return { fill: 'rgba(164,61,61,.36)', stroke: '#d36a6a' };
@@ -224,6 +232,9 @@ function start() {
     if (region.layer === 'terrain') {
       TerrainTextures.drawTerrainTexture(ctx, region, region.polygon.map(worldToScreen), { zoom: camera.zoom, seed: doc.seed });
       path(region.polygon, true);
+    } else if (region.layer === 'water') {
+      WaterTextures.drawLakeTexture(ctx, region, region.polygon.map(worldToScreen), { zoom: camera.zoom, seed: doc.seed });
+      path(region.polygon, true);
     }
     ctx.stroke();
     if (region.layer === 'district' && camera.zoom >= 0.12) {
@@ -234,8 +245,18 @@ function start() {
   }
 
   function drawRoute(route) {
-    if (!layerState.has('routes') || !path(route.points, false)) return;
-    ctx.strokeStyle = route.type === 'rail' ? '#d8d8d8' : route.type === 'waterway' ? '#77a8c4' : '#b28d5d';
+    if (!layerState.has('routes')) return;
+    const routeSelected = selected?.kind === 'route' && selected.id === route.id;
+    if (route.type === 'waterway' && WaterTextures.isRiverRoute(route)) {
+      WaterTextures.drawRiver(ctx, route, route.points.map(worldToScreen), {
+        zoom: camera.zoom,
+        seed: doc.seed,
+        selected: routeSelected,
+      });
+      return;
+    }
+    if (!path(route.points, false)) return;
+    ctx.strokeStyle = routeSelected ? '#ffffff' : route.type === 'rail' ? '#d8d8d8' : route.type === 'waterway' ? '#77a8c4' : '#b28d5d';
     ctx.lineWidth = route.type === 'rail' ? 2 : 3;
     if (route.type === 'dirt_road' || route.type === 'trail') ctx.setLineDash([8, 7]);
     else ctx.setLineDash([]);
@@ -323,16 +344,29 @@ function start() {
     render();
   }
 
+  function editorNumber(id, fallback, min, max) {
+    const value = Number(document.getElementById(id)?.value);
+    const safe = Number.isFinite(value) ? value : fallback;
+    return Math.max(min, Math.min(max, safe));
+  }
+
   function regionForm(metadataFallback = null) {
-    const terrain = clean(document.getElementById('vtt-global-terrain')?.value, 'unknown');
+    const terrain = clean(document.getElementById('vtt-global-terrain')?.value) || 'unknown';
+    const layer = document.getElementById('vtt-global-region-layer')?.value || 'terrain';
     const metadata = metadataFallback && typeof metadataFallback === 'object' ? { ...metadataFallback } : {};
     if (TerrainTextures.terrainKind(terrain) === 'mountain') {
       const rawSpines = Number(document.getElementById('vtt-global-mountain-spines')?.value);
       metadata.mountainSpines = Math.max(0, Math.min(TerrainTextures.MAX_MOUNTAIN_SPINES, Math.trunc(Number.isFinite(rawSpines) ? rawSpines : TerrainTextures.DEFAULT_MOUNTAIN_SPINES)));
     }
+    if (layer === 'water') {
+      metadata.waterType = 'lake';
+      metadata.depth = editorNumber('vtt-global-lake-depth', WaterTextures.DEFAULT_LAKE_DEPTH, 0, 1);
+      metadata.shoreRoughness = editorNumber('vtt-global-lake-shore', WaterTextures.DEFAULT_LAKE_SHORE_ROUGHNESS, 0, 1);
+      metadata.waveIntensity = editorNumber('vtt-global-lake-waves', WaterTextures.DEFAULT_LAKE_WAVE_INTENSITY, 0, 1);
+    }
     return {
-      name: clean(document.getElementById('vtt-global-name')?.value, 'Nueva región'),
-      layer: document.getElementById('vtt-global-region-layer')?.value || 'terrain',
+      name: clean(document.getElementById('vtt-global-name')?.value) || 'Nueva región',
+      layer,
       districtId: clean(document.getElementById('vtt-global-district')?.value),
       jurisdiction: document.getElementById('vtt-global-jurisdiction')?.value || 'outskirts',
       terrain,
@@ -342,9 +376,29 @@ function start() {
     };
   }
 
+  function routeForm(metadataFallback = null) {
+    const type = document.getElementById('vtt-global-route-type')?.value || 'road';
+    const metadata = metadataFallback && typeof metadataFallback === 'object' ? { ...metadataFallback } : {};
+    if (type === 'waterway') {
+      metadata.waterType = 'river';
+      metadata.riverWidthKm = editorNumber('vtt-global-river-width', WaterTextures.DEFAULT_RIVER_WIDTH_KM, 0.2, 80);
+      metadata.flow = editorNumber('vtt-global-river-flow', WaterTextures.DEFAULT_RIVER_FLOW, 0, 1);
+      metadata.bankRoughness = editorNumber('vtt-global-river-bank', WaterTextures.DEFAULT_RIVER_BANK_ROUGHNESS, 0, 1);
+      metadata.waterDepth = editorNumber('vtt-global-river-depth', WaterTextures.DEFAULT_RIVER_DEPTH, 0, 1);
+    }
+    return {
+      name: clean(document.getElementById('vtt-global-name')?.value) || 'Nueva ruta',
+      districtId: clean(document.getElementById('vtt-global-district')?.value),
+      type,
+      visibleToPlayers: document.getElementById('vtt-global-visible')?.checked !== false,
+      metadata: Object.keys(metadata).length ? metadata : null,
+    };
+  }
+
   function finishDraft() {
     if (!isDm) return;
     const form = regionForm();
+    const routeData = routeForm();
     try {
       if (tool === 'region') {
         if (draftPoints.length < 3) return notify('REGION NEEDS 3 POINTS', 'error');
@@ -358,7 +412,7 @@ function start() {
       } else if (tool === 'route') {
         if (draftPoints.length < 2) return notify('ROUTE NEEDS 2 POINTS', 'error');
         const id = uid('route');
-        doc = Core.upsertRoute(doc, { id, name: form.name, districtId: form.districtId, type: document.getElementById('vtt-global-route-type')?.value || 'road', visibleToPlayers: form.visibleToPlayers, points: draftPoints });
+        doc = Core.upsertRoute(doc, { id, ...routeData, points: draftPoints });
         selected = { kind: 'route', id };
       } else return;
       draftPoints = [];
@@ -376,9 +430,38 @@ function start() {
     return best;
   }
 
+  function pointToSegmentDistance(point, a, b) {
+    const dx = b.xKm - a.xKm, dy = b.yKm - a.yKm;
+    const length2 = dx * dx + dy * dy;
+    if (length2 <= Number.EPSILON) return Math.hypot(point.xKm - a.xKm, point.yKm - a.yKm);
+    const t = Math.max(0, Math.min(1, ((point.xKm - a.xKm) * dx + (point.yKm - a.yKm) * dy) / length2));
+    return Math.hypot(point.xKm - (a.xKm + dx * t), point.yKm - (a.yKm + dy * t));
+  }
+
+  function findRouteAt(point) {
+    let best = null, bestDistance = Infinity;
+    const baseThresholdKm = Math.max(3, 9 / camera.zoom);
+    for (const route of Core.visibleDocument(doc, isDm).routes) {
+      let routeDistance = Infinity;
+      for (let index = 1; index < route.points.length; index += 1) {
+        routeDistance = Math.min(routeDistance, pointToSegmentDistance(point, route.points[index - 1], route.points[index]));
+      }
+      const thresholdKm = WaterTextures.isRiverRoute(route)
+        ? Math.max(baseThresholdKm, WaterTextures.riverWidthKm(route) / 2 + 2)
+        : baseThresholdKm;
+      if (routeDistance <= thresholdKm && routeDistance < bestDistance) {
+        best = route;
+        bestDistance = routeDistance;
+      }
+    }
+    return best;
+  }
+
   function selectAt(point) {
     const marker = findMarkerAt(point);
+    const route = marker ? null : findRouteAt(point);
     if (marker) selected = { kind: 'marker', id: marker.id };
+    else if (route) selected = { kind: 'route', id: route.id };
     else {
       const region = Core.effectiveRegionAt(doc, point, null, isDm);
       selected = region ? { kind: 'region', id: region.id } : null;
@@ -404,9 +487,38 @@ function start() {
         const input = document.getElementById('vtt-global-mountain-spines');
         if (input && document.activeElement !== input) input.value = String(spines);
       }
+      if (WaterTextures.isLakeRegion(item)) {
+        const profile = WaterTextures.lakeProfile(item, doc.seed);
+        lines.push(`AGUA: LAGO`, `PROFUNDIDAD: ${Math.round(profile.depth * 100)}%`, `ORILLA: ${Math.round(profile.shoreRoughness * 100)}%`, `OLEAJE: ${Math.round(profile.waveIntensity * 100)}%`);
+        const values = [
+          ['vtt-global-lake-depth', profile.depth],
+          ['vtt-global-lake-shore', profile.shoreRoughness],
+          ['vtt-global-lake-waves', profile.waveIntensity],
+        ];
+        for (const [id, value] of values) {
+          const input = document.getElementById(id);
+          if (input && document.activeElement !== input) input.value = String(value);
+        }
+      }
     }
     if (selected.kind === 'marker') lines.push(`TIPO: ${item.type}`, `DISTRITO: ${item.districtId || '—'}`);
-    if (selected.kind === 'route') lines.push(`RUTA: ${item.type}`, `DISTRITO: ${item.districtId || '—'}`);
+    if (selected.kind === 'route') {
+      lines.push(`RUTA: ${item.type}`, `DISTRITO: ${item.districtId || '—'}`);
+      if (WaterTextures.isRiverRoute(item)) {
+        const profile = WaterTextures.riverProfile(item, doc.seed);
+        lines.push(`AGUA: RÍO`, `ANCHO: ${profile.widthKm} km`, `CORRIENTE: ${Math.round(profile.flow * 100)}%`, `ORILLA: ${Math.round(profile.bankRoughness * 100)}%`, `PROFUNDIDAD: ${Math.round(profile.depth * 100)}%`);
+        const values = [
+          ['vtt-global-river-width', profile.widthKm],
+          ['vtt-global-river-flow', profile.flow],
+          ['vtt-global-river-bank', profile.bankRoughness],
+          ['vtt-global-river-depth', profile.depth],
+        ];
+        for (const [id, value] of values) {
+          const input = document.getElementById(id);
+          if (input && document.activeElement !== input) input.value = String(value);
+        }
+      }
+    }
     inspectorBody.innerHTML = lines.map((line, index) => index === 0 ? `<b>${escapeHtml(line)}</b>` : `<span>${escapeHtml(line)}</span>`).join('');
   }
 
@@ -416,10 +528,11 @@ function start() {
     if (!item) return notify('SELECT AN ITEM', 'error');
     if (item.locked) return notify('CANON ITEM LOCKED', 'error');
     const form = regionForm(selected.kind === 'region' ? item.metadata : null);
+    const routeData = routeForm(selected.kind === 'route' ? item.metadata : null);
     try {
       if (selected.kind === 'region') doc = Core.upsertRegion(doc, { ...item, ...form, polygon: item.polygon, regionalOrigin: item.regionalOrigin });
       else if (selected.kind === 'marker') doc = Core.upsertMarker(doc, { ...item, name: form.name, districtId: form.districtId, type: document.getElementById('vtt-global-marker-type')?.value || item.type, visibleToPlayers: form.visibleToPlayers });
-      else if (selected.kind === 'route') doc = Core.upsertRoute(doc, { ...item, name: form.name, districtId: form.districtId, type: document.getElementById('vtt-global-route-type')?.value || item.type, visibleToPlayers: form.visibleToPlayers, points: item.points });
+      else if (selected.kind === 'route') doc = Core.upsertRoute(doc, { ...item, ...routeData, points: item.points });
       setDirty(true); updateInspector(); render();
     } catch (error) { notify(error.message || 'UPDATE FAILED', 'error'); }
   }
@@ -486,12 +599,12 @@ function start() {
     const query = clean(document.getElementById('vtt-global-map-search')?.value).toLowerCase();
     if (!query) return;
     const visible = Core.visibleDocument(doc, isDm);
-    const item = [...visible.markers, ...visible.regions].find((entry) => clean(entry.name).toLowerCase().includes(query) || clean(entry.id).toLowerCase().includes(query));
+    const item = [...visible.markers, ...visible.regions, ...visible.routes].find((entry) => clean(entry.name).toLowerCase().includes(query) || clean(entry.id).toLowerCase().includes(query));
     if (!item) return notify('NOT FOUND', 'error');
-    const point = item.polygon ? centroid(item.polygon) : item;
+    const point = item.polygon ? centroid(item.polygon) : item.points ? centroid(item.points) : item;
     const view = viewport();
     camera.xKm = point.xKm - view.width / camera.zoom / 2; camera.yKm = point.yKm - view.height / camera.zoom / 2;
-    selected = { kind: item.polygon ? 'region' : 'marker', id: item.id };
+    selected = { kind: item.polygon ? 'region' : item.points ? 'route' : 'marker', id: item.id };
     updateInspector(); render();
   }
 
