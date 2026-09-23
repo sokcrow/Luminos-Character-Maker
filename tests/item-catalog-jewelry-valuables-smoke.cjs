@@ -15,7 +15,7 @@ const { pathToFileURL } = require('node:url');
 
   const catalog = globalThis.LuminousJewelryValuableCatalog;
   assert.ok(catalog);
-  assert.equal(catalog.VERSION, 5);
+  assert.equal(catalog.VERSION, 6);
   assert.equal(catalog.CURRENCY, 'AHN');
   assert.equal(catalog.JEWELRY_CHASSIS.length, 8);
   assert.equal(catalog.VALUABLE_CHASSIS.length, 8);
@@ -127,11 +127,11 @@ const { pathToFileURL } = require('node:url');
   assert.equal(goldGoblet.iconFamily, 'valuable_goblet_gold');
   assert.equal(goldGoblet.productionValueAhn, 420000);
 
-  const gemGoblet = catalog.create('goblet', { origin:'treasure', variant:'gems', gemId:'ruby' });
+  const gemGoblet = catalog.create('goblet', { origin:'treasure', variant:'gems' });
   assert.equal(gemGoblet.valid, true);
-  assert.equal(gemGoblet.iconFamily, 'valuable_goblet_gold');
-  assert.equal(gemGoblet.gemOverlayGemId, 'ruby');
-  assert.equal(gemGoblet.gemOverlayIconFamily, 'gem_ruby_cut');
+  assert.equal(gemGoblet.iconFamily, 'valuable_goblet_gems');
+  assert.equal(gemGoblet.gemOverlayGemId, null);
+  assert.equal(gemGoblet.gemOverlayIconFamily, null);
   assert.equal(gemGoblet.productionValueAhn, 780000);
   assert.equal(gemGoblet.baseMundaneValueAhn, 780000);
   assert.equal(gemGoblet.enchantmentBaseValueAhn, 780000);
@@ -140,8 +140,8 @@ const { pathToFileURL } = require('node:url');
 
   const gemScepter = catalog.create('scepter', { origin:'world_loot', variant:'gems' });
   assert.equal(gemScepter.valid, true);
-  assert.equal(gemScepter.iconFamily, 'valuable_scepter_gold');
-  assert.equal(gemScepter.gemOverlayIconFamily, 'gem_cut');
+  assert.equal(gemScepter.iconFamily, 'valuable_scepter_gems');
+  assert.equal(gemScepter.gemOverlayIconFamily, null);
   assert.equal(gemScepter.productionValueAhn, 2200000);
 
   const enchantedNecklace = catalog.applyEnchantmentMultiplier(necklace, 2, { level:2 });
