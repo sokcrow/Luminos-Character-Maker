@@ -8,9 +8,9 @@ const { pathToFileURL } = require('node:url');
   const registry = globalThis.LuminousItemIconRegistry;
 
   assert.ok(registry);
-  assert.equal(registry.VERSION, 22);
+  assert.equal(registry.VERSION, 23);
   assert.equal(registry.DEFAULT_GROUP, 'generic_item');
-  assert.equal(Object.keys(registry.GROUPS).length, 296);
+  assert.equal(Object.keys(registry.GROUPS).length, 322);
 
   const groups = registry.list();
   assert.equal(new Set(groups.map((entry) => entry.id)).size, groups.length);
@@ -131,6 +131,41 @@ const { pathToFileURL } = require('node:url');
     ore_platinum:'https://imgur.com/QBXnv0H.png'
   };
   for (const [id, icon] of Object.entries(rawMineralIcons)) {
+    assert.equal(registry.has(id), true, id);
+    assert.equal(registry.resolveIcon(id), icon, id);
+    assert.equal(registry.get(id).domain, 'material');
+  }
+
+
+  const refinedMetalIcons = {
+    ingot_lead:'https://imgur.com/ULLXlJC.png',
+    ingot_iron:'https://imgur.com/fEJJje8.png',
+    ingot_aluminum:'https://imgur.com/WjLTL1g.png',
+    ingot_zinc:'https://imgur.com/xVhzzKb.png',
+    ingot_tin:'https://imgur.com/S9n4r16.png',
+    ingot_copper:'https://imgur.com/fMf7NPD.png',
+    ingot_manganese:'https://imgur.com/QKIdp9T.png',
+    ingot_nickel:'https://imgur.com/St3kotI.png',
+    ingot_chromium:'https://imgur.com/mXv6NBK.png',
+    ingot_lithium:'https://imgur.com/dZOv9YI.png',
+    ingot_molybdenum:'https://imgur.com/Eg4XnKb.png',
+    ingot_vanadium:'https://imgur.com/RnhRDuB.png',
+    ingot_cobalt:'https://imgur.com/KrDmg3t.png',
+    ingot_silver:'https://imgur.com/37EpOkK.png',
+    ingot_tungsten:'https://imgur.com/1QrmCEn.png',
+    ingot_titanium:'https://imgur.com/tx5cwFd.png',
+    ingot_gold:'https://imgur.com/3gva0mJ.png',
+    ingot_niobium:'https://imgur.com/SgsVx8i.png',
+    ingot_tantalum:'https://imgur.com/QReOsGZ.png',
+    ingot_platinum:'https://imgur.com/37EpOkK.png',
+    material_rare_earth_refined:'https://imgur.com/IC0mFEv.png',
+    material_uranium_refined:'https://imgur.com/NlbXA9w.png',
+    material_superconductive:'https://imgur.com/xk2LM3h.png',
+    material_metamaterial_refined:'https://imgur.com/gBo2HP4.png',
+    material_null_dampening:'https://imgur.com/5Hxv3ej.png',
+    material_exotic_refined:'https://imgur.com/wqb52n6.png'
+  };
+  for (const [id, icon] of Object.entries(refinedMetalIcons)) {
     assert.equal(registry.has(id), true, id);
     assert.equal(registry.resolveIcon(id), icon, id);
     assert.equal(registry.get(id).domain, 'material');
