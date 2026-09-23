@@ -655,7 +655,6 @@ body.global-map-mode #globalMapActions{display:block}
 <div id="globalTravelToast"></div>
 <div id="localWorldActions">
   <button id="campHereBtn" class="localWorldAction" type="button">Acampar aquí</button>
-  <button id="globalReturnBtn" class="localWorldAction" type="button">Mapa global</button>
 </div>
 
 
@@ -714,6 +713,10 @@ body.global-map-mode #globalMapActions{display:block}
     </button>
     <button class="paper-menu-hex" type="button" data-player-menu-action="character" data-label="Personaje" aria-label="Personaje" disabled>
       <img src="../../../Assets/Images/Buttons/Player.svg" alt=""><span class="paper-menu-label">Personaje</span>
+    </button>
+    <button class="paper-menu-hex" type="button" data-player-menu-action="world-map" data-label="Mapa global" aria-label="Abrir mapa global">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.5 8.5 4l7 2.4L21 4v13.5L15.5 20l-7-2.4L3 20Z"/><path d="M8.5 4v13.6M15.5 6.4V20"/></svg>
+      <span class="paper-menu-label">Mapa global</span>
     </button>
   </div>
 </nav>
@@ -1331,7 +1334,7 @@ function offerWorldRest(source='Lugar de descanso'){
 const $=id=>document.getElementById(id);
 const area=$('area'),scaleEl=$('scale'),gridToggle=$('gridToggle'),hitboxToggle=$('hitboxToggle'),joy=$('joy'),knob=$('knob'),useBtn=$('useBtn'),promptEl=$('prompt'),fade=$('fade'),titleCard=$('titleCard'),worldUi=$('worldUi'),dialogBox=$('dialogBox'),dialogTitle=$('dialogTitle'),dialogText=$('dialogText'),dialogOptions=$('dialogOptions');
 const missionHud=$('missionHud'),missionHudTitle=$('missionHudTitle'),missionHudObjective=$('missionHudObjective'),allyHud=$('allyHud');
-const globalMapActions=$('globalMapActions'),globalMapRegionName=$('globalMapRegionName'),globalMapRegionMeta=$('globalMapRegionMeta'),globalExploreBtn=$('globalExploreBtn'),globalCampBtn=$('globalCampBtn'),globalTravelToast=$('globalTravelToast'),localWorldActions=$('localWorldActions'),campHereBtn=$('campHereBtn'),globalReturnBtn=$('globalReturnBtn'),hintEl=$('hint');
+const globalMapActions=$('globalMapActions'),globalMapRegionName=$('globalMapRegionName'),globalMapRegionMeta=$('globalMapRegionMeta'),globalExploreBtn=$('globalExploreBtn'),globalCampBtn=$('globalCampBtn'),globalTravelToast=$('globalTravelToast'),localWorldActions=$('localWorldActions'),campHereBtn=$('campHereBtn'),hintEl=$('hint');
 const shopOverlay=$('tienda-overlay'),shopOverlayClose=$('shop-overlay-close'),shopTitle=$('shop-name-display'),shopList=$('lista-items-tienda'),shopBalance=$('shop-player-balance'),shopStatus=$('shop-status'),shopProviderBadge=$('shop-provider-badge'),shopPanelQty=$('panel-item-qty'),shopPanelName=$('panel-item-name'),shopPanelDesc=$('panel-item-desc'),shopPanelPrice=$('panel-item-price'),shopBuySelected=$('btn-comprar-seleccionado');
 
 
@@ -2419,8 +2422,10 @@ function commitGlobalRegion(region,beforePos){
 }
 function updateGlobalCamera(dt,snap=false){
   if(!globalCamera||!globalActor)return;
+  updatePlayerCameraKeyboardOrbit(dt);
   const target=_globalVec.set(globalActor.position.x,.45,globalActor.position.z+.40);
-  const desired=new THREE.Vector3(target.x,8.6,target.z-10.2);
+  const dist=10.2,yaw=playerCameraYawOffset;
+  const desired=new THREE.Vector3(target.x+Math.sin(yaw)*dist,8.6,target.z-Math.cos(yaw)*dist);
   globalCamera.fov=cameraFixedVisibilityFov(38,globalCamera);
   globalCamera.updateProjectionMatrix();
   if(snap)globalCamera.position.copy(desired);else globalCamera.position.lerp(desired,1-Math.exp(-dt*4.8));
@@ -2539,8 +2544,15 @@ async function enterLocalFromGlobal(mode='explore'){
 }
 if(globalExploreBtn)globalExploreBtn.onclick=()=>void enterLocalFromGlobal('explore');
 if(globalCampBtn)globalCampBtn.onclick=()=>void enterLocalFromGlobal('camp');
-if(globalReturnBtn)globalReturnBtn.onclick=()=>void returnToGlobalMap();
 if(campHereBtn)campHereBtn.onclick=()=>placeCampAtCurrentLocation();
+window.PaperCameraControl=Object.freeze({
+  version:'player-orbit-camera-v1',
+  rotateBy:rotatePlayerCameraBy,
+  setYaw:(yaw)=>{playerCameraYawOffset=normalizeCameraYaw(Number(yaw)||0);return playerCameraYawOffset},
+  yaw:()=>playerCameraYawOffset,
+  allowed:playerCameraOrbitAllowed,
+  controls:Object.freeze({pointerDrag:true,touchDrag:true,keyboard:Object.freeze({left:'Q',right:'E'})})
+});
 window.PaperGlobalMap=Object.freeze({
   regions:()=>GLOBAL_REGIONS.map(r=>({...r,state:{...(globalWorldState.regions[r.id]||{})}})),
   state:()=>({...globalWorldState,regions:JSON.parse(JSON.stringify(globalWorldState.regions))}),
@@ -4387,6 +4399,25 @@ let currentWorldLayer='exterior',worldLayerBaseY=0;
 let playerBaseY=0;
 let canalRearView=false;
 let canalViewMode='front',canalCameraYaw=0;
+let playerCameraYawOffset=0,cameraOrbitPointerId=null,cameraOrbitLastX=0;
+const PLAYER_CAMERA_ORBIT=Object.freeze({dragRadiansPerPixel:.0085,keyboardRadiansPerSecond:1.65});
+function normalizeCameraYaw(v){return Math.atan2(Math.sin(v),Math.cos(v))}
+function playerCameraOrbitAllowed(){
+  if(transitioning||dialogOpen||shopOpen||inventoryOpen||cameraCine||cameraReturnTween)return false;
+  if(globalMapActive)return true;
+  return isOverworldSector(mapId)&&!activeInteriorStage;
+}
+function rotatePlayerCameraBy(delta){
+  if(!Number.isFinite(delta))return playerCameraYawOffset;
+  playerCameraYawOffset=normalizeCameraYaw(playerCameraYawOffset+delta);
+  return playerCameraYawOffset;
+}
+function updatePlayerCameraKeyboardOrbit(dt){
+  if(!playerCameraOrbitAllowed())return;
+  const dir=(keys.has('e')?1:0)-(keys.has('q')?1:0);
+  if(dir)rotatePlayerCameraBy(dir*PLAYER_CAMERA_ORBIT.keyboardRadiansPerSecond*Math.max(0,Number(dt)||0));
+}
+
 const BALCONY_Y=wt(2);
 let cameraAnchor=new THREE.Vector3(),cameraAnchorReady=false,cameraShowcase=0;
 const ACTOR_BODY_RADIUS_TILES=.25; // radio físico: 1/4 tile
@@ -9403,6 +9434,10 @@ function registerPaperItemDefinition(def){if(!def?.id)return false;PAPER_ITEM_DE
 paperSetTorch(!!paperInventory.flags.torchOn);
 document.getElementById('paperPlayerMenuToggle')?.addEventListener('click',()=>{if(inventoryOpen||dialogOpen||shopOpen||transitioning)return;const nav=document.getElementById('paperPlayerMenu'),open=nav.classList.toggle('is-open');document.getElementById('paperPlayerMenuToggle').setAttribute('aria-expanded',String(open))});
 document.querySelector('[data-player-menu-action="inventory"]')?.addEventListener('click',openPaperInventory);
+document.querySelector('[data-player-menu-action="world-map"]')?.addEventListener('click',()=>{
+  closePaperPlayerMenu();
+  if(!globalMapActive&&!transitioning&&!dialogOpen&&!shopOpen&&!inventoryOpen)void returnToGlobalMap();
+});
 document.getElementById('gameInventoryClose')?.addEventListener('click',closePaperInventory);
 document.getElementById('gameInventoryModal')?.addEventListener('pointerdown',e=>{if(e.target.id==='gameInventoryModal')closePaperInventory()});
 document.querySelectorAll('.paper-inv-tab').forEach(btn=>btn.addEventListener('click',()=>paperSetInventoryTab(btn.dataset.invTab)));
@@ -16544,6 +16579,27 @@ joy.onpointerup=resetJoy;joy.onpointercancel=resetJoy;
 const keys=new Set();
 addEventListener('keydown',e=>keys.add(e.key.toLowerCase()));
 addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
+renderer.domElement.addEventListener('contextmenu',e=>e.preventDefault());
+renderer.domElement.addEventListener('pointerdown',e=>{
+  if(!playerCameraOrbitAllowed())return;
+  if(e.pointerType==='mouse'&&e.button!==0&&e.button!==2)return;
+  cameraOrbitPointerId=e.pointerId;cameraOrbitLastX=e.clientX;
+  try{renderer.domElement.setPointerCapture(e.pointerId)}catch(_){}
+  if(e.pointerType==='mouse'&&e.button===2)e.preventDefault();
+});
+renderer.domElement.addEventListener('pointermove',e=>{
+  if(e.pointerId!==cameraOrbitPointerId||!playerCameraOrbitAllowed())return;
+  const dx=e.clientX-cameraOrbitLastX;cameraOrbitLastX=e.clientX;
+  if(Math.abs(dx)>.01)rotatePlayerCameraBy(-dx*PLAYER_CAMERA_ORBIT.dragRadiansPerPixel);
+});
+function endPlayerCameraOrbit(e){
+  if(e?.pointerId!==undefined&&e.pointerId!==cameraOrbitPointerId)return;
+  if(cameraOrbitPointerId!==null){try{renderer.domElement.releasePointerCapture(cameraOrbitPointerId)}catch(_){}}
+  cameraOrbitPointerId=null;
+}
+renderer.domElement.addEventListener('pointerup',endPlayerCameraOrbit);
+renderer.domElement.addEventListener('pointercancel',endPlayerCameraOrbit);
+
 
 const ray=new THREE.Raycaster();
 const faded=new Set();
@@ -17046,9 +17102,11 @@ function updateCamera(dt,snap=false){
     // Frente = cámara al sur mirando al norte.
     // Calle sur y calle trasera = cámara al norte mirando al sur.
     // Al cruzar el puente, la cámara ORBITA; no atraviesa al jugador.
+    updatePlayerCameraKeyboardOrbit(dt);
     let targetYaw=Number.isFinite(zone?.yawDeg)
       ? THREE.MathUtils.degToRad(zone.yawDeg)
       : ((zone?.facing==='south')?Math.PI:0);
+    if(isOverworldSector(mapId))targetYaw+=playerCameraYawOffset;
     if(FOREST_STRESS_BOOT.enabled&&isOverworldSector(mapId))targetYaw+=forestStressCameraYawOffset();
     forestStressSetTargetYaw(targetYaw);
     const yawK=snap?1:(1-Math.exp(-dt*2.65));
