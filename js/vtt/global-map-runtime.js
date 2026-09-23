@@ -475,9 +475,31 @@ function start() {
     return key ? doc[key].find((item) => item.id === selected.id) || null : null;
   }
 
+  function setEditorValue(id, value, checked = false) {
+    const input = document.getElementById(id);
+    if (!input || document.activeElement === input) return;
+    if (checked) input.checked = Boolean(value);
+    else if (value != null) input.value = String(value);
+  }
+
   function updateInspector() {
     const item = selectedItem();
-    if (!item) { inspectorBody.textContent = 'Selecciona una región o marcador.'; return; }
+    if (!item) { inspectorBody.textContent = 'Selecciona una región, ruta o marcador.'; return; }
+    if (isDm) {
+      setEditorValue('vtt-global-name', item.name || item.id);
+      setEditorValue('vtt-global-district', item.districtId || '');
+      setEditorValue('vtt-global-visible', item.visibleToPlayers !== false, true);
+      if (selected.kind === 'region') {
+        setEditorValue('vtt-global-region-layer', item.layer);
+        setEditorValue('vtt-global-jurisdiction', item.jurisdiction || 'outskirts');
+        setEditorValue('vtt-global-terrain', item.terrain || 'unknown');
+        setEditorValue('vtt-global-source', item.source || 'dm');
+      } else if (selected.kind === 'marker') {
+        setEditorValue('vtt-global-marker-type', item.type);
+      } else if (selected.kind === 'route') {
+        setEditorValue('vtt-global-route-type', item.type);
+      }
+    }
     const lines = [item.name || item.id, `ID: ${item.id}`];
     if (selected.kind === 'region') {
       lines.push(`CAPA: ${item.layer}`, `DISTRITO: ${item.districtId || '—'}`, `LEGAL: ${item.jurisdiction || '—'}`, `TERRENO: ${item.terrain}`, `FUENTE: ${item.source}`, `ÁREA: ${Math.round(item.areaKm2).toLocaleString()} km²`);
