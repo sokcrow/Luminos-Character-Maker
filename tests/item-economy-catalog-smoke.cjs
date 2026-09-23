@@ -11,7 +11,7 @@ const { pathToFileURL } = require("node:url");
     "LuminousBloodIchorCatalog","LuminousOrganGlandCatalog","LuminousVenomSecretionCatalog",
     "LuminousOozeGelCatalog","LuminousEssenceCoreCatalog","LuminousOreIngotGemCatalog",
     "LuminousToolCatalog","LuminousWeaponCatalog","LuminousHpHealingCatalog","LuminousSpHealingCatalog",
-    "LuminousHybridHealingCatalog","LuminousStatusCureCatalog","LuminousMedicalSupplyCatalog"
+    "LuminousHybridHealingCatalog","LuminousStatusCureCatalog","LuminousMedicalSupplyCatalog","LuminousJewelryValuableCatalog"
   ];
   for (const key of globals) delete globalThis[key];
 
@@ -41,7 +41,8 @@ const { pathToFileURL } = require("node:url");
     "../js/item-catalog-sp-healing.js",
     "../js/item-catalog-hybrid-healing.js",
     "../js/item-catalog-status-cure.js",
-    "../js/item-catalog-medical-supply.js"
+    "../js/item-catalog-medical-supply.js",
+    "../js/item-catalog-jewelry-valuables.js"
   ];
   for (const relative of imports) {
     await import(pathToFileURL(path.resolve(__dirname, relative)).href);
@@ -67,8 +68,9 @@ const { pathToFileURL } = require("node:url");
   const hybrid = globalThis.LuminousHybridHealingCatalog;
   const cure = globalThis.LuminousStatusCureCatalog;
   const medical = globalThis.LuminousMedicalSupplyCatalog;
+  const jewelry = globalThis.LuminousJewelryValuableCatalog;
 
-  for (const catalog of [plant,meat,food,hide,hard,cover,fiber,blood,organ,venom,ooze,essence,ore,tools,weapons,hp,sp,hybrid,cure,medical]) {
+  for (const catalog of [plant,meat,food,hide,hard,cover,fiber,blood,organ,venom,ooze,essence,ore,tools,weapons,hp,sp,hybrid,cure,medical,jewelry]) {
     assert.ok(catalog);
   }
 
@@ -147,7 +149,15 @@ const { pathToFileURL } = require("node:url");
   assert.equal(medical.list({ sourceLine:"workshop" })[0].priceAhn, 84000);
   assert.equal(medical.list({ sourceLine:"specialist" })[0].priceAhn, 220000);
 
-  console.log("Economy Catalog Rebase smoke: OK (culinary, biomaterial, industrial, tools, weapons and medicine anchors)");
+  const jewelryExample = jewelry.create("necklace", {
+    metalId:"gold",
+    gems:[{id:"diamond",quantity:1},{id:"ruby",quantity:6}],
+  });
+  assert.equal(jewelryExample.valid, true);
+  assert.equal(jewelryExample.productionValueAhn, 3258000);
+  assert.equal(jewelryExample.currency, "AHN");
+
+  console.log("Economy Catalog Rebase smoke: OK (culinary, biomaterial, industrial, tools, weapons, medicine and jewelry anchors)");
 })().catch((error) => {
   console.error(error);
   process.exitCode = 1;
