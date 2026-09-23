@@ -833,7 +833,7 @@ addEventListener('unhandledrejection',e=>{
 <script src="../../../js/item-economy-standard.js"></script>
 
 <script type="module">
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js';
+import * as THREE from '../../vendor/three.module.js';
 window.setLoadProgress?.(18,'Motor listo','Preparando personajes…');
 
 const TILE=1.5;
@@ -18113,10 +18113,12 @@ addEventListener('resize',()=>{
 
 
 try{
-  window.setLoadProgress?.(22,'Motor listo','Preparando recursos…');
-  await loadPlayer();
-  await loadNPCTextures();
-  await loadCriticalMotionSprites();
+  window.setLoadProgress?.(22,'Motor listo','Preparando recursos locales…');
+  // Startup must never depend on remote sprite hosts. Remote-only character art
+  // hydrates in the background and stays hidden until its texture arrives.
+  loadPlayer().catch(e=>console.warn('Player sprite warmup:',e));
+  loadNPCTextures().catch(e=>console.warn('NPC sprite warmup:',e));
+  loadCriticalMotionSprites().catch(e=>console.warn('Critical motion sprite warmup:',e));
   window.setLoadProgress?.(86,'Armando el mapa','Geometría, colisiones y cámara…');
   const qp=new URLSearchParams(location.search);
   const testName=qp.get('test');
