@@ -637,7 +637,7 @@ body.global-map-mode #globalMapActions{display:block}
 
 <div id="area">Habitación</div>
 <div id="scale">1 tile = 5 ft ≈ 1.5 unidades · Habitación 8×6</div>
-<button id="gridToggle">Cuadrícula: ON</button>
+<button id="gridToggle" hidden aria-hidden="true" tabindex="-1">Cuadrícula: OFF</button>
 <button id="hitboxToggle">Hitboxes: OFF</button>
 <div id="joy"><div id="knob"></div></div>
 <button id="useBtn">!</button>
@@ -3993,7 +3993,7 @@ function validateSceneGeometry(parent){
   });
 }
 
-let root=null,mapId='room',colliders=[],interactions=[],zoneTransitions=[],overpassZones=[],wallOccluders=[],treeOccluders=[],gridHelper=null,gridVisible=true;
+let root=null,mapId='room',colliders=[],interactions=[],zoneTransitions=[],overpassZones=[],wallOccluders=[],treeOccluders=[],gridHelper=null,gridVisible=false;
 let playerOverpassId=null;
 const fadedTreeRoots=new Set();
 let pushables=[];
@@ -5165,9 +5165,9 @@ const MAP_DATA=Object.freeze({
         {id:'swamp-bridge',layer:'exterior',x0:-1,x1:1,z0:0,z1:2,elevation:0,terrain:'wood',walkable:true,combat:true,tags:['bridge']},
 
         // Terreno difícil por DATOS: sigue siendo caminable y usable en combate.
-        {id:'brush-southwest',layer:'exterior',x0:-8,x1:-4,z0:-7,z1:-3,elevation:0,terrain:'brush',walkable:true,combat:true,moveMultiplier:.72,tags:['difficult','bushes']},
-        {id:'grass-southeast',layer:'exterior',x0:4,x1:8,z0:-7,z1:-3,elevation:0,terrain:'grass',walkable:true,combat:true,moveMultiplier:.82,tags:['difficult','grass']},
-        {id:'brush-northwest',layer:'exterior',x0:-8,x1:-4,z0:4,z1:8,elevation:0,terrain:'brush',walkable:true,combat:true,moveMultiplier:.72,tags:['difficult','bushes']},
+        {id:'brush-southwest',layer:'exterior',x0:-8,x1:-4,z0:-7,z1:-3,elevation:0,terrain:'brush',walkable:true,combat:true,moveMultiplier:.5,tags:['difficult','bushes']},
+        {id:'grass-southeast',layer:'exterior',x0:4,x1:8,z0:-7,z1:-3,elevation:0,terrain:'grass',walkable:true,combat:true,moveMultiplier:.5,tags:['difficult','grass']},
+        {id:'brush-northwest',layer:'exterior',x0:-8,x1:-4,z0:4,z1:8,elevation:0,terrain:'brush',walkable:true,combat:true,moveMultiplier:.5,tags:['difficult','bushes']},
 
         // Huellas exteriores de edificios: bloqueadas; los interiores teatrales se activan aparte.
         {id:'cabin-footprint',layer:'exterior',x0:-3,x1:3,z0:4,z1:8,elevation:0,terrain:'building',walkable:false,combat:false,tags:['building','cabin']},
@@ -6732,7 +6732,7 @@ function paperBush(g,xTiles,zTiles,scale=1,slow=true){
   grp.add(m);
   if(slow){
     const half=wt(.48)*scale;
-    addDifficultTerrain(wt(xTiles)-half,wt(zTiles)-half,wt(xTiles)+half,wt(zTiles)+half,.72,mapId,currentWorldLayer);
+    addDifficultTerrain(wt(xTiles)-half,wt(zTiles)-half,wt(xTiles)+half,wt(zTiles)+half,.5,mapId,currentWorldLayer);
   }
   return grp;
 }
@@ -6776,7 +6776,7 @@ function paperBush3D(g,xTiles,zTiles,scale=1,slow=true){
   }catch(err){console.warn('PaperFX bush cutout fallback:',err);}
   const half=wt(.48)*scale;
   bushVolumes.push({grp,materials,half,map:mapId,layer:currentWorldLayer});
-  if(slow)addDifficultTerrain(grp.position.x-half,grp.position.z-half,grp.position.x+half,grp.position.z+half,.72,mapId,currentWorldLayer);
+  if(slow)addDifficultTerrain(grp.position.x-half,grp.position.z-half,grp.position.x+half,grp.position.z+half,.5,mapId,currentWorldLayer);
   return grp;
 }
 function updateBushVolumes(dt){
@@ -8639,6 +8639,34 @@ window.LuminousMapItemBridge=Object.freeze({
   attachInventoryAdapter(adapter){luminousInventoryAdapter=adapter||null;return this},
   pending:()=>pendingItemGrants.map(x=>JSON.parse(JSON.stringify(x)))
 });
+window.LuminousWorldMovementBridge=Object.freeze({
+  version:1,
+  contract:'luminous-continuous-world-v1',
+  scale:Object.freeze({
+    feetPerTile:Number(MAP_DATA.tile.feet||5),
+    worldUnitsPerTile:Number(MAP_DATA.tile.worldUnits||TILE||1.5)
+  }),
+  grid:Object.freeze({
+    playerVisible:false,
+    combatEndpointSnapping:false,
+    role:'internal-biome-navigation'
+  }),
+  sampleTerrain(x,z,options={}){
+    const nx=Number(x),nz=Number(z),layer=options.layer||currentWorldLayer;
+    const sample=terrainMovementSampleAtWorld(nx,nz,layer);
+    const radius=Number.isFinite(Number(options.radius))?Math.max(.02,Number(options.radius)):.08;
+    const blocked=layer===currentWorldLayer?!canOccupyWorld(nx,nz,radius):!sample.walkable;
+    return {...sample,blocked,walkable:sample.walkable&&!blocked};
+  },
+  canOccupy(x,z,radius=.08){
+    return canOccupyWorld(Number(x),Number(z),Math.max(.02,Number(radius)||.08));
+  },
+  controlledPosition(){
+    const unit=getLocalControlledUnit()||playerUnit;
+    const p=unit?.group?.position;
+    return p?{x:p.x,y:p.y,z:p.z}:null;
+  }
+});
 function canonicalShopItem(itemId,stock=-1){
   const item=luminousMapItem(itemId);
   if(!item)return null;
@@ -9487,29 +9515,52 @@ function unitCanOccupyWorld(unit,x,z,r=unit?.radius||PLAYER_RADIUS){
   }
   return true;
 }
+function terrainMovementSampleAtWorld(x,z,layer=currentWorldLayer){
+  if(!Number.isFinite(x)||!Number.isFinite(z)||activeInteriorStage){
+    return {walkable:true,combat:true,moveMultiplier:1,terrain:'interior',tags:[],locomotion:'ground',slopeDeg:0,difficultTerrain:false};
+  }
+  const cell=gridCellAtWorld(x,z,layer);
+  let mult=1,difficultTerrain=!!cell?.tags?.includes('difficult');
+  if(mapId==='floodedGrove'){
+    if(floodedGroveSwimAtWorld(x,z))mult=Math.min(mult,SWIM_MOVE_MULTIPLIER);
+  }else if(isOverworldSector(mapId)&&activeProceduralZone?.hydrology?.type==='coast'){
+    const hydro=proceduralHydrologySample(mapId,x/TILE,z/TILE);
+    if(hydro.water)mult=Math.min(mult,hydro.class==='deepWater'?.62:.74);
+    else if(cell?.locomotion!=='swim'&&cell?.moveMultiplier)mult=Math.min(mult,cell.moveMultiplier);
+  }else if(cell?.moveMultiplier)mult=Math.min(mult,cell.moveMultiplier);
+
+  for(const t of difficultTerrainZones){
+    if(t.map!==mapId||(t.layer||'exterior')!==layer)continue;
+    if(x>=t.x0&&x<=t.x1&&z>=t.z0&&z<=t.z1){
+      mult=Math.min(mult,t.multiplier);
+      if(t.multiplier<=.5)difficultTerrain=true;
+    }
+  }
+
+  const slope=elevationSlopeAtWorld(x,z,mapId).angleDeg;
+  if(slope>NATURAL_SLOPE_RULES.difficultDeg)mult=Math.min(mult,.68);
+  else if(slope>NATURAL_SLOPE_RULES.normalDeg)mult=Math.min(mult,.82);
+
+  const tags=[...(cell?.tags||[])];
+  if(difficultTerrain&&!tags.includes('difficult'))tags.push('difficult');
+  const corridor=layer===currentWorldLayer?zoneTransitionCorridorAt(x,z,.05):null;
+  return {
+    walkable:!!(cell?.walkable||corridor),
+    combat:!!cell?.combat,
+    moveMultiplier:mult,
+    terrain:cell?.terrain||null,
+    tags,
+    locomotion:cell?.locomotion||locomotionModeAt(x,z),
+    hazard:cell?.hazard||null,
+    slopeDeg:slope,
+    difficultTerrain
+  };
+}
 function unitTerrainSpeedMultiplier(unit,x=unit?.group?.position?.x,z=unit?.group?.position?.z){
   if(!unit||!Number.isFinite(x)||!Number.isFinite(z)||activeInteriorStage)return 1;
   const activeOverpass=overpassById(unitOverpassId(unit));
   if(activeOverpass&&overpassContainsWorld(activeOverpass,x,z,0))return 1;
-  let mult=1;
-  if(mapId==='floodedGrove'){
-    if(floodedGroveSwimAtWorld(x,z))mult=Math.min(mult,SWIM_MOVE_MULTIPLIER);
-  }else{
-    const cell=gridCellAtWorld(x,z,currentWorldLayer);
-    if(isOverworldSector(mapId)&&activeProceduralZone?.hydrology?.type==='coast'){
-      const hydro=proceduralHydrologySample(mapId,x/TILE,z/TILE);
-      if(hydro.water)mult=Math.min(mult,hydro.class==='deepWater'?.62:.74);
-      else if(cell?.locomotion!=='swim'&&cell?.moveMultiplier)mult=Math.min(mult,cell.moveMultiplier);
-    }else if(cell?.moveMultiplier)mult=Math.min(mult,cell.moveMultiplier);
-  }
-  for(const t of difficultTerrainZones){
-    if(t.map!==mapId||(t.layer||'exterior')!==currentWorldLayer)continue;
-    if(x>=t.x0&&x<=t.x1&&z>=t.z0&&z<=t.z1)mult=Math.min(mult,t.multiplier);
-  }
-  const slope=elevationSlopeAtWorld(x,z,mapId).angleDeg;
-  if(slope>NATURAL_SLOPE_RULES.difficultDeg)mult=Math.min(mult,.68);
-  else if(slope>NATURAL_SLOPE_RULES.normalDeg)mult=Math.min(mult,.82);
-  return mult;
+  return terrainMovementSampleAtWorld(x,z,currentWorldLayer).moveMultiplier;
 }
 function recordUnitMovement(unit,moved,ox,oz){
   if(!unit||moved<=0)return;
@@ -10076,7 +10127,7 @@ function releasePlayerActionPose(){
 function setFacing(sign){return requestUnitFacing(getLocalControlledUnit()||playerUnit,sign)}
 // LEGACY ADAPTER — all Unit billboards use the same visual rule.
 function billboardPlayer(){for(const unit of activeUnits())if(unit.visual?.billboard)faceBillboardUpright(unit.visual.billboard)}
-function addDifficultTerrain(x0,z0,x1,z1,multiplier=.72,map='canal',layer='exterior'){
+function addDifficultTerrain(x0,z0,x1,z1,multiplier=.5,map='canal',layer='exterior'){
   difficultTerrainZones.push({x0,z0,x1,z1,multiplier,map,layer});
 }
 function locomotionModeAt(x,z){
@@ -13066,7 +13117,7 @@ function paperBushSpeciesV2(g,xTiles,zTiles,scale=1,slow=false,{mapId:resolvedMa
   const spec=descriptor.species,bushScale=SMALL_FOLK_WORLD_SCALE.nature.bush,visualScale=scale*bushScale.visual,grp=new THREE.Group();grp.position.set(wt(xTiles),naturalPlacementYAtTiles(xTiles,zTiles),wt(zTiles));grp.rotation.y=descriptor.yaw;grp.scale.setScalar(visualScale);grp.userData.stressStreamCandidate='bush';grp.userData.bushSpecies=descriptor.speciesId;grp.userData.bushRule=descriptor.ruleId;grp.userData.ecologySpecies=descriptor.speciesId;grp.userData.futureHarvest=Object.freeze({kind:'berry',enabled:false,speciesId:descriptor.speciesId});g.add(grp);
   const material=new THREE.MeshStandardMaterial({vertexColors:true,roughness:1,flatShading:true,side:THREE.DoubleSide,transparent:true,opacity:1,depthWrite:true});
   const mesh=new THREE.Mesh(buildBushSpeciesGeometry(spec,descriptor.variant),material);mesh.castShadow=false;mesh.receiveShadow=true;mesh.frustumCulled=true;grp.add(mesh);
-  const half=wt(.52*(spec.spread||1))*scale*bushScale.footprint;bushVolumes.push({grp,materials:[material],half,map:id,layer:currentWorldLayer});if(slow)addDifficultTerrain(grp.position.x-half,grp.position.z-half,grp.position.x+half,grp.position.z+half,.72,id,currentWorldLayer);
+  const half=wt(.52*(spec.spread||1))*scale*bushScale.footprint;bushVolumes.push({grp,materials:[material],half,map:id,layer:currentWorldLayer});if(slow)addDifficultTerrain(grp.position.x-half,grp.position.z-half,grp.position.x+half,grp.position.z+half,.5,id,currentWorldLayer);
   BUSH_V2_RUNTIME.bushes++;BUSH_V2_RUNTIME.bySpecies[descriptor.speciesId]=(BUSH_V2_RUNTIME.bySpecies[descriptor.speciesId]||0)+1;BUSH_V2_RUNTIME.byRule[descriptor.ruleId]=(BUSH_V2_RUNTIME.byRule[descriptor.ruleId]||0)+1;return grp;
 }
 const BushEcology=Object.freeze({
