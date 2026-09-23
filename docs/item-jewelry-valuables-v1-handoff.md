@@ -43,49 +43,85 @@ Retail markup is not embedded.
 
 Enchantments contribute **0 Ahn in V1** and remain deferred.
 
-## 15 Jewelry chassis
+## 8 Jewelry chassis
 
-- Plain Band
+Only the eight forms with dedicated icon sets remain in the commercial Jewelry catalog:
+
 - Ring
-- Signet Ring
 - Earrings
 - Pendant
-- Medallion
 - Necklace
-- Choker
 - Bracelet
-- Bangle
-- Cuff Bracelet
 - Anklet
 - Brooch
-- Cufflinks
 - Ornamental Hairpin
 
-Jewelry uses the existing `accessory` icon family and is inventory equipment kind `accessory`.
+Removed from the catalog rather than hidden behind shared art:
 
-Head-regalia chassis (`Circlet`, `Tiara`, `Crown`) were removed from the normal catalog because they do not fit the intended modern commercial baseline.
+- Plain Band
+- Signet Ring
+- Medallion
+- Choker
+- Bangle
+- Cuff Bracelet
+- Cufflinks
+- Circlet
+- Tiara
+- Crown
 
-## 2 Relic loot tiers
+Each Jewelry form has four visual material variants:
 
-Group 4 is intentionally abstract and contains only two loot identities:
+- Gold -> Gold
+- Silver -> Silver / Platinum
+- Copper -> Copper / Bronze / Brass
+- Metal -> darker/non-precious metals such as Iron
 
-- Gold Relic — valuable
-- Gem-Inlaid Relic — more valuable
+The actual material still determines Production Value. The visual bucket only selects the icon.
 
-These are not specific ceremonial object shapes. The system does not ask which relic form it is and does not record which gemstones are visible in the gem-inlaid version.
 
-Both are **loot-only**:
+## 8 Valuable loot forms
+
+The concrete Valuable forms supplied with art are restored as loot-only objects:
+
+- Goblet
+- Chalice
+- Decorative Box
+- Statuette
+- Mask
+- Ornamental Plate
+- Reliquary
+- Scepter
+
+Each has exactly two loot/value variants:
+
+- Gold
+- Gems
+
+The Gems version is an abstract higher-value visual tier. It does not ask which gemstones are embedded and does not generate gemstone resonance or enchantment metadata.
+
+Standard loot values:
+
+| Valuable | Gold | Gems |
+| --- | ---: | ---: |
+| Goblet | 420,000 Ahn | 780,000 Ahn |
+| Chalice | 500,000 | 900,000 |
+| Decorative Box | 650,000 | 1,150,000 |
+| Statuette | 800,000 | 1,450,000 |
+| Mask | 700,000 | 1,250,000 |
+| Ornamental Plate | 850,000 | 1,500,000 |
+| Reliquary | 1,100,000 | 1,950,000 |
+| Scepter | 1,250,000 | 2,200,000 |
+
+All remain:
 
 - `craftable: false`
 - `retailAvailable: false`
 - `lootOnly: true`
 
-The Gem-Inlaid Relic is a higher abstract value tier than the Gold Relic. Its visible gemstone work is part of the loot tier rather than a list of socketed Cut Gems, so it does not create elemental resonance or enchantment metadata.
 
+## Editable Jewelry material variants
 
-## Editable material variants
-
-Any normal refined metal or alloy can be selected as the chassis metal.
+Jewelry may still use refined metals/alloys; the four icon buckets collapse similar appearances without creating another Item type.
 
 Examples:
 
@@ -164,9 +200,9 @@ The later Enchantment pass can therefore increase value without rewriting mundan
 
 ## Validation
 
-- 15 Jewelry chassis
-- 2 Relic loot tiers
-- 17 total chassis
+- 8 Jewelry chassis
+- 8 Valuable loot forms with Gold/Gems variants
+- 16 total chassis (8 Jewelry + 8 Valuable)
 - unique/non-stackable jewelry
 - refined metal/alloy validation
 - Cut Gem validation
@@ -175,6 +211,6 @@ The later Enchantment pass can therefore increase value without rewriting mundan
 - resonance aggregation
 - universal Quality value application
 - AHN economy smoke coverage
-- both relic tiers are loot-only and reject normal market/craft generation
+- all Valuable forms are loot-only and reject normal market/craft generation
 - Circlet / Tiara / Crown removed from the modern commercial baseline
-- old ornamental valuable chassis removed; Group 4 is Gold Relic / Gem-Inlaid Relic only
+- Jewelry forms without supplied icons are removed rather than sharing another form's icon
