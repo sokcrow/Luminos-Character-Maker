@@ -458,6 +458,121 @@ body.inventory-open #joy,body.inventory-open #useBtn,body.inventory-open #allyHu
 }
 
 
+/* ============================================================
+   0.3.3.1 · MOBILE ITEM / INVENTORY STANDARD
+   En touch no se escala el HUD desktop: cambia la composición.
+   Horizontal = lista + detalle lateral. Vertical = flujo apilado.
+   ============================================================ */
+@media (pointer:coarse){
+  #paperPlayerMenu{top:max(8px,env(safe-area-inset-top));right:max(8px,env(safe-area-inset-right))}
+  .paper-menu-hex{touch-action:manipulation}
+  #gameInventoryModal{overscroll-behavior:contain}
+  .paper-inv-grid-host,#gameInventoryLeft,#paperInvDetail{-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+  .paper-inv-tab,.paper-inv-eq-slot,.paper-inv-item,.paper-inv-action,#gameInventoryClose{touch-action:manipulation}
+  .paper-inv-action{min-height:44px}
+  #gameInventoryClose{width:44px;height:44px;right:max(4px,env(safe-area-inset-right));top:3px}
+}
+
+@media (pointer:coarse) and (orientation:landscape) and (max-height:600px){
+  #gameInventoryModal{padding:0;align-items:stretch;justify-content:stretch}
+  #gameInventoryPanel{
+    width:100vw;max-width:none;height:100dvh;min-height:0;
+    grid-template-rows:46px minmax(0,1fr);border:0
+  }
+  #gameInventoryTabs{
+    min-width:0;padding:4px 54px 0 max(6px,env(safe-area-inset-left));
+    gap:4px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none
+  }
+  #gameInventoryTabs::-webkit-scrollbar{display:none}
+  .paper-inv-tab{min-width:max-content;height:42px;padding:0 12px;font-size:9px}
+  #gameInventoryBody{
+    min-height:0;grid-template-columns:minmax(0,1fr) clamp(236px,32vw,310px);
+    grid-template-rows:minmax(0,1fr);overflow:hidden
+  }
+  #gameInventoryLeft{
+    min-height:0;padding:5px 6px 6px max(6px,env(safe-area-inset-left));
+    overflow:auto
+  }
+  .paper-inv-pane{height:auto;min-height:100%}
+  #paperInvActiveStack{height:auto;min-height:100%;grid-template-rows:auto auto;gap:6px}
+  .paper-inv-section-header{min-height:34px;padding:4px 7px;gap:6px}
+  .paper-inv-section-header span{font-size:7px}
+  .paper-inv-section-header strong{font-size:15px}
+  .paper-inv-count{font-size:8px}
+  #paperInvEquipment{overflow:visible}
+  .paper-inv-equipment-field{
+    position:relative;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:5px;height:auto;min-height:0;padding:6px
+  }
+  .paper-inv-body-silhouette{display:none}
+  .paper-inv-eq-slot,
+  .inv-eq-main,.inv-eq-off,.inv-eq-armor,.inv-eq-shield,.inv-eq-acc-a,.inv-eq-acc-b{
+    position:relative;left:auto;right:auto;top:auto;bottom:auto;transform:none!important;
+    width:auto;min-width:0;min-height:52px;padding:5px 6px
+  }
+  .paper-inv-eq-slot:hover,.inv-eq-armor:hover,.inv-eq-acc-b:hover{transform:none!important}
+  .paper-inv-eq-label{margin-bottom:2px;font-size:6px}
+  .paper-inv-eq-name{font-size:8px;line-height:1.1}
+  .paper-inv-eq-hint{margin-top:3px;font-size:6px}
+  #paperInvCarry{grid-template-rows:34px minmax(0,1fr);overflow:visible}
+  .paper-inv-grid-host{padding:6px;overflow:visible}
+  .paper-inv-grid{
+    grid-template-columns:repeat(auto-fill,minmax(68px,1fr));
+    grid-template-rows:none;grid-auto-rows:76px;gap:5px
+  }
+  .paper-inv-item{height:76px;min-height:76px}
+  .paper-inv-item-display{inset:15px 4px 14px;gap:2px}
+  .paper-inv-icon{width:30px;height:30px;flex-basis:30px}
+  .paper-inv-name{font-size:6.5px}
+  .paper-inv-tier,.paper-inv-qty{font-size:7px}
+  #paperInvDetail{
+    width:auto;min-width:0;height:auto;min-height:0;padding:8px 9px max(8px,env(safe-area-inset-bottom));
+    overflow:auto;border-left:1px solid #5b4228;border-top:0
+  }
+  .paper-inv-detail-kicker{font-size:6px}
+  .paper-inv-detail-top{grid-template-columns:52px minmax(0,1fr);gap:8px;margin-top:5px;padding-bottom:7px}
+  .paper-inv-detail-icon{width:52px;height:52px}
+  .paper-inv-detail-icon svg{width:31px;height:31px}
+  .paper-inv-detail-title{font-size:16px}
+  .paper-inv-detail-meta{margin-top:4px;font-size:7px}
+  .paper-inv-detail-tags{margin-top:4px}
+  .paper-inv-tag{padding:2px 4px;font-size:6px}
+  .paper-inv-desc{min-height:0;max-height:62px;margin-top:7px;overflow:auto;font-size:8px;line-height:1.35}
+  .paper-inv-detail-grid{grid-template-columns:1fr 1fr;margin-top:6px;padding-top:6px}
+  .paper-inv-detail-grid>div{padding:4px}
+  .paper-inv-detail-grid span{font-size:6px}.paper-inv-detail-grid b{font-size:7px}
+  .paper-inv-actions{grid-template-columns:1fr 1fr;gap:5px;margin-top:7px}
+  .paper-inv-action{min-height:42px;padding:6px 5px;font-size:8px}
+  .paper-inv-status{min-height:16px;margin-top:4px;font-size:7px}
+  .paper-inv-toolbar{position:sticky;top:0;z-index:3;padding:5px;gap:5px}
+  .paper-inv-search{min-height:40px;padding:6px 8px;font-size:9px}
+  .paper-inv-filter{min-width:104px;min-height:40px;padding:6px;font-size:8px}
+}
+
+@media (pointer:coarse) and (orientation:portrait){
+  #gameInventoryModal{padding:0}
+  #gameInventoryPanel{width:100vw;max-width:none;height:100dvh;min-height:0;border:0}
+  #gameInventoryBody{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) minmax(190px,32dvh)}
+  #gameInventoryLeft{overflow:auto}
+  #paperInvActiveStack{height:auto;grid-template-rows:auto auto}
+  .paper-inv-equipment-field{
+    display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;
+    height:auto;min-height:0;padding:7px
+  }
+  .paper-inv-body-silhouette{display:none}
+  .paper-inv-eq-slot,
+  .inv-eq-main,.inv-eq-off,.inv-eq-armor,.inv-eq-shield,.inv-eq-acc-a,.inv-eq-acc-b{
+    position:relative;left:auto;right:auto;top:auto;bottom:auto;transform:none!important;
+    width:auto;min-width:0;min-height:64px
+  }
+  .paper-inv-grid{grid-template-columns:repeat(3,minmax(72px,1fr));grid-auto-rows:minmax(82px,1fr)}
+  #paperInvDetail{width:100%;min-width:0;height:auto;min-height:0;overflow:auto}
+}
+@media (pointer:coarse) and (orientation:portrait) and (max-width:430px){
+  .paper-inv-grid{grid-template-columns:repeat(2,minmax(72px,1fr))}
+}
+
+
 
 /* ============================================================
    0.3.2-52 · HEX GLOBAL MAP v2
