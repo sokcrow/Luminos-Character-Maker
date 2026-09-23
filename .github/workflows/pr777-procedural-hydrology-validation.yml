@@ -69,6 +69,7 @@ jobs:
                 })
               };
             },item);
+            console.log('HYDRO_QA',item.region,JSON.stringify(data));
             assert.equal(errors.length,0,`${item.region} page errors: ${errors.join(' | ')}`);
             assert.equal(data.requested,'auto',`${item.region} must request automatic hydrology`);
             assert.equal(data.resolved,item.expected,`${item.region} unexpected resolved hydrology`);
