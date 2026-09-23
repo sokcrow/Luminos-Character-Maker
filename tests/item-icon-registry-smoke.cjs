@@ -8,9 +8,9 @@ const { pathToFileURL } = require('node:url');
   const registry = globalThis.LuminousItemIconRegistry;
 
   assert.ok(registry);
-  assert.equal(registry.VERSION, 24);
+  assert.equal(registry.VERSION, 25);
   assert.equal(registry.DEFAULT_GROUP, 'generic_item');
-  assert.equal(Object.keys(registry.GROUPS).length, 346);
+  assert.equal(Object.keys(registry.GROUPS).length, 394);
 
   const groups = registry.list();
   assert.equal(new Set(groups.map((entry) => entry.id)).size, groups.length);
@@ -204,6 +204,62 @@ const { pathToFileURL } = require('node:url');
     assert.equal(registry.get(id).domain, 'material');
   }
 
+
+  const jewelryValuableIcons = {
+    jewelry_ring_gold:'https://imgur.com/wL5tvhH.png',
+    jewelry_ring_silver:'https://imgur.com/xQVGBZv.png',
+    jewelry_ring_copper:'https://imgur.com/OWzhQ5Z.png',
+    jewelry_ring_metal:'https://imgur.com/BYHcyBh.png',
+    jewelry_earrings_gold:'https://imgur.com/IsEheC3.png',
+    jewelry_earrings_silver:'https://imgur.com/vqOxjAN.png',
+    jewelry_earrings_copper:'https://imgur.com/pMbzWKT.png',
+    jewelry_earrings_metal:'https://imgur.com/1lBkx5e.png',
+    jewelry_pendant_gold:'https://imgur.com/Qz8y5wm.png',
+    jewelry_pendant_silver:'https://imgur.com/oAH2Knp.png',
+    jewelry_pendant_copper:'https://imgur.com/tFSUykD.png',
+    jewelry_pendant_metal:'https://imgur.com/immzk4H.png',
+    jewelry_necklace_gold:'https://imgur.com/kYUCHBW.png',
+    jewelry_necklace_silver:'https://imgur.com/aV2ZXNY.png',
+    jewelry_necklace_copper:'https://imgur.com/h90j6nv.png',
+    jewelry_necklace_metal:'https://imgur.com/dZfann3.png',
+    jewelry_bracelet_gold:'https://imgur.com/xvrffL5.png',
+    jewelry_bracelet_silver:'https://imgur.com/yV3jziB.png',
+    jewelry_bracelet_copper:'https://imgur.com/BbazFwR.png',
+    jewelry_bracelet_metal:'https://imgur.com/izbbVKZ.png',
+    jewelry_anklet_gold:'https://imgur.com/b4Uogl6.png',
+    jewelry_anklet_silver:'https://imgur.com/SBQANGH.png',
+    jewelry_anklet_copper:'https://imgur.com/S5NCt2A.png',
+    jewelry_anklet_metal:'https://imgur.com/kLYFr5g.png',
+    jewelry_brooch_gold:'https://imgur.com/EpLGXWr.png',
+    jewelry_brooch_silver:'https://imgur.com/CtX7yin.png',
+    jewelry_brooch_copper:'https://imgur.com/3r19CDp.png',
+    jewelry_brooch_metal:'https://imgur.com/zIVLoK1.png',
+    jewelry_hairpin_gold:'https://imgur.com/1uz7WOj.png',
+    jewelry_hairpin_silver:'https://imgur.com/ILHruEu.png',
+    jewelry_hairpin_copper:'https://imgur.com/ouWTgzD.png',
+    jewelry_hairpin_metal:'https://imgur.com/0NyhHZz.png',
+    valuable_goblet_gold:'https://imgur.com/DrtuUNy.png',
+    valuable_goblet_gems:'https://imgur.com/IT50muO.png',
+    valuable_chalice_gold:'https://imgur.com/qe9kXzK.png',
+    valuable_chalice_gems:'https://imgur.com/etPv6Jn.png',
+    valuable_box_gold:'https://imgur.com/yz4r74w.png',
+    valuable_box_gems:'https://imgur.com/qtHqQEa.png',
+    valuable_statuette_gold:'https://imgur.com/KoaeQuQ.png',
+    valuable_statuette_gems:'https://imgur.com/ALqzBwL.png',
+    valuable_mask_gold:'https://imgur.com/8bhFGss.png',
+    valuable_mask_gems:'https://imgur.com/7zPQyjN.png',
+    valuable_plate_gold:'https://imgur.com/xMa2boP.png',
+    valuable_plate_gems:'https://imgur.com/E63cuoq.png',
+    valuable_reliquary_gold:'https://imgur.com/0zXUly4.png',
+    valuable_reliquary_gems:'https://imgur.com/VLwx7Gs.png',
+    valuable_scepter_gold:'https://imgur.com/UQVxbFH.png',
+    valuable_scepter_gems:'https://imgur.com/OIIlikM.png'
+  };
+  for (const [id, icon] of Object.entries(jewelryValuableIcons)) {
+    assert.equal(registry.has(id), true, id);
+    assert.equal(registry.resolveIcon(id), icon, id);
+  }
+
   const medicalIcons = {
     herb_healing: 'https://imgur.com/MxYeHQj.png',
     herb_calming: 'https://imgur.com/K3WjGc9.png',
@@ -338,7 +394,7 @@ const { pathToFileURL } = require('node:url');
   }
 
   const equipmentIds = registry.list({ domain: 'equipment' }).map((entry) => entry.id);
-  assert.equal(equipmentIds.length, 31);
+  assert.equal(equipmentIds.length, 63);
   assert.deepEqual(equipmentIds.slice(0, 22), [
     'weapon_melee', 'weapon_ranged',
     'weapon_sword', 'weapon_dagger', 'weapon_polearm', 'weapon_hammer',
