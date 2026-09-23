@@ -43,7 +43,7 @@ Retail markup is not embedded.
 
 Enchantments contribute **0 Ahn in V1** and remain deferred.
 
-## 18 Jewelry chassis
+## 15 Jewelry chassis
 
 - Plain Band
 - Ring
@@ -60,11 +60,10 @@ Enchantments contribute **0 Ahn in V1** and remain deferred.
 - Brooch
 - Cufflinks
 - Ornamental Hairpin
-- Circlet
-- Tiara
-- Crown
 
 Jewelry uses the existing `accessory` icon family and is inventory equipment kind `accessory`.
+
+Head-regalia chassis (`Circlet`, `Tiara`, `Crown`) were removed from the normal catalog because they do not fit the intended modern commercial baseline.
 
 ## 8 Valuable-object chassis
 
@@ -79,6 +78,8 @@ Jewelry uses the existing `accessory` icon family and is inventory equipment kin
 
 Valuables use the existing `valuable` icon family.
 
+These eight chassis are **loot-only**: they are not normal retail stock and are not standard craftable merchandise. They may be generated only with a loot/treasure origin such as `location_loot`, `world_loot` or `treasure`.
+
 ## Editable material variants
 
 Any normal refined metal or alloy can be selected as the chassis metal.
@@ -88,9 +89,7 @@ Examples:
 - Copper Ring
 - Silver Bracelet
 - Gold Necklace
-- Platinum Tiara
 - Bronze Brooch
-- Titanium Circlet
 
 Raw ores and nonmetal processed materials are rejected as jewelry metal inputs.
 
@@ -110,7 +109,7 @@ Gold Necklace
 
 This is one generated Item rather than seven separate socket records or a unique hard-coded catalog ID.
 
-Each chassis has a practical maximum gemstone count. Large chassis such as Necklace, Tiara and Crown support substantially more gemstones than Rings.
+Each chassis has a practical maximum gemstone count. Larger commercial chassis such as Necklaces support more gemstones than Rings.
 
 ## Gem resonance
 
@@ -162,9 +161,9 @@ The later Enchantment pass can therefore increase value without rewriting mundan
 
 ## Validation
 
-- 18 Jewelry chassis
+- 15 Jewelry chassis
 - 8 Valuable chassis
-- 26 total generative chassis
+- 23 total generative chassis
 - unique/non-stackable jewelry
 - refined metal/alloy validation
 - Cut Gem validation
@@ -173,3 +172,5 @@ The later Enchantment pass can therefore increase value without rewriting mundan
 - resonance aggregation
 - universal Quality value application
 - AHN economy smoke coverage
+- valuables are loot-only and reject normal market/craft generation
+- Circlet / Tiara / Crown removed from the modern commercial baseline
