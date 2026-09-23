@@ -30,12 +30,20 @@ function waterTypeFromMetadata(item) {
   return null;
 }
 
+function isWaterBodyRegion(region) {
+  return region?.layer === 'water';
+}
+
 function isLakeRegion(region) {
-  return region?.layer === 'water' && waterTypeFromMetadata(region) === 'lake';
+  return isWaterBodyRegion(region) && waterTypeFromMetadata(region) === 'lake';
+}
+
+function isWaterwayRoute(route) {
+  return route?.type === 'waterway';
 }
 
 function isRiverRoute(route) {
-  return route?.type === 'waterway' && waterTypeFromMetadata(route) === 'river';
+  return isWaterwayRoute(route) && waterTypeFromMetadata(route) === 'river';
 }
 
 function lakeDepth(region) {
@@ -110,7 +118,7 @@ function riverProfile(route, worldSeed = '0') {
 }
 
 function styleForWaterRegion(region) {
-  if (!isLakeRegion(region)) return LEGACY_WATER_STYLE;
+  if (!isWaterBodyRegion(region)) return LEGACY_WATER_STYLE;
   const depth = lakeDepth(region);
   const dark = Math.round(84 - depth * 24);
   const blue = Math.round(116 - depth * 18);
@@ -139,7 +147,7 @@ function boundsForScreenPoints(points) {
 }
 
 function drawLakeTexture(ctx, region, screenPoints, options = {}) {
-  if (!ctx || !isLakeRegion(region) || !Array.isArray(screenPoints) || screenPoints.length < 3) return null;
+  if (!ctx || !isWaterBodyRegion(region) || !Array.isArray(screenPoints) || screenPoints.length < 3) return null;
   const profile = lakeProfile(region, options.seed ?? '0');
   const random = TerrainTextures.createRandom(profile.seed);
   const bounds = boundsForScreenPoints(screenPoints);
@@ -194,7 +202,7 @@ function polylinePath(ctx, points) {
 }
 
 function drawRiver(ctx, route, screenPoints, options = {}) {
-  if (!ctx || !isRiverRoute(route) || !Array.isArray(screenPoints) || screenPoints.length < 2) return null;
+  if (!ctx || !isWaterwayRoute(route) || !Array.isArray(screenPoints) || screenPoints.length < 2) return null;
   const profile = riverProfile(route, options.seed ?? '0');
   const width = riverScreenWidth(route, options.zoom ?? 1);
   const bankExtra = 1.5 + profile.bankRoughness * 4.5;
@@ -266,7 +274,9 @@ const api = Object.freeze({
   LEGACY_WATER_STYLE,
   normalizeWaterKey,
   waterTypeFromMetadata,
+  isWaterBodyRegion,
   isLakeRegion,
+  isWaterwayRoute,
   isRiverRoute,
   lakeDepth,
   lakeShoreRoughness,
@@ -297,7 +307,9 @@ export {
   LEGACY_WATER_STYLE,
   normalizeWaterKey,
   waterTypeFromMetadata,
+  isWaterBodyRegion,
   isLakeRegion,
+  isWaterwayRoute,
   isRiverRoute,
   lakeDepth,
   lakeShoreRoughness,
