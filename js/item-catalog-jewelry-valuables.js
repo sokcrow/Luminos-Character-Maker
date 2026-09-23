@@ -6,7 +6,7 @@
     return;
   }
 
-  const VERSION = 1;
+  const VERSION = 2;
   const FAMILY = "jewelry_valuables";
   const CURRENCY = "AHN";
   const DEFAULT_QUALITY = "standard";
@@ -51,6 +51,10 @@
       craftMultiplier: Number(def.craftMultiplier),
       processTier: def.processTier || "workshop",
       mundaneOnly: true,
+      craftable: def.kind === "jewelry",
+      retailAvailable: def.kind === "jewelry",
+      lootOnly: def.kind === "valuable",
+      acquisition: def.kind === "jewelry" ? "market_or_craft" : "loot_only",
       enchantmentPricingStatus: ENCHANTMENT_PRICING_STATUS,
       tags: Object.freeze([
         def.kind === "jewelry" ? "jewelry" : "valuable",
@@ -78,9 +82,6 @@
     freezeChassis({ id:"brooch", name:"Brooch", kind:"jewelry", metalUnits:0.20, maxGemCount:8, craftMultiplier:1.50, tags:["pin"] }),
     freezeChassis({ id:"cufflinks", name:"Cufflinks", kind:"jewelry", metalUnits:0.14, maxGemCount:4, craftMultiplier:1.45, tags:["formalwear"] }),
     freezeChassis({ id:"hairpin", name:"Ornamental Hairpin", kind:"jewelry", metalUnits:0.16, maxGemCount:6, craftMultiplier:1.45, tags:["hairwear"] }),
-    freezeChassis({ id:"circlet", name:"Circlet", kind:"jewelry", metalUnits:0.60, maxGemCount:18, craftMultiplier:1.65, tags:["headwear"] }),
-    freezeChassis({ id:"tiara", name:"Tiara", kind:"jewelry", metalUnits:0.85, maxGemCount:24, craftMultiplier:1.80, tags:["headwear","regalia"] }),
-    freezeChassis({ id:"crown", name:"Crown", kind:"jewelry", metalUnits:1.25, maxGemCount:36, craftMultiplier:2.00, processTier:"corp_wing", tags:["headwear","regalia"] }),
   ]);
 
   const VALUABLE_CHASSIS = Object.freeze([
@@ -178,6 +179,11 @@
     const chassis = typeof chassisOrId === "string" ? get(chassisOrId) : clone(chassisOrId);
     if (!chassis) return Object.freeze({ valid:false, reason:"unknown_chassis" });
 
+    const origin = normalizeId(options.origin || options.source || "");
+    if (chassis.lootOnly && !["loot","world_loot","location_loot","treasure"].includes(origin)) {
+      return Object.freeze({ valid:false, reason:"loot_only_chassis", chassisId:chassis.id });
+    }
+
     const metalId = normalizeId(options.metalId || options.metal || DEFAULT_METAL_ID);
     const metal = resolveMetal(metalId);
     if (!metal) return Object.freeze({ valid:false, reason:"invalid_jewelry_metal", metalId });
@@ -231,6 +237,11 @@
       qualitySystem: "universal",
       stackable: false,
       quantity: 1,
+      acquisition: chassis.acquisition,
+      craftable: chassis.craftable,
+      retailAvailable: chassis.retailAvailable,
+      lootOnly: chassis.lootOnly,
+      origin: chassis.lootOnly ? origin : (origin || "market_or_craft"),
       pricingModel: PRICING_MODEL,
       metalId: metal.id,
       metalName: metal.name,
