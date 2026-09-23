@@ -8,9 +8,9 @@ const { pathToFileURL } = require('node:url');
   const registry = globalThis.LuminousItemIconRegistry;
 
   assert.ok(registry);
-  assert.equal(registry.VERSION, 23);
+  assert.equal(registry.VERSION, 24);
   assert.equal(registry.DEFAULT_GROUP, 'generic_item');
-  assert.equal(Object.keys(registry.GROUPS).length, 322);
+  assert.equal(Object.keys(registry.GROUPS).length, 346);
 
   const groups = registry.list();
   assert.equal(new Set(groups.map((entry) => entry.id)).size, groups.length);
@@ -166,6 +166,39 @@ const { pathToFileURL } = require('node:url');
     material_exotic_refined:'https://imgur.com/wqb52n6.png'
   };
   for (const [id, icon] of Object.entries(refinedMetalIcons)) {
+    assert.equal(registry.has(id), true, id);
+    assert.equal(registry.resolveIcon(id), icon, id);
+    assert.equal(registry.get(id).domain, 'material');
+  }
+
+
+  const gemstoneIcons = {
+    gem_ruby_rough:'https://imgur.com/HnOR60G.png',
+    gem_sapphire_rough:'https://imgur.com/1vE0N73.png',
+    gem_aquamarine_rough:'https://imgur.com/zqnVOHn.png',
+    gem_topaz_rough:'https://imgur.com/WrTG3z6.png',
+    gem_garnet_rough:'https://imgur.com/rZvEklY.png',
+    gem_emerald_rough:'https://imgur.com/rW1kdNV.png',
+    gem_amethyst_rough:'https://imgur.com/DwHJbxN.png',
+    gem_onyx_rough:'https://imgur.com/d8sfrnT.png',
+    gem_moonstone_rough:'https://imgur.com/MiAsYxw.png',
+    gem_opal_rough:'https://imgur.com/kwaZNP7.png',
+    gem_diamond_rough:'https://imgur.com/lGafeqI.png',
+    gem_starstone_rough:'https://imgur.com/NeoNBAH.png',
+    gem_ruby_cut:'https://imgur.com/dFQSIBL.png',
+    gem_sapphire_cut:'https://imgur.com/k587uTM.png',
+    gem_aquamarine_cut:'https://imgur.com/Prk4Kz3.png',
+    gem_topaz_cut:'https://imgur.com/TufTeFx.png',
+    gem_garnet_cut:'https://imgur.com/vmcvojW.png',
+    gem_emerald_cut:'https://imgur.com/6tnPeDJ.png',
+    gem_amethyst_cut:'https://imgur.com/E9LOJUq.png',
+    gem_onyx_cut:'https://imgur.com/8FmZlNC.png',
+    gem_moonstone_cut:'https://imgur.com/TOD0LGW.png',
+    gem_opal_cut:'https://imgur.com/jqEXcf5.png',
+    gem_diamond_cut:'https://imgur.com/NnJgOHn.png',
+    gem_starstone_cut:'https://imgur.com/qGWxRm5.png'
+  };
+  for (const [id, icon] of Object.entries(gemstoneIcons)) {
     assert.equal(registry.has(id), true, id);
     assert.equal(registry.resolveIcon(id), icon, id);
     assert.equal(registry.get(id).domain, 'material');
