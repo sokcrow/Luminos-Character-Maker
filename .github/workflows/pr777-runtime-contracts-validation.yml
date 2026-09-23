@@ -49,13 +49,17 @@ jobs:
             await page.goto('http://127.0.0.1:4173/game-engine/lab/game/forest-0.3.3.1.html',{waitUntil:'domcontentloaded',timeout:120000});
             await page.waitForFunction(()=>window.__paperLoaded===true,null,{timeout:120000});
             await page.waitForFunction(()=>document.getElementById('loaderPaper')?.classList.contains('off')===true,null,{timeout:120000});
-            await page.click('#globalExploreBtn');
-            await page.waitForFunction(()=>document.getElementById('loaderPaper')?.classList.contains('off')===false,null,{timeout:10000});
-            const visible=await page.evaluate(()=>({
-              pct:Number((document.getElementById('loaderPct')?.textContent||'0').replace('%','')),
-              stage:document.getElementById('loaderStage')?.textContent||'',
-              hint:document.getElementById('loaderHint')?.textContent||''
-            }));
+            const visible=await page.evaluate(()=>{
+              document.getElementById('globalExploreBtn')?.click();
+              const loader=document.getElementById('loaderPaper');
+              return {
+                open:loader?.classList.contains('off')===false,
+                pct:Number((document.getElementById('loaderPct')?.textContent||'0').replace('%','')),
+                stage:document.getElementById('loaderStage')?.textContent||'',
+                hint:document.getElementById('loaderHint')?.textContent||''
+              };
+            });
+            assert.equal(visible.open,true,'transition loader must open synchronously before map generation');
             assert.ok(visible.pct>=10,'transition loader should expose real progress');
             assert.ok(visible.stage.length>0&&visible.hint.length>0,'transition loader should explain current stage');
             await page.screenshot({path:'runtime-loader.png',fullPage:false});
