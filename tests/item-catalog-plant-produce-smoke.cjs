@@ -23,15 +23,15 @@ const { pathToFileURL } = require('node:url');
   assert.equal(catalog.CURRENCY, 'AHN');
   assert.equal(catalog.MEASURE, 'market_unit');
   assert.equal(catalog.RECIPES_IMPLEMENTED, false);
-  assert.equal(catalog.ITEMS.length, 92);
-  assert.equal(new Set(catalog.ITEMS.map((entry) => entry.id)).size, 92);
+  assert.equal(catalog.ITEMS.length, 100);
+  assert.equal(new Set(catalog.ITEMS.map((entry) => entry.id)).size, 100);
 
   const groupCounts = Object.fromEntries(
     [...new Set(catalog.ITEMS.map((entry) => entry.group))]
       .map((group) => [group, catalog.list({ group }).length])
   );
   assert.deepEqual(groupCounts, {
-    fruit: 18,
+    fruit: 26,
     vegetable: 16,
     grain_legume: 10,
     nut_seed: 11,
@@ -44,6 +44,9 @@ const { pathToFileURL } = require('node:url');
 
   const approvedIcons = new Set([
     'fruit_raw',
+    'apple', 'pear', 'orange', 'lemon', 'blackberry', 'strawberry', 'grape', 'peach',
+    'cherry', 'melon', 'banana', 'dragon_fruit', 'pineapple', 'plum', 'juniper_berry', 'coconut',
+    'mango', 'lime', 'kiwi', 'pomegranate', 'watermelon', 'blueberry', 'raspberry', 'red_berry',
     'vegetable_raw',
     'grain_seed_raw',
     'spice_herb_raw',
@@ -95,10 +98,14 @@ const { pathToFileURL } = require('node:url');
   assert.equal(catalog.get('nightshade').iconFamily, 'herb_toxic');
   assert.equal(catalog.get('common_mushroom').iconFamily, 'fungus_raw');
   assert.equal(catalog.get('resin').iconFamily, 'botanical_extract_raw');
-  assert.equal(catalog.get('pineapple').iconFamily, 'fruit_raw');
+  assert.equal(catalog.get('pineapple').iconFamily, 'pineapple');
   assert.equal(catalog.get('sweet_potato').iconFamily, 'vegetable_raw');
   assert.equal(catalog.get('tea_leaf').iconFamily, 'spice_herb_raw');
   assert.equal(catalog.get('truffle').iconFamily, 'fungus_raw');
+  assert.equal(catalog.get('berry').id, 'blackberry');
+  assert.equal(catalog.get('exotic_fruit').id, 'dragon_fruit');
+  assert.equal(catalog.get('blueberry').iconFamily, 'blueberry');
+  assert.equal(catalog.get('red_berry').iconFamily, 'red_berry');
 
   assert.equal(catalog.list({ recipeRole: 'protein' }).some((entry) => entry.id === 'beans'), true);
   assert.equal(catalog.list({ functionalTag: 'oil_source' }).some((entry) => entry.id === 'sesame_seed'), true);
@@ -141,7 +148,7 @@ const { pathToFileURL } = require('node:url');
   assert.equal(driedPotato.processedForm, 'dried');
   assert.equal(driedPotato.affinityTarget, stack.affinityTarget);
 
-  console.log('Plant produce catalog smoke: OK (92 canonical ingredients, recipes deferred)');
+  console.log('Plant produce catalog smoke: OK (100 canonical ingredients, recipes deferred)');
 })().catch((error) => {
   console.error(error);
   process.exitCode = 1;
