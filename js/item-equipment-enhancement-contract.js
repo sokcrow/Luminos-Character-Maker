@@ -6,8 +6,8 @@
     return;
   }
 
-  const VERSION = 1;
-  const ELIGIBLE_KINDS = Object.freeze(["weapon","armor","shield"]);
+  const VERSION = 2;
+  const ELIGIBLE_KINDS = Object.freeze(["weapon","armor","shield","accessory","valuable"]);
   const ENCHANTMENT_LEVELS = Object.freeze([1,2,3]);
   const MUNDANE_LEVEL = 0;
 
