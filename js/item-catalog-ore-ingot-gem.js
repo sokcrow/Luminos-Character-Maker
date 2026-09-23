@@ -6,7 +6,7 @@
     return;
   }
 
-  const VERSION = 4;
+  const VERSION = 5;
   const FAMILY = "ore_ingot_gem";
   const CURRENCY = "AHN";
   const AHN_ECONOMY_SCALE = 2.5;
@@ -21,6 +21,12 @@
     advanced: Object.freeze({ id:"advanced", multiplier:1.70, tier:"workshop" }),
     corp: Object.freeze({ id:"corp", multiplier:1.85, tier:"corp_wing" }),
     exotic: Object.freeze({ id:"exotic", multiplier:2.00, tier:"corp_wing" }),
+  });
+  const GEM_PRICING_MODEL = "rough_value_x_lapidary_multiplier_v2";
+  const LAPIDARY_PROFILES = Object.freeze({
+    resonant: Object.freeze({ id:"resonant", multiplier:2.50, tier:"workshop" }),
+    precious: Object.freeze({ id:"precious", multiplier:2.75, tier:"workshop" }),
+    exotic: Object.freeze({ id:"exotic", multiplier:3.00, tier:"corp_wing" }),
   });
 
   function safeRequire(path) {
@@ -125,20 +131,58 @@
     });
   }
 
-  function gemstone(baseId, name, roughValue, cutValue, resonanceTags) {
+  function gemstone(def) {
+    const baseId = normalizeId(def.id);
+    const profileId = normalizeId(def.profile || "resonant");
+    const profile = LAPIDARY_PROFILES[profileId];
+    if (!profile) throw new Error(`Unknown lapidary profile: ${profileId}`);
+    const roughValueAhn = Math.max(0, Math.round(Number(def.roughValueAhn) || 0));
+    const cutValueAhn = Math.round(roughValueAhn * profile.multiplier);
+    const resonanceTags = (def.resonanceTags || []).map(normalizeId).filter(Boolean);
     return [
       material({
-        id: `rough_${baseId}`, name: `Rough ${name}`, materialNoun: name, form: "rough_gem", materialClass: "gemstone",
-        iconFamily: "gem_rough", standardUnitValueAhn: Math.round(roughValue * AHN_ECONOMY_SCALE), measure: "piece", pieceBased: true, processed: false,
-        rawCraftingReagent: true, sourceKinds: ["deposit", "creature_body"], resonanceTags,
-        useTags: ["lapidary_input", "enchantment_material"],
+        id: `rough_${baseId}`,
+        name: `Rough ${def.name}`,
+        materialNoun: def.name,
+        form: "rough_gem",
+        materialClass: "gemstone",
+        iconFamily: normalizeId(def.roughIconFamily || "gem_rough"),
+        standardUnitValueAhn: roughValueAhn,
+        measure: "piece",
+        pieceBased: true,
+        processed: false,
+        rawCraftingReagent: true,
+        sourceKinds: ["deposit", "creature_body"],
+        resonanceTags,
+        pricingModel: GEM_PRICING_MODEL,
+        lapidaryProfile: profile.id,
+        lapidaryMultiplier: profile.multiplier,
+        processTier: profile.tier,
+        enchantmentReady: false,
+        useTags: ["lapidary_input", "enchantment_material", "enchantment_feedstock"],
         tags: ["ingredient", "gemstone", "rough_gem", "resonant", "creature_mineral_harvest"],
       }),
       material({
-        id: baseId, name, materialNoun: name, form: "cut_gem", materialClass: "gemstone",
-        iconFamily: "gem_cut", standardUnitValueAhn: Math.round(cutValue * AHN_ECONOMY_SCALE), measure: "piece", pieceBased: true, processed: true,
-        rawCraftingReagent: false, sourceKinds: ["lapidary"], resonanceTags,
-        processedFrom: `rough_${baseId}`, useTags: ["enchantment_material", "accessory_socket", "weapon_socket"],
+        id: baseId,
+        name: def.name,
+        materialNoun: def.name,
+        form: "cut_gem",
+        materialClass: "gemstone",
+        iconFamily: normalizeId(def.cutIconFamily || "gem_cut"),
+        standardUnitValueAhn: cutValueAhn,
+        measure: "piece",
+        pieceBased: true,
+        processed: true,
+        rawCraftingReagent: false,
+        sourceKinds: ["lapidary"],
+        resonanceTags,
+        processedFrom: `rough_${baseId}`,
+        pricingModel: GEM_PRICING_MODEL,
+        lapidaryProfile: profile.id,
+        lapidaryMultiplier: profile.multiplier,
+        processTier: profile.tier,
+        enchantmentReady: true,
+        useTags: ["enchantment_material", "accessory_socket", "armor_socket", "weapon_socket"],
         tags: ["ingredient", "gemstone", "cut_gem", "resonant", "enchantment"],
       }),
     ];
@@ -230,18 +274,18 @@
   ]);
 
   const GEMSTONE_PAIRS = Object.freeze([
-    Object.freeze(gemstone("ruby", "Ruby", 15000, 40000, ["fire", "heat"])),
-    Object.freeze(gemstone("sapphire", "Sapphire", 15000, 40000, ["cold", "ice"])),
-    Object.freeze(gemstone("aquamarine", "Aquamarine", 16000, 42000, ["water", "flow"])),
-    Object.freeze(gemstone("topaz", "Topaz", 18000, 48000, ["lightning", "energy"])),
-    Object.freeze(gemstone("garnet", "Garnet", 18000, 48000, ["blood", "physical"])),
-    Object.freeze(gemstone("emerald", "Emerald", 20000, 55000, ["vitality", "nature"])),
-    Object.freeze(gemstone("amethyst", "Amethyst", 22000, 60000, ["arcane", "mental"])),
-    Object.freeze(gemstone("onyx", "Onyx", 25000, 70000, ["shadow", "necrotic"])),
-    Object.freeze(gemstone("moonstone", "Moonstone", 28000, 80000, ["spirit"])),
-    Object.freeze(gemstone("opal", "Opal", 30000, 90000, ["prismatic"])),
-    Object.freeze(gemstone("diamond", "Diamond", 35000, 100000, ["light", "force"])),
-    Object.freeze(gemstone("starstone_exotic_gem", "Starstone / Exotic Gem", 60000, 180000, ["exotic"])),
+    Object.freeze(gemstone({ id:"ruby", name:"Ruby", roughValueAhn:90000, profile:"resonant", roughIconFamily:"gem_ruby_rough", cutIconFamily:"gem_ruby_cut", resonanceTags:["fire","heat"] })),
+    Object.freeze(gemstone({ id:"sapphire", name:"Sapphire", roughValueAhn:90000, profile:"resonant", roughIconFamily:"gem_sapphire_rough", cutIconFamily:"gem_sapphire_cut", resonanceTags:["cold","ice"] })),
+    Object.freeze(gemstone({ id:"aquamarine", name:"Aquamarine", roughValueAhn:95000, profile:"resonant", roughIconFamily:"gem_aquamarine_rough", cutIconFamily:"gem_aquamarine_cut", resonanceTags:["water","flow"] })),
+    Object.freeze(gemstone({ id:"topaz", name:"Topaz", roughValueAhn:105000, profile:"resonant", roughIconFamily:"gem_topaz_rough", cutIconFamily:"gem_topaz_cut", resonanceTags:["lightning","energy"] })),
+    Object.freeze(gemstone({ id:"garnet", name:"Garnet", roughValueAhn:105000, profile:"resonant", roughIconFamily:"gem_garnet_rough", cutIconFamily:"gem_garnet_cut", resonanceTags:["blood","physical"] })),
+    Object.freeze(gemstone({ id:"emerald", name:"Emerald", roughValueAhn:120000, profile:"resonant", roughIconFamily:"gem_emerald_rough", cutIconFamily:"gem_emerald_cut", resonanceTags:["vitality","nature"] })),
+    Object.freeze(gemstone({ id:"amethyst", name:"Amethyst", roughValueAhn:135000, profile:"precious", roughIconFamily:"gem_amethyst_rough", cutIconFamily:"gem_amethyst_cut", resonanceTags:["arcane","mental"] })),
+    Object.freeze(gemstone({ id:"onyx", name:"Onyx", roughValueAhn:150000, profile:"precious", roughIconFamily:"gem_onyx_rough", cutIconFamily:"gem_onyx_cut", resonanceTags:["shadow","necrotic"] })),
+    Object.freeze(gemstone({ id:"moonstone", name:"Moonstone", roughValueAhn:170000, profile:"precious", roughIconFamily:"gem_moonstone_rough", cutIconFamily:"gem_moonstone_cut", resonanceTags:["spirit"] })),
+    Object.freeze(gemstone({ id:"opal", name:"Opal", roughValueAhn:190000, profile:"precious", roughIconFamily:"gem_opal_rough", cutIconFamily:"gem_opal_cut", resonanceTags:["prismatic"] })),
+    Object.freeze(gemstone({ id:"diamond", name:"Diamond", roughValueAhn:240000, profile:"precious", roughIconFamily:"gem_diamond_rough", cutIconFamily:"gem_diamond_cut", resonanceTags:["light","force"] })),
+    Object.freeze(gemstone({ id:"starstone_exotic_gem", name:"Starstone / Exotic Gem", roughValueAhn:400000, profile:"exotic", roughIconFamily:"gem_starstone_rough", cutIconFamily:"gem_starstone_cut", resonanceTags:["exotic"] })),
   ]);
 
   const ROUGH_GEMS = Object.freeze(GEMSTONE_PAIRS.map((pair) => pair[0]));
@@ -354,7 +398,7 @@
   }
 
   const API = Object.freeze({
-    VERSION, FAMILY, CURRENCY, DEFAULT_QUALITY, MATERIAL_UNIT, MATERIAL_UNIT_ABBREVIATION, RAW_MINERAL_PRICING_MODEL, REFINED_PRICING_MODEL, REFINEMENT_PROFILES,
+    VERSION, FAMILY, CURRENCY, DEFAULT_QUALITY, MATERIAL_UNIT, MATERIAL_UNIT_ABBREVIATION, RAW_MINERAL_PRICING_MODEL, REFINED_PRICING_MODEL, REFINEMENT_PROFILES, GEM_PRICING_MODEL, LAPIDARY_PROFILES,
     RAW_MINERALS, REFINED_METALS, ALLOYS, ROUGH_GEMS, CUT_GEMS, ITEMS, ALIASES,
     CREATURE_MINERAL_HARVEST_RULE, get, list, unitValueForQuality, canSourceFromCreatureBody, createStack, createCreatureHarvestStack,
   });
