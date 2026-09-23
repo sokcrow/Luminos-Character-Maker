@@ -1,0 +1,39 @@
+name: PR777 Mountain package
+
+on:
+  push:
+    branches:
+      - feat/item-icon-families
+
+permissions:
+  contents: read
+
+jobs:
+  validate-and-package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validate mountain texture contract
+        run: |
+          node tests/global-map-terrain-textures-smoke.mjs
+          node --check js/global-map-terrain-textures.js
+          node --check js/vtt/global-map-runtime.js
+
+      - name: Build clean project ZIP
+        run: |
+          zip -qr Mount777.zip . -x ".git/*" "Mount777.zip" ".github/workflows/pr777-mountain-package.yml"
+
+      - name: Upload project ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: Mount777
+          path: Mount777.zip
+          compression-level: 0
+          retention-days: 1
