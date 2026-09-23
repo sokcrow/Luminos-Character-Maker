@@ -38,6 +38,23 @@ The Lab does not replace these. `LuminousItemsBridge` wraps them so the Game Eng
 
 The repository also already contains a substantial VTT runtime under `js/vtt/`. The new Game Engine folder must not duplicate that code blindly; world/render/movement pieces will be migrated or bridged incrementally after their contracts are identified.
 
+## Continuous world movement contract
+
+Combat and exploration now share one continuous world-space contract (`luminous-continuous-world-v1`):
+
+- the player-facing grid is hidden and never snaps movement endpoints;
+- the existing grid remains internal for biome/ecology sampling, navigation caches, terrain semantics and later encounter analysis;
+- exploration remains free continuous movement, constrained by collisions and terrain speed rather than a turn budget;
+- combat movement is measured in feet along the traveled path from the turn origin;
+- the current world scale is 5 ft per tile and 1.5 world units per tile;
+- difficult terrain uses a 0.5 movement multiplier, so crossing 5 ft consumes 10 ft of combat movement;
+- creature placement uses continuous XZ coordinates plus a footprint radius;
+- flanking foundations use continuous angles around a target rather than opposite grid squares.
+
+The reusable contracts live under `game-engine/src/world/`. The Forest Lab exposes `LuminousWorldMovementBridge` so the engine can sample the authoritative map terrain without replacing `BiomeComposer`, the compiled grid, colliders or elevation.
+
+See `docs/game-engine-continuous-movement-handoff.md` for the integration boundary and the intentionally deferred combat rules.
+
 ## Run locally on Windows
 
 From this folder, double-click:
