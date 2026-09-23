@@ -2094,9 +2094,24 @@ function composeResolvedZoneRecipe(region,{cache=true}={}){
     const snowCoverage=zoneClamp(region.snowAmount+(2-tempC)*.055+rockiness*.05,0,.90);
     const profile=zoneGroundProfile(region,s,baseHeight,canopy,rockiness,tempC),sectorSeed=Math.floor(region.seed+s.gx*193+s.gz*977+id.length*31);
     const forestCorridors=buildForestWalkCorridors({...region,canopy},s,sectorSeed),geology=GeologySystem.composeCandidates({region,sectorId:id,seed:sectorSeed,rockiness}),modules=[];
-    if(h3>.60&&region.biomeProfile!=='desert'){
-      const S=OVERWORLD_SECTOR_SCALE,ax=(h0>.5?1:-1)*(11+zoneHash(sectorSeed,2,3,17)*2.2)*S,az=(h1>.5?1:-1)*(10+zoneHash(sectorSeed,3,4,18)*2.0)*S;
-      modules.push(Object.freeze({id:`zone-${region.id}-${id}-micro-rise`,kind:'rolling-ridge',center:Object.freeze({x:ax,z:az}),radiusX:(6.8+zoneHash(sectorSeed,4,5,19)*1.8)*S,radiusZ:(5.8+zoneHash(sectorSeed,5,6,20)*1.6)*S,heightTiles:.32+rockiness*.58,seed:(sectorSeed%997)*.013,eastSteepness:.04+rockiness*.10,topKind:profile.groundKind,segmentsX:18,segmentsZ:16}));
+    const localReliefWeight=Math.max(region.landform.weights.rolling||0,region.landform.weights.hills||0,region.landform.weights.ridges||0,region.landform.weights.mountain||0,region.landform.weights.cliffs||0,region.landform.weights.mesas||0);
+    if(localReliefWeight>.10&&region.biomeProfile!=='desert'){
+      const S=OVERWORLD_SECTOR_SCALE,localCount=localReliefWeight>.52?2:1;
+      for(let mi=0;mi<localCount;mi++){
+        const salt=17+mi*29,sideX=zoneHash(sectorSeed,2+mi,3-mi,salt)>.5?1:-1,sideZ=zoneHash(sectorSeed,3+mi,4+mi,salt+1)>.5?1:-1;
+        const ax=sideX*(7.8+zoneHash(sectorSeed,4+mi,5,salt+2)*6.0)*S,az=sideZ*(6.5+zoneHash(sectorSeed,5,6+mi,salt+3)*6.5)*S;
+        const height=(.52+localReliefWeight*1.10+rockiness*.52)*(mi?0.72:1);
+        modules.push(Object.freeze({
+          id:`zone-${region.id}-${id}-local-relief-${mi}`,kind:'rolling-ridge',
+          center:Object.freeze({x:ax,z:az}),
+          radiusX:(6.4+zoneHash(sectorSeed,6+mi,7,salt+4)*2.8)*S,
+          radiusZ:(5.3+zoneHash(sectorSeed,7,8+mi,salt+5)*2.4)*S,
+          heightTiles:height,seed:((sectorSeed+mi*193)%997)*.013,
+          eastSteepness:.08+localReliefWeight*.22+rockiness*.12,
+          topKind:(localReliefWeight>.62&&rockiness>.42)?'groveStone':profile.groundKind,
+          segmentsX:22,segmentsZ:20
+        }));
+      }
     }
     sectors[id]=Object.freeze({id,label:names[`${s.gx},${s.gz}`]||`Sector ${s.gx},${s.gz}`,seed:sectorSeed,baseHeightTiles:baseHeight,temperatureC:tempC,canopy,vegetation,rockiness,treeMultiplier,snowCoverage,moisture:region.moisture,relief:profile.relief,groundKind:profile.groundKind,pathKind:profile.pathKind,crownColor:profile.crownColor,background:profile.background,forestCorridors,geology,modules:Object.freeze(modules)});
   }
@@ -7153,28 +7168,9 @@ function paperWindowCurtains(g,x,z,{y=1.55,ry=0,color=0xb77668,width=.86,height=
 }
 
 function makeInteriorGrid(shell){
-  const pts=[];
-  const cols=Math.round(shell.w);
-  const rows=Math.round(shell.interiorD);
-  const x0=wt(shell.cx-shell.w/2), x1=wt(shell.cx+shell.w/2);
-  const z0=shell.frontZ, z1=shell.frontZ+rows*TILE;
-  for(let i=0;i<=cols;i++){
-    const x=wt(shell.cx-shell.w/2+i);
-    pts.push(x,.035,z0,x,.035,z1);
-  }
-  for(let j=0;j<=rows;j++){
-    const z=z0+j*TILE;
-    pts.push(x0,.035,z,x1,.035,z);
-  }
-  const geo=new THREE.BufferGeometry();
-  geo.setAttribute('position',new THREE.Float32BufferAttribute(pts,3));
-  const lines=new THREE.LineSegments(
-    geo,
-    new THREE.LineBasicMaterial({color:0xf2dca7,transparent:true,opacity:.12,depthWrite:false})
-  );
-  lines.visible=false;
-  shell.grp.add(lines);
-  shell.interiorGrid=lines;
+  // Player-facing square grids are intentionally retired. The authoritative
+  // compiledGrid still exists for biome/navigation/terrain semantics only.
+  shell.interiorGrid=null;
 }
 function buildFacadeWithOpenings(shell,kind,signText){
   const width=wt(shell.w);
@@ -14600,8 +14596,30 @@ function buildGeologyForSector(g,id=mapId,{reserved=null}={}){
   }
   return resolved;
 }
+function proceduralGenerationAudit(id=mapId){
+  const sector=proceduralSectorRecipe(id);
+  if(!sector)return Object.freeze({ok:false,reason:'no_procedural_sector',id});
+  let minH=Infinity,maxH=-Infinity,maxSlope=0,samples=0;
+  const extent=OVERWORLD_HALF-4,step=Math.max(4,Math.floor(OVERWORLD_SECTOR_SIZE/10));
+  for(let x=-extent;x<=extent+.001;x+=step)for(let z=-extent;z<=extent+.001;z+=step){
+    const h=elevationHeightTilesAtWorld(wt(x),wt(z),id),s=elevationSlopeAtWorld(wt(x),wt(z),id).angleDeg;
+    minH=Math.min(minH,h);maxH=Math.max(maxH,h);maxSlope=Math.max(maxSlope,s);samples++;
+  }
+  const geology=resolveGeologyForSector(id),reliefSpan=Math.max(0,maxH-minH);
+  const requiredSpan=Math.max(.45,(Math.max(activeProceduralZone?.region?.landform?.weights?.hills||0,activeProceduralZone?.region?.landform?.weights?.ridges||0,activeProceduralZone?.region?.landform?.weights?.mountain||0))*1.05);
+  return Object.freeze({
+    ok:reliefSpan>=requiredSpan,
+    id,regionId:activeProceduralZone?.region?.id||null,
+    reliefSpanTiles:reliefSpan,minHeightTiles:minH,maxHeightTiles:maxH,maxSlopeDeg:maxSlope,
+    localReliefModules:(sector.modules||[]).length,
+    geographyFeatures:activeProceduralZone?.geography?.features?.length||0,
+    geologyOutcrops:geology.outcrops.length,geologyScree:geology.scree.length,
+    geologyAudit:geology.audit,samples,requiredSpanTiles:requiredSpan,
+    visibleGridGeometry:!!gridHelper
+  });
+}
 window.LuminousGeographyGeology=Object.freeze({
-  version:'geography-geology-v1',geography:GeographyField,geology:GeologySystem,runtime:GEOLOGY_RUNTIME,
+  version:'geography-geology-v1.1',geography:GeographyField,geology:GeologySystem,runtime:GEOLOGY_RUNTIME,audit:proceduralGenerationAudit,
   sample:(id=mapId,tx=0,tz=0)=>Object.freeze({geography:GeographyField.sample(id,tx,tz),geology:geologySampleAtLocal(id,tx,tz),heightTiles:elevationHeightTilesAtWorld(wt(tx),wt(tz),id),slope:elevationSlopeAtWorld(wt(tx),wt(tz),id)})
 });
 
@@ -15910,6 +15928,11 @@ window.WaterGameplaySystem=WaterGameplaySystem;
 function loadMap(id,spawn=null,layer=null){
   const stressLoadStart=FOREST_STRESS_BOOT.enabled?performance.now():0;
   clearMap();
+  if(OVERWORLD_PLAN[id]){
+    const regionId=globalWorldState?.activeLocalRegionId||globalWorldState?.currentRegionId||'gC';
+    const region=GLOBAL_REGION_BY_ID.get(regionId)||GLOBAL_REGION_BY_ID.get('gC');
+    if(region&&activeProceduralZone?.region?.id!==region.id)activateProceduralZone(region);
+  }
   const mapDef=MAP_DATA.maps[id]||MAP_DATA.maps.canal;
   mapId=mapDef.id;
   if(isOverworldSector(mapId)){
@@ -15984,41 +16007,17 @@ function clearGrid(){
   if(gridHelper){scene.remove(gridHelper);gridHelper.geometry.dispose();gridHelper.material.dispose();gridHelper=null;}
 }
 function buildGrid(){
+  // Hidden-grid contract: never create render geometry for the gameplay grid.
+  // compileMapGrid() remains authoritative data; this function only clears any
+  // legacy LineSegments that may survive an old map transition.
+  gridVisible=false;
   clearGrid();
-  if(!gridVisible)return;
-  const mapDef=currentMapDef();
-  const b=mapDef.bounds;
-  const cols=b.x1-b.x0,rows=b.z1-b.z0;
-  const x0=wt(b.x0),x1=wt(b.x1),z0=wt(b.z0),z1=wt(b.z1);
-
-  const gridY=(isOverworldSector(mapDef.id)?tileY(biomeSectorBaseHeightTiles(mapDef.id)):0)+.018;
-  const pts=[];
-  for(let i=0;i<=cols;i++){
-    const x=x0+i*TILE;
-    pts.push(x,gridY,z0,x,gridY,z1);
-  }
-  for(let j=0;j<=rows;j++){
-    const z=z0+j*TILE;
-    pts.push(x0,gridY,z,x1,gridY,z);
-  }
-  const geo=new THREE.BufferGeometry();
-  geo.setAttribute('position',new THREE.Float32BufferAttribute(pts,3));
-  const material=new THREE.LineBasicMaterial({color:0xead39e,transparent:true,opacity:.19,depthWrite:false});
-  gridHelper=new THREE.LineSegments(geo,material);
-  gridHelper.renderOrder=20;
-  scene.add(gridHelper);
 }
 gridToggle.onclick=()=>{
-  gridVisible=!gridVisible;
-  gridToggle.textContent='Cuadrícula: '+(gridVisible?'ON':'OFF');
-  if(activeInteriorStage){
-    if(gridHelper)gridHelper.visible=false;
-    for(const s of paperShells){
-      if(s.interiorGrid)s.interiorGrid.visible=gridVisible&&s===activeInteriorStage;
-    }
-  }else{
-    buildGrid();
-  }
+  gridVisible=false;
+  clearGrid();
+  gridToggle.textContent='Cuadrícula: OFF';
+  for(const s of paperShells)if(s.interiorGrid)s.interiorGrid.visible=false;
 };
 hitboxToggle.onclick=()=>{
   hitboxDebugVisible=!hitboxDebugVisible;
@@ -17736,7 +17735,15 @@ try{
   const testName=qp.get('test');
   const qaMap=qp.get('map');
   const qaLayer=qp.get('layer')||'exterior';
-  if(FOREST_STRESS_BOOT.enabled&&FOREST_STRESS_BOOT.testMode){
+  const qaProcedural=qp.get('qa')==='procedural';
+  if(qaProcedural){
+    const qaRegion=GLOBAL_REGION_BY_ID.get('gC');
+    globalWorldState.currentRegionId=qaRegion.id;
+    globalWorldState.activeLocalRegionId=qaRegion.id;
+    activateProceduralZone(qaRegion);
+    loadMap('owS',null,'exterior');
+    window.__PROCEDURAL_QA__=proceduralGenerationAudit('owS');
+  }else if(FOREST_STRESS_BOOT.enabled&&FOREST_STRESS_BOOT.testMode){
     // Banco aislado opcional; producción estándar inicia por la ruta normal.
     const stressRegion=GLOBAL_REGION_BY_ID.get('gSW')||GLOBAL_REGION_BY_ID.get('gC');
     globalWorldState.currentRegionId=stressRegion.id;
@@ -17768,6 +17775,7 @@ try{
   if(new URLSearchParams(location.search).has('qa')){
     window.__QA__={
       snapshot:runtimeSnapshot,
+      procedural:window.__PROCEDURAL_QA__||null,
       audit:runFunctionalAudit,
       scenarios:TEST_SCENARIOS,
       loadScenario,
