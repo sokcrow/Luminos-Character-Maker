@@ -2422,7 +2422,6 @@ function commitGlobalRegion(region,beforePos){
 }
 function updateGlobalCamera(dt,snap=false){
   if(!globalCamera||!globalActor)return;
-  updatePlayerCameraKeyboardOrbit(dt);
   const target=_globalVec.set(globalActor.position.x,.45,globalActor.position.z+.40);
   const dist=10.2,yaw=playerCameraYawOffset;
   const desired=new THREE.Vector3(target.x+Math.sin(yaw)*dist,8.6,target.z-Math.cos(yaw)*dist);
@@ -2546,12 +2545,20 @@ if(globalExploreBtn)globalExploreBtn.onclick=()=>void enterLocalFromGlobal('expl
 if(globalCampBtn)globalCampBtn.onclick=()=>void enterLocalFromGlobal('camp');
 if(campHereBtn)campHereBtn.onclick=()=>placeCampAtCurrentLocation();
 window.PaperCameraControl=Object.freeze({
-  version:'player-orbit-camera-v1',
-  rotateBy:rotatePlayerCameraBy,
-  setYaw:(yaw)=>{playerCameraYawOffset=normalizeCameraYaw(Number(yaw)||0);return playerCameraYawOffset},
+  version:'player-quarter-camera-v2',
+  rotateQuarter:rotatePlayerCameraQuarter,
+  setQuarter:setPlayerCameraQuarter,
+  quarter:()=>playerCameraQuarter,
+  setYaw:setPlayerCameraYawSnapped,
   yaw:()=>playerCameraYawOffset,
   allowed:playerCameraOrbitAllowed,
-  controls:Object.freeze({pointerDrag:true,touchDrag:true,keyboard:Object.freeze({left:'Q',right:'E'})})
+  controls:Object.freeze({
+    quarterDegrees:90,
+    pointerSwipe:true,
+    touchSwipe:true,
+    swipeThresholdPx:PLAYER_CAMERA_ORBIT.swipeThresholdPx,
+    keyboard:Object.freeze({left:'Q',right:'E'})
+  })
 });
 window.PaperGlobalMap=Object.freeze({
   regions:()=>GLOBAL_REGIONS.map(r=>({...r,state:{...(globalWorldState.regions[r.id]||{})}})),
@@ -4399,23 +4406,44 @@ let currentWorldLayer='exterior',worldLayerBaseY=0;
 let playerBaseY=0;
 let canalRearView=false;
 let canalViewMode='front',canalCameraYaw=0;
-let playerCameraYawOffset=0,cameraOrbitPointerId=null,cameraOrbitLastX=0;
-const PLAYER_CAMERA_ORBIT=Object.freeze({dragRadiansPerPixel:.0085,keyboardRadiansPerSecond:1.65});
-function normalizeCameraYaw(v){return Math.atan2(Math.sin(v),Math.cos(v))}
+let playerCameraQuarter=0,playerCameraYawOffset=0;
+let cameraOrbitPointerId=null,cameraOrbitStartX=0,cameraOrbitLastX=0,cameraOrbitSwipeCommitted=false;
+const PLAYER_CAMERA_ORBIT=Object.freeze({
+  quarterRadians:Math.PI/2,
+  swipeThresholdPx:44,
+  maxSwipeDriftY:180
+});
+function normalizeCameraQuarter(v){
+  const n=Math.round(Number(v)||0);
+  return ((n%4)+4)%4;
+}
+function playerCameraQuarterYaw(quarter=playerCameraQuarter){
+  return normalizeCameraQuarter(quarter)*PLAYER_CAMERA_ORBIT.quarterRadians;
+}
+function syncPlayerCameraQuarterYaw(){
+  playerCameraQuarter=normalizeCameraQuarter(playerCameraQuarter);
+  playerCameraYawOffset=playerCameraQuarterYaw(playerCameraQuarter);
+  return playerCameraYawOffset;
+}
 function playerCameraOrbitAllowed(){
   if(transitioning||dialogOpen||shopOpen||inventoryOpen||cameraCine||cameraReturnTween)return false;
   if(globalMapActive)return true;
   return isOverworldSector(mapId)&&!activeInteriorStage;
 }
-function rotatePlayerCameraBy(delta){
-  if(!Number.isFinite(delta))return playerCameraYawOffset;
-  playerCameraYawOffset=normalizeCameraYaw(playerCameraYawOffset+delta);
-  return playerCameraYawOffset;
+function rotatePlayerCameraQuarter(step){
+  if(!Number.isFinite(Number(step))||!step)return playerCameraQuarter;
+  playerCameraQuarter=normalizeCameraQuarter(playerCameraQuarter+(Number(step)>0?1:-1));
+  syncPlayerCameraQuarterYaw();
+  return playerCameraQuarter;
 }
-function updatePlayerCameraKeyboardOrbit(dt){
-  if(!playerCameraOrbitAllowed())return;
-  const dir=(keys.has('e')?1:0)-(keys.has('q')?1:0);
-  if(dir)rotatePlayerCameraBy(dir*PLAYER_CAMERA_ORBIT.keyboardRadiansPerSecond*Math.max(0,Number(dt)||0));
+function setPlayerCameraQuarter(quarter){
+  playerCameraQuarter=normalizeCameraQuarter(quarter);
+  syncPlayerCameraQuarterYaw();
+  return playerCameraQuarter;
+}
+function setPlayerCameraYawSnapped(yaw){
+  const q=Math.round((Number(yaw)||0)/PLAYER_CAMERA_ORBIT.quarterRadians);
+  return setPlayerCameraQuarter(q);
 }
 
 const BALCONY_Y=wt(2);
@@ -16577,25 +16605,39 @@ joy.onpointerdown=e=>{joyId=e.pointerId;joy.setPointerCapture(e.pointerId);setJo
 joy.onpointermove=e=>{if(e.pointerId===joyId)setJoy(e)};
 joy.onpointerup=resetJoy;joy.onpointercancel=resetJoy;
 const keys=new Set();
-addEventListener('keydown',e=>keys.add(e.key.toLowerCase()));
+addEventListener('keydown',e=>{
+  const key=e.key.toLowerCase();
+  keys.add(key);
+  if(!e.repeat&&playerCameraOrbitAllowed()){
+    if(key==='q'){e.preventDefault();rotatePlayerCameraQuarter(-1);}
+    else if(key==='e'){e.preventDefault();rotatePlayerCameraQuarter(1);}
+  }
+});
 addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
 renderer.domElement.addEventListener('contextmenu',e=>e.preventDefault());
 renderer.domElement.addEventListener('pointerdown',e=>{
   if(!playerCameraOrbitAllowed())return;
   if(e.pointerType==='mouse'&&e.button!==0&&e.button!==2)return;
-  cameraOrbitPointerId=e.pointerId;cameraOrbitLastX=e.clientX;
+  cameraOrbitPointerId=e.pointerId;
+  cameraOrbitStartX=cameraOrbitLastX=e.clientX;
+  cameraOrbitSwipeCommitted=false;
   try{renderer.domElement.setPointerCapture(e.pointerId)}catch(_){}
   if(e.pointerType==='mouse'&&e.button===2)e.preventDefault();
 });
 renderer.domElement.addEventListener('pointermove',e=>{
-  if(e.pointerId!==cameraOrbitPointerId||!playerCameraOrbitAllowed())return;
-  const dx=e.clientX-cameraOrbitLastX;cameraOrbitLastX=e.clientX;
-  if(Math.abs(dx)>.01)rotatePlayerCameraBy(-dx*PLAYER_CAMERA_ORBIT.dragRadiansPerPixel);
+  if(e.pointerId!==cameraOrbitPointerId||!playerCameraOrbitAllowed()||cameraOrbitSwipeCommitted)return;
+  cameraOrbitLastX=e.clientX;
+  const dx=cameraOrbitLastX-cameraOrbitStartX;
+  if(Math.abs(dx)>=PLAYER_CAMERA_ORBIT.swipeThresholdPx){
+    // One swipe = one quarter turn. Drag left rotates clockwise; drag right counter-clockwise.
+    rotatePlayerCameraQuarter(dx<0?1:-1);
+    cameraOrbitSwipeCommitted=true;
+  }
 });
 function endPlayerCameraOrbit(e){
   if(e?.pointerId!==undefined&&e.pointerId!==cameraOrbitPointerId)return;
   if(cameraOrbitPointerId!==null){try{renderer.domElement.releasePointerCapture(cameraOrbitPointerId)}catch(_){}}
-  cameraOrbitPointerId=null;
+  cameraOrbitPointerId=null;cameraOrbitSwipeCommitted=false;
 }
 renderer.domElement.addEventListener('pointerup',endPlayerCameraOrbit);
 renderer.domElement.addEventListener('pointercancel',endPlayerCameraOrbit);
@@ -17102,7 +17144,6 @@ function updateCamera(dt,snap=false){
     // Frente = cámara al sur mirando al norte.
     // Calle sur y calle trasera = cámara al norte mirando al sur.
     // Al cruzar el puente, la cámara ORBITA; no atraviesa al jugador.
-    updatePlayerCameraKeyboardOrbit(dt);
     let targetYaw=Number.isFinite(zone?.yawDeg)
       ? THREE.MathUtils.degToRad(zone.yawDeg)
       : ((zone?.facing==='south')?Math.PI:0);
