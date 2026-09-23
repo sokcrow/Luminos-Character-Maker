@@ -1357,11 +1357,11 @@ const GLOBAL_REGIONS=Object.freeze([
   // expresa como perfil + landform + hydrology. Esto permite probar combinaciones reales
   // sin crear ForestGenerator/CoastGenerator/etc.
   Object.freeze({id:'gNW',q:-1,r: 1,label:'Costa Boscosa',     biome:'bosque costero tropical',biomeProfile:'forest',   landform:Object.freeze({hills:.58,ridges:.24,rolling:.18}),hydrology:Object.freeze({type:'coast',waterLevel:-.25}),altitude:2.9,temp:24,moisture:.84,canopy:.86,vegetation:.97,rockiness:.34,color:0x648d69,seed:61031}),
-  Object.freeze({id:'gN', q: 0,r: 1,label:'Paso Frío',         biome:'tierras altas frías',biomeProfile:'arctic',   landform:Object.freeze({ridges:.62,hills:.28}),hydrology:Object.freeze({type:'none'}),altitude:6.0,temp:2, moisture:.42,canopy:.20,vegetation:.30,rockiness:.68,color:0x818979,seed:73117}),
-  Object.freeze({id:'gNE',q: 1,r: 0,label:'Crestas Nevadas',   biome:'montaña ártica',      biomeProfile:'arctic',   landform:Object.freeze({mountain:.78,ridges:.46,cliffs:.18}),hydrology:Object.freeze({type:'none'}),altitude:7.5,temp:-3,moisture:.34,canopy:.08,vegetation:.18,rockiness:.82,color:0x92998d,seed:88241}),
-  Object.freeze({id:'gC', q: 0,r: 0,label:'Colinas Templadas', biome:'colinas templadas',  biomeProfile:'temperate',landform:Object.freeze({hills:.72,rolling:.32,ridges:.18}),hydrology:Object.freeze({type:'none'}),altitude:2.6,temp:12,moisture:.58,canopy:.54,vegetation:.78,rockiness:.30,color:0x839c6f,start:true,seed:84521}),
-  Object.freeze({id:'gSW',q:-1,r: 0,label:'Bosque Bajo',       biome:'bosque cerrado',      biomeProfile:'forest',   landform:Object.freeze({rolling:.54,hills:.26}),hydrology:Object.freeze({type:'none'}),altitude:.8,temp:18,moisture:.76,canopy:.84,vegetation:.94,rockiness:.10,color:0x67925f,seed:29387}),
-  Object.freeze({id:'gS', q: 0,r:-1,label:'Pradera de Robles', biome:'pradera templada',    biomeProfile:'grassland',landform:Object.freeze({rolling:.62,hills:.20}),hydrology:Object.freeze({type:'none'}),altitude:1.0,temp:17,moisture:.56,canopy:.18,vegetation:.92,rockiness:.14,color:0x8fa56d,seed:41773}),
+  Object.freeze({id:'gN', q: 0,r: 1,label:'Paso Frío',         biome:'tierras altas frías',biomeProfile:'arctic',   landform:Object.freeze({ridges:.62,hills:.28}),hydrology:Object.freeze({type:'auto'}),altitude:6.0,temp:2, moisture:.42,canopy:.20,vegetation:.30,rockiness:.68,color:0x818979,seed:73117}),
+  Object.freeze({id:'gNE',q: 1,r: 0,label:'Crestas Nevadas',   biome:'montaña ártica',      biomeProfile:'arctic',   landform:Object.freeze({mountain:.78,ridges:.46,cliffs:.18}),hydrology:Object.freeze({type:'auto'}),altitude:7.5,temp:-3,moisture:.34,canopy:.08,vegetation:.18,rockiness:.82,color:0x92998d,seed:88241}),
+  Object.freeze({id:'gC', q: 0,r: 0,label:'Colinas Templadas', biome:'colinas templadas',  biomeProfile:'temperate',landform:Object.freeze({hills:.72,rolling:.32,ridges:.18}),hydrology:Object.freeze({type:'auto'}),altitude:2.6,temp:12,moisture:.58,canopy:.54,vegetation:.78,rockiness:.30,color:0x839c6f,start:true,seed:84521}),
+  Object.freeze({id:'gSW',q:-1,r: 0,label:'Bosque Bajo',       biome:'bosque cerrado',      biomeProfile:'forest',   landform:Object.freeze({rolling:.54,hills:.26}),hydrology:Object.freeze({type:'auto'}),altitude:.8,temp:18,moisture:.76,canopy:.84,vegetation:.94,rockiness:.10,color:0x67925f,seed:29387}),
+  Object.freeze({id:'gS', q: 0,r:-1,label:'Pradera de Robles', biome:'pradera templada',    biomeProfile:'grassland',landform:Object.freeze({rolling:.62,hills:.20}),hydrology:Object.freeze({type:'auto'}),altitude:1.0,temp:17,moisture:.56,canopy:.18,vegetation:.92,rockiness:.14,color:0x8fa56d,seed:41773}),
   Object.freeze({id:'gSE',q: 1,r:-1,label:'Costa Árida',       biome:'desierto costero',    biomeProfile:'desert',   landform:Object.freeze({dunes:.66,mesas:.14,rolling:.10}),hydrology:Object.freeze({type:'coast',waterLevel:-.25}),altitude:1.4,temp:27,moisture:.10,canopy:.02,vegetation:.07,rockiness:.32,color:0xb99a68,seed:52919})
 ]);
 const GLOBAL_REGION_BY_ID=new Map(GLOBAL_REGIONS.map(r=>[r.id,r]));
@@ -1806,23 +1806,112 @@ function coastV2EcologySample(id,tx,tz,{includeSlope=true}={}){
 
 const HydrologyModifiers=Object.create(null);
 function registerHydrologyModifier(name,fn){if(!name||typeof fn!=='function')return false;HydrologyModifiers[name]=fn;return fn}
-registerHydrologyModifier('none',(ctx)=>Object.freeze({type:'none'}));
-registerHydrologyModifier('coast',(ctx)=>Object.freeze({type:'coast',coast:createCoastField(ctx)}));
-registerHydrologyModifier('wetland',(ctx)=>Object.freeze({type:'wetland',waterTableTiles:ctx.altitude+ctx.hydrology.waterTable}));
-// Contratos preparados para futuras reglas sin crear generadores paralelos.
-registerHydrologyModifier('river',(ctx)=>Object.freeze({type:'river',prepared:true}));
-registerHydrologyModifier('lake',(ctx)=>Object.freeze({type:'lake',prepared:true}));
-registerHydrologyModifier('pond',(ctx)=>Object.freeze({type:'pond',prepared:true}));
-registerHydrologyModifier('islands',(ctx)=>Object.freeze({type:'islands',prepared:true}));
+function hydrologyReliefScore(ctx){
+  const w=ctx?.landform?.weights||{};
+  return Math.max(w.rolling||0,w.hills||0,w.ridges||0,w.mountain||0,w.cliffs||0,w.mesas||0);
+}
+function hydrologyCurvePoint(curve,t){
+  const p0=curve.points[0],p1=curve.points[1],p2=curve.points[2],u=1-t;
+  return {x:u*u*p0.x+2*u*t*p1.x+t*t*p2.x,z:u*u*p0.z+2*u*t*p1.z+t*t*p2.z};
+}
+function hydrologyCurveNearest(curve,x,z){
+  let best={distance:Infinity,t:0,x:0,z:0};
+  const steps=Math.max(48,Math.floor(curve.samples||96));
+  let prev=hydrologyCurvePoint(curve,0),prevT=0;
+  for(let i=1;i<=steps;i++){
+    const t=i/steps,next=hydrologyCurvePoint(curve,t),vx=next.x-prev.x,vz=next.z-prev.z,len2=vx*vx+vz*vz;
+    const a=len2>1e-8?zoneClamp(((x-prev.x)*vx+(z-prev.z)*vz)/len2,0,1):0;
+    const px=prev.x+vx*a,pz=prev.z+vz*a,d=Math.hypot(x-px,z-pz),tt=prevT+(t-prevT)*a;
+    if(d<best.distance)best={distance:d,t:tt,x:px,z:pz};
+    prev=next;prevT=t;
+  }
+  return best;
+}
+function hydrologyRiverTangent(curve,t){
+  const p0=curve.points[0],p1=curve.points[1],p2=curve.points[2],u=1-t;
+  let x=2*u*(p1.x-p0.x)+2*t*(p2.x-p1.x),z=2*u*(p1.z-p0.z)+2*t*(p2.z-p1.z);
+  const len=Math.hypot(x,z)||1;x/=len;z/=len;return {x,z};
+}
+function createRiverField(ctx){
+  const rng=new SeededRandom(`${ctx.seed}:river-v1`),S=OVERWORLD_SECTOR_SCALE,extent=OVERWORLD_SECTOR_SIZE*1.58;
+  const relief=hydrologyReliefScore(ctx),angle=rng.range(-Math.PI,Math.PI),dx=Math.cos(angle),dz=Math.sin(angle),nx=-dz,nz=dx;
+  const startOffset=rng.range(-18,18)*S,endOffset=rng.range(-18,18)*S,bend=rng.range(-30,30)*S;
+  const points=Object.freeze([
+    Object.freeze({x:-dx*extent+nx*startOffset,z:-dz*extent+nz*startOffset}),
+    Object.freeze({x:nx*bend,z:nz*bend}),
+    Object.freeze({x:dx*extent+nx*endOffset,z:dz*extent+nz*endOffset})
+  ]);
+  return Object.freeze({
+    kind:'river',points,samples:128,halfWidthTiles:(1.10+ctx.moisture*1.45+relief*.55)*S,
+    bankWidthTiles:(1.15+ctx.moisture*.85)*S,depthTiles:.26+ctx.moisture*.64+relief*.32,
+    waterSurfaceTiles:Math.max(.08,ctx.altitude-.34-relief*.18),
+    currentStrength:1.00+relief*.90+ctx.moisture*.40,phase:rng.range(0,Math.PI*2)
+  });
+}
+function riverFieldSample(river,x,z){
+  const near=hydrologyCurveNearest(river,x,z),wave=.91+.09*Math.sin(near.t*Math.PI*5+river.phase),halfWidth=Math.max(.35,river.halfWidthTiles*wave);
+  const signed=near.distance-halfWidth,water=signed<0,center=zoneClamp(1-near.distance/halfWidth,0,1);
+  const waterDepth=water?Math.max(.06,river.depthTiles*Math.pow(center,.62)):0,tangent=hydrologyRiverTangent(river,near.t);
+  const wetness=zoneClamp(1-Math.max(0,signed)/Math.max(.1,river.bankWidthTiles*2.4),0,1);
+  return {type:'river',class:water?(waterDepth>river.depthTiles*.56?'deepWater':'shallowWater'):(signed<river.bankWidthTiles?'riverbank':'land'),
+    distanceToCoast:Infinity,distanceToWater:Math.max(0,signed),signedDistanceToWater:signed,wetness,water,waterDepth,
+    waterSurfaceTiles:river.waterSurfaceTiles,bankWidthTiles:river.bankWidthTiles,current:{x:tangent.x,z:tangent.z,strength:river.currentStrength,label:'Corriente'}};
+}
+function createLakeField(ctx){
+  const rng=new SeededRandom(`${ctx.seed}:lake-v1`),S=OVERWORLD_SECTOR_SCALE;
+  const center=Object.freeze({x:rng.range(-24,24)*S,z:rng.range(-24,24)*S});
+  return Object.freeze({
+    kind:'lake',center,radiusX:(6.8+ctx.moisture*5.2)*S,radiusZ:(5.4+ctx.moisture*4.4)*S,
+    rotation:rng.range(-Math.PI,Math.PI),depthTiles:.55+ctx.moisture*1.15,
+    bankWidthTiles:(1.35+ctx.moisture*.95)*S,waterSurfaceTiles:Math.max(.05,ctx.altitude-.20),phase:rng.range(0,Math.PI*2)
+  });
+}
+function lakeFieldSample(lake,x,z){
+  const cs=Math.cos(lake.rotation),sn=Math.sin(lake.rotation),dx=x-lake.center.x,dz=z-lake.center.z,lx=dx*cs-dz*sn,lz=dx*sn+dz*cs;
+  const q=Math.hypot(lx/Math.max(.1,lake.radiusX),lz/Math.max(.1,lake.radiusZ));
+  const edgeScale=Math.min(lake.radiusX,lake.radiusZ),signed=(q-1)*edgeScale,water=q<1,center=zoneClamp(1-q,0,1);
+  const waterDepth=water?Math.max(.07,lake.depthTiles*Math.pow(center,.56)):0,wetness=zoneClamp(1-Math.max(0,signed)/Math.max(.1,lake.bankWidthTiles*2.2),0,1);
+  return {type:'lake',class:water?(waterDepth>lake.depthTiles*.52?'deepWater':'shallowWater'):(signed<lake.bankWidthTiles?'lakebank':'land'),
+    distanceToCoast:Infinity,distanceToWater:Math.max(0,signed),signedDistanceToWater:signed,wetness,water,waterDepth,
+    waterSurfaceTiles:lake.waterSurfaceTiles,bankWidthTiles:lake.bankWidthTiles,current:null};
+}
+function autoHydrologyType(ctx){
+  const relief=hydrologyReliefScore(ctx),altitude01=zoneClamp((Number(ctx.altitude)||0)/8,0,1);
+  if(ctx.moisture>=.70&&(Number(ctx.altitude)||0)<=1.8&&relief<.72)return'lake';
+  const riverScore=ctx.moisture*.58+relief*.52+altitude01*.18-ctx.aridity*.34;
+  return riverScore>=.50?'river':'none';
+}
+registerHydrologyModifier('none',(ctx)=>Object.freeze({type:'none',requestedType:ctx.hydrology.type||'none'}));
+registerHydrologyModifier('coast',(ctx)=>Object.freeze({type:'coast',requestedType:ctx.hydrology.type||'coast',coast:createCoastField(ctx)}));
+registerHydrologyModifier('wetland',(ctx)=>Object.freeze({type:'wetland',requestedType:ctx.hydrology.type||'wetland',waterTableTiles:ctx.altitude+ctx.hydrology.waterTable}));
+registerHydrologyModifier('river',(ctx)=>Object.freeze({type:'river',requestedType:ctx.hydrology.type||'river',river:createRiverField(ctx)}));
+registerHydrologyModifier('lake',(ctx)=>Object.freeze({type:'lake',requestedType:ctx.hydrology.type||'lake',lake:createLakeField(ctx)}));
+registerHydrologyModifier('pond',(ctx)=>Object.freeze({type:'lake',requestedType:ctx.hydrology.type||'pond',lake:createLakeField(ctx)}));
+registerHydrologyModifier('islands',(ctx)=>Object.freeze({type:'islands',requestedType:ctx.hydrology.type||'islands',prepared:true}));
+registerHydrologyModifier('auto',(ctx)=>{
+  const resolved=autoHydrologyType(ctx);
+  if(resolved==='river')return Object.freeze({...HydrologyModifiers.river(ctx),requestedType:'auto',resolvedType:'river'});
+  if(resolved==='lake')return Object.freeze({...HydrologyModifiers.lake(ctx),requestedType:'auto',resolvedType:'lake'});
+  return Object.freeze({type:'none',requestedType:'auto',resolvedType:'none'});
+});
 const HydrologySystem=Object.freeze({
-  modifiers:HydrologyModifiers,register:registerHydrologyModifier,
+  modifiers:HydrologyModifiers,register:registerHydrologyModifier,autoType:autoHydrologyType,
   compose(ctx){const fn=HydrologyModifiers[ctx.hydrology.type]||HydrologyModifiers.none;return fn(ctx)},
-  distanceToCoast(recipe,x,z){return recipe?.hydrology?.coast?distanceToCoastField(recipe.hydrology.coast,x,z):Infinity}
+  distanceToCoast(recipe,x,z){return recipe?.hydrology?.coast?distanceToCoastField(recipe.hydrology.coast,x,z):Infinity},
+  sampleField(hydrology,x,z){
+    if(hydrology?.type==='river'&&hydrology.river)return riverFieldSample(hydrology.river,x,z);
+    if(hydrology?.type==='lake'&&hydrology.lake)return lakeFieldSample(hydrology.lake,x,z);
+    return null;
+  }
 });
 function compositorDebugSignature(recipe){
   const m=(recipe?.macroforms||[]).map(x=>[x.kind,Number(x.heightTiles||0).toFixed(3),Number(x.radiusX||x.halfWidthTiles||0).toFixed(3)]).join(';');
   const g=(recipe?.geography?.features||[]).map(x=>[x.kind,Number(x.amplitudeTiles||0).toFixed(3),Number(x.radiusX||0).toFixed(2)]).join(';');
-  const h=recipe?.hydrology?.coast;return `${recipe?.region?.seed}|${recipe?.region?.biomeProfile}|${m}|${g}|${h?`${h.angle.toFixed(4)},${h.offset.toFixed(3)},${h.landSign}`:'none'}`;
+  const h=recipe?.hydrology||{},hs=h.coast?`coast:${h.coast.angle.toFixed(4)},${h.coast.offset.toFixed(3)},${h.coast.landSign}`
+    :h.river?`river:${h.river.points.map(p=>`${p.x.toFixed(2)},${p.z.toFixed(2)}`).join('/')},${h.river.halfWidthTiles.toFixed(2)}`
+    :h.lake?`lake:${h.lake.center.x.toFixed(2)},${h.lake.center.z.toFixed(2)},${h.lake.radiusX.toFixed(2)},${h.lake.radiusZ.toFixed(2)}`
+    :h.type||'none';
+  return `${recipe?.region?.seed}|${recipe?.region?.biomeProfile}|${m}|${g}|${hs}`;
 }
 
 // ============================================================
@@ -2021,28 +2110,33 @@ function proceduralHydrologySample(id,tx,tz){
   const p=zoneLocalToMacroPoint(id,tx,tz),hydro=activeProceduralZone.hydrology||{type:'none'};
   if(hydro.type==='coast'&&hydro.coast){
     const d=distanceToCoastField(hydro.coast,p.x,p.z),cls=coastClassForDistance(hydro.coast,d);
-    // 0.3.2-69 · Profundidad física real de la costa. La distancia a la orilla NO es
-    // profundidad: el fondo sumergido usa exactamente la misma regla que la malla de terreno.
-    const submerged=d<0?Math.min(
-      COAST_TERRAIN_RULES.maxSubmergedDepthTiles,
-      Math.pow(Math.max(0,-d),.88)*COAST_TERRAIN_RULES.submergedSlopePerTile
-    ):0;
+    const submerged=d<0?Math.min(COAST_TERRAIN_RULES.maxSubmergedDepthTiles,Math.pow(Math.max(0,-d),.88)*COAST_TERRAIN_RULES.submergedSlopePerTile):0;
     const waterDepth=d<0?COAST_TERRAIN_RULES.shorelineSubmergeTiles+submerged:0;
-    return {type:'coast',class:cls,distanceToCoast:d,distanceToWater:Math.max(0,d),wetness:zoneClamp(1-Math.max(0,d)/5.5,0,1),water:d<0,waterDepth,waterSurfaceTiles:hydro.coast.waterSurfaceTiles};
+    return {type:'coast',class:cls,distanceToCoast:d,distanceToWater:Math.max(0,d),signedDistanceToWater:d,wetness:zoneClamp(1-Math.max(0,d)/5.5,0,1),water:d<0,waterDepth,waterSurfaceTiles:hydro.coast.waterSurfaceTiles,bankWidthTiles:COAST_TERRAIN_RULES.beachWidthTiles,current:null};
   }
+  if(hydro.type==='river'&&hydro.river)return riverFieldSample(hydro.river,p.x,p.z);
+  if(hydro.type==='lake'&&hydro.lake)return lakeFieldSample(hydro.lake,p.x,p.z);
   if(hydro.type==='wetland'){
     const noise=biomeFieldNoise(activeProceduralZone.region.seed,p.x,p.z,41),wetness=zoneClamp(activeProceduralZone.region.moisture+noise*.12,0,1);
     const water=wetness>.92,waterDepth=water?THREE.MathUtils.lerp(.08,.45,zoneClamp((wetness-.92)/.08,0,1)):0;
-    return {type:'wetland',class:wetness>.84?'wetland':'land',distanceToCoast:Infinity,distanceToWater:wetness>.84?0:(1-wetness)*5,wetness,water,waterDepth,waterSurfaceTiles:hydro.waterTableTiles};
+    return {type:'wetland',class:water?'shallowWater':(wetness>.84?'wetland':'land'),distanceToCoast:Infinity,distanceToWater:wetness>.84?0:(1-wetness)*5,signedDistanceToWater:water?-.1:(1-wetness)*5,wetness,water,waterDepth,waterSurfaceTiles:hydro.waterTableTiles,bankWidthTiles:2,current:null};
   }
-  return {type:hydro.type||'none',class:'land',distanceToCoast:Infinity,distanceToWater:Infinity,wetness:activeProceduralZone.region.moisture,water:false,waterDepth:0,waterSurfaceTiles:null};
+  return {type:hydro.type||'none',class:'land',distanceToCoast:Infinity,distanceToWater:Infinity,signedDistanceToWater:Infinity,wetness:activeProceduralZone.region.moisture,water:false,waterDepth:0,waterSurfaceTiles:null,bankWidthTiles:0,current:null};
 }
 function proceduralHydrologyReliefFactor(id,tx,tz){
-  const h=proceduralHydrologySample(id,tx,tz);if(h.type!=='coast')return 1;
-  const cliffWeight=activeProceduralZone?.region?.landform?.weights?.cliffs||0;
-  if(h.distanceToCoast<=.25)return cliffWeight>.55?zoneClamp(.25+cliffWeight*.72,0,1):0;
-  const beachEase=smooth01(zoneClamp((h.distanceToCoast-.25)/5.25,0,1));
-  return THREE.MathUtils.lerp(beachEase,1,cliffWeight*.78);
+  const h=proceduralHydrologySample(id,tx,tz);
+  if(h.type==='coast'){
+    const cliffWeight=activeProceduralZone?.region?.landform?.weights?.cliffs||0;
+    if(h.distanceToCoast<=.25)return cliffWeight>.55?zoneClamp(.25+cliffWeight*.72,0,1):0;
+    const beachEase=smooth01(zoneClamp((h.distanceToCoast-.25)/5.25,0,1));
+    return THREE.MathUtils.lerp(beachEase,1,cliffWeight*.78);
+  }
+  if(h.type==='river'||h.type==='lake'){
+    if(h.water)return 0;
+    const bank=Math.max(.5,Number(h.bankWidthTiles)||2),ease=smooth01(zoneClamp(h.distanceToWater/bank,0,1));
+    return THREE.MathUtils.lerp(.18,1,ease);
+  }
+  return 1;
 }
 function proceduralZoneNatureSample(id,tx,tz){
   if(!activeProceduralZone)return {clearing:0,meadow:0,ridge:0,forestDepth:0,forestEdge:0,treeFactor:1,bushFactor:1,lowShrubFactor:1,tallGrass:0,meadowFloor:0,wildflowerFactor:0,leafLitter:0,moisture:.5,rockiness:.2,vegetation:.5,distanceToWater:Infinity,distanceToCoast:Infinity,hydroClass:'land',reedFactor:0,cactusFactor:0};
@@ -4739,14 +4833,45 @@ function mergeCoastCellRects(id,selector){
   }
   return merged;
 }
+function mergeHydrologyCellRects(id,selector){
+  const rows=[];
+  for(let z=-OVERWORLD_HALF;z<OVERWORLD_HALF;z++){
+    let run=null;
+    for(let x=-OVERWORLD_HALF;x<=OVERWORLD_HALF;x++){
+      const sample=x<OVERWORLD_HALF?proceduralHydrologySample(id,x+.5,z+.5):null,key=sample?selector(sample,x,z):null;
+      if(key!==run?.key){
+        if(run)rows.push({x0:run.x0,x1:x,z0:z,z1:z+1,key:run.key});
+        run=key?{x0:x,key}:null;
+      }
+    }
+  }
+  const merged=[];
+  for(const r of rows){
+    let prev=null;for(let i=merged.length-1;i>=0;i--){const q=merged[i];if(q.key===r.key&&q.x0===r.x0&&q.x1===r.x1&&q.z1===r.z0){prev=q;break}if(q.z1<r.z0)break}
+    if(prev)prev.z1=r.z1;else merged.push({...r});
+  }
+  return merged;
+}
 function proceduralHydrologySurfaceDefsForSector(id=mapId){
-  const coast=proceduralCoastAtSector(id);if(!coast)return [];
-  const rects=mergeCoastCellRects(id,d=>d<0?(d<coast.thresholds.deep?'deepWater':'shallowWater'):null);
-  return rects.map((r,i)=>({
-    id:`${id}-coast-water-${i}`,layer:'exterior',x0:r.x0,x1:r.x1,z0:r.z0,z1:r.z1,elevation:coast.waterSurfaceTiles,
-    terrain:'water',walkable:true,combat:false,moveMultiplier:r.key==='deepWater'?.62:.74,locomotion:'swim',
-    tags:['water','swim','nature:coast',`coast:${r.key}`]
-  }));
+  const hydro=activeProceduralZone?.hydrology||{type:'none'};
+  if(hydro.type==='none')return [];
+  if(hydro.type==='coast'&&hydro.coast){
+    const rects=mergeCoastCellRects(id,d=>d<0?(d<hydro.coast.thresholds.deep?'deepWater':'shallowWater'):null);
+    return rects.map((r,i)=>({
+      id:`${id}-coast-water-${i}`,layer:'exterior',x0:r.x0,x1:r.x1,z0:r.z0,z1:r.z1,elevation:hydro.coast.waterSurfaceTiles,
+      terrain:'water',walkable:true,combat:false,moveMultiplier:r.key==='deepWater'?.62:.74,locomotion:'swim',
+      tags:['water','swim','nature:coast',`coast:${r.key}`]
+    }));
+  }
+  const rects=mergeHydrologyCellRects(id,h=>h.water?(h.class==='deepWater'?'deepWater':'shallowWater'):null);
+  return rects.map((r,i)=>{
+    const cx=(r.x0+r.x1)*.5,cz=(r.z0+r.z1)*.5,h=proceduralHydrologySample(id,cx,cz),kind=hydro.type;
+    return {
+      id:`${id}-${kind}-water-${i}`,layer:'exterior',x0:r.x0,x1:r.x1,z0:r.z0,z1:r.z1,elevation:Number.isFinite(h.waterSurfaceTiles)?h.waterSurfaceTiles:0,
+      terrain:'water',walkable:true,combat:false,moveMultiplier:r.key==='deepWater'?.60:.74,locomotion:'swim',
+      tags:['water','swim',`nature:${kind}`,`${kind}:${r.key}`],current:h.current?{...h.current}:undefined
+    };
+  });
 }
 function proceduralCoastGroundRectsForSector(id=mapId,defaultKind='forestGround'){
   const coast=proceduralCoastAtSector(id);if(!coast)return null;
@@ -5135,6 +5260,15 @@ function elevationHeightTilesInModule(module,tx,tz,id=mapId){
   const crown=.96+.04*Math.sin((tx*.72+tz*.49)+seed*2.1);
   return Math.max(0,(Number(module.heightTiles)||0)*Math.pow(rise,1.08)*crown);
 }
+function inlandHydrologyGroundHeightTilesAtLocal(id,tx,tz,rawHeightTiles){
+  const raw=Number(rawHeightTiles)||0,h=proceduralHydrologySample(id,tx,tz);
+  if(!['river','lake'].includes(h.type)||!Number.isFinite(h.waterSurfaceTiles))return raw;
+  if(h.water)return Math.min(raw,h.waterSurfaceTiles-Math.max(.06,Number(h.waterDepth)||.06));
+  const bank=Math.max(.45,Number(h.bankWidthTiles)||2),d=Number(h.distanceToWater);
+  if(!Number.isFinite(d)||d>=bank)return raw;
+  const t=smooth01(zoneClamp(d/bank,0,1)),shore=h.waterSurfaceTiles-.045;
+  return Math.min(raw,THREE.MathUtils.lerp(shore,raw,t));
+}
 function elevationHeightTilesAtWorld(x,z,id=mapId){
   const tx=x/TILE,tz=z/TILE,base=biomeSectorBaseHeightTiles(id);
   let local=0,transition=0;
@@ -5148,7 +5282,8 @@ function elevationHeightTilesAtWorld(x,z,id=mapId){
   const raw=Math.max(0,base+transition+local+geographyDelta);
   // La costa modifica la ALTURA del terreno de forma continua; no crea un escalón
   // ni una rampa artificial separada. Física y render consumen la misma función.
-  return Math.max(0,coastGroundHeightTilesAtLocal(id,tx,tz,raw));
+  const coastAdjusted=coastGroundHeightTilesAtLocal(id,tx,tz,raw);
+  return Math.max(0,inlandHydrologyGroundHeightTilesAtLocal(id,tx,tz,coastAdjusted));
 }
 const NATURAL_SLOPE_RULES=Object.freeze({normalDeg:24,difficultDeg:34,maxClimbDeg:43,sampleTiles:.24});
 function elevationSlopeAtWorld(x,z,id=mapId){
