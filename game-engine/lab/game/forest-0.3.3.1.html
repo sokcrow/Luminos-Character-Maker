@@ -1056,11 +1056,11 @@ function displayDetectMobileDevice(){
 }
 const DISPLAY_DEVICE_MOBILE=displayDetectMobileDevice();
 const MOBILE_FOREST_LOW_POLY=DISPLAY_DEVICE_MOBILE;
-const DISPLAY_PERFORMANCE_RUNTIME={adaptiveScale:1,lastAdjust:0,lowStreak:0,highStreak:0,targetFps:48,minFps:40,minScale:.58};
+const DISPLAY_PERFORMANCE_RUNTIME={adaptiveScale:1,lastAdjust:0,lowStreak:0,highStreak:0,targetFps:48,minFps:38,minScale:.84};
 function displayLandscapeMobile(){return DISPLAY_DEVICE_MOBILE&&innerWidth>innerHeight}
-function displayBasePixelRatioCap(){return DISPLAY_DEVICE_MOBILE?(displayLandscapeMobile()?0.70:1.25):1.5}
+function displayBasePixelRatioCap(){return DISPLAY_DEVICE_MOBILE?(displayLandscapeMobile()?1.20:1.35):2.0}
 function displayPixelRatioCap(){return displayBasePixelRatioCap()*DISPLAY_PERFORMANCE_RUNTIME.adaptiveScale}
-function displayPixelRatio(){return Math.min(Number(devicePixelRatio)||1,displayPixelRatioCap())}
+function displayPixelRatio(){const native=Math.max(1,Number(devicePixelRatio)||1);return Math.min(native,Math.max(1,displayPixelRatioCap()))}
 
 const camera=new THREE.PerspectiveCamera(40,innerWidth/innerHeight,.1,180);
 const CAMERA_VISIBILITY_REFERENCE_ASPECT=16/9;
@@ -1073,7 +1073,8 @@ function cameraFixedVisibilityFov(baseFov,cam=camera){
   const h=2*Math.atan(Math.tan(v/2)*CAMERA_VISIBILITY_REFERENCE_ASPECT);
   return THREE.MathUtils.radToDeg(2*Math.atan(Math.tan(h/2)/aspect));
 }
-const renderer=new THREE.WebGLRenderer({antialias:!DISPLAY_DEVICE_MOBILE,powerPreference:'high-performance'});
+const DISPLAY_RENDER_ANTIALIAS=!DISPLAY_DEVICE_MOBILE;
+const renderer=new THREE.WebGLRenderer({antialias:DISPLAY_RENDER_ANTIALIAS,powerPreference:'high-performance'});
 renderer.setPixelRatio(displayPixelRatio());
 renderer.setSize(innerWidth,innerHeight);
 renderer.outputColorSpace=THREE.SRGBColorSpace;
@@ -18454,7 +18455,7 @@ window.LuminousDisplayPerformance=Object.freeze({
     cameraProfile:typeof viewportCameraProfile==='function'?viewportCameraProfile():null,
     shadowSize:DISPLAY_SHADOW_SIZE,
     dynamicShadows:renderer.shadowMap.enabled,
-    antialias:!DISPLAY_DEVICE_MOBILE,
+    antialias:DISPLAY_RENDER_ANTIALIAS,
     streamProfile:typeof forestStressResolvedProfileName==='function'?forestStressResolvedProfileName():null,
     fps:typeof ForestStressRuntime==='object'?ForestStressRuntime.fpsEMA:null
   }),
