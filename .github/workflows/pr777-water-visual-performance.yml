@@ -60,7 +60,7 @@ jobs:
               maxGap:gaps.length?Math.max(...gaps):0,
               ticks:ticks.length,
               paperFX:window.PaperFX?.status?.()||null,
-              playerSafe:window.SpawnSafetySystem?.playerIsSafe({requireDry:true})??null
+              playerSafe:window.SpawnSafetySystem?.playerIsSafe({requireDry:true})??null,loadProfile:window.__LAST_MAP_LOAD_PERF__||null
             };
           });
           river.wallMs=Date.now()-start;
