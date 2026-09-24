@@ -63,7 +63,8 @@ jobs:
               tickCount:ticks.length,
               hydrology:active?.hydrology?.type||null,
               riverSegments:active?.hydrology?.river?.lookupSegments?.length||0,
-              playerSafe:window.SpawnSafetySystem?.playerIsSafe({requireDry:true})??null
+              playerSafe:window.SpawnSafetySystem?.playerIsSafe({requireDry:true})??null,
+              loadPerf:window.__LAST_MAP_LOAD_PERF__||null
             };
           });
           data.wallMs=wallMs; data.before=before; data.errors=errors;
