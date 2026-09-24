@@ -51,6 +51,7 @@ const { pathToFileURL } = require('node:url');
     'grain_seed_raw',
     'spice_herb_raw',
     'medicinal_herb_raw',
+    'potato', 'carrot', 'onion', 'tomato', 'cabbage', 'lettuce', 'spinach', 'broccoli', 'pumpkin', 'beet', 'radish', 'celery', 'cucumber', 'bamboo_shoot', 'sweet_potato', 'eggplant', 'wheat', 'rice', 'corn', 'oats', 'barley', 'rye', 'beans', 'lentils', 'peas', 'soybean', 'almond', 'walnut', 'peanut', 'sunflower_seed', 'sesame_seed', 'exotic_seed', 'pecan', 'chestnut', 'pine_nut', 'cacao', 'coffee_bean', 'garlic', 'ginger', 'black_pepper', 'chili_pepper', 'paprika', 'cinnamon', 'clove', 'nutmeg', 'turmeric', 'rare_spice', 'basil', 'mint', 'rosemary', 'thyme', 'sage', 'parsley', 'chives', 'tea_leaf', 'medicinal_herb', 'bitterroot', 'feverleaf', 'bloodleaf', 'calming_herb', 'toxic_herb', 'nightshade', 'exotic_medicinal_herb',
     'herb_healing',
     'herb_antidote',
     'herb_calming',
@@ -92,15 +93,15 @@ const { pathToFileURL } = require('node:url');
   assert.equal(catalog.get('cacao').standardUnitValueAhn, 5400);
   assert.equal(catalog.get('coffee_bean').standardUnitValueAhn, 4200);
 
-  assert.equal(catalog.get('tomato').iconFamily, 'vegetable_raw');
-  assert.equal(catalog.get('almond').iconFamily, 'grain_seed_raw');
-  assert.equal(catalog.get('rosemary').iconFamily, 'spice_herb_raw');
-  assert.equal(catalog.get('nightshade').iconFamily, 'herb_toxic');
+  assert.equal(catalog.get('tomato').iconFamily, 'tomato');
+  assert.equal(catalog.get('almond').iconFamily, 'almond');
+  assert.equal(catalog.get('rosemary').iconFamily, 'rosemary');
+  assert.equal(catalog.get('nightshade').iconFamily, 'nightshade');
   assert.equal(catalog.get('common_mushroom').iconFamily, 'fungus_raw');
   assert.equal(catalog.get('resin').iconFamily, 'botanical_extract_raw');
   assert.equal(catalog.get('pineapple').iconFamily, 'pineapple');
-  assert.equal(catalog.get('sweet_potato').iconFamily, 'vegetable_raw');
-  assert.equal(catalog.get('tea_leaf').iconFamily, 'spice_herb_raw');
+  assert.equal(catalog.get('sweet_potato').iconFamily, 'sweet_potato');
+  assert.equal(catalog.get('tea_leaf').iconFamily, 'tea_leaf');
   assert.equal(catalog.get('truffle').iconFamily, 'fungus_raw');
   assert.equal(catalog.get('berry').id, 'blackberry');
   assert.equal(catalog.get('exotic_fruit').id, 'dragon_fruit');
