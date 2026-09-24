@@ -165,7 +165,7 @@ async function main() {
     test = test.split(source).join(localPath);
   }
   if (migratedVersion !== null) {
-    test = test.replace(/assert\\.equal\\(registry\\.version, \\d+\\);/, "assert.equal(registry.version, " + migratedVersion + ");");
+    test = test.replace(/assert\.equal\(registry\.version, \d+\);/, "assert.equal(registry.version, " + migratedVersion + ");");
   }
   await fs.writeFile(TEST_PATH, test, "utf8");
 
