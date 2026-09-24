@@ -1891,8 +1891,14 @@ function createRiverField(ctx){
     currentStrength:1.00+relief*.90+ctx.moisture*.40,phase:rng.range(0,Math.PI*2)
   });
 }
+function riverHalfWidthAtT(river,t){
+  const phase=Number(river?.phase)||0;
+  const primary=.07*Math.sin(t*Math.PI*5+phase);
+  const secondary=.035*Math.sin(t*Math.PI*11+phase*1.73);
+  return Math.max(.35,(Number(river?.halfWidthTiles)||.35)*(.90+primary+secondary));
+}
 function riverFieldSample(river,x,z){
-  const near=hydrologyCurveNearest(river,x,z),wave=.91+.09*Math.sin(near.t*Math.PI*5+river.phase),halfWidth=Math.max(.35,river.halfWidthTiles*wave);
+  const near=hydrologyCurveNearest(river,x,z),halfWidth=riverHalfWidthAtT(river,near.t);
   const signed=near.distance-halfWidth,water=signed<0,center=zoneClamp(1-near.distance/halfWidth,0,1);
   const spineHalfWidth=Math.max(.275,Number(river.spineHalfWidthTiles)||hydrologySpineWidthTiles(halfWidth*2)*.5);
   const spineDistance=near.distance-spineHalfWidth,spine=spineDistance<=0,spineInfluence=zoneClamp(1-near.distance/spineHalfWidth,0,1);
@@ -5186,6 +5192,90 @@ function inlandHydrologyWaterMaskTextureForSector(id,bounds,resolution=256){
   const tex=new THREE.CanvasTexture(c);tex.wrapS=tex.wrapT=THREE.ClampToEdgeWrapping;tex.magFilter=THREE.LinearFilter;tex.minFilter=THREE.LinearMipmapLinearFilter;tex.needsUpdate=true;
   return tex;
 }
+
+function riverVisualPalette(region){
+  const biome=region?.biomeProfile||'temperate';
+  if(biome==='desert')return {bank:0x6b5841,foam:0xe8f3e8};
+  if(biome==='arctic')return {bank:0x657276,foam:0xf4ffff};
+  if(biome==='forest')return {bank:0x354a3c,foam:0xeafff4};
+  if(biome==='grassland')return {bank:0x48583b,foam:0xecfff4};
+  return {bank:0x435047,foam:0xeafff6};
+}
+function riverLocalVisualFrame(river,id,t,lateral=0){
+  const center=hydrologyCurvePoint(river,t),tangent=hydrologyRiverTangent(river,t),nx=-tangent.z,nz=tangent.x;
+  const sector=OVERWORLD_PLAN[id]||{gx:0,gz:0};
+  return {
+    x:center.x-sector.gx*OVERWORLD_SECTOR_SIZE+nx*lateral,
+    z:center.z-sector.gz*OVERWORLD_SECTOR_SIZE+nz*lateral,
+    tangent,nx,nz
+  };
+}
+function riverVisualInBounds(p,bounds,margin=3){
+  return p.x>=bounds.x0-margin&&p.x<=bounds.x1+margin&&p.z>=bounds.z0-margin&&p.z<=bounds.z1+margin;
+}
+function riverVisualQuad(out,a,b,c,d){
+  out.push(a.x,a.y,a.z,b.x,b.y,b.z,c.x,c.y,c.z,a.x,a.y,a.z,c.x,c.y,c.z,d.x,d.y,d.z);
+}
+function buildRiverBankVisual(group,id,river,profile,bounds){
+  if(!group||!river)return null;
+  const palette=riverVisualPalette(activeProceduralZone?.region),segments=DISPLAY_DEVICE_MOBILE?18:34;
+  const bankWidth=Math.max(.34,Math.min(1.35,(Number(river.bankWidthTiles)||1.5)*.26));
+  const positions=[];
+  const vertex=(frame)=>{
+    const h=elevationHeightTilesAtWorld(wt(frame.x),wt(frame.z),id);
+    return {x:wt(frame.x),y:tileY(h)+.016,z:wt(frame.z)};
+  };
+  for(const side of [-1,1])for(let i=0;i<segments;i++){
+    const t0=i/segments,t1=(i+1)/segments,w0=riverHalfWidthAtT(river,t0),w1=riverHalfWidthAtT(river,t1);
+    const a0=riverLocalVisualFrame(river,id,t0,side*(w0+.03)),b0=riverLocalVisualFrame(river,id,t0,side*(w0+bankWidth));
+    const a1=riverLocalVisualFrame(river,id,t1,side*(w1+.03)),b1=riverLocalVisualFrame(river,id,t1,side*(w1+bankWidth));
+    if(!riverVisualInBounds(a0,bounds,bankWidth+2)&&!riverVisualInBounds(a1,bounds,bankWidth+2))continue;
+    riverVisualQuad(positions,vertex(a0),vertex(a1),vertex(b1),vertex(b0));
+  }
+  if(!positions.length)return null;
+  const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geo.computeVertexNormals();
+  const mat=new THREE.MeshStandardMaterial({color:palette.bank,roughness:.98,metalness:0,transparent:true,opacity:DISPLAY_DEVICE_MOBILE?.34:.46,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1});
+  const mesh=new THREE.Mesh(geo,mat);mesh.renderOrder=-3;mesh.userData.waterVisualClass='river-wet-bank';group.add(mesh);return mesh;
+}
+function buildRiverEdgeFoamVisual(group,id,river,profile,bounds,baseY){
+  if(DISPLAY_DEVICE_MOBILE||!group||!river)return null;
+  const palette=riverVisualPalette(activeProceduralZone?.region),segments=32,positions=[];
+  const vertex=(frame,y)=>({x:wt(frame.x),y,z:wt(frame.z)});
+  for(const side of [-1,1])for(let i=0;i<segments;i++){
+    const t0=i/segments,t1=(i+1)/segments,w0=riverHalfWidthAtT(river,t0),w1=riverHalfWidthAtT(river,t1);
+    const outer0=Math.max(.12,w0-.035),inner0=Math.max(.08,w0-.20),outer1=Math.max(.12,w1-.035),inner1=Math.max(.08,w1-.20);
+    const a0=riverLocalVisualFrame(river,id,t0,side*inner0),b0=riverLocalVisualFrame(river,id,t0,side*outer0);
+    const a1=riverLocalVisualFrame(river,id,t1,side*inner1),b1=riverLocalVisualFrame(river,id,t1,side*outer1);
+    if(!riverVisualInBounds(a0,bounds,2)&&!riverVisualInBounds(a1,bounds,2))continue;
+    const pulse=.75+.25*Math.sin((t0+t1)*Math.PI*6+(Number(river.phase)||0));
+    const y=baseY+.030+pulse*.004;
+    riverVisualQuad(positions,vertex(a0,y),vertex(a1,y),vertex(b1,y),vertex(b0,y));
+  }
+  if(!positions.length)return null;
+  const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
+  const mat=new THREE.MeshBasicMaterial({color:palette.foam,transparent:true,opacity:.17,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending});
+  const mesh=new THREE.Mesh(geo,mat);mesh.renderOrder=1;mesh.userData.waterVisualClass='river-edge-foam';group.add(mesh);return mesh;
+}
+function buildRiverFlowStreaks(group,id,river,profile,bounds,baseY){
+  if(!group||!river)return null;
+  const count=DISPLAY_DEVICE_MOBILE?8:18,positions=[],phase=Number(river.phase)||0,strength=Math.max(.2,Number(river.currentStrength)||1);
+  for(let i=0;i<count;i++){
+    const t=zoneClamp((i+.42)/(count+.18)+Math.sin(i*2.13+phase)*.006,.025,.975);
+    const width=riverHalfWidthAtT(river,t),lateral=Math.sin(i*2.41+phase*.73)*width*.48;
+    const p=riverLocalVisualFrame(river,id,t,lateral);if(!riverVisualInBounds(p,bounds,1.5))continue;
+    const len=Math.min(1.85,.58+strength*.42)*(DISPLAY_DEVICE_MOBILE?.82:1);
+    const back=.22*len,front=.78*len,y=baseY+.052;
+    positions.push(
+      wt(p.x-p.tangent.x*back),y,wt(p.z-p.tangent.z*back),
+      wt(p.x+p.tangent.x*front),y,wt(p.z+p.tangent.z*front)
+    );
+  }
+  if(!positions.length)return null;
+  const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
+  const mat=new THREE.LineBasicMaterial({color:profile.detailA,transparent:true,opacity:DISPLAY_DEVICE_MOBILE?.23:.36,depthWrite:false,blending:THREE.AdditiveBlending});
+  const lines=new THREE.LineSegments(geo,mat);lines.renderOrder=2;lines.userData.waterVisualClass='river-flow-streaks';group.add(lines);return lines;
+}
+
 function proceduralInlandWaterVisualProfile(hydro,region){
   const type=hydro?.type||'lake',field=hydro?.river||hydro?.lake||hydro;
   if(type==='river'){
@@ -5233,10 +5323,16 @@ function buildProceduralInlandWaterVisual(g,id=mapId){
     const detailMat=new THREE.MeshBasicMaterial({map:texture,alphaMap:mask,color,transparent:true,opacity,side:THREE.DoubleSide,depthWrite:false,depthTest:true,blending:THREE.AdditiveBlending});
     const detail=new THREE.Mesh(geo,detailMat);detail.rotation.x=-Math.PI/2;detail.position.set(wt(cx),baseY+y,wt(cz));detail.renderOrder=order;detail.userData.waterVisualClass=profile.id;group.add(detail);return detail;
   };
-  const detailA=addDetail(kit?.textures?.waves?.[0],profile.detailA,hydro.type==='river'?.42:.24,.010,-2);
-  const detailB=!DISPLAY_DEVICE_MOBILE?addDetail(kit?.textures?.waves?.[1],profile.detailB,hydro.type==='river'?.30:.16,.016,-1):null;
-  const foam=hydro.type==='river'&&!DISPLAY_DEVICE_MOBILE?addDetail(kit?.textures?.foam,profile.foam,.18,.021,0):null;
-  group.userData.paperFXWaterMesh=mesh;group.userData.waterDetailLayers=[detailA,detailB,foam].filter(Boolean);g.add(group);
+  const detailA=addDetail(kit?.textures?.waves?.[0],profile.detailA,hydro.type==='river'?.34:.24,.010,-2);
+  const detailB=!DISPLAY_DEVICE_MOBILE?addDetail(kit?.textures?.waves?.[1],profile.detailB,hydro.type==='river'?.22:.16,.016,-1):null;
+  const foam=null;
+  const riverLayers=hydro.type==='river'&&hydro.river?[
+    buildRiverBankVisual(group,id,hydro.river,profile,bounds),
+    buildRiverEdgeFoamVisual(group,id,hydro.river,profile,bounds,baseY),
+    buildRiverFlowStreaks(group,id,hydro.river,profile,bounds,baseY)
+  ].filter(Boolean):[];
+  group.userData.paperFXWaterMesh=mesh;group.userData.waterDetailLayers=[detailA,detailB,foam].filter(Boolean);
+  group.userData.riverVisualLayers=riverLayers;g.add(group);
   return group;
 }
 
