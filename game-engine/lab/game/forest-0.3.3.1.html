@@ -15818,9 +15818,14 @@ function buildOverworldSector(){
   }
 
   // Bosque perimetral alto. Los huecos de 2 tiles quedan claramente recortados.
-  const edgeSteps=[];for(let t=-OVERWORLD_HALF+2;t<=OVERWORLD_HALF-2+.001;t+=3)edgeSteps.push(t);
+  // Mobile budget: el cinturón perimetral era el mayor coste de entrada (~3 s en
+  // emulación Android). Conservamos la silueta forestal, pero no necesitamos un árbol
+  // físico cada 3 tiles en un borde que funciona principalmente como fondo visual.
+  const edgeTreeStep=DISPLAY_DEVICE_MOBILE?5.8:3;
+  const edgeSteps=[];for(let t=-OVERWORLD_HALF+2;t<=OVERWORLD_HALF-2+.001;t+=edgeTreeStep)edgeSteps.push(t);
   const edgeTreePos=OVERWORLD_HALF-1.45;
-  const edgeTreeKeep=isProceduralZone?zoneClamp(.01+sectorClimate.treeMultiplier*.88,.01,1):Math.max(.22,Math.min(1,.18+sectorClimate.treeMultiplier*.82));
+  const rawEdgeTreeKeep=isProceduralZone?zoneClamp(.01+sectorClimate.treeMultiplier*.88,.01,1):Math.max(.22,Math.min(1,.18+sectorClimate.treeMultiplier*.82));
+  const edgeTreeKeep=DISPLAY_DEVICE_MOBILE?rawEdgeTreeKeep*.58:rawEdgeTreeKeep;
   const edgeKeep=(edge,t)=>{
     const salt={north:11,south:23,east:37,west:51}[edge]||0;
     const v=Math.sin(t*12.73+salt*3.17+OVERWORLD_PLAN[mapId].gx*9.1+OVERWORLD_PLAN[mapId].gz*17.3)*43758.5453;
@@ -15829,10 +15834,11 @@ function buildOverworldSector(){
     return Math.abs(v-Math.floor(v))<chance;
   };
   for(const t of edgeSteps){
-    if(!edgeOpen('north',t)&&edgeKeep('north',t))sectorTree(t,edgeTreePos,.92+(Math.abs(t)%4)*.025,true);
-    if(!edgeOpen('south',t)&&edgeKeep('south',t))sectorTree(t,-edgeTreePos,.90+(Math.abs(t+1)%4)*.025,true);
-    if(!edgeOpen('east',t)&&edgeKeep('east',t))sectorTree(edgeTreePos,t,.90+(Math.abs(t+2)%4)*.025,true);
-    if(!edgeOpen('west',t)&&edgeKeep('west',t))sectorTree(-edgeTreePos,t,.92+(Math.abs(t)%4)*.025,true);
+    const edgeShadow=!DISPLAY_DEVICE_MOBILE;
+    if(!edgeOpen('north',t)&&edgeKeep('north',t))sectorTree(t,edgeTreePos,.92+(Math.abs(t)%4)*.025,edgeShadow);
+    if(!edgeOpen('south',t)&&edgeKeep('south',t))sectorTree(t,-edgeTreePos,.90+(Math.abs(t+1)%4)*.025,edgeShadow);
+    if(!edgeOpen('east',t)&&edgeKeep('east',t))sectorTree(edgeTreePos,t,.90+(Math.abs(t+2)%4)*.025,edgeShadow);
+    if(!edgeOpen('west',t)&&edgeKeep('west',t))sectorTree(-edgeTreePos,t,.92+(Math.abs(t)%4)*.025,edgeShadow);
   }
 
   markSectorPerf('edgeTrees');
