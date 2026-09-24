@@ -15,11 +15,18 @@ on:
       - 'js/combat-v073-remote-intents.js'
       - 'js/combat-v073-library-client.js'
       - 'js/combat-v073-authority.js'
+      - 'js/combat-deployment-runtime.js'
+      - 'js/combat-v073-deployment-bridge.js'
+      - 'js/unit-rank-runtime.js'
+      - 'js/enemy-action-slot-allocator.js'
+      - 'js/battle-viewer-runtime-073-timeline.js'
+      - 'js/wolf-unit-runtime.js'
       - 'js/universal-library-runtime.js'
       - 'js/combat-v073-camera-controls.js'
       - 'js/combat-v073-dm-setup.js'
       - 'js/combat-v073-speed-authority.js'
       - 'js/combat-v073-dm-observer.js'
+      - 'js/dm-combat-live-viewer.js'
       - 'js/combat-unit-library-sync.js'
       - 'js/combat-v073-unit-deploy-bridge.js'
       - 'js/unit-combat-instantiator.js'
@@ -29,11 +36,16 @@ on:
       - 'js/dm-combat-tab-manager.js'
       - 'tests/combat-v073-live-cutover-smoke.mjs'
       - 'tests/combat-v073-dm-editor-smoke.mjs'
+      - 'tests/dm-combat-live-viewer-smoke.mjs'
       - 'tests/dm-combat-unit-library-real-ui-smoke.mjs'
       - 'tests/combat-v073-speed-persistence-smoke.mjs'
       - 'tests/combat-v073-dm-observer-smoke.mjs'
       - 'tests/combat-v073-limbus-facing-runtime-smoke.mjs'
       - 'tests/combat-v073-player-renderer-performance-smoke.mjs'
+      - 'tests/combat-backup-lifecycle-smoke.mjs'
+      - 'tests/unit-rank-command-smoke.mjs'
+      - 'tests/enemy-action-slot-allocator-smoke.mjs'
+      - 'tests/wolf-unit-library-smoke.mjs'
       - 'tests/combat-v073-theatre-isolation-smoke.mjs'
       - 'tests/combat-v073-live-sync-hotfix-smoke.mjs'
       - 'tests/combat-v073-economy-menu-smoke.mjs'
@@ -60,11 +72,18 @@ jobs:
           node --check js/combat-v073-remote-intents.js
           node --check js/combat-v073-library-client.js
           node --check js/combat-v073-authority.js
+          node --check js/combat-deployment-runtime.js
+          node --check js/combat-v073-deployment-bridge.js
+          node --check js/unit-rank-runtime.js
+          node --check js/enemy-action-slot-allocator.js
+          node --check js/battle-viewer-runtime-073-timeline.js
+          node --check js/wolf-unit-runtime.js
           node --check js/universal-library-runtime.js
           node --check js/combat-v073-camera-controls.js
           node --check js/combat-v073-dm-setup.js
           node --check js/combat-v073-speed-authority.js
           node --check js/combat-v073-dm-observer.js
+          node --check js/dm-combat-live-viewer.js
           node --check js/combat-unit-library-sync.js
           node --check js/combat-v073-unit-deploy-bridge.js
           node --check js/unit-combat-instantiator.js
@@ -76,6 +95,8 @@ jobs:
         run: node tests/combat-v073-live-cutover-smoke.mjs
       - name: DM Combat Library and field setup contract
         run: node tests/combat-v073-dm-editor-smoke.mjs
+      - name: Real DM Battle visual parity contract
+        run: node tests/dm-combat-live-viewer-smoke.mjs
       - name: DM Unit Library real UI empty-Firebase runtime
         run: node tests/dm-combat-unit-library-real-ui-smoke.mjs
       - name: Live sync, camera and canonical library hotfix contract
@@ -94,5 +115,13 @@ jobs:
         run: node tests/combat-v073-limbus-facing-runtime-smoke.mjs
       - name: Player renderer performance contract
         run: node tests/combat-v073-player-renderer-performance-smoke.mjs
+      - name: FIELD and BACKUP lifecycle contract
+        run: node tests/combat-backup-lifecycle-smoke.mjs
+      - name: Unit rank and Backup command contract
+        run: node tests/unit-rank-command-smoke.mjs
+      - name: Enemy FIELD slot allocation contract
+        run: node tests/enemy-action-slot-allocator-smoke.mjs
+      - name: Wolf Backup summon contract
+        run: node tests/wolf-unit-library-smoke.mjs
       - name: Combat / Theatre isolation contract
         run: node tests/combat-v073-theatre-isolation-smoke.mjs

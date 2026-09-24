@@ -372,7 +372,12 @@
     const wrapped = function triggerPhaseWithCommand(phaseTag, allUnits, ...rest) {
       const result = original.call(this, phaseTag, allUnits, ...rest);
       if (String(phaseTag || "").trim().toLowerCase() === "[round end]") {
-        this.lastUnitRankCommandRecovery = applyTurnEndSpRecovery(Array.isArray(allUnits) ? allUnits : []);
+        const activeUnits = Array.isArray(allUnits) ? allUnits : [];
+        const deploymentBridge = global.LuminousCombatDeploymentBridge073;
+        const encounter = deploymentBridge?.commandEncounter?.(activeUnits) || null;
+        this.lastUnitRankCommandRecovery = encounter
+          ? applyEncounterTurnEndSpRecovery(encounter)
+          : applyTurnEndSpRecovery(activeUnits);
       }
       return result;
     };
@@ -394,7 +399,7 @@
   }
 
   const api = Object.freeze({
-    version: "1.1.0",
+    version: "1.2.0-live-backup-command",
     BACKUP_COMMAND_SP_MULTIPLIER,
     RANKS,
     normalizeRank,

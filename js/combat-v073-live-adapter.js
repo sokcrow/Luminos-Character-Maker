@@ -4,7 +4,7 @@
   if (global.LuminousCombatLiveAdapter073) return;
   global.LuminousCombatLiveMode = true;
 
-  const VERSION = "0.7.3-live.2";
+  const VERSION = "0.7.3-live.3-field-only";
   const ROOTS = Object.freeze({
     dmUid: "campaña/config/dm_uid",
     players: "campaña/jugadores",
@@ -99,15 +99,22 @@
     return unit.isPlayer === true || category === "player" || normalizeId(unit.canonicalScope) === "player";
   }
 
+  function isFieldCombatant(unit = {}) {
+    if (!unit || typeof unit !== "object") return false;
+    if (unit.isBackup === true || unit.battleActive === false || unit.removed === true || unit.escaped === true || unit.defeated === true) return false;
+    const deployment = normalizeId(unit.deploymentState || unit.deployment || unit.positionState || unit.zone || "field");
+    return !["backup", "reserve", "reserves", "retreat", "retreated", "defeated", "dead", "escaped", "departed"].includes(deployment);
+  }
+
   function playerCombatantEntry() {
     if (!state.playerId) return null;
     const canonicalKey = `player:${state.playerId.replace(/[.#$\[\]\/]/g, "_")}`;
-    if (state.combatants?.[canonicalKey]) return [canonicalKey, state.combatants[canonicalKey]];
-    return Object.entries(state.combatants || {}).find(([, unit]) => isPlayerUnit(unit) && canonicalPlayerId(unit) === state.playerId) || null;
+    if (state.combatants?.[canonicalKey] && isFieldCombatant(state.combatants[canonicalKey])) return [canonicalKey, state.combatants[canonicalKey]];
+    return Object.entries(state.combatants || {}).find(([, unit]) => isFieldCombatant(unit) && isPlayerUnit(unit) && canonicalPlayerId(unit) === state.playerId) || null;
   }
 
   function dmFocusEntry() {
-    const entries = Object.entries(state.combatants || {});
+    const entries = Object.entries(state.combatants || {}).filter(([, unit]) => isFieldCombatant(unit));
     return entries.find(([, unit]) => isPlayerUnit(unit)) || entries[0] || null;
   }
 
@@ -167,6 +174,7 @@
     const result = [];
     for (const [key, rawValue] of Object.entries(state.combatants || {})) {
       const raw = rawValue || {};
+      if (!isFieldCombatant(raw)) continue;
       const id = clean(raw.id || raw.combatId || raw.unitId || key) || key;
       const faction = factionFor(raw);
       const pos = defaultPosition(faction, sideIndex[faction]++);
@@ -384,7 +392,7 @@
     state.firebaseReady = true;
     subscribe(ROOTS.players, (value) => { state.players = value && typeof value === "object" ? value : {}; });
     subscribe(ROOTS.combatants, (value) => { state.combatants = value && typeof value === "object" ? value : {}; });
-    subscribe(ROOTS.skills, (value) => { state.skills = value && typeof value === "object" ? value : {}; });
+    // Skills are loaded sparsely by LuminousCombatLibraryClient073 for FIELD Units only.
     subscribe(ROOTS.state, (value) => {
       const parsed = phaseAndRound(value);
       state.combatState = parsed.phase;
@@ -441,6 +449,7 @@
     hydrateNow,
     scheduleHydrate,
     normalizeSkill,
+    isFieldCombatant,
     normalizedCombatants,
     kitsFor,
     hydrationSignature,

@@ -53,7 +53,7 @@
     const liveArrowNeedle="Object.values(combatData).filter(unit=>unit.controlled==='ai'&&isUnitTargetable(unit)).forEach(unit=>{";
     const liveArrowPatch="Object.values(combatData).filter(unit=>(unit.controlled==='ai'||unit.controlled==='remote')&&isUnitTargetable(unit)).forEach(unit=>{";
     const livePlanRenderNeedle="function renderTargetArrows(){\n  const overlay=$('target-intent-overlay');";
-    const livePlanRenderPatch="function renderTargetArrows(){\n  if(window.LuminousCombatLiveMode)window.dispatchEvent(new CustomEvent('luminous:combat073-plan-change',{detail:{version:'0.7.3',playerId:PLAYER_ID,round,ready:planReady,plans:JSON.parse(JSON.stringify(plannedActions))}}));\n  const overlay=$('target-intent-overlay');";
+    const livePlanRenderPatch="function renderTargetArrows(){\n  if(window.LuminousCombatLiveMode){const livePlanSignature=JSON.stringify([round,planReady,plannedActions]);if(renderTargetArrows.__luminousLivePlanSignature!==livePlanSignature){renderTargetArrows.__luminousLivePlanSignature=livePlanSignature;window.dispatchEvent(new CustomEvent('luminous:combat073-plan-change',{detail:{version:'0.7.3',playerId:PLAYER_ID,round,ready:planReady,plans:JSON.parse(JSON.stringify(plannedActions))}}))}}\n  const overlay=$('target-intent-overlay');";
     const liveNeedles=[liveControlNeedle,liveAllPlansNeedle,liveArrowNeedle,livePlanRenderNeedle];
     if(liveNeedles.some(needle=>!html.includes(needle)))throw new Error("COMBAT_LIVE_REMOTE_CONTROL_PATCH_MISSING");
     html=html.replace(liveControlNeedle,liveControlPatch)
@@ -63,6 +63,8 @@
 
     // Combat-iframe-only renderer patch. It never installs hooks in Theatre runtime code.
     // Mobile/low-power clients keep DOM/CSS sprite compositing and reserve WebGL2 for VFX.
+    // The DM always uses DOM for battlefield base layers and WebGL only for arrows/VFX;
+    // this prevents an active-but-black WebGL canvas from hiding the Battle from the observer.
     const webglStateNeedle=`const particles=[];
   let cssW=0,cssH=0,dpr=1,lastFrame=0,enabled=true;`;
     const webglStatePatch=`const particles=[];
@@ -76,13 +78,13 @@
     const webglTextureCacheNeedle="if(entry){if(entry.ready&&onReady)onReady(entry);return entry}";
     const webglTextureCachePatch="if(entry)return entry";
     const webglBackgroundNeedle="const bg=requestTexture(BG_URL,()=>host.classList.add('webgl2-background-ready'));";
-    const webglBackgroundPatch="const bg=requestTexture(BG_URL,()=>{host.classList.add('webgl2-background-ready');ensureFrame()});";
+    const webglBackgroundPatch="const bg=requestTexture(BG_URL,()=>{if(host.dataset.viewerRole!=='dm')host.classList.add('webgl2-background-ready');ensureFrame()});";
     const webglSpriteNeedle="const entry=requestTexture(url,()=>img.classList.add('webgl2-texture-backed'));";
-    const webglSpritePatch="const entry=requestTexture(url,()=>{img.classList.add('webgl2-texture-backed');ensureFrame()});";
+    const webglSpritePatch="const entry=requestTexture(url,()=>{if(host.dataset.viewerRole!=='dm')img.classList.add('webgl2-texture-backed');ensureFrame()});";
     const webglRenderSpritesNeedle=`function renderSprites(){
     const rows=Array.from(document.querySelectorAll('.sprite-img')).map(img=>{`;
     const webglRenderSpritesPatch=`function renderSprites(){
-    if(domSpriteMode)return;
+    if(domSpriteMode||host.dataset.viewerRole==='dm')return;
     const rows=Array.from(document.querySelectorAll('.sprite-img')).map(img=>{`;
     const webglIntentNeedle="const local=parsePath(path.getAttribute('d')),tone=intentToneFromClass(path),color=[...intentColors[tone]],secondary=path.classList.contains('atk-weight-secondary');color[3]*=opacity;";
     const webglIntentPatch="const d=path.getAttribute('d')||'';let cached=intentPathCache.get(path);if(!cached||cached.d!==d){cached={d,points:parsePath(d)};intentPathCache.set(path,cached)}const local=cached.points,tone=intentToneFromClass(path),color=[...intentColors[tone]],secondary=path.classList.contains('atk-weight-secondary');color[3]*=opacity;";
@@ -133,7 +135,7 @@
     if(!surfaceActive){dirty=true;return}
     const continuous=needsContinuous(now);if(!dirty&&!continuous)return;
     dirty=false;resize();gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);
-    renderBackground();renderSprites();renderIntentArrows();renderParticles(now);
+    if(host.dataset.viewerRole!=='dm')renderBackground();renderSprites();renderIntentArrows();renderParticles(now);
     lastFrame=now;if(enabled&&(dirty||needsContinuous(now))&&!rafId)rafId=requestAnimationFrame(frame)
   }
   function ensureFrame(animateMs=0){
