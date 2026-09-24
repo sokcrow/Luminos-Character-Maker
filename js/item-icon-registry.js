@@ -4,7 +4,7 @@
     if (typeof module !== "undefined" && module.exports) module.exports = global.LuminousItemIconRegistry;
     return;
   }
-  const VERSION = 29;
+  const VERSION = 30;
   const DEFAULT_GROUP = "generic_item";
   function family(id, label, labelEs, domain, icon) { return Object.freeze({ id, label, labelEs, domain, icon }); }
   const FAMILY_ROWS = Object.freeze([
@@ -365,6 +365,31 @@
     ["toxic_herb","Toxic Herb","Toxic Herb","material","https://imgur.com/5ctUj65.png"],
     ["nightshade","Nightshade","Nightshade","material","https://imgur.com/hp40jYD.png"],
     ["exotic_medicinal_herb","Exotic Medicinal Herb","Exotic Medicinal Herb","material","https://imgur.com/JapMEBs.png"],
+    ["common_mushroom","Common Mushroom","Hongo común","material","https://imgur.com/D92zQwV.png"],
+    ["forest_mushroom","Forest Mushroom","Hongo de bosque","material","https://imgur.com/jmj4md5.png"],
+    ["frost_mushroom","Frost Mushroom","Hongo de escarcha","material","https://imgur.com/E8brPu4.png"],
+    ["wetland_mushroom","Wetland Mushroom","Hongo de humedal","material","https://imgur.com/j6NAoem.png"],
+    ["desert_truffle","Desert Truffle","Trufa del desierto","material","https://imgur.com/hQbkcOn.png"],
+    ["medicinal_mushroom","Medicinal Mushroom","Hongo medicinal","material","https://imgur.com/yR8uX0L.png"],
+    ["toxic_mushroom","Toxic Mushroom","Hongo tóxico","material","https://imgur.com/9f695om.png"],
+    ["truffle","Truffle","Trufa","material","https://imgur.com/YVkDC5h.png"],
+    ["sap","Sap","Savia","material","https://imgur.com/FuBA1Je.png"],
+    ["resin","Resin","Resina","material","https://imgur.com/ZHk2p3H.png"],
+    ["plant_latex","Plant Latex","Látex vegetal","material","https://imgur.com/7I8Rvao.png"],
+    ["exotic_botanical_extract","Exotic Botanical Extract","Extracto botánico exótico","material","https://imgur.com/hHFgDBf.png"],
+    ["egg","Egg","Huevo","material","https://imgur.com/J73Fyfz.png"],
+    ["milk","Milk","Leche","material","https://imgur.com/NNbt694.png"],
+    ["seaweed","Seaweed","Alga","material","https://imgur.com/IV5IGhN.png"],
+    ["avocado","Avocado","Aguacate","material","https://imgur.com/oPPwq2I.png"],
+    ["honey","Honey","Miel","material","https://imgur.com/cy0nKgI.png"],
+    ["sugar_cane","Sugar Cane","Caña de azúcar","material","https://imgur.com/fnRSbKG.png"],
+    ["water","Water","Agua","material","https://imgur.com/BBYrCN2.png"],
+    ["salt","Salt","Sal","material","https://imgur.com/mjWZzr4.png"],
+    ["yeast","Yeast","Levadura","material","https://imgur.com/rKpS9h7.png"],
+    ["beeswax","Beeswax","Cera de abeja","material","https://imgur.com/jVjUiFZ.png"],
+    ["gelatin","Gelatin","Gelatina","material","https://imgur.com/aLhJv8v.png"],
+    ["jellyfish","Jellyfish","Medusa","material","https://imgur.com/5zhxgO6.png"],
+    ["recycled_protein","Recycled Protein","Proteína reciclada","material","https://imgur.com/DFhRmvv.png"],
     ["vegetable_raw","Raw Vegetable / Produce","Verdura / hortaliza cruda","material","https://imgur.com/QWUZK4g.png"],
     ["grain_seed_raw","Grain / Legume / Seed / Nut","Grano / legumbre / semilla / nuez","material","https://imgur.com/Z0TuVti.png"],
     ["spice_herb_raw","Spice / Culinary Herb","Especia / hierba culinaria","material","https://imgur.com/zvEvhjc.png"],
@@ -503,7 +528,7 @@
     "scale":"scale_reptile","scales":"scale_reptile","scute":"scale_reptile","shell":"shell_carapace","carapace":"shell_carapace","chitin":"chitin_plate","exoskeleton_plate":"chitin_plate",
     "feather":"feather_raw","feathers":"feather_raw","flight_feather":"feather_raw","down":"feather_raw","wool":"animal_fiber_raw","animal_hair":"animal_fiber_raw","raw_fiber":"animal_fiber_raw","silk":"silk_raw","raw_silk":"silk_raw","exotic_raw_fiber":"silk_raw",
     "ore":"ore_raw","mineral":"ore_raw","ore_mineral":"ore_raw","raw_mineral":"ore_raw","ingot":"metal_ingot","refined_metal":"metal_ingot","alloy":"metal_ingot","rough_gem":"gem_rough","raw_gem":"gem_rough","cut_gem":"gem_cut","polished_gem":"gem_cut",
-    "plant":"plant_herb","herb":"plant_herb","fruit":"fruit_raw","fruits":"fruit_raw","raw_fruit":"fruit_raw","vegetable":"vegetable_raw","vegetables":"vegetable_raw","produce":"vegetable_raw","raw_vegetable":"vegetable_raw","grain":"grain_seed_raw","grains":"grain_seed_raw","legume":"grain_seed_raw","seed":"grain_seed_raw","nut":"grain_seed_raw","spice":"spice_herb_raw","culinary_herb":"spice_herb_raw","medicinal_herb":"medicinal_herb_raw","toxic_herb":"medicinal_herb_raw","fungus":"fungus_raw","mushroom":"fungus_raw","sap":"botanical_extract_raw","resin":"botanical_extract_raw","plant_latex":"botanical_extract_raw","botanical_extract":"botanical_extract_raw",
+    "plant":"plant_herb","herb":"plant_herb","fruit":"fruit_raw","fruits":"fruit_raw","raw_fruit":"fruit_raw","vegetable":"vegetable_raw","vegetables":"vegetable_raw","produce":"vegetable_raw","raw_vegetable":"vegetable_raw","grain":"grain_seed_raw","grains":"grain_seed_raw","legume":"grain_seed_raw","seed":"grain_seed_raw","nut":"grain_seed_raw","spice":"spice_herb_raw","culinary_herb":"spice_herb_raw","medicinal_herb":"medicinal_herb_raw","toxic_herb":"medicinal_herb_raw","fungus":"fungus_raw","mushroom":"fungus_raw","cave_mushroom":"wetland_mushroom","fermentation_fungus":"yeast","exotic_fungus":"truffle","sap":"botanical_extract_raw","resin":"botanical_extract_raw","plant_latex":"botanical_extract_raw","botanical_extract":"botanical_extract_raw",
     "organ":"organ_internal","internal_organ":"organ_internal","heart":"organ_internal","liver":"organ_internal","kidney":"organ_internal","lung":"organ_internal","stomach":"organ_internal","digestive_organ":"organ_internal","sensory_organ":"organ_sensory","eye":"organ_sensory","brain":"organ_brain","gland":"organ_gland","sac":"organ_gland","bladder":"organ_gland",
     "blood":"blood","humanoid_blood":"blood","draconic_blood":"blood","hemolymph":"hemolymph","ichor":"ichor","exotic_blood":"ichor","exotic_fluid":"ichor","exotic_blood_fluid":"ichor",
     "venom":"venom_raw","raw_venom":"venom_raw","toxic_secretion":"venom_raw","acid":"acid_secretion","ink":"ink_secretion","pheromone":"bio_secretion","scent":"bio_secretion","pheromone_scent":"bio_secretion","defensive_secretion":"bio_secretion","exotic_secretion":"bio_secretion",
