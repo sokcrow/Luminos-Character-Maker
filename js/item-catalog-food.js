@@ -6,7 +6,7 @@
     return;
   }
 
-  const VERSION = 2;
+  const VERSION = 3;
   const FAMILY = "food";
   const CURRENCY = "AHN";
   const ECONOMY_STANDARD = "salary_v1";
@@ -14,6 +14,9 @@
   const DEFAULT_SIZE = "medium";
   const SIMPLE_COOKING_VALUE_MULTIPLIER = 1.10;
   const SHOP_RETAIL_MULTIPLIER = 1.35;
+  const RETAIL_COOKIE_PRICE_MULTIPLIER = 1.25;
+  const RETAIL_COOKIE_EFFECT_MULTIPLIER = 0.50;
+  const RETAIL_COOKIE_AVAILABILITY_MULTIPLIER = 2.00;
   const RATION_HUNGER = 100;
   const COOKING_SYSTEM = "cooking_v1";
   const LEGACY_HUNGER_SYSTEM = "size_daily_hunger_compatibility_only";
@@ -41,6 +44,62 @@
 
   function roundTo10(value) {
     return Math.round((Number(value) || 0) / 10) * 10;
+  }
+
+  const RETAIL_COOKIE_ROWS = Object.freeze([
+    Object.freeze({ id:"butter_cookie_retail_pack", name:"Butter Cookie Retail Pack", bakeryRecipeId:"butter_cookie", bakeryReferencePriceAhn:7200, iconFamily:"butter_cookie_retail_pack" }),
+    Object.freeze({ id:"sugar_cookie_retail_pack", name:"Sugar Cookie Retail Pack", bakeryRecipeId:"sugar_cookie", bakeryReferencePriceAhn:6400, iconFamily:"sugar_cookie_retail_pack" }),
+    Object.freeze({ id:"chocolate_chip_cookie_retail_pack", name:"Chocolate Chip Cookie Retail Pack", bakeryRecipeId:"chocolate_chip_cookie", bakeryReferencePriceAhn:8800, iconFamily:"chocolate_chip_cookie_retail_pack" }),
+    Object.freeze({ id:"chocolate_cookie_retail_pack", name:"Chocolate Cookie Retail Pack", bakeryRecipeId:"chocolate_cookie", bakeryReferencePriceAhn:9200, iconFamily:"chocolate_cookie_retail_pack" }),
+    Object.freeze({ id:"oatmeal_cookie_retail_pack", name:"Oatmeal Cookie Retail Pack", bakeryRecipeId:"oatmeal_cookie", bakeryReferencePriceAhn:7200, iconFamily:"oatmeal_cookie_retail_pack" }),
+    Object.freeze({ id:"ginger_cookie_retail_pack", name:"Ginger Cookie Retail Pack", bakeryRecipeId:"ginger_cookie", bakeryReferencePriceAhn:8000, iconFamily:"ginger_cookie_retail_pack" }),
+    Object.freeze({ id:"shortbread_cookie_retail_pack", name:"Shortbread Cookie Retail Pack", bakeryRecipeId:"shortbread_cookie", bakeryReferencePriceAhn:6800, iconFamily:"food_snack" }),
+    Object.freeze({ id:"almond_cookie_retail_pack", name:"Almond Cookie Retail Pack", bakeryRecipeId:"almond_cookie", bakeryReferencePriceAhn:10000, iconFamily:"almond_cookie_retail_pack" }),
+    Object.freeze({ id:"coconut_cookie_retail_pack", name:"Coconut Cookie Retail Pack", bakeryRecipeId:"coconut_cookie", bakeryReferencePriceAhn:8800, iconFamily:"coconut_cookie_retail_pack" }),
+    Object.freeze({ id:"jam_cookie_retail_pack", name:"Jam Cookie Retail Pack", bakeryRecipeId:"jam_cookie", bakeryReferencePriceAhn:8400, iconFamily:"jam_cookie_retail_pack" }),
+    Object.freeze({ id:"honey_cookie_retail_pack", name:"Honey Cookie Retail Pack", bakeryRecipeId:"honey_cookie", bakeryReferencePriceAhn:9200, iconFamily:"honey_cookie_retail_pack" }),
+    Object.freeze({ id:"coffee_cookie_retail_pack", name:"Coffee Cookie Retail Pack", bakeryRecipeId:"coffee_cookie", bakeryReferencePriceAhn:9600, iconFamily:"coffee_cookie_retail_pack" }),
+  ]);
+
+  function retailCookieDefinition(row = {}) {
+    const bakeryReferencePriceAhn = Math.max(0, Math.round(Number(row.bakeryReferencePriceAhn) || 0));
+    return Object.freeze({
+      id: row.id, name: row.name, family: FAMILY, iconFamily: row.iconFamily || "food_snack",
+      category: "food", itemType: "consumable", sourceLine: "retail_industrial_food", currency: CURRENCY,
+      bakeryRecipeId: row.bakeryRecipeId, recipeId: null, hasRecipe: false, craftable: false, industrial: true,
+      productionModel: "mass_production", bakeryReferencePriceAhn,
+      retailPriceMultiplier: RETAIL_COOKIE_PRICE_MULTIPLIER,
+      priceAhn: roundTo10(bakeryReferencePriceAhn * RETAIL_COOKIE_PRICE_MULTIPLIER),
+      effectMultiplier: RETAIL_COOKIE_EFFECT_MULTIPLIER,
+      availabilityMultiplier: RETAIL_COOKIE_AVAILABILITY_MULTIPLIER,
+      availabilityChannel: "retail", freshnessModel: "shelf_stable", shelfLifeClass: "long",
+      culinarySystem: "retail_food_v1", defaultHungerSlotsRestored: 1, stackable: true,
+      stackPolicy: "identical_retail_cookie_pack",
+      tags: Object.freeze(["food","cookie","retail","industrial","packaged","shelf_stable"]),
+    });
+  }
+
+  const RETAIL_COOKIES = Object.freeze(RETAIL_COOKIE_ROWS.map(retailCookieDefinition));
+
+  function listRetailCookieDefinitions() { return RETAIL_COOKIES.map(clone); }
+
+  function createRetailCookiePack(itemOrId, options = {}) {
+    const entry = typeof itemOrId === "string"
+      ? RETAIL_COOKIES.find((row) => row.id === String(itemOrId || "").trim())
+      : itemOrId;
+    if (!entry) return null;
+    const quantity = Math.max(1, Math.trunc(Number(options.quantity ?? 1) || 1));
+    return {
+      itemId: entry.id, definitionId: entry.id, displayName: entry.name, name: entry.name,
+      family: FAMILY, iconFamily: entry.iconFamily, category: entry.category, itemType: entry.itemType,
+      sourceLine: entry.sourceLine, quantity, stackPolicy: entry.stackPolicy,
+      bakeryRecipeId: entry.bakeryRecipeId, recipeId: null, hasRecipe: false, industrial: true,
+      productionModel: entry.productionModel, effectMultiplier: entry.effectMultiplier,
+      availabilityMultiplier: entry.availabilityMultiplier, availabilityChannel: entry.availabilityChannel,
+      freshnessModel: entry.freshnessModel, shelfLifeClass: entry.shelfLifeClass,
+      unitValueAhn: entry.priceAhn, totalValueAhn: entry.priceAhn * quantity, currency: CURRENCY,
+      tags: clone(entry.tags),
+    };
   }
 
   function rawMeat(itemOrId) {
@@ -98,7 +157,8 @@
 
   function get(id) {
     const key = String(id || "").trim();
-    const found = listSimpleCookedDefinitions().find((entry) => entry.id === key);
+    const found = listSimpleCookedDefinitions().find((entry) => entry.id === key)
+      || RETAIL_COOKIES.find((entry) => entry.id === key);
     return found ? clone(found) : null;
   }
 
@@ -207,12 +267,18 @@
     DEFAULT_SIZE,
     SIMPLE_COOKING_VALUE_MULTIPLIER,
     SHOP_RETAIL_MULTIPLIER,
+    RETAIL_COOKIE_PRICE_MULTIPLIER,
+    RETAIL_COOKIE_EFFECT_MULTIPLIER,
+    RETAIL_COOKIE_AVAILABILITY_MULTIPLIER,
+    RETAIL_COOKIES,
     RATION_HUNGER,
     COOKING_SYSTEM,
     LEGACY_HUNGER_SYSTEM,
     roundTo10,
     simpleCookedDefinition,
     listSimpleCookedDefinitions,
+    listRetailCookieDefinitions,
+    createRetailCookiePack,
     get,
     priceForSizeAndQuality,
     createSimpleCookedFood,
