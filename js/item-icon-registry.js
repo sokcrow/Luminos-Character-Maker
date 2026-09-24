@@ -4,7 +4,7 @@
     if (typeof module !== "undefined" && module.exports) module.exports = global.LuminousItemIconRegistry;
     return;
   }
-  const VERSION = 31;
+  const VERSION = 32;
   const DEFAULT_GROUP = "generic_item";
   function family(id, label, labelEs, domain, icon) { return Object.freeze({ id, label, labelEs, domain, icon }); }
   const FAMILY_ROWS = Object.freeze([
@@ -90,6 +90,29 @@
     ["honey_cake","Honey Cake","Pastel de miel","consumable","https://imgur.com/ElpUAE1.png"],
     ["chestnut_cake","Chestnut Cake","Pastel de castaña","consumable","https://imgur.com/trgMFII.png"],
     ["food_snack","Snack","Botana","consumable","https://imgur.com/bvRPR9n.png"],
+    ["butter_cookie","Butter Cookie","Galleta de mantequilla","consumable","https://imgur.com/K0qx9oP.png"],
+    ["sugar_cookie","Sugar Cookie","Galleta de azúcar","consumable","https://imgur.com/BlNFVhm.png"],
+    ["chocolate_chip_cookie","Chocolate Chip Cookie","Galleta con chispas de chocolate","consumable","https://imgur.com/gXDr2EY.png"],
+    ["chocolate_cookie","Chocolate Cookie","Galleta de chocolate","consumable","https://imgur.com/awozOUf.png"],
+    ["oatmeal_cookie","Oatmeal Cookie","Galleta de avena","consumable","https://imgur.com/Rn7R6uX.png"],
+    ["ginger_cookie","Ginger Cookie","Galleta de jengibre","consumable","https://imgur.com/A8W45Uh.png"],
+    ["shortbread_cookie","Shortbread Cookie","Galleta shortbread","consumable","https://imgur.com/h371jyp.png"],
+    ["almond_cookie","Almond Cookie","Galleta de almendra","consumable","https://imgur.com/Q0EA77q.png"],
+    ["coconut_cookie","Coconut Cookie","Galleta de coco","consumable","https://imgur.com/VjeoESQ.png"],
+    ["jam_cookie","Jam Cookie","Galleta con mermelada","consumable","https://imgur.com/lLkRH6u.png"],
+    ["honey_cookie","Honey Cookie","Galleta de miel","consumable","https://imgur.com/rur0pia.png"],
+    ["coffee_cookie","Coffee Cookie","Galleta de café","consumable","https://imgur.com/nrELcIe.png"],
+    ["butter_cookie_retail_pack","Butter Cookie Retail Pack","Pack retail de galletas de mantequilla","consumable","https://imgur.com/ui0RQR2.png"],
+    ["sugar_cookie_retail_pack","Sugar Cookie Retail Pack","Pack retail de galletas de azúcar","consumable","https://imgur.com/mDwExYR.png"],
+    ["chocolate_chip_cookie_retail_pack","Chocolate Chip Cookie Retail Pack","Pack retail de galletas con chispas","consumable","https://imgur.com/l5fb4TM.png"],
+    ["chocolate_cookie_retail_pack","Chocolate Cookie Retail Pack","Pack retail de galletas de chocolate","consumable","https://imgur.com/NS7Zlqc.png"],
+    ["oatmeal_cookie_retail_pack","Oatmeal Cookie Retail Pack","Pack retail de galletas de avena","consumable","https://imgur.com/QcM5fRF.png"],
+    ["ginger_cookie_retail_pack","Ginger Cookie Retail Pack","Pack retail de galletas de jengibre","consumable","https://imgur.com/2r0kU2b.png"],
+    ["almond_cookie_retail_pack","Almond Cookie Retail Pack","Pack retail de galletas de almendra","consumable","https://imgur.com/ezCVscj.png"],
+    ["coconut_cookie_retail_pack","Coconut Cookie Retail Pack","Pack retail de galletas de coco","consumable","https://imgur.com/yio2c2A.png"],
+    ["jam_cookie_retail_pack","Jam Cookie Retail Pack","Pack retail de galletas con mermelada","consumable","https://imgur.com/WiYnJk5.png"],
+    ["honey_cookie_retail_pack","Honey Cookie Retail Pack","Pack retail de galletas de miel","consumable","https://imgur.com/KHIz6ig.png"],
+    ["coffee_cookie_retail_pack","Coffee Cookie Retail Pack","Pack retail de galletas de café","consumable","https://imgur.com/BViIf6a.png"],
     ["ration_field","Field Ration","Ración de campo","consumable","https://imgur.com/3Mak6XC.png"],
     ["ration_preserved","Preserved Ration","Ración preservada","consumable","https://imgur.com/3bK29IS.png"],
     ["ration_canned","Canned Ration","Ración enlatada","consumable","https://imgur.com/38PbW0M.png"],
