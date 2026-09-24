@@ -43,6 +43,20 @@ const { pathToFileURL } = require("node:url");
   assert.equal(catalog.get("gelatin").standardUnitValueAhn, 2200);
   assert.equal(catalog.get("jellyfish").standardUnitValueAhn, 3500);
 
+  assert.equal(catalog.get("egg").iconFamily, "egg");
+  assert.equal(catalog.get("milk").iconFamily, "milk");
+  assert.equal(catalog.get("seaweed").iconFamily, "seaweed");
+  assert.equal(catalog.get("avocado").iconFamily, "avocado");
+  assert.equal(catalog.get("honey").iconFamily, "honey");
+  assert.equal(catalog.get("sugar_cane").iconFamily, "sugar_cane");
+  assert.equal(catalog.get("water").iconFamily, "water");
+  assert.equal(catalog.get("salt").iconFamily, "salt");
+  assert.equal(catalog.get("yeast").iconFamily, "yeast");
+  assert.equal(catalog.get("beeswax").iconFamily, "beeswax");
+  assert.equal(catalog.get("gelatin").iconFamily, "gelatin");
+  assert.equal(catalog.get("jellyfish").iconFamily, "jellyfish");
+  assert.equal(catalog.get("recycled_protein").iconFamily, "recycled_protein");
+
   const egg = catalog.createIngredientStack("egg", { quantity:2, sourceInstanceId:"egg-a", affinityRoll:0 });
   assert.equal(egg.quantity, 2);
   assert.ok(Object.prototype.hasOwnProperty.call(catalog.get("egg").culinaryAffinities, egg.affinityTarget));
