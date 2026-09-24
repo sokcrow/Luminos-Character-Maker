@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   package:
@@ -26,12 +26,30 @@ jobs:
         shell: bash
         run: |
           rm -f Map777.zip
-          zip -r Map777.zip .             -x ".git/*"             -x ".git/**"             -x "Map777.zip"
+          zip -9 -r Map777.zip . \
+            -x ".git/*" \
+            -x ".git/**" \
+            -x "Map777.zip"
 
-      - name: Upload project ZIP
-        uses: actions/upload-artifact@v4
-        with:
-          name: Map777
-          path: Map777.zip
-          if-no-files-found: error
-          retention-days: 7
+      - name: Verify package
+        shell: bash
+        run: |
+          unzip -tq Map777.zip
+          zipinfo -1 Map777.zip | grep -Eq '^\.?/?LuminousLab/START_ANDROID\.sh$'
+          zipinfo -1 Map777.zip | grep -Eq '^\.?/?game-engine/src/world/WorldFloorTextures\.js$'
+          zipinfo -1 Map777.zip | grep -Eq '^\.?/?Assets/Images/World/Floors/floor_grass_01\.png$'
+          zipinfo -1 Map777.zip | grep -Eq '^\.?/?Assets/Images/World/Floors/floor_concrete_01\.png$'
+          echo "Map777.zip verified."
+
+      - name: Publish direct ZIP
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: pr777-map777
+        run: |
+          gh release delete "$TAG" --yes --cleanup-tag >/dev/null 2>&1 || true
+          gh release create "$TAG" Map777.zip \
+            --target "$GITHUB_SHA" \
+            --title "PR 777 · Map777" \
+            --notes "PR 777 delivery: repository-local world floor textures wired into the Game Engine map renderer." \
+            --prerelease
