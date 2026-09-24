@@ -8,9 +8,9 @@ const { pathToFileURL } = require('node:url');
   const registry = globalThis.LuminousItemIconRegistry;
 
   assert.ok(registry);
-  assert.equal(registry.VERSION, 31);
+  assert.equal(registry.VERSION, 32);
   assert.equal(registry.DEFAULT_GROUP, 'generic_item');
-  assert.equal(Object.keys(registry.GROUPS).length, 557);
+  assert.equal(Object.keys(registry.GROUPS).length, 580);
 
   const groups = registry.list();
   assert.equal(new Set(groups.map((entry) => entry.id)).size, groups.length);
@@ -128,6 +128,38 @@ const { pathToFileURL } = require('node:url');
     assert.equal(registry.resolveIcon(id), icon, id);
     assert.equal(registry.get(id).domain, 'consumable');
   }
+
+  const cookieIcons = {
+    butter_cookie:'https://imgur.com/K0qx9oP.png',
+    sugar_cookie:'https://imgur.com/BlNFVhm.png',
+    chocolate_chip_cookie:'https://imgur.com/gXDr2EY.png',
+    chocolate_cookie:'https://imgur.com/awozOUf.png',
+    oatmeal_cookie:'https://imgur.com/Rn7R6uX.png',
+    ginger_cookie:'https://imgur.com/A8W45Uh.png',
+    shortbread_cookie:'https://imgur.com/h371jyp.png',
+    almond_cookie:'https://imgur.com/Q0EA77q.png',
+    coconut_cookie:'https://imgur.com/VjeoESQ.png',
+    jam_cookie:'https://imgur.com/lLkRH6u.png',
+    honey_cookie:'https://imgur.com/rur0pia.png',
+    coffee_cookie:'https://imgur.com/nrELcIe.png',
+    butter_cookie_retail_pack:'https://imgur.com/ui0RQR2.png',
+    sugar_cookie_retail_pack:'https://imgur.com/mDwExYR.png',
+    chocolate_chip_cookie_retail_pack:'https://imgur.com/l5fb4TM.png',
+    chocolate_cookie_retail_pack:'https://imgur.com/NS7Zlqc.png',
+    oatmeal_cookie_retail_pack:'https://imgur.com/QcM5fRF.png',
+    ginger_cookie_retail_pack:'https://imgur.com/2r0kU2b.png',
+    almond_cookie_retail_pack:'https://imgur.com/ezCVscj.png',
+    coconut_cookie_retail_pack:'https://imgur.com/yio2c2A.png',
+    jam_cookie_retail_pack:'https://imgur.com/WiYnJk5.png',
+    honey_cookie_retail_pack:'https://imgur.com/KHIz6ig.png',
+    coffee_cookie_retail_pack:'https://imgur.com/BViIf6a.png'
+  };
+  for (const [id, icon] of Object.entries(cookieIcons)) {
+    assert.equal(registry.has(id), true, id);
+    assert.equal(registry.resolveIcon(id), icon, id);
+    assert.equal(registry.get(id).domain, 'consumable');
+  }
+  assert.equal(registry.has('shortbread_cookie_retail_pack'), false, 'shortbread retail pack awaits its dedicated icon');
 
   const fruitIcons = {
     apple:'https://imgur.com/vaEPPe1.png',
