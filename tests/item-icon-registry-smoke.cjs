@@ -8,9 +8,9 @@ const { pathToFileURL } = require('node:url');
   const registry = globalThis.LuminousItemIconRegistry;
 
   assert.ok(registry);
-  assert.equal(registry.VERSION, 30);
+  assert.equal(registry.VERSION, 31);
   assert.equal(registry.DEFAULT_GROUP, 'generic_item');
-  assert.equal(Object.keys(registry.GROUPS).length, 506);
+  assert.equal(Object.keys(registry.GROUPS).length, 557);
 
   const groups = registry.list();
   assert.equal(new Set(groups.map((entry) => entry.id)).size, groups.length);
@@ -68,6 +68,65 @@ const { pathToFileURL } = require('node:url');
   for (const [id, icon] of Object.entries(culinaryIcons)) {
     assert.equal(registry.has(id), true, id);
     assert.equal(registry.resolveIcon(id), icon, id);
+  }
+
+  const preparedBakeryIcons = {
+    white_bread:'https://imgur.com/CA8glDR.png',
+    rustic_bread:'https://imgur.com/YqYfTii.png',
+    flatbread:'https://imgur.com/TC5mCmK.png',
+    focaccia:'https://imgur.com/QL0epW3.png',
+    dinner_rolls:'https://imgur.com/x4a5ZCH.png',
+    baguette:'https://imgur.com/F5w1RYn.png',
+    pretzel:'https://imgur.com/yklIivs.png',
+    pancakes:'https://imgur.com/P3NPlKx.png',
+    waffles:'https://imgur.com/b3TpnvY.png',
+    crepes:'https://imgur.com/53QghAv.png',
+    apple_pie:'https://imgur.com/CwLhgEg.png',
+    pear_pie:'https://imgur.com/4UqLx6u.png',
+    blackberry_pie:'https://imgur.com/OMR5rYv.png',
+    strawberry_pie:'https://imgur.com/JUM23px.png',
+    blueberry_pie:'https://imgur.com/w7qGC3i.png',
+    raspberry_pie:'https://imgur.com/uwD2CKz.png',
+    red_berry_pie:'https://imgur.com/hc1vGwZ.png',
+    peach_pie:'https://imgur.com/ZX6F5fr.png',
+    cherry_pie:'https://imgur.com/PKtQQKD.png',
+    plum_pie:'https://imgur.com/n3GwcBw.png',
+    banana_cream_pie:'https://imgur.com/fWzzyid.png',
+    pineapple_pie:'https://imgur.com/DaaNyrj.png',
+    coconut_cream_pie:'https://imgur.com/ai4u5nB.png',
+    mango_pie:'https://imgur.com/wWCFsP1.png',
+    lemon_pie:'https://imgur.com/ChbviWu.png',
+    lime_pie:'https://imgur.com/IesPWoj.png',
+    orange_tart:'https://imgur.com/G5KbIrm.png',
+    kiwi_tart:'https://imgur.com/gJjygiG.png',
+    dragon_fruit_tart:'https://imgur.com/eRQvgFl.png',
+    pomegranate_tart:'https://imgur.com/78WZ6GX.png',
+    cake:'https://imgur.com/mlOq6gx.png',
+    fruit_cake:'https://imgur.com/bZF7VtE.png',
+    apple_cake:'https://imgur.com/9fDBZh0.png',
+    strawberry_cake:'https://imgur.com/8Zm5HPn.png',
+    blueberry_cake:'https://imgur.com/clxwpgH.png',
+    raspberry_cake:'https://imgur.com/Xr71CM3.png',
+    banana_cake:'https://imgur.com/RTaD87C.png',
+    peach_cake:'https://imgur.com/ruCUXAB.png',
+    pineapple_cake:'https://imgur.com/YnjJ11s.png',
+    blackberry_cake:'https://imgur.com/mBL7K9w.png',
+    cherry_cake:'https://imgur.com/yXdlSy0.png',
+    coconut_cake:'https://imgur.com/pJ02Glz.png',
+    mango_cake:'https://imgur.com/c5ig0SY.png',
+    lemon_cake:'https://imgur.com/jaVrPin.png',
+    orange_cake:'https://imgur.com/vIsjZNg.png',
+    chocolate_cake:'https://imgur.com/aMWAcER.png',
+    coffee_cake:'https://imgur.com/zbCJuZI.png',
+    carrot_cake:'https://imgur.com/ygs2pJg.png',
+    pumpkin_cake:'https://imgur.com/cT34qbD.png',
+    honey_cake:'https://imgur.com/ElpUAE1.png',
+    chestnut_cake:'https://imgur.com/trgMFII.png'
+  };
+  for (const [id, icon] of Object.entries(preparedBakeryIcons)) {
+    assert.equal(registry.has(id), true, id);
+    assert.equal(registry.resolveIcon(id), icon, id);
+    assert.equal(registry.get(id).domain, 'consumable');
   }
 
   const fruitIcons = {
