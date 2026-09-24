@@ -2847,44 +2847,61 @@ function markPaperRepeat(material,uPerTile=.55,vPerTile=.55){
   return material;
 }
 function fittedMappedMaterial(base,uTiles,vTiles){
+  if(!base)return base;
   worldFloorTextureRuntime?.ensureMaterial(base);
-  if(!base?.map)return base;
   const worldTextureId=base.userData?.worldFloorTextureId||null;
-  const repeat=worldTextureId
-    ? worldFloorRepeatForTiles(uTiles,vTiles)
-    : [
-        Math.max(.75,Math.abs(uTiles)*(base.userData?.paperRepeat?.u??.55)),
-        Math.max(.75,Math.abs(vTiles)*(base.userData?.paperRepeat?.v??.55))
-      ];
-  const [ru,rv]=repeat;
-  const key=`${base.uuid}|${ru.toFixed(2)}|${rv.toFixed(2)}|${worldTextureId||'legacy'}`;
+
+  // Repository-local floor textures always create a fitted derivative immediately.
+  // This is critical while the PNG is still loading: the derivative remembers its
+  // world-space repeat and receives the correct map later through registerMaterial().
+  if(worldTextureId){
+    const [ru,rv]=worldFloorRepeatForTiles(uTiles,vTiles);
+    const key=`${base.uuid}|${ru.toFixed(2)}|${rv.toFixed(2)}|${worldTextureId}`;
+    if(fittedMaterialCache.has(key))return fittedMaterialCache.get(key);
+    const m=base.clone();
+    m.userData={...(m.userData||{}),worldFloorSourceMaterialUuid:base.uuid,worldFloorRepeat:[ru,rv]};
+    if(base.map){
+      const t=base.map.clone();
+      t.wrapS=t.wrapT=THREE.RepeatWrapping;
+      t.repeat.set(ru,rv);
+      t.offset?.set?.(0,0);
+      t.center?.set?.(.5,.5);
+      t.rotation=0;
+      t.needsUpdate=true;
+      m.map=t;
+    }
+    m.needsUpdate=true;
+    worldFloorTextureRuntime?.registerMaterial(m,worldTextureId,{repeat:[ru,rv]});
+    fittedMaterialCache.set(key,m);
+    return m;
+  }
+
+  if(!base.map)return base;
+  const ru=Math.max(.75,Math.abs(uTiles)*(base.userData?.paperRepeat?.u??.55));
+  const rv=Math.max(.75,Math.abs(vTiles)*(base.userData?.paperRepeat?.v??.55));
+  const key=`${base.uuid}|${ru.toFixed(2)}|${rv.toFixed(2)}|legacy`;
   if(fittedMaterialCache.has(key))return fittedMaterialCache.get(key);
-  if(!worldTextureId&&base.userData?.paperFXSurfaceConfig&&window.PaperFX?.createSurface){
+  if(base.userData?.paperFXSurfaceConfig&&window.PaperFX?.createSurface){
     const cfg=base.userData.paperFXSurfaceConfig;
     const fx=window.PaperFX.createSurface({...cfg,uv:{...(cfg.uv||{}),repeat:[ru,rv]}});
     if(fx){fittedMaterialCache.set(key,fx);return fx;}
   }
   const m=base.clone();
-  m.userData={...(m.userData||{}),worldFloorSourceMaterialUuid:base.uuid};
   const t=base.map.clone();
-  t.wrapS=t.wrapT=THREE.RepeatWrapping;
-  t.repeat.set(ru,rv);
-  t.offset?.set?.(0,0);
-  t.center?.set?.(.5,.5);
-  t.rotation=0;
-  t.needsUpdate=true;
-  m.map=t;
-  m.needsUpdate=true;
-  if(worldTextureId){
-    m.userData.worldFloorRepeat=[ru,rv];
-    worldFloorTextureRuntime?.registerMaterial(m,worldTextureId,{repeat:[ru,rv]});
-  }
-  fittedMaterialCache.set(key,m);
-  return m;
+  t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(ru,rv);t.needsUpdate=true;
+  m.map=t;m.needsUpdate=true;fittedMaterialCache.set(key,m);return m;
 }
 function fittedPlaneMaterial(base,w,d){
-  if(!base?.map)return base;
   return fittedMappedMaterial(base,w/TILE,d/TILE);
+}
+function fittedPolygonMaterial(base,points){
+  if(!Array.isArray(points)||!points.length)return base;
+  const xs=points.map(p=>Number(p?.[0])||0),zs=points.map(p=>Number(p?.[1])||0);
+  return fittedMappedMaterial(
+    base,
+    Math.max(.01,Math.max(...xs)-Math.min(...xs)),
+    Math.max(.01,Math.max(...zs)-Math.min(...zs))
+  );
 }
 function fittedBoxMaterial(base,w,h,d){
   if(!base?.map)return base;
@@ -5328,18 +5345,38 @@ function buildRiverFlowStreaks(group,id,river,profile,bounds,baseY){
   const lines=new THREE.LineSegments(geo,mat);lines.renderOrder=2;lines.userData.waterVisualClass='river-flow-streaks';group.add(lines);return lines;
 }
 
+function buildProceduralRiverWaterGeometry(id,river,bounds,segments=72){
+  if(!river||!bounds)return null;
+  const segCount=Math.max(24,Math.floor(segments)),positions=[],uv=[];
+  const pushVertex=(frame,y,u,v)=>{positions.push(wt(frame.x),y,wt(frame.z));uv.push(u,v);};
+  for(let i=0;i<segCount;i++){
+    const t0=i/segCount,t1=(i+1)/segCount;
+    const w0=riverHalfWidthAtT(river,t0),w1=riverHalfWidthAtT(river,t1);
+    const l0=riverLocalVisualFrame(river,id,t0,-w0),r0=riverLocalVisualFrame(river,id,t0,w0);
+    const l1=riverLocalVisualFrame(river,id,t1,-w1),r1=riverLocalVisualFrame(river,id,t1,w1);
+    if(![l0,r0,l1,r1].some(p=>riverVisualInBounds(p,bounds,Math.max(w0,w1)+1)))continue;
+    // Local river UV: U follows current, V crosses bank-to-bank. This removes
+    // dependence on world/cardinal orientation and cannot rotate the river mask away.
+    const u0=t0*24,u1=t1*24;
+    pushVertex(l0,0,u0,0);pushVertex(r0,0,u0,1);pushVertex(r1,0,u1,1);
+    pushVertex(l0,0,u0,0);pushVertex(r1,0,u1,1);pushVertex(l1,0,u1,0);
+  }
+  if(!positions.length)return null;
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
+  geo.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));
+  geo.computeVertexNormals();geo.computeBoundingSphere();
+  geo.userData={...(geo.userData||{}),proceduralRiverStrip:true,source:'riverFieldSample+riverHalfWidthAtT'};
+  return geo;
+}
+
 function proceduralInlandWaterVisualProfile(hydro,region){
   const type=hydro?.type||'lake',field=hydro?.river||hydro?.lake||hydro;
   if(type==='river'){
-    const p0=field?.points?.[0],p1=field?.points?.[field.points.length-1]||p0;
-    const angle=p0&&p1?Math.atan2(p1.z-p0.z,p1.x-p0.x):0;
-    // PaperFX wave masks are authored as horizontal U-lines. On the XZ ground
-    // plane their directional frame needs a +90° correction before following
-    // the river tangent; otherwise the narrow alpha mask clips the waves sideways.
-    const riverUvRotation=Math.PI/2-angle;
     return {
       id:'river',baseColor:0x287f93,detailA:0xb7eef0,detailB:0x79cbd2,foam:0xf2fff8,opacity:.985,
-      uv:{wavesA:{repeat:[8.5,2.8],speed:[.070,.003],rotation:riverUvRotation},wavesB:{repeat:[11.0,3.6],speed:[-.095,.008],rotation:riverUvRotation},foam:{repeat:[7.0,2.4],speed:[.115,0],rotation:riverUvRotation}}
+      // The river strip owns orientation. U runs downstream and V runs bank-to-bank.
+      uv:{wavesA:{repeat:[1,2.8],speed:[.070,.003],rotation:0},wavesB:{repeat:[1,3.6],speed:[-.095,.008],rotation:0},foam:{repeat:[1,2.4],speed:[.115,0],rotation:0}}
     };
   }
   if(type==='lake'){
@@ -5357,39 +5394,61 @@ function buildProceduralInlandWaterVisual(g,id=mapId){
   const hydro=activeProceduralZone?.hydrology;if(!hydro||!['river','lake','wetland'].includes(hydro.type))return null;
   const region=activeProceduralZone.region,profile=proceduralInlandWaterVisualProfile(hydro,region);
   const mapDef=MAP_DATA.maps[id]||currentMapDef(),bounds=mapDef?.bounds||{x0:-OVERWORLD_HALF,x1:OVERWORLD_HALF,z0:-OVERWORLD_HALF,z1:OVERWORLD_HALF};
-  const maskResolution=DISPLAY_DEVICE_MOBILE?96:128;
-  const mask=inlandHydrologyWaterMaskTextureForSector(id,bounds,maskResolution);if(!mask)return null;
   const kit=window.PaperFX?.createWater?.({
     baseColor:profile.baseColor,waves:['wavesA','wavesB'],foam:'foam',
     waveColors:[profile.detailA,profile.detailB],foamColor:profile.foam,uv:profile.uv
   })||null;
-  const sourceMat=kit?.baseMaterial||new THREE.MeshStandardMaterial({color:profile.baseColor,roughness:.31,side:THREE.DoubleSide});
-  const mat=sourceMat.clone();mat.color.setHex(profile.baseColor);mat.transparent=true;mat.alphaMap=mask;mat.alphaTest=.018;mat.depthWrite=true;mat.side=THREE.DoubleSide;mat.opacity=profile.opacity;mat.roughness=hydro.type==='river'?.28:.38;mat.needsUpdate=true;
-  const w=bounds.x1-bounds.x0,d=bounds.z1-bounds.z0,cx=(bounds.x0+bounds.x1)*.5,cz=(bounds.z0+bounds.z1)*.5;
-  const geo=new THREE.PlaneGeometry(wt(w),wt(d),1,1);
   const field=hydro.river||hydro.lake||hydro;
   const waterTiles=Number.isFinite(field.waterSurfaceTiles)?field.waterSurfaceTiles:(Number.isFinite(hydro.waterTableTiles)?hydro.waterTableTiles:region.altitude-.2);
   const baseY=tileY(waterTiles)+.024;
+  const group=new THREE.Group();group.name=`procedural-${hydro.type}-water`;group.userData.waterVisualClass=profile.id;
+
+  if(hydro.type==='river'&&hydro.river){
+    const geo=buildProceduralRiverWaterGeometry(id,hydro.river,bounds,DISPLAY_DEVICE_MOBILE?64:96);
+    if(!geo)return null;
+    const sourceMat=kit?.baseMaterial||new THREE.MeshStandardMaterial({color:profile.baseColor,roughness:.28,side:THREE.DoubleSide});
+    const mat=sourceMat.clone();mat.color.setHex(profile.baseColor);mat.transparent=false;mat.alphaMap=null;mat.opacity=1;mat.depthWrite=true;mat.side=THREE.DoubleSide;mat.roughness=.28;mat.needsUpdate=true;
+    const mesh=new THREE.Mesh(geo,mat);mesh.position.y=baseY;mesh.receiveShadow=true;mesh.renderOrder=-4;
+    mesh.userData.paperFXWaterSurface=true;mesh.userData.proceduralHydrologyType='river';mesh.userData.waterVisualClass='river';mesh.userData.riverGeometryAuthority='riverHalfWidthAtT';
+
+    const addRiverDetail=(texture,color,opacity,y,order)=>{
+      if(!texture)return null;
+      const detailMat=new THREE.MeshBasicMaterial({map:texture,color,transparent:true,opacity,side:THREE.DoubleSide,depthWrite:false,depthTest:true,blending:THREE.AdditiveBlending});
+      const detail=new THREE.Mesh(geo.clone(),detailMat);detail.position.y=baseY+y;detail.renderOrder=order;detail.userData.waterVisualClass='river';group.add(detail);return detail;
+    };
+    group.add(mesh);
+    const detailA=addRiverDetail(kit?.textures?.waves?.[0],profile.detailA,DISPLAY_DEVICE_MOBILE?.28:.34,.010,-2);
+    const detailB=!DISPLAY_DEVICE_MOBILE?addRiverDetail(kit?.textures?.waves?.[1],profile.detailB,.22,.016,-1):null;
+    const riverLayers=[
+      buildRiverBankVisual(group,id,hydro.river,profile,bounds),
+      buildRiverEdgeFoamVisual(group,id,hydro.river,profile,bounds,baseY),
+      buildRiverFlowStreaks(group,id,hydro.river,profile,bounds,baseY)
+    ].filter(Boolean);
+    group.userData.paperFXWaterMesh=mesh;group.userData.waterDetailLayers=[detailA,detailB].filter(Boolean);group.userData.riverVisualLayers=riverLayers;
+    group.userData.geometryAuthority='procedural-river-strip';
+    g.add(group);return group;
+  }
+
+  // Lakes/wetlands remain continuous masked planes because their field is areal,
+  // not a centerline with an authoritative variable width.
+  const maskResolution=DISPLAY_DEVICE_MOBILE?96:128;
+  const mask=inlandHydrologyWaterMaskTextureForSector(id,bounds,maskResolution);if(!mask)return null;
+  const sourceMat=kit?.baseMaterial||new THREE.MeshStandardMaterial({color:profile.baseColor,roughness:.38,side:THREE.DoubleSide});
+  const mat=sourceMat.clone();mat.color.setHex(profile.baseColor);mat.transparent=true;mat.alphaMap=mask;mat.alphaTest=.018;mat.depthWrite=true;mat.side=THREE.DoubleSide;mat.opacity=profile.opacity;mat.roughness=.38;mat.needsUpdate=true;
+  const w=bounds.x1-bounds.x0,d=bounds.z1-bounds.z0,cx=(bounds.x0+bounds.x1)*.5,cz=(bounds.z0+bounds.z1)*.5;
+  const geo=new THREE.PlaneGeometry(wt(w),wt(d),1,1);
   const mesh=new THREE.Mesh(geo,mat);mesh.rotation.x=-Math.PI/2;mesh.position.set(wt(cx),baseY,wt(cz));mesh.receiveShadow=true;mesh.renderOrder=-4;
   mesh.userData.paperFXWaterSurface=true;mesh.userData.proceduralHydrologyType=hydro.type;mesh.userData.waterVisualClass=profile.id;
-
-  const group=new THREE.Group();group.name=`procedural-${hydro.type}-water`;group.userData.waterVisualClass=profile.id;group.add(mesh);
+  group.add(mesh);
   const addDetail=(texture,color,opacity,y,order)=>{
     if(!texture)return null;
     const detailMat=new THREE.MeshBasicMaterial({map:texture,alphaMap:mask,color,transparent:true,opacity,side:THREE.DoubleSide,depthWrite:false,depthTest:true,blending:THREE.AdditiveBlending});
     const detail=new THREE.Mesh(geo,detailMat);detail.rotation.x=-Math.PI/2;detail.position.set(wt(cx),baseY+y,wt(cz));detail.renderOrder=order;detail.userData.waterVisualClass=profile.id;group.add(detail);return detail;
   };
-  const detailA=addDetail(kit?.textures?.waves?.[0],profile.detailA,hydro.type==='river'?.34:.24,.010,-2);
-  const detailB=!DISPLAY_DEVICE_MOBILE?addDetail(kit?.textures?.waves?.[1],profile.detailB,hydro.type==='river'?.22:.16,.016,-1):null;
-  const foam=null;
-  const riverLayers=hydro.type==='river'&&hydro.river?[
-    buildRiverBankVisual(group,id,hydro.river,profile,bounds),
-    buildRiverEdgeFoamVisual(group,id,hydro.river,profile,bounds,baseY),
-    buildRiverFlowStreaks(group,id,hydro.river,profile,bounds,baseY)
-  ].filter(Boolean):[];
-  group.userData.paperFXWaterMesh=mesh;group.userData.waterDetailLayers=[detailA,detailB,foam].filter(Boolean);
-  group.userData.riverVisualLayers=riverLayers;g.add(group);
-  return group;
+  const detailA=addDetail(kit?.textures?.waves?.[0],profile.detailA,.24,.010,-2);
+  const detailB=!DISPLAY_DEVICE_MOBILE?addDetail(kit?.textures?.waves?.[1],profile.detailB,.16,.016,-1):null;
+  group.userData.paperFXWaterMesh=mesh;group.userData.waterDetailLayers=[detailA,detailB].filter(Boolean);
+  g.add(group);return group;
 }
 
 function riverEdgeSpan(module,dir){
@@ -12135,7 +12194,7 @@ function paperForestGroundPatch(g,points,kind='forestPath',y=.012,renderOrder=-1
   points.forEach(([x,z],i)=>{const X=wt(x),Z=-wt(z);i?sh.lineTo(X,Z):sh.moveTo(X,Z);});
   sh.closePath();
   const geo=normalizeShapeUVs(new THREE.ShapeGeometry(sh,Math.max(4,points.length)));
-  const mesh=new THREE.Mesh(geo,mat(kind));
+  const mesh=new THREE.Mesh(geo,fittedPolygonMaterial(mat(kind),points));
   mesh.rotation.x=-Math.PI/2;mesh.position.y=y;mesh.receiveShadow=true;mesh.renderOrder=renderOrder;
   mesh.userData.decorativeFloorPatch=true;g.add(mesh);return mesh;
 }
@@ -12192,7 +12251,7 @@ function paperGroveFloorPatch(g,points,kind='grovePath',y=.015,renderOrder=-14){
   points.forEach(([x,z],i)=>{const X=wt(x),Z=-wt(z);i?sh.lineTo(X,Z):sh.moveTo(X,Z);});
   sh.closePath();
   const geo=normalizeShapeUVs(new THREE.ShapeGeometry(sh,Math.max(4,points.length)));
-  const mesh=new THREE.Mesh(geo,mat(kind));
+  const mesh=new THREE.Mesh(geo,fittedPolygonMaterial(mat(kind),points));
   mesh.rotation.x=-Math.PI/2;mesh.position.y=y;mesh.receiveShadow=true;mesh.renderOrder=renderOrder;
   mesh.userData.decorativeFloorPatch=true;mesh.userData.groveVisual=true;g.add(mesh);return mesh;
 }
@@ -15314,7 +15373,9 @@ function buildProceduralLandGroundMesh(g,id=mapId,kind='forestGround'){
   for(let iz=0;iz<=sz;iz++){const vz=iz/sz,tz=THREE.MathUtils.lerp(bounds.z0,bounds.z1,vz);for(let ix=0;ix<=sx;ix++){const ux=ix/sx,tx=THREE.MathUtils.lerp(bounds.x0,bounds.x1,ux);verts.push(wt(tx),tileY(elevationHeightTilesAtWorld(wt(tx),wt(tz),id))+.003,wt(tz));uv.push(ux,vz);}}
   for(let iz=0;iz<sz;iz++)for(let ix=0;ix<sx;ix++){const a=iz*stride+ix,b=a+1,cc=a+stride,d=cc+1;if((ix+iz)&1)indices.push(a,cc,b,b,cc,d);else indices.push(a,cc,d,a,d,b);}
   const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));geo.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));geo.setIndex(indices);geo.computeVertexNormals();geo.computeBoundingSphere();
-  const mtl=mat(kind).clone();mtl.side=THREE.DoubleSide;const mesh=new THREE.Mesh(geo,mtl);mesh.receiveShadow=true;mesh.castShadow=false;mesh.name=`${id}-continuous-geography-ground`;mesh.userData.continuousGeography=true;g.add(mesh);return mesh;
+  const tilesW=Math.max(.01,bounds.x1-bounds.x0),tilesD=Math.max(.01,bounds.z1-bounds.z0);
+  const mtl=fittedMappedMaterial(mat(kind),tilesW,tilesD).clone();mtl.side=THREE.DoubleSide;
+  const mesh=new THREE.Mesh(geo,mtl);mesh.receiveShadow=true;mesh.castShadow=false;mesh.name=`${id}-continuous-geography-ground`;mesh.userData.continuousGeography=true;mesh.userData.worldFloorFittedTiles=[tilesW,tilesD];g.add(mesh);return mesh;
 }
 function elevationModuleMeshBounds(module){
   if(module.kind==='zone-ridge-curve'||module.kind==='zone-hill')return {x0:-OVERWORLD_HALF-.04,x1:OVERWORLD_HALF+.04,z0:-OVERWORLD_HALF-.04,z1:OVERWORLD_HALF+.04};
@@ -15352,8 +15413,8 @@ function buildNaturalElevationMesh(g,module){
   const geo=new THREE.BufferGeometry();
   geo.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));
   geo.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));geo.setIndex(indices);geo.computeVertexNormals();
-  const mtl=(mat(module.topKind||'groveStone')).clone();mtl.side=THREE.DoubleSide;
-  const mesh=new THREE.Mesh(geo,mtl);mesh.receiveShadow=true;mesh.castShadow=false;mesh.name=module.id+'-natural-terrain';mesh.userData.elevationModule=module.id;g.add(mesh);
+  const mtl=fittedMappedMaterial(mat(module.topKind||'groveStone'),Math.max(.01,x1-x0),Math.max(.01,z1-z0)).clone();mtl.side=THREE.DoubleSide;
+  const mesh=new THREE.Mesh(geo,mtl);mesh.receiveShadow=true;mesh.castShadow=false;mesh.name=module.id+'-natural-terrain';mesh.userData.elevationModule=module.id;mesh.userData.worldFloorFittedTiles=[Math.max(.01,x1-x0),Math.max(.01,z1-z0)];g.add(mesh);
   return mesh;
 }
 function buildElevationModule(g,module){
