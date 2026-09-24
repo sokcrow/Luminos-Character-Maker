@@ -4,7 +4,7 @@
     if (typeof module !== "undefined" && module.exports) module.exports = global.LuminousItemIconRegistry;
     return;
   }
-  const VERSION = 28;
+  const VERSION = 29;
   const DEFAULT_GROUP = "generic_item";
   function family(id, label, labelEs, domain, icon) { return Object.freeze({ id, label, labelEs, domain, icon }); }
   const FAMILY_ROWS = Object.freeze([
@@ -302,6 +302,69 @@
     ["blueberry","Blueberry","Arándano azul","material","https://imgur.com/lno7KtR.png"],
     ["raspberry","Raspberry","Frambuesa","material","https://imgur.com/tM1PFn4.png"],
     ["red_berry","Red Berry","Baya roja","material","https://imgur.com/NPbVHQE.png"],
+    ["potato","Potato","Potato","material","https://imgur.com/rbDO35l.png"],
+    ["carrot","Carrot","Carrot","material","https://imgur.com/ieTZvbE.png"],
+    ["onion","Onion","Onion","material","https://imgur.com/bGhYEe6.png"],
+    ["tomato","Tomato","Tomato","material","https://imgur.com/xvznBEx.png"],
+    ["cabbage","Cabbage","Cabbage","material","https://imgur.com/NwKMSIY.png"],
+    ["lettuce","Lettuce","Lettuce","material","https://imgur.com/qAZpHqN.png"],
+    ["spinach","Spinach","Spinach","material","https://imgur.com/9H8c0aQ.png"],
+    ["broccoli","Broccoli","Broccoli","material","https://imgur.com/sqS4Xet.png"],
+    ["pumpkin","Pumpkin","Pumpkin","material","https://imgur.com/ttsuh8e.png"],
+    ["beet","Beet","Beet","material","https://imgur.com/2qUvtPT.png"],
+    ["radish","Radish","Radish","material","https://imgur.com/RH0Ee3i.png"],
+    ["celery","Celery","Celery","material","https://imgur.com/Wa3mYfy.png"],
+    ["cucumber","Cucumber","Cucumber","material","https://imgur.com/GIWBaT6.png"],
+    ["bamboo_shoot","Bamboo Shoot","Bamboo Shoot","material","https://imgur.com/0YlKjH6.png"],
+    ["sweet_potato","Sweet Potato","Sweet Potato","material","https://imgur.com/OCE3Z9I.png"],
+    ["eggplant","Eggplant","Eggplant","material","https://imgur.com/OA9e7u7.png"],
+    ["wheat","Wheat","Wheat","material","https://imgur.com/we3iIyG.png"],
+    ["rice","Rice","Rice","material","https://imgur.com/fxWFVHU.png"],
+    ["corn","Corn","Corn","material","https://imgur.com/3o4s0xV.png"],
+    ["oats","Oats","Oats","material","https://imgur.com/we3iIyG.png"],
+    ["barley","Barley","Barley","material","https://imgur.com/yykSY4J.png"],
+    ["rye","Rye","Rye","material","https://imgur.com/VQibddq.png"],
+    ["beans","Beans","Beans","material","https://imgur.com/ZvkySVi.png"],
+    ["lentils","Lentils","Lentils","material","https://imgur.com/YnF2QLF.png"],
+    ["peas","Peas","Peas","material","https://imgur.com/61TsrQs.png"],
+    ["soybean","Soybean","Soybean","material","https://imgur.com/m7YxB77.png"],
+    ["almond","Almond","Almond","material","https://imgur.com/xCez4wo.png"],
+    ["walnut","Walnut","Walnut","material","https://imgur.com/KSNH918.png"],
+    ["peanut","Peanut","Peanut","material","https://imgur.com/9kR76Wu.png"],
+    ["sunflower_seed","Sunflower Seed","Sunflower Seed","material","https://imgur.com/Pwlr1Ih.png"],
+    ["sesame_seed","Sesame Seed","Sesame Seed","material","https://imgur.com/wt4BZxR.png"],
+    ["exotic_seed","Exotic Seed","Exotic Seed","material","https://imgur.com/bWNHJyw.png"],
+    ["pecan","Pecan","Pecan","material","https://imgur.com/PaOEtB5.png"],
+    ["chestnut","Chestnut","Chestnut","material","https://imgur.com/5dbZsGq.png"],
+    ["pine_nut","Pine Nut","Pine Nut","material","https://imgur.com/pP2kFne.png"],
+    ["cacao","Cacao","Cacao","material","https://imgur.com/91jcPok.png"],
+    ["coffee_bean","Coffee Bean","Coffee Bean","material","https://imgur.com/9DBr3IC.png"],
+    ["garlic","Garlic","Garlic","material","https://imgur.com/2e6ELM3.png"],
+    ["ginger","Ginger","Ginger","material","https://imgur.com/v6fDvz9.png"],
+    ["black_pepper","Black Pepper","Black Pepper","material","https://imgur.com/ZA88q6q.png"],
+    ["chili_pepper","Chili Pepper","Chili Pepper","material","https://imgur.com/45SaRya.png"],
+    ["paprika","Paprika","Paprika","material","https://imgur.com/UJVsJir.png"],
+    ["cinnamon","Cinnamon","Cinnamon","material","https://imgur.com/XwJqfaj.png"],
+    ["clove","Clove","Clove","material","https://imgur.com/vmcNJZd.png"],
+    ["nutmeg","Nutmeg","Nutmeg","material","https://imgur.com/0F2f0kw.png"],
+    ["turmeric","Turmeric","Turmeric","material","https://imgur.com/ujN2hU0.png"],
+    ["rare_spice","Rare Spice","Rare Spice","material","https://imgur.com/OgMPczO.png"],
+    ["basil","Basil","Basil","material","https://imgur.com/8W9fz40.png"],
+    ["mint","Mint","Mint","material","https://imgur.com/NZEJbOR.png"],
+    ["rosemary","Rosemary","Rosemary","material","https://imgur.com/M4kWFM8.png"],
+    ["thyme","Thyme","Thyme","material","https://imgur.com/EnCG5Zf.png"],
+    ["sage","Sage","Sage","material","https://imgur.com/J84TVfd.png"],
+    ["parsley","Parsley","Parsley","material","https://imgur.com/SH5vdRR.png"],
+    ["chives","Chives","Chives","material","https://imgur.com/65wvcvv.png"],
+    ["tea_leaf","Tea Leaves","Tea Leaves","material","https://imgur.com/V0CAwk9.png"],
+    ["medicinal_herb","Medicinal Herb","Medicinal Herb","material","https://imgur.com/4Z2OIkg.png"],
+    ["bitterroot","Bitterroot","Bitterroot","material","https://imgur.com/0THIle3.png"],
+    ["feverleaf","Feverleaf","Feverleaf","material","https://imgur.com/frPXfZz.png"],
+    ["bloodleaf","Bloodleaf","Bloodleaf","material","https://imgur.com/2AkRZW3.png"],
+    ["calming_herb","Calming Herb","Calming Herb","material","https://imgur.com/yewUNtZ.png"],
+    ["toxic_herb","Toxic Herb","Toxic Herb","material","https://imgur.com/5ctUj65.png"],
+    ["nightshade","Nightshade","Nightshade","material","https://imgur.com/hp40jYD.png"],
+    ["exotic_medicinal_herb","Exotic Medicinal Herb","Exotic Medicinal Herb","material","https://imgur.com/JapMEBs.png"],
     ["vegetable_raw","Raw Vegetable / Produce","Verdura / hortaliza cruda","material","https://imgur.com/QWUZK4g.png"],
     ["grain_seed_raw","Grain / Legume / Seed / Nut","Grano / legumbre / semilla / nuez","material","https://imgur.com/Z0TuVti.png"],
     ["spice_herb_raw","Spice / Culinary Herb","Especia / hierba culinaria","material","https://imgur.com/zvEvhjc.png"],
@@ -458,6 +521,7 @@
   }
   function canonicalGroupId(value) {
     const normalized = normalizeGroupId(value);
+    if (Object.prototype.hasOwnProperty.call(GROUPS, normalized)) return normalized;
     return Object.prototype.hasOwnProperty.call(ALIASES, normalized) ? ALIASES[normalized] : normalized;
   }
   function has(groupId) { return Object.prototype.hasOwnProperty.call(GROUPS, canonicalGroupId(groupId)); }
