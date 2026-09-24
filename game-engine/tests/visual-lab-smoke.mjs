@@ -96,7 +96,7 @@ assert.match(game, /TREE_OCCLUSION_RUNTIME/);
 assert.match(game, /DISPLAY_PERFORMANCE_RUNTIME/);
 assert.match(game, /updateAdaptiveDisplayPerformance/);
 assert.match(game, /targetFps:48/);
-assert.match(game, /minFps:40/);
+assert.match(game, /minFps:38/);
 assert.match(game, /minScale:\.84/);
 assert.match(game, /Math\.max\(1,displayPixelRatioCap\(\)\)/);
 assert.match(game, /MOBILE_FOREST_LOW_POLY=DISPLAY_DEVICE_MOBILE/);
