@@ -15456,16 +15456,16 @@ function forestV2TreeDescriptorAt(id,x,z,baseCrownColor=0x5d8050){
 function forestV2Mesh(parent,geo,material,{x=0,y=0,z=0,sx=1,sy=1,sz=1,rx=0,ry=0,rz=0,shadow=true,mobileFarKeep=false}={}){
   const m=new THREE.Mesh(geo,material);m.position.set(x,y,z);m.scale.set(sx,sy,sz);m.rotation.set(rx,ry,rz);m.castShadow=!!shadow;m.receiveShadow=true;m.userData.forestMobileFarKeep=!!mobileFarKeep;parent.add(m);return m;
 }
-function buildForestV2TreeVisual(grp,descriptor,{scale=1,castShadow=true}={}){
+function buildForestV2TreeVisual(grp,descriptor,{scale=1,castShadow=true,lowDetail=false}={}){
   const spec=descriptor.species,mats=forestV2Materials(spec,descriptor.baseCrownColor),j=.94+forestV2Hash(descriptor.seed,descriptor.variant,907,spec.heightTiles)*.12,worldTreeScale=SMALL_FOLK_WORLD_SCALE.nature.tree;
   const h=wt(spec.heightTiles*scale*descriptor.maturity*j*worldTreeScale.height),r=wt(spec.trunkRadiusTiles*scale*worldTreeScale.trunk),yaw=descriptor.yaw;
   grp.rotation.y=yaw;
   const lean=(forestV2Hash(descriptor.seed,descriptor.variant,908,spec.canopyRadiusTiles)-.5)*.045;
   forestV2Mesh(grp,forestV2Geometry('trunk'),mats.trunk,{y:h*.50,sx:r,sy:h,sz:r,rz:lean,shadow:castShadow,mobileFarKeep:true});
   const crownR=wt(spec.canopyRadiusTiles*scale*worldTreeScale.canopy);
-  if(MOBILE_FOREST_LOW_POLY){
-    // Móvil: 1 tronco + 2 masas de copa. Se conserva especie, tamaño, color y silueta general,
-    // pero se evita que un árbol individual cueste 8-20 draw calls.
+  if(MOBILE_FOREST_LOW_POLY||lowDetail){
+    // Árbol lejano/móvil: 1 tronco + 2 masas de copa. Conserva especie, tamaño,
+    // color y silueta regional sin pagar 8-20 draw calls por árbol de fondo.
     if(['pine','pine-highland','conifer','fir'].includes(spec.form)){
       forestV2Mesh(grp,forestV2Geometry('cone'),mats.leafA,{y:h*.72,sx:crownR*.94,sy:h*.36,sz:crownR*.94,ry:yaw*.13,shadow:false,mobileFarKeep:true});
       forestV2Mesh(grp,forestV2Geometry('cone'),mats.leafB,{y:h*.88,sx:crownR*.62,sy:h*.27,sz:crownR*.62,ry:yaw*.13+.41,shadow:false,mobileFarKeep:true});
@@ -15853,23 +15853,29 @@ function buildOverworldSector(){
     const treeScaleStd=SMALL_FOLK_WORLD_SCALE.nature.tree;
     const treeDescriptor=fastBackground?forestV2BackgroundTreeDescriptorAt(mapId,x,z,crownColor):forestV2TreeDescriptorAt(mapId,x,z,crownColor);
     const visualFootprint=Math.max(1.45,treeDescriptor.species.canopyRadiusTiles*treeScaleStd.canopy)*scale;
-    // Sigue siendo un árbol físico sólido. Sólo cambian especie/silueta/material visual.
-    if(!canPlaceNatureDecoration(x,z,visualFootprint))return null;
-    const grp=new THREE.Group();const treeBaseY=formalGroundYAtWorld(wt(x),wt(z),currentWorldLayer);grp.position.set(wt(x),treeBaseY,wt(z));grp.userData.stressStreamCandidate='tree';g.add(grp);
-    const metrics=buildForestV2TreeVisual(grp,treeDescriptor,{scale,castShadow});
-    const shadeDensity=zoneClamp(.45+((treeDescriptor.environment?.canopy||0)*.30)+((treeDescriptor.environment?.forestDepth||0)*.42),.38,1);
-    if(!MOBILE_FOREST_LOW_POLY)addForestCanopyShade(grp,0,0,0,metrics.canopyRadiusWorld*.92,shadeDensity,treeDescriptor.yaw*.25);
-    const floorProfile=forestFloorV3Profile(activeProceduralZone?.region),treeEnv=treeDescriptor.environment||{};
-    const rootChance=zoneClamp(floorProfile.root*(.55+(treeDescriptor.maturity||1)*.36+(treeDescriptor.species.trunkRadiusTiles||.2)*.72),0,.62);
-    if(!MOBILE_FOREST_LOW_POLY&&forestFloorV3Hash(x,z,3301,procSector?.seed||0)<rootChance)addForestRootFlareV3(grp,treeDescriptor,metrics,{scale,seed:(procSector?.seed||0)+3301});
-    const vineChance=zoneClamp(floorProfile.vine*(.20+(treeEnv.moisture||0)*.62+(treeEnv.forestDepth||0)*.76),0,.52);
-    if(!MOBILE_FOREST_LOW_POLY&&vineChance>0&&forestFloorV3Hash(x,z,3302,procSector?.seed||0)<vineChance)addForestVinesToTreeV3(grp,treeDescriptor,metrics,{scale,seed:(procSector?.seed||0)+3302});
-    // El footprint físico se conserva deliberadamente para no alterar navegación mientras
-    // preparamos los futuros assets de stump/log/cosecha.
+    // El cinturón perimetral es fondo visual, pero conserva collider. No necesita las
+    // 9 muestras de despeje, raíces, vines ni proxy de oclusión de un árbol cercano.
+    if(fastBackground){
+      if(proceduralHydrologySample(mapId,x,z).water||geologyFeatureBlocksDecoration(mapId,x,z,.28))return null;
+    }else if(!canPlaceNatureDecoration(x,z,visualFootprint))return null;
+    const treeBaseY=fastBackground&&isProceduralZone
+      ?tileY(elevationHeightTilesAtWorld(wt(x),wt(z),mapId))
+      :formalGroundYAtWorld(wt(x),wt(z),currentWorldLayer);
+    const grp=new THREE.Group();grp.position.set(wt(x),treeBaseY,wt(z));grp.userData.stressStreamCandidate='tree';grp.userData.backgroundTree=!!fastBackground;g.add(grp);
+    const metrics=buildForestV2TreeVisual(grp,treeDescriptor,{scale,castShadow:fastBackground?false:castShadow,lowDetail:fastBackground});
+    if(!fastBackground){
+      const shadeDensity=zoneClamp(.45+((treeDescriptor.environment?.canopy||0)*.30)+((treeDescriptor.environment?.forestDepth||0)*.42),.38,1);
+      if(!MOBILE_FOREST_LOW_POLY)addForestCanopyShade(grp,0,0,0,metrics.canopyRadiusWorld*.92,shadeDensity,treeDescriptor.yaw*.25);
+      const floorProfile=forestFloorV3Profile(activeProceduralZone?.region),treeEnv=treeDescriptor.environment||{};
+      const rootChance=zoneClamp(floorProfile.root*(.55+(treeDescriptor.maturity||1)*.36+(treeDescriptor.species.trunkRadiusTiles||.2)*.72),0,.62);
+      if(!MOBILE_FOREST_LOW_POLY&&forestFloorV3Hash(x,z,3301,procSector?.seed||0)<rootChance)addForestRootFlareV3(grp,treeDescriptor,metrics,{scale,seed:(procSector?.seed||0)+3301});
+      const vineChance=zoneClamp(floorProfile.vine*(.20+(treeEnv.moisture||0)*.62+(treeEnv.forestDepth||0)*.76),0,.52);
+      if(!MOBILE_FOREST_LOW_POLY&&vineChance>0&&forestFloorV3Hash(x,z,3302,procSector?.seed||0)<vineChance)addForestVinesToTreeV3(grp,treeDescriptor,metrics,{scale,seed:(procSector?.seed||0)+3302});
+    }
     const trunkDiameterTiles=Math.max(.60,treeDescriptor.species.trunkRadiusTiles*2*treeScaleStd.trunk*treeScaleStd.colliderPadding)*scale;
-    addCollider(wt(x),wt(z),wt(trunkDiameterTiles),wt(trunkDiameterTiles),'overworld-tree',currentColliderScope,{source:'overworld-tree',treeCollisionRule:'always',streamable:true,species:treeDescriptor.speciesId});
+    addCollider(wt(x),wt(z),wt(trunkDiameterTiles),wt(trunkDiameterTiles),'overworld-tree',currentColliderScope,{source:'overworld-tree',treeCollisionRule:'always',streamable:true,species:treeDescriptor.speciesId,backgroundTree:!!fastBackground});
     grp.userData.hasTreeCollider=true;
-    registerTreeOcclusionProxy(g,grp,wt(x),wt(z),Math.max(wt(1.38)*scale,metrics.canopyRadiusWorld*.92),metrics.heightWorld+metrics.canopyRadiusWorld*.78,treeBaseY);
+    if(!fastBackground)registerTreeOcclusionProxy(g,grp,wt(x),wt(z),Math.max(wt(1.38)*scale,metrics.canopyRadiusWorld*.92),metrics.heightWorld+metrics.canopyRadiusWorld*.78,treeBaseY);
     return grp;
   }
   function sectorSnowPatch(x,z,rx=1.15,rz=.72,rot=0){
@@ -15897,11 +15903,11 @@ function buildOverworldSector(){
     // Cheap rejection first: most mobile perimeter candidates never need ecology.
     if(roll>=edgeTreeKeep)return false;
     let chance=edgeTreeKeep;
-    if(isProceduralZone){const x=edge==='east'?edgeTreePos:(edge==='west'?-edgeTreePos:t),z=edge==='north'?edgeTreePos:(edge==='south'?-edgeTreePos:t);chance*=proceduralZoneNatureSample(mapId,x,z).treeFactor;}
+    if(isProceduralZone&&!DISPLAY_DEVICE_MOBILE){const x=edge==='east'?edgeTreePos:(edge==='west'?-edgeTreePos:t),z=edge==='north'?edgeTreePos:(edge==='south'?-edgeTreePos:t);chance*=proceduralZoneNatureSample(mapId,x,z).treeFactor;}
     return roll<chance;
   };
   for(const t of edgeSteps){
-    const edgeShadow=!DISPLAY_DEVICE_MOBILE,edgeOpts={fastBackground:DISPLAY_DEVICE_MOBILE};
+    const edgeShadow=false,edgeOpts={fastBackground:true};
     if(!edgeOpen('north',t)&&edgeKeep('north',t))sectorTree(t,edgeTreePos,.92+(Math.abs(t)%4)*.025,edgeShadow,edgeOpts);
     if(!edgeOpen('south',t)&&edgeKeep('south',t))sectorTree(t,-edgeTreePos,.90+(Math.abs(t+1)%4)*.025,edgeShadow,edgeOpts);
     if(!edgeOpen('east',t)&&edgeKeep('east',t))sectorTree(edgeTreePos,t,.90+(Math.abs(t+2)%4)*.025,edgeShadow,edgeOpts);
