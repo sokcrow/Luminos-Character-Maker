@@ -19,7 +19,7 @@ const { pathToFileURL } = require("node:url");
   assert.ok(cooking);
   assert.ok(catalog);
   assert.equal(catalog.VERSION, 1);
-  assert.ok(catalog.RECIPES.length >= 80, `expected >=80 recipes, got ${catalog.RECIPES.length}`);
+  assert.equal(catalog.RECIPES.length, 128, `expected 128 recipes after pie/cake variants, got ${catalog.RECIPES.length}`);
 
   const ids = new Set();
   const cuisines = new Set();
@@ -36,6 +36,7 @@ const { pathToFileURL } = require("node:url");
     assert.ok(economy.FOOD_PRICE_BANDS[recipe.priceClass], `bad price class on ${recipe.id}`);
     assert.ok(economy.VENUE_MULTIPLIER[recipe.defaultVenue], `bad venue on ${recipe.id}`);
     assert.ok(recipe.ingredients.length > 0, `recipe without ingredients ${recipe.id}`);
+    assert.ok(recipe.iconFamily == null || typeof recipe.iconFamily === "string", `invalid iconFamily on ${recipe.id}`);
     for (const row of recipe.ingredients) {
       assert.ok(row.requirement);
       assert.ok(row.quantity >= 1);
@@ -48,12 +49,21 @@ const { pathToFileURL } = require("node:url");
   }
 
   for (const id of [
-    "apple_pie","burger","fried_chicken","ramen","sushi_roll","tonkatsu",
+    "apple_pie","pear_pie","banana_cream_pie","dragon_fruit_tart","apple_cake","chocolate_cake","chestnut_cake",
+    "burger","fried_chicken","ramen","sushi_roll","tonkatsu",
     "pizza_margherita","pasta_bolognese","lasagna","tiramisu",
     "tacos","tamales","fried_rice","curry","ration_block"
   ]) {
     assert.ok(catalog.get(id), `missing canonical recipe ${id}`);
   }
+
+  assert.equal(catalog.get("white_bread").iconFamily, "white_bread");
+  assert.equal(catalog.get("apple_pie").iconFamily, "apple_pie");
+  assert.equal(catalog.get("pear_pie").ingredients.some((row)=>row.requirement === "pear"), true);
+  assert.equal(catalog.get("banana_cream_pie").ingredients.some((row)=>row.requirement === "cream"), true);
+  assert.equal(catalog.get("chocolate_cake").ingredients.some((row)=>row.requirement === "cacao"), true);
+  assert.equal(catalog.get("coffee_cake").ingredients.some((row)=>row.requirement === "coffee_bean"), true);
+  assert.equal(catalog.get("pineapple_cake").iconFamily, "pineapple_cake");
 
   const burger = catalog.resolveReferencePricing("burger", [
     { itemId:"bread", quantity:1, unitProductionValueAhn:3500 },
