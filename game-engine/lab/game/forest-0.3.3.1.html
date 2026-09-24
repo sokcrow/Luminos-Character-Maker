@@ -15856,11 +15856,14 @@ function buildOverworldSector(){
     // El cinturón perimetral es fondo visual, pero conserva collider. No necesita las
     // 9 muestras de despeje, raíces, vines ni proxy de oclusión de un árbol cercano.
     if(fastBackground){
-      if(proceduralHydrologySample(mapId,x,z).water||geologyFeatureBlocksDecoration(mapId,x,z,.28))return null;
+      // Perimeter background is outside the meaningful play corridor. Only a cheap
+      // hydrology test remains so silhouettes never grow out of visible water.
+      const hydro=activeProceduralZone?.hydrology;
+      if(hydro?.type==='coast'&&coastLocalDistance(mapId,x,z)<0)return null;
+      if(hydro?.type==='river'&&hydro.river&&riverFieldSample(hydro.river,...Object.values(zoneLocalToMacroPoint(mapId,x,z))).water)return null;
+      if(hydro?.type==='lake'&&hydro.lake&&lakeFieldSample(hydro.lake,...Object.values(zoneLocalToMacroPoint(mapId,x,z))).water)return null;
     }else if(!canPlaceNatureDecoration(x,z,visualFootprint))return null;
-    const treeBaseY=fastBackground&&isProceduralZone
-      ?tileY(elevationHeightTilesAtWorld(wt(x),wt(z),mapId))
-      :formalGroundYAtWorld(wt(x),wt(z),currentWorldLayer);
+    const treeBaseY=fastBackground?sectorBaseY:formalGroundYAtWorld(wt(x),wt(z),currentWorldLayer);
     const grp=new THREE.Group();grp.position.set(wt(x),treeBaseY,wt(z));grp.userData.stressStreamCandidate='tree';grp.userData.backgroundTree=!!fastBackground;g.add(grp);
     const metrics=buildForestV2TreeVisual(grp,treeDescriptor,{scale,castShadow:fastBackground?false:castShadow,lowDetail:fastBackground});
     if(!fastBackground){
@@ -15872,10 +15875,12 @@ function buildOverworldSector(){
       const vineChance=zoneClamp(floorProfile.vine*(.20+(treeEnv.moisture||0)*.62+(treeEnv.forestDepth||0)*.76),0,.52);
       if(!MOBILE_FOREST_LOW_POLY&&vineChance>0&&forestFloorV3Hash(x,z,3302,procSector?.seed||0)<vineChance)addForestVinesToTreeV3(grp,treeDescriptor,metrics,{scale,seed:(procSector?.seed||0)+3302});
     }
-    const trunkDiameterTiles=Math.max(.60,treeDescriptor.species.trunkRadiusTiles*2*treeScaleStd.trunk*treeScaleStd.colliderPadding)*scale;
-    addCollider(wt(x),wt(z),wt(trunkDiameterTiles),wt(trunkDiameterTiles),'overworld-tree',currentColliderScope,{source:'overworld-tree',treeCollisionRule:'always',streamable:true,species:treeDescriptor.speciesId,backgroundTree:!!fastBackground});
-    grp.userData.hasTreeCollider=true;
-    if(!fastBackground)registerTreeOcclusionProxy(g,grp,wt(x),wt(z),Math.max(wt(1.38)*scale,metrics.canopyRadiusWorld*.92),metrics.heightWorld+metrics.canopyRadiusWorld*.78,treeBaseY);
+    if(!fastBackground){
+      const trunkDiameterTiles=Math.max(.60,treeDescriptor.species.trunkRadiusTiles*2*treeScaleStd.trunk*treeScaleStd.colliderPadding)*scale;
+      addCollider(wt(x),wt(z),wt(trunkDiameterTiles),wt(trunkDiameterTiles),'overworld-tree',currentColliderScope,{source:'overworld-tree',treeCollisionRule:'always',streamable:true,species:treeDescriptor.speciesId});
+      grp.userData.hasTreeCollider=true;
+      registerTreeOcclusionProxy(g,grp,wt(x),wt(z),Math.max(wt(1.38)*scale,metrics.canopyRadiusWorld*.92),metrics.heightWorld+metrics.canopyRadiusWorld*.78,treeBaseY);
+    }
     return grp;
   }
   function sectorSnowPatch(x,z,rx=1.15,rz=.72,rot=0){
@@ -15893,7 +15898,7 @@ function buildOverworldSector(){
   // físico cada 3 tiles en un borde que funciona principalmente como fondo visual.
   const edgeTreeStep=DISPLAY_DEVICE_MOBILE?5.8:3;
   const edgeSteps=[];for(let t=-OVERWORLD_HALF+2;t<=OVERWORLD_HALF-2+.001;t+=edgeTreeStep)edgeSteps.push(t);
-  const edgeTreePos=OVERWORLD_HALF-1.45;
+  const edgeTreePos=DISPLAY_DEVICE_MOBILE?OVERWORLD_HALF-.62:OVERWORLD_HALF-1.05;
   const rawEdgeTreeKeep=isProceduralZone?zoneClamp(.01+sectorClimate.treeMultiplier*.88,.01,1):Math.max(.22,Math.min(1,.18+sectorClimate.treeMultiplier*.82));
   const edgeTreeKeep=DISPLAY_DEVICE_MOBILE?rawEdgeTreeKeep*.58:rawEdgeTreeKeep;
   const edgeKeep=(edge,t)=>{
