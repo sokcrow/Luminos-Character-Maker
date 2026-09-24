@@ -8,6 +8,8 @@ import TerrainTextures, {
   FLOOR_TEXTURE_IDS,
   floorTextureId,
   floorTexturePath,
+  drawFloorTexture,
+  drawTerrainTexture,
 } from '../js/global-map-terrain-textures.js';
 
 assert.equal(terrainKind('mountain'), 'mountain');
@@ -23,6 +25,49 @@ assert.equal(floorTextureId('cobblestone'), 'floor_cobblestone_01');
 assert.equal(floorTextureId({ terrain:'snow' }), 'floor_snow_01');
 assert.equal(floorTexturePath('floor_concrete_01'), 'Assets/Images/World/Floors/floor_concrete_01.png');
 assert.equal(floorTexturePath('unknown_surface'), null);
+
+const textureCalls = [];
+const pattern = {
+  transform:null,
+  setTransform(value) { this.transform = value; },
+};
+const fakeCtx = {
+  globalAlpha:1,
+  fillStyle:null,
+  save() { textureCalls.push('save'); },
+  restore() { textureCalls.push('restore'); },
+  beginPath() { textureCalls.push('beginPath'); },
+  moveTo() {},
+  lineTo() {},
+  closePath() {},
+  clip() { textureCalls.push('clip'); },
+  createPattern(image, repetition) {
+    textureCalls.push(['createPattern', image, repetition]);
+    return pattern;
+  },
+  fillRect(x, y, width, height) {
+    textureCalls.push(['fillRect', x, y, width, height]);
+  },
+};
+const fakeTextureImage = { complete:true, naturalWidth:256, width:256 };
+const polygon = [{x:10,y:20},{x:210,y:20},{x:210,y:140},{x:10,y:140}];
+
+const floorDraw = drawFloorTexture(fakeCtx, { terrain:'grass' }, polygon, {
+  textureImage:fakeTextureImage,
+  tileSizePx:64,
+});
+assert.equal(floorDraw.id, 'floor_grass_01');
+assert.equal(floorDraw.path, 'Assets/Images/World/Floors/floor_grass_01.png');
+assert.equal(floorDraw.drawn, true, 'local floor texture must be drawn');
+assert.equal(pattern.transform.a, 0.25);
+assert.ok(textureCalls.some((entry) => Array.isArray(entry) && entry[0] === 'createPattern' && entry[2] === 'repeat'));
+assert.ok(textureCalls.some((entry) => Array.isArray(entry) && entry[0] === 'fillRect'));
+
+const terrainDraw = drawTerrainTexture(fakeCtx, { terrain:'dirt' }, polygon, {
+  textureImage:fakeTextureImage,
+  tileSizePx:64,
+});
+assert.equal(terrainDraw.id, 'floor_dirt_01', 'terrain renderer must use local floor textures');
 
 assert.equal(mountainSpines({ terrain:'mountain', metadata:{} }), 5);
 assert.equal(mountainSpines({ terrain:'mountain', metadata:{ mountainSpines:0 } }), 0);
