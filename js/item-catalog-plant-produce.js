@@ -187,20 +187,21 @@
     ingredient("nightshade", "Nightshade", "medicinal_toxic_herb", "nightshade", 3000, ["toxic_herb"], ["bitter"], ["toxic", "potent_toxin"], ["poison", "alchemy"]),
     ingredient("exotic_medicinal_herb", "Exotic Medicinal Herb", "medicinal_toxic_herb", "exotic_medicinal_herb", 7500, ["medicinal_herb"], ["exotic"], ["medicinal", "advanced_reagent", "rare"], ["medicine", "alchemy"]),
 
-    // Fungi — 7
-    ingredient("common_mushroom", "Common Mushroom", "fungus", "fungus_raw", 350, ["fungus", "edible"], ["savory", "earthy"], ["cooking"]),
-    ingredient("cave_mushroom", "Cave Mushroom", "fungus", "fungus_raw", 600, ["fungus"], ["earthy"], ["cooking", "underground"]),
-    ingredient("medicinal_mushroom", "Medicinal Mushroom", "fungus", "fungus_medicinal", 1500, ["fungus"], ["earthy"], ["medicinal", "medicine_reagent"], ["medicine", "alchemy"]),
-    ingredient("toxic_mushroom", "Toxic Mushroom", "fungus", "fungus_toxic", 1500, ["fungus"], ["bitter"], ["toxic", "poison_reagent"], ["poison", "alchemy"]),
-    ingredient("fermentation_fungus", "Fermentation Fungus", "fungus", "fungus_raw", 800, ["fungus"], ["earthy"], ["culture", "fermentation"], ["processing"]),
-    ingredient("exotic_fungus", "Exotic Fungus", "fungus", "fungus_raw", 5000, ["fungus"], ["exotic"], ["special_reagent", "rare"], ["alchemy"]),
-    ingredient("truffle", "Truffle", "fungus", "fungus_raw", 5000, ["fungus", "seasoning"], ["rich", "earthy", "aromatic"], ["special_ingredient", "gourmet", "sauce"]),
+    // Fungi — 8 world-seed profiles
+    ingredient("common_mushroom", "Common Mushroom", "fungus", "common_mushroom", 350, ["fungus", "edible"], ["savory", "earthy"], ["cooking"]),
+    ingredient("forest_mushroom", "Forest Mushroom", "fungus", "forest_mushroom", 600, ["fungus", "edible"], ["savory", "earthy"], ["cooking", "forest"]),
+    ingredient("frost_mushroom", "Frost Mushroom", "fungus", "frost_mushroom", 800, ["fungus", "edible"], ["earthy", "fresh"], ["cooking", "cold_biome"]),
+    ingredient("wetland_mushroom", "Wetland Mushroom", "fungus", "wetland_mushroom", 600, ["fungus", "edible"], ["savory", "earthy"], ["cooking", "wetland"]),
+    ingredient("desert_truffle", "Desert Truffle", "fungus", "desert_truffle", 5000, ["fungus", "seasoning"], ["rich", "earthy", "aromatic"], ["special_ingredient", "gourmet", "arid"]),
+    ingredient("medicinal_mushroom", "Medicinal Mushroom", "fungus", "medicinal_mushroom", 1500, ["fungus"], ["earthy"], ["medicinal", "medicine_reagent"], ["medicine", "alchemy"]),
+    ingredient("toxic_mushroom", "Toxic Mushroom", "fungus", "toxic_mushroom", 1500, ["fungus"], ["bitter"], ["toxic", "poison_reagent"], ["poison", "alchemy"]),
+    ingredient("truffle", "Truffle", "fungus", "truffle", 5000, ["fungus", "seasoning"], ["rich", "earthy", "aromatic"], ["special_ingredient", "gourmet", "sauce"]),
 
     // Sap / Resin / Botanical Extracts — 4
-    ingredient("sap", "Sap", "botanical_extract", "botanical_extract_raw", 400, ["extract", "sap"], ["sweet"], ["sweetener_base", "binder"], ["alchemy", "processing"]),
-    ingredient("resin", "Resin", "botanical_extract", "botanical_extract_raw", 700, ["extract", "resin"], ["aromatic"], ["adhesive", "sealant", "chemical_processing"], ["crafting", "chemical"]),
-    ingredient("plant_latex", "Plant Latex", "botanical_extract", "botanical_extract_raw", 900, ["extract", "latex"], ["neutral"], ["elastic", "binder", "material_processing"], ["crafting", "processing"]),
-    ingredient("exotic_botanical_extract", "Exotic Botanical Extract", "botanical_extract", "botanical_extract_raw", 2500, ["extract"], ["exotic"], ["alchemy_reagent", "rare", "special_reagent"], ["alchemy", "crafting"]),
+    ingredient("sap", "Sap", "botanical_extract", "sap", 400, ["extract", "sap"], ["sweet"], ["sweetener_base", "binder"], ["alchemy", "processing"]),
+    ingredient("resin", "Resin", "botanical_extract", "resin", 700, ["extract", "resin"], ["aromatic"], ["adhesive", "sealant", "chemical_processing"], ["crafting", "chemical"]),
+    ingredient("plant_latex", "Plant Latex", "botanical_extract", "plant_latex", 900, ["extract", "latex"], ["neutral"], ["elastic", "binder", "material_processing"], ["crafting", "processing"]),
+    ingredient("exotic_botanical_extract", "Exotic Botanical Extract", "botanical_extract", "exotic_botanical_extract", 2500, ["extract"], ["exotic"], ["alchemy_reagent", "rare", "special_reagent"], ["alchemy", "crafting"]),
   ]);
 
   const ALIASES = Object.freeze({
@@ -208,6 +209,9 @@
     exotic_fruit: "dragon_fruit",
     mushroom: "common_mushroom",
     common_fungus: "common_mushroom",
+    cave_mushroom: "wetland_mushroom",
+    fermentation_fungus: "common_mushroom",
+    exotic_fungus: "truffle",
     medicinal_plant: "medicinal_herb",
     healing_herb: "medicinal_herb",
     poison_herb: "toxic_herb",
