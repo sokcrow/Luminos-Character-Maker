@@ -1,0 +1,35 @@
+name: PR777 Package
+
+on:
+  push:
+    branches:
+      - feat/item-icon-families
+    paths:
+      - '.github/workflows/pr777-package.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build clean project ZIP
+        shell: bash
+        run: |
+          rm -f L777.zip
+          zip -qr L777.zip . \
+            -x '.git/*' \
+               'L777.zip' \
+               '.github/workflows/pr777-package.yml'
+          unzip -l L777.zip | grep -q 'LuminousLab/START_ANDROID.sh'
+          unzip -l L777.zip | grep -q 'game-engine/lab/game/forest-0.3.3.1.html'
+      - name: Upload project ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: L777-package
+          path: L777.zip
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
