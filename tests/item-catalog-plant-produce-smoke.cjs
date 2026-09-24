@@ -23,8 +23,8 @@ const { pathToFileURL } = require('node:url');
   assert.equal(catalog.CURRENCY, 'AHN');
   assert.equal(catalog.MEASURE, 'market_unit');
   assert.equal(catalog.RECIPES_IMPLEMENTED, false);
-  assert.equal(catalog.ITEMS.length, 98);
-  assert.equal(new Set(catalog.ITEMS.map((entry) => entry.id)).size, 98);
+  assert.equal(catalog.ITEMS.length, 99);
+  assert.equal(new Set(catalog.ITEMS.map((entry) => entry.id)).size, 99);
 
   const groupCounts = Object.fromEntries(
     [...new Set(catalog.ITEMS.map((entry) => entry.group))]
@@ -38,7 +38,7 @@ const { pathToFileURL } = require('node:url');
     spice: 10,
     culinary_herb: 8,
     medicinal_toxic_herb: 8,
-    fungus: 7,
+    fungus: 8,
     botanical_extract: 4,
   });
 
@@ -59,7 +59,9 @@ const { pathToFileURL } = require('node:url');
     'fungus_raw',
     'fungus_medicinal',
     'fungus_toxic',
+    'common_mushroom', 'forest_mushroom', 'frost_mushroom', 'wetland_mushroom', 'desert_truffle', 'medicinal_mushroom', 'toxic_mushroom', 'truffle',
     'botanical_extract_raw',
+    'sap', 'resin', 'plant_latex', 'exotic_botanical_extract',
   ]);
 
   for (const entry of catalog.ITEMS) {
@@ -85,7 +87,7 @@ const { pathToFileURL } = require('node:url');
   assert.equal(catalog.get('rare_spice').standardUnitValueAhn, 18000);
   assert.equal(catalog.get('nightshade').standardUnitValueAhn, 18000);
   assert.equal(catalog.get('exotic_medicinal_herb').standardUnitValueAhn, 45000);
-  assert.equal(catalog.get('exotic_fungus').standardUnitValueAhn, 30000);
+  assert.equal(catalog.get('desert_truffle').standardUnitValueAhn, 30000);
   assert.equal(catalog.get('exotic_botanical_extract').standardUnitValueAhn, 15000);
   assert.equal(catalog.get('pineapple').standardUnitValueAhn, 3600);
   assert.equal(catalog.get('sweet_potato').standardUnitValueAhn, 1800);
@@ -97,12 +99,12 @@ const { pathToFileURL } = require('node:url');
   assert.equal(catalog.get('almond').iconFamily, 'almond');
   assert.equal(catalog.get('rosemary').iconFamily, 'rosemary');
   assert.equal(catalog.get('nightshade').iconFamily, 'nightshade');
-  assert.equal(catalog.get('common_mushroom').iconFamily, 'fungus_raw');
-  assert.equal(catalog.get('resin').iconFamily, 'botanical_extract_raw');
+  assert.equal(catalog.get('common_mushroom').iconFamily, 'common_mushroom');
+  assert.equal(catalog.get('resin').iconFamily, 'resin');
   assert.equal(catalog.get('pineapple').iconFamily, 'pineapple');
   assert.equal(catalog.get('sweet_potato').iconFamily, 'sweet_potato');
   assert.equal(catalog.get('tea_leaf').iconFamily, 'tea_leaf');
-  assert.equal(catalog.get('truffle').iconFamily, 'fungus_raw');
+  assert.equal(catalog.get('truffle').iconFamily, 'truffle');
   assert.equal(catalog.get('berry').id, 'blackberry');
   assert.equal(catalog.get('exotic_fruit').id, 'dragon_fruit');
   assert.equal(catalog.get('blueberry').iconFamily, 'blueberry');
@@ -121,6 +123,9 @@ const { pathToFileURL } = require('node:url');
   assert.equal(catalog.processingMethodsFor('tea_leaf').some((entry) => entry.id === 'brew'), true);
 
   assert.equal(catalog.get('mushroom').id, 'common_mushroom');
+  assert.equal(catalog.get('cave_mushroom').id, 'wetland_mushroom');
+  assert.equal(catalog.get('fermentation_fungus').id, 'common_mushroom');
+  assert.equal(catalog.get('exotic_fungus').id, 'truffle');
   assert.equal(catalog.get('healing_herb').id, 'medicinal_herb');
   assert.equal(catalog.get('latex').id, 'plant_latex');
 
@@ -149,7 +154,7 @@ const { pathToFileURL } = require('node:url');
   assert.equal(driedPotato.processedForm, 'dried');
   assert.equal(driedPotato.affinityTarget, stack.affinityTarget);
 
-  console.log('Plant produce catalog smoke: OK (98 canonical ingredients, recipes deferred)');
+  console.log('Plant produce catalog smoke: OK (99 canonical ingredients, recipes deferred)');
 })().catch((error) => {
   console.error(error);
   process.exitCode = 1;
