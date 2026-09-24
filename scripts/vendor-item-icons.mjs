@@ -150,7 +150,11 @@ async function main() {
     registry = registry.split('"' + source + '"').join('"' + localPath + '"');
   }
 
-  registry = registry.replace(/const VERSION = (\d+);/, (_, value) => "const VERSION = " + (Number(value) + 1) + ";");
+  let migratedVersion = null;
+  registry = registry.replace(/const VERSION = (\d+);/, (_, value) => {
+    migratedVersion = Number(value) + 1;
+    return "const VERSION = " + migratedVersion + ";";
+  });
   if (/https?:\/\/imgur\.com\/[^"'\s]+\.png/.test(registry)) {
     throw new Error("Remote Imgur icon URL remains in item-icon-registry.js after rewrite.");
   }
