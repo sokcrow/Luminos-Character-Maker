@@ -86,9 +86,43 @@ jobs:
             results[item.region]=data;
             await p.close();
           }
+          const mobileContext=await browser.newContext({
+            viewport:{width:915,height:412},isMobile:true,hasTouch:true,deviceScaleFactor:2,
+            userAgent:'Mozilla/5.0 (Linux; Android 14; Pixel 7 Build/UP1A.231105.003) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Mobile Safari/537.36'
+          });
+          const mp=await mobileContext.newPage();const mobileErrors=[];mp.on('pageerror',e=>mobileErrors.push(String(e)));
+          await mp.goto('http://127.0.0.1:4173/game-engine/lab/game/forest-0.3.3.1.html',{waitUntil:'domcontentloaded',timeout:120000});
+          await mp.waitForFunction(()=>window.__paperLoaded===true,null,{timeout:120000});
+          await mp.waitForFunction(()=>document.getElementById('loaderPaper')?.classList.contains('off')===true,null,{timeout:120000});
+          const mobileStart=Date.now();
+          await mp.evaluate(()=>{
+            window.__perfProbe={ticks:[],start:performance.now()};
+            window.__perfProbeTimer=setInterval(()=>window.__perfProbe.ticks.push(performance.now()),25);
+            document.getElementById('globalExploreBtn')?.click();
+          });
+          await mp.waitForFunction(()=>document.body.classList.contains('global-map-mode')===false,null,{timeout:120000});
+          await mp.waitForFunction(()=>document.getElementById('loaderPaper')?.classList.contains('off')===true,null,{timeout:120000});
+          results.mobile=await mp.evaluate(()=>{
+            clearInterval(window.__perfProbeTimer);
+            const ticks=window.__perfProbe.ticks||[],gaps=[];for(let i=1;i<ticks.length;i++)gaps.push(ticks[i]-ticks[i-1]);
+            return {
+              maxGap:gaps.length?Math.max(...gaps):0,ticks:ticks.length,
+              loadProfile:window.__LAST_MAP_LOAD_PERF__||null,
+              sectorProfile:window.__LAST_SECTOR_RENDER_PERF__||null,
+              playerSafe:window.SpawnSafetySystem?.playerIsSafe({requireDry:true})??null
+            };
+          });
+          results.mobile.wallMs=Date.now()-mobileStart;results.mobile.errors=mobileErrors;
+          assert.equal(mobileErrors.length,0,'mobile Explore page errors: '+mobileErrors.join(' | '));
+          assert.equal(results.mobile.playerSafe,true,'mobile spawn must stay safe');
+          assert.equal(results.mobile.sectorProfile?.mobile,true,'Android emulation must enable mobile renderer path');
+          await mp.screenshot({path:'watervis-mobile.png',fullPage:false});
+          await mobileContext.close();
+
           await browser.close();
           fs.writeFileSync('watervis-validation.json',JSON.stringify(results,null,2));
           console.log('WATERVIS_PERF',JSON.stringify(results.river));
+          console.log('WATERVIS_MOBILE',JSON.stringify(results.mobile));
           EOF
           node watervis777-check.mjs
           rm -f watervis777-check.mjs
@@ -104,6 +138,7 @@ jobs:
             watervis-river.png
             watervis-lake.png
             watervis-coast.png
+            watervis-mobile.png
             watervis-validation.json
           if-no-files-found: error
           retention-days: 1
