@@ -90,7 +90,7 @@ assert.equal(runtime.status('floor_grass_01').status,'ready');
 assert.equal(mats.forestGround.userData.worldFloorTextureState,'ready');
 assert.ok(mats.forestGround.map.url.endsWith('/Assets/Images/World/Floors/floor_grass_01.png'));
 assert.equal(mats.forestGround.map.repeat.x,.34,'existing UV repeat must survive hot swap');
-assert.equal(refreshed.length,1);
+assert.ok(refreshed.some((event)=>event.material===mats.forestGround), 'forest ground must refresh when local PNG is ready');
 
 const dirtMaterial=runtime.materialForTerrain('dirt',{ensure:false});
 assert.equal(dirtMaterial.userData.worldFloorTextureId,'floor_dirt_01');
