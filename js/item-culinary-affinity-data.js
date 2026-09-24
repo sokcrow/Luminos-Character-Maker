@@ -180,11 +180,12 @@
     exotic_medicinal_herb: "spice_rare",
 
     common_mushroom: "fungus_common",
-    cave_mushroom: "fungus_common",
+    forest_mushroom: "fungus_common",
+    frost_mushroom: "fungus_common",
+    wetland_mushroom: "fungus_common",
+    desert_truffle: "fungus_exotic",
     medicinal_mushroom: "fungus_medicinal",
     toxic_mushroom: "fungus_toxic",
-    fermentation_fungus: "fungus_ferment",
-    exotic_fungus: "fungus_exotic",
     truffle: "fungus_exotic",
 
     sap: "extract_sap",
@@ -236,6 +237,9 @@
   const ALIASES = Object.freeze({
     berry: "blackberry",
     exotic_fruit: "dragon_fruit",
+    cave_mushroom: "wetland_mushroom",
+    fermentation_fungus: "common_mushroom",
+    exotic_fungus: "truffle",
   });
 
   function clone(value) {
