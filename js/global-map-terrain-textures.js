@@ -25,6 +25,7 @@ const FLOOR_TEXTURE_IDS = Object.freeze([
 const FLOOR_TEXTURE_PATHS = Object.freeze(Object.fromEntries(
   FLOOR_TEXTURE_IDS.map((id) => [id, `${FLOOR_TEXTURE_BASE_PATH}/${id}.png`])
 ));
+const FLOOR_TEXTURE_READY_EVENT = 'luminous:world-floor-texture-ready';
 const FLOOR_TEXTURE_TERRAIN_MAP = Object.freeze({
   grass:'floor_grass_01', plains:'floor_grass_01', meadow:'floor_grass_01', forest:'floor_grass_01',
   dirt:'floor_dirt_01', earth:'floor_dirt_01', soil:'floor_dirt_01',
@@ -80,6 +81,84 @@ function floorTexturePath(idOrRegion) {
 function floorTextureDescriptor(idOrRegion) {
   const id = floorTextureId(idOrRegion);
   return id ? Object.freeze({ id, path: FLOOR_TEXTURE_PATHS[id] }) : null;
+}
+
+const floorTextureCache = new Map();
+
+function floorTextureEntry(idOrRegion) {
+  const descriptor = floorTextureDescriptor(idOrRegion);
+  if (!descriptor) return null;
+  if (floorTextureCache.has(descriptor.id)) return floorTextureCache.get(descriptor.id);
+
+  const ImageCtor = typeof globalThis !== 'undefined' && typeof globalThis.Image === 'function'
+    ? globalThis.Image
+    : null;
+
+  if (!ImageCtor) {
+    const unavailable = { ...descriptor, status:'unavailable', image:null, promise:null, error:null };
+    floorTextureCache.set(descriptor.id, unavailable);
+    return unavailable;
+  }
+
+  const image = new ImageCtor();
+  const entry = { ...descriptor, status:'loading', image, promise:null, error:null };
+  entry.promise = new Promise((resolve) => {
+    image.onload = () => {
+      entry.status = 'ready';
+      entry.error = null;
+      if (typeof globalThis !== 'undefined'
+        && typeof globalThis.dispatchEvent === 'function'
+        && typeof globalThis.CustomEvent === 'function') {
+        globalThis.dispatchEvent(new globalThis.CustomEvent(FLOOR_TEXTURE_READY_EVENT, {
+          detail: Object.freeze({ id:descriptor.id, path:descriptor.path }),
+        }));
+      }
+      resolve(entry);
+    };
+    image.onerror = (error) => {
+      entry.status = 'error';
+      entry.error = error || new Error('WORLD_FLOOR_TEXTURE_LOAD_FAILED');
+      resolve(entry);
+    };
+  });
+
+  try { image.decoding = 'async'; } catch {}
+  image.src = descriptor.path;
+  floorTextureCache.set(descriptor.id, entry);
+  return entry;
+}
+
+function floorTextureStatus(idOrRegion) {
+  const descriptor = floorTextureDescriptor(idOrRegion);
+  if (!descriptor) return null;
+  const entry = floorTextureCache.get(descriptor.id);
+  return Object.freeze({
+    ...descriptor,
+    status: entry?.status || 'idle',
+    loaded: entry?.status === 'ready',
+  });
+}
+
+function floorTextureImage(idOrRegion) {
+  const entry = floorTextureEntry(idOrRegion);
+  return entry?.status === 'ready' ? entry.image : null;
+}
+
+function preloadFloorTextures(ids = FLOOR_TEXTURE_IDS) {
+  const list = Array.isArray(ids) ? ids : [ids];
+  const entries = list.map((id) => floorTextureEntry(id)).filter(Boolean);
+  return Promise.all(entries.map((entry) => entry.promise || Promise.resolve(entry)));
+}
+
+function clearFloorTextureCache() {
+  floorTextureCache.clear();
+}
+
+function onFloorTextureReady(listener, target = typeof globalThis !== 'undefined' ? globalThis : null) {
+  if (typeof listener !== 'function' || !target || typeof target.addEventListener !== 'function') return () => {};
+  const handler = (event) => listener(event?.detail || null);
+  target.addEventListener(FLOOR_TEXTURE_READY_EVENT, handler);
+  return () => target.removeEventListener?.(FLOOR_TEXTURE_READY_EVENT, handler);
 }
 
 function terrainKind(regionOrTerrain) {
@@ -196,6 +275,69 @@ function clipPolygon(ctx, points) {
   return true;
 }
 
+function textureImageReady(image) {
+  if (!image) return false;
+  if ('complete' in image && image.complete === false) return false;
+  if ('naturalWidth' in image && Number(image.naturalWidth) <= 0) return false;
+  return true;
+}
+
+function injectedTextureImage(options = {}, textureId) {
+  if (textureImageReady(options.textureImage)) return options.textureImage;
+  const collection = options.textureImages;
+  const candidate = collection instanceof Map ? collection.get(textureId) : collection?.[textureId];
+  return textureImageReady(candidate) ? candidate : null;
+}
+
+function drawFloorTexture(ctx, region, screenPoints, options = {}) {
+  if (!ctx || !Array.isArray(screenPoints) || screenPoints.length < 3) return null;
+  const descriptor = floorTextureDescriptor(region);
+  if (!descriptor) return null;
+
+  const bounds = polygonBounds(screenPoints);
+  if (!bounds || bounds.width < 2 || bounds.height < 2) return null;
+
+  const image = injectedTextureImage(options, descriptor.id) || floorTextureImage(descriptor.id);
+  if (!textureImageReady(image)) {
+    floorTextureEntry(descriptor.id);
+    return null;
+  }
+
+  if (typeof ctx.createPattern !== 'function') return null;
+  const pattern = ctx.createPattern(image, 'repeat');
+  if (!pattern) return null;
+
+  const tileSizePx = Math.max(16, finite(options.tileSizePx, 128));
+  const intrinsicWidth = Math.max(1, finite(image.naturalWidth ?? image.width, tileSizePx));
+  const requestedScale = finite(options.textureScale, 0);
+  const scale = requestedScale > 0 ? requestedScale : tileSizePx / intrinsicWidth;
+  if (typeof pattern.setTransform === 'function') {
+    try {
+      pattern.setTransform({
+        a:scale, b:0, c:0, d:scale,
+        e:finite(options.textureOffsetX, bounds.minX),
+        f:finite(options.textureOffsetY, bounds.minY),
+      });
+    } catch {}
+  }
+
+  ctx.save();
+  clipPolygon(ctx, screenPoints);
+  ctx.globalAlpha *= clamp(finite(options.textureOpacity, 0.92), 0, 1);
+  ctx.fillStyle = pattern;
+  ctx.fillRect(bounds.minX, bounds.minY, bounds.width, bounds.height);
+  ctx.restore();
+
+  return Object.freeze({
+    kind:'floor',
+    id:descriptor.id,
+    path:descriptor.path,
+    drawn:true,
+    tileSizePx,
+    scale,
+  });
+}
+
 function drawMountainTexture(ctx, region, screenPoints, options = {}) {
   if (!ctx || !Array.isArray(screenPoints) || screenPoints.length < 3) return null;
   const bounds = polygonBounds(screenPoints);
@@ -276,8 +418,19 @@ function drawMountainTexture(ctx, region, screenPoints, options = {}) {
 }
 
 function drawTerrainTexture(ctx, region, screenPoints, options = {}) {
-  if (terrainKind(region) !== 'mountain') return null;
-  return drawMountainTexture(ctx, region, screenPoints, options);
+  const floor = drawFloorTexture(ctx, region, screenPoints, options);
+  if (terrainKind(region) !== 'mountain') return floor;
+
+  const mountain = drawMountainTexture(ctx, region, screenPoints, options);
+  if (!mountain) return floor;
+  if (!floor) return mountain;
+
+  return Object.freeze({
+    ...mountain,
+    floorTextureId: floor.id,
+    floorTexturePath: floor.path,
+    floorTextureDrawn: true,
+  });
 }
 
 const api = Object.freeze({
@@ -286,10 +439,16 @@ const api = Object.freeze({
   FLOOR_TEXTURE_BASE_PATH,
   FLOOR_TEXTURE_IDS,
   FLOOR_TEXTURE_PATHS,
+  FLOOR_TEXTURE_READY_EVENT,
   FLOOR_TEXTURE_TERRAIN_MAP,
   floorTextureId,
   floorTexturePath,
   floorTextureDescriptor,
+  floorTextureStatus,
+  floorTextureImage,
+  preloadFloorTextures,
+  clearFloorTextureCache,
+  onFloorTextureReady,
   normalizeTerrainKey,
   terrainKind,
   mountainSpines,
@@ -299,6 +458,7 @@ const api = Object.freeze({
   createRandom,
   styleForRegion,
   textureProfile,
+  drawFloorTexture,
   drawMountainTexture,
   drawTerrainTexture,
 });
@@ -311,6 +471,7 @@ export {
   FLOOR_TEXTURE_BASE_PATH,
   FLOOR_TEXTURE_IDS,
   FLOOR_TEXTURE_PATHS,
+  FLOOR_TEXTURE_READY_EVENT,
   FLOOR_TEXTURE_TERRAIN_MAP,
   floorTextureId,
   floorTexturePath,
