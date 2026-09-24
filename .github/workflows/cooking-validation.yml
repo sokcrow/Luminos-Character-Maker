@@ -25,6 +25,7 @@ on:
       - 'hoja_personaje.js'
       - 'hoja_personaje.html'
       - 'js/item-catalog-food.js'
+      - 'js/item-catalog-retail-food.js'
       - 'tests/item-economy-standard-smoke.cjs'
       - 'tests/item-affinity-engine-smoke.cjs'
       - 'tests/item-culinary-affinity-data-smoke.cjs'
@@ -41,6 +42,7 @@ on:
       - 'tests/item-cooking-runtime-smoke.cjs'
       - 'tests/item-food-rest-runtime-smoke.cjs'
       - 'tests/item-catalog-food-smoke.cjs'
+      - 'tests/item-catalog-retail-food-smoke.cjs'
       - 'docs/item-economy-handoff.md'
       - 'docs/item-affinity-handoff.md'
       - 'docs/item-processing-handoff.md'
@@ -119,6 +121,8 @@ jobs:
           node --check js/item-food-rest-runtime.js
           node --check js/item-food-rest-ui.js
           node --check js/item-cooking-ui.js
+          node --check js/item-catalog-retail-food.js
+          node --check js/item-catalog-food.js
       - name: Economy salary standard smoke
         run: node tests/item-economy-standard-smoke.cjs
       - name: Item affinity smoke
@@ -149,5 +153,7 @@ jobs:
         run: node tests/item-cooking-runtime-smoke.cjs
       - name: Food Rest runtime smoke
         run: node tests/item-food-rest-runtime-smoke.cjs
-      - name: Legacy food catalog smoke
+      - name: Retail food catalog smoke
+        run: node tests/item-catalog-retail-food-smoke.cjs
+      - name: Legacy food catalog compatibility smoke
         run: node tests/item-catalog-food-smoke.cjs

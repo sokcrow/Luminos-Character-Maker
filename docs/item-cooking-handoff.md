@@ -552,3 +552,16 @@ The following are catalog/runtime follow-ups, not reasons to redesign Cooking V1
 - world-owned station availability/permission binding beyond the current explicit station context selector.
 
 Those tasks must consume this V1 contract rather than redefining it.
+
+
+## Retail Food Catalog
+
+Packaged retail food is now a separate catalog instead of living inside the legacy cooked-meat catalog.
+
+- Canonical module: `js/item-catalog-retail-food.js`
+- Global API: `LuminousRetailFoodCatalog`
+- Current scope: 12 industrial retail cookie packs linked to their bakery recipe IDs.
+- Retail packs are not player-craftable recipes. They are shelf-stable, mass-produced products with their own retail pricing/effect/availability multipliers.
+- `family:"food"` is preserved so Eat/Drink and rest consumption keep working without a parallel consumer runtime.
+- `item-catalog-food.js` keeps compatibility wrappers for older callers but no longer owns the retail definitions.
+- 11 packs have dedicated retail-pack art; Shortbread currently uses `food_snack` as an explicit family fallback because no dedicated retail-pack icon is registered.
