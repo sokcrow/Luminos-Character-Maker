@@ -241,10 +241,20 @@
     return true;
   }
 
+  function ensureFallbackPoll(){
+    if(state.parentObserver||state.pollTimer||!isPlayer())return false;
+    let embedded=false;
+    try{embedded=Boolean(global.frameElement&&global.parent!==global);}catch(_){embedded=true;}
+    if(!embedded)return false;
+    state.pollTimer=global.setInterval?.(()=>syncLifecycle('poll-fallback'),1000)||null;
+    return Boolean(state.pollTimer);
+  }
+
   function onHydrated(){
     patchExecutionQueue();patchTargetIntents();
     applyAuthorityAiPlans();
     syncLifecycle('hydrate');
+    ensureFallbackPoll();
     scheduleDmRecovery();
   }
 
@@ -258,8 +268,8 @@
     global.addEventListener?.('resize',()=>{syncLifecycle('resize');scheduleDmRecovery();},{passive:true});
     global.addEventListener?.('luminous:combat073-hydrated',onHydrated);
     global.addEventListener?.('luminous:combat073-runtime-ready',()=>{patchExecutionQueue();patchTargetIntents();syncLifecycle('runtime-ready');scheduleDmRecovery();});
-    state.pollTimer=global.setInterval?.(()=>syncLifecycle('poll'),1000)||null;
-    global.setTimeout?.(()=>{syncLifecycle('boot');scheduleDmRecovery();},0);
+    ensureFallbackPoll();
+    global.setTimeout?.(()=>{syncLifecycle('boot');ensureFallbackPoll();scheduleDmRecovery();},0);
     return true;
   }
 
@@ -271,6 +281,6 @@
   }
 
   global.addEventListener?.('beforeunload',stop,{once:true});
-  global.LuminousCombatRuntimeHotfix073=Object.freeze({version:'0.7.3-runtime-hotfix.2',state,start,stop,readViewActive,syncLifecycle,clearAdapterRealtime,resumeAdapterRealtime,applyAuthorityAiPlans,patchExecutionQueue,patchTargetIntents,webglHasVisualPixels,dmVisualHealth,forceDmDomFallback,scheduleDmRecovery});
+  global.LuminousCombatRuntimeHotfix073=Object.freeze({version:'0.7.3-runtime-hotfix.3-demand-lifecycle',state,start,stop,readViewActive,syncLifecycle,ensureFallbackPoll,clearAdapterRealtime,resumeAdapterRealtime,applyAuthorityAiPlans,patchExecutionQueue,patchTargetIntents,webglHasVisualPixels,dmVisualHealth,forceDmDomFallback,scheduleDmRecovery});
   start();
 })(window);

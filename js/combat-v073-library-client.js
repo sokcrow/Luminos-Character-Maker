@@ -15,16 +15,20 @@
     return[];
   }
   function requiredIds(){
-    const s=adapterState(),ids=new Set();
-    Object.values(s?.combatants||{}).forEach(unit=>skillIdsFor(unit||{}).forEach(id=>ids.add(id)));
+    const s=adapterState(),ids=new Set(),fieldOnly=adapter()?.isFieldCombatant;
+    Object.values(s?.combatants||{}).filter(unit=>typeof fieldOnly!=='function'||fieldOnly(unit||{})).forEach(unit=>skillIdsFor(unit||{}).forEach(id=>ids.add(id)));
     return [...ids].sort();
   }
   function detachBulkSkills(){
-    const s=adapterState();
-    if(state.bulkDetached||!s||adapter()?.version!=='0.7.3-live.2')return state.bulkDetached;
-    // v0.7.3-live.2 registers realtime subscriptions in this fixed order:
-    // players, combatants, full skill library, combat state. Detach only the
-    // legacy full-library listener and leave all combat authority listeners intact.
+    const s=adapterState(),version=adapter()?.version||'';
+    if(state.bulkDetached||!s)return state.bulkDetached;
+    if(version!=='0.7.3-live.2'){
+      // live.3+ never subscribes to the full Skill library.
+      state.bulkDetached=true;
+      return true;
+    }
+    // v0.7.3-live.2 registered realtime subscriptions in this fixed order:
+    // players, combatants, full skill library, combat state.
     if(Array.isArray(s.unsubscribers)&&s.unsubscribers.length>=4&&typeof s.unsubscribers[2]==='function'){
       try{s.unsubscribers[2]();state.bulkDetached=true;s.unsubscribers[2]=()=>{};}catch(error){console.warn('[Combat073 LibraryClient] bulk skill detach failed',error);}
     }
@@ -64,6 +68,6 @@
   global.addEventListener('luminous:combat073-hydrated',()=>ensureSkills().catch(error=>console.error('[Combat073 LibraryClient hydrate]',error)));
   global.addEventListener('luminous:combat-unit-library-local-ready',()=>ensureSkills({force:true}).catch(error=>console.error('[Combat073 LibraryClient library]',error)));
   global.addEventListener('beforeunload',stop,{once:true});
-  global.LuminousCombatLibraryClient073=Object.freeze({version:'0.7.3-library-client.1',state,start,stop,requiredIds,ensureSkills,detachBulkSkills});
+  global.LuminousCombatLibraryClient073=Object.freeze({version:'0.7.3-library-client.2-field-sparse',state,start,stop,requiredIds,ensureSkills,detachBulkSkills});
   start();
 })(window);

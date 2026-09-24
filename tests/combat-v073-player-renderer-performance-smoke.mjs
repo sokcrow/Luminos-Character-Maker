@@ -43,6 +43,8 @@ assert.ok(alpha.includes("lastFrame=now;if(enabled&&!rafId)rafId=requestAnimatio
 assert.ok(alpha.includes('transition:transform .52s cubic-bezier(.18,.76,.22,1)'),'canonical battlefield still has an animated camera transform');
 
 assert.ok(viewer.includes('COMBAT_WEBGL_PERF_PATCH_MISSING'),'renderer optimization patch must fail closed when alpha signatures drift');
+assert.ok(viewer.includes('__luminousLivePlanSignature'),'live plan events must be deduplicated instead of deep-cloning and dispatching on every renderer pass');
+assert.ok(viewer.includes('livePlanSignature=JSON.stringify([round,planReady,plannedActions])'),'live plan dedupe must include round, readiness and plan content');
 assert.ok(viewer.includes("lowPowerDevice=coarsePointer||((navigator.hardwareConcurrency||8)<=4)||((navigator.deviceMemory||8)<=4)"),'renderer must identify mobile/low-power clients');
 assert.ok(viewer.includes('dprCap=lowPowerDevice?1:1.5'),'low-power clients must render WebGL at DPR 1 while stronger clients retain higher quality');
 assert.ok(viewer.includes('const domSpriteMode=lowPowerDevice'),'low-power clients must use hybrid DOM sprite composition');
