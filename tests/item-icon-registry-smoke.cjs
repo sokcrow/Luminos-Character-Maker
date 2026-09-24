@@ -8,9 +8,9 @@ const { pathToFileURL } = require('node:url');
   const registry = globalThis.LuminousItemIconRegistry;
 
   assert.ok(registry);
-  assert.equal(registry.VERSION, 28);
+  assert.equal(registry.VERSION, 29);
   assert.equal(registry.DEFAULT_GROUP, 'generic_item');
-  assert.equal(Object.keys(registry.GROUPS).length, 418);
+  assert.equal(Object.keys(registry.GROUPS).length, 481);
 
   const groups = registry.list();
   assert.equal(new Set(groups.map((entry) => entry.id)).size, groups.length);
@@ -97,6 +97,77 @@ const { pathToFileURL } = require('node:url');
     red_berry:'https://imgur.com/NPbVHQE.png'
   };
   for (const [id, icon] of Object.entries(fruitIcons)) {
+    assert.equal(registry.has(id), true, id);
+    assert.equal(registry.resolveIcon(id), icon, id);
+    assert.equal(registry.get(id).domain, 'material');
+  }
+
+  const rawProduceIcons = {
+    potato:'https://imgur.com/rbDO35l.png',
+    carrot:'https://imgur.com/ieTZvbE.png',
+    onion:'https://imgur.com/bGhYEe6.png',
+    tomato:'https://imgur.com/xvznBEx.png',
+    cabbage:'https://imgur.com/NwKMSIY.png',
+    lettuce:'https://imgur.com/qAZpHqN.png',
+    spinach:'https://imgur.com/9H8c0aQ.png',
+    broccoli:'https://imgur.com/sqS4Xet.png',
+    pumpkin:'https://imgur.com/ttsuh8e.png',
+    beet:'https://imgur.com/2qUvtPT.png',
+    radish:'https://imgur.com/RH0Ee3i.png',
+    celery:'https://imgur.com/Wa3mYfy.png',
+    cucumber:'https://imgur.com/GIWBaT6.png',
+    bamboo_shoot:'https://imgur.com/0YlKjH6.png',
+    sweet_potato:'https://imgur.com/OCE3Z9I.png',
+    eggplant:'https://imgur.com/OA9e7u7.png',
+    wheat:'https://imgur.com/we3iIyG.png',
+    rice:'https://imgur.com/fxWFVHU.png',
+    corn:'https://imgur.com/3o4s0xV.png',
+    oats:'https://imgur.com/we3iIyG.png',
+    barley:'https://imgur.com/yykSY4J.png',
+    rye:'https://imgur.com/VQibddq.png',
+    beans:'https://imgur.com/ZvkySVi.png',
+    lentils:'https://imgur.com/YnF2QLF.png',
+    peas:'https://imgur.com/61TsrQs.png',
+    soybean:'https://imgur.com/m7YxB77.png',
+    almond:'https://imgur.com/xCez4wo.png',
+    walnut:'https://imgur.com/KSNH918.png',
+    peanut:'https://imgur.com/9kR76Wu.png',
+    sunflower_seed:'https://imgur.com/Pwlr1Ih.png',
+    sesame_seed:'https://imgur.com/wt4BZxR.png',
+    exotic_seed:'https://imgur.com/bWNHJyw.png',
+    pecan:'https://imgur.com/PaOEtB5.png',
+    chestnut:'https://imgur.com/5dbZsGq.png',
+    pine_nut:'https://imgur.com/pP2kFne.png',
+    cacao:'https://imgur.com/91jcPok.png',
+    coffee_bean:'https://imgur.com/9DBr3IC.png',
+    garlic:'https://imgur.com/2e6ELM3.png',
+    ginger:'https://imgur.com/v6fDvz9.png',
+    black_pepper:'https://imgur.com/ZA88q6q.png',
+    chili_pepper:'https://imgur.com/45SaRya.png',
+    paprika:'https://imgur.com/UJVsJir.png',
+    cinnamon:'https://imgur.com/XwJqfaj.png',
+    clove:'https://imgur.com/vmcNJZd.png',
+    nutmeg:'https://imgur.com/0F2f0kw.png',
+    turmeric:'https://imgur.com/ujN2hU0.png',
+    rare_spice:'https://imgur.com/OgMPczO.png',
+    basil:'https://imgur.com/8W9fz40.png',
+    mint:'https://imgur.com/NZEJbOR.png',
+    rosemary:'https://imgur.com/M4kWFM8.png',
+    thyme:'https://imgur.com/EnCG5Zf.png',
+    sage:'https://imgur.com/J84TVfd.png',
+    parsley:'https://imgur.com/SH5vdRR.png',
+    chives:'https://imgur.com/65wvcvv.png',
+    tea_leaf:'https://imgur.com/V0CAwk9.png',
+    medicinal_herb:'https://imgur.com/4Z2OIkg.png',
+    bitterroot:'https://imgur.com/0THIle3.png',
+    feverleaf:'https://imgur.com/frPXfZz.png',
+    bloodleaf:'https://imgur.com/2AkRZW3.png',
+    calming_herb:'https://imgur.com/yewUNtZ.png',
+    toxic_herb:'https://imgur.com/5ctUj65.png',
+    nightshade:'https://imgur.com/hp40jYD.png',
+    exotic_medicinal_herb:'https://imgur.com/JapMEBs.png'
+  };
+  for (const [id, icon] of Object.entries(rawProduceIcons)) {
     assert.equal(registry.has(id), true, id);
     assert.equal(registry.resolveIcon(id), icon, id);
     assert.equal(registry.get(id).domain, 'material');
@@ -494,7 +565,7 @@ const { pathToFileURL } = require('node:url');
   assert.equal(registry.has('constructor'), false);
   assert.equal(registry.get('constructor', { fallback: false }), null);
   assert.equal(registry.get('constructor').id, 'generic_item');
-  assert.equal(registry.resolveIcon('nightshade'), registry.resolveIcon('generic_item'));
+  assert.equal(registry.resolveIcon('nightshade'), 'https://imgur.com/hp40jYD.png');
   assert.equal(registry.get('missing-family').id, 'generic_item');
   assert.equal(registry.get('missing-family', { fallback: false }), null);
   assert.equal(registry.resolveIcon('healing_hp', { iconOverride: 'https://example.test/custom.png' }), 'https://example.test/custom.png');
