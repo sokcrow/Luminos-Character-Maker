@@ -6,6 +6,7 @@ on:
       - feat/item-icon-families
     paths:
       - scripts/vendor-item-icons.mjs
+      - tests/item-icon-assets-smoke.cjs
       - .github/workflows/vendor-item-icons-bootstrap.yml
 
 permissions:
