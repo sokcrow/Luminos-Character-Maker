@@ -202,6 +202,7 @@
       cuisine:recipe.cuisine,
       course:recipe.course,
       dishFamily:recipe.dishFamily,
+      iconFamily:recipe.iconFamily || "food",
       tags:["food","prepared_food","cooked",...(recipe.tags || [])],
       edible:true,
       stars:prepared.stars,
