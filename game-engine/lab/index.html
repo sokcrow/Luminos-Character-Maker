@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0b0907">
+  <title>Luminous Game Engine Lab · Forest 0.3.3.1</title>
+  <link rel="stylesheet" href="./lab.css">
+</head>
+<body>
+  <div id="labApp">
+    <header class="lab-topbar">
+      <div class="lab-brand">
+        <span class="lab-kicker">PR 777 · GAME ENGINE</span>
+        <strong>Luminous · Forest 0.3.3.1</strong>
+      </div>
+
+      <div class="lab-runtime-pill" id="runtimePill" title="Estado del Game Engine">
+        <span class="lab-dot" id="runtimeDot"></span>
+        <span id="runtimeLabel">Iniciando…</span>
+      </div>
+
+      <div class="lab-stat-strip" aria-label="Estadísticas del jugador">
+        <span class="lab-stat lab-stat-text" title="HP"><i>HP</i><b id="hpStat">—</b></span>
+        <span class="lab-stat lab-stat-text" title="SP"><i>SP</i><b id="spStat">—</b></span>
+        <span class="lab-stat" title="Offensive Level">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 2.2 22 3.4 10.2 15.2 8.8 13.8z" fill="currentColor"/><path d="M7.2 12.2 11.8 16.8M5.7 13.7 10.3 18.3M8 18l-4.3 4.3M2.8 21.2l1 1" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+          <b id="offStat">—</b>
+        </span>
+        <span class="lab-stat" title="Defensive Level">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5 19 5v5.8c0 4.4-2.3 8-7 10.7-4.7-2.7-7-6.3-7-10.7V5z" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 5.5v12" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+          <b id="defStat">—</b>
+        </span>
+      </div>
+
+      <nav class="lab-actions" aria-label="Controles del Lab">
+        <button id="openInventory" class="lab-icon-action" type="button"><img src="../../Assets/Images/Buttons/Inventory.svg" alt="">Inventario</button>
+        <button id="grantHerb" type="button">DM · Dar hierba</button>
+        <button id="fullscreenGame" type="button" title="Pantalla completa horizontal" aria-label="Pantalla completa horizontal">Horizontal</button>
+      </nav>
+    </header>
+
+    <main class="lab-stage">
+      <iframe
+        id="gameFrame"
+        class="lab-game-frame"
+        src="./game/forest-0.3.3.1.html"
+        title="Luminous Forest 0.3.3.1"
+        allow="fullscreen"
+      ></iframe>
+
+      <div id="gameLoading" class="lab-loading">
+        <strong>Cargando mapa global…</strong>
+        <span>Mapa hexagonal · exploración + inventario + Game Engine</span>
+      </div>
+
+      <div class="lab-hud">
+        <span id="bridgeBadge" class="lab-badge waiting">Conectando juego…</span>
+        <span id="inventoryBadge" class="lab-badge">Inventario 0 · Stash 0</span>
+        <span id="walletBadge" class="lab-badge">₳0</span>
+      </div>
+    </main>
+
+  </div>
+
+  <script src="../../js/item-runtime-engine.js"></script>
+  <script src="../../js/item-inventory-runtime.js"></script>
+  <script type="module" src="./main.js"></script>
+</body>
+</html>

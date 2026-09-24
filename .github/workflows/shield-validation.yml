@@ -1,0 +1,42 @@
+name: Shield Validation
+
+on:
+  push:
+    paths:
+      - 'js/item-shield-*.js'
+      - 'js/item-catalog-shield-*.js'
+      - 'js/item-defensive-wear-runtime.js'
+      - 'js/item-equipment-bridge.js'
+      - 'js/item-runtime-engine.js'
+      - 'tests/item-shield-smoke.cjs'
+      - 'docs/item-shield-handoff.md'
+      - '.github/workflows/shield-validation.yml'
+  pull_request:
+    paths:
+      - 'js/item-shield-*.js'
+      - 'js/item-catalog-shield-*.js'
+      - 'js/item-defensive-wear-runtime.js'
+      - 'js/item-equipment-bridge.js'
+      - 'js/item-runtime-engine.js'
+      - 'tests/item-shield-smoke.cjs'
+      - 'docs/item-shield-handoff.md'
+      - '.github/workflows/shield-validation.yml'
+
+jobs:
+  shield-v1:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Syntax check
+        run: |
+          node --check js/item-catalog-shield-components.js
+          node --check js/item-catalog-shield-upgrades.js
+          node --check js/item-shield-upgrade-engine.js
+          node --check js/item-shield-composition-engine.js
+          node --check js/item-defensive-wear-runtime.js
+          node --check js/item-shield-runtime.js
+      - name: Shield smoke
+        run: node tests/item-shield-smoke.cjs

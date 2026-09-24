@@ -1,0 +1,53 @@
+name: World Floor Texture Vendor
+
+on:
+  push:
+    branches:
+      - feat/item-icon-families
+    paths:
+      - "scripts/vendor-world-floor-textures.mjs"
+      - "js/global-map-terrain-textures.js"
+      - "tests/global-map-terrain-textures-smoke.mjs"
+      - "tests/global-map-floor-texture-assets-smoke.mjs"
+      - ".github/workflows/world-floor-textures-vendor.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  vendor-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/item-icon-families
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Download repository-local floor textures
+        run: node scripts/vendor-world-floor-textures.mjs
+
+      - name: Validate terrain registry
+        run: node tests/global-map-terrain-textures-smoke.mjs
+
+      - name: Validate local floor texture files
+        run: node tests/global-map-floor-texture-assets-smoke.mjs
+
+      - name: Commit vendored texture assets
+        shell: bash
+        run: |
+          if [ -z "$(git status --porcelain -- Assets/Images/World/Floors)" ]; then
+            echo "Floor texture assets already current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Assets/Images/World/Floors
+          git commit -m "assets(world): vendor floor texture batch 1"
+          git push origin "HEAD:${GITHUB_REF_NAME}"

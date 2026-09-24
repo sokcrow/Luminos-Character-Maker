@@ -24,10 +24,25 @@
   const asArray = (value) => value == null ? [] : (Array.isArray(value) ? value : [value]);
   const normalizeId = (value) => base()?.normalizeId?.(value) || String(value ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 
-  const SCHEMA_VERSION = 2;
-  const DEFAULT_ACTIVE_SLOT_LIMIT = 10;
-  const DEFAULT_ACTIVE_STACK_LIMIT = 2;
+  const SCHEMA_VERSION = 3;
+  const DEFAULT_ACTIVE_SLOT_LIMIT = 20;
+  const DEFAULT_STASH_SLOT_LIMIT = 80;
+  const DEFAULT_ACTIVE_STACK_LIMIT = 5;
   const DEFAULT_STASH_STACK_LIMIT = 99;
+  const EQUIPMENT_KINDS = new Set(["weapon", "armor", "shield", "accessory", "augmentation", "augment"]);
+  const VARIANT_FIELDS = Object.freeze([
+    "stackable", "stackPolicy", "family", "group", "category", "itemType", "quality",
+    "size", "sizeId", "lineageId", "lineageName",
+    "culinaryProperties", "culinaryAffinities", "culinaryAffinityProfileId", "affinityTarget", "affinityBranch",
+    "processedForm", "processingMethod", "processingMethodId", "processingTemplateId", "templateId",
+    "recipeId", "dishFamily", "mealFocus", "stars", "taste", "sp", "culinaryEffects", "freshness",
+    "materialId", "materialIds", "materialChoices", "composition", "combatGrade", "ammoGrade", "caliber",
+    "ammoType", "projectileType", "payload", "profile", "ammoProfile", "reinforced", "upgradeIds",
+    "durability", "maxDurability", "available", "spent", "destroyed",
+    "sourceLine", "sourceInstanceId", "sourceEntityId", "originCreatureType", "originCreatureId",
+    "originRaceId", "originSubtypeId", "provenance",
+    "unitValueAhn", "totalValueAhn", "productionValueAhn", "productionValue", "retailValueAhn"
+  ]);
   let instanceCounter = 0;
 
   function emit(name, detail) {
@@ -55,6 +70,34 @@
 
   function quantityOf(item = {}) {
     return base()?.quantityOf?.(item) ?? Math.max(0, intOr(item.quantity ?? item.qty ?? item.cantidad ?? item.stack ?? item.count, 1));
+  }
+
+  function categoryOf(item = {}) {
+    return normalizeId(base()?.categoryOf?.(item) || item.category || item.tipo_categoria || item.itemType || item.item_type || item.type || item.family || "item");
+  }
+
+  function equipmentKindOf(item = {}) {
+    const schema = base()?.equipmentSchema?.(item) || item.equipment || item.equipmentSchema || {};
+    return normalizeId(schema.kind || categoryOf(item));
+  }
+
+  function cloneVariantFields(input = {}, definition = {}) {
+    const out = {};
+    VARIANT_FIELDS.forEach((field) => {
+      const value = input[field] !== undefined ? input[field] : definition[field];
+      if (value !== undefined) out[field] = clone(value);
+    });
+    if (input.variantData && typeof input.variantData === "object") Object.assign(out, clone(input.variantData));
+    return out;
+  }
+
+  function stableNormalize(value) {
+    if (Array.isArray(value)) return value.map(stableNormalize);
+    if (!value || typeof value !== "object") return value;
+    return Object.keys(value).sort().reduce((out, key) => {
+      if (value[key] !== undefined) out[key] = stableNormalize(value[key]);
+      return out;
+    }, {});
   }
 
   function setQuantity(item = {}, value) {
@@ -91,11 +134,12 @@
     const definitionId = definitionIdOf(input) || definitionIdOf(def) || String(options.definitionId || "").trim();
     const maxCondition = Math.max(0, numberOr(input.conditionMax ?? input.maxCondition ?? input.maxDurability ?? def.conditionMax ?? def.condition_max, 100));
     const currentCondition = clamp(numberOr(input.condition ?? input.currentCondition ?? input.durability, maxCondition), 0, maxCondition);
-    const qualityTier = clamp(intOr(input.qualityTier ?? input.quality_tier ?? input.quality ?? options.qualityTier ?? options.quality, 1), 1, 5);
+    const qualityTier = clamp(intOr(input.qualityTier ?? input.quality_tier ?? options.qualityTier ?? options.quality, 1), 1, 5);
     const chargesMax = input.chargesMax ?? input.maxCharges ?? input.charges_max ?? def.chargesMax ?? def.maxCharges ?? null;
     const chargesCurrent = input.chargesCurrent ?? input.charges_current ?? input.charges ?? options.charges ?? chargesMax;
+    const variants = cloneVariantFields(input, def);
 
-    return {
+    const compact = {
       schemaVersion: SCHEMA_VERSION,
       instanceId: String(input.instanceId || input.instance_id || options.instanceId || createInstanceId(definitionId || "item")),
       definitionId,
@@ -124,7 +168,12 @@
       equippedPartIds: clone(input.equippedPartIds || input.assignedBodyParts || []),
       runtimeState: clone(input.runtimeState || input.runtime_state || {}),
       customData: clone(input.customData || input.custom_data || {}),
+      variantData: clone(variants),
     };
+    Object.entries(variants).forEach(([key, value]) => {
+      if (compact[key] === undefined) compact[key] = clone(value);
+    });
+    return compact;
   }
 
   function createItemInstance(definitionOrId, options = {}) {
@@ -147,7 +196,7 @@
     const definition = resolveDefinition(instance, options) || {};
     const compact = compactInstance(instance, definition, options);
     const hydrated = { ...clone(definition), ...clone(compact) };
-    hydrated.quality = compact.qualityTier;
+    hydrated.quality = compact.quality ?? compact.qualityTier;
     hydrated.charges = compact.chargesCurrent;
     if (!hydrated.nombre && hydrated.name) hydrated.nombre = hydrated.name;
     if (!hydrated.name && hydrated.nombre) hydrated.name = hydrated.nombre;
@@ -255,16 +304,48 @@
     return Math.max(0, intOr(unit.activeSlotLimit ?? unit.inventoryRules?.activeSlotLimit, DEFAULT_ACTIVE_SLOT_LIMIT));
   }
 
+  function stashSlotLimit(unit = {}) {
+    return Math.max(0, intOr(unit.stashSlotLimit ?? unit.inventoryRules?.stashSlotLimit, DEFAULT_STASH_SLOT_LIMIT));
+  }
+
+  function stackFamily(item = {}) {
+    if (item.stackable === false) return "unique";
+    const kind = equipmentKindOf(item);
+    if (EQUIPMENT_KINDS.has(kind)) return "equipment";
+    const ids = new Set([
+      categoryOf(item),
+      normalizeId(item.itemType),
+      normalizeId(item.family),
+      ...asArray(item.tags).map(normalizeId),
+      ...asArray(item.itemTags).map(normalizeId),
+      ...asArray(item.craftTags).map(normalizeId),
+    ].filter(Boolean));
+    if (ids.has("tool") || ids.has("tools") || ids.has("herramienta")) return "tool";
+    if ([...ids].some((id) => ["ammo", "ammunition", "munition", "municion", "arrow", "bolt", "projectile"].includes(id))) return "ammo";
+    if ([...ids].some((id) => ["consumable", "food", "medicine", "medical", "healing_hp", "healing_sp", "healing_hybrid", "status_cure", "throwable"].includes(id))) return "consumable";
+    if ([...ids].some((id) => ["ingredient", "material", "component", "craft_component", "chemical", "reagent", "scrap", "chatarra", "ore", "ingot", "gem", "meat", "plant_produce"].includes(id))) return "material";
+    if ([...ids].some((id) => ["upgrade", "module", "enhancement"].includes(id))) return "upgrade";
+    return "generic";
+  }
+
   function stackLimit(item, containerType = "active") {
     const type = normalizeId(containerType);
-    if (type === "stash") return Math.max(1, intOr(item?.stashStackLimit ?? item?.limite_alijo, DEFAULT_STASH_STACK_LIMIT));
-    return Math.max(1, intOr(item?.activeStackLimit ?? item?.limite_activo, DEFAULT_ACTIVE_STACK_LIMIT));
+    const explicit = type === "stash" ? item?.stashStackLimit ?? item?.limite_alijo : item?.activeStackLimit ?? item?.limite_activo;
+    if (Number.isFinite(Number(explicit))) return Math.max(1, intOr(explicit, 1));
+    const family = stackFamily(item);
+    if (family === "unique" || family === "equipment" || family === "tool") return 1;
+    if (type === "stash") return DEFAULT_STASH_STACK_LIMIT;
+    if (family === "ammo") return 20;
+    if (family === "material") return 10;
+    if (family === "consumable" || family === "upgrade" || family === "generic") return 5;
+    return DEFAULT_ACTIVE_STACK_LIMIT;
   }
 
   function stackSignature(item = {}) {
-    return JSON.stringify({
+    return JSON.stringify(stableNormalize({
       definitionId: definitionIdOf(item),
-      qualityTier: intOr(item.qualityTier ?? item.quality, 1),
+      qualityTier: intOr(item.qualityTier ?? item.quality_tier, 1),
+      quality: item.quality ?? null,
       condition: numberOr(item.condition, 100),
       conditionMax: numberOr(item.conditionMax, 100),
       manufacturerId: item.manufacturerId || null,
@@ -272,15 +353,22 @@
       modelName: item.modelName || null,
       commissionName: item.commissionName || null,
       installedModuleIds: asArray(item.installedModuleIds).map(String).sort(),
+      installedModules: clone(item.installedModules || []),
       signatureTechnologyIds: asArray(item.signatureTechnologyIds).map(String).sort(),
+      signatureComponents: clone(item.signatureComponents || []),
       chargesCurrent: item.chargesCurrent ?? item.charges ?? null,
       chargesMax: item.chargesMax ?? null,
+      rechargeRule: clone(item.rechargeRule || item.recharge_rule || null),
       stolen: item.stolen === true,
-    });
+      runtimeState: clone(item.runtimeState || item.runtime_state || {}),
+      customData: clone(item.customData || item.custom_data || {}),
+      variantData: cloneVariantFields(item),
+    }));
   }
 
   function canStack(a, b) {
     if (!a || !b) return false;
+    if (a.stackable === false || b.stackable === false) return false;
     if (a.equipped || b.equipped) return false;
     return stackSignature(a) === stackSignature(b);
   }
@@ -302,8 +390,13 @@
     }
 
     while (remaining > 0) {
-      if (normalizeId(containerType) === "active" && containerCount(container) >= (options.activeSlotLimit ?? DEFAULT_ACTIVE_SLOT_LIMIT)) {
-        return { inserted: false, partial: remaining !== quantityOf(item), reason: "active_inventory_full", remaining, insertedKeys };
+      const type = normalizeId(containerType);
+      const slotLimit = type === "stash"
+        ? Math.max(0, intOr(options.stashSlotLimit, DEFAULT_STASH_SLOT_LIMIT))
+        : Math.max(0, intOr(options.activeSlotLimit, DEFAULT_ACTIVE_SLOT_LIMIT));
+      if (containerCount(container) >= slotLimit) {
+        const reason = type === "stash" ? "stash_inventory_full" : "active_inventory_full";
+        return { inserted: false, partial: remaining !== quantityOf(item), reason, remaining, insertedKeys };
       }
       const moved = Math.min(limit, remaining);
       const copy = clone(item);
@@ -321,6 +414,34 @@
       remaining -= moved;
     }
     return { inserted: true, remaining: 0, insertedKeys };
+  }
+
+  function insertItem(unit, itemOrDefinition, containerType = "active", options = {}) {
+    const type = normalizeId(containerType) === "stash" ? "stash" : "active";
+    const target = type === "stash" ? stashContainer(unit, true) : activeContainer(unit, true);
+    if (!unit || !target?.value) return { inserted: false, reason: "inventory_container_unavailable", container: target?.key || null };
+
+    const source = itemOrDefinition && typeof itemOrDefinition === "object" && itemOrDefinition.instanceId
+      ? clone(itemOrDefinition)
+      : createItemInstance(itemOrDefinition, options);
+
+    if (!source) return { inserted: false, reason: "invalid_item", container: target.key };
+    const result = insertIntoContainer(target.value, source, type, {
+      activeSlotLimit: activeSlotLimit(unit),
+      stashSlotLimit: stashSlotLimit(unit),
+      ...options,
+    });
+    const insertedQuantity = quantityOf(source) - Math.max(0, result.remaining || 0);
+    const output = {
+      ...result,
+      inserted: insertedQuantity > 0,
+      quantity: insertedQuantity,
+      container: target.key,
+      containerType: type,
+      instanceId: source.instanceId || null,
+    };
+    if (output.inserted) emit("luminous:item-inserted", { unit, item: clone(source), ...output });
+    return output;
   }
 
   function deleteFromContainer(container, key) {
@@ -343,7 +464,11 @@
     if (movedQty < before) moving.instanceId = createInstanceId(definitionIdOf(moving));
     setQuantity(moving, movedQty);
 
-    const result = insertIntoContainer(to.value, moving, toType, { activeSlotLimit: activeSlotLimit(unit), ...options });
+    const result = insertIntoContainer(to.value, moving, toType, {
+      activeSlotLimit: activeSlotLimit(unit),
+      stashSlotLimit: stashSlotLimit(unit),
+      ...options,
+    });
     const actuallyMoved = movedQty - Math.max(0, result.remaining || 0);
     if (actuallyMoved <= 0) return { moved: false, reason: result.reason || "target_rejected_item", from: from.key, to: to.key };
 
@@ -358,12 +483,18 @@
   function moveToStash(unit, ref, amount, options = {}) { return moveItem(unit, ref, "active", "stash", amount, options); }
 
   function splitStack(unit, ref, amount, options = {}) {
-    const container = normalizeId(options.container) === "stash" ? stashContainer(unit, true) : activeContainer(unit, true);
+    const type = normalizeId(options.container) === "stash" ? "stash" : "active";
+    const container = type === "stash" ? stashContainer(unit, true) : activeContainer(unit, true);
     const found = findInContainer(container.value, ref);
     if (!found) return { split: false, reason: "item_not_found" };
     const before = quantityOf(found.item);
     const qty = Math.max(1, intOr(amount, 1));
     if (qty >= before) return { split: false, reason: "split_amount_must_be_less_than_stack" };
+    if (qty > stackLimit(found.item, type)) return { split: false, reason: "split_amount_exceeds_stack_limit" };
+    const slotLimit = type === "stash" ? stashSlotLimit(unit) : activeSlotLimit(unit);
+    if (containerCount(container.value) >= slotLimit) {
+      return { split: false, reason: type === "stash" ? "stash_inventory_full" : "active_inventory_full" };
+    }
     const created = clone(found.item);
     created.instanceId = createInstanceId(definitionIdOf(created));
     setQuantity(created, qty);
@@ -564,6 +695,7 @@
     return {
       schemaVersion: intOr(unit?.itemInventorySchemaVersion, SCHEMA_VERSION),
       activeSlotLimit: activeSlotLimit(unit),
+      stashSlotLimit: stashSlotLimit(unit),
       active: objectEntries(active).map(([key, item]) => ({ key, item: mapItem(item) })),
       stash: objectEntries(stash).map(([key, item]) => ({ key, item: mapItem(item) })),
     };
@@ -576,15 +708,17 @@
       activeSlots: containerCount(active),
       activeSlotLimit: activeSlotLimit(unit),
       stashSlots: containerCount(stash),
+      stashSlotLimit: stashSlotLimit(unit),
       activeQuantity: objectEntries(active).reduce((sum, [, item]) => sum + quantityOf(item), 0),
       stashQuantity: objectEntries(stash).reduce((sum, [, item]) => sum + quantityOf(item), 0),
     };
   }
 
   const inventoryApi = Object.freeze({
-    version: 1,
+    version: 2,
     schemaVersion: SCHEMA_VERSION,
     DEFAULT_ACTIVE_SLOT_LIMIT,
+    DEFAULT_STASH_SLOT_LIMIT,
     DEFAULT_ACTIVE_STACK_LIMIT,
     DEFAULT_STASH_STACK_LIMIT,
     createInstanceId,
@@ -599,8 +733,11 @@
     stashContainer,
     findItem,
     activeSlotLimit,
+    stashSlotLimit,
+    stackFamily,
     stackLimit,
     canStack,
+    insertItem,
     splitStack,
     mergeStacks,
     moveItem,
@@ -632,6 +769,15 @@
     global.LuminousItemRuntime = Object.freeze({ ...baseRuntime, ...inventoryApi, __luminousInventoryRuntimeBridge: true, __luminousItemRuntimeBase: baseRuntime });
   }
 
+  function inventoryRuntimeAssetUrl(src) {
+    if (!global.document || typeof src !== "string") return src;
+    const ownScript = global.document.currentScript
+      || Array.from(global.document.scripts || []).find(node => /\/js\/item-inventory-runtime\.js(?:[?#].*)?$/.test(node.src || ""));
+    if (!ownScript?.src || !src.startsWith("js/")) return src;
+    try { return new URL(src.slice(3), new URL("./", ownScript.src)).href; }
+    catch (_) { return src; }
+  }
+
   function loadExtension(globalName, scriptId, src, next) {
     if (!global.document) return;
     if (global[globalName]) {
@@ -645,7 +791,7 @@
     }
     const script = global.document.createElement("script");
     script.id = scriptId;
-    script.src = src;
+    script.src = inventoryRuntimeAssetUrl(src);
     script.async = false;
     script.addEventListener?.("load", () => next?.(), { once: true });
     global.document.head?.appendChild(script);

@@ -20,20 +20,31 @@
   const qualityNames = { 1: "LOW", 2: "STANDARD", 3: "GOOD", 4: "FINE", 5: "EXCEPTIONAL" };
   const romanTiers = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
   const slotSpecs = [
-    { id: "mainHand", label: "MAIN HAND", hint: "WEAPON", className: "inv2-eq-main" },
+    { id: "mainHand", label: "MAIN HAND", hint: "WEAPON / SHIELD", className: "inv2-eq-main" },
     { id: "offHand", label: "OFF HAND", hint: "WEAPON / SHIELD", className: "inv2-eq-off" },
     { id: "armor", label: "ARMOR", hint: "BODY", className: "inv2-eq-armor" },
-    { id: "shield", label: "SHIELD", hint: "DEFENSE", className: "inv2-eq-shield" },
+    { id: "shield", label: "SHIELD SOURCE", hint: "ACTIVE DEFENSE", className: "inv2-eq-shield" },
     { id: "accessory0", label: "ACCESSORY A", hint: "ACCESSORY", className: "inv2-eq-acc-a" },
     { id: "accessory1", label: "ACCESSORY B", hint: "ACCESSORY", className: "inv2-eq-acc-b" },
+    { id: "augment0", label: "AUGMENT A", hint: "BODY / TECH", className: "inv2-eq-aug-a" },
+    { id: "augment1", label: "AUGMENT B", hint: "BODY / TECH", className: "inv2-eq-aug-b" },
   ];
 
+  const categoryLabels = Object.freeze({
+    item: "OTHER", weapon: "WEAPON", armor: "ARMOR", shield: "SHIELD", accessory: "ACCESSORY",
+    augmentation: "AUGMENT", augment: "AUGMENT", consumable: "CONSUMABLE", ammo: "AMMO", ammunition: "AMMO",
+    tool: "TOOL", upgrade: "UPGRADE", material: "MATERIAL", component: "COMPONENT", ingredient: "INGREDIENT",
+    food: "FOOD", medicine: "MEDICINE", medical: "MEDICAL", chemical: "CHEMICAL", scrap: "SCRAP",
+  });
+
   const runtime = () => global.LuminousItemRuntime || global.LuminousItemInventoryRuntime || null;
+  const iconRegistry = () => global.LuminousItemIconRegistry || null;
   const inventory = () => global.LuminousItemInventoryRuntime || runtime();
   const bridge = () => global.LuminousItemEquipmentBridge || null;
   const persistence = () => global.LuminousItemPersistenceRuntime || null;
   const realtime = () => global.LuminousItemRealtimeSync || null;
   const workshop = () => global.LuminousWorkshopRuntime || null;
+  const foodRest = () => global.LuminousFoodRestRuntime || null;
 
   function resolveDb() {
     try { if (typeof db !== "undefined" && db?.ref) return db; } catch (_) {}
@@ -69,6 +80,20 @@
 
   function itemCategory(item = {}) {
     return String(runtime()?.categoryOf?.(item) || item.tipo_categoria || item.category || item.itemType || item.type || "item");
+  }
+
+  function normalizeId(value) {
+    return String(runtime()?.normalizeId?.(value) || value || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+  }
+
+  function categoryLabel(value) {
+    const id = normalizeId(value) || "item";
+    return categoryLabels[id] || id.replace(/_/g, " ").toUpperCase();
+  }
+
+  function equipmentKind(item = {}) {
+    const schema = bridge()?.schemaOf?.(item) || runtime()?.equipmentSchema?.(item) || item.equipment || item.equipmentSchema || {};
+    return normalizeId(schema.kind || itemCategory(item)) || "item";
   }
 
   function quantityOf(item = {}) {
@@ -119,11 +144,29 @@
     return String(raw).split(",").map((entry) => entry.trim()).filter(Boolean);
   }
 
+  function iconFromFamily(family) {
+    const id = String(family || "").trim();
+    if (!id) return "";
+    return String(iconRegistry()?.resolveIcon?.(id) || "").trim();
+  }
+
   function itemIcon(item = {}) {
     const explicit = item.icono || item.icon || item.image || item.img;
     if (explicit) return String(explicit).trim();
+    const familyIcon = iconFromFamily(item.iconFamily || item.icon_family);
+    if (familyIcon) return familyIcon;
     const resolved = runtime()?.resolveItem?.(item) || item;
-    return String(resolved.icono || resolved.icon || resolved.image || resolved.img || "").trim();
+    const resolvedExplicit = resolved.icono || resolved.icon || resolved.image || resolved.img;
+    if (resolvedExplicit) return String(resolvedExplicit).trim();
+    return iconFromFamily(resolved.iconFamily || resolved.icon_family);
+  }
+
+  function itemGemOverlayIcon(item = {}) {
+    const explicit = item.gemOverlayIcon || item.gem_overlay_icon;
+    if (explicit) return String(explicit).trim();
+    const family = item.gemOverlayIconFamily || item.gem_overlay_icon_family;
+    if (family) return iconFromFamily(family);
+    return "";
   }
 
   function itemDescription(item = {}) {
@@ -134,10 +177,10 @@
   }
 
   function itemValue(item = {}) {
-    const explicit = item.valorBase ?? item.costo ?? item.cost ?? item.price ?? item.precio;
+    const explicit = item.valorBase ?? item.costo ?? item.cost ?? item.price ?? item.precio ?? item.productionValueAhn ?? item.totalValueAhn ?? item.unitValueAhn;
     if (explicit != null) return Number(explicit) || 0;
     const resolved = runtime()?.resolveItem?.(item) || item;
-    return Number(resolved.valorBase ?? resolved.costo ?? resolved.cost ?? resolved.price ?? resolved.precio ?? 0) || 0;
+    return Number(resolved.valorBase ?? resolved.costo ?? resolved.cost ?? resolved.price ?? resolved.precio ?? resolved.productionValueAhn ?? resolved.totalValueAhn ?? resolved.unitValueAhn ?? 0) || 0;
   }
 
   function manufacturerName(item = {}) {
@@ -199,7 +242,7 @@
     carry.innerHTML = `
       <header class="inventory-v2-carry-header">
         <div><span>FIELD CARRY // QUICK ACCESS</span><strong>ACTIVE INVENTORY</strong></div>
-        <b id="inventory-v2-carry-count">00 / 10</b>
+        <b id="inventory-v2-carry-count">00 / 20</b>
       </header>
       <div class="inventory-v2-grid-host"></div>`;
     carry.querySelector(".inventory-v2-grid-host").appendChild(grid);
@@ -225,6 +268,8 @@
     extra.className = "inventory-v2-detail-extra";
     extra.innerHTML = `
       <div class="inventory-v2-detail-grid">
+        <div><span>CATEGORY</span><b data-v2-detail="category">—</b></div>
+        <div><span>STACK</span><b data-v2-detail="stack">—</b></div>
         <div><span>QUALITY</span><b data-v2-detail="quality">—</b></div>
         <div><span>CONDITION</span><b data-v2-detail="condition">—</b></div>
         <div><span>MANUFACTURER</span><b data-v2-detail="manufacturer">—</b></div>
@@ -235,8 +280,8 @@
         <div><span>INSTANCE</span><b data-v2-detail="instance">—</b></div>
       </div>
       <div class="inventory-v2-modules">
-        <span>MODULES / STRUCTURAL TECH</span>
-        <div data-v2-detail="modules">NO INSTALLED MODULES</div>
+        <span>INSTALLED / INSTANCE TRAITS</span>
+        <div data-v2-detail="modules">NO INSTALLED MODIFIERS</div>
       </div>
       <div class="inventory-v2-actions" id="inventory-v2-actions"></div>
       <div class="inventory-v2-action-status" id="inventory-v2-action-status"></div>`;
@@ -282,7 +327,6 @@
 
   function bindStashFilters() {
     const search = doc.getElementById("buscador-items-stash");
-    const buttons = [...doc.querySelectorAll("#filtros-stash .inv-filter-btn")];
     if (search && search.dataset.v2Bound !== "true") {
       search.dataset.v2Bound = "true";
       let timer = null;
@@ -291,24 +335,42 @@
         timer = global.setTimeout(applyStashFilter, 120);
       });
     }
-    buttons.forEach((button) => {
-      if (button.dataset.v2Bound === "true") return;
-      button.dataset.v2Bound = "true";
+    refreshStashFilters();
+  }
+
+  function refreshStashFilters() {
+    const host = doc.getElementById("filtros-stash");
+    if (!host) return;
+    const previous = normalizeId(host.querySelector(".inv-filter-btn.active")?.dataset.filter || "all") || "all";
+    const categories = [...new Set(entries(state.unit?.inventario_stash || {})
+      .filter(([, item]) => item && quantityOf(item) > 0)
+      .map(([, item]) => normalizeId(itemCategory(item)) || "item"))]
+      .sort((a, b) => categoryLabel(a).localeCompare(categoryLabel(b)));
+    const filters = ["all", ...categories];
+    const active = filters.includes(previous) ? previous : "all";
+    host.innerHTML = "";
+    filters.forEach((filter) => {
+      const button = doc.createElement("button");
+      button.type = "button";
+      button.className = `inv-filter-btn${filter === active ? " active" : ""}`;
+      button.dataset.filter = filter;
+      button.textContent = filter === "all" ? "ALL / TODO" : categoryLabel(filter);
       button.addEventListener("click", () => {
-        buttons.forEach((entry) => entry.classList.remove("active"));
+        host.querySelectorAll(".inv-filter-btn").forEach((entry) => entry.classList.remove("active"));
         button.classList.add("active");
         applyStashFilter();
       });
+      host.appendChild(button);
     });
   }
 
   function applyStashFilter() {
     const search = String(doc.getElementById("buscador-items-stash")?.value || "").trim().toLowerCase();
-    const activeFilter = String(doc.querySelector("#filtros-stash .inv-filter-btn.active")?.dataset.filter || "todo").toLowerCase();
+    const activeFilter = normalizeId(doc.querySelector("#filtros-stash .inv-filter-btn.active")?.dataset.filter || "all") || "all";
     doc.querySelectorAll("#inv-stash-grid .item-slot[data-key]").forEach((slot) => {
-      const haystack = `${slot.dataset.name || ""} ${slot.dataset.tier || ""} ${slot.dataset.tags || ""}`;
+      const haystack = `${slot.dataset.name || ""} ${slot.dataset.tier || ""} ${slot.dataset.tags || ""} ${slot.dataset.category || ""}`;
       const matchesSearch = !search || haystack.includes(search);
-      const matchesFilter = activeFilter === "todo" || (slot.dataset.tags || "").includes(activeFilter);
+      const matchesFilter = activeFilter === "all" || normalizeId(slot.dataset.category) === activeFilter;
       slot.hidden = !(matchesSearch && matchesFilter);
     });
   }
@@ -319,20 +381,34 @@
     slot.className = "item-slot inv-item-slot inventory-v2-runtime-slot";
     slot.dataset.key = key;
     slot.dataset.container = containerType;
+    const category = normalizeId(itemCategory(item)) || "item";
+    const kind = equipmentKind(item);
+    const equipable = (bridge()?.compatibleSlots?.(item) || []).length > 0;
     slot.dataset.name = itemName(item).toLowerCase();
     slot.dataset.tier = tierRoman(item).toLowerCase();
     slot.dataset.tags = itemTags(item).join(",").toLowerCase();
+    slot.dataset.category = category;
+    slot.dataset.equipmentKind = kind;
+    slot.classList.toggle("inventory-v2-equipable", equipable);
     slot.style.position = "relative";
     slot.draggable = containerType === "active";
+    slot.title = `${itemName(item)} // ${categoryLabel(category)}`;
+    slot.setAttribute("aria-label", `${itemName(item)}, ${categoryLabel(category)}, quantity ${quantityOf(item)}`);
 
     const icon = itemIcon(item);
+    const gemOverlayIcon = itemGemOverlayIcon(item);
     const quantity = quantityOf(item);
     slot.innerHTML = `
       <span class="tier">${escapeHtml(tierRoman(item))}</span>
+      <span class="inventory-v2-item-category">${escapeHtml(categoryLabel(category))}</span>
       <div class="item-display">
-        <div class="item-icon"${icon ? ` style="background-image:url('${escapeHtml(icon)}')"` : ""}></div>
+        <div class="item-icon${icon ? " has-icon" : ""}"${icon ? ` style="background-image:url(&quot;${escapeHtml(icon)}&quot;)"` : ""}>
+          <span class="inventory-v2-icon-fallback">${escapeHtml(categoryLabel(category).slice(0, 3))}</span>
+          ${gemOverlayIcon ? `<span class="inventory-v2-gem-overlay" aria-hidden="true" style="background-image:url(&quot;${escapeHtml(gemOverlayIcon)}&quot;)"></span>` : ""}
+        </div>
         <span class="item-name">${escapeHtml(itemName(item))}</span>
       </div>
+      ${equipable ? '<span class="inventory-v2-equip-marker">EQUIP</span>' : ""}
       <div class="item-quantity">x${quantity}</div>`;
 
     if (containerType === "active") {
@@ -364,19 +440,38 @@
 
     visibleEntries.forEach(([key, item]) => fragment.appendChild(createItemSlot(key, item, containerType)));
     if (active) {
-      const limit = Math.max(0, Number(inventory()?.activeSlotLimit?.(state.unit) ?? 10) || 10);
+      const limit = Math.max(0, Number(inventory()?.activeSlotLimit?.(state.unit) ?? inventory()?.DEFAULT_ACTIVE_SLOT_LIMIT ?? 20) || 20);
       for (let index = visibleEntries.length + 1; index <= limit; index += 1) fragment.appendChild(createEmptySlot(index));
     }
     grid.appendChild(fragment);
     decorateGrid(containerType);
-    if (!active) applyStashFilter();
+    if (!active) {
+      refreshStashFilters();
+      applyStashFilter();
+    }
   }
 
   function renderCarryCount() {
     const count = entries(state.unit?.inventario_activo).filter(([, item]) => item && quantityOf(item) > 0).length;
-    const limit = Number(inventory()?.activeSlotLimit?.(state.unit) ?? 10) || 10;
+    const limit = Number(inventory()?.activeSlotLimit?.(state.unit) ?? inventory()?.DEFAULT_ACTIVE_SLOT_LIMIT ?? 20) || 20;
     const el = doc.getElementById("inventory-v2-carry-count");
     if (el) el.textContent = `${String(count).padStart(2, "0")} / ${limit}`;
+  }
+
+  function renderStashCount() {
+    const toolbar = doc.querySelector("#inv-stash .inventory-toolbar") || doc.getElementById("inv-stash");
+    if (!toolbar) return;
+    let el = doc.getElementById("inventory-v2-stash-count");
+    if (!el) {
+      el = doc.createElement("div");
+      el.id = "inventory-v2-stash-count";
+      el.className = "inventory-v2-stash-count";
+      toolbar.appendChild(el);
+    }
+    const count = entries(state.unit?.inventario_stash).filter(([, item]) => item && quantityOf(item) > 0).length;
+    const limit = Number(inventory()?.stashSlotLimit?.(state.unit) ?? inventory()?.DEFAULT_STASH_SLOT_LIMIT ?? 80) || 80;
+    el.textContent = `STASH // ${String(count).padStart(2, "0")} / ${limit} SLOTS`;
+    el.dataset.full = count >= limit ? "true" : "false";
   }
 
   function slotData(slotId) {
@@ -513,12 +608,17 @@
       const target = card.querySelector(`[data-v2-detail="${name}"]`);
       if (target) target.textContent = value;
     };
+    const compatible = bridge()?.compatibleSlots?.(item) || [];
+    set("category", `${categoryLabel(itemCategory(item))} // ${categoryLabel(equipmentKind(item))}`);
+    const stackContainer = state.selectedContainer === "stash" ? "stash" : "active";
+    const stackMax = inventory()?.stackLimit?.(item, stackContainer);
+    set("stack", stackMax ? `x${quantityOf(item)} / ${stackMax} // ${stackContainer.toUpperCase()}` : `x${quantityOf(item)} // ${stackContainer.toUpperCase()}`);
     set("quality", `${qualityNames[quality] || `Q${quality}`} // Q${quality}`);
     set("condition", `${conditionPercent}% // ${String(conditionState?.state || conditionState || "SERVICEABLE").toUpperCase()}`);
     set("manufacturer", manufacturerName(item));
     set("product-line", productLineName(item));
     set("serial", item.productSerial || item.product_serial || "—");
-    set("equipment", equippedSlot ? String(equippedSlot).toUpperCase() : "NOT EQUIPPED");
+    set("equipment", equippedSlot ? String(equippedSlot).toUpperCase() : (compatible.length ? `READY // ${compatible.map((slot) => String(slot).toUpperCase()).join(" / ")}` : "NOT EQUIPPABLE"));
     set("charges", charges?.current == null ? "—" : `${charges.current} / ${charges.max ?? "∞"}`);
     set("instance", item.instanceId || item.instance_id || state.selected?.key || "—");
 
@@ -591,8 +691,11 @@
       return;
     }
 
+    if (state.selectedContainer !== "active") {
+      showStatus("RELOAD REQUIRES ACTIVE INVENTORY", "error");
+      return;
+    }
     const pools = [state.unit.inventario_activo || {}];
-    if (state.stashUnlocked) pools.push(state.unit.inventario_stash || {});
     let remaining = profile.amount;
     const deductions = [];
     for (const pool of pools) {
@@ -638,7 +741,7 @@
     }
     if (state.selectedContainer === "stash") {
       addAction(host, "CARRY / LLEVAR", () => moveSelected("stash", "active"), "primary", !state.stashUnlocked);
-      if (reloadProfile(item)) addAction(host, "RELOAD", reloadSelected, "", !state.stashUnlocked);
+      if (foodRest()?.isFood?.(item)) addAction(host, "EAT / DRINK", eatDrinkSelected, "primary", !state.stashUnlocked);
       return;
     }
 
@@ -646,6 +749,7 @@
     if (equippedSlot) addAction(host, "UNEQUIP", unequipSelected, "primary");
     else if (compatible.length) addAction(host, "EQUIP", equipSelectedAuto, "primary");
     addAction(host, "STORE / GUARDAR", () => moveSelected("active", "stash"), "", !state.stashUnlocked);
+    if (foodRest()?.isFood?.(item)) addAction(host, "EAT / DRINK", eatDrinkSelected, "primary");
     const canUse = runtime()?.hasFunction?.(item, "use") || itemCategory(item).toLowerCase() === "consumable";
     if (canUse) addAction(host, "USE", useSelected);
     if (reloadProfile(item)) addAction(host, "RELOAD", reloadSelected);
@@ -737,6 +841,20 @@
     await saveUnit(`USED // ${itemName(item).toUpperCase()}`);
   }
 
+  async function eatDrinkSelected() {
+    const item = selectedItem();
+    if (!item || !state.unit || !foodRest()?.consumeFood) return;
+    const result = foodRest().consumeFood(state.unit, item, {});
+    if (!result?.consumed) {
+      showStatus(`BLOCKED // ${String(result?.reason || "EAT / DRINK FAILED").toUpperCase()}`, "error");
+      return;
+    }
+    if (quantityOf(item) <= 0) state.selected = null;
+    const stateNow = foodRest().ensureState?.(state.unit);
+    const suffix = stateNow ? ` // H${stateNow.hungerSlots}/${stateNow.maxHungerSlots} W${stateNow.hydrationSlots}/${stateNow.maxHydrationSlots}` : "";
+    await saveUnit(`EAT / DRINK // ${itemName(item).toUpperCase()}${suffix}`);
+  }
+
   function onEquipmentClick(event) {
     const slot = event.target.closest("[data-equipment-slot]");
     if (!slot || !state.unit) return;
@@ -784,6 +902,7 @@
     renderGrid("active");
     renderGrid("stash");
     renderCarryCount();
+    renderStashCount();
     renderEquipment();
     if (state.selected) renderDetail();
   }
@@ -873,7 +992,7 @@
   else boot();
 
   global.LuminousInventoryHudV2 = Object.freeze({
-    version: 3,
+    version: 5,
     state,
     boot,
     dispose,
@@ -884,6 +1003,7 @@
     equipSelectedTo,
     moveSelected,
     useSelected,
+    eatDrinkSelected,
     reloadSelected,
   });
 })(window);
