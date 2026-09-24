@@ -15,6 +15,7 @@ on:
       - "scripts/vendor-item-component-icons.mjs"
       - "tests/item-icon-registry-smoke.cjs"
       - "tests/item-icon-assets-smoke.cjs"
+      - ".github/workflows/item-icon-assets-validation.yml"
   push:
     branches:
       - main
@@ -32,6 +33,7 @@ on:
       - "scripts/vendor-item-component-icons.mjs"
       - "tests/item-icon-registry-smoke.cjs"
       - "tests/item-icon-assets-smoke.cjs"
+      - ".github/workflows/item-icon-assets-validation.yml"
 
 permissions:
   contents: read
