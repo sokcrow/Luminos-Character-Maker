@@ -42,7 +42,7 @@ jobs:
       - name: Commit vendored texture assets
         shell: bash
         run: |
-          if git diff --quiet -- Assets/Images/World/Floors; then
+          if [ -z "$(git status --porcelain -- Assets/Images/World/Floors)" ]; then
             echo "Floor texture assets already current."
             exit 0
           fi
