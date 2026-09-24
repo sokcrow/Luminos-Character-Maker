@@ -17,13 +17,13 @@
   const VALUE_ROUNDING_AHN = 1000;
 
   const ICONS = Object.freeze({
-    armor_component_padding: "https://imgur.com/KtMydjm.png",
-    armor_component_leather: "https://imgur.com/bTlNaSV.png",
-    armor_component_mail: "https://imgur.com/6bhGc2H.png",
-    armor_component_scale: "https://imgur.com/86K044u.png",
-    armor_component_plate: "https://imgur.com/NyYGYuM.png",
-    armor_component_reinforcement: "https://imgur.com/62pB2oV.png",
-    armor_component_fittings: "https://imgur.com/24WmG0u.png",
+    armor_component_padding: "Assets/Icons/items/equipment/armor_component_padding.png",
+    armor_component_leather: "Assets/Icons/items/equipment/armor_component_leather.png",
+    armor_component_mail: "Assets/Icons/items/equipment/armor_component_mail.png",
+    armor_component_scale: "Assets/Icons/items/equipment/armor_component_scale.png",
+    armor_component_plate: "Assets/Icons/items/equipment/armor_component_plate.png",
+    armor_component_reinforcement: "Assets/Icons/items/equipment/armor_component_reinforcement.png",
+    armor_component_fittings: "Assets/Icons/items/equipment/armor_component_fittings.png",
   });
 
   function clone(value) { return value == null ? value : JSON.parse(JSON.stringify(value)); }

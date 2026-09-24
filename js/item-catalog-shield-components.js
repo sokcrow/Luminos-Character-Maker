@@ -17,9 +17,9 @@
   const VALUE_ROUNDING_AHN = 1000;
 
   const ICONS = Object.freeze({
-    shield_component_body: "https://imgur.com/UnS3IAr.png",
-    shield_component_rim: "https://imgur.com/JuaPi9Z.png",
-    shield_component_grip: "https://imgur.com/st5wtqJ.png",
+    shield_component_body: "Assets/Icons/items/equipment/shield.png",
+    shield_component_rim: "Assets/Icons/items/equipment/shield_component_rim.png",
+    shield_component_grip: "Assets/Icons/items/equipment/shield_component_grip.png",
   });
 
   function clone(value) { return value == null ? value : JSON.parse(JSON.stringify(value)); }

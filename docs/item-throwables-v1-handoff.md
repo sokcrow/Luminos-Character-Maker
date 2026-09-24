@@ -34,7 +34,7 @@ Support / crafting:
 
 The supplied \`concussive_charge\` Imgur ID is normalized to the registry's canonical direct-image format:
 
-\`https://imgur.com/DZo1Ry5.png\`
+\`Assets/Icons/items/material/concussive_charge.png\`
 
 ## Chemistry extension
 

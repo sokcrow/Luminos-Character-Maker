@@ -16,7 +16,7 @@
   const FAMILY = "firearm_ammunition";
   const CURRENCY = "AHN";
   const DEFAULT_QUALITY = "standard";
-  const GENERIC_AMMO_ICON = "https://imgur.com/gFEZebC.png";
+  const GENERIC_AMMO_ICON = "Assets/Icons/items/resource/ammo.png";
   const DEDICATED_PART_ICON_STATUS = "pending_dedicated_art";
   const FORBIDDEN_ORDINARY_STATUS = Object.freeze(["decay","radiance"]);
 

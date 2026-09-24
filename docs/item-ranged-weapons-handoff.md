@@ -24,7 +24,7 @@ This keeps bows, crossbows, slings and blowguns focused on delivery, control, st
 
 Ranged component icons are embedded directly in `js/item-catalog-ranged-weapon-components.js`, matching the melee component-catalog pattern. The approved assets cover Bow Stave, Bowstring, Crossbow Stock, Crossbow Prod, Trigger/Lock, Sling Pouch, Sling Cord, Blowgun Tube, Blowgun Mouthpiece, Projectile Shaft, Projectile Head, Fletching, Net Mesh, Net Weighted Cord and Sling Bullet.
 
-Arrow uses `https://imgur.com/wIx5BmU.png`. Crossbow Bolt, Blowgun Dart and the temporary Thrown Dart fallback use `https://imgur.com/LYSZTpN.png`. Sling Stone reuses the existing raw-stone / ore family.
+Arrow uses `Assets/Icons/items/equipment/ammo_arrow.png`. Crossbow Bolt, Blowgun Dart and the temporary Thrown Dart fallback use `Assets/Icons/items/equipment/ammo_bolt.png`. Sling Stone reuses the existing raw-stone / ore family.
 
 ## Reference launcher components
 

@@ -152,24 +152,24 @@ This is Production Value, not city/shop retail pricing. The Market system may la
 
 ## Approved component icons
 
-- Short Blade — https://imgur.com/VqcSTYZ.png
-- Long Blade — https://imgur.com/Dy9oMIw.png
-- Great Blade — https://imgur.com/YZcd7xb.png
-- Axe Head — https://imgur.com/n1ywyev.png
-- Hammer Head — https://imgur.com/gaGJyHT.png
-- Mace Head — https://imgur.com/tUEsPpJ.png
-- Spear Head — https://imgur.com/6ievQXp.png
-- Polearm Head — https://imgur.com/GPg1tgF.png
-- Pick Head — https://imgur.com/nUJ7c4s.png
-- Flail Head — https://imgur.com/zsb8ZB6.png
-- Chain Link — https://imgur.com/gmYk0N8.png
-- Handle — https://imgur.com/uP3M6zY.png
-- Reinforced Handle — https://imgur.com/qfDfQAU.png
-- Shaft — https://imgur.com/FXZYH92.png
-- Long Shaft — https://imgur.com/NZMcC9c.png
-- Club Body — https://imgur.com/ICgzPQ2.png
-- Grip — https://imgur.com/5vSVRcm.png
-- Lash — https://imgur.com/fpYkdIH.png
+- Short Blade — Assets/Icons/items/equipment/weapon_component_blade_short.png
+- Long Blade — Assets/Icons/items/equipment/weapon_component_blade_long.png
+- Great Blade — Assets/Icons/items/equipment/weapon_component_blade_great.png
+- Axe Head — Assets/Icons/items/equipment/weapon_component_head_axe.png
+- Hammer Head — Assets/Icons/items/equipment/weapon_component_head_hammer.png
+- Mace Head — Assets/Icons/items/equipment/weapon_component_head_mace.png
+- Spear Head — Assets/Icons/items/equipment/weapon_component_head_spear.png
+- Polearm Head — Assets/Icons/items/equipment/weapon_component_head_polearm.png
+- Pick Head — Assets/Icons/items/equipment/weapon_component_head_pick.png
+- Flail Head — Assets/Icons/items/equipment/weapon_component_head_flail.png
+- Chain Link — Assets/Icons/items/equipment/weapon_component_chain.png
+- Handle — Assets/Icons/items/equipment/weapon_component_handle.png
+- Reinforced Handle — Assets/Icons/items/equipment/weapon_component_handle_reinforced.png
+- Shaft — Assets/Icons/items/equipment/weapon_component_shaft.png
+- Long Shaft — Assets/Icons/items/equipment/weapon_component_shaft_long.png
+- Club Body — Assets/Icons/items/equipment/weapon_component_body_club.png
+- Grip — Assets/Icons/items/equipment/weapon_component_grip.png
+- Lash — Assets/Icons/items/equipment/weapon_component_lash.png
 
 ## Canonical melee chassis reference builds
 

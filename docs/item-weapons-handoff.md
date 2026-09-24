@@ -134,26 +134,26 @@ Exact material quantities are explicitly marked `deferred_material_binding` and 
 
 | Icon family | Asset |
 | --- | --- |
-| `weapon_sword` | https://imgur.com/3AEGrWu.png |
-| `weapon_dagger` | https://imgur.com/K3d5UEA.png |
-| `weapon_polearm` | https://imgur.com/WWODflC.png |
-| `weapon_hammer` | https://imgur.com/WwAq8r.png |
-| `weapon_firearm_shotgun` | https://imgur.com/46tMIlQ.png |
-| `weapon_sling` | https://imgur.com/hmPPD07.png |
-| `weapon_firearm_pistol` | https://imgur.com/gJJgmqX.png |
-| `weapon_net` | https://imgur.com/T3u9Z3N.png |
-| `weapon_firearm_revolver` | https://imgur.com/GCEeR8H.png |
-| `weapon_firearm_smg` | https://imgur.com/L5FQuTA.png |
-| `weapon_spear` | https://imgur.com/DUGcpP5.png |
-| `weapon_crossbow` | https://imgur.com/83PWc1r.png |
-| `weapon_pick` | https://imgur.com/dTwA4cO.png |
-| `weapon_whip` | https://imgur.com/Nw8Mdnp.png |
-| `weapon_blunt` | https://imgur.com/XElPYSo.png |
-| `weapon_blowgun` | https://imgur.com/qkKi2DL.png |
-| `weapon_firearm_rifle` | https://imgur.com/aXXrcFQ.png |
-| `weapon_staff` | https://imgur.com/AChSLCZ.png |
-| `weapon_axe` | https://imgur.com/Fp9MJRw.png |
-| `weapon_bow` | https://imgur.com/PWnWMq1.png |
+| `weapon_sword` | Assets/Icons/items/equipment/weapon_melee.png |
+| `weapon_dagger` | Assets/Icons/items/equipment/weapon_dagger.png |
+| `weapon_polearm` | Assets/Icons/items/equipment/weapon_polearm.png |
+| `weapon_hammer` | Assets/Icons/items/equipment/weapon_hammer.png |
+| `weapon_firearm_shotgun` | Assets/Icons/items/equipment/weapon_firearm_shotgun.png |
+| `weapon_sling` | Assets/Icons/items/equipment/weapon_sling.png |
+| `weapon_firearm_pistol` | Assets/Icons/items/equipment/weapon_firearm_pistol.png |
+| `weapon_net` | Assets/Icons/items/equipment/weapon_net.png |
+| `weapon_firearm_revolver` | Assets/Icons/items/equipment/weapon_firearm_revolver.png |
+| `weapon_firearm_smg` | Assets/Icons/items/equipment/weapon_firearm_smg.png |
+| `weapon_spear` | Assets/Icons/items/equipment/weapon_spear.png |
+| `weapon_crossbow` | Assets/Icons/items/equipment/weapon_crossbow.png |
+| `weapon_pick` | Assets/Icons/items/equipment/weapon_pick.png |
+| `weapon_whip` | Assets/Icons/items/equipment/weapon_whip.png |
+| `weapon_blunt` | Assets/Icons/items/equipment/weapon_blunt.png |
+| `weapon_blowgun` | Assets/Icons/items/equipment/weapon_blowgun.png |
+| `weapon_firearm_rifle` | Assets/Icons/items/equipment/weapon_firearm_rifle.png |
+| `weapon_staff` | Assets/Icons/items/equipment/weapon_staff.png |
+| `weapon_axe` | Assets/Icons/items/equipment/weapon_axe.png |
+| `weapon_bow` | Assets/Icons/items/equipment/weapon_ranged.png |
 
 The firearm icon families are visual infrastructure only in this pass. A firearm chassis catalog has **not** been silently created.
 

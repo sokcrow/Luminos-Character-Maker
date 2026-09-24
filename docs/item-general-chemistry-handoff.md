@@ -29,8 +29,8 @@ Future systems are not simulated early. A craftable chemistry Item may exist bef
 
 The corrected URLs are canonical:
 
-- \`industrial_lubricant_pack\` → \`https://imgur.com/kE23Jlc.png\`
-- \`filter_cartridge\` → \`https://imgur.com/o0kvdU7.png\`
+- \`industrial_lubricant_pack\` → \`Assets/Icons/items/utility/industrial_lubricant_pack.png\`
+- \`filter_cartridge\` → \`Assets/Icons/items/utility/filter_cartridge.png\`
 
 ## Catalogs
 

@@ -136,11 +136,11 @@ Exact canonical Character Skill IDs remain a later binding step; component Recip
 
 Existing icon families are reused wherever they already describe the component clearly. Five additional families are integrated:
 
-- `structural_stock` — https://imgur.com/C985Ijj.png
-- `fasteners_hardware` — https://imgur.com/UvxjuRG.png
-- `wire_cable` — https://imgur.com/NHMef8W.png
-- `glass_component` — https://imgur.com/s4C3Jog.png
-- `container` — https://imgur.com/DvIOvQk.png
+- `structural_stock` — Assets/Icons/items/material/structural_stock.png
+- `fasteners_hardware` — Assets/Icons/items/material/fasteners_hardware.png
+- `wire_cable` — Assets/Icons/items/material/wire_cable.png
+- `glass_component` — Assets/Icons/items/material/glass_component.png
+- `container` — Assets/Icons/items/material/container.png
 
 Ceramic components reuse `craft_component`. Optical components reuse `precision_component`.
 

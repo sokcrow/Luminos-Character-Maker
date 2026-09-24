@@ -20,16 +20,16 @@ The ten approved icon families are Frame, Barrel, Action, Trigger, Grip, Stock, 
 
 Approved icons:
 
-- Frame: `https://imgur.com/PTvX2iC.png`
-- Barrel: `https://imgur.com/CevBgU5.png`
-- Action: `https://imgur.com/4X3iLIX.png`
-- Trigger: `https://imgur.com/EJm7eVM.png`
-- Grip: `https://imgur.com/Z8uo0ce.png`
-- Stock: `https://imgur.com/zlqG6UR.png`
-- Magazine: `https://imgur.com/NfR1h3w.png`
-- Cylinder: `https://imgur.com/6jARKtW.png`
-- Tubular Feed: `https://imgur.com/LN7kuCw.png`
-- Sights: `https://imgur.com/1UbIJyN`
+- Frame: `Assets/Icons/items/equipment/weapon_component_firearm_frame.png`
+- Barrel: `Assets/Icons/items/equipment/weapon_component_firearm_barrel.png`
+- Action: `Assets/Icons/items/equipment/weapon_component_firearm_action.png`
+- Trigger: `Assets/Icons/items/equipment/weapon_component_firearm_trigger.png`
+- Grip: `Assets/Icons/items/equipment/weapon_component_firearm_grip.png`
+- Stock: `Assets/Icons/items/equipment/weapon_component_firearm_stock.png`
+- Magazine: `Assets/Icons/items/equipment/weapon_component_firearm_magazine.png`
+- Cylinder: `Assets/Icons/items/equipment/weapon_component_firearm_cylinder.png`
+- Tubular Feed: `Assets/Icons/items/equipment/weapon_component_firearm_tube_feed.png`
+- Sights: `Assets/Icons/items/equipment/weapon_component_firearm_sights.png`
 
 ## Crafting difficulty
 

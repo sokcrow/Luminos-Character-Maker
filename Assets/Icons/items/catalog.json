@@ -3,7 +3,7 @@
   "authority": "repository-local",
   "registry": "js/item-icon-registry.js",
   "familyCount": 581,
-  "uniqueAssetCount": 574,
+  "uniqueAssetCount": 628,
   "note": "Runtime icon resolution uses repository-local paths. legacySource is provenance only and is never required at runtime.",
   "families": [
     {
@@ -6153,6 +6153,87 @@
       "legacySource": "https://imgur.com/G6YFWYw.png"
     },
     {
+      "path": "Assets/Icons/items/equipment/ammo_arrow.png",
+      "primaryId": "ammo_arrow",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 553498,
+      "sha256": "443de467d700d6a1044c3c1a592ef94ba205c05c5c2f5975a3d59ef7a738f085",
+      "legacySource": "https://imgur.com/wIx5BmU.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/ammo_bolt.png",
+      "primaryId": "ammo_bolt",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 369201,
+      "sha256": "83ce08a506c1b4dec8fa283ce239810faf7b56d02165bc58948fafded2c71014",
+      "legacySource": "https://imgur.com/LYSZTpN.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/armor_component_fittings.png",
+      "primaryId": "armor_component_fittings",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 1128994,
+      "sha256": "a7a9515cb23208fee7bec0ea3d3cc25d2c7044ae002455fae3ae428c9280fc8a",
+      "legacySource": "https://imgur.com/24WmG0u.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/armor_component_leather.png",
+      "primaryId": "armor_component_leather",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 891243,
+      "sha256": "07304c8956e8dd526e4be05f79fc249f3daea7683002c9c1c922df1861dd95a2",
+      "legacySource": "https://imgur.com/bTlNaSV.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/armor_component_mail.png",
+      "primaryId": "armor_component_mail",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 1050930,
+      "sha256": "382fe987d24aaae767ea5c4350cef257f6ee3f6a2d29e448b4666dc655004e4c",
+      "legacySource": "https://imgur.com/6bhGc2H.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/armor_component_padding.png",
+      "primaryId": "armor_component_padding",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 940875,
+      "sha256": "22aedbfcbc68b1aedf48a0e95d8ea32013717b1612232733c0bd8d0b61b86035",
+      "legacySource": "https://imgur.com/KtMydjm.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/armor_component_plate.png",
+      "primaryId": "armor_component_plate",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 853837,
+      "sha256": "180a4fadc74d253da94a0f394fa5961002af4d0b1197118c54c32fc521fab94f",
+      "legacySource": "https://imgur.com/NyYGYuM.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/armor_component_reinforcement.png",
+      "primaryId": "armor_component_reinforcement",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 765189,
+      "sha256": "fea3b963e062d25e38fbc98f0bcd6be676c6b08b3ed47e475af78f18f1564438",
+      "legacySource": "https://imgur.com/62pB2oV.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/armor_component_scale.png",
+      "primaryId": "armor_component_scale",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 802968,
+      "sha256": "8e5b940faf0d1e86321b13f25c6ce69c753bd18576d9fa6dad8cce6070e78de6",
+      "legacySource": "https://imgur.com/86K044u.png"
+    },
+    {
       "path": "Assets/Icons/items/equipment/armor_heavy.png",
       "primaryId": "armor_heavy",
       "domain": "equipment",
@@ -6549,6 +6630,24 @@
       "legacySource": "https://imgur.com/mct54op.png"
     },
     {
+      "path": "Assets/Icons/items/equipment/shield_component_grip.png",
+      "primaryId": "shield_component_grip",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 706093,
+      "sha256": "831ce03352f462fd341e8dfba4b7c3c741ea7df52e824c01c811cdc96d359ee0",
+      "legacySource": "https://imgur.com/st5wtqJ.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/shield_component_rim.png",
+      "primaryId": "shield_component_rim",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 609686,
+      "sha256": "75e37e114189bdcc372695b0dfc06584d3c08aef2dd4c5b7585e4859e6e591c8",
+      "legacySource": "https://imgur.com/JuaPi9Z.png"
+    },
+    {
       "path": "Assets/Icons/items/equipment/shield_heater.png",
       "primaryId": "shield_heater",
       "domain": "equipment",
@@ -6624,6 +6723,393 @@
       "bytes": 631096,
       "sha256": "d1495e786a7b1d0ca234cf3975f47cefbe4d19163d3d4ec74fce4277868d0c58",
       "legacySource": "https://imgur.com/XElPYSo.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/weapon_component_blade_great.png",
+      "primaryId": "weapon_component_blade_great",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 758435,
+      "sha256": "0c6820f9d2fa7587c49c0aa44831b469b0c3e871e9c0f484ee8929f9b113e60d",
+      "legacySource": "https://imgur.com/YZcd7xb.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/weapon_component_blade_long.png",
+      "primaryId": "weapon_component_blade_long",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 427982,
+      "sha256": "df5b312804ff9ef4c81546798e1ca430fa6707aa30bb8068ee6c37773f11f399",
+      "legacySource": "https://imgur.com/Dy9oMIw.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/weapon_component_blade_short.png",
+      "primaryId": "weapon_component_blade_short",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 537975,
+      "sha256": "bafbd6e61fc85af44bd2e4cbe109669e7985e01ead66155353c3a87cb23e9b6f",
+      "legacySource": "https://imgur.com/VqcSTYZ.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/weapon_component_blowgun_mouthpiece.png",
+      "primaryId": "weapon_component_blowgun_mouthpiece",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 646976,
+      "sha256": "900112ec44f087e80941f695b768e3c86e6f898d37a5108d7e7e8ff55fc1b273",
+      "legacySource": "https://imgur.com/9TGtSqZ.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/weapon_component_blowgun_tube.png",
+      "primaryId": "weapon_component_blowgun_tube",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 509839,
+      "sha256": "b32dd1f03d260237d6b25dbdd58f83afba54f0add8c45617151f0e668f72fb47",
+      "legacySource": "https://imgur.com/syyfGVS.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/weapon_component_body_club.png",
+      "primaryId": "weapon_component_body_club",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 536746,
+      "sha256": "b684701c2422f7fc24bcce1df170ce68e8ba2043c4a3842b5f6f27df2c4b493d",
+      "legacySource": "https://imgur.com/ICgzPQ2.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/weapon_component_bow_stave.png",
+      "primaryId": "weapon_component_bow_stave",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 451222,
+      "sha256": "3287799033a5f66ddeb415a20412f14309ddd63aee840a83c0fd3250e3ba5239",
+      "legacySource": "https://imgur.com/U967z1B.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/weapon_component_bowstring.png",
+      "primaryId": "weapon_component_bowstring",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 479077,
+      "sha256": "71be57bf4579d9b2df87b61cd44d86308c7d98d1d8933f1102532c439226c48e",
+      "legacySource": "https://imgur.com/lAt7Da8.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/weapon_component_chain.png",
+      "primaryId": "weapon_component_chain",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 625025,
+      "sha256": "17748ae081af3703c78ef5a6adafb04d7ab5956be468947cd321fdfcf0cecc80",
+      "legacySource": "https://imgur.com/gmYk0N8.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/weapon_component_crossbow_prod.png",
+      "primaryId": "weapon_component_crossbow_prod",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 728168,
+      "sha256": "3117445f02520042bd444a23cc356e2806702763e9c8f961a443d71b84c8d48c",
+      "legacySource": "https://imgur.com/3X2MZc7.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/weapon_component_crossbow_stock.png",
+      "primaryId": "weapon_component_crossbow_stock",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 608653,
+      "sha256": "215d8d6391a8800ad96a491441b38178fc02605cfb890f1526ff02850c70f8dd",
+      "legacySource": "https://imgur.com/n29e45p.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/weapon_component_crossbow_trigger.png",
+      "primaryId": "weapon_component_crossbow_trigger",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 757285,
+      "sha256": "8f735545589ed364bbb073d12bc6e6b499852b8674138736d6d243838b1f5919",
+      "legacySource": "https://imgur.com/jcBC5HF.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/weapon_component_firearm_action.png",
+      "primaryId": "weapon_component_firearm_action",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 939008,
+      "sha256": "6de03f078b0f1951749b1b41faee1c6b2053cb5a7a856d615bed64ae1a303b4d",
+      "legacySource": "https://imgur.com/4X3iLIX.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/weapon_component_firearm_barrel.png",
+      "primaryId": "weapon_component_firearm_barrel",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 686306,
+      "sha256": "1fdb3fb831c395f533fe742431940c2bdaeee83ecd00e365d452888f5af97a2b",
+      "legacySource": "https://imgur.com/CevBgU5.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/weapon_component_firearm_cylinder.png",
+      "primaryId": "weapon_component_firearm_cylinder",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 1218360,
+      "sha256": "2d069283add50763ec46a8bd1f9279037052251941fb3f09eab5acba1715850a",
+      "legacySource": "https://imgur.com/6jARKtW.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/weapon_component_firearm_frame.png",
+      "primaryId": "weapon_component_firearm_frame",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 1115015,
+      "sha256": "01f0b6b789f91ca927345bd450e7da0f5a27e86dd7dd38c3a80cc51474be72ad",
+      "legacySource": "https://imgur.com/PTvX2iC.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/weapon_component_firearm_grip.png",
+      "primaryId": "weapon_component_firearm_grip",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 1059759,
+      "sha256": "48c2772cdf301b5b268b6a458613637982e753a9d116bf83d6623776b7a368e3",
+      "legacySource": "https://imgur.com/Z8uo0ce.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/weapon_component_firearm_magazine.png",
+      "primaryId": "weapon_component_firearm_magazine",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 913458,
+      "sha256": "156a4e250224b33dfa585282cbfe6318cdf81ef60eef83d45863e309dce352dd",
+      "legacySource": "https://imgur.com/NfR1h3w.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/weapon_component_firearm_sights.png",
+      "primaryId": "weapon_component_firearm_sights",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 1098877,
+      "sha256": "c3721377a5a8774e16e266518c1d6c97e6f751b5b627e846cc175bd6d3f0273e",
+      "legacySource": "https://imgur.com/1UbIJyN.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/weapon_component_firearm_stock.png",
+      "primaryId": "weapon_component_firearm_stock",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 839112,
+      "sha256": "72c544908deda8814805e6c6ad43235d7920f0506ef1e6d2cccdf2a7200e5758",
+      "legacySource": "https://imgur.com/zlqG6UR.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/weapon_component_firearm_trigger.png",
+      "primaryId": "weapon_component_firearm_trigger",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 1277687,
+      "sha256": "2c15bb63514e9dd9feeaa2c916d26563bc005d8951f9bbbabbdd53eb9b2250d9",
+      "legacySource": "https://imgur.com/EJm7eVM.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/weapon_component_firearm_tube_feed.png",
+      "primaryId": "weapon_component_firearm_tube_feed",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 750458,
+      "sha256": "d59d711ce22a2a36eb070394095e7b8b314b6fc31fa30068ed541e1bdca275e5",
+      "legacySource": "https://imgur.com/LN7kuCw.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/weapon_component_fletching.png",
+      "primaryId": "weapon_component_fletching",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 949639,
+      "sha256": "03a72af19f56289317f5eb5fd526111055a34ce8662806e6dc95b5e053c38ac9",
+      "legacySource": "https://imgur.com/2RXapPg.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/weapon_component_grip.png",
+      "primaryId": "weapon_component_grip",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 669439,
+      "sha256": "00b243247235afb6f80611324d1641fd1559da7b2643ac73b2264ff309227f52",
+      "legacySource": "https://imgur.com/5vSVRcm.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/weapon_component_handle_reinforced.png",
+      "primaryId": "weapon_component_handle_reinforced",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 709862,
+      "sha256": "1b5c59e5907fd94a0b444a0ad52de92a93937e3e7f79e84a9c5686b795eeb5e1",
+      "legacySource": "https://imgur.com/qfDfQAU.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/weapon_component_handle.png",
+      "primaryId": "weapon_component_handle",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 613492,
+      "sha256": "2bacbf94ed27915b783a3effa913334aa1b9c857679df91afbf80e93e135faf3",
+      "legacySource": "https://imgur.com/uP3M6zY.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/weapon_component_head_axe.png",
+      "primaryId": "weapon_component_head_axe",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 746627,
+      "sha256": "06c8222af27c12b65069fd1256ab34e807b7e1d92eb2f23ba34251a59dd1f748",
+      "legacySource": "https://imgur.com/n1ywyev.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/weapon_component_head_flail.png",
+      "primaryId": "weapon_component_head_flail",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 924021,
+      "sha256": "ad724b0f293769ee401473237beee13e3b1e9d2173a9eb264e680592335bded8",
+      "legacySource": "https://imgur.com/zsb8ZB6.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/weapon_component_head_hammer.png",
+      "primaryId": "weapon_component_head_hammer",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 866566,
+      "sha256": "e91df3c4d57d7ede062d5928c0c178953593f88b80d8536e5660f6d222d8e7ec",
+      "legacySource": "https://imgur.com/gaGJyHT.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/weapon_component_head_mace.png",
+      "primaryId": "weapon_component_head_mace",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 829658,
+      "sha256": "4a72728ffcea265b7cd13d9776c56bbfd2b6d000b20a70ebe88bacac11bd7b57",
+      "legacySource": "https://imgur.com/tUEsPpJ.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/weapon_component_head_pick.png",
+      "primaryId": "weapon_component_head_pick",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 520158,
+      "sha256": "3d6c8bb52a7fd401966534dbff9ccefdd81b871c1fd45ca3777fc3c3c0368fbf",
+      "legacySource": "https://imgur.com/nUJ7c4s.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/weapon_component_head_polearm.png",
+      "primaryId": "weapon_component_head_polearm",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 784800,
+      "sha256": "c36a1cbf8cc12b53216313094d577354ec212df815b6b6c89dcd473200744d0e",
+      "legacySource": "https://imgur.com/GPg1tgF.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/weapon_component_head_spear.png",
+      "primaryId": "weapon_component_head_spear",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 624151,
+      "sha256": "5666e1578d96c7e710c72bb647fbffaf0c90701c064441b53048f27d417d32ee",
+      "legacySource": "https://imgur.com/6ievQXp.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/weapon_component_lash.png",
+      "primaryId": "weapon_component_lash",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 682576,
+      "sha256": "d6e9d07893a235b128a8c79e31775dbdc981756b096196344f07393fa52061bb",
+      "legacySource": "https://imgur.com/fpYkdIH.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/weapon_component_net_mesh.png",
+      "primaryId": "weapon_component_net_mesh",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 1094360,
+      "sha256": "449256074b91c15c3edf37bfd294213000334499db24196408c38a2d0ba1aa62",
+      "legacySource": "https://imgur.com/3Mo35wk.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/weapon_component_net_weighted_cord.png",
+      "primaryId": "weapon_component_net_weighted_cord",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 671243,
+      "sha256": "0335a3172aea4b629a57c199deaa799ffac1757bc79fcffa0e52269e1742b2eb",
+      "legacySource": "https://imgur.com/jLhUIuF.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/weapon_component_projectile_head.png",
+      "primaryId": "weapon_component_projectile_head",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 722455,
+      "sha256": "a8845bca01e45f4a363cdae9b919ba14eb4897ecb1979b606d5c06a9ff60820e",
+      "legacySource": "https://imgur.com/PQ8jT7G.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/weapon_component_projectile_shaft.png",
+      "primaryId": "weapon_component_projectile_shaft",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 399751,
+      "sha256": "c2cc7fde74ce0786cba5b3aee2c8892d17518bda8a978ba266a5ef08b6458060",
+      "legacySource": "https://imgur.com/7PHwdSV.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/weapon_component_shaft_long.png",
+      "primaryId": "weapon_component_shaft_long",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 473917,
+      "sha256": "49cf80d4f08c2f6b7b0a794b944c254c52981254c74749c57cf29636179a367b",
+      "legacySource": "https://imgur.com/NZMcC9c.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/weapon_component_shaft.png",
+      "primaryId": "weapon_component_shaft",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 593835,
+      "sha256": "fe2df5a088b8061d4b7cd2bbe4c11d514768e385600050dc46cd1d5991b70379",
+      "legacySource": "https://imgur.com/FXZYH92.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/weapon_component_sling_cord.png",
+      "primaryId": "weapon_component_sling_cord",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 624211,
+      "sha256": "05e68e33d0de9338fe485b40dd9da7b921953c8060d41e224c5b1db952c7d48c",
+      "legacySource": "https://imgur.com/lHPHRZT.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/weapon_component_sling_pouch.png",
+      "primaryId": "weapon_component_sling_pouch",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 645258,
+      "sha256": "5acf8231638f588852b25cc73d41c5be46d26caffe06e56b43676e66638e4c90",
+      "legacySource": "https://imgur.com/HalphFj.png"
+    },
+    {
+      "path": "Assets/Icons/items/equipment/weapon_component_sling_projectile.png",
+      "primaryId": "weapon_component_sling_projectile",
+      "domain": "equipment",
+      "familyIds": [],
+      "bytes": 813545,
+      "sha256": "cbdc63829405d7024a2c664920f00fd1b0117f1ee7435a07070522d9295b2118",
+      "legacySource": "https://imgur.com/9DqmanS.png"
     },
     {
       "path": "Assets/Icons/items/equipment/weapon_crossbow.png",
@@ -10977,5 +11463,356 @@
       "sha256": "1d5988819f8a8dd913eefc3aff0845caad7a6c3b08a191e0a2133a66b52a1c0b",
       "legacySource": "https://imgur.com/CXwtccN.png"
     }
-  ]
+  ],
+  "runtimeReferences": [
+    {
+      "file": "js/item-catalog-armor-components.js",
+      "key": "armor_component_padding",
+      "path": "Assets/Icons/items/equipment/armor_component_padding.png",
+      "legacySource": "https://imgur.com/KtMydjm.png"
+    },
+    {
+      "file": "js/item-catalog-armor-components.js",
+      "key": "armor_component_leather",
+      "path": "Assets/Icons/items/equipment/armor_component_leather.png",
+      "legacySource": "https://imgur.com/bTlNaSV.png"
+    },
+    {
+      "file": "js/item-catalog-armor-components.js",
+      "key": "armor_component_mail",
+      "path": "Assets/Icons/items/equipment/armor_component_mail.png",
+      "legacySource": "https://imgur.com/6bhGc2H.png"
+    },
+    {
+      "file": "js/item-catalog-armor-components.js",
+      "key": "armor_component_scale",
+      "path": "Assets/Icons/items/equipment/armor_component_scale.png",
+      "legacySource": "https://imgur.com/86K044u.png"
+    },
+    {
+      "file": "js/item-catalog-armor-components.js",
+      "key": "armor_component_plate",
+      "path": "Assets/Icons/items/equipment/armor_component_plate.png",
+      "legacySource": "https://imgur.com/NyYGYuM.png"
+    },
+    {
+      "file": "js/item-catalog-armor-components.js",
+      "key": "armor_component_reinforcement",
+      "path": "Assets/Icons/items/equipment/armor_component_reinforcement.png",
+      "legacySource": "https://imgur.com/62pB2oV.png"
+    },
+    {
+      "file": "js/item-catalog-armor-components.js",
+      "key": "armor_component_fittings",
+      "path": "Assets/Icons/items/equipment/armor_component_fittings.png",
+      "legacySource": "https://imgur.com/24WmG0u.png"
+    },
+    {
+      "file": "js/item-catalog-firearm-ammo.js",
+      "key": "ammo_generic",
+      "path": "Assets/Icons/items/resource/ammo.png",
+      "legacySource": "https://imgur.com/gFEZebC.png"
+    },
+    {
+      "file": "js/item-catalog-firearm-components.js",
+      "key": "weapon_component_firearm_frame",
+      "path": "Assets/Icons/items/equipment/weapon_component_firearm_frame.png",
+      "legacySource": "https://imgur.com/PTvX2iC.png"
+    },
+    {
+      "file": "js/item-catalog-firearm-components.js",
+      "key": "weapon_component_firearm_barrel",
+      "path": "Assets/Icons/items/equipment/weapon_component_firearm_barrel.png",
+      "legacySource": "https://imgur.com/CevBgU5.png"
+    },
+    {
+      "file": "js/item-catalog-firearm-components.js",
+      "key": "weapon_component_firearm_action",
+      "path": "Assets/Icons/items/equipment/weapon_component_firearm_action.png",
+      "legacySource": "https://imgur.com/4X3iLIX.png"
+    },
+    {
+      "file": "js/item-catalog-firearm-components.js",
+      "key": "weapon_component_firearm_trigger",
+      "path": "Assets/Icons/items/equipment/weapon_component_firearm_trigger.png",
+      "legacySource": "https://imgur.com/EJm7eVM.png"
+    },
+    {
+      "file": "js/item-catalog-firearm-components.js",
+      "key": "weapon_component_firearm_grip",
+      "path": "Assets/Icons/items/equipment/weapon_component_firearm_grip.png",
+      "legacySource": "https://imgur.com/Z8uo0ce.png"
+    },
+    {
+      "file": "js/item-catalog-firearm-components.js",
+      "key": "weapon_component_firearm_stock",
+      "path": "Assets/Icons/items/equipment/weapon_component_firearm_stock.png",
+      "legacySource": "https://imgur.com/zlqG6UR.png"
+    },
+    {
+      "file": "js/item-catalog-firearm-components.js",
+      "key": "weapon_component_firearm_magazine",
+      "path": "Assets/Icons/items/equipment/weapon_component_firearm_magazine.png",
+      "legacySource": "https://imgur.com/NfR1h3w.png"
+    },
+    {
+      "file": "js/item-catalog-firearm-components.js",
+      "key": "weapon_component_firearm_cylinder",
+      "path": "Assets/Icons/items/equipment/weapon_component_firearm_cylinder.png",
+      "legacySource": "https://imgur.com/6jARKtW.png"
+    },
+    {
+      "file": "js/item-catalog-firearm-components.js",
+      "key": "weapon_component_firearm_tube_feed",
+      "path": "Assets/Icons/items/equipment/weapon_component_firearm_tube_feed.png",
+      "legacySource": "https://imgur.com/LN7kuCw.png"
+    },
+    {
+      "file": "js/item-catalog-firearm-components.js",
+      "key": "weapon_component_firearm_sights",
+      "path": "Assets/Icons/items/equipment/weapon_component_firearm_sights.png",
+      "legacySource": "https://imgur.com/1UbIJyN.png"
+    },
+    {
+      "file": "js/item-catalog-ranged-weapon-components.js",
+      "key": "weapon_component_bow_stave",
+      "path": "Assets/Icons/items/equipment/weapon_component_bow_stave.png",
+      "legacySource": "https://imgur.com/U967z1B.png"
+    },
+    {
+      "file": "js/item-catalog-ranged-weapon-components.js",
+      "key": "weapon_component_bowstring",
+      "path": "Assets/Icons/items/equipment/weapon_component_bowstring.png",
+      "legacySource": "https://imgur.com/lAt7Da8.png"
+    },
+    {
+      "file": "js/item-catalog-ranged-weapon-components.js",
+      "key": "weapon_component_crossbow_stock",
+      "path": "Assets/Icons/items/equipment/weapon_component_crossbow_stock.png",
+      "legacySource": "https://imgur.com/n29e45p.png"
+    },
+    {
+      "file": "js/item-catalog-ranged-weapon-components.js",
+      "key": "weapon_component_crossbow_prod",
+      "path": "Assets/Icons/items/equipment/weapon_component_crossbow_prod.png",
+      "legacySource": "https://imgur.com/3X2MZc7.png"
+    },
+    {
+      "file": "js/item-catalog-ranged-weapon-components.js",
+      "key": "weapon_component_crossbow_trigger",
+      "path": "Assets/Icons/items/equipment/weapon_component_crossbow_trigger.png",
+      "legacySource": "https://imgur.com/jcBC5HF.png"
+    },
+    {
+      "file": "js/item-catalog-ranged-weapon-components.js",
+      "key": "weapon_component_sling_pouch",
+      "path": "Assets/Icons/items/equipment/weapon_component_sling_pouch.png",
+      "legacySource": "https://imgur.com/HalphFj.png"
+    },
+    {
+      "file": "js/item-catalog-ranged-weapon-components.js",
+      "key": "weapon_component_sling_cord",
+      "path": "Assets/Icons/items/equipment/weapon_component_sling_cord.png",
+      "legacySource": "https://imgur.com/lHPHRZT.png"
+    },
+    {
+      "file": "js/item-catalog-ranged-weapon-components.js",
+      "key": "weapon_component_blowgun_tube",
+      "path": "Assets/Icons/items/equipment/weapon_component_blowgun_tube.png",
+      "legacySource": "https://imgur.com/syyfGVS.png"
+    },
+    {
+      "file": "js/item-catalog-ranged-weapon-components.js",
+      "key": "weapon_component_blowgun_mouthpiece",
+      "path": "Assets/Icons/items/equipment/weapon_component_blowgun_mouthpiece.png",
+      "legacySource": "https://imgur.com/9TGtSqZ.png"
+    },
+    {
+      "file": "js/item-catalog-ranged-weapon-components.js",
+      "key": "weapon_component_projectile_shaft",
+      "path": "Assets/Icons/items/equipment/weapon_component_projectile_shaft.png",
+      "legacySource": "https://imgur.com/7PHwdSV.png"
+    },
+    {
+      "file": "js/item-catalog-ranged-weapon-components.js",
+      "key": "weapon_component_projectile_head",
+      "path": "Assets/Icons/items/equipment/weapon_component_projectile_head.png",
+      "legacySource": "https://imgur.com/PQ8jT7G.png"
+    },
+    {
+      "file": "js/item-catalog-ranged-weapon-components.js",
+      "key": "weapon_component_fletching",
+      "path": "Assets/Icons/items/equipment/weapon_component_fletching.png",
+      "legacySource": "https://imgur.com/2RXapPg.png"
+    },
+    {
+      "file": "js/item-catalog-ranged-weapon-components.js",
+      "key": "weapon_component_net_mesh",
+      "path": "Assets/Icons/items/equipment/weapon_component_net_mesh.png",
+      "legacySource": "https://imgur.com/3Mo35wk.png"
+    },
+    {
+      "file": "js/item-catalog-ranged-weapon-components.js",
+      "key": "weapon_component_net_weighted_cord",
+      "path": "Assets/Icons/items/equipment/weapon_component_net_weighted_cord.png",
+      "legacySource": "https://imgur.com/jLhUIuF.png"
+    },
+    {
+      "file": "js/item-catalog-ranged-weapon-components.js",
+      "key": "weapon_component_sling_projectile",
+      "path": "Assets/Icons/items/equipment/weapon_component_sling_projectile.png",
+      "legacySource": "https://imgur.com/9DqmanS.png"
+    },
+    {
+      "file": "js/item-catalog-ranged-weapon-components.js",
+      "key": "ammo_arrow",
+      "path": "Assets/Icons/items/equipment/ammo_arrow.png",
+      "legacySource": "https://imgur.com/wIx5BmU.png"
+    },
+    {
+      "file": "js/item-catalog-ranged-weapon-components.js",
+      "key": "ammo_bolt",
+      "path": "Assets/Icons/items/equipment/ammo_bolt.png",
+      "legacySource": "https://imgur.com/LYSZTpN.png"
+    },
+    {
+      "file": "js/item-catalog-ranged-weapon-components.js",
+      "key": "ammo_blowgun_dart",
+      "path": "Assets/Icons/items/equipment/ammo_bolt.png",
+      "legacySource": "https://imgur.com/LYSZTpN.png"
+    },
+    {
+      "file": "js/item-catalog-ranged-weapon-components.js",
+      "key": "ammo_thrown_dart",
+      "path": "Assets/Icons/items/equipment/ammo_bolt.png",
+      "legacySource": "https://imgur.com/LYSZTpN.png"
+    },
+    {
+      "file": "js/item-catalog-shield-components.js",
+      "key": "shield_component_body",
+      "path": "Assets/Icons/items/equipment/shield.png",
+      "legacySource": "https://imgur.com/UnS3IAr.png"
+    },
+    {
+      "file": "js/item-catalog-shield-components.js",
+      "key": "shield_component_rim",
+      "path": "Assets/Icons/items/equipment/shield_component_rim.png",
+      "legacySource": "https://imgur.com/JuaPi9Z.png"
+    },
+    {
+      "file": "js/item-catalog-shield-components.js",
+      "key": "shield_component_grip",
+      "path": "Assets/Icons/items/equipment/shield_component_grip.png",
+      "legacySource": "https://imgur.com/st5wtqJ.png"
+    },
+    {
+      "file": "js/item-catalog-weapon-components.js",
+      "key": "weapon_component_blade_short",
+      "path": "Assets/Icons/items/equipment/weapon_component_blade_short.png",
+      "legacySource": "https://imgur.com/VqcSTYZ.png"
+    },
+    {
+      "file": "js/item-catalog-weapon-components.js",
+      "key": "weapon_component_blade_long",
+      "path": "Assets/Icons/items/equipment/weapon_component_blade_long.png",
+      "legacySource": "https://imgur.com/Dy9oMIw.png"
+    },
+    {
+      "file": "js/item-catalog-weapon-components.js",
+      "key": "weapon_component_blade_great",
+      "path": "Assets/Icons/items/equipment/weapon_component_blade_great.png",
+      "legacySource": "https://imgur.com/YZcd7xb.png"
+    },
+    {
+      "file": "js/item-catalog-weapon-components.js",
+      "key": "weapon_component_head_axe",
+      "path": "Assets/Icons/items/equipment/weapon_component_head_axe.png",
+      "legacySource": "https://imgur.com/n1ywyev.png"
+    },
+    {
+      "file": "js/item-catalog-weapon-components.js",
+      "key": "weapon_component_head_hammer",
+      "path": "Assets/Icons/items/equipment/weapon_component_head_hammer.png",
+      "legacySource": "https://imgur.com/gaGJyHT.png"
+    },
+    {
+      "file": "js/item-catalog-weapon-components.js",
+      "key": "weapon_component_head_mace",
+      "path": "Assets/Icons/items/equipment/weapon_component_head_mace.png",
+      "legacySource": "https://imgur.com/tUEsPpJ.png"
+    },
+    {
+      "file": "js/item-catalog-weapon-components.js",
+      "key": "weapon_component_head_spear",
+      "path": "Assets/Icons/items/equipment/weapon_component_head_spear.png",
+      "legacySource": "https://imgur.com/6ievQXp.png"
+    },
+    {
+      "file": "js/item-catalog-weapon-components.js",
+      "key": "weapon_component_head_polearm",
+      "path": "Assets/Icons/items/equipment/weapon_component_head_polearm.png",
+      "legacySource": "https://imgur.com/GPg1tgF.png"
+    },
+    {
+      "file": "js/item-catalog-weapon-components.js",
+      "key": "weapon_component_head_pick",
+      "path": "Assets/Icons/items/equipment/weapon_component_head_pick.png",
+      "legacySource": "https://imgur.com/nUJ7c4s.png"
+    },
+    {
+      "file": "js/item-catalog-weapon-components.js",
+      "key": "weapon_component_head_flail",
+      "path": "Assets/Icons/items/equipment/weapon_component_head_flail.png",
+      "legacySource": "https://imgur.com/zsb8ZB6.png"
+    },
+    {
+      "file": "js/item-catalog-weapon-components.js",
+      "key": "weapon_component_chain",
+      "path": "Assets/Icons/items/equipment/weapon_component_chain.png",
+      "legacySource": "https://imgur.com/gmYk0N8.png"
+    },
+    {
+      "file": "js/item-catalog-weapon-components.js",
+      "key": "weapon_component_handle",
+      "path": "Assets/Icons/items/equipment/weapon_component_handle.png",
+      "legacySource": "https://imgur.com/uP3M6zY.png"
+    },
+    {
+      "file": "js/item-catalog-weapon-components.js",
+      "key": "weapon_component_handle_reinforced",
+      "path": "Assets/Icons/items/equipment/weapon_component_handle_reinforced.png",
+      "legacySource": "https://imgur.com/qfDfQAU.png"
+    },
+    {
+      "file": "js/item-catalog-weapon-components.js",
+      "key": "weapon_component_shaft",
+      "path": "Assets/Icons/items/equipment/weapon_component_shaft.png",
+      "legacySource": "https://imgur.com/FXZYH92.png"
+    },
+    {
+      "file": "js/item-catalog-weapon-components.js",
+      "key": "weapon_component_shaft_long",
+      "path": "Assets/Icons/items/equipment/weapon_component_shaft_long.png",
+      "legacySource": "https://imgur.com/NZMcC9c.png"
+    },
+    {
+      "file": "js/item-catalog-weapon-components.js",
+      "key": "weapon_component_body_club",
+      "path": "Assets/Icons/items/equipment/weapon_component_body_club.png",
+      "legacySource": "https://imgur.com/ICgzPQ2.png"
+    },
+    {
+      "file": "js/item-catalog-weapon-components.js",
+      "key": "weapon_component_grip",
+      "path": "Assets/Icons/items/equipment/weapon_component_grip.png",
+      "legacySource": "https://imgur.com/5vSVRcm.png"
+    },
+    {
+      "file": "js/item-catalog-weapon-components.js",
+      "key": "weapon_component_lash",
+      "path": "Assets/Icons/items/equipment/weapon_component_lash.png",
+      "legacySource": "https://imgur.com/fpYkdIH.png"
+    }
+  ],
+  "runtimeReferenceCount": 58
 }

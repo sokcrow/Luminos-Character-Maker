@@ -564,4 +564,4 @@ Packaged retail food is now a separate catalog instead of living inside the lega
 - Retail packs are not player-craftable recipes. They are shelf-stable, mass-produced products with their own retail pricing/effect/availability multipliers.
 - `family:"food"` is preserved so Eat/Drink and rest consumption keep working without a parallel consumer runtime.
 - `item-catalog-food.js` keeps compatibility wrappers for older callers but no longer owns the retail definitions.
-- 12/12 packs have dedicated retail-pack art. Shortbread Retail Pack resolves through `shortbread_cookie_retail_pack` → `https://imgur.com/Ljyj0lK.png`.
+- 12/12 packs have dedicated retail-pack art. Shortbread Retail Pack resolves through `shortbread_cookie_retail_pack` → `Assets/Icons/items/consumable/shortbread_cookie_retail_pack.png`.

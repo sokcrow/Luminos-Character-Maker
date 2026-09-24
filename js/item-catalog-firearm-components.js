@@ -25,16 +25,16 @@
   function roundAhn(value) { return Base.roundAhn(value); }
 
   const ICONS = Object.freeze({
-    weapon_component_firearm_frame: "https://imgur.com/PTvX2iC.png",
-    weapon_component_firearm_barrel: "https://imgur.com/CevBgU5.png",
-    weapon_component_firearm_action: "https://imgur.com/4X3iLIX.png",
-    weapon_component_firearm_trigger: "https://imgur.com/EJm7eVM.png",
-    weapon_component_firearm_grip: "https://imgur.com/Z8uo0ce.png",
-    weapon_component_firearm_stock: "https://imgur.com/zlqG6UR.png",
-    weapon_component_firearm_magazine: "https://imgur.com/NfR1h3w.png",
-    weapon_component_firearm_cylinder: "https://imgur.com/6jARKtW.png",
-    weapon_component_firearm_tube_feed: "https://imgur.com/LN7kuCw.png",
-    weapon_component_firearm_sights: "https://imgur.com/1UbIJyN",
+    weapon_component_firearm_frame: "Assets/Icons/items/equipment/weapon_component_firearm_frame.png",
+    weapon_component_firearm_barrel: "Assets/Icons/items/equipment/weapon_component_firearm_barrel.png",
+    weapon_component_firearm_action: "Assets/Icons/items/equipment/weapon_component_firearm_action.png",
+    weapon_component_firearm_trigger: "Assets/Icons/items/equipment/weapon_component_firearm_trigger.png",
+    weapon_component_firearm_grip: "Assets/Icons/items/equipment/weapon_component_firearm_grip.png",
+    weapon_component_firearm_stock: "Assets/Icons/items/equipment/weapon_component_firearm_stock.png",
+    weapon_component_firearm_magazine: "Assets/Icons/items/equipment/weapon_component_firearm_magazine.png",
+    weapon_component_firearm_cylinder: "Assets/Icons/items/equipment/weapon_component_firearm_cylinder.png",
+    weapon_component_firearm_tube_feed: "Assets/Icons/items/equipment/weapon_component_firearm_tube_feed.png",
+    weapon_component_firearm_sights: "Assets/Icons/items/equipment/weapon_component_firearm_sights.png",
   });
 
   // Reference Production Values only. Real instances may inject actual Production Values

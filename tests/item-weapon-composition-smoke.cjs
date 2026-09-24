@@ -19,8 +19,8 @@ const { pathToFileURL } = require('node:url');
   assert.equal(components.COMPONENTS.length, 23);
   assert.equal(engine.CHASSIS.length, 28);
 
-  assert.equal(components.ICONS.weapon_component_blade_short, 'https://imgur.com/VqcSTYZ.png');
-  assert.equal(components.ICONS.weapon_component_lash, 'https://imgur.com/fpYkdIH.png');
+  assert.equal(components.ICONS.weapon_component_blade_short, 'Assets/Icons/items/equipment/weapon_component_blade_short.png');
+  assert.equal(components.ICONS.weapon_component_lash, 'Assets/Icons/items/equipment/weapon_component_lash.png');
 
   assert.equal(components.MATERIAL_DURABILITY.iron, 25);
   assert.equal(components.MATERIAL_DURABILITY.hardened_weapon_steel, 40);
