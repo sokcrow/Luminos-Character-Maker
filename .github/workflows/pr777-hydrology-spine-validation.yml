@@ -1,0 +1,113 @@
+name: PR777 Hydrology Spine Validation
+on:
+  push:
+    branches: [feat/item-icon-families]
+permissions:
+  contents: read
+jobs:
+  validate-package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Static regression checks
+        run: |
+          node game-engine/tests/core-smoke.mjs
+          node game-engine/tests/continuous-movement-smoke.mjs
+          node game-engine/tests/visual-lab-smoke.mjs
+          node tests/global-map-terrain-textures-smoke.mjs
+          node tests/global-map-water-textures-smoke.mjs
+          grep -q "referenceWaterWidthTiles:3" game-engine/lab/game/forest-0.3.3.1.html
+          grep -q "referenceSpineWidthTiles:2.6" game-engine/lab/game/forest-0.3.3.1.html
+          grep -q "surfaceInsetTiles:.85" game-engine/lab/game/forest-0.3.3.1.html
+          grep -q "hydrologySpineWidthTiles=spineWidthTiles" game-engine/lab/game/forest-0.3.3.1.html
+          test -f LuminousLab/START_ANDROID.sh
+      - name: Install browser runtime
+        run: |
+          npm install --no-save --ignore-scripts playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Validate spine contract in real biome pipeline
+        shell: bash
+        run: |
+          python3 -m http.server 4173 > /tmp/spine777-http.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID || true' EXIT
+          sleep 2
+          cat > spine777-check.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          const browser=await chromium.launch({headless:true});
+          const results={};
+          const page=await browser.newPage({viewport:{width:1280,height:720}});
+          const errors=[]; page.on('pageerror',e=>errors.push(String(e)));
+          await page.goto('http://127.0.0.1:4173/game-engine/lab/game/forest-0.3.3.1.html?qa=procedural&region=gC',{waitUntil:'domcontentloaded',timeout:120000});
+          await page.waitForFunction(()=>window.__BIOME_VALIDATION_QA__&&window.__paperLoaded===true,null,{timeout:120000});
+          const river=await page.evaluate(()=>{
+            const rules=window.HydrologySpineRules;
+            const active=window.BiomeComposer.active();
+            const field=active.hydrology.river;
+            let spineSample=null,edgeSample=null;
+            for(let x=-64;x<=64;x+=1)for(let z=-64;z<=64;z+=1){
+              const h=window.BiomeComposer.fieldAt('owC',x,z);
+              if(h.waterDepth<=0)continue;
+              const p=window.PaperZoneComposer.fieldAt('owC',x,z);
+              if(!spineSample&&p?.hydrologyClass&&h.waterDepth>.1)spineSample={x,z,...h};
+              if(spineSample)break;
+            }
+            return {
+              qa:window.__BIOME_VALIDATION_QA__,
+              rules:{refWater:rules.referenceWaterWidthTiles,refSpine:rules.referenceSpineWidthTiles,inset:rules.surfaceInsetTiles,three:rules.spineWidthForWaterWidth(3)},
+              regionAltitude:active.region.altitude,
+              type:active.hydrology.type,
+              field:{waterWidthTiles:field.waterWidthTiles,spineWidthTiles:field.spineWidthTiles,spineHalfWidthTiles:field.spineHalfWidthTiles,surfaceInsetTiles:field.surfaceInsetTiles,waterSurfaceTiles:field.waterSurfaceTiles},
+              sample:spineSample
+            };
+          });
+          assert.equal(errors.length,0,'gC page errors: '+errors.join(' | '));
+          assert.equal(river.type,'river');
+          assert.equal(river.rules.refWater,3);
+          assert.equal(river.rules.refSpine,2.6);
+          assert.equal(river.rules.inset,.85);
+          assert.ok(Math.abs(river.rules.three-2.6)<1e-9,'3-tile water must map to 2.6-tile spine');
+          assert.ok(Math.abs(river.field.spineWidthTiles-river.field.waterWidthTiles*(2.6/3))<1e-6,'spine must scale proportionally');
+          assert.ok(Math.abs(river.field.surfaceInsetTiles-.85)<1e-9);
+          assert.ok(Math.abs(river.field.waterSurfaceTiles-(river.regionAltitude-.85))<1e-9,'river surface must sit .85 tiles under land baseline');
+          assert.equal(river.qa.ok,true,'river biome QA must stay green');
+          assert.ok(river.sample&&river.sample.heightTiles<=river.sample.waterLevelTiles-river.sample.waterDepth+.025,'river bed must stay below water');
+          await page.screenshot({path:'spine-gC.png',fullPage:false});
+          results.river=river;
+          await page.close();
+
+          for(const item of [{region:'gSW',expected:'lake'},{region:'gNW',expected:'coast'}]){
+            const p=await browser.newPage({viewport:{width:1280,height:720}});
+            const errs=[];p.on('pageerror',e=>errs.push(String(e)));
+            await p.goto(`http://127.0.0.1:4173/game-engine/lab/game/forest-0.3.3.1.html?qa=procedural&region=${item.region}`,{waitUntil:'domcontentloaded',timeout:120000});
+            await p.waitForFunction(()=>window.__BIOME_VALIDATION_QA__&&window.__paperLoaded===true,null,{timeout:120000});
+            const data=await p.evaluate(()=>({qa:window.__BIOME_VALIDATION_QA__,type:window.BiomeComposer.active()?.hydrology?.type||'none'}));
+            assert.equal(errs.length,0,item.region+' page errors: '+errs.join(' | '));
+            assert.equal(data.type,item.expected);
+            assert.equal(data.qa.ok,true,item.region+' QA must remain green');
+            results[item.region]=data;
+            await p.close();
+          }
+          await browser.close();
+          fs.writeFileSync('spine-validation.json',JSON.stringify(results,null,2));
+          EOF
+          node spine777-check.mjs
+          rm -f spine777-check.mjs
+      - name: Build clean project ZIP
+        run: |
+          zip -qr Spine777.zip . -x ".git/*" "node_modules/*" "Spine777.zip" "spine-*.png" "spine-validation.json" ".github/workflows/pr777-hydrology-spine-validation.yml"
+          unzip -tq Spine777.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Spine777
+          path: |
+            Spine777.zip
+            spine-gC.png
+            spine-validation.json
+          if-no-files-found: error
+          retention-days: 1
