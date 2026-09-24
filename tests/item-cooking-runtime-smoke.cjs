@@ -19,6 +19,7 @@ const { pathToFileURL } = require("node:url");
   ]) await import(pathToFileURL(path.resolve(__dirname,file)).href);
 
   const rt=globalThis.LuminousCookingRuntime;
+  const recipeCatalog=globalThis.LuminousCookingRecipeCatalog;
   assert.ok(rt);
   const unit={
     hp:50,hp_max:100,sp:0,sp_max:45,proficiencyBonus:3,
@@ -63,6 +64,7 @@ const { pathToFileURL } = require("node:url");
   assert.equal(result.item.taste,3);
   assert.equal(result.item.hungerSlotsRestored,1);
   assert.equal(result.item.category,"food");
+  assert.equal(result.item.iconFamily,"food");
   assert.ok(result.item.productionValueAhn>0);
   assert.equal(result.item.sourceLine,"cooking_v2");
   assert.equal(result.item.durationHours,14);
@@ -77,6 +79,12 @@ const { pathToFileURL } = require("node:url");
   assert.equal(unit.inventario_activo.sauce,undefined);
   assert.equal(unit.inventario_activo.bread,undefined);
   assert.ok(unit.inventario_activo.cooks);
+
+  const piePreviewItem=rt.finishedFoodItem(recipeCatalog.get("apple_pie"),{
+    stars:3,taste:3,sp:5,recipeTh:12,effectiveTh:12,margin:0,ability:"dex",
+    provenance:[],effects:[],activeEffectCount:0,durationHours:0
+  },null,{createdAt:1000,instanceId:"apple-pie-made"});
+  assert.equal(piePreviewItem.iconFamily,"apple_pie");
 
   const second=rt.previewCook(unit,"burger",{equipment:{stationId:"grill"}});
   assert.equal(second.valid,false);
