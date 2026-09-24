@@ -15378,6 +15378,20 @@ function forestV2WeightedSpecies(pool,roll,env=null){
   for(const [id,base] of pool||[]){const spec=FOREST_V2_TREE_SPECIES[id];if(!spec||base<=0)continue;const suit=env?forestV2SpeciesSuitability(spec,env):1,w=base*Math.max(.0001,suit);if(w<=.0001)continue;total+=w;weighted.push([id,total]);}
   if(!weighted.length)return 'temperateOak';const target=zoneClamp(roll,0,.999999)*total;for(const [id,c] of weighted)if(target<=c)return id;return weighted[weighted.length-1][0];
 }
+function forestV2BackgroundTreeDescriptorAt(id,x,z,baseCrownColor=0x5d8050){
+  const region=activeProceduralZone?.region||null,sector=proceduralSectorRecipe(id)||null;
+  const type=forestV2RegionType(region,sector),pool=FOREST_V2_TREE_POOLS[type]||FOREST_V2_TREE_POOLS.temperateBroadleaf;
+  const macroPoint=zoneLocalToMacroPoint(id,x,z),seed=Number(region?.seed??sector?.seed??0),patchTiles=type==='oakSavanna'?18:(type==='pineHighland'?16:14);
+  const px=Math.floor(macroPoint.x/patchTiles),pz=Math.floor(macroPoint.z/patchTiles);
+  // Background mobile trees keep deterministic regional species without paying for
+  // slope + full ecology sampling that is invisible at the diorama perimeter.
+  const primary=forestV2WeightedSpecies(pool,forestV2Hash(px,pz,901,seed),null);
+  const secondary=forestV2WeightedSpecies(pool,forestV2Hash(px,pz,902,seed),null);
+  const speciesKey=forestV2Hash(macroPoint.x,macroPoint.z,903,seed)<.78?primary:secondary;
+  const spec=FOREST_V2_TREE_SPECIES[speciesKey]||FOREST_V2_TREE_SPECIES.temperateOak;
+  const maturity=zoneClamp(.92+(forestV2Hash(macroPoint.x,macroPoint.z,904,seed)-.5)*.14,.82,1.08);
+  return Object.freeze({forestType:type,speciesKey,speciesId:spec.id,species:spec,variant:Math.floor(forestV2Hash(macroPoint.x,macroPoint.z,905,seed)*4),yaw:forestV2Hash(macroPoint.x,macroPoint.z,906,seed)*Math.PI*2,maturity,baseCrownColor,seed,environment:null,backgroundFast:true});
+}
 function forestV2TreeDescriptorAt(id,x,z,baseCrownColor=0x5d8050){
   const region=activeProceduralZone?.region||null,sector=proceduralSectorRecipe(id)||null;
   const type=forestV2RegionType(region,sector),pool=FOREST_V2_TREE_POOLS[type]||FOREST_V2_TREE_POOLS.temperateBroadleaf,env=forestV2TreeEnvironmentAt(id,x,z);
@@ -15787,8 +15801,10 @@ function buildOverworldSector(){
   // Geometrías/materiales son compartidos para conservar el presupuesto móvil validado.
   const sectorClimate=biomeClimateForSector(mapId);
   const crownColor=isProceduralZone?procSector.crownColor:(cfg.theme==='marsh'?0x587b55:(OVERWORLD_PLAN[mapId].gz>0?0x587766:(OVERWORLD_PLAN[mapId].gz<0?0x6f9858:0x668f55)));
-  function sectorTree(x,z,scale=1,castShadow=true){
-    const treeScaleStd=SMALL_FOLK_WORLD_SCALE.nature.tree,treeDescriptor=forestV2TreeDescriptorAt(mapId,x,z,crownColor),visualFootprint=Math.max(1.45,treeDescriptor.species.canopyRadiusTiles*treeScaleStd.canopy)*scale;
+  function sectorTree(x,z,scale=1,castShadow=true,{fastBackground=false}={}){
+    const treeScaleStd=SMALL_FOLK_WORLD_SCALE.nature.tree;
+    const treeDescriptor=fastBackground?forestV2BackgroundTreeDescriptorAt(mapId,x,z,crownColor):forestV2TreeDescriptorAt(mapId,x,z,crownColor);
+    const visualFootprint=Math.max(1.45,treeDescriptor.species.canopyRadiusTiles*treeScaleStd.canopy)*scale;
     // Sigue siendo un árbol físico sólido. Sólo cambian especie/silueta/material visual.
     if(!canPlaceNatureDecoration(x,z,visualFootprint))return null;
     const grp=new THREE.Group();const treeBaseY=formalGroundYAtWorld(wt(x),wt(z),currentWorldLayer);grp.position.set(wt(x),treeBaseY,wt(z));grp.userData.stressStreamCandidate='tree';g.add(grp);
@@ -15829,16 +15845,19 @@ function buildOverworldSector(){
   const edgeKeep=(edge,t)=>{
     const salt={north:11,south:23,east:37,west:51}[edge]||0;
     const v=Math.sin(t*12.73+salt*3.17+OVERWORLD_PLAN[mapId].gx*9.1+OVERWORLD_PLAN[mapId].gz*17.3)*43758.5453;
+    const roll=Math.abs(v-Math.floor(v));
+    // Cheap rejection first: most mobile perimeter candidates never need ecology.
+    if(roll>=edgeTreeKeep)return false;
     let chance=edgeTreeKeep;
     if(isProceduralZone){const x=edge==='east'?edgeTreePos:(edge==='west'?-edgeTreePos:t),z=edge==='north'?edgeTreePos:(edge==='south'?-edgeTreePos:t);chance*=proceduralZoneNatureSample(mapId,x,z).treeFactor;}
-    return Math.abs(v-Math.floor(v))<chance;
+    return roll<chance;
   };
   for(const t of edgeSteps){
-    const edgeShadow=!DISPLAY_DEVICE_MOBILE;
-    if(!edgeOpen('north',t)&&edgeKeep('north',t))sectorTree(t,edgeTreePos,.92+(Math.abs(t)%4)*.025,edgeShadow);
-    if(!edgeOpen('south',t)&&edgeKeep('south',t))sectorTree(t,-edgeTreePos,.90+(Math.abs(t+1)%4)*.025,edgeShadow);
-    if(!edgeOpen('east',t)&&edgeKeep('east',t))sectorTree(edgeTreePos,t,.90+(Math.abs(t+2)%4)*.025,edgeShadow);
-    if(!edgeOpen('west',t)&&edgeKeep('west',t))sectorTree(-edgeTreePos,t,.92+(Math.abs(t)%4)*.025,edgeShadow);
+    const edgeShadow=!DISPLAY_DEVICE_MOBILE,edgeOpts={fastBackground:DISPLAY_DEVICE_MOBILE};
+    if(!edgeOpen('north',t)&&edgeKeep('north',t))sectorTree(t,edgeTreePos,.92+(Math.abs(t)%4)*.025,edgeShadow,edgeOpts);
+    if(!edgeOpen('south',t)&&edgeKeep('south',t))sectorTree(t,-edgeTreePos,.90+(Math.abs(t+1)%4)*.025,edgeShadow,edgeOpts);
+    if(!edgeOpen('east',t)&&edgeKeep('east',t))sectorTree(edgeTreePos,t,.90+(Math.abs(t+2)%4)*.025,edgeShadow,edgeOpts);
+    if(!edgeOpen('west',t)&&edgeKeep('west',t))sectorTree(-edgeTreePos,t,.92+(Math.abs(t)%4)*.025,edgeShadow,edgeOpts);
   }
 
   markSectorPerf('edgeTrees');
