@@ -1,0 +1,96 @@
+name: PR777 Explore Performance Probe
+on:
+  push:
+    branches: [feat/item-icon-families]
+permissions:
+  contents: read
+jobs:
+  probe-package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Static checks
+        run: |
+          node game-engine/tests/core-smoke.mjs
+          node game-engine/tests/continuous-movement-smoke.mjs
+          node game-engine/tests/visual-lab-smoke.mjs
+          test -f LuminousLab/START_ANDROID.sh
+      - name: Install browser
+        run: |
+          npm install --no-save --ignore-scripts playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Measure Explore load and main-thread stall
+        shell: bash
+        run: |
+          python3 -m http.server 4173 > /tmp/fast777-http.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID || true' EXIT
+          sleep 2
+          cat > fast777-check.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          const browser=await chromium.launch({headless:true});
+          const page=await browser.newPage({viewport:{width:1280,height:720}});
+          const errors=[]; page.on('pageerror',e=>errors.push(String(e)));
+          await page.goto('http://127.0.0.1:4173/game-engine/lab/game/forest-0.3.3.1.html',{waitUntil:'domcontentloaded',timeout:120000});
+          await page.waitForFunction(()=>window.__paperLoaded===true,null,{timeout:120000});
+          await page.waitForFunction(()=>document.getElementById('loaderPaper')?.classList.contains('off')===true,null,{timeout:120000});
+          const before=await page.evaluate(()=>{
+            window.__perfProbe={ticks:[],start:performance.now()};
+            window.__perfProbeTimer=setInterval(()=>window.__perfProbe.ticks.push(performance.now()),25);
+            return {globalMode:document.body.classList.contains('global-map-mode'),region:window.PaperGlobalMap?.state?.().currentRegionId||null};
+          });
+          const wallStart=Date.now();
+          await page.evaluate(()=>document.getElementById('globalExploreBtn')?.click());
+          await page.waitForFunction(()=>document.body.classList.contains('global-map-mode')===false,null,{timeout:120000});
+          await page.waitForFunction(()=>document.getElementById('loaderPaper')?.classList.contains('off')===true,null,{timeout:120000});
+          const wallMs=Date.now()-wallStart;
+          const data=await page.evaluate(()=>{
+            clearInterval(window.__perfProbeTimer);
+            const ticks=window.__perfProbe?.ticks||[],gaps=[];
+            for(let i=1;i<ticks.length;i++)gaps.push(ticks[i]-ticks[i-1]);
+            const maxGap=gaps.length?Math.max(...gaps):0;
+            const avgGap=gaps.length?gaps.reduce((a,b)=>a+b,0)/gaps.length:0;
+            const active=window.BiomeComposer.active();
+            return {
+              elapsedMs:performance.now()-window.__perfProbe.start,
+              maxEventLoopGapMs:maxGap,
+              avgEventLoopGapMs:avgGap,
+              tickCount:ticks.length,
+              hydrology:active?.hydrology?.type||null,
+              riverSegments:active?.hydrology?.river?.lookupSegments?.length||0,
+              playerSafe:window.SpawnSafetySystem?.playerIsSafe({requireDry:true})??null
+            };
+          });
+          data.wallMs=wallMs; data.before=before; data.errors=errors;
+          console.log('EXPLORE_PERF',JSON.stringify(data));
+          assert.equal(errors.length,0,'Explore page errors: '+errors.join(' | '));
+          assert.equal(data.hydrology,'river','default gC should exercise river path');
+          assert.equal(data.riverSegments,48,'river should use precompiled 48-segment lookup');
+          assert.equal(data.playerSafe,true,'spawn contract must survive optimization');
+          // CI desktop thresholds are generous; this catches catastrophic multi-second synchronous stalls.
+          assert.ok(data.maxEventLoopGapMs<2500,`main-thread stall too large: ${data.maxEventLoopGapMs}ms`);
+          assert.ok(data.wallMs<15000,`Explore transition too slow: ${data.wallMs}ms`);
+          await page.screenshot({path:'fast777-explore.png',fullPage:false});
+          fs.writeFileSync('fast777-performance.json',JSON.stringify(data,null,2));
+          await browser.close();
+          EOF
+          node fast777-check.mjs
+          rm -f fast777-check.mjs
+      - name: Build clean project ZIP
+        run: |
+          zip -qr Fast777.zip . -x ".git/*" "node_modules/*" "Fast777.zip" "fast777-*.png" "fast777-performance.json" ".github/workflows/pr777-explore-performance-probe.yml"
+          unzip -tq Fast777.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Fast777
+          path: |
+            Fast777.zip
+            fast777-explore.png
+            fast777-performance.json
+          if-no-files-found: error
+          retention-days: 1
