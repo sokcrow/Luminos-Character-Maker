@@ -849,7 +849,7 @@ addEventListener('unhandledrejection',e=>{
 
 <script type="module">
 import * as THREE from '../../vendor/three.module.js';
-import { createRepositoryWorldFloorTextureRuntime } from '../../src/world/WorldFloorTextures.js';
+import { createRepositoryWorldFloorTextureRuntime, worldFloorRepeatForTiles } from '../../src/world/WorldFloorTextures.js';
 
 let worldFloorTextureRuntime=null;
 window.setLoadProgress?.(18,'Motor listo','Preparando personajes…');
@@ -2849,12 +2849,17 @@ function markPaperRepeat(material,uPerTile=.55,vPerTile=.55){
 function fittedMappedMaterial(base,uTiles,vTiles){
   worldFloorTextureRuntime?.ensureMaterial(base);
   if(!base?.map)return base;
-  const cfg=base.userData?.paperRepeat||{u:.55,v:.55};
-  const ru=Math.max(.75,Math.abs(uTiles)*cfg.u);
-  const rv=Math.max(.75,Math.abs(vTiles)*cfg.v);
-  const key=`${base.uuid}|${ru.toFixed(2)}|${rv.toFixed(2)}`;
+  const worldTextureId=base.userData?.worldFloorTextureId||null;
+  const repeat=worldTextureId
+    ? worldFloorRepeatForTiles(uTiles,vTiles)
+    : [
+        Math.max(.75,Math.abs(uTiles)*(base.userData?.paperRepeat?.u??.55)),
+        Math.max(.75,Math.abs(vTiles)*(base.userData?.paperRepeat?.v??.55))
+      ];
+  const [ru,rv]=repeat;
+  const key=`${base.uuid}|${ru.toFixed(2)}|${rv.toFixed(2)}|${worldTextureId||'legacy'}`;
   if(fittedMaterialCache.has(key))return fittedMaterialCache.get(key);
-  if(base.userData?.paperFXSurfaceConfig&&window.PaperFX?.createSurface){
+  if(!worldTextureId&&base.userData?.paperFXSurfaceConfig&&window.PaperFX?.createSurface){
     const cfg=base.userData.paperFXSurfaceConfig;
     const fx=window.PaperFX.createSurface({...cfg,uv:{...(cfg.uv||{}),repeat:[ru,rv]}});
     if(fx){fittedMaterialCache.set(key,fx);return fx;}
@@ -2864,9 +2869,16 @@ function fittedMappedMaterial(base,uTiles,vTiles){
   const t=base.map.clone();
   t.wrapS=t.wrapT=THREE.RepeatWrapping;
   t.repeat.set(ru,rv);
+  t.offset?.set?.(0,0);
+  t.center?.set?.(.5,.5);
+  t.rotation=0;
   t.needsUpdate=true;
   m.map=t;
   m.needsUpdate=true;
+  if(worldTextureId){
+    m.userData.worldFloorRepeat=[ru,rv];
+    worldFloorTextureRuntime?.registerMaterial(m,worldTextureId,{repeat:[ru,rv]});
+  }
   fittedMaterialCache.set(key,m);
   return m;
 }
@@ -5321,9 +5333,13 @@ function proceduralInlandWaterVisualProfile(hydro,region){
   if(type==='river'){
     const p0=field?.points?.[0],p1=field?.points?.[field.points.length-1]||p0;
     const angle=p0&&p1?Math.atan2(p1.z-p0.z,p1.x-p0.x):0;
+    // PaperFX wave masks are authored as horizontal U-lines. On the XZ ground
+    // plane their directional frame needs a +90° correction before following
+    // the river tangent; otherwise the narrow alpha mask clips the waves sideways.
+    const riverUvRotation=Math.PI/2-angle;
     return {
       id:'river',baseColor:0x287f93,detailA:0xb7eef0,detailB:0x79cbd2,foam:0xf2fff8,opacity:.985,
-      uv:{wavesA:{repeat:[8.5,2.8],speed:[.070,.003],rotation:-angle},wavesB:{repeat:[11.0,3.6],speed:[-.095,.008],rotation:-angle},foam:{repeat:[7.0,2.4],speed:[.115,0],rotation:-angle}}
+      uv:{wavesA:{repeat:[8.5,2.8],speed:[.070,.003],rotation:riverUvRotation},wavesB:{repeat:[11.0,3.6],speed:[-.095,.008],rotation:riverUvRotation},foam:{repeat:[7.0,2.4],speed:[.115,0],rotation:riverUvRotation}}
     };
   }
   if(type==='lake'){
@@ -12382,7 +12398,7 @@ function makeTerrainPlateWithHole(g,{x0,x1,z0,z1,holePoints,kind='floor',y=0}={}
   pts.forEach(([x,z],i)=>{const X=wt(x),Z=-wt(z);i?hole.lineTo(X,Z):hole.moveTo(X,Z);});hole.closePath();
   sh.holes.push(hole);
   const geo=normalizeShapeUVs(new THREE.ShapeGeometry(sh,12));
-  const mesh=new THREE.Mesh(geo,mat(kind));
+  const mesh=new THREE.Mesh(geo,fittedMappedMaterial(mat(kind),Math.abs(x1-x0),Math.abs(z1-z0)));
   mesh.rotation.x=-Math.PI/2;mesh.position.y=y;mesh.receiveShadow=true;mesh.renderOrder=-30;g.add(mesh);
   return mesh;
 }
@@ -12396,7 +12412,9 @@ function makeTerrainPolygonWithHole(g,{outerPoints,holePoints,kind='floor',y=0}=
   hole.closePath();
   sh.holes.push(hole);
   const geo=normalizeShapeUVs(new THREE.ShapeGeometry(sh,12));
-  const mesh=new THREE.Mesh(geo,mat(kind));
+  const xs=outerPoints.map(p=>Number(p[0])||0),zs=outerPoints.map(p=>Number(p[1])||0);
+  const uTiles=Math.max(.01,Math.max(...xs)-Math.min(...xs)),vTiles=Math.max(.01,Math.max(...zs)-Math.min(...zs));
+  const mesh=new THREE.Mesh(geo,fittedMappedMaterial(mat(kind),uTiles,vTiles));
   mesh.rotation.x=-Math.PI/2;mesh.position.y=y;mesh.receiveShadow=true;mesh.renderOrder=-30;g.add(mesh);
   return mesh;
 }
@@ -12865,7 +12883,10 @@ function mapFloorPolygon(g,points,{heightTiles=0,kind='floor',renderOrder=-30,na
   const sh=new THREE.Shape();
   points.forEach(([x,z],i)=>{const X=wt(x),Z=-wt(z);i?sh.lineTo(X,Z):sh.moveTo(X,Z);});
   sh.closePath();
-  const mesh=new THREE.Mesh(normalizeShapeUVs(new THREE.ShapeGeometry(sh,Math.max(1,points.length))),mat(kind));
+  const xs=points.map(p=>Number(p[0])||0),zs=points.map(p=>Number(p[1])||0);
+  const uTiles=Math.max(.01,Math.max(...xs)-Math.min(...xs)),vTiles=Math.max(.01,Math.max(...zs)-Math.min(...zs));
+  const material=fittedMappedMaterial(mat(kind),uTiles,vTiles);
+  const mesh=new THREE.Mesh(normalizeShapeUVs(new THREE.ShapeGeometry(sh,Math.max(1,points.length))),material);
   mesh.rotation.x=-Math.PI/2;mesh.position.y=tileY(heightTiles);mesh.receiveShadow=true;mesh.renderOrder=renderOrder;mesh.userData.mapPrimitive='poly';mesh.userData.heightTiles=heightTiles;mesh.name=name;g.add(mesh);
   return mesh;
 }
