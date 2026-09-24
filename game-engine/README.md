@@ -115,3 +115,13 @@ The static server serves the repository root so the Lab can exercise the real PR
 ## Development rule
 
 A change intended for the Game Engine should have a local-Lab path first, then a Luminous adapter path. This keeps local and online integration from becoming two different engines.
+
+
+## Retail Food integration
+
+The Game Engine Lab market reads packaged food from the dedicated `LuminousRetailFoodCatalog` rather than mixing it with cooked recipes or raw ingredients.
+
+- `Retail Food` is exposed as a separate store in the Lab market.
+- The Forest iframe loads `js/item-catalog-retail-food.js` alongside the icon registry.
+- Retail cookie packs remain `family:"food"` / `itemType:"consumable"` for Item Runtime and Eat/Drink compatibility.
+- Shortbread Retail Pack uses the dedicated `shortbread_cookie_retail_pack` icon family.

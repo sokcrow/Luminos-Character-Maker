@@ -6,7 +6,7 @@
     return;
   }
 
-  const VERSION = 1;
+  const VERSION = 2;
   const CATALOG_ID = "retail_food";
   const FAMILY = "food";
   const CURRENCY = "AHN";
@@ -30,7 +30,7 @@
     Object.freeze({ id:"chocolate_cookie_retail_pack", name:"Chocolate Cookie Retail Pack", bakeryRecipeId:"chocolate_cookie", bakeryReferencePriceAhn:9200, iconFamily:"chocolate_cookie_retail_pack" }),
     Object.freeze({ id:"oatmeal_cookie_retail_pack", name:"Oatmeal Cookie Retail Pack", bakeryRecipeId:"oatmeal_cookie", bakeryReferencePriceAhn:7200, iconFamily:"oatmeal_cookie_retail_pack" }),
     Object.freeze({ id:"ginger_cookie_retail_pack", name:"Ginger Cookie Retail Pack", bakeryRecipeId:"ginger_cookie", bakeryReferencePriceAhn:8000, iconFamily:"ginger_cookie_retail_pack" }),
-    Object.freeze({ id:"shortbread_cookie_retail_pack", name:"Shortbread Cookie Retail Pack", bakeryRecipeId:"shortbread_cookie", bakeryReferencePriceAhn:6800, iconFamily:"food_snack", iconStatus:"family_fallback" }),
+    Object.freeze({ id:"shortbread_cookie_retail_pack", name:"Shortbread Cookie Retail Pack", bakeryRecipeId:"shortbread_cookie", bakeryReferencePriceAhn:6800, iconFamily:"shortbread_cookie_retail_pack" }),
     Object.freeze({ id:"almond_cookie_retail_pack", name:"Almond Cookie Retail Pack", bakeryRecipeId:"almond_cookie", bakeryReferencePriceAhn:10000, iconFamily:"almond_cookie_retail_pack" }),
     Object.freeze({ id:"coconut_cookie_retail_pack", name:"Coconut Cookie Retail Pack", bakeryRecipeId:"coconut_cookie", bakeryReferencePriceAhn:8800, iconFamily:"coconut_cookie_retail_pack" }),
     Object.freeze({ id:"jam_cookie_retail_pack", name:"Jam Cookie Retail Pack", bakeryRecipeId:"jam_cookie", bakeryReferencePriceAhn:8400, iconFamily:"jam_cookie_retail_pack" }),

@@ -95,7 +95,9 @@ function normalizeVisualDefinition(detail) {
     name: item.name || item.nombre || detail?.itemId || "Item",
     tier: "I",
     value: canonicalPrice(item),
-    category: item.category === "consumable" ? "consumable" : (item.category === "weapon" ? "weapon" : "utility"),
+    category: (item.itemType === "consumable" || item.category === "consumable" || item.category === "food")
+      ? "consumable"
+      : (item.category === "weapon" ? "weapon" : "utility"),
     tags: [
       item.family,
       item.group,
@@ -192,10 +194,12 @@ function shopDescription(item = {}) {
 function buildShopProvider(win) {
   const plantCatalog = win?.LuminousPlantProduceCatalog;
   const toolCatalog = win?.LuminousToolCatalog;
+  const retailFoodCatalog = win?.LuminousRetailFoodCatalog;
   const plantItems = plantCatalog?.list?.() || [];
   const toolItems = toolCatalog?.list?.() || [];
+  const retailFoodItems = retailFoodCatalog?.list?.() || [];
   const definitions = new Map(
-    [...plantItems, ...toolItems]
+    [...plantItems, ...toolItems, ...retailFoodItems]
       .filter(item => item?.id)
       .map(item => [String(item.id), item])
   );
@@ -244,6 +248,13 @@ function buildShopProvider(win) {
       "harvesting_tools",
       "repair_kit"
     ], 4)
+,
+    makeStore(
+      "canal-retail-food-store",
+      "Retail Food",
+      retailFoodItems.map(item => item.id),
+      8
+    )
   ];
   const storeById = new Map(stores.map(store => [store.id, store]));
 
@@ -346,6 +357,7 @@ function connectGameBridge() {
     itemIconRegistryVersion: win.LuminousItemIconRegistry?.VERSION || null,
     plantCatalogVersion: win.LuminousPlantProduceCatalog?.VERSION || null,
     toolCatalogVersion: win.LuminousToolCatalog?.VERSION || null,
+    retailFoodCatalogVersion: win.LuminousRetailFoodCatalog?.VERSION || null,
     worldMovementContract: movementBridge?.contract || WORLD_SPACE_CONTRACT.id,
     playerGridVisible: movementBridge?.grid?.playerVisible ?? WORLD_SPACE_CONTRACT.grid.playerVisible
   });

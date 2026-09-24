@@ -4,7 +4,7 @@
     if (typeof module !== "undefined" && module.exports) module.exports = global.LuminousItemIconRegistry;
     return;
   }
-  const VERSION = 32;
+  const VERSION = 33;
   const DEFAULT_GROUP = "generic_item";
   function family(id, label, labelEs, domain, icon) { return Object.freeze({ id, label, labelEs, domain, icon }); }
   const FAMILY_ROWS = Object.freeze([
@@ -108,6 +108,7 @@
     ["chocolate_cookie_retail_pack","Chocolate Cookie Retail Pack","Pack retail de galletas de chocolate","consumable","https://imgur.com/NS7Zlqc.png"],
     ["oatmeal_cookie_retail_pack","Oatmeal Cookie Retail Pack","Pack retail de galletas de avena","consumable","https://imgur.com/QcM5fRF.png"],
     ["ginger_cookie_retail_pack","Ginger Cookie Retail Pack","Pack retail de galletas de jengibre","consumable","https://imgur.com/2r0kU2b.png"],
+    ["shortbread_cookie_retail_pack","Shortbread Cookie Retail Pack","Pack retail de galleta shortbread","consumable","https://imgur.com/Ljyj0lK.png"],
     ["almond_cookie_retail_pack","Almond Cookie Retail Pack","Pack retail de galletas de almendra","consumable","https://imgur.com/ezCVscj.png"],
     ["coconut_cookie_retail_pack","Coconut Cookie Retail Pack","Pack retail de galletas de coco","consumable","https://imgur.com/yio2c2A.png"],
     ["jam_cookie_retail_pack","Jam Cookie Retail Pack","Pack retail de galletas con mermelada","consumable","https://imgur.com/WiYnJk5.png"],

@@ -8,7 +8,7 @@ const { pathToFileURL } = require('node:url');
 
   const retail = globalThis.LuminousRetailFoodCatalog;
   assert.ok(retail);
-  assert.equal(retail.VERSION, 1);
+  assert.equal(retail.VERSION, 2);
   assert.equal(retail.CATALOG_ID, 'retail_food');
   assert.equal(retail.FAMILY, 'food');
   assert.equal(retail.list().length, 12);
@@ -27,12 +27,12 @@ const { pathToFileURL } = require('node:url');
   assert.equal(butter.priceAhn, 9000);
 
   const shortbread = retail.get('shortbread_cookie_retail_pack');
-  assert.equal(shortbread.iconFamily, 'food_snack');
-  assert.equal(shortbread.iconStatus, 'family_fallback');
+  assert.equal(shortbread.iconFamily, 'shortbread_cookie_retail_pack');
+  assert.equal(shortbread.iconStatus, 'dedicated');
   assert.equal(shortbread.priceAhn, 8500);
 
-  assert.equal(retail.list({ iconStatus:'dedicated' }).length, 11);
-  assert.equal(retail.list({ iconStatus:'family_fallback' }).length, 1);
+  assert.equal(retail.list({ iconStatus:'dedicated' }).length, 12);
+  assert.equal(retail.list({ iconStatus:'family_fallback' }).length, 0);
 
   const coffee = retail.createPack('coffee_cookie_retail_pack', { quantity:2 });
   assert.equal(coffee.unitValueAhn, 12000);
