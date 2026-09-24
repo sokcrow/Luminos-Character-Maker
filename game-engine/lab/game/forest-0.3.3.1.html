@@ -10837,15 +10837,36 @@ function updateBelleLocomotionVisual(dt){
 function surfaceCurrentAt(x,z,layer=currentWorldLayer,unit=null){
   if(activeInteriorStage)return null;
   if(unitOverpassId(unit))return null;
+
+  // En hydrology procedural la corriente debe existir exactamente donde el campo
+  // continuo dice que hay agua. El grid es una aproximación por tiles y no puede
+  // ser autoridad para fuerzas: en las orillas curvas podía empujar sobre suelo seco.
+  if(isOverworldSector(mapId)&&activeProceduralZone?.hydrology?.type==='river'){
+    const sample=proceduralHydrologySample(mapId,x/TILE,z/TILE);
+    const flow=sample?.water?sample.current:null;
+    if(!flow)return null;
+    const dx=Number(flow.x)||0,dz=Number(flow.z)||0,len=Math.hypot(dx,dz);
+    if(len<1e-5)return null;
+    return {
+      x:dx/len,z:dz/len,
+      strength:Math.max(0,Number(flow.strength)||0),
+      label:flow.label||'Corriente',
+      cell:gridCellAtWorld(x,z,layer),
+      hydrologySample:sample,
+      source:'procedural-river-field'
+    };
+  }
+
   const cell=gridCellAtWorld(x,z,layer);
-  const c=cell?.current;
-  if(!c)return null;
-  const dx=Number(c.x)||0,dz=Number(c.z)||0,len=Math.hypot(dx,dz);
+  const flow=cell?.current;
+  if(!flow)return null;
+  const dx=Number(flow.x)||0,dz=Number(flow.z)||0,len=Math.hypot(dx,dz);
   if(len<1e-5)return null;
   return {
     x:dx/len,z:dz/len,
-    strength:Math.max(0,Number(c.strength)||0),
-    label:c.label||'Corriente',cell
+    strength:Math.max(0,Number(flow.strength)||0),
+    label:flow.label||'Corriente',cell,
+    source:'grid-current'
   };
 }
 // LEGACY ADAPTER — UnitEnvironmentSystem is authoritative.
