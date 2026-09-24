@@ -1,0 +1,53 @@
+name: Vendor Item Icon Assets Bootstrap
+
+on:
+  push:
+    branches:
+      - feat/item-icon-families
+    paths:
+      - scripts/vendor-item-icons.mjs
+      - .github/workflows/vendor-item-icons-bootstrap.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: vendor-item-icons-bootstrap
+  cancel-in-progress: false
+
+jobs:
+  vendor:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/item-icon-families
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Vendor remote item icons
+        run: node scripts/vendor-item-icons.mjs --apply
+
+      - name: Run registry smoke
+        run: node tests/item-icon-registry-smoke.cjs
+
+      - name: Run local asset smoke
+        run: node tests/item-icon-assets-smoke.cjs
+
+      - name: Commit vendored assets back to PR branch
+        shell: bash
+        run: |
+          if git diff --quiet && [ -z "$(git ls-files --others --exclude-standard)" ]; then
+            echo "No vendoring changes to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Assets/Icons/items js/item-icon-registry.js tests/item-icon-registry-smoke.cjs
+          git commit -m "chore(items): vendor item icon assets"
+          git push origin HEAD:feat/item-icon-families
