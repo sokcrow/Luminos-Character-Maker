@@ -1,0 +1,62 @@
+name: Item Icon Asset Validation
+
+on:
+  pull_request:
+    paths:
+      - "Assets/Icons/items/**"
+      - "js/item-icon-registry.js"
+      - "js/item-catalog-armor-components.js"
+      - "js/item-catalog-firearm-ammo.js"
+      - "js/item-catalog-firearm-components.js"
+      - "js/item-catalog-ranged-weapon-components.js"
+      - "js/item-catalog-shield-components.js"
+      - "js/item-catalog-weapon-components.js"
+      - "scripts/vendor-item-icons.mjs"
+      - "scripts/vendor-item-component-icons.mjs"
+      - "tests/item-icon-registry-smoke.cjs"
+      - "tests/item-icon-assets-smoke.cjs"
+  push:
+    branches:
+      - main
+      - feat/item-icon-families
+    paths:
+      - "Assets/Icons/items/**"
+      - "js/item-icon-registry.js"
+      - "js/item-catalog-armor-components.js"
+      - "js/item-catalog-firearm-ammo.js"
+      - "js/item-catalog-firearm-components.js"
+      - "js/item-catalog-ranged-weapon-components.js"
+      - "js/item-catalog-shield-components.js"
+      - "js/item-catalog-weapon-components.js"
+      - "scripts/vendor-item-icons.mjs"
+      - "scripts/vendor-item-component-icons.mjs"
+      - "tests/item-icon-registry-smoke.cjs"
+      - "tests/item-icon-assets-smoke.cjs"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Validate item icon registry
+        run: node tests/item-icon-registry-smoke.cjs
+
+      - name: Validate local asset catalog
+        run: node tests/item-icon-assets-smoke.cjs
+
+      - name: Verify vendoring is idempotent
+        shell: bash
+        run: |
+          node scripts/vendor-item-icons.mjs --apply
+          node scripts/vendor-item-component-icons.mjs --apply
+          git diff --exit-code
