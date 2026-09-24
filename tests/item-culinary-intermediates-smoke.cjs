@@ -35,8 +35,8 @@ const { pathToFileURL } = require("node:url");
   assert.equal(cream.itemId, "processed_cream");
   assert.equal(cream.batchProductionValueAhn, 4840);
 
-  const cultureDef = plants.get("fermentation_fungus");
-  const cultureStack = plants.createIngredientStack("fermentation_fungus", { quantity:2, sourceInstanceId:"culture-a", affinityRoll:0 });
+  const cultureDef = staples.get("yeast");
+  const cultureStack = staples.createIngredientStack("yeast", { quantity:2, sourceInstanceId:"culture-a", affinityRoll:0 });
   const culture = { ...cultureDef, ...cultureStack };
 
   const cheese = processing.createProcessedItem([
