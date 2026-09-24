@@ -21,12 +21,35 @@ const { pathToFileURL } = require('node:url');
   const food = globalThis.LuminousFoodCatalog;
   assert.ok(meat);
   assert.ok(food);
-  assert.equal(food.VERSION, 2);
+  assert.equal(food.VERSION, 3);
   assert.equal(food.FAMILY, 'food');
   assert.equal(food.RATION_HUNGER, 100);
   assert.equal(food.COOKING_SYSTEM, 'cooking_v1');
   assert.equal(food.LEGACY_HUNGER_SYSTEM, 'size_daily_hunger_compatibility_only');
   assert.equal(food.listSimpleCookedDefinitions().length, 39);
+  assert.equal(food.listRetailCookieDefinitions().length, 12);
+  assert.equal(food.RETAIL_COOKIE_PRICE_MULTIPLIER, 1.25);
+  assert.equal(food.RETAIL_COOKIE_EFFECT_MULTIPLIER, 0.50);
+  assert.equal(food.RETAIL_COOKIE_AVAILABILITY_MULTIPLIER, 2.00);
+
+  const butterRetail = food.get("butter_cookie_retail_pack");
+  assert.equal(butterRetail.hasRecipe, false);
+  assert.equal(butterRetail.bakeryRecipeId, "butter_cookie");
+  assert.equal(butterRetail.bakeryReferencePriceAhn, 7200);
+  assert.equal(butterRetail.priceAhn, 9000);
+  assert.equal(butterRetail.effectMultiplier, 0.50);
+  assert.equal(butterRetail.availabilityMultiplier, 2.00);
+  assert.equal(butterRetail.iconFamily, "butter_cookie_retail_pack");
+
+  const shortbreadRetail = food.get("shortbread_cookie_retail_pack");
+  assert.equal(shortbreadRetail.iconFamily, "food_snack");
+  assert.equal(shortbreadRetail.priceAhn, 8500);
+
+  const coffeeRetail = food.createRetailCookiePack("coffee_cookie_retail_pack", { quantity:2 });
+  assert.equal(coffeeRetail.hasRecipe, false);
+  assert.equal(coffeeRetail.effectMultiplier, 0.50);
+  assert.equal(coffeeRetail.unitValueAhn, 12000);
+  assert.equal(coffeeRetail.totalValueAhn, 24000);
 
   const wolf = food.get('food_cooked_wolf');
   assert.equal(wolf.name, 'Cooked Wolf Meat');
