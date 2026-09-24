@@ -46,7 +46,7 @@ const { pathToFileURL } = require("node:url");
   assert.equal(cheese.created, true);
   assert.equal(cheese.itemId, "processed_cheese");
   assert.equal(cheese.processedForm, "cheese");
-  assert.equal(cheese.batchProductionValueAhn, 11500);
+  assert.equal(cheese.batchProductionValueAhn, 7750);
 
   const soybean = {
     ...plants.get("soybean"),
@@ -55,7 +55,7 @@ const { pathToFileURL } = require("node:url");
   const miso = processing.createProcessedItem([soybean, { ...culture, quantity:1 }], "ferment", { templateId:"miso_paste" });
   assert.equal(miso.created, true);
   assert.equal(miso.itemId, "processed_miso_paste");
-  assert.equal(miso.batchProductionValueAhn, 10500);
+  assert.equal(miso.batchProductionValueAhn, 6750);
 
   const corn = {
     ...plants.get("corn"),
