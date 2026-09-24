@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - feat/item-icon-families
+    paths:
+      - ".github/workflows/pr777-package.yml"
+      - ".pr777-package-trigger"
   workflow_dispatch:
 
 permissions:
