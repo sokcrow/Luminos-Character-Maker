@@ -1,0 +1,34 @@
+name: PR777 Package
+
+on:
+  push:
+    branches:
+      - feat/item-icon-families
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/item-icon-families
+          fetch-depth: 0
+
+      - name: Build project ZIP
+        shell: bash
+        run: |
+          rm -f Map777.zip
+          zip -r Map777.zip .             -x ".git/*"             -x ".git/**"             -x "Map777.zip"
+
+      - name: Upload project ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: Map777
+          path: Map777.zip
+          if-no-files-found: error
+          retention-days: 7
