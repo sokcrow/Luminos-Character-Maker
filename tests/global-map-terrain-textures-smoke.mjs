@@ -5,6 +5,9 @@ import TerrainTextures, {
   roughnessForSpines,
   textureSeed,
   textureProfile,
+  FLOOR_TEXTURE_IDS,
+  floorTextureId,
+  floorTexturePath,
 } from '../js/global-map-terrain-textures.js';
 
 assert.equal(terrainKind('mountain'), 'mountain');
@@ -13,6 +16,13 @@ assert.equal(terrainKind('sierra_rocosas'), 'mountain');
 assert.equal(terrainKind('forest'), 'forest');
 assert.equal(terrainKind('playa'), 'beach');
 assert.equal(terrainKind('urban'), 'default');
+
+assert.equal(FLOOR_TEXTURE_IDS.length, 18);
+assert.equal(floorTextureId('grass'), 'floor_grass_01');
+assert.equal(floorTextureId('cobblestone'), 'floor_cobblestone_01');
+assert.equal(floorTextureId({ terrain:'snow' }), 'floor_snow_01');
+assert.equal(floorTexturePath('floor_concrete_01'), 'Assets/Images/World/Floors/floor_concrete_01.png');
+assert.equal(floorTexturePath('unknown_surface'), null);
 
 assert.equal(mountainSpines({ terrain:'mountain', metadata:{} }), 5);
 assert.equal(mountainSpines({ terrain:'mountain', metadata:{ mountainSpines:0 } }), 0);
