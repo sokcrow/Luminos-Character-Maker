@@ -15630,6 +15630,7 @@ const ForestFloorEcologyV3=Object.freeze({profiles:FOREST_FLOOR_V3_PROFILES,runt
 window.ForestFloorEcologyV3=ForestFloorEcologyV3;
 
 function buildOverworldSector(){
+  const sectorPerfStart=performance.now(),sectorPerfMarks=[],markSectorPerf=name=>sectorPerfMarks.push({name,ms:performance.now()-sectorPerfStart});
   const cfg=OVERWORLD_PLAN[mapId];
   if(!cfg)throw new Error('Sector overworld desconocido: '+mapId);
   const procSector=proceduralSectorRecipe(mapId),isProceduralZone=!!procSector;
@@ -15713,6 +15714,7 @@ function buildOverworldSector(){
     mapContinuousTerrainLip(g,terrainOutline,{topHeightTiles:sectorBaseHeightTiles,topHeightSampler:edgeSampler,kind:rimKind,name:mapId+'-paper-rim',segmentVisible:landEdgeVisible});
   }
 
+  markSectorPerf('terrainShell');
   const st=overworldSectorState[mapId]||(overworldSectorState[mapId]={visited:false,visits:0});
   st.visited=true;st.visits=(st.visits||0)+1;st.lastHour=worldClock.hour;st.lastPhase=currentWorldTimePhase();
 
@@ -15833,6 +15835,7 @@ function buildOverworldSector(){
     if(!edgeOpen('west',t)&&edgeKeep('west',t))sectorTree(-edgeTreePos,t,.92+(Math.abs(t)%4)*.025,true);
   }
 
+  markSectorPerf('edgeTrees');
   // Masas interiores que llenan el sector activo sin convertirlo en un laberinto.
   // Todos los caminos cardinales y el claro central quedan despejados.
   const groveByTheme={
@@ -15887,6 +15890,7 @@ function buildOverworldSector(){
     return false;
   }
   if(isProceduralZone)buildGeologyForSector(g,mapId,{reserved:reservedForRoad});
+  markSectorPerf('geology');
   const denseTreeSpots=[];
   // Segunda línea irregular. En 256 se ancla al borde de la VENTANA de stress,
   // no al borde lógico del sector, para no materializar árboles que jamás veremos.
@@ -15943,6 +15947,7 @@ function buildOverworldSector(){
     sectorTree(x,z,sc,false);
   }
 
+  markSectorPerf('denseTrees');
   // Nieve climática: aparece por banda fría/altitud, sin convertirse en una capa uniforme.
   // El norte conserva roca expuesta y vegetación escasa entre manchas de nieve.
   if(sectorClimate.snowCoverage>.08){
@@ -15960,6 +15965,7 @@ function buildOverworldSector(){
   buildRiverModulesForSector(g,mapId);
   if(isProceduralZone&&activeProceduralZone?.hydrology?.type==='coast')buildProceduralCoastVisual(g,mapId);
   else if(isProceduralZone&&['river','lake','wetland'].includes(activeProceduralZone?.hydrology?.type))buildProceduralInlandWaterVisual(g,mapId);
+  markSectorPerf('waterVisual');
 
   // Composición por sector: en una Zona procedural la identidad sale de la receta
   // macro/local, no de los themes legacy del 3×3 de prueba.
@@ -16233,6 +16239,7 @@ function buildOverworldSector(){
     interactions.push({kind:'message',layer:'exterior',label:'Examinar sello',title:'Camino del Templo',message:'Tres patios de puzzle preceden este umbral. El Templo Procedural Modular se conectará aquí cuando terminemos la estructura del overworld.',point:new THREE.Vector3(0,sectorBaseY,wt(16.8)),radius:wt(1.25)});
   }
 
+  markSectorPerf('ecologyAndTheme');
   function registerNeighbor(dir,target){
     const layout=isProceduralZone?(proceduralNeighborLayouts[dir]||proceduralNeighborTransitionLayout(mapId,dir,target)):Object.freeze({mode:'land',lateral:0,spec:standardCardinalTransitionSpec(dir)});
     const spec=layout.spec,t=spec.trigger,targetDir=OPPOSITE_CARDINAL[dir];
@@ -16261,6 +16268,10 @@ function buildOverworldSector(){
   // En el estado actual el Río Quebrado toca el borde este, pero owS no declara aún
   // su continuación: por regla, el agua sale visualmente y NO cambia de sector.
   registerRiverTransitionsForSector(mapId);
+  markSectorPerf('transitions');
+  const stages=[];let prev=0;
+  for(const row of sectorPerfMarks){stages.push({name:row.name,ms:row.ms-prev,totalMs:row.ms});prev=row.ms}
+  window.__LAST_SECTOR_RENDER_PERF__={mapId,totalMs:performance.now()-sectorPerfStart,stages,mobile:DISPLAY_DEVICE_MOBILE,decorationScale:OVERWORLD_DECORATION_COUNT_SCALE};
   return g;
 }
 
