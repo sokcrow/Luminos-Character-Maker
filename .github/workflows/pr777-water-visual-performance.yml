@@ -1,0 +1,109 @@
+name: PR777 Water Visual Performance Validation
+on:
+  push:
+    branches: [feat/item-icon-families]
+permissions:
+  contents: read
+jobs:
+  validate-package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Static checks
+        run: |
+          node game-engine/tests/core-smoke.mjs
+          node game-engine/tests/continuous-movement-smoke.mjs
+          node game-engine/tests/visual-lab-smoke.mjs
+          grep -q "waterVisualClass='waterfall'" game-engine/lab/game/forest-0.3.3.1.html
+          grep -q "id:'river',baseColor" game-engine/lab/game/forest-0.3.3.1.html
+          grep -q "id:'lake',baseColor" game-engine/lab/game/forest-0.3.3.1.html
+          test -f LuminousLab/START_ANDROID.sh
+      - name: Install browser
+        run: |
+          npm install --no-save --ignore-scripts playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Validate visual distinction and Explore performance
+        shell: bash
+        run: |
+          python3 -m http.server 4173 > /tmp/watervis777-http.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID || true' EXIT
+          sleep 2
+          cat > watervis777-check.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          const browser=await chromium.launch({headless:true});
+          const results={};
+          const page=await browser.newPage({viewport:{width:1280,height:720}});
+          const errors=[];page.on('pageerror',e=>errors.push(String(e)));
+          await page.goto('http://127.0.0.1:4173/game-engine/lab/game/forest-0.3.3.1.html',{waitUntil:'domcontentloaded',timeout:120000});
+          await page.waitForFunction(()=>window.__paperLoaded===true,null,{timeout:120000});
+          await page.waitForFunction(()=>document.getElementById('loaderPaper')?.classList.contains('off')===true,null,{timeout:120000});
+          const start=Date.now();
+          await page.evaluate(()=>{
+            window.__perfProbe={ticks:[],start:performance.now()};
+            window.__perfProbeTimer=setInterval(()=>window.__perfProbe.ticks.push(performance.now()),25);
+            document.getElementById('globalExploreBtn')?.click();
+          });
+          await page.waitForFunction(()=>document.body.classList.contains('global-map-mode')===false,null,{timeout:120000});
+          await page.waitForFunction(()=>document.getElementById('loaderPaper')?.classList.contains('off')===true,null,{timeout:120000});
+          const river=await page.evaluate(()=>{
+            clearInterval(window.__perfProbeTimer);
+            const ticks=window.__perfProbe.ticks||[],gaps=[];for(let i=1;i<ticks.length;i++)gaps.push(ticks[i]-ticks[i-1]);
+            const active=window.BiomeComposer.active();
+            return {
+              type:active?.hydrology?.type||null,
+              maxGap:gaps.length?Math.max(...gaps):0,
+              ticks:ticks.length,
+              paperFX:window.PaperFX?.status?.()||null,
+              playerSafe:window.SpawnSafetySystem?.playerIsSafe({requireDry:true})??null
+            };
+          });
+          river.wallMs=Date.now()-start;
+          assert.equal(errors.length,0,'river page errors: '+errors.join(' | '));
+          assert.equal(river.type,'river');
+          assert.equal(river.playerSafe,true);
+          assert.ok(river.maxGap<2500,'catastrophic main-thread stall: '+river.maxGap);
+          assert.ok(river.wallMs<15000,'Explore too slow: '+river.wallMs);
+          await page.screenshot({path:'watervis-river.png',fullPage:false});
+          results.river=river;
+          await page.close();
+
+          for(const item of [{region:'gSW',expected:'lake',file:'watervis-lake.png'},{region:'gNW',expected:'coast',file:'watervis-coast.png'}]){
+            const p=await browser.newPage({viewport:{width:1280,height:720}});
+            const errs=[];p.on('pageerror',e=>errs.push(String(e)));
+            await p.goto(`http://127.0.0.1:4173/game-engine/lab/game/forest-0.3.3.1.html?qa=procedural&region=${item.region}`,{waitUntil:'domcontentloaded',timeout:120000});
+            await p.waitForFunction(()=>window.__BIOME_VALIDATION_QA__&&window.__paperLoaded===true,null,{timeout:120000});
+            const data=await p.evaluate(()=>({type:window.BiomeComposer.active()?.hydrology?.type||'none',qa:window.__BIOME_VALIDATION_QA__,paperFX:window.PaperFX?.status?.()||null}));
+            assert.equal(errs.length,0,item.region+' page errors: '+errs.join(' | '));
+            assert.equal(data.type,item.expected);
+            assert.equal(data.qa.ok,true,item.region+' biome QA failed');
+            await p.screenshot({path:item.file,fullPage:false});
+            results[item.region]=data;
+            await p.close();
+          }
+          await browser.close();
+          fs.writeFileSync('watervis-validation.json',JSON.stringify(results,null,2));
+          console.log('WATERVIS_PERF',JSON.stringify(results.river));
+          EOF
+          node watervis777-check.mjs
+          rm -f watervis777-check.mjs
+      - name: Build clean ZIP
+        run: |
+          zip -qr WaterVis777.zip . -x ".git/*" "node_modules/*" "WaterVis777.zip" "watervis-*.png" "watervis-validation.json" ".github/workflows/pr777-water-visual-performance.yml"
+          unzip -tq WaterVis777.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: WaterVis777
+          path: |
+            WaterVis777.zip
+            watervis-river.png
+            watervis-lake.png
+            watervis-coast.png
+            watervis-validation.json
+          if-no-files-found: error
+          retention-days: 1
