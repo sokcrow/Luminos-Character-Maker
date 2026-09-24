@@ -49,6 +49,7 @@ on:
       - 'docs/item-cooking-handoff.md'
       - '.github/workflows/cooking-validation.yml'
   pull_request:
+    types: [opened, reopened, ready_for_review]
     paths:
       - 'js/item-economy-standard.js'
       - 'js/item-affinity-engine.js'
@@ -72,6 +73,7 @@ on:
       - 'hoja_personaje.js'
       - 'hoja_personaje.html'
       - 'js/item-catalog-food.js'
+      - 'js/item-catalog-retail-food.js'
       - 'tests/item-economy-standard-smoke.cjs'
       - 'tests/item-affinity-engine-smoke.cjs'
       - 'tests/item-culinary-affinity-data-smoke.cjs'
@@ -93,6 +95,12 @@ on:
       - 'docs/item-processing-handoff.md'
       - 'docs/item-cooking-handoff.md'
       - '.github/workflows/cooking-validation.yml'
+
+  workflow_dispatch:
+
+concurrency:
+  group: cooking-validation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   cooking-v1:
