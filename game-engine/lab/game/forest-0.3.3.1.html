@@ -1828,18 +1828,25 @@ function hydrologyCurvePoint(curve,t){
   const p0=curve.points[0],p1=curve.points[1],p2=curve.points[2],u=1-t;
   return {x:u*u*p0.x+2*u*t*p1.x+t*t*p2.x,z:u*u*p0.z+2*u*t*p1.z+t*t*p2.z};
 }
-function hydrologyCurveNearest(curve,x,z){
-  let best={distance:Infinity,t:0,x:0,z:0};
-  const steps=Math.max(48,Math.floor(curve.samples||96));
+function buildHydrologyCurveLookup(curve,steps=48){
+  const n=Math.max(16,Math.floor(steps)),segments=[];
   let prev=hydrologyCurvePoint(curve,0),prevT=0;
-  for(let i=1;i<=steps;i++){
-    const t=i/steps,next=hydrologyCurvePoint(curve,t),vx=next.x-prev.x,vz=next.z-prev.z,len2=vx*vx+vz*vz;
-    const a=len2>1e-8?zoneClamp(((x-prev.x)*vx+(z-prev.z)*vz)/len2,0,1):0;
-    const px=prev.x+vx*a,pz=prev.z+vz*a,d=Math.hypot(x-px,z-pz),tt=prevT+(t-prevT)*a;
-    if(d<best.distance)best={distance:d,t:tt,x:px,z:pz};
+  for(let i=1;i<=n;i++){
+    const t=i/n,next=hydrologyCurvePoint(curve,t),vx=next.x-prev.x,vz=next.z-prev.z;
+    segments.push(Object.freeze({x:prev.x,z:prev.z,vx,vz,len2:vx*vx+vz*vz,t0:prevT,dt:t-prevT}));
     prev=next;prevT=t;
   }
-  return best;
+  return Object.freeze(segments);
+}
+function hydrologyCurveNearest(curve,x,z){
+  const segments=curve.lookupSegments||buildHydrologyCurveLookup(curve,curve.samples||48);
+  let bestD2=Infinity,bestT=0,bestX=0,bestZ=0;
+  for(const seg of segments){
+    const a=seg.len2>1e-8?zoneClamp(((x-seg.x)*seg.vx+(z-seg.z)*seg.vz)/seg.len2,0,1):0;
+    const px=seg.x+seg.vx*a,pz=seg.z+seg.vz*a,dx=x-px,dz=z-pz,d2=dx*dx+dz*dz;
+    if(d2<bestD2){bestD2=d2;bestT=seg.t0+seg.dt*a;bestX=px;bestZ=pz}
+  }
+  return {distance:Math.sqrt(bestD2),t:bestT,x:bestX,z:bestZ};
 }
 function hydrologyRiverTangent(curve,t){
   const p0=curve.points[0],p1=curve.points[1],p2=curve.points[2],u=1-t;
@@ -1873,8 +1880,9 @@ function createRiverField(ctx){
   const halfWidthTiles=(1.10+ctx.moisture*1.45+relief*.55)*S;
   const waterWidthTiles=halfWidthTiles*2;
   const spineWidthTiles=hydrologySpineWidthTiles(waterWidthTiles);
+  const lookupSegments=buildHydrologyCurveLookup({points},48);
   return Object.freeze({
-    kind:'river',points,samples:128,halfWidthTiles,waterWidthTiles,
+    kind:'river',points,samples:48,lookupSegments,halfWidthTiles,waterWidthTiles,
     spineWidthTiles,spineHalfWidthTiles:spineWidthTiles*.5,
     surfaceInsetTiles:HYDROLOGY_SPINE_RULES.surfaceInsetTiles,
     bankWidthTiles:(1.15+ctx.moisture*.85)*S,depthTiles:.26+ctx.moisture*.64+relief*.32,
@@ -2149,23 +2157,28 @@ function buildZoneMacroRecipe(region){
   const hydrology=HydrologySystem.compose(region);
   return Object.freeze({macroforms,geography,clearings,meadows,forestMasses,forestBiome,hydrology});
 }
+let proceduralHydrologySampleCache=null;
 function proceduralHydrologySample(id,tx,tz){
   if(!activeProceduralZone)return {type:'none',class:'land',distanceToCoast:Infinity,distanceToWater:Infinity,wetness:0,water:false,waterDepth:0,waterSurfaceTiles:null};
+  const zoneKey=activeProceduralZone.id||activeProceduralZone.region?.id||'zone';
+  const cached=proceduralHydrologySampleCache;
+  if(cached&&cached.zoneKey===zoneKey&&cached.id===id&&cached.tx===tx&&cached.tz===tz)return cached.value;
   const p=zoneLocalToMacroPoint(id,tx,tz),hydro=activeProceduralZone.hydrology||{type:'none'};
+  let value;
   if(hydro.type==='coast'&&hydro.coast){
     const d=distanceToCoastField(hydro.coast,p.x,p.z),cls=coastClassForDistance(hydro.coast,d);
     const submerged=d<0?Math.min(COAST_TERRAIN_RULES.maxSubmergedDepthTiles,Math.pow(Math.max(0,-d),.88)*COAST_TERRAIN_RULES.submergedSlopePerTile):0;
     const waterDepth=d<0?COAST_TERRAIN_RULES.shorelineSubmergeTiles+submerged:0;
-    return {type:'coast',class:cls,distanceToCoast:d,distanceToWater:Math.max(0,d),signedDistanceToWater:d,wetness:zoneClamp(1-Math.max(0,d)/5.5,0,1),water:d<0,waterDepth,waterSurfaceTiles:hydro.coast.waterSurfaceTiles,bankWidthTiles:COAST_TERRAIN_RULES.beachWidthTiles,current:null};
-  }
-  if(hydro.type==='river'&&hydro.river)return riverFieldSample(hydro.river,p.x,p.z);
-  if(hydro.type==='lake'&&hydro.lake)return lakeFieldSample(hydro.lake,p.x,p.z);
-  if(hydro.type==='wetland'){
+    value={type:'coast',class:cls,distanceToCoast:d,distanceToWater:Math.max(0,d),signedDistanceToWater:d,wetness:zoneClamp(1-Math.max(0,d)/5.5,0,1),water:d<0,waterDepth,waterSurfaceTiles:hydro.coast.waterSurfaceTiles,bankWidthTiles:COAST_TERRAIN_RULES.beachWidthTiles,current:null};
+  }else if(hydro.type==='river'&&hydro.river)value=riverFieldSample(hydro.river,p.x,p.z);
+  else if(hydro.type==='lake'&&hydro.lake)value=lakeFieldSample(hydro.lake,p.x,p.z);
+  else if(hydro.type==='wetland'){
     const noise=biomeFieldNoise(activeProceduralZone.region.seed,p.x,p.z,41),wetness=zoneClamp(activeProceduralZone.region.moisture+noise*.12,0,1);
     const water=wetness>.92,waterDepth=water?THREE.MathUtils.lerp(.08,.45,zoneClamp((wetness-.92)/.08,0,1)):0;
-    return {type:'wetland',class:water?'shallowWater':(wetness>.84?'wetland':'land'),distanceToCoast:Infinity,distanceToWater:wetness>.84?0:(1-wetness)*5,signedDistanceToWater:water?-.1:(1-wetness)*5,wetness,water,waterDepth,waterSurfaceTiles:hydro.waterTableTiles,bankWidthTiles:2,current:null};
-  }
-  return {type:hydro.type||'none',class:'land',distanceToCoast:Infinity,distanceToWater:Infinity,signedDistanceToWater:Infinity,wetness:activeProceduralZone.region.moisture,water:false,waterDepth:0,waterSurfaceTiles:null,bankWidthTiles:0,current:null};
+    value={type:'wetland',class:water?'shallowWater':(wetness>.84?'wetland':'land'),distanceToCoast:Infinity,distanceToWater:wetness>.84?0:(1-wetness)*5,signedDistanceToWater:water?-.1:(1-wetness)*5,wetness,water,waterDepth,waterSurfaceTiles:hydro.waterTableTiles,bankWidthTiles:2,current:null};
+  }else value={type:hydro.type||'none',class:'land',distanceToCoast:Infinity,distanceToWater:Infinity,signedDistanceToWater:Infinity,wetness:activeProceduralZone.region.moisture,water:false,waterDepth:0,waterSurfaceTiles:null,bankWidthTiles:0,current:null};
+  proceduralHydrologySampleCache={zoneKey,id,tx,tz,value};
+  return value;
 }
 function proceduralHydrologyReliefFactor(id,tx,tz){
   const h=proceduralHydrologySample(id,tx,tz);
@@ -2283,10 +2296,11 @@ function refreshProceduralOverworldMapDefs(){
 }
 function activateProceduralZone(region){
   activeProceduralZone=composeZoneRecipe(region);
+  proceduralHydrologySampleCache=null;
   refreshProceduralOverworldMapDefs();
   return activeProceduralZone;
 }
-function clearProceduralZone(){activeProceduralZone=null;refreshProceduralOverworldMapDefs()}
+function clearProceduralZone(){activeProceduralZone=null;proceduralHydrologySampleCache=null;refreshProceduralOverworldMapDefs()}
 const globalWorldState={
   currentRegionId:'gC',previewRegionId:'gC',activeLocalRegionId:'gC',localEntryMode:'explore',
   regions:Object.fromEntries(GLOBAL_REGIONS.map(r=>[r.id,{visited:r.start===true,camped:false,visits:r.start?1:0}]))
@@ -5175,7 +5189,8 @@ function buildProceduralInlandWaterVisual(g,id=mapId){
   const hydro=activeProceduralZone?.hydrology;if(!hydro||!['river','lake','wetland'].includes(hydro.type))return null;
   const region=activeProceduralZone.region,visual=region.surfaceStyle||SURFACE_VISUAL_PROFILES.temperate;
   const mapDef=MAP_DATA.maps[id]||currentMapDef(),bounds=mapDef?.bounds||{x0:-OVERWORLD_HALF,x1:OVERWORLD_HALF,z0:-OVERWORLD_HALF,z1:OVERWORLD_HALF};
-  const mask=inlandHydrologyWaterMaskTextureForSector(id,bounds,256);if(!mask)return null;
+  const maskResolution=DISPLAY_DEVICE_MOBILE?96:128;
+  const mask=inlandHydrologyWaterMaskTextureForSector(id,bounds,maskResolution);if(!mask)return null;
   const kit=window.PaperFX?.createWater?.({baseColor:visual.waterBase,waves:['wavesA','wavesB'],foam:'foam',waveColors:[visual.waveA,visual.waveB],foamColor:visual.foam})||null;
   const sourceMat=kit?.baseMaterial||new THREE.MeshStandardMaterial({color:visual.waterBase,roughness:.34,side:THREE.DoubleSide});
   const mat=sourceMat.clone();mat.transparent=true;mat.alphaMap=mask;mat.alphaTest=.02;mat.depthWrite=true;mat.side=THREE.DoubleSide;mat.opacity=.94;mat.needsUpdate=true;
