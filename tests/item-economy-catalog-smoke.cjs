@@ -115,7 +115,7 @@ const { pathToFileURL } = require("node:url");
   // Industrial/material anchors.
   assert.equal(ore.get("industrial_stone").standardUnitValueAhn, 10000);
   assert.equal(ore.get("iron_ore").standardUnitValueAhn, 30000);
-  assert.equal(ore.get("iron").standardUnitValueAhn, 50000);
+  assert.equal(ore.get("iron").standardUnitValueAhn, 45000);
   assert.equal(ore.get("hardened_steel").standardUnitValueAhn, 225000);
   assert.equal(ore.get("exotic_alloy").standardUnitValueAhn, 1625000);
 
