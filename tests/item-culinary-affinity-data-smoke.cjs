@@ -15,8 +15,8 @@ const { pathToFileURL } = require('node:url');
   assert.ok(engine);
   assert.ok(data);
   assert.equal(data.VERSION, 1);
-  assert.equal(data.listItemIds().length, 137);
-  assert.equal(new Set(data.listItemIds()).size, 137);
+  assert.equal(data.listItemIds().length, 138);
+  assert.equal(new Set(data.listItemIds()).size, 138);
 
   for (const itemId of data.listItemIds()) {
     const affinities = data.get(itemId);
@@ -52,12 +52,18 @@ const { pathToFileURL } = require('node:url');
   assert.deepEqual(data.get('exotic_fruit'), data.PROFILES.fruit_exotic);
   assert.deepEqual(data.get('blueberry'), data.PROFILES.fruit_berry);
   assert.deepEqual(data.get('sweet_potato'), data.PROFILES.starch);
+  assert.deepEqual(data.get('forest_mushroom'), data.PROFILES.fungus_common);
+  assert.deepEqual(data.get('frost_mushroom'), data.PROFILES.fungus_common);
+  assert.deepEqual(data.get('wetland_mushroom'), data.PROFILES.fungus_common);
+  assert.deepEqual(data.get('desert_truffle'), data.PROFILES.fungus_exotic);
   assert.deepEqual(data.get('truffle'), data.PROFILES.fungus_exotic);
+  assert.deepEqual(data.get('cave_mushroom'), data.PROFILES.fungus_common);
+  assert.deepEqual(data.get('exotic_fungus'), data.PROFILES.fungus_exotic);
 
   const appleBranch = engine.branchAffinityWeights(data.get('apple'));
   assert.deepEqual(appleBranch, { wis: 50, con: 25, int: 25 });
 
-  console.log('Culinary affinity data smoke: OK (137 items, canonical 100-point distributions)');
+  console.log('Culinary affinity data smoke: OK (138 items, canonical 100-point distributions)');
 })().catch((error) => {
   console.error(error);
   process.exitCode = 1;
