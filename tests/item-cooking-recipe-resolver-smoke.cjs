@@ -106,7 +106,7 @@ const { pathToFileURL } = require("node:url");
 
   const miso = processing.createProcessedItem([
     stack(plants, "soybean", 2, "soy-miso"),
-    stack(plants, "fermentation_fungus", 1, "culture-miso"),
+    stack(staples, "yeast", 1, "culture-miso"),
   ], "ferment", { templateId:"miso_paste" });
   const misoSoup = resolver.resolveRecipe("miso_soup", [
     { ...stock, quantity:1 },
