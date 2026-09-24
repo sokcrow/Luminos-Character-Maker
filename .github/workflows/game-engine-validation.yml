@@ -4,18 +4,11 @@ on:
   push:
     paths:
       - "game-engine/**"
-      - "js/**"
-      - "Assets/Images/World/**"
-      - "Assets/Images/Buttons/**"
-      - "lab-preview/**"
       - ".github/workflows/game-engine-validation.yml"
   pull_request:
     paths:
       - "game-engine/**"
       - ".github/workflows/game-engine-validation.yml"
-
-permissions:
-  contents: read
 
 jobs:
   validate:
@@ -43,55 +36,3 @@ jobs:
 
       - name: World floor texture smoke
         run: node game-engine/tests/world-floor-textures-smoke.mjs
-
-  deploy-lab-preview:
-    if: github.ref == 'refs/heads/lab-preview'
-    needs: validate
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-    steps:
-      - name: Checkout Lab Preview
-        uses: actions/checkout@v4
-        with:
-          ref: lab-preview
-
-      - name: Build lean Lab site
-        shell: bash
-        run: |
-          rm -rf _site
-          mkdir -p _site/Assets/Images
-          cp -a game-engine _site/game-engine
-          cp -a js _site/js
-          cp -a Assets/Images/Buttons _site/Assets/Images/Buttons
-          cp -a Assets/Images/World _site/Assets/Images/World
-          cp -a lab-preview _site/lab-preview
-          touch _site/.nojekyll
-
-      - name: Verify Lab site
-        shell: bash
-        run: |
-          test -f _site/lab-preview/index.html
-          test -f _site/game-engine/lab/index.html
-          test -f _site/game-engine/lab/game/forest-0.3.3.1.html
-          test -f _site/game-engine/src/world/WorldFloorTextures.js
-          test -f _site/Assets/Images/World/Floors/floor_grass_01.png
-          test -f _site/Assets/Images/Buttons/Inventory.svg
-          echo "Lab preview verified."
-
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: _site
-
-      - name: Deploy Lab Preview
-        id: deployment
-        uses: actions/deploy-pages@v4
