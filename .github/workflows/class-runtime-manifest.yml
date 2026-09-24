@@ -1,0 +1,48 @@
+name: Class Runtime Manifest
+
+on:
+  pull_request:
+    paths:
+      - "js/*-class-runtime.js"
+      - "js/*-archetype-runtime.js"
+      - "js/*-combat-runtime.js"
+      - "js/*-theatre-runtime.js"
+      - "js/class-runtime-registry.js"
+      - "js/class-runtime-manifest.js"
+      - "js/class-runtime-bootstrap.js"
+      - "js/player-archetype-runtime.js"
+      - "js/archetype-combat-event-runtime.js"
+      - "js/status-engine.js"
+      - "scripts/generate-class-runtime-manifest.mjs"
+      - "package.json"
+  push:
+    branches: [main]
+    paths:
+      - "js/*-class-runtime.js"
+      - "js/*-archetype-runtime.js"
+      - "js/*-combat-runtime.js"
+      - "js/*-theatre-runtime.js"
+      - "js/class-runtime-registry.js"
+      - "js/class-runtime-manifest.js"
+      - "js/class-runtime-bootstrap.js"
+      - "js/player-archetype-runtime.js"
+      - "js/archetype-combat-event-runtime.js"
+      - "js/status-engine.js"
+      - "scripts/generate-class-runtime-manifest.mjs"
+      - "package.json"
+
+jobs:
+  manifest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm run check:class-runtime-manifest
+      - run: node --check js/class-runtime-registry.js
+      - run: node --check js/class-runtime-manifest.js
+      - run: node --check js/class-runtime-bootstrap.js
+      - run: node --check js/player-archetype-runtime.js
+      - run: node --check js/archetype-combat-event-runtime.js
+      - run: node --check js/status-engine.js

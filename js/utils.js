@@ -314,6 +314,14 @@ function ensureDmCharacterManagerAssets(doc) {
     return { link, engine };
 }
 
+function ensureDmCombatTabManagerAssets(doc) {
+    const documentRef = doc || (typeof document !== 'undefined' ? document : null);
+    if (!documentRef?.querySelector?.('#tab-combate')) return null;
+    const manager = ensureScriptAsset(documentRef, 'dm-combat-tab-manager-script', 'js/dm-combat-tab-manager.js', { ui: 'dm-combat-tab-manager' });
+    const liveViewer = ensureScriptAsset(documentRef, 'dm-combat-live-viewer-script', 'js/dm-combat-live-viewer.js', { ui: 'dm-combat-live-viewer' });
+    return { manager, liveViewer };
+}
+
 if (typeof document !== 'undefined') {
     ensurePlayerTerminalStyles(document);
     ensurePlayerTerminalVisibility(document);
@@ -329,6 +337,7 @@ if (typeof document !== 'undefined') {
     ensureWeatherSystemAssets(document);
     ensurePlayerTheatreLanguagePolicy(document);
     ensureDmCharacterManagerAssets(document);
+    ensureDmCombatTabManagerAssets(document);
 }
 
 if (typeof module !== 'undefined' && module.exports) {
@@ -348,6 +357,7 @@ if (typeof module !== 'undefined' && module.exports) {
         ensureTheatreModernIdentityHotfix,
         ensureWeatherSystemAssets,
         ensurePlayerTheatreLanguagePolicy,
-        ensureDmCharacterManagerAssets
+        ensureDmCharacterManagerAssets,
+        ensureDmCombatTabManagerAssets
     };
 }

@@ -1,1343 +1,198 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Luminos Combat Engine - Multi-Encounter System</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap');
-
-        /* PALETA DE COLORES FIEL */
-        :root {
-            --limbus-hp-orange: #ff4a22; 
-            --limbus-hp-boss: #dd0000;   
-            --limbus-sp-cyan: #88eeff;   
-            --limbus-speed-yellow: #ffe877; 
-            --limbus-speed-glow: #ff4400;   
-            --limbus-slot-dark: #1a1510;
-            --limbus-slot-border: #4a3520;
-            --limbus-slot-dash: #a87030;
-            --limbus-boss-ui-bg: rgba(10, 5, 5, 0.9);
-            --limbus-boss-ui-border: #664422;
-            --font-limbus: 'Bebas Kai', 'Bebas Neue', sans-serif;
-        }
-
-        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background-color: #050010; font-family: 'Arial', sans-serif; color: #fff; }
-        #game-container { position: relative; width: 100vw; height: 100vh; }
-        .layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transition: opacity 0.4s ease; }
-        
-        #battlefield { 
-            position: relative; width: 100%; height: 100%; 
-            background-image: url('https://limbuscompany.wiki.gg/images/Battle_Alleyways_of_T_Corp._2_BG.png');
-            background-size: cover; background-position: center bottom; background-repeat: no-repeat;
-        }
-
-        /* --- CUADRÍCULA TÁCTICA --- */
-        #floor-grid {
-            position: absolute; bottom: -10vh; left: -50vw; width: 200vw; height: 100vh; 
-            transform-origin: bottom center; transform: perspective(800px) rotateX(75deg); 
-            background-image: linear-gradient(rgba(136, 238, 255, 0.15) 2px, transparent 2px), linear-gradient(90deg, rgba(136, 238, 255, 0.15) 2px, transparent 2px);
-            background-size: 80px 80px; z-index: 0; pointer-events: none; opacity: 0; transition: opacity 0.3s ease;
-            mask-image: linear-gradient(to top, black 20%, transparent 80%); -webkit-mask-image: linear-gradient(to top, black 20%, transparent 80%);
-        }
-        #floor-grid.active { opacity: 1; }
-
-        /* --- CONTENEDORES --- */
-        .sprite-container { position: absolute; transform: translateX(-50%); transition: transform 0.6s ease, left 0.6s ease, bottom 0.6s ease; pointer-events: none; }
-        .combatant { position: relative; width: 260px; height: 360px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; pointer-events: none; transform-origin: bottom center; transform: scale(0.30); }
-
-        /* --- UI ESTÁNDAR (PISOS) --- */
-        .diegetic-floor { position: absolute; bottom: -110px; width: 220px; height: 220px; transform: rotateX(65deg); z-index: 1; overflow: visible; pointer-events: auto; }
-        .floor-bg-poly { fill: rgba(255, 80, 0, 0.2); stroke: rgba(255, 200, 50, 0.5); stroke-width: 3; }
-        .hp-track { fill: none; stroke: rgba(30, 5, 5, 0.8); stroke-width: 22; stroke-linecap: butt; }
-
-        .stagger-tick-line { fill: none; stroke: #ffdd44; stroke-width: 26; pointer-events: none; filter: drop-shadow(0px 0px 3px #000); }
-        .boss-stagger-tick { position: absolute; top: 0; bottom: 0; width: 3px; background: #ffdd44; z-index: 5; pointer-events: none; box-shadow: 0 0 4px #000; }
-        .hp-fill-line { fill: none; stroke: var(--limbus-hp-orange); stroke-width: 22; transition: stroke-dashoffset 0.4s ease-out; filter: drop-shadow(0px 0px 10px var(--limbus-hp-orange)); }
-
-        .shield-fill-line { fill: none; stroke: #4a90e2; stroke-width: 22; transition: stroke-dashoffset 0.4s ease-out; filter: drop-shadow(0px 0px 10px #4a90e2); opacity: 0.8; }
-
-        /* --- UI DE BOSS (RECTANGULAR) --- */
-        .boss-ui-rect {
-            position: absolute; bottom: -90px; width: 350px; height: 60px;
-            background: var(--limbus-boss-ui-bg); border: 3px solid var(--limbus-boss-ui-border); border-radius: 4px;
-            z-index: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 5px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.8), inset 0 0 10px rgba(100,50,0,0.5); pointer-events: auto;
-        }
-        .boss-hp-bar-container { width: 95%; height: 25px; background: #220000; border: 2px solid #441111; position: relative; overflow: hidden; }
-        .boss-hp-fill-rect { height: 100%; background: var(--limbus-hp-boss); width: 100%; transition: width 0.4s ease-out; filter: drop-shadow(0px 0px 8px var(--limbus-hp-boss)); }
-        .boss-shield-fill-rect { position: absolute; top: 0; left: 0; height: 100%; background: #4a90e2; transition: width 0.4s ease-out; filter: drop-shadow(0px 0px 8px #4a90e2); opacity: 0.8; z-index: 2; }
-        
-        .boss .floating-hp-group { bottom: 10px; left: 15px; }
-        .boss .name-plate { font-size: 18px; }
-        .boss .hp-number { font-size: 45px; color: var(--limbus-hp-boss); text-shadow: 2px 2px 0 #000; }
-
-        /* --- SPRITE Y ANCLA --- */
-        .sprite-anchor { position: absolute; display: flex; justify-content: center; width: 100%; z-index: 3; pointer-events: none; transition: transform 0.2s ease, left 0.2s ease, bottom 0.2s ease; transform-origin: bottom center; }
-        .sprite-img { height: 240px; object-fit: contain; object-position: bottom; filter: drop-shadow(0px 15px 10px rgba(0,0,0,0.8)); transition: transform 0.2s; pointer-events: auto; cursor: pointer; }
-        .sprite-img:hover { transform: scale(1.05); } 
-        .enemy.boss .sprite-img { transform: scaleX(-1); }
-
-        /* --- UI SUPERIOR (SLOTS Y SPEED) --- */
-        .top-ui-panel { position: absolute; display: flex; align-items: flex-start; gap: 6px; z-index: 10; pointer-events: none; }
-        .boss .top-ui-panel { transform: translateX(-50%); left: 50% !important; display: flex; flex-direction: column; align-items: center; gap: 2px;}
-        .boss .action-slots { gap: 1px; }
-
-        .speed-number { color: var(--limbus-speed-yellow); font-size: 50px; font-family: var(--font-limbus); line-height: 0.8; text-shadow: 0 0 8px var(--limbus-speed-glow), 1px 1px 2px #000; margin-top: 8px; }
-        .action-slots { display: flex; gap: 2px; pointer-events: auto; }
-        .action-slot-wrapper { position: relative; touch-action: none; cursor: crosshair; pointer-events: auto; }
-        .action-slot-svg { width: 44px; height: 44px; filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.8)); pointer-events: none; }
-        .slot-heptagon-bg { fill: var(--limbus-slot-dark); stroke: var(--limbus-slot-border); stroke-width: 10; }
-        .slot-center-line { stroke: var(--limbus-slot-dash); stroke-width: 8; stroke-linecap: round; }
-
-        /* --- HUD FLOTANTE --- */
-        .floating-hp-group { position: absolute; bottom: 5px; left: -10px; z-index: 10; display: flex; flex-direction: column; align-items: flex-start; pointer-events: none; }
-        .name-plate { background: #050505; color: #ddd; font-size: 14px; letter-spacing: 1px; font-family: var(--font-limbus); padding: 2px 6px; border: 1px solid #333; border-radius: 4px; text-transform: uppercase; margin-bottom: -2px; }
-        .hp-number { font-size: 60px; color: var(--limbus-hp-orange); font-family: var(--font-limbus); line-height: 0.85; text-shadow: 2px 4px 6px rgba(0,0,0,0.8); }
-        .floating-sp-group { position: absolute; bottom: 5px; right: 5px; width: 48px; height: 48px; border-radius: 50%; border: 3px solid #3b2c20; outline: 1px solid #000; display: flex; align-items: center; justify-content: center; font-size: 30px; font-family: var(--font-limbus); color: white; text-shadow: 1px 1px 3px black; z-index: 10; pointer-events: none; }
-        .sp-neutral { background: radial-gradient(circle at 30% 30%, #55aaaa 0%, #113333 80%); }
-
-        /* --- CAPA TÁCTICA PARA ARCOS --- */
-        #targeting-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2000; }
-        .arc-enemy { stroke: #ff3333; fill: none; stroke-width: 3; filter: drop-shadow(0 0 3px #ff0000); }
-        .arc-ally { stroke: #ffe877; fill: none; stroke-width: 3; filter: drop-shadow(0 0 4px #ffaa00); }
-
-        /* --- DM DASHBOARD --- */
-        #dm-dashboard { position: absolute; top: 20px; right: 20px; width: 250px; background: rgba(20,20,20,0.95); border: 1px solid #886633; color: #fff; z-index: 10000; border-radius: 6px; max-height: 90vh; overflow-y: auto; pointer-events: auto; font-size: 12px;}
-        .dm-header { background: #201000; padding: 8px; text-align: center; font-size: 14px; font-weight: bold; border-bottom: 1px solid #886633; font-family: var(--font-limbus); color: #ffdd44; letter-spacing: 1px;}
-        .dm-tools { padding: 10px; display: flex; flex-direction: column; gap: 6px; }
-        .dm-tools button { background: #111; color: #cc9955; border: 1px solid #cc9955; padding: 6px; font-size: 11px; font-weight: bold; cursor: pointer; border-radius: 3px; }
-        
-        /* EDITOR DE BOSS */
-        .dm-editor-group { border: 1px solid #443311; background: rgba(0,0,0,0.3); padding: 8px; border-radius: 4px; margin-top: 10px; }
-        .dm-editor-title { color: #ffe877; font-weight: bold; margin-bottom: 8px; text-align: center; text-transform: uppercase; font-size: 11px;}
-        .dm-control-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; gap: 5px; }
-        .dm-control-row label { width: 70px; color: #aaa; }
-        .dm-control-row input[type="range"] { flex-grow: 1; cursor: pointer; accent-color: #ffe877; }
-        .dm-control-row input[type="number"] { width: 45px; background: #000; border: 1px solid #555; color: #fff; padding: 2px; font-size: 11px;}
-
-        /* --- NPC CREATOR MODAL --- */
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); z-index: 20000; display: none; justify-content: center; align-items: center; }
-        .modal-content { background: var(--limbus-boss-ui-bg); border: 3px solid var(--limbus-boss-ui-border); padding: 20px; border-radius: 6px; width: 300px; color: #fff; box-shadow: 0 0 20px rgba(0,0,0,0.9); }
-        .modal-header { font-family: var(--font-limbus); font-size: 24px; color: var(--limbus-hp-orange); text-align: center; border-bottom: 1px solid #4a3520; margin-bottom: 15px; padding-bottom: 5px; }
-        .modal-field { margin-bottom: 10px; display: flex; flex-direction: column; gap: 5px; }
-        .modal-field label { font-size: 12px; color: #cc9955; text-transform: uppercase; font-weight: bold; }
-        .modal-field input, .modal-field select { background: #111; border: 1px solid #555; color: #fff; padding: 6px; font-size: 12px; }
-        .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
-        .modal-actions button { flex: 1; padding: 8px; font-weight: bold; cursor: pointer; border: 1px solid; border-radius: 4px; }
-        .btn-deploy { background: #400; color: #ffdd44; border-color: #ff4400; }
-        .btn-cancel { background: #333; color: #aaa; border-color: #555; }
-        .radio-group { display: flex; gap: 10px; }
-        .radio-group label { display: flex; align-items: center; gap: 5px; font-size: 12px; text-transform: none; color: #fff; font-weight: normal; }
-
-
-        /* --- MATRIZ DE FLANQUEO (TARGETING GRID) --- */
-        #matrix-overlay {
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(0, 0, 0, 0.75); z-index: 5000; display: none;
-            justify-content: center; align-items: center; pointer-events: auto;
-        }
-        .matrix-grid {
-            display: grid; gap: 4px;
-            background: rgba(10, 5, 5, 0.9); padding: 10px;
-            border: 4px solid var(--limbus-hp-orange);
-            box-shadow: 0 0 20px rgba(255, 74, 34, 0.5);
-            transform: perspective(800px) rotateX(45deg);
-        }
-        .matrix-cell {
-            width: 60px; height: 60px;
-            background: rgba(255, 255, 255, 0.05);
-            border: 2px solid #4a3520;
-            display: flex; justify-content: center; align-items: center;
-            color: #fff; font-family: var(--font-limbus); font-size: 14px;
-            transition: all 0.2s;
-        }
-        .matrix-cell.center {
-            background: rgba(255, 0, 0, 0.3); border-color: red;
-        }
-        .matrix-cell.periphery {
-            cursor: pointer; background: rgba(136, 238, 255, 0.1); border-color: var(--limbus-sp-cyan);
-        }
-        .matrix-cell.periphery:hover {
-            background: var(--limbus-sp-cyan); color: #000; box-shadow: 0 0 10px var(--limbus-sp-cyan);
-        }
-        .matrix-cell.occupied {
-            background: rgba(255, 232, 119, 0.3); border-color: var(--limbus-speed-yellow);
-            cursor: not-allowed;
-        }
-
-        /* --- TERMINAL DE LOGS --- */
-        #combat-log-terminal {
-            position: absolute; bottom: 10px; right: 10px; width: 350px; height: 200px;
-            background: rgba(5, 0, 16, 0.9); border: 2px solid var(--limbus-slot-border);
-            color: #ccc; font-family: 'Courier New', Courier, monospace; font-size: 11px;
-            overflow-y: auto; z-index: 10000; padding: 10px; pointer-events: auto;
-            border-left: 4px solid var(--limbus-hp-orange);
-            display: flex; flex-direction: column; gap: 4px;
-        }
-        .log-entry { margin: 0; padding: 2px; border-bottom: 1px solid #222; }
-        .log-entry.flank { color: #c49a00; font-weight: bold; }
-        .log-entry.interrupt { color: #c49a00; font-weight: bold; }
-        .log-entry.damage { color: #8a0303; font-weight: bold; }
-        .log-entry.clash-result { color: #cccccc; font-family: 'Courier New', Courier, monospace; }
-
-        #btn-execute-clash {
-            position: absolute; bottom: 220px; right: 10px; z-index: 10000;
-            background: var(--limbus-hp-orange); color: #000; font-family: var(--font-limbus);
-            font-size: 24px; padding: 10px 20px; border: 2px solid #000; cursor: pointer;
-            box-shadow: 2px 2px 0px #000; text-transform: uppercase;
-        }
-        #btn-execute-clash:hover { background: #ff6a42; }
-        #btn-execute-clash:active { transform: translate(2px, 2px); box-shadow: 0 0 0 #000; }
-
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Luminous Combat v0.7.3</title>
+  <style>html,body{margin:0;width:100%;height:100%;background:#050010;color:#d8cbb7;font-family:system-ui,sans-serif}#boot{position:fixed;inset:0;display:grid;place-items:center;font-size:12px;letter-spacing:.12em;text-transform:uppercase}</style>
 </head>
 <body>
-
-<div id="game-container">
-
-    <!-- Matrix Overlay -->
-    <div id="matrix-overlay">
-        <div id="matrix-container" class="matrix-grid"></div>
-    </div>
-
-    <!-- Logs and Execute Button -->
-    <button id="btn-execute-clash" onclick="executeCombatTimeline()">[ EJECUTAR CHOQUE ]</button>
-    <div id="combat-log-terminal">
-        <div class="log-entry">VTT LUMINOS SYSTEM INITIALIZED...</div>
-    </div>
-
-    <div id="combat-mode" class="layer">
-        <div id="battlefield"></div>
-    </div>
-    
-
-    <svg id="targeting-layer">
-        <defs>
-            <marker id="arrow-enemy" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#ff3333" /></marker>
-            <marker id="arrow-ally" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#ffe877" /></marker>
-        </defs>
-    </svg>
-
-    </div>
-    <!-- Firebase App (núcleo) -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-    <script src="js/status-engine.js"></script>
-    <script src="js/trait-engine.js"></script>
-    <script src="js/trait-catalog-core.js"></script>
-    <script src="js/racial-trait-catalog.js"></script>
-    <script src="js/universal-modifier-engine.js"></script>
-    <script src="js/universal-action-economy.js"></script>
-    <script src="js/trait-player-tray.js"></script>
-    <script src="js/trait-standardization-runtime.js"></script>
-    <script src="js/combatEngine.js"></script>
-
+<div id="boot">Loading Luminous Combat v0.7.3…</div>
 <script>
-
-    const firebaseConfig = {
-        apiKey: "AIzaSyAIVIuKgXUsdrb9Mmss9PH7R3FpWAMG2hU",
-        authDomain: "luminous-system.firebaseapp.com",
-        databaseURL: "https://luminous-system-default-rtdb.firebaseio.com",
-        projectId: "luminous-system",
-        storageBucket: "luminous-system.firebasestorage.app",
-        messagingSenderId: "330473029689",
-        appId: "1:330473029689:web:44a05e870d493a3b294de8",
-        measurementId: "G-X775P4YS7W",
-    };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-
-    let combatData = {};
-
-    const COMBAT_STATE_PATH = 'campaña/combate/estado';
-    const SHARED_PLANNED_ACTIONS_PATH = 'campaña/combate/plannedActions';
-    let luminousCombatPhaseState = null;
-    let sharedPlannedActions = {};
-
-    function combatUnitsForActionEconomy() {
-        return Object.values(combatData || {}).filter(unit => unit && typeof unit === 'object');
-    }
-
-    function syncCombatEnginePhase(rawState) {
-        const normalized = String(rawState || '').trim().toUpperCase();
-        if (!window.CombatEngine) return normalized;
-
-        const units = combatUnitsForActionEconomy();
-        const economy = window.LuminousActionEconomy;
-        const previous = luminousCombatPhaseState;
-
-        if (normalized === 'PRE_COMBAT_PLANNING') {
-            if (previous !== normalized) {
-                CombatEngine.beginPlanningPhase(units);
-            } else {
-                CombatEngine.currentState = 'PRE_COMBAT_PLANNING';
-                if (economy?.ensureState) {
-                    units.forEach(unit => {
-                        const state = economy.ensureState(unit);
-                        if (state?.phase !== 'planning') economy.beginPlanning(unit);
-                    });
-                }
-            }
-        } else if (normalized === 'COMBAT_ACTIVE') {
-            if (previous !== normalized) {
-                CombatEngine.triggerEncounterStart(units);
-            } else {
-                CombatEngine.currentState = 'COMBAT_ACTIVE';
-                if (economy?.ensureState) {
-                    units.forEach(unit => {
-                        const state = economy.ensureState(unit);
-                        if (state?.phase !== 'combat') economy.beginCombat(unit);
-                    });
-                }
-            }
-        }
-
-        luminousCombatPhaseState = normalized;
-        window.LuminousCombatPhaseState = normalized;
-        return normalized;
-    }
-
-    function combatUnitIdentityValues(unit = {}) {
-        return [unit?.id, unit?.unitId, unit?.playerId, unit?.player_id, unit?.ownerPlayerId, unit?.owner_player_id, unit?.characterId, unit?.character_id, unit?.uid, unit?.vinculo_jugador]
-            .filter(value => value != null && String(value).trim() !== '')
-            .map(value => String(value).trim());
-    }
-
-    function combatUnitForOwner(ownerPlayerId) {
-        const owner = String(ownerPlayerId || '').trim();
-        if (!owner) return null;
-        return Object.values(combatData || {}).find(unit => combatUnitIdentityValues(unit).includes(owner)) || null;
-    }
-
-    function combatUnitId(unit = {}) {
-        return String(unit?.id || unit?.unitId || unit?.characterId || unit?.actorId || '').trim();
-    }
-
-    function getSharedPlannedAction(unitId, slotIndex) {
-        const wantedUnitId = String(unitId || '');
-        for (const [ownerPlayerId, slots] of Object.entries(sharedPlannedActions || {})) {
-            const ownerUnit = combatUnitForOwner(ownerPlayerId);
-            if (!ownerUnit || combatUnitId(ownerUnit) !== wantedUnitId) continue;
-            const action = slots?.[slotIndex] || slots?.[String(slotIndex)] || null;
-            if (action) return { ...action, __ownerPlayerId: ownerPlayerId };
-        }
-        return null;
-    }
-
-    function isTraitActionSlotReserved(slotId) {
-        const marker = '_slot_';
-        const splitAt = String(slotId || '').lastIndexOf(marker);
-        if (splitAt < 0) return false;
-        const unitId = slotId.slice(0, splitAt);
-        const slotIndex = Number(slotId.slice(splitAt + marker.length));
-        if (!Number.isInteger(slotIndex)) return false;
-        const shared = getSharedPlannedAction(unitId, slotIndex);
-        if (shared && ['planned', 'resolving'].includes(shared.status)) return true;
-        const unit = combatData[unitId];
-        const local = unit ? window.LuminousActionEconomy?.getPlannedAction?.(unit, slotIndex) : null;
-        return local?.kind === 'trait';
-    }
-
-    function collectPlannedActionSlotIds() {
-        const slotIds = [];
-        Object.entries(sharedPlannedActions || {}).forEach(([ownerPlayerId, slots]) => {
-            const ownerUnit = combatUnitForOwner(ownerPlayerId);
-            if (!ownerUnit) return;
-            const unitId = combatUnitId(ownerUnit);
-            const maxSlots = window.LuminousActionEconomy?.actionSlotMaximum?.(ownerUnit) || Number(ownerUnit.actionSlots || ownerUnit.activeSlots || 1);
-            Object.entries(slots || {}).forEach(([slotIndexRaw, action]) => {
-                const slotIndex = Number(slotIndexRaw);
-                if (action?.status === 'planned' && Number.isInteger(slotIndex) && slotIndex >= 0 && slotIndex < maxSlots) slotIds.push(`${unitId}_slot_${slotIndex}`);
-            });
-        });
-        return slotIds;
-    }
-
-    async function claimSharedPlannedAction(ownerPlayerId, slotIndex) {
-        const ref = db.ref(`${SHARED_PLANNED_ACTIONS_PATH}/${ownerPlayerId}/${slotIndex}`);
-        const result = await ref.transaction(current => {
-            if (!current || current.status !== 'planned') return;
-            return { ...current, status: 'resolving', resolvingAt: Date.now() };
-        });
-        return result.committed ? result.snapshot.val() : null;
-    }
-
-    async function finishSharedPlannedAction(ownerPlayerId, slotIndex, resolution) {
-        const success = Boolean(resolution?.handled && resolution?.result?.available);
-        const payload = { status: success ? 'resolved' : 'failed', resolvedAt: Date.now(), resolution: { handled: Boolean(resolution?.handled), available: Boolean(resolution?.result?.available), traitId: resolution?.planned?.traitId || resolution?.result?.trait?.id || null, reasons: resolution?.result?.reasons || [] } };
-        await db.ref(`${SHARED_PLANNED_ACTIONS_PATH}/${ownerPlayerId}/${slotIndex}`).update(payload);
-        return payload;
-    }
-
-    // --- MODAL CREATOR LOGIC ---
-    function openCreatorModal() { document.getElementById('npc-creator-modal').style.display = 'flex'; }
-    function closeCreatorModal() { document.getElementById('npc-creator-modal').style.display = 'none'; }
-
-    function deployCustomNPCs() {
-        const name = document.getElementById('npc-name').value || 'Unknown';
-        const hp = parseInt(document.getElementById('npc-hp').value) || 100;
-        const armor = document.getElementById('npc-armor').value;
-        const img = document.getElementById('npc-img').value;
-        const qty = parseInt(document.getElementById('npc-qty').value) || 1;
-        const faction = document.querySelector('input[name="npc-faction"]:checked').value;
-
-        let existingCount = Object.values(combatData).filter(c => c.faction === faction).length;
-
-        for (let i = 0; i < qty; i++) {
-            const uid = faction + '_custom_' + Date.now() + '_' + i;
-            const npcData = {
-                escala_matriz: 3,
-                id: uid,
-                name: qty > 1 ? `${name} ${i+1}` : name,
-                faction: faction,
-                speed: Math.floor(Math.random() * 6) + 1,
-                hp: hp,
-                maxHp: hp,
-                armorType: armor, // Store armor type for stagger calculation
-                actionSlots: 1,
-                img: img,
-                scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0,
-                x: faction === 'enemy' ? (90 - (existingCount + i) * 6) : (10 + (existingCount + i) * 6),
-                y: 45 + ((existingCount + i) % 2 === 0 ? 10 : -10)
-            };
-
-            // Generate stagger thresholds
-            npcData.staggerThresholds = calculateStaggerThresholds(npcData.armorType);
-
-            spawnCombatant(npcData);
-        }
-
-        closeCreatorModal();
-    }
-
-    let slotTargets = {}; 
-    let isDragging = false;
-    let dragStartSlotId = null;
-    let dragCurrentX = 0;
-    let dragCurrentY = 0;
-
-    // --- BASE DE DATOS DE TUS PECADORES ---
-    const customSinners = [
-        { name: "Jeske", escala_matriz: 3, img: "https://i.imgur.com/vSpYJg7.png", scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0 },
-        { name: "Calipsys", escala_matriz: 3, img: "https://i.imgur.com/NObW7pm.png", scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0 },
-        { name: "Pierre", img: "https://i.imgur.com/11DglPK.png", scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0 },
-        { name: "Agatha", escala_matriz: 3, img: "https://i.imgur.com/24qV5kD.png", scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0 },
-        { name: "Dalzay", img: "https://i.imgur.com/dv5h0TR.png", scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0 },
-        { name: "Ishamon", img: "https://i.imgur.com/8J3F4Ls.png", scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0 },
-        { name: "Angelo", img: "https://i.imgur.com/264tPzM.png", scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0 }
+(async()=>{
+  try{
+    if(typeof DecompressionStream!=="function")throw new Error("DECOMPRESSION_STREAM_UNAVAILABLE");
+    const urls=[
+      "combat/combat-v073-live.bundle.part01",
+      "combat/combat-v073-live.bundle.part02",
+      "combat/combat-v073-live.bundle.part03",
+      "combat/combat-v073-live.bundle.part04",
+      "combat/combat-v073-live.bundle.part05",
+      "combat/combat-v073-live.bundle.part06",
+      "combat/repair/combat-v073-live.bundle.part07.r1",
+      "combat/repair/combat-v073-live.bundle.part07.r2",
+      "combat/repair/combat-v073-live.bundle.part07.r3",
+      "combat/combat-v073-live.bundle.part08",
+      "combat/combat-v073-live.bundle.part09",
+      "combat/combat-v073-live.bundle.part10",
+      "combat/combat-v073-live.bundle.part11"
     ];
+    const responses=await Promise.all(urls.map(url=>fetch(url,{cache:"no-cache"})));
+    const failed=responses.find(response=>!response.ok);
+    if(failed)throw new Error(`COMBAT_BUNDLE_HTTP_${failed.status}`);
+    const encoded=(await Promise.all(responses.map(response=>response.text()))).join("").replace(/\s+/g,"");
+    const binary=atob(encoded);
+    const bytes=new Uint8Array(binary.length);
+    for(let i=0;i<binary.length;i+=1)bytes[i]=binary.charCodeAt(i);
+    const stream=new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
+    let html=await new Response(stream).text();
 
-    function toggleGrid() { document.getElementById('floor-grid').classList.toggle('active'); }
+    const cancelNeedle="setStatus(`READY CANCELADO · Puedes corregir las acciones del Turn ${round}`);\n    return;";
+    const readyNeedle="planReady=true;\n  ready.textContent='CANCEL READY';";
+    if(!html.includes(cancelNeedle)||!html.includes(readyNeedle))throw new Error("COMBAT_READY_BRIDGE_PATCH_MISSING");
+    html=html.replace(cancelNeedle,"setStatus(`READY CANCELADO · Puedes corregir las acciones del Turn ${round}`);\n    window.dispatchEvent(new CustomEvent('luminous:combat073-plan-ready-change',{detail:{version:'0.7.3',playerId:PLAYER_ID,round,ready:false,plans:JSON.parse(JSON.stringify(plannedActions))}}));\n    return;");
+    html=html.replace(readyNeedle,"planReady=true;\n  window.dispatchEvent(new CustomEvent('luminous:combat073-plan-ready-change',{detail:{version:'0.7.3',playerId:PLAYER_ID,round,ready:true,plans:JSON.parse(JSON.stringify(plannedActions))}}));\n  ready.textContent='CANCEL READY';");
 
-    function updateDepthSorting() {
-        const sprites = document.querySelectorAll('.sprite-container');
-        sprites.forEach(sprite => {
-            const y = parseFloat(sprite.style.bottom);
-            sprite.style.zIndex = Math.floor(1000 - (y * 10));
-        });
+    // Live multiplayer authority patch: remote human Players are not local AI.
+    const liveControlNeedle=`    unit.controlled=unit.id===PLAYER_ID?'player':'ai';
+    unit.focusMenu=unit.id===PLAYER_ID;`;
+    const liveControlPatch=`    unit.controlled=payload.viewerRole==='dm'?(unit.controlled==='ai'?'ai':'remote'):(unit.id===PLAYER_ID?'player':(unit.controlled==='remote'?'remote':'ai'));
+    unit.focusMenu=payload.viewerRole!=='dm'&&unit.id===PLAYER_ID;`;
+    const liveAllPlansNeedle="Object.values(combatData).filter(unit=>unit.controlled==='ai').forEach(unit=>{";
+    const liveAllPlansPatch="Object.values(combatData).filter(unit=>unit.controlled==='ai'||unit.controlled==='remote').forEach(unit=>{";
+    const liveArrowNeedle="Object.values(combatData).filter(unit=>unit.controlled==='ai'&&isUnitTargetable(unit)).forEach(unit=>{";
+    const liveArrowPatch="Object.values(combatData).filter(unit=>(unit.controlled==='ai'||unit.controlled==='remote')&&isUnitTargetable(unit)).forEach(unit=>{";
+    const livePlanRenderNeedle="function renderTargetArrows(){\n  const overlay=$('target-intent-overlay');";
+    const livePlanRenderPatch="function renderTargetArrows(){\n  if(window.LuminousCombatLiveMode)window.dispatchEvent(new CustomEvent('luminous:combat073-plan-change',{detail:{version:'0.7.3',playerId:PLAYER_ID,round,ready:planReady,plans:JSON.parse(JSON.stringify(plannedActions))}}));\n  const overlay=$('target-intent-overlay');";
+    const liveNeedles=[liveControlNeedle,liveAllPlansNeedle,liveArrowNeedle,livePlanRenderNeedle];
+    if(liveNeedles.some(needle=>!html.includes(needle)))throw new Error("COMBAT_LIVE_REMOTE_CONTROL_PATCH_MISSING");
+    html=html.replace(liveControlNeedle,liveControlPatch)
+      .replace(liveAllPlansNeedle,liveAllPlansPatch)
+      .replace(liveArrowNeedle,liveArrowPatch)
+      .replace(livePlanRenderNeedle,livePlanRenderPatch);
+
+    // Combat-iframe-only renderer patch. It never installs hooks in Theatre runtime code.
+    // Mobile/low-power clients keep DOM/CSS sprite compositing and reserve WebGL2 for VFX.
+    const webglStateNeedle=`const particles=[];
+  let cssW=0,cssH=0,dpr=1,lastFrame=0,enabled=true;`;
+    const webglStatePatch=`const particles=[];
+  const coarsePointer=window.matchMedia?.('(pointer:coarse)')?.matches===true;
+  const lowPowerDevice=coarsePointer||((navigator.hardwareConcurrency||8)<=4)||((navigator.deviceMemory||8)<=4);
+  const domSpriteMode=lowPowerDevice;
+  const intentPathCache=new WeakMap();
+  let cssW=0,cssH=0,dpr=1,lastFrame=0,enabled=true;`;
+    const webglResizeNeedle="const w=Math.max(1,host.clientWidth||innerWidth),h=Math.max(1,host.clientHeight||innerHeight),nextDpr=Math.min(2,window.devicePixelRatio||1);";
+    const webglResizePatch="const w=Math.max(1,host.clientWidth||innerWidth),h=Math.max(1,host.clientHeight||innerHeight),dprCap=lowPowerDevice?1:1.5,nextDpr=Math.min(dprCap,window.devicePixelRatio||1);";
+    const webglTextureCacheNeedle="if(entry){if(entry.ready&&onReady)onReady(entry);return entry}";
+    const webglTextureCachePatch="if(entry)return entry";
+    const webglBackgroundNeedle="const bg=requestTexture(BG_URL,()=>host.classList.add('webgl2-background-ready'));";
+    const webglBackgroundPatch="const bg=requestTexture(BG_URL,()=>{host.classList.add('webgl2-background-ready');ensureFrame()});";
+    const webglSpriteNeedle="const entry=requestTexture(url,()=>img.classList.add('webgl2-texture-backed'));";
+    const webglSpritePatch="const entry=requestTexture(url,()=>{img.classList.add('webgl2-texture-backed');ensureFrame()});";
+    const webglRenderSpritesNeedle=`function renderSprites(){
+    const rows=Array.from(document.querySelectorAll('.sprite-img')).map(img=>{`;
+    const webglRenderSpritesPatch=`function renderSprites(){
+    if(domSpriteMode)return;
+    const rows=Array.from(document.querySelectorAll('.sprite-img')).map(img=>{`;
+    const webglIntentNeedle="const local=parsePath(path.getAttribute('d')),tone=intentToneFromClass(path),color=[...intentColors[tone]],secondary=path.classList.contains('atk-weight-secondary');color[3]*=opacity;";
+    const webglIntentPatch="const d=path.getAttribute('d')||'';let cached=intentPathCache.get(path);if(!cached||cached.d!==d){cached={d,points:parsePath(d)};intentPathCache.set(path,cached)}const local=cached.points,tone=intentToneFromClass(path),color=[...intentColors[tone]],secondary=path.classList.contains('atk-weight-secondary');color[3]*=opacity;";
+    const webglBurstNeedle="particles.push({x,y,kind,range,start:performance.now(),life:310,seed:Math.random()*1000})";
+    const webglBurstPatch="particles.push({x,y,kind,range,start:performance.now(),life:310,seed:Math.random()*1000});ensureFrame(340)";
+    const webglParticleRaysNeedle="const rays=p.range?7:10;for(let r=0;r<rays;r++){";
+    const webglParticleRaysPatch="const rays=p.range?(lowPowerDevice?4:7):(lowPowerDevice?6:10);for(let r=0;r<rays;r++){";
+    const webglFrameNeedle=`let rafId=0;
+  function frame(now){
+    rafId=0;if(!enabled)return;resize();gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);
+    renderBackground();renderSprites();renderIntentArrows();renderParticles(now);
+    lastFrame=now;if(enabled&&!rafId)rafId=requestAnimationFrame(frame)
+  }
+  function ensureFrame(){if(enabled&&!rafId)rafId=requestAnimationFrame(frame)}
+
+  host.classList.add('webgl2-renderer-ready');
+  ensureFrame();`;
+    const webglFramePatch=`let rafId=0,dirty=true,continuousUntil=0,surfaceActive=true,parentVisibilityObserver=null,cameraTransitionActive=false;
+  function readSurfaceActive(){
+    if(document.hidden)return false;
+    try{
+      const frameEl=window.frameElement;if(!frameEl||window.parent===window)return true;
+      const rect=frameEl.getBoundingClientRect();if(rect.width<2||rect.height<2)return false;
+      let node=frameEl;
+      while(node&&node.nodeType===1){const style=parent.getComputedStyle(node);if(style.display==='none'||style.visibility==='hidden')return false;node=node.parentElement}
+      return true
+    }catch(_){return !document.hidden}
+  }
+  function syncSurfaceActive(){
+    const next=readSurfaceActive();if(next===surfaceActive)return;
+    surfaceActive=next;dirty=true;
+    if(!surfaceActive){
+      cameraTransitionActive=false;continuousUntil=0;
+      if(rafId){cancelAnimationFrame(rafId);rafId=0}
+    }else ensureFrame(100)
+  }
+  function bindParentVisibility(){
+    try{
+      const frameEl=window.frameElement;if(!frameEl||window.parent===window||!parent.MutationObserver)return;
+      parentVisibilityObserver=new parent.MutationObserver(syncSurfaceActive);
+      let node=frameEl;
+      while(node&&node.nodeType===1){parentVisibilityObserver.observe(node,{attributes:true,attributeFilter:['class','style','aria-hidden']});node=node.parentElement}
+    }catch(_){}
+  }
+  function needsContinuous(now){return surfaceActive&&!document.hidden&&(particles.length>0||host.classList.contains('round-running')||cameraTransitionActive||now<continuousUntil)}
+  function frame(now){
+    rafId=0;if(!enabled)return;
+    if(!surfaceActive){dirty=true;return}
+    const continuous=needsContinuous(now);if(!dirty&&!continuous)return;
+    dirty=false;resize();gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);
+    renderBackground();renderSprites();renderIntentArrows();renderParticles(now);
+    lastFrame=now;if(enabled&&(dirty||needsContinuous(now))&&!rafId)rafId=requestAnimationFrame(frame)
+  }
+  function ensureFrame(animateMs=0){
+    dirty=true;if(animateMs>0)continuousUntil=Math.max(continuousUntil,performance.now()+animateMs);
+    if(enabled&&surfaceActive&&!rafId)rafId=requestAnimationFrame(frame)
+  }
+  function handleCameraTransition(event){
+    if(event.target!==field||event.propertyName!=='transform')return;
+    if(event.type==='transitionrun'||event.type==='transitionstart')cameraTransitionActive=true;
+    else cameraTransitionActive=false;
+    ensureFrame()
+  }
+  field.addEventListener('transitionrun',handleCameraTransition);
+  field.addEventListener('transitionstart',handleCameraTransition);
+  field.addEventListener('transitionend',handleCameraTransition);
+  field.addEventListener('transitioncancel',handleCameraTransition);
+  const webglMutationObserver=new MutationObserver(mutations=>{
+    let animate=false;
+    for(const mutation of mutations){
+      if(mutation.type==='attributes'&&(mutation.attributeName==='class'||mutation.attributeName==='style')){animate=true;break}
     }
-
-    function generateHeptagonPoints(radius) {
-        const sides = 7; const points = []; const startAngle = Math.PI / 2; 
-        for (let i = 0; i < sides; i++) {
-            const angle = startAngle + (i * 2 * Math.PI / sides);
-            points.push({ x: (radius * Math.cos(angle)).toFixed(1), y: (radius * Math.sin(angle)).toFixed(1) });
-        }
-        const fullPoly = points.map(p => `${p.x},${p.y}`).join(' ');
-        const frontHalf = `${points[5].x},${points[5].y} ${points[6].x},${points[6].y} ${points[0].x},${points[0].y} ${points[1].x},${points[1].y} ${points[2].x},${points[2].y}`;
-        return { full: fullPoly, front: frontHalf };
-    }
-
-    function spawnCombatant(data) {
-        const battlefield = document.getElementById('battlefield');
-        const isCombatant = data.isCombatant !== false; // Default to true if undefined
-        const hpPct = Math.max(0, Math.min(100, ((data.hp ?? 1) / (data.maxHp || 1)) * 100));
-        const shieldPct = Math.max(0, ((data.shield ?? 0) / (data.maxHp || 1)) * 100);
-
-        if (!combatData[data.id]) {
-            combatData[data.id] = { ...data }; 
-        }
-        const unit = combatData[data.id];
-
-        // Inicializar secuencias de ataque ocultas en backend
-        unit.attack_tier_1_sequence = unit.attack_tier_1_sequence || [];
-        unit.attack_tier_2_sequence = unit.attack_tier_2_sequence || [];
-        unit.attack_tier_3_sequence = unit.attack_tier_3_sequence || [];
-
-        if (window.CombatEngine && window.CombatEngine.initializeUnitData) {
-            window.CombatEngine.initializeUnitData(unit);
-        }
-
-        // Inicializar actionSlots de forma explicita con array si no lo tiene
-        if (!unit.slots) {
-            unit.slots = Array.from({length: unit.actionSlots || 1}).map((_, i) => ({
-                id: `${data.id}_slot_${i}`,
-                slotWeight: 1,
-                isTargetedThisRound: false
-            }));
-        }
-
-        const slotsHtml = isCombatant ? Array.from({length: unit.actionSlots || 1}).map((_, i) => {
-            const slotId = `${data.id}_slot_${i}`;
-            return `
-                <div class="action-slot-wrapper" id="${slotId}" data-faction="${data.faction}">
-                    <svg class="action-slot-svg" viewBox="0 0 100 100">
-                        <polygon class="slot-heptagon-bg" points="50,95 15,78 6,40 30,9 70,9 94,40 85,78" />
-                        <line class="slot-center-line" x1="25" y1="50" x2="75" y2="50" />
-                    </svg>
-                </div>
-            `;
-        }).join('') : '';
-        
-        const container = document.createElement('div');
-        container.className = `sprite-container ${data.faction} ${unit.type || ''}`; 
-        container.id = `token-${data.id}`;
-        container.style.bottom = `${data.y}%`;
-        container.style.left = `${data.x}%`;
-
-        let uiHtml = '';
-
-        if (isCombatant) {
-            // Generate Stagger HTML
-            let staggerHtml = '';
-            if (unit.staggerThresholds) {
-                if (unit.type === 'boss') {
-                    staggerHtml = unit.staggerThresholds.map(pct => `<div class="boss-stagger-tick" style="left: ${pct}%;"></div>`).join('');
-                } else {
-                    const heptagon = generateHeptagonPoints(85);
-                    staggerHtml = unit.staggerThresholds.map(pct => `<polyline class="stagger-tick-line" points="${heptagon.front}" pathLength="100" style="stroke-dasharray: 2 98; stroke-dashoffset: -${(100 - pct) - 1};" />`).join('');
-                }
-            }
-
-            if (unit.type === 'boss') {
-                uiHtml = `
-                    <div class="boss-ui-rect">
-                        <div class="boss-hp-bar-container">
-                            <div id="svg-hp-${data.id}" class="boss-hp-fill-rect" pathLength="100" style="width: ${hpPct}%;"></div>
-                            ${data.shield > 0 ? `<div id="svg-shield-${data.id}" class="boss-shield-fill-rect" style="width: ${shieldPct}%;"></div>` : ''}
-                            ${staggerHtml}
-                        </div>
-                    </div>
-                `;
-            } else {
-                const heptagon = generateHeptagonPoints(85);
-                uiHtml = `
-                    <svg class="diegetic-floor" viewBox="-100 -100 200 200">
-                        <polygon class="floor-bg-poly" points="${heptagon.full}" />
-                        <polyline class="hp-track" points="${heptagon.front}" />
-                        <polyline id="svg-hp-${data.id}" class="hp-fill-line" points="${heptagon.front}" pathLength="100" style="stroke-dasharray: 100; stroke-dashoffset: ${100 - hpPct};" />
-                        ${data.shield > 0 ? `<polyline id="svg-shield-${data.id}" class="shield-fill-line" points="${heptagon.front}" pathLength="100" style="stroke-dasharray: 100; stroke-dashoffset: ${100 - shieldPct};" />` : ''}
-                        ${staggerHtml}
-                    </svg>
-                `;
-            }
-        }
-
-        container.innerHTML = `
-            <div class="combatant">
-                ${uiHtml}
-
-                ${isCombatant ? `
-                <div class="top-ui-panel" id="ui-panel-${data.id}" style="top: calc(60px + ${unit.uiY || 0}px); left: calc(80px + ${unit.uiX || 0}px); margin-left: ${unit.type === 'boss' ? (unit.uiX || 0) : 0}px;">
-                    <div class="speed-number">${data.speed || 0}</div>
-                    <div class="action-slots">${slotsHtml}</div>
-                </div>
-                ` : ''}
-                
-                <div class="sprite-anchor" id="anchor-${data.id}" style="bottom: ${unit.spriteY || 0}px; margin-left: ${unit.spriteX || 0}px; transform: scale(${unit.scale || 1});">
-                    <img src="${unit.current_sprite || data.img}" class="sprite-img" onerror="this.src='https://via.placeholder.com/200x200/500/fff?text=Error'">
-                </div>
-
-                <div class="floating-hp-group">
-                    <div class="name-plate">${data.name}</div>
-                    ${isCombatant ? `<div class="hp-number" id="text-hp-${data.id}">${data.hp || 0}</div>` : ''}
-                </div>
-                ${isCombatant ? `<div class="floating-sp-group sp-neutral">0</div>` : ''}
-            </div>
-        `;
-        battlefield.appendChild(container);
-        updateDepthSorting();
-
-        // Initial setup for flip if needed
-        const anchor = document.getElementById(`anchor-${data.id}`);
-        if(anchor) {
-             const scaleX = data.flipX ? -(data.scale || 1) : (data.scale || 1);
-             anchor.style.transform = `scaleX(${scaleX}) scaleY(${data.scale || 1})`;
-        }
-    }
-
-
-
-    // --- STAGGER THRESHOLD LOGIC ---
-    function calculateStaggerThresholds(armorType) {
-        if (!armorType) armorType = 'light';
-        armorType = armorType.toLowerCase();
-
-        switch (armorType) {
-            case 'heavy':
-                return [50];
-            case 'medium':
-                return [66, 33];
-            case 'light':
-            case 'none':
-            default:
-                return [75, 50, 25];
-        }
-    }
-
-    // --- FIREBASE MOCK ---
-    function fetchPlayersFromFirebaseMock() {
-        console.log("Fetching players from Firebase mock...");
-        const mockPlayers = [
-            { id: "player_1", name: "Jeske", hp: 120, maxHp: 120, armorType: "light", speed: 5, actionSlots: 1, img: "https://i.imgur.com/vSpYJg7.png", scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0 },
-            { id: "player_2", name: "Calipsys", hp: 150, maxHp: 150, armorType: "medium", speed: 4, actionSlots: 1, img: "https://i.imgur.com/NObW7pm.png", scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0 },
-            { id: "player_3", name: "Agatha", hp: 200, maxHp: 200, armorType: "heavy", speed: 2, actionSlots: 1, img: "https://i.imgur.com/24qV5kD.png", scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0 }
-        ];
-
-        // Clean up allies first for this test
-        const battlefield = document.getElementById('battlefield');
-        const currentAllies = document.querySelectorAll('.sprite-container.ally');
-        currentAllies.forEach(el => el.remove());
-
-        // Remove allies from combatData and slotTargets
-        Object.keys(combatData).forEach(key => { if(combatData[key].faction === 'ally') delete combatData[key]; });
-        Object.keys(slotTargets).forEach(key => { if(key.startsWith('ally')) delete slotTargets[key]; });
-
-        mockPlayers.forEach((p, index) => {
-            const playerData = {
-                ...p,
-                faction: 'ally',
-                x: 10 + (index * 15),
-                y: 45 + (index % 2 === 0 ? 10 : -10)
-            };
-
-            // Inyectar el arreglo en la propiedad staggerThresholds justo antes de mandar a spawnCombatant
-            playerData.staggerThresholds = calculateStaggerThresholds(playerData.armorType);
-
-            console.log(`Player ${playerData.name} armor: ${playerData.armorType}, Stagger Thresholds:`, playerData.staggerThresholds);
-            spawnCombatant(playerData);
-        });
-    }
-
-    // --- FUNCIONES DEL EDITOR GENERALIZADO ---
-    function syncInputs(src, tgt) { document.getElementById(tgt).value = document.getElementById(src).value; }
-
-        function refreshEditorDropdown() {
-        const select = document.getElementById('editor-target-select');
-        if (!select) return;
-        const currentVal = select.value;
-        select.innerHTML = '<option value="">-- Seleccionar --</option>';
-        Object.values(combatData).forEach(unit => {
-            select.innerHTML += `<option value="${unit.id}">[${unit.faction === 'ally' ? 'Aliado' : 'Enemigo'}] ${unit.name}</option>`;
-        });
-        if(combatData[currentVal]) select.value = currentVal;
-    }
-
-    function loadEntityToEditor() {
-        const targetId = document.getElementById('editor-target-select').value;
-        if (!targetId || !combatData[targetId]) return;
-        const unit = combatData[targetId];
-
-        document.getElementById('boss-scale-range').value = unit.scale || 1.0;
-        document.getElementById('boss-scale-num').value = unit.scale || 1.0;
-        document.getElementById('boss-spriteX-range').value = unit.spriteX || 0;
-        document.getElementById('boss-spriteX-num').value = unit.spriteX || 0;
-        document.getElementById('boss-spriteY-range').value = unit.spriteY || 0;
-        document.getElementById('boss-spriteY-num').value = unit.spriteY || 0;
-        document.getElementById('boss-uiX-range').value = unit.uiX || 0;
-        document.getElementById('boss-uiX-num').value = unit.uiX || 0;
-        document.getElementById('boss-uiY-range').value = unit.uiY || 0;
-        document.getElementById('boss-uiY-num').value = unit.uiY || 0;
-        document.getElementById('boss-flip-x').checked = unit.flipX || false;
-    }
-
-    function updateBossLive() {
-        const targetId = document.getElementById('editor-target-select').value;
-        if (!targetId || !combatData[targetId]) return;
-
-        const e = event.target.id;
-        if (e.includes('-range')) syncInputs(e, e.replace('-range', '-num'));
-        else if (e.includes('-num')) syncInputs(e, e.replace('-num', '-range'));
-
-        const nS = document.getElementById('boss-scale-num').value;
-        const nSX = document.getElementById('boss-spriteX-num').value;
-        const nSY = document.getElementById('boss-spriteY-num').value;
-        const nUX = document.getElementById('boss-uiX-num').value;
-        const nUY = document.getElementById('boss-uiY-num').value;
-        const nFlip = document.getElementById('boss-flip-x').checked;
-
-        combatData[targetId].scale = nS;
-        combatData[targetId].spriteX = nSX;
-        combatData[targetId].spriteY = nSY;
-        combatData[targetId].uiX = nUX;
-        combatData[targetId].uiY = nUY;
-        combatData[targetId].flipX = nFlip;
-
-        const anchor = document.getElementById(`anchor-${targetId}`);
-        const uiPanel = document.getElementById(`ui-panel-${targetId}`);
-
-        if (anchor) {
-            const scaleX = nFlip ? -nS : nS;
-            anchor.style.transform = `scaleX(${scaleX}) scaleY(${nS})`;
-            anchor.style.bottom = `${nSY}px`;
-            anchor.style.marginLeft = `${nSX}px`;
-        }
-
-        if (uiPanel) {
-            uiPanel.style.top = `calc(60px + ${nUY}px)`;
-            uiPanel.style.marginLeft = `${nUX}px`;
-        }
-    }
-
-    // --- LOGICA DE TARGETING ---
-
-    function rollEnemyTargets() {
-        const enemySlots = document.querySelectorAll('.action-slot-wrapper[data-faction="enemy"]');
-        const allySlots = document.querySelectorAll('.action-slot-wrapper[data-faction="ally"]');
-        if (allySlots.length === 0) return;
-        enemySlots.forEach(eSlot => {
-            const baseId = eSlot.id.split('_slot_')[0];
-            if (combatData[baseId] && combatData[baseId].isImmobilized) return;
-
-            const randomAlly = allySlots[Math.floor(Math.random() * allySlots.length)];
-            slotTargets[eSlot.id] = randomAlly.id;
-        });
-    }
-
-    function autoTargetAllies() {
-        const allySlotsNodes = Array.from(document.querySelectorAll('.action-slot-wrapper[data-faction="ally"]'));
-        const enemySlotsNodes = Array.from(document.querySelectorAll('.action-slot-wrapper[data-faction="enemy"]'));
-        if (enemySlotsNodes.length === 0) return;
-
-        allySlotsNodes.sort((a, b) => combatData[b.id.split('_slot_')[0]].speed - combatData[a.id.split('_slot_')[0]].speed);
-        let availableEnemies = [...enemySlotsNodes];
-
-        allySlotsNodes.forEach(ally => {
-            const baseId = ally.id.split('_slot_')[0];
-            if (isTraitActionSlotReserved(ally.id)) return;
-            if (combatData[baseId] && combatData[baseId].isImmobilized) return;
-
-            let allyId = ally.id; let targetId = null;
-            let directAttacker = enemySlotsNodes.find(e => slotTargets[e.id] === allyId);
-            if (directAttacker) { targetId = directAttacker.id; } 
-            else {
-                let allySpeed = combatData[allyId.split('_slot_')[0]].speed;
-                let interceptable = availableEnemies.find(e => {
-                    let enemyTargetingSomeoneElse = slotTargets[e.id] && slotTargets[e.id].startsWith('ally');
-                    let amIFaster = allySpeed > combatData[e.id.split('_slot_')[0]].speed;
-                    return enemyTargetingSomeoneElse && amIFaster;
-                });
-                if (interceptable) { targetId = interceptable.id; } 
-                else {
-                    if (availableEnemies.length > 0) targetId = availableEnemies[0].id;
-                    else targetId = enemySlotsNodes[Math.floor(Math.random() * enemySlotsNodes.length)].id;
-                }
-            }
-            if (targetId) {
-                slotTargets[allyId] = targetId;
-                availableEnemies = availableEnemies.filter(e => e.id !== targetId);
-            }
-        });
-    }
-
-    function drawArcs() {
-        const svgLayer = document.getElementById('targeting-layer');
-        if(!svgLayer) return;
-        const defsHtml = `
-            <defs>
-                <marker id="arrow-enemy" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#ff3333" /></marker>
-                <marker id="arrow-ally" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#ffe877" /></marker>
-            </defs>
-        `;
-        let linesHtml = '';
-        let consumedEnemySlots = new Set(); let drawnClashes = new Set(); let unilateralAttacks = [];
-        
-        let activeAllies = Object.keys(slotTargets).filter(id => id.startsWith('ally'));
-        activeAllies.sort((a, b) => combatData[b.split('_slot_')[0]].speed - combatData[a.split('_slot_')[0]].speed);
-
-        for (let allySlot of activeAllies) {
-            let enemySlot = slotTargets[allySlot]; if (!enemySlot) continue;
-            let allySpeed = combatData[allySlot.split('_slot_')[0]].speed; let enemySpeed = combatData[enemySlot.split('_slot_')[0]].speed;
-            let isDirectTarget = (slotTargets[enemySlot] === allySlot);
-            let isFaster = (allySpeed > enemySpeed);
-
-            if ((isDirectTarget || isFaster) && !consumedEnemySlots.has(enemySlot)) {
-                drawnClashes.add(allySlot); consumedEnemySlots.add(enemySlot);
-                const rectA = document.getElementById(allySlot).getBoundingClientRect();
-                const rectE = document.getElementById(enemySlot).getBoundingClientRect();
-                const x1 = rectA.left + rectA.width / 2; const y1 = rectA.top + rectA.height / 2;
-                const x2 = rectE.left + rectE.width / 2; const y2 = rectE.top + rectE.height / 2;
-                const cx = (x1 + x2) / 2; const cy = Math.min(y1, y2) - Math.abs(x1 - x2) * 0.3 - 50;
-                const p01x = (x1 + cx) / 2; const p01y = (y1 + cy) / 2;
-                const p12x = (cx + x2) / 2; const p12y = (cy + y2) / 2;
-                const midX = (p01x + p12x) / 2; const midY = (p01y + p12y) / 2;
-
-                linesHtml += `<path class="arc-ally" d="M ${x1} ${y1} Q ${p01x} ${p01y} ${midX} ${midY}" marker-end="url(#arrow-ally)" />`;
-                linesHtml += `<path class="arc-enemy" d="M ${x2} ${y2} Q ${p12x} ${p12y} ${midX} ${midY}" marker-end="url(#arrow-enemy)" />`;
-            } else {
-                unilateralAttacks.push({ from: allySlot, to: enemySlot, type: 'ally' });
-            }
-        }
-
-        let activeEnemies = Object.keys(slotTargets).filter(id => id.startsWith('enemy'));
-        for (let enemySlot of activeEnemies) {
-            if (consumedEnemySlots.has(enemySlot)) continue; 
-            let targetSlot = slotTargets[enemySlot];
-            if (targetSlot) unilateralAttacks.push({ from: enemySlot, to: targetSlot, type: 'enemy' });
-        }
-
-        for (let attack of unilateralAttacks) {
-            const startNode = document.getElementById(attack.from); const targetNode = document.getElementById(attack.to);
-            if(!startNode || !targetNode) continue;
-            const rectS = startNode.getBoundingClientRect(); const rectT = targetNode.getBoundingClientRect();
-            const x1 = rectS.left + rectS.width / 2; const y1 = rectS.top + rectS.height / 2;
-            const x2 = rectT.left + rectT.width / 2; const y2 = rectT.top + rectT.height / 2;
-            const controlX = (x1 + x2) / 2; const controlY = Math.min(y1, y2) - Math.abs(x1 - x2) * 0.3 - 50;
-            const lineClass = attack.type === 'enemy' ? "arc-enemy" : "arc-ally";
-            const markerRef = attack.type === 'enemy' ? "url(#arrow-enemy)" : "url(#arrow-ally)";
-            linesHtml += `<path class="${lineClass}" d="M ${x1} ${y1} Q ${controlX} ${controlY} ${x2} ${y2}" marker-end="${markerRef}" />`;
-        }
-
-        if (isDragging && dragStartSlotId) {
-            const startNode = document.getElementById(dragStartSlotId);
-            if (startNode) {
-                const rectA = startNode.getBoundingClientRect();
-                const x1 = rectA.left + rectA.width / 2; const y1 = rectA.top + rectA.height / 2;
-                const controlX = (x1 + dragCurrentX) / 2; const controlY = Math.min(y1, dragCurrentY) - Math.abs(x1 - dragCurrentX) * 0.3 - 50;
-                linesHtml += `<path class="arc-ally" d="M ${x1} ${y1} Q ${controlX} ${controlY} ${dragCurrentX} ${dragCurrentY}" marker-end="url(#arrow-ally)" />`;
-            }
-        }
-        svgLayer.innerHTML = defsHtml + linesHtml;
-    }
-
-    function initDragAndDrop() {
-        const container = document.getElementById('game-container');
-        function getPointerCoords(e) { if (e.touches && e.touches.length > 0) return { x: e.touches[0].clientX, y: e.touches[0].clientY }; return { x: e.clientX, y: e.clientY }; }
-        function handleDragStart(e) {
-            const slot = e.target.closest('.action-slot-wrapper');
-            if (slot && slot.dataset.faction === 'ally') {
-                const baseId = slot.id.split('_slot_')[0];
-                if (isTraitActionSlotReserved(slot.id)) {
-                    addLogEntry(`[ ACTION SLOT ] - ${combatData[baseId]?.name || baseId} ya reservó este Slot para una Trait.`, 'interrupt');
-                    return;
-                }
-                if (combatData[baseId] && combatData[baseId].isImmobilized) {
-                    addLogEntry(`[ INMOVILIZADO ] - ${combatData[baseId].name} no puede asignar objetivos.`, 'interrupt');
-                    return;
-                }
-                isDragging = true; dragStartSlotId = slot.id;
-                const coords = getPointerCoords(e); dragCurrentX = coords.x; dragCurrentY = coords.y;
-            }
-        }
-        function handleDragMove(e) {
-            if (!isDragging) return;
-            const coords = getPointerCoords(e); dragCurrentX = coords.x; dragCurrentY = coords.y;
-        }
-
-        function handleDragEnd(e) {
-            if (!isDragging) return;
-            let coords = null;
-            if (e.changedTouches && e.changedTouches.length > 0) coords = { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
-            else coords = { x: e.clientX, y: e.clientY };
-            
-            let dropTarget = document.elementFromPoint(coords.x, coords.y);
-            let enemySlot = null;
-            
-            if (dropTarget) {
-                if (dropTarget.closest('.action-slot-wrapper[data-faction="enemy"]')) { enemySlot = dropTarget.closest('.action-slot-wrapper'); } 
-                else {
-                    let container = dropTarget.closest('.sprite-container.enemy');
-                    if (container) enemySlot = container.querySelector('.action-slot-wrapper');
-                }
-            }
-            if (enemySlot) {
-                // Step 2: Open Matrix instead of direct assignment
-                openTargetingMatrix(dragStartSlotId, enemySlot.id);
-            }
-            else {
-                delete slotTargets[dragStartSlotId];
-                // Also clear from db if needed
-                if(db && db.ref) db.ref('campaña/combate/slotTargets/' + dragStartSlotId).remove().catch(()=>{});
-            }
-            isDragging = false;
-            // We don't reset dragStartSlotId yet because the matrix needs it
-            drawArcs(); // clean up drawing
-        }
-
-        container.addEventListener('mousedown', handleDragStart); container.addEventListener('mousemove', handleDragMove); window.addEventListener('mouseup', handleDragEnd);
-        container.addEventListener('touchstart', handleDragStart, {passive: false}); container.addEventListener('touchmove', handleDragMove, {passive: false}); window.addEventListener('touchend', handleDragEnd);
-    }
-
-
-
-    function addLogEntry(text, type = 'normal') {
-        const terminal = document.getElementById('combat-log-terminal');
-        const div = document.createElement('div');
-        div.className = 'log-entry ' + type;
-        div.innerText = `> ${text}`;
-        terminal.appendChild(div);
-        terminal.scrollTop = terminal.scrollHeight;
-    }
-
-    // --- ESCUCHA DE EVENTOS LOGCOMBATE ---
-    window.addEventListener('logCombate', function(e) {
-        if (!e.detail) return;
-        const { tipo, mensaje, data } = e.detail;
-
-        // Mapear tipo a clase CSS brutalista
-        let cssClass = 'normal';
-        if (tipo === 'clash_result') cssClass = 'clash-result';
-        if (tipo === 'interrupt') cssClass = 'interrupt';
-        if (tipo === 'damage') cssClass = 'damage';
-        if (tipo === 'flank') cssClass = 'flank';
-
-        let formattedMessage = mensaje;
-        if (data) {
-            let dataArr = [];
-            if (data.clashCount !== undefined) dataArr.push(`Clashes: ${data.clashCount}`);
-            if (data.bonoPorcentaje !== undefined) dataArr.push(`Bono: +${data.bonoPorcentaje}%`);
-            if (data.spGanado !== undefined) dataArr.push(`SP: +${data.spGanado}`);
-            if (dataArr.length > 0) {
-                formattedMessage += ` [ ${dataArr.join(' | ')} ]`;
-            }
-        }
-
-        addLogEntry(formattedMessage, cssClass);
-    });
-
-
-
-
-    // --- TIMELINE DE EJECUCIÓN (Flanqueo y Movimiento) ---
-    async function executeCombatTimeline() {
-        // Pressing Execute is the authoritative Planning -> Combat transition for this timeline.
-        syncCombatEnginePhase('COMBAT_ACTIVE');
-        try {
-            await db.ref(COMBAT_STATE_PATH).set('COMBAT_ACTIVE');
-        } catch (error) {
-            console.error('No se pudo sincronizar COMBAT_ACTIVE en Firebase:', error);
-        }
-
-        addLogEntry('--- INICIANDO FASE DE RESOLUCIÓN ---', 'interrupt');
-
-        // Colectar todos los slots que van a actuar
-        // Para simplificar, iteramos sobre los atacantes (aliados) registrados en attackVectors
-
-        let actingSlots = [...new Set([...Object.keys(attackVectors), ...collectPlannedActionSlotIds()])];
-        if (actingSlots.length === 0) {
-            addLogEntry('NO HAY ACCIONES REGISTRADAS.');
-            return;
-        }
-
-        // Ordenar por velocidad (descendente)
-        actingSlots.sort((a, b) => combatData[b.split('_slot_')[0]].speed - combatData[a.split('_slot_')[0]].speed);
-
-        // Registrar qué unidades ya actuaron para validar desincronización
-        let resolvedSlots = new Set();
-
-        // Loop secuencial
-        for (let attackerSlotId of actingSlots) {
-            const attackerBaseId = attackerSlotId.split('_slot_')[0];
-            const attackerUnit = combatData[attackerBaseId];
-            if (!attackerUnit) continue;
-
-            if (attackerUnit.isImmobilized) {
-                addLogEntry(`[ INMOVILIZADO ] - ${attackerUnit.name} no puede actuar este turno.`, 'interrupt');
-                continue;
-            }
-
-            const slotIndex = Number(attackerSlotId.split('_slot_')[1]);
-            const sharedAction = Number.isInteger(slotIndex) ? getSharedPlannedAction(attackerBaseId, slotIndex) : null;
-            const sharedOwnerPlayerId = sharedAction?.__ownerPlayerId || null;
-            if (sharedAction?.status === 'planned' && sharedOwnerPlayerId && !attackVectors[attackerSlotId] && typeof CombatEngine.resolveActionSlot === 'function') {
-                let claimed = null;
-                try { claimed = await claimSharedPlannedAction(sharedOwnerPlayerId, slotIndex); } catch (error) { console.error('No se pudo reclamar el Action Slot compartido:', error); }
-                if (claimed && String(claimed.scheduledBy || '') === String(sharedOwnerPlayerId)) {
-                    const plannedResolution = CombatEngine.resolveActionSlot(attackerUnit, slotIndex, { phase: 'combat', combatData, attackerSlotId, plannedAction: claimed });
-                    try { await finishSharedPlannedAction(sharedOwnerPlayerId, slotIndex, plannedResolution); } catch (error) { console.error('No se pudo cerrar el Action Slot compartido:', error); }
-                    const actionName = plannedResolution?.result?.trait?.name || claimed?.traitId || 'Trait';
-                    if (plannedResolution?.result?.available) addLogEntry(`[ ACTION ] - ${attackerUnit.name}: ${actionName}`);
-                    else addLogEntry(`[ ACTION FAILED ] - ${attackerUnit.name}: ${actionName}`, 'interrupt');
-                    resolvedSlots.add(attackerSlotId);
-                    continue;
-                }
-            }
-
-            const vector = attackVectors[attackerSlotId];
-            if (!vector?.target) {
-                resolvedSlots.add(attackerSlotId);
-                continue;
-            }
-            const targetSlotId = vector.target;
-            const targetBaseId = targetSlotId.split('_slot_')[0];
-            const targetUnit = combatData[targetBaseId];
-            if (!targetUnit) {
-                resolvedSlots.add(attackerSlotId);
-                continue;
-            }
-
-            addLogEntry(`${attackerUnit.name} se mueve hacia ${targetUnit.name}...`);
-
-            // 1. Evaluar Flanqueo Activo (Sincronización Cerebral)
-            // Revisamos si algún otro aliado que está targeteando al mismo enemigo
-            // está en una posición diametralmente opuesta.
-            let flankingPartnerSlot = null;
-            let flankingBonus = 0;
-
-            if (matrixOccupancy[targetSlotId]) {
-                const myCoords = matrixOccupancy[targetSlotId].find(c => c.attackerSlotId === attackerSlotId);
-                if (myCoords) {
-                    for (let other of matrixOccupancy[targetSlotId]) {
-                        if (other.attackerSlotId !== attackerSlotId) {
-                            // Check using combatEngine evaluateFlanking logic
-                            // evaluateFlanking expects: attackerCoords, allyCoords, targetCoords (0,0 relative)
-                            const isFlanking = CombatEngine.evaluateFlanking(
-                                {x: myCoords.x, y: myCoords.y},
-                                {x: other.x, y: other.y},
-                                {x: 0, y: 0}
-                            );
-
-                            if (isFlanking) {
-                                flankingPartnerSlot = other.attackerSlotId;
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (flankingPartnerSlot) {
-                // Partner found! Let's check Interrupt Conditions
-                let partnerBaseId = flankingPartnerSlot.split('_slot_')[0];
-                let partnerUnit = combatData[partnerBaseId];
-
-                // Condición 2: Desincronización. El compañero resolvió su ataque antes que yo.
-                if (resolvedSlots.has(flankingPartnerSlot)) {
-                    addLogEntry(`[ INTERRUPT ] - Desincronización. ${partnerUnit.name} resolvió su ataque prematuramente. Flanqueo roto.`, 'interrupt');
-                }
-                // Condición 1 (Simulada): Daño recibido en tránsito.
-                // En un motor real, evaluaríamos interceptaciones. Aquí usamos una probabilidad condicional
-                // para demostrar la lógica del interrupt en la UI/Log si un enemigo rápido targetea al atacante.
-                else {
-                    let intercepted = false;
-                    let interceptorName = null;
-                    // Detect if an enemy targeted this ally and is faster (simulated intercept)
-                    const enemySlots = Object.keys(slotTargets).filter(k => k.startsWith('enemy'));
-                    for(let eSlot of enemySlots) {
-                        if(slotTargets[eSlot] === attackerSlotId && combatData[eSlot.split('_slot_')[0]].speed > attackerUnit.speed) {
-                            intercepted = true;
-                            interceptorName = combatData[eSlot.split('_slot_')[0]].name;
-                            break;
-                        }
-                    }
-
-                    if(intercepted) {
-                         addLogEntry(`[ INTERRUPT ] - ${attackerUnit.name} recibió daño de ${interceptorName} en tránsito. Flanqueo roto.`, 'interrupt');
-                    } else {
-                         flankingBonus = 2;
-                         addLogEntry(`[ FLANQUEO DETECTADO ] - ${attackerUnit.name} y ${partnerUnit.name} posicionados en ejes diametrales (+2 Power).`, 'flank');
-                    }
-                }
-            }
-
-            // 2. Transición Visual (Mover el sprite a la matriz del objetivo)
-            const spriteNode = document.getElementById(`token-${attackerUnit.id}`);
-            const targetNode = document.getElementById(`token-${targetUnit.id}`);
-
-            if (spriteNode && targetNode) {
-                // Posición original
-                const origLeft = spriteNode.style.left;
-                const origBottom = spriteNode.style.bottom;
-
-                // Calcular destino (simplificado: cerca del objetivo)
-                const tX = parseFloat(targetNode.style.left);
-                const tY = parseFloat(targetNode.style.bottom);
-
-                // Añadir un pequeño offset visual basado en el vector elegido para que se note
-                const myCoords = matrixOccupancy[targetSlotId].find(c => c.attackerSlotId === attackerSlotId);
-                const offsetX = myCoords ? myCoords.x * 3 : 0;
-                const offsetY = myCoords ? myCoords.y * -3 : 0; // - because bottom is inverted
-
-                spriteNode.style.left = `calc(${tX}% + ${offsetX}%)`;
-                spriteNode.style.bottom = `calc(${tY}% + ${offsetY}%)`;
-                spriteNode.style.zIndex = 3000; // Bring to front
-
-                // Simular el choque (delay)
-                await new Promise(r => setTimeout(r, 800));
-
-                // Retornar a la posición original
-                spriteNode.style.left = origLeft;
-                spriteNode.style.bottom = origBottom;
-                updateDepthSorting();
-
-                await new Promise(r => setTimeout(r, 300));
-            }
-
-            // Registrar como resuelto
-            resolvedSlots.add(attackerSlotId);
-        }
-
-        addLogEntry('--- FASE DE RESOLUCIÓN COMPLETADA ---', 'interrupt');
-        // Clear vectors for next round (optional, usually requires a new turn init)
-    }
-
-
-    // --- TARGETING MATRIX LOGIC ---
-    let pendingAttackerSlotId = null;
-    let pendingTargetSlotId = null;
-
-    // Store matrix choices: { targetSlotId: { x, y, attackerSlotId } }
-    let matrixOccupancy = {};
-
-    // For storing chosen vectors to be sent to slotTargets (which we format as targetId_x_y later or just use a separate registry)
-    let attackVectors = {};
-
-    function openTargetingMatrix(attackerSlotId, targetSlotId) {
-        pendingAttackerSlotId = attackerSlotId;
-        pendingTargetSlotId = targetSlotId;
-
-        const targetBaseId = targetSlotId.split('_slot_')[0];
-        const targetUnit = combatData[targetBaseId];
-        const size = targetUnit.escala_matriz || 3;
-
-        const overlay = document.getElementById('matrix-overlay');
-        const container = document.getElementById('matrix-container');
-
-        container.style.gridTemplateColumns = `repeat(${size}, 60px)`;
-        container.innerHTML = '';
-
-        const centerOffset = Math.floor(size / 2);
-
-        // Initialize occupancy tracking for this target if not exists
-        if (!matrixOccupancy[targetSlotId]) matrixOccupancy[targetSlotId] = [];
-
-        for (let y = 0; y < size; y++) {
-            for (let x = 0; x < size; x++) {
-                let cell = document.createElement('div');
-                cell.className = 'matrix-cell';
-
-                // Coordinates relative to center
-                let relX = x - centerOffset;
-                let relY = y - centerOffset;
-
-                if (relX === 0 && relY === 0) {
-                    cell.classList.add('center');
-                    cell.innerText = 'TARGET';
-                } else {
-                    // Check if occupied
-                    const isOccupied = matrixOccupancy[targetSlotId].find(c => c.x === relX && c.y === relY);
-
-                    if (isOccupied) {
-                        cell.classList.add('occupied');
-                        // If occupied by myself, allow re-clicking to clear or highlight? Keep it simple, just blocked.
-                        if (isOccupied.attackerSlotId === attackerSlotId) {
-                            cell.style.borderColor = '#0f0'; // indicate own slot
-                        }
-                    } else {
-                        cell.classList.add('periphery');
-                        cell.onclick = () => selectMatrixCell(relX, relY);
-                    }
-                }
-
-                container.appendChild(cell);
-            }
-        }
-
-        overlay.style.display = 'flex';
-    }
-
-    function selectMatrixCell(x, y) {
-        const attackerId = pendingAttackerSlotId;
-        const targetId = pendingTargetSlotId;
-        if (!attackerId || isTraitActionSlotReserved(attackerId)) {
-            if (attackerId) addLogEntry('[ ACTION SLOT ] - Ese Slot está reservado para una Trait.', 'interrupt');
-            closeTargetingMatrix();
-            return;
-        }
-
-        // Clear previous selection by this attacker on this target if any
-        if (matrixOccupancy[targetId]) {
-            matrixOccupancy[targetId] = matrixOccupancy[targetId].filter(c => c.attackerSlotId !== attackerId);
-        } else {
-            matrixOccupancy[targetId] = [];
-        }
-
-        // Register new choice
-        matrixOccupancy[targetId].push({ x, y, attackerSlotId: attackerId });
-
-        // Register the overall target
-        slotTargets[attackerId] = targetId;
-
-        // Register the specific vector for execution
-        attackVectors[attackerId] = { target: targetId, x: x, y: y };
-
-        // Sync to firebase if needed
-        if(db && db.ref) db.ref('campaña/combate/slotTargets').update({[attackerId]: targetId}).catch(()=>{});
-
-        closeTargetingMatrix();
-        drawArcs();
-    }
-
-    function closeTargetingMatrix() {
-        document.getElementById('matrix-overlay').style.display = 'none';
-        pendingAttackerSlotId = null;
-        pendingTargetSlotId = null;
-        dragStartSlotId = null; // Clear drag state completely
-    }
-
-
-    // --- DESPLIEGUE HORDA 7v7 ---
-        function deploy7v7() {
-        document.getElementById('battlefield').innerHTML = '';
-        combatData = {}; slotTargets = {};
-
-        let allies = []; let enemies = [];
-        for(let i = 0; i < 7; i++) {
-            allies.push({ 
-                id: 'ally_' + i, name: customSinners[i].name, faction: 'ally', speed: Math.floor(Math.random() * 6) + 1, 
-                hp: 216, maxHp: 216, actionSlots: 1, armorType: 'medium', escala_matriz: 3, ...customSinners[i]
-            });
-            enemies.push({ 
-                id: 'enemy_' + i, name: 'Hooligan ' + (i+1), faction: 'enemy', speed: Math.floor(Math.random() * 6) + 1, 
-                hp: 145, maxHp: 145, actionSlots: 1, armorType: 'light', escala_matriz: 3, img: 'https://limbuscompany.wiki.gg/images/8/87/Head_Hooligan_Idle_Sprite.png',
-                scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0 
-            });
-        }
-
-        allies.sort((a, b) => a.speed - b.speed);
-        enemies.sort((a, b) => a.speed - b.speed);
-
-        // Distribution algorithm: Speed Topology
-        // Slowest near center (X=50), Fastest towards edges (X=10 and X=90)
-        // Allies X: 40% (slowest) to 10% (fastest)
-        // Enemies X: 60% (slowest) to 90% (fastest)
-        // Y staggered (45 +- 10)
-
-        const allyCount = allies.length;
-        allies.forEach((unit, index) => {
-            // index 0 is slowest, index allyCount-1 is fastest
-            // map index 0 -> 40%, index max -> 10%
-            let fraction = allyCount > 1 ? (index / (allyCount - 1)) : 0.5;
-            unit.x = 40 - (fraction * 30); // 40 to 10
-            unit.y = 45 + (index % 2 === 0 ? 10 : -10);
-            unit.staggerThresholds = calculateStaggerThresholds(unit.armorType);
-            spawnCombatant(unit);
-        });
-
-        const enemyCount = enemies.length;
-        enemies.forEach((unit, index) => {
-            let fraction = enemyCount > 1 ? (index / (enemyCount - 1)) : 0.5;
-            unit.x = 60 + (fraction * 30); // 60 to 90
-            unit.y = 45 + (index % 2 === 0 ? 10 : -10);
-            unit.staggerThresholds = calculateStaggerThresholds(unit.armorType);
-            spawnCombatant(unit);
-        });
-        
-        setTimeout(rollEnemyTargets, 500);
-    }
-
-    function deployBossFight() {
-        document.getElementById('battlefield').innerHTML = '';
-        combatData = {}; slotTargets = {};
-        const bossEditor = document.getElementById('boss-editor-panel');
-        if (bossEditor) bossEditor.style.display = 'block';
-
-        let allies = [];
-        for(let i = 0; i < 7; i++) {
-            allies.push({ 
-                id: 'ally_' + i, name: customSinners[i].name, faction: 'ally', speed: Math.floor(Math.random() * 6) + 1, 
-                hp: 216, maxHp: 216, actionSlots: 1, armorType: 'medium', escala_matriz: 3, ...customSinners[i]
-            });
-        }
-        
-        allies.sort((a, b) => a.speed - b.speed);
-
-        const allyCount = allies.length;
-        allies.forEach((unit, index) => {
-            let fraction = allyCount > 1 ? (index / (allyCount - 1)) : 0.5;
-            unit.x = 40 - (fraction * 30); // 40 to 10
-            unit.y = 45 + (index % 2 === 0 ? 10 : -10);
-            unit.staggerThresholds = calculateStaggerThresholds(unit.armorType);
-            spawnCombatant(unit);
-        });
-
-        const bossData = { 
-            id: 'enemy_boss', name: "Distortion Faust", type: 'boss', faction: 'enemy', speed: 8, 
-            hp: 1500, maxHp: 1500, armorType: 'heavy', actionSlots: 7, escala_matriz: 5, img: 'https://i.imgur.com/URvF0s1.png',
-            x: 75, y: 45, scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0
-        };
-        bossData.staggerThresholds = calculateStaggerThresholds(bossData.armorType);
-        spawnCombatant(bossData);
-        
-                refreshEditorDropdown();
-        const editorTargetSelect = document.getElementById('editor-target-select');
-        if (editorTargetSelect) {
-            editorTargetSelect.value = 'enemy_boss';
-            loadEntityToEditor();
-        }
-
-        setTimeout(rollEnemyTargets, 500);
-    }
-
-function renderLoop() { drawArcs(); requestAnimationFrame(renderLoop); }
-
-    // --- FIREBASE SYNC LÓGICA ---
-    let dbCombatData = {};
-    let dbSlotTargets = {};
-    let dbCombatSettings = {};
-    let activeDragRef = null;
-
-    function initFirebaseCombat() {
-        // Firebase is the production source of truth for Planning vs Combat Phase.
-        db.ref(COMBAT_STATE_PATH).on('value', snap => {
-            syncCombatEnginePhase(snap.val());
-        });
-
-        // Shared Planning is authoritative across every player and the DM viewer.
-        db.ref(SHARED_PLANNED_ACTIONS_PATH).on('value', snap => { sharedPlannedActions = snap.val() || {}; });
-
-        // Escuchar datos de los combatientes
-        db.ref('campaña/combate/combatants').on('value', snap => {
-            const data = snap.val() || {};
-            dbCombatData = data;
-
-            // Re-render
-            const battlefield = document.getElementById('battlefield');
-            battlefield.innerHTML = '';
-            combatData = {}; // Clear local combat data cache
-
-            // Re-spawn each combatant based on db
-            Object.values(dbCombatData).forEach(unit => {
-                spawnCombatant(unit);
-            });
-            // Initial Firebase callbacks can arrive in either order. Re-apply the already-known
-            // phase to newly materialized Unit objects without resetting existing planned actions.
-            if (luminousCombatPhaseState) syncCombatEnginePhase(luminousCombatPhaseState);
-            drawArcs();
-        });
-
-        // Escuchar configuración (Grid)
-        db.ref('campaña/combate/settings').on('value', snap => {
-            const settings = snap.val() || {};
-            dbCombatSettings = settings;
-
-            if (settings.showGrid) {
-                document.getElementById('floor-grid').classList.add('active');
-            } else {
-                document.getElementById('floor-grid').classList.remove('active');
-            }
-        });
-
-        // Escuchar los slotTargets
-        db.ref('campaña/combate/slotTargets').on('value', snap => {
-            slotTargets = snap.val() || {};
-            drawArcs();
-        });
-    }
-
-    window.onload = () => { initFirebaseCombat(); initDragAndDrop(); renderLoop(); };
+    ensureFrame(animate&&!host.classList.contains('round-running')?140:0)
+  });
+  webglMutationObserver.observe(host,{subtree:true,childList:true,attributes:true,attributeFilter:['class','style','src','d','cx','cy']});
+  const webglResizeObserver=typeof ResizeObserver==='function'?new ResizeObserver(()=>ensureFrame(120)):null;
+  webglResizeObserver?.observe(host);if(field!==host)webglResizeObserver?.observe(field);
+  window.addEventListener('resize',()=>ensureFrame(180),{passive:true});
+  window.addEventListener('orientationchange',()=>ensureFrame(220),{passive:true});
+  document.addEventListener('visibilitychange',()=>{syncSurfaceActive();if(surfaceActive)ensureFrame(100)});
+  bindParentVisibility();surfaceActive=readSurfaceActive();
+
+  host.dataset.webglSpriteMode=domSpriteMode?'dom-hybrid':'webgl';
+  host.dataset.webglQuality=lowPowerDevice?'low-power':'full';
+  host.classList.add('webgl2-renderer-ready');
+  ensureFrame();`;
+    const webglApiNeedle="version:'0.8.0',";
+    const webglApiPatch="version:'0.8.3-review-fixes',requestRender:ensureFrame,renderMode:()=>rafId?'active':'idle',renderDpr:()=>dpr,spriteMode:()=>domSpriteMode?'dom-hybrid':'webgl',qualityMode:()=>lowPowerDevice?'low-power':'full',surfaceActive:()=>surfaceActive,";
+    const webglNeedles=[webglStateNeedle,webglResizeNeedle,webglTextureCacheNeedle,webglBackgroundNeedle,webglSpriteNeedle,webglRenderSpritesNeedle,webglIntentNeedle,webglBurstNeedle,webglParticleRaysNeedle,webglFrameNeedle,webglApiNeedle];
+    if(webglNeedles.some(needle=>!html.includes(needle)))throw new Error("COMBAT_WEBGL_PERF_PATCH_MISSING");
+    html=html.replace(webglStateNeedle,webglStatePatch)
+      .replace(webglResizeNeedle,webglResizePatch)
+      .replace(webglTextureCacheNeedle,webglTextureCachePatch)
+      .replace(webglBackgroundNeedle,webglBackgroundPatch)
+      .replace(webglSpriteNeedle,webglSpritePatch)
+      .replace(webglRenderSpritesNeedle,webglRenderSpritesPatch)
+      .replace(webglIntentNeedle,webglIntentPatch)
+      .replace(webglBurstNeedle,webglBurstPatch)
+      .replace(webglParticleRaysNeedle,webglParticleRaysPatch)
+      .replace(webglFrameNeedle,webglFramePatch)
+      .replace(webglApiNeedle,webglApiPatch);
+
+    html=html.replace("</body>",'<script src="js/combat-v073-plan-sync.js"><\/script><script src="js/combat-v073-remote-intents.js"><\/script><script src="js/combat-v073-camera-controls.js"><\/script><script src="js/combat-v073-dm-setup.js"><\/script><script src="js/combat-v073-speed-authority.js"><\/script><script src="js/combat-v073-dm-observer.js"><\/script></body>');
+    document.open();document.write(html);document.close();
+  }catch(error){
+    console.error("[Luminous Combat Bootstrap]",error);
+    const boot=document.getElementById("boot");
+    if(boot)boot.textContent=`Combat failed to load: ${error?.message||error}`;
+  }
+})();
 </script>
 </body>
 </html>

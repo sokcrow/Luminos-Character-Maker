@@ -216,9 +216,8 @@
   if (global.document && !global.LuminousElementalStatusCompatibility) loadScript("elemental-status-compat-script", "js/elemental-status-compat.js");
   if (global.document && !global.LuminousRacialTraitRuntimeBridge) loadScript("racial-trait-runtime-bridge-script", "js/racial-trait-runtime-bridge.js");
   if (global.document && !global.LuminousSpellcastingRuntime) loadScript("spellcasting-runtime-script", "js/spellcasting-runtime.js");
-  if (global.document && !global.LuminousBardClassRuntime) loadScript("bard-class-runtime-script", "js/bard-class-runtime.js");
+  if (global.document && !global.LuminousClassRuntimeBootstrap) loadScript("class-runtime-bootstrap-script", "js/class-runtime-bootstrap.js");
 
-  if (global.document && !global.LuminousArchetypeRuntime) loadScript("player-archetype-runtime-script", "js/player-archetype-runtime.js");
   if (global.document && !global.LuminousArchetypeCombatEventRuntime) loadScript("archetype-combat-event-runtime-script", "js/archetype-combat-event-runtime.js");
   if (global.document && !global.LuminousDeathSaveRuntime) loadScript("death-save-runtime-script", "js/death-save-runtime.js");
 

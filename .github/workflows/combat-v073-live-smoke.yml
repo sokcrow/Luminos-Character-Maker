@@ -1,0 +1,98 @@
+name: Combat v0.7.3 Live Cutover Smoke
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'Battle-viewer.html'
+      - 'combat/**'
+      - 'database.rules.json'
+      - 'js/combat-v073-live-adapter.js'
+      - 'js/combat-v073-plan-sync.js'
+      - 'js/combat-v073-economy-menu.js'
+      - 'js/combat-v073-economy-review-fixes.js'
+      - 'js/combat-v073-remote-intents.js'
+      - 'js/combat-v073-library-client.js'
+      - 'js/combat-v073-authority.js'
+      - 'js/universal-library-runtime.js'
+      - 'js/combat-v073-camera-controls.js'
+      - 'js/combat-v073-dm-setup.js'
+      - 'js/combat-v073-speed-authority.js'
+      - 'js/combat-v073-dm-observer.js'
+      - 'js/combat-unit-library-sync.js'
+      - 'js/combat-v073-unit-deploy-bridge.js'
+      - 'js/unit-combat-instantiator.js'
+      - 'js/skill-catalog-goblin-tier1.js'
+      - 'js/unit-catalog-goblin.js'
+      - 'js/goblin-unit-runtime.js'
+      - 'js/dm-combat-tab-manager.js'
+      - 'tests/combat-v073-live-cutover-smoke.mjs'
+      - 'tests/combat-v073-dm-editor-smoke.mjs'
+      - 'tests/dm-combat-unit-library-real-ui-smoke.mjs'
+      - 'tests/combat-v073-speed-persistence-smoke.mjs'
+      - 'tests/combat-v073-dm-observer-smoke.mjs'
+      - 'tests/combat-v073-limbus-facing-runtime-smoke.mjs'
+      - 'tests/combat-v073-player-renderer-performance-smoke.mjs'
+      - 'tests/combat-v073-theatre-isolation-smoke.mjs'
+      - 'tests/combat-v073-live-sync-hotfix-smoke.mjs'
+      - 'tests/combat-v073-economy-menu-smoke.mjs'
+      - 'tests/unit-combat-instantiator-smoke.mjs'
+      - 'tests/universal-library-authority-smoke.mjs'
+      - '.github/workflows/combat-v073-live-smoke.yml'
+
+jobs:
+  live-cutover-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Adapter syntax
+        run: |
+          node --check js/combat-v073-live-adapter.js
+          node --check js/combat-v073-plan-sync.js
+          node --check js/combat-v073-economy-menu.js
+          node --check js/combat-v073-economy-review-fixes.js
+          node --check js/combat-v073-remote-intents.js
+          node --check js/combat-v073-library-client.js
+          node --check js/combat-v073-authority.js
+          node --check js/universal-library-runtime.js
+          node --check js/combat-v073-camera-controls.js
+          node --check js/combat-v073-dm-setup.js
+          node --check js/combat-v073-speed-authority.js
+          node --check js/combat-v073-dm-observer.js
+          node --check js/combat-unit-library-sync.js
+          node --check js/combat-v073-unit-deploy-bridge.js
+          node --check js/unit-combat-instantiator.js
+          node --check js/skill-catalog-goblin-tier1.js
+          node --check js/unit-catalog-goblin.js
+          node --check js/goblin-unit-runtime.js
+          node --check js/dm-combat-tab-manager.js
+      - name: Canonical v0.7.3 cutover contract
+        run: node tests/combat-v073-live-cutover-smoke.mjs
+      - name: DM Combat Library and field setup contract
+        run: node tests/combat-v073-dm-editor-smoke.mjs
+      - name: DM Unit Library real UI empty-Firebase runtime
+        run: node tests/dm-combat-unit-library-real-ui-smoke.mjs
+      - name: Live sync, camera and canonical library hotfix contract
+        run: node tests/combat-v073-live-sync-hotfix-smoke.mjs
+      - name: Unit Library to FIELD instantiation contract
+        run: node tests/unit-combat-instantiator-smoke.mjs
+      - name: Universal Library and authoritative Combat contract
+        run: node tests/universal-library-authority-smoke.mjs
+      - name: Player Action economy menu contract
+        run: node tests/combat-v073-economy-menu-smoke.mjs
+      - name: Speed persistence contract
+        run: node tests/combat-v073-speed-persistence-smoke.mjs
+      - name: DM observer mode contract
+        run: node tests/combat-v073-dm-observer-smoke.mjs
+      - name: Limbus sprite facing runtime contract
+        run: node tests/combat-v073-limbus-facing-runtime-smoke.mjs
+      - name: Player renderer performance contract
+        run: node tests/combat-v073-player-renderer-performance-smoke.mjs
+      - name: Combat / Theatre isolation contract
+        run: node tests/combat-v073-theatre-isolation-smoke.mjs
