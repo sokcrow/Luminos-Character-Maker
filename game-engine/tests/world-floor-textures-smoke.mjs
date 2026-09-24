@@ -1,13 +1,20 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import {
+  WORLD_FLOOR_TILES_PER_REPEAT,
+  WORLD_FLOOR_REPEAT_PER_TILE,
   WORLD_FLOOR_MATERIAL_BINDINGS,
   WORLD_FLOOR_PRESET_MATERIALS,
+  worldFloorRepeatForTiles,
   worldFloorTexturePath,
   resolveWorldFloorTextureUrl,
   createRepositoryWorldFloorTextureRuntime,
 } from '../src/world/WorldFloorTextures.js';
 
+assert.equal(WORLD_FLOOR_TILES_PER_REPEAT, 8);
+assert.equal(WORLD_FLOOR_REPEAT_PER_TILE, 0.125);
+assert.deepEqual([...worldFloorRepeatForTiles(64, 32)], [8, 4]);
+assert.deepEqual([...worldFloorRepeatForTiles(2, 2)], [1, 1]);
 assert.equal(worldFloorTexturePath('floor_grass_01'), 'Assets/Images/World/Floors/floor_grass_01.png');
 assert.ok(resolveWorldFloorTextureUrl('floor_grass_01').endsWith('/Assets/Images/World/Floors/floor_grass_01.png'));
 assert.equal(WORLD_FLOOR_MATERIAL_BINDINGS.forestGround, 'floor_grass_01');
@@ -22,7 +29,7 @@ class FakeRepeat {
   set(x,y){ this.x=x; this.y=y; return this; }
 }
 class FakeTexture {
-  constructor(url=''){ this.url=url; this.repeat=new FakeRepeat(1,1); this.needsUpdate=false; }
+  constructor(url=''){ this.url=url; this.repeat=new FakeRepeat(1,1); this.offset=new FakeRepeat(0,0); this.center=new FakeRepeat(.5,.5); this.rotation=.7; this.needsUpdate=false; }
   clone(){
     const next=new FakeTexture(this.url);
     next.repeat.set(this.repeat.x,this.repeat.y);
@@ -69,6 +76,12 @@ const mats={
   arcticGround:new FakeMaterial({map:new FakeTexture('procedural-arctic')}),
   floor:new FakeMaterial({map:new FakeTexture('procedural-floor')}),
 };
+mats.forestGround.userData.paperFX=true;
+mats.forestGround.userData.paperFXBehavior='surface';
+mats.forestGround.userData.paperFXSurfaceConfig={mask:'organicSoft'};
+mats.forestGround.onBeforeCompile=()=>{ throw new Error('legacy PaperFX filter must be detached'); };
+mats.forestGround.customProgramCacheKey=()=> 'legacy-paperfx';
+
 const refreshed=[];
 const runtime=createRepositoryWorldFloorTextureRuntime({
   THREE,
@@ -89,8 +102,19 @@ await runtime.ensureMaterial(mats.forestGround);
 assert.equal(runtime.status('floor_grass_01').status,'ready');
 assert.equal(mats.forestGround.userData.worldFloorTextureState,'ready');
 assert.ok(mats.forestGround.map.url.endsWith('/Assets/Images/World/Floors/floor_grass_01.png'));
-assert.equal(mats.forestGround.map.repeat.x,.34,'existing UV repeat must survive hot swap');
+assert.equal(mats.forestGround.map.repeat.x,1,'base world-floor material must start from neutral repeat');
+assert.equal(mats.forestGround.map.rotation,0,'repository PNG must not inherit legacy rotation');
+assert.equal(mats.forestGround.userData.paperFXBehavior,'world-floor-color');
+assert.equal(mats.forestGround.userData.paperFXSurfaceConfig,undefined,'legacy PaperFX shader config must be detached');
+assert.match(mats.forestGround.customProgramCacheKey(),/^world-floor-color:/);
 assert.ok(refreshed.some((event)=>event.material===mats.forestGround), 'forest ground must refresh when local PNG is ready');
+
+const derived=new FakeMaterial({map:new FakeTexture('legacy-derived')});
+runtime.registerMaterial(derived,'floor_grass_01',{repeat:[8,4]});
+assert.equal(derived.userData.worldFloorTextureState,'ready');
+assert.equal(derived.map.repeat.x,8);
+assert.equal(derived.map.repeat.y,4);
+assert.equal(derived.map.rotation,0);
 
 const dirtMaterial=runtime.materialForTerrain('dirt',{ensure:false});
 assert.equal(dirtMaterial.userData.worldFloorTextureId,'floor_dirt_01');
