@@ -2,6 +2,16 @@ import TerrainTextures from '../../../js/global-map-terrain-textures.js';
 
 const floorIds = Object.freeze([...TerrainTextures.FLOOR_TEXTURE_IDS]);
 
+export const WORLD_FLOOR_TILES_PER_REPEAT = 8;
+export const WORLD_FLOOR_REPEAT_PER_TILE = 1 / WORLD_FLOOR_TILES_PER_REPEAT;
+
+export function worldFloorRepeatForTiles(uTiles = 1, vTiles = 1) {
+  return Object.freeze([
+    Math.max(1, Math.abs(Number(uTiles) || 1) * WORLD_FLOOR_REPEAT_PER_TILE),
+    Math.max(1, Math.abs(Number(vTiles) || 1) * WORLD_FLOOR_REPEAT_PER_TILE),
+  ]);
+}
+
 export const WORLD_FLOOR_MATERIAL_BINDINGS = Object.freeze({
   forestGround:'floor_grass_01',
   grasslandGround:'floor_grass_01',
@@ -67,13 +77,35 @@ function ensureUserData(material) {
   return material.userData;
 }
 
-function copyRepeat(fromTexture, toTexture) {
-  if (!fromTexture?.repeat || !toTexture?.repeat) return;
-  const x = Number(fromTexture.repeat.x);
-  const y = Number(fromTexture.repeat.y);
-  if (Number.isFinite(x) && Number.isFinite(y) && typeof toTexture.repeat.set === 'function') {
-    toTexture.repeat.set(x, y);
+function setTextureRepeat(texture, repeat = [1, 1]) {
+  if (!texture?.repeat || typeof texture.repeat.set !== 'function') return;
+  const x = Math.max(.0001, Number(repeat?.[0]) || 1);
+  const y = Math.max(.0001, Number(repeat?.[1]) || 1);
+  texture.repeat.set(x, y);
+}
+
+function resetTextureTransform(texture) {
+  if (!texture) return;
+  try { texture.offset?.set?.(0, 0); } catch {}
+  try { texture.center?.set?.(.5, .5); } catch {}
+  if ('rotation' in texture) texture.rotation = 0;
+}
+
+function detachLegacySurfaceFilter(material, textureId) {
+  if (!material) return;
+  const data = ensureUserData(material);
+  if (data.paperFXSurfaceConfig && !data.worldFloorLegacyPaperFX) {
+    data.worldFloorLegacyPaperFX = data.paperFXSurfaceConfig;
   }
+  data.paperFX = false;
+  data.paperFXBehavior = 'world-floor-color';
+  delete data.paperFXSurfaceConfig;
+  delete data.paperFXMask;
+
+  // PaperFX surface() overrides <map_fragment> and interprets map.r as a mask.
+  // Repository floor PNGs are full-color albedo and must use the stock map shader.
+  material.onBeforeCompile = () => {};
+  material.customProgramCacheKey = () => `world-floor-color:${textureId}`;
 }
 
 export function createRepositoryWorldFloorTextureRuntime({
@@ -96,12 +128,14 @@ export function createRepositoryWorldFloorTextureRuntime({
 
   const maxAnisotropy = Math.max(1, Number(renderer?.capabilities?.getMaxAnisotropy?.()) || 1);
 
-  function registerMaterial(material, textureId) {
+  function registerMaterial(material, textureId, options = {}) {
     if (!material || !validTextureId(textureId)) return material || null;
     const data = ensureUserData(material);
     data.worldFloorTextureId = textureId;
     data.worldFloorTexturePath = worldFloorTexturePath(textureId);
     data.worldFloorTextureSource = 'repository-local';
+    data.worldFloorRepeatPerTile = WORLD_FLOOR_REPEAT_PER_TILE;
+    if (Array.isArray(options.repeat)) data.worldFloorRepeat = [Number(options.repeat[0]) || 1, Number(options.repeat[1]) || 1];
     if (!data.worldFloorTextureState) data.worldFloorTextureState = 'idle';
 
     if (!materialsByTextureId.has(textureId)) materialsByTextureId.set(textureId, new Set());
@@ -117,19 +151,21 @@ export function createRepositoryWorldFloorTextureRuntime({
     const previous = material.map || null;
     const next = typeof sourceTexture.clone === 'function' ? sourceTexture.clone() : sourceTexture;
 
+    const data = ensureUserData(material);
     next.wrapS = next.wrapT = THREE.RepeatWrapping;
     if ('colorSpace' in next && THREE.SRGBColorSpace) next.colorSpace = THREE.SRGBColorSpace;
     if ('magFilter' in next && THREE.LinearFilter) next.magFilter = THREE.LinearFilter;
     if ('minFilter' in next && THREE.LinearMipmapLinearFilter) next.minFilter = THREE.LinearMipmapLinearFilter;
     if ('anisotropy' in next) next.anisotropy = Math.min(maxAnisotropy, 8);
-    copyRepeat(previous, next);
+    resetTextureTransform(next);
+    setTextureRepeat(next, data.worldFloorRepeat || [1, 1]);
     next.needsUpdate = true;
 
+    detachLegacySurfaceFilter(material, textureId);
     material.map = next;
     if (material.color?.setHex) material.color.setHex(0xffffff);
     material.needsUpdate = true;
 
-    const data = ensureUserData(material);
     data.worldFloorTextureState = 'ready';
     data.worldFloorTextureId = textureId;
     data.worldFloorTexturePath = worldFloorTexturePath(textureId);
@@ -236,6 +272,8 @@ export function createRepositoryWorldFloorTextureRuntime({
     floorIds,
     bindings:WORLD_FLOOR_MATERIAL_BINDINGS,
     presets:WORLD_FLOOR_PRESET_MATERIALS,
+    registerMaterial,
+    applyLoadedTexture,
     ensureTexture,
     ensureMaterial,
     materialForTextureId,
@@ -247,8 +285,11 @@ export function createRepositoryWorldFloorTextureRuntime({
 }
 
 export default Object.freeze({
+  WORLD_FLOOR_TILES_PER_REPEAT,
+  WORLD_FLOOR_REPEAT_PER_TILE,
   WORLD_FLOOR_MATERIAL_BINDINGS,
   WORLD_FLOOR_PRESET_MATERIALS,
+  worldFloorRepeatForTiles,
   worldFloorTexturePath,
   resolveWorldFloorTextureUrl,
   createRepositoryWorldFloorTextureRuntime,
