@@ -167,10 +167,12 @@ async function main() {
   if (migratedVersion !== null) {
     test = test.replace(/assert\.equal\(registry\.VERSION, \d+\);/, "assert.equal(registry.VERSION, " + migratedVersion + ");");
   }
-  test = test.replace(
-    /assert\.match\(entry\.icon, \/\^https:\\\/\\\/imgur\\\.com\\\/[A-Za-z0-9]\+\\\.png\$\/\);/,
-    "assert.match(entry.icon, /^Assets\\/Icons\\/items\\/[a-z0-9_-]+\\/[a-z0-9_-]+\\.png$/);"
-  );
+  const legacyIconAssertion = "    assert.match(entry.icon, /^https:\\/\\/imgur\\.com\\/[A-Za-z0-9]+\\.png$/);";
+  const localIconAssertion = "    assert.match(entry.icon, /^Assets\\/Icons\\/items\\/[a-z0-9_-]+\\/[a-z0-9_-]+\\.png$/);";
+  test = test.replace(legacyIconAssertion, localIconAssertion);
+  if (test.includes(legacyIconAssertion)) {
+    throw new Error("Legacy Imgur icon assertion remains in item-icon-registry-smoke.cjs");
+  }
   await fs.writeFile(TEST_PATH, test, "utf8");
 
   const families = rows.map((row) => ({
