@@ -165,8 +165,12 @@ async function main() {
     test = test.split(source).join(localPath);
   }
   if (migratedVersion !== null) {
-    test = test.replace(/assert\.equal\(registry\.version, \d+\);/, "assert.equal(registry.version, " + migratedVersion + ");");
+    test = test.replace(/assert\.equal\(registry\.VERSION, \d+\);/, "assert.equal(registry.VERSION, " + migratedVersion + ");");
   }
+  test = test.replace(
+    /assert\.match\(entry\.icon, \/\^https:\\\/\\\/imgur\\\.com\\\/[A-Za-z0-9]\+\\\.png\$\/\);/,
+    "assert.match(entry.icon, /^Assets\\/Icons\\/items\\/[a-z0-9_-]+\\/[a-z0-9_-]+\\.png$/);"
+  );
   await fs.writeFile(TEST_PATH, test, "utf8");
 
   const families = rows.map((row) => ({
