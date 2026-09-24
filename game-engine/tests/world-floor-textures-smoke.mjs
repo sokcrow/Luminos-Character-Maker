@@ -11,9 +11,9 @@ import {
   createRepositoryWorldFloorTextureRuntime,
 } from '../src/world/WorldFloorTextures.js';
 
-assert.equal(WORLD_FLOOR_TILES_PER_REPEAT, 8);
-assert.equal(WORLD_FLOOR_REPEAT_PER_TILE, 0.125);
-assert.deepEqual([...worldFloorRepeatForTiles(64, 32)], [8, 4]);
+assert.equal(WORLD_FLOOR_TILES_PER_REPEAT, 2);
+assert.equal(WORLD_FLOOR_REPEAT_PER_TILE, 0.5);
+assert.deepEqual([...worldFloorRepeatForTiles(64, 32)], [32, 16]);
 assert.deepEqual([...worldFloorRepeatForTiles(2, 2)], [1, 1]);
 assert.equal(worldFloorTexturePath('floor_grass_01'), 'Assets/Images/World/Floors/floor_grass_01.png');
 assert.ok(resolveWorldFloorTextureUrl('floor_grass_01').endsWith('/Assets/Images/World/Floors/floor_grass_01.png'));
