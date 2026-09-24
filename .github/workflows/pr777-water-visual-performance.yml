@@ -116,6 +116,9 @@ jobs:
           assert.equal(mobileErrors.length,0,'mobile Explore page errors: '+mobileErrors.join(' | '));
           assert.equal(results.mobile.playerSafe,true,'mobile spawn must stay safe');
           assert.equal(results.mobile.sectorProfile?.mobile,true,'Android emulation must enable mobile renderer path');
+          const mobileEdgeTrees=results.mobile.sectorProfile?.stages?.find(s=>s.name==='edgeTrees')?.ms??Infinity;
+          assert.ok(mobileEdgeTrees<1200,'mobile perimeter trees still too slow: '+mobileEdgeTrees+'ms');
+          assert.ok(results.mobile.maxGap<900,'mobile main-thread stall too large: '+results.mobile.maxGap+'ms');
           await mp.screenshot({path:'watervis-mobile.png',fullPage:false});
           await mobileContext.close();
 
