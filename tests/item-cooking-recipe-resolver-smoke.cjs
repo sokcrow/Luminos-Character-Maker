@@ -33,7 +33,7 @@ const { pathToFileURL } = require("node:url");
 
   assert.ok(resolver);
   assert.equal(resolver.VERSION, 1);
-  assert.equal(catalog.RECIPES.length, 90);
+  assert.equal(catalog.RECIPES.length, 140);
 
   const stack = (catalogApi, id, quantity, sourceInstanceId) => ({
     ...catalogApi.get(id),
@@ -52,7 +52,7 @@ const { pathToFileURL } = require("node:url");
     stack(plants, "onion", 1, "onion-a"),
   ], "simmer", { templateId:"sauce_base" });
 
-  const culture = stack(plants, "fermentation_fungus", 1, "culture-a");
+  const culture = stack(staples, "yeast", 1, "culture-a");
   const cheese = processing.createProcessedItem([
     stack(staples, "milk", 2, "milk-cheese"),
     culture,
