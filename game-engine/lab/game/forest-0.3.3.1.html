@@ -849,6 +849,9 @@ addEventListener('unhandledrejection',e=>{
 
 <script type="module">
 import * as THREE from '../../vendor/three.module.js';
+import { createRepositoryWorldFloorTextureRuntime } from '../../src/world/WorldFloorTextures.js';
+
+let worldFloorTextureRuntime=null;
 window.setLoadProgress?.(18,'Motor listo','Preparando personajes…');
 
 const TILE=1.5;
@@ -2831,7 +2834,11 @@ const mats={
   water:new THREE.MeshBasicMaterial({color:0x4e97a6,transparent:true,opacity:.94,side:THREE.DoubleSide}),
   waterDark:new THREE.MeshBasicMaterial({color:0x17343a,side:THREE.DoubleSide})
 };
-const mat=k=>mats[k]||mats.stone;
+const mat=k=>{
+  const material=mats[k]||mats.stone;
+  worldFloorTextureRuntime?.ensureMaterial(material);
+  return material;
+};
 
 const fittedMaterialCache=new Map();
 function markPaperRepeat(material,uPerTile=.55,vPerTile=.55){
@@ -2839,6 +2846,7 @@ function markPaperRepeat(material,uPerTile=.55,vPerTile=.55){
   return material;
 }
 function fittedMappedMaterial(base,uTiles,vTiles){
+  worldFloorTextureRuntime?.ensureMaterial(base);
   if(!base?.map)return base;
   const cfg=base.userData?.paperRepeat||{u:.55,v:.55};
   const ru=Math.max(.75,Math.abs(uTiles)*cfg.u);
@@ -2851,6 +2859,7 @@ function fittedMappedMaterial(base,uTiles,vTiles){
     if(fx){fittedMaterialCache.set(key,fx);return fx;}
   }
   const m=base.clone();
+  m.userData={...(m.userData||{}),worldFloorSourceMaterialUuid:base.uuid};
   const t=base.map.clone();
   t.wrapS=t.wrapT=THREE.RepeatWrapping;
   t.repeat.set(ru,rv);
@@ -4334,6 +4343,36 @@ function makePaperGroveStoneTex(){
   markPaperRepeat(mats.grovePath,.46,.46);
   markPaperRepeat(mats.groveMud,.40,.40);
   markPaperRepeat(mats.groveStone,.58,.58);
+
+  // WORLD FLOOR TEXTURES V1 · repository-local.
+  // PaperFX remains the immediate fallback while a local PNG is read. When the PNG
+  // becomes ready the base material and any fitted clones already used by the map
+  // are refreshed in place, so map/biome changes never need remote floor URLs.
+  worldFloorTextureRuntime=createRepositoryWorldFloorTextureRuntime({
+    THREE,
+    mats,
+    renderer,
+    onMaterialTextureReady:({material})=>{
+      for(const cached of fittedMaterialCache.values()){
+        if(cached?.userData?.worldFloorSourceMaterialUuid!==material.uuid)continue;
+        const previous=cached.map;
+        const next=material.map?.clone?.();
+        if(!next)continue;
+        next.wrapS=next.wrapT=THREE.RepeatWrapping;
+        if(previous?.repeat&&next.repeat?.set)next.repeat.set(previous.repeat.x,previous.repeat.y);
+        next.needsUpdate=true;
+        cached.map=next;
+        cached.needsUpdate=true;
+      }
+    }
+  });
+  window.WorldFloorTextureRuntime=worldFloorTextureRuntime;
+
+  // Prime only the starting-map surfaces; every other terrain loads lazily the
+  // first time mat()/fittedMappedMaterial() reads it.
+  for(const key of ['forestGround','forestPath','groveStone','cobble','floor']){
+    worldFloorTextureRuntime.ensureMaterial(mats[key]);
+  }
 })();
 
 
