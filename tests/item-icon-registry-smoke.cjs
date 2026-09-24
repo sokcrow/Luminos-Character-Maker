@@ -8,9 +8,9 @@ const { pathToFileURL } = require('node:url');
   const registry = globalThis.LuminousItemIconRegistry;
 
   assert.ok(registry);
-  assert.equal(registry.VERSION, 29);
+  assert.equal(registry.VERSION, 30);
   assert.equal(registry.DEFAULT_GROUP, 'generic_item');
-  assert.equal(Object.keys(registry.GROUPS).length, 481);
+  assert.equal(Object.keys(registry.GROUPS).length, 506);
 
   const groups = registry.list();
   assert.equal(new Set(groups.map((entry) => entry.id)).size, groups.length);
@@ -172,6 +172,42 @@ const { pathToFileURL } = require('node:url');
     assert.equal(registry.resolveIcon(id), icon, id);
     assert.equal(registry.get(id).domain, 'material');
   }
+
+  const currentRawFoodIcons = {
+    common_mushroom:'https://imgur.com/D92zQwV.png',
+    forest_mushroom:'https://imgur.com/jmj4md5.png',
+    frost_mushroom:'https://imgur.com/E8brPu4.png',
+    wetland_mushroom:'https://imgur.com/j6NAoem.png',
+    desert_truffle:'https://imgur.com/hQbkcOn.png',
+    medicinal_mushroom:'https://imgur.com/yR8uX0L.png',
+    toxic_mushroom:'https://imgur.com/9f695om.png',
+    truffle:'https://imgur.com/YVkDC5h.png',
+    sap:'https://imgur.com/FuBA1Je.png',
+    resin:'https://imgur.com/ZHk2p3H.png',
+    plant_latex:'https://imgur.com/7I8Rvao.png',
+    exotic_botanical_extract:'https://imgur.com/hHFgDBf.png',
+    egg:'https://imgur.com/J73Fyfz.png',
+    milk:'https://imgur.com/NNbt694.png',
+    seaweed:'https://imgur.com/IV5IGhN.png',
+    avocado:'https://imgur.com/oPPwq2I.png',
+    honey:'https://imgur.com/cy0nKgI.png',
+    sugar_cane:'https://imgur.com/fnRSbKG.png',
+    water:'https://imgur.com/BBYrCN2.png',
+    salt:'https://imgur.com/mjWZzr4.png',
+    yeast:'https://imgur.com/rKpS9h7.png',
+    beeswax:'https://imgur.com/jVjUiFZ.png',
+    gelatin:'https://imgur.com/aLhJv8v.png',
+    jellyfish:'https://imgur.com/5zhxgO6.png',
+    recycled_protein:'https://imgur.com/DFhRmvv.png'
+  };
+  for (const [id, icon] of Object.entries(currentRawFoodIcons)) {
+    assert.equal(registry.has(id), true, id);
+    assert.equal(registry.resolveIcon(id), icon, id);
+    assert.equal(registry.get(id).domain, 'material');
+  }
+  assert.equal(registry.canonicalGroupId('cave_mushroom'), 'wetland_mushroom');
+  assert.equal(registry.canonicalGroupId('fermentation_fungus'), 'yeast');
+  assert.equal(registry.canonicalGroupId('exotic_fungus'), 'truffle');
 
 
 
@@ -550,7 +586,7 @@ const { pathToFileURL } = require('node:url');
     exotic_fluid: 'ichor', venom: 'venom_raw', acid: 'acid_secretion', ink: 'ink_secretion',
     slime: 'ooze_gel', arcane_essence: 'essence_raw', mana_core: 'energy_core', fruit: 'fruit_raw',
     vegetables: 'vegetable_raw', grain: 'grain_seed_raw', spice: 'spice_herb_raw', mushroom: 'fungus_raw',
-    resin: 'botanical_extract_raw', processed_stock: 'structural_stock', fasteners: 'fasteners_hardware',
+    resin: 'resin', processed_stock: 'structural_stock', fasteners: 'fasteners_hardware',
     wire: 'wire_cable', vessel: 'container', harvesting_tool: 'harvest_kit', smithing_tool: 'smithing_tools',
     technical_tool: 'technical_tools', chemical_tool: 'chemical_tools'
   };
