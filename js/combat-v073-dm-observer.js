@@ -2,7 +2,7 @@
   'use strict';
   if(global.LuminousCombatDmObserver073)return;
 
-  const state={patched:false,roleObserver:null,roleTimer:null,facingObserver:null,facingFrame:0};
+  const state={patched:false,roleObserver:null,roleTimer:null,facingObserver:null,facingFrame:0,visualObserver:null,visualFrame:0};
 
   function adapterState(){return global.LuminousCombatLiveAdapter073?.state||null}
   function host(){return global.document?.getElementById?.('game-container')||null}
@@ -26,17 +26,35 @@
     const game=host();if(!game)return false;
     game.style.visibility='visible';
     game.style.opacity='1';
+    game.classList.remove('player-blinded','webgl2-background-ready');
+    game.querySelectorAll('.sprite-img.webgl2-texture-backed').forEach(img=>img.classList.remove('webgl2-texture-backed'));
+    game.dataset.dmVisualMode='dom-base-webgl-vfx';
+    delete game.dataset.dmVisualFallback;
     const renderer=global.LuminousWebGL2Renderer;
-    const surfaceActive=renderer?.surfaceActive?.();
-    if(surfaceActive===false){
-      game.classList.remove('webgl2-background-ready');
-      game.querySelectorAll('.sprite-img.webgl2-texture-backed').forEach(img=>img.classList.remove('webgl2-texture-backed'));
-      game.dataset.dmVisualFallback='dom';
-      try{global.LuminousCombat073?.render?.()}catch(_){}
-    }else if(game.dataset.dmVisualFallback==='dom'){
-      delete game.dataset.dmVisualFallback;
-    }
+    if(renderer?.isEnabled?.()===false)renderer.setEnabled?.(true);
     renderer?.requestRender?.(260);
+    return true;
+  }
+
+  function scheduleVisualSurface(){
+    if(state.visualFrame)return;
+    const run=()=>{state.visualFrame=0;if(isDm())ensureVisualSurface()};
+    state.visualFrame=global.requestAnimationFrame?.(run)||0;
+    if(!state.visualFrame)run();
+  }
+
+  function observeVisualSurface(){
+    const game=host();
+    if(!game||state.visualObserver||typeof MutationObserver!=='function')return Boolean(game);
+    state.visualObserver=new MutationObserver(records=>{
+      if(!isDm())return;
+      const rendererClaimedBackground=game.classList.contains('webgl2-background-ready');
+      const rendererClaimedSprites=Boolean(game.querySelector('.sprite-img.webgl2-texture-backed'));
+      const newBattleNodes=records.some(record=>record.type==='childList');
+      if(rendererClaimedBackground||rendererClaimedSprites||newBattleNodes)scheduleVisualSurface();
+    });
+    state.visualObserver.observe(game,{subtree:true,childList:true,attributes:true,attributeFilter:['class']});
+    scheduleVisualSurface();
     return true;
   }
 
@@ -112,6 +130,7 @@
     try{global.LuminousCombat073?.camera?.('full',false)}catch(error){console.error('[Combat073 DM Observer] camera failed',error)}
     tuneRenderer();
     ensureVisualSurface();
+    observeVisualSurface();
     applyLimbusFacing();
     const game=host();
     if(game)game.dataset.dmObserverMode='true';
@@ -152,6 +171,7 @@
     state.roleObserver=new MutationObserver(records=>{
       if(records.some(record=>record.type==='attributes'&&record.attributeName==='data-viewer-role')){
         scheduleFacing();
+        scheduleVisualSurface();
         if(isDm())global.requestAnimationFrame(enforceDmView);
       }
     });
@@ -160,11 +180,11 @@
   }
 
   function start(){
-    patchRuntime();observeRole();observeFacing();scheduleFacing();if(isDm())enforceDmView();
+    patchRuntime();observeRole();observeFacing();observeVisualSurface();scheduleFacing();scheduleVisualSurface();if(isDm())enforceDmView();
     if(state.roleTimer)return true;
     let tries=0;
     state.roleTimer=global.setInterval(()=>{
-      tries+=1;patchRuntime();observeRole();observeFacing();scheduleFacing();
+      tries+=1;patchRuntime();observeRole();observeFacing();observeVisualSurface();scheduleFacing();scheduleVisualSurface();
       const role=adapterState()?.role||host()?.dataset?.viewerRole||'';
       if(role==='dm')enforceDmView();
       if(role||tries>=120){global.clearInterval(state.roleTimer);state.roleTimer=null}
@@ -175,14 +195,16 @@
   function stop(){
     state.roleObserver?.disconnect?.();state.roleObserver=null;
     state.facingObserver?.disconnect?.();state.facingObserver=null;
+    state.visualObserver?.disconnect?.();state.visualObserver=null;
     if(state.facingFrame)global.cancelAnimationFrame?.(state.facingFrame);state.facingFrame=0;
+    if(state.visualFrame)global.cancelAnimationFrame?.(state.visualFrame);state.visualFrame=0;
     if(state.roleTimer)global.clearInterval(state.roleTimer);state.roleTimer=null;
   }
 
-  global.addEventListener('resize',()=>{scheduleFacing();if(isDm())global.requestAnimationFrame(enforceDmView)});
-  global.addEventListener('luminous:combat073-runtime-ready',()=>{patchRuntime();observeFacing();scheduleFacing();if(isDm())enforceDmView()});
-  global.addEventListener('luminous:combat073-hydrated',()=>{observeFacing();scheduleFacing();if(isDm())enforceDmView()});
+  global.addEventListener('resize',()=>{scheduleFacing();scheduleVisualSurface();if(isDm())global.requestAnimationFrame(enforceDmView)});
+  global.addEventListener('luminous:combat073-runtime-ready',()=>{patchRuntime();observeFacing();observeVisualSurface();scheduleFacing();scheduleVisualSurface();if(isDm())enforceDmView()});
+  global.addEventListener('luminous:combat073-hydrated',()=>{observeFacing();observeVisualSurface();scheduleFacing();scheduleVisualSurface();if(isDm())enforceDmView()});
   global.addEventListener('beforeunload',stop,{once:true});
-  global.LuminousCombatDmObserver073=Object.freeze({state,start,stop,isDm,enforceDmView,clearObserverRestrictions,ensureVisualSurface,tuneRenderer,patchRuntime,sourceFacing,desiredFacing,applyLimbusFacing});
+  global.LuminousCombatDmObserver073=Object.freeze({version:'0.7.3-dm-visual-2',state,start,stop,isDm,enforceDmView,clearObserverRestrictions,ensureVisualSurface,scheduleVisualSurface,observeVisualSurface,tuneRenderer,patchRuntime,sourceFacing,desiredFacing,applyLimbusFacing});
   start();
 })(window);
