@@ -2,7 +2,7 @@ import TerrainTextures from '../../../js/global-map-terrain-textures.js';
 
 const floorIds = Object.freeze([...TerrainTextures.FLOOR_TEXTURE_IDS]);
 
-export const WORLD_FLOOR_TILES_PER_REPEAT = 8;
+export const WORLD_FLOOR_TILES_PER_REPEAT = 2;
 export const WORLD_FLOOR_REPEAT_PER_TILE = 1 / WORLD_FLOOR_TILES_PER_REPEAT;
 
 export function worldFloorRepeatForTiles(uTiles = 1, vTiles = 1) {
