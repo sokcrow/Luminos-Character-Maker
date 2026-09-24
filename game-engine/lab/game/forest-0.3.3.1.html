@@ -1887,7 +1887,13 @@ function riverFieldSample(river,x,z){
   const signed=near.distance-halfWidth,water=signed<0,center=zoneClamp(1-near.distance/halfWidth,0,1);
   const spineHalfWidth=Math.max(.275,Number(river.spineHalfWidthTiles)||hydrologySpineWidthTiles(halfWidth*2)*.5);
   const spineDistance=near.distance-spineHalfWidth,spine=spineDistance<=0,spineInfluence=zoneClamp(1-near.distance/spineHalfWidth,0,1);
-  const waterDepth=water?Math.max(.06,river.depthTiles*Math.pow(center,.62)):0,tangent=hydrologyRiverTangent(river,near.t);
+  // El spine controla el perfil vertical del cauce: dentro del núcleo conserva la
+  // profundidad principal; la franja restante hasta la orilla sólo hace bevel.
+  // La profundidad declarada y la heightfield usan exactamente el mismo valor.
+  const edgeBand=Math.max(.001,halfWidth-spineHalfWidth);
+  const edgeInfluence=spine?1:zoneClamp(1-(near.distance-spineHalfWidth)/edgeBand,0,1);
+  const depthFactor=spine?(.58+.42*spineInfluence):(.08+.34*edgeInfluence);
+  const waterDepth=water?Math.max(.06,river.depthTiles*depthFactor):0,tangent=hydrologyRiverTangent(river,near.t);
   const wetness=zoneClamp(1-Math.max(0,signed)/Math.max(.1,river.bankWidthTiles*2.4),0,1);
   return {type:'river',class:water?(waterDepth>river.depthTiles*.56?'deepWater':'shallowWater'):(signed<river.bankWidthTiles?'riverbank':'land'),
     distanceToCoast:Infinity,distanceToWater:Math.max(0,signed),signedDistanceToWater:signed,wetness,water,waterDepth,
@@ -5355,11 +5361,6 @@ function hydrologyPriorityGroundHeightTilesAtLocal(id,tx,tz,rawHeightTiles){
   // bank on a 3-tile river is only the shallow edge/bevel. No extra geometry/query.
   if(h.water&&Number.isFinite(h.waterSurfaceTiles)){
     const depth=Math.max(.04,Number(h.waterDepth)||.04);
-    if(h.type==='river'){
-      const spineCore=Math.max(0,Number(h.spineInfluence)||0);
-      const edgeDepth=Math.max(.06,depth*(.28+.72*spineCore));
-      return Math.min(raw,h.waterSurfaceTiles-edgeDepth);
-    }
     return Math.min(raw,h.waterSurfaceTiles-depth);
   }
   // River/lake banks also grade downward toward the water; authored coast keeps its
