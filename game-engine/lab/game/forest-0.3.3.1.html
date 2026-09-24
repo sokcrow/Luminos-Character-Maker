@@ -16382,9 +16382,11 @@ const WaterGameplaySystem=Object.freeze({
 window.WaterGameplaySystem=WaterGameplaySystem;
 
 function loadMap(id,spawn=null,layer=null){
-  const stressLoadStart=FOREST_STRESS_BOOT.enabled?performance.now():0;
+  const perfStart=performance.now(),perfMarks=[],markPerf=name=>perfMarks.push({name,ms:performance.now()-perfStart});
+  const stressLoadStart=FOREST_STRESS_BOOT.enabled?perfStart:0;
   window.setLoadProgress?.(34,'Liberando escenario','Limpiando mapa anterior…');
   clearMap();
+  markPerf('clearMap');
   if(OVERWORLD_PLAN[id]){
     const regionId=globalWorldState?.activeLocalRegionId||globalWorldState?.currentRegionId||'gC';
     const region=GLOBAL_REGION_BY_ID.get(regionId)||GLOBAL_REGION_BY_ID.get('gC');
@@ -16406,15 +16408,18 @@ function loadMap(id,spawn=null,layer=null){
   window.setLoadProgress?.(48,'Trazando terreno','Preparando navegación y superficies…');
   compiledGrid=compileMapGrid(mapDef);
   const gridReport=validateCompiledGrid(mapDef,compiledGrid);
+  markPerf('compileGrid');
   if(!gridReport.ok)throw new Error('Grid inválido '+mapDef.id+': '+gridReport.errors.join('; '));
   if(gridReport.warnings?.length)console.info('Grid '+mapDef.id+': '+gridReport.warnings.join('; '));
 
   window.setLoadProgress?.(62,'Levantando el mundo','Terreno, agua, vegetación y colisiones…');
   const renderMap=MAP_RENDERER_REGISTRY[mapDef.renderer]||MAP_RENDERER_REGISTRY.canal;
   root=renderMap();
+  markPerf('renderMap');
 
   window.setLoadProgress?.(78,'Revisando colisiones','Buscando un punto seguro para el jugador…');
   validateSceneGeometry(root);
+  markPerf('validateScene');
   scene.add(root);
   applyWorldTimeLighting({immediate:true});
 
@@ -16433,6 +16438,7 @@ function loadMap(id,spawn=null,layer=null){
   // its actual colliders. Default spawns prefer dry land; authored transition spawns
   // may remain in swimmable water, but never inside a collider/non-walkable cell.
   const s=resolveSafeSpawn(mapDef,authoredSpawn,{requireDry:!spawn});
+  markPerf('safeSpawn');
 
   player.position.set(s.x,worldLayerBaseY+(s.y||0),s.z);
   if(isOverworldSector(mapId))player.position.y=formalGroundYAtWorld(player.position.x,player.position.z,currentWorldLayer);
@@ -16451,6 +16457,7 @@ function loadMap(id,spawn=null,layer=null){
   camera.updateProjectionMatrix();
   buildGrid();
   rebuildHitboxDebug();
+  markPerf('cameraGrid');
   if(FOREST_STRESS_BOOT.enabled){
     forestStressIndexScene(root);
     ForestStressRuntime.buildMs=performance.now()-stressLoadStart;
@@ -16458,6 +16465,10 @@ function loadMap(id,spawn=null,layer=null){
 
   window.__GRID_REPORT__=gridReport;
   setTimeout(()=>runFunctionalAudit(),0);
+  markPerf('complete');
+  const stages=[];let prev=0;
+  for(const row of perfMarks){stages.push({name:row.name,ms:row.ms-prev,totalMs:row.ms});prev=row.ms}
+  window.__LAST_MAP_LOAD_PERF__={mapId,renderer:mapDef.renderer,totalMs:performance.now()-perfStart,stages};
   window.setLoadProgress?.(96,'Mapa listo','Última comprobación…');
   return player.position.clone();
 }
