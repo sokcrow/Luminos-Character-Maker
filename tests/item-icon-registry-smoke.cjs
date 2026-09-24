@@ -8,9 +8,9 @@ const { pathToFileURL } = require('node:url');
   const registry = globalThis.LuminousItemIconRegistry;
 
   assert.ok(registry);
-  assert.equal(registry.VERSION, 32);
+  assert.equal(registry.VERSION, 33);
   assert.equal(registry.DEFAULT_GROUP, 'generic_item');
-  assert.equal(Object.keys(registry.GROUPS).length, 580);
+  assert.equal(Object.keys(registry.GROUPS).length, 581);
 
   const groups = registry.list();
   assert.equal(new Set(groups.map((entry) => entry.id)).size, groups.length);
@@ -148,6 +148,7 @@ const { pathToFileURL } = require('node:url');
     chocolate_cookie_retail_pack:'https://imgur.com/NS7Zlqc.png',
     oatmeal_cookie_retail_pack:'https://imgur.com/QcM5fRF.png',
     ginger_cookie_retail_pack:'https://imgur.com/2r0kU2b.png',
+    shortbread_cookie_retail_pack:'https://imgur.com/Ljyj0lK.png',
     almond_cookie_retail_pack:'https://imgur.com/ezCVscj.png',
     coconut_cookie_retail_pack:'https://imgur.com/yio2c2A.png',
     jam_cookie_retail_pack:'https://imgur.com/WiYnJk5.png',
@@ -159,7 +160,6 @@ const { pathToFileURL } = require('node:url');
     assert.equal(registry.resolveIcon(id), icon, id);
     assert.equal(registry.get(id).domain, 'consumable');
   }
-  assert.equal(registry.has('shortbread_cookie_retail_pack'), false, 'shortbread retail pack awaits its dedicated icon');
 
   const fruitIcons = {
     apple:'https://imgur.com/vaEPPe1.png',
