@@ -25,8 +25,14 @@ jobs:
       - name: Syntax check
         run: node --check game-engine/lab/main.js
 
+      - name: World floor texture syntax
+        run: node --check game-engine/src/world/WorldFloorTextures.js
+
       - name: Core smoke
         run: node game-engine/tests/core-smoke.mjs
 
       - name: Visual Lab smoke
         run: node game-engine/tests/visual-lab-smoke.mjs
+
+      - name: World floor texture smoke
+        run: node game-engine/tests/world-floor-textures-smoke.mjs
