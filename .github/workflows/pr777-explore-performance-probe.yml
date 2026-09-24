@@ -34,7 +34,15 @@ jobs:
           import assert from 'node:assert/strict';
           import fs from 'node:fs';
           const browser=await chromium.launch({headless:true});
-          const page=await browser.newPage({viewport:{width:1280,height:720}});
+          const context=await browser.newContext({
+            viewport:{width:915,height:412},
+            screen:{width:915,height:412},
+            isMobile:true,
+            hasTouch:true,
+            deviceScaleFactor:2,
+            userAgent:'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Mobile Safari/537.36'
+          });
+          const page=await context.newPage();
           const errors=[]; page.on('pageerror',e=>errors.push(String(e)));
           await page.goto('http://127.0.0.1:4173/game-engine/lab/game/forest-0.3.3.1.html',{waitUntil:'domcontentloaded',timeout:120000});
           await page.waitForFunction(()=>window.__paperLoaded===true,null,{timeout:120000});
@@ -64,7 +72,8 @@ jobs:
               hydrology:active?.hydrology?.type||null,
               riverSegments:active?.hydrology?.river?.lookupSegments?.length||0,
               playerSafe:window.SpawnSafetySystem?.playerIsSafe({requireDry:true})??null,
-              loadPerf:window.__LAST_MAP_LOAD_PERF__||null
+              loadPerf:window.__LAST_MAP_LOAD_PERF__||null,
+              sectorPerf:window.__LAST_SECTOR_RENDER_PERF__||null
             };
           });
           data.wallMs=wallMs; data.before=before; data.errors=errors;
@@ -74,8 +83,9 @@ jobs:
           assert.equal(data.riverSegments,48,'river should use precompiled 48-segment lookup');
           assert.equal(data.playerSafe,true,'spawn contract must survive optimization');
           // CI desktop thresholds are generous; this catches catastrophic multi-second synchronous stalls.
-          assert.ok(data.maxEventLoopGapMs<2500,`main-thread stall too large: ${data.maxEventLoopGapMs}ms`);
-          assert.ok(data.wallMs<15000,`Explore transition too slow: ${data.wallMs}ms`);
+          assert.ok(data.sectorPerf?.mobile===true,'probe must exercise mobile runtime profile');
+          assert.ok(data.maxEventLoopGapMs<3500,`mobile main-thread stall too large: ${data.maxEventLoopGapMs}ms`);
+          assert.ok(data.wallMs<20000,`mobile Explore transition too slow: ${data.wallMs}ms`);
           await page.screenshot({path:'fast777-explore.png',fullPage:false});
           fs.writeFileSync('fast777-performance.json',JSON.stringify(data,null,2));
           await browser.close();
