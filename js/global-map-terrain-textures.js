@@ -1,6 +1,51 @@
 const MAX_MOUNTAIN_SPINES = 12;
 const DEFAULT_MOUNTAIN_SPINES = 5;
 
+const FLOOR_TEXTURE_BASE_PATH = 'Assets/Images/World/Floors';
+const FLOOR_TEXTURE_IDS = Object.freeze([
+  'floor_grass_01',
+  'floor_dirt_01',
+  'floor_sand_01',
+  'floor_stone_01',
+  'floor_gravel_01',
+  'floor_mud_01',
+  'floor_snow_01',
+  'floor_ice_01',
+  'floor_swamp_01',
+  'floor_cave_01',
+  'floor_cobblestone_01',
+  'floor_flagstone_01',
+  'floor_wood_01',
+  'floor_brick_01',
+  'floor_marble_01',
+  'floor_tile_01',
+  'floor_metal_01',
+  'floor_concrete_01',
+]);
+const FLOOR_TEXTURE_PATHS = Object.freeze(Object.fromEntries(
+  FLOOR_TEXTURE_IDS.map((id) => [id, `${FLOOR_TEXTURE_BASE_PATH}/${id}.png`])
+));
+const FLOOR_TEXTURE_TERRAIN_MAP = Object.freeze({
+  grass:'floor_grass_01', plains:'floor_grass_01', meadow:'floor_grass_01', forest:'floor_grass_01',
+  dirt:'floor_dirt_01', earth:'floor_dirt_01', soil:'floor_dirt_01',
+  sand:'floor_sand_01', sandy:'floor_sand_01', beach:'floor_sand_01', dune:'floor_sand_01',
+  stone:'floor_stone_01', rock:'floor_stone_01', rocky:'floor_stone_01', mountain:'floor_stone_01',
+  gravel:'floor_gravel_01',
+  mud:'floor_mud_01', muddy:'floor_mud_01',
+  snow:'floor_snow_01', snowy:'floor_snow_01',
+  ice:'floor_ice_01', icy:'floor_ice_01',
+  swamp:'floor_swamp_01', marsh:'floor_swamp_01', bog:'floor_swamp_01',
+  cave:'floor_cave_01', cavern:'floor_cave_01',
+  cobblestone:'floor_cobblestone_01',
+  flagstone:'floor_flagstone_01',
+  wood:'floor_wood_01', wooden:'floor_wood_01',
+  brick:'floor_brick_01',
+  marble:'floor_marble_01',
+  tile:'floor_tile_01', tiled:'floor_tile_01',
+  metal:'floor_metal_01', metallic:'floor_metal_01',
+  concrete:'floor_concrete_01',
+});
+
 const clamp = (value, min, max) => Math.max(min, Math.min(max, Number(value)));
 const finite = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
 
@@ -11,6 +56,30 @@ function normalizeTerrainKey(value) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '');
+}
+
+function floorTextureId(regionOrTerrain) {
+  const raw = typeof regionOrTerrain === 'object' && regionOrTerrain
+    ? regionOrTerrain.floorTextureId ?? regionOrTerrain.textureId ?? regionOrTerrain.terrain ?? regionOrTerrain.biome ?? ''
+    : regionOrTerrain;
+  const key = normalizeTerrainKey(raw);
+  if (FLOOR_TEXTURE_PATHS[key]) return key;
+  if (FLOOR_TEXTURE_TERRAIN_MAP[key]) return FLOOR_TEXTURE_TERRAIN_MAP[key];
+  const tokens = key.split('_').filter(Boolean);
+  for (const token of tokens) {
+    if (FLOOR_TEXTURE_TERRAIN_MAP[token]) return FLOOR_TEXTURE_TERRAIN_MAP[token];
+  }
+  return null;
+}
+
+function floorTexturePath(idOrRegion) {
+  const id = floorTextureId(idOrRegion);
+  return id ? FLOOR_TEXTURE_PATHS[id] : null;
+}
+
+function floorTextureDescriptor(idOrRegion) {
+  const id = floorTextureId(idOrRegion);
+  return id ? Object.freeze({ id, path: FLOOR_TEXTURE_PATHS[id] }) : null;
 }
 
 function terrainKind(regionOrTerrain) {
@@ -214,6 +283,13 @@ function drawTerrainTexture(ctx, region, screenPoints, options = {}) {
 const api = Object.freeze({
   MAX_MOUNTAIN_SPINES,
   DEFAULT_MOUNTAIN_SPINES,
+  FLOOR_TEXTURE_BASE_PATH,
+  FLOOR_TEXTURE_IDS,
+  FLOOR_TEXTURE_PATHS,
+  FLOOR_TEXTURE_TERRAIN_MAP,
+  floorTextureId,
+  floorTexturePath,
+  floorTextureDescriptor,
   normalizeTerrainKey,
   terrainKind,
   mountainSpines,
@@ -232,6 +308,13 @@ if (typeof globalThis !== 'undefined') globalThis.LuminousGlobalMapTerrainTextur
 export {
   MAX_MOUNTAIN_SPINES,
   DEFAULT_MOUNTAIN_SPINES,
+  FLOOR_TEXTURE_BASE_PATH,
+  FLOOR_TEXTURE_IDS,
+  FLOOR_TEXTURE_PATHS,
+  FLOOR_TEXTURE_TERRAIN_MAP,
+  floorTextureId,
+  floorTexturePath,
+  floorTextureDescriptor,
   normalizeTerrainKey,
   terrainKind,
   mountainSpines,
