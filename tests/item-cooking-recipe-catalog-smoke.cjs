@@ -19,7 +19,7 @@ const { pathToFileURL } = require("node:url");
   assert.ok(cooking);
   assert.ok(catalog);
   assert.equal(catalog.VERSION, 1);
-  assert.equal(catalog.RECIPES.length, 128, `expected 128 recipes after pie/cake variants, got ${catalog.RECIPES.length}`);
+  assert.equal(catalog.RECIPES.length, 140, `expected 140 recipes after pie/cake/cookie variants, got ${catalog.RECIPES.length}`);
 
   const ids = new Set();
   const cuisines = new Set();
@@ -37,6 +37,7 @@ const { pathToFileURL } = require("node:url");
     assert.ok(economy.VENUE_MULTIPLIER[recipe.defaultVenue], `bad venue on ${recipe.id}`);
     assert.ok(recipe.ingredients.length > 0, `recipe without ingredients ${recipe.id}`);
     assert.ok(recipe.iconFamily == null || typeof recipe.iconFamily === "string", `invalid iconFamily on ${recipe.id}`);
+    assert.ok(recipe.referencePriceAhn == null || recipe.referencePriceAhn >= 0, `invalid referencePriceAhn on ${recipe.id}`);
     for (const row of recipe.ingredients) {
       assert.ok(row.requirement);
       assert.ok(row.quantity >= 1);
@@ -50,6 +51,7 @@ const { pathToFileURL } = require("node:url");
 
   for (const id of [
     "apple_pie","pear_pie","banana_cream_pie","dragon_fruit_tart","apple_cake","chocolate_cake","chestnut_cake",
+    "butter_cookie","chocolate_chip_cookie","oatmeal_cookie","almond_cookie","coffee_cookie",
     "burger","fried_chicken","ramen","sushi_roll","tonkatsu",
     "pizza_margherita","pasta_bolognese","lasagna","tiramisu",
     "tacos","tamales","fried_rice","curry","ration_block"
@@ -64,6 +66,11 @@ const { pathToFileURL } = require("node:url");
   assert.equal(catalog.get("chocolate_cake").ingredients.some((row)=>row.requirement === "cacao"), true);
   assert.equal(catalog.get("coffee_cake").ingredients.some((row)=>row.requirement === "coffee_bean"), true);
   assert.equal(catalog.get("pineapple_cake").iconFamily, "pineapple_cake");
+  assert.equal(catalog.get("butter_cookie").iconFamily, "butter_cookie");
+  assert.equal(catalog.get("butter_cookie").referencePriceAhn, 7200);
+  assert.equal(catalog.get("almond_cookie").referencePriceAhn, 10000);
+  assert.equal(catalog.get("coffee_cookie").ingredients.some((row)=>row.requirement === "coffee_bean"), true);
+  assert.equal(catalog.get("honey_cookie").ingredients.some((row)=>row.requirement === "honey"), true);
 
   const burger = catalog.resolveReferencePricing("burger", [
     { itemId:"bread", quantity:1, unitProductionValueAhn:3500 },
