@@ -51,6 +51,26 @@ const { pathToFileURL } = require("node:url");
     assert.equal(buffer.length, asset.bytes, asset.path + " byte size");
   }
 
+  const runtimeFiles = [
+    "js/item-catalog-armor-components.js",
+    "js/item-catalog-firearm-ammo.js",
+    "js/item-catalog-firearm-components.js",
+    "js/item-catalog-ranged-weapon-components.js",
+    "js/item-catalog-shield-components.js",
+    "js/item-catalog-weapon-components.js"
+  ];
+
+  assert.equal(catalog.runtimeReferenceCount, catalog.runtimeReferences.length);
+  for (const ref of catalog.runtimeReferences) {
+    assert.equal(/^https?:\/\//i.test(ref.path), false, ref.file + ":" + ref.key + " must resolve locally");
+    assert.equal(fs.existsSync(path.join(ROOT, ref.path)), true, ref.path + " must exist");
+  }
+
+  for (const runtimeFile of runtimeFiles) {
+    const runtimeText = fs.readFileSync(path.join(ROOT, runtimeFile), "utf8");
+    assert.equal(/https?:\/\/(?:i\.)?imgur\.com\//i.test(runtimeText), false, runtimeFile + " must not depend on Imgur at runtime");
+  }
+
   console.log("Item icon asset smoke: OK (" + catalog.familyCount + " families, " + catalog.uniqueAssetCount + " unique local PNGs)");
 })().catch((error) => {
   console.error(error);
