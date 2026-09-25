@@ -11,6 +11,8 @@ import {
 
 assert.equal(DEFAULT_WATER_CONFIG.texture,'Assets/Images/World/Water/water_seamless.png');
 assert.equal(DEFAULT_FOAM_CONFIG.texture,'Assets/Images/World/Water/coast_foam_seamless.png');
+assert.ok(DEFAULT_FOAM_CONFIG.renderOrder<0,'shore foam must render in the terrain/water layer before units');
+assert.ok(DEFAULT_FOAM_CONFIG.yOffset<=.012,'shore foam must stay nearly coplanar with water');
 
 const currentDry=waterCurrentImmersionFactor({waterDepth:0,referenceDepth:1});
 const currentEdge=waterCurrentImmersionFactor({waterDepth:.10,referenceDepth:1});
@@ -87,6 +89,7 @@ assert.match(moduleSource,/uPulseAmplitude/);
 assert.match(moduleSource,/showShoreFoamRibbon/);
 assert.match(moduleSource,/flowWorldSpeed/);
 assert.match(moduleSource,/waterCurrentImmersionFactor/);
+assert.match(moduleSource,/scrollX:0,scrollY:0,wrapT:THREE\.ClampToEdgeWrapping/,'foam texture cache must not double-apply per-mesh current scroll');
 
 const lab=await fs.readFile(new URL('../lab/game/forest-0.3.3.1.html',import.meta.url),'utf8');
 assert.match(lab,/createWaterBodySystem/);
@@ -97,8 +100,15 @@ assert.match(lab,/waterBodyRiverUvWorld/);
 assert.match(lab,/waterBodySystem\.update\(dt\)/);
 assert.match(lab,/showShoreFoamRibbon/);
 assert.match(lab,/flowWorldSpeed:\{x:-wt\(riverVisualCurrentSpeed\)\*\.48,y:0\}/);
-assert.match(lab,/opacity:\.84/);
-assert.match(lab,/innerWidth:TILE\*\.16,outerWidth:TILE\*\.30/);
+assert.match(lab,/riverCalmShoulderWidthAtT/);
+assert.match(lab,/riverWaterHalfWidthAtT/);
+assert.match(lab,/includeCalmShoulder:true/);
+assert.match(lab,/id:\`river-calm:\$\{id\}\`/);
+assert.match(lab,/id:\`river-current:\$\{id\}\`/);
+assert.match(lab,/flowWorldSpeed:\{x:-wt\(riverVisualCurrentSpeed\)\*\.09,y:0\}/);
+assert.match(lab,/foamCurrentScroll=-\.016\*Math\.max\(\.5,riverVisualCurrentSpeed\)/);
+assert.match(lab,/surface:\{renderOrder:-5\}/);
+assert.match(lab,/foam:\{enabled:false\}/);
 assert.match(lab,/waterCurrentImmersionFactor/);
 assert.match(lab,/currentSpeed,currentStrength:currentSpeed/);
 assert.match(lab,/baseStrength:Number\(current\.baseStrength/);
