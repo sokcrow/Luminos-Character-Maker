@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "domain": "world.water",
+  "runtimeMode": "repository-local",
+  "assetCount": 2,
+  "note": "Runtime uses repository-local PNGs only. provenance is maintenance metadata.",
+  "assets": [
+    {
+      "id": "water_seamless",
+      "path": "Assets/Images/World/Water/water_seamless.png",
+      "bytes": 677639,
+      "sha256": "2f370a721787ca4f6114284c6744b584995e4bf31aff04c0fd71f0c665a65b13",
+      "width": 1254,
+      "height": 1254,
+      "bitDepth": 8,
+      "colorType": 6,
+      "hasAlpha": true,
+      "provenance": "https://imgur.com/ZKjxmk7.png"
+    },
+    {
+      "id": "coast_foam_seamless",
+      "path": "Assets/Images/World/Water/coast_foam_seamless.png",
+      "bytes": 361469,
+      "sha256": "9ef024267206b1314855b376b4a2c0ad03733e849b47689315bd7d8baa76579b",
+      "width": 2172,
+      "height": 724,
+      "bitDepth": 8,
+      "colorType": 6,
+      "hasAlpha": true,
+      "provenance": "https://imgur.com/tJMwx10.png"
+    }
+  ]
+}
