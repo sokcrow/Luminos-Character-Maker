@@ -139,7 +139,7 @@ assert.match(game, /waterVisualClass='river-flow-streaks'/);
 assert.match(game, /function buildProceduralRiverWaterGeometry\(/);
 assert.match(game, /source:'riverFieldSample\+riverHalfWidthAtT'/);
 assert.match(game, /riverGeometryAuthority='riverHalfWidthAtT'/);
-assert.match(game, /geometryAuthority='procedural-river-strip'/);
+assert.match(game, /geometryAuthority='procedural-river-core\+calm-shoulder'/);
 assert.match(game, /mat\.alphaMap=null/);
 assert.match(game, /activeProceduralZone\?\.hydrology\?\.type==='river'/);
 assert.match(game, /sample\?\.water\?sample\.current:null/);
