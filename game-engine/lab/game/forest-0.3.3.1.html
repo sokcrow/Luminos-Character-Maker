@@ -12492,26 +12492,47 @@ function buildCanalEastStub(){
 // ============================================================
 function waterRect(g,x0,x1,z0,z1,elevationTiles=-1){
   const w=spanTiles(x0,x1),d=spanTiles(z0,z1),cx=spanCenter(x0,x1),cz=spanCenter(z0,z1);
-  const baseY=wt(elevationTiles);
+  const baseY=wt(elevationTiles),waterY=baseY+.03;
+  const waterPoints=[[x0,z0],[x1,z0],[x1,z1],[x0,z1]];
   const bottom=new THREE.Mesh(new THREE.PlaneGeometry(wt(w),wt(d)),new THREE.MeshBasicMaterial({color:0x2e7784,side:THREE.DoubleSide}));
   bottom.rotation.x=-Math.PI/2;bottom.position.set(wt(cx),baseY-.13,wt(cz));g.add(bottom);
 
-  const toonWater=window.PaperFX?.toonWaterAvailable?window.PaperFX?.waterPreset?.('swamp',{coast:{enabled:true,foamWidth:1.25}}):null;
+  const toonWater=window.PaperFX?.toonWaterAvailable?window.PaperFX?.waterPreset?.('swamp',{coast:{enabled:false,foamWidth:1.25},reactive:true}):null;
   const paperWater=!toonWater?(window.PaperFX?.createWater?.({baseColor:0x368fa0,waves:['wavesA','wavesB'],foam:'foam'})||null):null;
   const geo=new THREE.PlaneGeometry(wt(w),wt(d),Math.max(12,Math.round(w*1.5)),Math.max(4,Math.round(d*1.5)));
+
+  const attachOfficial=()=>{
+    const officialGeo=waterBodyPlaneUvWorld(geo.clone(),{id:mapId,cxTiles:cx,czTiles:cz});
+    const body=createOfficialWaterBody({
+      id:`water-rect:${mapId}:${x0},${z0},${x1},${z1}`,
+      parent:g,geometry:officialGeo,
+      position:new THREE.Vector3(wt(cx),waterY+.018,wt(cz)),rotationX:-Math.PI/2,
+      shorelines:[waterBodyPolygonShoreline(waterPoints,waterY)],
+      isWaterAt:(x,z)=>waterBodyPointInTilePolygon(waterPoints,x,z),
+      water:{opacity:.78,scrollSpeed:{x:.004,y:.003}},
+      foam:{width:TILE*.28,innerWidth:TILE*.05,outerWidth:TILE*.23,tileWorldLength:TILE*2.0,opacity:.74,scrollSpeed:.010}
+    });
+    if(body)body.group.userData.waterBodyRole='authored-rect';
+    return body;
+  };
+
   if(toonWater){
     toonWater.prepareGeometry(geo,{sample:({x,y})=>{const tx=x/TILE,tz=-y/TILE,edge=Math.min(w*.5-Math.abs(tx),d*.5-Math.abs(tz));return {waterDepth:.35+Math.max(0,edge)*.22,distanceToCoast:Math.max(0,edge),valid:true}},defaultDepth:.55,defaultCoastDistance:999});
-    waterSurface=new THREE.Mesh(geo,toonWater.material);waterSurface.rotation.x=-Math.PI/2;waterSurface.position.set(wt(cx),baseY+.03,wt(cz));waterSurface.receiveShadow=true;g.add(waterSurface);
-    waterBase=null;waterOverlay=null;waterTexA=waterTexB=waterBandTex=waterFleckTex=null;waterBandLayer=waterFleckLayer=null;foamStrips=[];return;
+    waterSurface=new THREE.Mesh(geo,toonWater.material);waterSurface.rotation.x=-Math.PI/2;waterSurface.position.set(wt(cx),waterY,wt(cz));waterSurface.receiveShadow=true;g.add(waterSurface);
+    waterBase=null;waterOverlay=null;waterTexA=waterTexB=waterBandTex=waterFleckTex=null;waterBandLayer=waterFleckLayer=null;foamStrips=[];
+    attachOfficial();
+    return;
   }
 
-  // PaperFX legacy permanece como fallback desactivable.
-  waterTexA=paperWater?.textures?.waves?.[0]||makeWaterTexture(false);waterTexB=paperWater?.textures?.waves?.[1]||makeWaterTexture(true);
-  waterSurface=new THREE.Mesh(geo,paperWater?.baseMaterial||new THREE.MeshBasicMaterial({map:waterTexA,color:0xffffff,side:THREE.DoubleSide}));waterSurface.rotation.x=-Math.PI/2;waterSurface.position.set(wt(cx),baseY+.03,wt(cz));waterSurface.receiveShadow=true;g.add(waterSurface);waterBase=Float32Array.from(geo.attributes.position.array);
-  waterOverlay=new THREE.Mesh(new THREE.PlaneGeometry(wt(w),wt(d)),paperWater?.waveMaterials?.[0]||new THREE.MeshBasicMaterial({map:waterTexB,color:0xffffff,transparent:true,opacity:.55,side:THREE.DoubleSide,depthWrite:false}));waterOverlay.rotation.x=-Math.PI/2;waterOverlay.position.set(wt(cx),baseY+.075,wt(cz));g.add(waterOverlay);
-  waterBandTex=paperWater?.textures?.waves?.[1]||makeWaterBandTexture();waterBandLayer=new THREE.Mesh(new THREE.PlaneGeometry(wt(w),wt(d)),paperWater?.waveMaterials?.[1]||new THREE.MeshBasicMaterial({map:waterBandTex,transparent:true,opacity:.72,side:THREE.DoubleSide,depthWrite:false}));waterBandLayer.rotation.x=-Math.PI/2;waterBandLayer.position.set(wt(cx),baseY+.084,wt(cz));g.add(waterBandLayer);
-  waterFleckTex=paperWater?.textures?.foam||makeWaterFleckTexture();waterFleckLayer=new THREE.Mesh(new THREE.PlaneGeometry(wt(w),wt(d)),paperWater?.foamMaterial||new THREE.MeshBasicMaterial({map:waterFleckTex,transparent:true,opacity:.58,side:THREE.DoubleSide,depthWrite:false}));waterFleckLayer.rotation.x=-Math.PI/2;waterFleckLayer.position.set(wt(cx),baseY+.092,wt(cz));g.add(waterFleckLayer);
-  foamStrips=[];for(const z of [z0+.08,z1-.08]){const foam=new THREE.Mesh(new THREE.PlaneGeometry(wt(w-.25),.14,Math.max(18,Math.round(w)),1),new THREE.MeshBasicMaterial({color:0xf1fbef,transparent:true,opacity:.52,side:THREE.DoubleSide,depthWrite:false}));foam.rotation.x=-Math.PI/2;foam.position.set(wt(cx),baseY+.095,wt(z));g.add(foam);foamStrips.push(foam)}
+  waterTexA=paperWater?.textures?.waves?.[0]||makeWaterTexture(false);
+  waterTexB=paperWater?.textures?.waves?.[1]||makeWaterTexture(true);
+  waterSurface=new THREE.Mesh(geo,paperWater?.baseMaterial||new THREE.MeshBasicMaterial({map:waterTexA,color:0xffffff,side:THREE.DoubleSide}));
+  waterSurface.rotation.x=-Math.PI/2;waterSurface.position.set(wt(cx),waterY,wt(cz));waterSurface.receiveShadow=true;g.add(waterSurface);waterBase=Float32Array.from(geo.attributes.position.array);
+
+  waterOverlay=new THREE.Mesh(new THREE.PlaneGeometry(wt(w),wt(d)),paperWater?.waveMaterials?.[0]||new THREE.MeshBasicMaterial({map:waterTexB,color:0xffffff,transparent:true,opacity:.18,side:THREE.DoubleSide,depthWrite:false}));
+  waterOverlay.rotation.x=-Math.PI/2;waterOverlay.position.set(wt(cx),waterY+.075,wt(cz));g.add(waterOverlay);
+  waterBandTex=null;waterBandLayer=null;waterFleckTex=null;waterFleckLayer=null;foamStrips=[];
+  attachOfficial();
 }
 
 function paperForestGroundPatch(g,points,kind='forestPath',y=.012,renderOrder=-16){
