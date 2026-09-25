@@ -2648,8 +2648,15 @@ function commitGlobalRegion(region,beforePos){
 function updateGlobalCamera(dt,snap=false){
   if(!globalCamera||!globalActor)return;
   const target=_globalVec.set(globalActor.position.x,.45,globalActor.position.z+.40);
-  const dist=10.2,yaw=playerCameraYawOffset;
-  const desired=new THREE.Vector3(target.x+Math.sin(yaw)*dist,8.6,target.z-Math.cos(yaw)*dist);
+  const dist=10.2,yaw=playerCameraYawOffset,baseLift=8.15;
+  const radius=Math.hypot(dist,baseLift);
+  const pitch=THREE.MathUtils.clamp(
+    Math.atan2(baseLift,dist)+playerCameraPitchOffset,
+    THREE.MathUtils.degToRad(12),
+    THREE.MathUtils.degToRad(76)
+  );
+  const planarDist=Math.cos(pitch)*radius,verticalLift=Math.sin(pitch)*radius;
+  const desired=new THREE.Vector3(target.x+Math.sin(yaw)*planarDist,target.y+verticalLift,target.z-Math.cos(yaw)*planarDist);
   globalCamera.fov=cameraFixedVisibilityFov(38,globalCamera);
   globalCamera.updateProjectionMatrix();
   if(snap)globalCamera.position.copy(desired);else globalCamera.position.lerp(desired,1-Math.exp(-dt*4.8));
@@ -2778,19 +2785,23 @@ if(globalExploreBtn)globalExploreBtn.onclick=()=>void enterLocalFromGlobal('expl
 if(globalCampBtn)globalCampBtn.onclick=()=>void enterLocalFromGlobal('camp');
 if(campHereBtn)campHereBtn.onclick=()=>placeCampAtCurrentLocation();
 window.PaperCameraControl=Object.freeze({
-  version:'player-quarter-camera-v2',
+  version:'player-free-camera-v3',
+  rotateBy:rotatePlayerCameraBy,
+  setYaw:setPlayerCameraYaw,
+  yaw:()=>playerCameraYawOffset,
+  setPitch:setPlayerCameraPitch,
+  pitch:()=>playerCameraPitchOffset,
+  toggleMouseCapture:togglePlayerCameraMouseCapture,
+  captured:()=>cameraMouseCaptured,
+  allowed:playerCameraOrbitAllowed,
+  // Compatibility helpers for old diagnostics only; runtime input is no longer snapped.
   rotateQuarter:rotatePlayerCameraQuarter,
   setQuarter:setPlayerCameraQuarter,
   quarter:()=>playerCameraQuarter,
-  setYaw:setPlayerCameraYawSnapped,
-  yaw:()=>playerCameraYawOffset,
-  allowed:playerCameraOrbitAllowed,
   controls:Object.freeze({
-    quarterDegrees:90,
-    pointerSwipe:true,
-    touchSwipe:true,
-    swipeThresholdPx:44,
-    keyboard:Object.freeze({left:'Q',right:'E'})
+    mouse:Object.freeze({toggle:'ShiftLeft',pointerLock:true,continuousYaw:true,continuousPitch:true}),
+    touch:Object.freeze({drag:true,continuousYaw:true,continuousPitch:true}),
+    keyboardCameraMovement:false
   })
 });
 window.PaperGlobalMap=Object.freeze({
@@ -4708,29 +4719,57 @@ let currentWorldLayer='exterior',worldLayerBaseY=0;
 let playerBaseY=0;
 let canalRearView=false;
 let canalViewMode='front',canalCameraYaw=0;
-let playerCameraQuarter=0,playerCameraYawOffset=0;
-let cameraOrbitPointerId=null,cameraOrbitStartX=0,cameraOrbitLastX=0,cameraOrbitSwipeCommitted=false;
+let playerCameraQuarter=0,playerCameraYawOffset=0,playerCameraPitchOffset=0;
+let cameraOrbitPointerId=null,cameraOrbitLastX=0,cameraOrbitLastY=0;
+let cameraMouseCaptured=false;
 const PLAYER_CAMERA_ORBIT=Object.freeze({
+  // Quarter-turn helpers remain only as compatibility API. Runtime control is continuous.
   quarterRadians:Math.PI/2,
-  swipeThresholdPx:44,
-  maxSwipeDriftY:180
+  mouseRadiansPerPixel:.0024,
+  touchRadiansPerPixel:.0062,
+  minPitchOffset:THREE.MathUtils.degToRad(-38),
+  maxPitchOffset:THREE.MathUtils.degToRad(42)
 });
 function normalizeCameraQuarter(v){
   const n=Math.round(Number(v)||0);
   return ((n%4)+4)%4;
 }
+function normalizeCameraYaw(v){
+  const a=Number(v)||0;
+  return Math.atan2(Math.sin(a),Math.cos(a));
+}
 function playerCameraQuarterYaw(quarter=playerCameraQuarter){
   return normalizeCameraQuarter(quarter)*PLAYER_CAMERA_ORBIT.quarterRadians;
 }
+function setPlayerCameraYaw(yaw){
+  playerCameraYawOffset=normalizeCameraYaw(yaw);
+  playerCameraQuarter=normalizeCameraQuarter(Math.round(playerCameraYawOffset/PLAYER_CAMERA_ORBIT.quarterRadians));
+  return playerCameraYawOffset;
+}
+function setPlayerCameraPitch(pitch){
+  playerCameraPitchOffset=THREE.MathUtils.clamp(
+    Number(pitch)||0,
+    PLAYER_CAMERA_ORBIT.minPitchOffset,
+    PLAYER_CAMERA_ORBIT.maxPitchOffset
+  );
+  return playerCameraPitchOffset;
+}
 function syncPlayerCameraQuarterYaw(){
   playerCameraQuarter=normalizeCameraQuarter(playerCameraQuarter);
-  playerCameraYawOffset=playerCameraQuarterYaw(playerCameraQuarter);
-  return playerCameraYawOffset;
+  return setPlayerCameraYaw(playerCameraQuarterYaw(playerCameraQuarter));
 }
 function playerCameraOrbitAllowed(){
   if(transitioning||dialogOpen||shopOpen||inventoryOpen||cameraCine||cameraReturnTween)return false;
   if(globalMapActive)return true;
+  // Open/procedural environments are free-camera. Legacy city/interior maps keep
+  // their authored fixed cameras until the city camera pass is implemented.
   return isOverworldSector(mapId)&&!activeInteriorStage;
+}
+function rotatePlayerCameraBy(deltaYaw=0,deltaPitch=0){
+  if(!playerCameraOrbitAllowed())return {yaw:playerCameraYawOffset,pitch:playerCameraPitchOffset};
+  setPlayerCameraYaw(playerCameraYawOffset+(Number(deltaYaw)||0));
+  setPlayerCameraPitch(playerCameraPitchOffset+(Number(deltaPitch)||0));
+  return {yaw:playerCameraYawOffset,pitch:playerCameraPitchOffset};
 }
 function rotatePlayerCameraQuarter(step){
   if(!Number.isFinite(Number(step))||!step)return playerCameraQuarter;
@@ -4746,6 +4785,21 @@ function setPlayerCameraQuarter(quarter){
 function setPlayerCameraYawSnapped(yaw){
   const q=Math.round((Number(yaw)||0)/PLAYER_CAMERA_ORBIT.quarterRadians);
   return setPlayerCameraQuarter(q);
+}
+function togglePlayerCameraMouseCapture(){
+  if(!playerCameraOrbitAllowed())return false;
+  if(document.pointerLockElement===renderer.domElement){
+    document.exitPointerLock?.();
+    return false;
+  }
+  try{
+    const pending=renderer.domElement.requestPointerLock?.();
+    pending?.catch?.(err=>console.warn('Camera pointer lock:',err));
+    return true;
+  }catch(err){
+    console.warn('Camera pointer lock:',err);
+    return false;
+  }
 }
 
 const BALCONY_Y=wt(2);
@@ -5650,8 +5704,8 @@ function buildProceduralRiverWaterGeometry(id,river,bounds,segments=72,{includeC
   geo.userData={
     ...(geo.userData||{}),
     proceduralRiverStrip:true,
-    source:'riverFieldSample+riverHalfWidthAtT',
-    riverWaterLayer:includeCalmShoulder?'calm-full':'current-core'
+    source:includeCalmShoulder?'riverFieldSample+riverWaterHalfWidthAtT':'riverFieldSample+riverHalfWidthAtT',
+    riverWaterLayer:includeCalmShoulder?'single-full-width':'current-core'
   };
   return geo;
 }
@@ -5660,7 +5714,7 @@ function proceduralInlandWaterVisualProfile(hydro,region){
   const type=hydro?.type||'lake',field=hydro?.river||hydro?.lake||hydro;
   if(type==='river'){
     return {
-      id:'river',baseColor:0x287f93,detailA:0xb7eef0,detailB:0x79cbd2,foam:0xf2fff8,opacity:.985,
+      id:'river',baseColor:0x2f6fdb,detailA:0xa9c9ff,detailB:0x6fa0f0,foam:0xf5fbff,opacity:1,
       // U grows downstream. PaperFX samples UV as uv + speed*time, therefore the
       // visible pattern travels toward +U only when speed.x is NEGATIVE.
       uv:{wavesA:{repeat:[1,2.8],speed:[-.070,0],rotation:0},wavesB:{repeat:[1,3.6],speed:[-.095,0],rotation:0},foam:{repeat:[1,2.4],speed:[-.115,0],rotation:0}}
@@ -5704,100 +5758,57 @@ function buildProceduralInlandWaterVisual(g,id=mapId){
   const group=new THREE.Group();group.name=`procedural-${hydro.type}-water`;group.userData.waterVisualClass=profile.id;
 
   if(hydro.type==='river'&&hydro.river){
-    const geo=buildProceduralRiverWaterGeometry(id,hydro.river,bounds,DISPLAY_DEVICE_MOBILE?64:96);
-    const calmGeo=buildProceduralRiverWaterGeometry(id,hydro.river,bounds,DISPLAY_DEVICE_MOBILE?64:96,{includeCalmShoulder:true});
-    if(!geo||!calmGeo)return null;
+    // ONE water surface for the entire playable river width. The shallow shoulder and
+    // fast core still differ in gameplay current/depth through riverFieldSample(), but
+    // they are never represented by stacked plates or different water materials.
+    const fullGeo=buildProceduralRiverWaterGeometry(
+      id,hydro.river,bounds,DISPLAY_DEVICE_MOBILE?64:96,{includeCalmShoulder:true}
+    );
+    if(!fullGeo)return null;
 
-    // ToonWater receives the same strip geometry used by gameplay. This activates
-    // PaperFX.waterContact() ripple uniforms, so buoyancy/contact feedback is visible
-    // exactly where the Unit is swimming, just like on procedural coasts.
-    if(riverToon){
-      riverToon.prepareGeometry(geo,{
-        defaultDepth:Math.max(.18,Number(hydro.river.depthTiles)||.62),
-        defaultCoastDistance:999,
-        defaultSignedCoastDistance:-999,
-        valid:true
-      });
-    }
-
-    const sourceMat=riverToon?.material||kit?.baseMaterial||new THREE.MeshStandardMaterial({color:profile.baseColor,roughness:.28,side:THREE.DoubleSide});
-    const mat=riverToon?sourceMat:sourceMat.clone();
-    if(!riverToon){
-      mat.color.setHex(profile.baseColor);mat.transparent=false;mat.alphaMap=null;mat.opacity=1;
-      mat.depthWrite=true;mat.side=THREE.DoubleSide;mat.roughness=.28;mat.needsUpdate=true;
-    }
-    const mesh=new THREE.Mesh(geo,mat);mesh.position.y=baseY;mesh.receiveShadow=true;mesh.renderOrder=-4;
-    mesh.userData.paperFXWaterSurface=true;mesh.userData.proceduralHydrologyType='river';mesh.userData.waterVisualClass='river';
-    mesh.userData.riverGeometryAuthority='riverHalfWidthAtT';mesh.userData.reactiveBuoyancy=!!riverToon;
-
-    const addRiverDetail=(texture,color,opacity,y,order)=>{
-      if(!texture)return null;
-      const detailMat=new THREE.MeshBasicMaterial({map:texture,color,transparent:true,opacity,side:THREE.DoubleSide,depthWrite:false,depthTest:true,blending:THREE.AdditiveBlending});
-      const detail=new THREE.Mesh(geo.clone(),detailMat);detail.position.y=baseY+y;detail.renderOrder=order;detail.userData.waterVisualClass='river';group.add(detail);return detail;
-    };
-    group.add(mesh);
-
-    // ToonWater already owns animated waves/foam and reactive ripples. Legacy detail
-    // meshes remain only as fallback when ToonWater is explicitly disabled.
-    const detailA=riverToon?null:addRiverDetail(kit?.textures?.waves?.[0],profile.detailA,DISPLAY_DEVICE_MOBILE?.28:.34,.010,-2);
-    const detailB=riverToon?null:(!DISPLAY_DEVICE_MOBILE?addRiverDetail(kit?.textures?.waves?.[1],profile.detailB,.22,.016,-1):null);
-    const riverLayers=[
-      buildRiverBankVisual(group,id,hydro.river,profile,bounds),
-      buildRiverFlowStreaks(group,id,hydro.river,profile,bounds,baseY)
-    ].filter(Boolean);
-
-    const calmOfficialGeo=waterBodyRiverUvWorld(calmGeo,hydro.river,{includeCalmShoulder:true});
-    const currentOfficialGeo=waterBodyRiverUvWorld(geo,hydro.river);
+    const officialGeo=waterBodyRiverUvWorld(fullGeo,hydro.river,{includeCalmShoulder:true});
     const shorelines=riverWaterBodyShorelines(id,hydro.river,baseY,bounds,DISPLAY_DEVICE_MOBILE?72:112);
     const riverVisualCurrentSpeed=Math.max(.15,Number(hydro.river.currentSpeed??hydro.river.currentStrength)||1);
-    const foamCurrentScroll=-.016*Math.max(.5,riverVisualCurrentSpeed);
+    const foamCurrentScroll=-.020*Math.max(.5,riverVisualCurrentSpeed);
 
-    // Calm shallow shoulder: fills the previously empty shelf between current and land.
-    // It moves in the same downstream axis, but at a small fraction of core velocity.
-    const calmBody=createOfficialWaterBody({
-      id:`river-calm:${id}`,parent:group,geometry:calmOfficialGeo,
-      surface:{renderOrder:-5},
-      position:new THREE.Vector3(0,baseY-.006,0),
+    const body=createOfficialWaterBody({
+      id:`river:${id}`,parent:group,geometry:officialGeo,
+      surface:{renderOrder:-4,depthWrite:true},
+      position:new THREE.Vector3(0,baseY,0),
       shorelines,
       isWaterAt:(x,z)=>!!proceduralHydrologySample(id,x/TILE,z/TILE)?.water,
       water:{
-        opacity:.70,roughness:.54,
-        flowWorldSpeed:{x:-wt(riverVisualCurrentSpeed)*.09,y:0}
+        color:0x2f6fdb,
+        opacity:1,
+        roughness:.44,
+        metalness:.01,
+        // One visual flow axis/speed across the whole connected sheet. The calm bank
+        // remains calm in PHYSICS via current.bandFactor instead of a second material.
+        flowWorldSpeed:{x:-wt(riverVisualCurrentSpeed)*.34,y:0}
       },
       foam:{
-        width:TILE*.36,
-        innerWidth:TILE*.08,outerWidth:TILE*.28,
-        tileWorldLength:TILE*1.85,
-        // Foam travels downstream with the same authored current authority.
+        // Slightly larger than the previous ribbon and driven downstream by the same
+        // authored current authority.
+        width:TILE*.48,
+        innerWidth:TILE*.10,outerWidth:TILE*.38,
+        tileWorldLength:TILE*2.05,
         scrollSpeed:foamCurrentScroll,
-        pulseAmplitude:TILE*.010,pulseSpeed:1.45,pulseFrequency:.82,
-        opacity:.80,yOffset:TILE*.008,renderOrder:-3
+        pulseAmplitude:TILE*.012,pulseSpeed:1.55,pulseFrequency:.84,
+        opacity:.88,yOffset:TILE*.008,renderOrder:-3
       }
     });
 
-    // Fast core retains the authored current and reactive river treatment.
-    // No second shoreline foam is generated here; coast foam belongs to the outer
-    // calm-water/land contact so it never slices across the playable river.
-    const body=createOfficialWaterBody({
-      id:`river-current:${id}`,parent:group,geometry:currentOfficialGeo,
-      surface:{renderOrder:-2},
-      position:new THREE.Vector3(0,baseY+.012,0),
-      shorelines:[],
-      isWaterAt:(x,z)=>!!proceduralHydrologySample(id,x/TILE,z/TILE)?.riverCore,
-      water:{
-        opacity:.82,
-        flowWorldSpeed:{x:-wt(riverVisualCurrentSpeed)*.48,y:0}
-      },
-      foam:{enabled:false}
-    });
+    const riverLayers=[
+      buildRiverBankVisual(group,id,hydro.river,profile,bounds)
+    ].filter(Boolean);
 
-    group.userData.paperFXWaterMesh=mesh;
-    group.userData.waterDetailLayers=[detailA,detailB].filter(Boolean);
+    group.userData.paperFXWaterMesh=null;
+    group.userData.waterDetailLayers=[];
     group.userData.riverVisualLayers=riverLayers;
-    group.userData.geometryAuthority='procedural-river-core+calm-shoulder';
-    group.userData.reactiveBuoyancy=!!riverToon;
+    group.userData.geometryAuthority='procedural-river-single-surface';
+    group.userData.reactiveBuoyancy=false;
     group.userData.waterBody=body;
-    group.userData.calmWaterBody=calmBody;
+    group.userData.calmWaterBody=null;
     g.add(group);return group;
   }
 
@@ -10964,8 +10975,13 @@ const UnitAnimationSystem=Object.freeze({
   update(unit,dt){
     if(!unit?.visual?.sprite)return;const s=ensureUnitRuntimeState(unit),sprite=unit.visual.sprite,shadow=unit.visual.shadow,{p,h,center,w}=unitAnimationBase(unit);
     if(unit.visual.billboard)faceBillboardUpright(unit.visual.billboard);
-    const moved=s.movement.movedDistanceFrame||0,talking=!!(dialogTyping&&dialogSource?.owner===unit.group),locked=typeof p.externalLock==='function'&&p.externalLock(unit);
-    let next=s.vertical.falling?'fall':(s.locomotion==='swim'?'swim':(moved>.0001?'walk':(talking?'talk':'idle')));
+    const moved=s.movement.movedDistanceFrame||0;
+    const selfPropelled=Math.hypot(Number(s.movement.desiredX)||0,Number(s.movement.desiredZ)||0)>.02;
+    const visualMoved=selfPropelled?moved:0;
+    const talking=!!(dialogTyping&&dialogSource?.owner===unit.group),locked=typeof p.externalLock==='function'&&p.externalLock(unit);
+    // Water changes physics, not pose by itself. Standing still in water is idle;
+    // only self-propelled swimming/walking uses the walk animation.
+    let next=s.vertical.falling?'fall':(visualMoved>.0001?'walk':(talking?'talk':'idle'));
     if(s.animation.lock)next=String(s.animation.lock);
     if(next!==s.animation.state){s.animation.previousState=s.animation.state;s.animation.state=next;}
     const visualState=p.states?.[next]??next;
@@ -10975,9 +10991,9 @@ const UnitAnimationSystem=Object.freeze({
     else sprite.scale.x=w*(fs.sign||1);
     if(locked){return;}
     const shadowX=Number(p.shadowX??1),shadowY=Number(p.shadowY??.55),shadowOpacity=Number(p.shadowOpacity??.18);
-    if(moved>.0001&&!s.vertical.falling){
+    if(visualMoved>.0001&&!s.vertical.falling){
       const phasePerWorld=typeof p.phasePerWorldDistance==='function'?Number(p.phasePerWorldDistance(unit)):11.5/Math.max(.01,unitStat(unit,'speed',PLAYER_MOVE_SPEED));
-      s.animation.phase+=moved*(Number.isFinite(phasePerWorld)?phasePerWorld:3.5);const wv=paperWalkSample(s.animation.phase),swim=s.locomotion==='swim',amp=swim?.42:1;
+      s.animation.phase+=visualMoved*(Number.isFinite(phasePerWorld)?phasePerWorld:3.5);const wv=paperWalkSample(s.animation.phase),swim=s.locomotion==='swim',amp=swim?.42:1;
       sprite.position.y=center+wv.bob*amp;sprite.rotation.z=wv.tilt*(swim?.55:1);sprite.scale.y=h*(1+(wv.scaleY-1)*amp);
       if(shadow){shadow.scale.x=shadowX*(1+(wv.shadowX-1)*amp);shadow.scale.y=shadowY*(1+(wv.shadowY-1)*amp);shadow.material.opacity=shadowOpacity*(1+(wv.shadowOpacity-1)*amp);}
     }else{
@@ -10985,7 +11001,7 @@ const UnitAnimationSystem=Object.freeze({
       if(shadow){shadow.scale.x=THREE.MathUtils.lerp(shadow.scale.x,shadowX,k);shadow.scale.y=THREE.MathUtils.lerp(shadow.scale.y,shadowY,k);shadow.material.opacity=THREE.MathUtils.lerp(shadow.material.opacity,shadowOpacity,k);}
     }
     if(talking)applyPaperTalkSquash(sprite,h,paperTalkSample());
-    s.animation.wasMoving=moved>.0001;
+    s.animation.wasMoving=visualMoved>.0001;
   }
 });
 const UnitNeedsSystem=Object.freeze({update(unit,dt){if(!unit?.needs)return;const t=unit.state?.environment?.temperature;if(unit.capabilities?.affectedByTemperature!==false&&Number.isFinite(t)){const current=Number(unit.needs.bodyTemperature);unit.needs.bodyTemperature=Number.isFinite(current)?THREE.MathUtils.lerp(current,t,1-Math.exp(-dt*.025)):t;}if(unit.capabilities?.needsRest!==false)unit.needs.fatigue=Math.max(0,Number(unit.needs.fatigue)||0);}});
@@ -11010,7 +11026,7 @@ const playerUnit=registerUnit({
   id:'hero',group:player,controller:'local-input',persistent:true,radius:PLAYER_RADIUS,tags:['hero'],faction:'party',relationships:{partyId:'player-party'},
   stats:{strength:ACTOR_STRENGTH.player,speed:PLAYER_MOVE_SPEED,swimSpeed:PLAYER_MOVE_SPEED,currentResistance:1,mass:1,endurance:1},
   capabilities:{walk:true,run:true,swim:true,canSwim:true,interact:true,talk:true,affectedByCurrent:true,affectedByTemperature:true,needsRest:true,solid:true},
-  physics:{movement:{responseMove:11.5,responseStop:15.5},buoyancy:{strength:1,bobScale:1,visibleTopFraction:SWIM_VISIBLE_TOP_FRACTION}},
+  physics:{movement:{responseMove:11.5,responseStop:15.5},buoyancy:{strength:1,bobScale:1,visibleTopFraction:SWIM_VISIBLE_TOP_FRACTION,idleRipples:false}},
   visual:{sprite:playerSprite,billboard:playerVisualRig,shadow,getHeight:()=>spriteBaseY,getCenterY:()=>spriteBaseY*.52},
   animationProfile:{
     states:{idle:'idle',walk:'walk',swim:'walk',talk:'idle',fall:'idle'},
@@ -17792,42 +17808,55 @@ joy.onpointermove=e=>{if(e.pointerId===joyId)setJoy(e)};
 joy.onpointerup=resetJoy;joy.onpointercancel=resetJoy;
 const keys=new Set();
 addEventListener('keydown',e=>{
-  const key=e.key.toLowerCase();
-  keys.add(key);
-  if(!e.repeat&&playerCameraOrbitAllowed()){
-    if(key==='q'){e.preventDefault();rotatePlayerCameraQuarter(-1);}
-    else if(key==='e'){e.preventDefault();rotatePlayerCameraQuarter(1);}
+  // Left Shift is reserved for camera mouse capture. It never enters the movement
+  // key set, so it cannot accidentally trigger running while the camera is locked.
+  if(e.code==='ShiftLeft'){
+    e.preventDefault();
+    if(!e.repeat)togglePlayerCameraMouseCapture();
+    return;
   }
+  keys.add(e.key.toLowerCase());
 });
-addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
+addEventListener('keyup',e=>{
+  if(e.code==='ShiftLeft')return;
+  keys.delete(e.key.toLowerCase());
+});
+document.addEventListener('pointerlockchange',()=>{
+  cameraMouseCaptured=document.pointerLockElement===renderer.domElement;
+});
+document.addEventListener('mousemove',e=>{
+  if(document.pointerLockElement!==renderer.domElement||!playerCameraOrbitAllowed())return;
+  rotatePlayerCameraBy(
+    -(Number(e.movementX)||0)*PLAYER_CAMERA_ORBIT.mouseRadiansPerPixel,
+    (Number(e.movementY)||0)*PLAYER_CAMERA_ORBIT.mouseRadiansPerPixel
+  );
+});
 renderer.domElement.addEventListener('contextmenu',e=>e.preventDefault());
 renderer.domElement.addEventListener('pointerdown',e=>{
-  if(!playerCameraOrbitAllowed())return;
-  if(e.pointerType==='mouse'&&e.button!==0&&e.button!==2)return;
+  if(!playerCameraOrbitAllowed()||e.pointerType==='mouse')return;
   cameraOrbitPointerId=e.pointerId;
-  cameraOrbitStartX=cameraOrbitLastX=e.clientX;
-  cameraOrbitSwipeCommitted=false;
+  cameraOrbitLastX=e.clientX;
+  cameraOrbitLastY=e.clientY;
   try{renderer.domElement.setPointerCapture(e.pointerId)}catch(_){}
-  if(e.pointerType==='mouse'&&e.button===2)e.preventDefault();
+  e.preventDefault();
 });
 renderer.domElement.addEventListener('pointermove',e=>{
-  if(e.pointerId!==cameraOrbitPointerId||!playerCameraOrbitAllowed()||cameraOrbitSwipeCommitted)return;
-  cameraOrbitLastX=e.clientX;
-  const dx=cameraOrbitLastX-cameraOrbitStartX;
-  if(Math.abs(dx)>=PLAYER_CAMERA_ORBIT.swipeThresholdPx){
-    // One swipe = one quarter turn. Drag left rotates clockwise; drag right counter-clockwise.
-    rotatePlayerCameraQuarter(dx<0?1:-1);
-    cameraOrbitSwipeCommitted=true;
-  }
+  if(e.pointerId!==cameraOrbitPointerId||!playerCameraOrbitAllowed()||e.pointerType==='mouse')return;
+  const dx=e.clientX-cameraOrbitLastX,dy=e.clientY-cameraOrbitLastY;
+  cameraOrbitLastX=e.clientX;cameraOrbitLastY=e.clientY;
+  rotatePlayerCameraBy(
+    -dx*PLAYER_CAMERA_ORBIT.touchRadiansPerPixel,
+    dy*PLAYER_CAMERA_ORBIT.touchRadiansPerPixel
+  );
+  e.preventDefault();
 });
 function endPlayerCameraOrbit(e){
   if(e?.pointerId!==undefined&&e.pointerId!==cameraOrbitPointerId)return;
   if(cameraOrbitPointerId!==null){try{renderer.domElement.releasePointerCapture(cameraOrbitPointerId)}catch(_){}}
-  cameraOrbitPointerId=null;cameraOrbitSwipeCommitted=false;
+  cameraOrbitPointerId=null;
 }
 renderer.domElement.addEventListener('pointerup',endPlayerCameraOrbit);
 renderer.domElement.addEventListener('pointercancel',endPlayerCameraOrbit);
-
 
 const ray=new THREE.Raycaster();
 const faded=new Set();
@@ -18353,12 +18382,21 @@ function updateCamera(dt,snap=false){
       cameraAnchor.z+lookAhead
     );
 
-    // Órbita horizontal completa alrededor del foco. Al cambiar de sector a la misma
-    // cota, posición relativa, lift y distancia quedan idénticos: la transición se lee plana.
+    // Free environments orbit continuously in yaw + pitch. Legacy/city maps keep
+    // pitchOffset=0 and therefore retain their authored fixed framing.
+    const pitchOffset=isOverworldSector(mapId)?playerCameraPitchOffset:0;
+    const orbitRadius=Math.hypot(dist,lift);
+    const orbitPitch=THREE.MathUtils.clamp(
+      Math.atan2(lift,Math.max(.001,dist))+pitchOffset,
+      THREE.MathUtils.degToRad(10),
+      THREE.MathUtils.degToRad(78)
+    );
+    const planarDist=Math.cos(orbitPitch)*orbitRadius;
+    const verticalLift=Math.sin(orbitPitch)*orbitRadius;
     desiredCam.set(
-      target.x + Math.sin(canalCameraYaw)*dist,
-      target.y + lift,
-      target.z - Math.cos(canalCameraYaw)*dist
+      target.x + Math.sin(canalCameraYaw)*planarDist,
+      target.y + verticalLift,
+      target.z - Math.cos(canalCameraYaw)*planarDist
     );
   }
 
