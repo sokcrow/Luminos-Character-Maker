@@ -11739,40 +11739,55 @@ function waterStrip(g){
   const waterPlan=CANAL_PLAN.water;
   const waterW=spanTiles(waterPlan.x0,waterPlan.x1);
   const waterCX=spanCenter(waterPlan.x0,waterPlan.x1);
+  const z0=-2,z1=2,waterD=z1-z0,waterY=-wt(1)+.03;
+  const waterPoints=[[waterPlan.x0,z0],[waterPlan.x1,z0],[waterPlan.x1,z1],[waterPlan.x0,z1]];
 
   const bottom=new THREE.Mesh(
-    new THREE.PlaneGeometry(wt(waterW),wt(4)),
+    new THREE.PlaneGeometry(wt(waterW),wt(waterD)),
     new THREE.MeshBasicMaterial({color:0x2e7784,side:THREE.DoubleSide})
   );
   bottom.rotation.x=-Math.PI/2;
   bottom.position.set(wt(waterCX),-wt(1)-.13,0);
   g.add(bottom);
 
-  const toonWater=window.PaperFX?.toonWaterAvailable?window.PaperFX?.waterPreset?.('river',{deepColor:0x176677,shallowColor:0x49a9ad,crestColor:0xa6ded0,foamColor:0xf2f5ce,coast:{enabled:true,foamWidth:1.15}}):null;
+  const toonWater=window.PaperFX?.toonWaterAvailable?window.PaperFX?.waterPreset?.('river',{
+    deepColor:0x176677,shallowColor:0x49a9ad,crestColor:0xa6ded0,foamColor:0xf2f5ce,
+    coast:{enabled:false,foamWidth:1.15},reactive:true
+  }):null;
   const paperWater=!toonWater?(window.PaperFX?.createWater?.({baseColor:0x368fa0,waves:['wavesA','wavesB'],foam:'foam'})||null):null;
-  const geo=new THREE.PlaneGeometry(wt(waterW),wt(4),Math.max(36,Math.round(waterW*1.5)),8);
+  const geo=new THREE.PlaneGeometry(wt(waterW),wt(waterD),Math.max(36,Math.round(waterW*1.5)),8);
+
+  const attachOfficial=()=>{
+    const body=attachAuthoredWaterBody({
+      id:'canal-water',parent:g,sourceGeometry:geo,points:waterPoints,y:waterY,style:'river',
+      flow:{x:1,z:0,strength:.72},
+      water:{opacity:.80,scrollSpeed:{x:-.024,y:0}},
+      foam:{width:TILE*.25,innerWidth:TILE*.045,outerWidth:TILE*.205,tileWorldLength:TILE*1.85,opacity:.76}
+    });
+    if(body)body.group.userData.waterBodyRole='authored-canal';
+    return body;
+  };
+
   if(toonWater){
     toonWater.prepareGeometry(geo,{sample:({y})=>{const z=-y/TILE,d=Math.max(0,2-Math.abs(z));return {waterDepth:.48+d*.34,distanceToCoast:Math.max(0,2-Math.abs(z)),valid:true}},defaultDepth:.72,defaultCoastDistance:999});
-    const surf=new THREE.Mesh(geo,toonWater.material);surf.rotation.x=-Math.PI/2;surf.position.set(wt(waterCX),-wt(1)+.03,0);surf.receiveShadow=true;g.add(surf);
-    waterSurface=surf;waterBase=null;waterOverlay=null;waterTexA=waterTexB=waterBandTex=waterFleckTex=null;waterBandLayer=waterFleckLayer=null;foamStrips=[];return;
+    const surf=new THREE.Mesh(geo,toonWater.material);surf.rotation.x=-Math.PI/2;surf.position.set(wt(waterCX),waterY,0);surf.receiveShadow=true;g.add(surf);
+    waterSurface=surf;waterBase=null;waterOverlay=null;waterTexA=waterTexB=waterBandTex=waterFleckTex=null;waterBandLayer=waterFleckLayer=null;foamStrips=[];
+    attachOfficial();
+    return;
   }
 
   waterTexA=paperWater?.textures?.waves?.[0]||makeWaterTexture(false);
   waterTexB=paperWater?.textures?.waves?.[1]||makeWaterTexture(true);
   const surf=new THREE.Mesh(geo,paperWater?.baseMaterial||new THREE.MeshBasicMaterial({map:waterTexA,color:0xffffff,transparent:false,side:THREE.DoubleSide}));
-  surf.rotation.x=-Math.PI/2;surf.position.set(wt(waterCX),-wt(1)+.03,0);surf.receiveShadow=true;g.add(surf);waterSurface=surf;waterBase=Float32Array.from(geo.attributes.position.array);
+  surf.rotation.x=-Math.PI/2;surf.position.set(wt(waterCX),waterY,0);surf.receiveShadow=true;g.add(surf);waterSurface=surf;waterBase=Float32Array.from(geo.attributes.position.array);
 
-  const overlayGeo=new THREE.PlaneGeometry(wt(waterW),wt(4),1,1);
-  waterOverlay=new THREE.Mesh(overlayGeo,paperWater?.waveMaterials?.[0]||new THREE.MeshBasicMaterial({map:waterTexB,color:0xffffff,transparent:true,opacity:.58,side:THREE.DoubleSide,depthWrite:false}));
-  waterOverlay.rotation.x=-Math.PI/2;waterOverlay.position.set(wt(waterCX),-wt(1)+.075,0);g.add(waterOverlay);
-  waterBandTex=paperWater?.textures?.waves?.[1]||makeWaterBandTexture();
-  waterBandLayer=new THREE.Mesh(new THREE.PlaneGeometry(wt(waterW),wt(4)),paperWater?.waveMaterials?.[1]||new THREE.MeshBasicMaterial({map:waterBandTex,transparent:true,opacity:.78,side:THREE.DoubleSide,depthWrite:false}));
-  waterBandLayer.rotation.x=-Math.PI/2;waterBandLayer.position.set(wt(waterCX),-wt(1)+.084,0);g.add(waterBandLayer);
-  waterFleckTex=paperWater?.textures?.foam||makeWaterFleckTexture();
-  waterFleckLayer=new THREE.Mesh(new THREE.PlaneGeometry(wt(waterW),wt(4)),paperWater?.foamMaterial||new THREE.MeshBasicMaterial({map:waterFleckTex,transparent:true,opacity:.72,side:THREE.DoubleSide,depthWrite:false}));
-  waterFleckLayer.rotation.x=-Math.PI/2;waterFleckLayer.position.set(wt(waterCX),-wt(1)+.092,0);g.add(waterFleckLayer);
-  foamStrips=[];
-  for(const z of [-1.92,1.92]){const foam=new THREE.Mesh(new THREE.PlaneGeometry(wt(waterW-.4),.16,Math.max(32,Math.round(waterW)),1),new THREE.MeshBasicMaterial({color:0xf1fbef,transparent:true,opacity:.64,side:THREE.DoubleSide,depthWrite:false}));foam.rotation.x=-Math.PI/2;foam.position.set(wt(waterCX),-wt(1)+.095,wt(z));g.add(foam);foamStrips.push(foam)}
+  // Legacy waves remain a subtle fallback detail. Legacy full-surface foam strips are
+  // removed: shoreline foam is now exclusively the contour-following WaterBody ribbon.
+  const overlayGeo=new THREE.PlaneGeometry(wt(waterW),wt(waterD),1,1);
+  waterOverlay=new THREE.Mesh(overlayGeo,paperWater?.waveMaterials?.[0]||new THREE.MeshBasicMaterial({map:waterTexB,color:0xffffff,transparent:true,opacity:.20,side:THREE.DoubleSide,depthWrite:false}));
+  waterOverlay.rotation.x=-Math.PI/2;waterOverlay.position.set(wt(waterCX),waterY+.075,0);g.add(waterOverlay);
+  waterBandTex=null;waterBandLayer=null;waterFleckTex=null;waterFleckLayer=null;foamStrips=[];
+  attachOfficial();
 }
 
 function updateWater(dt){
