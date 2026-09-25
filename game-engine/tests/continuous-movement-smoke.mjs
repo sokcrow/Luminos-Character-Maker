@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { WORLD_SPACE_CONTRACT, worldUnitsToFeet } from "../src/world/WorldSpaceContract.js";
-import { TERRAIN_SLOPE_STANDARD, terrainSlopeBand, resolveTerrainSlopeTraversal, resolveTerrainMoveMultiplier } from "../src/world/TerrainMobility.js";
+import { TERRAIN_SLOPE_STANDARD, terrainSlopeBand, resolveTerrainSlopeTraversal, resolveTerrainSlopeSlide, resolveTerrainMoveMultiplier } from "../src/world/TerrainMobility.js";
 import { CombatMovementTracker, measureContinuousPath } from "../src/world/ContinuousMovement.js";
 import { footprintDistanceFeet, oppositionAngleDegrees } from "../src/world/CombatGeometry.js";
 
@@ -23,6 +23,14 @@ assert.equal(resolveTerrainSlopeTraversal({ slopeDeg:48, climbable:true }).climb
 assert.equal(resolveTerrainMoveMultiplier({ walkable:true, slopeDeg:48, climbable:true }), 0);
 assert.equal(resolveTerrainMoveMultiplier({ walkable:true, slopeDeg:48, allowSteepTraversal:true }), .68);
 assert.equal(resolveTerrainMoveMultiplier({ walkable:true, slopeDeg:60, locomotion:"swim" }), 1, "ground slope must not slow or block swimming");
+const downhillSlide = resolveTerrainSlopeSlide({ slopeDeg:55, hx:1, hz:0, locomotion:"ground" });
+assert.equal(downhillSlide.active, true, "downhill slide must remain available on blocked natural slopes");
+assert.equal(Math.round(downhillSlide.downhillX * 100) / 100, -1);
+assert.equal(Math.round(downhillSlide.downhillZ * 100) / 100, 0);
+assert.equal(downhillSlide.speedMultiplier, TERRAIN_SLOPE_STANDARD.slideMultiplier);
+assert.equal(resolveTerrainSlopeSlide({ slopeDeg:38, hx:1, hz:0 }).active, false);
+assert.equal(resolveTerrainSlopeSlide({ slopeDeg:60, hx:1, hz:0, locomotion:"swim" }).active, false);
+
 
 const normal = measureContinuousPath([{ x: 0, z: 0 }, { x: 3, z: 0 }]);
 assert.equal(Math.round(normal.pathDistanceFt), 10);
