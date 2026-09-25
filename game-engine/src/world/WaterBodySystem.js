@@ -391,7 +391,7 @@ export class WaterBody {
     this.isWaterAt=options.isWaterAt||null;
     this.water=mergeConfig(DEFAULT_WATER_CONFIG,options.water);
     this.foam={...DEFAULT_FOAM_CONFIG,...(options.foam||{})};
-    this.debug=!!options.debug;
+    this.debug=!!options.debug;this.disposed=false;
     this.waterMesh=null;this.foamMeshes=[];this.debugGroups=[];this.ready=this.build();
   }
   async build(){
@@ -403,6 +403,7 @@ export class WaterBody {
         path:this.water.texture,scrollX:finite(speed.x),scrollY:finite(speed.y),wrapT:THREE.RepeatWrapping,
         repeatX:1/tileWorldSize,repeatY:1/tileWorldSize
       });
+      if(this.disposed)return this;
       let alphaMap=null;
       if(this.surface.alphaMap){
         alphaMap=this.surface.alphaMap.clone?.()||this.surface.alphaMap;
@@ -431,6 +432,7 @@ export class WaterBody {
       const foamEntry=await this.system.textures.variant('foamMain',{
         path:this.foam.texture,scrollX:finite(this.foam.scrollSpeed,.02),scrollY:0,wrapT:THREE.ClampToEdgeWrapping
       });
+      if(this.disposed)return this;
       const detailCfg=this.foam.detail?.enabled?{
         texture:this.foam.detail.texture||WATER_ASSET_PATHS.foamDetail,
         widthScale:Math.max(.25,finite(this.foam.detail.widthScale,.72)),
@@ -506,6 +508,7 @@ export class WaterBody {
     }
   }
   dispose(){
+    this.disposed=true;
     this.group.traverse?.(o=>{
       if(o.geometry)o.geometry.dispose?.();
       if(o.material){
