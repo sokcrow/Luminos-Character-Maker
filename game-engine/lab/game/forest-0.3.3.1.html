@@ -850,7 +850,7 @@ addEventListener('unhandledrejection',e=>{
 <script type="module">
 import * as THREE from '../../vendor/three.module.js';
 import { createRepositoryWorldFloorTextureRuntime, worldFloorRepeatForTiles } from '../../src/world/WorldFloorTextures.js';
-import { createWaterBodySystem, extractFieldShorelines } from '../../src/world/WaterBodySystem.js';
+import { createWaterBodySystem, extractFieldShorelines, waterCurrentImmersionFactor } from '../../src/world/WaterBodySystem.js';
 
 let worldFloorTextureRuntime=null;
 window.setLoadProgress?.(18,'Motor listo','Preparando personajes…');
@@ -1901,13 +1901,16 @@ function createRiverField(ctx){
   const waterWidthTiles=halfWidthTiles*2;
   const spineWidthTiles=hydrologySpineWidthTiles(waterWidthTiles);
   const lookupSegments=buildHydrologyCurveLookup({points},48);
+  const currentSpeed=1.00+relief*.90+ctx.moisture*.40;
   return Object.freeze({
     kind:'river',points,samples:48,lookupSegments,halfWidthTiles,waterWidthTiles,
     spineWidthTiles,spineHalfWidthTiles:spineWidthTiles*.5,
     surfaceInsetTiles:HYDROLOGY_SPINE_RULES.surfaceInsetTiles,
     bankWidthTiles:(1.15+ctx.moisture*.85)*S,depthTiles:.26+ctx.moisture*.64+relief*.32,
     waterSurfaceTiles:ctx.altitude-HYDROLOGY_SPINE_RULES.surfaceInsetTiles,
-    currentStrength:1.00+relief*.90+ctx.moisture*.40,phase:rng.range(0,Math.PI*2)
+    // currentSpeed is now the authored river velocity authority. currentStrength is
+    // retained as a compatibility alias for older diagnostics/content.
+    currentSpeed,currentStrength:currentSpeed,phase:rng.range(0,Math.PI*2)
   });
 }
 function riverHalfWidthAtT(river,t){
@@ -1929,11 +1932,20 @@ function riverFieldSample(river,x,z){
   const depthFactor=spine?(.58+.42*spineInfluence):(.08+.34*edgeInfluence);
   const waterDepth=water?Math.max(.06,river.depthTiles*depthFactor):0,tangent=hydrologyRiverTangent(river,near.t);
   const wetness=zoneClamp(1-Math.max(0,signed)/Math.max(.1,river.bankWidthTiles*2.4),0,1);
+  const currentSpeed=Math.max(0,Number(river.currentSpeed??river.currentStrength)||0);
+  const immersion=water?waterCurrentImmersionFactor({
+    waterDepth,
+    referenceDepth:Math.max(.08,Number(river.depthTiles)||.08),
+    minFactor:.06,
+    onset:.12,
+    fullAt:.90
+  }):0;
+  const effectiveCurrentStrength=currentSpeed*immersion;
   return {type:'river',class:water?(waterDepth>river.depthTiles*.56?'deepWater':'shallowWater'):(signed<river.bankWidthTiles?'riverbank':'land'),
     distanceToCoast:Infinity,distanceToWater:Math.max(0,signed),signedDistanceToWater:signed,wetness,water,waterDepth,
     waterSurfaceTiles:river.waterSurfaceTiles,bankWidthTiles:river.bankWidthTiles,
     spine,spineDistance,spineInfluence,spineWidthTiles:spineHalfWidth*2,surfaceInsetTiles:Number(river.surfaceInsetTiles)||HYDROLOGY_SPINE_RULES.surfaceInsetTiles,
-    current:{x:tangent.x,z:tangent.z,strength:river.currentStrength,label:'Corriente'}};
+    current:{x:tangent.x,z:tangent.z,speed:currentSpeed,baseStrength:currentSpeed,strength:effectiveCurrentStrength,immersion,label:'Corriente'}};
 }
 function createLakeField(ctx){
   const rng=new SeededRandom(`${ctx.seed}:lake-v1`),S=OVERWORLD_SECTOR_SCALE;
@@ -5688,19 +5700,26 @@ function buildProceduralInlandWaterVisual(g,id=mapId){
 
     const officialGeo=waterBodyRiverUvWorld(geo,hydro.river);
     const shorelines=riverWaterBodyShorelines(id,hydro.river,baseY,bounds,DISPLAY_DEVICE_MOBILE?72:112);
+    const riverVisualCurrentSpeed=Math.max(.15,Number(hydro.river.currentSpeed??hydro.river.currentStrength)||1);
     const body=createOfficialWaterBody({
       id:`river:${id}`,parent:group,geometry:officialGeo,
       position:new THREE.Vector3(0,baseY+.012,0),
       shorelines,
       isWaterAt:(x,z)=>!!proceduralHydrologySample(id,x/TILE,z/TILE)?.water,
-      // Geometry U grows downstream, therefore negative texture offset makes the
-      // visible pattern travel in the same direction as the gameplay current.
-      water:{opacity:.78,scrollSpeed:{x:-.035,y:0}},
+      // U grows downstream. flowWorldSpeed is expressed in real world-units/sec,
+      // so the repository-local water texture visibly follows the same river speed
+      // that drives gameplay current instead of looking frozen.
+      water:{
+        opacity:.84,
+        flowWorldSpeed:{x:-wt(riverVisualCurrentSpeed)*.48,y:0}
+      },
       foam:{
-        width:WATER_BODY_VISUAL_STANDARD.riverFoamWidth,
-        innerWidth:TILE*.045,outerWidth:TILE*.235,
-        tileWorldLength:TILE*2.0,scrollSpeed:-.014,
-        pulseAmplitude:TILE*.011,pulseSpeed:1.55,pulseFrequency:.82,opacity:.76
+        // Give the river foam a deliberate land-side overlap. The previous .045
+        // inner width could leave a visible gap on curved/graded banks.
+        width:TILE*.40,
+        innerWidth:TILE*.16,outerWidth:TILE*.30,
+        tileWorldLength:TILE*1.85,scrollSpeed:-.020,
+        pulseAmplitude:TILE*.012,pulseSpeed:1.65,pulseFrequency:.88,opacity:.82
       }
     });
 
@@ -10787,7 +10806,12 @@ const UnitEnvironmentSystem=Object.freeze({
       const resistance=Math.max(.1,unitStat(unit,'currentResistance',1)),force=wt(current.strength)*dt/resistance;
       if(force>0){
         const moved=moveUnitBy(unit,current.x*force,current.z*force,{environmental:true});
-        s.lastEnvironmentalForce={x:current.x,z:current.z,strength:current.strength,moved,label:current.label};
+        s.lastEnvironmentalForce={
+          x:current.x,z:current.z,strength:current.strength,
+          baseStrength:Number(current.baseStrength??current.speed??current.strength)||0,
+          immersion:Number(current.immersion??1),
+          moved,label:current.label
+        };
         const sid=current.cell?.surfaceId||current.label;lastNatureSurfaceByUnit.set(unit.id,sid);
       }
     }
