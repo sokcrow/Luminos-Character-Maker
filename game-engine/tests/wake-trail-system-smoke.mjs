@@ -44,6 +44,14 @@ const mid=2;
 const midWidth=Math.hypot(ribbon.left[mid].x-ribbon.right[mid].x,ribbon.left[mid].z-ribbon.right[mid].z);
 assert.ok(midWidth>startWidth,'wake ribbon must open gradually');
 
+const wakeAsset=await fs.readFile(new URL('../../Assets/Images/World/Water/wake_trail.png',import.meta.url));
+assert.equal(wakeAsset[0],0x89);
+assert.equal(wakeAsset.toString('ascii',1,4),'PNG');
+const width=wakeAsset.readUInt32BE(16),height=wakeAsset.readUInt32BE(20),colorType=wakeAsset[25];
+assert.equal(width,2172);
+assert.equal(height,724);
+assert.equal(colorType,6,'official wake PNG must preserve RGBA alpha');
+
 const src=await fs.readFile(new URL('../src/world/WakeTrailSystem.js',import.meta.url),'utf8');
 assert.match(src,/wake_trail\.png/);
 assert.match(src,/RepeatWrapping/);
