@@ -377,11 +377,11 @@ export class WaterBody {
         path:this.water.texture,scrollX:finite(speed.x),scrollY:finite(speed.y),wrapT:THREE.RepeatWrapping
       });
       const mat=new THREE.MeshStandardMaterial({
-        map:entry.texture,color:this.water.color??0xffffff,transparent:(this.water.opacity??1)<1,
+        map:entry.texture,color:this.water.color??0xffffff,transparent:(this.water.opacity??1)<1||!!this.surface.alphaMap,
         opacity:clamp(this.water.opacity??1,0,1),roughness:clamp(this.water.roughness??.42,0,1),
         metalness:clamp(this.water.metalness??.02,0,1),side:THREE.DoubleSide,
-        alphaMap:this.surface.alphaMap||null,alphaTest:this.surface.alphaMap?.image?.width?0.01:0,
-        depthWrite:true
+        alphaMap:this.surface.alphaMap||null,alphaTest:this.surface.alphaMap?0.01:0,
+        depthWrite:this.surface.depthWrite!==false
       });
       const mesh=new THREE.Mesh(this.surface.geometry,mat);
       if(this.surface.position)mesh.position.copy?.(this.surface.position);
