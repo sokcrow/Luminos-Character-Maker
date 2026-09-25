@@ -4,7 +4,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
-const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..','..');
 const dir=path.join(root,'Assets','Images','World','Water');
 const catalog=JSON.parse(await fs.readFile(path.join(dir,'catalog.json'),'utf8'));
 assert.equal(catalog.runtimeMode,'repository-local');
