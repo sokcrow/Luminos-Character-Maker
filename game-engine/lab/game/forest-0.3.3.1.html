@@ -5576,9 +5576,9 @@ function buildProceduralCoastVisual(g,id=mapId){
     group.add(water);
     group.userData.paperFXWaterMesh=water;
 
-    // Official repository-local WaterBody layer. PaperFX remains underneath only
-    // for depth/reactive buoyancy; the visible repeating albedo and shore foam come
-    // from WaterBodySystem and never fetch Imgur at runtime.
+    // PaperFX is the sole visible ocean surface: its real-depth ramp stays light in
+    // shallow water and reaches Royal Blue offshore. WaterBody remains foam/interaction
+    // only here, avoiding a second lit color layer that could shift the sea toward purple.
     const officialGeo=waterBodyPlaneUvWorld(geo.clone(),{id,cxTiles,czTiles});
     const officialMask=coastWaterMaskTextureForSector(id,renderBounds,256);
     const shoreline=coastWaterBodyShoreline(id,coast,waterY,renderBounds);
@@ -5589,20 +5589,18 @@ function buildProceduralCoastVisual(g,id=mapId){
       isWaterAt:(x,z)=>coastLocalDistance(id,x/TILE,z/TILE)<0,
       surfaceHeightAt:()=>waterY+.030,
       flowAt:()=>({x:0,y:0,z:0}),
-      water:{
-        color:0xc8efff,
-        opacity:.38,
-        roughness:.50,
-        scrollSpeed:{x:.020,y:.010}
-      },
+      surface:{enabled:false},
       foam:{
-        width:TILE*.44,outerWidth:TILE*.355,innerWidth:TILE*.085,
-        opacity:.94,scrollSpeed:.034,
-        pulseAmplitude:TILE*.060,pulseSpeed:2.05,pulseFrequency:.62,widthVariation:.20,
-        maskScale:1.42,maskWaveAmplitude:.10,
+        // Oversized coastal foam: broad ribbon + very large texture footprint so each
+        // authored foam shape reads as a wave mass instead of small repeated noise.
+        width:TILE*.60,outerWidth:TILE*.50,innerWidth:TILE*.10,
+        tileWorldLength:TILE*3.10,
+        opacity:.96,scrollSpeed:.024,
+        pulseAmplitude:TILE*.060,pulseSpeed:1.55,pulseFrequency:.52,widthVariation:.22,
+        maskScale:2.60,maskWaveAmplitude:.14,
         detail:{
-          enabled:true,widthScale:.68,tileWorldLength:TILE*1.45,scrollSpeed:-.018,
-          opacity:.34,yOffset:TILE*.006,pulseAmplitude:TILE*.032,pulseSpeed:2.35,pulseFrequency:.78
+          enabled:true,widthScale:.82,tileWorldLength:TILE*3.25,scrollSpeed:-.012,
+          opacity:.24,yOffset:TILE*.006,pulseAmplitude:TILE*.040,pulseSpeed:1.92,pulseFrequency:.66
         }
       }
     });
@@ -5629,20 +5627,16 @@ function buildProceduralCoastVisual(g,id=mapId){
     position:new THREE.Vector3(wt(cx),waterY+.030,wt(cz)),rotationX:-Math.PI/2,alphaMap:coastMask,
     shorelines:shoreline?[shoreline]:[],
     isWaterAt:(x,z)=>coastLocalDistance(id,x/TILE,z/TILE)<0,
-    water:{
-      color:0xc8efff,
-      opacity:.46,
-      roughness:.50,
-      scrollSpeed:{x:.020,y:.010}
-    },
+    surface:{enabled:false},
     foam:{
-      width:TILE*.44,outerWidth:TILE*.355,innerWidth:TILE*.085,
-      opacity:.94,scrollSpeed:.034,
-      pulseAmplitude:TILE*.060,pulseSpeed:2.05,pulseFrequency:.62,widthVariation:.20,
-        maskScale:1.42,maskWaveAmplitude:.10,
+      width:TILE*.60,outerWidth:TILE*.50,innerWidth:TILE*.10,
+      tileWorldLength:TILE*3.10,
+      opacity:.96,scrollSpeed:.024,
+      pulseAmplitude:TILE*.060,pulseSpeed:1.55,pulseFrequency:.52,widthVariation:.22,
+      maskScale:2.60,maskWaveAmplitude:.14,
       detail:{
-        enabled:true,widthScale:.68,tileWorldLength:TILE*1.45,scrollSpeed:-.018,
-        opacity:.34,yOffset:TILE*.006,pulseAmplitude:TILE*.032,pulseSpeed:2.35,pulseFrequency:.78
+        enabled:true,widthScale:.82,tileWorldLength:TILE*3.25,scrollSpeed:-.012,
+        opacity:.24,yOffset:TILE*.006,pulseAmplitude:TILE*.040,pulseSpeed:1.92,pulseFrequency:.66
       }
     }
   });
