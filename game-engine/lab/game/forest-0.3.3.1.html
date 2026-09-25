@@ -5611,11 +5611,29 @@ function buildProceduralInlandWaterVisual(g,id=mapId){
     const detailB=riverToon?null:(!DISPLAY_DEVICE_MOBILE?addRiverDetail(kit?.textures?.waves?.[1],profile.detailB,.22,.016,-1):null);
     const riverLayers=[
       buildRiverBankVisual(group,id,hydro.river,profile,bounds),
-      buildRiverEdgeFoamVisual(group,id,hydro.river,profile,bounds,baseY),
       buildRiverFlowStreaks(group,id,hydro.river,profile,bounds,baseY)
     ].filter(Boolean);
+
+    const officialGeo=waterBodyRiverUvWorld(geo,hydro.river);
+    const shorelines=riverWaterBodyShorelines(id,hydro.river,baseY,bounds,DISPLAY_DEVICE_MOBILE?72:112);
+    const body=createOfficialWaterBody({
+      id:`river:${id}`,parent:group,geometry:officialGeo,
+      position:new THREE.Vector3(0,baseY+.012,0),
+      shorelines,
+      isWaterAt:(x,z)=>!!proceduralHydrologySample(id,x/TILE,z/TILE)?.water,
+      // Geometry U grows downstream, therefore negative texture offset makes the
+      // visible pattern travel in the same direction as the gameplay current.
+      water:{opacity:.78,scrollSpeed:{x:-.035,y:0}},
+      foam:{
+        width:WATER_BODY_VISUAL_STANDARD.riverFoamWidth,
+        innerWidth:TILE*.045,outerWidth:TILE*.235,
+        tileWorldLength:TILE*2.0,scrollSpeed:-.014,
+        pulseAmplitude:TILE*.011,pulseSpeed:1.55,pulseFrequency:.82,opacity:.76
+      }
+    });
+
     group.userData.paperFXWaterMesh=mesh;group.userData.waterDetailLayers=[detailA,detailB].filter(Boolean);group.userData.riverVisualLayers=riverLayers;
-    group.userData.geometryAuthority='procedural-river-strip';group.userData.reactiveBuoyancy=!!riverToon;
+    group.userData.geometryAuthority='procedural-river-strip';group.userData.reactiveBuoyancy=!!riverToon;group.userData.waterBody=body;
     g.add(group);return group;
   }
 
@@ -5637,7 +5655,18 @@ function buildProceduralInlandWaterVisual(g,id=mapId){
   };
   const detailA=addDetail(kit?.textures?.waves?.[0],profile.detailA,.24,.010,-2);
   const detailB=!DISPLAY_DEVICE_MOBILE?addDetail(kit?.textures?.waves?.[1],profile.detailB,.16,.016,-1):null;
-  group.userData.paperFXWaterMesh=mesh;group.userData.waterDetailLayers=[detailA,detailB].filter(Boolean);
+
+  const officialGeo=waterBodyPlaneUvWorld(geo.clone(),{id,cxTiles:cx,czTiles:cz});
+  const shorelines=fieldWaterBodyShorelines(id,bounds,baseY);
+  const body=createOfficialWaterBody({
+    id:`${hydro.type}:${id}`,parent:group,geometry:officialGeo,
+    position:new THREE.Vector3(wt(cx),baseY+.012,wt(cz)),rotationX:-Math.PI/2,alphaMap:mask,
+    shorelines,
+    isWaterAt:(x,z)=>!!proceduralHydrologySample(id,x/TILE,z/TILE)?.water,
+    water:{opacity:.76,scrollSpeed:{x:.005,y:.003}},
+    foam:{width:TILE*.31,outerWidth:TILE*.255,innerWidth:TILE*.055,scrollSpeed:.012,pulseAmplitude:TILE*.010,opacity:.72}
+  });
+  group.userData.paperFXWaterMesh=mesh;group.userData.waterDetailLayers=[detailA,detailB].filter(Boolean);group.userData.waterBody=body;
   g.add(group);return group;
 }
 
