@@ -31,6 +31,9 @@ jobs:
       - name: WaterBody syntax
         run: node --check game-engine/src/world/WaterBodySystem.js
 
+      - name: WakeTrail syntax
+        run: node --check game-engine/src/world/WakeTrailSystem.js
+
       - name: Core smoke
         run: node game-engine/tests/core-smoke.mjs
 
@@ -42,3 +45,6 @@ jobs:
 
       - name: WaterBody smoke
         run: node game-engine/tests/water-body-system-smoke.mjs
+
+      - name: WakeTrail smoke
+        run: node game-engine/tests/wake-trail-system-smoke.mjs
