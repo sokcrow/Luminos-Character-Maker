@@ -35,7 +35,10 @@ export const DEFAULT_FOAM_CONFIG = Object.freeze({
   pulseFrequency: 1.15,
   widthVariation: 0.12,
   opacity: 0.78,
-  yOffset: 0.035,
+  // Shore foam is terrain/water decoration. Keep it barely above the water plane
+  // and render it before units so transparent character sprites always stay on top.
+  yOffset: 0.010,
+  renderOrder: -3,
   simplifyTolerance: 0.035,
   detail: null,
 });
@@ -488,7 +491,7 @@ export class WaterBody {
         });
         if(!data)continue;
         const geo=createShoreFoamGeometry(THREE,data),mat=makeFoamMaterial(THREE,foamEntry.texture,this.foam);
-        const mesh=new THREE.Mesh(geo,mat);mesh.position.y=finite(this.foam.yOffset,.035);mesh.renderOrder=finite(this.foam.renderOrder,4);
+        const mesh=new THREE.Mesh(geo,mat);mesh.position.y=finite(this.foam.yOffset,.010);mesh.renderOrder=finite(this.foam.renderOrder,-3);
         mesh.userData={shoreFoamRibbon:true,waterBodyId:this.id,shorelineIndex:index,foamScrollSpeed:finite(this.foam.scrollSpeed,.02)};
         this.group.add(mesh);this.foamMeshes.push(mesh);
         {
@@ -514,8 +517,8 @@ export class WaterBody {
               opacity:detailCfg.opacity
             });
             const detailMesh=new THREE.Mesh(dg,dm);
-            detailMesh.position.y=finite(this.foam.yOffset,.035)+detailCfg.yOffset;
-            detailMesh.renderOrder=finite(this.foam.renderOrder,4)+1;
+            detailMesh.position.y=finite(this.foam.yOffset,.010)+detailCfg.yOffset;
+            detailMesh.renderOrder=finite(this.foam.renderOrder,-3)+1;
             detailMesh.userData={shoreFoamRibbon:true,foamDetail:true,waterBodyId:this.id,shorelineIndex:index,foamScrollSpeed:detailCfg.scrollSpeed};
             this.group.add(detailMesh);this.foamMeshes.push(detailMesh);
           }
