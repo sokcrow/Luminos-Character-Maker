@@ -5375,8 +5375,9 @@ function proceduralInlandWaterVisualProfile(hydro,region){
   if(type==='river'){
     return {
       id:'river',baseColor:0x287f93,detailA:0xb7eef0,detailB:0x79cbd2,foam:0xf2fff8,opacity:.985,
-      // The river strip owns orientation. U runs downstream and V runs bank-to-bank.
-      uv:{wavesA:{repeat:[1,2.8],speed:[.070,.003],rotation:0},wavesB:{repeat:[1,3.6],speed:[-.095,.008],rotation:0},foam:{repeat:[1,2.4],speed:[.115,0],rotation:0}}
+      // U grows downstream. PaperFX samples UV as uv + speed*time, therefore the
+      // visible pattern travels toward +U only when speed.x is NEGATIVE.
+      uv:{wavesA:{repeat:[1,2.8],speed:[-.070,0],rotation:0},wavesB:{repeat:[1,3.6],speed:[-.095,0],rotation:0},foam:{repeat:[1,2.4],speed:[-.115,0],rotation:0}}
     };
   }
   if(type==='lake'){
@@ -5394,11 +5395,24 @@ function buildProceduralInlandWaterVisual(g,id=mapId){
   const hydro=activeProceduralZone?.hydrology;if(!hydro||!['river','lake','wetland'].includes(hydro.type))return null;
   const region=activeProceduralZone.region,profile=proceduralInlandWaterVisualProfile(hydro,region);
   const mapDef=MAP_DATA.maps[id]||currentMapDef(),bounds=mapDef?.bounds||{x0:-OVERWORLD_HALF,x1:OVERWORLD_HALF,z0:-OVERWORLD_HALF,z1:OVERWORLD_HALF};
-  const kit=window.PaperFX?.createWater?.({
+  const field=hydro.river||hydro.lake||hydro;
+  const riverToon=hydro.type==='river'&&hydro.river&&window.PaperFX?.toonWaterAvailable
+    ?window.PaperFX?.waterPreset?.('river',{
+      deepColor:0x1f6875,shallowColor:0x4ba7ad,crestColor:profile.detailA,foamColor:profile.foam,
+      displacement:.040,defaultDepth:Math.max(.18,Number(hydro.river.depthTiles)||.62),
+      coast:{enabled:false,foamWidth:1.1},
+      // Geometry UV U follows the exact gameplay tangent. Negative shader speeds
+      // make the visible pattern travel in the same +U direction as current force.
+      uv:{
+        largeRepeat:[1.0,2.8],smallRepeat:[1.0,3.6],foamRepeat:[1.0,2.4],
+        largeSpeed:[-.070,0],smallSpeed:[-.095,0],foamSpeed:[-.115,0]
+      }
+    })
+    :null;
+  const kit=!riverToon?window.PaperFX?.createWater?.({
     baseColor:profile.baseColor,waves:['wavesA','wavesB'],foam:'foam',
     waveColors:[profile.detailA,profile.detailB],foamColor:profile.foam,uv:profile.uv
-  })||null;
-  const field=hydro.river||hydro.lake||hydro;
+  })||null:null;
   const waterTiles=Number.isFinite(field.waterSurfaceTiles)?field.waterSurfaceTiles:(Number.isFinite(hydro.waterTableTiles)?hydro.waterTableTiles:region.altitude-.2);
   const baseY=tileY(waterTiles)+.024;
   const group=new THREE.Group();group.name=`procedural-${hydro.type}-water`;group.userData.waterVisualClass=profile.id;
@@ -5406,10 +5420,28 @@ function buildProceduralInlandWaterVisual(g,id=mapId){
   if(hydro.type==='river'&&hydro.river){
     const geo=buildProceduralRiverWaterGeometry(id,hydro.river,bounds,DISPLAY_DEVICE_MOBILE?64:96);
     if(!geo)return null;
-    const sourceMat=kit?.baseMaterial||new THREE.MeshStandardMaterial({color:profile.baseColor,roughness:.28,side:THREE.DoubleSide});
-    const mat=sourceMat.clone();mat.color.setHex(profile.baseColor);mat.transparent=false;mat.alphaMap=null;mat.opacity=1;mat.depthWrite=true;mat.side=THREE.DoubleSide;mat.roughness=.28;mat.needsUpdate=true;
+
+    // ToonWater receives the same strip geometry used by gameplay. This activates
+    // PaperFX.waterContact() ripple uniforms, so buoyancy/contact feedback is visible
+    // exactly where the Unit is swimming, just like on procedural coasts.
+    if(riverToon){
+      riverToon.prepareGeometry(geo,{
+        defaultDepth:Math.max(.18,Number(hydro.river.depthTiles)||.62),
+        defaultCoastDistance:999,
+        defaultSignedCoastDistance:-999,
+        valid:true
+      });
+    }
+
+    const sourceMat=riverToon?.material||kit?.baseMaterial||new THREE.MeshStandardMaterial({color:profile.baseColor,roughness:.28,side:THREE.DoubleSide});
+    const mat=riverToon?sourceMat:sourceMat.clone();
+    if(!riverToon){
+      mat.color.setHex(profile.baseColor);mat.transparent=false;mat.alphaMap=null;mat.opacity=1;
+      mat.depthWrite=true;mat.side=THREE.DoubleSide;mat.roughness=.28;mat.needsUpdate=true;
+    }
     const mesh=new THREE.Mesh(geo,mat);mesh.position.y=baseY;mesh.receiveShadow=true;mesh.renderOrder=-4;
-    mesh.userData.paperFXWaterSurface=true;mesh.userData.proceduralHydrologyType='river';mesh.userData.waterVisualClass='river';mesh.userData.riverGeometryAuthority='riverHalfWidthAtT';
+    mesh.userData.paperFXWaterSurface=true;mesh.userData.proceduralHydrologyType='river';mesh.userData.waterVisualClass='river';
+    mesh.userData.riverGeometryAuthority='riverHalfWidthAtT';mesh.userData.reactiveBuoyancy=!!riverToon;
 
     const addRiverDetail=(texture,color,opacity,y,order)=>{
       if(!texture)return null;
@@ -5417,15 +5449,18 @@ function buildProceduralInlandWaterVisual(g,id=mapId){
       const detail=new THREE.Mesh(geo.clone(),detailMat);detail.position.y=baseY+y;detail.renderOrder=order;detail.userData.waterVisualClass='river';group.add(detail);return detail;
     };
     group.add(mesh);
-    const detailA=addRiverDetail(kit?.textures?.waves?.[0],profile.detailA,DISPLAY_DEVICE_MOBILE?.28:.34,.010,-2);
-    const detailB=!DISPLAY_DEVICE_MOBILE?addRiverDetail(kit?.textures?.waves?.[1],profile.detailB,.22,.016,-1):null;
+
+    // ToonWater already owns animated waves/foam and reactive ripples. Legacy detail
+    // meshes remain only as fallback when ToonWater is explicitly disabled.
+    const detailA=riverToon?null:addRiverDetail(kit?.textures?.waves?.[0],profile.detailA,DISPLAY_DEVICE_MOBILE?.28:.34,.010,-2);
+    const detailB=riverToon?null:(!DISPLAY_DEVICE_MOBILE?addRiverDetail(kit?.textures?.waves?.[1],profile.detailB,.22,.016,-1):null);
     const riverLayers=[
       buildRiverBankVisual(group,id,hydro.river,profile,bounds),
       buildRiverEdgeFoamVisual(group,id,hydro.river,profile,bounds,baseY),
       buildRiverFlowStreaks(group,id,hydro.river,profile,bounds,baseY)
     ].filter(Boolean);
     group.userData.paperFXWaterMesh=mesh;group.userData.waterDetailLayers=[detailA,detailB].filter(Boolean);group.userData.riverVisualLayers=riverLayers;
-    group.userData.geometryAuthority='procedural-river-strip';
+    group.userData.geometryAuthority='procedural-river-strip';group.userData.reactiveBuoyancy=!!riverToon;
     g.add(group);return group;
   }
 
