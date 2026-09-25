@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "domain": "world.water",
   "runtimeMode": "repository-local",
-  "assetCount": 2,
+  "assetCount": 3,
   "note": "Runtime uses repository-local PNGs only. provenance is maintenance metadata.",
   "assets": [
     {
@@ -28,6 +28,18 @@
       "colorType": 6,
       "hasAlpha": true,
       "provenance": "https://imgur.com/tJMwx10.png"
+    },
+    {
+      "id": "wake_trail",
+      "path": "Assets/Images/World/Water/wake_trail.png",
+      "bytes": 500362,
+      "sha256": "27219fbf81483889a3971a0c4c7a8a8d57efb8686d9a01b64519aa874cd5d2eb",
+      "width": 2172,
+      "height": 724,
+      "bitDepth": 8,
+      "colorType": 6,
+      "hasAlpha": true,
+      "provenance": "https://imgur.com/xoMcBzD.png"
     }
   ]
 }
