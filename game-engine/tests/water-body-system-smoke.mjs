@@ -6,10 +6,20 @@ import {
   buildShoreFoamRibbonData,
   extractFieldShorelines,
   simplifyShoreline,
+  waterCurrentImmersionFactor,
 } from '../src/world/WaterBodySystem.js';
 
 assert.equal(DEFAULT_WATER_CONFIG.texture,'Assets/Images/World/Water/water_seamless.png');
 assert.equal(DEFAULT_FOAM_CONFIG.texture,'Assets/Images/World/Water/coast_foam_seamless.png');
+
+const currentDry=waterCurrentImmersionFactor({waterDepth:0,referenceDepth:1});
+const currentEdge=waterCurrentImmersionFactor({waterDepth:.10,referenceDepth:1});
+const currentMid=waterCurrentImmersionFactor({waterDepth:.50,referenceDepth:1});
+const currentDeep=waterCurrentImmersionFactor({waterDepth:1,referenceDepth:1});
+assert.equal(currentDry,0);
+assert.ok(currentEdge<currentMid&&currentMid<currentDeep,'river current immersion must ramp with water depth');
+assert.ok(currentEdge<=.08,'river edge contact must remain a light drift');
+assert.ok(currentDeep>.98,'deep river water must reach full current strength');
 
 const shoreline=[
   {x:0,y:0,z:0},
@@ -75,6 +85,8 @@ assert.match(moduleSource,/ClampToEdgeWrapping/);
 assert.match(moduleSource,/foamDistance/);
 assert.match(moduleSource,/uPulseAmplitude/);
 assert.match(moduleSource,/showShoreFoamRibbon/);
+assert.match(moduleSource,/flowWorldSpeed/);
+assert.match(moduleSource,/waterCurrentImmersionFactor/);
 
 const lab=await fs.readFile(new URL('../lab/game/forest-0.3.3.1.html',import.meta.url),'utf8');
 assert.match(lab,/createWaterBodySystem/);
@@ -84,7 +96,12 @@ assert.match(lab,/fieldWaterBodyShorelines/);
 assert.match(lab,/waterBodyRiverUvWorld/);
 assert.match(lab,/waterBodySystem\.update\(dt\)/);
 assert.match(lab,/showShoreFoamRibbon/);
-assert.match(lab,/scrollSpeed:\{x:-\.035,y:0\}/);
+assert.match(lab,/flowWorldSpeed:\{x:-wt\(riverVisualCurrentSpeed\)\*\.48,y:0\}/);
+assert.match(lab,/opacity:\.84/);
+assert.match(lab,/innerWidth:TILE\*\.16,outerWidth:TILE\*\.30/);
+assert.match(lab,/waterCurrentImmersionFactor/);
+assert.match(lab,/currentSpeed,currentStrength:currentSpeed/);
+assert.match(lab,/baseStrength:Number\(current\.baseStrength/);
 assert.match(lab,/id:'canal-water'/,'canal waterStrip must use WaterBody');
 assert.match(lab,/id:\`water-rect:/,'waterRect must use WaterBody');
 assert.match(lab,/id:\`swim-water:/,'irregular authored swim shapes must use WaterBody');
