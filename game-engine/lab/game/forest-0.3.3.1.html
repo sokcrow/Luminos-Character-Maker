@@ -1919,18 +1919,45 @@ function riverHalfWidthAtT(river,t){
   const secondary=.035*Math.sin(t*Math.PI*11+phase*1.73);
   return Math.max(.35,(Number(river?.halfWidthTiles)||.35)*(.90+primary+secondary));
 }
+function riverCalmShoulderWidthAtT(river,t){
+  const core=riverHalfWidthAtT(river,t);
+  const bank=Math.max(.1,Number(river?.bankWidthTiles)||.8);
+  // Shallow water occupies the unused shelf between the fast river core and dry bank.
+  // Keep it wide enough to close visual gaps without swallowing the whole riverbank.
+  const target=Math.min(bank*.46,Math.max(.34,core*.58));
+  return Math.max(.28,Math.min(1.15,target));
+}
+function riverWaterHalfWidthAtT(river,t){
+  return riverHalfWidthAtT(river,t)+riverCalmShoulderWidthAtT(river,t);
+}
 function riverFieldSample(river,x,z){
-  const near=hydrologyCurveNearest(river,x,z),halfWidth=riverHalfWidthAtT(river,near.t);
-  const signed=near.distance-halfWidth,water=signed<0,center=zoneClamp(1-near.distance/halfWidth,0,1);
-  const spineHalfWidth=Math.max(.275,Number(river.spineHalfWidthTiles)||hydrologySpineWidthTiles(halfWidth*2)*.5);
+  const near=hydrologyCurveNearest(river,x,z);
+  const coreHalfWidth=riverHalfWidthAtT(river,near.t);
+  const calmShoulderWidth=riverCalmShoulderWidthAtT(river,near.t);
+  const waterHalfWidth=coreHalfWidth+calmShoulderWidth;
+  const signed=near.distance-waterHalfWidth,water=signed<0;
+  const coreSigned=near.distance-coreHalfWidth,coreWater=coreSigned<0;
+  const spineHalfWidth=Math.max(.275,Number(river.spineHalfWidthTiles)||hydrologySpineWidthTiles(coreHalfWidth*2)*.5);
   const spineDistance=near.distance-spineHalfWidth,spine=spineDistance<=0,spineInfluence=zoneClamp(1-near.distance/spineHalfWidth,0,1);
-  // El spine controla el perfil vertical del cauce: dentro del núcleo conserva la
-  // profundidad principal; la franja restante hasta la orilla sólo hace bevel.
-  // La profundidad declarada y la heightfield usan exactamente el mismo valor.
-  const edgeBand=Math.max(.001,halfWidth-spineHalfWidth);
-  const edgeInfluence=spine?1:zoneClamp(1-(near.distance-spineHalfWidth)/edgeBand,0,1);
-  const depthFactor=spine?(.58+.42*spineInfluence):(.08+.34*edgeInfluence);
-  const waterDepth=water?Math.max(.06,river.depthTiles*depthFactor):0,tangent=hydrologyRiverTangent(river,near.t);
+  const coreEdgeBand=Math.max(.001,coreHalfWidth-spineHalfWidth);
+  const coreEdgeInfluence=spine?1:zoneClamp(1-(near.distance-spineHalfWidth)/coreEdgeBand,0,1);
+  const calmInfluence=water&&!coreWater
+    ?zoneClamp((waterHalfWidth-near.distance)/Math.max(.001,calmShoulderWidth),0,1)
+    :0;
+
+  let waterDepth=0;
+  if(water){
+    if(coreWater){
+      const depthFactor=spine?(.58+.42*spineInfluence):(.08+.34*coreEdgeInfluence);
+      waterDepth=Math.max(.06,river.depthTiles*depthFactor);
+    }else{
+      // Calm shoulder remains intentionally shallow: visible water + wading, not a
+      // second full-strength current channel.
+      waterDepth=Math.max(.035,river.depthTiles*(.055+.14*calmInfluence));
+    }
+  }
+
+  const tangent=hydrologyRiverTangent(river,near.t);
   const wetness=zoneClamp(1-Math.max(0,signed)/Math.max(.1,river.bankWidthTiles*2.4),0,1);
   const currentSpeed=Math.max(0,Number(river.currentSpeed??river.currentStrength)||0);
   const immersion=water?waterCurrentImmersionFactor({
@@ -1940,12 +1967,19 @@ function riverFieldSample(river,x,z){
     onset:.12,
     fullAt:.90
   }):0;
-  const effectiveCurrentStrength=currentSpeed*immersion;
-  return {type:'river',class:water?(waterDepth>river.depthTiles*.56?'deepWater':'shallowWater'):(signed<river.bankWidthTiles?'riverbank':'land'),
+  const currentBand=coreWater?1:(water?(.04+.14*calmInfluence):0);
+  const effectiveCurrentStrength=currentSpeed*immersion*currentBand;
+  return {
+    type:'river',
+    class:water?(coreWater&&waterDepth>river.depthTiles*.56?'deepWater':'shallowWater'):(signed<river.bankWidthTiles?'riverbank':'land'),
     distanceToCoast:Infinity,distanceToWater:Math.max(0,signed),signedDistanceToWater:signed,wetness,water,waterDepth,
     waterSurfaceTiles:river.waterSurfaceTiles,bankWidthTiles:river.bankWidthTiles,
-    spine,spineDistance,spineInfluence,spineWidthTiles:spineHalfWidth*2,surfaceInsetTiles:Number(river.surfaceInsetTiles)||HYDROLOGY_SPINE_RULES.surfaceInsetTiles,
-    current:{x:tangent.x,z:tangent.z,speed:currentSpeed,baseStrength:currentSpeed,strength:effectiveCurrentStrength,immersion,label:'Corriente'}};
+    spine,spineDistance,spineInfluence,spineWidthTiles:spineHalfWidth*2,
+    riverCore:coreWater,calmWater:water&&!coreWater,
+    coreHalfWidthTiles:coreHalfWidth,calmShoulderWidthTiles:calmShoulderWidth,waterHalfWidthTiles:waterHalfWidth,
+    surfaceInsetTiles:Number(river.surfaceInsetTiles)||HYDROLOGY_SPINE_RULES.surfaceInsetTiles,
+    current:{x:tangent.x,z:tangent.z,speed:currentSpeed,baseStrength:currentSpeed,strength:effectiveCurrentStrength,immersion,bandFactor:currentBand,label:'Corriente'}
+  };
 }
 function createLakeField(ctx){
   const rng=new SeededRandom(`${ctx.seed}:lake-v1`),S=OVERWORLD_SECTOR_SCALE;
@@ -5240,15 +5274,20 @@ function riverWaterDistanceAt(table,t){
   const f=THREE.MathUtils.clamp(Number(t)||0,0,1)*table.count,i=Math.min(table.count-1,Math.floor(f)),q=f-i;
   return THREE.MathUtils.lerp(table.distances[i]||0,table.distances[i+1]??table.total,q);
 }
-function waterBodyRiverUvWorld(source,river){
+function waterBodyRiverUvWorld(source,river,{includeCalmShoulder=false}={}){
   const geometry=source.clone(),uv=geometry.attributes.uv;if(!uv)return geometry;
   const table=riverWaterDistanceTable(river,128);
   for(let i=0;i<uv.count;i++){
     const rawU=uv.getX(i),rawV=uv.getY(i),t=THREE.MathUtils.clamp(rawU/24,0,1);
-    const halfWidth=riverHalfWidthAtT(river,t)*TILE;
+    const halfWidth=(includeCalmShoulder?riverWaterHalfWidthAtT(river,t):riverHalfWidthAtT(river,t))*TILE;
     uv.setXY(i,riverWaterDistanceAt(table,t),(rawV-.5)*halfWidth*2);
   }
-  uv.needsUpdate=true;geometry.userData={...(geometry.userData||{}),waterUvSpace:'world',waterUvAxis:'downstream'};
+  uv.needsUpdate=true;
+  geometry.userData={
+    ...(geometry.userData||{}),
+    waterUvSpace:'world',waterUvAxis:'downstream',
+    riverWaterLayer:includeCalmShoulder?'calm-full':'current-core'
+  };
   return geometry;
 }
 
@@ -5269,7 +5308,7 @@ function riverWaterBodyShorelines(id,river,waterY,bounds,segments=96){
   for(const side of [-1,1]){
     const points=[];
     for(let i=0;i<=segments;i++){
-      const t=i/segments,width=riverHalfWidthAtT(river,t),p=riverLocalVisualFrame(river,id,t,side*width);
+      const t=i/segments,width=riverWaterHalfWidthAtT(river,t),p=riverLocalVisualFrame(river,id,t,side*width);
       if(!riverVisualInBounds(p,bounds,width+3))continue;
       points.push({x:wt(p.x),y:waterY,z:wt(p.z)});
     }
@@ -5290,14 +5329,15 @@ function fieldWaterBodyShorelines(id,bounds,waterY){
 
 function createOfficialWaterBody({
   id,parent,geometry,position=null,rotationX=null,alphaMap=null,shorelines=[],isWaterAt=null,
-  water={},foam={}
+  surface={},water={},foam={}
 }={}){
   if(!geometry||!parent)return null;
   return waterBodySystem.createWaterBody({
     id,parent,
     surface:{
       geometry,position:position||new THREE.Vector3(),rotationX,
-      alphaMap,depthWrite:false,renderOrder:-2,receiveShadow:true
+      alphaMap,depthWrite:false,renderOrder:-4,receiveShadow:true,
+      ...surface
     },
     shorelines,isWaterAt,
     water:{
@@ -5312,7 +5352,8 @@ function createOfficialWaterBody({
       innerWidth:TILE*.055,outerWidth:TILE*.285,
       tileWorldLength:WATER_BODY_VISUAL_STANDARD.foamTileWorldLength,
       scrollSpeed:.018,pulseAmplitude:TILE*.014,pulseSpeed:1.35,pulseFrequency:.72,
-      widthVariation:.10,opacity:WATER_BODY_VISUAL_STANDARD.foamOpacity,yOffset:TILE*.030,
+      widthVariation:.10,opacity:WATER_BODY_VISUAL_STANDARD.foamOpacity,
+      yOffset:TILE*.008,renderOrder:-3,
       detail:null,
       ...foam
     }
@@ -5536,7 +5577,7 @@ function buildRiverBankVisual(group,id,river,profile,bounds){
     return {x:wt(frame.x),y:tileY(h)+.016,z:wt(frame.z)};
   };
   for(const side of [-1,1])for(let i=0;i<segments;i++){
-    const t0=i/segments,t1=(i+1)/segments,w0=riverHalfWidthAtT(river,t0),w1=riverHalfWidthAtT(river,t1);
+    const t0=i/segments,t1=(i+1)/segments,w0=riverWaterHalfWidthAtT(river,t0),w1=riverWaterHalfWidthAtT(river,t1);
     const a0=riverLocalVisualFrame(river,id,t0,side*(w0+.03)),b0=riverLocalVisualFrame(river,id,t0,side*(w0+bankWidth));
     const a1=riverLocalVisualFrame(river,id,t1,side*(w1+.03)),b1=riverLocalVisualFrame(river,id,t1,side*(w1+bankWidth));
     if(!riverVisualInBounds(a0,bounds,bankWidth+2)&&!riverVisualInBounds(a1,bounds,bankWidth+2))continue;
@@ -5586,18 +5627,17 @@ function buildRiverFlowStreaks(group,id,river,profile,bounds,baseY){
   const lines=new THREE.LineSegments(geo,mat);lines.renderOrder=2;lines.userData.waterVisualClass='river-flow-streaks';group.add(lines);return lines;
 }
 
-function buildProceduralRiverWaterGeometry(id,river,bounds,segments=72){
+function buildProceduralRiverWaterGeometry(id,river,bounds,segments=72,{includeCalmShoulder=false}={}){
   if(!river||!bounds)return null;
   const segCount=Math.max(24,Math.floor(segments)),positions=[],uv=[];
+  const widthAt=(t)=>includeCalmShoulder?riverWaterHalfWidthAtT(river,t):riverHalfWidthAtT(river,t);
   const pushVertex=(frame,y,u,v)=>{positions.push(wt(frame.x),y,wt(frame.z));uv.push(u,v);};
   for(let i=0;i<segCount;i++){
     const t0=i/segCount,t1=(i+1)/segCount;
-    const w0=riverHalfWidthAtT(river,t0),w1=riverHalfWidthAtT(river,t1);
+    const w0=widthAt(t0),w1=widthAt(t1);
     const l0=riverLocalVisualFrame(river,id,t0,-w0),r0=riverLocalVisualFrame(river,id,t0,w0);
     const l1=riverLocalVisualFrame(river,id,t1,-w1),r1=riverLocalVisualFrame(river,id,t1,w1);
     if(![l0,r0,l1,r1].some(p=>riverVisualInBounds(p,bounds,Math.max(w0,w1)+1)))continue;
-    // Local river UV: U follows current, V crosses bank-to-bank. This removes
-    // dependence on world/cardinal orientation and cannot rotate the river mask away.
     const u0=t0*24,u1=t1*24;
     pushVertex(l0,0,u0,0);pushVertex(r0,0,u0,1);pushVertex(r1,0,u1,1);
     pushVertex(l0,0,u0,0);pushVertex(r1,0,u1,1);pushVertex(l1,0,u1,0);
@@ -5607,7 +5647,12 @@ function buildProceduralRiverWaterGeometry(id,river,bounds,segments=72){
   geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
   geo.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));
   geo.computeVertexNormals();geo.computeBoundingSphere();
-  geo.userData={...(geo.userData||{}),proceduralRiverStrip:true,source:'riverFieldSample+riverHalfWidthAtT'};
+  geo.userData={
+    ...(geo.userData||{}),
+    proceduralRiverStrip:true,
+    source:'riverFieldSample+riverHalfWidthAtT',
+    riverWaterLayer:includeCalmShoulder?'calm-full':'current-core'
+  };
   return geo;
 }
 
@@ -5660,7 +5705,8 @@ function buildProceduralInlandWaterVisual(g,id=mapId){
 
   if(hydro.type==='river'&&hydro.river){
     const geo=buildProceduralRiverWaterGeometry(id,hydro.river,bounds,DISPLAY_DEVICE_MOBILE?64:96);
-    if(!geo)return null;
+    const calmGeo=buildProceduralRiverWaterGeometry(id,hydro.river,bounds,DISPLAY_DEVICE_MOBILE?64:96,{includeCalmShoulder:true});
+    if(!geo||!calmGeo)return null;
 
     // ToonWater receives the same strip geometry used by gameplay. This activates
     // PaperFX.waterContact() ripple uniforms, so buoyancy/contact feedback is visible
@@ -5700,33 +5746,58 @@ function buildProceduralInlandWaterVisual(g,id=mapId){
       buildRiverFlowStreaks(group,id,hydro.river,profile,bounds,baseY)
     ].filter(Boolean);
 
-    const officialGeo=waterBodyRiverUvWorld(geo,hydro.river);
+    const calmOfficialGeo=waterBodyRiverUvWorld(calmGeo,hydro.river,{includeCalmShoulder:true});
+    const currentOfficialGeo=waterBodyRiverUvWorld(geo,hydro.river);
     const shorelines=riverWaterBodyShorelines(id,hydro.river,baseY,bounds,DISPLAY_DEVICE_MOBILE?72:112);
     const riverVisualCurrentSpeed=Math.max(.15,Number(hydro.river.currentSpeed??hydro.river.currentStrength)||1);
-    const body=createOfficialWaterBody({
-      id:`river:${id}`,parent:group,geometry:officialGeo,
-      position:new THREE.Vector3(0,baseY+.012,0),
+    const foamCurrentScroll=-.016*Math.max(.5,riverVisualCurrentSpeed);
+
+    // Calm shallow shoulder: fills the previously empty shelf between current and land.
+    // It moves in the same downstream axis, but at a small fraction of core velocity.
+    const calmBody=createOfficialWaterBody({
+      id:`river-calm:${id}`,parent:group,geometry:calmOfficialGeo,
+      surface:{renderOrder:-5},
+      position:new THREE.Vector3(0,baseY-.006,0),
       shorelines,
       isWaterAt:(x,z)=>!!proceduralHydrologySample(id,x/TILE,z/TILE)?.water,
-      // U grows downstream. flowWorldSpeed is expressed in real world-units/sec,
-      // so the repository-local water texture visibly follows the same river speed
-      // that drives gameplay current instead of looking frozen.
       water:{
-        opacity:.84,
-        flowWorldSpeed:{x:-wt(riverVisualCurrentSpeed)*.48,y:0}
+        opacity:.70,roughness:.54,
+        flowWorldSpeed:{x:-wt(riverVisualCurrentSpeed)*.09,y:0}
       },
       foam:{
-        // Give the river foam a deliberate land-side overlap. The previous .045
-        // inner width could leave a visible gap on curved/graded banks.
-        width:TILE*.40,
-        innerWidth:TILE*.16,outerWidth:TILE*.30,
-        tileWorldLength:TILE*1.85,scrollSpeed:-.020,
-        pulseAmplitude:TILE*.012,pulseSpeed:1.65,pulseFrequency:.88,opacity:.82
+        width:TILE*.36,
+        innerWidth:TILE*.08,outerWidth:TILE*.28,
+        tileWorldLength:TILE*1.85,
+        // Foam travels downstream with the same authored current authority.
+        scrollSpeed:foamCurrentScroll,
+        pulseAmplitude:TILE*.010,pulseSpeed:1.45,pulseFrequency:.82,
+        opacity:.80,yOffset:TILE*.008,renderOrder:-3
       }
     });
 
-    group.userData.paperFXWaterMesh=mesh;group.userData.waterDetailLayers=[detailA,detailB].filter(Boolean);group.userData.riverVisualLayers=riverLayers;
-    group.userData.geometryAuthority='procedural-river-strip';group.userData.reactiveBuoyancy=!!riverToon;group.userData.waterBody=body;
+    // Fast core retains the authored current and reactive river treatment.
+    // No second shoreline foam is generated here; coast foam belongs to the outer
+    // calm-water/land contact so it never slices across the playable river.
+    const body=createOfficialWaterBody({
+      id:`river-current:${id}`,parent:group,geometry:currentOfficialGeo,
+      surface:{renderOrder:-2},
+      position:new THREE.Vector3(0,baseY+.012,0),
+      shorelines:[],
+      isWaterAt:(x,z)=>!!proceduralHydrologySample(id,x/TILE,z/TILE)?.riverCore,
+      water:{
+        opacity:.82,
+        flowWorldSpeed:{x:-wt(riverVisualCurrentSpeed)*.48,y:0}
+      },
+      foam:{enabled:false}
+    });
+
+    group.userData.paperFXWaterMesh=mesh;
+    group.userData.waterDetailLayers=[detailA,detailB].filter(Boolean);
+    group.userData.riverVisualLayers=riverLayers;
+    group.userData.geometryAuthority='procedural-river-core+calm-shoulder';
+    group.userData.reactiveBuoyancy=!!riverToon;
+    group.userData.waterBody=body;
+    group.userData.calmWaterBody=calmBody;
     g.add(group);return group;
   }
 
