@@ -38,6 +38,17 @@ export function relativeWaterVelocity(actorVelocity={},waterFlow={}){
   };
 }
 
+// Direction in which the disturbed water/foam is carried away from the interactor.
+// This is intentionally WATER - OBJECT: a stationary rock follows the river;
+// a fast object in calm water leaves a wake behind its own movement.
+export function wakeDominanceVelocity(actorVelocity={},waterFlow={}){
+  return {
+    x:finite(waterFlow.x)-finite(actorVelocity.x),
+    y:finite(waterFlow.y)-finite(actorVelocity.y),
+    z:finite(waterFlow.z)-finite(actorVelocity.z)
+  };
+}
+
 export function wakeStrengthForSpeed(speed,{minRelativeSpeed=.15,maxRelativeSpeed=3}={}){
   const lo=Math.max(0,finite(minRelativeSpeed,.15)),hi=Math.max(lo+.001,finite(maxRelativeSpeed,3));
   return smooth01((Math.max(0,finite(speed))-lo)/(hi-lo));
@@ -318,7 +329,7 @@ class WakeTrailInstance {
   surfacePoint(body,p){
     return {x:p.x,y:body.getSurfaceHeightAt(p)+finite(this.config.smallOffset,.014),z:p.z};
   }
-  dynamicPoints(body,pos,relative,dt,strength,maxLength){
+  dynamicPoints(body,pos,wakeVector,dt,strength,maxLength){
     for(const h of this.history)h.age+=dt;
     const lifetime=Math.max(.1,finite(this.config.wakeLifetime,1.55));
     this.history=this.history.filter(h=>h.age<=lifetime&&body.containsPoint(h.position));
@@ -328,17 +339,35 @@ class WakeTrailInstance {
       this.history.unshift({position:{x:pos.x,y:pos.y,z:pos.z},age:0,strength});
     }
     this.history.length=Math.min(this.history.length,Math.max(3,Math.floor(this.config.maxPoints||28)-1));
-    let dx=-relative.x,dz=-relative.z,len=Math.hypot(dx,dz);
-    if(len<1e-5){dx=0;dz=1;len=1}dx/=len;dz/=len;
+
+    let dx=finite(wakeVector.x),dz=finite(wakeVector.z),len=Math.hypot(dx,dz);
+    if(len<1e-5){dx=0;dz=1;len=1}
+    dx/=len;dz/=len;
+
     const radius=this.resolveRadius();
     const start=this.surfacePoint(body,{x:pos.x+dx*radius*.72,z:pos.z+dz*radius*.72});
     const points=[start];
+
+    // Keep authored movement history only when it lies in the actual wake direction.
+    // If current dominates a swimmer moving the same way, old actor positions lie on
+    // the wrong side of the object and would visually turn the wake back upstream.
     for(const h of this.history){
       const p=this.surfacePoint(body,h.position);
+      const vx=p.x-start.x,vz=p.z-start.z;
+      const downstreamProjection=vx*dx+vz*dz;
+      if(downstreamProjection<=.025)continue;
+      if(Math.hypot(vx,vz)>maxLength*1.15)continue;
       if(Math.hypot(p.x-points.at(-1).x,p.z-points.at(-1).z)>.035)points.push(p);
     }
+
+    // When history cannot describe the dominance direction, extend a short sampled
+    // centerline along water-object force instead of bending back toward the actor.
     if(points.length<2){
-      points.push(this.surfacePoint(body,{x:start.x+dx*Math.min(maxLength,spacing*2),z:start.z+dz*Math.min(maxLength,spacing*2)}));
+      const count=Math.max(3,Math.min(10,Math.ceil(maxLength/Math.max(.18,spacing))));
+      for(let i=1;i<count;i++){
+        const t=i/(count-1),d=maxLength*t;
+        points.push(this.surfacePoint(body,{x:start.x+dx*d,z:start.z+dz*d}));
+      }
     }
     return trimWakePointsByLength(points,maxLength);
   }
@@ -402,9 +431,11 @@ class WakeTrailInstance {
       this.body=null;this.targetOpacity=0;this.fade(dt);return;
     }
     this.body=body;
-    const actor=this.resolveVelocity(),flow=body.getFlowAt(pos),rel=relativeWaterVelocity(actor,flow);
-    this.debugFlow={...flow};this.debugRelative={...rel};this.debugOrigin={...pos};
-    const speed=Math.hypot(rel.x,rel.y,rel.z),min=Math.max(0,finite(this.config.minRelativeSpeed,.15));
+    const actor=this.resolveVelocity(),flow=body.getFlowAt(pos);
+    const relative=relativeWaterVelocity(actor,flow);
+    const wakeVector=wakeDominanceVelocity(actor,flow);
+    this.debugFlow={...flow};this.debugRelative={...relative};this.debugWakeVector={...wakeVector};this.debugOrigin={...pos};
+    const speed=Math.hypot(relative.x,relative.y,relative.z),min=Math.max(0,finite(this.config.minRelativeSpeed,.15));
     const strength=wakeStrengthForSpeed(speed,this.config);
     if(speed<=min){
       this.targetOpacity=0;this.fade(dt);return;
@@ -413,7 +444,7 @@ class WakeTrailInstance {
     const type=String(this.config.type||this.spec.type||'dynamic');
     const points=type==='staticObstacle'
       ?this.staticPoints(body,pos,flow,strength)
-      :this.dynamicPoints(body,pos,rel,dt,strength,dims.length);
+      :this.dynamicPoints(body,pos,wakeVector,dt,strength,dims.length);
     if(points.length>=2){
       if(type==='staticObstacle'){
         const angle=Math.atan2(finite(flow.z),finite(flow.x));
@@ -486,6 +517,7 @@ export default Object.freeze({
   DEFAULT_WAKE_TEXTURE,
   DEFAULT_WAKE_CONFIG,
   relativeWaterVelocity,
+  wakeDominanceVelocity,
   wakeStrengthForSpeed,
   resolveWakeDimensions,
   wakeTailAlpha,
