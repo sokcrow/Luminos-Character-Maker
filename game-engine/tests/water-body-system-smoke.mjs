@@ -7,12 +7,34 @@ import {
   extractFieldShorelines,
   simplifyShoreline,
   waterCurrentImmersionFactor,
+  resolveWaterBodyVisualProfile,
 } from '../src/world/WaterBodySystem.js';
 
 assert.equal(DEFAULT_WATER_CONFIG.texture,'Assets/Images/World/Water/water_seamless.png');
 assert.equal(DEFAULT_FOAM_CONFIG.texture,'Assets/Images/World/Water/coast_foam_seamless.png');
 assert.ok(DEFAULT_FOAM_CONFIG.renderOrder<0,'shore foam must render in the terrain/water layer before units');
 assert.ok(DEFAULT_FOAM_CONFIG.yOffset<=.012,'shore foam must stay nearly coplanar with water');
+
+const seaProfile=resolveWaterBodyVisualProfile('coast:test',{
+  tileWorldSize:3,
+  opacity:.74,
+  roughness:.46,
+},{
+  width:.36,
+  innerWidth:.06,
+  outerWidth:.30,
+  tileWorldLength:2.35,
+  pulseAmplitude:.014,
+});
+assert.equal(seaProfile.profile,'sea');
+assert.ok(seaProfile.water.tileWorldSize>3,'sea texture must render at a larger world scale');
+assert.ok(seaProfile.water.opacity>=.84,'sea surface must read more turbid/opaque than the light coast default');
+assert.ok(seaProfile.water.roughness>=.54,'sea surface must retain a rougher turbid treatment');
+assert.ok(seaProfile.foam.width>.36,'sea foam band must be broader');
+assert.ok(seaProfile.foam.tileWorldLength>2.35,'sea foam texture must repeat at a larger scale');
+const riverProfile=resolveWaterBodyVisualProfile('river-current:test',{tileWorldSize:3},{width:.36,tileWorldLength:2.35});
+assert.equal(riverProfile.profile,'default');
+assert.equal(riverProfile.water.tileWorldSize,3,'river scale must not inherit the sea profile');
 
 const currentDry=waterCurrentImmersionFactor({waterDepth:0,referenceDepth:1});
 const currentEdge=waterCurrentImmersionFactor({waterDepth:.10,referenceDepth:1});
