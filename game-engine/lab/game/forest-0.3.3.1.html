@@ -2648,15 +2648,9 @@ function commitGlobalRegion(region,beforePos){
 function updateGlobalCamera(dt,snap=false){
   if(!globalCamera||!globalActor)return;
   const target=_globalVec.set(globalActor.position.x,.45,globalActor.position.z+.40);
-  const dist=10.2,yaw=playerCameraYawOffset,baseLift=8.15;
-  const radius=Math.hypot(dist,baseLift);
-  const pitch=THREE.MathUtils.clamp(
-    Math.atan2(baseLift,dist)+playerCameraPitchOffset,
-    THREE.MathUtils.degToRad(12),
-    THREE.MathUtils.degToRad(76)
-  );
-  const planarDist=Math.cos(pitch)*radius,verticalLift=Math.sin(pitch)*radius;
-  const desired=new THREE.Vector3(target.x+Math.sin(yaw)*planarDist,target.y+verticalLift,target.z-Math.cos(yaw)*planarDist);
+  const dist=10.2,yaw=playerCameraYawOffset;
+  // Global hex map: fixed elevation, horizontal orbit only.
+  const desired=new THREE.Vector3(target.x+Math.sin(yaw)*dist,8.6,target.z-Math.cos(yaw)*dist);
   globalCamera.fov=cameraFixedVisibilityFov(38,globalCamera);
   globalCamera.updateProjectionMatrix();
   if(snap)globalCamera.position.copy(desired);else globalCamera.position.lerp(desired,1-Math.exp(-dt*4.8));
@@ -2799,8 +2793,8 @@ window.PaperCameraControl=Object.freeze({
   setQuarter:setPlayerCameraQuarter,
   quarter:()=>playerCameraQuarter,
   controls:Object.freeze({
-    mouse:Object.freeze({toggle:'ShiftLeft',pointerLock:true,continuousYaw:true,continuousPitch:true}),
-    touch:Object.freeze({drag:true,continuousYaw:true,continuousPitch:true}),
+    mouse:Object.freeze({toggle:'ShiftLeft',pointerLock:true,localYaw:true,localPitch:true,hexYawOnly:true}),
+    touch:Object.freeze({drag:true,localYaw:true,localPitch:true,hexYawOnly:true}),
     keyboardCameraMovement:false
   })
 });
@@ -4768,7 +4762,9 @@ function playerCameraOrbitAllowed(){
 function rotatePlayerCameraBy(deltaYaw=0,deltaPitch=0){
   if(!playerCameraOrbitAllowed())return {yaw:playerCameraYawOffset,pitch:playerCameraPitchOffset};
   setPlayerCameraYaw(playerCameraYawOffset+(Number(deltaYaw)||0));
-  setPlayerCameraPitch(playerCameraPitchOffset+(Number(deltaPitch)||0));
+  // Hex/global navigation only rotates around the map horizontally. Full vertical
+  // free-look starts after entering the local forest/procedural map.
+  if(!globalMapActive)setPlayerCameraPitch(playerCameraPitchOffset+(Number(deltaPitch)||0));
   return {yaw:playerCameraYawOffset,pitch:playerCameraPitchOffset};
 }
 function rotatePlayerCameraQuarter(step){
@@ -5489,10 +5485,11 @@ function buildProceduralCoastVisual(g,id=mapId){
   const coast=proceduralCoastAtSector(id);if(!coast)return null;
   const region=activeProceduralZone.region,visual=region.surfaceStyle||SURFACE_VISUAL_PROFILES.temperate;
   const presetName=region.biomeProfile==='arctic'?'arctic':(region.biomeProfile==='swamp'?'swamp':'ocean');
-  const deepTint=new THREE.Color(visual.waterBase).multiplyScalar(.58).getHex();
+  const shallowSeaColor=0x8bd8f7;
+  const deepSeaColor=0x123967;
   const coastVisualMaxDepth=COAST_TERRAIN_RULES.shorelineSubmergeTiles+COAST_TERRAIN_RULES.maxSubmergedDepthTiles;
   const toonKit=window.PaperFX?.toonWaterAvailable?window.PaperFX?.waterPreset?.(presetName,{
-    deepColor:deepTint,shallowColor:visual.waterBase,crestColor:visual.waveA,foamColor:visual.foam,
+    deepColor:deepSeaColor,shallowColor:shallowSeaColor,crestColor:0xe8f8ff,foamColor:0xffffff,
     // El rango cromático coincide con la profundidad REAL del fondo costero; así el
     // color oscuro sí llega a aparecer y las cuatro bandas son legibles.
     maxDepth:coastVisualMaxDepth,coast:{enabled:false,foamWidth:2.5,clipLandMargin:.075},reactive:true
@@ -5547,8 +5544,20 @@ function buildProceduralCoastVisual(g,id=mapId){
       position:new THREE.Vector3(wt(cxTiles),waterY+.030,wt(czTiles)),rotationX:-Math.PI/2,alphaMap:officialMask,
       shorelines:shoreline?[shoreline]:[],
       isWaterAt:(x,z)=>coastLocalDistance(id,x/TILE,z/TILE)<0,
-      water:{opacity:.74,scrollSpeed:{x:.006,y:.003}},
-      foam:{width:TILE*.36,outerWidth:TILE*.30,innerWidth:TILE*.06,opacity:.86,scrollSpeed:.018}
+      water:{
+        color:0xc8efff,
+        opacity:.38,
+        roughness:.50,
+        scrollSpeed:{x:.020,y:.010}
+      },
+      foam:{
+        width:TILE*.44,outerWidth:TILE*.355,innerWidth:TILE*.085,
+        opacity:.94,scrollSpeed:.034,
+        pulseAmplitude:TILE*.060,pulseSpeed:2.05,pulseFrequency:.62,widthVariation:.20,
+        detail:{
+          enabled:true,widthScale:.68,tileWorldLength:TILE*1.45,scrollSpeed:-.018,
+          opacity:.34,yOffset:TILE*.006,pulseAmplitude:TILE*.032,pulseSpeed:2.35,pulseFrequency:.78
+        }
     });
     group.userData.waterBody=body;
     return group;
@@ -5573,8 +5582,20 @@ function buildProceduralCoastVisual(g,id=mapId){
     position:new THREE.Vector3(wt(cx),waterY+.030,wt(cz)),rotationX:-Math.PI/2,alphaMap:coastMask,
     shorelines:shoreline?[shoreline]:[],
     isWaterAt:(x,z)=>coastLocalDistance(id,x/TILE,z/TILE)<0,
-    water:{opacity:.92,scrollSpeed:{x:.006,y:.003}},
-    foam:{width:TILE*.36,outerWidth:TILE*.30,innerWidth:TILE*.06,opacity:.86,scrollSpeed:.018}
+    water:{
+      color:0xc8efff,
+      opacity:.46,
+      roughness:.50,
+      scrollSpeed:{x:.020,y:.010}
+    },
+    foam:{
+      width:TILE*.44,outerWidth:TILE*.355,innerWidth:TILE*.085,
+      opacity:.94,scrollSpeed:.034,
+      pulseAmplitude:TILE*.060,pulseSpeed:2.05,pulseFrequency:.62,widthVariation:.20,
+      detail:{
+        enabled:true,widthScale:.68,tileWorldLength:TILE*1.45,scrollSpeed:-.018,
+        opacity:.34,yOffset:TILE*.006,pulseAmplitude:TILE*.032,pulseSpeed:2.35,pulseFrequency:.78
+      }
   });
   group.userData.waterBody=body;
   return group;
@@ -5681,11 +5702,12 @@ function buildRiverFlowStreaks(group,id,river,profile,bounds,baseY){
   const lines=new THREE.LineSegments(geo,mat);lines.renderOrder=2;lines.userData.waterVisualClass='river-flow-streaks';group.add(lines);return lines;
 }
 
-function buildProceduralRiverWaterGeometry(id,river,bounds,segments=72,{includeCalmShoulder=false}={}){
+function buildProceduralRiverWaterGeometry(id,river,bounds,segments=72,{includeCalmShoulder=false,terminalCaps=true}={}){
   if(!river||!bounds)return null;
   const segCount=Math.max(24,Math.floor(segments)),positions=[],uv=[];
   const widthAt=(t)=>includeCalmShoulder?riverWaterHalfWidthAtT(river,t):riverHalfWidthAtT(river,t);
   const pushVertex=(frame,y,u,v)=>{positions.push(wt(frame.x),y,wt(frame.z));uv.push(u,v);};
+  let firstVisible=null,lastVisible=null;
   for(let i=0;i<segCount;i++){
     const t0=i/segCount,t1=(i+1)/segCount;
     const w0=widthAt(t0),w1=widthAt(t1);
@@ -5693,8 +5715,26 @@ function buildProceduralRiverWaterGeometry(id,river,bounds,segments=72,{includeC
     const l1=riverLocalVisualFrame(river,id,t1,-w1),r1=riverLocalVisualFrame(river,id,t1,w1);
     if(![l0,r0,l1,r1].some(p=>riverVisualInBounds(p,bounds,Math.max(w0,w1)+1)))continue;
     const u0=t0*24,u1=t1*24;
+    if(!firstVisible)firstVisible={t:t0,u:u0,w:w0,l:l0,r:r0};
+    lastVisible={t:t1,u:u1,w:w1,l:l1,r:r1};
     pushVertex(l0,0,u0,0);pushVertex(r0,0,u0,1);pushVertex(r1,0,u1,1);
     pushVertex(l0,0,u0,0);pushVertex(r1,0,u1,1);pushVertex(l1,0,u1,0);
+  }
+  // Only the visual water gets terminal plates. They seal the exposed beginning/end
+  // of a local river strip without creating walkable/collision geometry.
+  if(terminalCaps&&firstVisible&&lastVisible){
+    const capTiles=.62;
+    const addCap=(edge,sign)=>{
+      const center=riverLocalVisualFrame(river,id,edge.t,0);
+      const tangent=center.tangent;
+      const extL={...edge.l,x:edge.l.x+tangent.x*capTiles*sign,z:edge.l.z+tangent.z*capTiles*sign};
+      const extR={...edge.r,x:edge.r.x+tangent.x*capTiles*sign,z:edge.r.z+tangent.z*capTiles*sign};
+      const du=capTiles*sign;
+      pushVertex(edge.l,0,edge.u,0);pushVertex(edge.r,0,edge.u,1);pushVertex(extR,0,edge.u+du,1);
+      pushVertex(edge.l,0,edge.u,0);pushVertex(extR,0,edge.u+du,1);pushVertex(extL,0,edge.u+du,0);
+    };
+    addCap(firstVisible,-1);
+    addCap(lastVisible,1);
   }
   if(!positions.length)return null;
   const geo=new THREE.BufferGeometry();
@@ -5705,7 +5745,8 @@ function buildProceduralRiverWaterGeometry(id,river,bounds,segments=72,{includeC
     ...(geo.userData||{}),
     proceduralRiverStrip:true,
     source:includeCalmShoulder?'riverFieldSample+riverWaterHalfWidthAtT':'riverFieldSample+riverHalfWidthAtT',
-    riverWaterLayer:includeCalmShoulder?'single-full-width':'current-core'
+    riverWaterLayer:includeCalmShoulder?'single-full-width':'current-core',
+    riverTerminalCaps:!!terminalCaps
   };
   return geo;
 }
@@ -5714,7 +5755,7 @@ function proceduralInlandWaterVisualProfile(hydro,region){
   const type=hydro?.type||'lake',field=hydro?.river||hydro?.lake||hydro;
   if(type==='river'){
     return {
-      id:'river',baseColor:0x2f6fdb,detailA:0xa9c9ff,detailB:0x6fa0f0,foam:0xf5fbff,opacity:1,
+      id:'river',baseColor:0x3278de,detailA:0xdceeff,detailB:0x83b3f4,foam:0xffffff,opacity:1,
       // U grows downstream. PaperFX samples UV as uv + speed*time, therefore the
       // visible pattern travels toward +U only when speed.x is NEGATIVE.
       uv:{wavesA:{repeat:[1,2.8],speed:[-.070,0],rotation:0},wavesB:{repeat:[1,3.6],speed:[-.095,0],rotation:0},foam:{repeat:[1,2.4],speed:[-.115,0],rotation:0}}
@@ -5778,13 +5819,19 @@ function buildProceduralInlandWaterVisual(g,id=mapId){
       shorelines,
       isWaterAt:(x,z)=>!!proceduralHydrologySample(id,x/TILE,z/TILE)?.water,
       water:{
-        color:0x2f6fdb,
+        color:0x3278de,
         opacity:1,
         roughness:.44,
         metalness:.01,
-        // One visual flow axis/speed across the whole connected sheet. The calm bank
-        // remains calm in PHYSICS via current.bandFactor instead of a second material.
-        flowWorldSpeed:{x:-wt(riverVisualCurrentSpeed)*.34,y:0}
+        patternMask:{
+          enabled:true,
+          backgroundColor:0xffffff,
+          waterColor:0x3278de,
+          low:.14,
+          high:.76
+        },
+        // One visual sheet, animated downstream. Calm vs fast remains physics only.
+        flowWorldSpeed:{x:-wt(riverVisualCurrentSpeed)*.30,y:0}
       },
       foam:{
         // Slightly larger than the previous ribbon and driven downstream by the same
