@@ -20,6 +20,9 @@ export const DEFAULT_WATER_CONFIG = Object.freeze({
   flowMap: null,
   colorVariation: null,
   depth: null,
+  // Optional: reinterpret the seamless water image as a luminance mask instead of
+  // multiplying its RGB. This prevents dark source pixels from becoming black water.
+  patternMask: null,
 });
 
 export const DEFAULT_FOAM_CONFIG = Object.freeze({
@@ -359,6 +362,58 @@ function makeFoamMaterial(THREE,texture,config){
   return mat;
 }
 
+
+function makePatternMaskWaterMaterial(THREE,texture,config,{repeatX=1,repeatY=1}={}){
+  const pattern=config.patternMask||{};
+  const bg=new THREE.Color(pattern.backgroundColor??0xffffff);
+  const water=new THREE.Color(pattern.waterColor??config.color??0x2f6fdb);
+  const uniforms={
+    map:{value:texture},
+    uRepeat:{value:new THREE.Vector2(repeatX,repeatY)},
+    uOffset:{value:new THREE.Vector2(0,0)},
+    uBackground:{value:bg},
+    uWater:{value:water},
+    uLow:{value:clamp(pattern.low??.16,0,.95)},
+    uHigh:{value:clamp(pattern.high??.78,.05,1)},
+    uOpacity:{value:clamp(config.opacity??1,0,1)}
+  };
+  const mat=new THREE.ShaderMaterial({
+    uniforms,
+    transparent:(config.opacity??1)<1,
+    depthWrite:true,
+    depthTest:true,
+    side:THREE.DoubleSide,
+    toneMapped:false,
+    vertexShader:`
+      varying vec2 vUv;
+      void main(){
+        vUv=uv;
+        gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);
+      }
+    `,
+    fragmentShader:`
+      uniform sampler2D map;
+      uniform vec2 uRepeat;
+      uniform vec2 uOffset;
+      uniform vec3 uBackground;
+      uniform vec3 uWater;
+      uniform float uLow;
+      uniform float uHigh;
+      uniform float uOpacity;
+      varying vec2 vUv;
+      void main(){
+        vec4 tex=texture2D(map,vUv*uRepeat+uOffset);
+        float lum=dot(tex.rgb,vec3(0.299,0.587,0.114));
+        float pattern=smoothstep(uLow,max(uLow+.001,uHigh),lum)*tex.a;
+        vec3 rgb=mix(uBackground,uWater,pattern);
+        gl_FragColor=vec4(rgb,uOpacity);
+      }
+    `
+  });
+  mat.userData.waterPatternMask=true;
+  return mat;
+}
+
 function createDebugGroup(THREE,data,{normalLength=.22}={}){
   const g=new THREE.Group();g.name='WaterBodyShoreDebug';
   const line=(pts,color,closed=false)=>{
@@ -409,17 +464,21 @@ export function resolveWaterBodyVisualProfile(id,waterConfig={},foamConfig={}){
   const coastal=/(^|:)(coast|sea|ocean)(:|$)/i.test(String(id||''));
   if(!coastal)return {profile:'default',water,foam};
 
-  // Ocean/coast treatment: larger seamless repeats read as a broader, murkier body
-  // of water, and the contact foam is correspondingly broader and less repetitive.
+  // Ocean/coast treatment: larger repeat scale, but caller opacity remains
+  // authoritative so the animated texture can sit over the depth-color shader.
   water.tileWorldSize=Math.max(.05,finite(water.tileWorldSize,DEFAULT_WATER_CONFIG.tileWorldSize)*1.52);
-  water.opacity=Math.max(.84,clamp(water.opacity??DEFAULT_WATER_CONFIG.opacity,0,1));
-  water.roughness=Math.max(.54,clamp(water.roughness??DEFAULT_WATER_CONFIG.roughness,0,1));
+  water.opacity=clamp(water.opacity??DEFAULT_WATER_CONFIG.opacity,0,1);
+  water.roughness=Math.max(.48,clamp(water.roughness??DEFAULT_WATER_CONFIG.roughness,0,1));
 
-  foam.width=Math.max(.02,finite(foam.width,DEFAULT_FOAM_CONFIG.width)*1.20);
+  foam.width=Math.max(.02,finite(foam.width,DEFAULT_FOAM_CONFIG.width)*1.26);
   foam.innerWidth=Math.max(.01,finite(foam.innerWidth,DEFAULT_FOAM_CONFIG.innerWidth)*1.12);
-  foam.outerWidth=Math.max(.01,finite(foam.outerWidth,DEFAULT_FOAM_CONFIG.outerWidth)*1.22);
-  foam.tileWorldLength=Math.max(.05,finite(foam.tileWorldLength,DEFAULT_FOAM_CONFIG.tileWorldLength)*1.38);
-  foam.pulseAmplitude=Math.max(0,finite(foam.pulseAmplitude,DEFAULT_FOAM_CONFIG.pulseAmplitude)*1.10);
+  foam.outerWidth=Math.max(.01,finite(foam.outerWidth,DEFAULT_FOAM_CONFIG.outerWidth)*1.30);
+  foam.tileWorldLength=Math.max(.05,finite(foam.tileWorldLength,DEFAULT_FOAM_CONFIG.tileWorldLength)*1.44);
+  foam.scrollSpeed=finite(foam.scrollSpeed,DEFAULT_FOAM_CONFIG.scrollSpeed)*1.55;
+  foam.pulseAmplitude=Math.max(.05,finite(foam.pulseAmplitude,DEFAULT_FOAM_CONFIG.pulseAmplitude)*1.85);
+  foam.pulseSpeed=finite(foam.pulseSpeed,DEFAULT_FOAM_CONFIG.pulseSpeed)*1.28;
+  foam.pulseFrequency=Math.max(.30,finite(foam.pulseFrequency,DEFAULT_FOAM_CONFIG.pulseFrequency)*.82);
+  foam.widthVariation=Math.max(.16,finite(foam.widthVariation,DEFAULT_FOAM_CONFIG.widthVariation));
 
   return {profile:'sea',water,foam};
 }
@@ -465,13 +524,24 @@ export class WaterBody {
         if('channel' in alphaMap&&this.surface.geometry?.attributes?.uv1)alphaMap.channel=1;
         alphaMap.needsUpdate=true;
       }
-      const mat=new THREE.MeshStandardMaterial({
-        map:entry.texture,color:this.water.color??0xffffff,transparent:(this.water.opacity??1)<1||!!alphaMap,
-        opacity:clamp(this.water.opacity??1,0,1),roughness:clamp(this.water.roughness??.42,0,1),
-        metalness:clamp(this.water.metalness??.02,0,1),side:THREE.DoubleSide,
-        alphaMap,alphaTest:alphaMap?0.01:0,
-        depthWrite:this.surface.depthWrite!==false
-      });
+      let mat;
+      if(this.water.patternMask?.enabled){
+        if(alphaMap)console.warn('WaterBody patternMask ignores surface alphaMap; use shaped geometry for this mode:',this.id);
+        mat=makePatternMaskWaterMaterial(THREE,entry.texture,this.water,{
+          repeatX:1/tileWorldSize,repeatY:1/tileWorldSize
+        });
+        mat.depthWrite=this.surface.depthWrite!==false;
+        this.patternMaterial=mat;
+        this.patternTexture=entry.texture;
+      }else{
+        mat=new THREE.MeshStandardMaterial({
+          map:entry.texture,color:this.water.color??0xffffff,transparent:(this.water.opacity??1)<1||!!alphaMap,
+          opacity:clamp(this.water.opacity??1,0,1),roughness:clamp(this.water.roughness??.42,0,1),
+          metalness:clamp(this.water.metalness??.02,0,1),side:THREE.DoubleSide,
+          alphaMap,alphaTest:alphaMap?0.01:0,
+          depthWrite:this.surface.depthWrite!==false
+        });
+      }
       const mesh=new THREE.Mesh(this.surface.geometry,mat);
       if(this.surface.position)mesh.position.copy?.(this.surface.position);
       else mesh.position.set(finite(this.surface.x),finite(this.surface.y),finite(this.surface.z));
@@ -560,6 +630,9 @@ export class WaterBody {
     for(const g of this.debugGroups)g.visible=this.debug;
   }
   update(dt,time){
+    if(this.patternMaterial?.uniforms?.uOffset&&this.patternTexture?.offset){
+      this.patternMaterial.uniforms.uOffset.value.set(this.patternTexture.offset.x,this.patternTexture.offset.y);
+    }
     for(const mesh of this.foamMeshes){
       if(mesh.material?.uniforms?.uTime)mesh.material.uniforms.uTime.value=time;
       if(mesh.material?.uniforms?.uUvOffset){
