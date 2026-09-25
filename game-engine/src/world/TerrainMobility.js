@@ -25,7 +25,9 @@ export function terrainSlopeBand(slopeDeg = 0, rules = TERRAIN_SLOPE_STANDARD) {
 export function resolveTerrainSlopeTraversal(sample = {}, rules = TERRAIN_SLOPE_STANDARD) {
   const tags = tagsOf(sample);
   const slopeDeg = Math.max(0, finite(sample?.slopeDeg, 0));
-  const band = terrainSlopeBand(slopeDeg, rules);
+  const locomotion = String(sample?.locomotion || "ground");
+  const slopeExempt = sample?.ignoreSlope === true || locomotion === "swim" || locomotion === "fly";
+  const band = slopeExempt ? "normal" : terrainSlopeBand(slopeDeg, rules);
   const climbable = sample?.climbable === true || tags.has("climbable");
   // Being climbable does not silently turn a wall into normal walking terrain.
   // Explicit climbing systems may opt in with allowSteepTraversal.
