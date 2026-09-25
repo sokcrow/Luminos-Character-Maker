@@ -9,6 +9,11 @@ export const TERRAIN_SLOPE_STANDARD = Object.freeze({
   sampleTiles: 0.24,
   inclineMultiplier: 0.82,
   steepMultiplier: 0.68,
+  // Slopes above maxWalkDeg are not walkable uphill, but a grounded actor must
+  // still be able to escape them by sliding downhill instead of deadlocking.
+  slideMultiplier: 0.74,
+  slideSteer: 0.32,
+  slideResponse: 9,
 });
 
 const finite = (value, fallback) => Number.isFinite(Number(value)) ? Number(value) : fallback;
@@ -39,6 +44,25 @@ export function resolveTerrainSlopeTraversal(sample = {}, rules = TERRAIN_SLOPE_
     ? finite(rules.steepMultiplier, .68)
     : 0;
   return Object.freeze({ slopeDeg, band, climbable, blocked, moveMultiplier });
+}
+
+export function resolveTerrainSlopeSlide(sample = {}, rules = TERRAIN_SLOPE_STANDARD) {
+  const locomotion = String(sample?.locomotion || "ground");
+  const slopeExempt = sample?.ignoreSlope === true || locomotion === "swim" || locomotion === "fly";
+  const slopeDeg = Math.max(0, finite(sample?.slopeDeg, 0));
+  const hx = finite(sample?.hx, 0);
+  const hz = finite(sample?.hz, 0);
+  const gradient = Math.hypot(hx, hz);
+  const active = !slopeExempt && slopeDeg > finite(rules.maxWalkDeg, 43) && gradient > 1e-6;
+  return Object.freeze({
+    active,
+    slopeDeg,
+    downhillX: active ? -hx / gradient : 0,
+    downhillZ: active ? -hz / gradient : 0,
+    speedMultiplier: active ? Math.max(0.01, finite(rules.slideMultiplier, .74)) : 0,
+    steer: active ? Math.max(0, finite(rules.slideSteer, .32)) : 0,
+    response: active ? Math.max(0.01, finite(rules.slideResponse, 9)) : 0,
+  });
 }
 
 export function resolveTerrainMoveMultiplier(sample = {}) {
