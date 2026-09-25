@@ -98,12 +98,17 @@ assert.ok(contours[0].points.length>=6,'field contour must preserve curved shore
 
 const catalog=JSON.parse(await fs.readFile(new URL('../../Assets/Images/World/Water/catalog.json',import.meta.url),'utf8'));
 assert.equal(catalog.runtimeMode,'repository-local');
-assert.equal(catalog.assetCount,2);
+assert.equal(catalog.assetCount,3);
 const water=catalog.assets.find(x=>x.id==='water_seamless');
 const foam=catalog.assets.find(x=>x.id==='coast_foam_seamless');
+const wake=catalog.assets.find(x=>x.id==='wake_trail');
 assert.ok(water?.path.endsWith('/water_seamless.png'));
 assert.ok(foam?.path.endsWith('/coast_foam_seamless.png'));
+assert.ok(wake?.path.endsWith('/wake_trail.png'));
 assert.equal(foam.hasAlpha,true,'coast foam PNG must preserve alpha');
+assert.equal(wake.hasAlpha,true,'wake trail PNG must preserve alpha');
+assert.equal(wake.width,2172);
+assert.equal(wake.height,724);
 
 const moduleSource=await fs.readFile(new URL('../src/world/WaterBodySystem.js',import.meta.url),'utf8');
 assert.doesNotMatch(moduleSource,/https?:\/\/(?:i\.)?imgur\.com/i,'runtime WaterBody module must not reference Imgur');
