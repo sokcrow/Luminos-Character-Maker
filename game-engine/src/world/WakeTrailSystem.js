@@ -42,9 +42,9 @@ export function wakeStrengthForSpeed(speed,{minRelativeSpeed=.15,maxRelativeSpee
 
 export function resolveWakeDimensions(config={},radius=.45,strength=0){
   const s=clamp(strength,0,1),r=Math.max(.02,finite(radius,config.radius??.45));
-  const baseLength=Math.max(.05,finite(config.length,5));
+  const baseLength=Math.max(.05,finite(config.wakeLength??config.length,5));
   const extra=Math.max(0,finite(config.maxExtraLength,3));
-  const widthBase=Math.max(.03,finite(config.width,1.4));
+  const widthBase=Math.max(.03,finite(config.wakeWidth??config.width,1.4));
   const widthMul=Math.max(.05,finite(config.widthMultiplier,1));
   return {
     length:Math.min(baseLength+extra,baseLength+extra*s),
@@ -313,6 +313,7 @@ class WakeTrailInstance {
     }
     this.body=body;
     const actor=this.resolveVelocity(),flow=body.getFlowAt(pos),rel=relativeWaterVelocity(actor,flow);
+    this.debugFlow={...flow};this.debugRelative={...rel};this.debugOrigin={...pos};
     const speed=Math.hypot(rel.x,rel.y,rel.z),min=Math.max(0,finite(this.config.minRelativeSpeed,.15));
     const strength=wakeStrengthForSpeed(speed,this.config);
     if(speed<=min){
@@ -323,10 +324,18 @@ class WakeTrailInstance {
     const points=type==='staticObstacle'
       ?this.staticPoints(body,pos,flow,strength)
       :this.dynamicPoints(body,pos,rel,dt,strength);
-    if(points.length>=2)this.updateGeometry(points,dims.width);
+    if(points.length>=2){
+      if(type==='staticObstacle'){
+        const angle=Math.atan2(finite(flow.z),finite(flow.x));
+        const key=[body.id,angle.toFixed(3),speed.toFixed(3),dims.length.toFixed(3),dims.width.toFixed(3)].join('|');
+        if(key!==this.lastStaticKey){this.updateGeometry(points,dims.width);this.lastStaticKey=key;}
+      }else this.updateGeometry(points,dims.width);
+    }
     const baseOpacity=clamp(this.config.opacity??.9,0,1);
     this.targetOpacity=baseOpacity*(.35+.65*strength);
-    this.uvOffset=(this.uvOffset+finite(this.config.scrollSpeed,.25)*(.45+.55*strength)*dt)%1;
+    // UV U runs from object/origin toward the wake tail. Sampling with a decreasing
+    // offset makes the authored texture travel in +U, i.e. away from the object.
+    this.uvOffset=(this.uvOffset-finite(this.config.scrollSpeed,.25)*(.45+.55*strength)*dt)%1;
     if(this.material?.uniforms?.uUvOffset)this.material.uniforms.uUvOffset.value=this.uvOffset;
     this.fade(dt);
   }
