@@ -6507,17 +6507,21 @@ function formalGroundYAtWorld(x,z,layer=currentWorldLayer,r=0){
   const stair=sampleStairStateAt(x,z,r);
   if(stair.zone)return stair.height;
   const cell=gridCellAtWorld(x,z,layer);
-  // Regla estable: la elevación de la superficie de agua NO entra al pipeline de
-  // peldaños/ledges. En costa procedural la decisión agua/tierra es CONTINUA; no
-  // confiamos en el tile semántico porque podría cortar la playa por la mitad.
-  const coastWater=isOverworldSector(mapId)&&activeProceduralZone?.hydrology?.type==='coast'
-    ?proceduralHydrologySample(mapId,x/TILE,z/TILE).water
-    :cell?.locomotion==='swim';
-  if(coastWater)return worldLayerBaseY;
-  // Elevation Modules v2: muestra local continua, sólo donde existe un módulo natural.
-  // No consulta ni altera ríos; fuera de esos footprints devuelve 0.
+
+  // HYDROLOGY CONTINUOUS HEIGHT CONTRACT:
+  // para costa/río/lago la decisión agua/tierra nunca vuelve al grid por tiles.
+  // Gameplay, malla visible, corriente y altura consultan el mismo campo continuo.
+  const proceduralHydro=isOverworldSector(mapId)&&activeProceduralZone?.hydrology?.type!=='none'
+    ?proceduralHydrologySample(mapId,x/TILE,z/TILE)
+    :null;
+  const inWater=proceduralHydro?!!proceduralHydro.water:cell?.locomotion==='swim';
+  if(inWater)return worldLayerBaseY;
+
+  // Elevation Modules v2: muestra local continua. En riberas procedural esta función
+  // ya incluye el grading de hydrologyPriorityGroundHeightTilesAtLocal(), evitando
+  // el escalón invisible que antes aparecía al abandonar el último tile de agua.
   const naturalH=elevationHeightTilesAtWorld(x,z,mapId);
-  if(naturalH>.002)return worldLayerBaseY+tileY(naturalH);
+  if(Math.abs(naturalH)>.002)return worldLayerBaseY+tileY(naturalH);
   if(cell?.tags?.includes('formal-elevation'))return tileY(cell.localElevation||0);
   return worldLayerBaseY;
 }
@@ -6568,15 +6572,30 @@ function applyLedgeClearance(entity,dirX,dirZ,radius,occupyFn){
   if(occupyFn(tx2,tz2,radius)){entity.position.x=tx2;entity.position.z=tz2;return true;}
   return false;
 }
+function continuousHydrologyBankAtWorld(x,z){
+  if(!isOverworldSector(mapId)||activeProceduralZone?.hydrology?.type==='none')return false;
+  const h=proceduralHydrologySample(mapId,x/TILE,z/TILE);
+  if(!h)return false;
+  if(h.water)return true;
+  if(!['river','lake'].includes(h.type))return false;
+  const distance=Number(h.distanceToWater),bank=Math.max(.35,Number(h.bankWidthTiles)||0);
+  return Number.isFinite(distance)&&distance<=bank+.08;
+}
+
 function canTraverseFormalElevation(fromX,fromZ,toX,toZ,layer=currentWorldLayer,r=PLAYER_RADIUS){
   const fromStair=sampleStairStateAt(fromX,fromZ,r);
   const toStair=sampleStairStateAt(toX,toZ,r);
   // Sólo una huella que realmente cabe dentro del vuelo puede usarlo como conector.
   if(fromStair.zone||toStair.zone)return true;
-  // Agua y suelo formal son dos sistemas distintos. Entrar/salir/nadar no debe
-  // pasar por el limitador de escalón de 0.18 tile; cascadas futuras tendrán su
-  // propia barrera/caída explícita.
-  if(locomotionModeAt(fromX,fromZ)==='swim'||locomotionModeAt(toX,toZ)==='swim')return true;
+  // Agua/ribera procedural es una superficie CONTINUA. Mientras cualquiera de los
+  // extremos esté dentro del agua o de su grading de ribera, no aplicar reglas de
+  // peldaño/ledge pensadas para arquitectura. La pendiente visible ya es la física.
+  if(
+    locomotionModeAt(fromX,fromZ)==='swim'||
+    locomotionModeAt(toX,toZ)==='swim'||
+    continuousHydrologyBankAtWorld(fromX,fromZ)||
+    continuousHydrologyBankAtWorld(toX,toZ)
+  )return true;
   const fromY=formalGroundYAtWorld(fromX,fromZ,layer,r);
   const toY=formalGroundYAtWorld(toX,toZ,layer,r);
   const delta=toY-fromY;
