@@ -372,6 +372,9 @@ export class WaterInteractionSystem {
   }
   unregisterInteractor(id){this.interactors.delete(String(id));return this.wakeTrails.remove(id);}
   clear(){this.interactors.clear();this.wakeTrails.clear();}
+  clearNonPersistent(){
+    for(const [id,spec] of [...this.interactors.entries()])if(spec?.persistent!==true)this.unregisterInteractor(id);
+  }
   update(dt){this.wakeTrails.update(dt);}
   setDebug(show){this.wakeTrails.setDebug(show);}
   status(){return {...this.wakeTrails.status(),interactorCount:this.interactors.size};}
