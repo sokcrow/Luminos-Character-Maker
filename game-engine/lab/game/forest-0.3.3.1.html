@@ -848,12 +848,40 @@ addEventListener('unhandledrejection',e=>{
 <script src="../../../js/item-economy-standard.js"></script>
 
 <script type="module">
-import * as THREE from '../../vendor/three.module.js';
-import { createRepositoryWorldFloorTextureRuntime, worldFloorRepeatForTiles } from '../../src/world/WorldFloorTextures.js';
-import { TERRAIN_SLOPE_STANDARD, terrainSlopeBand, resolveTerrainMoveMultiplier } from '../../src/world/TerrainMobility.js';
-import { terrainSurfaceTierForSlope, terrainSurfaceMaterialKinds } from '../../src/world/TerrainSurfaceStandard.js';
-import { createWaterBodySystem, extractFieldShorelines, waterCurrentImmersionFactor } from '../../src/world/WaterBodySystem.js';
-import { createWaterInteractionSystem } from '../../src/world/WakeTrailSystem.js';
+window.setLoadProgress?.(8,'Preparando motor','Cargando Three.js…');
+let THREE;
+let createRepositoryWorldFloorTextureRuntime, worldFloorRepeatForTiles;
+let TERRAIN_SLOPE_STANDARD, terrainSlopeBand, resolveTerrainMoveMultiplier;
+let terrainSurfaceTierForSlope, terrainSurfaceMaterialKinds;
+let createWaterBodySystem, extractFieldShorelines, waterCurrentImmersionFactor;
+let createWaterInteractionSystem;
+
+try {
+  THREE = await import('../../vendor/three.module.js');
+  window.setLoadProgress?.(11,'Preparando motor','Cargando terreno…');
+
+  ({ createRepositoryWorldFloorTextureRuntime, worldFloorRepeatForTiles } =
+    await import('../../src/world/WorldFloorTextures.js'));
+  ({ TERRAIN_SLOPE_STANDARD, terrainSlopeBand, resolveTerrainMoveMultiplier } =
+    await import('../../src/world/TerrainMobility.js'));
+  ({ terrainSurfaceTierForSlope, terrainSurfaceMaterialKinds } =
+    await import('../../src/world/TerrainSurfaceStandard.js'));
+
+  window.setLoadProgress?.(15,'Preparando motor','Cargando agua…');
+  ({ createWaterBodySystem, extractFieldShorelines, waterCurrentImmersionFactor } =
+    await import('../../src/world/WaterBodySystem.js'));
+  ({ createWaterInteractionSystem } =
+    await import('../../src/world/WakeTrailSystem.js'));
+} catch (error) {
+  window.paperLoadFailed?.('No se pudo iniciar el motor: '+(error?.message || String(error)));
+  const errorBox=document.getElementById('error');
+  if(errorBox){
+    errorBox.style.display='block';
+    errorBox.style.zIndex='10001';
+    errorBox.textContent='Error de arranque: '+(error?.stack || error?.message || String(error));
+  }
+  throw error;
+}
 
 let worldFloorTextureRuntime=null;
 window.setLoadProgress?.(18,'Motor listo','Preparando personajes…');
