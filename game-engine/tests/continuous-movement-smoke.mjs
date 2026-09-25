@@ -22,6 +22,7 @@ assert.equal(resolveTerrainMoveMultiplier({ walkable:true, slopeDeg:48 }), 0);
 assert.equal(resolveTerrainSlopeTraversal({ slopeDeg:48, climbable:true }).climbable, true);
 assert.equal(resolveTerrainMoveMultiplier({ walkable:true, slopeDeg:48, climbable:true }), 0);
 assert.equal(resolveTerrainMoveMultiplier({ walkable:true, slopeDeg:48, allowSteepTraversal:true }), .68);
+assert.equal(resolveTerrainMoveMultiplier({ walkable:true, slopeDeg:60, locomotion:"swim" }), 1, "ground slope must not slow or block swimming");
 
 const normal = measureContinuousPath([{ x: 0, z: 0 }, { x: 3, z: 0 }]);
 assert.equal(Math.round(normal.pathDistanceFt), 10);
