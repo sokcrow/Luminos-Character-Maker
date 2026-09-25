@@ -457,8 +457,9 @@ export class WaterBody {
         const mesh=new THREE.Mesh(geo,mat);mesh.position.y=finite(this.foam.yOffset,.035);mesh.renderOrder=finite(this.foam.renderOrder,4);
         mesh.userData={shoreFoamRibbon:true,waterBodyId:this.id,shorelineIndex:index,foamScrollSpeed:finite(this.foam.scrollSpeed,.02)};
         this.group.add(mesh);this.foamMeshes.push(mesh);
-        if(this.debug){
-          const dg=createDebugGroup(THREE,data);dg.position.y=mesh.position.y+.01;this.group.add(dg);this.debugGroups.push(dg);
+        {
+          const dg=createDebugGroup(THREE,data);dg.position.y=mesh.position.y+.01;dg.visible=this.debug;
+          this.group.add(dg);this.debugGroups.push(dg);
         }
 
         if(detailCfg&&detailEntry){
