@@ -156,7 +156,7 @@ export function buildShoreFoamRibbonData({
     indices.push(a,c,b,b,c,d);
   }
 
-  return Object.freeze({shoreline:pts,innerEdge,outerEdge,normals,distances,total,positions,uv,foamNormals,foamDistance,indices,closed});
+  return Object.freeze({shoreline:pts,innerEdge,outerEdge,normals,distances,total,positions,uv,foamNormals,foamDistance,indices,closed,tileWorldLength:tileLen});
 }
 
 export function createShoreFoamGeometry(THREE,data){
@@ -348,6 +348,22 @@ function createDebugGroup(THREE,data,{normalLength=.22}={}){
     const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(normalPos,3));
     const mesh=new THREE.LineSegments(geo,new THREE.LineBasicMaterial({color:0x77ff77,depthTest:false}));
     mesh.renderOrder=999;g.add(mesh);
+  }
+  const uvTicks=[],tile=Math.max(.05,Number(data.tileWorldLength)||1);
+  let nextTick=tile;
+  for(let i=1;i<data.distances.length&&nextTick<=data.total+1e-6;i++){
+    const d0=data.distances[i-1],d1=data.distances[i];
+    while(nextTick>=d0&&nextTick<=d1&&d1>d0){
+      const q=(nextTick-d0)/(d1-d0),lerp=(a,b)=>a+(b-a)*q;
+      const ia=data.innerEdge[i-1],ib=data.innerEdge[i],oa=data.outerEdge[i-1],ob=data.outerEdge[i];
+      uvTicks.push(lerp(ia.x,ib.x),lerp(ia.y,ib.y)+.008,lerp(ia.z,ib.z),lerp(oa.x,ob.x),lerp(oa.y,ob.y)+.008,lerp(oa.z,ob.z));
+      nextTick+=tile;
+    }
+  }
+  if(uvTicks.length){
+    const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(uvTicks,3));
+    const mesh=new THREE.LineSegments(geo,new THREE.LineBasicMaterial({color:0xff66ff,depthTest:false}));
+    mesh.renderOrder=999;mesh.userData.debugClass='foam-uv-repeat';g.add(mesh);
   }
   return g;
 }
