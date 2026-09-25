@@ -132,7 +132,7 @@ assert.match(moduleSource,/ensureWaterAcrossAttribute/);
 assert.match(moduleSource,/attribute float waterAcross/);
 assert.match(moduleSource,/vec3 displaced=position\+normal\*\(chop\*bankWeight\)/,'river surface wave must displace only the rendered vertices');
 assert.match(moduleSource,/visualSurfaceDisplacementOnly/);
-assert.match(moduleSource,/patternMaterial\.uniforms\?\.uTime/,'visual wave clock must update without changing surfaceHeightAt');
+assert.match(moduleSource,/patternMaterial\?\.uniforms\?\.uTime/,'visual wave clock must update without changing surfaceHeightAt');
 assert.match(moduleSource,/mix\(uBackground,uWater,pattern\)/,'mask mode must remap source darkness instead of rendering black water');
 assert.match(moduleSource,/waterCurrentImmersionFactor/);
 assert.match(moduleSource,/containsPoint\(position\)/);
