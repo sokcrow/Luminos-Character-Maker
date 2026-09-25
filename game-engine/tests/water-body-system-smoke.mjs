@@ -85,5 +85,12 @@ assert.match(lab,/waterBodyRiverUvWorld/);
 assert.match(lab,/waterBodySystem\.update\(dt\)/);
 assert.match(lab,/showShoreFoamRibbon/);
 assert.match(lab,/scrollSpeed:\{x:-\.035,y:0\}/);
+assert.match(lab,/id:'canal-water'/,'canal waterStrip must use WaterBody');
+assert.match(lab,/id:\`water-rect:/,'waterRect must use WaterBody');
+assert.match(lab,/id:\`swim-water:/,'irregular authored swim shapes must use WaterBody');
+assert.match(lab,/attachAuthoredWaterBody/);
+assert.match(lab,/waterBodyPointInTilePolygon/);
+assert.match(lab,/waterBodyFlowUvWorld/);
+assert.doesNotMatch(lab,/for\(const z of \[-1\.92,1\.92\]\).*foamStrips\.push/s,'legacy rectangular canal foam strips must be removed');
 
 console.log('water body system smoke: ok');
