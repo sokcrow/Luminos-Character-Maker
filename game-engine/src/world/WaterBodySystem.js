@@ -23,6 +23,8 @@ export const DEFAULT_WATER_CONFIG = Object.freeze({
   // Optional: reinterpret the seamless water image as a luminance mask instead of
   // multiplying its RGB. This prevents dark source pixels from becoming black water.
   patternMask: null,
+  // Visual-only vertex agitation. Physics/surfaceHeightAt stay authoritative and flat.
+  surfaceWave: null,
 });
 
 export const DEFAULT_FOAM_CONFIG = Object.freeze({
@@ -375,8 +377,35 @@ function makeFoamMaterial(THREE,texture,config){
 }
 
 
+function normalizeSurfaceWave(config={}){
+  const raw=config?.surfaceWave||{};
+  return Object.freeze({
+    enabled:raw.enabled===true,
+    amplitude:Math.max(0,finite(raw.amplitude,.025)),
+    secondaryAmplitude:Math.max(0,finite(raw.secondaryAmplitude,.012)),
+    frequency:Math.max(.01,finite(raw.frequency,3.6)),
+    secondaryFrequency:Math.max(.01,finite(raw.secondaryFrequency,6.4)),
+    crossFrequency:Math.max(.01,finite(raw.crossFrequency,4.8)),
+    speed:finite(raw.speed,2.4),
+    secondarySpeed:finite(raw.secondarySpeed,3.7),
+    edgeStrength:clamp(raw.edgeStrength??.28,0,1)
+  });
+}
+
+function ensureWaterAcrossAttribute(THREE,geometry){
+  if(!geometry?.attributes?.uv||geometry.attributes.waterAcross)return geometry;
+  const uv=geometry.attributes.uv,count=uv.count;
+  let min=Infinity,max=-Infinity;
+  for(let i=0;i<count;i++){const v=uv.getY(i);min=Math.min(min,v);max=Math.max(max,v);}
+  const span=Math.max(1e-6,max-min),arr=new Float32Array(count);
+  for(let i=0;i<count;i++)arr[i]=clamp((uv.getY(i)-min)/span,0,1);
+  geometry.setAttribute('waterAcross',new THREE.Float32BufferAttribute(arr,1));
+  return geometry;
+}
+
 function makePatternMaskWaterMaterial(THREE,texture,config,{repeatX=1,repeatY=1}={}){
   const pattern=config.patternMask||{};
+  const wave=normalizeSurfaceWave(config);
   const bg=new THREE.Color(pattern.backgroundColor??0xffffff);
   const water=new THREE.Color(pattern.waterColor??config.color??0x2f6fdb);
   const uniforms={
@@ -387,8 +416,46 @@ function makePatternMaskWaterMaterial(THREE,texture,config,{repeatX=1,repeatY=1}
     uWater:{value:water},
     uLow:{value:clamp(pattern.low??.16,0,.95)},
     uHigh:{value:clamp(pattern.high??.78,.05,1)},
-    uOpacity:{value:clamp(config.opacity??1,0,1)}
+    uOpacity:{value:clamp(config.opacity??1,0,1)},
+    uTime:{value:0},
+    uWaveAmplitude:{value:wave.amplitude},
+    uWaveSecondaryAmplitude:{value:wave.secondaryAmplitude},
+    uWaveFrequency:{value:wave.frequency},
+    uWaveSecondaryFrequency:{value:wave.secondaryFrequency},
+    uWaveCrossFrequency:{value:wave.crossFrequency},
+    uWaveSpeed:{value:wave.speed},
+    uWaveSecondarySpeed:{value:wave.secondarySpeed},
+    uWaveEdgeStrength:{value:wave.edgeStrength}
   };
+  const vertexShader=wave.enabled?\`
+      attribute float waterAcross;
+      varying vec2 vUv;
+      uniform float uTime;
+      uniform float uWaveAmplitude;
+      uniform float uWaveSecondaryAmplitude;
+      uniform float uWaveFrequency;
+      uniform float uWaveSecondaryFrequency;
+      uniform float uWaveCrossFrequency;
+      uniform float uWaveSpeed;
+      uniform float uWaveSecondarySpeed;
+      uniform float uWaveEdgeStrength;
+      void main(){
+        vUv=uv;
+        float center=1.0-abs(clamp(waterAcross,0.0,1.0)*2.0-1.0);
+        float bankWeight=mix(uWaveEdgeStrength,1.0,smoothstep(0.0,1.0,center));
+        float primary=sin(uv.x*uWaveFrequency-uTime*uWaveSpeed);
+        float secondary=sin(uv.x*uWaveSecondaryFrequency+uv.y*uWaveCrossFrequency-uTime*uWaveSecondarySpeed);
+        float chop=primary*uWaveAmplitude+secondary*uWaveSecondaryAmplitude;
+        vec3 displaced=position+normal*(chop*bankWeight);
+        gl_Position=projectionMatrix*modelViewMatrix*vec4(displaced,1.0);
+      }
+    \`:\`
+      varying vec2 vUv;
+      void main(){
+        vUv=uv;
+        gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);
+      }
+    \`;
   const mat=new THREE.ShaderMaterial({
     uniforms,
     transparent:(config.opacity??1)<1,
@@ -396,14 +463,8 @@ function makePatternMaskWaterMaterial(THREE,texture,config,{repeatX=1,repeatY=1}
     depthTest:true,
     side:THREE.DoubleSide,
     toneMapped:false,
-    vertexShader:`
-      varying vec2 vUv;
-      void main(){
-        vUv=uv;
-        gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);
-      }
-    `,
-    fragmentShader:`
+    vertexShader,
+    fragmentShader:\`
       uniform sampler2D map;
       uniform vec2 uRepeat;
       uniform vec2 uOffset;
@@ -420,9 +481,10 @@ function makePatternMaskWaterMaterial(THREE,texture,config,{repeatX=1,repeatY=1}
         vec3 rgb=mix(uBackground,uWater,pattern);
         gl_FragColor=vec4(rgb,uOpacity);
       }
-    `
+    \`
   });
   mat.userData.waterPatternMask=true;
+  mat.userData.waterSurfaceWave=wave;
   return mat;
 }
 
@@ -468,7 +530,14 @@ function createDebugGroup(THREE,data,{normalLength=.22}={}){
 }
 
 function mergeConfig(base,override){
-  return {...base,...(override||{}),scrollSpeed:{...(base.scrollSpeed||{}),...(override?.scrollSpeed||{})}};
+  return {
+    ...base,...(override||{}),
+    scrollSpeed:{...(base.scrollSpeed||{}),...(override?.scrollSpeed||{})},
+    surfaceWave:override?.surfaceWave===null?null:{
+      ...(base.surfaceWave||{}),
+      ...(override?.surfaceWave||{})
+    }
+  };
 }
 
 export function resolveWaterBodyVisualProfile(id,waterConfig={},foamConfig={}){
@@ -545,6 +614,7 @@ export class WaterBody {
       let mat;
       if(this.water.patternMask?.enabled){
         if(alphaMap)console.warn('WaterBody patternMask ignores surface alphaMap; use shaped geometry for this mode:',this.id);
+        if(this.water.surfaceWave?.enabled)ensureWaterAcrossAttribute(THREE,this.surface.geometry);
         mat=makePatternMaskWaterMaterial(THREE,entry.texture,this.water,{
           repeatX:1/tileWorldSize,repeatY:1/tileWorldSize
         });
@@ -570,7 +640,8 @@ export class WaterBody {
       mesh.userData={
         ...(mesh.userData||{}),waterBodyId:this.id,waterBodySurface:true,
         waterTextureScroll:{x:scrollX,y:scrollY},
-        waterFlowWorldSpeed:physicalFlow?{x:finite(physicalFlow.x),y:finite(physicalFlow.y)}:null
+        waterFlowWorldSpeed:physicalFlow?{x:finite(physicalFlow.x),y:finite(physicalFlow.y)}:null,
+        visualSurfaceDisplacementOnly:!!this.water.surfaceWave?.enabled
       };
       this.group.add(mesh);this.waterMesh=mesh;
     }
@@ -682,6 +753,7 @@ export class WaterBody {
     if(this.patternMaterial?.uniforms?.uOffset&&this.patternTexture?.offset){
       this.patternMaterial.uniforms.uOffset.value.set(this.patternTexture.offset.x,this.patternTexture.offset.y);
     }
+    if(this.patternMaterial?.uniforms?.uTime)this.patternMaterial.uniforms.uTime.value=time;
     for(const mesh of this.foamMeshes){
       if(mesh.material?.uniforms?.uTime)mesh.material.uniforms.uTime.value=time;
       if(mesh.material?.uniforms?.uUvOffset){
