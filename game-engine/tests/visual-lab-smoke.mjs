@@ -141,8 +141,8 @@ assert.match(game, /source:includeCalmShoulder\?'riverFieldSample\+riverWaterHal
 assert.match(game, /riverWaterLayer:includeCalmShoulder\?'single-full-width':'current-core'/);
 assert.match(game, /geometryAuthority='procedural-river-single-surface'/);
 assert.match(game, /id:\`river:\$\{id\}\`/);
-assert.match(game, /backgroundColor:0xffffff/);
-assert.match(game, /waterColor:0x3278de/);
+assert.match(game, /backgroundColor:0x3278de/);
+assert.match(game, /waterColor:0xffffff/);
 assert.match(game, /patternMask:\{/);
 assert.match(game, /opacity:1/);
 assert.match(game, /surface:\{renderOrder:-4,depthWrite:true\}/);
