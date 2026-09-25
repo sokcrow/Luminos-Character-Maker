@@ -491,6 +491,8 @@ export class WaterBody {
     this.surface=options.surface||{};
     this.shorelines=Array.isArray(options.shorelines)?options.shorelines:[];
     this.isWaterAt=options.isWaterAt||null;
+    this.surfaceHeightAt=typeof options.surfaceHeightAt==='function'?options.surfaceHeightAt:null;
+    this.flowAt=typeof options.flowAt==='function'?options.flowAt:null;
     this.water=mergeConfig(DEFAULT_WATER_CONFIG,options.water);
     this.foam={...DEFAULT_FOAM_CONFIG,...(options.foam||{})};
     const visualProfile=resolveWaterBodyVisualProfile(this.id,this.water,this.foam);
@@ -625,6 +627,37 @@ export class WaterBody {
     }
     return this;
   }
+  containsPoint(position){
+    if(!position)return false;
+    if(typeof this.isWaterAt==='function'){
+      try{return !!this.isWaterAt(finite(position.x),finite(position.z),position)}
+      catch{return false}
+    }
+    return false;
+  }
+  getSurfaceHeightAt(position){
+    if(typeof this.surfaceHeightAt==='function'){
+      try{
+        const y=Number(this.surfaceHeightAt(position||{}));
+        if(Number.isFinite(y))return y;
+      }catch{}
+    }
+    if(this.waterMesh){
+      const p=new this.THREE.Vector3();
+      this.waterMesh.getWorldPosition?.(p);
+      if(Number.isFinite(p.y))return p.y;
+    }
+    return finite(this.surface?.position?.y??this.surface?.y,0);
+  }
+  getFlowAt(position){
+    if(typeof this.flowAt==='function'){
+      try{
+        const v=this.flowAt(position||{})||{};
+        return {x:finite(v.x),y:finite(v.y),z:finite(v.z)};
+      }catch{}
+    }
+    return {x:0,y:0,z:0};
+  }
   setDebug(show){
     this.debug=!!show;
     for(const g of this.debugGroups)g.visible=this.debug;
@@ -669,6 +702,12 @@ export class WaterBodySystem {
     if(!body)return false;body.dispose();this.bodies.delete(body.id);return true;
   }
   clearBodies(){for(const b of [...this.bodies.values()])this.remove(b);}
+  listBodies(){return [...this.bodies.values()];}
+  findBodyAt(position){
+    const bodies=[...this.bodies.values()];
+    for(let i=bodies.length-1;i>=0;i--)if(bodies[i]?.containsPoint?.(position))return bodies[i];
+    return null;
+  }
   setDebug(show){this.showShoreFoamRibbon=!!show;for(const b of this.bodies.values())b.setDebug(show);}
   update(dt){
     if(!Number.isFinite(dt)||dt<=0)return;
