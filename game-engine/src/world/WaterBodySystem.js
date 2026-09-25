@@ -404,6 +404,26 @@ function mergeConfig(base,override){
   return {...base,...(override||{}),scrollSpeed:{...(base.scrollSpeed||{}),...(override?.scrollSpeed||{})}};
 }
 
+export function resolveWaterBodyVisualProfile(id,waterConfig={},foamConfig={}){
+  const water={...(waterConfig||{})},foam={...(foamConfig||{})};
+  const coastal=/(^|:)(coast|sea|ocean)(:|$)/i.test(String(id||''));
+  if(!coastal)return {profile:'default',water,foam};
+
+  // Ocean/coast treatment: larger seamless repeats read as a broader, murkier body
+  // of water, and the contact foam is correspondingly broader and less repetitive.
+  water.tileWorldSize=Math.max(.05,finite(water.tileWorldSize,DEFAULT_WATER_CONFIG.tileWorldSize)*1.52);
+  water.opacity=Math.max(.84,clamp(water.opacity??DEFAULT_WATER_CONFIG.opacity,0,1));
+  water.roughness=Math.max(.54,clamp(water.roughness??DEFAULT_WATER_CONFIG.roughness,0,1));
+
+  foam.width=Math.max(.02,finite(foam.width,DEFAULT_FOAM_CONFIG.width)*1.20);
+  foam.innerWidth=Math.max(.01,finite(foam.innerWidth,DEFAULT_FOAM_CONFIG.innerWidth)*1.12);
+  foam.outerWidth=Math.max(.01,finite(foam.outerWidth,DEFAULT_FOAM_CONFIG.outerWidth)*1.22);
+  foam.tileWorldLength=Math.max(.05,finite(foam.tileWorldLength,DEFAULT_FOAM_CONFIG.tileWorldLength)*1.38);
+  foam.pulseAmplitude=Math.max(0,finite(foam.pulseAmplitude,DEFAULT_FOAM_CONFIG.pulseAmplitude)*1.10);
+
+  return {profile:'sea',water,foam};
+}
+
 export class WaterBody {
   constructor(system,options={}){
     this.system=system;this.THREE=system.THREE;this.id=String(options.id||('water-'+system.serial++));
@@ -414,6 +434,10 @@ export class WaterBody {
     this.isWaterAt=options.isWaterAt||null;
     this.water=mergeConfig(DEFAULT_WATER_CONFIG,options.water);
     this.foam={...DEFAULT_FOAM_CONFIG,...(options.foam||{})};
+    const visualProfile=resolveWaterBodyVisualProfile(this.id,this.water,this.foam);
+    this.water=visualProfile.water;
+    this.foam=visualProfile.foam;
+    this.group.userData.waterBodyProfile=visualProfile.profile;
     this.debug=!!options.debug;this.disposed=false;
     this.waterMesh=null;this.foamMeshes=[];this.debugGroups=[];this.ready=this.build();
   }
@@ -591,6 +615,7 @@ export default Object.freeze({
   WATER_ASSET_PATHS,
   DEFAULT_WATER_CONFIG,
   DEFAULT_FOAM_CONFIG,
+  resolveWaterBodyVisualProfile,
   simplifyShoreline,
   shorelineDistances,
   buildShoreFoamRibbonData,
