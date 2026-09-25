@@ -9871,10 +9871,21 @@ function luminousMapItem(itemId){
   }
   return LUMINOUS_MAP_ITEM_DEFS[id]||null;
 }
+function luminousLocalAssetUrl(path){
+  const raw=String(path||'').trim().replace(/\\/g,'/');
+  if(!raw)return null;
+  // Item artwork is repository-local. Never depend on remote HTTP(S) item art.
+  if(/^(?:https?:|data:|blob:|\/\/)/i.test(raw))return null;
+  if(raw.startsWith('../../../'))return raw;
+  if(raw.startsWith('/'))return '../../..'+raw;
+  if(raw.startsWith('Assets/'))return '../../../'+raw;
+  return raw;
+}
 function luminousMapItemIcon(itemOrId){
   const item=typeof itemOrId==='string'?luminousMapItem(itemOrId):itemOrId;
   if(!item)return null;
-  return window.LuminousItemIconRegistry?.resolveIcon?.(item.iconFamily,{fallback:false})||null;
+  const registered=window.LuminousItemIconRegistry?.resolveIcon?.(item.iconFamily,{fallback:false})||null;
+  return luminousLocalAssetUrl(registered);
 }
 function makeCanonicalWorldItemDisplay(g,itemId,x,z,{y=1.34,scale=.54}={}){
   const icon=luminousMapItemIcon(itemId);
@@ -10416,16 +10427,34 @@ function paperLoadInventory(){
 let paperInventory=paperLoadInventory();
 let paperInvSelection=null;
 function paperSaveInventory(){try{localStorage.setItem(PAPER_INV_STORAGE_KEY,JSON.stringify(paperInventory))}catch(_){}}
-function paperDef(item){return item?PAPER_ITEM_DEFS[item.definitionId]||{id:item.definitionId,name:item.definitionId||'Item',tier:'I',value:0,category:'utility',tags:['Item'],description:'Sin descripción.',icon:null}:null}
+function paperCanonicalDef(definitionId){
+  const canonical=luminousMapItem(definitionId);
+  if(!canonical)return null;
+  const icon=luminousMapItemIcon(canonical);
+  return {
+    ...canonical,
+    id:String(canonical.id||definitionId),
+    name:canonical.name||String(definitionId),
+    tier:canonical.tier||'I',
+    value:Number(canonical.standardUnitValueAhn||canonical.priceAhn||canonical.value||0),
+    category:canonical.category||canonical.itemType||'utility',
+    tags:[...(canonical.functionalTags||[]),...(canonical.craftTags||[])],
+    quality:canonical.quality||'STANDARD',
+    description:canonical.description||[canonical.group,...(canonical.functionalTags||[])].filter(Boolean).join(' · ')||'Ítem canónico Luminous.',
+    icon,
+    iconFamily:canonical.iconFamily||null
+  };
+}
+function paperDef(item){
+  if(!item)return null;
+  return PAPER_ITEM_DEFS[item.definitionId]||paperCanonicalDef(item.definitionId)||{id:item.definitionId,name:item.definitionId||'Item',tier:'I',value:0,category:'utility',tags:['Item'],description:'Sin descripción.',icon:luminousMapItemIcon(item.definitionId)};
+}
 function paperItemName(item){return paperDef(item)?.name||'Item'}
 function paperItemIcon(kind=null){
-  const raw=String(kind||'').trim();
-  if(!raw)return '';
-  if(/^(https?:|data:|blob:)/i.test(raw)){
-    const safe=raw.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    return `<img src="${safe}" alt="" loading="lazy" decoding="async">`;
-  }
-  return '';
+  const local=luminousLocalAssetUrl(kind);
+  if(!local)return '';
+  const safe=local.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return `<img src="${safe}" alt="" loading="lazy" decoding="async">`;
 }
 function paperInvEntries(container){return Object.entries(paperInventory[container]||{}).filter(([,i])=>i&&Number(i.quantity||0)>0)}
 function paperFindItem(key){return paperInventory.active[key]||paperInventory.stash[key]||null}
@@ -10463,7 +10492,9 @@ function paperUseItem(key){
   }
 }
 function paperAddItem(definitionId,quantity=1,destination='active'){
-  const def=PAPER_ITEM_DEFS[definitionId];if(!def)return {added:false,reason:'unknown_definition'};
+  const def=PAPER_ITEM_DEFS[definitionId]||paperCanonicalDef(definitionId);
+  if(!def)return {added:false,reason:'unknown_definition'};
+  if(!PAPER_ITEM_DEFS[definitionId])PAPER_ITEM_DEFS[definitionId]=def;
   const target=destination==='stash'?paperInventory.stash:paperInventory.active;
   const existing=Object.entries(target).find(([,i])=>i.definitionId===definitionId);
   if(existing){existing[1].quantity=Number(existing[1].quantity||0)+Math.max(1,Number(quantity)||1);paperSaveInventory();paperRenderInventory();return {added:true,key:existing[0]}}
