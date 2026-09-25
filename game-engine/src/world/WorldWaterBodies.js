@@ -20,7 +20,17 @@ const same=(a,b)=>Math.abs(a.x-b.x)<=EPS&&Math.abs(a.z-b.z)<=EPS;
 function freezeDeep(v){if(!v||typeof v!=='object')return v;if(Array.isArray(v))return Object.freeze(v.map(freezeDeep));const o={};for(const [k,e] of Object.entries(v))o[k]=freezeDeep(e);return Object.freeze(o)}
 function scroll(v,f={x:0,y:0}){if(Number.isFinite(Number(v)))return{x:Number(v),y:0};if(Array.isArray(v))return{x:finite(v[0]),y:finite(v[1])};return{x:finite(v?.x,f.x),y:finite(v?.y,f.y)}}
 export function normalizeWaterBodyConfig(input={}){
-  const wi=input.water||{},fi=input.foam||{};
+  // Water motion is semantic, not asset-specific. Ocean/coast bodies deliberately use
+  // the same seamless texture at a much broader scale and slower drift; the second
+  // in-shader sample is broader again, so the sea reads calm instead of noisy.
+  const id=String(input.id||'').toLowerCase(),oceanLike=id.includes('procedural-coast')||input.water?.motionClass==='ocean';
+  const sourceWater=input.water||{},wi=oceanLike?{
+    ...sourceWater,
+    tileWorldSize:finite(sourceWater.oceanTileWorldSize,8.25),
+    scrollSpeed:sourceWater.oceanScrollSpeed||{x:.0040,y:.0015},
+    roughness:finite(sourceWater.oceanRoughness,.42),
+    detail:{...(sourceWater.detail||{}),enabled:true,tileWorldSize:finite(sourceWater.detail?.tileWorldSize,15.75),scrollSpeed:sourceWater.detail?.scrollSpeed||{x:-.0012,y:.0018},opacity:finite(sourceWater.detail?.opacity,.16)}
+  }:sourceWater,fi=input.foam||{};
   const water={...DEFAULT_WATER_BODY_WATER,...wi,tileWorldSize:Math.max(.01,finite(wi.tileWorldSize,3)),scrollSpeed:scroll(wi.scrollSpeed,DEFAULT_WATER_BODY_WATER.scrollSpeed),opacity:clamp(wi.opacity??1,0,1),
     detail:{...DEFAULT_WATER_BODY_WATER.detail,...(wi.detail||{}),scrollSpeed:scroll(wi.detail?.scrollSpeed,DEFAULT_WATER_BODY_WATER.detail.scrollSpeed)}};
   const foam={...DEFAULT_WATER_BODY_FOAM,...fi,enabled:fi.enabled!==false,width:Math.max(.01,finite(fi.width,.42)),landWidthRatio:clamp(fi.landWidthRatio??.24,0,.95),
