@@ -5202,6 +5202,9 @@ const WATER_BODY_VISUAL_STANDARD=Object.freeze({
 
 function waterBodyPlaneUvWorld(geometry,{id=mapId,cxTiles=0,czTiles=0}={}){
   if(!geometry?.attributes?.position||!geometry?.attributes?.uv)return geometry;
+  // Keep the original normalized UV set for alpha masks. UV0 becomes world-space
+  // for seamless water density; UV1 remains 0..1 for coast/lake clipping masks.
+  if(!geometry.attributes.uv1)geometry.setAttribute('uv1',geometry.attributes.uv.clone());
   const sector=OVERWORLD_PLAN[id]||{gx:0,gz:0},pos=geometry.attributes.position,uv=geometry.attributes.uv;
   const macroX=sector.gx*OVERWORLD_SECTOR_SIZE,macroZ=sector.gz*OVERWORLD_SECTOR_SIZE;
   for(let i=0;i<pos.count;i++){
