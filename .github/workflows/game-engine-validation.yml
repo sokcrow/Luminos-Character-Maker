@@ -28,6 +28,9 @@ jobs:
       - name: World floor texture syntax
         run: node --check game-engine/src/world/WorldFloorTextures.js
 
+      - name: WaterBody syntax
+        run: node --check game-engine/src/world/WaterBodySystem.js
+
       - name: Core smoke
         run: node game-engine/tests/core-smoke.mjs
 
@@ -36,3 +39,6 @@ jobs:
 
       - name: World floor texture smoke
         run: node game-engine/tests/world-floor-textures-smoke.mjs
+
+      - name: WaterBody smoke
+        run: node game-engine/tests/water-body-system-smoke.mjs
