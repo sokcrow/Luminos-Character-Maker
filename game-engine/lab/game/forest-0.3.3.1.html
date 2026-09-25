@@ -5371,17 +5371,19 @@ function attachAuthoredWaterBody({
     shorelines:[shoreline],
     isWaterAt:(x,z)=>waterBodyPointInTilePolygon(points,x,z),
     water:{
-      opacity:flowing?.80:.76,
-      scrollSpeed:flowing?{x:-.026*strength,y:0}:{x:.005,y:.003},
+      opacity:flowing?.84:.76,
+      ...(flowing
+        ?{flowWorldSpeed:{x:-wt(strength)*.48,y:0}}
+        :{scrollSpeed:{x:.005,y:.003}}),
       ...water
     },
     foam:{
-      width:flowing?WATER_BODY_VISUAL_STANDARD.riverFoamWidth:WATER_BODY_VISUAL_STANDARD.coastFoamWidth,
-      outerWidth:flowing?TILE*.23:TILE*.285,
-      innerWidth:flowing?TILE*.05:TILE*.055,
-      scrollSpeed:flowing?-.012:.012,
-      pulseAmplitude:TILE*.010,
-      opacity:flowing?.78:.74,
+      width:flowing?TILE*.40:WATER_BODY_VISUAL_STANDARD.coastFoamWidth,
+      outerWidth:flowing?TILE*.30:TILE*.285,
+      innerWidth:flowing?TILE*.16:TILE*.055,
+      scrollSpeed:flowing?-.020:.012,
+      pulseAmplitude:flowing?TILE*.012:TILE*.010,
+      opacity:flowing?.82:.74,
       ...foam
     }
   });
