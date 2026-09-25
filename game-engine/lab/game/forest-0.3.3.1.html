@@ -851,6 +851,7 @@ addEventListener('unhandledrejection',e=>{
 import * as THREE from '../../vendor/three.module.js';
 import { createRepositoryWorldFloorTextureRuntime, worldFloorRepeatForTiles } from '../../src/world/WorldFloorTextures.js';
 import { createWaterBodySystem, extractFieldShorelines, waterCurrentImmersionFactor } from '../../src/world/WaterBodySystem.js';
+import { createWaterInteractionSystem } from '../../src/world/WakeTrailSystem.js';
 
 let worldFloorTextureRuntime=null;
 window.setLoadProgress?.(18,'Motor listo','Preparando personajes…');
@@ -1096,6 +1097,40 @@ Object.defineProperty(window,'showShoreFoamRibbon',{
   get:()=>waterBodySystem.showShoreFoamRibbon,
   set:(value)=>waterBodySystem.setDebug(!!value)
 });
+
+const WAKE_DEBUG_DEFAULT=new URLSearchParams(location.search).get('showWakeDebug')==='1';
+const waterInteractionSystem=createWaterInteractionSystem({
+  THREE,waterBodySystem,parent:scene,baseUrl:import.meta.url,
+  texture:'Assets/Images/World/Water/wake_trail.png',
+  showWakeDebug:WAKE_DEBUG_DEFAULT
+});
+window.WaterInteractionRuntime=Object.freeze({
+  system:waterInteractionSystem,
+  status:()=>waterInteractionSystem.status(),
+  register:(id,spec)=>waterInteractionSystem.registerInteractor(id,spec),
+  unregister:(id)=>waterInteractionSystem.unregisterInteractor(id),
+  setDebug:(show)=>waterInteractionSystem.setDebug(!!show)
+});
+Object.defineProperty(window,'showWakeDebug',{
+  configurable:true,
+  get:()=>waterInteractionSystem.wakeTrails.showWakeDebug,
+  set:(value)=>waterInteractionSystem.setDebug(!!value)
+});
+let staticWaterInteractorSerial=0;
+function registerStaticWaterObstacle(object3D,radius,wake={}){
+  if(!object3D)return null;
+  const id=`water-obstacle-${++staticWaterInteractorSerial}`,worldPos=new THREE.Vector3();
+  object3D.userData.waterInteractorId=id;
+  waterInteractionSystem.registerInteractor(id,{
+    object3D,
+    position:()=>object3D.getWorldPosition(worldPos),
+    velocity:{x:0,y:0,z:0},
+    obstacleRadius:Math.max(.04,Number(radius)||.4),
+    wakeEnabled:true,
+    wake:{type:'staticObstacle',minRelativeSpeed:.15,width:1.4,length:5,maxExtraLength:3,widening:1.3,tileWorldLength:2.5,scrollSpeed:.25,fadeStart:.72,opacity:.9,...wake}
+  });
+  return id;
+}
 
 const hemi=new THREE.HemisphereLight(0xfff0d7,0x657267,1.72);
 scene.add(hemi);
@@ -1750,7 +1785,9 @@ const COAST_TERRAIN_RULES=Object.freeze({
   // La costa visible es un campo continuo; el grid queda como semántica discreta de gameplay/combat.
   gradeWidthTiles:5.8,
   cliffGradeWidthTiles:1.45,
-  shorelineSubmergeTiles:.070,
+  shorelineSubmergeTiles:.035,
+  shorelineDryLiftTiles:.14,
+  shorelineRaiseWidthTiles:.58,
   submergedSlopePerTile:.17,
   maxSubmergedDepthTiles:1.42,
   wetSandWidthTiles:1.25,
@@ -5149,21 +5186,24 @@ function coastGroundHeightTilesAtLocal(id,tx,tz,rawHeightTiles=null){
   // 0.3.2-68 · d=0 es una curva continua, no un borde de tile.
   // Del lado del agua el mismo terreno continúa por debajo de la superficie:
   // nunca dejamos una pestaña de suelo SOBRE el agua ni cortamos la malla en cuadros.
-  const shoreline=coast.waterSurfaceTiles-COAST_TERRAIN_RULES.shorelineSubmergeTiles;
+  const wetShoreline=coast.waterSurfaceTiles-COAST_TERRAIN_RULES.shorelineSubmergeTiles;
   if(d<=0){
     const submerged=Math.min(
       COAST_TERRAIN_RULES.maxSubmergedDepthTiles,
       Math.pow(Math.max(0,-d),.88)*COAST_TERRAIN_RULES.submergedSlopePerTile
     );
-    return shoreline-submerged;
+    return wetShoreline-submerged;
   }
 
   const cliffWeight=activeProceduralZone?.region?.landform?.weights?.cliffs||0;
   const width=THREE.MathUtils.lerp(COAST_TERRAIN_RULES.gradeWidthTiles,COAST_TERRAIN_RULES.cliffGradeWidthTiles,zoneClamp(cliffWeight,0,1));
   const inlandRaw=raw+coastV2BackshoreReliefTiles(id,tx,tz,d);
   if(d>=width)return inlandRaw;
+  const raiseT=smooth01(zoneClamp(d/Math.max(.001,COAST_TERRAIN_RULES.shorelineRaiseWidthTiles),0,1));
+  const dryShoreline=coast.waterSurfaceTiles+COAST_TERRAIN_RULES.shorelineDryLiftTiles;
+  const shoreBase=THREE.MathUtils.lerp(wetShoreline,dryShoreline,raiseT);
   const t=smooth01(zoneClamp(d/Math.max(.001,width),0,1));
-  return THREE.MathUtils.lerp(shoreline,inlandRaw,t);
+  return THREE.MathUtils.lerp(shoreBase,inlandRaw,t);
 }
 function buildProceduralCoastGroundMesh(g,id=mapId,defaultKind='forestGround'){
   const coast=proceduralCoastAtSector(id);if(!coast)return null;
@@ -5379,6 +5419,7 @@ function fieldWaterBodyShorelines(id,bounds,waterY){
 
 function createOfficialWaterBody({
   id,parent,geometry,position=null,rotationX=null,alphaMap=null,shorelines=[],isWaterAt=null,
+  surfaceHeightAt=null,flowAt=null,
   surface={},water={},foam={}
 }={}){
   if(!geometry||!parent)return null;
@@ -5389,7 +5430,7 @@ function createOfficialWaterBody({
       alphaMap,depthWrite:false,renderOrder:-4,receiveShadow:true,
       ...surface
     },
-    shorelines,isWaterAt,
+    shorelines,isWaterAt,surfaceHeightAt,flowAt,
     water:{
       tileWorldSize:WATER_BODY_VISUAL_STANDARD.tileWorldSize,
       opacity:WATER_BODY_VISUAL_STANDARD.waterOpacity,
@@ -5494,7 +5535,7 @@ function buildProceduralCoastVisual(g,id=mapId){
     deepColor:deepSeaColor,shallowColor:shallowSeaColor,crestColor:0xe8f8ff,foamColor:0xffffff,
     // El rango cromático coincide con la profundidad REAL del fondo costero; así el
     // color oscuro sí llega a aparecer y las cuatro bandas son legibles.
-    maxDepth:coastVisualMaxDepth,coast:{enabled:false,foamWidth:2.5,clipLandMargin:.075},reactive:true
+    maxDepth:coastVisualMaxDepth,coast:{enabled:false,foamWidth:2.5,clipLandMargin:.12},reactive:true
   }):null;
   const legacyKit=!toonKit?(window.PaperFX?.createWater?.({baseColor:visual.waterBase,waves:['wavesA','wavesB'],foam:'foam',waveColors:[visual.waveA,visual.waveB],foamColor:visual.foam})||null):null;
   const waterY=tileY(coast.waterSurfaceTiles),group=new THREE.Group();group.name='procedural-coast';g.add(group);
@@ -5546,6 +5587,8 @@ function buildProceduralCoastVisual(g,id=mapId){
       position:new THREE.Vector3(wt(cxTiles),waterY+.030,wt(czTiles)),rotationX:-Math.PI/2,alphaMap:officialMask,
       shorelines:shoreline?[shoreline]:[],
       isWaterAt:(x,z)=>coastLocalDistance(id,x/TILE,z/TILE)<0,
+      surfaceHeightAt:()=>waterY+.030,
+      flowAt:()=>({x:0,y:0,z:0}),
       water:{
         color:0xc8efff,
         opacity:.38,
@@ -5822,6 +5865,13 @@ function buildProceduralInlandWaterVisual(g,id=mapId){
       position:new THREE.Vector3(0,baseY,0),
       shorelines,
       isWaterAt:(x,z)=>!!proceduralHydrologySample(id,x/TILE,z/TILE)?.water,
+      surfaceHeightAt:()=>baseY,
+      flowAt:(p)=>{
+        const sample=proceduralHydrologySample(id,(Number(p?.x)||0)/TILE,(Number(p?.z)||0)/TILE);
+        const current=sample?.current||{};
+        const strength=Math.max(0,Number(current.strength??current.speed)||0);
+        return {x:(Number(current.x)||0)*wt(strength),y:0,z:(Number(current.z)||0)*wt(strength)};
+      },
       water:{
         color:0x3278de,
         opacity:1,
@@ -10628,12 +10678,24 @@ function registerUnit(spec={}){
   unit.state.controllerState.intent=unit.intent;
   group.userData.unitId=id;group.userData.isUnit=true;
   UNIT_REGISTRY.set(id,unit);UNIT_BY_GROUP.set(group,unit);
+  {
+    const wakePos=new THREE.Vector3();
+    waterInteractionSystem.registerInteractor(`unit:${id}`,{
+      persistent:unit.persistent,object3D:group,
+      position:()=>group.getWorldPosition(wakePos),
+      velocity:()=>unit.state?.velocity||{x:0,y:0,z:0},
+      radius:()=>unit.radius,
+      wakeEnabled:()=>unit.capabilities?.swim!==false&&unit.capabilities?.wake!==false,
+      wake:{type:'dynamic',minRelativeSpeed:.15,width:1.35,length:3.8,maxExtraLength:2.4,widening:1.22,tileWorldLength:2.5,scrollSpeed:.24,fadeStart:.72,opacity:.88,pointSpacing:.18,wakeLifetime:1.45,maxPoints:26}
+    });
+  }
   return unit;
 }
 function unregisterUnit(unitOrId){
   const unit=typeof unitOrId==='string'?UNIT_REGISTRY.get(unitOrId):unitOrId;
   if(!unit)return false;
   UNIT_REGISTRY.delete(unit.id);
+  waterInteractionSystem.unregisterInteractor(`unit:${unit.id}`);
   try{UNIT_BY_GROUP.delete(unit.group)}catch(_){ }
   return true;
 }
@@ -13309,6 +13371,7 @@ function makeRockCluster(g,x,z,scale=1,collide=false){
     m.castShadow=m.receiveShadow=true;grp.add(m);
   }
   if(collide)addCollider(wt(x),wt(z),.72*scale,.62*scale,'rock');
+  registerStaticWaterObstacle(grp,.46*scale,{width:1.3,length:4.2,maxExtraLength:2.8});
   return grp;
 }
 
@@ -15757,6 +15820,7 @@ function makeGeologicOutcropRock(g,x,z,{scale=1,heightScale=1,seed=1}={}){
     m.position.set((rng.next()-.5)*wt(.34)*scale,sy*.46,(rng.next()-.5)*wt(.30)*scale);m.scale.set(sx,sy,sz);m.rotation.set(rng.signed()*.12,rng.range(-Math.PI,Math.PI),rng.signed()*.10);m.castShadow=m.receiveShadow=true;grp.add(m);
   }
   addCollider(wt(x),wt(z),wt(.82*scale),wt(.72*scale),'geology-outcrop',currentColliderScope,{source:'geology-outcrop',geology:true});
+  registerStaticWaterObstacle(grp,wt(.72*scale),{width:1.45,length:5.2,maxExtraLength:3.2});
   return grp;
 }
 function buildGeologyForSector(g,id=mapId,{reserved=null}={}){
@@ -17154,6 +17218,7 @@ function clearMap(){
   try{window.PaperFX?.clearWaterInteractions?.()}catch(err){console.warn('PaperFX water clear fallback:',err)}
   clearColdBreathFx();
   clearTransientUnits();
+  waterInteractionSystem.clearNonPersistent();
   setUnitOverpassId(playerUnit,null);
   if(root){scene.remove(root);root.traverse(o=>{if(o.geometry)o.geometry.dispose?.()});}
   root=null;
@@ -18544,6 +18609,7 @@ function loop(now){
   // PaperFX recibe contactos desde UnitEnvironmentSystem; mantiene un único update.
   try{window.PaperFX?.update?.(dt)}catch(err){console.warn('PaperFX.update fallback:',err)}
   waterBodySystem.update(dt);
+  waterInteractionSystem.update(dt);
   updateSwimMission();
   updateElevationMission();
   updateDust(dt);
