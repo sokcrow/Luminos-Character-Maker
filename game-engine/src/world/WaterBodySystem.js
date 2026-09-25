@@ -427,7 +427,7 @@ function makePatternMaskWaterMaterial(THREE,texture,config,{repeatX=1,repeatY=1}
     uWaveSecondarySpeed:{value:wave.secondarySpeed},
     uWaveEdgeStrength:{value:wave.edgeStrength}
   };
-  const vertexShader=wave.enabled?\`
+  const vertexShader=wave.enabled?`
       attribute float waterAcross;
       varying vec2 vUv;
       uniform float uTime;
@@ -449,13 +449,13 @@ function makePatternMaskWaterMaterial(THREE,texture,config,{repeatX=1,repeatY=1}
         vec3 displaced=position+normal*(chop*bankWeight);
         gl_Position=projectionMatrix*modelViewMatrix*vec4(displaced,1.0);
       }
-    \`:\`
+    `:`
       varying vec2 vUv;
       void main(){
         vUv=uv;
         gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);
       }
-    \`;
+    `;
   const mat=new THREE.ShaderMaterial({
     uniforms,
     transparent:(config.opacity??1)<1,
@@ -464,7 +464,7 @@ function makePatternMaskWaterMaterial(THREE,texture,config,{repeatX=1,repeatY=1}
     side:THREE.DoubleSide,
     toneMapped:false,
     vertexShader,
-    fragmentShader:\`
+    fragmentShader:`
       uniform sampler2D map;
       uniform vec2 uRepeat;
       uniform vec2 uOffset;
@@ -481,7 +481,7 @@ function makePatternMaskWaterMaterial(THREE,texture,config,{repeatX=1,repeatY=1}
         vec3 rgb=mix(uBackground,uWater,pattern);
         gl_FragColor=vec4(rgb,uOpacity);
       }
-    \`
+    `
   });
   mat.userData.waterPatternMask=true;
   mat.userData.waterSurfaceWave=wave;
