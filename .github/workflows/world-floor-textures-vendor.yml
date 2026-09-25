@@ -1,16 +1,16 @@
-name: World Floor Texture Vendor
+name: World Texture Vendor
 
 on:
+  workflow_dispatch:
   push:
     branches:
-      - feat/item-icon-families
+      - feat/game-engine-water-bodies
     paths:
-      - "scripts/vendor-world-floor-textures.mjs"
-      - "js/global-map-terrain-textures.js"
-      - "tests/global-map-terrain-textures-smoke.mjs"
-      - "tests/global-map-floor-texture-assets-smoke.mjs"
+      - "scripts/vendor-world-water-textures.mjs"
+      - "game-engine/src/world/WorldWaterBodies.js"
+      - "game-engine/tests/world-water-bodies-smoke.mjs"
+      - "game-engine/tests/world-water-texture-assets-smoke.mjs"
       - ".github/workflows/world-floor-textures-vendor.yml"
-  workflow_dispatch:
 
 permissions:
   contents: write
@@ -19,10 +19,10 @@ jobs:
   vendor-and-validate:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout PR branch
+      - name: Checkout triggering branch
         uses: actions/checkout@v4
         with:
-          ref: feat/item-icon-families
+          ref: \${{ github.ref_name }}
           fetch-depth: 0
 
       - name: Set up Node
@@ -30,24 +30,24 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Download repository-local floor textures
-        run: node scripts/vendor-world-floor-textures.mjs
+      - name: Download exact repository-local water textures
+        run: node scripts/vendor-world-water-textures.mjs
 
-      - name: Validate terrain registry
-        run: node tests/global-map-terrain-textures-smoke.mjs
+      - name: Validate water body geometry and UVs
+        run: node game-engine/tests/world-water-bodies-smoke.mjs
 
-      - name: Validate local floor texture files
-        run: node tests/global-map-floor-texture-assets-smoke.mjs
+      - name: Validate local water texture files
+        run: node game-engine/tests/world-water-texture-assets-smoke.mjs
 
-      - name: Commit vendored texture assets
+      - name: Commit vendored water texture assets
         shell: bash
         run: |
-          if [ -z "$(git status --porcelain -- Assets/Images/World/Floors)" ]; then
-            echo "Floor texture assets already current."
+          if [ -z "$(git status --porcelain -- Assets/Images/World/Water)" ]; then
+            echo "Water texture assets already current."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Assets/Images/World/Floors
-          git commit -m "assets(world): vendor floor texture batch 1"
-          git push origin "HEAD:${GITHUB_REF_NAME}"
+          git add Assets/Images/World/Water
+          git commit -m "assets(world): vendor seamless water and coast foam"
+          git push origin "HEAD:\${GITHUB_REF_NAME}"
