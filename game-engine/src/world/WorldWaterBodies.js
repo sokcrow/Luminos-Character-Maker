@@ -71,6 +71,75 @@ export function buildShoreFoamRibbonData(input,opt={}){
   for(let r=1;r<Math.floor(total/tile+EPS);r++)debug.uDivisions.push({distance:r*tile,u:r});
   return Object.freeze({closed,points:Object.freeze(ps.map(p=>Object.freeze({...p}))),positions,uvs,indices,waterNormals,along,side,totalLength:total,repeats:total/tile,tileWorldLength:tile,waterSide,debug});
 }
+
+function contourKey(p,tolerance){return Math.round(p.x/tolerance)+':'+Math.round(p.z/tolerance)}
+function contourLength(points,closed=false){let d=0;for(let i=1;i<points.length;i++)d+=Math.hypot(points[i].x-points[i-1].x,points[i].z-points[i-1].z);if(closed&&points.length>2)d+=Math.hypot(points[0].x-points.at(-1).x,points[0].z-points.at(-1).z);return d}
+export function traceWaterShorelinesFromSampler({
+  bounds,isWaterAt,columns=48,rows=48,refineSteps=3,stitchTolerance=null,
+  minLength=0,maxContours=64,simplifyTolerance=0,
+}={}){
+  if(!bounds||typeof isWaterAt!=='function')throw new Error('WATER_SHORELINE_SAMPLER_REQUIRED');
+  const x0=finite(bounds.x0),x1=finite(bounds.x1),z0=finite(bounds.z0),z1=finite(bounds.z1);
+  const nx=Math.max(2,Math.round(finite(columns,48))),nz=Math.max(2,Math.round(finite(rows,48)));
+  const dx=(x1-x0)/nx,dz=(z1-z0)/nz;
+  if(Math.abs(dx)<=EPS||Math.abs(dz)<=EPS)throw new Error('WATER_SHORELINE_BOUNDS_INVALID');
+  const wet=new Uint8Array((nx+1)*(nz+1)),at=(ix,iz)=>wet[iz*(nx+1)+ix]===1;
+  for(let iz=0;iz<=nz;iz++)for(let ix=0;ix<=nx;ix++)wet[iz*(nx+1)+ix]=isWaterAt(x0+ix*dx,z0+iz*dz)?1:0;
+  const refine=Math.max(0,Math.min(8,Math.round(finite(refineSteps,3))));
+  function crossing(a,b,wa){
+    let lo={...a},hi={...b},loWet=wa;
+    for(let i=0;i<refine;i++){const m={x:(lo.x+hi.x)*.5,z:(lo.z+hi.z)*.5},mw=!!isWaterAt(m.x,m.z);if(mw===loWet)lo=m;else hi=m}
+    return{x:(lo.x+hi.x)*.5,z:(lo.z+hi.z)*.5};
+  }
+  const segments=[];
+  const add=(a,b)=>{if(Math.hypot(a.x-b.x,a.z-b.z)>EPS)segments.push([a,b])};
+  for(let iz=0;iz<nz;iz++)for(let ix=0;ix<nx;ix++){
+    const p0={x:x0+ix*dx,z:z0+iz*dz},p1={x:p0.x+dx,z:p0.z},p2={x:p0.x+dx,z:p0.z+dz},p3={x:p0.x,z:p0.z+dz};
+    const w0=at(ix,iz),w1=at(ix+1,iz),w2=at(ix+1,iz+1),w3=at(ix,iz+1),hits=[];
+    if(w0!==w1)hits.push({edge:0,p:crossing(p0,p1,w0)});
+    if(w1!==w2)hits.push({edge:1,p:crossing(p1,p2,w1)});
+    if(w2!==w3)hits.push({edge:2,p:crossing(p2,p3,w2)});
+    if(w3!==w0)hits.push({edge:3,p:crossing(p3,p0,w3)});
+    if(hits.length===2)add(hits[0].p,hits[1].p);
+    else if(hits.length===4){
+      const centerWet=!!isWaterAt(p0.x+dx*.5,p0.z+dz*.5),byEdge=new Map(hits.map(h=>[h.edge,h.p]));
+      // Resolve 5/10 ambiguity from the real field at the cell center.
+      const diagonal02=w0===w2&&w0!==w1&&w1===w3;
+      if(diagonal02&&centerWet===w0){add(byEdge.get(0),byEdge.get(3));add(byEdge.get(1),byEdge.get(2))}
+      else{add(byEdge.get(0),byEdge.get(1));add(byEdge.get(2),byEdge.get(3))}
+    }
+  }
+  const tol=Math.max(EPS,finite(stitchTolerance,Math.min(Math.abs(dx),Math.abs(dz))*.20));
+  const nodes=new Map(),unused=new Set(segments.map((_,i)=>i));
+  for(let i=0;i<segments.length;i++)for(let end=0;end<2;end++){const k=contourKey(segments[i][end],tol);if(!nodes.has(k))nodes.set(k,[]);nodes.get(k).push({i,end})}
+  function nextFor(p,exclude){
+    const list=nodes.get(contourKey(p,tol))||[];
+    for(const ref of list)if(unused.has(ref.i)&&ref.i!==exclude)return ref;
+    return null;
+  }
+  const contours=[];
+  while(unused.size){
+    const seed=unused.values().next().value,seg=segments[seed];unused.delete(seed);
+    let pts=[seg[0],seg[1]],closed=false;
+    for(let guard=0;guard<segments.length+2;guard++){
+      const ref=nextFor(pts.at(-1),-1);if(!ref)break;unused.delete(ref.i);const s2=segments[ref.i],q=ref.end===0?s2[1]:s2[0];pts.push(q);
+      if(same(pts[0],q)||contourKey(pts[0],tol)===contourKey(q,tol)){closed=true;pts.pop();break}
+    }
+    if(!closed){
+      for(let guard=0;guard<segments.length+2;guard++){
+        const ref=nextFor(pts[0],-1);if(!ref)break;unused.delete(ref.i);const s2=segments[ref.i],q=ref.end===0?s2[1]:s2[0];pts.unshift(q);
+        if(same(pts.at(-1),q)||contourKey(pts.at(-1),tol)===contourKey(q,tol)){closed=true;pts.shift();break}
+      }
+    }
+    if(pts.length<(closed?3:2))continue;
+    pts=simplifyShoreline(pts,simplifyTolerance,{closed});
+    const length=contourLength(pts,closed);if(length+EPS<Math.max(0,finite(minLength)))continue;
+    contours.push(Object.freeze({points:Object.freeze(pts.map(p=>Object.freeze({...p}))),closed,length}));
+  }
+  contours.sort((a,b)=>b.length-a.length);
+  return Object.freeze(contours.slice(0,Math.max(1,Math.round(finite(maxContours,64)))));
+}
+
 export function applyPlanarWorldUVs(geometry,{tileWorldSize=3,axes='xy',offsetX=0,offsetZ=0,THREE=null}={}){
   const p=geometry?.getAttribute?.('position')||geometry?.attributes?.position;if(!p)throw new Error('WATER_SURFACE_POSITION_REQUIRED');const size=Math.max(.01,finite(tileWorldSize,3)),uv=new Float32Array(p.count*2);
   const read=(axis,i)=>typeof p['get'+axis.toUpperCase()]==='function'?p['get'+axis.toUpperCase()](i):p.array[i*p.itemSize+({x:0,y:1,z:2}[axis]??0)];
@@ -115,4 +184,4 @@ export function createWorldWaterBodyRuntime({THREE,renderer=null,baseUrl=import.
   function setDebug(o={}){if('showShoreFoamRibbon'in o)debugVisible=!!o.showShoreFoamRibbon;for(const r of bodies.values())r.setDebugVisible(debugVisible);return Object.freeze({showShoreFoamRibbon:debugVisible})}
   return Object.freeze({mode:'repository-local',assets:WORLD_WATER_ASSETS,textures,createWaterBody,removeWaterBody:id=>bodies.get(String(id))?.dispose?.()||false,getWaterBody:id=>bodies.get(String(id))||null,update,setDebug,status:()=>Object.freeze({bodyCount:bodies.size,showShoreFoamRibbon:debugVisible,elapsed,assetMode:'repository-local'}),dispose:()=>{for(const r of [...bodies.values()])r.dispose();textures.dispose()}});
 }
-export default Object.freeze({WORLD_WATER_ASSETS,DEFAULT_WATER_BODY_WATER,DEFAULT_WATER_BODY_FOAM,normalizeWaterBodyConfig,resolveWorldWaterTextureUrl,simplifyShoreline,polygonSignedArea,pointInPolygon,buildShoreFoamRibbonData,applyPlanarWorldUVs,createWorldWaterTextureCache,createWorldWaterBodyRuntime});
+export default Object.freeze({WORLD_WATER_ASSETS,DEFAULT_WATER_BODY_WATER,DEFAULT_WATER_BODY_FOAM,normalizeWaterBodyConfig,resolveWorldWaterTextureUrl,simplifyShoreline,polygonSignedArea,pointInPolygon,buildShoreFoamRibbonData,traceWaterShorelinesFromSampler,applyPlanarWorldUVs,createWorldWaterTextureCache,createWorldWaterBodyRuntime});
