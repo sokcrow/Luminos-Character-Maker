@@ -235,7 +235,7 @@ export class WaterTextureCache {
   constructor({THREE,baseUrl=import.meta.url}={}){
     if(!THREE?.TextureLoader)throw new Error('WATER_BODY_THREE_REQUIRED');
     this.THREE=THREE;this.baseUrl=baseUrl;this.loader=new THREE.TextureLoader();
-    this.sources=new Map();this.variants=new Map();
+    this.sources=new Map();this.variants=new Map();this.activeVariants=new Set();
     try{this.loader.setCrossOrigin?.('anonymous')}catch{}
   }
   async source(role,pathOverride=null){
@@ -264,15 +264,15 @@ export class WaterTextureCache {
       t.minFilter=this.THREE.LinearMipmapLinearFilter;
       t.needsUpdate=true;
       const entry={texture:t,scrollX:sx,scrollY:sy};
+      this.activeVariants.add(entry);
       return entry;
     });
     this.variants.set(key,promise);
     return promise;
   }
-  async update(dt){
+  update(dt){
     if(!Number.isFinite(dt)||dt<=0)return;
-    for(const promise of this.variants.values()){
-      const entry=await Promise.resolve(promise).catch(()=>null);
+    for(const entry of this.activeVariants){
       if(!entry?.texture)continue;
       entry.texture.offset.x=(entry.texture.offset.x+entry.scrollX*dt)%1;
       entry.texture.offset.y=(entry.texture.offset.y+entry.scrollY*dt)%1;
@@ -462,7 +462,7 @@ export class WaterBodySystem {
   update(dt){
     if(!Number.isFinite(dt)||dt<=0)return;
     this.time+=dt;
-    void this.textures.update(dt);
+    this.textures.update(dt);
     for(const b of this.bodies.values())b.update(dt,this.time);
   }
   status(){
