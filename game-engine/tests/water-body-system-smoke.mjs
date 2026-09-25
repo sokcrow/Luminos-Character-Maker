@@ -11,6 +11,7 @@ import {
 } from '../src/world/WaterBodySystem.js';
 
 assert.equal(DEFAULT_WATER_CONFIG.texture,'Assets/Images/World/Water/water_seamless.png');
+assert.equal(DEFAULT_WATER_CONFIG.surfaceWave,null,'surface waves must be opt-in and visual-only');
 assert.equal(DEFAULT_FOAM_CONFIG.texture,'Assets/Images/World/Water/coast_foam_seamless.png');
 assert.ok(DEFAULT_FOAM_CONFIG.renderOrder<0,'shore foam must render in the terrain/water layer before units');
 assert.ok(DEFAULT_FOAM_CONFIG.yOffset<=.012,'shore foam must stay nearly coplanar with water');
@@ -126,6 +127,12 @@ assert.match(moduleSource,/surface\.enabled!==false/,'WaterBody must support foa
 assert.match(moduleSource,/flowWorldSpeed/);
 assert.match(moduleSource,/patternMask/);
 assert.match(moduleSource,/makePatternMaskWaterMaterial/);
+assert.match(moduleSource,/normalizeSurfaceWave/);
+assert.match(moduleSource,/ensureWaterAcrossAttribute/);
+assert.match(moduleSource,/attribute float waterAcross/);
+assert.match(moduleSource,/vec3 displaced=position\+normal\*\(chop\*bankWeight\)/,'river surface wave must displace only the rendered vertices');
+assert.match(moduleSource,/visualSurfaceDisplacementOnly/);
+assert.match(moduleSource,/patternMaterial\.uniforms\?\.uTime/,'visual wave clock must update without changing surfaceHeightAt');
 assert.match(moduleSource,/mix\(uBackground,uWater,pattern\)/,'mask mode must remap source darkness instead of rendering black water');
 assert.match(moduleSource,/waterCurrentImmersionFactor/);
 assert.match(moduleSource,/containsPoint\(position\)/);
@@ -154,9 +161,15 @@ assert.match(lab,/backgroundColor:0x3278de/,'river pattern background must be wh
 assert.match(lab,/waterColor:0xffffff/,'river mask water must be blue');
 assert.match(lab,/patternMask:\{/,'river must use the seamless texture as a mask, not raw RGB');
 assert.match(lab,/opacity:1/,'river water must be opaque');
+assert.match(lab,/surfaceWave:\{/,'procedural river must opt into turbulent visual waves');
+assert.match(lab,/amplitude:TILE\*\(\.020\+Math\.min\(2\.4,riverVisualCurrentSpeed\)\*\.008\)/);
+assert.match(lab,/secondaryFrequency:6\.6/);
+assert.match(lab,/edgeStrength:\.22/,'river banks must remain calmer than the current core');
+assert.match(lab,/surfaceHeightAt:\(\)=>baseY/,'river gameplay height must stay stable under visual waves');
 assert.match(lab,/flowWorldSpeed:\{x:-wt\(riverVisualCurrentSpeed\)\*\.30,y:0\}/);
 assert.match(lab,/foamCurrentScroll=-\.020\*Math\.max\(\.5,riverVisualCurrentSpeed\)/);
 assert.match(lab,/width:TILE\*\.48/,'river foam must be slightly larger');
+assert.match(lab,/pulseAmplitude:TILE\*\.018,pulseSpeed:1\.90,pulseFrequency:1\.08/,'river foam must read as faster agitation than calm water');
 assert.match(lab,/surface:\{renderOrder:-4,depthWrite:true\}/);
 assert.match(lab,/geometryAuthority='procedural-river-single-surface'/);
 assert.match(lab,/riverTerminalCaps:!!terminalCaps/,'river geometry must seal its visible start/end without adding gameplay colliders');
