@@ -463,8 +463,11 @@ export class WaterBody {
       this.group.add(mesh);this.waterMesh=mesh;
     }
     if(this.foam.enabled!==false&&this.shorelines.length){
+      // Foam motion is mesh-local because different rivers can have different
+      // authored current speeds. Keep the shared texture variant stationary and
+      // advance uUvOffset once per foam mesh in update().
       const foamEntry=await this.system.textures.variant('foamMain',{
-        path:this.foam.texture,scrollX:finite(this.foam.scrollSpeed,.02),scrollY:0,wrapT:THREE.ClampToEdgeWrapping
+        path:this.foam.texture,scrollX:0,scrollY:0,wrapT:THREE.ClampToEdgeWrapping
       });
       if(this.disposed)return this;
       const detailCfg=this.foam.detail?.enabled?{
@@ -479,7 +482,7 @@ export class WaterBody {
         pulseFrequency:finite(this.foam.detail.pulseFrequency,this.foam.pulseFrequency*1.21)
       }:null;
       const detailEntry=detailCfg?await this.system.textures.variant('foamDetail',{
-        path:detailCfg.texture,scrollX:detailCfg.scrollSpeed,scrollY:0,wrapT:THREE.ClampToEdgeWrapping
+        path:detailCfg.texture,scrollX:0,scrollY:0,wrapT:THREE.ClampToEdgeWrapping
       }):null;
       for(let index=0;index<this.shorelines.length;index++){
         const src=this.shorelines[index],line=Array.isArray(src)?src:src?.points,closed=!!src?.closed;
