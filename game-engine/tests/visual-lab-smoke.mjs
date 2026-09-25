@@ -60,6 +60,10 @@ assert.match(game, /function terrainMovementSampleAtWorld/);
 assert.match(game, /const NATURAL_SLOPE_RULES=TERRAIN_SLOPE_STANDARD/);
 assert.match(game, /sample\.moveMultiplier=resolveTerrainMoveMultiplier\(sample\)/);
 assert.match(game, /slopeBand:terrainSlopeBand\(slope\)/);
+assert.match(game, /resolveTerrainSlopeSlide/);
+assert.match(game, /s\.movement\.slopeSliding=true/);
+assert.match(game, /Remove uphill\/downhill input from steering/);
+
 assert.match(game, /function applySlopeSurfaceGroups/);
 assert.match(game, /terrainSurfaceTierForSlope\(slope\)/);
 assert.match(game, /terrainSurfaceMaterialKinds\(\{biomeProfile,baseKind\}\)/);
