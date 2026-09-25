@@ -850,6 +850,7 @@ addEventListener('unhandledrejection',e=>{
 <script type="module">
 import * as THREE from '../../vendor/three.module.js';
 import { createRepositoryWorldFloorTextureRuntime, worldFloorRepeatForTiles } from '../../src/world/WorldFloorTextures.js';
+import { createWaterBodySystem, extractFieldShorelines } from '../../src/world/WaterBodySystem.js';
 
 let worldFloorTextureRuntime=null;
 window.setLoadProgress?.(18,'Motor listo','Preparando personajes…');
@@ -1081,6 +1082,20 @@ renderer.outputColorSpace=THREE.SRGBColorSpace;
 renderer.shadowMap.enabled=!displayLandscapeMobile();
 renderer.shadowMap.type=DISPLAY_DEVICE_MOBILE?THREE.PCFShadowMap:THREE.PCFSoftShadowMap;
 document.body.prepend(renderer.domElement);
+
+const WATER_BODY_DEBUG_DEFAULT=new URLSearchParams(location.search).get('showShoreFoamRibbon')==='1';
+const waterBodySystem=createWaterBodySystem({THREE,baseUrl:import.meta.url,showShoreFoamRibbon:WATER_BODY_DEBUG_DEFAULT});
+window.WaterBodyRuntime=Object.freeze({
+  system:waterBodySystem,
+  status:()=>waterBodySystem.status(),
+  setDebug:(show)=>waterBodySystem.setDebug(!!show),
+  clear:()=>waterBodySystem.clearBodies()
+});
+Object.defineProperty(window,'showShoreFoamRibbon',{
+  configurable:true,
+  get:()=>waterBodySystem.showShoreFoamRibbon,
+  set:(value)=>waterBodySystem.setDebug(!!value)
+});
 
 const hemi=new THREE.HemisphereLight(0xfff0d7,0x657267,1.72);
 scene.add(hemi);
@@ -16675,6 +16690,7 @@ const MAP_RENDERER_REGISTRY=Object.freeze({
 
 function clearMap(){
   activeLocalCamp=null;
+  waterBodySystem.clearBodies();
   try{window.PaperFX?.clearWaterInteractions?.()}catch(err){console.warn('PaperFX water clear fallback:',err)}
   clearColdBreathFx();
   clearTransientUnits();
@@ -18045,6 +18061,7 @@ function loop(now){
 
   // PaperFX recibe contactos desde UnitEnvironmentSystem; mantiene un único update.
   try{window.PaperFX?.update?.(dt)}catch(err){console.warn('PaperFX.update fallback:',err)}
+  waterBodySystem.update(dt);
   updateSwimMission();
   updateElevationMission();
   updateDust(dt);
