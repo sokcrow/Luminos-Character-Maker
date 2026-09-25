@@ -3,6 +3,7 @@ import fs from 'node:fs/promises';
 import {
   DEFAULT_WAKE_CONFIG,
   relativeWaterVelocity,
+  wakeDominanceVelocity,
   wakeStrengthForSpeed,
   resolveWakeDimensions,
   wakeTailAlpha,
@@ -16,6 +17,14 @@ assert.equal(DEFAULT_WAKE_CONFIG.fadeStart,.72);
 
 const relStatic=relativeWaterVelocity({x:0,y:0,z:0},{x:3,y:0,z:0});
 assert.deepEqual(relStatic,{x:-3,y:0,z:0},'stationary obstacle must still see relative water speed');
+const rockWake=wakeDominanceVelocity({x:0,y:0,z:0},{x:3,y:0,z:0});
+assert.deepEqual(rockWake,{x:3,y:0,z:0},'stationary rock wake must travel with river flow');
+const againstRiver=wakeDominanceVelocity({x:-1,y:0,z:0},{x:3,y:0,z:0});
+assert.deepEqual(againstRiver,{x:4,y:0,z:0},'swimming against the river must send disturbance downstream');
+const objectWins=wakeDominanceVelocity({x:5,y:0,z:0},{x:3,y:0,z:0});
+assert.deepEqual(objectWins,{x:-2,y:0,z:0},'faster object moving with current must leave wake behind itself');
+const waterWins=wakeDominanceVelocity({x:1,y:0,z:0},{x:5,y:0,z:0});
+assert.deepEqual(waterWins,{x:4,y:0,z:0},'stronger current must carry the wake downstream');
 assert.ok(wakeStrengthForSpeed(3,{minRelativeSpeed:.15,maxRelativeSpeed:3})>.99);
 assert.equal(wakeStrengthForSpeed(.1,{minRelativeSpeed:.15,maxRelativeSpeed:3}),0);
 
@@ -89,6 +98,11 @@ assert.match(src,/1\.0-smoothstep\(uFadeStart,1\.0,vTrailProgress\)/);
 assert.match(src,/THREE\.NormalBlending/);
 assert.doesNotMatch(src,/THREE\.AdditiveBlending/,'wake fade must not use additive glow');
 assert.match(src,/relativeWaterVelocity\(actor,flow\)/);
+assert.match(src,/wakeDominanceVelocity\(actor,flow\)/);
+assert.match(src,/const wakeVector=wakeDominanceVelocity\(actor,flow\)/);
+assert.match(src,/downstreamProjection=vx\*dx\+vz\*dz/,'history must be rejected when it lies opposite the true wake direction');
+assert.match(src,/if\(downstreamProjection<=\.025\)continue/);
+assert.match(src,/this\.dynamicPoints\(body,pos,wakeVector/);
 assert.match(src,/type==='staticObstacle'/);
 assert.ok(src.includes('1.0-vUv.x+uUvOffset'),'directional wake texture must be mirrored longitudinally');
 assert.ok(src.includes('this.uvOffset+finite(this.config.scrollSpeed'),'mirrored texture must still scroll away from origin/downstream');
