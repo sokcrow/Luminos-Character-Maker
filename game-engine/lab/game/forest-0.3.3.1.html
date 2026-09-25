@@ -5183,6 +5183,7 @@ function proceduralWaterShorelineDescriptors(id,bounds,{minLengthTiles=2,maxCont
 
 function buildProceduralCoastVisual(g,id=mapId){
   const coast=proceduralCoastAtSector(id);if(!coast)return null;
+  const region=activeProceduralZone.region,visual=region.surfaceStyle||SURFACE_VISUAL_PROFILES.temperate;
   const mapDef=MAP_DATA.maps[id]||currentMapDef(),bounds=mapDef?.bounds||{x0:-OVERWORLD_HALF,x1:OVERWORLD_HALF,z0:-OVERWORLD_HALF,z1:OVERWORLD_HALF};
   const waterMargin=3.25,renderBounds={x0:bounds.x0-waterMargin,x1:bounds.x1+waterMargin,z0:bounds.z0-waterMargin,z1:bounds.z1+waterMargin};
   const tilesW=renderBounds.x1-renderBounds.x0,tilesD=renderBounds.z1-renderBounds.z0,cx=(renderBounds.x0+renderBounds.x1)*.5,cz=(renderBounds.z0+renderBounds.z1)*.5;
@@ -5203,7 +5204,7 @@ function buildProceduralCoastVisual(g,id=mapId){
     water:{
       tileWorldSize,
       scrollSpeed:{x:.010,y:.004},
-      color:0xffffff,
+      color:visual.waterBase,
       roughness:.38,
       metalness:0
     },
@@ -5382,7 +5383,7 @@ function buildProceduralInlandWaterVisual(g,id=mapId){
     water:{
       tileWorldSize,
       scrollSpeed:hydro.type==='river'?{x:.032,y:.004}:{x:.009,y:.005},
-      color:0xffffff,
+      color:profile.baseColor,
       roughness:hydro.type==='river'?.30:.40,
       metalness:0,
       opacity:profile.opacity
@@ -11405,7 +11406,7 @@ function waterStrip(g){
     water:{
       tileWorldSize:wt(1.65),
       scrollSpeed:{x:.028,y:.003},
-      color:0xffffff,
+      color:0x368fa0,
       roughness:.32,
       metalness:0
     },
@@ -12513,7 +12514,7 @@ function makeSwimWaterShape(g,points,{y=SWIM_WATER_SURFACE_Y,bankPoints=FLOODED_
     water:{
       tileWorldSize:wt(flowing?1.65:2.15),
       scrollSpeed:flowing?{x:-(fx/flowMag)*.030,y:(fz/flowMag)*.030}:{x:.009,y:.005},
-      color:0xffffff,
+      color:flowing?0x368fa0:0x4b9aa2,
       roughness:flowing?.31:.40,
       metalness:0
     },
