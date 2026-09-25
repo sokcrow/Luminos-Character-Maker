@@ -850,6 +850,8 @@ addEventListener('unhandledrejection',e=>{
 <script type="module">
 import * as THREE from '../../vendor/three.module.js';
 import { createRepositoryWorldFloorTextureRuntime, worldFloorRepeatForTiles } from '../../src/world/WorldFloorTextures.js';
+import { TERRAIN_SLOPE_STANDARD, terrainSlopeBand, resolveTerrainMoveMultiplier } from '../../src/world/TerrainMobility.js';
+import { terrainSurfaceTierForSlope, terrainSurfaceMaterialKinds } from '../../src/world/TerrainSurfaceStandard.js';
 import { createWaterBodySystem, extractFieldShorelines, waterCurrentImmersionFactor } from '../../src/world/WaterBodySystem.js';
 import { createWaterInteractionSystem } from '../../src/world/WakeTrailSystem.js';
 
@@ -5891,6 +5893,18 @@ function buildProceduralInlandWaterVisual(g,id=mapId){
           low:.14,
           high:.76
         },
+        // River chop is visual-only. The gameplay surfaceHeightAt remains baseY.
+        surfaceWave:{
+          enabled:true,
+          amplitude:TILE*(.020+Math.min(2.4,riverVisualCurrentSpeed)*.008),
+          secondaryAmplitude:TILE*.012,
+          frequency:3.8,
+          secondaryFrequency:6.6,
+          crossFrequency:4.4,
+          speed:1.9+riverVisualCurrentSpeed*.55,
+          secondarySpeed:2.8+riverVisualCurrentSpeed*.72,
+          edgeStrength:.22
+        },
         // One visual sheet, animated downstream. Calm vs fast remains physics only.
         flowWorldSpeed:{x:-wt(riverVisualCurrentSpeed)*.30,y:0}
       },
@@ -5899,9 +5913,9 @@ function buildProceduralInlandWaterVisual(g,id=mapId){
         // authored current authority.
         width:TILE*.48,
         innerWidth:TILE*.10,outerWidth:TILE*.38,
-        tileWorldLength:TILE*2.05,
+        tileWorldLength:TILE*1.90,
         scrollSpeed:foamCurrentScroll,
-        pulseAmplitude:TILE*.012,pulseSpeed:1.55,pulseFrequency:.84,
+        pulseAmplitude:TILE*.018,pulseSpeed:1.90,pulseFrequency:1.08,
         opacity:.88,yOffset:TILE*.008,renderOrder:-3
       }
     });
@@ -6156,7 +6170,8 @@ function elevationHeightTilesAtWorld(x,z,id=mapId){
   // authoritative water bed back upward after river/lake/coast depth was applied.
   return hydrologyPriorityGroundHeightTilesAtLocal(id,tx,tz,coastAdjusted);
 }
-const NATURAL_SLOPE_RULES=Object.freeze({normalDeg:24,difficultDeg:34,maxClimbDeg:43,sampleTiles:.24});
+// Engine-wide authority; maps may sample the field but do not own slope thresholds.
+const NATURAL_SLOPE_RULES=TERRAIN_SLOPE_STANDARD;
 function elevationSlopeAtWorld(x,z,id=mapId){
   const e=wt(NATURAL_SLOPE_RULES.sampleTiles),den=2*NATURAL_SLOPE_RULES.sampleTiles;
   const hx=(elevationHeightTilesAtWorld(x+e,z,id)-elevationHeightTilesAtWorld(x-e,z,id))/den;
@@ -10774,7 +10789,7 @@ function unitCanOccupyWorld(unit,x,z,r=unit?.radius||PLAYER_RADIUS){
 }
 function terrainMovementSampleAtWorld(x,z,layer=currentWorldLayer){
   if(!Number.isFinite(x)||!Number.isFinite(z)||activeInteriorStage){
-    return {walkable:true,combat:true,moveMultiplier:1,terrain:'interior',tags:[],locomotion:'ground',slopeDeg:0,difficultTerrain:false};
+    return {walkable:true,combat:true,moveMultiplier:1,terrain:'interior',tags:[],locomotion:'ground',slopeDeg:0,slopeBand:'normal',difficultTerrain:false};
   }
   const cell=gridCellAtWorld(x,z,layer);
   let mult=1,difficultTerrain=!!cell?.tags?.includes('difficult');
@@ -10795,14 +10810,12 @@ function terrainMovementSampleAtWorld(x,z,layer=currentWorldLayer){
   }
 
   const slope=elevationSlopeAtWorld(x,z,mapId).angleDeg;
-  if(slope>NATURAL_SLOPE_RULES.difficultDeg)mult=Math.min(mult,.68);
-  else if(slope>NATURAL_SLOPE_RULES.normalDeg)mult=Math.min(mult,.82);
-
   const tags=[...(cell?.tags||[])];
   if(difficultTerrain&&!tags.includes('difficult'))tags.push('difficult');
-  const geology=geologySampleAtLocal(mapId,x/TILE,z/TILE);for(const tag of geology.tags||[])if(!tags.includes(tag))tags.push(tag);
+  const geology=geologySampleAtLocal(mapId,x/TILE,z/TILE);
+  for(const tag of geology.tags||[])if(!tags.includes(tag))tags.push(tag);
   const corridor=layer===currentWorldLayer?zoneTransitionCorridorAt(x,z,.05):null;
-  return {
+  const sample={
     walkable:!!(cell?.walkable||corridor),
     combat:!!cell?.combat,
     moveMultiplier:mult,
@@ -10811,14 +10824,17 @@ function terrainMovementSampleAtWorld(x,z,layer=currentWorldLayer){
     locomotion:cell?.locomotion||locomotionModeAt(x,z),
     hazard:cell?.hazard||null,
     slopeDeg:slope,
+    slopeBand:terrainSlopeBand(slope),
     difficultTerrain,geology
   };
+  sample.moveMultiplier=resolveTerrainMoveMultiplier(sample);
+  return sample;
 }
 function unitTerrainSpeedMultiplier(unit,x=unit?.group?.position?.x,z=unit?.group?.position?.z){
   if(!unit||!Number.isFinite(x)||!Number.isFinite(z)||activeInteriorStage)return 1;
   const activeOverpass=overpassById(unitOverpassId(unit));
   if(activeOverpass&&overpassContainsWorld(activeOverpass,x,z,0))return 1;
-  return terrainMovementSampleAtWorld(x,z,currentWorldLayer).moveMultiplier;
+  return resolveTerrainMoveMultiplier(terrainMovementSampleAtWorld(x,z,currentWorldLayer));
 }
 function recordUnitMovement(unit,moved,ox,oz){
   if(!unit||moved<=0)return;
@@ -15967,15 +15983,65 @@ window.PaperElevation=Object.freeze({
   cutawayClosure:Object.freeze({mode:'to-sector-structural-base',structuralDepthTiles:MAP_HEIGHTS.terrainThickness,collision:false})
 });
 
+function applySlopeSurfaceGroups(geo,verts,triangles,{id=mapId,baseKind='forestGround',biomeProfile='temperate',uTiles=1,vTiles=1}={}){
+  const buckets=[[],[],[]],tierIndex={base:0,transition:1,rock:2};
+  for(const tri of triangles){
+    const [a,b,c]=tri;
+    const cx=(verts[a*3]+verts[b*3]+verts[c*3])/3;
+    const cz=(verts[a*3+2]+verts[b*3+2]+verts[c*3+2])/3;
+    const slope=elevationSlopeAtWorld(cx,cz,id).angleDeg;
+    const tier=terrainSurfaceTierForSlope(slope);
+    buckets[tierIndex[tier]??0].push(a,b,c);
+  }
+  const merged=[],groups=[];
+  let offset=0;
+  for(let i=0;i<buckets.length;i++){
+    const bucket=buckets[i];
+    if(bucket.length){merged.push(...bucket);groups.push({start:offset,count:bucket.length,materialIndex:i});offset+=bucket.length;}
+  }
+  geo.setIndex(merged);geo.clearGroups();
+  for(const group of groups)geo.addGroup(group.start,group.count,group.materialIndex);
+
+  const kinds=terrainSurfaceMaterialKinds({biomeProfile,baseKind});
+  const materialKinds=[kinds.base,kinds.transition,kinds.rock];
+  const materials=materialKinds.map(kind=>{
+    const m=fittedMappedMaterial(mat(kind),uTiles,vTiles).clone();
+    m.side=THREE.DoubleSide;return m;
+  });
+  geo.userData={
+    ...(geo.userData||{}),
+    slopeSurfaceStandard:true,
+    slopeMaterialKinds:materialKinds,
+    slopeThresholds:{normalDeg:TERRAIN_SLOPE_STANDARD.normalDeg,difficultDeg:TERRAIN_SLOPE_STANDARD.difficultDeg,maxWalkDeg:TERRAIN_SLOPE_STANDARD.maxWalkDeg}
+  };
+  return materials;
+}
+
 function buildProceduralLandGroundMesh(g,id=mapId,kind='forestGround'){
   const def=MAP_DATA.maps[id]||currentMapDef(),bounds=def?.bounds||{x0:-OVERWORLD_HALF,x1:OVERWORLD_HALF,z0:-OVERWORLD_HALF,z1:OVERWORLD_HALF};
-  const mobile=DISPLAY_DEVICE_MOBILE,sx=mobile?52:64,sz=mobile?52:64,stride=sx+1,verts=[],uv=[],indices=[];
-  for(let iz=0;iz<=sz;iz++){const vz=iz/sz,tz=THREE.MathUtils.lerp(bounds.z0,bounds.z1,vz);for(let ix=0;ix<=sx;ix++){const ux=ix/sx,tx=THREE.MathUtils.lerp(bounds.x0,bounds.x1,ux);verts.push(wt(tx),tileY(elevationHeightTilesAtWorld(wt(tx),wt(tz),id))+.003,wt(tz));uv.push(ux,vz);}}
-  for(let iz=0;iz<sz;iz++)for(let ix=0;ix<sx;ix++){const a=iz*stride+ix,b=a+1,cc=a+stride,d=cc+1;if((ix+iz)&1)indices.push(a,cc,b,b,cc,d);else indices.push(a,cc,d,a,d,b);}
-  const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));geo.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));geo.setIndex(indices);geo.computeVertexNormals();geo.computeBoundingSphere();
+  const mobile=DISPLAY_DEVICE_MOBILE,sx=mobile?52:64,sz=mobile?52:64,stride=sx+1,verts=[],uv=[],triangles=[];
+  for(let iz=0;iz<=sz;iz++){
+    const vz=iz/sz,tz=THREE.MathUtils.lerp(bounds.z0,bounds.z1,vz);
+    for(let ix=0;ix<=sx;ix++){
+      const ux=ix/sx,tx=THREE.MathUtils.lerp(bounds.x0,bounds.x1,ux);
+      verts.push(wt(tx),tileY(elevationHeightTilesAtWorld(wt(tx),wt(tz),id))+.003,wt(tz));uv.push(ux,vz);
+    }
+  }
+  for(let iz=0;iz<sz;iz++)for(let ix=0;ix<sx;ix++){
+    const a=iz*stride+ix,b=a+1,c=a+stride,d=c+1;
+    if((ix+iz)&1){triangles.push([a,c,b],[b,c,d]);}else{triangles.push([a,c,d],[a,d,b]);}
+  }
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));
+  geo.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));
   const tilesW=Math.max(.01,bounds.x1-bounds.x0),tilesD=Math.max(.01,bounds.z1-bounds.z0);
-  const mtl=fittedMappedMaterial(mat(kind),tilesW,tilesD).clone();mtl.side=THREE.DoubleSide;
-  const mesh=new THREE.Mesh(geo,mtl);mesh.receiveShadow=true;mesh.castShadow=false;mesh.name=`${id}-continuous-geography-ground`;mesh.userData.continuousGeography=true;mesh.userData.worldFloorFittedTiles=[tilesW,tilesD];g.add(mesh);return mesh;
+  const biomeProfile=activeProceduralZone?.region?.biomeProfile||'temperate';
+  const materials=applySlopeSurfaceGroups(geo,verts,triangles,{id,baseKind:kind,biomeProfile,uTiles:tilesW,vTiles:tilesD});
+  geo.computeVertexNormals();geo.computeBoundingSphere();
+  const mesh=new THREE.Mesh(geo,materials);
+  mesh.receiveShadow=true;mesh.castShadow=false;mesh.name=`${id}-continuous-geography-ground`;
+  mesh.userData.continuousGeography=true;mesh.userData.worldFloorFittedTiles=[tilesW,tilesD];mesh.userData.slopeSurfaceStandard=true;
+  g.add(mesh);return mesh;
 }
 function elevationModuleMeshBounds(module){
   if(module.kind==='zone-ridge-curve'||module.kind==='zone-hill')return {x0:-OVERWORLD_HALF-.04,x1:OVERWORLD_HALF+.04,z0:-OVERWORLD_HALF-.04,z1:OVERWORLD_HALF+.04};
@@ -15992,7 +16058,7 @@ function elevationModuleMeshBounds(module){
 function buildNaturalElevationMesh(g,module){
   const sx=Math.max(8,Math.floor(module.segmentsX||20)),sz=Math.max(8,Math.floor(module.segmentsZ||18));
   const {x0,x1,z0,z1}=elevationModuleMeshBounds(module);
-  const verts=[],uv=[],indices=[];
+  const verts=[],uv=[],triangles=[];
   for(let iz=0;iz<=sz;iz++){
     const vz=iz/sz,z=THREE.MathUtils.lerp(z0,z1,vz);
     for(let ix=0;ix<=sx;ix++){
@@ -16007,15 +16073,20 @@ function buildNaturalElevationMesh(g,module){
     const h00=hAt(ix,iz),h10=hAt(ix+1,iz),h01=hAt(ix,iz+1),h11=hAt(ix+1,iz+1);
     if(Math.max(h00,h10,h01,h11)<.002)continue;
     const a=iz*stride+ix,b=a+1,c=a+stride,d=c+1;
-    // Diagonal alternada para evitar la lectura de una cuadrícula repetitiva.
-    if((ix+iz)&1){indices.push(a,c,b,b,c,d);}else{indices.push(a,c,d,a,d,b);}
+    if((ix+iz)&1){triangles.push([a,c,b],[b,c,d]);}else{triangles.push([a,c,d],[a,d,b]);}
   }
   const geo=new THREE.BufferGeometry();
   geo.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));
-  geo.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));geo.setIndex(indices);geo.computeVertexNormals();
-  const mtl=fittedMappedMaterial(mat(module.topKind||'groveStone'),Math.max(.01,x1-x0),Math.max(.01,z1-z0)).clone();mtl.side=THREE.DoubleSide;
-  const mesh=new THREE.Mesh(geo,mtl);mesh.receiveShadow=true;mesh.castShadow=false;mesh.name=module.id+'-natural-terrain';mesh.userData.elevationModule=module.id;mesh.userData.worldFloorFittedTiles=[Math.max(.01,x1-x0),Math.max(.01,z1-z0)];g.add(mesh);
-  return mesh;
+  geo.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));
+  const uTiles=Math.max(.01,x1-x0),vTiles=Math.max(.01,z1-z0);
+  const baseKind=module.topKind||'groveStone';
+  const biomeProfile=activeProceduralZone?.region?.biomeProfile||'temperate';
+  const materials=applySlopeSurfaceGroups(geo,verts,triangles,{id:mapId,baseKind,biomeProfile,uTiles,vTiles});
+  geo.computeVertexNormals();
+  const mesh=new THREE.Mesh(geo,materials);
+  mesh.receiveShadow=true;mesh.castShadow=false;mesh.name=module.id+'-natural-terrain';
+  mesh.userData.elevationModule=module.id;mesh.userData.worldFloorFittedTiles=[uTiles,vTiles];mesh.userData.slopeSurfaceStandard=true;
+  g.add(mesh);return mesh;
 }
 function buildElevationModule(g,module){
   buildNaturalElevationMesh(g,module);
