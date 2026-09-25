@@ -223,7 +223,9 @@ function makeWakeMaterial(THREE,texture,config){
       varying vec2 vUv;
       varying float vTrailProgress;
       void main(){
-        vec4 sampled=texture2D(map,vec2(vUv.x+uUvOffset,vUv.y));
+        // The authored wake PNG is direction-sensitive. Read it reversed along U so
+        // its visual "opening/tail" points away from the object instead of back at it.
+        vec4 sampled=texture2D(map,vec2(1.0-vUv.x+uUvOffset,vUv.y));
         float tailFade=1.0-smoothstep(uFadeStart,1.0,vTrailProgress);
         // Keep the official texture as the foam mask, but render the two wakes white.
         // This is normal alpha blending: no glow/additive brightening.
@@ -421,9 +423,10 @@ class WakeTrailInstance {
     }
     const baseOpacity=clamp(this.config.opacity??.9,0,1);
     this.targetOpacity=baseOpacity*(.35+.65*strength);
-    // UV U runs from object/origin toward the wake tail. Sampling with a decreasing
-    // offset makes the authored texture travel in +U, i.e. away from the object.
-    this.uvOffset=(this.uvOffset-finite(this.config.scrollSpeed,.25)*(.45+.55*strength)*dt)%1;
+    // UV U still runs origin -> tail, but shader sampling is mirrored (1-U).
+    // Therefore the offset must increase so the visible texture keeps travelling
+    // away from the object / downstream after the orientation flip.
+    this.uvOffset=(this.uvOffset+finite(this.config.scrollSpeed,.25)*(.45+.55*strength)*dt)%1;
     if(this.material?.uniforms?.uUvOffset)this.material.uniforms.uUvOffset.value=this.uvOffset;
     this.fade(dt);
   }
