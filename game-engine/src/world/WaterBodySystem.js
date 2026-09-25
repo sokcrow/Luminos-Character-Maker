@@ -8,6 +8,9 @@ export const DEFAULT_WATER_CONFIG = Object.freeze({
   texture: WATER_ASSET_PATHS.water,
   tileWorldSize: 3.0,
   scrollSpeed: Object.freeze({x:0.010,y:0.004}),
+  // Optional physical flow in world-units / second. When present it is converted
+  // to texture cycles using tileWorldSize, so rivers can visually match current speed.
+  flowWorldSpeed: null,
   color: 0xffffff,
   opacity: 0.92,
   roughness: 0.42,
@@ -42,6 +45,23 @@ const clamp=(v,a,b)=>Math.max(a,Math.min(b,finite(v,a)));
 const point=(p)=>({x:finite(p?.x),y:finite(p?.y),z:finite(p?.z)});
 const distXZ=(a,b)=>Math.hypot(finite(b?.x)-finite(a?.x),finite(b?.z)-finite(a?.z));
 const key2=(x,z,eps)=>Math.round(x/eps)+','+Math.round(z/eps);
+const smooth01=(value)=>{const t=clamp(value,0,1);return t*t*(3-2*t);};
+
+export function waterCurrentImmersionFactor({
+  waterDepth=0,
+  referenceDepth=1,
+  minFactor=.06,
+  onset=.12,
+  fullAt=.90,
+}={}){
+  const depth=Math.max(0,finite(waterDepth));
+  if(depth<=0)return 0;
+  const reference=Math.max(.001,finite(referenceDepth,1));
+  const normalized=clamp(depth/reference,0,1);
+  const start=clamp(onset,0,.95),end=clamp(fullAt,start+.001,1);
+  const ramp=smooth01((normalized-start)/(end-start));
+  return clamp(finite(minFactor,.06)+(1-finite(minFactor,.06))*ramp,0,1);
+}
 
 export function resolveWaterAssetUrl(assetPath, baseUrl=import.meta.url){
   const rel=String(assetPath||'');
@@ -399,8 +419,15 @@ export class WaterBody {
     if(this.surface?.geometry){
       const speed=this.water.scrollSpeed||{};
       const tileWorldSize=Math.max(.05,finite(this.water.tileWorldSize,DEFAULT_WATER_CONFIG.tileWorldSize));
+      const physicalFlow=this.water.flowWorldSpeed;
+      const scrollX=physicalFlow&&Number.isFinite(Number(physicalFlow.x))
+        ?finite(physicalFlow.x)/tileWorldSize
+        :finite(speed.x);
+      const scrollY=physicalFlow&&Number.isFinite(Number(physicalFlow.y))
+        ?finite(physicalFlow.y)/tileWorldSize
+        :finite(speed.y);
       const entry=await this.system.textures.variant('water',{
-        path:this.water.texture,scrollX:finite(speed.x),scrollY:finite(speed.y),wrapT:THREE.RepeatWrapping,
+        path:this.water.texture,scrollX,scrollY,wrapT:THREE.RepeatWrapping,
         repeatX:1/tileWorldSize,repeatY:1/tileWorldSize
       });
       if(this.disposed)return this;
@@ -425,7 +452,11 @@ export class WaterBody {
       if(Number.isFinite(this.surface.rotationX))mesh.rotation.x=this.surface.rotationX;
       mesh.receiveShadow=this.surface.receiveShadow!==false;
       mesh.renderOrder=finite(this.surface.renderOrder,-4);
-      mesh.userData={...(mesh.userData||{}),waterBodyId:this.id,waterBodySurface:true};
+      mesh.userData={
+        ...(mesh.userData||{}),waterBodyId:this.id,waterBodySurface:true,
+        waterTextureScroll:{x:scrollX,y:scrollY},
+        waterFlowWorldSpeed:physicalFlow?{x:finite(physicalFlow.x),y:finite(physicalFlow.y)}:null
+      };
       this.group.add(mesh);this.waterMesh=mesh;
     }
     if(this.foam.enabled!==false&&this.shorelines.length){
@@ -558,6 +589,7 @@ export default Object.freeze({
   shorelineDistances,
   buildShoreFoamRibbonData,
   createShoreFoamGeometry,
+  waterCurrentImmersionFactor,
   extractFieldShorelines,
   WaterTextureCache,
   WaterBody,
