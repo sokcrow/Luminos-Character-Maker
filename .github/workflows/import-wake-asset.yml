@@ -1,0 +1,72 @@
+name: Import official wake trail asset
+
+on:
+  push:
+    branches:
+      - lab-preview
+    paths:
+      - ".github/workflows/import-wake-asset.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout lab-preview
+        uses: actions/checkout@v4
+        with:
+          ref: lab-preview
+
+      - name: Download official wake PNG unchanged
+        run: |
+          set -euo pipefail
+          mkdir -p Assets/Images/World/Water
+          curl -L --fail --retry 3 --retry-delay 2 \
+            -A "Mozilla/5.0" \
+            "https://i.imgur.com/xoMcBzD.png" \
+            -o Assets/Images/World/Water/wake_trail.png
+
+      - name: Verify PNG and alpha
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import struct, hashlib
+          p=Path("Assets/Images/World/Water/wake_trail.png")
+          b=p.read_bytes()
+          assert b[:8] == b"\x89PNG\r\n\x1a\n", "not a PNG"
+          pos=8
+          color_type=None
+          has_trns=False
+          width=height=None
+          while pos+12 <= len(b):
+              n=struct.unpack(">I",b[pos:pos+4])[0]
+              typ=b[pos+4:pos+8]
+              data=b[pos+8:pos+8+n]
+              if typ == b'IHDR':
+                  width,height,bit_depth,color_type,comp,filt,interlace=struct.unpack(">IIBBBBB",data)
+              if typ == b'tRNS':
+                  has_trns=True
+              pos += 12+n
+              if typ == b'IEND':
+                  break
+          assert width and height, "missing IHDR"
+          assert color_type in (4,6) or has_trns, f"PNG has no alpha/transparency (color_type={color_type})"
+          print(f"wake_trail.png: {width}x{height}, color_type={color_type}, tRNS={has_trns}, bytes={len(b)}")
+          print("sha256="+hashlib.sha256(b).hexdigest())
+          PY
+
+      - name: Commit official asset
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Assets/Images/World/Water/wake_trail.png
+          if git diff --cached --quiet; then
+            echo "Asset already identical; nothing to commit."
+            exit 0
+          fi
+          git commit -m "asset(water): add official wake trail texture"
+          git push origin HEAD:lab-preview
