@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "authority": "repository-local",
   "registry": "js/item-icon-registry.js",
-  "familyCount": 581,
-  "uniqueAssetCount": 628,
+  "familyCount": 589,
+  "uniqueAssetCount": 636,
   "note": "Runtime icon resolution uses repository-local paths. legacySource is provenance only and is never required at runtime.",
   "families": [
     {
@@ -4653,6 +4653,70 @@
       "domain": "equipment",
       "path": "Assets/Icons/items/equipment/armor_heavy.png",
       "legacySource": "https://imgur.com/Jqri9Tk.png"
+    },
+    {
+      "id": "muffin",
+      "label": "Muffin",
+      "labelEs": "Muffin",
+      "domain": "consumable",
+      "path": "Assets/Icons/items/consumable/muffin.png",
+      "legacySource": "https://imgur.com/6AoUXjT.png"
+    },
+    {
+      "id": "blueberry_muffin",
+      "label": "Blueberry Muffin",
+      "labelEs": "Muffin de arándano",
+      "domain": "consumable",
+      "path": "Assets/Icons/items/consumable/blueberry_muffin.png",
+      "legacySource": "https://imgur.com/z1zBf2g.png"
+    },
+    {
+      "id": "chocolate_muffin",
+      "label": "Chocolate Muffin",
+      "labelEs": "Muffin de chocolate",
+      "domain": "consumable",
+      "path": "Assets/Icons/items/consumable/chocolate_muffin.png",
+      "legacySource": "https://imgur.com/0pNm4Au.png"
+    },
+    {
+      "id": "banana_muffin",
+      "label": "Banana Muffin",
+      "labelEs": "Muffin de plátano",
+      "domain": "consumable",
+      "path": "Assets/Icons/items/consumable/banana_muffin.png",
+      "legacySource": "https://imgur.com/gRqe16T.png"
+    },
+    {
+      "id": "apple_muffin",
+      "label": "Apple Muffin",
+      "labelEs": "Muffin de manzana",
+      "domain": "consumable",
+      "path": "Assets/Icons/items/consumable/apple_muffin.png",
+      "legacySource": "https://imgur.com/hRmuvxI.png"
+    },
+    {
+      "id": "strawberry_muffin",
+      "label": "Strawberry Muffin",
+      "labelEs": "Muffin de fresa",
+      "domain": "consumable",
+      "path": "Assets/Icons/items/consumable/strawberry_muffin.png",
+      "legacySource": "https://imgur.com/7Wu3VR7.png"
+    },
+    {
+      "id": "lemon_muffin",
+      "label": "Lemon Muffin",
+      "labelEs": "Muffin de limón",
+      "domain": "consumable",
+      "path": "Assets/Icons/items/consumable/lemon_muffin.png",
+      "legacySource": "https://imgur.com/FAeYM9H.png"
+    },
+    {
+      "id": "coconut_muffin",
+      "label": "Coconut Muffin",
+      "labelEs": "Muffin de coco",
+      "domain": "consumable",
+      "path": "Assets/Icons/items/consumable/coconut_muffin.png",
+      "legacySource": "https://imgur.com/HNo6kmK.png"
     }
   ],
   "assets": [
@@ -4734,6 +4798,17 @@
       "legacySource": "https://imgur.com/9fDBZh0.png"
     },
     {
+      "path": "Assets/Icons/items/consumable/apple_muffin.png",
+      "primaryId": "apple_muffin",
+      "domain": "consumable",
+      "familyIds": [
+        "apple_muffin"
+      ],
+      "bytes": 1700305,
+      "sha256": "3c03242605be7156f2c1f10bbd3b9c31027d01a2815e95fcbfb8eec2af3f145b",
+      "legacySource": "https://imgur.com/hRmuvxI.png"
+    },
+    {
       "path": "Assets/Icons/items/consumable/apple_pie.png",
       "primaryId": "apple_pie",
       "domain": "consumable",
@@ -4778,6 +4853,17 @@
       "legacySource": "https://imgur.com/fWzzyid.png"
     },
     {
+      "path": "Assets/Icons/items/consumable/banana_muffin.png",
+      "primaryId": "banana_muffin",
+      "domain": "consumable",
+      "familyIds": [
+        "banana_muffin"
+      ],
+      "bytes": 1600411,
+      "sha256": "38393a45059811f661c8ae20b6117d6fa5d3c349d3f03306911608516002cbe0",
+      "legacySource": "https://imgur.com/gRqe16T.png"
+    },
+    {
       "path": "Assets/Icons/items/consumable/blackberry_cake.png",
       "primaryId": "blackberry_cake",
       "domain": "consumable",
@@ -4809,6 +4895,17 @@
       "bytes": 1638879,
       "sha256": "2bd4a2919388535189fe7b2302be613e347bbade106f45c2547cf4bc1e66824e",
       "legacySource": "https://imgur.com/clxwpgH.png"
+    },
+    {
+      "path": "Assets/Icons/items/consumable/blueberry_muffin.png",
+      "primaryId": "blueberry_muffin",
+      "domain": "consumable",
+      "familyIds": [
+        "blueberry_muffin"
+      ],
+      "bytes": 1742951,
+      "sha256": "3274e6e842f6e118a342bd1ecb9f80112f92e9fc3123b0329d3b7ab03ce53ee2",
+      "legacySource": "https://imgur.com/z1zBf2g.png"
     },
     {
       "path": "Assets/Icons/items/consumable/blueberry_pie.png",
@@ -4965,6 +5062,17 @@
       "legacySource": "https://imgur.com/awozOUf.png"
     },
     {
+      "path": "Assets/Icons/items/consumable/chocolate_muffin.png",
+      "primaryId": "chocolate_muffin",
+      "domain": "consumable",
+      "familyIds": [
+        "chocolate_muffin"
+      ],
+      "bytes": 1680671,
+      "sha256": "3416dd9d43b95a227b9d7e3c771f99d6391a90d58d47d5d5fc911efba26497fa",
+      "legacySource": "https://imgur.com/0pNm4Au.png"
+    },
+    {
       "path": "Assets/Icons/items/consumable/coconut_cake.png",
       "primaryId": "coconut_cake",
       "domain": "consumable",
@@ -5007,6 +5115,17 @@
       "bytes": 1580375,
       "sha256": "3a8160b5b5994f4f6c6f9355b55d5fd270d1982fbbb29a8368522421463a2aca",
       "legacySource": "https://imgur.com/ai4u5nB.png"
+    },
+    {
+      "path": "Assets/Icons/items/consumable/coconut_muffin.png",
+      "primaryId": "coconut_muffin",
+      "domain": "consumable",
+      "familyIds": [
+        "coconut_muffin"
+      ],
+      "bytes": 1635731,
+      "sha256": "fb5609ba541fd12d6be75081521c2527183697374f57a02c66aecdb23a6ec1b7",
+      "legacySource": "https://imgur.com/HNo6kmK.png"
     },
     {
       "path": "Assets/Icons/items/consumable/coffee_cake.png",
@@ -5515,6 +5634,17 @@
       "legacySource": "https://imgur.com/jaVrPin.png"
     },
     {
+      "path": "Assets/Icons/items/consumable/lemon_muffin.png",
+      "primaryId": "lemon_muffin",
+      "domain": "consumable",
+      "familyIds": [
+        "lemon_muffin"
+      ],
+      "bytes": 1539736,
+      "sha256": "5f51c7a2aac2174753e6514b18a09c4d01d74c90d355e02d9e39bd6f880e7a2d",
+      "legacySource": "https://imgur.com/FAeYM9H.png"
+    },
+    {
       "path": "Assets/Icons/items/consumable/lemon_pie.png",
       "primaryId": "lemon_pie",
       "domain": "consumable",
@@ -5678,6 +5808,17 @@
       "bytes": 893280,
       "sha256": "66a7bc17bbfe76bddc5238cba3986e8c4baa5575f59213e3cf1649fbaaf1a40c",
       "legacySource": "https://imgur.com/cKupyxd.png"
+    },
+    {
+      "path": "Assets/Icons/items/consumable/muffin.png",
+      "primaryId": "muffin",
+      "domain": "consumable",
+      "familyIds": [
+        "muffin"
+      ],
+      "bytes": 1454784,
+      "sha256": "b5b6311f654c7d7b7e3c2942cef7123ce6187b0d08dfc11160adb52583262c6a",
+      "legacySource": "https://imgur.com/6AoUXjT.png"
     },
     {
       "path": "Assets/Icons/items/consumable/oatmeal_cookie_retail_pack.png",
@@ -6041,6 +6182,17 @@
       "bytes": 1550203,
       "sha256": "3d9e5bcaaed897df34735fe4d8267d9770fccadcb5c2232d041f53be78e074e3",
       "legacySource": "https://imgur.com/8Zm5HPn.png"
+    },
+    {
+      "path": "Assets/Icons/items/consumable/strawberry_muffin.png",
+      "primaryId": "strawberry_muffin",
+      "domain": "consumable",
+      "familyIds": [
+        "strawberry_muffin"
+      ],
+      "bytes": 1630746,
+      "sha256": "1cb6a8e4a1e2afe5a55f8d8176d702743044842bcca1c9142ee9257b41543c49",
+      "legacySource": "https://imgur.com/7Wu3VR7.png"
     },
     {
       "path": "Assets/Icons/items/consumable/strawberry_pie.png",
