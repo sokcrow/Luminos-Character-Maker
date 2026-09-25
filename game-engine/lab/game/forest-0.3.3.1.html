@@ -3535,6 +3535,8 @@ const PaperFX=(()=>{
       patternStrength:clamp01(cfg.patternStrength??.42),
       opacity:THREE.MathUtils.clamp(Number(cfg.opacity??1)||1,.15,1),
       roughness:THREE.MathUtils.clamp(Number(cfg.roughness??.86)||.86,.05,1),
+      // 1 = world-lit MeshStandard color; 0 = authored toon color survives world-time lights.
+      lightingInfluence:clamp01(cfg.lightingInfluence??1),
       coast:{
         enabled:cfg.coast?.enabled!==false,
         foamWidth:Math.max(.05,Number(cfg.coast?.foamWidth??defaults.coast.foamWidth)||2.5),
@@ -3549,7 +3551,7 @@ const PaperFX=(()=>{
     return ['toon-water',cfg.deepColor,cfg.shallowColor,cfg.crestColor,cfg.foamColor,cfg.masks.large,cfg.masks.small,cfg.masks.foam,cfg.masks.ripple,
       ...cfg.uv.largeRepeat,...cfg.uv.smallRepeat,...cfg.uv.foamRepeat,...cfg.uv.largeOffset,...cfg.uv.smallOffset,...cfg.uv.foamOffset,
       ...cfg.uv.largeSpeed,...cfg.uv.smallSpeed,...cfg.uv.foamSpeed,cfg.displacement,cfg.maxDepth,cfg.defaultDepth,cfg.toonLevels,cfg.crestStrength,cfg.foamStrength,
-      cfg.fresnelStrength,cfg.fresnelThreshold,cfg.crestThresholdLow,cfg.crestThresholdHigh,cfg.patternStrength,cfg.opacity,cfg.roughness,cfg.coast.enabled?1:0,cfg.coast.foamWidth,cfg.coast.clipLandMargin,cfg.reactive?1:0].join('|');
+      cfg.fresnelStrength,cfg.fresnelThreshold,cfg.crestThresholdLow,cfg.crestThresholdHigh,cfg.patternStrength,cfg.opacity,cfg.roughness,cfg.lightingInfluence,cfg.coast.enabled?1:0,cfg.coast.foamWidth,cfg.coast.clipLandMargin,cfg.reactive?1:0].join('|');
   }
   function applyWaterFields(geometry,{sample=null,defaultDepth=.72,defaultCoastDistance=999,defaultSignedCoastDistance=-999,valid=true}={}){
     if(!geometry?.getAttribute)return geometry;
@@ -3584,6 +3586,7 @@ const PaperFX=(()=>{
         displacement:{value:cfg.displacement},maxDepth:{value:cfg.maxDepth},defaultDepth:{value:cfg.defaultDepth},toonLevels:{value:cfg.toonLevels},
         crestStrength:{value:cfg.crestStrength},foamStrength:{value:cfg.foamStrength},fresnelStrength:{value:cfg.fresnelStrength},fresnelThreshold:{value:cfg.fresnelThreshold},
         crestThresholdLow:{value:cfg.crestThresholdLow},crestThresholdHigh:{value:cfg.crestThresholdHigh},patternStrength:{value:cfg.patternStrength},
+        lightingInfluence:{value:cfg.lightingInfluence},
         foamWidth:{value:cfg.coast.enabled?cfg.coast.foamWidth:.0001},coastEnabled:{value:cfg.coast.enabled?1:0},coastClipLandMargin:{value:cfg.coast.clipLandMargin},
         // Campo analítico opcional para costas procedurales. Evita que la silueta dependa
         // de atributos por vértice o de la resolución del grid visual.
@@ -3609,6 +3612,7 @@ const PaperFX=(()=>{
         shader.uniforms.paperFXWaterDisplacement=uniforms.displacement;shader.uniforms.paperFXWaterMaxDepth=uniforms.maxDepth;shader.uniforms.paperFXWaterDefaultDepth=uniforms.defaultDepth;shader.uniforms.paperFXWaterToonLevels=uniforms.toonLevels;
         shader.uniforms.paperFXWaterCrestStrength=uniforms.crestStrength;shader.uniforms.paperFXWaterFoamStrength=uniforms.foamStrength;shader.uniforms.paperFXWaterFresnelStrength=uniforms.fresnelStrength;shader.uniforms.paperFXWaterFresnelThreshold=uniforms.fresnelThreshold;
         shader.uniforms.paperFXWaterCrestThresholdLow=uniforms.crestThresholdLow;shader.uniforms.paperFXWaterCrestThresholdHigh=uniforms.crestThresholdHigh;shader.uniforms.paperFXWaterPatternStrength=uniforms.patternStrength;
+        shader.uniforms.paperFXWaterLightingInfluence=uniforms.lightingInfluence;
         shader.uniforms.paperFXWaterFoamWidth=uniforms.foamWidth;shader.uniforms.paperFXWaterCoastEnabled=uniforms.coastEnabled;shader.uniforms.paperFXWaterCoastClipLandMargin=uniforms.coastClipLandMargin;
         shader.uniforms.paperFXWaterAnalyticCoastEnabled=uniforms.analyticCoastEnabled;
         shader.uniforms.paperFXWaterCoastOrigin=uniforms.coastOrigin;shader.uniforms.paperFXWaterCoastNormal=uniforms.coastNormal;shader.uniforms.paperFXWaterCoastTangent=uniforms.coastTangent;
@@ -3706,6 +3710,7 @@ uniform float paperFXWaterFresnelThreshold;
 uniform float paperFXWaterCrestThresholdLow;
 uniform float paperFXWaterCrestThresholdHigh;
 uniform float paperFXWaterPatternStrength;
+uniform float paperFXWaterLightingInfluence;
 uniform float paperFXWaterFoamWidth;
 uniform float paperFXWaterCoastEnabled;
 uniform float paperFXWaterCoastClipLandMargin;
@@ -3791,6 +3796,12 @@ float paperFXSignedCoastAt(vec2 worldXZ){
   float paperFXFresnel = 1.0 - max(dot(normalize(normal), normalize(vViewPosition)), 0.0);
   float paperFXToonFresnel = step(paperFXWaterFresnelThreshold, paperFXFresnel);
   diffuseColor.rgb = mix(diffuseColor.rgb, paperFXWaterCrestColor, paperFXToonFresnel * paperFXWaterFresnelStrength);`);
+        // The world clock changes hemisphere/sun colors for the whole scene. For authored
+        // ocean color we can bypass that tint at the final lighting stage while retaining
+        // depth bands, waves, foam, fog/depth testing and the rest of the world lighting.
+        shader.fragmentShader=shader.fragmentShader.replace('#include <opaque_fragment>',`
+  outgoingLight = mix(diffuseColor.rgb, outgoingLight, paperFXWaterLightingInfluence);
+#include <opaque_fragment>`);
       };
       material.customProgramCacheKey=()=>key;
       material.userData.paperFX=true;material.userData.paperFXBehavior='toon-water';material.userData.paperFXToonWaterConfig=cfg;material.userData.paperFXWaterUniforms=uniforms;
@@ -5535,7 +5546,7 @@ function buildProceduralCoastVisual(g,id=mapId){
     deepColor:deepSeaColor,shallowColor:shallowSeaColor,crestColor:0xe8f8ff,foamColor:0xffffff,
     // El rango cromático coincide con la profundidad REAL del fondo costero; así el
     // color oscuro sí llega a aparecer y las cuatro bandas son legibles.
-    maxDepth:coastVisualMaxDepth,coast:{enabled:false,foamWidth:2.5,clipLandMargin:.12},reactive:true
+    maxDepth:coastVisualMaxDepth,lightingInfluence:0,coast:{enabled:false,foamWidth:2.5,clipLandMargin:.12},reactive:true
   }):null;
   const legacyKit=!toonKit?(window.PaperFX?.createWater?.({baseColor:visual.waterBase,waves:['wavesA','wavesB'],foam:'foam',waveColors:[visual.waveA,visual.waveB],foamColor:visual.foam})||null):null;
   const waterY=tileY(coast.waterSurfaceTiles),group=new THREE.Group();group.name='procedural-coast';g.add(group);
