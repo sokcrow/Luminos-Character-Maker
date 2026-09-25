@@ -545,11 +545,13 @@ export function resolveWaterBodyVisualProfile(id,waterConfig={},foamConfig={}){
   const coastal=/(^|:)(coast|sea|ocean)(:|$)/i.test(String(id||''));
   if(!coastal)return {profile:'default',water,foam};
 
-  // Ocean/coast treatment: larger repeat scale, but caller opacity remains
-  // authoritative so the animated texture can sit over the depth-color shader.
-  water.tileWorldSize=Math.max(.05,finite(water.tileWorldSize,DEFAULT_WATER_CONFIG.tileWorldSize)*1.52);
+  // Ocean/coast treatment: preserve the Lab water authority, but adopt the useful
+  // broad/calm scale from the experimental branch. This is a profile change only:
+  // no second WaterBody runtime, no duplicate mesh, and river/lake profiles stay untouched.
+  water.tileWorldSize=Math.max(8.25,finite(water.tileWorldSize,DEFAULT_WATER_CONFIG.tileWorldSize)*1.52);
+  water.scrollSpeed={x:.0040,y:.0015};
   water.opacity=clamp(water.opacity??DEFAULT_WATER_CONFIG.opacity,0,1);
-  water.roughness=Math.max(.48,clamp(water.roughness??DEFAULT_WATER_CONFIG.roughness,0,1));
+  water.roughness=clamp(water.roughness??DEFAULT_WATER_CONFIG.roughness,0,1);
 
   foam.width=Math.max(.02,finite(foam.width,DEFAULT_FOAM_CONFIG.width)*1.36);
   foam.innerWidth=Math.max(.01,finite(foam.innerWidth,DEFAULT_FOAM_CONFIG.innerWidth)*1.16);
