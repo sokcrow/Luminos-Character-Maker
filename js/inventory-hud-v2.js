@@ -147,23 +147,69 @@
   function iconFromFamily(family) {
     const id = String(family || "").trim();
     if (!id) return "";
-    return String(iconRegistry()?.resolveIcon?.(id) || "").trim();
+    return String(iconRegistry()?.resolveIcon?.(id, { fallback: false }) || "").trim();
+  }
+
+  function inferredIconFamily(item = {}) {
+    const category = normalizeId(itemCategory(item));
+    const kind = normalizeId(equipmentKind(item));
+    const name = normalizeId(itemName(item));
+    const tags = itemTags(item).map(normalizeId);
+    const haystack = [kind, category, name, ...tags].filter(Boolean);
+    const has = (...tokens) => tokens.some((token) => haystack.some((value) => value === token || value.includes(token)));
+
+    if (category === "shield" || kind === "shield" || has("shield", "escudo")) {
+      if (has("buckler", "broquel")) return "shield_buckler";
+      if (has("tower", "torre")) return "shield_tower";
+      if (has("heater")) return "shield_heater";
+      if (has("round", "redondo")) return "shield_round";
+      return "shield";
+    }
+    if (category === "weapon" || kind === "weapon" || has("weapon", "arma", "espada", "sword")) {
+      if (has("dagger", "daga")) return "weapon_dagger";
+      if (has("axe", "hacha")) return "weapon_axe";
+      if (has("hammer", "martillo")) return "weapon_hammer";
+      if (has("spear", "lanza")) return "weapon_spear";
+      if (has("staff", "baston")) return "weapon_staff";
+      if (has("bow", "arco")) return "weapon_bow";
+      if (has("crossbow", "ballesta")) return "weapon_crossbow";
+      if (has("sling", "honda")) return "weapon_sling";
+      if (has("whip", "latigo")) return "weapon_whip";
+      if (has("pistol", "pistola")) return "weapon_firearm_pistol";
+      if (has("revolver")) return "weapon_firearm_revolver";
+      if (has("rifle")) return "weapon_firearm_rifle";
+      if (has("shotgun", "escopeta")) return "weapon_firearm_shotgun";
+      if (has("smg", "subfusil")) return "weapon_firearm_smg";
+      if (has("sword", "espada")) return "weapon_sword";
+      return "weapon_melee";
+    }
+    if (category === "armor" || kind === "armor" || has("armor", "armadura")) return "armor_medium";
+    if (category === "consumable" || has("ration", "racion")) {
+      if (has("ration", "racion", "viaje", "field")) return "ration_field";
+      return "consumable_other";
+    }
+    return "";
   }
 
   function itemIcon(item = {}) {
-    // Canonical repository-local icon families are authoritative for the HUD.
-    // Explicit URLs/paths remain only as a compatibility fallback for legacy items.
-    const familyIcon = iconFromFamily(item.iconFamily || item.icon_family);
-    if (familyIcon) return familyIcon;
-
     const resolved = runtime()?.resolveItem?.(item) || item;
-    const resolvedFamilyIcon = iconFromFamily(resolved.iconFamily || resolved.icon_family);
-    if (resolvedFamilyIcon) return resolvedFamilyIcon;
+    const candidates = [
+      item.iconFamily, item.icon_family,
+      resolved.iconFamily, resolved.icon_family,
+      inferredIconFamily(resolved),
+      inferredIconFamily(item),
+    ];
+    for (const family of candidates) {
+      const icon = iconFromFamily(family);
+      if (icon) return icon;
+    }
 
     const explicit = item.icono || item.icon || item.image || item.img;
     if (explicit) return String(explicit).trim();
     const resolvedExplicit = resolved.icono || resolved.icon || resolved.image || resolved.img;
-    return resolvedExplicit ? String(resolvedExplicit).trim() : "";
+    if (resolvedExplicit) return String(resolvedExplicit).trim();
+
+    return String(iconRegistry()?.resolveIcon?.("generic_item", { fallback: false }) || "").trim();
   }
 
   function itemGemOverlayIcon(item = {}) {
