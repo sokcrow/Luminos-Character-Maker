@@ -5529,7 +5529,7 @@ function buildProceduralCoastVisual(g,id=mapId){
   const shallowSeaColor=0x8bd8f7;
   // Wind Waker-like depth ramp: sky-blue shallows into the same saturated
   // blue used by the river, avoiding a near-black/navy deep-water read.
-  const deepSeaColor=0x3278de;
+  const deepSeaColor=0x4169e1; // Azul Rey: authoritative deep-ocean color.
   const coastVisualMaxDepth=COAST_TERRAIN_RULES.shorelineSubmergeTiles+COAST_TERRAIN_RULES.maxSubmergedDepthTiles;
   const toonKit=window.PaperFX?.toonWaterAvailable?window.PaperFX?.waterPreset?.(presetName,{
     deepColor:deepSeaColor,shallowColor:shallowSeaColor,crestColor:0xe8f8ff,foamColor:0xffffff,
@@ -5599,6 +5599,7 @@ function buildProceduralCoastVisual(g,id=mapId){
         width:TILE*.44,outerWidth:TILE*.355,innerWidth:TILE*.085,
         opacity:.94,scrollSpeed:.034,
         pulseAmplitude:TILE*.060,pulseSpeed:2.05,pulseFrequency:.62,widthVariation:.20,
+        maskScale:1.42,maskWaveAmplitude:.10,
         detail:{
           enabled:true,widthScale:.68,tileWorldLength:TILE*1.45,scrollSpeed:-.018,
           opacity:.34,yOffset:TILE*.006,pulseAmplitude:TILE*.032,pulseSpeed:2.35,pulseFrequency:.78
@@ -5638,6 +5639,7 @@ function buildProceduralCoastVisual(g,id=mapId){
       width:TILE*.44,outerWidth:TILE*.355,innerWidth:TILE*.085,
       opacity:.94,scrollSpeed:.034,
       pulseAmplitude:TILE*.060,pulseSpeed:2.05,pulseFrequency:.62,widthVariation:.20,
+        maskScale:1.42,maskWaveAmplitude:.10,
       detail:{
         enabled:true,widthScale:.68,tileWorldLength:TILE*1.45,scrollSpeed:-.018,
         opacity:.34,yOffset:TILE*.006,pulseAmplitude:TILE*.032,pulseSpeed:2.35,pulseFrequency:.78

@@ -37,6 +37,10 @@ export const DEFAULT_FOAM_CONFIG = Object.freeze({
   pulseSpeed: 1.4,
   pulseFrequency: 1.15,
   widthVariation: 0.12,
+  // Mask-space scale/surge are neutral by default. Sea profiles enlarge the
+  // authored foam mask and couple its sampling to the same shoreline wave pulse.
+  maskScale: 1.0,
+  maskWaveAmplitude: 0.0,
   opacity: 0.78,
   // Shore foam is terrain/water decoration. Keep it barely above the water plane
   // and render it before units so transparent character sprites always stay on top.
@@ -321,6 +325,8 @@ function makeFoamMaterial(THREE,texture,config){
     uPulseAmplitude:{value:Math.max(0,finite(config.pulseAmplitude,.025))},
     uPulseSpeed:{value:finite(config.pulseSpeed,1.4)},
     uPulseFrequency:{value:finite(config.pulseFrequency,1.15)},
+    uMaskScale:{value:Math.max(.01,finite(config.maskScale,1))},
+    uMaskWaveAmplitude:{value:finite(config.maskWaveAmplitude,0)},
     uOpacity:{value:clamp(config.opacity??.78,0,1)}
   };
   const mat=new THREE.ShaderMaterial({
@@ -333,6 +339,7 @@ function makeFoamMaterial(THREE,texture,config){
       attribute vec3 foamNormal;
       attribute float foamDistance;
       varying vec2 vUv;
+      varying float vWavePulse;
       uniform float uTime;
       uniform float uPulseAmplitude;
       uniform float uPulseSpeed;
@@ -340,6 +347,7 @@ function makeFoamMaterial(THREE,texture,config){
       void main(){
         vUv=uv;
         float pulse=sin(uTime*uPulseSpeed + foamDistance*uPulseFrequency);
+        vWavePulse=pulse;
         float weight=mix(0.35,1.0,uv.y);
         vec3 displaced=position + foamNormal*(pulse*uPulseAmplitude*weight);
         gl_Position=projectionMatrix*modelViewMatrix*vec4(displaced,1.0);
@@ -349,9 +357,13 @@ function makeFoamMaterial(THREE,texture,config){
       uniform sampler2D map;
       uniform float uOpacity;
       uniform float uUvOffset;
+      uniform float uMaskScale;
+      uniform float uMaskWaveAmplitude;
       varying vec2 vUv;
+      varying float vWavePulse;
       void main(){
-        vec4 tex=texture2D(map,vec2(vUv.x+uUvOffset,vUv.y));
+        float maskV=clamp(0.5+(vUv.y-0.5)/max(0.01,uMaskScale)+vWavePulse*uMaskWaveAmplitude,0.0,1.0);
+        vec4 tex=texture2D(map,vec2(vUv.x+uUvOffset,maskV));
         float a=tex.a*uOpacity;
         if(a<0.015)discard;
         gl_FragColor=vec4(tex.rgb,a);
@@ -470,15 +482,17 @@ export function resolveWaterBodyVisualProfile(id,waterConfig={},foamConfig={}){
   water.opacity=clamp(water.opacity??DEFAULT_WATER_CONFIG.opacity,0,1);
   water.roughness=Math.max(.48,clamp(water.roughness??DEFAULT_WATER_CONFIG.roughness,0,1));
 
-  foam.width=Math.max(.02,finite(foam.width,DEFAULT_FOAM_CONFIG.width)*1.26);
-  foam.innerWidth=Math.max(.01,finite(foam.innerWidth,DEFAULT_FOAM_CONFIG.innerWidth)*1.12);
-  foam.outerWidth=Math.max(.01,finite(foam.outerWidth,DEFAULT_FOAM_CONFIG.outerWidth)*1.30);
-  foam.tileWorldLength=Math.max(.05,finite(foam.tileWorldLength,DEFAULT_FOAM_CONFIG.tileWorldLength)*1.44);
+  foam.width=Math.max(.02,finite(foam.width,DEFAULT_FOAM_CONFIG.width)*1.36);
+  foam.innerWidth=Math.max(.01,finite(foam.innerWidth,DEFAULT_FOAM_CONFIG.innerWidth)*1.16);
+  foam.outerWidth=Math.max(.01,finite(foam.outerWidth,DEFAULT_FOAM_CONFIG.outerWidth)*1.40);
+  foam.tileWorldLength=Math.max(.05,finite(foam.tileWorldLength,DEFAULT_FOAM_CONFIG.tileWorldLength)*1.72);
   foam.scrollSpeed=finite(foam.scrollSpeed,DEFAULT_FOAM_CONFIG.scrollSpeed)*1.55;
   foam.pulseAmplitude=Math.max(.05,finite(foam.pulseAmplitude,DEFAULT_FOAM_CONFIG.pulseAmplitude)*1.85);
   foam.pulseSpeed=finite(foam.pulseSpeed,DEFAULT_FOAM_CONFIG.pulseSpeed)*1.28;
   foam.pulseFrequency=Math.max(.30,finite(foam.pulseFrequency,DEFAULT_FOAM_CONFIG.pulseFrequency)*.82);
   foam.widthVariation=Math.max(.16,finite(foam.widthVariation,DEFAULT_FOAM_CONFIG.widthVariation));
+  foam.maskScale=Math.max(1.35,finite(foam.maskScale,DEFAULT_FOAM_CONFIG.maskScale));
+  foam.maskWaveAmplitude=Math.max(.08,finite(foam.maskWaveAmplitude,DEFAULT_FOAM_CONFIG.maskWaveAmplitude));
 
   return {profile:'sea',water,foam};
 }

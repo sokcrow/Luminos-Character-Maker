@@ -35,6 +35,8 @@ assert.ok(seaProfile.foam.tileWorldLength>2.35,'sea foam texture must repeat at 
 assert.ok(seaProfile.foam.scrollSpeed>.018,'sea foam must visibly travel along the coast');
 assert.ok(seaProfile.foam.pulseAmplitude>=.05,'sea foam must visibly surge/recede against the shoreline');
 assert.ok(seaProfile.foam.widthVariation>=.16,'sea foam edge must stay irregular/undulating');
+assert.ok(seaProfile.foam.maskScale>=1.35,'sea foam mask must render larger than the default shoreline mask');
+assert.ok(seaProfile.foam.maskWaveAmplitude>=.08,'sea foam mask sampling must surge with the shoreline wave phase');
 const riverProfile=resolveWaterBodyVisualProfile('river:test',{tileWorldSize:3},{width:.36,tileWorldLength:2.35});
 assert.equal(riverProfile.profile,'default');
 assert.equal(riverProfile.water.tileWorldSize,3,'river scale must not inherit the sea profile');
@@ -116,6 +118,9 @@ assert.match(moduleSource,/RepeatWrapping/);
 assert.match(moduleSource,/ClampToEdgeWrapping/);
 assert.match(moduleSource,/foamDistance/);
 assert.match(moduleSource,/uPulseAmplitude/);
+assert.match(moduleSource,/uMaskScale/);
+assert.match(moduleSource,/uMaskWaveAmplitude/);
+assert.match(moduleSource,/vWavePulse/,'foam mask must share the shoreline wave pulse');
 assert.match(moduleSource,/showShoreFoamRibbon/);
 assert.match(moduleSource,/flowWorldSpeed/);
 assert.match(moduleSource,/patternMask/);
@@ -130,6 +135,8 @@ assert.match(moduleSource,/scrollX:0,scrollY:0,wrapT:THREE\.ClampToEdgeWrapping/
 
 const lab=await fs.readFile(new URL('../lab/game/forest-0.3.3.1.html',import.meta.url),'utf8');
 assert.match(lab,/createWaterBodySystem/);
+assert.match(lab,/deepSeaColor=0x4169e1/,'deep ocean must use Royal Blue');
+assert.match(lab,/maskScale:1\.42,maskWaveAmplitude:\.10/,'coast foam mask must be enlarged and wave-coupled');
 assert.match(lab,/coastWaterBodyShoreline/);
 assert.match(lab,/riverWaterBodyShorelines/);
 assert.match(lab,/fieldWaterBodyShorelines/);
