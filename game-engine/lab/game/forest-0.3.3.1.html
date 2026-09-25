@@ -12894,11 +12894,30 @@ function makeSwimWaterShape(g,points,{y=SWIM_WATER_SURFACE_Y,bankPoints=FLOODED_
   const surf=new THREE.Mesh(baseGeo,toonWater?.material||paperWater?.baseMaterial||new THREE.MeshStandardMaterial({map:texA,color:0xffffff,transparent:false,roughness:.34,metalness:.02,side:THREE.DoubleSide,depthWrite:true,depthTest:true}));
   surf.rotation.x=-Math.PI/2;surf.position.y=y;surf.receiveShadow=true;surf.renderOrder=0;g.add(surf);
 
+  const officialWaterBody=attachAuthoredWaterBody({
+    id:`swim-water:${mapId}:${swimWaterSystems.length}`,
+    parent:g,sourceGeometry:baseGeo,points,y,style:flowing?'river':'lake',flow,
+    water:{
+      opacity:flowing?.80:.76,
+      scrollSpeed:flowing?{x:-.030*Math.max(.5,Number(flow?.strength)||1),y:0}:{x:.005,y:.003}
+    },
+    foam:{
+      width:flowing?TILE*.27:TILE*.34,
+      innerWidth:TILE*.05,
+      outerWidth:flowing?TILE*.22:TILE*.29,
+      tileWorldLength:flowing?TILE*1.9:TILE*2.25,
+      scrollSpeed:flowing?-.013:.011,
+      opacity:flowing?.78:.76
+    }
+  });
+
   let overlay=null,paperWaveBLayer=null,paperFoamLayer=null;
   if(!toonWater){
     overlay=new THREE.Mesh(baseGeo.clone(),paperWater?.waveMaterials?.[0]||new THREE.MeshBasicMaterial({map:texB,color:0xffffff,transparent:true,opacity:.16,side:THREE.DoubleSide,depthWrite:false,depthTest:true}));
     overlay.rotation.x=-Math.PI/2;overlay.position.y=y+.008;overlay.renderOrder=2;g.add(overlay);
-    if(paperWater){paperWaveBLayer=new THREE.Mesh(baseGeo.clone(),paperWater.waveMaterials[1]);paperWaveBLayer.rotation.x=-Math.PI/2;paperWaveBLayer.position.y=y+.012;paperWaveBLayer.renderOrder=3;g.add(paperWaveBLayer);paperFoamLayer=new THREE.Mesh(baseGeo.clone(),paperWater.foamMaterial);paperFoamLayer.rotation.x=-Math.PI/2;paperFoamLayer.position.y=y+.016;paperFoamLayer.renderOrder=4;g.add(paperFoamLayer)}
+    if(paperWater){paperWaveBLayer=new THREE.Mesh(baseGeo.clone(),paperWater.waveMaterials[1]);paperWaveBLayer.rotation.x=-Math.PI/2;paperWaveBLayer.position.y=y+.012;paperWaveBLayer.renderOrder=3;g.add(paperWaveBLayer)}
+    // Legacy full-surface foam is intentionally omitted. Shore foam belongs to
+    // WaterBodySystem so it follows the actual polygon contour.
   }
 
   const ripples=[],flowStreaks=[];
@@ -12913,7 +12932,7 @@ function makeSwimWaterShape(g,points,{y=SWIM_WATER_SURFACE_Y,bankPoints=FLOODED_
       for(let i=0;i<22;i++){const along=-halfAlong+(i/21)*(halfAlong*2)+(Math.sin(i*2.31)*.65),side=((i*7)%17)/16*2-1,len=.48+(i%6)*.13,streak=new THREE.Mesh(new THREE.PlaneGeometry(wt(len),wt(.035+(i%3)*.012)),foamMat);streak.rotation.x=-Math.PI/2;streak.rotation.z=-Math.atan2(dz,dx);streak.position.set(wt(centerX+dx*along+sideX*side*halfSide),y+.020+(i%2)*.002,wt(centerZ+dz*along+sideZ*side*halfSide));streak.renderOrder=13;g.add(streak);flowStreaks.push({mesh:streak,phase:(i*.137)%1,speed:.78+(i%5)*.09,side:side*halfSide,bounds,centerX,centerZ,dx,dz,sideX,sideZ,halfAlong})}
     }
   }
-  const sys={surf,overlay,texA,texB,paperWaveBLayer,paperFoamLayer,ripples,flowStreaks,time:0,y,style:waterStyle,toonWater,flow:flow?{x:Number(flow.x)||0,z:Number(flow.z)||0,strength:Number(flow.strength)||1}:null};
+  const sys={surf,overlay,texA,texB,paperWaveBLayer,paperFoamLayer,ripples,flowStreaks,time:0,y,style:waterStyle,toonWater,waterBody:officialWaterBody,flow:flow?{x:Number(flow.x)||0,z:Number(flow.z)||0,strength:Number(flow.strength)||1}:null};
   swimWaterSystems.push(sys);return sys;
 }
 
