@@ -154,7 +154,7 @@ assert.match(game, /activeProceduralZone\?\.hydrology\?\.type==='river'/);
 assert.match(game, /sample\?\.water\?sample\.current:null/);
 assert.match(game, /source:'procedural-river-field'/);
 assert.match(game, /shallowSeaColor=0x8bd8f7/);
-assert.match(game, /deepSeaColor=0x3278de/);
+assert.match(game, /deepSeaColor=0x4169e1/);
 assert.match(game, /scrollSpeed:\{x:\.020,y:\.010\}/);
 assert.match(game, /pulseAmplitude:TILE\*\.060/);
 assert.match(game, /detail:\{[\s\S]*scrollSpeed:-\.018/);
