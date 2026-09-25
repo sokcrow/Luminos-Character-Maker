@@ -251,9 +251,9 @@ export class WaterTextureCache {
     this.sources.set(url,promise);
     return promise;
   }
-  async variant(role,{path=null,scrollX=0,scrollY=0,wrapT=null}={}){
-    const asset=path||WATER_ASSET_PATHS[role],sx=finite(scrollX),sy=finite(scrollY);
-    const key=[role,asset,sx.toFixed(6),sy.toFixed(6),wrapT||'default'].join('|');
+  async variant(role,{path=null,scrollX=0,scrollY=0,wrapT=null,repeatX=1,repeatY=1}={}){
+    const asset=path||WATER_ASSET_PATHS[role],sx=finite(scrollX),sy=finite(scrollY),rx=Math.max(.0001,finite(repeatX,1)),ry=Math.max(.0001,finite(repeatY,1));
+    const key=[role,asset,sx.toFixed(6),sy.toFixed(6),rx.toFixed(6),ry.toFixed(6),wrapT||'default'].join('|');
     if(this.variants.has(key))return this.variants.get(key);
     const promise=this.source(role,asset).then(src=>{
       const t=src.clone();
@@ -262,8 +262,9 @@ export class WaterTextureCache {
       t.wrapT=wrapT??this.THREE.RepeatWrapping;
       t.magFilter=this.THREE.LinearFilter;
       t.minFilter=this.THREE.LinearMipmapLinearFilter;
+      t.repeat.set(rx,ry);
       t.needsUpdate=true;
-      const entry={texture:t,scrollX:sx,scrollY:sy};
+      const entry={texture:t,scrollX:sx,scrollY:sy,repeatX:rx,repeatY:ry};
       this.activeVariants.add(entry);
       return entry;
     });
@@ -389,8 +390,10 @@ export class WaterBody {
     const THREE=this.THREE;
     if(this.surface?.geometry){
       const speed=this.water.scrollSpeed||{};
+      const tileWorldSize=Math.max(.05,finite(this.water.tileWorldSize,DEFAULT_WATER_CONFIG.tileWorldSize));
       const entry=await this.system.textures.variant('water',{
-        path:this.water.texture,scrollX:finite(speed.x),scrollY:finite(speed.y),wrapT:THREE.RepeatWrapping
+        path:this.water.texture,scrollX:finite(speed.x),scrollY:finite(speed.y),wrapT:THREE.RepeatWrapping,
+        repeatX:1/tileWorldSize,repeatY:1/tileWorldSize
       });
       const mat=new THREE.MeshStandardMaterial({
         map:entry.texture,color:this.water.color??0xffffff,transparent:(this.water.opacity??1)<1||!!this.surface.alphaMap,
