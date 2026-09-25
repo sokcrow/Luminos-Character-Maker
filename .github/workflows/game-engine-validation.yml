@@ -43,6 +43,9 @@ jobs:
       - name: Core smoke
         run: node game-engine/tests/core-smoke.mjs
 
+      - name: Continuous movement smoke
+        run: node game-engine/tests/continuous-movement-smoke.mjs
+
       - name: Visual Lab smoke
         run: node game-engine/tests/visual-lab-smoke.mjs
 
