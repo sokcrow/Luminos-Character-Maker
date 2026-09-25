@@ -28,9 +28,10 @@ const seaProfile=resolveWaterBodyVisualProfile('coast:test',{
   pulseAmplitude:.014,
 });
 assert.equal(seaProfile.profile,'sea');
-assert.ok(seaProfile.water.tileWorldSize>3,'sea texture must render at a larger world scale');
+assert.ok(seaProfile.water.tileWorldSize>=8.25,'sea texture must render at the broad ocean world scale');
+assert.deepEqual(seaProfile.water.scrollSpeed,{x:.004,y:.0015},'sea texture drift must stay slower/calmer than river water');
 assert.equal(seaProfile.water.opacity,.74,'explicit sea opacity must remain authoritative so the depth gradient stays visible');
-assert.ok(seaProfile.water.roughness>=.48,'sea surface must retain a rough moving treatment');
+assert.equal(seaProfile.water.roughness,.46,'explicit sea roughness must remain authoritative');
 assert.ok(seaProfile.foam.width>.36,'sea foam band must be broader');
 assert.ok(seaProfile.foam.tileWorldLength>2.35,'sea foam texture must repeat at a larger scale');
 assert.ok(seaProfile.foam.scrollSpeed>.018,'sea foam must visibly travel along the coast');
