@@ -151,14 +151,19 @@
   }
 
   function itemIcon(item = {}) {
-    const explicit = item.icono || item.icon || item.image || item.img;
-    if (explicit) return String(explicit).trim();
+    // Canonical repository-local icon families are authoritative for the HUD.
+    // Explicit URLs/paths remain only as a compatibility fallback for legacy items.
     const familyIcon = iconFromFamily(item.iconFamily || item.icon_family);
     if (familyIcon) return familyIcon;
+
     const resolved = runtime()?.resolveItem?.(item) || item;
+    const resolvedFamilyIcon = iconFromFamily(resolved.iconFamily || resolved.icon_family);
+    if (resolvedFamilyIcon) return resolvedFamilyIcon;
+
+    const explicit = item.icono || item.icon || item.image || item.img;
+    if (explicit) return String(explicit).trim();
     const resolvedExplicit = resolved.icono || resolved.icon || resolved.image || resolved.img;
-    if (resolvedExplicit) return String(resolvedExplicit).trim();
-    return iconFromFamily(resolved.iconFamily || resolved.icon_family);
+    return resolvedExplicit ? String(resolvedExplicit).trim() : "";
   }
 
   function itemGemOverlayIcon(item = {}) {
