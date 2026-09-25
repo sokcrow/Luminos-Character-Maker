@@ -5314,7 +5314,7 @@ function buildProceduralCoastVisual(g,id=mapId){
     deepColor:deepTint,shallowColor:visual.waterBase,crestColor:visual.waveA,foamColor:visual.foam,
     // El rango cromático coincide con la profundidad REAL del fondo costero; así el
     // color oscuro sí llega a aparecer y las cuatro bandas son legibles.
-    maxDepth:coastVisualMaxDepth,coast:{enabled:true,foamWidth:2.5,clipLandMargin:.075},reactive:true
+    maxDepth:coastVisualMaxDepth,coast:{enabled:false,foamWidth:2.5,clipLandMargin:.075},reactive:true
   }):null;
   const legacyKit=!toonKit?(window.PaperFX?.createWater?.({baseColor:visual.waterBase,waves:['wavesA','wavesB'],foam:'foam',waveColors:[visual.waveA,visual.waveB],foamColor:visual.foam})||null):null;
   const waterY=tileY(coast.waterSurfaceTiles),group=new THREE.Group();group.name='procedural-coast';g.add(group);
@@ -5354,6 +5354,22 @@ function buildProceduralCoastVisual(g,id=mapId){
     water.onAfterRender=()=>toonKit.setCoastField?.(null);
     group.add(water);
     group.userData.paperFXWaterMesh=water;
+
+    // Official repository-local WaterBody layer. PaperFX remains underneath only
+    // for depth/reactive buoyancy; the visible repeating albedo and shore foam come
+    // from WaterBodySystem and never fetch Imgur at runtime.
+    const officialGeo=waterBodyPlaneUvWorld(geo.clone(),{id,cxTiles,czTiles});
+    const officialMask=coastWaterMaskTextureForSector(id,renderBounds,256);
+    const shoreline=coastWaterBodyShoreline(id,coast,waterY,renderBounds);
+    const body=createOfficialWaterBody({
+      id:`coast:${id}`,parent:group,geometry:officialGeo,
+      position:new THREE.Vector3(wt(cxTiles),waterY+.030,wt(czTiles)),rotationX:-Math.PI/2,alphaMap:officialMask,
+      shorelines:shoreline?[shoreline]:[],
+      isWaterAt:(x,z)=>coastLocalDistance(id,x/TILE,z/TILE)<0,
+      water:{opacity:.74,scrollSpeed:{x:.006,y:.003}},
+      foam:{width:TILE*.36,outerWidth:TILE*.30,innerWidth:TILE*.06,opacity:.86,scrollSpeed:.018}
+    });
+    group.userData.waterBody=body;
     return group;
   }
 
@@ -5368,8 +5384,18 @@ function buildProceduralCoastVisual(g,id=mapId){
   baseMat.transparent=true;baseMat.alphaMap=coastMask;baseMat.alphaTest=.015;baseMat.depthWrite=true;baseMat.side=THREE.DoubleSide;baseMat.needsUpdate=true;
   const geo=new THREE.PlaneGeometry(wt(tilesW),wt(tilesD),1,1);
   const base=new THREE.Mesh(geo,baseMat);base.rotation.x=-Math.PI/2;base.position.set(wt(cx),waterY+.018,wt(cz));base.receiveShadow=true;group.add(base);
-  const foamGeo=coastBandGeometryForSector(id,coast,-.16,.18);
-  if(foamGeo){const foamMat=legacyKit?.foamMaterial||new THREE.MeshBasicMaterial({color:visual.foam,transparent:true,opacity:.55,side:THREE.DoubleSide,depthWrite:false});const foam=new THREE.Mesh(foamGeo,foamMat);foam.position.y=waterY+.046;foam.renderOrder=-4;group.add(foam)}
+
+  const officialGeo=waterBodyPlaneUvWorld(geo.clone(),{id,cxTiles:cx,czTiles:cz});
+  const shoreline=coastWaterBodyShoreline(id,coast,waterY,renderBounds);
+  const body=createOfficialWaterBody({
+    id:`coast:${id}`,parent:group,geometry:officialGeo,
+    position:new THREE.Vector3(wt(cx),waterY+.030,wt(cz)),rotationX:-Math.PI/2,alphaMap:coastMask,
+    shorelines:shoreline?[shoreline]:[],
+    isWaterAt:(x,z)=>coastLocalDistance(id,x/TILE,z/TILE)<0,
+    water:{opacity:.92,scrollSpeed:{x:.006,y:.003}},
+    foam:{width:TILE*.36,outerWidth:TILE*.30,innerWidth:TILE*.06,opacity:.86,scrollSpeed:.018}
+  });
+  group.userData.waterBody=body;
   return group;
 }
 
