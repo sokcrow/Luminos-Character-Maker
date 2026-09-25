@@ -851,7 +851,7 @@ addEventListener('unhandledrejection',e=>{
 window.setLoadProgress?.(8,'Preparando motor','Cargando Three.js…');
 let THREE;
 let createRepositoryWorldFloorTextureRuntime, worldFloorRepeatForTiles;
-let TERRAIN_SLOPE_STANDARD, terrainSlopeBand, resolveTerrainMoveMultiplier;
+let TERRAIN_SLOPE_STANDARD, terrainSlopeBand, resolveTerrainSlopeSlide, resolveTerrainMoveMultiplier;
 let terrainSurfaceTierForSlope, terrainSurfaceMaterialKinds;
 let createWaterBodySystem, extractFieldShorelines, waterCurrentImmersionFactor;
 let createWaterInteractionSystem;
@@ -862,7 +862,7 @@ try {
 
   ({ createRepositoryWorldFloorTextureRuntime, worldFloorRepeatForTiles } =
     await import('../../src/world/WorldFloorTextures.js'));
-  ({ TERRAIN_SLOPE_STANDARD, terrainSlopeBand, resolveTerrainMoveMultiplier } =
+  ({ TERRAIN_SLOPE_STANDARD, terrainSlopeBand, resolveTerrainSlopeSlide, resolveTerrainMoveMultiplier } =
     await import('../../src/world/TerrainMobility.js'));
   ({ terrainSurfaceTierForSlope, terrainSurfaceMaterialKinds } =
     await import('../../src/world/TerrainSurfaceStandard.js'));
@@ -10989,18 +10989,63 @@ const UnitMovementSystem=Object.freeze({
     // Cinematics/transitions may move unit.group directly. The common physics pipeline
     // must not add residual controller velocity on top of that scripted displacement.
     if((Number(s.movement.scriptedLockDepth)||0)>0){haltUnitHorizontalMotion(unit);return 0;}
-    const terrain=unitTerrainSpeedMultiplier(unit);s.movement.speedFactor=terrain;
+
     let ix=Number(intent.moveX)||0,iz=Number(intent.moveZ)||0,mag=Math.hypot(ix,iz);
     if(mag>1){ix/=mag;iz/=mag;mag=1;}
+
+    // A >maxWalkDeg natural slope remains forbidden as normal uphill walking, but it
+    // must never become a zero-speed trap. Once grounded on one, resolve motion into
+    // the local downhill tangent and allow only limited lateral steering.
+    const g=unit.group;
+    const slopeField=elevationSlopeAtWorld(g.position.x,g.position.z,mapId);
+    const slopeSlide=resolveTerrainSlopeSlide({
+      slopeDeg:slopeField.angleDeg,hx:slopeField.hx,hz:slopeField.hz,
+      locomotion:locomotionModeAt(g.position.x,g.position.z)
+    },NATURAL_SLOPE_RULES);
+    const terrain=slopeSlide.active?slopeSlide.speedMultiplier:unitTerrainSpeedMultiplier(unit);
+    s.movement.speedFactor=terrain;
+
     const rawSpeed=(s.locomotion==='swim'&&Number.isFinite(Number(unit.stats?.swimSpeed)))?Number(unit.stats.swimSpeed):unitStat(unit,'speed',PLAYER_MOVE_SPEED);
     const runMul=intent.wantsRun&&unit.capabilities?.run!==false?Math.max(1,unitStat(unit,'runMultiplier',1.35)):1;
-    const speedScale=Math.max(0,Number(intent.speedScale)||1),speed=rawSpeed*terrain*runMul*speedScale;
+    const speedScale=Math.max(0,Number(intent.speedScale)||1);
     s.movement.desiredX=ix;s.movement.desiredZ=iz;s.movement.speedScale=speedScale;
-    const moving=mag>.02&&unit.capabilities?.walk!==false&&!unit.capabilities?.anchored;
-    const response=moving?Number(unit.physics?.movement?.responseMove||11.5):Number(unit.physics?.movement?.responseStop||15.5);
-    const k=1-Math.exp(-dt*response),targetX=moving?ix*speed:0,targetZ=moving?iz*speed:0;
+
+    let moving=mag>.02&&unit.capabilities?.walk!==false&&!unit.capabilities?.anchored;
+    let response,targetX,targetZ;
+
+    if(slopeSlide.active&&unit.capabilities?.walk!==false&&!unit.capabilities?.anchored){
+      let lateralX=0,lateralZ=0;
+      if(mag>.02){
+        const downhillDot=ix*slopeSlide.downhillX+iz*slopeSlide.downhillZ;
+        // Remove uphill/downhill input from steering; downhill gravity remains authoritative.
+        // The remaining tangent component lets the player steer across the face without
+        // ever cancelling the escape slide or turning it back into climbable terrain.
+        lateralX=ix-slopeSlide.downhillX*downhillDot;
+        lateralZ=iz-slopeSlide.downhillZ*downhillDot;
+        const lateralLen=Math.hypot(lateralX,lateralZ);
+        if(lateralLen>1e-5){lateralX/=Math.max(1,lateralLen);lateralZ/=Math.max(1,lateralLen);}
+      }
+      let dirX=slopeSlide.downhillX+lateralX*slopeSlide.steer;
+      let dirZ=slopeSlide.downhillZ+lateralZ*slopeSlide.steer;
+      const dirLen=Math.hypot(dirX,dirZ)||1;dirX/=dirLen;dirZ/=dirLen;
+      const steep01=THREE.MathUtils.clamp((slopeSlide.slopeDeg-NATURAL_SLOPE_RULES.maxWalkDeg)/Math.max(1,78-NATURAL_SLOPE_RULES.maxWalkDeg),0,1);
+      const slideSpeed=rawSpeed*slopeSlide.speedMultiplier*(.92+steep01*.34)*speedScale;
+      targetX=dirX*slideSpeed;targetZ=dirZ*slideSpeed;
+      response=slopeSlide.response;
+      moving=true;
+      s.movement.slopeSliding=true;
+      s.movement.slopeSlideAngle=slopeSlide.slopeDeg;
+      s.movement.slopeSlideX=dirX;s.movement.slopeSlideZ=dirZ;
+    }else{
+      const speed=rawSpeed*terrain*runMul*speedScale;
+      response=moving?Number(unit.physics?.movement?.responseMove||11.5):Number(unit.physics?.movement?.responseStop||15.5);
+      targetX=moving?ix*speed:0;targetZ=moving?iz*speed:0;
+      s.movement.slopeSliding=false;s.movement.slopeSlideAngle=0;s.movement.slopeSlideX=0;s.movement.slopeSlideZ=0;
+    }
+
+    const k=1-Math.exp(-dt*response);
     s.velocity.x=THREE.MathUtils.lerp(s.velocity.x,targetX,k);s.velocity.z=THREE.MathUtils.lerp(s.velocity.z,targetZ,k);
-    if(!moving&&Math.hypot(s.velocity.x,s.velocity.z)<.035){s.velocity.x=0;s.velocity.z=0;}
+    if(!moving&&!s.movement.slopeSliding&&Math.hypot(s.velocity.x,s.velocity.z)<.035){s.velocity.x=0;s.velocity.z=0;}
     const moved=moveUnitBy(unit,s.velocity.x*dt,s.velocity.z*dt);
     if(moved>.0001&&unit.capabilities?.faceMovement!==false){
       const camRight=new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion).setY(0);if(camRight.lengthSq()<1e-5)camRight.set(1,0,0);else camRight.normalize();
