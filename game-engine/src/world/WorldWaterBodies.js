@@ -154,7 +154,29 @@ export function createWorldWaterTextureCache({THREE,baseUrl=import.meta.url,rend
   return Object.freeze({load,texture:(p,k='water')=>tasks.get(k+':'+p)?.texture||null,status:(p,k='water')=>Object.freeze({path:p,kind:k,status:tasks.get(k+':'+p)?.status||'idle'}),dispose:()=>{for(const t of tasks.values())t.texture?.dispose?.();tasks.clear()}});
 }
 function installUvScroll(mat,uniforms,key){mat.onBeforeCompile=shader=>{shader.uniforms.luminousUvOffset=uniforms.uvOffset;shader.uniforms.luminousUvScale=uniforms.uvScale;shader.uniforms.luminousUvBase=uniforms.uvBase;shader.vertexShader=shader.vertexShader.replace('#include <uv_pars_vertex>','#include <uv_pars_vertex>\\nuniform vec2 luminousUvOffset; uniform vec2 luminousUvScale; uniform vec2 luminousUvBase;').replace('#include <map_vertex>','#include <map_vertex>\\n#ifdef USE_MAP\\n vMapUv = vMapUv * luminousUvScale + luminousUvBase + luminousUvOffset;\\n#endif')};mat.customProgramCacheKey=()=>key}
-function waterMaterial(THREE,cfg){const uniforms={uvOffset:{value:new THREE.Vector2(0,0)},uvScale:{value:new THREE.Vector2(1,1)},uvBase:{value:new THREE.Vector2(0,0)}},material=new THREE.MeshStandardMaterial({color:cfg.color,map:null,roughness:cfg.roughness,metalness:cfg.metalness,transparent:true,opacity:cfg.opacity,alphaTest:.001,side:THREE.DoubleSide,depthWrite:true,depthTest:true});installUvScroll(material,uniforms,'luminous-water-v3-alpha');material.userData.luminousWaterUniforms=uniforms;return{material,uniforms}}
+function waterMaterial(THREE,cfg){
+  const detail=cfg.detail||{},detailEnabled=detail.enabled===true;
+  const baseTile=Math.max(.01,finite(cfg.tileWorldSize,3)),detailTile=Math.max(.01,finite(detail.tileWorldSize,baseTile*2));
+  const uniforms={
+    uvOffset:{value:new THREE.Vector2(0,0)},uvScale:{value:new THREE.Vector2(1,1)},uvBase:{value:new THREE.Vector2(0,0)},
+    detailOffset:{value:new THREE.Vector2(0,0)},detailScale:{value:new THREE.Vector2(baseTile/detailTile,baseTile/detailTile)},detailOpacity:{value:clamp(detail.opacity??.18,0,.45)}
+  };
+  const material=new THREE.MeshStandardMaterial({color:cfg.color,map:null,roughness:cfg.roughness,metalness:cfg.metalness,transparent:true,opacity:cfg.opacity,alphaTest:.001,side:THREE.DoubleSide,depthWrite:true,depthTest:true});
+  installUvScroll(material,uniforms,'luminous-water-v4-calm-detail-'+(detailEnabled?'1':'0'));
+  if(detailEnabled){
+    const previous=material.onBeforeCompile;
+    material.onBeforeCompile=shader=>{
+      previous(shader);
+      shader.uniforms.luminousDetailOffset=uniforms.detailOffset;
+      shader.uniforms.luminousDetailScale=uniforms.detailScale;
+      shader.uniforms.luminousDetailOpacity=uniforms.detailOpacity;
+      shader.fragmentShader=shader.fragmentShader
+        .replace('#include <map_pars_fragment>','#include <map_pars_fragment>\nuniform vec2 luminousDetailOffset; uniform vec2 luminousDetailScale; uniform float luminousDetailOpacity;')
+        .replace('#include <map_fragment>','#include <map_fragment>\n#ifdef USE_MAP\n vec4 luminousDetailTexel=texture2D(map,vMapUv*luminousDetailScale+luminousDetailOffset);\n float luminousDetailLuma=dot(luminousDetailTexel.rgb,vec3(0.299,0.587,0.114));\n diffuseColor.rgb*=mix(1.0,mix(0.90,1.08,luminousDetailLuma),luminousDetailOpacity);\n#endif');
+    };
+  }
+  material.userData.luminousWaterUniforms=uniforms;return{material,uniforms}
+}
 function foamMaterial(THREE,cfg){const uniforms={uvOffset:{value:new THREE.Vector2(0,0)},time:{value:0},pulseAmplitude:{value:cfg.pulseAmplitude},pulseSpeed:{value:cfg.pulseSpeed},pulseFrequency:{value:cfg.pulseFrequency}},material=new THREE.MeshBasicMaterial({color:0xffffff,map:null,transparent:true,opacity:0,alphaTest:.001,side:THREE.DoubleSide,depthWrite:false,depthTest:true});material.userData.luminousTargetOpacity=cfg.opacity;
   material.onBeforeCompile=shader=>{Object.assign(shader.uniforms,{luminousUvOffset:uniforms.uvOffset,luminousFoamTime:uniforms.time,luminousFoamPulseAmplitude:uniforms.pulseAmplitude,luminousFoamPulseSpeed:uniforms.pulseSpeed,luminousFoamPulseFrequency:uniforms.pulseFrequency});
     shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\\nattribute vec2 luminousFoamNormal; attribute float luminousFoamAlong; uniform float luminousFoamTime; uniform float luminousFoamPulseAmplitude; uniform float luminousFoamPulseSpeed; uniform float luminousFoamPulseFrequency;')
@@ -180,7 +202,7 @@ export function createWorldWaterBodyRuntime({THREE,renderer=null,baseUrl=import.
     if(config.foam.enabled){const shores=Array.isArray(opt.shorelines)?opt.shorelines:(opt.shoreline?[opt.shoreline]:[]);for(let i=0;i<shores.length;i++){const raw=shores[i],desc=Array.isArray(raw)?{points:raw}:raw,data=buildShoreFoamRibbonData(desc.points,{...config.foam,id:id+':'+i,waterY:desc.waterY??opt.waterY??0,closed:desc.closed!==false,waterSide:desc.waterSide||opt.waterSide||'inside',isWaterAt:desc.isWaterAt||opt.isWaterAt}),geo=ribbonGeometry(THREE,data),kit=foamMaterial(THREE,config.foam),mesh=new THREE.Mesh(geo,kit.material);
       mesh.name=id+':shore-foam:'+i;mesh.renderOrder=finite(opt.foamRenderOrder,40);mesh.userData.luminousWaterBodyId=id;mesh.userData.luminousShoreFoam=true;mesh.userData.shorelineLength=data.totalLength;mesh.userData.foamRepeats=data.repeats;group.add(mesh);rec.foamMeshes.push(mesh);rec.foamUniforms.push(kit.uniforms);rec.promises.push(attach(rec,'foam',config.foam.texture,kit.material));const dbg=debugGroup(THREE,data,config.foam.width);dbg.visible=debugVisible;group.add(dbg);rec.debugGroups.push(dbg)}}
     rec.ready=()=>Promise.all(rec.promises).then(()=>rec);rec.setDebugVisible=v=>{for(const d of rec.debugGroups)d.visible=!!v};rec.dispose=()=>{if(rec.disposed)return false;rec.disposed=true;disposeObject(group);bodies.delete(id);return true};bodies.set(id,rec);return rec}
-  function update(dt){const step=Math.max(0,Math.min(.1,finite(dt)));elapsed+=step;for(const rec of bodies.values()){const s=rec.config.water.scrollSpeed;if(rec.surfaceUniforms){rec.surfaceUniforms.uvOffset.value.x+=s.x*step;rec.surfaceUniforms.uvOffset.value.y+=s.y*step}for(const u of rec.foamUniforms){u.time.value=elapsed;u.uvOffset.value.x+=rec.config.foam.scrollSpeed*step}}}
+  function update(dt){const step=Math.max(0,Math.min(.1,finite(dt)));elapsed+=step;for(const rec of bodies.values()){const s=rec.config.water.scrollSpeed;if(rec.surfaceUniforms){rec.surfaceUniforms.uvOffset.value.x+=s.x*step;rec.surfaceUniforms.uvOffset.value.y+=s.y*step;const ds=rec.config.water.detail?.scrollSpeed;if(rec.config.water.detail?.enabled&&ds){rec.surfaceUniforms.detailOffset.value.x+=ds.x*step;rec.surfaceUniforms.detailOffset.value.y+=ds.y*step}}for(const u of rec.foamUniforms){u.time.value=elapsed;u.uvOffset.value.x+=rec.config.foam.scrollSpeed*step}}}
   function setDebug(o={}){if('showShoreFoamRibbon'in o)debugVisible=!!o.showShoreFoamRibbon;for(const r of bodies.values())r.setDebugVisible(debugVisible);return Object.freeze({showShoreFoamRibbon:debugVisible})}
   return Object.freeze({mode:'repository-local',assets:WORLD_WATER_ASSETS,textures,createWaterBody,removeWaterBody:id=>bodies.get(String(id))?.dispose?.()||false,getWaterBody:id=>bodies.get(String(id))||null,update,setDebug,status:()=>Object.freeze({bodyCount:bodies.size,showShoreFoamRibbon:debugVisible,elapsed,assetMode:'repository-local'}),dispose:()=>{for(const r of [...bodies.values()])r.dispose();textures.dispose()}});
 }
