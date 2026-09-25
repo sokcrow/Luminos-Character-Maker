@@ -1,0 +1,45 @@
+name: One-shot vendor muffin icons
+
+on:
+  push:
+    branches:
+      - lab-preview
+    paths:
+      - ".github/workflows/vendor-muffin-icons-once.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  vendor:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout lab-preview
+        uses: actions/checkout@v4
+        with:
+          ref: lab-preview
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Vendor muffin PNGs and update catalogs
+        run: node scripts/vendor-muffin-icons-once.mjs
+
+      - name: Validate item icon registry
+        run: node tests/item-icon-registry-smoke.cjs
+
+      - name: Validate local item assets
+        run: node tests/item-icon-assets-smoke.cjs
+
+      - name: Remove one-shot tooling and commit result
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/vendor-muffin-icons-once.yml scripts/vendor-muffin-icons-once.mjs
+          git add -A
+          git commit -m "feat(items): vendor muffin icon family"
+          git push origin HEAD:lab-preview
