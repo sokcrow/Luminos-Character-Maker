@@ -5164,72 +5164,73 @@ function coastWaterMaskTextureForSector(id,bounds,resolution=256){
   const tex=new THREE.CanvasTexture(c);tex.wrapS=tex.wrapT=THREE.ClampToEdgeWrapping;tex.magFilter=THREE.LinearFilter;tex.minFilter=THREE.LinearMipmapLinearFilter;tex.needsUpdate=true;
   return tex;
 }
+function proceduralWaterShorelineDescriptors(id,bounds,{minLengthTiles=2,maxContours=24,simplifyTiles=.055}={}){
+  const worldBounds={x0:wt(bounds.x0),x1:wt(bounds.x1),z0:wt(bounds.z0),z1:wt(bounds.z1)};
+  const isWaterAt=(x,z)=>!!proceduralHydrologySample(id,x/TILE,z/TILE).water;
+  const contours=traceWaterShorelinesFromSampler({
+    bounds:worldBounds,
+    isWaterAt,
+    columns:DISPLAY_DEVICE_MOBILE?40:72,
+    rows:DISPLAY_DEVICE_MOBILE?40:72,
+    refineSteps:4,
+    stitchTolerance:wt(.06),
+    minLength:wt(minLengthTiles),
+    maxContours,
+    simplifyTolerance:wt(simplifyTiles)
+  });
+  return contours.map(contour=>({points:contour.points,closed:contour.closed,isWaterAt}));
+}
+
 function buildProceduralCoastVisual(g,id=mapId){
   const coast=proceduralCoastAtSector(id);if(!coast)return null;
-  const region=activeProceduralZone.region,visual=region.surfaceStyle||SURFACE_VISUAL_PROFILES.temperate;
-  const presetName=region.biomeProfile==='arctic'?'arctic':(region.biomeProfile==='swamp'?'swamp':'ocean');
-  const deepTint=new THREE.Color(visual.waterBase).multiplyScalar(.58).getHex();
-  const coastVisualMaxDepth=COAST_TERRAIN_RULES.shorelineSubmergeTiles+COAST_TERRAIN_RULES.maxSubmergedDepthTiles;
-  const toonKit=window.PaperFX?.toonWaterAvailable?window.PaperFX?.waterPreset?.(presetName,{
-    deepColor:deepTint,shallowColor:visual.waterBase,crestColor:visual.waveA,foamColor:visual.foam,
-    // El rango cromático coincide con la profundidad REAL del fondo costero; así el
-    // color oscuro sí llega a aparecer y las cuatro bandas son legibles.
-    maxDepth:coastVisualMaxDepth,coast:{enabled:true,foamWidth:2.5,clipLandMargin:.075},reactive:true
-  }):null;
-  const legacyKit=!toonKit?(window.PaperFX?.createWater?.({baseColor:visual.waterBase,waves:['wavesA','wavesB'],foam:'foam',waveColors:[visual.waveA,visual.waveB],foamColor:visual.foam})||null):null;
-  const waterY=tileY(coast.waterSurfaceTiles),group=new THREE.Group();group.name='procedural-coast';g.add(group);
-  const sector=OVERWORLD_PLAN[id]||{gx:0,gz:0};
-
-  if(toonKit){
-    // Una sola superficie visual continua por sector. El grid hidrológico sigue siendo
-    // semántico para navegación, pero ya no genera rectángulos/mallas visibles separadas.
-    const mapDef=MAP_DATA.maps[id]||currentMapDef(),bounds=mapDef?.bounds||{x0:-OVERWORLD_HALF,x1:OVERWORLD_HALF,z0:-OVERWORLD_HALF,z1:OVERWORLD_HALF};
-    // El plano puede sobrepasar el diorama; el signed coast field descarta la parte terrestre.
-    // Esto evita que una transición acuática revele el borde rectangular del agua.
-    const waterMargin=3.25,renderBounds={x0:bounds.x0-waterMargin,x1:bounds.x1+waterMargin,z0:bounds.z0-waterMargin,z1:bounds.z1+waterMargin};
-    const tilesW=renderBounds.x1-renderBounds.x0,tilesD=renderBounds.z1-renderBounds.z0,cxTiles=(renderBounds.x0+renderBounds.x1)*.5,czTiles=(renderBounds.z0+renderBounds.z1)*.5;
-    const segX=Math.min(56,Math.max(32,Math.ceil(tilesW*1.2))),segZ=Math.min(56,Math.max(32,Math.ceil(tilesD*1.2)));
-    const geo=new THREE.PlaneGeometry(wt(tilesW),wt(tilesD),segX,segZ),pos=geo.attributes.position,uv=geo.attributes.uv;
-    for(let i=0;i<pos.count;i++){
-      const tx=cxTiles+pos.getX(i)/TILE,tz=czTiles-pos.getY(i)/TILE;
-      uv.setXY(i,(sector.gx*OVERWORLD_SECTOR_SIZE+tx)/OVERWORLD_SECTOR_SIZE,(sector.gz*OVERWORLD_SECTOR_SIZE+tz)/OVERWORLD_SECTOR_SIZE);
-    }
-    uv.needsUpdate=true;
-    toonKit.prepareGeometry(geo,{sample:({x,y})=>{
-      const tx=cxTiles+x/TILE,tz=czTiles-y/TILE,dCoast=coastLocalDistance(id,tx,tz);
-      const hydro=proceduralHydrologySample(id,tx,tz);
-      return {waterDepth:Math.max(0,Number(hydro.waterDepth)||0),distanceToCoast:Math.max(0,-dCoast),signedDistanceToCoast:dCoast,valid:true};
-    },defaultDepth:.12,defaultCoastDistance:999,defaultSignedCoastDistance:-999});
-    const water=new THREE.Mesh(geo,toonKit.material);water.rotation.x=-Math.PI/2;water.position.set(wt(cxTiles),waterY+.018,wt(czTiles));water.receiveShadow=true;water.userData.paperFXWaterSurface=true;
-    // 0.3.2-68 · La silueta del agua sale del MISMO campo continuo de BiomeComposer,
-    // evaluado por fragmento. El grid sólo sigue existiendo para locomoción/colisión.
-    const coastField={
-      originX:sector.gx*OVERWORLD_SECTOR_SIZE,originZ:sector.gz*OVERWORLD_SECTOR_SIZE,
-      nx:coast.nx,nz:coast.nz,tx:coast.tx,tz:coast.tz,offset:coast.offset,landSign:coast.landSign,
-      ampA:coast.ampA,ampB:coast.ampB,freqA:coast.freqA,freqB:coast.freqB,phaseA:coast.phaseA,phaseB:coast.phaseB,
-      invTile:1/TILE
-    };
-    water.userData.paperFXCoastField=coastField;
-    water.onBeforeRender=()=>toonKit.setCoastField?.(coastField);
-    water.onAfterRender=()=>toonKit.setCoastField?.(null);
-    group.add(water);
-    group.userData.paperFXWaterMesh=water;
-    return group;
-  }
-
-  // Fallback legacy: también usa UNA sola superficie continua. Aunque ToonWater se
-  // desactive, la silueta visual nunca vuelve a los rectángulos de navegación.
   const mapDef=MAP_DATA.maps[id]||currentMapDef(),bounds=mapDef?.bounds||{x0:-OVERWORLD_HALF,x1:OVERWORLD_HALF,z0:-OVERWORLD_HALF,z1:OVERWORLD_HALF};
   const waterMargin=3.25,renderBounds={x0:bounds.x0-waterMargin,x1:bounds.x1+waterMargin,z0:bounds.z0-waterMargin,z1:bounds.z1+waterMargin};
   const tilesW=renderBounds.x1-renderBounds.x0,tilesD=renderBounds.z1-renderBounds.z0,cx=(renderBounds.x0+renderBounds.x1)*.5,cz=(renderBounds.z0+renderBounds.z1)*.5;
-  const coastMask=coastWaterMaskTextureForSector(id,renderBounds,256);
-  const sourceMat=legacyKit?.baseMaterial||new THREE.MeshStandardMaterial({color:visual.waterBase,roughness:.36,side:THREE.DoubleSide});
-  const baseMat=sourceMat.clone();
-  baseMat.transparent=true;baseMat.alphaMap=coastMask;baseMat.alphaTest=.015;baseMat.depthWrite=true;baseMat.side=THREE.DoubleSide;baseMat.needsUpdate=true;
+  const waterY=tileY(coast.waterSurfaceTiles),tileWorldSize=wt(2.20);
+  const mask=coastWaterMaskTextureForSector(id,renderBounds,DISPLAY_DEVICE_MOBILE?128:256);
+  const group=new THREE.Group();group.name='procedural-coast';g.add(group);
   const geo=new THREE.PlaneGeometry(wt(tilesW),wt(tilesD),1,1);
-  const base=new THREE.Mesh(geo,baseMat);base.rotation.x=-Math.PI/2;base.position.set(wt(cx),waterY+.018,wt(cz));base.receiveShadow=true;group.add(base);
-  const foamGeo=coastBandGeometryForSector(id,coast,-.16,.18);
-  if(foamGeo){const foamMat=legacyKit?.foamMaterial||new THREE.MeshBasicMaterial({color:visual.foam,transparent:true,opacity:.55,side:THREE.DoubleSide,depthWrite:false});const foam=new THREE.Mesh(foamGeo,foamMat);foam.position.y=waterY+.046;foam.renderOrder=-4;group.add(foam)}
+  const shorelines=proceduralWaterShorelineDescriptors(id,renderBounds,{minLengthTiles:3,maxContours:12,simplifyTiles:.045});
+  const body=registerMapWaterBody(worldWaterRuntime.createWaterBody({
+    id:`procedural-coast-${id}-${mapWaterBodies.length}`,
+    parent:group,
+    surfaceGeometry:geo,
+    surfaceRotationX:-Math.PI/2,
+    waterY:waterY+.018,
+    generateWaterUVs:false,
+    surfaceUvScale:{x:wt(tilesW)/tileWorldSize,y:wt(tilesD)/tileWorldSize},
+    shorelines,
+    water:{
+      tileWorldSize,
+      scrollSpeed:{x:.010,y:.004},
+      color:0xffffff,
+      roughness:.38,
+      metalness:0
+    },
+    foam:{
+      enabled:true,
+      width:wt(.46),
+      landWidthRatio:.22,
+      tileWorldLength:wt(1.70),
+      scrollSpeed:.022,
+      pulseAmplitude:wt(.016),
+      pulseSpeed:1.30,
+      pulseFrequency:.34,
+      widthVariation:.09,
+      opacity:.90
+    }
+  }));
+  const water=body.surface;
+  water.position.set(wt(cx),waterY+.018,wt(cz));
+  water.material.alphaMap=mask;
+  water.material.alphaTest=.015;
+  water.material.transparent=true;
+  water.material.depthWrite=true;
+  water.material.needsUpdate=true;
+  water.userData.luminousOwnedTextures=[mask];
+  water.userData.paperFXWaterSurface=true;
+  group.userData.paperFXWaterMesh=water;
+  group.userData.luminousWaterBody=body;
   return group;
 }
 
@@ -5361,36 +5362,63 @@ function buildProceduralInlandWaterVisual(g,id=mapId){
   const mapDef=MAP_DATA.maps[id]||currentMapDef(),bounds=mapDef?.bounds||{x0:-OVERWORLD_HALF,x1:OVERWORLD_HALF,z0:-OVERWORLD_HALF,z1:OVERWORLD_HALF};
   const maskResolution=DISPLAY_DEVICE_MOBILE?96:128;
   const mask=inlandHydrologyWaterMaskTextureForSector(id,bounds,maskResolution);if(!mask)return null;
-  const kit=window.PaperFX?.createWater?.({
-    baseColor:profile.baseColor,waves:['wavesA','wavesB'],foam:'foam',
-    waveColors:[profile.detailA,profile.detailB],foamColor:profile.foam,uv:profile.uv
-  })||null;
-  const sourceMat=kit?.baseMaterial||new THREE.MeshStandardMaterial({color:profile.baseColor,roughness:.31,side:THREE.DoubleSide});
-  const mat=sourceMat.clone();mat.color.setHex(profile.baseColor);mat.transparent=true;mat.alphaMap=mask;mat.alphaTest=.018;mat.depthWrite=true;mat.side=THREE.DoubleSide;mat.opacity=profile.opacity;mat.roughness=hydro.type==='river'?.28:.38;mat.needsUpdate=true;
   const w=bounds.x1-bounds.x0,d=bounds.z1-bounds.z0,cx=(bounds.x0+bounds.x1)*.5,cz=(bounds.z0+bounds.z1)*.5;
-  const geo=new THREE.PlaneGeometry(wt(w),wt(d),1,1);
   const field=hydro.river||hydro.lake||hydro;
   const waterTiles=Number.isFinite(field.waterSurfaceTiles)?field.waterSurfaceTiles:(Number.isFinite(hydro.waterTableTiles)?hydro.waterTableTiles:region.altitude-.2);
   const baseY=tileY(waterTiles)+.024;
-  const mesh=new THREE.Mesh(geo,mat);mesh.rotation.x=-Math.PI/2;mesh.position.set(wt(cx),baseY,wt(cz));mesh.receiveShadow=true;mesh.renderOrder=-4;
-  mesh.userData.paperFXWaterSurface=true;mesh.userData.proceduralHydrologyType=hydro.type;mesh.userData.waterVisualClass=profile.id;
-
-  const group=new THREE.Group();group.name=`procedural-${hydro.type}-water`;group.userData.waterVisualClass=profile.id;group.add(mesh);
-  const addDetail=(texture,color,opacity,y,order)=>{
-    if(!texture)return null;
-    const detailMat=new THREE.MeshBasicMaterial({map:texture,alphaMap:mask,color,transparent:true,opacity,side:THREE.DoubleSide,depthWrite:false,depthTest:true,blending:THREE.AdditiveBlending});
-    const detail=new THREE.Mesh(geo,detailMat);detail.rotation.x=-Math.PI/2;detail.position.set(wt(cx),baseY+y,wt(cz));detail.renderOrder=order;detail.userData.waterVisualClass=profile.id;group.add(detail);return detail;
-  };
-  const detailA=addDetail(kit?.textures?.waves?.[0],profile.detailA,hydro.type==='river'?.34:.24,.010,-2);
-  const detailB=!DISPLAY_DEVICE_MOBILE?addDetail(kit?.textures?.waves?.[1],profile.detailB,hydro.type==='river'?.22:.16,.016,-1):null;
-  const foam=null;
+  const tileWorldSize=wt(hydro.type==='river'?1.65:(hydro.type==='lake'?2.35:1.85));
+  const geo=new THREE.PlaneGeometry(wt(w),wt(d),1,1);
+  const shorelines=proceduralWaterShorelineDescriptors(id,bounds,{minLengthTiles:hydro.type==='wetland'?1.1:1.8,maxContours:hydro.type==='wetland'?24:12,simplifyTiles:.045});
+  const group=new THREE.Group();group.name=`procedural-${hydro.type}-water`;group.userData.waterVisualClass=profile.id;g.add(group);
+  const body=registerMapWaterBody(worldWaterRuntime.createWaterBody({
+    id:`procedural-${hydro.type}-${id}-${mapWaterBodies.length}`,
+    parent:group,
+    surfaceGeometry:geo,
+    surfaceRotationX:-Math.PI/2,
+    waterY:baseY,
+    generateWaterUVs:false,
+    surfaceUvScale:{x:wt(w)/tileWorldSize,y:wt(d)/tileWorldSize},
+    shorelines,
+    water:{
+      tileWorldSize,
+      scrollSpeed:hydro.type==='river'?{x:.032,y:.004}:{x:.009,y:.005},
+      color:0xffffff,
+      roughness:hydro.type==='river'?.30:.40,
+      metalness:0,
+      opacity:profile.opacity
+    },
+    foam:{
+      enabled:true,
+      width:wt(hydro.type==='river'?.32:(hydro.type==='lake'?.38:.27)),
+      landWidthRatio:.22,
+      tileWorldLength:wt(hydro.type==='river'?1.35:(hydro.type==='lake'?1.80:1.25)),
+      scrollSpeed:hydro.type==='river'?.030:.016,
+      pulseAmplitude:wt(.014),
+      pulseSpeed:hydro.type==='river'?1.55:1.05,
+      pulseFrequency:hydro.type==='river'?.42:.30,
+      widthVariation:.085,
+      opacity:hydro.type==='wetland'?.70:.88
+    }
+  }));
+  const mesh=body.surface;
+  mesh.position.set(wt(cx),baseY,wt(cz));
+  mesh.material.alphaMap=mask;
+  mesh.material.alphaTest=.018;
+  mesh.material.transparent=true;
+  mesh.material.depthWrite=true;
+  mesh.material.needsUpdate=true;
+  mesh.userData.luminousOwnedTextures=[mask];
+  mesh.userData.paperFXWaterSurface=true;
+  mesh.userData.proceduralHydrologyType=hydro.type;
+  mesh.userData.waterVisualClass=profile.id;
   const riverLayers=hydro.type==='river'&&hydro.river?[
     buildRiverBankVisual(group,id,hydro.river,profile,bounds),
-    buildRiverEdgeFoamVisual(group,id,hydro.river,profile,bounds,baseY),
     buildRiverFlowStreaks(group,id,hydro.river,profile,bounds,baseY)
   ].filter(Boolean):[];
-  group.userData.paperFXWaterMesh=mesh;group.userData.waterDetailLayers=[detailA,detailB,foam].filter(Boolean);
-  group.userData.riverVisualLayers=riverLayers;g.add(group);
+  group.userData.paperFXWaterMesh=mesh;
+  group.userData.waterDetailLayers=[];
+  group.userData.riverVisualLayers=riverLayers;
+  group.userData.luminousWaterBody=body;
   return group;
 }
 
