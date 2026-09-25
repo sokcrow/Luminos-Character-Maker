@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {
   WORLD_WATER_ASSETS,normalizeWaterBodyConfig,resolveWorldWaterTextureUrl,simplifyShoreline,
-  polygonSignedArea,pointInPolygon,buildShoreFoamRibbonData,applyPlanarWorldUVs,createWorldWaterTextureCache,
+  polygonSignedArea,pointInPolygon,buildShoreFoamRibbonData,traceWaterShorelinesFromSampler,applyPlanarWorldUVs,createWorldWaterTextureCache,
 } from '../src/world/WorldWaterBodies.js';
 
 assert.equal(WORLD_WATER_ASSETS.water,'Assets/Images/World/Water/water_seamless.png');
@@ -38,6 +38,22 @@ assert.ok(islandOuter.x<=0||islandOuter.z<=0,'island outer edge must point into 
 const open=[{x:0,z:0},{x:2,z:0},{x:4,z:0}];
 const openRibbon=buildShoreFoamRibbonData(open,{closed:false,width:1,tileWorldLength:1,widthVariation:0,isWaterAt:(x,z)=>z>0});
 for(let i=0;i<openRibbon.points.length;i++)assert.ok(openRibbon.positions[i*6+5]>openRibbon.points[i].z);
+
+
+const tracedLake=traceWaterShorelinesFromSampler({
+  bounds:{x0:-5,x1:5,z0:-5,z1:5},columns:40,rows:40,refineSteps:4,minLength:4,
+  isWaterAt:(x,z)=>(x*x/9+z*z/4)<1,
+});
+assert.equal(tracedLake.length,1,'ellipse field should trace one closed shoreline');
+assert.equal(tracedLake[0].closed,true);
+assert.ok(tracedLake[0].length>12&&tracedLake[0].length<18);
+
+const tracedRiver=traceWaterShorelinesFromSampler({
+  bounds:{x0:-5,x1:5,z0:-3,z1:3},columns:48,rows:24,refineSteps:3,minLength:3,
+  isWaterAt:(x,z)=>Math.abs(z-Math.sin(x*.7)*.35)<.75,
+});
+assert.ok(tracedRiver.length>=2,'river crossing bounds should expose two bank polylines');
+assert.ok(tracedRiver.some(c=>c.closed===false));
 
 const noisy=[{x:0,z:0},{x:1,z:.001},{x:2,z:0},{x:2,z:2},{x:0,z:2}];
 assert.ok(simplifyShoreline(noisy,.01,{closed:true}).length<noisy.length);
