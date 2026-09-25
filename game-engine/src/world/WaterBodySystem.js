@@ -290,6 +290,7 @@ function makeFoamMaterial(THREE,texture,config){
   const uniforms={
     map:{value:texture},
     uTime:{value:0},
+    uUvOffset:{value:0},
     uPulseAmplitude:{value:Math.max(0,finite(config.pulseAmplitude,.025))},
     uPulseSpeed:{value:finite(config.pulseSpeed,1.4)},
     uPulseFrequency:{value:finite(config.pulseFrequency,1.15)},
@@ -320,9 +321,10 @@ function makeFoamMaterial(THREE,texture,config){
     fragmentShader:`
       uniform sampler2D map;
       uniform float uOpacity;
+      uniform float uUvOffset;
       varying vec2 vUv;
       void main(){
-        vec4 tex=texture2D(map,vUv);
+        vec4 tex=texture2D(map,vec2(vUv.x+uUvOffset,vUv.y));
         float a=tex.a*uOpacity;
         if(a<0.015)discard;
         gl_FragColor=vec4(tex.rgb,a);
@@ -400,11 +402,18 @@ export class WaterBody {
         path:this.water.texture,scrollX:finite(speed.x),scrollY:finite(speed.y),wrapT:THREE.RepeatWrapping,
         repeatX:1/tileWorldSize,repeatY:1/tileWorldSize
       });
+      let alphaMap=null;
+      if(this.surface.alphaMap){
+        alphaMap=this.surface.alphaMap.clone?.()||this.surface.alphaMap;
+        if(alphaMap!==this.surface.alphaMap&&this.surface.alphaMap.image)alphaMap.image=this.surface.alphaMap.image;
+        if('channel' in alphaMap&&this.surface.geometry?.attributes?.uv1)alphaMap.channel=1;
+        alphaMap.needsUpdate=true;
+      }
       const mat=new THREE.MeshStandardMaterial({
-        map:entry.texture,color:this.water.color??0xffffff,transparent:(this.water.opacity??1)<1||!!this.surface.alphaMap,
+        map:entry.texture,color:this.water.color??0xffffff,transparent:(this.water.opacity??1)<1||!!alphaMap,
         opacity:clamp(this.water.opacity??1,0,1),roughness:clamp(this.water.roughness??.42,0,1),
         metalness:clamp(this.water.metalness??.02,0,1),side:THREE.DoubleSide,
-        alphaMap:this.surface.alphaMap||null,alphaTest:this.surface.alphaMap?0.01:0,
+        alphaMap,alphaTest:alphaMap?0.01:0,
         depthWrite:this.surface.depthWrite!==false
       });
       const mesh=new THREE.Mesh(this.surface.geometry,mat);
@@ -446,7 +455,7 @@ export class WaterBody {
         if(!data)continue;
         const geo=createShoreFoamGeometry(THREE,data),mat=makeFoamMaterial(THREE,foamEntry.texture,this.foam);
         const mesh=new THREE.Mesh(geo,mat);mesh.position.y=finite(this.foam.yOffset,.035);mesh.renderOrder=finite(this.foam.renderOrder,4);
-        mesh.userData={shoreFoamRibbon:true,waterBodyId:this.id,shorelineIndex:index};
+        mesh.userData={shoreFoamRibbon:true,waterBodyId:this.id,shorelineIndex:index,foamScrollSpeed:finite(this.foam.scrollSpeed,.02)};
         this.group.add(mesh);this.foamMeshes.push(mesh);
         if(this.debug){
           const dg=createDebugGroup(THREE,data);dg.position.y=mesh.position.y+.01;this.group.add(dg);this.debugGroups.push(dg);
@@ -472,7 +481,7 @@ export class WaterBody {
             const detailMesh=new THREE.Mesh(dg,dm);
             detailMesh.position.y=finite(this.foam.yOffset,.035)+detailCfg.yOffset;
             detailMesh.renderOrder=finite(this.foam.renderOrder,4)+1;
-            detailMesh.userData={shoreFoamRibbon:true,foamDetail:true,waterBodyId:this.id,shorelineIndex:index};
+            detailMesh.userData={shoreFoamRibbon:true,foamDetail:true,waterBodyId:this.id,shorelineIndex:index,foamScrollSpeed:detailCfg.scrollSpeed};
             this.group.add(detailMesh);this.foamMeshes.push(detailMesh);
           }
         }
@@ -488,6 +497,10 @@ export class WaterBody {
   update(dt,time){
     for(const mesh of this.foamMeshes){
       if(mesh.material?.uniforms?.uTime)mesh.material.uniforms.uTime.value=time;
+      if(mesh.material?.uniforms?.uUvOffset){
+        const speed=finite(mesh.userData?.foamScrollSpeed,0);
+        mesh.material.uniforms.uUvOffset.value=(mesh.material.uniforms.uUvOffset.value+speed*dt)%1;
+      }
     }
   }
   dispose(){
