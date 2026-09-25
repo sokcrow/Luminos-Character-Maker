@@ -12,6 +12,11 @@ export const DEFAULT_WATER_CONFIG = Object.freeze({
   opacity: 0.92,
   roughness: 0.42,
   metalness: 0.02,
+  secondLayer: null,
+  distortion: null,
+  flowMap: null,
+  colorVariation: null,
+  depth: null,
 });
 
 export const DEFAULT_FOAM_CONFIG = Object.freeze({
@@ -416,6 +421,20 @@ export class WaterBody {
       const foamEntry=await this.system.textures.variant('foamMain',{
         path:this.foam.texture,scrollX:finite(this.foam.scrollSpeed,.02),scrollY:0,wrapT:THREE.ClampToEdgeWrapping
       });
+      const detailCfg=this.foam.detail?.enabled?{
+        texture:this.foam.detail.texture||WATER_ASSET_PATHS.foamDetail,
+        widthScale:Math.max(.25,finite(this.foam.detail.widthScale,.72)),
+        tileWorldLength:Math.max(.05,finite(this.foam.detail.tileWorldLength,this.foam.tileWorldLength*.72)),
+        scrollSpeed:finite(this.foam.detail.scrollSpeed,-.01),
+        opacity:clamp(this.foam.detail.opacity??Math.max(.08,this.foam.opacity*.42),0,1),
+        yOffset:finite(this.foam.detail.yOffset,.012),
+        pulseAmplitude:Math.max(0,finite(this.foam.detail.pulseAmplitude,this.foam.pulseAmplitude*.62)),
+        pulseSpeed:finite(this.foam.detail.pulseSpeed,this.foam.pulseSpeed*1.12),
+        pulseFrequency:finite(this.foam.detail.pulseFrequency,this.foam.pulseFrequency*1.21)
+      }:null;
+      const detailEntry=detailCfg?await this.system.textures.variant('foamDetail',{
+        path:detailCfg.texture,scrollX:detailCfg.scrollSpeed,scrollY:0,wrapT:THREE.ClampToEdgeWrapping
+      }):null;
       for(let index=0;index<this.shorelines.length;index++){
         const src=this.shorelines[index],line=Array.isArray(src)?src:src?.points,closed=!!src?.closed;
         const data=buildShoreFoamRibbonData({
@@ -432,12 +451,33 @@ export class WaterBody {
         if(this.debug){
           const dg=createDebugGroup(THREE,data);dg.position.y=mesh.position.y+.01;this.group.add(dg);this.debugGroups.push(dg);
         }
+
+        if(detailCfg&&detailEntry){
+          const detailData=buildShoreFoamRibbonData({
+            shoreline:line,isWaterAt:this.isWaterAt,closed,
+            innerWidth:this.foam.innerWidth*detailCfg.widthScale,
+            outerWidth:this.foam.outerWidth*detailCfg.widthScale,
+            baseWidth:this.foam.width*detailCfg.widthScale,
+            widthVariation:this.foam.widthVariation*.72,
+            foamTileWorldLength:detailCfg.tileWorldLength,
+            simplifyTolerance:this.foam.simplifyTolerance,
+            seed:index+this.id.length+91
+          });
+          if(detailData){
+            const dg=createShoreFoamGeometry(THREE,detailData),dm=makeFoamMaterial(THREE,detailEntry.texture,{
+              ...this.foam,...detailCfg,
+              pulseAmplitude:detailCfg.pulseAmplitude,pulseSpeed:detailCfg.pulseSpeed,pulseFrequency:detailCfg.pulseFrequency,
+              opacity:detailCfg.opacity
+            });
+            const detailMesh=new THREE.Mesh(dg,dm);
+            detailMesh.position.y=finite(this.foam.yOffset,.035)+detailCfg.yOffset;
+            detailMesh.renderOrder=finite(this.foam.renderOrder,4)+1;
+            detailMesh.userData={shoreFoamRibbon:true,foamDetail:true,waterBodyId:this.id,shorelineIndex:index};
+            this.group.add(detailMesh);this.foamMeshes.push(detailMesh);
+          }
+        }
       }
-      if(this.foam.detail?.enabled){
-        // Reserved architecture: a second foam layer can reuse the same shoreline with
-        // its own texture scale/speed/opacity/width without changing body geometry.
-        this.group.userData.foamDetailConfig={...this.foam.detail};
-      }
+      if(detailCfg)this.group.userData.foamDetailConfig={...detailCfg};
     }
     return this;
   }
