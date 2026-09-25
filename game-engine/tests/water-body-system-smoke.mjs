@@ -122,6 +122,7 @@ assert.match(moduleSource,/uMaskScale/);
 assert.match(moduleSource,/uMaskWaveAmplitude/);
 assert.match(moduleSource,/vWavePulse/,'foam mask must share the shoreline wave pulse');
 assert.match(moduleSource,/showShoreFoamRibbon/);
+assert.match(moduleSource,/surface\.enabled!==false/,'WaterBody must support foam-only bodies without creating a visible water mesh');
 assert.match(moduleSource,/flowWorldSpeed/);
 assert.match(moduleSource,/patternMask/);
 assert.match(moduleSource,/makePatternMaskWaterMaterial/);
@@ -136,7 +137,9 @@ assert.match(moduleSource,/scrollX:0,scrollY:0,wrapT:THREE\.ClampToEdgeWrapping/
 const lab=await fs.readFile(new URL('../lab/game/forest-0.3.3.1.html',import.meta.url),'utf8');
 assert.match(lab,/createWaterBodySystem/);
 assert.match(lab,/deepSeaColor=0x4169e1/,'deep ocean must use Royal Blue');
-assert.match(lab,/maskScale:1\.42,maskWaveAmplitude:\.10/,'coast foam mask must be enlarged and wave-coupled');
+assert.match(lab,/surface:\{enabled:false\}/,'coast WaterBody must be foam-only so the depth-colored sea remains the sole visible surface');
+assert.match(lab,/tileWorldLength:TILE\*3\.10/,'coast foam texture footprint must be very large');
+assert.match(lab,/maskScale:2\.60,maskWaveAmplitude:\.14/,'coast foam mask must be strongly enlarged and wave-coupled');
 assert.match(lab,/coastWaterBodyShoreline/);
 assert.match(lab,/riverWaterBodyShorelines/);
 assert.match(lab,/fieldWaterBodyShorelines/);
