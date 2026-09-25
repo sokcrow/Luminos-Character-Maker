@@ -15,8 +15,11 @@ export const DEFAULT_WAKE_CONFIG=Object.freeze({
   width:1.4,
   length:5.0,
   maxExtraLength:3.0,
+  minLengthFactor:.22,
   widthMultiplier:1.0,
   widening:1.30,
+  lateralOffsetMultiplier:.82,
+  lateralWidthMultiplier:.38,
   tileWorldLength:2.5,
   scrollSpeed:.25,
   fadeStart:.72,
@@ -46,9 +49,12 @@ export function resolveWakeDimensions(config={},radius=.45,strength=0){
   const extra=Math.max(0,finite(config.maxExtraLength,3));
   const widthBase=Math.max(.03,finite(config.wakeWidth??config.width,1.4));
   const widthMul=Math.max(.05,finite(config.widthMultiplier,1));
+  const maxLength=baseLength+extra;
+  const minLength=Math.max(.10,baseLength*clamp(config.minLengthFactor??.22,.05,.80));
   return {
-    length:Math.min(baseLength+extra,baseLength+extra*s),
-    width:Math.min(r*widthBase*widthMul, r*widthBase*widthMul*(.70+s*.30))
+    // Wake length is a direct visual read of movement/resistance.
+    length:minLength+(maxLength-minLength)*s,
+    width:r*widthBase*widthMul*(.70+s*.30)
   };
 }
 
@@ -86,6 +92,72 @@ export function buildWakeRibbonData(points,{
     progress.push(t,t);
   }
   return {points:pts,positions,uv,progress,left,right,distances,total};
+}
+
+export function trimWakePointsByLength(points,maxLength){
+  const src=(points||[]).map(p=>({x:finite(p.x),y:finite(p.y),z:finite(p.z)}));
+  if(src.length<2)return src;
+  const limit=Math.max(.05,finite(maxLength,.05)),out=[src[0]];
+  let travelled=0;
+  for(let i=1;i<src.length;i++){
+    const a=out.at(-1),b=src[i],seg=Math.hypot(b.x-a.x,b.z-a.z);
+    if(seg<1e-6)continue;
+    if(travelled+seg<=limit+.0001){
+      out.push(b);travelled+=seg;continue;
+    }
+    const remain=Math.max(0,limit-travelled),t=clamp(remain/seg,0,1);
+    out.push({
+      x:a.x+(b.x-a.x)*t,
+      y:a.y+(b.y-a.y)*t,
+      z:a.z+(b.z-a.z)*t
+    });
+    break;
+  }
+  return out;
+}
+
+export function buildDualWakeRibbonData(points,{
+  baseWidth=.5,
+  widening=1.3,
+  tileWorldLength=2.5,
+  lateralOffset=.4,
+  lateralWidthMultiplier=.38
+}={}){
+  const pts=(points||[]).map(p=>({x:finite(p.x),y:finite(p.y),z:finite(p.z)}));
+  if(pts.length<2)return null;
+  const distances=[0];
+  for(let i=1;i<pts.length;i++)distances.push(distances[i-1]+Math.hypot(pts[i].x-pts[i-1].x,pts[i].z-pts[i-1].z));
+  const total=Math.max(.001,distances.at(-1));
+  const positions=[],uv=[],progress=[];
+  const leftOuter=[],leftInner=[],rightInner=[],rightOuter=[];
+  const width0=Math.max(.01,finite(baseWidth,.5));
+  const stripWidth=Math.max(.025,width0*clamp(lateralWidthMultiplier,.12,.80));
+  const offset0=Math.max(stripWidth*.62,finite(lateralOffset,.4));
+  const open=Math.max(.30,finite(widening,1.3)),tile=Math.max(.05,finite(tileWorldLength,2.5));
+  for(let i=0;i<pts.length;i++){
+    const prev=pts[i===0?0:i-1],next=pts[i===pts.length-1?pts.length-1:i+1];
+    let tx=next.x-prev.x,tz=next.z-prev.z,len=Math.hypot(tx,tz);
+    if(len<1e-6){tx=1;tz=0;len=1}
+    tx/=len;tz/=len;
+    const nx=-tz,nz=tx,t=distances[i]/total;
+    const fan=1+(open-1)*t*.72;
+    const tailTaper=1-.18*smooth01((t-.80)/.20);
+    const centerOffset=offset0*fan;
+    const halfStrip=stripWidth*.5*tailTaper;
+    const lo={x:pts[i].x+nx*(centerOffset+halfStrip),y:pts[i].y,z:pts[i].z+nz*(centerOffset+halfStrip)};
+    const li={x:pts[i].x+nx*(centerOffset-halfStrip),y:pts[i].y,z:pts[i].z+nz*(centerOffset-halfStrip)};
+    const ri={x:pts[i].x-nx*(centerOffset-halfStrip),y:pts[i].y,z:pts[i].z-nz*(centerOffset-halfStrip)};
+    const ro={x:pts[i].x-nx*(centerOffset+halfStrip),y:pts[i].y,z:pts[i].z-nz*(centerOffset+halfStrip)};
+    leftOuter.push(lo);leftInner.push(li);rightInner.push(ri);rightOuter.push(ro);
+    positions.push(
+      lo.x,lo.y,lo.z, li.x,li.y,li.z,
+      ri.x,ri.y,ri.z, ro.x,ro.y,ro.z
+    );
+    const u=distances[i]/tile;
+    uv.push(u,0,u,1,u,0,u,1);
+    progress.push(t,t,t,t);
+  }
+  return {points:pts,positions,uv,progress,leftOuter,leftInner,rightInner,rightOuter,distances,total};
 }
 
 export function resolveWakeAssetUrl(assetPath=DEFAULT_WAKE_TEXTURE,baseUrl=import.meta.url){
@@ -153,9 +225,12 @@ function makeWakeMaterial(THREE,texture,config){
       void main(){
         vec4 sampled=texture2D(map,vec2(vUv.x+uUvOffset,vUv.y));
         float tailFade=1.0-smoothstep(uFadeStart,1.0,vTrailProgress);
-        float alpha=sampled.a*tailFade*uOpacity;
+        // Keep the official texture as the foam mask, but render the two wakes white.
+        // This is normal alpha blending: no glow/additive brightening.
+        float foamMask=sampled.a*max(max(sampled.r,sampled.g),sampled.b);
+        float alpha=foamMask*tailFade*uOpacity;
         if(alpha<0.01)discard;
-        gl_FragColor=vec4(sampled.rgb,alpha);
+        gl_FragColor=vec4(vec3(1.0),alpha);
       }
     `
   });
@@ -174,14 +249,21 @@ class WakeTrailInstance {
     this.ensureReady();
   }
   createGeometry(maxPoints){
-    const THREE=this.THREE,maxVerts=maxPoints*2;
+    // Four vertices per center point: two for the left wake and two for the right.
+    const THREE=this.THREE,maxVerts=maxPoints*4;
     const geo=new THREE.BufferGeometry();
     geo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(maxVerts*3),3));
     geo.setAttribute('uv',new THREE.BufferAttribute(new Float32Array(maxVerts*2),2));
     geo.setAttribute('trailProgress',new THREE.BufferAttribute(new Float32Array(maxVerts),1));
-    const idx=new Uint32Array(Math.max(1,maxPoints-1)*6);
+    const idx=new Uint32Array(Math.max(1,maxPoints-1)*12);
     for(let i=0;i<maxPoints-1;i++){
-      const o=i*6,v=i*2;idx[o]=v;idx[o+1]=v+2;idx[o+2]=v+1;idx[o+3]=v+1;idx[o+4]=v+2;idx[o+5]=v+3;
+      const o=i*12,v=i*4,n=v+4;
+      // Left lateral strip.
+      idx[o]=v;idx[o+1]=n;idx[o+2]=v+1;
+      idx[o+3]=v+1;idx[o+4]=n;idx[o+5]=n+1;
+      // Right lateral strip.
+      idx[o+6]=v+2;idx[o+7]=n+2;idx[o+8]=v+3;
+      idx[o+9]=v+3;idx[o+10]=n+2;idx[o+11]=n+3;
     }
     geo.setIndex(new THREE.BufferAttribute(idx,1));geo.setDrawRange(0,0);
     return geo;
@@ -234,7 +316,7 @@ class WakeTrailInstance {
   surfacePoint(body,p){
     return {x:p.x,y:body.getSurfaceHeightAt(p)+finite(this.config.smallOffset,.014),z:p.z};
   }
-  dynamicPoints(body,pos,relative,dt,strength){
+  dynamicPoints(body,pos,relative,dt,strength,maxLength){
     for(const h of this.history)h.age+=dt;
     const lifetime=Math.max(.1,finite(this.config.wakeLifetime,1.55));
     this.history=this.history.filter(h=>h.age<=lifetime&&body.containsPoint(h.position));
@@ -254,10 +336,9 @@ class WakeTrailInstance {
       if(Math.hypot(p.x-points.at(-1).x,p.z-points.at(-1).z)>.035)points.push(p);
     }
     if(points.length<2){
-      const dims=resolveWakeDimensions(this.config,radius,strength);
-      points.push(this.surfacePoint(body,{x:start.x+dx*Math.min(dims.length,spacing*2),z:start.z+dz*Math.min(dims.length,spacing*2)}));
+      points.push(this.surfacePoint(body,{x:start.x+dx*Math.min(maxLength,spacing*2),z:start.z+dz*Math.min(maxLength,spacing*2)}));
     }
-    return points;
+    return trimWakePointsByLength(points,maxLength);
   }
   staticPoints(body,pos,flow,strength){
     let dx=finite(flow.x),dz=finite(flow.z),mag=Math.hypot(dx,dz);
@@ -273,17 +354,24 @@ class WakeTrailInstance {
     return points;
   }
   updateGeometry(points,width){
-    const data=buildWakeRibbonData(points,{baseWidth:width,widening:this.config.widening,tileWorldLength:this.config.tileWorldLength});
+    const radius=this.resolveRadius();
+    const data=buildDualWakeRibbonData(points,{
+      baseWidth:width,
+      widening:this.config.widening,
+      tileWorldLength:this.config.tileWorldLength,
+      lateralOffset:radius*Math.max(.45,finite(this.config.lateralOffsetMultiplier,.82)),
+      lateralWidthMultiplier:this.config.lateralWidthMultiplier
+    });
     if(!data||!this.geometry)return false;
-    const count=Math.min(data.points.length,Math.floor(this.geometry.attributes.position.count/2));
+    const count=Math.min(data.points.length,Math.floor(this.geometry.attributes.position.count/4));
     const pos=this.geometry.attributes.position,uv=this.geometry.attributes.uv,prog=this.geometry.attributes.trailProgress;
-    for(let i=0;i<count*2;i++){
+    for(let i=0;i<count*4;i++){
       pos.setXYZ(i,data.positions[i*3],data.positions[i*3+1],data.positions[i*3+2]);
       uv.setXY(i,data.uv[i*2],data.uv[i*2+1]);
       prog.setX(i,data.progress[i]);
     }
     pos.needsUpdate=uv.needsUpdate=prog.needsUpdate=true;
-    this.geometry.setDrawRange(0,Math.max(0,count-1)*6);
+    this.geometry.setDrawRange(0,Math.max(0,count-1)*12);
     this.geometry.computeBoundingSphere();
     if(this.system.showWakeDebug)this.updateDebug(data);
     return true;
@@ -295,11 +383,11 @@ class WakeTrailInstance {
       const p=line.geometry.attributes.position;
       p.setXYZ(0,a.x,a.y+.02,a.z);p.setXYZ(1,b.x,b.y+.02,b.z);p.needsUpdate=true;
     };
-    const c0=data.points[0],c1=data.points[Math.min(1,data.points.length-1)],tail=data.points.at(-1);
+    const c0=data.points[0],tail=data.points.at(-1);
     setLine(this.debugLines[0],c0,tail);
-    setLine(this.debugLines[1],data.left[0],data.right[0]);
+    setLine(this.debugLines[1],data.leftOuter[0],data.rightOuter[0]);
     const fi=Math.min(data.points.length-1,Math.max(0,Math.round((this.config.fadeStart??.72)*(data.points.length-1))));
-    setLine(this.debugLines[2],data.left[fi],data.right[fi]);
+    setLine(this.debugLines[2],data.leftOuter[fi],data.rightOuter[fi]);
   }
   update(dt){
     const pos=this.resolvePosition();
@@ -323,7 +411,7 @@ class WakeTrailInstance {
     const type=String(this.config.type||this.spec.type||'dynamic');
     const points=type==='staticObstacle'
       ?this.staticPoints(body,pos,flow,strength)
-      :this.dynamicPoints(body,pos,rel,dt,strength);
+      :this.dynamicPoints(body,pos,rel,dt,strength,dims.length);
     if(points.length>=2){
       if(type==='staticObstacle'){
         const angle=Math.atan2(finite(flow.z),finite(flow.x));
@@ -399,6 +487,8 @@ export default Object.freeze({
   resolveWakeDimensions,
   wakeTailAlpha,
   buildWakeRibbonData,
+  trimWakePointsByLength,
+  buildDualWakeRibbonData,
   resolveWakeAssetUrl,
   WakeTrailSystem,
   WaterInteractionSystem,
