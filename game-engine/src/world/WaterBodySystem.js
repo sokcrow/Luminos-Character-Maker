@@ -518,7 +518,9 @@ export class WaterBody {
   }
   async build(){
     const THREE=this.THREE;
-    if(this.surface?.geometry){
+    // Some bodies (notably ocean coasts) use WaterBody only for interaction + foam.
+    // In that mode the authored/PaperFX surface remains the sole visible water layer.
+    if(this.surface?.geometry&&this.surface.enabled!==false){
       const speed=this.water.scrollSpeed||{};
       const tileWorldSize=Math.max(.05,finite(this.water.tileWorldSize,DEFAULT_WATER_CONFIG.tileWorldSize));
       const physicalFlow=this.water.flowWorldSpeed;
