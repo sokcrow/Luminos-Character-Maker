@@ -117,6 +117,10 @@ assert.match(moduleSource,/patternMask/);
 assert.match(moduleSource,/makePatternMaskWaterMaterial/);
 assert.match(moduleSource,/mix\(uBackground,uWater,pattern\)/,'mask mode must remap source darkness instead of rendering black water');
 assert.match(moduleSource,/waterCurrentImmersionFactor/);
+assert.match(moduleSource,/containsPoint\(position\)/);
+assert.match(moduleSource,/getSurfaceHeightAt\(position\)/);
+assert.match(moduleSource,/getFlowAt\(position\)/);
+assert.match(moduleSource,/findBodyAt\(position\)/);
 assert.match(moduleSource,/scrollX:0,scrollY:0,wrapT:THREE\.ClampToEdgeWrapping/,'foam texture cache must not double-apply per-mesh current scroll');
 
 const lab=await fs.readFile(new URL('../lab/game/forest-0.3.3.1.html',import.meta.url),'utf8');
