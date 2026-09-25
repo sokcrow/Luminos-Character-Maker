@@ -5486,7 +5486,9 @@ function buildProceduralCoastVisual(g,id=mapId){
   const region=activeProceduralZone.region,visual=region.surfaceStyle||SURFACE_VISUAL_PROFILES.temperate;
   const presetName=region.biomeProfile==='arctic'?'arctic':(region.biomeProfile==='swamp'?'swamp':'ocean');
   const shallowSeaColor=0x8bd8f7;
-  const deepSeaColor=0x123967;
+  // Wind Waker-like depth ramp: sky-blue shallows into the same saturated
+  // blue used by the river, avoiding a near-black/navy deep-water read.
+  const deepSeaColor=0x3278de;
   const coastVisualMaxDepth=COAST_TERRAIN_RULES.shorelineSubmergeTiles+COAST_TERRAIN_RULES.maxSubmergedDepthTiles;
   const toonKit=window.PaperFX?.toonWaterAvailable?window.PaperFX?.waterPreset?.(presetName,{
     deepColor:deepSeaColor,shallowColor:shallowSeaColor,crestColor:0xe8f8ff,foamColor:0xffffff,
