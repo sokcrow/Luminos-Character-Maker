@@ -4,10 +4,14 @@ on:
   push:
     paths:
       - "game-engine/**"
+      - "Assets/Images/World/Water/**"
+      - "scripts/vendor-world-water-textures.mjs"
       - ".github/workflows/game-engine-validation.yml"
   pull_request:
     paths:
       - "game-engine/**"
+      - "Assets/Images/World/Water/**"
+      - "scripts/vendor-world-water-textures.mjs"
       - ".github/workflows/game-engine-validation.yml"
 
 jobs:
@@ -28,6 +32,9 @@ jobs:
       - name: World floor texture syntax
         run: node --check game-engine/src/world/WorldFloorTextures.js
 
+      - name: World water bodies syntax
+        run: node --check game-engine/src/world/WorldWaterBodies.js
+
       - name: Core smoke
         run: node game-engine/tests/core-smoke.mjs
 
@@ -36,3 +43,9 @@ jobs:
 
       - name: World floor texture smoke
         run: node game-engine/tests/world-floor-textures-smoke.mjs
+
+      - name: World water body smoke
+        run: node game-engine/tests/world-water-bodies-smoke.mjs
+
+      - name: World water texture asset smoke
+        run: node game-engine/tests/world-water-texture-assets-smoke.mjs
