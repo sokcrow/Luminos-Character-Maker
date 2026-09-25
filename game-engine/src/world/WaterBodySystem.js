@@ -71,6 +71,7 @@ export function simplifyShoreline(points,{tolerance=0.035,closed=false}={}){
   let src=(points||[]).map(point).filter((p,i,a)=>i===0||distXZ(p,a[i-1])>1e-6);
   if(src.length<3)return src;
   if(closed&&distXZ(src[0],src[src.length-1])<1e-6)src=src.slice(0,-1);
+  if(Number(tolerance)<=0)return src;
   if(closed){
     const pivot=src.reduce((best,p,i)=>p.x<best.p.x?{p,i}:best,{p:src[0],i:0}).i;
     src=src.slice(pivot).concat(src.slice(0,pivot));
