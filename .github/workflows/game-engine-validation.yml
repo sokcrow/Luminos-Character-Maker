@@ -47,6 +47,7 @@ jobs:
 
       - name: Map runtime syntax
         run: |
+          node --check game-engine/src/map/MapRegistry.js
           node --check game-engine/src/map/MapBridgeAdapter.js
           node --check game-engine/src/map/MapSystem.js
 
@@ -79,6 +80,9 @@ jobs:
 
       - name: Camera Units Map integration runtime
         run: node game-engine/tests/game-runtime-integration-smoke.mjs
+
+      - name: Map module authority runtime
+        run: node game-engine/tests/map-runtime-authority-smoke.mjs
 
       - name: Terrain height field smoke
         run: node game-engine/tests/terrain-height-field-smoke.mjs
