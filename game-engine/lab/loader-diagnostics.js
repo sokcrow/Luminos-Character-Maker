@@ -4,6 +4,14 @@
 
   const INSTALL_MARK = '__luminousLoaderDiagnosticsInstalled';
   const POLL_MS = 100;
+  const BACKGROUND_STAGES = new Set([
+    'Preparando vecinos',
+    'Cargando vecinos',
+    'Cargando protagonista',
+    'Protagonista listo',
+    'Cargando acciones',
+    'Preparando a Belle'
+  ]);
   let lastWindow = null;
 
   function safeText(value) {
@@ -17,6 +25,33 @@
     const message = safeText(errorLike.message || errorLike.reason || errorLike.type || errorLike);
     const name = safeText(errorLike.name);
     return name && name !== 'Error' ? `${name}: ${message}` : message;
+  }
+
+  function classifyErrorCode(message, source = 'game') {
+    const text = safeText(message);
+    if (/resolveTerrainSlopeSlide.*not a function/i.test(text)) return 'E-MOVE-SLOPE-001';
+    if (/is not a function/i.test(text)) return 'E-RUNTIME-FUNC-001';
+    if (/dynamically imported module|importing a module script failed|failed to fetch.*module|module script/i.test(text)) return 'E-MODULE-LOAD-001';
+    if (source === 'promise' || /promesa rechazada|unhandledrejection/i.test(text)) return 'E-PROMISE-001';
+    if (source === 'javascript' || /javascript\s*·/i.test(text)) return 'E-JS-001';
+    if (/watchdog|timeout|sin avanzar|atasc/i.test(text)) return 'E-LOAD-TIMEOUT-001';
+    if (/error al iniciar el prototipo/i.test(text)) return 'E-BOOT-001';
+    return 'E-LOAD-UNKNOWN';
+  }
+
+  function errorSpecificity(message, source = 'game') {
+    const code = classifyErrorCode(message, source);
+    if (code === 'E-MOVE-SLOPE-001' || code === 'E-RUNTIME-FUNC-001') return 100;
+    if (code === 'E-MODULE-LOAD-001') return 95;
+    if (code === 'E-JS-001') return 90;
+    if (code === 'E-PROMISE-001') return 85;
+    if (code === 'E-LOAD-TIMEOUT-001') return 60;
+    if (code === 'E-BOOT-001') return 10;
+    return 40;
+  }
+
+  function isBackgroundProgress(stage) {
+    return BACKGROUND_STAGES.has(safeText(stage));
   }
 
   function setOuterStatus(text) {
@@ -40,7 +75,10 @@
       lastSignalAt: performance.now(),
       background: null,
       failed: false,
-      error: null
+      error: null,
+      errorCode: null,
+      errorRank: 0,
+      errorSource: null
     };
 
     const originalSetLoadProgress = win.setLoadProgress.bind(win);
@@ -57,28 +95,43 @@
         lastSignalAt: state.lastSignalAt,
         background: state.background,
         failed: state.failed,
-        error: state.error
+        error: state.error,
+        errorCode: state.errorCode,
+        errorSource: state.errorSource
       };
     }
 
+    function recordBackground(requested, stage, hint, reason) {
+      state.background = {
+        requestedPercent: requested,
+        stage: safeText(stage),
+        hint: safeText(hint),
+        reason,
+        at: performance.now()
+      };
+      publish();
+    }
+
     win.setLoadProgress = (pct, stage, hint) => {
-      const nextStage = safeText(stage) || state.stage;
-      const nextHint = safeText(hint) || state.hint;
+      const stageText = safeText(stage);
+      const hintText = safeText(hint);
+      const nextStage = stageText || state.stage;
+      const nextHint = hintText || state.hint;
       const requested = Math.max(0, Math.min(100, Math.round(Number(pct) || 0)));
 
-      // Una tarea asíncrona atrasada no puede apropiarse de la fase foreground.
-      // Ejemplo real: el mapa ya está en 78%, pero el warm-up no bloqueante de NPC
-      // termina después y anuncia 48/53/58% "Cargando vecinos". Antes el número
-      // quedaba en 78% mientras el texto mentía diciendo que seguía cargando NPCs.
+      // Los warm-ups de sprites se lanzan fire-and-forget durante el arranque.
+      // Deben quedar registrados, pero nunca pueden mover la barra ni apropiarse
+      // de la fase foreground. Esto evita falsos "78% · Preparando a Belle".
+      if (isBackgroundProgress(stageText)) {
+        recordBackground(requested, stageText, hintText, 'known-warmup');
+        return;
+      }
+
+      // Una tarea asíncrona atrasada tampoco puede reaparecer después de que el
+      // foreground ya avanzó más allá de su porcentaje.
       if (requested < state.percent) {
-        state.background = {
-          requestedPercent: requested,
-          stage: safeText(stage),
-          hint: safeText(hint),
-          at: performance.now()
-        };
-        publish();
-        return originalSetLoadProgress(pct, null, null);
+        recordBackground(requested, stageText, hintText, 'late-lower-percent');
+        return;
       }
 
       const signalChanged = requested !== state.requestedPercent || nextStage !== state.stage || nextHint !== state.hint;
@@ -96,27 +149,37 @@
       return originalSetLoadProgress(pct, stage, hint);
     };
 
-    win.paperLoadFailed = (message) => {
-      if (state.failed) return;
-      state.failed = true;
-      state.error = describeError(message);
-      publish();
+    function reportFailure(message, source = 'game') {
+      const error = describeError(message);
+      const rank = errorSpecificity(error, source);
+      if (state.failed && rank <= state.errorRank) return false;
 
+      const firstFailure = !state.failed;
       const phase = state.stage || 'Fase desconocida';
       const detail = state.hint || 'Sin detalle adicional';
-      const diagnostic = `${state.error} · Fase: ${phase} · ${detail} · ${state.percent}%`;
+      const code = classifyErrorCode(error, source);
 
-      if (originalPaperLoadFailed) originalPaperLoadFailed(diagnostic);
+      state.failed = true;
+      state.error = error;
+      state.errorCode = code;
+      state.errorRank = rank;
+      state.errorSource = source;
+      publish();
+
+      const diagnostic = `${code} · ${error} · Fase: ${phase} · ${detail} · ${state.percent}%`;
+      if (firstFailure && originalPaperLoadFailed) originalPaperLoadFailed(diagnostic);
 
       const stageEl = doc.getElementById('loaderStage');
       const hintEl = doc.getElementById('loaderHint');
       const retry = doc.getElementById('loaderRetry');
-      if (stageEl) stageEl.textContent = `Error de carga · ${phase}`;
-      if (hintEl) hintEl.textContent = `${detail} · ${state.error}`;
+      if (stageEl) stageEl.textContent = `Error ${code} · ${phase}`;
+      if (hintEl) hintEl.textContent = `${detail} · ${error}`;
       if (retry) retry.classList.add('show');
 
-      setOuterStatus(`Error de carga · ${phase}`);
+      setOuterStatus(`Error ${code} · ${phase}`);
       console.error('[LuminousLoader]', {
+        code,
+        source,
         message: state.error,
         phase,
         detail,
@@ -125,7 +188,10 @@
         background: state.background,
         diagnostics: win.__luminosLoaderDiagnostics
       });
-    };
+      return true;
+    }
+
+    win.paperLoadFailed = (message) => reportFailure(message, 'game');
 
     win.addEventListener('error', (event) => {
       // Ignora fallos de recursos opcionales (IMG/texture); esos no traen error/message JS.
@@ -133,12 +199,12 @@
       const where = event.filename
         ? `${event.filename.split('/').pop()}:${event.lineno || '?'}:${event.colno || '?'}`
         : 'script';
-      win.paperLoadFailed(`JavaScript · ${describeError(event.error || event.message)} · ${where}`);
+      reportFailure(`JavaScript · ${describeError(event.error || event.message)} · ${where}`, 'javascript');
     });
 
     win.addEventListener('unhandledrejection', (event) => {
       if (win.__paperLoaded || !win.__paperLoaderActive) return;
-      win.paperLoadFailed(`Promesa rechazada · ${describeError(event.reason)}`);
+      reportFailure(`Promesa rechazada · ${describeError(event.reason)}`, 'promise');
     });
 
     win[INSTALL_MARK] = true;
