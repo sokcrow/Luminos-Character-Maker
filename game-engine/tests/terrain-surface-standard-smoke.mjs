@@ -6,6 +6,8 @@ import {
   terrainSurfaceTierForSlope,
   terrainSurfaceMaterialKinds,
   terrainSurfaceMaterialKind,
+  terrainCoastMaterialKinds,
+  terrainCoastSurfaceWeights,
 } from "../src/world/TerrainSurfaceStandard.js";
 
 assert.equal(terrainSurfaceTierForSlope(12), "base");
@@ -27,8 +29,18 @@ const expectedProfiles = {
   swamp:{ base:"swampGround", transition:"mudGround", rock:"stoneGround" },
   arctic:{ base:"arcticGround", transition:"gravelGround", rock:"stoneGround" },
 };
+
+const expectedCoasts = {
+  temperate:{ shore:"beachGround", base:"forestGround", transition:"dirtGround", rock:"stoneGround" },
+  forest:{ shore:"beachGround", base:"forestGround", transition:"dirtGround", rock:"stoneGround" },
+  grassland:{ shore:"beachGround", base:"grasslandGround", transition:"dirtGround", rock:"stoneGround" },
+  desert:{ shore:"beachGround", base:"desertGround", transition:"gravelGround", rock:"stoneGround" },
+  swamp:{ shore:"mudGround", base:"swampGround", transition:"mudGround", rock:"stoneGround" },
+  arctic:{ shore:"gravelGround", base:"arcticGround", transition:"gravelGround", rock:"stoneGround" },
+};
 for (const [biomeProfile, expected] of Object.entries(expectedProfiles)) {
   assert.deepEqual(terrainSurfaceMaterialKinds({ biomeProfile }), expected);
+  assert.deepEqual(terrainCoastMaterialKinds({ biomeProfile }), expectedCoasts[biomeProfile]);
   // forestGround used to be supplied as a universal default by procedural maps.
   // Non-temperate biomes must now resolve it back to their own authoritative base.
   assert.equal(
@@ -47,6 +59,19 @@ assert.equal(terrainSurfaceMaterialKind({ biomeProfile:"swamp", slopeDeg:30 }), 
 // override is available for the rare case that a biome truly wants forestGround.
 assert.equal(terrainSurfaceMaterialKinds({ biomeProfile:"arctic", baseKind:"groveStone" }).base, "groveStone");
 assert.equal(terrainSurfaceMaterialKinds({ biomeProfile:"desert", baseOverride:"forestGround" }).base, "forestGround");
+
+const flatBeach = terrainCoastSurfaceWeights({ distanceTiles:1, slopeDeg:8 });
+assert.ok(flatBeach.shore > .9);
+const inlandFlat = terrainCoastSurfaceWeights({ distanceTiles:9, slopeDeg:8 });
+assert.ok(inlandFlat.base > .95);
+const inlandIncline = terrainCoastSurfaceWeights({ distanceTiles:9, slopeDeg:30 });
+assert.ok(inlandIncline.transition > 0);
+const cliff = terrainCoastSurfaceWeights({ distanceTiles:1, slopeDeg:50 });
+assert.ok(cliff.rock > .99);
+for (const sample of [flatBeach,inlandFlat,inlandIncline,cliff]) {
+  const total=sample.shore+sample.base+sample.transition+sample.rock;
+  assert.ok(Math.abs(total-1)<1e-9);
+}
 assert.equal(TERRAIN_SURFACE_STANDARD.thresholds.maxWalkDeg, 43);
 
 console.log("terrain surface standard smoke: ok");

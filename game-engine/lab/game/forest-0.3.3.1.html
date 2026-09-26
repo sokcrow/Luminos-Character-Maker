@@ -852,7 +852,7 @@ window.setLoadProgress?.(8,'Preparando motor','Cargando Three.js…');
 let THREE;
 let createRepositoryWorldFloorTextureRuntime, worldFloorRepeatForTiles;
 let TERRAIN_SLOPE_STANDARD, terrainSlopeBand, resolveTerrainSlopeSlide, resolveTerrainMoveMultiplier;
-let terrainSurfaceTierForSlope, terrainSurfaceMaterialKinds;
+let terrainSurfaceTierForSlope, terrainSurfaceMaterialKinds, terrainCoastMaterialKinds, terrainCoastSurfaceWeights;
 let createWaterBodySystem, extractFieldShorelines, waterCurrentImmersionFactor;
 let createWaterInteractionSystem;
 
@@ -864,7 +864,7 @@ try {
     await import('../../src/world/WorldFloorTextures.js'));
   ({ TERRAIN_SLOPE_STANDARD, terrainSlopeBand, resolveTerrainSlopeSlide, resolveTerrainMoveMultiplier } =
     await import('../../src/world/TerrainMobility.js'));
-  ({ terrainSurfaceTierForSlope, terrainSurfaceMaterialKinds } =
+  ({ terrainSurfaceTierForSlope, terrainSurfaceMaterialKinds, terrainCoastMaterialKinds, terrainCoastSurfaceWeights } =
     await import('../../src/world/TerrainSurfaceStandard.js'));
 
   window.setLoadProgress?.(15,'Preparando motor','Cargando agua…');
@@ -1867,11 +1867,69 @@ function coastV2BackshoreReliefTiles(id,tx,tz,d){
   const generalRise=inland*COAST_TERRAIN_RULES.maxBackshoreLiftTiles*zoneClamp(.18+(weights.rolling||0)*.42+(weights.hills||0)*.52+(weights.mountain||0)*.62+(weights.cliffs||0)*.72,0,1);
   return Math.max(0,generalRise+dune);
 }
-function coastV2GroundMaterial(){
-  const key='coast-v2-ground';
+function coastV2GroundMaterial({region=activeProceduralZone?.region,baseKind='forestGround',uTiles=1,vTiles=1}={}){
+  const biomeProfile=region?.biomeProfile||'temperate';
+  const kinds=terrainCoastMaterialKinds({biomeProfile,baseKind});
+  const [repeatX,repeatY]=worldFloorRepeatForTiles(uTiles,vTiles);
+  const key=`coast-v3-textured:${biomeProfile}:${kinds.shore}:${kinds.base}:${kinds.transition}:${kinds.rock}:${repeatX.toFixed(2)}:${repeatY.toFixed(2)}`;
   if(COAST_V2_MATERIAL_CACHE.has(key))return COAST_V2_MATERIAL_CACHE.get(key);
+
+  const sources={
+    shore:mat(kinds.shore),
+    base:mat(kinds.base),
+    transition:mat(kinds.transition),
+    rock:mat(kinds.rock)
+  };
+  const whiteData=new Uint8Array([255,255,255,255]);
+  const whiteTexture=new THREE.DataTexture(whiteData,1,1,THREE.RGBAFormat);
+  whiteTexture.needsUpdate=true;
+  const uniforms={
+    shore:{value:sources.shore?.map||whiteTexture},
+    base:{value:sources.base?.map||whiteTexture},
+    transition:{value:sources.transition?.map||whiteTexture},
+    rock:{value:sources.rock?.map||whiteTexture}
+  };
+
   const m=new THREE.MeshStandardMaterial({color:0xffffff,vertexColors:true,roughness:.98,metalness:0,flatShading:false});
-  m.dithering=true;COAST_V2_MATERIAL_CACHE.set(key,m);return m;
+  m.dithering=true;
+  m.userData.coastSurfaceStandard='repository-textures-v1';
+  m.userData.coastSurfaceKinds={...kinds};
+  m.userData.worldFloorRepeat=[repeatX,repeatY];
+  m.userData.syncCoastSurfaceTextures=()=>{
+    for(const source of Object.values(sources))worldFloorTextureRuntime?.ensureMaterial(source);
+    uniforms.shore.value=sources.shore?.map||whiteTexture;
+    uniforms.base.value=sources.base?.map||whiteTexture;
+    uniforms.transition.value=sources.transition?.map||whiteTexture;
+    uniforms.rock.value=sources.rock?.map||whiteTexture;
+  };
+  m.onBeforeCompile=(shader)=>{
+    shader.uniforms.coastShoreMap=uniforms.shore;
+    shader.uniforms.coastBaseMap=uniforms.base;
+    shader.uniforms.coastTransitionMap=uniforms.transition;
+    shader.uniforms.coastRockMap=uniforms.rock;
+    shader.uniforms.coastUvScale={value:new THREE.Vector2(repeatX,repeatY)};
+    shader.vertexShader=shader.vertexShader
+      .replace('#include <common>','#include <common>\nattribute vec4 coastSurfaceWeights;\nvarying vec4 vCoastSurfaceWeights;\nvarying vec2 vCoastSurfaceUv;')
+      .replace('#include <uv_vertex>','#include <uv_vertex>\nvCoastSurfaceWeights=coastSurfaceWeights;\nvCoastSurfaceUv=uv;');
+    shader.fragmentShader=shader.fragmentShader
+      .replace('#include <common>','#include <common>\nuniform sampler2D coastShoreMap;\nuniform sampler2D coastBaseMap;\nuniform sampler2D coastTransitionMap;\nuniform sampler2D coastRockMap;\nuniform vec2 coastUvScale;\nvarying vec4 vCoastSurfaceWeights;\nvarying vec2 vCoastSurfaceUv;')
+      .replace('#include <map_fragment>',`
+        vec4 coastWeights=max(vCoastSurfaceWeights,vec4(0.0));
+        coastWeights/=max(0.0001,coastWeights.x+coastWeights.y+coastWeights.z+coastWeights.w);
+        vec2 coastUv=vCoastSurfaceUv*coastUvScale;
+        vec4 coastTexel=
+          texture2D(coastShoreMap,coastUv)*coastWeights.x+
+          texture2D(coastBaseMap,coastUv)*coastWeights.y+
+          texture2D(coastTransitionMap,coastUv)*coastWeights.z+
+          texture2D(coastRockMap,coastUv)*coastWeights.w;
+        diffuseColor*=coastTexel;
+      `);
+    m.userData.coastShader=shader;
+    m.userData.syncCoastSurfaceTextures();
+  };
+  m.customProgramCacheKey=()=>key;
+  COAST_V2_MATERIAL_CACHE.set(key,m);
+  return m;
 }
 function coastV2SandstoneMaterials(region=activeProceduralZone?.region){
   const key=`coast-rock-${region?.biomeProfile||'temperate'}`;
@@ -5252,8 +5310,8 @@ function buildProceduralCoastGroundMesh(g,id=mapId,defaultKind='forestGround'){
   const sx=Math.min(96,Math.max(64,Math.ceil((bounds.x1-bounds.x0)*2.0)));
   const sz=Math.min(96,Math.max(64,Math.ceil((bounds.z1-bounds.z0)*2.0)));
   const count=(sx+1)*(sz+1),verts=new Float32Array(count*3),uv=new Float32Array(count*2),colors=new Float32Array(count*3);
-  const heights=new Float32Array(count),distances=new Float32Array(count);
-  const region=activeProceduralZone?.region,palette=coastV2PaletteForRegion(region);
+  const surfaceWeights=new Float32Array(count*4),heights=new Float32Array(count),distances=new Float32Array(count);
+  const region=activeProceduralZone?.region;
   const stride=sx+1,dxTiles=(bounds.x1-bounds.x0)/sx,dzTiles=(bounds.z1-bounds.z0)/sz;
 
   // Altura y distancia de costa vienen del MISMO campo continuo que consume física.
@@ -5268,12 +5326,9 @@ function buildProceduralCoastGroundMesh(g,id=mapId,defaultKind='forestGround'){
     }
   }
 
-  // COAST V2: el color del suelo se calcula por vértice y se interpola.
-  // No hay grupos wetSand/beach/ground por triángulo, así desaparece la frontera
-  // cuadriculada que todavía sobrevivía aunque la geometría ya fuera continua.
-  const cWet=new THREE.Color(palette.wet),cSand=new THREE.Color(palette.sand),cBack=new THREE.Color(palette.backshore),
-        cInland=new THREE.Color(palette.inland),cRock=new THREE.Color(palette.rock),cRockDark=new THREE.Color(palette.rockDark),
-        tmp=new THREE.Color(),tmp2=new THREE.Color();
+  // COAST V3: every biome uses the repository floor textures. The continuous
+  // coast field only supplies blend weights; it no longer replaces authored PNGs
+  // with a hard-coded biome color palette.
   for(let iz=0;iz<=sz;iz++)for(let ix=0;ix<=sx;ix++){
     const i=iz*stride+ix,d=distances[i];
     const tx=THREE.MathUtils.lerp(bounds.x0,bounds.x1,ix/sx),tz=THREE.MathUtils.lerp(bounds.z0,bounds.z1,iz/sz);
@@ -5282,32 +5337,23 @@ function buildProceduralCoastGroundMesh(g,id=mapId,defaultKind='forestGround'){
     const hx=(heights[ir]-heights[il])/Math.max(.001,(Math.min(sx,ix+1)-Math.max(0,ix-1))*dxTiles);
     const hz=(heights[iup]-heights[idn])/Math.max(.001,(Math.min(sz,iz+1)-Math.max(0,iz-1))*dzTiles);
     const slopeDeg=Math.atan(Math.hypot(hx,hz))*180/Math.PI;
+    const weights=terrainCoastSurfaceWeights({
+      distanceTiles:d,
+      slopeDeg,
+      beachWidthTiles:COAST_TERRAIN_RULES.beachWidthTiles,
+      thresholds:TERRAIN_SLOPE_STANDARD
+    });
+    surfaceWeights[i*4]=weights.shore;
+    surfaceWeights[i*4+1]=weights.base;
+    surfaceWeights[i*4+2]=weights.transition;
+    surfaceWeights[i*4+3]=weights.rock;
 
-    if(d<=0){
-      const depth=zoneClamp((-d)/5.0,0,1);
-      tmp.copy(cWet).lerp(cRockDark,.18+.24*depth);
-    }else if(d<COAST_TERRAIN_RULES.wetSandWidthTiles){
-      const t=smooth01(zoneClamp(d/COAST_TERRAIN_RULES.wetSandWidthTiles,0,1));
-      tmp.copy(cWet).lerp(cSand,t);
-    }else if(d<COAST_TERRAIN_RULES.beachWidthTiles){
-      const t=smooth01(zoneClamp((d-COAST_TERRAIN_RULES.wetSandWidthTiles)/Math.max(.001,COAST_TERRAIN_RULES.beachWidthTiles-COAST_TERRAIN_RULES.wetSandWidthTiles),0,1));
-      tmp.copy(cSand).lerp(cBack,t*.24);
-    }else{
-      const inlandT=smooth01(zoneClamp((d-COAST_TERRAIN_RULES.beachWidthTiles)/Math.max(.001,COAST_TERRAIN_RULES.backshoreWidthTiles),0,1));
-      tmp.copy(cBack).lerp(cInland,inlandT);
-    }
-
-    const rockSlope=smooth01(zoneClamp((slopeDeg-COAST_TERRAIN_RULES.visualRockSlopeStartDeg)/
-      Math.max(.001,COAST_TERRAIN_RULES.visualRockSlopeFullDeg-COAST_TERRAIN_RULES.visualRockSlopeStartDeg),0,1));
-    const cliffWeight=region?.landform?.weights?.cliffs||0;
-    const sandstone=zoneClamp(rockSlope*(.48+(region?.rockiness||0)*.62)+cliffWeight*rockSlope*.42,0,.92);
-    tmp2.copy(cRock).lerp(cRockDark,zoneClamp((slopeDeg-34)/18,0,.55));
-    tmp.lerp(tmp2,sandstone);
-
-    // Variación de papel a escala mundial: rompe uniformidad sin introducir tiles.
+    // Vertex color is now only a subtle wetness/large-scale variation multiplier.
+    // Texture identity always comes from WorldFloorTextures.
     const macroPoint=zoneLocalToMacroPoint(id,tx,tz),noise=biomeFieldNoise(region?.seed||1,macroPoint.x,macroPoint.z,73);
-    tmp.multiplyScalar(.965+noise*.035);
-    colors[i*3]=tmp.r;colors[i*3+1]=tmp.g;colors[i*3+2]=tmp.b;
+    const wet=d<=0?.80:(d<COAST_TERRAIN_RULES.wetSandWidthTiles?THREE.MathUtils.lerp(.84,1,d/COAST_TERRAIN_RULES.wetSandWidthTiles):1);
+    const shade=zoneClamp(wet*(.975+noise*.025),.76,1.02);
+    colors[i*3]=colors[i*3+1]=colors[i*3+2]=shade;
   }
 
   const indices=[];
@@ -5319,9 +5365,14 @@ function buildProceduralCoastGroundMesh(g,id=mapId,defaultKind='forestGround'){
   geo.setAttribute('position',new THREE.BufferAttribute(verts,3));
   geo.setAttribute('uv',new THREE.BufferAttribute(uv,2));
   geo.setAttribute('color',new THREE.BufferAttribute(colors,3));
+  geo.setAttribute('coastSurfaceWeights',new THREE.BufferAttribute(surfaceWeights,4));
   geo.setIndex(indices);geo.computeVertexNormals();geo.computeBoundingSphere();
-  const mesh=new THREE.Mesh(geo,coastV2GroundMaterial());mesh.receiveShadow=true;mesh.castShadow=false;
-  mesh.name=`${id}-coast-v2-ground`;mesh.userData.continuousCoastTerrain=true;mesh.userData.coastV2=true;g.add(mesh);
+  const uTiles=Math.max(.01,bounds.x1-bounds.x0),vTiles=Math.max(.01,bounds.z1-bounds.z0);
+  const groundMaterial=coastV2GroundMaterial({region,baseKind:defaultKind,uTiles,vTiles});
+  const mesh=new THREE.Mesh(geo,groundMaterial);mesh.receiveShadow=true;mesh.castShadow=false;
+  mesh.onBeforeRender=()=>groundMaterial.userData?.syncCoastSurfaceTextures?.();
+  mesh.name=`${id}-coast-v3-ground`;mesh.userData.continuousCoastTerrain=true;mesh.userData.coastV2=true;
+  mesh.userData.coastSurfaceStandard='repository-textures-v1';mesh.userData.worldFloorFittedTiles=[uTiles,vTiles];g.add(mesh);
   return mesh;
 }
 function coastBandGeometryForSector(id,coast,d0,d1){
