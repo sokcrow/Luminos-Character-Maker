@@ -11,7 +11,7 @@ assert.match(diagnostics, /win\.__paperLoadLastProgressAt\s*=\s*state\.lastSigna
 assert.match(diagnostics, /requested < state\.percent/, 'Late lower-percentage tasks must be recognized as background progress');
 assert.match(diagnostics, /isBackgroundProgress\(stageText\)/, 'Known sprite warm-ups must be classified as background work');
 assert.match(diagnostics, /recordBackground\(requested, stageText, hintText, 'known-warmup'\)/, 'Background work must be recorded without taking over the foreground phase');
-assert.match(diagnostics, /Error de carga/, 'Failures must be visible in the loader UI');
+assert.match(diagnostics, /stageEl\) stageEl\.textContent = `Error \$\{code\}/, 'Failures must be visible in the loader UI');
 assert.match(diagnostics, /unhandledrejection/, 'Unhandled promise rejections must be captured while loading');
 assert.match(diagnostics, /win\.addEventListener\('error'/, 'JavaScript errors must be captured while loading');
 assert.match(diagnostics, /Fase:/, 'Failure details must identify the active phase');
