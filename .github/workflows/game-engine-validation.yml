@@ -37,6 +37,9 @@ jobs:
       - name: Terrain surface standard syntax
         run: node --check game-engine/src/world/TerrainSurfaceStandard.js
 
+      - name: Terrain height field syntax
+        run: node --check game-engine/src/world/TerrainHeightField.js
+
       - name: WaterBody syntax
         run: node --check game-engine/src/world/WaterBodySystem.js
 
@@ -66,6 +69,9 @@ jobs:
 
       - name: Terrain surface standard smoke
         run: node game-engine/tests/terrain-surface-standard-smoke.mjs
+
+      - name: Terrain height field smoke
+        run: node game-engine/tests/terrain-height-field-smoke.mjs
 
       - name: WaterBody smoke
         run: node game-engine/tests/water-body-system-smoke.mjs

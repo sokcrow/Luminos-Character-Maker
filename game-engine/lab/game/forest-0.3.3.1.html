@@ -861,6 +861,7 @@ window.setLoadProgress?.(8,'Preparando motor','Cargando Three.js…');
 let THREE;
 let createRepositoryWorldFloorTextureRuntime, worldFloorRepeatForTiles;
 let TERRAIN_SLOPE_STANDARD, terrainSlopeBand, resolveTerrainSlopeSlide, resolveTerrainMoveMultiplier;
+let createTriangulatedHeightField;
 let TERRAIN_SURFACE_STANDARD, terrainSurfaceTierForSlope, terrainSurfaceMaterialKinds, terrainElevationSurfaceWeights, terrainCoastMaterialKinds, terrainCoastSurfaceWeights;
 let createWaterBodySystem, extractFieldShorelines, waterCurrentImmersionFactor;
 let createWaterInteractionSystem;
@@ -875,6 +876,7 @@ try {
     await import('../../src/world/TerrainMobility.js'));
   ({ TERRAIN_SURFACE_STANDARD, terrainSurfaceTierForSlope, terrainSurfaceMaterialKinds, terrainElevationSurfaceWeights, terrainCoastMaterialKinds, terrainCoastSurfaceWeights } =
     await import('../../src/world/TerrainSurfaceStandard.js'));
+  ({ createTriangulatedHeightField } = await import('../../src/world/TerrainHeightField.js'));
 
   window.setLoadProgress?.(15,'Preparando motor','Cargando agua…');
   ({ createWaterBodySystem, extractFieldShorelines, waterCurrentImmersionFactor } =
@@ -5329,7 +5331,7 @@ function buildProceduralCoastGroundMesh(g,id=mapId,defaultKind='forestGround'){
   const sx=Math.min(96,Math.max(64,Math.ceil((bounds.x1-bounds.x0)*2.0)));
   const sz=Math.min(96,Math.max(64,Math.ceil((bounds.z1-bounds.z0)*2.0)));
   const count=(sx+1)*(sz+1),verts=new Float32Array(count*3),uv=new Float32Array(count*2),colors=new Float32Array(count*3);
-  const surfaceWeights=new Float32Array(count*4),heights=new Float32Array(count),distances=new Float32Array(count);
+  const surfaceWeights=new Float32Array(count*4),heights=new Float32Array(count),surfaceY=new Float32Array(count),distances=new Float32Array(count);
   const region=activeProceduralZone?.region;
   const stride=sx+1,dxTiles=(bounds.x1-bounds.x0)/sx,dzTiles=(bounds.z1-bounds.z0)/sz;
 
@@ -5338,9 +5340,9 @@ function buildProceduralCoastGroundMesh(g,id=mapId,defaultKind='forestGround'){
     const vz=iz/sz,tz=THREE.MathUtils.lerp(bounds.z0,bounds.z1,vz);
     for(let ix=0;ix<=sx;ix++){
       const ux=ix/sx,tx=THREE.MathUtils.lerp(bounds.x0,bounds.x1,ux),i=iz*stride+ix;
-      const h=elevationHeightTilesAtWorld(wt(tx),wt(tz),id),d=coastLocalDistance(id,tx,tz);
-      heights[i]=h;distances[i]=d;
-      verts[i*3]=wt(tx);verts[i*3+1]=tileY(h)+.003;verts[i*3+2]=wt(tz);
+      const h=elevationHeightTilesAtWorld(wt(tx),wt(tz),id),d=coastLocalDistance(id,tx,tz),y=tileY(h);
+      heights[i]=h;surfaceY[i]=y;distances[i]=d;
+      verts[i*3]=wt(tx);verts[i*3+1]=y;verts[i*3+2]=wt(tz);
       uv[i*2]=ux;uv[i*2+1]=vz;
     }
   }
@@ -5391,7 +5393,13 @@ function buildProceduralCoastGroundMesh(g,id=mapId,defaultKind='forestGround'){
   const mesh=new THREE.Mesh(geo,groundMaterial);mesh.receiveShadow=true;mesh.castShadow=false;
   mesh.onBeforeRender=()=>groundMaterial.userData?.syncCoastSurfaceTextures?.();
   mesh.name=`${id}-coast-v3-ground`;mesh.userData.continuousCoastTerrain=true;mesh.userData.coastV2=true;
-  mesh.userData.coastSurfaceStandard='repository-textures-v1';mesh.userData.worldFloorFittedTiles=[uTiles,vTiles];g.add(mesh);
+  mesh.userData.coastSurfaceStandard='repository-textures-v1';mesh.userData.worldFloorFittedTiles=[uTiles,vTiles];
+  const heightField=createTriangulatedHeightField({
+    x0:wt(bounds.x0),x1:wt(bounds.x1),z0:wt(bounds.z0),z1:wt(bounds.z1),
+    segmentsX:sx,segmentsZ:sz,heights:surfaceY
+  });
+  mesh.userData.terrainHeightField=heightField;
+  registerActiveTerrainSurfaceField(id,heightField);g.add(mesh);
   return mesh;
 }
 function coastBandGeometryForSector(id,coast,d0,d1){
@@ -6387,6 +6395,26 @@ function elevationSlopeAtWorld(x,z,id=mapId){
   const risePerRun=Math.hypot(hx,hz),angleDeg=Math.atan(risePerRun)*180/Math.PI;
   return {hx,hz,risePerRun,angleDeg};
 }
+let activeTerrainSurfaceField=null;
+function registerActiveTerrainSurfaceField(id,field){
+  activeTerrainSurfaceField=field?{id:String(id),field}:null;
+  return field||null;
+}
+function clearActiveTerrainSurfaceField(){activeTerrainSurfaceField=null;}
+function terrainSurfaceGroundYAtWorld(x,z,id=mapId){
+  const active=activeTerrainSurfaceField;
+  if(!active||active.id!==String(id))return null;
+  const y=active.field?.heightAt?.(x,z);
+  return Number.isFinite(y)?y:null;
+}
+function terrainSurfaceSlopeAtWorld(x,z,id=mapId){
+  const active=activeTerrainSurfaceField;
+  if(active&&active.id===String(id)){
+    const slope=active.field?.slopeAt?.(x,z);
+    if(slope&&Number.isFinite(slope.angleDeg))return slope;
+  }
+  return elevationSlopeAtWorld(x,z,id);
+}
 function elevationModuleAtWorld(x,z,id=mapId){
   const tx=x/TILE,tz=z/TILE;
   for(const module of elevationModulesForSector(id)){
@@ -7242,9 +7270,13 @@ function formalGroundYAtWorld(x,z,layer=currentWorldLayer,r=0){
   const inWater=proceduralHydro?!!proceduralHydro.water:cell?.locomotion==='swim';
   if(inWater)return worldLayerBaseY;
 
-  // Elevation Modules v2: muestra local continua. En riberas procedural esta función
-  // ya incluye el grading de hydrologyPriorityGroundHeightTilesAtLocal(), evitando
-  // el escalón invisible que antes aparecía al abandonar el último tile de agua.
+  // Procedural terrain is grounded against the exact triangulated surface that
+  // is rendered. The generator remains authoritative for vertex creation, but once
+  // the mesh exists physics must interpolate the same triangle, not resample the
+  // continuous function independently (which caused feet to sink/float on rough land).
+  const visibleGroundY=terrainSurfaceGroundYAtWorld(x,z,mapId);
+  if(Number.isFinite(visibleGroundY))return worldLayerBaseY+visibleGroundY;
+  // Fallback for authored/legacy maps or pre-render setup.
   const naturalH=elevationHeightTilesAtWorld(x,z,mapId);
   if(Math.abs(naturalH)>.002)return worldLayerBaseY+tileY(naturalH);
   if(cell?.tags?.includes('formal-elevation'))return tileY(cell.localElevation||0);
@@ -7328,7 +7360,7 @@ function canTraverseFormalElevation(fromX,fromZ,toX,toZ,layer=currentWorldLayer,
   // del tamaño del paso por frame. Una subida cuya pendiente local supera el
   // ángulo máximo no es escalable aunque sea una superficie continua.
   if(delta>0){
-    const slope=elevationSlopeAtWorld(toX,toZ,mapId);
+    const slope=terrainSurfaceSlopeAtWorld(toX,toZ,mapId);
     if(slope.angleDeg>NATURAL_SLOPE_RULES.maxClimbDeg)return false;
   }
   // El cilindro no puede penetrar el canto de una plataforma elevada aunque su
@@ -11132,7 +11164,7 @@ function terrainMovementSampleAtWorld(x,z,layer=currentWorldLayer){
     }
   }
 
-  const slope=elevationSlopeAtWorld(x,z,mapId).angleDeg;
+  const slope=terrainSurfaceSlopeAtWorld(x,z,mapId).angleDeg;
   const tags=[...(cell?.tags||[])];
   if(difficultTerrain&&!tags.includes('difficult'))tags.push('difficult');
   const geology=geologySampleAtLocal(mapId,x/TILE,z/TILE);
@@ -11261,7 +11293,7 @@ const UnitMovementSystem=Object.freeze({
     // must never become a zero-speed trap. Once grounded on one, resolve motion into
     // the local downhill tangent and allow only limited lateral steering.
     const g=unit.group;
-    const slopeField=elevationSlopeAtWorld(g.position.x,g.position.z,mapId);
+    const slopeField=terrainSurfaceSlopeAtWorld(g.position.x,g.position.z,mapId);
     const slopeSlide=resolveTerrainSlopeSlide({
       slopeDeg:slopeField.angleDeg,hx:slopeField.hx,hz:slopeField.hz,
       locomotion:locomotionModeAt(g.position.x,g.position.z)
@@ -11386,7 +11418,7 @@ const UnitEnvironmentSystem=Object.freeze({
     if(!unit?.group)return;const s=ensureUnitRuntimeState(unit),g=unit.group,env=s.environment;
     const cell=gridCellAtWorld(g.position.x,g.position.z,currentWorldLayer),water=waterGameplaySampleAtWorld(g.position.x,g.position.z,currentWorldLayer);
     env.cell=cell||null;env.surface=cell?.surfaceId||cell?.terrain||null;env.water=water;env.wetness=water.inWater?1:0;
-    env.slope=elevationSlopeAtWorld(g.position.x,g.position.z,mapId);env.groundHeight=formalGroundYAtWorld(g.position.x,g.position.z,currentWorldLayer,unit.radius||PLAYER_RADIUS);
+    env.slope=terrainSurfaceSlopeAtWorld(g.position.x,g.position.z,mapId);env.groundHeight=formalGroundYAtWorld(g.position.x,g.position.z,currentWorldLayer,unit.radius||PLAYER_RADIUS);
     env.temperature=isOverworldSector(mapId)&&!activeInteriorStage?biomeTemperatureCAtWorld(g.position.x,g.position.z,mapId):null;
     const current=(unit.capabilities?.affectedByCurrent===false||unit.capabilities?.anchored)?null:surfaceCurrentAt(g.position.x,g.position.z,currentWorldLayer,unit);
     env.current=current||null;s.lastEnvironmentalForce=null;
@@ -16433,12 +16465,13 @@ function applySlopeSurfaceGroups(geo,verts,triangles,{id=mapId,baseKind='forestG
 }
 function buildProceduralLandGroundMesh(g,id=mapId,kind='forestGround'){
   const def=MAP_DATA.maps[id]||currentMapDef(),bounds=def?.bounds||{x0:-OVERWORLD_HALF,x1:OVERWORLD_HALF,z0:-OVERWORLD_HALF,z1:OVERWORLD_HALF};
-  const mobile=DISPLAY_DEVICE_MOBILE,sx=mobile?52:64,sz=mobile?52:64,stride=sx+1,verts=[],uv=[],triangles=[];
+  const mobile=DISPLAY_DEVICE_MOBILE,sx=mobile?52:64,sz=mobile?52:64,stride=sx+1,verts=[],uv=[],triangles=[],surfaceY=[];
   for(let iz=0;iz<=sz;iz++){
     const vz=iz/sz,tz=THREE.MathUtils.lerp(bounds.z0,bounds.z1,vz);
     for(let ix=0;ix<=sx;ix++){
       const ux=ix/sx,tx=THREE.MathUtils.lerp(bounds.x0,bounds.x1,ux);
-      verts.push(wt(tx),tileY(elevationHeightTilesAtWorld(wt(tx),wt(tz),id))+.003,wt(tz));uv.push(ux,vz);
+      const y=tileY(elevationHeightTilesAtWorld(wt(tx),wt(tz),id));
+      surfaceY.push(y);verts.push(wt(tx),y,wt(tz));uv.push(ux,vz);
     }
   }
   for(let iz=0;iz<sz;iz++)for(let ix=0;ix<sx;ix++){
@@ -16456,6 +16489,12 @@ function buildProceduralLandGroundMesh(g,id=mapId,kind='forestGround'){
   mesh.onBeforeRender=()=>materials?.userData?.syncTerrainSurfaceTextures?.();
   mesh.receiveShadow=true;mesh.castShadow=false;mesh.name=`${id}-continuous-geography-ground`;
   mesh.userData.continuousGeography=true;mesh.userData.worldFloorFittedTiles=[tilesW,tilesD];mesh.userData.slopeSurfaceStandard=true;
+  const heightField=createTriangulatedHeightField({
+    x0:wt(bounds.x0),x1:wt(bounds.x1),z0:wt(bounds.z0),z1:wt(bounds.z1),
+    segmentsX:sx,segmentsZ:sz,heights:surfaceY
+  });
+  mesh.userData.terrainHeightField=heightField;
+  registerActiveTerrainSurfaceField(id,heightField);
   g.add(mesh);return mesh;
 }
 function elevationModuleMeshBounds(module){
@@ -17742,6 +17781,7 @@ const MAP_RENDERER_REGISTRY=Object.freeze({
 
 function clearMap(){
   activeLocalCamp=null;
+  clearActiveTerrainSurfaceField();
   waterBodySystem.clearBodies();
   try{window.PaperFX?.clearWaterInteractions?.()}catch(err){console.warn('PaperFX water clear fallback:',err)}
   clearColdBreathFx();
@@ -17786,7 +17826,7 @@ function spawnCandidateAllowed(x,z,mapDef=currentMapDef(),{requireDry=true}={}){
   const swim=locomotionModeAt(x,z,currentWorldLayer)==='swim';
   if(requireDry&&swim)return false;
   if(requireDry&&waterSpawnClearanceTilesAtWorld(x,z)<WATER_GAMEPLAY_RULES.spawnDryMarginTiles)return false;
-  if(!swim&&isOverworldSector(mapId)&&elevationSlopeAtWorld(x,z,mapId).angleDeg>NATURAL_SLOPE_RULES.maxClimbDeg)return false;
+  if(!swim&&isOverworldSector(mapId)&&terrainSurfaceSlopeAtWorld(x,z,mapId).angleDeg>NATURAL_SLOPE_RULES.maxClimbDeg)return false;
   return !circleHitsCollider(x,z,PLAYER_RADIUS);
 }
 const SAFE_SPAWN_ROUTE_LIMIT=24;
@@ -19429,7 +19469,7 @@ function findEnvironmentProbePoints(unit){
   for(let tz=Math.ceil(b.z0);tz<=Math.floor(b.z1);tz+=.5){
     for(let tx=Math.ceil(b.x0);tx<=Math.floor(b.x1);tx+=.5){
       const x=wt(tx),z=wt(tz),cell=gridCellAtWorld(x,z,currentWorldLayer);if(!cell?.walkable)continue;
-      const water=waterGameplaySampleAtWorld(x,z,currentWorldLayer),current=surfaceCurrentAt(x,z,currentWorldLayer,unit),slope=elevationSlopeAtWorld(x,z,mapId),speed=unitTerrainSpeedMultiplier(unit,x,z);
+      const water=waterGameplaySampleAtWorld(x,z,currentWorldLayer),current=surfaceCurrentAt(x,z,currentWorldLayer,unit),slope=terrainSurfaceSlopeAtWorld(x,z,mapId),speed=unitTerrainSpeedMultiplier(unit,x,z);
       const point={x,z,tx,tz,cell,water,current,slope,speed};
       if(!probes.water&&water.inWater)probes.water=point;
       if(!probes.current&&current)probes.current=point;
