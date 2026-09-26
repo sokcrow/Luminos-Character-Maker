@@ -31,8 +31,10 @@
     if (!win || win[INSTALL_MARK] || typeof win.setLoadProgress !== 'function') return false;
 
     const doc = win.document;
+    const initialPercent = Number(win.__paperLoadPct || 0);
     const state = {
-      percent: Number(win.__paperLoadPct || 0),
+      percent: initialPercent,
+      requestedPercent: initialPercent,
       stage: safeText(doc.getElementById('loaderStage')?.textContent) || 'Preparando carga',
       hint: safeText(doc.getElementById('loaderHint')?.textContent),
       lastSignalAt: performance.now(),
@@ -48,6 +50,7 @@
     function publish() {
       win.__luminosLoaderDiagnostics = {
         percent: state.percent,
+        requestedPercent: state.requestedPercent,
         stage: state.stage,
         hint: state.hint,
         lastSignalAt: state.lastSignalAt,
@@ -60,7 +63,7 @@
       const nextStage = safeText(stage) || state.stage;
       const nextHint = safeText(hint) || state.hint;
       const requested = Math.max(0, Math.min(100, Math.round(Number(pct) || 0)));
-      const signalChanged = requested !== state.percent || nextStage !== state.stage || nextHint !== state.hint;
+      const signalChanged = requested !== state.requestedPercent || nextStage !== state.stage || nextHint !== state.hint;
 
       if (signalChanged) {
         state.lastSignalAt = performance.now();
@@ -69,6 +72,7 @@
         win.__paperLoadLastProgressAt = state.lastSignalAt;
       }
 
+      state.requestedPercent = requested;
       state.percent = Math.max(state.percent, requested);
       state.stage = nextStage;
       state.hint = nextHint;
@@ -101,6 +105,7 @@
         phase,
         detail,
         percent: state.percent,
+        requestedPercent: state.requestedPercent,
         diagnostics: win.__luminosLoaderDiagnostics
       });
     };
