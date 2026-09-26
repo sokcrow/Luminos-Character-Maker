@@ -4628,8 +4628,17 @@ function geometryIsFinite(geometry){
   return true;
 }
 function validateSceneGeometry(parent){
+  // Procedural terrain reuses geometries heavily. Validate each geometry once,
+  // but still hide every mesh that references an invalid geometry.
+  const validity=new Map();
   parent?.traverse?.(o=>{
-    if(o.isMesh&&o.geometry&&!geometryIsFinite(o.geometry)){
+    if(!o.isMesh||!o.geometry)return;
+    let valid=validity.get(o.geometry);
+    if(valid===undefined){
+      valid=geometryIsFinite(o.geometry);
+      validity.set(o.geometry,valid);
+    }
+    if(!valid){
       console.error('Geometría inválida detectada y ocultada:',o);
       o.visible=false;
     }
@@ -17696,57 +17705,73 @@ function spawnCandidateAllowed(x,z,mapDef=currentMapDef(),{requireDry=true}={}){
   if(!swim&&isOverworldSector(mapId)&&elevationSlopeAtWorld(x,z,mapId).angleDeg>NATURAL_SLOPE_RULES.maxClimbDeg)return false;
   return !circleHitsCollider(x,z,PLAYER_RADIUS);
 }
+const SAFE_SPAWN_ROUTE_LIMIT=24;
+const SAFE_SPAWN_RING_RADII=Object.freeze([.75,1.5,2.5,4,6,8]);
+const SAFE_SPAWN_RING_SAMPLES=12;
 function resolveSafeSpawn(mapDef,desired,{requireDry=true}={}){
-  const source=desired?.clone?.()||new THREE.Vector3(Number(desired?.x)||0,Number(desired?.y)||0,Number(desired?.z)||0);
-  if(spawnCandidateAllowed(source.x,source.z,mapDef,{requireDry}))return source;
+  // X/Z is an entry intent. On procedural sectors Y is intentionally ignored
+  // until the final terrain exists and formalGroundYAtWorld can resolve it.
+  const source=desired?.clone?.()||new THREE.Vector3(Number(desired?.x)||0,0,Number(desired?.z)||0);
+  if(isOverworldSector(mapId))source.y=0;
 
-  // Procedural maps guarantee travel paths. Before doing an expensive radial search,
-  // try the nearest route anchors so boot cannot stall at the collision-check stage.
+  const candidates=[];
+  const seen=new Set();
+  const queueCandidate=(x,z,kind='local')=>{
+    if(!Number.isFinite(x)||!Number.isFinite(z))return;
+    const key=`${Math.round(x*1000)}:${Math.round(z*1000)}`;
+    if(seen.has(key))return;
+    seen.add(key);
+    candidates.push({p:new THREE.Vector3(x,source.y,z),kind});
+  };
+  queueCandidate(source.x,source.z,'anchor');
+
+  let routeFallback=null;
   if(isOverworldSector(mapId)&&proceduralSectorRecipe(mapId)){
     const routeCandidates=[];
     for(const route of proceduralTravelPathRoutes(mapId)){
       for(const point of route.points||[]){
-        const p=new THREE.Vector3(wt(point.x),source.y,wt(point.z));
+        const p=new THREE.Vector3(wt(point.x),0,wt(point.z));
         routeCandidates.push({p,d:Math.hypot(p.x-source.x,p.z-source.z)});
       }
     }
     routeCandidates.sort((a,b)=>a.d-b.d);
-    for(const candidate of routeCandidates){
-      if(spawnCandidateAllowed(candidate.p.x,candidate.p.z,mapDef,{requireDry})){
-        console.info('Spawn safety moved spawn to procedural travel path',mapId,{from:{x:source.x,z:source.z},to:{x:candidate.p.x,z:candidate.p.z}});
-        return candidate.p;
-      }
+    routeFallback=routeCandidates[0]?.p||null;
+    for(const candidate of routeCandidates.slice(0,SAFE_SPAWN_ROUTE_LIMIT)){
+      queueCandidate(candidate.p.x,candidate.p.z,'travel-path');
     }
   }
 
-  const step=.55,maxR=Math.max(12,WATER_GAMEPLAY_RULES.spawnSearchRadiusTiles);
-  let best=null,bestScore=Infinity;
-  for(let r=step;r<=maxR;r+=step){
-    const samples=Math.max(16,Math.ceil(Math.PI*2*r/step));
-    for(let i=0;i<samples;i++){
-      const a=i/samples*Math.PI*2,x=source.x+wt(Math.cos(a)*r),z=source.z+wt(Math.sin(a)*r);
-      if(!spawnCandidateAllowed(x,z,mapDef,{requireDry}))continue;
-      const clearance=requireDry?waterSpawnClearanceTilesAtWorld(x,z):0;
-      const score=r-Math.min(3,Math.max(0,clearance))*.08;
-      if(score<bestScore){bestScore=score;best=new THREE.Vector3(x,source.y,z);}
-    }
-    if(best&&r>bestScore+1.0)break;
-  }
-  const b=mapDef?.bounds||{x0:-OVERWORLD_HALF,x1:OVERWORLD_HALF,z0:-OVERWORLD_HALF,z1:OVERWORLD_HALF};
-  if(!best){
-    for(let tz=Math.floor(b.z0);tz<Math.ceil(b.z1);tz++)for(let tx=Math.floor(b.x0);tx<Math.ceil(b.x1);tx++){
-      const x=wt(tx+.5),z=wt(tz+.5);if(!spawnCandidateAllowed(x,z,mapDef,{requireDry}))continue;
-      const score=Math.hypot(x-source.x,z-source.z);if(score<bestScore){bestScore=score;best=new THREE.Vector3(x,source.y,z);}
+  for(const radiusTiles of SAFE_SPAWN_RING_RADII){
+    const radius=wt(radiusTiles);
+    for(let i=0;i<SAFE_SPAWN_RING_SAMPLES;i++){
+      const a=i/SAFE_SPAWN_RING_SAMPLES*Math.PI*2;
+      queueCandidate(source.x+Math.cos(a)*radius,source.z+Math.sin(a)*radius,'ring');
     }
   }
-  if(best){
-    console.info('Spawn safety relocated blocked spawn',mapId,{from:{x:source.x,z:source.z},to:{x:best.x,z:best.z},requireDry});
-    return best;
+
+  const tryCandidates=dry=>{
+    for(const candidate of candidates){
+      if(spawnCandidateAllowed(candidate.p.x,candidate.p.z,mapDef,{requireDry:dry}))return candidate;
+    }
+    return null;
+  };
+
+  let selected=tryCandidates(requireDry);
+  if(!selected&&requireDry)selected=tryCandidates(false);
+  if(selected){
+    if(selected.p.x!==source.x||selected.p.z!==source.z){
+      console.info('Spawn safety relocated local entry',mapId,{kind:selected.kind,from:{x:source.x,z:source.z},to:{x:selected.p.x,z:selected.p.z}});
+    }
+    return selected.p;
   }
-  // Never knowingly place the player into a collider. If a dry search has no answer,
-  // retry allowing swimmable space before keeping the authored position.
-  if(requireDry)return resolveSafeSpawn(mapDef,source,{requireDry:false});
-  console.error('Spawn safety could not find a collision-free point',mapId);
+
+  // Generated travel paths are carved/cleared during terrain construction and
+  // are the deterministic emergency anchor. Never scan the whole map at boot.
+  if(routeFallback){
+    console.warn('Spawn safety exhausted bounded candidates; using nearest generated travel path',mapId,{x:routeFallback.x,z:routeFallback.z});
+    return routeFallback;
+  }
+  console.error('Spawn safety exhausted bounded candidates; keeping local entry anchor',mapId,{x:source.x,z:source.z});
   return source;
 }
 const SpawnSafetySystem=Object.freeze({
@@ -17802,7 +17827,7 @@ function loadMap(id,spawn=null,layer=null){
   root=renderMap();
   markPerf('renderMap');
 
-  window.setLoadProgress?.(78,'Revisando colisiones','Buscando un punto seguro para el jugador…');
+  window.setLoadProgress?.(78,'Validando terreno','Comprobando la geometría ya generada…');
   validateSceneGeometry(root);
   markPerf('validateScene');
   scene.add(root);
@@ -17818,17 +17843,22 @@ function loadMap(id,spawn=null,layer=null){
     ? `1 tile = ${MAP_DATA.tile.feet} ft · ${mapDef.bounds.x1-mapDef.bounds.x0}×${mapDef.bounds.z1-mapDef.bounds.z0} · bosque ${Math.round(procSector.canopy*100)}% · roca ${Math.round(procSector.rockiness*100)}% · seed ${procSector.seed}`
     : `1 tile = ${MAP_DATA.tile.feet} ft ≈ ${MAP_DATA.tile.worldUnits} unidades · ${mapDef.bounds.x1-mapDef.bounds.x0}×${mapDef.bounds.z1-mapDef.bounds.z0} tiles · ${currentWorldLayer}`;
 
-  window.setLoadProgress?.(82,'Verificando entrada','Buscando ruta segura…');
-  const authoredSpawn=spawn?.clone?.()||new THREE.Vector3(wt(mapDef.spawn.x),wt(mapDef.spawn.y||0),wt(mapDef.spawn.z));
-  // SPAWN SAFETY CONTRACT: every map entry is checked after the renderer has built
-  // its actual colliders. Default spawns prefer dry land; authored transition spawns
-  // may remain in swimmable water, but never inside a collider/non-walkable cell.
-  const s=resolveSafeSpawn(mapDef,authoredSpawn,{requireDry:!spawn});
+  window.setLoadProgress?.(82,'Resolviendo entrada local','Calculando spawn sobre el terreno final…');
+  const spawnIntent=spawn?.clone?.()||new THREE.Vector3(wt(mapDef.spawn.x),wt(mapDef.spawn.y||0),wt(mapDef.spawn.z));
+  // SPAWN SAFETY CONTRACT: Hexmap/map transitions provide an X/Z entry intent.
+  // Procedural terrain is already built here, so only now do we resolve a safe
+  // local position. Its final Y is derived from the generated terrain below.
+  if(isOverworldSector(mapId))spawnIntent.y=0;
+  const s=resolveSafeSpawn(mapDef,spawnIntent,{requireDry:!spawn});
   markPerf('safeSpawn');
-  window.setLoadProgress?.(86,'Entrada confirmada','Acomodando jugador y compañero…');
+  window.setLoadProgress?.(86,'Entrada confirmada','Ajustando altura al terreno y colocando actores…');
 
-  player.position.set(s.x,worldLayerBaseY+(s.y||0),s.z);
-  if(isOverworldSector(mapId))player.position.y=formalGroundYAtWorld(player.position.x,player.position.z,currentWorldLayer);
+  let resolvedSpawnY=worldLayerBaseY+(Number.isFinite(s.y)?s.y:0);
+  if(isOverworldSector(mapId)){
+    const terrainY=formalGroundYAtWorld(s.x,s.z,currentWorldLayer);
+    if(Number.isFinite(terrainY))resolvedSpawnY=terrainY;
+  }
+  player.position.set(s.x,resolvedSpawnY,s.z);
   playerUnit.state.pendingLedgeDrop=null;setUnitOverpassId(playerUnit,null);
   mountBelleForCurrentMap();
   if(FOREST_STRESS_BOOT.enabled&&FOREST_STRESS_BOOT.units>0)forestStressSpawnUnits(root,FOREST_STRESS_BOOT.units);
