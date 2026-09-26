@@ -1,11 +1,15 @@
 import { GameEngine } from "../src/core/GameEngine.js";
 import { GameRuntime } from "../src/core/GameRuntime.js";
+import { normalizeProceduralMapSpec } from "../src/map/procedural/ProceduralMapSpec.js";
+import { HudDomAdapter } from "../src/ui/HudDomAdapter.js";
+import { createHudViewModel } from "../src/ui/HudViewModel.js";
 
 const engine = new GameEngine();
 const runtime = new GameRuntime({ engine }).mount();
+const hud = new HudDomAdapter({ root: document });
 const pressed = new Set();
 
-const mapSpec = {
+const mapSpec = normalizeProceduralMapSpec({
   id: "module-lab-temperate-hills",
   kind: "procedural-biome",
   seed: "module-lab-temperate-hills-v1",
@@ -22,7 +26,7 @@ const mapSpec = {
     purpose: "module-only-lab",
     legacyForestDependency: false
   }
-};
+});
 
 function axis(positive, negative) {
   return Number(pressed.has(positive)) - Number(pressed.has(negative));
@@ -48,50 +52,8 @@ const player = runtime.registerUnit({
   metadata: { source: "module-only-lab" }
 }, { cameraTarget: true });
 
-function runtimeView() {
-  const snapshot = runtime.snapshot();
-  const terrain = runtime.map.sampleTerrain(player.transform);
-  const water = runtime.map.sampleWater(player.transform);
-  return {
-    engine: engine.metrics(),
-    architecture: {
-      legacyForestLoaded: false,
-      viewBridgeConnected: snapshot.connected,
-      mapAuthority: snapshot.map.authority,
-      mapId: snapshot.map.mapId,
-      mapGenerator: snapshot.map.active?.metadata?.generator || null,
-      unitStateContract: player.stateContract,
-      cameraTargetUnitId: snapshot.camera.targetUnitId
-    },
-    player: {
-      x: Number(player.transform.x.toFixed(3)),
-      y: Number(player.transform.y.toFixed(3)),
-      z: Number(player.transform.z.toFixed(3)),
-      locomotion: player.state?.locomotion || null,
-      terrain: terrain ? {
-        height: Number(terrain.height?.toFixed?.(3) ?? terrain.height ?? 0),
-        slopeBand: terrain.slopeBand || null,
-        moveMultiplier: terrain.moveMultiplier ?? null
-      } : null,
-      water: water ? {
-        type: water.type,
-        depth: water.depth,
-        source: water.source
-      } : null
-    }
-  };
-}
-
 function render() {
-  const state = runtimeView();
-  const status = document.getElementById("runtimeStatus");
-  const output = document.getElementById("runtimeState");
-  if (status) {
-    status.textContent = state.engine.running
-      ? `Runtime activo · ${state.architecture.mapAuthority || "sin mapa"}`
-      : "Runtime detenido";
-  }
-  if (output) output.textContent = JSON.stringify(state, null, 2);
+  return hud.render(createHudViewModel({ engine, runtime, unitId: player.id }));
 }
 
 function normalizeKey(event) {
@@ -119,7 +81,10 @@ globalThis.LuminousRuntimeLab = Object.freeze({
   runtime,
   player,
   mapSpec,
-  snapshot: runtimeView,
+  hud,
+  snapshot() {
+    return createHudViewModel({ engine, runtime, unitId: player.id });
+  },
   dispose() {
     window.clearInterval(renderTimer);
     engine.dispose("module-lab-dispose");
