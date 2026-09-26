@@ -9,13 +9,18 @@ assert.match(index, /<script src="\.\/loader-diagnostics\.js"><\/script>/, 'Lab 
 assert.match(diagnostics, /win\.setLoadProgress\s*=\s*\(pct, stage, hint\)/, 'Diagnostics must wrap progress updates');
 assert.match(diagnostics, /win\.__paperLoadLastProgressAt\s*=\s*state\.lastSignalAt/, 'Stage or hint changes must keep the loader watchdog alive');
 assert.match(diagnostics, /requested < state\.percent/, 'Late lower-percentage tasks must be recognized as background progress');
-assert.match(diagnostics, /originalSetLoadProgress\(pct, null, null\)/, 'Background progress must not overwrite the foreground phase text');
+assert.match(diagnostics, /isBackgroundProgress\(stageText\)/, 'Known sprite warm-ups must be classified as background work');
+assert.match(diagnostics, /recordBackground\(requested, stageText, hintText, 'known-warmup'\)/, 'Background work must be recorded without taking over the foreground phase');
 assert.match(diagnostics, /Error de carga/, 'Failures must be visible in the loader UI');
 assert.match(diagnostics, /unhandledrejection/, 'Unhandled promise rejections must be captured while loading');
 assert.match(diagnostics, /win\.addEventListener\('error'/, 'JavaScript errors must be captured while loading');
 assert.match(diagnostics, /Fase:/, 'Failure details must identify the active phase');
 assert.match(forest, /Cargando vecinos/, 'Neighbor-loading stage must remain identifiable');
 assert.match(forest, /Personaje \$\{i\+1\} de \$\{entries\.length\}/, 'Neighbor-loading detail must identify the character being loaded');
-assert.match(forest, /loadNPCTextures\(\)\.catch/, 'Neighbor sprites must remain a non-blocking warm-up');
+assert.match(forest, /loadNPCTextures\(\{background:true\}\)\.catch/, 'Neighbor sprites must remain a non-blocking warm-up');
+assert.match(forest, /loadPlayer\(\{background:true\}\)\.catch/, 'Player sprite hydration must remain non-blocking');
+assert.match(forest, /loadBelleTextures\(\{keys:\['idle','walk'\],background:true\}\)/, 'Belle critical motion hydration must not own loader progress');
+assert.match(forest, /window\.__LUMINOUS_BOOT_ERROR__=/, 'Boot failures must preserve the original exception');
+assert.match(forest, /window\.paperLoadFailed\?\.\(bootErrorMessage\)/, 'Loader must receive the original boot error message');
 
 console.log('Loader diagnostics smoke: OK');

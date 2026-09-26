@@ -9337,12 +9337,14 @@ function setBelleTextureReady(k,t){
   BELLE_TEXTURES[k]=t;
   if(belleState?.sprite&&(belleState.pose===k||(k==='idle'&&!BELLE_TEXTURES[belleState.pose])))applyBellePose(belleState.pose||'idle');
 }
-async function loadNPCTextures(){
-  window.setLoadProgress?.(48,'Preparando vecinos','Sprites de prototipo integrados…');
+async function loadNPCTextures({background=false}={}){
+  if(!background)window.setLoadProgress?.(48,'Preparando vecinos','Sprites de prototipo integrados…');
   const entries=Object.entries(NPC_URLS);
   await Promise.all(entries.map(([k,url],i)=>requestSpriteAsset(
     `npc:${k}`,url,t=>setNPCTextureReady(k,t),{timeoutMs:9500,recoveryAttempts:2}
-  ).then(()=>window.setLoadProgress?.(48+i*5,'Cargando vecinos',`Personaje ${i+1} de ${entries.length}`))));
+  ).then(()=>{
+    if(!background)window.setLoadProgress?.(48+i*5,'Cargando vecinos',`Personaje ${i+1} de ${entries.length}`);
+  })));
 }
 async function loadActionTextures({keys=null,background=false}={}){
   const wanted=keys||Object.keys(ACTION_URLS);
@@ -9378,8 +9380,8 @@ async function loadBelleTextures({keys=null,background=false}={}){
 async function loadCriticalMotionSprites(){
   // v89: idle/walk ya existen localmente, así que el arranque no espera Internet.
   await Promise.all([
-    loadActionTextures({keys:['walk']}),
-    loadBelleTextures({keys:['idle','walk']})
+    loadActionTextures({keys:['walk'],background:true}),
+    loadBelleTextures({keys:['idle','walk'],background:true})
   ]);
 }
 function warmRemainingSpriteAssets(){
@@ -11787,8 +11789,8 @@ function updatePaperMotion(dt,moving,screenX,moved){
   UnitAnimationSystem.update(playerUnit,dt);syncLegacyUnitAdapters();
 }
 
-async function loadPlayer(){
-  window.setLoadProgress?.(30,'Cargando protagonista','Sprite remoto…');
+async function loadPlayer({background=false}={}){
+  if(!background)window.setLoadProgress?.(30,'Cargando protagonista','Sprite remoto…');
   // Fail-closed visual: jamás mostramos un plano/placeholder local mientras llega la URL.
   playerSprite.visible=false;
   playerMat.map=null;
@@ -11796,11 +11798,11 @@ async function loadPlayer(){
   const tex=await requestSpriteAsset('player:idle',PLAYER_URL,t=>setPlayerIdleTextureReady(t),{timeoutMs:11000,recoveryAttempts:3});
   if(tex){
     setPlayerIdleTextureReady(tex);
-    window.setLoadProgress?.(45,'Protagonista listo','Sprite remoto cargado');
+    if(!background)window.setLoadProgress?.(45,'Protagonista listo','Sprite remoto cargado');
   }else{
     playerIdleTexture=null;
     playerVisualState='idle';
-    window.setLoadProgress?.(45,'Sprite remoto pendiente','Reintentando URL en segundo plano…');
+    if(!background)window.setLoadProgress?.(45,'Sprite remoto pendiente','Reintentando URL en segundo plano…');
   }
   return tex;
 }
@@ -19682,8 +19684,8 @@ try{
   window.setLoadProgress?.(22,'Motor listo','Preparando recursos locales…');
   // Startup must never depend on remote sprite hosts. Remote-only character art
   // hydrates in the background and stays hidden until its texture arrives.
-  loadPlayer().catch(e=>console.warn('Player sprite warmup:',e));
-  loadNPCTextures().catch(e=>console.warn('NPC sprite warmup:',e));
+  loadPlayer({background:true}).catch(e=>console.warn('Player sprite warmup:',e));
+  loadNPCTextures({background:true}).catch(e=>console.warn('NPC sprite warmup:',e));
   loadCriticalMotionSprites().catch(e=>console.warn('Critical motion sprite warmup:',e));
   window.setLoadProgress?.(30,'Armando el mapa','Geometría, colisiones y cámara…');
   const qp=new URLSearchParams(location.search);
@@ -19746,7 +19748,17 @@ try{
   window.finishPaperLoad?.();
 }catch(err){
   console.error(err);
-  window.paperLoadFailed?.('Error al iniciar el prototipo. Toca Reintentar.');
+  const bootErrorMessage=err instanceof Error
+    ? `${err.name||'Error'}: ${err.message||String(err)}`
+    : String(err||'Error desconocido al iniciar el prototipo');
+  window.__LUMINOUS_BOOT_ERROR__={
+    message:bootErrorMessage,
+    stack:err?.stack||null,
+    mapId,
+    stage:document.getElementById('loaderStage')?.textContent||null,
+    hint:document.getElementById('loaderHint')?.textContent||null
+  };
+  window.paperLoadFailed?.(bootErrorMessage);
   throw err;
 }
 </script>
