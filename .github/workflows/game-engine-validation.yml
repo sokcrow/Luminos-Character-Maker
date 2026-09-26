@@ -25,6 +25,9 @@ jobs:
       - name: Syntax check
         run: node --check game-engine/lab/main.js
 
+      - name: Loader diagnostics syntax
+        run: node --check game-engine/lab/loader-diagnostics.js
+
       - name: World floor texture syntax
         run: node --check game-engine/src/world/WorldFloorTextures.js
 
@@ -51,6 +54,9 @@ jobs:
 
       - name: Spawn loading smoke
         run: node game-engine/tests/spawn-loading-smoke.mjs
+
+      - name: Loader diagnostics smoke
+        run: node game-engine/tests/loader-diagnostics-smoke.mjs
 
       - name: World floor texture smoke
         run: node game-engine/tests/world-floor-textures-smoke.mjs
