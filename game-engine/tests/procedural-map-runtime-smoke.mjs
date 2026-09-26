@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { GameEngine } from "../src/core/GameEngine.js";
 import { GameRuntime } from "../src/core/GameRuntime.js";
 import { createProceduralMapData } from "../src/map/procedural/ProceduralMapGenerator.js";
+import { hydrologyCurvePoint } from "../src/map/procedural/ProceduralHydrology.js";
 
 const legacyCalls = { terrain: 0, water: 0, movement: 0 };
 const legacyBridge = {
@@ -58,7 +59,7 @@ assert.equal(typeof generated.sampleTerrain, "function");
 assert.equal(typeof generated.sampleWater, "function");
 assert.equal(typeof generated.resolveMovement, "function");
 
-const riverCenter = generated.hydrology.field.points[1];
+const riverCenter = hydrologyCurvePoint(generated.hydrology.field, 0.5);
 const water = runtime.map.sampleWater(riverCenter);
 assert.equal(water?.type, "river");
 assert.equal(water?.source, "procedural-map-module");
