@@ -54,11 +54,16 @@ export function resolveTerrainSlopeSlide(sample = {}, rules = TERRAIN_SLOPE_STAN
   const hz = finite(sample?.hz, 0);
   const gradient = Math.hypot(hx, hz);
   const active = !slopeExempt && slopeDeg > finite(rules.maxWalkDeg, 43) && gradient > 1e-6;
+  const normalizedDownhill = (value) => {
+    if (!active) return 0;
+    const normalized = -value / gradient;
+    return Object.is(normalized, -0) ? 0 : normalized;
+  };
   return Object.freeze({
     active,
     slopeDeg,
-    downhillX: active ? -hx / gradient : 0,
-    downhillZ: active ? -hz / gradient : 0,
+    downhillX: normalizedDownhill(hx),
+    downhillZ: normalizedDownhill(hz),
     speedMultiplier: active ? Math.max(0.01, finite(rules.slideMultiplier, .74)) : 0,
     steer: active ? Math.max(0, finite(rules.slideSteer, .32)) : 0,
     response: active ? Math.max(0.01, finite(rules.slideResponse, 9)) : 0,
