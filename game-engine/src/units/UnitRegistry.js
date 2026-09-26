@@ -1,4 +1,6 @@
-export const UNIT_RUNTIME_CONTRACT_ID = "luminous.unit-runtime.v1";
+import { createUnitRuntimeState, ensureUnitRuntimeState, UNIT_STATE_CONTRACT_ID } from "./UnitState.js";
+
+export const UNIT_RUNTIME_CONTRACT_ID = "luminous.unit-runtime.v2";
 
 function finite(value, fallback = 0) {
   const n = Number(value);
@@ -18,12 +20,27 @@ export function normalizeUnitSpec(spec = {}) {
   const role = String(spec.role || spec.kind || "unit");
   const transform = spec.transform || {};
   const movement = spec.movement || {};
+  const state = createUnitRuntimeState(spec.state || {});
+  const intent = {
+    moveX: 0,
+    moveZ: 0,
+    speedScale: 1,
+    sprint: false,
+    action: null,
+    wantsRun: false,
+    wantsInteract: false,
+    wantsTalk: false,
+    wantsUse: false,
+    ...(spec.intent || {})
+  };
+  state.controllerState.intent = intent;
 
   return {
     id,
     role,
     tags: normalizeTags(spec.tags, role),
     runtimeContract: UNIT_RUNTIME_CONTRACT_ID,
+    stateContract: UNIT_STATE_CONTRACT_ID,
     enabled: spec.enabled !== false,
     transform: {
       x: finite(transform.x),
@@ -37,8 +54,8 @@ export function normalizeUnitSpec(spec = {}) {
       velocityX: finite(movement.velocityX),
       velocityY: finite(movement.velocityY),
       velocityZ: finite(movement.velocityZ),
-      intentX: 0,
-      intentZ: 0
+      intentX: finite(movement.intentX),
+      intentZ: finite(movement.intentZ)
     },
     mobility: {
       multiplier: Math.max(0, finite(spec.mobility?.multiplier, 1)),
@@ -48,7 +65,9 @@ export function normalizeUnitSpec(spec = {}) {
     controller: spec.controller || null,
     binding: spec.binding || null,
     components: { ...(spec.components || {}) },
-    metadata: { ...(spec.metadata || {}) }
+    metadata: { ...(spec.metadata || {}) },
+    state,
+    intent
   };
 }
 
@@ -57,8 +76,11 @@ export function unitContractViolations(unit) {
   if (!unit || typeof unit !== "object") return ["unit_missing"];
   if (!unit.id) violations.push("id_missing");
   if (unit.runtimeContract !== UNIT_RUNTIME_CONTRACT_ID) violations.push("runtime_contract_mismatch");
+  if (unit.stateContract !== UNIT_STATE_CONTRACT_ID) violations.push("state_contract_mismatch");
   if (!unit.transform) violations.push("transform_missing");
   if (!unit.movement) violations.push("movement_missing");
+  if (!unit.state) violations.push("state_missing");
+  if (!unit.intent) violations.push("intent_missing");
   if (!Array.isArray(unit.tags)) violations.push("tags_missing");
   return violations;
 }
@@ -71,6 +93,7 @@ export class UnitRegistry {
   register(spec) {
     const unit = normalizeUnitSpec(spec);
     if (this.units.has(unit.id)) throw new Error(`Unit already registered: ${unit.id}`);
+    ensureUnitRuntimeState(unit);
     this.units.set(unit.id, unit);
     return unit;
   }
