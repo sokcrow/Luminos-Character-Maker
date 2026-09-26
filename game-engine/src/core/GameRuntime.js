@@ -1,5 +1,6 @@
 import { MapSystem } from "../map/MapSystem.js";
 import { MapBridgeAdapter } from "../map/MapBridgeAdapter.js";
+import { createProceduralMapDefinition } from "../map/procedural/ProceduralMapGenerator.js";
 import { UnitRuntime } from "../units/UnitRuntime.js";
 import { CameraSystem } from "../camera/CameraSystem.js";
 import { CameraBridgeAdapter } from "../camera/CameraBridgeAdapter.js";
@@ -55,6 +56,10 @@ export class GameRuntime {
 
   registerMap(definition, options) {
     return this.map.registerMap(definition, options);
+  }
+
+  registerProceduralMap(spec, options) {
+    return this.registerMap(createProceduralMapDefinition(spec), options);
   }
 
   activateMap(id, data, options) {
