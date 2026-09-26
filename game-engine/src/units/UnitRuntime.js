@@ -1,4 +1,5 @@
 import { UnitRegistry, unitContractViolations } from "./UnitRegistry.js";
+import { ensureUnitRuntimeState } from "./UnitState.js";
 import { UnitControllerSystem } from "./UnitControllerSystem.js";
 import { UnitMovementSystem } from "./UnitMovementSystem.js";
 import { UnitEnvironmentSystem } from "./UnitEnvironmentSystem.js";
@@ -48,6 +49,7 @@ export class UnitRuntime {
 
   register(spec) {
     const unit = this.registry.register(spec);
+    ensureUnitRuntimeState(unit);
     const violations = unitContractViolations(unit);
     if (violations.length) {
       this.registry.unregister(unit.id);
@@ -76,6 +78,8 @@ export class UnitRuntime {
     if (!this.enabled) return;
     const context = { engine: this.engine, mapSystem: this.mapSystem, unitRuntime: this };
     for (const unit of this.registry.list({ enabledOnly: true })) {
+      ensureUnitRuntimeState(unit);
+      unit.state.movement.movedDistanceFrame = 0;
       syncFromBinding(unit);
       this.controllerSystem.update(unit, dt, context);
       this.movementSystem.update(unit, dt, context);
@@ -92,7 +96,15 @@ export class UnitRuntime {
       tags: [...unit.tags],
       transform: { ...unit.transform },
       movement: { ...unit.movement },
-      runtimeContract: unit.runtimeContract
+      state: {
+        contract: unit.state.contract,
+        locomotion: unit.state.locomotion,
+        velocity: { ...unit.state.velocity },
+        movement: { ...unit.state.movement },
+        environment: { ...unit.state.environment }
+      },
+      runtimeContract: unit.runtimeContract,
+      stateContract: unit.stateContract
     }));
   }
 
