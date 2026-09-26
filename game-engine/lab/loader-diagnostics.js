@@ -38,6 +38,7 @@
       stage: safeText(doc.getElementById('loaderStage')?.textContent) || 'Preparando carga',
       hint: safeText(doc.getElementById('loaderHint')?.textContent),
       lastSignalAt: performance.now(),
+      background: null,
       failed: false,
       error: null
     };
@@ -54,6 +55,7 @@
         stage: state.stage,
         hint: state.hint,
         lastSignalAt: state.lastSignalAt,
+        background: state.background,
         failed: state.failed,
         error: state.error
       };
@@ -63,12 +65,26 @@
       const nextStage = safeText(stage) || state.stage;
       const nextHint = safeText(hint) || state.hint;
       const requested = Math.max(0, Math.min(100, Math.round(Number(pct) || 0)));
-      const signalChanged = requested !== state.requestedPercent || nextStage !== state.stage || nextHint !== state.hint;
 
+      // Una tarea asíncrona atrasada no puede apropiarse de la fase foreground.
+      // Ejemplo real: el mapa ya está en 78%, pero el warm-up no bloqueante de NPC
+      // termina después y anuncia 48/53/58% "Cargando vecinos". Antes el número
+      // quedaba en 78% mientras el texto mentía diciendo que seguía cargando NPCs.
+      if (requested < state.percent) {
+        state.background = {
+          requestedPercent: requested,
+          stage: safeText(stage),
+          hint: safeText(hint),
+          at: performance.now()
+        };
+        publish();
+        return originalSetLoadProgress(pct, null, null);
+      }
+
+      const signalChanged = requested !== state.requestedPercent || nextStage !== state.stage || nextHint !== state.hint;
       if (signalChanged) {
         state.lastSignalAt = performance.now();
-        // El watchdog interno debe considerar avance de fase/detalle aunque el porcentaje visual
-        // siga retenido por la regla monotónica (por ejemplo, 78% -> otra fase con 60%).
+        // El watchdog interno debe considerar avance de fase/detalle, no sólo el ancho de la barra.
         win.__paperLoadLastProgressAt = state.lastSignalAt;
       }
 
@@ -106,6 +122,7 @@
         detail,
         percent: state.percent,
         requestedPercent: state.requestedPercent,
+        background: state.background,
         diagnostics: win.__luminosLoaderDiagnostics
       });
     };
