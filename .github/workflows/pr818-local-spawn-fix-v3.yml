@@ -1,0 +1,94 @@
+name: PR818 Local Spawn Fix v3
+
+on:
+  push:
+    branches:
+      - lab-preview
+    paths:
+      - ".github/workflows/pr818-local-spawn-fix-v3.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout lab-preview
+        uses: actions/checkout@v4
+        with:
+          ref: lab-preview
+          fetch-depth: 1
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Apply verified engine patch and align regression tests
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re, textwrap
+
+          source = Path('.github/workflows/pr818-local-spawn-fix-v2.yml').read_text(encoding='utf-8')
+          match = re.search(r"          python - <<'PY'\n(.*?)\n          PY", source, re.S)
+          if not match:
+              raise SystemExit('Could not recover verified patch script from v2 workflow')
+          patch_script = textwrap.dedent(match.group(1))
+          exec(compile(patch_script, '<pr818-local-spawn-patch>', 'exec'), {})
+
+          visual_path = Path('game-engine/tests/visual-lab-smoke.mjs')
+          visual = visual_path.read_text(encoding='utf-8')
+          old = "assert.match(game, /Spawn safety moved spawn to procedural travel path/);"
+          new = """assert.match(game, /SAFE_SPAWN_ROUTE_LIMIT=24/);
+          assert.match(game, /SAFE_SPAWN_RING_SAMPLES=12/);
+          assert.match(game, /Spawn safety relocated local entry/);
+          assert.doesNotMatch(game, /for\\(let tz=Math\\.floor\\(b\\.z0\\)/);"""
+          if old not in visual:
+              raise SystemExit('Old spawn visual regression assertion not found')
+          visual_path.write_text(visual.replace(old, new, 1), encoding='utf-8')
+
+          workflow_path = Path('.github/workflows/game-engine-validation.yml')
+          workflow = workflow_path.read_text(encoding='utf-8')
+          anchor = """      - name: Visual Lab smoke
+                  run: node game-engine/tests/visual-lab-smoke.mjs
+          """
+          # YAML file uses eight spaces under run; use a direct stable insertion instead.
+          needle = "      - name: Visual Lab smoke\n        run: node game-engine/tests/visual-lab-smoke.mjs\n"
+          insert = needle + "\n      - name: Spawn loading smoke\n        run: node game-engine/tests/spawn-loading-smoke.mjs\n"
+          if 'Spawn loading smoke' not in workflow:
+              if needle not in workflow:
+                  raise SystemExit('Game engine validation insertion point not found')
+              workflow = workflow.replace(needle, insert, 1)
+              workflow_path.write_text(workflow, encoding='utf-8')
+          PY
+
+      - name: Spawn loading smoke
+        run: node game-engine/tests/spawn-loading-smoke.mjs
+      - name: Core smoke
+        run: node game-engine/tests/core-smoke.mjs
+      - name: Continuous movement smoke
+        run: node game-engine/tests/continuous-movement-smoke.mjs
+      - name: Visual Lab smoke
+        run: node game-engine/tests/visual-lab-smoke.mjs
+      - name: World floor texture smoke
+        run: node game-engine/tests/world-floor-textures-smoke.mjs
+      - name: Terrain surface smoke
+        run: node game-engine/tests/terrain-surface-standard-smoke.mjs
+      - name: WaterBody smoke
+        run: node game-engine/tests/water-body-system-smoke.mjs
+      - name: WakeTrail smoke
+        run: node game-engine/tests/wake-trail-system-smoke.mjs
+
+      - name: Commit engine update and remove one-shot workflows
+        shell: bash
+        run: |
+          rm -f .github/workflows/pr818-local-spawn-fix.yml .github/workflows/pr818-local-spawn-fix-v2.yml .github/workflows/pr818-local-spawn-fix-v3.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix(engine): resolve spawn after procedural terrain"
+          git push origin HEAD:lab-preview
