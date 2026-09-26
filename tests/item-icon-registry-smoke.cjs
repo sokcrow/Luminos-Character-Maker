@@ -8,9 +8,9 @@ const { pathToFileURL } = require('node:url');
   const registry = globalThis.LuminousItemIconRegistry;
 
   assert.ok(registry);
-  assert.equal(registry.VERSION, 34);
+  assert.equal(registry.VERSION, 35);
   assert.equal(registry.DEFAULT_GROUP, 'generic_item');
-  assert.equal(Object.keys(registry.GROUPS).length, 581);
+  assert.equal(Object.keys(registry.GROUPS).length, 589);
 
   const groups = registry.list();
   assert.equal(new Set(groups.map((entry) => entry.id)).size, groups.length);
@@ -156,6 +156,22 @@ const { pathToFileURL } = require('node:url');
     coffee_cookie_retail_pack:'Assets/Icons/items/consumable/coffee_cookie_retail_pack.png'
   };
   for (const [id, icon] of Object.entries(cookieIcons)) {
+    assert.equal(registry.has(id), true, id);
+    assert.equal(registry.resolveIcon(id), icon, id);
+    assert.equal(registry.get(id).domain, 'consumable');
+  }
+
+  const muffinIcons = {
+    muffin:'Assets/Icons/items/consumable/muffin.png',
+    blueberry_muffin:'Assets/Icons/items/consumable/blueberry_muffin.png',
+    chocolate_muffin:'Assets/Icons/items/consumable/chocolate_muffin.png',
+    banana_muffin:'Assets/Icons/items/consumable/banana_muffin.png',
+    apple_muffin:'Assets/Icons/items/consumable/apple_muffin.png',
+    strawberry_muffin:'Assets/Icons/items/consumable/strawberry_muffin.png',
+    lemon_muffin:'Assets/Icons/items/consumable/lemon_muffin.png',
+    coconut_muffin:'Assets/Icons/items/consumable/coconut_muffin.png'
+  };
+  for (const [id, icon] of Object.entries(muffinIcons)) {
     assert.equal(registry.has(id), true, id);
     assert.equal(registry.resolveIcon(id), icon, id);
     assert.equal(registry.get(id).domain, 'consumable');

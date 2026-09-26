@@ -1,0 +1,52 @@
+name: World Water Texture Vendor
+
+on:
+  push:
+    branches:
+      - lab-preview
+    paths:
+      - "scripts/vendor-world-water-textures.mjs"
+      - ".github/workflows/world-water-textures-vendor.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  vendor-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Lab Preview
+        uses: actions/checkout@v4
+        with:
+          ref: lab-preview
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Download official water textures
+        run: node scripts/vendor-world-water-textures.mjs
+
+      - name: Verify PNG files
+        shell: bash
+        run: |
+          test -s Assets/Images/World/Water/water_seamless.png
+          test -s Assets/Images/World/Water/coast_foam_seamless.png
+          test -s Assets/Images/World/Water/catalog.json
+          node -e "const c=require('./Assets/Images/World/Water/catalog.json'); if(c.assetCount!==2)process.exit(1); const f=c.assets.find(x=>x.id==='coast_foam_seamless'); if(!f?.hasAlpha)process.exit(2);"
+
+      - name: Commit vendored water assets
+        shell: bash
+        run: |
+          if [ -z "$(git status --porcelain -- Assets/Images/World/Water)" ]; then
+            echo "Water assets already current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Assets/Images/World/Water
+          git commit -m "assets(water): vendor official seamless textures"
+          git push origin "HEAD:lab-preview"

@@ -780,9 +780,11 @@ body.global-map-mode #globalMapActions{display:block}
 window.__paperLoaded=false;
 window.__paperLoaderActive=true;
 window.__paperLoadPct=0;
+window.__paperLoadLastProgressAt=performance.now();
 window.setLoadProgress=(pct,stage,hint)=>{
   const requested=Math.max(0,Math.min(100,Math.round(pct)));
   const p=window.__paperLoaderActive?Math.max(Number(window.__paperLoadPct)||0,requested):requested;
+  if(p>Number(window.__paperLoadPct||0))window.__paperLoadLastProgressAt=performance.now();
   window.__paperLoadPct=p;
   const fill=document.getElementById('loaderFill');
   const pctEl=document.getElementById('loaderPct');
@@ -819,9 +821,16 @@ window.paperLoadFailed=(msg)=>{
 addEventListener('DOMContentLoaded',()=>{
   document.getElementById('loaderRetry')?.addEventListener('click',()=>location.reload());
   window.setLoadProgress(6,'Preparando motor','Un momento…');
-  setTimeout(()=>{
-    if(!window.__paperLoaded)window.paperLoadFailed('Si tu red está lenta, reintenta la carga.');
-  },14000);
+  const watchdog=setInterval(()=>{
+    if(window.__paperLoaded){clearInterval(watchdog);return;}
+    const idleMs=performance.now()-Number(window.__paperLoadLastProgressAt||0);
+    // Terrain generation and spawn safety can legitimately take longer on mobile.
+    // Fail only when the loader has made NO progress for a sustained period.
+    if(idleMs>30000){
+      clearInterval(watchdog);
+      window.paperLoadFailed('La carga dejó de avanzar. Toca Reintentar.');
+    }
+  },2000);
 });
 </script>
 
@@ -848,8 +857,40 @@ addEventListener('unhandledrejection',e=>{
 <script src="../../../js/item-economy-standard.js"></script>
 
 <script type="module">
-import * as THREE from '../../vendor/three.module.js';
-import { createRepositoryWorldFloorTextureRuntime } from '../../src/world/WorldFloorTextures.js';
+window.setLoadProgress?.(8,'Preparando motor','Cargando Three.js…');
+let THREE;
+let createRepositoryWorldFloorTextureRuntime, worldFloorRepeatForTiles;
+let TERRAIN_SLOPE_STANDARD, terrainSlopeBand, resolveTerrainSlopeSlide, resolveTerrainMoveMultiplier;
+let TERRAIN_SURFACE_STANDARD, terrainSurfaceTierForSlope, terrainSurfaceMaterialKinds, terrainElevationSurfaceWeights, terrainCoastMaterialKinds, terrainCoastSurfaceWeights;
+let createWaterBodySystem, extractFieldShorelines, waterCurrentImmersionFactor;
+let createWaterInteractionSystem;
+
+try {
+  THREE = await import('../../vendor/three.module.js');
+  window.setLoadProgress?.(11,'Preparando motor','Cargando terreno…');
+
+  ({ createRepositoryWorldFloorTextureRuntime, worldFloorRepeatForTiles } =
+    await import('../../src/world/WorldFloorTextures.js'));
+  ({ TERRAIN_SLOPE_STANDARD, terrainSlopeBand, resolveTerrainSlopeSlide, resolveTerrainMoveMultiplier } =
+    await import('../../src/world/TerrainMobility.js'));
+  ({ TERRAIN_SURFACE_STANDARD, terrainSurfaceTierForSlope, terrainSurfaceMaterialKinds, terrainElevationSurfaceWeights, terrainCoastMaterialKinds, terrainCoastSurfaceWeights } =
+    await import('../../src/world/TerrainSurfaceStandard.js'));
+
+  window.setLoadProgress?.(15,'Preparando motor','Cargando agua…');
+  ({ createWaterBodySystem, extractFieldShorelines, waterCurrentImmersionFactor } =
+    await import('../../src/world/WaterBodySystem.js'));
+  ({ createWaterInteractionSystem } =
+    await import('../../src/world/WakeTrailSystem.js'));
+} catch (error) {
+  window.paperLoadFailed?.('No se pudo iniciar el motor: '+(error?.message || String(error)));
+  const errorBox=document.getElementById('error');
+  if(errorBox){
+    errorBox.style.display='block';
+    errorBox.style.zIndex='10001';
+    errorBox.textContent='Error de arranque: '+(error?.stack || error?.message || String(error));
+  }
+  throw error;
+}
 
 let worldFloorTextureRuntime=null;
 window.setLoadProgress?.(18,'Motor listo','Preparando personajes…');
@@ -1056,11 +1097,11 @@ function displayDetectMobileDevice(){
 }
 const DISPLAY_DEVICE_MOBILE=displayDetectMobileDevice();
 const MOBILE_FOREST_LOW_POLY=DISPLAY_DEVICE_MOBILE;
-const DISPLAY_PERFORMANCE_RUNTIME={adaptiveScale:1,lastAdjust:0,lowStreak:0,highStreak:0,targetFps:48,minFps:40,minScale:.58};
+const DISPLAY_PERFORMANCE_RUNTIME={adaptiveScale:1,lastAdjust:0,lowStreak:0,highStreak:0,targetFps:48,minFps:38,minScale:.84};
 function displayLandscapeMobile(){return DISPLAY_DEVICE_MOBILE&&innerWidth>innerHeight}
-function displayBasePixelRatioCap(){return DISPLAY_DEVICE_MOBILE?(displayLandscapeMobile()?0.70:1.25):1.5}
+function displayBasePixelRatioCap(){return DISPLAY_DEVICE_MOBILE?(displayLandscapeMobile()?1.20:1.35):2.0}
 function displayPixelRatioCap(){return displayBasePixelRatioCap()*DISPLAY_PERFORMANCE_RUNTIME.adaptiveScale}
-function displayPixelRatio(){return Math.min(Number(devicePixelRatio)||1,displayPixelRatioCap())}
+function displayPixelRatio(){const native=Math.max(1,Number(devicePixelRatio)||1);return Math.min(native,Math.max(1,displayPixelRatioCap()))}
 
 const camera=new THREE.PerspectiveCamera(40,innerWidth/innerHeight,.1,180);
 const CAMERA_VISIBILITY_REFERENCE_ASPECT=16/9;
@@ -1073,13 +1114,62 @@ function cameraFixedVisibilityFov(baseFov,cam=camera){
   const h=2*Math.atan(Math.tan(v/2)*CAMERA_VISIBILITY_REFERENCE_ASPECT);
   return THREE.MathUtils.radToDeg(2*Math.atan(Math.tan(h/2)/aspect));
 }
-const renderer=new THREE.WebGLRenderer({antialias:!DISPLAY_DEVICE_MOBILE,powerPreference:'high-performance'});
+const DISPLAY_RENDER_ANTIALIAS=!DISPLAY_DEVICE_MOBILE;
+const renderer=new THREE.WebGLRenderer({antialias:DISPLAY_RENDER_ANTIALIAS,powerPreference:'high-performance'});
 renderer.setPixelRatio(displayPixelRatio());
 renderer.setSize(innerWidth,innerHeight);
 renderer.outputColorSpace=THREE.SRGBColorSpace;
 renderer.shadowMap.enabled=!displayLandscapeMobile();
 renderer.shadowMap.type=DISPLAY_DEVICE_MOBILE?THREE.PCFShadowMap:THREE.PCFSoftShadowMap;
 document.body.prepend(renderer.domElement);
+
+const WATER_BODY_DEBUG_DEFAULT=new URLSearchParams(location.search).get('showShoreFoamRibbon')==='1';
+const waterBodySystem=createWaterBodySystem({THREE,baseUrl:import.meta.url,showShoreFoamRibbon:WATER_BODY_DEBUG_DEFAULT});
+window.WaterBodyRuntime=Object.freeze({
+  system:waterBodySystem,
+  status:()=>waterBodySystem.status(),
+  setDebug:(show)=>waterBodySystem.setDebug(!!show),
+  clear:()=>waterBodySystem.clearBodies()
+});
+Object.defineProperty(window,'showShoreFoamRibbon',{
+  configurable:true,
+  get:()=>waterBodySystem.showShoreFoamRibbon,
+  set:(value)=>waterBodySystem.setDebug(!!value)
+});
+
+const WAKE_DEBUG_DEFAULT=new URLSearchParams(location.search).get('showWakeDebug')==='1';
+const waterInteractionSystem=createWaterInteractionSystem({
+  THREE,waterBodySystem,parent:scene,baseUrl:import.meta.url,
+  texture:'Assets/Images/World/Water/wake_trail.png',
+  showWakeDebug:WAKE_DEBUG_DEFAULT
+});
+window.WaterInteractionRuntime=Object.freeze({
+  system:waterInteractionSystem,
+  status:()=>waterInteractionSystem.status(),
+  register:(id,spec)=>waterInteractionSystem.registerInteractor(id,spec),
+  unregister:(id)=>waterInteractionSystem.unregisterInteractor(id),
+  setDebug:(show)=>waterInteractionSystem.setDebug(!!show)
+});
+Object.defineProperty(window,'showWakeDebug',{
+  configurable:true,
+  get:()=>waterInteractionSystem.wakeTrails.showWakeDebug,
+  set:(value)=>waterInteractionSystem.setDebug(!!value)
+});
+let staticWaterInteractorSerial=0;
+function registerStaticWaterObstacle(object3D,radius,wake={}){
+  if(!object3D)return null;
+  const id=`water-obstacle-${++staticWaterInteractorSerial}`,worldPos=new THREE.Vector3();
+  object3D.userData.waterInteractorId=id;
+  waterInteractionSystem.registerInteractor(id,{
+    object3D,
+    position:()=>object3D.getWorldPosition(worldPos),
+    velocity:{x:0,y:0,z:0},
+    obstacleRadius:Math.max(.04,Number(radius)||.4),
+    wakeEnabled:true,
+    wake:{type:'staticObstacle',minRelativeSpeed:.15,width:1.4,length:5,maxExtraLength:3,widening:1.3,tileWorldLength:2.5,scrollSpeed:.25,fadeStart:.72,opacity:.9,...wake}
+  });
+  return id;
+}
 
 const hemi=new THREE.HemisphereLight(0xfff0d7,0x657267,1.72);
 scene.add(hemi);
@@ -1437,9 +1527,9 @@ const SURFACE_VISUAL_PROFILES=Object.freeze({
   temperate:Object.freeze({groundKind:'forestGround',pathKind:'forestPath',crownColor:0x668f55,background:0x95ad89,waterBase:0x398f9d,waveA:0xa7dfe3,waveB:0xd8f1ee,foam:0xf4fff8}),
   forest:Object.freeze({groundKind:'forestGround',pathKind:'forestPath',crownColor:0x557f4d,background:0x89a58b,waterBase:0x348b91,waveA:0x9fd8d2,waveB:0xd7f0e8,foam:0xf4fff7}),
   grassland:Object.freeze({groundKind:'grasslandGround',pathKind:'forestPath',crownColor:0x789357,background:0xa3b58b,waterBase:0x3d93a1,waveA:0xabe1df,waveB:0xdaf1ec,foam:0xf5fff9}),
-  desert:Object.freeze({groundKind:'desertGround',pathKind:'desertGround',crownColor:0x78895b,background:0xc5aa78,waterBase:0x399aaa,waveA:0xaee5e0,waveB:0xe0f3ea,foam:0xfffdf0}),
+  desert:Object.freeze({groundKind:'desertGround',pathKind:'gravelGround',crownColor:0x78895b,background:0xc5aa78,waterBase:0x399aaa,waveA:0xaee5e0,waveB:0xe0f3ea,foam:0xfffdf0}),
   swamp:Object.freeze({groundKind:'swampGroundFX',pathKind:'swampPath',crownColor:0x587b55,background:0x809c8d,waterBase:0x4f7771,waveA:0x879c81,waveB:0xb5b895,foam:0xd8dfbd}),
-  arctic:Object.freeze({groundKind:'arcticGround',pathKind:'grovePath',crownColor:0x607868,background:0x929d9d,waterBase:0x4a899b,waveA:0xaed9e4,waveB:0xddebf0,foam:0xf7ffff})
+  arctic:Object.freeze({groundKind:'arcticGround',pathKind:'gravelGround',crownColor:0x607868,background:0x929d9d,waterBase:0x4a899b,waveA:0xaed9e4,waveB:0xddebf0,foam:0xf7ffff})
 });
 const BIOME_LANDFORM_KEYS=Object.freeze(['flat','rolling','hills','ridges','mountain','dunes','mesas','basin','cliffs']);
 function biomeClamp01(v){return Math.max(0,Math.min(1,Number(v)||0))}
@@ -1734,7 +1824,9 @@ const COAST_TERRAIN_RULES=Object.freeze({
   // La costa visible es un campo continuo; el grid queda como semántica discreta de gameplay/combat.
   gradeWidthTiles:5.8,
   cliffGradeWidthTiles:1.45,
-  shorelineSubmergeTiles:.070,
+  shorelineSubmergeTiles:.035,
+  shorelineDryLiftTiles:.14,
+  shorelineRaiseWidthTiles:.58,
   submergedSlopePerTile:.17,
   maxSubmergedDepthTiles:1.42,
   wetSandWidthTiles:1.25,
@@ -1784,11 +1876,70 @@ function coastV2BackshoreReliefTiles(id,tx,tz,d){
   const generalRise=inland*COAST_TERRAIN_RULES.maxBackshoreLiftTiles*zoneClamp(.18+(weights.rolling||0)*.42+(weights.hills||0)*.52+(weights.mountain||0)*.62+(weights.cliffs||0)*.72,0,1);
   return Math.max(0,generalRise+dune);
 }
-function coastV2GroundMaterial(){
-  const key='coast-v2-ground';
+function coastV2GroundMaterial({region=activeProceduralZone?.region,baseKind='forestGround',uTiles=1,vTiles=1}={}){
+  const biomeProfile=region?.biomeProfile||'temperate';
+  const kinds=terrainCoastMaterialKinds({biomeProfile,baseKind});
+  const [repeatX,repeatY]=worldFloorRepeatForTiles(uTiles,vTiles);
+  const key=`coast-v3-textured:${biomeProfile}:${kinds.shore}:${kinds.base}:${kinds.transition}:${kinds.rock}:${repeatX.toFixed(2)}:${repeatY.toFixed(2)}`;
   if(COAST_V2_MATERIAL_CACHE.has(key))return COAST_V2_MATERIAL_CACHE.get(key);
-  const m=new THREE.MeshStandardMaterial({color:0xffffff,vertexColors:true,roughness:.98,metalness:0,flatShading:false});
-  m.dithering=true;COAST_V2_MATERIAL_CACHE.set(key,m);return m;
+
+  const sources={
+    shore:mat(kinds.shore),
+    base:mat(kinds.base),
+    transition:mat(kinds.transition),
+    rock:mat(kinds.rock)
+  };
+  const whiteData=new Uint8Array([255,255,255,255]);
+  const whiteTexture=new THREE.DataTexture(whiteData,1,1,THREE.RGBAFormat);
+  whiteTexture.needsUpdate=true;
+  const uniforms={
+    shore:{value:sources.shore?.map||whiteTexture},
+    base:{value:sources.base?.map||whiteTexture},
+    transition:{value:sources.transition?.map||whiteTexture},
+    rock:{value:sources.rock?.map||whiteTexture}
+  };
+
+  const m=new THREE.MeshStandardMaterial({map:sources.base?.map||whiteTexture,color:0xffffff,vertexColors:true,roughness:.98,metalness:0,flatShading:false});
+  m.dithering=true;
+  m.userData.coastSurfaceStandard='repository-textures-v1';
+  m.userData.coastSurfaceKinds={...kinds};
+  m.userData.worldFloorRepeat=[repeatX,repeatY];
+  m.userData.syncCoastSurfaceTextures=()=>{
+    for(const source of Object.values(sources))worldFloorTextureRuntime?.ensureMaterial(source);
+    uniforms.shore.value=sources.shore?.map||whiteTexture;
+    uniforms.base.value=sources.base?.map||whiteTexture;
+    uniforms.transition.value=sources.transition?.map||whiteTexture;
+    uniforms.rock.value=sources.rock?.map||whiteTexture;
+    m.map=uniforms.base.value;
+  };
+  m.onBeforeCompile=(shader)=>{
+    shader.uniforms.coastShoreMap=uniforms.shore;
+    shader.uniforms.coastBaseMap=uniforms.base;
+    shader.uniforms.coastTransitionMap=uniforms.transition;
+    shader.uniforms.coastRockMap=uniforms.rock;
+    shader.uniforms.coastUvScale={value:new THREE.Vector2(repeatX,repeatY)};
+    shader.vertexShader=shader.vertexShader
+      .replace('#include <common>','#include <common>\nattribute vec4 coastSurfaceWeights;\nvarying vec4 vCoastSurfaceWeights;\nvarying vec2 vCoastSurfaceUv;')
+      .replace('#include <uv_vertex>','#include <uv_vertex>\nvCoastSurfaceWeights=coastSurfaceWeights;\nvCoastSurfaceUv=uv;');
+    shader.fragmentShader=shader.fragmentShader
+      .replace('#include <common>','#include <common>\nuniform sampler2D coastShoreMap;\nuniform sampler2D coastBaseMap;\nuniform sampler2D coastTransitionMap;\nuniform sampler2D coastRockMap;\nuniform vec2 coastUvScale;\nvarying vec4 vCoastSurfaceWeights;\nvarying vec2 vCoastSurfaceUv;')
+      .replace('#include <map_fragment>',`
+        vec4 coastWeights=max(vCoastSurfaceWeights,vec4(0.0));
+        coastWeights/=max(0.0001,coastWeights.x+coastWeights.y+coastWeights.z+coastWeights.w);
+        vec2 coastUv=vCoastSurfaceUv*coastUvScale;
+        vec4 coastTexel=
+          texture2D(coastShoreMap,coastUv)*coastWeights.x+
+          texture2D(coastBaseMap,coastUv)*coastWeights.y+
+          texture2D(coastTransitionMap,coastUv)*coastWeights.z+
+          texture2D(coastRockMap,coastUv)*coastWeights.w;
+        diffuseColor*=coastTexel;
+      `);
+    m.userData.coastShader=shader;
+    m.userData.syncCoastSurfaceTextures();
+  };
+  m.customProgramCacheKey=()=>key;
+  COAST_V2_MATERIAL_CACHE.set(key,m);
+  return m;
 }
 function coastV2SandstoneMaterials(region=activeProceduralZone?.region){
   const key=`coast-rock-${region?.biomeProfile||'temperate'}`;
@@ -1885,13 +2036,16 @@ function createRiverField(ctx){
   const waterWidthTiles=halfWidthTiles*2;
   const spineWidthTiles=hydrologySpineWidthTiles(waterWidthTiles);
   const lookupSegments=buildHydrologyCurveLookup({points},48);
+  const currentSpeed=1.00+relief*.90+ctx.moisture*.40;
   return Object.freeze({
     kind:'river',points,samples:48,lookupSegments,halfWidthTiles,waterWidthTiles,
     spineWidthTiles,spineHalfWidthTiles:spineWidthTiles*.5,
     surfaceInsetTiles:HYDROLOGY_SPINE_RULES.surfaceInsetTiles,
     bankWidthTiles:(1.15+ctx.moisture*.85)*S,depthTiles:.26+ctx.moisture*.64+relief*.32,
     waterSurfaceTiles:ctx.altitude-HYDROLOGY_SPINE_RULES.surfaceInsetTiles,
-    currentStrength:1.00+relief*.90+ctx.moisture*.40,phase:rng.range(0,Math.PI*2)
+    // currentSpeed is now the authored river velocity authority. currentStrength is
+    // retained as a compatibility alias for older diagnostics/content.
+    currentSpeed,currentStrength:currentSpeed,phase:rng.range(0,Math.PI*2)
   });
 }
 function riverHalfWidthAtT(river,t){
@@ -1900,24 +2054,67 @@ function riverHalfWidthAtT(river,t){
   const secondary=.035*Math.sin(t*Math.PI*11+phase*1.73);
   return Math.max(.35,(Number(river?.halfWidthTiles)||.35)*(.90+primary+secondary));
 }
+function riverCalmShoulderWidthAtT(river,t){
+  const core=riverHalfWidthAtT(river,t);
+  const bank=Math.max(.1,Number(river?.bankWidthTiles)||.8);
+  // Shallow water occupies the unused shelf between the fast river core and dry bank.
+  // Keep it wide enough to close visual gaps without swallowing the whole riverbank.
+  const target=Math.min(bank*.46,Math.max(.34,core*.58));
+  return Math.max(.28,Math.min(1.15,target));
+}
+function riverWaterHalfWidthAtT(river,t){
+  return riverHalfWidthAtT(river,t)+riverCalmShoulderWidthAtT(river,t);
+}
 function riverFieldSample(river,x,z){
-  const near=hydrologyCurveNearest(river,x,z),halfWidth=riverHalfWidthAtT(river,near.t);
-  const signed=near.distance-halfWidth,water=signed<0,center=zoneClamp(1-near.distance/halfWidth,0,1);
-  const spineHalfWidth=Math.max(.275,Number(river.spineHalfWidthTiles)||hydrologySpineWidthTiles(halfWidth*2)*.5);
+  const near=hydrologyCurveNearest(river,x,z);
+  const coreHalfWidth=riverHalfWidthAtT(river,near.t);
+  const calmShoulderWidth=riverCalmShoulderWidthAtT(river,near.t);
+  const waterHalfWidth=coreHalfWidth+calmShoulderWidth;
+  const signed=near.distance-waterHalfWidth,water=signed<0;
+  const coreSigned=near.distance-coreHalfWidth,coreWater=coreSigned<0;
+  const spineHalfWidth=Math.max(.275,Number(river.spineHalfWidthTiles)||hydrologySpineWidthTiles(coreHalfWidth*2)*.5);
   const spineDistance=near.distance-spineHalfWidth,spine=spineDistance<=0,spineInfluence=zoneClamp(1-near.distance/spineHalfWidth,0,1);
-  // El spine controla el perfil vertical del cauce: dentro del núcleo conserva la
-  // profundidad principal; la franja restante hasta la orilla sólo hace bevel.
-  // La profundidad declarada y la heightfield usan exactamente el mismo valor.
-  const edgeBand=Math.max(.001,halfWidth-spineHalfWidth);
-  const edgeInfluence=spine?1:zoneClamp(1-(near.distance-spineHalfWidth)/edgeBand,0,1);
-  const depthFactor=spine?(.58+.42*spineInfluence):(.08+.34*edgeInfluence);
-  const waterDepth=water?Math.max(.06,river.depthTiles*depthFactor):0,tangent=hydrologyRiverTangent(river,near.t);
+  const coreEdgeBand=Math.max(.001,coreHalfWidth-spineHalfWidth);
+  const coreEdgeInfluence=spine?1:zoneClamp(1-(near.distance-spineHalfWidth)/coreEdgeBand,0,1);
+  const calmInfluence=water&&!coreWater
+    ?zoneClamp((waterHalfWidth-near.distance)/Math.max(.001,calmShoulderWidth),0,1)
+    :0;
+
+  let waterDepth=0;
+  if(water){
+    if(coreWater){
+      const depthFactor=spine?(.58+.42*spineInfluence):(.08+.34*coreEdgeInfluence);
+      waterDepth=Math.max(.06,river.depthTiles*depthFactor);
+    }else{
+      // Calm shoulder remains intentionally shallow: visible water + wading, not a
+      // second full-strength current channel.
+      waterDepth=Math.max(.035,river.depthTiles*(.055+.14*calmInfluence));
+    }
+  }
+
+  const tangent=hydrologyRiverTangent(river,near.t);
   const wetness=zoneClamp(1-Math.max(0,signed)/Math.max(.1,river.bankWidthTiles*2.4),0,1);
-  return {type:'river',class:water?(waterDepth>river.depthTiles*.56?'deepWater':'shallowWater'):(signed<river.bankWidthTiles?'riverbank':'land'),
+  const currentSpeed=Math.max(0,Number(river.currentSpeed??river.currentStrength)||0);
+  const immersion=water?waterCurrentImmersionFactor({
+    waterDepth,
+    referenceDepth:Math.max(.08,Number(river.depthTiles)||.08),
+    minFactor:.06,
+    onset:.12,
+    fullAt:.90
+  }):0;
+  const currentBand=coreWater?1:(water?(.04+.14*calmInfluence):0);
+  const effectiveCurrentStrength=currentSpeed*immersion*currentBand;
+  return {
+    type:'river',
+    class:water?(coreWater&&waterDepth>river.depthTiles*.56?'deepWater':'shallowWater'):(signed<river.bankWidthTiles?'riverbank':'land'),
     distanceToCoast:Infinity,distanceToWater:Math.max(0,signed),signedDistanceToWater:signed,wetness,water,waterDepth,
     waterSurfaceTiles:river.waterSurfaceTiles,bankWidthTiles:river.bankWidthTiles,
-    spine,spineDistance,spineInfluence,spineWidthTiles:spineHalfWidth*2,surfaceInsetTiles:Number(river.surfaceInsetTiles)||HYDROLOGY_SPINE_RULES.surfaceInsetTiles,
-    current:{x:tangent.x,z:tangent.z,strength:river.currentStrength,label:'Corriente'}};
+    spine,spineDistance,spineInfluence,spineWidthTiles:spineHalfWidth*2,
+    riverCore:coreWater,calmWater:water&&!coreWater,
+    coreHalfWidthTiles:coreHalfWidth,calmShoulderWidthTiles:calmShoulderWidth,waterHalfWidthTiles:waterHalfWidth,
+    surfaceInsetTiles:Number(river.surfaceInsetTiles)||HYDROLOGY_SPINE_RULES.surfaceInsetTiles,
+    current:{x:tangent.x,z:tangent.z,speed:currentSpeed,baseStrength:currentSpeed,strength:effectiveCurrentStrength,immersion,bandFactor:currentBand,label:'Corriente'}
+  };
 }
 function createLakeField(ctx){
   const rng=new SeededRandom(`${ctx.seed}:lake-v1`),S=OVERWORLD_SECTOR_SCALE;
@@ -2587,6 +2784,7 @@ function updateGlobalCamera(dt,snap=false){
   if(!globalCamera||!globalActor)return;
   const target=_globalVec.set(globalActor.position.x,.45,globalActor.position.z+.40);
   const dist=10.2,yaw=playerCameraYawOffset;
+  // Global hex map: fixed elevation, horizontal orbit only.
   const desired=new THREE.Vector3(target.x+Math.sin(yaw)*dist,8.6,target.z-Math.cos(yaw)*dist);
   globalCamera.fov=cameraFixedVisibilityFov(38,globalCamera);
   globalCamera.updateProjectionMatrix();
@@ -2716,19 +2914,23 @@ if(globalExploreBtn)globalExploreBtn.onclick=()=>void enterLocalFromGlobal('expl
 if(globalCampBtn)globalCampBtn.onclick=()=>void enterLocalFromGlobal('camp');
 if(campHereBtn)campHereBtn.onclick=()=>placeCampAtCurrentLocation();
 window.PaperCameraControl=Object.freeze({
-  version:'player-quarter-camera-v2',
+  version:'player-free-camera-v3',
+  rotateBy:rotatePlayerCameraBy,
+  setYaw:setPlayerCameraYaw,
+  yaw:()=>playerCameraYawOffset,
+  setPitch:setPlayerCameraPitch,
+  pitch:()=>playerCameraPitchOffset,
+  toggleMouseCapture:togglePlayerCameraMouseCapture,
+  captured:()=>cameraMouseCaptured,
+  allowed:playerCameraOrbitAllowed,
+  // Compatibility helpers for old diagnostics only; runtime input is no longer snapped.
   rotateQuarter:rotatePlayerCameraQuarter,
   setQuarter:setPlayerCameraQuarter,
   quarter:()=>playerCameraQuarter,
-  setYaw:setPlayerCameraYawSnapped,
-  yaw:()=>playerCameraYawOffset,
-  allowed:playerCameraOrbitAllowed,
   controls:Object.freeze({
-    quarterDegrees:90,
-    pointerSwipe:true,
-    touchSwipe:true,
-    swipeThresholdPx:44,
-    keyboard:Object.freeze({left:'Q',right:'E'})
+    mouse:Object.freeze({toggle:'ShiftLeft',pointerLock:true,localYaw:true,localPitch:true,hexYawOnly:true}),
+    touch:Object.freeze({drag:true,localYaw:true,localPitch:true,hexYawOnly:true}),
+    keyboardCameraMovement:false
   })
 });
 window.PaperGlobalMap=Object.freeze({
@@ -2846,12 +3048,39 @@ function markPaperRepeat(material,uPerTile=.55,vPerTile=.55){
   return material;
 }
 function fittedMappedMaterial(base,uTiles,vTiles){
+  if(!base)return base;
   worldFloorTextureRuntime?.ensureMaterial(base);
-  if(!base?.map)return base;
-  const cfg=base.userData?.paperRepeat||{u:.55,v:.55};
-  const ru=Math.max(.75,Math.abs(uTiles)*cfg.u);
-  const rv=Math.max(.75,Math.abs(vTiles)*cfg.v);
-  const key=`${base.uuid}|${ru.toFixed(2)}|${rv.toFixed(2)}`;
+  const worldTextureId=base.userData?.worldFloorTextureId||null;
+
+  // Repository-local floor textures always create a fitted derivative immediately.
+  // This is critical while the PNG is still loading: the derivative remembers its
+  // world-space repeat and receives the correct map later through registerMaterial().
+  if(worldTextureId){
+    const [ru,rv]=worldFloorRepeatForTiles(uTiles,vTiles);
+    const key=`${base.uuid}|${ru.toFixed(2)}|${rv.toFixed(2)}|${worldTextureId}`;
+    if(fittedMaterialCache.has(key))return fittedMaterialCache.get(key);
+    const m=base.clone();
+    m.userData={...(m.userData||{}),worldFloorSourceMaterialUuid:base.uuid,worldFloorRepeat:[ru,rv]};
+    if(base.map){
+      const t=base.map.clone();
+      t.wrapS=t.wrapT=THREE.RepeatWrapping;
+      t.repeat.set(ru,rv);
+      t.offset?.set?.(0,0);
+      t.center?.set?.(.5,.5);
+      t.rotation=0;
+      t.needsUpdate=true;
+      m.map=t;
+    }
+    m.needsUpdate=true;
+    worldFloorTextureRuntime?.registerMaterial(m,worldTextureId,{repeat:[ru,rv]});
+    fittedMaterialCache.set(key,m);
+    return m;
+  }
+
+  if(!base.map)return base;
+  const ru=Math.max(.75,Math.abs(uTiles)*(base.userData?.paperRepeat?.u??.55));
+  const rv=Math.max(.75,Math.abs(vTiles)*(base.userData?.paperRepeat?.v??.55));
+  const key=`${base.uuid}|${ru.toFixed(2)}|${rv.toFixed(2)}|legacy`;
   if(fittedMaterialCache.has(key))return fittedMaterialCache.get(key);
   if(base.userData?.paperFXSurfaceConfig&&window.PaperFX?.createSurface){
     const cfg=base.userData.paperFXSurfaceConfig;
@@ -2859,19 +3088,21 @@ function fittedMappedMaterial(base,uTiles,vTiles){
     if(fx){fittedMaterialCache.set(key,fx);return fx;}
   }
   const m=base.clone();
-  m.userData={...(m.userData||{}),worldFloorSourceMaterialUuid:base.uuid};
   const t=base.map.clone();
-  t.wrapS=t.wrapT=THREE.RepeatWrapping;
-  t.repeat.set(ru,rv);
-  t.needsUpdate=true;
-  m.map=t;
-  m.needsUpdate=true;
-  fittedMaterialCache.set(key,m);
-  return m;
+  t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(ru,rv);t.needsUpdate=true;
+  m.map=t;m.needsUpdate=true;fittedMaterialCache.set(key,m);return m;
 }
 function fittedPlaneMaterial(base,w,d){
-  if(!base?.map)return base;
   return fittedMappedMaterial(base,w/TILE,d/TILE);
+}
+function fittedPolygonMaterial(base,points){
+  if(!Array.isArray(points)||!points.length)return base;
+  const xs=points.map(p=>Number(p?.[0])||0),zs=points.map(p=>Number(p?.[1])||0);
+  return fittedMappedMaterial(
+    base,
+    Math.max(.01,Math.max(...xs)-Math.min(...xs)),
+    Math.max(.01,Math.max(...zs)-Math.min(...zs))
+  );
 }
 function fittedBoxMaterial(base,w,h,d){
   if(!base?.map)return base;
@@ -3402,6 +3633,8 @@ const PaperFX=(()=>{
       patternStrength:clamp01(cfg.patternStrength??.42),
       opacity:THREE.MathUtils.clamp(Number(cfg.opacity??1)||1,.15,1),
       roughness:THREE.MathUtils.clamp(Number(cfg.roughness??.86)||.86,.05,1),
+      // 1 = world-lit MeshStandard color; 0 = authored toon color survives world-time lights.
+      lightingInfluence:clamp01(cfg.lightingInfluence??1),
       coast:{
         enabled:cfg.coast?.enabled!==false,
         foamWidth:Math.max(.05,Number(cfg.coast?.foamWidth??defaults.coast.foamWidth)||2.5),
@@ -3416,7 +3649,7 @@ const PaperFX=(()=>{
     return ['toon-water',cfg.deepColor,cfg.shallowColor,cfg.crestColor,cfg.foamColor,cfg.masks.large,cfg.masks.small,cfg.masks.foam,cfg.masks.ripple,
       ...cfg.uv.largeRepeat,...cfg.uv.smallRepeat,...cfg.uv.foamRepeat,...cfg.uv.largeOffset,...cfg.uv.smallOffset,...cfg.uv.foamOffset,
       ...cfg.uv.largeSpeed,...cfg.uv.smallSpeed,...cfg.uv.foamSpeed,cfg.displacement,cfg.maxDepth,cfg.defaultDepth,cfg.toonLevels,cfg.crestStrength,cfg.foamStrength,
-      cfg.fresnelStrength,cfg.fresnelThreshold,cfg.crestThresholdLow,cfg.crestThresholdHigh,cfg.patternStrength,cfg.opacity,cfg.roughness,cfg.coast.enabled?1:0,cfg.coast.foamWidth,cfg.coast.clipLandMargin,cfg.reactive?1:0].join('|');
+      cfg.fresnelStrength,cfg.fresnelThreshold,cfg.crestThresholdLow,cfg.crestThresholdHigh,cfg.patternStrength,cfg.opacity,cfg.roughness,cfg.lightingInfluence,cfg.coast.enabled?1:0,cfg.coast.foamWidth,cfg.coast.clipLandMargin,cfg.reactive?1:0].join('|');
   }
   function applyWaterFields(geometry,{sample=null,defaultDepth=.72,defaultCoastDistance=999,defaultSignedCoastDistance=-999,valid=true}={}){
     if(!geometry?.getAttribute)return geometry;
@@ -3451,6 +3684,7 @@ const PaperFX=(()=>{
         displacement:{value:cfg.displacement},maxDepth:{value:cfg.maxDepth},defaultDepth:{value:cfg.defaultDepth},toonLevels:{value:cfg.toonLevels},
         crestStrength:{value:cfg.crestStrength},foamStrength:{value:cfg.foamStrength},fresnelStrength:{value:cfg.fresnelStrength},fresnelThreshold:{value:cfg.fresnelThreshold},
         crestThresholdLow:{value:cfg.crestThresholdLow},crestThresholdHigh:{value:cfg.crestThresholdHigh},patternStrength:{value:cfg.patternStrength},
+        lightingInfluence:{value:cfg.lightingInfluence},
         foamWidth:{value:cfg.coast.enabled?cfg.coast.foamWidth:.0001},coastEnabled:{value:cfg.coast.enabled?1:0},coastClipLandMargin:{value:cfg.coast.clipLandMargin},
         // Campo analítico opcional para costas procedurales. Evita que la silueta dependa
         // de atributos por vértice o de la resolución del grid visual.
@@ -3476,6 +3710,7 @@ const PaperFX=(()=>{
         shader.uniforms.paperFXWaterDisplacement=uniforms.displacement;shader.uniforms.paperFXWaterMaxDepth=uniforms.maxDepth;shader.uniforms.paperFXWaterDefaultDepth=uniforms.defaultDepth;shader.uniforms.paperFXWaterToonLevels=uniforms.toonLevels;
         shader.uniforms.paperFXWaterCrestStrength=uniforms.crestStrength;shader.uniforms.paperFXWaterFoamStrength=uniforms.foamStrength;shader.uniforms.paperFXWaterFresnelStrength=uniforms.fresnelStrength;shader.uniforms.paperFXWaterFresnelThreshold=uniforms.fresnelThreshold;
         shader.uniforms.paperFXWaterCrestThresholdLow=uniforms.crestThresholdLow;shader.uniforms.paperFXWaterCrestThresholdHigh=uniforms.crestThresholdHigh;shader.uniforms.paperFXWaterPatternStrength=uniforms.patternStrength;
+        shader.uniforms.paperFXWaterLightingInfluence=uniforms.lightingInfluence;
         shader.uniforms.paperFXWaterFoamWidth=uniforms.foamWidth;shader.uniforms.paperFXWaterCoastEnabled=uniforms.coastEnabled;shader.uniforms.paperFXWaterCoastClipLandMargin=uniforms.coastClipLandMargin;
         shader.uniforms.paperFXWaterAnalyticCoastEnabled=uniforms.analyticCoastEnabled;
         shader.uniforms.paperFXWaterCoastOrigin=uniforms.coastOrigin;shader.uniforms.paperFXWaterCoastNormal=uniforms.coastNormal;shader.uniforms.paperFXWaterCoastTangent=uniforms.coastTangent;
@@ -3573,6 +3808,7 @@ uniform float paperFXWaterFresnelThreshold;
 uniform float paperFXWaterCrestThresholdLow;
 uniform float paperFXWaterCrestThresholdHigh;
 uniform float paperFXWaterPatternStrength;
+uniform float paperFXWaterLightingInfluence;
 uniform float paperFXWaterFoamWidth;
 uniform float paperFXWaterCoastEnabled;
 uniform float paperFXWaterCoastClipLandMargin;
@@ -3658,6 +3894,12 @@ float paperFXSignedCoastAt(vec2 worldXZ){
   float paperFXFresnel = 1.0 - max(dot(normalize(normal), normalize(vViewPosition)), 0.0);
   float paperFXToonFresnel = step(paperFXWaterFresnelThreshold, paperFXFresnel);
   diffuseColor.rgb = mix(diffuseColor.rgb, paperFXWaterCrestColor, paperFXToonFresnel * paperFXWaterFresnelStrength);`);
+        // The world clock changes hemisphere/sun colors for the whole scene. For authored
+        // ocean color we can bypass that tint at the final lighting stage while retaining
+        // depth bands, waves, foam, fog/depth testing and the rest of the world lighting.
+        shader.fragmentShader=shader.fragmentShader.replace('#include <opaque_fragment>',`
+  outgoingLight = mix(diffuseColor.rgb, outgoingLight, paperFXWaterLightingInfluence);
+#include <opaque_fragment>`);
       };
       material.customProgramCacheKey=()=>key;
       material.userData.paperFX=true;material.userData.paperFXBehavior='toon-water';material.userData.paperFXToonWaterConfig=cfg;material.userData.paperFXWaterUniforms=uniforms;
@@ -4386,8 +4628,17 @@ function geometryIsFinite(geometry){
   return true;
 }
 function validateSceneGeometry(parent){
+  // Procedural terrain reuses geometries heavily. Validate each geometry once,
+  // but still hide every mesh that references an invalid geometry.
+  const validity=new Map();
   parent?.traverse?.(o=>{
-    if(o.isMesh&&o.geometry&&!geometryIsFinite(o.geometry)){
+    if(!o.isMesh||!o.geometry)return;
+    let valid=validity.get(o.geometry);
+    if(valid===undefined){
+      valid=geometryIsFinite(o.geometry);
+      validity.set(o.geometry,valid);
+    }
+    if(!valid){
       console.error('Geometría inválida detectada y ocultada:',o);
       o.visible=false;
     }
@@ -4617,29 +4868,59 @@ let currentWorldLayer='exterior',worldLayerBaseY=0;
 let playerBaseY=0;
 let canalRearView=false;
 let canalViewMode='front',canalCameraYaw=0;
-let playerCameraQuarter=0,playerCameraYawOffset=0;
-let cameraOrbitPointerId=null,cameraOrbitStartX=0,cameraOrbitLastX=0,cameraOrbitSwipeCommitted=false;
+let playerCameraQuarter=0,playerCameraYawOffset=0,playerCameraPitchOffset=0;
+let cameraOrbitPointerId=null,cameraOrbitLastX=0,cameraOrbitLastY=0;
+let cameraMouseCaptured=false;
 const PLAYER_CAMERA_ORBIT=Object.freeze({
+  // Quarter-turn helpers remain only as compatibility API. Runtime control is continuous.
   quarterRadians:Math.PI/2,
-  swipeThresholdPx:44,
-  maxSwipeDriftY:180
+  mouseRadiansPerPixel:.0024,
+  touchRadiansPerPixel:.0062,
+  minPitchOffset:THREE.MathUtils.degToRad(-38),
+  maxPitchOffset:THREE.MathUtils.degToRad(42)
 });
 function normalizeCameraQuarter(v){
   const n=Math.round(Number(v)||0);
   return ((n%4)+4)%4;
 }
+function normalizeCameraYaw(v){
+  const a=Number(v)||0;
+  return Math.atan2(Math.sin(a),Math.cos(a));
+}
 function playerCameraQuarterYaw(quarter=playerCameraQuarter){
   return normalizeCameraQuarter(quarter)*PLAYER_CAMERA_ORBIT.quarterRadians;
 }
+function setPlayerCameraYaw(yaw){
+  playerCameraYawOffset=normalizeCameraYaw(yaw);
+  playerCameraQuarter=normalizeCameraQuarter(Math.round(playerCameraYawOffset/PLAYER_CAMERA_ORBIT.quarterRadians));
+  return playerCameraYawOffset;
+}
+function setPlayerCameraPitch(pitch){
+  playerCameraPitchOffset=THREE.MathUtils.clamp(
+    Number(pitch)||0,
+    PLAYER_CAMERA_ORBIT.minPitchOffset,
+    PLAYER_CAMERA_ORBIT.maxPitchOffset
+  );
+  return playerCameraPitchOffset;
+}
 function syncPlayerCameraQuarterYaw(){
   playerCameraQuarter=normalizeCameraQuarter(playerCameraQuarter);
-  playerCameraYawOffset=playerCameraQuarterYaw(playerCameraQuarter);
-  return playerCameraYawOffset;
+  return setPlayerCameraYaw(playerCameraQuarterYaw(playerCameraQuarter));
 }
 function playerCameraOrbitAllowed(){
   if(transitioning||dialogOpen||shopOpen||inventoryOpen||cameraCine||cameraReturnTween)return false;
   if(globalMapActive)return true;
+  // Open/procedural environments are free-camera. Legacy city/interior maps keep
+  // their authored fixed cameras until the city camera pass is implemented.
   return isOverworldSector(mapId)&&!activeInteriorStage;
+}
+function rotatePlayerCameraBy(deltaYaw=0,deltaPitch=0){
+  if(!playerCameraOrbitAllowed())return {yaw:playerCameraYawOffset,pitch:playerCameraPitchOffset};
+  setPlayerCameraYaw(playerCameraYawOffset+(Number(deltaYaw)||0));
+  // Hex/global navigation only rotates around the map horizontally. Full vertical
+  // free-look starts after entering the local forest/procedural map.
+  if(!globalMapActive)setPlayerCameraPitch(playerCameraPitchOffset+(Number(deltaPitch)||0));
+  return {yaw:playerCameraYawOffset,pitch:playerCameraPitchOffset};
 }
 function rotatePlayerCameraQuarter(step){
   if(!Number.isFinite(Number(step))||!step)return playerCameraQuarter;
@@ -4655,6 +4936,21 @@ function setPlayerCameraQuarter(quarter){
 function setPlayerCameraYawSnapped(yaw){
   const q=Math.round((Number(yaw)||0)/PLAYER_CAMERA_ORBIT.quarterRadians);
   return setPlayerCameraQuarter(q);
+}
+function togglePlayerCameraMouseCapture(){
+  if(!playerCameraOrbitAllowed())return false;
+  if(document.pointerLockElement===renderer.domElement){
+    document.exitPointerLock?.();
+    return false;
+  }
+  try{
+    const pending=renderer.domElement.requestPointerLock?.();
+    pending?.catch?.(err=>console.warn('Camera pointer lock:',err));
+    return true;
+  }catch(err){
+    console.warn('Camera pointer lock:',err);
+    return false;
+  }
 }
 
 const BALCONY_Y=wt(2);
@@ -5008,21 +5304,24 @@ function coastGroundHeightTilesAtLocal(id,tx,tz,rawHeightTiles=null){
   // 0.3.2-68 · d=0 es una curva continua, no un borde de tile.
   // Del lado del agua el mismo terreno continúa por debajo de la superficie:
   // nunca dejamos una pestaña de suelo SOBRE el agua ni cortamos la malla en cuadros.
-  const shoreline=coast.waterSurfaceTiles-COAST_TERRAIN_RULES.shorelineSubmergeTiles;
+  const wetShoreline=coast.waterSurfaceTiles-COAST_TERRAIN_RULES.shorelineSubmergeTiles;
   if(d<=0){
     const submerged=Math.min(
       COAST_TERRAIN_RULES.maxSubmergedDepthTiles,
       Math.pow(Math.max(0,-d),.88)*COAST_TERRAIN_RULES.submergedSlopePerTile
     );
-    return shoreline-submerged;
+    return wetShoreline-submerged;
   }
 
   const cliffWeight=activeProceduralZone?.region?.landform?.weights?.cliffs||0;
   const width=THREE.MathUtils.lerp(COAST_TERRAIN_RULES.gradeWidthTiles,COAST_TERRAIN_RULES.cliffGradeWidthTiles,zoneClamp(cliffWeight,0,1));
   const inlandRaw=raw+coastV2BackshoreReliefTiles(id,tx,tz,d);
   if(d>=width)return inlandRaw;
+  const raiseT=smooth01(zoneClamp(d/Math.max(.001,COAST_TERRAIN_RULES.shorelineRaiseWidthTiles),0,1));
+  const dryShoreline=coast.waterSurfaceTiles+COAST_TERRAIN_RULES.shorelineDryLiftTiles;
+  const shoreBase=THREE.MathUtils.lerp(wetShoreline,dryShoreline,raiseT);
   const t=smooth01(zoneClamp(d/Math.max(.001,width),0,1));
-  return THREE.MathUtils.lerp(shoreline,inlandRaw,t);
+  return THREE.MathUtils.lerp(shoreBase,inlandRaw,t);
 }
 function buildProceduralCoastGroundMesh(g,id=mapId,defaultKind='forestGround'){
   const coast=proceduralCoastAtSector(id);if(!coast)return null;
@@ -5030,8 +5329,8 @@ function buildProceduralCoastGroundMesh(g,id=mapId,defaultKind='forestGround'){
   const sx=Math.min(96,Math.max(64,Math.ceil((bounds.x1-bounds.x0)*2.0)));
   const sz=Math.min(96,Math.max(64,Math.ceil((bounds.z1-bounds.z0)*2.0)));
   const count=(sx+1)*(sz+1),verts=new Float32Array(count*3),uv=new Float32Array(count*2),colors=new Float32Array(count*3);
-  const heights=new Float32Array(count),distances=new Float32Array(count);
-  const region=activeProceduralZone?.region,palette=coastV2PaletteForRegion(region);
+  const surfaceWeights=new Float32Array(count*4),heights=new Float32Array(count),distances=new Float32Array(count);
+  const region=activeProceduralZone?.region;
   const stride=sx+1,dxTiles=(bounds.x1-bounds.x0)/sx,dzTiles=(bounds.z1-bounds.z0)/sz;
 
   // Altura y distancia de costa vienen del MISMO campo continuo que consume física.
@@ -5046,12 +5345,9 @@ function buildProceduralCoastGroundMesh(g,id=mapId,defaultKind='forestGround'){
     }
   }
 
-  // COAST V2: el color del suelo se calcula por vértice y se interpola.
-  // No hay grupos wetSand/beach/ground por triángulo, así desaparece la frontera
-  // cuadriculada que todavía sobrevivía aunque la geometría ya fuera continua.
-  const cWet=new THREE.Color(palette.wet),cSand=new THREE.Color(palette.sand),cBack=new THREE.Color(palette.backshore),
-        cInland=new THREE.Color(palette.inland),cRock=new THREE.Color(palette.rock),cRockDark=new THREE.Color(palette.rockDark),
-        tmp=new THREE.Color(),tmp2=new THREE.Color();
+  // COAST V3: every biome uses the repository floor textures. The continuous
+  // coast field only supplies blend weights; it no longer replaces authored PNGs
+  // with a hard-coded biome color palette.
   for(let iz=0;iz<=sz;iz++)for(let ix=0;ix<=sx;ix++){
     const i=iz*stride+ix,d=distances[i];
     const tx=THREE.MathUtils.lerp(bounds.x0,bounds.x1,ix/sx),tz=THREE.MathUtils.lerp(bounds.z0,bounds.z1,iz/sz);
@@ -5060,32 +5356,23 @@ function buildProceduralCoastGroundMesh(g,id=mapId,defaultKind='forestGround'){
     const hx=(heights[ir]-heights[il])/Math.max(.001,(Math.min(sx,ix+1)-Math.max(0,ix-1))*dxTiles);
     const hz=(heights[iup]-heights[idn])/Math.max(.001,(Math.min(sz,iz+1)-Math.max(0,iz-1))*dzTiles);
     const slopeDeg=Math.atan(Math.hypot(hx,hz))*180/Math.PI;
+    const weights=terrainCoastSurfaceWeights({
+      distanceTiles:d,
+      slopeDeg,
+      beachWidthTiles:COAST_TERRAIN_RULES.beachWidthTiles,
+      thresholds:TERRAIN_SLOPE_STANDARD
+    });
+    surfaceWeights[i*4]=weights.shore;
+    surfaceWeights[i*4+1]=weights.base;
+    surfaceWeights[i*4+2]=weights.transition;
+    surfaceWeights[i*4+3]=weights.rock;
 
-    if(d<=0){
-      const depth=zoneClamp((-d)/5.0,0,1);
-      tmp.copy(cWet).lerp(cRockDark,.18+.24*depth);
-    }else if(d<COAST_TERRAIN_RULES.wetSandWidthTiles){
-      const t=smooth01(zoneClamp(d/COAST_TERRAIN_RULES.wetSandWidthTiles,0,1));
-      tmp.copy(cWet).lerp(cSand,t);
-    }else if(d<COAST_TERRAIN_RULES.beachWidthTiles){
-      const t=smooth01(zoneClamp((d-COAST_TERRAIN_RULES.wetSandWidthTiles)/Math.max(.001,COAST_TERRAIN_RULES.beachWidthTiles-COAST_TERRAIN_RULES.wetSandWidthTiles),0,1));
-      tmp.copy(cSand).lerp(cBack,t*.24);
-    }else{
-      const inlandT=smooth01(zoneClamp((d-COAST_TERRAIN_RULES.beachWidthTiles)/Math.max(.001,COAST_TERRAIN_RULES.backshoreWidthTiles),0,1));
-      tmp.copy(cBack).lerp(cInland,inlandT);
-    }
-
-    const rockSlope=smooth01(zoneClamp((slopeDeg-COAST_TERRAIN_RULES.visualRockSlopeStartDeg)/
-      Math.max(.001,COAST_TERRAIN_RULES.visualRockSlopeFullDeg-COAST_TERRAIN_RULES.visualRockSlopeStartDeg),0,1));
-    const cliffWeight=region?.landform?.weights?.cliffs||0;
-    const sandstone=zoneClamp(rockSlope*(.48+(region?.rockiness||0)*.62)+cliffWeight*rockSlope*.42,0,.92);
-    tmp2.copy(cRock).lerp(cRockDark,zoneClamp((slopeDeg-34)/18,0,.55));
-    tmp.lerp(tmp2,sandstone);
-
-    // Variación de papel a escala mundial: rompe uniformidad sin introducir tiles.
+    // Vertex color is now only a subtle wetness/large-scale variation multiplier.
+    // Texture identity always comes from WorldFloorTextures.
     const macroPoint=zoneLocalToMacroPoint(id,tx,tz),noise=biomeFieldNoise(region?.seed||1,macroPoint.x,macroPoint.z,73);
-    tmp.multiplyScalar(.965+noise*.035);
-    colors[i*3]=tmp.r;colors[i*3+1]=tmp.g;colors[i*3+2]=tmp.b;
+    const wet=d<=0?.80:(d<COAST_TERRAIN_RULES.wetSandWidthTiles?THREE.MathUtils.lerp(.84,1,d/COAST_TERRAIN_RULES.wetSandWidthTiles):1);
+    const shade=zoneClamp(wet*(.975+noise*.025),.76,1.02);
+    colors[i*3]=colors[i*3+1]=colors[i*3+2]=shade;
   }
 
   const indices=[];
@@ -5097,9 +5384,14 @@ function buildProceduralCoastGroundMesh(g,id=mapId,defaultKind='forestGround'){
   geo.setAttribute('position',new THREE.BufferAttribute(verts,3));
   geo.setAttribute('uv',new THREE.BufferAttribute(uv,2));
   geo.setAttribute('color',new THREE.BufferAttribute(colors,3));
+  geo.setAttribute('coastSurfaceWeights',new THREE.BufferAttribute(surfaceWeights,4));
   geo.setIndex(indices);geo.computeVertexNormals();geo.computeBoundingSphere();
-  const mesh=new THREE.Mesh(geo,coastV2GroundMaterial());mesh.receiveShadow=true;mesh.castShadow=false;
-  mesh.name=`${id}-coast-v2-ground`;mesh.userData.continuousCoastTerrain=true;mesh.userData.coastV2=true;g.add(mesh);
+  const uTiles=Math.max(.01,bounds.x1-bounds.x0),vTiles=Math.max(.01,bounds.z1-bounds.z0);
+  const groundMaterial=coastV2GroundMaterial({region,baseKind:defaultKind,uTiles,vTiles});
+  const mesh=new THREE.Mesh(geo,groundMaterial);mesh.receiveShadow=true;mesh.castShadow=false;
+  mesh.onBeforeRender=()=>groundMaterial.userData?.syncCoastSurfaceTextures?.();
+  mesh.name=`${id}-coast-v3-ground`;mesh.userData.continuousCoastTerrain=true;mesh.userData.coastV2=true;
+  mesh.userData.coastSurfaceStandard='repository-textures-v1';mesh.userData.worldFloorFittedTiles=[uTiles,vTiles];g.add(mesh);
   return mesh;
 }
 function coastBandGeometryForSector(id,coast,d0,d1){
@@ -5145,17 +5437,216 @@ function coastWaterMaskTextureForSector(id,bounds,resolution=256){
   const tex=new THREE.CanvasTexture(c);tex.wrapS=tex.wrapT=THREE.ClampToEdgeWrapping;tex.magFilter=THREE.LinearFilter;tex.minFilter=THREE.LinearMipmapLinearFilter;tex.needsUpdate=true;
   return tex;
 }
+
+const WATER_BODY_VISUAL_STANDARD=Object.freeze({
+  tileWorldSize:TILE*2,
+  coastFoamWidth:TILE*.34,
+  riverFoamWidth:TILE*.28,
+  foamTileWorldLength:TILE*2.35,
+  waterOpacity:.72,
+  foamOpacity:.82
+});
+
+function waterBodyPlaneUvWorld(geometry,{id=mapId,cxTiles=0,czTiles=0}={}){
+  if(!geometry?.attributes?.position||!geometry?.attributes?.uv)return geometry;
+  // Keep the original normalized UV set for alpha masks. UV0 becomes world-space
+  // for seamless water density; UV1 remains 0..1 for coast/lake clipping masks.
+  if(!geometry.attributes.uv1)geometry.setAttribute('uv1',geometry.attributes.uv.clone());
+  const sector=OVERWORLD_PLAN[id]||{gx:0,gz:0},pos=geometry.attributes.position,uv=geometry.attributes.uv;
+  const macroX=sector.gx*OVERWORLD_SECTOR_SIZE,macroZ=sector.gz*OVERWORLD_SECTOR_SIZE;
+  for(let i=0;i<pos.count;i++){
+    const tx=macroX+cxTiles+pos.getX(i)/TILE;
+    const tz=macroZ+czTiles-pos.getY(i)/TILE;
+    uv.setXY(i,wt(tx),wt(tz));
+  }
+  uv.needsUpdate=true;
+  return geometry;
+}
+
+function riverWaterDistanceTable(river,samples=128){
+  const points=[],distances=[0],count=Math.max(24,Math.floor(samples));
+  for(let i=0;i<=count;i++){
+    const t=i/count,p=hydrologyCurvePoint(river,t);points.push(p);
+    if(i)distances.push(distances[i-1]+Math.hypot(p.x-points[i-1].x,p.z-points[i-1].z)*TILE);
+  }
+  return {count,distances,total:distances.at(-1)||0};
+}
+function riverWaterDistanceAt(table,t){
+  const f=THREE.MathUtils.clamp(Number(t)||0,0,1)*table.count,i=Math.min(table.count-1,Math.floor(f)),q=f-i;
+  return THREE.MathUtils.lerp(table.distances[i]||0,table.distances[i+1]??table.total,q);
+}
+function waterBodyRiverUvWorld(source,river,{includeCalmShoulder=false}={}){
+  const geometry=source.clone(),uv=geometry.attributes.uv;if(!uv)return geometry;
+  const table=riverWaterDistanceTable(river,128);
+  for(let i=0;i<uv.count;i++){
+    const rawU=uv.getX(i),rawV=uv.getY(i),t=THREE.MathUtils.clamp(rawU/24,0,1);
+    const halfWidth=(includeCalmShoulder?riverWaterHalfWidthAtT(river,t):riverHalfWidthAtT(river,t))*TILE;
+    uv.setXY(i,riverWaterDistanceAt(table,t),(rawV-.5)*halfWidth*2);
+  }
+  uv.needsUpdate=true;
+  geometry.userData={
+    ...(geometry.userData||{}),
+    waterUvSpace:'world',waterUvAxis:'downstream',
+    riverWaterLayer:includeCalmShoulder?'calm-full':'current-core'
+  };
+  return geometry;
+}
+
+function coastWaterBodyShoreline(id,coast,waterY,bounds){
+  const sector=OVERWORLD_PLAN[id]||{gx:0,gz:0},macroX=sector.gx*OVERWORLD_SECTOR_SIZE,macroZ=sector.gz*OVERWORLD_SECTOR_SIZE;
+  const limit={x0:(bounds?.x0??-OVERWORLD_HALF)-3.5,x1:(bounds?.x1??OVERWORLD_HALF)+3.5,z0:(bounds?.z0??-OVERWORLD_HALF)-3.5,z1:(bounds?.z1??OVERWORLD_HALF)+3.5};
+  const points=[];
+  for(let t=-108;t<=108;t+=.72){
+    const p=coastPointAtT(coast,t,0),x=p.x-macroX,z=p.z-macroZ;
+    if(x<limit.x0||x>limit.x1||z<limit.z0||z>limit.z1)continue;
+    points.push({x:wt(x),y:waterY,z:wt(z)});
+  }
+  return points.length>=2?{points,closed:false}:null;
+}
+
+function riverWaterBodyShorelines(id,river,waterY,bounds,segments=96){
+  const out=[];
+  for(const side of [-1,1]){
+    const points=[];
+    for(let i=0;i<=segments;i++){
+      const t=i/segments,width=riverWaterHalfWidthAtT(river,t),p=riverLocalVisualFrame(river,id,t,side*width);
+      if(!riverVisualInBounds(p,bounds,width+3))continue;
+      points.push({x:wt(p.x),y:waterY,z:wt(p.z)});
+    }
+    if(points.length>=2)out.push({points,closed:false});
+  }
+  return out;
+}
+
+function fieldWaterBodyShorelines(id,bounds,waterY){
+  const contours=extractFieldShorelines({
+    bounds:{x0:wt(bounds.x0),x1:wt(bounds.x1),z0:wt(bounds.z0),z1:wt(bounds.z1)},
+    resolution:DISPLAY_DEVICE_MOBILE?48:72,
+    simplifyTolerance:TILE*.055,
+    isWaterAt:(x,z)=>!!proceduralHydrologySample(id,x/TILE,z/TILE)?.water
+  });
+  return contours.map(c=>({closed:c.closed,points:c.points.map(p=>({x:p.x,y:waterY,z:p.z}))})).filter(c=>c.points.length>=2);
+}
+
+function createOfficialWaterBody({
+  id,parent,geometry,position=null,rotationX=null,alphaMap=null,shorelines=[],isWaterAt=null,
+  surfaceHeightAt=null,flowAt=null,
+  surface={},water={},foam={}
+}={}){
+  if(!geometry||!parent)return null;
+  return waterBodySystem.createWaterBody({
+    id,parent,
+    surface:{
+      geometry,position:position||new THREE.Vector3(),rotationX,
+      alphaMap,depthWrite:false,renderOrder:-4,receiveShadow:true,
+      ...surface
+    },
+    shorelines,isWaterAt,surfaceHeightAt,flowAt,
+    water:{
+      tileWorldSize:WATER_BODY_VISUAL_STANDARD.tileWorldSize,
+      opacity:WATER_BODY_VISUAL_STANDARD.waterOpacity,
+      roughness:.46,metalness:.02,
+      ...water
+    },
+    foam:{
+      enabled:true,
+      width:WATER_BODY_VISUAL_STANDARD.coastFoamWidth,
+      innerWidth:TILE*.055,outerWidth:TILE*.285,
+      tileWorldLength:WATER_BODY_VISUAL_STANDARD.foamTileWorldLength,
+      scrollSpeed:.018,pulseAmplitude:TILE*.014,pulseSpeed:1.35,pulseFrequency:.72,
+      widthVariation:.10,opacity:WATER_BODY_VISUAL_STANDARD.foamOpacity,
+      yOffset:TILE*.008,renderOrder:-3,
+      detail:null,
+      ...foam
+    }
+  });
+}
+
+function waterBodyPolygonShoreline(points,y){
+  return {
+    closed:true,
+    points:(points||[]).map(([x,z])=>({x:wt(x),y:Number(y)||0,z:wt(z)}))
+  };
+}
+
+function waterBodyPointInTilePolygon(points,xWorld,zWorld){
+  const x=xWorld/TILE,z=zWorld/TILE,poly=points||[];
+  let inside=false;
+  for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+    const xi=Number(poly[i]?.[0])||0,zi=Number(poly[i]?.[1])||0;
+    const xj=Number(poly[j]?.[0])||0,zj=Number(poly[j]?.[1])||0;
+    const crosses=((zi>z)!==(zj>z))&&(x<(xj-xi)*(z-zi)/((zj-zi)||1e-12)+xi);
+    if(crosses)inside=!inside;
+  }
+  return inside;
+}
+
+function waterBodyFlowUvWorld(source,flow){
+  const geometry=source.clone();
+  if(!geometry?.attributes?.position||!geometry?.attributes?.uv)return geometry;
+  if(!geometry.attributes.uv1)geometry.setAttribute('uv1',geometry.attributes.uv.clone());
+  const fx=Number(flow?.x)||1,fz=Number(flow?.z)||0,mag=Math.hypot(fx,fz)||1;
+  const dx=fx/mag,dz=fz/mag,sx=-dz,sz=dx;
+  const pos=geometry.attributes.position,uv=geometry.attributes.uv;
+  for(let i=0;i<pos.count;i++){
+    const wx=pos.getX(i),wz=-pos.getY(i);
+    uv.setXY(i,wx*dx+wz*dz,wx*sx+wz*sz);
+  }
+  uv.needsUpdate=true;
+  geometry.userData={...(geometry.userData||{}),waterUvSpace:'world',waterUvAxis:'authored-flow'};
+  return geometry;
+}
+
+function attachAuthoredWaterBody({
+  id,parent,sourceGeometry,points,y,flow=null,style='lake',
+  water={},foam={}
+}={}){
+  if(!sourceGeometry||!Array.isArray(points)||points.length<3)return null;
+  const flowing=style==='river';
+  const geometry=flowing
+    ?waterBodyFlowUvWorld(sourceGeometry,flow)
+    :waterBodyPlaneUvWorld(sourceGeometry.clone(),{id:mapId,cxTiles:0,czTiles:0});
+  const shoreline=waterBodyPolygonShoreline(points,y);
+  const strength=Math.max(.25,Number(flow?.strength)||1);
+  return createOfficialWaterBody({
+    id,parent,geometry,
+    position:new THREE.Vector3(0,(Number(y)||0)+.018,0),rotationX:-Math.PI/2,
+    shorelines:[shoreline],
+    isWaterAt:(x,z)=>waterBodyPointInTilePolygon(points,x,z),
+    water:{
+      opacity:flowing?.84:.76,
+      ...(flowing
+        ?{flowWorldSpeed:{x:-wt(strength)*.48,y:0}}
+        :{scrollSpeed:{x:.005,y:.003}}),
+      ...water
+    },
+    foam:{
+      width:flowing?TILE*.40:WATER_BODY_VISUAL_STANDARD.coastFoamWidth,
+      outerWidth:flowing?TILE*.30:TILE*.285,
+      innerWidth:flowing?TILE*.16:TILE*.055,
+      scrollSpeed:flowing?-.020:.012,
+      pulseAmplitude:flowing?TILE*.012:TILE*.010,
+      opacity:flowing?.82:.74,
+      ...foam
+    }
+  });
+}
+
+
 function buildProceduralCoastVisual(g,id=mapId){
   const coast=proceduralCoastAtSector(id);if(!coast)return null;
   const region=activeProceduralZone.region,visual=region.surfaceStyle||SURFACE_VISUAL_PROFILES.temperate;
   const presetName=region.biomeProfile==='arctic'?'arctic':(region.biomeProfile==='swamp'?'swamp':'ocean');
-  const deepTint=new THREE.Color(visual.waterBase).multiplyScalar(.58).getHex();
+  const shallowSeaColor=0x8bd8f7;
+  // Wind Waker-like depth ramp: sky-blue shallows into the same saturated
+  // blue used by the river, avoiding a near-black/navy deep-water read.
+  const deepSeaColor=0x4169e1; // Azul Rey: authoritative deep-ocean color.
   const coastVisualMaxDepth=COAST_TERRAIN_RULES.shorelineSubmergeTiles+COAST_TERRAIN_RULES.maxSubmergedDepthTiles;
   const toonKit=window.PaperFX?.toonWaterAvailable?window.PaperFX?.waterPreset?.(presetName,{
-    deepColor:deepTint,shallowColor:visual.waterBase,crestColor:visual.waveA,foamColor:visual.foam,
+    deepColor:deepSeaColor,shallowColor:shallowSeaColor,crestColor:0xe8f8ff,foamColor:0xffffff,
     // El rango cromático coincide con la profundidad REAL del fondo costero; así el
     // color oscuro sí llega a aparecer y las cuatro bandas son legibles.
-    maxDepth:coastVisualMaxDepth,coast:{enabled:true,foamWidth:2.5,clipLandMargin:.075},reactive:true
+    maxDepth:coastVisualMaxDepth,lightingInfluence:0,coast:{enabled:false,foamWidth:2.5,clipLandMargin:.12},reactive:true
   }):null;
   const legacyKit=!toonKit?(window.PaperFX?.createWater?.({baseColor:visual.waterBase,waves:['wavesA','wavesB'],foam:'foam',waveColors:[visual.waveA,visual.waveB],foamColor:visual.foam})||null):null;
   const waterY=tileY(coast.waterSurfaceTiles),group=new THREE.Group();group.name='procedural-coast';g.add(group);
@@ -5195,6 +5686,36 @@ function buildProceduralCoastVisual(g,id=mapId){
     water.onAfterRender=()=>toonKit.setCoastField?.(null);
     group.add(water);
     group.userData.paperFXWaterMesh=water;
+
+    // PaperFX is the sole visible ocean surface: its real-depth ramp stays light in
+    // shallow water and reaches Royal Blue offshore. WaterBody remains foam/interaction
+    // only here, avoiding a second lit color layer that could shift the sea toward purple.
+    const officialGeo=waterBodyPlaneUvWorld(geo.clone(),{id,cxTiles,czTiles});
+    const officialMask=coastWaterMaskTextureForSector(id,renderBounds,256);
+    const shoreline=coastWaterBodyShoreline(id,coast,waterY,renderBounds);
+    const body=createOfficialWaterBody({
+      id:`coast:${id}`,parent:group,geometry:officialGeo,
+      position:new THREE.Vector3(wt(cxTiles),waterY+.030,wt(czTiles)),rotationX:-Math.PI/2,alphaMap:officialMask,
+      shorelines:shoreline?[shoreline]:[],
+      isWaterAt:(x,z)=>coastLocalDistance(id,x/TILE,z/TILE)<0,
+      surfaceHeightAt:()=>waterY+.030,
+      flowAt:()=>({x:0,y:0,z:0}),
+      surface:{enabled:false},
+      foam:{
+        // Oversized coastal foam: broad ribbon + very large texture footprint so each
+        // authored foam shape reads as a wave mass instead of small repeated noise.
+        width:TILE*.60,outerWidth:TILE*.50,innerWidth:TILE*.10,
+        tileWorldLength:TILE*3.10,
+        opacity:.96,scrollSpeed:.024,
+        pulseAmplitude:TILE*.060,pulseSpeed:1.55,pulseFrequency:.52,widthVariation:.22,
+        maskScale:2.60,maskWaveAmplitude:.14,
+        detail:{
+          enabled:true,widthScale:.82,tileWorldLength:TILE*3.25,scrollSpeed:-.012,
+          opacity:.24,yOffset:TILE*.006,pulseAmplitude:TILE*.040,pulseSpeed:1.92,pulseFrequency:.66
+        }
+      }
+    });
+    group.userData.waterBody=body;
     return group;
   }
 
@@ -5209,8 +5730,28 @@ function buildProceduralCoastVisual(g,id=mapId){
   baseMat.transparent=true;baseMat.alphaMap=coastMask;baseMat.alphaTest=.015;baseMat.depthWrite=true;baseMat.side=THREE.DoubleSide;baseMat.needsUpdate=true;
   const geo=new THREE.PlaneGeometry(wt(tilesW),wt(tilesD),1,1);
   const base=new THREE.Mesh(geo,baseMat);base.rotation.x=-Math.PI/2;base.position.set(wt(cx),waterY+.018,wt(cz));base.receiveShadow=true;group.add(base);
-  const foamGeo=coastBandGeometryForSector(id,coast,-.16,.18);
-  if(foamGeo){const foamMat=legacyKit?.foamMaterial||new THREE.MeshBasicMaterial({color:visual.foam,transparent:true,opacity:.55,side:THREE.DoubleSide,depthWrite:false});const foam=new THREE.Mesh(foamGeo,foamMat);foam.position.y=waterY+.046;foam.renderOrder=-4;group.add(foam)}
+
+  const officialGeo=waterBodyPlaneUvWorld(geo.clone(),{id,cxTiles:cx,czTiles:cz});
+  const shoreline=coastWaterBodyShoreline(id,coast,waterY,renderBounds);
+  const body=createOfficialWaterBody({
+    id:`coast:${id}`,parent:group,geometry:officialGeo,
+    position:new THREE.Vector3(wt(cx),waterY+.030,wt(cz)),rotationX:-Math.PI/2,alphaMap:coastMask,
+    shorelines:shoreline?[shoreline]:[],
+    isWaterAt:(x,z)=>coastLocalDistance(id,x/TILE,z/TILE)<0,
+    surface:{enabled:false},
+    foam:{
+      width:TILE*.60,outerWidth:TILE*.50,innerWidth:TILE*.10,
+      tileWorldLength:TILE*3.10,
+      opacity:.96,scrollSpeed:.024,
+      pulseAmplitude:TILE*.060,pulseSpeed:1.55,pulseFrequency:.52,widthVariation:.22,
+      maskScale:2.60,maskWaveAmplitude:.14,
+      detail:{
+        enabled:true,widthScale:.82,tileWorldLength:TILE*3.25,scrollSpeed:-.012,
+        opacity:.24,yOffset:TILE*.006,pulseAmplitude:TILE*.040,pulseSpeed:1.92,pulseFrequency:.66
+      }
+    }
+  });
+  group.userData.waterBody=body;
   return group;
 }
 
@@ -5265,7 +5806,7 @@ function buildRiverBankVisual(group,id,river,profile,bounds){
     return {x:wt(frame.x),y:tileY(h)+.016,z:wt(frame.z)};
   };
   for(const side of [-1,1])for(let i=0;i<segments;i++){
-    const t0=i/segments,t1=(i+1)/segments,w0=riverHalfWidthAtT(river,t0),w1=riverHalfWidthAtT(river,t1);
+    const t0=i/segments,t1=(i+1)/segments,w0=riverWaterHalfWidthAtT(river,t0),w1=riverWaterHalfWidthAtT(river,t1);
     const a0=riverLocalVisualFrame(river,id,t0,side*(w0+.03)),b0=riverLocalVisualFrame(river,id,t0,side*(w0+bankWidth));
     const a1=riverLocalVisualFrame(river,id,t1,side*(w1+.03)),b1=riverLocalVisualFrame(river,id,t1,side*(w1+bankWidth));
     if(!riverVisualInBounds(a0,bounds,bankWidth+2)&&!riverVisualInBounds(a1,bounds,bankWidth+2))continue;
@@ -5315,14 +5856,63 @@ function buildRiverFlowStreaks(group,id,river,profile,bounds,baseY){
   const lines=new THREE.LineSegments(geo,mat);lines.renderOrder=2;lines.userData.waterVisualClass='river-flow-streaks';group.add(lines);return lines;
 }
 
+function buildProceduralRiverWaterGeometry(id,river,bounds,segments=72,{includeCalmShoulder=false,terminalCaps=true}={}){
+  if(!river||!bounds)return null;
+  const segCount=Math.max(24,Math.floor(segments)),positions=[],uv=[];
+  const widthAt=(t)=>includeCalmShoulder?riverWaterHalfWidthAtT(river,t):riverHalfWidthAtT(river,t);
+  const pushVertex=(frame,y,u,v)=>{positions.push(wt(frame.x),y,wt(frame.z));uv.push(u,v);};
+  let firstVisible=null,lastVisible=null;
+  for(let i=0;i<segCount;i++){
+    const t0=i/segCount,t1=(i+1)/segCount;
+    const w0=widthAt(t0),w1=widthAt(t1);
+    const l0=riverLocalVisualFrame(river,id,t0,-w0),r0=riverLocalVisualFrame(river,id,t0,w0);
+    const l1=riverLocalVisualFrame(river,id,t1,-w1),r1=riverLocalVisualFrame(river,id,t1,w1);
+    if(![l0,r0,l1,r1].some(p=>riverVisualInBounds(p,bounds,Math.max(w0,w1)+1)))continue;
+    const u0=t0*24,u1=t1*24;
+    if(!firstVisible)firstVisible={t:t0,u:u0,w:w0,l:l0,r:r0};
+    lastVisible={t:t1,u:u1,w:w1,l:l1,r:r1};
+    pushVertex(l0,0,u0,0);pushVertex(r0,0,u0,1);pushVertex(r1,0,u1,1);
+    pushVertex(l0,0,u0,0);pushVertex(r1,0,u1,1);pushVertex(l1,0,u1,0);
+  }
+  // Only the visual water gets terminal plates. They seal the exposed beginning/end
+  // of a local river strip without creating walkable/collision geometry.
+  if(terminalCaps&&firstVisible&&lastVisible){
+    const capTiles=.62;
+    const addCap=(edge,sign)=>{
+      const center=riverLocalVisualFrame(river,id,edge.t,0);
+      const tangent=center.tangent;
+      const extL={...edge.l,x:edge.l.x+tangent.x*capTiles*sign,z:edge.l.z+tangent.z*capTiles*sign};
+      const extR={...edge.r,x:edge.r.x+tangent.x*capTiles*sign,z:edge.r.z+tangent.z*capTiles*sign};
+      const du=capTiles*sign;
+      pushVertex(edge.l,0,edge.u,0);pushVertex(edge.r,0,edge.u,1);pushVertex(extR,0,edge.u+du,1);
+      pushVertex(edge.l,0,edge.u,0);pushVertex(extR,0,edge.u+du,1);pushVertex(extL,0,edge.u+du,0);
+    };
+    addCap(firstVisible,-1);
+    addCap(lastVisible,1);
+  }
+  if(!positions.length)return null;
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
+  geo.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));
+  geo.computeVertexNormals();geo.computeBoundingSphere();
+  geo.userData={
+    ...(geo.userData||{}),
+    proceduralRiverStrip:true,
+    source:includeCalmShoulder?'riverFieldSample+riverWaterHalfWidthAtT':'riverFieldSample+riverHalfWidthAtT',
+    riverWaterLayer:includeCalmShoulder?'single-full-width':'current-core',
+    riverTerminalCaps:!!terminalCaps
+  };
+  return geo;
+}
+
 function proceduralInlandWaterVisualProfile(hydro,region){
   const type=hydro?.type||'lake',field=hydro?.river||hydro?.lake||hydro;
   if(type==='river'){
-    const p0=field?.points?.[0],p1=field?.points?.[field.points.length-1]||p0;
-    const angle=p0&&p1?Math.atan2(p1.z-p0.z,p1.x-p0.x):0;
     return {
-      id:'river',baseColor:0x287f93,detailA:0xb7eef0,detailB:0x79cbd2,foam:0xf2fff8,opacity:.985,
-      uv:{wavesA:{repeat:[8.5,2.8],speed:[.070,.003],rotation:-angle},wavesB:{repeat:[11.0,3.6],speed:[-.095,.008],rotation:-angle},foam:{repeat:[7.0,2.4],speed:[.115,0],rotation:-angle}}
+      id:'river',baseColor:0x3278de,detailA:0xdceeff,detailB:0x83b3f4,foam:0xffffff,opacity:1,
+      // U grows downstream. PaperFX samples UV as uv + speed*time, therefore the
+      // visible pattern travels toward +U only when speed.x is NEGATIVE.
+      uv:{wavesA:{repeat:[1,2.8],speed:[-.070,0],rotation:0},wavesB:{repeat:[1,3.6],speed:[-.095,0],rotation:0},foam:{repeat:[1,2.4],speed:[-.115,0],rotation:0}}
     };
   }
   if(type==='lake'){
@@ -5340,39 +5930,139 @@ function buildProceduralInlandWaterVisual(g,id=mapId){
   const hydro=activeProceduralZone?.hydrology;if(!hydro||!['river','lake','wetland'].includes(hydro.type))return null;
   const region=activeProceduralZone.region,profile=proceduralInlandWaterVisualProfile(hydro,region);
   const mapDef=MAP_DATA.maps[id]||currentMapDef(),bounds=mapDef?.bounds||{x0:-OVERWORLD_HALF,x1:OVERWORLD_HALF,z0:-OVERWORLD_HALF,z1:OVERWORLD_HALF};
-  const maskResolution=DISPLAY_DEVICE_MOBILE?96:128;
-  const mask=inlandHydrologyWaterMaskTextureForSector(id,bounds,maskResolution);if(!mask)return null;
-  const kit=window.PaperFX?.createWater?.({
+  const field=hydro.river||hydro.lake||hydro;
+  const riverToon=hydro.type==='river'&&hydro.river&&window.PaperFX?.toonWaterAvailable
+    ?window.PaperFX?.waterPreset?.('river',{
+      deepColor:0x1f6875,shallowColor:0x4ba7ad,crestColor:profile.detailA,foamColor:profile.foam,
+      displacement:.040,defaultDepth:Math.max(.18,Number(hydro.river.depthTiles)||.62),
+      coast:{enabled:false,foamWidth:1.1},
+      // Geometry UV U follows the exact gameplay tangent. Negative shader speeds
+      // make the visible pattern travel in the same +U direction as current force.
+      uv:{
+        largeRepeat:[1.0,2.8],smallRepeat:[1.0,3.6],foamRepeat:[1.0,2.4],
+        largeSpeed:[-.070,0],smallSpeed:[-.095,0],foamSpeed:[-.115,0]
+      }
+    })
+    :null;
+  const kit=!riverToon?window.PaperFX?.createWater?.({
     baseColor:profile.baseColor,waves:['wavesA','wavesB'],foam:'foam',
     waveColors:[profile.detailA,profile.detailB],foamColor:profile.foam,uv:profile.uv
-  })||null;
-  const sourceMat=kit?.baseMaterial||new THREE.MeshStandardMaterial({color:profile.baseColor,roughness:.31,side:THREE.DoubleSide});
-  const mat=sourceMat.clone();mat.color.setHex(profile.baseColor);mat.transparent=true;mat.alphaMap=mask;mat.alphaTest=.018;mat.depthWrite=true;mat.side=THREE.DoubleSide;mat.opacity=profile.opacity;mat.roughness=hydro.type==='river'?.28:.38;mat.needsUpdate=true;
-  const w=bounds.x1-bounds.x0,d=bounds.z1-bounds.z0,cx=(bounds.x0+bounds.x1)*.5,cz=(bounds.z0+bounds.z1)*.5;
-  const geo=new THREE.PlaneGeometry(wt(w),wt(d),1,1);
-  const field=hydro.river||hydro.lake||hydro;
+  })||null:null;
   const waterTiles=Number.isFinite(field.waterSurfaceTiles)?field.waterSurfaceTiles:(Number.isFinite(hydro.waterTableTiles)?hydro.waterTableTiles:region.altitude-.2);
   const baseY=tileY(waterTiles)+.024;
+  const group=new THREE.Group();group.name=`procedural-${hydro.type}-water`;group.userData.waterVisualClass=profile.id;
+
+  if(hydro.type==='river'&&hydro.river){
+    // ONE water surface for the entire playable river width. The shallow shoulder and
+    // fast core still differ in gameplay current/depth through riverFieldSample(), but
+    // they are never represented by stacked plates or different water materials.
+    const fullGeo=buildProceduralRiverWaterGeometry(
+      id,hydro.river,bounds,DISPLAY_DEVICE_MOBILE?64:96,{includeCalmShoulder:true}
+    );
+    if(!fullGeo)return null;
+
+    const officialGeo=waterBodyRiverUvWorld(fullGeo,hydro.river,{includeCalmShoulder:true});
+    const shorelines=riverWaterBodyShorelines(id,hydro.river,baseY,bounds,DISPLAY_DEVICE_MOBILE?72:112);
+    const riverVisualCurrentSpeed=Math.max(.15,Number(hydro.river.currentSpeed??hydro.river.currentStrength)||1);
+    const foamCurrentScroll=-.020*Math.max(.5,riverVisualCurrentSpeed);
+
+    const body=createOfficialWaterBody({
+      id:`river:${id}`,parent:group,geometry:officialGeo,
+      surface:{renderOrder:-4,depthWrite:true},
+      position:new THREE.Vector3(0,baseY,0),
+      shorelines,
+      isWaterAt:(x,z)=>!!proceduralHydrologySample(id,x/TILE,z/TILE)?.water,
+      surfaceHeightAt:()=>baseY,
+      flowAt:(p)=>{
+        const sample=proceduralHydrologySample(id,(Number(p?.x)||0)/TILE,(Number(p?.z)||0)/TILE);
+        const current=sample?.current||{};
+        const strength=Math.max(0,Number(current.strength??current.speed)||0);
+        return {x:(Number(current.x)||0)*wt(strength),y:0,z:(Number(current.z)||0)*wt(strength)};
+      },
+      water:{
+        color:0x3278de,
+        opacity:1,
+        roughness:.44,
+        metalness:.01,
+        patternMask:{
+          enabled:true,
+          backgroundColor:0x3278de,
+          waterColor:0xffffff,
+          low:.14,
+          high:.76
+        },
+        // River chop is visual-only. The gameplay surfaceHeightAt remains baseY.
+        surfaceWave:{
+          enabled:true,
+          amplitude:TILE*(.020+Math.min(2.4,riverVisualCurrentSpeed)*.008),
+          secondaryAmplitude:TILE*.012,
+          frequency:3.8,
+          secondaryFrequency:6.6,
+          crossFrequency:4.4,
+          speed:1.9+riverVisualCurrentSpeed*.55,
+          secondarySpeed:2.8+riverVisualCurrentSpeed*.72,
+          edgeStrength:.22
+        },
+        // One visual sheet, animated downstream. Calm vs fast remains physics only.
+        flowWorldSpeed:{x:-wt(riverVisualCurrentSpeed)*.30,y:0}
+      },
+      foam:{
+        // Slightly larger than the previous ribbon and driven downstream by the same
+        // authored current authority.
+        width:TILE*.48,
+        innerWidth:TILE*.10,outerWidth:TILE*.38,
+        tileWorldLength:TILE*1.90,
+        scrollSpeed:foamCurrentScroll,
+        pulseAmplitude:TILE*.018,pulseSpeed:1.90,pulseFrequency:1.08,
+        opacity:.88,yOffset:TILE*.008,renderOrder:-3
+      }
+    });
+
+    const riverLayers=[
+      buildRiverBankVisual(group,id,hydro.river,profile,bounds)
+    ].filter(Boolean);
+
+    group.userData.paperFXWaterMesh=null;
+    group.userData.waterDetailLayers=[];
+    group.userData.riverVisualLayers=riverLayers;
+    group.userData.geometryAuthority='procedural-river-single-surface';
+    group.userData.reactiveBuoyancy=false;
+    group.userData.waterBody=body;
+    group.userData.calmWaterBody=null;
+    g.add(group);return group;
+  }
+
+  // Lakes/wetlands remain continuous masked planes because their field is areal,
+  // not a centerline with an authoritative variable width.
+  const maskResolution=DISPLAY_DEVICE_MOBILE?96:128;
+  const mask=inlandHydrologyWaterMaskTextureForSector(id,bounds,maskResolution);if(!mask)return null;
+  const sourceMat=kit?.baseMaterial||new THREE.MeshStandardMaterial({color:profile.baseColor,roughness:.38,side:THREE.DoubleSide});
+  const mat=sourceMat.clone();mat.color.setHex(profile.baseColor);mat.transparent=true;mat.alphaMap=mask;mat.alphaTest=.018;mat.depthWrite=true;mat.side=THREE.DoubleSide;mat.opacity=profile.opacity;mat.roughness=.38;mat.needsUpdate=true;
+  const w=bounds.x1-bounds.x0,d=bounds.z1-bounds.z0,cx=(bounds.x0+bounds.x1)*.5,cz=(bounds.z0+bounds.z1)*.5;
+  const geo=new THREE.PlaneGeometry(wt(w),wt(d),1,1);
   const mesh=new THREE.Mesh(geo,mat);mesh.rotation.x=-Math.PI/2;mesh.position.set(wt(cx),baseY,wt(cz));mesh.receiveShadow=true;mesh.renderOrder=-4;
   mesh.userData.paperFXWaterSurface=true;mesh.userData.proceduralHydrologyType=hydro.type;mesh.userData.waterVisualClass=profile.id;
-
-  const group=new THREE.Group();group.name=`procedural-${hydro.type}-water`;group.userData.waterVisualClass=profile.id;group.add(mesh);
+  group.add(mesh);
   const addDetail=(texture,color,opacity,y,order)=>{
     if(!texture)return null;
     const detailMat=new THREE.MeshBasicMaterial({map:texture,alphaMap:mask,color,transparent:true,opacity,side:THREE.DoubleSide,depthWrite:false,depthTest:true,blending:THREE.AdditiveBlending});
     const detail=new THREE.Mesh(geo,detailMat);detail.rotation.x=-Math.PI/2;detail.position.set(wt(cx),baseY+y,wt(cz));detail.renderOrder=order;detail.userData.waterVisualClass=profile.id;group.add(detail);return detail;
   };
-  const detailA=addDetail(kit?.textures?.waves?.[0],profile.detailA,hydro.type==='river'?.34:.24,.010,-2);
-  const detailB=!DISPLAY_DEVICE_MOBILE?addDetail(kit?.textures?.waves?.[1],profile.detailB,hydro.type==='river'?.22:.16,.016,-1):null;
-  const foam=null;
-  const riverLayers=hydro.type==='river'&&hydro.river?[
-    buildRiverBankVisual(group,id,hydro.river,profile,bounds),
-    buildRiverEdgeFoamVisual(group,id,hydro.river,profile,bounds,baseY),
-    buildRiverFlowStreaks(group,id,hydro.river,profile,bounds,baseY)
-  ].filter(Boolean):[];
-  group.userData.paperFXWaterMesh=mesh;group.userData.waterDetailLayers=[detailA,detailB,foam].filter(Boolean);
-  group.userData.riverVisualLayers=riverLayers;g.add(group);
-  return group;
+  const detailA=addDetail(kit?.textures?.waves?.[0],profile.detailA,.24,.010,-2);
+  const detailB=!DISPLAY_DEVICE_MOBILE?addDetail(kit?.textures?.waves?.[1],profile.detailB,.16,.016,-1):null;
+
+  const officialGeo=waterBodyPlaneUvWorld(geo.clone(),{id,cxTiles:cx,czTiles:cz});
+  const shorelines=fieldWaterBodyShorelines(id,bounds,baseY);
+  const body=createOfficialWaterBody({
+    id:`${hydro.type}:${id}`,parent:group,geometry:officialGeo,
+    position:new THREE.Vector3(wt(cx),baseY+.012,wt(cz)),rotationX:-Math.PI/2,alphaMap:mask,
+    shorelines,
+    isWaterAt:(x,z)=>!!proceduralHydrologySample(id,x/TILE,z/TILE)?.water,
+    water:{opacity:.76,scrollSpeed:{x:.005,y:.003}},
+    foam:{width:TILE*.31,outerWidth:TILE*.255,innerWidth:TILE*.055,scrollSpeed:.012,pulseAmplitude:TILE*.010,opacity:.72}
+  });
+  group.userData.paperFXWaterMesh=mesh;group.userData.waterDetailLayers=[detailA,detailB].filter(Boolean);group.userData.waterBody=body;
+  g.add(group);return group;
 }
 
 function riverEdgeSpan(module,dir){
@@ -5560,6 +6250,109 @@ function hydrologyPriorityGroundHeightTilesAtLocal(id,tx,tz,rawHeightTiles){
   }
   return raw;
 }
+
+const PROCEDURAL_TRAVEL_PATH_CACHE=new Map();
+function proceduralPathNearestOnSegment(px,pz,a,b){
+  const vx=b.x-a.x,vz=b.z-a.z,len2=vx*vx+vz*vz;
+  const t=len2>1e-8?zoneClamp(((px-a.x)*vx+(pz-a.z)*vz)/len2,0,1):0;
+  const x=a.x+vx*t,z=a.z+vz*t;
+  return {t,x,z,distance:Math.hypot(px-x,pz-z)};
+}
+function proceduralPathPolylineScore(points,id){
+  let waterHits=0,wetness=0;
+  for(let si=0;si<points.length-1;si++){
+    const a=points[si],b=points[si+1];
+    for(let k=0;k<=10;k++){
+      const t=k/10,x=THREE.MathUtils.lerp(a.x,b.x,t),z=THREE.MathUtils.lerp(a.z,b.z,t);
+      const h=proceduralHydrologySample(id,x,z);
+      if(h.water)waterHits++;
+      wetness+=Number(h.wetness)||0;
+    }
+  }
+  return waterHits*100+wetness;
+}
+function proceduralTravelPathRoutes(id=mapId){
+  if(!proceduralSectorRecipe(id)||!activeProceduralZone)return [];
+  const cfg=OVERWORLD_PLAN[id];if(!cfg)return [];
+  const cacheKey=`${activeProceduralZone.id||activeProceduralZone.region?.id}|${activeProceduralZone.region?.seed}|${id}`;
+  if(PROCEDURAL_TRAVEL_PATH_CACHE.has(cacheKey))return PROCEDURAL_TRAVEL_PATH_CACHE.get(cacheKey);
+
+  const hubCandidates=[[0,0],[0,5],[5,0],[-5,0],[0,-5],[5,5],[-5,5],[5,-5],[-5,-5]];
+  let hub={x:0,z:0},hubScore=Infinity;
+  for(const [x,z] of hubCandidates){
+    const h=proceduralHydrologySample(id,x,z),score=(h.water?1000:0)+(Number(h.wetness)||0)*8+Math.hypot(x,z)*.08;
+    if(score<hubScore){hubScore=score;hub={x,z};}
+  }
+
+  const baseHeight=biomeSectorBaseHeightTiles(id);
+  const hubHeight=baseHeight+proceduralMacroReliefHeightTilesAtLocal(id,hub.x,hub.z)*.28;
+  const routes=[];
+  const entries=[...Object.entries(cfg.neighbors||{})].map(([dir,target])=>({dir,target,kind:'edge'}));
+  if(cfg.templeGate&&!cfg.neighbors?.north)entries.push({dir:'north',target:null,kind:'edge'});
+  if(cfg.start){
+    entries.push({
+      dir:'start',
+      target:null,
+      kind:'spawn',
+      point:{x:0,z:-(OVERWORLD_HALF-6)}
+    });
+  }
+
+  for(const entry of entries){
+    const {dir,target,kind}=entry;
+    const layout=kind==='spawn'
+      ?{mode:'land',lateral:0}
+      :(target?proceduralNeighborTransitionLayout(id,dir,target):{mode:'land',lateral:0});
+    if(layout?.mode!=='land')continue;
+
+    const end=kind==='spawn'
+      ?entry.point
+      :transitionEdgeLocalPoint(dir,Number(layout.lateral)||0,.35);
+    const vx=end.x-hub.x,vz=end.z-hub.z,len=Math.hypot(vx,vz)||1,nx=-vz/len,nz=vx/len;
+    let bestPoints=[hub,{x:hub.x+vx*.52,z:hub.z+vz*.52},end],bestScore=Infinity;
+    for(const offset of [0,4,-4,8,-8,12,-12]){
+      const mid={x:hub.x+vx*.52+nx*offset,z:hub.z+vz*.52+nz*offset};
+      const points=[hub,mid,end],score=proceduralPathPolylineScore(points,id)+Math.abs(offset)*.12;
+      if(score<bestScore){bestScore=score;bestPoints=points;}
+    }
+
+    const edgeHeight=kind==='spawn'
+      ?baseHeight+proceduralMacroReliefHeightTilesAtLocal(id,end.x,end.z)*.20
+      :baseHeight+proceduralTransitionMacroReliefTiles(id,dir);
+    const points=bestPoints.map((p,i)=>({
+      x:p.x,z:p.z,
+      heightTiles:i===0?hubHeight:(i===2?edgeHeight:THREE.MathUtils.lerp(hubHeight,edgeHeight,.52))
+    }));
+    let totalLength=0;
+    const segments=[];
+    for(let i=0;i<points.length-1;i++){
+      const a=points[i],b=points[i+1],length=Math.hypot(b.x-a.x,b.z-a.z);
+      segments.push({a,b,length,start:totalLength});
+      totalLength+=length;
+    }
+    routes.push(Object.freeze({dir,target,points:Object.freeze(points),segments:Object.freeze(segments),totalLength}));
+  }
+  const frozen=Object.freeze(routes);
+  PROCEDURAL_TRAVEL_PATH_CACHE.set(cacheKey,frozen);
+  return frozen;
+}
+function proceduralTravelPathSample(id,tx,tz){
+  const routes=proceduralTravelPathRoutes(id);
+  let best=null;
+  for(const route of routes)for(const segment of route.segments){
+    const near=proceduralPathNearestOnSegment(tx,tz,segment.a,segment.b);
+    if(best&&near.distance>=best.distance)continue;
+    const along=segment.start+segment.length*near.t,total=Math.max(.001,route.totalLength);
+    const targetHeightTiles=THREE.MathUtils.lerp(segment.a.heightTiles,segment.b.heightTiles,near.t);
+    best={distance:near.distance,route,along01:along/total,targetHeightTiles};
+  }
+  if(!best)return {influence:0,distance:Infinity,targetHeightTiles:biomeSectorBaseHeightTiles(id),route:null};
+  const core=.72,feather=1.62;
+  const influence=best.distance<=core?1:(best.distance>=feather?0:1-smooth01((best.distance-core)/(feather-core)));
+  const hydro=proceduralHydrologySample(id,tx,tz);
+  return {...best,influence:hydro.water?0:influence,visualInfluence:influence,water:!!hydro.water};
+}
+
 function elevationHeightTilesAtWorld(x,z,id=mapId){
   const tx=x/TILE,tz=z/TILE,base=biomeSectorBaseHeightTiles(id);
   let local=0,transition=0;
@@ -5571,14 +6364,22 @@ function elevationHeightTilesAtWorld(x,z,id=mapId){
   const geo=GeographyField.sample(id,tx,tz),geoMask=proceduralGateReliefMask(id,tx,tz),geoHydro=proceduralHydrologyReliefFactor(id,tx,tz);
   const geographyDelta=geo.deltaTiles*geoMask*geoHydro;
   const raw=Math.max(0,base+transition+local+geographyDelta);
+  // Every procedural land route owns a narrow graded corridor. It suppresses local
+  // mountain noise enough to stay traversable, while hydrology still wins afterward:
+  // deep rivers remain real valleys/hazards instead of being lifted into roads.
+  const travelPath=proceduralTravelPathSample(id,tx,tz);
+  const routedRaw=travelPath.influence>0
+    ?THREE.MathUtils.lerp(raw,travelPath.targetHeightTiles,travelPath.influence*.94)
+    :raw;
   // La costa modifica la ALTURA del terreno de forma continua; no crea un escalón
   // ni una rampa artificial separada. Física y render consumen la misma función.
-  const coastAdjusted=coastGroundHeightTilesAtLocal(id,tx,tz,raw);
+  const coastAdjusted=coastGroundHeightTilesAtLocal(id,tx,tz,routedRaw);
   // Hydrology may legitimately cut below the legacy zero plane. Never clamp the
   // authoritative water bed back upward after river/lake/coast depth was applied.
   return hydrologyPriorityGroundHeightTilesAtLocal(id,tx,tz,coastAdjusted);
 }
-const NATURAL_SLOPE_RULES=Object.freeze({normalDeg:24,difficultDeg:34,maxClimbDeg:43,sampleTiles:.24});
+// Engine-wide authority; maps may sample the field but do not own slope thresholds.
+const NATURAL_SLOPE_RULES=TERRAIN_SLOPE_STANDARD;
 function elevationSlopeAtWorld(x,z,id=mapId){
   const e=wt(NATURAL_SLOPE_RULES.sampleTiles),den=2*NATURAL_SLOPE_RULES.sampleTiles;
   const hx=(elevationHeightTilesAtWorld(x+e,z,id)-elevationHeightTilesAtWorld(x-e,z,id))/den;
@@ -6431,17 +7232,21 @@ function formalGroundYAtWorld(x,z,layer=currentWorldLayer,r=0){
   const stair=sampleStairStateAt(x,z,r);
   if(stair.zone)return stair.height;
   const cell=gridCellAtWorld(x,z,layer);
-  // Regla estable: la elevación de la superficie de agua NO entra al pipeline de
-  // peldaños/ledges. En costa procedural la decisión agua/tierra es CONTINUA; no
-  // confiamos en el tile semántico porque podría cortar la playa por la mitad.
-  const coastWater=isOverworldSector(mapId)&&activeProceduralZone?.hydrology?.type==='coast'
-    ?proceduralHydrologySample(mapId,x/TILE,z/TILE).water
-    :cell?.locomotion==='swim';
-  if(coastWater)return worldLayerBaseY;
-  // Elevation Modules v2: muestra local continua, sólo donde existe un módulo natural.
-  // No consulta ni altera ríos; fuera de esos footprints devuelve 0.
+
+  // HYDROLOGY CONTINUOUS HEIGHT CONTRACT:
+  // para costa/río/lago la decisión agua/tierra nunca vuelve al grid por tiles.
+  // Gameplay, malla visible, corriente y altura consultan el mismo campo continuo.
+  const proceduralHydro=isOverworldSector(mapId)&&activeProceduralZone?.hydrology?.type!=='none'
+    ?proceduralHydrologySample(mapId,x/TILE,z/TILE)
+    :null;
+  const inWater=proceduralHydro?!!proceduralHydro.water:cell?.locomotion==='swim';
+  if(inWater)return worldLayerBaseY;
+
+  // Elevation Modules v2: muestra local continua. En riberas procedural esta función
+  // ya incluye el grading de hydrologyPriorityGroundHeightTilesAtLocal(), evitando
+  // el escalón invisible que antes aparecía al abandonar el último tile de agua.
   const naturalH=elevationHeightTilesAtWorld(x,z,mapId);
-  if(naturalH>.002)return worldLayerBaseY+tileY(naturalH);
+  if(Math.abs(naturalH)>.002)return worldLayerBaseY+tileY(naturalH);
   if(cell?.tags?.includes('formal-elevation'))return tileY(cell.localElevation||0);
   return worldLayerBaseY;
 }
@@ -6492,15 +7297,30 @@ function applyLedgeClearance(entity,dirX,dirZ,radius,occupyFn){
   if(occupyFn(tx2,tz2,radius)){entity.position.x=tx2;entity.position.z=tz2;return true;}
   return false;
 }
+function continuousHydrologyBankAtWorld(x,z){
+  if(!isOverworldSector(mapId)||activeProceduralZone?.hydrology?.type==='none')return false;
+  const h=proceduralHydrologySample(mapId,x/TILE,z/TILE);
+  if(!h)return false;
+  if(h.water)return true;
+  if(!['river','lake'].includes(h.type))return false;
+  const distance=Number(h.distanceToWater),bank=Math.max(.35,Number(h.bankWidthTiles)||0);
+  return Number.isFinite(distance)&&distance<=bank+.08;
+}
+
 function canTraverseFormalElevation(fromX,fromZ,toX,toZ,layer=currentWorldLayer,r=PLAYER_RADIUS){
   const fromStair=sampleStairStateAt(fromX,fromZ,r);
   const toStair=sampleStairStateAt(toX,toZ,r);
   // Sólo una huella que realmente cabe dentro del vuelo puede usarlo como conector.
   if(fromStair.zone||toStair.zone)return true;
-  // Agua y suelo formal son dos sistemas distintos. Entrar/salir/nadar no debe
-  // pasar por el limitador de escalón de 0.18 tile; cascadas futuras tendrán su
-  // propia barrera/caída explícita.
-  if(locomotionModeAt(fromX,fromZ)==='swim'||locomotionModeAt(toX,toZ)==='swim')return true;
+  // Agua/ribera procedural es una superficie CONTINUA. Mientras cualquiera de los
+  // extremos esté dentro del agua o de su grading de ribera, no aplicar reglas de
+  // peldaño/ledge pensadas para arquitectura. La pendiente visible ya es la física.
+  if(
+    locomotionModeAt(fromX,fromZ)==='swim'||
+    locomotionModeAt(toX,toZ)==='swim'||
+    continuousHydrologyBankAtWorld(fromX,fromZ)||
+    continuousHydrologyBankAtWorld(toX,toZ)
+  )return true;
   const fromY=formalGroundYAtWorld(fromX,fromZ,layer,r);
   const toY=formalGroundYAtWorld(toX,toZ,layer,r);
   const delta=toY-fromY;
@@ -8517,12 +9337,14 @@ function setBelleTextureReady(k,t){
   BELLE_TEXTURES[k]=t;
   if(belleState?.sprite&&(belleState.pose===k||(k==='idle'&&!BELLE_TEXTURES[belleState.pose])))applyBellePose(belleState.pose||'idle');
 }
-async function loadNPCTextures(){
-  window.setLoadProgress?.(48,'Preparando vecinos','Sprites de prototipo integrados…');
+async function loadNPCTextures({background=false}={}){
+  if(!background)window.setLoadProgress?.(48,'Preparando vecinos','Sprites de prototipo integrados…');
   const entries=Object.entries(NPC_URLS);
   await Promise.all(entries.map(([k,url],i)=>requestSpriteAsset(
     `npc:${k}`,url,t=>setNPCTextureReady(k,t),{timeoutMs:9500,recoveryAttempts:2}
-  ).then(()=>window.setLoadProgress?.(48+i*5,'Cargando vecinos',`Personaje ${i+1} de ${entries.length}`))));
+  ).then(()=>{
+    if(!background)window.setLoadProgress?.(48+i*5,'Cargando vecinos',`Personaje ${i+1} de ${entries.length}`);
+  })));
 }
 async function loadActionTextures({keys=null,background=false}={}){
   const wanted=keys||Object.keys(ACTION_URLS);
@@ -8558,8 +9380,8 @@ async function loadBelleTextures({keys=null,background=false}={}){
 async function loadCriticalMotionSprites(){
   // v89: idle/walk ya existen localmente, así que el arranque no espera Internet.
   await Promise.all([
-    loadActionTextures({keys:['walk']}),
-    loadBelleTextures({keys:['idle','walk']})
+    loadActionTextures({keys:['walk'],background:true}),
+    loadBelleTextures({keys:['idle','walk'],background:true})
   ]);
 }
 function warmRemainingSpriteAssets(){
@@ -9231,10 +10053,21 @@ function luminousMapItem(itemId){
   }
   return LUMINOUS_MAP_ITEM_DEFS[id]||null;
 }
+function luminousLocalAssetUrl(path){
+  const raw=String(path||'').trim().replace(/\\/g,'/');
+  if(!raw)return null;
+  // Item artwork is repository-local. Never depend on remote HTTP(S) item art.
+  if(/^(?:https?:|data:|blob:|\/\/)/i.test(raw))return null;
+  if(raw.startsWith('../../../'))return raw;
+  if(raw.startsWith('/'))return '../../..'+raw;
+  if(raw.startsWith('Assets/'))return '../../../'+raw;
+  return raw;
+}
 function luminousMapItemIcon(itemOrId){
   const item=typeof itemOrId==='string'?luminousMapItem(itemOrId):itemOrId;
   if(!item)return null;
-  return window.LuminousItemIconRegistry?.resolveIcon?.(item.iconFamily,{fallback:false})||null;
+  const registered=window.LuminousItemIconRegistry?.resolveIcon?.(item.iconFamily,{fallback:false})||null;
+  return luminousLocalAssetUrl(registered);
 }
 function makeCanonicalWorldItemDisplay(g,itemId,x,z,{y=1.34,scale=.54}={}){
   const icon=luminousMapItemIcon(itemId);
@@ -9776,16 +10609,34 @@ function paperLoadInventory(){
 let paperInventory=paperLoadInventory();
 let paperInvSelection=null;
 function paperSaveInventory(){try{localStorage.setItem(PAPER_INV_STORAGE_KEY,JSON.stringify(paperInventory))}catch(_){}}
-function paperDef(item){return item?PAPER_ITEM_DEFS[item.definitionId]||{id:item.definitionId,name:item.definitionId||'Item',tier:'I',value:0,category:'utility',tags:['Item'],description:'Sin descripción.',icon:null}:null}
+function paperCanonicalDef(definitionId){
+  const canonical=luminousMapItem(definitionId);
+  if(!canonical)return null;
+  const icon=luminousMapItemIcon(canonical);
+  return {
+    ...canonical,
+    id:String(canonical.id||definitionId),
+    name:canonical.name||String(definitionId),
+    tier:canonical.tier||'I',
+    value:Number(canonical.standardUnitValueAhn||canonical.priceAhn||canonical.value||0),
+    category:canonical.category||canonical.itemType||'utility',
+    tags:[...(canonical.functionalTags||[]),...(canonical.craftTags||[])],
+    quality:canonical.quality||'STANDARD',
+    description:canonical.description||[canonical.group,...(canonical.functionalTags||[])].filter(Boolean).join(' · ')||'Ítem canónico Luminous.',
+    icon,
+    iconFamily:canonical.iconFamily||null
+  };
+}
+function paperDef(item){
+  if(!item)return null;
+  return PAPER_ITEM_DEFS[item.definitionId]||paperCanonicalDef(item.definitionId)||{id:item.definitionId,name:item.definitionId||'Item',tier:'I',value:0,category:'utility',tags:['Item'],description:'Sin descripción.',icon:luminousMapItemIcon(item.definitionId)};
+}
 function paperItemName(item){return paperDef(item)?.name||'Item'}
 function paperItemIcon(kind=null){
-  const raw=String(kind||'').trim();
-  if(!raw)return '';
-  if(/^(https?:|data:|blob:)/i.test(raw)){
-    const safe=raw.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    return `<img src="${safe}" alt="" loading="lazy" decoding="async">`;
-  }
-  return '';
+  const local=luminousLocalAssetUrl(kind);
+  if(!local)return '';
+  const safe=local.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return `<img src="${safe}" alt="" loading="lazy" decoding="async">`;
 }
 function paperInvEntries(container){return Object.entries(paperInventory[container]||{}).filter(([,i])=>i&&Number(i.quantity||0)>0)}
 function paperFindItem(key){return paperInventory.active[key]||paperInventory.stash[key]||null}
@@ -9823,7 +10674,9 @@ function paperUseItem(key){
   }
 }
 function paperAddItem(definitionId,quantity=1,destination='active'){
-  const def=PAPER_ITEM_DEFS[definitionId];if(!def)return {added:false,reason:'unknown_definition'};
+  const def=PAPER_ITEM_DEFS[definitionId]||paperCanonicalDef(definitionId);
+  if(!def)return {added:false,reason:'unknown_definition'};
+  if(!PAPER_ITEM_DEFS[definitionId])PAPER_ITEM_DEFS[definitionId]=def;
   const target=destination==='stash'?paperInventory.stash:paperInventory.active;
   const existing=Object.entries(target).find(([,i])=>i.definitionId===definitionId);
   if(existing){existing[1].quantity=Number(existing[1].quantity||0)+Math.max(1,Number(quantity)||1);paperSaveInventory();paperRenderInventory();return {added:true,key:existing[0]}}
@@ -9979,10 +10832,10 @@ let moveVelX=0,moveVelZ=0;
 let wasMoving=false;
 
 // ============================================================
-// 0.3.2-66 · UNIT RUNTIME v2 · UNIT = DATOS + ESTADO; SISTEMAS = COMPORTAMIENTO
-// Regla rectora: el mundo no conoce Player/Belle/NPC. Física, locomoción,
-// ambiente y animación base reciben únicamente una Unit y sus componentes.
-// Las identidades concretas sólo viven en controllers, contenido, misiones o UI.
+// 0.3.2-93 · UNIVERSAL UNIT RUNTIME v3 · TODO ACTOR ES UNIT
+// El protagonista es la referencia de CONTRATO, no un tipo especial. Player, Belle,
+// NPC, enemigo, summon o criatura comparten exactamente los mismos componentes y
+// sistemas; sólo cambian controller, relaciones, stats, capacidades, visual y contenido.
 // ============================================================
 const UNIT_REGISTRY=new Map();
 const UNIT_BY_GROUP=new WeakMap();
@@ -10041,6 +10894,77 @@ function normalizeControllerName(value){
   if(c==='combat-ai')return'ai:combat';
   return c;
 }
+const UNIVERSAL_UNIT_STANDARD=Object.freeze({
+  id:'luminous-universal-unit-v1',
+  referenceUnitId:'hero',
+  requiredComponents:Object.freeze([
+    'id','group','controller','tags','relationships','radius','stats','capabilities',
+    'physics','visual','animationProfile','controllerData','needs','state','intent'
+  ]),
+  relationships:Object.freeze({partyId:null,followTarget:null}),
+  stats:Object.freeze({
+    speed:PLAYER_MOVE_SPEED,swimSpeed:null,strength:10,currentResistance:1,mass:1,endurance:1
+  }),
+  capabilities:Object.freeze({
+    walk:true,run:true,swim:true,canSwim:true,fly:false,canFly:false,
+    interact:true,talk:true,affectedByCurrent:true,affectedByTemperature:true,
+    needsRest:true,solid:true,anchored:false,faceMovement:true
+  }),
+  physics:Object.freeze({
+    movement:Object.freeze({responseMove:11.5,responseStop:15.5}),
+    buoyancy:Object.freeze({
+      strength:1,bobScale:1,visibleTopFraction:SWIM_VISIBLE_TOP_FRACTION,
+      idleRipples:true,idleRippleStrength:.10,idleRippleInterval:.95
+    })
+  }),
+  visual:Object.freeze({sprite:null,billboard:null,shadow:null,getHeight:null,getCenterY:null}),
+  animationProfile:Object.freeze({
+    states:Object.freeze({idle:'idle',walk:'walk',swim:'swim',talk:'talk',fall:'fall'}),
+    shadowX:1,shadowY:.55,shadowOpacity:.18
+  }),
+  needs:Object.freeze({fatigue:0,hunger:0,thirst:0,sleepDebt:0,bodyTemperature:null})
+});
+
+function resolveUniversalUnitSpec(spec={}){
+  const physics=spec.physics||{},animationProfile=spec.animationProfile||{};
+  return {
+    ...spec,
+    controller:normalizeControllerName(spec.controller||'ai:ambient'),
+    relationships:{...UNIVERSAL_UNIT_STANDARD.relationships,...(spec.relationships||{})},
+    radius:Number(spec.radius??PLAYER_RADIUS)||PLAYER_RADIUS,
+    stats:{...UNIVERSAL_UNIT_STANDARD.stats,...(spec.stats||{})},
+    capabilities:{...UNIVERSAL_UNIT_STANDARD.capabilities,...(spec.capabilities||{})},
+    physics:{
+      ...physics,
+      movement:{...UNIVERSAL_UNIT_STANDARD.physics.movement,...(physics.movement||{})},
+      buoyancy:{...UNIVERSAL_UNIT_STANDARD.physics.buoyancy,...(physics.buoyancy||{})}
+    },
+    visual:{...UNIVERSAL_UNIT_STANDARD.visual,...(spec.visual||{})},
+    animationProfile:{
+      ...UNIVERSAL_UNIT_STANDARD.animationProfile,
+      ...animationProfile,
+      states:{...UNIVERSAL_UNIT_STANDARD.animationProfile.states,...(animationProfile.states||{})}
+    },
+    controllerData:{...(spec.controllerData||{})},
+    needs:{...UNIVERSAL_UNIT_STANDARD.needs,...(spec.needs||{})}
+  };
+}
+
+function unitContractViolations(unit){
+  if(!unit)return ['missing-unit'];
+  const violations=[];
+  if(unit.runtimeContract!==UNIVERSAL_UNIT_STANDARD.id)violations.push('runtimeContract');
+  for(const key of UNIVERSAL_UNIT_STANDARD.requiredComponents){
+    if(!(key in unit))violations.push(key);
+  }
+  if(!unit.state?.movement)violations.push('state.movement');
+  if(!unit.state?.environment)violations.push('state.environment');
+  if(!unit.state?.animation)violations.push('state.animation');
+  if(!unit.physics?.movement)violations.push('physics.movement');
+  if(!unit.physics?.buoyancy)violations.push('physics.buoyancy');
+  return violations;
+}
+
 function registerUnit(spec={}){
   const group=spec.group;
   if(!group)throw new Error('Unit requiere group');
@@ -10052,48 +10976,71 @@ function registerUnit(spec={}){
     if(spec.visual)Object.assign(previous.visual,spec.visual);
     if(spec.stats)Object.assign(previous.stats,spec.stats);
     if(spec.capabilities)Object.assign(previous.capabilities,spec.capabilities);
-    if(spec.physics)Object.assign(previous.physics,spec.physics);
+    if(spec.physics){
+      previous.physics=previous.physics||{};
+      if(spec.physics.movement)previous.physics.movement=Object.assign(previous.physics.movement||{},spec.physics.movement);
+      if(spec.physics.buoyancy)previous.physics.buoyancy=Object.assign(previous.physics.buoyancy||{},spec.physics.buoyancy);
+      for(const [key,value] of Object.entries(spec.physics))if(key!=='movement'&&key!=='buoyancy')previous.physics[key]=value;
+    }
     if(spec.relationships)Object.assign(previous.relationships,spec.relationships);
     if(spec.needs)Object.assign(previous.needs,spec.needs);
-    if(spec.animationProfile)previous.animationProfile=Object.assign(previous.animationProfile||{},spec.animationProfile);
+    if(spec.animationProfile){
+      const states=spec.animationProfile.states;
+      previous.animationProfile=Object.assign(previous.animationProfile||{},spec.animationProfile);
+      if(states)previous.animationProfile.states=Object.assign(previous.animationProfile.states||{},states);
+    }
     if(spec.controllerData)previous.controllerData=Object.assign(previous.controllerData||{},spec.controllerData);
+    previous.runtimeContract=UNIVERSAL_UNIT_STANDARD.id;
     ensureUnitRuntimeState(previous);
     return previous;
   }
-  const id=String(spec.id||group.userData?.unitId||`unit-${++unitSerial}`);
+
+  const resolved=resolveUniversalUnitSpec(spec);
+  const id=String(resolved.id||group.userData?.unitId||`unit-${++unitSerial}`);
   const replaced=UNIT_REGISTRY.get(id);
   if(replaced&&replaced.group!==group)unregisterUnit(replaced);
   const unit={
-    id,group,controller:normalizeControllerName(spec.controller||'ai:ambient'),persistent:!!spec.persistent,
-    tags:Array.isArray(spec.tags)?[...spec.tags]:[],faction:spec.faction||null,
-    relationships:Object.assign({partyId:null,followTarget:null},spec.relationships||{}),
-    radius:Number(spec.radius??PLAYER_RADIUS)||PLAYER_RADIUS,
-    collider:spec.collider||null,interaction:spec.interaction||null,
-    stats:Object.assign({speed:PLAYER_MOVE_SPEED,swimSpeed:null,strength:10,currentResistance:1,mass:1,endurance:1},spec.stats||{}),
-    capabilities:Object.assign({
-      walk:true,run:true,swim:true,canSwim:true,fly:false,canFly:false,interact:true,talk:true,
-      affectedByCurrent:true,affectedByTemperature:true,needsRest:true,solid:true,anchored:false,faceMovement:true
-    },spec.capabilities||{}),
-    physics:Object.assign({
-      movement:{responseMove:11.5,responseStop:15.5},
-      buoyancy:{strength:1,bobScale:1,visibleTopFraction:SWIM_VISIBLE_TOP_FRACTION,idleRipples:true,idleRippleStrength:.10,idleRippleInterval:.95}
-    },spec.physics||{}),
-    visual:Object.assign({sprite:null,billboard:null,shadow:null,getHeight:null,getCenterY:null},spec.visual||{}),
-    animationProfile:Object.assign({states:{idle:'idle',walk:'walk',swim:'swim',talk:'talk',fall:'fall'},shadowX:1,shadowY:.55,shadowOpacity:.18},spec.animationProfile||{}),
-    controllerData:Object.assign({},spec.controllerData||{}),
-    needs:Object.assign({fatigue:0,hunger:0,thirst:0,sleepDebt:0,bodyTemperature:null},spec.needs||{}),
-    state:createUnitRuntimeState(spec.state||{}),
+    id,group,
+    runtimeContract:UNIVERSAL_UNIT_STANDARD.id,
+    controller:resolved.controller,
+    persistent:!!resolved.persistent,
+    tags:Array.isArray(resolved.tags)?[...resolved.tags]:[],
+    faction:resolved.faction||null,
+    relationships:resolved.relationships,
+    radius:resolved.radius,
+    collider:resolved.collider||null,
+    interaction:resolved.interaction||null,
+    stats:resolved.stats,
+    capabilities:resolved.capabilities,
+    physics:resolved.physics,
+    visual:resolved.visual,
+    animationProfile:resolved.animationProfile,
+    controllerData:resolved.controllerData,
+    needs:resolved.needs,
+    state:createUnitRuntimeState(resolved.state||{}),
     intent:{moveX:0,moveZ:0,speedScale:1,wantsRun:false,wantsInteract:false,wantsTalk:false,wantsUse:false}
   };
   unit.state.controllerState.intent=unit.intent;
-  group.userData.unitId=id;group.userData.isUnit=true;
+  group.userData.unitId=id;group.userData.isUnit=true;group.userData.unitContract=UNIVERSAL_UNIT_STANDARD.id;
   UNIT_REGISTRY.set(id,unit);UNIT_BY_GROUP.set(group,unit);
+  {
+    const wakePos=new THREE.Vector3();
+    waterInteractionSystem.registerInteractor(`unit:${id}`,{
+      persistent:unit.persistent,object3D:group,
+      position:()=>group.getWorldPosition(wakePos),
+      velocity:()=>unit.state?.velocity||{x:0,y:0,z:0},
+      radius:()=>unit.radius,
+      wakeEnabled:()=>unit.capabilities?.swim!==false&&unit.capabilities?.wake!==false,
+      wake:{type:'dynamic',minRelativeSpeed:.15,width:1.35,length:3.8,maxExtraLength:2.4,widening:1.22,tileWorldLength:2.5,scrollSpeed:.24,fadeStart:.72,opacity:.88,pointSpacing:.18,wakeLifetime:1.45,maxPoints:26}
+    });
+  }
   return unit;
 }
 function unregisterUnit(unitOrId){
   const unit=typeof unitOrId==='string'?UNIT_REGISTRY.get(unitOrId):unitOrId;
   if(!unit)return false;
   UNIT_REGISTRY.delete(unit.id);
+  waterInteractionSystem.unregisterInteractor(`unit:${unit.id}`);
   try{UNIT_BY_GROUP.delete(unit.group)}catch(_){ }
   return true;
 }
@@ -10165,7 +11112,7 @@ function unitCanOccupyWorld(unit,x,z,r=unit?.radius||PLAYER_RADIUS){
 }
 function terrainMovementSampleAtWorld(x,z,layer=currentWorldLayer){
   if(!Number.isFinite(x)||!Number.isFinite(z)||activeInteriorStage){
-    return {walkable:true,combat:true,moveMultiplier:1,terrain:'interior',tags:[],locomotion:'ground',slopeDeg:0,difficultTerrain:false};
+    return {walkable:true,combat:true,moveMultiplier:1,terrain:'interior',tags:[],locomotion:'ground',slopeDeg:0,slopeBand:'normal',difficultTerrain:false};
   }
   const cell=gridCellAtWorld(x,z,layer);
   let mult=1,difficultTerrain=!!cell?.tags?.includes('difficult');
@@ -10186,14 +11133,12 @@ function terrainMovementSampleAtWorld(x,z,layer=currentWorldLayer){
   }
 
   const slope=elevationSlopeAtWorld(x,z,mapId).angleDeg;
-  if(slope>NATURAL_SLOPE_RULES.difficultDeg)mult=Math.min(mult,.68);
-  else if(slope>NATURAL_SLOPE_RULES.normalDeg)mult=Math.min(mult,.82);
-
   const tags=[...(cell?.tags||[])];
   if(difficultTerrain&&!tags.includes('difficult'))tags.push('difficult');
-  const geology=geologySampleAtLocal(mapId,x/TILE,z/TILE);for(const tag of geology.tags||[])if(!tags.includes(tag))tags.push(tag);
+  const geology=geologySampleAtLocal(mapId,x/TILE,z/TILE);
+  for(const tag of geology.tags||[])if(!tags.includes(tag))tags.push(tag);
   const corridor=layer===currentWorldLayer?zoneTransitionCorridorAt(x,z,.05):null;
-  return {
+  const sample={
     walkable:!!(cell?.walkable||corridor),
     combat:!!cell?.combat,
     moveMultiplier:mult,
@@ -10202,14 +11147,17 @@ function terrainMovementSampleAtWorld(x,z,layer=currentWorldLayer){
     locomotion:cell?.locomotion||locomotionModeAt(x,z),
     hazard:cell?.hazard||null,
     slopeDeg:slope,
+    slopeBand:terrainSlopeBand(slope),
     difficultTerrain,geology
   };
+  sample.moveMultiplier=resolveTerrainMoveMultiplier(sample);
+  return sample;
 }
 function unitTerrainSpeedMultiplier(unit,x=unit?.group?.position?.x,z=unit?.group?.position?.z){
   if(!unit||!Number.isFinite(x)||!Number.isFinite(z)||activeInteriorStage)return 1;
   const activeOverpass=overpassById(unitOverpassId(unit));
   if(activeOverpass&&overpassContainsWorld(activeOverpass,x,z,0))return 1;
-  return terrainMovementSampleAtWorld(x,z,currentWorldLayer).moveMultiplier;
+  return resolveTerrainMoveMultiplier(terrainMovementSampleAtWorld(x,z,currentWorldLayer));
 }
 function recordUnitMovement(unit,moved,ox,oz){
   if(!unit||moved<=0)return;
@@ -10305,18 +11253,63 @@ const UnitMovementSystem=Object.freeze({
     // Cinematics/transitions may move unit.group directly. The common physics pipeline
     // must not add residual controller velocity on top of that scripted displacement.
     if((Number(s.movement.scriptedLockDepth)||0)>0){haltUnitHorizontalMotion(unit);return 0;}
-    const terrain=unitTerrainSpeedMultiplier(unit);s.movement.speedFactor=terrain;
+
     let ix=Number(intent.moveX)||0,iz=Number(intent.moveZ)||0,mag=Math.hypot(ix,iz);
     if(mag>1){ix/=mag;iz/=mag;mag=1;}
+
+    // A >maxWalkDeg natural slope remains forbidden as normal uphill walking, but it
+    // must never become a zero-speed trap. Once grounded on one, resolve motion into
+    // the local downhill tangent and allow only limited lateral steering.
+    const g=unit.group;
+    const slopeField=elevationSlopeAtWorld(g.position.x,g.position.z,mapId);
+    const slopeSlide=resolveTerrainSlopeSlide({
+      slopeDeg:slopeField.angleDeg,hx:slopeField.hx,hz:slopeField.hz,
+      locomotion:locomotionModeAt(g.position.x,g.position.z)
+    },NATURAL_SLOPE_RULES);
+    const terrain=slopeSlide.active?slopeSlide.speedMultiplier:unitTerrainSpeedMultiplier(unit);
+    s.movement.speedFactor=terrain;
+
     const rawSpeed=(s.locomotion==='swim'&&Number.isFinite(Number(unit.stats?.swimSpeed)))?Number(unit.stats.swimSpeed):unitStat(unit,'speed',PLAYER_MOVE_SPEED);
     const runMul=intent.wantsRun&&unit.capabilities?.run!==false?Math.max(1,unitStat(unit,'runMultiplier',1.35)):1;
-    const speedScale=Math.max(0,Number(intent.speedScale)||1),speed=rawSpeed*terrain*runMul*speedScale;
+    const speedScale=Math.max(0,Number(intent.speedScale)||1);
     s.movement.desiredX=ix;s.movement.desiredZ=iz;s.movement.speedScale=speedScale;
-    const moving=mag>.02&&unit.capabilities?.walk!==false&&!unit.capabilities?.anchored;
-    const response=moving?Number(unit.physics?.movement?.responseMove||11.5):Number(unit.physics?.movement?.responseStop||15.5);
-    const k=1-Math.exp(-dt*response),targetX=moving?ix*speed:0,targetZ=moving?iz*speed:0;
+
+    let moving=mag>.02&&unit.capabilities?.walk!==false&&!unit.capabilities?.anchored;
+    let response,targetX,targetZ;
+
+    if(slopeSlide.active&&unit.capabilities?.walk!==false&&!unit.capabilities?.anchored){
+      let lateralX=0,lateralZ=0;
+      if(mag>.02){
+        const downhillDot=ix*slopeSlide.downhillX+iz*slopeSlide.downhillZ;
+        // Remove uphill/downhill input from steering; downhill gravity remains authoritative.
+        // The remaining tangent component lets the player steer across the face without
+        // ever cancelling the escape slide or turning it back into climbable terrain.
+        lateralX=ix-slopeSlide.downhillX*downhillDot;
+        lateralZ=iz-slopeSlide.downhillZ*downhillDot;
+        const lateralLen=Math.hypot(lateralX,lateralZ);
+        if(lateralLen>1e-5){lateralX/=Math.max(1,lateralLen);lateralZ/=Math.max(1,lateralLen);}
+      }
+      let dirX=slopeSlide.downhillX+lateralX*slopeSlide.steer;
+      let dirZ=slopeSlide.downhillZ+lateralZ*slopeSlide.steer;
+      const dirLen=Math.hypot(dirX,dirZ)||1;dirX/=dirLen;dirZ/=dirLen;
+      const steep01=THREE.MathUtils.clamp((slopeSlide.slopeDeg-NATURAL_SLOPE_RULES.maxWalkDeg)/Math.max(1,78-NATURAL_SLOPE_RULES.maxWalkDeg),0,1);
+      const slideSpeed=rawSpeed*slopeSlide.speedMultiplier*(.92+steep01*.34)*speedScale;
+      targetX=dirX*slideSpeed;targetZ=dirZ*slideSpeed;
+      response=slopeSlide.response;
+      moving=true;
+      s.movement.slopeSliding=true;
+      s.movement.slopeSlideAngle=slopeSlide.slopeDeg;
+      s.movement.slopeSlideX=dirX;s.movement.slopeSlideZ=dirZ;
+    }else{
+      const speed=rawSpeed*terrain*runMul*speedScale;
+      response=moving?Number(unit.physics?.movement?.responseMove||11.5):Number(unit.physics?.movement?.responseStop||15.5);
+      targetX=moving?ix*speed:0;targetZ=moving?iz*speed:0;
+      s.movement.slopeSliding=false;s.movement.slopeSlideAngle=0;s.movement.slopeSlideX=0;s.movement.slopeSlideZ=0;
+    }
+
+    const k=1-Math.exp(-dt*response);
     s.velocity.x=THREE.MathUtils.lerp(s.velocity.x,targetX,k);s.velocity.z=THREE.MathUtils.lerp(s.velocity.z,targetZ,k);
-    if(!moving&&Math.hypot(s.velocity.x,s.velocity.z)<.035){s.velocity.x=0;s.velocity.z=0;}
+    if(!moving&&!s.movement.slopeSliding&&Math.hypot(s.velocity.x,s.velocity.z)<.035){s.velocity.x=0;s.velocity.z=0;}
     const moved=moveUnitBy(unit,s.velocity.x*dt,s.velocity.z*dt);
     if(moved>.0001&&unit.capabilities?.faceMovement!==false){
       const camRight=new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion).setY(0);if(camRight.lengthSq()<1e-5)camRight.set(1,0,0);else camRight.normalize();
@@ -10401,7 +11394,12 @@ const UnitEnvironmentSystem=Object.freeze({
       const resistance=Math.max(.1,unitStat(unit,'currentResistance',1)),force=wt(current.strength)*dt/resistance;
       if(force>0){
         const moved=moveUnitBy(unit,current.x*force,current.z*force,{environmental:true});
-        s.lastEnvironmentalForce={x:current.x,z:current.z,strength:current.strength,moved,label:current.label};
+        s.lastEnvironmentalForce={
+          x:current.x,z:current.z,strength:current.strength,
+          baseStrength:Number(current.baseStrength??current.speed??current.strength)||0,
+          immersion:Number(current.immersion??1),
+          moved,label:current.label
+        };
         const sid=current.cell?.surfaceId||current.label;lastNatureSurfaceByUnit.set(unit.id,sid);
       }
     }
@@ -10481,8 +11479,13 @@ const UnitAnimationSystem=Object.freeze({
   update(unit,dt){
     if(!unit?.visual?.sprite)return;const s=ensureUnitRuntimeState(unit),sprite=unit.visual.sprite,shadow=unit.visual.shadow,{p,h,center,w}=unitAnimationBase(unit);
     if(unit.visual.billboard)faceBillboardUpright(unit.visual.billboard);
-    const moved=s.movement.movedDistanceFrame||0,talking=!!(dialogTyping&&dialogSource?.owner===unit.group),locked=typeof p.externalLock==='function'&&p.externalLock(unit);
-    let next=s.vertical.falling?'fall':(s.locomotion==='swim'?'swim':(moved>.0001?'walk':(talking?'talk':'idle')));
+    const moved=s.movement.movedDistanceFrame||0;
+    const selfPropelled=Math.hypot(Number(s.movement.desiredX)||0,Number(s.movement.desiredZ)||0)>.02;
+    const visualMoved=selfPropelled?moved:0;
+    const talking=!!(dialogTyping&&dialogSource?.owner===unit.group),locked=typeof p.externalLock==='function'&&p.externalLock(unit);
+    // Water changes physics, not pose by itself. Standing still in water is idle;
+    // only self-propelled swimming/walking uses the walk animation.
+    let next=s.vertical.falling?'fall':(visualMoved>.0001?'walk':(talking?'talk':'idle'));
     if(s.animation.lock)next=String(s.animation.lock);
     if(next!==s.animation.state){s.animation.previousState=s.animation.state;s.animation.state=next;}
     const visualState=p.states?.[next]??next;
@@ -10492,9 +11495,9 @@ const UnitAnimationSystem=Object.freeze({
     else sprite.scale.x=w*(fs.sign||1);
     if(locked){return;}
     const shadowX=Number(p.shadowX??1),shadowY=Number(p.shadowY??.55),shadowOpacity=Number(p.shadowOpacity??.18);
-    if(moved>.0001&&!s.vertical.falling){
+    if(visualMoved>.0001&&!s.vertical.falling){
       const phasePerWorld=typeof p.phasePerWorldDistance==='function'?Number(p.phasePerWorldDistance(unit)):11.5/Math.max(.01,unitStat(unit,'speed',PLAYER_MOVE_SPEED));
-      s.animation.phase+=moved*(Number.isFinite(phasePerWorld)?phasePerWorld:3.5);const wv=paperWalkSample(s.animation.phase),swim=s.locomotion==='swim',amp=swim?.42:1;
+      s.animation.phase+=visualMoved*(Number.isFinite(phasePerWorld)?phasePerWorld:3.5);const wv=paperWalkSample(s.animation.phase),swim=s.locomotion==='swim',amp=swim?.42:1;
       sprite.position.y=center+wv.bob*amp;sprite.rotation.z=wv.tilt*(swim?.55:1);sprite.scale.y=h*(1+(wv.scaleY-1)*amp);
       if(shadow){shadow.scale.x=shadowX*(1+(wv.shadowX-1)*amp);shadow.scale.y=shadowY*(1+(wv.shadowY-1)*amp);shadow.material.opacity=shadowOpacity*(1+(wv.shadowOpacity-1)*amp);}
     }else{
@@ -10502,7 +11505,7 @@ const UnitAnimationSystem=Object.freeze({
       if(shadow){shadow.scale.x=THREE.MathUtils.lerp(shadow.scale.x,shadowX,k);shadow.scale.y=THREE.MathUtils.lerp(shadow.scale.y,shadowY,k);shadow.material.opacity=THREE.MathUtils.lerp(shadow.material.opacity,shadowOpacity,k);}
     }
     if(talking)applyPaperTalkSquash(sprite,h,paperTalkSample());
-    s.animation.wasMoving=moved>.0001;
+    s.animation.wasMoving=visualMoved>.0001;
   }
 });
 const UnitNeedsSystem=Object.freeze({update(unit,dt){if(!unit?.needs)return;const t=unit.state?.environment?.temperature;if(unit.capabilities?.affectedByTemperature!==false&&Number.isFinite(t)){const current=Number(unit.needs.bodyTemperature);unit.needs.bodyTemperature=Number.isFinite(current)?THREE.MathUtils.lerp(current,t,1-Math.exp(-dt*.025)):t;}if(unit.capabilities?.needsRest!==false)unit.needs.fatigue=Math.max(0,Number(unit.needs.fatigue)||0);}});
@@ -10527,7 +11530,7 @@ const playerUnit=registerUnit({
   id:'hero',group:player,controller:'local-input',persistent:true,radius:PLAYER_RADIUS,tags:['hero'],faction:'party',relationships:{partyId:'player-party'},
   stats:{strength:ACTOR_STRENGTH.player,speed:PLAYER_MOVE_SPEED,swimSpeed:PLAYER_MOVE_SPEED,currentResistance:1,mass:1,endurance:1},
   capabilities:{walk:true,run:true,swim:true,canSwim:true,interact:true,talk:true,affectedByCurrent:true,affectedByTemperature:true,needsRest:true,solid:true},
-  physics:{movement:{responseMove:11.5,responseStop:15.5},buoyancy:{strength:1,bobScale:1,visibleTopFraction:SWIM_VISIBLE_TOP_FRACTION}},
+  physics:{movement:{responseMove:11.5,responseStop:15.5},buoyancy:{strength:1,bobScale:1,visibleTopFraction:SWIM_VISIBLE_TOP_FRACTION,idleRipples:false}},
   visual:{sprite:playerSprite,billboard:playerVisualRig,shadow,getHeight:()=>spriteBaseY,getCenterY:()=>spriteBaseY*.52},
   animationProfile:{
     states:{idle:'idle',walk:'walk',swim:'walk',talk:'idle',fall:'idle'},
@@ -10820,15 +11823,36 @@ function updateBelleLocomotionVisual(dt){
 function surfaceCurrentAt(x,z,layer=currentWorldLayer,unit=null){
   if(activeInteriorStage)return null;
   if(unitOverpassId(unit))return null;
+
+  // En hydrology procedural la corriente debe existir exactamente donde el campo
+  // continuo dice que hay agua. El grid es una aproximación por tiles y no puede
+  // ser autoridad para fuerzas: en las orillas curvas podía empujar sobre suelo seco.
+  if(isOverworldSector(mapId)&&activeProceduralZone?.hydrology?.type==='river'){
+    const sample=proceduralHydrologySample(mapId,x/TILE,z/TILE);
+    const flow=sample?.water?sample.current:null;
+    if(!flow)return null;
+    const dx=Number(flow.x)||0,dz=Number(flow.z)||0,len=Math.hypot(dx,dz);
+    if(len<1e-5)return null;
+    return {
+      x:dx/len,z:dz/len,
+      strength:Math.max(0,Number(flow.strength)||0),
+      label:flow.label||'Corriente',
+      cell:gridCellAtWorld(x,z,layer),
+      hydrologySample:sample,
+      source:'procedural-river-field'
+    };
+  }
+
   const cell=gridCellAtWorld(x,z,layer);
-  const c=cell?.current;
-  if(!c)return null;
-  const dx=Number(c.x)||0,dz=Number(c.z)||0,len=Math.hypot(dx,dz);
+  const flow=cell?.current;
+  if(!flow)return null;
+  const dx=Number(flow.x)||0,dz=Number(flow.z)||0,len=Math.hypot(dx,dz);
   if(len<1e-5)return null;
   return {
     x:dx/len,z:dz/len,
-    strength:Math.max(0,Number(c.strength)||0),
-    label:c.label||'Corriente',cell
+    strength:Math.max(0,Number(flow.strength)||0),
+    label:flow.label||'Corriente',cell,
+    source:'grid-current'
   };
 }
 // LEGACY ADAPTER — UnitEnvironmentSystem is authoritative.
@@ -10847,8 +11871,8 @@ function updatePaperMotion(dt,moving,screenX,moved){
   UnitAnimationSystem.update(playerUnit,dt);syncLegacyUnitAdapters();
 }
 
-async function loadPlayer(){
-  window.setLoadProgress?.(30,'Cargando protagonista','Sprite remoto…');
+async function loadPlayer({background=false}={}){
+  if(!background)window.setLoadProgress?.(30,'Cargando protagonista','Sprite remoto…');
   // Fail-closed visual: jamás mostramos un plano/placeholder local mientras llega la URL.
   playerSprite.visible=false;
   playerMat.map=null;
@@ -10856,11 +11880,11 @@ async function loadPlayer(){
   const tex=await requestSpriteAsset('player:idle',PLAYER_URL,t=>setPlayerIdleTextureReady(t),{timeoutMs:11000,recoveryAttempts:3});
   if(tex){
     setPlayerIdleTextureReady(tex);
-    window.setLoadProgress?.(45,'Protagonista listo','Sprite remoto cargado');
+    if(!background)window.setLoadProgress?.(45,'Protagonista listo','Sprite remoto cargado');
   }else{
     playerIdleTexture=null;
     playerVisualState='idle';
-    window.setLoadProgress?.(45,'Sprite remoto pendiente','Reintentando URL en segundo plano…');
+    if(!background)window.setLoadProgress?.(45,'Sprite remoto pendiente','Reintentando URL en segundo plano…');
   }
   return tex;
 }
@@ -11332,40 +12356,55 @@ function waterStrip(g){
   const waterPlan=CANAL_PLAN.water;
   const waterW=spanTiles(waterPlan.x0,waterPlan.x1);
   const waterCX=spanCenter(waterPlan.x0,waterPlan.x1);
+  const z0=-2,z1=2,waterD=z1-z0,waterY=-wt(1)+.03;
+  const waterPoints=[[waterPlan.x0,z0],[waterPlan.x1,z0],[waterPlan.x1,z1],[waterPlan.x0,z1]];
 
   const bottom=new THREE.Mesh(
-    new THREE.PlaneGeometry(wt(waterW),wt(4)),
+    new THREE.PlaneGeometry(wt(waterW),wt(waterD)),
     new THREE.MeshBasicMaterial({color:0x2e7784,side:THREE.DoubleSide})
   );
   bottom.rotation.x=-Math.PI/2;
   bottom.position.set(wt(waterCX),-wt(1)-.13,0);
   g.add(bottom);
 
-  const toonWater=window.PaperFX?.toonWaterAvailable?window.PaperFX?.waterPreset?.('river',{deepColor:0x176677,shallowColor:0x49a9ad,crestColor:0xa6ded0,foamColor:0xf2f5ce,coast:{enabled:true,foamWidth:1.15}}):null;
+  const toonWater=window.PaperFX?.toonWaterAvailable?window.PaperFX?.waterPreset?.('river',{
+    deepColor:0x176677,shallowColor:0x49a9ad,crestColor:0xa6ded0,foamColor:0xf2f5ce,
+    coast:{enabled:false,foamWidth:1.15},reactive:true
+  }):null;
   const paperWater=!toonWater?(window.PaperFX?.createWater?.({baseColor:0x368fa0,waves:['wavesA','wavesB'],foam:'foam'})||null):null;
-  const geo=new THREE.PlaneGeometry(wt(waterW),wt(4),Math.max(36,Math.round(waterW*1.5)),8);
+  const geo=new THREE.PlaneGeometry(wt(waterW),wt(waterD),Math.max(36,Math.round(waterW*1.5)),8);
+
+  const attachOfficial=()=>{
+    const body=attachAuthoredWaterBody({
+      id:'canal-water',parent:g,sourceGeometry:geo,points:waterPoints,y:waterY,style:'river',
+      flow:{x:1,z:0,strength:.72},
+      water:{opacity:.80,scrollSpeed:{x:-.024,y:0}},
+      foam:{width:TILE*.25,innerWidth:TILE*.045,outerWidth:TILE*.205,tileWorldLength:TILE*1.85,opacity:.76}
+    });
+    if(body)body.group.userData.waterBodyRole='authored-canal';
+    return body;
+  };
+
   if(toonWater){
     toonWater.prepareGeometry(geo,{sample:({y})=>{const z=-y/TILE,d=Math.max(0,2-Math.abs(z));return {waterDepth:.48+d*.34,distanceToCoast:Math.max(0,2-Math.abs(z)),valid:true}},defaultDepth:.72,defaultCoastDistance:999});
-    const surf=new THREE.Mesh(geo,toonWater.material);surf.rotation.x=-Math.PI/2;surf.position.set(wt(waterCX),-wt(1)+.03,0);surf.receiveShadow=true;g.add(surf);
-    waterSurface=surf;waterBase=null;waterOverlay=null;waterTexA=waterTexB=waterBandTex=waterFleckTex=null;waterBandLayer=waterFleckLayer=null;foamStrips=[];return;
+    const surf=new THREE.Mesh(geo,toonWater.material);surf.rotation.x=-Math.PI/2;surf.position.set(wt(waterCX),waterY,0);surf.receiveShadow=true;g.add(surf);
+    waterSurface=surf;waterBase=null;waterOverlay=null;waterTexA=waterTexB=waterBandTex=waterFleckTex=null;waterBandLayer=waterFleckLayer=null;foamStrips=[];
+    attachOfficial();
+    return;
   }
 
   waterTexA=paperWater?.textures?.waves?.[0]||makeWaterTexture(false);
   waterTexB=paperWater?.textures?.waves?.[1]||makeWaterTexture(true);
   const surf=new THREE.Mesh(geo,paperWater?.baseMaterial||new THREE.MeshBasicMaterial({map:waterTexA,color:0xffffff,transparent:false,side:THREE.DoubleSide}));
-  surf.rotation.x=-Math.PI/2;surf.position.set(wt(waterCX),-wt(1)+.03,0);surf.receiveShadow=true;g.add(surf);waterSurface=surf;waterBase=Float32Array.from(geo.attributes.position.array);
+  surf.rotation.x=-Math.PI/2;surf.position.set(wt(waterCX),waterY,0);surf.receiveShadow=true;g.add(surf);waterSurface=surf;waterBase=Float32Array.from(geo.attributes.position.array);
 
-  const overlayGeo=new THREE.PlaneGeometry(wt(waterW),wt(4),1,1);
-  waterOverlay=new THREE.Mesh(overlayGeo,paperWater?.waveMaterials?.[0]||new THREE.MeshBasicMaterial({map:waterTexB,color:0xffffff,transparent:true,opacity:.58,side:THREE.DoubleSide,depthWrite:false}));
-  waterOverlay.rotation.x=-Math.PI/2;waterOverlay.position.set(wt(waterCX),-wt(1)+.075,0);g.add(waterOverlay);
-  waterBandTex=paperWater?.textures?.waves?.[1]||makeWaterBandTexture();
-  waterBandLayer=new THREE.Mesh(new THREE.PlaneGeometry(wt(waterW),wt(4)),paperWater?.waveMaterials?.[1]||new THREE.MeshBasicMaterial({map:waterBandTex,transparent:true,opacity:.78,side:THREE.DoubleSide,depthWrite:false}));
-  waterBandLayer.rotation.x=-Math.PI/2;waterBandLayer.position.set(wt(waterCX),-wt(1)+.084,0);g.add(waterBandLayer);
-  waterFleckTex=paperWater?.textures?.foam||makeWaterFleckTexture();
-  waterFleckLayer=new THREE.Mesh(new THREE.PlaneGeometry(wt(waterW),wt(4)),paperWater?.foamMaterial||new THREE.MeshBasicMaterial({map:waterFleckTex,transparent:true,opacity:.72,side:THREE.DoubleSide,depthWrite:false}));
-  waterFleckLayer.rotation.x=-Math.PI/2;waterFleckLayer.position.set(wt(waterCX),-wt(1)+.092,0);g.add(waterFleckLayer);
-  foamStrips=[];
-  for(const z of [-1.92,1.92]){const foam=new THREE.Mesh(new THREE.PlaneGeometry(wt(waterW-.4),.16,Math.max(32,Math.round(waterW)),1),new THREE.MeshBasicMaterial({color:0xf1fbef,transparent:true,opacity:.64,side:THREE.DoubleSide,depthWrite:false}));foam.rotation.x=-Math.PI/2;foam.position.set(wt(waterCX),-wt(1)+.095,wt(z));g.add(foam);foamStrips.push(foam)}
+  // Legacy waves remain a subtle fallback detail. Legacy full-surface foam strips are
+  // removed: shoreline foam is now exclusively the contour-following WaterBody ribbon.
+  const overlayGeo=new THREE.PlaneGeometry(wt(waterW),wt(waterD),1,1);
+  waterOverlay=new THREE.Mesh(overlayGeo,paperWater?.waveMaterials?.[0]||new THREE.MeshBasicMaterial({map:waterTexB,color:0xffffff,transparent:true,opacity:.20,side:THREE.DoubleSide,depthWrite:false}));
+  waterOverlay.rotation.x=-Math.PI/2;waterOverlay.position.set(wt(waterCX),waterY+.075,0);g.add(waterOverlay);
+  waterBandTex=null;waterBandLayer=null;waterFleckTex=null;waterFleckLayer=null;foamStrips=[];
+  attachOfficial();
 }
 
 function updateWater(dt){
@@ -12070,26 +13109,47 @@ function buildCanalEastStub(){
 // ============================================================
 function waterRect(g,x0,x1,z0,z1,elevationTiles=-1){
   const w=spanTiles(x0,x1),d=spanTiles(z0,z1),cx=spanCenter(x0,x1),cz=spanCenter(z0,z1);
-  const baseY=wt(elevationTiles);
+  const baseY=wt(elevationTiles),waterY=baseY+.03;
+  const waterPoints=[[x0,z0],[x1,z0],[x1,z1],[x0,z1]];
   const bottom=new THREE.Mesh(new THREE.PlaneGeometry(wt(w),wt(d)),new THREE.MeshBasicMaterial({color:0x2e7784,side:THREE.DoubleSide}));
   bottom.rotation.x=-Math.PI/2;bottom.position.set(wt(cx),baseY-.13,wt(cz));g.add(bottom);
 
-  const toonWater=window.PaperFX?.toonWaterAvailable?window.PaperFX?.waterPreset?.('swamp',{coast:{enabled:true,foamWidth:1.25}}):null;
+  const toonWater=window.PaperFX?.toonWaterAvailable?window.PaperFX?.waterPreset?.('swamp',{coast:{enabled:false,foamWidth:1.25},reactive:true}):null;
   const paperWater=!toonWater?(window.PaperFX?.createWater?.({baseColor:0x368fa0,waves:['wavesA','wavesB'],foam:'foam'})||null):null;
   const geo=new THREE.PlaneGeometry(wt(w),wt(d),Math.max(12,Math.round(w*1.5)),Math.max(4,Math.round(d*1.5)));
+
+  const attachOfficial=()=>{
+    const officialGeo=waterBodyPlaneUvWorld(geo.clone(),{id:mapId,cxTiles:cx,czTiles:cz});
+    const body=createOfficialWaterBody({
+      id:`water-rect:${mapId}:${x0},${z0},${x1},${z1}`,
+      parent:g,geometry:officialGeo,
+      position:new THREE.Vector3(wt(cx),waterY+.018,wt(cz)),rotationX:-Math.PI/2,
+      shorelines:[waterBodyPolygonShoreline(waterPoints,waterY)],
+      isWaterAt:(x,z)=>waterBodyPointInTilePolygon(waterPoints,x,z),
+      water:{opacity:.78,scrollSpeed:{x:.004,y:.003}},
+      foam:{width:TILE*.28,innerWidth:TILE*.05,outerWidth:TILE*.23,tileWorldLength:TILE*2.0,opacity:.74,scrollSpeed:.010}
+    });
+    if(body)body.group.userData.waterBodyRole='authored-rect';
+    return body;
+  };
+
   if(toonWater){
     toonWater.prepareGeometry(geo,{sample:({x,y})=>{const tx=x/TILE,tz=-y/TILE,edge=Math.min(w*.5-Math.abs(tx),d*.5-Math.abs(tz));return {waterDepth:.35+Math.max(0,edge)*.22,distanceToCoast:Math.max(0,edge),valid:true}},defaultDepth:.55,defaultCoastDistance:999});
-    waterSurface=new THREE.Mesh(geo,toonWater.material);waterSurface.rotation.x=-Math.PI/2;waterSurface.position.set(wt(cx),baseY+.03,wt(cz));waterSurface.receiveShadow=true;g.add(waterSurface);
-    waterBase=null;waterOverlay=null;waterTexA=waterTexB=waterBandTex=waterFleckTex=null;waterBandLayer=waterFleckLayer=null;foamStrips=[];return;
+    waterSurface=new THREE.Mesh(geo,toonWater.material);waterSurface.rotation.x=-Math.PI/2;waterSurface.position.set(wt(cx),waterY,wt(cz));waterSurface.receiveShadow=true;g.add(waterSurface);
+    waterBase=null;waterOverlay=null;waterTexA=waterTexB=waterBandTex=waterFleckTex=null;waterBandLayer=waterFleckLayer=null;foamStrips=[];
+    attachOfficial();
+    return;
   }
 
-  // PaperFX legacy permanece como fallback desactivable.
-  waterTexA=paperWater?.textures?.waves?.[0]||makeWaterTexture(false);waterTexB=paperWater?.textures?.waves?.[1]||makeWaterTexture(true);
-  waterSurface=new THREE.Mesh(geo,paperWater?.baseMaterial||new THREE.MeshBasicMaterial({map:waterTexA,color:0xffffff,side:THREE.DoubleSide}));waterSurface.rotation.x=-Math.PI/2;waterSurface.position.set(wt(cx),baseY+.03,wt(cz));waterSurface.receiveShadow=true;g.add(waterSurface);waterBase=Float32Array.from(geo.attributes.position.array);
-  waterOverlay=new THREE.Mesh(new THREE.PlaneGeometry(wt(w),wt(d)),paperWater?.waveMaterials?.[0]||new THREE.MeshBasicMaterial({map:waterTexB,color:0xffffff,transparent:true,opacity:.55,side:THREE.DoubleSide,depthWrite:false}));waterOverlay.rotation.x=-Math.PI/2;waterOverlay.position.set(wt(cx),baseY+.075,wt(cz));g.add(waterOverlay);
-  waterBandTex=paperWater?.textures?.waves?.[1]||makeWaterBandTexture();waterBandLayer=new THREE.Mesh(new THREE.PlaneGeometry(wt(w),wt(d)),paperWater?.waveMaterials?.[1]||new THREE.MeshBasicMaterial({map:waterBandTex,transparent:true,opacity:.72,side:THREE.DoubleSide,depthWrite:false}));waterBandLayer.rotation.x=-Math.PI/2;waterBandLayer.position.set(wt(cx),baseY+.084,wt(cz));g.add(waterBandLayer);
-  waterFleckTex=paperWater?.textures?.foam||makeWaterFleckTexture();waterFleckLayer=new THREE.Mesh(new THREE.PlaneGeometry(wt(w),wt(d)),paperWater?.foamMaterial||new THREE.MeshBasicMaterial({map:waterFleckTex,transparent:true,opacity:.58,side:THREE.DoubleSide,depthWrite:false}));waterFleckLayer.rotation.x=-Math.PI/2;waterFleckLayer.position.set(wt(cx),baseY+.092,wt(cz));g.add(waterFleckLayer);
-  foamStrips=[];for(const z of [z0+.08,z1-.08]){const foam=new THREE.Mesh(new THREE.PlaneGeometry(wt(w-.25),.14,Math.max(18,Math.round(w)),1),new THREE.MeshBasicMaterial({color:0xf1fbef,transparent:true,opacity:.52,side:THREE.DoubleSide,depthWrite:false}));foam.rotation.x=-Math.PI/2;foam.position.set(wt(cx),baseY+.095,wt(z));g.add(foam);foamStrips.push(foam)}
+  waterTexA=paperWater?.textures?.waves?.[0]||makeWaterTexture(false);
+  waterTexB=paperWater?.textures?.waves?.[1]||makeWaterTexture(true);
+  waterSurface=new THREE.Mesh(geo,paperWater?.baseMaterial||new THREE.MeshBasicMaterial({map:waterTexA,color:0xffffff,side:THREE.DoubleSide}));
+  waterSurface.rotation.x=-Math.PI/2;waterSurface.position.set(wt(cx),waterY,wt(cz));waterSurface.receiveShadow=true;g.add(waterSurface);waterBase=Float32Array.from(geo.attributes.position.array);
+
+  waterOverlay=new THREE.Mesh(new THREE.PlaneGeometry(wt(w),wt(d)),paperWater?.waveMaterials?.[0]||new THREE.MeshBasicMaterial({map:waterTexB,color:0xffffff,transparent:true,opacity:.18,side:THREE.DoubleSide,depthWrite:false}));
+  waterOverlay.rotation.x=-Math.PI/2;waterOverlay.position.set(wt(cx),waterY+.075,wt(cz));g.add(waterOverlay);
+  waterBandTex=null;waterBandLayer=null;waterFleckTex=null;waterFleckLayer=null;foamStrips=[];
+  attachOfficial();
 }
 
 function paperForestGroundPatch(g,points,kind='forestPath',y=.012,renderOrder=-16){
@@ -12097,7 +13157,7 @@ function paperForestGroundPatch(g,points,kind='forestPath',y=.012,renderOrder=-1
   points.forEach(([x,z],i)=>{const X=wt(x),Z=-wt(z);i?sh.lineTo(X,Z):sh.moveTo(X,Z);});
   sh.closePath();
   const geo=normalizeShapeUVs(new THREE.ShapeGeometry(sh,Math.max(4,points.length)));
-  const mesh=new THREE.Mesh(geo,mat(kind));
+  const mesh=new THREE.Mesh(geo,fittedPolygonMaterial(mat(kind),points));
   mesh.rotation.x=-Math.PI/2;mesh.position.y=y;mesh.receiveShadow=true;mesh.renderOrder=renderOrder;
   mesh.userData.decorativeFloorPatch=true;g.add(mesh);return mesh;
 }
@@ -12154,7 +13214,7 @@ function paperGroveFloorPatch(g,points,kind='grovePath',y=.015,renderOrder=-14){
   points.forEach(([x,z],i)=>{const X=wt(x),Z=-wt(z);i?sh.lineTo(X,Z):sh.moveTo(X,Z);});
   sh.closePath();
   const geo=normalizeShapeUVs(new THREE.ShapeGeometry(sh,Math.max(4,points.length)));
-  const mesh=new THREE.Mesh(geo,mat(kind));
+  const mesh=new THREE.Mesh(geo,fittedPolygonMaterial(mat(kind),points));
   mesh.rotation.x=-Math.PI/2;mesh.position.y=y;mesh.receiveShadow=true;mesh.renderOrder=renderOrder;
   mesh.userData.decorativeFloorPatch=true;mesh.userData.groveVisual=true;g.add(mesh);return mesh;
 }
@@ -12381,7 +13441,7 @@ function makeTerrainPlateWithHole(g,{x0,x1,z0,z1,holePoints,kind='floor',y=0}={}
   pts.forEach(([x,z],i)=>{const X=wt(x),Z=-wt(z);i?hole.lineTo(X,Z):hole.moveTo(X,Z);});hole.closePath();
   sh.holes.push(hole);
   const geo=normalizeShapeUVs(new THREE.ShapeGeometry(sh,12));
-  const mesh=new THREE.Mesh(geo,mat(kind));
+  const mesh=new THREE.Mesh(geo,fittedMappedMaterial(mat(kind),Math.abs(x1-x0),Math.abs(z1-z0)));
   mesh.rotation.x=-Math.PI/2;mesh.position.y=y;mesh.receiveShadow=true;mesh.renderOrder=-30;g.add(mesh);
   return mesh;
 }
@@ -12395,7 +13455,9 @@ function makeTerrainPolygonWithHole(g,{outerPoints,holePoints,kind='floor',y=0}=
   hole.closePath();
   sh.holes.push(hole);
   const geo=normalizeShapeUVs(new THREE.ShapeGeometry(sh,12));
-  const mesh=new THREE.Mesh(geo,mat(kind));
+  const xs=outerPoints.map(p=>Number(p[0])||0),zs=outerPoints.map(p=>Number(p[1])||0);
+  const uTiles=Math.max(.01,Math.max(...xs)-Math.min(...xs)),vTiles=Math.max(.01,Math.max(...zs)-Math.min(...zs));
+  const mesh=new THREE.Mesh(geo,fittedMappedMaterial(mat(kind),uTiles,vTiles));
   mesh.rotation.x=-Math.PI/2;mesh.position.y=y;mesh.receiveShadow=true;mesh.renderOrder=-30;g.add(mesh);
   return mesh;
 }
@@ -12449,11 +13511,30 @@ function makeSwimWaterShape(g,points,{y=SWIM_WATER_SURFACE_Y,bankPoints=FLOODED_
   const surf=new THREE.Mesh(baseGeo,toonWater?.material||paperWater?.baseMaterial||new THREE.MeshStandardMaterial({map:texA,color:0xffffff,transparent:false,roughness:.34,metalness:.02,side:THREE.DoubleSide,depthWrite:true,depthTest:true}));
   surf.rotation.x=-Math.PI/2;surf.position.y=y;surf.receiveShadow=true;surf.renderOrder=0;g.add(surf);
 
+  const officialWaterBody=attachAuthoredWaterBody({
+    id:`swim-water:${mapId}:${swimWaterSystems.length}`,
+    parent:g,sourceGeometry:baseGeo,points,y,style:flowing?'river':'lake',flow,
+    water:{
+      opacity:flowing?.80:.76,
+      scrollSpeed:flowing?{x:-.030*Math.max(.5,Number(flow?.strength)||1),y:0}:{x:.005,y:.003}
+    },
+    foam:{
+      width:flowing?TILE*.27:TILE*.34,
+      innerWidth:TILE*.05,
+      outerWidth:flowing?TILE*.22:TILE*.29,
+      tileWorldLength:flowing?TILE*1.9:TILE*2.25,
+      scrollSpeed:flowing?-.013:.011,
+      opacity:flowing?.78:.76
+    }
+  });
+
   let overlay=null,paperWaveBLayer=null,paperFoamLayer=null;
   if(!toonWater){
     overlay=new THREE.Mesh(baseGeo.clone(),paperWater?.waveMaterials?.[0]||new THREE.MeshBasicMaterial({map:texB,color:0xffffff,transparent:true,opacity:.16,side:THREE.DoubleSide,depthWrite:false,depthTest:true}));
     overlay.rotation.x=-Math.PI/2;overlay.position.y=y+.008;overlay.renderOrder=2;g.add(overlay);
-    if(paperWater){paperWaveBLayer=new THREE.Mesh(baseGeo.clone(),paperWater.waveMaterials[1]);paperWaveBLayer.rotation.x=-Math.PI/2;paperWaveBLayer.position.y=y+.012;paperWaveBLayer.renderOrder=3;g.add(paperWaveBLayer);paperFoamLayer=new THREE.Mesh(baseGeo.clone(),paperWater.foamMaterial);paperFoamLayer.rotation.x=-Math.PI/2;paperFoamLayer.position.y=y+.016;paperFoamLayer.renderOrder=4;g.add(paperFoamLayer)}
+    if(paperWater){paperWaveBLayer=new THREE.Mesh(baseGeo.clone(),paperWater.waveMaterials[1]);paperWaveBLayer.rotation.x=-Math.PI/2;paperWaveBLayer.position.y=y+.012;paperWaveBLayer.renderOrder=3;g.add(paperWaveBLayer)}
+    // Legacy full-surface foam is intentionally omitted. Shore foam belongs to
+    // WaterBodySystem so it follows the actual polygon contour.
   }
 
   const ripples=[],flowStreaks=[];
@@ -12468,7 +13549,7 @@ function makeSwimWaterShape(g,points,{y=SWIM_WATER_SURFACE_Y,bankPoints=FLOODED_
       for(let i=0;i<22;i++){const along=-halfAlong+(i/21)*(halfAlong*2)+(Math.sin(i*2.31)*.65),side=((i*7)%17)/16*2-1,len=.48+(i%6)*.13,streak=new THREE.Mesh(new THREE.PlaneGeometry(wt(len),wt(.035+(i%3)*.012)),foamMat);streak.rotation.x=-Math.PI/2;streak.rotation.z=-Math.atan2(dz,dx);streak.position.set(wt(centerX+dx*along+sideX*side*halfSide),y+.020+(i%2)*.002,wt(centerZ+dz*along+sideZ*side*halfSide));streak.renderOrder=13;g.add(streak);flowStreaks.push({mesh:streak,phase:(i*.137)%1,speed:.78+(i%5)*.09,side:side*halfSide,bounds,centerX,centerZ,dx,dz,sideX,sideZ,halfAlong})}
     }
   }
-  const sys={surf,overlay,texA,texB,paperWaveBLayer,paperFoamLayer,ripples,flowStreaks,time:0,y,style:waterStyle,toonWater,flow:flow?{x:Number(flow.x)||0,z:Number(flow.z)||0,strength:Number(flow.strength)||1}:null};
+  const sys={surf,overlay,texA,texB,paperWaveBLayer,paperFoamLayer,ripples,flowStreaks,time:0,y,style:waterStyle,toonWater,waterBody:officialWaterBody,flow:flow?{x:Number(flow.x)||0,z:Number(flow.z)||0,strength:Number(flow.strength)||1}:null};
   swimWaterSystems.push(sys);return sys;
 }
 
@@ -12681,6 +13762,7 @@ function makeRockCluster(g,x,z,scale=1,collide=false){
     m.castShadow=m.receiveShadow=true;grp.add(m);
   }
   if(collide)addCollider(wt(x),wt(z),.72*scale,.62*scale,'rock');
+  registerStaticWaterObstacle(grp,.46*scale,{width:1.3,length:4.2,maxExtraLength:2.8});
   return grp;
 }
 
@@ -12864,7 +13946,10 @@ function mapFloorPolygon(g,points,{heightTiles=0,kind='floor',renderOrder=-30,na
   const sh=new THREE.Shape();
   points.forEach(([x,z],i)=>{const X=wt(x),Z=-wt(z);i?sh.lineTo(X,Z):sh.moveTo(X,Z);});
   sh.closePath();
-  const mesh=new THREE.Mesh(normalizeShapeUVs(new THREE.ShapeGeometry(sh,Math.max(1,points.length))),mat(kind));
+  const xs=points.map(p=>Number(p[0])||0),zs=points.map(p=>Number(p[1])||0);
+  const uTiles=Math.max(.01,Math.max(...xs)-Math.min(...xs)),vTiles=Math.max(.01,Math.max(...zs)-Math.min(...zs));
+  const material=fittedMappedMaterial(mat(kind),uTiles,vTiles);
+  const mesh=new THREE.Mesh(normalizeShapeUVs(new THREE.ShapeGeometry(sh,Math.max(1,points.length))),material);
   mesh.rotation.x=-Math.PI/2;mesh.position.y=tileY(heightTiles);mesh.receiveShadow=true;mesh.renderOrder=renderOrder;mesh.userData.mapPrimitive='poly';mesh.userData.heightTiles=heightTiles;mesh.name=name;g.add(mesh);
   return mesh;
 }
@@ -15126,6 +16211,7 @@ function makeGeologicOutcropRock(g,x,z,{scale=1,heightScale=1,seed=1}={}){
     m.position.set((rng.next()-.5)*wt(.34)*scale,sy*.46,(rng.next()-.5)*wt(.30)*scale);m.scale.set(sx,sy,sz);m.rotation.set(rng.signed()*.12,rng.range(-Math.PI,Math.PI),rng.signed()*.10);m.castShadow=m.receiveShadow=true;grp.add(m);
   }
   addCollider(wt(x),wt(z),wt(.82*scale),wt(.72*scale),'geology-outcrop',currentColliderScope,{source:'geology-outcrop',geology:true});
+  registerStaticWaterObstacle(grp,wt(.72*scale),{width:1.45,length:5.2,maxExtraLength:3.2});
   return grp;
 }
 function buildGeologyForSector(g,id=mapId,{reserved=null}={}){
@@ -15265,13 +16351,112 @@ window.PaperElevation=Object.freeze({
   cutawayClosure:Object.freeze({mode:'to-sector-structural-base',structuralDepthTiles:MAP_HEIGHTS.terrainThickness,collision:false})
 });
 
+const TERRAIN_GRADIENT_MATERIAL_CACHE=new Map();
+function terrainGradientGroundMaterial({biomeProfile='temperate',baseKind='forestGround',uTiles=1,vTiles=1}={}){
+  const kinds=terrainSurfaceMaterialKinds({biomeProfile,baseKind});
+  const [repeatX,repeatY]=worldFloorRepeatForTiles(uTiles,vTiles);
+  const key=`terrain-height-gradient:${biomeProfile}:${kinds.base}:${kinds.transition}:${kinds.rock}:${repeatX.toFixed(2)}:${repeatY.toFixed(2)}`;
+  if(TERRAIN_GRADIENT_MATERIAL_CACHE.has(key))return TERRAIN_GRADIENT_MATERIAL_CACHE.get(key);
+
+  const sources={base:mat(kinds.base),transition:mat(kinds.transition),rock:mat(kinds.rock)};
+  const whiteData=new Uint8Array([255,255,255,255]);
+  const whiteTexture=new THREE.DataTexture(whiteData,1,1,THREE.RGBAFormat);
+  whiteTexture.wrapS=whiteTexture.wrapT=THREE.RepeatWrapping;whiteTexture.needsUpdate=true;
+  const uniforms={
+    base:{value:sources.base?.map||whiteTexture},
+    transition:{value:sources.transition?.map||whiteTexture},
+    rock:{value:sources.rock?.map||whiteTexture}
+  };
+  const m=new THREE.MeshStandardMaterial({map:uniforms.base.value,color:0xffffff,roughness:.99,metalness:0,flatShading:false,side:THREE.DoubleSide});
+  m.userData.terrainSurfaceStandard='height-gradient-v1';
+  m.userData.terrainSurfaceKinds={...kinds};
+  m.userData.worldFloorRepeat=[repeatX,repeatY];
+  m.userData.syncTerrainSurfaceTextures=()=>{
+    for(const source of Object.values(sources))worldFloorTextureRuntime?.ensureMaterial(source);
+    uniforms.base.value=sources.base?.map||whiteTexture;
+    uniforms.transition.value=sources.transition?.map||whiteTexture;
+    uniforms.rock.value=sources.rock?.map||whiteTexture;
+    m.map=uniforms.base.value;
+  };
+  m.onBeforeCompile=(shader)=>{
+    shader.uniforms.terrainBaseMap=uniforms.base;
+    shader.uniforms.terrainTransitionMap=uniforms.transition;
+    shader.uniforms.terrainRockMap=uniforms.rock;
+    shader.uniforms.terrainUvScale={value:new THREE.Vector2(repeatX,repeatY)};
+    shader.vertexShader=shader.vertexShader
+      .replace('#include <common>','#include <common>\nattribute vec3 terrainSurfaceWeights;\nvarying vec3 vTerrainSurfaceWeights;\nvarying vec2 vTerrainSurfaceUv;')
+      .replace('#include <uv_vertex>','#include <uv_vertex>\nvTerrainSurfaceWeights=terrainSurfaceWeights;\nvTerrainSurfaceUv=uv;');
+    shader.fragmentShader=shader.fragmentShader
+      .replace('#include <common>','#include <common>\nuniform sampler2D terrainBaseMap;\nuniform sampler2D terrainTransitionMap;\nuniform sampler2D terrainRockMap;\nuniform vec2 terrainUvScale;\nvarying vec3 vTerrainSurfaceWeights;\nvarying vec2 vTerrainSurfaceUv;')
+      .replace('#include <map_fragment>',`
+        vec3 terrainWeights=max(vTerrainSurfaceWeights,vec3(0.0));
+        terrainWeights/=max(0.0001,terrainWeights.x+terrainWeights.y+terrainWeights.z);
+        vec2 terrainUv=vTerrainSurfaceUv*terrainUvScale;
+        vec4 terrainTexel=
+          texture2D(terrainBaseMap,terrainUv)*terrainWeights.x+
+          texture2D(terrainTransitionMap,terrainUv)*terrainWeights.y+
+          texture2D(terrainRockMap,terrainUv)*terrainWeights.z;
+        diffuseColor*=terrainTexel;
+      `);
+    m.userData.terrainShader=shader;
+    m.userData.syncTerrainSurfaceTextures();
+  };
+  m.customProgramCacheKey=()=>key;
+  TERRAIN_GRADIENT_MATERIAL_CACHE.set(key,m);
+  return m;
+}
+
+function applySlopeSurfaceGroups(geo,verts,triangles,{id=mapId,baseKind='forestGround',biomeProfile='temperate',uTiles=1,vTiles=1}={}){
+  const vertexCount=Math.floor(verts.length/3),weights=new Float32Array(vertexCount*3);
+  const baseHeightTiles=biomeSectorBaseHeightTiles(id);
+  for(let i=0;i<vertexCount;i++){
+    const x=verts[i*3],z=verts[i*3+2];
+    const heightTiles=elevationHeightTilesAtWorld(x,z,id);
+    const slopeDeg=elevationSlopeAtWorld(x,z,id).angleDeg;
+    const blend=terrainElevationSurfaceWeights({heightTiles,baseHeightTiles,slopeDeg});
+    weights[i*3]=blend.base;weights[i*3+1]=blend.transition;weights[i*3+2]=blend.rock;
+  }
+  geo.setAttribute('terrainSurfaceWeights',new THREE.BufferAttribute(weights,3));
+  geo.setIndex(triangles.flat());geo.clearGroups();
+
+  const kinds=terrainSurfaceMaterialKinds({biomeProfile,baseKind});
+  const material=terrainGradientGroundMaterial({biomeProfile,baseKind,uTiles,vTiles});
+  geo.userData={
+    ...(geo.userData||{}),
+    slopeSurfaceStandard:true,
+    heightSurfaceGradient:true,
+    slopeMaterialKinds:[kinds.base,kinds.transition,kinds.rock],
+    elevationSurfaceRules:{...TERRAIN_SURFACE_STANDARD.elevation},
+    slopeThresholds:{normalDeg:TERRAIN_SLOPE_STANDARD.normalDeg,difficultDeg:TERRAIN_SLOPE_STANDARD.difficultDeg,maxWalkDeg:TERRAIN_SLOPE_STANDARD.maxWalkDeg}
+  };
+  return material;
+}
 function buildProceduralLandGroundMesh(g,id=mapId,kind='forestGround'){
   const def=MAP_DATA.maps[id]||currentMapDef(),bounds=def?.bounds||{x0:-OVERWORLD_HALF,x1:OVERWORLD_HALF,z0:-OVERWORLD_HALF,z1:OVERWORLD_HALF};
-  const mobile=DISPLAY_DEVICE_MOBILE,sx=mobile?52:64,sz=mobile?52:64,stride=sx+1,verts=[],uv=[],indices=[];
-  for(let iz=0;iz<=sz;iz++){const vz=iz/sz,tz=THREE.MathUtils.lerp(bounds.z0,bounds.z1,vz);for(let ix=0;ix<=sx;ix++){const ux=ix/sx,tx=THREE.MathUtils.lerp(bounds.x0,bounds.x1,ux);verts.push(wt(tx),tileY(elevationHeightTilesAtWorld(wt(tx),wt(tz),id))+.003,wt(tz));uv.push(ux,vz);}}
-  for(let iz=0;iz<sz;iz++)for(let ix=0;ix<sx;ix++){const a=iz*stride+ix,b=a+1,cc=a+stride,d=cc+1;if((ix+iz)&1)indices.push(a,cc,b,b,cc,d);else indices.push(a,cc,d,a,d,b);}
-  const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));geo.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));geo.setIndex(indices);geo.computeVertexNormals();geo.computeBoundingSphere();
-  const mtl=mat(kind).clone();mtl.side=THREE.DoubleSide;const mesh=new THREE.Mesh(geo,mtl);mesh.receiveShadow=true;mesh.castShadow=false;mesh.name=`${id}-continuous-geography-ground`;mesh.userData.continuousGeography=true;g.add(mesh);return mesh;
+  const mobile=DISPLAY_DEVICE_MOBILE,sx=mobile?52:64,sz=mobile?52:64,stride=sx+1,verts=[],uv=[],triangles=[];
+  for(let iz=0;iz<=sz;iz++){
+    const vz=iz/sz,tz=THREE.MathUtils.lerp(bounds.z0,bounds.z1,vz);
+    for(let ix=0;ix<=sx;ix++){
+      const ux=ix/sx,tx=THREE.MathUtils.lerp(bounds.x0,bounds.x1,ux);
+      verts.push(wt(tx),tileY(elevationHeightTilesAtWorld(wt(tx),wt(tz),id))+.003,wt(tz));uv.push(ux,vz);
+    }
+  }
+  for(let iz=0;iz<sz;iz++)for(let ix=0;ix<sx;ix++){
+    const a=iz*stride+ix,b=a+1,c=a+stride,d=c+1;
+    if((ix+iz)&1){triangles.push([a,c,b],[b,c,d]);}else{triangles.push([a,c,d],[a,d,b]);}
+  }
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));
+  geo.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));
+  const tilesW=Math.max(.01,bounds.x1-bounds.x0),tilesD=Math.max(.01,bounds.z1-bounds.z0);
+  const biomeProfile=activeProceduralZone?.region?.biomeProfile||'temperate';
+  const materials=applySlopeSurfaceGroups(geo,verts,triangles,{id,baseKind:kind,biomeProfile,uTiles:tilesW,vTiles:tilesD});
+  geo.computeVertexNormals();geo.computeBoundingSphere();
+  const mesh=new THREE.Mesh(geo,materials);
+  mesh.onBeforeRender=()=>materials?.userData?.syncTerrainSurfaceTextures?.();
+  mesh.receiveShadow=true;mesh.castShadow=false;mesh.name=`${id}-continuous-geography-ground`;
+  mesh.userData.continuousGeography=true;mesh.userData.worldFloorFittedTiles=[tilesW,tilesD];mesh.userData.slopeSurfaceStandard=true;
+  g.add(mesh);return mesh;
 }
 function elevationModuleMeshBounds(module){
   if(module.kind==='zone-ridge-curve'||module.kind==='zone-hill')return {x0:-OVERWORLD_HALF-.04,x1:OVERWORLD_HALF+.04,z0:-OVERWORLD_HALF-.04,z1:OVERWORLD_HALF+.04};
@@ -15288,7 +16473,7 @@ function elevationModuleMeshBounds(module){
 function buildNaturalElevationMesh(g,module){
   const sx=Math.max(8,Math.floor(module.segmentsX||20)),sz=Math.max(8,Math.floor(module.segmentsZ||18));
   const {x0,x1,z0,z1}=elevationModuleMeshBounds(module);
-  const verts=[],uv=[],indices=[];
+  const verts=[],uv=[],triangles=[];
   for(let iz=0;iz<=sz;iz++){
     const vz=iz/sz,z=THREE.MathUtils.lerp(z0,z1,vz);
     for(let ix=0;ix<=sx;ix++){
@@ -15303,15 +16488,21 @@ function buildNaturalElevationMesh(g,module){
     const h00=hAt(ix,iz),h10=hAt(ix+1,iz),h01=hAt(ix,iz+1),h11=hAt(ix+1,iz+1);
     if(Math.max(h00,h10,h01,h11)<.002)continue;
     const a=iz*stride+ix,b=a+1,c=a+stride,d=c+1;
-    // Diagonal alternada para evitar la lectura de una cuadrícula repetitiva.
-    if((ix+iz)&1){indices.push(a,c,b,b,c,d);}else{indices.push(a,c,d,a,d,b);}
+    if((ix+iz)&1){triangles.push([a,c,b],[b,c,d]);}else{triangles.push([a,c,d],[a,d,b]);}
   }
   const geo=new THREE.BufferGeometry();
   geo.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));
-  geo.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));geo.setIndex(indices);geo.computeVertexNormals();
-  const mtl=(mat(module.topKind||'groveStone')).clone();mtl.side=THREE.DoubleSide;
-  const mesh=new THREE.Mesh(geo,mtl);mesh.receiveShadow=true;mesh.castShadow=false;mesh.name=module.id+'-natural-terrain';mesh.userData.elevationModule=module.id;g.add(mesh);
-  return mesh;
+  geo.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));
+  const uTiles=Math.max(.01,x1-x0),vTiles=Math.max(.01,z1-z0);
+  const baseKind=module.topKind||'groveStone';
+  const biomeProfile=activeProceduralZone?.region?.biomeProfile||'temperate';
+  const materials=applySlopeSurfaceGroups(geo,verts,triangles,{id:mapId,baseKind,biomeProfile,uTiles,vTiles});
+  geo.computeVertexNormals();
+  const mesh=new THREE.Mesh(geo,materials);
+  mesh.onBeforeRender=()=>materials?.userData?.syncTerrainSurfaceTextures?.();
+  mesh.receiveShadow=true;mesh.castShadow=false;mesh.name=module.id+'-natural-terrain';
+  mesh.userData.elevationModule=module.id;mesh.userData.worldFloorFittedTiles=[uTiles,vTiles];mesh.userData.slopeSurfaceStandard=true;
+  g.add(mesh);return mesh;
 }
 function buildElevationModule(g,module){
   buildNaturalElevationMesh(g,module);
@@ -15940,9 +17131,42 @@ function buildOverworldSector(){
     for(let i=samples.length-1;i>=0;i--){const s=samples[i];pts.push(mapPoint(s.r,s.f));}
     paperForestGroundPatch(g,pts,kind,sectorBaseY+.014,-18);
   }
-  // Las Zonas procedurales no pintan senderos cardinales: explorar es leer el terreno,
-  // no seguir una cruz visual hasta la salida. Los mapas legacy conservan sus caminos.
-  if(!isProceduralZone){
+  function buildProceduralTravelPaths(){
+    for(const route of proceduralTravelPathRoutes(mapId)){
+      const count=Math.max(18,Math.ceil(route.totalLength/.75)),pos=[],uv=[],idx=[];
+      const pointAt=(distance)=>{
+        const d=THREE.MathUtils.clamp(distance,0,route.totalLength);
+        let seg=route.segments[route.segments.length-1];
+        for(const candidate of route.segments)if(d<=candidate.start+candidate.length){seg=candidate;break;}
+        const t=seg.length>1e-6?THREE.MathUtils.clamp((d-seg.start)/seg.length,0,1):0;
+        return {x:THREE.MathUtils.lerp(seg.a.x,seg.b.x,t),z:THREE.MathUtils.lerp(seg.a.z,seg.b.z,t)};
+      };
+      for(let i=0;i<=count;i++){
+        const d=route.totalLength*i/count,p=pointAt(d);
+        const before=pointAt(Math.max(0,d-.18)),after=pointAt(Math.min(route.totalLength,d+.18));
+        let tx=after.x-before.x,tz=after.z-before.z,tl=Math.hypot(tx,tz)||1;tx/=tl;tz/=tl;
+        const nx=-tz,nz=tx,half=.72+.07*Math.sin(i*.83+(activeProceduralZone?.region?.seed||1)*.01);
+        for(const side of [-1,1]){
+          const x=p.x+nx*half*side,z=p.z+nz*half*side;
+          const y=tileY(elevationHeightTilesAtWorld(wt(x),wt(z),mapId))+.024;
+          pos.push(wt(x),y,wt(z));uv.push(i/count,side<0?0:1);
+        }
+      }
+      for(let i=0;i<count;i++){const a=i*2,b=a+1,c=a+2,d=c+1;idx.push(a,c,b,b,c,d);}
+      const geo=new THREE.BufferGeometry();
+      geo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+      geo.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));
+      geo.setIndex(idx);geo.computeVertexNormals();
+      const material=fittedMappedMaterial(mat(pathKind),Math.max(1,route.totalLength),1.45);
+      const mesh=new THREE.Mesh(geo,material);mesh.receiveShadow=true;mesh.renderOrder=-17;
+      mesh.name=`${mapId}-procedural-path-${route.dir}`;mesh.userData.proceduralTravelPath=true;g.add(mesh);
+    }
+  }
+
+  // Every procedural land connection now owns a visible, graded travel path.
+  // Hydrology is still authoritative: a deep river can interrupt the path and remain dangerous.
+  if(isProceduralZone)buildProceduralTravelPaths();
+  else{
     Object.keys(cfg.neighbors).forEach(dir=>sectorPath(dir));
     if(cfg.templeGate&&!cfg.neighbors.north)sectorPath('north','grovePath');
   }
@@ -15958,6 +17182,7 @@ function buildOverworldSector(){
   // sobre la decoración procedural. Árboles/arbustos/flores no se colocan encima.
   // Puentes y estructuras no pasan por esta función y por eso sí pueden cruzarlo.
   function natureFeatureBlocksDecoration(x,z,radiusTiles=0){
+    if(isProceduralZone&&proceduralTravelPathSample(mapId,x,z).visualInfluence>.16)return true;
     const continuousHydrology=isProceduralZone&&activeProceduralZone?.hydrology?.type!=='none';
     // Toda hidrología procedural usa el campo continuo para despejar vegetación.
     if(continuousHydrology){
@@ -16517,9 +17742,11 @@ const MAP_RENDERER_REGISTRY=Object.freeze({
 
 function clearMap(){
   activeLocalCamp=null;
+  waterBodySystem.clearBodies();
   try{window.PaperFX?.clearWaterInteractions?.()}catch(err){console.warn('PaperFX water clear fallback:',err)}
   clearColdBreathFx();
   clearTransientUnits();
+  waterInteractionSystem.clearNonPersistent();
   setUnitOverpassId(playerUnit,null);
   if(root){scene.remove(root);root.traverse(o=>{if(o.geometry)o.geometry.dispose?.()});}
   root=null;
@@ -16562,37 +17789,73 @@ function spawnCandidateAllowed(x,z,mapDef=currentMapDef(),{requireDry=true}={}){
   if(!swim&&isOverworldSector(mapId)&&elevationSlopeAtWorld(x,z,mapId).angleDeg>NATURAL_SLOPE_RULES.maxClimbDeg)return false;
   return !circleHitsCollider(x,z,PLAYER_RADIUS);
 }
+const SAFE_SPAWN_ROUTE_LIMIT=24;
+const SAFE_SPAWN_RING_RADII=Object.freeze([.75,1.5,2.5,4,6,8]);
+const SAFE_SPAWN_RING_SAMPLES=12;
 function resolveSafeSpawn(mapDef,desired,{requireDry=true}={}){
-  const source=desired?.clone?.()||new THREE.Vector3(Number(desired?.x)||0,Number(desired?.y)||0,Number(desired?.z)||0);
-  if(spawnCandidateAllowed(source.x,source.z,mapDef,{requireDry}))return source;
-  const step=.55,maxR=Math.max(12,WATER_GAMEPLAY_RULES.spawnSearchRadiusTiles);
-  let best=null,bestScore=Infinity;
-  for(let r=step;r<=maxR;r+=step){
-    const samples=Math.max(16,Math.ceil(Math.PI*2*r/step));
-    for(let i=0;i<samples;i++){
-      const a=i/samples*Math.PI*2,x=source.x+wt(Math.cos(a)*r),z=source.z+wt(Math.sin(a)*r);
-      if(!spawnCandidateAllowed(x,z,mapDef,{requireDry}))continue;
-      const clearance=requireDry?waterSpawnClearanceTilesAtWorld(x,z):0;
-      const score=r-Math.min(3,Math.max(0,clearance))*.08;
-      if(score<bestScore){bestScore=score;best=new THREE.Vector3(x,source.y,z);}
+  // X/Z is an entry intent. On procedural sectors Y is intentionally ignored
+  // until the final terrain exists and formalGroundYAtWorld can resolve it.
+  const source=desired?.clone?.()||new THREE.Vector3(Number(desired?.x)||0,0,Number(desired?.z)||0);
+  if(isOverworldSector(mapId))source.y=0;
+
+  const candidates=[];
+  const seen=new Set();
+  const queueCandidate=(x,z,kind='local')=>{
+    if(!Number.isFinite(x)||!Number.isFinite(z))return;
+    const key=`${Math.round(x*1000)}:${Math.round(z*1000)}`;
+    if(seen.has(key))return;
+    seen.add(key);
+    candidates.push({p:new THREE.Vector3(x,source.y,z),kind});
+  };
+  queueCandidate(source.x,source.z,'anchor');
+
+  let routeFallback=null;
+  if(isOverworldSector(mapId)&&proceduralSectorRecipe(mapId)){
+    const routeCandidates=[];
+    for(const route of proceduralTravelPathRoutes(mapId)){
+      for(const point of route.points||[]){
+        const p=new THREE.Vector3(wt(point.x),0,wt(point.z));
+        routeCandidates.push({p,d:Math.hypot(p.x-source.x,p.z-source.z)});
+      }
     }
-    if(best&&r>bestScore+1.0)break;
-  }
-  const b=mapDef?.bounds||{x0:-OVERWORLD_HALF,x1:OVERWORLD_HALF,z0:-OVERWORLD_HALF,z1:OVERWORLD_HALF};
-  if(!best){
-    for(let tz=Math.floor(b.z0);tz<Math.ceil(b.z1);tz++)for(let tx=Math.floor(b.x0);tx<Math.ceil(b.x1);tx++){
-      const x=wt(tx+.5),z=wt(tz+.5);if(!spawnCandidateAllowed(x,z,mapDef,{requireDry}))continue;
-      const score=Math.hypot(x-source.x,z-source.z);if(score<bestScore){bestScore=score;best=new THREE.Vector3(x,source.y,z);}
+    routeCandidates.sort((a,b)=>a.d-b.d);
+    routeFallback=routeCandidates[0]?.p||null;
+    for(const candidate of routeCandidates.slice(0,SAFE_SPAWN_ROUTE_LIMIT)){
+      queueCandidate(candidate.p.x,candidate.p.z,'travel-path');
     }
   }
-  if(best){
-    console.info('Spawn safety relocated blocked spawn',mapId,{from:{x:source.x,z:source.z},to:{x:best.x,z:best.z},requireDry});
-    return best;
+
+  for(const radiusTiles of SAFE_SPAWN_RING_RADII){
+    const radius=wt(radiusTiles);
+    for(let i=0;i<SAFE_SPAWN_RING_SAMPLES;i++){
+      const a=i/SAFE_SPAWN_RING_SAMPLES*Math.PI*2;
+      queueCandidate(source.x+Math.cos(a)*radius,source.z+Math.sin(a)*radius,'ring');
+    }
   }
-  // Never knowingly place the player into a collider. If a dry search has no answer,
-  // retry allowing swimmable space before keeping the authored position.
-  if(requireDry)return resolveSafeSpawn(mapDef,source,{requireDry:false});
-  console.error('Spawn safety could not find a collision-free point',mapId);
+
+  const tryCandidates=dry=>{
+    for(const candidate of candidates){
+      if(spawnCandidateAllowed(candidate.p.x,candidate.p.z,mapDef,{requireDry:dry}))return candidate;
+    }
+    return null;
+  };
+
+  let selected=tryCandidates(requireDry);
+  if(!selected&&requireDry)selected=tryCandidates(false);
+  if(selected){
+    if(selected.p.x!==source.x||selected.p.z!==source.z){
+      console.info('Spawn safety relocated local entry',mapId,{kind:selected.kind,from:{x:source.x,z:source.z},to:{x:selected.p.x,z:selected.p.z}});
+    }
+    return selected.p;
+  }
+
+  // Generated travel paths are carved/cleared during terrain construction and
+  // are the deterministic emergency anchor. Never scan the whole map at boot.
+  if(routeFallback){
+    console.warn('Spawn safety exhausted bounded candidates; using nearest generated travel path',mapId,{x:routeFallback.x,z:routeFallback.z});
+    return routeFallback;
+  }
+  console.error('Spawn safety exhausted bounded candidates; keeping local entry anchor',mapId,{x:source.x,z:source.z});
   return source;
 }
 const SpawnSafetySystem=Object.freeze({
@@ -16648,7 +17911,7 @@ function loadMap(id,spawn=null,layer=null){
   root=renderMap();
   markPerf('renderMap');
 
-  window.setLoadProgress?.(78,'Revisando colisiones','Buscando un punto seguro para el jugador…');
+  window.setLoadProgress?.(78,'Validando terreno','Comprobando la geometría ya generada…');
   validateSceneGeometry(root);
   markPerf('validateScene');
   scene.add(root);
@@ -16664,15 +17927,22 @@ function loadMap(id,spawn=null,layer=null){
     ? `1 tile = ${MAP_DATA.tile.feet} ft · ${mapDef.bounds.x1-mapDef.bounds.x0}×${mapDef.bounds.z1-mapDef.bounds.z0} · bosque ${Math.round(procSector.canopy*100)}% · roca ${Math.round(procSector.rockiness*100)}% · seed ${procSector.seed}`
     : `1 tile = ${MAP_DATA.tile.feet} ft ≈ ${MAP_DATA.tile.worldUnits} unidades · ${mapDef.bounds.x1-mapDef.bounds.x0}×${mapDef.bounds.z1-mapDef.bounds.z0} tiles · ${currentWorldLayer}`;
 
-  const authoredSpawn=spawn?.clone?.()||new THREE.Vector3(wt(mapDef.spawn.x),wt(mapDef.spawn.y||0),wt(mapDef.spawn.z));
-  // SPAWN SAFETY CONTRACT: every map entry is checked after the renderer has built
-  // its actual colliders. Default spawns prefer dry land; authored transition spawns
-  // may remain in swimmable water, but never inside a collider/non-walkable cell.
-  const s=resolveSafeSpawn(mapDef,authoredSpawn,{requireDry:!spawn});
+  window.setLoadProgress?.(82,'Resolviendo entrada local','Calculando spawn sobre el terreno final…');
+  const spawnIntent=spawn?.clone?.()||new THREE.Vector3(wt(mapDef.spawn.x),wt(mapDef.spawn.y||0),wt(mapDef.spawn.z));
+  // SPAWN SAFETY CONTRACT: Hexmap/map transitions provide an X/Z entry intent.
+  // Procedural terrain is already built here, so only now do we resolve a safe
+  // local position. Its final Y is derived from the generated terrain below.
+  if(isOverworldSector(mapId))spawnIntent.y=0;
+  const s=resolveSafeSpawn(mapDef,spawnIntent,{requireDry:!spawn});
   markPerf('safeSpawn');
+  window.setLoadProgress?.(86,'Entrada confirmada','Ajustando altura al terreno y colocando actores…');
 
-  player.position.set(s.x,worldLayerBaseY+(s.y||0),s.z);
-  if(isOverworldSector(mapId))player.position.y=formalGroundYAtWorld(player.position.x,player.position.z,currentWorldLayer);
+  let resolvedSpawnY=worldLayerBaseY+(Number.isFinite(s.y)?s.y:0);
+  if(isOverworldSector(mapId)){
+    const terrainY=formalGroundYAtWorld(s.x,s.z,currentWorldLayer);
+    if(Number.isFinite(terrainY))resolvedSpawnY=terrainY;
+  }
+  player.position.set(s.x,resolvedSpawnY,s.z);
   playerUnit.state.pendingLedgeDrop=null;setUnitOverpassId(playerUnit,null);
   mountBelleForCurrentMap();
   if(FOREST_STRESS_BOOT.enabled&&FOREST_STRESS_BOOT.units>0)forestStressSpawnUnits(root,FOREST_STRESS_BOOT.units);
@@ -17225,42 +18495,55 @@ joy.onpointermove=e=>{if(e.pointerId===joyId)setJoy(e)};
 joy.onpointerup=resetJoy;joy.onpointercancel=resetJoy;
 const keys=new Set();
 addEventListener('keydown',e=>{
-  const key=e.key.toLowerCase();
-  keys.add(key);
-  if(!e.repeat&&playerCameraOrbitAllowed()){
-    if(key==='q'){e.preventDefault();rotatePlayerCameraQuarter(-1);}
-    else if(key==='e'){e.preventDefault();rotatePlayerCameraQuarter(1);}
+  // Left Shift is reserved for camera mouse capture. It never enters the movement
+  // key set, so it cannot accidentally trigger running while the camera is locked.
+  if(e.code==='ShiftLeft'){
+    e.preventDefault();
+    if(!e.repeat)togglePlayerCameraMouseCapture();
+    return;
   }
+  keys.add(e.key.toLowerCase());
 });
-addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
+addEventListener('keyup',e=>{
+  if(e.code==='ShiftLeft')return;
+  keys.delete(e.key.toLowerCase());
+});
+document.addEventListener('pointerlockchange',()=>{
+  cameraMouseCaptured=document.pointerLockElement===renderer.domElement;
+});
+document.addEventListener('mousemove',e=>{
+  if(document.pointerLockElement!==renderer.domElement||!playerCameraOrbitAllowed())return;
+  rotatePlayerCameraBy(
+    -(Number(e.movementX)||0)*PLAYER_CAMERA_ORBIT.mouseRadiansPerPixel,
+    (Number(e.movementY)||0)*PLAYER_CAMERA_ORBIT.mouseRadiansPerPixel
+  );
+});
 renderer.domElement.addEventListener('contextmenu',e=>e.preventDefault());
 renderer.domElement.addEventListener('pointerdown',e=>{
-  if(!playerCameraOrbitAllowed())return;
-  if(e.pointerType==='mouse'&&e.button!==0&&e.button!==2)return;
+  if(!playerCameraOrbitAllowed()||e.pointerType==='mouse')return;
   cameraOrbitPointerId=e.pointerId;
-  cameraOrbitStartX=cameraOrbitLastX=e.clientX;
-  cameraOrbitSwipeCommitted=false;
+  cameraOrbitLastX=e.clientX;
+  cameraOrbitLastY=e.clientY;
   try{renderer.domElement.setPointerCapture(e.pointerId)}catch(_){}
-  if(e.pointerType==='mouse'&&e.button===2)e.preventDefault();
+  e.preventDefault();
 });
 renderer.domElement.addEventListener('pointermove',e=>{
-  if(e.pointerId!==cameraOrbitPointerId||!playerCameraOrbitAllowed()||cameraOrbitSwipeCommitted)return;
-  cameraOrbitLastX=e.clientX;
-  const dx=cameraOrbitLastX-cameraOrbitStartX;
-  if(Math.abs(dx)>=PLAYER_CAMERA_ORBIT.swipeThresholdPx){
-    // One swipe = one quarter turn. Drag left rotates clockwise; drag right counter-clockwise.
-    rotatePlayerCameraQuarter(dx<0?1:-1);
-    cameraOrbitSwipeCommitted=true;
-  }
+  if(e.pointerId!==cameraOrbitPointerId||!playerCameraOrbitAllowed()||e.pointerType==='mouse')return;
+  const dx=e.clientX-cameraOrbitLastX,dy=e.clientY-cameraOrbitLastY;
+  cameraOrbitLastX=e.clientX;cameraOrbitLastY=e.clientY;
+  rotatePlayerCameraBy(
+    -dx*PLAYER_CAMERA_ORBIT.touchRadiansPerPixel,
+    dy*PLAYER_CAMERA_ORBIT.touchRadiansPerPixel
+  );
+  e.preventDefault();
 });
 function endPlayerCameraOrbit(e){
   if(e?.pointerId!==undefined&&e.pointerId!==cameraOrbitPointerId)return;
   if(cameraOrbitPointerId!==null){try{renderer.domElement.releasePointerCapture(cameraOrbitPointerId)}catch(_){}}
-  cameraOrbitPointerId=null;cameraOrbitSwipeCommitted=false;
+  cameraOrbitPointerId=null;
 }
 renderer.domElement.addEventListener('pointerup',endPlayerCameraOrbit);
 renderer.domElement.addEventListener('pointercancel',endPlayerCameraOrbit);
-
 
 const ray=new THREE.Raycaster();
 const faded=new Set();
@@ -17786,12 +19069,21 @@ function updateCamera(dt,snap=false){
       cameraAnchor.z+lookAhead
     );
 
-    // Órbita horizontal completa alrededor del foco. Al cambiar de sector a la misma
-    // cota, posición relativa, lift y distancia quedan idénticos: la transición se lee plana.
+    // Free environments orbit continuously in yaw + pitch. Legacy/city maps keep
+    // pitchOffset=0 and therefore retain their authored fixed framing.
+    const pitchOffset=isOverworldSector(mapId)?playerCameraPitchOffset:0;
+    const orbitRadius=Math.hypot(dist,lift);
+    const orbitPitch=THREE.MathUtils.clamp(
+      Math.atan2(lift,Math.max(.001,dist))+pitchOffset,
+      THREE.MathUtils.degToRad(10),
+      THREE.MathUtils.degToRad(78)
+    );
+    const planarDist=Math.cos(orbitPitch)*orbitRadius;
+    const verticalLift=Math.sin(orbitPitch)*orbitRadius;
     desiredCam.set(
-      target.x + Math.sin(canalCameraYaw)*dist,
-      target.y + lift,
-      target.z - Math.cos(canalCameraYaw)*dist
+      target.x + Math.sin(canalCameraYaw)*planarDist,
+      target.y + verticalLift,
+      target.z - Math.cos(canalCameraYaw)*planarDist
     );
   }
 
@@ -17887,6 +19179,8 @@ function loop(now){
 
   // PaperFX recibe contactos desde UnitEnvironmentSystem; mantiene un único update.
   try{window.PaperFX?.update?.(dt)}catch(err){console.warn('PaperFX.update fallback:',err)}
+  waterBodySystem.update(dt);
+  waterInteractionSystem.update(dt);
   updateSwimMission();
   updateElevationMission();
   updateDust(dt);
@@ -18195,14 +19489,27 @@ function runUnitArchitectureAudit(){
   const forbidden=/\b(?:playerUnit|belleState|npcs|playerFalling|playerBuoyancyVelocity|playerBuoyancyPhase|isPlayer|isBelle)\b/;
   const violations=[];
   for(const [name,fn] of Object.entries(core)){const source=String(fn);if(forbidden.test(source))violations.push(name);}
+  const contractViolations=[];
+  for(const unit of listUnits()){
+    const problems=unitContractViolations(unit);
+    if(problems.length)contractViolations.push({id:unit.id,problems});
+  }
+  const reference=UNIT_REGISTRY.get(UNIVERSAL_UNIT_STANDARD.referenceUnitId)||null;
+  const referenceViolations=reference?unitContractViolations(reference):['missing-reference-unit'];
   const authority={
     movement:UnitPhysicsSystem.move===moveUnitBy,
     falling:UnitPhysicsSystem.fall===updateUnitFalling,
     buoyancy:UnitPhysicsSystem.buoyancy===updateUnitBuoyancy,
     facing:UnitAnimationSystem.requestFacing===requestUnitFacing,
-    localControl:getLocalControlledUnit()?.id||null
+    localControl:getLocalControlledUnit()?.id||null,
+    universalContract:UNIVERSAL_UNIT_STANDARD.id,
+    referenceUnit:reference?.id||null
   };
-  return {ok:violations.length===0&&authority.movement&&authority.falling&&authority.buoyancy&&authority.facing,violations,authority,unitCount:listUnits().length};
+  return {
+    ok:violations.length===0&&contractViolations.length===0&&referenceViolations.length===0&&
+      authority.movement&&authority.falling&&authority.buoyancy&&authority.facing,
+    violations,contractViolations,referenceViolations,authority,unitCount:listUnits().length
+  };
 }
 
 // Fachadas: nombres estables para que futuras migraciones puedan cambiar la
@@ -18284,6 +19591,8 @@ window.DM_SYSTEMS=Object.freeze({
     })
   }),
   units:Object.freeze({
+    standard:UNIVERSAL_UNIT_STANDARD,
+    validate:unitContractViolations,
     list:()=>listUnits().map(u=>({id:u.id,controller:u.controller,tags:[...u.tags],faction:u.faction,relationships:{...u.relationships},stats:{...u.stats},capabilities:{...u.capabilities},locomotion:u.state.locomotion,overpassId:u.state.overpassId,position:{x:u.group.position.x,y:u.group.position.y,z:u.group.position.z}})),
     active:activeUnits,
     localControlled:getLocalControlledUnit,
@@ -18324,6 +19633,7 @@ window.DM_SYSTEMS=Object.freeze({
 });
 
 window.PaperUnits=Object.freeze({
+  standard:UNIVERSAL_UNIT_STANDARD,validate:unitContractViolations,
   register:registerUnit,unregister:unregisterUnit,get:(id)=>UNIT_REGISTRY.get(String(id))||null,list:listUnits,active:activeUnits,
   localControlled:getLocalControlledUnit,setController:setUnitController,state:(id)=>UNIT_REGISTRY.get(String(id))?.state||null,
   move:moveUnitBy,requestFacing:requestUnitFacing,terrainSpeed:unitTerrainSpeedMultiplier,
@@ -18454,7 +19764,7 @@ window.LuminousDisplayPerformance=Object.freeze({
     cameraProfile:typeof viewportCameraProfile==='function'?viewportCameraProfile():null,
     shadowSize:DISPLAY_SHADOW_SIZE,
     dynamicShadows:renderer.shadowMap.enabled,
-    antialias:!DISPLAY_DEVICE_MOBILE,
+    antialias:DISPLAY_RENDER_ANTIALIAS,
     streamProfile:typeof forestStressResolvedProfileName==='function'?forestStressResolvedProfileName():null,
     fps:typeof ForestStressRuntime==='object'?ForestStressRuntime.fpsEMA:null
   }),
@@ -18472,8 +19782,8 @@ try{
   window.setLoadProgress?.(22,'Motor listo','Preparando recursos locales…');
   // Startup must never depend on remote sprite hosts. Remote-only character art
   // hydrates in the background and stays hidden until its texture arrives.
-  loadPlayer().catch(e=>console.warn('Player sprite warmup:',e));
-  loadNPCTextures().catch(e=>console.warn('NPC sprite warmup:',e));
+  loadPlayer({background:true}).catch(e=>console.warn('Player sprite warmup:',e));
+  loadNPCTextures({background:true}).catch(e=>console.warn('NPC sprite warmup:',e));
   loadCriticalMotionSprites().catch(e=>console.warn('Critical motion sprite warmup:',e));
   window.setLoadProgress?.(30,'Armando el mapa','Geometría, colisiones y cámara…');
   const qp=new URLSearchParams(location.search);
@@ -18536,7 +19846,17 @@ try{
   window.finishPaperLoad?.();
 }catch(err){
   console.error(err);
-  window.paperLoadFailed?.('Error al iniciar el prototipo. Toca Reintentar.');
+  const bootErrorMessage=err instanceof Error
+    ? `${err.name||'Error'}: ${err.message||String(err)}`
+    : String(err||'Error desconocido al iniciar el prototipo');
+  window.__LUMINOUS_BOOT_ERROR__={
+    message:bootErrorMessage,
+    stack:err?.stack||null,
+    mapId,
+    stage:document.getElementById('loaderStage')?.textContent||null,
+    hint:document.getElementById('loaderHint')?.textContent||null
+  };
+  window.paperLoadFailed?.(bootErrorMessage);
   throw err;
 }
 </script>

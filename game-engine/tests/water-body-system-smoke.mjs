@@ -1,0 +1,190 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import {
+  DEFAULT_WATER_CONFIG,
+  DEFAULT_FOAM_CONFIG,
+  buildShoreFoamRibbonData,
+  extractFieldShorelines,
+  simplifyShoreline,
+  waterCurrentImmersionFactor,
+  resolveWaterBodyVisualProfile,
+} from '../src/world/WaterBodySystem.js';
+
+assert.equal(DEFAULT_WATER_CONFIG.texture,'Assets/Images/World/Water/water_seamless.png');
+assert.equal(DEFAULT_WATER_CONFIG.surfaceWave,null,'surface waves must be opt-in and visual-only');
+assert.equal(DEFAULT_FOAM_CONFIG.texture,'Assets/Images/World/Water/coast_foam_seamless.png');
+assert.ok(DEFAULT_FOAM_CONFIG.renderOrder<0,'shore foam must render in the terrain/water layer before units');
+assert.ok(DEFAULT_FOAM_CONFIG.yOffset<=.012,'shore foam must stay nearly coplanar with water');
+
+const seaProfile=resolveWaterBodyVisualProfile('coast:test',{
+  tileWorldSize:3,
+  opacity:.74,
+  roughness:.46,
+},{
+  width:.36,
+  innerWidth:.06,
+  outerWidth:.30,
+  tileWorldLength:2.35,
+  pulseAmplitude:.014,
+});
+assert.equal(seaProfile.profile,'sea');
+assert.ok(seaProfile.water.tileWorldSize>=8.25,'sea texture must render at the broad ocean world scale');
+assert.deepEqual(seaProfile.water.scrollSpeed,{x:.004,y:.0015},'sea texture drift must stay slower/calmer than river water');
+assert.equal(seaProfile.water.opacity,.74,'explicit sea opacity must remain authoritative so the depth gradient stays visible');
+assert.equal(seaProfile.water.roughness,.46,'explicit sea roughness must remain authoritative');
+assert.ok(seaProfile.foam.width>.36,'sea foam band must be broader');
+assert.ok(seaProfile.foam.tileWorldLength>2.35,'sea foam texture must repeat at a larger scale');
+assert.ok(seaProfile.foam.scrollSpeed>.018,'sea foam must visibly travel along the coast');
+assert.ok(seaProfile.foam.pulseAmplitude>=.05,'sea foam must visibly surge/recede against the shoreline');
+assert.ok(seaProfile.foam.widthVariation>=.16,'sea foam edge must stay irregular/undulating');
+assert.ok(seaProfile.foam.maskScale>=1.35,'sea foam mask must render larger than the default shoreline mask');
+assert.ok(seaProfile.foam.maskWaveAmplitude>=.08,'sea foam mask sampling must surge with the shoreline wave phase');
+const riverProfile=resolveWaterBodyVisualProfile('river:test',{tileWorldSize:3},{width:.36,tileWorldLength:2.35});
+assert.equal(riverProfile.profile,'default');
+assert.equal(riverProfile.water.tileWorldSize,3,'river scale must not inherit the sea profile');
+
+const currentDry=waterCurrentImmersionFactor({waterDepth:0,referenceDepth:1});
+const currentEdge=waterCurrentImmersionFactor({waterDepth:.10,referenceDepth:1});
+const currentMid=waterCurrentImmersionFactor({waterDepth:.50,referenceDepth:1});
+const currentDeep=waterCurrentImmersionFactor({waterDepth:1,referenceDepth:1});
+assert.equal(currentDry,0);
+assert.ok(currentEdge<currentMid&&currentMid<currentDeep,'river current immersion must ramp with water depth');
+assert.ok(currentEdge<=.08,'river edge contact must remain a light drift');
+assert.ok(currentDeep>.98,'deep river water must reach full current strength');
+
+const shoreline=[
+  {x:0,y:0,z:0},
+  {x:2,y:0,z:0},
+  {x:4,y:0,z:0},
+];
+const ribbon=buildShoreFoamRibbonData({
+  shoreline,
+  isWaterAt:(x,z)=>z>0,
+  innerWidth:.2,
+  outerWidth:.8,
+  baseWidth:1,
+  widthVariation:0,
+  foamTileWorldLength:2,
+  simplifyTolerance:0,
+});
+assert.ok(ribbon);
+assert.equal(ribbon.positions.length,18);
+assert.deepEqual(ribbon.uv,[0,0,0,1,1,0,1,1,2,0,2,1]);
+assert.ok(ribbon.innerEdge.every(p=>p.z<0),'innerEdge must remain land-side');
+assert.ok(ribbon.outerEdge.every(p=>p.z>0),'outerEdge must point toward water');
+assert.equal(ribbon.total,4);
+
+const reversed=buildShoreFoamRibbonData({
+  shoreline:[...shoreline].reverse(),
+  isWaterAt:(x,z)=>z>0,
+  innerWidth:.2,
+  outerWidth:.8,
+  baseWidth:1,
+  widthVariation:0,
+  foamTileWorldLength:2,
+  simplifyTolerance:0,
+});
+assert.ok(reversed.outerEdge.every(p=>p.z>0),'normal orientation must not depend on polyline direction');
+
+const noisy=simplifyShoreline([
+  {x:0,z:0},{x:.5,z:.001},{x:1,z:0},{x:2,z:0}
+],{tolerance:.01});
+assert.ok(noisy.length<=3);
+
+const contours=extractFieldShorelines({
+  bounds:{x0:-2,x1:2,z0:-2,z1:2},
+  resolution:32,
+  isWaterAt:(x,z)=>x*x+z*z<1,
+  simplifyTolerance:.03
+});
+assert.ok(contours.length>=1,'field contour extraction must produce shoreline');
+assert.ok(contours[0].points.length>=6,'field contour must preserve curved shoreline');
+
+const catalog=JSON.parse(await fs.readFile(new URL('../../Assets/Images/World/Water/catalog.json',import.meta.url),'utf8'));
+assert.equal(catalog.runtimeMode,'repository-local');
+assert.equal(catalog.assetCount,3);
+const water=catalog.assets.find(x=>x.id==='water_seamless');
+const foam=catalog.assets.find(x=>x.id==='coast_foam_seamless');
+const wake=catalog.assets.find(x=>x.id==='wake_trail');
+assert.ok(water?.path.endsWith('/water_seamless.png'));
+assert.ok(foam?.path.endsWith('/coast_foam_seamless.png'));
+assert.ok(wake?.path.endsWith('/wake_trail.png'));
+assert.equal(foam.hasAlpha,true,'coast foam PNG must preserve alpha');
+assert.equal(wake.hasAlpha,true,'wake trail PNG must preserve alpha');
+assert.equal(wake.width,2172);
+assert.equal(wake.height,724);
+
+const moduleSource=await fs.readFile(new URL('../src/world/WaterBodySystem.js',import.meta.url),'utf8');
+assert.doesNotMatch(moduleSource,/https?:\/\/(?:i\.)?imgur\.com/i,'runtime WaterBody module must not reference Imgur');
+assert.match(moduleSource,/RepeatWrapping/);
+assert.match(moduleSource,/ClampToEdgeWrapping/);
+assert.match(moduleSource,/foamDistance/);
+assert.match(moduleSource,/uPulseAmplitude/);
+assert.match(moduleSource,/uMaskScale/);
+assert.match(moduleSource,/uMaskWaveAmplitude/);
+assert.match(moduleSource,/vWavePulse/,'foam mask must share the shoreline wave pulse');
+assert.match(moduleSource,/showShoreFoamRibbon/);
+assert.match(moduleSource,/surface\.enabled!==false/,'WaterBody must support foam-only bodies without creating a visible water mesh');
+assert.match(moduleSource,/flowWorldSpeed/);
+assert.match(moduleSource,/patternMask/);
+assert.match(moduleSource,/makePatternMaskWaterMaterial/);
+assert.match(moduleSource,/normalizeSurfaceWave/);
+assert.match(moduleSource,/ensureWaterAcrossAttribute/);
+assert.match(moduleSource,/attribute float waterAcross/);
+assert.match(moduleSource,/vec3 displaced=position\+normal\*\(chop\*bankWeight\)/,'river surface wave must displace only the rendered vertices');
+assert.match(moduleSource,/visualSurfaceDisplacementOnly/);
+assert.match(moduleSource,/patternMaterial\?\.uniforms\?\.uTime/,'visual wave clock must update without changing surfaceHeightAt');
+assert.match(moduleSource,/mix\(uBackground,uWater,pattern\)/,'mask mode must remap source darkness instead of rendering black water');
+assert.match(moduleSource,/waterCurrentImmersionFactor/);
+assert.match(moduleSource,/containsPoint\(position\)/);
+assert.match(moduleSource,/getSurfaceHeightAt\(position\)/);
+assert.match(moduleSource,/getFlowAt\(position\)/);
+assert.match(moduleSource,/findBodyAt\(position\)/);
+assert.match(moduleSource,/scrollX:0,scrollY:0,wrapT:THREE\.ClampToEdgeWrapping/,'foam texture cache must not double-apply per-mesh current scroll');
+
+const lab=await fs.readFile(new URL('../lab/game/forest-0.3.3.1.html',import.meta.url),'utf8');
+assert.match(lab,/createWaterBodySystem/);
+assert.match(lab,/deepSeaColor=0x4169e1/,'deep ocean must use Royal Blue');
+assert.match(lab,/surface:\{enabled:false\}/,'coast WaterBody must be foam-only so the depth-colored sea remains the sole visible surface');
+assert.match(lab,/tileWorldLength:TILE\*3\.10/,'coast foam texture footprint must be very large');
+assert.match(lab,/maskScale:2\.60,maskWaveAmplitude:\.14/,'coast foam mask must be strongly enlarged and wave-coupled');
+assert.match(lab,/coastWaterBodyShoreline/);
+assert.match(lab,/riverWaterBodyShorelines/);
+assert.match(lab,/fieldWaterBodyShorelines/);
+assert.match(lab,/waterBodyRiverUvWorld/);
+assert.match(lab,/waterBodySystem\.update\(dt\)/);
+assert.match(lab,/showShoreFoamRibbon/);
+assert.match(lab,/riverCalmShoulderWidthAtT/);
+assert.match(lab,/riverWaterHalfWidthAtT/);
+assert.match(lab,/includeCalmShoulder:true/);
+assert.match(lab,/id:\`river:\$\{id\}\`/);
+assert.match(lab,/backgroundColor:0x3278de/,'river pattern background must be white');
+assert.match(lab,/waterColor:0xffffff/,'river mask water must be blue');
+assert.match(lab,/patternMask:\{/,'river must use the seamless texture as a mask, not raw RGB');
+assert.match(lab,/opacity:1/,'river water must be opaque');
+assert.match(lab,/surfaceWave:\{/,'procedural river must opt into turbulent visual waves');
+assert.match(lab,/amplitude:TILE\*\(\.020\+Math\.min\(2\.4,riverVisualCurrentSpeed\)\*\.008\)/);
+assert.match(lab,/secondaryFrequency:6\.6/);
+assert.match(lab,/edgeStrength:\.22/,'river banks must remain calmer than the current core');
+assert.match(lab,/surfaceHeightAt:\(\)=>baseY/,'river gameplay height must stay stable under visual waves');
+assert.match(lab,/flowWorldSpeed:\{x:-wt\(riverVisualCurrentSpeed\)\*\.30,y:0\}/);
+assert.match(lab,/foamCurrentScroll=-\.020\*Math\.max\(\.5,riverVisualCurrentSpeed\)/);
+assert.match(lab,/width:TILE\*\.48/,'river foam must be slightly larger');
+assert.match(lab,/pulseAmplitude:TILE\*\.018,pulseSpeed:1\.90,pulseFrequency:1\.08/,'river foam must read as faster agitation than calm water');
+assert.match(lab,/surface:\{renderOrder:-4,depthWrite:true\}/);
+assert.match(lab,/geometryAuthority='procedural-river-single-surface'/);
+assert.match(lab,/riverTerminalCaps:!!terminalCaps/,'river geometry must seal its visible start/end without adding gameplay colliders');
+assert.doesNotMatch(lab,/id:\`river-calm:/,'river calm water must not be a separate plate');
+assert.doesNotMatch(lab,/id:\`river-current:/,'river current must not be a second stacked plate');
+assert.match(lab,/waterCurrentImmersionFactor/);
+assert.match(lab,/currentSpeed,currentStrength:currentSpeed/);
+assert.match(lab,/baseStrength:Number\(current\.baseStrength/);
+assert.match(lab,/id:'canal-water'/,'canal waterStrip must use WaterBody');
+assert.match(lab,/id:\`water-rect:/,'waterRect must use WaterBody');
+assert.match(lab,/id:\`swim-water:/,'irregular authored swim shapes must use WaterBody');
+assert.match(lab,/attachAuthoredWaterBody/);
+assert.match(lab,/waterBodyPointInTilePolygon/);
+assert.match(lab,/waterBodyFlowUvWorld/);
+assert.doesNotMatch(lab,/for\(const z of \[-1\.92,1\.92\]\).*foamStrips\.push/s,'legacy rectangular canal foam strips must be removed');
+
+console.log('water body system smoke: ok');
