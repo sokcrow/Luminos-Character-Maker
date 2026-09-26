@@ -4,10 +4,22 @@ on:
   push:
     paths:
       - "game-engine/**"
+      - "js/anatomy-equipment-engine.js"
+      - "js/item-runtime-engine.js"
+      - "js/item-inventory-runtime.js"
+      - "js/item-equipment-bridge.js"
+      - "js/item-icon-registry.js"
+      - "Assets/Icons/items/**"
       - ".github/workflows/game-engine-validation.yml"
   pull_request:
     paths:
       - "game-engine/**"
+      - "js/anatomy-equipment-engine.js"
+      - "js/item-runtime-engine.js"
+      - "js/item-inventory-runtime.js"
+      - "js/item-equipment-bridge.js"
+      - "js/item-icon-registry.js"
+      - "Assets/Icons/items/**"
       - ".github/workflows/game-engine-validation.yml"
 
 jobs:
@@ -59,10 +71,12 @@ jobs:
           node --check game-engine/src/map/procedural/ProceduralTerrain.js
           node --check game-engine/src/map/procedural/ProceduralMapGenerator.js
 
-      - name: HUD runtime syntax
+      - name: HUD and inventory UI runtime syntax
         run: |
           node --check game-engine/src/ui/HudViewModel.js
           node --check game-engine/src/ui/HudDomAdapter.js
+          node --check game-engine/src/ui/InventoryEquipmentViewModel.js
+          node --check game-engine/src/ui/InventoryEquipmentDomAdapter.js
 
       - name: World runtime syntax
         run: |
@@ -96,6 +110,9 @@ jobs:
 
       - name: Lab and visualizer module boundary
         run: node game-engine/tests/lab-module-boundary-smoke.mjs
+
+      - name: Inventory equipment visualizer smoke
+        run: node game-engine/tests/inventory-equipment-visualizer-smoke.mjs
 
       - name: Terrain height field smoke
         run: node game-engine/tests/terrain-height-field-smoke.mjs
