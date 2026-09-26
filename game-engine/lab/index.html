@@ -11,7 +11,7 @@
     main { max-width: 900px; margin: 0 auto; padding: 24px; }
     h1 { margin: 0 0 8px; font-size: 1.35rem; }
     p { color: #aaa; line-height: 1.5; }
-    #runtimeStatus { display: inline-block; margin: 16px 0; padding: 8px 10px; border: 1px solid #444; border-radius: 6px; }
+    .hud-line { margin: 8px 0; padding: 8px 10px; border: 1px solid #333; border-radius: 6px; }
     pre { overflow: auto; padding: 16px; border: 1px solid #333; border-radius: 8px; background: #0a0a0a; line-height: 1.45; }
     kbd { border: 1px solid #555; border-bottom-width: 2px; border-radius: 4px; padding: 1px 5px; background: #222; }
   </style>
@@ -23,8 +23,10 @@
       Host mínimo para validar los módulos del engine sin depender del antiguo Forest, su HUD,
       inventario, tiendas ni lógica inline. Usa <kbd>WASD</kbd> o flechas para mover la Unit de prueba.
     </p>
-    <div id="runtimeStatus">Iniciando runtime…</div>
-    <pre id="runtimeState" aria-live="polite">Cargando módulos…</pre>
+    <div class="hud-line" data-hud-status>Iniciando runtime…</div>
+    <div class="hud-line" data-hud-map>Sin mapa activo</div>
+    <div class="hud-line" data-hud-unit>Sin Unit objetivo</div>
+    <pre data-hud-json aria-live="polite">Cargando módulos…</pre>
   </main>
   <script type="module" src="./runtime-lab.js"></script>
 </body>
