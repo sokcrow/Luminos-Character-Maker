@@ -6,12 +6,14 @@ import { HudDomAdapter } from "../src/ui/HudDomAdapter.js";
 import { createHudViewModel } from "../src/ui/HudViewModel.js";
 import { InventoryEquipmentDomAdapter } from "../src/ui/InventoryEquipmentDomAdapter.js";
 import { createInventoryEquipmentViewModel } from "../src/ui/InventoryEquipmentViewModel.js";
+import { TouchMovementAdapter } from "../src/ui/TouchMovementAdapter.js";
 import { ThreeVisualizer } from "./ThreeVisualizer.js";
 
 const engine = new GameEngine();
 const runtime = new GameRuntime({ engine }).mount();
 const hud = new HudDomAdapter({ root: document });
 const pressed = new Set();
+const touchIntent = { moveX: 0, moveZ: 0 };
 const viewport = document.getElementById("visualizerViewport");
 const rendererStatus = document.querySelector("[data-renderer-status]");
 const inventoryPanelRoot = document.querySelector("[data-inventory-panel]");
@@ -52,6 +54,10 @@ function axis(positive, negative) {
   return Number(pressed.has(positive)) - Number(pressed.has(negative));
 }
 
+function clampAxis(value) {
+  return Math.max(-1, Math.min(1, value));
+}
+
 runtime.registerProceduralMap(mapSpec);
 await runtime.loadMap(mapSpec.id);
 const spawn = runtime.map.sampleTerrain({ x: 0, z: 0 }) || { height: 0 };
@@ -65,8 +71,8 @@ const player = runtime.registerUnit({
   controller: {
     resolveIntent() {
       return {
-        moveX: axis("KeyD", "KeyA") + axis("ArrowRight", "ArrowLeft"),
-        moveZ: axis("KeyS", "KeyW") + axis("ArrowDown", "ArrowUp")
+        moveX: clampAxis(axis("KeyD", "KeyA") + axis("ArrowRight", "ArrowLeft") + touchIntent.moveX),
+        moveZ: clampAxis(axis("KeyS", "KeyW") + axis("ArrowDown", "ArrowUp") + touchIntent.moveZ)
       };
     }
   },
@@ -192,11 +198,20 @@ function setInventoryOpen(open) {
   if (!inventoryPanelRoot) return;
   inventoryPanelRoot.hidden = !open;
   inventoryToggle?.setAttribute("aria-expanded", String(open));
+  if (open) pressed.clear();
 }
 
 inventoryToggle?.addEventListener("click", () => setInventoryOpen(inventoryPanelRoot?.hidden));
 inventoryClose?.addEventListener("click", () => setInventoryOpen(false));
-setInventoryOpen(true);
+setInventoryOpen(false);
+
+const touchMovement = new TouchMovementAdapter({
+  root: document,
+  onIntent(next) {
+    touchIntent.moveX = next.moveX;
+    touchIntent.moveZ = next.moveZ;
+  }
+});
 
 const visualizer = new ThreeVisualizer({ root: viewport, runtime, player });
 try {
@@ -237,7 +252,10 @@ window.addEventListener("keyup", event => {
   pressed.delete(key(event));
   event.preventDefault();
 });
-window.addEventListener("blur", () => pressed.clear());
+window.addEventListener("blur", () => {
+  pressed.clear();
+  touchMovement.reset();
+});
 
 engine.start();
 renderHud();
@@ -248,6 +266,7 @@ const inventoryTimer = window.setInterval(renderInventory, 300);
 function dispose(reason = "visualizer-dispose") {
   window.clearInterval(hudTimer);
   window.clearInterval(inventoryTimer);
+  touchMovement.dispose();
   inventoryAdapter.dispose();
   visualizer.dispose();
   engine.dispose(reason);
@@ -263,6 +282,7 @@ globalThis.LuminousVisualizer = Object.freeze({
   visualizer,
   inventoryRuntime,
   equipmentBridge,
+  touchMovement,
   inventorySnapshot: renderInventory,
   contracts: runtimeContractsSnapshot(),
   snapshot: renderHud,
