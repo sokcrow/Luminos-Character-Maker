@@ -7275,7 +7275,11 @@ function formalGroundYAtWorld(x,z,layer=currentWorldLayer,r=0){
   // the mesh exists physics must interpolate the same triangle, not resample the
   // continuous function independently (which caused feet to sink/float on rough land).
   const visibleGroundY=terrainSurfaceGroundYAtWorld(x,z,mapId);
-  if(Number.isFinite(visibleGroundY))return visibleGroundY;
+  if(Number.isFinite(visibleGroundY)){
+    if(Math.abs(visibleGroundY)>tileY(.002))return visibleGroundY;
+    if(cell?.tags?.includes('formal-elevation'))return tileY(cell.localElevation||0);
+    return visibleGroundY;
+  }
   // Fallback for authored/legacy maps or pre-render setup.
   const naturalH=elevationHeightTilesAtWorld(x,z,mapId);
   if(Math.abs(naturalH)>.002)return worldLayerBaseY+tileY(naturalH);
@@ -16465,13 +16469,13 @@ function applySlopeSurfaceGroups(geo,verts,triangles,{id=mapId,baseKind='forestG
 }
 function buildProceduralLandGroundMesh(g,id=mapId,kind='forestGround'){
   const def=MAP_DATA.maps[id]||currentMapDef(),bounds=def?.bounds||{x0:-OVERWORLD_HALF,x1:OVERWORLD_HALF,z0:-OVERWORLD_HALF,z1:OVERWORLD_HALF};
-  const mobile=DISPLAY_DEVICE_MOBILE,sx=mobile?52:64,sz=mobile?52:64,stride=sx+1,verts=[],uv=[],triangles=[],surfaceY=[];
+  const sx=64,sz=64,stride=sx+1,verts=[],uv=[],triangles=[],surfaceY=new Float32Array((sx+1)*(sz+1));
   for(let iz=0;iz<=sz;iz++){
     const vz=iz/sz,tz=THREE.MathUtils.lerp(bounds.z0,bounds.z1,vz);
     for(let ix=0;ix<=sx;ix++){
-      const ux=ix/sx,tx=THREE.MathUtils.lerp(bounds.x0,bounds.x1,ux);
+      const ux=ix/sx,tx=THREE.MathUtils.lerp(bounds.x0,bounds.x1,ux),i=iz*stride+ix;
       const y=tileY(elevationHeightTilesAtWorld(wt(tx),wt(tz),id));
-      surfaceY.push(y);verts.push(wt(tx),y,wt(tz));uv.push(ux,vz);
+      surfaceY[i]=y;verts.push(wt(tx),y,wt(tz));uv.push(ux,vz);
     }
   }
   for(let iz=0;iz<sz;iz++)for(let ix=0;ix<sx;ix++){
