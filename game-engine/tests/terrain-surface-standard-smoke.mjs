@@ -6,6 +6,7 @@ import {
   terrainSurfaceTierForSlope,
   terrainSurfaceMaterialKinds,
   terrainSurfaceMaterialKind,
+  terrainElevationSurfaceWeights,
   terrainCoastMaterialKinds,
   terrainCoastSurfaceWeights,
 } from "../src/world/TerrainSurfaceStandard.js";
@@ -18,7 +19,7 @@ assert.equal(terrainSurfaceTierForSlope(50), "rock");
 assert.equal(terrainSurfaceProfileKey("ARCTIC"), "arctic");
 assert.equal(terrainSurfaceProfileKey("unknown-biome"), "temperate");
 assert.deepEqual(terrainSurfaceProfile("desert"), {
-  base:"desertGround", transition:"gravelGround", rock:"stoneGround"
+  base:"desertGround", transition:"gravelGround", rock:"stoneGround", shore:"beachGround"
 });
 
 const expectedProfiles = {
@@ -59,6 +60,22 @@ assert.equal(terrainSurfaceMaterialKind({ biomeProfile:"swamp", slopeDeg:30 }), 
 // override is available for the rare case that a biome truly wants forestGround.
 assert.equal(terrainSurfaceMaterialKinds({ biomeProfile:"arctic", baseKind:"groveStone" }).base, "groveStone");
 assert.equal(terrainSurfaceMaterialKinds({ biomeProfile:"desert", baseOverride:"forestGround" }).base, "forestGround");
+
+
+const lowSteepHill = terrainElevationSurfaceWeights({ heightTiles:.55, baseHeightTiles:0, slopeDeg:50 });
+assert.ok(lowSteepHill.rock < .05, "low steep terrain must not read as a stone mountain");
+assert.ok(lowSteepHill.base > .35, "low terrain must retain biome base coverage");
+
+const midMountain = terrainElevationSurfaceWeights({ heightTiles:2.05, baseHeightTiles:0, slopeDeg:32 });
+assert.ok(midMountain.transition > .55, "mid elevation must dissolve into transition material");
+
+const highMountain = terrainElevationSurfaceWeights({ heightTiles:4.2, baseHeightTiles:0, slopeDeg:18 });
+assert.ok(highMountain.rock > .95, "high terrain must become rock even when the crown is not steep");
+
+for (const sample of [lowSteepHill,midMountain,highMountain]) {
+  const total=sample.base+sample.transition+sample.rock;
+  assert.ok(Math.abs(total-1)<1e-9);
+}
 
 const flatBeach = terrainCoastSurfaceWeights({ distanceTiles:1, slopeDeg:8 });
 assert.ok(flatBeach.shore > .9);

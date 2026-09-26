@@ -6,6 +6,14 @@ const surfaceProfile = (base, transition, rock, shore = "beachGround") =>
 export const TERRAIN_SURFACE_STANDARD = Object.freeze({
   thresholds: TERRAIN_SLOPE_STANDARD,
   defaultProfile: "temperate",
+  elevation: Object.freeze({
+    baseFadeStartTiles: 0.85,
+    baseFadeEndTiles: 2.05,
+    rockGateStartTiles: 1.30,
+    rockStartTiles: 2.30,
+    rockFullTiles: 3.70,
+    slopeTransitionInfluence: 0.58,
+  }),
   materials: Object.freeze({
     temperate: surfaceProfile("forestGround", "dirtGround", "stoneGround"),
     forest: surfaceProfile("forestGround", "dirtGround", "stoneGround"),
@@ -78,6 +86,51 @@ const smooth01 = (value) => {
   return t * t * (3 - 2 * t);
 };
 
+export function terrainElevationSurfaceWeights({
+  heightTiles = 0,
+  baseHeightTiles = 0,
+  slopeDeg = 0,
+  elevation = TERRAIN_SURFACE_STANDARD.elevation,
+  thresholds = TERRAIN_SURFACE_STANDARD.thresholds,
+} = {}) {
+  const rise = Math.max(0, (Number(heightTiles) || 0) - (Number(baseHeightTiles) || 0));
+  const slope = Math.max(0, Number(slopeDeg) || 0);
+
+  const baseStart = Number(elevation?.baseFadeStartTiles) || .85;
+  const baseEnd = Math.max(baseStart + .01, Number(elevation?.baseFadeEndTiles) || 2.05);
+  const rockGateStart = Number(elevation?.rockGateStartTiles) || 1.30;
+  const rockStart = Math.max(rockGateStart + .01, Number(elevation?.rockStartTiles) || 2.30);
+  const rockFull = Math.max(rockStart + .01, Number(elevation?.rockFullTiles) || 3.70);
+
+  const normal = Number(thresholds?.normalDeg) || 24;
+  const difficult = Math.max(normal + .01, Number(thresholds?.difficultDeg) || 34);
+  const maxWalk = Math.max(difficult + .01, Number(thresholds?.maxWalkDeg) || 43);
+
+  const elevationTransition = smooth01((rise - baseStart) / (baseEnd - baseStart));
+  const elevationRock = smooth01((rise - rockStart) / (rockFull - rockStart));
+  const slopeTransition = smooth01((slope - normal) / (difficult - normal));
+  const slopeRock = smooth01((slope - difficult) / (maxWalk - difficult));
+
+  // A steep low hill may expose dirt/gravel, but it does not become a stone
+  // "mountain" until the terrain has actually gained meaningful elevation.
+  const rockHeightGate = smooth01((rise - rockGateStart) / (rockStart - rockGateStart));
+  const rock = 1 - (1 - elevationRock) * (1 - slopeRock * rockHeightGate);
+  const transitionPressure = Math.max(
+    elevationTransition,
+    slopeTransition * Math.max(0, Math.min(1, Number(elevation?.slopeTransitionInfluence) || .58)),
+  );
+  const transition = Math.max(0, (1 - rock) * transitionPressure);
+  const base = Math.max(0, 1 - rock - transition);
+  const total = base + transition + rock || 1;
+
+  return Object.freeze({
+    base: base / total,
+    transition: transition / total,
+    rock: rock / total,
+    relativeHeightTiles: rise,
+  });
+}
+
 export function terrainCoastMaterialKinds({
   biomeProfile = TERRAIN_SURFACE_STANDARD.defaultProfile,
   baseKind = "auto",
@@ -141,6 +194,7 @@ export default Object.freeze({
   terrainSurfaceTierForSlope,
   terrainSurfaceMaterialKinds,
   terrainSurfaceMaterialKind,
+  terrainElevationSurfaceWeights,
   terrainCoastMaterialKinds,
   terrainCoastSurfaceWeights,
 });

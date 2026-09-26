@@ -65,9 +65,15 @@ assert.match(game, /s\.movement\.slopeSliding=true/);
 assert.match(game, /Remove uphill\/downhill input from steering/);
 
 assert.match(game, /function applySlopeSurfaceGroups/);
-assert.match(game, /terrainSurfaceTierForSlope\(slope\)/);
+assert.match(game, /terrainElevationSurfaceWeights\(\{heightTiles,baseHeightTiles,slopeDeg\}\)/);
+assert.match(game, /terrainSurfaceWeights/);
+assert.match(game, /heightSurfaceGradient:true/);
 assert.match(game, /terrainSurfaceMaterialKinds\(\{biomeProfile,baseKind\}\)/);
 assert.match(game, /slopeSurfaceStandard=true/);
+assert.match(game, /function proceduralTravelPathRoutes/);
+assert.match(game, /function proceduralTravelPathSample/);
+assert.match(game, /buildProceduralTravelPaths/);
+assert.match(game, /Every procedural land connection now owns a visible, graded travel path/);
 assert.match(game, /function addDifficultTerrain\(x0,z0,x1,z1,multiplier=\.5/);
 assert.doesNotMatch(game, /moveMultiplier:\.72,tags:\['difficult'/);
 assert.doesNotMatch(game, /moveMultiplier:\.82,tags:\['difficult'/);

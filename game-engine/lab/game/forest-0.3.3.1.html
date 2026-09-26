@@ -852,7 +852,7 @@ window.setLoadProgress?.(8,'Preparando motor','Cargando Three.js…');
 let THREE;
 let createRepositoryWorldFloorTextureRuntime, worldFloorRepeatForTiles;
 let TERRAIN_SLOPE_STANDARD, terrainSlopeBand, resolveTerrainSlopeSlide, resolveTerrainMoveMultiplier;
-let terrainSurfaceTierForSlope, terrainSurfaceMaterialKinds, terrainCoastMaterialKinds, terrainCoastSurfaceWeights;
+let terrainSurfaceTierForSlope, terrainSurfaceMaterialKinds, terrainElevationSurfaceWeights, terrainCoastMaterialKinds, terrainCoastSurfaceWeights;
 let createWaterBodySystem, extractFieldShorelines, waterCurrentImmersionFactor;
 let createWaterInteractionSystem;
 
@@ -864,7 +864,7 @@ try {
     await import('../../src/world/WorldFloorTextures.js'));
   ({ TERRAIN_SLOPE_STANDARD, terrainSlopeBand, resolveTerrainSlopeSlide, resolveTerrainMoveMultiplier } =
     await import('../../src/world/TerrainMobility.js'));
-  ({ terrainSurfaceTierForSlope, terrainSurfaceMaterialKinds, terrainCoastMaterialKinds, terrainCoastSurfaceWeights } =
+  ({ terrainSurfaceTierForSlope, terrainSurfaceMaterialKinds, terrainElevationSurfaceWeights, terrainCoastMaterialKinds, terrainCoastSurfaceWeights } =
     await import('../../src/world/TerrainSurfaceStandard.js'));
 
   window.setLoadProgress?.(15,'Preparando motor','Cargando agua…');
@@ -1518,9 +1518,9 @@ const SURFACE_VISUAL_PROFILES=Object.freeze({
   temperate:Object.freeze({groundKind:'forestGround',pathKind:'forestPath',crownColor:0x668f55,background:0x95ad89,waterBase:0x398f9d,waveA:0xa7dfe3,waveB:0xd8f1ee,foam:0xf4fff8}),
   forest:Object.freeze({groundKind:'forestGround',pathKind:'forestPath',crownColor:0x557f4d,background:0x89a58b,waterBase:0x348b91,waveA:0x9fd8d2,waveB:0xd7f0e8,foam:0xf4fff7}),
   grassland:Object.freeze({groundKind:'grasslandGround',pathKind:'forestPath',crownColor:0x789357,background:0xa3b58b,waterBase:0x3d93a1,waveA:0xabe1df,waveB:0xdaf1ec,foam:0xf5fff9}),
-  desert:Object.freeze({groundKind:'desertGround',pathKind:'desertGround',crownColor:0x78895b,background:0xc5aa78,waterBase:0x399aaa,waveA:0xaee5e0,waveB:0xe0f3ea,foam:0xfffdf0}),
+  desert:Object.freeze({groundKind:'desertGround',pathKind:'gravelGround',crownColor:0x78895b,background:0xc5aa78,waterBase:0x399aaa,waveA:0xaee5e0,waveB:0xe0f3ea,foam:0xfffdf0}),
   swamp:Object.freeze({groundKind:'swampGroundFX',pathKind:'swampPath',crownColor:0x587b55,background:0x809c8d,waterBase:0x4f7771,waveA:0x879c81,waveB:0xb5b895,foam:0xd8dfbd}),
-  arctic:Object.freeze({groundKind:'arcticGround',pathKind:'grovePath',crownColor:0x607868,background:0x929d9d,waterBase:0x4a899b,waveA:0xaed9e4,waveB:0xddebf0,foam:0xf7ffff})
+  arctic:Object.freeze({groundKind:'arcticGround',pathKind:'gravelGround',crownColor:0x607868,background:0x929d9d,waterBase:0x4a899b,waveA:0xaed9e4,waveB:0xddebf0,foam:0xf7ffff})
 });
 const BIOME_LANDFORM_KEYS=Object.freeze(['flat','rolling','hills','ridges','mountain','dunes','mesas','basin','cliffs']);
 function biomeClamp01(v){return Math.max(0,Math.min(1,Number(v)||0))}
@@ -1890,7 +1890,7 @@ function coastV2GroundMaterial({region=activeProceduralZone?.region,baseKind='fo
     rock:{value:sources.rock?.map||whiteTexture}
   };
 
-  const m=new THREE.MeshStandardMaterial({color:0xffffff,vertexColors:true,roughness:.98,metalness:0,flatShading:false});
+  const m=new THREE.MeshStandardMaterial({map:sources.base?.map||whiteTexture,color:0xffffff,vertexColors:true,roughness:.98,metalness:0,flatShading:false});
   m.dithering=true;
   m.userData.coastSurfaceStandard='repository-textures-v1';
   m.userData.coastSurfaceKinds={...kinds};
@@ -1901,6 +1901,7 @@ function coastV2GroundMaterial({region=activeProceduralZone?.region,baseKind='fo
     uniforms.base.value=sources.base?.map||whiteTexture;
     uniforms.transition.value=sources.transition?.map||whiteTexture;
     uniforms.rock.value=sources.rock?.map||whiteTexture;
+    m.map=uniforms.base.value;
   };
   m.onBeforeCompile=(shader)=>{
     shader.uniforms.coastShoreMap=uniforms.shore;
@@ -6231,6 +6232,96 @@ function hydrologyPriorityGroundHeightTilesAtLocal(id,tx,tz,rawHeightTiles){
   }
   return raw;
 }
+
+const PROCEDURAL_TRAVEL_PATH_CACHE=new Map();
+function proceduralPathNearestOnSegment(px,pz,a,b){
+  const vx=b.x-a.x,vz=b.z-a.z,len2=vx*vx+vz*vz;
+  const t=len2>1e-8?zoneClamp(((px-a.x)*vx+(pz-a.z)*vz)/len2,0,1):0;
+  const x=a.x+vx*t,z=a.z+vz*t;
+  return {t,x,z,distance:Math.hypot(px-x,pz-z)};
+}
+function proceduralPathPolylineScore(points,id){
+  let waterHits=0,wetness=0;
+  for(let si=0;si<points.length-1;si++){
+    const a=points[si],b=points[si+1];
+    for(let k=0;k<=10;k++){
+      const t=k/10,x=THREE.MathUtils.lerp(a.x,b.x,t),z=THREE.MathUtils.lerp(a.z,b.z,t);
+      const h=proceduralHydrologySample(id,x,z);
+      if(h.water)waterHits++;
+      wetness+=Number(h.wetness)||0;
+    }
+  }
+  return waterHits*100+wetness;
+}
+function proceduralTravelPathRoutes(id=mapId){
+  if(!proceduralSectorRecipe(id)||!activeProceduralZone)return [];
+  const cfg=OVERWORLD_PLAN[id];if(!cfg)return [];
+  const cacheKey=`${activeProceduralZone.id||activeProceduralZone.region?.id}|${activeProceduralZone.region?.seed}|${id}`;
+  if(PROCEDURAL_TRAVEL_PATH_CACHE.has(cacheKey))return PROCEDURAL_TRAVEL_PATH_CACHE.get(cacheKey);
+
+  const hubCandidates=[[0,0],[0,5],[5,0],[-5,0],[0,-5],[5,5],[-5,5],[5,-5],[-5,-5]];
+  let hub={x:0,z:0},hubScore=Infinity;
+  for(const [x,z] of hubCandidates){
+    const h=proceduralHydrologySample(id,x,z),score=(h.water?1000:0)+(Number(h.wetness)||0)*8+Math.hypot(x,z)*.08;
+    if(score<hubScore){hubScore=score;hub={x,z};}
+  }
+
+  const baseHeight=biomeSectorBaseHeightTiles(id);
+  const hubHeight=baseHeight+proceduralMacroReliefHeightTilesAtLocal(id,hub.x,hub.z)*.28;
+  const routes=[];
+  const entries=[...Object.entries(cfg.neighbors||{})];
+  if(cfg.templeGate&&!cfg.neighbors?.north)entries.push(['north',null]);
+
+  for(const [dir,target] of entries){
+    const layout=target
+      ?proceduralNeighborTransitionLayout(id,dir,target)
+      :{mode:'land',lateral:0};
+    if(layout?.mode!=='land')continue;
+
+    const end=transitionEdgeLocalPoint(dir,Number(layout.lateral)||0,.35);
+    const vx=end.x-hub.x,vz=end.z-hub.z,len=Math.hypot(vx,vz)||1,nx=-vz/len,nz=vx/len;
+    let bestPoints=[hub,{x:hub.x+vx*.52,z:hub.z+vz*.52},end],bestScore=Infinity;
+    for(const offset of [0,4,-4,8,-8,12,-12]){
+      const mid={x:hub.x+vx*.52+nx*offset,z:hub.z+vz*.52+nz*offset};
+      const points=[hub,mid,end],score=proceduralPathPolylineScore(points,id)+Math.abs(offset)*.12;
+      if(score<bestScore){bestScore=score;bestPoints=points;}
+    }
+
+    const edgeHeight=baseHeight+proceduralTransitionMacroReliefTiles(id,dir);
+    const points=bestPoints.map((p,i)=>({
+      x:p.x,z:p.z,
+      heightTiles:i===0?hubHeight:(i===2?edgeHeight:THREE.MathUtils.lerp(hubHeight,edgeHeight,.52))
+    }));
+    let totalLength=0;
+    const segments=[];
+    for(let i=0;i<points.length-1;i++){
+      const a=points[i],b=points[i+1],length=Math.hypot(b.x-a.x,b.z-a.z);
+      segments.push({a,b,length,start:totalLength});
+      totalLength+=length;
+    }
+    routes.push(Object.freeze({dir,target,points:Object.freeze(points),segments:Object.freeze(segments),totalLength}));
+  }
+  const frozen=Object.freeze(routes);
+  PROCEDURAL_TRAVEL_PATH_CACHE.set(cacheKey,frozen);
+  return frozen;
+}
+function proceduralTravelPathSample(id,tx,tz){
+  const routes=proceduralTravelPathRoutes(id);
+  let best=null;
+  for(const route of routes)for(const segment of route.segments){
+    const near=proceduralPathNearestOnSegment(tx,tz,segment.a,segment.b);
+    if(best&&near.distance>=best.distance)continue;
+    const along=segment.start+segment.length*near.t,total=Math.max(.001,route.totalLength);
+    const targetHeightTiles=THREE.MathUtils.lerp(segment.a.heightTiles,segment.b.heightTiles,near.t);
+    best={distance:near.distance,route,along01:along/total,targetHeightTiles};
+  }
+  if(!best)return {influence:0,distance:Infinity,targetHeightTiles:biomeSectorBaseHeightTiles(id),route:null};
+  const core=.72,feather=1.62;
+  const influence=best.distance<=core?1:(best.distance>=feather?0:1-smooth01((best.distance-core)/(feather-core)));
+  const hydro=proceduralHydrologySample(id,tx,tz);
+  return {...best,influence:hydro.water?0:influence,visualInfluence:influence,water:!!hydro.water};
+}
+
 function elevationHeightTilesAtWorld(x,z,id=mapId){
   const tx=x/TILE,tz=z/TILE,base=biomeSectorBaseHeightTiles(id);
   let local=0,transition=0;
@@ -6242,9 +6333,16 @@ function elevationHeightTilesAtWorld(x,z,id=mapId){
   const geo=GeographyField.sample(id,tx,tz),geoMask=proceduralGateReliefMask(id,tx,tz),geoHydro=proceduralHydrologyReliefFactor(id,tx,tz);
   const geographyDelta=geo.deltaTiles*geoMask*geoHydro;
   const raw=Math.max(0,base+transition+local+geographyDelta);
+  // Every procedural land route owns a narrow graded corridor. It suppresses local
+  // mountain noise enough to stay traversable, while hydrology still wins afterward:
+  // deep rivers remain real valleys/hazards instead of being lifted into roads.
+  const travelPath=proceduralTravelPathSample(id,tx,tz);
+  const routedRaw=travelPath.influence>0
+    ?THREE.MathUtils.lerp(raw,travelPath.targetHeightTiles,travelPath.influence*.94)
+    :raw;
   // La costa modifica la ALTURA del terreno de forma continua; no crea un escalón
   // ni una rampa artificial separada. Física y render consumen la misma función.
-  const coastAdjusted=coastGroundHeightTilesAtLocal(id,tx,tz,raw);
+  const coastAdjusted=coastGroundHeightTilesAtLocal(id,tx,tz,routedRaw);
   // Hydrology may legitimately cut below the legacy zero plane. Never clamp the
   // authoritative water bed back upward after river/lake/coast depth was applied.
   return hydrologyPriorityGroundHeightTilesAtLocal(id,tx,tz,coastAdjusted);
@@ -16138,40 +16236,86 @@ window.PaperElevation=Object.freeze({
   cutawayClosure:Object.freeze({mode:'to-sector-structural-base',structuralDepthTiles:MAP_HEIGHTS.terrainThickness,collision:false})
 });
 
+const TERRAIN_GRADIENT_MATERIAL_CACHE=new Map();
+function terrainGradientGroundMaterial({biomeProfile='temperate',baseKind='forestGround',uTiles=1,vTiles=1}={}){
+  const kinds=terrainSurfaceMaterialKinds({biomeProfile,baseKind});
+  const [repeatX,repeatY]=worldFloorRepeatForTiles(uTiles,vTiles);
+  const key=`terrain-height-gradient:${biomeProfile}:${kinds.base}:${kinds.transition}:${kinds.rock}:${repeatX.toFixed(2)}:${repeatY.toFixed(2)}`;
+  if(TERRAIN_GRADIENT_MATERIAL_CACHE.has(key))return TERRAIN_GRADIENT_MATERIAL_CACHE.get(key);
+
+  const sources={base:mat(kinds.base),transition:mat(kinds.transition),rock:mat(kinds.rock)};
+  const whiteData=new Uint8Array([255,255,255,255]);
+  const whiteTexture=new THREE.DataTexture(whiteData,1,1,THREE.RGBAFormat);
+  whiteTexture.wrapS=whiteTexture.wrapT=THREE.RepeatWrapping;whiteTexture.needsUpdate=true;
+  const uniforms={
+    base:{value:sources.base?.map||whiteTexture},
+    transition:{value:sources.transition?.map||whiteTexture},
+    rock:{value:sources.rock?.map||whiteTexture}
+  };
+  const m=new THREE.MeshStandardMaterial({map:uniforms.base.value,color:0xffffff,roughness:.99,metalness:0,flatShading:false,side:THREE.DoubleSide});
+  m.userData.terrainSurfaceStandard='height-gradient-v1';
+  m.userData.terrainSurfaceKinds={...kinds};
+  m.userData.worldFloorRepeat=[repeatX,repeatY];
+  m.userData.syncTerrainSurfaceTextures=()=>{
+    for(const source of Object.values(sources))worldFloorTextureRuntime?.ensureMaterial(source);
+    uniforms.base.value=sources.base?.map||whiteTexture;
+    uniforms.transition.value=sources.transition?.map||whiteTexture;
+    uniforms.rock.value=sources.rock?.map||whiteTexture;
+    m.map=uniforms.base.value;
+  };
+  m.onBeforeCompile=(shader)=>{
+    shader.uniforms.terrainBaseMap=uniforms.base;
+    shader.uniforms.terrainTransitionMap=uniforms.transition;
+    shader.uniforms.terrainRockMap=uniforms.rock;
+    shader.uniforms.terrainUvScale={value:new THREE.Vector2(repeatX,repeatY)};
+    shader.vertexShader=shader.vertexShader
+      .replace('#include <common>','#include <common>\nattribute vec3 terrainSurfaceWeights;\nvarying vec3 vTerrainSurfaceWeights;\nvarying vec2 vTerrainSurfaceUv;')
+      .replace('#include <uv_vertex>','#include <uv_vertex>\nvTerrainSurfaceWeights=terrainSurfaceWeights;\nvTerrainSurfaceUv=uv;');
+    shader.fragmentShader=shader.fragmentShader
+      .replace('#include <common>','#include <common>\nuniform sampler2D terrainBaseMap;\nuniform sampler2D terrainTransitionMap;\nuniform sampler2D terrainRockMap;\nuniform vec2 terrainUvScale;\nvarying vec3 vTerrainSurfaceWeights;\nvarying vec2 vTerrainSurfaceUv;')
+      .replace('#include <map_fragment>',`
+        vec3 terrainWeights=max(vTerrainSurfaceWeights,vec3(0.0));
+        terrainWeights/=max(0.0001,terrainWeights.x+terrainWeights.y+terrainWeights.z);
+        vec2 terrainUv=vTerrainSurfaceUv*terrainUvScale;
+        vec4 terrainTexel=
+          texture2D(terrainBaseMap,terrainUv)*terrainWeights.x+
+          texture2D(terrainTransitionMap,terrainUv)*terrainWeights.y+
+          texture2D(terrainRockMap,terrainUv)*terrainWeights.z;
+        diffuseColor*=terrainTexel;
+      `);
+    m.userData.terrainShader=shader;
+    m.userData.syncTerrainSurfaceTextures();
+  };
+  m.customProgramCacheKey=()=>key;
+  TERRAIN_GRADIENT_MATERIAL_CACHE.set(key,m);
+  return m;
+}
+
 function applySlopeSurfaceGroups(geo,verts,triangles,{id=mapId,baseKind='forestGround',biomeProfile='temperate',uTiles=1,vTiles=1}={}){
-  const buckets=[[],[],[]],tierIndex={base:0,transition:1,rock:2};
-  for(const tri of triangles){
-    const [a,b,c]=tri;
-    const cx=(verts[a*3]+verts[b*3]+verts[c*3])/3;
-    const cz=(verts[a*3+2]+verts[b*3+2]+verts[c*3+2])/3;
-    const slope=elevationSlopeAtWorld(cx,cz,id).angleDeg;
-    const tier=terrainSurfaceTierForSlope(slope);
-    buckets[tierIndex[tier]??0].push(a,b,c);
+  const vertexCount=Math.floor(verts.length/3),weights=new Float32Array(vertexCount*3);
+  const baseHeightTiles=biomeSectorBaseHeightTiles(id);
+  for(let i=0;i<vertexCount;i++){
+    const x=verts[i*3],z=verts[i*3+2];
+    const heightTiles=elevationHeightTilesAtWorld(x,z,id);
+    const slopeDeg=elevationSlopeAtWorld(x,z,id).angleDeg;
+    const blend=terrainElevationSurfaceWeights({heightTiles,baseHeightTiles,slopeDeg});
+    weights[i*3]=blend.base;weights[i*3+1]=blend.transition;weights[i*3+2]=blend.rock;
   }
-  const merged=[],groups=[];
-  let offset=0;
-  for(let i=0;i<buckets.length;i++){
-    const bucket=buckets[i];
-    if(bucket.length){merged.push(...bucket);groups.push({start:offset,count:bucket.length,materialIndex:i});offset+=bucket.length;}
-  }
-  geo.setIndex(merged);geo.clearGroups();
-  for(const group of groups)geo.addGroup(group.start,group.count,group.materialIndex);
+  geo.setAttribute('terrainSurfaceWeights',new THREE.BufferAttribute(weights,3));
+  geo.setIndex(triangles.flat());geo.clearGroups();
 
   const kinds=terrainSurfaceMaterialKinds({biomeProfile,baseKind});
-  const materialKinds=[kinds.base,kinds.transition,kinds.rock];
-  const materials=materialKinds.map(kind=>{
-    const m=fittedMappedMaterial(mat(kind),uTiles,vTiles).clone();
-    m.side=THREE.DoubleSide;return m;
-  });
+  const material=terrainGradientGroundMaterial({biomeProfile,baseKind,uTiles,vTiles});
   geo.userData={
     ...(geo.userData||{}),
     slopeSurfaceStandard:true,
-    slopeMaterialKinds:materialKinds,
+    heightSurfaceGradient:true,
+    slopeMaterialKinds:[kinds.base,kinds.transition,kinds.rock],
+    elevationSurfaceRules:{...TERRAIN_SURFACE_STANDARD.elevation},
     slopeThresholds:{normalDeg:TERRAIN_SLOPE_STANDARD.normalDeg,difficultDeg:TERRAIN_SLOPE_STANDARD.difficultDeg,maxWalkDeg:TERRAIN_SLOPE_STANDARD.maxWalkDeg}
   };
-  return materials;
+  return material;
 }
-
 function buildProceduralLandGroundMesh(g,id=mapId,kind='forestGround'){
   const def=MAP_DATA.maps[id]||currentMapDef(),bounds=def?.bounds||{x0:-OVERWORLD_HALF,x1:OVERWORLD_HALF,z0:-OVERWORLD_HALF,z1:OVERWORLD_HALF};
   const mobile=DISPLAY_DEVICE_MOBILE,sx=mobile?52:64,sz=mobile?52:64,stride=sx+1,verts=[],uv=[],triangles=[];
@@ -16194,6 +16338,7 @@ function buildProceduralLandGroundMesh(g,id=mapId,kind='forestGround'){
   const materials=applySlopeSurfaceGroups(geo,verts,triangles,{id,baseKind:kind,biomeProfile,uTiles:tilesW,vTiles:tilesD});
   geo.computeVertexNormals();geo.computeBoundingSphere();
   const mesh=new THREE.Mesh(geo,materials);
+  mesh.onBeforeRender=()=>materials?.userData?.syncTerrainSurfaceTextures?.();
   mesh.receiveShadow=true;mesh.castShadow=false;mesh.name=`${id}-continuous-geography-ground`;
   mesh.userData.continuousGeography=true;mesh.userData.worldFloorFittedTiles=[tilesW,tilesD];mesh.userData.slopeSurfaceStandard=true;
   g.add(mesh);return mesh;
@@ -16239,6 +16384,7 @@ function buildNaturalElevationMesh(g,module){
   const materials=applySlopeSurfaceGroups(geo,verts,triangles,{id:mapId,baseKind,biomeProfile,uTiles,vTiles});
   geo.computeVertexNormals();
   const mesh=new THREE.Mesh(geo,materials);
+  mesh.onBeforeRender=()=>materials?.userData?.syncTerrainSurfaceTextures?.();
   mesh.receiveShadow=true;mesh.castShadow=false;mesh.name=module.id+'-natural-terrain';
   mesh.userData.elevationModule=module.id;mesh.userData.worldFloorFittedTiles=[uTiles,vTiles];mesh.userData.slopeSurfaceStandard=true;
   g.add(mesh);return mesh;
@@ -16870,9 +17016,42 @@ function buildOverworldSector(){
     for(let i=samples.length-1;i>=0;i--){const s=samples[i];pts.push(mapPoint(s.r,s.f));}
     paperForestGroundPatch(g,pts,kind,sectorBaseY+.014,-18);
   }
-  // Las Zonas procedurales no pintan senderos cardinales: explorar es leer el terreno,
-  // no seguir una cruz visual hasta la salida. Los mapas legacy conservan sus caminos.
-  if(!isProceduralZone){
+  function buildProceduralTravelPaths(){
+    for(const route of proceduralTravelPathRoutes(mapId)){
+      const count=Math.max(18,Math.ceil(route.totalLength/.75)),pos=[],uv=[],idx=[];
+      const pointAt=(distance)=>{
+        const d=THREE.MathUtils.clamp(distance,0,route.totalLength);
+        let seg=route.segments[route.segments.length-1];
+        for(const candidate of route.segments)if(d<=candidate.start+candidate.length){seg=candidate;break;}
+        const t=seg.length>1e-6?THREE.MathUtils.clamp((d-seg.start)/seg.length,0,1):0;
+        return {x:THREE.MathUtils.lerp(seg.a.x,seg.b.x,t),z:THREE.MathUtils.lerp(seg.a.z,seg.b.z,t)};
+      };
+      for(let i=0;i<=count;i++){
+        const d=route.totalLength*i/count,p=pointAt(d);
+        const before=pointAt(Math.max(0,d-.18)),after=pointAt(Math.min(route.totalLength,d+.18));
+        let tx=after.x-before.x,tz=after.z-before.z,tl=Math.hypot(tx,tz)||1;tx/=tl;tz/=tl;
+        const nx=-tz,nz=tx,half=.72+.07*Math.sin(i*.83+(activeProceduralZone?.region?.seed||1)*.01);
+        for(const side of [-1,1]){
+          const x=p.x+nx*half*side,z=p.z+nz*half*side;
+          const y=tileY(elevationHeightTilesAtWorld(wt(x),wt(z),mapId))+.024;
+          pos.push(wt(x),y,wt(z));uv.push(i/count,side<0?0:1);
+        }
+      }
+      for(let i=0;i<count;i++){const a=i*2,b=a+1,c=a+2,d=c+1;idx.push(a,c,b,b,c,d);}
+      const geo=new THREE.BufferGeometry();
+      geo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+      geo.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));
+      geo.setIndex(idx);geo.computeVertexNormals();
+      const material=fittedMappedMaterial(mat(pathKind),Math.max(1,route.totalLength),1.45);
+      const mesh=new THREE.Mesh(geo,material);mesh.receiveShadow=true;mesh.renderOrder=-17;
+      mesh.name=`${mapId}-procedural-path-${route.dir}`;mesh.userData.proceduralTravelPath=true;g.add(mesh);
+    }
+  }
+
+  // Every procedural land connection now owns a visible, graded travel path.
+  // Hydrology is still authoritative: a deep river can interrupt the path and remain dangerous.
+  if(isProceduralZone)buildProceduralTravelPaths();
+  else{
     Object.keys(cfg.neighbors).forEach(dir=>sectorPath(dir));
     if(cfg.templeGate&&!cfg.neighbors.north)sectorPath('north','grovePath');
   }
@@ -16888,6 +17067,7 @@ function buildOverworldSector(){
   // sobre la decoración procedural. Árboles/arbustos/flores no se colocan encima.
   // Puentes y estructuras no pasan por esta función y por eso sí pueden cruzarlo.
   function natureFeatureBlocksDecoration(x,z,radiusTiles=0){
+    if(isProceduralZone&&proceduralTravelPathSample(mapId,x,z).visualInfluence>.16)return true;
     const continuousHydrology=isProceduralZone&&activeProceduralZone?.hydrology?.type!=='none';
     // Toda hidrología procedural usa el campo continuo para despejar vegetación.
     if(continuousHydrology){
