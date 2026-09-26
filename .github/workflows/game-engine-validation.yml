@@ -77,6 +77,7 @@ jobs:
           node --check game-engine/src/ui/HudDomAdapter.js
           node --check game-engine/src/ui/InventoryEquipmentViewModel.js
           node --check game-engine/src/ui/InventoryEquipmentDomAdapter.js
+          node --check game-engine/src/ui/TouchMovementAdapter.js
 
       - name: World runtime syntax
         run: |
