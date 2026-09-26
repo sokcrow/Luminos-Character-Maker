@@ -1,20 +1,63 @@
-import assert from 'node:assert/strict';
-import fs from 'node:fs';
+import assert from "node:assert/strict";
+import { GameEngine } from "../src/core/GameEngine.js";
+import { GameRuntime } from "../src/core/GameRuntime.js";
+import { UNIT_RUNTIME_CONTRACT_ID, unitContractViolations } from "../src/units/UnitRegistry.js";
 
-const game=fs.readFileSync(new URL('../lab/game/forest-0.3.3.1.html',import.meta.url),'utf8');
+const engine = new GameEngine();
+const runtime = new GameRuntime({ engine }).mount();
 
-assert.match(game,/UNIVERSAL_UNIT_STANDARD=Object\.freeze\(/,'Universal Unit standard must exist');
-assert.match(game,/referenceUnitId:'hero'/,'Hero must be the reference contract, not a separate runtime type');
-assert.match(game,/function resolveUniversalUnitSpec\(spec=\{\}\)/,'All new Units must normalize through one schema');
-assert.match(game,/runtimeContract:UNIVERSAL_UNIT_STANDARD\.id/,'Every Unit must carry the universal runtime contract');
-assert.match(game,/function unitContractViolations\(unit\)/,'Runtime must be able to validate any Unit');
-assert.match(game,/for\(const unit of units\)\{UnitControllerSystem\.update\(unit,dt\);UnitMovementSystem\.update\(unit,dt\);UnitEnvironmentSystem\.update\(unit,dt\);UnitLocomotionSystem\.update\(unit,dt\);UnitAnimationSystem\.update\(unit,dt\);UnitNeedsSystem\.update\(unit,dt\)/,'Every active Unit must pass through the same systems');
-assert.match(game,/const playerUnit=registerUnit\(\{/,'The local protagonist must be a normal registered Unit');
-assert.match(game,/belleState\.unit=registerUnit\(\{/,'Belle must be a normal registered Unit');
-assert.match(game,/npc\.unit=registerUnit\(\{/,'Ambient characters must be normal registered Units');
-assert.doesNotMatch(game,/function registerPlayerUnit\b/,'There must be no Player-specific Unit constructor');
-assert.doesNotMatch(game,/function registerNPCUnit\b/,'There must be no NPC-specific Unit constructor');
-assert.match(game,/standard:UNIVERSAL_UNIT_STANDARD/,'Public Unit API must expose the canonical contract');
-assert.match(game,/contractViolations/,'Architecture audit must reject Units outside the contract');
+runtime.map.attachBridge({
+  sampleTerrain() {
+    return { moveMultiplier: 0.5, slopeBand: "flat" };
+  },
+  sampleWater() {
+    return null;
+  }
+});
 
-console.log('universal-unit-runtime-smoke: ok');
+const sharedController = {
+  resolveIntent() {
+    return { moveX: 1, moveZ: 0, sprint: false };
+  }
+};
+
+const player = runtime.registerUnit({
+  id: "hero",
+  role: "player",
+  tags: ["player"],
+  transform: { x: 0, y: 0, z: 0 },
+  movement: { speed: 10, maxSpeed: 10 },
+  controller: sharedController
+});
+
+const npc = runtime.registerUnit({
+  id: "npc-1",
+  role: "npc",
+  tags: ["npc"],
+  transform: { x: 0, y: 0, z: 0 },
+  movement: { speed: 10, maxSpeed: 10 },
+  controller: sharedController
+});
+
+assert.equal(player.runtimeContract, UNIT_RUNTIME_CONTRACT_ID);
+assert.equal(npc.runtimeContract, UNIT_RUNTIME_CONTRACT_ID);
+assert.deepEqual(unitContractViolations(player), []);
+assert.deepEqual(unitContractViolations(npc), []);
+
+engine.update(1);
+
+assert.equal(player.transform.x, 5);
+assert.equal(npc.transform.x, 5);
+assert.equal(player.transform.z, npc.transform.z);
+assert.equal(player.movement.velocityX, npc.movement.velocityX);
+assert.equal(player.metadata.lastMovement.terrainMultiplier, 0.5);
+assert.equal(npc.metadata.lastMovement.terrainMultiplier, 0.5);
+assert.notEqual(player.role, npc.role);
+assert.deepEqual(
+  { x: player.transform.x, y: player.transform.y, z: player.transform.z },
+  { x: npc.transform.x, y: npc.transform.y, z: npc.transform.z },
+  "Player and NPC with equivalent state/input must use identical movement physics"
+);
+
+engine.dispose();
+console.log("universal-unit-runtime-smoke: ok");
