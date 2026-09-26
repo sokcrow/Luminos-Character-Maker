@@ -4,11 +4,14 @@ import { runtimeContractsSnapshot } from "../src/core/RuntimeContracts.js";
 import { normalizeProceduralMapSpec } from "../src/map/procedural/ProceduralMapSpec.js";
 import { HudDomAdapter } from "../src/ui/HudDomAdapter.js";
 import { createHudViewModel } from "../src/ui/HudViewModel.js";
+import { ThreeVisualizer } from "./ThreeVisualizer.js";
 
 const engine = new GameEngine();
 const runtime = new GameRuntime({ engine }).mount();
 const hud = new HudDomAdapter({ root: document });
 const pressed = new Set();
+const viewport = document.getElementById("visualizerViewport");
+const rendererStatus = document.querySelector("[data-renderer-status]");
 
 const mapSpec = normalizeProceduralMapSpec({
   id: "early-alpha-temperate-hills",
@@ -36,12 +39,13 @@ function axis(positive, negative) {
 
 runtime.registerProceduralMap(mapSpec);
 await runtime.loadMap(mapSpec.id);
+const spawn = runtime.map.sampleTerrain({ x: 0, z: 0 }) || { height: 0 };
 
 const player = runtime.registerUnit({
   id: "early-alpha-player",
   role: "player",
   tags: ["player", "early-alpha"],
-  transform: { x: 0, y: 0, z: 0 },
+  transform: { x: 0, y: Number(spawn.height) || 0, z: 0 },
   movement: { speed: 8, maxSpeed: 8 },
   controller: {
     resolveIntent() {
@@ -54,6 +58,16 @@ const player = runtime.registerUnit({
   metadata: { stage: "early-alpha" }
 }, { cameraTarget: true });
 
+const visualizer = new ThreeVisualizer({ root: viewport, runtime, player });
+try {
+  await visualizer.mount();
+  if (rendererStatus) rendererStatus.textContent = "Renderer 3D activo · mapa procedural modular";
+} catch (error) {
+  console.error("ThreeVisualizer mount failed", error);
+  if (rendererStatus) rendererStatus.textContent = `Renderer 3D no disponible: ${error?.message || error}`;
+  viewport?.setAttribute("data-renderer-error", "true");
+}
+
 function renderHud() {
   const model = createHudViewModel({ engine, runtime, unitId: player.id });
   hud.render(model);
@@ -64,11 +78,20 @@ function key(event) {
   return event.code || event.key;
 }
 
+function isMovementKey(event) {
+  return ["KeyW", "KeyA", "KeyS", "KeyD", "ArrowUp", "ArrowLeft", "ArrowDown", "ArrowRight"].includes(key(event));
+}
+
 window.addEventListener("keydown", event => {
+  if (!isMovementKey(event)) return;
   pressed.add(key(event));
-  if (event.code?.startsWith("Arrow")) event.preventDefault();
+  event.preventDefault();
 });
-window.addEventListener("keyup", event => pressed.delete(key(event)));
+window.addEventListener("keyup", event => {
+  if (!isMovementKey(event)) return;
+  pressed.delete(key(event));
+  event.preventDefault();
+});
 window.addEventListener("blur", () => pressed.clear());
 
 engine.start();
@@ -77,6 +100,7 @@ const hudTimer = window.setInterval(renderHud, 100);
 
 function dispose(reason = "visualizer-dispose") {
   window.clearInterval(hudTimer);
+  visualizer.dispose();
   engine.dispose(reason);
 }
 
@@ -87,6 +111,7 @@ globalThis.LuminousVisualizer = Object.freeze({
   runtime,
   player,
   mapSpec,
+  visualizer,
   contracts: runtimeContractsSnapshot(),
   snapshot: renderHud,
   dispose
