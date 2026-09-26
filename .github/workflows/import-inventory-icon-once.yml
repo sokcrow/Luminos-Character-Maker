@@ -1,0 +1,65 @@
+name: Import inventory icon once
+
+on:
+  push:
+    branches:
+      - lab-preview
+    paths:
+      - '.github/workflows/import-inventory-icon-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  import-icon:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: lab-preview
+          fetch-depth: 0
+
+      - name: Download official inventory PNG
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p Assets/Images/Buttons
+          curl --fail --location --retry 3 --retry-delay 2 \
+            'https://i.imgur.com/WF6qkuE.png' \
+            --output Assets/Images/Buttons/Inventory.png
+          file Assets/Images/Buttons/Inventory.png
+          test "$(python3 - <<'PY'
+import pathlib
+p = pathlib.Path('Assets/Images/Buttons/Inventory.png').read_bytes()
+print('ok' if p[:8] == b'\x89PNG\r\n\x1a\n' else 'bad')
+PY
+)" = "ok"
+
+      - name: Wire icon into player HUD
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+from pathlib import Path
+p = Path('game-engine/lab/game/forest-0.3.3.1.html')
+s = p.read_text(encoding='utf-8')
+old = '../../../Assets/Images/Buttons/Inventory.svg'
+new = '../../../Assets/Images/Buttons/Inventory.png'
+if old not in s and new not in s:
+    raise SystemExit('Inventory HUD icon reference not found')
+p.write_text(s.replace(old, new), encoding='utf-8')
+PY
+
+      - name: Commit imported asset
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Assets/Images/Buttons/Inventory.png game-engine/lab/game/forest-0.3.3.1.html
+          git rm .github/workflows/import-inventory-icon-once.yml
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "feat(game-engine): integrate player inventory HUD icon"
+          git push origin HEAD:lab-preview
