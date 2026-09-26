@@ -30,6 +30,7 @@
   function classifyErrorCode(message, source = 'game') {
     const text = safeText(message);
     if (/resolveTerrainSlopeSlide.*not a function/i.test(text)) return 'E-MOVE-SLOPE-001';
+    if (/TERRAIN_SURFACE_STANDARD.*is not defined/i.test(text)) return 'E-TERRAIN-SURFACE-001';
     if (/is not a function/i.test(text)) return 'E-RUNTIME-FUNC-001';
     if (/dynamically imported module|importing a module script failed|failed to fetch.*module|module script/i.test(text)) return 'E-MODULE-LOAD-001';
     if (source === 'promise' || /promesa rechazada|unhandledrejection/i.test(text)) return 'E-PROMISE-001';
@@ -41,7 +42,7 @@
 
   function errorSpecificity(message, source = 'game') {
     const code = classifyErrorCode(message, source);
-    if (code === 'E-MOVE-SLOPE-001' || code === 'E-RUNTIME-FUNC-001') return 100;
+    if (code === 'E-MOVE-SLOPE-001' || code === 'E-TERRAIN-SURFACE-001' || code === 'E-RUNTIME-FUNC-001') return 100;
     if (code === 'E-MODULE-LOAD-001') return 95;
     if (code === 'E-JS-001') return 90;
     if (code === 'E-PROMISE-001') return 85;

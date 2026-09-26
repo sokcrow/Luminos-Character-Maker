@@ -65,6 +65,7 @@ assert.match(game, /s\.movement\.slopeSliding=true/);
 assert.match(game, /Remove uphill\/downhill input from steering/);
 
 assert.match(game, /function applySlopeSurfaceGroups/);
+assert.match(game, /\{ TERRAIN_SURFACE_STANDARD, terrainSurfaceTierForSlope, terrainSurfaceMaterialKinds, terrainElevationSurfaceWeights, terrainCoastMaterialKinds, terrainCoastSurfaceWeights \} =\s*await import\('\.\.\/\.\.\/src\/world\/TerrainSurfaceStandard\.js'\)/);
 assert.match(game, /terrainElevationSurfaceWeights\(\{heightTiles,baseHeightTiles,slopeDeg\}\)/);
 assert.match(game, /terrainSurfaceWeights/);
 assert.match(game, /heightSurfaceGradient:true/);

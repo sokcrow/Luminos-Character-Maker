@@ -861,7 +861,7 @@ window.setLoadProgress?.(8,'Preparando motor','Cargando Three.js…');
 let THREE;
 let createRepositoryWorldFloorTextureRuntime, worldFloorRepeatForTiles;
 let TERRAIN_SLOPE_STANDARD, terrainSlopeBand, resolveTerrainSlopeSlide, resolveTerrainMoveMultiplier;
-let terrainSurfaceTierForSlope, terrainSurfaceMaterialKinds, terrainElevationSurfaceWeights, terrainCoastMaterialKinds, terrainCoastSurfaceWeights;
+let TERRAIN_SURFACE_STANDARD, terrainSurfaceTierForSlope, terrainSurfaceMaterialKinds, terrainElevationSurfaceWeights, terrainCoastMaterialKinds, terrainCoastSurfaceWeights;
 let createWaterBodySystem, extractFieldShorelines, waterCurrentImmersionFactor;
 let createWaterInteractionSystem;
 
@@ -873,7 +873,7 @@ try {
     await import('../../src/world/WorldFloorTextures.js'));
   ({ TERRAIN_SLOPE_STANDARD, terrainSlopeBand, resolveTerrainSlopeSlide, resolveTerrainMoveMultiplier } =
     await import('../../src/world/TerrainMobility.js'));
-  ({ terrainSurfaceTierForSlope, terrainSurfaceMaterialKinds, terrainElevationSurfaceWeights, terrainCoastMaterialKinds, terrainCoastSurfaceWeights } =
+  ({ TERRAIN_SURFACE_STANDARD, terrainSurfaceTierForSlope, terrainSurfaceMaterialKinds, terrainElevationSurfaceWeights, terrainCoastMaterialKinds, terrainCoastSurfaceWeights } =
     await import('../../src/world/TerrainSurfaceStandard.js'));
 
   window.setLoadProgress?.(15,'Preparando motor','Cargando agua…');
