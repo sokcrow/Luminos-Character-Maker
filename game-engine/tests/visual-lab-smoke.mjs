@@ -95,7 +95,7 @@ assert.match(game, /canal-general-store/);
 assert.doesNotMatch(game, /makeGlobalSettlementMarker/);
 assert.doesNotMatch(game, /settlement:Object\.freeze\(\{id:\'forest-village\'/);
 assert.match(game, /Assets\/Images\/Buttons\/Menu\.svg/);
-assert.match(game, /Assets\/Images\/Buttons\/Inventory\.svg/);
+assert.match(game, /Assets\/Images\/Buttons\/Inventory\.png/);
 assert.match(game, /Assets\/Images\/Buttons\/Player\.svg/);
 assert.doesNotMatch(game, /LUMINOUS_MAP_ICON_FALLBACKS/);
 assert.doesNotMatch(game, /icon-placeholder/);
