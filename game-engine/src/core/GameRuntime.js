@@ -47,6 +47,7 @@ export class GameRuntime {
 
   disconnectView() {
     this.viewWindow = null;
+    if (this.map.active?.source === "view-bridge") this.map.unloadMap("view-disconnected");
     this.map.detachBridge();
     this.camera.attachBridge(new CameraBridgeAdapter());
     this.engine.events.emit("runtime:view-disconnected", this.snapshot());
