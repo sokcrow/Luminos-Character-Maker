@@ -50,6 +50,10 @@ jobs:
           node --check game-engine/src/map/MapRegistry.js
           node --check game-engine/src/map/MapBridgeAdapter.js
           node --check game-engine/src/map/MapSystem.js
+          node --check game-engine/src/map/procedural/SeededRandom.js
+          node --check game-engine/src/map/procedural/ProceduralHydrology.js
+          node --check game-engine/src/map/procedural/ProceduralTerrain.js
+          node --check game-engine/src/map/procedural/ProceduralMapGenerator.js
 
       - name: World floor texture syntax
         run: node --check game-engine/src/world/WorldFloorTextures.js
@@ -83,6 +87,9 @@ jobs:
 
       - name: Map module authority runtime
         run: node game-engine/tests/map-runtime-authority-smoke.mjs
+
+      - name: Procedural map authority runtime
+        run: node game-engine/tests/procedural-map-runtime-smoke.mjs
 
       - name: Terrain height field smoke
         run: node game-engine/tests/terrain-height-field-smoke.mjs
