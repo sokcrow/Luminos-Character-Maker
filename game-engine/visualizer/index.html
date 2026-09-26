@@ -6,41 +6,53 @@
   <meta name="theme-color" content="#101418">
   <title>Luminous · Early Alpha Visualizer</title>
   <style>
-    :root { color-scheme: dark; font-family: Inter, system-ui, sans-serif; background: #101418; color: #eef2f5; }
+    :root { color-scheme: dark; font-family: Inter, system-ui, sans-serif; background: #0e1418; color: #eef2f5; }
     * { box-sizing: border-box; }
-    body { margin: 0; min-height: 100vh; }
-    .shell { min-height: 100vh; display: grid; grid-template-rows: auto 1fr; }
-    header { display: flex; gap: 16px; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid #2b343c; background: #151b20; }
-    header strong { font-size: 0.95rem; }
-    header span { color: #9aa9b5; font-size: 0.78rem; }
-    main { display: grid; grid-template-columns: minmax(0,1fr) minmax(300px,380px); min-height: 0; }
-    .viewport { position: relative; min-height: 65vh; display: grid; place-items: center; background: radial-gradient(circle at center,#1d272e,#0d1114 70%); overflow: hidden; }
-    .viewport::before { content: "VISUALIZER HOST"; letter-spacing: 0.2em; color: #52616c; font: 600 0.72rem ui-monospace,monospace; }
-    .hud { padding: 16px; border-left: 1px solid #2b343c; background: #12171b; overflow: auto; }
-    .hud h2 { margin: 0 0 12px; font-size: 0.9rem; }
-    .hud-line { margin: 8px 0; padding: 9px 10px; border: 1px solid #303a42; border-radius: 7px; background: #171e23; font: 0.78rem ui-monospace,monospace; }
-    pre { margin: 12px 0 0; padding: 12px; border: 1px solid #303a42; border-radius: 7px; background: #0d1114; overflow: auto; font: 0.72rem/1.45 ui-monospace,monospace; }
-    kbd { border: 1px solid #55636d; border-bottom-width: 2px; border-radius: 4px; padding: 1px 5px; font: 0.72rem ui-monospace,monospace; }
-    @media (max-width: 800px) { main { grid-template-columns: 1fr; } .hud { border-left: 0; border-top: 1px solid #2b343c; } }
+    html, body { margin: 0; min-height: 100%; background: #0e1418; }
+    body { min-height: 100vh; overflow: hidden; }
+    .shell { position: relative; min-height: 100vh; background: #0e1418; }
+    .viewport { position: absolute; inset: 0; min-height: 100vh; background: linear-gradient(#9db7c2,#60757e); overflow: hidden; }
+    .viewport canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+    .viewport[data-renderer-error="true"]::after { content: "No se pudo iniciar el renderer 3D"; position: absolute; inset: 0; display: grid; place-items: center; color: #f7d7d7; background: #171b1e; font-weight: 700; }
+    .topbar { position: absolute; z-index: 5; top: 14px; left: 14px; right: 14px; display: flex; gap: 12px; align-items: center; justify-content: space-between; pointer-events: none; }
+    .brand, .controls, .hud { border: 1px solid rgba(255,255,255,.16); background: rgba(12,18,22,.78); backdrop-filter: blur(10px); box-shadow: 0 8px 24px rgba(0,0,0,.18); }
+    .brand { padding: 10px 12px; border-radius: 10px; }
+    .brand strong { display: block; font-size: .92rem; }
+    .brand span { display: block; margin-top: 3px; color: #a8b8c2; font-size: .72rem; }
+    .controls { padding: 8px 10px; border-radius: 10px; color: #dfe8ed; font-size: .75rem; }
+    kbd { border: 1px solid #62727c; border-bottom-width: 2px; border-radius: 4px; padding: 1px 5px; background: rgba(255,255,255,.06); font: .72rem ui-monospace,monospace; }
+    .hud { position: absolute; z-index: 5; right: 14px; bottom: 14px; width: min(340px,calc(100vw - 28px)); max-height: 42vh; padding: 12px; border-radius: 10px; overflow: auto; pointer-events: none; }
+    .hud h2 { margin: 0 0 8px; font-size: .82rem; }
+    .hud-line { margin: 6px 0; padding: 7px 8px; border: 1px solid rgba(255,255,255,.1); border-radius: 6px; background: rgba(255,255,255,.035); font: .72rem ui-monospace,monospace; }
+    pre { margin: 8px 0 0; padding: 8px; border: 1px solid rgba(255,255,255,.1); border-radius: 6px; background: rgba(0,0,0,.18); overflow: auto; font: .66rem/1.4 ui-monospace,monospace; white-space: pre-wrap; }
+    .crosshair { position: absolute; z-index: 4; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px; border-radius: 999px; background: rgba(255,255,255,.46); box-shadow: 0 0 0 1px rgba(0,0,0,.25); pointer-events: none; }
+    @media (max-width: 720px) {
+      .topbar { align-items: flex-start; }
+      .controls { display: none; }
+      .brand { max-width: calc(100vw - 28px); }
+      .hud { max-height: 30vh; }
+    }
   </style>
 </head>
 <body>
-  <div class="shell">
-    <header>
-      <strong>Luminous · Early Alpha Visualizer</strong>
-      <span>Runtime modular · <kbd>WASD</kbd> / flechas</span>
-    </header>
-    <main>
-      <section class="viewport" id="visualizerViewport" aria-label="Viewport del visualizador"></section>
-      <aside class="hud" aria-label="HUD de diagnóstico">
-        <h2>HUD Runtime</h2>
-        <div class="hud-line" data-hud-status>Iniciando runtime…</div>
-        <div class="hud-line" data-hud-map>Sin mapa activo</div>
-        <div class="hud-line" data-hud-unit>Sin Unit objetivo</div>
-        <pre data-hud-json aria-live="polite">Cargando contratos…</pre>
-      </aside>
-    </main>
-  </div>
+  <main class="shell">
+    <section class="viewport" id="visualizerViewport" aria-label="Mundo 3D jugable"></section>
+    <div class="crosshair" aria-hidden="true"></div>
+    <div class="topbar">
+      <div class="brand">
+        <strong>Luminous · Early Alpha</strong>
+        <span data-renderer-status>Iniciando renderer 3D…</span>
+      </div>
+      <div class="controls"><kbd>WASD</kbd> / flechas · cámara 2.5D</div>
+    </div>
+    <aside class="hud" aria-label="HUD runtime">
+      <h2>Runtime modular</h2>
+      <div class="hud-line" data-hud-status>Iniciando runtime…</div>
+      <div class="hud-line" data-hud-map>Sin mapa activo</div>
+      <div class="hud-line" data-hud-unit>Sin Unit objetivo</div>
+      <pre data-hud-json aria-live="polite">Cargando contratos…</pre>
+    </aside>
+  </main>
   <script type="module" src="./main.js"></script>
 </body>
 </html>
