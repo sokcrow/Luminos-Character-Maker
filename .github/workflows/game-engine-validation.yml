@@ -55,6 +55,9 @@ jobs:
       - name: Universal Unit runtime smoke
         run: node game-engine/tests/universal-unit-runtime-smoke.mjs
 
+      - name: Terrain height field smoke
+        run: node game-engine/tests/terrain-height-field-smoke.mjs
+
       - name: Visual Lab smoke
         run: node game-engine/tests/visual-lab-smoke.mjs
 
@@ -69,9 +72,6 @@ jobs:
 
       - name: Terrain surface standard smoke
         run: node game-engine/tests/terrain-surface-standard-smoke.mjs
-
-      - name: Terrain height field smoke
-        run: node game-engine/tests/terrain-height-field-smoke.mjs
 
       - name: WaterBody smoke
         run: node game-engine/tests/water-body-system-smoke.mjs
