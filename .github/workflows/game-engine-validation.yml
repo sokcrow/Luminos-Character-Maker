@@ -26,6 +26,7 @@ jobs:
         run: |
           node --check game-engine/lab/runtime-lab.js
           node --check game-engine/visualizer/main.js
+          node --check game-engine/visualizer/ThreeVisualizer.js
 
       - name: GameRuntime syntax
         run: |
