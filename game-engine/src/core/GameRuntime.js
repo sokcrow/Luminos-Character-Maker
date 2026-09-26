@@ -30,6 +30,17 @@ export class GameRuntime {
     const movementBridge = this.viewWindow?.LuminousWorldMovementBridge || null;
     this.map.attachBridge(new MapBridgeAdapter(movementBridge));
     this.camera.attachBridge(new CameraBridgeAdapter(movementBridge));
+
+    if (!this.map.active && movementBridge) {
+      this.map.adoptViewMap({
+        id: this.map.bridge.activeMapId() || "legacy-forest-view",
+        metadata: {
+          contract: this.map.bridge.contractId(),
+          adoptedBy: "GameRuntime.connectView"
+        }
+      });
+    }
+
     this.engine.events.emit("runtime:view-connected", this.snapshot());
     return this.snapshot();
   }
@@ -39,6 +50,18 @@ export class GameRuntime {
     this.map.detachBridge();
     this.camera.attachBridge(new CameraBridgeAdapter());
     this.engine.events.emit("runtime:view-disconnected", this.snapshot());
+  }
+
+  registerMap(definition, options) {
+    return this.map.registerMap(definition, options);
+  }
+
+  activateMap(id, data, options) {
+    return this.map.activateMap(id, data, options);
+  }
+
+  loadMap(id, context) {
+    return this.map.loadMap(id, context);
   }
 
   registerUnit(spec, { cameraTarget = false } = {}) {
