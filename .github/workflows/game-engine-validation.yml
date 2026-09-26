@@ -49,6 +49,9 @@ jobs:
       - name: Visual Lab smoke
         run: node game-engine/tests/visual-lab-smoke.mjs
 
+      - name: Spawn loading smoke
+        run: node game-engine/tests/spawn-loading-smoke.mjs
+
       - name: World floor texture smoke
         run: node game-engine/tests/world-floor-textures-smoke.mjs
 
