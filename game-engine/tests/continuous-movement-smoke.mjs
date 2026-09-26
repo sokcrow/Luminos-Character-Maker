@@ -27,6 +27,7 @@ const downhillSlide = resolveTerrainSlopeSlide({ slopeDeg:55, hx:1, hz:0, locomo
 assert.equal(downhillSlide.active, true, "downhill slide must remain available on blocked natural slopes");
 assert.equal(Math.round(downhillSlide.downhillX * 100) / 100, -1);
 assert.equal(Math.round(downhillSlide.downhillZ * 100) / 100, 0);
+assert.equal(Object.is(downhillSlide.downhillZ, -0), false, "slide vectors must normalize signed zero for runtime/strict assertions");
 assert.equal(downhillSlide.speedMultiplier, TERRAIN_SLOPE_STANDARD.slideMultiplier);
 assert.equal(resolveTerrainSlopeSlide({ slopeDeg:38, hx:1, hz:0 }).active, false);
 assert.equal(resolveTerrainSlopeSlide({ slopeDeg:60, hx:1, hz:0, locomotion:"swim" }).active, false);
