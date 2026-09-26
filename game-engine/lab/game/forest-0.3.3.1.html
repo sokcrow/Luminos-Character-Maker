@@ -390,7 +390,7 @@ canvas{display:block}
 .paper-menu-hex:hover,.paper-menu-hex:focus-visible{color:#ffe17b;filter:drop-shadow(0 0 7px rgba(227,189,99,.7));transform:translateY(-2px);outline:none}
 .paper-menu-hex[disabled]{opacity:.36;cursor:default;filter:grayscale(.6) drop-shadow(0 4px 5px #0009);transform:none}
 .paper-menu-hex svg{position:relative;z-index:1;width:25px;height:25px;stroke:currentColor;fill:none;pointer-events:none}
-.paper-menu-hex img{width:28px;height:28px;display:block;object-fit:contain}
+.paper-menu-hex img{position:relative;z-index:1;width:28px;height:28px;display:block;object-fit:contain;pointer-events:none}
 .paper-menu-hex .paper-menu-label{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
 .paper-menu-hex[data-label]::after{
   content:attr(data-label);position:fixed;top:80px;right:18px;z-index:95;display:none;padding:5px 8px;
