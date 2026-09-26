@@ -10832,10 +10832,10 @@ let moveVelX=0,moveVelZ=0;
 let wasMoving=false;
 
 // ============================================================
-// 0.3.2-66 · UNIT RUNTIME v2 · UNIT = DATOS + ESTADO; SISTEMAS = COMPORTAMIENTO
-// Regla rectora: el mundo no conoce Player/Belle/NPC. Física, locomoción,
-// ambiente y animación base reciben únicamente una Unit y sus componentes.
-// Las identidades concretas sólo viven en controllers, contenido, misiones o UI.
+// 0.3.2-93 · UNIVERSAL UNIT RUNTIME v3 · TODO ACTOR ES UNIT
+// El protagonista es la referencia de CONTRATO, no un tipo especial. Player, Belle,
+// NPC, enemigo, summon o criatura comparten exactamente los mismos componentes y
+// sistemas; sólo cambian controller, relaciones, stats, capacidades, visual y contenido.
 // ============================================================
 const UNIT_REGISTRY=new Map();
 const UNIT_BY_GROUP=new WeakMap();
@@ -10894,6 +10894,77 @@ function normalizeControllerName(value){
   if(c==='combat-ai')return'ai:combat';
   return c;
 }
+const UNIVERSAL_UNIT_STANDARD=Object.freeze({
+  id:'luminous-universal-unit-v1',
+  referenceUnitId:'hero',
+  requiredComponents:Object.freeze([
+    'id','group','controller','tags','relationships','radius','stats','capabilities',
+    'physics','visual','animationProfile','controllerData','needs','state','intent'
+  ]),
+  relationships:Object.freeze({partyId:null,followTarget:null}),
+  stats:Object.freeze({
+    speed:PLAYER_MOVE_SPEED,swimSpeed:null,strength:10,currentResistance:1,mass:1,endurance:1
+  }),
+  capabilities:Object.freeze({
+    walk:true,run:true,swim:true,canSwim:true,fly:false,canFly:false,
+    interact:true,talk:true,affectedByCurrent:true,affectedByTemperature:true,
+    needsRest:true,solid:true,anchored:false,faceMovement:true
+  }),
+  physics:Object.freeze({
+    movement:Object.freeze({responseMove:11.5,responseStop:15.5}),
+    buoyancy:Object.freeze({
+      strength:1,bobScale:1,visibleTopFraction:SWIM_VISIBLE_TOP_FRACTION,
+      idleRipples:true,idleRippleStrength:.10,idleRippleInterval:.95
+    })
+  }),
+  visual:Object.freeze({sprite:null,billboard:null,shadow:null,getHeight:null,getCenterY:null}),
+  animationProfile:Object.freeze({
+    states:Object.freeze({idle:'idle',walk:'walk',swim:'swim',talk:'talk',fall:'fall'}),
+    shadowX:1,shadowY:.55,shadowOpacity:.18
+  }),
+  needs:Object.freeze({fatigue:0,hunger:0,thirst:0,sleepDebt:0,bodyTemperature:null})
+});
+
+function resolveUniversalUnitSpec(spec={}){
+  const physics=spec.physics||{},animationProfile=spec.animationProfile||{};
+  return {
+    ...spec,
+    controller:normalizeControllerName(spec.controller||'ai:ambient'),
+    relationships:{...UNIVERSAL_UNIT_STANDARD.relationships,...(spec.relationships||{})},
+    radius:Number(spec.radius??PLAYER_RADIUS)||PLAYER_RADIUS,
+    stats:{...UNIVERSAL_UNIT_STANDARD.stats,...(spec.stats||{})},
+    capabilities:{...UNIVERSAL_UNIT_STANDARD.capabilities,...(spec.capabilities||{})},
+    physics:{
+      ...physics,
+      movement:{...UNIVERSAL_UNIT_STANDARD.physics.movement,...(physics.movement||{})},
+      buoyancy:{...UNIVERSAL_UNIT_STANDARD.physics.buoyancy,...(physics.buoyancy||{})}
+    },
+    visual:{...UNIVERSAL_UNIT_STANDARD.visual,...(spec.visual||{})},
+    animationProfile:{
+      ...UNIVERSAL_UNIT_STANDARD.animationProfile,
+      ...animationProfile,
+      states:{...UNIVERSAL_UNIT_STANDARD.animationProfile.states,...(animationProfile.states||{})}
+    },
+    controllerData:{...(spec.controllerData||{})},
+    needs:{...UNIVERSAL_UNIT_STANDARD.needs,...(spec.needs||{})}
+  };
+}
+
+function unitContractViolations(unit){
+  if(!unit)return ['missing-unit'];
+  const violations=[];
+  if(unit.runtimeContract!==UNIVERSAL_UNIT_STANDARD.id)violations.push('runtimeContract');
+  for(const key of UNIVERSAL_UNIT_STANDARD.requiredComponents){
+    if(!(key in unit))violations.push(key);
+  }
+  if(!unit.state?.movement)violations.push('state.movement');
+  if(!unit.state?.environment)violations.push('state.environment');
+  if(!unit.state?.animation)violations.push('state.animation');
+  if(!unit.physics?.movement)violations.push('physics.movement');
+  if(!unit.physics?.buoyancy)violations.push('physics.buoyancy');
+  return violations;
+}
+
 function registerUnit(spec={}){
   const group=spec.group;
   if(!group)throw new Error('Unit requiere group');
@@ -10905,41 +10976,52 @@ function registerUnit(spec={}){
     if(spec.visual)Object.assign(previous.visual,spec.visual);
     if(spec.stats)Object.assign(previous.stats,spec.stats);
     if(spec.capabilities)Object.assign(previous.capabilities,spec.capabilities);
-    if(spec.physics)Object.assign(previous.physics,spec.physics);
+    if(spec.physics){
+      previous.physics=previous.physics||{};
+      if(spec.physics.movement)previous.physics.movement=Object.assign(previous.physics.movement||{},spec.physics.movement);
+      if(spec.physics.buoyancy)previous.physics.buoyancy=Object.assign(previous.physics.buoyancy||{},spec.physics.buoyancy);
+      for(const [key,value] of Object.entries(spec.physics))if(key!=='movement'&&key!=='buoyancy')previous.physics[key]=value;
+    }
     if(spec.relationships)Object.assign(previous.relationships,spec.relationships);
     if(spec.needs)Object.assign(previous.needs,spec.needs);
-    if(spec.animationProfile)previous.animationProfile=Object.assign(previous.animationProfile||{},spec.animationProfile);
+    if(spec.animationProfile){
+      const states=spec.animationProfile.states;
+      previous.animationProfile=Object.assign(previous.animationProfile||{},spec.animationProfile);
+      if(states)previous.animationProfile.states=Object.assign(previous.animationProfile.states||{},states);
+    }
     if(spec.controllerData)previous.controllerData=Object.assign(previous.controllerData||{},spec.controllerData);
+    previous.runtimeContract=UNIVERSAL_UNIT_STANDARD.id;
     ensureUnitRuntimeState(previous);
     return previous;
   }
-  const id=String(spec.id||group.userData?.unitId||`unit-${++unitSerial}`);
+
+  const resolved=resolveUniversalUnitSpec(spec);
+  const id=String(resolved.id||group.userData?.unitId||`unit-${++unitSerial}`);
   const replaced=UNIT_REGISTRY.get(id);
   if(replaced&&replaced.group!==group)unregisterUnit(replaced);
   const unit={
-    id,group,controller:normalizeControllerName(spec.controller||'ai:ambient'),persistent:!!spec.persistent,
-    tags:Array.isArray(spec.tags)?[...spec.tags]:[],faction:spec.faction||null,
-    relationships:Object.assign({partyId:null,followTarget:null},spec.relationships||{}),
-    radius:Number(spec.radius??PLAYER_RADIUS)||PLAYER_RADIUS,
-    collider:spec.collider||null,interaction:spec.interaction||null,
-    stats:Object.assign({speed:PLAYER_MOVE_SPEED,swimSpeed:null,strength:10,currentResistance:1,mass:1,endurance:1},spec.stats||{}),
-    capabilities:Object.assign({
-      walk:true,run:true,swim:true,canSwim:true,fly:false,canFly:false,interact:true,talk:true,
-      affectedByCurrent:true,affectedByTemperature:true,needsRest:true,solid:true,anchored:false,faceMovement:true
-    },spec.capabilities||{}),
-    physics:Object.assign({
-      movement:{responseMove:11.5,responseStop:15.5},
-      buoyancy:{strength:1,bobScale:1,visibleTopFraction:SWIM_VISIBLE_TOP_FRACTION,idleRipples:true,idleRippleStrength:.10,idleRippleInterval:.95}
-    },spec.physics||{}),
-    visual:Object.assign({sprite:null,billboard:null,shadow:null,getHeight:null,getCenterY:null},spec.visual||{}),
-    animationProfile:Object.assign({states:{idle:'idle',walk:'walk',swim:'swim',talk:'talk',fall:'fall'},shadowX:1,shadowY:.55,shadowOpacity:.18},spec.animationProfile||{}),
-    controllerData:Object.assign({},spec.controllerData||{}),
-    needs:Object.assign({fatigue:0,hunger:0,thirst:0,sleepDebt:0,bodyTemperature:null},spec.needs||{}),
-    state:createUnitRuntimeState(spec.state||{}),
+    id,group,
+    runtimeContract:UNIVERSAL_UNIT_STANDARD.id,
+    controller:resolved.controller,
+    persistent:!!resolved.persistent,
+    tags:Array.isArray(resolved.tags)?[...resolved.tags]:[],
+    faction:resolved.faction||null,
+    relationships:resolved.relationships,
+    radius:resolved.radius,
+    collider:resolved.collider||null,
+    interaction:resolved.interaction||null,
+    stats:resolved.stats,
+    capabilities:resolved.capabilities,
+    physics:resolved.physics,
+    visual:resolved.visual,
+    animationProfile:resolved.animationProfile,
+    controllerData:resolved.controllerData,
+    needs:resolved.needs,
+    state:createUnitRuntimeState(resolved.state||{}),
     intent:{moveX:0,moveZ:0,speedScale:1,wantsRun:false,wantsInteract:false,wantsTalk:false,wantsUse:false}
   };
   unit.state.controllerState.intent=unit.intent;
-  group.userData.unitId=id;group.userData.isUnit=true;
+  group.userData.unitId=id;group.userData.isUnit=true;group.userData.unitContract=UNIVERSAL_UNIT_STANDARD.id;
   UNIT_REGISTRY.set(id,unit);UNIT_BY_GROUP.set(group,unit);
   {
     const wakePos=new THREE.Vector3();
@@ -19407,14 +19489,27 @@ function runUnitArchitectureAudit(){
   const forbidden=/\b(?:playerUnit|belleState|npcs|playerFalling|playerBuoyancyVelocity|playerBuoyancyPhase|isPlayer|isBelle)\b/;
   const violations=[];
   for(const [name,fn] of Object.entries(core)){const source=String(fn);if(forbidden.test(source))violations.push(name);}
+  const contractViolations=[];
+  for(const unit of listUnits()){
+    const problems=unitContractViolations(unit);
+    if(problems.length)contractViolations.push({id:unit.id,problems});
+  }
+  const reference=UNIT_REGISTRY.get(UNIVERSAL_UNIT_STANDARD.referenceUnitId)||null;
+  const referenceViolations=reference?unitContractViolations(reference):['missing-reference-unit'];
   const authority={
     movement:UnitPhysicsSystem.move===moveUnitBy,
     falling:UnitPhysicsSystem.fall===updateUnitFalling,
     buoyancy:UnitPhysicsSystem.buoyancy===updateUnitBuoyancy,
     facing:UnitAnimationSystem.requestFacing===requestUnitFacing,
-    localControl:getLocalControlledUnit()?.id||null
+    localControl:getLocalControlledUnit()?.id||null,
+    universalContract:UNIVERSAL_UNIT_STANDARD.id,
+    referenceUnit:reference?.id||null
   };
-  return {ok:violations.length===0&&authority.movement&&authority.falling&&authority.buoyancy&&authority.facing,violations,authority,unitCount:listUnits().length};
+  return {
+    ok:violations.length===0&&contractViolations.length===0&&referenceViolations.length===0&&
+      authority.movement&&authority.falling&&authority.buoyancy&&authority.facing,
+    violations,contractViolations,referenceViolations,authority,unitCount:listUnits().length
+  };
 }
 
 // Fachadas: nombres estables para que futuras migraciones puedan cambiar la
@@ -19496,6 +19591,8 @@ window.DM_SYSTEMS=Object.freeze({
     })
   }),
   units:Object.freeze({
+    standard:UNIVERSAL_UNIT_STANDARD,
+    validate:unitContractViolations,
     list:()=>listUnits().map(u=>({id:u.id,controller:u.controller,tags:[...u.tags],faction:u.faction,relationships:{...u.relationships},stats:{...u.stats},capabilities:{...u.capabilities},locomotion:u.state.locomotion,overpassId:u.state.overpassId,position:{x:u.group.position.x,y:u.group.position.y,z:u.group.position.z}})),
     active:activeUnits,
     localControlled:getLocalControlledUnit,
@@ -19536,6 +19633,7 @@ window.DM_SYSTEMS=Object.freeze({
 });
 
 window.PaperUnits=Object.freeze({
+  standard:UNIVERSAL_UNIT_STANDARD,validate:unitContractViolations,
   register:registerUnit,unregister:unregisterUnit,get:(id)=>UNIT_REGISTRY.get(String(id))||null,list:listUnits,active:activeUnits,
   localControlled:getLocalControlledUnit,setController:setUnitController,state:(id)=>UNIT_REGISTRY.get(String(id))?.state||null,
   move:moveUnitBy,requestFacing:requestUnitFacing,terrainSpeed:unitTerrainSpeedMultiplier,

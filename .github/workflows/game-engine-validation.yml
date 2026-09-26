@@ -49,6 +49,9 @@ jobs:
       - name: Continuous movement smoke
         run: node game-engine/tests/continuous-movement-smoke.mjs
 
+      - name: Universal Unit runtime smoke
+        run: node game-engine/tests/universal-unit-runtime-smoke.mjs
+
       - name: Visual Lab smoke
         run: node game-engine/tests/visual-lab-smoke.mjs
 
