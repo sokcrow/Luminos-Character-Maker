@@ -57,9 +57,11 @@ assert.equal(engine.metrics().systems, 3, "Map, Units and Camera must mount as i
 
 const connected = runtime.connectView({ LuminousWorldMovementBridge: worldBridge });
 assert.equal(connected.connected, true);
-assert.equal(connected.map.available, true);
-assert.equal(connected.map.contract, worldBridge.contract);
+assert.equal(connected.map.bridge.available, true);
+assert.equal(connected.map.bridge.contract, worldBridge.contract);
 assert.equal(connected.map.mapId, "forest-runtime-test");
+assert.equal(connected.map.authority, "view-bridge");
+assert.deepEqual(connected.map.registeredMaps, ["forest-runtime-test"]);
 
 const sharedController = {
   resolveIntent() {
@@ -91,7 +93,7 @@ engine.update(1);
 assert.equal(player.transform.x, 5, "Player movement must resolve through MapSystem");
 assert.equal(npc.transform.x, 5, "NPC movement must resolve through the same MapSystem");
 assert.equal(player.movement.velocityX, npc.movement.velocityX);
-assert.equal(calls.movement.length, 2, "Both Units must use the shared movement bridge");
+assert.equal(calls.movement.length, 2, "Both Units must use the shared movement bridge while legacy view authority is active");
 
 assert.equal(player.metadata.environment.mapId, "forest-runtime-test");
 assert.equal(player.metadata.environment.water.bodyId, "river-test");
@@ -109,7 +111,8 @@ assert.equal(liveSnapshot.camera.targetUnitId, "hero");
 runtime.disconnectView();
 const disconnected = runtime.snapshot();
 assert.equal(disconnected.connected, false);
-assert.equal(disconnected.map.available, false, "Map bridge must detach cleanly");
+assert.equal(disconnected.map.bridge.available, false, "Map bridge must detach cleanly");
+assert.equal(disconnected.map.active, null, "Legacy view-owned map must unload when the view disconnects");
 assert.equal(disconnected.camera.bridge.available, false, "Camera bridge must detach cleanly");
 
 engine.dispose();
