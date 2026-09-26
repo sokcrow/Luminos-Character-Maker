@@ -780,9 +780,11 @@ body.global-map-mode #globalMapActions{display:block}
 window.__paperLoaded=false;
 window.__paperLoaderActive=true;
 window.__paperLoadPct=0;
+window.__paperLoadLastProgressAt=performance.now();
 window.setLoadProgress=(pct,stage,hint)=>{
   const requested=Math.max(0,Math.min(100,Math.round(pct)));
   const p=window.__paperLoaderActive?Math.max(Number(window.__paperLoadPct)||0,requested):requested;
+  if(p>Number(window.__paperLoadPct||0))window.__paperLoadLastProgressAt=performance.now();
   window.__paperLoadPct=p;
   const fill=document.getElementById('loaderFill');
   const pctEl=document.getElementById('loaderPct');
@@ -819,9 +821,16 @@ window.paperLoadFailed=(msg)=>{
 addEventListener('DOMContentLoaded',()=>{
   document.getElementById('loaderRetry')?.addEventListener('click',()=>location.reload());
   window.setLoadProgress(6,'Preparando motor','Un momento…');
-  setTimeout(()=>{
-    if(!window.__paperLoaded)window.paperLoadFailed('Si tu red está lenta, reintenta la carga.');
-  },14000);
+  const watchdog=setInterval(()=>{
+    if(window.__paperLoaded){clearInterval(watchdog);return;}
+    const idleMs=performance.now()-Number(window.__paperLoadLastProgressAt||0);
+    // Terrain generation and spawn safety can legitimately take longer on mobile.
+    // Fail only when the loader has made NO progress for a sustained period.
+    if(idleMs>30000){
+      clearInterval(watchdog);
+      window.paperLoadFailed('La carga dejó de avanzar. Toca Reintentar.');
+    }
+  },2000);
 });
 </script>
 
@@ -6269,16 +6278,27 @@ function proceduralTravelPathRoutes(id=mapId){
   const baseHeight=biomeSectorBaseHeightTiles(id);
   const hubHeight=baseHeight+proceduralMacroReliefHeightTilesAtLocal(id,hub.x,hub.z)*.28;
   const routes=[];
-  const entries=[...Object.entries(cfg.neighbors||{})];
-  if(cfg.templeGate&&!cfg.neighbors?.north)entries.push(['north',null]);
+  const entries=[...Object.entries(cfg.neighbors||{})].map(([dir,target])=>({dir,target,kind:'edge'}));
+  if(cfg.templeGate&&!cfg.neighbors?.north)entries.push({dir:'north',target:null,kind:'edge'});
+  if(cfg.start){
+    entries.push({
+      dir:'start',
+      target:null,
+      kind:'spawn',
+      point:{x:0,z:-(OVERWORLD_HALF-6)}
+    });
+  }
 
-  for(const [dir,target] of entries){
-    const layout=target
-      ?proceduralNeighborTransitionLayout(id,dir,target)
-      :{mode:'land',lateral:0};
+  for(const entry of entries){
+    const {dir,target,kind}=entry;
+    const layout=kind==='spawn'
+      ?{mode:'land',lateral:0}
+      :(target?proceduralNeighborTransitionLayout(id,dir,target):{mode:'land',lateral:0});
     if(layout?.mode!=='land')continue;
 
-    const end=transitionEdgeLocalPoint(dir,Number(layout.lateral)||0,.35);
+    const end=kind==='spawn'
+      ?entry.point
+      :transitionEdgeLocalPoint(dir,Number(layout.lateral)||0,.35);
     const vx=end.x-hub.x,vz=end.z-hub.z,len=Math.hypot(vx,vz)||1,nx=-vz/len,nz=vx/len;
     let bestPoints=[hub,{x:hub.x+vx*.52,z:hub.z+vz*.52},end],bestScore=Infinity;
     for(const offset of [0,4,-4,8,-8,12,-12]){
@@ -6287,7 +6307,9 @@ function proceduralTravelPathRoutes(id=mapId){
       if(score<bestScore){bestScore=score;bestPoints=points;}
     }
 
-    const edgeHeight=baseHeight+proceduralTransitionMacroReliefTiles(id,dir);
+    const edgeHeight=kind==='spawn'
+      ?baseHeight+proceduralMacroReliefHeightTilesAtLocal(id,end.x,end.z)*.20
+      :baseHeight+proceduralTransitionMacroReliefTiles(id,dir);
     const points=bestPoints.map((p,i)=>({
       x:p.x,z:p.z,
       heightTiles:i===0?hubHeight:(i===2?edgeHeight:THREE.MathUtils.lerp(hubHeight,edgeHeight,.52))
@@ -17677,6 +17699,26 @@ function spawnCandidateAllowed(x,z,mapDef=currentMapDef(),{requireDry=true}={}){
 function resolveSafeSpawn(mapDef,desired,{requireDry=true}={}){
   const source=desired?.clone?.()||new THREE.Vector3(Number(desired?.x)||0,Number(desired?.y)||0,Number(desired?.z)||0);
   if(spawnCandidateAllowed(source.x,source.z,mapDef,{requireDry}))return source;
+
+  // Procedural maps guarantee travel paths. Before doing an expensive radial search,
+  // try the nearest route anchors so boot cannot stall at the collision-check stage.
+  if(isOverworldSector(mapId)&&proceduralSectorRecipe(mapId)){
+    const routeCandidates=[];
+    for(const route of proceduralTravelPathRoutes(mapId)){
+      for(const point of route.points||[]){
+        const p=new THREE.Vector3(wt(point.x),source.y,wt(point.z));
+        routeCandidates.push({p,d:Math.hypot(p.x-source.x,p.z-source.z)});
+      }
+    }
+    routeCandidates.sort((a,b)=>a.d-b.d);
+    for(const candidate of routeCandidates){
+      if(spawnCandidateAllowed(candidate.p.x,candidate.p.z,mapDef,{requireDry})){
+        console.info('Spawn safety moved spawn to procedural travel path',mapId,{from:{x:source.x,z:source.z},to:{x:candidate.p.x,z:candidate.p.z}});
+        return candidate.p;
+      }
+    }
+  }
+
   const step=.55,maxR=Math.max(12,WATER_GAMEPLAY_RULES.spawnSearchRadiusTiles);
   let best=null,bestScore=Infinity;
   for(let r=step;r<=maxR;r+=step){
@@ -17776,12 +17818,14 @@ function loadMap(id,spawn=null,layer=null){
     ? `1 tile = ${MAP_DATA.tile.feet} ft · ${mapDef.bounds.x1-mapDef.bounds.x0}×${mapDef.bounds.z1-mapDef.bounds.z0} · bosque ${Math.round(procSector.canopy*100)}% · roca ${Math.round(procSector.rockiness*100)}% · seed ${procSector.seed}`
     : `1 tile = ${MAP_DATA.tile.feet} ft ≈ ${MAP_DATA.tile.worldUnits} unidades · ${mapDef.bounds.x1-mapDef.bounds.x0}×${mapDef.bounds.z1-mapDef.bounds.z0} tiles · ${currentWorldLayer}`;
 
+  window.setLoadProgress?.(82,'Verificando entrada','Buscando ruta segura…');
   const authoredSpawn=spawn?.clone?.()||new THREE.Vector3(wt(mapDef.spawn.x),wt(mapDef.spawn.y||0),wt(mapDef.spawn.z));
   // SPAWN SAFETY CONTRACT: every map entry is checked after the renderer has built
   // its actual colliders. Default spawns prefer dry land; authored transition spawns
   // may remain in swimmable water, but never inside a collider/non-walkable cell.
   const s=resolveSafeSpawn(mapDef,authoredSpawn,{requireDry:!spawn});
   markPerf('safeSpawn');
+  window.setLoadProgress?.(86,'Entrada confirmada','Acomodando jugador y compañero…');
 
   player.position.set(s.x,worldLayerBaseY+(s.y||0),s.z);
   if(isOverworldSector(mapId))player.position.y=formalGroundYAtWorld(player.position.x,player.position.z,currentWorldLayer);
