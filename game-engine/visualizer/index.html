@@ -8,18 +8,18 @@
   <style>
     :root { color-scheme: dark; font-family: Inter, system-ui, sans-serif; background: #0e1418; color: #eef2f5; }
     * { box-sizing: border-box; }
-    html, body { margin: 0; min-height: 100%; background: #0e1418; }
-    body { min-height: 100vh; overflow: hidden; }
-    button { font: inherit; }
-    .shell { position: relative; min-height: 100vh; background: #0e1418; }
-    .viewport { position: absolute; inset: 0; min-height: 100vh; background: linear-gradient(#9db7c2,#60757e); overflow: hidden; }
+    html, body { margin: 0; min-height: 100%; background: #0e1418; overscroll-behavior: none; }
+    body { min-height: 100vh; min-height: 100dvh; overflow: hidden; touch-action: none; }
+    button { font: inherit; -webkit-tap-highlight-color: transparent; }
+    .shell { position: relative; min-height: 100vh; min-height: 100dvh; background: #0e1418; }
+    .viewport { position: absolute; inset: 0; min-height: 100vh; min-height: 100dvh; background: linear-gradient(#9db7c2,#60757e); overflow: hidden; }
     .viewport canvas { display: block; width: 100%; height: 100%; touch-action: none; }
     .viewport[data-renderer-error="true"]::after { content: "No se pudo iniciar el renderer 3D"; position: absolute; inset: 0; display: grid; place-items: center; color: #f7d7d7; background: #171b1e; font-weight: 700; }
-    .topbar { position: absolute; z-index: 5; top: 14px; left: 14px; right: 14px; display: flex; gap: 12px; align-items: center; justify-content: space-between; pointer-events: none; }
+    .topbar { position: absolute; z-index: 5; top: max(10px,env(safe-area-inset-top)); left: max(10px,env(safe-area-inset-left)); right: max(10px,env(safe-area-inset-right)); display: flex; gap: 12px; align-items: center; justify-content: space-between; pointer-events: none; }
     .brand, .controls, .hud, .inventory-panel, .inventory-toggle { border: 1px solid rgba(255,255,255,.16); background: rgba(12,18,22,.86); backdrop-filter: blur(10px); box-shadow: 0 8px 24px rgba(0,0,0,.22); }
-    .brand { padding: 10px 12px; border-radius: 10px; }
-    .brand strong { display: block; font-size: .92rem; }
-    .brand span { display: block; margin-top: 3px; color: #a8b8c2; font-size: .72rem; }
+    .brand { padding: 9px 11px; border-radius: 10px; }
+    .brand strong { display: block; font-size: .9rem; }
+    .brand span { display: block; margin-top: 3px; color: #a8b8c2; font-size: .69rem; }
     .controls { padding: 8px 10px; border-radius: 10px; color: #dfe8ed; font-size: .75rem; }
     kbd { border: 1px solid #62727c; border-bottom-width: 2px; border-radius: 4px; padding: 1px 5px; background: rgba(255,255,255,.06); font: .72rem ui-monospace,monospace; }
     .hud { position: absolute; z-index: 5; right: 14px; bottom: 14px; width: min(330px,calc(100vw - 28px)); max-height: 31vh; padding: 12px; border-radius: 10px; overflow: auto; pointer-events: none; }
@@ -27,9 +27,10 @@
     .hud-line { margin: 6px 0; padding: 7px 8px; border: 1px solid rgba(255,255,255,.1); border-radius: 6px; background: rgba(255,255,255,.035); font: .72rem ui-monospace,monospace; }
     pre { margin: 8px 0 0; padding: 8px; border: 1px solid rgba(255,255,255,.1); border-radius: 6px; background: rgba(0,0,0,.18); overflow: auto; font: .66rem/1.4 ui-monospace,monospace; white-space: pre-wrap; }
     .crosshair { position: absolute; z-index: 4; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px; border-radius: 999px; background: rgba(255,255,255,.46); box-shadow: 0 0 0 1px rgba(0,0,0,.25); pointer-events: none; }
-    .inventory-toggle { position: absolute; z-index: 8; left: 14px; bottom: 14px; border-radius: 10px; padding: 10px 13px; color: #eef2f5; cursor: pointer; }
+
+    .inventory-toggle { position: absolute; z-index: 9; left: max(14px,env(safe-area-inset-left)); bottom: max(14px,env(safe-area-inset-bottom)); border-radius: 10px; padding: 10px 13px; color: #eef2f5; cursor: pointer; }
     .inventory-toggle:hover { background: rgba(26,38,46,.94); }
-    .inventory-panel { position: absolute; z-index: 7; left: 14px; top: 78px; bottom: 64px; width: min(430px,calc(100vw - 28px)); padding: 12px; border-radius: 12px; overflow: auto; }
+    .inventory-panel { position: absolute; z-index: 12; left: max(14px,env(safe-area-inset-left)); top: max(70px,calc(env(safe-area-inset-top) + 62px)); bottom: max(14px,env(safe-area-inset-bottom)); width: min(430px,calc(100vw - 28px)); padding: 12px; border-radius: 12px; overflow: auto; touch-action: pan-y; }
     .inventory-panel[hidden] { display: none; }
     .inventory-panel-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
     .inventory-panel-header h2 { margin: 0; font-size: .95rem; }
@@ -55,13 +56,44 @@
     .equipment-slot .inventory-action { grid-column: 1 / -1; }
     .equipment-slot-empty { grid-column: 1 / -1; color: #687982; font-size: .68rem; }
     .inventory-event { min-height: 18px; margin-top: 10px; color: #b7c8d1; font: .66rem ui-monospace,monospace; }
+
+    .touch-controls { position: absolute; z-index: 8; right: max(12px,env(safe-area-inset-right)); bottom: max(12px,env(safe-area-inset-bottom)); display: none; grid-template-columns: repeat(3,58px); grid-template-rows: repeat(3,58px); gap: 5px; touch-action: none; user-select: none; -webkit-user-select: none; }
+    .touch-move { border: 1px solid rgba(255,255,255,.24); background: rgba(12,18,22,.62); color: white; border-radius: 16px; font-size: 1.3rem; font-weight: 800; backdrop-filter: blur(8px); box-shadow: 0 6px 18px rgba(0,0,0,.2); touch-action: none; }
+    .touch-move[data-active="true"] { background: rgba(105,166,201,.72); transform: scale(.95); }
+    .touch-up { grid-column: 2; grid-row: 1; }
+    .touch-left { grid-column: 1; grid-row: 2; }
+    .touch-right { grid-column: 3; grid-row: 2; }
+    .touch-down { grid-column: 2; grid-row: 3; }
+    .mobile-landscape-note { position: absolute; z-index: 15; inset: 0; display: none; place-items: center; padding: 24px; text-align: center; background: rgba(8,12,15,.94); color: #dce7ec; }
+    .mobile-landscape-note strong { display: block; margin-bottom: 8px; font-size: 1.05rem; }
+    .mobile-landscape-note span { color: #9eb0ba; font-size: .83rem; line-height: 1.45; }
+
+    @media (hover: none) and (pointer: coarse) {
+      .touch-controls { display: grid; }
+      .inventory-toggle { bottom: max(18px,env(safe-area-inset-bottom)); }
+      .controls { display: none; }
+      .hud { display: none; }
+    }
+
     @media (max-width: 720px) {
       .topbar { align-items: flex-start; }
       .controls { display: none; }
       .brand { max-width: calc(100vw - 28px); }
       .hud { display: none; }
-      .inventory-panel { top: 70px; right: 10px; left: 10px; bottom: 62px; width: auto; }
-      .inventory-toggle { left: 10px; bottom: 10px; }
+      .inventory-panel { top: max(64px,calc(env(safe-area-inset-top) + 54px)); right: max(8px,env(safe-area-inset-right)); left: max(8px,env(safe-area-inset-left)); bottom: max(8px,env(safe-area-inset-bottom)); width: auto; }
+      .inventory-toggle { left: max(10px,env(safe-area-inset-left)); }
+    }
+
+    @media (hover: none) and (pointer: coarse) and (orientation: landscape) {
+      .touch-controls { grid-template-columns: repeat(3,54px); grid-template-rows: repeat(3,54px); gap: 4px; }
+      .brand { padding: 7px 9px; }
+      .brand strong { font-size: .78rem; }
+      .brand span { font-size: .6rem; }
+      .inventory-toggle { padding: 9px 11px; font-size: .76rem; }
+    }
+
+    @media (hover: none) and (pointer: coarse) and (orientation: portrait) and (max-width: 720px) {
+      .mobile-landscape-note { display: grid; }
     }
   </style>
 </head>
@@ -69,6 +101,14 @@
   <main class="shell">
     <section class="viewport" id="visualizerViewport" aria-label="Mundo 3D jugable"></section>
     <div class="crosshair" aria-hidden="true"></div>
+
+    <div class="mobile-landscape-note" aria-hidden="true">
+      <div>
+        <strong>Gira el teléfono a horizontal</strong>
+        <span>El Early Alpha 2.5D está pensado para jugarse en landscape, igual que el laboratorio anterior.</span>
+      </div>
+    </div>
+
     <div class="topbar">
       <div class="brand">
         <strong>Luminous · Early Alpha</strong>
@@ -77,8 +117,16 @@
       <div class="controls"><kbd>WASD</kbd> / flechas · <kbd>I</kbd> inventario · cámara 2.5D</div>
     </div>
 
-    <button class="inventory-toggle" type="button" data-inventory-toggle>Inventario <kbd>I</kbd></button>
-    <aside class="inventory-panel" data-inventory-panel aria-label="Inventario y equipamiento del jugador">
+    <button class="inventory-toggle" type="button" data-inventory-toggle aria-expanded="false">Inventario <kbd>I</kbd></button>
+
+    <nav class="touch-controls" aria-label="Controles táctiles de movimiento">
+      <button class="touch-move touch-up" type="button" data-touch-move="up" aria-label="Mover arriba">▲</button>
+      <button class="touch-move touch-left" type="button" data-touch-move="left" aria-label="Mover izquierda">◀</button>
+      <button class="touch-move touch-right" type="button" data-touch-move="right" aria-label="Mover derecha">▶</button>
+      <button class="touch-move touch-down" type="button" data-touch-move="down" aria-label="Mover abajo">▼</button>
+    </nav>
+
+    <aside class="inventory-panel" data-inventory-panel aria-label="Inventario y equipamiento del jugador" hidden>
       <div class="inventory-panel-header">
         <h2>Inventario / Equipamiento</h2>
         <button class="inventory-close" type="button" data-inventory-close aria-label="Cerrar inventario">×</button>
