@@ -8,8 +8,8 @@ const even=createTriangulatedHeightField({
   x0:0,x1:10,z0:0,z1:10,segmentsX:1,segmentsZ:1,
   heights:[0,10,20,40]
 });
-near(even.heightAt(2,8),18,"even ACD triangle interpolation");
-near(even.heightAt(8,2),12,"even ADB triangle interpolation");
+near(even.heightAt(2,8),20,"even ACD triangle interpolation");
+near(even.heightAt(8,2),14,"even ADB triangle interpolation");
 near(even.heightAt(0,0),0,"vertex a");
 near(even.heightAt(10,10),40,"vertex d");
 assert.equal(even.sampleAt(2,8).triangle,"acd");

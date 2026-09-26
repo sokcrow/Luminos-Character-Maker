@@ -7275,7 +7275,7 @@ function formalGroundYAtWorld(x,z,layer=currentWorldLayer,r=0){
   // the mesh exists physics must interpolate the same triangle, not resample the
   // continuous function independently (which caused feet to sink/float on rough land).
   const visibleGroundY=terrainSurfaceGroundYAtWorld(x,z,mapId);
-  if(Number.isFinite(visibleGroundY))return worldLayerBaseY+visibleGroundY;
+  if(Number.isFinite(visibleGroundY))return visibleGroundY;
   // Fallback for authored/legacy maps or pre-render setup.
   const naturalH=elevationHeightTilesAtWorld(x,z,mapId);
   if(Math.abs(naturalH)>.002)return worldLayerBaseY+tileY(naturalH);
