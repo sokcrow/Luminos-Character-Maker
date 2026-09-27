@@ -38,7 +38,7 @@ jobs:
           cat /tmp/luminous-dm-visual-http.log
           exit 1
       - name: Capture real DM Combat visual proof
-        run: npx playwright test tests/dm-combat-visual.spec.mjs --project=chromium --reporter=line
+        run: npx playwright test tests/dm-combat-visual.spec.mjs --reporter=line
       - name: Upload DM Combat screenshots
         if: always()
         uses: actions/upload-artifact@v4
