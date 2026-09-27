@@ -104,7 +104,7 @@ async function bootDmHarness(page) {
         const rows = {
           healing_hp: { id: "healing_hp", icon: "Assets/Icons/items/consumable/healing_hp.png" },
           weapon_dagger: { id: "weapon_dagger", icon: "Assets/Icons/items/equipment/weapon_dagger.png" },
-          generic_item: { id: "generic_item", icon: "Assets/Icons/items/utility/generic_item.png" },
+          generic_item: { id: "generic_item", icon: "Assets/Icons/items/fallback/generic_item.png" },
         };
         return rows[id] || (options.fallback === false ? null : rows.generic_item);
       },
@@ -348,7 +348,7 @@ test("DM inventory GUI replaces legacy grant controls and uses repository-local 
   expect(await page.locator("#dm-item-grant-icon").getAttribute("src")).not.toMatch(/^https?:/);
 
   const rowIcon = await page.locator('#modal-inv-lista-activos [data-runtime-item-row="true"] img').getAttribute("src");
-  expect(rowIcon).toBe("Assets/Icons/items/utility/generic_item.png");
+  expect(rowIcon).toBe("Assets/Icons/items/fallback/generic_item.png");
   expect(rowIcon).not.toMatch(/^https?:/);
 });
 
