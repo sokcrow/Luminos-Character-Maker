@@ -7,6 +7,7 @@ on:
       - 'hoja_personaje.html'
       - 'pantalla_dm.html'
       - 'js/dm-item-instance-editor.js'
+      - 'js/inventory-hud-v2.js'
       - 'js/item-icon-registry.js'
       - 'js/item-inventory-runtime.js'
       - 'js/item-persistence-runtime.js'
@@ -27,6 +28,7 @@ jobs:
       - name: Syntax checks
         run: |
           node --check js/dm-item-instance-editor.js
+          node --check js/inventory-hud-v2.js
           node --check js/item-inventory-runtime.js
           node --check js/item-persistence-runtime.js
       - name: Local item icon registry
