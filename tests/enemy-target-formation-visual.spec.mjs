@@ -120,8 +120,8 @@ test('7 Players + 3 normal Wolves keep independent targets and zigzag spawn',asy
 
   await frame.waitForFunction(()=>Boolean(
     window.LuminousUnitRankRuntime &&
-    typeof window.rollEnemyTargets==='function' &&
-    window.rollEnemyTargets.__luminousUnitRankCommandWrapped
+    (0,eval)("typeof rollEnemyTargets === 'function'") &&
+    (0,eval)("typeof slotTargets !== 'undefined'")
   ),null,{timeout:10000});
 
   const formation=await frame.evaluate(()=>{
@@ -141,6 +141,14 @@ test('7 Players + 3 normal Wolves keep independent targets and zigzag spawn',asy
   expect(formation.rows.map(row=>row.source)).toEqual(['pre_combat_zigzag','pre_combat_zigzag','pre_combat_zigzag']);
   expect(new Set(formation.rows.map(row=>row.y)).size).toBe(2);
 
+  const lexicalTargetRuntime=await frame.evaluate(()=>({
+    source:(0,eval)("String(rollEnemyTargets)"),
+    globalWrapped:Boolean(window.rollEnemyTargets?.__luminousUnitRankCommandWrapped),
+    globalType:typeof window.rollEnemyTargets,
+    lexicalType:(0,eval)("typeof rollEnemyTargets")
+  }));
+  console.log('LIVE_ROLL_ENEMY_TARGETS_SOURCE',JSON.stringify(lexicalTargetRuntime));
+
   const targetProof=await frame.evaluate(()=>{
     const allySlots=Array.from(document.querySelectorAll('.action-slot-wrapper[data-faction="ally"]'));
     const enemySlots=Array.from(document.querySelectorAll('.action-slot-wrapper[data-faction="enemy"]'));
@@ -151,7 +159,7 @@ test('7 Players + 3 normal Wolves keep independent targets and zigzag spawn',asy
     let cursor=0;
     const originalRandom=Math.random;
     Math.random=()=>rolls[cursor++]??0.5;
-    try{ window.rollEnemyTargets(); }finally{ Math.random=originalRandom; }
+    try{ (0,eval)("rollEnemyTargets()"); }finally{ Math.random=originalRandom; }
 
     const targets=(0,eval)("typeof slotTargets !== 'undefined' ? ({...slotTargets}) : ({})");
     const assignments=enemySlots.map(slot=>({
