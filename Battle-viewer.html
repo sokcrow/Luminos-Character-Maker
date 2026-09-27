@@ -9,8 +9,29 @@
 <body>
 <div id="boot">Loading Luminous Combat v0.7.3…</div>
 <script>
+(()=>{
+  const state={stage:'boot',detail:'Loading Luminous Combat v0.7.3',error:null,updatedAt:Date.now()};
+  const publish=(stage,detail='',error=null)=>{
+    state.stage=String(stage||'unknown');
+    state.detail=String(detail||'');
+    state.error=error?String(error):null;
+    state.updatedAt=Date.now();
+    try{if(window.parent&&window.parent!==window)window.parent.postMessage({type:'luminous:combat-bootstrap',stage:state.stage,detail:state.detail,error:state.error},location.origin)}catch(_){}
+    return state;
+  };
+  window.LuminousCombatBootstrapState=state;
+  window.LuminousCombatBootstrapStage=publish;
+})();
 (async()=>{
+  const stage=(name,detail='',error=null)=>window.LuminousCombatBootstrapStage?.(name,detail,error);
   try{
+    window.addEventListener('luminous:combat073-runtime-ready',()=>stage('runtime-ready','Combat runtime ready'));
+    window.addEventListener('luminous:combat073-hydrated',event=>{
+      const detail=event?.detail||{};
+      const count=Array.isArray(detail.combatants)?detail.combatants.length:0;
+      stage('hydrated',`${detail.role||'unknown'} · ${count} combatants`);
+    });
+    stage('capability-check','Checking browser capabilities');
     if(typeof DecompressionStream!=="function")throw new Error("DECOMPRESSION_STREAM_UNAVAILABLE");
     const urls=[
       "combat/combat-v073-live.bundle.part01",
@@ -27,22 +48,28 @@
       "combat/combat-v073-live.bundle.part10",
       "combat/combat-v073-live.bundle.part11"
     ];
+    stage('bundle-fetch',`${urls.length} parts`);
     const responses=await Promise.all(urls.map(url=>fetch(url,{cache:"no-cache"})));
     const failed=responses.find(response=>!response.ok);
     if(failed)throw new Error(`COMBAT_BUNDLE_HTTP_${failed.status}`);
+    stage('bundle-fetched',`${responses.length}/${urls.length} parts`);
     const encoded=(await Promise.all(responses.map(response=>response.text()))).join("").replace(/\s+/g,"");
+    stage('bundle-decompress','Decoding and decompressing Combat runtime');
     const binary=atob(encoded);
     const bytes=new Uint8Array(binary.length);
     for(let i=0;i<binary.length;i+=1)bytes[i]=binary.charCodeAt(i);
     const stream=new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
     let html=await new Response(stream).text();
+    stage('bundle-decompressed',`${html.length} chars`);
 
+    stage('patch-ready','Applying READY bridge');
     const cancelNeedle="setStatus(`READY CANCELADO · Puedes corregir las acciones del Turn ${round}`);\n    return;";
     const readyNeedle="planReady=true;\n  ready.textContent='CANCEL READY';";
     if(!html.includes(cancelNeedle)||!html.includes(readyNeedle))throw new Error("COMBAT_READY_BRIDGE_PATCH_MISSING");
     html=html.replace(cancelNeedle,"setStatus(`READY CANCELADO · Puedes corregir las acciones del Turn ${round}`);\n    window.dispatchEvent(new CustomEvent('luminous:combat073-plan-ready-change',{detail:{version:'0.7.3',playerId:PLAYER_ID,round,ready:false,plans:JSON.parse(JSON.stringify(plannedActions))}}));\n    return;");
     html=html.replace(readyNeedle,"planReady=true;\n  window.dispatchEvent(new CustomEvent('luminous:combat073-plan-ready-change',{detail:{version:'0.7.3',playerId:PLAYER_ID,round,ready:true,plans:JSON.parse(JSON.stringify(plannedActions))}}));\n  ready.textContent='CANCEL READY';");
 
+    stage('patch-live-authority','Applying live multiplayer authority bridge');
     // Live multiplayer authority patch: remote human Players are not local AI.
     const liveControlNeedle=`    unit.controlled=unit.id===PLAYER_ID?'player':'ai';
     unit.focusMenu=unit.id===PLAYER_ID;`;
@@ -61,6 +88,7 @@
       .replace(liveArrowNeedle,liveArrowPatch)
       .replace(livePlanRenderNeedle,livePlanRenderPatch);
 
+    stage('patch-renderer','Applying Combat renderer patch');
     // Combat-iframe-only renderer patch. It never installs hooks in Theatre runtime code.
     // Mobile/low-power clients keep DOM/CSS sprite compositing and reserve WebGL2 for VFX.
     // The DM always uses DOM for battlefield base layers and WebGL only for arrows/VFX;
@@ -188,11 +216,14 @@
       .replace(webglApiNeedle,webglApiPatch);
 
     html=html.replace("</body>",'<script src="js/combat-v073-plan-sync.js"><\/script><script src="js/combat-v073-remote-intents.js"><\/script><script src="js/combat-v073-camera-controls.js"><\/script><script src="js/combat-v073-dm-setup.js"><\/script><script src="js/combat-v073-speed-authority.js"><\/script><script src="js/combat-v073-dm-observer.js"><\/script></body>');
+    stage('runtime-write','Installing patched Combat document');
     document.open();document.write(html);document.close();
   }catch(error){
+    const message=error?.message||String(error);
+    stage('error',message,message);
     console.error("[Luminous Combat Bootstrap]",error);
     const boot=document.getElementById("boot");
-    if(boot)boot.textContent=`Combat failed to load: ${error?.message||error}`;
+    if(boot)boot.textContent=`Combat failed to load: ${message}`;
   }
 })();
 </script>
