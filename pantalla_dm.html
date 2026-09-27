@@ -7150,7 +7150,7 @@ window.processEntitiesData = function(entities) {
               : item.tipo || "Sin Tipo";
 
           row.innerHTML = `
-            <img src="${item.icono && !/^(?:https?:)?\\/\\//i.test(String(item.icono)) ? item.icono : "Assets/Icons/items/fallback/generic_item.png"}" style="width: 40px; height: 40px; object-fit: contain; background: #000; border-radius: 4px;">
+            <img src="${item.icono && !String(item.icono).toLowerCase().startsWith("http") && !String(item.icono).startsWith("//") ? item.icono : "Assets/Icons/items/fallback/generic_item.png"}" style="width: 40px; height: 40px; object-fit: contain; background: #000; border-radius: 4px;">
             <div style="flex: 1; min-width: 150px;">
                 <h5 style="margin: 0; color: #fff;">${item.nombre}</h5>
                 <span style="font-size: 12px; color: #888;">[${tagsStr}] Tier ${item.tier || "I"}</span>
