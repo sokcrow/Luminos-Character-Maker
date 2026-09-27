@@ -72,6 +72,10 @@ const BLUEPRINT_CORRIDORS=Object.freeze([
 ]);
 
 const BRIDGE=Object.freeze({id:"bridge",label:"Pasarela sobre grieta",shape:"rect",cx:170,cz:61,hx:15,hz:5,kind:"bridge"});
+const CHASMS=Object.freeze([
+  Object.freeze({id:"main-rift",label:"Grieta principal",cx:173,cz:75,rx:17,rz:22,depthTiles:5.5}),
+  Object.freeze({id:"lower-rift",label:"Grieta cristalina",cx:184,cz:91,rx:13,rz:14,depthTiles:6.5})
+]);
 const ENTRANCE=Object.freeze({x:7,y:0,z:113,layer:"exterior"});
 const ELEVATOR_EXIT=Object.freeze({x:237,z:111});
 
@@ -234,9 +238,19 @@ function roomAt(x,z){
 
 function caveContains(spec,x,z,margin=0){
   if(x<spec.bounds.x0+1||x>spec.bounds.x1-1||z<spec.bounds.z0+1||z>spec.bounds.z1-1)return false;
-  for(const room of BLUEPRINT_ROOMS)if(roomContains(room,x,z,margin))return true;
+
+  // La pasarela y las rutas secundarias conservan suelo aunque crucen la grieta.
   if(roomContains(BRIDGE,x,z,margin))return true;
   for(const corridor of BLUEPRINT_CORRIDORS)if(corridorContains(corridor,x,z,margin))return true;
+
+  // La referencia muestra una grieta central real: sin suelo cargado debajo del jugador.
+  // Las paredes interiores siguen existiendo como contorno persistente en el renderer.
+  for(const chasm of CHASMS){
+    const rx=Math.max(.2,chasm.rx+margin),rz=Math.max(.2,chasm.rz+margin);
+    if(Math.hypot((x-chasm.cx)/rx,(z-chasm.cz)/rz)<=1)return false;
+  }
+
+  for(const room of BLUEPRINT_ROOMS)if(roomContains(room,x,z,margin))return true;
   return false;
 }
 
@@ -316,10 +330,10 @@ export function createCrystalCaveData(input={}){
   const waterInput=input.water||{};
   const water=Object.freeze({
     kind:"lake",
-    cx:179,
-    cz:99,
-    rx:10.5,
-    rz:7.2,
+    cx:177,
+    cz:108,
+    rx:6.0,
+    rz:4.2,
     surfaceTiles:finite(waterInput.surfaceTiles??input.waterSurfaceTiles,-.18),
     maxDepthTiles:Math.max(.32,finite(waterInput.maxDepthTiles??input.maxWaterDepthTiles??input.waterDepthTiles,.82)),
     shoreDepthTiles:Math.max(.005,finite(waterInput.shoreDepthTiles,.025)),
@@ -443,6 +457,7 @@ export function createCrystalCaveData(input={}){
     rooms:BLUEPRINT_ROOMS,
     corridors:BLUEPRINT_CORRIDORS,
     bridge:BRIDGE,
+    chasms:CHASMS,
     landmarks:LANDMARKS,
     encounters:ENCOUNTERS,
     loot:LOOT,
