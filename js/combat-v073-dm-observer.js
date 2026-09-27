@@ -26,8 +26,25 @@
     const game=host();if(!game)return false;
     game.style.visibility='visible';
     game.style.opacity='1';
-    game.classList.remove('player-blinded','webgl2-background-ready');
+    game.classList.remove('player-blinded','webgl2-background-ready','intro-running');
+    const turnTransition=global.document?.getElementById?.('turn-transition');
+    if(turnTransition){
+      turnTransition.classList?.remove?.('active');
+      turnTransition.style.pointerEvents='none';
+      turnTransition.style.opacity='0';
+      turnTransition.style.visibility='hidden';
+    }
+    game.querySelectorAll('.sprite-container').forEach(token=>{
+      token.hidden=false;
+      token.style.visibility='visible';
+      token.style.opacity='1';
+    });
     game.querySelectorAll('.sprite-img.webgl2-texture-backed').forEach(img=>img.classList.remove('webgl2-texture-backed'));
+    game.querySelectorAll('.sprite-img').forEach(img=>{
+      img.hidden=false;
+      img.style.visibility='visible';
+      img.style.opacity='1';
+    });
     game.dataset.dmVisualMode='dom-base-webgl-vfx';
     delete game.dataset.dmVisualFallback;
     const renderer=global.LuminousWebGL2Renderer;
@@ -205,6 +222,6 @@
   global.addEventListener('luminous:combat073-runtime-ready',()=>{patchRuntime();observeFacing();observeVisualSurface();scheduleFacing();scheduleVisualSurface();if(isDm())enforceDmView()});
   global.addEventListener('luminous:combat073-hydrated',()=>{observeFacing();observeVisualSurface();scheduleFacing();scheduleVisualSurface();if(isDm())enforceDmView()});
   global.addEventListener('beforeunload',stop,{once:true});
-  global.LuminousCombatDmObserver073=Object.freeze({version:'0.7.3-dm-visual-2',state,start,stop,isDm,enforceDmView,clearObserverRestrictions,ensureVisualSurface,scheduleVisualSurface,observeVisualSurface,tuneRenderer,patchRuntime,sourceFacing,desiredFacing,applyLimbusFacing});
+  global.LuminousCombatDmObserver073=Object.freeze({version:'0.7.3-dm-visual-3-transition-clear',state,start,stop,isDm,enforceDmView,clearObserverRestrictions,ensureVisualSurface,scheduleVisualSurface,observeVisualSurface,tuneRenderer,patchRuntime,sourceFacing,desiredFacing,applyLimbusFacing});
   start();
 })(window);
