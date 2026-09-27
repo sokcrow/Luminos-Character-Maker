@@ -10608,6 +10608,79 @@ async function cinematicMovePlayer(target,ms=300){
 const player=new THREE.Group();
 scene.add(player);
 
+// PR 819 · Crystal Cave review mode.
+// IMPORTANT: this is NOT a second renderer/runtime. It swaps only map authority/content
+// while preserving this file's real player sprite, UnitRuntime, camera, HUD, joystick,
+// inventory, interactions, display/mobile profile and official WaterBodySystem.
+const CRYSTAL_CAVE_REVIEW=new URLSearchParams(location.search).get('map')==='crystal-cave';
+let crystalCaveMap=null,crystalCaveGroup=null,crystalCaveReady=false;
+let crystalCaveOriginalCanOccupy=null,crystalCaveOriginalGroundY=null;
+async function activateCrystalCaveReview(){
+  if(!CRYSTAL_CAVE_REVIEW||crystalCaveReady||!root)return false;
+  crystalCaveReady=true;
+  const {createCrystalCaveData}=await import('../../src/map/procedural/CrystalCaveGenerator.js');
+  const seed=new URLSearchParams(location.search).get('seed')||'pr819-review';
+  crystalCaveMap=createCrystalCaveData({seed,chunkSize:12,activeRadius:3,bounds:{minX:-120,maxX:120,minZ:-120,maxZ:120}});
+  root.visible=false;
+  colliders.length=0; interactions.length=0; zoneTransitions.length=0; overpassZones.length=0;
+  crystalCaveGroup=new THREE.Group(); crystalCaveGroup.name='PR819_CrystalCave_MapContent'; scene.add(crystalCaveGroup);
+  scene.background=new THREE.Color(0x0b0c13); hemi.color.set(0xb8c8ff); hemi.groundColor.set(0x17151e); hemi.intensity=.72; sun.intensity=.12;
+  const floorMat=new THREE.MeshStandardMaterial({color:0x34343d,roughness:.96});
+  const wallMat=new THREE.MeshStandardMaterial({color:0x22232b,roughness:1});
+  const ceilingMat=new THREE.MeshStandardMaterial({color:0x191a21,roughness:1,side:THREE.DoubleSide});
+  const floorGeo=new THREE.BoxGeometry(11.8,.55,11.8),wallGeo=new THREE.BoxGeometry(11.9,8.5,11.9);
+  const ceilingGeo=new THREE.PlaneGeometry(11.8,11.8);
+  const cells=crystalCaveMap.chunksAround({x:0,z:0},3);
+  for(const cell of cells){
+    const x=cell.cx*12,z=cell.cz*12;
+    if(cell.open&&!cell.voidPit){
+      const floor=new THREE.Mesh(floorGeo,floorMat); floor.position.set(x,-.30,z); floor.receiveShadow=true; crystalCaveGroup.add(floor);
+      const ceiling=new THREE.Mesh(ceilingGeo,ceilingMat); ceiling.rotation.x=Math.PI/2; ceiling.position.set(x,7.4,z); crystalCaveGroup.add(ceiling);
+      for(const q of cell.crystals){
+        const geo=new THREE.ConeGeometry(.30*q.scale,1.9*q.scale,6);
+        const mat=new THREE.MeshStandardMaterial({color:q.color,emissive:q.color,emissiveIntensity:.34,roughness:.30});
+        const c=new THREE.Mesh(geo,mat); c.position.set(q.x,.95*q.scale,q.z); c.rotation.z=q.lean; crystalCaveGroup.add(c);
+        const glow=new THREE.PointLight(q.color,.16,4.5,2); glow.position.set(q.x,1.2,q.z); crystalCaveGroup.add(glow);
+      }
+      if(cell.water){
+        const g=new THREE.PlaneGeometry(10.6,10.6);
+        createOfficialWaterBody({id:'cave-water-'+cell.cx+'-'+cell.cz,parent:crystalCaveGroup,geometry:g,position:new THREE.Vector3(x,.04,z),rotationX:-Math.PI/2,
+          isWaterAt:(wx,wz)=>Math.abs(wx-x)<=5.3&&Math.abs(wz-z)<=5.3,
+          surfaceHeightAt:()=>.04,flowAt:()=>cell.waterType==='river'?{x:1,z:.15,strength:.65}:{x:0,z:0,strength:0},
+          foam:{enabled:true,width:TILE*.18}});
+      }
+    }else{
+      const wall=new THREE.Mesh(wallGeo,wallMat); wall.position.set(x,3.8,z); wall.castShadow=true; wall.receiveShadow=true; crystalCaveGroup.add(wall);
+    }
+  }
+  crystalCaveOriginalCanOccupy=canOccupyWorld;
+  canOccupyWorld=function(x,z,r=PLAYER_RADIUS){
+    if(!CRYSTAL_CAVE_REVIEW||!crystalCaveMap)return crystalCaveOriginalCanOccupy(x,z,r);
+    const sample=crystalCaveMap.sampleTerrain({x,z});
+    return !!sample.walkable;
+  };
+  crystalCaveOriginalGroundY=formalGroundYAtWorld;
+  formalGroundYAtWorld=function(x,z,layer=currentWorldLayer,r=0){
+    if(!CRYSTAL_CAVE_REVIEW||!crystalCaveMap)return crystalCaveOriginalGroundY(x,z,layer,r);
+    const sample=crystalCaveMap.sampleTerrain({x,z});
+    return sample.walkable?Math.max(0,Number(sample.height)||0):0;
+  };
+  mapId='crystal-cave';
+  player.position.set(0,formalGroundYAtWorld(0,0),0);
+  try{playerUnit?.group?.position?.copy(player.position)}catch(_){}
+  area.textContent='Crystal Cave · PR 819';
+  scaleEl.textContent='Game Engine Forest · mapa interior procedural · seed '+seed;
+  if(hintEl)hintEl.textContent='Mismo jugador, sprites, cámara, joystick, HUD, inventario y WaterBodySystem · contenido Cave';
+  titleCard.textContent='Crystal Cave'; titleCard.classList.add('on'); setTimeout(()=>titleCard.classList.remove('on'),1600);
+  cameraAnchorReady=false;
+  updateCamera(1/60,true);
+  window.CrystalCaveRuntime=Object.freeze({map:crystalCaveMap,group:crystalCaveGroup,seed});
+  return true;
+}
+if(CRYSTAL_CAVE_REVIEW){
+  const caveBoot=setInterval(()=>{if(root){clearInterval(caveBoot);activateCrystalCaveReview().catch(err=>{crystalCaveReady=false;console.error('Crystal Cave activation failed',err)})}},120);
+}
+
 
 // ============================================================
 // 0.3.2-25 · INVENTORY FOUNDATION
