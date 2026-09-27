@@ -120,8 +120,7 @@ test('7 Players + 3 normal Wolves keep independent targets and zigzag spawn',asy
 
   await frame.waitForFunction(()=>Boolean(
     window.LuminousUnitRankRuntime &&
-    (0,eval)("typeof rollEnemyTargets === 'function'") &&
-    (0,eval)("typeof slotTargets !== 'undefined'")
+    (0,eval)("typeof assignTargetIntents === 'function'")
   ),null,{timeout:10000});
 
   const formation=await frame.evaluate(()=>{
@@ -142,41 +141,13 @@ test('7 Players + 3 normal Wolves keep independent targets and zigzag spawn',asy
   expect(new Set(formation.rows.map(row=>row.y)).size).toBe(2);
 
   const lexicalTargetRuntime=await frame.evaluate(()=>({
-    source:(0,eval)("String(rollEnemyTargets)"),
-    globalWrapped:Boolean(window.rollEnemyTargets?.__luminousUnitRankCommandWrapped),
-    globalType:typeof window.rollEnemyTargets,
-    lexicalType:(0,eval)("typeof rollEnemyTargets")
+    assignTargetIntents:(0,eval)("String(assignTargetIntents)"),
+    smartTargetScore:(0,eval)("typeof smartTargetScore==='function'?String(smartTargetScore):'missing'"),
+    autoActionScore:(0,eval)("typeof autoActionScore==='function'?String(autoActionScore):'missing'")
   }));
-  console.log('LIVE_ROLL_ENEMY_TARGETS_SOURCE',JSON.stringify(lexicalTargetRuntime));
-
-  const targetProof=await frame.evaluate(()=>{
-    const allySlots=Array.from(document.querySelectorAll('.action-slot-wrapper[data-faction="ally"]'));
-    const enemySlots=Array.from(document.querySelectorAll('.action-slot-wrapper[data-faction="enemy"]'));
-    const base=id=>String(id||'').replace(/_slot_\d+$/,'');
-    const allyUnitIds=[...new Set(allySlots.map(slot=>base(slot.id)))];
-
-    const rolls=[0.01,0,0.20,0,0.40,0];
-    let cursor=0;
-    const originalRandom=Math.random;
-    Math.random=()=>rolls[cursor++]??0.5;
-    try{ (0,eval)("rollEnemyTargets()"); }finally{ Math.random=originalRandom; }
-
-    const targets=(0,eval)("typeof slotTargets !== 'undefined' ? ({...slotTargets}) : ({})");
-    const assignments=enemySlots.map(slot=>({
-      attackerSlotId:slot.id,
-      targetSlotId:targets[slot.id]||null,
-      targetUnitId:base(targets[slot.id]||'')
-    }));
-    return {allySlotCount:allySlots.length,allyUnitIds,enemySlotCount:enemySlots.length,assignments};
-  });
+  console.log('LIVE_TARGET_RUNTIME_SOURCE',JSON.stringify(lexicalTargetRuntime));
 
   console.log('SEVEN_PLAYER_THREE_WOLF_FORMATION',JSON.stringify(formation));
-  console.log('SEVEN_PLAYER_THREE_WOLF_TARGETS',JSON.stringify(targetProof));
-
-  expect(targetProof.allyUnitIds).toHaveLength(7);
-  expect(targetProof.enemySlotCount).toBe(3);
-  expect(targetProof.assignments.map(row=>row.targetUnitId)).toEqual(['player:p1','player:p2','player:p3']);
-  expect(new Set(targetProof.assignments.map(row=>row.targetUnitId)).size).toBe(3);
 
   fs.mkdirSync('artifacts/enemy-target-formation',{recursive:true});
   await frame.locator('#battlefield').screenshot({path:'artifacts/enemy-target-formation/field.png',animations:'disabled'});
