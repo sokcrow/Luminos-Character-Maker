@@ -85,12 +85,41 @@ test.afterEach(async({page},testInfo)=>{
 });
 
 test('DM real Combat tab renders a visible FIELD with all deployed sprites', async({page})=>{
+  const browserErrors=[];
+  page.on('pageerror',error=>browserErrors.push(`pageerror: ${error?.stack||error?.message||error}`));
+  page.on('console',message=>{
+    if(message.type()==='error')browserErrors.push(`console.error: ${message.text()}`);
+  });
   await installFirebaseDmStub(page);
   await page.goto(`${BASE}/pantalla_dm.html`,{waitUntil:'domcontentloaded'});
   await page.locator('[data-tab="tab-combate"]').click();
   await page.evaluate(()=>window.hideLoadingOverlay?.());
 
-  await expect(page.locator('#dm-combat-live-frame')).toHaveAttribute('src',/Battle-viewer\.html/,{timeout:10000});
+  try{
+    await expect(page.locator('#dm-combat-live-frame')).toHaveAttribute('src',/Battle-viewer\.html/,{timeout:10000});
+  }catch(error){
+    const tabState=await page.evaluate(()=>{
+      const button=document.querySelector('[data-tab="tab-combate"]');
+      const pane=document.getElementById('tab-combate');
+      const frame=document.getElementById('dm-combat-live-frame');
+      const rect=pane?.getBoundingClientRect?.()||{};
+      const style=pane?getComputedStyle(pane):null;
+      return {
+        buttonActive:button?.classList?.contains('active')||false,
+        paneActive:pane?.classList?.contains('active')||false,
+        paneDisplay:style?.display||'',
+        paneVisibility:style?.visibility||'',
+        paneWidth:rect.width||0,
+        paneHeight:rect.height||0,
+        frameSrc:frame?.getAttribute?.('src')||null,
+        liveViewer:Boolean(window.LuminousDmCombatLiveViewer),
+        liveViewerVisible:window.LuminousDmCombatLiveViewer?.isVisible?.()??null
+      };
+    });
+    console.error('DM_VISUAL_TAB_STATE',JSON.stringify(tabState));
+    console.error('DM_VISUAL_BROWSER_ERRORS',JSON.stringify(browserErrors));
+    throw error;
+  }
 
   let frame=null;
   await expect.poll(()=>{
