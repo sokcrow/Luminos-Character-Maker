@@ -16877,26 +16877,74 @@ function buildCrystalCave(){
 
     // Halo aditivo barato: visible incluso sin postprocesado/bloom.
     const aura=new THREE.Mesh(
-      new THREE.SphereGeometry(wt(.44+shardData.scale*.14),10,8),
+      new THREE.SphereGeometry(wt(.52+shardData.scale*.18),12,9),
       new THREE.MeshBasicMaterial({
-        color:colorHex,transparent:true,opacity:.085,depthWrite:false,
+        color:colorHex,transparent:true,opacity:.16,depthWrite:false,
         blending:THREE.AdditiveBlending
       })
     );
     aura.position.copy(shard.position);
-    aura.scale.set(1,1.35,1);
+    aura.scale.set(1,1.45,1);
     aura.renderOrder=8;
+    aura.userData.crystalAura=true;
     g.add(aura);
 
-    const glowRange=wt(2.8+shardData.scale*1.6);
+    // Pool de luz sobre roca/suelo para que el brillo se lea incluso con la cámara alta.
+    const glowPatch=new THREE.Mesh(
+      new THREE.CircleGeometry(wt(1.35+shardData.scale*.52),20),
+      new THREE.MeshBasicMaterial({
+        color:colorHex,transparent:true,opacity:.12,depthWrite:false,
+        blending:THREE.AdditiveBlending,side:THREE.DoubleSide
+      })
+    );
+    glowPatch.rotation.x=-Math.PI/2;
+    glowPatch.position.set(
+      shard.position.x,
+      tileY(plan.floorHeightTilesAt(shardData.x,shardData.z))+.025,
+      shard.position.z
+    );
+    glowPatch.renderOrder=5;
+    glowPatch.userData.crystalLightPool=true;
+    g.add(glowPatch);
+
+    const glowRange=wt(4.6+shardData.scale*2.3);
     const light=registerSpriteLocalLight(
-      new THREE.PointLight(colorHex,.32+shardData.scale*.22,glowRange,2),
-      {brightRadius:glowRange*.40,dimRadius:glowRange,spriteStrength:.44}
+      new THREE.PointLight(colorHex,.82+shardData.scale*.48,glowRange,1.7),
+      {brightRadius:glowRange*.46,dimRadius:glowRange,spriteStrength:.68}
     );
     light.position.copy(shard.position);
     light.castShadow=false;
     light.userData.crystalGlow=true;
+    light.userData.crystalGlowColor=colorHex;
     g.add(light);
+  }
+
+  // Luz de masa cristalina: las formaciones grandes de la referencia bañan paredes,
+  // pasarela y grieta con el mismo color que los cristales cercanos.
+  const crystalZoneLights=[];
+  for(const zone of (plan.crystalLightZones||[])){
+    const color=Number(zone.color)||0x6fafff;
+    const range=wt(Math.max(4,Number(zone.range)||9));
+    const light=registerSpriteLocalLight(
+      new THREE.PointLight(color,Math.max(.6,Number(zone.intensity)||1.2),range,1.55),
+      {brightRadius:range*.42,dimRadius:range,spriteStrength:.72}
+    );
+    light.position.set(wt(zone.x),tileY(Number(zone.y)||1),wt(zone.z));
+    light.castShadow=false;
+    light.userData.crystalZoneLight=true;
+    light.userData.crystalZoneId=zone.id;
+    g.add(light);crystalZoneLights.push(light);
+
+    const pool=new THREE.Mesh(
+      new THREE.CircleGeometry(range*.47,28),
+      new THREE.MeshBasicMaterial({
+        color,transparent:true,opacity:.105,depthWrite:false,
+        blending:THREE.AdditiveBlending,side:THREE.DoubleSide
+      })
+    );
+    pool.rotation.x=-Math.PI/2;
+    pool.position.set(wt(zone.x),.028,wt(zone.z));
+    pool.renderOrder=3;pool.userData.crystalZonePool=true;g.add(pool);
   }
 
   // Instalaciones mineras de la referencia sobre el mismo suelo/height field.
@@ -16917,15 +16965,57 @@ function buildCrystalCave(){
     patch.receiveShadow=true;patch.renderOrder=-8;patch.userData.mineFacilityFloor=true;g.add(patch);
   }
 
-  function mineLamp(p,intensity=.52,rangeTiles=4.2){
+  function mineLamp(p,intensity=null,rangeTiles=null){
     const color=Number(p.color)||0xffc676;
-    const pole=box(g,.10,wt(1.25),.10,wt(p.x),wt(.625),wt(p.z),caveMetalDark);
+    const strength=Math.max(.55,Number(intensity??p.intensity??1.0));
+    const range=Math.max(4,Number(rangeTiles??p.range??7.0));
+    const yTiles=Math.max(1.45,Number(p.y)||2.05);
+    const x=wt(p.x),z=wt(p.z),y=tileY(yTiles);
+
+    // Soporte + carcasa industrial visible.
+    const pole=box(g,.10,Math.max(.15,y-.18),.10,x,Math.max(.10,(y-.18)*.5),z,caveMetalDark);
     pole.castShadow=false;
-    const lamp=registerSpriteLocalLight(
-      new THREE.PointLight(color,intensity,wt(rangeTiles),2),
-      {brightRadius:wt(1.5),dimRadius:wt(rangeTiles),spriteStrength:.58}
+    const hood=box(g,wt(.62),.10,wt(.38),x,y,z,caveMetalDark);
+    hood.castShadow=false;
+
+    const lensMat=new THREE.MeshStandardMaterial({
+      color,emissive:color,emissiveIntensity:1.85,roughness:.30,metalness:.04
+    });
+    const lens=box(g,wt(.42),.055,wt(.24),x,y-.075,z,lensMat);
+    lens.castShadow=false;lens.receiveShadow=false;
+    lens.userData.mineLightFixture=true;lens.userData.mineLightId=p.id||null;
+
+    // Halo de la luminaria: garantiza lectura de "encendido", no sólo influencia física.
+    const halo=new THREE.Mesh(
+      new THREE.SphereGeometry(wt(.46),10,8),
+      new THREE.MeshBasicMaterial({
+        color,transparent:true,opacity:.14,depthWrite:false,
+        blending:THREE.AdditiveBlending
+      })
     );
-    lamp.position.set(wt(p.x),wt(1.38),wt(p.z));lamp.castShadow=false;g.add(lamp);
+    halo.position.set(x,y-.08,z);halo.scale.set(1.45,.62,1.45);halo.renderOrder=9;g.add(halo);
+
+    const lamp=registerSpriteLocalLight(
+      new THREE.PointLight(color,strength,wt(range),1.65),
+      {brightRadius:wt(Math.min(3.2,range*.42)),dimRadius:wt(range),spriteStrength:.72}
+    );
+    lamp.position.set(x,y-.12,z);
+    lamp.castShadow=false;
+    lamp.userData.mineFacilityLight=true;
+    lamp.userData.mineLightId=p.id||null;
+    g.add(lamp);
+
+    // Mancha cálida sobre el piso para que las instalaciones lean iluminadas desde arriba.
+    const pool=new THREE.Mesh(
+      new THREE.CircleGeometry(wt(range*.48),24),
+      new THREE.MeshBasicMaterial({
+        color,transparent:true,opacity:p.kind==='medical'?.085:.105,
+        depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide
+      })
+    );
+    pool.rotation.x=-Math.PI/2;
+    pool.position.set(x,.026,z);
+    pool.renderOrder=2;pool.userData.mineFacilityLightPool=true;g.add(pool);
     return lamp;
   }
   function mineSupport(p){
@@ -17043,12 +17133,17 @@ function buildCrystalCave(){
     else if(p.type==='workbench')table(g,p.x,p.z);
     else if(p.type==='medicalCabinet')mineMedicalCabinet(p);
     else if(p.type==='console')mineConsole(p);
-    else if(p.type==='lamp')mineLamp(p);
+    else if(p.type==='lamp')mineLamp(p,.72,5.5);
     else if(p.type==='bridgeDeck')mineBridge(p);
     else if(p.type==='bossSeal')mineBossSeal(p);
     else if(p.type==='elevator')mineElevator(p);
     else if(p.type==='debris')mineDebris(p);
   }
+
+  // Iluminación principal de instalaciones. Es authored y vive en el módulo del mapa,
+  // no se deriva de hora del día: una mina cerrada conserva su iluminación eléctrica.
+  const facilityLights=[];
+  for(const lightSpec of (plan.facilityLights||[]))facilityLights.push(mineLamp(lightSpec));
 
   // Cofres azules de la referencia. Su contenido no se inventa aquí: sólo existe
   // el contenedor/interaction anchor hasta que el DM/loot runtime asigne la tabla.
@@ -17128,7 +17223,7 @@ function buildCrystalCave(){
     floorMesh:'continuous-triangulated-heightfield',
     wallContours:contours.length,wallStreaming:'always-loaded',visionBlockers:'persistent',
     water:plan.water.kind,chunkCount:plan.chunks?.length||0,dressingCount:plan.dressing?.length||0,
-    lighting:'local-only+per-crystal-glow'
+    lighting:'authored-facility+per-crystal+crystal-zone-glow'
   };
   window.CrystalCaveRuntime=Object.freeze({
     seed:plan.seed,mapId:'crystalCave',plan,
@@ -17136,7 +17231,8 @@ function buildCrystalCave(){
       seed:plan.seed,wallContours:contours.length,water:plan.water.kind,mobile:DISPLAY_DEVICE_MOBILE,
       chunks:plan.chunks?.length||0,dressing:plan.dressing?.length||0,encounters:plan.encounters?.length||0,
       persistentVisionWalls:wallOccluders.filter(w=>w.userData?.persistentVisionBlocker).length,
-      crystalLights:plan.crystals?.length||0,
+      crystalLights:(plan.crystals?.length||0)+(plan.crystalLightZones?.length||0),
+      facilityLights:plan.facilityLights?.length||0,
       centerWater:plan.sampleWater({x:plan.water.cx,z:plan.water.cz}),
       waterBodyReady:!!lakeBody
     })
