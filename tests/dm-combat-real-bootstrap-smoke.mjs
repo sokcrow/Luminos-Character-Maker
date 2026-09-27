@@ -57,6 +57,7 @@ for(const [label,needle] of patchNeedles){
 
 const viewer=fs.readFileSync('Battle-viewer.html','utf8');
 const dmBridge=fs.readFileSync('js/dm-combat-live-viewer.js','utf8');
+const liveAdapter=fs.readFileSync('js/combat-v073-live-adapter.js','utf8');
 
 assert.ok(viewer.includes('LuminousCombatBootstrapState'),'Battle Viewer must expose real bootstrap state to the parent DM surface');
 assert.ok(viewer.includes("stage('bundle-fetch'"),'Battle Viewer must expose bundle fetch stage');
@@ -70,5 +71,8 @@ assert.ok(dmBridge.includes('bootstrap?.error'),'real DM bridge must surface chi
 assert.ok(dmBridge.includes('visibleSpriteCount>=combatantCount'),'DM readiness must require every deployed FIELD combatant to have visible sprite evidence');
 assert.ok(dmBridge.includes("querySelectorAll?.('.sprite-container')"),'DM fallback must restore the real DOM sprite containers, not only image nodes');
 assert.ok(dmBridge.includes("version:'1.3.0-real-bootstrap'"),'DM bridge version must identify the real-bootstrap readiness contract');
+assert.ok(liveAdapter.includes('"identity-unresolved"'),'live adapter must expose canonical identity failure instead of leaving a silent DM surface');
+assert.ok(liveAdapter.includes('"dm-identity-config"'),'live adapter must expose campaign DM identity resolution');
+assert.ok(liveAdapter.includes('"auth-ready"'),'live adapter must expose successful Firebase authentication');
 
 console.log(`DM Combat real bundle/bootstrap compatibility: ok · ${partPaths.length} parts · ${source.length} decompressed chars`);
