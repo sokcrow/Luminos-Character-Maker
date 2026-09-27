@@ -17,6 +17,8 @@ on:
       - 'js/unit-catalog-wolf.js'
       - 'tests/dm-combat-library-manager-smoke.mjs'
       - 'tests/dm-combat-live-viewer-smoke.mjs'
+      - 'tests/dm-combat-real-bootstrap-smoke.mjs'
+      - 'combat/**'
       - 'tests/combat-v073-dm-observer-smoke.mjs'
       - 'tests/dm-combat-unit-library-real-ui-smoke.mjs'
       - '.github/workflows/dm-combat-library-manager-smoke.yml'
@@ -40,6 +42,8 @@ jobs:
         run: node tests/dm-combat-library-manager-smoke.mjs
       - name: Real DM Battle Viewer visual evidence
         run: node tests/dm-combat-live-viewer-smoke.mjs
+      - name: Real compressed Battle bootstrap compatibility
+        run: node tests/dm-combat-real-bootstrap-smoke.mjs
       - name: DM Battle DOM-base observer contract
         run: node tests/combat-v073-dm-observer-smoke.mjs
       - name: Empty Firebase real UI runtime
