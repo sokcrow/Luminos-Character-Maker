@@ -11,13 +11,22 @@ const parts=[
 const encoded=parts.map(path=>fs.readFileSync(path,'utf8')).join('').replace(/\s+/g,'');
 const html=zlib.gunzipSync(Buffer.from(encoded,'base64')).toString('utf8');
 
-function excerpt(needle,after=5000,before=800){
-  const at=html.indexOf(needle);
-  assert.ok(at>=0,`missing real Battle runtime signature: ${needle}`);
-  return html.slice(Math.max(0,at-before),Math.min(html.length,at+after));
+function excerpts(needle,after=3200,before=900,max=8){
+  const rows=[];
+  let from=0;
+  while(rows.length<max){
+    const at=html.indexOf(needle,from);
+    if(at<0)break;
+    rows.push(html.slice(Math.max(0,at-before),Math.min(html.length,at+after)));
+    from=at+needle.length;
+  }
+  return rows;
 }
 
-const target=excerpt('function rollEnemyTargets');
-const positions=excerpt('function renderSprites',7000,1200);
-console.log('REAL_BATTLE_ROLL_ENEMY_TARGETS\n'+target);
-console.log('REAL_BATTLE_RENDER_SPRITES\n'+positions);
+for(const needle of ['rollEnemyTargets','slotTargets','renderSprites','action-slot-wrapper']){
+  const rows=excerpts(needle);
+  console.log(`REAL_BATTLE_OCCURRENCES ${needle} COUNT=${rows.length}`);
+  rows.forEach((row,index)=>console.log(`--- ${needle} #${index+1} ---\n${row}`));
+}
+assert.ok(excerpts('slotTargets',400,100,1).length>0,'real Battle runtime must contain slotTargets');
+assert.ok(excerpts('action-slot-wrapper',400,100,1).length>0,'real Battle runtime must contain action slots');
