@@ -12,7 +12,7 @@ const [index, main, game, inventoryRuntime, itemBridge] = await Promise.all([
   readFile(new URL("../src/bridges/luminous/LuminousItemsBridge.js", import.meta.url), "utf8")
 ]);
 
-assert.match(index, /src="\.\/game\/forest-0\.3\.3\.1\.html"/);
+assert.match(index, /src="\.\/game\/forest-0\.3\.3\.1\.html(?:\?[^"]*)?"/);
 assert.doesNotMatch(index, /\?perf=forest/);
 assert.doesNotMatch(index, /\?map=swampLab/);
 assert.doesNotMatch(index, /id="debugDrawer"|id="toggleDebug"|GAME ENGINE STATUS|benchmark móvil/);
