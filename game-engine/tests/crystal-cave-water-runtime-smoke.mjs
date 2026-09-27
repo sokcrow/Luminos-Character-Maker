@@ -58,5 +58,12 @@ assert.match(forest, /mine-loot-chest/);
 assert.match(forest, /mine-blocked-door/);
 assert.match(forest, /mine-encounter-/);
 assert.match(forest, /authoredBlueprint:'mine-floor-1'/);
+assert.match(forest, /for\(const lightSpec of \(plan\.facilityLights\|\|\[\]\)\)facilityLights\.push\(mineLamp\(lightSpec\)\)/);
+assert.match(forest, /mineFacilityLight=true/);
+assert.match(forest, /mineFacilityLightPool=true/);
+assert.match(forest, /crystalZoneLight=true/);
+assert.match(forest, /crystalZonePool=true/);
+assert.match(forest, /emissiveIntensity:1\.85/);
+assert.match(forest, /authored-facility\+per-crystal\+crystal-zone-glow/);
 
 console.log("crystal cave water runtime smoke: ok");
