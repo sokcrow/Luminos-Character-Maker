@@ -335,6 +335,7 @@
         availableSlots: row.slots,
         ...(targetIds ? { targetIds } : {}),
         ...(targets ? { targets } : {}),
+        ...(typeof options.random === "function" ? { random: options.random } : {}),
       });
       return {
         unitId: row.unitId,
@@ -349,7 +350,7 @@
   }
 
   const api = Object.freeze({
-    version: "1.1.2-field-only",
+    version: "1.1.3-independent-targets",
     DEFAULT_TEAM_SLOT_CAP,
     DEFAULT_BONUS_RECIPIENT_LIMIT,
     unitIdOf,
