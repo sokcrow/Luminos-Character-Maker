@@ -4922,9 +4922,10 @@ function syncPlayerCameraQuarterYaw(){
 function playerCameraOrbitAllowed(){
   if(transitioning||dialogOpen||shopOpen||inventoryOpen||cameraCine||cameraReturnTween)return false;
   if(globalMapActive)return true;
-  // Open/procedural environments are free-camera. Legacy city/interior maps keep
-  // their authored fixed cameras until the city camera pass is implemented.
-  return isOverworldSector(mapId)&&!activeInteriorStage;
+  // Natural/procedural exploration keeps the same free camera even when the map
+  // is an interior volume such as Crystal Cave. Authored city/room stages retain
+  // their fixed-camera contracts.
+  return (isOverworldSector(mapId)||mapId==='crystalCave')&&!activeInteriorStage;
 }
 function rotatePlayerCameraBy(deltaYaw=0,deltaPitch=0){
   if(!playerCameraOrbitAllowed())return {yaw:playerCameraYawOffset,pitch:playerCameraPitchOffset};
@@ -6595,7 +6596,7 @@ function crystalCaveMapDef(plan=CRYSTAL_CAVE_PLAN){
     spawn:{...plan.spawn},
     camera:{fov:42,zones:[{
       id:'cave-local',priority:1,x0:b.x0,x1:b.x1,z0:b.z0,z1:b.z1,
-      yawDeg:0,distanceTiles:7.0,heightTiles:3.25,fov:42,lookAheadTiles:.32
+      yawDeg:0,distanceTiles:9.25,heightTiles:3.75,fov:44,lookAheadTiles:.42
     }]},
     surfaces:plan.surfaces
   };
@@ -10762,7 +10763,8 @@ const PAPER_INV_SLOT_LABELS={mainHand:'MAIN HAND',offHand:'OFF HAND',armor:'ARMO
 const PAPER_ITEM_DEFS={
   practiceSword:{id:'practiceSword',name:'Espada de práctica',tier:'I',value:8,category:'weapon',tags:['Arma','Cuerpo a cuerpo'],slots:['mainHand'],quality:'STANDARD',description:'Hoja de entrenamiento equilibrada. Sirve para probar equipamiento antes de conectar el sistema de combate.',icon:window.LuminousItemIconRegistry?.resolveIcon?.('weapon_sword',{fallback:false})||null},
   woodenShield:{id:'woodenShield',name:'Escudo de madera',tier:'I',value:6,category:'weapon',tags:['Arma','Defensa'],slots:['shield','offHand'],quality:'STANDARD',description:'Escudo ligero de tablones. Por ahora registra el slot equipado; sus bonificadores se conectarán al combate después.',icon:window.LuminousItemIconRegistry?.resolveIcon?.('shield',{fallback:false})||null},
-  ration:{id:'ration',name:'Ración de viaje',tier:'I',value:1,category:'consumable',tags:['Consumible','Comida'],quality:'STANDARD',description:'Provisión compacta. En esta fase consumirla demuestra el flujo de uso y cantidad; más adelante puede alimentar descansos.',icon:window.LuminousItemIconRegistry?.resolveIcon?.('ration',{fallback:false})||null,use:'consume'}
+  ration:{id:'ration',name:'Ración de viaje',tier:'I',value:1,category:'consumable',tags:['Consumible','Comida'],quality:'STANDARD',description:'Provisión compacta. En esta fase consumirla demuestra el flujo de uso y cantidad; más adelante puede alimentar descansos.',icon:window.LuminousItemIconRegistry?.resolveIcon?.('ration',{fallback:false})||null,use:'consume'},
+  caveTorch:{id:'caveTorch',name:'Antorcha de exploración',tier:'I',value:3,category:'tool',tags:['Herramienta','Iluminación','Exploración'],quality:'STANDARD',description:'Antorcha portátil para túneles y cuevas. Enciende o apaga una fuente de luz local vinculada al jugador.',icon:window.LuminousItemIconRegistry?.resolveIcon?.('torch',{fallback:false})||null,use:'toggleTorch'}
 };
 function paperDefaultInventory(){
   return {
@@ -10858,6 +10860,19 @@ function paperRemoveItem(key,quantity=1){
   const item=paperFindItem(key);if(!item)return {removed:false,reason:'missing'};item.quantity=Math.max(0,Number(item.quantity||1)-Math.max(1,Number(quantity)||1));
   if(item.quantity<=0){paperUnequipKey(key);delete paperInventory.active[key];delete paperInventory.stash[key];if(paperInvSelection?.key===key)paperInvSelection=null}
   paperSaveInventory();paperRenderInventory();return {removed:true,remaining:item.quantity||0};
+}
+function paperEnsureCrystalCaveExplorerTool({activate=true}={}){
+  const hasTorch=[...Object.values(paperInventory.active||{}),...Object.values(paperInventory.stash||{})]
+    .some(item=>item?.definitionId==='caveTorch');
+  if(!hasTorch){
+    const key='cave_torch_review';
+    paperInventory.active[key]={definitionId:'caveTorch',quantity:1,condition:100};
+    paperInventory.serial=Math.max(Number(paperInventory.serial)||10,11);
+  }
+  if(activate)paperSetTorch(true);
+  else paperSaveInventory();
+  paperRenderInventory();
+  return true;
 }
 function paperRenderGrid(container){
   const host=document.getElementById(container==='active'?'paperInvActiveGrid':'paperInvStashGrid');if(!host)return;host.replaceChildren();
@@ -19380,7 +19395,8 @@ function updateCamera(dt,snap=false){
     let targetYaw=Number.isFinite(zone?.yawDeg)
       ? THREE.MathUtils.degToRad(zone.yawDeg)
       : ((zone?.facing==='south')?Math.PI:0);
-    if(isOverworldSector(mapId))targetYaw+=playerCameraYawOffset;
+    const freeExploreCamera=isOverworldSector(mapId)||mapId==='crystalCave';
+    if(freeExploreCamera)targetYaw+=playerCameraYawOffset;
     if(FOREST_STRESS_BOOT.enabled&&isOverworldSector(mapId))targetYaw+=forestStressCameraYawOffset();
     forestStressSetTargetYaw(targetYaw);
     const yawK=snap?1:(1-Math.exp(-dt*2.65));
@@ -19402,15 +19418,25 @@ function updateCamera(dt,snap=false){
 
     // Free environments orbit continuously in yaw + pitch. Legacy/city maps keep
     // pitchOffset=0 and therefore retain their authored fixed framing.
-    const pitchOffset=isOverworldSector(mapId)?playerCameraPitchOffset:0;
+    const pitchOffset=freeExploreCamera?playerCameraPitchOffset:0;
     const orbitRadius=Math.hypot(dist,lift);
+    const baseOrbitPitch=Math.atan2(lift,Math.max(.001,dist));
+    const requestedOrbitPitch=baseOrbitPitch+pitchOffset;
+    const minOrbitPitch=THREE.MathUtils.degToRad(mapId==='crystalCave'?12:10);
     const orbitPitch=THREE.MathUtils.clamp(
-      Math.atan2(lift,Math.max(.001,dist))+pitchOffset,
-      THREE.MathUtils.degToRad(10),
+      requestedOrbitPitch,
+      minOrbitPitch,
       THREE.MathUtils.degToRad(78)
     );
     const planarDist=Math.cos(orbitPitch)*orbitRadius;
     const verticalLift=Math.sin(orbitPitch)*orbitRadius;
+    // A cave cannot let the camera tunnel through the floor just to look upward.
+    // Once the orbit reaches its safe low angle, extra upward input raises the look
+    // target instead, preserving true vertical exploration without clipping underground.
+    if(mapId==='crystalCave'&&requestedOrbitPitch<minOrbitPitch){
+      const upward=minOrbitPitch-requestedOrbitPitch;
+      target.y+=Math.min(wt(2.4),Math.tan(upward)*planarDist*.48);
+    }
     desiredCam.set(
       target.x + Math.sin(canalCameraYaw)*planarDist,
       target.y + verticalLift,
@@ -20142,6 +20168,7 @@ try{
   }else if(testName&&TEST_SCENARIOS[testName]){
     loadScenario(testName);
   }else if(qaMap&&MAP_DATA.maps[qaMap]){
+    if(qaMap==='crystalCave')paperEnsureCrystalCaveExplorerTool({activate:true});
     loadMap(qaMap,MAP_META[qaMap]?.spawn?.()||null,qaLayer);
   }else{
     // La instancia local estable se prepara intacta, pero el juego inicia en la nueva
