@@ -127,3 +127,6 @@ jobs:
 
       - name: Crystal Cave water runtime
         run: node game-engine/tests/crystal-cave-water-runtime-smoke.mjs
+
+      - name: Crystal Cave LOD runtime
+        run: node game-engine/tests/crystal-cave-lod-runtime-smoke.mjs
