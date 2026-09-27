@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import { test, expect } from '@playwright/test';
 
 const BASE=process.env.DM_VISUAL_BASE_URL||'http://127.0.0.1:4173';
@@ -8,11 +9,13 @@ test('DM real Combat tab renders a visible FIELD with all deployed sprites', asy
   await page.goto(`${BASE}/pantalla_dm.html`,{waitUntil:'domcontentloaded'});
   await page.locator('[data-tab="tab-combate"]').click();
 
-  const frameLocator=page.frameLocator('#dm-combat-live-frame');
   await expect(page.locator('#dm-combat-live-frame')).toHaveAttribute('src',/Battle-viewer\.html/,{timeout:10000});
 
-  const frame=page.frames().find(frame=>frame.url().includes('Battle-viewer.html'));
-  expect(frame,'canonical Battle-viewer iframe must be loaded by the real DM tab').toBeTruthy();
+  let frame=null;
+  await expect.poll(()=>{
+    frame=page.frames().find(candidate=>candidate.url().includes('Battle-viewer.html'))||null;
+    return Boolean(frame);
+  },{timeout:10000,message:'canonical Battle-viewer iframe must be loaded by the real DM tab'}).toBe(true);
 
   await frame.waitForFunction(()=>{
     return Boolean(window.LuminousCombat073&&document.getElementById('game-container')&&document.getElementById('battlefield'));
@@ -113,6 +116,7 @@ test('DM real Combat tab renders a visible FIELD with all deployed sprites', asy
 
   await expect(page.locator('#dm-combat-live-status')).toContainText('BATTLE VISIBLE',{timeout:10000});
 
+  fs.mkdirSync('artifacts/dm-combat-visual',{recursive:true});
   await page.locator('#dm-combat-live-battle').screenshot({
     path:'artifacts/dm-combat-visual/dm-combat-battle.png',
     animations:'disabled'
