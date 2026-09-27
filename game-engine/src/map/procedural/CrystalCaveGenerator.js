@@ -1,105 +1,175 @@
 import { createProceduralMapData } from "./ProceduralMapGenerator.js";
-import { SeededRandom, seededUnit } from "./SeededRandom.js";
+import { seededUnit } from "./SeededRandom.js";
 
 const finite=(v,f=0)=>Number.isFinite(Number(v))?Number(v):f;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,finite(v,a)));
-const key=(x,z)=>x+","+z;
 const smooth01=v=>{const t=clamp(v,0,1);return t*t*(3-2*t)};
 
 export const CRYSTAL_CAVE_CONTRACT_ID="luminous.crystal-cave-procedural.v2";
 export const CRYSTAL_CAVE_PASTELS=Object.freeze([
   "#ffb8d8","#e6c1ff","#b9dcff","#bff3dd","#ffd3b8","#f7c6ff"
 ]);
+export const CRYSTAL_CAVE_WATER_VISUAL=Object.freeze({
+  color:0x3278de,
+  opacity:1,
+  patternMask:Object.freeze({enabled:true,backgroundColor:0x3278de})
+});
 
-function normalizeBounds(bounds={}){
-  if("x0" in bounds||"x1" in bounds||"z0" in bounds||"z1" in bounds){
-    const x0=finite(bounds.x0,-24),x1=finite(bounds.x1,24),z0=finite(bounds.z0,-24),z1=finite(bounds.z1,24);
-    return Object.freeze({x0:Math.min(x0,x1),x1:Math.max(x0,x1),z0:Math.min(z0,z1),z1:Math.max(z0,z1)});
-  }
-  const minX=finite(bounds.minX,-24),maxX=finite(bounds.maxX,24),minZ=finite(bounds.minZ,-24),maxZ=finite(bounds.maxZ,24);
-  return Object.freeze({x0:Math.min(minX,maxX),x1:Math.max(minX,maxX),z0:Math.min(minZ,maxZ),z1:Math.max(minZ,maxZ)});
-}
+export const CRYSTAL_CAVE_BLUEPRINT=Object.freeze({
+  id:"mine-floor-1",
+  label:"Piso 1 · Entrada de Mina",
+  widthTiles:256,
+  heightTiles:128,
+  chunkSize:128,
+  chunks:Object.freeze([
+    Object.freeze({id:"mine-floor-1:chunk-a",cx:0,cz:0,x0:0,x1:128,z0:0,z1:128,label:"Entrada e instalaciones"}),
+    Object.freeze({id:"mine-floor-1:chunk-b",cx:1,cz:0,x0:128,x1:256,z0:0,z1:128,label:"Cristales, jefe y descenso"})
+  ])
+});
 
-function normalize(input={}){
-  const bounds=normalizeBounds(input.bounds||{x0:-24,x1:24,z0:-24,z1:24});
+const BLUEPRINT_ROOMS=Object.freeze([
+  Object.freeze({id:"vestibule",label:"Vestíbulo de mina",shape:"rect",cx:40,cz:103,hx:25,hz:11,kind:"facility"}),
+  Object.freeze({id:"camp",label:"Campamento minero abandonado",shape:"ellipse",cx:31,cz:76,rx:18,rz:15,kind:"safe"}),
+  Object.freeze({id:"supply",label:"Almacén de suministros",shape:"rect",cx:24,cz:38,hx:14,hz:12,kind:"facility"}),
+  Object.freeze({id:"tools",label:"Depósito de herramientas",shape:"rect",cx:58,cz:41,hx:14,hz:10,kind:"facility"}),
+  Object.freeze({id:"infirmary",label:"Enfermería",shape:"rect",cx:66,cz:61,hx:12,hz:9,kind:"facility"}),
+  Object.freeze({id:"control",label:"Sala de control",shape:"rect",cx:91,cz:79,hx:19,hz:10,kind:"facility"}),
+  Object.freeze({id:"gallery",label:"Galería de extracción inicial",shape:"rect",cx:121,cz:61,hx:25,hz:9,kind:"facility"}),
+  Object.freeze({id:"crystalNiche",label:"Nicho de cristal",shape:"ellipse",cx:132,cz:28,rx:24,rz:18,kind:"cave"}),
+  Object.freeze({id:"lowerGrotto",label:"Galería secundaria inundada",shape:"ellipse",cx:179,cz:98,rx:20,rz:15,kind:"cave"}),
+  Object.freeze({id:"boss",label:"Cámara del capataz corrompido",shape:"ellipse",cx:209,cz:33,rx:23,rz:20,kind:"boss"}),
+  Object.freeze({id:"scavengers",label:"Galería de carroñeros",shape:"ellipse",cx:230,cz:72,rx:17,rz:18,kind:"cave"}),
+  Object.freeze({id:"elevator",label:"Pozo de descenso / montacargas",shape:"rect",cx:237,cz:111,hx:12,hz:10,kind:"facility"})
+]);
+
+const BLUEPRINT_CORRIDORS=Object.freeze([
+  Object.freeze({id:"entrance-vestibule",a:{x:7,z:113},b:{x:26,z:105},width:7}),
+  Object.freeze({id:"vestibule-camp",a:{x:31,z:94},b:{x:31,z:88},width:8}),
+  Object.freeze({id:"camp-supply",a:{x:30,z:62},b:{x:27,z:50},width:7}),
+  Object.freeze({id:"supply-tools",a:{x:38,z:41},b:{x:44,z:41},width:7}),
+  Object.freeze({id:"tools-infirmary",a:{x:66,z:49},b:{x:66,z:52},width:7}),
+  Object.freeze({id:"infirmary-control",a:{x:75,z:66},b:{x:78,z:73},width:8}),
+  Object.freeze({id:"control-gallery",a:{x:107,z:73},b:{x:112,z:69},width:8}),
+  Object.freeze({id:"gallery-crystal",a:{x:128,z:52},b:{x:132,z:44},width:8}),
+  Object.freeze({id:"gallery-bridge",a:{x:145,z:61},b:{x:156,z:61},width:8}),
+  Object.freeze({id:"bridge-boss",a:{x:184,z:61},b:{x:195,z:49},width:8}),
+  Object.freeze({id:"boss-right",a:{x:226,z:45},b:{x:231,z:56},width:8}),
+  Object.freeze({id:"right-spine",a:{x:232,z:55},b:{x:234,z:101},width:9}),
+  Object.freeze({id:"right-elevator",a:{x:234,z:91},b:{x:237,z:102},width:8}),
+  Object.freeze({id:"gallery-lower",a:{x:143,z:69},b:{x:154,z:82},width:7}),
+  Object.freeze({id:"lower-loop-a",a:{x:154,z:82},b:{x:164,z:94},width:8}),
+  Object.freeze({id:"lower-loop-b",a:{x:193,z:98},b:{x:210,z:90},width:8}),
+  Object.freeze({id:"lower-loop-c",a:{x:210,z:90},b:{x:220,z:82},width:8})
+]);
+
+const BRIDGE=Object.freeze({id:"bridge",label:"Pasarela sobre grieta",shape:"rect",cx:170,cz:61,hx:15,hz:5,kind:"bridge"});
+const ENTRANCE=Object.freeze({x:7,y:0,z:113,layer:"exterior"});
+const ELEVATOR_EXIT=Object.freeze({x:237,z:111});
+
+const LANDMARKS=Object.freeze([
+  Object.freeze({id:"entrance",label:"Entrada exterior",x:7,z:113,kind:"transition"}),
+  Object.freeze({id:"camp",label:"Campamento minero abandonado",x:31,z:76,kind:"safe"}),
+  Object.freeze({id:"supply",label:"Almacén de suministros",x:24,z:38,kind:"loot"}),
+  Object.freeze({id:"tools",label:"Depósito de herramientas",x:58,z:41,kind:"loot"}),
+  Object.freeze({id:"infirmary",label:"Enfermería",x:66,z:61,kind:"medical"}),
+  Object.freeze({id:"control",label:"Sala de control",x:91,z:79,kind:"control"}),
+  Object.freeze({id:"crystal-niche",label:"Nicho de cristal",x:132,z:28,kind:"crystal"}),
+  Object.freeze({id:"bridge",label:"Pasarela sobre grieta",x:170,z:61,kind:"bridge"}),
+  Object.freeze({id:"boss",label:"Cámara del capataz corrompido",x:209,z:33,kind:"boss"}),
+  Object.freeze({id:"scavengers",label:"Galería de carroñeros",x:230,z:72,kind:"encounter"}),
+  Object.freeze({id:"elevator",label:"Pozo de descenso / montacargas",x:237,z:111,kind:"floor-transition"})
+]);
+
+const ENCOUNTERS=Object.freeze([
+  Object.freeze({id:"miners-corrupted",label:"Mineros corrompidos",x:119,z:61,radius:9,tier:"standard"}),
+  Object.freeze({id:"bats-niche",label:"Murciélagos",x:132,z:36,radius:8,tier:"standard"}),
+  Object.freeze({id:"bats-lower",label:"Murciélagos",x:181,z:92,radius:9,tier:"standard"}),
+  Object.freeze({id:"boss-foreman",label:"Capataz corrompido",x:209,z:33,radius:13,tier:"boss"}),
+  Object.freeze({id:"scavengers",label:"Carroñeros",x:230,z:72,radius:11,tier:"standard"})
+]);
+
+const LOOT=Object.freeze([
+  Object.freeze({id:"loot-supply",x:24,z:38,kind:"chest"}),
+  Object.freeze({id:"loot-tools",x:58,z:41,kind:"chest"}),
+  Object.freeze({id:"loot-control",x:91,z:79,kind:"chest"}),
+  Object.freeze({id:"loot-crystal",x:132,z:28,kind:"chest"})
+]);
+
+const BLOCKED_DOORS=Object.freeze([
+  Object.freeze({id:"door-supply-tools",x:41,z:41}),
+  Object.freeze({id:"door-infirmary-gallery",x:78,z:68})
+]);
+
+const PRIMARY_ROUTE=Object.freeze([
+  [7,113,7],[18,109,7],[30,104,7],[40,98,8],[37,88,8],[31,79,8],
+  [35,69,8],[49,68,8],[64,64,8],[80,72,8],[96,70,8],[111,64,8],
+  [126,61,9],[141,61,9],[157,61,8],[170,61,6],[183,61,6],[194,50,8],
+  [205,41,9],[218,43,9],[228,55,8],[232,72,9],[234,91,9],[237,111,8]
+].map((p,i)=>Object.freeze({id:"route-"+i,x:p[0],z:p[1],width:p[2]})));
+
+function normalize(){
+  const bounds=Object.freeze({x0:0,x1:CRYSTAL_CAVE_BLUEPRINT.widthTiles,z0:0,z1:CRYSTAL_CAVE_BLUEPRINT.heightTiles});
   return Object.freeze({
-    ...input,
-    id:String(input.id||"crystalCave"),
-    kind:"procedural-interior-cave",
-    seed:String(input.seed??"crystal-cave"),
+    id:"crystalCave",
+    kind:"authored-interior-cave",
+    seed:"mine-floor-1",
     bounds,
-    chunkSize:Math.max(8,finite(input.chunkSize,8)),
-    activeRadius:Math.max(1,Math.floor(finite(input.activeRadius,2))),
-    altitude:finite(input.altitude,0),
-    scale:Math.max(.25,finite(input.scale,1)),
-    moisture:clamp(input.moisture??.68,0,1),
-    aridity:clamp(input.aridity??.18,0,1),
-    hydrology:{type:String(input.hydrology?.type||"lake")},
-    landform:{rolling:.34,hills:.48,ridges:.26,...(input.landform||{})},
+    chunkSize:CRYSTAL_CAVE_BLUEPRINT.chunkSize,
+    activeRadius:1,
+    altitude:0,
+    scale:1,
+    moisture:.68,
+    aridity:.18,
+    hydrology:{type:"lake"},
+    landform:{rolling:.12,hills:.08,ridges:.05},
     metadata:Object.freeze({
       authority:"map-module",
       generator:"CrystalCaveGenerator",
       contract:CRYSTAL_CAVE_CONTRACT_ID,
       interior:true,
+      layout:"mine-floor-1-blueprint",
+      layoutAuthority:"authored-two-chunk",
+      chunkCount:2,
+      chunkSizeTiles:128,
+      worldSizeTiles:Object.freeze({width:256,height:128}),
       streaming:"nearby-chunks",
       terrainAuthority:"shared-height-field",
-      hydrologyAuthority:"shared-bathymetry",
-      ...(input.metadata||{})
+      hydrologyAuthority:"terrain-water-shared-field",
+      hydrology:"continuous-depth-field"
     })
   });
 }
 
-function pointSegmentDistance(px,pz,a,b){
+function roomContains(room,x,z,margin=0){
+  if(room.shape==="rect"){
+    return Math.abs(x-room.cx)<=Math.max(.2,room.hx-margin)&&Math.abs(z-room.cz)<=Math.max(.2,room.hz-margin);
+  }
+  const rx=Math.max(.2,room.rx-margin),rz=Math.max(.2,room.rz-margin);
+  return Math.hypot((x-room.cx)/rx,(z-room.cz)/rz)<=1;
+}
+
+function segmentDistance(px,pz,a,b){
   const dx=b.x-a.x,dz=b.z-a.z,den=dx*dx+dz*dz||1;
   const t=clamp(((px-a.x)*dx+(pz-a.z)*dz)/den,0,1);
   const x=a.x+dx*t,z=a.z+dz*t;
-  return {distance:Math.hypot(px-x,pz-z),t,x,z};
+  return Math.hypot(px-x,pz-z);
 }
 
-function makeRoute(spec){
-  const {bounds}=spec,route=[];
-  const phase=seededUnit(spec.seed,7,11)*Math.PI*2;
-  const spanZ=bounds.z1-bounds.z0;
-  const count=Math.max(18,Math.round(spanZ/1.92));
-  let x=(seededUnit(spec.seed,1,2)-.5)*2.0;
-  for(let i=0;i<count;i++){
-    const t=i/Math.max(1,count-1);
-    const z=bounds.z0+3+t*(spanZ-6);
-    const drift=Math.sin(i*.50+phase)*4.4+(seededUnit(spec.seed,i,31)-.5)*3.0;
-    x=x+(clamp(drift,bounds.x0+7,bounds.x1-7)-x)*.48;
-    const width=2.35+seededUnit(spec.seed,i,47)*1.75;
-    route.push(Object.freeze({x,z,width}));
-  }
-  return Object.freeze(route);
+function corridorContains(c,x,z,margin=0){
+  return segmentDistance(x,z,c.a,c.b)<=Math.max(.8,c.width*.5-margin);
 }
 
-function makeChambers(spec,route){
-  const picks=[.28,.53,.78];
-  return Object.freeze(picks.map((ratio,n)=>{
-    const idx=Math.max(1,Math.min(route.length-2,Math.round((route.length-1)*ratio)));
-    const p=route[idx],side=seededUnit(spec.seed,n,71)>.5?1:-1;
-    return Object.freeze({
-      x:clamp(p.x+side*(1.0+seededUnit(spec.seed,n,73)*1.8),spec.bounds.x0+6,spec.bounds.x1-6),
-      z:p.z+(seededUnit(spec.seed,n,79)-.5)*1.6,
-      rx:3.8+seededUnit(spec.seed,n,83)*1.9,
-      rz:3.4+seededUnit(spec.seed,n,89)*1.7
-    });
-  }));
+function roomAt(x,z){
+  for(const room of BLUEPRINT_ROOMS)if(roomContains(room,x,z,0))return room;
+  if(roomContains(BRIDGE,x,z,0))return BRIDGE;
+  return null;
 }
 
-function caveContains(spec,route,chambers,tx,tz,margin=0){
-  const b=spec.bounds;
-  if(tx<b.x0+1||tx>b.x1-1||tz<b.z0+1||tz>b.z1-1)return false;
-  let best=Infinity,allowed=.72;
-  for(let i=0;i<route.length-1;i++){
-    const d=pointSegmentDistance(tx,tz,route[i],route[i+1]);
-    if(d.distance<best){best=d.distance;allowed=route[i].width+(route[i+1].width-route[i].width)*d.t;}
-  }
-  if(best<=Math.max(.72,allowed-margin))return true;
-  for(const c of chambers){
-    const rx=Math.max(.25,c.rx-margin),rz=Math.max(.25,c.rz-margin);
-    if(Math.hypot((tx-c.x)/rx,(tz-c.z)/rz)<=1)return true;
-  }
+function caveContains(spec,x,z,margin=0){
+  if(x<spec.bounds.x0+1||x>spec.bounds.x1-1||z<spec.bounds.z0+1||z>spec.bounds.z1-1)return false;
+  for(const room of BLUEPRINT_ROOMS)if(roomContains(room,x,z,margin))return true;
+  if(roomContains(BRIDGE,x,z,margin))return true;
+  for(const corridor of BLUEPRINT_CORRIDORS)if(corridorContains(corridor,x,z,margin))return true;
   return false;
 }
 
@@ -117,37 +187,44 @@ function buildSurfaceRuns(spec,contains,inWater,waterSurfaceTiles){
       }
     }
   };
-  append((x,z)=>contains(x,z),(x0,x1,z)=>Object.freeze({
-    id:`crystal-cave-ground-${z}-${x0}`,layer:"exterior",x0,x1,z0:z,z1:z+1,
-    elevation:0,terrain:"stone",walkable:true,combat:true,
-    tags:["cave","crystal-cave","ground","procedural-interior"]
-  }));
-  append((x,z)=>inWater(x,z),(x0,x1,z)=>Object.freeze({
-    id:`crystal-cave-water-${z}-${x0}`,layer:"exterior",x0,x1,z0:z,z1:z+1,
-    elevation:waterSurfaceTiles,terrain:"water",walkable:true,combat:false,locomotion:"swim",
-    moveMultiplier:.56,
-    tags:["cave","crystal-cave","water","swim","underground-lake"]
-  }));
+  append(
+    (x,z)=>contains(x,z),
+    (x0,x1,z)=>Object.freeze({
+      id:"mine-floor-ground-"+z+"-"+x0,layer:"exterior",x0,x1,z0:z,z1:z+1,
+      elevation:0,terrain:"stone",walkable:true,combat:true,
+      tags:["cave","mine","crystal-cave","ground","mine-floor-1"]
+    })
+  );
+  append(
+    (x,z)=>inWater(x,z),
+    (x0,x1,z)=>Object.freeze({
+      id:"mine-floor-water-"+z+"-"+x0,layer:"exterior",x0,x1,z0:z,z1:z+1,
+      elevation:waterSurfaceTiles,terrain:"water",walkable:true,combat:false,locomotion:"swim",
+      moveMultiplier:.56,
+      tags:["cave","mine","crystal-cave","water","swim","underground-pool"]
+    })
+  );
   return Object.freeze(out);
 }
 
-function crystalFormations(spec,chambers,contains,inWater){
-  const out=[];
-  chambers.forEach((c,ci)=>{
-    const rng=new SeededRandom(spec.seed+":crystals:"+ci);
-    for(let k=0;k<3;k++){
-      const a=(k/3)*Math.PI*2+rng.range(-.25,.45);
-      const rr=Math.min(c.rx,c.rz)*(.58+.08*k);
-      const x=c.x+Math.cos(a)*rr,z=c.z+Math.sin(a)*rr;
-      if(!contains(x,z,.35)||inWater(x,z))continue;
-      out.push(Object.freeze({
-        id:`chamber-${ci}-crystal-${k}`,x,z,
-        scale:rng.range(.55,1.10),lean:rng.range(-.24,.24),
-        color:CRYSTAL_CAVE_PASTELS[(ci+k)%CRYSTAL_CAVE_PASTELS.length]
-      }));
-    }
-  });
-  return Object.freeze(out);
+function crystalFormations(spec,contains,inWater){
+  const authored=[
+    [117,24,.95],[124,20,.72],[131,18,1.12],[140,22,.88],[147,30,.76],[137,36,.64],
+    [154,53,.58],[163,48,.72],[174,50,.94],[184,54,.62],
+    [169,94,.55],[181,88,.86],[191,96,.68],
+    [201,26,.58],[216,28,.76]
+  ];
+  return Object.freeze(authored.map((p,i)=>{
+    const jitterX=(seededUnit(spec.seed,i,41)-.5)*1.2;
+    const jitterZ=(seededUnit(spec.seed,i,43)-.5)*1.2;
+    const x=p[0]+jitterX,z=p[1]+jitterZ;
+    if(!contains(x,z,.18)||inWater(x,z))return null;
+    return Object.freeze({
+      id:"mine-crystal-"+i,x,z,scale:p[2],
+      lean:(seededUnit(spec.seed,i,47)-.5)*.30,
+      color:CRYSTAL_CAVE_PASTELS[i%CRYSTAL_CAVE_PASTELS.length]
+    });
+  }).filter(Boolean));
 }
 
 export function createCrystalCaveData(input={}){
@@ -160,74 +237,80 @@ export function createCrystalCaveData(input={}){
     biome:"crystal-cave",biomeProfile:"interior-rock",surface:"cave-floor",
     metadata:spec.metadata
   });
-  const route=makeRoute(spec);
-  const chambers=makeChambers(spec,route);
-  const contains=(tx,tz,margin=0)=>caveContains(spec,route,chambers,finite(tx),finite(tz),Math.max(0,finite(margin)));
-  const wc=chambers[1];
+
+  const route=PRIMARY_ROUTE;
+  const chambers=Object.freeze([
+    Object.freeze({id:"crystalNiche",x:132,z:28,rx:24,rz:18}),
+    Object.freeze({id:"lowerGrotto",x:179,z:98,rx:20,rz:15}),
+    Object.freeze({id:"boss",x:209,z:33,rx:23,rz:20})
+  ]);
+  const contains=(x,z,margin=0)=>caveContains(spec,finite(x),finite(z),Math.max(0,finite(margin)));
+
   const waterInput=input.water||{};
   const water=Object.freeze({
     kind:"lake",
-    cx:wc.x+.25,cz:wc.z+.15,
-    rx:Math.max(2.0,wc.rx*.58),rz:Math.max(1.65,wc.rz*.50),
+    cx:179,
+    cz:99,
+    rx:10.5,
+    rz:7.2,
     surfaceTiles:finite(waterInput.surfaceTiles??input.waterSurfaceTiles,-.18),
-    maxDepthTiles:Math.max(.32,finite(waterInput.maxDepthTiles??input.maxWaterDepthTiles,.82)),
+    maxDepthTiles:Math.max(.32,finite(waterInput.maxDepthTiles??input.maxWaterDepthTiles??input.waterDepthTiles,.82)),
     shoreDepthTiles:Math.max(.005,finite(waterInput.shoreDepthTiles,.025)),
-    bankWidth:Math.max(.12,finite(input.waterBankWidth,
-      Number.isFinite(Number(waterInput.bankOuterRatio))?Number(waterInput.bankOuterRatio)-1:.22))
+    bankOuterRatio:Math.max(1.05,finite(waterInput.bankOuterRatio,1.30)),
+    bankWidth:Math.max(.05,finite(waterInput.bankOuterRatio,1.30)-1)
   });
-  const waterQ=(tx,tz)=>Math.hypot((finite(tx)-water.cx)/water.rx,(finite(tz)-water.cz)/water.rz);
-  const inWater=(tx,tz)=>contains(tx,tz,.16)&&waterQ(tx,tz)<=1;
+  const waterQ=(x,z)=>Math.hypot((finite(x)-water.cx)/water.rx,(finite(z)-water.cz)/water.rz);
+  const inWater=(x,z)=>contains(x,z,.16)&&waterQ(x,z)<=1;
 
-  function dryRockHeight(tx,tz){
+  function dryRockHeight(x,z){
+    const room=roomAt(x,z);
+    const roomFlat=room&&(room.kind==="facility"||room.kind==="bridge");
+    const amp=roomFlat?.012:.045;
     const phase=seededUnit(spec.seed,7,11)*Math.PI*2;
-    const n1=Math.sin(tx*.48+phase)*Math.cos(tz*.37-phase*.7);
-    const n2=Math.sin((tx+tz)*.23+phase*1.3);
-    let h=n1*.085+n2*.055;
-    for(const c of chambers){
-      const q=Math.hypot((tx-c.x)/c.rx,(tz-c.z)/c.rz);
-      if(q<1)h-=Math.cos(q*Math.PI*.5)*.055;
-    }
-    return h;
+    return Math.sin(x*.19+phase)*Math.cos(z*.17-phase*.7)*amp+
+      Math.sin((x+z)*.11+phase*1.3)*amp*.55;
   }
 
-  function floorHeightTilesAt(tx,tz){
-    tx=finite(tx);tz=finite(tz);
-    const dry=dryRockHeight(tx,tz),q=waterQ(tx,tz);
-    if(q>=1+water.bankWidth)return dry;
+  function floorHeightTilesAt(x,z){
+    x=finite(x);z=finite(z);
+    const dry=dryRockHeight(x,z),q=waterQ(x,z);
+    if(q>=water.bankOuterRatio)return dry;
 
-    // Shore grade: the same field used by mesh + physics descends smoothly toward
-    // the waterline before swimming begins, so there is no hidden step at q=1.
     if(q>=1){
-      const t=smooth01((1+water.bankWidth-q)/water.bankWidth);
+      const t=smooth01((water.bankOuterRatio-q)/(water.bankOuterRatio-1));
       const shorelineTarget=water.surfaceTiles-water.shoreDepthTiles;
       return dry+(shorelineTarget-dry)*t;
     }
 
-    // Bathymetry: depth is derived from the rendered floor itself.
-    // At the edge the floor is only 0.025 tile under the surface; toward the center
-    // it approaches maxDepthTiles. There is no separate legacy depth constant.
     const center=smooth01((1-q)/.78);
     const depth=water.shoreDepthTiles+(water.maxDepthTiles-water.shoreDepthTiles)*center;
     return water.surfaceTiles-depth;
   }
 
   function sampleWater(point={}){
-    const tx=finite(point.x),tz=finite(point.z);
-    if(!inWater(tx,tz))return null;
-    const ground=floorHeightTilesAt(tx,tz);
+    const x=finite(point.x),z=finite(point.z);
+    if(!inWater(x,z))return null;
+    const ground=floorHeightTilesAt(x,z);
     const depth=Math.max(.001,water.surfaceTiles-ground);
     return Object.freeze({
-      bodyId:spec.id+":underground-lake",
-      type:"lake",class:depth>=.72?"deepWater":(depth>=.28?"water":"shallowWater"),
-      depth,surface:water.surfaceTiles,ground,
-      wetness:1,current:null,source:"crystal-cave-shared-bathymetry"
+      bodyId:spec.id+":underground-pool",
+      type:"lake",
+      class:depth>=.72?"deepWater":(depth>=.28?"water":"shallowWater"),
+      depth,
+      surface:water.surfaceTiles,
+      ground,
+      waterSurfaceTiles:water.surfaceTiles,
+      groundHeightTiles:ground,
+      wetness:1,
+      current:null,
+      source:"crystal-cave-shared-bathymetry"
     });
   }
 
-  function waterSampleAt(tx,tz){
-    tx=finite(tx);tz=finite(tz);
-    const q=waterQ(tx,tz),radius=Math.max(.001,Math.min(water.rx,water.rz));
-    const sample=sampleWater({x:tx,z:tz});
+  function waterSampleAt(x,z){
+    x=finite(x);z=finite(z);
+    const q=waterQ(x,z),radius=Math.max(.001,Math.min(water.rx,water.rz));
+    const sample=sampleWater({x,z});
     return Object.freeze({
       water:!!sample,
       type:"lake",
@@ -235,74 +318,114 @@ export function createCrystalCaveData(input={}){
       waterDepth:sample?.depth||0,
       depth:sample?.depth||0,
       surface:water.surfaceTiles,
-      ground:sample?.ground??floorHeightTilesAt(tx,tz),
+      ground:sample?.ground??floorHeightTilesAt(x,z),
       distanceToWater:Math.max(0,(q-1)*radius),
-      bankWidthTiles:water.bankWidth*radius,
+      bankWidthTiles:(water.bankOuterRatio-1)*radius,
       current:null,
       source:"crystal-cave-shared-bathymetry"
     });
   }
 
   function sampleTerrain(point={}){
-    const tx=finite(point.x),tz=finite(point.z);
-    const open=contains(tx,tz),height=floorHeightTilesAt(tx,tz),waterSample=sampleWater({x:tx,z:tz});
+    const x=finite(point.x),z=finite(point.z);
+    const open=contains(x,z),height=floorHeightTilesAt(x,z),waterSample=sampleWater({x,z});
+    const zone=roomAt(x,z);
     return Object.freeze({
-      ...base.sampleTerrain({x:tx,y:finite(point.y),z:tz}),
-      height,surface:waterSample?"wet-cave-floor":"cave-floor",
-      walkable:open,moveMultiplier:open?1:0,water:waterSample,
-      tags:waterSample?["cave","crystal-cave","water"]:["cave","crystal-cave","ground"]
+      ...base.sampleTerrain({x,y:finite(point.y),z}),
+      height,
+      surface:waterSample?"wet-cave-floor":"cave-floor",
+      walkable:open,
+      moveMultiplier:open?1:0,
+      water:waterSample,
+      zoneId:zone?.id||null,
+      tags:waterSample
+        ?["cave","mine","crystal-cave","water"]
+        :["cave","mine","crystal-cave","ground",zone?.kind||"corridor"]
     });
   }
 
   const surfaces=buildSurfaceRuns(spec,contains,inWater,water.surfaceTiles);
-  const formations=crystalFormations(spec,chambers,contains,inWater);
-  const spawnRoute=route[1],exitRoute=route[route.length-2];
+  const formations=crystalFormations(spec,contains,inWater);
+  const chunks=CRYSTAL_CAVE_BLUEPRINT.chunks;
 
   function chunkAt(x,z){
-    return {cx:Math.floor((finite(x)-spec.bounds.x0)/spec.chunkSize),cz:Math.floor((finite(z)-spec.bounds.z0)/spec.chunkSize)};
+    x=finite(x);z=finite(z);
+    if(z<0||z>=128||x<0||x>=256)return null;
+    return chunks[x<128?0:1];
   }
+
   function chunksAround(point={},radius=spec.activeRadius){
-    const center=chunkAt(point.x,point.z),out=[];
-    for(let dx=-radius;dx<=radius;dx++)for(let dz=-radius;dz<=radius;dz++){
-      const x0=spec.bounds.x0+(center.cx+dx)*spec.chunkSize;
-      const z0=spec.bounds.z0+(center.cz+dz)*spec.chunkSize;
-      out.push(Object.freeze({
-        cx:center.cx+dx,cz:center.cz+dz,x0,z0,x1:x0+spec.chunkSize,z1:z0+spec.chunkSize,
-        active:!(x0>=spec.bounds.x1||z0>=spec.bounds.z1||x0+spec.chunkSize<=spec.bounds.x0||z0+spec.chunkSize<=spec.bounds.z0)
-      }));
-    }
-    return out;
+    const center=chunkAt(point.x,point.z);
+    if(!center)return [];
+    const r=Math.max(0,Math.floor(finite(radius,spec.activeRadius)));
+    return chunks.filter(chunk=>Math.abs(chunk.cx-center.cx)<=r).map(chunk=>Object.freeze({...chunk,active:true}));
   }
 
   return Object.freeze({
-    id:spec.id,kind:spec.kind,seed:spec.seed,bounds:spec.bounds,metadata:spec.metadata,
-    chunkSize:spec.chunkSize,activeRadius:spec.activeRadius,base,
-    route,chambers,water,formations,crystals:formations,surfaces,
-    contains,inWater,waterQ,floorHeightTilesAt,sampleTerrain,sampleWater,waterSampleAt,
-    chunkAt,chunksAround,
-    spawn:Object.freeze({x:spawnRoute.x,y:0,z:spawnRoute.z,layer:"exterior"}),
-    exit:Object.freeze({x:exitRoute.x,z:exitRoute.z}),
-    snapshot(){return {
-      id:spec.id,seed:spec.seed,kind:spec.kind,bounds:spec.bounds,
-      chunkSize:spec.chunkSize,activeRadius:spec.activeRadius,
-      water:{...water},metadata:{...spec.metadata}
-    }}
+    id:spec.id,
+    kind:spec.kind,
+    seed:spec.seed,
+    bounds:spec.bounds,
+    metadata:spec.metadata,
+    chunkSize:spec.chunkSize,
+    activeRadius:spec.activeRadius,
+    chunks,
+    base,
+    route,
+    chambers,
+    rooms:BLUEPRINT_ROOMS,
+    corridors:BLUEPRINT_CORRIDORS,
+    bridge:BRIDGE,
+    landmarks:LANDMARKS,
+    encounters:ENCOUNTERS,
+    loot:LOOT,
+    blockedDoors:BLOCKED_DOORS,
+    water,
+    formations,
+    crystals:formations,
+    surfaces,
+    contains,
+    inWater,
+    waterQ,
+    floorHeightTilesAt,
+    sampleTerrain,
+    sampleWater,
+    waterSampleAt,
+    chunkAt,
+    chunksAround,
+    spawn:ENTRANCE,
+    exteriorExit:Object.freeze({x:ENTRANCE.x,z:ENTRANCE.z}),
+    exit:ELEVATOR_EXIT,
+    snapshot(){
+      return {
+        id:spec.id,
+        seed:spec.seed,
+        kind:spec.kind,
+        bounds:spec.bounds,
+        chunkSize:spec.chunkSize,
+        chunkCount:chunks.length,
+        chunks:chunks.map(chunk=>({...chunk})),
+        activeRadius:spec.activeRadius,
+        water:{...water},
+        landmarks:LANDMARKS.map(x=>({...x})),
+        metadata:{...spec.metadata}
+      };
+    }
   });
 }
 
 export function createCrystalCaveDefinition(input={}){
   const spec=normalize(input);
   return Object.freeze({
-    id:spec.id,kind:spec.kind,seed:spec.seed,
+    id:spec.id,
+    kind:spec.kind,
+    seed:spec.seed,
     bounds:{minX:spec.bounds.x0,maxX:spec.bounds.x1,minZ:spec.bounds.z0,maxZ:spec.bounds.z1},
     metadata:spec.metadata,
-    async generate(){return createCrystalCaveData(spec);}
+    async generate(){return createCrystalCaveData(input);}
   });
 }
 
-
-// Runtime-facing alias used by the Forest/Game Engine view adapter. The generator
-// remains the single authority; the view never regenerates terrain or hydrology.
 export function createCrystalCaveRuntimeData(input={}){
   return createCrystalCaveData(input);
 }
