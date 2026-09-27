@@ -19,7 +19,7 @@ const FIREBASE_APP_STUB=`
     'visual-enemy-b':{id:'visual-enemy-b',name:'ENEMY B',actorCategory:'enemy',faction:'enemy',battleActive:true,hp:85,maxHp:85,sp:0,actionSlots:1,combatSprite:sprite('ENEMY B','#3e2949','#d58cff'),x:80,y:48,scale:0.9,statusEffects:{}}
   };
   const valueFor=(path='')=>{
-    const clean=String(path).replace(/^\/+|\/+$/g,'');
+    const clean=String(path).split('/').filter(Boolean).join('/');
     if(clean==='campaña/config/dm_uid')return DM_UID;
     if(clean==='campaña/combate/combatants')return VISUAL_COMBATANTS;
     if(clean==='campaña/combate/estado')return {phase:'PRE_COMBAT_PLANNING',round:1};
