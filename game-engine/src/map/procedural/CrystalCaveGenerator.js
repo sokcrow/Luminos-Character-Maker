@@ -125,3 +125,192 @@ export function createCrystalCaveDefinition(input={}){
     async generate(){return createCrystalCaveData(spec);}
   });
 }
+
+
+// -----------------------------------------------------------------------------
+// Crystal Cave runtime topology v2
+// Single authority for the Lab/Game Engine cave adapter. Coordinates are in map
+// tiles so renderer, grid, terrain height field and water gameplay all sample the
+// same deterministic data instead of rebuilding their own copy of the cave.
+// -----------------------------------------------------------------------------
+export function crystalCaveSeedUnit(seed,a=0,b=0,c=0){
+  const str=String(seed)+"|"+a+"|"+b+"|"+c;
+  let h=2166136261>>>0;
+  for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619)>>>0;}
+  h^=h>>>16;h=Math.imul(h,0x7feb352d)>>>0;h^=h>>>15;h=Math.imul(h,0x846ca68b)>>>0;h^=h>>>16;
+  return (h>>>0)/4294967295;
+}
+
+function caveSmooth01(value){
+  const t=clamp(value,0,1);
+  return t*t*(3-2*t);
+}
+
+function cavePointSegmentDistance(px,pz,a,b){
+  const dx=b.x-a.x,dz=b.z-a.z,den=dx*dx+dz*dz||1;
+  const t=clamp(((px-a.x)*dx+(pz-a.z)*dz)/den,0,1);
+  const x=a.x+(b.x-a.x)*t,z=a.z+(b.z-a.z)*t;
+  return {distance:Math.hypot(px-x,pz-z),t,x,z};
+}
+
+export function createCrystalCaveRuntimeData(input={}){
+  const seed=String(input.seed??"crystal-cave");
+  const bounds=Object.freeze({
+    x0:finite(input.bounds?.x0,-24),x1:finite(input.bounds?.x1,24),
+    z0:finite(input.bounds?.z0,-24),z1:finite(input.bounds?.z1,24)
+  });
+  const route=[];
+  const phase=crystalCaveSeedUnit(seed,7,11)*Math.PI*2;
+  let x=(crystalCaveSeedUnit(seed,1,2)-.5)*2;
+  const routeCount=Math.max(12,Math.floor(finite(input.routeCount,23)));
+  const zStart=bounds.z0+3,zEnd=bounds.z1-3;
+  for(let i=0;i<routeCount;i++){
+    const t=i/Math.max(1,routeCount-1),z=zStart+(zEnd-zStart)*t;
+    const drift=Math.sin(i*.50+phase)*4.4+(crystalCaveSeedUnit(seed,i,31)-.5)*3.0;
+    x=x+(clamp(drift,-8.2,8.2)-x)*.48;
+    const width=2.35+crystalCaveSeedUnit(seed,i,47)*1.75;
+    route.push(Object.freeze({x,z,width}));
+  }
+
+  const chamberIndices=[.27,.54,.81].map(t=>Math.max(1,Math.min(route.length-2,Math.round((route.length-1)*t))));
+  const chambers=chamberIndices.map((idx,n)=>{
+    const p=route[idx],side=crystalCaveSeedUnit(seed,n,71)>.5?1:-1;
+    return Object.freeze({
+      x:clamp(p.x+side*(1+crystalCaveSeedUnit(seed,n,73)*1.8),bounds.x0+6,bounds.x1-6),
+      z:p.z+(crystalCaveSeedUnit(seed,n,79)-.5)*1.6,
+      rx:3.8+crystalCaveSeedUnit(seed,n,83)*1.9,
+      rz:3.4+crystalCaveSeedUnit(seed,n,89)*1.7
+    });
+  });
+
+  const contains=(tx,tz,margin=0)=>{
+    if(tx<bounds.x0+1||tx>bounds.x1-1||tz<bounds.z0+1||tz>bounds.z1-1)return false;
+    let best=Infinity,allowed=0;
+    for(let i=0;i<route.length-1;i++){
+      const d=cavePointSegmentDistance(tx,tz,route[i],route[i+1]);
+      if(d.distance<best){best=d.distance;allowed=route[i].width+(route[i+1].width-route[i].width)*d.t;}
+    }
+    if(best<=Math.max(.72,allowed-margin))return true;
+    for(const c of chambers){
+      const rx=Math.max(.05,c.rx-margin),rz=Math.max(.05,c.rz-margin);
+      if(Math.hypot((tx-c.x)/rx,(tz-c.z)/rz)<=1)return true;
+    }
+    return false;
+  };
+
+  const waterChamber=chambers[1];
+  const water=Object.freeze({
+    kind:"lake",
+    cx:waterChamber.x+.25,cz:waterChamber.z+.15,
+    rx:Math.max(2.3,waterChamber.rx*.62),rz:Math.max(1.95,waterChamber.rz*.55),
+    surfaceTiles:finite(input.water?.surfaceTiles,-.18),
+    maxDepthTiles:Math.max(.48,finite(input.water?.maxDepthTiles,.92)),
+    shoreDepthTiles:Math.max(.015,finite(input.water?.shoreDepthTiles,.035)),
+    bankOuterRatio:Math.max(1.08,finite(input.water?.bankOuterRatio,1.30))
+  });
+
+  const waterQ=(tx,tz)=>Math.hypot((tx-water.cx)/water.rx,(tz-water.cz)/water.rz);
+  const inWater=(tx,tz)=>contains(tx,tz,.10)&&waterQ(tx,tz)<=1;
+
+  const naturalFloorHeightTilesAt=(tx,tz)=>{
+    const n1=Math.sin(tx*.48+phase)*Math.cos(tz*.37-phase*.7);
+    const n2=Math.sin((tx+tz)*.23+phase*1.3);
+    let h=n1*.085+n2*.055;
+    for(const c of chambers){
+      const q=Math.hypot((tx-c.x)/c.rx,(tz-c.z)/c.rz);
+      if(q<1)h-=Math.cos(q*Math.PI*.5)*.055;
+    }
+    return h;
+  };
+
+  const floorHeightTilesAt=(tx,tz)=>{
+    let h=naturalFloorHeightTilesAt(tx,tz);
+    const q=waterQ(tx,tz);
+    if(q<water.bankOuterRatio){
+      const bank=caveSmooth01((water.bankOuterRatio-q)/(water.bankOuterRatio-1));
+      const shoreFloor=water.surfaceTiles-water.shoreDepthTiles;
+      h=h+(shoreFloor-h)*bank;
+      if(q<1){
+        const inward=caveSmooth01((1-q)/.72);
+        const depth=water.shoreDepthTiles+(water.maxDepthTiles-water.shoreDepthTiles)*inward;
+        h=water.surfaceTiles-depth;
+      }
+    }
+    return h;
+  };
+
+  const sampleWater=(point={})=>{
+    const tx=finite(point.x),tz=finite(point.z);
+    if(!inWater(tx,tz))return null;
+    const ground=floorHeightTilesAt(tx,tz);
+    const depth=Math.max(.01,water.surfaceTiles-ground);
+    return Object.freeze({
+      bodyId:"crystal-cave-underground-lake",
+      type:"lake",
+      class:depth>=1.25?"deepWater":"shallowWater",
+      depth,
+      surface:water.surfaceTiles,
+      ground,
+      wetness:1,
+      current:null,
+      source:"crystal-cave-runtime-field"
+    });
+  };
+
+  const sampleTerrain=(point={})=>{
+    const tx=finite(point.x),tz=finite(point.z);
+    const walkable=contains(tx,tz);
+    const waterSample=sampleWater({x:tx,z:tz});
+    return Object.freeze({
+      height:floorHeightTilesAt(tx,tz),
+      surface:waterSample?"wet-cave-floor":"cave-floor",
+      walkable,
+      moveMultiplier:walkable?1:0,
+      water:waterSample
+    });
+  };
+
+  const surfaces=[];
+  const appendRuns=(predicate,make)=>{
+    for(let z=Math.floor(bounds.z0);z<Math.ceil(bounds.z1);z++){
+      let run=null;
+      for(let x=Math.floor(bounds.x0);x<=Math.ceil(bounds.x1);x++){
+        const on=x<Math.ceil(bounds.x1)&&predicate(x+.5,z+.5);
+        if(on&&run===null)run=x;
+        if((!on||x===Math.ceil(bounds.x1))&&run!==null){
+          surfaces.push(make(run,x,z));run=null;
+        }
+      }
+    }
+  };
+  appendRuns((tx,tz)=>contains(tx,tz),(x0,x1,z)=>Object.freeze({
+    id:"crystal-cave-ground-"+z+"-"+x0,layer:"exterior",x0,x1,z0:z,z1:z+1,
+    elevation:0,terrain:"stone",walkable:true,combat:true,
+    tags:["cave","crystal-cave","ground","procedural-interior"]
+  }));
+  appendRuns((tx,tz)=>inWater(tx,tz),(x0,x1,z)=>Object.freeze({
+    id:"crystal-cave-water-"+z+"-"+x0,layer:"exterior",x0,x1,z0:z,z1:z+1,
+    elevation:water.surfaceTiles,terrain:"water",walkable:true,combat:false,locomotion:"swim",
+    moveMultiplier:.56,
+    tags:["cave","crystal-cave","water","swim","underground-lake"]
+  }));
+
+  const spawnRoute=route[1],exitRoute=route[route.length-2];
+  return Object.freeze({
+    id:"crystalCave",seed,bounds,
+    metadata:Object.freeze({
+      authority:"map-module",
+      generator:"CrystalCaveGenerator",
+      contract:"luminous.crystal-cave-runtime.v2",
+      topology:"route+chambers",
+      terrain:"continuous-height-field",
+      hydrology:"continuous-depth-field"
+    }),
+    route:Object.freeze(route),chambers:Object.freeze(chambers),water,
+    contains,inWater,waterQ,naturalFloorHeightTilesAt,floorHeightTilesAt,
+    sampleTerrain,sampleWater,
+    surfaces:Object.freeze(surfaces),
+    spawn:Object.freeze({x:spawnRoute.x,y:0,z:spawnRoute.z,layer:"exterior"}),
+    exit:Object.freeze({x:exitRoute.x,z:exitRoute.z})
+  });
+}
