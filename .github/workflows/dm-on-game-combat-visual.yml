@@ -27,6 +27,8 @@ jobs:
         run: |
           npm install --no-save @playwright/test@1.55.0 pngjs@7.0.0
           npx playwright install --with-deps chromium
+      - name: Syntax check ON GAME supervisor
+        run: node --check js/dm-on-game-combat-viewer.js
       - name: Serve repository
         run: |
           python3 -m http.server 4173 --bind 127.0.0.1 > /tmp/dm-on-game-http.log 2>&1 &
