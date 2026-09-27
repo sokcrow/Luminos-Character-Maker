@@ -29,7 +29,7 @@ console.log('REAL_BATTLE_TARGET_FUNCTIONS '+JSON.stringify([...new Set(targetFun
 console.log('REAL_BATTLE_TARGET_VARIABLES '+JSON.stringify([...new Set(targetVariableNames)]));
 
 for(const needle of [
-  'assignTargetIntents','smartTargetScore','autoActionScore','autoPlans',
+  'planTargetRule','validTargetUnits','assignTargetIntents','smartTargetScore','smartTargetForPlan','autoActionScore','autoPlans',
   'targetId','mainTargetId','renderSprites','sprite-container','style.left','style.top',
   'unit.x','unit.y','combatData'
 ]){
@@ -39,3 +39,9 @@ for(const needle of [
 }
 assert.ok(excerpts('action-slot-wrapper',400,100,1).length>0,'real Battle runtime must contain action slots');
 assert.ok(excerpts('combatData',400,100,1).length>0,'real Battle runtime must contain combat data');
+
+const viewer=fs.readFileSync('Battle-viewer.html','utf8');
+assert.ok(viewer.includes('COMBAT_NORMAL_ENEMY_TARGET_PATCH_MISSING'),'Battle bootstrap must patch the live normal-enemy target selector');
+assert.ok(viewer.includes('luminousStableTargetRoll'),'live normal-enemy target selection must be stable across viewers');
+assert.ok(viewer.includes("owner?.rank||owner?.unitRank||owner?.mechanics?.rank||'normal'"),'live target patch must preserve rank-specific behavior');
+console.log('LIVE_BATTLE_TARGET_PATCH_CONTRACT ok');
