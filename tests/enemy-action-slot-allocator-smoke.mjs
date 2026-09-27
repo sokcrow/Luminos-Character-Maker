@@ -208,4 +208,31 @@ assert.deepEqual(catalog.get('goblin_boss'), { id: 'goblin_boss', minSlots: 1, m
   assert.equal(plans.planner_slow.plan.actions.length, 1);
 }
 
+
+{
+  const skill = {
+    id: 'seven_player_target_probe', sourceType: 'skill', type: 'Attack', basePower: 4, coinPower: 1, coinAmount: 1,
+    attackWeight: 1, damageType: 'pierce', sinAffinity: 'sinless', targetingType: 'Focused Attack',
+    isDefense: false, isClashable: false, isUnclashable: true, resourceCosts: [], effects: [],
+    coins: [{ index: 0, type: 'normal', status: 'active', effects: [] }],
+  };
+  const wolves = [
+    { ...enemy('wolf_normal_1', 6, 1), rank: 'normal', combatSkills: [skill] },
+    { ...enemy('wolf_normal_2', 5, 1), rank: 'normal', combatSkills: [skill] },
+    { ...enemy('wolf_normal_3', 4, 1), rank: 'normal', combatSkills: [skill] },
+  ];
+  const players = Array.from({ length: 7 }, (_, index) => `player_${index + 1}`);
+  const rolls = [0.01, 0.20, 0.40];
+  let rollIndex = 0;
+  const result = allocator.allocateAndPlan(wolves, {
+    targetIds: players,
+    roundId: 'seven_players_three_wolves',
+    random: () => rolls[rollIndex++],
+  });
+  assert.equal(result.planningReady, true);
+  const chosen = result.plans.map((entry) => entry.plan.targetId);
+  assert.deepEqual(chosen, ['player_1', 'player_2', 'player_3']);
+  assert.equal(new Set(chosen).size, 3, 'three normal Wolves with independent rolls must not deterministically dogpile one Player');
+}
+
 console.log('enemy Action Slot allocator smoke: ok');
