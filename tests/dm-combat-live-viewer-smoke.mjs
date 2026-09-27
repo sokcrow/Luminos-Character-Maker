@@ -29,7 +29,7 @@ class FakeClassList {
 
 class FakeElement {
   constructor(tag='div',id=''){
-    this.tagName=tag.toUpperCase();this.id=id;this.dataset={};this.style={};this.children=[];this.listeners={};this.attributes={};this.firstChild=null;this._innerHTML='';this.contentWindow=null;this._src='';this._hidden=false;this.textContent='';this.classList=new FakeClassList();this.rect={width:1200,height:800};
+    this.tagName=tag.toUpperCase();this.id=id;this.dataset={};this.style={};this.children=[];this.listeners={};this.attributes={};this.firstChild=null;this._innerHTML='';this.contentWindow=null;this._src='';this._hidden=false;this.textContent='';this.classList=new FakeClassList();this.rect={width:1200,height:800};this.parentElement=null;this.hidden=false;this.complete=true;this.naturalWidth=this.tagName==='IMG'?220:0;this.naturalHeight=this.tagName==='IMG'?280:0;
   }
   set innerHTML(value){
     this._innerHTML=String(value);
