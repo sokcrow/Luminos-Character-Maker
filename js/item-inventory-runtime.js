@@ -31,7 +31,7 @@
   const DEFAULT_STASH_STACK_LIMIT = 99;
   const EQUIPMENT_KINDS = new Set(["weapon", "armor", "shield", "accessory", "augmentation", "augment"]);
   const VARIANT_FIELDS = Object.freeze([
-    "stackable", "stackPolicy", "family", "group", "category", "itemType", "quality",
+    "stackable", "stackPolicy", "family", "group", "category", "itemType", "quality", "iconFamily", "icon_family",
     "size", "sizeId", "lineageId", "lineageName",
     "culinaryProperties", "culinaryAffinities", "culinaryAffinityProfileId", "affinityTarget", "affinityBranch",
     "processedForm", "processingMethod", "processingMethodId", "processingTemplateId", "templateId",

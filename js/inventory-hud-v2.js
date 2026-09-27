@@ -191,6 +191,12 @@
     return "";
   }
 
+  function localItemIconAsset(value) {
+    const raw = String(value || "").trim();
+    if (!raw || /^(?:https?:)?\/\//i.test(raw) || /^(?:data|blob):/i.test(raw)) return "";
+    return raw;
+  }
+
   function itemIcon(item = {}) {
     const resolved = runtime()?.resolveItem?.(item) || item;
     const candidates = [
@@ -204,10 +210,10 @@
       if (icon) return icon;
     }
 
-    const explicit = item.icono || item.icon || item.image || item.img;
-    if (explicit) return String(explicit).trim();
-    const resolvedExplicit = resolved.icono || resolved.icon || resolved.image || resolved.img;
-    if (resolvedExplicit) return String(resolvedExplicit).trim();
+    const explicit = [item.icono, item.icon, item.image, item.img].map(localItemIconAsset).find(Boolean);
+    if (explicit) return explicit;
+    const resolvedExplicit = [resolved.icono, resolved.icon, resolved.image, resolved.img].map(localItemIconAsset).find(Boolean);
+    if (resolvedExplicit) return resolvedExplicit;
 
     return String(iconRegistry()?.resolveIcon?.("generic_item", { fallback: false }) || "").trim();
   }
