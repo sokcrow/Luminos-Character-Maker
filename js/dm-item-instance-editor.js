@@ -591,7 +591,8 @@
         node.setAttribute("aria-hidden", "true");
       }
     });
-    if (legacySection && legacySection.closest?.("#modal-inventario-dm")) {
+    const modalBody = doc.querySelector("#modal-inventario-dm .modal-body");
+    if (legacySection && legacySection !== modalBody && legacySection.closest?.("#modal-inventario-dm")) {
       legacySection.dataset.legacyInventoryGrant = "replaced";
       legacySection.hidden = true;
     }
