@@ -1385,6 +1385,16 @@ function mapBaseBackground(){
 }
 function applyWorldTimeLighting({immediate=true}={}){
   const profile=currentWorldTimeProfile();
+  if(mapId==='crystalCave'){
+    // Interior cave lighting is isolated from overworld day/night illumination.
+    scene.background=new THREE.Color(0x090b10);
+    hemi.color.setHex(0x28303a);hemi.groundColor.setHex(0x08090d);hemi.intensity=.13;
+    sun.color.setHex(0x000000);sun.intensity=0;sun.position.set(0,10,0);
+    const caveProfile={...profile,spriteTint:0x758197,spriteLevel:.30,mix:1,sky:0x090b10};
+    for(const material of timeReactiveSpriteMaterials)applyWorldTimeToSpriteMaterial(material,caveProfile);
+    updateWorldTimeHud();
+    return;
+  }
   const base=new THREE.Color(mapBaseBackground());
   scene.background=base.clone().lerp(new THREE.Color(profile.sky),profile.mix);
   hemi.color.setHex(profile.hemiSky);hemi.groundColor.setHex(profile.hemiGround);hemi.intensity=profile.hemi;
