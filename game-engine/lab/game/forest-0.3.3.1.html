@@ -10677,9 +10677,7 @@ async function activateCrystalCaveReview(){
   window.CrystalCaveRuntime=Object.freeze({map:crystalCaveMap,group:crystalCaveGroup,seed});
   return true;
 }
-if(CRYSTAL_CAVE_REVIEW){
-  const caveBoot=setInterval(()=>{if(root){clearInterval(caveBoot);activateCrystalCaveReview().catch(err=>{crystalCaveReady=false;console.error('Crystal Cave activation failed',err)})}},120);
-}
+
 
 
 // ============================================================
@@ -19929,6 +19927,13 @@ try{
     loadScenario(testName);
   }else if(qaMap&&MAP_DATA.maps[qaMap]){
     loadMap(qaMap,MAP_META[qaMap]?.spawn?.()||null,qaLayer);
+  }else if(CRYSTAL_CAVE_REVIEW){
+    // PR 819 review is an interior-map boot, not the global hex-map instance.
+    // Load the shared local runtime first, then replace only map content/authority.
+    loadMap('owC',null,'exterior');
+    globalMapActive=false;
+    document.body.classList.remove('global-map-mode');
+    await activateCrystalCaveReview();
   }else{
     // La instancia local estable se prepara intacta, pero el juego inicia en la nueva
     // capa global. Entrar a Explorar/Acampar decide cuándo mostrar el 3×3 local.
