@@ -23,10 +23,19 @@ function excerpts(needle,after=3200,before=900,max=8){
   return rows;
 }
 
-for(const needle of ['rollEnemyTargets','slotTargets','renderSprites','action-slot-wrapper']){
-  const rows=excerpts(needle);
+const targetFunctionNames=[...html.matchAll(/function\s+([A-Za-z0-9_$]*(?:target|Target)[A-Za-z0-9_$]*)\s*\(/g)].map(match=>match[1]);
+const targetVariableNames=[...html.matchAll(/(?:const|let|var)\s+([A-Za-z0-9_$]*(?:target|Target)[A-Za-z0-9_$]*)\s*=/g)].map(match=>match[1]);
+console.log('REAL_BATTLE_TARGET_FUNCTIONS '+JSON.stringify([...new Set(targetFunctionNames)]));
+console.log('REAL_BATTLE_TARGET_VARIABLES '+JSON.stringify([...new Set(targetVariableNames)]));
+
+for(const needle of [
+  'assignTargetIntents','smartTargetScore','autoActionScore','autoPlans',
+  'targetId','mainTargetId','renderSprites','sprite-container','style.left','style.top',
+  'unit.x','unit.y','combatData'
+]){
+  const rows=excerpts(needle,2600,700,4);
   console.log(`REAL_BATTLE_OCCURRENCES ${needle} COUNT=${rows.length}`);
   rows.forEach((row,index)=>console.log(`--- ${needle} #${index+1} ---\n${row}`));
 }
-assert.ok(excerpts('slotTargets',400,100,1).length>0,'real Battle runtime must contain slotTargets');
 assert.ok(excerpts('action-slot-wrapper',400,100,1).length>0,'real Battle runtime must contain action slots');
+assert.ok(excerpts('combatData',400,100,1).length>0,'real Battle runtime must contain combat data');
