@@ -171,6 +171,60 @@ const BLUEPRINT_DRESSING=Object.freeze([
   Object.freeze({id:"elevator-lamp",type:"lamp",x:237,z:104,color:0xffd43b,room:"elevator"})
 ]);
 
+// Iluminación authored del Piso 1 según la referencia visual.
+// Las instalaciones usan luz industrial cálida; las zonas de cristal conservan luz fría/colorida.
+const FACILITY_LIGHTS=Object.freeze([
+  // Entrada / vestíbulo
+  Object.freeze({id:"light-entry-a",x:16,z:108,y:2.15,color:0xffb86b,intensity:1.15,range:8.5,kind:"industrial"}),
+  Object.freeze({id:"light-entry-b",x:36,z:104,y:2.15,color:0xffc47d,intensity:1.05,range:8.0,kind:"industrial"}),
+  Object.freeze({id:"light-entry-c",x:52,z:100,y:2.10,color:0xffb86b,intensity:.95,range:7.4,kind:"industrial"}),
+
+  // Campamento seguro
+  Object.freeze({id:"light-camp-a",x:24,z:73,y:1.80,color:0xffb56a,intensity:.80,range:6.5,kind:"lantern"}),
+  Object.freeze({id:"light-camp-b",x:39,z:74,y:1.80,color:0xffb56a,intensity:.80,range:6.5,kind:"lantern"}),
+
+  // Almacén
+  Object.freeze({id:"light-supply-a",x:18,z:36,y:2.05,color:0xffbe76,intensity:1.10,range:7.5,kind:"industrial"}),
+  Object.freeze({id:"light-supply-b",x:30,z:44,y:2.05,color:0xffbe76,intensity:1.00,range:7.2,kind:"industrial"}),
+
+  // Herramientas
+  Object.freeze({id:"light-tools-a",x:51,z:38,y:2.05,color:0xffb86b,intensity:1.05,range:7.3,kind:"industrial"}),
+  Object.freeze({id:"light-tools-b",x:64,z:44,y:2.05,color:0xffb86b,intensity:.95,range:7.0,kind:"industrial"}),
+
+  // Enfermería: un poco más clara y neutra
+  Object.freeze({id:"light-infirmary-a",x:59,z:58,y:2.10,color:0xffd6ad,intensity:1.25,range:7.8,kind:"medical"}),
+  Object.freeze({id:"light-infirmary-b",x:71,z:62,y:2.10,color:0xffd6ad,intensity:1.20,range:7.8,kind:"medical"}),
+
+  // Sala de control
+  Object.freeze({id:"light-control-a",x:83,z:77,y:2.15,color:0xffbc72,intensity:1.00,range:7.0,kind:"industrial"}),
+  Object.freeze({id:"light-control-b",x:94,z:79,y:2.15,color:0xffbc72,intensity:1.05,range:7.2,kind:"industrial"}),
+  Object.freeze({id:"light-control-c",x:103,z:80,y:2.15,color:0xffbc72,intensity:.95,range:6.8,kind:"industrial"}),
+
+  // Galería de extracción / corredor principal
+  Object.freeze({id:"light-gallery-a",x:108,z:61,y:2.20,color:0xffb66a,intensity:.95,range:7.0,kind:"industrial"}),
+  Object.freeze({id:"light-gallery-b",x:121,z:61,y:2.20,color:0xffb66a,intensity:.95,range:7.0,kind:"industrial"}),
+  Object.freeze({id:"light-gallery-c",x:136,z:61,y:2.20,color:0xffb66a,intensity:.95,range:7.0,kind:"industrial"}),
+  Object.freeze({id:"light-gallery-d",x:147,z:61,y:2.20,color:0xffb66a,intensity:.85,range:6.5,kind:"industrial"}),
+
+  // Pasarela sobre grieta: lámparas frías para mezclarse con cristales
+  Object.freeze({id:"light-bridge-a",x:158,z:61,y:1.75,color:0x86c9ff,intensity:.85,range:6.4,kind:"bridge"}),
+  Object.freeze({id:"light-bridge-b",x:182,z:61,y:1.75,color:0x86c9ff,intensity:.85,range:6.4,kind:"bridge"}),
+
+  // Cámara del capataz / ala derecha
+  Object.freeze({id:"light-boss-a",x:198,z:38,y:2.20,color:0xffad64,intensity:.90,range:7.0,kind:"industrial"}),
+  Object.freeze({id:"light-boss-b",x:220,z:38,y:2.20,color:0xffad64,intensity:.90,range:7.0,kind:"industrial"}),
+  Object.freeze({id:"light-right-a",x:231,z:58,y:2.10,color:0xffb66a,intensity:.85,range:6.5,kind:"industrial"}),
+  Object.freeze({id:"light-right-b",x:233,z:78,y:2.10,color:0xffb66a,intensity:.85,range:6.5,kind:"industrial"}),
+  Object.freeze({id:"light-elevator-a",x:237,z:104,y:2.10,color:0xffd23f,intensity:1.15,range:7.2,kind:"elevator"})
+]);
+
+const CRYSTAL_LIGHT_ZONES=Object.freeze([
+  Object.freeze({id:"crystal-zone-niche",x:132,z:28,y:1.35,color:0x6fafff,intensity:1.85,range:13.5}),
+  Object.freeze({id:"crystal-zone-rift",x:170,z:69,y:.55,color:0x5d9fff,intensity:1.45,range:11.5}),
+  Object.freeze({id:"crystal-zone-lower",x:181,z:96,y:.75,color:0x8d86ff,intensity:1.35,range:10.5}),
+  Object.freeze({id:"crystal-zone-boss",x:209,z:28,y:1.05,color:0x73b7ff,intensity:.95,range:8.0})
+]);
+
 const PRIMARY_ROUTE=Object.freeze([
   [7,113,7],[18,109,7],[30,104,7],[40,98,8],[37,88,8],[31,79,8],
   [35,69,8],[49,68,8],[64,64,8],[80,72,8],[96,70,8],[111,64,8],
@@ -463,6 +517,8 @@ export function createCrystalCaveData(input={}){
     loot:LOOT,
     blockedDoors:BLOCKED_DOORS,
     dressing:BLUEPRINT_DRESSING,
+    facilityLights:FACILITY_LIGHTS,
+    crystalLightZones:CRYSTAL_LIGHT_ZONES,
     water,
     formations,
     crystals:formations,
@@ -492,6 +548,8 @@ export function createCrystalCaveData(input={}){
         water:{...water},
         landmarks:LANDMARKS.map(x=>({...x})),
         dressing:BLUEPRINT_DRESSING.map(x=>({...x})),
+        facilityLights:FACILITY_LIGHTS.map(x=>({...x})),
+        crystalLightZones:CRYSTAL_LIGHT_ZONES.map(x=>({...x})),
         metadata:{...spec.metadata}
       };
     }
