@@ -129,8 +129,15 @@ test('7 Players + 3 normal Wolves keep independent targets and zigzag spawn',asy
       .map(unit=>({id:unit.id,x:unit.x,y:unit.y,row:unit.formationRow,column:unit.formationColumn,source:unit.formationSource}));
     const dom=rows.map(unit=>{
       const img=document.getElementById('sprite-'+unit.id);
+      const token=document.getElementById('token-'+unit.id);
       const rect=img?.getBoundingClientRect?.();
-      return {id:unit.id,centerY:rect?rect.top+rect.height/2:null,centerX:rect?rect.left+rect.width/2:null};
+      return {
+        id:unit.id,
+        centerY:rect?rect.top+rect.height/2:null,
+        centerX:rect?rect.left+rect.width/2:null,
+        left:token?.style?.left||'',
+        bottom:token?.style?.bottom||''
+      };
     });
     return {rows,dom};
   });
@@ -139,6 +146,31 @@ test('7 Players + 3 normal Wolves keep independent targets and zigzag spawn',asy
   expect(formation.rows.map(row=>row.y)).toEqual([18,42,18]);
   expect(formation.rows.map(row=>row.source)).toEqual(['pre_combat_zigzag','pre_combat_zigzag','pre_combat_zigzag']);
   expect(new Set(formation.rows.map(row=>row.y)).size).toBe(2);
+  expect(formation.dom.map(row=>row.bottom)).toEqual(['18%','42%','18%']);
+  expect(new Set(formation.dom.map(row=>row.bottom)).size).toBe(2);
+
+  const targetProof=await frame.evaluate(()=>{
+    return (0,eval)(`(()=>{
+      const wolves=Object.values(combatData)
+        .filter(unit=>unit.faction==='enemy'&&String(unit.rank||'normal').toLowerCase()==='normal')
+        .sort((a,b)=>String(a.id).localeCompare(String(b.id)));
+      return wolves.map(unit=>{
+        const plan={type:'deck',sourceSlotIndex:0,data:{id:'ci_probe',basePower:5,coinPower:1,coinAmount:1,attackWeight:1}};
+        const candidates=targetSlotCandidates(unit,plan);
+        const uniqueTargetIds=[...new Set(candidates.map(row=>row?.target?.id).filter(Boolean))].sort();
+        const slotCounts=Object.fromEntries(uniqueTargetIds.map(id=>[id,candidates.filter(row=>row?.target?.id===id).length]));
+        const first=smartTargetForPlan(unit,plan);
+        const second=smartTargetForPlan(unit,plan);
+        return {
+          enemyId:unit.id,
+          candidateTargetIds:uniqueTargetIds,
+          slotCounts,
+          first,
+          second
+        };
+      });
+    })()`);
+  });
 
   const lexicalTargetRuntime=await frame.evaluate(()=>({
     assignTargetIntents:(0,eval)("String(assignTargetIntents)"),
@@ -148,6 +180,20 @@ test('7 Players + 3 normal Wolves keep independent targets and zigzag spawn',asy
   console.log('LIVE_TARGET_RUNTIME_SOURCE',JSON.stringify(lexicalTargetRuntime));
 
   console.log('SEVEN_PLAYER_THREE_WOLF_FORMATION',JSON.stringify(formation));
+  console.log('SEVEN_PLAYER_THREE_WOLF_TARGETS',JSON.stringify(targetProof));
+
+  expect(targetProof).toHaveLength(3);
+  for(const row of targetProof){
+    expect(row.candidateTargetIds).toHaveLength(7);
+    expect(row.first?.targetId).toBeTruthy();
+    expect(row.second).toEqual(row.first);
+    expect(row.candidateTargetIds).toContain(row.first.targetId);
+  }
+  const chosenTargets=targetProof.map(row=>row.first.targetId);
+  expect(new Set(chosenTargets).size,'three normal Wolves must not deterministically dogpile the same Player').toBeGreaterThan(1);
+  expect(chosenTargets.every(id=>id.startsWith('player:p'))).toBe(true);
+  expect(targetProof[0].slotCounts['player:p2']).toBe(5);
+  expect(targetProof[0].candidateTargetIds).toEqual(['player:p1','player:p2','player:p3','player:p4','player:p5','player:p6','player:p7']);
 
   fs.mkdirSync('artifacts/enemy-target-formation',{recursive:true});
   await frame.locator('#battlefield').screenshot({path:'artifacts/enemy-target-formation/field.png',animations:'disabled'});
