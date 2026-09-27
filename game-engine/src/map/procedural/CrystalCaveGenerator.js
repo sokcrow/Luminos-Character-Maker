@@ -265,7 +265,7 @@ export function createCrystalCaveData(input={}){
   function dryRockHeight(x,z){
     const room=roomAt(x,z);
     const roomFlat=room&&(room.kind==="facility"||room.kind==="bridge");
-    const amp=roomFlat?.012:.045;
+    const amp=roomFlat? .012:.045;
     const phase=seededUnit(spec.seed,7,11)*Math.PI*2;
     return Math.sin(x*.19+phase)*Math.cos(z*.17-phase*.7)*amp+
       Math.sin((x+z)*.11+phase*1.3)*amp*.55;
