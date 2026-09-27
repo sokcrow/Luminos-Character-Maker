@@ -10608,6 +10608,21 @@ async function cinematicMovePlayer(target,ms=300){
 const player=new THREE.Group();
 scene.add(player);
 
+// ============================================================
+// 0.3.2-25 · INVENTORY FOUNDATION
+// Estructura inspirada en el Inventory HUD V2 de Luminous Character Maker,
+// adaptada a estado local para que el prototipo pueda comenzar a usar ítems.
+// ============================================================
+const TORCH_BRIGHT_RADIUS_TILES=2; // 10 ft
+const TORCH_DIM_RADIUS_TILES=4;    // 20 ft total: +10 ft dim
+const inventoryTorchLight=new THREE.PointLight(0xffaa58,0,wt(TORCH_DIM_RADIUS_TILES),2);
+inventoryTorchLight.position.set(0,1.45,.08);
+player.add(inventoryTorchLight);
+registerSpriteLocalLight(inventoryTorchLight,{brightRadius:wt(TORCH_BRIGHT_RADIUS_TILES),dimRadius:wt(TORCH_DIM_RADIUS_TILES),spriteStrength:.92});
+
+const PAPER_INV_STORAGE_KEY='paperdnd.inventory.v2';
+const PAPER_INV_ACTIVE_LIMIT=10;
+const PAPER_INV_SLOT_LABELS={mainHand:'MAIN HAND',offHand:'OFF HAND',armor:'ARMOR',shield:'SHIELD',accessory0:'ACCESSORY A',accessory1:'ACCESSORY B'};
 const PAPER_ITEM_DEFS={
   practiceSword:{id:'practiceSword',name:'Espada de práctica',tier:'I',value:8,category:'weapon',tags:['Arma','Cuerpo a cuerpo'],slots:['mainHand'],quality:'STANDARD',description:'Hoja de entrenamiento equilibrada. Sirve para probar equipamiento antes de conectar el sistema de combate.',icon:window.LuminousItemIconRegistry?.resolveIcon?.('weapon_sword',{fallback:false})||null},
   woodenShield:{id:'woodenShield',name:'Escudo de madera',tier:'I',value:6,category:'weapon',tags:['Arma','Defensa'],slots:['shield','offHand'],quality:'STANDARD',description:'Escudo ligero de tablones. Por ahora registra el slot equipado; sus bonificadores se conectarán al combate después.',icon:window.LuminousItemIconRegistry?.resolveIcon?.('shield',{fallback:false})||null},
