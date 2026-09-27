@@ -184,6 +184,11 @@ test('ON GAME DM tactical Combat paints the actual battlefield on mobile portrai
   console.log('DM_ON_GAME_DIAGNOSTICS',JSON.stringify(diagnostics));
   console.log('DM_ON_GAME_BROWSER_ERRORS',JSON.stringify(errors));
 
+  const radialCrash=errors.find(message=>message.includes('spriteCenter')&&message.includes('getBoundingClientRect'));
+  expect(radialCrash,'DM remote intents must never crash radial layout before the focus sprite mounts').toBeUndefined();
+  await expect(page.locator('#dm-on-game-combat-status')).toContainText(/COMBAT DM · \d+\/\d+ VISIBLE/,{timeout:10000});
+  await expect(page.locator('#dm-combat-view')).toHaveAttribute('data-dm-combat-visual','ready',{timeout:10000});
+
   expect(diagnostics.role).toBe('dm');
   expect(diagnostics.setup).toBe(true);
   expect(diagnostics.field.width).toBeGreaterThan(300);
