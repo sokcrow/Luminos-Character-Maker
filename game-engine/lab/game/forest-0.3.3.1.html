@@ -16787,30 +16787,18 @@ function buildCrystalCave(){
     surfaceHeightAt:()=>lakeSurfaceY,
     flowAt:()=>({x:0,y:0,z:0}),
     water:{
+      // Calm cave water: one opaque Royal Blue surface. No internal white texture/
+      // pattern foam; shoreline foam remains a separate ribbon around the bank.
+      // textureEnabled:false routes through MeshStandardMaterial so cave darkness
+      // and local lights affect the surface instead of making it look emissive.
+      textureEnabled:false,
       color:0x3278de,
       opacity:1,
-      roughness:.44,
-      metalness:.01,
-      patternMask:{
-        enabled:true,
-        backgroundColor:0x3278de,
-        waterColor:0xffffff,
-        low:.14,
-        high:.76
-      },
-      // Same sheet as the river, but calm. Surface animation never changes physics Y.
-      surfaceWave:{
-        enabled:true,
-        amplitude:TILE*.006,
-        secondaryAmplitude:TILE*.0035,
-        frequency:3.8,
-        secondaryFrequency:6.6,
-        crossFrequency:4.4,
-        speed:.42,
-        secondarySpeed:.68,
-        edgeStrength:.12
-      },
-      scrollSpeed:{x:.0018,y:.0010}
+      roughness:.58,
+      metalness:0,
+      patternMask:null,
+      surfaceWave:null,
+      scrollSpeed:{x:0,y:0}
     },
     foam:{
       width:TILE*.34,
