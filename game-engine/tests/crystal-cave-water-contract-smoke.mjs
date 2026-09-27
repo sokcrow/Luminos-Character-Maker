@@ -14,6 +14,12 @@ const cave=createCrystalCaveData({
 });
 
 assert.equal(CRYSTAL_CAVE_CONTRACT_ID,"luminous.crystal-cave-procedural.v2");
+assert.equal(cave.chunkSize,128,"Mine Floor 1 must use 128x128 chunks");
+assert.equal(cave.chunks.length,2,"Mine Floor 1 must consist of exactly two chunks");
+assert.deepEqual(cave.bounds,{x0:0,x1:256,z0:0,z1:128},"two horizontal chunks must form a 256x128 tile floor");
+assert.equal(cave.chunks[0].x1,cave.chunks[1].x0,"chunk A and B must share one seamless vertical boundary");
+assert.equal(cave.metadata.layoutAuthority,"authored-two-chunk");
+assert.equal(cave.metadata.layout,"mine-floor-1-blueprint");
 assert.equal(cave.metadata.authority,"map-module");
 assert.equal(cave.metadata.hydrologyAuthority,"terrain-water-shared-field");
 assert.equal(CRYSTAL_CAVE_WATER_VISUAL.color,0x3278de);
