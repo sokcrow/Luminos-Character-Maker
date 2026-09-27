@@ -16688,7 +16688,7 @@ function buildCrystalCave(){
 
   // Continuous irregular floor. Gameplay still uses the compiled grid for permission,
   // while Y/slope comes from this exact triangulated surface through the shared height-field contract.
-  const sx=DISPLAY_DEVICE_MOBILE?52:76,sz=DISPLAY_DEVICE_MOBILE?52:76;
+  const sx=DISPLAY_DEVICE_MOBILE?96:160,sz=DISPLAY_DEVICE_MOBILE?56:80;
   const stride=sx+1,verts=[],uv=[],heights=new Float32Array((sx+1)*(sz+1)),indices=[];
   for(let iz=0;iz<=sz;iz++){
     const vz=iz/sz,z=THREE.MathUtils.lerp(b.z0,b.z1,vz);
@@ -16753,7 +16753,10 @@ function buildCrystalCave(){
       wall.position.set(centerX,0,centerZ);
       wall.name='crystal-cave-wall-'+wallIndex++;wall.receiveShadow=true;wall.castShadow=false;
       wall.userData.cameraWallOccluder=true;
-      wall.userData.stressStreamCandidate='rock';
+      wall.userData.persistentVisionBlocker=true;
+      wall.userData.streamingPolicy='always-loaded';
+      // Pared de cueva = geometría de visibilidad. Nunca entra al streaming de props:
+      // debe seguir cargada/visible aunque el jugador esté en el otro chunk.
       g.add(wall);wallOccluders.push(wall);
     }
   }
@@ -16816,29 +16819,282 @@ function buildCrystalCave(){
   });
   g.userData.crystalCaveWaterBody=lakeBody;
 
-  // Crystal landmarks come from CrystalCaveGenerator; the view only renders them.
-  const crystalColors=[0xb9dcff,0xe6c1ff,0xbff3dd];
-  const chamberLights=new Set();
+  // Grietas de la referencia: el suelo principal NO existe aquí. Dibujamos un fondo
+  // profundo para dar lectura de altura, pero no es caminable ni entra al height field.
+  const chasmBottomMat=new THREE.MeshStandardMaterial({color:0x080b11,roughness:1,metalness:0});
+  for(const chasm of (plan.chasms||[])){
+    const bottom=new THREE.Mesh(new THREE.CircleGeometry(1,40),chasmBottomMat);
+    bottom.rotation.x=-Math.PI/2;
+    bottom.scale.set(wt(chasm.rx),wt(chasm.rz),1);
+    bottom.position.set(wt(chasm.cx),-tileY(chasm.depthTiles||5.5),wt(chasm.cz));
+    bottom.receiveShadow=false;bottom.castShadow=false;bottom.renderOrder=-20;g.add(bottom);
+
+    // Cristales en el fondo: sólo iluminación/lectura visual, nunca collider.
+    const deepColors=[0x68a9ff,0x8ecbff,0xa58cff];
+    const deepOffsets=[[-.44,-.18,.92],[.12,.16,.72],[.42,-.26,1.05],[-.16,.40,.64]];
+    deepOffsets.forEach((o,oi)=>{
+      const color=deepColors[oi%deepColors.length],h=tileY(.75+o[2]*.75);
+      const shard=new THREE.Mesh(
+        new THREE.OctahedronGeometry(wt(.22+o[2]*.09),0),
+        new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:.88,roughness:.24})
+      );
+      shard.scale.set(.72,1.8+.35*o[2],.72);
+      shard.position.set(
+        wt(chasm.cx+o[0]*chasm.rx),
+        -tileY(chasm.depthTiles||5.5)+h*.62,
+        wt(chasm.cz+o[1]*chasm.rz)
+      );
+      g.add(shard);
+      const glow=new THREE.PointLight(color,.30,wt(4.0),2);
+      glow.position.copy(shard.position);glow.castShadow=false;g.add(glow);
+    });
+  }
+
+  // Crystal landmarks come from CrystalCaveGenerator. Cada cristal usa SU color de
+  // datos y emite luz local propia; no existe una luz genérica de cámara/chamber.
   for(const shardData of plan.crystals){
-    const ci=Math.max(0,plan.chambers.findIndex(c=>Math.hypot(shardData.x-c.x,shardData.z-c.z)<Math.max(c.rx,c.rz)));
+    const crystalColor=new THREE.Color(shardData.color||0xb9dcff);
+    const colorHex=crystalColor.getHex();
     const crystalMat=new THREE.MeshStandardMaterial({
-      color:crystalColors[ci%crystalColors.length],
-      emissive:crystalColors[ci%crystalColors.length],emissiveIntensity:.38,
-      roughness:.32,metalness:.02
+      color:colorHex,
+      emissive:colorHex,
+      emissiveIntensity:.82,
+      roughness:.25,
+      metalness:.02
     });
     const shard=new THREE.Mesh(new THREE.OctahedronGeometry(.22+shardData.scale*.08,0),crystalMat);
     shard.scale.set(.72,1.4+shardData.scale,.72);
-    shard.position.set(wt(shardData.x),tileY(plan.floorHeightTilesAt(shardData.x,shardData.z))+.28+shardData.scale*.28,wt(shardData.z));
-    shard.rotation.y=shardData.lean;shard.castShadow=false;shard.receiveShadow=false;
-    shard.userData.stressStreamCandidate='rock';g.add(shard);
-    if(!chamberLights.has(ci)){
-      chamberLights.add(ci);
-      const c=plan.chambers[ci]||plan.chambers[0];
-      const light=registerSpriteLocalLight(new THREE.PointLight(crystalColors[ci%crystalColors.length],.72,wt(6.0),2),{
-        brightRadius:wt(2.2),dimRadius:wt(6.0),spriteStrength:.58
-      });
-      light.position.set(wt(c.x),tileY(1.15),wt(c.z));light.castShadow=false;g.add(light);
+    shard.position.set(
+      wt(shardData.x),
+      tileY(plan.floorHeightTilesAt(shardData.x,shardData.z))+.28+shardData.scale*.28,
+      wt(shardData.z)
+    );
+    shard.rotation.y=shardData.lean;
+    shard.castShadow=false;shard.receiveShadow=false;
+    shard.userData.stressStreamCandidate='rock';
+    shard.userData.crystalGlowColor=colorHex;
+    g.add(shard);
+
+    // Halo aditivo barato: visible incluso sin postprocesado/bloom.
+    const aura=new THREE.Mesh(
+      new THREE.SphereGeometry(wt(.44+shardData.scale*.14),10,8),
+      new THREE.MeshBasicMaterial({
+        color:colorHex,transparent:true,opacity:.085,depthWrite:false,
+        blending:THREE.AdditiveBlending
+      })
+    );
+    aura.position.copy(shard.position);
+    aura.scale.set(1,1.35,1);
+    aura.renderOrder=8;
+    g.add(aura);
+
+    const glowRange=wt(2.8+shardData.scale*1.6);
+    const light=registerSpriteLocalLight(
+      new THREE.PointLight(colorHex,.32+shardData.scale*.22,glowRange,2),
+      {brightRadius:glowRange*.40,dimRadius:glowRange,spriteStrength:.44}
+    );
+    light.position.copy(shard.position);
+    light.castShadow=false;
+    light.userData.crystalGlow=true;
+    g.add(light);
+  }
+
+  // Instalaciones mineras de la referencia sobre el mismo suelo/height field.
+  const caveMetal=new THREE.MeshStandardMaterial({color:0x46515a,roughness:.76,metalness:.28});
+  const caveMetalDark=new THREE.MeshStandardMaterial({color:0x242b31,roughness:.84,metalness:.18});
+  const caveBlueScreen=new THREE.MeshStandardMaterial({color:0x6fb8ff,emissive:0x4e9de8,emissiveIntensity:.75,roughness:.32});
+  const caveRed=new THREE.MeshStandardMaterial({color:0x842b2e,emissive:0x4f0b12,emissiveIntensity:.48,roughness:.74});
+  const caveYellow=new THREE.MeshStandardMaterial({color:0xc79b28,emissive:0x614814,emissiveIntensity:.42,roughness:.70});
+  const caveLinen=new THREE.MeshStandardMaterial({color:0xa9aca5,roughness:.98});
+
+  const roomFloorMaterial=worldFloorTextureRuntime?.materialForTextureId?.('floor_metal_01',{ensure:true})||caveMetal;
+  for(const room of (plan.rooms||[])){
+    if(room.shape!=='rect'||!['facility','safe'].includes(room.kind))continue;
+    const W=wt(room.hx*2),D=wt(room.hz*2);
+    const patch=new THREE.Mesh(new THREE.PlaneGeometry(W,D),fittedPlaneMaterial(roomFloorMaterial,W,D));
+    patch.rotation.x=-Math.PI/2;
+    patch.position.set(wt(room.cx),.018,wt(room.cz));
+    patch.receiveShadow=true;patch.renderOrder=-8;patch.userData.mineFacilityFloor=true;g.add(patch);
+  }
+
+  function mineLamp(p,intensity=.52,rangeTiles=4.2){
+    const color=Number(p.color)||0xffc676;
+    const pole=box(g,.10,wt(1.25),.10,wt(p.x),wt(.625),wt(p.z),caveMetalDark);
+    pole.castShadow=false;
+    const lamp=registerSpriteLocalLight(
+      new THREE.PointLight(color,intensity,wt(rangeTiles),2),
+      {brightRadius:wt(1.5),dimRadius:wt(rangeTiles),spriteStrength:.58}
+    );
+    lamp.position.set(wt(p.x),wt(1.38),wt(p.z));lamp.castShadow=false;g.add(lamp);
+    return lamp;
+  }
+  function mineSupport(p){
+    const y=tileY(plan.floorHeightTilesAt(p.x,p.z));
+    for(const dx of [-1.20,1.20])box(g,.16,wt(2.45),.16,wt(p.x+dx),y+wt(1.225),wt(p.z),mat('wood'));
+    box(g,wt(2.7),.18,.18,wt(p.x),y+wt(2.35),wt(p.z),mat('wood'));
+  }
+  function mineRail(p){
+    const len=Math.max(2,Number(p.length)||8),axis=p.axis||'x',y=.032;
+    const railGap=.46;
+    if(axis==='x'){
+      for(const dz of [-railGap,railGap])box(g,wt(len),.045,.055,wt(p.x),y,wt(p.z+dz),caveMetal);
+      for(let t=-len*.45;t<=len*.45;t+=1.2)box(g,.10,.035,wt(1.25),wt(p.x+t),y-.008,wt(p.z),mat('wood'));
+    }else{
+      for(const dx of [-railGap,railGap])box(g,.055,.045,wt(len),wt(p.x+dx),y,wt(p.z),caveMetal);
+      for(let t=-len*.45;t<=len*.45;t+=1.2)box(g,wt(1.25),.035,.10,wt(p.x),y-.008,wt(p.z+t),mat('wood'));
     }
+  }
+  function mineShelf(p,toolRack=false){
+    const len=Math.max(2,Number(p.length)||5),axis=p.axis||'x';
+    const w=axis==='x'?wt(len):wt(.65),d=axis==='x'?wt(.65):wt(len);
+    box(g,w,.11,d,wt(p.x),wt(.48),wt(p.z),mat('wood'));
+    box(g,w,.11,d,wt(p.x),wt(1.04),wt(p.z),mat('wood'));
+    const postX=axis==='x'?len*.45:.24,postZ=axis==='x'?.24:len*.45;
+    for(const sx of [-1,1])for(const sz of [-1,1])
+      box(g,.10,wt(1.3),.10,wt(p.x+sx*postX),wt(.65),wt(p.z+sz*postZ),mat('wood'));
+    if(toolRack){
+      for(let i=-2;i<=2;i++){
+        const tool=box(g,.045,wt(.64),.045,wt(p.x+(axis==='x'?i*.75:0)),wt(.78),wt(p.z+(axis==='z'?i*.75:0)),caveMetal);
+        tool.rotation.z=(i%2?.28:-.22);
+      }
+    }
+    addCollider(wt(p.x),wt(p.z),w,d,'mine-shelf');
+  }
+  function mineConsole(p){
+    box(g,wt(2.2),wt(.72),wt(.86),wt(p.x),wt(.36),wt(p.z),caveMetalDark);
+    const screen=box(g,wt(1.28),wt(.45),.07,wt(p.x),wt(.90),wt(p.z-.35),caveBlueScreen);
+    screen.rotation.x=-.18;
+    addCollider(wt(p.x),wt(p.z),wt(2.15),wt(.84),'mine-console');
+  }
+  function mineBedroll(p){
+    const grp=new THREE.Group();grp.position.set(wt(p.x),.035,wt(p.z));grp.rotation.y=Number(p.rot)||0;g.add(grp);
+    box(grp,wt(2.0),.09,wt(.90),0,.045,0,caveLinen);
+    box(grp,wt(.45),.12,wt(.72),-wt(.72),.10,0,new THREE.MeshStandardMaterial({color:0x777b73,roughness:1}));
+  }
+  function mineCampfire(p){
+    const x=wt(p.x),z=wt(p.z);
+    for(let i=0;i<8;i++){
+      const a=i*Math.PI/4;
+      const rock=new THREE.Mesh(new THREE.DodecahedronGeometry(.12,0),mat('stone'));
+      rock.position.set(x+Math.cos(a)*wt(.34),.09,z+Math.sin(a)*wt(.34));g.add(rock);
+    }
+    const flameMat=new THREE.MeshStandardMaterial({color:0xffb34a,emissive:0xff6418,emissiveIntensity:1.4,roughness:.45});
+    const flame=new THREE.Mesh(new THREE.ConeGeometry(wt(.16),wt(.52),7),flameMat);
+    flame.position.set(x,wt(.28),z);g.add(flame);
+    const fire=registerSpriteLocalLight(new THREE.PointLight(0xff8d38,1.15,wt(4.4),2),{brightRadius:wt(1.8),dimRadius:wt(4.4),spriteStrength:.78});
+    fire.position.set(x,wt(.72),z);fire.castShadow=false;g.add(fire);
+    registerWorldInteraction({
+      kind:'message',system:true,label:'Descansar',title:'Campamento minero abandonado',
+      message:'Punto seguro / descanso de la entrada de la mina.',
+      point:new THREE.Vector3(x,0,z),radius:wt(1.25),priority:48,
+      tags:['mine','safe','rest'],
+      onUse:()=>offerWorldRest('Campamento minero abandonado')
+    });
+  }
+  function mineMedicalCabinet(p){
+    box(g,wt(.82),wt(1.45),wt(.48),wt(p.x),wt(.725),wt(p.z),new THREE.MeshStandardMaterial({color:0xb8b9b4,roughness:.82}));
+    const crossV=box(g,.08,wt(.48),.055,wt(p.x),wt(.90),wt(p.z-.255),caveRed);
+    const crossH=box(g,wt(.48),.08,.055,wt(p.x),wt(.90),wt(p.z-.255),caveRed);
+    crossV.castShadow=crossH.castShadow=false;
+    addCollider(wt(p.x),wt(p.z),wt(.82),wt(.48),'medical-cabinet');
+  }
+  function mineBridge(p){
+    const len=Math.max(4,Number(p.length)||24),wid=Math.max(3,Number(p.width)||7);
+    const deck=box(g,wt(len),.16,wt(wid),wt(p.x),.10,wt(p.z),caveMetalDark);
+    deck.receiveShadow=true;
+    for(const side of [-1,1]){
+      const rz=p.z+side*(wid*.5-.25);
+      for(let x=p.x-len*.46;x<=p.x+len*.46;x+=2.4)box(g,.08,wt(1.05),.08,wt(x),wt(.55),wt(rz),caveMetal);
+      box(g,wt(len),.08,.08,wt(p.x),wt(1.02),wt(rz),caveMetal);
+    }
+  }
+  function mineBossSeal(p){
+    const ring=new THREE.Mesh(
+      new THREE.RingGeometry(wt(2.7),wt(3.3),32),
+      new THREE.MeshBasicMaterial({color:0xb92f3b,transparent:true,opacity:.46,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,depthWrite:false})
+    );
+    ring.rotation.x=-Math.PI/2;ring.position.set(wt(p.x),.03,wt(p.z));ring.renderOrder=4;g.add(ring);
+    const l=new THREE.PointLight(0xb92f3b,.44,wt(5.2),2);l.position.set(wt(p.x),wt(.75),wt(p.z));l.castShadow=false;g.add(l);
+  }
+  function mineElevator(p){
+    const x=wt(p.x),z=wt(p.z);
+    box(g,wt(5.0),.22,wt(4.5),x,.11,z,caveMetalDark);
+    for(const dx of [-2.15,2.15])for(const dz of [-1.85,1.85])
+      box(g,.12,wt(2.7),.12,x+wt(dx),wt(1.35),z+wt(dz),caveMetal);
+    box(g,wt(4.6),.12,wt(4.1),x,wt(2.62),z,caveMetalDark);
+    const panel=box(g,wt(.55),wt(.85),.10,x+wt(1.72),wt(.82),z-wt(1.85),caveYellow);
+    panel.castShadow=false;
+  }
+  function mineDebris(p){
+    makeRockCluster(g,p.x,p.z,.42,false);
+    const plank=box(g,wt(1.6),.07,.18,wt(p.x+.35),.08,wt(p.z-.20),mat('wood'));
+    plank.rotation.y=.45;
+  }
+
+  for(const p of (plan.dressing||[])){
+    if(p.type==='crate')crate(g,p.x,p.z);
+    else if(p.type==='bed')bed(g,p.x,p.z);
+    else if(p.type==='bedroll')mineBedroll(p);
+    else if(p.type==='campfire')mineCampfire(p);
+    else if(p.type==='support')mineSupport(p);
+    else if(p.type==='rail')mineRail(p);
+    else if(p.type==='shelf')mineShelf(p,false);
+    else if(p.type==='toolRack')mineShelf(p,true);
+    else if(p.type==='workbench')table(g,p.x,p.z);
+    else if(p.type==='medicalCabinet')mineMedicalCabinet(p);
+    else if(p.type==='console')mineConsole(p);
+    else if(p.type==='lamp')mineLamp(p);
+    else if(p.type==='bridgeDeck')mineBridge(p);
+    else if(p.type==='bossSeal')mineBossSeal(p);
+    else if(p.type==='elevator')mineElevator(p);
+    else if(p.type==='debris')mineDebris(p);
+  }
+
+  // Cofres azules de la referencia. Su contenido no se inventa aquí: sólo existe
+  // el contenedor/interaction anchor hasta que el DM/loot runtime asigne la tabla.
+  for(const loot of (plan.loot||[])){
+    const x=wt(loot.x),z=wt(loot.z);
+    const chest=new THREE.Group();chest.position.set(x,.02,z);g.add(chest);
+    box(chest,wt(.92),wt(.48),wt(.62),0,wt(.24),0,caveMetalDark);
+    const lid=box(chest,wt(.96),wt(.22),wt(.66),0,wt(.58),0,caveBlueScreen);lid.castShadow=false;
+    const light=new THREE.PointLight(0x53a9ff,.30,wt(2.4),2);light.position.set(0,wt(.85),0);light.castShadow=false;chest.add(light);
+    addCollider(x,z,wt(.92),wt(.62),'mine-loot-chest');
+    registerWorldInteraction({
+      kind:'message',label:'Examinar cofre',title:'Cofre de suministros',
+      message:'Contenedor de loot del Piso 1. La tabla de contenido se asigna desde el runtime de encuentro/DM.',
+      point:new THREE.Vector3(x,0,z),radius:wt(1.15),priority:42,tags:['mine','loot','chest',loot.id]
+    });
+  }
+
+  // Las dos X rojas de la referencia son bloqueos físicos, no decoración.
+  for(const door of (plan.blockedDoors||[])){
+    const x=wt(door.x),z=wt(door.z),span=Math.max(3,Number(door.span)||5);
+    const gate=new THREE.Group();gate.position.set(x,0,z);g.add(gate);
+    const alongZ=door.axis==='x';
+    for(let i=-2;i<=2;i++){
+      if(alongZ)box(gate,.12,wt(1.95),.12,0,wt(.975),wt(i*span/5),caveMetal);
+      else box(gate,.12,wt(1.95),.12,wt(i*span/5),wt(.975),0,caveMetal);
+    }
+    const crossA=box(gate,wt(2.0),.12,.12,0,wt(1.05),0,caveRed);crossA.rotation.z=.72;
+    const crossB=box(gate,wt(2.0),.12,.12,0,wt(1.05),0,caveRed);crossB.rotation.z=-.72;
+    addCollider(x,z,alongZ?wt(.45):wt(span),alongZ?wt(span):wt(.45),'mine-blocked-door',currentColliderScope,{source:'mine-blocked-door'});
+    const red=new THREE.PointLight(0xff3546,.30,wt(2.6),2);red.position.set(0,wt(1.3),0);red.castShadow=false;gate.add(red);
+    registerWorldInteraction({
+      kind:'message',label:'Puerta bloqueada',title:door.label||'Puerta bloqueada',
+      message:'El paso está clausurado desde el otro lado.',
+      point:new THREE.Vector3(x,0,z),radius:wt(1.0),priority:44,tags:['mine','blocked-door']
+    });
+  }
+
+  // Los encuentros quedan anclados en mundo para que Combat/DM pueda consumir la
+  // referencia sin que este renderer invente sprites de enemigos inexistentes.
+  const encounterAnchors=[];
+  for(const enc of (plan.encounters||[])){
+    const anchor=new THREE.Object3D();
+    anchor.position.set(wt(enc.x),0,wt(enc.z));
+    anchor.userData.encounterSpec={...enc,mapId:'crystalCave'};
+    anchor.name='mine-encounter-'+enc.id;
+    g.add(anchor);encounterAnchors.push(anchor);
   }
 
   // A few wall masses break silhouette without turning the floor into a field of cones.
@@ -16850,24 +17106,37 @@ function buildCrystalCave(){
     if(plan.contains(x,z,.10))makeRockCluster(g,x,z,.70+(i%3)*.09,false);
   });
 
-  const exitPoint=new THREE.Vector3(wt(plan.exit.x),0,wt(plan.exit.z));
+  // La referencia tiene DOS extremos distintos: entrada exterior y descenso al Piso 2.
+  const exteriorPoint=new THREE.Vector3(wt(plan.exteriorExit.x),0,wt(plan.exteriorExit.z));
   registerWorldInteraction({
-    kind:'transition',label:'Salir de la cueva',title:'Salida de Crystal Cave',point:exitPoint,
-    radius:wt(1.05),priority:58,tags:['nature','cave','transition','crystal-cave'],
+    kind:'transition',label:'Salir al exterior',title:'Entrada de la mina',point:exteriorPoint,
+    radius:wt(1.05),priority:58,tags:['nature','cave','transition','crystal-cave','mine-exit'],
     target:'owNE',targetLayer:'exterior',spawn:new THREE.Vector3(wt(11),tileY(1),wt(11.8)),
-    backDir:new THREE.Vector3(0,0,-1),door:null,link:'owNE-crystal-cave'
+    backDir:new THREE.Vector3(-1,0,0),door:null,link:'owNE-crystal-cave'
+  });
+
+  const floor2Point=new THREE.Vector3(wt(plan.exit.x),0,wt(plan.exit.z));
+  registerWorldInteraction({
+    kind:'message',label:'Descender al Piso 2',title:'Pozo de descenso / montacargas',
+    message:'Transición al Piso 2 preparada como ancla del mapa. El Piso 2 se conectará cuando exista su definición.',
+    point:floor2Point,radius:wt(1.45),priority:58,
+    tags:['cave','mine','transition','floor-2','elevator']
   });
 
   g.userData.crystalCave={
-    seed:plan.seed,procedural:true,roof:false,
+    seed:plan.seed,procedural:false,authoredBlueprint:'mine-floor-1',roof:false,
     floorMesh:'continuous-triangulated-heightfield',
-    wallContours:contours.length,water:plan.water.kind,
-    lighting:'local-only'
+    wallContours:contours.length,wallStreaming:'always-loaded',visionBlockers:'persistent',
+    water:plan.water.kind,chunkCount:plan.chunks?.length||0,dressingCount:plan.dressing?.length||0,
+    lighting:'local-only+per-crystal-glow'
   };
   window.CrystalCaveRuntime=Object.freeze({
     seed:plan.seed,mapId:'crystalCave',plan,
     stats:()=>({
       seed:plan.seed,wallContours:contours.length,water:plan.water.kind,mobile:DISPLAY_DEVICE_MOBILE,
+      chunks:plan.chunks?.length||0,dressing:plan.dressing?.length||0,encounters:plan.encounters?.length||0,
+      persistentVisionWalls:wallOccluders.filter(w=>w.userData?.persistentVisionBlocker).length,
+      crystalLights:plan.crystals?.length||0,
       centerWater:plan.sampleWater({x:plan.water.cx,z:plan.water.cz}),
       waterBodyReady:!!lakeBody
     })
@@ -19143,7 +19412,11 @@ function updateWallOcclusion(){
 
   if(wallOccluders.length){
     const hits=ray.intersectObjects(wallOccluders,false);
-    for(const hit of hits){const m=hit.object;if(!m||faded.has(m))continue;m.visible=false;faded.add(m);}
+    for(const hit of hits){
+      const m=hit.object;
+      if(!m||faded.has(m)||m.userData?.persistentVisionBlocker)continue;
+      m.visible=false;faded.add(m);
+    }
   }
 
   const treeInterval=displayLandscapeMobile()?50:(DISPLAY_DEVICE_MOBILE?33:0);
