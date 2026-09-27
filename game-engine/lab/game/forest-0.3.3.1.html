@@ -865,6 +865,7 @@ let createTriangulatedHeightField;
 let TERRAIN_SURFACE_STANDARD, terrainSurfaceTierForSlope, terrainSurfaceMaterialKinds, terrainElevationSurfaceWeights, terrainCoastMaterialKinds, terrainCoastSurfaceWeights;
 let createWaterBodySystem, extractFieldShorelines, waterCurrentImmersionFactor;
 let createWaterInteractionSystem;
+let createCrystalCaveData, CRYSTAL_CAVE_WATER_VISUAL;
 let createCrystalCaveRuntimeData, crystalCaveSeedUnit;
 
 try {
@@ -10891,6 +10892,10 @@ function swimSurfaceYAtWorld(x,z,layer=currentWorldLayer){
     const h=proceduralHydrologySample(mapId,x/TILE,z/TILE);
     if(h.water&&Number.isFinite(h.waterSurfaceTiles))return tileY(h.waterSurfaceTiles);
   }
+  if(mapId==='crystalCave'){
+    const h=CRYSTAL_CAVE_PLAN.sampleWater({x:x/TILE,z:z/TILE});
+    if(h&&Number.isFinite(h.waterSurfaceTiles))return tileY(h.waterSurfaceTiles);
+  }
   const cell=gridCellAtWorld(x,z,layer);
   if(cell?.locomotion==='swim'&&Number.isFinite(cell.localElevation))return tileY(cell.localElevation);
   return SWIM_WATER_SURFACE_Y;
@@ -10906,6 +10911,14 @@ function waterDepthTilesAtWorld(x,z,layer=currentWorldLayer){
   }
   if(isOverworldSector(mapId)&&activeProceduralZone?.hydrology?.type!=='none'){
     const h=proceduralHydrologySample(mapId,x/TILE,z/TILE);if(h.water)return Math.max(.02,Number(h.waterDepth)||0);
+  }
+  if(mapId==='crystalCave'){
+    const h=CRYSTAL_CAVE_PLAN.sampleWater({x:x/TILE,z:z/TILE});
+    if(!h)return 0;
+    const surfaceY=tileY(h.waterSurfaceTiles);
+    const meshGroundY=terrainSurfaceGroundYAtWorld(x,z,mapId);
+    const groundY=Number.isFinite(meshGroundY)?meshGroundY:tileY(h.groundHeightTiles);
+    return Math.max(.001,(surfaceY-groundY)/TILE);
   }
   const cell=gridCellAtWorld(x,z,layer);
   if(cell?.locomotion==='swim'){
@@ -11228,6 +11241,7 @@ function terrainMovementSampleAtWorld(x,z,layer=currentWorldLayer){
     return {walkable:true,combat:true,moveMultiplier:1,terrain:'interior',tags:[],locomotion:'ground',slopeDeg:0,slopeBand:'normal',difficultTerrain:false};
   }
   const cell=gridCellAtWorld(x,z,layer);
+  const crystalWater=mapId==='crystalCave'?CRYSTAL_CAVE_PLAN.sampleWater({x:x/TILE,z:z/TILE}):null;
   let mult=1,difficultTerrain=!!cell?.tags?.includes('difficult');
   if(mapId==='floodedGrove'){
     if(floodedGroveSwimAtWorld(x,z))mult=Math.min(mult,SWIM_MOVE_MULTIPLIER);
@@ -11235,6 +11249,8 @@ function terrainMovementSampleAtWorld(x,z,layer=currentWorldLayer){
     const hydro=proceduralHydrologySample(mapId,x/TILE,z/TILE);
     if(hydro.water)mult=Math.min(mult,hydro.class==='deepWater'?.62:.74);
     else if(cell?.locomotion!=='swim'&&cell?.moveMultiplier)mult=Math.min(mult,cell.moveMultiplier);
+  }else if(crystalWater){
+    mult=Math.min(mult,SWIM_MOVE_MULTIPLIER);
   }else if(cell?.moveMultiplier)mult=Math.min(mult,cell.moveMultiplier);
 
   for(const t of difficultTerrainZones){
@@ -11257,7 +11273,7 @@ function terrainMovementSampleAtWorld(x,z,layer=currentWorldLayer){
     moveMultiplier:mult,
     terrain:cell?.terrain||null,
     tags,
-    locomotion:cell?.locomotion||locomotionModeAt(x,z),
+    locomotion:mapId==='crystalCave'?(crystalWater?'swim':'ground'):(cell?.locomotion||locomotionModeAt(x,z)),
     hazard:cell?.hazard||null,
     slopeDeg:slope,
     slopeBand:terrainSlopeBand(slope),
@@ -11914,6 +11930,9 @@ function locomotionModeAt(x,z){
   // El grid sólo conserva permisos/multiplicadores; la silueta física no nace de tiles.
   if(isOverworldSector(mapId)&&activeProceduralZone?.hydrology?.type!=='none'){
     return proceduralHydrologySample(mapId,x/TILE,z/TILE).water?'swim':'ground';
+  }
+  if(mapId==='crystalCave'){
+    return CRYSTAL_CAVE_PLAN.sampleWater({x:x/TILE,z:z/TILE})?'swim':'ground';
   }
   const cell=gridCellAtWorld(x,z,currentWorldLayer);
   if(cell?.locomotion)return cell.locomotion;
@@ -16679,7 +16698,7 @@ function buildNatureCave(){
 
 
 function buildCrystalCave(){
-  const plan=CRYSTAL_CAVE_PLAN,b=plan.bounds,g=new THREE.Group();
+  const plan=CRYSTAL_CAVE_PLAN,pb=plan.bounds,b={x0:pb.minX,x1:pb.maxX,z0:pb.minZ,z1:pb.maxZ},g=new THREE.Group();
   g.name='crystal-cave-procedural-root';
   scene.background=new THREE.Color(0x090b10);
 
@@ -16735,8 +16754,8 @@ function buildCrystalCave(){
       const ax=a.x/TILE,az=a.z/TILE,dx=d.x/TILE,dz=d.z/TILE;
       const ay=tileY(plan.floorHeightTilesAt(ax,az)),dy=tileY(plan.floorHeightTilesAt(dx,dz));
       const mx=(ax+dx)*.5,mz=(az+dz)*.5;
-      const wallTiles=2.25+crystalCaveSeedUnit(plan.seed,wallIndex,131)*1.15;
-      const topA=ay+tileY(wallTiles),topD=dy+tileY(wallTiles*(.94+crystalCaveSeedUnit(plan.seed,wallIndex,137)*.14));
+      const wallTiles=2.55+((wallIndex%7)/6)*.55;
+      const topA=ay+tileY(wallTiles),topD=dy+tileY(wallTiles*(.96+((wallIndex%5)/4)*.08));
       const geo=new THREE.BufferGeometry();
       const centerX=(a.x+d.x)*.5,centerZ=(a.z+d.z)*.5;
       geo.setAttribute('position',new THREE.Float32BufferAttribute([
@@ -16825,30 +16844,30 @@ function buildCrystalCave(){
   });
   g.userData.crystalCaveWaterBody=lakeBody;
 
-  // Sparse authored crystal formations are landmarks/light sources, not terrain spikes.
+  // Crystal landmarks come from CrystalCaveGenerator; the view only renders them.
   const crystalColors=[0xb9dcff,0xe6c1ff,0xbff3dd];
-  plan.chambers.forEach((c,ci)=>{
+  const chamberLights=new Set();
+  for(const shardData of plan.crystals){
+    const ci=Math.max(0,plan.chambers.findIndex(c=>Math.hypot(shardData.x-c.x,shardData.z-c.z)<Math.max(c.rx,c.rz)));
     const crystalMat=new THREE.MeshStandardMaterial({
       color:crystalColors[ci%crystalColors.length],
       emissive:crystalColors[ci%crystalColors.length],emissiveIntensity:.38,
       roughness:.32,metalness:.02
     });
-    for(let k=0;k<3;k++){
-      const a=(k/3)*Math.PI*2+crystalCaveSeedUnit(plan.seed,ci,k)*.7;
-      const rr=Math.min(c.rx,c.rz)*(.58+.08*k);
-      const x=c.x+Math.cos(a)*rr,z=c.z+Math.sin(a)*rr;
-      if(!plan.contains(x,z,.35)||plan.inWater(x,z))continue;
-      const h=.55+crystalCaveSeedUnit(plan.seed,ci,k,149)*.55;
-      const shard=new THREE.Mesh(new THREE.OctahedronGeometry(.22+h*.08,0),crystalMat);
-      shard.scale.set(.72,1.4+h,.72);shard.position.set(wt(x),tileY(plan.floorHeightTilesAt(x,z))+.28+h*.28,wt(z));
-      shard.rotation.y=a;shard.castShadow=false;shard.receiveShadow=false;
-      shard.userData.stressStreamCandidate='rock';g.add(shard);
+    const shard=new THREE.Mesh(new THREE.OctahedronGeometry(.22+shardData.scale*.08,0),crystalMat);
+    shard.scale.set(.72,1.4+shardData.scale,.72);
+    shard.position.set(wt(shardData.x),tileY(plan.floorHeightTilesAt(shardData.x,shardData.z))+.28+shardData.scale*.28,wt(shardData.z));
+    shard.rotation.y=shardData.lean;shard.castShadow=false;shard.receiveShadow=false;
+    shard.userData.stressStreamCandidate='rock';g.add(shard);
+    if(!chamberLights.has(ci)){
+      chamberLights.add(ci);
+      const c=plan.chambers[ci]||plan.chambers[0];
+      const light=registerSpriteLocalLight(new THREE.PointLight(crystalColors[ci%crystalColors.length],.72,wt(6.0),2),{
+        brightRadius:wt(2.2),dimRadius:wt(6.0),spriteStrength:.58
+      });
+      light.position.set(wt(c.x),tileY(1.15),wt(c.z));light.castShadow=false;g.add(light);
     }
-    const light=registerSpriteLocalLight(new THREE.PointLight(crystalColors[ci%crystalColors.length],.72,wt(6.0),2),{
-      brightRadius:wt(2.2),dimRadius:wt(6.0),spriteStrength:.58
-    });
-    light.position.set(wt(c.x),tileY(1.15),wt(c.z));light.castShadow=false;g.add(light);
-  });
+  }
 
   // A few wall masses break silhouette without turning the floor into a field of cones.
   const wallRocks=[
@@ -16856,7 +16875,7 @@ function buildCrystalCave(){
   ];
   wallRocks.forEach((p,i)=>{
     const side=i%2?1:-1,x=p.x+side*(p.width-.35),z=p.z;
-    if(plan.contains(x,z,.10))makeRockCluster(g,x,z,.62+crystalCaveSeedUnit(plan.seed,i,181)*.28,false);
+    if(plan.contains(x,z,.10))makeRockCluster(g,x,z,.70+(i%3)*.09,false);
   });
 
   const exitPoint=new THREE.Vector3(wt(plan.exit.x),0,wt(plan.exit.z));
