@@ -127,6 +127,8 @@ test('7 Players + 3 normal Wolves keep independent targets and zigzag spawn',asy
     const rows=window.LuminousCombatLiveAdapter073.normalizedCombatants()
       .filter(unit=>unit.faction==='enemy')
       .map(unit=>({id:unit.id,x:unit.x,y:unit.y,row:unit.formationRow,column:unit.formationColumn,source:unit.formationSource}));
+    const runtimeData=window.LuminousCombat073?.combatants?.()||{};
+    const runtime=rows.map(unit=>({id:unit.id,x:runtimeData[unit.id]?.x,y:runtimeData[unit.id]?.y}));
     const dom=rows.map(unit=>{
       const img=document.getElementById('sprite-'+unit.id);
       const token=document.getElementById('token-'+unit.id);
@@ -139,7 +141,7 @@ test('7 Players + 3 normal Wolves keep independent targets and zigzag spawn',asy
         bottom:token?.style?.bottom||''
       };
     });
-    return {rows,dom};
+    return {rows,runtime,dom};
   });
 
   expect(formation.rows).toHaveLength(3);
