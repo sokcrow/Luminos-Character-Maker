@@ -865,8 +865,7 @@ let createTriangulatedHeightField;
 let TERRAIN_SURFACE_STANDARD, terrainSurfaceTierForSlope, terrainSurfaceMaterialKinds, terrainElevationSurfaceWeights, terrainCoastMaterialKinds, terrainCoastSurfaceWeights;
 let createWaterBodySystem, extractFieldShorelines, waterCurrentImmersionFactor;
 let createWaterInteractionSystem;
-let createCrystalCaveData, CRYSTAL_CAVE_WATER_VISUAL;
-let createCrystalCaveRuntimeData, crystalCaveSeedUnit;
+let createCrystalCaveRuntimeData;
 
 try {
   THREE = await import('../../vendor/three.module.js');
@@ -885,7 +884,7 @@ try {
     await import('../../src/world/WaterBodySystem.js'));
   ({ createWaterInteractionSystem } =
     await import('../../src/world/WakeTrailSystem.js'));
-  ({ createCrystalCaveRuntimeData, crystalCaveSeedUnit } =
+  ({ createCrystalCaveRuntimeData } =
     await import('../../src/map/procedural/CrystalCaveGenerator.js'));
 } catch (error) {
   window.paperLoadFailed?.('No se pudo iniciar el motor: '+(error?.message || String(error)));
@@ -10892,10 +10891,6 @@ function swimSurfaceYAtWorld(x,z,layer=currentWorldLayer){
     const h=proceduralHydrologySample(mapId,x/TILE,z/TILE);
     if(h.water&&Number.isFinite(h.waterSurfaceTiles))return tileY(h.waterSurfaceTiles);
   }
-  if(mapId==='crystalCave'){
-    const h=CRYSTAL_CAVE_PLAN.sampleWater({x:x/TILE,z:z/TILE});
-    if(h&&Number.isFinite(h.waterSurfaceTiles))return tileY(h.waterSurfaceTiles);
-  }
   const cell=gridCellAtWorld(x,z,layer);
   if(cell?.locomotion==='swim'&&Number.isFinite(cell.localElevation))return tileY(cell.localElevation);
   return SWIM_WATER_SURFACE_Y;
@@ -10911,14 +10906,6 @@ function waterDepthTilesAtWorld(x,z,layer=currentWorldLayer){
   }
   if(isOverworldSector(mapId)&&activeProceduralZone?.hydrology?.type!=='none'){
     const h=proceduralHydrologySample(mapId,x/TILE,z/TILE);if(h.water)return Math.max(.02,Number(h.waterDepth)||0);
-  }
-  if(mapId==='crystalCave'){
-    const h=CRYSTAL_CAVE_PLAN.sampleWater({x:x/TILE,z:z/TILE});
-    if(!h)return 0;
-    const surfaceY=tileY(h.waterSurfaceTiles);
-    const meshGroundY=terrainSurfaceGroundYAtWorld(x,z,mapId);
-    const groundY=Number.isFinite(meshGroundY)?meshGroundY:tileY(h.groundHeightTiles);
-    return Math.max(.001,(surfaceY-groundY)/TILE);
   }
   const cell=gridCellAtWorld(x,z,layer);
   if(cell?.locomotion==='swim'){
@@ -11241,7 +11228,7 @@ function terrainMovementSampleAtWorld(x,z,layer=currentWorldLayer){
     return {walkable:true,combat:true,moveMultiplier:1,terrain:'interior',tags:[],locomotion:'ground',slopeDeg:0,slopeBand:'normal',difficultTerrain:false};
   }
   const cell=gridCellAtWorld(x,z,layer);
-  const crystalWater=mapId==='crystalCave'?CRYSTAL_CAVE_PLAN.sampleWater({x:x/TILE,z:z/TILE}):null;
+  const moduleWater=mapModuleWaterSampleAtWorld(x,z,mapId);
   let mult=1,difficultTerrain=!!cell?.tags?.includes('difficult');
   if(mapId==='floodedGrove'){
     if(floodedGroveSwimAtWorld(x,z))mult=Math.min(mult,SWIM_MOVE_MULTIPLIER);
@@ -11249,7 +11236,7 @@ function terrainMovementSampleAtWorld(x,z,layer=currentWorldLayer){
     const hydro=proceduralHydrologySample(mapId,x/TILE,z/TILE);
     if(hydro.water)mult=Math.min(mult,hydro.class==='deepWater'?.62:.74);
     else if(cell?.locomotion!=='swim'&&cell?.moveMultiplier)mult=Math.min(mult,cell.moveMultiplier);
-  }else if(crystalWater){
+  }else if(moduleWater){
     mult=Math.min(mult,SWIM_MOVE_MULTIPLIER);
   }else if(cell?.moveMultiplier)mult=Math.min(mult,cell.moveMultiplier);
 
@@ -11273,7 +11260,7 @@ function terrainMovementSampleAtWorld(x,z,layer=currentWorldLayer){
     moveMultiplier:mult,
     terrain:cell?.terrain||null,
     tags,
-    locomotion:mapId==='crystalCave'?(crystalWater?'swim':'ground'):(cell?.locomotion||locomotionModeAt(x,z)),
+    locomotion:moduleWater?'swim':(cell?.locomotion||locomotionModeAt(x,z)),
     hazard:cell?.hazard||null,
     slopeDeg:slope,
     slopeBand:terrainSlopeBand(slope),
@@ -11930,9 +11917,6 @@ function locomotionModeAt(x,z){
   // El grid sólo conserva permisos/multiplicadores; la silueta física no nace de tiles.
   if(isOverworldSector(mapId)&&activeProceduralZone?.hydrology?.type!=='none'){
     return proceduralHydrologySample(mapId,x/TILE,z/TILE).water?'swim':'ground';
-  }
-  if(mapId==='crystalCave'){
-    return CRYSTAL_CAVE_PLAN.sampleWater({x:x/TILE,z:z/TILE})?'swim':'ground';
   }
   const cell=gridCellAtWorld(x,z,currentWorldLayer);
   if(cell?.locomotion)return cell.locomotion;
@@ -16698,7 +16682,7 @@ function buildNatureCave(){
 
 
 function buildCrystalCave(){
-  const plan=CRYSTAL_CAVE_PLAN,pb=plan.bounds,b={x0:pb.minX,x1:pb.maxX,z0:pb.minZ,z1:pb.maxZ},g=new THREE.Group();
+  const plan=CRYSTAL_CAVE_PLAN,b=plan.bounds,g=new THREE.Group();
   g.name='crystal-cave-procedural-root';
   scene.background=new THREE.Color(0x090b10);
 
