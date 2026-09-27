@@ -63,6 +63,8 @@ assert.ok(viewer.includes('LuminousCombatBootstrapState'),'Battle Viewer must ex
 assert.ok(viewer.includes("stage('bundle-fetch'"),'Battle Viewer must expose bundle fetch stage');
 assert.ok(viewer.includes("stage('bundle-decompressed'"),'Battle Viewer must expose successful real bundle decompression');
 assert.ok(viewer.includes("stage('runtime-write'"),'Battle Viewer must expose patched runtime installation');
+assert.ok(viewer.includes('COMBAT_DM_RADIAL_SAFE_PATCH_MISSING'),'Battle Viewer must guard the DM radial layout against a focus sprite hydration race');
+assert.ok(viewer.includes("stage('patch-dm-radial-safe'"),'Battle Viewer must expose the DM radial safety patch stage');
 assert.ok(viewer.includes("stage('error',message,message)"),'Battle Viewer must expose bootstrap errors instead of leaving a silent black surface');
 assert.ok(viewer.includes("luminous:combat073-hydrated"),'Battle Viewer bootstrap state must reach real runtime hydration');
 
