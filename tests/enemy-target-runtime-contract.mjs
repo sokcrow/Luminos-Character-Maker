@@ -45,3 +45,9 @@ assert.ok(viewer.includes('COMBAT_NORMAL_ENEMY_TARGET_PATCH_MISSING'),'Battle bo
 assert.ok(viewer.includes('luminousStableTargetRoll'),'live normal-enemy target selection must be stable across viewers');
 assert.ok(viewer.includes("owner?.rank||owner?.unitRank||owner?.mechanics?.rank||'normal'"),'live target patch must preserve rank-specific behavior');
 console.log('LIVE_BATTLE_TARGET_PATCH_CONTRACT ok');
+
+const viewerFormation=fs.readFileSync('Battle-viewer.html','utf8');
+assert.ok(viewerFormation.includes('COMBAT_ZIGZAG_FORMATION_PATCH_MISSING'),'Battle bootstrap must patch the real speed formation points');
+assert.ok(viewerFormation.includes('{x:90,y:18},{x:90,y:42},{x:81,y:18},{x:81,y:42}'),'enemy live formation must alternate depth rows from the first two Units');
+assert.ok(viewerFormation.includes('{x:10,y:18},{x:10,y:42},{x:19,y:18},{x:19,y:42}'),'ally live formation must use the same alternating two-row contract');
+console.log('LIVE_BATTLE_ZIGZAG_PATCH_CONTRACT ok');
