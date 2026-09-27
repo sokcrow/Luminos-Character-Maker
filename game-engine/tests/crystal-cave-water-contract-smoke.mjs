@@ -30,6 +30,10 @@ assert.equal(cave.contains(170,61),true,"bridge must remain walkable across the 
 assert.ok(cave.corridors.some(x=>x.route==="primary"),"yellow primary route must exist");
 assert.ok(cave.corridors.some(x=>x.route==="secondary"),"blue secondary route must exist");
 assert.ok(cave.crystals.every(x=>/^#[0-9a-f]{6}$/i.test(x.color)),"every authored crystal must carry its own glow color");
+assert.ok(cave.facilityLights.length>=20,"installations must have authored lighting coverage");
+assert.ok(cave.facilityLights.every(x=>Number(x.intensity)>0&&Number(x.range)>0),"facility light specs must be physically meaningful");
+assert.ok(cave.crystalLightZones.length>=4,"major crystal zones must provide colored fill light");
+assert.ok(cave.crystalLightZones.every(x=>Number(x.intensity)>.5&&Number(x.range)>=8),"crystal zones must visibly illuminate the cave");
 assert.equal(cave.metadata.authority,"map-module");
 assert.equal(cave.metadata.hydrologyAuthority,"terrain-water-shared-field");
 assert.equal(CRYSTAL_CAVE_WATER_VISUAL.color,0x3278de);
