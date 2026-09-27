@@ -8,6 +8,7 @@ on:
       - 'Battle-viewer.html'
       - 'js/utils.js'
       - 'js/dm-combat-live-viewer.js'
+      - 'js/combat-v073-live-adapter.js'
       - 'js/combat-v073-dm-observer.js'
       - 'js/dm-combat-tab-manager.js'
       - 'js/combat-unit-library-sync.js'
@@ -34,6 +35,7 @@ jobs:
       - name: Syntax
         run: |
           node --check js/dm-combat-live-viewer.js
+          node --check js/combat-v073-live-adapter.js
           node --check js/combat-v073-dm-observer.js
           node --check js/dm-combat-tab-manager.js
           node --check js/combat-unit-library-sync.js
