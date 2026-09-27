@@ -251,13 +251,6 @@ export function createCrystalCaveData(input={}){
     surfaces:Object.freeze(surfaces),
     spawn:Object.freeze({x:spawnRoute.x,y:0,z:spawnRoute.z,layer:"exterior"}),
     exit:Object.freeze({x:exitRoute.x,z:exitRoute.z}),
-    resolveMovement({from={},proposed={}}={}){
-      const next={x:finite(proposed.x),y:finite(proposed.y),z:finite(proposed.z)};
-      next.x=clamp(next.x,b.minX,b.maxX);next.z=clamp(next.z,b.minZ,b.maxZ);
-      const terrain=sampleTerrain(next);
-      if(!terrain.walkable)return {x:finite(from.x),y:finite(from.y),z:finite(from.z)};
-      next.y=terrain.height;return next;
-    },
     update(){},
     snapshot(){
       return {
