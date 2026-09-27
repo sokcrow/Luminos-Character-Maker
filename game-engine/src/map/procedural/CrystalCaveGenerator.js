@@ -164,13 +164,16 @@ export function createCrystalCaveData(input={}){
   const chambers=makeChambers(spec,route);
   const contains=(tx,tz,margin=0)=>caveContains(spec,route,chambers,finite(tx),finite(tz),Math.max(0,finite(margin)));
   const wc=chambers[1];
+  const waterInput=input.water||{};
   const water=Object.freeze({
     kind:"lake",
     cx:wc.x+.25,cz:wc.z+.15,
     rx:Math.max(2.0,wc.rx*.58),rz:Math.max(1.65,wc.rz*.50),
-    surfaceTiles:finite(input.waterSurfaceTiles,-.18),
-    maxDepthTiles:Math.max(.32,finite(input.maxWaterDepthTiles,.82)),
-    bankWidth:Math.max(.12,finite(input.waterBankWidth,.22))
+    surfaceTiles:finite(waterInput.surfaceTiles??input.waterSurfaceTiles,-.18),
+    maxDepthTiles:Math.max(.32,finite(waterInput.maxDepthTiles??input.maxWaterDepthTiles,.82)),
+    shoreDepthTiles:Math.max(.005,finite(waterInput.shoreDepthTiles,.025)),
+    bankWidth:Math.max(.12,finite(input.waterBankWidth,
+      Number.isFinite(Number(waterInput.bankOuterRatio))?Number(waterInput.bankOuterRatio)-1:.22))
   });
   const waterQ=(tx,tz)=>Math.hypot((finite(tx)-water.cx)/water.rx,(finite(tz)-water.cz)/water.rz);
   const inWater=(tx,tz)=>contains(tx,tz,.16)&&waterQ(tx,tz)<=1;
@@ -196,7 +199,7 @@ export function createCrystalCaveData(input={}){
     // the waterline before swimming begins, so there is no hidden step at q=1.
     if(q>=1){
       const t=smooth01((1+water.bankWidth-q)/water.bankWidth);
-      const shorelineTarget=water.surfaceTiles-.025;
+      const shorelineTarget=water.surfaceTiles-water.shoreDepthTiles;
       return dry+(shorelineTarget-dry)*t;
     }
 
@@ -204,7 +207,7 @@ export function createCrystalCaveData(input={}){
     // At the edge the floor is only 0.025 tile under the surface; toward the center
     // it approaches maxDepthTiles. There is no separate legacy depth constant.
     const center=smooth01((1-q)/.78);
-    const depth=.025+(water.maxDepthTiles-.025)*center;
+    const depth=water.shoreDepthTiles+(water.maxDepthTiles-water.shoreDepthTiles)*center;
     return water.surfaceTiles-depth;
   }
 
@@ -255,7 +258,7 @@ export function createCrystalCaveData(input={}){
   return Object.freeze({
     id:spec.id,kind:spec.kind,seed:spec.seed,bounds:spec.bounds,metadata:spec.metadata,
     chunkSize:spec.chunkSize,activeRadius:spec.activeRadius,base,
-    route,chambers,water,formations,surfaces,
+    route,chambers,water,formations,crystals:formations,surfaces,
     contains,inWater,waterQ,floorHeightTilesAt,sampleTerrain,sampleWater,
     chunkAt,chunksAround,
     spawn:Object.freeze({x:spawnRoute.x,y:0,z:spawnRoute.z,layer:"exterior"}),
@@ -276,4 +279,11 @@ export function createCrystalCaveDefinition(input={}){
     metadata:spec.metadata,
     async generate(){return createCrystalCaveData(spec);}
   });
+}
+
+
+// Runtime-facing alias used by the Forest/Game Engine view adapter. The generator
+// remains the single authority; the view never regenerates terrain or hydrology.
+export function createCrystalCaveRuntimeData(input={}){
+  return createCrystalCaveData(input);
 }
