@@ -163,9 +163,17 @@
     return ids;
   }
 
-  function bestKnownTarget(targetIds, intel) {
-    if (!targetIds.length) return null;
-    return [...targetIds].sort((a, b) => finite(intel.targets?.[b]?.threat, 0.5) - finite(intel.targets?.[a]?.threat, 0.5) || a.localeCompare(b))[0];
+  function bestKnownTarget(targetIds, intel, random = Math.random) {
+    const ids = [...new Set(asArray(targetIds).map(clean).filter(Boolean))];
+    if (!ids.length) return null;
+    const scored = ids.map((id) => ({ id, threat: finite(intel.targets?.[id]?.threat, 0.5) }));
+    const bestThreat = Math.max(...scored.map((entry) => entry.threat));
+    const tied = scored.filter((entry) => Math.abs(entry.threat - bestThreat) < 1e-9);
+    if (tied.length === 1) return tied[0].id;
+    let roll = 0;
+    try { roll = finite(typeof random === "function" ? random() : Math.random(), 0); } catch (_) { roll = Math.random(); }
+    const index = Math.max(0, Math.min(tied.length - 1, Math.floor(clamp(roll, 0, 0.999999999) * tied.length)));
+    return tied[index].id;
   }
 
   function inferRole(raw = {}, definition = {}, sourceType = "skill") {
@@ -405,7 +413,8 @@
     const hpRatio = ownHpRatio(actor);
     const intel = createIntelState(input.intel || {});
     const targetIds = targetIdsFrom(input);
-    const targetId = clean(input.targetId) || bestKnownTarget(targetIds, intel);
+    const random = typeof input.random === "function" ? input.random : Math.random;
+    const targetId = clean(input.targetId) || bestKnownTarget(targetIds, intel, random);
 
     let candidates = asArray(input.sources || input.actions)
       .map(normalizeSourceDescriptor)
