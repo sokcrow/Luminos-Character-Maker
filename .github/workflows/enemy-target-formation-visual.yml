@@ -13,6 +13,7 @@ on:
       - 'tests/unit-rank-command-smoke.mjs'
       - 'tests/enemy-action-slot-allocator-smoke.mjs'
       - 'tests/enemy-target-formation-visual.spec.mjs'
+      - 'tests/enemy-target-runtime-contract.mjs'
       - '.github/workflows/enemy-target-formation-visual.yml'
 
 jobs:
@@ -29,6 +30,7 @@ jobs:
           node tests/individual-goap-combat-ai-smoke.mjs
           node tests/unit-rank-command-smoke.mjs
           node tests/enemy-action-slot-allocator-smoke.mjs
+          node tests/enemy-target-runtime-contract.mjs
       - name: Install Chromium
         run: |
           npm install --no-save @playwright/test@1.55.0
