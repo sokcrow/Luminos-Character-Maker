@@ -45,5 +45,18 @@ assert.match(forest, /surface:\{renderOrder:-4,depthWrite:true\}/);
 assert.match(forest, /backgroundColor:0x3278de/);
 assert.match(forest, /opacity:1/);
 assert.match(forest, /surfaceHeightAt:\(\)=>lakeSurfaceY/);
+assert.match(forest, /persistentVisionBlocker=true/);
+assert.match(forest, /streamingPolicy='always-loaded'/);
+assert.match(forest, /m\.userData\?\.persistentVisionBlocker/);
+assert.doesNotMatch(forest, /crystal-cave-wall-[\s\S]{0,260}stressStreamCandidate='rock'/,
+  "cave wall meshes must never enter prop streaming");
+assert.match(forest, /crystalGlowColor/);
+assert.match(forest, /new THREE\.PointLight\(colorHex/);
+assert.match(forest, /blending:THREE\.AdditiveBlending/);
+assert.match(forest, /for\(const p of \(plan\.dressing\|\|\[\]\)\)/);
+assert.match(forest, /mine-loot-chest/);
+assert.match(forest, /mine-blocked-door/);
+assert.match(forest, /mine-encounter-/);
+assert.match(forest, /authoredBlueprint:'mine-floor-1'/);
 
 console.log("crystal cave water runtime smoke: ok");
