@@ -2,10 +2,68 @@ import fs from 'node:fs';
 import { test, expect } from '@playwright/test';
 
 const BASE=process.env.DM_VISUAL_BASE_URL||'http://127.0.0.1:4173';
+const DM_UID='e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1';
+
+const FIREBASE_APP_STUB=`
+(()=>{
+  const DM_UID='${DM_UID}';
+  const apps=[];
+  const listeners=new Map();
+  const snapshot=(path='')=>({
+    key:String(path).split('/').filter(Boolean).pop()||null,
+    val(){return String(path).endsWith('campaña/config/dm_uid')?DM_UID:null},
+    exists(){return String(path).endsWith('campaña/config/dm_uid')},
+    forEach(){return false}
+  });
+  const makeRef=(path='')=>({
+    key:String(path).split('/').filter(Boolean).pop()||null,
+    path,
+    child(next){return makeRef([path,next].filter(Boolean).join('/'))},
+    once(){return Promise.resolve(snapshot(path))},
+    on(event,callback){queueMicrotask(()=>callback(snapshot(path)));listeners.set(path+':'+event,callback);return callback},
+    off(){},
+    set(){return Promise.resolve()},
+    update(){return Promise.resolve()},
+    remove(){return Promise.resolve()},
+    push(value){const ref=makeRef([path,'visual-ci-key'].filter(Boolean).join('/'));return value===undefined?ref:Object.assign(Promise.resolve(ref),ref)}
+  });
+  const auth={
+    currentUser:{uid:DM_UID,email:'dm-visual-ci@local.invalid'},
+    onAuthStateChanged(callback){queueMicrotask(()=>callback(this.currentUser));return()=>{}},
+    signOut(){this.currentUser=null;return Promise.resolve()}
+  };
+  const db={ref(path=''){return makeRef(path)}};
+  function authFn(){return auth}
+  function databaseFn(){return db}
+  databaseFn.ServerValue={TIMESTAMP:Date.now()};
+  window.firebase={
+    apps,
+    initializeApp(config){if(!apps.length)apps.push({name:'[DEFAULT]',options:config||{}});return apps[0]},
+    auth:authFn,
+    database:databaseFn
+  };
+})();
+`;
+
+async function installFirebaseDmStub(page){
+  await page.route(/https:\/\/www\.gstatic\.com\/firebasejs\/8\.10\.1\/firebase-(app|auth|database)\.js/,async route=>{
+    const url=route.request().url();
+    const body=url.includes('firebase-app.js')?FIREBASE_APP_STUB:'/* Firebase module provided by DM visual CI stub. */';
+    await route.fulfill({status:200,contentType:'application/javascript; charset=utf-8',body});
+  });
+}
+
 
 test.use({ viewport:{width:1440,height:1100}, colorScheme:'dark' });
 
+test.afterEach(async({page},testInfo)=>{
+  fs.mkdirSync('artifacts/dm-combat-visual',{recursive:true});
+  const safe=testInfo.status==='passed'?'passed':'failed';
+  await page.screenshot({path:`artifacts/dm-combat-visual/dm-combat-${safe}-fullpage.png`,fullPage:true,animations:'disabled'}).catch(()=>{});
+});
+
 test('DM real Combat tab renders a visible FIELD with all deployed sprites', async({page})=>{
+  await installFirebaseDmStub(page);
   await page.goto(`${BASE}/pantalla_dm.html`,{waitUntil:'domcontentloaded'});
   await page.locator('[data-tab="tab-combate"]').click();
 
