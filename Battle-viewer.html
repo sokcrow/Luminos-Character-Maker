@@ -88,6 +88,45 @@
       .replace(liveArrowNeedle,liveArrowPatch)
       .replace(livePlanRenderNeedle,livePlanRenderPatch);
 
+    stage('patch-enemy-targets','Applying canonical normal-enemy target selection');
+    const localPlayerBiasNeedle="  if(owner.faction==='enemy'&&candidate.target.id===PLAYER_ID)score+=8;";
+    const localPlayerBiasPatch="  // Live authority: never bias enemy AI toward this Viewer's local PLAYER_ID.";
+    const smartTargetNeedle=`function smartTargetForPlan(owner,plan){
+  const candidates=targetSlotCandidates(owner,plan);
+  if(!candidates.length)return null;
+  candidates.sort((a,b)=>smartTargetScore(owner,plan,b)-smartTargetScore(owner,plan,a));
+  const best=candidates[0];
+  return best?{targetId:best.target.id,targetSlotIndex:best.index}:null
+}`;
+    const smartTargetPatch=`function luminousStableTargetRoll(key){
+  let hash=2166136261;
+  const text=String(key||'');
+  for(let i=0;i<text.length;i+=1){hash^=text.charCodeAt(i);hash=Math.imul(hash,16777619)}
+  return(hash>>>0)/4294967296
+}
+function smartTargetForPlan(owner,plan){
+  const candidates=targetSlotCandidates(owner,plan);
+  if(!candidates.length)return null;
+  const rank=String(owner?.rank||owner?.unitRank||owner?.mechanics?.rank||'normal').trim().toLowerCase();
+  if(rank==='normal'){
+    const targetIds=[...new Set(candidates.map(row=>row?.target?.id).filter(Boolean))].sort();
+    if(!targetIds.length)return null;
+    const slotIndex=Number(plan?.sourceSlotIndex)||0;
+    const unitRoll=luminousStableTargetRoll(\`${round}|${owner.id}|${slotIndex}|unit|${targetIds.join('|')}\`);
+    const targetId=targetIds[Math.min(targetIds.length-1,Math.floor(unitRoll*targetIds.length))];
+    const unitCandidates=candidates.filter(row=>row?.target?.id===targetId);
+    const slotRoll=luminousStableTargetRoll(\`${round}|${owner.id}|${slotIndex}|slot|${targetId}|${unitCandidates.length}\`);
+    const best=unitCandidates[Math.min(unitCandidates.length-1,Math.floor(slotRoll*unitCandidates.length))]||unitCandidates[0];
+    return best?{targetId:best.target.id,targetSlotIndex:best.index}:null
+  }
+  candidates.sort((a,b)=>smartTargetScore(owner,plan,b)-smartTargetScore(owner,plan,a));
+  const best=candidates[0];
+  return best?{targetId:best.target.id,targetSlotIndex:best.index}:null
+}`;
+    if(!html.includes(localPlayerBiasNeedle)||!html.includes(smartTargetNeedle))throw new Error("COMBAT_NORMAL_ENEMY_TARGET_PATCH_MISSING");
+    html=html.replace(localPlayerBiasNeedle,localPlayerBiasPatch)
+      .replace(smartTargetNeedle,smartTargetPatch);
+
     stage('patch-renderer','Applying Combat renderer patch');
     // Combat-iframe-only renderer patch. It never installs hooks in Theatre runtime code.
     // Mobile/low-power clients keep DOM/CSS sprite compositing and reserve WebGL2 for VFX.
