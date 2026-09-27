@@ -29,10 +29,12 @@ async function bootDmHarness(page) {
             </div>
           </div>
           <div id="legacy-grant-section">
-            <select id="dm-inv-add-select"><option value="">legacy</option></select>
-            <select id="dm-inv-add-target"><option value="inventario_stash">stash</option></select>
-            <input id="dm-inv-add-cant" value="1">
-            <button id="btn-dm-inv-add">Añadir legacy</button>
+            <div>
+              <select id="dm-inv-add-select"><option value="">legacy</option></select>
+              <select id="dm-inv-add-target"><option value="inventario_stash">stash</option></select>
+              <input id="dm-inv-add-cant" value="1">
+              <button id="btn-dm-inv-add">Añadir legacy</button>
+            </div>
           </div>
         </div>
       </div>
