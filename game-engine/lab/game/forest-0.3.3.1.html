@@ -6550,7 +6550,14 @@ function createCrystalCavePlan(seed=CRYSTAL_CAVE_SEED){
       const q=Math.hypot((tx-c.x)/c.rx,(tz-c.z)/c.rz);
       if(q<1)h-=Math.cos(q*Math.PI*.5)*.055;
     }
-    if(inWater(tx,tz))h-=water.depthTiles;
+    // The lake bed is graded as a continuous natural basin instead of dropping
+    // the whole depth at the shoreline. This keeps the same visible mesh and
+    // shared slope physics while guaranteeing a route back up from the water.
+    const waterQ=Math.hypot((tx-water.cx)/water.rx,(tz-water.cz)/water.rz);
+    if(waterQ<1){
+      const depthT=THREE.MathUtils.smoothstep(1-waterQ,0,.72);
+      h-=water.depthTiles*depthT;
+    }
     return h;
   };
   const groundSurfaces=[],waterSurfaces=[];
@@ -16840,8 +16847,35 @@ function buildCrystalCave(){
   attachAuthoredWaterBody({
     id:'crystal-cave-underground-lake',parent:g,sourceGeometry:waterGeo,points:waterPoints,
     y:tileY(water.surfaceTiles),style:'lake',
-    water:{opacity:.74,roughness:.50,metalness:.01,scrollSpeed:{x:.003,y:.002}},
-    foam:{width:TILE*.22,innerWidth:TILE*.035,outerWidth:TILE*.185,opacity:.52,scrollSpeed:.007,pulseAmplitude:TILE*.006}
+    water:{
+      color:0x3278de,
+      opacity:1,
+      roughness:.44,
+      metalness:.01,
+      patternMask:{
+        enabled:true,
+        backgroundColor:0x3278de,
+        waterColor:0xffffff,
+        low:.14,
+        high:.76
+      },
+      surfaceWave:{
+        enabled:true,
+        amplitude:TILE*.018,
+        secondaryAmplitude:TILE*.010,
+        frequency:3.2,
+        secondaryFrequency:5.8,
+        crossFrequency:4.1,
+        speed:1.15,
+        secondarySpeed:1.85,
+        edgeStrength:.18
+      },
+      scrollSpeed:{x:.003,y:.002}
+    },
+    foam:{
+      width:TILE*.24,innerWidth:TILE*.04,outerWidth:TILE*.20,
+      opacity:.68,scrollSpeed:.007,pulseAmplitude:TILE*.008
+    }
   });
 
   // Sparse authored crystal formations are landmarks/light sources, not terrain spikes.
