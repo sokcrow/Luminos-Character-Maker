@@ -112,10 +112,12 @@ function smartTargetForPlan(owner,plan){
     const targetIds=[...new Set(candidates.map(row=>row?.target?.id).filter(Boolean))].sort();
     if(!targetIds.length)return null;
     const slotIndex=Number(plan?.sourceSlotIndex)||0;
-    const unitRoll=luminousStableTargetRoll(\`${round}|${owner.id}|${slotIndex}|unit|${targetIds.join('|')}\`);
+    const unitSeed=String(round)+'|'+owner.id+'|'+slotIndex+'|unit|'+targetIds.join('|');
+    const unitRoll=luminousStableTargetRoll(unitSeed);
     const targetId=targetIds[Math.min(targetIds.length-1,Math.floor(unitRoll*targetIds.length))];
     const unitCandidates=candidates.filter(row=>row?.target?.id===targetId);
-    const slotRoll=luminousStableTargetRoll(\`${round}|${owner.id}|${slotIndex}|slot|${targetId}|${unitCandidates.length}\`);
+    const slotSeed=String(round)+'|'+owner.id+'|'+slotIndex+'|slot|'+targetId+'|'+unitCandidates.length;
+    const slotRoll=luminousStableTargetRoll(slotSeed);
     const best=unitCandidates[Math.min(unitCandidates.length-1,Math.floor(slotRoll*unitCandidates.length))]||unitCandidates[0];
     return best?{targetId:best.target.id,targetSlotIndex:best.index}:null
   }
