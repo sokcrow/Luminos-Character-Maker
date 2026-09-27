@@ -845,7 +845,8 @@
       });
     });
     const player = doc.getElementById("dm-item-grant-player");
-    if (player) player.textContent = `PLAYER // ${resolvePlayerId() || "--"}`;
+    const playerLabel = `PLAYER // ${resolvePlayerId() || "--"}`;
+    if (player && player.textContent !== playerLabel) player.textContent = playerLabel;
   }
 
   function installObservers() {
