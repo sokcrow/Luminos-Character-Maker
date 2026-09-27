@@ -20,7 +20,7 @@ const frame = $("gameFrame");
 const labParams = new URLSearchParams(location.search);
 if (labParams.get("caveReview") === "1" || labParams.get("map") === "crystalCave") {
   const caveSeed = labParams.get("seed") || "pr819-crystal-cave-v6";
-  frame.src = `./game/forest-0.3.3.1.html?map=crystalCave&seed=${encodeURIComponent(caveSeed)}`;
+  frame.src = `./game/forest-0.3.3.1.html?map=crystalCave&seed=${encodeURIComponent(caveSeed)}&lod=wide`;
   const loading = document.getElementById("gameLoading");
   if (loading) {
     loading.querySelector("strong").textContent = "Cargando Crystal Cave…";
