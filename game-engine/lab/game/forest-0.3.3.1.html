@@ -16686,6 +16686,17 @@ function buildCrystalCave(){
   g.name='crystal-cave-procedural-root';
   scene.background=new THREE.Color(0x090b10);
 
+  // Cave LOD contract:
+  // crystal/landmark = survives the far ring as a cheap silhouette/fake glow.
+  // light/detail       = full ring only; expensive PointLight/fine effects disappear first.
+  const caveStreamedEffects=[];
+  const markCaveStream=(obj,category='detail')=>{
+    if(!obj)return obj;
+    obj.userData.stressStreamCandidate=category;
+    caveStreamedEffects.push(obj);
+    return obj;
+  };
+
   // Continuous irregular floor. Gameplay still uses the compiled grid for permission,
   // while Y/slope comes from this exact triangulated surface through the shared height-field contract.
   const sx=DISPLAY_DEVICE_MOBILE?96:160,sz=DISPLAY_DEVICE_MOBILE?56:80;
@@ -16844,9 +16855,9 @@ function buildCrystalCave(){
         -tileY(chasm.depthTiles||5.5)+h*.62,
         wt(chasm.cz+o[1]*chasm.rz)
       );
-      g.add(shard);
+      markCaveStream(shard,'crystal');g.add(shard);
       const glow=new THREE.PointLight(color,.30,wt(4.0),2);
-      glow.position.copy(shard.position);glow.castShadow=false;g.add(glow);
+      glow.position.copy(shard.position);glow.castShadow=false;markCaveStream(glow,'light');g.add(glow);
     });
   }
 
@@ -16871,7 +16882,7 @@ function buildCrystalCave(){
     );
     shard.rotation.y=shardData.lean;
     shard.castShadow=false;shard.receiveShadow=false;
-    shard.userData.stressStreamCandidate='rock';
+    markCaveStream(shard,'crystal');
     shard.userData.crystalGlowColor=colorHex;
     g.add(shard);
 
@@ -16887,6 +16898,7 @@ function buildCrystalCave(){
     aura.scale.set(1,1.45,1);
     aura.renderOrder=8;
     aura.userData.crystalAura=true;
+    markCaveStream(aura,'landmark');
     g.add(aura);
 
     // Pool de luz sobre roca/suelo para que el brillo se lea incluso con la cámara alta.
@@ -16905,6 +16917,7 @@ function buildCrystalCave(){
     );
     glowPatch.renderOrder=5;
     glowPatch.userData.crystalLightPool=true;
+    markCaveStream(glowPatch,'landmark');
     g.add(glowPatch);
 
     const glowRange=wt(4.6+shardData.scale*2.3);
@@ -16916,6 +16929,7 @@ function buildCrystalCave(){
     light.castShadow=false;
     light.userData.crystalGlow=true;
     light.userData.crystalGlowColor=colorHex;
+    markCaveStream(light,'light');
     g.add(light);
   }
 
@@ -16933,6 +16947,7 @@ function buildCrystalCave(){
     light.castShadow=false;
     light.userData.crystalZoneLight=true;
     light.userData.crystalZoneId=zone.id;
+    markCaveStream(light,'light');
     g.add(light);crystalZoneLights.push(light);
 
     const pool=new THREE.Mesh(
@@ -16944,7 +16959,7 @@ function buildCrystalCave(){
     );
     pool.rotation.x=-Math.PI/2;
     pool.position.set(wt(zone.x),.028,wt(zone.z));
-    pool.renderOrder=3;pool.userData.crystalZonePool=true;g.add(pool);
+    pool.renderOrder=3;pool.userData.crystalZonePool=true;markCaveStream(pool,'landmark');g.add(pool);
   }
 
   // Instalaciones mineras de la referencia sobre el mismo suelo/height field.
@@ -16993,7 +17008,7 @@ function buildCrystalCave(){
         blending:THREE.AdditiveBlending
       })
     );
-    halo.position.set(x,y-.08,z);halo.scale.set(1.45,.62,1.45);halo.renderOrder=9;g.add(halo);
+    halo.position.set(x,y-.08,z);halo.scale.set(1.45,.62,1.45);halo.renderOrder=9;markCaveStream(halo,'landmark');g.add(halo);
 
     const lamp=registerSpriteLocalLight(
       new THREE.PointLight(color,strength,wt(range),1.65),
@@ -17003,6 +17018,7 @@ function buildCrystalCave(){
     lamp.castShadow=false;
     lamp.userData.mineFacilityLight=true;
     lamp.userData.mineLightId=p.id||null;
+    markCaveStream(lamp,'light');
     g.add(lamp);
 
     // Mancha cálida sobre el piso para que las instalaciones lean iluminadas desde arriba.
@@ -17015,7 +17031,7 @@ function buildCrystalCave(){
     );
     pool.rotation.x=-Math.PI/2;
     pool.position.set(x,.026,z);
-    pool.renderOrder=2;pool.userData.mineFacilityLightPool=true;g.add(pool);
+    pool.renderOrder=2;pool.userData.mineFacilityLightPool=true;markCaveStream(pool,'landmark');g.add(pool);
     return lamp;
   }
   function mineSupport(p){
@@ -17070,9 +17086,9 @@ function buildCrystalCave(){
     }
     const flameMat=new THREE.MeshStandardMaterial({color:0xffb34a,emissive:0xff6418,emissiveIntensity:1.4,roughness:.45});
     const flame=new THREE.Mesh(new THREE.ConeGeometry(wt(.16),wt(.52),7),flameMat);
-    flame.position.set(x,wt(.28),z);g.add(flame);
+    flame.position.set(x,wt(.28),z);markCaveStream(flame,'landmark');g.add(flame);
     const fire=registerSpriteLocalLight(new THREE.PointLight(0xff8d38,1.15,wt(4.4),2),{brightRadius:wt(1.8),dimRadius:wt(4.4),spriteStrength:.78});
-    fire.position.set(x,wt(.72),z);fire.castShadow=false;g.add(fire);
+    fire.position.set(x,wt(.72),z);fire.castShadow=false;markCaveStream(fire,'light');g.add(fire);
     registerWorldInteraction({
       kind:'message',system:true,label:'Descansar',title:'Campamento minero abandonado',
       message:'Punto seguro / descanso de la entrada de la mina.',
@@ -17103,8 +17119,8 @@ function buildCrystalCave(){
       new THREE.RingGeometry(wt(2.7),wt(3.3),32),
       new THREE.MeshBasicMaterial({color:0xb92f3b,transparent:true,opacity:.46,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,depthWrite:false})
     );
-    ring.rotation.x=-Math.PI/2;ring.position.set(wt(p.x),.03,wt(p.z));ring.renderOrder=4;g.add(ring);
-    const l=new THREE.PointLight(0xb92f3b,.44,wt(5.2),2);l.position.set(wt(p.x),wt(.75),wt(p.z));l.castShadow=false;g.add(l);
+    ring.rotation.x=-Math.PI/2;ring.position.set(wt(p.x),.03,wt(p.z));ring.renderOrder=4;markCaveStream(ring,'landmark');g.add(ring);
+    const l=new THREE.PointLight(0xb92f3b,.44,wt(5.2),2);l.position.set(wt(p.x),wt(.75),wt(p.z));l.castShadow=false;markCaveStream(l,'light');g.add(l);
   }
   function mineElevator(p){
     const x=wt(p.x),z=wt(p.z);
@@ -17140,6 +17156,56 @@ function buildCrystalCave(){
     else if(p.type==='debris')mineDebris(p);
   }
 
+  // PR 819 · LOD/INSTANCING TRIAL
+  // Más lectura visual por muy pocos draw calls: cascajo + esquirlas son puramente
+  // decorativos, no crean colliders ni cambian el height field o las rutas.
+  const caveInstancedDetail={rubble:0,crystalChips:0};
+  {
+    const dummy=new THREE.Object3D();
+    const rubbleCount=DISPLAY_DEVICE_MOBILE?72:144;
+    const rubble=new THREE.InstancedMesh(
+      new THREE.DodecahedronGeometry(wt(.09),0),
+      new THREE.MeshStandardMaterial({color:0x3b4147,roughness:1,metalness:0}),
+      rubbleCount
+    );
+    let placed=0;
+    for(let attempt=0;placed<rubbleCount&&attempt<rubbleCount*14;attempt++){
+      const h1=Math.sin((attempt+1)*12.9898+CRYSTAL_CAVE_SEED.length*.73)*43758.5453;
+      const h2=Math.sin((attempt+1)*78.233+CRYSTAL_CAVE_SEED.length*1.17)*19341.117;
+      const x=b.x0+(h1-Math.floor(h1))*(b.x1-b.x0);
+      const z=b.z0+(h2-Math.floor(h2))*(b.z1-b.z0);
+      if(!plan.contains(x,z,.55)||plan.sampleWater({x,z}))continue;
+      if((plan.chasms||[]).some(ch=>Math.hypot((x-ch.cx)/Math.max(.01,ch.rx),(z-ch.cz)/Math.max(.01,ch.rz))<1.08))continue;
+      const s=.55+((attempt*37)%100)/100*.95;
+      dummy.position.set(wt(x),tileY(plan.floorHeightTilesAt(x,z))+wt(.025*s),wt(z));
+      dummy.rotation.set((attempt%7)*.09,(attempt*.73)%Math.PI,(attempt%5)*.07);
+      dummy.scale.set(s,Math.max(.38,s*.58),s*.82);
+      dummy.updateMatrix();rubble.setMatrixAt(placed++,dummy.matrix);
+    }
+    rubble.count=placed;rubble.instanceMatrix.needsUpdate=true;rubble.castShadow=false;rubble.receiveShadow=true;
+    rubble.userData.caveInstancedDetail='rubble';g.add(rubble);caveInstancedDetail.rubble=placed;
+
+    const chipMax=DISPLAY_DEVICE_MOBILE?24:48;
+    const chip=new THREE.InstancedMesh(
+      new THREE.OctahedronGeometry(wt(.085),0),
+      new THREE.MeshStandardMaterial({color:0x8ecbff,emissive:0x315d91,emissiveIntensity:.34,roughness:.32,metalness:0}),
+      chipMax
+    );
+    let chips=0;
+    const anchors=plan.crystals||[];
+    for(let i=0;i<chipMax&&anchors.length;i++){
+      const anchor=anchors[i%anchors.length],ring=1.1+(i%5)*.58,angle=i*2.399963229728653;
+      const x=anchor.x+Math.cos(angle)*ring,z=anchor.z+Math.sin(angle)*ring*.72;
+      if(!plan.contains(x,z,.35)||plan.sampleWater({x,z}))continue;
+      const s=.60+(i%4)*.16;
+      dummy.position.set(wt(x),tileY(plan.floorHeightTilesAt(x,z))+wt(.055*s),wt(z));
+      dummy.rotation.set(.12,(i*.83)%Math.PI,.08);dummy.scale.set(.72*s,1.45*s,.72*s);
+      dummy.updateMatrix();chip.setMatrixAt(chips++,dummy.matrix);
+    }
+    chip.count=chips;chip.instanceMatrix.needsUpdate=true;chip.castShadow=false;chip.receiveShadow=false;
+    chip.userData.caveInstancedDetail='crystal-chips';g.add(chip);caveInstancedDetail.crystalChips=chips;
+  }
+
   // Iluminación principal de instalaciones. Es authored y vive en el módulo del mapa,
   // no se deriva de hora del día: una mina cerrada conserva su iluminación eléctrica.
   const facilityLights=[];
@@ -17152,7 +17218,7 @@ function buildCrystalCave(){
     const chest=new THREE.Group();chest.position.set(x,.02,z);g.add(chest);
     box(chest,wt(.92),wt(.48),wt(.62),0,wt(.24),0,caveMetalDark);
     const lid=box(chest,wt(.96),wt(.22),wt(.66),0,wt(.58),0,caveBlueScreen);lid.castShadow=false;
-    const light=new THREE.PointLight(0x53a9ff,.30,wt(2.4),2);light.position.set(0,wt(.85),0);light.castShadow=false;chest.add(light);
+    const light=new THREE.PointLight(0x53a9ff,.30,wt(2.4),2);light.position.set(0,wt(.85),0);light.castShadow=false;markCaveStream(light,'light');chest.add(light);
     addCollider(x,z,wt(.92),wt(.62),'mine-loot-chest');
     registerWorldInteraction({
       kind:'message',label:'Examinar cofre',title:'Cofre de suministros',
@@ -17173,7 +17239,7 @@ function buildCrystalCave(){
     const crossA=box(gate,wt(2.0),.12,.12,0,wt(1.05),0,caveRed);crossA.rotation.z=.72;
     const crossB=box(gate,wt(2.0),.12,.12,0,wt(1.05),0,caveRed);crossB.rotation.z=-.72;
     addCollider(x,z,alongZ?wt(.45):wt(span),alongZ?wt(span):wt(.45),'mine-blocked-door',currentColliderScope,{source:'mine-blocked-door'});
-    const red=new THREE.PointLight(0xff3546,.30,wt(2.6),2);red.position.set(0,wt(1.3),0);red.castShadow=false;gate.add(red);
+    const red=new THREE.PointLight(0xff3546,.30,wt(2.6),2);red.position.set(0,wt(1.3),0);red.castShadow=false;markCaveStream(red,'light');gate.add(red);
     registerWorldInteraction({
       kind:'message',label:'Puerta bloqueada',title:door.label||'Puerta bloqueada',
       message:'El paso está clausurado desde el otro lado.',
@@ -17223,6 +17289,8 @@ function buildCrystalCave(){
     floorMesh:'continuous-triangulated-heightfield',
     wallContours:contours.length,wallStreaming:'always-loaded',visionBlockers:'persistent',
     water:plan.water.kind,chunkCount:plan.chunks?.length||0,dressingCount:plan.dressing?.length||0,
+    lod:'full/far/off + far silhouette/fake glow',streamedEffects:caveStreamedEffects.length,
+    instancedDetail:{...caveInstancedDetail},
     lighting:'authored-facility+per-crystal+crystal-zone-glow'
   };
   window.CrystalCaveRuntime=Object.freeze({
@@ -17233,6 +17301,10 @@ function buildCrystalCave(){
       persistentVisionWalls:wallOccluders.filter(w=>w.userData?.persistentVisionBlocker).length,
       crystalLights:(plan.crystals?.length||0)+(plan.crystalLightZones?.length||0),
       facilityLights:plan.facilityLights?.length||0,
+      streamedEffects:caveStreamedEffects.length,
+      instancedRubble:caveInstancedDetail.rubble,
+      instancedCrystalChips:caveInstancedDetail.crystalChips,
+      wideLodTest:WORLD_LOD_WIDE_TEST,
       centerWater:plan.sampleWater({x:plan.water.cx,z:plan.water.cz}),
       waterBodyReady:!!lakeBody
     })
@@ -19246,6 +19318,12 @@ const FOREST_STRESS_PROFILES=Object.freeze({
   mobileLandscape:Object.freeze({label:'MÓVIL HORIZONTAL',fullFt:64,farFt:96,safetyFt:24,colliderFt:60,preloadCos:.72,updateFrames:5}),
   desktop:Object.freeze({label:'DESKTOP',fullFt:64,farFt:96,safetyFt:24,colliderFt:60,preloadCos:.72,updateFrames:3})
 });
+const WORLD_LOD_WIDE_TEST=new URLSearchParams(location.search).get('lod')==='wide';
+const FOREST_STRESS_WIDE_PROFILES=Object.freeze({
+  mobile:Object.freeze({...FOREST_STRESS_PROFILES.mobile,label:'MÓVIL · LOD WIDE',farFt:160}),
+  mobileLandscape:Object.freeze({...FOREST_STRESS_PROFILES.mobileLandscape,label:'MÓVIL HORIZONTAL · LOD WIDE',farFt:176}),
+  desktop:Object.freeze({...FOREST_STRESS_PROFILES.desktop,label:'DESKTOP · LOD WIDE',farFt:260})
+});
 const ForestStressRuntime={
   enabled:FOREST_STRESS_BOOT.enabled,
   streaming:true,
@@ -19264,15 +19342,19 @@ function forestStressResolvedProfileName(){
   if(FOREST_STRESS_DEVICE_MOBILE)return innerWidth>innerHeight?'mobileLandscape':'mobile';
   return innerWidth<=720?'mobile':'desktop';
 }
-function forestStressProfile(){return FOREST_STRESS_PROFILES[forestStressResolvedProfileName()]}
+function forestStressProfile(){
+  const name=forestStressResolvedProfileName();
+  return (WORLD_LOD_WIDE_TEST?FOREST_STRESS_WIDE_PROFILES:FOREST_STRESS_PROFILES)[name];
+}
 function forestStressCameraYawOffset(){return ForestStressRuntime.enabled?ForestStressRuntime.cameraQuarter*Math.PI*.5:0}
 function forestStressSetTargetYaw(yaw){if(ForestStressRuntime.enabled&&Number.isFinite(yaw))ForestStressRuntime.targetYaw=yaw}
-function forestStressCategoryFarVisible(category){return category==='tree'||category==='rock'||category==='snow'||category==='unit'}
+function forestStressCategoryFarVisible(category){return category==='tree'||category==='rock'||category==='snow'||category==='unit'||category==='crystal'||category==='landmark'}
 function forestStressSetObjectState(obj,state){
   if(!obj)return;
   const category=obj.userData.stressStreamCandidate||'nature';
   const shouldShow=state==='full'||(state==='far'&&forestStressCategoryFarVisible(category));
-  const compactFarTree=category==='tree'&&state==='far'&&displayLandscapeMobile();
+  // Real far-tree LOD on every platform: only trunk/root + the authored low-cost crown masses survive.
+  const compactFarTree=category==='tree'&&state==='far';
   obj.userData.stressStreamVisible=shouldShow;
   obj.visible=shouldShow;
   obj.traverse?.(child=>{
@@ -20468,6 +20550,7 @@ window.LuminousDisplayPerformance=Object.freeze({
     dynamicShadows:renderer.shadowMap.enabled,
     antialias:DISPLAY_RENDER_ANTIALIAS,
     streamProfile:typeof forestStressResolvedProfileName==='function'?forestStressResolvedProfileName():null,
+    wideLodTest:typeof WORLD_LOD_WIDE_TEST==='boolean'?WORLD_LOD_WIDE_TEST:false,
     fps:typeof ForestStressRuntime==='object'?ForestStressRuntime.fpsEMA:null
   }),
   refresh:applyViewportPerformanceProfile
