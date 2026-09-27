@@ -19,7 +19,7 @@ const { pathToFileURL } = require("node:url");
   assert.ok(cooking);
   assert.ok(catalog);
   assert.equal(catalog.VERSION, 1);
-  assert.equal(catalog.RECIPES.length, 140, `expected 140 recipes after pie/cake/cookie variants, got ${catalog.RECIPES.length}`);
+  assert.equal(catalog.RECIPES.length, 147, `expected 147 recipes after pie/cake/cookie/muffin variants, got ${catalog.RECIPES.length}`);
 
   const ids = new Set();
   const cuisines = new Set();
@@ -52,6 +52,7 @@ const { pathToFileURL } = require("node:url");
   for (const id of [
     "apple_pie","pear_pie","banana_cream_pie","dragon_fruit_tart","apple_cake","chocolate_cake","chestnut_cake",
     "butter_cookie","chocolate_chip_cookie","oatmeal_cookie","almond_cookie","coffee_cookie",
+    "muffin","blueberry_muffin","chocolate_muffin","banana_muffin","apple_muffin","strawberry_muffin","lemon_muffin","coconut_muffin",
     "burger","fried_chicken","ramen","sushi_roll","tonkatsu",
     "pizza_margherita","pasta_bolognese","lasagna","tiramisu",
     "tacos","tamales","fried_rice","curry","ration_block"
@@ -71,6 +72,25 @@ const { pathToFileURL } = require("node:url");
   assert.equal(catalog.get("almond_cookie").referencePriceAhn, 10000);
   assert.equal(catalog.get("coffee_cookie").ingredients.some((row)=>row.requirement === "coffee_bean"), true);
   assert.equal(catalog.get("honey_cookie").ingredients.some((row)=>row.requirement === "honey"), true);
+  assert.equal(catalog.get("muffin").iconFamily, "muffin");
+  const muffinMother = catalog.get("muffin").ingredients.map((row)=>[row.requirement,row.role,row.quantity]);
+  for (const [id, extra] of [
+    ["blueberry_muffin","blueberry"],
+    ["chocolate_muffin","cacao"],
+    ["banana_muffin","banana"],
+    ["apple_muffin","apple"],
+    ["strawberry_muffin","strawberry"],
+    ["lemon_muffin","lemon"],
+    ["coconut_muffin","coconut"],
+  ]) {
+    const variant = catalog.get(id);
+    assert.equal(variant.iconFamily, id, id);
+    const baseRows = variant.ingredients
+      .filter((row)=>row.requirement !== extra)
+      .map((row)=>[row.requirement,row.role,row.quantity]);
+    assert.deepEqual(baseRows, muffinMother, id + " must preserve the muffin mother recipe");
+    assert.equal(variant.ingredients.some((row)=>row.requirement === extra && row.role === "major"), true, id + " must add its defining ingredient");
+  }
 
   const burger = catalog.resolveReferencePricing("burger", [
     { itemId:"bread", quantity:1, unitProductionValueAhn:3500 },

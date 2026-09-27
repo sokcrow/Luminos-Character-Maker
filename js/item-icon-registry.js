@@ -4,7 +4,7 @@
     if (typeof module !== "undefined" && module.exports) module.exports = global.LuminousItemIconRegistry;
     return;
   }
-  const VERSION = 34;
+  const VERSION = 35;
   const DEFAULT_GROUP = "generic_item";
   function family(id, label, labelEs, domain, icon) { return Object.freeze({ id, label, labelEs, domain, icon }); }
   const FAMILY_ROWS = Object.freeze([
@@ -114,6 +114,14 @@
     ["jam_cookie_retail_pack","Jam Cookie Retail Pack","Pack retail de galletas con mermelada","consumable","Assets/Icons/items/consumable/jam_cookie_retail_pack.png"],
     ["honey_cookie_retail_pack","Honey Cookie Retail Pack","Pack retail de galletas de miel","consumable","Assets/Icons/items/consumable/honey_cookie_retail_pack.png"],
     ["coffee_cookie_retail_pack","Coffee Cookie Retail Pack","Pack retail de galletas de café","consumable","Assets/Icons/items/consumable/coffee_cookie_retail_pack.png"],
+    ["muffin","Muffin","Muffin","consumable","Assets/Icons/items/consumable/muffin.png"],
+    ["blueberry_muffin","Blueberry Muffin","Muffin de arándano","consumable","Assets/Icons/items/consumable/blueberry_muffin.png"],
+    ["chocolate_muffin","Chocolate Muffin","Muffin de chocolate","consumable","Assets/Icons/items/consumable/chocolate_muffin.png"],
+    ["banana_muffin","Banana Muffin","Muffin de plátano","consumable","Assets/Icons/items/consumable/banana_muffin.png"],
+    ["apple_muffin","Apple Muffin","Muffin de manzana","consumable","Assets/Icons/items/consumable/apple_muffin.png"],
+    ["strawberry_muffin","Strawberry Muffin","Muffin de fresa","consumable","Assets/Icons/items/consumable/strawberry_muffin.png"],
+    ["lemon_muffin","Lemon Muffin","Muffin de limón","consumable","Assets/Icons/items/consumable/lemon_muffin.png"],
+    ["coconut_muffin","Coconut Muffin","Muffin de coco","consumable","Assets/Icons/items/consumable/coconut_muffin.png"],
     ["ration_field","Field Ration","Ración de campo","consumable","Assets/Icons/items/consumable/ration_field.png"],
     ["ration_preserved","Preserved Ration","Ración preservada","consumable","Assets/Icons/items/consumable/ration_preserved.png"],
     ["ration_canned","Canned Ration","Ración enlatada","consumable","Assets/Icons/items/consumable/ration_canned.png"],

@@ -4,10 +4,22 @@ on:
   push:
     paths:
       - "game-engine/**"
+      - "js/anatomy-equipment-engine.js"
+      - "js/item-runtime-engine.js"
+      - "js/item-inventory-runtime.js"
+      - "js/item-equipment-bridge.js"
+      - "js/item-icon-registry.js"
+      - "Assets/Icons/items/**"
       - ".github/workflows/game-engine-validation.yml"
   pull_request:
     paths:
       - "game-engine/**"
+      - "js/anatomy-equipment-engine.js"
+      - "js/item-runtime-engine.js"
+      - "js/item-inventory-runtime.js"
+      - "js/item-equipment-bridge.js"
+      - "js/item-icon-registry.js"
+      - "Assets/Icons/items/**"
       - ".github/workflows/game-engine-validation.yml"
 
 jobs:
@@ -22,11 +34,53 @@ jobs:
         with:
           node-version: 22
 
-      - name: Syntax check
+      - name: Lab host syntax
         run: node --check game-engine/lab/main.js
 
-      - name: World floor texture syntax
-        run: node --check game-engine/src/world/WorldFloorTextures.js
+      - name: GameRuntime syntax
+        run: |
+          node --check game-engine/src/core/GameRuntime.js
+          node --check game-engine/src/core/RuntimeContracts.js
+
+      - name: Camera runtime syntax
+        run: |
+          node --check game-engine/src/camera/CameraBridgeAdapter.js
+          node --check game-engine/src/camera/CameraProfiles.js
+          node --check game-engine/src/camera/CameraSystem.js
+
+      - name: Unit runtime syntax
+        run: |
+          node --check game-engine/src/units/UnitState.js
+          node --check game-engine/src/units/UnitRegistry.js
+          node --check game-engine/src/units/UnitControllerSystem.js
+          node --check game-engine/src/units/UnitMovementSystem.js
+          node --check game-engine/src/units/UnitEnvironmentSystem.js
+          node --check game-engine/src/units/UnitRuntime.js
+
+      - name: Map runtime syntax
+        run: |
+          node --check game-engine/src/map/MapRegistry.js
+          node --check game-engine/src/map/MapBridgeAdapter.js
+          node --check game-engine/src/map/MapSystem.js
+          node --check game-engine/src/map/procedural/SeededRandom.js
+          node --check game-engine/src/map/procedural/ProceduralMapSpec.js
+          node --check game-engine/src/map/procedural/ProceduralHydrology.js
+          node --check game-engine/src/map/procedural/ProceduralTerrain.js
+          node --check game-engine/src/map/procedural/ProceduralMapGenerator.js
+
+      - name: HUD runtime syntax
+        run: |
+          node --check game-engine/src/ui/HudViewModel.js
+          node --check game-engine/src/ui/HudDomAdapter.js
+
+      - name: World runtime syntax
+        run: |
+          node --check game-engine/src/world/WorldFloorTextures.js
+          node --check game-engine/src/world/TerrainMobility.js
+          node --check game-engine/src/world/TerrainSurfaceStandard.js
+          node --check game-engine/src/world/TerrainHeightField.js
+          node --check game-engine/src/world/WaterBodySystem.js
+          node --check game-engine/src/world/WakeTrailSystem.js
 
       - name: Core smoke
         run: node game-engine/tests/core-smoke.mjs
@@ -34,5 +88,35 @@ jobs:
       - name: Visual Lab smoke
         run: node game-engine/tests/visual-lab-smoke.mjs
 
+      - name: Continuous movement smoke
+        run: node game-engine/tests/continuous-movement-smoke.mjs
+
+      - name: Runtime contracts smoke
+        run: node game-engine/tests/runtime-contracts-smoke.mjs
+
+      - name: Universal Unit runtime smoke
+        run: node game-engine/tests/universal-unit-runtime-smoke.mjs
+
+      - name: Camera Units Map integration runtime
+        run: node game-engine/tests/game-runtime-integration-smoke.mjs
+
+      - name: Map module authority runtime
+        run: node game-engine/tests/map-runtime-authority-smoke.mjs
+
+      - name: Procedural map authority runtime
+        run: node game-engine/tests/procedural-map-runtime-smoke.mjs
+
+      - name: Terrain height field smoke
+        run: node game-engine/tests/terrain-height-field-smoke.mjs
+
       - name: World floor texture smoke
         run: node game-engine/tests/world-floor-textures-smoke.mjs
+
+      - name: Terrain surface standard smoke
+        run: node game-engine/tests/terrain-surface-standard-smoke.mjs
+
+      - name: WaterBody smoke
+        run: node game-engine/tests/water-body-system-smoke.mjs
+
+      - name: WakeTrail smoke
+        run: node game-engine/tests/wake-trail-system-smoke.mjs
