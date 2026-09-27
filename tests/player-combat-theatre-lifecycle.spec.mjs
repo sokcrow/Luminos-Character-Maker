@@ -7,7 +7,7 @@ async function bootHarness(page){
   await page.setContent(`
     <!doctype html><html><body>
       <div class="sheet-phone-wrapper"></div>
-      <div id="theatre-view-player" style="display:none"></div>
+      <div id="theatre-view-player" style="display:none;width:100vw;height:100vh"></div>
       <div id="player-instance-blackout"></div>
       <script src="/js/instance-control.js"></script>
     </body></html>
@@ -19,7 +19,8 @@ test('Player Combat is fully destroyed outside Combat and does not accumulate hi
   await bootHarness(page);
 
   await page.evaluate(()=>window.LuminousInstanceControl.applyPlayerInstance('teatro'));
-  await expect(page.locator('#theatre-view-player')).toBeVisible();
+  await expect(page.locator('#theatre-view-player')).toHaveCSS('display','flex');
+  await expect(page.locator('#theatre-view-player')).toHaveAttribute('aria-hidden','false');
   await expect(page.locator('#player-instance-combat')).toHaveCount(0);
   expect(page.frames().filter(frame=>frame.url().includes('Battle-viewer.html')).length).toBe(0);
 
@@ -32,8 +33,17 @@ test('Player Combat is fully destroyed outside Combat and does not accumulate hi
 
     await page.evaluate(()=>window.LuminousInstanceControl.applyPlayerInstance('teatro'));
     await expect(page.locator('#player-instance-combat')).toHaveCount(0);
-    await expect(page.locator('#theatre-view-player')).toBeVisible();
+    await expect(page.locator('#theatre-view-player')).toHaveCSS('display','flex');
+    await expect(page.locator('#theatre-view-player')).toHaveAttribute('aria-hidden','false');
     await expect.poll(()=>page.frames().filter(frame=>frame.url().includes('Battle-viewer.html')).length,{timeout:10000}).toBe(0);
+
+    const residue=await page.evaluate(()=>({
+      combatIframeCount:document.querySelectorAll('#player-instance-combat').length,
+      battleIframeCount:Array.from(document.querySelectorAll('iframe')).filter(frame=>String(frame.getAttribute('src')||'').includes('Battle-viewer')).length,
+      theatreActive:document.body.classList.contains('player-instance-theatre'),
+      combatActive:document.body.classList.contains('player-instance-combat')
+    }));
+    expect(residue).toEqual({combatIframeCount:0,battleIframeCount:0,theatreActive:true,combatActive:false});
   }
 
   const bodyState=await page.evaluate(()=>({
@@ -85,4 +95,53 @@ test('switching DM output back to Combat preserves an existing round',async({pag
   });
 
   expect(result.some(row=>row.path==='campaña/combate/estado')).toBe(false);
+});
+
+
+test('DM instance callback sends Player Combat to Theatre with zero Battle residue',async({page})=>{
+  await bootHarness(page);
+  const result=await page.evaluate(async()=>{
+    let instanceHandler=null;
+    const db={
+      ref(path){
+        if(path!=='campaña/estado_mundo/instancia_activa')return {on(){},off(){}};
+        return {
+          on(event,handler){ if(event==='value')instanceHandler=handler; },
+          off(){}
+        };
+      }
+    };
+    window.LuminousInstanceControl.bindPlayer({db,doc:document});
+    const emit=value=>instanceHandler?.({val:()=>value});
+
+    emit('combate');
+    await new Promise(resolve=>setTimeout(resolve,50));
+    const duringCombat={
+      iframeCount:document.querySelectorAll('#player-instance-combat').length,
+      battleSrc:document.getElementById('player-instance-combat')?.getAttribute('src')||''
+    };
+
+    emit('teatro');
+    await new Promise(resolve=>setTimeout(resolve,50));
+    const afterTheatre={
+      iframeCount:document.querySelectorAll('#player-instance-combat').length,
+      battleFrames:Array.from(document.querySelectorAll('iframe')).filter(frame=>String(frame.getAttribute('src')||'').includes('Battle-viewer')).length,
+      theatreDisplay:getComputedStyle(document.getElementById('theatre-view-player')).display,
+      theatreAria:document.getElementById('theatre-view-player')?.getAttribute('aria-hidden'),
+      theatreClass:document.body.classList.contains('player-instance-theatre'),
+      combatClass:document.body.classList.contains('player-instance-combat')
+    };
+    return {duringCombat,afterTheatre};
+  });
+
+  expect(result.duringCombat.iframeCount).toBe(1);
+  expect(result.duringCombat.battleSrc).toBe('Battle-viewer.html');
+  expect(result.afterTheatre).toEqual({
+    iframeCount:0,
+    battleFrames:0,
+    theatreDisplay:'flex',
+    theatreAria:'false',
+    theatreClass:true,
+    combatClass:false
+  });
 });
