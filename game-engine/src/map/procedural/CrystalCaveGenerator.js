@@ -43,23 +43,32 @@ const BLUEPRINT_ROOMS=Object.freeze([
 ]);
 
 const BLUEPRINT_CORRIDORS=Object.freeze([
-  Object.freeze({id:"entrance-vestibule",a:{x:7,z:113},b:{x:26,z:105},width:7}),
-  Object.freeze({id:"vestibule-camp",a:{x:31,z:94},b:{x:31,z:88},width:8}),
-  Object.freeze({id:"camp-supply",a:{x:30,z:62},b:{x:27,z:50},width:7}),
-  Object.freeze({id:"supply-tools",a:{x:38,z:41},b:{x:44,z:41},width:7}),
-  Object.freeze({id:"tools-infirmary",a:{x:66,z:49},b:{x:66,z:52},width:7}),
-  Object.freeze({id:"infirmary-control",a:{x:75,z:66},b:{x:78,z:73},width:8}),
-  Object.freeze({id:"control-gallery",a:{x:107,z:73},b:{x:112,z:69},width:8}),
-  Object.freeze({id:"gallery-crystal",a:{x:128,z:52},b:{x:132,z:44},width:8}),
-  Object.freeze({id:"gallery-bridge",a:{x:145,z:61},b:{x:156,z:61},width:8}),
-  Object.freeze({id:"bridge-boss",a:{x:184,z:61},b:{x:195,z:49},width:8}),
-  Object.freeze({id:"boss-right",a:{x:226,z:45},b:{x:231,z:56},width:8}),
-  Object.freeze({id:"right-spine",a:{x:232,z:55},b:{x:234,z:101},width:9}),
-  Object.freeze({id:"right-elevator",a:{x:234,z:91},b:{x:237,z:102},width:8}),
-  Object.freeze({id:"gallery-lower",a:{x:143,z:69},b:{x:154,z:82},width:7}),
-  Object.freeze({id:"lower-loop-a",a:{x:154,z:82},b:{x:164,z:94},width:8}),
-  Object.freeze({id:"lower-loop-b",a:{x:193,z:98},b:{x:210,z:90},width:8}),
-  Object.freeze({id:"lower-loop-c",a:{x:210,z:90},b:{x:220,z:82},width:8})
+  // Ruta principal amarilla de la referencia.
+  Object.freeze({id:"entrance-vestibule",a:{x:7,z:113},b:{x:26,z:105},width:7,route:"primary"}),
+  Object.freeze({id:"vestibule-camp",a:{x:31,z:94},b:{x:31,z:88},width:8,route:"primary"}),
+  Object.freeze({id:"camp-main-a",a:{x:34,z:72},b:{x:50,z:68},width:9,route:"primary"}),
+  Object.freeze({id:"main-a-control",a:{x:50,z:68},b:{x:82,z:76},width:9,route:"primary"}),
+  Object.freeze({id:"control-gallery",a:{x:104,z:74},b:{x:112,z:68},width:9,route:"primary"}),
+  Object.freeze({id:"gallery-main",a:{x:112,z:63},b:{x:145,z:61},width:10,route:"primary"}),
+  Object.freeze({id:"gallery-bridge",a:{x:145,z:61},b:{x:156,z:61},width:8,route:"primary"}),
+  Object.freeze({id:"bridge-boss",a:{x:184,z:61},b:{x:195,z:49},width:8,route:"primary"}),
+  Object.freeze({id:"boss-right",a:{x:226,z:45},b:{x:231,z:56},width:8,route:"primary"}),
+  Object.freeze({id:"right-spine",a:{x:232,z:55},b:{x:234,z:101},width:9,route:"primary"}),
+  Object.freeze({id:"right-elevator",a:{x:234,z:91},b:{x:237,z:102},width:8,route:"primary"}),
+
+  // Instalaciones abandonadas / ramales bloqueados.
+  Object.freeze({id:"camp-supply",a:{x:30,z:62},b:{x:27,z:50},width:7,route:"facility"}),
+  Object.freeze({id:"supply-tools",a:{x:38,z:41},b:{x:44,z:41},width:7,route:"facility"}),
+  Object.freeze({id:"tools-infirmary",a:{x:66,z:49},b:{x:66,z:52},width:7,route:"facility"}),
+  Object.freeze({id:"infirmary-control",a:{x:75,z:66},b:{x:82,z:74},width:8,route:"facility"}),
+  Object.freeze({id:"gallery-crystal",a:{x:128,z:52},b:{x:132,z:44},width:8,route:"secondary"}),
+
+  // Ruta secundaria azul punteada de la referencia.
+  Object.freeze({id:"gallery-lower",a:{x:143,z:69},b:{x:154,z:82},width:7,route:"secondary"}),
+  Object.freeze({id:"lower-loop-a",a:{x:154,z:82},b:{x:164,z:94},width:8,route:"secondary"}),
+  Object.freeze({id:"lower-loop-b",a:{x:164,z:94},b:{x:193,z:98},width:8,route:"secondary"}),
+  Object.freeze({id:"lower-loop-c",a:{x:193,z:98},b:{x:210,z:90},width:8,route:"secondary"}),
+  Object.freeze({id:"lower-loop-d",a:{x:210,z:90},b:{x:220,z:82},width:8,route:"secondary"})
 ]);
 
 const BRIDGE=Object.freeze({id:"bridge",label:"Pasarela sobre grieta",shape:"rect",cx:170,cz:61,hx:15,hz:5,kind:"bridge"});
@@ -96,8 +105,66 @@ const LOOT=Object.freeze([
 ]);
 
 const BLOCKED_DOORS=Object.freeze([
-  Object.freeze({id:"door-supply-tools",x:41,z:41}),
-  Object.freeze({id:"door-infirmary-gallery",x:78,z:68})
+  Object.freeze({id:"door-supply-tools",x:41,z:41,axis:"x",span:5.6,label:"Puerta bloqueada · almacenes"}),
+  Object.freeze({id:"door-infirmary-gallery",x:78,z:68,axis:"x",span:5.2,label:"Puerta bloqueada · enfermería"})
+]);
+
+// Props / dressing visibles tomados del croquis. No inventan loot ni reglas de combate:
+// únicamente describen qué debe verse en cada sala.
+const BLUEPRINT_DRESSING=Object.freeze([
+  Object.freeze({id:"entry-support-a",type:"support",x:13,z:110,room:"vestibule"}),
+  Object.freeze({id:"entry-support-b",type:"support",x:21,z:106,room:"vestibule"}),
+  Object.freeze({id:"vestibule-rail-a",type:"rail",x:32,z:105,length:14,axis:"x",room:"vestibule"}),
+  Object.freeze({id:"vestibule-crate-a",type:"crate",x:44,z:103,room:"vestibule"}),
+
+  Object.freeze({id:"camp-fire",type:"campfire",x:31,z:76,room:"camp"}),
+  Object.freeze({id:"camp-bed-a",type:"bedroll",x:24,z:78,rot:-.20,room:"camp"}),
+  Object.freeze({id:"camp-bed-b",type:"bedroll",x:38,z:79,rot:.16,room:"camp"}),
+  Object.freeze({id:"camp-crate-a",type:"crate",x:24,z:71,room:"camp"}),
+  Object.freeze({id:"camp-crate-b",type:"crate",x:39,z:72,room:"camp"}),
+
+  Object.freeze({id:"supply-crate-a",type:"crate",x:18,z:34,room:"supply"}),
+  Object.freeze({id:"supply-crate-b",type:"crate",x:24,z:34,room:"supply"}),
+  Object.freeze({id:"supply-crate-c",type:"crate",x:30,z:34,room:"supply"}),
+  Object.freeze({id:"supply-shelf-a",type:"shelf",x:17,z:43,length:7,axis:"z",room:"supply"}),
+  Object.freeze({id:"supply-shelf-b",type:"shelf",x:31,z:43,length:7,axis:"z",room:"supply"}),
+
+  Object.freeze({id:"tools-workbench",type:"workbench",x:57,z:42,room:"tools"}),
+  Object.freeze({id:"tools-rack-a",type:"toolRack",x:50,z:36,length:6,axis:"x",room:"tools"}),
+  Object.freeze({id:"tools-rack-b",type:"toolRack",x:64,z:36,length:6,axis:"x",room:"tools"}),
+  Object.freeze({id:"tools-crate",type:"crate",x:63,z:46,room:"tools"}),
+
+  Object.freeze({id:"infirmary-bed-a",type:"bed",x:59,z:58,rot:0,room:"infirmary"}),
+  Object.freeze({id:"infirmary-bed-b",type:"bed",x:66,z:58,rot:0,room:"infirmary"}),
+  Object.freeze({id:"infirmary-bed-c",type:"bed",x:73,z:58,rot:0,room:"infirmary"}),
+  Object.freeze({id:"infirmary-cabinet",type:"medicalCabinet",x:72,z:65,room:"infirmary"}),
+
+  Object.freeze({id:"control-console-a",type:"console",x:84,z:76,room:"control"}),
+  Object.freeze({id:"control-console-b",type:"console",x:92,z:76,room:"control"}),
+  Object.freeze({id:"control-console-c",type:"console",x:100,z:76,room:"control"}),
+  Object.freeze({id:"control-lamp-a",type:"lamp",x:84,z:83,color:0xffc676,room:"control"}),
+  Object.freeze({id:"control-lamp-b",type:"lamp",x:100,z:83,color:0xffc676,room:"control"}),
+
+  Object.freeze({id:"gallery-rail-a",type:"rail",x:116,z:64,length:10,axis:"x",room:"gallery"}),
+  Object.freeze({id:"gallery-rail-b",type:"rail",x:130,z:64,length:10,axis:"x",room:"gallery"}),
+  Object.freeze({id:"gallery-support-a",type:"support",x:109,z:60,room:"gallery"}),
+  Object.freeze({id:"gallery-support-b",type:"support",x:137,z:60,room:"gallery"}),
+
+  Object.freeze({id:"bridge-deck",type:"bridgeDeck",x:170,z:61,length:30,width:8,axis:"x",room:"bridge"}),
+  Object.freeze({id:"bridge-lamp-a",type:"lamp",x:158,z:61,color:0x8ecbff,room:"bridge"}),
+  Object.freeze({id:"bridge-lamp-b",type:"lamp",x:182,z:61,color:0x8ecbff,room:"bridge"}),
+
+  Object.freeze({id:"boss-seal",type:"bossSeal",x:209,z:33,room:"boss"}),
+  Object.freeze({id:"boss-support-a",type:"support",x:197,z:28,room:"boss"}),
+  Object.freeze({id:"boss-support-b",type:"support",x:221,z:28,room:"boss"}),
+  Object.freeze({id:"boss-crate-a",type:"crate",x:199,z:42,room:"boss"}),
+
+  Object.freeze({id:"scavenger-debris-a",type:"debris",x:226,z:67,room:"scavengers"}),
+  Object.freeze({id:"scavenger-debris-b",type:"debris",x:235,z:77,room:"scavengers"}),
+  Object.freeze({id:"scavenger-crate",type:"crate",x:225,z:80,room:"scavengers"}),
+
+  Object.freeze({id:"elevator-cage",type:"elevator",x:237,z:111,room:"elevator"}),
+  Object.freeze({id:"elevator-lamp",type:"lamp",x:237,z:104,color:0xffd43b,room:"elevator"})
 ]);
 
 const PRIMARY_ROUTE=Object.freeze([
@@ -380,6 +447,7 @@ export function createCrystalCaveData(input={}){
     encounters:ENCOUNTERS,
     loot:LOOT,
     blockedDoors:BLOCKED_DOORS,
+    dressing:BLUEPRINT_DRESSING,
     water,
     formations,
     crystals:formations,
@@ -408,6 +476,7 @@ export function createCrystalCaveData(input={}){
         activeRadius:spec.activeRadius,
         water:{...water},
         landmarks:LANDMARKS.map(x=>({...x})),
+        dressing:BLUEPRINT_DRESSING.map(x=>({...x})),
         metadata:{...spec.metadata}
       };
     }
