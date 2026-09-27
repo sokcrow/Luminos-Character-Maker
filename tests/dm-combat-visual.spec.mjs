@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import { test, expect } from '@playwright/test';
+import { PNG } from 'pngjs';
 
 const BASE=process.env.DM_VISUAL_BASE_URL||'http://127.0.0.1:4173';
 const DM_UID='e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1';
@@ -164,6 +165,65 @@ test('DM real Combat tab renders a visible FIELD with all deployed sprites', asy
     window.LuminousDmCombatLiveViewer?.nudgeBattle?.({allowFallback:true});
   });
 
+  const spriteDiagnostics=await frame.evaluate(()=>{
+    const field=document.getElementById('battlefield');
+    const fieldRect=field?.getBoundingClientRect?.()||{};
+    const sprites=Array.from(document.querySelectorAll('.sprite-img'));
+    const styleFor=node=>{
+      if(!node)return null;
+      const s=getComputedStyle(node),r=node.getBoundingClientRect();
+      return {
+        tag:node.tagName,id:node.id||'',className:String(node.className||''),
+        rect:{x:r.x,y:r.y,width:r.width,height:r.height},
+        display:s.display,visibility:s.visibility,opacity:s.opacity,
+        zIndex:s.zIndex,overflow:s.overflow,transform:s.transform,
+        position:s.position,pointerEvents:s.pointerEvents
+      };
+    };
+    return {
+      game:styleFor(document.getElementById('game-container')),
+      field:styleFor(field),
+      canvases:Array.from(document.querySelectorAll('canvas')).map(styleFor),
+      sprites:sprites.map(img=>{
+        const rect=img.getBoundingClientRect();
+        const cx=Math.max(0,Math.min(innerWidth-1,rect.left+rect.width/2));
+        const cy=Math.max(0,Math.min(innerHeight-1,rect.top+rect.height/2));
+        const hit=document.elementFromPoint(cx,cy);
+        const ancestors=[];
+        let node=img;
+        for(let i=0;node&&i<8;i+=1,node=node.parentElement)ancestors.push(styleFor(node));
+        return {
+          id:img.id||'',src:String(img.currentSrc||img.src||'').slice(0,160),
+          complete:img.complete,naturalWidth:img.naturalWidth,naturalHeight:img.naturalHeight,
+          fieldRect:{x:fieldRect.x||0,y:fieldRect.y||0,width:fieldRect.width||0,height:fieldRect.height||0},
+          center:{x:cx,y:cy},
+          hit:hit?{tag:hit.tagName,id:hit.id||'',className:String(hit.className||'')}:null,
+          ancestors
+        };
+      })
+    };
+  });
+  console.log('DM_VISUAL_SPRITE_DIAGNOSTICS',JSON.stringify(spriteDiagnostics));
+
+  fs.mkdirSync('artifacts/dm-combat-visual',{recursive:true});
+  const fieldPng=await frame.locator('#battlefield').screenshot({
+    path:'artifacts/dm-combat-visual/dm-combat-field.png',
+    animations:'disabled'
+  });
+  const decoded=PNG.sync.read(fieldPng);
+  const accents=[
+    [0x77,0xb7,0xff],
+    [0xff,0x8b,0x77],
+    [0xd5,0x8c,0xff]
+  ];
+  let accentPixels=0;
+  for(let i=0;i<decoded.data.length;i+=4){
+    const r=decoded.data[i],g=decoded.data[i+1],b=decoded.data[i+2],a=decoded.data[i+3];
+    if(a<180)continue;
+    if(accents.some(([er,eg,eb])=>Math.abs(r-er)<=18&&Math.abs(g-eg)<=18&&Math.abs(b-eb)<=18))accentPixels+=1;
+  }
+  console.log('DM_VISUAL_RASTER_PROOF',JSON.stringify({width:decoded.width,height:decoded.height,accentPixels}));
+
   const proof=await frame.evaluate(()=>{
     const game=document.getElementById('game-container');
     const field=document.getElementById('battlefield');
@@ -190,6 +250,7 @@ test('DM real Combat tab renders a visible FIELD with all deployed sprites', asy
   expect(proof.field.height).toBeGreaterThan(100);
   expect(proof.visibleSprites).toBeGreaterThanOrEqual(3);
   expect(proof.visibleSprites).toBe(proof.sprites);
+  expect(accentPixels,'raster proof must contain painted pixels from the three known CI sprites').toBeGreaterThan(250);
 
   await expect(page.locator('#dm-combat-live-status')).toContainText('BATTLE VISIBLE',{timeout:10000});
 
