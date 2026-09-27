@@ -170,6 +170,20 @@
       : { x: Math.min(42, 10 + column * 9), y: row ? 42 : 18 };
   }
 
+  function planningPhase() {
+    const raw = state.combatState && typeof state.combatState === "object"
+      ? (state.combatState.phase || state.combatState.state || state.combatState.status)
+      : state.combatState;
+    const phase = String(raw || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+    return phase === "pre_combat_planning" || phase === "planning";
+  }
+
+  function explicitBattlePosition(unit = {}) {
+    return unit.positionPinned === true || unit.positionLocked === true || unit.manualPosition === true ||
+      unit.combatPosition?.pinned === true || unit.combatPosition?.locked === true ||
+      unit.positionAuthority === "manual" || unit.positionAuthority === "dm";
+  }
+
   function normalizedCombatants() {
     const sideIndex = { ally: 0, enemy: 0 };
     const result = [];
@@ -183,8 +197,9 @@
       const humanPlayer = isPlayerUnit(raw);
       const playerOwned = state.role === "player" && humanPlayer && canonicalPlayerId(raw) === state.playerId && (!canonicalOwnerUid(raw) || canonicalOwnerUid(raw) === state.uid);
       const controller = playerOwned ? "player" : (humanPlayer ? "remote" : "ai");
-      const x = finite(raw.x ?? raw.position?.x ?? raw.combatPosition?.x, pos.x);
-      const y = finite(raw.y ?? raw.position?.y ?? raw.combatPosition?.y, pos.y);
+      const useFormationSpawn = planningPhase() && !explicitBattlePosition(raw);
+      const x = useFormationSpawn ? pos.x : finite(raw.x ?? raw.position?.x ?? raw.combatPosition?.x, pos.x);
+      const y = useFormationSpawn ? pos.y : finite(raw.y ?? raw.position?.y ?? raw.combatPosition?.y, pos.y);
       result.push({
         ...clone(raw),
         id,
@@ -205,6 +220,8 @@
         img: spriteFor(raw),
         x,
         y,
+        formationRow: sideIndex[faction] % 2 === 0 ? 1 : 0,
+        formationSource: useFormationSpawn ? "pre_combat_zigzag" : "runtime_position",
         scale: finite(raw.scale ?? raw.visualScale ?? raw.escala ?? raw.combatVisual?.scale, 1) || 1,
         spriteX: finite(raw.spriteX ?? raw.combatVisual?.x, 0) || 0,
         spriteY: finite(raw.spriteY ?? raw.combatVisual?.y, 0) || 0,
@@ -458,6 +475,9 @@
     normalizeSkill,
     isFieldCombatant,
     normalizedCombatants,
+    defaultPosition,
+    planningPhase,
+    explicitBattlePosition,
     kitsFor,
     hydrationSignature,
   });
