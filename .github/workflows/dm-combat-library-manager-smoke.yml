@@ -8,6 +8,7 @@ on:
       - 'Battle-viewer.html'
       - 'js/utils.js'
       - 'js/dm-combat-live-viewer.js'
+      - 'js/combat-v073-live-adapter.js'
       - 'js/combat-v073-dm-observer.js'
       - 'js/dm-combat-tab-manager.js'
       - 'js/combat-unit-library-sync.js'
@@ -17,6 +18,8 @@ on:
       - 'js/unit-catalog-wolf.js'
       - 'tests/dm-combat-library-manager-smoke.mjs'
       - 'tests/dm-combat-live-viewer-smoke.mjs'
+      - 'tests/dm-combat-real-bootstrap-smoke.mjs'
+      - 'combat/**'
       - 'tests/combat-v073-dm-observer-smoke.mjs'
       - 'tests/dm-combat-unit-library-real-ui-smoke.mjs'
       - '.github/workflows/dm-combat-library-manager-smoke.yml'
@@ -32,6 +35,7 @@ jobs:
       - name: Syntax
         run: |
           node --check js/dm-combat-live-viewer.js
+          node --check js/combat-v073-live-adapter.js
           node --check js/combat-v073-dm-observer.js
           node --check js/dm-combat-tab-manager.js
           node --check js/combat-unit-library-sync.js
@@ -40,6 +44,8 @@ jobs:
         run: node tests/dm-combat-library-manager-smoke.mjs
       - name: Real DM Battle Viewer visual evidence
         run: node tests/dm-combat-live-viewer-smoke.mjs
+      - name: Real compressed Battle bootstrap compatibility
+        run: node tests/dm-combat-real-bootstrap-smoke.mjs
       - name: DM Battle DOM-base observer contract
         run: node tests/combat-v073-dm-observer-smoke.mjs
       - name: Empty Firebase real UI runtime

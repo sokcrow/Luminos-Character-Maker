@@ -2,7 +2,7 @@
   'use strict';
   if(global.LuminousDmCombatLiveViewer)return;
 
-  const state={mounted:false,host:null,panel:null,frame:null,status:null,observer:null,tabButton:null,retryTimers:[],loaded:false,loading:false,visualFallback:false,lastProbe:null};
+  const state={mounted:false,host:null,panel:null,frame:null,status:null,observer:null,tabButton:null,retryTimers:[],loaded:false,loading:false,visualFallback:false,lastProbe:null,lastBootstrap:null};
   const BATTLE_SRC='Battle-viewer.html';
 
   function combatTab(){return global.document?.getElementById?.('tab-combate')||null}
@@ -31,14 +31,39 @@
     return true;
   }
 
+  function bootstrapState(){
+    const child=state.frame?.contentWindow;
+    if(!child)return null;
+    try{
+      const raw=child.LuminousCombatBootstrapState||null;
+      if(!raw)return null;
+      const result={stage:String(raw.stage||''),detail:String(raw.detail||''),error:raw.error?String(raw.error):null,updatedAt:Number(raw.updatedAt)||0};
+      state.lastBootstrap=result;
+      return result;
+    }catch(_){return null}
+  }
+
   function visibleNode(child,node){
     if(!node)return false;
     try{
-      const rect=node.getBoundingClientRect?.()||{width:0,height:0};
-      const style=child.getComputedStyle?.(node)||{};
-      const opacity=Number(style.opacity??node.style?.opacity??1);
-      return rect.width>2&&rect.height>2&&style.display!=='none'&&style.visibility!=='hidden'&&opacity!==0;
-    }catch(_){return true}
+      if(node.tagName==='IMG'&&(node.complete===false||Number(node.naturalWidth||0)<=0||Number(node.naturalHeight||0)<=0))return false;
+      const field=child.document?.getElementById?.('battlefield')||null;
+      const fieldRect=field?.getBoundingClientRect?.()||null;
+      const rect=node.getBoundingClientRect?.()||{width:0,height:0,left:0,right:0,top:0,bottom:0};
+      if(rect.width<=2||rect.height<=2)return false;
+      if(fieldRect){
+        const intersects=rect.right>fieldRect.left&&rect.left<fieldRect.right&&rect.bottom>fieldRect.top&&rect.top<fieldRect.bottom;
+        if(!intersects)return false;
+      }
+      let current=node;
+      for(let depth=0;current&&depth<10;depth+=1,current=current.parentElement){
+        const style=child.getComputedStyle?.(current)||{};
+        const opacity=Number(style.opacity??current.style?.opacity??1);
+        if(style.display==='none'||style.visibility==='hidden'||opacity===0||current.hidden===true)return false;
+        if(current===field)break;
+      }
+      return true;
+    }catch(_){return false}
   }
 
   function childSurface(){
@@ -58,9 +83,15 @@
       const visualMode=String(game?.dataset?.dmVisualMode||game?.dataset?.dmVisualFallback||'');
       const measurable=Boolean(game&&field&&gameRect.width>100&&gameRect.height>100&&fieldRect.width>100&&fieldRect.height>100);
       const domBaseReady=Boolean(game&&visualMode==='dom-base-webgl-vfx'&&!game.classList?.contains?.('webgl2-background-ready'));
-      const spriteEvidence=combatantCount===0||visibleSpriteCount>0;
-      const visualEvidence=Boolean(measurable&&role==='dm'&&domBaseReady&&spriteEvidence);
-      const result={child,game,field,renderer,role,gameRect,fieldRect,surfaceActive,combatantCount,visibleSpriteCount,visualMode,measurable,domBaseReady,spriteEvidence,visualEvidence,ready:visualEvidence};
+      const turnTransition=child.document?.getElementById?.('turn-transition')||null;
+      const transitionStyle=turnTransition?child.getComputedStyle?.(turnTransition):null;
+      const transitionBlocking=Boolean(turnTransition&&turnTransition.classList?.contains?.('active')&&transitionStyle?.display!=='none'&&transitionStyle?.visibility!=='hidden'&&Number(transitionStyle?.opacity??1)!==0);
+      const introBlocking=Boolean(game?.classList?.contains?.('intro-running'));
+      const spriteEvidence=combatantCount===0||visibleSpriteCount>=combatantCount;
+      const bootstrap=bootstrapState();
+      const hydrated=bootstrap?.stage==='hydrated'||Boolean(role&&game);
+      const visualEvidence=Boolean(measurable&&role==='dm'&&hydrated&&domBaseReady&&spriteEvidence&&!transitionBlocking&&!introBlocking);
+      const result={child,game,field,renderer,role,gameRect,fieldRect,surfaceActive,combatantCount,visibleSpriteCount,visualMode,measurable,domBaseReady,transitionBlocking,introBlocking,spriteEvidence,bootstrap,hydrated,visualEvidence,ready:visualEvidence};
       state.lastProbe=result;
       return result;
     }catch(_){return null}
@@ -70,11 +101,23 @@
     if(!surface?.game)return false;
     const game=surface.game;
     try{surface.child.LuminousCombatDmObserver073?.ensureVisualSurface?.()}catch(_){}
-    game.classList?.remove?.('player-blinded','webgl2-background-ready');
+    game.classList?.remove?.('player-blinded','webgl2-background-ready','intro-running');
+    const turnTransition=surface.child.document?.getElementById?.('turn-transition');
+    if(turnTransition){
+      turnTransition.classList?.remove?.('active');
+      turnTransition.style.pointerEvents='none';
+      turnTransition.style.opacity='0';
+      turnTransition.style.visibility='hidden';
+    }
     game.style.visibility='visible';
     game.style.opacity='1';
     game.querySelectorAll?.('.sprite-img.webgl2-texture-backed')?.forEach?.(img=>img.classList.remove('webgl2-texture-backed'));
-    game.querySelectorAll?.('.sprite-img')?.forEach?.(img=>{img.style.visibility='visible';img.style.opacity='1'});
+    game.querySelectorAll?.('.sprite-container')?.forEach?.(token=>{
+      token.hidden=false;
+      token.classList?.remove?.('invisible-hidden','invisible-detected','blindness-self','blindness-enemy','blindness-other');
+      token.style.visibility='visible';token.style.opacity='1';
+    });
+    game.querySelectorAll?.('.sprite-img')?.forEach?.(img=>{img.hidden=false;img.style.visibility='visible';img.style.opacity='1'});
     game.dataset.dmVisualMode='dom-base-webgl-vfx';
     delete game.dataset.dmVisualFallback;
     surface.child.LuminousCombat073?.render?.();
@@ -97,8 +140,15 @@
 
   function probeLabel(surface){
     if(!surface)return 'sin superficie';
-    if(surface.combatantCount>0)return `${surface.visibleSpriteCount}/${surface.combatantCount} sprites visibles`;
-    return surface.domBaseReady?'campo base visible':'campo base pendiente';
+    if(surface.combatantCount>0)return `${surface.combatantCount} combatientes hidratados · ${surface.visibleSpriteCount}/${surface.combatantCount} sprites visibles`;
+    return surface.domBaseReady?'campo base visible · 0 combatientes':'campo base pendiente';
+  }
+
+  function bootstrapLabel(bootstrap){
+    if(!bootstrap)return 'BOOT · esperando estado';
+    if(bootstrap.error)return `BOOT ERROR · ${bootstrap.error}`;
+    const detail=bootstrap.detail?` · ${bootstrap.detail}`:'';
+    return `BOOT · ${String(bootstrap.stage||'unknown').toUpperCase()}${detail}`;
   }
 
   function nudgeBattle(options={}){
@@ -112,7 +162,16 @@
       child.LuminousCombatDmObserver073?.ensureVisualSurface?.();
       child.LuminousWebGL2Renderer?.requestRender?.(260);
       child.dispatchEvent?.(new child.Event('resize'));
+      const bootstrap=bootstrapState();
+      if(bootstrap?.error){
+        setStatus(bootstrapLabel(bootstrap),true);
+        return false;
+      }
       let surface=childSurface();
+      if(!surface?.game){
+        setStatus(bootstrapLabel(bootstrap));
+        return false;
+      }
       if(surface?.surfaceActive===false)pulseSurface(surface);
       if(options.allowFallback&&surface&&!surface.visualEvidence){forceDomFallback(surface);surface=childSurface()||surface}
       if(surface?.ready&&surface?.role==='dm'){
@@ -121,7 +180,7 @@
       }
       if(surface?.role==='dm')setStatus(`DM AUTENTICADO · ${probeLabel(surface)} · corrigiendo superficie…`);
       else if(surface?.role)setStatus(`BATTLE CARGADO · ROL ${String(surface.role).toUpperCase()} · esperando superficie…`);
-      else setStatus('BATTLE CARGADO · esperando autenticación DM…');
+      else setStatus(`${bootstrapLabel(surface?.bootstrap||bootstrap)} · esperando autenticación DM…`);
       return false;
     }catch(error){
       console.error('[DM Combat Live Viewer] visual wake failed',error);
@@ -141,6 +200,7 @@
   function reload(){
     if(!state.frame)return false;
     clearRetries();state.loaded=false;state.loading=false;state.visualFallback=false;state.lastProbe=null;
+    state.lastBootstrap=null;
     setStatus('RECARGANDO BATTLE VISIBLE…');
     state.frame.src='about:blank';
     global.setTimeout(()=>{if(isVisible()){state.loading=false;ensureLoaded()}},0);
@@ -180,6 +240,14 @@
     }
     global.addEventListener('resize',()=>{if(isVisible())scheduleNudges()},{passive:true});
     global.addEventListener('focus',()=>{if(isVisible())scheduleNudges()});
+    global.addEventListener?.('message',event=>{
+      if(event?.origin!==global.location?.origin||event?.data?.type!=='luminous:combat-bootstrap')return;
+      state.lastBootstrap={stage:String(event.data.stage||''),detail:String(event.data.detail||''),error:event.data.error?String(event.data.error):null,updatedAt:Date.now()};
+      if(isVisible()){
+        if(state.lastBootstrap.error)setStatus(bootstrapLabel(state.lastBootstrap),true);
+        else if(!childSurface()?.ready)setStatus(bootstrapLabel(state.lastBootstrap));
+      }
+    });
     state.mounted=true;
     if(isVisible()){ensureLoaded();scheduleNudges()}
     return true;
@@ -188,6 +256,6 @@
   function stop(){clearRetries();state.observer?.disconnect?.();state.observer=null}
 
   global.addEventListener('beforeunload',stop,{once:true});
-  global.LuminousDmCombatLiveViewer=Object.freeze({version:'1.2.0',state,start,mount,ensureLoaded,visibleNode,childSurface,forceDomFallback,nudgeBattle,scheduleNudges,reload,isVisible});
+  global.LuminousDmCombatLiveViewer=Object.freeze({version:'1.4.0-raster-safe',state,start,mount,ensureLoaded,bootstrapState,visibleNode,childSurface,forceDomFallback,nudgeBattle,scheduleNudges,reload,isVisible});
   start();
 })(window);

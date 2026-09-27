@@ -51,10 +51,11 @@
   const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
   const normalizeId = (value) => clean(value).toLowerCase().replace(/[\s-]+/g, "_");
 
-  function setStatus(message) {
+  function setStatus(message, stageName="runtime-status") {
     try {
       const node = global.document?.getElementById?.("status");
       if (node) node.textContent = message;
+      global.LuminousCombatBootstrapStage?.(stageName, message);
     } catch (_) {}
   }
 
@@ -336,13 +337,14 @@
     state.role = identity.role;
     state.playerId = identity.playerId;
     if (!state.role) {
-      setStatus("COMBAT · USER NOT LINKED TO A CAMPAIGN PLAYER");
+      setStatus("COMBAT · AUTHENTICATED USER IS NOT THE DM OR A LINKED CAMPAIGN PLAYER","identity-unresolved");
       return false;
     }
+    global.LuminousCombatBootstrapStage?.(`identity-${state.role}`,state.role==="dm"?"Canonical DM identity confirmed":`Player identity confirmed · ${state.playerId||"unknown"}`);
     const focusEntry = state.role === "player" ? playerCombatantEntry() : dmFocusEntry();
     if (!focusEntry) {
       global.LuminousCombat073.reset();
-      setStatus("COMBAT · WAITING FOR DM TO DEPLOY COMBATANTS");
+      setStatus("COMBAT · WAITING FOR DM TO DEPLOY COMBATANTS","waiting-field");
       return false;
     }
     const [focusKey, focusUnit] = focusEntry;
@@ -400,17 +402,22 @@
     });
     state.db.ref(ROOTS.dmUid).once("value").then((snapshot) => {
       state.dmUid = clean(snapshot.val()) || FALLBACK_DM_UID;
+      global.LuminousCombatBootstrapStage?.("dm-identity-config","Campaign DM identity loaded");
       scheduleHydrate();
-    }).catch(() => {});
+    }).catch((error) => {
+      global.LuminousCombatBootstrapStage?.("dm-identity-config-error",error?.code||error?.message||"DM identity read failed",error?.code||error?.message||"DM identity read failed");
+      scheduleHydrate();
+    });
   }
 
   function onAuth(user) {
     state.user = user || null;
     state.uid = clean(user?.uid) || null;
     if (!user) {
-      setStatus("COMBAT · AUTH REQUIRED");
+      setStatus("COMBAT · AUTH REQUIRED","auth-required");
       return;
     }
+    global.LuminousCombatBootstrapStage?.("auth-ready","Firebase user authenticated");
     bindRealtime();
     scheduleHydrate();
   }

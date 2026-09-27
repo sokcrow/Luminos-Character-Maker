@@ -29,7 +29,7 @@ class FakeClassList {
 
 class FakeElement {
   constructor(tag='div',id=''){
-    this.tagName=tag.toUpperCase();this.id=id;this.dataset={};this.style={};this.children=[];this.listeners={};this.attributes={};this.firstChild=null;this._innerHTML='';this.contentWindow=null;this._src='';this._hidden=false;this.textContent='';this.classList=new FakeClassList();this.rect={width:1200,height:800};
+    this.tagName=tag.toUpperCase();this.id=id;this.dataset={};this.style={};this.children=[];this.listeners={};this.attributes={};this.firstChild=null;this._innerHTML='';this.contentWindow=null;this._src='';this._hidden=false;this.textContent='';this.classList=new FakeClassList();this.rect={width:1200,height:800};this.parentElement=null;this.hidden=false;this.complete=true;this.naturalWidth=this.tagName==='IMG'?220:0;this.naturalHeight=this.tagName==='IMG'?280:0;
   }
   set innerHTML(value){
     this._innerHTML=String(value);
@@ -49,7 +49,12 @@ class FakeElement {
   addEventListener(type,handler){(this.listeners[type]||=[]).push(handler);}
   dispatch(type){for(const handler of this.listeners[type]||[])handler({type,target:this});}
   getAttribute(name){return this.attributes[name]??null;}
-  getBoundingClientRect(){return this._hidden?{width:0,height:0}:this.rect;}
+  getBoundingClientRect(){
+    if(this._hidden)return {x:0,y:0,left:0,top:0,right:0,bottom:0,width:0,height:0};
+    const x=Number(this.rect.x??this.rect.left??0),y=Number(this.rect.y??this.rect.top??0);
+    const width=Number(this.rect.width??0),height=Number(this.rect.height??0);
+    return {x,y,left:x,top:y,right:x+width,bottom:y+height,width,height};
+  }
   querySelectorAll(selector){
     if(selector==='.sprite-img')return this._sprites||[];
     if(selector==='.sprite-img.webgl2-texture-backed')return (this._sprites||[]).filter(node=>node.classList.contains('webgl2-texture-backed'));

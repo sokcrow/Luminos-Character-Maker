@@ -17,7 +17,8 @@ assert.ok(source.includes('renderer.requestRender?.(220)'),'DM observer must exp
 assert.ok(source.includes("global.LuminousCombat073?.camera?.('full',false)"),'DM observer must reassert full arena after hydration/resize');
 assert.ok(source.includes('function ensureVisualSurface()'),'DM observer must own an explicit visual-surface recovery path');
 assert.ok(source.includes("game.style.visibility='visible'")&&source.includes("game.style.opacity='1'"),'DM visual recovery must force the actual HUD surface visible');
-assert.ok(source.includes("game.classList.remove('player-blinded','webgl2-background-ready')"),'DM base battlefield must stay on DOM instead of trusting the WebGL background');
+assert.ok(source.includes("game.classList.remove('player-blinded','webgl2-background-ready','intro-running')"),'DM base battlefield must stay on DOM and clear the stuck player intro state');
+assert.ok(source.includes("getElementById?.('turn-transition')")&&source.includes("turnTransition.classList?.remove?.('active')"),'DM observer must remove the full-field turn transition that can visually cover every sprite');
 assert.ok(source.includes("img.classList.remove('webgl2-texture-backed')"),'DM sprites must stay DOM-visible even when textures are available to WebGL');
 assert.ok(source.includes("game.dataset.dmVisualMode='dom-base-webgl-vfx'"),'DM visual mode must explicitly declare DOM base + WebGL VFX composition');
 assert.ok(source.includes('function observeVisualSurface()'),'DM observer must watch for renderer classes being reintroduced after hydration/texture load');
