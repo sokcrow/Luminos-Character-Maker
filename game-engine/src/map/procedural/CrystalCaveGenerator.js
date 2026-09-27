@@ -224,6 +224,25 @@ export function createCrystalCaveData(input={}){
     });
   }
 
+  function waterSampleAt(tx,tz){
+    tx=finite(tx);tz=finite(tz);
+    const q=waterQ(tx,tz),radius=Math.max(.001,Math.min(water.rx,water.rz));
+    const sample=sampleWater({x:tx,z:tz});
+    return Object.freeze({
+      water:!!sample,
+      type:"lake",
+      waterSurfaceTiles:water.surfaceTiles,
+      waterDepth:sample?.depth||0,
+      depth:sample?.depth||0,
+      surface:water.surfaceTiles,
+      ground:sample?.ground??floorHeightTilesAt(tx,tz),
+      distanceToWater:Math.max(0,(q-1)*radius),
+      bankWidthTiles:water.bankWidth*radius,
+      current:null,
+      source:"crystal-cave-shared-bathymetry"
+    });
+  }
+
   function sampleTerrain(point={}){
     const tx=finite(point.x),tz=finite(point.z);
     const open=contains(tx,tz),height=floorHeightTilesAt(tx,tz),waterSample=sampleWater({x:tx,z:tz});
@@ -259,7 +278,7 @@ export function createCrystalCaveData(input={}){
     id:spec.id,kind:spec.kind,seed:spec.seed,bounds:spec.bounds,metadata:spec.metadata,
     chunkSize:spec.chunkSize,activeRadius:spec.activeRadius,base,
     route,chambers,water,formations,crystals:formations,surfaces,
-    contains,inWater,waterQ,floorHeightTilesAt,sampleTerrain,sampleWater,
+    contains,inWater,waterQ,floorHeightTilesAt,sampleTerrain,sampleWater,waterSampleAt,
     chunkAt,chunksAround,
     spawn:Object.freeze({x:spawnRoute.x,y:0,z:spawnRoute.z,layer:"exterior"}),
     exit:Object.freeze({x:exitRoute.x,z:exitRoute.z}),
