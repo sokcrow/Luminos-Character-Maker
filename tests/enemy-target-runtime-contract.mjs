@@ -29,7 +29,7 @@ console.log('REAL_BATTLE_TARGET_FUNCTIONS '+JSON.stringify([...new Set(targetFun
 console.log('REAL_BATTLE_TARGET_VARIABLES '+JSON.stringify([...new Set(targetVariableNames)]));
 
 for(const needle of [
-  'hydrate','payload.combatants','combatants.forEach','combatants.map','addCombatant','spawnCombatant','spawnUnit','createCombatant','c.style.bottom','d.y','planTargetRule','validTargetUnits','assignTargetIntents','smartTargetScore','smartTargetForPlan','autoActionScore','autoPlans',
+  'hydrate','payload.combatants','combatants.forEach','combatants.map','addCombatant','spawnCombatant','spawnUnit','createCombatant','style.bottom','style.left','moveUnitTowardTarget','unit.y=','unit.x=','c.style.bottom','d.y','planTargetRule','validTargetUnits','assignTargetIntents','smartTargetScore','smartTargetForPlan','autoActionScore','autoPlans',
   'targetId','mainTargetId','renderSprites','sprite-container','style.left','style.top',
   'unit.x','unit.y','combatData'
 ]){
