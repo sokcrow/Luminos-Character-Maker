@@ -88,6 +88,12 @@
       .replace(liveArrowNeedle,liveArrowPatch)
       .replace(livePlanRenderNeedle,livePlanRenderPatch);
 
+    stage('patch-dm-radial-safe','Guarding DM radial layout during hydration');
+    const spriteCenterNeedle="function spriteCenter(){const img=$(\`sprite-\${PLAYER_ID}\`),r=img.getBoundingClientRect();return{x:r.left+r.width/2,y:r.top+r.height*.46}}";
+    const spriteCenterPatch="function spriteCenter(){const img=$(\`sprite-\${PLAYER_ID}\`);if(img){const r=img.getBoundingClientRect();if(r.width>1&&r.height>1)return{x:r.left+r.width/2,y:r.top+r.height*.46}}const field=$('battlefield')||$('game-container'),r=field?.getBoundingClientRect?.();return{x:(r?.left||0)+(r?.width||innerWidth||1)/2,y:(r?.top||0)+(r?.height||innerHeight||1)*.62}}";
+    if(!html.includes(spriteCenterNeedle))throw new Error("COMBAT_DM_RADIAL_SAFE_PATCH_MISSING");
+    html=html.replace(spriteCenterNeedle,spriteCenterPatch);
+
     stage('patch-renderer','Applying Combat renderer patch');
     // Combat-iframe-only renderer patch. It never installs hooks in Theatre runtime code.
     // Mobile/low-power clients keep DOM/CSS sprite compositing and reserve WebGL2 for VFX.
