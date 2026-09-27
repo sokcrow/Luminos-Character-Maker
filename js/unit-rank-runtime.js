@@ -309,11 +309,17 @@
     const assignments = [];
 
     if (command.commandLevel <= 0) {
+      const targetUnitIds = [...new Set(targets.map(slotBaseId).filter(Boolean))];
       attackers.forEach((slot) => {
-        const index = Math.max(0, Math.min(targets.length - 1, Math.floor(finite(random(), 0) * targets.length)));
-        const target = targets[index];
+        const unitRoll = Math.max(0, Math.min(0.999999999, finite(random(), 0)));
+        const unitIndex = Math.max(0, Math.min(targetUnitIds.length - 1, Math.floor(unitRoll * targetUnitIds.length)));
+        const targetUnitId = targetUnitIds[unitIndex];
+        const unitSlots = targets.filter((candidate) => slotBaseId(candidate) === targetUnitId);
+        const slotRoll = Math.max(0, Math.min(0.999999999, finite(random(), 0)));
+        const slotIndex = Math.max(0, Math.min(unitSlots.length - 1, Math.floor(slotRoll * unitSlots.length)));
+        const target = unitSlots[slotIndex] || targets[0];
         slotTargets[slot.id] = target.id;
-        assignments.push({ attackerSlotId: slot.id, targetSlotId: target.id, targetUnitId: slotBaseId(target) });
+        assignments.push({ attackerSlotId: slot.id, targetSlotId: target.id, targetUnitId });
       });
       return { command: { ...command, commander: undefined }, assignments };
     }

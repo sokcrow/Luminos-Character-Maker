@@ -60,6 +60,24 @@ const oneSlot = ai.planTurn({ actor: goblin, availableSlots: 1, targetIds: ['pla
 assert.equal(oneSlot.actions.length, 1);
 assert.equal(oneSlot.slotsRequested, 1);
 
+const tieFirst = ai.planTurn({
+  actor: { ...goblin, id: 'tie_first' },
+  availableSlots: 1,
+  targetIds: ['player_1', 'player_2', 'player_3'],
+  sources: [slash],
+  random: () => 0.01,
+});
+const tieLast = ai.planTurn({
+  actor: { ...goblin, id: 'tie_last' },
+  availableSlots: 1,
+  targetIds: ['player_1', 'player_2', 'player_3'],
+  sources: [slash],
+  random: () => 0.99,
+});
+assert.equal(tieFirst.targetId, 'player_1');
+assert.equal(tieLast.targetId, 'player_3');
+assert.notEqual(tieFirst.targetId, tieLast.targetId, 'equal-threat enemies must not collapse to a lexicographic target');
+
 const privateTargetView = {
   id: 'player_private', faction: 'allies',
   get hp() { throw new Error('GOAP read private target HP'); },

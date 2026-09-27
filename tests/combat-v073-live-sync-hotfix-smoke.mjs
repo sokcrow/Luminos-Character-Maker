@@ -18,6 +18,9 @@ assert.ok(adapter.includes('humanPlayer ? "remote" : "ai"'), 'other human Player
 assert.ok(adapter.includes('unit.scale') && adapter.includes('unit.spriteX') && adapter.includes('unit.spriteY'), 'visual fields must participate in hydration signature');
 assert.ok(adapter.includes('unit.speedTie') && adapter.includes('unit.speedRollTurn'), 'persisted Speed authority must participate in hydration signature');
 assert.ok(adapter.includes('viewerRole: state.role'), 'runtime hydration must know Player vs DM viewer role');
+assert.ok(adapter.includes('useFormationSpawn = planningPhase() && !explicitBattlePosition(raw)'), 'PRE-COMBAT must own canonical spawn formation instead of inheriting stale runtime x/y');
+assert.ok(adapter.includes('formationSource: useFormationSpawn ? "pre_combat_zigzag" : "runtime_position"'), 'hydrated units must expose whether zigzag or runtime coordinates won');
+assert.ok(adapter.includes('y: row ? 42 : 18'), 'canonical formation must alternate two battlefield rows');
 
 assert.ok(plans.includes('luminous:combat073-plan-change'), 'live Planning changes must still publish realtime target intent');
 assert.ok(plans.includes('async function syncLiveTargets'), 'render-driven Planning sync must use the target-only path');
