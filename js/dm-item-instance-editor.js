@@ -15,12 +15,15 @@
     dirty: false,
     saving: false,
     observer: null,
+    grantDefinitionId: null,
+    catalogPoll: null,
   };
 
   const runtime = () => global.LuminousItemRuntime || global.LuminousItemInventoryRuntime || null;
   const inventory = () => global.LuminousItemInventoryRuntime || runtime();
   const persistence = () => global.LuminousItemPersistenceRuntime || null;
   const realtime = () => global.LuminousItemRealtimeSync || null;
+  const iconRegistry = () => global.LuminousItemIconRegistry || null;
   const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
   const intOr = (value, fallback = 0) => Number.isFinite(Number(value)) ? Math.trunc(Number(value)) : fallback;
 
@@ -42,6 +45,7 @@
   }
 
   async function ensureRuntimeStack() {
+    await ensureScript("item-icon-registry-script", "js/item-icon-registry.js", "LuminousItemIconRegistry");
     await ensureScript("item-runtime-engine-script", "js/item-runtime-engine.js", "LuminousItemRuntime");
     await ensureScript("item-inventory-runtime-script", "js/item-inventory-runtime.js", "LuminousItemInventoryRuntime");
     await ensureScript("item-persistence-runtime-script", "js/item-persistence-runtime.js", "LuminousItemPersistenceRuntime");
@@ -92,6 +96,79 @@
     item.quantity = next;
     item.cantidad = next;
     return next;
+  }
+
+
+  function localAssetPath(value) {
+    const raw = String(value || "").trim();
+    if (!raw || /^(?:https?:)?\/\//i.test(raw) || /^(?:data|blob):/i.test(raw)) return "";
+    return raw;
+  }
+
+  function definitionIdOf(item = {}, fallback = "") {
+    return String(item.definitionId || item.definition_id || item.canonicalId || item.itemId || item.id || item.key || fallback || "").trim();
+  }
+
+  function definitionName(item = {}, fallback = "") {
+    return String(item.displayName || item.nombre || item.name || fallback || definitionIdOf(item) || "ITEM").trim();
+  }
+
+  function definitionCategory(item = {}) {
+    return String(item.category || item.tipo_categoria || item.itemType || item.item_type || item.family || item.group || "item").trim();
+  }
+
+  function localIconInfo(item = {}, fallbackId = "") {
+    const registry = iconRegistry();
+    const explicit = [item.icono, item.icon, item.image, item.img].map(localAssetPath).find(Boolean);
+    const candidates = [
+      item.iconFamily, item.icon_family, item.family, item.group,
+      definitionIdOf(item, fallbackId), definitionCategory(item)
+    ].map((value) => String(value || "").trim()).filter(Boolean);
+
+    if (registry?.get && registry?.resolveIcon) {
+      for (const candidate of candidates) {
+        const entry = registry.get(candidate, { fallback: false });
+        if (!entry) continue;
+        const icon = localAssetPath(registry.resolveIcon(entry.id, { fallback: false }));
+        if (icon) return { family: entry.id, icon };
+      }
+    }
+    if (explicit) return { family: String(item.iconFamily || item.icon_family || "").trim() || null, icon: explicit };
+    const generic = localAssetPath(registry?.resolveIcon?.("generic_item", { fallback: false }))
+      || "Assets/Icons/items/fallback/generic_item.png";
+    return { family: registry?.get?.("generic_item", { fallback: false })?.id || "generic_item", icon: generic };
+  }
+
+  function catalogEntries() {
+    const source = global.dbItemsCache && typeof global.dbItemsCache === "object" ? global.dbItemsCache : {};
+    return Object.entries(source).map(([key, raw]) => {
+      const definition = raw && typeof raw === "object" ? raw : {};
+      const id = definitionIdOf(definition, key) || key;
+      const icon = localIconInfo(definition, id);
+      return {
+        id,
+        key,
+        definition,
+        name: definitionName(definition, key),
+        category: definitionCategory(definition),
+        tier: String(definition.tier || definition.itemTier || definition.tierRoman || "I"),
+        tags: Array.isArray(definition.tags) ? definition.tags.map(String) : String(definition.tags || definition.tag || "").split(/[,|]/g).map((value) => value.trim()).filter(Boolean),
+        iconFamily: icon.family,
+        icon: icon.icon,
+      };
+    }).sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  function findCatalogEntry(id) {
+    const wanted = String(id || "").trim();
+    return catalogEntries().find((entry) => entry.id === wanted || entry.key === wanted) || null;
+  }
+
+  function grantStatus(message, tone = "") {
+    const node = doc.getElementById("dm-item-grant-status");
+    if (!node) return;
+    node.textContent = String(message || "");
+    node.dataset.tone = tone;
   }
 
   function findEntry(listType, key) {
@@ -502,6 +579,233 @@
     }
   }
 
+
+  function hideLegacyGrantControls() {
+    const legacyButton = doc.getElementById("btn-dm-inv-add");
+    const legacyRow = legacyButton?.parentElement;
+    const legacySection = legacyRow?.parentElement;
+    ["dm-inv-add-select", "dm-inv-add-target", "dm-inv-add-cant", "btn-dm-inv-add"].forEach((id) => {
+      const node = doc.getElementById(id);
+      if (node) {
+        node.hidden = true;
+        node.setAttribute("aria-hidden", "true");
+      }
+    });
+    if (legacySection && legacySection.closest?.("#modal-inventario-dm")) {
+      legacySection.dataset.legacyInventoryGrant = "replaced";
+      legacySection.hidden = true;
+    }
+  }
+
+  function mountGrantConsole() {
+    const modalBody = doc.querySelector("#modal-inventario-dm .modal-body");
+    if (!modalBody) return null;
+    let host = doc.getElementById("dm-item-grant-console");
+    if (host) return host;
+
+    hideLegacyGrantControls();
+    host = doc.createElement("section");
+    host.id = "dm-item-grant-console";
+    host.className = "dm-item-grant-console";
+    host.innerHTML = `
+      <header class="dm-item-grant-header">
+        <div><span>CANONICAL INVENTORY TOOL</span><strong>ADD ITEM TO PLAYER</strong></div>
+        <div id="dm-item-grant-player" class="dm-item-grant-player">PLAYER // --</div>
+      </header>
+      <div class="dm-item-grant-toolbar">
+        <input id="dm-item-grant-search" type="search" autocomplete="off" placeholder="Buscar ítem por nombre, ID o tag...">
+        <select id="dm-item-grant-category"><option value="">TODAS LAS CATEGORÍAS</option></select>
+      </div>
+      <div class="dm-item-grant-layout">
+        <div id="dm-item-grant-results" class="dm-item-grant-results" role="listbox" aria-label="Catálogo de ítems"></div>
+        <aside class="dm-item-grant-preview">
+          <img id="dm-item-grant-icon" src="Assets/Icons/items/fallback/generic_item.png" alt="">
+          <div class="dm-item-grant-preview-copy">
+            <strong id="dm-item-grant-name">Selecciona un ítem</strong>
+            <span id="dm-item-grant-meta">CATÁLOGO LOCAL</span>
+          </div>
+          <div class="dm-item-grant-fields">
+            <label>Destino<select id="dm-item-grant-target"><option value="stash">Stash / Alijo</option><option value="active">Inventario Activo</option></select></label>
+            <label>Cantidad<input id="dm-item-grant-quantity" type="number" min="1" step="1" value="1"></label>
+            <label>Calidad<select id="dm-item-grant-quality"><option value="1">I · Low</option><option value="2" selected>II · Standard</option><option value="3">III · Good</option><option value="4">IV · Fine</option><option value="5">V · Exceptional</option></select></label>
+          </div>
+          <button type="button" id="dm-item-grant-add" class="dm-item-grant-add" disabled>ADD ITEM</button>
+          <div id="dm-item-grant-status" class="dm-item-grant-status">Selecciona una definición del catálogo.</div>
+        </aside>
+      </div>`;
+    modalBody.appendChild(host);
+
+    doc.getElementById("dm-item-grant-search")?.addEventListener("input", renderGrantCatalog);
+    doc.getElementById("dm-item-grant-category")?.addEventListener("change", renderGrantCatalog);
+    doc.getElementById("dm-item-grant-add")?.addEventListener("click", () => {
+      grantSelectedItem().catch((error) => grantStatus(`ERROR // ${error?.message || error}`, "error"));
+    });
+    renderGrantCatalog();
+    return host;
+  }
+
+  function renderGrantCatalog() {
+    const host = doc.getElementById("dm-item-grant-results");
+    const categorySelect = doc.getElementById("dm-item-grant-category");
+    if (!host || !categorySelect) return false;
+
+    const all = catalogEntries();
+    const currentCategory = categorySelect.value;
+    const categories = [...new Set(all.map((entry) => entry.category).filter(Boolean))].sort();
+    const optionsSignature = categories.join("|");
+    if (categorySelect.dataset.signature !== optionsSignature) {
+      categorySelect.dataset.signature = optionsSignature;
+      categorySelect.innerHTML = '<option value="">TODAS LAS CATEGORÍAS</option>';
+      categories.forEach((category) => {
+        const option = doc.createElement("option");
+        option.value = category;
+        option.textContent = category.replace(/_/g, " ").toUpperCase();
+        categorySelect.appendChild(option);
+      });
+      if (currentCategory && categories.includes(currentCategory)) categorySelect.value = currentCategory;
+    }
+
+    const query = String(doc.getElementById("dm-item-grant-search")?.value || "").trim().toLowerCase();
+    const category = categorySelect.value;
+    const rows = all.filter((entry) => {
+      if (category && entry.category !== category) return false;
+      if (!query) return true;
+      return [entry.name, entry.id, entry.category, entry.tier, ...entry.tags].join(" ").toLowerCase().includes(query);
+    }).slice(0, 160);
+
+    host.replaceChildren();
+    if (!rows.length) {
+      const empty = doc.createElement("div");
+      empty.className = "dm-item-grant-empty";
+      empty.textContent = all.length ? "SIN RESULTADOS" : "CATÁLOGO DE ÍTEMS AÚN NO DISPONIBLE";
+      host.appendChild(empty);
+      return true;
+    }
+
+    rows.forEach((entry) => {
+      const button = doc.createElement("button");
+      button.type = "button";
+      button.className = "dm-item-grant-result";
+      button.dataset.definitionId = entry.id;
+      button.setAttribute("role", "option");
+      button.setAttribute("aria-selected", state.grantDefinitionId === entry.id ? "true" : "false");
+
+      const img = doc.createElement("img");
+      img.src = entry.icon;
+      img.alt = "";
+      img.loading = "lazy";
+      const copy = doc.createElement("span");
+      copy.className = "dm-item-grant-result-copy";
+      const name = doc.createElement("strong");
+      name.textContent = entry.name;
+      const meta = doc.createElement("small");
+      meta.textContent = `${entry.category.toUpperCase()} · TIER ${entry.tier} · ${entry.id}`;
+      copy.append(name, meta);
+      button.append(img, copy);
+      button.addEventListener("click", () => selectGrantDefinition(entry.id));
+      host.appendChild(button);
+    });
+    return true;
+  }
+
+  function selectGrantDefinition(id) {
+    const entry = findCatalogEntry(id);
+    if (!entry) {
+      state.grantDefinitionId = null;
+      grantStatus("ITEM DEFINITION NOT FOUND", "error");
+      return false;
+    }
+    state.grantDefinitionId = entry.id;
+    doc.querySelectorAll("#dm-item-grant-results .dm-item-grant-result").forEach((row) => {
+      row.setAttribute("aria-selected", row.dataset.definitionId === entry.id ? "true" : "false");
+    });
+    const icon = doc.getElementById("dm-item-grant-icon");
+    if (icon) {
+      icon.src = entry.icon;
+      icon.alt = entry.name;
+    }
+    const name = doc.getElementById("dm-item-grant-name");
+    if (name) name.textContent = entry.name;
+    const meta = doc.getElementById("dm-item-grant-meta");
+    if (meta) meta.textContent = `${entry.category.toUpperCase()} · TIER ${entry.tier} · ${entry.id}`;
+    const add = doc.getElementById("dm-item-grant-add");
+    if (add) add.disabled = false;
+    grantStatus(`READY // ${entry.iconFamily || "generic_item"} // LOCAL ASSET`, "");
+    return true;
+  }
+
+  async function grantSelectedItem() {
+    const entry = findCatalogEntry(state.grantDefinitionId);
+    if (!entry) return grantStatus("SELECCIONA UN ÍTEM", "error");
+    if (!(await ensurePeer())) return grantStatus("PLAYER INVENTORY NOT READY", "error");
+
+    const quantity = Math.max(1, intOr(doc.getElementById("dm-item-grant-quantity")?.value, 1));
+    const qualityTier = Math.max(1, Math.min(5, intOr(doc.getElementById("dm-item-grant-quality")?.value, 2)));
+    const target = normalizeListType(doc.getElementById("dm-item-grant-target")?.value);
+    const source = clone(entry.definition) || {};
+    source.id = definitionIdOf(source, entry.id) || entry.id;
+    source.definitionId = entry.id;
+    source.iconFamily = entry.iconFamily || source.iconFamily || source.icon_family || "generic_item";
+
+    const instance = inventory()?.createItemInstance?.(source, {
+      quantity,
+      qualityTier,
+      currentOwnerId: state.playerId,
+    });
+    if (!instance) return grantStatus("NO SE PUDO CREAR ITEMINSTANCE", "error");
+
+    const name = entry.name;
+    const category = entry.category;
+    instance.definitionId = entry.id;
+    instance.currentOwnerId = state.playerId;
+    instance.iconFamily = source.iconFamily;
+    instance.icono = entry.icon;
+    instance.nombre = name;
+    instance.name = name;
+    instance.displayName = name;
+    instance.category = category;
+    instance.tipo_categoria = source.tipo_categoria || category;
+    instance.itemType = source.itemType || source.item_type || category;
+    instance.tags = Array.isArray(source.tags) ? clone(source.tags) : entry.tags;
+    instance.tier = source.tier || entry.tier;
+    if (source.descripcion != null) instance.descripcion = source.descripcion;
+    if (source.description != null) instance.description = source.description;
+    if (source.costo != null) instance.costo = source.costo;
+    if (source.price != null) instance.price = source.price;
+    setQuantity(instance, quantity);
+    inventory()?.setQualityTier?.(instance, qualityTier);
+
+    const result = inventory()?.insertItem?.(state.unit, instance, target, { currentOwnerId: state.playerId });
+    if (!result?.inserted) {
+      return grantStatus(`ADD BLOCKED // ${String(result?.reason || "UNKNOWN").toUpperCase()}`, "error");
+    }
+
+    const saved = await saveUnit(`ADDED // ${name.toUpperCase()} ×${result.quantity}`);
+    if (!saved) {
+      await loadLatestUnit();
+      return grantStatus("SAVE FAILED // INVENTORY RELOADED", "error");
+    }
+    decorateRows();
+    const remaining = Math.max(0, Number(result.remaining) || 0);
+    grantStatus(remaining > 0
+      ? `ADDED ×${result.quantity} // ${remaining} NOT INSERTED (LIMIT)`
+      : `ADDED ×${result.quantity} TO ${target.toUpperCase()} // ${name.toUpperCase()}`, remaining > 0 ? "warning" : "success");
+    return result;
+  }
+
+  function scheduleCatalogRefresh() {
+    if (state.catalogPoll || catalogEntries().length) return;
+    let attempts = 0;
+    state.catalogPoll = global.setInterval?.(() => {
+      attempts += 1;
+      if (catalogEntries().length || attempts >= 40) {
+        global.clearInterval?.(state.catalogPoll);
+        state.catalogPoll = null;
+        renderGrantCatalog();
+      }
+    }, 250) || null;
+  }
+
   function decorateRows() {
     const configs = [
       [doc.getElementById("modal-inv-lista-activos"), "active"],
@@ -513,18 +817,34 @@
         if (!(row instanceof global.HTMLElement)) return;
         const sourceButton = row.querySelector(".btn-inv-mod[data-key]");
         if (!sourceButton) return;
+        const key = sourceButton.dataset.key || "";
+        const listType = sourceButton.dataset.list || fallbackList;
         row.dataset.runtimeItemRow = "true";
-        if (row.querySelector(".dm-item-instance-edit")) return;
-        const button = doc.createElement("button");
-        button.type = "button";
-        button.className = "dm-item-instance-edit";
-        button.dataset.key = sourceButton.dataset.key || "";
-        button.dataset.list = sourceButton.dataset.list || fallbackList;
-        button.textContent = "INSTANCE";
-        button.title = "Editar ItemInstance canónico";
-        row.appendChild(button);
+
+        const entry = findEntry(listType, key);
+        const img = row.querySelector("img");
+        if (img && entry?.item) {
+          const info = localIconInfo(entry.item, definitionIdOf(entry.item, key));
+          img.src = info.icon;
+          img.removeAttribute("onerror");
+          img.loading = "lazy";
+          img.dataset.localItemIcon = "true";
+        }
+
+        if (!row.querySelector(".dm-item-instance-edit")) {
+          const button = doc.createElement("button");
+          button.type = "button";
+          button.className = "dm-item-instance-edit";
+          button.dataset.key = key;
+          button.dataset.list = listType;
+          button.textContent = "INSTANCE";
+          button.title = "Editar ItemInstance canónico";
+          row.appendChild(button);
+        }
       });
     });
+    const player = doc.getElementById("dm-item-grant-player");
+    if (player) player.textContent = `PLAYER // ${resolvePlayerId() || "--"}`;
   }
 
   function installObservers() {
@@ -542,6 +862,15 @@
   function installEventBridge() {
     if (doc.documentElement.dataset.dmItemRuntimeBridge === "true") return;
     doc.documentElement.dataset.dmItemRuntimeBridge = "true";
+
+    doc.addEventListener("click", (event) => {
+      if (!event.target?.closest?.(".btn-ver-inventario")) return;
+      global.setTimeout?.(() => {
+        mountGrantConsole();
+        renderGrantCatalog();
+        decorateRows();
+      }, 0);
+    }, true);
 
     doc.addEventListener("click", (event) => {
       const edit = event.target?.closest?.("#modal-inventario-dm .dm-item-instance-edit");
@@ -567,12 +896,15 @@
       await ensureRuntimeStack();
       state.db = resolveDb();
       mountEditor();
+      mountGrantConsole();
       installObservers();
       installEventBridge();
+      scheduleCatalogRefresh();
       state.ready = true;
       const playerId = resolvePlayerId();
       if (playerId) bindPeer(playerId);
       decorateRows();
+      renderGrantCatalog();
       return true;
     } catch (error) {
       console.error("[Luminous] DM ItemInstance editor failed to boot:", error);
@@ -584,10 +916,16 @@
   else boot();
 
   global.LuminousDmItemInstanceEditor = Object.freeze({
-    version: 1,
+    version: 2,
     state,
     boot,
     decorateRows,
+    mountGrantConsole,
+    renderGrantCatalog,
+    selectGrantDefinition,
+    grantSelectedItem,
+    localIconInfo,
+    catalogEntries,
     openEditor,
     saveEditor,
     handleLegacyAction,
