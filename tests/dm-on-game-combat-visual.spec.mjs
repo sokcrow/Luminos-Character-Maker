@@ -135,6 +135,12 @@ test('ON GAME DM tactical Combat paints the actual battlefield on mobile portrai
     return adapter?.role==='dm'&&Object.keys(units).length===3;
   },null,{timeout:15000});
 
+  const runtimeFunctions=await frame.evaluate(()=>({
+    spriteCenter:typeof window.spriteCenter==='function'?String(window.spriteCenter):'missing',
+    layoutRadialCommands:typeof window.layoutRadialCommands==='function'?String(window.layoutRadialCommands):'missing'
+  }));
+  console.log('DM_ON_GAME_RUNTIME_FUNCTIONS',JSON.stringify(runtimeFunctions));
+
   await frame.evaluate(()=>{
     window.LuminousCombatDmObserver073?.enforceDmView?.();
     window.LuminousCombatDmObserver073?.ensureVisualSurface?.();
