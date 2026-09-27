@@ -6,6 +6,7 @@ const smooth01=(v)=>{const t=clamp(v,0,1);return t*t*(3-2*t);};
 const key=(x,z)=>x+","+z;
 
 export const CRYSTAL_CAVE_CONTRACT_ID="luminous.crystal-cave-procedural.v2";
+export const crystalCaveSeedUnit=(seed,a=0,b=0,c=0)=>seededUnit(String(seed)+":"+String(c),a,b);
 export const CRYSTAL_CAVE_WATER_VISUAL=Object.freeze({
   color:0x3278de,
   opacity:1,
@@ -38,14 +39,17 @@ function normalize(input={}){
     tunnelMinWidth:Math.max(1.8,finite(input.tunnelMinWidth,2.35)),
     tunnelWidthVariance:Math.max(.2,finite(input.tunnelWidthVariance,1.75)),
     chamberCount:Math.max(2,Math.floor(finite(input.chamberCount,3))),
-    waterSurfaceTiles:finite(input.waterSurfaceTiles,-.18),
-    waterDepthTiles:Math.max(.35,finite(input.waterDepthTiles,.82)),
+    waterSurfaceTiles:finite(input.water?.surfaceTiles??input.waterSurfaceTiles,-.18),
+    waterDepthTiles:Math.max(.35,finite(input.water?.maxDepthTiles??input.waterDepthTiles,.82)),
+    shoreDepthTiles:Math.max(.005,finite(input.water?.shoreDepthTiles??input.shoreDepthTiles,.035)),
+    bankOuterRatio:Math.max(1.05,finite(input.water?.bankOuterRatio??input.bankOuterRatio,1.30)),
     metadata:Object.freeze({
       authority:"map-module",
       generator:"CrystalCaveGenerator",
       contract:CRYSTAL_CAVE_CONTRACT_ID,
       interior:true,
       naturalExploration:true,
+      hydrology:"continuous-depth-field",
       hydrologyAuthority:"terrain-water-shared-field",
       ...(input.metadata||{})
     })
@@ -124,7 +128,9 @@ export function createCrystalCaveData(input={}){
     rx:Math.max(2,waterChamber.rx*.58),
     rz:Math.max(1.65,waterChamber.rz*.50),
     surfaceTiles:spec.waterSurfaceTiles,
-    maxDepthTiles:spec.waterDepthTiles
+    maxDepthTiles:spec.waterDepthTiles,
+    shoreDepthTiles:spec.shoreDepthTiles,
+    bankOuterRatio:spec.bankOuterRatio
   });
 
   const contains=(tx,tz,margin=0)=>{
@@ -161,20 +167,22 @@ export function createCrystalCaveData(input={}){
   function floorHeightTilesAt(tx,tz){
     const dry=dryRockHeight(tx,tz);
     const q=waterQ(tx,tz);
-    if(q>=1.18)return dry;
+    if(q>=water.bankOuterRatio)return dry;
 
-    // One shared hydrology field owns both the visible basin and gameplay depth.
-    // Outside the waterline the bank grades from dry rock to the exact water surface.
+    // Dry rock grades down toward a slightly submerged shoreline. The shoreline
+    // itself is never above the water plane, so the Royal Blue sheet cannot be
+    // hidden by the terrain mesh.
     if(q>=1){
-      const bankT=smooth01((1.18-q)/.18);
-      return dry+(water.surfaceTiles-dry)*bankT;
+      const bankT=smooth01((water.bankOuterRatio-q)/Math.max(.001,water.bankOuterRatio-1));
+      const shoreGround=water.surfaceTiles-water.shoreDepthTiles;
+      return dry+(shoreGround-dry)*bankT;
     }
 
-    // Inside the waterline the bed starts exactly at the water surface and deepens
-    // continuously. No hidden step, fixed legacy depth or second collision surface.
+    // Inside the waterline depth is the single authority for mesh, gameplay and
+    // buoyancy. It starts shallow and ramps continuously toward the lake center.
     const depthT=smooth01((1-q)/.78);
-    const centerNoise=(dry*.20)*(1-depthT);
-    return water.surfaceTiles-water.maxDepthTiles*depthT+centerNoise;
+    const depth=water.shoreDepthTiles+(water.maxDepthTiles-water.shoreDepthTiles)*depthT;
+    return water.surfaceTiles-depth;
   }
 
   function sampleWater(point={}){
@@ -190,6 +198,7 @@ export function createCrystalCaveData(input={}){
       waterDepth:depth,
       surface:water.surfaceTiles,
       waterSurfaceTiles:water.surfaceTiles,
+      ground,
       groundHeightTiles:ground,
       wetness:1,
       current:null,
@@ -266,5 +275,44 @@ export function createCrystalCaveDefinition(input={}){
   return Object.freeze({
     id:spec.id,kind:spec.kind,seed:spec.seed,bounds:spec.bounds,metadata:spec.metadata,
     async generate(){return createCrystalCaveData(spec);}
+  });
+}
+
+
+export function createCrystalCaveRuntimeData(input={}){
+  const source=input.bounds||{};
+  const core=createCrystalCaveData({
+    ...input,
+    id:String(input.id||"crystalCave"),
+    bounds:{
+      minX:finite(source.minX??source.x0,-24),
+      maxX:finite(source.maxX??source.x1,24),
+      minZ:finite(source.minZ??source.z0,-24),
+      maxZ:finite(source.maxZ??source.z1,24)
+    },
+    water:{
+      surfaceTiles:finite(input.water?.surfaceTiles,-.18),
+      maxDepthTiles:Math.max(.35,finite(input.water?.maxDepthTiles,.92)),
+      shoreDepthTiles:Math.max(.005,finite(input.water?.shoreDepthTiles,.035)),
+      bankOuterRatio:Math.max(1.05,finite(input.water?.bankOuterRatio,1.30))
+    },
+    metadata:{
+      ...(input.metadata||{}),
+      authority:"map-module",
+      hydrology:"continuous-depth-field",
+      runtimeAdapter:"forest-map-data"
+    }
+  });
+  return Object.freeze({
+    ...core,
+    bounds:Object.freeze({
+      x0:core.bounds.minX,x1:core.bounds.maxX,
+      z0:core.bounds.minZ,z1:core.bounds.maxZ
+    }),
+    metadata:Object.freeze({
+      ...core.metadata,
+      authority:"map-module",
+      hydrology:"continuous-depth-field"
+    })
   });
 }
