@@ -3721,6 +3721,7 @@ window.processEntitiesData = function(entities) {
     <!-- Firebase Realtime Database -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <script src="js/utils.js"></script>
+    <script src="js/item-icon-registry.js"></script>
 
     <script>
       const firebaseConfig = {
@@ -6363,6 +6364,26 @@ window.processEntitiesData = function(entities) {
         };
 
 
+        function resolveDmLocalItemIcon(item = {}, fallbackId = "") {
+          const registry = window.LuminousItemIconRegistry;
+          const candidates = [
+            item.iconFamily, item.icon_family, item.family, item.group,
+            fallbackId, item.id, item.definitionId, item.category, item.tipo_categoria, item.itemType
+          ].map((value) => String(value || "").trim()).filter(Boolean);
+          if (registry?.get && registry?.resolveIcon) {
+            for (const candidate of candidates) {
+              const row = registry.get(candidate, { fallback: false });
+              if (!row) continue;
+              const icon = String(registry.resolveIcon(row.id, { fallback: false }) || "").trim();
+              if (icon && !/^(?:https?:)?\/\//i.test(icon)) return icon;
+            }
+          }
+          const explicit = [item.icono, item.icon, item.image, item.img]
+            .map((value) => String(value || "").trim())
+            .find((value) => value && !/^(?:https?:)?\/\//i.test(value) && !/^(?:data|blob):/i.test(value));
+          return explicit || "Assets/Icons/items/fallback/generic_item.png";
+        }
+
         let dbItemsCache = {}; // Caché local de TODOS los ítems globales
         let dbAugmentationsCache = {}; // Caché de aumentos
         let tiendaActualEditada = null; // ID de la tienda abierta en el modal
@@ -6498,7 +6519,7 @@ window.processEntitiesData = function(entities) {
                     }
                     card.dataset.tags = tagsLower;
 
-                    const imgUrl = data.icono || "https://via.placeholder.com/60/222222/00ddff?text=?";
+                    const imgUrl = resolveDmLocalItemIcon(data, key);
 
                     card.innerHTML = `
                         <button class="btn-delete-item" data-id="${key}" style="position: absolute; top: 5px; right: 5px; background: transparent; border: none; cursor: pointer; font-size: 16px;" title="Eliminar Ítem">🗑️</button>
@@ -6548,7 +6569,7 @@ window.processEntitiesData = function(entities) {
                     card.dataset.tier = (data.tier || "I").toLowerCase();
                     card.dataset.tags = "augmentation,aumento";
 
-                    const imgUrl = data.icono || "https://via.placeholder.com/60/222222/8a1c1c?text=AUG";
+                    const imgUrl = resolveDmLocalItemIcon(data, key);
 
                     card.innerHTML = `
                         <button class="btn-delete-item" data-id="${key}" style="position: absolute; top: 5px; right: 5px; background: transparent; border: none; cursor: pointer; font-size: 16px;" title="Eliminar Aumento">🗑️</button>
@@ -7020,9 +7041,7 @@ window.processEntitiesData = function(entities) {
               tagsStr = "Sin etiquetas";
             }
 
-            const imgUrl =
-              dataGlobal.icono ||
-              "https://via.placeholder.com/40/222222/00ddff?text=?";
+            const imgUrl = resolveDmLocalItemIcon(dataGlobal, keyItem);
 
             row.innerHTML = `
                 <img src="${imgUrl}" alt="${dataGlobal.nombre}">
