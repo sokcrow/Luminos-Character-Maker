@@ -34,11 +34,8 @@ jobs:
         with:
           node-version: 22
 
-      - name: Module hosts syntax
-        run: |
-          node --check game-engine/lab/runtime-lab.js
-          node --check game-engine/visualizer/main.js
-          node --check game-engine/visualizer/ThreeVisualizer.js
+      - name: Lab host syntax
+        run: node --check game-engine/lab/main.js
 
       - name: GameRuntime syntax
         run: |
@@ -71,13 +68,10 @@ jobs:
           node --check game-engine/src/map/procedural/ProceduralTerrain.js
           node --check game-engine/src/map/procedural/ProceduralMapGenerator.js
 
-      - name: HUD and inventory UI runtime syntax
+      - name: HUD runtime syntax
         run: |
           node --check game-engine/src/ui/HudViewModel.js
           node --check game-engine/src/ui/HudDomAdapter.js
-          node --check game-engine/src/ui/InventoryEquipmentViewModel.js
-          node --check game-engine/src/ui/InventoryEquipmentDomAdapter.js
-          node --check game-engine/src/ui/TouchMovementAdapter.js
 
       - name: World runtime syntax
         run: |
@@ -90,6 +84,9 @@ jobs:
 
       - name: Core smoke
         run: node game-engine/tests/core-smoke.mjs
+
+      - name: Visual Lab smoke
+        run: node game-engine/tests/visual-lab-smoke.mjs
 
       - name: Continuous movement smoke
         run: node game-engine/tests/continuous-movement-smoke.mjs
@@ -108,12 +105,6 @@ jobs:
 
       - name: Procedural map authority runtime
         run: node game-engine/tests/procedural-map-runtime-smoke.mjs
-
-      - name: Lab and visualizer module boundary
-        run: node game-engine/tests/lab-module-boundary-smoke.mjs
-
-      - name: Inventory equipment visualizer smoke
-        run: node game-engine/tests/inventory-equipment-visualizer-smoke.mjs
 
       - name: Terrain height field smoke
         run: node game-engine/tests/terrain-height-field-smoke.mjs

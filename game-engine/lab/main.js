@@ -1,5 +1,4 @@
 import { GameEngine } from "../src/core/GameEngine.js";
-import { GameRuntime } from "../src/core/GameRuntime.js";
 import { DMDirector } from "../src/dm/DMDirector.js";
 import { createLabPlayer } from "../src/player/createLabPlayer.js";
 import { LuminousItemsBridge } from "../src/bridges/luminous/LuminousItemsBridge.js";
@@ -11,22 +10,10 @@ const player = createLabPlayer();
 const items = engine.registerBridge("luminous-items", new LuminousItemsBridge());
 const dm = new DMDirector(engine);
 const combatMovement = new CombatMovementTracker();
-const runtime = new GameRuntime({
-  engine,
-  worldSpace: WORLD_SPACE_CONTRACT,
-  movementTracker: combatMovement
-}).mount();
 engine.session.dm = dm;
 engine.session.worldSpace = WORLD_SPACE_CONTRACT;
 engine.session.combatMovement = combatMovement;
 engine.setPlayer(player);
-runtime.registerUnit({
-  id: player.id || "lab-player",
-  role: "player",
-  tags: ["player", "session"],
-  movement: { speed: 0, maxSpeed: 0 },
-  metadata: { source: "game-engine-lab" }
-});
 
 const $ = (id) => document.getElementById(id);
 const frame = $("gameFrame");
@@ -48,6 +35,7 @@ function containerCount(container) {
 
 function render() {
   const metrics = engine.metrics();
+  const status = items.status();
   const activeCount = containerCount(player.inventario_activo);
   const stashCount = containerCount(player.inventario_stash);
   const hp = player.resources?.hp || {};
@@ -62,8 +50,9 @@ function render() {
   $("offStat").textContent = String(player.combatLevels?.offensive?.total ?? player.stats?.offensiveLevel ?? "—");
   $("defStat").textContent = String(player.combatLevels?.defensive?.total ?? player.stats?.defensiveLevel ?? "—");
 
+
   const badge = $("bridgeBadge");
-  badge.textContent = gameConnected ? "Forest ↔ Engine conectado" : "Conectando juego…";
+  badge.textContent = gameConnected ? "Forest ↔ Items conectado" : "Conectando juego…";
   badge.classList.toggle("good", gameConnected);
   badge.classList.toggle("waiting", !gameConnected);
 }
@@ -217,7 +206,7 @@ function buildShopProvider(win) {
   const stock = new Map();
 
   function makeStore(id, nombre, preferredIds, defaultStock = 4) {
-    const shopItems = preferredIds
+    const items = preferredIds
       .map(itemId => definitions.get(itemId))
       .filter(item => item?.id && canonicalPrice(item) > 0)
       .map((definition, index) => {
@@ -236,7 +225,7 @@ function buildShopProvider(win) {
           definition
         };
       });
-    return { id, nombre, items: shopItems };
+    return { id, nombre, items };
   }
 
   const stores = [
@@ -258,7 +247,8 @@ function buildShopProvider(win) {
       "calligraphers_supplies",
       "harvesting_tools",
       "repair_kit"
-    ], 4),
+    ], 4)
+,
     makeStore(
       "canal-retail-food-store",
       "Retail Food",
@@ -356,8 +346,10 @@ function connectGameBridge() {
 
   bridge.attachInventoryAdapter({ grantItem: grantFromGame });
   attachShopProvider(win);
-  const runtimeState = runtime.connectView(win);
   const movementBridge = win?.LuminousWorldMovementBridge;
+  combatMovement.setTerrainSampler(movementBridge?.sampleTerrain
+    ? (point) => movementBridge.sampleTerrain(point.x, point.z)
+    : null);
   gameConnected = true;
   $("gameLoading").classList.add("off");
   log("game:bridge-connected", {
@@ -367,8 +359,7 @@ function connectGameBridge() {
     toolCatalogVersion: win.LuminousToolCatalog?.VERSION || null,
     retailFoodCatalogVersion: win.LuminousRetailFoodCatalog?.VERSION || null,
     worldMovementContract: movementBridge?.contract || WORLD_SPACE_CONTRACT.id,
-    playerGridVisible: movementBridge?.grid?.playerVisible ?? WORLD_SPACE_CONTRACT.grid.playerVisible,
-    runtime: runtimeState
+    playerGridVisible: movementBridge?.grid?.playerVisible ?? WORLD_SPACE_CONTRACT.grid.playerVisible
   });
   render();
 
@@ -430,7 +421,6 @@ async function grantHerbFromDm() {
 
 $("openInventory").addEventListener("click", openGameInventory);
 $("grantHerb").addEventListener("click", grantHerbFromDm);
-
 async function lockLandscapeForFullscreen() {
   const orientation = screen.orientation;
   if (!orientation?.lock) {
@@ -489,13 +479,11 @@ render();
 log("lab:ready", {
   url: location.href,
   game: "forest-0.3.3.1",
-  itemRuntime: items.status(),
-  runtime: runtime.snapshot()
+  itemRuntime: items.status()
 });
 
 window.addEventListener("beforeunload", () => {
   clearInterval(syncTimer);
   clearTimeout(bridgeWaitTimer);
-  runtime.disconnectView();
   engine.dispose();
 });
