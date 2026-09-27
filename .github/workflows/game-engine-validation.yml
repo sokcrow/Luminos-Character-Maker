@@ -86,6 +86,9 @@ jobs:
       - name: Core smoke
         run: node game-engine/tests/core-smoke.mjs
 
+      - name: Crystal Cave modular water smoke
+        run: node game-engine/tests/crystal-cave-water-contract-smoke.mjs
+
       - name: Visual Lab smoke
         run: node game-engine/tests/visual-lab-smoke.mjs
 
