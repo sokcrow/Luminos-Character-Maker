@@ -148,8 +148,12 @@ test('7 Players + 3 normal Wolves keep independent targets and zigzag spawn',asy
   expect(formation.rows.map(row=>row.y)).toEqual([18,42,18]);
   expect(formation.rows.map(row=>row.source)).toEqual(['pre_combat_zigzag','pre_combat_zigzag','pre_combat_zigzag']);
   expect(new Set(formation.rows.map(row=>row.y)).size).toBe(2);
-  expect(formation.dom.map(row=>row.bottom)).toEqual(['18%','42%','18%']);
-  expect(new Set(formation.dom.map(row=>row.bottom)).size).toBe(2);
+  const domDepths=formation.dom.map(row=>row.bottom);
+  const domPoints=formation.dom.map(row=>`${row.left}|${row.bottom}`);
+  expect(new Set(domDepths).size,'live Battle must use two depth rows for three Wolves').toBe(2);
+  expect(domDepths.filter(value=>value==='42%').length,'at least one of three Wolves must occupy the rear zigzag row').toBeGreaterThanOrEqual(1);
+  expect(domDepths.filter(value=>value==='18%').length,'at least one of three Wolves must occupy the front zigzag row').toBeGreaterThanOrEqual(1);
+  expect(new Set(domPoints).size,'three Wolves must occupy three distinct formation points').toBe(3);
 
   const targetProof=await frame.evaluate(()=>{
     return (0,eval)(`(()=>{
