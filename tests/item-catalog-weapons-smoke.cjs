@@ -34,6 +34,10 @@ const { pathToFileURL } = require('node:url');
   assert.equal(catalog.get('longsword').equipment.handCost, 1);
   assert.equal(catalog.get('longbow').iconFamily, 'weapon_bow');
   assert.equal(catalog.get('war_pick').iconFamily, 'weapon_pick');
+  assert.equal(catalog.get('dagger').weightClass, 'light');
+  assert.equal(catalog.get('longsword').weightClass, 'neutral');
+  assert.equal(catalog.get('greatsword').weightClass, 'heavy');
+  assert.equal(catalog.get('light_crossbow').weightClass, 'heavy');
 
   assert.equal(catalog.maxDurability('longsword', 1, 'standard'), 50);
   assert.equal(catalog.maxDurability('longsword', 1, 'fine'), 50);
