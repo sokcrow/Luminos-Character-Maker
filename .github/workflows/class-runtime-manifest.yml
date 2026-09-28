@@ -15,6 +15,8 @@ on:
       - "js/class-milestone-engine.js"
       - "js/dm-player-class-milestones.js"
       - "tests/ranger-class-runtime-smoke.mjs"
+      - "tests/bilgewater-buccaneer-archetype-runtime-smoke.cjs"
+      - "tests/bilgewater-demolisher-archetype-runtime-smoke.cjs"
       - "tests/fighter-class-runtime-smoke.mjs"
       - "tests/monk-class-runtime-smoke.cjs"
       - "js/class-status-semantics.js"
@@ -42,6 +44,8 @@ on:
       - "js/dm-player-class-milestones.js"
       - "tests/fighting-style-runtime-smoke.mjs"
       - "tests/ranger-class-runtime-smoke.mjs"
+      - "tests/bilgewater-buccaneer-archetype-runtime-smoke.cjs"
+      - "tests/bilgewater-demolisher-archetype-runtime-smoke.cjs"
       - "tests/fighter-class-runtime-smoke.mjs"
       - "js/class-status-semantics.js"
       - "js/caster-spellcasting-traits-runtime.js"
@@ -77,6 +81,12 @@ jobs:
       - run: node --check js/class-status-semantics.js
       - run: node tests/fighter-class-runtime-smoke.mjs
       - run: node tests/ranger-class-runtime-smoke.mjs
+      - run: node --check js/bilgewater-demolisher-archetype-runtime.js
+      - run: node --check js/bilgewater-demolisher-combat-runtime.js
+      - run: node tests/bilgewater-demolisher-archetype-runtime-smoke.cjs
+      - run: node --check js/bilgewater-buccaneer-archetype-runtime.js
+      - run: node --check js/bilgewater-buccaneer-combat-runtime.js
+      - run: node tests/bilgewater-buccaneer-archetype-runtime-smoke.cjs
       - run: node tests/monk-class-runtime-smoke.cjs
       - run: node --check js/player-archetype-runtime.js
       - run: node --check js/archetype-combat-event-runtime.js
