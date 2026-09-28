@@ -19,6 +19,15 @@ const SUPPORT = [
     autoload: false,
   },
   {
+    id: "support:caster-spellcasting-traits-runtime",
+    kind: "support",
+    path: "js/caster-spellcasting-traits-runtime.js",
+    contexts: ["any"],
+    dependsOn: ["support:spellcasting-runtime"],
+    globalName: "LuminousCasterSpellcastingTraitsRuntime",
+    autoload: false,
+  },
+  {
     id: "support:fighting-style-runtime",
     kind: "support",
     path: "js/fighting-style-runtime.js",
@@ -76,7 +85,7 @@ const LEGACY_PRIMARY = [
 
 const DEPENDENCY_OVERRIDES = new Map([
   ["class:fighter", ["support:fighting-style-runtime"]],
-  ["class:ranger", ["support:creature-type-catalog", "support:fighting-style-runtime", "support:spellcasting-runtime"]],
+  ["class:ranger", ["support:creature-type-catalog", "support:fighting-style-runtime", "support:caster-spellcasting-traits-runtime"]],
   ["class:sorcerer", ["support:spellcasting-runtime", "support:universal-speed-runtime"]],
   ["archetype:battle-master", ["support:player-archetype-runtime-core", "support:fighter-maneuver-catalog"]],
   ["archetype:mastermind", ["support:player-archetype-runtime-core", "class:rogue"]],
