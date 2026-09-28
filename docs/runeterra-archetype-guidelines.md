@@ -199,7 +199,7 @@ Convenciones preferidas:
 
 No se deben añadir cargas manuales específicas del arquetipo en Battle, Theatre o Status Engine.
 
-El runtime debe entrar por el Class Runtime Manifest / Bootstrap universal y declarar sus dependencias allí cuando corresponda.
+El runtime debe entrar por el Class Runtime Manifest / Bootstrap universal. Si necesita dependencias de orden de carga, deben declararse en `DEPENDENCY_OVERRIDES` dentro de `scripts/generate-class-runtime-manifest.mjs` y después regenerar `js/class-runtime-manifest.js`; el manifest generado no es la fuente de verdad.
 
 ## 11. Principios de revisión
 
@@ -227,9 +227,19 @@ Doctrinas iniciales candidatas:
 - **Pistolero** — múltiples disparos, rebotes, cambio de objetivos y saturación.
 - **Demoledor** — arma pesada, corto alcance, impacto, humo y explosiones.
 
-### Fighter — Corsario de Aguas Turbias
+### Fighter — Combined Arms Specialist
 
-Candidato para mecánicas de pistola + melee, barriles, detonaciones, presión y control de terreno.
+Primera adaptación cerrada de esta línea de diseño. Su nombre canónico es neutral al setting; Aguas Turbias y Gangplank se conservan sólo como referencias de inspiración.
+
+Progresión cerrada:
+
+- **Lv15:** Parley + Trial by Fire.
+- **Lv35:** Powder Keg y la introducción de Background Units.
+- **Lv50:** Combat Tonic.
+- **Lv75:** Cannon Barrage + Silver Serpents y sus tres Upgrades.
+- **Lv90:** Powder Mastery.
+
+Especificación completa: [Fighter — Combined Arms Specialist](runeterra-fighter-combined-arms-specialist.md).
 
 Las modificaciones de armas que sólo cambien el equipamiento se trasladan a Items/Crafting/Upgrades en lugar de convertirse automáticamente en Traits del arquetipo.
 

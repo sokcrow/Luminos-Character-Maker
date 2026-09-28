@@ -267,8 +267,19 @@
       return;
     }
     if (kind === "shield") {
-      if (equip) unit.equipment.shield = item;
-      else if (unit.equipment.shield === item || itemId(unit.equipment.shield || {}) === itemId(item)) delete unit.equipment.shield;
+      if (equip) {
+        if (!unit.equipment.offHand) unit.equipment.offHand = item;
+        else if (!unit.equipment.mainHand) unit.equipment.mainHand = item;
+        unit.equipment.shield = item;
+      } else {
+        if (unit.equipment.mainHand === item || itemId(unit.equipment.mainHand || {}) === itemId(item)) delete unit.equipment.mainHand;
+        if (unit.equipment.offHand === item || itemId(unit.equipment.offHand || {}) === itemId(item)) delete unit.equipment.offHand;
+        if (unit.equipment.shield === item || itemId(unit.equipment.shield || {}) === itemId(item)) delete unit.equipment.shield;
+        if (!unit.equipment.shield) {
+          const fallback = [unit.equipment.offHand, unit.equipment.mainHand].find((entry) => entry && equipmentSchema(entry).kind === "shield");
+          if (fallback) unit.equipment.shield = fallback;
+        }
+      }
       return;
     }
     if (kind === "weapon") {
@@ -726,6 +737,28 @@
     ensureRuntimeEffects(unit).filter((effect) => effect?.active !== false).forEach((effect) => {
       if (effect.kind === "stat") pushStat(effect.id, effect.statId, effect.value);
       if (effect.kind === "modifier") pushModifier(effect.id, effect.channel, effect.value, effect.mode || "add");
+    });
+
+    asArray(unit.culinaryEffects).filter((effect) =>
+      effect && effect.active !== false && Number(effect.power) !== 0 && Number(effect.remainingHours) > 0
+    ).forEach((effect) => {
+      const target = normalizeId(effect.target);
+      if (!target) return;
+      pushModifier(
+        effect.id || `culinary_${target}`,
+        "final_power",
+        numberOr(effect.power, 0),
+        "add",
+        [{
+          any: [
+            { path: "skill.id", operator: "eq", value: target },
+            { path: "skill.skillId", operator: "eq", value: target },
+            { path: "skill.skill_id", operator: "eq", value: target },
+            { path: "skill.key", operator: "eq", value: target },
+            { path: "skill.targetId", operator: "eq", value: target },
+          ],
+        }]
+      );
     });
     return traits;
   }

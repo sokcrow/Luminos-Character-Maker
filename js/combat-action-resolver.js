@@ -4,6 +4,7 @@
   const schema = global.LuminousCombatAction || (typeof require === "function" ? require("./combat-action-schema.js") : null);
   const bridge = global.LuminousCombatActionEngineBridge || (typeof require === "function" ? require("./combat-action-engine-bridge.js") : null);
   const queueApi = global.LuminousCombatActionQueue || (typeof require === "function" ? (() => { try { return require("./combat-action-queue.js"); } catch (_) { return null; } })() : null);
+  const shieldRuntime = global.LuminousShieldRuntime || (typeof require === "function" ? (() => { try { return require("./item-shield-runtime.js"); } catch (_) { return null; } })() : null);
   if (!schema) return;
 
   const normalizeId = (value) => String(value ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
@@ -37,15 +38,18 @@
     }, 0);
   }
 
-  function definitionForEngine(action = {}) {
+  function definitionForEngine(action = {}, actor = null) {
     const definition = sourceDefinition(action);
     definition.id = definition.id || action.source?.id;
     definition.__combatActionFinalPowerBonus = finalPowerBonus(action);
+    definition.__combatActionId = action.id || null;
     if (action.targeting?.mode && ["aoe", "multi", "indiscriminate"].includes(action.targeting.mode)) {
       definition.targeting_type = "Focused Attack";
       definition.targetingType = "Focused Attack";
     }
-    return definition;
+    return shieldRuntime?.prepareSkill
+      ? shieldRuntime.prepareSkill(actor, definition, action.metadata || {})
+      : definition;
   }
 
   function isStaggered(unit = {}) {
@@ -244,7 +248,7 @@
     const engine = context.engine || global.CombatEngine;
     if (!engine?.resolveUnilateralWithCounter) return { resolved: false, reason: "unilateral_resolver_unavailable", results: [] };
     bridge?.installCombatActionPowerBridge?.(engine);
-    const baseSkill = options.skill || definitionForEngine(action);
+    const baseSkill = options.skill || definitionForEngine(action, actor);
     const q = context.combatActionQueue || queueApi;
     const volley = q?.volleyMode ? q.volleyMode(action) : "focused";
     const attackWeight = Math.max(1, Number(action.targeting?.attackWeight || 1));
@@ -327,7 +331,7 @@
     if (!gateB.allowed || terminal(actionB)) {
       const targetResolution = resolveTargets(actionA, context);
       const targets = targetResolution.targets.length ? targetResolution.targets : [unitB];
-      const prepared = resolvePreparedUnopposed(actionA, unitA, targets, context, { skill: definitionForEngine(actionA) });
+      const prepared = resolvePreparedUnopposed(actionA, unitA, targets, context, { skill: definitionForEngine(actionA, unitA) });
       return {
         ...prepared,
         type: "unopposed",
@@ -342,7 +346,7 @@
       let targets = targetResolution.targets;
       if (!targets.some((target) => entityId(target) === entityId(unitB))) targets.unshift(unitB);
       targets = targets.slice(0, Math.max(1, actionA.targeting.attackWeight));
-      const prepared = resolvePreparedUnopposed(actionA, unitA, targets, context, { skill: definitionForEngine(actionA) });
+      const prepared = resolvePreparedUnopposed(actionA, unitA, targets, context, { skill: definitionForEngine(actionA, unitA) });
       return {
         ...prepared,
         type: "unopposed",
@@ -370,8 +374,8 @@
       return { resolved: false, reason: !consumedA.consumed ? consumedA.reason : consumedB.reason, consumedA, consumedB, actions: [actionA, actionB] };
     }
 
-    const skillA = definitionForEngine(actionA);
-    const skillB = definitionForEngine(actionB);
+    const skillA = definitionForEngine(actionA, unitA);
+    const skillB = definitionForEngine(actionB, unitB);
     const clash = engine.resolveStandardClash(unitA, skillA, unitB, skillB);
     const winner = clash.winner;
     let attack = null;
@@ -431,7 +435,7 @@
   function resolveSave(action, actor, targets, context = {}) {
     const engine = context.engine || global.CombatEngine;
     if (!engine?.resolveSpell) return { resolved: false, reason: "save_resolver_unavailable", results: [] };
-    const spell = definitionForEngine(action);
+    const spell = definitionForEngine(action, actor);
     spell.statUsed = action.resolution.save?.abilityId;
     spell.saveDC = Number(action.resolution.save?.dc || 0);
     const results = targets.map((target) => ({
@@ -519,9 +523,9 @@
     let resolution;
 
     if (action.resolution.type === "clash") {
-      resolution = resolveDirectAttack(action, actor, targets, context, { skill: definitionForEngine(action) });
+      resolution = resolveDirectAttack(action, actor, targets, context, { skill: definitionForEngine(action, actor) });
     } else if (action.resolution.type === "unopposed") {
-      resolution = resolveDirectAttack(action, actor, targets, context, { skill: definitionForEngine(action) });
+      resolution = resolveDirectAttack(action, actor, targets, context, { skill: definitionForEngine(action, actor) });
     } else if (action.resolution.type === "save") {
       resolution = resolveSave(action, actor, targets, context);
     } else if (action.resolution.type === "check") {

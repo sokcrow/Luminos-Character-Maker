@@ -2,6 +2,7 @@
   "use strict";
 
   const MILESTONE_LEVELS = Object.freeze([20, 40, 60, 80, 95]);
+  const CLASS_BONUS_MILESTONE_LEVELS = Object.freeze({ fighter: Object.freeze([30, 70]) });
   const MAX_STAT = 20;
   const STAT_KEYS = Object.freeze(["fuerza", "destreza", "constitucion", "inteligencia", "sabiduria", "carisma"]);
   const STAT_ALIASES = Object.freeze({
@@ -39,14 +40,20 @@
     return `${normalizeId(classId)}:${int(level, 0)}`;
   }
 
+  function milestoneLevelsForClass(classId) {
+    const extras = CLASS_BONUS_MILESTONE_LEVELS[normalizeId(classId)] || [];
+    return [...new Set([...MILESTONE_LEVELS, ...extras])].sort((a, b) => a - b);
+  }
+
   function earnedMilestones(classes) {
-    return normalizeClasses(classes).flatMap((entry) => MILESTONE_LEVELS
+    return normalizeClasses(classes).flatMap((entry) => milestoneLevelsForClass(entry.classId)
       .filter((level) => entry.levels >= level)
       .map((level) => ({
         key: milestoneKey(entry.classId, level),
         classId: entry.classId,
         classLevel: entry.levels,
         milestoneLevel: level,
+        bonusClassMilestone: (CLASS_BONUS_MILESTONE_LEVELS[entry.classId] || []).includes(level),
       })));
   }
 
@@ -209,6 +216,7 @@
 
   const api = Object.freeze({
     MILESTONE_LEVELS,
+    CLASS_BONUS_MILESTONE_LEVELS,
     MAX_STAT,
     STAT_KEYS,
     STAT_ALIASES,
@@ -216,6 +224,7 @@
     normalizeClasses,
     milestoneKey,
     milestonePath,
+    milestoneLevelsForClass,
     earnedMilestones,
     pendingMilestones,
     normalizeAllocation,

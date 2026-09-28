@@ -4,7 +4,7 @@ await import('../js/unit-rank-runtime.js');
 const rank = globalThis.LuminousUnitRankRuntime;
 if (!rank) throw new Error('LuminousUnitRankRuntime was not initialized.');
 
-assert.equal(rank.version, '1.1.0');
+assert.equal(rank.version, '1.2.0-live-backup-command');
 assert.equal(rank.BACKUP_COMMAND_SP_MULTIPLIER, 0.5);
 assert.equal(rank.RANKS.normal.levelMultiplier, 1);
 assert.equal(rank.RANKS.captain.levelMultiplier, 2);
@@ -67,7 +67,7 @@ const combatDataNormal = {
 const attackSlots = [{ id: 'e1_slot_0' }, { id: 'e2_slot_0' }];
 const targetSlots = [{ id: 'a1_slot_0' }, { id: 'a2_slot_0' }, { id: 'a2_slot_1' }];
 const normalTargets = {};
-const rolls = [0, 0.99];
+const rolls = [0, 0, 0.99, 0.99];
 let rollIndex = 0;
 const normalPlan = rank.assignTargetSlots({
   attackSlots,
@@ -79,6 +79,26 @@ const normalPlan = rank.assignTargetSlots({
 assert.equal(normalPlan.command.rank, 'normal');
 assert.equal(normalTargets.e1_slot_0, 'a1_slot_0');
 assert.equal(normalTargets.e2_slot_0, 'a2_slot_1');
+
+// Normal targeting is uniform by target Unit, not weighted by how many Action Slots a Player owns.
+const weightedTargets = {};
+let weightedRollIndex = 0;
+const weightedRolls = [0.49, 0.99, 0.51, 0];
+rank.assignTargetSlots({
+  attackSlots: [{ id: 'e1_slot_0' }, { id: 'e2_slot_0' }],
+  targetSlots: [
+    { id: 'a1_slot_0' },
+    { id: 'a2_slot_0' }, { id: 'a2_slot_1' }, { id: 'a2_slot_2' }, { id: 'a2_slot_3' }, { id: 'a2_slot_4' },
+  ],
+  combatData: {
+    e1: combatDataNormal.e1, e2: combatDataNormal.e2,
+    a1: combatDataNormal.a1, a2: { ...combatDataNormal.a2, actionSlots: 5 },
+  },
+  slotTargets: weightedTargets,
+  random: () => weightedRolls[weightedRollIndex++],
+});
+assert.equal(weightedTargets.e1_slot_0, 'a1_slot_0', 'a Player with fewer slots must remain equally targetable');
+assert.equal(weightedTargets.e2_slot_0, 'a2_slot_0', 'target selection first chooses the Player Unit, then one of its slots');
 
 // Captain coordinates focus fire onto the most vulnerable target.
 const combatDataCaptain = JSON.parse(JSON.stringify(combatDataNormal));

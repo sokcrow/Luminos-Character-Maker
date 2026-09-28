@@ -1,0 +1,35 @@
+name: Firearm Weapon Validation
+
+on:
+  pull_request:
+    paths:
+      - js/item-catalog-firearm-components.js
+      - js/item-firearm-composition-engine.js
+      - js/item-catalog-firearm-ammo.js
+      - js/item-firearm-runtime.js
+      - tests/item-firearm-components-smoke.cjs
+      - tests/item-firearm-ammo-smoke.cjs
+      - tests/item-firearm-runtime-smoke.cjs
+      - docs/item-firearms-handoff.md
+      - .github/workflows/firearm-weapon-validation.yml
+
+jobs:
+  firearms:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Syntax validation
+        run: |
+          node --check js/item-catalog-firearm-components.js
+          node --check js/item-firearm-composition-engine.js
+          node --check js/item-catalog-firearm-ammo.js
+          node --check js/item-firearm-runtime.js
+      - name: Firearm components and composition smoke
+        run: node tests/item-firearm-components-smoke.cjs
+      - name: Firearm ammo smoke
+        run: node tests/item-firearm-ammo-smoke.cjs
+      - name: Firearm runtime smoke
+        run: node tests/item-firearm-runtime-smoke.cjs

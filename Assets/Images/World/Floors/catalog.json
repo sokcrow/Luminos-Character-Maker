@@ -1,0 +1,135 @@
+{
+  "schemaVersion": 1,
+  "domain": "world.floor",
+  "runtimeMode": "repository-local",
+  "assetCount": 18,
+  "note": "Runtime uses repository-local PNG paths. legacySource is provenance/vendor input only.",
+  "assets": [
+    {
+      "id": "floor_grass_01",
+      "path": "Assets/Images/World/Floors/floor_grass_01.png",
+      "bytes": 3434649,
+      "sha256": "3e8cf1ccfb511cc4ae1386612020ab669d522bf1a911cef330ae262123794a9b",
+      "legacySource": "https://imgur.com/otkF8ZR.png"
+    },
+    {
+      "id": "floor_dirt_01",
+      "path": "Assets/Images/World/Floors/floor_dirt_01.png",
+      "bytes": 3266420,
+      "sha256": "668d02d420b5f975928a2791ec77f182caee1b9f3cb2d2e1ac9e5c2f64369a59",
+      "legacySource": "https://imgur.com/ZwsiouC.png"
+    },
+    {
+      "id": "floor_sand_01",
+      "path": "Assets/Images/World/Floors/floor_sand_01.png",
+      "bytes": 2795739,
+      "sha256": "fbf43c77d0f9f2017e8375cde0ba22c2980ed917c970ea60d16eb642d694cd97",
+      "legacySource": "https://imgur.com/2OlB8RD.png"
+    },
+    {
+      "id": "floor_stone_01",
+      "path": "Assets/Images/World/Floors/floor_stone_01.png",
+      "bytes": 3283583,
+      "sha256": "96c1e8a31ed5868f1162dcb5195184a5c4fc82a5c9b442dfcbbd3c977a51bb62",
+      "legacySource": "https://imgur.com/Wx2Jp6R.png"
+    },
+    {
+      "id": "floor_gravel_01",
+      "path": "Assets/Images/World/Floors/floor_gravel_01.png",
+      "bytes": 3797326,
+      "sha256": "5722b573b10997447f72589ef6f915a6aa4ba200d3b439140776c07eb1b7db38",
+      "legacySource": "https://imgur.com/H1Bsk8d.png"
+    },
+    {
+      "id": "floor_mud_01",
+      "path": "Assets/Images/World/Floors/floor_mud_01.png",
+      "bytes": 3067375,
+      "sha256": "4369c55f7e79473ccbc674877ff15bbd7b55f99b02b5d94626effa12b858d075",
+      "legacySource": "https://imgur.com/IsjuRlA.png"
+    },
+    {
+      "id": "floor_snow_01",
+      "path": "Assets/Images/World/Floors/floor_snow_01.png",
+      "bytes": 2475537,
+      "sha256": "f98beb768da55d12209891ac543b1388d00c4d14b5d1c9957fcb6516e8d85982",
+      "legacySource": "https://imgur.com/wn5PkiE.png"
+    },
+    {
+      "id": "floor_ice_01",
+      "path": "Assets/Images/World/Floors/floor_ice_01.png",
+      "bytes": 3294989,
+      "sha256": "35f5f7c5c33de2df16d593d53fa3c62bb1248d926741197a697ff3d1fefd8e72",
+      "legacySource": "https://imgur.com/RLzETn5.png"
+    },
+    {
+      "id": "floor_swamp_01",
+      "path": "Assets/Images/World/Floors/floor_swamp_01.png",
+      "bytes": 3395670,
+      "sha256": "1a1be9a7a2c9af83f3c9066e61b58d55e755b499f2e301e613a297a2d99f36d0",
+      "legacySource": "https://imgur.com/hYTPSDK.png"
+    },
+    {
+      "id": "floor_cave_01",
+      "path": "Assets/Images/World/Floors/floor_cave_01.png",
+      "bytes": 3379961,
+      "sha256": "302774d9fbee65d361668ce2b30ba084a0d7ac991b5062dfe773e811e6b8559b",
+      "legacySource": "https://imgur.com/OTYbatP.png"
+    },
+    {
+      "id": "floor_cobblestone_01",
+      "path": "Assets/Images/World/Floors/floor_cobblestone_01.png",
+      "bytes": 3349554,
+      "sha256": "dc4150d4aa1f58ebacc9789378bb7cb53b388736cd80f1588ac4355f9ac5fb38",
+      "legacySource": "https://imgur.com/uPCdZW1.png"
+    },
+    {
+      "id": "floor_flagstone_01",
+      "path": "Assets/Images/World/Floors/floor_flagstone_01.png",
+      "bytes": 3349554,
+      "sha256": "dc4150d4aa1f58ebacc9789378bb7cb53b388736cd80f1588ac4355f9ac5fb38",
+      "legacySource": "https://imgur.com/uPCdZW1.png"
+    },
+    {
+      "id": "floor_wood_01",
+      "path": "Assets/Images/World/Floors/floor_wood_01.png",
+      "bytes": 2728186,
+      "sha256": "6f57ff8214cb38d5126b5dbba5a4c096f232a8dc6453379ee24c7d55f71f2c16",
+      "legacySource": "https://imgur.com/FYcN5Ia.png"
+    },
+    {
+      "id": "floor_brick_01",
+      "path": "Assets/Images/World/Floors/floor_brick_01.png",
+      "bytes": 2830884,
+      "sha256": "8b078404ac6fad27f8c78c7a73704c6990453d709655b1f2473a4ae96b1e3737",
+      "legacySource": "https://imgur.com/DqHTiJU.png"
+    },
+    {
+      "id": "floor_marble_01",
+      "path": "Assets/Images/World/Floors/floor_marble_01.png",
+      "bytes": 3053777,
+      "sha256": "7d82b979d4361172ee7416798ecd73c47ec95da5e956801a61150cee5aac637f",
+      "legacySource": "https://imgur.com/ZWipiHp.png"
+    },
+    {
+      "id": "floor_tile_01",
+      "path": "Assets/Images/World/Floors/floor_tile_01.png",
+      "bytes": 3028085,
+      "sha256": "13125ae1b21f9d6290aacbd7b58a1377adc455bbd82b497a0b956c5e75eb0568",
+      "legacySource": "https://imgur.com/c4xa2rp.png"
+    },
+    {
+      "id": "floor_metal_01",
+      "path": "Assets/Images/World/Floors/floor_metal_01.png",
+      "bytes": 3296418,
+      "sha256": "822e94d2a05345a09df49a2ec31be4bdfcea3fe5bb6a585dd5c6b4ba4c35a921",
+      "legacySource": "https://imgur.com/7piSJdL.png"
+    },
+    {
+      "id": "floor_concrete_01",
+      "path": "Assets/Images/World/Floors/floor_concrete_01.png",
+      "bytes": 3284712,
+      "sha256": "4b1e56f914bc1fec5959026b4cfe68728cb52705a20c46522e685add30d3a947",
+      "legacySource": "https://imgur.com/JeJGGPg.png"
+    }
+  ]
+}

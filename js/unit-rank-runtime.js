@@ -309,11 +309,17 @@
     const assignments = [];
 
     if (command.commandLevel <= 0) {
+      const targetUnitIds = [...new Set(targets.map(slotBaseId).filter(Boolean))];
       attackers.forEach((slot) => {
-        const index = Math.max(0, Math.min(targets.length - 1, Math.floor(finite(random(), 0) * targets.length)));
-        const target = targets[index];
+        const unitRoll = Math.max(0, Math.min(0.999999999, finite(random(), 0)));
+        const unitIndex = Math.max(0, Math.min(targetUnitIds.length - 1, Math.floor(unitRoll * targetUnitIds.length)));
+        const targetUnitId = targetUnitIds[unitIndex];
+        const unitSlots = targets.filter((candidate) => slotBaseId(candidate) === targetUnitId);
+        const slotRoll = Math.max(0, Math.min(0.999999999, finite(random(), 0)));
+        const slotIndex = Math.max(0, Math.min(unitSlots.length - 1, Math.floor(slotRoll * unitSlots.length)));
+        const target = unitSlots[slotIndex] || targets[0];
         slotTargets[slot.id] = target.id;
-        assignments.push({ attackerSlotId: slot.id, targetSlotId: target.id, targetUnitId: slotBaseId(target) });
+        assignments.push({ attackerSlotId: slot.id, targetSlotId: target.id, targetUnitId });
       });
       return { command: { ...command, commander: undefined }, assignments };
     }
@@ -372,7 +378,12 @@
     const wrapped = function triggerPhaseWithCommand(phaseTag, allUnits, ...rest) {
       const result = original.call(this, phaseTag, allUnits, ...rest);
       if (String(phaseTag || "").trim().toLowerCase() === "[round end]") {
-        this.lastUnitRankCommandRecovery = applyTurnEndSpRecovery(Array.isArray(allUnits) ? allUnits : []);
+        const activeUnits = Array.isArray(allUnits) ? allUnits : [];
+        const deploymentBridge = global.LuminousCombatDeploymentBridge073;
+        const encounter = deploymentBridge?.commandEncounter?.(activeUnits) || null;
+        this.lastUnitRankCommandRecovery = encounter
+          ? applyEncounterTurnEndSpRecovery(encounter)
+          : applyTurnEndSpRecovery(activeUnits);
       }
       return result;
     };
@@ -394,7 +405,7 @@
   }
 
   const api = Object.freeze({
-    version: "1.1.0",
+    version: "1.2.0-live-backup-command",
     BACKUP_COMMAND_SP_MULTIPLIER,
     RANKS,
     normalizeRank,

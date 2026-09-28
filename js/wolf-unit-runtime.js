@@ -218,7 +218,13 @@
       const key = backupKey(source, index, reserves);
       unit.instanceId = key;
       if (typeof options.addBackupUnit === 'function') options.addBackupUnit(unit, key);
-      else reserves[key] = unit;
+      else if (global.LuminousCombatDeploymentBridge073?.enqueueBackupUnit) {
+        global.LuminousCombatDeploymentBridge073.enqueueBackupUnit(unit, {
+          key,
+          position: 'back',
+          reason: HUNTING_HOWLING.id,
+        });
+      } else reserves[key] = unit;
       added.push({ key, unit });
     }
     return { added, alreadyUsed: false, reserves };
@@ -291,7 +297,7 @@
   function install() { return installCombatBridge(); }
 
   const api = Object.freeze({
-    version: '1.0.0', MEANING, HUNTING_HOWLING,
+    version: '1.0.1-backup-bridge', MEANING, HUNTING_HOWLING,
     unitTemplateId, isWolf, isDireWolf, sameSide, isDeployed, spOf, rankOf, canTarget,
     statusComponent, conditionPasses, applyStatusDescriptor, applyManagedSkillEffects,
     finalPowerConditionPasses, prepareConditionalSkill, recoverSp, applyHowlingBuff,

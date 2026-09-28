@@ -1,0 +1,33 @@
+name: Weapon Upgrade Validation
+
+on:
+  pull_request:
+    paths:
+      - js/item-catalog-weapon-components.js
+      - js/item-weapon-composition-engine.js
+      - js/item-catalog-weapon-upgrades.js
+      - js/item-weapon-upgrade-engine.js
+      - tests/item-weapon-composition-smoke.cjs
+      - tests/item-weapon-upgrade-smoke.cjs
+      - docs/item-weapon-composition-handoff.md
+      - docs/item-weapon-upgrades-handoff.md
+      - .github/workflows/weapon-upgrade-validation.yml
+
+jobs:
+  weapon-upgrades:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Syntax validation
+        run: |
+          node --check js/item-catalog-weapon-components.js
+          node --check js/item-weapon-composition-engine.js
+          node --check js/item-catalog-weapon-upgrades.js
+          node --check js/item-weapon-upgrade-engine.js
+      - name: Weapon composition smoke
+        run: node tests/item-weapon-composition-smoke.cjs
+      - name: Weapon upgrade smoke
+        run: node tests/item-weapon-upgrade-smoke.cjs

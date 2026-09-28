@@ -3168,6 +3168,28 @@ function initializeCharacterSheet() {
 
       // --- Descansos ---
       if (actName === "act_short_rest") {
+        if (window.LuminousFoodRestUi?.openRest && window.LuminousFoodRestRuntime) {
+          e.preventDefault();
+          window.LuminousFoodRestUi.openRest(currentPlayerData, "short", {
+            includeStash: window.isStashUnlocked === true,
+            onComplete: async (_result, unit) => {
+              if (window.LuminousItemPersistenceRuntime?.saveInventoryState) {
+                await window.LuminousItemPersistenceRuntime.saveInventoryState(db, playerId, unit);
+              }
+              await db.ref("campaña/jugadores/" + playerId).update({
+                hp: unit.hp,
+                sp: unit.sp,
+                stagger_1_active: unit.stagger_1_active || "1",
+                stagger_2_active: unit.stagger_2_active || "1",
+                stagger_3_active: unit.stagger_3_active || "1",
+                culinarySurvival: unit.culinarySurvival || null,
+                culinaryEffects: unit.culinaryEffects || [],
+              });
+            },
+          });
+          return;
+        }
+
         const currentHP = parseInt(currentPlayerData.hp) || 0;
         const maxHP = parseInt(currentPlayerData.hp_max) || 0;
         const heal = Math.floor(maxHP * 0.34);
@@ -3184,6 +3206,25 @@ function initializeCharacterSheet() {
       }
 
       if (actName === "act_long_rest") {
+        if (window.LuminousFoodRestUi?.openRest && window.LuminousFoodRestRuntime) {
+          e.preventDefault();
+          window.LuminousFoodRestUi.openRest(currentPlayerData, "long", {
+            includeStash: window.isStashUnlocked === true,
+            onComplete: async (_result, unit) => {
+              if (window.LuminousItemPersistenceRuntime?.saveInventoryState) {
+                await window.LuminousItemPersistenceRuntime.saveInventoryState(db, playerId, unit);
+              }
+              await db.ref("campaña/jugadores/" + playerId).update({
+                hp: unit.hp,
+                sp: unit.sp,
+                culinarySurvival: unit.culinarySurvival || null,
+                culinaryEffects: unit.culinaryEffects || [],
+              });
+            },
+          });
+          return;
+        }
+
         const maxHP = parseInt(currentPlayerData.hp_max) || 0;
         db.ref("campaña/jugadores/" + playerId).update({
           hp: maxHP,

@@ -1,0 +1,38 @@
+name: Path of the Zealot Smoke
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'js/path-of-the-zealot-archetype-runtime.js'
+      - 'js/class-runtime-manifest.js'
+      - 'scripts/generate-class-runtime-manifest.mjs'
+      - 'tests/path-of-the-zealot-archetype-runtime-smoke.mjs'
+      - '.github/workflows/path-of-the-zealot-smoke.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'js/path-of-the-zealot-archetype-runtime.js'
+      - 'js/class-runtime-manifest.js'
+      - 'scripts/generate-class-runtime-manifest.mjs'
+      - 'tests/path-of-the-zealot-archetype-runtime-smoke.mjs'
+      - '.github/workflows/path-of-the-zealot-smoke.yml'
+
+jobs:
+  zealot-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Runtime syntax
+        run: node --check js/path-of-the-zealot-archetype-runtime.js
+      - name: Generated runtime manifest
+        run: npm run check:class-runtime-manifest
+      - name: Path of the Zealot contract
+        run: node tests/path-of-the-zealot-archetype-runtime-smoke.mjs

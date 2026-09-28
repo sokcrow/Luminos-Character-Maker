@@ -78,7 +78,7 @@ async function bootHarness(page) {
       setQuantity,
       findItem,
       normalizeId: (value) => String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "_"),
-      equipmentSchema: (item) => ({ kind: categoryOf(item), handCost: categoryOf(item) === "weapon" ? 1 : 0 }),
+      equipmentSchema: (item) => ({ ...(item?.equipment || {}), kind: item?.equipment?.kind || categoryOf(item), handCost: item?.equipment?.handCost ?? (categoryOf(item) === "weapon" ? 1 : 0) }),
       resolveItem: (item) => ({ definitionId: item.definitionId, displayName: item.definitionId }),
       hydrateForEquipment: (item) => item,
       getConditionState: (item) => Number(item.condition ?? 100) <= 50 ? "damaged" : "good",
@@ -137,14 +137,161 @@ async function bootHarness(page) {
   await page.waitForFunction(() => window.LuminousInventoryHudV2?.state?.peer?.bound && document.querySelectorAll("#inv-active-grid [data-key]").length === 2);
 }
 
-test("HUD V2 owns rendering and creates the canonical 5x2 Active grid", async ({ page }) => {
+test("HUD V2 owns rendering and creates the canonical 5x4 Active grid", async ({ page }) => {
   await bootHarness(page);
   expect(await page.evaluate(() => typeof window.renderInventoryGrid)).toBe("undefined");
   await expect(page.locator(".inventory-v2-equipment")).toHaveCount(1);
-  await expect(page.locator("#inv-active-grid .inventory-v2-runtime-slot")).toHaveCount(10);
-  await expect(page.locator("#inv-active-grid .inventory-v2-empty-slot")).toHaveCount(8);
+  await expect(page.locator(".inventory-v2-equipment [data-equipment-slot]")).toHaveCount(8);
+  await expect(page.locator('[data-equipment-slot="augment0"]')).toHaveCount(1);
+  await expect(page.locator('[data-equipment-slot="augment1"]')).toHaveCount(1);
+  await expect(page.locator("#inv-active-grid .inventory-v2-runtime-slot")).toHaveCount(20);
+  await expect(page.locator("#inv-active-grid .inventory-v2-empty-slot")).toHaveCount(18);
+  await expect(page.locator("#inventory-v2-carry-count")).toHaveText("02 / 20");
+  await expect(page.locator("#inventory-v2-stash-count")).toContainText("01 / 80 SLOTS");
   const columns = await page.locator("#inv-active-grid").evaluate((el) => getComputedStyle(el).gridTemplateColumns.split(" ").filter(Boolean).length);
   expect(columns).toBe(5);
+});
+
+test("inventory runtime freezes 20/80 capacity and family stack limits", async ({ page }) => {
+  await bootHarness(page);
+  const result = await page.evaluate(() => {
+    const inv = window.LuminousItemInventoryRuntime;
+    return {
+      activeSlots: inv.activeSlotLimit({}),
+      stashSlots: inv.stashSlotLimit({}),
+      weaponActive: inv.stackLimit({ category: "weapon" }, "active"),
+      weaponStash: inv.stackLimit({ category: "weapon" }, "stash"),
+      toolActive: inv.stackLimit({ category: "tool" }, "active"),
+      ammoActive: inv.stackLimit({ category: "ammo" }, "active"),
+      ammoStash: inv.stackLimit({ category: "ammo" }, "stash"),
+      consumableActive: inv.stackLimit({ category: "consumable" }, "active"),
+      ingredientActive: inv.stackLimit({ category: "ingredient", itemType: "material" }, "active"),
+      upgradeActive: inv.stackLimit({ category: "upgrade" }, "active"),
+    };
+  });
+  expect(result).toEqual({
+    activeSlots: 20, stashSlots: 80,
+    weaponActive: 1, weaponStash: 1, toolActive: 1,
+    ammoActive: 20, ammoStash: 99, consumableActive: 5, ingredientActive: 10, upgradeActive: 5,
+  });
+});
+
+test("strict stack identity keeps procedural variants separate", async ({ page }) => {
+  await bootHarness(page);
+  const result = await page.evaluate(() => {
+    const inv = window.LuminousItemInventoryRuntime;
+    const base = { definitionId: "meat_wolf", category: "ingredient", itemType: "material", quantity: 1, quality: "fine", size: "medium", lineageId: "wolf", affinityTarget: "athletics", affinityBranch: "str" };
+    return {
+      identical: inv.canStack({ ...base }, { ...base }),
+      affinity: inv.canStack({ ...base }, { ...base, affinityTarget: "survival", affinityBranch: "wis" }),
+      size: inv.canStack({ ...base }, { ...base, size: "large" }),
+      lineage: inv.canStack({ ...base }, { ...base, lineageId: "dire_wolf" }),
+      processed: inv.canStack({ ...base, processedForm: "dried" }, { ...base, processedForm: "smoked" }),
+      grade: inv.canStack({ definitionId: "arrow", category: "ammo", quantity: 1, combatGrade: 1 }, { definitionId: "arrow", category: "ammo", quantity: 1, combatGrade: 2 }),
+      nonStackable: inv.canStack({ ...base, stackable: false }, { ...base, stackable: false }),
+    };
+  });
+  expect(result).toEqual({ identical: true, affinity: false, size: false, lineage: false, processed: false, grade: false, nonStackable: false });
+});
+
+test("slot limits reject new stacks but still allow merging into an existing full-container stack", async ({ page }) => {
+  await bootHarness(page);
+  const result = await page.evaluate(() => {
+    const inv = window.LuminousItemInventoryRuntime;
+    const make = (id, category = "material", quantity = 1) => ({ instanceId: id, definitionId: id, category, quantity, qualityTier: 1, condition: 100, conditionMax: 100 });
+
+    const fullStash = { inventario_activo: { extra: make("extra") }, inventario_stash: {} };
+    for (let i = 0; i < 80; i += 1) fullStash.inventario_stash[`stash_${i}`] = make(`stash_${i}`);
+    const rejectStash = inv.moveToStash(fullStash, "extra");
+
+    const mergeStash = { inventario_activo: { ammo_move: { ...make("ammo_move", "ammo", 5), definitionId: "arrow" } }, inventario_stash: {} };
+    mergeStash.inventario_stash.ammo_existing = { ...make("ammo_existing", "ammo", 10), definitionId: "arrow" };
+    for (let i = 1; i < 80; i += 1) mergeStash.inventario_stash[`fill_${i}`] = make(`fill_${i}`);
+    const mergeResult = inv.moveToStash(mergeStash, "ammo_move");
+
+    const fullActive = { inventario_activo: {}, inventario_stash: { incoming: make("incoming") } };
+    for (let i = 0; i < 20; i += 1) fullActive.inventario_activo[`active_${i}`] = make(`active_${i}`);
+    const rejectActive = inv.moveToActive(fullActive, "incoming");
+
+    return {
+      rejectStash: { moved: rejectStash.moved, reason: rejectStash.reason },
+      mergeStash: { moved: mergeResult.moved, slots: Object.keys(mergeStash.inventario_stash).length, qty: mergeStash.inventario_stash.ammo_existing.quantity },
+      rejectActive: { moved: rejectActive.moved, reason: rejectActive.reason },
+    };
+  });
+  expect(result.rejectStash).toEqual({ moved: false, reason: "stash_inventory_full" });
+  expect(result.mergeStash).toEqual({ moved: true, slots: 80, qty: 15 });
+  expect(result.rejectActive).toEqual({ moved: false, reason: "active_inventory_full" });
+});
+
+test("variant metadata survives persistence schema v3 round-trip", async ({ page }) => {
+  await page.setContent("<!doctype html><html><head></head><body></body></html>");
+  await page.addScriptTag({ path: ITEM_RUNTIME });
+  await page.addScriptTag({ path: INVENTORY_RUNTIME });
+  await page.addScriptTag({ path: PERSISTENCE_RUNTIME });
+  const result = await page.evaluate(() => {
+    const unit = {
+      inventario_activo: {
+        meat_1: {
+          schemaVersion: 3, instanceId: "meat_1", definitionId: "meat_wolf", quantity: 4, category: "ingredient", itemType: "material",
+          quality: "fine", qualityTier: 4, size: "large", lineageId: "dire_wolf", lineageName: "Dire Wolf",
+          affinityTarget: "survival", affinityBranch: "wis", culinaryProperties: [{ target: "survival", affinityBranch: "wis" }],
+          stackPolicy: "identical_item_quality_size_lineage_affinity", sourceInstanceId: "wolf_corpse_17",
+          condition: 100, conditionMax: 100,
+        },
+      },
+      inventario_stash: {}, equipment: { accessories: [] },
+    };
+    const saved = window.LuminousItemPersistenceRuntime.serializeInventoryState(unit);
+    const restored = window.LuminousItemPersistenceRuntime.deserializeInventoryState(saved);
+    const item = restored.inventario_activo.meat_1;
+    return { schemaVersion: saved.schemaVersion, itemSchema: item.schemaVersion, quality: item.quality, size: item.size, lineageId: item.lineageId, affinityTarget: item.affinityTarget, affinityBranch: item.affinityBranch, sourceInstanceId: item.sourceInstanceId, stackPolicy: item.stackPolicy, culinaryProperties: item.culinaryProperties };
+  });
+  expect(result.schemaVersion).toBe(3);
+  expect(result.itemSchema).toBe(3);
+  expect(result.quality).toBe("fine");
+  expect(result.size).toBe("large");
+  expect(result.lineageId).toBe("dire_wolf");
+  expect(result.affinityTarget).toBe("survival");
+  expect(result.affinityBranch).toBe("wis");
+  expect(result.sourceInstanceId).toBe("wolf_corpse_17");
+  expect(result.stackPolicy).toBe("identical_item_quality_size_lineage_affinity");
+  expect(result.culinaryProperties).toEqual([{ target: "survival", affinityBranch: "wis" }]);
+});
+
+test("equipment compatibility follows equipment.kind instead of hardcoded item category", async ({ page }) => {
+  await bootHarness(page);
+  const result = await page.evaluate(() => window.LuminousItemEquipmentBridge.compatibleSlots({
+    instanceId: "field_scanner_1",
+    category: "tool",
+    equipment: { kind: "accessory" },
+  }));
+  expect(result).toEqual(["accessory0", "accessory1"]);
+});
+
+test("stash filters derive from live item families", async ({ page }) => {
+  await bootHarness(page);
+  await page.evaluate(() => {
+    window.LuminousInventoryHudV2.state.unit.inventario_stash.chem_1 = {
+      instanceId: "chem_1", definitionId: "chemical_sample", nombre: "Chemical Sample",
+      category: "chemical_processed", tier: 1, quantity: 3, qualityTier: 2, condition: 100, conditionMax: 100,
+    };
+    window.LuminousInventoryHudV2.renderAll();
+  });
+  await expect(page.locator('#filtros-stash .inv-filter-btn[data-filter="all"]')).toHaveCount(1);
+  await expect(page.locator('#filtros-stash .inv-filter-btn[data-filter="consumable"]')).toHaveCount(1);
+  await expect(page.locator('#filtros-stash .inv-filter-btn[data-filter="chemical_processed"]')).toHaveCount(1);
+});
+
+test("inventory becomes a two-column mobile grid without horizontal modal overflow", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await bootHarness(page);
+  await page.locator("#inventory-modal").evaluate((el) => el.classList.add("active"));
+  const columns = await page.locator("#inv-active-grid").evaluate((el) => getComputedStyle(el).gridTemplateColumns.split(" ").filter(Boolean).length);
+  expect(columns).toBe(2);
+  const overflow = await page.locator(".inventory-modal-content").evaluate((el) => ({ clientWidth: el.clientWidth, scrollWidth: el.scrollWidth }));
+  expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth + 1);
+  await expect(page.locator(".inventory-v2-equipment [data-equipment-slot]")).toHaveCount(8);
 });
 
 test("equips through the runtime bridge and persists equipment refs", async ({ page }) => {
@@ -157,6 +304,34 @@ test("equips through the runtime bridge and persists equipment refs", async ({ p
   expect((await page.evaluate(() => window.__saves.at(-1))).mainHand).toBe("blade_1");
   await expect(page.locator('[data-equipment-slot="mainHand"] .inventory-v2-eq-name')).toContainText("Test Workshop Blade");
   await expect(page.locator('#inv-active-grid [data-key="blade_1"]')).toHaveClass(/inventory-v2-equipped/);
+});
+
+test("reload consumes resources only from Active Inventory", async ({ page }) => {
+  await bootHarness(page);
+  await page.evaluate(() => {
+    const state = window.LuminousInventoryHudV2.state;
+    state.unit.inventario_activo.loader = {
+      instanceId: "loader", definitionId: "loader", nombre: "Test Loader", category: "tool", quantity: 1, qualityTier: 2, condition: 100, conditionMax: 100,
+      chargesCurrent: 0, chargesMax: 1, rechargeRule: { resourceDefinitionId: "battery_cell", resourceAmount: 1, amount: 1 },
+    };
+    state.unit.inventario_stash.battery_stash = { instanceId: "battery_stash", definitionId: "battery_cell", nombre: "Battery Cell", category: "ammo", quantity: 5, qualityTier: 2, condition: 100, conditionMax: 100 };
+    window.LuminousInventoryHudV2.renderAll();
+  });
+  await page.locator('#inv-active-grid [data-key="loader"]').click();
+  await page.locator("#inventory-v2-actions .inventory-v2-action", { hasText: "RELOAD" }).click();
+  await expect(page.locator("#inventory-v2-action-status")).toContainText("MISSING RESOURCE");
+  expect(await page.evaluate(() => window.LuminousInventoryHudV2.state.unit.inventario_stash.battery_stash.quantity)).toBe(5);
+
+  await page.evaluate(() => {
+    const state = window.LuminousInventoryHudV2.state;
+    state.unit.inventario_activo.battery_active = { instanceId: "battery_active", definitionId: "battery_cell", nombre: "Battery Cell", category: "ammo", quantity: 2, qualityTier: 2, condition: 100, conditionMax: 100 };
+    window.LuminousInventoryHudV2.renderAll();
+  });
+  await page.locator('#inv-active-grid [data-key="loader"]').click();
+  await page.locator("#inventory-v2-actions .inventory-v2-action", { hasText: "RELOAD" }).click();
+  await page.waitForFunction(() => window.__saves.length > 0);
+  expect(await page.evaluate(() => window.LuminousInventoryHudV2.state.unit.inventario_activo.battery_active.quantity)).toBe(1);
+  expect(await page.evaluate(() => window.LuminousInventoryHudV2.state.unit.inventario_stash.battery_stash.quantity)).toBe(5);
 });
 
 test("moves Active to Stash through ItemInventoryRuntime and realtime persistence", async ({ page }) => {

@@ -1,0 +1,41 @@
+name: DM Inventory Grant GUI
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'hoja_personaje.html'
+      - 'pantalla_dm.html'
+      - 'js/dm-item-instance-editor.js'
+      - 'js/inventory-hud-v2.js'
+      - 'js/item-icon-registry.js'
+      - 'js/item-inventory-runtime.js'
+      - 'js/item-persistence-runtime.js'
+      - 'css/dm-item-instance-editor.css'
+      - 'tests/dm-item-instance-editor.spec.cjs'
+      - 'tests/inventory-runtime-cutover.spec.cjs'
+      - '.github/workflows/dm-inventory-grant-gui.yml'
+
+jobs:
+  grant-gui:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax checks
+        run: |
+          node --check js/dm-item-instance-editor.js
+          node --check js/inventory-hud-v2.js
+          node --check js/item-inventory-runtime.js
+          node --check js/item-persistence-runtime.js
+      - name: Local item icon registry
+        run: node tests/item-icon-registry-smoke.cjs
+      - name: Install Playwright
+        run: |
+          npm install --no-save @playwright/test@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Browser proof for current Player inventory tooling
+        run: npx playwright test tests/dm-item-instance-editor.spec.cjs tests/inventory-runtime-cutover.spec.cjs --workers=1 --reporter=line

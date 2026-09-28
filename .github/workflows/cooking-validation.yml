@@ -1,0 +1,167 @@
+name: Cooking Validation
+
+on:
+  push:
+    paths:
+      - 'js/item-economy-standard.js'
+      - 'js/item-affinity-engine.js'
+      - 'js/item-culinary-affinity-data.js'
+      - 'js/item-catalog-plant-produce.js'
+      - 'js/item-catalog-meat.js'
+      - 'js/item-catalog-culinary-staples.js'
+      - 'js/item-processing-recipe-data.js'
+      - 'js/item-processing-engine.js'
+      - 'js/item-cooking-engine.js'
+      - 'js/item-cooking-v2-engine.js'
+      - 'js/item-cooking-recipe-catalog.js'
+      - 'js/item-cooking-recipe-resolver.js'
+      - 'js/item-cooking-equipment-engine.js'
+      - 'js/item-cooking-runtime.js'
+      - 'js/item-food-rest-runtime.js'
+      - 'js/item-food-rest-ui.js'
+      - 'js/item-cooking-ui.js'
+      - 'js/item-runtime-engine.js'
+      - 'js/inventory-hud-v2.js'
+      - 'hoja_personaje.js'
+      - 'hoja_personaje.html'
+      - 'js/item-catalog-food.js'
+      - 'js/item-catalog-retail-food.js'
+      - 'tests/item-economy-standard-smoke.cjs'
+      - 'tests/item-affinity-engine-smoke.cjs'
+      - 'tests/item-culinary-affinity-data-smoke.cjs'
+      - 'tests/item-catalog-plant-produce-smoke.cjs'
+      - 'tests/item-catalog-meat-smoke.cjs'
+      - 'tests/item-catalog-culinary-staples-smoke.cjs'
+      - 'tests/item-culinary-intermediates-smoke.cjs'
+      - 'tests/item-processing-engine-smoke.cjs'
+      - 'tests/item-cooking-engine-smoke.cjs'
+      - 'tests/item-cooking-v2-engine-smoke.cjs'
+      - 'tests/item-cooking-recipe-catalog-smoke.cjs'
+      - 'tests/item-cooking-recipe-resolver-smoke.cjs'
+      - 'tests/item-cooking-equipment-smoke.cjs'
+      - 'tests/item-cooking-runtime-smoke.cjs'
+      - 'tests/item-food-rest-runtime-smoke.cjs'
+      - 'tests/item-catalog-food-smoke.cjs'
+      - 'tests/item-catalog-retail-food-smoke.cjs'
+      - 'docs/item-economy-handoff.md'
+      - 'docs/item-affinity-handoff.md'
+      - 'docs/item-processing-handoff.md'
+      - 'docs/item-cooking-handoff.md'
+      - '.github/workflows/cooking-validation.yml'
+  pull_request:
+    types: [opened, reopened, ready_for_review]
+    paths:
+      - 'js/item-economy-standard.js'
+      - 'js/item-affinity-engine.js'
+      - 'js/item-culinary-affinity-data.js'
+      - 'js/item-catalog-plant-produce.js'
+      - 'js/item-catalog-meat.js'
+      - 'js/item-catalog-culinary-staples.js'
+      - 'js/item-processing-recipe-data.js'
+      - 'js/item-processing-engine.js'
+      - 'js/item-cooking-engine.js'
+      - 'js/item-cooking-v2-engine.js'
+      - 'js/item-cooking-recipe-catalog.js'
+      - 'js/item-cooking-recipe-resolver.js'
+      - 'js/item-cooking-equipment-engine.js'
+      - 'js/item-cooking-runtime.js'
+      - 'js/item-food-rest-runtime.js'
+      - 'js/item-food-rest-ui.js'
+      - 'js/item-cooking-ui.js'
+      - 'js/item-runtime-engine.js'
+      - 'js/inventory-hud-v2.js'
+      - 'hoja_personaje.js'
+      - 'hoja_personaje.html'
+      - 'js/item-catalog-food.js'
+      - 'js/item-catalog-retail-food.js'
+      - 'tests/item-economy-standard-smoke.cjs'
+      - 'tests/item-affinity-engine-smoke.cjs'
+      - 'tests/item-culinary-affinity-data-smoke.cjs'
+      - 'tests/item-catalog-plant-produce-smoke.cjs'
+      - 'tests/item-catalog-meat-smoke.cjs'
+      - 'tests/item-catalog-culinary-staples-smoke.cjs'
+      - 'tests/item-culinary-intermediates-smoke.cjs'
+      - 'tests/item-processing-engine-smoke.cjs'
+      - 'tests/item-cooking-engine-smoke.cjs'
+      - 'tests/item-cooking-v2-engine-smoke.cjs'
+      - 'tests/item-cooking-recipe-catalog-smoke.cjs'
+      - 'tests/item-cooking-recipe-resolver-smoke.cjs'
+      - 'tests/item-cooking-equipment-smoke.cjs'
+      - 'tests/item-cooking-runtime-smoke.cjs'
+      - 'tests/item-food-rest-runtime-smoke.cjs'
+      - 'tests/item-catalog-food-smoke.cjs'
+      - 'docs/item-economy-handoff.md'
+      - 'docs/item-affinity-handoff.md'
+      - 'docs/item-processing-handoff.md'
+      - 'docs/item-cooking-handoff.md'
+      - '.github/workflows/cooking-validation.yml'
+
+  workflow_dispatch:
+
+concurrency:
+  group: cooking-validation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cooking-v1:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Syntax check
+        run: |
+          node --check js/item-economy-standard.js
+          node --check js/item-affinity-engine.js
+          node --check js/item-culinary-affinity-data.js
+          node --check js/item-catalog-plant-produce.js
+          node --check js/item-catalog-meat.js
+          node --check js/item-catalog-culinary-staples.js
+          node --check js/item-processing-recipe-data.js
+          node --check js/item-processing-engine.js
+          node --check js/item-cooking-engine.js
+          node --check js/item-cooking-v2-engine.js
+          node --check js/item-cooking-recipe-catalog.js
+          node --check js/item-cooking-recipe-resolver.js
+          node --check js/item-cooking-equipment-engine.js
+          node --check js/item-cooking-runtime.js
+          node --check js/item-food-rest-runtime.js
+          node --check js/item-food-rest-ui.js
+          node --check js/item-cooking-ui.js
+          node --check js/item-catalog-retail-food.js
+          node --check js/item-catalog-food.js
+      - name: Economy salary standard smoke
+        run: node tests/item-economy-standard-smoke.cjs
+      - name: Item affinity smoke
+        run: node tests/item-affinity-engine-smoke.cjs
+      - name: Culinary affinity data smoke
+        run: node tests/item-culinary-affinity-data-smoke.cjs
+      - name: Plant affinity catalog smoke
+        run: node tests/item-catalog-plant-produce-smoke.cjs
+      - name: Meat affinity catalog smoke
+        run: node tests/item-catalog-meat-smoke.cjs
+      - name: Culinary staple catalog smoke
+        run: node tests/item-catalog-culinary-staples-smoke.cjs
+      - name: Processing methods smoke
+        run: node tests/item-processing-engine-smoke.cjs
+      - name: Culinary intermediates smoke
+        run: node tests/item-culinary-intermediates-smoke.cjs
+      - name: Cooking smoke
+        run: node tests/item-cooking-engine-smoke.cjs
+      - name: Cooking V2 function smoke
+        run: node tests/item-cooking-v2-engine-smoke.cjs
+      - name: Master cooking recipe catalog smoke
+        run: node tests/item-cooking-recipe-catalog-smoke.cjs
+      - name: Cooking recipe resolver smoke
+        run: node tests/item-cooking-recipe-resolver-smoke.cjs
+      - name: Cooking equipment smoke
+        run: node tests/item-cooking-equipment-smoke.cjs
+      - name: Cooking runtime smoke
+        run: node tests/item-cooking-runtime-smoke.cjs
+      - name: Food Rest runtime smoke
+        run: node tests/item-food-rest-runtime-smoke.cjs
+      - name: Retail food catalog smoke
+        run: node tests/item-catalog-retail-food-smoke.cjs
+      - name: Legacy food catalog compatibility smoke
+        run: node tests/item-catalog-food-smoke.cjs

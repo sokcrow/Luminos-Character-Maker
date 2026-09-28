@@ -227,6 +227,16 @@
         if (typeof global.CombatEngine?.resolveActionSlot !== "function") return { handled: false, reason: "trait_action_resolver_missing" };
         return global.CombatEngine.resolveActionSlot(actor, slotIndex, { phase: "combat", combatData: combatData(), plannedAction, combatActionBridge: true });
       },
+      retreat({ actor, effect }) {
+        const bridge = global.LuminousCombatDeploymentBridge073;
+        if (typeof bridge?.resolveRetreatEffect !== "function") return { handled: false, reason: "deployment_bridge_required" };
+        return bridge.resolveRetreatEffect({ actor, effect });
+      },
+      escape({ actor, effect }) {
+        const bridge = global.LuminousCombatDeploymentBridge073;
+        if (typeof bridge?.resolveEscapeEffect !== "function") return { handled: false, reason: "deployment_bridge_required" };
+        return bridge.resolveEscapeEffect({ actor, effect });
+      },
       ...(hooks.effectHandlers || {}),
     };
   }

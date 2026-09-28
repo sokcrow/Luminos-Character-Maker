@@ -17,7 +17,6 @@
     <div class="instance-toggles">
       <label><input type="radio" name="instancia" value="ninguno"> PANTALLA NEGRA</label>
       <label><input type="radio" name="instancia" value="teatro"> TEATRO / LORE</label>
-      <label><input type="radio" name="instancia" value="mapa"> MAPA TÁCTICO</label>
       <label><input type="radio" name="instancia" value="combate"> COMBATE TÁCTICO</label>
     </div>
     <div class="status-container" style="display: flex; gap: 20px; align-items: center;">
@@ -116,12 +115,8 @@
       </details>
     </section>
 
-    <section id="modulo-mapa" class="game-module hidden" aria-hidden="true">
-      <iframe data-vtt-src="vtt.html" title="Mapa táctico D&amp;D"></iframe>
-    </section>
-
     <section id="modulo-combate" class="game-module hidden" aria-hidden="true">
-      <div id="combat-grid"><iframe src="Battle-viewer.html" title="Cuadrícula de combate táctica"></iframe></div>
+      <div id="combat-grid"><iframe id="dm-combat-view" data-src="Battle-viewer.html" loading="lazy" title="Cuadrícula de combate táctica"></iframe></div>
       <div id="combat-log-and-controls">
         <span>FASE INICIAL: 60 s · PRE_COMBAT_PLANNING</span>
         <button id="btn-trigger-combat" type="button">INICIAR COMBATE (Fin de Planeación)</button>
@@ -135,10 +130,113 @@
   <script>
     firebase.initializeApp({apiKey:"AIzaSyAIVIuKgXUsdrb9Mmss9PH7R3FpWAMG2hU",authDomain:"luminous-system.firebaseapp.com",databaseURL:"https://luminous-system-default-rtdb.firebaseio.com",projectId:"luminous-system",storageBucket:"luminous-system.firebasestorage.app",messagingSenderId:"330473029689",appId:"1:330473029689:web:44a05e870d493a3b294de8"});
   </script>
+  <script src="js/dm-on-game-startup-gate.js"></script>
+  <script src="js/theatre-director-menu-guard.js"></script>
   <script src="js/weather-readonly-engine.js"></script>
   <script src="js/weather-fx.js"></script>
   <script src="js/instance-control.js"></script>
-  <script src="js/vtt/dm-map-lazy-loader.js"></script>
+  <script>
+    (function () {
+      const combatModule = document.getElementById("modulo-combate");
+      const combatFrame = document.getElementById("dm-combat-view");
+      if (!combatModule || !combatFrame) return;
+
+      const FALLBACK_SPRITE = "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="200" height="240" viewBox="0 0 200 240">
+          <rect width="200" height="240" fill="#100b0b"/>
+          <path d="M100 42c28 0 48 22 48 50s-20 50-48 50-48-22-48-50 20-50 48-50Zm-66 174c5-43 29-66 66-66s61 23 66 66H34Z" fill="#4b2a2a"/>
+          <text x="100" y="230" text-anchor="middle" font-family="monospace" font-size="13" fill="#d7aa58">SPRITE NO DISPONIBLE</text>
+        </svg>
+      `);
+
+      function installCombatFailsafe() {
+        let childWindow;
+        let childDocument;
+        try {
+          childWindow = combatFrame.contentWindow;
+          childDocument = combatFrame.contentDocument;
+        } catch (_) {
+          return false;
+        }
+        if (!childWindow || !childDocument || !childWindow.HTMLImageElement) return false;
+        if (childWindow.__luminousCombatFailsafeInstalled) return true;
+        childWindow.__luminousCombatFailsafeInstalled = true;
+
+        const imageProto = childWindow.HTMLImageElement.prototype;
+        const srcDescriptor = Object.getOwnPropertyDescriptor(imageProto, "src");
+        if (srcDescriptor?.get && srcDescriptor?.set) {
+          Object.defineProperty(imageProto, "src", {
+            configurable: srcDescriptor.configurable,
+            enumerable: srcDescriptor.enumerable,
+            get: srcDescriptor.get,
+            set(value) {
+              const next = String(value ?? "");
+              if (!next.trim() || next === "undefined" || next === "null" || /via\.placeholder\.com/i.test(next)) {
+                this.dataset.spriteFallback = "true";
+                this.removeAttribute("onerror");
+                this.onerror = null;
+                return srcDescriptor.set.call(this, FALLBACK_SPRITE);
+              }
+              return srcDescriptor.set.call(this, value);
+            }
+          });
+        }
+
+        childDocument.addEventListener("error", (event) => {
+          const img = event.target;
+          if (!(img instanceof childWindow.HTMLImageElement) || !img.classList.contains("sprite-img")) return;
+          img.removeAttribute("onerror");
+          img.onerror = null;
+          if (img.dataset.spriteFallback === "true") return;
+          img.dataset.spriteFallback = "true";
+          if (srcDescriptor?.set) srcDescriptor.set.call(img, FALLBACK_SPRITE);
+          else img.setAttribute("src", FALLBACK_SPRITE);
+        }, true);
+
+        if (typeof childWindow.renderLoop === "function" && typeof childWindow.drawArcs === "function") {
+          childWindow.renderLoop = function luminousCombatRenderLoop() {
+            if (!childWindow.document.hidden) childWindow.drawArcs();
+            childWindow.setTimeout(() => childWindow.requestAnimationFrame(childWindow.renderLoop), 80);
+          };
+        }
+
+        console.info("[Combat Failsafe] Sprite recursion guard installed.");
+        return true;
+      }
+
+      function armCombatFailsafe() {
+        let attempts = 0;
+        const probe = () => {
+          attempts += 1;
+          let ready = false;
+          try {
+            const childDocument = combatFrame.contentDocument;
+            ready = Boolean(childDocument && childDocument.readyState !== "loading");
+          } catch (_) {}
+          if (ready && installCombatFailsafe()) return;
+          if (attempts < 240 && combatModule.classList.contains("active-module")) {
+            requestAnimationFrame(probe);
+          }
+        };
+        requestAnimationFrame(probe);
+      }
+
+      const ensureCombatFrameLoaded = () => {
+        if (!combatModule.classList.contains("active-module")) return;
+        if (!combatFrame.getAttribute("src")) {
+          combatFrame.src = combatFrame.dataset.src || "Battle-viewer.html";
+        }
+        armCombatFailsafe();
+      };
+
+      combatFrame.addEventListener("load", installCombatFailsafe);
+      new MutationObserver(ensureCombatFrameLoaded).observe(combatModule, {
+        attributes: true,
+        attributeFilter: ["class"]
+      });
+      ensureCombatFrameLoaded();
+    })();
+  </script>
   <script src="js/dm-managed-effect-engine.js"></script>
   <script src="js/language-catalog-engine.js"></script>
   <script src="js/bond-engine.js"></script>
