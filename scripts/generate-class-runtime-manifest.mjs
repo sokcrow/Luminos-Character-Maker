@@ -10,6 +10,41 @@ const OUTPUT = path.join(JS_DIR, "class-runtime-manifest.js");
 
 const SUPPORT = [
   {
+    id: "support:creature-type-catalog",
+    kind: "support",
+    path: "js/creature-type-catalog.js",
+    contexts: ["any"],
+    dependsOn: [],
+    globalName: "LuminousCreatureTypeCatalog",
+    autoload: false,
+  },
+  {
+    id: "support:caster-spellcasting-traits-runtime",
+    kind: "support",
+    path: "js/caster-spellcasting-traits-runtime.js",
+    contexts: ["any"],
+    dependsOn: ["support:spellcasting-runtime"],
+    globalName: "LuminousCasterSpellcastingTraitsRuntime",
+    autoload: false,
+  },
+  {
+    id: "support:fighting-style-runtime",
+    kind: "support",
+    path: "js/fighting-style-runtime.js",
+    contexts: ["any"],
+    dependsOn: [],
+    globalName: "LuminousFightingStyleRuntime",
+  },
+  {
+    id: "support:universal-action-economy",
+    kind: "support",
+    path: "js/universal-action-economy.js",
+    contexts: ["any"],
+    dependsOn: [],
+    globalName: "LuminousActionEconomy",
+    autoload: false,
+  },
+  {
     id: "support:fighter-maneuver-catalog",
     kind: "support",
     path: "js/fighter-maneuver-catalog.js",
@@ -58,6 +93,8 @@ const LEGACY_PRIMARY = [
 ];
 
 const DEPENDENCY_OVERRIDES = new Map([
+  ["class:fighter", ["support:fighting-style-runtime", "support:universal-action-economy"]],
+  ["class:ranger", ["support:creature-type-catalog", "support:fighting-style-runtime", "support:caster-spellcasting-traits-runtime"]],
   ["class:sorcerer", ["support:spellcasting-runtime", "support:universal-speed-runtime"]],
   ["archetype:battle-master", ["support:player-archetype-runtime-core", "support:fighter-maneuver-catalog"]],
   ["archetype:mastermind", ["support:player-archetype-runtime-core", "class:rogue"]],

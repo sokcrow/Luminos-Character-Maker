@@ -73,7 +73,8 @@
   function actionSlotMaximum(unit = {}) {
     const values = [unit.activeSlots, unit.actionSlots, unit.action_slots, unit.maxActionSlots];
     const found = values.map((value) => Number(value)).find((value) => Number.isFinite(value) && value > 0);
-    return Math.max(1, Math.trunc(found || 1));
+    const base = Math.max(1, Math.trunc(found || 1));
+    return base + finiteInt(unit?.[STATE_KEY]?.bonusActionSlots, 0);
   }
 
   function ensureState(unit = {}) {
@@ -85,6 +86,7 @@
         phase: PHASES.OTHER,
         quickActionRemaining: 1,
         reactionRemaining: 1,
+        bonusActionSlots: 0,
         plannedActions: {},
       };
       try {
@@ -219,6 +221,18 @@
     return { ...entry, data: { ...(entry.data || {}) } };
   }
 
+  function grantTemporaryActionSlots(unit, amount = 1, options = {}) {
+    const state = ensureState(unit);
+    if (!state) return { granted: false, reason: "unit_required", amount: 0 };
+    const phase = phaseFor(options);
+    if (phase !== PHASES.PLANNING) return { granted: false, reason: "additional_action_requires_planning_phase", amount: 0 };
+    const added = Math.max(0, finiteInt(amount, 0));
+    if (!added) return { granted: false, reason: "additional_action_amount_required", amount: 0 };
+    const before = finiteInt(state.bonusActionSlots, 0);
+    state.bonusActionSlots = before + added;
+    return { granted: true, amount: added, before, after: state.bonusActionSlots, snapshot: snapshot(unit, { ...options, phase: PHASES.PLANNING }) };
+  }
+
   function beginPlanning(unit) {
     const state = ensureState(unit);
     if (!state) return null;
@@ -226,6 +240,7 @@
     state.turn = finiteInt(state.turn, 0) + 1;
     state.quickActionRemaining = 1;
     state.reactionRemaining = 1;
+    state.bonusActionSlots = 0;
     state.plannedActions = {};
     return snapshot(unit, { phase: PHASES.PLANNING });
   }
@@ -298,6 +313,7 @@
       canUse(cost) { return canUse(unit, cost, { ...options, phase }); },
       availability(cost) { return availability(unit, cost, { ...options, phase }); },
       consume(cost) { return consume(unit, cost, { ...options, phase }); },
+      grantActionSlots(amount = 1) { return grantTemporaryActionSlots(unit, amount, { ...options, phase }); },
       schedule(payload, scheduleOptions = {}) { return scheduleAction(unit, payload, { ...options, ...scheduleOptions, phase }); },
       canUseUniversalAction(actionId) { return canUseUniversalAction(unit, actionId, { ...options, phase }); },
       scheduleUniversalAction(actionId, target, scheduleOptions = {}) { return scheduleUniversalAction(unit, actionId, target, { ...options, ...scheduleOptions, phase }); },
@@ -336,6 +352,7 @@
     cancelAction,
     getPlannedAction,
     takePlannedAction,
+    grantTemporaryActionSlots,
     beginPlanning,
     beginCombat,
     resetTurnResources,

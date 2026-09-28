@@ -231,7 +231,7 @@
 
     const earned = api.earnedMilestones(currentFormClasses());
     if (!earned.length) {
-      list.appendChild(element("p", "dm-player-milestone-empty", "Sin milestones disponibles. Se desbloquean por clase en LV.20, 40, 60, 80 y 95."));
+      list.appendChild(element("p", "dm-player-milestone-empty", "Sin milestones disponibles. Universales: LV.20, 40, 60, 80 y 95. Fighter añade LV.30 y 70."));
       return;
     }
 
@@ -444,9 +444,9 @@
     section.id = "dm-player-class-milestones";
     const header = element("header", "dm-player-milestone-header");
     const copy = element("div");
-    copy.append(element("span", "", "CLASS PROGRESSION / OBLIGATORIO"), element("h5", "", "MILESTONE IMPROVEMENTS · LV.20 / 40 / 60 / 80 / 95"));
+    copy.append(element("span", "", "CLASS PROGRESSION / OBLIGATORIO"), element("h5", "", "MILESTONE IMPROVEMENTS · UNIVERSAL + CLASS BONUS"));
     header.appendChild(copy);
-    section.append(header, element("p", "dm-player-milestone-rule", "En cada milestone de una clase: +2 a un Stat, +1 a dos Stats diferentes (máximo 20), o 1 Trait General."));
+    section.append(header, element("p", "dm-player-milestone-rule", "Universales: LV.20 / 40 / 60 / 80 / 95. Fighter añade LV.30 / 70. En cada milestone: +2 a un Stat, +1 a dos Stats diferentes (máximo 20), o 1 Trait General."));
     const list = element("div", "dm-player-milestone-list");
     list.id = "dm-player-milestone-list";
     const feedback = element("div", "dm-player-milestone-feedback");
