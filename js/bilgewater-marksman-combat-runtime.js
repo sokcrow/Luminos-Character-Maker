@@ -20,7 +20,7 @@
   }
 
   function bridgeState() {
-    if (!global[BRIDGE_KEY]) global[BRIDGE_KEY] = { actionSession: null, resolverSource: null, adapterSource: null };
+    if (!global[BRIDGE_KEY]) global[BRIDGE_KEY] = { actionSession: null, resolverSource: null, adapterSource: null, loadoutSource: null };
     return global[BRIDGE_KEY];
   }
 
@@ -74,6 +74,51 @@
       return api.smokeScreenSkill(actor);
     }
     return api.decorateShotgunSkill(actor, skill);
+  }
+
+  function patchSkillLoadout() {
+    const source = global.LuminousCombatSkillLoadout074;
+    const state = bridgeState();
+    const api = runtime();
+    if (!source?.skillIdsFor || !api) return false;
+    if (source.__bilgewaterMarksmanSkillLoadoutWrapped) {
+      state.loadoutSource = source;
+      return true;
+    }
+    if (state.loadoutSource === source) return true;
+
+    const originalSkillIdsFor = source.skillIdsFor.bind(source);
+    const originalOwnsSkill = typeof source.ownsSkill === "function" ? source.ownsSkill.bind(source) : null;
+    const originalResolve = typeof source.resolveSkillForCombatant === "function" ? source.resolveSkillForCombatant.bind(source) : null;
+    const originalLibrary = typeof source.skillLibrary === "function" ? source.skillLibrary.bind(source) : null;
+
+    const wrapped = Object.freeze({
+      ...source,
+      __bilgewaterMarksmanSkillLoadoutWrapped: true,
+      skillIdsFor(unit = {}) {
+        const base = originalSkillIdsFor(unit) || [];
+        if (!api.smokeScreenUnlocked(unit) || base.includes(api.SMOKE_SCREEN_SKILL_ID)) return base;
+        return [...base, api.SMOKE_SCREEN_SKILL_ID];
+      },
+      ownsSkill(unit = {}, skillId) {
+        if (normalizeId(skillId) === api.SMOKE_SCREEN_SKILL_ID && api.smokeScreenUnlocked(unit)) return true;
+        return originalOwnsSkill ? originalOwnsSkill(unit, skillId) : false;
+      },
+      resolveSkillForCombatant(unit = {}, skillId, skills) {
+        if (normalizeId(skillId) === api.SMOKE_SCREEN_SKILL_ID && api.smokeScreenUnlocked(unit)) {
+          return { ok: true, reason: null, skillId: api.SMOKE_SCREEN_SKILL_ID, skill: api.smokeScreenSkill(unit) };
+        }
+        return originalResolve ? originalResolve(unit, skillId, skills) : { ok: false, reason: "SKILL_LOADOUT_RUNTIME_REQUIRED", skillId, skill: null };
+      },
+      skillLibrary() {
+        const library = originalLibrary ? originalLibrary() || {} : {};
+        return { ...library, [api.SMOKE_SCREEN_SKILL_ID]: api.SMOKE_SCREEN_SKILL };
+      },
+    });
+
+    global.LuminousCombatSkillLoadout074 = wrapped;
+    state.loadoutSource = wrapped;
+    return true;
   }
 
   function patchActionAdapters() {
@@ -308,15 +353,17 @@
   }
 
   function install() {
+    const loadoutReady = patchSkillLoadout();
     const adapterReady = patchActionAdapters();
     const resolverReady = patchResolver();
     const engineReady = installEngine(global.CombatEngine);
-    return adapterReady || resolverReady || engineReady;
+    return loadoutReady || adapterReady || resolverReady || engineReady;
   }
 
   const api = Object.freeze({
     install,
     installEngine,
+    patchSkillLoadout,
     patchActionAdapters,
     patchResolver,
     currentSessionTargetInfo,
