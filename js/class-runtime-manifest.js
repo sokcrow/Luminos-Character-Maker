@@ -116,6 +116,32 @@
     "globalName": "LuminousBattleMasterArchetypeRuntime"
   },
   {
+    "id": "archetype:bilgewater-buccaneer",
+    "kind": "archetype",
+    "path": "js/bilgewater-buccaneer-archetype-runtime.js",
+    "contexts": [
+      "any"
+    ],
+    "dependsOn": [
+      "support:player-archetype-runtime-core",
+      "class:ranger"
+    ],
+    "globalName": "LuminousBilgewaterBuccaneerArchetypeRuntime"
+  },
+  {
+    "id": "archetype:bilgewater-demolisher",
+    "kind": "archetype",
+    "path": "js/bilgewater-demolisher-archetype-runtime.js",
+    "contexts": [
+      "any"
+    ],
+    "dependsOn": [
+      "support:player-archetype-runtime-core",
+      "class:ranger"
+    ],
+    "globalName": "LuminousBilgewaterDemolisherArchetypeRuntime"
+  },
+  {
     "id": "archetype:college-of-whispers",
     "kind": "archetype",
     "path": "js/college-of-whispers-runtime.js",
@@ -233,6 +259,28 @@
       "support:universal-speed-runtime"
     ],
     "globalName": "LuminousSorcererClassRuntime"
+  },
+  {
+    "id": "adapter:bilgewater-buccaneer:combat",
+    "kind": "adapter",
+    "path": "js/bilgewater-buccaneer-combat-runtime.js",
+    "contexts": [
+      "combat"
+    ],
+    "dependsOn": [
+      "archetype:bilgewater-buccaneer"
+    ]
+  },
+  {
+    "id": "adapter:bilgewater-demolisher:combat",
+    "kind": "adapter",
+    "path": "js/bilgewater-demolisher-combat-runtime.js",
+    "contexts": [
+      "combat"
+    ],
+    "dependsOn": [
+      "archetype:bilgewater-demolisher"
+    ]
   },
   {
     "id": "adapter:mastermind:theatre",
