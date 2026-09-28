@@ -4,6 +4,19 @@
 
   const entries = [
   {
+    "id": "support:caster-spellcasting-traits-runtime",
+    "kind": "support",
+    "path": "js/caster-spellcasting-traits-runtime.js",
+    "contexts": [
+      "any"
+    ],
+    "dependsOn": [
+      "support:spellcasting-runtime"
+    ],
+    "globalName": "LuminousCasterSpellcastingTraitsRuntime",
+    "autoload": false
+  },
+  {
     "id": "support:creature-type-catalog",
     "kind": "support",
     "path": "js/creature-type-catalog.js",
@@ -159,7 +172,7 @@
     "dependsOn": [
       "support:creature-type-catalog",
       "support:fighting-style-runtime",
-      "support:spellcasting-runtime"
+      "support:caster-spellcasting-traits-runtime"
     ],
     "globalName": "LuminousRangerClassRuntime"
   },
