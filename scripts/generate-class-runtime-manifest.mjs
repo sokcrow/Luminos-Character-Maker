@@ -80,6 +80,15 @@ const SUPPORT = [
     globalName: "LuminousUniversalSpeedRuntime",
     autoload: false,
   },
+  {
+    id: "support:weapon-property-runtime",
+    kind: "support",
+    path: "js/weapon-property-runtime.js",
+    contexts: ["any"],
+    dependsOn: [],
+    globalName: "LuminousWeaponPropertyRuntime",
+    autoload: false,
+  },
 ];
 
 const LEGACY_PRIMARY = [
@@ -94,6 +103,7 @@ const LEGACY_PRIMARY = [
 
 const DEPENDENCY_OVERRIDES = new Map([
   ["class:fighter", ["support:fighting-style-runtime", "support:universal-action-economy"]],
+  ["class:monk", ["support:weapon-property-runtime"]],
   ["class:ranger", ["support:creature-type-catalog", "support:fighting-style-runtime", "support:caster-spellcasting-traits-runtime"]],
   ["class:sorcerer", ["support:spellcasting-runtime", "support:universal-speed-runtime"]],
   ["archetype:battle-master", ["support:player-archetype-runtime-core", "support:fighter-maneuver-catalog"]],
