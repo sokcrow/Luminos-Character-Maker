@@ -14,6 +14,8 @@
   const Ranged = global.LuminousRangedWeaponComponentCatalog || safeRequire("./item-catalog-ranged-weapon-components.js");
   const Melee = global.LuminousWeaponComponentCatalog || safeRequire("./item-catalog-weapon-components.js");
   const MeleeComposition = global.LuminousWeaponCompositionEngine || safeRequire("./item-weapon-composition-engine.js");
+  const MeleeUpgradeCatalog = global.LuminousWeaponUpgradeCatalog || safeRequire("./item-catalog-weapon-upgrades.js");
+  const RangedUpgradeCatalog = global.LuminousRangedWeaponUpgradeCatalog || safeRequire("./item-catalog-ranged-weapon-upgrades.js");
   if (!Ranged || !Melee || !MeleeComposition) throw new Error("Ranged, melee component, and melee composition catalogs are required.");
 
   const VERSION = 1;
@@ -136,8 +138,20 @@
     return roundAhn(input * Number(multiplier || 1));
   }
 
+  function componentUpgradeWeightMultiplier(row = {}) {
+    const catalog = normalizeId(row.source) === "melee" ? MeleeUpgradeCatalog : RangedUpgradeCatalog;
+    const ids = row.upgradeIds || row.upgrades || row.installedUpgrades || [];
+    let multiplier = 1;
+    for (const entry of Array.isArray(ids) ? ids : []) {
+      const id = normalizeId(typeof entry === "string" ? entry : entry?.id);
+      const def = catalog?.get?.(id) || (typeof entry === "object" ? entry : null);
+      multiplier *= Number(def?.weightMultiplier ?? 1);
+    }
+    return Number.isFinite(multiplier) && multiplier > 0 ? multiplier : 1;
+  }
+
   function weightScoreFromComponents(rows) {
-    return (rows || []).reduce((sum,row) => sum + Number(row.weightScore || 0) * Math.max(1,Number(row.quantity || 1)),0);
+    return (rows || []).reduce((sum,row) => sum + Number(row.weightScore || 0) * componentUpgradeWeightMultiplier(row) * Math.max(1,Number(row.quantity || 1)),0);
   }
 
   function referenceWeightScoreFromComponents(rows) {
@@ -224,7 +238,7 @@
 
   const API = Object.freeze({
     VERSION,DEFAULT_QUALITY,CHASSIS,REFERENCE_BUILDS,AMMO_RECIPES,REFERENCE_AMMO,CHASSIS_PROPERTIES,propertiesForChassis,normalizeId,getChassis,listChassis,getAmmo,listAmmo,
-    resolveAmmo,referenceBuild,durabilityFromComponents,productionFromComponents,weightScoreFromComponents,referenceWeightScoreFromComponents,weightState,
+    resolveAmmo,referenceBuild,durabilityFromComponents,productionFromComponents,componentUpgradeWeightMultiplier,weightScoreFromComponents,referenceWeightScoreFromComponents,weightState,
     resolveDurabilityBreak:MeleeComposition.resolveDurabilityBreak,repairState:MeleeComposition.repairState,canUpgrade:MeleeComposition.canUpgrade,
   });
 
