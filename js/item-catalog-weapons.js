@@ -22,6 +22,147 @@
     return String(value ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
   }
 
+  const BASE_WEAPON_PROPERTIES = Object.freeze({
+  club: [
+    "light"
+  ],
+  dagger: [
+    "finesse",
+    "light",
+    "thrown"
+  ],
+  greatclub: [
+    "two_handed"
+  ],
+  handaxe: [
+    "light",
+    "thrown"
+  ],
+  javelin: [
+    "thrown"
+  ],
+  light_hammer: [
+    "light",
+    "thrown"
+  ],
+  mace: [],
+  quarterstaff: [
+    "versatile"
+  ],
+  sickle: [
+    "light"
+  ],
+  spear: [
+    "thrown",
+    "versatile"
+  ],
+  light_crossbow: [
+    "ammunition",
+    "loading",
+    "two_handed"
+  ],
+  dart: [
+    "finesse",
+    "thrown"
+  ],
+  shortbow: [
+    "ammunition",
+    "two_handed"
+  ],
+  sling: [
+    "ammunition"
+  ],
+  battleaxe: [
+    "versatile"
+  ],
+  flail: [],
+  glaive: [
+    "heavy",
+    "reach",
+    "two_handed"
+  ],
+  greataxe: [
+    "heavy",
+    "two_handed"
+  ],
+  greatsword: [
+    "heavy",
+    "two_handed"
+  ],
+  halberd: [
+    "heavy",
+    "reach",
+    "two_handed"
+  ],
+  lance: [
+    "reach"
+  ],
+  longsword: [
+    "versatile"
+  ],
+  maul: [
+    "heavy",
+    "two_handed"
+  ],
+  morningstar: [],
+  pike: [
+    "heavy",
+    "reach",
+    "two_handed"
+  ],
+  rapier: [
+    "finesse"
+  ],
+  scimitar: [
+    "finesse",
+    "light"
+  ],
+  shortsword: [
+    "finesse",
+    "light"
+  ],
+  trident: [
+    "thrown",
+    "versatile"
+  ],
+  war_pick: [],
+  warhammer: [
+    "versatile"
+  ],
+  whip: [
+    "finesse",
+    "reach"
+  ],
+  blowgun: [
+    "ammunition",
+    "loading"
+  ],
+  hand_crossbow: [
+    "ammunition",
+    "light",
+    "loading"
+  ],
+  heavy_crossbow: [
+    "ammunition",
+    "heavy",
+    "loading",
+    "two_handed"
+  ],
+  longbow: [
+    "ammunition",
+    "heavy",
+    "two_handed"
+  ],
+  net: [
+    "thrown"
+  ]
+});
+
+  function propertiesForWeapon(id, explicit) {
+    const source = Array.isArray(explicit) ? explicit : (BASE_WEAPON_PROPERTIES[normalizeId(id)] || []);
+    return [...new Set(source.map(normalizeId).filter(Boolean))];
+  }
+
   const QUALITY_ORDER = Object.freeze(["ruined", "poor", "standard", "fine", "exceptional"]);
   const QUALITY = Object.freeze({
     ruined: Object.freeze({ id: "ruined", valueMultiplier: 0.20, improvised: true, destroyAtZero: true }),
@@ -102,8 +243,9 @@
       materialDurabilityModifierStatus: MATERIAL_DURABILITY_STATUS,
       equipment: Object.freeze({ handCost }),
       handCost,
+      properties: Object.freeze(propertiesForWeapon(id, def.properties)),
       recipe: recipeFor(id, def.recipeProfile),
-      tags: Object.freeze(["weapon", "equipment", normalizeId(def.classification), normalizeId(def.weaponFamily), normalizeId(def.iconFamily)]),
+      tags: Object.freeze(["weapon", "equipment", normalizeId(def.classification), normalizeId(def.weaponFamily), normalizeId(def.iconFamily), ...propertiesForWeapon(id, def.properties)]),
     });
   }
 
