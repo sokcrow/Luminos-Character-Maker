@@ -15,6 +15,7 @@ on:
       - "js/class-milestone-engine.js"
       - "js/dm-player-class-milestones.js"
       - "tests/ranger-class-runtime-smoke.mjs"
+      - "tests/bilgewater-marksman-archetype-runtime-smoke.cjs"
       - "tests/fighter-class-runtime-smoke.mjs"
       - "js/class-status-semantics.js"
       - "js/caster-spellcasting-traits-runtime.js"
@@ -41,6 +42,7 @@ on:
       - "js/dm-player-class-milestones.js"
       - "tests/fighting-style-runtime-smoke.mjs"
       - "tests/ranger-class-runtime-smoke.mjs"
+      - "tests/bilgewater-marksman-archetype-runtime-smoke.cjs"
       - "tests/fighter-class-runtime-smoke.mjs"
       - "js/class-status-semantics.js"
       - "js/caster-spellcasting-traits-runtime.js"
@@ -75,6 +77,9 @@ jobs:
       - run: node --check js/class-status-semantics.js
       - run: node tests/fighter-class-runtime-smoke.mjs
       - run: node tests/ranger-class-runtime-smoke.mjs
+      - run: node --check js/bilgewater-marksman-archetype-runtime.js
+      - run: node --check js/bilgewater-marksman-combat-runtime.js
+      - run: node tests/bilgewater-marksman-archetype-runtime-smoke.cjs
       - run: node --check js/player-archetype-runtime.js
       - run: node --check js/archetype-combat-event-runtime.js
       - run: node --check js/status-engine.js
