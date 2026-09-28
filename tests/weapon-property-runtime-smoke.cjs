@@ -14,6 +14,18 @@ const { pathToFileURL } = require("node:url");
   const dagger = { properties:["light","finesse","thrown"], handMode:"one_handed" };
   assert.deepEqual(runtime.resolveWeaponProperties(dagger).sort(), ["finesse","light","thrown"].sort());
 
+  const neutralizedDagger = { properties:["light","finesse","thrown"], weightClass:"neutral", handMode:"one_handed" };
+  assert.deepEqual(runtime.resolveWeaponProperties(neutralizedDagger).sort(), ["finesse","thrown"].sort());
+
+  const materialHeavyLongsword = { properties:["versatile"], weightClass:"heavy", handMode:"versatile" };
+  assert.equal(runtime.hasProperty(materialHeavyLongsword, "heavy"), true);
+
+  const propertyRemoval = {
+    properties:["light","finesse"],
+    components:[{ upgrades:[{ id:"custom_balance", removeProperties:["light"] }] }],
+  };
+  assert.deepEqual(runtime.resolveWeaponProperties(propertyRemoval), ["finesse"]);
+
   const greatsword = { properties:["heavy"], handMode:"two_handed" };
   assert.equal(runtime.hasProperty(greatsword, "two_handed"), true);
   assert.equal(runtime.equipmentCompatibility(greatsword, { shield:{id:"shield"} }).valid, false);
