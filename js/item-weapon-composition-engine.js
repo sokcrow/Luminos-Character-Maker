@@ -323,7 +323,6 @@
       semanticCheck:def.semanticCheck,
       handMode:validation.handMode,
       handCost:validation.handCost,
-      properties:propertiesForChassis("custom", validation.handMode, craft.properties),
       properties:propertiesForChassis(def.id, validation.handMode, def.properties),
       damageType:def.damageType,
       iconFamily:def.iconFamily,
@@ -385,6 +384,7 @@
       productionValueAhn:productionValueFromComponents(instances, Number(craft.assemblyMultiplier || 1.30)),
       handMode:validation.handMode,
       handCost:validation.handCost,
+      properties:propertiesForChassis("custom", validation.handMode, craft.properties),
       craftAdjustment:quality.adjustment,
       upgradeEligible:maxDurability > 0,
     });
@@ -432,7 +432,7 @@
   const API = Object.freeze({
     VERSION, DEFAULT_QUALITY, QUALITY_ORDER, QUALITY_SCORE,
     IMPROVISED_DAMAGE_MULTIPLIER, BASE_SKILL_DURABILITY_LOSS, UPGRADE_MIN_DURABILITY_RATIO_EXCLUSIVE,
-    CHASSIS, REFERENCE_BUILDS, normalizeId, getChassis, listChassis,
+    CHASSIS, CHASSIS_PROPERTIES, REFERENCE_BUILDS, propertiesForChassis, normalizeId, getChassis, listChassis,
     craftAdjustment, compositionQuality, craftedQuality, resolveHandMode, validateAssembly,
     durabilityFromComponents, productionValueFromComponents, referenceBuild, resolveCanonicalBuild, resolveCustomAssembly,
     degradeQuality, resolveDurabilityBreak, repairState, durabilityLossForSkill, canUpgrade, improvisedDamage,
