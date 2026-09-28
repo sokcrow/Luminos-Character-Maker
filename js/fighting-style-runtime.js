@@ -108,6 +108,45 @@
   }
   function hasStyle(character, style) { return selectedStyles(character).includes(styleId(style)); }
   function resolveSelectedTraits(character, options = {}) { return selectedStyles(character).filter((id) => !options.classId || isAllowed(id, options.classId)).map((id) => asTrait(id, options.source || (options.classId ? { type: "class", id: options.classId, classId: options.classId } : {}))); }
+  function applyChoice(character = {}, classId, style) {
+    const id = styleId(style), classKey = normalizeId(classId), feature = classFeature(classKey);
+    if (!feature) return { success: false, reason: "class_has_no_fighting_style_feature", classId: classKey, styleId: id };
+    if (!isAllowed(id, classKey)) return { success: false, reason: "fighting_style_not_available_to_class", classId: classKey, styleId: id, options: feature.styles.slice() };
+    const current = selectedStyles(character);
+    if (current.includes(id)) return { success: false, reason: "duplicate_fighting_style", classId: classKey, styleId: id, styles: current };
+    const classLevelEntry = (Array.isArray(character.classes) ? character.classes : character.characterBuild?.classes || []).find((entry) => normalizeId(entry?.classId || entry?.id || entry?.name) === classKey);
+    const classLevel = Number(classLevelEntry?.levels ?? classLevelEntry?.level ?? 0);
+    if (Number.isFinite(classLevel) && classLevel < feature.limbusUnlockLevel) return { success: false, reason: "fighting_style_locked", classId: classKey, styleId: id, requiredLevel: feature.limbusUnlockLevel, classLevel };
+    if (!Array.isArray(character.fightingStyles)) character.fightingStyles = current.slice();
+    character.fightingStyles.push(id);
+    if (!character.traitChoices || typeof character.traitChoices !== "object" || Array.isArray(character.traitChoices)) character.traitChoices = {};
+    if (!character.traitChoices.fighting_style || typeof character.traitChoices.fighting_style !== "object" || Array.isArray(character.traitChoices.fighting_style)) character.traitChoices.fighting_style = {};
+    character.traitChoices.fighting_style[classKey] = id;
+    return { success: true, classId: classKey, styleId: id, traitId: traitId(id), styles: selectedStyles(character) };
+  }
+
+  function wrapTraitEngine() {
+    const engine = global.LuminousTraitEngine || (typeof require === "function" ? (() => { try { return require("./trait-engine.js"); } catch (_) { return null; } })() : null);
+    if (!engine) return false;
+    if (engine.__fightingStyles2014Integrated) return true;
+    const originalResolve = engine.resolveTraitGrants?.bind(engine);
+    if (!originalResolve) return false;
+    global.LuminousTraitEngine = Object.freeze({
+      ...engine,
+      __fightingStyles2014Integrated: true,
+      resolveTraitGrants(character = {}, grants = [], definitions = {}) {
+        const base = originalResolve(character, grants, definitions) || [];
+        const chosen = resolveSelectedTraits(character);
+        const byId = new Map();
+        [...base, ...chosen].forEach((trait) => {
+          const id = normalizeId(trait?.id || trait?.name);
+          if (id && !byId.has(id)) byId.set(id, trait);
+        });
+        return [...byId.values()];
+      },
+    });
+    return true;
+  }
 
   function wrapCoreCatalog() {
     const core = global.LuminousTraitCatalogCore; if (!core) return false; if (core.__fightingStyles2014Integrated) return true;
@@ -141,8 +180,8 @@
     return { used: true, available: true, styleId: "protection", traitId: traitId("protection"), actionCost: "reaction", finalPowerModifier: -2, spent, outcome: { type: "fighting_style_protection", finalPowerModifier: -2, duration: "this_attack" } };
   }
 
-  function install() { return wrapCoreCatalog(); }
-  const API = Object.freeze({ VERSION, catalog: CATALOG, selectedStyles, hasStyle, resolveSelectedTraits, wrapCoreCatalog, hasShield, canUseProtection, useProtection, install });
+  function install() { const catalogReady = wrapCoreCatalog(); const engineReady = wrapTraitEngine(); return catalogReady && engineReady; }
+  const API = Object.freeze({ VERSION, catalog: CATALOG, selectedStyles, hasStyle, resolveSelectedTraits, applyChoice, wrapTraitEngine, wrapCoreCatalog, hasShield, canUseProtection, useProtection, install });
   global.LuminousFightingStyleRuntime = API;
   const installed = install();
   if (!installed && global.document && global.setInterval) { const timer = global.setInterval(() => { if (install()) global.clearInterval?.(timer); }, 500); }
