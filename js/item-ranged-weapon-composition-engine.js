@@ -31,12 +31,60 @@
     return Object.freeze({slot:normalizeId(slotId),quantity,requirements:Object.freeze((requirements || []).map(normalizeId)),referenceMaterialId:normalizeId(referenceMaterialId),componentId:normalizeId(componentId)});
   }
 
+  const CHASSIS_PROPERTIES = Object.freeze({
+  light_crossbow: [
+    "ammunition",
+    "loading",
+    "two_handed"
+  ],
+  dart: [
+    "finesse",
+    "thrown"
+  ],
+  shortbow: [
+    "ammunition",
+    "two_handed"
+  ],
+  sling: [
+    "ammunition"
+  ],
+  blowgun: [
+    "ammunition",
+    "loading"
+  ],
+  hand_crossbow: [
+    "ammunition",
+    "light",
+    "loading"
+  ],
+  heavy_crossbow: [
+    "ammunition",
+    "heavy",
+    "loading",
+    "two_handed"
+  ],
+  longbow: [
+    "ammunition",
+    "heavy",
+    "two_handed"
+  ],
+  net: [
+    "thrown"
+  ]
+});
+
+  function propertiesForChassis(id, handMode, explicit) {
+    const base = Array.isArray(explicit) ? explicit : (CHASSIS_PROPERTIES[normalizeId(id)] || []);
+    const derived = normalizeId(handMode) === "two_handed" ? ["two_handed"] : normalizeId(handMode) === "versatile" ? ["versatile"] : [];
+    return Object.freeze([...new Set([...base, ...derived].map(normalizeId).filter(Boolean))]);
+  }
+
   function chassis(def) {
     return Object.freeze({
       id:normalizeId(def.id), name:def.name, classification:normalizeId(def.classification), primaryComponentId:normalizeId(def.primaryComponentId),
       components:Object.freeze(def.components.slice()), baseThreshold:Number(def.baseThreshold), assemblyMultiplier:Number(def.assemblyMultiplier),
       requiredToolType:normalizeId(def.requiredToolType), semanticCheck:normalizeId(def.semanticCheck), iconFamily:normalizeId(def.iconFamily),
-      handMode:normalizeId(def.handMode), handCost:Number(def.handCost), controlOnly:!!def.controlOnly, ammoRecipeId:normalizeId(def.ammoRecipeId || ""),
+      handMode:normalizeId(def.handMode), handCost:Number(def.handCost), properties:propertiesForChassis(def.id, def.handMode, def.properties), controlOnly:!!def.controlOnly, ammoRecipeId:normalizeId(def.ammoRecipeId || ""),
     });
   }
 
@@ -89,12 +137,12 @@
     if (!def) return null;
     if (def.ammoRecipeId) {
       const ammo = resolveAmmo(def.ammoRecipeId);
-      return Object.freeze({valid:true,chassisId:def.id,name:def.name,classification:def.classification,primaryComponentId:def.primaryComponentId,components:ammo.components,maxDurability:ammo.structuralDurability,productionValueAhn:ammo.unitProductionValueAhn,baseThreshold:def.baseThreshold,assemblyMultiplier:def.assemblyMultiplier,requiredToolType:def.requiredToolType,semanticCheck:def.semanticCheck,handMode:def.handMode,handCost:def.handCost,iconFamily:def.iconFamily,recoverable:ammo.recoverable,repairable:ammo.repairable});
+      return Object.freeze({valid:true,chassisId:def.id,name:def.name,classification:def.classification,primaryComponentId:def.primaryComponentId,components:ammo.components,maxDurability:ammo.structuralDurability,productionValueAhn:ammo.unitProductionValueAhn,baseThreshold:def.baseThreshold,assemblyMultiplier:def.assemblyMultiplier,requiredToolType:def.requiredToolType,semanticCheck:def.semanticCheck,handMode:def.handMode,handCost:def.handCost,properties:propertiesForChassis(def.id,def.handMode,def.properties),iconFamily:def.iconFamily,recoverable:ammo.recoverable,repairable:ammo.repairable});
     }
     const rows = def.components.map(resolveReferenceComponent);
     if (rows.some((row) => !row?.valid)) return Object.freeze({valid:false,chassisId:def.id,reason:"component_resolution_failed"});
     const primary = rows.find((row) => normalizeId(row.componentId) === def.primaryComponentId);
-    return Object.freeze({valid:true,chassisId:def.id,name:def.name,classification:def.classification,primaryComponentId:def.primaryComponentId,primaryMaterialId:primary?.primaryMaterial?.materialId || null,components:Object.freeze(rows),maxDurability:durabilityFromComponents(rows),productionValueAhn:productionFromComponents(rows,def.assemblyMultiplier),baseThreshold:def.baseThreshold,assemblyMultiplier:def.assemblyMultiplier,requiredToolType:def.requiredToolType,semanticCheck:def.semanticCheck,handMode:def.handMode,handCost:def.handCost,iconFamily:def.iconFamily,controlOnly:def.controlOnly,recoverable:def.id === "net",repairable:true});
+    return Object.freeze({valid:true,chassisId:def.id,name:def.name,classification:def.classification,primaryComponentId:def.primaryComponentId,primaryMaterialId:primary?.primaryMaterial?.materialId || null,components:Object.freeze(rows),maxDurability:durabilityFromComponents(rows),productionValueAhn:productionFromComponents(rows,def.assemblyMultiplier),baseThreshold:def.baseThreshold,assemblyMultiplier:def.assemblyMultiplier,requiredToolType:def.requiredToolType,semanticCheck:def.semanticCheck,handMode:def.handMode,handCost:def.handCost,properties:propertiesForChassis(def.id,def.handMode,def.properties),iconFamily:def.iconFamily,controlOnly:def.controlOnly,recoverable:def.id === "net",repairable:true});
   }
 
   function normalizeMaterialChoice(choice, fallbackId) {
@@ -139,7 +187,7 @@
   const REFERENCE_AMMO = Object.freeze(Object.fromEntries(AMMO_RECIPES.map((entry) => [entry.id, resolveAmmo(entry.id)])));
 
   const API = Object.freeze({
-    VERSION,DEFAULT_QUALITY,CHASSIS,REFERENCE_BUILDS,AMMO_RECIPES,REFERENCE_AMMO,normalizeId,getChassis,listChassis,getAmmo,listAmmo,
+    VERSION,DEFAULT_QUALITY,CHASSIS,REFERENCE_BUILDS,AMMO_RECIPES,REFERENCE_AMMO,CHASSIS_PROPERTIES,propertiesForChassis,normalizeId,getChassis,listChassis,getAmmo,listAmmo,
     resolveAmmo,referenceBuild,durabilityFromComponents,productionFromComponents,
     resolveDurabilityBreak:MeleeComposition.resolveDurabilityBreak,repairState:MeleeComposition.repairState,canUpgrade:MeleeComposition.canUpgrade,
   });
