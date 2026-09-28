@@ -7,7 +7,7 @@ const { pathToFileURL } = require("node:url");
 
   delete globalThis.LuminousBilgewaterDemolisherArchetypeRuntime;
   delete globalThis.LuminousBilgewaterDemolisherCombatRuntime;
-  delete globalThis.__luminousBilgewaterMarksmanCombatBridgeState;
+  delete globalThis.__luminousBilgewaterDemolisherCombatBridgeState;
 
   globalThis.LuminousArchetypeEngine = Object.freeze({
     getClassLevel(character, classId) {
