@@ -23,6 +23,8 @@
   const BASE_SKILL_DURABILITY_LOSS = 1;
   const UPGRADE_MIN_DURABILITY_RATIO_EXCLUSIVE = 0.50;
   const WEIGHT_CLASS_ORDER = Object.freeze(["light","neutral","heavy"]);
+  const LIGHT_MAX_REFERENCE_WEIGHT = 2.00;
+  const HEAVY_MIN_REFERENCE_WEIGHT = 4.00;
 
   function clone(value) { return value == null ? value : JSON.parse(JSON.stringify(value)); }
   function normalizeId(value) { return Components.normalizeId(value); }
@@ -186,8 +188,18 @@
     return "neutral";
   }
 
-  function baseWeightClass(properties = [], primaryDef = null) {
-    if (primaryDef && typeof primaryDef === "object") return geometryBaseWeightClass(primaryDef);
+  function referenceWeightClass(referenceWeightScore, primaryDef = {}) {
+    const score = Number(referenceWeightScore);
+    if (Number.isFinite(score) && score > 0) {
+      if (score <= LIGHT_MAX_REFERENCE_WEIGHT) return "light";
+      if (score >= HEAVY_MIN_REFERENCE_WEIGHT) return "heavy";
+      return "neutral";
+    }
+    return geometryBaseWeightClass(primaryDef);
+  }
+
+  function baseWeightClass(properties = [], primaryDef = null, referenceWeightScore = null) {
+    if (primaryDef && typeof primaryDef === "object") return referenceWeightClass(referenceWeightScore, primaryDef);
     const values = new Set((properties || []).map(normalizeId));
     if (values.has("light")) return "light";
     if (values.has("heavy")) return "heavy";
@@ -202,8 +214,8 @@
     return Object.freeze({ min, max });
   }
 
-  function resolveWeightClass(properties = [], ratio = 1, primaryDef = {}, handMode = "one_handed") {
-    const base = geometryBaseWeightClass(primaryDef);
+  function resolveWeightClass(properties = [], ratio = 1, primaryDef = {}, handMode = "one_handed", referenceWeightScore = null) {
+    const base = referenceWeightClass(referenceWeightScore, primaryDef);
     const tier = weightTier(ratio);
     const shift = tier < 0 ? -1 : tier > 0 ? 1 : 0;
     const bounds = weightClassBounds(primaryDef, handMode);
@@ -388,7 +400,7 @@
     const weightScore = weightScoreFromComponents(instances);
     const referenceWeightScore = referenceWeightScoreFromComponents(instances);
     const weightRatio = referenceWeightScore > 0 ? weightScore / referenceWeightScore : 1;
-    const weight = resolveWeightClass(def.properties, weightRatio, Components.get(def.primaryComponentId), validation.handMode);
+    const weight = resolveWeightClass(def.properties, weightRatio, Components.get(def.primaryComponentId), validation.handMode, referenceWeightScore);
     return Object.freeze({
       valid:true,
       chassisId:def.id,
@@ -467,7 +479,7 @@
     const referenceWeightScore = referenceWeightScoreFromComponents(instances);
     const weightRatio = referenceWeightScore > 0 ? weightScore / referenceWeightScore : 1;
     const baseProperties = Array.isArray(craft.properties) ? craft.properties : [];
-    const weight = resolveWeightClass(baseProperties, weightRatio, primaryDef, validation.handMode);
+    const weight = resolveWeightClass(baseProperties, weightRatio, primaryDef, validation.handMode, referenceWeightScore);
     return Object.freeze({
       valid:true,
       chassisId:"custom",
@@ -537,9 +549,9 @@
   const API = Object.freeze({
     VERSION, DEFAULT_QUALITY, QUALITY_ORDER, QUALITY_SCORE,
     IMPROVISED_DAMAGE_MULTIPLIER, BASE_SKILL_DURABILITY_LOSS, UPGRADE_MIN_DURABILITY_RATIO_EXCLUSIVE,
-    CHASSIS, CHASSIS_PROPERTIES, REFERENCE_BUILDS, WEIGHT_CLASS_ORDER, propertiesForChassis, normalizeId, getChassis, listChassis,
+    CHASSIS, CHASSIS_PROPERTIES, REFERENCE_BUILDS, WEIGHT_CLASS_ORDER, LIGHT_MAX_REFERENCE_WEIGHT, HEAVY_MIN_REFERENCE_WEIGHT, propertiesForChassis, normalizeId, getChassis, listChassis,
     craftAdjustment, compositionQuality, craftedQuality, resolveHandMode, validateAssembly,
-    weightTier, componentUpgradeWeightMultiplier, weightScoreFromComponents, referenceWeightScoreFromComponents, geometryBaseWeightClass, baseWeightClass, weightClassBounds, resolveWeightClass,
+    weightTier, componentUpgradeWeightMultiplier, weightScoreFromComponents, referenceWeightScoreFromComponents, geometryBaseWeightClass, referenceWeightClass, baseWeightClass, weightClassBounds, resolveWeightClass,
     durabilityFromComponents, productionValueFromComponents, referenceBuild, resolveCanonicalBuild, resolveCustomAssembly,
     degradeQuality, resolveDurabilityBreak, repairState, durabilityLossForSkill, canUpgrade, improvisedDamage,
   });
