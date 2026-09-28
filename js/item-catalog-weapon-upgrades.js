@@ -49,6 +49,7 @@
       mitigationChannel: normalizeId(def.mitigationChannel || ""),
       addSurfaces: arr(def.addSurfaces),
       addProperties: arr(def.addProperties),
+      removeProperties: arr(def.removeProperties),
       notes: def.notes || "",
     });
   }
