@@ -1,0 +1,54 @@
+name: One-shot vendor chocolate and donut icons
+
+on:
+  push:
+    branches:
+      - feat/food-donuts-chocolate
+    paths:
+      - ".github/workflows/vendor-food-donuts-chocolate-once.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  vendor:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout food branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/food-donuts-chocolate
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Vendor local PNG assets
+        run: node scripts/vendor-food-donuts-chocolate-once.mjs
+
+      - name: Validate chocolate processing
+        run: node tests/item-processing-engine-smoke.cjs
+
+      - name: Validate recipe resolver
+        run: node tests/item-cooking-recipe-resolver-smoke.cjs
+
+      - name: Validate recipe catalog
+        run: node tests/item-cooking-recipe-catalog-smoke.cjs
+
+      - name: Validate icon registry
+        run: node tests/item-icon-registry-smoke.cjs
+
+      - name: Validate local item assets
+        run: node tests/item-icon-assets-smoke.cjs
+
+      - name: Remove one-shot tooling and commit result
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/vendor-food-donuts-chocolate-once.yml scripts/vendor-food-donuts-chocolate-once.mjs
+          git add -A
+          git commit -m "feat(food): vendor chocolate and donut assets"
+          git push origin HEAD:feat/food-donuts-chocolate
