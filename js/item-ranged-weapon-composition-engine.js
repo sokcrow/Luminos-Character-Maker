@@ -172,7 +172,7 @@
     const weightScore = weightScoreFromComponents(rows);
     const referenceWeightScore = referenceWeightScoreFromComponents(rows);
     const weightRatio = referenceWeightScore > 0 ? weightScore / referenceWeightScore : 1;
-    const resolved = MeleeComposition.resolveWeightClass(def.properties, weightRatio, primaryDefinition(def), def.handMode);
+    const resolved = MeleeComposition.resolveWeightClass(def.properties, weightRatio, primaryDefinition(def), def.handMode, referenceWeightScore);
     return Object.freeze({ ...resolved, weightScore, referenceWeightScore, weightRatio });
   }
 
