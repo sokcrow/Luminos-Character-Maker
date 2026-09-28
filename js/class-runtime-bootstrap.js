@@ -73,11 +73,6 @@
         "js/class-runtime-manifest.js",
         () => Boolean(global.LuminousClassRuntimeManifest),
       );
-      await ensureScript(
-        "fighting-style-runtime-script",
-        "js/fighting-style-runtime.js",
-        () => Boolean(global.LuminousFightingStyleRuntime && global.LuminousFightingStyleCatalog),
-      );
       const registry = global.LuminousClassRuntimeRegistry;
       const manifest = global.LuminousClassRuntimeManifest;
       if (!registry || !manifest) throw new Error("Class Runtime Bootstrap: registry or manifest is unavailable.");
