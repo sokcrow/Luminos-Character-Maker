@@ -67,7 +67,7 @@
       inputPlan: { requirements: [{ id: "source", units: 1 }] } }),
     template({ id: "chocolate_chips", methodId: "chop", priority: 140, outputUnits: 2, tasteDelta: 0, productionMultiplier: 1.05,
       outputId: "chocolate_chips", outputForm: "chocolate_chips",
-      inputPlan: { requirements: [{ id: "chocolate", units: 1, selector: { anyTags: ["chocolate"], anyForms: ["chocolate"], excludeTags: ["chocolate_source"] } }] },
+      inputPlan: { requirements: [{ id: "chocolate", units: 1, selector: { anyTags: ["chocolate"], anyForms: ["chocolate"] } }] },
       notes: "Portion prepared chocolate into baking chips; raw cacao never matches this template." }),
     template({ id: "chop", methodId: "chop", outputUnits: 1, tasteDelta: 0, productionMultiplier: 1.00,
       inputPlan: { requirements: [{ id: "source", units: 1 }] } }),
