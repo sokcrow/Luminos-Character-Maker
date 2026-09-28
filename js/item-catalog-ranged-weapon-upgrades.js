@@ -31,7 +31,7 @@
       id:normalizeId(def.id), name:def.name, scope, category:normalizeId(def.category), group:normalizeId(def.group || def.category), tier:normalizeId(def.tier || "standard"),
       slotCost:Number(def.slotCost || 1), compatibleComponentIds:arr(def.compatibleComponentIds), requiredSkillTags:arr(def.requiredSkillTags), forbiddenSkillTags:arr(def.forbiddenSkillTags),
       damageType:normalizeId(def.damageType || ""), damagePercent, ammoPowerPercent, clashPercent:Number(def.clashPercent || 0), controlPercent:Number(def.controlPercent || 0), stabilityPercent:Number(def.stabilityPercent || 0),
-      statusType,statusAxis,statusDelta:Number(def.statusDelta || 0),durabilityPercent:Number(def.durabilityPercent || 0),mitigationChannel:normalizeId(def.mitigationChannel || ""),mitigationPercent:Number(def.mitigationPercent || 0),
+      statusType,statusAxis,statusDelta:Number(def.statusDelta || 0),durabilityPercent:Number(def.durabilityPercent || 0),weightMultiplier:Number(def.weightMultiplier ?? 1),mitigationChannel:normalizeId(def.mitigationChannel || ""),mitigationPercent:Number(def.mitigationPercent || 0),
       addProperties:arr(def.addProperties), removeProperties:arr(def.removeProperties), notes:def.notes || "",
     });
   }
@@ -50,7 +50,7 @@
     upgrade({id:"ammo_broadhead",name:"Broadhead",scope:"ammo",category:"damage",group:"edge_damage",compatibleComponentIds:HEAD,damageType:"slash",damagePercent:10,durabilityPercent:-10,addProperties:["edge_geometry"]}),
     upgrade({id:"ammo_razor_broadhead",name:"Razor Broadhead",scope:"ammo",category:"damage",group:"edge_damage",tier:"specialized",slotCost:2,compatibleComponentIds:HEAD,damageType:"slash",damagePercent:15,durabilityPercent:-20,addProperties:["edge_geometry"]}),
     upgrade({id:"ammo_impact_head",name:"Impact Head",scope:"ammo",category:"damage",group:"impact_damage",compatibleComponentIds:[...HEAD,...BULLET],damageType:"blunt",damagePercent:10,addProperties:["impact_geometry"]}),
-    upgrade({id:"ammo_heavy_impact_head",name:"Heavy Impact Head",scope:"ammo",category:"damage",group:"impact_damage",tier:"specialized",slotCost:2,compatibleComponentIds:[...HEAD,...BULLET],damageType:"blunt",damagePercent:15,durabilityPercent:-20,addProperties:["impact_geometry","heavy_projectile"]}),
+    upgrade({id:"ammo_heavy_impact_head",name:"Heavy Impact Head",scope:"ammo",category:"damage",group:"impact_damage",tier:"specialized",slotCost:2,compatibleComponentIds:[...HEAD,...BULLET],damageType:"blunt",damagePercent:15,durabilityPercent:-20,weightMultiplier:1.20,addProperties:["impact_geometry","heavy_projectile"]}),
 
     upgrade({id:"ammo_barbed_point",name:"Barbed Point",scope:"ammo",category:"status",group:"bleed_potency",compatibleComponentIds:HEAD,statusType:"bleed",statusAxis:"potency",statusDelta:1,durabilityPercent:-10}),
     upgrade({id:"ammo_retaining_barbs",name:"Retaining Barbs",scope:"ammo",category:"status",group:"bleed_count",compatibleComponentIds:HEAD,statusType:"bleed",statusAxis:"count",statusDelta:1,durabilityPercent:-10}),
@@ -64,8 +64,8 @@
 
     upgrade({id:"ammo_balanced_shaft",name:"Balanced Shaft",scope:"ammo",category:"handling",group:"shaft_balance",compatibleComponentIds:SHAFT,ammoPowerPercent:5}),
     upgrade({id:"ammo_reinforced_shaft",name:"Reinforced Shaft",scope:"ammo",category:"reinforcement",group:"shaft_structure",compatibleComponentIds:SHAFT,durabilityPercent:20}),
-    upgrade({id:"ammo_heavy_shaft",name:"Heavy Shaft",scope:"ammo",category:"handling",group:"shaft_balance",compatibleComponentIds:SHAFT,ammoPowerPercent:5,controlPercent:-10,addProperties:["heavy_projectile"]}),
-    upgrade({id:"ammo_light_shaft",name:"Light Shaft",scope:"ammo",category:"handling",group:"shaft_balance",compatibleComponentIds:SHAFT,ammoPowerPercent:-5,controlPercent:10,durabilityPercent:-10}),
+    upgrade({id:"ammo_heavy_shaft",name:"Heavy Shaft",scope:"ammo",category:"handling",group:"shaft_balance",compatibleComponentIds:SHAFT,ammoPowerPercent:5,controlPercent:-10,weightMultiplier:1.20,addProperties:["heavy_projectile"]}),
+    upgrade({id:"ammo_light_shaft",name:"Light Shaft",scope:"ammo",category:"handling",group:"shaft_balance",compatibleComponentIds:SHAFT,ammoPowerPercent:-5,controlPercent:10,durabilityPercent:-10,weightMultiplier:0.80}),
     upgrade({id:"ammo_stiff_shaft",name:"Stiff Shaft",scope:"ammo",category:"handling",group:"shaft_tolerance",compatibleComponentIds:SHAFT,mitigationChannel:"heavy_ammo_penalty",mitigationPercent:10}),
 
     upgrade({id:"ammo_balanced_fletching",name:"Balanced Fletching",scope:"ammo",category:"handling",group:"fletching_balance",compatibleComponentIds:FLETCH,clashPercent:10,controlPercent:10}),
