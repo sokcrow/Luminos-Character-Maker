@@ -164,7 +164,7 @@
     const core = global.LuminousTraitCatalogCore; if (!core) return false; if (core.__fightingStyles2014Integrated) return true;
     const defs = allDefinitions(), baseDefs = core.allDefinitions?.bind(core) || (() => clone(core.DEFINITIONS || {})), baseGrants = core.allGrants?.bind(core) || (() => clone(core.GRANTS || [])), baseGet = core.getDefinition?.bind(core) || (() => null);
     const mergedDefs = () => ({ ...baseDefs(), ...clone(defs) });
-    global.LuminousTraitCatalogCore = Object.freeze({ ...core, __fightingStyles2014Integrated: true, DEFINITIONS: Object.freeze(mergedDefs()), allDefinitions: mergedDefs, allGrants: baseGrants, getDefinition(id) { return clone(defs[traitId(id)] || baseGet(id)); } });
+    global.LuminousTraitCatalogCore = Object.freeze({ ...core, __fightingStyles2014Integrated: true, DEFINITIONS: Object.freeze(mergedDefs()), allDefinitions: mergedDefs, allGrants: baseGrants, getDefinition(id) { const key = normalizeId(id); return clone((key === "fighting_style" ? defs.fighting_style : defs[traitId(key)]) || baseGet(id)); } });
     return true;
   }
 
