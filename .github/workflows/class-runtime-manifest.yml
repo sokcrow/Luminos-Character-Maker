@@ -27,6 +27,8 @@ on:
       - "js/class-runtime-registry.js"
       - "js/class-runtime-manifest.js"
       - "js/class-runtime-bootstrap.js"
+      - "js/fighting-style-runtime.js"
+      - "tests/fighting-style-runtime-smoke.mjs"
       - "js/player-archetype-runtime.js"
       - "js/archetype-combat-event-runtime.js"
       - "js/status-engine.js"
