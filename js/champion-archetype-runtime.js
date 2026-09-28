@@ -121,6 +121,16 @@
     return hasChampionLevel(character, 50) ? 2 : 1;
   }
 
+  function applyAdditionalFightingStyleChoice(character = {}, styleId) {
+    if (!hasChampionLevel(character, 50)) return { success: false, reason: "additional_fighting_style_locked", requiredLevel: 50 };
+    const runtime = global.LuminousFightingStyleRuntime;
+    if (!runtime?.applyChoice) return { success: false, reason: "fighting_style_runtime_unavailable" };
+    const selected = runtime.selectedStyles?.(character) || [];
+    const maximum = fightingStyleChoiceLimit(character);
+    if (selected.length >= maximum) return { success: false, reason: "fighting_style_choice_limit", maximum, styles: selected };
+    return runtime.applyChoice(character, CLASS_ID, styleId);
+  }
+
   function physicalCheckAbility(check = {}) {
     return normalizeId(check.abilityId || check.statId || check.ability || check.stat || check.attribute);
   }
@@ -374,7 +384,7 @@
   const api = Object.freeze({
     ARCHETYPE_ID, ARCHETYPE_NAME, CLASS_ID, CLASS_NAME, ARCHETYPE, SOURCE, DEFINITIONS, GRANTS,
     fighterLevel, selectedChampion, hasChampionLevel, traitBaseId, isChampionTrait, championTraits, hasChampionTrait,
-    collapseCriticalProgression, criticalProfile, fightingStyleChoiceLimit,
+    collapseCriticalProgression, criticalProfile, fightingStyleChoiceLimit, applyAdditionalFightingStyleChoice,
     physicalCheckAbility, isPhysicalChampionCheck, applyRemarkableAthleteCheck,
     gainPoise, applySurvivor, applyChampionTurnStart, poiseSkillEffects, withAdditionalSkillPoise,
     patchArchetypeCatalog, patchCoreCatalog, patchTraitEngine, patchArchetypeRuntime, patchTheatreRolls, patchCombatEngine, watchCombatEngineAssignment, install,
