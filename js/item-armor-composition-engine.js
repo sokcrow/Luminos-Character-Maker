@@ -35,7 +35,16 @@
 
   function craftAdjustment(craftResult,threshold){const m=Number(craftResult)-Number(threshold);if(!Number.isFinite(m))return 0;if(m>=5)return 1;if(m>=0)return 0;if(m>=-4)return-1;return-2;}
   function qualityOf(rows,craftResult,threshold){let sum=0,count=0;for(const row of rows){const q=Number(row.quantity||1),s=QUALITY_SCORE[normalizeId(row.component.quality||DEFAULT_QUALITY)];if(s==null)continue;sum+=s*q;count+=q;}const base=count?sum/count:2;const baseIndex=clamp(Math.round(base),0,4),adj=craftAdjustment(craftResult,threshold);return QUALITY_ORDER[clamp(baseIndex+adj,0,4)];}
+  const ARMOR_WEIGHT_CLASSES=Object.freeze(["light","medium","heavy"]);
   function weightTier(ratio){if(!Number.isFinite(ratio)||ratio<=0)return 0;if(ratio<=0.70)return-2;if(ratio<=0.85)return-1;if(ratio<1.15)return 0;if(ratio<1.35)return 1;return 2;}
+  function resolveArmorClassification(baseClassification,ratio){
+    const base=normalizeId(baseClassification);
+    if(base==="clothing")return"clothing";
+    const index=ARMOR_WEIGHT_CLASSES.indexOf(base);
+    if(index<0)return base;
+    const tier=weightTier(ratio),shift=tier<0?-1:tier>0?1:0;
+    return ARMOR_WEIGHT_CLASSES[Math.max(0,Math.min(ARMOR_WEIGHT_CLASSES.length-1,index+shift))];
+  }
   function componentRowsForReference(chassisDef){return chassisDef.components.map((need)=>({component:Components.resolveReferenceComponent(need.componentId),quantity:need.quantity}));}
   function totalWeight(rows){return rows.reduce((a,row)=>a+Number(row.component.weightScore||0)*Number(row.quantity||1),0);}
   function requiredCountMap(chassisDef){return Object.fromEntries(chassisDef.components.map((need)=>[need.componentId,need.quantity]));}
@@ -46,18 +55,18 @@
   function assemble(chassisId,componentRows,options={}){
     const def=BY_ID[normalizeId(chassisId)];if(!def)return Object.freeze({valid:false,reason:"unknown_chassis"});
     const rows=(componentRows||[]).map((row)=>({component:row.component||row,quantity:Math.max(1,Math.trunc(row.quantity||1))}));const valid=validateAssembly(def,rows);if(!valid.valid)return Object.freeze(valid);
-    const orient=orientation(rows),referenceWeight=totalWeight(componentRowsForReference(def)),actualWeight=totalWeight(rows),ratio=referenceWeight?actualWeight/referenceWeight:1,tier=weightTier(ratio);
+    const orient=orientation(rows),referenceWeight=totalWeight(componentRowsForReference(def)),actualWeight=totalWeight(rows),ratio=referenceWeight?actualWeight/referenceWeight:1,tier=weightTier(ratio),classification=resolveArmorClassification(def.classification,ratio);
     const componentSpeed=rows.reduce((acc,row)=>({min:acc.min+Number(row.component.armorSpeedDelta?.min||0)*row.quantity,max:acc.max+Number(row.component.armorSpeedDelta?.max||0)*row.quantity}),{min:0,max:0});
     const speedMin=Number(def.weightEffect.min||0)+(tier<=-2?1:tier>=2?-1:0)+componentSpeed.min;
     const speedMax=Number(def.weightEffect.max||0)-tier+componentSpeed.max;
     const strengthTarget=clamp(def.strengthTarget+tier,0,13);
     const durability=rows.reduce((a,row)=>a+Number(row.component.durability||0)*row.quantity,0);
     const productionValueAhn=Components.roundAhn(rows.reduce((a,row)=>a+Number(row.component.productionValueAhn||0)*row.quantity,0)*def.assemblyMultiplier);
-    return Object.freeze({valid:true,itemType:"armor",chassisId:def.id,name:displayName(def,rows),classification:def.classification,isArmor:def.isArmor,iconFamily:def.iconFamily,traitId:def.traitId,quality:qualityOf(rows,options.craftResult,def.baseThreshold),baseThreshold:def.baseThreshold,assemblyMultiplier:def.assemblyMultiplier,components:Object.freeze(rows.map((r)=>Object.freeze({component:clone(r.component),quantity:r.quantity}))),orientation:orient,physicalResistanceProfile:resistanceProfile(def,orient),weightScore:actualWeight,referenceWeightScore:referenceWeight,weightRatio:ratio,weightTier:tier,weightEffect:Object.freeze({min:speedMin,max:speedMax}),strengthTarget,durability,productionValueAhn});
+    return Object.freeze({valid:true,itemType:"armor",chassisId:def.id,name:displayName(def,rows),baseClassification:def.classification,classification,isArmor:def.isArmor,iconFamily:def.iconFamily,traitId:def.traitId,quality:qualityOf(rows,options.craftResult,def.baseThreshold),baseThreshold:def.baseThreshold,assemblyMultiplier:def.assemblyMultiplier,components:Object.freeze(rows.map((r)=>Object.freeze({component:clone(r.component),quantity:r.quantity}))),orientation:orient,physicalResistanceProfile:resistanceProfile(def,orient),weightScore:actualWeight,referenceWeightScore:referenceWeight,weightRatio:ratio,weightTier:tier,weightEffect:Object.freeze({min:speedMin,max:speedMax}),strengthTarget,durability,productionValueAhn});
   }
   function resolvePreset(chassisId,plan={},options={}){const def=BY_ID[normalizeId(chassisId)];if(!def)return Object.freeze({valid:false,reason:"unknown_chassis"});const rows=[];for(const need of def.components){const choice=plan[need.componentId]||{};let component=Components.resolveComponent(need.componentId,choice.materials||choice, {quality:choice.quality||options.componentQuality||DEFAULT_QUALITY});if(choice.upgrades?.length&&UpgradeEngine)component=UpgradeEngine.apply(component,choice.upgrades);if(!component?.valid)return component;rows.push({component,quantity:need.quantity});}return assemble(def.id,rows,options);}
   function resolveReferenceArmor(chassisId,options={}){return resolvePreset(chassisId,{},options);}
-  const API=Object.freeze({VERSION,DEFAULT_QUALITY,RESISTANCE_MIN,RESISTANCE_MAX,CHASSIS,normalizeId,getChassis,listChassis,weightTier,orientation,assemble,resolvePreset,resolveReferenceArmor});
+  const API=Object.freeze({VERSION,DEFAULT_QUALITY,RESISTANCE_MIN,RESISTANCE_MAX,ARMOR_WEIGHT_CLASSES,CHASSIS,normalizeId,getChassis,listChassis,weightTier,resolveArmorClassification,orientation,assemble,resolvePreset,resolveReferenceArmor});
   global.LuminousArmorCompositionEngine=API;
   if(typeof module!=="undefined"&&module.exports)module.exports=API;
 })(typeof globalThis!=="undefined"?globalThis:window);
