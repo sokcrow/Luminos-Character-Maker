@@ -12,6 +12,7 @@
   }
 
   const Components = global.LuminousWeaponComponentCatalog || safeRequire("./item-catalog-weapon-components.js");
+  const UpgradeCatalog = global.LuminousWeaponUpgradeCatalog || safeRequire("./item-catalog-weapon-upgrades.js");
   if (!Components) throw new Error("LuminousWeaponComponentCatalog is required before LuminousWeaponCompositionEngine.");
 
   const VERSION = 1;
@@ -153,9 +154,20 @@
     return 2;
   }
 
+  function componentUpgradeWeightMultiplier(row = {}) {
+    const ids = row.upgradeIds || row.upgrades || row.installedUpgrades || [];
+    let multiplier = 1;
+    for (const entry of Array.isArray(ids) ? ids : []) {
+      const id = normalizeId(typeof entry === "string" ? entry : entry?.id);
+      const def = UpgradeCatalog?.get?.(id) || (typeof entry === "object" ? entry : null);
+      multiplier *= Number(def?.weightMultiplier ?? 1);
+    }
+    return Number.isFinite(multiplier) && multiplier > 0 ? multiplier : 1;
+  }
+
   function weightScoreFromComponents(componentInstances) {
     return (Array.isArray(componentInstances) ? componentInstances : []).reduce(
-      (sum, row) => sum + Math.max(0, Number(row.weightScore || 0)) * Math.max(1, Number(row.quantity || 1)),
+      (sum, row) => sum + Math.max(0, Number(row.weightScore || 0)) * componentUpgradeWeightMultiplier(row) * Math.max(1, Number(row.quantity || 1)),
       0
     );
   }
@@ -310,6 +322,8 @@
 
   function validateAssembly(componentInstances) {
     const rows = Array.isArray(componentInstances) ? componentInstances : [];
+    const explicitlyInvalid = rows.find((row) => row?.valid === false);
+    if (explicitlyInvalid) return Object.freeze({ valid:false, reason:"invalid_component", componentId:normalizeId(explicitlyInvalid.componentId || explicitlyInvalid.id) });
     const defs = rows.map((row) => Components.get(row.componentId || row.id)).filter(Boolean);
     if (defs.length !== rows.length || !defs.length) return Object.freeze({ valid:false, reason:"unknown_or_empty_component_set" });
 
@@ -516,7 +530,7 @@
     IMPROVISED_DAMAGE_MULTIPLIER, BASE_SKILL_DURABILITY_LOSS, UPGRADE_MIN_DURABILITY_RATIO_EXCLUSIVE,
     CHASSIS, CHASSIS_PROPERTIES, REFERENCE_BUILDS, WEIGHT_CLASS_ORDER, propertiesForChassis, normalizeId, getChassis, listChassis,
     craftAdjustment, compositionQuality, craftedQuality, resolveHandMode, validateAssembly,
-    weightTier, weightScoreFromComponents, referenceWeightScoreFromComponents, baseWeightClass, weightClassBounds, resolveWeightClass,
+    weightTier, componentUpgradeWeightMultiplier, weightScoreFromComponents, referenceWeightScoreFromComponents, baseWeightClass, weightClassBounds, resolveWeightClass,
     durabilityFromComponents, productionValueFromComponents, referenceBuild, resolveCanonicalBuild, resolveCustomAssembly,
     degradeQuality, resolveDurabilityBreak, repairState, durabilityLossForSkill, canUpgrade, improvisedDamage,
   });
