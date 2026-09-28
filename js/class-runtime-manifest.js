@@ -71,6 +71,17 @@
     "autoload": false
   },
   {
+    "id": "support:universal-action-economy",
+    "kind": "support",
+    "path": "js/universal-action-economy.js",
+    "contexts": [
+      "any"
+    ],
+    "dependsOn": [],
+    "globalName": "LuminousActionEconomy",
+    "autoload": false
+  },
+  {
     "id": "support:universal-speed-runtime",
     "kind": "support",
     "path": "js/universal-speed-runtime.js",
@@ -158,7 +169,8 @@
       "any"
     ],
     "dependsOn": [
-      "support:fighting-style-runtime"
+      "support:fighting-style-runtime",
+      "support:universal-action-economy"
     ],
     "globalName": "LuminousFighterClassRuntime"
   },
