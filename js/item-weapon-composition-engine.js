@@ -179,7 +179,15 @@
     }, 0);
   }
 
-  function baseWeightClass(properties = []) {
+  function geometryBaseWeightClass(primaryDef = {}) {
+    const size = normalizeId(primaryDef.sizeClass || "medium");
+    if (size === "small") return "light";
+    if (size === "large") return "heavy";
+    return "neutral";
+  }
+
+  function baseWeightClass(properties = [], primaryDef = null) {
+    if (primaryDef && typeof primaryDef === "object") return geometryBaseWeightClass(primaryDef);
     const values = new Set((properties || []).map(normalizeId));
     if (values.has("light")) return "light";
     if (values.has("heavy")) return "heavy";
@@ -194,7 +202,7 @@
   }
 
   function resolveWeightClass(properties = [], ratio = 1, primaryDef = {}, handMode = "one_handed") {
-    const base = baseWeightClass(properties);
+    const base = geometryBaseWeightClass(primaryDef);
     const tier = weightTier(ratio);
     const shift = tier < 0 ? -1 : tier > 0 ? 1 : 0;
     const bounds = weightClassBounds(primaryDef, handMode);
@@ -530,7 +538,7 @@
     IMPROVISED_DAMAGE_MULTIPLIER, BASE_SKILL_DURABILITY_LOSS, UPGRADE_MIN_DURABILITY_RATIO_EXCLUSIVE,
     CHASSIS, CHASSIS_PROPERTIES, REFERENCE_BUILDS, WEIGHT_CLASS_ORDER, propertiesForChassis, normalizeId, getChassis, listChassis,
     craftAdjustment, compositionQuality, craftedQuality, resolveHandMode, validateAssembly,
-    weightTier, componentUpgradeWeightMultiplier, weightScoreFromComponents, referenceWeightScoreFromComponents, baseWeightClass, weightClassBounds, resolveWeightClass,
+    weightTier, componentUpgradeWeightMultiplier, weightScoreFromComponents, referenceWeightScoreFromComponents, geometryBaseWeightClass, baseWeightClass, weightClassBounds, resolveWeightClass,
     durabilityFromComponents, productionValueFromComponents, referenceBuild, resolveCanonicalBuild, resolveCustomAssembly,
     degradeQuality, resolveDurabilityBreak, repairState, durabilityLossForSkill, canUpgrade, improvisedDamage,
   });
