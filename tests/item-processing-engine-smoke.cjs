@@ -217,7 +217,7 @@ const { pathToFileURL } = require('node:url');
   });
   const chocolateInputs = [
     { ...cacaoDef, ...cacaoStack },
-    { itemId:'sweetener-test', name:'Sweetener', recipeRoles:['sweetener'], quantity:1, unitProductionValueAhn:1200 },
+    { itemId:'sweetener-test', name:'Sweetener', recipeRoles:['sweetener'], processingTags:['sweetener','raw'], quantity:1, unitProductionValueAhn:1200 },
     { itemId:'fat-test', name:'Fat', processed:true, processedForm:'oil', processingTags:['fat','oil'], quantity:1, unitProductionValueAhn:900 },
   ];
   const chocolateRecipe = processing.buildChocolateRecipe(chocolateInputs);
