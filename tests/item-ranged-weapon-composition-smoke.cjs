@@ -44,9 +44,9 @@ const { pathToFileURL } = require('node:url');
     assert.equal(build.productionValueAhn, value, `${id} Production Value mismatch`);
   }
   assert.equal(Engine.referenceBuild('shortbow').handMode, 'two_handed');
-  assert.deepEqual(Engine.referenceBuild('shortbow').properties.sort(), ['ammunition','two_handed'].sort());
+  assert.deepEqual([...Engine.referenceBuild('shortbow').properties].sort(), ['ammunition','two_handed'].sort());
   assert.equal(Engine.referenceBuild('hand_crossbow').handMode, 'one_handed');
-  assert.deepEqual(Engine.referenceBuild('hand_crossbow').properties.sort(), ['ammunition','light','loading'].sort());
+  assert.deepEqual([...Engine.referenceBuild('hand_crossbow').properties].sort(), ['ammunition','light','loading'].sort());
   assert.equal(Engine.referenceBuild('dart').recoverable, true);
   assert.equal(Engine.referenceBuild('net').recoverable, true);
   assert.deepEqual(Engine.referenceBuild('net').properties, ['thrown']);
