@@ -35,6 +35,109 @@
     return Object.freeze({ componentId: normalizeId(componentId), quantity });
   }
 
+  const CHASSIS_PROPERTIES = Object.freeze({
+  club: [
+    "light"
+  ],
+  dagger: [
+    "finesse",
+    "light",
+    "thrown"
+  ],
+  greatclub: [
+    "two_handed"
+  ],
+  handaxe: [
+    "light",
+    "thrown"
+  ],
+  javelin: [
+    "thrown"
+  ],
+  light_hammer: [
+    "light",
+    "thrown"
+  ],
+  mace: [],
+  quarterstaff: [
+    "versatile"
+  ],
+  sickle: [
+    "light"
+  ],
+  spear: [
+    "thrown",
+    "versatile"
+  ],
+  battleaxe: [
+    "versatile"
+  ],
+  flail: [],
+  glaive: [
+    "heavy",
+    "reach",
+    "two_handed"
+  ],
+  greataxe: [
+    "heavy",
+    "two_handed"
+  ],
+  greatsword: [
+    "heavy",
+    "two_handed"
+  ],
+  halberd: [
+    "heavy",
+    "reach",
+    "two_handed"
+  ],
+  lance: [
+    "reach"
+  ],
+  longsword: [
+    "versatile"
+  ],
+  maul: [
+    "heavy",
+    "two_handed"
+  ],
+  morningstar: [],
+  pike: [
+    "heavy",
+    "reach",
+    "two_handed"
+  ],
+  rapier: [
+    "finesse"
+  ],
+  scimitar: [
+    "finesse",
+    "light"
+  ],
+  shortsword: [
+    "finesse",
+    "light"
+  ],
+  trident: [
+    "thrown",
+    "versatile"
+  ],
+  war_pick: [],
+  warhammer: [
+    "versatile"
+  ],
+  whip: [
+    "finesse",
+    "reach"
+  ]
+});
+
+  function propertiesForChassis(id, handMode, explicit) {
+    const base = Array.isArray(explicit) ? explicit : (CHASSIS_PROPERTIES[normalizeId(id)] || []);
+    const derived = normalizeId(handMode) === "two_handed" ? ["two_handed"] : normalizeId(handMode) === "versatile" ? ["versatile"] : [];
+    return Object.freeze([...new Set([...base, ...derived].map(normalizeId).filter(Boolean))]);
+  }
+
   function chassis(def) {
     return Object.freeze({
       id: normalizeId(def.id),
@@ -48,6 +151,7 @@
       semanticCheck: normalizeId(def.semanticCheck),
       damageType: normalizeId(def.damageType),
       iconFamily: normalizeId(def.iconFamily),
+      properties: Object.freeze((CHASSIS_PROPERTIES[normalizeId(def.id)] || []).slice()),
       nonRepairable: !!def.nonRepairable,
     });
   }
@@ -219,6 +323,8 @@
       semanticCheck:def.semanticCheck,
       handMode:validation.handMode,
       handCost:validation.handCost,
+      properties:propertiesForChassis("custom", validation.handMode, craft.properties),
+      properties:propertiesForChassis(def.id, validation.handMode, def.properties),
       damageType:def.damageType,
       iconFamily:def.iconFamily,
     });
@@ -247,6 +353,7 @@
       productionValueAhn:productionValueFromComponents(instances, def.assemblyMultiplier),
       baseThreshold:def.baseThreshold, craftAdjustment:quality.adjustment,
       handMode:validation.handMode, handCost:validation.handCost,
+      properties:propertiesForChassis(def.id, validation.handMode, def.properties),
       upgradeEligible:maxDurability > 0,
       damageType:def.damageType, iconFamily:def.iconFamily,
     });
