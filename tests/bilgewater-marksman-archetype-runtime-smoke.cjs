@@ -49,6 +49,7 @@ const { pathToFileURL } = require("node:url");
     },
   };
 
+  await import(pathToFileURL(path.join(root, "js/combat-skill-schema.js")).href);
   await import(pathToFileURL(path.join(root, "js/bilgewater-marksman-archetype-runtime.js")).href);
   const Runtime = globalThis.LuminousBilgewaterMarksmanArchetypeRuntime;
   assert.ok(Runtime);
@@ -76,6 +77,7 @@ const { pathToFileURL } = require("node:url");
   assert.equal(Runtime.decorateShotgunSkill(ranger, decorated).attackWeight, 2);
   assert.equal(Runtime.rangerSpellSaveDC(ranger), 17);
   assert.equal(Runtime.smokeScreenSkill(ranger).attackWeight, 3);
+  assert.equal(globalThis.CombatSkillSchema.validateCombatSkill(Runtime.smokeScreenSkill(ranger)).valid, true);
 
   const enemy = { id: "enemy_2", statusEffects: {} };
   Runtime.applySmokeScreenFailedSave(ranger, enemy);
@@ -124,6 +126,17 @@ const { pathToFileURL } = require("node:url");
     },
   };
 
+  globalThis.LuminousCombatSkillLoadout074 = Object.freeze({
+    skillIdsFor() { return ["boom"]; },
+    ownsSkill(_unit, id) { return id === "boom"; },
+    resolveSkillForCombatant(_unit, id) {
+      return id === "boom"
+        ? { ok: true, reason: null, skillId: id, skill: shotgunSkill }
+        : { ok: false, reason: "SKILL_NOT_EQUIPPED", skillId: id, skill: null };
+    },
+    skillLibrary() { return { boom: shotgunSkill }; },
+  });
+
   globalThis.LuminousCombatActionAdapters = Object.freeze({
     compileSkillToCombatAction(actor, skill) {
       return { actorId: actor.id, source: { type: "skill", id: skill.id }, targeting: { attackWeight: skill.attackWeight || 1 }, resolution: { type: "unopposed" }, metadata: { sourceDefinition: skill } };
@@ -139,6 +152,13 @@ const { pathToFileURL } = require("node:url");
   const Combat = globalThis.LuminousBilgewaterMarksmanCombatRuntime;
   assert.ok(Combat);
   Combat.install();
+
+  assert.deepEqual(globalThis.LuminousCombatSkillLoadout074.skillIdsFor(ranger), ["boom", "smoke_screen"]);
+  assert.equal(globalThis.LuminousCombatSkillLoadout074.ownsSkill(ranger, "smoke_screen"), true);
+  const grantedSmoke = globalThis.LuminousCombatSkillLoadout074.resolveSkillForCombatant(ranger, "smoke_screen");
+  assert.equal(grantedSmoke.ok, true);
+  assert.equal(grantedSmoke.skill.saveDC, 17);
+  assert.equal(globalThis.LuminousCombatSkillLoadout074.skillLibrary().smoke_screen.name, "Smoke Screen");
 
   const mods = globalThis.CombatEngine.applyPassiveModifiers(ranger, { skill: shotgunSkill });
   assert.equal(mods.damage_dealt_multiplier, 2);
