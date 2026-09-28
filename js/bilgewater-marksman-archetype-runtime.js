@@ -62,7 +62,7 @@
     tier: 1,
     basePower: 0,
     coinPower: 0,
-    coinAmount: 0,
+    coinAmount: 1,
     coinType: "standard",
     attackWeight: 3,
     atkWeight: 3,
@@ -81,7 +81,7 @@
     save: Object.freeze({ abilityId: "dex", dc: 0, onSuccess: "negates" }),
     actionCost: "action",
     effects: Object.freeze([]),
-    coins: Object.freeze([]),
+    coins: Object.freeze([{ index: 0, type: "normal", status: "active", effects: Object.freeze([]) }]),
     sourceType: "skill",
     sourceId: SMOKE_SCREEN_SKILL_ID,
     metadata: Object.freeze({
