@@ -345,7 +345,7 @@
     return entry?.recipe ? clone(entry.recipe) : null;
   }
 
-  const API = Object.freeze({ VERSION, FAMILY, CURRENCY, DEFAULT_QUALITY, PRICING_MODEL, PRICE_REFERENCE_SCOPE, IMPROVISED_THRESHOLD_PENALTY, MATERIAL_DURABILITY_STATUS, STATION_REQUIREMENTS_STATUS, QUALITY_ORDER, QUALITY, RECIPE_PROFILES, ITEMS, ALIASES, normalizeId, getQuality, get, list, getRecipe, chassisValueForQuality, maxDurability, degradeQuality, resolveDurabilityBreak, repairState });
+  const API = Object.freeze({ VERSION, FAMILY, CURRENCY, DEFAULT_QUALITY, PRICING_MODEL, PRICE_REFERENCE_SCOPE, IMPROVISED_THRESHOLD_PENALTY, MATERIAL_DURABILITY_STATUS, STATION_REQUIREMENTS_STATUS, QUALITY_ORDER, QUALITY, RECIPE_PROFILES, BASE_WEAPON_PROPERTIES, ITEMS, ALIASES, normalizeId, propertiesForWeapon, getQuality, get, list, getRecipe, chassisValueForQuality, maxDurability, degradeQuality, resolveDurabilityBreak, repairState });
   global.LuminousWeaponCatalog = API;
   if (typeof module !== "undefined" && module.exports) module.exports = API;
 })(typeof globalThis !== "undefined" ? globalThis : window);
