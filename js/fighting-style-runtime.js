@@ -61,7 +61,7 @@
     ], { requiresArmor: true }),
     dueling: def("dueling", "Dueling", "With a one-handed melee weapon and no second weapon, Melee Attack Skills deal +10% Damage. A Shield is allowed.", [damageRule([attack("melee"), mainMelee1, offNoWeapon])], { damageBonusPercent: 10, allowsShield: true }),
     great_weapon_fighting: def("great_weapon_fighting", "Great Weapon Fighting", "With a two-handed melee weapon, Melee Attack Skills deal +10% Damage.", [damageRule([attack("melee"), mainMelee2])], { damageBonusPercent: 10, requiredHands: 2 }),
-    protection: def("protection", "Protection", "Reaction — with a Shield, when a visible Ally within Range 1 is targeted by an Attack Skill, reduce that Skill's Final Power by 2 for the attack.", [],
+    protection: def("protection", "Protection", "Reaction — with a Shield, when a visible adjacent Ally is targeted by an Attack Skill, reduce that Skill's Final Power by 2 for the attack.", [],
       { trigger: "before_attack", requiresShield: true, allyRange: 1, attackFinalPowerModifier: -2, resolver: "LuminousFightingStyleRuntime.useProtection" },
       { type: "manual", actionCost: "reaction", target: "ally" }),
     two_weapon_fighting: def("two_weapon_fighting", "Two-Weapon Fighting", "With a one-handed melee weapon in each hand, Melee Attack Skills deal +10% Damage.", [damageRule([attack("melee"), dualMelee])], { damageBonusPercent: 10, requiresTwoWeapons: true }),
@@ -122,7 +122,7 @@
   function isShield(item) { const ids = [item?.category, item?.itemType, item?.kind, item?.type].map(normalizeId); return ids.includes("shield") || (item?.tags || []).map(normalizeId).includes("shield"); }
   function hasShield(unit) { const eq = equipment(unit); return Boolean(eq.shield || isShield(eq.mainHand) || isShield(eq.offHand)); }
   function attackSkill(skill = {}) { return modifiers()?.normalizeSkill?.({ ...skill }) || { ...skill, skillFamily: normalizeId(skill.skillFamily || skill.skill_family || "attack"), attackMode: normalizeId(skill.attackMode || skill.attack_mode || (skill.isRanged ? "ranged" : "melee")) }; }
-  function distance(a, b) { const pa = a?.grid_pos || a?.gridPos, pb = b?.grid_pos || b?.gridPos; if (!pa || !pb) return null; return Math.abs(Number(pa.x) - Number(pb.x)) + Math.abs(Number(pa.y) - Number(pb.y)); }
+  function distance(a, b) { const pa = a?.grid_pos || a?.gridPos, pb = b?.grid_pos || b?.gridPos; if (!pa || !pb) return null; return Math.max(Math.abs(Number(pa.x) - Number(pb.x)), Math.abs(Number(pa.y) - Number(pb.y))); }
   function same(a, b) { if (a === b) return true; const id = (x) => String(x?.id || x?.unitId || x?.characterId || ""); return Boolean(id(a) && id(a) === id(b)); }
 
   function canUseProtection(options = {}) {
