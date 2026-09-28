@@ -192,7 +192,8 @@
       "any"
     ],
     "dependsOn": [
-      "support:weapon-property-runtime"
+      "support:weapon-property-runtime",
+      "support:universal-speed-runtime"
     ],
     "globalName": "LuminousMonkClassRuntime"
   },
