@@ -98,10 +98,10 @@ const actionEconomy = {
   },
 };
 const protector = { id: "protector", fightingStyles: ["protection"], equipment: { shield, offHand: shield }, grid_pos: { x: 0, y: 0 } };
-const ally = { id: "ally", grid_pos: { x: 1, y: 0 } };
+const ally = { id: "ally", grid_pos: { x: 1, y: 1 } };
 const attacker = { id: "attacker", grid_pos: { x: 2, y: 0 } };
 const protection = runtime.useProtection({ protector, ally, attacker, skill: meleeSkill, visible: true, actionEconomy });
-assert.equal(protection.used, true);
+assert.equal(protection.used, true, "Protection should work for a diagonally adjacent Ally");
 assert.equal(protection.finalPowerModifier, -2);
 assert.equal(reaction, 0, "Protection should spend the Reaction");
 assert.equal(runtime.useProtection({ protector, ally, attacker, skill: meleeSkill, visible: true, actionEconomy }).used, false, "Protection cannot be used after the Reaction is spent");
