@@ -106,6 +106,19 @@
     "globalName": "LuminousBattleMasterArchetypeRuntime"
   },
   {
+    "id": "archetype:bilgewater-marksman",
+    "kind": "archetype",
+    "path": "js/bilgewater-marksman-archetype-runtime.js",
+    "contexts": [
+      "any"
+    ],
+    "dependsOn": [
+      "support:player-archetype-runtime-core",
+      "class:ranger"
+    ],
+    "globalName": "LuminousBilgewaterMarksmanArchetypeRuntime"
+  },
+  {
     "id": "archetype:college-of-whispers",
     "kind": "archetype",
     "path": "js/college-of-whispers-runtime.js",
@@ -210,6 +223,17 @@
       "support:universal-speed-runtime"
     ],
     "globalName": "LuminousSorcererClassRuntime"
+  },
+  {
+    "id": "adapter:bilgewater-marksman:combat",
+    "kind": "adapter",
+    "path": "js/bilgewater-marksman-combat-runtime.js",
+    "contexts": [
+      "combat"
+    ],
+    "dependsOn": [
+      "archetype:bilgewater-marksman"
+    ]
   },
   {
     "id": "adapter:mastermind:theatre",
