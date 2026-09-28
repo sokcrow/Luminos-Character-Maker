@@ -100,8 +100,7 @@
       "any"
     ],
     "dependsOn": [],
-    "globalName": "LuminousWeaponPropertyRuntime",
-    "autoload": false
+    "globalName": "LuminousWeaponPropertyRuntime"
   },
   {
     "id": "archetype:battle-master",
