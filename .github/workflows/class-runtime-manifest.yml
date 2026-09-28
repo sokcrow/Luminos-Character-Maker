@@ -16,6 +16,7 @@ on:
       - "js/dm-player-class-milestones.js"
       - "tests/ranger-class-runtime-smoke.mjs"
       - "tests/fighter-class-runtime-smoke.mjs"
+      - "tests/monk-class-runtime-smoke.cjs"
       - "js/class-status-semantics.js"
       - "js/caster-spellcasting-traits-runtime.js"
       - "js/spellcasting-runtime.js"
@@ -70,11 +71,13 @@ jobs:
       - run: node tests/fighting-style-runtime-smoke.mjs
       - run: node --check js/fighter-class-runtime.js
       - run: node --check js/ranger-class-runtime.js
+      - run: node --check js/monk-class-runtime.js
       - run: node --check js/spellcasting-runtime.js
       - run: node --check js/caster-spellcasting-traits-runtime.js
       - run: node --check js/class-status-semantics.js
       - run: node tests/fighter-class-runtime-smoke.mjs
       - run: node tests/ranger-class-runtime-smoke.mjs
+      - run: node tests/monk-class-runtime-smoke.cjs
       - run: node --check js/player-archetype-runtime.js
       - run: node --check js/archetype-combat-event-runtime.js
       - run: node --check js/status-engine.js

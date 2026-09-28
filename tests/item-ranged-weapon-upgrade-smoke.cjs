@@ -25,6 +25,9 @@ const { pathToFileURL } = require('node:url');
   assert.ok(Upgrades);
   assert.ok(Engine);
   assert.ok(Upgrades.UPGRADES.length >= 50, 'expected broad ranged upgrade coverage');
+  assert.equal(Upgrades.get('ammo_heavy_impact_head').weightMultiplier,1.20);
+  assert.equal(Upgrades.get('ammo_heavy_shaft').weightMultiplier,1.20);
+  assert.equal(Upgrades.get('ammo_light_shaft').weightMultiplier,0.80);
   for (const upgrade of Upgrades.UPGRADES) {
     if (upgrade.scope === 'launcher') {
       assert.equal(upgrade.damagePercent, 0, `${upgrade.id} launcher upgrade grants damage`);

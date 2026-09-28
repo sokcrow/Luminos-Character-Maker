@@ -119,6 +119,12 @@ const { pathToFileURL } = require('node:url');
   }
 
   assert.equal(catalog.get('titanium_alloy').standardUnitValueAhn, 462500);
+  assert.equal(catalog.get('iron').weightFactor, 1);
+  assert.equal(catalog.get('aluminum').weightFactor, 0.45);
+  assert.equal(catalog.get('tungsten').weightFactor, 1.45);
+  assert.equal(catalog.get('titanium').weightFactor, 0.60);
+  assert.equal(catalog.get('tungsten_alloy').weightFactor, 1.50);
+  assert.equal(catalog.get('advanced_titanium_alloy').weightFactor, 0.50);
   assert.equal(catalog.get('hardened_steel').standardUnitValueAhn, 225000);
   assert.equal(catalog.get('hardened_weapon_steel').id, 'hardened_steel');
   assert.equal(catalog.get('armor_steel').id, 'hardened_steel');

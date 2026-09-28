@@ -87,7 +87,28 @@
     augment_grade_alloy: 75,
     corp_composite_alloy: 88,
     exotic_alloy: 100,
+  });  const MATERIAL_WEIGHT = Object.freeze({
+    raw_fiber:0.30, processed_textile:0.30, textile:0.30,
+    leather:0.50, processed_leather:0.50,
+    structural_wood:0.65, wood:0.65,
+    bone:0.70, horn:0.65, chitin:0.55, shell:0.80,
+    industrial_stone:1.20, obsidian:0.85, quartz:0.80, glass:0.65, ceramic:0.70,
+    lithium:0.10, lead:1.45, zinc:0.90, tin:0.90, gold:1.50, silver:1.20,
+    aluminum:0.45, copper:1.10, manganese:0.95, iron:1.00, nickel:1.00,
+    chromium:0.90, cobalt:1.00, vanadium:0.75, niobium:1.00, molybdenum:1.15,
+    tantalum:1.35, tungsten:1.45, titanium:0.60,
+    rare_earth_refined_material:1.00, refined_uranium_material:1.35,
+    superconductive_material:0.90, refined_metamaterial:0.65,
+    null_dampening_material:0.85, exotic_refined_material:0.75,
+    brass:1.05, bronze:1.05, carbon_steel:0.95, high_carbon_steel:0.98,
+    stainless_steel:0.98, nickel_steel:1.00, chrome_steel:1.00,
+    hardened_steel:0.95, hardened_weapon_steel:0.95, armor_steel:1.00,
+    cobalt_alloy:1.05, tungsten_alloy:1.50, titanium_alloy:0.55,
+    advanced_titanium_alloy:0.50, superalloy:0.95, augment_grade_alloy:0.60,
+    corp_composite_alloy:0.55, exotic_alloy:0.65,
   });
+
+
 
   const MATERIAL_VALUE_REFERENCE_AHN = Object.freeze({
     structural_wood: Math.round(8000 * MATERIAL_ECONOMY_SCALE),
@@ -258,6 +279,13 @@
     return Number.isFinite(value) ? value : null;
   }
 
+  function getMaterialWeight(materialId, explicitWeight) {
+    const explicit = Number(explicitWeight);
+    if (Number.isFinite(explicit) && explicit > 0) return explicit;
+    const value = MATERIAL_WEIGHT[normalizeId(materialId)];
+    return Number.isFinite(value) && value > 0 ? value : 1;
+  }
+
   function validateMaterial(requirements, material) {
     const tags = new Set(tagsForMaterial(material?.materialId || material?.id, material?.tags));
     const missing = (requirements || []).filter((tag) => !tags.has(normalizeId(tag)));
@@ -272,6 +300,7 @@
       quality: normalizeId(source.quality || DEFAULT_QUALITY),
       durability: source.durability,
       unitValueAhn: source.unitValueAhn ?? source.standardUnitValueAhn,
+      weight: source.weight ?? source.weightFactor ?? source.unitWeight,
       tags: source.tags,
       name: source.name || null,
     };
@@ -283,6 +312,7 @@
     const composition = [];
     let durability = 0;
     let inputValue = 0;
+    let weightScore = 0;
     let primaryMaterial = null;
 
     for (const input of def.materialInputs) {
@@ -293,6 +323,7 @@
       }
       const unitDurability = getMaterialDurability(selected.materialId, selected.durability);
       const unitValueAhn = getMaterialValue(selected.materialId, selected.unitValueAhn);
+      const unitWeight = getMaterialWeight(selected.materialId, selected.weight);
       if (!Number.isFinite(unitDurability)) {
         return Object.freeze({ valid:false, componentId:def.id, reason:"missing_material_durability", slot:input.slot, materialId:selected.materialId });
       }
@@ -301,6 +332,7 @@
       }
       durability += input.quantity * unitDurability;
       inputValue += input.quantity * unitValueAhn;
+      weightScore += input.quantity * unitWeight;
       const row = Object.freeze({
         slot: input.slot,
         materialId: selected.materialId,
@@ -309,6 +341,7 @@
         quality: QUALITY_SCORE[selected.quality] == null ? DEFAULT_QUALITY : selected.quality,
         unitDurability,
         unitValueAhn,
+        unitWeight,
         primaryMaterial: input.primaryMaterial,
       });
       composition.push(row);
@@ -334,6 +367,7 @@
       composition: Object.freeze(composition),
       primaryMaterial: primaryMaterial ? clone(primaryMaterial) : null,
       durability,
+      weightScore,
       productionValueAhn,
       quality: normalizeId(craft.quality || DEFAULT_QUALITY),
       processMultiplier: def.processMultiplier,
@@ -350,8 +384,8 @@
 
   const API = Object.freeze({
     VERSION, FAMILY, CURRENCY, DEFAULT_QUALITY, VALUE_ROUNDING_AHN,
-    QUALITY_ORDER, QUALITY_SCORE, MATERIAL_DURABILITY, MATERIAL_VALUE_REFERENCE_AHN, MATERIAL_TAGS, ICONS,
-    COMPONENTS, normalizeId, get, list, tagsForMaterial, getMaterialDurability, getMaterialValue,
+    QUALITY_ORDER, QUALITY_SCORE, MATERIAL_DURABILITY, MATERIAL_WEIGHT, MATERIAL_VALUE_REFERENCE_AHN, MATERIAL_TAGS, ICONS,
+    COMPONENTS, normalizeId, get, list, tagsForMaterial, getMaterialDurability, getMaterialWeight, getMaterialValue,
     validateMaterial, resolveComponent, resolveReferenceComponent, roundAhn,
   });
 

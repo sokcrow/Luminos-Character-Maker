@@ -4,13 +4,18 @@ const { pathToFileURL } = require('node:url');
 
 (async () => {
   delete globalThis.LuminousWeaponComponentCatalog;
+  delete globalThis.LuminousWeaponUpgradeCatalog;
   delete globalThis.LuminousWeaponCompositionEngine;
+  delete globalThis.LuminousOreIngotGemCatalog;
 
   await import(pathToFileURL(path.resolve(__dirname, '../js/item-catalog-weapon-components.js')).href);
+  await import(pathToFileURL(path.resolve(__dirname, '../js/item-catalog-weapon-upgrades.js')).href);
   await import(pathToFileURL(path.resolve(__dirname, '../js/item-weapon-composition-engine.js')).href);
+  await import(pathToFileURL(path.resolve(__dirname, '../js/item-catalog-ore-ingot-gem.js')).href);
 
   const components = globalThis.LuminousWeaponComponentCatalog;
   const engine = globalThis.LuminousWeaponCompositionEngine;
+  const materials = globalThis.LuminousOreIngotGemCatalog;
 
   assert.ok(components);
   assert.ok(engine);
@@ -26,6 +31,9 @@ const { pathToFileURL } = require('node:url');
   assert.equal(components.MATERIAL_DURABILITY.hardened_weapon_steel, 40);
   assert.equal(components.MATERIAL_DURABILITY.titanium_alloy, 53);
   assert.equal(components.MATERIAL_DURABILITY.exotic_alloy, 100);
+  assert.equal(components.MATERIAL_WEIGHT.iron, 1);
+  assert.equal(components.MATERIAL_WEIGHT.tungsten_alloy, 1.5);
+  assert.equal(components.MATERIAL_WEIGHT.titanium_alloy, 0.55);
 
   const shortBlade = components.resolveReferenceComponent('short_blade');
   assert.equal(shortBlade.valid, true);
@@ -46,18 +54,49 @@ const { pathToFileURL } = require('node:url');
   assert.equal(dagger.maxDurability, 40);
   assert.equal(dagger.productionValueAhn, 115000);
   assert.equal(dagger.handMode, 'one_handed');
+  assert.equal(dagger.weightClass, 'light');
+  assert.deepEqual([...dagger.properties].sort(), ['finesse','light','thrown'].sort());
+
+  const materialChoice = (id) => {
+    const material = materials.get(id);
+    return { materialId:id, unitValueAhn:material.standardUnitValueAhn, weight:material.weightFactor, quality:'standard' };
+  };
+  const buildWithPrimaryMaterial = (chassisId, componentId, slotId, materialId) => {
+    const reference = engine.referenceBuild(chassisId);
+    const replacement = components.resolveComponent(componentId, { [slotId]:materialChoice(materialId) });
+    assert.equal(replacement.valid, true, `${componentId} with ${materialId} should resolve`);
+    const rows = reference.components.map((row) => row.componentId === componentId ? { ...replacement, quantity:row.quantity, quality:'standard' } : row);
+    return engine.resolveCanonicalBuild(chassisId, rows);
+  };
+
+  const tungstenDagger = buildWithPrimaryMaterial('dagger','short_blade','body','tungsten_alloy');
+  assert.equal(tungstenDagger.weightClass, 'neutral');
+  assert.equal(tungstenDagger.properties.includes('light'), false);
+  assert.equal(tungstenDagger.properties.includes('heavy'), false, 'small Dagger geometry cannot become Heavy');
+
+  const lightGreatsword = buildWithPrimaryMaterial('greatsword','great_blade','body','advanced_titanium_alloy');
+  assert.equal(lightGreatsword.weightClass, 'neutral');
+  assert.equal(lightGreatsword.properties.includes('heavy'), false);
+  assert.equal(lightGreatsword.properties.includes('light'), false, 'large/two-handed geometry cannot become Light');
+  assert.equal(lightGreatsword.properties.includes('two_handed'), true);
+
+  const tungstenLongsword = buildWithPrimaryMaterial('longsword','long_blade','body','tungsten_alloy');
+  assert.equal(tungstenLongsword.weightClass, 'heavy');
+  assert.equal(tungstenLongsword.properties.includes('heavy'), true);
 
   const longsword = engine.referenceBuild('longsword');
   assert.equal(longsword.maxDurability, 85);
   assert.equal(longsword.productionValueAhn, 273000);
   assert.equal(longsword.handMode, 'versatile');
   assert.equal(longsword.primaryMaterialId, 'iron');
+  assert.deepEqual(longsword.properties, ['versatile']);
 
   const greatsword = engine.referenceBuild('greatsword');
   assert.equal(greatsword.maxDurability, 110);
   assert.equal(greatsword.productionValueAhn, 367000);
   assert.equal(greatsword.handMode, 'two_handed');
   assert.equal(greatsword.handCost, 2);
+  assert.deepEqual([...greatsword.properties].sort(), ['heavy','two_handed'].sort());
 
   const halberd = engine.referenceBuild('halberd');
   assert.equal(halberd.maxDurability, 105);
@@ -98,6 +137,16 @@ const { pathToFileURL } = require('node:url');
   ]);
   assert.equal(customLongAxe.valid, true);
   assert.equal(customLongAxe.handMode, 'two_handed');
+  assert.deepEqual(customLongAxe.properties, ['two_handed']);
+
+  const invalidMaterialComponent = components.resolveComponent('short_blade', { body:{ materialId:'tungsten_alloy' } });
+  assert.equal(invalidMaterialComponent.valid, false);
+  const invalidMaterialBuild = engine.resolveCustomAssembly([
+    invalidMaterialComponent,
+    { ...components.resolveReferenceComponent('handle'), quantity:1, quality:'standard' },
+  ]);
+  assert.equal(invalidMaterialBuild.valid, false);
+  assert.equal(invalidMaterialBuild.reason, 'invalid_component');
 
   const impossibleGreatHandle = engine.resolveCustomAssembly([
     { ...components.resolveReferenceComponent('great_blade'), quantity:1, quality:'standard' },

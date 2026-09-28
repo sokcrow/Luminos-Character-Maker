@@ -14,6 +14,8 @@
   const Ranged = global.LuminousRangedWeaponComponentCatalog || safeRequire("./item-catalog-ranged-weapon-components.js");
   const Melee = global.LuminousWeaponComponentCatalog || safeRequire("./item-catalog-weapon-components.js");
   const MeleeComposition = global.LuminousWeaponCompositionEngine || safeRequire("./item-weapon-composition-engine.js");
+  const MeleeUpgradeCatalog = global.LuminousWeaponUpgradeCatalog || safeRequire("./item-catalog-weapon-upgrades.js");
+  const RangedUpgradeCatalog = global.LuminousRangedWeaponUpgradeCatalog || safeRequire("./item-catalog-ranged-weapon-upgrades.js");
   if (!Ranged || !Melee || !MeleeComposition) throw new Error("Ranged, melee component, and melee composition catalogs are required.");
 
   const VERSION = 1;
@@ -31,12 +33,66 @@
     return Object.freeze({slot:normalizeId(slotId),quantity,requirements:Object.freeze((requirements || []).map(normalizeId)),referenceMaterialId:normalizeId(referenceMaterialId),componentId:normalizeId(componentId)});
   }
 
+  const CHASSIS_PROPERTIES = Object.freeze({
+  light_crossbow: [
+    "ammunition",
+    "heavy",
+    "loading",
+    "two_handed"
+  ],
+  dart: [
+    "finesse",
+    "light",
+    "thrown"
+  ],
+  shortbow: [
+    "ammunition",
+    "two_handed"
+  ],
+  sling: [
+    "ammunition",
+    "light"
+  ],
+  blowgun: [
+    "ammunition",
+    "light",
+    "loading"
+  ],
+  hand_crossbow: [
+    "ammunition",
+    "loading"
+  ],
+  heavy_crossbow: [
+    "ammunition",
+    "heavy",
+    "loading",
+    "two_handed"
+  ],
+  longbow: [
+    "ammunition",
+    "two_handed"
+  ],
+  net: [
+    "thrown"
+  ]
+});
+
+  function propertiesForChassis(id, handMode, explicit, weightClass = null) {
+    const base = Array.isArray(explicit) ? explicit : (CHASSIS_PROPERTIES[normalizeId(id)] || []);
+    const derived = normalizeId(handMode) === "two_handed" ? ["two_handed"] : normalizeId(handMode) === "versatile" ? ["versatile"] : [];
+    const resolvedWeight = normalizeId(weightClass);
+    const out = [...base, ...derived].map(normalizeId).filter((propertyId) => propertyId && !["light","heavy"].includes(propertyId));
+    if (resolvedWeight === "light" || resolvedWeight === "heavy") out.push(resolvedWeight);
+    else if (!resolvedWeight) out.push(...base.map(normalizeId).filter((propertyId) => ["light","heavy"].includes(propertyId)));
+    return Object.freeze([...new Set(out)]);
+  }
+
   function chassis(def) {
     return Object.freeze({
       id:normalizeId(def.id), name:def.name, classification:normalizeId(def.classification), primaryComponentId:normalizeId(def.primaryComponentId),
       components:Object.freeze(def.components.slice()), baseThreshold:Number(def.baseThreshold), assemblyMultiplier:Number(def.assemblyMultiplier),
       requiredToolType:normalizeId(def.requiredToolType), semanticCheck:normalizeId(def.semanticCheck), iconFamily:normalizeId(def.iconFamily),
-      handMode:normalizeId(def.handMode), handCost:Number(def.handCost), controlOnly:!!def.controlOnly, ammoRecipeId:normalizeId(def.ammoRecipeId || ""),
+      handMode:normalizeId(def.handMode), handCost:Number(def.handCost), properties:propertiesForChassis(def.id, def.handMode, def.properties), controlOnly:!!def.controlOnly, ammoRecipeId:normalizeId(def.ammoRecipeId || ""),
     });
   }
 
@@ -84,34 +140,76 @@
     return roundAhn(input * Number(multiplier || 1));
   }
 
+  function componentUpgradeWeightMultiplier(row = {}) {
+    const catalog = normalizeId(row.source) === "melee" ? MeleeUpgradeCatalog : RangedUpgradeCatalog;
+    const ids = row.upgradeIds || row.upgrades || row.installedUpgrades || [];
+    let multiplier = 1;
+    for (const entry of Array.isArray(ids) ? ids : []) {
+      const id = normalizeId(typeof entry === "string" ? entry : entry?.id);
+      const def = catalog?.get?.(id) || (typeof entry === "object" ? entry : null);
+      multiplier *= Number(def?.weightMultiplier ?? 1);
+    }
+    return Number.isFinite(multiplier) && multiplier > 0 ? multiplier : 1;
+  }
+
+  function weightScoreFromComponents(rows) {
+    return (rows || []).reduce((sum,row) => sum + Number(row.weightScore || 0) * componentUpgradeWeightMultiplier(row) * Math.max(1,Number(row.quantity || 1)),0);
+  }
+
+  function referenceWeightScoreFromComponents(rows) {
+    return (rows || []).reduce((sum,row) => {
+      const source = normalizeId(row.source) === "melee" ? Melee : Ranged;
+      const reference = source.resolveReferenceComponent(row.componentId);
+      return sum + Number(reference?.weightScore || 0) * Math.max(1,Number(row.quantity || 1));
+    },0);
+  }
+
+  function primaryDefinition(def) {
+    const slotDef = def.components.find((entry) => entry.componentId === def.primaryComponentId);
+    const catalog = slotDef && normalizeId(slotDef.source) === "melee" ? Melee : Ranged;
+    return catalog?.get?.(def.primaryComponentId) || {};
+  }
+
+  function weightState(def, rows) {
+    const weightScore = weightScoreFromComponents(rows);
+    const referenceWeightScore = referenceWeightScoreFromComponents(rows);
+    const weightRatio = referenceWeightScore > 0 ? weightScore / referenceWeightScore : 1;
+    const resolved = MeleeComposition.resolveWeightClass(def.properties, weightRatio, primaryDefinition(def), def.handMode, referenceWeightScore);
+    return Object.freeze({ ...resolved, weightScore, referenceWeightScore, weightRatio });
+  }
+
   function referenceBuild(chassisId) {
     const def = BY_ID[normalizeId(chassisId)];
     if (!def) return null;
     if (def.ammoRecipeId) {
       const ammo = resolveAmmo(def.ammoRecipeId);
-      return Object.freeze({valid:true,chassisId:def.id,name:def.name,classification:def.classification,primaryComponentId:def.primaryComponentId,components:ammo.components,maxDurability:ammo.structuralDurability,productionValueAhn:ammo.unitProductionValueAhn,baseThreshold:def.baseThreshold,assemblyMultiplier:def.assemblyMultiplier,requiredToolType:def.requiredToolType,semanticCheck:def.semanticCheck,handMode:def.handMode,handCost:def.handCost,iconFamily:def.iconFamily,recoverable:ammo.recoverable,repairable:ammo.repairable});
+      const rows = ammo.components.map((row) => Object.freeze({...row,source:"ranged"}));
+      const weight = weightState(def, rows);
+      return Object.freeze({valid:true,chassisId:def.id,name:def.name,classification:def.classification,primaryComponentId:def.primaryComponentId,components:ammo.components,maxDurability:ammo.structuralDurability,productionValueAhn:ammo.unitProductionValueAhn,baseThreshold:def.baseThreshold,assemblyMultiplier:def.assemblyMultiplier,requiredToolType:def.requiredToolType,semanticCheck:def.semanticCheck,handMode:def.handMode,handCost:def.handCost,baseWeightClass:weight.base,weightClass:weight.resolved,weightScore:weight.weightScore,referenceWeightScore:weight.referenceWeightScore,weightRatio:weight.weightRatio,weightTier:weight.tier,properties:propertiesForChassis(def.id,def.handMode,def.properties,weight.resolved),iconFamily:def.iconFamily,recoverable:ammo.recoverable,repairable:ammo.repairable});
     }
     const rows = def.components.map(resolveReferenceComponent);
     if (rows.some((row) => !row?.valid)) return Object.freeze({valid:false,chassisId:def.id,reason:"component_resolution_failed"});
     const primary = rows.find((row) => normalizeId(row.componentId) === def.primaryComponentId);
-    return Object.freeze({valid:true,chassisId:def.id,name:def.name,classification:def.classification,primaryComponentId:def.primaryComponentId,primaryMaterialId:primary?.primaryMaterial?.materialId || null,components:Object.freeze(rows),maxDurability:durabilityFromComponents(rows),productionValueAhn:productionFromComponents(rows,def.assemblyMultiplier),baseThreshold:def.baseThreshold,assemblyMultiplier:def.assemblyMultiplier,requiredToolType:def.requiredToolType,semanticCheck:def.semanticCheck,handMode:def.handMode,handCost:def.handCost,iconFamily:def.iconFamily,controlOnly:def.controlOnly,recoverable:def.id === "net",repairable:true});
+    const weight = weightState(def, rows);
+    return Object.freeze({valid:true,chassisId:def.id,name:def.name,classification:def.classification,primaryComponentId:def.primaryComponentId,primaryMaterialId:primary?.primaryMaterial?.materialId || null,components:Object.freeze(rows),maxDurability:durabilityFromComponents(rows),productionValueAhn:productionFromComponents(rows,def.assemblyMultiplier),baseThreshold:def.baseThreshold,assemblyMultiplier:def.assemblyMultiplier,requiredToolType:def.requiredToolType,semanticCheck:def.semanticCheck,handMode:def.handMode,handCost:def.handCost,baseWeightClass:weight.base,weightClass:weight.resolved,weightScore:weight.weightScore,referenceWeightScore:weight.referenceWeightScore,weightRatio:weight.weightRatio,weightTier:weight.tier,properties:propertiesForChassis(def.id,def.handMode,def.properties,weight.resolved),iconFamily:def.iconFamily,controlOnly:def.controlOnly,recoverable:def.id === "net",repairable:true});
   }
 
   function normalizeMaterialChoice(choice, fallbackId) {
     if (typeof choice === "string") return {materialId:normalizeId(choice)};
     const src = choice || {};
-    return {materialId:normalizeId(src.materialId || src.id || fallbackId),durability:src.durability,unitValueAhn:src.unitValueAhn ?? src.standardUnitValueAhn,tags:src.tags,name:src.name || null};
+    return {materialId:normalizeId(src.materialId || src.id || fallbackId),durability:src.durability,unitValueAhn:src.unitValueAhn ?? src.standardUnitValueAhn,weight:src.weight ?? src.weightFactor ?? src.unitWeight,tags:src.tags,name:src.name || null};
   }
 
   function resolveAmmo(ammoId, materialChoices = {}) {
     const def = AMMO_BY_ID[normalizeId(ammoId)];
     if (!def) return null;
     if (def.natural) {
-      return Object.freeze({valid:true,ammoId:def.id,name:def.name,iconFamily:def.iconFamily,batchYield:1,batchProductionValueAhn:0,unitProductionValueAhn:0,structuralDurability:Melee.getMaterialDurability("industrial_stone") || 30,components:Object.freeze([]),damageType:def.damageType,consumedOnUse:def.consumedOnUse,recoverable:def.recoverable,repairable:def.repairable,ammoGradeEligible:false,natural:true,upgradeable:false});
+      return Object.freeze({valid:true,ammoId:def.id,name:def.name,iconFamily:def.iconFamily,batchYield:1,batchProductionValueAhn:0,unitProductionValueAhn:0,structuralDurability:Melee.getMaterialDurability("industrial_stone") || 30,weightScore:Melee.getMaterialWeight("industrial_stone") || 1,components:Object.freeze([]),damageType:def.damageType,consumedOnUse:def.consumedOnUse,recoverable:def.recoverable,repairable:def.repairable,ammoGradeEligible:false,natural:true,upgradeable:false});
     }
 
     let inputValue = 0;
     let structuralDurability = 0;
+    let weightScore = 0;
     const componentRows = [];
     for (const input of def.materialInputs) {
       const selected = normalizeMaterialChoice(materialChoices[input.slot] ?? materialChoices[input.referenceMaterialId], input.referenceMaterialId);
@@ -119,15 +217,17 @@
       if (!validation.valid) return Object.freeze({valid:false,ammoId:def.id,reason:"incompatible_material",slot:input.slot,missing:validation.missing});
       const unitDurability = Melee.getMaterialDurability(selected.materialId, selected.durability);
       const unitValueAhn = Ranged.getMaterialValue(selected.materialId, selected.unitValueAhn);
+      const unitWeight = Melee.getMaterialWeight(selected.materialId, selected.weight);
       if (!Number.isFinite(unitDurability) || !Number.isFinite(unitValueAhn)) return Object.freeze({valid:false,ammoId:def.id,reason:"missing_material_data",slot:input.slot,materialId:selected.materialId});
       inputValue += input.quantity * unitValueAhn;
       structuralDurability += input.quantity * unitDurability;
-      const materialRow = Object.freeze({slot:input.slot,materialId:selected.materialId,quantity:input.quantity,unitDurability,unitValueAhn,primaryMaterial:true});
-      componentRows.push(Object.freeze({valid:true,componentId:input.componentId,quantity:1,composition:Object.freeze([materialRow]),primaryMaterial:materialRow,durability:input.quantity * unitDurability,productionValueAhn:0,quality:DEFAULT_QUALITY}));
+      weightScore += input.quantity * unitWeight;
+      const materialRow = Object.freeze({slot:input.slot,materialId:selected.materialId,quantity:input.quantity,unitDurability,unitValueAhn,unitWeight,primaryMaterial:true});
+      componentRows.push(Object.freeze({valid:true,componentId:input.componentId,quantity:1,composition:Object.freeze([materialRow]),primaryMaterial:materialRow,durability:input.quantity * unitDurability,weightScore:input.quantity * unitWeight,productionValueAhn:0,quality:DEFAULT_QUALITY}));
     }
     const batchProductionValueAhn = Math.round(inputValue * def.processMultiplier);
     const unitProductionValueAhn = Math.round(batchProductionValueAhn / def.batchYield);
-    return Object.freeze({valid:true,ammoId:def.id,name:def.name,iconFamily:def.iconFamily,batchYield:def.batchYield,batchProductionValueAhn,unitProductionValueAhn,structuralDurability,components:Object.freeze(componentRows),damageType:def.damageType,consumedOnUse:def.consumedOnUse,recoverable:def.recoverable,repairable:def.repairable,ammoGradeEligible:def.ammoGradeEligible,natural:def.natural,upgradeable:def.upgradeable});
+    return Object.freeze({valid:true,ammoId:def.id,name:def.name,iconFamily:def.iconFamily,batchYield:def.batchYield,batchProductionValueAhn,unitProductionValueAhn,structuralDurability,weightScore,components:Object.freeze(componentRows),damageType:def.damageType,consumedOnUse:def.consumedOnUse,recoverable:def.recoverable,repairable:def.repairable,ammoGradeEligible:def.ammoGradeEligible,natural:def.natural,upgradeable:def.upgradeable});
   }
 
   function getChassis(id) { const def = BY_ID[normalizeId(id)]; return def ? clone(def) : null; }
@@ -139,8 +239,8 @@
   const REFERENCE_AMMO = Object.freeze(Object.fromEntries(AMMO_RECIPES.map((entry) => [entry.id, resolveAmmo(entry.id)])));
 
   const API = Object.freeze({
-    VERSION,DEFAULT_QUALITY,CHASSIS,REFERENCE_BUILDS,AMMO_RECIPES,REFERENCE_AMMO,normalizeId,getChassis,listChassis,getAmmo,listAmmo,
-    resolveAmmo,referenceBuild,durabilityFromComponents,productionFromComponents,
+    VERSION,DEFAULT_QUALITY,CHASSIS,REFERENCE_BUILDS,AMMO_RECIPES,REFERENCE_AMMO,CHASSIS_PROPERTIES,propertiesForChassis,normalizeId,getChassis,listChassis,getAmmo,listAmmo,
+    resolveAmmo,referenceBuild,durabilityFromComponents,productionFromComponents,componentUpgradeWeightMultiplier,weightScoreFromComponents,referenceWeightScoreFromComponents,weightState,
     resolveDurabilityBreak:MeleeComposition.resolveDurabilityBreak,repairState:MeleeComposition.repairState,canUpgrade:MeleeComposition.canUpgrade,
   });
 
