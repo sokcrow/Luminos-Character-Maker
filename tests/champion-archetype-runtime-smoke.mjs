@@ -48,6 +48,15 @@ g.LuminousStatusEngine = {
     return unit.statusEffects[id];
   },
 };
+g.LuminousFightingStyleRuntime = {
+  selectedStyles(character = {}) { return Array.isArray(character.fightingStyles) ? character.fightingStyles.slice() : []; },
+  applyChoice(character = {}, classId, styleId) {
+    character.fightingStyles ||= [];
+    if (character.fightingStyles.includes(styleId)) return { success: false, reason: "duplicate_fighting_style" };
+    character.fightingStyles.push(styleId);
+    return { success: true, classId, styleId, styles: character.fightingStyles.slice() };
+  },
+};
 
 await import("../js/champion-archetype-runtime.js");
 
@@ -87,6 +96,9 @@ assert.equal(runtime.DEFINITIONS.superior_critical.mechanics.turnStartPoise, 3);
 
 assert.equal(runtime.fightingStyleChoiceLimit(makeCharacter(49)), 1);
 assert.equal(runtime.fightingStyleChoiceLimit(makeCharacter(50)), 2);
+const champion50 = makeCharacter(50, { fightingStyles: ["archery"] });
+assert.equal(runtime.applyAdditionalFightingStyleChoice(champion50, "defense").success, true, "Champion can choose a second Fighting Style at level 50");
+assert.equal(runtime.applyAdditionalFightingStyleChoice(champion50, "dueling").success, false, "Champion cannot exceed two Fighting Styles");
 
 const strCheck = runtime.applyRemarkableAthleteCheck({ abilityId: "STR", finalPower: 4 }, makeCharacter(35));
 assert.equal(strCheck.finalPower, 5, "Remarkable Athlete adds +1 Final Power to STR checks");
