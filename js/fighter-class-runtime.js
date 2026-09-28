@@ -21,6 +21,25 @@
     return Object.freeze(value);
   }
 
+  const additionalAttackRule = (maxCoins) => ({
+    type: "coin",
+    trigger: "before_skill",
+    action: "reuse_last",
+    target: "self",
+    count: 1,
+    scope: "once_per_skill",
+    conditions: [
+      { any: [
+        { all: [
+          { path: "skill.skillFamily", operator: "eq", value: "attack" },
+          { path: "skill.attackMode", operator: "eq", value: "melee" },
+        ] },
+        { path: "skill.isMelee", operator: "truthy" },
+      ] },
+      { path: "skill.coinAmount", operator: "between", value: 2, max: maxCoins },
+    ],
+  });
+
   const FIGHTER_DEFINITIONS = deepFreeze({
     second_wind: {
       schemaVersion: 1,
@@ -45,6 +64,42 @@
         turnStartHealPercentPerCount: 2,
       },
     },
+    action_surge: {
+      schemaVersion: 1,
+      id: "action_surge",
+      name: "Action Surge",
+      description: "Gain 1 additional Action this Turn (Once Per Turn).\n\nUses: (1, Class Level/30)\nRecharge: Short Rest or Long Rest.",
+      source: FIGHTER_SOURCE,
+      contexts: ["combat"],
+      activation: { type: "manual", actionCost: "none", target: "self", uses: { formula: "max(1, floor(ClassLevel / 30))", reset: "short_rest" } },
+      effects: [],
+      rules: [],
+      mechanics: { additionalActions: 1, oncePerTurn: true, recharge: ["short_rest", "long_rest"] },
+    },
+    indomitable: {
+      schemaVersion: 1,
+      id: "indomitable",
+      name: "Indomitable",
+      description: "When you fail a Save Check, reroll failed Coins once (Once per Turn).\n\nUses: (1, Class Level/30)\nRecharge: Long Rest.",
+      source: FIGHTER_SOURCE,
+      contexts: ["combat", "theatre"],
+      activation: { type: "prompt", actionCost: "none", target: "self", uses: { formula: "max(1, floor(ClassLevel / 30))", reset: "long_rest" } },
+      effects: [],
+      rules: [],
+      mechanics: { saveCheckOnly: true, rerollFailedCoins: 1, oncePerTurn: true, recharge: ["long_rest"] },
+    },
+    additional_attack_plus: {
+      schemaVersion: 1, id: "additional_attack_plus", name: "Additional Attack+",
+      description: "Melee Attack Skills with 2, 3 or 4 Coins reuse the Skill's last Coin once per Skill.",
+      source: FIGHTER_SOURCE, contexts: ["combat"], activation: { type: "passive", actionCost: "none" }, effects: [],
+      rules: [additionalAttackRule(4)], mechanics: { replacesTraitId: "additional_attack", maximumBaseCoins: 4 },
+    },
+    additional_attack_plus_plus: {
+      schemaVersion: 1, id: "additional_attack_plus_plus", name: "Additional Attack++",
+      description: "Melee Attack Skills with 2, 3, 4 or 5 Coins reuse the Skill's last Coin once per Skill.",
+      source: FIGHTER_SOURCE, contexts: ["combat"], activation: { type: "passive", actionCost: "none" }, effects: [],
+      rules: [additionalAttackRule(5)], mechanics: { replacesTraitId: "additional_attack_plus", maximumBaseCoins: 5 },
+    },
   });
 
   const fighterGrant = (level, traitId) => ({
@@ -59,8 +114,13 @@
   });
 
   const FIGHTER_GRANTS = deepFreeze([
-    fighterGrant(1, "fighting_style"),
     fighterGrant(1, "second_wind"),
+    fighterGrant(10, "fighting_style"),
+    fighterGrant(10, "action_surge"),
+    fighterGrant(25, "additional_attack"),
+    fighterGrant(45, "indomitable"),
+    fighterGrant(55, "additional_attack_plus"),
+    fighterGrant(100, "additional_attack_plus_plus"),
   ]);
 
   function fightingStyleOptions() {
@@ -96,6 +156,76 @@
   function secondWindMaximum(character = {}, engine = global.LuminousTraitEngine) {
     const level = fighterClassLevel(character, engine);
     return level >= 1 ? 1 + Math.floor(level / 20) : 0;
+  }
+
+  function fighterScalingUses(character = {}, engine = global.LuminousTraitEngine) {
+    return Math.max(1, Math.floor(fighterClassLevel(character, engine) / 30));
+  }
+
+  function collapseAdditionalAttackProgression(character = {}, traits = [], engine = global.LuminousTraitEngine) {
+    const level = fighterClassLevel(character, engine);
+    if (level >= 100) return (traits || []).filter((trait) => !["additional_attack", "additional_attack_plus"].includes(traitBaseId(trait)));
+    if (level >= 55) return (traits || []).filter((trait) => traitBaseId(trait) !== "additional_attack");
+    return traits || [];
+  }
+
+  function actionEconomyTurnKey(runtime = {}, unit = null) {
+    const explicit = Number(runtime.turnNumber ?? runtime.TurnNumber);
+    if (Number.isFinite(explicit)) return `turn:${Math.trunc(explicit)}`;
+    const snapshot = global.LuminousActionEconomy?.snapshot?.(unit || runtime.self || runtime.character, { phase: runtime.phase || "planning" });
+    return Number.isFinite(Number(snapshot?.turn)) ? `turn:${Math.trunc(Number(snapshot.turn))}` : null;
+  }
+
+  function oncePerTurnBlocked(state, flagId, runtime, unit) {
+    const key = actionEconomyTurnKey(runtime, unit);
+    return Boolean(key && state?.flags?.[flagId] === key);
+  }
+
+  function markOncePerTurn(state, flagId, runtime, unit) {
+    const key = actionEconomyTurnKey(runtime, unit);
+    if (key && state?.flags) state.flags[flagId] = key;
+    return key;
+  }
+
+  function saveCheck(check = {}) {
+    return [check.kind, check.checkType, check.type, check.category].map(normalizeId).some((id) => ["save", "save_check", "saving_throw", "savingthrow"].includes(id));
+  }
+
+  function failedCheck(check = {}) {
+    const outcome = normalizeId(check.outcome || check.result);
+    return check.passed === false || check.failed === true || ["fail", "failed"].includes(outcome);
+  }
+
+  function coinFailed(coin = {}) {
+    const side = normalizeId(coin.side || coin.face || coin.result);
+    return coin.success === false || coin.passed === false || ["tail", "tails", "fail", "failed"].includes(side);
+  }
+
+  function checkCoins(check = {}) {
+    if (Array.isArray(check.tosses)) return check.tosses;
+    if (Array.isArray(check.coins)) return check.coins;
+    return [];
+  }
+
+  function rerollFailedSaveCoins(check = {}, rng = Math.random) {
+    if (!saveCheck(check)) return { success: false, reason: "save_check_required", rerolled: 0, check };
+    if (!failedCheck(check)) return { success: false, reason: "failed_save_required", rerolled: 0, check };
+    const coins = checkCoins(check);
+    const failed = coins.map((coin, index) => ({ coin, index })).filter(({ coin }) => coinFailed(coin));
+    if (!failed.length) return { success: false, reason: "no_failed_coins", rerolled: 0, check };
+    const chance = Math.max(0, Math.min(100, numberOr(check.headsChance, 50)));
+    failed.forEach(({ coin }) => {
+      const side = global.LuminousCoinEngine?.rollSide ? global.LuminousCoinEngine.rollSide(chance, rng) : (Number(rng()) * 100 < chance ? "head" : "tail");
+      coin.side = side;
+      if (Object.prototype.hasOwnProperty.call(coin, "success")) coin.success = side === "head";
+      if (Object.prototype.hasOwnProperty.call(coin, "passed")) coin.passed = side === "head";
+      coin.rerolledBy = "indomitable";
+    });
+    const heads = coins.filter((coin) => normalizeId(coin?.side) === "head").length;
+    check.heads = heads;
+    check.indomitableReroll = { rerolled: failed.length, failedIndexes: failed.map(({ index }) => index) };
+    check.needsOutcomeRecalculation = true;
+    return { success: true, rerolled: failed.length, failedIndexes: failed.map(({ index }) => index), heads, check };
   }
 
   function traitBaseId(trait = {}) {
@@ -323,6 +453,7 @@
 
     const originalDispatchCombatEvent = source.dispatchCombatEvent?.bind(source);
     const originalActivateTrait = source.activateTrait?.bind(source);
+    const originalResolveTraitGrants = source.resolveTraitGrants?.bind(source);
 
     global.LuminousTraitEngine = Object.freeze({
       ...source,
@@ -331,30 +462,48 @@
         const result = originalDispatchCombatEvent
           ? originalDispatchCombatEvent(trigger, input)
           : { state: input.state, runtime: input, outcomes: [] };
+        if (normalizeId(trigger) === "long_rest" && result.state) source.resetUsage?.(result.state, "short_rest");
         const extras = [];
         applyCombatTrigger(source, input.traits || [], trigger, result.runtime || input, extras);
         result.outcomes = [...(result.outcomes || []), ...extras];
         return result;
       },
+      resolveTraitGrants(character = {}, grants = [], definitions = {}) {
+        const base = originalResolveTraitGrants ? originalResolveTraitGrants(character, grants, definitions) : [];
+        return collapseAdditionalAttackProgression(character, base, source);
+      },
       activateTrait(traitInput, runtime = {}, state) {
         const trait = source.normalizeTrait ? source.normalizeTrait(traitInput) : traitInput;
-        if (traitBaseId(trait) === "second_wind" && secondWindCount(runtime.self || runtime.character) <= 0) {
-          return {
-            available: false,
-            reasons: ["No Second Wind Count remaining."],
-            maximum: null,
-            remaining: 0,
-            actionCost: "quick_action",
-            trait,
-            state: state || source.createState?.(),
-            runtime,
-            outcomes: [],
-          };
+        const traitId = traitBaseId(trait);
+        const traitState = state || source.createState?.();
+        const unit = runtime.self || runtime.character || null;
+        if (traitId === "second_wind" && secondWindCount(unit) <= 0) {
+          return { available: false, reasons: ["No Second Wind Count remaining."], maximum: null, remaining: 0, actionCost: "quick_action", trait, state: traitState, runtime, outcomes: [] };
         }
-        const result = originalActivateTrait
-          ? originalActivateTrait(traitInput, runtime, state)
-          : { available: false, reasons: ["Trait Engine activation is unavailable."], trait, runtime, state, outcomes: [] };
-        return applySecondWindActivation(result);
+        if (traitId === "action_surge" && oncePerTurnBlocked(traitState, "fighter_action_surge_turn", runtime, unit)) {
+          return { available: false, reasons: ["Action Surge can only be used once per Turn."], maximum: fighterScalingUses(runtime.character || unit, source), remaining: null, actionCost: "none", trait, state: traitState, runtime, outcomes: [] };
+        }
+        if (traitId === "indomitable") {
+          if (!saveCheck(runtime.check || {})) return { available: false, reasons: ["Indomitable requires a Save Check."], maximum: fighterScalingUses(runtime.character || unit, source), remaining: null, actionCost: "none", trait, state: traitState, runtime, outcomes: [] };
+          if (!failedCheck(runtime.check || {})) return { available: false, reasons: ["Indomitable requires a failed Save Check."], maximum: fighterScalingUses(runtime.character || unit, source), remaining: null, actionCost: "none", trait, state: traitState, runtime, outcomes: [] };
+          if (!checkCoins(runtime.check || {}).some(coinFailed)) return { available: false, reasons: ["Indomitable requires at least one failed Coin."], maximum: fighterScalingUses(runtime.character || unit, source), remaining: null, actionCost: "none", trait, state: traitState, runtime, outcomes: [] };
+          if (oncePerTurnBlocked(traitState, "fighter_indomitable_turn", runtime, unit)) return { available: false, reasons: ["Indomitable can only be used once per Turn."], maximum: fighterScalingUses(runtime.character || unit, source), remaining: null, actionCost: "none", trait, state: traitState, runtime, outcomes: [] };
+        }
+        const result = originalActivateTrait ? originalActivateTrait(traitInput, runtime, traitState) : { available: false, reasons: ["Trait Engine activation is unavailable."], trait, runtime, state: traitState, outcomes: [] };
+        let resolved = applySecondWindActivation(result);
+        if (traitId === "action_surge" && resolved?.available && !resolved?.scheduled) {
+          const grant = runtime.actionEconomy?.grantActionSlots?.(1) || global.LuminousActionEconomy?.grantTemporaryActionSlots?.(unit, 1, { phase: runtime.phase || "planning" }) || null;
+          if (!grant?.granted) return { ...resolved, available: false, reasons: [grant?.reason || "Action Surge could not grant an Action."], outcomes: resolved.outcomes || [] };
+          const turnKey = markOncePerTurn(resolved.state, "fighter_action_surge_turn", runtime, unit);
+          resolved.outcomes = [...(resolved.outcomes || []), { type: "fighter_action_surge", traitId: "action_surge", additionalActions: 1, turnKey, grant }];
+        }
+        if (traitId === "indomitable" && resolved?.available && !resolved?.scheduled) {
+          const reroll = rerollFailedSaveCoins(runtime.check || {}, runtime.rng || Math.random);
+          if (!reroll.success) return { ...resolved, available: false, reasons: [reroll.reason || "Indomitable reroll failed."], outcomes: resolved.outcomes || [] };
+          const turnKey = markOncePerTurn(resolved.state, "fighter_indomitable_turn", runtime, unit);
+          resolved.outcomes = [...(resolved.outcomes || []), { type: "fighter_indomitable", traitId: "indomitable", turnKey, ...reroll }];
+        }
+        return resolved;
       },
     });
     return true;
@@ -383,6 +532,9 @@
     healPercent,
     initializeSecondWind,
     applyTurnStartSecondWind,
+    fighterScalingUses,
+    collapseAdditionalAttackProgression,
+    rerollFailedSaveCoins,
     grantIdentity,
     wrapCatalog,
     wrapEngine,

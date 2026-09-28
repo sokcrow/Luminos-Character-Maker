@@ -80,7 +80,7 @@
   });
 
   const CLASS_OPTIONS = freeze({
-    fighter: { classId: "fighter", dndUnlockLevel: 1, limbusUnlockLevel: 1, styles: STYLE_IDS.slice() },
+    fighter: { classId: "fighter", dndUnlockLevel: 1, limbusUnlockLevel: 10, styles: STYLE_IDS.slice() },
     ranger: { classId: "ranger", dndUnlockLevel: 2, limbusUnlockLevel: 10, styles: ["archery", "defense", "dueling", "two_weapon_fighting"] },
     paladin: { classId: "paladin", dndUnlockLevel: 2, limbusUnlockLevel: 10, styles: ["defense", "dueling", "great_weapon_fighting", "protection"] },
   });
