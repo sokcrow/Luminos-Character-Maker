@@ -93,6 +93,17 @@
     "autoload": false
   },
   {
+    "id": "support:weapon-property-runtime",
+    "kind": "support",
+    "path": "js/weapon-property-runtime.js",
+    "contexts": [
+      "any"
+    ],
+    "dependsOn": [],
+    "globalName": "LuminousWeaponPropertyRuntime",
+    "autoload": false
+  },
+  {
     "id": "archetype:battle-master",
     "kind": "archetype",
     "path": "js/battle-master-archetype-runtime.js",
@@ -173,6 +184,18 @@
       "support:universal-action-economy"
     ],
     "globalName": "LuminousFighterClassRuntime"
+  },
+  {
+    "id": "class:monk",
+    "kind": "class",
+    "path": "js/monk-class-runtime.js",
+    "contexts": [
+      "any"
+    ],
+    "dependsOn": [
+      "support:weapon-property-runtime"
+    ],
+    "globalName": "LuminousMonkClassRuntime"
   },
   {
     "id": "class:ranger",
