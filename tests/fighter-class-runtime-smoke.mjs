@@ -49,18 +49,18 @@ assert.ok(catalog.allGrants().some((grant) => grant.sourceId === "fighter" && gr
 assert.ok(catalog.allGrants().some((grant) => grant.sourceId === "fighter" && grant.atLevel === 100 && grant.traitId === "additional_attack_plus_plus"));
 assert.equal(runtime.fightingStyleOptions().length, 6);
 
-const lv9Style = runtime.applyFightingStyleChoice(makeCharacter(9), "archery");
-assert.equal(lv9Style.success, false);
-assert.equal(lv9Style.reason, "fighting_style_locked");
-const lv10Style = runtime.applyFightingStyleChoice(makeCharacter(10), "archery");
-assert.equal(lv10Style.success, true);
-
 const makeCharacter = (level, hp = 100, maxHp = 200) => ({
   id: `fighter_${level}`,
   hp,
   maxHp,
   classes: [{ id: "fighter", level }],
 });
+
+const lv9Style = runtime.applyFightingStyleChoice(makeCharacter(9), "archery");
+assert.equal(lv9Style.success, false);
+assert.equal(lv9Style.reason, "fighting_style_locked");
+const lv10Style = runtime.applyFightingStyleChoice(makeCharacter(10), "archery");
+assert.equal(lv10Style.success, true);
 
 assert.equal(runtime.secondWindMaximum(makeCharacter(1)), 1);
 assert.equal(runtime.secondWindMaximum(makeCharacter(20)), 2);
