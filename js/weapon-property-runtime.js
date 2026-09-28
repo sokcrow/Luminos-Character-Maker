@@ -81,7 +81,7 @@
 
   function normalizeProperties(values = []) {
     const source = Array.isArray(values) ? values : [values];
-    return [...new Set(source.map(normalizeId).filter((id) => PROPERTY_IDS.includes(id)))];
+    return [...new Set(source.map(normalizeId).filter(Boolean))];
   }
 
   function handModeProperties(handMode) {
