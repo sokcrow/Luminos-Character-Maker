@@ -107,7 +107,6 @@
   ],
   morningstar: [],
   pike: [
-    "heavy",
     "reach",
     "two_handed"
   ],
@@ -115,12 +114,10 @@
     "finesse"
   ],
   scimitar: [
-    "finesse",
-    "light"
+    "finesse"
   ],
   shortsword: [
-    "finesse",
-    "light"
+    "finesse"
   ],
   trident: [
     "thrown",
