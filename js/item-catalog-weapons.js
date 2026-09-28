@@ -58,11 +58,13 @@
   ],
   light_crossbow: [
     "ammunition",
+    "heavy",
     "loading",
     "two_handed"
   ],
   dart: [
     "finesse",
+    "light",
     "thrown"
   ],
   shortbow: [
@@ -70,7 +72,8 @@
     "two_handed"
   ],
   sling: [
-    "ammunition"
+    "ammunition",
+    "light"
   ],
   battleaxe: [
     "versatile"
@@ -106,7 +109,6 @@
   ],
   morningstar: [],
   pike: [
-    "heavy",
     "reach",
     "two_handed"
   ],
@@ -114,12 +116,10 @@
     "finesse"
   ],
   scimitar: [
-    "finesse",
-    "light"
+    "finesse"
   ],
   shortsword: [
-    "finesse",
-    "light"
+    "finesse"
   ],
   trident: [
     "thrown",
@@ -135,11 +135,11 @@
   ],
   blowgun: [
     "ammunition",
+    "light",
     "loading"
   ],
   hand_crossbow: [
     "ammunition",
-    "light",
     "loading"
   ],
   heavy_crossbow: [
@@ -150,7 +150,6 @@
   ],
   longbow: [
     "ammunition",
-    "heavy",
     "two_handed"
   ],
   net: [
