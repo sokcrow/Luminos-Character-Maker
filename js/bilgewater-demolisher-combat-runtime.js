@@ -11,12 +11,12 @@
     try { return require(path); } catch (_) { return null; }
   }
 
-  const BRIDGE_KEY = "__luminousBilgewaterMarksmanCombatBridgeState";
+  const BRIDGE_KEY = "__luminousBilgewaterDemolisherCombatBridgeState";
   const normalizeId = (value) => String(value ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
   const numberOr = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
 
   function runtime() {
-    return global.LuminousBilgewaterDemolisherArchetypeRuntime || safeRequire("./bilgewater-marksman-archetype-runtime.js");
+    return global.LuminousBilgewaterDemolisherArchetypeRuntime || safeRequire("./bilgewater-demolisher-archetype-runtime.js");
   }
 
   function bridgeState() {
