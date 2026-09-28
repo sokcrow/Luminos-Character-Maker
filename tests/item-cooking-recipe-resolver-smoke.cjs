@@ -33,7 +33,7 @@ const { pathToFileURL } = require("node:url");
 
   assert.ok(resolver);
   assert.equal(resolver.VERSION, 1);
-  assert.equal(catalog.RECIPES.length, 147);
+  assert.equal(catalog.RECIPES.length, 151);
 
   const stack = (catalogApi, id, quantity, sourceInstanceId) => ({
     ...catalogApi.get(id),
@@ -136,6 +136,46 @@ const { pathToFileURL } = require("node:url");
 
   const sweetenerMatch = resolver.matchRequirement("sweetener", stack(staples,"honey",1,"honey-a"));
   assert.equal(sweetenerMatch.matches, true);
+
+  const cacaoRaw = stack(plants, "cacao", 1, "cacao-raw");
+  assert.equal(resolver.matchRequirement("chocolate", cacaoRaw).matches, false, "raw cacao must never satisfy chocolate");
+
+  const creamForChocolate = processing.createProcessedItem(stack(staples, "milk", 2, "milk-chocolate"), "press", { templateId:"cream" });
+  const chocolate = processing.createChocolate([
+    cacaoRaw,
+    stack(staples, "honey", 1, "honey-chocolate"),
+    { ...creamForChocolate, quantity:1 },
+  ]);
+  assert.equal(chocolate.created, true);
+  assert.equal(resolver.matchRequirement("chocolate", chocolate).matches, true);
+
+  const chips = processing.createChocolateChips({ ...chocolate, quantity:1 });
+  assert.equal(resolver.matchRequirement("chocolate_chips", chips).matches, true);
+
+  const rawChocolateCookie = resolver.resolveRecipe("chocolate_cookie", [
+    { ...flour, quantity:1 },
+    cacaoRaw,
+    stack(staples, "honey", 1, "honey-cookie-raw"),
+    { ...creamForChocolate, quantity:1 },
+  ]);
+  assert.equal(rawChocolateCookie.valid, false);
+  assert.ok(rawChocolateCookie.missing.some((row)=>row.requirement === "chocolate"));
+
+  const processedChocolateCookie = resolver.resolveRecipe("chocolate_cookie", [
+    { ...flour, quantity:1 },
+    { ...chocolate, quantity:1 },
+    stack(staples, "honey", 1, "honey-cookie"),
+    { ...creamForChocolate, quantity:1 },
+  ]);
+  assert.equal(processedChocolateCookie.valid, true);
+
+  const chocolateChipCookie = resolver.resolveRecipe("chocolate_chip_cookie", [
+    { ...flour, quantity:1 },
+    { ...chips, quantity:1 },
+    stack(staples, "honey", 1, "honey-chip-cookie"),
+    { ...creamForChocolate, quantity:1 },
+  ]);
+  assert.equal(chocolateChipCookie.valid, true);
 
   const craftable = resolver.craftableRecipes(burgerInventory);
   assert.ok(craftable.some((entry)=>entry.recipeId === "burger"));
