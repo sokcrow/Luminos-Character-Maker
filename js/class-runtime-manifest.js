@@ -142,6 +142,19 @@
     "globalName": "LuminousBilgewaterDemolisherArchetypeRuntime"
   },
   {
+    "id": "archetype:champion",
+    "kind": "archetype",
+    "path": "js/champion-archetype-runtime.js",
+    "contexts": [
+      "any"
+    ],
+    "dependsOn": [
+      "support:player-archetype-runtime-core",
+      "support:fighting-style-runtime"
+    ],
+    "globalName": "LuminousChampionArchetypeRuntime"
+  },
+  {
     "id": "archetype:college-of-whispers",
     "kind": "archetype",
     "path": "js/college-of-whispers-runtime.js",
