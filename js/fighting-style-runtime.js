@@ -13,6 +13,18 @@
   const styleId = (value) => normalizeId(typeof value === "object" ? value?.styleId || value?.id || value?.name : value).replace(/^fighting_style_/, "");
   const traitId = (value) => `fighting_style_${styleId(value)}`;
   const source = Object.freeze({ type: "fighting_style", id: "fighting_styles_2014", ruleset: RULESET });
+  const FEATURE_DEFINITION = Object.freeze({
+    schemaVersion: 1,
+    id: "fighting_style",
+    name: "Fighting Style",
+    description: "Choose one Fighting Style available to the source Class. The same Fighting Style cannot be chosen more than once.",
+    source,
+    contexts: ["any"],
+    activation: { type: "passive", actionCost: "none" },
+    effects: [],
+    rules: [],
+    mechanics: { fightingStyleChoice: true, ruleset: RULESET, instancePerSource: true, maxChoicesPerSource: 1, allowDuplicate: false },
+  });
 
   function freeze(value, seen = new WeakSet()) {
     if (!value || typeof value !== "object" || seen.has(value)) return value;
@@ -75,7 +87,7 @@
 
   function get(value) { const x = DEFINITIONS[styleId(value)]; return x ? clone(x) : null; }
   function list() { return STYLE_IDS.map(get); }
-  function allDefinitions() { return Object.fromEntries(STYLE_IDS.map((id) => [traitId(id), get(id)])); }
+  function allDefinitions() { return { fighting_style: clone(FEATURE_DEFINITION), ...Object.fromEntries(STYLE_IDS.map((id) => [traitId(id), get(id)])) }; }
   function classFeature(classId) { const x = CLASS_OPTIONS[normalizeId(classId)]; return x ? clone(x) : null; }
   function forClass(classId) { const x = classFeature(classId); return x ? x.styles.map(get) : []; }
   function isAllowed(style, classId) { const x = CLASS_OPTIONS[normalizeId(classId)]; return Boolean(x?.styles.includes(styleId(style))); }
@@ -95,7 +107,7 @@
     if (input.atLevel != null) out.atLevel = Math.max(1, Math.trunc(Number(input.atLevel))); return out;
   }
 
-  const CATALOG = freeze({ VERSION, RULESET, STYLE_IDS, DEFINITIONS, CLASS_OPTIONS, normalizeId, styleId, traitId, get, list, allDefinitions, classFeature, forClass, isAllowed, asTrait, normalizeSelection, validateSelection, choiceForClass, grantFor });
+  const CATALOG = freeze({ VERSION, RULESET, STYLE_IDS, FEATURE_DEFINITION, DEFINITIONS, CLASS_OPTIONS, normalizeId, styleId, traitId, get, list, allDefinitions, classFeature, forClass, isAllowed, asTrait, normalizeSelection, validateSelection, choiceForClass, grantFor });
   global.LuminousFightingStyleCatalog = CATALOG;
 
   function selectedStyles(character = {}) {
