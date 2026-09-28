@@ -17,7 +17,8 @@ on:
       - "tests/ranger-class-runtime-smoke.mjs"
       - "tests/bilgewater-buccaneer-archetype-runtime-smoke.cjs"
       - "tests/bilgewater-demolisher-archetype-runtime-smoke.cjs"
-      - "tests/fighter-class-runtime-smoke.mjs"\n      - "tests/champion-archetype-runtime-smoke.mjs"
+      - "tests/fighter-class-runtime-smoke.mjs"
+      - "tests/champion-archetype-runtime-smoke.mjs"
       - "tests/monk-class-runtime-smoke.cjs"
       - "js/class-status-semantics.js"
       - "js/caster-spellcasting-traits-runtime.js"
@@ -46,7 +47,8 @@ on:
       - "tests/ranger-class-runtime-smoke.mjs"
       - "tests/bilgewater-buccaneer-archetype-runtime-smoke.cjs"
       - "tests/bilgewater-demolisher-archetype-runtime-smoke.cjs"
-      - "tests/fighter-class-runtime-smoke.mjs"\n      - "tests/champion-archetype-runtime-smoke.mjs"
+      - "tests/fighter-class-runtime-smoke.mjs"
+      - "tests/champion-archetype-runtime-smoke.mjs"
       - "js/class-status-semantics.js"
       - "js/caster-spellcasting-traits-runtime.js"
       - "js/spellcasting-runtime.js"
@@ -79,7 +81,9 @@ jobs:
       - run: node --check js/spellcasting-runtime.js
       - run: node --check js/caster-spellcasting-traits-runtime.js
       - run: node --check js/class-status-semantics.js
-      - run: node tests/fighter-class-runtime-smoke.mjs\n      - run: node --check js/champion-archetype-runtime.js\n      - run: node tests/champion-archetype-runtime-smoke.mjs
+      - run: node tests/fighter-class-runtime-smoke.mjs
+      - run: node --check js/champion-archetype-runtime.js
+      - run: node tests/champion-archetype-runtime-smoke.mjs
       - run: node tests/ranger-class-runtime-smoke.mjs
       - run: node --check js/bilgewater-demolisher-archetype-runtime.js
       - run: node --check js/bilgewater-demolisher-combat-runtime.js
