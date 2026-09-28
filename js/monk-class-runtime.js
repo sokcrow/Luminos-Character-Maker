@@ -21,6 +21,8 @@
   const BASE_LANGUAGE_IDS = Object.freeze(["common","dwarvish","elvish","giant","gnomish","goblin","halfling","orc","abyssal","celestial","draconic","deep_speech","infernal","primordial","sylvan","undercommon"]);
   const normalizeId = (value) => String(value ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
   const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
+  const intOr = (value, fallback = 0) => Number.isFinite(Number.parseInt(value, 10)) ? Number.parseInt(value, 10) : fallback;
+  const numberOr = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
 
   const MONK_SOURCE = Object.freeze({ type: "class", id: CLASS_ID, classId: CLASS_ID, className: CLASS_NAME });
   const unarmoredConditions = Object.freeze([
@@ -340,6 +342,268 @@
     return `${grant.sourceType}:${grant.sourceId}:${grant.traitId}:${grant.atLevel}`;
   }
 
+
+  function classEntries(character = {}) {
+    const candidates = [character.classes, character.characterBuild?.classes, character.dnd?.classes, character.classLevels];
+    for (const value of candidates) {
+      if (Array.isArray(value)) return value;
+      if (value && typeof value === "object") {
+        return Object.entries(value).map(([id, entry]) => typeof entry === "object" ? { id, ...entry } : { id, level: entry });
+      }
+    }
+    return [];
+  }
+
+  function monkClassLevel(character = {}, engine = global.LuminousTraitEngine) {
+    if (engine?.getClassLevel) {
+      const viaEngine = Number(engine.getClassLevel(character, CLASS_ID));
+      if (Number.isFinite(viaEngine) && viaEngine > 0) return Math.max(0, Math.trunc(viaEngine));
+    }
+    const found = classEntries(character).find((entry) => normalizeId(entry?.classId || entry?.id || entry?.name) === CLASS_ID);
+    return Math.max(0, intOr(found?.levels ?? found?.level ?? found?.classLevel ?? found?.class_level, 0));
+  }
+
+  function traitBaseId(trait = {}) {
+    return normalizeId(trait.baseTraitId || String(trait.id || trait.name || "").split("__class__")[0]);
+  }
+
+  function kiMaximum(character = {}) {
+    const level = monkClassLevel(character);
+    return level >= 10 ? Math.min(KI_MAX, Math.floor(level / 5)) : 0;
+  }
+
+  function ensureMonkState(character) {
+    if (!character || typeof character !== "object") throw new Error("Monk Runtime requires a character object.");
+    if (!character[STATE_ROOT] || typeof character[STATE_ROOT] !== "object" || Array.isArray(character[STATE_ROOT])) character[STATE_ROOT] = {};
+    if (!character[STATE_ROOT][STATE_KEY] || typeof character[STATE_ROOT][STATE_KEY] !== "object" || Array.isArray(character[STATE_ROOT][STATE_KEY])) character[STATE_ROOT][STATE_KEY] = {};
+    const state = character[STATE_ROOT][STATE_KEY];
+    if (!state.ki || typeof state.ki !== "object" || Array.isArray(state.ki)) state.ki = {};
+    state.ki.maximum = kiMaximum(character);
+    if (!Number.isFinite(Number(state.ki.current))) state.ki.current = 0;
+    state.ki.current = Math.max(0, Math.min(state.ki.maximum, intOr(state.ki.current, 0)));
+    if (!state.turn || typeof state.turn !== "object" || Array.isArray(state.turn)) state.turn = {};
+    if (!state.effects || typeof state.effects !== "object" || Array.isArray(state.effects)) state.effects = {};
+    return state;
+  }
+
+  function kiPool(character) {
+    const pool = ensureMonkState(character).ki;
+    return { current: pool.current, maximum: pool.maximum, available: pool.current };
+  }
+
+  function gainKi(character, amount = 1, source = null) {
+    const state = ensureMonkState(character);
+    const before = state.ki.current;
+    state.ki.current = Math.min(state.ki.maximum, before + Math.max(0, intOr(amount, 0)));
+    return { gained: state.ki.current - before, before, after: state.ki.current, source, pool: kiPool(character) };
+  }
+
+  function spendKi(character, amount, options = {}) {
+    const value = Math.max(0, intOr(amount, 0));
+    const state = ensureMonkState(character);
+    if (state.ki.current < value) return { success: false, spent: 0, reason: "not_enough_ki", pool: kiPool(character) };
+    state.ki.current -= value;
+    if (value > 0 && monkClassLevel(character) >= 30 && options.armEmpoweredStrike !== false) state.effects.kiEmpoweredStrikeArmed = true;
+    return { success: true, spent: value, pool: kiPool(character) };
+  }
+
+  function isMeleeSkill(skill = {}) {
+    const family = normalizeId(skill.skillFamily || skill.skill_family || skill.type);
+    const mode = normalizeId(skill.attackMode || skill.attack_mode || (skill.isRanged ? "ranged" : "melee"));
+    const attack = family === "attack" || normalizeId(skill.type) === "attack" || skill.isAttack === true;
+    return attack && mode === "melee";
+  }
+
+  function flurryOfBlows(character, skill = {}) {
+    if (!isUnarmedAttack(skill)) return { success: false, reason: "unarmed_attack_skill_required", skill };
+    const spent = spendKi(character, 3);
+    if (!spent.success) return { ...spent, skill };
+    const coinAmount = Math.max(0, intOr(skill.coinAmount ?? skill.coinCount ?? (Array.isArray(skill.coins) ? skill.coins.length : 0), 0));
+    return { success: true, spent: 3, reuseSkill: coinAmount <= 1, reuseLastCoin: coinAmount >= 2 ? 1 : 0, pool: spent.pool };
+  }
+
+  function patientDefense(character) {
+    const spent = spendKi(character, 4);
+    return spent.success ? { success: true, spent: 4, evadePower: 6, guardShieldPercent: 40, duration: "this_turn", pool: spent.pool } : spent;
+  }
+
+  function stepOfTheWind(character) {
+    const spent = spendKi(character, 3);
+    return spent.success ? { success: true, spent: 3, hasteSpeed: 2, durationTurns: 2, pool: spent.pool } : spent;
+  }
+
+  function deflectMissilesClashPower(character, opposingSkill = {}, useKi = false) {
+    const family = normalizeId(opposingSkill.skillFamily || opposingSkill.skill_family || opposingSkill.type);
+    const mode = normalizeId(opposingSkill.attackMode || opposingSkill.attack_mode || (opposingSkill.isRanged ? "ranged" : ""));
+    const ranged = mode === "ranged" || opposingSkill.isRanged === true;
+    const spell = family === "spell" || normalizeId(opposingSkill.type) === "spell";
+    const base = ranged ? 2 : (spell ? 1 : 0);
+    if (!base) return { success: false, clashPower: 0, reason: "spell_or_ranged_skill_required" };
+    if (!useKi) return { success: true, clashPower: base, spent: 0 };
+    const spent = spendKi(character, 2);
+    if (!spent.success) return { ...spent, clashPower: base };
+    return { success: true, clashPower: base + 1, spent: 2, pool: spent.pool };
+  }
+
+  function slowFallReductionPercent(character) {
+    return Math.min(50, monkClassLevel(character));
+  }
+
+  function armStunningStrikeBoost(character) {
+    const spent = spendKi(character, 2);
+    if (!spent.success) return spent;
+    ensureMonkState(character).effects.stunningStrikeBoostArmed = true;
+    return { success: true, spent: 2, pool: spent.pool };
+  }
+
+  function stunningStrikePercent(character) {
+    const state = ensureMonkState(character);
+    const boosted = state.effects.stunningStrikeBoostArmed === true;
+    if (boosted) state.effects.stunningStrikeBoostArmed = false;
+    return boosted ? 30 : 10;
+  }
+
+  function consumeKiEmpoweredStrike(character, skill = {}) {
+    const state = ensureMonkState(character);
+    if (!state.effects.kiEmpoweredStrikeArmed) return { active: false, resistanceIgnore: 0 };
+    if (!isMeleeSkill(skill)) return { active: false, pending: true, resistanceIgnore: 0 };
+    state.effects.kiEmpoweredStrikeArmed = false;
+    return { active: true, resistanceIgnore: 0.2 };
+  }
+
+  function resolveEvasion(skill = {}, dexSave = {}) {
+    const weight = Math.max(1, intOr(skill.atkWeight ?? skill.attackWeight ?? skill.weight, 1));
+    if (weight < 2) return { triggered: false, damageMultiplier: 1 };
+    const passed = dexSave.passed === true || dexSave.success === true || ["pass", "passed", "success"].includes(normalizeId(dexSave.outcome || dexSave.result));
+    return { triggered: true, passed, damageMultiplier: passed ? 0 : 1 };
+  }
+
+  function reduceSpDamage(amount) {
+    return Math.max(0, numberOr(amount, 0) - 3);
+  }
+
+  function baseLanguageIds() {
+    const defaults = global.LuminousLanguageCatalog?.DND_DEFAULTS;
+    if (defaults && typeof defaults === "object") {
+      return Object.entries(defaults)
+        .filter(([, definition]) => normalizeId(definition?.sistema || definition?.system) === "dnd")
+        .map(([languageId]) => normalizeId(languageId));
+    }
+    return [...BASE_LANGUAGE_IDS];
+  }
+
+  function applyTongueOfSunAndMoon(character) {
+    if (!character || typeof character !== "object") return { updated: 0, languages: [] };
+    if (!character.idiomas || typeof character.idiomas !== "object" || Array.isArray(character.idiomas)) character.idiomas = {};
+    const ids = baseLanguageIds();
+    ids.forEach((languageId) => {
+      const current = character.idiomas[languageId];
+      character.idiomas[languageId] = {
+        porcentaje: 100,
+        comprendido: Boolean(current && typeof current === "object" && (current.comprendido ?? current.understood)),
+      };
+    });
+    return { updated: ids.length, languages: ids };
+  }
+
+  function applyDiamondSoulProficiency(check = {}) {
+    const kind = normalizeId(check.kind || check.checkType || check.type || check.category);
+    if (!["save", "save_check", "saving_throw", "savingthrow"].includes(kind)) return check;
+    check.proficient = true;
+    check.proficiency = true;
+    check.useProficiency = true;
+    check.diamondSoulProficiency = true;
+    return check;
+  }
+
+  function emptyBody(character, astralProjection = false) {
+    const cost = astralProjection ? 8 : 4;
+    const spent = spendKi(character, cost);
+    if (!spent.success) return spent;
+    if (astralProjection) return { success: true, spent: 8, astralProjection: true, selfOnly: true, pool: spent.pool };
+    return { success: true, spent: 4, evadePower: 5, damageTakenReductionPercent: 50, duration: "this_turn", pool: spent.pool };
+  }
+
+  function collapseUnarmoredMovementProgression(character = {}, traits = [], engine = global.LuminousTraitEngine) {
+    const level = monkClassLevel(character, engine);
+    if (level >= 90) return (traits || []).filter((trait) => !["unarmored_movement", "unarmored_movement_plus"].includes(traitBaseId(trait)));
+    if (level >= 50) return (traits || []).filter((trait) => traitBaseId(trait) !== "unarmored_movement");
+    return traits || [];
+  }
+
+  function runtimeTurnKey(runtime = {}) {
+    const value = runtime.turnNumber ?? runtime.TurnNumber ?? runtime.roundNumber ?? runtime.RoundNumber;
+    return Number.isFinite(Number(value)) ? String(Math.trunc(Number(value))) : "current";
+  }
+
+  function resetKiTurn(character, runtime = {}) {
+    const state = ensureMonkState(character);
+    const key = runtimeTurnKey(runtime);
+    if (state.turn.key !== key) state.turn = { key, landedCoins: 0, clashSkills: {}, evadeSkills: {} };
+    return state.turn;
+  }
+
+  function eventSkillKey(runtime = {}) {
+    const skill = runtime.skill || runtime.attackSkill || {};
+    return String(skill.instanceId || skill.skillInstanceId || skill.slotId || skill.id || skill.name || "skill");
+  }
+
+  function eligibleKiAttack(runtime = {}) {
+    const skill = runtime.skill || runtime.attackSkill || {};
+    const weapon = runtime.weapon || skill.weapon || runtime.item || {};
+    return isUnarmedAttack(skill) || isMonkWeapon(weapon);
+  }
+
+  function processMonkCombatEvent(trigger, runtime = {}, outcomes = []) {
+    const character = runtime.character || runtime.self;
+    if (!character) return outcomes;
+    const level = monkClassLevel(character);
+    if (level <= 0) return outcomes;
+    const event = normalizeId(trigger);
+    const state = ensureMonkState(character);
+
+    if (event === "encounter_start" && level >= 100) {
+      const gain = gainKi(character, 8, "perfect_self_combat_start");
+      outcomes.push({ type: "monk_ki_gain", trigger: event, ...gain });
+    }
+    if (event === "turn_start") {
+      resetKiTurn(character, runtime);
+      if (level >= 100) {
+        const gain = gainKi(character, 2, "perfect_self_turn_start");
+        outcomes.push({ type: "monk_ki_gain", trigger: event, ...gain });
+      }
+    }
+    if (level >= 10 && event === "clash_win" && eligibleKiAttack(runtime)) {
+      const turn = resetKiTurn(character, runtime);
+      const key = eventSkillKey(runtime);
+      if (!turn.clashSkills[key]) {
+        turn.clashSkills[key] = true;
+        const gain = gainKi(character, 1, "ki_clash_win");
+        if (gain.gained) outcomes.push({ type: "monk_ki_gain", trigger: event, ...gain });
+      }
+    }
+    if (level >= 10 && event === "on_evade") {
+      const turn = resetKiTurn(character, runtime);
+      const key = eventSkillKey(runtime);
+      if (!turn.evadeSkills[key]) {
+        turn.evadeSkills[key] = true;
+        const gain = gainKi(character, 1, "ki_evade");
+        if (gain.gained) outcomes.push({ type: "monk_ki_gain", trigger: event, ...gain });
+      }
+    }
+    if (level >= 10 && event === "on_hit" && eligibleKiAttack(runtime)) {
+      const turn = resetKiTurn(character, runtime);
+      turn.landedCoins = Math.max(0, intOr(turn.landedCoins, 0)) + Math.max(1, intOr(runtime.coinsHit ?? runtime.hitCoins ?? 1, 1));
+      const groups = Math.floor(turn.landedCoins / 3);
+      if (groups > 0) {
+        turn.landedCoins %= 3;
+        const gain = gainKi(character, groups, "ki_three_coins");
+        if (gain.gained) outcomes.push({ type: "monk_ki_gain", trigger: event, ...gain });
+      }
+    }
+    return outcomes;
+  }
+
   function isUnarmored(character = {}, modifiers = global.LuminousUniversalModifiers) {
     const equipment = modifiers?.resolveEquipment ? modifiers.resolveEquipment(character) : (character.equipment || {});
     return !equipment?.armorEquipped && !equipment?.shield;
@@ -434,22 +698,77 @@
     return true;
   }
 
+
+  function wrapEngine() {
+    const source = global.LuminousTraitEngine || safeRequire("./trait-engine.js");
+    if (!source) return false;
+    if (source.__monkClassRuntimeWrapped) return true;
+
+    const originalResolveTraitGrants = source.resolveTraitGrants?.bind(source);
+    const originalDispatchCombatEvent = source.dispatchCombatEvent?.bind(source);
+
+    global.LuminousTraitEngine = Object.freeze({
+      ...source,
+      __monkClassRuntimeWrapped: true,
+      resolveTraitGrants(character = {}, grants = [], definitions = {}) {
+        const base = originalResolveTraitGrants ? originalResolveTraitGrants(character, grants, definitions) : [];
+        return collapseUnarmoredMovementProgression(character, base, source);
+      },
+      dispatchCombatEvent(trigger, input = {}) {
+        const result = originalDispatchCombatEvent
+          ? originalDispatchCombatEvent(trigger, input)
+          : { state: input.state, runtime: input, outcomes: [] };
+        const extras = [];
+        processMonkCombatEvent(trigger, result.runtime || input, extras);
+        result.outcomes = [...(result.outcomes || []), ...extras];
+        return result;
+      },
+    });
+    return true;
+  }
+
   function install() {
-    return wrapCatalog();
+    const catalog = wrapCatalog();
+    const engine = wrapEngine();
+    return catalog && engine;
   }
 
   const API = Object.freeze({
     CLASS_ID,
     CLASS_NAME,
     CATALOG_VERSION,
+    KI_MAX,
+    BASE_LANGUAGE_IDS,
     MONK_DEFINITIONS,
     MONK_GRANTS,
+    monkClassLevel,
+    kiMaximum,
+    kiPool,
+    gainKi,
+    spendKi,
+    flurryOfBlows,
+    patientDefense,
+    stepOfTheWind,
+    deflectMissilesClashPower,
+    slowFallReductionPercent,
+    armStunningStrikeBoost,
+    stunningStrikePercent,
+    consumeKiEmpoweredStrike,
+    resolveEvasion,
+    reduceSpDamage,
+    baseLanguageIds,
+    applyTongueOfSunAndMoon,
+    applyDiamondSoulProficiency,
+    emptyBody,
+    collapseUnarmoredMovementProgression,
+    processMonkCombatEvent,
     isUnarmored,
     isUnarmedAttack,
     isMonkWeapon,
     martialArtsEligibleAttack,
     martialArtsFollowUp,
     wrapCatalog,
+    wrapEngine,
     install,
   });
 
