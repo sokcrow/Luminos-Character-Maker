@@ -196,9 +196,10 @@
 
   function weightClassBounds(primaryDef = {}, handMode = "one_handed") {
     const size = normalizeId(primaryDef.sizeClass || "medium");
-    if (size === "small") return Object.freeze({ min:"light", max:"neutral" });
-    if (size === "large" || normalizeId(handMode) === "two_handed") return Object.freeze({ min:"neutral", max:"heavy" });
-    return Object.freeze({ min:"light", max:"heavy" });
+    const mode = normalizeId(handMode);
+    const min = size === "large" || mode === "two_handed" ? "neutral" : "light";
+    const max = size === "small" ? "neutral" : "heavy";
+    return Object.freeze({ min, max });
   }
 
   function resolveWeightClass(properties = [], ratio = 1, primaryDef = {}, handMode = "one_handed") {
