@@ -87,7 +87,6 @@ const SUPPORT = [
     contexts: ["any"],
     dependsOn: [],
     globalName: "LuminousWeaponPropertyRuntime",
-    autoload: false,
   },
 ];
 
