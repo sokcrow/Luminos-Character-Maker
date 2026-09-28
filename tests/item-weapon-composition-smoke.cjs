@@ -46,7 +46,7 @@ const { pathToFileURL } = require('node:url');
   assert.equal(dagger.maxDurability, 40);
   assert.equal(dagger.productionValueAhn, 115000);
   assert.equal(dagger.handMode, 'one_handed');
-  assert.deepEqual(dagger.properties.sort(), ['finesse','light','thrown'].sort());
+  assert.deepEqual([...dagger.properties].sort(), ['finesse','light','thrown'].sort());
 
   const longsword = engine.referenceBuild('longsword');
   assert.equal(longsword.maxDurability, 85);
@@ -60,7 +60,7 @@ const { pathToFileURL } = require('node:url');
   assert.equal(greatsword.productionValueAhn, 367000);
   assert.equal(greatsword.handMode, 'two_handed');
   assert.equal(greatsword.handCost, 2);
-  assert.deepEqual(greatsword.properties.sort(), ['heavy','two_handed'].sort());
+  assert.deepEqual([...greatsword.properties].sort(), ['heavy','two_handed'].sort());
 
   const halberd = engine.referenceBuild('halberd');
   assert.equal(halberd.maxDurability, 105);
