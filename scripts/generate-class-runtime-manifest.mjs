@@ -179,26 +179,7 @@ function discoverEntries() {
 }
 
 function render(entries) {
-  return `// GENERATED FILE. Run: npm run generate:class-runtime-manifest
-(function (global) {
-  "use strict";
-
-  const entries = ${JSON.stringify(entries, null, 2)};
-
-  const manifest = Object.freeze({
-    version: 1,
-    generatedFrom: "scripts/generate-class-runtime-manifest.mjs",
-    entries: Object.freeze(entries.map((entry) => Object.freeze({
-      ...entry,
-      contexts: Object.freeze([...(entry.contexts || ["any"])]),
-      dependsOn: Object.freeze([...(entry.dependsOn || [])]),
-    }))),
-  });
-
-  global.LuminousClassRuntimeManifest = manifest;
-  if (typeof module !== "undefined" && module.exports) module.exports = manifest;
-})(typeof window !== "undefined" ? window : globalThis);
-`;
+  return `// GENERATED FILE. Run: npm run generate:class-runtime-manifest\n(function (global) {\n  "use strict";\n\n  const entries = ${JSON.stringify(entries, null, 2)};\n\n  const manifest = Object.freeze({\n    version: 1,\n    generatedFrom: "scripts/generate-class-runtime-manifest.mjs",\n    entries: Object.freeze(entries.map((entry) => Object.freeze({\n      ...entry,\n      contexts: Object.freeze([...(entry.contexts || ["any"])]),\n      dependsOn: Object.freeze([...(entry.dependsOn || [])]),\n    }))),\n  });\n\n  global.LuminousClassRuntimeManifest = manifest;\n  if (typeof module !== "undefined" && module.exports) module.exports = manifest;\n})(typeof window !== "undefined" ? window : globalThis);\n`;
 }
 
 const expectedEntries = discoverEntries();
