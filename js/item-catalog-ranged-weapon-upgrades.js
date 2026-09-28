@@ -32,7 +32,7 @@
       slotCost:Number(def.slotCost || 1), compatibleComponentIds:arr(def.compatibleComponentIds), requiredSkillTags:arr(def.requiredSkillTags), forbiddenSkillTags:arr(def.forbiddenSkillTags),
       damageType:normalizeId(def.damageType || ""), damagePercent, ammoPowerPercent, clashPercent:Number(def.clashPercent || 0), controlPercent:Number(def.controlPercent || 0), stabilityPercent:Number(def.stabilityPercent || 0),
       statusType,statusAxis,statusDelta:Number(def.statusDelta || 0),durabilityPercent:Number(def.durabilityPercent || 0),mitigationChannel:normalizeId(def.mitigationChannel || ""),mitigationPercent:Number(def.mitigationPercent || 0),
-      addProperties:arr(def.addProperties), notes:def.notes || "",
+      addProperties:arr(def.addProperties), removeProperties:arr(def.removeProperties), notes:def.notes || "",
     });
   }
 
