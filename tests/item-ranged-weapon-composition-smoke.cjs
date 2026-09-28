@@ -7,9 +7,13 @@ const { pathToFileURL } = require('node:url');
   delete globalThis.LuminousRangedWeaponComponentCatalog;
   delete globalThis.LuminousWeaponCompositionEngine;
   delete globalThis.LuminousRangedWeaponCompositionEngine;
+  delete globalThis.LuminousWeaponUpgradeCatalog;
+  delete globalThis.LuminousRangedWeaponUpgradeCatalog;
 
   await import(pathToFileURL(path.resolve(__dirname, '../js/item-catalog-weapon-components.js')).href);
   await import(pathToFileURL(path.resolve(__dirname, '../js/item-catalog-ranged-weapon-components.js')).href);
+  await import(pathToFileURL(path.resolve(__dirname, '../js/item-catalog-weapon-upgrades.js')).href);
+  await import(pathToFileURL(path.resolve(__dirname, '../js/item-catalog-ranged-weapon-upgrades.js')).href);
   await import(pathToFileURL(path.resolve(__dirname, '../js/item-weapon-composition-engine.js')).href);
   await import(pathToFileURL(path.resolve(__dirname, '../js/item-ranged-weapon-composition-engine.js')).href);
 
@@ -44,9 +48,14 @@ const { pathToFileURL } = require('node:url');
     assert.equal(build.productionValueAhn, value, `${id} Production Value mismatch`);
   }
   assert.equal(Engine.referenceBuild('shortbow').handMode, 'two_handed');
+  assert.equal(Engine.referenceBuild('shortbow').weightClass, 'neutral');
   assert.deepEqual([...Engine.referenceBuild('shortbow').properties].sort(), ['ammunition','two_handed'].sort());
   assert.equal(Engine.referenceBuild('hand_crossbow').handMode, 'one_handed');
+  assert.equal(Engine.referenceBuild('hand_crossbow').weightClass, 'light');
   assert.deepEqual([...Engine.referenceBuild('hand_crossbow').properties].sort(), ['ammunition','light','loading'].sort());
+  assert.equal(Engine.referenceBuild('longbow').weightClass, 'heavy');
+  assert.equal(Engine.componentUpgradeWeightMultiplier({source:'ranged',upgradeIds:['ammo_heavy_shaft']}), 1.20);
+  assert.equal(Engine.componentUpgradeWeightMultiplier({source:'ranged',upgradeIds:['ammo_light_shaft']}), 0.80);
   assert.equal(Engine.referenceBuild('dart').recoverable, true);
   assert.equal(Engine.referenceBuild('net').recoverable, true);
   assert.deepEqual(Engine.referenceBuild('net').properties, ['thrown']);
