@@ -91,8 +91,9 @@
     return [];
   }
 
-  function upgradeProperties(weapon = {}) {
-    const out = [];
+  function upgradePropertyMutations(weapon = {}) {
+    const add = [];
+    const remove = [];
     const componentRows = [
       ...(Array.isArray(weapon.components) ? weapon.components : []),
       ...(Array.isArray(weapon.installedComponents) ? weapon.installedComponents : []),
@@ -102,18 +103,33 @@
       (Array.isArray(ids) ? ids : []).forEach((entry) => {
         const id = normalizeId(typeof entry === "string" ? entry : entry?.id);
         const def = upgradeCatalog?.get?.(id) || (typeof entry === "object" ? entry : null);
-        if (def?.addProperties) out.push(...def.addProperties);
+        if (def?.addProperties) add.push(...def.addProperties);
+        if (def?.removeProperties) remove.push(...def.removeProperties);
       });
     });
-    return normalizeProperties(out);
+    return Object.freeze({ add:normalizeProperties(add), remove:normalizeProperties(remove) });
+  }
+
+  function upgradeProperties(weapon = {}) {
+    return upgradePropertyMutations(weapon).add;
   }
 
   function resolveWeaponProperties(weapon = {}) {
-    return normalizeProperties([
+    const weightClass = normalizeId(weapon.weightClass || weapon.weight_class);
+    const mutations = upgradePropertyMutations(weapon);
+    const properties = normalizeProperties([
       ...(Array.isArray(weapon.properties) ? weapon.properties : []),
       ...handModeProperties(weapon.handMode || weapon.hand_mode),
-      ...upgradeProperties(weapon),
+      ...mutations.add,
     ]);
+    const out = new Set(properties);
+    if (weightClass) {
+      out.delete("light");
+      out.delete("heavy");
+      if (weightClass === "light" || weightClass === "heavy") out.add(weightClass);
+    }
+    mutations.remove.forEach((propertyId) => out.delete(propertyId));
+    return [...out];
   }
 
   function hasProperty(weapon, propertyId) {
@@ -236,6 +252,7 @@
     normalizeId,
     normalizeProperties,
     handModeProperties,
+    upgradePropertyMutations,
     upgradeProperties,
     resolveWeaponProperties,
     hasProperty,
