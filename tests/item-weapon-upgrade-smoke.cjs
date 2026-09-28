@@ -37,6 +37,11 @@ const { pathToFileURL } = require('node:url');
   assert.equal(engine.componentUpgradeCapacity(steelBlade).slots, 3);
   assert.equal(engine.validateLoadout(steelBlade,['razor_edge','serrated_edge','reinforced_blade']).valid, true);
 
+  assert.equal(catalog.get('weighted_face').weightMultiplier, 1.10);
+  assert.equal(catalog.get('overweighted_head').weightMultiplier, 1.20);
+  assert.equal(catalog.get('heavy_counterweight').weightMultiplier, 1.15);
+  assert.equal(catalog.get('tapered_shaft').weightMultiplier, 0.90);
+
   assert.equal(engine.modifiedComponentDurability(50,['razor_edge','reinforced_blade']).durability, 50);
   assert.equal(engine.modifiedComponentDurability(50,['razor_edge','deep_serration']).durability, 30);
   assert.equal(engine.modifiedComponentDurability(50,['razor_edge','deep_serration','needle_point']).durability, 20);
