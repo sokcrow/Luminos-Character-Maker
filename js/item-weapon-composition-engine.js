@@ -21,6 +21,7 @@
   const IMPROVISED_DAMAGE_MULTIPLIER = 0.60;
   const BASE_SKILL_DURABILITY_LOSS = 1;
   const UPGRADE_MIN_DURABILITY_RATIO_EXCLUSIVE = 0.50;
+  const WEIGHT_CLASS_ORDER = Object.freeze(["light","neutral","heavy"]);
 
   function clone(value) { return value == null ? value : JSON.parse(JSON.stringify(value)); }
   function normalizeId(value) { return Components.normalizeId(value); }
@@ -132,10 +133,64 @@
   ]
 });
 
-  function propertiesForChassis(id, handMode, explicit) {
+  function propertiesForChassis(id, handMode, explicit, weightClass = null) {
     const base = Array.isArray(explicit) ? explicit : (CHASSIS_PROPERTIES[normalizeId(id)] || []);
     const derived = normalizeId(handMode) === "two_handed" ? ["two_handed"] : normalizeId(handMode) === "versatile" ? ["versatile"] : [];
-    return Object.freeze([...new Set([...base, ...derived].map(normalizeId).filter(Boolean))]);
+    const resolvedWeight = normalizeId(weightClass);
+    const withoutWeight = [...base, ...derived].map(normalizeId).filter((propertyId) => propertyId && !["light","heavy"].includes(propertyId));
+    if (resolvedWeight === "light" || resolvedWeight === "heavy") withoutWeight.push(resolvedWeight);
+    else if (!resolvedWeight) withoutWeight.push(...base.map(normalizeId).filter((propertyId) => ["light","heavy"].includes(propertyId)));
+    return Object.freeze([...new Set(withoutWeight)]);
+  }
+
+  function weightTier(ratio) {
+    const value = Number(ratio);
+    if (!Number.isFinite(value) || value <= 0) return 0;
+    if (value <= 0.70) return -2;
+    if (value <= 0.85) return -1;
+    if (value < 1.15) return 0;
+    if (value < 1.35) return 1;
+    return 2;
+  }
+
+  function weightScoreFromComponents(componentInstances) {
+    return (Array.isArray(componentInstances) ? componentInstances : []).reduce(
+      (sum, row) => sum + Math.max(0, Number(row.weightScore || 0)) * Math.max(1, Number(row.quantity || 1)),
+      0
+    );
+  }
+
+  function referenceWeightScoreFromComponents(componentInstances) {
+    return (Array.isArray(componentInstances) ? componentInstances : []).reduce((sum, row) => {
+      const reference = Components.resolveReferenceComponent(row.componentId || row.id);
+      return sum + Math.max(0, Number(reference?.weightScore || 0)) * Math.max(1, Number(row.quantity || 1));
+    }, 0);
+  }
+
+  function baseWeightClass(properties = []) {
+    const values = new Set((properties || []).map(normalizeId));
+    if (values.has("light")) return "light";
+    if (values.has("heavy")) return "heavy";
+    return "neutral";
+  }
+
+  function weightClassBounds(primaryDef = {}, handMode = "one_handed") {
+    const size = normalizeId(primaryDef.sizeClass || "medium");
+    if (size === "small") return Object.freeze({ min:"light", max:"neutral" });
+    if (size === "large" || normalizeId(handMode) === "two_handed") return Object.freeze({ min:"neutral", max:"heavy" });
+    return Object.freeze({ min:"light", max:"heavy" });
+  }
+
+  function resolveWeightClass(properties = [], ratio = 1, primaryDef = {}, handMode = "one_handed") {
+    const base = baseWeightClass(properties);
+    const tier = weightTier(ratio);
+    const shift = tier < 0 ? -1 : tier > 0 ? 1 : 0;
+    const bounds = weightClassBounds(primaryDef, handMode);
+    const min = WEIGHT_CLASS_ORDER.indexOf(bounds.min);
+    const max = WEIGHT_CLASS_ORDER.indexOf(bounds.max);
+    const baseIndex = WEIGHT_CLASS_ORDER.indexOf(base);
+    const index = Math.max(min, Math.min(max, baseIndex + shift));
+    return Object.freeze({ base, resolved:WEIGHT_CLASS_ORDER[index], ratio:Number(ratio) || 1, tier, bounds });
   }
 
   function chassis(def) {
@@ -307,6 +362,10 @@
     const validation = validateAssembly(instances);
     if (!validation.valid) return Object.freeze({ valid:false, chassisId:def.id, reason:validation.reason });
     const primary = instances.find((entry) => entry.componentId === def.primaryComponentId);
+    const weightScore = weightScoreFromComponents(instances);
+    const referenceWeightScore = referenceWeightScoreFromComponents(instances);
+    const weightRatio = referenceWeightScore > 0 ? weightScore / referenceWeightScore : 1;
+    const weight = resolveWeightClass(def.properties, weightRatio, Components.get(def.primaryComponentId), validation.handMode);
     return Object.freeze({
       valid:true,
       chassisId:def.id,
@@ -323,7 +382,13 @@
       semanticCheck:def.semanticCheck,
       handMode:validation.handMode,
       handCost:validation.handCost,
-      properties:propertiesForChassis(def.id, validation.handMode, def.properties),
+      baseWeightClass:weight.base,
+      weightClass:weight.resolved,
+      weightScore,
+      referenceWeightScore,
+      weightRatio,
+      weightTier:weight.tier,
+      properties:propertiesForChassis(def.id, validation.handMode, def.properties, weight.resolved),
       damageType:def.damageType,
       iconFamily:def.iconFamily,
     });
@@ -343,6 +408,10 @@
     const primary = instances.find((entry) => normalizeId(entry.componentId) === def.primaryComponentId);
     const quality = craftedQuality(instances, craftResult ?? def.baseThreshold, def.baseThreshold);
     const maxDurability = durabilityFromComponents(instances);
+    const weightScore = weightScoreFromComponents(instances);
+    const referenceWeightScore = referenceWeightScoreFromComponents(instances);
+    const weightRatio = referenceWeightScore > 0 ? weightScore / referenceWeightScore : 1;
+    const weight = resolveWeightClass(def.properties, weightRatio, Components.get(def.primaryComponentId), validation.handMode);
     return Object.freeze({
       valid:true, chassisId:def.id, name:def.name, classification:def.classification,
       components:Object.freeze(instances.map(clone)), primaryComponentId:def.primaryComponentId,
@@ -352,7 +421,9 @@
       productionValueAhn:productionValueFromComponents(instances, def.assemblyMultiplier),
       baseThreshold:def.baseThreshold, craftAdjustment:quality.adjustment,
       handMode:validation.handMode, handCost:validation.handCost,
-      properties:propertiesForChassis(def.id, validation.handMode, def.properties),
+      baseWeightClass:weight.base, weightClass:weight.resolved,
+      weightScore, referenceWeightScore, weightRatio, weightTier:weight.tier,
+      properties:propertiesForChassis(def.id, validation.handMode, def.properties, weight.resolved),
       upgradeEligible:maxDurability > 0,
       damageType:def.damageType, iconFamily:def.iconFamily,
     });
@@ -369,6 +440,11 @@
     const support = instances.map((entry) => Components.get(entry.componentId)).find((entry) => entry?.role === "support");
     const primaryDef = Components.get(validation.primaryComponentId);
     const family = support?.id === "long_shaft" ? "polearm" : (primaryDef?.weaponFamily || "custom");
+    const weightScore = weightScoreFromComponents(instances);
+    const referenceWeightScore = referenceWeightScoreFromComponents(instances);
+    const weightRatio = referenceWeightScore > 0 ? weightScore / referenceWeightScore : 1;
+    const baseProperties = Array.isArray(craft.properties) ? craft.properties : [];
+    const weight = resolveWeightClass(baseProperties, weightRatio, primaryDef, validation.handMode);
     return Object.freeze({
       valid:true,
       chassisId:"custom",
@@ -384,7 +460,13 @@
       productionValueAhn:productionValueFromComponents(instances, Number(craft.assemblyMultiplier || 1.30)),
       handMode:validation.handMode,
       handCost:validation.handCost,
-      properties:propertiesForChassis("custom", validation.handMode, craft.properties),
+      baseWeightClass:weight.base,
+      weightClass:weight.resolved,
+      weightScore,
+      referenceWeightScore,
+      weightRatio,
+      weightTier:weight.tier,
+      properties:propertiesForChassis("custom", validation.handMode, craft.properties, weight.resolved),
       craftAdjustment:quality.adjustment,
       upgradeEligible:maxDurability > 0,
     });
@@ -432,8 +514,9 @@
   const API = Object.freeze({
     VERSION, DEFAULT_QUALITY, QUALITY_ORDER, QUALITY_SCORE,
     IMPROVISED_DAMAGE_MULTIPLIER, BASE_SKILL_DURABILITY_LOSS, UPGRADE_MIN_DURABILITY_RATIO_EXCLUSIVE,
-    CHASSIS, CHASSIS_PROPERTIES, REFERENCE_BUILDS, propertiesForChassis, normalizeId, getChassis, listChassis,
+    CHASSIS, CHASSIS_PROPERTIES, REFERENCE_BUILDS, WEIGHT_CLASS_ORDER, propertiesForChassis, normalizeId, getChassis, listChassis,
     craftAdjustment, compositionQuality, craftedQuality, resolveHandMode, validateAssembly,
+    weightTier, weightScoreFromComponents, referenceWeightScoreFromComponents, baseWeightClass, weightClassBounds, resolveWeightClass,
     durabilityFromComponents, productionValueFromComponents, referenceBuild, resolveCanonicalBuild, resolveCustomAssembly,
     degradeQuality, resolveDurabilityBreak, repairState, durabilityLossForSkill, canUpgrade, improvisedDamage,
   });
