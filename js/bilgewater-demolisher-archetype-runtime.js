@@ -52,6 +52,7 @@
     classId: CLASS_ID,
     className: CLASS_NAME,
     regionId: REGION_ID,
+    familyId: FAMILY_ID,
     doctrineId: DOCTRINE_ID,
     doctrineName: DOCTRINE_NAME,
   });
@@ -672,7 +673,7 @@
     return true;
   }
 
-  function isBilgewaterMarksmanTrait(trait = {}) {
+  function isBilgewaterDemolisherTrait(trait = {}) {
     const source = trait.source || {};
     return ["archetype", "subclass", "class_archetype"].includes(normalizeId(source.type || trait.sourceType))
       && normalizeId(source.archetypeId || source.id) === ARCHETYPE_ID;
@@ -691,7 +692,7 @@
         const granted = engine?.resolveTraitGrants ? engine.resolveTraitGrants(unit, GRANTS, DEFINITIONS, { [ARCHETYPE_ID]: ARCHETYPE }, global.LuminousTraitEngine) || [] : [];
         const existing = Array.isArray(unit.traitDefinitions) ? unit.traitDefinitions : [];
         const byId = new Map();
-        [...existing.filter((trait) => !isBilgewaterMarksmanTrait(trait)), ...granted].forEach((trait) => {
+        [...existing.filter((trait) => !isBilgewaterDemolisherTrait(trait)), ...granted].forEach((trait) => {
           const id = normalizeId(trait?.id || trait?.name);
           if (id && !byId.has(id)) byId.set(id, trait);
         });
