@@ -103,6 +103,19 @@
     "globalName": "LuminousWeaponPropertyRuntime"
   },
   {
+    "id": "archetype:banneret",
+    "kind": "archetype",
+    "path": "js/banneret-archetype-runtime.js",
+    "contexts": [
+      "any"
+    ],
+    "dependsOn": [
+      "class:fighter",
+      "support:player-archetype-runtime-core"
+    ],
+    "globalName": "LuminousBanneretArchetypeRuntime"
+  },
+  {
     "id": "archetype:battle-master",
     "kind": "archetype",
     "path": "js/battle-master-archetype-runtime.js",
