@@ -191,8 +191,10 @@
       slotLevel: requestedLevel,
       overcast: overcast === true,
       targetId: target,
-      targetActionSlotId: slotEnchantment ? (clean(slotId) || `${clean(resolved.unitId)}_slot_${requestedSlotIndex}`) : null,
-      slotEnchantment,
+      ...(slotEnchantment ? {
+        targetActionSlotId: clean(slotId) || `${clean(resolved.unitId)}_slot_${requestedSlotIndex}`,
+        slotEnchantment: true,
+      } : {}),
       status: "planned",
       scheduledBy: player.playerId,
       schedulerUid: uid,
