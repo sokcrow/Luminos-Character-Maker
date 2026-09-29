@@ -420,7 +420,7 @@
     const selected = entries.find(({ actor }) => actor.key === select.value) || null;
     const ambiguous = selected?.unitResolution?.reason === "AMBIGUOUS_PLAYER_UNIT";
     const canSyncExistingSpells = Boolean(selected?.existing && selected?.spellLoadout);
-    add.disabled = !selected || !selected.linked || (Boolean(selected.existing) && !canSyncExistingSpells) || ambiguous;
+    add.disabled = !selected || (!canSyncExistingSpells && (!selected.linked || Boolean(selected.existing) || ambiguous));
     add.textContent = canSyncExistingSpells ? "SYNC SPELLS" : "ADD PLAYER";
     if (!entries.length) setStatus("No campaign Players found.");
     else if (selected?.existing && selected?.spellLoadout) setStatus(`Player is already in combat · ${selected.spellLoadout.combatSpellIds.length} canonical sheet Spells ready to sync.`);
