@@ -8,6 +8,7 @@
     if (typeof require === "function") {
       try { require("./spell-batch-pierre-runtime.js"); } catch (_) {}
       try { require("./spell-batch-angelo-runtime.js"); } catch (_) {}
+      try { require("./spell-batch-weapon-cantrips-runtime.js"); } catch (_) {}
     }
     if (global.document) {
       const load = (id, src) => {
@@ -19,6 +20,7 @@
       if (!global.LuminousRoleSpellCatalog) load("role-spell-catalog-core-script", "js/role-spell-catalog-core.js");
       if (!global.LuminousPierreSpellBatchRuntime) load("spell-batch-pierre-runtime-script", "js/spell-batch-pierre-runtime.js");
       if (!global.LuminousAngeloSpellBatchRuntime) load("spell-batch-angelo-runtime-script", "js/spell-batch-angelo-runtime.js");
+      if (!global.LuminousWeaponCantripBatchRuntime) load("spell-batch-weapon-cantrips-runtime-script", "js/spell-batch-weapon-cantrips-runtime.js");
     }
   }
 })(typeof window !== "undefined" ? window : globalThis, function () {
@@ -104,6 +106,45 @@
         onHitClashPowerDown: 2,
         clashPowerDownExpires: "next_clash_end"
       },
+      effects: []
+    }),
+
+    booming_blade: Object.freeze({
+      id: "booming_blade", name: "Booming Blade", nombre: "Booming Blade",
+      description: "Your next Hit inflicts (1, Level/5) Booming next Turn.",
+      level: 0, spellLevel: 0, cantrip: true,
+      classIds: ["artificer", "sorcerer", "warlock", "wizard"],
+      school: "evocation", contexts: ["combat"],
+      sinAffinity: "wrath", damageType: null,
+      targetType: "self", targetingType: "self", attackWeight: 1, atkWeight: 1,
+      isUnclashable: true, castingTime: "quick_action",
+      mechanics: { weaponCantrip: "booming_blade" },
+      effects: []
+    }),
+
+    green_flame_blade: Object.freeze({
+      id: "green_flame_blade", name: "Green-Flame Blade", nombre: "Green-Flame Blade",
+      description: "Only affects Skills with 1 ATK Weight. Your next Melee Skill gains +1 ATK Weight. The secondary target only takes (20 + Level/4)% Damage. On Hit, inflict (1 + Level/15) Burn.",
+      level: 0, spellLevel: 0, cantrip: true,
+      classIds: ["artificer", "sorcerer", "warlock", "wizard"],
+      school: "evocation", contexts: ["combat"],
+      sinAffinity: "wrath", damageType: null,
+      targetType: "self", targetingType: "self", attackWeight: 1, atkWeight: 1,
+      isUnclashable: true, castingTime: "quick_action",
+      mechanics: { weaponCantrip: "green_flame_blade" },
+      effects: []
+    }),
+
+    shillelagh: Object.freeze({
+      id: "shillelagh", name: "Shillelagh", nombre: "Shillelagh",
+      description: "Gain 10 Shillelagh.",
+      level: 0, spellLevel: 0, cantrip: true,
+      classIds: ["druid"],
+      school: "transmutation", contexts: ["combat"],
+      sinAffinity: "gluttony", damageType: null,
+      targetType: "self", targetingType: "self", attackWeight: 1, atkWeight: 1,
+      isUnclashable: true, castingTime: "quick_action",
+      mechanics: { weaponCantrip: "shillelagh" },
       effects: []
     }),
 
