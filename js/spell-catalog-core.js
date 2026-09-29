@@ -111,40 +111,69 @@
 
     booming_blade: Object.freeze({
       id: "booming_blade", name: "Booming Blade", nombre: "Booming Blade",
-      description: "Your next Hit inflicts (1, Level/5) Booming next Turn.",
+      description: "Enchant one Melee Attack Skill in a Slot. On Hit, inflict (1, Level/5) Booming next Turn.",
       level: 0, spellLevel: 0, cantrip: true,
       classIds: ["artificer", "sorcerer", "warlock", "wizard"],
       school: "evocation", contexts: ["combat"],
       sinAffinity: "wrath", damageType: null,
-      targetType: "self", targetingType: "self", attackWeight: 1, atkWeight: 1,
+      targetType: "action_slot", targetingType: "action_slot", attackWeight: 1, atkWeight: 1,
       isUnclashable: true, castingTime: "quick_action",
-      mechanics: { weaponCantrip: "booming_blade" },
+      mechanics: {
+        slotEnchantment: { id: "booming_blade", requires: { meleeAttackSkill: true } },
+        onHitNextTurnStatus: { status: "booming", countFormula: "max(1,floor(Level/5))" }
+      },
       effects: []
     }),
 
     green_flame_blade: Object.freeze({
       id: "green_flame_blade", name: "Green-Flame Blade", nombre: "Green-Flame Blade",
-      description: "Only affects Skills with 1 ATK Weight. Your next Melee Skill gains +1 ATK Weight. The secondary target only takes (20 + Level/4)% Damage. On Hit, inflict (1 + Level/15) Burn.",
+      description: "Enchant one Melee Attack Skill with 1 ATK Weight in a Slot. Gain +1 ATK Weight; secondary target takes (20 + Level/4)% Damage. On Hit, inflict (1 + Level/15) Burn.",
       level: 0, spellLevel: 0, cantrip: true,
       classIds: ["artificer", "sorcerer", "warlock", "wizard"],
       school: "evocation", contexts: ["combat"],
       sinAffinity: "wrath", damageType: null,
-      targetType: "self", targetingType: "self", attackWeight: 1, atkWeight: 1,
+      targetType: "action_slot", targetingType: "action_slot", attackWeight: 1, atkWeight: 1,
       isUnclashable: true, castingTime: "quick_action",
-      mechanics: { weaponCantrip: "green_flame_blade" },
+      mechanics: {
+        slotEnchantment: { id: "green_flame_blade", requires: { meleeAttackSkill: true, attackWeight: 1 } },
+        attackWeightBonus: 1,
+        secondaryDamagePercentFormula: "20+floor(Level/4)",
+        onHitBurnFormula: "1+floor(Level/15)"
+      },
       effects: []
     }),
 
     shillelagh: Object.freeze({
       id: "shillelagh", name: "Shillelagh", nombre: "Shillelagh",
-      description: "Gain 10 Shillelagh.",
+      description: "Gain 10 Shillelagh. Melee Skills deal (1, (Level/15) + (2 × WIS Mod))% Main Damage as Fixed Damage on Hit.",
       level: 0, spellLevel: 0, cantrip: true,
       classIds: ["druid"],
       school: "transmutation", contexts: ["combat"],
       sinAffinity: "gluttony", damageType: null,
       targetType: "self", targetingType: "self", attackWeight: 1, atkWeight: 1,
       isUnclashable: true, castingTime: "quick_action",
-      mechanics: { weaponCantrip: "shillelagh" },
+      mechanics: {
+        weaponCantrip: "shillelagh",
+        onUseStatus: { status: "shillelagh", count: 10 },
+        fixedDamagePercentFormula: "max(1,floor(Level/15)+(2*WISMod))"
+      },
+      effects: []
+    }),
+
+    true_strike: Object.freeze({
+      id: "true_strike", name: "True Strike", nombre: "True Strike",
+      description: "Enchant one Melee Attack Skill in a Slot. That Skill deals +(2 + Level/10)% Damage. On Hit, inflict 1 Radiance.",
+      level: 0, spellLevel: 0, cantrip: true,
+      classIds: ["bard", "sorcerer", "warlock", "wizard"],
+      school: "divination", contexts: ["combat"],
+      sinAffinity: "pride", damageType: null,
+      targetType: "action_slot", targetingType: "action_slot", attackWeight: 1, atkWeight: 1,
+      isUnclashable: true, castingTime: "quick_action",
+      mechanics: {
+        slotEnchantment: { id: "true_strike", requires: { meleeAttackSkill: true } },
+        damagePercentFormula: "2+floor(Level/10)",
+        onHitStatus: { status: "radiance", count: 1 }
+      },
       effects: []
     }),
 
