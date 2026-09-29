@@ -234,6 +234,7 @@
         classId: built.payload.classId,
         slotLevel: 0,
         castingTime: "quick_action",
+        economyAddon: "quick_action",
         targetActionSlotId: built.payload.targetActionSlotId,
       };
       const nextPlan = { ...clone(existing), enchantments: [...(Array.isArray(existing.enchantments) ? existing.enchantments : []), enchantment] };
