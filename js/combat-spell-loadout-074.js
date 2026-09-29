@@ -129,10 +129,37 @@
     return values;
   }
 
+  function spellCastOverrideFor(source = {}, spellId = "") {
+    const id = normalizeId(spellId);
+    if (!id) return null;
+    const maps = [source.spellCastOverrides, source.characterBuild?.spellCastOverrides];
+    for (const map of maps) {
+      if (!map || typeof map !== "object" || Array.isArray(map)) continue;
+      const raw = map[id] ?? map[spellId];
+      if (typeof raw === "string") {
+        const classId = normalizeId(raw);
+        if (classId) return { classId, abilityId: null, source: null };
+      }
+      if (raw && typeof raw === "object") {
+        const classId = normalizeId(raw.classId || raw.class_id || raw.sourceClassId);
+        const abilityId = normalizeId(raw.abilityId || raw.ability || raw.stat);
+        if (classId || abilityId) return { ...clone(raw), classId: classId || null, abilityId: abilityId || null };
+      }
+    }
+    return null;
+  }
+
   function resolveCastClass(source = {}, spell = {}, requestedClassId = null) {
     const owned = castingClassIdsFor(source);
     const allowed = spellAllowedClassIds(spell);
     const requested = normalizeId(requestedClassId);
+    const override = spellCastOverrideFor(source, spell.id || spell.spellId || spell.name);
+    if (override?.classId) {
+      const forced = normalizeId(override.classId);
+      if (requested && requested !== forced) return { ok: false, reason: "SPELL_CLASS_NOT_AVAILABLE", classId: null };
+      if (!owned.includes(forced)) return { ok: false, reason: "SPELL_CASTING_CLASS_NOT_FOUND", classId: null };
+      return { ok: true, reason: null, classId: forced, override: true, abilityId: override.abilityId || null };
+    }
     const legal = (id) => Boolean(id && owned.includes(id) && (!allowed.length || allowed.includes(id)));
     if (requested) return legal(requested) ? { ok: true, reason: null, classId: requested } : { ok: false, reason: "SPELL_CLASS_NOT_AVAILABLE", classId: null };
     const sourceClass = normalizeId(spell.sourceClassId || spell.classId || spell.class_id);
@@ -152,7 +179,11 @@
     if (!definition.ok) return definition;
     const castClass = resolveCastClass(combatant, definition.spell, options.classId);
     if (!castClass.ok) return { ...definition, ok: false, reason: castClass.reason, classId: null, candidates: castClass.candidates || [] };
-    return { ...definition, ok: true, reason: null, classId: castClass.classId };
+    const castOverride = spellCastOverrideFor(combatant, id);
+    const spell = castOverride?.abilityId
+      ? { ...definition.spell, castAbilityId: castOverride.abilityId, castOverrideSource: castOverride.source || null }
+      : definition.spell;
+    return { ...definition, spell, ok: true, reason: null, classId: castClass.classId, castOverride };
   }
 
   function spellIdsFor(source = {}) {
@@ -211,6 +242,7 @@
     resolveSpellDefinition,
     classIdsFor,
     spellAllowedClassIds,
+    spellCastOverrideFor,
     isCastingClass,
     castingClassIdsFor,
     canCastSpells,
