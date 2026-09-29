@@ -39,11 +39,13 @@
       try { if (!global.LuminousSpellCatalog) global.LuminousSpellCatalog = require("./spell-catalog-core.js"); } catch (_) {}
       try { if (!global.LuminousRoleSpellCatalog) global.LuminousRoleSpellCatalog = require("./role-spell-catalog-core.js"); } catch (_) {}
       try { if (!global.LuminousPierreSpellBatchRuntime) global.LuminousPierreSpellBatchRuntime = require("./spell-batch-pierre-runtime.js"); } catch (_) {}
+      try { if (!global.LuminousWeaponCantripBatchRuntime) global.LuminousWeaponCantripBatchRuntime = require("./spell-batch-weapon-cantrips-runtime.js"); } catch (_) {}
     }
     if (global.document) {
       await loadScript("spell-catalog-core-script", "js/spell-catalog-core.js", "LuminousSpellCatalog");
       await loadScript("role-spell-catalog-core-script", "js/role-spell-catalog-core.js", "LuminousRoleSpellCatalog");
       await loadScript("spell-batch-pierre-runtime-script", "js/spell-batch-pierre-runtime.js", "LuminousPierreSpellBatchRuntime");
+      await loadScript("spell-batch-weapon-cantrips-runtime-script", "js/spell-batch-weapon-cantrips-runtime.js", "LuminousWeaponCantripBatchRuntime");
     }
     global.LuminousContentRegistryBootstrap?.registerAvailableCore?.({ modules: {
       spellCatalog: global.LuminousSpellCatalog,
@@ -157,6 +159,7 @@
     const resource = installSpellcastingResourceBridge();
     const hook = installCombatHook();
     pierreBatchRuntime()?.install?.();
+    global.LuminousWeaponCantripBatchRuntime?.install?.();
     return resource && hook;
   }
 
