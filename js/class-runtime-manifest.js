@@ -191,6 +191,18 @@
     "globalName": "LuminousPathOfTheZealotArchetypeRuntime"
   },
   {
+    "id": "archetype:samurai",
+    "kind": "archetype",
+    "path": "js/samurai-archetype-runtime.js",
+    "contexts": [
+      "any"
+    ],
+    "dependsOn": [
+      "support:player-archetype-runtime-core"
+    ],
+    "globalName": "LuminousSamuraiArchetypeRuntime"
+  },
+  {
     "id": "class:barbarian",
     "kind": "class",
     "path": "js/barbarian-class-runtime.js",
