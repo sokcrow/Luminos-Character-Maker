@@ -106,7 +106,7 @@ const DEPENDENCY_OVERRIDES = new Map([
   ["class:ranger", ["support:creature-type-catalog", "support:fighting-style-runtime", "support:caster-spellcasting-traits-runtime"]],
   ["class:sorcerer", ["support:spellcasting-runtime", "support:universal-speed-runtime"]],
   ["archetype:battle-master", ["support:player-archetype-runtime-core", "support:fighter-maneuver-catalog"]],
-  ["archetype:champion", ["support:player-archetype-runtime-core", "support:fighting-style-runtime"]],
+  ["archetype:champion", ["support:player-archetype-runtime-core", "support:fighting-style-runtime"]],\n  ["archetype:samurai", ["support:player-archetype-runtime-core"]],
   ["archetype:bilgewater-buccaneer", ["support:player-archetype-runtime-core", "class:ranger"]],
   ["archetype:bilgewater-demolisher", ["support:player-archetype-runtime-core", "class:ranger"]],
   ["archetype:mastermind", ["support:player-archetype-runtime-core", "class:rogue"]],
