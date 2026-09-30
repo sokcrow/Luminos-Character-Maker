@@ -410,7 +410,7 @@
   }
 
   function conditionOf(item = {}) {
-    const current = numberOr(item.condition ?? item.currentCondition ?? item.durability, 0);
+    const current = numberOr(item.condition ?? item.currentCondition ?? item.currentDurability ?? item.durability, 0);
     const max = Math.max(0, numberOr(item.conditionMax ?? item.maxCondition ?? item.maxDurability, 100));
     return { current: clamp(current, 0, max), max };
   }
@@ -422,6 +422,7 @@
     if (!repair) return { repaired: false, reason: "zero_repair", before: state.current, after: state.current, max: state.max };
     const after = clamp(state.current + repair, 0, state.max);
     if (Object.prototype.hasOwnProperty.call(targetItem, "condition")) targetItem.condition = after;
+    else if (Object.prototype.hasOwnProperty.call(targetItem, "currentDurability")) targetItem.currentDurability = after;
     else if (Object.prototype.hasOwnProperty.call(targetItem, "durability")) targetItem.durability = after;
     else targetItem.condition = after;
     return { repaired: after > state.current, before: state.current, after, max: state.max, amount: after - state.current };
