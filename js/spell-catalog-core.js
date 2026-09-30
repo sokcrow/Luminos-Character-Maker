@@ -468,6 +468,137 @@
       effects: []
     }),
 
+    sapping_sting: Object.freeze({
+      id: "sapping_sting", name: "Sapping Sting", nombre: "Sapping Sting",
+      description: "CON Save. On Failed Save, resolve this Skill as Unopposed. On Hit, inflict Prone and (1 + Level/15) Decay.",
+      level: 0, spellLevel: 0, cantrip: true,
+      classIds: ["wizard"],
+      school: "necromancy", contexts: ["combat"],
+      sinAffinity: "gloom", damageType: "perforante",
+      targetingType: "focused_attack", attackWeight: 1, atkWeight: 1,
+      basePower: 5, coinPower: 3, coinAmount: 1, coins: 1,
+      isUnclashable: true,
+      save: { abilityId: "con", onSuccess: "negates" },
+      mechanics: {
+        cantripRuntime: "sapping_sting",
+        levelCoinPower: { every: 20, amount: 1 },
+        saveAttackOnFailure: true,
+        onHitStatus: { status: "prone", count: 1 },
+        onHitLevelStatus: { status: "decay", base: 1, every: 15, mode: "count" }
+      },
+      effects: []
+    }),
+
+    primal_savagery: Object.freeze({
+      id: "primal_savagery", name: "Primal Savagery", nombre: "Primal Savagery",
+      description: "On Hit, inflict (1 + Level/15) Corrosion.",
+      level: 0, spellLevel: 0, cantrip: true,
+      classIds: ["druid"],
+      school: "transmutation", contexts: ["combat"],
+      sinAffinity: "gluttony", damageType: "perforante",
+      targetingType: "focused_attack", attackWeight: 1, atkWeight: 1,
+      basePower: 5, coinPower: 6, coinAmount: 1, coins: 1,
+      mechanics: {
+        cantripRuntime: "primal_savagery",
+        levelCoinPower: { every: 20, amount: 1 },
+        onHitLevelStatus: { status: "corrosion", base: 1, every: 15, mode: "count" }
+      },
+      effects: []
+    }),
+
+    sword_burst: Object.freeze({
+      id: "sword_burst", name: "Sword Burst", nombre: "Sword Burst",
+      description: "Gain Sword Burst this Turn. After each Clash, deal 3 Force Fixed Damage to the opposing Unit. Once per Clash.",
+      level: 0, spellLevel: 0, cantrip: true,
+      classIds: ["artificer", "sorcerer", "warlock", "wizard"],
+      school: "conjuration", contexts: ["combat"],
+      sinAffinity: "sinless", damageType: null,
+      targetType: "self", targetingType: "self", attackWeight: 1, atkWeight: 1,
+      isUnclashable: true, castingTime: "quick_action",
+      mechanics: {
+        cantripRuntime: "sword_burst",
+        onUseStatus: { status: "sword_burst", count: 1, expires: "turn_end" },
+        afterClashFixedDamage: 3,
+        oncePerClash: true
+      },
+      effects: []
+    }),
+
+    dancing_lights: Object.freeze({
+      id: "dancing_lights", name: "Dancing Lights", nombre: "Dancing Lights",
+      description: "Distribute 4 Dancing Lights among yourself and Allies. Each holder ignores Darkness Disadvantage. One per Unit.",
+      level: 0, spellLevel: 0, cantrip: true,
+      classIds: ["bard", "sorcerer", "wizard"],
+      school: "illusion", contexts: ["combat", "theater"],
+      sinAffinity: "pride", damageType: null,
+      targetType: "multi", targetingType: "multi", attackWeight: 4, atkWeight: 4,
+      isUnclashable: true, castingTime: "action", concentration: true,
+      mechanics: {
+        cantripRuntime: "dancing_lights",
+        lightCount: 4,
+        onePerUnit: true,
+        darknessDisadvantageOverride: true,
+        concentrationBound: true
+      },
+      effects: []
+    }),
+
+    light: Object.freeze({
+      id: "light", name: "Light", nombre: "Light",
+      description: "Grant Light to one Unit or an Object carried by a Unit. This Unit and its Adjacent Units ignore Darkness Disadvantage.",
+      level: 0, spellLevel: 0, cantrip: true,
+      classIds: ["artificer", "bard", "cleric", "sorcerer", "wizard"],
+      school: "evocation", contexts: ["combat", "theater"],
+      sinAffinity: "pride", damageType: null,
+      targetType: "allies", targetingType: "allies", attackWeight: 1, atkWeight: 1,
+      isUnclashable: true, castingTime: "action",
+      mechanics: {
+        cantripRuntime: "light",
+        status: { id: "light", uniquePerCaster: true },
+        adjacentRule: "speed_order",
+        darknessDisadvantageOverride: true
+      },
+      effects: []
+    }),
+
+    mending: Object.freeze({
+      id: "mending", name: "Mending", nombre: "Mending",
+      description: "Touch one Item or Repairable Unit. Item: restore 1 Durability. Repairable Unit: restore 5 HP.",
+      level: 0, spellLevel: 0, cantrip: true,
+      classIds: ["artificer", "bard", "cleric", "druid", "sorcerer", "wizard"],
+      school: "transmutation", contexts: ["combat", "theater"],
+      sinAffinity: "gluttony", damageType: null,
+      targetType: "special", targetingType: "special", attackWeight: 1, atkWeight: 1,
+      isUnclashable: true, castingTime: "1_minute", castingTimeSeconds: 60,
+      mechanics: {
+        cantripRuntime: "mending",
+        itemDurabilityRepair: 1,
+        repairableUnitHpRepair: 5,
+        cannotRestore: ["quality", "charges", "spent_magic"]
+      },
+      effects: []
+    }),
+
+    druidcraft: Object.freeze({
+      id: "druidcraft", name: "Druidcraft", nombre: "Druidcraft",
+      description: "Forecast the next 24 hours of Natural Weather, bloom a small plant, create a harmless natural sensory effect, or light/extinguish a Small Nonmagical Fire.",
+      level: 0, spellLevel: 0, cantrip: true,
+      classIds: ["druid"],
+      school: "transmutation", contexts: ["combat", "theater"],
+      sinAffinity: "gluttony", damageType: null,
+      targetType: "special", targetingType: "special", attackWeight: 1, atkWeight: 1,
+      isUnclashable: true, castingTime: "action", rangeFeet: 30,
+      mechanics: {
+        cantripRuntime: "druidcraft",
+        requiresChoice: { key: "druidcraftMode", values: ["forecast", "bloom", "nature_trick", "fire_play"] },
+        forecastHours: 24,
+        bloom: { smallPlantOnly: true, createsResources: false },
+        natureTrick: { harmless: true },
+        firePlay: { smallOnly: true, nonmagicalOnly: true }
+      },
+      effects: []
+    }),
+
     charm_person: Object.freeze({
       id: "charm_person", name: "Charm Person", nombre: "Hechizar Persona",
       level: 1, spellLevel: 1, cantrip: false,
