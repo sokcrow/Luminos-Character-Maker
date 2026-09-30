@@ -22,11 +22,13 @@
   const runtimeScripts = [
     ["battle-viewer-firebase-session-074-script", "js/battle-viewer-firebase-session-074.js", "LuminousBattleViewerFirebaseSession074"],
     ["combat-skill-schema-script", "js/combat-skill-schema.js", "CombatSkillSchema"],
+    ["player-signature-skill-catalog-script", "js/skill-catalog-player-signature.js", "LuminousPlayerSignatureSkillCatalog"],
     ["combat-skill-loadout-074-script", "js/combat-skill-loadout-074.js", "LuminousCombatSkillLoadout074"],
     ["combat-spell-loadout-074-script", "js/combat-spell-loadout-074.js", "LuminousCombatSpellLoadout074"],
     ["rupture-status-runtime-script", "js/status-rupture-runtime.js", "LuminousRuptureStatusRuntime"],
     ["skill-forge-g2-script", "js/skill-forge-g2.js", "LuminousSkillForgeG2"],
     ["battle-viewer-runtime-073-script", "js/battle-viewer-runtime-073.js", "LuminousBattleViewerRuntime073"],
+    ["angelo-player-skill-runtime-script", "js/player-skill-runtime-angelo.js", "LuminousAngeloPlayerSkillRuntime"],
     ["battle-viewer-spell-adapter-074-script", "js/battle-viewer-spell-adapter-074.js", "LuminousBattleViewerSpellAdapter074"],
     ["battle-viewer-spell-runtime-074-script", "js/battle-viewer-spell-runtime-074.js", "LuminousBattleViewerSpellRuntime074"],
     ["battle-viewer-ownership-074-script", "js/battle-viewer-ownership-074.js", "LuminousBattleViewerOwnership074"],
@@ -289,11 +291,13 @@
     try { if (!global.LuminousSpellcastingRuntime?.__basicRulesV1) require("./spellcasting-basic-rules-runtime.js"); } catch (_) {}
     try { if (!global.LuminousBattleViewerFirebaseSession074) require("./battle-viewer-firebase-session-074.js"); } catch (_) {}
     try { if (!global.CombatSkillSchema) require("./combat-skill-schema.js"); } catch (_) {}
+    try { if (!global.LuminousPlayerSignatureSkillCatalog) require("./skill-catalog-player-signature.js"); } catch (_) {}
     try { if (!global.LuminousCombatSkillLoadout074) require("./combat-skill-loadout-074.js"); } catch (_) {}
     try { if (!global.LuminousCombatSpellLoadout074) require("./combat-spell-loadout-074.js"); } catch (_) {}
     try { if (!global.LuminousRuptureStatusRuntime) require("./status-rupture-runtime.js"); } catch (_) {}
     try { if (!global.LuminousSkillForgeG2) require("./skill-forge-g2.js"); } catch (_) {}
     try { if (!global.LuminousBattleViewerRuntime073) require("./battle-viewer-runtime-073.js"); } catch (_) {}
+    try { if (!global.LuminousAngeloPlayerSkillRuntime) require("./player-skill-runtime-angelo.js"); } catch (_) {}
     try { if (!global.LuminousBattleViewerSpellAdapter074) require("./battle-viewer-spell-adapter-074.js"); } catch (_) {}
     try { if (!global.LuminousBattleViewerSpellRuntime074) require("./battle-viewer-spell-runtime-074.js"); } catch (_) {}
     try { if (!global.LuminousBattleViewerOwnership074) require("./battle-viewer-ownership-074.js"); } catch (_) {}
