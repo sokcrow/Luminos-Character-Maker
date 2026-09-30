@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 
 globalThis.STATUS_REGISTRY = {};
 await import('../js/status-library.js');
+await import('../js/deckEngine.js');
 await import('../js/skill-catalog-player-signature.js');
 
 const catalog = globalThis.LuminousPlayerSignatureSkillCatalog;
@@ -12,9 +13,21 @@ const s1 = catalog.get('angelo_steps_to_perfection');
 const s2 = catalog.get('angelo_blood_art');
 const s3 = catalog.get('angelo_my_masterpiece');
 
-assert.deepEqual([s1.tier, s1.basePower, s1.coinPower, s1.coinAmount, s1.metadata.rawMaxPower], [1, 2, 3, 3, 11]);
-assert.deepEqual([s2.tier, s2.basePower, s2.coinPower, s2.coinAmount, s2.metadata.rawMaxPower], [2, 8, 8, 1, 16]);
-assert.deepEqual([s3.tier, s3.basePower, s3.coinPower, s3.coinAmount, s3.metadata.rawMaxPower], [3, 3, 4, 4, 19]);
+assert.deepEqual([s1.tier, s1.basePower, s1.coinPower, s1.coinAmount, s1.skillAmount, s1.metadata.rawMaxPower], [1, 2, 3, 3, 3, 11]);
+assert.deepEqual([s2.tier, s2.basePower, s2.coinPower, s2.coinAmount, s2.skillAmount, s2.metadata.rawMaxPower], [2, 8, 8, 1, 2, 16]);
+assert.deepEqual([s3.tier, s3.basePower, s3.coinPower, s3.coinAmount, s3.skillAmount, s3.metadata.rawMaxPower], [3, 3, 4, 4, 1, 19]);
+
+const deck = globalThis.LuminousDeckEngine;
+const angeloDeck = deck.buildDeckDefinition([s1, s2, s3], { capacity: 6, requireFull: true });
+assert.equal(angeloDeck.cardCount, 6);
+assert.deepEqual(
+  Object.fromEntries([s1.id, s2.id, s3.id].map((id) => [id, angeloDeck.cards.filter((card) => card.skillId === id).length])),
+  { angelo_steps_to_perfection: 3, angelo_blood_art: 2, angelo_my_masterpiece: 1 },
+);
+assert.deepEqual(
+  [3 / 6, 2 / 6, 1 / 6],
+  [0.5, 1 / 3, 1 / 6],
+);
 assert.equal(s2.metadata.mechanics.reuse.baseChance, 0.40);
 assert.equal(s2.metadata.mechanics.reuse.chancePerNegativeStatusType, 0.20);
 assert.equal(s2.metadata.mechanics.reuse.maxReuses, 2);
