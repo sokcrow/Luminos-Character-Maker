@@ -146,7 +146,7 @@ assert.ok(castHook.concentration, 'concentration Spell should start Concentratio
 // Player planner writes only selected Spell references and cast choices.
 await import('../js/battle-viewer-player-spell-planner-074.js');
 const planner = globalThis.LuminousBattleViewerPlayerSpellPlanner074;
-planner.applyPlayers({ player_a: { uid: 'uid-a', characterBuild: { spellSelections: ['arc_bolt'] } } });
+planner.applyPlayers({ player_a: { uid: 'uid-a', characterBuild: { spellSelections: ['arc_bolt','mode_spell'] } } });
 planner.applyCombatants(globalThis.combatData);
 planner.applyCombatState('PRE_COMBAT_PLANNING');
 const built = planner.buildSpellPlan({ authUid: 'uid-a', ownerPlayerId: 'player_a', slotIndex: 0, spellId: 'arc_bolt', classId: 'sorcerer', slotLevel: 1, overcast: true, targetId: 'enemy_1' });
