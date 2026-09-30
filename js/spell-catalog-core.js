@@ -328,6 +328,146 @@
       effects: []
     }),
 
+    acid_splash: Object.freeze({
+      id: "acid_splash", name: "Acid Splash", nombre: "Acid Splash",
+      description: "On Hit, inflict (1 + Level/15) Corrosion.",
+      level: 0, spellLevel: 0, cantrip: true,
+      classIds: ["artificer", "sorcerer", "wizard"],
+      school: "evocation", contexts: ["combat"],
+      sinAffinity: "gluttony", damageType: "perforante",
+      targetingType: "area", attackWeight: 3, atkWeight: 3,
+      basePower: 4, coinPower: 5, coinAmount: 1, coins: 1,
+      mechanics: {
+        cantripRuntime: "acid_splash",
+        levelCoinPower: { every: 20, amount: 1 },
+        onHitLevelStatus: { status: "corrosion", base: 1, every: 15, mode: "count" }
+      },
+      effects: []
+    }),
+
+    ray_of_frost: Object.freeze({
+      id: "ray_of_frost", name: "Ray of Frost", nombre: "Ray of Frost",
+      description: "On Hit, inflict 2 Bind and (1 + Level/15) Chill.",
+      level: 0, spellLevel: 0, cantrip: true,
+      classIds: ["artificer", "sorcerer", "wizard"],
+      school: "evocation", contexts: ["combat"],
+      sinAffinity: "gloom", damageType: "perforante",
+      targetingType: "focused_attack", attackWeight: 1, atkWeight: 1,
+      basePower: 5, coinPower: 5, coinAmount: 1, coins: 1,
+      mechanics: {
+        cantripRuntime: "ray_of_frost",
+        levelCoinPower: { every: 20, amount: 1 },
+        onHitStatus: { status: "bind", count: 2 },
+        onHitLevelStatus: { status: "chill", base: 1, every: 15, mode: "count" }
+      },
+      effects: []
+    }),
+
+    frostbite: Object.freeze({
+      id: "frostbite", name: "Frostbite", nombre: "Frostbite",
+      description: "On Hit, inflict 1 Attack Power Down and (1 + Level/15) Chill.",
+      level: 0, spellLevel: 0, cantrip: true,
+      classIds: ["druid", "sorcerer", "warlock", "wizard"],
+      school: "evocation", contexts: ["combat"],
+      sinAffinity: "gloom", damageType: "perforante",
+      targetingType: "focused_attack", attackWeight: 1, atkWeight: 1,
+      basePower: 5, coinPower: 4, coinAmount: 1, coins: 1,
+      mechanics: {
+        cantripRuntime: "frostbite",
+        levelCoinPower: { every: 20, amount: 1 },
+        onHitStatus: { status: "attack_power_down", count: 1 },
+        onHitLevelStatus: { status: "chill", base: 1, every: 15, mode: "count" }
+      },
+      effects: []
+    }),
+
+    sacred_flame: Object.freeze({
+      id: "sacred_flame", name: "Sacred Flame", nombre: "Sacred Flame",
+      description: "On Hit, inflict (1 + Level/15) Radiance.",
+      level: 0, spellLevel: 0, cantrip: true,
+      classIds: ["cleric"],
+      school: "evocation", contexts: ["combat"],
+      sinAffinity: "pride", damageType: "perforante",
+      targetingType: "focused_attack", attackWeight: 1, atkWeight: 1,
+      basePower: 5, coinPower: 5, coinAmount: 1, coins: 1,
+      mechanics: {
+        cantripRuntime: "sacred_flame",
+        levelCoinPower: { every: 20, amount: 1 },
+        onHitLevelStatus: { status: "radiance", base: 1, every: 15, mode: "count" }
+      },
+      effects: []
+    }),
+
+    shocking_grasp: Object.freeze({
+      id: "shocking_grasp", name: "Shocking Grasp", nombre: "Shocking Grasp",
+      description: "Does not trigger Counter. On Hit, inflict (1 + Level/15) Shock.",
+      level: 0, spellLevel: 0, cantrip: true,
+      classIds: ["artificer", "sorcerer", "wizard"],
+      school: "evocation", contexts: ["combat"],
+      sinAffinity: "envy", damageType: "contundente",
+      targetingType: "focused_attack", attackWeight: 1, atkWeight: 1,
+      basePower: 5, coinPower: 5, coinAmount: 1, coins: 1,
+      mechanics: {
+        cantripRuntime: "shocking_grasp",
+        levelCoinPower: { every: 20, amount: 1 },
+        suppressCounter: true,
+        onHitLevelStatus: { status: "shock", base: 1, every: 15, mode: "count" }
+      },
+      effects: []
+    }),
+
+    toll_the_dead: Object.freeze({
+      id: "toll_the_dead", name: "Toll the Dead", nombre: "Toll the Dead",
+      description: "Deal +(20 + Level/5)% Damage against Units below their Max HP. On Hit, inflict (1 + Level/15) Decay.",
+      level: 0, spellLevel: 0, cantrip: true,
+      classIds: ["cleric", "warlock", "wizard"],
+      school: "necromancy", contexts: ["combat"],
+      sinAffinity: "gloom", damageType: "perforante",
+      targetingType: "focused_attack", attackWeight: 1, atkWeight: 1,
+      basePower: 5, coinPower: 4, coinAmount: 1, coins: 1,
+      mechanics: {
+        cantripRuntime: "toll_the_dead",
+        levelCoinPower: { every: 20, amount: 1 },
+        woundedTargetDamagePercent: { base: 20, every: 5, amount: 1 },
+        onHitLevelStatus: { status: "decay", base: 1, every: 15, mode: "count" }
+      },
+      effects: []
+    }),
+
+    word_of_radiance: Object.freeze({
+      id: "word_of_radiance", name: "Word of Radiance", nombre: "Word of Radiance",
+      description: "On Hit, inflict (1 + Level/15) Radiance.",
+      level: 0, spellLevel: 0, cantrip: true,
+      classIds: ["cleric"],
+      school: "evocation", contexts: ["combat"],
+      sinAffinity: "pride", damageType: "perforante",
+      targetingType: "area", attackWeight: 3, atkWeight: 3,
+      basePower: 4, coinPower: 5, coinAmount: 1, coins: 1,
+      mechanics: {
+        cantripRuntime: "word_of_radiance",
+        levelCoinPower: { every: 20, amount: 1 },
+        onHitLevelStatus: { status: "radiance", base: 1, every: 15, mode: "count" }
+      },
+      effects: []
+    }),
+
+    thunderclap: Object.freeze({
+      id: "thunderclap", name: "Thunderclap", nombre: "Thunderclap",
+      description: "On Hit, inflict (1 + Level/15) Tremor.",
+      level: 0, spellLevel: 0, cantrip: true,
+      classIds: ["artificer", "bard", "druid", "sorcerer", "warlock", "wizard"],
+      school: "evocation", contexts: ["combat"],
+      sinAffinity: "wrath", damageType: "contundente",
+      targetingType: "area", attackWeight: 3, atkWeight: 3,
+      basePower: 4, coinPower: 5, coinAmount: 1, coins: 1,
+      mechanics: {
+        cantripRuntime: "thunderclap",
+        levelCoinPower: { every: 20, amount: 1 },
+        onHitLevelStatus: { status: "tremor", base: 1, every: 15, mode: "potency" }
+      },
+      effects: []
+    }),
+
     charm_person: Object.freeze({
       id: "charm_person", name: "Charm Person", nombre: "Hechizar Persona",
       level: 1, spellLevel: 1, cantrip: false,
