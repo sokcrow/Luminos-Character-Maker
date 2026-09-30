@@ -295,6 +295,65 @@
     return null;
   }
 
+  function playerActorLinkId(player = {}) {
+    return clean(
+      player.actorId
+      || player.actor_id
+      || player.vinculo_jugador
+      || player.linkedActorId
+      || player.linked_actor_id
+      || player.actor?.id
+      || player.actorRef?.id
+    ) || null;
+  }
+
+  function assignedActorForPlayer(player = {}, actors = {}) {
+    const actorId = playerActorLinkId(player);
+    if (!actorId) return null;
+    if (actors && typeof actors === "object" && actors[actorId]) return actors[actorId];
+    for (const [id, actor] of Object.entries(actors || {})) {
+      const candidate = clean(actor?.actorId || actor?.id || id);
+      if (candidate === actorId) return actor || null;
+    }
+    return null;
+  }
+
+  function normalizePlayerActorFallback(id, player = {}, actors = {}) {
+    const sourceId = clean(id);
+    const linkedActorId = playerActorLinkId(player);
+    const assignedActor = assignedActorForPlayer(player, actors);
+    const actorImage = clean(assignedActor?.icono);
+    const raw = {
+      ...(assignedActor && typeof assignedActor === "object" ? clone(assignedActor) : {}),
+      ...(player && typeof player === "object" ? clone(player) : {}),
+      actorId: linkedActorId || undefined,
+      playerId: clean(player?.playerId || player?.id || sourceId),
+      uid: player?.uid,
+      icono: actorImage,
+    };
+    delete raw.icono_jugador;
+    delete raw.iconUrl;
+    delete raw.icon_url;
+
+    const playerId = clean(raw.playerId || sourceId);
+    const name = clean(raw.characterName || raw.character_name || raw.nombre || raw.name || raw.displayName || raw.label || playerId) || playerId;
+    return {
+      key: `players:${safeKey(sourceId || playerId, "player")}`,
+      scope: "players",
+      sourceId: sourceId || playerId,
+      actorId: linkedActorId || clean(raw.id || raw.uid || sourceId) || playerId,
+      linkedActorId,
+      playerId,
+      ownerUid: clean(raw.uid) || null,
+      name,
+      category: "player",
+      portrait: actorImage,
+      tokenImage: actorImage,
+      icono: actorImage,
+      raw,
+    };
+  }
+
   function skillLoadoutRuntime() {
     if (global?.LuminousCombatSkillLoadout074) return global.LuminousCombatSkillLoadout074;
     if (typeof require === "function") {
@@ -305,9 +364,11 @@
 
   function normalizePlayerActors(players = {}, actors = {}) {
     const library = actorLibrary();
-    if (!library?.normalizePlayerActor) throw new Error("ACTOR_LIBRARY_REQUIRED");
+    const normalize = library?.normalizePlayerActor
+      ? (id, player) => library.normalizePlayerActor(id, player || {}, actors || {})
+      : (id, player) => normalizePlayerActorFallback(id, player || {}, actors || {});
     return Object.entries(players || {})
-      .map(([id, player]) => library.normalizePlayerActor(id, player || {}, actors || {}))
+      .map(([id, player]) => normalize(id, player))
       .sort((a, b) => clean(a.name).localeCompare(clean(b.name)));
   }
 
@@ -678,6 +739,7 @@
     applyKnownSpellLoadoutToRecord,
     spellLoadoutUpdatePatch,
     syncKnownPlayerSpellLoadout,
+    normalizePlayerActorFallback,
     normalizePlayerActors,
     playerCombatantKey,
     playerAlreadyInCombat,
