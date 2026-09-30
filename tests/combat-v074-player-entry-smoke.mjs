@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 
 await import('../js/combat-skill-schema.js');
 await import('../js/combat-skill-loadout-074.js');
+await import('../js/spell-catalog-core.js');
+await import('../js/role-spell-catalog-core.js');
 await import('../js/vtt/actor-library.js');
 const actorLibrary = globalThis.LuminousVttActorLibrary;
 if (!actorLibrary) throw new Error('LuminousVttActorLibrary was not initialized.');
@@ -195,5 +197,82 @@ const ambiguousResult = await playerEntry.addPlayerActor(actor, {
 assert.equal(ambiguousResult.added, false);
 assert.equal(ambiguousResult.reason, 'ambiguous_player_unit');
 assert.equal(writes.length, 1, 'ambiguous Unit linkage must not write a combatant');
+
+
+const combatSpellCatalog = globalThis.LuminousSpellCatalog;
+const roleSpellCatalog = globalThis.LuminousRoleSpellCatalog;
+
+const calipsysLoadout = playerEntry.knownSpellLoadoutForActor({ playerId: 'Calipsys', name: 'Calipsys', raw: {} });
+assert.ok(calipsysLoadout);
+assert.equal(calipsysLoadout.id, 'calipsys');
+assert.deepEqual(calipsysLoadout.combatSpellIds, [
+  'fire_bolt', 'absorb_elements', 'thunderwave', 'calm_emotions', 'mirror_image',
+]);
+assert.equal(calipsysLoadout.spellCastOverrides.calm_emotions.abilityId, 'cha');
+
+const pierreLoadout = playerEntry.knownSpellLoadoutForActor({
+  playerId: 'pierre',
+  name: 'Pierre Carême Kikunae - wizza',
+  raw: {},
+});
+assert.ok(pierreLoadout);
+assert.equal(pierreLoadout.id, 'pierre_careme_kikunae');
+assert.deepEqual(pierreLoadout.roleSpellIds, ['message', 'thaumaturgy']);
+
+const angeloLoadout = playerEntry.knownSpellLoadoutForActor({ playerId: 'angelo', name: 'Angelo V.', raw: {} });
+assert.ok(angeloLoadout);
+assert.equal(angeloLoadout.id, 'angelo_v');
+assert.equal(angeloLoadout.spellCastOverrides.mirror_image.classId, 'bard');
+
+for (const loadout of playerEntry.KNOWN_PLAYER_SPELL_LOADOUTS) {
+  for (const spellId of loadout.combatSpellIds) assert.ok(combatSpellCatalog[spellId], `known Player combat spell must be canonical: ${loadout.id}/${spellId}`);
+  for (const spellId of loadout.roleSpellIds) assert.ok(roleSpellCatalog[spellId], `known Player role spell must be canonical: ${loadout.id}/${spellId}`);
+}
+
+const placeholderRecord = {
+  spellIds: ['placeholder_spell'],
+  spellSelections: ['placeholder_spell'],
+  spellSelectionIndex: { placeholder_spell: true },
+  characterBuild: {
+    spellIds: ['placeholder_spell'],
+    spellSelections: ['placeholder_spell'],
+    spellSelectionIndex: { placeholder_spell: true },
+  },
+};
+const cleanedCalipsys = playerEntry.applyKnownSpellLoadoutToRecord(placeholderRecord, calipsysLoadout);
+assert.equal(cleanedCalipsys.spellIds.includes('placeholder_spell'), false);
+assert.equal(cleanedCalipsys.spellSelections.includes('placeholder_spell'), false);
+assert.equal(cleanedCalipsys.characterBuild.spellSelections.includes('placeholder_spell'), false);
+assert.deepEqual(cleanedCalipsys.characterBuild.spellSelections, calipsysLoadout.combatSpellIds);
+assert.deepEqual(cleanedCalipsys.characterBuild.roleSpellSelections, []);
+
+const spellSyncWrites = [];
+const spellSyncDb = {
+  ref(path) {
+    return {
+      async update(patch) {
+        spellSyncWrites.push({ path, patch });
+      },
+    };
+  },
+};
+const pierreActor = {
+  category: 'player',
+  playerId: 'Pierre Carême Kikunae',
+  sourceId: 'Pierre Carême Kikunae',
+  name: 'Pierre Carême Kikunae - wizza',
+  raw: { characterBuild: { spellSelections: ['old_placeholder'] } },
+};
+const pierreSync = await playerEntry.syncKnownPlayerSpellLoadout(pierreActor, {
+  db: spellSyncDb,
+  players: { 'Pierre Carême Kikunae': pierreActor.raw },
+  combatants: {},
+});
+assert.equal(pierreSync.matched, true);
+assert.equal(pierreSync.synced, true);
+assert.equal(spellSyncWrites.length, 1);
+assert.equal(spellSyncWrites[0].path, 'campaña/jugadores/Pierre Carême Kikunae');
+assert.deepEqual(spellSyncWrites[0].patch['characterBuild/spellSelections'], pierreLoadout.combatSpellIds);
+assert.equal(spellSyncWrites[0].patch['characterBuild/spellSelections'].includes('old_placeholder'), false);
 
 console.log('combat-v074-player-entry-smoke: ok');

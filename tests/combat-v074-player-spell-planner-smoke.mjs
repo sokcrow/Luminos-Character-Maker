@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url';
 
 await import('../js/content-registry.js');
 await import('../js/content-registry-bootstrap.js');
+await import('../js/spell-catalog-core.js');
+const canonicalSpellCatalog = globalThis.LuminousSpellCatalog;
 await import('../js/spellcasting-runtime.js');
 await import('../js/spellcasting-basic-rules-runtime.js');
 await import('../js/combat-action-schema.js');
@@ -140,6 +142,46 @@ assert.deepEqual(built.payload, {
 assert.equal('data' in built.payload, false);
 assert.equal('spell' in built.payload, false);
 assert.equal(planner.buildSpellPlan({ authUid: 'uid-a', ownerPlayerId: 'player_a', slotIndex: 0, spellId: 'other_spell', classId: 'sorcerer', slotLevel: 1, overcast: true, targetId: 'enemy_1' }).reason, 'SPELL_NOT_SELECTED');
+
+// Character-sheet grants may explicitly override the casting class and ability
+// without broadening the canonical Spell's class list for every character.
+for (const spellId of ['calm_emotions', 'mirror_image']) {
+  const definition = canonicalSpellCatalog[spellId];
+  registry.register({ type: 'spell', id: spellId, name: definition.name, sourceKey: 'canonical-sheet-spells', definition });
+}
+const calipsys = {
+  id: 'player:calipsys', combatId: 'player:calipsys', isPlayer: true, actorCategory: 'player', canonicalScope: 'player',
+  canonicalPlayerKey: 'calipsys', canonicalOwnerUid: 'uid-calipsys', playerId: 'calipsys', ownerUid: 'uid-calipsys',
+  actionSlots: 1, activeSlots: 1, actionSlotIndex: { '0': true },
+  stats: { inteligencia: 18, carisma: 12 },
+  proficiency: 3,
+  characterBuild: {
+    classes: [{ classId: 'artificer', levels: 35 }],
+    spellSelections: ['calm_emotions', 'mirror_image'],
+    spellCastOverrides: {
+      calm_emotions: { classId: 'artificer', abilityId: 'cha', source: 'lanae' },
+      mirror_image: { classId: 'artificer', source: 'armorer' },
+    },
+  },
+};
+globalThis.combatData['player:calipsys'] = calipsys;
+const calmGrant = loadout.resolveSpellForCombatant(calipsys, 'calm_emotions');
+assert.equal(calmGrant.ok, true, calmGrant.reason);
+assert.equal(calmGrant.classId, 'artificer');
+assert.equal(calmGrant.castOverride.abilityId, 'cha');
+assert.equal(calmGrant.spell.castAbilityId, 'cha');
+const mirrorGrant = loadout.resolveSpellForCombatant(calipsys, 'mirror_image');
+assert.equal(mirrorGrant.ok, true, mirrorGrant.reason);
+assert.equal(mirrorGrant.classId, 'artificer');
+
+const calmCompiled = adapter.compilePlan('player:calipsys_slot_0', 'enemy_1_slot_0', {
+  kind: 'spell', spellId: 'calm_emotions', classId: 'artificer', slotLevel: 2,
+  unitId: 'player:calipsys', targetId: 'enemy_1', __ownerPlayerId: 'calipsys',
+});
+assert.ok(calmCompiled.action, calmCompiled.reason || 'Lanae Calm Emotions should compile through the explicit grant');
+assert.equal(calmCompiled.action.metadata.sourceClassId, 'artificer');
+assert.equal(calmCompiled.action.metadata.spellDC, 12, 'Calm Emotions must use Calipsys CHA override, not Artificer INT');
+assert.equal(calmCompiled.action.resources[0].id, 'artificer');
 
 // Firebase Rules verify the selection array entry, not only a client-provided spellId.
 const here = path.dirname(fileURLToPath(import.meta.url));

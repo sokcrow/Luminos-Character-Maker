@@ -77,10 +77,30 @@
     return classes.reduce((sum, row) => sum + Math.max(0, Math.trunc(Number(row?.levels ?? row?.level ?? 0) || 0)), 0);
   }
 
-  function spellcastingValues(actor, classId) {
+  function spellcastingValues(actor, classId, spell = {}) {
     const runtime = spellcastingRuntime();
     try {
-      if (typeof runtime?.resolveSpellcasting === "function") return runtime.resolveSpellcasting(actor, classId) || null;
+      const base = typeof runtime?.resolveSpellcasting === "function" ? (runtime.resolveSpellcasting(actor, classId) || null) : null;
+      const requestedAbility = typeof runtime?.normalizeAbilityId === "function"
+        ? runtime.normalizeAbilityId(spell.castAbilityId || spell.spellcastingAbilityId || spell.abilityId)
+        : normalizeId(spell.castAbilityId || spell.spellcastingAbilityId || spell.abilityId);
+      if (!requestedAbility || !base || requestedAbility === base.abilityId) return base;
+
+      const aliases = runtime?.ABILITY_ALIASES?.[requestedAbility] || [requestedAbility];
+      const stats = actor?.stats || actor?.dndStats || {};
+      const score = aliases
+        .map((alias) => stats?.[alias] ?? actor?.[alias])
+        .find((value) => Number.isFinite(Number(value)));
+      const spellMod = Math.floor(((Number.isFinite(Number(score)) ? Number(score) : 10) - 10) / 2);
+      const proficiency = Number.isFinite(Number(base.proficiency)) ? Number(base.proficiency) : Math.ceil(actorLevel(actor) / 20);
+      return {
+        ...base,
+        abilityId: requestedAbility,
+        spellMod,
+        proficiency,
+        spellAttack: spellMod + proficiency,
+        spellDC: 8 + spellMod + proficiency,
+      };
     } catch (_) {}
     return null;
   }
@@ -99,7 +119,7 @@
     const mechanics = definition.mechanics || {};
     const baseLevel = Math.max(0, Math.trunc(Number(definition.level ?? definition.spellLevel ?? 0) || 0));
     const extraLevels = Math.max(0, slotLevel - baseLevel);
-    const casting = spellcastingValues(actor, classId) || {};
+    const casting = spellcastingValues(actor, classId, definition) || {};
     const spellMod = Number(casting.spellMod) || 0;
     const level = actorLevel(actor);
 
@@ -185,9 +205,9 @@
     const runtime = spellcastingRuntime();
     let resolved = null;
     try {
-      if (typeof runtime?.resolveSpellSave === "function") resolved = runtime.resolveSpellSave(actor, classId, spell);
-      if (!resolved && typeof runtime?.resolveSpellcasting === "function") {
-        const casting = runtime.resolveSpellcasting(actor, classId);
+      if (!spell?.castAbilityId && typeof runtime?.resolveSpellSave === "function") resolved = runtime.resolveSpellSave(actor, classId, spell);
+      if (!resolved) {
+        const casting = spellcastingValues(actor, classId, spell);
         if (casting) resolved = { dc: casting.spellDC };
       }
     } catch (_) {}
