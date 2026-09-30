@@ -77,9 +77,9 @@ const artTarget = {
     rupture: { count: 1, potency: 0 },
   },
 };
-runtime.handleSkillTrigger('[On Hit]', { skill: s2, currentCoin: s2.coins[0], currentTarget: artTarget }, () => 0.99);
+runtime.handleSkillTrigger('[On Hit]', { skill: s2, currentCoin: s2.coins[0], currentTarget: artTarget }, () => 0.60);
 assert.equal(artTarget.statusEffects.bleed.count, 1);
-assert.equal(artTarget.statusEffects.bleed.count >= 1, true);
+assert.equal(artTarget.statusEffects.tremor.count, 3);
 assert.equal(runtime.negativeStatusTypeCount(artTarget) >= 3, true);
 assert.equal(runtime.bloodArtReuseChance(artTarget), 0.8);
 
