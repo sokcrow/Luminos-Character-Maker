@@ -29,6 +29,7 @@
     ["skill-forge-g2-script", "js/skill-forge-g2.js", "LuminousSkillForgeG2"],
     ["battle-viewer-runtime-073-script", "js/battle-viewer-runtime-073.js", "LuminousBattleViewerRuntime073"],
     ["angelo-player-skill-runtime-script", "js/player-skill-runtime-angelo.js", "LuminousAngeloPlayerSkillRuntime"],
+    ["pierre-player-skill-runtime-script", "js/player-skill-runtime-pierre.js", "LuminousPierrePlayerSkillRuntime"],
     ["battle-viewer-spell-adapter-074-script", "js/battle-viewer-spell-adapter-074.js", "LuminousBattleViewerSpellAdapter074"],
     ["battle-viewer-spell-runtime-074-script", "js/battle-viewer-spell-runtime-074.js", "LuminousBattleViewerSpellRuntime074"],
     ["battle-viewer-ownership-074-script", "js/battle-viewer-ownership-074.js", "LuminousBattleViewerOwnership074"],
@@ -113,6 +114,8 @@
   }
 
   function initializeSharedRuntime(parts = {}) {
+    parts.angeloSkillRuntime?.install?.();
+    parts.pierreSkillRuntime?.install?.();
     parts.skillLoadout?.init?.();
     parts.ruptureStatus?.install?.();
     parts.spellAdapter?.install?.();
@@ -218,10 +221,12 @@
     const progressiveUi = global.LuminousBattleViewerProgressiveUi074 || null;
     const ruptureStatus = global.LuminousRuptureStatusRuntime || null;
     const skillForge = global.LuminousSkillForgeG2 || null;
+    const angeloSkillRuntime = global.LuminousAngeloPlayerSkillRuntime || null;
+    const pierreSkillRuntime = global.LuminousPierrePlayerSkillRuntime || null;
     const parts = {
       firebaseSession, skillLoadout, spellLoadout, spellAdapter, spellRuntime, ownership,
       playerSkillPlanner, playerSpellPlanner, dmConsole, playerEntry, encounterSetup, encounterPlacement,
-      dmMagic, progressiveUi, ruptureStatus, skillForge,
+      dmMagic, progressiveUi, ruptureStatus, skillForge, angeloSkillRuntime, pierreSkillRuntime,
     };
     initializeSharedRuntime(parts);
     const sessionReady = initializeRoleRuntime(parts);
@@ -246,6 +251,8 @@
       progressiveUi,
       ruptureStatus,
       skillForge,
+      angeloSkillRuntime,
+      pierreSkillRuntime,
       initializeConfiguredDmConsole,
       install,
     });
@@ -265,6 +272,8 @@
       && global.LuminousRuptureStatusRuntime
       && global.LuminousSkillForgeG2
       && global.LuminousBattleViewerRuntime073
+      && global.LuminousAngeloPlayerSkillRuntime
+      && global.LuminousPierrePlayerSkillRuntime
       && global.LuminousBattleViewerSpellAdapter074
       && global.LuminousBattleViewerSpellRuntime074
       && global.LuminousBattleViewerOwnership074
@@ -298,6 +307,7 @@
     try { if (!global.LuminousSkillForgeG2) require("./skill-forge-g2.js"); } catch (_) {}
     try { if (!global.LuminousBattleViewerRuntime073) require("./battle-viewer-runtime-073.js"); } catch (_) {}
     try { if (!global.LuminousAngeloPlayerSkillRuntime) require("./player-skill-runtime-angelo.js"); } catch (_) {}
+    try { if (!global.LuminousPierrePlayerSkillRuntime) require("./player-skill-runtime-pierre.js"); } catch (_) {}
     try { if (!global.LuminousBattleViewerSpellAdapter074) require("./battle-viewer-spell-adapter-074.js"); } catch (_) {}
     try { if (!global.LuminousBattleViewerSpellRuntime074) require("./battle-viewer-spell-runtime-074.js"); } catch (_) {}
     try { if (!global.LuminousBattleViewerOwnership074) require("./battle-viewer-ownership-074.js"); } catch (_) {}
