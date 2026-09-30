@@ -23,6 +23,7 @@
       coinType: "positive",
       attackWeight: 1,
       skillRange: 1,
+      skillAmount: 3,
       targetingType: "Focused Attack",
       sourceType: "player_signature_skill",
       sourceId: "angelo_steps_to_perfection",
@@ -37,6 +38,7 @@
         ownerCharacterId: "angelo_v",
         signatureSkill: true,
         rawMaxPower: 11,
+        deckCopies: 3,
         randomStatusPool: RANDOM_STATUS_POOL,
         randomStatusDisplay: Object.freeze({ burn: "Quemadura", rupture: "Ruptura", sinking: "Colapso", tremor: "Temblor", bleed: "Sangrado" }),
         mechanics: Object.freeze({
@@ -58,6 +60,7 @@
       coinType: "positive",
       attackWeight: 1,
       skillRange: 1,
+      skillAmount: 2,
       targetingType: "Focused Attack",
       sourceType: "player_signature_skill",
       sourceId: "angelo_blood_art",
@@ -72,6 +75,7 @@
         ownerCharacterId: "angelo_v",
         signatureSkill: true,
         rawMaxPower: 16,
+        deckCopies: 2,
         randomStatusPool: RANDOM_STATUS_POOL,
         randomStatusDisplay: Object.freeze({ burn: "Quemadura", rupture: "Ruptura", sinking: "Colapso", tremor: "Temblor", bleed: "Sangrado" }),
         mechanics: Object.freeze({
@@ -101,6 +105,7 @@
       coinType: "positive",
       attackWeight: 1,
       skillRange: 1,
+      skillAmount: 1,
       targetingType: "Focused Attack",
       sourceType: "player_signature_skill",
       sourceId: "angelo_my_masterpiece",
@@ -115,6 +120,7 @@
         ownerCharacterId: "angelo_v",
         signatureSkill: true,
         rawMaxPower: 19,
+        deckCopies: 1,
         randomStatusPool: RANDOM_STATUS_POOL,
         randomStatusDisplay: Object.freeze({ burn: "Quemadura", rupture: "Ruptura", sinking: "Colapso", tremor: "Temblor", bleed: "Sangrado" }),
         mechanics: Object.freeze({
