@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 
 await import('../js/combat-skill-schema.js');
+await import('../js/skill-catalog-player-signature.js');
 await import('../js/combat-skill-loadout-074.js');
 await import('../js/spell-catalog-core.js');
 await import('../js/role-spell-catalog-core.js');
@@ -274,5 +275,79 @@ assert.equal(spellSyncWrites.length, 1);
 assert.equal(spellSyncWrites[0].path, 'campaña/jugadores/Pierre Carême Kikunae');
 assert.deepEqual(spellSyncWrites[0].patch['characterBuild/spellSelections'], pierreLoadout.combatSpellIds);
 assert.equal(spellSyncWrites[0].patch['characterBuild/spellSelections'].includes('old_placeholder'), false);
+
+
+const angeloSignature = playerEntry.knownSkillLoadoutForActor({ playerId: 'angelo', name: 'Angelo V.', raw: {} });
+assert.ok(angeloSignature);
+assert.equal(angeloSignature.id, 'angelo_v');
+assert.deepEqual(angeloSignature.skillSlotIds, [
+  'angelo_steps_to_perfection',
+  'angelo_blood_art',
+  'angelo_my_masterpiece',
+]);
+
+const angeloActor = {
+  category: 'player',
+  playerId: 'angelo',
+  sourceId: 'angelo',
+  ownerUid: 'uid-angelo',
+  linkedActorId: 'actor_angelo',
+  actorId: 'actor_angelo',
+  name: 'Angelo V.',
+  raw: { uid: 'uid-angelo', characterName: 'Angelo V.' },
+};
+const angeloUnits = {
+  unit_angelo: {
+    id: 'unit_angelo',
+    isPlayer: true,
+    linkedPlayerUID: 'uid-angelo',
+    action_slots: ['legacy_skill'],
+  },
+};
+const angeloSkills = {
+  legacy_skill: {
+    name: 'Legacy Skill', type: 'Attack', tier: 1,
+    basePower: 4, coinPower: 4, coinAmount: 1,
+    effects: [], coins: [{ effects: [] }], schemaVersion: 2,
+  },
+};
+const angeloCombatant = playerEntry.buildPlayerCombatant(angeloActor, {
+  now: 555,
+  units: angeloUnits,
+  skills: angeloSkills,
+});
+assert.deepEqual(angeloCombatant.skillSlotIds.slice(0, 3), angeloSignature.skillSlotIds);
+assert.equal(angeloCombatant.skillSlotIds.includes('legacy_skill'), true, 'signature injection must preserve existing Unit skills');
+for (const id of angeloSignature.skillSlotIds) assert.equal(angeloCombatant.equippedSkillIndex[id], true);
+
+const signatureCatalog = globalThis.LuminousPlayerSignatureSkillCatalog;
+for (const id of angeloSignature.skillSlotIds) assert.ok(signatureCatalog.get(id), `missing canonical Angelo skill ${id}`);
+
+const signatureSyncWrites = [];
+const signatureSyncDb = {
+  ref(path) {
+    return {
+      async update(patch) { signatureSyncWrites.push({ path, patch }); },
+    };
+  },
+};
+const existingAngelo = {
+  'player:angelo': {
+    ...angeloCombatant,
+    skillSlotIds: ['legacy_skill'],
+    skillIds: ['legacy_skill'],
+    equippedSkillIndex: { legacy_skill: true },
+  },
+};
+const signatureSync = await playerEntry.syncKnownPlayerSkillLoadout(angeloActor, {
+  db: signatureSyncDb,
+  combatants: existingAngelo,
+});
+assert.equal(signatureSync.matched, true);
+assert.equal(signatureSync.synced, true);
+assert.equal(signatureSyncWrites.length, 1);
+assert.equal(signatureSyncWrites[0].path, 'campaña/combate/combatants/player:angelo');
+assert.deepEqual(signatureSyncWrites[0].patch.skillSlotIds.slice(0, 3), angeloSignature.skillSlotIds);
+assert.equal(signatureSyncWrites[0].patch.equippedSkillIndex.angelo_my_masterpiece, true);
 
 console.log('combat-v074-player-entry-smoke: ok');
