@@ -85,6 +85,19 @@
     }),
   ]);
 
+  const KNOWN_PLAYER_SKILL_LOADOUTS = Object.freeze([
+    Object.freeze({
+      id: "angelo_v",
+      aliases: Object.freeze(["angelo v"]),
+      skillSlotIds: Object.freeze([
+        "angelo_steps_to_perfection",
+        "angelo_blood_art",
+        "angelo_my_masterpiece",
+      ]),
+    }),
+  ]);
+
+
   function normalizeKnownPlayerName(value) {
     return clean(value)
       .normalize("NFD")
@@ -105,6 +118,80 @@
       return candidates.some((candidate) => candidate === wanted || candidate.startsWith(`${wanted} `));
     }));
     return match ? clone(match) : null;
+  }
+
+
+  function knownSkillLoadoutForActor(actor = {}) {
+    const raw = actor?.raw && typeof actor.raw === "object" ? actor.raw : {};
+    const candidates = [
+      actor.name, actor.characterName, actor.character_name, actor.playerId, actor.sourceId,
+      raw.characterName, raw.character_name, raw.nombre, raw.name,
+    ].map(normalizeKnownPlayerName).filter(Boolean);
+    const match = KNOWN_PLAYER_SKILL_LOADOUTS.find((entry) => entry.aliases.some((alias) => {
+      const wanted = normalizeKnownPlayerName(alias);
+      return candidates.some((candidate) => candidate === wanted || candidate.startsWith(`${wanted} `));
+    }));
+    return match ? clone(match) : null;
+  }
+
+  function applyKnownSkillLoadoutToCombatant(record = {}, loadout = null) {
+    const next = clone(record || {}) || {};
+    if (!loadout) return next;
+    const signatureIds = [...new Set((loadout.skillSlotIds || []).map(clean).filter(Boolean))];
+    const existingSlots = Array.isArray(next.skillSlotIds)
+      ? next.skillSlotIds.map(clean).filter(Boolean)
+      : Array.isArray(next.skillIds) ? next.skillIds.map(clean).filter(Boolean) : [];
+    const skillSlotIds = [...signatureIds, ...existingSlots.filter((id) => !signatureIds.includes(id))];
+    const skillIds = [...new Set(skillSlotIds)];
+    next.skillSlotIds = skillSlotIds;
+    next.skillIds = skillIds;
+    next.equippedSkillIndex = {
+      ...(next.equippedSkillIndex && typeof next.equippedSkillIndex === "object" ? next.equippedSkillIndex : {}),
+      ...Object.fromEntries(skillIds.map((id) => [id, true])),
+    };
+    const characterBuild = next.characterBuild && typeof next.characterBuild === "object" ? clone(next.characterBuild) : {};
+    next.characterBuild = {
+      ...characterBuild,
+      signatureSkillIds: signatureIds,
+      signatureSkillLoadoutSource: "character_sheet",
+      signatureSkillCharacterId: loadout.id,
+    };
+    return next;
+  }
+
+  function signatureSkillUpdatePatch(record = {}, loadout = null) {
+    if (!loadout) return null;
+    const next = applyKnownSkillLoadoutToCombatant(record, loadout);
+    return {
+      skillSlotIds: next.skillSlotIds,
+      skillIds: next.skillIds,
+      equippedSkillIndex: next.equippedSkillIndex,
+      "characterBuild/signatureSkillIds": next.characterBuild.signatureSkillIds,
+      "characterBuild/signatureSkillLoadoutSource": next.characterBuild.signatureSkillLoadoutSource,
+      "characterBuild/signatureSkillCharacterId": next.characterBuild.signatureSkillCharacterId,
+    };
+  }
+
+  async function syncKnownPlayerSkillLoadout(actor = {}, options = {}) {
+    const loadout = options.loadout || knownSkillLoadoutForActor(actor);
+    if (!loadout) return { matched: false, synced: false, loadout: null };
+    const db = options.db || state.db;
+    if (!db?.ref) return { matched: true, synced: false, reason: "FIREBASE_DATABASE_REQUIRED", loadout };
+    const combatants = options.combatants || state.combatants || {};
+    const existing = playerAlreadyInCombat(actor, combatants);
+    if (!existing?.key) return { matched: true, synced: false, reason: "COMBATANT_NOT_FOUND", loadout };
+    const patchedCombatant = applyKnownSkillLoadoutToCombatant(existing.combatant, loadout);
+    const patch = signatureSkillUpdatePatch(existing.combatant, loadout);
+    const ref = db.ref(`${ROOTS.combatants}/${existing.key}`);
+    if (typeof ref?.update === "function") await ref.update(patch);
+    if (state.combatants?.[existing.key]) state.combatants[existing.key] = patchedCombatant;
+    return {
+      matched: true,
+      synced: true,
+      loadout,
+      combatantKey: existing.key,
+      combatant: patchedCombatant,
+    };
   }
 
   function buildSpellSelectionIndex(ids = []) {
@@ -300,7 +387,7 @@
     const equippedSkillIndex = sourceUnit && loadoutRuntime?.buildEquippedSkillIndex ? loadoutRuntime.buildEquippedSkillIndex(skillIds) : {};
     const hydrated = sourceUnit && loadoutRuntime?.hydrateLoadout ? loadoutRuntime.hydrateLoadout(sourceUnit, options.skills || state.skills) : null;
 
-    const combatant = {
+    let combatant = {
       ...raw,
       id: combatId,
       combatId,
@@ -340,6 +427,7 @@
     if (maxHp != null) combatant.maxHp = maxHp;
     if (hp != null) combatant.hp = hp;
     if (sp != null) combatant.sp = sp;
+    combatant = applyKnownSkillLoadoutToCombatant(combatant, knownSkillLoadoutForActor(actor));
     return combatant;
   }
 
@@ -355,6 +443,7 @@
         unitResolution,
         loadout,
         spellLoadout: knownSpellLoadoutForActor(actor),
+        skillLoadout: knownSkillLoadoutForActor(actor),
       };
     });
   }
@@ -368,11 +457,33 @@
       ? await syncKnownPlayerSpellLoadout(actor, { ...options, db, loadout, combatants: options.combatants || state.combatants })
       : { matched: false, synced: false, loadout: null };
     const effectiveActor = synced.player ? { ...actor, raw: synced.player } : actor;
+    const signatureLoadout = knownSkillLoadoutForActor(effectiveActor);
+
+    let signatureSynced = { matched: Boolean(signatureLoadout), synced: false, loadout: signatureLoadout };
+    const beforeExisting = playerAlreadyInCombat(effectiveActor, options.combatants || state.combatants);
+    if (signatureLoadout && beforeExisting) {
+      signatureSynced = await syncKnownPlayerSkillLoadout(effectiveActor, {
+        ...options,
+        db,
+        loadout: signatureLoadout,
+        combatants: options.combatants || state.combatants,
+      });
+    }
 
     const existing = playerAlreadyInCombat(effectiveActor, options.combatants || state.combatants);
     if (existing) {
-      const combatant = synced.combatant || applyKnownSpellLoadoutToRecord(existing.combatant, loadout);
-      return { added: false, reason: "already_in_combat", key: existing.key, combatant: clone(combatant), spellLoadoutSynced: synced.synced, spellLoadout: loadout };
+      let combatant = signatureSynced.combatant || synced.combatant || existing.combatant;
+      combatant = applyKnownSkillLoadoutToCombatant(applyKnownSpellLoadoutToRecord(combatant, loadout), signatureLoadout);
+      return {
+        added: false,
+        reason: "already_in_combat",
+        key: existing.key,
+        combatant: clone(combatant),
+        spellLoadoutSynced: synced.synced,
+        spellLoadout: loadout,
+        signatureSkillLoadoutSynced: signatureSynced.synced,
+        signatureSkillLoadout: signatureLoadout,
+      };
     }
 
     const unitResolution = options.unitResolution || resolvePlayerUnit(effectiveActor, options.units || state.units);
@@ -388,7 +499,16 @@
     if (!result?.committed) {
       return { added: false, reason: occupied ? "already_in_combat" : "write_aborted", key, combatant: clone(result?.snapshot?.val?.() || null) };
     }
-    return { added: true, reason: null, key, combatant: clone(result.snapshot?.val?.() || combatant), spellLoadoutSynced: synced.synced, spellLoadout: loadout };
+    return {
+      added: true,
+      reason: null,
+      key,
+      combatant: clone(result.snapshot?.val?.() || combatant),
+      spellLoadoutSynced: synced.synced,
+      spellLoadout: loadout,
+      signatureSkillLoadoutSynced: Boolean(signatureLoadout),
+      signatureSkillLoadout: signatureLoadout,
+    };
   }
 
   function setStatus(message, kind = "info") {
@@ -405,7 +525,7 @@
     if (!select || !add) return false;
     const previous = select.value;
     const entries = playerEntries();
-    select.innerHTML = '<option value="">— Select campaign Player —</option>' + entries.map(({ actor, linked, existing, unitResolution, loadout, spellLoadout }) => {
+    select.innerHTML = '<option value="">— Select campaign Player —</option>' + entries.map(({ actor, linked, existing, unitResolution, loadout, spellLoadout, skillLoadout }) => {
       const key = actor.key;
       let suffix = existing ? " · IN COMBAT" : linked ? " · READY" : " · NO ACTOR LINK";
       if (!existing && linked) {
@@ -414,16 +534,22 @@
         else suffix = ` · UNIT · ${loadout?.skillIds?.length || 0} SKILLS`;
       }
       if (spellLoadout) suffix += ` · ${spellLoadout.combatSpellIds.length} SPELLS`;
+      if (skillLoadout) suffix += ` · ${skillLoadout.skillSlotIds.length} SIGNATURE SKILLS`;
       return `<option value="${htmlEscape(key)}">${htmlEscape(actor.name)}${suffix}</option>`;
     }).join("");
     if (previous && entries.some(({ actor }) => actor.key === previous)) select.value = previous;
     const selected = entries.find(({ actor }) => actor.key === select.value) || null;
     const ambiguous = selected?.unitResolution?.reason === "AMBIGUOUS_PLAYER_UNIT";
-    const canSyncExistingSpells = Boolean(selected?.existing && selected?.spellLoadout);
-    add.disabled = !selected || (!canSyncExistingSpells && (!selected.linked || Boolean(selected.existing) || ambiguous));
-    add.textContent = canSyncExistingSpells ? "SYNC SPELLS" : "ADD PLAYER";
+    const canSyncExistingLoadout = Boolean(selected?.existing && (selected?.spellLoadout || selected?.skillLoadout));
+    add.disabled = !selected || (!canSyncExistingLoadout && (!selected.linked || Boolean(selected.existing) || ambiguous));
+    add.textContent = canSyncExistingLoadout ? "SYNC LOADOUT" : "ADD PLAYER";
     if (!entries.length) setStatus("No campaign Players found.");
-    else if (selected?.existing && selected?.spellLoadout) setStatus(`Player is already in combat · ${selected.spellLoadout.combatSpellIds.length} canonical sheet Spells ready to sync.`);
+    else if (selected?.existing && (selected?.spellLoadout || selected?.skillLoadout)) {
+      const parts = [];
+      if (selected.spellLoadout) parts.push(`${selected.spellLoadout.combatSpellIds.length} Spells`);
+      if (selected.skillLoadout) parts.push(`${selected.skillLoadout.skillSlotIds.length} Signature Skills`);
+      setStatus(`Player is already in combat · ${parts.join(" · ")} ready to sync.`);
+    }
     else if (selected?.existing) setStatus("Player is already in combat.");
     else if (selected && !selected.linked) setStatus("Player has no assigned Actor; cannot create a canonical combatant.", "error");
     else if (ambiguous) setStatus("Multiple Player Units match this Player. Resolve the Unit linkage before entering combat.", "error");
@@ -465,14 +591,14 @@
         setStatus(`Adding ${entry.actor.name}…`);
         try {
           const result = await addPlayerActor(entry.actor, { unitResolution: entry.unitResolution });
-          const syncedExisting = result.reason === "already_in_combat" && result.spellLoadoutSynced;
+          const syncedExisting = result.reason === "already_in_combat" && (result.spellLoadoutSynced || result.signatureSkillLoadoutSynced);
           setStatus(
             result.added
-              ? `${entry.actor.name} added to combat${result.spellLoadoutSynced ? " · sheet Spells synced." : "."}`
+              ? `${entry.actor.name} added to combat${result.spellLoadoutSynced || result.signatureSkillLoadout ? " · sheet loadout synced." : "."}`
               : result.reason === "ambiguous_player_unit"
                 ? `${entry.actor.name} has ambiguous Unit linkage.`
                 : syncedExisting
-                  ? `${entry.actor.name} · sheet Spells synced; Player remains in combat.`
+                  ? `${entry.actor.name} · sheet loadout synced; Player remains in combat.`
                   : `${entry.actor.name} is already in combat.`,
             result.added || syncedExisting ? "ok" : result.reason === "ambiguous_player_unit" ? "error" : "info"
           );
@@ -532,7 +658,12 @@
     version: VERSION,
     ROOTS,
     KNOWN_PLAYER_SPELL_LOADOUTS,
+    KNOWN_PLAYER_SKILL_LOADOUTS,
     normalizeKnownPlayerName,
+    knownSkillLoadoutForActor,
+    applyKnownSkillLoadoutToCombatant,
+    signatureSkillUpdatePatch,
+    syncKnownPlayerSkillLoadout,
     knownSpellLoadoutForActor,
     buildSpellSelectionIndex,
     applyKnownSpellLoadoutToRecord,
