@@ -8,8 +8,9 @@ const baseEngine = {
   calculateCoinDamage() { return 100; },
   triggerEvent() { return null; },
   triggerPhase() { return null; },
-  resolveUnilateralWithCounter(attacker, skill, target) {
-    this.__lastUnopposed = { attacker, skill, target };
+  resolveUnilateralWithCounter(attacker, skill, target, counterSkill = null) {
+    this.__lastUnopposed = { attacker, skill, target, counterSkill };
+    this.__lastCounterSkill = counterSkill;
     return { resolved: true, attackerId: attacker.id, targetId: target.id };
   },
 };
@@ -27,7 +28,9 @@ assert.ok(catalog && batch);
 
 for (const id of [
   'minor_illusion','produce_flame','blade_ward','thorn_whip',
-  'lightning_lure','infestation','create_bonfire','eldritch_blast'
+  'lightning_lure','infestation','create_bonfire','eldritch_blast',
+  'acid_splash','ray_of_frost','frostbite','sacred_flame',
+  'shocking_grasp','toll_the_dead','word_of_radiance','thunderclap'
 ]) {
   assert.ok(catalog[id], `missing cantrip ${id}`);
   assert.equal(catalog[id].cantrip, true);
@@ -97,6 +100,45 @@ batch.onCantripHit({
 assert.equal(lureTarget.statusEffects.bind.count,3);
 assert.equal(lureTarget.statusEffects.shock.count,3);
 
+const acidTarget = { id:'acid-target', side:'enemies', hp:100, maxHp:100, statusEffects:{} };
+batch.onCantripHit({ unitAttacker:summoner,currentTarget:acidTarget,skill:{id:'acid_splash',materializedAtLevel:30} });
+assert.equal(acidTarget.statusEffects.corrosion.count,3);
+
+const frostTarget = { id:'frost-target', side:'enemies', hp:100, maxHp:100, statusEffects:{} };
+batch.onCantripHit({ unitAttacker:summoner,currentTarget:frostTarget,skill:{id:'ray_of_frost',materializedAtLevel:30} });
+assert.equal(frostTarget.statusEffects.bind.count,2);
+assert.equal(frostTarget.statusEffects.chill.count,3);
+
+const frostbiteTarget = { id:'frostbite-target', side:'enemies', hp:100, maxHp:100, statusEffects:{} };
+batch.onCantripHit({ unitAttacker:summoner,currentTarget:frostbiteTarget,skill:{id:'frostbite',materializedAtLevel:30} });
+assert.equal(frostbiteTarget.statusEffects.attack_power_down.count,1);
+assert.equal(frostbiteTarget.statusEffects.chill.count,3);
+
+const sacredTarget = { id:'sacred-target', side:'enemies', hp:100, maxHp:100, statusEffects:{} };
+batch.onCantripHit({ unitAttacker:summoner,currentTarget:sacredTarget,skill:{id:'sacred_flame',materializedAtLevel:30} });
+assert.equal(sacredTarget.statusEffects.radiance.count,3);
+
+const shockTarget = { id:'shock-target', side:'enemies', hp:100, maxHp:100, statusEffects:{} };
+batch.onCantripHit({ unitAttacker:summoner,currentTarget:shockTarget,skill:{id:'shocking_grasp',materializedAtLevel:30} });
+assert.equal(shockTarget.statusEffects.shock.count,3);
+globalThis.CombatEngine.resolveUnilateralWithCounter(summoner,{id:'shocking_grasp'},shockTarget,{id:'counter'});
+assert.equal(globalThis.CombatEngine.__lastCounterSkill,null);
+
+const tollTarget = { id:'toll-target', side:'enemies', hp:50, maxHp:100, statusEffects:{} };
+assert.equal(globalThis.CombatEngine.calculateCoinDamage(summoner,tollTarget,{id:'toll_the_dead',materializedAtLevel:30},10,false,0,{}),126);
+const fullHpTollTarget = { id:'full-toll-target', side:'enemies', hp:100, maxHp:100, statusEffects:{} };
+assert.equal(globalThis.CombatEngine.calculateCoinDamage(summoner,fullHpTollTarget,{id:'toll_the_dead',materializedAtLevel:30},10,false,0,{}),100);
+batch.onCantripHit({ unitAttacker:summoner,currentTarget:tollTarget,skill:{id:'toll_the_dead',materializedAtLevel:30} });
+assert.equal(tollTarget.statusEffects.decay.count,3);
+
+const radianceAoeTarget = { id:'radiance-aoe-target', side:'enemies', hp:100, maxHp:100, statusEffects:{} };
+batch.onCantripHit({ unitAttacker:summoner,currentTarget:radianceAoeTarget,skill:{id:'word_of_radiance',materializedAtLevel:30} });
+assert.equal(radianceAoeTarget.statusEffects.radiance.count,3);
+
+const thunderTarget = { id:'thunder-target', side:'enemies', hp:100, maxHp:100, statusEffects:{} };
+batch.onCantripHit({ unitAttacker:summoner,currentTarget:thunderTarget,skill:{id:'thunderclap',materializedAtLevel:30} });
+assert.equal(thunderTarget.statusEffects.tremor.potency,3);
+
 const illusionTarget = { id:'illusion-target', side:'allies', hp:100, size:'medium', statusEffects:{} };
 const illusionResult = batch.handleAutomaticCantrip({
   action:{source:{id:'minor_illusion'}},actor:summoner,targets:[illusionTarget],context:{}
@@ -130,5 +172,17 @@ assert.equal(catalog.lightning_lure.coinPower,5);
 assert.equal(catalog.eldritch_blast.basePower,5);
 assert.equal(catalog.eldritch_blast.coinPower,5);
 assert.equal(catalog.eldritch_blast.mechanics.reuseSkill.every,30);
+
+assert.equal(catalog.acid_splash.attackWeight,3);
+assert.equal(catalog.acid_splash.basePower,4);
+assert.equal(catalog.acid_splash.coinPower,5);
+assert.equal(catalog.ray_of_frost.basePower,5);
+assert.equal(catalog.ray_of_frost.coinPower,5);
+assert.equal(catalog.frostbite.coinPower,4);
+assert.equal(catalog.sacred_flame.coinPower,5);
+assert.equal(catalog.shocking_grasp.mechanics.suppressCounter,true);
+assert.equal(catalog.toll_the_dead.mechanics.woundedTargetDamagePercent.base,20);
+assert.equal(catalog.word_of_radiance.attackWeight,3);
+assert.equal(catalog.thunderclap.attackWeight,3);
 
 console.log('Cantrip batch 2 smoke: OK');
