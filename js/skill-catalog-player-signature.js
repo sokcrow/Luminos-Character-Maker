@@ -141,6 +141,7 @@
           }),
         }),
       }),
+    }),
 
     pierre_sukseong: Object.freeze({
       id: "pierre_sukseong",
@@ -307,7 +308,6 @@
           coin5Damage: Object.freeze({ ifTargetHasAll: Object.freeze(["bleed", "rupture"]), damagePercent: 20 }),
         }),
       }),
-    }),
     }),
   });
 
