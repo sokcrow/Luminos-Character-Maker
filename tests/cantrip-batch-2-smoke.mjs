@@ -8,6 +8,8 @@ const baseEngine = {
   calculateCoinDamage() { return 100; },
   triggerEvent() { return null; },
   triggerPhase() { return null; },
+  resolveStandardClash() { return { winner:'A', clashLogs:[{}] }; },
+  applyDamage(target, amount) { target.hp = Math.max(0, Number(target.hp || 0) - Number(amount || 0)); return { amount }; },
   resolveUnilateralWithCounter(attacker, skill, target, counterSkill = null) {
     this.__lastUnopposed = { attacker, skill, target, counterSkill };
     this.__lastCounterSkill = counterSkill;
@@ -30,7 +32,8 @@ for (const id of [
   'minor_illusion','produce_flame','blade_ward','thorn_whip',
   'lightning_lure','infestation','create_bonfire','eldritch_blast',
   'acid_splash','ray_of_frost','frostbite','sacred_flame',
-  'shocking_grasp','toll_the_dead','word_of_radiance','thunderclap'
+  'shocking_grasp','toll_the_dead','word_of_radiance','thunderclap',
+  'sapping_sting','primal_savagery','sword_burst','dancing_lights','light','mending','druidcraft'
 ]) {
   assert.ok(catalog[id], `missing cantrip ${id}`);
   assert.equal(catalog[id].cantrip, true);
@@ -41,10 +44,12 @@ assert.equal(batch.summonMaxHp({ spellMod: 1 }), 10);
 assert.equal(batch.summonMaxHp({ spellMod: 4 }), 40);
 assert.equal(batch.summonMaxHp({ spellMod: -2 }), 10);
 
-const summoner = { id:'caster', side:'allies', level:30, spellMod:4, hp:100, statusEffects:{} };
-const ally = { id:'ally', side:'allies', hp:100, statusEffects:{}, size:'medium' };
-const enemy = { id:'enemy', side:'enemies', hp:100, statusEffects:{} };
-globalThis.combatData = { caster:summoner, ally, enemy };
+const summoner = { id:'caster', side:'allies', level:30, spellMod:4, hp:100, maxHp:100, speed:8, statusEffects:{} };
+const ally = { id:'ally', side:'allies', hp:100, maxHp:100, speed:6, statusEffects:{}, size:'medium' };
+const fastAlly = { id:'fast-ally', side:'allies', hp:100, maxHp:100, speed:10, statusEffects:{} };
+const farAlly = { id:'far-ally', side:'allies', hp:100, maxHp:100, speed:4, statusEffects:{} };
+const enemy = { id:'enemy', side:'enemies', hp:100, maxHp:100, speed:2, statusEffects:{} };
+globalThis.combatData = { caster:summoner, ally, fastAlly, farAlly, enemy };
 
 const infestation = batch.spawnSpellEntity(summoner,'infestation',{
   kind:'summon',summonerLevel:30,spellMod:4,context:{combatData:globalThis.combatData}
@@ -139,6 +144,61 @@ const thunderTarget = { id:'thunder-target', side:'enemies', hp:100, maxHp:100, 
 batch.onCantripHit({ unitAttacker:summoner,currentTarget:thunderTarget,skill:{id:'thunderclap',materializedAtLevel:30} });
 assert.equal(thunderTarget.statusEffects.tremor.potency,3);
 
+
+const stingTarget = { id:'sting-target', side:'enemies', hp:100, maxHp:100, statusEffects:{} };
+batch.onCantripHit({ unitAttacker:summoner,currentTarget:stingTarget,skill:{id:'sapping_sting',materializedAtLevel:30} });
+assert.equal(stingTarget.statusEffects.prone.count,1);
+assert.equal(stingTarget.statusEffects.decay.count,3);
+
+const primalTarget = { id:'primal-target', side:'enemies', hp:100, maxHp:100, statusEffects:{} };
+batch.onCantripHit({ unitAttacker:summoner,currentTarget:primalTarget,skill:{id:'primal_savagery',materializedAtLevel:30} });
+assert.equal(primalTarget.statusEffects.corrosion.count,3);
+
+const lightResult = batch.handleAutomaticCantrip({
+  action:{source:{id:'light'}},actor:summoner,targets:[summoner],context:{units:[fastAlly,summoner,ally,farAlly,enemy],combatData:globalThis.combatData}
+});
+assert.equal(lightResult.ok,true);
+assert.deepEqual(batch.adjacentUnits(summoner,[fastAlly,summoner,ally,farAlly,enemy]).map((unit)=>unit.id),['fast-ally','ally']);
+assert.equal(batch.ignoresDarknessDisadvantage(summoner,[fastAlly,summoner,ally,farAlly,enemy]),true);
+assert.equal(batch.ignoresDarknessDisadvantage(fastAlly,[fastAlly,summoner,ally,farAlly,enemy]),true);
+assert.equal(batch.ignoresDarknessDisadvantage(ally,[fastAlly,summoner,ally,farAlly,enemy]),true);
+assert.equal(batch.ignoresDarknessDisadvantage(farAlly,[fastAlly,summoner,ally,farAlly,enemy]),false);
+
+const dancing = batch.handleAutomaticCantrip({
+  action:{source:{id:'dancing_lights'}},actor:summoner,targets:[summoner,ally,fastAlly,farAlly],context:{units:[summoner,ally,fastAlly,farAlly,enemy],combatData:globalThis.combatData}
+});
+assert.equal(dancing.ok,true);
+assert.equal(dancing.count,4);
+assert.equal(batch.ignoresDarknessDisadvantage(farAlly,[fastAlly,summoner,ally,farAlly,enemy]),true);
+
+const construct = { id:'construct', creatureType:'construct', hp:10, maxHp:30, statusEffects:{} };
+const mendingUnit = batch.handleAutomaticCantrip({action:{source:{id:'mending'}},actor:summoner,targets:[construct],context:{}});
+assert.equal(mendingUnit.ok,true);
+assert.equal(construct.hp,15);
+const item = { currentDurability:10, maxDurability:40 };
+const repairedItem = batch.repairItemDurability(item,1);
+assert.equal(repairedItem.repaired,true);
+assert.equal(item.currentDurability,11);
+
+globalThis.LuminousWeatherEngine = {
+  getState:()=>({actual:{tipo:'soleado'}}),
+  getDefinition:(id)=>({label:id}),
+  getTransitionBreakdown:(id)=>[{target:id==='soleado'?'nublado':'soleado',probability:100}],
+};
+const forecastResult = batch.handleAutomaticCantrip({
+  action:{source:{id:'druidcraft'},metadata:{spellChoice:{key:'druidcraftMode',value:'forecast'}}},
+  actor:summoner,targets:[summoner],context:{}
+});
+assert.equal(forecastResult.ok,true);
+assert.equal(forecastResult.forecast.hours,24);
+assert.equal(forecastResult.forecast.entries[0].tipo,'soleado');
+assert.equal(forecastResult.forecast.entries.at(-1).etaMin,1440);
+
+const burstTarget = { id:'burst-target', side:'enemies', hp:20, maxHp:20, statusEffects:{} };
+batch.handleAutomaticCantrip({action:{source:{id:'sword_burst'}},actor:summoner,targets:[summoner],context:{}});
+globalThis.CombatEngine.resolveStandardClash(summoner,{id:'a'},burstTarget,{id:'b'});
+assert.equal(burstTarget.hp,17);
+
 const illusionTarget = { id:'illusion-target', side:'allies', hp:100, size:'medium', statusEffects:{} };
 const illusionResult = batch.handleAutomaticCantrip({
   action:{source:{id:'minor_illusion'}},actor:summoner,targets:[illusionTarget],context:{}
@@ -184,5 +244,14 @@ assert.equal(catalog.shocking_grasp.mechanics.suppressCounter,true);
 assert.equal(catalog.toll_the_dead.mechanics.woundedTargetDamagePercent.base,20);
 assert.equal(catalog.word_of_radiance.attackWeight,3);
 assert.equal(catalog.thunderclap.attackWeight,3);
+assert.equal(catalog.sapping_sting.save.abilityId,'con');
+assert.equal(catalog.sapping_sting.mechanics.saveAttackOnFailure,true);
+assert.equal(catalog.primal_savagery.basePower,5);
+assert.equal(catalog.primal_savagery.coinPower,6);
+assert.equal(catalog.sword_burst.mechanics.afterClashFixedDamage,3);
+assert.equal(catalog.dancing_lights.concentration,true);
+assert.equal(catalog.light.mechanics.adjacentRule,'speed_order');
+assert.equal(catalog.mending.castingTimeSeconds,60);
+assert.equal(catalog.druidcraft.mechanics.forecastHours,24);
 
 console.log('Cantrip batch 2 smoke: OK');
