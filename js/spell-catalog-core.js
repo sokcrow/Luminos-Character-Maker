@@ -9,6 +9,7 @@
       try { require("./spell-batch-pierre-runtime.js"); } catch (_) {}
       try { require("./spell-batch-angelo-runtime.js"); } catch (_) {}
       try { require("./spell-batch-weapon-cantrips-runtime.js"); } catch (_) {}
+      try { require("./spell-batch-cantrips-runtime.js"); } catch (_) {}
     }
     if (global.document) {
       const load = (id, src) => {
@@ -21,6 +22,7 @@
       if (!global.LuminousPierreSpellBatchRuntime) load("spell-batch-pierre-runtime-script", "js/spell-batch-pierre-runtime.js");
       if (!global.LuminousAngeloSpellBatchRuntime) load("spell-batch-angelo-runtime-script", "js/spell-batch-angelo-runtime.js");
       if (!global.LuminousWeaponCantripBatchRuntime) load("spell-batch-weapon-cantrips-runtime-script", "js/spell-batch-weapon-cantrips-runtime.js");
+      if (!global.LuminousCantripBatchRuntime) load("spell-batch-cantrips-runtime-script", "js/spell-batch-cantrips-runtime.js");
     }
   }
 })(typeof window !== "undefined" ? window : globalThis, function () {
@@ -173,6 +175,155 @@
         slotEnchantment: { id: "true_strike", requires: { meleeAttackSkill: true } },
         damagePercentFormula: "2+floor(Level/10)",
         onHitStatus: { status: "radiance", count: 1 }
+      },
+      effects: []
+    }),
+
+    minor_illusion: Object.freeze({
+      id: "minor_illusion", name: "Minor Illusion", nombre: "Minor Illusion",
+      description: "Theater: create a small visual illusion or sound. Combat: grant 10 Illusion to yourself or one Ally that isn't Large.",
+      level: 0, spellLevel: 0, cantrip: true,
+      classIds: ["bard", "sorcerer", "warlock", "wizard"],
+      school: "illusion", contexts: ["combat", "theater"],
+      sinAffinity: "gloom", damageType: null,
+      targetType: "allies", targetingType: "allies", attackWeight: 1, atkWeight: 1,
+      isUnclashable: true, castingTime: "action",
+      mechanics: {
+        cantripRuntime: "minor_illusion",
+        combatStatus: { status: "illusion", count: 10 },
+        targetRequirement: { maximumSizeExclusive: "large" }
+      },
+      effects: []
+    }),
+
+    produce_flame: Object.freeze({
+      id: "produce_flame", name: "Produce Flame", nombre: "Produce Flame",
+      description: "Create Produce Flame as a Background Unit. It disappears when Concentration ends.",
+      level: 0, spellLevel: 0, cantrip: true,
+      classIds: ["druid"],
+      school: "conjuration", contexts: ["combat"],
+      sinAffinity: "wrath", damageType: null,
+      targetType: "self", targetingType: "self", attackWeight: 1, atkWeight: 1,
+      isUnclashable: true, castingTime: "quick_action", concentration: true,
+      mechanics: {
+        cantripRuntime: "produce_flame",
+        entity: { kind: "background_unit", concentrationBound: true },
+        entitySkill: {
+          id: "produce_flame_flame", name: "Flame", targetingType: "focused_attack",
+          attackWeight: 1, atkWeight: 1, basePower: 4, coinPowerFormula: "3+floor(SummonerLevel/15)", coinAmount: 1,
+          onHitStatusFormula: { status: "burn", potency: "1+floor(SummonerLevel/15)" }
+        }
+      },
+      effects: []
+    }),
+
+    blade_ward: Object.freeze({
+      id: "blade_ward", name: "Blade Ward", nombre: "Blade Ward",
+      description: "At Combat Start, gain Blade Guard from this Slot.",
+      level: 0, spellLevel: 0, cantrip: true,
+      classIds: ["bard", "sorcerer", "warlock", "wizard"],
+      school: "abjuration", contexts: ["combat"],
+      sinAffinity: "sinless", damageType: null,
+      targetType: "self", targetingType: "self", attackWeight: 1, atkWeight: 1,
+      isUnclashable: true, castingTime: "action",
+      mechanics: {
+        cantripRuntime: "blade_ward",
+        combatStartStatus: { status: "blade_guard", damageReductionPercent: 20, expires: "turn_end" }
+      },
+      effects: []
+    }),
+
+    thorn_whip: Object.freeze({
+      id: "thorn_whip", name: "Thorn Whip", nombre: "Thorn Whip",
+      description: "On Hit, inflict (1 + Level/15) Bind and Rupture.",
+      level: 0, spellLevel: 0, cantrip: true,
+      classIds: ["artificer", "druid"],
+      school: "transmutation", contexts: ["combat"],
+      sinAffinity: "gluttony", damageType: "perforante",
+      targetingType: "focused_attack", attackWeight: 1, atkWeight: 1,
+      basePower: 5, coinPower: 4, coinAmount: 1, coins: 1,
+      mechanics: {
+        cantripRuntime: "thorn_whip",
+        levelCoinPower: { every: 20, amount: 1 },
+        onHitLevelStatuses: [
+          { status: "bind", base: 1, every: 15, mode: "count" },
+          { status: "rupture", base: 1, every: 15, mode: "potency" }
+        ]
+      },
+      effects: []
+    }),
+
+    lightning_lure: Object.freeze({
+      id: "lightning_lure", name: "Lightning Lure", nombre: "Lightning Lure",
+      description: "On Hit, inflict (1 + Level/15) Bind and Shock.",
+      level: 0, spellLevel: 0, cantrip: true,
+      classIds: ["artificer", "sorcerer", "warlock", "wizard"],
+      school: "evocation", contexts: ["combat"],
+      sinAffinity: "wrath", damageType: "contundente",
+      targetingType: "focused_attack", attackWeight: 1, atkWeight: 1,
+      basePower: 5, coinPower: 5, coinAmount: 1, coins: 1,
+      mechanics: {
+        cantripRuntime: "lightning_lure",
+        levelCoinPower: { every: 20, amount: 1 },
+        onHitLevelStatuses: [
+          { status: "bind", base: 1, every: 15, mode: "count" },
+          { status: "shock", base: 1, every: 15, mode: "potency" }
+        ]
+      },
+      effects: []
+    }),
+
+    infestation: Object.freeze({
+      id: "infestation", name: "Infestation", nombre: "Infestation",
+      description: "Summon Infestation. After the Summoner finishes an Attack Skill, it makes an Unopposed Attack against the same Target.",
+      level: 0, spellLevel: 0, cantrip: true,
+      classIds: ["druid", "sorcerer", "warlock", "wizard"],
+      school: "conjuration", contexts: ["combat"],
+      sinAffinity: "gluttony", damageType: null,
+      targetType: "self", targetingType: "self", attackWeight: 1, atkWeight: 1,
+      isUnclashable: true, castingTime: "action",
+      mechanics: {
+        cantripRuntime: "infestation",
+        summon: { targetable: true, maxHpFormula: "max(10,10*SummonerSpellMod)", onePerSpell: true },
+        summonSkill: {
+          id: "infestation_swarm", name: "Swarm", resolution: "unopposed",
+          attackWeight: 1, atkWeight: 1, basePower: 4, coinPowerFormula: "3+floor(SummonerLevel/20)", coinAmount: 1,
+          trigger: "after_summoner_attack_skill",
+          onHitStatusFormula: { status: "poison", potency: "1+floor(SummonerLevel/15)" }
+        }
+      },
+      effects: []
+    }),
+
+    create_bonfire: Object.freeze({
+      id: "create_bonfire", name: "Create Bonfire", nombre: "Create Bonfire",
+      description: "Summon Bonfire. On Turn Start, its Burning Presence inflicts 1 Burn to all Enemies.",
+      level: 0, spellLevel: 0, cantrip: true,
+      classIds: ["artificer", "druid", "sorcerer", "warlock", "wizard"],
+      school: "conjuration", contexts: ["combat"],
+      sinAffinity: "wrath", damageType: null,
+      targetType: "self", targetingType: "self", attackWeight: 1, atkWeight: 1,
+      isUnclashable: true, castingTime: "action", concentration: true,
+      mechanics: {
+        cantripRuntime: "create_bonfire",
+        summon: { targetable: true, maxHpFormula: "max(10,10*SummonerSpellMod)", onePerSpell: true, concentrationBound: true },
+        aura: { id: "burning_presence", trigger: "turn_start", targets: "all_enemies", status: "burn", potency: 1 }
+      },
+      effects: []
+    }),
+
+    eldritch_blast: Object.freeze({
+      id: "eldritch_blast", name: "Eldritch Blast", nombre: "Eldritch Blast",
+      description: "Focused Volley: Reuse this Skill (Level/30) Times. Each Reuse may target the same or a different Target.",
+      level: 0, spellLevel: 0, cantrip: true,
+      classIds: ["warlock"],
+      school: "evocation", contexts: ["combat"],
+      sinAffinity: "gloom", damageType: "perforante",
+      targetingType: "focused_attack", attackWeight: 1, atkWeight: 1,
+      basePower: 5, coinPower: 5, coinAmount: 1, coins: 1,
+      mechanics: {
+        cantripRuntime: "eldritch_blast",
+        reuseSkill: { base: 0, every: 30, maximum: 3, targeting: "same_or_different" }
       },
       effects: []
     }),
