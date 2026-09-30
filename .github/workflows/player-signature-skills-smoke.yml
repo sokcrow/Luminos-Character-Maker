@@ -7,10 +7,12 @@ on:
     paths:
       - 'js/skill-catalog-player-signature.js'
       - 'js/player-skill-runtime-angelo.js'
+      - 'js/player-skill-runtime-pierre.js'
       - 'js/combat-skill-loadout-074.js'
       - 'js/battle-viewer-player-entry-074.js'
       - 'js/battle-viewer-runtime-074.js'
       - 'tests/angelo-signature-skills-smoke.mjs'
+      - 'tests/pierre-signature-skills-smoke.mjs'
       - 'tests/combat-v074-player-entry-smoke.mjs'
       - '.github/workflows/player-signature-skills-smoke.yml'
 
@@ -28,10 +30,13 @@ jobs:
         run: |
           node --check js/skill-catalog-player-signature.js
           node --check js/player-skill-runtime-angelo.js
+          node --check js/player-skill-runtime-pierre.js
           node --check js/combat-skill-loadout-074.js
           node --check js/battle-viewer-player-entry-074.js
           node --check js/battle-viewer-runtime-074.js
       - name: Angelo signature skill mechanics
         run: node tests/angelo-signature-skills-smoke.mjs
+      - name: Pierre signature skill mechanics
+        run: node tests/pierre-signature-skills-smoke.mjs
       - name: Player combat entry injection
         run: node tests/combat-v074-player-entry-smoke.mjs
