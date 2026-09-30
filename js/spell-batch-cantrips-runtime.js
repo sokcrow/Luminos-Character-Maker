@@ -119,6 +119,15 @@
     return sa && sb ? sa === sb : false;
   }
 
+  function maxHpOf(unit = {}) {
+    return Math.max(0, numberOr(unit.maxHp ?? unit.maxHP ?? unit.hp_max ?? unit.combatStats?.hp_max, 0));
+  }
+
+  function isBelowMaxHp(unit = {}) {
+    const maxHp = maxHpOf(unit);
+    return maxHp > 0 && numberOr(unit.hp ?? unit.currentHp ?? unit.currentHP ?? unit.hp_actual, maxHp) < maxHp;
+  }
+
   function combatPool(context = {}) {
     if (context.combatData && typeof context.combatData === "object") return context.combatData;
     if (global.combatData && typeof global.combatData === "object") return global.combatData;
@@ -309,6 +318,32 @@
       const amount = 1 + Math.floor(level/15);
       applyStatus(target,"bind",{count:amount,mode:"gain",data:{sourceSpellId:"lightning_lure"}});
       applyStatus(target,"shock",{count:amount,mode:"gain",data:{sourceSpellId:"lightning_lure"}});
+    } else if (skillId === "acid_splash") {
+      const amount = 1 + Math.floor(level/15);
+      applyStatus(target,"corrosion",{count:amount,mode:"gain",data:{sourceSpellId:"acid_splash"}});
+    } else if (skillId === "ray_of_frost") {
+      const amount = 1 + Math.floor(level/15);
+      applyStatus(target,"bind",{count:2,mode:"gain",data:{sourceSpellId:"ray_of_frost"}});
+      applyStatus(target,"chill",{count:amount,mode:"gain",data:{sourceSpellId:"ray_of_frost"}});
+    } else if (skillId === "frostbite") {
+      const amount = 1 + Math.floor(level/15);
+      applyStatus(target,"attack_power_down",{count:1,mode:"gain",data:{sourceSpellId:"frostbite"}});
+      applyStatus(target,"chill",{count:amount,mode:"gain",data:{sourceSpellId:"frostbite"}});
+    } else if (skillId === "sacred_flame") {
+      const amount = 1 + Math.floor(level/15);
+      applyStatus(target,"radiance",{count:amount,mode:"gain",data:{sourceSpellId:"sacred_flame"}});
+    } else if (skillId === "shocking_grasp") {
+      const amount = 1 + Math.floor(level/15);
+      applyStatus(target,"shock",{count:amount,mode:"gain",data:{sourceSpellId:"shocking_grasp"}});
+    } else if (skillId === "toll_the_dead") {
+      const amount = 1 + Math.floor(level/15);
+      applyStatus(target,"decay",{count:amount,mode:"gain",data:{sourceSpellId:"toll_the_dead"}});
+    } else if (skillId === "word_of_radiance") {
+      const amount = 1 + Math.floor(level/15);
+      applyStatus(target,"radiance",{count:amount,mode:"gain",data:{sourceSpellId:"word_of_radiance"}});
+    } else if (skillId === "thunderclap") {
+      const amount = 1 + Math.floor(level/15);
+      applyStatus(target,"tremor",{potency:amount,mode:"gain",data:{sourceSpellId:"thunderclap"}});
     }
 
     const sourceSpellId = normalizeId(attacker?.sourceSpellId || skill.sourceSpellId);
@@ -398,6 +433,7 @@
     const originalTriggerPhase = typeof engine.triggerPhase === "function" ? engine.triggerPhase : null;
     const originalCalculateFinalPower = typeof engine.calculateFinalPower === "function" ? engine.calculateFinalPower : null;
     const originalCalculateCoinDamage = typeof engine.calculateCoinDamage === "function" ? engine.calculateCoinDamage : null;
+    const originalResolveUnilateralWithCounter = typeof engine.resolveUnilateralWithCounter === "function" ? engine.resolveUnilateralWithCounter : null;
 
     if (originalCalculateFinalPower) {
       engine.calculateFinalPower = function(skill, headsFlipped, unit = null) {
@@ -408,8 +444,22 @@
 
     if (originalCalculateCoinDamage) {
       engine.calculateCoinDamage = function(attacker,defender,skill,coinFinalPower,isCritical,clashCount,context=null) {
-        const value = originalCalculateCoinDamage.call(this,attacker,defender,skill,coinFinalPower,isCritical,clashCount,context);
+        let value = originalCalculateCoinDamage.call(this,attacker,defender,skill,coinFinalPower,isCritical,clashCount,context);
+        const skillId = normalizeId(skill?.id || skill?.sourceSpellId);
+        if (skillId === "toll_the_dead" && isBelowMaxHp(defender)) {
+          const level = Math.max(1,intOr(skill?.materializedAtLevel ?? actorLevel(attacker),1));
+          const bonusPercent = 20 + Math.floor(level/5);
+          value = Math.max(0,Math.floor(numberOr(value,0) * (1 + bonusPercent/100)));
+        }
         return getStatus(defender,"blade_guard") ? Math.max(0,Math.floor(numberOr(value,0)*0.8)) : value;
+      };
+    }
+
+    if (originalResolveUnilateralWithCounter) {
+      engine.resolveUnilateralWithCounter = function(unitAttacker,attackSkill,unitDefender,counterSkill,options={skipUseHooks:false,clashResult:null}) {
+        const skillId = normalizeId(attackSkill?.id || attackSkill?.sourceSpellId);
+        const suppressCounter = skillId === "shocking_grasp" || attackSkill?.luminousMechanics?.suppressCounter === true;
+        return originalResolveUnilateralWithCounter.call(this,unitAttacker,attackSkill,unitDefender,suppressCounter ? null : counterSkill,options);
       };
     }
 
@@ -471,6 +521,12 @@
           action.metadata.sourceDefinition = definition;
           action.metadata.reuseSkillCount = definition.__luminousReuseCount;
         }
+        if (id==="shocking_grasp") {
+          const definition = action.metadata?.sourceDefinition || {};
+          definition.suppressCounter = true;
+          action.metadata.sourceDefinition = definition;
+          action.metadata.suppressCounter = true;
+        }
         return result;
       }
     });
@@ -527,7 +583,7 @@
   const api = Object.freeze({
     version:VERSION, STATUS_DEFINITIONS,
     registerStatuses,getStatus,applyStatus,removeStatus,reduceCount,
-    actorLevel,spellModFromActor,summonMaxHp,
+    actorLevel,spellModFromActor,summonMaxHp,maxHpOf,isBelowMaxHp,
     spawnSpellEntity,despawnEntity,despawnSpellEntities,entitySkill,
     handleAutomaticCantrip,applyBladeWardPlans,applyBonfirePresence,onCantripHit,
     resolveInfestationFollowUp,reuseCountForLevel,resolveEldritchReuses,cleanupDeadSummons,
