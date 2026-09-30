@@ -6,7 +6,7 @@
     return;
   }
 
-  const VERSION = "0.7.4-cantrips-batch-2";
+  const VERSION = "0.7.4-cantrips-batch-3";
   const normalizeId = (value) => String(value ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
   const numberOr = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
   const intOr = (value, fallback = 0) => Number.isFinite(Number(value)) ? Math.trunc(Number(value)) : fallback;
@@ -21,6 +21,18 @@
       name: "Blade Guard", type: "positive", mode: "zero",
       icon: "https://imgur.com/qs0vIeM.png",
       description: "Gain +20% Damage Reduction. Remove this effect on Turn End."
+    }),
+    sword_burst: Object.freeze({
+      name: "Sword Burst", type: "positive", mode: "zero",
+      description: "After each Clash, deal 3 Force Fixed Damage to the opposing Unit. Once per Clash. Remove on Turn End."
+    }),
+    dancing_light: Object.freeze({
+      name: "Dancing Light", type: "positive", mode: "zero",
+      description: "Ignore Darkness Disadvantage. Removed when the caster loses Concentration."
+    }),
+    light: Object.freeze({
+      name: "Light", type: "positive", mode: "zero",
+      description: "This Unit and its Adjacent Units ignore Darkness Disadvantage."
     })
   });
 
@@ -117,6 +129,183 @@
   function sameSide(a = {}, b = {}) {
     const sa = sideOf(a), sb = sideOf(b);
     return sa && sb ? sa === sb : false;
+  }
+
+  function speedOf(unit = {}) {
+    const value = unit.speed ?? unit.currentSpeed ?? unit.velocidad ?? unit.combatStats?.speed;
+    return Number.isFinite(Number(value)) ? Number(value) : null;
+  }
+
+  function speedOrderedUnits(unitsInput = []) {
+    const rows = Array.isArray(unitsInput) ? unitsInput : Object.values(unitsInput || {});
+    return rows
+      .map((unit,index)=>({unit,index,speed:speedOf(unit)}))
+      .filter((row)=>row.unit && entityId(row.unit) && row.speed != null && numberOr(row.unit.hp ?? row.unit.currentHp ?? row.unit.hp_actual,1)>0 && !row.unit.isBackgroundUnit)
+      .sort((a,b)=>b.speed-a.speed || a.index-b.index)
+      .map((row)=>row.unit);
+  }
+
+  function adjacentUnits(mainUnit, unitsInput = []) {
+    if (!mainUnit) return [];
+    const ordered = speedOrderedUnits(unitsInput);
+    const wanted = entityId(mainUnit);
+    const index = ordered.findIndex((unit)=>entityId(unit)===wanted);
+    if (index < 0) return [];
+    return [ordered[index-1],ordered[index+1]].filter(Boolean);
+  }
+
+  function darknessOverrideOwn(unit) {
+    return Boolean(getStatus(unit,"dancing_light") || getStatus(unit,"light"));
+  }
+
+  function ignoresDarknessDisadvantage(unit, unitsInput = []) {
+    if (!unit) return false;
+    if (darknessOverrideOwn(unit)) return true;
+    const rows = Array.isArray(unitsInput) ? unitsInput : Object.values(unitsInput || {});
+    return rows.some((source)=>getStatus(source,"light") && adjacentUnits(source,rows).some((adjacent)=>entityId(adjacent)===entityId(unit)));
+  }
+
+  function removeCasterStatus(caster, statusId, context = {}) {
+    const casterId = entityId(caster);
+    let removed = 0;
+    for (const unit of Object.values(combatPool(context))) {
+      const entry = getStatus(unit,statusId);
+      if (!entry) continue;
+      if (String(entry.data?.casterId || "") !== casterId) continue;
+      if (removeStatus(unit,statusId)) removed++;
+    }
+    if (Array.isArray(context.units)) {
+      for (const unit of context.units) {
+        const entry = getStatus(unit,statusId);
+        if (!entry || String(entry.data?.casterId || "") !== casterId) continue;
+        if (removeStatus(unit,statusId)) removed++;
+      }
+    }
+    return removed;
+  }
+
+  function applyLight(caster,target,context = {}) {
+    if (!caster || !target) return {ok:false,reason:"target_missing"};
+    removeCasterStatus(caster,"light",context);
+    applyStatus(target,"light",{mode:"set",count:1,data:{sourceSpellId:"light",casterId:entityId(caster),darknessDisadvantageOverride:true}});
+    return {ok:true,status:"light",targetId:entityId(target),adjacentTargetIds:adjacentUnits(target,context.units || combatPool(context)).map(entityId)};
+  }
+
+  function applyDancingLights(caster,targets = [],context = {}) {
+    if (!caster) return {ok:false,reason:"caster_missing"};
+    removeCasterStatus(caster,"dancing_light",context);
+    const unique = [];
+    for (const unit of targets || []) {
+      if (!unit || (!sameSide(caster,unit) && entityId(unit)!==entityId(caster))) continue;
+      if (unique.some((row)=>entityId(row)===entityId(unit))) continue;
+      unique.push(unit);
+      if (unique.length>=4) break;
+    }
+    if (!unique.length) unique.push(caster);
+    unique.forEach((unit)=>applyStatus(unit,"dancing_light",{mode:"set",count:1,data:{sourceSpellId:"dancing_lights",casterId:entityId(caster),darknessDisadvantageOverride:true}}));
+    return {ok:true,status:"dancing_light",count:unique.length,targetIds:unique.map(entityId)};
+  }
+
+  function isRepairableUnit(unit = {}) {
+    const mode = normalizeId(unit.recoveryMode || unit.healingMode || unit.repairMode || unit.metadata?.recoveryMode);
+    const creatureType = normalizeId(unit.creatureType || unit.metadata?.creatureType);
+    return unit.repairable === true || ["repair","repair_only","repairable"].includes(mode) || creatureType === "construct";
+  }
+
+  function repairUnitHp(unit,amount = 5) {
+    if (!unit) return {repaired:false,reason:"target_missing",amount:0};
+    if (!isRepairableUnit(unit)) return {repaired:false,reason:"target_not_repairable",amount:0};
+    const currentKeys = [
+      [unit.combatStats,"hp_actual",["hp_max","max_hp","maxHp"]],
+      [unit,"hp",["maxHp","maxHP","hp_max","hpMax"]],
+      [unit,"currentHp",["maxHp","maxHP","hp_max","hpMax"]]
+    ];
+    for (const [owner,key,maxKeys] of currentKeys) {
+      if (!owner || !Number.isFinite(Number(owner[key]))) continue;
+      const maxKey = maxKeys.find((candidate)=>Number.isFinite(Number(owner[candidate])));
+      const maximum = maxKey ? Number(owner[maxKey]) : Number(owner[key]);
+      const before = Number(owner[key]);
+      const after = Math.min(maximum,before+Math.max(0,intOr(amount,0)));
+      owner[key]=after;
+      return {repaired:after>before,before,after,max:maximum,amount:after-before};
+    }
+    return {repaired:false,reason:"hp_resource_not_found",amount:0};
+  }
+
+  function repairItemDurability(item,amount = 1) {
+    if (!item || typeof item!=="object") return {repaired:false,reason:"missing_target_item",amount:0};
+    const runtime = global.LuminousItemRuntime;
+    if (typeof runtime?.repairItem === "function") return runtime.repairItem(item,amount);
+    const max = Math.max(0,numberOr(item.conditionMax ?? item.maxCondition ?? item.maxDurability,100));
+    const before = Math.max(0,Math.min(max,numberOr(item.condition ?? item.currentCondition ?? item.currentDurability ?? item.durability,max)));
+    const after = Math.min(max,before+Math.max(0,intOr(amount,0)));
+    if (Object.prototype.hasOwnProperty.call(item,"condition")) item.condition=after;
+    else if (Object.prototype.hasOwnProperty.call(item,"currentDurability")) item.currentDurability=after;
+    else if (Object.prototype.hasOwnProperty.call(item,"durability")) item.durability=after;
+    else item.condition=after;
+    return {repaired:after>before,before,after,max,amount:after-before};
+  }
+
+  function weatherLabel(id) {
+    const def = global.LuminousWeatherEngine?.getDefinition?.(id);
+    return def?.label || def?.name || String(id || "");
+  }
+
+  function buildDruidcraftForecast(hours = 24) {
+    const weather = global.LuminousWeatherEngine;
+    const state = weather?.getState?.();
+    if (!weather || !state?.actual?.tipo) return {available:false,hours,entries:[],reason:"weather_runtime_unavailable"};
+    const stepMinutes = 180;
+    const steps = Math.max(1,Math.ceil((Math.max(1,Number(hours)||24)*60)/stepMinutes));
+    const entries = [{etaMin:0,tipo:state.actual.tipo,label:weatherLabel(state.actual.tipo)}];
+    const sim = clone(state);
+    for (let index=1; index<=steps; index++) {
+      const options = weather.getTransitionBreakdown?.(sim.actual?.tipo,sim) || [];
+      const best = options[0];
+      if (!best) break;
+      sim.anterior = sim.actual?.tipo;
+      sim.actual = {...(sim.actual||{}),tipo:best.target};
+      entries.push({etaMin:index*stepMinutes,tipo:best.target,label:weatherLabel(best.target)});
+    }
+    return {available:true,hours,entries};
+  }
+
+  function druidcraftMode(action = {}) {
+    const choice = action?.metadata?.spellChoice || action?.metadata?.choice || {};
+    return normalizeId(choice.value || choice.druidcraftMode || choice.mode || action?.metadata?.druidcraftMode || "forecast");
+  }
+
+  function emitEvent(name,detail) {
+    try {
+      if (typeof global.dispatchEvent==="function" && typeof global.CustomEvent==="function") global.dispatchEvent(new global.CustomEvent(name,{detail}));
+    } catch (_) {}
+  }
+
+  function handleDruidcraft(action,actor,targets,context={}) {
+    const mode = druidcraftMode(action);
+    const target = targets?.[0] || actor;
+    if (mode==="forecast") {
+      const forecast = buildDruidcraftForecast(24);
+      actor.druidcraftForecast = {...forecast,visible:true,sourceSpellId:"druidcraft"};
+      emitEvent("luminous:druidcraft-forecast",{actor,forecast:clone(forecast)});
+      return {ok:forecast.available,mode,forecast};
+    }
+    if (mode==="bloom") {
+      const result={ok:true,mode,targetId:entityId(target)||null,smallPlantOnly:true,createsResources:false};
+      emitEvent("luminous:druidcraft-bloom",{actor,target,result,context});
+      return result;
+    }
+    if (mode==="nature_trick") {
+      const result={ok:true,mode,targetId:entityId(target)||null,harmless:true};
+      emitEvent("luminous:druidcraft-nature-trick",{actor,target,result,context});
+      return result;
+    }
+    if (mode==="fire_play") {
+      const result={ok:true,mode,targetId:entityId(target)||null,smallOnly:true,nonmagicalOnly:true};
+      emitEvent("luminous:druidcraft-fire-play",{actor,target,result,context});
+      return result;
+    }
+    return {ok:false,reason:"unknown_druidcraft_mode",mode};
   }
 
   function maxHpOf(unit = {}) {
@@ -263,6 +452,19 @@
       return { ok:true,entity };
     }
     if (id === "blade_ward") return { ok:true,preCombat:true };
+    if (id === "sword_burst") {
+      applyStatus(actor,"sword_burst",{mode:"set",count:1,data:{sourceSpellId:id,casterId:entityId(actor)}});
+      return {ok:true,status:"sword_burst",targetId:entityId(actor)};
+    }
+    if (id === "dancing_lights") return applyDancingLights(actor,targets?.length ? targets : [actor],context);
+    if (id === "light") return applyLight(actor,targets?.[0] || actor,context);
+    if (id === "mending") {
+      const target = targets?.[0] || null;
+      if (!target) return {ok:false,reason:"target_missing"};
+      const repair = repairUnitHp(target,5);
+      return {ok:repair.repaired,repair,targetId:entityId(target),reason:repair.reason || null};
+    }
+    if (id === "druidcraft") return handleDruidcraft(action,actor,targets,context);
     return { ok:false,reason:"unsupported_cantrip_runtime" };
   }
 
@@ -344,6 +546,13 @@
     } else if (skillId === "thunderclap") {
       const amount = 1 + Math.floor(level/15);
       applyStatus(target,"tremor",{potency:amount,mode:"gain",data:{sourceSpellId:"thunderclap"}});
+    } else if (skillId === "sapping_sting") {
+      const amount = 1 + Math.floor(level/15);
+      applyStatus(target,"prone",{count:1,mode:"gain",data:{sourceSpellId:"sapping_sting"}});
+      applyStatus(target,"decay",{count:amount,mode:"gain",data:{sourceSpellId:"sapping_sting"}});
+    } else if (skillId === "primal_savagery") {
+      const amount = 1 + Math.floor(level/15);
+      applyStatus(target,"corrosion",{count:amount,mode:"gain",data:{sourceSpellId:"primal_savagery"}});
     }
 
     const sourceSpellId = normalizeId(attacker?.sourceSpellId || skill.sourceSpellId);
@@ -434,6 +643,7 @@
     const originalCalculateFinalPower = typeof engine.calculateFinalPower === "function" ? engine.calculateFinalPower : null;
     const originalCalculateCoinDamage = typeof engine.calculateCoinDamage === "function" ? engine.calculateCoinDamage : null;
     const originalResolveUnilateralWithCounter = typeof engine.resolveUnilateralWithCounter === "function" ? engine.resolveUnilateralWithCounter : null;
+    const originalResolveStandardClash = typeof engine.resolveStandardClash === "function" ? engine.resolveStandardClash : null;
 
     if (originalCalculateFinalPower) {
       engine.calculateFinalPower = function(skill, headsFlipped, unit = null) {
@@ -463,6 +673,24 @@
       };
     }
 
+    if (originalResolveStandardClash) {
+      engine.resolveStandardClash = function(unitA,skillA,unitB,skillB,...rest) {
+        const result = originalResolveStandardClash.call(this,unitA,skillA,unitB,skillB,...rest);
+        const fixed = global.LuminousFixedDamageRuntime;
+        const applyBurst = (source,opponent) => {
+          if (!getStatus(source,"sword_burst") || !opponent) return null;
+          if (typeof fixed?.applyFixedDamage === "function") return fixed.applyFixedDamage(opponent,3,{engine:this,damageKind:"directo",skillUsed:null});
+          if (typeof this.applyDamage === "function") return this.applyDamage(opponent,3,"directo",false,null);
+          return null;
+        };
+        if (result && result.winner !== "Unclashable") {
+          applyBurst(unitA,unitB);
+          applyBurst(unitB,unitA);
+        }
+        return result;
+      };
+    }
+
     if (originalTriggerEvent) {
       engine.triggerEvent = function(tag,context,targetsHit=[]) {
         const result = originalTriggerEvent.call(this,tag,context,targetsHit);
@@ -486,6 +714,7 @@
           for (const unit of allUnits || []) {
             if (getStatus(unit,"illusion")) reduceCount(unit,"illusion",1);
             if (getStatus(unit,"blade_guard")) removeStatus(unit,"blade_guard");
+            if (getStatus(unit,"sword_burst")) removeStatus(unit,"sword_burst");
           }
           cleanupDeadSummons({units:allUnits,combatData:global.combatData});
         }
@@ -500,7 +729,7 @@
   function patchActionAdapter() {
     const source = global.LuminousBattleViewerActionAdapter073;
     if (!source?.compilePlan || source.__cantripBatchRuntime) return Boolean(source);
-    const automaticIds = new Set(["minor_illusion","produce_flame","blade_ward","infestation","create_bonfire"]);
+    const automaticIds = new Set(["minor_illusion","produce_flame","blade_ward","infestation","create_bonfire","sword_burst","dancing_lights","light","mending","druidcraft"]);
     const wrapped = Object.freeze({
       ...source,
       __cantripBatchRuntime:true,
@@ -557,13 +786,19 @@
       startConcentration(character,spell={},options={}) {
         const previous = character?.spellcastingState?.concentration?.active?.spellId || null;
         const nextId = normalizeId(spell.id || spell.name);
-        if (previous && normalizeId(previous)!==nextId) despawnSpellEntities(character,previous,{combatData:global.combatData});
+        if (previous && normalizeId(previous)!==nextId) {
+          despawnSpellEntities(character,previous,{combatData:global.combatData});
+          if (normalizeId(previous)==="dancing_lights") removeCasterStatus(character,"dancing_light",{combatData:global.combatData});
+        }
         return source.startConcentration(character,spell,options);
       },
       endConcentration(character,reason="ended") {
         const result = source.endConcentration(character,reason);
         const previous = result?.previous?.spellId;
-        if (previous) despawnSpellEntities(character,previous,{combatData:global.combatData});
+        if (previous) {
+          despawnSpellEntities(character,previous,{combatData:global.combatData});
+          if (normalizeId(previous)==="dancing_lights") removeCasterStatus(character,"dancing_light",{combatData:global.combatData});
+        }
         return result;
       }
     });
@@ -583,13 +818,17 @@
   const api = Object.freeze({
     version:VERSION, STATUS_DEFINITIONS,
     registerStatuses,getStatus,applyStatus,removeStatus,reduceCount,
-    actorLevel,spellModFromActor,summonMaxHp,maxHpOf,isBelowMaxHp,
+    actorLevel,spellModFromActor,summonMaxHp,speedOf,speedOrderedUnits,adjacentUnits,ignoresDarknessDisadvantage,maxHpOf,isBelowMaxHp,
     spawnSpellEntity,despawnEntity,despawnSpellEntities,entitySkill,
     handleAutomaticCantrip,applyBladeWardPlans,applyBonfirePresence,onCantripHit,
+    applyLight,applyDancingLights,isRepairableUnit,repairUnitHp,repairItemDurability,buildDruidcraftForecast,handleDruidcraft,
     resolveInfestationFollowUp,reuseCountForLevel,resolveEldritchReuses,cleanupDeadSummons,
     patchCombatEngine,patchActionAdapter,installCombatHook,patchConcentrationRuntime,install
   });
 
+  if (!global.LuminousSpeedAdjacencyRuntime) {
+    global.LuminousSpeedAdjacencyRuntime = Object.freeze({speedOf,speedOrderedUnits,adjacentUnits});
+  }
   global.LuminousCantripBatchRuntime = api;
   install();
   const timer = typeof global.setInterval === "function" ? global.setInterval(install,250) : null;
