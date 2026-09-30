@@ -5,9 +5,6 @@ await import('../js/skill-catalog-player-signature.js');
 await import('../js/combat-skill-loadout-074.js');
 await import('../js/spell-catalog-core.js');
 await import('../js/role-spell-catalog-core.js');
-await import('../js/vtt/actor-library.js');
-const actorLibrary = globalThis.LuminousVttActorLibrary;
-if (!actorLibrary) throw new Error('LuminousVttActorLibrary was not initialized.');
 
 await import('../js/battle-viewer-player-entry-074.js');
 const playerEntry = globalThis.LuminousBattleViewerPlayerEntry074;
@@ -145,7 +142,9 @@ assert.equal(entries[0].unitResolution.unitId, 'unit_jeske');
 assert.equal(entries[0].loadout.ready, true);
 assert.deepEqual(entries[0].loadout.skillIds, ['skill_a', 'skill_b']);
 
-const unlinkedPlayer = actorLibrary.normalizePlayerActor('player_2', { uid: 'uid-player-2', characterName: 'No Actor' }, {});
+const [unlinkedPlayer] = playerEntry.normalizePlayerActors({
+  player_2: { uid: 'uid-player-2', characterName: 'No Actor' },
+}, {});
 assert.equal(unlinkedPlayer.linkedActorId, null);
 assert.throws(() => playerEntry.buildPlayerCombatant(unlinkedPlayer), /PLAYER_ACTOR_LINK_REQUIRED/);
 
