@@ -28,6 +28,8 @@
     selectedClassId: null,
     selectedSlotLevel: null,
     overcast: false,
+    selectedSpellChoiceKey: null,
+    selectedSpellChoiceValue: null,
     pendingTargeting: null,
     subscriptions: [],
     authUnsubscribe: null,
@@ -148,7 +150,7 @@
     return { available: true, reason: null, slot, overcast: true, currentSp: sp };
   }
 
-  function buildSpellPlan({ authUid = currentAuthUid(), ownerPlayerId = null, slotIndex = null, slotId = null, spellId, classId = null, slotLevel = null, overcast = false, targetId } = {}) {
+  function buildSpellPlan({ authUid = currentAuthUid(), ownerPlayerId = null, slotIndex = null, slotId = null, spellId, classId = null, slotLevel = null, overcast = false, targetId, spellChoiceValue = null } = {}) {
     const uid = clean(authUid);
     if (!uid) return { ok: false, reason: "AUTH_REQUIRED", payload: null };
     const player = ownerPlayerId ? { ok: true, playerId: clean(ownerPlayerId), player: state.players?.[clean(ownerPlayerId)] || null } : resolveAuthenticatedPlayer(uid);
@@ -168,6 +170,14 @@
     const loadout = spellLoadoutRuntime();
     const trusted = loadout?.resolveSpellForCombatant?.(resolved.unit, id, { classId });
     if (!trusted?.ok) return { ok: false, reason: trusted?.reason || "SPELL_UNAVAILABLE", payload: null };
+
+    const choiceRule = trusted.spell?.mechanics?.requiresChoice || null;
+    const choiceKey = clean(choiceRule?.key);
+    const choiceValues = Array.isArray(choiceRule?.values) ? choiceRule.values.map(clean).filter(Boolean) : [];
+    const choiceValue = clean(spellChoiceValue ?? state.selectedSpellChoiceValue);
+    if (choiceKey && (!choiceValue || (choiceValues.length && !choiceValues.includes(choiceValue)))) {
+      return { ok: false, reason: "SPELL_CHOICE_REQUIRED", payload: null, choice: { key: choiceKey, values: choiceValues } };
+    }
 
     const baseLevel = Math.max(0, Number(trusted.spell?.level ?? trusted.spell?.spellLevel ?? 0) || 0);
     const requestedLevel = trusted.spell?.cantrip === true ? 0 : Math.max(baseLevel, Number.isFinite(Number(slotLevel)) ? Math.trunc(Number(slotLevel)) : baseLevel);
@@ -191,6 +201,7 @@
       slotLevel: requestedLevel,
       overcast: overcast === true,
       targetId: target,
+      ...(choiceKey ? { spellChoice: { key: choiceKey, value: choiceValue } } : {}),
       ...(slotEnchantment ? {
         targetActionSlotId: clean(slotId) || `${clean(resolved.unitId)}_slot_${requestedSlotIndex}`,
         slotEnchantment: true,
@@ -290,6 +301,9 @@
     state.selectedClassId = classes.length === 1 ? classes[0] : clean(row.spell?.sourceClassId || row.spell?.classId) || null;
     state.selectedSlotLevel = row.spell?.cantrip ? 0 : Math.max(1, Number(row.spell?.level ?? row.spell?.spellLevel ?? 1) || 1);
     state.overcast = false;
+    const choiceRule = row.spell?.mechanics?.requiresChoice || null;
+    state.selectedSpellChoiceKey = clean(choiceRule?.key) || null;
+    state.selectedSpellChoiceValue = Array.isArray(choiceRule?.values) && choiceRule.values.length ? clean(choiceRule.values[0]) : null;
     const skills = skillPlanner();
     if (skills?.state) skills.state.selectedSkillId = null;
     skills?.render?.();
@@ -297,7 +311,7 @@
     return { ok: true, reason: null, spellId: id };
   }
 
-  function clearSelectedSpell() { state.selectedSpellId = null; state.selectedClassId = null; state.selectedSlotLevel = null; state.overcast = false; render(); }
+  function clearSelectedSpell() { state.selectedSpellId = null; state.selectedClassId = null; state.selectedSlotLevel = null; state.overcast = false; state.selectedSpellChoiceKey = null; state.selectedSpellChoiceValue = null; render(); }
 
   function emitLog(message, type = "normal") {
     try { if (typeof global.addLogEntry === "function") global.addLogEntry(message, type); else global.console?.log?.(`[PlayerSpellPlanner074] ${message}`); } catch (_) {}
@@ -326,6 +340,7 @@
         if (event.target?.id === "bv074-spell-class") state.selectedClassId = clean(event.target.value) || null;
         if (event.target?.id === "bv074-spell-level") state.selectedSlotLevel = Math.max(0, Math.trunc(Number(event.target.value) || 0));
         if (event.target?.id === "bv074-spell-overcast") state.overcast = event.target.checked === true;
+        if (event.target?.id === "bv074-spell-choice") state.selectedSpellChoiceValue = clean(event.target.value) || null;
         render();
       });
       doc.body.appendChild(panel);
@@ -345,7 +360,13 @@
     const maxSlots = ownershipRuntime()?.actionSlotCount?.(resolved.unit) || Number(resolved.unit?.actionSlots || 1);
     const slots = Array.from({ length: maxSlots }, (_, index) => ({ index, plan: planAt(owner.playerId, index) }));
     const baseLevel = selected?.spell?.cantrip ? 0 : Math.max(1, Number(selected?.spell?.level ?? selected?.spell?.spellLevel ?? 1) || 1);
-    panel.innerHTML = `<div class="bv074-pspell-title">PLAYER SPELLS · 0.7.4</div><div class="bv074-pspell-meta">${htmlEscape(owner.playerId)} · ${clean(state.combatState).toUpperCase() || "NO PHASE"} · definitions are resolved from Content Registry.</div><div class="bv074-pspell-list">${spells.map((row) => `<button type="button" class="bv074-pspell-btn${state.selectedSpellId === row.id ? " selected" : ""}" data-bv074-spell="${htmlEscape(row.id)}" ${row.ready ? "" : "disabled"} title="${htmlEscape(row.reason || "")}">${htmlEscape(row.name)}${row.ready ? "" : " · INVALID"}</button>`).join("")}</div>${selected ? `<div class="bv074-pspell-cast"><label>Class <select id="bv074-spell-class">${classes.map((id) => `<option value="${htmlEscape(id)}" ${state.selectedClassId === id ? "selected" : ""}>${htmlEscape(id)}</option>`).join("")}</select></label><label>Slot <input id="bv074-spell-level" type="number" min="${baseLevel}" max="9" value="${Number(state.selectedSlotLevel ?? baseLevel)}" ${selected.spell?.cantrip ? "disabled" : ""}></label><label><input id="bv074-spell-overcast" type="checkbox" ${state.overcast ? "checked" : ""} ${selected.spell?.cantrip ? "disabled" : ""}> Overcast</label></div>` : ""}<div class="bv074-pspell-slots">${slots.map(({ index, plan }) => `<div class="bv074-pspell-slot">SLOT ${index + 1}: ${plan ? htmlEscape(plan.spellId || plan.skillId || plan.traitId || plan.kind || "reserved") : "free"}${plan && clean(plan.schedulerUid) === currentAuthUid() && clean(plan.status) === "planned" ? ` <button class="bv074-pspell-cancel" data-bv074-spell-cancel="${index}">×</button>` : ""}</div>`).join("")}</div><div class="bv074-pspell-hint">${selected ? `Selected: ${htmlEscape(selected.name)} · ${selected.spell?.mechanics?.slotEnchantment ? "use a Slot that already contains a Melee Attack Skill; the Skill plan is preserved and enchanted." : "drag one of your Action Slots onto a target."}` : spells.some((row) => row.ready) ? "Select a valid Spell, then drag one of your Action Slots onto a target." : "Selected Spell IDs exist, but no canonical Spell definitions are registered yet."}</div>`;
+    const selectedChoiceRule = selected?.spell?.mechanics?.requiresChoice || null;
+    const selectedChoiceKey = clean(selectedChoiceRule?.key);
+    const selectedChoiceValues = Array.isArray(selectedChoiceRule?.values) ? selectedChoiceRule.values.map(clean).filter(Boolean) : [];
+    const selectedChoiceHtml = selectedChoiceKey && selectedChoiceValues.length
+      ? `<label>${htmlEscape(selectedChoiceKey)} <select id="bv074-spell-choice">${selectedChoiceValues.map((value) => `<option value="${htmlEscape(value)}" ${state.selectedSpellChoiceValue === value ? "selected" : ""}>${htmlEscape(value)}</option>`).join("")}</select></label>`
+      : "";
+    panel.innerHTML = `<div class="bv074-pspell-title">PLAYER SPELLS · 0.7.4</div><div class="bv074-pspell-meta">${htmlEscape(owner.playerId)} · ${clean(state.combatState).toUpperCase() || "NO PHASE"} · definitions are resolved from Content Registry.</div><div class="bv074-pspell-list">${spells.map((row) => `<button type="button" class="bv074-pspell-btn${state.selectedSpellId === row.id ? " selected" : ""}" data-bv074-spell="${htmlEscape(row.id)}" ${row.ready ? "" : "disabled"} title="${htmlEscape(row.reason || "")}">${htmlEscape(row.name)}${row.ready ? "" : " · INVALID"}</button>`).join("")}</div>${selected ? `<div class="bv074-pspell-cast"><label>Class <select id="bv074-spell-class">${classes.map((id) => `<option value="${htmlEscape(id)}" ${state.selectedClassId === id ? "selected" : ""}>${htmlEscape(id)}</option>`).join("")}</select></label><label>Slot <input id="bv074-spell-level" type="number" min="${baseLevel}" max="9" value="${Number(state.selectedSlotLevel ?? baseLevel)}" ${selected.spell?.cantrip ? "disabled" : ""}></label><label><input id="bv074-spell-overcast" type="checkbox" ${state.overcast ? "checked" : ""} ${selected.spell?.cantrip ? "disabled" : ""}> Overcast</label>${selectedChoiceHtml}</div>` : ""}<div class="bv074-pspell-slots">${slots.map(({ index, plan }) => `<div class="bv074-pspell-slot">SLOT ${index + 1}: ${plan ? htmlEscape(plan.spellId || plan.skillId || plan.traitId || plan.kind || "reserved") : "free"}${plan && clean(plan.schedulerUid) === currentAuthUid() && clean(plan.status) === "planned" ? ` <button class="bv074-pspell-cancel" data-bv074-spell-cancel="${index}">×</button>` : ""}</div>`).join("")}</div><div class="bv074-pspell-hint">${selected ? `Selected: ${htmlEscape(selected.name)} · ${selected.spell?.mechanics?.slotEnchantment ? "use a Slot that already contains a Melee Attack Skill; the Skill plan is preserved and enchanted." : "drag one of your Action Slots onto a target."}` : spells.some((row) => row.ready) ? "Select a valid Spell, then drag one of your Action Slots onto a target." : "Selected Spell IDs exist, but no canonical Spell definitions are registered yet."}</div>`;
     return true;
   }
 
