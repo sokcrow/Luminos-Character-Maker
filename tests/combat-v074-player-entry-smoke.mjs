@@ -277,6 +277,20 @@ assert.deepEqual(spellSyncWrites[0].patch['characterBuild/spellSelections'], pie
 assert.equal(spellSyncWrites[0].patch['characterBuild/spellSelections'].includes('old_placeholder'), false);
 
 
+const pierreSignature = playerEntry.knownSkillLoadoutForActor({
+  playerId: 'pierre',
+  name: 'Pierre Carême Kikunae - wizza',
+  raw: {},
+});
+assert.ok(pierreSignature);
+assert.equal(pierreSignature.id, 'pierre_careme_kikunae');
+assert.deepEqual(pierreSignature.skillSlotIds, [
+  'pierre_sukseong',
+  'pierre_mise_en_place',
+  'pierre_maridaje',
+]);
+for (const id of pierreSignature.skillSlotIds) assert.ok(globalThis.LuminousPlayerSignatureSkillCatalog.get(id), `missing canonical Pierre skill ${id}`);
+
 const angeloSignature = playerEntry.knownSkillLoadoutForActor({ playerId: 'angelo', name: 'Angelo V.', raw: {} });
 assert.ok(angeloSignature);
 assert.equal(angeloSignature.id, 'angelo_v');
@@ -349,5 +363,33 @@ assert.equal(signatureSyncWrites.length, 1);
 assert.equal(signatureSyncWrites[0].path, 'campaña/combate/combatants/player:angelo');
 assert.deepEqual(signatureSyncWrites[0].patch.skillSlotIds.slice(0, 3), angeloSignature.skillSlotIds);
 assert.equal(signatureSyncWrites[0].patch.equippedSkillIndex.angelo_my_masterpiece, true);
+
+const pierreSkillActor = {
+  category: 'player',
+  playerId: 'pierre',
+  sourceId: 'pierre',
+  ownerUid: 'uid-pierre',
+  linkedActorId: 'actor_pierre',
+  actorId: 'actor_pierre',
+  name: 'Pierre Carême Kikunae - wizza',
+  raw: { uid: 'uid-pierre', characterName: 'Pierre Carême Kikunae - wizza' },
+};
+const pierreSkillUnits = {
+  unit_pierre: {
+    id: 'unit_pierre',
+    isPlayer: true,
+    linkedPlayerUID: 'uid-pierre',
+    action_slots: ['legacy_skill'],
+  },
+};
+const pierreCombatant = playerEntry.buildPlayerCombatant(pierreSkillActor, {
+  now: 777,
+  units: pierreSkillUnits,
+  skills: angeloSkills,
+});
+assert.deepEqual(pierreCombatant.skillSlotIds.slice(0, 3), pierreSignature.skillSlotIds);
+assert.equal(pierreCombatant.skillSlotIds.includes('legacy_skill'), true);
+assert.equal(pierreCombatant.characterBuild.signatureSkillCharacterId, 'pierre_careme_kikunae');
+for (const id of pierreSignature.skillSlotIds) assert.equal(pierreCombatant.equippedSkillIndex[id], true);
 
 console.log('combat-v074-player-entry-smoke: ok');
