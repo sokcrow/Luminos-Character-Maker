@@ -87,6 +87,15 @@
 
   const KNOWN_PLAYER_SKILL_LOADOUTS = Object.freeze([
     Object.freeze({
+      id: "pierre_careme_kikunae",
+      aliases: Object.freeze(["pierre careme kikunae"]),
+      skillSlotIds: Object.freeze([
+        "pierre_sukseong",
+        "pierre_mise_en_place",
+        "pierre_maridaje",
+      ]),
+    }),
+    Object.freeze({
       id: "angelo_v",
       aliases: Object.freeze(["angelo v"]),
       skillSlotIds: Object.freeze([
