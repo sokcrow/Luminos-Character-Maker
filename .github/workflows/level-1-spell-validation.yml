@@ -1,0 +1,62 @@
+name: Level 1 Spell Validation
+
+on:
+  push:
+    paths:
+      - "docs/level-1-spells-adaptation.md"
+      - "js/spell-catalog-core.js"
+      - "js/spell-batch-level1-runtime.js"
+      - "js/combat-spell-loadout-074.js"
+      - "js/combat-action-adapters.js"
+      - "js/combat-action-resolver.js"
+      - "js/battle-viewer-spell-adapter-074.js"
+      - "js/battle-viewer-spell-runtime-074.js"
+      - "js/battle-viewer-player-spell-planner-074.js"
+      - "tests/level-1-spell-batch-*-smoke.mjs"
+      - ".github/workflows/level-1-spell-validation.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "docs/level-1-spells-adaptation.md"
+      - "js/spell-catalog-core.js"
+      - "js/spell-batch-level1-runtime.js"
+      - "js/combat-spell-loadout-074.js"
+      - "js/combat-action-adapters.js"
+      - "js/combat-action-resolver.js"
+      - "js/battle-viewer-spell-adapter-074.js"
+      - "js/battle-viewer-spell-runtime-074.js"
+      - "js/battle-viewer-player-spell-planner-074.js"
+      - "tests/level-1-spell-batch-*-smoke.mjs"
+      - ".github/workflows/level-1-spell-validation.yml"
+
+jobs:
+  level-1-spell-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Syntax checks
+        run: |
+          node --check js/spell-catalog-core.js
+          node --check js/spell-batch-level1-runtime.js
+          node --check js/combat-spell-loadout-074.js
+          node --check js/combat-action-adapters.js
+          node --check js/combat-action-resolver.js
+          node --check js/battle-viewer-spell-runtime-074.js
+          node --check js/battle-viewer-player-spell-planner-074.js
+
+      - name: Level 1 batch smoke
+        run: node tests/level-1-spell-batch-1-smoke.mjs
+
+      - name: Canonical spell regression smoke
+        run: node tests/canonical-spell-runtime-smoke.mjs
+
+      - name: Player spell planner regression smoke
+        run: node tests/combat-v074-player-spell-planner-smoke.mjs
