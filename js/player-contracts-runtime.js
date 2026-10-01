@@ -5,7 +5,7 @@
   let activeHandler = null;
 
   function dispose() {
-    dispose();
+    if (activeRef && activeHandler) activeRef.off("value", activeHandler);
     activeRef = null;
     activeHandler = null;
   }
@@ -15,7 +15,7 @@
     const container = document.getElementById("player-contracts-list");
     if (!core || !db || !playerId || !container) return;
 
-    if (activeRef && activeHandler) activeRef.off("value", activeHandler);
+    dispose();
     activeRef = db.ref("campaña/economia/contratos");
 
     function render(snapshot) {
