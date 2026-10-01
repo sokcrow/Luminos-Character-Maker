@@ -518,7 +518,7 @@ test("trait player tray source stays syntactically valid", () => {
 });
 
 test("shared trait formula display resolves class and archetype formulas without per-trait display metadata", async ({ page }) => {
-  await page.setContent(\`
+  await page.setContent(`
     <!doctype html>
     <html>
       <head>
@@ -589,7 +589,7 @@ test("shared trait formula display resolves class and archetype formulas without
         </script>
       </body>
     </html>
-  \`, { waitUntil: "load" });
+  `, { waitUntil: "load" });
 
   const rogue = page.locator('[data-trait-id="test_rogue_formula"]');
   const zealot = page.locator('[data-trait-id="test_zealot_formula"]');
@@ -609,7 +609,7 @@ test("shared trait formula display resolves class and archetype formulas without
 });
 
 test("trait formula breakdown stays hidden on hover until Shift inspect mode is active", async ({ page }) => {
-  await page.setContent(\`
+  await page.setContent(`
     <!doctype html>
     <html>
       <head>
@@ -646,7 +646,7 @@ test("trait formula breakdown stays hidden on hover until Shift inspect mode is 
         </script>
       </body>
     </html>
-  \`, { waitUntil: "load" });
+  `, { waitUntil: "load" });
 
   const value = page.locator('[data-trait-id="shift_formula_trait"] .player-trait-resolved-value').first();
   const tooltip = value.locator(".player-trait-formula-tooltip");
