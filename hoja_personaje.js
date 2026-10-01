@@ -1322,15 +1322,38 @@ function initializeCharacterSheet() {
           if (window.syncPlayerTheatreComposer) window.syncPlayerTheatreComposer();
       }
 
-      db.ref("campaña/actores").on("value", (snap) => {
-        rawActorsCache = snap.val() || {};
-        refreshAllActoresCache();
-      });
+      let actorLoadGeneration = 0;
+      const loadActorsForTheatre = () => {
+        const generation = ++actorLoadGeneration;
+        Promise.all([
+          db.ref("campaña/actores").once("value"),
+          db.ref("campaña/base_datos_npcs").once("value"),
+        ]).then(([actorsSnap, npcsSnap]) => {
+          if (generation !== actorLoadGeneration) return;
+          rawActorsCache = actorsSnap.val() || {};
+          npcsCache = npcsSnap.val() || {};
+          refreshAllActoresCache();
+        }).catch((error) => {
+          console.error("[Luminous] No se pudo cargar el cache de actores del teatro:", error);
+        });
+      };
 
-      db.ref("campaña/base_datos_npcs").on("value", (snap) => {
-        npcsCache = snap.val() || {};
-        refreshAllActoresCache();
+      const syncActorCacheLifecycle = (theatreActive) => {
+        if (theatreActive) {
+          loadActorsForTheatre();
+          return;
+        }
+        actorLoadGeneration += 1;
+        rawActorsCache = {};
+        npcsCache = {};
+        window.actoresJugador = {};
+        window.allActoresCache = window.actoresJugador;
+      };
+
+      window.addEventListener("luminous:player-instance-changed", (event) => {
+        syncActorCacheLifecycle(event?.detail?.theatreActive === true);
       });
+      syncActorCacheLifecycle(document.body?.classList?.contains("player-instance-theatre") === true);
     }
   }
 
@@ -1457,24 +1480,41 @@ function initializeCharacterSheet() {
         }
       };
 
-      db.ref("campaña/teatro/log")
-        .limitToLast(20)
-        .on("value", (snap) => {
-          ultimoSnapLog = snap;
-          renderizarLog(snap);
-        });
+      const theatreLogRef = db.ref("campaña/teatro/log").limitToLast(20);
+      const theatreBlockRef = db.ref("campaña/teatro/bloqueo_interaccion");
+      let theatreRealtimeBound = false;
 
-      window.addEventListener("actoresCacheUpdated", () => {
-        if (ultimoSnapLog) {
-          renderizarLog(ultimoSnapLog);
-        }
-      });
-
-      // 2. Lectura de estado de bloqueo (Modo Lore)
-      db.ref("campaña/teatro/bloqueo_interaccion").on("value", (snap) => {
+      const theatreLogHandler = (snap) => {
+        ultimoSnapLog = snap;
+        renderizarLog(snap);
+      };
+      const theatreBlockHandler = (snap) => {
         window.isTheatreBlocked = snap.val();
         if (window.syncPlayerTheatreComposer) window.syncPlayerTheatreComposer();
+      };
+      const syncTheatreRealtime = (active) => {
+        if (active && !theatreRealtimeBound) {
+          theatreRealtimeBound = true;
+          theatreLogRef.on("value", theatreLogHandler);
+          theatreBlockRef.on("value", theatreBlockHandler);
+          return;
+        }
+        if (!active && theatreRealtimeBound) {
+          theatreRealtimeBound = false;
+          theatreLogRef.off("value", theatreLogHandler);
+          theatreBlockRef.off("value", theatreBlockHandler);
+          ultimoSnapLog = null;
+          window.isTheatreBlocked = false;
+        }
+      };
+
+      window.addEventListener("actoresCacheUpdated", () => {
+        if (ultimoSnapLog) renderizarLog(ultimoSnapLog);
       });
+      window.addEventListener("luminous:player-instance-changed", (event) => {
+        syncTheatreRealtime(event?.detail?.theatreActive === true);
+      });
+      syncTheatreRealtime(document.body?.classList?.contains("player-instance-theatre") === true);
     }
 
     // === ENVÍO AL TEATRO DE LA MENTE ===
