@@ -138,7 +138,8 @@ result = utility.handleAutomaticCantrip({
 assert.equal(result.ok, true);
 assert.equal(base.ignoresDarknessDisadvantage(caster, Object.values(globalThis.combatData)), false, 'Controlled Flame should benefit Adjacent Units, not its anchor');
 assert.equal(base.ignoresDarknessDisadvantage(fastAlly, Object.values(globalThis.combatData)), true);
-assert.equal(base.ignoresDarknessDisadvantage(ally, Object.values(globalThis.combatData)), true);
+assert.equal(base.ignoresDarknessDisadvantage(enemyD, Object.values(globalThis.combatData)), true);
+assert.equal(base.ignoresDarknessDisadvantage(ally, Object.values(globalThis.combatData)), false);
 
 // Gust: failed STR Save applies scaled Bind, no damage.
 enemyB.saveSuccess = false;
