@@ -510,3 +510,155 @@ test("stats HUD keeps fixed geometry and scrolls internally when content changes
   expect(bodyMetrics.scrollHeight).toBeGreaterThan(bodyMetrics.clientHeight);
   expect(bodyMetrics.overflowY).toBe("auto");
 });
+
+
+test("trait player tray source stays syntactically valid", () => {
+  const source = fs.readFileSync(path.join(ROOT, "js", "trait-player-tray.js"), "utf8");
+  expect(() => new Function(source)).not.toThrow();
+});
+
+test("shared trait formula display resolves class and archetype formulas without per-trait display metadata", async ({ page }) => {
+  await page.setContent(\`
+    <!doctype html>
+    <html>
+      <head>
+        <link id="player-trait-tabs-stylesheet" rel="stylesheet" href="${BASE}/css/player-trait-tabs.css">
+      </head>
+      <body>
+        <div id="perks-modal"><div id="trait-test-host"></div></div>
+        <script src="${BASE}/js/trait-engine.js"></script>
+        <script src="${BASE}/js/trait-player-tray.js"></script>
+        <script>
+          const character = {
+            level: 50,
+            classLevels: { rogue: 40, barbarian: 28 },
+            stats: {
+              fuerza: 14, destreza: 16, constitucion: 14,
+              inteligencia: 12, sabiduria: 18, carisma: 16
+            }
+          };
+          const traits = [
+            {
+              schemaVersion: 1,
+              id: "test_rogue_formula",
+              name: "Sneak Formula",
+              description: "Deal +max(1, floor(Rogue Class Level / 2))% Damage.",
+              source: { type: "class", id: "rogue", classId: "rogue", className: "Rogue" },
+              contexts: ["any"],
+              activation: { type: "passive", actionCost: "none" },
+              effects: [],
+              rules: [],
+              mechanics: { unopposedDamagePercentFormula: "max(1, floor(ClassLevel / 2))" }
+            },
+            {
+              schemaVersion: 1,
+              id: "test_zealot_formula",
+              name: "Zealot Formula",
+              description: "At Turn Start, all Allies gain Shield equal to floor(Class Level / 4).",
+              source: {
+                type: "archetype",
+                id: "path_of_the_zealot",
+                archetypeId: "path_of_the_zealot",
+                classId: "barbarian",
+                className: "Barbarian"
+              },
+              contexts: ["any"],
+              activation: { type: "passive", actionCost: "none" },
+              effects: [],
+              rules: [],
+              mechanics: { shieldFormula: "floor(ClassLevel / 4)" }
+            },
+            {
+              schemaVersion: 1,
+              id: "test_dynamic_formula",
+              name: "Dynamic Formula",
+              description: "Reduce incoming Damage by 10% × Spell Slot Level.",
+              source: { type: "archetype", id: "bladesinger", classId: "wizard", className: "Wizard" },
+              contexts: ["any"],
+              activation: { type: "passive", actionCost: "none" },
+              effects: [],
+              rules: [],
+              mechanics: { damageReductionPercentFormula: "10 * SpellSlotLevel" }
+            }
+          ];
+          window.__traitTray = window.LuminousTraitPlayerTray.mount({
+            host: "#trait-test-host",
+            traits,
+            runtime: { context: "theatre", character }
+          });
+        </script>
+      </body>
+    </html>
+  \`, { waitUntil: "load" });
+
+  const rogue = page.locator('[data-trait-id="test_rogue_formula"]');
+  const zealot = page.locator('[data-trait-id="test_zealot_formula"]');
+  const dynamic = page.locator('[data-trait-id="test_dynamic_formula"]');
+
+  await expect(rogue).toContainText("Deal +20% Damage.");
+  await expect(rogue).not.toContainText("floor(");
+  await expect(rogue).not.toContainText("Class Level / 2");
+
+  await expect(zealot).toContainText("Shield equal to 7");
+  await expect(zealot).not.toContainText("floor(");
+  await expect(zealot).not.toContainText("Class Level / 4");
+
+  const pending = dynamic.locator(".player-trait-resolved-value.is-pending").first();
+  await expect(pending).toHaveText("pending");
+  await expect(dynamic).not.toContainText("Spell Slot Level");
+});
+
+test("trait formula breakdown stays hidden on hover until Shift inspect mode is active", async ({ page }) => {
+  await page.setContent(\`
+    <!doctype html>
+    <html>
+      <head>
+        <link id="player-trait-tabs-stylesheet" rel="stylesheet" href="${BASE}/css/player-trait-tabs.css">
+      </head>
+      <body>
+        <div id="perks-modal"><div id="trait-shift-host"></div></div>
+        <script src="${BASE}/js/trait-engine.js"></script>
+        <script src="${BASE}/js/trait-player-tray.js"></script>
+        <script>
+          window.LuminousTraitPlayerTray.mount({
+            host: "#trait-shift-host",
+            traits: [{
+              schemaVersion: 1,
+              id: "shift_formula_trait",
+              name: "Shift Formula",
+              description: "Deal max(10, 10 × WIS Mod)% Damage.",
+              source: { type: "class", id: "ranger", classId: "ranger", className: "Ranger" },
+              contexts: ["any"],
+              activation: { type: "passive", actionCost: "none" },
+              effects: [],
+              rules: [],
+              mechanics: { damagePercentFormula: "max(10, 10 * WisdomMod)" }
+            }],
+            runtime: {
+              context: "theatre",
+              character: {
+                level: 50,
+                classLevels: { ranger: 50 },
+                stats: { sabiduria: 18 }
+              }
+            }
+          });
+        </script>
+      </body>
+    </html>
+  \`, { waitUntil: "load" });
+
+  const value = page.locator('[data-trait-id="shift_formula_trait"] .player-trait-resolved-value').first();
+  const tooltip = value.locator(".player-trait-formula-tooltip");
+  await value.hover();
+
+  await expect(tooltip).toHaveCSS("visibility", "hidden");
+  await page.keyboard.down("Shift");
+  await expect(page.locator("body")).toHaveClass(/player-trait-formula-inspect/);
+  await expect(tooltip).toHaveCSS("visibility", "visible");
+  await expect(tooltip).toContainText("WIS Mod");
+  await expect(tooltip).toContainText("Formula:");
+  await expect(tooltip).toContainText("max(10, 10 * WisdomMod)");
+  await page.keyboard.up("Shift");
+  await expect(tooltip).toHaveCSS("visibility", "hidden");
+});
