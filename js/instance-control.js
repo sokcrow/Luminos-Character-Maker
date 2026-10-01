@@ -236,6 +236,11 @@
       documentRef.body.classList.toggle("player-instance-blackout", blackoutActive);
     }
     if (combatActive) syncPlayerCombatOcclusion(documentRef);
+    if (global.dispatchEvent && typeof global.CustomEvent === "function") {
+      global.dispatchEvent(new global.CustomEvent("luminous:player-instance-changed", {
+        detail: { instance: activeInstance, theatreActive, combatActive, blackoutActive },
+      }));
+    }
     return activeInstance;
   }
 
