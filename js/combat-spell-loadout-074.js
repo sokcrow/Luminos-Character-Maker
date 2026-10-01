@@ -118,6 +118,30 @@
     return { ...spell, id, spellId: id, name: clean(spell.name || spell.nombre) || id, level, spellLevel: level, cantrip: spell.cantrip === true || level === 0, canonicalContentId: `spell:${id}` };
   }
 
+  function spellMatchesFilters(spell = {}, filters = {}) {
+    const school = normalizeId(filters.school);
+    const classId = normalizeId(filters.classId || filters.class_id);
+    const context = normalizeId(filters.context);
+    const levelFilter = filters.level == null || filters.level === "" ? null : Math.max(0, Math.trunc(Number(filters.level)));
+    const spellLevel = Math.max(0, Math.trunc(Number(spell.level ?? spell.spellLevel ?? 0) || 0));
+    if (school && normalizeId(spell.school) !== school) return false;
+    if (classId && !spellAllowedClassIds(spell).includes(classId)) return false;
+    if (context) {
+      const contexts = (Array.isArray(spell.contexts) ? spell.contexts : []).map(normalizeId);
+      if (!contexts.includes(context)) return false;
+    }
+    if (levelFilter != null && spellLevel !== levelFilter) return false;
+    return true;
+  }
+
+  function listSpellDefinitions(filters = {}) {
+    const registry = registerAvailableSpellCatalog();
+    if (!registry?.list) return [];
+    return registry.list({ type: "spell" })
+      .map((entry) => normalizeSpellDefinition(entry.id, entry.definition || {}))
+      .filter((spell) => spellMatchesFilters(spell, filters));
+  }
+
   function resolveSpellDefinition(spellId) {
     const id = normalizeId(spellId);
     if (!id) return { ok: false, reason: "SPELL_ID_REQUIRED", spellId: id, spell: null, entry: null };
@@ -243,6 +267,8 @@
     ownsSpell,
     spellEntry,
     normalizeSpellDefinition,
+    spellMatchesFilters,
+    listSpellDefinitions,
     resolveSpellDefinition,
     wizardRuntime,
     classIdsFor,

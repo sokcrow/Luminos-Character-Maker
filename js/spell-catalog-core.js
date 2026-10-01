@@ -12,6 +12,7 @@
       try { require("./spell-batch-weapon-cantrips-runtime.js"); } catch (_) {}
       try { require("./spell-batch-cantrips-runtime.js"); } catch (_) {}
       try { require("./spell-batch-cantrips-utility-runtime.js"); } catch (_) {}
+      try { require("./spell-batch-level1-runtime.js"); } catch (_) {}
     }
     if (global.document) {
       const load = (id, src) => {
@@ -27,6 +28,7 @@
       if (!global.LuminousWeaponCantripBatchRuntime) load("spell-batch-weapon-cantrips-runtime-script", "js/spell-batch-weapon-cantrips-runtime.js");
       if (!global.LuminousCantripBatchRuntime) load("spell-batch-cantrips-runtime-script", "js/spell-batch-cantrips-runtime.js");
       if (!global.LuminousCantripUtilityRuntime) load("spell-batch-cantrips-utility-runtime-script", "js/spell-batch-cantrips-utility-runtime.js");
+      if (!global.LuminousLevel1SpellBatchRuntime) load("spell-batch-level1-runtime-script", "js/spell-batch-level1-runtime.js");
     }
   }
 })(typeof window !== "undefined" ? window : globalThis, function () {
@@ -41,6 +43,7 @@
       id: "fire_bolt", name: "Fire Bolt", nombre: "Descarga de Fuego",
       level: 0, spellLevel: 0, cantrip: true,
       classIds: ["artificer", "sorcerer", "wizard"],
+      school: "evocation", contexts: ["combat"],
       sinAffinity: "wrath", damageType: "perforante",
       targetingType: "focused_attack", attackWeight: 1, atkWeight: 1,
       basePower: 5, coinPower: 8, coinAmount: 1, coins: 1,
@@ -55,6 +58,7 @@
       id: "poison_spray", name: "Poison Spray", nombre: "Rociada Venenosa",
       level: 0, spellLevel: 0, cantrip: true,
       classIds: ["artificer", "druid", "sorcerer", "warlock", "wizard"],
+      school: "necromancy", contexts: ["combat"],
       sinAffinity: "gluttony", damageType: "perforante",
       targetingType: "focused_attack", attackWeight: 1, atkWeight: 1,
       basePower: 4, coinPower: 10, coinAmount: 1, coins: 1,
@@ -842,18 +846,144 @@
       effects: []
     }),
 
+    alarm: Object.freeze({
+      id: "alarm", name: "Alarm", nombre: "Alarma",
+      description: "Ward a door, window, or compact area for 8 hours. Choose audible or mental alert and creatures that do not trigger it.",
+      level: 1, spellLevel: 1, cantrip: false,
+      classIds: ["artificer", "ranger", "wizard"],
+      school: "abjuration", contexts: ["theater"],
+      sinAffinity: "sloth", damageType: null,
+      targetType: "area", targetingType: "area", attackWeight: 1, atkWeight: 1,
+      castingTime: "1_minute", ritual: true, resolutionType: "automatic",
+      mechanics: {
+        level1Runtime: "alarm",
+        ritual: true,
+        durationHours: 8,
+        area: "compact_zone",
+        modes: ["audible", "mental"],
+        designatedCreatureExemptions: true,
+        triggersOnEntryOrTouch: true
+      },
+      effects: [{ type: "level1_alarm" }]
+    }),
+
+    armor_of_agathys: Object.freeze({
+      id: "armor_of_agathys", name: "Armor of Agathys", nombre: "Armadura de Agathys",
+      description: "Quick Action. Gain Encounter Shield equal to 5 × Slot Level. While the spell remains active, a Melee attacker that damages you takes Cold damage equal to 5 × Slot Level.",
+      level: 1, spellLevel: 1, cantrip: false,
+      classIds: ["warlock"],
+      school: "abjuration", contexts: ["combat"],
+      sinAffinity: "gloom", damageType: null,
+      targetType: "self", targetingType: "self", attackWeight: 1, atkWeight: 1,
+      castingTime: "quick_action", resolutionType: "automatic",
+      mechanics: {
+        level1Runtime: "armor_of_agathys",
+        shieldPerSlotLevel: 5,
+        retaliationDamagePerSlotLevel: 5,
+        retaliationDamageType: "cold",
+        shieldDuration: "encounter",
+        endsWhenNoShield: true
+      },
+      effects: [{ type: "level1_armor_of_agathys" }]
+    }),
+
+    arms_of_hadar: Object.freeze({
+      id: "arms_of_hadar", name: "Arms of Hadar", nombre: "Brazos de Hadar",
+      description: "STR Save. On Failed Save, resolve as Unopposed. On Hit, inflict Decay and suppress Reactions until the target's next Turn.",
+      level: 1, spellLevel: 1, cantrip: false,
+      classIds: ["warlock"],
+      school: "conjuration", contexts: ["combat"],
+      sinAffinity: "gloom", damageType: "perforante",
+      targetType: "area", targetingType: "aoe", attackWeight: 3, atkWeight: 3,
+      isIndiscriminate: true, isUnclashable: true,
+      basePower: 4, coinPower: 6, coinAmount: 1, coins: 1,
+      save: { abilityId: "str", onSuccess: "negates" },
+      mechanics: {
+        level1Runtime: "arms_of_hadar",
+        saveAttackOnFailure: true,
+        suppressReactionOnFailedSave: true,
+        onHitStatus: { status: "decay", count: 2 }
+      },
+      upcast: { coinPowerPerLevel: 1 },
+      effects: []
+    }),
+
+    bane: Object.freeze({
+      id: "bane", name: "Bane", nombre: "Perdición",
+      description: "CHA Save. Up to 3 targets that fail gain -2 Final Power while you maintain Concentration. Higher Slots add targets.",
+      level: 1, spellLevel: 1, cantrip: false,
+      classIds: ["bard", "cleric", "warlock"],
+      school: "enchantment", contexts: ["combat"],
+      sinAffinity: "gloom", damageType: null,
+      targetType: "multi", targetingType: "multi", attackWeight: 3, atkWeight: 3,
+      isUnclashable: true, concentration: true,
+      save: { abilityId: "cha", onSuccess: "negates" },
+      mechanics: {
+        level1Runtime: "bane",
+        onFailedSaveStatus: "bane",
+        finalPowerModifier: -2,
+        durationTurns: 10
+      },
+      upcast: { atkWeightPerLevel: 1 },
+      effects: []
+    }),
+
+    bless: Object.freeze({
+      id: "bless", name: "Bless", nombre: "Bendición",
+      description: "Up to 3 allies gain +2 Final Power while you maintain Concentration. Higher Slots add targets.",
+      level: 1, spellLevel: 1, cantrip: false,
+      classIds: ["cleric", "paladin"],
+      school: "enchantment", contexts: ["combat"],
+      sinAffinity: "pride", damageType: null,
+      targetType: "allies", targetingType: "multi", attackWeight: 3, atkWeight: 3,
+      isUnclashable: true, concentration: true, resolutionType: "automatic",
+      mechanics: {
+        level1Runtime: "bless",
+        status: "bless",
+        finalPowerModifier: 2,
+        durationTurns: 10
+      },
+      upcast: { atkWeightPerLevel: 1 },
+      effects: [{ type: "level1_bless" }]
+    }),
+
+    burning_hands: Object.freeze({
+      id: "burning_hands", name: "Burning Hands", nombre: "Manos Ardientes",
+      description: "DEX Save. On Failed Save, resolve as Unopposed. On Hit, inflict 2 Burn.",
+      level: 1, spellLevel: 1, cantrip: false,
+      classIds: ["sorcerer", "wizard"],
+      school: "evocation", contexts: ["combat"],
+      sinAffinity: "wrath", damageType: "perforante",
+      targetType: "area", targetingType: "aoe", attackWeight: 3, atkWeight: 3,
+      isUnclashable: true,
+      basePower: 5, coinPower: 7, coinAmount: 1, coins: 1,
+      save: { abilityId: "dex", onSuccess: "negates" },
+      mechanics: {
+        level1Runtime: "burning_hands",
+        saveAttackOnFailure: true,
+        onHitStatus: { status: "burn", potency: 2 }
+      },
+      upcast: { coinPowerPerLevel: 1 },
+      effects: []
+    }),
+
     charm_person: Object.freeze({
       id: "charm_person", name: "Charm Person", nombre: "Hechizar Persona",
       level: 1, spellLevel: 1, cantrip: false,
       classIds: ["bard", "druid", "sorcerer", "warlock", "wizard"],
+      school: "enchantment", contexts: ["combat", "theater"],
       sinAffinity: "lust", damageType: null,
       targetingType: "multi", targetType: "multi", attackWeight: 1, atkWeight: 1,
       isUnclashable: true,
       save: { abilityId: "wis", onSuccess: "negates" },
       concentration: false,
       mechanics: {
+        targetRequirement: { creatureType: "humanoid", mustSeeCaster: true },
+        saveAdvantageWhenFightingCasterOrAllies: true,
         onFailedSave: status("on_failed_save", "charmed", 0, 10),
-        breakCharmOnDamageFromCasterOrAlly: true
+        breakCharmOnDamageFromCasterOrAlly: true,
+        theaterDuration: "1_hour",
+        targetKnowsWhenSpellEnds: true
       },
       upcast: { atkWeightPerLevel: 1 },
       effects: []
@@ -863,6 +993,7 @@
       id: "chromatic_orb", name: "Chromatic Orb", nombre: "Orbe Cromático",
       level: 1, spellLevel: 1, cantrip: false,
       classIds: ["sorcerer", "wizard"],
+      school: "evocation", contexts: ["combat"],
       sinAffinity: "sinless", damageType: "perforante",
       targetingType: "focused_attack", attackWeight: 1, atkWeight: 1,
       basePower: 5, coinPower: 10, coinAmount: 1, coins: 1,
@@ -943,7 +1074,7 @@
     dissonant_whispers: Object.freeze({
       id: "dissonant_whispers", name: "Dissonant Whispers", nombre: "Susurros disonantes",
       level: 1, spellLevel: 1, cantrip: false,
-      classIds: ["bard", "sorcerer"],
+      classIds: ["bard"],
       school: "enchantment", contexts: ["combat"],
       sinAffinity: "lust", damageType: "perforante",
       targetingType: "focused_attack", attackWeight: 1, atkWeight: 1,
@@ -979,6 +1110,7 @@
       id: "expeditious_retreat", name: "Expeditious Retreat", nombre: "Retirada Expeditiva",
       level: 1, spellLevel: 1, cantrip: false,
       classIds: ["artificer", "sorcerer", "warlock", "wizard"],
+      school: "transmutation", contexts: ["combat"],
       sinAffinity: "gloom", damageType: null,
       targetType: "self", targetingType: "self", attackWeight: 1, atkWeight: 1,
       isUnclashable: true, concentration: true, castingTime: "quick_action",
@@ -992,14 +1124,14 @@
     animal_friendship: Object.freeze({
       id: "animal_friendship", name: "Animal Friendship", nombre: "Encantar animal",
       level: 1, spellLevel: 1, cantrip: false,
-      classIds: ["bard", "druid", "ranger", "sorcerer"],
+      classIds: ["bard", "druid", "ranger"],
       school: "enchantment", contexts: ["combat", "theater"],
       sinAffinity: "lust", damageType: null,
       targetingType: "multi", targetType: "multi", attackWeight: 1, atkWeight: 1,
       isUnclashable: true, save: { abilityId: "wis", onSuccess: "negates" },
       concentration: false,
       mechanics: {
-        targetRequirement: { creatureType: "beast", intelligenceMaxExclusive: 4, mustSeeAndHearCaster: true },
+        targetRequirement: { creatureType: "beast", mustSeeCaster: true },
         onFailedSave: status("on_failed_save", "charmed", 0, 99),
         charmedCannotAggressCasterOrAllies: true,
         passTurnWhenNoValidNonAggressiveAction: true,

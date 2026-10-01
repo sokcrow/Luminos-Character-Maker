@@ -25,6 +25,7 @@
     plans: {},
     combatState: null,
     selectedSpellId: null,
+    selectedSchool: "all",
     selectedClassId: null,
     selectedSlotLevel: null,
     overcast: false,
@@ -38,6 +39,7 @@
   };
 
   const clean = (value) => String(value ?? "").trim();
+  const normalizeId = (value) => clean(value).toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
   const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
   const htmlEscape = (value) => clean(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\"/g, "&quot;").replace(/'/g, "&#039;");
 
@@ -332,7 +334,7 @@
     const doc = global.document;
     if (!doc || doc.getElementById(STYLE_ID)) return;
     const style = doc.createElement("style"); style.id = STYLE_ID;
-    style.textContent = `#${PANEL_ID}{position:fixed;left:12px;bottom:150px;z-index:16001;width:min(620px,calc(100vw - 24px));background:rgba(8,10,16,.97);border:1px solid #596ca0;box-shadow:0 8px 28px rgba(0,0,0,.65);color:#eee;font:12px Arial,sans-serif;padding:10px;box-sizing:border-box}#${PANEL_ID}[hidden]{display:none!important}.bv074-pspell-title{font:700 15px var(--font-limbus,Arial);letter-spacing:.1em;color:#9fc6ff;margin-bottom:7px}.bv074-pspell-meta{color:#aab2c2;font-size:10px;margin-bottom:7px}.bv074-pspell-list{display:flex;gap:5px;flex-wrap:wrap}.bv074-pspell-btn{border:1px solid #485a86;background:#101522;color:#d8e6ff;padding:6px 8px;cursor:pointer}.bv074-pspell-btn.selected{border-color:#9fc6ff;color:#fff;box-shadow:0 0 8px rgba(159,198,255,.3)}.bv074-pspell-btn:disabled{opacity:.45;cursor:not-allowed}.bv074-pspell-cast{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px}.bv074-pspell-cast select,.bv074-pspell-cast input{background:#0b0f18;border:1px solid #485a86;color:#fff;padding:4px}.bv074-pspell-slots{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}.bv074-pspell-slot{border:1px solid #343e59;padding:4px 6px;color:#aab2c2}.bv074-pspell-cancel{border:0;background:#351b25;color:#ff9cb3;cursor:pointer;padding:2px 5px}.bv074-pspell-hint{margin-top:7px;color:#a9c7ef;font-size:10px}`;
+    style.textContent = `#${PANEL_ID}{position:fixed;left:12px;bottom:150px;z-index:16001;width:min(620px,calc(100vw - 24px));background:rgba(8,10,16,.97);border:1px solid #596ca0;box-shadow:0 8px 28px rgba(0,0,0,.65);color:#eee;font:12px Arial,sans-serif;padding:10px;box-sizing:border-box}#${PANEL_ID}[hidden]{display:none!important}.bv074-pspell-title{font:700 15px var(--font-limbus,Arial);letter-spacing:.1em;color:#9fc6ff;margin-bottom:7px}.bv074-pspell-meta{color:#aab2c2;font-size:10px;margin-bottom:7px}.bv074-pspell-filter{display:flex;gap:6px;align-items:center;margin-bottom:7px;color:#aab2c2}.bv074-pspell-filter select{background:#0b0f18;border:1px solid #485a86;color:#fff;padding:4px}.bv074-pspell-list{display:flex;gap:5px;flex-wrap:wrap}.bv074-pspell-btn{border:1px solid #485a86;background:#101522;color:#d8e6ff;padding:6px 8px;cursor:pointer}.bv074-pspell-btn.selected{border-color:#9fc6ff;color:#fff;box-shadow:0 0 8px rgba(159,198,255,.3)}.bv074-pspell-btn:disabled{opacity:.45;cursor:not-allowed}.bv074-pspell-cast{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px}.bv074-pspell-cast select,.bv074-pspell-cast input{background:#0b0f18;border:1px solid #485a86;color:#fff;padding:4px}.bv074-pspell-slots{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}.bv074-pspell-slot{border:1px solid #343e59;padding:4px 6px;color:#aab2c2}.bv074-pspell-cancel{border:0;background:#351b25;color:#ff9cb3;cursor:pointer;padding:2px 5px}.bv074-pspell-hint{margin-top:7px;color:#a9c7ef;font-size:10px}`;
     doc.head?.appendChild(style);
   }
 
@@ -348,6 +350,13 @@
         if (cancel) cancelSpellPlan(Number(cancel.getAttribute("data-bv074-spell-cancel"))).catch((error) => emitLog(`No se pudo liberar el Action Slot: ${error?.message || error}`, "interrupt"));
       });
       panel.addEventListener("change", (event) => {
+        if (event.target?.id === "bv074-spell-school") {
+          state.selectedSchool = normalizeId(event.target.value || "all") || "all";
+          const row = selectedSpellsFor().find((entry) => entry.id === state.selectedSpellId);
+          if (state.selectedSchool !== "all" && normalizeId(row?.spell?.school) !== state.selectedSchool) {
+            state.selectedSpellId = null; state.selectedClassId = null; state.selectedSlotLevel = null; state.overcast = false; state.selectedSpellChoiceKey = null; state.selectedSpellChoiceValue = null;
+          }
+        }
         if (event.target?.id === "bv074-spell-class") state.selectedClassId = clean(event.target.value) || null;
         if (event.target?.id === "bv074-spell-level") state.selectedSlotLevel = Math.max(0, Math.trunc(Number(event.target.value) || 0));
         if (event.target?.id === "bv074-spell-overcast") state.overcast = event.target.checked === true;
@@ -366,7 +375,10 @@
     const resolved = resolveOwnedCombatant(owner.playerId), spells = selectedSpellsFor(owner.playerId);
     if (!resolved.ok || !spells.length) { panel.hidden = true; return false; }
     panel.hidden = false;
-    const selected = spells.find((row) => row.id === state.selectedSpellId) || null;
+    const schools = [...new Set(spells.map((row) => normalizeId(row.spell?.school)).filter(Boolean))].sort();
+    if (state.selectedSchool !== "all" && !schools.includes(state.selectedSchool)) state.selectedSchool = "all";
+    const filteredSpells = state.selectedSchool === "all" ? spells : spells.filter((row) => normalizeId(row.spell?.school) === state.selectedSchool);
+    const selected = filteredSpells.find((row) => row.id === state.selectedSpellId) || null;
     const classes = selected ? castClassesFor(resolved.unit, selected.spell) : [];
     const maxSlots = ownershipRuntime()?.actionSlotCount?.(resolved.unit) || Number(resolved.unit?.actionSlots || 1);
     const slots = Array.from({ length: maxSlots }, (_, index) => ({ index, plan: planAt(owner.playerId, index) }));
@@ -377,7 +389,7 @@
     const selectedChoiceHtml = selectedChoiceKey && selectedChoiceValues.length
       ? `<label>${htmlEscape(selectedChoiceKey)} <select id="bv074-spell-choice">${selectedChoiceValues.map((value) => `<option value="${htmlEscape(value)}" ${state.selectedSpellChoiceValue === value ? "selected" : ""}>${htmlEscape(value)}</option>`).join("")}</select></label>`
       : "";
-    panel.innerHTML = `<div class="bv074-pspell-title">PLAYER SPELLS · 0.7.4</div><div class="bv074-pspell-meta">${htmlEscape(owner.playerId)} · ${clean(state.combatState).toUpperCase() || "NO PHASE"} · definitions are resolved from Content Registry.</div><div class="bv074-pspell-list">${spells.map((row) => `<button type="button" class="bv074-pspell-btn${state.selectedSpellId === row.id ? " selected" : ""}" data-bv074-spell="${htmlEscape(row.id)}" ${row.ready ? "" : "disabled"} title="${htmlEscape(row.reason || "")}">${htmlEscape(row.name)}${row.ready ? "" : " · INVALID"}</button>`).join("")}</div>${selected ? `<div class="bv074-pspell-cast"><label>Class <select id="bv074-spell-class">${classes.map((id) => `<option value="${htmlEscape(id)}" ${state.selectedClassId === id ? "selected" : ""}>${htmlEscape(id)}</option>`).join("")}</select></label><label>Slot <input id="bv074-spell-level" type="number" min="${baseLevel}" max="9" value="${Number(state.selectedSlotLevel ?? baseLevel)}" ${selected.spell?.cantrip ? "disabled" : ""}></label><label><input id="bv074-spell-overcast" type="checkbox" ${state.overcast ? "checked" : ""} ${selected.spell?.cantrip ? "disabled" : ""}> Overcast</label>${selectedChoiceHtml}</div>` : ""}<div class="bv074-pspell-slots">${slots.map(({ index, plan }) => `<div class="bv074-pspell-slot">SLOT ${index + 1}: ${plan ? htmlEscape(plan.spellId || plan.skillId || plan.traitId || plan.kind || "reserved") : "free"}${plan && clean(plan.schedulerUid) === currentAuthUid() && clean(plan.status) === "planned" ? ` <button class="bv074-pspell-cancel" data-bv074-spell-cancel="${index}">×</button>` : ""}</div>`).join("")}</div><div class="bv074-pspell-hint">${selected ? `Selected: ${htmlEscape(selected.name)} · ${selected.spell?.mechanics?.slotEnchantment ? "use a Slot that already contains a Melee Attack Skill; the Skill plan is preserved and enchanted." : "drag one of your Action Slots onto a target."}` : spells.some((row) => row.ready) ? "Select a valid Spell, then drag one of your Action Slots onto a target." : "Selected Spell IDs exist, but no canonical Spell definitions are registered yet."}</div>`;
+    panel.innerHTML = `<div class="bv074-pspell-title">PLAYER SPELLS · 0.7.4</div><div class="bv074-pspell-meta">${htmlEscape(owner.playerId)} · ${clean(state.combatState).toUpperCase() || "NO PHASE"} · definitions are resolved from Content Registry.</div><div class="bv074-pspell-filter"><label>School <select id="bv074-spell-school"><option value="all">All schools</option>${schools.map((school) => `<option value="${htmlEscape(school)}" ${state.selectedSchool === school ? "selected" : ""}>${htmlEscape(school)}</option>`).join("")}</select></label><span>${filteredSpells.length}/${spells.length} known spells</span></div><div class="bv074-pspell-list">${filteredSpells.map((row) => `<button type="button" class="bv074-pspell-btn${state.selectedSpellId === row.id ? " selected" : ""}" data-bv074-spell="${htmlEscape(row.id)}" ${row.ready ? "" : "disabled"} title="${htmlEscape(row.reason || "")}">${htmlEscape(row.name)}${row.ready ? "" : " · INVALID"}</button>`).join("")}</div>${selected ? `<div class="bv074-pspell-cast"><label>Class <select id="bv074-spell-class">${classes.map((id) => `<option value="${htmlEscape(id)}" ${state.selectedClassId === id ? "selected" : ""}>${htmlEscape(id)}</option>`).join("")}</select></label><label>Slot <input id="bv074-spell-level" type="number" min="${baseLevel}" max="9" value="${Number(state.selectedSlotLevel ?? baseLevel)}" ${selected.spell?.cantrip ? "disabled" : ""}></label><label><input id="bv074-spell-overcast" type="checkbox" ${state.overcast ? "checked" : ""} ${selected.spell?.cantrip ? "disabled" : ""}> Overcast</label>${selectedChoiceHtml}</div>` : ""}<div class="bv074-pspell-slots">${slots.map(({ index, plan }) => `<div class="bv074-pspell-slot">SLOT ${index + 1}: ${plan ? htmlEscape(plan.spellId || plan.skillId || plan.traitId || plan.kind || "reserved") : "free"}${plan && clean(plan.schedulerUid) === currentAuthUid() && clean(plan.status) === "planned" ? ` <button class="bv074-pspell-cancel" data-bv074-spell-cancel="${index}">×</button>` : ""}</div>`).join("")}</div><div class="bv074-pspell-hint">${selected ? `Selected: ${htmlEscape(selected.name)} · ${selected.spell?.mechanics?.slotEnchantment ? "use a Slot that already contains a Melee Attack Skill; the Skill plan is preserved and enchanted." : "drag one of your Action Slots onto a target."}` : spells.some((row) => row.ready) ? "Select a valid Spell, then drag one of your Action Slots onto a target." : "Selected Spell IDs exist, but no canonical Spell definitions are registered yet."}</div>`;
     return true;
   }
 

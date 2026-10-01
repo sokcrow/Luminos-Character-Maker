@@ -61,7 +61,7 @@ const actor = {
   sp: 30,
 };
 
-assert.deepEqual(loadout.spellIdsFor(actor), ['arc_bolt']);
+assert.deepEqual(loadout.spellIdsFor(actor), ['arc_bolt', 'mode_spell']);
 assert.equal(loadout.ownsSpell(actor, 'arc_bolt'), true);
 assert.equal(loadout.ownsSpell(actor, 'other_spell'), false);
 const trusted = loadout.resolveSpellForCombatant(actor, 'arc_bolt');
