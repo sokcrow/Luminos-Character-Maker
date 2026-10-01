@@ -17,7 +17,7 @@
       type: "negative",
       mode: "single",
       maxCount: 10,
-      rules: [{ trigger: "passive", cond_type: "count", cond_input: 1, affectation: "final_power", operation: "sub", aff_input: 2 }],
+      rules: [{ trigger: "passive", cond_type: "potency", cond_input: 1, affectation: "final_power", operation: "sub", aff_input: 2 }],
       description: "-2 Final Power while the source maintains Bane Concentration."
     }),
     bless: Object.freeze({
@@ -25,7 +25,7 @@
       type: "positive",
       mode: "single",
       maxCount: 10,
-      rules: [{ trigger: "passive", cond_type: "count", cond_input: 1, affectation: "final_power", operation: "add", aff_input: 2 }],
+      rules: [{ trigger: "passive", cond_type: "potency", cond_input: 1, affectation: "final_power", operation: "add", aff_input: 2 }],
       description: "+2 Final Power while the source maintains Bless Concentration."
     }),
     reaction_suppressed: Object.freeze({
@@ -106,6 +106,7 @@
     return applyStatus(target, "bane", {
       mode: "set",
       count: 10,
+      potency: 1,
       sourceUnitId,
       data: { sourceUnitId, concentrationSpellId: "bane" }
     });
@@ -115,6 +116,7 @@
     return applyStatus(target, "bless", {
       mode: "set",
       count: 10,
+      potency: 1,
       sourceUnitId,
       data: { sourceUnitId, concentrationSpellId: "bless" }
     });
@@ -167,8 +169,9 @@
   function isMeleeSkill(skill = {}) {
     const range = numberOr(skill.range ?? skill.skillRange ?? skill.rangeTiles ?? skill.range_tiles, NaN);
     if (Number.isFinite(range)) return range <= 1;
-    const id = normalizeId(skill.rangeType || skill.range_type || skill.attackRange || skill.attack_range || "");
-    if (id) return id === "melee" || id === "close";
+    const id = normalizeId(skill.rangeType || skill.range_type || skill.attackRange || skill.attack_range || skill.targetingType || skill.targeting_type || "");
+    if (skill.isRanged === true || id.includes("ranged")) return false;
+    if (id) return id === "melee" || id === "close" || id === "focused_attack";
     return true;
   }
 
