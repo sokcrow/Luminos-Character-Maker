@@ -15,12 +15,12 @@
   const STATUS_DEFINITIONS = Object.freeze({
     booming: Object.freeze({
       name: "Booming", type: "negative", mode: "single",
-      icon: "https://imgur.com/42ESliW.png", maxCount: 99,
+      icon: "Assets/Icons/status/cantrips/booming.png", maxCount: 99,
       description: "After every Clash, raise Stagger Threshold by 2 and lose 1 Count. On Turn End, inflict Tremor equal to remaining Booming Count, then remove this effect."
     }),
     shillelagh: Object.freeze({
       name: "Shillelagh", type: "positive", mode: "single",
-      icon: "https://imgur.com/OtAgwTp.png", maxCount: 10,
+      icon: "Assets/Icons/status/cantrips/shillelagh.png", maxCount: 10,
       description: "Melee Skills deal (1, (Level/15) + (2 × WIS Mod))% Main Damage as Fixed Damage on Hit. On Turn End, lose 1 Count."
     })
   });
