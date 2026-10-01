@@ -286,7 +286,8 @@
     if (!target) return { ok: false, reason: "target_missing" };
     if (!targetIsHumanoid(target)) return { ok: false, reason: "friends_humanoid_only", targetId: entityId(target) };
     if (friendsRecentlyAffected(target, actor)) return { ok: false, reason: "friends_24h_immunity", targetId: entityId(target) };
-    const combatActive = context.inCombat === true || normalizeId(context.combatState || global.CombatEngine?.currentState || "") === "combat_active";\n    const fighting = context.allowFriendsInCombat !== true && !sameSide(actor, target) && combatActive;
+    const combatActive = context.inCombat === true || normalizeId(context.combatState || global.CombatEngine?.currentState || "") === "combat_active";
+    const fighting = context.allowFriendsInCombat !== true && !sameSide(actor, target) && combatActive;
     if (fighting) return { ok: false, reason: "friends_target_fighting_caster", targetId: entityId(target) };
     const save = resolveCantripSave(action, actor, target, "wis", context);
     if (!save.resolved) return { ok: false, ...save };
