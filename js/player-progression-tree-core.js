@@ -14,7 +14,7 @@
   function normalizeClasses(character = {}) {
     const build = character?.characterBuild && typeof character.characterBuild === "object" ? character.characterBuild : {};
     const candidates = [build.classes, character.classes, character.classLevels, character.classesById, character?.dnd?.classes];
-    let source = candidates.find((value) => Array.isArray(value) || (value && typeof value === "object"));
+    let source = candidates.find((value) => Array.isArray(value) ? value.length > 0 : (value && typeof value === "object" && Object.keys(value).length > 0));
     if (!source) return [];
 
     const rows = Array.isArray(source)
