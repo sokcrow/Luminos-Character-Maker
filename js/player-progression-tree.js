@@ -60,15 +60,46 @@
     if (empty) empty.hidden = true;
   }
 
+  function statsText(selector, fallback = "") {
+    const value = doc.querySelector(`#stats-modal ${selector}`)?.textContent;
+    return clean(value) || String(fallback ?? "");
+  }
+
+  function signed(value, fallback = "+1") {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return fallback;
+    return number >= 0 ? `+${number}` : String(number);
+  }
+
   function syncTraitsDossier(character = currentCharacter()) {
     const data = character || {};
     const name = clean(data.characterName || data.character_name || data.nombre || data.name) || "PLAYER";
     const level = Math.max(1, Number.parseInt(data.level ?? data?.characterBuild?.calculatedAtLevel, 10) || 1);
     const art = clean(data.sheetArt || data.playerSheetArt || data.characterArt || data.portrait);
     const icon = clean(data.icono_jugador || data.icono || data?.perfil?.icono || data.characterIcon);
+    const stats = global.LuminousPlayerStats;
+    const xp = Math.max(0, Number.parseInt(data.xp, 10) || 0);
+    const progressRaw = Number(stats?.levelProgress?.(data));
+    const progress = Number.isFinite(progressRaw) ? Math.max(0, Math.min(100, Math.round(progressRaw))) : 0;
+    const proficiency = stats?.proficiencyBonus?.(level);
+    const offensive = stats?.combatLevelBreakdown?.("offensive", data)?.total;
+    const defensive = stats?.combatLevelBreakdown?.("defensive", data)?.total;
+    const heads = stats?.headsChance?.(data);
 
     setTextAll("[data-progression-trait-name]", name);
     setTextAll("[data-progression-trait-level]", level);
+    setTextAll("[data-progression-trait-xp-current]", statsText("[data-player-xp-current]", xp));
+    setTextAll("[data-progression-trait-xp-progress]", statsText("[data-player-xp-progress]", `${progress}%`));
+    setTextAll("[data-progression-trait-prof]", statsText("[data-player-proficiency]", signed(proficiency)));
+    setTextAll("[data-progression-trait-off]", statsText("[data-player-offensive-level]", Number.isFinite(Number(offensive)) ? offensive : level));
+    setTextAll("[data-progression-trait-def]", statsText("[data-player-defensive-level]", Number.isFinite(Number(defensive)) ? defensive : level));
+    setTextAll("[data-progression-trait-heads]", statsText("[data-player-heads-chance]", Number.isFinite(Number(heads)) ? `${heads}%` : "50%"));
+    setTextAll("[data-progression-trait-hp-current]", statsText("[data-player-hp-current]", data.currentHp ?? data.currentHP ?? data.hp ?? 0));
+    setTextAll("[data-progression-trait-hp-max]", statsText("[data-player-hp-max]", data.maxHp ?? data.maxHP ?? data.hpMax ?? 0));
+
+    doc.querySelectorAll("[data-progression-trait-xp-fill]").forEach((node) => { node.style.width = `${progress}%`; });
+    doc.querySelectorAll(".player-progression-traits-xp-track").forEach((node) => { node.setAttribute("aria-valuenow", String(progress)); });
+
     syncDossierImage("[data-progression-trait-art]", "[data-progression-trait-art-empty]", art);
     syncDossierImage("[data-progression-trait-icon]", "[data-progression-trait-icon-empty]", icon);
   }

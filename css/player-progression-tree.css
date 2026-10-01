@@ -1074,3 +1074,348 @@ body:not(.on-game-dashboard) #perks-modal.modal-progression .hud-modal-body{
   .player-level-allocation__footer{align-items:stretch;flex-direction:column}
   .player-level-allocation__feedback{margin-right:0}
 }
+
+
+/* Exact visual regression restore: Traits keep the pre-#841 Stats HUD language.
+   This block intentionally mirrors the old two-panel geometry instead of
+   inventing a second dossier layout. */
+body:not(.on-game-dashboard) #perks-modal .player-progression-traits-dossier.is-legacy-hud{
+  width:100%;
+  min-height:620px;
+  height:min(72vh,700px);
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  overflow:hidden;
+  border:2px solid rgba(153,124,74,.58);
+  background:#111;
+  box-shadow:inset 0 0 40px rgba(0,0,0,.82),0 18px 48px rgba(0,0,0,.58);
+}
+body:not(.on-game-dashboard) #perks-modal .player-progression-traits-dossier.is-legacy-hud::after{
+  inset:7px;
+  border:2px solid rgba(153,124,74,.5);
+  box-shadow:inset 0 0 40px rgba(0,0,0,.8),0 0 20px rgba(0,0,0,.9);
+}
+body:not(.on-game-dashboard) #perks-modal .player-progression-traits-art-panel{
+  border-right:0;
+  background:#080808;
+}
+body:not(.on-game-dashboard) #perks-modal .player-progression-traits-art-vignette{
+  z-index:2;
+  background:
+    radial-gradient(ellipse at 45% 42%,transparent 20%,rgba(0,0,0,.12) 50%,rgba(0,0,0,.82) 100%),
+    linear-gradient(90deg,rgba(0,0,0,.03) 0%,rgba(0,0,0,.03) 55%,rgba(0,0,0,.88) 100%),
+    linear-gradient(0deg,rgba(0,0,0,.9) 0%,transparent 47%);
+}
+body:not(.on-game-dashboard) #perks-modal .player-progression-traits-bottom-info{
+  position:absolute;
+  z-index:3;
+  left:54px;
+  right:34px;
+  bottom:40px;
+  display:flex;
+  align-items:flex-end;
+  gap:38px;
+}
+body:not(.on-game-dashboard) #perks-modal .player-progression-traits-info-block{
+  position:relative;
+  min-width:135px;
+  padding-top:28px;
+}
+body:not(.on-game-dashboard) #perks-modal .player-progression-traits-info-label{
+  position:absolute;
+  left:0;
+  top:0;
+  height:27px;
+  padding:4px 14px;
+  border-left:3px solid #b98a3c;
+  background:rgba(38,34,28,.95);
+  color:#d5c19d;
+  font:700 15px/1.2 Arial,Helvetica,sans-serif;
+  text-transform:uppercase;
+}
+body:not(.on-game-dashboard) #perks-modal .player-progression-traits-info-value{
+  min-height:46px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  color:#eee;
+  font:700 28px Georgia,"Times New Roman",serif;
+}
+body:not(.on-game-dashboard) #perks-modal .player-progression-traits-hp>span:first-child{
+  color:#f06d5e;
+  font-size:28px;
+}
+body:not(.on-game-dashboard) #perks-modal .player-progression-traits-info-value small{
+  color:#9b9387;
+  font-size:15px;
+  font-weight:400;
+}
+body:not(.on-game-dashboard) #perks-modal .player-progression-traits-resistances{
+  flex:1;
+  min-width:0;
+}
+body:not(.on-game-dashboard) #perks-modal .player-progression-traits-resistance-list{
+  min-height:46px;
+  display:flex;
+  align-items:center;
+}
+body:not(.on-game-dashboard) #perks-modal .player-progression-traits-resistance-pending{
+  color:#77726a;
+  font:700 10px/1.2 Arial,Helvetica,sans-serif;
+  letter-spacing:.08em;
+}
+body:not(.on-game-dashboard) #perks-modal .player-progression-traits-info-panel{
+  position:relative;
+  min-width:0;
+  min-height:0;
+  display:flex;
+  flex-direction:column;
+  padding:20px 44px 28px 30px;
+  overflow:hidden;
+  background:radial-gradient(ellipse at 50% 12%,rgba(102,79,42,.25),transparent 45%),linear-gradient(180deg,#1b1815,#12110f);
+  border-left:2px solid #473a2a;
+}
+body:not(.on-game-dashboard) #perks-modal .player-progression-traits-top-decoration{
+  position:absolute;
+  right:34px;
+  top:2px;
+  color:#f0a918;
+  font-size:24px;
+  letter-spacing:4px;
+}
+body:not(.on-game-dashboard) #perks-modal .player-progression-traits-season{
+  position:absolute;
+  right:8px;
+  top:12px;
+  color:#4f999b;
+  writing-mode:vertical-rl;
+  font:700 12px/1 Arial,Helvetica,sans-serif;
+  letter-spacing:1px;
+}
+body:not(.on-game-dashboard) #perks-modal .player-progression-traits-stats-header{
+  flex:0 0 154px;
+  min-height:0;
+}
+body:not(.on-game-dashboard) #perks-modal .player-progression-traits-character-name{
+  height:66px;
+  display:flex;
+  align-items:center;
+  gap:14px;
+  padding-right:90px;
+  border-bottom:2px solid #5b4730;
+  color:#e7d5b3;
+  font:700 clamp(18px,1.5vw,27px) Georgia,"Times New Roman",serif;
+}
+body:not(.on-game-dashboard) #perks-modal .player-progression-traits-character-name>span{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+body:not(.on-game-dashboard) #perks-modal .player-progression-traits-character-icon{
+  width:54px;
+  height:54px;
+  flex:0 0 54px;
+}
+body:not(.on-game-dashboard) #perks-modal .player-progression-traits-level-section{
+  height:88px;
+  display:grid;
+  grid-template-columns:minmax(190px,1.7fr) repeat(3,minmax(86px,.72fr));
+  align-items:center;
+  gap:10px;
+}
+body:not(.on-game-dashboard) #perks-modal .player-progression-traits-level-main{
+  min-width:0;
+  display:grid;
+  grid-template-columns:auto 1fr;
+  grid-template-rows:auto auto auto;
+  align-items:center;
+  gap:2px 10px;
+}
+body:not(.on-game-dashboard) #perks-modal .player-progression-traits-level-text{
+  grid-row:1/4;
+  display:flex;
+  align-items:baseline;
+  gap:6px;
+  color:#b7a98e;
+  font:18px/1 Arial,Helvetica,sans-serif;
+}
+body:not(.on-game-dashboard) #perks-modal .player-progression-traits-level-text strong{
+  color:#f2e5c7;
+  font:700 38px/1 Georgia,"Times New Roman",serif;
+}
+body:not(.on-game-dashboard) #perks-modal .player-progression-traits-xp-track{
+  height:9px;
+  overflow:hidden;
+  border:1px solid #5b4730;
+  background:#0b0a08;
+  box-shadow:inset 0 0 7px #000;
+}
+body:not(.on-game-dashboard) #perks-modal .player-progression-traits-xp-track i{
+  display:block;
+  width:0;
+  height:100%;
+  background:linear-gradient(90deg,#916719,#f0a918);
+  box-shadow:0 0 8px rgba(240,169,24,.55);
+  transition:width .25s ease;
+}
+body:not(.on-game-dashboard) #perks-modal .player-progression-traits-xp-copy{
+  display:flex;
+  justify-content:space-between;
+  gap:8px;
+  min-width:0;
+  color:#7f7565;
+  font:7px/1.2 Arial,Helvetica,sans-serif;
+  letter-spacing:.04em;
+  white-space:nowrap;
+}
+body:not(.on-game-dashboard) #perks-modal .player-progression-traits-xp-copy b,
+body:not(.on-game-dashboard) #perks-modal [data-progression-trait-xp-progress]{
+  color:#c6a45d;
+}
+body:not(.on-game-dashboard) #perks-modal .player-progression-traits-metric{
+  height:49px;
+  display:grid;
+  grid-template-columns:1fr;
+  grid-template-rows:1fr auto;
+  align-items:center;
+  gap:0 7px;
+  padding:5px 9px;
+  border:2px solid #51483c;
+  background:linear-gradient(180deg,#39342d,#171613);
+  color:#d0c1a7;
+}
+body:not(.on-game-dashboard) #perks-modal .player-progression-traits-metric strong{
+  justify-self:end;
+  color:#ffb629;
+  font:700 22px/1 Georgia,"Times New Roman",serif;
+}
+body:not(.on-game-dashboard) #perks-modal .player-progression-traits-metric span{
+  justify-self:end;
+  color:#867866;
+  font:700 8px/1 Arial,Helvetica,sans-serif;
+  letter-spacing:.14em;
+}
+body:not(.on-game-dashboard) #perks-modal .player-progression-traits-metric--prof{
+  display:flex;
+  justify-content:center;
+  gap:9px;
+  color:#ffb629;
+  font-weight:700;
+}
+body:not(.on-game-dashboard) #perks-modal .player-progression-traits-metric--prof span{
+  color:#c5b597;
+  font-size:10px;
+}
+body:not(.on-game-dashboard) #perks-modal .player-progression-traits-tabline{
+  flex:0 0 48px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  margin-bottom:12px;
+  border-bottom:1px solid #4b3a27;
+}
+body:not(.on-game-dashboard) #perks-modal .player-progression-traits-tab{
+  position:relative;
+  min-width:128px;
+  height:42px;
+  display:grid;
+  place-items:center;
+  border:2px solid #f2a716;
+  background:linear-gradient(180deg,#25211c,#11100e);
+  color:#fff;
+  font:700 18px Georgia,"Times New Roman",serif;
+  box-shadow:inset 0 0 17px rgba(255,155,0,.15),0 0 9px rgba(255,155,0,.25);
+}
+body:not(.on-game-dashboard) #perks-modal .player-progression-traits-tab::after{
+  content:"";
+  position:absolute;
+  left:50%;
+  bottom:-10px;
+  transform:translateX(-50%);
+  border-left:8px solid transparent;
+  border-right:8px solid transparent;
+  border-top:9px solid #f2a716;
+}
+body:not(.on-game-dashboard) #perks-modal .player-progression-traits-engine{
+  color:#8c806e;
+  font:700 9px/1 Arial,Helvetica,sans-serif;
+  letter-spacing:.08em;
+}
+body:not(.on-game-dashboard) #perks-modal .player-progression-traits-engine b{color:#d89c53}
+body:not(.on-game-dashboard) #perks-modal #player-progression-traits-host{
+  padding-top:0;
+}
+@media(max-width:1180px){
+  body:not(.on-game-dashboard) #perks-modal .player-progression-traits-dossier.is-legacy-hud{
+    grid-template-columns:minmax(0,.82fr) minmax(0,1.18fr);
+  }
+  body:not(.on-game-dashboard) #perks-modal .player-progression-traits-info-panel{
+    padding-left:22px;
+    padding-right:34px;
+  }
+  body:not(.on-game-dashboard) #perks-modal .player-progression-traits-bottom-info{
+    left:34px;
+    right:24px;
+    gap:22px;
+  }
+  body:not(.on-game-dashboard) #perks-modal .player-progression-traits-level-section{
+    gap:7px;
+    grid-template-columns:minmax(170px,1.5fr) repeat(3,minmax(72px,.7fr));
+  }
+  body:not(.on-game-dashboard) #perks-modal .player-progression-traits-engine{display:none}
+}
+@media(max-width:860px){
+  body:not(.on-game-dashboard) #perks-modal .player-progression-traits-dossier.is-legacy-hud{
+    height:auto;
+    min-height:0;
+    display:block;
+  }
+  body:not(.on-game-dashboard) #perks-modal .player-progression-traits-art-panel{
+    height:38dvh;
+    min-height:300px;
+    border-bottom:2px solid #473a2a;
+  }
+  body:not(.on-game-dashboard) #perks-modal .player-progression-traits-bottom-info{
+    left:24px;
+    right:20px;
+    bottom:20px;
+  }
+  body:not(.on-game-dashboard) #perks-modal .player-progression-traits-info-panel{
+    min-height:800px;
+    padding:18px 24px 24px;
+    border-left:0;
+    border-top:2px solid #473a2a;
+  }
+  body:not(.on-game-dashboard) #perks-modal .player-progression-traits-level-section{
+    grid-template-columns:minmax(170px,1.5fr) repeat(3,minmax(72px,.7fr));
+  }
+}
+@media(max-width:560px){
+  body:not(.on-game-dashboard) #perks-modal .player-progression-traits-art-panel{
+    height:34dvh;
+    min-height:260px;
+  }
+  body:not(.on-game-dashboard) #perks-modal .player-progression-traits-bottom-info{
+    left:18px;
+    right:15px;
+    gap:14px;
+  }
+  body:not(.on-game-dashboard) #perks-modal .player-progression-traits-info-panel{
+    min-height:900px;
+    padding:16px;
+  }
+  body:not(.on-game-dashboard) #perks-modal .player-progression-traits-level-section{
+    grid-template-columns:1fr 1fr;
+    height:170px;
+    gap:7px;
+    padding:8px 0;
+  }
+  body:not(.on-game-dashboard) #perks-modal .player-progression-traits-level-main{
+    grid-column:1/-1;
+  }
+  body:not(.on-game-dashboard) #perks-modal .player-progression-traits-stats-header{
+    flex-basis:236px;
+  }
+}
