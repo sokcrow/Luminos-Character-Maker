@@ -109,7 +109,7 @@ const DEPENDENCY_OVERRIDES = new Map([
   ["archetype:battle-master", ["support:player-archetype-runtime-core", "support:fighter-maneuver-catalog"]],
   ["archetype:champion", ["support:player-archetype-runtime-core", "support:fighting-style-runtime"]],
   ["archetype:samurai", ["support:player-archetype-runtime-core"]],
-  ["archetype:banneret", ["class:fighter", "support:player-archetype-runtime-core"]],
+  ["archetype:banneret", ["class:fighter", "support:player-archetype-runtime-core"]],\n  ["archetype:bladesinger", ["class:wizard", "support:player-archetype-runtime-core", "support:universal-action-economy"]],
   ["archetype:bilgewater-buccaneer", ["support:player-archetype-runtime-core", "class:ranger"]],
   ["archetype:bilgewater-demolisher", ["support:player-archetype-runtime-core", "class:ranger"]],
   ["archetype:mastermind", ["support:player-archetype-runtime-core", "class:rogue"]],
