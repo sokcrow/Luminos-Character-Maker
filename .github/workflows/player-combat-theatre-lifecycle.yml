@@ -1,25 +1,37 @@
-name: Player Combat Theatre Lifecycle
+name: Player UI Long Session Performance
 
 on:
   pull_request:
     branches: [main]
     paths:
       - 'js/instance-control.js'
+      - 'hoja_personaje.js'
+      - 'hoja_personaje.css'
+      - 'js/player-progression-tree.js'
+      - 'js/player-progression-level-allocation.js'
       - 'Battle-viewer.html'
       - 'tests/player-combat-theatre-lifecycle.spec.mjs'
+      - 'tests/player-ui-long-session-performance.spec.mjs'
       - '.github/workflows/player-combat-theatre-lifecycle.yml'
 
 jobs:
   lifecycle:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
       - name: Syntax check
-        run: node --check js/instance-control.js
+        run: |
+          node --check js/instance-control.js
+          node --check hoja_personaje.js
+          node --check js/player-progression-tree.js
+          node --check js/player-progression-level-allocation.js
+          node --check tests/player-ui-long-session-performance.spec.mjs
+      - name: Combat renderer performance contract
+        run: node tests/combat-v073-player-renderer-performance-smoke.mjs
       - name: Install Chromium
         run: |
           npm install --no-save @playwright/test@1.55.0
@@ -35,3 +47,5 @@ jobs:
           exit 1
       - name: Prove Combat teardown and round preservation
         run: npx playwright test tests/player-combat-theatre-lifecycle.spec.mjs --reporter=line
+      - name: Prove 60-second Player UI stability
+        run: npx playwright test tests/player-ui-long-session-performance.spec.mjs --reporter=line
