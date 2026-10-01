@@ -17,7 +17,6 @@
     signature: "",
     retryTimer: null,
     booted: false,
-    activeView: "traits",
   };
 
   const clean = (value) => String(value ?? "").trim();
@@ -103,44 +102,6 @@
 
     syncDossierImage("[data-progression-trait-art]", "[data-progression-trait-art-empty]", art);
     syncDossierImage("[data-progression-trait-icon]", "[data-progression-trait-icon-empty]", icon);
-  }
-
-  function setPrimaryView(view = "traits") {
-    const next = view === "tree" ? "tree" : "traits";
-    state.activeView = next;
-
-    doc.querySelectorAll("[data-progression-view]").forEach((panel) => {
-      panel.hidden = panel.dataset.progressionView !== next;
-    });
-    doc.querySelectorAll("[data-progression-view-target]").forEach((button) => {
-      const active = button.dataset.progressionViewTarget === next;
-      button.classList.toggle("is-active", active);
-      button.setAttribute("aria-selected", active ? "true" : "false");
-      button.tabIndex = active ? 0 : -1;
-    });
-
-    if (next === "traits") {
-      global.LuminousPlayerTraitRuntime?.refresh?.();
-      syncTraitsDossier(currentCharacter());
-    } else {
-      render(true);
-    }
-    return next;
-  }
-
-  function bindPrimaryViewTabs() {
-    doc.querySelectorAll("[data-progression-view-target]").forEach((button) => {
-      if (button.__progressionPrimaryBound) return;
-      button.__progressionPrimaryBound = true;
-      button.addEventListener("click", () => setPrimaryView(button.dataset.progressionViewTarget));
-      button.addEventListener("keydown", (event) => {
-        if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
-        event.preventDefault();
-        const next = event.key === "ArrowLeft" || event.key === "Home" ? "traits" : "tree";
-        setPrimaryView(next);
-        doc.querySelector(`[data-progression-view-target="${next}"]`)?.focus();
-      });
-    });
   }
 
   function statusLabel(status) {
@@ -501,9 +462,7 @@
     if (!doc.getElementById("player-progression-tree-host") || !core()) return false;
     connectFirebase();
     bindPlayer();
-    bindPrimaryViewTabs();
     render(true);
-    setPrimaryView("traits");
 
     [
       "luminous:traits-refreshed",
@@ -513,10 +472,7 @@
     ].forEach((name) => global.addEventListener?.(name, () => refresh()));
 
     const perksButton = doc.querySelector('[name="act_hud_perks"]');
-    perksButton?.addEventListener("click", () => global.setTimeout(() => {
-      setPrimaryView("traits");
-      refresh();
-    }, 0));
+    perksButton?.addEventListener("click", () => global.setTimeout(() => refresh(), 0));
     state.booted = true;
     return true;
   }
@@ -527,7 +483,6 @@
     state,
     render,
     refresh,
-    setPrimaryView,
     selectArchetype,
   });
   global.LuminousPlayerProgressionTree = api;

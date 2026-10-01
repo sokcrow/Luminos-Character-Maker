@@ -169,15 +169,10 @@ const traitRuntime = fs.readFileSync(path.join(here, '..', 'js', 'player-trait-r
 const tray = fs.readFileSync(path.join(here, '..', 'js', 'trait-player-tray.js'), 'utf8');
 const archetypeRuntime = fs.readFileSync(path.join(here, '..', 'js', 'player-archetype-runtime-core.js'), 'utf8');
 const levelAllocationRuntime = fs.readFileSync(path.join(here, '..', 'js', 'player-progression-level-allocation.js'), 'utf8');
-const progressionUi = fs.readFileSync(path.join(here, '..', 'js', 'player-progression-tree.js'), 'utf8');
 const progressionCss = fs.readFileSync(path.join(here, '..', 'css', 'player-progression-tree.css'), 'utf8');
 const statsCss = fs.readFileSync(path.join(here, '..', 'css', 'player-stats-ability-bar.css'), 'utf8');
 
 assert.match(html, /title="Progresión"/);
-assert.match(html, /data-progression-view-target="traits"/);
-assert.match(html, /data-progression-view-target="tree"/);
-assert.match(html, /class="player-progression-primary-tab is-active"[\s\S]*data-progression-view-target="traits"/);
-assert.match(html, /data-progression-view="tree"[\s\S]*hidden/);
 assert.match(html, /id="player-progression-level-allocation-host"/);
 assert.match(html, /id="player-progression-tree-host"/);
 assert.match(html, /id="player-progression-traits-host"/);
@@ -191,10 +186,6 @@ assert.match(html, /data-progression-trait-def/);
 assert.match(progressionCss, /Exact visual regression restore: Traits keep the pre-#841 Stats HUD language/);
 assert.match(progressionCss, /grid-template-columns:minmax\(0,1fr\) minmax\(0,1fr\)/);
 assert.match(progressionCss, /player-progression-traits-tabline/);
-assert.match(progressionCss, /player-progression-primary-tab\.is-active/);
-assert.match(progressionCss, /player-progression-primary-view\[hidden\]/);
-assert.match(progressionUi, /activeView: "traits"/);
-assert.match(progressionUi, /setPrimaryView\("traits"\)/);
 // Regression: Stats keeps the responsive collision guard that was accidentally moved to #perks-modal by #841.
 assert.match(statsCss, /#stats-modal \.player-stats-engine\{display:none!important\}/);
 assert.match(html, /player-progression-tree-core\.js/);
