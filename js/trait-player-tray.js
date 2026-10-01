@@ -479,7 +479,7 @@
 
     mount() {
       if (!this.host || this.root) return this.root;
-      if (this.host.closest?.("#stats-modal")) this.setupStatsTabs();
+      this.setupStatsTabs();
       this.root = createElement("section", "luminous-trait-tray player-traits-catalog");
       this.root.setAttribute("aria-label", "Character Traits");
       this.host.appendChild(this.root);
@@ -690,7 +690,7 @@
 
     render() {
       if (!this.root) return;
-      if (this.host.closest?.("#stats-modal")) this.setupStatsTabs();
+      this.setupStatsTabs();
       this.root.replaceChildren();
 
       const traits = this.normalizedTraits();
