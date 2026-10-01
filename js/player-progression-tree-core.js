@@ -197,6 +197,8 @@
     const traitCatalog = options.traitCatalog || global.LuminousTraitCatalogCore || null;
     const archetypeCatalog = options.archetypeCatalog || global.LuminousArchetypeTraitCatalog || null;
     const definitions = {
+      ...(global.LuminousSpellCatalog || {}),
+      ...(global.LuminousPlayerSignatureSkillCatalog?.DEFINITIONS || {}),
       ...(traitCatalog?.allDefinitions?.() || traitCatalog?.DEFINITIONS || {}),
       ...(archetypeCatalog?.allDefinitions?.() || archetypeCatalog?.DEFINITIONS || {}),
       ...(options.definitions || {}),
