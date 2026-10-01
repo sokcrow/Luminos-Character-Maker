@@ -346,7 +346,7 @@
   let formulaInspectModeBound = false;
 
   function escapeFormulaRegExp(value) {
-    return String(value || "").replace(/[-/\\^$*+?.()|[\]{}]/g, "\\  function resolveTraitDisplayValue(trait = {}, spec = {}, runtime = {}) {");
+    return String(value || "").replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
   }
 
   function sourceClassIdForFormula(trait = {}) {
