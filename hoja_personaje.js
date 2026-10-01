@@ -1137,6 +1137,10 @@ function initializeCharacterSheet() {
   }
   if (!playerId) return;
 
+  if (window.LuminousPlayerContractsRuntime?.init && typeof db !== "undefined") {
+    window.LuminousPlayerContractsRuntime.init({ db, playerId });
+  }
+
   // --- DESCARGAR ACTORES PARA EL JUGADOR ---
   if (typeof db !== "undefined") {
     if (!actorListenerActive) {

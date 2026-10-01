@@ -1,0 +1,34 @@
+name: Economy Contracts V2
+
+on:
+  pull_request:
+    paths:
+      - "database.rules.json"
+      - "pantalla_dm.html"
+      - "hoja_personaje.html"
+      - "hoja_personaje.js"
+      - "js/economy-contracts-core.js"
+      - "js/dm-economy-contracts-runtime.js"
+      - "js/player-contracts-runtime.js"
+      - "css/economy-contracts.css"
+      - "tests/economy-contracts-core-smoke.cjs"
+      - ".github/workflows/economy-contracts-v2.yml"
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Syntax check
+        run: |
+          node --check js/economy-contracts-core.js
+          node --check js/dm-economy-contracts-runtime.js
+          node --check js/player-contracts-runtime.js
+          node --check hoja_personaje.js
+      - name: Economy core smoke
+        run: node tests/economy-contracts-core-smoke.cjs
+      - name: Firebase rules JSON parse
+        run: node -e "JSON.parse(require('node:fs').readFileSync('database.rules.json','utf8')); console.log('database.rules.json: OK')"
