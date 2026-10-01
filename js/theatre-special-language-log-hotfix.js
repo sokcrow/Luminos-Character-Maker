@@ -208,12 +208,13 @@
     bindLog();
     ensureObserver();
     scheduleApply();
-    if (!timer) {
-      timer = global.setInterval(() => {
-        bindLog();
-        scheduleApply();
-      }, 750);
-    }
+    const resync = () => {
+      bindLog();
+      scheduleApply();
+    };
+    global.addEventListener?.("actoresCacheUpdated", resync);
+    global.addEventListener?.("luminous:player-data", resync);
+    global.addEventListener?.("luminous:player-instance-changed", resync);
   }
 
   if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", boot, { once: true });
