@@ -6,17 +6,20 @@ on:
     paths:
       - 'js/instance-control.js'
       - 'js/player-trait-runtime.js'
+      - 'js/trait-player-tray.js'
       - 'js/player-archetype-runtime-core.js'
       - 'js/player-archetype-runtime.js'
       - 'js/class-runtime-bootstrap.js'
       - 'js/theatre-check-retry-watchdog.js'
       - 'hoja_personaje.js'
       - 'hoja_personaje.css'
+      - 'css/player-trait-tabs.css'
       - 'js/player-progression-tree.js'
       - 'js/player-progression-level-allocation.js'
       - 'Battle-viewer.html'
       - 'tests/player-combat-theatre-lifecycle.spec.mjs'
       - 'tests/player-ui-long-session-performance.spec.mjs'
+      - 'tests/trait-formula-display-contract.mjs'
       - '.github/workflows/player-combat-theatre-lifecycle.yml'
 
 jobs:
@@ -33,6 +36,7 @@ jobs:
         run: |
           node --check js/instance-control.js
           node --check js/player-trait-runtime.js
+          node --check js/trait-player-tray.js
           node --check js/player-archetype-runtime-core.js
           node --check js/player-archetype-runtime.js
           node --check js/class-runtime-bootstrap.js
@@ -41,6 +45,9 @@ jobs:
           node --check js/player-progression-tree.js
           node --check js/player-progression-level-allocation.js
           node --check tests/player-ui-long-session-performance.spec.mjs
+          node --check tests/trait-formula-display-contract.mjs
+      - name: Trait formula display contract
+        run: node tests/trait-formula-display-contract.mjs
       - name: Combat renderer performance contract
         run: node tests/combat-v073-player-renderer-performance-smoke.mjs
 
@@ -68,6 +75,34 @@ jobs:
           exit 1
       - name: Run combat lifecycle regression
         run: npx playwright test tests/player-combat-theatre-lifecycle.spec.mjs --reporter=line
+
+  player-ui-behavior-regressions:
+    name: Stats HUD + trait display regressions
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Chromium
+        run: |
+          npm install --no-save @playwright/test@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Serve repository
+        run: |
+          python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/player-regression-http.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:4173/index.html >/dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/player-regression-http.log
+          exit 1
+      - name: Run Stats HUD and trait display regressions
+        run: >
+          npx playwright test tests/player-ui-long-session-performance.spec.mjs
+          --grep "stats HUD keeps fixed geometry|shared trait formula display resolves|trait formula breakdown stays hidden"
+          --reporter=line
 
   player-ui-performance:
     name: Performance / ${{ matrix.label }}
