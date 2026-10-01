@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 await import('../js/trait-engine.js');
+await import('../js/character-build-rules.js');
 await import('../js/player-progression-tree-core.js');
 
 const core = globalThis.LuminousPlayerProgressionTreeCore;
@@ -98,6 +99,64 @@ assert.equal(chosenBranch.status, 'selected');
 assert.equal(chosenBranch.nodes[0].status, 'earned');
 assert.equal(lockedBranch.status, 'locked');
 
+// Class level allocation is safe for a Player building from zero.
+const classDefinitions = globalThis.LuminousCharacterBuildRules.CLASSES;
+const freshCharacter = { level: 12, characterBuild: { classes: [] } };
+const freshSummary = core.classAllocationSummary(freshCharacter);
+assert.equal(freshSummary.earnedLevel, 12);
+assert.equal(freshSummary.allocatedLevel, 0);
+assert.equal(freshSummary.pendingLevels, 12);
+
+const freshAllocation = core.validateClassAllocation(
+  freshCharacter,
+  [{ classId: 'monk', levels: 8 }, { classId: 'rogue', levels: 4 }],
+  classDefinitions,
+  { requireAll: true },
+);
+assert.equal(freshAllocation.valid, true);
+assert.equal(freshAllocation.pendingAfter, 0);
+assert.deepEqual(freshAllocation.classes, [
+  { classId: 'monk', levels: 8 },
+  { classId: 'rogue', levels: 4 },
+]);
+
+const partialAllocation = core.validateClassAllocation(
+  freshCharacter,
+  [{ classId: 'monk', levels: 8 }],
+  classDefinitions,
+  { requireAll: true },
+);
+assert.equal(partialAllocation.valid, false);
+assert.match(partialAllocation.errors.join(' '), /4 pendientes/);
+
+const progressedCharacter = {
+  level: 15,
+  characterBuild: {
+    classes: [
+      { classId: 'monk', levels: 10 },
+      { classId: 'rogue', levels: 3 },
+    ],
+  },
+};
+const cannotReduceCommitted = core.validateClassAllocation(
+  progressedCharacter,
+  [{ classId: 'monk', levels: 9 }, { classId: 'rogue', levels: 6 }],
+  classDefinitions,
+  { requireAll: true },
+);
+assert.equal(cannotReduceCommitted.valid, false);
+assert.match(cannotReduceCommitted.errors.join(' '), /No puedes reducir monk de 10 a 9/);
+
+const safeIncrease = core.validateClassAllocation(
+  progressedCharacter,
+  [{ classId: 'monk', levels: 12 }, { classId: 'rogue', levels: 3 }],
+  classDefinitions,
+  { requireAll: true },
+);
+assert.equal(safeIncrease.valid, true);
+assert.equal(safeIncrease.allocatedBefore, 13);
+assert.equal(safeIncrease.allocatedAfter, 15);
+
 // Preview snapshots do not mutate the saved Player build.
 const snapshot = core.snapshotCharacterAtClassLevel(selectedCharacter, 'bard', 35);
 assert.equal(snapshot.classes.find((entry) => entry.classId === 'bard').levels, 35);
@@ -109,15 +168,22 @@ const html = fs.readFileSync(path.join(here, '..', 'hoja_personaje.html'), 'utf8
 const traitRuntime = fs.readFileSync(path.join(here, '..', 'js', 'player-trait-runtime.js'), 'utf8');
 const tray = fs.readFileSync(path.join(here, '..', 'js', 'trait-player-tray.js'), 'utf8');
 const archetypeRuntime = fs.readFileSync(path.join(here, '..', 'js', 'player-archetype-runtime-core.js'), 'utf8');
+const levelAllocationRuntime = fs.readFileSync(path.join(here, '..', 'js', 'player-progression-level-allocation.js'), 'utf8');
 
 assert.match(html, /title="Progresión"/);
+assert.match(html, /id="player-progression-level-allocation-host"/);
 assert.match(html, /id="player-progression-tree-host"/);
 assert.match(html, /id="player-progression-traits-host"/);
 assert.match(html, /player-progression-tree-core\.js/);
 assert.match(html, /player-progression-tree\.js/);
+assert.match(html, /player-progression-level-allocation\.js/);
+assert.match(html, /character-build-rules\.js/);
 assert.doesNotMatch(html, /CREATE PERK/);
 assert.match(traitRuntime, /getElementById\("player-progression-traits-host"\)/);
 assert.match(tray, /if \(this\.host\.closest\?\.\("#stats-modal"\)\) this\.setupStatsTabs\(\)/);
 assert.match(archetypeRuntime, /getElementById\("player-progression-tree-host"\)/);
+assert.match(levelAllocationRuntime, /REVISAR CAMBIOS/);
+assert.match(levelAllocationRuntime, /\.transaction\(/);
+assert.match(levelAllocationRuntime, /No puedes reducir|validateClassAllocation/);
 
 console.log('player-progression-tree-smoke: ok');
