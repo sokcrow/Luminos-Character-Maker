@@ -103,6 +103,19 @@
     "globalName": "LuminousWeaponPropertyRuntime"
   },
   {
+    "id": "archetype:banneret",
+    "kind": "archetype",
+    "path": "js/banneret-archetype-runtime.js",
+    "contexts": [
+      "any"
+    ],
+    "dependsOn": [
+      "class:fighter",
+      "support:player-archetype-runtime-core"
+    ],
+    "globalName": "LuminousBanneretArchetypeRuntime"
+  },
+  {
     "id": "archetype:battle-master",
     "kind": "archetype",
     "path": "js/battle-master-archetype-runtime.js",
@@ -142,6 +155,19 @@
     "globalName": "LuminousBilgewaterDemolisherArchetypeRuntime"
   },
   {
+    "id": "archetype:champion",
+    "kind": "archetype",
+    "path": "js/champion-archetype-runtime.js",
+    "contexts": [
+      "any"
+    ],
+    "dependsOn": [
+      "support:player-archetype-runtime-core",
+      "support:fighting-style-runtime"
+    ],
+    "globalName": "LuminousChampionArchetypeRuntime"
+  },
+  {
     "id": "archetype:college-of-whispers",
     "kind": "archetype",
     "path": "js/college-of-whispers-runtime.js",
@@ -176,6 +202,18 @@
     ],
     "dependsOn": [],
     "globalName": "LuminousPathOfTheZealotArchetypeRuntime"
+  },
+  {
+    "id": "archetype:samurai",
+    "kind": "archetype",
+    "path": "js/samurai-archetype-runtime.js",
+    "contexts": [
+      "any"
+    ],
+    "dependsOn": [
+      "support:player-archetype-runtime-core"
+    ],
+    "globalName": "LuminousSamuraiArchetypeRuntime"
   },
   {
     "id": "class:barbarian",

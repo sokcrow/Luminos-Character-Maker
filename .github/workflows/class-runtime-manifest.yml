@@ -18,6 +18,9 @@ on:
       - "tests/bilgewater-buccaneer-archetype-runtime-smoke.cjs"
       - "tests/bilgewater-demolisher-archetype-runtime-smoke.cjs"
       - "tests/fighter-class-runtime-smoke.mjs"
+      - "tests/champion-archetype-runtime-smoke.mjs"
+      - "tests/samurai-archetype-runtime-smoke.mjs"
+      - "tests/banneret-archetype-runtime-smoke.mjs"
       - "tests/monk-class-runtime-smoke.cjs"
       - "js/class-status-semantics.js"
       - "js/caster-spellcasting-traits-runtime.js"
@@ -47,6 +50,9 @@ on:
       - "tests/bilgewater-buccaneer-archetype-runtime-smoke.cjs"
       - "tests/bilgewater-demolisher-archetype-runtime-smoke.cjs"
       - "tests/fighter-class-runtime-smoke.mjs"
+      - "tests/champion-archetype-runtime-smoke.mjs"
+      - "tests/samurai-archetype-runtime-smoke.mjs"
+      - "tests/banneret-archetype-runtime-smoke.mjs"
       - "js/class-status-semantics.js"
       - "js/caster-spellcasting-traits-runtime.js"
       - "js/spellcasting-runtime.js"
@@ -80,6 +86,12 @@ jobs:
       - run: node --check js/caster-spellcasting-traits-runtime.js
       - run: node --check js/class-status-semantics.js
       - run: node tests/fighter-class-runtime-smoke.mjs
+      - run: node --check js/champion-archetype-runtime.js
+      - run: node tests/champion-archetype-runtime-smoke.mjs
+      - run: node --check js/samurai-archetype-runtime.js
+      - run: node tests/samurai-archetype-runtime-smoke.mjs
+      - run: node --check js/banneret-archetype-runtime.js
+      - run: node tests/banneret-archetype-runtime-smoke.mjs
       - run: node tests/ranger-class-runtime-smoke.mjs
       - run: node --check js/bilgewater-demolisher-archetype-runtime.js
       - run: node --check js/bilgewater-demolisher-combat-runtime.js
