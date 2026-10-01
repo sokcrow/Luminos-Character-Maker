@@ -9,7 +9,8 @@
       try { require("./spell-batch-pierre-runtime.js"); } catch (_) {}
       try { require("./spell-batch-angelo-runtime.js"); } catch (_) {}
       try { require("./spell-batch-weapon-cantrips-runtime.js"); } catch (_) {}
-      try { require("./spell-batch-cantrips-runtime.js"); } catch (_) {}\n      try { require("./spell-batch-cantrips-utility-runtime.js"); } catch (_) {}
+      try { require("./spell-batch-cantrips-runtime.js"); } catch (_) {}
+      try { require("./spell-batch-cantrips-utility-runtime.js"); } catch (_) {}
     }
     if (global.document) {
       const load = (id, src) => {
@@ -22,7 +23,8 @@
       if (!global.LuminousPierreSpellBatchRuntime) load("spell-batch-pierre-runtime-script", "js/spell-batch-pierre-runtime.js");
       if (!global.LuminousAngeloSpellBatchRuntime) load("spell-batch-angelo-runtime-script", "js/spell-batch-angelo-runtime.js");
       if (!global.LuminousWeaponCantripBatchRuntime) load("spell-batch-weapon-cantrips-runtime-script", "js/spell-batch-weapon-cantrips-runtime.js");
-      if (!global.LuminousCantripBatchRuntime) load("spell-batch-cantrips-runtime-script", "js/spell-batch-cantrips-runtime.js");\n      if (!global.LuminousCantripUtilityRuntime) load("spell-batch-cantrips-utility-runtime-script", "js/spell-batch-cantrips-utility-runtime.js");
+      if (!global.LuminousCantripBatchRuntime) load("spell-batch-cantrips-runtime-script", "js/spell-batch-cantrips-runtime.js");
+      if (!global.LuminousCantripUtilityRuntime) load("spell-batch-cantrips-utility-runtime-script", "js/spell-batch-cantrips-utility-runtime.js");
     }
   }
 })(typeof window !== "undefined" ? window : globalThis, function () {
