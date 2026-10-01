@@ -245,7 +245,7 @@
 
       const chips = Object.entries(participants).map(([key, participant]) => {
         const status = participant?.status || "active";
-        const label = participant?.nombre || playerName(key);
+        const label = playerName(key) || participant?.nombre || key;
         const reward = core().positiveWhole(participant?.recompensaTotal);
         const advance = core().positiveWhole(participant?.adelantoAhn);
         const pending = core().positiveWhole(participant?.pagoPendienteAhn ?? reward - advance);
