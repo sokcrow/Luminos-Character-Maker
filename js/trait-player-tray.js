@@ -417,14 +417,14 @@
       : "(?:[A-Za-z][A-Za-z-]*\\s+Class\\s+Level|Class\\s+Level|ClassLevel)";
     const patterns = {
       ClassLevel: classPattern,
-      StrengthMod: "(?:STR|Strength)\\s*(?:Mod(?:ifier)?|Modifier)?",
-      DexterityMod: "(?:DEX|Dexterity)\\s*(?:Mod(?:ifier)?|Modifier)?",
-      ConstitutionMod: "(?:CON|Constitution)\\s*(?:Mod(?:ifier)?|Modifier)?",
-      IntelligenceMod: "(?:INT|Intelligence)\\s*(?:Mod(?:ifier)?|Modifier)?",
-      WisdomMod: "(?:WIS|Wisdom)\\s*(?:Mod(?:ifier)?|Modifier)?",
-      CharismaMod: "(?:CHA|Charisma)\\s*(?:Mod(?:ifier)?|Modifier)?",
-      Proficiency: "(?:Proficiency(?:\\s+Bonus)?)",
-      SpellSlotLevel: "(?:Spell\\s+Slot\\s+Level|SpellSlotLevel)",
+      StrengthMod: "(?:Strength\\s+(?:Modifier|Mod)|STR\\s+(?:Modifier|Mod)|StrengthMod)\\b",
+      DexterityMod: "(?:Dexterity\\s+(?:Modifier|Mod)|DEX\\s+(?:Modifier|Mod)|DexterityMod)\\b",
+      ConstitutionMod: "(?:Constitution\\s+(?:Modifier|Mod)|CON\\s+(?:Modifier|Mod)|ConstitutionMod)\\b",
+      IntelligenceMod: "(?:Intelligence\\s+(?:Modifier|Mod)|INT\\s+(?:Modifier|Mod)|IntelligenceMod)\\b",
+      WisdomMod: "(?:Wisdom\\s+(?:Modifier|Mod)|WIS\\s+(?:Modifier|Mod)|WisdomMod)\\b",
+      CharismaMod: "(?:Charisma\\s+(?:Modifier|Mod)|CHA\\s+(?:Modifier|Mod)|CharismaMod)\\b",
+      Proficiency: "(?:Proficiency(?:\\s+Bonus)?)\\b",
+      SpellSlotLevel: "(?:Spell\\s+Slot\\s+Level|SpellSlotLevel)\\b",
     };
     return patterns[key] || escapeFormulaRegExp(key);
   }
@@ -432,6 +432,17 @@
   function formulaTextPattern(formula, trait = {}, unit = "flat") {
     const normalized = normalizeDisplayFormula(formula, trait);
     const tokens = normalized.match(/[A-Za-z_][A-Za-z0-9_.]*|\d+(?:\.\d+)?|[+\-*\/%,()]/g) || [];
+    const semanticTokens = tokens.filter((token) => !["(", ")", ","].includes(token) && !FORMULA_FUNCTIONS.has(token.toLowerCase()));
+
+    // A bare ClassLevel is too generic to replace narrative prose such as
+    // "Rage scaling uses Barbarian Class Level". Only replace it when the
+    // description actually marks it as a percentage expression.
+    if (semanticTokens.length === 1 && semanticTokens[0] === "ClassLevel") {
+      if (normalizeId(unit) !== "percent") return null;
+      const variable = formulaVariablePattern("ClassLevel", trait);
+      return new RegExp("(?:\\(\\s*" + variable + "\\s*\\)\\s*%|" + variable + "\\s*%)", "i");
+    }
+
     const parts = [];
     tokens.forEach((token) => {
       if (token === "(" || token === ")" || token === ",") return;
@@ -450,9 +461,10 @@
       else parts.push(escapeFormulaRegExp(token) + "%?");
     });
     if (!parts.length) return null;
+    const opening = "(?:\\(\\s*)*";
     const closing = "(?:\\s*\\))*";
     const tail = normalizeId(unit) === "percent" ? "(?:\\s*%)?" : "";
-    return new RegExp(parts.join("[\\s(),]*") + closing + tail, "i");
+    return new RegExp(opening + parts.join("[\\s(),]*") + closing + tail, "i");
   }
 
   function formulaHumanLabel(value) {
@@ -506,10 +518,10 @@
         }
       });
     };
+    visit(trait.mechanics || {}, ["mechanics"]);
     visit(trait.activation || {}, ["activation"]);
     visit(trait.rules || [], ["rules"]);
     visit(trait.effects || [], ["effects"]);
-    visit(trait.mechanics || {}, ["mechanics"]);
     return specs;
   }
 
