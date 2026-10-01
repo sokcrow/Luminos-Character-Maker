@@ -6344,6 +6344,17 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
 .phone-hidden {
     transform: translateY(150vh) !important;
     opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    content-visibility: hidden;
+}
+
+/* Hidden terminal content must become compositor-idle instead of continuing
+   decorative animations and paint work off-screen. */
+.phone-hidden *,
+.phone-hidden *::before,
+.phone-hidden *::after {
+    animation-play-state: paused !important;
 }
 
 /* ========================================================= */
