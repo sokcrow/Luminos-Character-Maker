@@ -952,5 +952,6 @@
   global.LuminousDeathSaveRuntime = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   install();
-  global.setInterval?.(install, PATCH_INTERVAL_MS);
+  const timer = global.setInterval?.(install, PATCH_INTERVAL_MS);
+  timer?.unref?.();
 })(typeof window !== "undefined" ? window : globalThis);
