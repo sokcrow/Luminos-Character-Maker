@@ -293,9 +293,27 @@ test("source keeps the static player surface free of permanent polling and dupli
   expect(allocation).not.toContain('state.playerRef.on("value"');
   expect(allocation).toContain("nextRenderSignature === state.renderSignature");
   const watchdog = fs.readFileSync(path.join(ROOT, "js/theatre-check-retry-watchdog.js"), "utf8");
+  const statusEngine = fs.readFileSync(path.join(ROOT, "js/status-engine.js"), "utf8");
+  const traitCatalog = fs.readFileSync(path.join(ROOT, "js/trait-catalog-core.js"), "utf8");
+  const idleRuntimeFiles = [
+    "js/player-stats-ability-bar.js",
+    "js/player-splash-framing.js",
+    "js/player-ux-polish-core.js",
+    "js/player-stat-tooltip-runtime.js",
+    "js/derived-stats-runtime.js",
+    "js/rest-runtime-integration.js",
+  ];
   expect(instance).toContain("syncPlayerCombatOcclusion");
-  expect(watchdog).toContain("if (retryAuthorizedBindings()) return null");
-  expect(watchdog).toContain("retryAuthorizedBindings() || retryAttempts >= MAX_RETRY_ATTEMPTS");
+  expect(watchdog).not.toContain("setInterval");
+  expect(watchdog).toContain('addEventListener?.("online", start)');
+  expect(statusEngine).toContain('browserContext() !== "combat"');
+  expect(statusEngine).toContain("ensureCombatRuntimeGraph");
+  expect(traitCatalog).not.toContain("barbarian-class-runtime.js");
+  expect(traitCatalog).not.toContain("shield-duration-runtime.js");
+  idleRuntimeFiles.forEach((file) => {
+    const source = fs.readFileSync(path.join(ROOT, file), "utf8");
+    expect(source, file).not.toMatch(/(?:global\.)?setInterval\s*\(/);
+  });
 });
 
 test("real player sheet reaches interval-idle after boot", async ({ page }) => {
