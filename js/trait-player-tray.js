@@ -525,6 +525,143 @@
     return specs;
   }
 
+
+  function matchingFormulaParenEnd(source, openIndex) {
+    let depth = 0;
+    for (let index = openIndex; index < source.length; index += 1) {
+      if (source[index] === "(") depth += 1;
+      else if (source[index] === ")") {
+        depth -= 1;
+        if (depth === 0) return index;
+      }
+    }
+    return -1;
+  }
+
+  function expandSimplePowers(formula) {
+    let next = String(formula || "").replace(/²/g, "^2").replace(/³/g, "^3");
+    const power = /\b([A-Za-z_][A-Za-z0-9_]*|\d+(?:\.\d+)?)\^([2-4])\b/g;
+    for (let pass = 0; pass < 4 && power.test(next); pass += 1) {
+      power.lastIndex = 0;
+      next = next.replace(power, (_, base, exponent) => {
+        const count = Number(exponent);
+        return "(" + Array.from({ length: count }, () => base).join(" * ") + ")";
+      });
+      power.lastIndex = 0;
+    }
+    return next;
+  }
+
+  function humanFormulaToEngine(text, trait = {}) {
+    let formula = String(text || "").trim();
+    while (
+      formula.startsWith("(")
+      && formula.endsWith(")")
+      && matchingFormulaParenEnd(formula, 0) === formula.length - 1
+    ) {
+      formula = formula.slice(1, -1).trim();
+    }
+
+    formula = formula.replace(/×/g, "*").replace(/÷/g, "/").replace(/%/g, "");
+    const className = sourceClassNameForFormula(trait);
+    const classIdName = titleCaseId(sourceClassIdForFormula(trait));
+    [className, classIdName].filter(Boolean).forEach((name) => {
+      formula = formula.replace(
+        new RegExp("\\b" + escapeFormulaRegExp(name) + "(?:\\s+Class)?\\s+Level\\b", "gi"),
+        "ClassLevel",
+      );
+    });
+    formula = formula.replace(/\bClass\s+Level\b/gi, "ClassLevel");
+
+    [
+      [/(?:Strength|STR)\s+(?:Modifier|Mod)\b/gi, "StrengthMod"],
+      [/(?:Dexterity|DEX)\s+(?:Modifier|Mod)\b/gi, "DexterityMod"],
+      [/(?:Constitution|CON)\s+(?:Modifier|Mod)\b/gi, "ConstitutionMod"],
+      [/(?:Intelligence|INT)\s+(?:Modifier|Mod)\b/gi, "IntelligenceMod"],
+      [/(?:Wisdom|WIS)\s+(?:Modifier|Mod)\b/gi, "WisdomMod"],
+      [/(?:Charisma|CHA)\s+(?:Modifier|Mod)\b/gi, "CharismaMod"],
+      [/\bProficiency\s+Bonus\b/gi, "Proficiency"],
+      [/\bSpell\s+Slot\s+Level\b/gi, "SpellSlotLevel"],
+    ].forEach(([pattern, replacement]) => {
+      formula = formula.replace(pattern, replacement);
+    });
+
+    return expandSimplePowers(normalizeDisplayFormula(formula, trait)).replace(/\s+/g, "");
+  }
+
+  function descriptionFormulaLabel(source, endIndex) {
+    const tail = String(source || "").slice(endIndex);
+    const match = tail.match(/^\s*%?\s*([A-Z][A-Za-z]*(?:\s+[A-Z][A-Za-z]*){0,2})\b/);
+    return match?.[1] || "Resolved Value";
+  }
+
+  function descriptionFormulaCandidates(source, trait = {}) {
+    const text = String(source || "");
+    const candidates = [];
+    const seenRanges = new Set();
+
+    const add = (start, end) => {
+      if (start < 0 || end <= start) return;
+      let finalEnd = end;
+      const percent = text.slice(finalEnd).match(/^\s*%/);
+      if (percent) finalEnd += percent[0].length;
+      const key = start + ":" + finalEnd;
+      if (seenRanges.has(key)) return;
+
+      const raw = text.slice(start, finalEnd);
+      const formula = humanFormulaToEngine(raw, trait);
+      const identifiers = formulaIdentifiers(formula);
+      if (!formula || !identifiers.length) return;
+      try {
+        engine?.evaluateFormula?.(formula, Object.fromEntries(identifiers.map((id) => [id, 1])));
+      } catch (_) {
+        return;
+      }
+
+      seenRanges.add(key);
+      candidates.push({
+        start,
+        end: finalEnd,
+        raw,
+        formula,
+        unit: raw.includes("%") || Boolean(percent) ? "percent" : "flat",
+        label: descriptionFormulaLabel(text, finalEnd),
+      });
+    };
+
+    // Function-shaped formulas: max(...), floor(...), etc. Advance past the
+    // outer expression so nested calls are not emitted as duplicate values.
+    const functionPattern = /\b(?:floor|ceil|round|abs|max|min|clamp)\s*\(/gi;
+    let match;
+    while ((match = functionPattern.exec(text))) {
+      const openIndex = text.indexOf("(", match.index);
+      const endIndex = matchingFormulaParenEnd(text, openIndex);
+      if (endIndex >= 0) {
+        add(match.index, endIndex + 1);
+        functionPattern.lastIndex = endIndex + 1;
+      }
+    }
+
+    // Parenthesized arithmetic such as (Class Level / 2) or (WIS Mod * 10).
+    for (let index = 0; index < text.length; index += 1) {
+      if (text[index] !== "(") continue;
+      const endIndex = matchingFormulaParenEnd(text, index);
+      if (endIndex < 0) continue;
+      const raw = text.slice(index, endIndex + 1);
+      const normalized = humanFormulaToEngine(raw, trait);
+      if (formulaIdentifiers(normalized).length && /[+\-*\/^²³]/.test(raw)) add(index, endIndex + 1);
+      index = endIndex;
+    }
+
+    // Inline binary math such as 10% × WIS Mod or Class Level / 2.
+    const variable = "(?:(?:Strength|STR|Dexterity|DEX|Constitution|CON|Intelligence|INT|Wisdom|WIS|Charisma|CHA)\\s+(?:Modifier|Mod)|(?:[A-Za-z][A-Za-z-]*\\s+)?Class\\s+Level|Spell\\s+Slot\\s+Level|Proficiency\\s+Bonus)";
+    const scalar = "(?:\\d+(?:\\.\\d+)?%?|"+ variable +")";
+    const inlinePattern = new RegExp(scalar + "\\s*(?:×|÷|\\*|/|\\^)\\s*" + scalar + "(?:[²³])?", "gi");
+    while ((match = inlinePattern.exec(text))) add(match.index, match.index + match[0].length);
+
+    return candidates.sort((a, b) => a.start - b.start || (b.end - b.start) - (a.end - a.start));
+  }
+
   function resolveTraitDisplayValue(trait = {}, spec = {}, runtime = {}) {
     if (!engine?.buildVariables || !engine?.evaluateFormula || !spec?.id || spec.formula == null) return null;
     const resolvedRuntime = formulaRuntimeForTrait(trait, runtime || {});
