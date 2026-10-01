@@ -594,18 +594,27 @@ test("shared trait formula display resolves class and archetype formulas without
   const rogue = page.locator('[data-trait-id="test_rogue_formula"]');
   const zealot = page.locator('[data-trait-id="test_zealot_formula"]');
   const dynamic = page.locator('[data-trait-id="test_dynamic_formula"]');
+  const playerFacingText = async (card) => card.locator(".player-trait-card__description").evaluate((node) => {
+    const copy = node.cloneNode(true);
+    copy.querySelectorAll(".player-trait-formula-tooltip").forEach((tooltip) => tooltip.remove());
+    return copy.textContent || "";
+  });
 
-  await expect(rogue).toContainText("Deal +20% Damage.");
-  await expect(rogue).not.toContainText("floor(");
-  await expect(rogue).not.toContainText("Class Level / 2");
+  const rogueText = await playerFacingText(rogue);
+  expect(rogueText).toContain("Deal +20% Damage.");
+  expect(rogueText).not.toContain("floor(");
+  expect(rogueText).not.toContain("Class Level / 2");
 
-  await expect(zealot).toContainText("Shield equal to 7");
-  await expect(zealot).not.toContainText("floor(");
-  await expect(zealot).not.toContainText("Class Level / 4");
+  const zealotText = await playerFacingText(zealot);
+  expect(zealotText).toContain("Shield equal to 7");
+  expect(zealotText).not.toContain("floor(");
+  expect(zealotText).not.toContain("Class Level / 4");
 
   const pending = dynamic.locator(".player-trait-resolved-value.is-pending").first();
   await expect(pending).toHaveText("pending");
-  await expect(dynamic).not.toContainText("Spell Slot Level");
+  const dynamicText = await playerFacingText(dynamic);
+  expect(dynamicText).toContain("pending");
+  expect(dynamicText).not.toContain("Spell Slot Level");
 });
 
 test("trait formula breakdown stays hidden on hover until Shift inspect mode is active", async ({ page }) => {
