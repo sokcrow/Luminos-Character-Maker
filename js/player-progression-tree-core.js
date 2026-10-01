@@ -296,6 +296,124 @@
     };
   }
 
+  function earnedCharacterLevel(character = {}) {
+    const build = character?.characterBuild && typeof character.characterBuild === "object" ? character.characterBuild : {};
+    return Math.max(0, int(character.level ?? build.calculatedAtLevel, 0));
+  }
+
+  function classDefinitionMap(classDefinitions = global.LuminousCharacterBuildRules?.CLASSES || []) {
+    const list = Array.isArray(classDefinitions) ? classDefinitions : Object.values(classDefinitions || {});
+    return new Map(list.map((entry) => [normalizeId(entry?.id || entry?.classId), clone(entry)]).filter(([id]) => id));
+  }
+
+  function classAllocationSummary(character = {}) {
+    const classes = normalizeClasses(character);
+    const earnedLevel = earnedCharacterLevel(character);
+    const allocatedLevel = classes.reduce((sum, entry) => sum + Math.max(0, int(entry.levels, 0)), 0);
+    return {
+      earnedLevel,
+      allocatedLevel,
+      pendingLevels: Math.max(0, earnedLevel - allocatedLevel),
+      overAllocatedLevels: Math.max(0, allocatedLevel - earnedLevel),
+      classes,
+    };
+  }
+
+  function normalizeAllocationDraft(value = [], classDefinitions = global.LuminousCharacterBuildRules?.CLASSES || [], currentClasses = []) {
+    const definitions = classDefinitionMap(classDefinitions);
+    const currentIds = new Set((currentClasses || []).map((entry) => normalizeId(entry?.classId || entry?.id)).filter(Boolean));
+    const rows = Array.isArray(value)
+      ? value
+      : Object.entries(value || {}).map(([classId, levels]) => ({ classId, levels }));
+    const totals = new Map();
+
+    rows.forEach((entry) => {
+      const classId = normalizeId(entry?.classId || entry?.id || entry?.name);
+      const levels = Math.max(0, int(entry?.levels ?? entry?.level ?? entry?.classLevel, 0));
+      if (!classId || levels <= 0) return;
+      if (!definitions.has(classId) && !currentIds.has(classId)) return;
+      totals.set(classId, (totals.get(classId) || 0) + levels);
+    });
+
+    return [...totals.entries()]
+      .map(([classId, levels]) => ({ classId, levels }))
+      .sort((a, b) => a.classId.localeCompare(b.classId));
+  }
+
+  function validateClassAllocation(character = {}, proposed = [], classDefinitions = global.LuminousCharacterBuildRules?.CLASSES || [], options = {}) {
+    const current = classAllocationSummary(character);
+    const definitions = classDefinitionMap(classDefinitions);
+    const currentById = new Map(current.classes.map((entry) => [entry.classId, entry.levels]));
+    const rawRows = Array.isArray(proposed)
+      ? proposed
+      : Object.entries(proposed || {}).map(([classId, levels]) => ({ classId, levels }));
+    const errors = [];
+    const seen = new Set();
+
+    rawRows.forEach((entry) => {
+      const classId = normalizeId(entry?.classId || entry?.id || entry?.name);
+      const rawLevels = entry?.levels ?? entry?.level ?? entry?.classLevel;
+      const levels = Number(rawLevels);
+      if (!classId) {
+        errors.push("Hay una clase sin identificador.");
+        return;
+      }
+      if (seen.has(classId)) {
+        errors.push(`La clase ${classId} aparece más de una vez.`);
+        return;
+      }
+      seen.add(classId);
+      if (!definitions.has(classId) && !currentById.has(classId)) errors.push(`Clase desconocida: ${classId}.`);
+      if (!Number.isInteger(levels) || levels < 0) errors.push(`Los niveles de ${classId} deben ser un entero no negativo.`);
+    });
+
+    const classes = normalizeAllocationDraft(rawRows, classDefinitions, current.classes);
+    const proposedById = new Map(classes.map((entry) => [entry.classId, entry.levels]));
+
+    current.classes.forEach((entry) => {
+      const next = proposedById.get(entry.classId) || 0;
+      if (next < entry.levels) {
+        errors.push(`No puedes reducir ${entry.classId} de ${entry.levels} a ${next}. Usa el reset del DM para corregir niveles ya confirmados.`);
+      }
+    });
+
+    const proposedTotal = classes.reduce((sum, entry) => sum + entry.levels, 0);
+    const maxLevel = Math.max(1, int(global.LuminousCharacterBuildRules?.SETTINGS?.maxCharacterLevel, 100));
+    if (current.earnedLevel > maxLevel) errors.push(`El nivel del personaje (${current.earnedLevel}) supera el máximo soportado (${maxLevel}).`);
+    if (proposedTotal > current.earnedLevel) errors.push(`Intentas asignar ${proposedTotal} niveles, pero el personaje sólo tiene ${current.earnedLevel}.`);
+    if (options.requireAll !== false && proposedTotal !== current.earnedLevel) {
+      errors.push(`Debes asignar todos los niveles disponibles antes de confirmar: ${Math.max(0, current.earnedLevel - proposedTotal)} pendientes.`);
+    }
+
+    const changed = classes.some((entry) => currentById.get(entry.classId) !== entry.levels)
+      || current.classes.some((entry) => !proposedById.has(entry.classId));
+
+    return {
+      valid: errors.length === 0,
+      errors,
+      earnedLevel: current.earnedLevel,
+      allocatedBefore: current.allocatedLevel,
+      allocatedAfter: proposedTotal,
+      pendingAfter: Math.max(0, current.earnedLevel - proposedTotal),
+      classes,
+      changed,
+      before: current.classes,
+    };
+  }
+
+  function allocationChanges(character = {}, proposed = [], classDefinitions = global.LuminousCharacterBuildRules?.CLASSES || []) {
+    const validation = validateClassAllocation(character, proposed, classDefinitions, { requireAll: false });
+    const before = new Map(validation.before.map((entry) => [entry.classId, entry.levels]));
+    return validation.classes
+      .map((entry) => ({
+        classId: entry.classId,
+        before: before.get(entry.classId) || 0,
+        after: entry.levels,
+        delta: entry.levels - (before.get(entry.classId) || 0),
+      }))
+      .filter((entry) => entry.delta !== 0);
+  }
+
   const api = Object.freeze({
     VERSION,
     normalizeId,
@@ -313,6 +431,12 @@
     collectFormulas,
     previewFormulas,
     buildProgressionModel,
+    earnedCharacterLevel,
+    classDefinitionMap,
+    classAllocationSummary,
+    normalizeAllocationDraft,
+    validateClassAllocation,
+    allocationChanges,
   });
 
   global.LuminousPlayerProgressionTreeCore = api;
