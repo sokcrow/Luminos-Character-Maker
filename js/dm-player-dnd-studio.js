@@ -185,6 +185,35 @@
     }
   }
 
+  function ensureStudioExtensionAssets() {
+    const styles = [
+      ["dm-player-dnd-studio-tabs-style", "css/dm-player-dnd-studio-tabs.css"],
+      ["dm-player-loadout-manager-style", "css/dm-player-loadout-manager.css"],
+    ];
+    styles.forEach(([id, href]) => {
+      if (doc.getElementById(id)) return;
+      const link = doc.createElement("link");
+      link.id = id;
+      link.rel = "stylesheet";
+      link.href = href;
+      doc.head?.appendChild(link);
+    });
+
+    const scripts = [
+      ["dm-player-loadout-core-script", "js/dm-player-loadout-core.js"],
+      ["dm-player-dnd-studio-tabs-script", "js/dm-player-dnd-studio-tabs.js"],
+      ["dm-player-loadout-manager-script", "js/dm-player-loadout-manager.js"],
+    ];
+    scripts.forEach(([id, src]) => {
+      if (doc.getElementById(id)) return;
+      const script = doc.createElement("script");
+      script.id = id;
+      script.src = src;
+      script.async = false;
+      doc.head?.appendChild(script);
+    });
+  }
+
   function playerLabel(id, player) {
     return player?.characterName || player?.character_name || player?.nombre || player?.name || id;
   }
@@ -377,6 +406,7 @@
     else host.prepend(panel);
     bindPanel(panel);
     bindLegacyEditorTakeover();
+    ensureStudioExtensionAssets();
     state.mounted = true;
     return true;
   }
@@ -895,5 +925,6 @@
     loadPlayer,
     savePlayerDnd,
     updatePreviewFromForm,
+    ensureStudioExtensionAssets,
   });
 })(window);
