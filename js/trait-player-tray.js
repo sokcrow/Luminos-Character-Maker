@@ -690,7 +690,7 @@
 
     render() {
       if (!this.root) return;
-      this.setupStatsTabs();
+      if (this.host.closest?.("#stats-modal")) this.setupStatsTabs();
       this.root.replaceChildren();
 
       const traits = this.normalizedTraits();
