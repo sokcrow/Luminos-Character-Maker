@@ -13,6 +13,12 @@ on:
       - js/item-icon-registry.js
       - js/item-quality-engine.js
       - js/item-economy-standard.js
+      - js/economy-contracts-core.js
+      - js/dm-economy-contracts-runtime.js
+      - js/player-contracts-runtime.js
+      - css/economy-contracts.css
+      - database.rules.json
+      - tests/economy-contracts-core-smoke.cjs
       - js/item-affinity-engine.js
       - js/item-culinary-affinity-data.js
       - js/item-processing-recipe-data.js
@@ -122,6 +128,9 @@ jobs:
           node --check js/item-icon-registry.js
           node --check js/item-quality-engine.js
           node --check js/item-economy-standard.js
+          node --check js/economy-contracts-core.js
+          node --check js/dm-economy-contracts-runtime.js
+          node --check js/player-contracts-runtime.js
           node --check js/item-affinity-engine.js
           node --check js/item-culinary-affinity-data.js
           node --check js/item-processing-recipe-data.js
@@ -169,6 +178,10 @@ jobs:
         run: node tests/item-quality-engine-smoke.cjs
       - name: Item economy standard smoke
         run: node tests/item-economy-standard-smoke.cjs
+      - name: Economy contracts v2 smoke
+        run: node tests/economy-contracts-core-smoke.cjs
+      - name: Firebase rules JSON parse
+        run: node -e "JSON.parse(require('node:fs').readFileSync('database.rules.json','utf8')); console.log('database.rules.json: OK')"
       - name: Economy catalog rebase smoke
         run: node tests/item-economy-catalog-smoke.cjs
       - name: Item affinity engine smoke
