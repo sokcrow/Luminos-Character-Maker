@@ -978,8 +978,12 @@
       save: { abilityId: "wis", onSuccess: "negates" },
       concentration: false,
       mechanics: {
+        targetRequirement: { creatureType: "humanoid", mustSeeCaster: true },
+        saveAdvantageWhenFightingCasterOrAllies: true,
         onFailedSave: status("on_failed_save", "charmed", 0, 10),
-        breakCharmOnDamageFromCasterOrAlly: true
+        breakCharmOnDamageFromCasterOrAlly: true,
+        theaterDuration: "1_hour",
+        targetKnowsWhenSpellEnds: true
       },
       upcast: { atkWeightPerLevel: 1 },
       effects: []
@@ -1070,7 +1074,7 @@
     dissonant_whispers: Object.freeze({
       id: "dissonant_whispers", name: "Dissonant Whispers", nombre: "Susurros disonantes",
       level: 1, spellLevel: 1, cantrip: false,
-      classIds: ["bard", "sorcerer"],
+      classIds: ["bard"],
       school: "enchantment", contexts: ["combat"],
       sinAffinity: "lust", damageType: "perforante",
       targetingType: "focused_attack", attackWeight: 1, atkWeight: 1,
@@ -1120,14 +1124,14 @@
     animal_friendship: Object.freeze({
       id: "animal_friendship", name: "Animal Friendship", nombre: "Encantar animal",
       level: 1, spellLevel: 1, cantrip: false,
-      classIds: ["bard", "druid", "ranger", "sorcerer"],
+      classIds: ["bard", "druid", "ranger"],
       school: "enchantment", contexts: ["combat", "theater"],
       sinAffinity: "lust", damageType: null,
       targetingType: "multi", targetType: "multi", attackWeight: 1, atkWeight: 1,
       isUnclashable: true, save: { abilityId: "wis", onSuccess: "negates" },
       concentration: false,
       mechanics: {
-        targetRequirement: { creatureType: "beast", intelligenceMaxExclusive: 4, mustSeeAndHearCaster: true },
+        targetRequirement: { creatureType: "beast", mustSeeCaster: true },
         onFailedSave: status("on_failed_save", "charmed", 0, 99),
         charmedCannotAggressCasterOrAllies: true,
         passTurnWhenNoValidNonAggressiveAction: true,
