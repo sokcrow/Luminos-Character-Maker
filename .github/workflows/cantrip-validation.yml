@@ -8,6 +8,7 @@ on:
       - "js/spell-batch-cantrips-utility-runtime.js"
       - "js/spell-batch-weapon-cantrips-runtime.js"
       - "js/death-save-runtime.js"
+      - "js/spell-visual-asset-registry.js"
       - "Assets/Icons/status/cantrips/**"
       - "Assets/Icons/items/utility/thought_strand.png"
       - "Assets/Images/SpellUnits/**"
@@ -23,6 +24,7 @@ on:
       - "js/spell-batch-cantrips-utility-runtime.js"
       - "js/spell-batch-weapon-cantrips-runtime.js"
       - "js/death-save-runtime.js"
+      - "js/spell-visual-asset-registry.js"
       - "Assets/Icons/status/cantrips/**"
       - "Assets/Icons/items/utility/thought_strand.png"
       - "Assets/Images/SpellUnits/**"
@@ -61,3 +63,6 @@ jobs:
 
       - name: Cantrip visual assets smoke
         run: node tests/cantrip-visual-assets-smoke.mjs
+
+      - name: Spell visual registry smoke
+        run: node tests/spell-visual-asset-registry-smoke.mjs
