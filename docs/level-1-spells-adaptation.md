@@ -4,17 +4,18 @@ This branch is the dedicated integration line for Level 1 D&D spells in Luminous
 
 ## Scope
 
-Working target: **80 published Level 1 spells**.
+Working target: **82 published Level 1 spells**.
 
 - **64** Player's Handbook 2024 Level 1 spells.
-- **16** additional published official 5e Level 1 spells from supplemental / setting books that remain relevant to the project's broad spell scope.
+- **16** additional published official 5e Level 1 spells from legacy supplemental / setting books that remain relevant to the project's broad spell scope.
+- **2** current 2024-rules Level 1 spells from *Forgotten Realms: Heroes of Faerûn* (2025).
 - Unearthed Arcana is **not** included in this working target.
 - When a spell has a revised official 2024 version, use that version.
 - Otherwise use the latest published official legacy version available to the project.
 
 ## Current Repository Inventory
 
-### Present in `js/spell-catalog-core.js` — 9 / 80
+### Present in `js/spell-catalog-core.js` — 9 / 82
 
 These are **present, not automatically approved**. Each still needs review against the current design rules and latest official version before being considered finished.
 
@@ -28,7 +29,7 @@ These are **present, not automatically approved**. Each still needs review again
 - [ ] Silvery Barbs
 - [ ] Thunderwave
 
-### Missing — 71 / 80
+### Missing — 73 / 82
 
 #### 2024 PHB baseline missing — 57
 
@@ -90,7 +91,7 @@ These are **present, not automatically approved**. Each still needs review again
 - [ ] Witch Bolt
 - [ ] Wrathful Smite
 
-#### Published supplemental / setting spells missing — 14
+#### Published legacy supplemental / setting spells missing — 14
 
 - [ ] Beast Bond
 - [ ] Catapult
@@ -106,6 +107,11 @@ These are **present, not automatically approved**. Each still needs review again
 - [ ] Snare
 - [ ] Tasha's Caustic Brew
 - [ ] Zephyr Strike
+
+#### Forgotten Realms: Heroes of Faerûn (2025) — 2 missing
+
+- [ ] Spellfire Flare
+- [ ] Wardaway
 
 ## Published supplemental / setting spells already present
 
