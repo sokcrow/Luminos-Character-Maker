@@ -77,9 +77,6 @@
     const original = directChildren(editor);
     if (!original.length) return false;
 
-    const shell = doc.createElement("div");
-    shell.className = "dm-player-dnd-tabs-shell";
-
     const nav = doc.createElement("div");
     nav.className = "dm-player-dnd-tabs";
     nav.setAttribute("role", "tablist");
@@ -93,7 +90,7 @@
       button.dataset.dmStudioTab = entry.id;
       button.setAttribute("role", "tab");
       button.textContent = entry.label;
-      button.addEventListener("click", () => activate(shell, entry.id));
+      button.addEventListener("click", () => activate(editor, entry.id));
       nav.appendChild(button);
     });
 
@@ -126,9 +123,6 @@
     }
 
     editor.dataset.dmStudioTabbed = "true";
-    shell.append(nav, body);
-    // editor already owns nav/body; shell is only the activation scope alias.
-    // Use the editor itself for querying after composition.
     const active = activeTabId(editor);
     activate(editor, active);
     state.mounted = true;
