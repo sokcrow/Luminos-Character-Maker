@@ -9,15 +9,17 @@ Working target: **82 published Level 1 spells**.
 - **64** Player's Handbook 2024 Level 1 spells.
 - **16** additional published official 5e Level 1 spells from legacy supplemental / setting books that remain relevant to the project's broad spell scope.
 - **2** current 2024-rules Level 1 spells from *Forgotten Realms: Heroes of Faerûn* (2025).
-- Unearthed Arcana is **not** included in this working target.
+- Unearthed Arcana is **not** included.
 - When a spell has a revised official 2024 version, use that version.
 - Otherwise use the latest published official legacy version available to the project.
 
-## Current Repository Inventory
+## Inventory
 
-### Present in `js/spell-catalog-core.js` — 9 / 82
+There are **82** Level 1 spells in scope.
 
-These are **present, not automatically approved**. Each still needs review against the current design rules and latest official version before being considered finished.
+### Canonical catalog definitions present — 9 / 82
+
+These exist in `js/spell-catalog-core.js`, but remain review items until their metadata, mechanics, visuals/dependencies and smoke coverage meet the current spell contract.
 
 - [ ] Absorb Elements
 - [ ] Animal Friendship
@@ -29,9 +31,17 @@ These are **present, not automatically approved**. Each still needs review again
 - [ ] Silvery Barbs
 - [ ] Thunderwave
 
-### Missing — 73 / 82
+### Legacy role definitions awaiting canonical migration — 3 / 82
 
-#### 2024 PHB baseline missing — 57
+These already exist in `js/role-spell-catalog-core.js` and are covered by the Angelo smoke, so they must **not** be reimplemented as unrelated duplicates. They still count as pending work because the role catalog is not the authoritative shared spell definition.
+
+- [ ] Comprehend Languages
+- [ ] Speak with Animals
+- [ ] Distort Value
+
+### Truly absent definitions — 70 / 82
+
+#### 2024 PHB baseline — 55
 
 - [ ] Alarm
 - [ ] Armor of Agathys
@@ -42,7 +52,6 @@ These are **present, not automatically approved**. Each still needs review again
 - [ ] Color Spray
 - [ ] Command
 - [ ] Compelled Duel
-- [ ] Comprehend Languages
 - [ ] Create or Destroy Water
 - [ ] Cure Wounds
 - [ ] Detect Evil and Good
@@ -83,7 +92,6 @@ These are **present, not automatically approved**. Each still needs review again
 - [ ] Shield of Faith
 - [ ] Silent Image
 - [ ] Sleep
-- [ ] Speak with Animals
 - [ ] Tasha's Hideous Laughter
 - [ ] Tenser's Floating Disk
 - [ ] Thunderous Smite
@@ -91,14 +99,13 @@ These are **present, not automatically approved**. Each still needs review again
 - [ ] Witch Bolt
 - [ ] Wrathful Smite
 
-#### Published legacy supplemental / setting spells missing — 14
+#### Published legacy supplemental / setting — 13
 
 - [ ] Beast Bond
 - [ ] Catapult
 - [ ] Cause Fear
 - [ ] Ceremony
 - [ ] Chaos Bolt
-- [ ] Distort Value
 - [ ] Earth Tremor
 - [ ] Frost Fingers
 - [ ] Gift of Alacrity
@@ -108,34 +115,72 @@ These are **present, not automatically approved**. Each still needs review again
 - [ ] Tasha's Caustic Brew
 - [ ] Zephyr Strike
 
-#### Forgotten Realms: Heroes of Faerûn (2025) — 2 missing
+#### Forgotten Realms: Heroes of Faerûn (2025) — 2
 
 - [ ] Spellfire Flare
 - [ ] Wardaway
 
-## Published supplemental / setting spells already present
+So the remaining workload after the 9 existing canonical definitions is still **73 review/integration items**: **70 new definitions + 3 legacy migrations**.
 
-These count toward the 9 present above:
+## Canonical Spell Metadata Contract
 
-- [ ] Absorb Elements
-- [ ] Silvery Barbs
+Every canonical spell definition must carry enough data for both authorization and filtering:
+
+- `id`, `name` / `nombre`
+- `level` / `spellLevel`, `cantrip`
+- `classIds` — authoritative class availability
+- `school` — one of `abjuration`, `conjuration`, `divination`, `enchantment`, `evocation`, `illusion`, `necromancy`, `transmutation`
+- `contexts` — at least one of `combat`, `theater`
+- `castingTime`, `concentration`, and `ritual` when applicable
+- canonical targeting / resolution fields and `mechanics`
+- `upcast` where the spell changes with a higher-level slot
+
+Player-facing catalogs may filter the player's legal/known spells by school, level and context. DM/catalog surfaces may additionally filter the full catalog by `classIds`. UI filters never replace the cast-time class gate.
+
+## Spell Slot Contract
+
+Spell Slot spending remains owned by the shared Spellcasting + CombatAction resource pipeline:
+
+- cantrips / level 0: no Spell Slot resource;
+- leveled spells: one canonical `spell_slot` resource at the selected slot level;
+- class legality is validated from `classIds` before planning/casting;
+- ritual/free-cast features must opt into their existing class runtime rather than bypassing the resource system ad hoc.
+
+Individual spell runtimes must not decrement Spell Slots themselves.
 
 ## Adaptation Rules
 
 - Keep player-facing spell descriptions compact.
 - Reuse existing statuses and runtimes before adding spell-specific one-offs.
-- Explicitly choose Clash, Save, Unopposed, Reaction, Quick Action, or non-combat resolution.
-- D&D movement/range language should be converted to Luminous mechanics rather than exposed as feet in player-facing copy.
-- Concentration effects must clean up dependent statuses/entities.
+- Explicitly choose Clash, Save, failed-Save Unopposed, Reaction, Quick Action, automatic, or non-combat resolution.
+- D&D movement/range language is converted to Luminous mechanics rather than exposed as feet in player-facing copy.
+- Concentration effects clean up dependent statuses/entities.
 - Summons use the shared Summon HP contract unless the spell defines a justified exception.
 - Background Units do not automatically use Summon HP.
 - Temporary Items use the shared inventory/expiry systems.
-- Visual assets must use the shared `LuminousSpellVisualAssetRegistry` / item icon registry and be tagged by domain.
-- Add smoke coverage as each batch is implemented.
+- Visual assets use the shared `LuminousSpellVisualAssetRegistry` / item icon registry and are tagged by domain.
+- Every batch adds smoke coverage.
+
+## Batch Plan
+
+Keep integration batches at **5–6 spells** so each batch can be reviewed and reverted independently.
+
+### Batch 1 — foundational Level 1 shapes
+
+- [ ] Alarm
+- [ ] Armor of Agathys
+- [ ] Arms of Hadar
+- [ ] Bane
+- [ ] Bless
+- [ ] Burning Hands
+
+This batch intentionally covers ritual/theater, self-defense, save/AoE, concentration debuff, concentration buff, and elemental AoE so the reusable Level 1 runtime shapes are established before the remaining spells.
 
 ## Review Workflow
 
-1. Review every spell already present in the catalog.
-2. Adapt the missing spells in manageable batches.
-3. Mark each spell complete only when its catalog definition, runtime behavior, status/entity/item dependencies, visuals when required, and tests are all in place.
-4. Keep this checklist updated so the PR always shows exact Level 1 progress.
+1. Normalize the shared spell metadata/filter contract.
+2. Review the 9 existing canonical Level 1 spells against the same contract.
+3. Migrate the 3 role-only Level 1 definitions into the canonical catalog without duplicate IDs.
+4. Adapt the truly missing spells in 5–6 spell batches.
+5. Mark a spell complete only when its definition, runtime behavior, status/entity/item dependencies, visuals when required, and tests are all in place.
+6. Keep this checklist as the single progress source of truth.
