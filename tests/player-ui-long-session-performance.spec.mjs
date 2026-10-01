@@ -659,6 +659,7 @@ test("shared trait formula display resolves class and archetype formulas without
 
   const pending = dynamic.locator(".player-trait-resolved-value.is-pending").first();
   await expect(pending.locator(".player-trait-resolved-value__display")).toHaveText("pending");
+  await expect(pending.locator(".player-trait-formula-tooltip")).toHaveCount(0);
   const dynamicText = await playerFacingText(dynamic);
   expect(dynamicText).toContain("pending");
   expect(dynamicText).not.toContain("Spell Slot Level");
@@ -704,8 +705,11 @@ test("trait formula breakdown stays hidden on hover until Shift inspect mode is 
     </html>
   `, { waitUntil: "load" });
 
-  const value = page.locator('[data-trait-id="shift_formula_trait"] .player-trait-resolved-value').first();
-  const tooltip = value.locator(".player-trait-formula-tooltip");
+  const resolvedControl = page.locator('[data-trait-id="shift_formula_trait"] .player-trait-resolved-control').first();
+  const value = resolvedControl.locator(".player-trait-resolved-value");
+  const tooltip = resolvedControl.locator(".player-trait-formula-tooltip");
+  await expect(value.locator(".player-trait-formula-tooltip")).toHaveCount(0);
+  await expect(value).toHaveAttribute("aria-describedby", await tooltip.getAttribute("id"));
   await value.hover();
 
   await expect(tooltip).toHaveCSS("visibility", "hidden");

@@ -232,6 +232,11 @@ body:not(.on-game-dashboard) #perks-modal .player-trait-card__description{
   font-size:10px;
   line-height:1.45;
 }
+body:not(.on-game-dashboard) #perks-modal .player-trait-resolved-control{
+  position:relative;
+  display:inline;
+  vertical-align:baseline;
+}
 body:not(.on-game-dashboard) #perks-modal .player-trait-resolved-value{
   position:relative;
   display:inline;
@@ -281,9 +286,9 @@ body:not(.on-game-dashboard) #perks-modal .player-trait-formula-tooltip{
   transform:translate(-50%,-3px);
   transition:opacity .12s ease,transform .12s ease,visibility .12s ease;
 }
-body.player-trait-formula-inspect:not(.on-game-dashboard) #perks-modal .player-trait-resolved-value:hover .player-trait-formula-tooltip,
-body.player-trait-formula-inspect:not(.on-game-dashboard) #perks-modal .player-trait-resolved-value:focus .player-trait-formula-tooltip,
-body:not(.on-game-dashboard) #perks-modal .player-trait-resolved-value.is-open .player-trait-formula-tooltip{
+body.player-trait-formula-inspect:not(.on-game-dashboard) #perks-modal .player-trait-resolved-control:hover .player-trait-formula-tooltip,
+body.player-trait-formula-inspect:not(.on-game-dashboard) #perks-modal .player-trait-resolved-control:focus-within .player-trait-formula-tooltip,
+body:not(.on-game-dashboard) #perks-modal .player-trait-resolved-control.is-open .player-trait-formula-tooltip{
   opacity:1;
   visibility:visible;
   transform:translate(-50%,0);

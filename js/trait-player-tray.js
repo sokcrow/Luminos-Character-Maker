@@ -827,6 +827,7 @@
   }
 
   function createResolvedValueControl(resolved) {
+    const wrapper = createElement("span", "player-trait-resolved-control");
     const control = createElement("button", `player-trait-resolved-value${resolved.pending ? " is-pending" : ""}`);
     control.type = "button";
     control.appendChild(createElement("span", "player-trait-resolved-value__display", resolved.display));
@@ -835,19 +836,23 @@
     control.dataset.traitFormulaPending = resolved.pending ? "true" : "false";
     control.setAttribute("aria-label", `${resolved.label}: ${resolved.pending ? "waiting for contextual input" : resolved.display}. Hold Shift to inspect formula inputs, or activate this value for touch access.`);
     control.title = "Hold Shift to inspect calculation";
+
     const tooltip = createElement("span", "player-trait-formula-tooltip");
     tooltip.id = `player-trait-formula-tooltip-${++tooltipSequence}`;
     tooltip.setAttribute("role", "tooltip");
     control.setAttribute("aria-describedby", tooltip.id);
     appendTooltipRows(tooltip, resolved);
-    control.appendChild(tooltip);
+    wrapper.append(control, tooltip);
+
     const setOpen = (open) => {
-      control.classList.toggle("is-open", Boolean(open));
-      control.setAttribute("aria-expanded", open ? "true" : "false");
+      const active = Boolean(open);
+      wrapper.classList.toggle("is-open", active);
+      control.classList.toggle("is-open", active);
+      control.setAttribute("aria-expanded", active ? "true" : "false");
     };
     control.addEventListener("click", (event) => {
       event.stopPropagation();
-      setOpen(!control.classList.contains("is-open"));
+      setOpen(!wrapper.classList.contains("is-open"));
     });
     control.addEventListener("keydown", (event) => {
       if (event.key !== "Escape") return;
@@ -856,7 +861,7 @@
       control.blur();
     });
     control.addEventListener("blur", () => setOpen(false));
-    return control;
+    return wrapper;
   }
 
   function renderTraitDescription(trait = {}, runtime = {}) {
