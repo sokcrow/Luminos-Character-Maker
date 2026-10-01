@@ -13,6 +13,8 @@ on:
       - "js/battle-viewer-spell-runtime-074.js"
       - "js/battle-viewer-player-spell-planner-074.js"
       - "tests/level-1-spell-batch-*-smoke.mjs"
+      - "tests/canonical-spell-runtime-smoke.mjs"
+      - "tests/combat-v074-player-spell-planner-smoke.mjs"
       - ".github/workflows/level-1-spell-validation.yml"
   pull_request:
     branches:
@@ -28,6 +30,8 @@ on:
       - "js/battle-viewer-spell-runtime-074.js"
       - "js/battle-viewer-player-spell-planner-074.js"
       - "tests/level-1-spell-batch-*-smoke.mjs"
+      - "tests/canonical-spell-runtime-smoke.mjs"
+      - "tests/combat-v074-player-spell-planner-smoke.mjs"
       - ".github/workflows/level-1-spell-validation.yml"
 
 jobs:
