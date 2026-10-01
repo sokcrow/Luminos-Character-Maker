@@ -527,13 +527,18 @@
     const loadoutRuntime = skillLoadoutRuntime();
     return normalizePlayerActors(players, actors).map((actor) => {
       const unitResolution = resolvePlayerUnit(actor, units);
-      const loadout = unitResolution.ok && loadoutRuntime?.hydrateLoadout ? loadoutRuntime.hydrateLoadout(unitResolution.unit, skills) : null;
+      const playerSkillSlots = loadoutRuntime?.skillSlotIdsFor ? loadoutRuntime.skillSlotIdsFor(actor.raw || {}) : [];
+      const loadoutSource = playerSkillSlots.length ? actor.raw : unitResolution.ok ? unitResolution.unit : null;
+      const loadout = loadoutSource && loadoutRuntime?.hydrateLoadout ? loadoutRuntime.hydrateLoadout(loadoutSource, skills) : null;
+      const explicitSpellIds = actor.raw?.characterBuild?.spellSelections || actor.raw?.spellSelections || actor.raw?.characterBuild?.spellIds || actor.raw?.spellIds || [];
       return {
         actor,
         linked: Boolean(actor.linkedActorId),
         existing: playerAlreadyInCombat(actor, combatants),
         unitResolution,
         loadout,
+        loadoutSource: playerSkillSlots.length ? "player" : unitResolution.ok ? "unit" : "none",
+        spellSelectionCount: Array.isArray(explicitSpellIds) ? explicitSpellIds.length : 0,
         spellLoadout: automaticSpellLoadoutForActor(actor),
         skillLoadout: automaticSkillLoadoutForActor(actor),
       };
@@ -617,15 +622,17 @@
     if (!select || !add) return false;
     const previous = select.value;
     const entries = playerEntries();
-    select.innerHTML = '<option value="">— Select campaign Player —</option>' + entries.map(({ actor, linked, existing, unitResolution, loadout, spellLoadout, skillLoadout }) => {
+    select.innerHTML = '<option value="">— Select campaign Player —</option>' + entries.map(({ actor, linked, existing, unitResolution, loadout, loadoutSource, spellSelectionCount, spellLoadout, skillLoadout }) => {
       const key = actor.key;
       let suffix = existing ? " · IN COMBAT" : linked ? " · READY" : " · NO ACTOR LINK";
       if (!existing && linked) {
         if (unitResolution.reason === "AMBIGUOUS_PLAYER_UNIT") suffix = " · AMBIGUOUS UNIT";
-        else if (!unitResolution.ok) suffix = " · NO UNIT LOADOUT";
+        else if (loadoutSource === "player") suffix = ` · PLAYER DECK · ${loadout?.skillIds?.length || 0} SKILLS`;
+        else if (!unitResolution.ok) suffix = " · NO SKILL LOADOUT";
         else suffix = ` · UNIT · ${loadout?.skillIds?.length || 0} SKILLS`;
       }
-      if (spellLoadout) suffix += ` · ${spellLoadout.combatSpellIds.length} SPELLS`;
+      const totalSpells = spellLoadout?.combatSpellIds?.length || spellSelectionCount || 0;
+      if (totalSpells) suffix += ` · ${totalSpells} SPELLS`;
       if (skillLoadout) suffix += ` · ${skillLoadout.skillSlotIds.length} SIGNATURE SKILLS`;
       return `<option value="${htmlEscape(key)}">${htmlEscape(actor.name)}${suffix}</option>`;
     }).join("");
@@ -645,7 +652,7 @@
     else if (selected?.existing) setStatus("Player is already in combat.");
     else if (selected && !selected.linked) setStatus("Player has no assigned Actor; cannot create a canonical combatant.", "error");
     else if (ambiguous) setStatus("Multiple Player Units match this Player. Resolve the Unit linkage before entering combat.", "error");
-    else if (selected && !selected.unitResolution.ok) setStatus(`Ready: ${selected.actor.name} · no linked Unit loadout; combatant will have 0 equipped Skills.`);
+    else if (selected && !selected.loadout) setStatus(`Ready: ${selected.actor.name} · no Skill Deck assigned.`, "error");
     else if (selected?.loadout?.hasErrors) setStatus(`Ready: ${selected.actor.name} · loadout has missing/invalid Skill IDs.`, "error");
     else if (selected) setStatus(`Ready: ${selected.actor.name} · ${selected.loadout?.skillIds?.length || 0} equipped Skills.`);
     else setStatus("Select a Player to add to combat.");
