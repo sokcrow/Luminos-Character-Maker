@@ -38,7 +38,18 @@
         ".write": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'"
       },
       "economia": {
-        ".write": "auth != null && (auth.uid === root.child('campaña').child('config').child('dm_uid').val() || (!root.child('campaña').child('config').child('dm_uid').exists() && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'))"
+        ".write": "auth != null && (auth.uid === root.child('campaña').child('config').child('dm_uid').val() || (!root.child('campaña').child('config').child('dm_uid').exists() && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'))",
+        "contratos": {
+          "$contractId": {
+            "participantes": {
+              "$playerKey": {
+                "status": {
+                  ".write": "auth != null && root.child('campaña').child('jugadores').child($playerKey).child('uid').val() === auth.uid && root.child('campaña').child('economia').child('contratos').child($contractId).child('status').val() === 'active' && data.val() === 'active' && newData.val() === 'cancelled'"
+                }
+              }
+            }
+          }
+        }
       },
       "tiempo": {
         "world_scheduler_requests": {
