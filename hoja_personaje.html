@@ -8539,17 +8539,48 @@
                   <h2>PROGRESIÓN</h2>
                 </div>
                 <p>
-                  Recorre la clase con la rueda del mouse. Los arquetipos se separan en ramas;
-                  pasa el cursor sobre un nodo para inspeccionar sus Traits, Skills, Spells y
-                  fórmulas exactamente en el nivel donde se obtienen.
+                  Tus Traits son la vista principal. Usa el Árbol de Clase para repartir niveles,
+                  revisar arquetipos y ver qué desbloquea cada nivel.
                 </p>
               </header>
 
-              <div id="player-progression-level-allocation-host" aria-live="polite"></div>
-              <div id="player-progression-tree-host" aria-live="polite"></div>
-              <aside id="player-progression-detail" aria-live="polite"></aside>
+              <nav class="player-progression-primary-tabs" role="tablist" aria-label="Vista de progresión">
+                <button
+                  type="button"
+                  class="player-progression-primary-tab is-active"
+                  data-progression-view-target="traits"
+                  role="tab"
+                  aria-selected="true"
+                >
+                  TRAITS
+                </button>
+                <button
+                  type="button"
+                  class="player-progression-primary-tab"
+                  data-progression-view-target="tree"
+                  role="tab"
+                  aria-selected="false"
+                >
+                  CLASE / ÁRBOL
+                </button>
+              </nav>
 
-              <section class="player-progression-traits-section" aria-label="Traits del personaje">
+              <section
+                class="player-progression-primary-view player-progression-tree-view"
+                data-progression-view="tree"
+                aria-label="Árbol de clase"
+                hidden
+              >
+                <div id="player-progression-level-allocation-host" aria-live="polite"></div>
+                <div id="player-progression-tree-host" aria-live="polite"></div>
+                <aside id="player-progression-detail" aria-live="polite"></aside>
+              </section>
+
+              <section
+                class="player-progression-primary-view player-progression-traits-section"
+                data-progression-view="traits"
+                aria-label="Traits del personaje"
+              >
                 <div class="player-progression-traits-dossier is-legacy-hud">
                   <section class="player-progression-traits-art-panel" aria-label="Arte del personaje">
                     <img data-progression-trait-art alt="Arte del personaje" hidden>
