@@ -155,6 +155,20 @@
     "globalName": "LuminousBilgewaterDemolisherArchetypeRuntime"
   },
   {
+    "id": "archetype:bladesinger",
+    "kind": "archetype",
+    "path": "js/bladesinger-archetype-runtime.js",
+    "contexts": [
+      "any"
+    ],
+    "dependsOn": [
+      "class:wizard",
+      "support:player-archetype-runtime-core",
+      "support:universal-action-economy"
+    ],
+    "globalName": "LuminousBladesingerArchetypeRuntime"
+  },
+  {
     "id": "archetype:champion",
     "kind": "archetype",
     "path": "js/champion-archetype-runtime.js",
@@ -297,6 +311,18 @@
       "support:universal-speed-runtime"
     ],
     "globalName": "LuminousSorcererClassRuntime"
+  },
+  {
+    "id": "class:wizard",
+    "kind": "class",
+    "path": "js/wizard-class-runtime.js",
+    "contexts": [
+      "any"
+    ],
+    "dependsOn": [
+      "support:spellcasting-runtime"
+    ],
+    "globalName": "LuminousWizardClassRuntime"
   },
   {
     "id": "adapter:bilgewater-buccaneer:combat",
