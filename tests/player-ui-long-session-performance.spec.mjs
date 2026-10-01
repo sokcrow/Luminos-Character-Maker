@@ -235,6 +235,7 @@ async function installPageInstrumentation(page) {
   await page.addInitScript(() => {
     const nativeSetInterval = window.setInterval.bind(window);
     const nativeClearInterval = window.clearInterval.bind(window);
+    const nativeClearTimeout = window.clearTimeout.bind(window);
     const active = new Map();
 
     window.setInterval = (fn, delay, ...args) => {
@@ -248,6 +249,10 @@ async function installPageInstrumentation(page) {
     window.clearInterval = (id) => {
       active.delete(id);
       return nativeClearInterval(id);
+    };
+    window.clearTimeout = (id) => {
+      active.delete(id);
+      return nativeClearTimeout(id);
     };
     window.__perfIntervalRegistry = {
       activeCount: () => active.size,
@@ -287,7 +292,10 @@ test("source keeps the static player surface free of permanent polling and dupli
   expect(tree).not.toContain('state.playerRef.on("value"');
   expect(allocation).not.toContain('state.playerRef.on("value"');
   expect(allocation).toContain("nextRenderSignature === state.renderSignature");
+  const watchdog = fs.readFileSync(path.join(ROOT, "js/theatre-check-retry-watchdog.js"), "utf8");
   expect(instance).toContain("syncPlayerCombatOcclusion");
+  expect(watchdog).toContain("if (retryAuthorizedBindings()) return null");
+  expect(watchdog).toContain("retryAuthorizedBindings() || retryAttempts >= MAX_RETRY_ATTEMPTS");
 });
 
 test("real player sheet reaches interval-idle after boot", async ({ page }) => {
