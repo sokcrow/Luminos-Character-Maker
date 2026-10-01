@@ -749,6 +749,7 @@
     state.dirty = false;
     updatePreviewFromForm();
     state.dirty = false;
+    global.dispatchEvent?.(new CustomEvent("luminous:dm-player-selected", { detail: { playerId } }));
     return true;
   }
 
