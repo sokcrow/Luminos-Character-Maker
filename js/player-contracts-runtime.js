@@ -4,6 +4,12 @@
   let activeRef = null;
   let activeHandler = null;
 
+  function dispose() {
+    dispose();
+    activeRef = null;
+    activeHandler = null;
+  }
+
   function init({ db, playerId }) {
     const core = global.LuminousEconomyContractsCore;
     const container = document.getElementById("player-contracts-list");
@@ -100,5 +106,5 @@
     });
   }
 
-  global.LuminousPlayerContractsRuntime = Object.freeze({ init });
+  global.LuminousPlayerContractsRuntime = Object.freeze({ init, dispose });
 })(typeof window !== "undefined" ? window : globalThis);
