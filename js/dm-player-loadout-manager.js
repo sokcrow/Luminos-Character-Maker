@@ -533,6 +533,7 @@
     await ensureDependencies();
     connectFirebase();
     bindStudioSelect();
+    global.addEventListener?.("luminous:dm-player-selected", (event) => bindPlayer(event?.detail?.playerId), { passive: true });
     state.ready = true;
     render();
     return true;
