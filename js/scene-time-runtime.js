@@ -215,7 +215,7 @@
   }
   function render(){ensureStyles();renderDm();renderPlayer();updateLock();decorateLog();}
   function controlAction(actorId,command,extra={}){return submitEvent({type:'action_control',actorId,command,source:'dm',...extra});}
-  function boot(){bindData();patchTheatre();patchCombat();render();doc.addEventListener('change',updateLock);new MutationObserver(decorateLog).observe(doc.body,{childList:true,subtree:true});global.setInterval(()=>{patchTheatre();patchCombat();updateLock();},1000);}
+  function boot(){bindData();patchTheatre();patchCombat();render();doc.addEventListener('change',updateLock);new MutationObserver(()=>{decorateLog();patchTheatre();updateLock();}).observe(doc.body,{childList:true,subtree:true});['luminous:player-data','luminous:player-instance-changed','luminous:combat073-runtime-ready'].forEach((name)=>global.addEventListener?.(name,()=>{patchTheatre();patchCombat();updateLock();}));}
 
   global.LuminousSceneTime=Object.freeze({submitEvent,controlAction,blockingActionFor:blocking,setMode:(mode)=>submitEvent({type:'set_mode',mode:mode==='combat'?'combat':'scene',source:'dm'}),advanceToNextEvent:()=>submitEvent({type:'next_event',source:'dm'}),recordCombatRound:()=>submitEvent({type:'combat_round',source:'combat'}),getRuntimeState:()=>({calendar:C.clone(state.calendar),roomState:C.clone(state.room),roomKey:roomKey()}),refresh:render});
   if(doc.readyState==='loading')doc.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
