@@ -359,23 +359,19 @@
 
   function bindPlayer() {
     const playerId = currentPlayerId();
-    if (!playerId || !state.db) {
-      state.character = global.datosJugador || null;
-      render(true);
-      return false;
-    }
-    if (state.playerId === playerId && state.playerRef) return true;
+    state.playerId = playerId || state.playerId;
+    state.character = global.datosJugador || state.character || {};
+    return Boolean(state.playerId || state.character);
+  }
 
-    if (state.playerRef && state.playerListener) state.playerRef.off("value", state.playerListener);
-    state.playerId = playerId;
-    state.playerRef = state.db.ref(`${PLAYER_ROOT}/${playerId}`);
-    state.playerListener = (snapshot) => {
-      state.character = snapshot.val() || global.datosJugador || {};
-      state.signature = "";
-      render(true);
-    };
-    state.playerRef.on("value", state.playerListener);
-    return true;
+  function handlePlayerData(event) {
+    const detail = event?.detail || {};
+    const incomingId = clean(detail.playerId || currentPlayerId());
+    const activeId = currentPlayerId();
+    if (incomingId && activeId && incomingId !== activeId) return;
+    state.playerId = incomingId || state.playerId;
+    state.character = detail.data || global.datosJugador || {};
+    render(false);
   }
 
   function connectFirebase() {
@@ -398,6 +394,7 @@
     connectFirebase();
     bindPlayer();
     render(true);
+    global.addEventListener?.("luminous:player-data", handlePlayerData);
 
     [
       "luminous:traits-refreshed",
