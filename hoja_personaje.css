@@ -631,9 +631,9 @@
                 rgba(0, 255, 255, 0.05) 10%,
                 rgba(0, 255, 255, 0) 100%
             );
-            opacity: 0.5;
+            opacity: 0.18;
             background-size: 100% 100%;
-            animation: scanline 8s linear infinite;
+            transform: translateY(0);
             z-index: 998;
             pointer-events: none;
         }
