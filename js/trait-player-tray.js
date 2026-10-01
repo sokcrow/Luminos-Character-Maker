@@ -337,14 +337,203 @@
     }).filter(Boolean);
   }
 
+
+  const FORMULA_DYNAMIC_VARIABLES = new Set([
+    "skillcoincount", "skillweight", "skillrange", "spellslotlevel",
+    "targetlevel", "targetmaxhp", "targetcurrenthp", "targetoffensivelevel", "targetdefensivelevel",
+    "aliveallies", "aliveenemies", "turnnumber", "roundnumber",
+  ]);
+  let formulaInspectModeBound = false;
+
+  function escapeFormulaRegExp(value) {
+    return String(value || "").replace(/[-/\\^$*+?.()|[\]{}]/g, "\\  function resolveTraitDisplayValue(trait = {}, spec = {}, runtime = {}) {");
+  }
+
+  function sourceClassIdForFormula(trait = {}) {
+    const source = trait.source || {};
+    const type = normalizeId(source.type || trait.sourceType);
+    if (type === "class") return normalizeId(source.classId || source.id || trait.sourceId);
+    if (type === "archetype") return normalizeId(source.classId || source.parentClassId || source.parentClass || trait.classId || trait.parentClassId);
+    return normalizeId(source.classId || trait.classId || "");
+  }
+
+  function sourceClassNameForFormula(trait = {}) {
+    const source = trait.source || {};
+    return titleCaseId(source.className || source.parentClassName || source.parentClass || sourceClassIdForFormula(trait));
+  }
+
+  function normalizeDisplayFormula(formula, trait = {}) {
+    let result = String(formula == null ? "" : formula).trim();
+    [
+      ["StrengthModifier", "StrengthMod"],
+      ["DexterityModifier", "DexterityMod"],
+      ["ConstitutionModifier", "ConstitutionMod"],
+      ["IntelligenceModifier", "IntelligenceMod"],
+      ["WisdomModifier", "WisdomMod"],
+      ["CharismaModifier", "CharismaMod"],
+    ].forEach((entry) => {
+      result = result.replace(new RegExp("\\b" + entry[0] + "\\b", "gi"), entry[1]);
+    });
+    const classNames = [sourceClassNameForFormula(trait), sourceClassIdForFormula(trait)]
+      .filter(Boolean)
+      .map((value) => String(value).replace(/[^A-Za-z0-9]/g, ""));
+    classNames.forEach((name) => {
+      result = result.replace(new RegExp("\\b" + escapeFormulaRegExp(name) + "Level\\b", "gi"), "ClassLevel");
+    });
+    return result;
+  }
+
+  function formulaRuntimeForTrait(trait = {}, runtime = {}) {
+    const classId = sourceClassIdForFormula(trait);
+    if (!classId || runtime.sourceClassId) return runtime;
+    return Object.assign({}, runtime, { sourceClassId: classId });
+  }
+
+  function formulaVariableReady(identifier, runtime = {}) {
+    const id = String(identifier || "").toLowerCase();
+    if (!FORMULA_DYNAMIC_VARIABLES.has(id)) return true;
+    const custom = runtime.variables || {};
+    if (Object.keys(custom).some((key) => key.toLowerCase() === id)) return true;
+    const skill = runtime.skill || {};
+    const target = runtime.target || runtime.defender || null;
+    const has = (key) => Object.prototype.hasOwnProperty.call(runtime, key);
+    if (id === "skillcoincount") return has("SkillCoinCount") || has("skillCoinCount") || skill.coinCount != null || skill.coinAmount != null || Array.isArray(skill.coins);
+    if (id === "skillweight") return has("SkillWeight") || has("skillWeight") || skill.weight != null || skill.attackWeight != null;
+    if (id === "skillrange") return has("SkillRange") || has("skillRange") || skill.skillRange != null;
+    if (id === "spellslotlevel") return has("SpellSlotLevel") || has("spellSlotLevel") || skill.spellSlotLevel != null;
+    if (id.indexOf("target") === 0) return Boolean(target) || has(identifier);
+    if (id === "aliveallies") return has("AliveAllies") || has("aliveAllies");
+    if (id === "aliveenemies") return has("AliveEnemies") || has("aliveEnemies");
+    if (id === "turnnumber") return has("TurnNumber") || has("turnNumber");
+    if (id === "roundnumber") return has("RoundNumber") || has("roundNumber");
+    return false;
+  }
+
+  function formulaVariablePattern(identifier, trait = {}) {
+    const key = String(identifier || "");
+    const className = sourceClassNameForFormula(trait);
+    const classPattern = className
+      ? "(?:" + escapeFormulaRegExp(className) + "(?:\\s+Class)?\\s+Level|Class\\s+Level|ClassLevel)"
+      : "(?:[A-Za-z][A-Za-z-]*\\s+Class\\s+Level|Class\\s+Level|ClassLevel)";
+    const patterns = {
+      ClassLevel: classPattern,
+      StrengthMod: "(?:STR|Strength)\\s*(?:Mod(?:ifier)?|Modifier)?",
+      DexterityMod: "(?:DEX|Dexterity)\\s*(?:Mod(?:ifier)?|Modifier)?",
+      ConstitutionMod: "(?:CON|Constitution)\\s*(?:Mod(?:ifier)?|Modifier)?",
+      IntelligenceMod: "(?:INT|Intelligence)\\s*(?:Mod(?:ifier)?|Modifier)?",
+      WisdomMod: "(?:WIS|Wisdom)\\s*(?:Mod(?:ifier)?|Modifier)?",
+      CharismaMod: "(?:CHA|Charisma)\\s*(?:Mod(?:ifier)?|Modifier)?",
+      Proficiency: "(?:Proficiency(?:\\s+Bonus)?)",
+      SpellSlotLevel: "(?:Spell\\s+Slot\\s+Level|SpellSlotLevel)",
+    };
+    return patterns[key] || escapeFormulaRegExp(key);
+  }
+
+  function formulaTextPattern(formula, trait = {}, unit = "flat") {
+    const normalized = normalizeDisplayFormula(formula, trait);
+    const tokens = normalized.match(/[A-Za-z_][A-Za-z0-9_.]*|\d+(?:\.\d+)?|[+\-*\/%,()]/g) || [];
+    const parts = [];
+    tokens.forEach((token) => {
+      if (token === "(" || token === ")" || token === ",") return;
+      if (FORMULA_FUNCTIONS.has(token.toLowerCase())) {
+        parts.push("(?:" + escapeFormulaRegExp(token) + "[\\s(),]*)?");
+        return;
+      }
+      if (/^[A-Za-z_]/.test(token)) {
+        parts.push(formulaVariablePattern(token, trait));
+        return;
+      }
+      if (token === "*") parts.push("(?:\\*|×)");
+      else if (token === "/") parts.push("(?:/|÷)");
+      else if (token === "%") parts.push("%");
+      else if (token === "+" || token === "-") parts.push("\\" + token);
+      else parts.push(escapeFormulaRegExp(token) + "%?");
+    });
+    if (!parts.length) return null;
+    const tail = normalizeId(unit) === "percent" ? "\\s*%?" : "";
+    return new RegExp(parts.join("[\\s(),]*") + tail, "i");
+  }
+
+  function formulaLabel(path = [], owner = {}) {
+    const key = String(path[path.length - 1] || "");
+    const parent = String(path[path.length - 2] || "value");
+    const raw = key.toLowerCase() === "formula"
+      ? owner.channel || owner.path || owner.resourceId || parent
+      : key.replace(/Formula$/i, "");
+    return titleCaseId(String(raw).replace(/_multiplier$/i, "").replace(/Multiplier$/i, ""));
+  }
+
+  function formulaUnit(path = [], owner = {}) {
+    const explicit = normalizeId(owner.unit || "");
+    if (explicit === "percent" || explicit === "percentage" || explicit === "percent_reduction") return "percent";
+    if (explicit === "hp" || explicit === "sp") return explicit;
+    const probe = (path.join(" ") + " " + (owner.channel || "") + " " + (owner.path || "")).toLowerCase();
+    if (probe.indexOf("percent") >= 0 || probe.indexOf("percentage") >= 0) return "percent";
+    return "flat";
+  }
+
+  function collectTraitFormulaSpecs(trait = {}) {
+    const specs = [];
+    let sequence = 0;
+    const visit = (value, path) => {
+      if (Array.isArray(value)) {
+        value.forEach((entry, index) => visit(entry, path.concat(String(index))));
+        return;
+      }
+      if (!value || typeof value !== "object") return;
+      Object.entries(value).forEach(([key, child]) => {
+        const nextPath = path.concat(key);
+        if ((key.toLowerCase() === "formula" || /Formula$/i.test(key)) && (typeof child === "string" || typeof child === "number")) {
+          sequence += 1;
+          specs.push({
+            id: "auto_formula_" + sequence,
+            label: formulaLabel(nextPath, value),
+            formula: String(child),
+            unit: formulaUnit(nextPath, value),
+            sourcePath: nextPath.join("."),
+          });
+        } else if (child && typeof child === "object") {
+          visit(child, nextPath);
+        }
+      });
+    };
+    visit(trait.activation || {}, ["activation"]);
+    visit(trait.rules || [], ["rules"]);
+    visit(trait.effects || [], ["effects"]);
+    visit(trait.mechanics || {}, ["mechanics"]);
+    return specs;
+  }
+
   function resolveTraitDisplayValue(trait = {}, spec = {}, runtime = {}) {
     if (!engine?.buildVariables || !engine?.evaluateFormula || !spec?.id || spec.formula == null) return null;
-    const character = runtime.character || runtime.self || {};
-    const variables = engine.buildVariables(character, runtime, trait);
-    const missing = formulaIdentifiers(spec.formula).filter((identifier) => !variableEntry(variables, identifier));
+    const resolvedRuntime = formulaRuntimeForTrait(trait, runtime || {});
+    const character = resolvedRuntime.character || resolvedRuntime.self || {};
+    const formula = normalizeDisplayFormula(spec.formula, trait);
+    const variables = engine.buildVariables(character, resolvedRuntime, trait);
+    const identifiers = formulaIdentifiers(formula);
+    const missing = identifiers.filter((identifier) => !variableEntry(variables, identifier));
+    const pending = identifiers.filter((identifier) => !formulaVariableReady(identifier, resolvedRuntime));
     if (missing.length) return null;
+    if (pending.length) {
+      return {
+        id: String(spec.id),
+        label: String(spec.label || titleCaseId(spec.id)),
+        formula: String(spec.formula),
+        evaluationFormula: formula,
+        value: null,
+        display: "pending",
+        variables,
+        pending: true,
+        pendingVariables: pending,
+        breakdown: traitFormulaBreakdown({ ...spec, formula }, variables).map((row) => (
+          pending.some((identifier) => identifier.toLowerCase() === row.identifier.toLowerCase())
+            ? { ...row, value: null, display: "pending", pending: true }
+            : row
+        )),
+      };
+    }
     try {
-      const value = engine.evaluateFormula(spec.formula, variables);
+      const value = engine.evaluateFormula(formula, variables);
       if (!Number.isFinite(Number(value))) return null;
       const display = formatResolvedTraitValue(value, spec);
       if (!display) return null;
@@ -352,10 +541,13 @@
         id: String(spec.id),
         label: String(spec.label || titleCaseId(spec.id)),
         formula: String(spec.formula),
+        evaluationFormula: formula,
         value: Number(value),
         display,
         variables,
-        breakdown: traitFormulaBreakdown(spec, variables),
+        pending: false,
+        pendingVariables: [],
+        breakdown: traitFormulaBreakdown({ ...spec, formula }, variables),
       };
     } catch (_) {
       return null;
@@ -364,24 +556,69 @@
 
   function resolveTraitDisplay(trait = {}, runtime = {}) {
     const display = trait?.display || BUILTIN_DISPLAY_METADATA[normalizeId(trait?.id || trait?.name)] || null;
-    const template = typeof display?.playerDescription === "string" ? display.playerDescription : "";
-    const specs = Array.isArray(display?.resolvedValues) ? display.resolvedValues : [];
-    if (!template || !specs.length) return null;
-    const values = {};
-    for (const spec of specs) {
-      const resolved = resolveTraitDisplayValue(trait, spec, runtime);
-      if (!resolved) return null;
-      values[resolved.id] = resolved;
+    const explicitTemplate = typeof display?.playerDescription === "string" ? display.playerDescription : "";
+    const explicitSpecs = Array.isArray(display?.resolvedValues) ? display.resolvedValues : [];
+    if (explicitTemplate && explicitSpecs.length) {
+      const values = {};
+      let complete = true;
+      for (const spec of explicitSpecs) {
+        const resolved = resolveTraitDisplayValue(trait, spec, runtime);
+        if (!resolved) {
+          complete = false;
+          break;
+        }
+        values[resolved.id] = resolved;
+      }
+      const placeholders = [...explicitTemplate.matchAll(/\{([A-Za-z0-9_-]+)\}/g)].map((match) => match[1]);
+      if (complete && placeholders.length && placeholders.every((id) => values[id])) {
+        return { template: explicitTemplate, values, extras: [] };
+      }
     }
-    const placeholders = [...template.matchAll(/\{([A-Za-z0-9_-]+)\}/g)].map((match) => match[1]);
-    if (!placeholders.length || placeholders.some((id) => !values[id])) return null;
-    return { template, values };
+
+    const source = String(trait.description || "");
+    const autoSpecs = collectTraitFormulaSpecs(trait);
+    if (!source || !autoSpecs.length) return null;
+    const values = {};
+    const replacements = [];
+    const extras = [];
+    const occupied = [];
+    const seenExtra = new Set();
+
+    autoSpecs.forEach((spec) => {
+      const resolved = resolveTraitDisplayValue(trait, spec, runtime);
+      if (!resolved) return;
+      resolved.unit = spec.unit;
+      const pattern = formulaTextPattern(resolved.evaluationFormula || resolved.formula, trait, spec.unit);
+      const match = pattern ? pattern.exec(source) : null;
+      if (match) {
+        const range = { start: match.index, end: match.index + match[0].length };
+        const overlaps = occupied.some((used) => range.start < used.end && used.start < range.end);
+        if (!overlaps) {
+          occupied.push(range);
+          values[resolved.id] = resolved;
+          replacements.push({ ...range, token: "{" + resolved.id + "}" });
+          return;
+        }
+      }
+      const extraKey = (resolved.evaluationFormula || resolved.formula) + "|" + resolved.label + "|" + resolved.display;
+      if (!seenExtra.has(extraKey)) {
+        seenExtra.add(extraKey);
+        values[resolved.id] = resolved;
+        extras.push(resolved);
+      }
+    });
+
+    let template = source;
+    replacements.sort((a, b) => b.start - a.start).forEach((replacement) => {
+      template = template.slice(0, replacement.start) + replacement.token + template.slice(replacement.end);
+    });
+    return replacements.length || extras.length ? { template, values, extras } : null;
   }
 
   function appendTooltipRows(tooltip, resolved) {
     tooltip.appendChild(createElement("strong", "player-trait-formula-tooltip__title", resolved.label));
     resolved.breakdown.forEach((row) => {
-      const line = createElement("span", "player-trait-formula-tooltip__row");
+      const line = createElement("span", `player-trait-formula-tooltip__row${row.pending ? " is-pending" : ""}`);
       line.append(
         createElement("span", "player-trait-formula-tooltip__key", `${row.label}:`),
         createElement("b", "player-trait-formula-tooltip__number", row.display),
@@ -392,16 +629,21 @@
     formula.append(createElement("span", "", "Formula:"), createElement("code", "", resolved.formula));
     tooltip.appendChild(formula);
     const total = createElement("span", "player-trait-formula-tooltip__total");
-    total.append(createElement("span", "", "Total:"), createElement("b", "", resolved.display));
+    total.append(
+      createElement("span", "", resolved.pending ? "Result:" : "Total:"),
+      createElement("b", "", resolved.pending ? "waiting for context" : resolved.display),
+    );
     tooltip.appendChild(total);
   }
 
   function createResolvedValueControl(resolved) {
-    const control = createElement("button", "player-trait-resolved-value", resolved.display);
+    const control = createElement("button", `player-trait-resolved-value${resolved.pending ? " is-pending" : ""}`, resolved.display);
     control.type = "button";
     control.dataset.traitResolvedValue = resolved.id;
     control.setAttribute("aria-expanded", "false");
-    control.setAttribute("aria-label", `${resolved.label}: ${resolved.display}. Show formula breakdown.`);
+    control.dataset.traitFormulaPending = resolved.pending ? "true" : "false";
+    control.setAttribute("aria-label", `${resolved.label}: ${resolved.pending ? "waiting for contextual input" : resolved.display}. Hold Shift to inspect formula inputs, or activate this value for touch access.`);
+    control.title = "Hold Shift to inspect calculation";
     const tooltip = createElement("span", "player-trait-formula-tooltip");
     tooltip.id = `player-trait-formula-tooltip-${++tooltipSequence}`;
     tooltip.setAttribute("role", "tooltip");
@@ -443,12 +685,40 @@
       cursor = match.index + match[0].length;
     }
     if (cursor < resolved.template.length) description.appendChild(global.document.createTextNode(resolved.template.slice(cursor)));
+    if (Array.isArray(resolved.extras) && resolved.extras.length) {
+      const summary = createElement("span", "player-trait-resolved-summary");
+      resolved.extras.forEach((value) => {
+        const item = createElement("span", "player-trait-resolved-summary__item");
+        item.append(
+          createElement("span", "player-trait-resolved-summary__label", `${value.label}:`),
+          createResolvedValueControl(value),
+        );
+        summary.appendChild(item);
+      });
+      description.appendChild(summary);
+    }
     return description;
+  }
+
+  function bindFormulaInspectMode() {
+    const doc = global.document;
+    if (!doc || formulaInspectModeBound) return;
+    formulaInspectModeBound = true;
+    const setInspect = (active) => doc.body?.classList.toggle("player-trait-formula-inspect", Boolean(active));
+    doc.addEventListener("keydown", (event) => {
+      if (event.key === "Shift") setInspect(true);
+    });
+    doc.addEventListener("keyup", (event) => {
+      if (event.key === "Shift") setInspect(false);
+    });
+    global.addEventListener?.("blur", () => setInspect(false));
   }
 
   function ensureStyles() {
     const doc = global.document;
-    if (!doc || doc.getElementById("player-trait-tabs-stylesheet")) return;
+    if (!doc) return;
+    bindFormulaInspectMode();
+    if (doc.getElementById("player-trait-tabs-stylesheet")) return;
     const link = doc.createElement("link");
     link.id = "player-trait-tabs-stylesheet";
     link.rel = "stylesheet";
@@ -737,6 +1007,8 @@
     sourceMeta,
     filterTraits,
     formulaIdentifiers,
+    normalizeDisplayFormula,
+    collectTraitFormulaSpecs,
     formatResolvedTraitValue,
     traitFormulaBreakdown,
     resolveTraitDisplayValue,
