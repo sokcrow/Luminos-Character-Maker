@@ -376,7 +376,10 @@
 
   function boot() {
     tick();
-    global.setInterval?.(tick, 400);
+    ["luminous:player-data", "luminous:traits-refreshed", "luminous:class-runtime-loaded", "luminous:class-runtimes-ready"]
+      .forEach((name) => global.addEventListener?.(name, tick));
+    global.addEventListener?.("luminous:theatre-rolls-ready", tick);
+    global.addEventListener?.("load", tick, { once: true });
   }
 
   const api = Object.freeze({
