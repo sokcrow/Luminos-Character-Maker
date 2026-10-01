@@ -85,6 +85,7 @@
         ensureScript("class-milestone-engine-script", "js/class-milestone-engine.js", () => Boolean(global.LuminousClassMilestones)),
         ensureScript("trait-player-tray-script", "js/trait-player-tray.js", () => Boolean(global.LuminousTraitPlayerTray)),
         ensureScript("universal-action-economy-script", "js/universal-action-economy.js", () => Boolean(global.LuminousActionEconomy)),
+        ensureScript("trait-standardization-runtime-script", "js/trait-standardization-runtime.js", () => Boolean(global.LuminousTraitStandardizationRuntime)),
       ]));
     return state.dependencyPromise;
   }
