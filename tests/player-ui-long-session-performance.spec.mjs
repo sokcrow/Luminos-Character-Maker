@@ -302,6 +302,23 @@ test("source keeps the static player surface free of permanent polling and dupli
     "js/player-stat-tooltip-runtime.js",
     "js/derived-stats-runtime.js",
     "js/rest-runtime-integration.js",
+    "js/theatre-special-language-enforcement-hotfix.js",
+    "js/theatre-special-language-log-hotfix.js",
+    "js/canonical-race-integration.js",
+    "js/existing-racial-stat-integration.js",
+    "js/unit-rank-runtime.js",
+    "js/injury-engine.js",
+    "js/trait-formula-view-patch.js",
+    "js/skill-trait-breakdown-patch.js",
+    "js/milestone-revert-patch.js",
+    "js/devil-lineage-runtime.js",
+    "js/college-of-whispers-runtime.js",
+    "js/spellcasting-runtime.js",
+    "js/injury-equipment-runtime.js",
+    "js/caster-spellcasting-traits-runtime.js",
+    "js/spellcasting-basic-rules-runtime.js",
+    "js/scene-time-runtime.js",
+    "js/fixed-damage-runtime.js",
   ];
   expect(instance).toContain("syncPlayerCombatOcclusion");
   expect(watchdog).not.toContain("setInterval");
