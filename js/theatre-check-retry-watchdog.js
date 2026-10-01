@@ -5,7 +5,9 @@
   if (!firebase?.auth || global.LuminousTheatreCheckRetryWatchdog) return;
 
   const RETRY_MS = 5000;
+  const MAX_RETRY_ATTEMPTS = 12;
   let timer = null;
+  let retryAttempts = 0;
 
   function retryAuthorizedBindings() {
     const user = firebase.auth?.().currentUser;
@@ -21,8 +23,16 @@
 
   function start() {
     if (timer) return timer;
-    retryAuthorizedBindings();
-    timer = global.setInterval(retryAuthorizedBindings, RETRY_MS);
+    retryAttempts = 0;
+
+    // Successful bindings already install Firebase listeners. There is nothing
+    // to poll after that point, so keep the static Player surface timer-free.
+    if (retryAuthorizedBindings()) return null;
+
+    timer = global.setInterval(() => {
+      retryAttempts += 1;
+      if (retryAuthorizedBindings() || retryAttempts >= MAX_RETRY_ATTEMPTS) stop();
+    }, RETRY_MS);
     return timer;
   }
 
@@ -30,6 +40,7 @@
     if (!timer) return;
     global.clearInterval(timer);
     timer = null;
+    retryAttempts = 0;
   }
 
   const auth = firebase.auth?.();
@@ -56,6 +67,7 @@
 
   global.LuminousTheatreCheckRetryWatchdog = Object.freeze({
     RETRY_MS,
+    MAX_RETRY_ATTEMPTS,
     retryAuthorizedBindings,
     start,
     stop,
