@@ -6623,6 +6623,27 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
     flex: 1;
 }
 
+/* Stats is a viewport, not a content-sized floating card.
+   Keep its frame fixed so switching attributes/sections never recenters the HUD. */
+.hud-modal.modal-stats {
+    align-items: flex-start;
+    box-sizing: border-box;
+    padding-top: 7.5vh;
+    padding-bottom: 7.5vh;
+}
+
+.hud-modal.modal-stats .hud-modal-content {
+    height: 85vh;
+    max-height: 85vh;
+}
+
+.hud-modal.modal-stats .hud-modal-body {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+}
+
 .hud-tab-content {
     display: block !important; /* Override older rules */
 }
