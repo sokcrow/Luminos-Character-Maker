@@ -1,5 +1,9 @@
 name: Player UI Long Session Performance
 
+concurrency:
+  group: player-ui-long-session-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
     branches: [fix/player-ui-long-session-performance]
