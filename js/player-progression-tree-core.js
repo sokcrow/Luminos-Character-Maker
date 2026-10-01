@@ -58,7 +58,7 @@
     return normalizeId(
       grant.classId
       || grant.parentClassId
-      || grant.sourceId && grantSourceType(grant) === "class" ? grant.sourceId : ""
+      || (grantSourceType(grant) === "class" ? grant.sourceId : "")
       || grant?.source?.classId
       || grant?.source?.parentClassId
       || definition?.source?.classId
