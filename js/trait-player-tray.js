@@ -330,7 +330,7 @@
       if (!entry) return null;
       return {
         identifier,
-        label: VARIABLE_LABELS[entry.key] || VARIABLE_LABELS[identifier] || titleCaseId(identifier),
+        label: VARIABLE_LABELS[entry.key] || VARIABLE_LABELS[identifier] || formulaHumanLabel(identifier),
         value: Number(entry.value),
         display: formatBreakdownValue(identifier, entry.value),
       };
@@ -450,8 +450,17 @@
       else parts.push(escapeFormulaRegExp(token) + "%?");
     });
     if (!parts.length) return null;
-    const tail = normalizeId(unit) === "percent" ? "\\s*%?" : "";
-    return new RegExp(parts.join("[\\s(),]*") + tail, "i");
+    const closing = "(?:\\s*\\))*";
+    const tail = normalizeId(unit) === "percent" ? "(?:\\s*%)?" : "";
+    return new RegExp(parts.join("[\\s(),]*") + closing + tail, "i");
+  }
+
+  function formulaHumanLabel(value) {
+    const separated = String(value || "")
+      .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
+      .replace(/_multiplier$/i, "")
+      .replace(/Multiplier$/i, "");
+    return titleCaseId(separated);
   }
 
   function formulaLabel(path = [], owner = {}) {
@@ -460,7 +469,7 @@
     const raw = key.toLowerCase() === "formula"
       ? owner.channel || owner.path || owner.resourceId || parent
       : key.replace(/Formula$/i, "");
-    return titleCaseId(String(raw).replace(/_multiplier$/i, "").replace(/Multiplier$/i, ""));
+    return formulaHumanLabel(raw);
   }
 
   function formulaUnit(path = [], owner = {}) {
