@@ -133,7 +133,7 @@
     const def = definition || resolveDefinition(input, options) || {};
     const definitionId = definitionIdOf(input) || definitionIdOf(def) || String(options.definitionId || "").trim();
     const maxCondition = Math.max(0, numberOr(input.conditionMax ?? input.maxCondition ?? input.maxDurability ?? def.conditionMax ?? def.condition_max, 100));
-    const currentCondition = clamp(numberOr(input.condition ?? input.currentCondition ?? input.durability, maxCondition), 0, maxCondition);
+    const currentCondition = clamp(numberOr(input.condition ?? input.currentCondition ?? input.currentDurability ?? input.durability, maxCondition), 0, maxCondition);
     const qualityTier = clamp(intOr(input.qualityTier ?? input.quality_tier ?? options.qualityTier ?? options.quality, 1), 1, 5);
     const chargesMax = input.chargesMax ?? input.maxCharges ?? input.charges_max ?? def.chargesMax ?? def.maxCharges ?? null;
     const chargesCurrent = input.chargesCurrent ?? input.charges_current ?? input.charges ?? options.charges ?? chargesMax;
@@ -523,7 +523,7 @@
 
   function getCondition(item = {}) {
     const max = Math.max(0, numberOr(item.conditionMax ?? item.maxCondition ?? item.maxDurability, 100));
-    return { current: clamp(numberOr(item.condition ?? item.currentCondition ?? item.durability, max), 0, max), max };
+    return { current: clamp(numberOr(item.condition ?? item.currentCondition ?? item.currentDurability ?? item.durability, max), 0, max), max };
   }
 
   function getConditionState(item = {}) {
