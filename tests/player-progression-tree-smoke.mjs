@@ -174,6 +174,9 @@ assert.match(html, /title="Progresión"/);
 assert.match(html, /id="player-progression-level-allocation-host"/);
 assert.match(html, /id="player-progression-tree-host"/);
 assert.match(html, /id="player-progression-traits-host"/);
+assert.match(html, /player-progression-traits-dossier/);
+assert.match(html, /data-progression-trait-art/);
+assert.match(html, /data-progression-trait-name/);
 assert.match(html, /player-progression-tree-core\.js/);
 assert.match(html, /player-progression-tree\.js/);
 assert.match(html, /player-progression-level-allocation\.js/);
@@ -181,6 +184,8 @@ assert.match(html, /character-build-rules\.js/);
 assert.doesNotMatch(html, /CREATE PERK/);
 assert.match(traitRuntime, /getElementById\("player-progression-traits-host"\)/);
 assert.match(tray, /if \(this\.host\.closest\?\.\("#stats-modal"\)\) this\.setupStatsTabs\(\)/);
+// Regression: rerendering the tray in Progression must not move the host back into Stats.
+assert.doesNotMatch(tray, /if \(!this\.root\) return;\s*this\.setupStatsTabs\(\)/);
 assert.match(archetypeRuntime, /getElementById\("player-progression-tree-host"\)/);
 assert.match(levelAllocationRuntime, /REVISAR CAMBIOS/);
 assert.match(levelAllocationRuntime, /\.transaction\(/);
