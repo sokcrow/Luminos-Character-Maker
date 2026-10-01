@@ -39,7 +39,7 @@ for (const id of [
   assert.equal(catalog[id].cantrip, true);
 }
 
-assert.equal(batch.STATUS_DEFINITIONS.blade_guard.icon, 'https://imgur.com/qs0vIeM.png');
+assert.equal(batch.STATUS_DEFINITIONS.blade_guard.icon, 'Assets/Icons/status/cantrips/blade_guard.png');
 assert.equal(batch.summonMaxHp({ spellMod: 1 }), 10);
 assert.equal(batch.summonMaxHp({ spellMod: 4 }), 40);
 assert.equal(batch.summonMaxHp({ spellMod: -2 }), 10);
@@ -57,6 +57,7 @@ const infestation = batch.spawnSpellEntity(summoner,'infestation',{
 assert.equal(infestation.hp,40);
 assert.equal(infestation.maxHp,40);
 assert.equal(infestation.targetable,true);
+assert.equal(infestation.visual.spriteUrl,'Assets/Images/SpellUnits/infestation.png');
 assert.equal(infestation.skills[0].basePower,4);
 assert.equal(infestation.skills[0].coinPower,4);
 assert.equal(infestation.skills[0].coinAmount,1);
@@ -73,6 +74,7 @@ const bonfire = batch.spawnSpellEntity(summoner,'create_bonfire',{
   context:{combatData:globalThis.combatData}
 });
 assert.equal(bonfire.hp,40);
+assert.equal(bonfire.visual.spriteUrl,'Assets/Images/SpellUnits/bonfire.png');
 batch.applyBonfirePresence([summoner,ally,enemy,bonfire,infestation]);
 assert.equal(enemy.statusEffects.burn.potency,1);
 assert.equal(enemy.statusEffects.burn.count,1);
@@ -85,6 +87,7 @@ const flame = batch.spawnSpellEntity(summoner,'produce_flame',{
 assert.equal(flame.isBackgroundUnit,true);
 assert.equal(flame.targetable,false);
 assert.equal(flame.hp,null);
+assert.equal(flame.visual.spriteUrl,'Assets/Images/SpellUnits/produce_flame.png');
 assert.equal(flame.skills[0].basePower,4);
 assert.equal(flame.skills[0].coinPower,5);
 
