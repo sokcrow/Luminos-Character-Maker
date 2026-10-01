@@ -735,35 +735,64 @@
 
     const source = String(trait.description || "");
     const autoSpecs = collectTraitFormulaSpecs(trait);
-    if (!source || !autoSpecs.length) return null;
+    if (!source) return null;
     const values = {};
     const replacements = [];
     const extras = [];
     const occupied = [];
-    const seenExtra = new Set();
+    const seenFormula = new Set();
 
     autoSpecs.forEach((spec) => {
       const resolved = resolveTraitDisplayValue(trait, spec, runtime);
       if (!resolved) return;
       resolved.unit = spec.unit;
+      const formulaKey = normalizeDisplayFormula(resolved.evaluationFormula || resolved.formula, trait)
+        + "|" + normalizeId(spec.unit || "flat");
+      if (seenFormula.has(formulaKey)) return;
+
       const pattern = formulaTextPattern(resolved.evaluationFormula || resolved.formula, trait, spec.unit);
       const match = pattern ? pattern.exec(source) : null;
       if (match) {
         const range = { start: match.index, end: match.index + match[0].length };
         const overlaps = occupied.some((used) => range.start < used.end && used.start < range.end);
         if (!overlaps) {
+          seenFormula.add(formulaKey);
           occupied.push(range);
           values[resolved.id] = resolved;
           replacements.push({ ...range, token: "{" + resolved.id + "}" });
           return;
         }
       }
-      const extraKey = (resolved.evaluationFormula || resolved.formula) + "|" + resolved.label + "|" + resolved.display;
-      if (!seenExtra.has(extraKey)) {
-        seenExtra.add(extraKey);
-        values[resolved.id] = resolved;
-        extras.push(resolved);
-      }
+
+      seenFormula.add(formulaKey);
+      values[resolved.id] = resolved;
+      extras.push(resolved);
+    });
+
+    let descriptionSequence = 0;
+    descriptionFormulaCandidates(source, trait).forEach((candidate) => {
+      const range = { start: candidate.start, end: candidate.end };
+      if (occupied.some((used) => range.start < used.end && used.start < range.end)) return;
+
+      const formulaKey = normalizeDisplayFormula(candidate.formula, trait)
+        + "|" + normalizeId(candidate.unit || "flat");
+      if (seenFormula.has(formulaKey)) return;
+
+      descriptionSequence += 1;
+      const spec = {
+        id: "description_formula_" + descriptionSequence,
+        label: candidate.label,
+        formula: candidate.formula,
+        unit: candidate.unit,
+      };
+      const resolved = resolveTraitDisplayValue(trait, spec, runtime);
+      if (!resolved) return;
+
+      resolved.unit = candidate.unit;
+      seenFormula.add(formulaKey);
+      occupied.push(range);
+      values[resolved.id] = resolved;
+      replacements.push({ ...range, token: "{" + resolved.id + "}" });
     });
 
     let template = source;
@@ -1167,6 +1196,7 @@
     formulaIdentifiers,
     normalizeDisplayFormula,
     collectTraitFormulaSpecs,
+    descriptionFormulaCandidates,
     formatResolvedTraitValue,
     traitFormulaBreakdown,
     resolveTraitDisplayValue,
