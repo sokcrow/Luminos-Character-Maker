@@ -324,7 +324,7 @@
     row.querySelectorAll(".player-level-allocation__step").forEach((button) => {
       button.addEventListener("click", () => setDraftLevel(entry.classId, entry.levels + Number(button.dataset.step || 0)));
     });
-    row.querySelector(".player-level-allocation__range")?.addEventListener("input", (event) => setDraftLevel(entry.classId, event.target.value));
+    row.querySelector(".player-level-allocation__range")?.addEventListener("change", (event) => setDraftLevel(entry.classId, event.target.value));
     row.querySelector(".player-level-allocation__number")?.addEventListener("change", (event) => setDraftLevel(entry.classId, event.target.value));
     row.querySelector(".player-level-allocation__remove")?.addEventListener("click", () => removeUncommittedClass(entry.classId));
     return row;
