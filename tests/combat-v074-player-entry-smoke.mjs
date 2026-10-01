@@ -1,12 +1,10 @@
 import assert from 'node:assert/strict';
 
 await import('../js/combat-skill-schema.js');
+await import('../js/skill-catalog-player-signature.js');
 await import('../js/combat-skill-loadout-074.js');
 await import('../js/spell-catalog-core.js');
 await import('../js/role-spell-catalog-core.js');
-await import('../js/vtt/actor-library.js');
-const actorLibrary = globalThis.LuminousVttActorLibrary;
-if (!actorLibrary) throw new Error('LuminousVttActorLibrary was not initialized.');
 
 await import('../js/battle-viewer-player-entry-074.js');
 const playerEntry = globalThis.LuminousBattleViewerPlayerEntry074;
@@ -144,7 +142,9 @@ assert.equal(entries[0].unitResolution.unitId, 'unit_jeske');
 assert.equal(entries[0].loadout.ready, true);
 assert.deepEqual(entries[0].loadout.skillIds, ['skill_a', 'skill_b']);
 
-const unlinkedPlayer = actorLibrary.normalizePlayerActor('player_2', { uid: 'uid-player-2', characterName: 'No Actor' }, {});
+const [unlinkedPlayer] = playerEntry.normalizePlayerActors({
+  player_2: { uid: 'uid-player-2', characterName: 'No Actor' },
+}, {});
 assert.equal(unlinkedPlayer.linkedActorId, null);
 assert.throws(() => playerEntry.buildPlayerCombatant(unlinkedPlayer), /PLAYER_ACTOR_LINK_REQUIRED/);
 
@@ -274,5 +274,121 @@ assert.equal(spellSyncWrites.length, 1);
 assert.equal(spellSyncWrites[0].path, 'campaña/jugadores/Pierre Carême Kikunae');
 assert.deepEqual(spellSyncWrites[0].patch['characterBuild/spellSelections'], pierreLoadout.combatSpellIds);
 assert.equal(spellSyncWrites[0].patch['characterBuild/spellSelections'].includes('old_placeholder'), false);
+
+
+const pierreSignature = playerEntry.knownSkillLoadoutForActor({
+  playerId: 'pierre',
+  name: 'Pierre Carême Kikunae - wizza',
+  raw: {},
+});
+assert.ok(pierreSignature);
+assert.equal(pierreSignature.id, 'pierre_careme_kikunae');
+assert.deepEqual(pierreSignature.skillSlotIds, [
+  'pierre_sukseong',
+  'pierre_mise_en_place',
+  'pierre_maridaje',
+]);
+for (const id of pierreSignature.skillSlotIds) assert.ok(globalThis.LuminousPlayerSignatureSkillCatalog.get(id), `missing canonical Pierre skill ${id}`);
+
+const angeloSignature = playerEntry.knownSkillLoadoutForActor({ playerId: 'angelo', name: 'Angelo V.', raw: {} });
+assert.ok(angeloSignature);
+assert.equal(angeloSignature.id, 'angelo_v');
+assert.deepEqual(angeloSignature.skillSlotIds, [
+  'angelo_steps_to_perfection',
+  'angelo_blood_art',
+  'angelo_my_masterpiece',
+]);
+
+const angeloActor = {
+  category: 'player',
+  playerId: 'angelo',
+  sourceId: 'angelo',
+  ownerUid: 'uid-angelo',
+  linkedActorId: 'actor_angelo',
+  actorId: 'actor_angelo',
+  name: 'Angelo V.',
+  raw: { uid: 'uid-angelo', characterName: 'Angelo V.' },
+};
+const angeloUnits = {
+  unit_angelo: {
+    id: 'unit_angelo',
+    isPlayer: true,
+    linkedPlayerUID: 'uid-angelo',
+    action_slots: ['legacy_skill'],
+  },
+};
+const angeloSkills = {
+  legacy_skill: {
+    name: 'Legacy Skill', type: 'Attack', tier: 1,
+    basePower: 4, coinPower: 4, coinAmount: 1,
+    effects: [], coins: [{ effects: [] }], schemaVersion: 2,
+  },
+};
+const angeloCombatant = playerEntry.buildPlayerCombatant(angeloActor, {
+  now: 555,
+  units: angeloUnits,
+  skills: angeloSkills,
+});
+assert.deepEqual(angeloCombatant.skillSlotIds.slice(0, 3), angeloSignature.skillSlotIds);
+assert.equal(angeloCombatant.skillSlotIds.includes('legacy_skill'), true, 'signature injection must preserve existing Unit skills');
+for (const id of angeloSignature.skillSlotIds) assert.equal(angeloCombatant.equippedSkillIndex[id], true);
+
+const signatureCatalog = globalThis.LuminousPlayerSignatureSkillCatalog;
+for (const id of angeloSignature.skillSlotIds) assert.ok(signatureCatalog.get(id), `missing canonical Angelo skill ${id}`);
+
+const signatureSyncWrites = [];
+const signatureSyncDb = {
+  ref(path) {
+    return {
+      async update(patch) { signatureSyncWrites.push({ path, patch }); },
+    };
+  },
+};
+const existingAngelo = {
+  'player:angelo': {
+    ...angeloCombatant,
+    skillSlotIds: ['legacy_skill'],
+    skillIds: ['legacy_skill'],
+    equippedSkillIndex: { legacy_skill: true },
+  },
+};
+const signatureSync = await playerEntry.syncKnownPlayerSkillLoadout(angeloActor, {
+  db: signatureSyncDb,
+  combatants: existingAngelo,
+});
+assert.equal(signatureSync.matched, true);
+assert.equal(signatureSync.synced, true);
+assert.equal(signatureSyncWrites.length, 1);
+assert.equal(signatureSyncWrites[0].path, 'campaña/combate/combatants/player:angelo');
+assert.deepEqual(signatureSyncWrites[0].patch.skillSlotIds.slice(0, 3), angeloSignature.skillSlotIds);
+assert.equal(signatureSyncWrites[0].patch.equippedSkillIndex.angelo_my_masterpiece, true);
+
+const pierreSkillActor = {
+  category: 'player',
+  playerId: 'pierre',
+  sourceId: 'pierre',
+  ownerUid: 'uid-pierre',
+  linkedActorId: 'actor_pierre',
+  actorId: 'actor_pierre',
+  name: 'Pierre Carême Kikunae - wizza',
+  raw: { uid: 'uid-pierre', characterName: 'Pierre Carême Kikunae - wizza' },
+};
+const pierreSkillUnits = {
+  unit_pierre: {
+    id: 'unit_pierre',
+    isPlayer: true,
+    linkedPlayerUID: 'uid-pierre',
+    action_slots: ['legacy_skill'],
+  },
+};
+const pierreCombatant = playerEntry.buildPlayerCombatant(pierreSkillActor, {
+  now: 777,
+  units: pierreSkillUnits,
+  skills: angeloSkills,
+});
+assert.deepEqual(pierreCombatant.skillSlotIds.slice(0, 3), pierreSignature.skillSlotIds);
+assert.equal(pierreCombatant.skillSlotIds.includes('legacy_skill'), true);
+assert.equal(pierreCombatant.characterBuild.signatureSkillCharacterId, 'pierre_careme_kikunae');
+for (const id of pierreSignature.skillSlotIds) assert.equal(pierreCombatant.equippedSkillIndex[id], true);
 
 console.log('combat-v074-player-entry-smoke: ok');
