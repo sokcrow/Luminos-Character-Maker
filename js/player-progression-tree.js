@@ -16,6 +16,7 @@
     detail: null,
     signature: "",
     retryTimer: null,
+    booted: false,
   };
 
   const clean = (value) => String(value ?? "").trim();
@@ -391,6 +392,7 @@
   }
 
   function boot() {
+    if (state.booted) return true;
     ensureStyles();
     if (!doc.getElementById("player-progression-tree-host") || !core()) return false;
     connectFirebase();
@@ -406,6 +408,7 @@
 
     const perksButton = doc.querySelector('[name="act_hud_perks"]');
     perksButton?.addEventListener("click", () => global.setTimeout(() => refresh(), 0));
+    state.booted = true;
     return true;
   }
 
