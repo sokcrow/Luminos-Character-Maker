@@ -1,0 +1,64 @@
+name: Refresh Thought Strand Asset Catalog
+
+on:
+  push:
+    branches:
+      - feat/cantrip-visual-assets
+    paths:
+      - ".github/workflows/refresh-thought-strand-asset-catalog.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout visual branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/cantrip-visual-assets
+
+      - name: Add Thought Strand asset metadata
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const crypto = require('node:crypto');
+          const catalogPath = 'Assets/Icons/items/catalog.json';
+          const assetPath = 'Assets/Icons/items/utility/thought_strand.png';
+          const catalog = JSON.parse(fs.readFileSync(catalogPath, 'utf8'));
+          const buffer = fs.readFileSync(assetPath);
+          const sha256 = crypto.createHash('sha256').update(buffer).digest('hex');
+          const entry = {
+            path: assetPath,
+            primaryId: 'thought_strand',
+            domain: 'utility',
+            familyIds: ['thought_strand'],
+            bytes: buffer.length,
+            sha256,
+            legacySource: 'https://imgur.com/7MZLBdD.png'
+          };
+          catalog.assets = (catalog.assets || []).filter((row) => row.path !== assetPath);
+          catalog.assets.push(entry);
+          catalog.assets.sort((a,b) => String(a.path).localeCompare(String(b.path)));
+          catalog.familyCount = catalog.families.length;
+          catalog.uniqueAssetCount = catalog.assets.length;
+          fs.writeFileSync(catalogPath, JSON.stringify(catalog, null, 2) + '\n');
+          console.log({ bytes: buffer.length, sha256, familyCount: catalog.familyCount, uniqueAssetCount: catalog.uniqueAssetCount });
+          NODE
+
+      - name: Commit refreshed catalog
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Assets/Icons/items/catalog.json
+          if git diff --cached --quiet; then
+            echo "Catalog already up to date."
+            exit 0
+          fi
+          git commit -m "assets: index Thought Strand PNG metadata"
+          git push origin HEAD:feat/cantrip-visual-assets
