@@ -827,8 +827,9 @@
   }
 
   function createResolvedValueControl(resolved) {
-    const control = createElement("button", `player-trait-resolved-value${resolved.pending ? " is-pending" : ""}`, resolved.display);
+    const control = createElement("button", `player-trait-resolved-value${resolved.pending ? " is-pending" : ""}`);
     control.type = "button";
+    control.appendChild(createElement("span", "player-trait-resolved-value__display", resolved.display));
     control.dataset.traitResolvedValue = resolved.id;
     control.setAttribute("aria-expanded", "false");
     control.dataset.traitFormulaPending = resolved.pending ? "true" : "false";
