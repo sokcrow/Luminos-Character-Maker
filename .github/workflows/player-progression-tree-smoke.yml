@@ -41,6 +41,17 @@ on:
       - 'css/player-progression-tree.css'
       - 'css/player-trait-tabs.css'
       - 'tests/player-progression-tree-smoke.mjs'
+      - 'js/dm-player-loadout-core.js'
+      - 'js/dm-player-dnd-studio-tabs.js'
+      - 'js/dm-player-loadout-manager.js'
+      - 'js/dm-player-dnd-studio.js'
+      - 'js/combat-skill-loadout-074.js'
+      - 'js/battle-viewer-player-entry-074.js'
+      - 'css/dm-player-dnd-studio-tabs.css'
+      - 'css/dm-player-loadout-manager.css'
+      - 'tests/dm-player-loadout-manager-smoke.mjs'
+      - 'tests/combat-v074-skill-loadout-smoke.mjs'
+      - 'tests/combat-v074-player-entry-smoke.mjs'
       - '.github/workflows/player-progression-tree-smoke.yml'
 
 jobs:
