@@ -491,7 +491,12 @@
       ...source,
       __bladesingerArchetypeIntegrated: true,
       resolveTraitGrants(character = {}, grants = [], definitions = {}) {
-        const base = originalResolve(character, grants, definitions) || [];
+        const rawBase = originalResolve(character, grants, definitions) || [];
+        const base = rawBase.filter((trait) => {
+          if (!isBladesingerTrait(trait)) return true;
+          const required = Math.max(0, intOr(trait?.source?.requiredClassLevel ?? trait?.source?.atLevel, 0));
+          return selectedBladesinger(character) && wizardLevel(character) >= required;
+        });
         const engine = global.LuminousArchetypeEngine;
         const extra = engine?.resolveTraitGrants
           ? engine.resolveTraitGrants(character, GRANTS, { ...definitions, ...coreDefinitions(), ...DEFINITIONS }, { [ARCHETYPE_ID]: ARCHETYPE }, source) || []
