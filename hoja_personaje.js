@@ -663,8 +663,43 @@ function updateBootLog(message, isError = false) {
   }
 }
 
+let lastCharacterSheetRenderSignature = "";
+
+function characterSheetRenderSignature(data) {
+  const skills = {};
+  Object.keys(data || {}).forEach((key) => {
+    if (key.startsWith("skill_")) skills[key] = data[key];
+  });
+  return JSON.stringify({
+    characterName: data?.characterName,
+    ahn: data?.ahn,
+    hp: data?.hp,
+    hp_max: data?.hp_max,
+    sp: data?.sp,
+    luck: data?.luck,
+    luck_max: data?.luck_max,
+    xp: data?.xp,
+    level: data?.level,
+    stats: data?.stats || null,
+    baseStats: data?.baseStats || null,
+    modifiers: data?.modifiers || null,
+    skills,
+    perks: data?.perks || null,
+    humanPerks: data?.humanPerks || null,
+    mails: data?.mails || null,
+    financeTransactions: data?.finance?.transactionHistory || null,
+    transacciones: data?.transacciones || null,
+    transactions: data?.transactions || null,
+    combatStats: data?.combatStats || null,
+    icono_jugador: data?.icono_jugador || null,
+  });
+}
+
 function renderCharacterSheet(data) {
   if (!data) return;
+  const nextRenderSignature = characterSheetRenderSignature(data);
+  if (nextRenderSignature === lastCharacterSheetRenderSignature) return;
+  lastCharacterSheetRenderSignature = nextRenderSignature;
 
   // --- 1. ACTUALIZAR DATOS BÁSICOS Y DINERO ---
   const camposDinamicos = [
@@ -711,13 +746,14 @@ function renderCharacterSheet(data) {
       coreStats.forEach(stat => {
           const val = data.stats[stat] !== undefined ? data.stats[stat] : 10;
           const inputEl = document.getElementById(`stat-${stat}`);
-          if (inputEl && document.activeElement !== inputEl) {
+          if (inputEl && document.activeElement !== inputEl && inputEl.value !== String(val)) {
               inputEl.value = val;
           }
           const mod = Math.floor((val - 10) / 2);
           const modEl = document.getElementById(`mod-${stat}`);
           if (modEl) {
-              modEl.textContent = (mod >= 0 ? '+' : '') + mod;
+              const nextMod = (mod >= 0 ? '+' : '') + mod;
+              if (modEl.textContent !== nextMod) modEl.textContent = nextMod;
           }
       });
   }
@@ -728,7 +764,7 @@ function renderCharacterSheet(data) {
   if (combatHudPortrait) {
     // Al ser un elemento SVG <image>, se debe usar setAttribute con 'href'
     const iconUrl = data.icono_jugador || "https://i.imgur.com/kP8s7Ww.png";
-    combatHudPortrait.setAttribute("href", iconUrl);
+    if (combatHudPortrait.getAttribute("href") !== iconUrl) combatHudPortrait.setAttribute("href", iconUrl);
   }
 
   // --- 2. ACTUALIZAR CUERPO, MENTE Y ALMA ---
@@ -948,22 +984,31 @@ function renderCharacterSheet(data) {
   // Inyectar datos en tiempo real
   if (hudPortrait) {
     const iconUrl = data.icono_jugador || "https://i.imgur.com/kP8s7Ww.png";
-    hudPortrait.setAttribute("href", iconUrl);
+    if (hudPortrait.getAttribute("href") !== iconUrl) hudPortrait.setAttribute("href", iconUrl);
   }
 
   // Respetar la estructura de spans separados para el HP
   if (hudHpActual && hudHpMax) {
-    hudHpActual.innerText = hpActual;
-    hudHpMax.innerText = hpMax;
+    if (hudHpActual.innerText !== String(hpActual)) hudHpActual.innerText = hpActual;
+    if (hudHpMax.innerText !== String(hpMax)) hudHpMax.innerText = hpMax;
   } else {
     // Fallback seguro por si la estructura cambia
     const hudHpContenedor = document.querySelector(".hud-hp-overlay-text");
     if (hudHpContenedor) hudHpContenedor.innerText = `${hpActual} / ${hpMax}`;
   }
 
-  if (hudSpDisplay) {
+  if (hudSpDisplay && hudSpDisplay.innerText !== String(spActual)) {
     hudSpDisplay.innerText = spActual;
   }
+}
+
+function updatePlayerDeviceNumberUI(data = window.datosJugador) {
+  const deviceNumberUI = document.getElementById("player-device-number");
+  if (!deviceNumberUI) return;
+  const nextText = data?.phoneNumber
+    ? `Mi Dispositivo: [${data.phoneNumber}]`
+    : "Mi Dispositivo: Sin Red";
+  if (deviceNumberUI.innerText !== nextText) deviceNumberUI.innerText = nextText;
 }
 
 async function runBootSequence() {
@@ -1089,6 +1134,10 @@ async function runBootSequence() {
 
           window.datosJugador = snap.val();
           currentPlayerData = snap.val();
+          updatePlayerDeviceNumberUI(window.datosJugador);
+          window.dispatchEvent(new CustomEvent("luminous:player-data", {
+            detail: { playerId, data: window.datosJugador },
+          }));
 
           // Cache data
           localStorage.setItem(
@@ -1190,14 +1239,6 @@ function initializeCharacterSheet() {
       });
     }
   }
-
-  // Fallback to update UI
-  setInterval(() => {
-        const deviceNumberUI = document.getElementById("player-device-number");
-        if (deviceNumberUI) {
-            deviceNumberUI.innerText = window.datosJugador?.phoneNumber ? `Mi Dispositivo: [${window.datosJugador.phoneNumber}]` : "Mi Dispositivo: Sin Red";
-        }
-  }, 1000);
 
   // --- REPARACIÓN: LÓGICA DE ENVÍO Y LECTURA DEL TEATRO DE LA MENTE ---
   {
@@ -1700,6 +1741,7 @@ function initializeCharacterSheet() {
     if (toggleBtn && phoneWrapper) {
       toggleBtn.addEventListener("click", () => {
         phoneWrapper.classList.toggle("phone-hidden");
+        window.LuminousInstanceControl?.syncPlayerCombatOcclusion?.(document);
       });
     }
 
