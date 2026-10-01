@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "authority": "repository-local",
   "registry": "js/item-icon-registry.js",
-  "familyCount": 589,
-  "uniqueAssetCount": 636,
+  "familyCount": 590,
+  "uniqueAssetCount": 637,
   "note": "Runtime icon resolution uses repository-local paths. legacySource is provenance only and is never required at runtime.",
   "families": [
     {
@@ -4013,6 +4013,14 @@
       "domain": "utility",
       "path": "Assets/Icons/items/utility/quest_item.png",
       "legacySource": "https://imgur.com/eLUFiXE.png"
+    },
+    {
+      "id": "thought_strand",
+      "label": "Thought Strand",
+      "labelEs": "Hebra de pensamiento",
+      "domain": "utility",
+      "path": "Assets/Icons/items/utility/thought_strand.png",
+      "legacySource": "https://imgur.com/7MZLBdD.png"
     },
     {
       "id": "generic_item",
