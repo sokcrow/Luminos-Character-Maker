@@ -48,6 +48,7 @@
     timerByItem: new Map(),
     turnSerial: 0
   };
+  let originalDarknessOverride = null;
 
   function emitEvent(name, detail) {
     try {
@@ -569,8 +570,7 @@
 
   function controlledFlameIgnoresDarkness(unit, unitsInput = []) {
     const rows = Array.isArray(unitsInput) ? unitsInput : Object.values(unitsInput || {});
-    const base = baseRuntime();
-    if (typeof base?.ignoresDarknessDisadvantage === "function" && base.ignoresDarknessDisadvantage(unit, rows)) return true;
+    if (typeof originalDarknessOverride === "function" && originalDarknessOverride(unit, rows)) return true;
     const now = Date.now();
     for (const source of rows) {
       const entry = getStatus(source, "controlled_flame_light");
@@ -747,6 +747,9 @@
   function installBaseDarknessBridge() {
     const base = global.LuminousCantripBatchRuntime;
     if (!base || base.__utilityDarknessBridge) return Boolean(base);
+    originalDarknessOverride = typeof base.ignoresDarknessDisadvantage === "function"
+      ? base.ignoresDarknessDisadvantage.bind(base)
+      : null;
     global.LuminousCantripBatchRuntime = Object.freeze({
       ...base,
       __utilityDarknessBridge: true,
