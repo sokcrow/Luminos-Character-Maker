@@ -253,9 +253,11 @@
 
   function ensureDeathState(unit) {
     if (!unit || typeof unit !== "object") return null;
-    if (!unit.deathSaves || typeof unit.deathSaves !== "object") unit.deathSaves = { successes: 0, failures: 0 };
+    if (!unit.deathSaves || typeof unit.deathSaves !== "object") unit.deathSaves = { successes: 0, failures: 0, stable: false };
     unit.deathSaves.successes = Math.max(0, Math.min(MAX_DEATH_SAVES, Math.trunc(numberOr(unit.deathSaves.successes, 0))));
     unit.deathSaves.failures = Math.max(0, Math.min(MAX_DEATH_SAVES, Math.trunc(numberOr(unit.deathSaves.failures, 0))));
+    unit.deathSaves.stable = unit.deathSaves.stable === true || unit.isStable === true;
+    unit.isStable = unit.deathSaves.stable;
     if (!unit.lifeState) {
       if (unit.isDead === true) unit.lifeState = "dead";
       else if (unit.isRetreated === true) unit.lifeState = "retreated";
@@ -273,6 +275,31 @@
     saves.successes = 0;
     saves.failures = 0;
     return saves;
+  }
+
+  function isStable(unit = {}) {
+    ensureDeathState(unit);
+    return unit.isStable === true || unit.deathSaves?.stable === true;
+  }
+
+  function stabilize(unit, options = {}) {
+    if (!isDowned(unit) || isDead(unit)) return { stabilized: false, reason: "not_downed", unit };
+    const saves = ensureDeathState(unit);
+    saves.stable = true;
+    unit.isStable = true;
+    const result = { stabilized: true, unit, source: options.source || "stable" };
+    emit("luminous:death-save-stable", result);
+    return result;
+  }
+
+  function destabilize(unit, options = {}) {
+    const saves = ensureDeathState(unit);
+    if (!saves || (!saves.stable && unit?.isStable !== true)) return { changed: false, unit };
+    saves.stable = false;
+    unit.isStable = false;
+    const result = { changed: true, unit, reason: options.reason || "destabilized" };
+    emit("luminous:death-save-unstable", result);
+    return result;
   }
 
   function isDowned(unit = {}) {
@@ -327,6 +354,8 @@
     unit.isDowned = false;
     unit.isDead = false;
     unit.isRetreated = false;
+    unit.isStable = false;
+    if (unit.deathSaves && typeof unit.deathSaves === "object") unit.deathSaves.stable = false;
     delete unit.deathType;
     delete unit.sinnerDeath;
     return unit;
@@ -344,7 +373,11 @@
     unit.isDead = false;
     unit.isRetreated = false;
     unit.actionQueue = [];
-    if (!wasDowned) resetDeathSaves(unit);
+    if (!wasDowned) {
+      resetDeathSaves(unit);
+      unit.isStable = false;
+      if (unit.deathSaves) unit.deathSaves.stable = false;
+    }
 
     const sourceKind = normalizeId(options.sourceKind || options.damageType || options.reason || "other");
     emit("luminous:downed", { unit, sourceKind, context: options.context || null });
@@ -366,6 +399,8 @@
     unit.isDead = true;
     unit.isDowned = false;
     unit.isRetreated = false;
+    unit.isStable = false;
+    if (unit.deathSaves && typeof unit.deathSaves === "object") unit.deathSaves.stable = false;
     unit.actionQueue = [];
     unit.deathType = isSinner(unit) ? "sinner" : "normal";
     unit.sinnerDeath = unit.deathType === "sinner";
@@ -382,6 +417,7 @@
 
   function addFailure(unit, options = {}) {
     if (!isDowned(unit) || isDead(unit)) return { changed: false, unit, reason: "not_downed" };
+    if (isStable(unit)) destabilize(unit, { reason: options.reason || "death_save_failure" });
     const saves = ensureDeathState(unit);
     saves.failures = Math.min(MAX_DEATH_SAVES, saves.failures + 1);
     const result = { changed: true, unit, failures: saves.failures, successes: saves.successes, reason: options.reason || "failure" };
@@ -518,6 +554,7 @@
 
   function resolveDeathSave(unit, options = {}) {
     if (!isDowned(unit) || isDead(unit)) return { resolved: false, reason: "not_downed", unit };
+    if (isStable(unit)) return { resolved: false, skipped: true, reason: "stable", unit };
     const check = options.checkResult
       ? { ...DEATH_SAVE_CHECK, ...options.checkResult }
       : rollDeathSave({ ...options, unit });
@@ -840,7 +877,7 @@
           // Death Save resolves before Turn End. A third Success arms Retreat and Retreat
           // immediately removes the unit before normal Turn End passives/status decay.
           units.forEach((unit) => {
-            if (isDowned(unit) && !isDead(unit)) resolveDeathSave(unit);
+            if (isDowned(unit) && !isDead(unit) && !isStable(unit)) resolveDeathSave(unit);
           });
           units.forEach((unit) => {
             if (unit?.retreat?.pending && !isDead(unit)) resolveRetreat(unit, { units });
@@ -887,6 +924,9 @@
     ensureDeathState,
     resetDeathSaves,
     isDowned,
+    isStable,
+    stabilize,
+    destabilize,
     isDead,
     isRetreated,
     isTargetable,
