@@ -157,6 +157,22 @@
     return combatView;
   }
 
+  function syncPlayerCombatOcclusion(documentRef) {
+    const combatView = documentRef?.getElementById?.("player-instance-combat");
+    if (!combatView) return false;
+
+    const phoneWrapper = documentRef.querySelector?.(".sheet-phone-wrapper") || null;
+    const terminalOpen = Boolean(phoneWrapper && !phoneWrapper.classList?.contains?.("phone-hidden"));
+    const combatActive = Boolean(documentRef.body?.classList?.contains?.("player-instance-combat"));
+    const shouldShow = combatActive && !terminalOpen && !documentRef.hidden;
+
+    combatView.style.visibility = shouldShow ? "visible" : "hidden";
+    combatView.style.pointerEvents = shouldShow ? "auto" : "none";
+    combatView.setAttribute("aria-hidden", shouldShow ? "false" : "true");
+    combatView.dataset.occludedByTerminal = terminalOpen ? "true" : "false";
+    return shouldShow;
+  }
+
   function stopPlayerCombatRuntime(combatView) {
     if (!combatView) return false;
     try {
@@ -219,6 +235,7 @@
       documentRef.body.classList.toggle("player-instance-combat", combatActive);
       documentRef.body.classList.toggle("player-instance-blackout", blackoutActive);
     }
+    if (combatActive) syncPlayerCombatOcclusion(documentRef);
     return activeInstance;
   }
 
@@ -434,6 +451,7 @@
     applyPlayerInstance,
     applyDashboardInstance,
     createPlayerCombatView,
+    syncPlayerCombatOcclusion,
     stopPlayerCombatRuntime,
     destroyPlayerCombatView,
     ensureCombatTraitRuntime,
