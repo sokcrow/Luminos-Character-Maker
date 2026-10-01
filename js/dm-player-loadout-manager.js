@@ -23,6 +23,7 @@
     search: "",
     compatibleOnly: true,
     ready: false,
+    selectionEventBound: false,
     subscriptions: [],
     retryTimer: null,
   };
@@ -528,12 +529,19 @@
   }
 
   async function boot() {
+    if (state.ready) {
+      render();
+      return true;
+    }
     ensureStyles();
     if (!doc.getElementById("dm-player-loadout-host")) return false;
     await ensureDependencies();
     connectFirebase();
     bindStudioSelect();
-    global.addEventListener?.("luminous:dm-player-selected", (event) => bindPlayer(event?.detail?.playerId), { passive: true });
+    if (!state.selectionEventBound) {
+      global.addEventListener?.("luminous:dm-player-selected", (event) => bindPlayer(event?.detail?.playerId), { passive: true });
+      state.selectionEventBound = true;
+    }
     state.ready = true;
     render();
     return true;
