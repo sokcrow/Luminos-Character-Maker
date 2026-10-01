@@ -52,7 +52,7 @@ const makeWizard = (level, extra = {}) => ({
   id: `bladesinger_${level}`,
   hp: 100,
   maxHp: 100,
-  stats: { int: 20 },
+  stats: { intelligence: 20 },
   classes: [{ id: "wizard", level }],
   characterBuild: {
     archetypes: [{ classId: "wizard", archetypeId: "bladesinger", selectedAtClassLevel: 10 }],
@@ -168,6 +168,8 @@ const unselected = {
   classes: [{ id: "wizard", level: 70 }],
   characterBuild: { archetypes: [] },
 };
-assert.equal(archetypes.resolveTraitGrants(unselected).some((trait) => runtime.GRANTS.some((grant) => grant.traitId === trait.id)), false, "Unselected Wizards do not gain Bladesinger Traits");
+assert.equal(archetypes.resolveTraitGrants(unselected).some((trait) => runtime.GRANTS.some((grant) => grant.traitId === trait.id)), false, "Unselected Wizards do not gain Bladesinger Traits through the Archetype catalog");
+const unselectedCoreTraits = traitEngine.resolveTraitGrants(unselected, core.allGrants(), core.allDefinitions());
+assert.equal(unselectedCoreTraits.some((trait) => runtime.GRANTS.some((grant) => grant.traitId === trait.id)), false, "Unselected Wizards do not gain Bladesinger Traits through the core Trait resolver");
 
 console.log("Bladesinger archetype runtime smoke tests passed.");
