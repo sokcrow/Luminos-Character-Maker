@@ -8,6 +8,7 @@
     if (typeof require === "function") {
       try { require("./spell-batch-pierre-runtime.js"); } catch (_) {}
       try { require("./spell-batch-angelo-runtime.js"); } catch (_) {}
+      try { require("./spell-visual-asset-registry.js"); } catch (_) {}
       try { require("./spell-batch-weapon-cantrips-runtime.js"); } catch (_) {}
       try { require("./spell-batch-cantrips-runtime.js"); } catch (_) {}
       try { require("./spell-batch-cantrips-utility-runtime.js"); } catch (_) {}
@@ -22,6 +23,7 @@
       if (!global.LuminousRoleSpellCatalog) load("role-spell-catalog-core-script", "js/role-spell-catalog-core.js");
       if (!global.LuminousPierreSpellBatchRuntime) load("spell-batch-pierre-runtime-script", "js/spell-batch-pierre-runtime.js");
       if (!global.LuminousAngeloSpellBatchRuntime) load("spell-batch-angelo-runtime-script", "js/spell-batch-angelo-runtime.js");
+      if (!global.LuminousSpellVisualAssetRegistry) load("spell-visual-asset-registry-script", "js/spell-visual-asset-registry.js");
       if (!global.LuminousWeaponCantripBatchRuntime) load("spell-batch-weapon-cantrips-runtime-script", "js/spell-batch-weapon-cantrips-runtime.js");
       if (!global.LuminousCantripBatchRuntime) load("spell-batch-cantrips-runtime-script", "js/spell-batch-cantrips-runtime.js");
       if (!global.LuminousCantripUtilityRuntime) load("spell-batch-cantrips-utility-runtime-script", "js/spell-batch-cantrips-utility-runtime.js");
