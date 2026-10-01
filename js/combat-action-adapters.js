@@ -139,6 +139,8 @@
   }
 
   function spellResolution(spell = {}, options = {}) {
+    const explicitResolution = normalizeId(spell.resolutionType || spell.resolution_type || spell.mechanics?.resolutionType || spell.mechanics?.resolution_type);
+    if (explicitResolution === "automatic" || spell.mechanics?.automatic === true) return { type: "automatic" };
     const rawSave = spell.save || spell.savingThrow || spell.saving_throw || {};
     const abilityId = normalizeId(rawSave.abilityId || rawSave.ability || rawSave.stat || spell.saveAbility || spell.save_ability);
     if (abilityId) {
