@@ -231,6 +231,12 @@ const firebaseStub = `
       let count = 0;
       for (const set of listeners.values()) count += set.size;
       return count;
+    },
+    listenerKeys() {
+      return [...listeners.entries()]
+        .filter(([, handlers]) => handlers.size > 0)
+        .map(([key]) => key)
+        .sort();
     }
   };
 
@@ -353,8 +359,29 @@ test("real player sheet reaches interval-idle after boot", async ({ page }) => {
   await page.goto(BASE + "/hoja_personaje.html", { waitUntil: "domcontentloaded" });
   await page.waitForFunction(() => window.datosJugador?.characterName === "Performance Test", null, { timeout: 20_000 });
   await page.waitForTimeout(2_000);
-  const details = await page.evaluate(() => window.__perfIntervalRegistry?.details?.() || []);
-  expect(details, JSON.stringify(details, null, 2)).toEqual([]);
+  const runtimeState = await page.evaluate(() => ({
+    intervals: window.__perfIntervalRegistry?.details?.() || [],
+    firebaseListeners: window.__fakeFirebase?.listenerKeys?.() || [],
+  }));
+  expect(runtimeState.intervals, JSON.stringify(runtimeState.intervals, null, 2)).toEqual([]);
+
+  const forbiddenIdleListeners = [
+    "campaña/actores|value",
+    "campaña/base_datos_npcs|value",
+    "campaña/teatro/log|value",
+    "campaña/teatro/bloqueo_interaccion|value",
+    "campaña/economia/contratos|value",
+    "campaña/estado_mundo/mesa_crafteo_activa|value",
+    "campaña/jugadores/player_test/inventario_activo|value",
+    "campaña/jugadores/player_test/inventario_stash|value",
+    "campaña/jugadores/player_test/settings/isMuted|value",
+    "campaña/jugadores/player_test/finance/transactionHistory|value",
+    "campaña/jugadores/player_test/correos|value",
+    "campaña/jugadores/player_test/chats|value",
+  ];
+  forbiddenIdleListeners.forEach((listener) => {
+    expect(runtimeState.firebaseListeners, JSON.stringify(runtimeState.firebaseListeners, null, 2)).not.toContain(listener);
+  });
 });
 
 test("real player sheet stays stable for 60 seconds under background player updates", async ({ page }) => {
