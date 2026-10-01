@@ -1122,41 +1122,136 @@ async function runBootSequence() {
     // STEP 4: Datos de Jugador (Data Sync)
     updateBootLog("[EJECUTANDO] 4/4: Sincronizando expediente local...");
 
-    // Set up the listener but wait for the first initial payload
-    await new Promise((resolve, reject) => {
-      playerRef.on(
-        "value",
-        (snap) => {
-          if (!snap.exists() || snap.val() === null) {
-            reject(new Error("Expediente vacío o permisos denegados."));
-            return;
-          }
+    const RUNTIME_IGNORED_PLAYER_KEYS = new Set([
+      "online",
+      "ultima_conexion",
+      "backgroundHeartbeat",
+      "finance",
+      "chats",
+      "correos",
+      "contactos",
+      "mails",
+      "transactionHistory",
+      "transacciones",
+      "transactions",
+      "settings",
+      "phoneNumber",
+      "inventario_activo",
+      "inventario_stash",
+      "itemInventorySchemaVersion",
+    ]);
+    const CACHE_IGNORED_PLAYER_KEYS = new Set([
+      "online",
+      "ultima_conexion",
+      "backgroundHeartbeat",
+      "finance",
+      "chats",
+      "correos",
+      "contactos",
+      "mails",
+      "transactionHistory",
+      "transacciones",
+      "transactions",
+    ]);
+    const CRAFTING_PLAYER_KEYS = new Set([
+      "inventario_activo",
+      "inventario_stash",
+      "recetas",
+      "recipes",
+      "crafting",
+      "materiales",
+      "materials",
+    ]);
+    const EXPRESSION_PLAYER_KEYS = new Set([
+      "expresiones",
+      "expressions",
+      "expression",
+      "sprite",
+      "icono_jugador",
+      "actorId",
+      "vinculo_jugador",
+      "characterName",
+    ]);
 
-          window.datosJugador = snap.val();
-          currentPlayerData = snap.val();
-          updatePlayerDeviceNumberUI(window.datosJugador);
-          window.dispatchEvent(new CustomEvent("luminous:player-data", {
-            detail: { playerId, data: window.datosJugador },
-          }));
+    function applyPlayerData(nextData, changedKeys = [], initial = false) {
+      window.datosJugador = nextData || {};
+      currentPlayerData = window.datosJugador;
 
-          // Cache data
-          localStorage.setItem(
-            "datosJugadorCache",
-            JSON.stringify(window.datosJugador),
-          );
+      if (initial || changedKeys.includes("phoneNumber")) {
+        updatePlayerDeviceNumberUI(window.datosJugador);
+      }
 
-          renderCharacterSheet(window.datosJugador);
-          if (typeof window.renderRecetasCrafteo === "function") {
-            window.renderRecetasCrafteo();
-          }
-          if (typeof window.actualizarExpresionesDesdeDropdown === "function") {
-            window.actualizarExpresionesDesdeDropdown();
-          }
+      const runtimeRelevant = initial || changedKeys.some((key) => !RUNTIME_IGNORED_PLAYER_KEYS.has(key));
+      if (runtimeRelevant) {
+        window.dispatchEvent(new CustomEvent("luminous:player-data", {
+          detail: {
+            playerId,
+            data: window.datosJugador,
+            changedKeys: [...changedKeys],
+            initial,
+          },
+        }));
+      }
 
-          resolve();
-        },
-        reject,
-      );
+      const cacheRelevant = initial || changedKeys.some((key) => !CACHE_IGNORED_PLAYER_KEYS.has(key));
+      if (cacheRelevant) {
+        localStorage.setItem(
+          "datosJugadorCache",
+          JSON.stringify(window.datosJugador),
+        );
+      }
+
+      renderCharacterSheet(window.datosJugador);
+
+      if (
+        typeof window.renderRecetasCrafteo === "function"
+        && (initial || changedKeys.some((key) => CRAFTING_PLAYER_KEYS.has(key)))
+      ) {
+        window.renderRecetasCrafteo();
+      }
+
+      if (
+        typeof window.actualizarExpresionesDesdeDropdown === "function"
+        && (initial || changedKeys.some((key) => EXPRESSION_PLAYER_KEYS.has(key)))
+      ) {
+        window.actualizarExpresionesDesdeDropdown();
+      }
+    }
+
+    // Hydrate once, then listen to top-level child deltas. A change to chat,
+    // presence or another unrelated subtree must not rerun every player runtime.
+    const initialSnapshot = await playerRef.once("value");
+    if (!initialSnapshot.exists() || initialSnapshot.val() === null) {
+      throw new Error("Expediente vacío o permisos denegados.");
+    }
+
+    const initialData = initialSnapshot.val() || {};
+    const knownTopLevelKeys = new Set(Object.keys(initialData));
+    applyPlayerData(initialData, Object.keys(initialData), true);
+
+    playerRef.on("child_changed", (snap) => {
+      const key = snap.key;
+      if (!key) return;
+      const nextData = { ...(window.datosJugador || {}), [key]: snap.val() };
+      knownTopLevelKeys.add(key);
+      applyPlayerData(nextData, [key], false);
+    });
+
+    playerRef.on("child_removed", (snap) => {
+      const key = snap.key;
+      if (!key) return;
+      const nextData = { ...(window.datosJugador || {}) };
+      delete nextData[key];
+      knownTopLevelKeys.delete(key);
+      applyPlayerData(nextData, [key], false);
+    });
+
+    playerRef.on("child_added", (snap) => {
+      const key = snap.key;
+      if (!key || knownTopLevelKeys.has(key)) return;
+      knownTopLevelKeys.add(key);
+      const nextData = { ...(window.datosJugador || {}), [key]: snap.val() };
+      applyPlayerData(nextData, [key], false);
     });
 
     // Success!
