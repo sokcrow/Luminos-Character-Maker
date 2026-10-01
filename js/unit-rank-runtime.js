@@ -394,14 +394,16 @@
 
   function installBrowserBridges() {
     if (!global.document) return false;
-    let attempts = 0;
-    const timer = global.setInterval?.(() => {
-      attempts += 1;
+    const install = () => {
       const targetReady = installBattleViewerTargeting();
       const engineReady = installCombatEngineRoundEnd();
-      if ((targetReady && engineReady) || attempts >= 200) global.clearInterval?.(timer);
-    }, 25);
-    return Boolean(timer);
+      return targetReady || engineReady;
+    };
+    install();
+    ["luminous:combat073-runtime-ready", "luminous:player-instance-changed"]
+      .forEach((name) => global.addEventListener?.(name, install));
+    global.addEventListener?.("load", install, { once: true });
+    return true;
   }
 
   const api = Object.freeze({
