@@ -331,8 +331,12 @@ test("real player sheet stays stable for 60 seconds under background player upda
 
     let updates = 0;
     while (performance.now() - started < 60_000) {
-      window.__fakeFirebase.emitPlayer({ backgroundHeartbeat: updates });
-      updates += 1;
+      // CI browsers may clamp timers under load. Emit a short burst each turn so
+      // the 60-second wall-clock soak still carries 500+ background updates.
+      for (let burst = 0; burst < 3; burst += 1) {
+        window.__fakeFirebase.emitPlayer({ backgroundHeartbeat: updates });
+        updates += 1;
+      }
       await sleep(100);
     }
 
