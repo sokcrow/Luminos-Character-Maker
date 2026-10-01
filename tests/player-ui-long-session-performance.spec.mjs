@@ -129,6 +129,13 @@ const firebaseStub = `
     handlers.forEach((handler) => queueMicrotask(() => handler(snap)));
   }
 
+  function emitChild(parentRaw, event, childKey) {
+    const key = listenerKey(parentRaw, event);
+    const handlers = [...(listeners.get(key) || [])];
+    const snap = makeSnapshot(normalize(parentRaw) + "/" + childKey);
+    handlers.forEach((handler) => queueMicrotask(() => handler(snap)));
+  }
+
   class Ref {
     constructor(raw, query = {}) {
       this.path = normalize(raw);
@@ -212,7 +219,12 @@ const firebaseStub = `
     emitPlayer(patch = {}) {
       const raw = "campaña/jugadores/player_test";
       const current = read(raw) || {};
-      write(raw, { ...current, ...clone(patch) });
+      const next = { ...current, ...clone(patch) };
+      write(raw, next);
+      Object.keys(patch).forEach((childKey) => {
+        const event = Object.prototype.hasOwnProperty.call(current, childKey) ? "child_changed" : "child_added";
+        emitChild(raw, event, childKey);
+      });
       emit(raw, "value");
     },
     listenerCount() {
