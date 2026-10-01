@@ -5,6 +5,10 @@ on:
     branches: [main]
     paths:
       - 'js/instance-control.js'
+      - 'js/player-trait-runtime.js'
+      - 'js/player-archetype-runtime-core.js'
+      - 'js/player-archetype-runtime.js'
+      - 'js/class-runtime-bootstrap.js'
       - 'js/theatre-check-retry-watchdog.js'
       - 'hoja_personaje.js'
       - 'hoja_personaje.css'
@@ -27,6 +31,10 @@ jobs:
       - name: Syntax check
         run: |
           node --check js/instance-control.js
+          node --check js/player-trait-runtime.js
+          node --check js/player-archetype-runtime-core.js
+          node --check js/player-archetype-runtime.js
+          node --check js/class-runtime-bootstrap.js
           node --check js/theatre-check-retry-watchdog.js
           node --check hoja_personaje.js
           node --check js/player-progression-tree.js
