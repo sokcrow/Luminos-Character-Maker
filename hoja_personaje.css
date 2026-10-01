@@ -6632,6 +6632,18 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
     padding-bottom: 7.5vh;
 }
 
+/* The generic modal scale animation changes getBoundingClientRect while Stats
+   is open. Stats keeps fixed geometry and only fades its backdrop/content in. */
+.hud-modal.modal-stats.active,
+input.sheet-state-hud-modal[value="stats"] ~ .modal-stats {
+    animation: statsModalFadeIn 0.18s ease;
+}
+
+@keyframes statsModalFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
 .hud-modal.modal-stats .hud-modal-content {
     height: 85vh;
     max-height: 85vh;
