@@ -1,6 +1,8 @@
 name: Player UI Long Session Performance
 
 on:
+  push:
+    branches: [fix/player-ui-long-session-performance]
   pull_request:
     branches: [main]
     paths:
