@@ -8,6 +8,9 @@ on:
       - "js/spell-batch-cantrips-utility-runtime.js"
       - "js/spell-batch-weapon-cantrips-runtime.js"
       - "js/death-save-runtime.js"
+      - "Assets/Icons/status/cantrips/**"
+      - "Assets/Icons/items/utility/thought_strand.png"
+      - "Assets/Images/SpellUnits/**"
       - "tests/cantrip-*-smoke.mjs"
       - "tests/weapon-cantrip-batch-smoke.mjs"
       - ".github/workflows/cantrip-validation.yml"
@@ -20,6 +23,9 @@ on:
       - "js/spell-batch-cantrips-utility-runtime.js"
       - "js/spell-batch-weapon-cantrips-runtime.js"
       - "js/death-save-runtime.js"
+      - "Assets/Icons/status/cantrips/**"
+      - "Assets/Icons/items/utility/thought_strand.png"
+      - "Assets/Images/SpellUnits/**"
       - "tests/cantrip-*-smoke.mjs"
       - "tests/weapon-cantrip-batch-smoke.mjs"
       - ".github/workflows/cantrip-validation.yml"
@@ -52,3 +58,6 @@ jobs:
 
       - name: Utility cantrip smoke
         run: node tests/cantrip-utility-batch-smoke.mjs
+
+      - name: Cantrip visual assets smoke
+        run: node tests/cantrip-visual-assets-smoke.mjs
