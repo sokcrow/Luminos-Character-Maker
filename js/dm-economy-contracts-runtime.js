@@ -6,6 +6,7 @@
     getWorldDate: null,
     players: {},
     contracts: {},
+    salaries: {},
     payrollLock: null,
     initialized: false,
     migratingContracts: new Set(),
@@ -210,7 +211,7 @@
   async function migrateLegacyContract(contractId, contract) {
     if (!contractId || state.migratingContracts.has(contractId) || contract?.participantes) return;
     const assigned = Array.isArray(contract?.asignados) ? contract.asignados.filter(Boolean) : [];
-    if (!assigned.length) return;
+    if (!assigned.length || assigned.some((playerKey) => !state.players[playerKey])) return;
     state.migratingContracts.add(contractId);
     try {
       const participants = core().buildContractParticipants(state.players, assigned, contract.recompensa, 0);
@@ -531,6 +532,7 @@
       state.players = snapshot.val() || {};
       syncPlayerPickers();
       renderContracts(state.contracts);
+      renderSalaries(state.salaries);
     });
 
     db.ref("campaña/economia/contratos").on("value", (snapshot) => {
@@ -539,7 +541,8 @@
     });
 
     db.ref("campaña/economia/salarios").on("value", (snapshot) => {
-      renderSalaries(snapshot.val() || {});
+      state.salaries = snapshot.val() || {};
+      renderSalaries(state.salaries);
     });
 
     db.ref("campaña/calendario/timestamp").on("value", (snapshot) => {
