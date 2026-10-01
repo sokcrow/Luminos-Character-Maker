@@ -447,16 +447,17 @@ ${response}`);
 
   function ensureHost() {
     if (state.host?.isConnected) return state.host;
-    const progressionHost = doc.getElementById("player-progression-traits-host");
-    if (!progressionHost) return null;
+    const statsContainer = doc.querySelector("#stats-modal #stats-container");
+    if (!statsContainer) return null;
     let host = doc.getElementById("player-trait-runtime-host");
     if (!host) {
       host = doc.createElement("div");
       host.id = "player-trait-runtime-host";
       host.className = "player-trait-runtime-host";
+      const abilityConsole = statsContainer.querySelector(":scope > .player-ability-console");
+      if (abilityConsole?.nextSibling) statsContainer.insertBefore(host, abilityConsole.nextSibling);
+      else statsContainer.appendChild(host);
     }
-    if (host.parentElement !== progressionHost) progressionHost.appendChild(host);
-    host.hidden = false;
     state.host = host;
     return host;
   }

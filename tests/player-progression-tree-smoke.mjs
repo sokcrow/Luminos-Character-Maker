@@ -169,18 +169,32 @@ const traitRuntime = fs.readFileSync(path.join(here, '..', 'js', 'player-trait-r
 const tray = fs.readFileSync(path.join(here, '..', 'js', 'trait-player-tray.js'), 'utf8');
 const archetypeRuntime = fs.readFileSync(path.join(here, '..', 'js', 'player-archetype-runtime-core.js'), 'utf8');
 const levelAllocationRuntime = fs.readFileSync(path.join(here, '..', 'js', 'player-progression-level-allocation.js'), 'utf8');
+const traitCss = fs.readFileSync(path.join(here, '..', 'css', 'player-trait-tabs.css'), 'utf8');
+const statsCss = fs.readFileSync(path.join(here, '..', 'css', 'player-stats-ability-bar.css'), 'utf8');
 
 assert.match(html, /title="Progresión"/);
 assert.match(html, /id="player-progression-level-allocation-host"/);
 assert.match(html, /id="player-progression-tree-host"/);
-assert.match(html, /id="player-progression-traits-host"/);
+// Traits are a primary Stats/Desktop surface. Progression must not own or duplicate them.
+assert.doesNotMatch(html, /id="player-progression-traits-host"/);
+assert.doesNotMatch(html, /player-progression-traits-dossier/);
+assert.doesNotMatch(html, /data-progression-trait-/);
+assert.match(traitRuntime, /querySelector\("#stats-modal #stats-container"\)/);
+assert.match(traitRuntime, /statsContainer\.insertBefore\(host|statsContainer\.appendChild\(host\)/);
+assert.doesNotMatch(traitRuntime, /player-progression-traits-host/);
+assert.match(tray, /mount\(\) \{[\s\S]*?this\.setupStatsTabs\(\);/);
+assert.match(tray, /\["stats", "Stats"\]/);
+assert.match(tray, /\["traits", "Traits"\]/);
+assert.match(traitCss, /#stats-modal \.player-traits-catalog/);
+assert.match(traitCss, /#stats-modal #player-trait-runtime-host/);
+assert.doesNotMatch(traitCss, /#perks-modal \.player-traits-catalog/);
+// Regression: Stats keeps the responsive collision guard.
+assert.match(statsCss, /#stats-modal \.player-stats-engine\{display:none!important\}/);
 assert.match(html, /player-progression-tree-core\.js/);
 assert.match(html, /player-progression-tree\.js/);
 assert.match(html, /player-progression-level-allocation\.js/);
 assert.match(html, /character-build-rules\.js/);
 assert.doesNotMatch(html, /CREATE PERK/);
-assert.match(traitRuntime, /getElementById\("player-progression-traits-host"\)/);
-assert.match(tray, /if \(this\.host\.closest\?\.\("#stats-modal"\)\) this\.setupStatsTabs\(\)/);
 assert.match(archetypeRuntime, /getElementById\("player-progression-tree-host"\)/);
 assert.match(levelAllocationRuntime, /REVISAR CAMBIOS/);
 assert.match(levelAllocationRuntime, /\.transaction\(/);
