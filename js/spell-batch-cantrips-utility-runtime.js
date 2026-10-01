@@ -572,6 +572,7 @@
   function controlledFlameIgnoresDarkness(unit, unitsInput = []) {
     const rows = Array.isArray(unitsInput) ? unitsInput : Object.values(unitsInput || {});
     if (typeof originalDarknessOverride === "function" && originalDarknessOverride(unit, rows)) return true;
+    const base = baseRuntime();
     const now = Date.now();
     for (const source of rows) {
       const entry = getStatus(source, "controlled_flame_light");
