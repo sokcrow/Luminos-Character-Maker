@@ -80,6 +80,46 @@ turn = cleric.resolveTurnUndead(lv10, [zombie], {
 assert.equal(turn.outcomes[0].savePassed, true);
 assert.equal(zombie.isDead, undefined);
 
+// Real Trait activation path: Turn Undead must spend the shared Channel Divinity pool.
+const trayCleric = makeCleric(10);
+const trayZombie = { id: "tray_zombie", creatureType: "undead", challengeRating: 1, hp: 12, turnUndeadSavePassed: false };
+const trayTraits = engine.resolveTraitGrants(trayCleric, catalog.allGrants(), catalog.allDefinitions());
+const turnTrait = trayTraits.find((trait) => trait.id === "turn_undead");
+assert.ok(turnTrait);
+let activated = engine.activateTrait(turnTrait, {
+  context: "combat",
+  character: trayCleric,
+  self: trayCleric,
+  targets: [trayZombie],
+});
+assert.equal(activated.available, true);
+assert.equal(activated.outcomes.some((outcome) => outcome.type === "cleric_turn_undead"), true);
+assert.deepEqual(cleric.channelDivinityPool(trayCleric), { current: 0, maximum: 1 });
+assert.equal(trayZombie.turnUndead?.active, true);
+
+// Future Domain Channel Divinity features only declare a cost; the base runtime owns the pool.
+const domainCleric = makeCleric(30);
+const domainChannelProbe = {
+  schemaVersion: 1,
+  id: "domain_channel_probe",
+  name: "Domain Channel Probe",
+  source: { type: "class", id: "cleric", classId: "cleric" },
+  contexts: ["combat"],
+  activation: { type: "manual", actionCost: "none" },
+  effects: [],
+  rules: [],
+  mechanics: { channelDivinityCost: 1 },
+};
+assert.deepEqual(cleric.channelDivinityPool(domainCleric), { current: 2, maximum: 2 });
+const domainProbeResult = engine.activateTrait(domainChannelProbe, {
+  context: "combat",
+  character: domainCleric,
+  self: domainCleric,
+});
+assert.equal(domainProbeResult.available, true);
+assert.equal(domainProbeResult.outcomes.some((outcome) => outcome.type === "cleric_channel_divinity_spent"), true);
+assert.deepEqual(cleric.channelDivinityPool(domainCleric), { current: 1, maximum: 2 });
+
 const lv25 = makeCleric(25);
 assert.equal(cleric.destroyUndeadThreshold(lv25), 0.5);
 turn = cleric.resolveTurnUndead(lv25, [zombie, skeleton], {
