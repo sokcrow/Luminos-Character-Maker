@@ -559,8 +559,9 @@
       action.state = "locked";
       return { resolved: false, reason: resolution.reason || "resolution_failed", resolution, resources, economy, action };
     }
+    const postEffects = action.resolution.type === "automatic" ? null : applyAutomaticEffects(action, actor, targets, context);
     action.state = "resolved";
-    return { resolved: true, action, resolution, resources, economy, targetResolution, resolvedActionIds: [action.id] };
+    return { resolved: true, action, resolution, postEffects, resources, economy, targetResolution, resolvedActionIds: [action.id] };
   }
 
   const api = Object.freeze({
