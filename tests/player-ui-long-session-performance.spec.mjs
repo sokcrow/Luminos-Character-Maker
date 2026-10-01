@@ -386,15 +386,27 @@ test("real player sheet stays stable for 60 seconds under background player upda
     requestAnimationFrame(sample);
 
     let updates = 0;
+    const targetUpdates = 600;
     while (performance.now() - started < 60_000) {
-      // CI browsers may clamp timers under load. Emit a short burst each turn so
-      // the 60-second wall-clock soak still carries 500+ background updates.
-      for (let burst = 0; burst < 3; burst += 1) {
+      // Drive load from elapsed wall time, not from callback frequency. GitHub
+      // runners can heavily clamp timers, but the same 60-second soak must still
+      // deliver the same amount of player-node churn.
+      const elapsed = Math.min(60_000, performance.now() - started);
+      const expectedSoFar = Math.min(
+        targetUpdates,
+        Math.max(1, Math.ceil((elapsed / 60_000) * targetUpdates)),
+      );
+      while (updates < expectedSoFar) {
         window.__fakeFirebase.emitPlayer({ backgroundHeartbeat: updates });
         updates += 1;
       }
       await sleep(100);
     }
+    while (updates < targetUpdates) {
+      window.__fakeFirebase.emitPlayer({ backgroundHeartbeat: updates });
+      updates += 1;
+    }
+    await sleep(0);
 
     sampling = false;
     await sleep(100);
@@ -646,7 +658,7 @@ test("shared trait formula display resolves class and archetype formulas without
   expect(zealotText).not.toContain("Class Level / 4");
 
   const pending = dynamic.locator(".player-trait-resolved-value.is-pending").first();
-  await expect(pending).toHaveText("pending");
+  await expect(pending.locator(".player-trait-resolved-value__display")).toHaveText("pending");
   const dynamicText = await playerFacingText(dynamic);
   expect(dynamicText).toContain("pending");
   expect(dynamicText).not.toContain("Spell Slot Level");
