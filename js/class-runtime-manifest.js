@@ -155,6 +155,20 @@
     "globalName": "LuminousBilgewaterDemolisherArchetypeRuntime"
   },
   {
+    "id": "archetype:bladesinger",
+    "kind": "archetype",
+    "path": "js/bladesinger-archetype-runtime.js",
+    "contexts": [
+      "any"
+    ],
+    "dependsOn": [
+      "class:wizard",
+      "support:player-archetype-runtime-core",
+      "support:universal-action-economy"
+    ],
+    "globalName": "LuminousBladesingerArchetypeRuntime"
+  },
+  {
     "id": "archetype:champion",
     "kind": "archetype",
     "path": "js/champion-archetype-runtime.js",
