@@ -14,6 +14,7 @@
     <link rel="stylesheet" href="css/theatre-dialogue.css" />
     <link rel="stylesheet" href="css/theatre-hud.css" />
     <link rel="stylesheet" href="css/inventory-hud-v2.css" />
+    <link rel="stylesheet" href="css/economy-contracts.css" />
 
     <style>
       #system-loading-overlay {
@@ -5723,13 +5724,16 @@
             </div>
           </div>
 
-          <!-- Contratos Tab -->
+          <!-- Contratos / Misiones Tab -->
           <div class="sheet-tab-content sheet-tab-contratos">
-            <div class="sheet-app-header"><h2>Contratos</h2></div>
+            <div class="sheet-app-header"><h2>Misiones activas</h2></div>
             <div class="sheet-app-body">
-              <p style="color: #aaa; text-align: center; margin-top: 20px">
-                [Sistema de Contratos en desarrollo...]
-              </p>
+              <div class="economy-v2-meta" style="padding: 10px 12px 0;">
+                Aquí aparecen únicamente los contratos asignados a tu personaje. Puedes salir de tu propia participación; el resto del equipo conserva la suya.
+              </div>
+              <div id="player-contracts-list" class="player-contract-list">
+                <div class="economy-v2-empty">Cargando misiones...</div>
+              </div>
             </div>
           </div>
 
@@ -13412,6 +13416,8 @@
     <script src="js/inventory-hud-v2.js"></script>
     <script src="js/item-food-rest-ui.js"></script>
     <script src="js/item-cooking-ui.js"></script>
+    <script src="js/economy-contracts-core.js"></script>
+    <script src="js/player-contracts-runtime.js"></script>
     <script src="hoja_personaje.js"></script>
   </body>
 </html>
