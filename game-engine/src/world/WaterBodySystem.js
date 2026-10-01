@@ -6,6 +6,10 @@ const WATER_ASSET_PATHS = Object.freeze({
 
 export const DEFAULT_WATER_CONFIG = Object.freeze({
   texture: WATER_ASSET_PATHS.water,
+  // Calm/flat bodies may disable the internal texture entirely while still using
+  // the shared WaterBody surface/foam/interaction contracts. The resulting
+  // MeshStandardMaterial remains scene-lit instead of behaving like an emissive sheet.
+  textureEnabled: true,
   tileWorldSize: 3.0,
   scrollSpeed: Object.freeze({x:0.010,y:0.004}),
   // Optional physical flow in world-units / second. When present it is converted
@@ -601,10 +605,11 @@ export class WaterBody {
       const scrollY=physicalFlow&&Number.isFinite(Number(physicalFlow.y))
         ?finite(physicalFlow.y)/tileWorldSize
         :finite(speed.y);
-      const entry=await this.system.textures.variant('water',{
+      const textureEnabled=this.water.textureEnabled!==false;
+      const entry=textureEnabled?await this.system.textures.variant('water',{
         path:this.water.texture,scrollX,scrollY,wrapT:THREE.RepeatWrapping,
         repeatX:1/tileWorldSize,repeatY:1/tileWorldSize
-      });
+      }):null;
       if(this.disposed)return this;
       let alphaMap=null;
       if(this.surface.alphaMap){
@@ -614,7 +619,7 @@ export class WaterBody {
         alphaMap.needsUpdate=true;
       }
       let mat;
-      if(this.water.patternMask?.enabled){
+      if(this.water.patternMask?.enabled&&entry?.texture){
         if(alphaMap)console.warn('WaterBody patternMask ignores surface alphaMap; use shaped geometry for this mode:',this.id);
         if(this.water.surfaceWave?.enabled)ensureWaterAcrossAttribute(THREE,this.surface.geometry);
         mat=makePatternMaskWaterMaterial(THREE,entry.texture,this.water,{
@@ -625,7 +630,7 @@ export class WaterBody {
         this.patternTexture=entry.texture;
       }else{
         mat=new THREE.MeshStandardMaterial({
-          map:entry.texture,color:this.water.color??0xffffff,transparent:(this.water.opacity??1)<1||!!alphaMap,
+          map:entry?.texture||null,color:this.water.color??0xffffff,transparent:(this.water.opacity??1)<1||!!alphaMap,
           opacity:clamp(this.water.opacity??1,0,1),roughness:clamp(this.water.roughness??.42,0,1),
           metalness:clamp(this.water.metalness??.02,0,1),side:THREE.DoubleSide,
           alphaMap,alphaTest:alphaMap?0.01:0,
@@ -641,9 +646,10 @@ export class WaterBody {
       mesh.renderOrder=finite(this.surface.renderOrder,-4);
       mesh.userData={
         ...(mesh.userData||{}),waterBodyId:this.id,waterBodySurface:true,
-        waterTextureScroll:{x:scrollX,y:scrollY},
+        waterTextureEnabled:textureEnabled,
+        waterTextureScroll:textureEnabled?{x:scrollX,y:scrollY}:null,
         waterFlowWorldSpeed:physicalFlow?{x:finite(physicalFlow.x),y:finite(physicalFlow.y)}:null,
-        visualSurfaceDisplacementOnly:!!this.water.surfaceWave?.enabled
+        visualSurfaceDisplacementOnly:!!(textureEnabled&&this.water.surfaceWave?.enabled)
       };
       this.group.add(mesh);this.waterMesh=mesh;
     }

@@ -67,6 +67,7 @@ jobs:
           node --check game-engine/src/map/procedural/ProceduralHydrology.js
           node --check game-engine/src/map/procedural/ProceduralTerrain.js
           node --check game-engine/src/map/procedural/ProceduralMapGenerator.js
+          node --check game-engine/src/map/procedural/CrystalCaveGenerator.js
 
       - name: HUD runtime syntax
         run: |
@@ -84,6 +85,9 @@ jobs:
 
       - name: Core smoke
         run: node game-engine/tests/core-smoke.mjs
+
+      - name: Crystal Cave modular water smoke
+        run: node game-engine/tests/crystal-cave-water-contract-smoke.mjs
 
       - name: Visual Lab smoke
         run: node game-engine/tests/visual-lab-smoke.mjs
@@ -120,3 +124,9 @@ jobs:
 
       - name: WakeTrail smoke
         run: node game-engine/tests/wake-trail-system-smoke.mjs
+
+      - name: Crystal Cave water runtime
+        run: node game-engine/tests/crystal-cave-water-runtime-smoke.mjs
+
+      - name: Crystal Cave LOD runtime
+        run: node game-engine/tests/crystal-cave-lod-runtime-smoke.mjs
