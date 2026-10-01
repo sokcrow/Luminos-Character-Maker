@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'js/instance-control.js'
+      - 'js/instance-control.js'\n      - 'js/theatre-check-retry-watchdog.js'
       - 'hoja_personaje.js'
       - 'hoja_personaje.css'
       - 'js/player-progression-tree.js'
@@ -26,6 +26,7 @@ jobs:
       - name: Syntax check
         run: |
           node --check js/instance-control.js
+          node --check js/theatre-check-retry-watchdog.js
           node --check hoja_personaje.js
           node --check js/player-progression-tree.js
           node --check js/player-progression-level-allocation.js
