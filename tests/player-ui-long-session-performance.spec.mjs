@@ -460,3 +460,53 @@ test("terminal/combat visibility can cycle 720 times without stacking Battle vie
   await page.evaluate(() => window.LuminousInstanceControl.applyPlayerInstance("teatro"));
   await expect(page.locator("#player-instance-combat")).toHaveCount(0);
 });
+
+
+test("stats HUD keeps fixed geometry and scrolls internally when content changes", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto(BASE + "/index.html", { waitUntil: "domcontentloaded" });
+  await page.setContent(`
+    <!doctype html>
+    <html>
+      <head><link rel="stylesheet" href="/hoja_personaje.css"></head>
+      <body>
+        <div id="stats-modal" class="hud-modal modal-stats active">
+          <div class="hud-modal-content">
+            <div class="hud-modal-body">
+              <div id="stats-test-content"><div>Short stats content</div></div>
+            </div>
+          </div>
+        </div>
+      </body>
+    </html>
+  `);
+
+  const before = await page.locator("#stats-modal .hud-modal-content").evaluate((node) => {
+    const rect = node.getBoundingClientRect();
+    return { top: rect.top, height: rect.height };
+  });
+
+  await page.locator("#stats-test-content").evaluate((node) => {
+    node.replaceChildren(...Array.from({ length: 240 }, (_, index) => {
+      const row = document.createElement("div");
+      row.textContent = "Attribute detail row " + index;
+      row.style.height = "28px";
+      return row;
+    }));
+  });
+
+  const after = await page.locator("#stats-modal .hud-modal-content").evaluate((node) => {
+    const rect = node.getBoundingClientRect();
+    return { top: rect.top, height: rect.height };
+  });
+  const bodyMetrics = await page.locator("#stats-modal .hud-modal-body").evaluate((node) => ({
+    clientHeight: node.clientHeight,
+    scrollHeight: node.scrollHeight,
+    overflowY: getComputedStyle(node).overflowY,
+  }));
+
+  expect(Math.abs(after.top - before.top)).toBeLessThan(0.5);
+  expect(Math.abs(after.height - before.height)).toBeLessThan(0.5);
+  expect(bodyMetrics.scrollHeight).toBeGreaterThan(bodyMetrics.clientHeight);
+  expect(bodyMetrics.overflowY).toBe("auto");
+});
