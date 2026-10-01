@@ -235,11 +235,14 @@ async function installPageInstrumentation(page) {
   await page.addInitScript(() => {
     const nativeSetInterval = window.setInterval.bind(window);
     const nativeClearInterval = window.clearInterval.bind(window);
-    const active = new Set();
+    const active = new Map();
 
     window.setInterval = (fn, delay, ...args) => {
       const id = nativeSetInterval(fn, delay, ...args);
-      active.add(id);
+      active.set(id, {
+        delay: Number(delay) || 0,
+        stack: String(new Error("interval-created").stack || "")
+      });
       return id;
     };
     window.clearInterval = (id) => {
@@ -247,7 +250,8 @@ async function installPageInstrumentation(page) {
       return nativeClearInterval(id);
     };
     window.__perfIntervalRegistry = {
-      activeCount: () => active.size
+      activeCount: () => active.size,
+      details: () => [...active.values()].map((entry) => ({ ...entry }))
     };
   });
 
@@ -284,6 +288,15 @@ test("source keeps the static player surface free of permanent polling and dupli
   expect(allocation).not.toContain('state.playerRef.on("value"');
   expect(allocation).toContain("nextRenderSignature === state.renderSignature");
   expect(instance).toContain("syncPlayerCombatOcclusion");
+});
+
+test("real player sheet reaches interval-idle after boot", async ({ page }) => {
+  await installPageInstrumentation(page);
+  await page.goto(BASE + "/hoja_personaje.html", { waitUntil: "domcontentloaded" });
+  await page.waitForFunction(() => window.datosJugador?.characterName === "Performance Test", null, { timeout: 20_000 });
+  await page.waitForTimeout(2_000);
+  const details = await page.evaluate(() => window.__perfIntervalRegistry?.details?.() || []);
+  expect(details, JSON.stringify(details, null, 2)).toEqual([]);
 });
 
 test("real player sheet stays stable for 60 seconds under background player updates", async ({ page }) => {
