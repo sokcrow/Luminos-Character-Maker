@@ -299,6 +299,18 @@
     "globalName": "LuminousSorcererClassRuntime"
   },
   {
+    "id": "class:wizard",
+    "kind": "class",
+    "path": "js/wizard-class-runtime.js",
+    "contexts": [
+      "any"
+    ],
+    "dependsOn": [
+      "support:spellcasting-runtime"
+    ],
+    "globalName": "LuminousWizardClassRuntime"
+  },
+  {
     "id": "adapter:bilgewater-buccaneer:combat",
     "kind": "adapter",
     "path": "js/bilgewater-buccaneer-combat-runtime.js",
