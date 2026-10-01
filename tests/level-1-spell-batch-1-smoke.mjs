@@ -50,6 +50,13 @@ assert.equal(catalog.bless.concentration, true);
 assert.equal(catalog.burning_hands.school, "evocation");
 assert.equal(catalog.burning_hands.save.abilityId, "dex");
 
+// Current-rule cleanup for the 9 definitions that existed before this batch.
+assert.deepEqual(catalog.animal_friendship.classIds, ["bard", "druid", "ranger"]);
+assert.equal("intelligenceMaxExclusive" in catalog.animal_friendship.mechanics.targetRequirement, false);
+assert.equal(catalog.charm_person.mechanics.targetRequirement.creatureType, "humanoid");
+assert.equal(catalog.charm_person.mechanics.saveAdvantageWhenFightingCasterOrAllies, true);
+assert.deepEqual(catalog.dissonant_whispers.classIds, ["bard"]);
+
 // Metadata debt from the pre-Level-1 pass must not punch holes in School filtering.
 for (const [id, school] of Object.entries({
   fire_bolt: "evocation",
