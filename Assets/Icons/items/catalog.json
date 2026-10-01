@@ -11415,6 +11415,17 @@
       "legacySource": "https://imgur.com/GroyHFc.png"
     },
     {
+      "path": "Assets/Icons/items/utility/thought_strand.png",
+      "primaryId": "thought_strand",
+      "domain": "utility",
+      "familyIds": [
+        "thought_strand"
+      ],
+      "bytes": 996801,
+      "sha256": "d05d569009971bc397343a78a092610f1e5fad6ca29023a8d4689eeab8e6b2bb",
+      "legacySource": "https://imgur.com/7MZLBdD.png"
+    },
+    {
       "path": "Assets/Icons/items/utility/tool.png",
       "primaryId": "tool",
       "domain": "utility",
