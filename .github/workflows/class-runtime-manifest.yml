@@ -19,7 +19,8 @@ on:
       - "tests/bilgewater-buccaneer-archetype-runtime-smoke.cjs"
       - "tests/bilgewater-demolisher-archetype-runtime-smoke.cjs"
       - "tests/fighter-class-runtime-smoke.mjs"
-      - "tests/champion-archetype-runtime-smoke.mjs"\n      - "tests/bladesinger-archetype-runtime-smoke.mjs"
+      - "tests/champion-archetype-runtime-smoke.mjs"
+      - "tests/bladesinger-archetype-runtime-smoke.mjs"
       - "tests/samurai-archetype-runtime-smoke.mjs"
       - "tests/banneret-archetype-runtime-smoke.mjs"
       - "tests/monk-class-runtime-smoke.cjs"
@@ -52,7 +53,8 @@ on:
       - "tests/bilgewater-buccaneer-archetype-runtime-smoke.cjs"
       - "tests/bilgewater-demolisher-archetype-runtime-smoke.cjs"
       - "tests/fighter-class-runtime-smoke.mjs"
-      - "tests/champion-archetype-runtime-smoke.mjs"\n      - "tests/bladesinger-archetype-runtime-smoke.mjs"
+      - "tests/champion-archetype-runtime-smoke.mjs"
+      - "tests/bladesinger-archetype-runtime-smoke.mjs"
       - "tests/samurai-archetype-runtime-smoke.mjs"
       - "tests/banneret-archetype-runtime-smoke.mjs"
       - "js/class-status-semantics.js"
@@ -91,7 +93,9 @@ jobs:
       - run: node --check js/class-status-semantics.js
       - run: node tests/fighter-class-runtime-smoke.mjs
       - run: node --check js/champion-archetype-runtime.js
-      - run: node tests/champion-archetype-runtime-smoke.mjs\n      - run: node --check js/bladesinger-archetype-runtime.js\n      - run: node tests/bladesinger-archetype-runtime-smoke.mjs
+      - run: node tests/champion-archetype-runtime-smoke.mjs
+      - run: node --check js/bladesinger-archetype-runtime.js
+      - run: node tests/bladesinger-archetype-runtime-smoke.mjs
       - run: node --check js/samurai-archetype-runtime.js
       - run: node tests/samurai-archetype-runtime-smoke.mjs
       - run: node --check js/banneret-archetype-runtime.js
