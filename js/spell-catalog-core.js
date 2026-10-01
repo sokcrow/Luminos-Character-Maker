@@ -599,6 +599,245 @@
       effects: []
     }),
 
+    control_flames: Object.freeze({
+      id: "control_flames", name: "Control Flames", nombre: "Control Flames",
+      description: "Feed or suppress Burn, extinguish or shape a Small Nonmagical Fire, or make its Adjacent Units ignore Darkness Disadvantage.",
+      level: 0, spellLevel: 0, cantrip: true,
+      classIds: ["druid", "sorcerer", "wizard"],
+      school: "transmutation", contexts: ["combat", "theater"],
+      sinAffinity: "wrath", damageType: null,
+      targetType: "special", targetingType: "special", attackWeight: 1, atkWeight: 1,
+      isUnclashable: true, castingTime: "action",
+      mechanics: {
+        cantripRuntime: "control_flames",
+        requiresChoice: { key: "controlFlamesMode", values: ["feed_potency", "feed_count", "suppress_potency", "suppress_count", "extinguish", "control_light", "shape"] },
+        burnAmountFormula: "1+floor(Level/30)",
+        lightRule: "adjacent_only",
+        nonmagicalFireOnly: true
+      },
+      effects: []
+    }),
+
+    gust: Object.freeze({
+      id: "gust", name: "Gust", nombre: "Gust",
+      description: "Choose Push, Move Object, or Wind Trick. Push: STR Save; on failure inflict (2 + Level/20) Bind.",
+      level: 0, spellLevel: 0, cantrip: true,
+      classIds: ["druid", "sorcerer", "wizard"],
+      school: "transmutation", contexts: ["combat", "theater"],
+      sinAffinity: "sloth", damageType: null,
+      targetType: "special", targetingType: "special", attackWeight: 1, atkWeight: 1,
+      isUnclashable: true, castingTime: "action",
+      save: { abilityId: "str", onSuccess: "negates" },
+      mechanics: {
+        cantripRuntime: "gust",
+        requiresChoice: { key: "gustMode", values: ["push", "move_object", "wind_trick"] },
+        bindFormula: "2+floor(Level/20)"
+      },
+      effects: []
+    }),
+
+    mold_earth: Object.freeze({
+      id: "mold_earth", name: "Mold Earth", nombre: "Mold Earth",
+      description: "Excavate loose earth, mark earth or stone, or create Molded Terrain for 1 hour.",
+      level: 0, spellLevel: 0, cantrip: true,
+      classIds: ["druid", "sorcerer", "wizard"],
+      school: "transmutation", contexts: ["combat", "theater"],
+      sinAffinity: "sloth", damageType: null,
+      targetType: "special", targetingType: "special", attackWeight: 1, atkWeight: 1,
+      isUnclashable: true, castingTime: "action",
+      mechanics: {
+        cantripRuntime: "mold_earth",
+        requiresChoice: { key: "moldEarthMode", values: ["excavate", "mark", "difficult_terrain"] },
+        terrain: { id: "molded_terrain", durationSeconds: 3600, maxActive: 2, slowestEnemies: 3, status: "bind", amount: 2, noStackSameTurn: true }
+      },
+      effects: []
+    }),
+
+    shape_water: Object.freeze({
+      id: "shape_water", name: "Shape Water", nombre: "Shape Water",
+      description: "Move or reshape water, or freeze it into Icy Terrain for 1 hour.",
+      level: 0, spellLevel: 0, cantrip: true,
+      classIds: ["druid", "sorcerer", "wizard"],
+      school: "transmutation", contexts: ["combat", "theater"],
+      sinAffinity: "gloom", damageType: null,
+      targetType: "special", targetingType: "special", attackWeight: 1, atkWeight: 1,
+      isUnclashable: true, castingTime: "action",
+      mechanics: {
+        cantripRuntime: "shape_water",
+        requiresChoice: { key: "shapeWaterMode", values: ["flow", "shape", "freeze"] },
+        terrain: { id: "icy_terrain", durationSeconds: 3600, maxActive: 2, slowestEnemies: 3, status: "chill", amount: 2, noStackSameTurn: true }
+      },
+      effects: []
+    }),
+
+    friends: Object.freeze({
+      id: "friends", name: "Friends", nombre: "Friends",
+      description: "One Humanoid makes a WIS Save. On failure, inflict Charmed - Magic while Concentration lasts.",
+      level: 0, spellLevel: 0, cantrip: true,
+      classIds: ["bard", "sorcerer", "warlock", "wizard"],
+      school: "enchantment", contexts: ["combat", "theater"],
+      sinAffinity: "lust", damageType: null,
+      targetType: "single", targetingType: "single", attackWeight: 1, atkWeight: 1,
+      isUnclashable: true, castingTime: "action", concentration: true,
+      save: { abilityId: "wis", onSuccess: "negates" },
+      mechanics: {
+        cantripRuntime: "friends",
+        humanoidOnly: true,
+        cannotAffectCurrentHostile: true,
+        repeatImmunitySeconds: 86400,
+        condition: { id: "charmed", removalMode: "concentration" }
+      },
+      effects: []
+    }),
+
+    encode_thoughts: Object.freeze({
+      id: "encode_thoughts", name: "Encode Thoughts", nombre: "Encode Thoughts",
+      description: "Create one Thought Strand Temporary Item containing a Memory, Idea, or Message. It lasts 8 hours.",
+      level: 0, spellLevel: 0, cantrip: true,
+      classIds: ["wizard"],
+      school: "enchantment", contexts: ["combat", "theater"],
+      sinAffinity: "gloom", damageType: null,
+      targetType: "self", targetingType: "self", attackWeight: 1, atkWeight: 1,
+      isUnclashable: true, castingTime: "action",
+      mechanics: {
+        cantripRuntime: "encode_thoughts",
+        temporaryItem: { id: "thought_strand", durationSeconds: 28800, uniquePerCaster: true, readableBy: ["encode_thoughts", "thought_reading"] }
+      },
+      effects: []
+    }),
+
+    guidance: Object.freeze({
+      id: "guidance", name: "Guidance", nombre: "Guidance",
+      description: "Choose one willing Unit and one Skill. While Concentration lasts, gain +2 Final Power on Checks using that Skill.",
+      level: 0, spellLevel: 0, cantrip: true,
+      classIds: ["artificer", "cleric", "druid"],
+      school: "divination", contexts: ["combat", "theater"],
+      sinAffinity: "pride", damageType: null,
+      targetType: "allies", targetingType: "allies", attackWeight: 1, atkWeight: 1,
+      isUnclashable: true, castingTime: "action", concentration: true,
+      mechanics: {
+        cantripRuntime: "guidance",
+        requiresChoice: { key: "guidanceSkill", values: ["acrobatics", "animal_handling", "arcana", "athletics", "deception", "history", "insight", "intimidation", "investigation", "medicine", "nature", "perception", "performance", "persuasion", "religion", "sleight_of_hand", "stealth", "survival"] },
+        checkFinalPower: 2
+      },
+      effects: []
+    }),
+
+    resistance: Object.freeze({
+      id: "resistance", name: "Resistance", nombre: "Resistance",
+      description: "Choose one Sin Type or Elemental Status Effect. While Concentration lasts, resist that choice once per Turn.",
+      level: 0, spellLevel: 0, cantrip: true,
+      classIds: ["artificer", "cleric", "druid"],
+      school: "abjuration", contexts: ["combat"],
+      sinAffinity: "pride", damageType: null,
+      targetType: "allies", targetingType: "allies", attackWeight: 1, atkWeight: 1,
+      isUnclashable: true, castingTime: "action", concentration: true,
+      mechanics: {
+        cantripRuntime: "resistance",
+        requiresChoice: { key: "resistanceChoice", values: ["sin_wrath", "sin_lust", "sin_sloth", "sin_gluttony", "sin_gloom", "sin_pride", "sin_envy", "status_burn", "status_chill", "status_shock", "status_corrosion", "status_poison", "status_decay", "status_radiance", "status_sinking", "status_tremor"] },
+        sinDamageReductionPercent: 20,
+        elementalStatusReduction: 1,
+        oncePerTurn: true
+      },
+      effects: []
+    }),
+
+    spare_the_dying: Object.freeze({
+      id: "spare_the_dying", name: "Spare the Dying", nombre: "Spare the Dying",
+      description: "Choose one Downed Unit. That Unit becomes Stable.",
+      level: 0, spellLevel: 0, cantrip: true,
+      classIds: ["artificer", "cleric"],
+      school: "necromancy", contexts: ["combat"],
+      sinAffinity: "pride", damageType: null,
+      targetType: "allies", targetingType: "allies", attackWeight: 1, atkWeight: 1,
+      isUnclashable: true, castingTime: "action",
+      mechanics: { cantripRuntime: "spare_the_dying", deathSaveState: "stable" },
+      effects: []
+    }),
+
+    message: Object.freeze({
+      id: "message", name: "Message", nombre: "Message",
+      description: "Send a private Message to one known Unit. Only the target can hear it, and it may immediately send one private Reply.",
+      level: 0, spellLevel: 0, cantrip: true,
+      classIds: ["artificer", "bard", "sorcerer", "wizard"],
+      school: "transmutation", contexts: ["combat", "theater"],
+      sinAffinity: "gloom", damageType: null,
+      targetType: "single", targetingType: "single", attackWeight: 1, atkWeight: 1,
+      isUnclashable: true, castingTime: "action",
+      mechanics: { cantripRuntime: "message", privateCommunication: true, allowsImmediateReply: true, blockedByMagicalSilence: true },
+      effects: []
+    }),
+
+    thaumaturgy: Object.freeze({
+      id: "thaumaturgy", name: "Thaumaturgy", nombre: "Thaumaturgy",
+      description: "Choose Booming Voice, Altered Eyes, Fire Play, Invisible Hand, Phantom Sound, or Tremors.",
+      level: 0, spellLevel: 0, cantrip: true,
+      classIds: ["cleric"],
+      school: "transmutation", contexts: ["combat", "theater"],
+      sinAffinity: "pride", damageType: null,
+      targetType: "special", targetingType: "special", attackWeight: 1, atkWeight: 1,
+      isUnclashable: true, castingTime: "action",
+      mechanics: {
+        cantripRuntime: "thaumaturgy",
+        requiresChoice: { key: "thaumaturgyMode", values: ["booming_voice", "altered_eyes", "fire_play", "invisible_hand", "phantom_sound", "tremors"] },
+        boomingVoice: { skill: "intimidation", finalPower: 2, durationSeconds: 60 },
+        maxMaintainedEffects: 3
+      },
+      effects: []
+    }),
+
+    mage_hand: Object.freeze({
+      id: "mage_hand", name: "Mage Hand", nombre: "Mage Hand",
+      description: "Create a Mage Hand Background Unit for 1 minute. It can manipulate small Objects but cannot Attack or activate Magic Items.",
+      level: 0, spellLevel: 0, cantrip: true,
+      classIds: ["artificer", "bard", "sorcerer", "warlock", "wizard"],
+      school: "conjuration", contexts: ["combat", "theater"],
+      sinAffinity: "sloth", damageType: null,
+      targetType: "self", targetingType: "self", attackWeight: 1, atkWeight: 1,
+      isUnclashable: true, castingTime: "action",
+      mechanics: {
+        cantripRuntime: "mage_hand",
+        entity: { kind: "background_unit", durationSeconds: 60, onePerCaster: true, canAttack: false, canActivateMagicItems: false }
+      },
+      effects: []
+    }),
+
+    prestidigitation: Object.freeze({
+      id: "prestidigitation", name: "Prestidigitation", nombre: "Prestidigitation",
+      description: "Choose Sensory Trick, Fire Play, Clean or Soil, Minor Sensation, Magic Mark, or Minor Creation.",
+      level: 0, spellLevel: 0, cantrip: true,
+      classIds: ["artificer", "bard", "sorcerer", "warlock", "wizard"],
+      school: "transmutation", contexts: ["combat", "theater"],
+      sinAffinity: "gloom", damageType: null,
+      targetType: "special", targetingType: "special", attackWeight: 1, atkWeight: 1,
+      isUnclashable: true, castingTime: "action",
+      mechanics: {
+        cantripRuntime: "prestidigitation",
+        requiresChoice: { key: "prestidigitationMode", values: ["sensory_trick", "fire_play", "clean_or_soil", "minor_sensation", "magic_mark", "minor_creation"] },
+        oneHourModes: ["minor_sensation", "magic_mark"],
+        minorCreation: { durationSeconds: 6, handSizedOnly: true, noMonetaryValue: true, cannotDealDamage: true },
+        maxMaintainedEffects: 3
+      },
+      effects: []
+    }),
+
+    magic_stone: Object.freeze({
+      id: "magic_stone", name: "Magic Stone", nombre: "Magic Stone",
+      description: "Create 3 Magic Stones for 1 minute. Each can be Given, Thrown, or used as Sling Ammo. On Hit, deal (2 + Enchanter's Spell Mod) Blunt Damage.",
+      level: 0, spellLevel: 0, cantrip: true,
+      classIds: ["druid", "warlock"],
+      school: "transmutation", contexts: ["combat", "theater"],
+      sinAffinity: "sloth", damageType: "contundente",
+      targetType: "self", targetingType: "self", attackWeight: 1, atkWeight: 1,
+      isUnclashable: true, castingTime: "quick_action",
+      mechanics: {
+        cantripRuntime: "magic_stone",
+        temporaryAmmo: { id: "magic_stone", quantity: 3, durationSeconds: 60, slingAmmo: true, throwable: true },
+        damageFormula: "2+EnchanterSpellMod"
+      },
+      effects: []
+    }),
+
     charm_person: Object.freeze({
       id: "charm_person", name: "Charm Person", nombre: "Hechizar Persona",
       level: 1, spellLevel: 1, cantrip: false,
