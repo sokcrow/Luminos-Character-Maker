@@ -14,6 +14,7 @@
     <link rel="stylesheet" href="css/theatre-dialogue.css" />
     <link rel="stylesheet" href="css/theatre-hud.css" />
     <link rel="stylesheet" href="css/inventory-hud-v2.css" />
+    <link rel="stylesheet" href="css/player-progression-tree.css" />
 
     <style>
       #system-loading-overlay {
@@ -7273,12 +7274,12 @@
             <span>Atributos</span>
           </button>
 
-          <!-- Perks -->
-          <button type="action" name="act_hud_perks" class="hud-menu-item" title="Ventajas" aria-label="Abrir ventajas">
+          <!-- Progression -->
+          <button type="action" name="act_hud_perks" class="hud-menu-item" title="Progresión" aria-label="Abrir progresión de clase">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square">
               <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
             </svg>
-            <span>Ventajas</span>
+            <span>Progresión</span>
           </button>
 
           <!-- Skills -->
@@ -8521,218 +8522,39 @@
         </div>
       </div>
 
-      <div id="perks-modal" class="hud-modal modal-perks">
+      <div id="perks-modal" class="hud-modal modal-perks modal-progression">
         <div class="hud-modal-content">
           <button type="action" name="act_hud_close" class="hud-modal-close">
             ×
           </button>
           <div class="hud-modal-body">
-            <div class="hud-tab-content">
-              <input
-                type="hidden"
-                name="attr_show_perk_creator"
-                class="sheet-state-perk-creator"
-                value="0"
-              />
-
-              <div
-                style="
-                  display: flex;
-                  justify-content: space-between;
-                  align-items: center;
-                  border-bottom: 1px solid #333;
-                  margin-bottom: 15px;
-                  padding-bottom: 5px;
-                "
-              >
-                <h3
-                  class="sheet-config-title"
-                  style="margin: 0; border: none; padding: 0"
-                >
-                  CREATE PERK
-                </h3>
-                <button
-                  type="action"
-                  name="act_toggle_perk_creator"
-                  class="sheet-btn-rest"
-                  style="width: auto; padding: 0 10px; font-size: 0.8em"
-                >
-                  TOGGLE CREATOR
-                </button>
-              </div>
-
-              <div class="sheet-perk-creator-container">
-                <div
-                  class="sheet-row"
-                  style="
-                    background: #111;
-                    padding: 10px;
-                    border-radius: 5px;
-                    border: 1px solid #333;
-                  "
-                >
-                  <div class="sheet-col">
-                    <label>Name</label>
-                    <input
-                      type="text"
-                      name="attr_new_perk_name"
-                      placeholder="Perk Name"
-                    />
-                  </div>
-                  <div class="sheet-col" style="flex: 0 0 auto">
-                    <label>&nbsp;</label>
-                    <button
-                      type="action"
-                      name="act_add_perk"
-                      class="sheet-btn-rest"
-                      style="width: auto; padding: 0 10px"
-                    >
-                      ADD
-                    </button>
-                  </div>
-                  <div class="sheet-col" style="flex-basis: 100%">
-                    <label>Description</label>
-                    <textarea
-                      name="attr_new_perk_desc"
-                      style="height: 40px"
-                    ></textarea>
-                  </div>
+            <section class="player-progression-shell" aria-label="Progresión de clase">
+              <header class="player-progression-heading">
+                <div>
+                  <span>CHARACTER BUILD</span>
+                  <h2>PROGRESIÓN</h2>
                 </div>
-              </div>
+                <p>
+                  Recorre la clase con la rueda del mouse. Los arquetipos se separan en ramas;
+                  pasa el cursor sobre un nodo para inspeccionar sus Traits, Skills, Spells y
+                  fórmulas exactamente en el nivel donde se obtienen.
+                </p>
+              </header>
 
-              <h3 class="sheet-config-title" style="margin-top: 20px">
-                PERKS LIST
-              </h3>
-              <fieldset class="repeating_skills">
-                <div class="sheet-perk-row">
-                  <input
-                    type="checkbox"
-                    name="attr_edit_mode"
-                    class="sheet-state-edit-mode sheet-hide"
-                    value="1"
-                  />
+              <div id="player-progression-tree-host" aria-live="polite"></div>
+              <aside id="player-progression-detail" aria-live="polite"></aside>
 
-                  <!-- View Mode -->
-                  <div class="sheet-perk-view">
-                    <div>
-                      <div
-                        style="
-                          text-align: right;
-                          margin-bottom: 5px;
-                          display: flex;
-                          justify-content: flex-end;
-                          gap: 5px;
-                          flex-wrap: wrap;
-                        "
-                      >
-                        <input
-                          type="hidden"
-                          name="attr_tag_1"
-                          class="sheet-tag-hide"
-                          value=""
-                        /><span
-                          name="attr_tag_1"
-                          class="sheet-skill-badge"
-                        ></span>
-                        <input
-                          type="hidden"
-                          name="attr_tag_2"
-                          class="sheet-tag-hide"
-                          value=""
-                        /><span
-                          name="attr_tag_2"
-                          class="sheet-skill-badge"
-                        ></span>
-                        <input
-                          type="hidden"
-                          name="attr_tag_3"
-                          class="sheet-tag-hide"
-                          value=""
-                        /><span
-                          name="attr_tag_3"
-                          class="sheet-skill-badge"
-                        ></span>
-                        <input
-                          type="hidden"
-                          name="attr_tag_4"
-                          class="sheet-tag-hide"
-                          value=""
-                        /><span
-                          name="attr_tag_4"
-                          class="sheet-skill-badge"
-                        ></span>
-                      </div>
-                      <div class="sheet-perk-header">
-                        <button
-                          type="roll"
-                          name="roll_perk"
-                          class="sheet-view-name-btn"
-                        >
-                          <span name="attr_skill_name"></span>
-                        </button>
-                        <button
-                          type="action"
-                          name="act_toggle_edit"
-                          class="sheet-btn-edit"
-                          title="Edit Perk"
-                        >
-                          <img
-                            src="https://i.imgur.com/c5hKFeC.png"
-                            class="sheet-icon-edit"
-                          />
-                        </button>
-                      </div>
-                      <span
-                        name="attr_skill_description"
-                        class="sheet-view-desc"
-                      ></span>
-                    </div>
+              <section class="player-progression-traits-section" aria-label="Traits obtenidos">
+                <header>
+                  <div>
+                    <span>BUILD ACTUAL</span>
+                    <h3>TRAITS OBTENIDOS</h3>
                   </div>
-
-                  <!-- Edit Mode -->
-                  <div class="sheet-perk-edit">
-                    <div class="sheet-perk-header">
-                      <input
-                        type="text"
-                        name="attr_skill_name"
-                        placeholder="Perk Name"
-                        class="sheet-inv-name"
-                      />
-                      <button
-                        type="action"
-                        name="act_toggle_edit"
-                        class="sheet-btn-save"
-                        title="Save Perk"
-                      >
-                        <img
-                          src="https://i.imgur.com/e4T3Egr.png"
-                          class="sheet-icon-save"
-                        />
-                      </button>
-                    </div>
-                    <div class="sheet-col" style="flex: 1; margin-top: 5px">
-                      <label style="color: #ffd700"
-                        >Etiquetas (Ej: Espada, Fuego)</label
-                      >
-                      <input
-                        type="text"
-                        name="attr_tags"
-                        style="
-                          width: 100%;
-                          background: #111;
-                          color: #fff;
-                          border: 1px solid #444;
-                        "
-                      />
-                    </div>
-                    <textarea
-                      name="attr_skill_description"
-                      placeholder="Description"
-                    ></textarea>
-                  </div>
-                </div>
-              </fieldset>
-            </div>
+                  <p>Los Traits activos salen de Atributos y viven aquí, junto a la progresión.</p>
+                </header>
+                <div id="player-progression-traits-host"></div>
+              </section>
+            </section>
           </div>
         </div>
       </div>
@@ -13412,6 +13234,8 @@
     <script src="js/inventory-hud-v2.js"></script>
     <script src="js/item-food-rest-ui.js"></script>
     <script src="js/item-cooking-ui.js"></script>
+    <script src="js/player-progression-tree-core.js"></script>
+    <script src="js/player-progression-tree.js"></script>
     <script src="hoja_personaje.js"></script>
   </body>
 </html>
