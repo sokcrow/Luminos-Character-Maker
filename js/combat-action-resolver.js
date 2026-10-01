@@ -438,6 +438,9 @@
     const spell = definitionForEngine(action, actor);
     spell.statUsed = action.resolution.save?.abilityId;
     spell.saveDC = Number(action.resolution.save?.dc || 0);
+    spell.sourceUnitId = entityId(actor);
+    spell.casterId = entityId(actor);
+    spell.slotLevel = Number(action.metadata?.slotLevel ?? spell.slotLevel ?? spell.level ?? 0) || 0;
     const saveAttackOnFailure = spell?.mechanics?.saveAttackOnFailure === true;
     const results = targets.map((target, index) => {
       const saveResult = engine.resolveSpell(spell, target, rollSaveHeads(engine, target, context));
