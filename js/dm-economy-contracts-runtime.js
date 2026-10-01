@@ -112,8 +112,6 @@
     if (!playerKey || !name) throw new Error("Nombre inválido");
     await state.db.ref(`campaña/jugadores/${playerKey}`).update({
       displayName: name,
-      characterName: name,
-      character_name: name,
     });
   }
 
