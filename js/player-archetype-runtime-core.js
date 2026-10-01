@@ -425,6 +425,10 @@
   }
 
   function renderArchetypeSelector() {
+    if (doc.getElementById("player-progression-tree-host")) {
+      doc.getElementById("player-archetype-selector")?.remove();
+      return true;
+    }
     const host = doc.getElementById("player-trait-runtime-host");
     if (!host) return false;
     let panel = doc.getElementById("player-archetype-selector");
