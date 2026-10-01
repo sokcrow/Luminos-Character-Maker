@@ -313,6 +313,13 @@
 
   global.LuminousRestRuntime = api;
   install();
-  if (global.document) global.setInterval?.(install, PATCH_INTERVAL_MS);
+  if (global.document) {
+    [
+      "luminous:player-data",
+      "luminous:traits-refreshed",
+      "luminous:class-runtime-loaded",
+      "luminous:player-instance-changed",
+    ].forEach((name) => global.addEventListener?.(name, install));
+  }
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);
