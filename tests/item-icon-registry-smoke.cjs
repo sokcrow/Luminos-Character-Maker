@@ -10,7 +10,7 @@ const { pathToFileURL } = require('node:url');
   assert.ok(registry);
   assert.equal(registry.VERSION, 35);
   assert.equal(registry.DEFAULT_GROUP, 'generic_item');
-  assert.equal(Object.keys(registry.GROUPS).length, 589);
+  assert.equal(Object.keys(registry.GROUPS).length, 590);
 
   const groups = registry.list();
   assert.equal(new Set(groups.map((entry) => entry.id)).size, groups.length);
@@ -19,6 +19,9 @@ const { pathToFileURL } = require('node:url');
     assert.equal(typeof entry.labelEs, 'string');
     assert.match(entry.icon, /^Assets\/Icons\/items\/[a-z0-9_-]+\/[a-z0-9_-]+\.png$/);
   }
+
+  assert.equal(registry.has('thought_strand'), true);
+  assert.equal(registry.resolveIcon('thought_strand'), 'Assets/Icons/items/utility/thought_strand.png');
 
   const legacyCritical = [
     'healing_hp', 'food', 'meat_mammal', 'hide_mammal', 'hard_bone', 'scale_reptile',
