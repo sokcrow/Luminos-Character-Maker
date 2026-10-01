@@ -17,6 +17,13 @@ const adapters = globalThis.LuminousCombatActionAdapters;
 
 assert.ok(catalog && batch && loadout && adapters, "Level 1 spell runtime dependencies should load");
 
+const schools = new Set(["abjuration", "conjuration", "divination", "enchantment", "evocation", "illusion", "necromancy", "transmutation"]);
+for (const spell of Object.values(catalog).filter((entry) => Number(entry?.level ?? entry?.spellLevel ?? -1) <= 1)) {
+  assert.ok(Array.isArray(spell.classIds) && spell.classIds.length > 0, `${spell.id} must declare classIds`);
+  assert.ok(schools.has(spell.school), `${spell.id} must declare a canonical school`);
+  assert.ok(Array.isArray(spell.contexts) && spell.contexts.length > 0, `${spell.id} must declare contexts`);
+}
+
 const batchIds = ["alarm", "armor_of_agathys", "arms_of_hadar", "bane", "bless", "burning_hands"];
 for (const id of batchIds) {
   const spell = catalog[id];
