@@ -13,6 +13,18 @@ on:
       - 'js/player-archetype-runtime.js'
       - 'js/class-runtime-bootstrap.js'
       - 'js/theatre-check-retry-watchdog.js'
+      - 'js/theatre-check-coordinator.js'
+      - 'js/theatre-language-policy.js'
+      - 'js/theatre-intervention-ux-core.js'
+      - 'js/status-engine.js'
+      - 'js/trait-catalog-core.js'
+      - 'js/trait-standardization-runtime.js'
+      - 'js/player-stats-ability-bar.js'
+      - 'js/player-splash-framing.js'
+      - 'js/player-ux-polish-core.js'
+      - 'js/player-stat-tooltip-runtime.js'
+      - 'js/derived-stats-runtime.js'
+      - 'js/rest-runtime-integration.js'
       - 'hoja_personaje.js'
       - 'hoja_personaje.css'
       - 'css/player-trait-tabs.css'
@@ -43,6 +55,18 @@ jobs:
           node --check js/player-archetype-runtime.js
           node --check js/class-runtime-bootstrap.js
           node --check js/theatre-check-retry-watchdog.js
+          node --check js/theatre-check-coordinator.js
+          node --check js/theatre-language-policy.js
+          node --check js/theatre-intervention-ux-core.js
+          node --check js/status-engine.js
+          node --check js/trait-catalog-core.js
+          node --check js/trait-standardization-runtime.js
+          node --check js/player-stats-ability-bar.js
+          node --check js/player-splash-framing.js
+          node --check js/player-ux-polish-core.js
+          node --check js/player-stat-tooltip-runtime.js
+          node --check js/derived-stats-runtime.js
+          node --check js/rest-runtime-integration.js
           node --check hoja_personaje.js
           node --check js/player-progression-tree.js
           node --check js/player-progression-level-allocation.js
