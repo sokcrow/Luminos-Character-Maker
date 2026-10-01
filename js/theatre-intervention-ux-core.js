@@ -404,12 +404,23 @@
 
   install();
   if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", install, { once: true });
-  installTimer = global.setInterval(() => {
-    install();
-    if (doc.getElementById("dm-tipo-dialogo-select") || doc.getElementById("player-tipo-dialogo-select")) {
-      if (patchEnqueue()) scheduleLogDecoration();
-    }
-  }, 750);
+
+  let installScheduled = false;
+  const scheduleInstall = () => {
+    if (installScheduled) return;
+    installScheduled = true;
+    global.queueMicrotask?.(() => {
+      installScheduled = false;
+      install();
+      if (doc.getElementById("dm-tipo-dialogo-select") || doc.getElementById("player-tipo-dialogo-select")) {
+        if (patchEnqueue()) scheduleLogDecoration();
+      }
+    });
+  };
+  const surfaceObserver = new MutationObserver(scheduleInstall);
+  surfaceObserver.observe(doc.body || doc.documentElement, { childList: true, subtree: true });
+  global.addEventListener?.("luminous:player-instance-changed", scheduleInstall);
+  global.addEventListener?.("luminous:player-data", scheduleInstall);
 
   return api;
 });
