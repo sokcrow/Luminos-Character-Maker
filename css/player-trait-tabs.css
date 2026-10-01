@@ -1,12 +1,12 @@
-/* Player Stats > Traits tab ------------------------------------------------ */
-body:not(.on-game-dashboard) #stats-modal .player-stats-view-tabs{
+/* Player Progression > Traits catalog --------------------------------------- */
+body:not(.on-game-dashboard) #perks-modal .player-stats-view-tabs{
   display:flex;
   align-items:stretch;
   gap:8px;
   min-width:270px;
   height:42px;
 }
-body:not(.on-game-dashboard) #stats-modal .player-stats-view-tab{
+body:not(.on-game-dashboard) #perks-modal .player-stats-view-tab{
   min-width:126px;
   height:42px;
   appearance:none;
@@ -18,23 +18,23 @@ body:not(.on-game-dashboard) #stats-modal .player-stats-view-tab{
   cursor:pointer;
   transition:border-color .15s,color .15s,box-shadow .15s,background .15s;
 }
-body:not(.on-game-dashboard) #stats-modal .player-stats-view-tab::after{
+body:not(.on-game-dashboard) #perks-modal .player-stats-view-tab::after{
   display:none;
 }
-body:not(.on-game-dashboard) #stats-modal .player-stats-view-tab:hover,
-body:not(.on-game-dashboard) #stats-modal .player-stats-view-tab:focus-visible{
+body:not(.on-game-dashboard) #perks-modal .player-stats-view-tab:hover,
+body:not(.on-game-dashboard) #perks-modal .player-stats-view-tab:focus-visible{
   outline:0;
   border-color:#a6752b;
   color:#d8c6a7;
 }
-body:not(.on-game-dashboard) #stats-modal .player-stats-view-tab.is-active{
+body:not(.on-game-dashboard) #perks-modal .player-stats-view-tab.is-active{
   position:relative;
   border-color:#f2a716;
   background:linear-gradient(180deg,#2a241c,#12100d);
   color:#fff;
   box-shadow:inset 0 0 17px rgba(255,155,0,.15),0 0 9px rgba(255,155,0,.25);
 }
-body:not(.on-game-dashboard) #stats-modal .player-stats-view-tab.is-active::after{
+body:not(.on-game-dashboard) #perks-modal .player-stats-view-tab.is-active::after{
   content:"";
   display:block;
   position:absolute;
@@ -45,26 +45,26 @@ body:not(.on-game-dashboard) #stats-modal .player-stats-view-tab.is-active::afte
   border-right:8px solid transparent;
   border-top:9px solid #f2a716;
 }
-body:not(.on-game-dashboard) #stats-modal .player-ability-bar[hidden],
-body:not(.on-game-dashboard) #stats-modal .player-stat-content[hidden],
-body:not(.on-game-dashboard) #stats-modal #player-trait-runtime-host[hidden]{
+body:not(.on-game-dashboard) #perks-modal .player-ability-bar[hidden],
+body:not(.on-game-dashboard) #perks-modal .player-stat-content[hidden],
+body:not(.on-game-dashboard) #perks-modal #player-trait-runtime-host[hidden]{
   display:none!important;
 }
-body:not(.on-game-dashboard) #stats-modal #player-trait-runtime-host{
+body:not(.on-game-dashboard) #perks-modal #player-trait-runtime-host{
   flex:1 1 auto;
   min-height:0;
   width:100%;
   overflow:hidden;
 }
-body:not(.on-game-dashboard) #stats-modal .player-traits-panel{
+body:not(.on-game-dashboard) #perks-modal .player-traits-panel{
   width:100%;
   height:100%;
   min-height:0;
 }
-body:not(.on-game-dashboard) #stats-modal .player-traits-panel:not([hidden]){
+body:not(.on-game-dashboard) #perks-modal .player-traits-panel:not([hidden]){
   display:flex!important;
 }
-body:not(.on-game-dashboard) #stats-modal .player-traits-catalog{
+body:not(.on-game-dashboard) #perks-modal .player-traits-catalog{
   flex:1 1 auto;
   min-width:0;
   min-height:0;
@@ -73,7 +73,7 @@ body:not(.on-game-dashboard) #stats-modal .player-traits-catalog{
   overflow:hidden;
   color:#d7d0c5;
 }
-body:not(.on-game-dashboard) #stats-modal .player-traits-catalog__header{
+body:not(.on-game-dashboard) #perks-modal .player-traits-catalog__header{
   flex:0 0 auto;
   display:flex;
   align-items:flex-end;
@@ -82,16 +82,16 @@ body:not(.on-game-dashboard) #stats-modal .player-traits-catalog__header{
   padding:4px 2px 13px;
   border-bottom:1px solid #4b3a27;
 }
-body:not(.on-game-dashboard) #stats-modal .player-traits-catalog__title{
+body:not(.on-game-dashboard) #perks-modal .player-traits-catalog__title{
   min-width:0;
 }
-body:not(.on-game-dashboard) #stats-modal .player-traits-catalog__title h2{
+body:not(.on-game-dashboard) #perks-modal .player-traits-catalog__title h2{
   margin:0;
   color:#ead9ba;
   font:700 23px/1.1 Georgia,"Times New Roman",serif;
   letter-spacing:.06em;
 }
-body:not(.on-game-dashboard) #stats-modal .player-traits-catalog__title p{
+body:not(.on-game-dashboard) #perks-modal .player-traits-catalog__title p{
   margin:5px 0 0;
   max-width:590px;
   color:#807669;
@@ -99,7 +99,7 @@ body:not(.on-game-dashboard) #stats-modal .player-traits-catalog__title p{
   line-height:1.4;
   letter-spacing:.035em;
 }
-body:not(.on-game-dashboard) #stats-modal .player-traits-catalog__total{
+body:not(.on-game-dashboard) #perks-modal .player-traits-catalog__total{
   flex:0 0 auto;
   min-width:68px;
   padding:7px 10px 6px;
@@ -111,20 +111,20 @@ body:not(.on-game-dashboard) #stats-modal .player-traits-catalog__total{
   font-weight:700;
   letter-spacing:.12em;
 }
-body:not(.on-game-dashboard) #stats-modal .player-traits-catalog__total strong{
+body:not(.on-game-dashboard) #perks-modal .player-traits-catalog__total strong{
   display:block;
   margin-bottom:1px;
   color:#ffb52a;
   font:700 24px/1 Georgia,"Times New Roman",serif;
 }
-body:not(.on-game-dashboard) #stats-modal .player-trait-filters{
+body:not(.on-game-dashboard) #perks-modal .player-trait-filters{
   flex:0 0 auto;
   display:flex;
   flex-wrap:wrap;
   gap:6px;
   padding:10px 0 9px;
 }
-body:not(.on-game-dashboard) #stats-modal .player-trait-filter{
+body:not(.on-game-dashboard) #perks-modal .player-trait-filter{
   appearance:none;
   min-height:26px;
   padding:4px 9px;
@@ -138,27 +138,27 @@ body:not(.on-game-dashboard) #stats-modal .player-trait-filter{
   cursor:pointer;
   transition:.15s;
 }
-body:not(.on-game-dashboard) #stats-modal .player-trait-filter b{
+body:not(.on-game-dashboard) #perks-modal .player-trait-filter b{
   margin-left:5px;
   color:#b49967;
   font:700 10px Georgia,"Times New Roman",serif;
 }
-body:not(.on-game-dashboard) #stats-modal .player-trait-filter:hover,
-body:not(.on-game-dashboard) #stats-modal .player-trait-filter:focus-visible{
+body:not(.on-game-dashboard) #perks-modal .player-trait-filter:hover,
+body:not(.on-game-dashboard) #perks-modal .player-trait-filter:focus-visible{
   outline:0;
   border-color:#9b7133;
   color:#d7c6a8;
 }
-body:not(.on-game-dashboard) #stats-modal .player-trait-filter.is-active{
+body:not(.on-game-dashboard) #perks-modal .player-trait-filter.is-active{
   border-color:#e7a32d;
   background:linear-gradient(180deg,#2d2417,#151009);
   color:#f4e4c4;
   box-shadow:inset 0 0 10px rgba(233,155,33,.12),0 0 6px rgba(233,155,33,.12);
 }
-body:not(.on-game-dashboard) #stats-modal .player-trait-filter.is-active b{
+body:not(.on-game-dashboard) #perks-modal .player-trait-filter.is-active b{
   color:#ffb52a;
 }
-body:not(.on-game-dashboard) #stats-modal .player-trait-card-list{
+body:not(.on-game-dashboard) #perks-modal .player-trait-card-list{
   flex:1 1 auto;
   min-height:0;
   display:grid;
@@ -170,10 +170,10 @@ body:not(.on-game-dashboard) #stats-modal .player-trait-card-list{
   scrollbar-width:thin;
   scrollbar-color:#705532 #0c0b09;
 }
-body:not(.on-game-dashboard) #stats-modal .player-trait-card-list::-webkit-scrollbar{width:8px}
-body:not(.on-game-dashboard) #stats-modal .player-trait-card-list::-webkit-scrollbar-track{background:#0c0b09}
-body:not(.on-game-dashboard) #stats-modal .player-trait-card-list::-webkit-scrollbar-thumb{background:#705532;border:2px solid #0c0b09}
-body:not(.on-game-dashboard) #stats-modal .player-trait-card{
+body:not(.on-game-dashboard) #perks-modal .player-trait-card-list::-webkit-scrollbar{width:8px}
+body:not(.on-game-dashboard) #perks-modal .player-trait-card-list::-webkit-scrollbar-track{background:#0c0b09}
+body:not(.on-game-dashboard) #perks-modal .player-trait-card-list::-webkit-scrollbar-thumb{background:#705532;border:2px solid #0c0b09}
+body:not(.on-game-dashboard) #perks-modal .player-trait-card{
   --trait-accent:#8f754e;
   position:relative;
   min-width:0;
@@ -186,20 +186,20 @@ body:not(.on-game-dashboard) #stats-modal .player-trait-card{
   background:radial-gradient(circle at 92% 0,rgba(157,116,55,.09),transparent 37%),linear-gradient(180deg,#171512,#0e0d0b);
   box-shadow:inset 0 0 18px rgba(0,0,0,.28);
 }
-body:not(.on-game-dashboard) #stats-modal .player-trait-card[data-trait-category="racial"]{--trait-accent:#c59a50}
-body:not(.on-game-dashboard) #stats-modal .player-trait-card[data-trait-category="class"]{--trait-accent:#db852e}
-body:not(.on-game-dashboard) #stats-modal .player-trait-card[data-trait-category="archetype"]{--trait-accent:#b94a35}
-body:not(.on-game-dashboard) #stats-modal .player-trait-card[data-trait-category="background"]{--trait-accent:#4c8b8e}
-body:not(.on-game-dashboard) #stats-modal .player-trait-card[data-trait-category="general"]{--trait-accent:#8770a9}
-body:not(.on-game-dashboard) #stats-modal .player-trait-card[data-trait-category="other"]{--trait-accent:#706b64}
-body:not(.on-game-dashboard) #stats-modal .player-trait-card__header{
+body:not(.on-game-dashboard) #perks-modal .player-trait-card[data-trait-category="racial"]{--trait-accent:#c59a50}
+body:not(.on-game-dashboard) #perks-modal .player-trait-card[data-trait-category="class"]{--trait-accent:#db852e}
+body:not(.on-game-dashboard) #perks-modal .player-trait-card[data-trait-category="archetype"]{--trait-accent:#b94a35}
+body:not(.on-game-dashboard) #perks-modal .player-trait-card[data-trait-category="background"]{--trait-accent:#4c8b8e}
+body:not(.on-game-dashboard) #perks-modal .player-trait-card[data-trait-category="general"]{--trait-accent:#8770a9}
+body:not(.on-game-dashboard) #perks-modal .player-trait-card[data-trait-category="other"]{--trait-accent:#706b64}
+body:not(.on-game-dashboard) #perks-modal .player-trait-card__header{
   display:flex;
   align-items:center;
   justify-content:space-between;
   gap:8px;
   min-width:0;
 }
-body:not(.on-game-dashboard) #stats-modal .player-trait-source{
+body:not(.on-game-dashboard) #perks-modal .player-trait-source{
   min-width:0;
   overflow:hidden;
   color:var(--trait-accent);
@@ -210,7 +210,7 @@ body:not(.on-game-dashboard) #stats-modal .player-trait-source{
   text-transform:uppercase;
   white-space:nowrap;
 }
-body:not(.on-game-dashboard) #stats-modal .player-trait-activation{
+body:not(.on-game-dashboard) #perks-modal .player-trait-activation{
   flex:0 0 auto;
   padding:2px 5px;
   border:1px solid #453d33;
@@ -220,19 +220,19 @@ body:not(.on-game-dashboard) #stats-modal .player-trait-activation{
   font-weight:700;
   letter-spacing:.08em;
 }
-body:not(.on-game-dashboard) #stats-modal .player-trait-card__name{
+body:not(.on-game-dashboard) #perks-modal .player-trait-card__name{
   margin:0;
   color:#e7dac3;
   font:700 16px/1.15 Georgia,"Times New Roman",serif;
   letter-spacing:.02em;
 }
-body:not(.on-game-dashboard) #stats-modal .player-trait-card__description{
+body:not(.on-game-dashboard) #perks-modal .player-trait-card__description{
   margin:0;
   color:#aaa095;
   font-size:10px;
   line-height:1.45;
 }
-body:not(.on-game-dashboard) #stats-modal .player-trait-resolved-value{
+body:not(.on-game-dashboard) #perks-modal .player-trait-resolved-value{
   position:relative;
   display:inline;
   appearance:none;
@@ -248,14 +248,14 @@ body:not(.on-game-dashboard) #stats-modal .player-trait-resolved-value{
   cursor:help;
   vertical-align:baseline;
 }
-body:not(.on-game-dashboard) #stats-modal .player-trait-resolved-value:hover,
-body:not(.on-game-dashboard) #stats-modal .player-trait-resolved-value:focus-visible,
-body:not(.on-game-dashboard) #stats-modal .player-trait-resolved-value.is-open{
+body:not(.on-game-dashboard) #perks-modal .player-trait-resolved-value:hover,
+body:not(.on-game-dashboard) #perks-modal .player-trait-resolved-value:focus-visible,
+body:not(.on-game-dashboard) #perks-modal .player-trait-resolved-value.is-open{
   outline:0;
   color:#ffd37b;
   border-bottom-color:#ffd37b;
 }
-body:not(.on-game-dashboard) #stats-modal .player-trait-formula-tooltip{
+body:not(.on-game-dashboard) #perks-modal .player-trait-formula-tooltip{
   position:absolute;
   z-index:40;
   left:50%;
@@ -277,63 +277,63 @@ body:not(.on-game-dashboard) #stats-modal .player-trait-formula-tooltip{
   transform:translate(-50%,-3px);
   transition:opacity .12s ease,transform .12s ease,visibility .12s ease;
 }
-body:not(.on-game-dashboard) #stats-modal .player-trait-resolved-value:hover .player-trait-formula-tooltip,
-body:not(.on-game-dashboard) #stats-modal .player-trait-resolved-value:focus .player-trait-formula-tooltip,
-body:not(.on-game-dashboard) #stats-modal .player-trait-resolved-value.is-open .player-trait-formula-tooltip{
+body:not(.on-game-dashboard) #perks-modal .player-trait-resolved-value:hover .player-trait-formula-tooltip,
+body:not(.on-game-dashboard) #perks-modal .player-trait-resolved-value:focus .player-trait-formula-tooltip,
+body:not(.on-game-dashboard) #perks-modal .player-trait-resolved-value.is-open .player-trait-formula-tooltip{
   opacity:1;
   visibility:visible;
   transform:translate(-50%,0);
 }
-body:not(.on-game-dashboard) #stats-modal .player-trait-formula-tooltip__title{
+body:not(.on-game-dashboard) #perks-modal .player-trait-formula-tooltip__title{
   display:block;
   margin-bottom:6px;
   color:#f0c171;
   font:700 10px/1.2 Georgia,"Times New Roman",serif;
 }
-body:not(.on-game-dashboard) #stats-modal .player-trait-formula-tooltip__row,
-body:not(.on-game-dashboard) #stats-modal .player-trait-formula-tooltip__formula,
-body:not(.on-game-dashboard) #stats-modal .player-trait-formula-tooltip__total{
+body:not(.on-game-dashboard) #perks-modal .player-trait-formula-tooltip__row,
+body:not(.on-game-dashboard) #perks-modal .player-trait-formula-tooltip__formula,
+body:not(.on-game-dashboard) #perks-modal .player-trait-formula-tooltip__total{
   display:flex;
   align-items:baseline;
   justify-content:space-between;
   gap:8px;
   margin-top:3px;
 }
-body:not(.on-game-dashboard) #stats-modal .player-trait-formula-tooltip__key{
+body:not(.on-game-dashboard) #perks-modal .player-trait-formula-tooltip__key{
   color:#918574;
 }
-body:not(.on-game-dashboard) #stats-modal .player-trait-formula-tooltip__number{
+body:not(.on-game-dashboard) #perks-modal .player-trait-formula-tooltip__number{
   color:#dfc796;
 }
-body:not(.on-game-dashboard) #stats-modal .player-trait-formula-tooltip__formula{
+body:not(.on-game-dashboard) #perks-modal .player-trait-formula-tooltip__formula{
   display:block;
   margin-top:7px;
   padding-top:6px;
   border-top:1px solid #3a3024;
   color:#766d61;
 }
-body:not(.on-game-dashboard) #stats-modal .player-trait-formula-tooltip__formula code{
+body:not(.on-game-dashboard) #perks-modal .player-trait-formula-tooltip__formula code{
   display:block;
   margin-top:2px;
   overflow-wrap:anywhere;
   color:#bca783;
   font:600 8px/1.35 Consolas,"Courier New",monospace;
 }
-body:not(.on-game-dashboard) #stats-modal .player-trait-formula-tooltip__total{
+body:not(.on-game-dashboard) #perks-modal .player-trait-formula-tooltip__total{
   margin-top:6px;
   color:#a99a83;
 }
-body:not(.on-game-dashboard) #stats-modal .player-trait-formula-tooltip__total b{
+body:not(.on-game-dashboard) #perks-modal .player-trait-formula-tooltip__total b{
   color:#ffc65f;
   font-size:10px;
 }
-body:not(.on-game-dashboard) #stats-modal .player-trait-contexts{
+body:not(.on-game-dashboard) #perks-modal .player-trait-contexts{
   display:flex;
   flex-wrap:wrap;
   gap:5px;
   margin-top:auto;
 }
-body:not(.on-game-dashboard) #stats-modal .player-trait-context{
+body:not(.on-game-dashboard) #perks-modal .player-trait-context{
   padding:2px 5px;
   border:1px solid #38332d;
   background:#0a0908;
@@ -342,14 +342,14 @@ body:not(.on-game-dashboard) #stats-modal .player-trait-context{
   font-weight:700;
   letter-spacing:.09em;
 }
-body:not(.on-game-dashboard) #stats-modal .player-trait-card__meta{
+body:not(.on-game-dashboard) #perks-modal .player-trait-card__meta{
   display:flex;
   flex-wrap:wrap;
   align-items:center;
   gap:5px;
   min-width:0;
 }
-body:not(.on-game-dashboard) #stats-modal .player-trait-card__footer{
+body:not(.on-game-dashboard) #perks-modal .player-trait-card__footer{
   display:flex;
   align-items:center;
   justify-content:space-between;
@@ -358,18 +358,18 @@ body:not(.on-game-dashboard) #stats-modal .player-trait-card__footer{
   padding-top:7px;
   border-top:1px solid #302a23;
 }
-body:not(.on-game-dashboard) #stats-modal .player-trait-card__passive,
-body:not(.on-game-dashboard) #stats-modal .luminous-trait-tray__reason{
+body:not(.on-game-dashboard) #perks-modal .player-trait-card__passive,
+body:not(.on-game-dashboard) #perks-modal .luminous-trait-tray__reason{
   min-width:0;
   color:#696258;
   font-size:8px;
   line-height:1.35;
   letter-spacing:.025em;
 }
-body:not(.on-game-dashboard) #stats-modal .luminous-trait-tray__reason{
+body:not(.on-game-dashboard) #perks-modal .luminous-trait-tray__reason{
   color:#9a6a56;
 }
-body:not(.on-game-dashboard) #stats-modal .player-trait-use{
+body:not(.on-game-dashboard) #perks-modal .player-trait-use{
   flex:0 0 auto;
   min-width:106px;
   padding:7px 9px;
@@ -383,26 +383,26 @@ body:not(.on-game-dashboard) #stats-modal .player-trait-use{
   cursor:pointer;
   box-shadow:inset 0 0 9px rgba(237,157,38,.11);
 }
-body:not(.on-game-dashboard) #stats-modal .player-trait-use:hover,
-body:not(.on-game-dashboard) #stats-modal .player-trait-use:focus-visible{
+body:not(.on-game-dashboard) #perks-modal .player-trait-use:hover,
+body:not(.on-game-dashboard) #perks-modal .player-trait-use:focus-visible{
   outline:0;
   background:linear-gradient(180deg,#543614,#211307);
   color:#ffe1a0;
 }
-body:not(.on-game-dashboard) #stats-modal .player-trait-use:disabled{
+body:not(.on-game-dashboard) #perks-modal .player-trait-use:disabled{
   border-color:#494139;
   background:#12100e;
   color:#615b54;
   cursor:not-allowed;
   box-shadow:none;
 }
-body:not(.on-game-dashboard) #stats-modal .luminous-trait-tray__uses{
+body:not(.on-game-dashboard) #perks-modal .luminous-trait-tray__uses{
   display:block;
   margin-top:2px;
   color:#a1875e;
   font-size:7px;
 }
-body:not(.on-game-dashboard) #stats-modal .player-traits-empty{
+body:not(.on-game-dashboard) #perks-modal .player-traits-empty{
   grid-column:1/-1;
   min-height:150px;
   display:grid;
@@ -416,12 +416,12 @@ body:not(.on-game-dashboard) #stats-modal .player-traits-empty{
 }
 
 @media (prefers-reduced-motion:reduce){
-  body:not(.on-game-dashboard) #stats-modal .player-trait-formula-tooltip{transition:none}
+  body:not(.on-game-dashboard) #perks-modal .player-trait-formula-tooltip{transition:none}
 }
 
 @media (max-width:1180px){
-  body:not(.on-game-dashboard) #stats-modal .player-trait-card-list{grid-template-columns:1fr}
-  body:not(.on-game-dashboard) #stats-modal .player-stats-engine{display:none}
-  body:not(.on-game-dashboard) #stats-modal .player-stats-view-tabs{min-width:0;width:100%}
-  body:not(.on-game-dashboard) #stats-modal .player-stats-view-tab{flex:1;min-width:0}
+  body:not(.on-game-dashboard) #perks-modal .player-trait-card-list{grid-template-columns:1fr}
+  body:not(.on-game-dashboard) #perks-modal .player-stats-engine{display:none}
+  body:not(.on-game-dashboard) #perks-modal .player-stats-view-tabs{min-width:0;width:100%}
+  body:not(.on-game-dashboard) #perks-modal .player-stats-view-tab{flex:1;min-width:0}
 }
