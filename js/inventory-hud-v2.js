@@ -364,10 +364,28 @@
     if (!modal || modal.dataset.v2ControlsBound === "true") return;
     modal.dataset.v2ControlsBound = "true";
 
-    open?.addEventListener("click", () => modal.classList.add("active"));
-    close?.addEventListener("click", () => modal.classList.remove("active"));
+    const emitVisibility = (openState) => {
+      global.dispatchEvent?.(new global.CustomEvent("luminous:inventory-visibility", {
+        detail: { open: Boolean(openState) },
+      }));
+    };
+    const openInventory = () => {
+      modal.classList.add("active");
+      bindRealtime();
+      state.ready = true;
+      renderAll();
+      emitVisibility(true);
+    };
+    const closeInventory = () => {
+      modal.classList.remove("active");
+      suspendRealtime();
+      emitVisibility(false);
+    };
+
+    open?.addEventListener("click", openInventory);
+    close?.addEventListener("click", closeInventory);
     modal.addEventListener("click", (event) => {
-      if (event.target === modal) modal.classList.remove("active");
+      if (event.target === modal) closeInventory();
     });
 
     modal.querySelectorAll(".inv-tab-btn").forEach((button) => {
@@ -375,9 +393,13 @@
         modal.querySelectorAll(".inv-tab-btn").forEach((entry) => entry.classList.remove("active"));
         modal.querySelectorAll(".inventory-tab-content").forEach((entry) => entry.classList.remove("active"));
         button.classList.add("active");
-        const target = doc.getElementById(button.dataset.tab || "");
+        const targetId = button.dataset.tab || "";
+        const target = doc.getElementById(targetId);
         target?.classList.add("active");
         clearSelection();
+        global.dispatchEvent?.(new global.CustomEvent("luminous:inventory-tab-changed", {
+          detail: { tab: targetId },
+        }));
       });
     });
   }
@@ -1026,9 +1048,13 @@
     return true;
   }
 
-  function dispose() {
+  function suspendRealtime() {
     state.peer?.dispose?.();
     state.peer = null;
+  }
+
+  function dispose() {
+    suspendRealtime();
     state.ready = false;
   }
 
@@ -1039,7 +1065,8 @@
     rethemeTabs();
     bindModalControls();
     bindStashFilters();
-    bindRealtime();
+    // Realtime inventory subscriptions are intentionally lazy. They are bound
+    // only while the inventory modal is open and disposed on close.
     state.ready = true;
     renderAll();
     return true;
