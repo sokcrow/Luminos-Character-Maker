@@ -20,9 +20,10 @@ on:
       - '.github/workflows/player-combat-theatre-lifecycle.yml'
 
 jobs:
-  lifecycle:
+  syntax-and-renderer-contract:
+    name: Syntax + renderer contract
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -42,6 +43,16 @@ jobs:
           node --check tests/player-ui-long-session-performance.spec.mjs
       - name: Combat renderer performance contract
         run: node tests/combat-v073-player-renderer-performance-smoke.mjs
+
+  combat-lifecycle:
+    name: Combat teardown + round preservation
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
       - name: Install Chromium
         run: |
           npm install --no-save @playwright/test@1.55.0
@@ -55,7 +66,42 @@ jobs:
           done
           cat /tmp/player-lifecycle-http.log
           exit 1
-      - name: Prove Combat teardown and round preservation
+      - name: Run combat lifecycle regression
         run: npx playwright test tests/player-combat-theatre-lifecycle.spec.mjs --reporter=line
-      - name: Prove 60-second Player UI stability
-        run: npx playwright test tests/player-ui-long-session-performance.spec.mjs --reporter=line
+
+  player-ui-performance:
+    name: Performance / ${{ matrix.label }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: Static source idle contract
+            grep: source keeps the static player surface free
+          - label: Real sheet reaches interval idle
+            grep: real player sheet reaches interval-idle after boot
+          - label: 60s background update stability
+            grep: real player sheet stays stable for 60 seconds under background player updates
+          - label: 720 terminal/combat visibility cycles
+            grep: terminal/combat visibility can cycle 720 times without stacking Battle viewers
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Chromium
+        run: |
+          npm install --no-save @playwright/test@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Serve repository
+        run: |
+          python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/player-performance-http.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:4173/index.html >/dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/player-performance-http.log
+          exit 1
+      - name: Run ${{ matrix.label }}
+        run: npx playwright test tests/player-ui-long-session-performance.spec.mjs --grep "${{ matrix.grep }}" --reporter=line
