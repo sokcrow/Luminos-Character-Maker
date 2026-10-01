@@ -31,6 +31,20 @@ These exist in `js/spell-catalog-core.js`, but remain review items until their m
 - [ ] Silvery Barbs
 - [ ] Thunderwave
 
+#### Review decision for the 9 pre-existing definitions
+
+Do **not** rewrite the shared Spell Slot / class-gating infrastructure. Reuse it and review the definitions/runtimes spell by spell.
+
+- **Absorb Elements** — keep the Reaction/resource shell; review only the Luminous resistance/retaliation mapping and expiry details.
+- **Animal Friendship** — metadata updated to the current Beast/WIS-save contract; remove the obsolete Intelligence cap. Runtime/charm cleanup can stay shared.
+- **Charm Person** — metadata/target contract updated; still needs runtime support for the fighting-target Save advantage and end-of-spell awareness where relevant.
+- **Chromatic Orb** — **mechanics review required**. The current `onCritJump` is a project approximation and should be re-evaluated against the revised leap mechanic before marking complete.
+- **Dissonant Whispers** — **mechanics restructuring required**. It should enter the Save pipeline and model the failed-save forced Reaction movement rather than remain a plain focused attack.
+- **Expeditious Retreat** — keep the Concentration + Quick Action shell; review whether the existing Haste mapping is still the intended Luminous movement abstraction.
+- **Shield** — keep the Reaction shell and shared Shield runtime; review trigger/expiry semantics as a deliberate Luminous adaptation.
+- **Silvery Barbs** — **mechanics restructuring required**. The current `combat_start` trigger is not a valid reaction trigger for the spell.
+- **Thunderwave** — **mechanics restructuring required**. Move it to the CON Save / failed-save effect pipeline and model the push through Luminous positioning/control rather than as a plain AoE attack.
+
 ### Legacy role definitions awaiting canonical migration — 3 / 82
 
 These already exist in `js/role-spell-catalog-core.js` and are covered by the Angelo smoke, so they must **not** be reimplemented as unrelated duplicates. They still count as pending work because the role catalog is not the authoritative shared spell definition.
