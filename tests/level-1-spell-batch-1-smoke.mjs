@@ -6,6 +6,7 @@ delete globalThis.__LuminousContentRegistryRegisteredSources;
 await import("../js/content-registry.js");
 await import("../js/content-registry-bootstrap.js");
 await import("../js/spell-catalog-core.js");
+await import("../js/spell-batch-level1-runtime.js");
 await import("../js/combat-spell-loadout-074.js");
 await import("../js/combat-action-schema.js");
 await import("../js/combat-action-adapters.js");
