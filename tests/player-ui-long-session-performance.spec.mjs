@@ -298,6 +298,9 @@ test("source keeps the static player surface free of permanent polling and dupli
 
   expect(sheet).not.toContain("setInterval(() => {\n        const deviceNumberUI");
   expect(sheet).toContain('window.dispatchEvent(new CustomEvent("luminous:player-data"');
+  expect(sheet).toContain('playerRef.on("child_changed"');
+  expect(sheet).toContain("RUNTIME_IGNORED_PLAYER_KEYS");
+  expect(sheet).not.toMatch(/playerRef\.on\(\s*["']value["']/);
   expect(sheet).toContain("lastCharacterSheetRenderSignature");
   expect(css).toContain("content-visibility: hidden");
   expect(css).not.toMatch(/animation:\s*scanline\s+[^;]*infinite/i);
@@ -377,6 +380,10 @@ test("real player sheet stays stable for 60 seconds under background player upda
     });
     watched.forEach((node) => observer.observe(node, { childList: true, subtree: true }));
 
+    let runtimePlayerDataEvents = 0;
+    const onRuntimePlayerData = () => { runtimePlayerDataEvents += 1; };
+    window.addEventListener("luminous:player-data", onRuntimePlayerData);
+
     const baselineNodes = document.getElementsByTagName("*").length;
     const baselineIntervals = window.__perfIntervalRegistry?.activeCount?.() ?? -1;
     const baselineListeners = window.__fakeFirebase?.listenerCount?.() ?? -1;
@@ -423,6 +430,7 @@ test("real player sheet stays stable for 60 seconds under background player upda
     sampling = false;
     await sleep(100);
     observer.disconnect();
+    window.removeEventListener("luminous:player-data", onRuntimePlayerData);
 
     const toggle = document.getElementById("btn-toggle-phone");
     for (let i = 0; i < 720; i += 1) toggle?.click();
@@ -432,6 +440,7 @@ test("real player sheet stays stable for 60 seconds under background player upda
       buckets,
       updates,
       heavyMutations,
+      runtimePlayerDataEvents,
       baselineNodes,
       finalNodes: document.getElementsByTagName("*").length,
       baselineIntervals,
@@ -443,6 +452,7 @@ test("real player sheet stays stable for 60 seconds under background player upda
   });
 
   expect(result.updates).toBeGreaterThanOrEqual(500);
+  expect(result.runtimePlayerDataEvents).toBe(0);
   expect(result.baselineIntervals).toBe(0);
   expect(result.finalIntervals).toBe(0);
   expect(result.finalListeners).toBe(result.baselineListeners);
