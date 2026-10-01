@@ -858,9 +858,11 @@
     installPatches();
     global.addEventListener?.("luminous:traits-refreshed", () => {
       state.lastSelectionSignature = "";
-      renderArchetypeSelector();
+      installPatches();
     });
-    global.setInterval(installPatches, PATCH_INTERVAL_MS);
+    global.addEventListener?.("luminous:class-runtime-loaded", installPatches);
+    global.addEventListener?.("luminous:player-data", installPatches);
+    global.addEventListener?.("luminous:player-instance-changed", installPatches);
   }
 
   const api = Object.freeze({
