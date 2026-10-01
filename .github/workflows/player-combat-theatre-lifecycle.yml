@@ -4,7 +4,8 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'js/instance-control.js'\n      - 'js/theatre-check-retry-watchdog.js'
+      - 'js/instance-control.js'
+      - 'js/theatre-check-retry-watchdog.js'
       - 'hoja_personaje.js'
       - 'hoja_personaje.css'
       - 'js/player-progression-tree.js'
