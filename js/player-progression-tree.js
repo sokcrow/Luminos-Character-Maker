@@ -40,6 +40,39 @@
     return state.character || global.datosJugador || {};
   }
 
+  function setTextAll(selector, value) {
+    doc.querySelectorAll(selector).forEach((node) => { node.textContent = String(value ?? ""); });
+  }
+
+  function syncDossierImage(imageSelector, emptySelector, src) {
+    const image = doc.querySelector(imageSelector);
+    const empty = doc.querySelector(emptySelector);
+    const url = clean(src);
+    if (!image) return;
+    if (!url) {
+      image.hidden = true;
+      image.removeAttribute("src");
+      if (empty) empty.hidden = false;
+      return;
+    }
+    if (image.getAttribute("src") !== url) image.src = url;
+    image.hidden = false;
+    if (empty) empty.hidden = true;
+  }
+
+  function syncTraitsDossier(character = currentCharacter()) {
+    const data = character || {};
+    const name = clean(data.characterName || data.character_name || data.nombre || data.name) || "PLAYER";
+    const level = Math.max(1, Number.parseInt(data.level ?? data?.characterBuild?.calculatedAtLevel, 10) || 1);
+    const art = clean(data.sheetArt || data.playerSheetArt || data.characterArt || data.portrait);
+    const icon = clean(data.icono_jugador || data.icono || data?.perfil?.icono || data.characterIcon);
+
+    setTextAll("[data-progression-trait-name]", name);
+    setTextAll("[data-progression-trait-level]", level);
+    syncDossierImage("[data-progression-trait-art]", "[data-progression-trait-art-empty]", art);
+    syncDossierImage("[data-progression-trait-icon]", "[data-progression-trait-icon-empty]", icon);
+  }
+
   function statusLabel(status) {
     return ({
       earned: "OBTENIDO",
@@ -328,6 +361,7 @@
     removeLegacyArchetypeSelector();
 
     const character = currentCharacter();
+    syncTraitsDossier(character);
     const model = core().buildProgressionModel(character, {
       traitCatalog: global.LuminousTraitCatalogCore,
       archetypeCatalog: global.LuminousArchetypeTraitCatalog,
