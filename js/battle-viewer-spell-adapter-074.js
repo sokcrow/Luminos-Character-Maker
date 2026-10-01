@@ -8,6 +8,8 @@
 
   const VERSION = "0.7.4";
   const OVERCAST_PREFIX = "__overcast__";
+  const WIZARD_MASTERY_PREFIX = "__wizard_mastery__:";
+  const WIZARD_SIGNATURE_PREFIX = "__wizard_signature__:";
   const clean = (value) => String(value ?? "").trim();
   const normalizeId = (value) => clean(value).toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
   const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
@@ -61,12 +63,22 @@
     return Math.max(baseLevel, Number.isFinite(requested) ? Math.trunc(requested) : baseLevel);
   }
 
-  function canonicalCastResource(classId, slotLevel, overcast) {
+  function canonicalCastResource(classId, slotLevel, overcast, plan = {}) {
+    const free = plan?.wizardFreeCast || null;
+    const spellId = normalizeId(free?.spellId || plan?.spellId);
+    let resourceId = overcast === true ? `${OVERCAST_PREFIX}${clean(classId)}` : clean(classId);
+    if (free?.type === "spell_mastery" && spellId) resourceId = `${WIZARD_MASTERY_PREFIX}${spellId}`;
+    if (free?.type === "signature_spells" && spellId) resourceId = `${WIZARD_SIGNATURE_PREFIX}${spellId}`;
     return {
       owner: "source", type: "spell_slot",
-      id: overcast === true ? `${OVERCAST_PREFIX}${clean(classId)}` : clean(classId),
+      id: resourceId,
       amount: 1,
-      metadata: { classId: clean(classId), slotLevel: Math.max(0, Number(slotLevel) || 0), overcast: overcast === true }
+      metadata: {
+        classId: clean(classId),
+        slotLevel: Math.max(0, Number(slotLevel) || 0),
+        overcast: overcast === true,
+        ...(free ? { wizardFreeCast: clone(free) } : {})
+      }
     };
   }
 
@@ -254,7 +266,7 @@
     if (!compiled?.action) return compiled;
 
     compiled.action.source = { type: "spell", id: trusted.spellId };
-    compiled.action.resources = trusted.spell.cantrip === true || slotLevel === 0 ? [] : [canonicalCastResource(trusted.classId, slotLevel, plan.overcast === true)];
+    compiled.action.resources = trusted.spell.cantrip === true || slotLevel === 0 ? [] : [canonicalCastResource(trusted.classId, slotLevel, plan.overcast === true, plan)];
     compiled.action.effects = [
       { type: "viewer_spell_cast", spellId: trusted.spellId, classId: trusted.classId, slotLevel, concentration: trusted.spell.concentration === true },
       ...(compiled.action.effects || [])
@@ -300,7 +312,7 @@
   }
 
   const api = Object.freeze({
-    version: VERSION, OVERCAST_PREFIX, spellIdForPlan, isSpellPlan, trustedSpell, requestedSlotLevel,
+    version: VERSION, OVERCAST_PREFIX, WIZARD_MASTERY_PREFIX, WIZARD_SIGNATURE_PREFIX, spellIdForPlan, isSpellPlan, trustedSpell, requestedSlotLevel,
     canonicalCastResource, actorLevel, spellcastingValues, materializeSpell, applyCanonicalSave,
     applyCanonicalMetadata, compileCanonicalSpell, install
   });

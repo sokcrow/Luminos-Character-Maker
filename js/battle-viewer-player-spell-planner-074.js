@@ -61,6 +61,11 @@
     }
     return null;
   }
+  function wizardRuntime() {
+    if (global?.LuminousWizardClassRuntime) return global.LuminousWizardClassRuntime;
+    if (typeof require === "function") { try { return require("./wizard-class-runtime.js"); } catch (_) {} }
+    return null;
+  }
 
   function skillPlanner() { return global?.LuminousBattleViewerPlayerSkillPlanner074 || null; }
 
@@ -140,6 +145,10 @@
 
   function castResourcePreflight(combatant, spell, classId, slotLevel, overcast) {
     if (spell?.cantrip === true || Number(slotLevel) === 0) return { available: true, reason: null, cantrip: true };
+    if (normalizeId(classId) === "wizard") {
+      const wizardFreeCast = wizardRuntime()?.freeCastMode?.(combatant, spell, slotLevel);
+      if (wizardFreeCast) return { available: true, reason: null, wizardFreeCast };
+    }
     const runtime = spellcastingRuntime();
     if (!runtime) return { available: false, reason: "SPELLCASTING_RUNTIME_REQUIRED" };
     const slot = runtime.canSpendSpellSlot?.(combatant, classId, slotLevel);
@@ -165,9 +174,10 @@
 
     const id = clean(spellId);
     if (!id) return { ok: false, reason: "SPELL_ID_REQUIRED", payload: null };
-    const selectionKey = spellSelectionKey(player.player || {}, id);
-    if (selectionKey == null) return { ok: false, reason: "SPELL_NOT_SELECTED", payload: null };
     const loadout = spellLoadoutRuntime();
+    let selectionKey = spellSelectionKey(player.player || {}, id);
+    if (selectionKey == null && loadout?.ownsSpell?.(resolved.unit, id)) selectionKey = `runtime:${normalizeId(id)}`;
+    if (selectionKey == null) return { ok: false, reason: "SPELL_NOT_SELECTED", payload: null };
     const trusted = loadout?.resolveSpellForCombatant?.(resolved.unit, id, { classId });
     if (!trusted?.ok) return { ok: false, reason: trusted?.reason || "SPELL_UNAVAILABLE", payload: null };
 
@@ -200,6 +210,7 @@
       classId: trusted.classId,
       slotLevel: requestedLevel,
       overcast: overcast === true,
+      ...(resource.wizardFreeCast ? { wizardFreeCast: clone(resource.wizardFreeCast) } : {}),
       targetId: target,
       ...(choiceKey ? { spellChoice: { key: choiceKey, value: choiceValue } } : {}),
       ...(slotEnchantment ? {

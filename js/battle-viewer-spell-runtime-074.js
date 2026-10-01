@@ -12,6 +12,8 @@
 
   const VERSION = "0.7.4";
   const OVERCAST_PREFIX = "__overcast__";
+  const WIZARD_MASTERY_PREFIX = "__wizard_mastery__:";
+  const WIZARD_SIGNATURE_PREFIX = "__wizard_signature__:";
   const clean = (value) => String(value ?? "").trim();
   const numberOr = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
   let baseSpellcastingRuntime = null;
@@ -57,6 +59,11 @@
   }
 
   function pierreBatchRuntime() { return global.LuminousPierreSpellBatchRuntime || null; }
+  function wizardRuntime() {
+    if (global?.LuminousWizardClassRuntime) return global.LuminousWizardClassRuntime;
+    if (typeof require === "function") { try { return require("./wizard-class-runtime.js"); } catch (_) {} }
+    return null;
+  }
 
   function spellcastingRuntime() {
     if (baseSpellcastingRuntime) return baseSpellcastingRuntime;
@@ -71,9 +78,11 @@
 
   function parseResourceClassId(classId) {
     const raw = clean(classId);
+    if (raw.startsWith(WIZARD_MASTERY_PREFIX)) return { overcast: false, wizardFreeCast: "spell_mastery", spellId: raw.slice(WIZARD_MASTERY_PREFIX.length), classId: "wizard" };
+    if (raw.startsWith(WIZARD_SIGNATURE_PREFIX)) return { overcast: false, wizardFreeCast: "signature_spells", spellId: raw.slice(WIZARD_SIGNATURE_PREFIX.length), classId: "wizard" };
     return raw.startsWith(OVERCAST_PREFIX)
-      ? { overcast: true, classId: raw.slice(OVERCAST_PREFIX.length) }
-      : { overcast: false, classId: raw };
+      ? { overcast: true, wizardFreeCast: null, classId: raw.slice(OVERCAST_PREFIX.length) }
+      : { overcast: false, wizardFreeCast: null, classId: raw };
   }
 
   function overcastAvailability(runtime, character, slotLevel) {
@@ -98,11 +107,19 @@
       __combatSpellResource074: true,
       canSpendSpellSlot(character, classId, slotLevel, explicitTable = null) {
         const parsed = parseResourceClassId(classId);
+        if (parsed.wizardFreeCast) {
+          return wizardRuntime()?.canConsumeFreeCast?.(character, parsed.wizardFreeCast, parsed.spellId, slotLevel)
+            || { available: false, reason: "wizard_free_cast_runtime_unavailable", classId: "wizard", slotLevel };
+        }
         if (!parsed.overcast) return base.canSpendSpellSlot?.(character, parsed.classId, slotLevel, explicitTable) || { available: false, reason: "spell_slot_validator_unavailable" };
         return { ...overcastAvailability(base, character, slotLevel), classId: parsed.classId };
       },
       spendSpellSlot(character, classId, slotLevel, explicitTable = null) {
         const parsed = parseResourceClassId(classId);
+        if (parsed.wizardFreeCast) {
+          return wizardRuntime()?.consumeFreeCast?.(character, parsed.wizardFreeCast, parsed.spellId, slotLevel)
+            || { success: false, consumed: false, reason: "wizard_free_cast_runtime_unavailable", classId: "wizard", slotLevel };
+        }
         if (!parsed.overcast) return base.spendSpellSlot?.(character, parsed.classId, slotLevel, explicitTable) || { success: false, consumed: false, reason: "spell_slot_consumer_unavailable" };
         const gate = overcastAvailability(base, character, slotLevel);
         if (!gate.available) return { ...gate, success: false, consumed: false, classId: parsed.classId };
@@ -178,7 +195,7 @@
   ensureSupplementalSpellFiles().then(() => installCore()).then((ok) => readyResolve(ok)).catch(() => readyResolve(false));
 
   const api = Object.freeze({
-    version: VERSION, OVERCAST_PREFIX, parseResourceClassId, overcastAvailability,
+    version: VERSION, OVERCAST_PREFIX, WIZARD_MASTERY_PREFIX, WIZARD_SIGNATURE_PREFIX, parseResourceClassId, overcastAvailability,
     ensureSupplementalSpellFiles, pierreBatchRuntime,
     installSpellcastingResourceBridge, spellCastEffect, absorbElementsEffect, shieldEffect,
     installCombatHook, install, ready

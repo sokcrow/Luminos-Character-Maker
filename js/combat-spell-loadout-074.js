@@ -40,6 +40,11 @@
     }
     return null;
   }
+  function wizardRuntime() {
+    if (global?.LuminousWizardClassRuntime) return global.LuminousWizardClassRuntime;
+    if (typeof require === "function") { try { return require("./wizard-class-runtime.js"); } catch (_) {} }
+    return null;
+  }
 
   function selectionSource(source = {}) {
     if (Array.isArray(source.spellIds)) return source.spellIds;
@@ -58,7 +63,9 @@
   }
 
   function rawSpellIdsFor(source = {}) {
-    return [...new Set(selectionSource(source).map((entry) => clean(entry?.spellId || entry?.id || entry)).filter(Boolean))];
+    const selected = selectionSource(source).map((entry) => clean(entry?.spellId || entry?.id || entry)).filter(Boolean);
+    const wizardIds = wizardRuntime()?.spellIdsForCombat?.(source) || [];
+    return [...new Set([...selected, ...wizardIds].map(clean).filter(Boolean))];
   }
 
   function classIdsFor(source = {}) {
@@ -190,10 +197,7 @@
     if (!canCastSpells(source)) return [];
     return rawSpellIdsFor(source)
       .map(normalizeId)
-      .filter((id) => {
-        const definition = resolveSpellDefinition(id);
-        return definition.ok && resolveCastClass(source, definition.spell).ok;
-      });
+      .filter((id) => resolveSpellForCombatant(source, id).ok);
   }
 
   function buildSpellSelectionIndex(sourceOrIds = {}) {
@@ -240,6 +244,7 @@
     spellEntry,
     normalizeSpellDefinition,
     resolveSpellDefinition,
+    wizardRuntime,
     classIdsFor,
     spellAllowedClassIds,
     spellCastOverrideFor,
