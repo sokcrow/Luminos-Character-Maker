@@ -586,7 +586,7 @@
       formula = formula.replace(pattern, replacement);
     });
 
-    return expandSimplePowers(normalizeDisplayFormula(formula, trait)).replace(/\s+/g, "");
+    return expandSimplePowers(normalizeDisplayFormula(formula, trait).replace(/\s+/g, ""));
   }
 
   function descriptionFormulaLabel(source, endIndex) {
@@ -658,6 +658,9 @@
     const scalar = "(?:\\d+(?:\\.\\d+)?%?|"+ variable +")";
     const inlinePattern = new RegExp(scalar + "\\s*(?:×|÷|\\*|/|\\^)\\s*" + scalar + "(?:[²³])?", "gi");
     while ((match = inlinePattern.exec(text))) add(match.index, match.index + match[0].length);
+
+    const powerPattern = new RegExp(variable + "\\s*(?:\\^\\s*[2-4]|[²³])", "gi");
+    while ((match = powerPattern.exec(text))) add(match.index, match.index + match[0].length);
 
     return candidates.sort((a, b) => a.start - b.start || (b.end - b.start) - (a.end - a.start));
   }
