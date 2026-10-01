@@ -1186,9 +1186,8 @@ function initializeCharacterSheet() {
   }
   if (!playerId) return;
 
-  if (window.LuminousPlayerContractsRuntime?.init && typeof db !== "undefined") {
-    window.LuminousPlayerContractsRuntime.init({ db, playerId });
-  }
+  // Contracts are lazy: subscribe only while the Contracts tab is actually open.
+  window.LuminousPlayerContractsRuntime?.dispose?.();
 
   // --- DESCARGAR ACTORES PARA EL JUGADOR ---
   if (typeof db !== "undefined") {
@@ -1803,6 +1802,12 @@ function initializeCharacterSheet() {
       if (!btn || !btn.name || !btn.name.startsWith("act_tab_")) return;
 
       const tabName = btn.name.replace("act_tab_", "");
+
+      if (tabName === "contratos") {
+        window.LuminousPlayerContractsRuntime?.init?.({ db, playerId });
+      } else {
+        window.LuminousPlayerContractsRuntime?.dispose?.();
+      }
 
       const tabInput =
         document.querySelector('input[name="attr_tab"]') ||
@@ -3950,7 +3955,14 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
   // ==========================================
   // MOTOR DE SÍNTESIS (FORJA)
   // ==========================================
+  let forjaInitialized = false;
+  let forjaResolutionInitialized = false;
+  const getForjaPlayerData = () => window.datosJugador || {};
+
   function initForja() {
+      if (forjaInitialized) return;
+      forjaInitialized = true;
+
       let forjaSlots = {
           1: null, // { key, inventarioTipo, data }
           2: null,
@@ -3963,23 +3975,26 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
       let targetSlot = null;
 
       // Escuchar la mesa de crafteo global
-      db.ref("campaña/estado_mundo/mesa_crafteo_activa").on("value", snap => {
+      db.ref("campaña/estado_mundo/mesa_crafteo_activa").once("value").then((snap) => {
           mesaCrafteoGlobal = !!snap.val();
+          updateForjaSlotsVisuals();
+      }).catch(() => {
+          mesaCrafteoGlobal = false;
           updateForjaSlotsVisuals();
       });
 
       function tieneToolkit() {
           let hasToolkit = false;
           // Buscar toolkit en activo
-          if (localPlayerData.inventario_activo) {
-              Object.values(localPlayerData.inventario_activo).forEach(item => {
+          if (getForjaPlayerData().inventario_activo) {
+              Object.values(getForjaPlayerData().inventario_activo).forEach(item => {
                   if (item.tags && item.tags.includes("toolkit")) hasToolkit = true;
                   if (item.keywords && item.keywords.includes("toolkit")) hasToolkit = true;
               });
           }
           // Buscar toolkit en stash
-          if (localPlayerData.inventario_stash) {
-              Object.values(localPlayerData.inventario_stash).forEach(item => {
+          if (getForjaPlayerData().inventario_stash) {
+              Object.values(getForjaPlayerData().inventario_stash).forEach(item => {
                   if (item.tags && item.tags.includes("toolkit")) hasToolkit = true;
                   if (item.keywords && item.keywords.includes("toolkit")) hasToolkit = true;
               });
@@ -4110,15 +4125,12 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
               }
           }
 
-          renderGrid(localPlayerData.inventario_activo, activeGrid, "inventario_activo");
-          renderGrid(localPlayerData.inventario_stash, stashGrid, "inventario_stash");
+          renderGrid(getForjaPlayerData().inventario_activo, activeGrid, "inventario_activo");
+          renderGrid(getForjaPlayerData().inventario_stash, stashGrid, "inventario_stash");
       }
 
-      // Update whenever player data changes
-      db.ref(`campaña/jugadores/${pName}`).on("value", (snap) => {
-          updateForjaSlotsVisuals();
-          // We don't automatically clear slots if items disappear, but extraction validation will catch it
-      });
+      // Player inventory state already arrives through the canonical player listener.
+      // Do not open a second Firebase listener for the forge.
 
       // INIT
       updateForjaSlotsVisuals();
@@ -4127,14 +4139,21 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
       window.forjaSlots = forjaSlots;
   }
 
-  // Llama a initForja después de cargar
-  setTimeout(initForja, 2000);
+  // Forge setup is lazy and runs only when the synthesis tab is opened.
+  window.addEventListener("luminous:inventory-tab-changed", (event) => {
+      if (event?.detail?.tab !== "inv-sintesis") return;
+      initForja();
+      initForjaResolution();
+  });
 
 
   // ==========================================
   // RESOLUCIÓN DE CRAFTEO (SÍNTESIS)
   // ==========================================
   function initForjaResolution() {
+      if (forjaResolutionInitialized) return;
+      forjaResolutionInitialized = true;
+
       const btnIniciar = document.querySelector(".btn-synth-action");
       const btnForecast = document.querySelector(".btn-forecast");
       const probValueEl = document.querySelector(".prob-value");
@@ -4199,9 +4218,9 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
               let dcActual = recetaCoincidente.dificultad_base;
 
               // Buscar modificadores en el inventario activo (tags/keywords)
-              if (localPlayerData.inventario_activo) {
-                  for (let key in localPlayerData.inventario_activo) {
-                      let item = localPlayerData.inventario_activo[key];
+              if (getForjaPlayerData().inventario_activo) {
+                  for (let key in getForjaPlayerData().inventario_activo) {
+                      let item = getForjaPlayerData().inventario_activo[key];
                       if (item.keywords && Array.isArray(item.keywords)) {
                           item.keywords.forEach(kw => {
                               const synthMatch = kw.match(/synth_bonus_(\d+)/i);
@@ -4304,9 +4323,9 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
               let modTexto = [];
 
               // Buscar modificadores en el inventario activo (tags/keywords)
-              if (localPlayerData.inventario_activo) {
-                  for (let key in localPlayerData.inventario_activo) {
-                      let item = localPlayerData.inventario_activo[key];
+              if (getForjaPlayerData().inventario_activo) {
+                  for (let key in getForjaPlayerData().inventario_activo) {
+                      let item = getForjaPlayerData().inventario_activo[key];
                       if (item.keywords && Array.isArray(item.keywords)) {
                           item.keywords.forEach(kw => {
                               const synthMatch = kw.match(/synth_bonus_(\d+)/i);
@@ -4480,4 +4499,4 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
       }
   }
 
-  setTimeout(initForjaResolution, 2100);
+
