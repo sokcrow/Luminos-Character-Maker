@@ -8549,15 +8549,36 @@
               <div id="player-progression-tree-host" aria-live="polite"></div>
               <aside id="player-progression-detail" aria-live="polite"></aside>
 
-              <section class="player-progression-traits-section" aria-label="Traits obtenidos">
-                <header>
-                  <div>
-                    <span>BUILD ACTUAL</span>
-                    <h3>TRAITS OBTENIDOS</h3>
-                  </div>
-                  <p>Los Traits activos salen de Atributos y viven aquí, junto a la progresión.</p>
-                </header>
-                <div id="player-progression-traits-host"></div>
+              <section class="player-progression-traits-section" aria-label="Traits del personaje">
+                <div class="player-progression-traits-dossier">
+                  <section class="player-progression-traits-art-panel" aria-label="Arte del personaje">
+                    <img data-progression-trait-art alt="Arte del personaje" hidden>
+                    <div class="player-progression-traits-art-empty" data-progression-trait-art-empty>
+                      <strong>PLAYER ART</strong>
+                      <span>Asignada por el DM en Gestión de Jugadores</span>
+                    </div>
+                    <div class="player-progression-traits-art-vignette" aria-hidden="true"></div>
+                    <div class="player-progression-traits-art-copy">
+                      <span>CHARACTER TRAITS</span>
+                      <strong data-progression-trait-name>PLAYER</strong>
+                      <small>LV <b data-progression-trait-level>1</b> · BUILD ACTUAL</small>
+                    </div>
+                  </section>
+                  <section class="player-progression-traits-info-panel">
+                    <header class="player-progression-traits-character-header">
+                      <div class="player-progression-traits-character-icon">
+                        <img data-progression-trait-icon alt="Icono del personaje" hidden>
+                        <span data-progression-trait-icon-empty>◈</span>
+                      </div>
+                      <div>
+                        <span>TRAIT DOSSIER</span>
+                        <h3 data-progression-trait-name>PLAYER</h3>
+                      </div>
+                      <b>LV <span data-progression-trait-level>1</span></b>
+                    </header>
+                    <div id="player-progression-traits-host"></div>
+                  </section>
+                </div>
               </section>
             </section>
           </div>

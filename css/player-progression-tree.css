@@ -485,39 +485,237 @@ body:not(.on-game-dashboard) #perks-modal.modal-progression .hud-modal-body{
 .player-progression-formulas b{color:#ffe08a}
 
 .player-progression-traits-section{
-  display:grid;
-  gap:10px;
   padding-top:4px;
 }
 
-.player-progression-traits-section>header{
+.player-progression-traits-dossier{
+  position:relative;
+  width:100%;
+  min-height:620px;
+  height:min(72vh,700px);
+  display:grid;
+  grid-template-columns:minmax(300px,.86fr) minmax(0,1.14fr);
+  overflow:hidden;
+  border:2px solid rgba(153,124,74,.58);
+  background:#050505;
+  box-shadow:inset 0 0 40px rgba(0,0,0,.82),0 18px 48px rgba(0,0,0,.58);
+}
+
+.player-progression-traits-dossier::after{
+  content:"";
+  position:absolute;
+  inset:7px;
+  z-index:6;
+  pointer-events:none;
+  border:1px solid rgba(153,124,74,.34);
+  box-shadow:inset 0 0 30px rgba(0,0,0,.58);
+}
+
+.player-progression-traits-art-panel{
+  position:relative;
+  min-width:0;
+  min-height:0;
+  overflow:hidden;
+  background:radial-gradient(circle at 50% 42%,rgba(176,137,67,.11),transparent 34%),linear-gradient(135deg,#111,#050505);
+  border-right:2px solid #473a2a;
+}
+
+.player-progression-traits-art-panel>img{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  object-position:center;
+  filter:contrast(1.08) saturate(.95);
+}
+
+.player-progression-traits-art-panel>img[hidden],
+.player-progression-traits-art-empty[hidden],
+.player-progression-traits-character-icon img[hidden],
+.player-progression-traits-character-icon [hidden]{
+  display:none!important;
+}
+
+.player-progression-traits-art-empty{
+  position:absolute;
+  inset:0;
+  display:grid;
+  place-content:center;
+  gap:10px;
+  padding:30px;
+  color:#6f675a;
+  text-align:center;
+  letter-spacing:.1em;
+}
+
+.player-progression-traits-art-empty strong{
+  color:#b9a47f;
+  font:700 22px Georgia,"Times New Roman",serif;
+  letter-spacing:.14em;
+}
+
+.player-progression-traits-art-empty span{
+  max-width:270px;
+  color:#766e62;
+  font:600 10px/1.5 monospace;
+}
+
+.player-progression-traits-art-vignette{
+  position:absolute;
+  inset:0;
+  z-index:1;
+  pointer-events:none;
+  background:
+    radial-gradient(ellipse at 45% 42%,transparent 20%,rgba(0,0,0,.13) 50%,rgba(0,0,0,.84) 100%),
+    linear-gradient(90deg,rgba(0,0,0,.02) 0%,rgba(0,0,0,.04) 56%,rgba(0,0,0,.82) 100%),
+    linear-gradient(0deg,rgba(0,0,0,.92) 0%,transparent 48%);
+}
+
+.player-progression-traits-art-copy{
+  position:absolute;
+  z-index:3;
+  left:42px;
+  right:32px;
+  bottom:38px;
+  display:grid;
+  gap:5px;
+}
+
+.player-progression-traits-art-copy>span,
+.player-progression-traits-character-header>div>span{
+  color:#b98a3c;
+  font:800 9px/1.2 monospace;
+  letter-spacing:.14em;
+}
+
+.player-progression-traits-art-copy>strong{
+  overflow:hidden;
+  color:#f0e4cc;
+  font:700 clamp(24px,2.3vw,38px)/1.05 Georgia,"Times New Roman",serif;
+  letter-spacing:.035em;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  text-shadow:0 3px 14px #000;
+}
+
+.player-progression-traits-art-copy>small{
+  color:#9c907d;
+  font:700 10px/1.2 monospace;
+  letter-spacing:.08em;
+}
+
+.player-progression-traits-art-copy>small b{
+  color:#f0a918;
+  font:700 15px/1 Georgia,"Times New Roman",serif;
+}
+
+.player-progression-traits-info-panel{
+  min-width:0;
+  min-height:0;
   display:flex;
-  align-items:end;
-  justify-content:space-between;
-  gap:18px;
-  padding:0 4px 9px;
-  border-bottom:1px solid #4b3a27;
+  flex-direction:column;
+  padding:20px 34px 26px 30px;
+  overflow:hidden;
+  background:radial-gradient(ellipse at 50% 12%,rgba(102,79,42,.25),transparent 45%),linear-gradient(180deg,#1b1815,#12110f);
 }
 
-.player-progression-traits-section>header h3{
-  margin:0;
-  color:#ead9ba;
-  font:700 19px/1 Georgia,"Times New Roman",serif;
+.player-progression-traits-character-header{
+  flex:0 0 82px;
+  min-width:0;
+  display:grid;
+  grid-template-columns:54px minmax(0,1fr) auto;
+  align-items:center;
+  gap:14px;
+  padding:0 2px 12px;
+  border-bottom:2px solid #5b4730;
 }
 
-.player-progression-traits-section>header p{
-  margin:0;
-  color:#7e7568;
-  font:600 9px/1.4 monospace;
+.player-progression-traits-character-icon{
+  position:relative;
+  width:54px;
+  height:54px;
+  display:grid;
+  place-items:center;
+  overflow:hidden;
+  border:3px solid #d5ac63;
+  border-radius:50%;
+  background:radial-gradient(circle at 40% 35%,#eee,#777 35%,#1a1a1a 75%);
+  color:#333;
+  font:24px Georgia,serif;
+}
+
+.player-progression-traits-character-icon img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
+
+.player-progression-traits-character-header>div{
+  min-width:0;
+}
+
+.player-progression-traits-character-header h3{
+  margin:4px 0 0;
+  overflow:hidden;
+  color:#e7d5b3;
+  font:700 clamp(18px,1.5vw,27px)/1.05 Georgia,"Times New Roman",serif;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.player-progression-traits-character-header>b{
+  padding:8px 10px;
+  border:2px solid #51483c;
+  background:linear-gradient(180deg,#39342d,#171613);
+  color:#c5b597;
+  font:700 10px/1 monospace;
+  letter-spacing:.08em;
+}
+
+.player-progression-traits-character-header>b span{
+  margin-left:5px;
+  color:#ffb629;
+  font:700 22px/1 Georgia,"Times New Roman",serif;
 }
 
 #player-progression-traits-host{
+  flex:1 1 auto;
+  min-width:0;
+  min-height:0;
   width:100%;
-  min-height:420px;
-  height:min(54vh,560px);
+  display:flex;
   overflow:hidden;
-  border:1px solid #342a1f;
-  background:#0b0a09;
+  padding-top:13px;
+}
+
+#player-progression-traits-host>.player-trait-runtime-host{
+  flex:1 1 auto;
+  min-width:0;
+  min-height:0;
+  display:flex;
+  overflow:hidden;
+}
+
+#player-progression-traits-host .player-traits-catalog{
+  height:100%;
+}
+
+@media (max-width:980px){
+  .player-progression-traits-dossier{
+    height:auto;
+    min-height:0;
+    grid-template-columns:1fr;
+  }
+  .player-progression-traits-art-panel{
+    min-height:320px;
+    height:38vh;
+    border-right:0;
+    border-bottom:2px solid #473a2a;
+  }
+  .player-progression-traits-info-panel{
+    min-height:620px;
+  }
 }
 
 @media (max-width:760px){
@@ -526,7 +724,12 @@ body:not(.on-game-dashboard) #perks-modal.modal-progression .hud-modal-body{
   .player-progression-heading p{text-align:left}
   .player-progression-grid{grid-auto-rows:minmax(108px,auto)}
   .player-progression-formulas li{grid-template-columns:1fr}
-  #player-progression-traits-host{height:62vh;min-height:360px}
+  .player-progression-traits-art-panel{min-height:270px;height:34vh}
+  .player-progression-traits-art-copy{left:24px;right:20px;bottom:24px}
+  .player-progression-traits-info-panel{min-height:680px;padding:16px}
+  .player-progression-traits-character-header{grid-template-columns:48px minmax(0,1fr);gap:10px}
+  .player-progression-traits-character-icon{width:48px;height:48px}
+  .player-progression-traits-character-header>b{grid-column:1/-1;justify-self:start}
 }
 
 
