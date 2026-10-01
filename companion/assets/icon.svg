@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">Limbus Companion</title>
+  <rect width="512" height="512" rx="112" fill="#0b0b0d"/>
+  <circle cx="256" cy="256" r="172" fill="none" stroke="#e43b45" stroke-width="24"/>
+  <path d="M180 145v222h164v-34H218V145z" fill="#f1f1f2"/>
+  <path d="M300 181h44v118h-44z" fill="#e43b45"/>
+</svg>
