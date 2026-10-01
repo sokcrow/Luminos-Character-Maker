@@ -4,8 +4,10 @@ on:
   pull_request:
     paths:
       - 'hoja_personaje.html'
+      - 'js/character-build-rules.js'
       - 'js/player-progression-tree-core.js'
       - 'js/player-progression-tree.js'
+      - 'js/player-progression-level-allocation.js'
       - 'js/player-trait-runtime.js'
       - 'js/trait-player-tray.js'
       - 'js/player-archetype-runtime-core.js'
@@ -18,8 +20,10 @@ on:
       - main
     paths:
       - 'hoja_personaje.html'
+      - 'js/character-build-rules.js'
       - 'js/player-progression-tree-core.js'
       - 'js/player-progression-tree.js'
+      - 'js/player-progression-level-allocation.js'
       - 'js/player-trait-runtime.js'
       - 'js/trait-player-tray.js'
       - 'js/player-archetype-runtime-core.js'
@@ -38,8 +42,10 @@ jobs:
           node-version: '22'
       - name: Syntax check
         run: |
+          node --check js/character-build-rules.js
           node --check js/player-progression-tree-core.js
           node --check js/player-progression-tree.js
+          node --check js/player-progression-level-allocation.js
           node --check js/player-trait-runtime.js
           node --check js/trait-player-tray.js
           node --check js/player-archetype-runtime-core.js
