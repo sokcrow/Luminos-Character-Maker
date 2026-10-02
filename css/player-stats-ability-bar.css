@@ -27,6 +27,8 @@ body:not(.on-game-dashboard) #stats-modal .hud-modal-content{
   min-height:920px!important;
   max-height:none!important;
   box-sizing:border-box!important;
+  border:2px solid rgba(153,124,74,.58)!important;
+  border-radius:0!important;
   transform:translate(-50%,-50%) scale(var(--player-stats-hud-scale,1))!important;
   transform-origin:center center!important;
   overflow:hidden!important;
@@ -74,6 +76,7 @@ body:not(.on-game-dashboard) #stats-modal .player-stats-bottom-info{
   gap:38px!important;
 }
 body:not(.on-game-dashboard) #stats-modal .player-info-block{
+  box-sizing:border-box!important;
   height:74px!important;
   min-height:74px!important;
   max-height:74px!important;
@@ -93,6 +96,7 @@ body:not(.on-game-dashboard) #stats-modal .player-resistance-list{
   scrollbar-width:thin;
   scrollbar-color:#5a4530 #13110f;
 }
+body:not(.on-game-dashboard) #stats-modal .player-stats-header{flex:0 0 154px!important}
 body:not(.on-game-dashboard) #stats-modal .player-level-section{
   height:88px!important;
   grid-template-columns:minmax(190px,1.7fr) repeat(3,minmax(86px,.72fr))!important;
