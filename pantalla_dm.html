@@ -3784,6 +3784,9 @@ window.processEntitiesData = function(entities) {
     <script src="js/item-runtime-engine.js"></script>
     <script src="js/item-inventory-runtime.js"></script>
     <!-- Canonical item definitions used by the Director catalog. -->
+    <!-- Prerequisites must load before component catalogs in browser mode. -->
+    <script src="js/item-armor-material-profile.js"></script>
+    <script src="js/item-catalog-weapon-components.js"></script>
     <script src="js/item-catalog-armor-components.js"></script>
     <script src="js/item-catalog-armor-upgrades.js"></script>
     <script src="js/item-catalog-blood-ichor.js"></script>
@@ -3820,7 +3823,6 @@ window.processEntitiesData = function(entities) {
     <script src="js/item-catalog-throwable-components.js"></script>
     <script src="js/item-catalog-tools.js"></script>
     <script src="js/item-catalog-venom-secretion.js"></script>
-    <script src="js/item-catalog-weapon-components.js"></script>
     <script src="js/item-catalog-weapon-upgrades.js"></script>
     <script src="js/item-catalog-weapons.js"></script>
     <script src="js/dm-item-catalog-core.js"></script>
