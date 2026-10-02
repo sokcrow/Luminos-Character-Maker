@@ -11913,12 +11913,16 @@
                       </div>
                   </div>
 
-                  <div style="display:flex; gap:8px; align-items:center; margin:10px 0; padding:8px; border:1px solid #3b3322; background:#0b0a07;">
+                  <div style="display:grid; grid-template-columns:auto minmax(0,1fr) auto minmax(120px,0.65fr); gap:8px; align-items:center; margin:10px 0; padding:8px; border:1px solid #3b3322; background:#0b0a07;">
                       <label for="forja-recipe-select" style="color:#c49a00; font-size:12px; white-space:nowrap;">RECIPE:</label>
-                      <select id="forja-recipe-select" style="flex:1; min-width:0; background:#111; color:#fff; border:1px solid #555; padding:6px;">
+                      <select id="forja-recipe-select" style="min-width:0; background:#111; color:#fff; border:1px solid #555; padding:6px;">
                           <option value="">Coloca ingredientes para detectar Recipes...</option>
                       </select>
-                      <span id="forja-tool-requirement" style="font-size:11px; color:#aaa;"></span>
+                      <label for="forja-station-select" style="color:#0df; font-size:12px; white-space:nowrap;">STATION:</label>
+                      <select id="forja-station-select" style="min-width:0; background:#111; color:#fff; border:1px solid #555; padding:6px;">
+                          <option value="">Sin estación</option>
+                      </select>
+                      <span id="forja-tool-requirement" style="grid-column:1 / -1; font-size:11px; color:#aaa;"></span>
                   </div>
 
                   <!-- Barra Inferior de Predicción y Probabilidad -->
@@ -13234,10 +13238,11 @@
     <script src="js/item-cooking-recipe-catalog.js"></script>
     <script src="js/item-medicine-recipe-catalog.js"></script>
     <script src="js/item-processing-recipe-data.js"></script>
+    <script src="js/item-processing-engine.js"></script>
     <script src="js/item-throwable-recipe-catalog.js"></script>
     <script src="js/item-cooking-recipe-resolver.js"></script>
-    <script src="js/item-content-registry.js"></script>
     <script src="js/item-cooking-equipment-engine.js"></script>
+    <script src="js/item-content-registry.js"></script>
     <script src="js/item-cooking-runtime.js"></script>
     <script src="js/item-food-rest-runtime.js"></script>
     <script src="js/inventory-hud-v2.js"></script>
