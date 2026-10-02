@@ -8,7 +8,7 @@
 
   const VERSION = 1;
   const DEFAULT_ICON = "Assets/Icons/items/fallback/generic_item.png";
-  const CATALOG_NAME_RE = /^Luminous.*(?:Item|Weapon|Armor|Shield|Ammo|Food|Meat|Healing|Medical|Medicinal|Chemical|Material|Component|Tool|Jewelry|Valuable|Ore|Ingot|Gem|Hide|Pelt|Organ|Blood|Ichor|Venom|Ooze|Essence|Plant|Produce|Feather|Upgrade|Throwable|Culinary|Retail|Ranged|Firearm|StatusCure).*Catalog$/;
+  const CATALOG_NAME_RE = /^Luminous.*(?:Item|Weapon|Armor|Shield|Ammo|Food|Meat|Healing|Medical|Medicinal|Chemical|Material|Component|Tool|Jewelry|Valuable|Ore|Ingot|Gem|Hide|Pelt|Organ|Blood|Ichor|Venom|Ooze|Essence|Plant|Produce|Feather|Upgrade|Throwable|Culinary|Retail|Ranged|Firearm|StatusCure|HardParts|ScaleShellChitin).*Catalog$/;
 
   const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
   const clean = (value) => String(value == null ? "" : value).trim();
@@ -239,12 +239,49 @@
     return mergeFirebaseItems(collectCatalogMap(root || global, options), firebaseItems || {}, options);
   }
 
+  function stableNormalize(value) {
+    if (Array.isArray(value)) return value.map(stableNormalize);
+    if (!value || typeof value !== "object") return value;
+    return Object.keys(value).sort().reduce((out, key) => {
+      if (value[key] !== undefined) out[key] = stableNormalize(value[key]);
+      return out;
+    }, {});
+  }
+
+  function stackVariantSignature(item) {
+    const source = item || {};
+    return JSON.stringify(stableNormalize({
+      tier: clean(source.tier || "I").toLowerCase(),
+      qualityTier: Number(source.qualityTier ?? source.quality_tier ?? 1) || 1,
+      quality: normalizeId(source.quality || source.baseQuality || "standard"),
+      condition: Number(source.condition ?? source.currentCondition ?? source.currentDurability ?? source.durability ?? 100),
+      conditionMax: Number(source.conditionMax ?? source.maxCondition ?? source.maxDurability ?? 100),
+      manufacturerId: clean(source.manufacturerId || source.manufacturer_id || ""),
+      productLineId: clean(source.productLineId || source.product_line_id || ""),
+      modelName: clean(source.modelName || source.model_name || ""),
+      commissionName: clean(source.commissionName || source.commission_name || ""),
+      installedModuleIds: asArray(source.installedModuleIds || source.installed_module_ids).map(String).sort(),
+      installedModules: clone(source.installedModules || []),
+      signatureTechnologyIds: asArray(source.signatureTechnologyIds || source.signature_technology_ids).map(String).sort(),
+      signatureComponents: clone(source.signatureComponents || []),
+      chargesCurrent: source.chargesCurrent ?? source.charges_current ?? source.charges ?? null,
+      chargesMax: source.chargesMax ?? source.charges_max ?? source.maxCharges ?? null,
+      rechargeRule: clone(source.rechargeRule || source.recharge_rule || null),
+      stolen: source.stolen === true,
+      runtimeState: clone(source.runtimeState || source.runtime_state || {}),
+      customData: clone(source.customData || source.custom_data || {}),
+      variantData: clone(source.variantData || source.variant_data || {})
+    }));
+  }
+
   function sameDefinition(a, b) {
     const aid = definitionIdOf(a);
     const bid = definitionIdOf(b);
-    if (aid && bid) return aid === bid;
-    return normalizeId(itemName(a)) === normalizeId(itemName(b))
-      && clean(a && a.tier || "I") === clean(b && b.tier || "I");
+    const sameBase = aid && bid
+      ? aid === bid
+      : normalizeId(itemName(a)) === normalizeId(itemName(b));
+    if (!sameBase) return false;
+    return stackVariantSignature(a) === stackVariantSignature(b);
   }
 
   function quantityOf(item) {
@@ -307,7 +344,7 @@
     collectCatalogMap,
     mergeFirebaseItems,
     buildCatalogMap,
-    sameDefinition,
+    stackVariantSignature,\n    sameDefinition,
     quantityOf,
     quantityPatch,
     createGrantPayload
