@@ -10,6 +10,7 @@
   const REQUEST_ROOT = 'campaña/teatro/scene_time_requests';
   const PLAYER_ROOT = 'campaña/jugadores';
   const KNOWLEDGE_ROOT = 'campaña/teatro/conocimiento_identidad';
+  const INSTANCE_PATH = 'campaña/estado_mundo/instancia_activa';
   const state = { calendar:{}, room:{mode:'scene',actions:{}}, players:{}, knowledge:{}, scene:{}, pending:new Set(), linked:{}, log:[] };
   const uid = () => firebase.auth?.().currentUser?.uid || null;
   const isDm = () => uid() === DM_UID || doc.body?.classList?.contains('on-game-dashboard');
@@ -19,6 +20,13 @@
   const assignedActor = () => C.clean(global.getAssignedTheatreActor?.()?.actorId || playerData().actorId || playerData().vinculo_jugador || '');
   const eventId = (prefix='event') => `${prefix}_${roomKey()}_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
   const requestPath = () => `${REQUEST_ROOT}/${roomKey()}/events`;
+
+  let baseDataBound = false;
+  let theatreActive = false;
+  let knowledgeRef = null, knowledgeHandler = null;
+  let sceneRef = null, sceneHandler = null, scenePath = null;
+  let logRef = null, logHandler = null, logPath = null;
+  let surfaceObserver = null;
 
   function blocking(actorId) {
     const id = C.clean(actorId);
@@ -79,7 +87,9 @@
     await db.ref(`${requestPath()}/${id}`).remove();
   }
 
-  function bindData() {
+  function bindBaseData() {
+    if (baseDataBound) return;
+    baseDataBound = true;
     db.ref(CALENDAR_ROOT).on('value', (snap) => {
       state.calendar = snap.val() || {};
       state.room = C.roomStateFrom(state.calendar, roomKey());
@@ -87,12 +97,83 @@
       render();
     });
     db.ref(PLAYER_ROOT).on('value', (snap) => { state.players = snap.val() || {}; });
-    db.ref(KNOWLEDGE_ROOT).on('value', (snap) => { state.knowledge = snap.val() || {}; decorateLog(); });
-    const scenePath = theatre()?.getPaths?.().scene || 'campaña/estado_mundo/escena_actual';
-    db.ref(scenePath).on('value', (snap) => { state.scene = snap.val() || {}; decorateLog(); });
     if (isDm()) db.ref(requestPath()).on('child_added', (snap) => consumeRequest(snap.key, snap.val() || {}).catch(console.error));
-    const logPath = theatre()?.getPaths?.().log || 'campaña/teatro/log';
-    db.ref(logPath).on('value', (snap) => { state.log = Object.entries(snap.val() || {}); decorateLog(); });
+  }
+
+  function unbindTheatreData() {
+    if (knowledgeRef && knowledgeHandler) knowledgeRef.off('value', knowledgeHandler);
+    if (sceneRef && sceneHandler) sceneRef.off('value', sceneHandler);
+    if (logRef && logHandler) logRef.off('value', logHandler);
+    knowledgeRef = null; knowledgeHandler = null;
+    sceneRef = null; sceneHandler = null; scenePath = null;
+    logRef = null; logHandler = null; logPath = null;
+    state.knowledge = {};
+    state.scene = {};
+    state.log = [];
+  }
+
+  function bindTheatreData() {
+    if (!isDm() && !theatreActive) {
+      unbindTheatreData();
+      return false;
+    }
+
+    if (!knowledgeRef) {
+      knowledgeRef = db.ref(KNOWLEDGE_ROOT);
+      knowledgeHandler = (snap) => { state.knowledge = snap.val() || {}; decorateLog(); };
+      knowledgeRef.on('value', knowledgeHandler);
+    }
+
+    const nextScenePath = theatre()?.getPaths?.().scene || 'campaña/estado_mundo/escena_actual';
+    if (nextScenePath !== scenePath) {
+      if (sceneRef && sceneHandler) sceneRef.off('value', sceneHandler);
+      scenePath = nextScenePath;
+      sceneRef = db.ref(scenePath);
+      sceneHandler = (snap) => { state.scene = snap.val() || {}; decorateLog(); };
+      sceneRef.on('value', sceneHandler);
+    }
+
+    const nextLogPath = theatre()?.getPaths?.().log || 'campaña/teatro/log';
+    if (nextLogPath !== logPath) {
+      if (logRef && logHandler) logRef.off('value', logHandler);
+      logPath = nextLogPath;
+      logRef = db.ref(logPath);
+      logHandler = (snap) => { state.log = Object.entries(snap.val() || {}); decorateLog(); };
+      logRef.on('value', logHandler);
+    }
+    return true;
+  }
+
+  function syncSurfaceObserver() {
+    const active = isDm() || theatreActive;
+    if (!active) {
+      surfaceObserver?.disconnect?.();
+      surfaceObserver = null;
+      return;
+    }
+    if (surfaceObserver) return;
+    surfaceObserver = new MutationObserver(() => { decorateLog(); patchTheatre(); updateLock(); });
+    surfaceObserver.observe(doc.body, {childList:true,subtree:true});
+  }
+
+  function syncTheatreLifecycle(active) {
+    if (!isDm()) theatreActive = active === true;
+    if (isDm() || theatreActive) bindTheatreData();
+    else unbindTheatreData();
+    syncSurfaceObserver();
+    render();
+  }
+
+  function syncInitialTheatreLifecycle() {
+    if (isDm()) {
+      syncTheatreLifecycle(true);
+      return Promise.resolve();
+    }
+    return db.ref(INSTANCE_PATH).once('value').then((snap) => {
+      syncTheatreLifecycle(C.clean(snap.val()).toLowerCase() === 'teatro');
+    }).catch(() => {
+      syncTheatreLifecycle(false);
+    });
   }
 
   function preflight(message) {
@@ -215,7 +296,21 @@
   }
   function render(){ensureStyles();renderDm();renderPlayer();updateLock();decorateLog();}
   function controlAction(actorId,command,extra={}){return submitEvent({type:'action_control',actorId,command,source:'dm',...extra});}
-  function boot(){bindData();patchTheatre();patchCombat();render();doc.addEventListener('change',updateLock);new MutationObserver(()=>{decorateLog();patchTheatre();updateLock();}).observe(doc.body,{childList:true,subtree:true});['luminous:player-data','luminous:player-instance-changed','luminous:combat073-runtime-ready'].forEach((name)=>global.addEventListener?.(name,()=>{patchTheatre();patchCombat();updateLock();}));}
+  function boot(){
+    bindBaseData();
+    patchTheatre();
+    patchCombat();
+    render();
+    doc.addEventListener('change',updateLock);
+    global.addEventListener?.('luminous:player-instance-changed',(event)=>{
+      syncTheatreLifecycle(event?.detail?.theatreActive === true);
+      patchTheatre();
+      patchCombat();
+      updateLock();
+    });
+    ['luminous:player-data','luminous:combat073-runtime-ready'].forEach((name)=>global.addEventListener?.(name,()=>{patchTheatre();patchCombat();updateLock();}));
+    syncInitialTheatreLifecycle();
+  }
 
   global.LuminousSceneTime=Object.freeze({submitEvent,controlAction,blockingActionFor:blocking,setMode:(mode)=>submitEvent({type:'set_mode',mode:mode==='combat'?'combat':'scene',source:'dm'}),advanceToNextEvent:()=>submitEvent({type:'next_event',source:'dm'}),recordCombatRound:()=>submitEvent({type:'combat_round',source:'combat'}),getRuntimeState:()=>({calendar:C.clone(state.calendar),roomState:C.clone(state.room),roomKey:roomKey()}),refresh:render});
   if(doc.readyState==='loading')doc.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
