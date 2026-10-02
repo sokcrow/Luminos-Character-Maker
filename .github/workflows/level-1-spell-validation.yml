@@ -19,6 +19,7 @@ on:
       - "js/battle-viewer-runtime-074.js"
       - "js/battle-viewer-player-spell-planner-074.js"
       - "tests/level-1-spell-batch-*-smoke.mjs"
+      - "tests/level-1-spell-unbreakable-smoke.mjs"
       - "tests/canonical-spell-runtime-smoke.mjs"
       - "tests/combat-v074-player-spell-planner-smoke.mjs"
       - "tests/combat-props-runtime-smoke.mjs"
@@ -44,6 +45,7 @@ on:
       - "js/battle-viewer-runtime-074.js"
       - "js/battle-viewer-player-spell-planner-074.js"
       - "tests/level-1-spell-batch-*-smoke.mjs"
+      - "tests/level-1-spell-unbreakable-smoke.mjs"
       - "tests/canonical-spell-runtime-smoke.mjs"
       - "tests/combat-v074-player-spell-planner-smoke.mjs"
       - "tests/combat-props-runtime-smoke.mjs"
@@ -80,6 +82,9 @@ jobs:
 
       - name: Level 1 batch smoke
         run: node tests/level-1-spell-batch-1-smoke.mjs
+
+      - name: Unbreakable clash smoke
+        run: node tests/level-1-spell-unbreakable-smoke.mjs
 
       - name: Combat props smoke
         run: node tests/combat-props-runtime-smoke.mjs
