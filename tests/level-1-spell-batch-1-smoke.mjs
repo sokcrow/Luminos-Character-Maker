@@ -178,6 +178,27 @@ assert.deepEqual(batch.divineSmiteFixedDamage(1, { creatureType: "humanoid" }), 
 assert.equal(batch.divineSmiteFixedDamage(1, { creatureType: "fiend" }).total, 12);
 assert.equal(batch.divineSmiteFixedDamage(3, { creatureType: "undead" }).total, 24);
 
+const enchantedSmiteSkill = {
+  id: "smite_slash",
+  skillRange: 1,
+  __luminousSlotEnchantments: [{
+    id: "divine_smite",
+    slotLevel: 2,
+    targetDrawId: "draw_divine_smite",
+    finalPowerIfTargetHasRadiance: 1,
+    radiance: 2
+  }]
+};
+assert.equal(batch.divineSmiteEnchantment(enchantedSmiteSkill).slotLevel, 2);
+assert.equal(batch.divineSmiteEnchantmentKey(enchantedSmiteSkill, batch.divineSmiteEnchantment(enchantedSmiteSkill)), "draw_divine_smite");
+const smiteAttacker = { id: "smiter", statusEffects: {} };
+const smiteTarget = { id: "smite_target", hp: 100, statusEffects: { radiance: { id: "radiance", count: 1 } }, creatureType: "humanoid" };
+assert.equal(batch.divineSmitePowerBonus(smiteAttacker, smiteTarget, enchantedSmiteSkill), 1);
+const smiteResolved = batch.resolveDivineSmiteHit(smiteAttacker, smiteTarget, enchantedSmiteSkill, {});
+assert.equal(smiteResolved.resolved, true);
+assert.equal(smiteResolved.total, 12);
+assert.equal(batch.resolveDivineSmiteHit(smiteAttacker, smiteTarget, enchantedSmiteSkill, {}), null, "same enchanted Hand card must Smite only once");
+
 const restrainedTarget = { id: "restrained_target", statusEffects: {} };
 batch.applySpellRestrained(restrainedTarget, {
   sourceSpellId: "ensnaring_strike", sourceUnitId: "ranger", spellDC: 17, slotLevel: 3
