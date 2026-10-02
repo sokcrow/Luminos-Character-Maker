@@ -146,21 +146,56 @@ const path = require("node:path");
     "processing recipes must be discoverable from the unified registry"
   );
 
-  const chemistryMatch = contentRegistry.findMatchingRecipe(globalThis, [
+  const chemistryInputs = [
     { definitionId: "cleaning_compound", quantity: 1, __selectedUnits: 1 },
     { definitionId: "chemical_bottle", tags: ["container"], quantity: 1, __selectedUnits: 1 }
-  ]);
+  ];
+  const chemistryMatch = contentRegistry.findMatchingRecipe(globalThis, chemistryInputs);
   assert.ok(chemistryMatch, "canonical chemistry recipes should resolve from selected synthesis items");
   assert.equal(chemistryMatch.recipe.id, "industrial_cleaner");
   assert.equal(contentRegistry.recipeDifficulty(chemistryMatch.recipe), 18);
 
+  const chemistryWithoutTool = contentRegistry.findMatchingRecipes(globalThis, chemistryInputs, {
+    toolItems: [],
+    enforceTools: true
+  });
+  assert.equal(
+    chemistryWithoutTool.some((entry) => entry.recipe.id === "industrial_cleaner"),
+    false,
+    "chemistry recipes must not resolve without their required canonical tool type"
+  );
+
+  const chemistryWithTool = contentRegistry.findMatchingRecipes(globalThis, chemistryInputs, {
+    toolItems: [{ definitionId: "alchemists_supplies", quantity: 1 }],
+    enforceTools: true
+  });
+  assert.equal(
+    chemistryWithTool.some((entry) => entry.recipe.id === "industrial_cleaner"),
+    true,
+    "a matching chemical tool should unlock the canonical chemistry recipe"
+  );
+
+  const doughInputs = [
+    { definitionId: "dough", tags: ["dough"], quantity: 1, __selectedUnits: 1 }
+  ];
   const whiteBreadRecipe = Object.values(unified.recipes)
     .find((recipe) => recipe.recipeKind === "cooking" && recipe.id === "white_bread");
   assert.ok(whiteBreadRecipe, "White Bread recipe should exist in the unified registry");
-  const cookingResolution = contentRegistry.resolveRecipe(whiteBreadRecipe, [
-    { definitionId: "dough", tags: ["dough"], quantity: 1, __selectedUnits: 1 }
-  ], globalThis);
+  const cookingResolution = contentRegistry.resolveRecipe(whiteBreadRecipe, doughInputs, globalThis);
   assert.equal(cookingResolution.valid, true, "canonical cooking recipes should resolve through the shared registry");
+
+  const ambiguousDough = contentRegistry.findMatchingRecipes(globalThis, doughInputs);
+  assert.ok(ambiguousDough.length > 1, "dough should surface multiple compatible canonical recipes");
+  assert.equal(
+    contentRegistry.findMatchingRecipe(globalThis, doughInputs),
+    null,
+    "ambiguous synthesis inputs must not silently select a recipe"
+  );
+  const explicitBread = contentRegistry.findMatchingRecipe(globalThis, doughInputs, {
+    recipeKey: whiteBreadRecipe.__catalogKey || whiteBreadRecipe.id
+  });
+  assert.ok(explicitBread, "an explicit recipe choice should resolve ambiguous ingredients");
+  assert.equal(explicitBread.recipe.id, "white_bread");
 
   const craftedOutput = contentRegistry.createRecipeOutput(chemistryMatch.recipe);
   assert.equal(craftedOutput.definitionId, "industrial_cleaner");
@@ -230,12 +265,16 @@ const path = require("node:path");
   const playerPage = fs.readFileSync(path.join(__dirname, "..", "hoja_personaje.html"), "utf8");
   const playerRuntime = fs.readFileSync(path.join(__dirname, "..", "hoja_personaje.js"), "utf8");
   assert.match(playerPage, /js\/item-content-registry\.js/);
+  assert.match(playerPage, /js\/item-catalog-tools\.js/);
+  assert.match(playerPage, /id="forja-recipe-select"/);
   assert.match(playerPage, /js\/item-chemistry-recipe-catalog\.js/);
   assert.match(playerPage, /js\/item-medicine-recipe-catalog\.js/);
   assert.match(playerPage, /js\/item-processing-recipe-data\.js/);
   assert.match(playerPage, /js\/item-throwable-recipe-catalog\.js/);
   assert.match(playerRuntime, /LuminousItemContentRegistry/);
-  assert.match(playerRuntime, /findMatchingRecipe\(window, items\)/);
+  assert.match(playerRuntime, /findMatchingRecipes\(window, items/);
+  assert.match(playerRuntime, /enforceTools:\s*true/);
+  assert.match(playerRuntime, /Selecciona explícitamente cuál quieres sintetizar/);
   assert.match(playerRuntime, /createRecipeOutput\(attempt\.receta\)/);
   assert.doesNotMatch(playerRuntime, /campaña\/forja\/recetas/);
   assert.doesNotMatch(playerRuntime, /campaña\/items_globales/);
