@@ -146,6 +146,18 @@
     return tags;
   }
 
+  const SYNTHESIS_SLOT_TOOL_CATEGORIES = Object.freeze([
+    "fabrication_tools",
+    "chemical_tools",
+    "medical_tools",
+    "cooking_tools",
+    "smithing_tools",
+    "technical_tools",
+    "textile_tools",
+    "lapidary_tools",
+    "repair_kit"
+  ]);
+
   function toolDefinition(item, root) {
     const host = root || global;
     const catalog = host.LuminousToolCatalog || global.LuminousToolCatalog;
@@ -155,6 +167,19 @@
       if (found) return found;
     }
     return null;
+  }
+
+  function isSynthesisSlotUnlockTool(item, root) {
+    const definition = toolDefinition(item, root);
+    if (!definition) return false;
+    const category = normalizeId(
+      definition.toolCategory ||
+      definition.iconFamily ||
+      item?.toolCategory ||
+      item?.iconFamily ||
+      item?.icon_family
+    );
+    return SYNTHESIS_SLOT_TOOL_CATEGORIES.includes(category);
   }
 
   function toolMatchScore(requiredToolType, item, root) {
@@ -783,6 +808,8 @@
     collectRecipeMap,
     itemIdentity,
     itemTags,
+    SYNTHESIS_SLOT_TOOL_CATEGORIES,
+    isSynthesisSlotUnlockTool,
     toolMatchScore,
     requiredToolType,
     hasRequiredTool,
