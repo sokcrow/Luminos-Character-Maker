@@ -138,13 +138,26 @@
   function assignedSkillEntries(character = {}, options = {}) {
     const loadout = options.skillLoadout || skillLoadout();
     if (typeof loadout?.skillSlotEntries === "function") {
-      try { return loadout.skillSlotEntries(character).map((entry) => ({ index: entry.index, skillId: normalizeId(entry.skillId) })).filter((entry) => entry.skillId); } catch (_) {}
+      try {
+        const entries = loadout.skillSlotEntries(character)
+          .map((entry) => ({ index: entry.index, skillId: normalizeId(entry.skillId) }))
+          .filter((entry) => entry.skillId);
+        if (entries.length) return entries;
+      } catch (_) {}
+    }
+    if (typeof loadout?.skillIdsFor === "function") {
+      try {
+        const ids = loadout.skillIdsFor(character).map(normalizeId).filter(Boolean);
+        if (ids.length) return ids.map((skillId, index) => ({ index, skillId }));
+      } catch (_) {}
     }
     const values = rawIds(character, [
       "characterBuild.skillSlotIds",
       "skillSlotIds",
       "characterBuild.skillIds",
       "skillIds",
+      "characterBuild.equippedSkillIndex",
+      "equippedSkillIndex",
     ]);
     return values.map((skillId, index) => ({ index, skillId }));
   }
@@ -405,6 +418,12 @@
       </div>`;
   }
 
+  function visibleSelectionId(rows = [], selectedSkillId = null) {
+    const selected = normalizeId(selectedSkillId);
+    if (selected && rows.some((skill) => skill.id === selected)) return selected;
+    return rows[0]?.id || null;
+  }
+
   function render(character = playerData()) {
     const root = mount();
     if (!root) return false;
@@ -430,8 +449,7 @@
     let rows = model.skills;
     if (state.filter === "assigned") rows = rows.filter((skill) => skill.assigned);
     if (state.filter === "learned") rows = rows.filter((skill) => skill.learned);
-    if (state.selectedSkillId && !model.skills.some((skill) => skill.id === state.selectedSkillId)) state.selectedSkillId = null;
-    if (!state.selectedSkillId && rows.length) state.selectedSkillId = rows[0].id;
+    state.selectedSkillId = visibleSelectionId(rows, state.selectedSkillId);
 
     root.querySelectorAll("[data-player-skills-filter]").forEach((button) => {
       button.classList.toggle("is-active", button.getAttribute("data-player-skills-filter") === state.filter);
@@ -442,7 +460,7 @@
       ? rows.map(skillRowMarkup).join("")
       : '<div class="player-skills-empty"><strong>NO SKILLS IN THIS VIEW</strong><span>The Player has no Skills matching this filter.</span></div>';
 
-    const selected = model.skills.find((skill) => skill.id === state.selectedSkillId) || null;
+    const selected = rows.find((skill) => skill.id === state.selectedSkillId) || null;
     const detail = root.querySelector("[data-player-skills-detail]");
     if (detail) detail.innerHTML = detailMarkup(selected, model);
     return model;
@@ -506,6 +524,7 @@
     progressionEarned,
     assignedSkillEntries,
     buildSkillViewModel,
+    visibleSelectionId,
     hudScaleForViewport,
     syncHudCanvasScale,
     syncMenuIcon,
