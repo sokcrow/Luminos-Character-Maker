@@ -130,6 +130,13 @@ const path = require("node:path");
   assert.ok(weaponComponents >= 0 && weaponComponents < firearmComponents, "weapon components must load before firearm components");
   assert.ok(weaponComponents < rangedComponents, "weapon components must load before ranged components");
 
+  const localBootstrap = dmPage.indexOf('applyDmItemCatalog({}, "catálogo canónico local")');
+  const firebaseOverlayListener = dmPage.indexOf('db.ref("campaña/base_datos_items").on(');
+  assert.ok(localBootstrap >= 0, "canonical DM catalog must bootstrap locally");
+  assert.ok(firebaseOverlayListener >= 0, "Firebase overlay listener should still exist");
+  assert.ok(localBootstrap < firebaseOverlayListener, "canonical catalog must render before waiting on Firebase");
+  assert.match(dmPage, /Firebase custom no disponible/);
+
   console.log("dm-item-catalog-core.spec: ok");
   console.log("dm item page wiring: ok");
 })().catch((error) => {
