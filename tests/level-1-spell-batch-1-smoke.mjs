@@ -84,6 +84,42 @@ const stormEffect = thunderstormEnv.effects.find((entry) => entry.id === "storm"
 assert.equal(stormEffect.encounterModifierId, "thunderstorm");
 assert.equal(stormEffect.mechanics.lightningFixedDamage, 30);
 
+// Cure Wounds uses the approved Limbus healing formula.
+assert.ok(catalog.cure_wounds);
+assert.deepEqual(catalog.cure_wounds.classIds, ["bard", "cleric", "druid", "paladin", "ranger"]);
+assert.equal(catalog.cure_wounds.school, "abjuration");
+assert.deepEqual(catalog.cure_wounds.contexts, ["combat"]);
+assert.equal(catalog.cure_wounds.resolutionType, "automatic");
+assert.equal(catalog.cure_wounds.mechanics.healing.flatPerSpellSlotUsed, 2);
+assert.deepEqual(catalog.cure_wounds.mechanics.healing.maxHpPercent, { minimum: 2, perSpellMod: 2 });
+
+const cureTarget = { id: "cure_target", hp: 40, maxHp: 100 };
+const cureLevel1 = batch.applyCureWounds(cureTarget, 1, 3);
+assert.equal(cureLevel1.flat, 2);
+assert.equal(cureLevel1.maxHpPercent, 6);
+assert.equal(cureLevel1.healed, 8);
+assert.equal(cureTarget.hp, 48);
+
+const cureMinimum = batch.calculateCureWoundsHealing(1, 0, 100);
+assert.equal(cureMinimum.flat, 2);
+assert.equal(cureMinimum.maxHpPercent, 2);
+assert.equal(cureMinimum.total, 4);
+
+const cureUpcast = batch.calculateCureWoundsHealing(3, 4, 100);
+assert.equal(cureUpcast.flat, 6);
+assert.equal(cureUpcast.maxHpPercent, 8);
+assert.equal(cureUpcast.total, 14);
+
+const cureAction = adapters.compileSpellToCombatAction(
+  { id: "cleric" },
+  catalog.cure_wounds,
+  { classId: "cleric", slotLevel: 3, targetId: "ally" }
+);
+assert.equal(cureAction.resolution.type, "automatic");
+assert.equal(cureAction.resources[0].type, "spell_slot");
+assert.equal(cureAction.resources[0].metadata.slotLevel, 3);
+assert.equal(cureAction.effects[0].type, "level1_cure_wounds");
+
 // Current-rule cleanup for the 9 definitions that existed before this batch.
 assert.deepEqual(catalog.animal_friendship.classIds, ["bard", "druid", "ranger"]);
 assert.equal("intelligenceMaxExclusive" in catalog.animal_friendship.mechanics.targetRequirement, false);
