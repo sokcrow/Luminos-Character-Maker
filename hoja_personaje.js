@@ -4288,221 +4288,113 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
       const btnIniciar = document.querySelector(".btn-synth-action");
       const btnForecast = document.querySelector(".btn-forecast");
       const probValueEl = document.querySelector(".prob-value");
+      const contentRegistry = window.LuminousItemContentRegistry;
 
-      btnForecast.addEventListener("click", () => {
-          // 1. Recolectar ingredientes actuales en los slots
-          let ingredientesInput = {};
-          let totalSlotsUsed = 0;
+      if (!btnIniciar || !btnForecast || !probValueEl) return;
 
+      function selectedSynthesisItems() {
+          const rows = [];
           [1,2,3,4,5].forEach(slotNum => {
-              if (window.forjaSlots[slotNum]) {
-                  let id = window.forjaSlots[slotNum].data.nombre;
-                  ingredientesInput[id] = (ingredientesInput[id] || 0) + 1;
-                  totalSlotsUsed++;
-              }
+              const slot = window.forjaSlots?.[slotNum];
+              if (!slot?.data) return;
+              rows.push({
+                  ...slot.data,
+                  __selectedUnits: 1,
+                  __forjaSlot: slotNum,
+                  __forjaInventoryKey: slot.key,
+                  __forjaInventoryType: slot.inventarioTipo
+              });
+          });
+          return rows;
+      }
+
+      function resolveCanonicalSynthesis() {
+          if (!contentRegistry?.findMatchingRecipe) return null;
+          const items = selectedSynthesisItems();
+          if (!items.length) return null;
+          return contentRegistry.findMatchingRecipe(window, items);
+      }
+
+      function synthesisDifficulty(recipe, includeLabels = false) {
+          let dcActual = contentRegistry?.recipeDifficulty
+              ? contentRegistry.recipeDifficulty(recipe)
+              : Math.max(0, Number(recipe?.baseThreshold ?? recipe?.dificultad_base ?? 18) || 18);
+          const modTexto = [];
+          const activeInventory = getForjaPlayerData().inventario_activo || {};
+
+          Object.values(activeInventory).forEach(item => {
+              const rawKeywords = Array.isArray(item?.keywords)
+                  ? item.keywords
+                  : typeof item?.keywords === "string"
+                    ? item.keywords.split(",").map(value => value.trim())
+                    : [];
+
+              rawKeywords.forEach(kw => {
+                  const synthMatch = String(kw).match(/synth_bonus_(\d+)/i);
+                  if (synthMatch) {
+                      dcActual -= parseInt(synthMatch[1]);
+                      if (includeLabels) modTexto.push(`+${synthMatch[1]} (Synth)`);
+                  }
+                  const craftMatch = String(kw).match(/crafting_up_(\d+)/i);
+                  if (craftMatch) {
+                      dcActual -= parseInt(craftMatch[1]);
+                      if (includeLabels) modTexto.push(`+${craftMatch[1]} (Craft)`);
+                  }
+              });
           });
 
-          if (totalSlotsUsed === 0) {
+          return {
+              dc: Math.max(0, dcActual),
+              labels: modTexto
+          };
+      }
+
+      btnForecast.addEventListener("click", () => {
+          const selectedItems = selectedSynthesisItems();
+          if (!selectedItems.length) {
               alert("Debes colocar ingredientes en los slots para predecir.");
               probValueEl.innerText = "0%";
               return;
           }
 
-          // 2. Buscar receta
-          db.ref("campaña/forja/recetas").once("value").then(snap => {
-              const recetas = snap.val() || {};
-              let recetaCoincidente = null;
+          const match = resolveCanonicalSynthesis();
+          if (!match) {
+              alert("La combinación de materiales es inestable. No se encontró ninguna Recipe canónica.");
+              probValueEl.innerText = "0%";
+              return;
+          }
 
-              for (const recetaId in recetas) {
-                  const receta = recetas[recetaId];
-                  let match = true;
-
-                  let recIng = {};
-                  let totalRecIng = 0;
-                  receta.ingredientes.forEach(ing => {
-                      recIng[ing.id] = ing.cantidad;
-                      totalRecIng += ing.cantidad;
-                  });
-
-                  if (totalSlotsUsed !== totalRecIng) continue;
-
-                  for (let id in ingredientesInput) {
-                      if (ingredientesInput[id] !== recIng[id]) {
-                          match = false;
-                          break;
-                      }
-                  }
-
-                  if (match) {
-                      recetaCoincidente = receta;
-                      break;
-                  }
-              }
-
-              if (!recetaCoincidente) {
-                  alert("La combinación de materiales es inestable. No se encontró ninguna receta.");
-                  probValueEl.innerText = "0%";
-                  return;
-              }
-
-              // 3. Calcular Dificultad Dinámica
-              let dcActual = recetaCoincidente.dificultad_base;
-
-              // Buscar modificadores en el inventario activo (tags/keywords)
-              if (getForjaPlayerData().inventario_activo) {
-                  for (let key in getForjaPlayerData().inventario_activo) {
-                      let item = getForjaPlayerData().inventario_activo[key];
-                      if (item.keywords && Array.isArray(item.keywords)) {
-                          item.keywords.forEach(kw => {
-                              const synthMatch = kw.match(/synth_bonus_(\d+)/i);
-                              if (synthMatch) {
-                                  dcActual -= parseInt(synthMatch[1]);
-                              }
-                              const craftMatch = kw.match(/crafting_up_(\d+)/i);
-                              if (craftMatch) {
-                                  dcActual -= parseInt(craftMatch[1]);
-                              }
-                          });
-                      } else if (typeof item.keywords === 'string') {
-                            const kwList = item.keywords.split(',').map(k => k.trim());
-                            kwList.forEach(kw => {
-                                const synthMatch = kw.match(/synth_bonus_(\d+)/i);
-                                if (synthMatch) {
-                                    dcActual -= parseInt(synthMatch[1]);
-                                }
-                                const craftMatch = kw.match(/crafting_up_(\d+)/i);
-                                if (craftMatch) {
-                                    dcActual -= parseInt(craftMatch[1]);
-                                }
-                            });
-                      }
-                  }
-              }
-
-              if (dcActual < 0) dcActual = 0;
-
-              // Map DC to a visual probability roughly.
-              // Standard Limbus probability or generic DC mapping. (Lower DC is better)
-              // Since it's purely visual info for player, let's map DC to %.
-              let prob = 100 - (dcActual * 5); // Example naive mapping. 20 DC = 0%, 10 DC = 50%
-              if (prob < 0) prob = 0;
-              if (prob > 100) prob = 100;
-
-              probValueEl.innerText = `${prob}% [DC:${dcActual}]`;
-          });
+          const difficulty = synthesisDifficulty(match.recipe);
+          let prob = 100 - (difficulty.dc * 5);
+          prob = Math.max(0, Math.min(100, prob));
+          probValueEl.innerText = `${prob}% [DC:${difficulty.dc}] · ${match.recipe.name || match.recipe.label || match.recipe.id}`;
       });
 
       btnIniciar.addEventListener("click", () => {
-          // 1. Recolectar ingredientes actuales en los slots
-          let ingredientesInput = {};
-          let totalSlotsUsed = 0;
-
-          [1,2,3,4,5].forEach(slotNum => {
-              if (window.forjaSlots[slotNum]) {
-                  let id = window.forjaSlots[slotNum].data.nombre;
-                  ingredientesInput[id] = (ingredientesInput[id] || 0) + 1;
-                  totalSlotsUsed++;
-              }
-          });
-
-          if (totalSlotsUsed === 0) {
+          const selectedItems = selectedSynthesisItems();
+          if (!selectedItems.length) {
               alert("Debes colocar ingredientes en los slots.");
               return;
           }
 
-          // 2. Buscar receta que coincida EXACTAMENTE
-          db.ref("campaña/forja/recetas").once("value").then(snap => {
-              const recetas = snap.val() || {};
-              let recetaCoincidente = null;
+          const match = resolveCanonicalSynthesis();
+          if (!match) {
+              alert("La combinación de materiales es inestable. No se encontró ninguna Recipe canónica.");
+              return;
+          }
 
-              for (const recetaId in recetas) {
-                  const receta = recetas[recetaId];
-                  let match = true;
+          const difficulty = synthesisDifficulty(match.recipe, true);
+          document.getElementById("forja-roll-dc").innerText =
+              difficulty.dc + (difficulty.labels.length > 0 ? ` [${difficulty.labels.join(", ")}]` : "");
+          document.getElementById("forja-roll-input").value = "";
+          document.getElementById("forja-roll-modal").style.display = "flex";
 
-                  // Verificar si requiere mesa y si está activa/tiene toolkit (ya validado por UI, pero por seguridad)
-
-                  // Construir mapa de ingredientes de la receta
-                  let recIng = {};
-                  let totalRecIng = 0;
-                  receta.ingredientes.forEach(ing => {
-                      recIng[ing.id] = ing.cantidad;
-                      totalRecIng += ing.cantidad;
-                  });
-
-                  if (totalSlotsUsed !== totalRecIng) continue;
-
-                  for (let id in ingredientesInput) {
-                      if (ingredientesInput[id] !== recIng[id]) {
-                          match = false;
-                          break;
-                      }
-                  }
-
-                  if (match) {
-                      recetaCoincidente = receta;
-                      break;
-                  }
-              }
-
-              if (!recetaCoincidente) {
-                  alert("La combinación de materiales es inestable. No se encontró ninguna receta.");
-                  return;
-              }
-
-              // 3. Calcular Dificultad Dinámica
-              let dcActual = recetaCoincidente.dificultad_base;
-              let modTexto = [];
-
-              // Buscar modificadores en el inventario activo (tags/keywords)
-              if (getForjaPlayerData().inventario_activo) {
-                  for (let key in getForjaPlayerData().inventario_activo) {
-                      let item = getForjaPlayerData().inventario_activo[key];
-                      if (item.keywords && Array.isArray(item.keywords)) {
-                          item.keywords.forEach(kw => {
-                              const synthMatch = kw.match(/synth_bonus_(\d+)/i);
-                              if (synthMatch) {
-                                  dcActual -= parseInt(synthMatch[1]);
-                                  modTexto.push(`+${synthMatch[1]} (Synth)`);
-                              }
-                              const craftMatch = kw.match(/crafting_up_(\d+)/i);
-                              if (craftMatch) {
-                                  dcActual -= parseInt(craftMatch[1]);
-                                  modTexto.push(`+${craftMatch[1]} (Craft)`);
-                              }
-                          });
-                      } else if (typeof item.keywords === 'string') {
-                            const kwList = item.keywords.split(',').map(k => k.trim());
-                            kwList.forEach(kw => {
-                                const synthMatch = kw.match(/synth_bonus_(\d+)/i);
-                                if (synthMatch) {
-                                    dcActual -= parseInt(synthMatch[1]);
-                                    modTexto.push(`+${synthMatch[1]} (Synth)`);
-                                }
-                                const craftMatch = kw.match(/crafting_up_(\d+)/i);
-                                if (craftMatch) {
-                                    dcActual -= parseInt(craftMatch[1]);
-                                    modTexto.push(`+${craftMatch[1]} (Craft)`);
-                                }
-                            });
-                      }
-                  }
-              }
-
-              // Asegurar DC no sea negativa extrema
-              if (dcActual < 0) dcActual = 0;
-
-              // 4. Lanzar Modal
-              document.getElementById("forja-roll-dc").innerText = dcActual + (modTexto.length > 0 ? ` [${modTexto.join(", ")}]` : "");
-              document.getElementById("forja-roll-input").value = "";
-              document.getElementById("forja-roll-modal").style.display = "flex";
-
-              // Handlers for modal
-              window.currentForjaAttempt = {
-                  receta: recetaCoincidente,
-                  dc: dcActual,
-                  slots: window.forjaSlots // copy current state
-              };
-          });
+          window.currentForjaAttempt = {
+              receta: match.recipe,
+              resolution: match.resolution,
+              dc: difficulty.dc,
+              slots: { ...window.forjaSlots }
+          };
       });
 
       document.getElementById("btn-forja-cancel").addEventListener("click", () => {
@@ -4516,100 +4408,89 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
           if (!attempt) return;
 
           document.getElementById("forja-roll-modal").style.display = "none";
-
-          let exito = tirada >= attempt.dc;
-
-          // EJECUTAR TRANSACCIÓN ATÓMICA
-          ejecutarTransaccionForja(attempt, exito);
+          ejecutarTransaccionForja(attempt, tirada >= attempt.dc);
       });
 
       function ejecutarTransaccionForja(attempt, exito) {
-          // Para seguridad y atomicidad, debemos hacer un update múltiple en la base de datos del jugador
           const playerRef = db.ref(`campaña/jugadores/${pName}`);
 
           playerRef.once("value").then(snap => {
-              const playerData = snap.val();
-              let updates = {};
+              const playerData = snap.val() || {};
+              const updates = {};
               let error = false;
+              const itemsARestarActivo = {};
+              const itemsARestarStash = {};
 
-              // 1. Restar/Consumir ingredientes de los slots
-              // Calculamos qué restar de activo y qué de stash según cómo se seleccionaron
-
-              // Para cada slot que tenga un item
-              let itemsARestarActivo = {}; // key -> cant
-              let itemsARestarStash = {}; // key -> cant
-
-              [1,2,3,4,5].forEach(s => {
-                  if (attempt.slots[s]) {
-                      const slotData = attempt.slots[s];
-                      const key = slotData.key;
-                      const invType = slotData.inventarioTipo;
-                      if (invType === "inventario_activo") {
-                          itemsARestarActivo[key] = (itemsARestarActivo[key] || 0) + 1;
-                      } else {
-                          itemsARestarStash[key] = (itemsARestarStash[key] || 0) + 1;
-                      }
-                  }
+              [1,2,3,4,5].forEach(slotNum => {
+                  const slotData = attempt.slots?.[slotNum];
+                  if (!slotData) return;
+                  const target = slotData.inventarioTipo === "inventario_activo"
+                      ? itemsARestarActivo
+                      : itemsARestarStash;
+                  target[slotData.key] = (target[slotData.key] || 0) + 1;
               });
 
-              // Validar y preparar updates para restar
-              for (let key in itemsARestarActivo) {
-                  let cantActual = playerData.inventario_activo?.[key]?.cantidad || 1; // Si no tiene cantidad, asumimos 1
-                  if (cantActual < itemsARestarActivo[key]) {
-                      error = true; break;
-                  }
-                  if (cantActual === itemsARestarActivo[key]) {
-                      updates[`inventario_activo/${key}`] = null; // Borrar
-                  } else {
-                      updates[`inventario_activo/${key}/cantidad`] = cantActual - itemsARestarActivo[key];
-                  }
-              }
-              for (let key in itemsARestarStash) {
-                  let cantActual = playerData.inventario_stash?.[key]?.cantidad || 1;
-                  if (cantActual < itemsARestarStash[key]) {
-                      error = true; break;
-                  }
-                  if (cantActual === itemsARestarStash[key]) {
-                      updates[`inventario_stash/${key}`] = null; // Borrar
-                  } else {
-                      updates[`inventario_stash/${key}/cantidad`] = cantActual - itemsARestarStash[key];
+              function prepareConsumption(containerName, requested) {
+                  const inventory = playerData[containerName] || {};
+                  for (const [key, amount] of Object.entries(requested)) {
+                      const row = inventory[key];
+                      const current = Number(row?.quantity ?? row?.cantidad ?? 1);
+                      if (!row || current < amount) {
+                          error = true;
+                          return;
+                      }
+                      const next = current - amount;
+                      if (next <= 0) {
+                          updates[`${containerName}/${key}`] = null;
+                      } else {
+                          updates[`${containerName}/${key}/quantity`] = next;
+                          updates[`${containerName}/${key}/cantidad`] = next;
+                      }
                   }
               }
+
+              prepareConsumption("inventario_activo", itemsARestarActivo);
+              if (!error) prepareConsumption("inventario_stash", itemsARestarStash);
 
               if (error) {
                   alert("Error de sincronización de inventario. No se tienen los ítems necesarios.");
-                  // Limpiar slots
                   limpiarSlotsForja();
                   return;
               }
 
-              // Si éxito, buscar el ítem en la base de datos global y agregarlo
               if (exito) {
-                  db.ref(`campaña/items_globales/${attempt.receta.item_resultado}`).once("value").then(itemSnap => {
-                      const itemData = itemSnap.val();
-                      if (itemData) {
-                          // Generar ID único para el nuevo item
-                          const newItemKey = "forjado_" + Date.now();
+                  if (!contentRegistry?.createRecipeOutput) {
+                      alert("El registro canónico de Recipes no está disponible.");
+                      limpiarSlotsForja();
+                      return;
+                  }
 
-                          // Lógica simple: lo ponemos en el inventario activo si hay espacio
-                          itemData.cantidad = 1;
-                          updates[`inventario_activo/${newItemKey}`] = itemData;
+                  const canonicalOutput = contentRegistry.createRecipeOutput(attempt.receta);
+                  const outputQuantity = Math.max(1, Number(canonicalOutput.quantity || 1));
+                  let runtimeInstance = null;
+                  try {
+                      runtimeInstance = window.LuminousItemInventoryRuntime?.createItemInstance?.(
+                          canonicalOutput,
+                          { quantity: outputQuantity }
+                      ) || null;
+                  } catch (error) {
+                      console.warn("No se pudo crear instancia runtime de síntesis; usando payload canónico.", error);
+                  }
 
-                          // Commit atómico final
-                          playerRef.update(updates).then(() => {
-                              alert(`¡Síntesis Exitosa! Has creado: ${itemData.nombre}`);
-                              limpiarSlotsForja();
-                          });
-                      } else {
-                          // Item no encontrado en globales
-                          alert("Transmutación exitosa, pero el ítem resultante no existe en los registros globales.");
-                          // Aún así consumimos
-                          playerRef.update(updates);
-                          limpiarSlotsForja();
-                      }
+                  const itemData = JSON.parse(JSON.stringify({
+                      ...canonicalOutput,
+                      ...(runtimeInstance || {}),
+                      quantity: outputQuantity,
+                      cantidad: outputQuantity
+                  }));
+                  const newItemKey = "forjado_" + Date.now();
+                  updates[`inventario_activo/${newItemKey}`] = itemData;
+
+                  playerRef.update(updates).then(() => {
+                      alert(`¡Síntesis Exitosa! Has creado: ${itemData.nombre || itemData.name}`);
+                      limpiarSlotsForja();
                   });
               } else {
-                  // Fallo, solo consumir
                   playerRef.update(updates).then(() => {
                       alert("Síntesis Fallida. Los materiales se han consumido.");
                       limpiarSlotsForja();
@@ -4620,11 +4501,10 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
 
       function limpiarSlotsForja() {
           window.forjaSlots = {1:null, 2:null, 3:null, 4:null, 5:null};
-          // Re-render
           document.querySelectorAll(".synth-slot").forEach(el => {
               if (!el.classList.contains("locked")) {
-                  const inner = el.querySelector('.synth-slot-inner');
-                  if (inner) inner.innerHTML = '';
+                  const inner = el.querySelector(".synth-slot-inner");
+                  if (inner) inner.innerHTML = "";
               }
           });
       }
