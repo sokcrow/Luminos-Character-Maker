@@ -34,12 +34,29 @@ body:not(.on-game-dashboard) #stats-modal .hud-modal-content{
   overflow:hidden!important;
 }
 body:not(.on-game-dashboard) #stats-modal .hud-modal-body,
+body:not(.on-game-dashboard) #stats-modal .hud-tab-content,
 body:not(.on-game-dashboard) #stats-modal #stats-container,
 body:not(.on-game-dashboard) #stats-modal .player-ability-console{
   width:100%!important;
   height:100%!important;
   min-height:0!important;
   overflow:hidden!important;
+}
+body:not(.on-game-dashboard) #stats-modal .hud-tab-content{
+  position:relative!important;
+  display:block!important;
+}
+body:not(.on-game-dashboard) #stats-modal #stats-container{
+  position:absolute!important;
+  inset:0!important;
+}
+body:not(.on-game-dashboard) #stats-modal .hud-tab-content>.stats-header{
+  position:absolute!important;
+  z-index:110!important;
+  top:20px!important;
+  right:92px!important;
+  margin:0!important;
+  padding:0!important;
 }
 body:not(.on-game-dashboard) #stats-modal .player-stats-frame{
   display:grid!important;
