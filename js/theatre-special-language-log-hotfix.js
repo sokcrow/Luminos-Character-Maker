@@ -177,10 +177,29 @@
     global.setTimeout(applyPrivacy, 40);
   }
 
-  function bindLog() {
-    const path = global.LuminousTheatreState?.getPaths?.().log || "campaña/teatro/log";
-    if (path === boundLogPath) return;
+  function playerTheatreActive() {
+    return Boolean(
+      doc.body?.classList?.contains("player-instance-theatre") ||
+      doc.querySelector?.("#theatre-view-player.theatre-active")
+    );
+  }
+
+  function unbindLog() {
     if (logRef && logListener) logRef.off("value", logListener);
+    logRef = null;
+    logListener = null;
+    boundLogPath = null;
+    logEntries = [];
+  }
+
+  function bindLog() {
+    if (!playerTheatreActive()) {
+      unbindLog();
+      return;
+    }
+    const path = global.LuminousTheatreState?.getPaths?.().log || "campaña/teatro/log";
+    if (path === boundLogPath && logRef && logListener) return;
+    unbindLog();
     boundLogPath = path;
     logRef = db.ref(path).limitToLast(20);
     logListener = (snapshot) => {
@@ -205,16 +224,28 @@
 
   function boot() {
     if (isDmView()) return;
-    bindLog();
     ensureObserver();
-    scheduleApply();
     const resync = () => {
+      if (!playerTheatreActive()) return;
       bindLog();
       scheduleApply();
     };
+    const syncInstance = (event) => {
+      const active = event?.detail?.theatreActive === true;
+      if (!active) {
+        unbindLog();
+        return;
+      }
+      bindLog();
+      scheduleApply();
+    };
+    if (playerTheatreActive()) {
+      bindLog();
+      scheduleApply();
+    }
     global.addEventListener?.("actoresCacheUpdated", resync);
     global.addEventListener?.("luminous:player-data", resync);
-    global.addEventListener?.("luminous:player-instance-changed", resync);
+    global.addEventListener?.("luminous:player-instance-changed", syncInstance);
   }
 
   if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", boot, { once: true });
