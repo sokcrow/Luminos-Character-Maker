@@ -2166,7 +2166,9 @@ const CombatEngine = {
 
         // Paso 3: Aplicación del modificador ofensivo (Damage Dealt Multiplier del atacante)
         let offMult = Math.max(0, 1.0 + (dmgDealtMultiplierMod * 0.1) + (localPctDmg / 100));
-        let damageWithOffensive = rawDamage * offMult * flankingMultiplier;
+        const configuredSkillDamageMultiplier = Number(skill?.damageMultiplier ?? skill?.damage_multiplier ?? 1);
+        const skillDamageMultiplier = Number.isFinite(configuredSkillDamageMultiplier) ? Math.max(0, configuredSkillDamageMultiplier) : 1;
+        let damageWithOffensive = rawDamage * offMult * flankingMultiplier * skillDamageMultiplier;
 
         // Paso 4: Paso Final: Aplicación del modificador defensivo (Damage Taken Multiplier del objetivo)
         let defMult = Math.max(0, 1.0 - (dmgTakenMultiplierMod * 0.1));
