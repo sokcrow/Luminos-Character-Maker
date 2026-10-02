@@ -1004,6 +1004,27 @@
       effects: []
     }),
 
+    cure_wounds: Object.freeze({
+      id: "cure_wounds", name: "Cure Wounds", nombre: "Curar Heridas",
+      description: "Heal (2 × Spell Slot Used) + (2, 2 × Spell Mod)% Max HP.",
+      level: 1, spellLevel: 1, cantrip: false,
+      classIds: ["bard", "cleric", "druid", "paladin", "ranger"],
+      school: "abjuration", contexts: ["combat"],
+      sinAffinity: "sinless", damageType: null,
+      targetType: "allies", targetingType: "single", attackWeight: 1, atkWeight: 1,
+      isUnclashable: true, castingTime: "action", concentration: false, ritual: false,
+      resolutionType: "automatic",
+      mechanics: {
+        level1Runtime: "cure_wounds",
+        canTargetSelf: true,
+        healing: {
+          flatPerSpellSlotUsed: 2,
+          maxHpPercent: { minimum: 2, perSpellMod: 2 }
+        }
+      },
+      effects: [{ type: "level1_cure_wounds" }]
+    }),
+
     charm_person: Object.freeze({
       id: "charm_person", name: "Charm Person", nombre: "Hechizar Persona",
       level: 1, spellLevel: 1, cantrip: false,
