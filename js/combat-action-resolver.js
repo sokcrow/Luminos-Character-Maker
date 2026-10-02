@@ -401,6 +401,7 @@
     const clash = engine.resolveStandardClash(unitA, skillA, unitB, skillB);
     const winner = clash.winner;
     let attack = null;
+    let unbreakableAttack = null;
     let winningAction = null;
     let losingAction = null;
 
@@ -424,6 +425,30 @@
           mitigationPenalty: clash.mitigationPenalty,
         });
       }
+
+      const losingSkill = winner === "A" ? skillB : skillA;
+      const latentUnbreakableCoins = Array.isArray(losingSkill?.coins)
+        ? losingSkill.coins.filter((coin) => coin?.type === "unbreakable" && coin?.status === "latent")
+        : [];
+      if (losingAction && latentUnbreakableCoins.length) {
+        const losingUnit = winner === "A" ? unitB : unitA;
+        const winningUnit = winner === "A" ? unitA : unitB;
+        const latentSkill = cloneAttackSkill(losingSkill);
+        latentSkill.coins = latentUnbreakableCoins.map((coin) => ({ ...coin }));
+        latentSkill.coinAmount = latentSkill.coins.length;
+        latentSkill.coin_count = latentSkill.coins.length;
+        latentSkill.coinCount = latentSkill.coins.length;
+        const targetResolution = resolveTargets(losingAction, context);
+        let targets = targetResolution.targets;
+        if (!targets.some((target) => entityId(target) === entityId(winningUnit))) targets.unshift(winningUnit);
+        targets = targets.slice(0, Math.max(1, losingAction.targeting.attackWeight));
+        unbreakableAttack = resolveDirectAttack(losingAction, losingUnit, targets, context, {
+          skill: latentSkill,
+          skipUseHooks: true,
+          clashResult: "Lose",
+          clashCount: clash.clashLogs?.length || 0,
+        });
+      }
     }
 
     actionA.state = "resolved";
@@ -438,6 +463,7 @@
       winner,
       clash,
       attack,
+      unbreakableAttack,
       winningActionId: winningAction?.id || null,
       losingActionId: losingAction?.id || null,
       resources: { A: consumedA, B: consumedB },
