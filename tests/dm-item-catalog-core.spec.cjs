@@ -17,10 +17,19 @@ const path = require("node:path");
   await import("../js/item-catalog-scale-shell-chitin.js");
   await import("../js/item-runtime-engine.js");
   await import("../js/item-inventory-runtime.js");
+  await import("../js/item-chemistry-recipe-catalog.js");
+  await import("../js/item-cooking-recipe-catalog.js");
+  await import("../js/item-medicine-recipe-catalog.js");
+  await import("../js/item-processing-recipe-data.js");
+  await import("../js/item-throwable-recipe-catalog.js");
   await import("../js/dm-item-catalog-core.js");
+  await import("../js/item-content-registry.js");
 
   const core = globalThis.LuminousDmItemCatalogCore;
   assert.ok(core, "DM item catalog core should install on globalThis");
+
+  const contentRegistry = globalThis.LuminousItemContentRegistry;
+  assert.ok(contentRegistry, "unified item content registry should install on globalThis");
 
   const catalog = core.collectCatalogMap(globalThis, {
     iconRegistry: globalThis.LuminousItemIconRegistry
@@ -96,6 +105,46 @@ const path = require("node:path");
   assert.equal(firebaseOverlay.longsword.definitionId, "longsword");
   assert.ok(firebaseOverlay.dm_custom_key, "Firebase-only custom items must remain visible");
 
+  const unified = contentRegistry.build(globalThis, {
+    firebaseItems: {
+      dm_custom_key: {
+        nombre: "Llave del Director",
+        tipo_categoria: "utility",
+        tags: ["quest_item"],
+        price: 77
+      }
+    },
+    firebaseAugmentations: {
+      dm_aug_test: {
+        nombre: "Aumento de Prueba",
+        tipo_categoria: "augmentation",
+        price: 500
+      }
+    },
+    iconRegistry: globalThis.LuminousItemIconRegistry
+  });
+  assert.equal(unified.ready, true);
+  assert.ok(unified.counts.items > 50, "unified registry should expose grantable items");
+  assert.ok(unified.counts.recipes > 20, "unified registry should expose canonical recipes");
+  assert.ok(unified.items.longsword, "canonical items must be available from unified registry");
+  assert.ok(unified.items.dm_custom_key, "Firebase custom items must overlay the unified registry");
+  assert.ok(
+    Object.values(unified.items).some((item) => item.definitionId === "dm_aug_test" && item.category === "augmentation"),
+    "Firebase custom augmentations must be folded into the unified grantable item map"
+  );
+  assert.ok(
+    Object.values(unified.recipes).some((recipe) => recipe.recipeKind === "medicine" && recipe.id === "medicine_tablet"),
+    "medicine recipes must be discoverable from the unified registry"
+  );
+  assert.ok(
+    Object.values(unified.recipes).some((recipe) => recipe.recipeKind === "throwable" && recipe.id === "smoke_throwable"),
+    "throwable recipes must be discoverable from the unified registry"
+  );
+  assert.ok(
+    Object.values(unified.recipes).some((recipe) => recipe.recipeKind === "processing" && recipe.id === "noodles"),
+    "processing recipes must be discoverable from the unified registry"
+  );
+
   const granted = core.createGrantPayload(longsword, 3, {
     iconRegistry: globalThis.LuminousItemIconRegistry,
     inventoryRuntime: globalThis.LuminousItemInventoryRuntime
@@ -115,7 +164,13 @@ const path = require("node:path");
   assert.match(dmPage, /css\/dm-limbus-shell\.css/);
   assert.match(dmPage, /css\/dm-item-catalog-v2\.css/);
   assert.match(dmPage, /js\/dm-item-catalog-core\.js/);
-  assert.match(dmPage, /core\.buildCatalogMap\(window, firebaseItems/);
+  assert.match(dmPage, /js\/item-content-registry\.js/);
+  assert.match(dmPage, /js\/item-cooking-recipe-catalog\.js/);
+  assert.match(dmPage, /js\/item-chemistry-recipe-catalog\.js/);
+  assert.match(dmPage, /js\/item-medicine-recipe-catalog\.js/);
+  assert.match(dmPage, /js\/item-processing-recipe-data\.js/);
+  assert.match(dmPage, /js\/item-throwable-recipe-catalog\.js/);
+  assert.match(dmPage, /registry\.build\(window/);
   assert.doesNotMatch(dmPage, /<\/script>\\n\s*<script src="js\/item-catalog-/);
 
   const armorMaterial = dmPage.indexOf('js/item-armor-material-profile.js');
@@ -130,12 +185,21 @@ const path = require("node:path");
   assert.ok(weaponComponents >= 0 && weaponComponents < firearmComponents, "weapon components must load before firearm components");
   assert.ok(weaponComponents < rangedComponents, "weapon components must load before ranged components");
 
-  const localBootstrap = dmPage.indexOf('applyDmItemCatalog({}, "catálogo canónico local")');
+  const localBootstrap = dmPage.indexOf('applyDmContentRegistry("registro canónico local")');
   const firebaseOverlayListener = dmPage.indexOf('db.ref("campaña/base_datos_items").on(');
-  assert.ok(localBootstrap >= 0, "canonical DM catalog must bootstrap locally");
-  assert.ok(firebaseOverlayListener >= 0, "Firebase overlay listener should still exist");
-  assert.ok(localBootstrap < firebaseOverlayListener, "canonical catalog must render before waiting on Firebase");
-  assert.match(dmPage, /Firebase custom no disponible/);
+  assert.ok(localBootstrap >= 0, "unified canonical content must bootstrap locally");
+  assert.ok(firebaseOverlayListener >= 0, "Firebase custom item overlay listener should still exist");
+  assert.ok(localBootstrap < firebaseOverlayListener, "unified canonical content must render before waiting on Firebase");
+  assert.match(dmPage, /dm-content-registry-counts/);
+  assert.doesNotMatch(dmPage, /dm-item-creator\.html/);
+  assert.doesNotMatch(dmPage, /campaña\/forja\/recetas/);
+  assert.doesNotMatch(dmPage, /toggle-mesa-crafteo/);
+  assert.doesNotMatch(dmPage, /lista-recetas-globales/);
+  assert.equal(
+    fs.existsSync(path.join(__dirname, "..", "dm-item-creator.html")),
+    false,
+    "legacy standalone item creator should be removed after unifying DM content"
+  );
 
   console.log("dm-item-catalog-core.spec: ok");
   console.log("dm item page wiring: ok");
