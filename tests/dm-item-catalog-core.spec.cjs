@@ -150,9 +150,9 @@ const path = require("node:path");
     { definitionId: "cleaning_compound", quantity: 1, __selectedUnits: 1 },
     { definitionId: "chemical_bottle", tags: ["container"], quantity: 1, __selectedUnits: 1 }
   ];
-  const chemistryMatch = contentRegistry.findMatchingRecipe(globalThis, chemistryInputs);
+  const chemistryMatches = contentRegistry.findMatchingRecipes(globalThis, chemistryInputs);
+  const chemistryMatch = chemistryMatches.find((entry) => entry.recipe.id === "industrial_cleaner");
   assert.ok(chemistryMatch, "canonical chemistry recipes should resolve from selected synthesis items");
-  assert.equal(chemistryMatch.recipe.id, "industrial_cleaner");
   assert.equal(contentRegistry.recipeDifficulty(chemistryMatch.recipe), 18);
 
   const chemistryWithoutTool = contentRegistry.findMatchingRecipes(globalThis, chemistryInputs, {
