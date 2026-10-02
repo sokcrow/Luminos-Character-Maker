@@ -40,6 +40,7 @@
   const doc = global.document;
   const db = global.firebase.database();
   const languageRoots = ["campaña/idiomas", "campaña/teatro/idiomas"];
+  const INSTANCE_PATH = "campaña/estado_mundo/instancia_activa";
   const languageSources = {};
   let definitions = {};
   let players = {};
@@ -51,6 +52,7 @@
   let observedContainer = null;
   let applying = false;
   let timer = null;
+  let theatreActive = false;
 
   function isDmView() {
     return Boolean(doc.body?.classList.contains("on-game-dashboard"));
@@ -178,10 +180,26 @@
   }
 
   function playerTheatreActive() {
-    return Boolean(
-      doc.body?.classList?.contains("player-instance-theatre") ||
-      doc.querySelector?.("#theatre-view-player.theatre-active")
-    );
+    return theatreActive === true;
+  }
+
+  function setTheatreActive(active) {
+    theatreActive = active === true;
+    if (!theatreActive) {
+      unbindLog();
+      return false;
+    }
+    bindLog();
+    scheduleApply();
+    return true;
+  }
+
+  function syncInitialTheatreState() {
+    return db.ref(INSTANCE_PATH).once("value").then((snapshot) => {
+      setTheatreActive(String(snapshot.val() || "").trim() === "teatro");
+    }).catch(() => {
+      setTheatreActive(false);
+    });
   }
 
   function unbindLog() {
@@ -231,21 +249,12 @@
       scheduleApply();
     };
     const syncInstance = (event) => {
-      const active = event?.detail?.theatreActive === true;
-      if (!active) {
-        unbindLog();
-        return;
-      }
-      bindLog();
-      scheduleApply();
+      setTheatreActive(event?.detail?.theatreActive === true);
     };
-    if (playerTheatreActive()) {
-      bindLog();
-      scheduleApply();
-    }
     global.addEventListener?.("actoresCacheUpdated", resync);
     global.addEventListener?.("luminous:player-data", resync);
     global.addEventListener?.("luminous:player-instance-changed", syncInstance);
+    syncInitialTheatreState();
   }
 
   if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", boot, { once: true });
