@@ -321,11 +321,14 @@
       });
     }
 
-    const concreteRecipe = Object.assign({}, clone(recipe), {
-      ingredients: (result.recipeInputs || []).map((input) => Object.assign({}, clone(input), {
-        role: normalizeId(input.recipeRole || input.role || "major")
-      }))
-    });
+    const cookingRuntime = host.LuminousCookingRuntime || global.LuminousCookingRuntime;
+    const concreteRecipe = cookingRuntime && typeof cookingRuntime.concreteRecipe === "function"
+      ? cookingRuntime.concreteRecipe(recipe, result)
+      : Object.assign({}, clone(recipe), {
+          ingredients: (result.recipeInputs || []).map((input) => Object.assign({}, clone(input), {
+            role: normalizeId(input.recipeRole || input.role || "major")
+          }))
+        });
 
     let equipmentEvaluation = null;
     if (equipmentEngine && typeof equipmentEngine.evaluate === "function") {
@@ -416,6 +419,7 @@
       reason: consumedUnits === totalSelectedUnits ? null : "extra_recipe_inputs",
       recipe,
       processing: result,
+      processingInputs: clone(selected),
       consumedUnits,
       totalSelectedUnits,
       score: 1000 + Number(recipe.priority || 0),
@@ -453,9 +457,18 @@
     return result;
   }
 
+  function recipeRuntimeReady(recipe) {
+    const kind = normalizeId(recipe && recipe.recipeKind);
+    if (kind !== "throwable") return true;
+    if (recipe && recipe.runtimeEffectImplemented === false) return false;
+    if (normalizeId(recipe && recipe.combatContractStatus) === "deferred") return false;
+    return true;
+  }
+
   function findMatchingRecipes(root, items, options) {
     const opts = options || {};
     return Object.values(collectRecipeMap(root || global))
+      .filter((recipe) => opts.includeDeferred === true || recipeRuntimeReady(recipe))
       .map((recipe) => {
         const resolution = resolveRecipe(recipe, items, root, opts);
         return {
@@ -512,6 +525,71 @@
     const opts = options || {};
     const raw = clone(recipe) || {};
     const recipeKind = normalizeId(raw.recipeKind || "recipe");
+
+    if (recipeKind === "cooking") {
+      const resolution = opts.resolution || {};
+      const cookingEngine = global.LuminousCookingEngine;
+      const cookingRuntime = global.LuminousCookingRuntime;
+      const recipeCatalog = global.LuminousCookingRecipeCatalog;
+      if (!resolution.concreteRecipe || !cookingEngine?.resolvePreparedItem || !cookingRuntime?.finishedFoodItem) {
+        return null;
+      }
+
+      const prepared = cookingEngine.resolvePreparedItem(
+        resolution.concreteRecipe,
+        Number(opts.checkResult) || 0,
+        { equipment: resolution.equipment || {} }
+      );
+      const pricing = recipeCatalog?.resolveReferencePricing
+        ? recipeCatalog.resolveReferencePricing(raw, resolution.concreteRecipe.ingredients || [], {
+            stars: prepared.stars,
+            venue: raw.defaultVenue
+          })
+        : null;
+      const finished = cookingRuntime.finishedFoodItem(raw, prepared, pricing, {
+        createdAt: opts.createdAt,
+        instanceId: opts.instanceId
+      });
+      return Object.assign({}, clone(finished), {
+        canonicalId: finished.definitionId || finished.itemId || finished.id,
+        nombre: finished.name || finished.displayName,
+        cantidad: Number(finished.quantity || 1),
+        crafted: true,
+        sourceRecipeId: normalizeId(raw.id || raw.recipeId || finished.recipeId)
+      });
+    }
+
+    if (recipeKind === "processing") {
+      const resolution = opts.resolution || {};
+      const processingEngine = global.LuminousItemProcessingEngine;
+      if (!processingEngine?.createProcessedItem || !Array.isArray(resolution.processingInputs)) {
+        return null;
+      }
+      const processed = processingEngine.createProcessedItem(
+        resolution.processingInputs,
+        raw.methodId,
+        {
+          templateId: raw.id,
+          batches: 1,
+          quality: opts.quality
+        }
+      );
+      if (!processed?.created) return null;
+      return Object.assign({}, clone(processed), {
+        definitionId: processed.itemId || processed.id,
+        canonicalId: processed.itemId || processed.id,
+        nombre: processed.name || processed.displayName,
+        cantidad: Number(processed.quantity || 1),
+        crafted: true,
+        recipeId: normalizeId(raw.id || raw.recipeId || processed.processingTemplateId),
+        sourceRecipeId: normalizeId(raw.id || raw.recipeId || processed.processingTemplateId),
+        craft: {
+          threshold: recipeDifficulty(raw, resolution),
+          recipeKind,
+          canonical: true
+        }
+      });
+    }
     const id = normalizeId(raw.outputId || raw.id || raw.recipeId || raw.name || raw.label);
     const name = clean(raw.outputName || raw.name || raw.label || raw.outputForm || id) || id;
     const quantity = Math.max(1, Math.trunc(Number(opts.quantity ?? raw.outputUnits ?? 1) || 1));
@@ -667,6 +745,7 @@
     hasRequiredTool,
     requirementMatchScore,
     resolveRecipe,
+    recipeRuntimeReady,
     findMatchingRecipes,
     findMatchingRecipe,
     recipeDifficulty,
