@@ -444,8 +444,12 @@
     } else if (adapted.recipeKind === "processing") {
       result = resolveProcessingRecipe(adapted, selected, root);
     } else {
+      const sourceInputs = selected.map((item) => Object.assign({}, clone(item), {
+        id: item.id || item.definitionId || item.canonicalId || item.itemId || normalizeId(item.name || item.nombre),
+        quantity: Math.max(1, selectedUnits(item) || 1)
+      }));
       result = Object.assign(
-        { recipe: adapted, sourceInputs: clone(selected) },
+        { recipe: adapted, sourceInputs },
         allocateRequirements(adapted.inputRequirements || [], selected)
       );
     }
