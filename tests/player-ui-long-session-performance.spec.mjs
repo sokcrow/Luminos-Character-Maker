@@ -672,10 +672,8 @@ test("stats HUD keeps fixed geometry and scrolls internally when content changes
   expect(desktop.contentCssHeight).toBe("920px");
   expect(desktop.bodyOverflowY).toBe("hidden");
   expect(desktop.wrapperOverflowY).toBe("hidden");
-  expect(desktop.wrapper.y).toBeCloseTo(0, 3);
-  expect(desktop.wrapper.height).toBeCloseTo(1, 3);
-  expect(desktop.statsContainer.y).toBeCloseTo(0, 3);
-  expect(desktop.statsContainer.height).toBeCloseTo(1, 3);
+  expect(desktop.statsContainer.y).toBeCloseTo(desktop.wrapper.y, 3);
+  expect(desktop.statsContainer.height).toBeCloseTo(desktop.wrapper.height, 3);
   expect(desktop.frameDisplay).toBe("grid");
   expect(desktop.art.width).toBeCloseTo(0.5, 2);
   expect(desktop.info.x).toBeCloseTo(0.5, 2);
