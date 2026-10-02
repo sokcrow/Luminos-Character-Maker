@@ -167,9 +167,21 @@
   let decoratingLog = false;
   let repairTimer = null;
   let installTimer = null;
+  const actorSubscriptions = new Map();
 
   function isDmView() {
     return Boolean(doc.body?.classList.contains("on-game-dashboard"));
+  }
+
+  function playerTheatreActive() {
+    return Boolean(
+      doc.body?.classList?.contains("player-instance-theatre")
+      || doc.querySelector?.("#theatre-view-player.theatre-active")
+    );
+  }
+
+  function realtimeShouldBeActive() {
+    return isDmView() || playerTheatreActive();
   }
 
   function theatre() {
@@ -221,10 +233,22 @@
     if (/^\/em(?:\s+|$)/i.test(text) && select) select.value = "actuar";
   }
 
+  function unbindScene() {
+    if (sceneRef && sceneListener) sceneRef.off("value", sceneListener);
+    sceneRef = null;
+    sceneListener = null;
+    scenePath = null;
+    sceneActors = {};
+  }
+
   function bindScene() {
+    if (!realtimeShouldBeActive()) {
+      unbindScene();
+      return;
+    }
     const path = currentPaths().scene;
     if (!path || path === scenePath) return;
-    if (sceneRef && sceneListener) sceneRef.off("value", sceneListener);
+    unbindScene();
     scenePath = path;
     sceneRef = db.ref(path);
     sceneListener = (snapshot) => {
@@ -235,13 +259,27 @@
     sceneRef.on("value", sceneListener);
   }
 
+  function unbindActorCatalogs() {
+    actorSubscriptions.forEach(({ ref, handler }) => ref.off("value", handler));
+    actorSubscriptions.clear();
+    ACTOR_ROOTS.forEach((root) => { actorCatalogs[root] = {}; });
+  }
+
   function bindActorCatalogs() {
+    if (!realtimeShouldBeActive()) {
+      unbindActorCatalogs();
+      return;
+    }
     ACTOR_ROOTS.forEach((root) => {
-      db.ref(root).on("value", (snapshot) => {
+      if (actorSubscriptions.has(root)) return;
+      const ref = db.ref(root);
+      const handler = (snapshot) => {
         actorCatalogs[root] = snapshot.val() || {};
         scheduleLogDecoration();
         scheduleRepair();
-      });
+      };
+      actorSubscriptions.set(root, { ref, handler });
+      ref.on("value", handler);
     });
   }
 
@@ -255,7 +293,6 @@
     if (!state?.enqueueIntervention || state.__luminousInterventionUxPatched) return false;
     const original = state.enqueueIntervention.bind(state);
     state.enqueueIntervention = async function (message) {
-      bindScene();
       const actorId = clean(message?.actorId);
       let actor = actorId ? sceneActors[actorId] || null : null;
       if (!actor && actorId) {
@@ -291,11 +328,21 @@
     db.__luminousInterventionUxRefPatched = true;
   }
 
+  function disconnectLogObserver() {
+    logObserver?.disconnect();
+    logObserver = null;
+    observedLog = null;
+  }
+
   function ensureLogObserver() {
+    if (!playerTheatreActive()) {
+      disconnectLogObserver();
+      return null;
+    }
     const container = doc.getElementById("theatre-log-container");
     if (!container || isDmView()) return null;
     if (container === observedLog && logObserver) return container;
-    logObserver?.disconnect();
+    disconnectLogObserver();
     observedLog = container;
     logObserver = new MutationObserver(() => {
       if (!decoratingLog) scheduleLogDecoration();
@@ -344,7 +391,7 @@
   }
 
   function scheduleLogDecoration() {
-    if (isDmView()) return;
+    if (isDmView() || !playerTheatreActive()) return;
     if (typeof global.queueMicrotask === "function") global.queueMicrotask(decorateLog);
     else global.setTimeout(decorateLog, 0);
     global.setTimeout(decorateLog, 40);
@@ -370,10 +417,22 @@
     }, 120);
   }
 
+  function unbindLog() {
+    if (logRef && logListener) logRef.off("value", logListener);
+    logRef = null;
+    logListener = null;
+    logPath = null;
+    logEntries = [];
+  }
+
   function bindLog() {
+    if (!realtimeShouldBeActive()) {
+      unbindLog();
+      return;
+    }
     const path = currentPaths().log;
     if (!path || path === logPath) return;
-    if (logRef && logListener) logRef.off("value", logListener);
+    unbindLog();
     logPath = path;
     logRef = db.ref(path).limitToLast(20);
     logListener = (snapshot) => {
@@ -384,18 +443,29 @@
     logRef.on("value", logListener);
   }
 
-  function install() {
-    ensureStyles();
-    ensureComposerOptions();
+  function syncRealtimeLifecycle() {
+    if (!realtimeShouldBeActive()) {
+      unbindScene();
+      unbindActorCatalogs();
+      unbindLog();
+      disconnectLogObserver();
+      return false;
+    }
+    bindActorCatalogs();
     bindScene();
     bindLog();
-    patchEnqueue();
-    patchDirectQueueWrites();
     ensureLogObserver();
     return true;
   }
 
-  bindActorCatalogs();
+  function install() {
+    ensureStyles();
+    ensureComposerOptions();
+    syncRealtimeLifecycle();
+    patchEnqueue();
+    patchDirectQueueWrites();
+    return true;
+  }
   doc.addEventListener("click", normalizeComposerBeforeSend, true);
   doc.addEventListener("change", (event) => {
     if (event.target?.id === "dm-tipo-dialogo-select" || event.target?.id === "player-tipo-dialogo-select") ensureComposerOptions();
