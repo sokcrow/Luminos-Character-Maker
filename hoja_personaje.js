@@ -4591,10 +4591,10 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
           if (!attempt) return;
 
           document.getElementById("forja-roll-modal").style.display = "none";
-          ejecutarTransaccionForja(attempt, tirada >= attempt.dc);
+          ejecutarTransaccionForja(attempt, tirada >= attempt.dc, tirada);
       });
 
-      function ejecutarTransaccionForja(attempt, exito) {
+      function ejecutarTransaccionForja(attempt, exito, tirada) {
           const playerRef = db.ref(`campaña/jugadores/${pName}`);
 
           playerRef.once("value").then(snap => {
@@ -4652,15 +4652,23 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
                       resolution: attempt.resolution,
                       checkResult: tirada
                   });
+                  if (!canonicalOutput) {
+                      alert("No se pudo construir el resultado canónico de la Recipe.");
+                      limpiarSlotsForja();
+                      return;
+                  }
+
                   const outputQuantity = Math.max(1, Number(canonicalOutput.quantity || 1));
-                  let runtimeInstance = null;
-                  try {
-                      runtimeInstance = window.LuminousItemInventoryRuntime?.createItemInstance?.(
-                          canonicalOutput,
-                          { quantity: outputQuantity }
-                      ) || null;
-                  } catch (error) {
-                      console.warn("No se pudo crear instancia runtime de síntesis; usando payload canónico.", error);
+                  let runtimeInstance = canonicalOutput.instanceId ? canonicalOutput : null;
+                  if (!runtimeInstance) {
+                      try {
+                          runtimeInstance = window.LuminousItemInventoryRuntime?.createItemInstance?.(
+                              canonicalOutput,
+                              { quantity: outputQuantity }
+                          ) || null;
+                      } catch (error) {
+                          console.warn("No se pudo crear instancia runtime de síntesis; usando payload canónico.", error);
+                      }
                   }
 
                   const itemData = JSON.parse(JSON.stringify({
