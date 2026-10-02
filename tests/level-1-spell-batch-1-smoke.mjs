@@ -7,11 +7,13 @@ await import("../js/content-registry.js");
 await import("../js/content-registry-bootstrap.js");
 await import("../js/spell-catalog-core.js");
 await import("../js/spell-batch-level1-runtime.js");
+await import("../js/combat-props-runtime.js");
 await import("../js/core-condition-runtime.js");
 await import("../js/environment-engine.js");
 await import("../js/combat-spell-loadout-074.js");
 await import("../js/combat-action-schema.js");
 await import("../js/combat-action-adapters.js");
+await import("../js/battle-viewer-spell-adapter-074.js");
 
 const catalog = globalThis.LuminousSpellCatalog;
 const batch = globalThis.LuminousLevel1SpellBatchRuntime;
@@ -19,8 +21,10 @@ const loadout = globalThis.LuminousCombatSpellLoadout074;
 const adapters = globalThis.LuminousCombatActionAdapters;
 const environment = globalThis.LuminousEnvironmentEngine;
 const conditions = globalThis.LuminousConditionRuntime;
+const spellAdapter = globalThis.LuminousBattleViewerSpellAdapter074;
+const propsRuntime = globalThis.LuminousCombatPropsRuntime;
 
-assert.ok(catalog && batch && loadout && adapters && environment && conditions, "Level 1 spell runtime dependencies should load");
+assert.ok(catalog && batch && loadout && adapters && environment && conditions && spellAdapter && propsRuntime, "Level 1 spell runtime dependencies should load");
 
 const schools = new Set(["abjuration", "conjuration", "divination", "enchantment", "evocation", "illusion", "necromancy", "transmutation"]);
 for (const spell of Object.values(catalog).filter((entry) => Number(entry?.level ?? entry?.spellLevel ?? -1) <= 1)) {
@@ -30,7 +34,7 @@ for (const spell of Object.values(catalog).filter((entry) => Number(entry?.level
 }
 
 const batchIds = [
-  "alarm", "armor_of_agathys", "arms_of_hadar", "bane", "bless", "burning_hands",
+  "alarm", "armor_of_agathys", "arms_of_hadar", "bane", "bless", "burning_hands", "catapult",
   "detect_evil_and_good", "detect_magic", "detect_poison_and_disease", "disguise_self",
   "divine_favor", "divine_smite", "ensnaring_strike", "entangle"
 ];
@@ -50,13 +54,44 @@ assert.equal(catalog.alarm.ritual, true);
 assert.equal(catalog.armor_of_agathys.school, "abjuration");
 assert.equal(catalog.armor_of_agathys.castingTime, "quick_action");
 assert.deepEqual(catalog.arms_of_hadar.classIds, ["warlock"]);
-assert.equal(catalog.arms_of_hadar.save.abilityId, "str");
+assert.equal(catalog.arms_of_hadar.coinType, "unbreakable");
+assert.equal(catalog.arms_of_hadar.isUnclashable, false);
+assert.equal(catalog.arms_of_hadar.save, undefined);
+assert.equal(catalog.arms_of_hadar.mechanics.suppressReactionOnHit, true);
 assert.deepEqual(catalog.bane.classIds, ["bard", "cleric", "warlock"]);
 assert.equal(catalog.bane.concentration, true);
 assert.deepEqual(catalog.bless.classIds, ["cleric", "paladin"]);
 assert.equal(catalog.bless.concentration, true);
 assert.equal(catalog.burning_hands.school, "evocation");
-assert.equal(catalog.burning_hands.save.abilityId, "dex");
+assert.equal(catalog.burning_hands.coinType, "unbreakable");
+assert.equal(catalog.burning_hands.isUnclashable, false);
+assert.equal(catalog.burning_hands.save, undefined);
+assert.equal(catalog.burning_hands.mechanics.onHitStatus.potencyPerSlotLevel, 2);
+assert.ok(catalog.catapult);
+assert.deepEqual(catalog.catapult.classIds, ["artificer", "sorcerer", "wizard"]);
+assert.equal(catalog.catapult.basePower, 6);
+assert.equal(catalog.catapult.coinPower, 8);
+assert.equal(catalog.catapult.mechanics.combatProp.required, true);
+
+const chairProp = { id: "chair_prop", name: "Chair", weight: 4, hiddenHP: 3, throwable: true };
+propsRuntime.registerEncounterProps([chairProp]);
+const burningSlot3 = spellAdapter.materializeSpell({ id: "wizard", level: 5 }, "wizard", catalog.burning_hands, 3, {});
+assert.equal(burningSlot3.ok, true);
+assert.equal(burningSlot3.definition.coinPower, 9);
+const burningEffect = burningSlot3.definition.effects.find((effect) => effect.status === "burn");
+assert.equal(burningEffect.potency, 6);
+
+const catapultSlot1 = spellAdapter.materializeSpell(
+  { id: "wizard", level: 1 },
+  "wizard",
+  catalog.catapult,
+  1,
+  { combatPropId: "chair_prop" }
+);
+assert.equal(catapultSlot1.ok, true);
+assert.equal(catapultSlot1.definition.selectedPropId, "chair_prop");
+assert.deepEqual(catapultSlot1.definition.__luminousPropUse, { propId: "chair_prop", wear: 1, cause: "catapult" });
+assert.equal(spellAdapter.materializeSpell({ id: "wizard" }, "wizard", catalog.catapult, 1, {}).reason, "combat_prop_required");
 
 // Create or Destroy Water closes the reviewed weather/environment contract.
 assert.ok(catalog.create_or_destroy_water);
@@ -298,15 +333,37 @@ assert.equal(enemy.statusEffects.reaction_suppressed.count, 1);
 assert.equal(enemy.statusEffects.reaction_suppressed.duration, "next_turn_end");
 
 const armor = batch.grantArmorOfAgathys(caster, 2);
-assert.equal(armor.shieldGranted, 10);
-assert.equal(armor.retaliationDamage, 10);
-assert.equal(caster.shield, 10);
+assert.equal(armor.shieldGranted, 20);
+assert.equal(armor.retaliationDamage, 6);
+assert.equal(armor.chill, 1);
+assert.equal(caster.shield, 20);
 assert.equal(batch.armorOfAgathysState(caster).slotLevel, 2);
 
-const alarm = batch.createAlarmWard(caster, { mode: "mental", areaId: "north_gate", excludedUnitIds: ["friend"] });
+const meleeEnemy = { id: "melee_enemy", hp: 50, shield: 0, statusEffects: {} };
+const retaliationEngine = {
+  applyDamage(unit, amount) { unit.hp -= amount; return { hp: unit.hp, shield: unit.shield || 0 }; }
+};
+const retaliation = batch.retaliateArmorOfAgathys(
+  retaliationEngine,
+  meleeEnemy,
+  caster,
+  { id: "melee_skill", skillRange: 1 },
+  { attackLogs: [{}] },
+  { state: batch.armorOfAgathysState(caster), shieldBefore: 20 }
+);
+assert.equal(retaliation.damage, 6);
+assert.equal(meleeEnemy.hp, 44);
+assert.equal(meleeEnemy.statusEffects.chill.count, 1);
+
+const alarm = batch.createAlarmWard(caster, { id: "alarm_test", mode: "mental", areaId: "north_gate", excludedUnitIds: ["friend"], persist: false, subjectPlayerId: "player_1", now: 1000 });
 assert.equal(alarm.resolved, true);
 assert.equal(alarm.ward.mode, "mental");
 assert.equal(alarm.ward.durationHours, 8);
 assert.equal(alarm.ward.areaId, "north_gate");
+
+assert.equal(alarm.ward.dmManagedTrigger, true);
+assert.equal(alarm.persistence.effect.kind, "alarm");
+assert.equal(alarm.persistence.effect.subjectPlayerId, "player_1");
+assert.equal(alarm.persistence.effect.expiresAt, 1000 + 8 * 60 * 60 * 1000);
 
 console.log("Level 1 spell batch 1 smoke: OK");
