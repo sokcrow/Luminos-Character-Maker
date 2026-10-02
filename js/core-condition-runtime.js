@@ -6,7 +6,6 @@
     return;
   }
 
-  const PATCH_INTERVAL_MS = 250;
   const normalizeId = (value) => String(value ?? "").trim().toLowerCase().replace(/[\s-]+/g, "_");
   const numberOr = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
   const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
@@ -522,7 +521,12 @@
 
   global.LuminousConditionRuntime = api;
   install();
-  const timer = typeof global.setInterval === "function" ? global.setInterval(install, PATCH_INTERVAL_MS) : null;
-  timer?.unref?.();
+  [
+    "luminous:player-data",
+    "luminous:player-instance-changed",
+    "luminous:combat073-runtime-ready",
+    "luminous:theatre-check-coordinator-ready",
+  ].forEach((name) => global.addEventListener?.(name, install));
+  global.addEventListener?.("load", install, { once: true });
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);
