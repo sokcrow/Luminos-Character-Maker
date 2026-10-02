@@ -281,7 +281,7 @@ const path = require("node:path");
   const juiceRecipe = Object.values(unified.recipes)
     .find((recipe) => recipe.recipeKind === "processing" && recipe.id === "juice");
   assert.ok(juiceRecipe, "procedural juice processing recipe should exist");
-  assert.equal(juiceRecipe.outputId, undefined, "juice should remain a procedural-output template");
+  assert.equal(juiceRecipe.outputId == null, true, "juice should remain a procedural-output template without a fixed output id");
   const juiceInputs = [
     {
       id: "apple",
