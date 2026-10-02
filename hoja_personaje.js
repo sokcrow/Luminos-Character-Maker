@@ -4289,8 +4289,10 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
       const btnForecast = document.querySelector(".btn-forecast");
       const probValueEl = document.querySelector(".prob-value");
       const contentRegistry = window.LuminousItemContentRegistry;
+      const recipeSelect = document.getElementById("forja-recipe-select");
+      const toolRequirementEl = document.getElementById("forja-tool-requirement");
 
-      if (!btnIniciar || !btnForecast || !probValueEl) return;
+      if (!btnIniciar || !btnForecast || !probValueEl || !recipeSelect) return;
 
       function selectedSynthesisItems() {
           const rows = [];
@@ -4308,12 +4310,137 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
           return rows;
       }
 
-      function resolveCanonicalSynthesis() {
-          if (!contentRegistry?.findMatchingRecipe) return null;
+      function availableToolItems() {
+          const player = getForjaPlayerData();
+          return [
+              ...Object.values(player.inventario_activo || {}),
+              ...Object.values(player.inventario_stash || {})
+          ].filter(Boolean);
+      }
+
+      function recipeDisplayName(entry) {
+          const recipe = entry?.recipe || {};
+          const base = recipe.name || recipe.label || recipe.id || "Recipe";
+          const method = recipe.method || recipe.methodId || recipe.semanticCheck || "";
+          return method ? `${base} · ${method}` : base;
+      }
+
+      function populateRecipeChoices(matches) {
+          const previous = recipeSelect.value;
+          recipeSelect.innerHTML = "";
+
+          if (!matches.length) {
+              recipeSelect.innerHTML = '<option value="">Sin Recipes disponibles para estos ingredientes</option>';
+              recipeSelect.value = "";
+              return;
+          }
+
+          if (matches.length > 1) {
+              const placeholder = document.createElement("option");
+              placeholder.value = "";
+              placeholder.textContent = `Selecciona una Recipe (${matches.length} compatibles)...`;
+              recipeSelect.appendChild(placeholder);
+          }
+
+          matches.forEach(entry => {
+              const option = document.createElement("option");
+              option.value = entry.recipeKey;
+              option.textContent = recipeDisplayName(entry);
+              recipeSelect.appendChild(option);
+          });
+
+          const canRestore = matches.some(entry => entry.recipeKey === previous);
+          if (canRestore) {
+              recipeSelect.value = previous;
+          } else if (matches.length === 1) {
+              recipeSelect.value = matches[0].recipeKey;
+          } else {
+              recipeSelect.value = "";
+          }
+      }
+
+      function updateToolRequirement(match) {
+          if (!toolRequirementEl) return;
+          const required = contentRegistry?.requiredToolType?.(match?.recipe) || "";
+          toolRequirementEl.textContent = required ? `Tool: ${required}` : "Sin Tool obligatoria";
+          toolRequirementEl.style.color = required ? "#0df" : "#888";
+      }
+
+      function resolveCanonicalSynthesis(options = {}) {
+          if (!contentRegistry?.findMatchingRecipes) return null;
           const items = selectedSynthesisItems();
           if (!items.length) return null;
-          return contentRegistry.findMatchingRecipe(window, items);
+
+          const toolItems = availableToolItems();
+          const allMatches = contentRegistry.findMatchingRecipes(window, items, {
+              toolItems,
+              enforceTools: false
+          });
+          const usableMatches = contentRegistry.findMatchingRecipes(window, items, {
+              toolItems,
+              enforceTools: true
+          });
+
+          populateRecipeChoices(usableMatches);
+
+          if (!usableMatches.length) {
+              const missingTools = Array.from(new Set(
+                  allMatches
+                      .map(entry => contentRegistry.requiredToolType?.(entry.recipe))
+                      .filter(required => required && !contentRegistry.hasRequiredTool?.(entryForRecipe(allMatches, required)?.recipe || {}, toolItems, window))
+              ));
+              if (toolRequirementEl) {
+                  toolRequirementEl.textContent = missingTools.length
+                      ? `Falta Tool: ${missingTools.join(", ")}`
+                      : "Sin Recipe válida";
+                  toolRequirementEl.style.color = "#ff6b6b";
+              }
+              if (options.notify !== false) {
+                  alert(missingTools.length
+                      ? `Tienes los ingredientes, pero falta la herramienta requerida: ${missingTools.join(", ")}.`
+                      : "La combinación de materiales es inestable. No se encontró ninguna Recipe canónica.");
+              }
+              return null;
+          }
+
+          if (usableMatches.length === 1) {
+              updateToolRequirement(usableMatches[0]);
+              return usableMatches[0];
+          }
+
+          const selectedKey = recipeSelect.value;
+          const chosen = usableMatches.find(entry => entry.recipeKey === selectedKey) || null;
+          if (!chosen) {
+              if (toolRequirementEl) {
+                  toolRequirementEl.textContent = "Elige una Recipe explícitamente";
+                  toolRequirementEl.style.color = "#c49a00";
+              }
+              if (options.notify !== false) {
+                  alert(`Hay ${usableMatches.length} Recipes compatibles. Selecciona explícitamente cuál quieres sintetizar.`);
+              }
+              return null;
+          }
+
+          updateToolRequirement(chosen);
+          return chosen;
       }
+
+      function entryForRecipe(matches, requiredTool) {
+          return (matches || []).find(entry =>
+              contentRegistry?.requiredToolType?.(entry.recipe) === requiredTool
+          ) || null;
+      }
+
+      recipeSelect.addEventListener("change", () => {
+          const items = selectedSynthesisItems();
+          if (!items.length) return;
+          const toolItems = availableToolItems();
+          const matches = contentRegistry?.findMatchingRecipes?.(window, items, {
+              toolItems,
+              enforceTools: true
+          }) || [];
+          updateToolRequirement(matches.find(entry => entry.recipeKey === recipeSelect.value) || null);
+      });
 
       function synthesisDifficulty(recipe, includeLabels = false) {
           let dcActual = contentRegistry?.recipeDifficulty
@@ -4359,7 +4486,6 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
 
           const match = resolveCanonicalSynthesis();
           if (!match) {
-              alert("La combinación de materiales es inestable. No se encontró ninguna Recipe canónica.");
               probValueEl.innerText = "0%";
               return;
           }
@@ -4378,10 +4504,7 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
           }
 
           const match = resolveCanonicalSynthesis();
-          if (!match) {
-              alert("La combinación de materiales es inestable. No se encontró ninguna Recipe canónica.");
-              return;
-          }
+          if (!match) return;
 
           const difficulty = synthesisDifficulty(match.recipe, true);
           document.getElementById("forja-roll-dc").innerText =
@@ -4501,6 +4624,11 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
 
       function limpiarSlotsForja() {
           window.forjaSlots = {1:null, 2:null, 3:null, 4:null, 5:null};
+          recipeSelect.innerHTML = '<option value="">Coloca ingredientes para detectar Recipes...</option>';
+          if (toolRequirementEl) {
+              toolRequirementEl.textContent = "";
+              toolRequirementEl.style.color = "#aaa";
+          }
           document.querySelectorAll(".synth-slot").forEach(el => {
               if (!el.classList.contains("locked")) {
                   const inner = el.querySelector(".synth-slot-inner");
