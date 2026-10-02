@@ -6,15 +6,23 @@ on:
       - "docs/level-1-spells-adaptation.md"
       - "js/spell-catalog-core.js"
       - "js/spell-batch-level1-runtime.js"
+      - "js/combat-props-runtime.js"
+      - "js/combatEngine.js"
+      - "js/dm-managed-effect-engine.js"
+      - "js/theatre-player-notification-runtime.js"
+      - "hoja_personaje.html"
       - "js/combat-spell-loadout-074.js"
       - "js/combat-action-adapters.js"
       - "js/combat-action-resolver.js"
       - "js/battle-viewer-spell-adapter-074.js"
       - "js/battle-viewer-spell-runtime-074.js"
+      - "js/battle-viewer-runtime-074.js"
       - "js/battle-viewer-player-spell-planner-074.js"
       - "tests/level-1-spell-batch-*-smoke.mjs"
       - "tests/canonical-spell-runtime-smoke.mjs"
       - "tests/combat-v074-player-spell-planner-smoke.mjs"
+      - "tests/combat-props-runtime-smoke.mjs"
+      - "tests/theatre-player-notification-smoke.mjs"
       - ".github/workflows/level-1-spell-validation.yml"
   pull_request:
     branches:
@@ -23,15 +31,23 @@ on:
       - "docs/level-1-spells-adaptation.md"
       - "js/spell-catalog-core.js"
       - "js/spell-batch-level1-runtime.js"
+      - "js/combat-props-runtime.js"
+      - "js/combatEngine.js"
+      - "js/dm-managed-effect-engine.js"
+      - "js/theatre-player-notification-runtime.js"
+      - "hoja_personaje.html"
       - "js/combat-spell-loadout-074.js"
       - "js/combat-action-adapters.js"
       - "js/combat-action-resolver.js"
       - "js/battle-viewer-spell-adapter-074.js"
       - "js/battle-viewer-spell-runtime-074.js"
+      - "js/battle-viewer-runtime-074.js"
       - "js/battle-viewer-player-spell-planner-074.js"
       - "tests/level-1-spell-batch-*-smoke.mjs"
       - "tests/canonical-spell-runtime-smoke.mjs"
       - "tests/combat-v074-player-spell-planner-smoke.mjs"
+      - "tests/combat-props-runtime-smoke.mjs"
+      - "tests/theatre-player-notification-smoke.mjs"
       - ".github/workflows/level-1-spell-validation.yml"
 
 jobs:
@@ -50,14 +66,26 @@ jobs:
         run: |
           node --check js/spell-catalog-core.js
           node --check js/spell-batch-level1-runtime.js
+          node --check js/combat-props-runtime.js
+          node --check js/combatEngine.js
+          node --check js/dm-managed-effect-engine.js
+          node --check js/theatre-player-notification-runtime.js
           node --check js/combat-spell-loadout-074.js
           node --check js/combat-action-adapters.js
           node --check js/combat-action-resolver.js
+          node --check js/battle-viewer-spell-adapter-074.js
           node --check js/battle-viewer-spell-runtime-074.js
+          node --check js/battle-viewer-runtime-074.js
           node --check js/battle-viewer-player-spell-planner-074.js
 
       - name: Level 1 batch smoke
         run: node tests/level-1-spell-batch-1-smoke.mjs
+
+      - name: Combat props smoke
+        run: node tests/combat-props-runtime-smoke.mjs
+
+      - name: Alarm player notification smoke
+        run: node tests/theatre-player-notification-smoke.mjs
 
       - name: Canonical spell regression smoke
         run: node tests/canonical-spell-runtime-smoke.mjs
