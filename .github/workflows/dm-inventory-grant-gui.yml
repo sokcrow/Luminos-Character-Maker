@@ -7,12 +7,17 @@ on:
       - 'hoja_personaje.html'
       - 'pantalla_dm.html'
       - 'js/dm-item-instance-editor.js'
+      - 'js/dm-item-catalog-core.js'
       - 'js/inventory-hud-v2.js'
       - 'js/item-icon-registry.js'
       - 'js/item-inventory-runtime.js'
       - 'js/item-persistence-runtime.js'
       - 'css/dm-item-instance-editor.css'
+      - 'css/dm-item-catalog-v2.css'
+      - 'css/dm-limbus-shell.css'
+      - 'css/dm-limbus-shell-fixes.css'
       - 'tests/dm-item-instance-editor.spec.cjs'
+      - 'tests/dm-item-catalog-core.spec.cjs'
       - 'tests/inventory-runtime-cutover.spec.cjs'
       - '.github/workflows/dm-inventory-grant-gui.yml'
 
@@ -28,6 +33,8 @@ jobs:
       - name: Syntax checks
         run: |
           node --check js/dm-item-instance-editor.js
+          node --check js/dm-item-catalog-core.js
+          node tests/dm-item-catalog-core.spec.cjs
           node --check js/inventory-hud-v2.js
           node --check js/item-inventory-runtime.js
           node --check js/item-persistence-runtime.js

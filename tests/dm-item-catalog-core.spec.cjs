@@ -1,0 +1,138 @@
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+
+(async () => {
+  await import("../js/item-icon-registry.js");
+  await import("../js/item-catalog-weapons.js");
+  await import("../js/item-catalog-tools.js");
+  await import("../js/item-catalog-hp-healing.js");
+  await import("../js/item-catalog-ore-ingot-gem.js");
+  await import("../js/item-catalog-weapon-components.js");
+  await import("../js/item-catalog-firearm-components.js");
+  await import("../js/item-catalog-firearm-ammo.js");
+  await import("../js/item-catalog-weapon-upgrades.js");
+  await import("../js/item-catalog-shield-upgrades.js");
+  await import("../js/item-catalog-hard-parts.js");
+  await import("../js/item-catalog-scale-shell-chitin.js");
+  await import("../js/item-runtime-engine.js");
+  await import("../js/item-inventory-runtime.js");
+  await import("../js/dm-item-catalog-core.js");
+
+  const core = globalThis.LuminousDmItemCatalogCore;
+  assert.ok(core, "DM item catalog core should install on globalThis");
+
+  const catalog = core.collectCatalogMap(globalThis, {
+    iconRegistry: globalThis.LuminousItemIconRegistry
+  });
+
+  assert.ok(Object.keys(catalog).length > 50, "canonical item catalog should not be empty");
+
+  const longsword = catalog.longsword;
+  assert.ok(longsword, "Longsword should be collected from the weapon catalog");
+  assert.equal(longsword.nombre, "Longsword");
+  assert.equal(longsword.category, "weapon");
+  assert.match(longsword.icono, /Assets\/Icons\/items\/equipment\//);
+
+  assert.ok(catalog.hard_bone, "Hard Parts catalog should be discovered");
+  assert.ok(catalog.scale, "Scale/Shell/Chitin catalog should be discovered");
+
+  for (const ammoPartId of ["ammo_projectile", "ammo_casing", "ammo_propellant", "ammo_ignition"]) {
+    assert.ok(catalog[ammoPartId], `Firearm ammo part ${ammoPartId} should be discovered`);
+  }
+
+  const byDefinitionId = (definitionId) => Object.entries(catalog)
+    .filter(([, item]) => item.definitionId === definitionId);
+
+  const gripRows = byDefinitionId("grip");
+  assert.equal(gripRows.length, 2, "colliding weapon and firearm grip definitions must both survive");
+  assert.deepEqual(
+    gripRows.map(([, item]) => item.nombre).sort(),
+    ["Firearm Grip", "Grip"]
+  );
+  assert.ok(gripRows.every(([key]) => key !== "grip"), "colliding definitions should use namespaced catalog keys");
+
+  for (const collisionId of ["spiked_face", "power_grip", "secure_grip"]) {
+    assert.equal(
+      byDefinitionId(collisionId).length,
+      2,
+      `colliding upgrade definition ${collisionId} must preserve both catalog entries`
+    );
+  }
+
+  assert.equal(
+    core.sameDefinition(
+      { definitionId: "longsword", tier: "I" },
+      { definitionId: "longsword", tier: "II" }
+    ),
+    false,
+    "same definition with a different tier must not merge"
+  );
+
+  assert.equal(
+    core.sameDefinition(
+      { definitionId: "longsword", tier: "I", manufacturerId: "forge_a" },
+      { definitionId: "longsword", tier: "I", manufacturerId: "forge_b" }
+    ),
+    false,
+    "stack-defining runtime variants must remain distinct"
+  );
+
+  const firebaseOverlay = core.buildCatalogMap(globalThis, {
+    longsword: {
+      nombre: "Longsword DM Override",
+      price: 1234,
+      tier: "II"
+    },
+    dm_custom_key: {
+      nombre: "Llave del Director",
+      tipo_categoria: "utility",
+      tags: ["quest_item"],
+      price: 77
+    }
+  }, { iconRegistry: globalThis.LuminousItemIconRegistry });
+
+  assert.equal(firebaseOverlay.longsword.nombre, "Longsword DM Override");
+  assert.equal(firebaseOverlay.longsword.definitionId, "longsword");
+  assert.ok(firebaseOverlay.dm_custom_key, "Firebase-only custom items must remain visible");
+
+  const granted = core.createGrantPayload(longsword, 3, {
+    iconRegistry: globalThis.LuminousItemIconRegistry,
+    inventoryRuntime: globalThis.LuminousItemInventoryRuntime
+  });
+
+  assert.equal(granted.definitionId, "longsword");
+  assert.equal(granted.quantity, 3);
+  assert.equal(granted.cantidad, 3);
+  assert.equal(granted.nombre, "Longsword");
+  assert.ok(granted.instanceId, "grant payload should carry a modern item instance id");
+  assert.equal(core.sameDefinition(granted, longsword), true);
+
+  const patch = core.quantityPatch(granted, 5);
+  assert.deepEqual(patch, { quantity: 5, cantidad: 5 });
+
+  const dmPage = fs.readFileSync(path.join(__dirname, "..", "pantalla_dm.html"), "utf8");
+  assert.match(dmPage, /css\/dm-limbus-shell\.css/);
+  assert.match(dmPage, /css\/dm-item-catalog-v2\.css/);
+  assert.match(dmPage, /js\/dm-item-catalog-core\.js/);
+  assert.match(dmPage, /core\.buildCatalogMap\(window, firebaseItems/);
+  assert.doesNotMatch(dmPage, /<\/script>\\n\s*<script src="js\/item-catalog-/);
+
+  const armorMaterial = dmPage.indexOf('js/item-armor-material-profile.js');
+  const armorComponents = dmPage.indexOf('js/item-catalog-armor-components.js');
+  const shieldComponents = dmPage.indexOf('js/item-catalog-shield-components.js');
+  const weaponComponents = dmPage.indexOf('js/item-catalog-weapon-components.js');
+  const firearmComponents = dmPage.indexOf('js/item-catalog-firearm-components.js');
+  const rangedComponents = dmPage.indexOf('js/item-catalog-ranged-weapon-components.js');
+
+  assert.ok(armorMaterial >= 0 && armorMaterial < armorComponents, "armor material profile must load before armor components");
+  assert.ok(armorMaterial < shieldComponents, "armor material profile must load before shield components");
+  assert.ok(weaponComponents >= 0 && weaponComponents < firearmComponents, "weapon components must load before firearm components");
+  assert.ok(weaponComponents < rangedComponents, "weapon components must load before ranged components");
+
+  console.log("dm-item-catalog-core.spec: ok");
+  console.log("dm item page wiring: ok");
+})().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});
