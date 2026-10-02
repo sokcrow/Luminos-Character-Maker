@@ -36,7 +36,7 @@ The 9 pre-existing definitions remain review items until their metadata, mechani
 - [ ] Bane
 - [ ] Bless
 - [ ] Burning Hands
-- [x] Create or Destroy Water — SPR approved and implemented
+- [x] Create or Destroy Water
 
 #### Review decision for the 9 pre-existing definitions
 
@@ -56,7 +56,7 @@ Do **not** rewrite the shared Spell Slot / class-gating infrastructure. Reuse it
 
 These already exist in `js/role-spell-catalog-core.js` and are covered by the Angelo smoke, so they must **not** be reimplemented as unrelated duplicates. They still count as pending work because the role catalog is not the authoritative shared spell definition.
 
-- [ ] Comprehend Languages — SPR approved; canonical migration pending
+- [ ] Comprehend Languages
 - [ ] Speak with Animals
 - [ ] Distort Value
 
@@ -64,9 +64,9 @@ These already exist in `js/role-spell-catalog-core.js` and are covered by the An
 
 #### 2024 PHB baseline — 48
 
-- [ ] Color Spray — SPR approved; implementation pending
-- [ ] Command — SPR approved; implementation pending
-- [ ] Compelled Duel — SPR approved; implementation pending
+- [ ] Color Spray
+- [ ] Command
+- [ ] Compelled Duel
 - [ ] Cure Wounds
 - [ ] Detect Evil and Good
 - [ ] Detect Magic
@@ -194,11 +194,11 @@ This batch intentionally covers ritual/theater, self-defense, save/AoE, concentr
 
 This section is informational only. The authoritative task checkbox for each spell appears once in the inventory above.
 
-- **Color Spray:** SPR approved; implementation pending.
-- **Command:** SPR approved; implementation pending.
-- **Compelled Duel:** SPR approved; implementation pending.
-- **Comprehend Languages:** SPR approved; canonical migration pending.
-- **Create or Destroy Water:** SPR approved and implemented.
+- Color Spray
+- Command
+- Compelled Duel
+- Comprehend Languages
+- Create or Destroy Water
 
 #### Encounter Weather Modifier decisions locked during Batch 2
 
