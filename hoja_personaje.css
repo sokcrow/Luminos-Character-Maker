@@ -6623,13 +6623,16 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
     flex: 1;
 }
 
-/* Stats is a viewport, not a content-sized floating card.
-   Keep its frame fixed so switching attributes/sections never recenters the HUD. */
+/* Stats is a fixed logical game canvas.
+   The runtime only scales this 1600x920 surface as one piece; it never reflows
+   columns or moves the splash art to accommodate a smaller viewport. */
 .hud-modal.modal-stats {
-    align-items: flex-start;
+    --player-stats-hud-scale: 1;
+    align-items: center;
+    justify-content: center;
     box-sizing: border-box;
-    padding-top: 7.5vh;
-    padding-bottom: 7.5vh;
+    padding: 0;
+    overflow: hidden;
 }
 
 /* The generic modal scale animation changes getBoundingClientRect while Stats
@@ -6645,15 +6648,24 @@ input.sheet-state-hud-modal[value="stats"] ~ .modal-stats {
 }
 
 .hud-modal.modal-stats .hud-modal-content {
-    height: 85vh;
-    max-height: 85vh;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 1600px;
+    min-width: 1600px;
+    max-width: none;
+    height: 920px;
+    min-height: 920px;
+    max-height: none;
+    box-sizing: border-box;
+    transform: translate(-50%, -50%) scale(var(--player-stats-hud-scale));
+    transform-origin: center center;
 }
 
 .hud-modal.modal-stats .hud-modal-body {
     min-height: 0;
-    overflow-y: auto;
+    overflow: hidden;
     overscroll-behavior: contain;
-    scrollbar-gutter: stable;
 }
 
 .hud-tab-content {
