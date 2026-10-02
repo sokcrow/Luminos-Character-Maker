@@ -210,16 +210,17 @@
 
     cleanupLegacyPlayerMapArtifacts(documentRef);
 
+    let combatView = documentRef.getElementById("player-instance-combat");
     if (combatActive) {
-      const combatView = createPlayerCombatView(documentRef);
+      combatView = createPlayerCombatView(documentRef);
       if (combatView?.contentDocument?.readyState === "complete") {
         ensureCombatTraitRuntime(combatView).catch((error) => {
           console.error("No se pudo verificar el runtime universal de Traits en combate:", error);
         });
       }
-    } else {
-      destroyPlayerCombatView(documentRef);
     }
+    if (combatView) combatView.style.display = combatActive ? "block" : "none";
+    if (!combatActive) destroyPlayerCombatView(documentRef);
 
     if (theatreView) {
       theatreView.style.display = theatreActive ? "flex" : "none";
