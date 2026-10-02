@@ -410,10 +410,6 @@
   }
 
   function resolveProcessingRecipe(recipe, items, root) {
-    if (!recipe.outputId) {
-      return { valid: false, reason: "processing_recipe_requires_runtime_context", recipe };
-    }
-
     const host = root || global;
     const engine = host.LuminousItemProcessingEngine || global.LuminousItemProcessingEngine;
     if (!engine || typeof engine.resolveProcessingBatch !== "function") {
@@ -531,6 +527,18 @@
     return matches.length === 1 ? matches[0] : null;
   }
 
+  function qualityTierFor(value) {
+    const engine = global.LuminousItemQualityEngine;
+    const canonical = engine?.canonicalQualityId
+      ? engine.canonicalQualityId(value || "standard")
+      : normalizeId(value || "standard");
+    const order = Array.isArray(engine?.QUALITY_ORDER)
+      ? engine.QUALITY_ORDER
+      : ["ruined", "poor", "standard", "fine", "exceptional"];
+    const index = order.indexOf(canonical);
+    return index >= 0 ? index + 1 : 3;
+  }
+
   function recipeDifficulty(recipe, resolution) {
     const kind = normalizeId(recipe && recipe.recipeKind);
     const effectiveCooking = Number(resolution && resolution.effectiveTh);
@@ -612,6 +620,7 @@
         canonicalId: processed.itemId || processed.id,
         nombre: processed.name || processed.displayName,
         cantidad: Number(processed.quantity || 1),
+        qualityTier: qualityTierFor(processed.quality),
         crafted: true,
         recipeId: normalizeId(raw.id || raw.recipeId || processed.processingTemplateId),
         sourceRecipeId: normalizeId(raw.id || raw.recipeId || processed.processingTemplateId),
@@ -646,6 +655,7 @@
         nombre: output.name || output.nombre || raw.name || raw.label,
         quantity: Math.max(1, Number(output.quantity || 1)),
         cantidad: Math.max(1, Number(output.quantity || 1)),
+        qualityTier: qualityTierFor(output.quality),
         crafted: true,
         recipeId: normalizeId(raw.id || raw.recipeId),
         sourceRecipeId: normalizeId(raw.id || raw.recipeId),
@@ -818,6 +828,7 @@
     recipeRuntimeReady,
     findMatchingRecipes,
     findMatchingRecipe,
+    qualityTierFor,
     recipeDifficulty,
     createRecipeOutput,
     appendFirebaseAugmentations,
