@@ -185,9 +185,12 @@ const path = require("node:path");
   assert.ok(weaponComponents >= 0 && weaponComponents < firearmComponents, "weapon components must load before firearm components");
   assert.ok(weaponComponents < rangedComponents, "weapon components must load before ranged components");
 
+  const filterInit = dmPage.indexOf('const searchInputDM = document.getElementById("buscador-items-dm")');
   const localBootstrap = dmPage.indexOf('applyDmContentRegistry("registro canónico local")');
   const firebaseOverlayListener = dmPage.indexOf('db.ref("campaña/base_datos_items").on(');
+  assert.ok(filterInit >= 0, "DM item filters must initialize");
   assert.ok(localBootstrap >= 0, "unified canonical content must bootstrap locally");
+  assert.ok(filterInit < localBootstrap, "DM item filters must initialize before local content bootstrap");
   assert.ok(firebaseOverlayListener >= 0, "Firebase custom item overlay listener should still exist");
   assert.ok(localBootstrap < firebaseOverlayListener, "unified canonical content must render before waiting on Firebase");
   assert.match(dmPage, /dm-content-registry-counts/);
