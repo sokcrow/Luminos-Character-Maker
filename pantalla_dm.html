@@ -2130,18 +2130,15 @@ window.processEntitiesData = function(entities) {
           <h3>Arsenal / Forja / Mercado</h3>
 
           <div class="form-cyber-container" style="justify-content: flex-start; align-items: stretch; gap: 15px; margin-bottom: 20px;">
-            <!-- Panel: Acceso al Forjador Standalone -->
-            <div class="form-cyber" style="flex: 1; border-color: #c49a00; box-shadow: 0 0 15px rgba(196, 154, 0, 0.4); display: flex; flex-direction: column;">
-              <h4 style="color: #c49a00;">🛠️ COFRE Y FORJA DE COMPILACIONES</h4>
+            <!-- Registro canónico unificado: Items + Recipes -->
+            <div class="form-cyber" id="dm-content-registry-summary" style="flex: 1; border-color: #c49a00; box-shadow: 0 0 15px rgba(196, 154, 0, 0.4); display: flex; flex-direction: column;">
+              <h4 style="color: #c49a00;">REGISTRO CANÓNICO UNIFICADO</h4>
               <p style="color: #aaa; font-size: 13px; line-height: 1.4; margin: 5px 0;">
-                El sistema de edición y creación de ítems está desacoplado del panel de juego para garantizar una arquitectura modular (Limbus UI Doctrine).
+                Items y Recipes canónicos se cargan desde los módulos del runtime. Firebase sólo aporta contenido custom de campaña y overrides.
               </p>
-              <p style="color: #aaa; font-size: 13px; line-height: 1.4; margin: 5px 0;">
-                Haz clic en el botón de abajo para abrir el <strong>Gestor de Ítems y Mercado Standalone</strong>, donde podrás forjar armas, armaduras, escudos, accesorios, consumibles, upgrades, augmentations y recetas.
-              </p>
-              <button class="btn-cyber" onclick="window.open('dm-item-creator.html', '_blank')" style="background: #8b0000; border-color: #ff4444; color: white; padding: 12px; font-weight: bold; font-family: inherit; font-size: 14px; margin-top: auto; cursor: pointer; text-shadow: 0 0 5px #000; width: 100%;">
-                ⚙️ ABRIR GESTOR STANDALONE
-              </button>
+              <div id="dm-content-registry-counts" class="economy-v2-meta" style="margin-top:auto; padding:10px; border:1px solid #3a3120; background:#0b0a07;">
+                Cargando registro unificado...
+              </div>
             </div>
 
             <!-- Panel: Consumo / Distribución de Ítems (Utilizar) -->
@@ -3825,7 +3822,14 @@ window.processEntitiesData = function(entities) {
     <script src="js/item-catalog-venom-secretion.js"></script>
     <script src="js/item-catalog-weapon-upgrades.js"></script>
     <script src="js/item-catalog-weapons.js"></script>
+    <!-- Canonical recipe definitions exposed through the unified content registry. -->
+    <script src="js/item-chemistry-recipe-catalog.js"></script>
+    <script src="js/item-cooking-recipe-catalog.js"></script>
+    <script src="js/item-medicine-recipe-catalog.js"></script>
+    <script src="js/item-processing-recipe-data.js"></script>
+    <script src="js/item-throwable-recipe-catalog.js"></script>
     <script src="js/dm-item-catalog-core.js"></script>
+    <script src="js/item-content-registry.js"></script>
 
     <script>
       const firebaseConfig = {
@@ -6104,99 +6108,9 @@ window.processEntitiesData = function(entities) {
 
         // --- LÓGICA DEL DASHBOARD DE FORJA Y MERCADO ---
 
-        // --- MOTOR DE RECETAS ---
-        const toggleMesaCrafteo = document.getElementById("toggle-mesa-crafteo");
-        db.ref("campaña/estado_mundo/mesa_crafteo_activa").on("value", (snap) => {
-            toggleMesaCrafteo.checked = !!snap.val();
-        });
-        toggleMesaCrafteo.addEventListener("change", (e) => {
-            db.ref("campaña/estado_mundo/mesa_crafteo_activa").set(e.target.checked);
-        });
-
-        // El editor de recetas ahora vive en la herramienta standalone. En esta
-        // pantalla el botón puede no existir; no debemos abortar el inicializador
-        // completo del DM (incluido el Teatro) por ese control opcional.
-        document.getElementById("btn-crear-receta")?.addEventListener("click", () => {
-            const itemResultado = document.getElementById("receta-item-resultado").value.trim();
-            const ingredientesStr = document.getElementById("receta-ingredientes").value.trim();
-            const dificultad = parseInt(document.getElementById("receta-dificultad").value) || 0;
-            const requiereMesa = document.getElementById("receta-requiere-mesa").checked;
-
-            if (!itemResultado || !ingredientesStr) {
-                alert("Completa el ID del ítem y los ingredientes.");
-                return;
-            }
-
-            // Parsear ingredientes: "scrap:2, metal:1" -> [{id: "scrap", cantidad: 2}, {id: "metal", cantidad: 1}]
-            const ingredientes = [];
-            const pares = ingredientesStr.split(",");
-            for (let par of pares) {
-                const [id, cant] = par.split(":");
-                if (id && cant) {
-                    ingredientes.push({ id: id.trim(), cantidad: parseInt(cant.trim()) || 1 });
-                }
-            }
-
-            if (ingredientes.length === 0) {
-                alert("Formato de ingredientes inválido. Usa ID:Cant (Ej: chatarra:2)");
-                return;
-            }
-
-            const nuevaReceta = {
-                item_resultado: itemResultado,
-                ingredientes: ingredientes,
-                dificultad_base: dificultad,
-                requiere_mesa: requiereMesa
-            };
-
-            const recetaId = itemResultado + "_" + Date.now(); // Generar ID único simple
-            db.ref(`campaña/forja/recetas/${recetaId}`).set(nuevaReceta).then(() => {
-                document.getElementById("receta-item-resultado").value = "";
-                document.getElementById("receta-ingredientes").value = "";
-                document.getElementById("receta-dificultad").value = "";
-                document.getElementById("receta-requiere-mesa").checked = false;
-                alert("Receta añadida con éxito");
-            });
-        });
-
-        // Renderizar lista de recetas
-        db.ref("campaña/forja/recetas").on("value", (snap) => {
-            const container = document.getElementById("lista-recetas-globales");
-            container.innerHTML = "";
-            const recetas = snap.val();
-            if (recetas) {
-                for (const [id, data] of Object.entries(recetas)) {
-                    const div = document.createElement("div");
-                    div.style.background = "#222";
-                    div.style.padding = "10px";
-                    div.style.borderLeft = "3px solid #f90";
-                    div.style.display = "flex";
-                    div.style.justifyContent = "space-between";
-                    div.style.alignItems = "center";
-
-                    const ingredientesText = data.ingredientes.map(i => `${i.id} (x${i.cantidad})`).join(", ");
-
-                    div.innerHTML = `
-                        <div>
-                            <strong style="color: #0df;">${data.item_resultado}</strong> <span style="font-size:12px; color:#aaa;">(DC: ${data.dificultad_base})</span>
-                            <div style="font-size: 12px; color: #ccc;">Req: ${ingredientesText}</div>
-                            ${data.requiere_mesa ? '<div style="font-size:10px; color:#f90;">Requiere Mesa de Crafteo</div>' : ''}
-                        </div>
-                        <button class="btn-cyber btn-red" style="padding: 5px; font-size: 12px;" onclick="eliminarReceta('${id}')">Borrar</button>
-                    `;
-                    container.appendChild(div);
-                }
-            } else {
-                 container.innerHTML = "<div style='color: #888; font-size: 12px;'>No hay recetas globales.</div>";
-            }
-        });
-
-        window.eliminarReceta = function(id) {
-            if (confirm("¿Borrar esta receta?")) {
-                db.ref(`campaña/forja/recetas/${id}`).remove();
-            }
-        };
-
+        // Recipes are canonical runtime content and are exposed by
+        // LuminousItemContentRegistry. Legacy Firebase recipe editing was removed
+        // from this page to keep one authoritative content path.
 
         function resolveDmLocalItemIcon(item = {}, fallbackId = "") {
           const registry = window.LuminousItemIconRegistry;
@@ -6232,7 +6146,6 @@ window.processEntitiesData = function(entities) {
         }
 
         let dbItemsCache = {}; // Caché local de TODOS los ítems globales
-        let dbAugmentationsCache = {}; // Caché de aumentos
         let tiendaActualEditada = null; // ID de la tienda abierta en el modal
         let selectedItemToOtorgar = null; // El ítem seleccionado para distribuir
         let dmItemCatalogStatusSuffix = "catálogo canónico local";
@@ -6360,8 +6273,8 @@ window.processEntitiesData = function(entities) {
                     card.dataset.tags = tagsLower;
 
                     const imgUrl = resolveDmLocalItemIcon(data, key);
-                    const deleteHtml = data.__catalogSource === "firebase"
-                      ? '<button class="btn-delete-item" data-id="' + key + '" style="position: absolute; top: 5px; right: 5px; background: transparent; border: none; cursor: pointer; font-size: 16px;" title="Eliminar item custom/override de Firebase">🗑️</button>'
+                    const deleteHtml = data.__firebasePath
+                      ? '<button class="btn-delete-item" data-id="' + key + '" style="position: absolute; top: 5px; right: 5px; background: transparent; border: none; cursor: pointer; font-size: 16px;" title="Eliminar contenido custom de Firebase">🗑️</button>'
                       : "";
 
                     card.innerHTML = `
@@ -6377,8 +6290,11 @@ window.processEntitiesData = function(entities) {
                     if (btnDelete) btnDelete.addEventListener("click", (e) => {
                         e.stopPropagation();
                         if (confirm("¿Estás seguro de eliminar este ítem permanentemente?")) {
-                            db.ref("campaña/base_datos_items/" + key).remove()
-                                .then(() => alert("Ítem eliminado."));
+                            const firebasePath = data.__firebasePath;
+                            const firebaseKey = data.__firebaseKey || key;
+                            if (!firebasePath) return;
+                            db.ref(firebasePath + "/" + firebaseKey).remove()
+                                .then(() => alert("Contenido custom eliminado."));
                         }
                     });
 
@@ -6400,62 +6316,12 @@ window.processEntitiesData = function(entities) {
                 }
             }
 
-            // Render Augmentations (Aumentos)
-            if (window.dbAugmentationsCache) {
-                for (const [key, data] of Object.entries(window.dbAugmentationsCache)) {
-                    const card = document.createElement("div");
-                    card.className = "card-cyber card-item";
-                    card.style.cursor = "pointer";
-                    card.style.borderLeftColor = "#8a1c1c"; // Red border for Augmentations
-
-                    card.dataset.name = data.nombre.toLowerCase();
-                    card.dataset.tier = String(data.tier || "I").toLowerCase();
-                    card.dataset.tags = "augmentation,aumento";
-
-                    const imgUrl = resolveDmLocalItemIcon(data, key);
-
-                    card.innerHTML = `
-                        <button class="btn-delete-item" data-id="${key}" style="position: absolute; top: 5px; right: 5px; background: transparent; border: none; cursor: pointer; font-size: 16px;" title="Eliminar Aumento">🗑️</button>
-                        <img src="${imgUrl}" alt="${data.nombre}">
-                        <h5>${data.nombre}</h5>
-                        <span style="font-size: 0.8em; color: #8a1c1c;">Corporal / Augment</span>
-                        <span style="color:#0df; font-weight:bold;"><span class="currency-symbol">₳</span> ${data.price || 0}</span>
-                    `;
-
-                    // Evento para eliminar
-                    const btnDelete = card.querySelector(".btn-delete-item");
-                    btnDelete.addEventListener("click", (e) => {
-                        e.stopPropagation();
-                        if (confirm("¿Estás seguro de eliminar este aumento permanentemente?")) {
-                            db.ref("campaña/base_datos_aumentos/" + key).remove()
-                                .then(() => alert("Aumento eliminado."));
-                        }
-                    });
-
-                    // Evento para seleccionar e inyectar al distribuidor
-                    card.addEventListener("click", () => {
-                        selectedItemToOtorgar = { ...data, id: key };
-                        document.getElementById("panel-consumo-item").style.display = "flex";
-                        document.getElementById("consumo-item-nombre").innerText = data.nombre;
-
-                        let detailsHtml = `<strong>Aumento Corporal</strong> | <strong>Price:</strong> ₳ ${data.price || 0}<br>`;
-                        if (data.descripcion) {
-                            detailsHtml += `<em>${data.descripcion}</em>`;
-                        }
-                        document.getElementById("consumo-item-detalles").innerHTML = detailsHtml;
-                        document.getElementById("panel-consumo-item").scrollIntoView({ behavior: "smooth" });
-                    });
-
-                    fragmentGlobalItems.appendChild(card);
-                }
-            }
-
             gridItemsGlobales.appendChild(fragmentGlobalItems);
             const status = document.getElementById("dm-item-catalog-status");
             if (status) {
               const total = gridItemsGlobales.querySelectorAll(".card-item").length;
               status.textContent = total
-                ? total + " definiciones disponibles · " + dmItemCatalogStatusSuffix
+                ? total + " Items otorgables · " + Object.keys(window.dbRecipesCache || {}).length + " Recipes registradas · " + dmItemCatalogStatusSuffix
                 : "Sin definiciones disponibles. Revisa la carga de item-catalog-*.";
             }
             filterDMItems();
@@ -6473,41 +6339,71 @@ window.processEntitiesData = function(entities) {
             });
         }
 
-        function applyDmItemCatalog(firebaseItems = {}, statusSuffix = "catálogo canónico local") {
+        let dmFirebaseItemsOverlay = {};
+        let dmFirebaseAugmentationsOverlay = {};
+
+        function applyDmContentRegistry(statusSuffix = "registro canónico local") {
+            const registry = window.LuminousItemContentRegistry;
             const core = window.LuminousDmItemCatalogCore;
-            const items = core
-              ? core.buildCatalogMap(window, firebaseItems, { iconRegistry: window.LuminousItemIconRegistry })
-              : (firebaseItems || {});
+            const snapshot = registry
+              ? registry.build(window, {
+                  firebaseItems: dmFirebaseItemsOverlay,
+                  firebaseAugmentations: dmFirebaseAugmentationsOverlay,
+                  iconRegistry: window.LuminousItemIconRegistry
+                })
+              : {
+                  items: core
+                    ? core.buildCatalogMap(window, dmFirebaseItemsOverlay, { iconRegistry: window.LuminousItemIconRegistry })
+                    : dmFirebaseItemsOverlay,
+                  recipes: {},
+                  counts: { items: 0, recipes: 0 },
+                  ready: Boolean(core)
+                };
+
             dmItemCatalogStatusSuffix = statusSuffix;
-            window.dbItemsCache = items || {};
+            window.dmContentRegistrySnapshot = snapshot;
+            window.dbItemsCache = snapshot.items || {};
+            window.dbRecipesCache = snapshot.recipes || {};
             dbItemsCache = window.dbItemsCache;
+
+            const summary = document.getElementById("dm-content-registry-counts");
+            if (summary) {
+              const itemCount = Object.keys(window.dbItemsCache).length;
+              const recipeCount = Object.keys(window.dbRecipesCache).length;
+              summary.textContent = itemCount + " Items · " + recipeCount + " Recipes · " + statusSuffix;
+            }
+
             renderGlobalItemsAndAugments();
             populateDmCatalogSelects(window.dbItemsCache);
-            return window.dbItemsCache;
+            return snapshot;
         }
 
-        // El catálogo canónico es local y no debe esperar a Firebase.
-        // Firebase sólo añade/sobrescribe definiciones custom cuando responde.
-        applyDmItemCatalog({}, "catálogo canónico local");
+        // Canonical content is local and must render before Firebase responds.
+        applyDmContentRegistry("registro canónico local");
 
         db.ref("campaña/base_datos_items").on(
           "value",
           (snapshot) => {
-            const firebaseItems = window.processItemsData(snapshot.val()) || {};
-            applyDmItemCatalog(firebaseItems, "catálogo canónico + custom Firebase");
+            dmFirebaseItemsOverlay = window.processItemsData(snapshot.val()) || {};
+            applyDmContentRegistry("canónico + custom Firebase");
           },
           (error) => {
             console.error("No se pudieron cargar overrides de ítems desde Firebase:", error);
-            dmItemCatalogStatusSuffix = "catálogo canónico local · Firebase custom no disponible";
-            renderGlobalItemsAndAugments();
+            applyDmContentRegistry("canónico · custom Firebase no disponible");
           },
         );
 
-        // Escuchar base_datos_aumentos
-        db.ref("campaña/base_datos_aumentos").on("value", (snapshot) => {
-            window.dbAugmentationsCache = window.processItemsData(snapshot.val()) || {};
-            renderGlobalItemsAndAugments();
-        });
+        db.ref("campaña/base_datos_aumentos").on(
+          "value",
+          (snapshot) => {
+            dmFirebaseAugmentationsOverlay = window.processItemsData(snapshot.val()) || {};
+            applyDmContentRegistry("canónico + custom Firebase");
+          },
+          (error) => {
+            console.error("No se pudieron cargar aumentos custom desde Firebase:", error);
+            applyDmContentRegistry("canónico · aumentos custom no disponibles");
+          },
+        );
 
                 // --- LÓGICA DE BÚSQUEDA Y FILTRADO (DM) ---
         const searchInputDM = document.getElementById("buscador-items-dm");
@@ -6549,7 +6445,7 @@ window.processEntitiesData = function(entities) {
               }
             });
             const status = document.getElementById("dm-item-catalog-status");
-            if (status) status.textContent = visibleCount + " / " + cards.length + " definiciones visibles · " + dmItemCatalogStatusSuffix;
+            if (status) status.textContent = visibleCount + " / " + cards.length + " Items visibles · " + Object.keys(window.dbRecipesCache || {}).length + " Recipes registradas · " + dmItemCatalogStatusSuffix;
           }
         }
 
