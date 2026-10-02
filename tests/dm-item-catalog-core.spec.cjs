@@ -8,6 +8,11 @@ const path = require("node:path");
   await import("../js/item-catalog-tools.js");
   await import("../js/item-catalog-hp-healing.js");
   await import("../js/item-catalog-ore-ingot-gem.js");
+  await import("../js/item-catalog-weapon-components.js");
+  await import("../js/item-catalog-firearm-components.js");
+  await import("../js/item-catalog-firearm-ammo.js");
+  await import("../js/item-catalog-weapon-upgrades.js");
+  await import("../js/item-catalog-shield-upgrades.js");
   await import("../js/item-catalog-hard-parts.js");
   await import("../js/item-catalog-scale-shell-chitin.js");
   await import("../js/item-runtime-engine.js");
@@ -31,6 +36,29 @@ const path = require("node:path");
 
   assert.ok(catalog.hard_bone, "Hard Parts catalog should be discovered");
   assert.ok(catalog.scale, "Scale/Shell/Chitin catalog should be discovered");
+
+  for (const ammoPartId of ["ammo_projectile", "ammo_casing", "ammo_propellant", "ammo_ignition"]) {
+    assert.ok(catalog[ammoPartId], `Firearm ammo part ${ammoPartId} should be discovered`);
+  }
+
+  const byDefinitionId = (definitionId) => Object.entries(catalog)
+    .filter(([, item]) => item.definitionId === definitionId);
+
+  const gripRows = byDefinitionId("grip");
+  assert.equal(gripRows.length, 2, "colliding weapon and firearm grip definitions must both survive");
+  assert.deepEqual(
+    gripRows.map(([, item]) => item.nombre).sort(),
+    ["Firearm Grip", "Grip"]
+  );
+  assert.ok(gripRows.every(([key]) => key !== "grip"), "colliding definitions should use namespaced catalog keys");
+
+  for (const collisionId of ["spiked_face", "power_grip", "secure_grip"]) {
+    assert.equal(
+      byDefinitionId(collisionId).length,
+      2,
+      `colliding upgrade definition ${collisionId} must preserve both catalog entries`
+    );
+  }
 
   assert.equal(
     core.sameDefinition(
