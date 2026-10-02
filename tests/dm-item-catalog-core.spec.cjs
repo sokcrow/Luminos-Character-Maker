@@ -278,6 +278,42 @@ const path = require("node:path");
   assert.ok(noodlesOutput.stackPolicy, "processing output must preserve canonical stack policy");
   assert.ok(Object.prototype.hasOwnProperty.call(noodlesOutput, "unitProductionValueAhn"), "processing output must preserve economy metadata");
 
+  const juiceRecipe = Object.values(unified.recipes)
+    .find((recipe) => recipe.recipeKind === "processing" && recipe.id === "juice");
+  assert.ok(juiceRecipe, "procedural juice processing recipe should exist");
+  assert.equal(juiceRecipe.outputId, undefined, "juice should remain a procedural-output template");
+  const juiceInputs = [
+    {
+      id: "apple",
+      definitionId: "apple",
+      name: "Apple",
+      tags: ["juice", "juicy", "refreshing", "fruit"],
+      quantity: 1,
+      __selectedUnits: 1,
+      productionValueAhn: 12,
+      quality: "fine"
+    },
+    {
+      id: "apple",
+      definitionId: "apple",
+      name: "Apple",
+      tags: ["juice", "juicy", "refreshing", "fruit"],
+      quantity: 1,
+      __selectedUnits: 1,
+      productionValueAhn: 12,
+      quality: "fine"
+    }
+  ];
+  const juiceResolution = contentRegistry.resolveRecipe(juiceRecipe, juiceInputs, globalThis);
+  assert.equal(juiceResolution.valid, true, "procedural processing templates must resolve from runtime input context");
+  const juiceOutput = contentRegistry.createRecipeOutput(juiceRecipe, {
+    resolution: juiceResolution
+  });
+  assert.ok(juiceOutput, "procedural processing must create a canonical runtime output");
+  assert.equal(juiceOutput.processingTemplateId, "juice");
+  assert.equal(juiceOutput.processedForm, "juice");
+  assert.ok(Array.isArray(juiceOutput.provenance), "procedural processing output must preserve provenance");
+
   const deferredThrowable = Object.values(unified.recipes)
     .find((recipe) => recipe.recipeKind === "throwable" && recipe.combatContractStatus === "deferred");
   assert.ok(deferredThrowable, "deferred throwable should remain visible in the unified DM registry");
@@ -296,6 +332,12 @@ const path = require("node:path");
   assert.equal(craftedOutput.crafted, true);
   assert.equal(craftedOutput.quantity, 1);
   assert.equal(craftedOutput.quality, "exceptional");
+  assert.equal(craftedOutput.qualityTier, 5, "exceptional canonical quality must map to runtime tier 5");
+  assert.equal(contentRegistry.qualityTierFor("ruined"), 1);
+  assert.equal(contentRegistry.qualityTierFor("poor"), 2);
+  assert.equal(contentRegistry.qualityTierFor("standard"), 3);
+  assert.equal(contentRegistry.qualityTierFor("fine"), 4);
+  assert.equal(contentRegistry.qualityTierFor("exceptional"), 5);
   assert.equal(craftedOutput.craft.checkTotal, 26);
   assert.equal(craftedOutput.craft.margin, 8);
   assert.ok(craftedOutput.productionValueAhn > 0, "chemistry output must preserve canonical production value");
@@ -317,6 +359,7 @@ const path = require("node:path");
   });
   assert.equal(medicineOutput.definitionId, "medicine_tablet");
   assert.equal(medicineOutput.quality, "fine");
+  assert.equal(medicineOutput.qualityTier, 4, "fine canonical quality must map to runtime tier 4");
   assert.equal(medicineOutput.craft.checkTotal, 22);
   assert.equal(medicineOutput.craft.margin, 4);
   assert.ok(medicineOutput.productionValueAhn > 0, "medicine output must preserve canonical production value");
@@ -341,6 +384,16 @@ const path = require("node:path");
     contentRegistry.isSynthesisSlotUnlockTool({ definitionId: "calligraphers_supplies" }, globalThis),
     false,
     "generic utility tools should not unlock extra synthesis slots"
+  );
+
+  const exceptionalInstance = globalThis.LuminousItemInventoryRuntime.createItemInstance(
+    craftedOutput,
+    { quantity: 1, qualityTier: craftedOutput.qualityTier }
+  );
+  assert.equal(
+    globalThis.LuminousItemInventoryRuntime.getQualityTier(exceptionalInstance),
+    5,
+    "inventory runtime must preserve exceptional crafted quality as tier 5"
   );
 
   const granted = core.createGrantPayload(longsword, 3, {
@@ -433,6 +486,7 @@ const path = require("node:path");
   assert.match(playerRuntime, /createRecipeOutput\(attempt\.receta,\s*\{/);
   assert.match(playerRuntime, /resolution:\s*attempt\.resolution/);
   assert.match(playerRuntime, /checkResult:\s*tirada/);
+  assert.match(playerRuntime, /qualityTier:\s*canonicalOutput\.qualityTier/);
   assert.match(playerRuntime, /ejecutarTransaccionForja\(attempt,\s*tirada\s*>=\s*attempt\.dc,\s*tirada\)/);
   assert.match(playerRuntime, /function ejecutarTransaccionForja\(attempt,\s*exito,\s*tirada\)/);
   assert.doesNotMatch(playerRuntime, /campaña\/forja\/recetas/);
