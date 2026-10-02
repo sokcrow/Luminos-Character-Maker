@@ -591,47 +591,146 @@ test("stats HUD keeps fixed geometry and scrolls internally when content changes
   await page.setContent(`
     <!doctype html>
     <html>
-      <head><link rel="stylesheet" href="/hoja_personaje.css"></head>
+      <head>
+        <link rel="stylesheet" href="${BASE}/hoja_personaje.css">
+        <link rel="stylesheet" href="${BASE}/css/player-stats-ability-bar.css">
+      </head>
       <body>
         <div id="stats-modal" class="hud-modal modal-stats active">
           <div class="hud-modal-content">
+            <button type="button" class="hud-modal-close">×</button>
             <div class="hud-modal-body">
-              <div id="stats-test-content"><div>Short stats content</div></div>
+              <div id="stats-container"></div>
             </div>
           </div>
         </div>
+        <script>
+          window.datosJugador = {
+            characterName: "Fixed Geometry Test",
+            level: 20,
+            xp: 150,
+            stats: {
+              fuerza: 12, destreza: 14, constitucion: 13,
+              inteligencia: 16, sabiduria: 11, carisma: 15
+            },
+            combatStats: { hp_actual: 27, hp_max: 40, sp_actual: 5 }
+          };
+        </script>
+        <script src="${BASE}/js/player-stats-ability-bar.js"></script>
       </body>
     </html>
-  `);
+  `, { waitUntil: "load" });
 
-  const before = await page.locator("#stats-modal .hud-modal-content").evaluate((node) => {
-    const rect = node.getBoundingClientRect();
-    return { top: rect.top, height: rect.height };
+  await page.waitForFunction(() =>
+    Boolean(window.LuminousPlayerStats && document.querySelector("#stats-modal .player-stats-frame"))
+  );
+
+  const geometry = () => page.evaluate(() => {
+    const content = document.querySelector("#stats-modal .hud-modal-content");
+    const frame = document.querySelector("#stats-modal .player-stats-frame");
+    const art = document.querySelector("#stats-modal .player-stats-character-panel");
+    const info = document.querySelector("#stats-modal .player-stats-information-panel");
+    const abilityBar = document.querySelector("#stats-modal .player-ability-bar");
+    const rect = content.getBoundingClientRect();
+    const normalize = (node) => {
+      const child = node.getBoundingClientRect();
+      return {
+        x: (child.left - rect.left) / rect.width,
+        y: (child.top - rect.top) / rect.height,
+        width: child.width / rect.width,
+        height: child.height / rect.height,
+      };
+    };
+    return {
+      contentCssWidth: getComputedStyle(content).width,
+      contentCssHeight: getComputedStyle(content).height,
+      renderedWidth: rect.width,
+      renderedHeight: rect.height,
+      scale: Number(document.getElementById("stats-modal").dataset.playerStatsHudScale || 1),
+      bodyOverflowY: getComputedStyle(document.querySelector("#stats-modal .hud-modal-body")).overflowY,
+      frameDisplay: getComputedStyle(frame).display,
+      frameColumns: getComputedStyle(frame).gridTemplateColumns,
+      abilityColumns: getComputedStyle(abilityBar).gridTemplateColumns,
+      art: normalize(art),
+      info: normalize(info),
+    };
   });
 
-  await page.locator("#stats-test-content").evaluate((node) => {
-    node.replaceChildren(...Array.from({ length: 240 }, (_, index) => {
-      const row = document.createElement("div");
-      row.textContent = "Attribute detail row " + index;
-      row.style.height = "28px";
+  const desktop = await geometry();
+  expect(desktop.contentCssWidth).toBe("1600px");
+  expect(desktop.contentCssHeight).toBe("920px");
+  expect(desktop.bodyOverflowY).toBe("hidden");
+  expect(desktop.frameDisplay).toBe("grid");
+  expect(desktop.art.width).toBeCloseTo(0.5, 3);
+  expect(desktop.info.x).toBeCloseTo(0.5, 3);
+
+  await page.setViewportSize({ width: 760, height: 640 });
+  await page.evaluate(() => window.LuminousPlayerStats.syncHudCanvasScale());
+  const compact = await geometry();
+
+  expect(compact.scale).toBeLessThan(desktop.scale);
+  expect(compact.contentCssWidth).toBe(desktop.contentCssWidth);
+  expect(compact.contentCssHeight).toBe(desktop.contentCssHeight);
+  expect(compact.frameColumns).toBe(desktop.frameColumns);
+  expect(compact.abilityColumns).toBe(desktop.abilityColumns);
+  expect(compact.frameDisplay).toBe("grid");
+  expect(compact.bodyOverflowY).toBe("hidden");
+  expect(compact.art.x).toBeCloseTo(desktop.art.x, 3);
+  expect(compact.art.y).toBeCloseTo(desktop.art.y, 3);
+  expect(compact.art.width).toBeCloseTo(desktop.art.width, 3);
+  expect(compact.art.height).toBeCloseTo(desktop.art.height, 3);
+  expect(compact.info.x).toBeCloseTo(desktop.info.x, 3);
+  expect(compact.info.width).toBeCloseTo(desktop.info.width, 3);
+
+  const beforeOverflow = await geometry();
+  const overflow = await page.evaluate(() => {
+    const skills = document.querySelector("#stats-modal .player-skill-list");
+    const resistances = document.querySelector("#stats-modal .player-resistance-list");
+
+    skills.replaceChildren(...Array.from({ length: 80 }, (_, index) => {
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = "dnd-skill";
+      row.innerHTML = `<span class="skill-proficiency"></span><span class="dnd-skill-name">Skill ${index}</span><strong class="dnd-skill-value">+${index}</strong>`;
       return row;
     }));
-  });
 
-  const after = await page.locator("#stats-modal .hud-modal-content").evaluate((node) => {
-    const rect = node.getBoundingClientRect();
-    return { top: rect.top, height: rect.height };
-  });
-  const bodyMetrics = await page.locator("#stats-modal .hud-modal-body").evaluate((node) => ({
-    clientHeight: node.clientHeight,
-    scrollHeight: node.scrollHeight,
-    overflowY: getComputedStyle(node).overflowY,
-  }));
+    resistances.replaceChildren(...Array.from({ length: 40 }, (_, index) => {
+      const row = document.createElement("div");
+      row.className = "player-resistance-item";
+      row.textContent = `Resistance ${index}`;
+      return row;
+    }));
 
-  expect(Math.abs(after.top - before.top)).toBeLessThan(0.5);
-  expect(Math.abs(after.height - before.height)).toBeLessThan(0.5);
-  expect(bodyMetrics.scrollHeight).toBeGreaterThan(bodyMetrics.clientHeight);
-  expect(bodyMetrics.overflowY).toBe("auto");
+    const metrics = (node) => ({
+      clientHeight: node.clientHeight,
+      scrollHeight: node.scrollHeight,
+      overflowY: getComputedStyle(node).overflowY,
+    });
+
+    skills.scrollTop = skills.scrollHeight;
+    resistances.scrollTop = resistances.scrollHeight;
+
+    return {
+      skills: { ...metrics(skills), scrollTop: skills.scrollTop },
+      resistances: { ...metrics(resistances), scrollTop: resistances.scrollTop },
+      modalBodyOverflowY: getComputedStyle(document.querySelector("#stats-modal .hud-modal-body")).overflowY,
+    };
+  });
+  const afterOverflow = await geometry();
+
+  expect(overflow.modalBodyOverflowY).toBe("hidden");
+  expect(overflow.skills.overflowY).toBe("auto");
+  expect(overflow.skills.scrollHeight).toBeGreaterThan(overflow.skills.clientHeight);
+  expect(overflow.skills.scrollTop).toBeGreaterThan(0);
+  expect(overflow.resistances.overflowY).toBe("auto");
+  expect(overflow.resistances.scrollHeight).toBeGreaterThan(overflow.resistances.clientHeight);
+  expect(overflow.resistances.scrollTop).toBeGreaterThan(0);
+
+  expect(afterOverflow.art.x).toBeCloseTo(beforeOverflow.art.x, 3);
+  expect(afterOverflow.art.y).toBeCloseTo(beforeOverflow.art.y, 3);
+  expect(afterOverflow.art.width).toBeCloseTo(beforeOverflow.art.width, 3);
+  expect(afterOverflow.art.height).toBeCloseTo(beforeOverflow.art.height, 3);
 });
 
 
