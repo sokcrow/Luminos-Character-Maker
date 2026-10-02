@@ -6223,22 +6223,18 @@ window.processEntitiesData = function(entities) {
                 const stash = window.processItemsData(snap.val()) || {};
                 let foundKey = null;
                 for (const [k, v] of Object.entries(stash)) {
-                    if (v.nombre === selectedItemToOtorgar.nombre && (v.tier || 'I') === (selectedItemToOtorgar.tier || 'I')) {
+                    if (sameDmItemDefinition(v, selectedItemToOtorgar)) {
                         foundKey = k;
                         break;
                     }
                 }
 
                 if (foundKey) {
-                    const currentCant = stash[foundKey].cantidad || 1;
-                    stashRef.child(foundKey).update({ cantidad: currentCant + cant })
+                    const currentCant = dmItemQuantity(stash[foundKey]);
+                    stashRef.child(foundKey).update(dmQuantityPatch(stash[foundKey], currentCant + cant))
                         .then(() => alert("¡Otorgados " + cant + " de " + selectedItemToOtorgar.nombre + " al Alijo de " + jugador + "!"));
                 } else {
-                    const newItem = {
-                        ...selectedItemToOtorgar,
-                        cantidad: cant,
-                        valorBase: selectedItemToOtorgar.price || selectedItemToOtorgar.costo || 0
-                    };
+                    const newItem = buildDmGrantPayload(selectedItemToOtorgar, cant);
                     stashRef.push(newItem)
                         .then(() => alert("¡Añadido " + selectedItemToOtorgar.nombre + " (x" + cant + ") al Alijo de " + jugador + "!"));
                 }
@@ -6264,22 +6260,18 @@ window.processEntitiesData = function(entities) {
                 const activo = window.processItemsData(snap.val()) || {};
                 let foundKey = null;
                 for (const [k, v] of Object.entries(activo)) {
-                    if (v.nombre === selectedItemToOtorgar.nombre && (v.tier || 'I') === (selectedItemToOtorgar.tier || 'I')) {
+                    if (sameDmItemDefinition(v, selectedItemToOtorgar)) {
                         foundKey = k;
                         break;
                     }
                 }
 
                 if (foundKey) {
-                    const currentCant = activo[foundKey].cantidad || 1;
-                    activoRef.child(foundKey).update({ cantidad: currentCant + cant })
+                    const currentCant = dmItemQuantity(activo[foundKey]);
+                    activoRef.child(foundKey).update(dmQuantityPatch(activo[foundKey], currentCant + cant))
                         .then(() => alert("¡Otorgados " + cant + " de " + selectedItemToOtorgar.nombre + " al Inventario de " + jugador + "!"));
                 } else {
-                    const newItem = {
-                        ...selectedItemToOtorgar,
-                        cantidad: cant,
-                        valorBase: selectedItemToOtorgar.price || selectedItemToOtorgar.costo || 0
-                    };
+                    const newItem = buildDmGrantPayload(selectedItemToOtorgar, cant);
                     activoRef.push(newItem)
                         .then(() => alert("¡Equipado " + selectedItemToOtorgar.nombre + " (x" + cant + ") a " + jugador + "!"));
                 }
