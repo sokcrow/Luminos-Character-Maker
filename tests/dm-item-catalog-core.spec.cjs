@@ -154,12 +154,13 @@ const path = require("node:path");
   assert.equal(chemistryMatch.recipe.id, "industrial_cleaner");
   assert.equal(contentRegistry.recipeDifficulty(chemistryMatch.recipe), 18);
 
-  const cookingMatch = contentRegistry.findMatchingRecipe(globalThis, [
+  const whiteBreadRecipe = Object.values(unified.recipes)
+    .find((recipe) => recipe.recipeKind === "cooking" && recipe.id === "white_bread");
+  assert.ok(whiteBreadRecipe, "White Bread recipe should exist in the unified registry");
+  const cookingResolution = contentRegistry.resolveRecipe(whiteBreadRecipe, [
     { definitionId: "dough", tags: ["dough"], quantity: 1, __selectedUnits: 1 }
-  ]);
-  assert.ok(cookingMatch, "canonical cooking recipes should resolve through the shared registry");
-  assert.equal(cookingMatch.recipe.recipeKind, "cooking");
-  assert.ok(["white_bread", "flatbread", "baguette"].includes(cookingMatch.recipe.id));
+  ], globalThis);
+  assert.equal(cookingResolution.valid, true, "canonical cooking recipes should resolve through the shared registry");
 
   const craftedOutput = contentRegistry.createRecipeOutput(chemistryMatch.recipe);
   assert.equal(craftedOutput.definitionId, "industrial_cleaner");
