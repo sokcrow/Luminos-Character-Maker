@@ -1140,6 +1140,12 @@ async function runBootSequence() {
       "inventario_stash",
       "itemInventorySchemaVersion",
     ]);
+    const NOTIFICATION_PLAYER_KEYS = new Set([
+      "finance",
+      "chats",
+      "correos",
+      "settings",
+    ]);
     const CACHE_IGNORED_PLAYER_KEYS = new Set([
       "online",
       "ultima_conexion",
@@ -1184,6 +1190,18 @@ async function runBootSequence() {
       const runtimeRelevant = initial || changedKeys.some((key) => !RUNTIME_IGNORED_PLAYER_KEYS.has(key));
       if (runtimeRelevant) {
         window.dispatchEvent(new CustomEvent("luminous:player-data", {
+          detail: {
+            playerId,
+            data: window.datosJugador,
+            changedKeys: [...changedKeys],
+            initial,
+          },
+        }));
+      }
+
+      const notificationRelevant = initial || changedKeys.some((key) => NOTIFICATION_PLAYER_KEYS.has(key));
+      if (notificationRelevant) {
+        window.dispatchEvent(new CustomEvent("luminous:player-notification-data", {
           detail: {
             playerId,
             data: window.datosJugador,
@@ -1875,6 +1893,18 @@ function initializeCharacterSheet() {
     if (toggleBtn && phoneWrapper) {
       toggleBtn.addEventListener("click", () => {
         phoneWrapper.classList.toggle("phone-hidden");
+        const terminalHidden = phoneWrapper.classList.contains("phone-hidden");
+        if (terminalHidden) {
+          window.LuminousPlayerContractsRuntime?.dispose?.();
+        } else {
+          const activeTab =
+            document.querySelector('input[name="attr_tab"]')?.value ||
+            document.querySelector(".sheet-state-tab")?.value ||
+            "";
+          if (activeTab === "contratos") {
+            window.LuminousPlayerContractsRuntime?.init?.({ db, playerId });
+          }
+        }
         window.LuminousInstanceControl?.syncPlayerCombatOcclusion?.(document);
       });
     }
@@ -2574,7 +2604,7 @@ function initializeCharacterSheet() {
       window.updateNotifications();
   };
 
-  window.addEventListener("luminous:player-data", (event) => {
+  window.addEventListener("luminous:player-notification-data", (event) => {
       syncPlayerNotificationState(event?.detail?.data || window.datosJugador || {});
   });
   if (window.datosJugador) syncPlayerNotificationState(window.datosJugador);
@@ -4056,6 +4086,7 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
   // ==========================================
   let forjaInitialized = false;
   let forjaResolutionInitialized = false;
+  let refreshForjaMesaCrafteo = null;
   const getForjaPlayerData = () => window.datosJugador || {};
 
   function initForja() {
@@ -4073,8 +4104,8 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
       let mesaCrafteoGlobal = false;
       let targetSlot = null;
 
-      // Escuchar la mesa de crafteo global
-      db.ref("campaña/estado_mundo/mesa_crafteo_activa").once("value").then((snap) => {
+      // Refrescar bajo demanda: no dejamos un listener Firebase vivo cuando Synthesis está cerrado.
+      refreshForjaMesaCrafteo = () => db.ref("campaña/estado_mundo/mesa_crafteo_activa").once("value").then((snap) => {
           mesaCrafteoGlobal = !!snap.val();
           updateForjaSlotsVisuals();
       }).catch(() => {
@@ -4243,6 +4274,7 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
       if (event?.detail?.tab !== "inv-sintesis") return;
       initForja();
       initForjaResolution();
+      refreshForjaMesaCrafteo?.();
   });
 
 
