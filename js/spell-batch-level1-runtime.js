@@ -206,6 +206,64 @@
     return { resolved: true, ward };
   }
 
+  function maxHpOf(unit = {}) {
+    return Math.max(0, numberOr(unit.maxHp ?? unit.maxHP ?? unit.hpMax ?? unit.max_hp, 0));
+  }
+
+  function currentHpOf(unit = {}) {
+    return Math.max(0, numberOr(unit.hp ?? unit.currentHp ?? unit.currentHP ?? unit.current_hp, 0));
+  }
+
+  function setCurrentHp(unit, value) {
+    const next = Math.max(0, numberOr(value, 0));
+    if ("hp" in unit || (!("currentHp" in unit) && !("currentHP" in unit) && !("current_hp" in unit))) unit.hp = next;
+    else if ("currentHp" in unit) unit.currentHp = next;
+    else if ("currentHP" in unit) unit.currentHP = next;
+    else unit.current_hp = next;
+    return next;
+  }
+
+  function calculateCureWoundsHealing(slotLevel = 1, spellMod = 0, maxHp = 0) {
+    const slot = Math.max(1, Math.trunc(numberOr(slotLevel, 1)));
+    const mod = numberOr(spellMod, 0);
+    const hp = Math.max(0, numberOr(maxHp, 0));
+    const flat = 2 * slot;
+    const maxHpPercent = Math.max(2, 2 * mod);
+    const percentHealing = hp * (maxHpPercent / 100);
+    return { slotLevel: slot, spellMod: mod, flat, maxHpPercent, percentHealing, total: flat + percentHealing };
+  }
+
+  function applyCureWounds(target, slotLevel = 1, spellMod = 0) {
+    if (!target || typeof target !== "object") return { resolved: false, reason: "target_required" };
+    const maxHp = maxHpOf(target);
+    if (maxHp <= 0) return { resolved: false, reason: "max_hp_required" };
+    const hpBefore = Math.min(maxHp, currentHpOf(target));
+    const healing = calculateCureWoundsHealing(slotLevel, spellMod, maxHp);
+    const hpAfter = Math.min(maxHp, hpBefore + healing.total);
+    setCurrentHp(target, hpAfter);
+    return {
+      resolved: true,
+      targetId: unitId(target),
+      hpBefore,
+      hpAfter,
+      healed: Math.max(0, hpAfter - hpBefore),
+      ...healing
+    };
+  }
+
+  function resolveCureWoundsSpellMod(actor, action = {}, effect = {}) {
+    const explicit = effect.spellMod
+      ?? action?.metadata?.spellMod
+      ?? action?.metadata?.viewerPlan?.spellMod
+      ?? actor?.SpellMod
+      ?? actor?.spellMod;
+    if (Number.isFinite(Number(explicit))) return Number(explicit);
+    const classId = action?.metadata?.sourceClassId || effect.classId || "";
+    const runtime = global.LuminousSpellcastingRuntime;
+    const resolved = runtime?.resolveSpellcasting?.(actor || {}, classId, action?.metadata?.viewerPlan || {}, action?.metadata?.variables || {});
+    return numberOr(resolved?.spellMod, 0);
+  }
+
   function cleanupConcentrationStatuses(units = []) {
     for (const unit of units || []) {
       for (const statusId of ["bane", "bless"]) {
@@ -302,6 +360,12 @@
         const sourceUnitId = unitId(actor);
         const applied = (targets || []).filter(Boolean).map((target) => ({ targetId: unitId(target), status: applyBless(target, sourceUnitId) }));
         return { resolved: applied.length > 0, applied };
+      },
+      level1_cure_wounds({ actor, targets = [], action = {}, effect = {} } = {}) {
+        const target = (targets || []).filter(Boolean)[0] || actor;
+        const slotLevel = action?.metadata?.slotLevel ?? effect.slotLevel ?? 1;
+        const spellMod = resolveCureWoundsSpellMod(actor, action, effect);
+        return applyCureWounds(target, slotLevel, spellMod);
       }
     };
   }
@@ -328,6 +392,9 @@
     armorOfAgathysState,
     retaliateArmorOfAgathys,
     createAlarmWard,
+    calculateCureWoundsHealing,
+    applyCureWounds,
+    resolveCureWoundsSpellMod,
     cleanupConcentrationStatuses,
     effectHandlers,
     patchActionEconomy,
