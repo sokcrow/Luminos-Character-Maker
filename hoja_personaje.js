@@ -4290,9 +4290,23 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
       const probValueEl = document.querySelector(".prob-value");
       const contentRegistry = window.LuminousItemContentRegistry;
       const recipeSelect = document.getElementById("forja-recipe-select");
+      const stationSelect = document.getElementById("forja-station-select");
       const toolRequirementEl = document.getElementById("forja-tool-requirement");
 
-      if (!btnIniciar || !btnForecast || !probValueEl || !recipeSelect) return;
+      if (!btnIniciar || !btnForecast || !probValueEl || !recipeSelect || !stationSelect) return;
+
+      function populateCanonicalStations() {
+          const stations = window.LuminousCookingEquipmentEngine?.STATIONS || {};
+          stationSelect.innerHTML = '<option value="">Sin estación</option>';
+          Object.values(stations).forEach(station => {
+              if (!station?.id) return;
+              const option = document.createElement("option");
+              option.value = station.id;
+              option.textContent = station.label || station.id;
+              stationSelect.appendChild(option);
+          });
+      }
+      populateCanonicalStations();
 
       function selectedSynthesisItems() {
           const rows = [];
@@ -4361,9 +4375,26 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
 
       function updateToolRequirement(match) {
           if (!toolRequirementEl) return;
-          const required = contentRegistry?.requiredToolType?.(match?.recipe) || "";
-          toolRequirementEl.textContent = required ? `Tool: ${required}` : "Sin Tool obligatoria";
-          toolRequirementEl.style.color = required ? "#0df" : "#888";
+          if (!match) {
+              toolRequirementEl.textContent = "";
+              toolRequirementEl.style.color = "#aaa";
+              return;
+          }
+
+          const parts = [];
+          const required = contentRegistry?.requiredToolType?.(match.recipe) || "";
+          if (required) parts.push(`Tool: ${required}`);
+
+          const equipment = match.resolution?.equipment;
+          if (equipment?.profile?.requiredToolIds?.length) {
+              parts.push(`Tool: ${equipment.profile.requiredToolIds.join(" / ")}`);
+          }
+          if (equipment?.profile?.requiredStationIds?.length) {
+              parts.push(`Station: ${equipment.profile.requiredStationIds.join(" / ")}`);
+          }
+
+          toolRequirementEl.textContent = parts.length ? Array.from(new Set(parts)).join(" · ") : "Sin equipo obligatorio";
+          toolRequirementEl.style.color = parts.length ? "#0df" : "#888";
       }
 
       function resolveCanonicalSynthesis(options = {}) {
@@ -4372,32 +4403,55 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
           if (!items.length) return null;
 
           const toolItems = availableToolItems();
+          const unit = getForjaPlayerData();
+          const stationId = stationSelect.value || "";
           const allMatches = contentRegistry.findMatchingRecipes(window, items, {
               toolItems,
-              enforceTools: false
+              unit,
+              stationId,
+              enforceTools: false,
+              enforceEquipment: false
           });
           const usableMatches = contentRegistry.findMatchingRecipes(window, items, {
               toolItems,
-              enforceTools: true
+              unit,
+              stationId,
+              enforceTools: true,
+              enforceEquipment: true
           });
 
           populateRecipeChoices(usableMatches);
 
           if (!usableMatches.length) {
-              const missingTools = Array.from(new Set(
-                  allMatches
-                      .map(entry => contentRegistry.requiredToolType?.(entry.recipe))
-                      .filter(required => required && !contentRegistry.hasRequiredTool?.(entryForRecipe(allMatches, required)?.recipe || {}, toolItems, window))
-              ));
+              const missingTools = new Set();
+              const missingStations = new Set();
+
+              allMatches.forEach(entry => {
+                  const strict = contentRegistry.resolveRecipe(entry.recipe, items, window, {
+                      toolItems,
+                      unit,
+                      stationId,
+                      enforceTools: true,
+                      enforceEquipment: true
+                  });
+                  const required = contentRegistry.requiredToolType?.(entry.recipe);
+                  if (strict?.reason === "missing_required_tool" && required) missingTools.add(required);
+                  (strict?.missingToolIds || strict?.equipment?.missingToolIds || []).forEach(id => missingTools.add(id));
+                  (strict?.missingStationIds || strict?.equipment?.missingStationIds || []).forEach(id => missingStations.add(id));
+              });
+
+              const missingParts = [];
+              if (missingTools.size) missingParts.push(`Tool: ${[...missingTools].join(" / ")}`);
+              if (missingStations.size) missingParts.push(`Station: ${[...missingStations].join(" / ")}`);
               if (toolRequirementEl) {
-                  toolRequirementEl.textContent = missingTools.length
-                      ? `Falta Tool: ${missingTools.join(", ")}`
+                  toolRequirementEl.textContent = missingParts.length
+                      ? `Falta ${missingParts.join(" · ")}`
                       : "Sin Recipe válida";
                   toolRequirementEl.style.color = "#ff6b6b";
               }
               if (options.notify !== false) {
-                  alert(missingTools.length
-                      ? `Tienes los ingredientes, pero falta la herramienta requerida: ${missingTools.join(", ")}.`
+                  alert(missingParts.length
+                      ? `Tienes los ingredientes, pero falta equipo canónico: ${missingParts.join(" · ")}.`
                       : "La combinación de materiales es inestable. No se encontró ninguna Recipe canónica.");
               }
               return null;
@@ -4425,21 +4479,23 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
           return chosen;
       }
 
-      function entryForRecipe(matches, requiredTool) {
-          return (matches || []).find(entry =>
-              contentRegistry?.requiredToolType?.(entry.recipe) === requiredTool
-          ) || null;
-      }
-
       recipeSelect.addEventListener("change", () => {
           const items = selectedSynthesisItems();
           if (!items.length) return;
           const toolItems = availableToolItems();
           const matches = contentRegistry?.findMatchingRecipes?.(window, items, {
               toolItems,
-              enforceTools: true
+              unit: getForjaPlayerData(),
+              stationId: stationSelect.value || "",
+              enforceTools: true,
+              enforceEquipment: true
           }) || [];
           updateToolRequirement(matches.find(entry => entry.recipeKey === recipeSelect.value) || null);
+      });
+
+      stationSelect.addEventListener("change", () => {
+          if (!selectedSynthesisItems().length) return;
+          resolveCanonicalSynthesis({ notify: false });
       });
 
       function synthesisDifficulty(recipe, includeLabels = false) {
@@ -4625,6 +4681,7 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
       function limpiarSlotsForja() {
           window.forjaSlots = {1:null, 2:null, 3:null, 4:null, 5:null};
           recipeSelect.innerHTML = '<option value="">Coloca ingredientes para detectar Recipes...</option>';
+          stationSelect.value = "";
           if (toolRequirementEl) {
               toolRequirementEl.textContent = "";
               toolRequirementEl.style.color = "#aaa";
