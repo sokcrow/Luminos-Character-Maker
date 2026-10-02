@@ -190,7 +190,7 @@ const slotHand = planner.slotHandOptions(actor, 'player:player_a_slot_0', slotSm
 assert.deepEqual(slotHand.map((row) => row.__deckCard.skillId), ['slash'], 'slot enchantment must only expose valid attack Skills from that Slot Hand');
 const slotSmiteBuilt = planner.buildSpellPlan({
   authUid:'uid-a', ownerPlayerId:'player_a', slotIndex:0, slotId:'player:player_a_slot_0',
-  spellId:'slot_smite', classId:'sorcerer', slotLevel:2, targetId:'enemy_1',
+  spellId:'slot_smite', classId:'sorcerer', slotLevel:2, overcast:true, targetId:'enemy_1',
   enchantmentSkillId:'slash', enchantmentDrawId:'draw_melee'
 });
 assert.equal(slotSmiteBuilt.ok, true, slotSmiteBuilt.reason);
@@ -199,7 +199,7 @@ assert.equal(slotSmiteBuilt.payload.enchantmentDrawId, 'draw_melee');
 assert.equal(slotSmiteBuilt.enchantmentCard.deckCard.slotId, 'player:player_a_slot_0');
 const invalidRangedEnchant = planner.buildSpellPlan({
   authUid:'uid-a', ownerPlayerId:'player_a', slotIndex:0, slotId:'player:player_a_slot_0',
-  spellId:'slot_smite', classId:'sorcerer', slotLevel:1, targetId:'enemy_1',
+  spellId:'slot_smite', classId:'sorcerer', slotLevel:1, overcast:true, targetId:'enemy_1',
   enchantmentSkillId:'shot', enchantmentDrawId:'draw_ranged'
 });
 assert.equal(invalidRangedEnchant.reason, 'SLOT_ENCHANTMENT_SKILL_NOT_IN_HAND');
