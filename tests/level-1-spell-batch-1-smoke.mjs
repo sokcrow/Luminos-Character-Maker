@@ -7,6 +7,7 @@ await import("../js/content-registry.js");
 await import("../js/content-registry-bootstrap.js");
 await import("../js/spell-catalog-core.js");
 await import("../js/spell-batch-level1-runtime.js");
+await import("../js/core-condition-runtime.js");
 await import("../js/environment-engine.js");
 await import("../js/combat-spell-loadout-074.js");
 await import("../js/combat-action-schema.js");
@@ -17,8 +18,9 @@ const batch = globalThis.LuminousLevel1SpellBatchRuntime;
 const loadout = globalThis.LuminousCombatSpellLoadout074;
 const adapters = globalThis.LuminousCombatActionAdapters;
 const environment = globalThis.LuminousEnvironmentEngine;
+const conditions = globalThis.LuminousConditionRuntime;
 
-assert.ok(catalog && batch && loadout && adapters && environment, "Level 1 spell runtime dependencies should load");
+assert.ok(catalog && batch && loadout && adapters && environment && conditions, "Level 1 spell runtime dependencies should load");
 
 const schools = new Set(["abjuration", "conjuration", "divination", "enchantment", "evocation", "illusion", "necromancy", "transmutation"]);
 for (const spell of Object.values(catalog).filter((entry) => Number(entry?.level ?? entry?.spellLevel ?? -1) <= 1)) {
@@ -27,7 +29,11 @@ for (const spell of Object.values(catalog).filter((entry) => Number(entry?.level
   assert.ok(Array.isArray(spell.contexts) && spell.contexts.length > 0, `${spell.id} must declare contexts`);
 }
 
-const batchIds = ["alarm", "armor_of_agathys", "arms_of_hadar", "bane", "bless", "burning_hands"];
+const batchIds = [
+  "alarm", "armor_of_agathys", "arms_of_hadar", "bane", "bless", "burning_hands",
+  "detect_evil_and_good", "detect_magic", "detect_poison_and_disease", "disguise_self",
+  "divine_favor", "divine_smite", "ensnaring_strike", "entangle"
+];
 for (const id of batchIds) {
   const spell = catalog[id];
   assert.ok(spell, `missing Level 1 spell ${id}`);
@@ -119,6 +125,91 @@ assert.equal(cureAction.resolution.type, "automatic");
 assert.equal(cureAction.resources[0].type, "spell_slot");
 assert.equal(cureAction.resources[0].metadata.slotLevel, 3);
 assert.equal(cureAction.effects[0].type, "level1_cure_wounds");
+
+// Reviewed detection / utility / Paladin-Ranger control batch.
+assert.deepEqual(catalog.detect_evil_and_good.classIds, ["cleric", "paladin"]);
+assert.deepEqual(catalog.detect_evil_and_good.contexts, ["combat", "theater"]);
+assert.equal(catalog.detect_evil_and_good.concentration, true);
+assert.equal(catalog.detect_evil_and_good.description.toLowerCase().includes("dm"), false);
+
+assert.equal(catalog.detect_magic.ritual, true);
+assert.equal(catalog.detect_magic.mechanics.detectionRequest.type, "magic_sources");
+assert.deepEqual(catalog.detect_magic.mechanics.detectionRequest.sources, ["nearby_magical_effect", "objects", "creatures", "phenomena"]);
+assert.equal(catalog.detect_magic.description.toLowerCase().includes("dm"), false);
+
+assert.equal(catalog.detect_poison_and_disease.ritual, true);
+assert.equal(catalog.detect_poison_and_disease.mechanics.detectionRequest.includeLocation, true);
+assert.equal(catalog.detect_poison_and_disease.description.toLowerCase().includes("dm"), false);
+
+const detectionCaster = { id: "detect_caster", name: "Caster" };
+const evilRequest = batch.buildDetectionRequest(detectionCaster, "detect_evil_and_good", { id: "detect_test", casterUid: "uid_test" });
+assert.equal(evilRequest.resolved, true);
+assert.deepEqual(evilRequest.request.schema.choices, ["aberration", "celestial", "elemental", "fey", "fiend", "undead", "hallow"]);
+assert.equal(batch.detectionPlayerMessage(evilRequest.request, { selected: ["fiend", "undead"] }), "Detected: fiend, undead.");
+
+const magicRequest = batch.buildDetectionRequest(detectionCaster, "detect_magic", { id: "magic_test" });
+assert.equal(magicRequest.request.schema.type, "magic_sources");
+assert.equal(
+  batch.detectionPlayerMessage(magicRequest.request, { sources: [{ source: "objects", detected: true, school: "evocation" }] }),
+  "objects: evocation"
+);
+
+const poisonRequest = batch.buildDetectionRequest(detectionCaster, "detect_poison_and_disease", { id: "poison_test" });
+assert.equal(poisonRequest.request.schema.type, "presence_details");
+assert.ok(batch.detectionPlayerMessage(poisonRequest.request, {
+  presences: [{ presence: "poison", detected: true, type: "ingested", location: "cup" }]
+}).includes("cup"));
+
+const disguiseUnit = { id: "disguise_unit", statusEffects: {} };
+const disguise = batch.applyDisguiseSelf(disguiseUnit, { now: 1000 });
+assert.equal(disguise.deceptionFinalPowerBonus, 4);
+const disguiseCheck = conditions.applyCheckThreshold(disguiseUnit, { kind: "skill", abilityId: "cha", skillId: "deception", threshold: 12 });
+assert.equal(disguiseCheck.finalPowerModifier, 4);
+
+assert.equal(catalog.divine_favor.castingTime, "quick_action");
+assert.equal(catalog.divine_favor.mechanics.onWeaponHit.oncePerSkill, true);
+assert.equal(batch.divineFavorFixedDamage({ statusEffects: {} }), 1);
+assert.equal(batch.divineFavorFixedDamage({ statusEffects: { radiance: { id: "radiance", count: 1 } } }), 2);
+
+assert.equal(catalog.divine_smite.castingTime, "quick_action");
+assert.deepEqual(batch.divineSmiteFixedDamage(1, { creatureType: "humanoid" }), {
+  slotLevel: 1, base: 8, multiplier: 1, total: 8, creatureType: "humanoid"
+});
+assert.equal(batch.divineSmiteFixedDamage(1, { creatureType: "fiend" }).total, 12);
+assert.equal(batch.divineSmiteFixedDamage(3, { creatureType: "undead" }).total, 24);
+
+const restrainedTarget = { id: "restrained_target", statusEffects: {} };
+batch.applySpellRestrained(restrainedTarget, {
+  sourceSpellId: "ensnaring_strike", sourceUnitId: "ranger", spellDC: 17, slotLevel: 3
+});
+assert.equal(restrainedTarget.statusEffects.restrained.data.turnStartFixedDamage, 6);
+const ensnaringLiberate = conditions.buildLiberateRequest(restrainedTarget, restrainedTarget, "sleight_of_hand", { inCombat: true });
+assert.equal(ensnaringLiberate.check.kind, "ability");
+assert.equal(ensnaringLiberate.check.abilityId, "str");
+assert.equal(ensnaringLiberate.threshold, 17);
+assert.equal(ensnaringLiberate.economy, "action");
+
+assert.equal(catalog.entangle.attackWeight, 4);
+assert.equal(catalog.entangle.save.abilityId, "str");
+const entangleCaster = { id: "druid", statusEffects: {} };
+const entangleArea = batch.createEntangleArea(entangleCaster, [{ id: "enemy_a" }, { id: "enemy_b" }]);
+assert.equal(entangleArea.area.difficultTerrain, true);
+assert.equal(entangleArea.area.attackWeight, 4);
+assert.deepEqual(entangleArea.area.targetIds, ["enemy_a", "enemy_b"]);
+
+assert.equal(catalog.chromatic_orb.mechanics.onCritJump.maxJumpsFromSlotLevel, true);
+assert.equal(batch.chromaticJumpLimit({ slotLevel: 4 }), 4);
+const jumpTarget = batch.nextChromaticOrbTarget(
+  { id: "caster", faction: "ally" },
+  { id: "enemy_a", faction: "enemy", hp: 10 },
+  { __luminousChromaticVisitedIds: ["enemy_a"] },
+  { units: [
+    { id: "caster", faction: "ally", hp: 10 },
+    { id: "enemy_a", faction: "enemy", hp: 10 },
+    { id: "enemy_b", faction: "enemy", hp: 10 }
+  ] }
+);
+assert.equal(jumpTarget.id, "enemy_b");
 
 // Current-rule cleanup for the 9 definitions that existed before this batch.
 assert.deepEqual(catalog.animal_friendship.classIds, ["bard", "druid", "ranger"]);
