@@ -4290,23 +4290,10 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
       const probValueEl = document.querySelector(".prob-value");
       const contentRegistry = window.LuminousItemContentRegistry;
       const recipeSelect = document.getElementById("forja-recipe-select");
-      const stationSelect = document.getElementById("forja-station-select");
+      const stationContextEl = document.getElementById("forja-station-context");
       const toolRequirementEl = document.getElementById("forja-tool-requirement");
 
-      if (!btnIniciar || !btnForecast || !probValueEl || !recipeSelect || !stationSelect) return;
-
-      function populateCanonicalStations() {
-          const stations = window.LuminousCookingEquipmentEngine?.STATIONS || {};
-          stationSelect.innerHTML = '<option value="">Sin estación</option>';
-          Object.values(stations).forEach(station => {
-              if (!station?.id) return;
-              const option = document.createElement("option");
-              option.value = station.id;
-              option.textContent = station.label || station.id;
-              stationSelect.appendChild(option);
-          });
-      }
-      populateCanonicalStations();
+      if (!btnIniciar || !btnForecast || !probValueEl || !recipeSelect) return;
 
       function selectedSynthesisItems() {
           const rows = [];
@@ -4331,6 +4318,25 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
               ...Object.values(player.inventario_stash || {})
           ].filter(Boolean);
       }
+
+      function authoritativeCookingStationIds(unit = getForjaPlayerData()) {
+          const values = [
+              unit.currentCookingStationId,
+              unit.cookingStationId,
+              ...(Array.isArray(unit.availableCookingStationIds) ? unit.availableCookingStationIds : []),
+              ...(Array.isArray(unit.available_cooking_station_ids) ? unit.available_cooking_station_ids : [])
+          ];
+          return Array.from(new Set(values.map(value => String(value || "").trim()).filter(Boolean)));
+      }
+
+      function renderStationContext(stationIds = authoritativeCookingStationIds()) {
+          if (!stationContextEl) return;
+          stationContextEl.textContent = stationIds.length
+              ? `Station autorizada: ${stationIds.join(" / ")}`
+              : "Station autorizada: ninguna";
+          stationContextEl.style.color = stationIds.length ? "#0df" : "#888";
+      }
+      renderStationContext();
 
       function recipeDisplayName(entry) {
           const recipe = entry?.recipe || {};
@@ -4404,18 +4410,19 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
 
           const toolItems = availableToolItems();
           const unit = getForjaPlayerData();
-          const stationId = stationSelect.value || "";
+          const availableStationIds = authoritativeCookingStationIds(unit);
+          renderStationContext(availableStationIds);
           const allMatches = contentRegistry.findMatchingRecipes(window, items, {
               toolItems,
               unit,
-              stationId,
+              availableStationIds,
               enforceTools: false,
               enforceEquipment: false
           });
           const usableMatches = contentRegistry.findMatchingRecipes(window, items, {
               toolItems,
               unit,
-              stationId,
+              availableStationIds,
               enforceTools: true,
               enforceEquipment: true
           });
@@ -4430,7 +4437,7 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
                   const strict = contentRegistry.resolveRecipe(entry.recipe, items, window, {
                       toolItems,
                       unit,
-                      stationId,
+                      availableStationIds,
                       enforceTools: true,
                       enforceEquipment: true
                   });
@@ -4483,24 +4490,21 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
           const items = selectedSynthesisItems();
           if (!items.length) return;
           const toolItems = availableToolItems();
+          const unit = getForjaPlayerData();
           const matches = contentRegistry?.findMatchingRecipes?.(window, items, {
               toolItems,
-              unit: getForjaPlayerData(),
-              stationId: stationSelect.value || "",
+              unit,
+              availableStationIds: authoritativeCookingStationIds(unit),
               enforceTools: true,
               enforceEquipment: true
           }) || [];
           updateToolRequirement(matches.find(entry => entry.recipeKey === recipeSelect.value) || null);
       });
 
-      stationSelect.addEventListener("change", () => {
-          if (!selectedSynthesisItems().length) return;
-          resolveCanonicalSynthesis({ notify: false });
-      });
-
-      function synthesisDifficulty(recipe, includeLabels = false) {
+      function synthesisDifficulty(match, includeLabels = false) {
+          const recipe = match?.recipe || {};
           let dcActual = contentRegistry?.recipeDifficulty
-              ? contentRegistry.recipeDifficulty(recipe)
+              ? contentRegistry.recipeDifficulty(recipe, match?.resolution)
               : Math.max(0, Number(recipe?.baseThreshold ?? recipe?.dificultad_base ?? 18) || 18);
           const modTexto = [];
           const activeInventory = getForjaPlayerData().inventario_activo || {};
@@ -4546,7 +4550,7 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
               return;
           }
 
-          const difficulty = synthesisDifficulty(match.recipe);
+          const difficulty = synthesisDifficulty(match);
           let prob = 100 - (difficulty.dc * 5);
           prob = Math.max(0, Math.min(100, prob));
           probValueEl.innerText = `${prob}% [DC:${difficulty.dc}] · ${match.recipe.name || match.recipe.label || match.recipe.id}`;
@@ -4562,7 +4566,7 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
           const match = resolveCanonicalSynthesis();
           if (!match) return;
 
-          const difficulty = synthesisDifficulty(match.recipe, true);
+          const difficulty = synthesisDifficulty(match, true);
           document.getElementById("forja-roll-dc").innerText =
               difficulty.dc + (difficulty.labels.length > 0 ? ` [${difficulty.labels.join(", ")}]` : "");
           document.getElementById("forja-roll-input").value = "";
@@ -4644,7 +4648,10 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
                       return;
                   }
 
-                  const canonicalOutput = contentRegistry.createRecipeOutput(attempt.receta);
+                  const canonicalOutput = contentRegistry.createRecipeOutput(attempt.receta, {
+                      resolution: attempt.resolution,
+                      checkResult: tirada
+                  });
                   const outputQuantity = Math.max(1, Number(canonicalOutput.quantity || 1));
                   let runtimeInstance = null;
                   try {
@@ -4681,7 +4688,7 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
       function limpiarSlotsForja() {
           window.forjaSlots = {1:null, 2:null, 3:null, 4:null, 5:null};
           recipeSelect.innerHTML = '<option value="">Coloca ingredientes para detectar Recipes...</option>';
-          stationSelect.value = "";
+          renderStationContext();
           if (toolRequirementEl) {
               toolRequirementEl.textContent = "";
               toolRequirementEl.style.color = "#aaa";
