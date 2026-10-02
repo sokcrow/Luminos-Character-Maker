@@ -2139,6 +2139,12 @@ window.processEntitiesData = function(entities) {
               <div id="dm-content-registry-counts" class="economy-v2-meta" style="margin-top:auto; padding:10px; border:1px solid #3a3120; background:#0b0a07;">
                 Cargando registro unificado...
               </div>
+              <div style="margin-top:10px; padding:10px; border:1px solid #28434a; background:#081013;">
+                <div style="color:#0df; font-size:12px; font-weight:bold; margin-bottom:6px;">COOKING STATIONS AUTORIZADAS</div>
+                <div id="dm-cooking-station-controls" style="display:flex; gap:6px; flex-wrap:wrap; font-size:11px; color:#bbb;">
+                  Cargando estaciones...
+                </div>
+              </div>
             </div>
 
             <!-- Panel: Consumo / Distribución de Ítems (Utilizar) -->
@@ -3825,6 +3831,7 @@ window.processEntitiesData = function(entities) {
     <!-- Canonical recipe definitions exposed through the unified content registry. -->
     <script src="js/item-chemistry-recipe-catalog.js"></script>
     <script src="js/item-cooking-recipe-catalog.js"></script>
+    <script src="js/item-cooking-equipment-engine.js"></script>
     <script src="js/item-medicine-recipe-catalog.js"></script>
     <script src="js/item-processing-recipe-data.js"></script>
     <script src="js/item-throwable-recipe-catalog.js"></script>
@@ -6345,6 +6352,48 @@ window.processEntitiesData = function(entities) {
 
         let dmFirebaseItemsOverlay = {};
         let dmFirebaseAugmentationsOverlay = {};
+        let dmCookingStationsState = {};
+
+        function renderDmCookingStationControls(activeStations = {}) {
+            const container = document.getElementById("dm-cooking-station-controls");
+            if (!container) return;
+            const stations = Object.values(window.LuminousCookingEquipmentEngine?.STATIONS || {});
+            if (!stations.length) {
+              container.textContent = "No hay estaciones canónicas registradas.";
+              return;
+            }
+            container.innerHTML = "";
+            stations.forEach((station) => {
+              const label = document.createElement("label");
+              label.style.cssText = "display:flex;align-items:center;gap:5px;padding:5px 7px;border:1px solid #29434a;background:#0b1518;cursor:pointer;";
+              const input = document.createElement("input");
+              input.type = "checkbox";
+              input.dataset.cookingStationId = station.id;
+              input.checked = activeStations?.[station.id] === true;
+              input.addEventListener("change", () => {
+                const stationId = input.dataset.cookingStationId;
+                db.ref("campaña/estado_mundo/cooking_stations").child(stationId)
+                  .set(input.checked ? true : null)
+                  .catch((error) => console.error("No se pudo actualizar Cooking Station:", stationId, error));
+              });
+              const text = document.createElement("span");
+              text.textContent = station.label || station.id;
+              label.append(input, text);
+              container.appendChild(label);
+            });
+        }
+
+        db.ref("campaña/estado_mundo/cooking_stations").on(
+          "value",
+          (snapshot) => {
+            dmCookingStationsState = snapshot.val() || {};
+            renderDmCookingStationControls(dmCookingStationsState);
+          },
+          (error) => {
+            console.error("No se pudieron cargar Cooking Stations autorizadas:", error);
+            renderDmCookingStationControls({});
+          },
+        );
 
         function applyDmContentRegistry(statusSuffix = "registro canónico local") {
             const registry = window.LuminousItemContentRegistry;
