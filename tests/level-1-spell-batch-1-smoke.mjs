@@ -7,6 +7,7 @@ await import("../js/content-registry.js");
 await import("../js/content-registry-bootstrap.js");
 await import("../js/spell-catalog-core.js");
 await import("../js/spell-batch-level1-runtime.js");
+await import("../js/environment-engine.js");
 await import("../js/combat-spell-loadout-074.js");
 await import("../js/combat-action-schema.js");
 await import("../js/combat-action-adapters.js");
@@ -15,8 +16,9 @@ const catalog = globalThis.LuminousSpellCatalog;
 const batch = globalThis.LuminousLevel1SpellBatchRuntime;
 const loadout = globalThis.LuminousCombatSpellLoadout074;
 const adapters = globalThis.LuminousCombatActionAdapters;
+const environment = globalThis.LuminousEnvironmentEngine;
 
-assert.ok(catalog && batch && loadout && adapters, "Level 1 spell runtime dependencies should load");
+assert.ok(catalog && batch && loadout && adapters && environment, "Level 1 spell runtime dependencies should load");
 
 const schools = new Set(["abjuration", "conjuration", "divination", "enchantment", "evocation", "illusion", "necromancy", "transmutation"]);
 for (const spell of Object.values(catalog).filter((entry) => Number(entry?.level ?? entry?.spellLevel ?? -1) <= 1)) {
@@ -49,6 +51,38 @@ assert.deepEqual(catalog.bless.classIds, ["cleric", "paladin"]);
 assert.equal(catalog.bless.concentration, true);
 assert.equal(catalog.burning_hands.school, "evocation");
 assert.equal(catalog.burning_hands.save.abilityId, "dex");
+
+// Create or Destroy Water closes the reviewed weather/environment contract.
+assert.ok(catalog.create_or_destroy_water);
+assert.deepEqual(catalog.create_or_destroy_water.classIds, ["cleric", "druid"]);
+assert.equal(catalog.create_or_destroy_water.school, "transmutation");
+assert.deepEqual(catalog.create_or_destroy_water.contexts, ["combat", "theater"]);
+assert.equal(catalog.create_or_destroy_water.resolutionType, "automatic");
+assert.equal(catalog.create_or_destroy_water.mechanics.combat.rain.encounterModifierId, "rain");
+assert.deepEqual(
+  catalog.create_or_destroy_water.mechanics.combat.destroyFog.suppressEncounterModifiers,
+  { light_fog: 5, heavy_fog: 2 }
+);
+
+assert.equal(environment.EFFECTS.rain.encounterModifierId, "rain");
+assert.equal(environment.EFFECTS.rain.mechanics.electricDamageTakenMultiplier, 1.10);
+assert.equal(environment.EFFECTS.storm.encounterModifierId, "thunderstorm");
+assert.equal(environment.EFFECTS.storm.mechanics.lightningStrikeChance, 0.15);
+assert.equal(environment.EFFECTS.storm.mechanics.lightningFixedDamage, 30);
+assert.equal(environment.EFFECTS.storm.mechanics.lightningShockPotency, 5);
+assert.equal(environment.EFFECTS.storm.mechanics.lightningShockCount, 5);
+assert.equal(environment.EFFECTS.storm.mechanics.conductiveMetalAdditionalFixedDamage, 10);
+assert.equal(environment.EFFECTS.storm.mechanics.conductiveMetalAdditionalShock, 3);
+assert.equal(environment.EFFECTS.storm.mechanics.spearAdditionalStrikeChance, 0.10);
+assert.equal(environment.EFFECTS.fog.encounterModifierId, "light_fog");
+assert.equal(environment.EFFECTS.fog.mechanics.clashPowerModifier, -1);
+assert.equal(environment.EFFECTS.dense_fog.encounterModifierId, "heavy_fog");
+assert.equal(environment.EFFECTS.dense_fog.mechanics.clashPowerModifier, -3);
+
+const thunderstormEnv = environment.resolveEnvironment({ weatherId: "tormenta" });
+const stormEffect = thunderstormEnv.effects.find((entry) => entry.id === "storm");
+assert.equal(stormEffect.encounterModifierId, "thunderstorm");
+assert.equal(stormEffect.mechanics.lightningFixedDamage, 30);
 
 // Current-rule cleanup for the 9 definitions that existed before this batch.
 assert.deepEqual(catalog.animal_friendship.classIds, ["bard", "druid", "ranger"]);
