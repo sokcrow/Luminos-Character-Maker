@@ -11913,15 +11913,12 @@
                       </div>
                   </div>
 
-                  <div style="display:grid; grid-template-columns:auto minmax(0,1fr) auto minmax(120px,0.65fr); gap:8px; align-items:center; margin:10px 0; padding:8px; border:1px solid #3b3322; background:#0b0a07;">
+                  <div style="display:grid; grid-template-columns:auto minmax(0,1fr); gap:8px; align-items:center; margin:10px 0; padding:8px; border:1px solid #3b3322; background:#0b0a07;">
                       <label for="forja-recipe-select" style="color:#c49a00; font-size:12px; white-space:nowrap;">RECIPE:</label>
                       <select id="forja-recipe-select" style="min-width:0; background:#111; color:#fff; border:1px solid #555; padding:6px;">
                           <option value="">Coloca ingredientes para detectar Recipes...</option>
                       </select>
-                      <label for="forja-station-select" style="color:#0df; font-size:12px; white-space:nowrap;">STATION:</label>
-                      <select id="forja-station-select" style="min-width:0; background:#111; color:#fff; border:1px solid #555; padding:6px;">
-                          <option value="">Sin estación</option>
-                      </select>
+                      <span id="forja-station-context" style="grid-column:1 / -1; font-size:11px; color:#888;">Station autorizada: ninguna</span>
                       <span id="forja-tool-requirement" style="grid-column:1 / -1; font-size:11px; color:#aaa;"></span>
                   </div>
 
