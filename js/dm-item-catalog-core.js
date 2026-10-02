@@ -197,10 +197,11 @@
       }
     };
 
-    add(api && api.ITEMS);
-    add(api && api.DEFINITIONS);
+    ["ITEMS", "DEFINITIONS", "PARTS", "COMPONENTS", "UPGRADES"].forEach((field) => {
+      add(api && api[field]);
+    });
 
-    ["list", "listSimpleCookedDefinitions", "listRetailCookieDefinitions"].forEach((method) => {
+    ["list", "listParts", "listSimpleCookedDefinitions", "listRetailCookieDefinitions"].forEach((method) => {
       if (!api || typeof api[method] !== "function") return;
       try { add(api[method]({})); } catch (_) {
         try { add(api[method]()); } catch (_) {}
@@ -210,18 +211,63 @@
     return rows;
   }
 
+  function catalogNamespace(source) {
+    return normalizeId(
+      clean(source || "catalog")
+        .replace(/^Luminous/, "")
+        .replace(/Catalog$/, "")
+        .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
+    ) || "catalog";
+  }
+
   function collectCatalogMap(root, options) {
     const host = root || global;
     const iconRegistry = options && options.iconRegistry || host.LuminousItemIconRegistry;
-    const map = {};
+    const buckets = new Map();
 
-    Object.keys(host).filter((key) => CATALOG_NAME_RE.test(key)).forEach((key) => {
-      const api = host[key];
-      rowsFromCatalog(api).forEach((row) => {
-        const adapted = adaptDefinition(row, { source: key, iconRegistry: iconRegistry });
-        const id = definitionIdOf(adapted);
-        if (!id) return;
-        map[id] = map[id] ? Object.assign({}, adapted, map[id]) : adapted;
+    Object.keys(host)
+      .filter((key) => CATALOG_NAME_RE.test(key))
+      .sort()
+      .forEach((key) => {
+        const api = host[key];
+        rowsFromCatalog(api).forEach((row) => {
+          const adapted = adaptDefinition(row, { source: key, iconRegistry: iconRegistry });
+          const id = definitionIdOf(adapted);
+          if (!id) return;
+
+          const bucket = buckets.get(id) || [];
+          const duplicateIndex = bucket.findIndex((entry) =>
+            entry.__catalogSource === key && sameDefinition(entry, adapted)
+          );
+          if (duplicateIndex >= 0) {
+            bucket[duplicateIndex] = Object.assign({}, bucket[duplicateIndex], adapted);
+          } else {
+            bucket.push(adapted);
+          }
+          buckets.set(id, bucket);
+        });
+      });
+
+    const map = {};
+    buckets.forEach((rows, id) => {
+      if (rows.length === 1) {
+        map[id] = Object.assign({}, rows[0], { __catalogKey: id });
+        return;
+      }
+
+      rows.forEach((row, index) => {
+        const baseKey = catalogNamespace(row.__catalogSource) + "__" + id;
+        let catalogKey = baseKey;
+        let suffix = 2;
+        while (map[catalogKey]) {
+          catalogKey = baseKey + "__" + suffix;
+          suffix += 1;
+        }
+        map[catalogKey] = Object.assign({}, row, {
+          __catalogKey: catalogKey,
+          __canonicalCollisionId: id,
+          __canonicalCollisionIndex: index
+        });
       });
     });
 
@@ -235,15 +281,17 @@
     Object.entries(firebaseItems || {}).forEach(([key, row]) => {
       if (!row || typeof row !== "object") return;
       const id = definitionIdOf(row, key);
-      const canonical = out[id] || {};
-      out[id] = adaptDefinition(Object.assign({}, canonical, row, {
-        id: row.id || canonical.id || id,
+      const targetKey = out[key] ? key : id;
+      const canonical = out[targetKey] || {};
+      out[targetKey] = adaptDefinition(Object.assign({}, canonical, row, {
+        id: row.id || canonical.id || targetKey,
         definitionId: row.definitionId || canonical.definitionId || id
       }), {
         fallbackId: id,
         source: row.__catalogSource || "firebase",
         iconRegistry: iconRegistry
       });
+      out[targetKey].__catalogKey = targetKey;
     });
 
     return out;
@@ -367,6 +415,7 @@
     priceOf,
     resolveIcon,
     adaptDefinition,
+    catalogNamespace,
     collectCatalogMap,
     mergeFirebaseItems,
     buildCatalogMap,
