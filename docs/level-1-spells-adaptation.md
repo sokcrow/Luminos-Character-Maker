@@ -17,7 +17,7 @@ Working target: **82 published Level 1 spells**.
 
 There are **82** Level 1 spells in scope.
 
-### Canonical catalog definitions present — 16 / 82
+### Canonical catalog definitions present — 17 / 82
 
 The 9 pre-existing definitions remain review items until their metadata, mechanics, visuals/dependencies and smoke coverage meet the current spell contract. A checkbox is only completed after explicit user review/approval; implementation presence alone does not close the task.
 
@@ -37,6 +37,7 @@ The 9 pre-existing definitions remain review items until their metadata, mechani
 - [ ] Bless
 - [ ] Burning Hands
 - [x] Create or Destroy Water
+- [x] Cure Wounds
 
 #### Review decision for the 9 pre-existing definitions
 
@@ -60,14 +61,13 @@ These already exist in `js/role-spell-catalog-core.js` and are covered by the An
 - [ ] Speak with Animals
 - [ ] Distort Value
 
-### Truly absent definitions — 63 / 82
+### Truly absent definitions — 62 / 82
 
-#### 2024 PHB baseline — 48
+#### 2024 PHB baseline — 47
 
 - [ ] Color Spray
 - [ ] Command
 - [ ] Compelled Duel
-- [ ] Cure Wounds
 - [ ] Detect Evil and Good
 - [ ] Detect Magic
 - [ ] Detect Poison and Disease
@@ -134,7 +134,7 @@ These already exist in `js/role-spell-catalog-core.js` and are covered by the An
 - [ ] Spellfire Flare
 - [ ] Wardaway
 
-Current catalog state: **16 canonical Level 1 definitions**, **3 role-only definitions awaiting canonical migration**, and **63 truly absent definitions**. That leaves **66 missing/migration items** before the Level 1 catalog is complete, plus the separate review debt on the original 9 definitions.
+Current catalog state: **17 canonical Level 1 definitions**, **3 role-only definitions awaiting canonical migration**, and **62 truly absent definitions**. That leaves **65 missing/migration items** before the Level 1 catalog is complete, plus the separate review debt on the original 9 definitions.
 
 ## Canonical Spell Metadata Contract
 
