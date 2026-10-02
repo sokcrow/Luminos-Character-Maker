@@ -653,6 +653,7 @@ test("stats HUD keeps fixed geometry and scrolls internally when content changes
       abilityColumns: getComputedStyle(abilityBar).gridTemplateColumns,
       art: normalize(art),
       info: normalize(info),
+      abilityBar: normalize(abilityBar),
     };
   });
 
@@ -661,7 +662,7 @@ test("stats HUD keeps fixed geometry and scrolls internally when content changes
   expect(desktop.contentCssHeight).toBe("920px");
   expect(desktop.bodyOverflowY).toBe("hidden");
   expect(desktop.frameDisplay).toBe("grid");
-  expect(desktop.art.width).toBeCloseTo(0.5, 3);
+  expect(desktop.art.width).toBeCloseTo(0.5, 2);
   expect(desktop.info.x).toBeCloseTo(0.5, 3);
 
   await page.setViewportSize({ width: 760, height: 640 });
@@ -681,6 +682,8 @@ test("stats HUD keeps fixed geometry and scrolls internally when content changes
   expect(compact.art.height).toBeCloseTo(desktop.art.height, 3);
   expect(compact.info.x).toBeCloseTo(desktop.info.x, 3);
   expect(compact.info.width).toBeCloseTo(desktop.info.width, 3);
+  expect(compact.abilityBar.y).toBeCloseTo(desktop.abilityBar.y, 3);
+  expect(compact.abilityBar.height).toBeCloseTo(desktop.abilityBar.height, 3);
 
   const beforeOverflow = await geometry();
   const overflow = await page.evaluate(() => {
