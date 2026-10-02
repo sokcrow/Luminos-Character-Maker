@@ -4113,27 +4113,59 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
           updateForjaSlotsVisuals();
       });
 
-      function tieneToolkit() {
-          let hasToolkit = false;
-          // Buscar toolkit en activo
-          if (getForjaPlayerData().inventario_activo) {
-              Object.values(getForjaPlayerData().inventario_activo).forEach(item => {
-                  if (item.tags && item.tags.includes("toolkit")) hasToolkit = true;
-                  if (item.keywords && item.keywords.includes("toolkit")) hasToolkit = true;
-              });
-          }
-          // Buscar toolkit en stash
-          if (getForjaPlayerData().inventario_stash) {
-              Object.values(getForjaPlayerData().inventario_stash).forEach(item => {
-                  if (item.tags && item.tags.includes("toolkit")) hasToolkit = true;
-                  if (item.keywords && item.keywords.includes("toolkit")) hasToolkit = true;
-              });
-          }
-          return hasToolkit;
+      const CRAFTING_TOOL_CATEGORIES = new Set([
+          "fabrication_tools",
+          "chemical_tools",
+          "medical_tools",
+          "cooking_tools",
+          "smithing_tools",
+          "technical_tools",
+          "textile_tools",
+          "lapidary_tools",
+          "repair_kit"
+      ]);
+
+      function tieneHerramientaCanonicaSintesis() {
+          const catalog = window.LuminousToolCatalog;
+          if (!catalog?.get) return false;
+
+          const inventories = [
+              getForjaPlayerData().inventario_activo || {},
+              getForjaPlayerData().inventario_stash || {}
+          ];
+
+          return inventories.some(inventory =>
+              Object.values(inventory).some(item => {
+                  if (!item) return false;
+                  const candidateIds = [
+                      item.definitionId,
+                      item.canonicalId,
+                      item.itemId,
+                      item.id,
+                      item.proficiencyType,
+                      item.nombre,
+                      item.name
+                  ].filter(Boolean);
+
+                  for (const candidateId of candidateIds) {
+                      const definition = catalog.get(candidateId);
+                      const category = String(
+                          definition?.toolCategory ||
+                          definition?.iconFamily ||
+                          item.toolCategory ||
+                          item.iconFamily ||
+                          item.icon_family ||
+                          ""
+                      ).trim().toLowerCase();
+                      if (definition && CRAFTING_TOOL_CATEGORIES.has(category)) return true;
+                  }
+                  return false;
+              })
+          );
       }
 
       function updateForjaSlotsVisuals() {
-          const unlocked4_5 = mesaCrafteoGlobal || tieneToolkit();
+          const unlocked4_5 = mesaCrafteoGlobal || tieneHerramientaCanonicaSintesis();
 
           [4, 5].forEach(slotNum => {
               const el = document.querySelector(`.synth-slot[data-slot="${slotNum}"]`);
