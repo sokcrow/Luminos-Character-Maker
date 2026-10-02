@@ -47,6 +47,25 @@
   const SWORD_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 2.2 22 3.4 10.2 15.2 8.8 13.8z" fill="currentColor"/><path d="M7.2 12.2 11.8 16.8M5.7 13.7 10.3 18.3M8 18l-4.3 4.3M2.8 21.2l1 1" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>';
   const SHIELD_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5 19 5v5.8c0 4.4-2.3 8-7 10.7-4.7-2.7-7-6.3-7-10.7V5z" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 5.5v12" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>';
   const HEART_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.3 4.7 13C1.9 10.2 2.3 5.7 5.6 3.9c2.2-1.2 4.8-.6 6.4 1.2 1.6-1.8 4.2-2.4 6.4-1.2 3.3 1.8 3.7 6.3.9 9.1z"/></svg>';
+  const HUD_CANVAS = Object.freeze({ width: 1600, height: 920, gutter: 24 });
+  function hudScaleForViewport(width, height) {
+    const viewportWidth = Math.max(1, numberOr(width, HUD_CANVAS.width));
+    const viewportHeight = Math.max(1, numberOr(height, HUD_CANVAS.height));
+    const availableWidth = Math.max(1, viewportWidth - HUD_CANVAS.gutter);
+    const availableHeight = Math.max(1, viewportHeight - HUD_CANVAS.gutter);
+    return Math.min(1, availableWidth / HUD_CANVAS.width, availableHeight / HUD_CANVAS.height);
+  }
+  function syncHudCanvasScale() {
+    const modal = doc.getElementById("stats-modal");
+    if (!modal) return false;
+    const viewport = global.visualViewport;
+    const width = numberOr(viewport?.width, doc.documentElement?.clientWidth || global.innerWidth || HUD_CANVAS.width);
+    const height = numberOr(viewport?.height, doc.documentElement?.clientHeight || global.innerHeight || HUD_CANVAS.height);
+    const scale = hudScaleForViewport(width, height);
+    modal.style.setProperty("--player-stats-hud-scale", scale.toFixed(5));
+    modal.dataset.playerStatsHudScale = scale.toFixed(5);
+    return true;
+  }
   const playerData = () => global.datosJugador || {};
   const numberOr = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
   const integerOr = (value, fallback = 0) => Number.isFinite(Number.parseInt(value, 10)) ? Number.parseInt(value, 10) : fallback;
@@ -476,11 +495,14 @@
     ensureRacialStatRuntime();
     buildPanel();
     syncPanel();
+    syncHudCanvasScale();
     installCoinResultAdjustment();
   }
 
   function boot() {
     syncRuntimeSurface();
+    global.addEventListener?.("resize", syncHudCanvasScale, { passive: true });
+    global.visualViewport?.addEventListener?.("resize", syncHudCanvasScale, { passive: true });
     [
       "luminous:player-data",
       "luminous:traits-refreshed",
@@ -498,6 +520,9 @@
   global.LuminousPlayerStats = Object.freeze({
     ABILITIES,
     PROFICIENCY_STATES,
+    HUD_CANVAS,
+    hudScaleForViewport,
+    syncHudCanvasScale,
     abilityScore,
     abilityRollMath,
     abilityModifier,
