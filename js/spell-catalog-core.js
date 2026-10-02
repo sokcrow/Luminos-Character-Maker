@@ -854,7 +854,7 @@
       school: "abjuration", contexts: ["theater"],
       sinAffinity: "sloth", damageType: null,
       targetType: "area", targetingType: "area", attackWeight: 1, atkWeight: 1,
-      castingTime: "1_minute", ritual: true, resolutionType: "automatic",
+      castingTime: "1_minute", ritual: true, concentration: false, resolutionType: "automatic",
       mechanics: {
         level1Runtime: "alarm",
         ritual: true,
@@ -862,26 +862,29 @@
         area: "compact_zone",
         modes: ["audible", "mental"],
         designatedCreatureExemptions: true,
-        triggersOnEntryOrTouch: true
+        dmManagedTrigger: true,
+        consumeToTrigger: true,
+        notifyCasterOnTrigger: true
       },
       effects: [{ type: "level1_alarm" }]
     }),
 
     armor_of_agathys: Object.freeze({
       id: "armor_of_agathys", name: "Armor of Agathys", nombre: "Armadura de Agathys",
-      description: "Quick Action. Gain Encounter Shield equal to 5 × Slot Level. While the spell remains active, a Melee attacker that damages you takes Cold damage equal to 5 × Slot Level.",
+      description: "Quick Action. Gain Shield equal to 10 × Spell Slot Used. While Shield remains, a Melee attacker that hits you takes 3 × Spell Slot Used Fixed Damage and gains 1 Chill.",
       level: 1, spellLevel: 1, cantrip: false,
       classIds: ["warlock"],
       school: "abjuration", contexts: ["combat"],
       sinAffinity: "gloom", damageType: null,
       targetType: "self", targetingType: "self", attackWeight: 1, atkWeight: 1,
-      castingTime: "quick_action", resolutionType: "automatic",
+      castingTime: "quick_action", concentration: false, durationHours: 1, resolutionType: "automatic",
       mechanics: {
         level1Runtime: "armor_of_agathys",
-        shieldPerSlotLevel: 5,
-        retaliationDamagePerSlotLevel: 5,
-        retaliationDamageType: "cold",
-        shieldDuration: "encounter",
+        shieldPerSlotLevel: 10,
+        retaliationFixedDamagePerSlotLevel: 3,
+        retaliationStatus: { status: "chill", count: 1 },
+        retaliationTrigger: "melee_attack_skill_hit_while_shield_remains",
+        durationHours: 1,
         endsWhenNoShield: true
       },
       effects: [{ type: "level1_armor_of_agathys" }]
@@ -889,20 +892,19 @@
 
     arms_of_hadar: Object.freeze({
       id: "arms_of_hadar", name: "Arms of Hadar", nombre: "Brazos de Hadar",
-      description: "STR Save. On Failed Save, resolve as Unopposed. On Hit, inflict Decay and suppress Reactions until the target's next Turn.",
+      description: "Clash with 1 Unbreakable Coin. On Hit, inflict 2 Decay and suppress Reactions until the target's next Turn.",
       level: 1, spellLevel: 1, cantrip: false,
       classIds: ["warlock"],
       school: "conjuration", contexts: ["combat"],
       sinAffinity: "gloom", damageType: "perforante",
-      targetType: "area", targetingType: "aoe", attackWeight: 3, atkWeight: 3,
-      isIndiscriminate: true, isUnclashable: true,
-      basePower: 4, coinPower: 6, coinAmount: 1, coins: 1,
-      save: { abilityId: "str", onSuccess: "negates" },
+      targetType: "enemies", targetingType: "aoe", attackWeight: 3, atkWeight: 3,
+      castingTime: "action", concentration: false,
+      isIndiscriminate: false, isUnclashable: false,
+      basePower: 4, coinPower: 6, coinAmount: 1, coins: 1, coinType: "unbreakable",
       mechanics: {
         level1Runtime: "arms_of_hadar",
-        saveAttackOnFailure: true,
-        suppressReactionOnFailedSave: true,
-        onHitStatus: { status: "decay", count: 2 }
+        onHitStatus: { status: "decay", count: 2 },
+        suppressReactionOnHit: true
       },
       upcast: { coinPowerPerLevel: 1 },
       effects: []
@@ -916,7 +918,7 @@
       school: "enchantment", contexts: ["combat"],
       sinAffinity: "gloom", damageType: null,
       targetType: "multi", targetingType: "multi", attackWeight: 3, atkWeight: 3,
-      isUnclashable: true, concentration: true,
+      castingTime: "action", isUnclashable: true, concentration: true, durationTurns: 10,
       save: { abilityId: "cha", onSuccess: "negates" },
       mechanics: {
         level1Runtime: "bane",
@@ -936,7 +938,7 @@
       school: "enchantment", contexts: ["combat"],
       sinAffinity: "pride", damageType: null,
       targetType: "allies", targetingType: "multi", attackWeight: 3, atkWeight: 3,
-      isUnclashable: true, concentration: true, resolutionType: "automatic",
+      castingTime: "action", isUnclashable: true, concentration: true, durationTurns: 10, resolutionType: "automatic",
       mechanics: {
         level1Runtime: "bless",
         status: "bless",
@@ -949,19 +951,43 @@
 
     burning_hands: Object.freeze({
       id: "burning_hands", name: "Burning Hands", nombre: "Manos Ardientes",
-      description: "DEX Save. On Failed Save, resolve as Unopposed. On Hit, inflict 2 Burn.",
+      description: "Clash with 1 Unbreakable Coin. On Hit, inflict (2, 2 × Spell Slot Used) Burn.",
       level: 1, spellLevel: 1, cantrip: false,
       classIds: ["sorcerer", "wizard"],
       school: "evocation", contexts: ["combat"],
       sinAffinity: "wrath", damageType: "perforante",
-      targetType: "area", targetingType: "aoe", attackWeight: 3, atkWeight: 3,
-      isUnclashable: true,
-      basePower: 5, coinPower: 7, coinAmount: 1, coins: 1,
-      save: { abilityId: "dex", onSuccess: "negates" },
+      targetType: "enemies", targetingType: "aoe", attackWeight: 3, atkWeight: 3,
+      castingTime: "action", concentration: false, isUnclashable: false,
+      basePower: 5, coinPower: 7, coinAmount: 1, coins: 1, coinType: "unbreakable",
       mechanics: {
         level1Runtime: "burning_hands",
-        saveAttackOnFailure: true,
-        onHitStatus: { status: "burn", potency: 2 }
+        onHitStatus: { status: "burn", potencyPerSlotLevel: 2, minimumPotency: 2 }
+      },
+      upcast: { coinPowerPerLevel: 1 },
+      effects: []
+    }),
+
+    catapult: Object.freeze({
+      id: "catapult", name: "Catapult", nombre: "Catapulta",
+      description: "Choose a valid throwable Prop and launch it using this Spell's Power. The Prop still loses Hidden HP when thrown.",
+      level: 1, spellLevel: 1, cantrip: false,
+      classIds: ["artificer", "sorcerer", "wizard"],
+      school: "transmutation", contexts: ["combat", "theater"],
+      sinAffinity: "pride", damageType: "contundente",
+      targetType: "enemy", targetingType: "focused_attack", attackWeight: 1, atkWeight: 1,
+      castingTime: "action", concentration: false, isUnclashable: false,
+      basePower: 6, coinPower: 8, coinAmount: 1, coins: 1, coinType: "standard",
+      mechanics: {
+        level1Runtime: "catapult",
+        combatProp: {
+          required: true,
+          mode: "catapult",
+          hiddenHpCost: 1,
+          maxWeightPerSlotLevel: 5,
+          usesSpellPower: true,
+          ignoresImprovisedThrownPower: true,
+          ignoresImprovisedWeaponPenalty: true
+        }
       },
       upcast: { coinPowerPerLevel: 1 },
       effects: []
