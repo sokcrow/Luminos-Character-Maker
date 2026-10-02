@@ -49,6 +49,8 @@ body:not(.on-game-dashboard) #stats-modal .hud-tab-content{
 body:not(.on-game-dashboard) #stats-modal #stats-container{
   position:absolute!important;
   inset:0!important;
+  width:auto!important;
+  height:auto!important;
 }
 body:not(.on-game-dashboard) #stats-modal .hud-tab-content>.stats-header{
   position:absolute!important;
