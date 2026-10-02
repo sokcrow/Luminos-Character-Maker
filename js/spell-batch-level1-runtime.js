@@ -92,8 +92,11 @@
 
   function applyStatus(unit, id, input = {}) {
     const engine = statusEngine();
-    if (engine?.applyStatus) return engine.applyStatus(unit, id, input);
     if (!unit || typeof unit !== "object") return null;
+    if (engine?.applyStatus) {
+      const resolved = engine.applyStatus(unit, id, input);
+      if (resolved) return resolved;
+    }
     if (!unit.statusEffects || typeof unit.statusEffects !== "object" || Array.isArray(unit.statusEffects)) unit.statusEffects = {};
     const key = normalizeId(id);
     unit.statusEffects[key] = { id: key, count: numberOr(input.count, 1), potency: numberOr(input.potency, 0), duration: input.duration || "until_removed", sourceUnitId: input.sourceUnitId || null, data: { ...(input.data || {}) } };
