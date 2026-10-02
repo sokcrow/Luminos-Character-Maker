@@ -967,6 +967,43 @@
       effects: []
     }),
 
+    create_or_destroy_water: Object.freeze({
+      id: "create_or_destroy_water", name: "Create or Destroy Water", nombre: "Crear o Destruir Agua",
+      description: "Automatic utility spell. Combat: set Rain or temporarily suppress Fog. Theater: create/destroy water, create rain, or clear fog.",
+      level: 1, spellLevel: 1, cantrip: false,
+      classIds: ["cleric", "druid"],
+      school: "transmutation", contexts: ["combat", "theater"],
+      sinAffinity: "sinless", damageType: null,
+      targetType: "environment", targetingType: "environment", attackWeight: 1, atkWeight: 1,
+      isUnclashable: true, castingTime: "action", concentration: false, ritual: false,
+      resolutionType: "automatic",
+      mechanics: {
+        level1Runtime: "create_or_destroy_water",
+        requiresChoice: { key: "mode", values: ["create_water", "destroy_water", "rain", "destroy_fog"] },
+        combat: {
+          allowedModes: ["rain", "destroy_fog"],
+          rain: { encounterModifierId: "rain" },
+          destroyFog: {
+            suppressEncounterModifiers: { light_fog: 5, heavy_fog: 2 },
+            restoreOriginalFogAfterSuppression: true
+          }
+        },
+        theater: {
+          allowedModes: ["create_water", "destroy_water", "rain", "destroy_fog"],
+          createWater: { gallonsAtSlotLevel1: 10, cleanWater: true, requiresOpenContainer: true },
+          destroyWater: { gallonsAtSlotLevel1: 10, requiresOpenContainer: true },
+          rain: { createLocalRain: true },
+          destroyFog: { temporarilyClearFog: true }
+        }
+      },
+      upcast: {
+        gallonsPerLevelAbove1: 10,
+        rainAreaIncreasesPerLevel: true,
+        destroyFogAreaIncreasesPerLevel: true
+      },
+      effects: []
+    }),
+
     charm_person: Object.freeze({
       id: "charm_person", name: "Charm Person", nombre: "Hechizar Persona",
       level: 1, spellLevel: 1, cantrip: false,
