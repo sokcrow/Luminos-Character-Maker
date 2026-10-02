@@ -22,6 +22,7 @@ const path = require("node:path");
   await import("../js/item-cooking-engine.js");
   await import("../js/item-cooking-recipe-resolver.js");
   await import("../js/item-cooking-equipment-engine.js");
+  await import("../js/item-cooking-runtime.js");
   await import("../js/item-medicine-recipe-catalog.js");
   await import("../js/item-processing-recipe-data.js");
   await import("../js/item-processing-engine.js");
@@ -179,7 +180,7 @@ const path = require("node:path");
   );
 
   const doughInputs = [
-    { definitionId: "dough", tags: ["dough"], quantity: 1, __selectedUnits: 1 }
+    { definitionId: "dough", tags: ["dough"], processedForm: "dough", quantity: 1, __selectedUnits: 1 }
   ];
   const whiteBreadRecipe = Object.values(unified.recipes)
     .find((recipe) => recipe.recipeKind === "cooking" && recipe.id === "white_bread");
@@ -236,7 +237,9 @@ const path = require("node:path");
   );
 
   const cookedBreadOutput = contentRegistry.createRecipeOutput(whiteBreadRecipe, {
-    resolution: whiteBreadWithEquipment
+    resolution: whiteBreadWithEquipment,
+    checkResult: 20,
+    createdAt: 123456789
   });
   assert.equal(cookedBreadOutput.category, "food");
   assert.equal(cookedBreadOutput.family, "food");
@@ -250,6 +253,35 @@ const path = require("node:path");
     cookedBreadOutput.hydrationSlotsRestored,
     Math.max(0, Math.trunc(Number(whiteBreadRecipe.hydrationRestore ?? 0) || 0)),
     "crafted cooking outputs must use the hydration field consumed by FoodRestRuntime"
+  );
+  assert.ok(Number.isFinite(cookedBreadOutput.stars), "canonical cooking output must preserve stars");
+  assert.ok(Number.isFinite(cookedBreadOutput.taste), "canonical cooking output must preserve taste");
+  assert.ok(Object.prototype.hasOwnProperty.call(cookedBreadOutput, "spRestore"), "canonical cooking output must preserve SP restoration");
+  assert.ok(Array.isArray(cookedBreadOutput.culinaryEffects), "canonical cooking output must preserve culinary effects");
+  assert.ok(Array.isArray(cookedBreadOutput.provenance), "canonical cooking output must preserve provenance");
+  assert.ok(Number.isFinite(cookedBreadOutput.cookingMargin), "canonical cooking output must preserve roll margin");
+
+  const noodlesRecipe = Object.values(unified.recipes)
+    .find((recipe) => recipe.recipeKind === "processing" && recipe.id === "noodles");
+  const noodlesResolution = contentRegistry.resolveRecipe(noodlesRecipe, doughInputs, globalThis);
+  assert.equal(noodlesResolution.valid, true, "canonical noodles processing recipe should resolve");
+  const noodlesOutput = contentRegistry.createRecipeOutput(noodlesRecipe, {
+    resolution: noodlesResolution
+  });
+  assert.equal(noodlesOutput.family, "processed_food");
+  assert.equal(noodlesOutput.processingTemplateId, "noodles");
+  assert.ok(Array.isArray(noodlesOutput.processingTags), "processing output must preserve canonical processing tags");
+  assert.ok(Array.isArray(noodlesOutput.provenance), "processing output must preserve provenance");
+  assert.ok(noodlesOutput.stackPolicy, "processing output must preserve canonical stack policy");
+  assert.ok(Object.prototype.hasOwnProperty.call(noodlesOutput, "unitProductionValueAhn"), "processing output must preserve economy metadata");
+
+  const deferredThrowable = Object.values(unified.recipes)
+    .find((recipe) => recipe.recipeKind === "throwable" && recipe.combatContractStatus === "deferred");
+  assert.ok(deferredThrowable, "deferred throwable should remain visible in the unified DM registry");
+  assert.equal(
+    contentRegistry.recipeRuntimeReady(deferredThrowable),
+    false,
+    "deferred throwables must be excluded from player synthesis matching"
   );
 
   const craftedOutput = contentRegistry.createRecipeOutput(chemistryMatch.recipe);
@@ -342,6 +374,8 @@ const path = require("node:path");
   assert.match(playerRuntime, /createRecipeOutput\(attempt\.receta,\s*\{/);
   assert.match(playerRuntime, /resolution:\s*attempt\.resolution/);
   assert.match(playerRuntime, /checkResult:\s*tirada/);
+  assert.match(playerRuntime, /ejecutarTransaccionForja\(attempt,\s*tirada\s*>=\s*attempt\.dc,\s*tirada\)/);
+  assert.match(playerRuntime, /function ejecutarTransaccionForja\(attempt,\s*exito,\s*tirada\)/);
   assert.doesNotMatch(playerRuntime, /campaña\/forja\/recetas/);
   assert.doesNotMatch(playerRuntime, /campaña\/items_globales/);
 
