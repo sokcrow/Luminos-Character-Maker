@@ -19,6 +19,7 @@ const path = require("node:path");
   await import("../js/item-inventory-runtime.js");
   await import("../js/item-chemistry-recipe-catalog.js");
   await import("../js/item-cooking-recipe-catalog.js");
+  await import("../js/item-cooking-recipe-resolver.js");
   await import("../js/item-medicine-recipe-catalog.js");
   await import("../js/item-processing-recipe-data.js");
   await import("../js/item-throwable-recipe-catalog.js");
@@ -145,6 +146,27 @@ const path = require("node:path");
     "processing recipes must be discoverable from the unified registry"
   );
 
+  const chemistryMatch = contentRegistry.findMatchingRecipe(globalThis, [
+    { definitionId: "cleaning_compound", quantity: 1, __selectedUnits: 1 },
+    { definitionId: "chemical_bottle", tags: ["container"], quantity: 1, __selectedUnits: 1 }
+  ]);
+  assert.ok(chemistryMatch, "canonical chemistry recipes should resolve from selected synthesis items");
+  assert.equal(chemistryMatch.recipe.id, "industrial_cleaner");
+  assert.equal(contentRegistry.recipeDifficulty(chemistryMatch.recipe), 18);
+
+  const cookingMatch = contentRegistry.findMatchingRecipe(globalThis, [
+    { definitionId: "dough", tags: ["dough"], quantity: 1, __selectedUnits: 1 }
+  ]);
+  assert.ok(cookingMatch, "canonical cooking recipes should resolve through the shared registry");
+  assert.equal(cookingMatch.recipe.recipeKind, "cooking");
+  assert.ok(["white_bread", "flatbread", "baguette"].includes(cookingMatch.recipe.id));
+
+  const craftedOutput = contentRegistry.createRecipeOutput(chemistryMatch.recipe);
+  assert.equal(craftedOutput.definitionId, "industrial_cleaner");
+  assert.equal(craftedOutput.recipeId, "industrial_cleaner");
+  assert.equal(craftedOutput.crafted, true);
+  assert.equal(craftedOutput.quantity, 1);
+
   const granted = core.createGrantPayload(longsword, 3, {
     iconRegistry: globalThis.LuminousItemIconRegistry,
     inventoryRuntime: globalThis.LuminousItemInventoryRuntime
@@ -203,6 +225,19 @@ const path = require("node:path");
     false,
     "legacy standalone item creator should be removed after unifying DM content"
   );
+
+  const playerPage = fs.readFileSync(path.join(__dirname, "..", "hoja_personaje.html"), "utf8");
+  const playerRuntime = fs.readFileSync(path.join(__dirname, "..", "hoja_personaje.js"), "utf8");
+  assert.match(playerPage, /js\/item-content-registry\.js/);
+  assert.match(playerPage, /js\/item-chemistry-recipe-catalog\.js/);
+  assert.match(playerPage, /js\/item-medicine-recipe-catalog\.js/);
+  assert.match(playerPage, /js\/item-processing-recipe-data\.js/);
+  assert.match(playerPage, /js\/item-throwable-recipe-catalog\.js/);
+  assert.match(playerRuntime, /LuminousItemContentRegistry/);
+  assert.match(playerRuntime, /findMatchingRecipe\(window, items\)/);
+  assert.match(playerRuntime, /createRecipeOutput\(attempt\.receta\)/);
+  assert.doesNotMatch(playerRuntime, /campaña\/forja\/recetas/);
+  assert.doesNotMatch(playerRuntime, /campaña\/items_globales/);
 
   console.log("dm-item-catalog-core.spec: ok");
   console.log("dm item page wiring: ok");
