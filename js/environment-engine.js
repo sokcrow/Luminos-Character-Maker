@@ -47,15 +47,48 @@
     exposed: { label: "Exposed", category: "exposure", defaultScope: SCOPES.ACTOR, severity: SEVERITIES.CONTEXT, description: "The actor receives the zone's environmental exposure normally.", implies: [] },
     under_cover: { label: "Under Cover", category: "exposure", defaultScope: SCOPES.ACTOR, severity: SEVERITIES.CONTEXT, description: "Direct precipitation is blocked and direct sunlight is reduced to diffuse sunlight.", implies: [] },
     indoors: { label: "Indoors", category: "exposure", defaultScope: SCOPES.ACTOR, severity: SEVERITIES.CONTEXT, description: "Exterior weather and natural sunlight are normally blocked.", implies: [] },
-    rain: { label: "Rain", category: "weather", defaultScope: SCOPES.ENCOUNTER, severity: SEVERITIES.CONTEXT, description: "Rain is present. It is a trigger and does not impose a generic penalty by itself.", implies: [] },
+    rain: {
+      label: "Rain", category: "weather", defaultScope: SCOPES.ENCOUNTER, severity: SEVERITIES.CONTEXT,
+      description: "All units take +10% damage from Electric effects, Hazards, and Skills.",
+      encounterModifierId: "rain",
+      mechanics: { electricDamageTakenMultiplier: 1.10, appliesTo: ["effects", "hazards", "skills"], damageType: "electric" },
+      implies: []
+    },
     heavy_rain: { label: "Heavy Rain", category: "weather", defaultScope: SCOPES.ENCOUNTER, severity: SEVERITIES.SEVERE, description: "Severe rain; the resolver may reduce visibility without adding a blanket combat penalty.", implies: ["rain"] },
     snow: { label: "Snow", category: "weather", defaultScope: SCOPES.ENCOUNTER, severity: SEVERITIES.CONTEXT, description: "Snow is falling. It is primarily a trigger unless another resolver creates terrain or visibility consequences.", implies: [] },
     heavy_snow: { label: "Heavy Snow", category: "weather", defaultScope: SCOPES.ENCOUNTER, severity: SEVERITIES.SEVERE, description: "Severe snowfall; visibility and accumulated terrain may be resolved separately.", implies: ["snow"] },
-    fog: { label: "Fog", category: "weather", defaultScope: SCOPES.ENCOUNTER, severity: SEVERITIES.MODERATE, description: "Fog is present and can make visibility Obscured.", implies: [] },
-    dense_fog: { label: "Dense Fog", category: "weather", defaultScope: SCOPES.ENCOUNTER, severity: SEVERITIES.SEVERE, description: "Dense fog can make visibility Heavily Obscured.", implies: ["fog"] },
+    fog: {
+      label: "Light Fog", category: "weather", defaultScope: SCOPES.ENCOUNTER, severity: SEVERITIES.MODERATE,
+      description: "Units without True Sight suffer -1 Clash Power, Analyse, and Sight Perception Checks.",
+      encounterModifierId: "light_fog",
+      mechanics: { bypassTrait: "true_sight", clashPowerModifier: -1, analyseCheckModifier: -1, sightPerceptionCheckModifier: -1 },
+      implies: []
+    },
+    dense_fog: {
+      label: "Heavy Fog", category: "weather", defaultScope: SCOPES.ENCOUNTER, severity: SEVERITIES.SEVERE,
+      description: "Units without True Sight suffer -3 Clash Power, Analyse, and Sight Perception Checks.",
+      encounterModifierId: "heavy_fog",
+      mechanics: { bypassTrait: "true_sight", clashPowerModifier: -3, analyseCheckModifier: -3, sightPerceptionCheckModifier: -3 },
+      implies: ["fog"]
+    },
     hail: { label: "Hail", category: "weather", defaultScope: SCOPES.ENCOUNTER, severity: SEVERITIES.MODERATE, description: "Hail is present. It remains contextual unless a specific mechanic reacts to it.", implies: [] },
     strong_wind: { label: "Strong Wind", category: "weather", defaultScope: SCOPES.ENCOUNTER, severity: SEVERITIES.SEVERE, description: "Strong wind is available to flight, projectile, object, or trait resolvers; it has no blanket penalty here.", implies: [] },
-    storm: { label: "Storm", category: "weather", defaultScope: SCOPES.ENCOUNTER, severity: SEVERITIES.SEVERE, description: "Composite severe weather. Its component effects carry the mechanical context.", implies: ["heavy_rain", "strong_wind"] },
+    storm: {
+      label: "Thunderstorm", category: "weather", defaultScope: SCOPES.ENCOUNTER, severity: SEVERITIES.SEVERE,
+      description: "Rain plus lightning-strike hazards.",
+      encounterModifierId: "thunderstorm",
+      mechanics: {
+        electricDamageTakenMultiplier: 1.10,
+        lightningStrikeChance: 0.15,
+        lightningFixedDamage: 30,
+        lightningShockPotency: 5,
+        lightningShockCount: 5,
+        conductiveMetalAdditionalFixedDamage: 10,
+        conductiveMetalAdditionalShock: 3,
+        spearAdditionalStrikeChance: 0.10
+      },
+      implies: ["heavy_rain", "strong_wind"]
+    },
     extreme_heat: { label: "Extreme Heat", category: "temperature", defaultScope: SCOPES.ENCOUNTER, severity: SEVERITIES.SEVERE, description: "Extreme heat exposure is active. Thresholds and consequences belong to the exposure resolver.", implies: [] },
     extreme_cold: { label: "Extreme Cold", category: "temperature", defaultScope: SCOPES.ENCOUNTER, severity: SEVERITIES.SEVERE, description: "Extreme cold exposure is active. Thresholds and consequences belong to the exposure resolver.", implies: [] },
     difficult_terrain: { label: "Difficult Terrain", category: "terrain", defaultScope: SCOPES.ZONE, severity: SEVERITIES.MODERATE, description: "Movement resolvers may increase movement cost in this terrain.", implies: [] },
@@ -112,6 +145,8 @@
       origin: origins[0] || null,
       origins,
       severity: normalizeId(raw.severity || definition.severity || defaults.severity || SEVERITIES.CONTEXT),
+      encounterModifierId: normalizeId(raw.encounterModifierId || definition.encounterModifierId || "") || null,
+      mechanics: clone(raw.mechanics || definition.mechanics || null),
     };
   }
 
