@@ -17,9 +17,9 @@ Working target: **82 published Level 1 spells**.
 
 There are **82** Level 1 spells in scope.
 
-### Canonical catalog definitions present — 9 / 82
+### Canonical catalog definitions present — 16 / 82
 
-These exist in `js/spell-catalog-core.js`, but remain review items until their metadata, mechanics, visuals/dependencies and smoke coverage meet the current spell contract.
+The 9 pre-existing definitions remain review items until their metadata, mechanics, visuals/dependencies and smoke coverage meet the current spell contract. Newly integrated Level 1 definitions are marked complete below.
 
 - [ ] Absorb Elements
 - [ ] Animal Friendship
@@ -30,6 +30,13 @@ These exist in `js/spell-catalog-core.js`, but remain review items until their m
 - [ ] Shield
 - [ ] Silvery Barbs
 - [ ] Thunderwave
+- [x] Alarm
+- [x] Armor of Agathys
+- [x] Arms of Hadar
+- [x] Bane
+- [x] Bless
+- [x] Burning Hands
+- [x] Create or Destroy Water
 
 #### Review decision for the 9 pre-existing definitions
 
@@ -53,20 +60,13 @@ These already exist in `js/role-spell-catalog-core.js` and are covered by the An
 - [ ] Speak with Animals
 - [ ] Distort Value
 
-### Truly absent definitions — 70 / 82
+### Truly absent definitions — 63 / 82
 
-#### 2024 PHB baseline — 55
+#### 2024 PHB baseline — 48
 
-- [ ] Alarm
-- [ ] Armor of Agathys
-- [ ] Arms of Hadar
-- [ ] Bane
-- [ ] Bless
-- [ ] Burning Hands
 - [ ] Color Spray
 - [ ] Command
 - [ ] Compelled Duel
-- [ ] Create or Destroy Water
 - [ ] Cure Wounds
 - [ ] Detect Evil and Good
 - [ ] Detect Magic
@@ -134,7 +134,7 @@ These already exist in `js/role-spell-catalog-core.js` and are covered by the An
 - [ ] Spellfire Flare
 - [ ] Wardaway
 
-So the remaining workload after the 9 existing canonical definitions is still **73 review/integration items**: **70 new definitions + 3 legacy migrations**.
+Current catalog state: **16 canonical Level 1 definitions**, **3 role-only definitions awaiting canonical migration**, and **63 truly absent definitions**. That leaves **66 missing/migration items** before the Level 1 catalog is complete, plus the separate review debt on the original 9 definitions.
 
 ## Canonical Spell Metadata Contract
 
@@ -181,14 +181,37 @@ Keep integration batches at **5–6 spells** so each batch can be reviewed and r
 
 ### Batch 1 — foundational Level 1 shapes
 
-- [ ] Alarm
-- [ ] Armor of Agathys
-- [ ] Arms of Hadar
-- [ ] Bane
-- [ ] Bless
-- [ ] Burning Hands
+- [x] Alarm
+- [x] Armor of Agathys
+- [x] Arms of Hadar
+- [x] Bane
+- [x] Bless
+- [x] Burning Hands
 
 This batch intentionally covers ritual/theater, self-defense, save/AoE, concentration debuff, concentration buff, and elemental AoE so the reusable Level 1 runtime shapes are established before the remaining spells.
+
+### Batch 2 — SPR review in progress
+
+SPR/design review is tracked separately from implementation completion so approved adaptations are not lost between sessions.
+
+- [x] **Color Spray — SPR approved**: Save Spell, CON Save, Failed Save applies Blinded until the end of the caster's next turn. No damage.
+- [x] **Command — SPR approved**: WIS Save. Commands: Approach = Aggro to caster; Drop = drop held items to Loot and end turn; Flee = Retreat 1 turn; Grovel = Prone and end turn; Halt = no movement, Action, or Quick Action that turn.
+- [x] **Compelled Duel — SPR approved**: WIS Save, Concentration, Quick Action; failed Save locks Aggro to caster and ends on the agreed hostile/interference conditions.
+- [x] **Comprehend Languages — SPR approved**: migrate the existing Theater definition into the canonical catalog without changing its current Theater behavior.
+- [x] **Create or Destroy Water — SPR approved**: canonical definition added. Combat Rain uses the Rain Encounter Modifier; Destroy Fog suppresses Light Fog for 5 turns or Heavy Fog for 2 turns. Theater keeps Create/Destroy Water, Rain, and Destroy Fog utility modes.
+- [ ] **Color Spray — implementation**
+- [ ] **Command — implementation**
+- [ ] **Compelled Duel — implementation**
+- [ ] **Comprehend Languages — canonical migration**
+- [x] **Create or Destroy Water — canonical definition + weather modifier contract**
+
+#### Encounter Weather Modifier decisions locked during Batch 2
+
+- **Rain** — all units take +10% damage from Electric effects, Hazards, and Skills.
+- **Thunderstorm** — Rain electric modifier; 15% lightning-strike chance per unit; lightning deals 30 Fixed Damage + 5 Shock + 5 Shock Count; conductive metal adds 10 Fixed Damage + 3 Shock; Spears add +10% strike chance.
+- **Light Fog** — units without True Sight suffer -1 Clash Power, Analyse, and Sight Perception Checks.
+- **Heavy Fog** — units without True Sight suffer -3 Clash Power, Analyse, and Sight Perception Checks.
+
 
 ## Review Workflow
 
