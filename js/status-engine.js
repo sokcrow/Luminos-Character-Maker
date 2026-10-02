@@ -249,5 +249,38 @@
     return true;
   }
 
+  function ensureTheatreConditionGraph() {
+    if (!global.document || !["player", "theatre"].includes(browserContext())) return false;
+
+    const ensureBridge = () => {
+      if (global.LuminousConditionTheatreBridge) {
+        global.LuminousConditionTheatreBridge.install?.();
+        return;
+      }
+      const existing = global.document.getElementById("core-condition-theatre-bridge-script");
+      const bridge = existing || loadScript("core-condition-theatre-bridge-script", "js/core-condition-theatre-bridge.js");
+      bridge?.addEventListener?.("load", () => global.LuminousConditionTheatreBridge?.install?.(), { once: true });
+    };
+
+    const ensureConditions = () => {
+      if (global.LuminousConditionRuntime) {
+        ensureBridge();
+        return;
+      }
+      const existing = global.document.getElementById("core-condition-runtime-script");
+      const conditions = existing || loadScript("core-condition-runtime-script", "js/core-condition-runtime.js");
+      conditions?.addEventListener?.("load", ensureBridge, { once: true });
+    };
+
+    if (global.LuminousExhaustionEngine) ensureConditions();
+    else {
+      const existing = global.document.getElementById("exhaustion-engine-script");
+      const exhaustion = existing || loadScript("exhaustion-engine-script", "js/exhaustion-engine.js");
+      exhaustion?.addEventListener?.("load", ensureConditions, { once: true });
+    }
+    return true;
+  }
+
   ensureCombatRuntimeGraph();
+  ensureTheatreConditionGraph();
 })(typeof window !== "undefined" ? window : globalThis);
