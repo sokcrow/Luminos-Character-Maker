@@ -30,12 +30,12 @@ The 9 pre-existing definitions remain review items until their metadata, mechani
 - [ ] Shield
 - [ ] Silvery Barbs
 - [ ] Thunderwave
-- Alarm
-- Armor of Agathys
-- Arms of Hadar
-- Bane
-- Bless
-- Burning Hands
+- [ ] Alarm
+- [ ] Armor of Agathys
+- [ ] Arms of Hadar
+- [ ] Bane
+- [ ] Bless
+- [ ] Burning Hands
 - [x] Create or Destroy Water — SPR approved and implemented
 
 #### Review decision for the 9 pre-existing definitions
@@ -181,12 +181,12 @@ Keep integration batches at **5–6 spells** so each batch can be reviewed and r
 
 ### Batch 1 — foundational Level 1 shapes (implemented, pending explicit user review)
 
-- [ ] Alarm
-- [ ] Armor of Agathys
-- [ ] Arms of Hadar
-- [ ] Bane
-- [ ] Bless
-- [ ] Burning Hands
+- Alarm
+- Armor of Agathys
+- Arms of Hadar
+- Bane
+- Bless
+- Burning Hands
 
 This batch intentionally covers ritual/theater, self-defense, save/AoE, concentration debuff, concentration buff, and elemental AoE so the reusable Level 1 runtime shapes are established before the remaining spells.
 
