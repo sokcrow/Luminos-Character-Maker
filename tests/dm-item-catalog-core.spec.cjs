@@ -19,6 +19,7 @@ const path = require("node:path");
   await import("../js/item-inventory-runtime.js");
   await import("../js/item-chemistry-recipe-catalog.js");
   await import("../js/item-cooking-recipe-catalog.js");
+  await import("../js/item-cooking-engine.js");
   await import("../js/item-cooking-recipe-resolver.js");
   await import("../js/item-cooking-equipment-engine.js");
   await import("../js/item-medicine-recipe-catalog.js");
@@ -224,9 +225,32 @@ const path = require("node:path");
     enforceEquipment: true,
     toolItems: [{ definitionId: "cooks_utensils", quantity: 1 }],
     unit: {},
-    stationId: "oven"
+    availableStationIds: ["oven"]
   });
-  assert.equal(whiteBreadWithEquipment.valid, true, "baking should resolve with canonical tool and station");
+  assert.equal(whiteBreadWithEquipment.valid, true, "baking should resolve with canonical tool and authorized station");
+  assert.equal(whiteBreadWithEquipment.recipeTh, 14, "White Bread should use the canonical cooking recipe TH");
+  assert.equal(
+    contentRegistry.recipeDifficulty(whiteBreadRecipe, whiteBreadWithEquipment),
+    whiteBreadWithEquipment.effectiveTh,
+    "synthesis difficulty must use the canonical effective cooking TH"
+  );
+
+  const cookedBreadOutput = contentRegistry.createRecipeOutput(whiteBreadRecipe, {
+    resolution: whiteBreadWithEquipment
+  });
+  assert.equal(cookedBreadOutput.category, "food");
+  assert.equal(cookedBreadOutput.family, "food");
+  assert.equal(cookedBreadOutput.itemType, "consumable");
+  assert.equal(
+    cookedBreadOutput.hungerSlotsRestored,
+    Math.max(0, Math.trunc(Number(whiteBreadRecipe.hungerRestore ?? 1) || 0)),
+    "crafted cooking outputs must use the hunger field consumed by FoodRestRuntime"
+  );
+  assert.equal(
+    cookedBreadOutput.hydrationSlotsRestored,
+    Math.max(0, Math.trunc(Number(whiteBreadRecipe.hydrationRestore ?? 0) || 0)),
+    "crafted cooking outputs must use the hydration field consumed by FoodRestRuntime"
+  );
 
   const craftedOutput = contentRegistry.createRecipeOutput(chemistryMatch.recipe);
   assert.equal(craftedOutput.definitionId, "industrial_cleaner");
@@ -298,7 +322,8 @@ const path = require("node:path");
   assert.match(playerPage, /js\/item-content-registry\.js/);
   assert.match(playerPage, /js\/item-catalog-tools\.js/);
   assert.match(playerPage, /id="forja-recipe-select"/);
-  assert.match(playerPage, /id="forja-station-select"/);
+  assert.match(playerPage, /id="forja-station-context"/);
+  assert.doesNotMatch(playerPage, /id="forja-station-select"/);
   assert.match(playerPage, /js\/item-processing-engine\.js/);
   assert.match(playerPage, /js\/item-cooking-equipment-engine\.js/);
   assert.match(playerPage, /js\/item-chemistry-recipe-catalog\.js/);
@@ -309,7 +334,10 @@ const path = require("node:path");
   assert.match(playerRuntime, /findMatchingRecipes\(window, items/);
   assert.match(playerRuntime, /enforceTools:\s*true/);
   assert.match(playerRuntime, /enforceEquipment:\s*true/);
-  assert.match(playerRuntime, /forja-station-select/);
+  assert.match(playerRuntime, /authoritativeCookingStationIds/);
+  assert.match(playerRuntime, /currentCookingStationId/);
+  assert.doesNotMatch(playerRuntime, /stationSelect\.value/);
+  assert.match(playerRuntime, /recipeDifficulty\(recipe, match\?\.resolution\)/);
   assert.match(playerRuntime, /Selecciona explícitamente cuál quieres sintetizar/);
   assert.match(playerRuntime, /createRecipeOutput\(attempt\.receta\)/);
   assert.doesNotMatch(playerRuntime, /campaña\/forja\/recetas/);
