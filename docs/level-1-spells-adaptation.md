@@ -30,12 +30,12 @@ The 9 pre-existing definitions remain review items until their metadata, mechani
 - [ ] Shield
 - [ ] Silvery Barbs
 - [ ] Thunderwave
-- [ ] Alarm
-- [ ] Armor of Agathys
-- [ ] Arms of Hadar
-- [ ] Bane
-- [ ] Bless
-- [ ] Burning Hands
+- [x] Alarm
+- [x] Armor of Agathys
+- [x] Arms of Hadar
+- [x] Bane
+- [x] Bless
+- [x] Burning Hands
 - [x] Create or Destroy Water
 - [x] Cure Wounds
 - [x] Detect Evil and Good
@@ -65,7 +65,7 @@ Do **not** rewrite the shared Spell Slot / class-gating infrastructure. Reuse it
 
 These already exist in `js/role-spell-catalog-core.js` and are covered by the Angelo smoke, so they must **not** be reimplemented as unrelated duplicates. They still count as pending work because the role catalog is not the authoritative shared spell definition.
 
-- [ ] Comprehend Languages
+- [x] Comprehend Languages
 - [ ] Speak with Animals
 - [ ] Distort Value
 
@@ -73,9 +73,9 @@ These already exist in `js/role-spell-catalog-core.js` and are covered by the An
 
 #### 2024 PHB baseline — 39
 
-- [ ] Color Spray
-- [ ] Command
-- [ ] Compelled Duel
+- [x] Color Spray
+- [x] Command
+- [x] Compelled Duel
 - [ ] Faerie Fire
 - [ ] False Life
 - [ ] Feather Fall
@@ -116,7 +116,7 @@ These already exist in `js/role-spell-catalog-core.js` and are covered by the An
 #### Published legacy supplemental / setting — 13
 
 - [ ] Beast Bond
-- [ ] Catapult
+- [x] Catapult
 - [ ] Cause Fear
 - [ ] Ceremony
 - [ ] Chaos Bolt
