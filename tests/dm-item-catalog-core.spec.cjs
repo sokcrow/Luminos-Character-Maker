@@ -20,8 +20,10 @@ const path = require("node:path");
   await import("../js/item-chemistry-recipe-catalog.js");
   await import("../js/item-cooking-recipe-catalog.js");
   await import("../js/item-cooking-recipe-resolver.js");
+  await import("../js/item-cooking-equipment-engine.js");
   await import("../js/item-medicine-recipe-catalog.js");
   await import("../js/item-processing-recipe-data.js");
+  await import("../js/item-processing-engine.js");
   await import("../js/item-throwable-recipe-catalog.js");
   await import("../js/dm-item-catalog-core.js");
   await import("../js/item-content-registry.js");
@@ -197,6 +199,35 @@ const path = require("node:path");
   assert.ok(explicitBread, "an explicit recipe choice should resolve ambiguous ingredients");
   assert.equal(explicitBread.recipe.id, "white_bread");
 
+  const brewBaseRecipe = Object.values(unified.recipes)
+    .find((recipe) => recipe.recipeKind === "processing" && recipe.id === "brew_base");
+  assert.ok(brewBaseRecipe, "brew_base processing recipe should exist");
+  const invalidBrew = contentRegistry.resolveRecipe(brewBaseRecipe, chemistryInputs, globalThis);
+  assert.equal(
+    invalidBrew.valid,
+    false,
+    "processing recipes must preserve methodEligible/exclusion semantics from the canonical processing engine"
+  );
+
+  const whiteBreadNoEquipment = contentRegistry.resolveRecipe(whiteBreadRecipe, doughInputs, globalThis, {
+    enforceEquipment: true,
+    toolItems: [],
+    unit: {},
+    stationId: ""
+  });
+  assert.equal(whiteBreadNoEquipment.valid, false, "baking must be blocked without canonical cooking equipment");
+  assert.equal(whiteBreadNoEquipment.reason, "missing_cooking_equipment");
+  assert.ok(whiteBreadNoEquipment.missingToolIds.includes("cooks_utensils"));
+  assert.ok(whiteBreadNoEquipment.missingStationIds.includes("oven"));
+
+  const whiteBreadWithEquipment = contentRegistry.resolveRecipe(whiteBreadRecipe, doughInputs, globalThis, {
+    enforceEquipment: true,
+    toolItems: [{ definitionId: "cooks_utensils", quantity: 1 }],
+    unit: {},
+    stationId: "oven"
+  });
+  assert.equal(whiteBreadWithEquipment.valid, true, "baking should resolve with canonical tool and station");
+
   const craftedOutput = contentRegistry.createRecipeOutput(chemistryMatch.recipe);
   assert.equal(craftedOutput.definitionId, "industrial_cleaner");
   assert.equal(craftedOutput.recipeId, "industrial_cleaner");
@@ -267,6 +298,9 @@ const path = require("node:path");
   assert.match(playerPage, /js\/item-content-registry\.js/);
   assert.match(playerPage, /js\/item-catalog-tools\.js/);
   assert.match(playerPage, /id="forja-recipe-select"/);
+  assert.match(playerPage, /id="forja-station-select"/);
+  assert.match(playerPage, /js\/item-processing-engine\.js/);
+  assert.match(playerPage, /js\/item-cooking-equipment-engine\.js/);
   assert.match(playerPage, /js\/item-chemistry-recipe-catalog\.js/);
   assert.match(playerPage, /js\/item-medicine-recipe-catalog\.js/);
   assert.match(playerPage, /js\/item-processing-recipe-data\.js/);
@@ -274,6 +308,8 @@ const path = require("node:path");
   assert.match(playerRuntime, /LuminousItemContentRegistry/);
   assert.match(playerRuntime, /findMatchingRecipes\(window, items/);
   assert.match(playerRuntime, /enforceTools:\s*true/);
+  assert.match(playerRuntime, /enforceEquipment:\s*true/);
+  assert.match(playerRuntime, /forja-station-select/);
   assert.match(playerRuntime, /Selecciona explícitamente cuál quieres sintetizar/);
   assert.match(playerRuntime, /createRecipeOutput\(attempt\.receta\)/);
   assert.doesNotMatch(playerRuntime, /campaña\/forja\/recetas/);
