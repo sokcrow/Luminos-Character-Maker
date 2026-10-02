@@ -6152,22 +6152,35 @@ window.processEntitiesData = function(entities) {
 
         function resolveDmLocalItemIcon(item = {}, fallbackId = "") {
           const registry = window.LuminousItemIconRegistry;
-          const candidates = [
-            item.iconFamily, item.icon_family, item.family, item.group,
-            fallbackId, item.id, item.definitionId, item.category, item.tipo_categoria, item.itemType
-          ].map((value) => String(value || "").trim()).filter(Boolean);
-          if (registry?.get && registry?.resolveIcon) {
-            for (const candidate of candidates) {
-              const row = registry.get(candidate, { fallback: false });
-              if (!row) continue;
-              const icon = String(registry.resolveIcon(row.id, { fallback: false }) || "").trim();
-              if (icon && !/^(?:https?:)?\/\//i.test(icon)) return icon;
-            }
-          }
+          const core = window.LuminousDmItemCatalogCore;
+          const canonical = core?.resolveIcon?.(item, registry, fallbackId);
+          if (canonical) return canonical;
           const explicit = [item.icono, item.icon, item.image, item.img]
             .map((value) => String(value || "").trim())
-            .find((value) => value && !/^(?:https?:)?\/\//i.test(value) && !/^(?:data|blob):/i.test(value));
+            .find(Boolean);
           return explicit || "Assets/Icons/items/fallback/generic_item.png";
+        }
+
+        function dmItemQuantity(item = {}) {
+          return window.LuminousDmItemCatalogCore?.quantityOf?.(item)
+            || Math.max(1, parseInt(item.quantity ?? item.cantidad ?? 1) || 1);
+        }
+
+        function dmQuantityPatch(item, nextQuantity) {
+          return window.LuminousDmItemCatalogCore?.quantityPatch?.(item, nextQuantity)
+            || { quantity: nextQuantity, cantidad: nextQuantity };
+        }
+
+        function sameDmItemDefinition(a, b) {
+          return window.LuminousDmItemCatalogCore?.sameDefinition?.(a, b)
+            || (a?.nombre === b?.nombre && String(a?.tier || "I") === String(b?.tier || "I"));
+        }
+
+        function buildDmGrantPayload(item, quantity) {
+          return window.LuminousDmItemCatalogCore?.createGrantPayload?.(item, quantity, {
+            iconRegistry: window.LuminousItemIconRegistry,
+            inventoryRuntime: window.LuminousItemInventoryRuntime
+          }) || { ...item, quantity, cantidad: quantity };
         }
 
         let dbItemsCache = {}; // Caché local de TODOS los ítems globales
@@ -6397,9 +6410,13 @@ window.processEntitiesData = function(entities) {
             filterDMItems();
         }
 
-        // Escuchar base_datos_items
+        // Superponer los items custom de Firebase sobre las definiciones canonicas del runtime.
         db.ref("campaña/base_datos_items").on("value", (snapshot) => {
-            const items = window.processItemsData(snapshot.val());
+            const firebaseItems = window.processItemsData(snapshot.val()) || {};
+            const core = window.LuminousDmItemCatalogCore;
+            const items = core
+              ? core.buildCatalogMap(window, firebaseItems, { iconRegistry: window.LuminousItemIconRegistry })
+              : firebaseItems;
             window.dbItemsCache = items || {};
             dbItemsCache = window.dbItemsCache; // Fallback sync
             renderGlobalItemsAndAugments();
