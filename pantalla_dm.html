@@ -6302,8 +6302,8 @@ window.processEntitiesData = function(entities) {
                     card.className = "card-cyber card-item";
                     card.style.cursor = "pointer";
 
-                    card.dataset.name = data.nombre.toLowerCase();
-                    card.dataset.tier = (data.tier || "").toLowerCase();
+                    card.dataset.name = String(data.nombre || data.name || key).toLowerCase();
+                    card.dataset.tier = String(data.tier || "").toLowerCase();
 
                     let tagsStr = "";
                     let tagsLower = "";
@@ -6365,7 +6365,7 @@ window.processEntitiesData = function(entities) {
                     card.style.borderLeftColor = "#8a1c1c"; // Red border for Augmentations
 
                     card.dataset.name = data.nombre.toLowerCase();
-                    card.dataset.tier = (data.tier || "I").toLowerCase();
+                    card.dataset.tier = String(data.tier || "I").toLowerCase();
                     card.dataset.tags = "augmentation,aumento";
 
                     const imgUrl = resolveDmLocalItemIcon(data, key);
@@ -6407,6 +6407,13 @@ window.processEntitiesData = function(entities) {
             }
 
             gridItemsGlobales.appendChild(fragmentGlobalItems);
+            const status = document.getElementById("dm-item-catalog-status");
+            if (status) {
+              const total = gridItemsGlobales.querySelectorAll(".card-item").length;
+              status.textContent = total
+                ? total + " definiciones disponibles · catálogo canónico + custom Firebase"
+                : "Sin definiciones disponibles. Revisa la carga de item-catalog-*.";
+            }
             filterDMItems();
         }
 
@@ -6462,6 +6469,7 @@ window.processEntitiesData = function(entities) {
           const dmGrid = document.getElementById("grid-items-globales");
           if (dmGrid) {
             const cards = dmGrid.querySelectorAll(".card-item");
+            let visibleCount = 0;
             cards.forEach((card) => {
               const name = card.dataset.name || "";
               const tier = card.dataset.tier || "";
@@ -6476,10 +6484,13 @@ window.processEntitiesData = function(entities) {
 
               if (matchesQuery && matchesFilter) {
                 card.style.display = "flex";
+                visibleCount += 1;
               } else {
                 card.style.display = "none";
               }
             });
+            const status = document.getElementById("dm-item-catalog-status");
+            if (status) status.textContent = visibleCount + " / " + cards.length + " definiciones visibles · catálogo canónico + custom Firebase";
           }
         }
 
