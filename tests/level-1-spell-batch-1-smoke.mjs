@@ -161,7 +161,7 @@ assert.ok(batch.detectionPlayerMessage(poisonRequest.request, {
 }).includes("cup"));
 
 const disguiseUnit = { id: "disguise_unit", statusEffects: {} };
-const disguise = batch.applyDisguiseSelf(disguiseUnit, { now: 1000 });
+const disguise = batch.applyDisguiseSelf(disguiseUnit, { now: Date.now() });
 assert.equal(disguise.deceptionFinalPowerBonus, 4);
 const disguiseCheck = conditions.applyCheckThreshold(disguiseUnit, { kind: "skill", abilityId: "cha", skillId: "deception", threshold: 12 });
 assert.equal(disguiseCheck.finalPowerModifier, 4);
