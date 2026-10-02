@@ -2322,23 +2322,19 @@ window.processEntitiesData = function(entities) {
                   placeholder="Buscar por nombre, tier o tipo..."
                 />
                 <div class="dm-filters" id="filtros-dm">
-                  <button class="dm-filter-btn active" data-filter="Todo">
-                    Todo
-                  </button>
-                  <button class="dm-filter-btn" data-filter="Arma">
-                    Armas
-                  </button>
-                  <button class="dm-filter-btn" data-filter="Armadura">
-                    Armaduras
-                  </button>
-                  <button class="dm-filter-btn" data-filter="Consumible">
-                    Consumibles
-                  </button>
-                  <button class="dm-filter-btn" data-filter="Clave">
-                    Clave
-                  </button>
+                  <button class="dm-filter-btn active" data-filter="todo">Todo</button>
+                  <button class="dm-filter-btn" data-filter="weapon">Armas</button>
+                  <button class="dm-filter-btn" data-filter="armor">Armaduras</button>
+                  <button class="dm-filter-btn" data-filter="shield">Escudos</button>
+                  <button class="dm-filter-btn" data-filter="consumable">Consumibles</button>
+                  <button class="dm-filter-btn" data-filter="material">Materiales</button>
+                  <button class="dm-filter-btn" data-filter="ammo">Munición</button>
+                  <button class="dm-filter-btn" data-filter="tool">Herramientas</button>
+                  <button class="dm-filter-btn" data-filter="accessory">Accesorios</button>
+                  <button class="dm-filter-btn" data-filter="upgrade">Upgrades</button>
                 </div>
               </div>
+              <div id="dm-item-catalog-status">Cargando catálogo canónico...</div>
               <div id="grid-items-globales" class="grid-container">
                 <!-- Tarjetas de ítems inyectadas por JS -->
               </div>
