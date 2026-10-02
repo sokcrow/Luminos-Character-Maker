@@ -122,6 +122,8 @@
         wizardFreeCast: raw?.wizardFreeCast || null,
         school: normalizeId(raw?.school || "evocation"),
         castingTime: normalizeId(raw?.castingTime || "quick_action"),
+        targetDrawId: String(raw?.targetDrawId || "").trim() || null,
+        targetSkillId: String(raw?.targetSkillId || "").trim() || null,
         finalPowerIfTargetHasRadiance: 1,
         fixedDamageBase: 4,
         fixedDamagePerSlot: 4,
