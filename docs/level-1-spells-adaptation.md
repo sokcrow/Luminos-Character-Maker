@@ -19,7 +19,7 @@ There are **82** Level 1 spells in scope.
 
 ### Canonical catalog definitions present — 16 / 82
 
-The 9 pre-existing definitions remain review items until their metadata, mechanics, visuals/dependencies and smoke coverage meet the current spell contract. Newly integrated Level 1 definitions are marked complete below.
+The 9 pre-existing definitions remain review items until their metadata, mechanics, visuals/dependencies and smoke coverage meet the current spell contract. A checkbox is only completed after explicit user review/approval; implementation presence alone does not close the task.
 
 - [ ] Absorb Elements
 - [ ] Animal Friendship
@@ -30,12 +30,12 @@ The 9 pre-existing definitions remain review items until their metadata, mechani
 - [ ] Shield
 - [ ] Silvery Barbs
 - [ ] Thunderwave
-- [x] Alarm
-- [x] Armor of Agathys
-- [x] Arms of Hadar
-- [x] Bane
-- [x] Bless
-- [x] Burning Hands
+- [ ] Alarm
+- [ ] Armor of Agathys
+- [ ] Arms of Hadar
+- [ ] Bane
+- [ ] Bless
+- [ ] Burning Hands
 - [x] Create or Destroy Water
 
 #### Review decision for the 9 pre-existing definitions
@@ -179,14 +179,14 @@ Individual spell runtimes must not decrement Spell Slots themselves.
 
 Keep integration batches at **5–6 spells** so each batch can be reviewed and reverted independently.
 
-### Batch 1 — foundational Level 1 shapes
+### Batch 1 — foundational Level 1 shapes (implemented, pending explicit user review)
 
-- [x] Alarm
-- [x] Armor of Agathys
-- [x] Arms of Hadar
-- [x] Bane
-- [x] Bless
-- [x] Burning Hands
+- [ ] Alarm
+- [ ] Armor of Agathys
+- [ ] Arms of Hadar
+- [ ] Bane
+- [ ] Bless
+- [ ] Burning Hands
 
 This batch intentionally covers ritual/theater, self-defense, save/AoE, concentration debuff, concentration buff, and elemental AoE so the reusable Level 1 runtime shapes are established before the remaining spells.
 
