@@ -197,6 +197,8 @@ assert.equal(entangleArea.area.difficultTerrain, true);
 assert.equal(entangleArea.area.attackWeight, 4);
 assert.deepEqual(entangleArea.area.targetIds, ["enemy_a", "enemy_b"]);
 
+assert.equal(catalog.chromatic_orb.mechanics.requiresChoice.key, "element");
+assert.deepEqual(catalog.chromatic_orb.mechanics.requiresChoice.values, ["acid", "cold", "fire", "lightning", "poison", "thunder"]);
 assert.equal(catalog.chromatic_orb.mechanics.onCritJump.maxJumpsFromSlotLevel, true);
 assert.equal(batch.chromaticJumpLimit({ slotLevel: 4 }), 4);
 const jumpTarget = batch.nextChromaticOrbTarget(
