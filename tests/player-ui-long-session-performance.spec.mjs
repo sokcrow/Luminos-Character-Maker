@@ -166,9 +166,9 @@ const firebaseStub = `
       listenerOrigins.get(key).set(
         handler,
         String(new Error("Firebase listener registered").stack || "")
-          .split("\n")
+          .split("\\n")
           .slice(1, 9)
-          .join("\n")
+          .join("\\n")
       );
       if (event === "value") queueMicrotask(() => handler(this._snapshot()));
       return handler;
