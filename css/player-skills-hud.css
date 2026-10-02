@@ -8,8 +8,14 @@ body:not(.on-game-dashboard) #skills-modal{
   overflow:hidden!important;
 }
 body:not(.on-game-dashboard) #skills-modal[style*="display: block"],
-body:not(.on-game-dashboard) #skills-modal.active{
+body:not(.on-game-dashboard) #skills-modal.active,
+body:not(.on-game-dashboard) input.sheet-state-hud-modal[value="skills"] ~ #skills-modal{
   display:flex!important;
+  animation:playerSkillsModalFadeIn .18s ease!important;
+}
+@keyframes playerSkillsModalFadeIn{
+  from{opacity:0}
+  to{opacity:1}
 }
 body:not(.on-game-dashboard) #skills-modal .hud-modal-content{
   position:absolute!important;
