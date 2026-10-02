@@ -401,13 +401,14 @@
       ensureTextObserver();
       enforcePlayerLanguagePrivacy();
     }
-    if (!rebindingTimer) {
-      rebindingTimer = global.setInterval(() => {
-        bindTheatreRefs();
-        if (isDmView()) updateDmBadge();
-        else enforcePlayerLanguagePrivacy();
-      }, 750);
-    }
+    const resync = () => {
+      bindTheatreRefs();
+      if (isDmView()) updateDmBadge();
+      else enforcePlayerLanguagePrivacy();
+    };
+    global.addEventListener?.("actoresCacheUpdated", resync);
+    global.addEventListener?.("luminous:player-data", resync);
+    global.addEventListener?.("luminous:player-instance-changed", resync);
   }
 
   if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", boot, { once: true });

@@ -472,16 +472,26 @@
     });
     return true;
   }
-  function boot() {
+  function syncRuntimeSurface() {
     ensureRacialStatRuntime();
     buildPanel();
+    syncPanel();
     installCoinResultAdjustment();
-    global.setInterval(() => {
-      ensureRacialStatRuntime();
-      buildPanel();
-      syncPanel();
-      installCoinResultAdjustment();
-    }, 1000);
+  }
+
+  function boot() {
+    syncRuntimeSurface();
+    [
+      "luminous:player-data",
+      "luminous:traits-refreshed",
+      "luminous:class-runtime-loaded",
+      "luminous:player-instance-changed",
+    ].forEach((name) => global.addEventListener?.(name, syncRuntimeSurface));
+    doc.addEventListener("click", (event) => {
+      if (event.target?.closest?.('[name="act_hud_stats"], #stats-modal, [data-dnd-roll]')) {
+        global.queueMicrotask?.(syncRuntimeSurface);
+      }
+    }, true);
   }
   if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", boot, { once: true });
   else boot();

@@ -336,11 +336,13 @@
   } else {
     ensurePlayerSpecialLanguageRuntime();
     patchPlayerQueueWrites();
+    ensurePlayerSelector();
     document.addEventListener("click", (event) => {
       if (event.target?.closest?.("#btn-abrir-escritura")) global.setTimeout(ensurePlayerSelector, 0);
     }, true);
     global.addEventListener("actoresCacheUpdated", () => global.setTimeout(ensurePlayerSelector, 0));
-    global.setInterval(ensurePlayerSelector, 1000);
+    global.addEventListener("luminous:player-data", () => global.setTimeout(ensurePlayerSelector, 0));
+    global.addEventListener("luminous:player-instance-changed", () => global.setTimeout(ensurePlayerSelector, 0));
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", refresh, { once: true });

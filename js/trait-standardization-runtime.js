@@ -1159,6 +1159,17 @@
 
   ensureDependencies().then(() => {
     installAll();
-    global.setInterval(installAll, 800);
+
+    // Runtime bridges are patched when their owners become available. Do not poll
+    // forever on static Player/Theatre surfaces.
+    [
+      "luminous:player-data",
+      "luminous:player-instance-changed",
+      "luminous:class-runtime-loaded",
+      "luminous:combat073-runtime-ready",
+      "luminous:theatre-rolls-ready",
+      "luminous:theatre-check-coordinator-ready",
+    ].forEach((name) => global.addEventListener?.(name, installAll));
+    global.addEventListener?.("load", installAll, { once: true });
   }).catch((error) => console.error("Trait Standardization Runtime:", error));
 })(window);

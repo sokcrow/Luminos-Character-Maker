@@ -4,12 +4,18 @@
   let activeRef = null;
   let activeHandler = null;
 
+  function dispose() {
+    if (activeRef && activeHandler) activeRef.off("value", activeHandler);
+    activeRef = null;
+    activeHandler = null;
+  }
+
   function init({ db, playerId }) {
     const core = global.LuminousEconomyContractsCore;
     const container = document.getElementById("player-contracts-list");
     if (!core || !db || !playerId || !container) return;
 
-    if (activeRef && activeHandler) activeRef.off("value", activeHandler);
+    dispose();
     activeRef = db.ref("campaña/economia/contratos");
 
     function render(snapshot) {
@@ -100,5 +106,5 @@
     });
   }
 
-  global.LuminousPlayerContractsRuntime = Object.freeze({ init });
+  global.LuminousPlayerContractsRuntime = Object.freeze({ init, dispose });
 })(typeof window !== "undefined" ? window : globalThis);

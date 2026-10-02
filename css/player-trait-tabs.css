@@ -232,6 +232,11 @@ body:not(.on-game-dashboard) #stats-modal .player-trait-card__description{
   font-size:10px;
   line-height:1.45;
 }
+body:not(.on-game-dashboard) #stats-modal .player-trait-resolved-control{
+  position:relative;
+  display:inline;
+  vertical-align:baseline;
+}
 body:not(.on-game-dashboard) #stats-modal .player-trait-resolved-value{
   position:relative;
   display:inline;
@@ -255,6 +260,21 @@ body:not(.on-game-dashboard) #stats-modal .player-trait-resolved-value.is-open{
   color:#ffd37b;
   border-bottom-color:#ffd37b;
 }
+body:not(.on-game-dashboard) #stats-modal .player-trait-resolved-value.is-pending{
+  color:#b7a988;
+  border-bottom-style:dashed;
+}
+body:not(.on-game-dashboard) .player-trait-formula-tooltip{
+  opacity:0;
+  visibility:hidden;
+  pointer-events:none;
+}
+body.player-trait-formula-inspect:not(.on-game-dashboard) .player-trait-resolved-control:hover .player-trait-formula-tooltip,
+body.player-trait-formula-inspect:not(.on-game-dashboard) .player-trait-resolved-control:focus-within .player-trait-formula-tooltip,
+body:not(.on-game-dashboard) .player-trait-resolved-control.is-open .player-trait-formula-tooltip{
+  opacity:1;
+  visibility:visible;
+}
 body:not(.on-game-dashboard) #stats-modal .player-trait-formula-tooltip{
   position:absolute;
   z-index:40;
@@ -277,9 +297,9 @@ body:not(.on-game-dashboard) #stats-modal .player-trait-formula-tooltip{
   transform:translate(-50%,-3px);
   transition:opacity .12s ease,transform .12s ease,visibility .12s ease;
 }
-body:not(.on-game-dashboard) #stats-modal .player-trait-resolved-value:hover .player-trait-formula-tooltip,
-body:not(.on-game-dashboard) #stats-modal .player-trait-resolved-value:focus .player-trait-formula-tooltip,
-body:not(.on-game-dashboard) #stats-modal .player-trait-resolved-value.is-open .player-trait-formula-tooltip{
+body.player-trait-formula-inspect:not(.on-game-dashboard) #stats-modal .player-trait-resolved-control:hover .player-trait-formula-tooltip,
+body.player-trait-formula-inspect:not(.on-game-dashboard) #stats-modal .player-trait-resolved-control:focus-within .player-trait-formula-tooltip,
+body:not(.on-game-dashboard) #stats-modal .player-trait-resolved-control.is-open .player-trait-formula-tooltip{
   opacity:1;
   visibility:visible;
   transform:translate(-50%,0);
@@ -327,6 +347,30 @@ body:not(.on-game-dashboard) #stats-modal .player-trait-formula-tooltip__total b
   color:#ffc65f;
   font-size:10px;
 }
+body:not(.on-game-dashboard) #stats-modal .player-trait-resolved-summary{
+  display:flex;
+  flex-wrap:wrap;
+  gap:5px 10px;
+  margin-top:7px;
+  padding-top:6px;
+  border-top:1px dashed #312b24;
+}
+body:not(.on-game-dashboard) #stats-modal .player-trait-resolved-summary__item{
+  display:inline-flex;
+  align-items:baseline;
+  gap:4px;
+  color:#7f7568;
+  font-size:8px;
+  letter-spacing:.025em;
+}
+body:not(.on-game-dashboard) #stats-modal .player-trait-resolved-summary__label{
+  text-transform:uppercase;
+}
+body:not(.on-game-dashboard) #stats-modal .player-trait-formula-tooltip__row.is-pending .player-trait-formula-tooltip__number{
+  color:#a99a83;
+  font-style:italic;
+}
+
 body:not(.on-game-dashboard) #stats-modal .player-trait-contexts{
   display:flex;
   flex-wrap:wrap;

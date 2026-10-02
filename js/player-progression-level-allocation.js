@@ -15,6 +15,7 @@
     playerListener: null,
     draft: new Map(),
     baseSignature: "",
+    renderSignature: "",
     addedClassIds: new Set(),
     reviewOpen: false,
     feedback: "",
@@ -396,6 +397,18 @@
     const rows = draftRows();
     const changed = core().allocationChanges(character(), draftForValidation(), classDefinitions());
     const availableClasses = classDefinitions().filter((entry) => !state.draft.has(normalizeId(entry.id)));
+    const nextRenderSignature = JSON.stringify({
+      info,
+      pending,
+      rows,
+      changed,
+      availableClassIds: availableClasses.map((entry) => normalizeId(entry.id)),
+      reviewOpen: state.reviewOpen,
+      feedback: state.feedback,
+      feedbackKind: state.feedbackKind,
+    });
+    if (nextRenderSignature === state.renderSignature) return true;
+    state.renderSignature = nextRenderSignature;
 
     host.replaceChildren();
     const panel = doc.createElement("section");
@@ -459,25 +472,21 @@
 
   function bindPlayer() {
     const id = playerId();
-    if (!state.db || !id) {
-      state.character = global.datosJugador || {};
-      ensureDraft(true);
-      render();
-      return false;
-    }
-    if (state.playerId === id && state.playerRef) return true;
-    if (state.playerRef && state.playerListener) state.playerRef.off("value", state.playerListener);
+    state.playerId = id || state.playerId;
+    state.character = global.datosJugador || state.character || {};
+    ensureDraft(false);
+    return Boolean(state.playerId || state.character);
+  }
 
-    state.playerId = id;
-    state.playerRef = state.db.ref(`${PLAYER_ROOT}/${id}`);
-    state.playerListener = (snapshot) => {
-      state.character = snapshot.val() || global.datosJugador || {};
-      ensureDraft(true);
-      render();
-      global.LuminousPlayerProgressionTree?.refresh?.();
-    };
-    state.playerRef.on("value", state.playerListener);
-    return true;
+  function handlePlayerData(event) {
+    const detail = event?.detail || {};
+    const incomingId = clean(detail.playerId || playerId());
+    const activeId = playerId();
+    if (incomingId && activeId && incomingId !== activeId) return;
+    state.playerId = incomingId || state.playerId;
+    state.character = detail.data || global.datosJugador || {};
+    ensureDraft(false);
+    render();
   }
 
   function connectFirebase() {
@@ -498,6 +507,7 @@
     connectFirebase();
     bindPlayer();
     render();
+    global.addEventListener?.("luminous:player-data", handlePlayerData);
     doc.querySelector('[name="act_hud_perks"]')?.addEventListener("click", () => global.setTimeout(refresh, 0));
     state.booted = true;
     return true;

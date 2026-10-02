@@ -631,9 +631,9 @@
                 rgba(0, 255, 255, 0.05) 10%,
                 rgba(0, 255, 255, 0) 100%
             );
-            opacity: 0.5;
+            opacity: 0.18;
             background-size: 100% 100%;
-            animation: scanline 8s linear infinite;
+            transform: translateY(0);
             z-index: 998;
             pointer-events: none;
         }
@@ -6344,6 +6344,17 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
 .phone-hidden {
     transform: translateY(150vh) !important;
     opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    content-visibility: hidden;
+}
+
+/* Hidden terminal content must become compositor-idle instead of continuing
+   decorative animations and paint work off-screen. */
+.phone-hidden *,
+.phone-hidden *::before,
+.phone-hidden *::after {
+    animation-play-state: paused !important;
 }
 
 /* ========================================================= */
@@ -6610,6 +6621,39 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
     padding: 20px;
     overflow-y: auto;
     flex: 1;
+}
+
+/* Stats is a viewport, not a content-sized floating card.
+   Keep its frame fixed so switching attributes/sections never recenters the HUD. */
+.hud-modal.modal-stats {
+    align-items: flex-start;
+    box-sizing: border-box;
+    padding-top: 7.5vh;
+    padding-bottom: 7.5vh;
+}
+
+/* The generic modal scale animation changes getBoundingClientRect while Stats
+   is open. Stats keeps fixed geometry and only fades its backdrop/content in. */
+.hud-modal.modal-stats.active,
+input.sheet-state-hud-modal[value="stats"] ~ .modal-stats {
+    animation: statsModalFadeIn 0.18s ease;
+}
+
+@keyframes statsModalFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.hud-modal.modal-stats .hud-modal-content {
+    height: 85vh;
+    max-height: 85vh;
+}
+
+.hud-modal.modal-stats .hud-modal-body {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
 }
 
 .hud-tab-content {

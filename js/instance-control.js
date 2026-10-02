@@ -157,6 +157,22 @@
     return combatView;
   }
 
+  function syncPlayerCombatOcclusion(documentRef) {
+    const combatView = documentRef?.getElementById?.("player-instance-combat");
+    if (!combatView) return false;
+
+    const phoneWrapper = documentRef.querySelector?.(".sheet-phone-wrapper") || null;
+    const terminalOpen = Boolean(phoneWrapper && !phoneWrapper.classList?.contains?.("phone-hidden"));
+    const combatActive = Boolean(documentRef.body?.classList?.contains?.("player-instance-combat"));
+    const shouldShow = combatActive && !terminalOpen && !documentRef.hidden;
+
+    combatView.style.visibility = shouldShow ? "visible" : "hidden";
+    combatView.style.pointerEvents = shouldShow ? "auto" : "none";
+    combatView.setAttribute("aria-hidden", shouldShow ? "false" : "true");
+    combatView.dataset.occludedByTerminal = terminalOpen ? "true" : "false";
+    return shouldShow;
+  }
+
   function stopPlayerCombatRuntime(combatView) {
     if (!combatView) return false;
     try {
@@ -194,16 +210,17 @@
 
     cleanupLegacyPlayerMapArtifacts(documentRef);
 
+    let combatView = documentRef.getElementById("player-instance-combat");
     if (combatActive) {
-      const combatView = createPlayerCombatView(documentRef);
+      combatView = createPlayerCombatView(documentRef);
       if (combatView?.contentDocument?.readyState === "complete") {
         ensureCombatTraitRuntime(combatView).catch((error) => {
           console.error("No se pudo verificar el runtime universal de Traits en combate:", error);
         });
       }
-    } else {
-      destroyPlayerCombatView(documentRef);
     }
+    if (combatView) combatView.style.display = combatActive ? "block" : "none";
+    if (!combatActive) destroyPlayerCombatView(documentRef);
 
     if (theatreView) {
       theatreView.style.display = theatreActive ? "flex" : "none";
@@ -218,6 +235,12 @@
       documentRef.body.classList.toggle("player-instance-theatre", theatreActive);
       documentRef.body.classList.toggle("player-instance-combat", combatActive);
       documentRef.body.classList.toggle("player-instance-blackout", blackoutActive);
+    }
+    if (combatActive) syncPlayerCombatOcclusion(documentRef);
+    if (global.dispatchEvent && typeof global.CustomEvent === "function") {
+      global.dispatchEvent(new global.CustomEvent("luminous:player-instance-changed", {
+        detail: { instance: activeInstance, theatreActive, combatActive, blackoutActive },
+      }));
     }
     return activeInstance;
   }
@@ -434,6 +457,7 @@
     applyPlayerInstance,
     applyDashboardInstance,
     createPlayerCombatView,
+    syncPlayerCombatOcclusion,
     stopPlayerCombatRuntime,
     destroyPlayerCombatView,
     ensureCombatTraitRuntime,

@@ -663,8 +663,43 @@ function updateBootLog(message, isError = false) {
   }
 }
 
+let lastCharacterSheetRenderSignature = "";
+
+function characterSheetRenderSignature(data) {
+  const skills = {};
+  Object.keys(data || {}).forEach((key) => {
+    if (key.startsWith("skill_")) skills[key] = data[key];
+  });
+  return JSON.stringify({
+    characterName: data?.characterName,
+    ahn: data?.ahn,
+    hp: data?.hp,
+    hp_max: data?.hp_max,
+    sp: data?.sp,
+    luck: data?.luck,
+    luck_max: data?.luck_max,
+    xp: data?.xp,
+    level: data?.level,
+    stats: data?.stats || null,
+    baseStats: data?.baseStats || null,
+    modifiers: data?.modifiers || null,
+    skills,
+    perks: data?.perks || null,
+    humanPerks: data?.humanPerks || null,
+    mails: data?.mails || null,
+    financeTransactions: data?.finance?.transactionHistory || null,
+    transacciones: data?.transacciones || null,
+    transactions: data?.transactions || null,
+    combatStats: data?.combatStats || null,
+    icono_jugador: data?.icono_jugador || null,
+  });
+}
+
 function renderCharacterSheet(data) {
   if (!data) return;
+  const nextRenderSignature = characterSheetRenderSignature(data);
+  if (nextRenderSignature === lastCharacterSheetRenderSignature) return;
+  lastCharacterSheetRenderSignature = nextRenderSignature;
 
   // --- 1. ACTUALIZAR DATOS BÁSICOS Y DINERO ---
   const camposDinamicos = [
@@ -711,13 +746,14 @@ function renderCharacterSheet(data) {
       coreStats.forEach(stat => {
           const val = data.stats[stat] !== undefined ? data.stats[stat] : 10;
           const inputEl = document.getElementById(`stat-${stat}`);
-          if (inputEl && document.activeElement !== inputEl) {
+          if (inputEl && document.activeElement !== inputEl && inputEl.value !== String(val)) {
               inputEl.value = val;
           }
           const mod = Math.floor((val - 10) / 2);
           const modEl = document.getElementById(`mod-${stat}`);
           if (modEl) {
-              modEl.textContent = (mod >= 0 ? '+' : '') + mod;
+              const nextMod = (mod >= 0 ? '+' : '') + mod;
+              if (modEl.textContent !== nextMod) modEl.textContent = nextMod;
           }
       });
   }
@@ -728,7 +764,7 @@ function renderCharacterSheet(data) {
   if (combatHudPortrait) {
     // Al ser un elemento SVG <image>, se debe usar setAttribute con 'href'
     const iconUrl = data.icono_jugador || "https://i.imgur.com/kP8s7Ww.png";
-    combatHudPortrait.setAttribute("href", iconUrl);
+    if (combatHudPortrait.getAttribute("href") !== iconUrl) combatHudPortrait.setAttribute("href", iconUrl);
   }
 
   // --- 2. ACTUALIZAR CUERPO, MENTE Y ALMA ---
@@ -948,22 +984,31 @@ function renderCharacterSheet(data) {
   // Inyectar datos en tiempo real
   if (hudPortrait) {
     const iconUrl = data.icono_jugador || "https://i.imgur.com/kP8s7Ww.png";
-    hudPortrait.setAttribute("href", iconUrl);
+    if (hudPortrait.getAttribute("href") !== iconUrl) hudPortrait.setAttribute("href", iconUrl);
   }
 
   // Respetar la estructura de spans separados para el HP
   if (hudHpActual && hudHpMax) {
-    hudHpActual.innerText = hpActual;
-    hudHpMax.innerText = hpMax;
+    if (hudHpActual.innerText !== String(hpActual)) hudHpActual.innerText = hpActual;
+    if (hudHpMax.innerText !== String(hpMax)) hudHpMax.innerText = hpMax;
   } else {
     // Fallback seguro por si la estructura cambia
     const hudHpContenedor = document.querySelector(".hud-hp-overlay-text");
     if (hudHpContenedor) hudHpContenedor.innerText = `${hpActual} / ${hpMax}`;
   }
 
-  if (hudSpDisplay) {
+  if (hudSpDisplay && hudSpDisplay.innerText !== String(spActual)) {
     hudSpDisplay.innerText = spActual;
   }
+}
+
+function updatePlayerDeviceNumberUI(data = window.datosJugador) {
+  const deviceNumberUI = document.getElementById("player-device-number");
+  if (!deviceNumberUI) return;
+  const nextText = data?.phoneNumber
+    ? `Mi Dispositivo: [${data.phoneNumber}]`
+    : "Mi Dispositivo: Sin Red";
+  if (deviceNumberUI.innerText !== nextText) deviceNumberUI.innerText = nextText;
 }
 
 async function runBootSequence() {
@@ -1077,37 +1122,154 @@ async function runBootSequence() {
     // STEP 4: Datos de Jugador (Data Sync)
     updateBootLog("[EJECUTANDO] 4/4: Sincronizando expediente local...");
 
-    // Set up the listener but wait for the first initial payload
-    await new Promise((resolve, reject) => {
-      playerRef.on(
-        "value",
-        (snap) => {
-          if (!snap.exists() || snap.val() === null) {
-            reject(new Error("Expediente vacío o permisos denegados."));
-            return;
-          }
+    const RUNTIME_IGNORED_PLAYER_KEYS = new Set([
+      "online",
+      "ultima_conexion",
+      "backgroundHeartbeat",
+      "finance",
+      "chats",
+      "correos",
+      "contactos",
+      "mails",
+      "transactionHistory",
+      "transacciones",
+      "transactions",
+      "settings",
+      "phoneNumber",
+      "inventario_activo",
+      "inventario_stash",
+      "itemInventorySchemaVersion",
+    ]);
+    const NOTIFICATION_PLAYER_KEYS = new Set([
+      "finance",
+      "chats",
+      "correos",
+      "settings",
+    ]);
+    const CACHE_IGNORED_PLAYER_KEYS = new Set([
+      "online",
+      "ultima_conexion",
+      "backgroundHeartbeat",
+      "finance",
+      "chats",
+      "correos",
+      "contactos",
+      "mails",
+      "transactionHistory",
+      "transacciones",
+      "transactions",
+    ]);
+    const CRAFTING_PLAYER_KEYS = new Set([
+      "inventario_activo",
+      "inventario_stash",
+      "recetas",
+      "recipes",
+      "crafting",
+      "materiales",
+      "materials",
+    ]);
+    const EXPRESSION_PLAYER_KEYS = new Set([
+      "expresiones",
+      "expressions",
+      "expression",
+      "sprite",
+      "icono_jugador",
+      "actorId",
+      "vinculo_jugador",
+      "characterName",
+    ]);
 
-          window.datosJugador = snap.val();
-          currentPlayerData = snap.val();
+    function applyPlayerData(nextData, changedKeys = [], initial = false) {
+      window.datosJugador = nextData || {};
+      currentPlayerData = window.datosJugador;
 
-          // Cache data
-          localStorage.setItem(
-            "datosJugadorCache",
-            JSON.stringify(window.datosJugador),
-          );
+      if (initial || changedKeys.includes("phoneNumber")) {
+        updatePlayerDeviceNumberUI(window.datosJugador);
+      }
 
-          renderCharacterSheet(window.datosJugador);
-          if (typeof window.renderRecetasCrafteo === "function") {
-            window.renderRecetasCrafteo();
-          }
-          if (typeof window.actualizarExpresionesDesdeDropdown === "function") {
-            window.actualizarExpresionesDesdeDropdown();
-          }
+      const runtimeRelevant = initial || changedKeys.some((key) => !RUNTIME_IGNORED_PLAYER_KEYS.has(key));
+      if (runtimeRelevant) {
+        window.dispatchEvent(new CustomEvent("luminous:player-data", {
+          detail: {
+            playerId,
+            data: window.datosJugador,
+            changedKeys: [...changedKeys],
+            initial,
+          },
+        }));
+      }
 
-          resolve();
-        },
-        reject,
-      );
+      const notificationRelevant = initial || changedKeys.some((key) => NOTIFICATION_PLAYER_KEYS.has(key));
+      if (notificationRelevant) {
+        window.dispatchEvent(new CustomEvent("luminous:player-notification-data", {
+          detail: {
+            playerId,
+            data: window.datosJugador,
+            changedKeys: [...changedKeys],
+            initial,
+          },
+        }));
+      }
+
+      const cacheRelevant = initial || changedKeys.some((key) => !CACHE_IGNORED_PLAYER_KEYS.has(key));
+      if (cacheRelevant) {
+        localStorage.setItem(
+          "datosJugadorCache",
+          JSON.stringify(window.datosJugador),
+        );
+      }
+
+      renderCharacterSheet(window.datosJugador);
+
+      if (
+        typeof window.renderRecetasCrafteo === "function"
+        && (initial || changedKeys.some((key) => CRAFTING_PLAYER_KEYS.has(key)))
+      ) {
+        window.renderRecetasCrafteo();
+      }
+
+      if (
+        typeof window.actualizarExpresionesDesdeDropdown === "function"
+        && (initial || changedKeys.some((key) => EXPRESSION_PLAYER_KEYS.has(key)))
+      ) {
+        window.actualizarExpresionesDesdeDropdown();
+      }
+    }
+
+    // Hydrate once, then listen to top-level child deltas. A change to chat,
+    // presence or another unrelated subtree must not rerun every player runtime.
+    const initialSnapshot = await playerRef.once("value");
+    if (!initialSnapshot.exists() || initialSnapshot.val() === null) {
+      throw new Error("Expediente vacío o permisos denegados.");
+    }
+
+    const initialData = initialSnapshot.val() || {};
+    const knownTopLevelKeys = new Set(Object.keys(initialData));
+    applyPlayerData(initialData, Object.keys(initialData), true);
+
+    playerRef.on("child_changed", (snap) => {
+      const key = snap.key;
+      if (!key) return;
+      const nextData = { ...(window.datosJugador || {}), [key]: snap.val() };
+      knownTopLevelKeys.add(key);
+      applyPlayerData(nextData, [key], false);
+    });
+
+    playerRef.on("child_removed", (snap) => {
+      const key = snap.key;
+      if (!key) return;
+      const nextData = { ...(window.datosJugador || {}) };
+      delete nextData[key];
+      knownTopLevelKeys.delete(key);
+      applyPlayerData(nextData, [key], false);
+    });
+
+    playerRef.on("child_added", (snap) => {
+      const key = snap.key;
+      if (!key || knownTopLevelKeys.has(key)) return;
+      knownTopLevelKeys.add(key);
+      const nextData = { ...(window.datosJugador || {}), [key]: snap.val() };
+      applyPlayerData(nextData, [key], false);
     });
 
     // Success!
@@ -1137,9 +1299,8 @@ function initializeCharacterSheet() {
   }
   if (!playerId) return;
 
-  if (window.LuminousPlayerContractsRuntime?.init && typeof db !== "undefined") {
-    window.LuminousPlayerContractsRuntime.init({ db, playerId });
-  }
+  // Contracts are lazy: subscribe only while the Contracts tab is actually open.
+  window.LuminousPlayerContractsRuntime?.dispose?.();
 
   // --- DESCARGAR ACTORES PARA EL JUGADOR ---
   if (typeof db !== "undefined") {
@@ -1179,25 +1340,40 @@ function initializeCharacterSheet() {
           if (window.syncPlayerTheatreComposer) window.syncPlayerTheatreComposer();
       }
 
-      db.ref("campaña/actores").on("value", (snap) => {
-        rawActorsCache = snap.val() || {};
-        refreshAllActoresCache();
-      });
+      let actorLoadGeneration = 0;
+      const loadActorsForTheatre = () => {
+        const generation = ++actorLoadGeneration;
+        Promise.all([
+          db.ref("campaña/actores").once("value"),
+          db.ref("campaña/base_datos_npcs").once("value"),
+        ]).then(([actorsSnap, npcsSnap]) => {
+          if (generation !== actorLoadGeneration) return;
+          rawActorsCache = actorsSnap.val() || {};
+          npcsCache = npcsSnap.val() || {};
+          refreshAllActoresCache();
+        }).catch((error) => {
+          console.error("[Luminous] No se pudo cargar el cache de actores del teatro:", error);
+        });
+      };
 
-      db.ref("campaña/base_datos_npcs").on("value", (snap) => {
-        npcsCache = snap.val() || {};
-        refreshAllActoresCache();
+      const syncActorCacheLifecycle = (theatreActive) => {
+        if (theatreActive) {
+          loadActorsForTheatre();
+          return;
+        }
+        actorLoadGeneration += 1;
+        rawActorsCache = {};
+        npcsCache = {};
+        window.actoresJugador = {};
+        window.allActoresCache = window.actoresJugador;
+      };
+
+      window.addEventListener("luminous:player-instance-changed", (event) => {
+        syncActorCacheLifecycle(event?.detail?.theatreActive === true);
       });
+      syncActorCacheLifecycle(document.body?.classList?.contains("player-instance-theatre") === true);
     }
   }
-
-  // Fallback to update UI
-  setInterval(() => {
-        const deviceNumberUI = document.getElementById("player-device-number");
-        if (deviceNumberUI) {
-            deviceNumberUI.innerText = window.datosJugador?.phoneNumber ? `Mi Dispositivo: [${window.datosJugador.phoneNumber}]` : "Mi Dispositivo: Sin Red";
-        }
-  }, 1000);
 
   // --- REPARACIÓN: LÓGICA DE ENVÍO Y LECTURA DEL TEATRO DE LA MENTE ---
   {
@@ -1322,24 +1498,41 @@ function initializeCharacterSheet() {
         }
       };
 
-      db.ref("campaña/teatro/log")
-        .limitToLast(20)
-        .on("value", (snap) => {
-          ultimoSnapLog = snap;
-          renderizarLog(snap);
-        });
+      const theatreLogRef = db.ref("campaña/teatro/log").limitToLast(20);
+      const theatreBlockRef = db.ref("campaña/teatro/bloqueo_interaccion");
+      let theatreRealtimeBound = false;
 
-      window.addEventListener("actoresCacheUpdated", () => {
-        if (ultimoSnapLog) {
-          renderizarLog(ultimoSnapLog);
-        }
-      });
-
-      // 2. Lectura de estado de bloqueo (Modo Lore)
-      db.ref("campaña/teatro/bloqueo_interaccion").on("value", (snap) => {
+      const theatreLogHandler = (snap) => {
+        ultimoSnapLog = snap;
+        renderizarLog(snap);
+      };
+      const theatreBlockHandler = (snap) => {
         window.isTheatreBlocked = snap.val();
         if (window.syncPlayerTheatreComposer) window.syncPlayerTheatreComposer();
+      };
+      const syncTheatreRealtime = (active) => {
+        if (active && !theatreRealtimeBound) {
+          theatreRealtimeBound = true;
+          theatreLogRef.on("value", theatreLogHandler);
+          theatreBlockRef.on("value", theatreBlockHandler);
+          return;
+        }
+        if (!active && theatreRealtimeBound) {
+          theatreRealtimeBound = false;
+          theatreLogRef.off("value", theatreLogHandler);
+          theatreBlockRef.off("value", theatreBlockHandler);
+          ultimoSnapLog = null;
+          window.isTheatreBlocked = false;
+        }
+      };
+
+      window.addEventListener("actoresCacheUpdated", () => {
+        if (ultimoSnapLog) renderizarLog(ultimoSnapLog);
       });
+      window.addEventListener("luminous:player-instance-changed", (event) => {
+        syncTheatreRealtime(event?.detail?.theatreActive === true);
+      });
+      syncTheatreRealtime(document.body?.classList?.contains("player-instance-theatre") === true);
     }
 
     // === ENVÍO AL TEATRO DE LA MENTE ===
@@ -1700,6 +1893,19 @@ function initializeCharacterSheet() {
     if (toggleBtn && phoneWrapper) {
       toggleBtn.addEventListener("click", () => {
         phoneWrapper.classList.toggle("phone-hidden");
+        const terminalHidden = phoneWrapper.classList.contains("phone-hidden");
+        if (terminalHidden) {
+          window.LuminousPlayerContractsRuntime?.dispose?.();
+        } else {
+          const activeTab =
+            document.querySelector('input[name="attr_tab"]')?.value ||
+            document.querySelector(".sheet-state-tab")?.value ||
+            "";
+          if (activeTab === "contratos") {
+            window.LuminousPlayerContractsRuntime?.init?.({ db, playerId });
+          }
+        }
+        window.LuminousInstanceControl?.syncPlayerCombatOcclusion?.(document);
       });
     }
 
@@ -1761,6 +1967,12 @@ function initializeCharacterSheet() {
       if (!btn || !btn.name || !btn.name.startsWith("act_tab_")) return;
 
       const tabName = btn.name.replace("act_tab_", "");
+
+      if (tabName === "contratos") {
+        window.LuminousPlayerContractsRuntime?.init?.({ db, playerId });
+      } else {
+        window.LuminousPlayerContractsRuntime?.dispose?.();
+      }
 
       const tabInput =
         document.querySelector('input[name="attr_tab"]') ||
@@ -2315,34 +2527,21 @@ function initializeCharacterSheet() {
       });
   }
 
-  // Escuchar isMuted
-  const charNameInputGlobal = document.querySelector('input[name="attr_character_name"]');
-  const globalPName = charNameInputGlobal ? charNameInputGlobal.value.trim() : "";
-  if (globalPName) {
-      db.ref(`campaña/jugadores/${globalPName}/settings/isMuted`).on("value", snap => {
-          const isMuted = snap.val() === true;
-          if (btnMute) {
-              btnMute.innerText = isMuted ? "🔕" : "🔔";
-          }
-          window.isPhoneMuted = isMuted;
-          if (typeof updateNotifications === 'function') updateNotifications();
-      });
-  }
-
-
   // --- SISTEMA DE NOTIFICACIONES REACTIVAS ---
+  // Player-owned state comes from the canonical player listener. Do not open
+  // parallel Firebase subscriptions for mute/bank/mail/chat metadata.
   let unreadBank = false;
   let unreadMail = false;
   let unreadChat = false;
+  let notificationChats = {};
+  let notificationChatSignature = "";
 
   window.updateNotifications = function() {
-      // Helper para renderizar badges
       const renderBadge = (elementIdOrSelector, hasUnread, checkMuted = false) => {
           const el = document.querySelector(elementIdOrSelector);
           if (!el) return;
 
           let badge = el.querySelector('.limbus-badge');
-
           const shouldShow = hasUnread && (!checkMuted || !window.isPhoneMuted);
 
           if (shouldShow) {
@@ -2352,96 +2551,73 @@ function initializeCharacterSheet() {
                   badge.innerText = '!';
                   el.appendChild(badge);
               }
-          } else {
-              if (badge) {
-                  badge.remove();
-              }
+          } else if (badge) {
+              badge.remove();
           }
       };
 
-      // Main HUD Icon (checks if muted)
       renderBadge('#btn-toggle-phone', unreadBank || unreadMail || unreadChat, true);
-
-      // Inside apps (always shows if unread)
       renderBadge('button[name="act_tab_banco"]', unreadBank, false);
       renderBadge('button[name="act_tab_mail"]', unreadMail || unreadChat, false);
-
-      // Subtabs
       renderBadge('#btn-show-mail', unreadMail, false);
       renderBadge('#btn-show-chat', unreadChat, false);
   };
 
-  // Listeners para Banco
-  const charNameInputGlobal2 = document.querySelector('input[name="attr_character_name"]');
-  const globalPName2 = charNameInputGlobal2 ? charNameInputGlobal2.value.trim() : "";
-  if (globalPName2) {
-      db.ref(`campaña/jugadores/${globalPName2}/finance/transactionHistory`).on("value", snap => {
-          let hasUnread = false;
-          snap.forEach(child => {
-              if (child.val().unread === true) hasUnread = true;
+  const refreshUnreadChat = async (chats, onlyChatId = null) => {
+      const entries = Object.entries(chats || {}).filter(([chatId]) => !onlyChatId || chatId === onlyChatId);
+      if (onlyChatId && !entries.length) return;
+      const results = await Promise.all(entries.map(async ([chatId, data]) => {
+          const lastRead = typeof data === "object" && data?.lastRead ? data.lastRead : 0;
+          const tsSnap = await db.ref(`campaña/comms/chats/${chatId}/lastMessageTimestamp`).once("value");
+          return (tsSnap.val() || 0) > lastRead;
+      }));
+      if (onlyChatId) {
+          if (results.some(Boolean)) unreadChat = true;
+      } else {
+          unreadChat = results.some(Boolean);
+      }
+      window.updateNotifications();
+  };
+
+  const syncPlayerNotificationState = (playerData = {}) => {
+      window.isPhoneMuted = playerData.settings?.isMuted === true;
+      if (btnMute) btnMute.innerText = window.isPhoneMuted ? "🔕" : "🔔";
+
+      unreadBank = Object.values(playerData.finance?.transactionHistory || {})
+        .some((tx) => tx?.unread === true);
+      unreadMail = Object.values(playerData.correos || {})
+        .some((mail) => mail?.leido === false);
+
+      notificationChats = playerData.chats && typeof playerData.chats === "object"
+        ? playerData.chats
+        : {};
+      const nextSignature = Object.entries(notificationChats)
+        .map(([chatId, data]) => `${chatId}:${data?.lastRead || 0}`)
+        .sort()
+        .join("|");
+      if (nextSignature !== notificationChatSignature) {
+          notificationChatSignature = nextSignature;
+          refreshUnreadChat(notificationChats).catch((error) => {
+              console.error("[Luminous] No se pudieron actualizar notificaciones de chat:", error);
           });
-          unreadBank = hasUnread;
-          window.updateNotifications();
+      }
+      window.updateNotifications();
+  };
+
+  window.addEventListener("luminous:player-notification-data", (event) => {
+      syncPlayerNotificationState(event?.detail?.data || window.datosJugador || {});
+  });
+  if (window.datosJugador) syncPlayerNotificationState(window.datosJugador);
+
+  // Keep one global chat change subscription so incoming messages can raise
+  // the badge, but ignore chats the player does not participate in.
+  db.ref("campaña/comms/chats").on("child_changed", (snap) => {
+      const chatId = snap?.key;
+      if (!chatId || !notificationChats?.[chatId]) return;
+      refreshUnreadChat(notificationChats, chatId).catch((error) => {
+          console.error("[Luminous] No se pudo actualizar badge de chat:", error);
       });
-
-      // Listeners para Mail
-      db.ref(`campaña/jugadores/${globalPName2}/correos`).on("value", snap => {
-          let hasUnread = false;
-          snap.forEach(child => {
-              if (child.val().leido === false) hasUnread = true;
-          });
-          unreadMail = hasUnread;
-          window.updateNotifications();
-      });
-
-      // Listeners para Chat
-      db.ref(`campaña/jugadores/${globalPName2}/chats`).on("value", snap => {
-          const chats = snap.val() || {};
-          let hasUnread = false;
-
-          // Need to compare lastRead against global lastMessageTimestamp
-          const checkPromises = Object.entries(chats).map(([chatId, data]) => {
-              const lastRead = typeof data === 'object' && data.lastRead ? data.lastRead : 0;
-
-              return db.ref(`campaña/comms/chats/${chatId}/lastMessageTimestamp`).once("value").then(tsSnap => {
-                  const lastMsg = tsSnap.val() || 0;
-                  if (lastMsg > lastRead) {
-                      return true;
-                  }
-                  return false;
-              });
-          });
-
-          Promise.all(checkPromises).then(results => {
-              if (results.some(r => r === true)) {
-                  unreadChat = true;
-              } else {
-                  unreadChat = false;
-              }
-              window.updateNotifications();
-          });
-      });
-
-      // Update once when global chat updates as well
-      db.ref(`campaña/comms/chats`).on("child_changed", snap => {
-          // Trigger a re-eval of chat badges
-          db.ref(`campaña/jugadores/${globalPName2}/chats`).once("value", snap2 => {
-              const chats = snap2.val() || {};
-              let hasUnread = false;
-              const checkPromises = Object.entries(chats).map(([chatId, data]) => {
-                  const lastRead = typeof data === 'object' && data.lastRead ? data.lastRead : 0;
-                  return db.ref(`campaña/comms/chats/${chatId}/lastMessageTimestamp`).once("value").then(tsSnap => {
-                      if ((tsSnap.val() || 0) > lastRead) return true;
-                      return false;
-                  });
-              });
-              Promise.all(checkPromises).then(results => {
-                  unreadChat = results.some(r => r === true);
-                  window.updateNotifications();
-              });
-          });
-      });
-  }
+  });
 
   // Set up Sub-Tab Switcher once DOM is ready
   document.addEventListener("DOMContentLoaded", () => {
@@ -3908,7 +4084,15 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
   // ==========================================
   // MOTOR DE SÍNTESIS (FORJA)
   // ==========================================
+  let forjaInitialized = false;
+  let forjaResolutionInitialized = false;
+  let refreshForjaMesaCrafteo = null;
+  const getForjaPlayerData = () => window.datosJugador || {};
+
   function initForja() {
+      if (forjaInitialized) return;
+      forjaInitialized = true;
+
       let forjaSlots = {
           1: null, // { key, inventarioTipo, data }
           2: null,
@@ -3920,24 +4104,27 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
       let mesaCrafteoGlobal = false;
       let targetSlot = null;
 
-      // Escuchar la mesa de crafteo global
-      db.ref("campaña/estado_mundo/mesa_crafteo_activa").on("value", snap => {
+      // Refrescar bajo demanda: no dejamos un listener Firebase vivo cuando Synthesis está cerrado.
+      refreshForjaMesaCrafteo = () => db.ref("campaña/estado_mundo/mesa_crafteo_activa").once("value").then((snap) => {
           mesaCrafteoGlobal = !!snap.val();
+          updateForjaSlotsVisuals();
+      }).catch(() => {
+          mesaCrafteoGlobal = false;
           updateForjaSlotsVisuals();
       });
 
       function tieneToolkit() {
           let hasToolkit = false;
           // Buscar toolkit en activo
-          if (localPlayerData.inventario_activo) {
-              Object.values(localPlayerData.inventario_activo).forEach(item => {
+          if (getForjaPlayerData().inventario_activo) {
+              Object.values(getForjaPlayerData().inventario_activo).forEach(item => {
                   if (item.tags && item.tags.includes("toolkit")) hasToolkit = true;
                   if (item.keywords && item.keywords.includes("toolkit")) hasToolkit = true;
               });
           }
           // Buscar toolkit en stash
-          if (localPlayerData.inventario_stash) {
-              Object.values(localPlayerData.inventario_stash).forEach(item => {
+          if (getForjaPlayerData().inventario_stash) {
+              Object.values(getForjaPlayerData().inventario_stash).forEach(item => {
                   if (item.tags && item.tags.includes("toolkit")) hasToolkit = true;
                   if (item.keywords && item.keywords.includes("toolkit")) hasToolkit = true;
               });
@@ -4068,15 +4255,12 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
               }
           }
 
-          renderGrid(localPlayerData.inventario_activo, activeGrid, "inventario_activo");
-          renderGrid(localPlayerData.inventario_stash, stashGrid, "inventario_stash");
+          renderGrid(getForjaPlayerData().inventario_activo, activeGrid, "inventario_activo");
+          renderGrid(getForjaPlayerData().inventario_stash, stashGrid, "inventario_stash");
       }
 
-      // Update whenever player data changes
-      db.ref(`campaña/jugadores/${pName}`).on("value", (snap) => {
-          updateForjaSlotsVisuals();
-          // We don't automatically clear slots if items disappear, but extraction validation will catch it
-      });
+      // Player inventory state already arrives through the canonical player listener.
+      // Do not open a second Firebase listener for the forge.
 
       // INIT
       updateForjaSlotsVisuals();
@@ -4085,14 +4269,22 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
       window.forjaSlots = forjaSlots;
   }
 
-  // Llama a initForja después de cargar
-  setTimeout(initForja, 2000);
+  // Forge setup is lazy and runs only when the synthesis tab is opened.
+  window.addEventListener("luminous:inventory-tab-changed", (event) => {
+      if (event?.detail?.tab !== "inv-sintesis") return;
+      initForja();
+      initForjaResolution();
+      refreshForjaMesaCrafteo?.();
+  });
 
 
   // ==========================================
   // RESOLUCIÓN DE CRAFTEO (SÍNTESIS)
   // ==========================================
   function initForjaResolution() {
+      if (forjaResolutionInitialized) return;
+      forjaResolutionInitialized = true;
+
       const btnIniciar = document.querySelector(".btn-synth-action");
       const btnForecast = document.querySelector(".btn-forecast");
       const probValueEl = document.querySelector(".prob-value");
@@ -4157,9 +4349,9 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
               let dcActual = recetaCoincidente.dificultad_base;
 
               // Buscar modificadores en el inventario activo (tags/keywords)
-              if (localPlayerData.inventario_activo) {
-                  for (let key in localPlayerData.inventario_activo) {
-                      let item = localPlayerData.inventario_activo[key];
+              if (getForjaPlayerData().inventario_activo) {
+                  for (let key in getForjaPlayerData().inventario_activo) {
+                      let item = getForjaPlayerData().inventario_activo[key];
                       if (item.keywords && Array.isArray(item.keywords)) {
                           item.keywords.forEach(kw => {
                               const synthMatch = kw.match(/synth_bonus_(\d+)/i);
@@ -4262,9 +4454,9 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
               let modTexto = [];
 
               // Buscar modificadores en el inventario activo (tags/keywords)
-              if (localPlayerData.inventario_activo) {
-                  for (let key in localPlayerData.inventario_activo) {
-                      let item = localPlayerData.inventario_activo[key];
+              if (getForjaPlayerData().inventario_activo) {
+                  for (let key in getForjaPlayerData().inventario_activo) {
+                      let item = getForjaPlayerData().inventario_activo[key];
                       if (item.keywords && Array.isArray(item.keywords)) {
                           item.keywords.forEach(kw => {
                               const synthMatch = kw.match(/synth_bonus_(\d+)/i);
@@ -4438,4 +4630,4 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
       }
   }
 
-  setTimeout(initForjaResolution, 2100);
+
