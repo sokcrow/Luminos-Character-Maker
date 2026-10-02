@@ -146,6 +146,51 @@
     return tags;
   }
 
+  function toolDefinition(item, root) {
+    const host = root || global;
+    const catalog = host.LuminousToolCatalog || global.LuminousToolCatalog;
+    if (!catalog || typeof catalog.get !== "function") return null;
+    for (const id of itemIdentity(item)) {
+      const found = catalog.get(id);
+      if (found) return found;
+    }
+    return null;
+  }
+
+  function toolMatchScore(requiredToolType, item, root) {
+    const required = normalizeId(requiredToolType);
+    if (!required || !item) return required ? 0 : 1;
+
+    const definition = toolDefinition(item, root) || {};
+    const tags = itemTags(Object.assign({}, definition, item));
+    [
+      definition.toolCategory,
+      definition.iconFamily,
+      definition.proficiencyType,
+      item.toolCategory,
+      item.iconFamily,
+      item.icon_family
+    ].map(normalizeId).filter(Boolean).forEach((value) => tags.add(value));
+
+    if (tags.has(required)) return 1000;
+    if (required.endsWith("_tools")) {
+      const stem = required.replace(/_tools$/, "");
+      if ([...tags].some((tag) => tag === stem || tag.startsWith(stem + "_"))) return 750;
+    }
+    return 0;
+  }
+
+  function requiredToolType(recipe) {
+    return normalizeId(recipe && recipe.requiredToolType);
+  }
+
+  function hasRequiredTool(recipe, toolItems, root) {
+    const required = requiredToolType(recipe);
+    if (!required) return true;
+    return (Array.isArray(toolItems) ? toolItems : [])
+      .some((item) => selectedUnits(item) > 0 && toolMatchScore(required, item, root) > 0);
+  }
+
   function selectedUnits(item) {
     const raw = Number(item && (item.__selectedUnits ?? item.selectedUnits ?? item.quantity ?? item.cantidad ?? 1));
     return Number.isFinite(raw) ? Math.max(0, Math.trunc(raw)) : 0;
@@ -296,7 +341,8 @@
     });
   }
 
-  function resolveRecipe(recipe, items, root) {
+  function resolveRecipe(recipe, items, root, options) {
+    const opts = options || {};
     const adapted = recipe && recipe.__contentKind === "recipe"
       ? clone(recipe)
       : adaptRecipe(recipe || {}, recipe && recipe.__catalogSource || "runtime", recipe && recipe.recipeKind);
@@ -306,21 +352,36 @@
 
     if (!selected.length) return { valid: false, reason: "no_recipe_inputs", recipe: adapted };
 
+    let result;
     if (adapted.recipeKind === "cooking") {
-      return resolveCookingRecipe(adapted, selected, root);
+      result = resolveCookingRecipe(adapted, selected, root);
+    } else if (adapted.recipeKind === "processing") {
+      result = resolveProcessingRecipe(adapted, selected);
+    } else {
+      result = Object.assign({ recipe: adapted }, allocateRequirements(adapted.inputRequirements || [], selected));
     }
-    if (adapted.recipeKind === "processing") {
-      return resolveProcessingRecipe(adapted, selected);
+
+    if (result && result.valid && opts.enforceTools === true && !hasRequiredTool(adapted, opts.toolItems || [], root)) {
+      return Object.assign({}, result, {
+        valid: false,
+        reason: "missing_required_tool",
+        requiredToolType: requiredToolType(adapted)
+      });
     }
-    return Object.assign({ recipe: adapted }, allocateRequirements(adapted.inputRequirements || [], selected));
+    return result;
   }
 
-  function findMatchingRecipe(root, items) {
-    const recipes = Object.values(collectRecipeMap(root || global));
-    const matches = recipes
+  function findMatchingRecipes(root, items, options) {
+    const opts = options || {};
+    return Object.values(collectRecipeMap(root || global))
       .map((recipe) => {
-        const resolution = resolveRecipe(recipe, items, root);
-        return { recipe, resolution, score: Number(resolution && resolution.score || 0) };
+        const resolution = resolveRecipe(recipe, items, root, opts);
+        return {
+          recipe,
+          recipeKey: recipe.__catalogKey || recipe.id,
+          resolution,
+          score: Number(resolution && resolution.score || 0)
+        };
       })
       .filter((entry) => entry.resolution && entry.resolution.valid)
       .sort((a, b) =>
@@ -328,7 +389,19 @@
         Number(b.recipe.priority || 0) - Number(a.recipe.priority || 0) ||
         clean(a.recipe.id).localeCompare(clean(b.recipe.id))
       );
-    return matches[0] || null;
+  }
+
+  function findMatchingRecipe(root, items, options) {
+    const opts = options || {};
+    const matches = findMatchingRecipes(root, items, opts);
+    const preferred = normalizeId(opts.recipeId || opts.recipeKey);
+    if (preferred) {
+      return matches.find((entry) =>
+        normalizeId(entry.recipeKey) === preferred ||
+        normalizeId(entry.recipe.id) === preferred
+      ) || null;
+    }
+    return matches.length === 1 ? matches[0] : null;
   }
 
   function recipeDifficulty(recipe) {
@@ -487,8 +560,12 @@
     collectRecipeMap,
     itemIdentity,
     itemTags,
+    toolMatchScore,
+    requiredToolType,
+    hasRequiredTool,
     requirementMatchScore,
     resolveRecipe,
+    findMatchingRecipes,
     findMatchingRecipe,
     recipeDifficulty,
     createRecipeOutput,
