@@ -77,29 +77,51 @@
     return "allies";
   }
 
-  function consumeEconomy(action, actor, context = {}) {
-    if (action.economy.cost === schema.ECONOMY_COSTS.ACTION) return { consumed: true, reason: null };
+  function consumeEconomyCost(cost, action, actor, context = {}) {
+    const normalized = normalizeId(cost || schema.ECONOMY_COSTS.ACTION);
+    if (normalized === schema.ECONOMY_COSTS.ACTION) return { consumed: true, reason: null, cost: normalized };
 
-    if (action.economy.cost === schema.ECONOMY_COSTS.QUICK_ACTION) {
+    if (normalized === schema.ECONOMY_COSTS.QUICK_ACTION) {
       const economy = context.teamEconomy || global.LuminousTeamActionEconomy;
       if (economy?.consumeQuickAction && context.encounter) {
-        return economy.consumeQuickAction(context.encounter, sideForActor(actor));
+        const result = economy.consumeQuickAction(context.encounter, sideForActor(actor)) || {};
+        return { ...result, cost: normalized };
       }
-      if (typeof context.consumeQuickAction === "function") return context.consumeQuickAction({ action, actor, context });
-      return { consumed: false, reason: "team_quick_action_runtime_required" };
+      if (typeof context.consumeQuickAction === "function") {
+        const result = context.consumeQuickAction({ action, actor, context }) || {};
+        return { ...result, cost: normalized };
+      }
+      return { consumed: false, reason: "team_quick_action_runtime_required", cost: normalized };
     }
 
-    if (action.economy.cost === schema.ECONOMY_COSTS.REACTION) {
-      if (typeof context.consumeReaction === "function") return context.consumeReaction({ action, actor, context });
+    if (normalized === schema.ECONOMY_COSTS.REACTION) {
+      if (typeof context.consumeReaction === "function") {
+        const result = context.consumeReaction({ action, actor, context }) || {};
+        return { ...result, cost: normalized };
+      }
       const legacy = global.LuminousActionEconomy;
       if (legacy?.consume) {
         const ok = legacy.consume(actor, "reaction", { phase: "combat" });
-        return { consumed: Boolean(ok), reason: ok ? null : "reaction_unavailable" };
+        return { consumed: Boolean(ok), reason: ok ? null : "reaction_unavailable", cost: normalized };
       }
-      return { consumed: false, reason: "reaction_runtime_required" };
+      return { consumed: false, reason: "reaction_runtime_required", cost: normalized };
     }
 
-    return { consumed: true, reason: null };
+    return { consumed: true, reason: null, cost: normalized };
+  }
+
+  function consumeEconomy(action, actor, context = {}) {
+    const costs = [
+      action.economy?.cost || schema.ECONOMY_COSTS.ACTION,
+      ...(Array.isArray(action.metadata?.economyAddons) ? action.metadata.economyAddons : []),
+    ];
+    const results = [];
+    for (const cost of costs) {
+      const result = consumeEconomyCost(cost, action, actor, context);
+      results.push(result);
+      if (result?.consumed === false) return { consumed: false, reason: result.reason || "economy_unavailable", cost: result.cost, results };
+    }
+    return { consumed: true, reason: null, results };
   }
 
   function consumeHelpBudget(actor, context = {}) {
@@ -566,6 +588,7 @@
 
   const api = Object.freeze({
     currentPhase,
+    consumeEconomyCost,
     consumeEconomy,
     validateResources,
     consumeResources,
