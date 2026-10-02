@@ -1025,6 +1025,170 @@
       effects: [{ type: "level1_cure_wounds" }]
     }),
 
+    detect_evil_and_good: Object.freeze({
+      id: "detect_evil_and_good", name: "Detect Evil and Good", nombre: "Detectar el Bien y el Mal",
+      description: "Detect the presence of Aberration, Celestial, Elemental, Fey, Fiend, Undead, or Hallow nearby. You are informed which applicable presences are detected.",
+      level: 1, spellLevel: 1, cantrip: false,
+      classIds: ["cleric", "paladin"],
+      school: "divination", contexts: ["combat", "theater"],
+      sinAffinity: "pride", damageType: null,
+      targetType: "self", targetingType: "self", attackWeight: 1, atkWeight: 1,
+      castingTime: "action", concentration: true, duration: "10_minutes",
+      isUnclashable: true, resolutionType: "automatic",
+      mechanics: {
+        level1Runtime: "detect_evil_and_good",
+        detectionRequest: {
+          type: "presence_checklist",
+          choices: ["aberration", "celestial", "elemental", "fey", "fiend", "undead", "hallow"]
+        }
+      },
+      effects: [{ type: "level1_detection_request", spellId: "detect_evil_and_good" }]
+    }),
+
+    detect_magic: Object.freeze({
+      id: "detect_magic", name: "Detect Magic", nombre: "Detectar Magia",
+      description: "Detect the presence of nearby magic. When applicable, you are informed of its School of Magic.",
+      level: 1, spellLevel: 1, cantrip: false,
+      classIds: ["bard", "cleric", "druid", "paladin", "ranger", "sorcerer", "wizard"],
+      school: "divination", contexts: ["combat", "theater"],
+      sinAffinity: "sinless", damageType: null,
+      targetType: "self", targetingType: "self", attackWeight: 1, atkWeight: 1,
+      castingTime: "action", concentration: true, ritual: true, duration: "10_minutes",
+      isUnclashable: true, resolutionType: "automatic",
+      mechanics: {
+        level1Runtime: "detect_magic",
+        detectionRequest: {
+          type: "magic_sources",
+          sources: ["nearby_magical_effect", "objects", "creatures", "phenomena"],
+          schools: ["abjuration", "conjuration", "divination", "enchantment", "evocation", "illusion", "necromancy", "transmutation"]
+        }
+      },
+      effects: [{ type: "level1_detection_request", spellId: "detect_magic" }]
+    }),
+
+    detect_poison_and_disease: Object.freeze({
+      id: "detect_poison_and_disease", name: "Detect Poison and Disease", nombre: "Detectar Veneno y Enfermedad",
+      description: "Detect the presence and location of nearby Poisons, Poisonous or Venomous Creatures, and Magical Contagions. You are informed of the type detected.",
+      level: 1, spellLevel: 1, cantrip: false,
+      classIds: ["cleric", "druid", "paladin", "ranger"],
+      school: "divination", contexts: ["combat", "theater"],
+      sinAffinity: "gluttony", damageType: null,
+      targetType: "self", targetingType: "self", attackWeight: 1, atkWeight: 1,
+      castingTime: "action", concentration: true, ritual: true, duration: "10_minutes",
+      isUnclashable: true, resolutionType: "automatic",
+      mechanics: {
+        level1Runtime: "detect_poison_and_disease",
+        detectionRequest: {
+          type: "presence_details",
+          choices: ["poison", "poisonous_or_venomous_creature", "magical_contagion"],
+          includeLocation: true,
+          includeType: true
+        }
+      },
+      effects: [{ type: "level1_detection_request", spellId: "detect_poison_and_disease" }]
+    }),
+
+    disguise_self: Object.freeze({
+      id: "disguise_self", name: "Disguise Self", nombre: "Disfrazarse",
+      description: "Create an illusory disguise that changes your visible appearance, clothing, armor, weapons, and carried equipment. While disguised, gain +4 Deception Checks.",
+      level: 1, spellLevel: 1, cantrip: false,
+      classIds: ["bard", "sorcerer", "wizard"],
+      school: "illusion", contexts: ["theater"],
+      sinAffinity: "lust", damageType: null,
+      targetType: "self", targetingType: "self", attackWeight: 1, atkWeight: 1,
+      castingTime: "action", concentration: false, duration: "1_hour",
+      isUnclashable: true, resolutionType: "automatic",
+      mechanics: {
+        level1Runtime: "disguise_self",
+        deceptionFinalPowerBonus: 4,
+        durationHours: 1
+      },
+      effects: [{ type: "level1_disguise_self" }]
+    }),
+
+    divine_favor: Object.freeze({
+      id: "divine_favor", name: "Divine Favor", nombre: "Favor Divino",
+      description: "For 10 Turns, your Weapon Attack Skills deal 1 Fixed Damage and inflict 1 Radiance on Hit. If the target already has Radiance, deal 2 Fixed Damage instead. Applies once per Skill.",
+      level: 1, spellLevel: 1, cantrip: false,
+      classIds: ["paladin"],
+      school: "transmutation", contexts: ["combat"],
+      sinAffinity: "pride", damageType: null,
+      targetType: "self", targetingType: "self", attackWeight: 1, atkWeight: 1,
+      castingTime: "quick_action", concentration: false, durationTurns: 10,
+      isUnclashable: true, resolutionType: "automatic",
+      mechanics: {
+        level1Runtime: "divine_favor",
+        durationTurns: 10,
+        onWeaponHit: { fixedDamage: 1, fixedDamageIfTargetHasRadiance: 2, radiance: 1, oncePerSkill: true }
+      },
+      effects: [{ type: "level1_divine_favor" }]
+    }),
+
+    divine_smite: Object.freeze({
+      id: "divine_smite", name: "Divine Smite", nombre: "Castigo Divino",
+      description: "Prepare a Smite for your next Melee or Unarmed Attack Skill that hits. If the target has Radiance, gain +1 Final Power. Deal (4 + 4 × Spell Slot Used) Fixed Damage and inflict 2 Radiance. Fiends and Undead take +50% Fixed Damage.",
+      level: 1, spellLevel: 1, cantrip: false,
+      classIds: ["paladin"],
+      school: "evocation", contexts: ["combat"],
+      sinAffinity: "pride", damageType: null,
+      targetType: "self", targetingType: "self", attackWeight: 1, atkWeight: 1,
+      displayTarget: "enemy_hit",
+      castingTime: "quick_action", concentration: false, duration: "until_next_eligible_hit",
+      isUnclashable: true, resolutionType: "automatic",
+      mechanics: {
+        level1Runtime: "divine_smite",
+        trigger: "next_melee_or_unarmed_hit",
+        finalPowerIfTargetHasRadiance: 1,
+        fixedDamage: { base: 4, perSpellSlotUsed: 4 },
+        radiance: 2,
+        creatureTypeFixedDamageMultiplier: { fiend: 1.5, undead: 1.5 }
+      },
+      effects: [{ type: "level1_divine_smite" }]
+    }),
+
+    ensnaring_strike: Object.freeze({
+      id: "ensnaring_strike", name: "Ensnaring Strike", nombre: "Golpe Enredador",
+      description: "Prepare your next Weapon Attack Skill that hits. The target makes a Strength Save. On a Failed Save, inflict Restrained and deal (2 × Spell Slot Used) Fixed Damage at the start of each Turn. The target may use an Action to make a Strength Check vs your Spell Save DC; on success, the spell ends.",
+      level: 1, spellLevel: 1, cantrip: false,
+      classIds: ["ranger"],
+      school: "conjuration", contexts: ["combat"],
+      sinAffinity: "gluttony", damageType: null,
+      targetType: "self", targetingType: "self", attackWeight: 1, atkWeight: 1,
+      displayTarget: "enemy_hit",
+      castingTime: "quick_action", concentration: true, durationTurns: 10,
+      isUnclashable: true, resolutionType: "automatic",
+      mechanics: {
+        level1Runtime: "ensnaring_strike",
+        trigger: "next_weapon_hit",
+        save: { abilityId: "str", onSuccess: "negates" },
+        onFailedSave: { status: "restrained", count: 1 },
+        turnStartFixedDamagePerSpellSlotUsed: 2,
+        escapeCheck: { abilityId: "str", threshold: "spell_save_dc", economy: "action" }
+      },
+      effects: [{ type: "level1_ensnaring_strike" }]
+    }),
+
+    entangle: Object.freeze({
+      id: "entangle", name: "Entangle", nombre: "Enredar",
+      description: "Create an area of grasping plants. Enemies in the area make a Strength Save; on a Failed Save, inflict Restrained. The area is Difficult Terrain. A Restrained unit may use its Action to make a Strength Check vs your Spell Save DC; on success, remove Restrained.",
+      level: 1, spellLevel: 1, cantrip: false,
+      classIds: ["druid", "ranger"],
+      school: "conjuration", contexts: ["combat"],
+      sinAffinity: "gluttony", damageType: null,
+      targetType: "area", targetingType: "aoe", attackWeight: 4, atkWeight: 4,
+      castingTime: "action", concentration: true, durationTurns: 10,
+      isUnclashable: true,
+      save: { abilityId: "str", onSuccess: "negates" },
+      mechanics: {
+        level1Runtime: "entangle",
+        onFailedSave: { status: "restrained", count: 1 },
+        areaEffect: "difficult_terrain",
+        durationTurns: 10,
+        escapeCheck: { abilityId: "str", threshold: "spell_save_dc", economy: "action" }
+      },
+      effects: [{ type: "level1_entangle_area" }]
+    }),
+
     charm_person: Object.freeze({
       id: "charm_person", name: "Charm Person", nombre: "Hechizar Persona",
       level: 1, spellLevel: 1, cantrip: false,
@@ -1049,13 +1213,15 @@
 
     chromatic_orb: Object.freeze({
       id: "chromatic_orb", name: "Chromatic Orb", nombre: "Orbe Cromático",
+      description: "Choose an element. On Hit, inflict its matching elemental Status. On Critical Hit, jump to a different enemy; a target cannot be repeated in the same cast.",
       level: 1, spellLevel: 1, cantrip: false,
       classIds: ["sorcerer", "wizard"],
       school: "evocation", contexts: ["combat"],
       sinAffinity: "sinless", damageType: "perforante",
-      targetingType: "focused_attack", attackWeight: 1, atkWeight: 1,
+      targetingType: "focused_attack", targetType: "single", attackWeight: 1, atkWeight: 1,
       basePower: 5, coinPower: 10, coinAmount: 1, coins: 1,
       mechanics: {
+        level1Runtime: "chromatic_orb",
         requiresChoice: {
           key: "element",
           values: ["acid", "cold", "fire", "lightning", "poison", "thunder"]
