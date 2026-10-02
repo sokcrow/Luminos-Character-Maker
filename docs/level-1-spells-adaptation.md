@@ -30,13 +30,13 @@ The 9 pre-existing definitions remain review items until their metadata, mechani
 - [ ] Shield
 - [ ] Silvery Barbs
 - [ ] Thunderwave
-- [ ] Alarm
-- [ ] Armor of Agathys
-- [ ] Arms of Hadar
-- [ ] Bane
-- [ ] Bless
-- [ ] Burning Hands
-- [x] Create or Destroy Water
+- Alarm
+- Armor of Agathys
+- Arms of Hadar
+- Bane
+- Bless
+- Burning Hands
+- [x] Create or Destroy Water — SPR approved and implemented
 
 #### Review decision for the 9 pre-existing definitions
 
@@ -56,7 +56,7 @@ Do **not** rewrite the shared Spell Slot / class-gating infrastructure. Reuse it
 
 These already exist in `js/role-spell-catalog-core.js` and are covered by the Angelo smoke, so they must **not** be reimplemented as unrelated duplicates. They still count as pending work because the role catalog is not the authoritative shared spell definition.
 
-- [ ] Comprehend Languages
+- [ ] Comprehend Languages — SPR approved; canonical migration pending
 - [ ] Speak with Animals
 - [ ] Distort Value
 
@@ -64,9 +64,9 @@ These already exist in `js/role-spell-catalog-core.js` and are covered by the An
 
 #### 2024 PHB baseline — 48
 
-- [ ] Color Spray
-- [ ] Command
-- [ ] Compelled Duel
+- [ ] Color Spray — SPR approved; implementation pending
+- [ ] Command — SPR approved; implementation pending
+- [ ] Compelled Duel — SPR approved; implementation pending
 - [ ] Cure Wounds
 - [ ] Detect Evil and Good
 - [ ] Detect Magic
@@ -192,18 +192,13 @@ This batch intentionally covers ritual/theater, self-defense, save/AoE, concentr
 
 ### Batch 2 — SPR review in progress
 
-SPR/design review is tracked separately from implementation completion so approved adaptations are not lost between sessions.
+This section is informational only. The authoritative task checkbox for each spell appears once in the inventory above.
 
-- [x] **Color Spray — SPR approved**: Save Spell, CON Save, Failed Save applies Blinded until the end of the caster's next turn. No damage.
-- [x] **Command — SPR approved**: WIS Save. Commands: Approach = Aggro to caster; Drop = drop held items to Loot and end turn; Flee = Retreat 1 turn; Grovel = Prone and end turn; Halt = no movement, Action, or Quick Action that turn.
-- [x] **Compelled Duel — SPR approved**: WIS Save, Concentration, Quick Action; failed Save locks Aggro to caster and ends on the agreed hostile/interference conditions.
-- [x] **Comprehend Languages — SPR approved**: migrate the existing Theater definition into the canonical catalog without changing its current Theater behavior.
-- [x] **Create or Destroy Water — SPR approved**: canonical definition added. Combat Rain uses the Rain Encounter Modifier; Destroy Fog suppresses Light Fog for 5 turns or Heavy Fog for 2 turns. Theater keeps Create/Destroy Water, Rain, and Destroy Fog utility modes.
-- [ ] **Color Spray — implementation**
-- [ ] **Command — implementation**
-- [ ] **Compelled Duel — implementation**
-- [ ] **Comprehend Languages — canonical migration**
-- [x] **Create or Destroy Water — canonical definition + weather modifier contract**
+- **Color Spray:** SPR approved; implementation pending.
+- **Command:** SPR approved; implementation pending.
+- **Compelled Duel:** SPR approved; implementation pending.
+- **Comprehend Languages:** SPR approved; canonical migration pending.
+- **Create or Destroy Water:** SPR approved and implemented.
 
 #### Encounter Weather Modifier decisions locked during Batch 2
 
