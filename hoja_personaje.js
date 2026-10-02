@@ -4661,7 +4661,10 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
                       try {
                           runtimeInstance = window.LuminousItemInventoryRuntime?.createItemInstance?.(
                               canonicalOutput,
-                              { quantity: outputQuantity }
+                              {
+                                  quantity: outputQuantity,
+                                  qualityTier: canonicalOutput.qualityTier
+                              }
                           ) || null;
                       } catch (error) {
                           console.warn("No se pudo crear instancia runtime de síntesis; usando payload canónico.", error);
