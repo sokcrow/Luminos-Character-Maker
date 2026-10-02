@@ -5,9 +5,17 @@ on:
     branches: [main]
     paths:
       - 'hoja_personaje.html'
+      - 'hoja_personaje.js'
       - 'pantalla_dm.html'
       - 'js/dm-item-instance-editor.js'
       - 'js/dm-item-catalog-core.js'
+      - 'js/item-content-registry.js'
+      - 'js/item-chemistry-recipe-catalog.js'
+      - 'js/item-cooking-recipe-catalog.js'
+      - 'js/item-cooking-recipe-resolver.js'
+      - 'js/item-medicine-recipe-catalog.js'
+      - 'js/item-processing-recipe-data.js'
+      - 'js/item-throwable-recipe-catalog.js'
       - 'js/inventory-hud-v2.js'
       - 'js/item-icon-registry.js'
       - 'js/item-inventory-runtime.js'
@@ -34,6 +42,8 @@ jobs:
         run: |
           node --check js/dm-item-instance-editor.js
           node --check js/dm-item-catalog-core.js
+          node --check js/item-content-registry.js
+          node --check hoja_personaje.js
           node tests/dm-item-catalog-core.spec.cjs
           node --check js/inventory-hud-v2.js
           node --check js/item-inventory-runtime.js
