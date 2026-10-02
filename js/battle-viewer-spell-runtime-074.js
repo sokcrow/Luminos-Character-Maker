@@ -43,6 +43,7 @@
       try { if (!global.LuminousPierreSpellBatchRuntime) global.LuminousPierreSpellBatchRuntime = require("./spell-batch-pierre-runtime.js"); } catch (_) {}
       try { if (!global.LuminousWeaponCantripBatchRuntime) global.LuminousWeaponCantripBatchRuntime = require("./spell-batch-weapon-cantrips-runtime.js"); } catch (_) {}
       try { if (!global.LuminousCantripBatchRuntime) global.LuminousCantripBatchRuntime = require("./spell-batch-cantrips-runtime.js"); } catch (_) {}
+      try { if (!global.LuminousCombatPropsRuntime) global.LuminousCombatPropsRuntime = require("./combat-props-runtime.js"); } catch (_) {}
       try { if (!global.LuminousLevel1SpellBatchRuntime) global.LuminousLevel1SpellBatchRuntime = require("./spell-batch-level1-runtime.js"); } catch (_) {}
     }
     if (global.document) {
@@ -51,6 +52,7 @@
       await loadScript("spell-batch-pierre-runtime-script", "js/spell-batch-pierre-runtime.js", "LuminousPierreSpellBatchRuntime");
       await loadScript("spell-batch-weapon-cantrips-runtime-script", "js/spell-batch-weapon-cantrips-runtime.js", "LuminousWeaponCantripBatchRuntime");
       await loadScript("spell-batch-cantrips-runtime-script", "js/spell-batch-cantrips-runtime.js", "LuminousCantripBatchRuntime");
+      await loadScript("combat-props-runtime-script", "js/combat-props-runtime.js", "LuminousCombatPropsRuntime");
       await loadScript("spell-batch-level1-runtime-script", "js/spell-batch-level1-runtime.js", "LuminousLevel1SpellBatchRuntime");
     }
     global.LuminousContentRegistryBootstrap?.registerAvailableCore?.({ modules: {
@@ -182,6 +184,7 @@
     const resource = installSpellcastingResourceBridge();
     const hook = installCombatHook();
     pierreBatchRuntime()?.install?.();
+    global.LuminousCombatPropsRuntime?.install?.();
     level1BatchRuntime()?.install?.();
     global.LuminousWeaponCantripBatchRuntime?.install?.();
     global.LuminousCantripBatchRuntime?.install?.();
