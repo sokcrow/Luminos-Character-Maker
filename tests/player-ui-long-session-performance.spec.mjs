@@ -71,6 +71,7 @@ const firebaseStub = `
   };
 
   const listeners = new Map();
+  const listenerOrigins = new Map();
   let pushId = 0;
 
   const normalize = (raw) => String(raw || "").replace(/^\\/+|\\/+$/g, "");
@@ -161,19 +162,35 @@ const firebaseStub = `
       const key = listenerKey(this.path, event);
       if (!listeners.has(key)) listeners.set(key, new Set());
       listeners.get(key).add(handler);
+      if (!listenerOrigins.has(key)) listenerOrigins.set(key, new Map());
+      listenerOrigins.get(key).set(
+        handler,
+        String(new Error("Firebase listener registered").stack || "")
+          .split("\n")
+          .slice(1, 9)
+          .join("\n")
+      );
       if (event === "value") queueMicrotask(() => handler(this._snapshot()));
       return handler;
     }
     off(event, handler) {
       if (!event) {
         for (const key of [...listeners.keys()]) {
-          if (key.startsWith(this.path + "|")) listeners.delete(key);
+          if (key.startsWith(this.path + "|")) {
+            listeners.delete(key);
+            listenerOrigins.delete(key);
+          }
         }
         return;
       }
       const key = listenerKey(this.path, event);
-      if (!handler) { listeners.delete(key); return; }
+      if (!handler) {
+        listeners.delete(key);
+        listenerOrigins.delete(key);
+        return;
+      }
       listeners.get(key)?.delete(handler);
+      listenerOrigins.get(key)?.delete(handler);
     }
     once() { return Promise.resolve(this._snapshot()); }
     onDisconnect() { return { set: () => Promise.resolve() }; }
@@ -237,6 +254,13 @@ const firebaseStub = `
         .filter(([, handlers]) => handlers.size > 0)
         .map(([key]) => key)
         .sort();
+    },
+    listenerOrigins() {
+      return Object.fromEntries(
+        [...listenerOrigins.entries()]
+          .map(([key, origins]) => [key, [...origins.values()]])
+          .filter(([, origins]) => origins.length > 0)
+      );
     }
   };
 
@@ -362,6 +386,7 @@ test("real player sheet reaches interval-idle after boot", async ({ page }) => {
   const runtimeState = await page.evaluate(() => ({
     intervals: window.__perfIntervalRegistry?.details?.() || [],
     firebaseListeners: window.__fakeFirebase?.listenerKeys?.() || [],
+    listenerOrigins: window.__fakeFirebase?.listenerOrigins?.() || {},
   }));
   expect(runtimeState.intervals, JSON.stringify(runtimeState.intervals, null, 2)).toEqual([]);
 
@@ -380,7 +405,7 @@ test("real player sheet reaches interval-idle after boot", async ({ page }) => {
     "campaña/jugadores/player_test/chats|value",
   ];
   forbiddenIdleListeners.forEach((listener) => {
-    expect(runtimeState.firebaseListeners, JSON.stringify(runtimeState.firebaseListeners, null, 2)).not.toContain(listener);
+    expect(runtimeState.firebaseListeners, JSON.stringify(runtimeState, null, 2)).not.toContain(listener);
   });
 });
 
