@@ -444,7 +444,10 @@
     } else if (adapted.recipeKind === "processing") {
       result = resolveProcessingRecipe(adapted, selected, root);
     } else {
-      result = Object.assign({ recipe: adapted }, allocateRequirements(adapted.inputRequirements || [], selected));
+      result = Object.assign(
+        { recipe: adapted, sourceInputs: clone(selected) },
+        allocateRequirements(adapted.inputRequirements || [], selected)
+      );
     }
 
     if (result && result.valid && opts.enforceTools === true && !hasRequiredTool(adapted, opts.toolItems || [], root)) {
@@ -588,6 +591,42 @@
           recipeKind,
           canonical: true
         }
+      });
+    }
+
+
+    if (recipeKind === "chemistry" || recipeKind === "medicine") {
+      const resolution = opts.resolution || {};
+      const sourceInputs = Array.isArray(resolution.sourceInputs) ? resolution.sourceInputs : [];
+      const engine = recipeKind === "chemistry"
+        ? global.LuminousChemistryCraftingEngine
+        : global.LuminousMedicineCraftingEngine;
+      if (!engine?.craft || !sourceInputs.length) return null;
+
+      const crafted = engine.craft(raw.id || raw.recipeId, sourceInputs, {
+        checkTotal: Number(opts.checkResult),
+        outputQuantity: opts.quantity
+      });
+      if (!crafted?.crafted || !crafted.output) return null;
+
+      const output = clone(crafted.output);
+      return Object.assign({}, output, {
+        id: output.id || normalizeId(raw.id || raw.recipeId),
+        definitionId: output.definitionId || output.id || normalizeId(raw.id || raw.recipeId),
+        canonicalId: output.canonicalId || output.definitionId || output.id || normalizeId(raw.id || raw.recipeId),
+        nombre: output.name || output.nombre || raw.name || raw.label,
+        quantity: Math.max(1, Number(output.quantity || 1)),
+        cantidad: Math.max(1, Number(output.quantity || 1)),
+        crafted: true,
+        recipeId: normalizeId(raw.id || raw.recipeId),
+        sourceRecipeId: normalizeId(raw.id || raw.recipeId),
+        consumedInputProductionValueAhn: crafted.consumedInputProductionValueAhn,
+        craftBaseValueAhn: crafted.craftBaseValueAhn,
+        productionValueAhn: crafted.productionValueAhn ?? output.productionValueAhn,
+        craft: Object.assign({}, output.craft || {}, {
+          recipeKind,
+          canonical: true
+        })
       });
     }
     const id = normalizeId(raw.outputId || raw.id || raw.recipeId || raw.name || raw.label);
