@@ -9,6 +9,19 @@
   const VERSION = 1;
   const DEFAULT_ICON = "Assets/Icons/items/fallback/generic_item.png";
   const CATALOG_NAME_RE = /^Luminous.*(?:Item|Weapon|Armor|Shield|Ammo|Food|Meat|Healing|Medical|Medicinal|Chemical|Material|Component|Tool|Jewelry|Valuable|Ore|Ingot|Gem|Hide|Pelt|Organ|Blood|Ichor|Venom|Ooze|Essence|Plant|Produce|Feather|Upgrade|Throwable|Culinary|Retail|Ranged|Firearm|StatusCure|HardParts|ScaleShellChitin).*Catalog$/;
+  const STACK_VARIANT_FIELDS = Object.freeze([
+    "stackable", "stackPolicy", "family", "group", "category", "itemType", "quality", "iconFamily", "icon_family",
+    "size", "sizeId", "lineageId", "lineageName",
+    "culinaryProperties", "culinaryAffinities", "culinaryAffinityProfileId", "affinityTarget", "affinityBranch",
+    "processedForm", "processingMethod", "processingMethodId", "processingTemplateId", "templateId",
+    "recipeId", "dishFamily", "mealFocus", "stars", "taste", "sp", "culinaryEffects", "freshness",
+    "materialId", "materialIds", "materialChoices", "composition", "combatGrade", "ammoGrade", "caliber",
+    "ammoType", "projectileType", "payload", "profile", "ammoProfile", "reinforced", "upgradeIds",
+    "durability", "maxDurability", "available", "spent", "destroyed",
+    "sourceLine", "sourceInstanceId", "sourceEntityId", "originCreatureType", "originCreatureId",
+    "originRaceId", "originSubtypeId", "provenance",
+    "unitValueAhn", "totalValueAhn", "productionValueAhn", "productionValue", "retailValueAhn"
+  ]);
 
   const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
   const clean = (value) => String(value == null ? "" : value).trim();
@@ -249,6 +262,18 @@
     }, {});
   }
 
+  function normalizedVariantData(item) {
+    const source = item || {};
+    const out = {};
+    const nested = source.variantData || source.variant_data || {};
+    STACK_VARIANT_FIELDS.forEach((field) => {
+      const value = source[field] !== undefined ? source[field] : nested[field];
+      if (value !== undefined) out[field] = clone(value);
+    });
+    if (nested && typeof nested === "object") Object.assign(out, clone(nested));
+    return out;
+  }
+
   function stackVariantSignature(item) {
     const source = item || {};
     return JSON.stringify(stableNormalize({
@@ -271,7 +296,7 @@
       stolen: source.stolen === true,
       runtimeState: clone(source.runtimeState || source.runtime_state || {}),
       customData: clone(source.customData || source.custom_data || {}),
-      variantData: clone(source.variantData || source.variant_data || {})
+      variantData: normalizedVariantData(source)
     }));
   }
 
@@ -345,6 +370,7 @@
     collectCatalogMap,
     mergeFirebaseItems,
     buildCatalogMap,
+    normalizedVariantData,
     stackVariantSignature,
     sameDefinition,
     quantityOf,
