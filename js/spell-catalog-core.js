@@ -1126,24 +1126,28 @@
 
     divine_smite: Object.freeze({
       id: "divine_smite", name: "Divine Smite", nombre: "Castigo Divino",
-      description: "Prepare a Smite for your next Melee or Unarmed Attack Skill that hits. If the target has Radiance, gain +1 Final Power. Deal (4 + 4 × Spell Slot Used) Fixed Damage and inflict 2 Radiance. Fiends and Undead take +50% Fixed Damage.",
+      description: "Enchant one Melee or Unarmed Attack Skill in an Action Slot. If the target has Radiance, gain +1 Final Power. On Hit, deal (4 + 4 × Spell Slot Used) Fixed Damage and inflict 2 Radiance. Fiends and Undead take +50% Fixed Damage.",
       level: 1, spellLevel: 1, cantrip: false,
       classIds: ["paladin"],
       school: "evocation", contexts: ["combat"],
       sinAffinity: "pride", damageType: null,
-      targetType: "self", targetingType: "self", attackWeight: 1, atkWeight: 1,
+      targetType: "action_slot", targetingType: "action_slot", attackWeight: 1, atkWeight: 1,
       displayTarget: "enemy_hit",
-      castingTime: "quick_action", concentration: false, duration: "until_next_eligible_hit",
+      castingTime: "quick_action", concentration: false, duration: "until_enchanted_skill_resolves",
       isUnclashable: true, resolutionType: "automatic",
       mechanics: {
         level1Runtime: "divine_smite",
-        trigger: "next_melee_or_unarmed_hit",
+        slotEnchantment: {
+          id: "divine_smite",
+          requires: { meleeOrUnarmedAttackSkill: true }
+        },
+        trigger: "enchanted_skill_on_hit",
         finalPowerIfTargetHasRadiance: 1,
         fixedDamage: { base: 4, perSpellSlotUsed: 4 },
         radiance: 2,
         creatureTypeFixedDamageMultiplier: { fiend: 1.5, undead: 1.5 }
       },
-      effects: [{ type: "level1_divine_smite" }]
+      effects: []
     }),
 
     ensnaring_strike: Object.freeze({
