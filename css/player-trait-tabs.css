@@ -264,6 +264,17 @@ body:not(.on-game-dashboard) #stats-modal .player-trait-resolved-value.is-pendin
   color:#b7a988;
   border-bottom-style:dashed;
 }
+body:not(.on-game-dashboard) .player-trait-formula-tooltip{
+  opacity:0;
+  visibility:hidden;
+  pointer-events:none;
+}
+body.player-trait-formula-inspect:not(.on-game-dashboard) .player-trait-resolved-control:hover .player-trait-formula-tooltip,
+body.player-trait-formula-inspect:not(.on-game-dashboard) .player-trait-resolved-control:focus-within .player-trait-formula-tooltip,
+body:not(.on-game-dashboard) .player-trait-resolved-control.is-open .player-trait-formula-tooltip{
+  opacity:1;
+  visibility:visible;
+}
 body:not(.on-game-dashboard) #stats-modal .player-trait-formula-tooltip{
   position:absolute;
   z-index:40;
