@@ -6357,9 +6357,12 @@ window.processEntitiesData = function(entities) {
                     card.dataset.tags = tagsLower;
 
                     const imgUrl = resolveDmLocalItemIcon(data, key);
+                    const deleteHtml = data.__catalogSource === "firebase"
+                      ? '<button class="btn-delete-item" data-id="' + key + '" style="position: absolute; top: 5px; right: 5px; background: transparent; border: none; cursor: pointer; font-size: 16px;" title="Eliminar item custom/override de Firebase">🗑️</button>'
+                      : "";
 
                     card.innerHTML = `
-                        <button class="btn-delete-item" data-id="${key}" style="position: absolute; top: 5px; right: 5px; background: transparent; border: none; cursor: pointer; font-size: 16px;" title="Eliminar Ítem">🗑️</button>
+                        ${deleteHtml}
                         <img src="${imgUrl}" alt="${data.nombre}">
                         <h5>${data.nombre}</h5>
                         <span style="font-size: 0.8em; color: #aaa;">${tagsStr}</span>
@@ -6368,7 +6371,7 @@ window.processEntitiesData = function(entities) {
 
                     // Evento para eliminar
                     const btnDelete = card.querySelector(".btn-delete-item");
-                    btnDelete.addEventListener("click", (e) => {
+                    if (btnDelete) btnDelete.addEventListener("click", (e) => {
                         e.stopPropagation();
                         if (confirm("¿Estás seguro de eliminar este ítem permanentemente?")) {
                             db.ref("campaña/base_datos_items/" + key).remove()
