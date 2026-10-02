@@ -101,6 +101,32 @@ assert.equal(fighterModel.skills.find((row) => row.id === "slash_combo")?.assign
 assert.equal(fighterModel.skills.find((row) => row.id === "veteran_feint")?.learned, true);
 assert.equal(fighterModel.skills.some((row) => row.id === "future_skill"), false, "future progression grants must not be shown as learned");
 
+const indexOnlyLoadout = {
+  skillSlotEntries() { return []; },
+  skillIdsFor(character = {}) {
+    return Object.entries(character.equippedSkillIndex || {})
+      .filter(([, enabled]) => enabled === true)
+      .map(([id]) => id);
+  },
+  skillLibrary() { return library; },
+};
+const indexOnlyModel = hud.buildSkillViewModel({
+  equippedSkillIndex: { slash_combo: true, guard_break: true },
+}, {
+  skillLoadout: indexOnlyLoadout,
+  progressionCore: { buildProgressionModel() { return { classes: [] }; }, normalizeClasses() { return []; } },
+  spellcasting: { getClassSpellcastingProfile() { return null; } },
+});
+assert.equal(indexOnlyModel.assignedUnique, 2, "equippedSkillIndex-only Combat loadouts must remain visible as assigned");
+assert.equal(indexOnlyModel.skills.find((row) => row.id === "slash_combo")?.assigned, true);
+
+const filterRows = [
+  { id: "assigned_only", assigned: true, learned: false },
+  { id: "learned_only", assigned: false, learned: true },
+];
+assert.equal(hud.visibleSelectionId(filterRows.filter((row) => row.assigned), "learned_only"), "assigned_only", "filter changes must select a visible Skill");
+assert.equal(hud.visibleSelectionId([], "assigned_only"), null, "empty filtered views must clear the detail selection");
+
 const casterRuntime = {
   getClassSpellcastingProfile(classId) {
     if (classId === "wizard") return { classId, abilityId: "int", spellcastingStartLimbusLevel: 1 };
