@@ -24,6 +24,7 @@ on:
       - 'js/trait-catalog-core.js'
       - 'js/trait-standardization-runtime.js'
       - 'js/player-stats-ability-bar.js'
+      - 'css/player-stats-ability-bar.css'
       - 'js/player-splash-framing.js'
       - 'js/player-ux-polish-core.js'
       - 'js/player-stat-tooltip-runtime.js'

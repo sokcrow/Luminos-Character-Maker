@@ -6,3 +6,150 @@ body:not(.on-game-dashboard) #stats-modal .hud-modal-content{width:min(96vw,1600
 @media(max-width:1180px){
   body:not(.on-game-dashboard) #stats-modal .player-stats-engine{display:none!important}
 }
+
+
+/* PLAYER STATS FIXED-CANVAS CONTRACT */
+body:not(.on-game-dashboard) #stats-modal{
+  --player-stats-hud-scale:1;
+  align-items:center!important;
+  justify-content:center!important;
+  padding:0!important;
+  overflow:hidden!important;
+}
+body:not(.on-game-dashboard) #stats-modal .hud-modal-content{
+  position:absolute!important;
+  left:50%!important;
+  top:50%!important;
+  width:1600px!important;
+  min-width:1600px!important;
+  max-width:none!important;
+  height:920px!important;
+  min-height:920px!important;
+  max-height:none!important;
+  box-sizing:border-box!important;
+  border:2px solid rgba(153,124,74,.58)!important;
+  border-radius:0!important;
+  transform:translate(-50%,-50%) scale(var(--player-stats-hud-scale,1))!important;
+  transform-origin:center center!important;
+  overflow:hidden!important;
+}
+body:not(.on-game-dashboard) #stats-modal .hud-modal-body,
+body:not(.on-game-dashboard) #stats-modal .hud-tab-content,
+body:not(.on-game-dashboard) #stats-modal #stats-container,
+body:not(.on-game-dashboard) #stats-modal .player-ability-console{
+  width:100%!important;
+  height:100%!important;
+  min-height:0!important;
+  overflow:hidden!important;
+}
+body:not(.on-game-dashboard) #stats-modal .hud-tab-content{
+  position:relative!important;
+  display:block!important;
+}
+body:not(.on-game-dashboard) #stats-modal #stats-container{
+  position:absolute!important;
+  inset:0!important;
+  width:auto!important;
+  height:auto!important;
+}
+body:not(.on-game-dashboard) #stats-modal .hud-tab-content>.stats-header{
+  position:absolute!important;
+  z-index:110!important;
+  top:20px!important;
+  right:92px!important;
+  margin:0!important;
+  padding:0!important;
+}
+body:not(.on-game-dashboard) #stats-modal .player-stats-frame{
+  display:grid!important;
+  width:100%!important;
+  height:100%!important;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
+  overflow:hidden!important;
+}
+body:not(.on-game-dashboard) #stats-modal .player-stats-character-panel{
+  height:auto!important;
+  min-height:0!important;
+  overflow:hidden!important;
+}
+body:not(.on-game-dashboard) #stats-modal .player-stats-information-panel{
+  min-height:0!important;
+  padding:20px 44px 28px 30px!important;
+  overflow:hidden!important;
+  border-left:2px solid #473a2a!important;
+  border-top:0!important;
+}
+body:not(.on-game-dashboard) #stats-modal .player-stats-screen-border{display:block!important}
+body:not(.on-game-dashboard) #stats-modal .hud-modal-close{
+  position:absolute!important;
+  left:26px!important;
+  top:20px!important;
+  width:62px!important;
+  height:62px!important;
+  font-size:32px!important;
+}
+body:not(.on-game-dashboard) #stats-modal .player-stats-bottom-info{
+  left:54px!important;
+  right:34px!important;
+  bottom:40px!important;
+  gap:38px!important;
+}
+body:not(.on-game-dashboard) #stats-modal .player-info-block{
+  box-sizing:border-box!important;
+  height:74px!important;
+  min-height:74px!important;
+  max-height:74px!important;
+  overflow:hidden!important;
+}
+body:not(.on-game-dashboard) #stats-modal .player-info-resistances{min-width:0!important}
+body:not(.on-game-dashboard) #stats-modal .player-resistance-list{
+  height:46px!important;
+  min-height:46px!important;
+  max-height:46px!important;
+  display:flex!important;
+  align-items:flex-start!important;
+  align-content:flex-start!important;
+  flex-wrap:wrap!important;
+  overflow:auto!important;
+  overscroll-behavior:contain;
+  scrollbar-width:thin;
+  scrollbar-color:#5a4530 #13110f;
+}
+body:not(.on-game-dashboard) #stats-modal .player-stats-header{flex:0 0 154px!important}
+body:not(.on-game-dashboard) #stats-modal .player-level-section{
+  height:88px!important;
+  grid-template-columns:minmax(190px,1.7fr) repeat(3,minmax(86px,.72fr))!important;
+  gap:10px!important;
+}
+body:not(.on-game-dashboard) #stats-modal .player-level-main{grid-column:auto!important}
+body:not(.on-game-dashboard) #stats-modal .player-xp-copy [data-player-xp-missing]{display:inline!important}
+body:not(.on-game-dashboard) #stats-modal .player-stats-engine{display:inline!important}
+body:not(.on-game-dashboard) #stats-modal .player-ability-bar{
+  grid-template-columns:repeat(6,minmax(0,1fr))!important;
+  flex:0 0 98px!important;
+}
+body:not(.on-game-dashboard) #stats-modal .player-ability{min-height:0!important}
+body:not(.on-game-dashboard) #stats-modal .player-stat-header{
+  flex:0 0 150px!important;
+  grid-template-columns:minmax(0,1fr) 180px 190px!important;
+  gap:0!important;
+  padding:16px 20px!important;
+}
+body:not(.on-game-dashboard) #stats-modal .player-stat-title{
+  grid-column:auto!important;
+  padding-bottom:0!important;
+  border-bottom:0!important;
+}
+body:not(.on-game-dashboard) #stats-modal .player-skill-list{
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  padding:10px 26px 6px!important;
+  overflow:auto!important;
+  overscroll-behavior:contain;
+  scrollbar-gutter:stable;
+}
+body:not(.on-game-dashboard) #stats-modal .player-stats-divider small{display:block!important}
+body:not(.on-game-dashboard) #stats-modal .player-prof-legend{min-height:0!important}
+body:not(.on-game-dashboard) #stats-modal .player-character-name{font-size:27px!important}
+body:not(.on-game-dashboard) #stats-modal .player-ability-name{font-size:30px!important}
+body:not(.on-game-dashboard) #stats-modal .player-stat-title>span{font-size:34px!important}
+body:not(.on-game-dashboard) #stats-modal .dnd-skill-name{font-size:19px!important}
