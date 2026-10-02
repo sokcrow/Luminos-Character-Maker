@@ -460,6 +460,7 @@ test("real player sheet stays stable for 60 seconds under background player upda
     window.removeEventListener("luminous:player-data", onRuntimePlayerData);
 
     const toggle = document.getElementById("btn-toggle-phone");
+    const initialPhoneHidden = document.querySelector(".sheet-phone-wrapper")?.classList.contains("phone-hidden") ?? null;
     for (let i = 0; i < 720; i += 1) toggle?.click();
     await sleep(50);
 
@@ -474,6 +475,7 @@ test("real player sheet stays stable for 60 seconds under background player upda
       finalIntervals: window.__perfIntervalRegistry?.activeCount?.() ?? -1,
       baselineListeners,
       finalListeners: window.__fakeFirebase?.listenerCount?.() ?? -1,
+      initialPhoneHidden,
       phoneHidden: document.querySelector(".sheet-phone-wrapper")?.classList.contains("phone-hidden") ?? null
     };
   });
@@ -485,7 +487,7 @@ test("real player sheet stays stable for 60 seconds under background player upda
   expect(result.finalListeners).toBe(result.baselineListeners);
   expect(result.finalNodes).toBe(result.baselineNodes);
   expect(result.heavyMutations).toBe(0);
-  expect(result.phoneHidden).toBe(false);
+  expect(result.phoneHidden).toBe(result.initialPhoneHidden);
 
   const first = result.buckets[0].frames;
   const last = result.buckets.at(-1).frames;
