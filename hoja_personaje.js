@@ -4087,6 +4087,7 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
   let forjaInitialized = false;
   let forjaResolutionInitialized = false;
   let refreshForjaMesaCrafteo = null;
+  let forjaCookingStationsGlobal = [];
   const getForjaPlayerData = () => window.datosJugador || {};
 
   function initForja() {
@@ -4104,12 +4105,29 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
       let mesaCrafteoGlobal = false;
       let targetSlot = null;
 
-      // Refrescar bajo demanda: no dejamos un listener Firebase vivo cuando Synthesis está cerrado.
-      refreshForjaMesaCrafteo = () => db.ref("campaña/estado_mundo/mesa_crafteo_activa").once("value").then((snap) => {
-          mesaCrafteoGlobal = !!snap.val();
+      // Refrescar bajo demanda: no dejamos listeners Firebase vivos cuando Synthesis está cerrado.
+      // Cooking Stations son estado mundial autorizado por el Director.
+      refreshForjaMesaCrafteo = () => Promise.all([
+          db.ref("campaña/estado_mundo/mesa_crafteo_activa").once("value"),
+          db.ref("campaña/estado_mundo/cooking_stations").once("value")
+      ]).then(([mesaSnap, stationsSnap]) => {
+          mesaCrafteoGlobal = !!mesaSnap.val();
+          const stationState = stationsSnap.val() || {};
+          forjaCookingStationsGlobal = Object.entries(stationState)
+              .filter(([, enabled]) => enabled === true)
+              .map(([stationId]) => stationId);
           updateForjaSlotsVisuals();
+
+          const stationContext = document.getElementById("forja-station-context");
+          if (stationContext) {
+              stationContext.textContent = forjaCookingStationsGlobal.length
+                  ? `Station autorizada: ${forjaCookingStationsGlobal.join(" / ")}`
+                  : "Station autorizada: ninguna";
+              stationContext.style.color = forjaCookingStationsGlobal.length ? "#0df" : "#888";
+          }
       }).catch(() => {
           mesaCrafteoGlobal = false;
+          forjaCookingStationsGlobal = [];
           updateForjaSlotsVisuals();
       });
 
@@ -4318,6 +4336,7 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
 
       function authoritativeCookingStationIds(unit = getForjaPlayerData()) {
           const values = [
+              ...forjaCookingStationsGlobal,
               unit.currentCookingStationId,
               unit.cookingStationId,
               ...(Array.isArray(unit.availableCookingStationIds) ? unit.availableCookingStationIds : []),
