@@ -6235,6 +6235,7 @@ window.processEntitiesData = function(entities) {
         let dbAugmentationsCache = {}; // Caché de aumentos
         let tiendaActualEditada = null; // ID de la tienda abierta en el modal
         let selectedItemToOtorgar = null; // El ítem seleccionado para distribuir
+        let dmItemCatalogStatusSuffix = "catálogo canónico local";
 
         // Sincronizar select de jugadores destino para otorgar ítems
         function updateOtorgarJugadoresSelect() {
@@ -6454,38 +6455,53 @@ window.processEntitiesData = function(entities) {
             if (status) {
               const total = gridItemsGlobales.querySelectorAll(".card-item").length;
               status.textContent = total
-                ? total + " definiciones disponibles · catálogo canónico + custom Firebase"
+                ? total + " definiciones disponibles · " + dmItemCatalogStatusSuffix
                 : "Sin definiciones disponibles. Revisa la carga de item-catalog-*.";
             }
             filterDMItems();
         }
 
-        // Superponer los items custom de Firebase sobre las definiciones canonicas del runtime.
-        db.ref("campaña/base_datos_items").on("value", (snapshot) => {
-            const firebaseItems = window.processItemsData(snapshot.val()) || {};
+        function populateDmCatalogSelects(items = {}) {
+            const lootItemSelect = document.getElementById("loot-select-item");
+            if (!lootItemSelect) return;
+            lootItemSelect.innerHTML = '<option value="">Selecciona Ítem Global...</option>';
+            Object.keys(items).sort().forEach((key) => {
+                const option = document.createElement("option");
+                option.value = key;
+                option.textContent = items[key].nombre || items[key].name || key;
+                lootItemSelect.appendChild(option);
+            });
+        }
+
+        function applyDmItemCatalog(firebaseItems = {}, statusSuffix = "catálogo canónico local") {
             const core = window.LuminousDmItemCatalogCore;
             const items = core
               ? core.buildCatalogMap(window, firebaseItems, { iconRegistry: window.LuminousItemIconRegistry })
-              : firebaseItems;
+              : (firebaseItems || {});
+            dmItemCatalogStatusSuffix = statusSuffix;
             window.dbItemsCache = items || {};
-            dbItemsCache = window.dbItemsCache; // Fallback sync
+            dbItemsCache = window.dbItemsCache;
             renderGlobalItemsAndAugments();
+            populateDmCatalogSelects(window.dbItemsCache);
+            return window.dbItemsCache;
+        }
 
-            // Populate selects in other tabs exactly as before
-            const lootItemSelect = document.getElementById("loot-select-item");
-            if (lootItemSelect) {
-                lootItemSelect.innerHTML = '<option value="">Selecciona Ítem Global...</option>';
-                if (items) {
-                    const sortedKeys = Object.keys(items).sort();
-                    for (const key of sortedKeys) {
-                        const option = document.createElement("option");
-                        option.value = key;
-                        option.textContent = items[key].nombre;
-                        lootItemSelect.appendChild(option);
-                    }
-                }
-            }
-        });
+        // El catálogo canónico es local y no debe esperar a Firebase.
+        // Firebase sólo añade/sobrescribe definiciones custom cuando responde.
+        applyDmItemCatalog({}, "catálogo canónico local");
+
+        db.ref("campaña/base_datos_items").on(
+          "value",
+          (snapshot) => {
+            const firebaseItems = window.processItemsData(snapshot.val()) || {};
+            applyDmItemCatalog(firebaseItems, "catálogo canónico + custom Firebase");
+          },
+          (error) => {
+            console.error("No se pudieron cargar overrides de ítems desde Firebase:", error);
+            dmItemCatalogStatusSuffix = "catálogo canónico local · Firebase custom no disponible";
+            renderGlobalItemsAndAugments();
+          },
+        );
 
         // Escuchar base_datos_aumentos
         db.ref("campaña/base_datos_aumentos").on("value", (snapshot) => {
@@ -6533,7 +6549,7 @@ window.processEntitiesData = function(entities) {
               }
             });
             const status = document.getElementById("dm-item-catalog-status");
-            if (status) status.textContent = visibleCount + " / " + cards.length + " definiciones visibles · catálogo canónico + custom Firebase";
+            if (status) status.textContent = visibleCount + " / " + cards.length + " definiciones visibles · " + dmItemCatalogStatusSuffix;
           }
         }
 
