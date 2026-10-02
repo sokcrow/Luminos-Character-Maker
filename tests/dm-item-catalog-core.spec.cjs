@@ -339,7 +339,9 @@ const path = require("node:path");
   assert.doesNotMatch(playerRuntime, /stationSelect\.value/);
   assert.match(playerRuntime, /recipeDifficulty\(recipe, match\?\.resolution\)/);
   assert.match(playerRuntime, /Selecciona explícitamente cuál quieres sintetizar/);
-  assert.match(playerRuntime, /createRecipeOutput\(attempt\.receta\)/);
+  assert.match(playerRuntime, /createRecipeOutput\(attempt\.receta,\s*\{/);
+  assert.match(playerRuntime, /resolution:\s*attempt\.resolution/);
+  assert.match(playerRuntime, /checkResult:\s*tirada/);
   assert.doesNotMatch(playerRuntime, /campaña\/forja\/recetas/);
   assert.doesNotMatch(playerRuntime, /campaña\/items_globales/);
 
