@@ -89,6 +89,7 @@
       item && item.unitValueAhn,
       item && item.standardValueAhn,
       item && item.standardChassisValueAhn,
+      item && item.mediumStandardValueAhn,
       item && item.retailValueAhn,
       item && item.baseValueAhn,
       item && item.productionValueAhn
@@ -344,7 +345,8 @@
     collectCatalogMap,
     mergeFirebaseItems,
     buildCatalogMap,
-    stackVariantSignature,\n    sameDefinition,
+    stackVariantSignature,
+    sameDefinition,
     quantityOf,
     quantityPatch,
     createGrantPayload
