@@ -150,23 +150,31 @@
     });
   }
 
-  function grantArmorOfAgathys(unit, slotLevel = 1) {
+  function grantArmorOfAgathys(unit, slotLevel = 1, options = {}) {
     const level = Math.max(1, Math.trunc(numberOr(slotLevel, 1)));
-    const amount = 5 * level;
+    const amount = 10 * level;
+    const now = Number.isFinite(Number(options.now)) ? Number(options.now) : Date.now();
     const shields = shieldRuntime();
     const gained = shields?.gainShield
-      ? shields.gainShield(unit, amount, shields.SHIELD_TYPES?.ENCOUNTER || "encounter")
+      ? shields.gainShield(unit, amount, shields.SHIELD_TYPES?.PERSISTENT || "persistent")
       : (() => { unit.shield = Math.max(0, numberOr(unit.shield, 0)) + amount; return amount; })();
 
     unit.__luminousArmorOfAgathys = {
       active: true,
       slotLevel: level,
-      retaliationDamage: 5 * level,
+      retaliationDamage: 3 * level,
+      chill: 1,
       grantedShield: gained,
-      sourceSpellId: "armor_of_agathys"
+      sourceSpellId: "armor_of_agathys",
+      createdAt: now,
+      expiresAt: now + 60 * 60 * 1000
     };
-    applyStatus(unit, "armor_of_agathys", { mode: "set", count: 1, data: { slotLevel: level } });
-    return { resolved: gained > 0, shieldGranted: gained, retaliationDamage: 5 * level, slotLevel: level };
+    applyStatus(unit, "armor_of_agathys", {
+      mode: "set",
+      count: 1,
+      data: { slotLevel: level, expiresAt: unit.__luminousArmorOfAgathys.expiresAt }
+    });
+    return { resolved: gained > 0, shieldGranted: gained, retaliationDamage: 3 * level, chill: 1, slotLevel: level, expiresAt: unit.__luminousArmorOfAgathys.expiresAt };
   }
 
   function clearArmorOfAgathys(unit) {
@@ -175,9 +183,14 @@
     return true;
   }
 
-  function armorOfAgathysState(unit) {
+  function armorOfAgathysState(unit, options = {}) {
     const state = unit?.__luminousArmorOfAgathys;
     if (!state?.active) return null;
+    const now = Number.isFinite(Number(options.now)) ? Number(options.now) : Date.now();
+    if (numberOr(state.expiresAt, 0) > 0 && now >= numberOr(state.expiresAt, 0)) {
+      clearArmorOfAgathys(unit);
+      return null;
+    }
     if (numberOr(unit?.shield, 0) <= 0) {
       clearArmorOfAgathys(unit);
       return null;
@@ -194,35 +207,97 @@
     return true;
   }
 
-  function retaliateArmorOfAgathys(engine, attacker, defender, attackSkill, result) {
-    const state = armorOfAgathysState(defender);
-    if (!state || !attacker || numberOr(result?.damageTaken, 0) <= 0 || !isMeleeSkill(attackSkill)) return null;
+  function retaliateArmorOfAgathys(engine, attacker, defender, attackSkill, result, snapshot = {}) {
+    const state = snapshot.state || armorOfAgathysState(defender);
+    const shieldBefore = numberOr(snapshot.shieldBefore, numberOr(defender?.shield, 0));
+    const attackResolved = Boolean(result && (Array.isArray(result.attackLogs) ? result.attackLogs.length > 0 : result.damageTaken !== undefined));
+    if (!state || !attacker || shieldBefore <= 0 || !attackResolved || !isMeleeSkill(attackSkill)) return null;
     const damage = Math.max(0, Math.trunc(numberOr(state.retaliationDamage, 0)));
     if (damage <= 0) return null;
-    const before = numberOr(attacker.hp, 0);
-    const applied = typeof engine?.applyDamage === "function"
-      ? engine.applyDamage(attacker, damage, "cold", false, null, { sourceSpellId: "armor_of_agathys", sourceUnitId: unitId(defender) })
-      : null;
+    const applied = applyFixedDamage(attacker, damage, {
+      engine,
+      damageKind: "directo",
+      sourceSpellId: "armor_of_agathys",
+      sourceUnitId: unitId(defender)
+    });
+    const chill = applyStatus(attacker, "chill", {
+      mode: "add",
+      count: 1,
+      potency: 1,
+      sourceUnitId: unitId(defender),
+      data: { sourceSpellId: "armor_of_agathys" }
+    });
     if (numberOr(defender?.shield, 0) <= 0) clearArmorOfAgathys(defender);
-    return { damage, hpBefore: before, hpAfter: numberOr(attacker.hp, before), applied };
+    return { damage, chill: 1, applied, status: chill };
+  }
+
+  const ALARM_EFFECT_ROOT = "campaña/efectos_dm";
+
+  function alarmSubjectPlayerId(caster = {}, options = {}) {
+    return String(
+      options.subjectPlayerId
+      || options.casterPlayerId
+      || caster.ownerPlayerId
+      || caster.playerId
+      || caster.canonicalPlayerKey
+      || caster.vinculo_jugador
+      || unitId(caster)
+      || ""
+    ).trim();
+  }
+
+  function alarmManagedEffect(ward, caster = {}, options = {}) {
+    const createdAt = numberOr(ward?.createdAt, Date.now());
+    return {
+      id: ward.id,
+      kind: "alarm",
+      name: "Alarm",
+      effectId: "alarm",
+      sourceSpellId: "alarm",
+      sourceUnitId: ward.sourceUnitId,
+      subjectPlayerId: alarmSubjectPlayerId(caster, options),
+      subjectName: caster.name || caster.nombre || options.subjectName || "Player",
+      mode: ward.mode,
+      areaId: ward.areaId,
+      excludedUnitIds: ward.excludedUnitIds,
+      note: ward.mode === "audible" ? "Audible Alarm" : "Mental Alarm",
+      active: true,
+      createdAt,
+      expiresAt: createdAt + 8 * 60 * 60 * 1000
+    };
+  }
+
+  function persistAlarmWard(ward, caster = {}, options = {}) {
+    if (options.persist === false) return { persisted: false, reason: "persistence_disabled", effect: alarmManagedEffect(ward, caster, options) };
+    const db = options.db || (global.firebase?.database && global.firebase.apps?.length ? global.firebase.database() : null);
+    if (!db?.ref) return { persisted: false, reason: "firebase_database_unavailable", effect: alarmManagedEffect(ward, caster, options) };
+    const effect = alarmManagedEffect(ward, caster, options);
+    const promise = db.ref(`${ALARM_EFFECT_ROOT}/${ward.id}`).set(effect);
+    promise?.catch?.(() => {});
+    return { persisted: true, effect, promise };
   }
 
   function createAlarmWard(caster, options = {}) {
     if (!caster || typeof caster !== "object") return { resolved: false, reason: "caster_required" };
     const mode = normalizeId(options.mode || "mental");
+    const now = Number.isFinite(Number(options.now)) ? Number(options.now) : Date.now();
     const ward = {
-      id: String(options.id || `alarm_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`),
+      id: String(options.id || `alarm_${now}_${Math.random().toString(36).slice(2, 7)}`),
       sourceSpellId: "alarm",
       sourceUnitId: unitId(caster),
       mode: ["audible", "mental"].includes(mode) ? mode : "mental",
       areaId: options.areaId || options.targetId || null,
       excludedUnitIds: Array.isArray(options.excludedUnitIds) ? [...new Set(options.excludedUnitIds.map(String))] : [],
       durationHours: 8,
-      createdAt: Date.now()
+      dmManagedTrigger: true,
+      consumeToTrigger: true,
+      createdAt: now,
+      expiresAt: now + 8 * 60 * 60 * 1000
     };
     if (!Array.isArray(caster.__luminousAlarmWards)) caster.__luminousAlarmWards = [];
     caster.__luminousAlarmWards.push(ward);
-    return { resolved: true, ward };
+    const persistence = persistAlarmWard(ward, caster, options);
+    return { resolved: true, ward, persistence };
   }
 
   function maxHpOf(unit = {}) {
@@ -912,10 +987,15 @@
     if (originalUnilateral) {
       engine.resolveUnilateralWithCounter = function (unitAttacker, attackSkill, unitDefender, counterSkill, options = {}) {
         activePowerTargets.set(unitId(unitAttacker), unitDefender);
+        const agathysStateBefore = armorOfAgathysState(unitDefender);
+        const agathysShieldBefore = numberOr(unitDefender?.shield, 0);
         let result;
         try { result = originalUnilateral.call(this, unitAttacker, attackSkill, unitDefender, counterSkill, options); }
         finally { activePowerTargets.delete(unitId(unitAttacker)); }
-        const retaliation = retaliateArmorOfAgathys(this, unitAttacker, unitDefender, attackSkill, result);
+        const retaliation = retaliateArmorOfAgathys(this, unitAttacker, unitDefender, attackSkill, result, {
+          state: agathysStateBefore,
+          shieldBefore: agathysShieldBefore
+        });
         if (retaliation && result && typeof result === "object") result.armorOfAgathysRetaliation = retaliation;
         return result;
       };
@@ -932,6 +1012,7 @@
           resolveDivineFavorHit(attacker, target, skill, { ...(context || {}), engine: this });
           resolveDivineSmiteHit(attacker, target, skill, { ...(context || {}), engine: this });
           resolveEnsnaringStrikeHit(attacker, target, skill, { ...(context || {}), engine: this });
+          if (normalizeId(skill?.id || skill?.spellId || skill?.sourceSpellId || skill?.name) === "arms_of_hadar") suppressReaction(target);
         }
         if (key === "on_crit") resolveChromaticOrbCrit({ ...(context || {}), engine: this });
         return result;
@@ -1017,6 +1098,9 @@
     clearArmorOfAgathys,
     armorOfAgathysState,
     retaliateArmorOfAgathys,
+    ALARM_EFFECT_ROOT,
+    alarmManagedEffect,
+    persistAlarmWard,
     createAlarmWard,
     calculateCureWoundsHealing,
     applyCureWounds,
