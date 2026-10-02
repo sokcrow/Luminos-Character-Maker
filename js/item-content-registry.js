@@ -295,9 +295,12 @@
     const host = root || global;
     const opts = options || {};
     const resolver = host.LuminousCookingRecipeResolver || global.LuminousCookingRecipeResolver;
+    const cookingEngine = host.LuminousCookingEngine || global.LuminousCookingEngine;
+    const equipmentEngine = host.LuminousCookingEquipmentEngine || global.LuminousCookingEquipmentEngine;
     if (!resolver || typeof resolver.resolveRecipe !== "function") {
       return { valid: false, reason: "cooking_recipe_resolver_unavailable", recipe };
     }
+
     const selected = items.map((item) => Object.assign({}, clone(item), { quantity: selectedUnits(item) }));
     const result = resolver.resolveRecipe(recipe, selected);
     if (!result || !result.valid) return Object.assign({ recipe }, result || { valid: false, reason: "recipe_not_resolved" });
@@ -318,53 +321,64 @@
       });
     }
 
-    if (opts.enforceEquipment === true) {
-      const equipment = host.LuminousCookingEquipmentEngine || global.LuminousCookingEquipmentEngine;
-      if (!equipment || typeof equipment.evaluate !== "function") {
-        return Object.assign({}, result, {
-          valid: false,
-          reason: "cooking_equipment_engine_unavailable",
-          consumedUnits,
-          totalSelectedUnits,
-          score
-        });
-      }
+    const concreteRecipe = Object.assign({}, clone(recipe), {
+      ingredients: (result.recipeInputs || []).map((input) => Object.assign({}, clone(input), {
+        role: normalizeId(input.recipeRole || input.role || "major")
+      }))
+    });
 
+    let equipmentEvaluation = null;
+    if (equipmentEngine && typeof equipmentEngine.evaluate === "function") {
       const availableToolIds = (opts.toolItems || [])
         .flatMap((item) => [...itemIdentity(item)])
         .filter(Boolean);
-      const evaluation = equipment.evaluate(recipe, opts.unit || {}, {
+      equipmentEvaluation = equipmentEngine.evaluate(concreteRecipe, opts.unit || {}, {
         availableToolIds,
-        availableStationIds: opts.availableStationIds || [],
-        stationId: opts.stationId || null
-      });
-      if (!evaluation.hasRequiredTool || !evaluation.hasRequiredStation) {
-        return Object.assign({}, result, {
-          valid: false,
-          reason: "missing_cooking_equipment",
-          equipment: evaluation,
-          missingToolIds: evaluation.missingToolIds || [],
-          missingStationIds: evaluation.missingStationIds || [],
-          consumedUnits,
-          totalSelectedUnits,
-          score
-        });
-      }
-      return Object.assign({}, result, {
-        valid: true,
-        equipment: evaluation,
-        consumedUnits,
-        totalSelectedUnits,
-        score
+        availableStationIds: opts.availableStationIds || []
       });
     }
 
-    return Object.assign({}, result, {
-      valid: true,
+    let thBreakdown = null;
+    let effectiveThBreakdown = null;
+    if (cookingEngine && typeof cookingEngine.buildRecipeTh === "function") {
+      try {
+        thBreakdown = cookingEngine.buildRecipeTh(concreteRecipe);
+        effectiveThBreakdown = typeof cookingEngine.effectiveCookingTh === "function"
+          ? cookingEngine.effectiveCookingTh(thBreakdown.recipeTh, equipmentEvaluation || {})
+          : { effectiveTh: thBreakdown.recipeTh };
+      } catch (_) {}
+    }
+
+    const baseResult = Object.assign({}, result, {
+      concreteRecipe,
+      equipment: equipmentEvaluation,
+      recipeTh: thBreakdown?.recipeTh ?? null,
+      thBreakdown,
+      effectiveTh: effectiveThBreakdown?.effectiveTh ?? thBreakdown?.recipeTh ?? null,
+      effectiveThBreakdown,
       consumedUnits,
       totalSelectedUnits,
       score
     });
+
+    if (opts.enforceEquipment === true) {
+      if (!equipmentEngine || typeof equipmentEngine.evaluate !== "function") {
+        return Object.assign({}, baseResult, {
+          valid: false,
+          reason: "cooking_equipment_engine_unavailable"
+        });
+      }
+      if (!equipmentEvaluation.hasRequiredTool || !equipmentEvaluation.hasRequiredStation) {
+        return Object.assign({}, baseResult, {
+          valid: false,
+          reason: "missing_cooking_equipment",
+          missingToolIds: equipmentEvaluation.missingToolIds || [],
+          missingStationIds: equipmentEvaluation.missingStationIds || []
+        });
+      }
+    }
+
+    return Object.assign({}, baseResult, { valid: true });
   }
 
   function resolveProcessingRecipe(recipe, items, root) {
@@ -472,7 +486,20 @@
     return matches.length === 1 ? matches[0] : null;
   }
 
-  function recipeDifficulty(recipe) {
+  function recipeDifficulty(recipe, resolution) {
+    const kind = normalizeId(recipe && recipe.recipeKind);
+    const effectiveCooking = Number(resolution && resolution.effectiveTh);
+    if (kind === "cooking" && Number.isFinite(effectiveCooking) && effectiveCooking >= 0) {
+      return Math.round(effectiveCooking);
+    }
+
+    if (kind === "processing") {
+      const engine = global.LuminousItemProcessingEngine;
+      const methodId = normalizeId(recipe && recipe.methodId);
+      const methodTh = Number(engine?.METHODS?.[methodId]?.baseTh);
+      if (Number.isFinite(methodTh) && methodTh >= 0) return Math.round(methodTh);
+    }
+
     const direct = Number(recipe && (recipe.baseThreshold ?? recipe.dificultad_base));
     if (Number.isFinite(direct) && direct >= 0) return Math.round(direct);
     const labor = normalizeId(recipe && recipe.laborClass);
@@ -498,9 +525,10 @@
     let itemType = recipeKind;
     let family = recipeKind + "_crafted";
     if (recipeKind === "cooking") {
-      category = "consumable";
-      itemType = "food";
-      family = "prepared_food";
+      category = "food";
+      itemType = "consumable";
+      family = "food";
+      tags.push("food");
     } else if (recipeKind === "medicine") {
       category = "consumable";
       itemType = "consumable";
@@ -539,11 +567,17 @@
       cantidad: quantity,
       hungerRestore: raw.hungerRestore,
       hydrationRestore: raw.hydrationRestore,
+      hungerSlotsRestored: recipeKind === "cooking"
+        ? Math.max(0, Math.trunc(Number(raw.hungerSlotsRestored ?? raw.hungerRestore ?? 1) || 0))
+        : undefined,
+      hydrationSlotsRestored: recipeKind === "cooking"
+        ? Math.max(0, Math.trunc(Number(raw.hydrationSlotsRestored ?? raw.hydrationRestore ?? 0) || 0))
+        : undefined,
       dishFamily: raw.dishFamily,
       processedForm: raw.outputForm || undefined,
       processingMethod: raw.methodId || raw.method || undefined,
       craft: {
-        threshold: recipeDifficulty(raw),
+        threshold: recipeDifficulty(raw, opts.resolution),
         recipeKind,
         canonical: true
       }
