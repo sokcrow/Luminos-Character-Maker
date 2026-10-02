@@ -431,18 +431,44 @@
     return { slotLevel: slot, base, multiplier, total: Math.floor(base * multiplier), creatureType: type || null };
   }
 
+  function divineSmiteEnchantment(skill = {}) {
+    const rows = Array.isArray(skill.__luminousSlotEnchantments) ? skill.__luminousSlotEnchantments : [];
+    return rows.find((row) => normalizeId(row?.id || row?.spellId) === "divine_smite") || null;
+  }
+
+  function divineSmiteEnchantmentKey(skill = {}, enchantment = {}) {
+    return String(enchantment.targetDrawId || skill?.__deckCard?.drawId || skill?.deckCard?.drawId || "").trim();
+  }
+
   function divineSmitePowerBonus(actor, target, skill = {}) {
-    return actor?.__luminousDivineSmite?.active && target && statusActive(target, "radiance") && isMeleeOrUnarmedAttackSkill(skill) ? 1 : 0;
+    const enchanted = divineSmiteEnchantment(skill);
+    const prepared = actor?.__luminousDivineSmite?.active === true;
+    if (!enchanted && !prepared) return 0;
+    if (!target || !statusActive(target, "radiance") || !isMeleeOrUnarmedAttackSkill(skill)) return 0;
+    const key = enchanted ? divineSmiteEnchantmentKey(skill, enchanted) : "";
+    if (key && actor?.__luminousResolvedDivineSmiteKeys?.[key]) return 0;
+    return numberOr(enchanted?.finalPowerIfTargetHasRadiance, 1);
   }
 
   function resolveDivineSmiteHit(attacker, target, skill = {}, context = {}) {
+    const enchanted = divineSmiteEnchantment(skill);
     const pending = attacker?.__luminousDivineSmite;
-    if (!pending?.active || !target || !isMeleeOrUnarmedAttackSkill(skill)) return null;
-    delete attacker.__luminousDivineSmite;
-    const fixed = divineSmiteFixedDamage(pending.slotLevel, target);
+    if ((!enchanted && !pending?.active) || !target || !isMeleeOrUnarmedAttackSkill(skill)) return null;
+
+    const key = enchanted ? divineSmiteEnchantmentKey(skill, enchanted) : "";
+    if (key) {
+      if (!attacker.__luminousResolvedDivineSmiteKeys || typeof attacker.__luminousResolvedDivineSmiteKeys !== "object") attacker.__luminousResolvedDivineSmiteKeys = {};
+      if (attacker.__luminousResolvedDivineSmiteKeys[key]) return null;
+      attacker.__luminousResolvedDivineSmiteKeys[key] = true;
+    } else if (pending?.active) {
+      delete attacker.__luminousDivineSmite;
+    }
+
+    const slotLevel = enchanted?.slotLevel ?? pending?.slotLevel ?? 1;
+    const fixed = divineSmiteFixedDamage(slotLevel, target);
     const damage = applyFixedDamage(target, fixed.total, { engine: context.engine || global.CombatEngine, damageKind: "directo", skillUsed: null });
-    const radiance = applyStatus(target, "radiance", { mode: "gain", count: 2 });
-    return { resolved: true, ...fixed, damage, radiance };
+    const radiance = applyStatus(target, "radiance", { mode: "gain", count: numberOr(enchanted?.radiance, 2) });
+    return { resolved: true, source: enchanted ? "slot_enchantment" : "prepared", ...fixed, damage, radiance, targetDrawId: key || null };
   }
 
   function rollSaveHeads(engine, target, context = {}) {
@@ -1007,6 +1033,8 @@
     resolveDivineFavorHit,
     prepareDivineSmite,
     divineSmiteFixedDamage,
+    divineSmiteEnchantment,
+    divineSmiteEnchantmentKey,
     divineSmitePowerBonus,
     resolveDivineSmiteHit,
     prepareEnsnaringStrike,
