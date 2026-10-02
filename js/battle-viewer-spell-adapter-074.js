@@ -191,15 +191,25 @@
       ));
     }
 
-    if (mechanics.requiresChoice?.key === "element") {
-      const element = normalizeId(plan.element || plan.elementId || plan.choice?.element);
-      const allowed = mechanics.requiresChoice.values || [];
-      if (!element || !allowed.includes(element)) {
-        return { ok: false, reason: "spell_choice_required", choiceKey: "element", choices: clone(allowed) };
+    if (mechanics.requiresChoice?.key) {
+      const choiceKey = normalizeId(mechanics.requiresChoice.key);
+      const plannedChoice = plan.spellChoice && normalizeId(plan.spellChoice.key) === choiceKey ? plan.spellChoice.value : null;
+      const choiceValue = normalizeId(
+        plannedChoice
+        ?? plan[choiceKey]
+        ?? (choiceKey === "element" ? plan.elementId : null)
+        ?? plan.choice?.[choiceKey]
+      );
+      const allowed = (mechanics.requiresChoice.values || []).map(normalizeId);
+      if (!choiceValue || (allowed.length && !allowed.includes(choiceValue))) {
+        return { ok: false, reason: "spell_choice_required", choiceKey, choices: clone(allowed) };
       }
-      const elementEffect = mechanics.elementalStatus?.[element];
-      if (elementEffect?.status) effects.push(resolvedStatusEffect(elementEffect.status, elementEffect.potency, elementEffect.count, "on_hit", "target", { element }));
-      definition.selectedElement = element;
+      definition.selectedChoice = { key: choiceKey, value: choiceValue };
+      if (choiceKey === "element") {
+        const elementEffect = mechanics.elementalStatus?.[choiceValue];
+        if (elementEffect?.status) effects.push(resolvedStatusEffect(elementEffect.status, elementEffect.potency, elementEffect.count, "on_hit", "target", { element: choiceValue }));
+        definition.selectedElement = choiceValue;
+      }
     }
 
     definition.effects = [...(Array.isArray(definition.effects) ? definition.effects : []), ...effects];
@@ -238,7 +248,12 @@
       sinAffinity: definition.sinAffinity || definition.affinity || null,
       slotLevel,
       sourceDefinition: clone(definition),
-      spellChoice: clone(plan.choice || (definition.selectedElement ? { element: definition.selectedElement } : null))
+      spellChoice: clone(
+        plan.spellChoice
+        || definition.selectedChoice
+        || plan.choice
+        || (definition.selectedElement ? { key: "element", value: definition.selectedElement } : null)
+      )
     };
     if (action.targeting) action.targeting.attackWeight = Math.max(1, Number(definition.attackWeight || definition.atkWeight || action.targeting.attackWeight || 1));
     if (normalizeId(definition.castingTime) === "quick_action" && action.economy) action.economy.cost = "quick_action";
