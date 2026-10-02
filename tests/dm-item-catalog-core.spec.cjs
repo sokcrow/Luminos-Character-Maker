@@ -17,13 +17,16 @@ const path = require("node:path");
   await import("../js/item-catalog-scale-shell-chitin.js");
   await import("../js/item-runtime-engine.js");
   await import("../js/item-inventory-runtime.js");
+  await import("../js/item-quality-engine.js");
   await import("../js/item-chemistry-recipe-catalog.js");
+  await import("../js/item-chemistry-crafting-engine.js");
   await import("../js/item-cooking-recipe-catalog.js");
   await import("../js/item-cooking-engine.js");
   await import("../js/item-cooking-recipe-resolver.js");
   await import("../js/item-cooking-equipment-engine.js");
   await import("../js/item-cooking-runtime.js");
   await import("../js/item-medicine-recipe-catalog.js");
+  await import("../js/item-medicine-crafting-engine.js");
   await import("../js/item-processing-recipe-data.js");
   await import("../js/item-processing-engine.js");
   await import("../js/item-throwable-recipe-catalog.js");
@@ -151,8 +154,8 @@ const path = require("node:path");
   );
 
   const chemistryInputs = [
-    { definitionId: "cleaning_compound", quantity: 1, __selectedUnits: 1 },
-    { definitionId: "chemical_bottle", tags: ["container"], quantity: 1, __selectedUnits: 1 }
+    { definitionId: "cleaning_compound", quantity: 1, __selectedUnits: 1, productionValueAhn: 120 },
+    { definitionId: "chemical_bottle", tags: ["container"], quantity: 1, __selectedUnits: 1, productionValueAhn: 80 }
   ];
   const chemistryMatches = contentRegistry.findMatchingRecipes(globalThis, chemistryInputs);
   const chemistryMatch = chemistryMatches.find((entry) => entry.recipe.id === "industrial_cleaner");
@@ -284,11 +287,61 @@ const path = require("node:path");
     "deferred throwables must be excluded from player synthesis matching"
   );
 
-  const craftedOutput = contentRegistry.createRecipeOutput(chemistryMatch.recipe);
+  const craftedOutput = contentRegistry.createRecipeOutput(chemistryMatch.recipe, {
+    resolution: chemistryMatch.resolution,
+    checkResult: 26
+  });
   assert.equal(craftedOutput.definitionId, "industrial_cleaner");
   assert.equal(craftedOutput.recipeId, "industrial_cleaner");
   assert.equal(craftedOutput.crafted, true);
   assert.equal(craftedOutput.quantity, 1);
+  assert.equal(craftedOutput.quality, "exceptional");
+  assert.equal(craftedOutput.craft.checkTotal, 26);
+  assert.equal(craftedOutput.craft.margin, 8);
+  assert.ok(craftedOutput.productionValueAhn > 0, "chemistry output must preserve canonical production value");
+  assert.ok(Array.isArray(craftedOutput.consumerHooks), "chemistry output must preserve consumer hooks");
+  assert.ok(Object.prototype.hasOwnProperty.call(craftedOutput, "integrationStatus"), "chemistry output must preserve integration status");
+  assert.ok(Array.isArray(craftedOutput.craft.sourceInputs), "chemistry output must preserve canonical consumed-input provenance");
+
+  const medicineRecipe = Object.values(unified.recipes)
+    .find((recipe) => recipe.recipeKind === "medicine" && recipe.id === "medicine_tablet");
+  const medicineInputs = [
+    { definitionId: "pharmaceutical_powder", quantity: 1, __selectedUnits: 1, productionValueAhn: 90 },
+    { definitionId: "tablet_binder", quantity: 1, __selectedUnits: 1, productionValueAhn: 30 }
+  ];
+  const medicineResolution = contentRegistry.resolveRecipe(medicineRecipe, medicineInputs, globalThis);
+  assert.equal(medicineResolution.valid, true, "canonical medicine recipe should resolve");
+  const medicineOutput = contentRegistry.createRecipeOutput(medicineRecipe, {
+    resolution: medicineResolution,
+    checkResult: 22
+  });
+  assert.equal(medicineOutput.definitionId, "medicine_tablet");
+  assert.equal(medicineOutput.quality, "fine");
+  assert.equal(medicineOutput.craft.checkTotal, 22);
+  assert.equal(medicineOutput.craft.margin, 4);
+  assert.ok(medicineOutput.productionValueAhn > 0, "medicine output must preserve canonical production value");
+  assert.ok(Array.isArray(medicineOutput.craft.sourceInputs), "medicine output must preserve canonical consumed-input provenance");
+
+  assert.equal(
+    contentRegistry.isSynthesisSlotUnlockTool({ definitionId: "carpenters_tools" }, globalThis),
+    true,
+    "canonical fabrication tools should unlock extra synthesis slots"
+  );
+  assert.equal(
+    contentRegistry.isSynthesisSlotUnlockTool({ definitionId: "alchemists_supplies" }, globalThis),
+    true,
+    "canonical chemical tools should unlock extra synthesis slots"
+  );
+  assert.equal(
+    contentRegistry.isSynthesisSlotUnlockTool({ definitionId: "harvesting_tools" }, globalThis),
+    false,
+    "harvesting-only tools should not unlock general synthesis slots"
+  );
+  assert.equal(
+    contentRegistry.isSynthesisSlotUnlockTool({ definitionId: "calligraphers_supplies" }, globalThis),
+    false,
+    "generic utility tools should not unlock extra synthesis slots"
+  );
 
   const granted = core.createGrantPayload(longsword, 3, {
     iconRegistry: globalThis.LuminousItemIconRegistry,
@@ -358,11 +411,17 @@ const path = require("node:path");
   assert.doesNotMatch(playerPage, /id="forja-station-select"/);
   assert.match(playerPage, /js\/item-processing-engine\.js/);
   assert.match(playerPage, /js\/item-cooking-equipment-engine\.js/);
+  assert.match(playerPage, /js\/item-quality-engine\.js/);
   assert.match(playerPage, /js\/item-chemistry-recipe-catalog\.js/);
+  assert.match(playerPage, /js\/item-chemistry-crafting-engine\.js/);
   assert.match(playerPage, /js\/item-medicine-recipe-catalog\.js/);
+  assert.match(playerPage, /js\/item-medicine-crafting-engine\.js/);
   assert.match(playerPage, /js\/item-processing-recipe-data\.js/);
   assert.match(playerPage, /js\/item-throwable-recipe-catalog\.js/);
   assert.match(playerRuntime, /LuminousItemContentRegistry/);
+  assert.match(playerRuntime, /tieneHerramientaCanonicaSintesis/);
+  assert.match(playerRuntime, /isSynthesisSlotUnlockTool\(item, window\)/);
+  assert.doesNotMatch(playerRuntime, /includes\("toolkit"\)/);
   assert.match(playerRuntime, /findMatchingRecipes\(window, items/);
   assert.match(playerRuntime, /enforceTools:\s*true/);
   assert.match(playerRuntime, /enforceEquipment:\s*true/);
