@@ -6,7 +6,6 @@
     return;
   }
 
-  const PATCH_INTERVAL_MS = 250;
   const state = { rollsSource: null };
   const normalizeId = (value) => String(value ?? "").trim().toLowerCase().replace(/[\s-]+/g, "_");
   const conditionRuntime = () => global.LuminousConditionRuntime || null;
@@ -115,6 +114,15 @@
 
   global.LuminousConditionTheatreBridge = api;
   install();
-  if (global.document) global.setInterval?.(install, PATCH_INTERVAL_MS);
+  if (global.document?.readyState === "loading") {
+    global.document.addEventListener?.("DOMContentLoaded", install, { once: true });
+  }
+  [
+    "luminous:theatre-rolls-ready",
+    "luminous:theatre-check-coordinator-ready",
+    "luminous:player-instance-changed",
+    "luminous:player-data",
+  ].forEach((name) => global.addEventListener?.(name, install));
+  global.addEventListener?.("load", install, { once: true });
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);
