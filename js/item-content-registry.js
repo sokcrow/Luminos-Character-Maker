@@ -409,6 +409,44 @@
     return Object.assign({}, baseResult, { valid: true });
   }
 
+  function processingInputSignature(item) {
+    const identity = [...itemIdentity(item)].sort()[0] || "";
+    const tags = [...itemTags(item)].sort();
+    return JSON.stringify({
+      identity,
+      processedForm: normalizeId(item?.processedForm),
+      processingMethod: normalizeId(item?.processingMethod),
+      quality: normalizeId(item?.quality || "standard"),
+      productionValueAhn: Number(item?.productionValueAhn ?? item?.unitProductionValueAhn ?? 0) || 0,
+      tags
+    });
+  }
+
+  function coalesceProcessingInputs(items) {
+    const groups = new Map();
+    (items || []).forEach((item) => {
+      const normalized = Object.assign({}, clone(item), {
+        quantity: Math.max(1, selectedUnits(item) || 1)
+      });
+      const key = processingInputSignature(normalized);
+      const current = groups.get(key);
+      if (!current) {
+        groups.set(key, normalized);
+        return;
+      }
+      current.quantity += normalized.quantity;
+      const sourceIds = new Set([
+        ...(Array.isArray(current.__sourceInstanceIds) ? current.__sourceInstanceIds : []),
+        current.sourceInstanceId,
+        current.instanceId,
+        normalized.sourceInstanceId,
+        normalized.instanceId
+      ].filter(Boolean).map(String));
+      current.__sourceInstanceIds = [...sourceIds];
+    });
+    return [...groups.values()];
+  }
+
   function resolveProcessingRecipe(recipe, items, root) {
     const host = root || global;
     const engine = host.LuminousItemProcessingEngine || global.LuminousItemProcessingEngine;
@@ -416,9 +454,10 @@
       return { valid: false, reason: "processing_engine_unavailable", recipe };
     }
 
-    const selected = (items || []).map((item) => Object.assign({}, clone(item), {
+    const originalSelected = (items || []).map((item) => Object.assign({}, clone(item), {
       quantity: Math.max(1, selectedUnits(item) || 1)
     }));
+    const selected = coalesceProcessingInputs(originalSelected);
     const result = engine.resolveProcessingBatch(selected, recipe.methodId, {
       templateId: recipe.id,
       batches: 1
@@ -441,6 +480,7 @@
       recipe,
       processing: result,
       processingInputs: clone(selected),
+      processingSourceInputs: clone(originalSelected),
       consumedUnits,
       totalSelectedUnits,
       score: 1000 + Number(recipe.priority || 0),
@@ -824,6 +864,8 @@
     requiredToolType,
     hasRequiredTool,
     requirementMatchScore,
+    processingInputSignature,
+    coalesceProcessingInputs,
     resolveRecipe,
     recipeRuntimeReady,
     findMatchingRecipes,
