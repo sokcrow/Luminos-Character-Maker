@@ -53,6 +53,16 @@ const path = require("node:path");
 
   assert.ok(catalog.hard_bone, "Hard Parts catalog should be discovered");
   assert.ok(catalog.scale, "Scale/Shell/Chitin catalog should be discovered");
+  assert.equal(
+    Object.values(catalog).some((item) => /RecipeCatalog$/i.test(item.__catalogSource || "")),
+    false,
+    "recipe catalogs must never be published as grantable items"
+  );
+  assert.equal(
+    Object.values(catalog).some((item) => item.runtimeEffectImplemented === false && item.combatContractStatus === "deferred"),
+    false,
+    "deferred recipe definitions must not leak into the Director item catalog"
+  );
 
   for (const ammoPartId of ["ammo_projectile", "ammo_casing", "ammo_propellant", "ammo_ignition"]) {
     assert.ok(catalog[ammoPartId], `Firearm ammo part ${ammoPartId} should be discovered`);
@@ -417,6 +427,10 @@ const path = require("node:path");
   assert.match(dmPage, /js\/dm-item-catalog-core\.js/);
   assert.match(dmPage, /js\/item-content-registry\.js/);
   assert.match(dmPage, /js\/item-cooking-recipe-catalog\.js/);
+  assert.match(dmPage, /js\/item-cooking-equipment-engine\.js/);
+  assert.match(dmPage, /id="dm-cooking-station-controls"/);
+  assert.match(dmPage, /campaña\/estado_mundo\/cooking_stations/);
+  assert.match(dmPage, /data\.cookingStationId|dataset\.cookingStationId/);
   assert.match(dmPage, /js\/item-chemistry-recipe-catalog\.js/);
   assert.match(dmPage, /js\/item-medicine-recipe-catalog\.js/);
   assert.match(dmPage, /js\/item-processing-recipe-data\.js/);
@@ -479,6 +493,8 @@ const path = require("node:path");
   assert.match(playerRuntime, /enforceTools:\s*true/);
   assert.match(playerRuntime, /enforceEquipment:\s*true/);
   assert.match(playerRuntime, /authoritativeCookingStationIds/);
+  assert.match(playerRuntime, /forjaCookingStationsGlobal/);
+  assert.match(playerRuntime, /campaña\/estado_mundo\/cooking_stations/);
   assert.match(playerRuntime, /currentCookingStationId/);
   assert.doesNotMatch(playerRuntime, /stationSelect\.value/);
   assert.match(playerRuntime, /recipeDifficulty\(recipe, match\?\.resolution\)/);
