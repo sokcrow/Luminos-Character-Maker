@@ -10,6 +10,7 @@ on:
       - 'js/dm-item-instance-editor.js'
       - 'js/dm-item-catalog-core.js'
       - 'js/item-content-registry.js'
+      - 'js/item-catalog-tools.js'
       - 'js/item-chemistry-recipe-catalog.js'
       - 'js/item-cooking-recipe-catalog.js'
       - 'js/item-cooking-recipe-resolver.js'
