@@ -1,12 +1,16 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import vm from "node:vm";
 
 globalThis.STATUS_REGISTRY = {};
 
 await import("../js/combat-props-runtime.js");
-await import("../js/combatEngine.js");
+const combatEngineSource = fs.readFileSync(new URL("../js/combatEngine.js", import.meta.url), "utf8");
+vm.runInThisContext(`${combatEngineSource}\n;globalThis.CombatEngine = CombatEngine;`, { filename: "combatEngine.js" });
 
 const props = globalThis.LuminousCombatPropsRuntime;
 const engine = globalThis.CombatEngine;
+props.install(engine);
 
 assert.ok(props && engine, "combat props runtime and combat engine should load");
 
