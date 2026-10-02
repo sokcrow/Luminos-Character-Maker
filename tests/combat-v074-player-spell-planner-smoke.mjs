@@ -12,6 +12,7 @@ await import('../js/spellcasting-basic-rules-runtime.js');
 await import('../js/combat-action-schema.js');
 await import('../js/combat-action-adapters.js');
 await import('../js/combat-spell-loadout-074.js');
+await import('../js/deckEngine.js');
 await import('../js/battle-viewer-ownership-074.js');
 
 const registry = globalThis.LuminousContentRegistry;
@@ -52,16 +53,34 @@ registry.register({
     mechanics: { requiresChoice: { key: 'mode', values: ['alpha','beta'] } },
   },
 });
+registry.register({
+  type: 'spell', id: 'slot_smite', name: 'Slot Smite', sourceKey: 'test-spells',
+  definition: {
+    id: 'slot_smite', name: 'Slot Smite', kind: 'spell', level: 1, sourceClassId: 'sorcerer',
+    school: 'evocation', targetType: 'action_slot', targetingType: 'action_slot', castingTime: 'quick_action',
+    mechanics: { slotEnchantment: { id: 'slot_smite', requires: { meleeOrUnarmedAttackSkill: true } } },
+  },
+});
 
 const actor = {
   id: 'player:player_a', combatId: 'player:player_a', isPlayer: true, actorCategory: 'player', canonicalScope: 'player',
   canonicalPlayerKey: 'player_a', canonicalOwnerUid: 'uid-a', playerId: 'player_a', ownerUid: 'uid-a',
   actionSlots: 1, activeSlots: 1, actionSlotIndex: { '0': true },
-  characterBuild: { classes: [{ classId: 'sorcerer', levels: 3 }], spellSelections: ['arc_bolt','mode_spell'] },
+  characterBuild: { classes: [{ classId: 'sorcerer', levels: 3 }], spellSelections: ['arc_bolt','mode_spell','slot_smite'] },
+  skillDeck: {
+    slots: {
+      'player:player_a_slot_0': {
+        hand: [
+          { drawId: 'draw_melee', skillId: 'slash', tier: 1, skill: { id: 'slash', name: 'Slash', type: 'Normal', skillRange: 1, attackWeight: 1, atkWeight: 1 } },
+          { drawId: 'draw_ranged', skillId: 'shot', tier: 1, skill: { id: 'shot', name: 'Shot', type: 'Normal', skillRange: 5, attackWeight: 1, atkWeight: 1, isRanged: true } },
+        ],
+      },
+    },
+  },
   sp: 30,
 };
 
-assert.deepEqual(loadout.spellIdsFor(actor), ['arc_bolt', 'mode_spell']);
+assert.deepEqual(loadout.spellIdsFor(actor), ['arc_bolt', 'mode_spell', 'slot_smite']);
 assert.equal(loadout.ownsSpell(actor, 'arc_bolt'), true);
 assert.equal(loadout.ownsSpell(actor, 'other_spell'), false);
 const trusted = loadout.resolveSpellForCombatant(actor, 'arc_bolt');
@@ -146,7 +165,7 @@ assert.ok(castHook.concentration, 'concentration Spell should start Concentratio
 // Player planner writes only selected Spell references and cast choices.
 await import('../js/battle-viewer-player-spell-planner-074.js');
 const planner = globalThis.LuminousBattleViewerPlayerSpellPlanner074;
-planner.applyPlayers({ player_a: { uid: 'uid-a', characterBuild: { spellSelections: ['arc_bolt','mode_spell'] } } });
+planner.applyPlayers({ player_a: { uid: 'uid-a', characterBuild: { spellSelections: ['arc_bolt','mode_spell','slot_smite'] } } });
 planner.applyCombatants(globalThis.combatData);
 planner.applyCombatState('PRE_COMBAT_PLANNING');
 const built = planner.buildSpellPlan({ authUid: 'uid-a', ownerPlayerId: 'player_a', slotIndex: 0, spellId: 'arc_bolt', classId: 'sorcerer', slotLevel: 1, overcast: true, targetId: 'enemy_1' });
@@ -165,6 +184,25 @@ assert.equal(missingModeChoice.reason,'SPELL_CHOICE_REQUIRED');
 const modeBuilt = planner.buildSpellPlan({ authUid:'uid-a', ownerPlayerId:'player_a', slotIndex:0, spellId:'mode_spell', classId:'sorcerer', targetId:'enemy_1', spellChoiceValue:'alpha' });
 assert.equal(modeBuilt.ok,true,modeBuilt.reason);
 assert.deepEqual(modeBuilt.payload.spellChoice,{key:'mode',value:'alpha'});
+
+const slotSmiteDefinition = loadout.resolveSpellForCombatant(actor, 'slot_smite').spell;
+const slotHand = planner.slotHandOptions(actor, 'player:player_a_slot_0', slotSmiteDefinition);
+assert.deepEqual(slotHand.map((row) => row.__deckCard.skillId), ['slash'], 'slot enchantment must only expose valid attack Skills from that Slot Hand');
+const slotSmiteBuilt = planner.buildSpellPlan({
+  authUid:'uid-a', ownerPlayerId:'player_a', slotIndex:0, slotId:'player:player_a_slot_0',
+  spellId:'slot_smite', classId:'sorcerer', slotLevel:2, targetId:'enemy_1',
+  enchantmentSkillId:'slash', enchantmentDrawId:'draw_melee'
+});
+assert.equal(slotSmiteBuilt.ok, true, slotSmiteBuilt.reason);
+assert.equal(slotSmiteBuilt.payload.enchantmentSkillId, 'slash');
+assert.equal(slotSmiteBuilt.payload.enchantmentDrawId, 'draw_melee');
+assert.equal(slotSmiteBuilt.enchantmentCard.deckCard.slotId, 'player:player_a_slot_0');
+const invalidRangedEnchant = planner.buildSpellPlan({
+  authUid:'uid-a', ownerPlayerId:'player_a', slotIndex:0, slotId:'player:player_a_slot_0',
+  spellId:'slot_smite', classId:'sorcerer', slotLevel:1, targetId:'enemy_1',
+  enchantmentSkillId:'shot', enchantmentDrawId:'draw_ranged'
+});
+assert.equal(invalidRangedEnchant.reason, 'SLOT_ENCHANTMENT_SKILL_NOT_IN_HAND');
 
 // Character-sheet grants may explicitly override the casting class and ability
 // without broadening the canonical Spell's class list for every character.
