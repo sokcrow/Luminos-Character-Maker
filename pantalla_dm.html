@@ -6243,6 +6243,10 @@ window.processEntitiesData = function(entities) {
         // Sincronizar cambios de jugadores en el select
 
 
+        const searchInputDM = document.getElementById("buscador-items-dm");
+        const filterBtnsDM = document.querySelectorAll(
+          "#filtros-dm .dm-filter-btn",
+        );
         const gridItemsGlobales = document.getElementById("grid-items-globales");
 
         function renderGlobalItemsAndAugments() {
@@ -6406,11 +6410,6 @@ window.processEntitiesData = function(entities) {
         );
 
                 // --- LÓGICA DE BÚSQUEDA Y FILTRADO (DM) ---
-        const searchInputDM = document.getElementById("buscador-items-dm");
-        const filterBtnsDM = document.querySelectorAll(
-          "#filtros-dm .dm-filter-btn",
-        );
-
         function filterDMItems() {
           const query = searchInputDM ? searchInputDM.value.toLowerCase() : "";
           let activeFilter = "todo";
