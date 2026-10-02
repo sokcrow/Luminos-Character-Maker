@@ -17,14 +17,14 @@ Working target: **82 published Level 1 spells**.
 
 There are **82** Level 1 spells in scope.
 
-### Canonical catalog definitions present — 17 / 82
+### Canonical catalog definitions present — 25 / 82
 
 The 9 pre-existing definitions remain review items until their metadata, mechanics, visuals/dependencies and smoke coverage meet the current spell contract. A checkbox is only completed after explicit user review/approval; implementation presence alone does not close the task.
 
 - [ ] Absorb Elements
 - [ ] Animal Friendship
 - [ ] Charm Person
-- [ ] Chromatic Orb
+- [x] Chromatic Orb
 - [ ] Dissonant Whispers
 - [ ] Expeditious Retreat
 - [ ] Shield
@@ -38,6 +38,14 @@ The 9 pre-existing definitions remain review items until their metadata, mechani
 - [ ] Burning Hands
 - [x] Create or Destroy Water
 - [x] Cure Wounds
+- [x] Detect Evil and Good
+- [x] Detect Magic
+- [x] Detect Poison and Disease
+- [x] Disguise Self
+- [x] Divine Favor
+- [x] Divine Smite
+- [x] Ensnaring Strike
+- [x] Entangle
 
 #### Review decision for the 9 pre-existing definitions
 
@@ -46,7 +54,7 @@ Do **not** rewrite the shared Spell Slot / class-gating infrastructure. Reuse it
 - **Absorb Elements** — keep the Reaction/resource shell; review only the Luminous resistance/retaliation mapping and expiry details.
 - **Animal Friendship** — metadata updated to the current Beast/WIS-save contract; remove the obsolete Intelligence cap. Runtime/charm cleanup can stay shared.
 - **Charm Person** — metadata/target contract updated; still needs runtime support for the fighting-target Save advantage and end-of-spell awareness where relevant.
-- **Chromatic Orb** — **mechanics review required**. The current `onCritJump` is a project approximation and should be re-evaluated against the revised leap mechanic before marking complete.
+- **Chromatic Orb** — reviewed and implemented: elemental choice/status mapping retained; Critical Hit jumps to a different non-repeated enemy, with maximum jumps equal to Spell Slot Used; upcast also adds +1 Coin Power per Slot Level above 1.
 - **Dissonant Whispers** — **mechanics restructuring required**. It should enter the Save pipeline and model the failed-save forced Reaction movement rather than remain a plain focused attack.
 - **Expeditious Retreat** — keep the Concentration + Quick Action shell; review whether the existing Haste mapping is still the intended Luminous movement abstraction.
 - **Shield** — keep the Reaction shell and shared Shield runtime; review trigger/expiry semantics as a deliberate Luminous adaptation.
@@ -61,21 +69,13 @@ These already exist in `js/role-spell-catalog-core.js` and are covered by the An
 - [ ] Speak with Animals
 - [ ] Distort Value
 
-### Truly absent definitions — 62 / 82
+### Truly absent definitions — 54 / 82
 
-#### 2024 PHB baseline — 47
+#### 2024 PHB baseline — 39
 
 - [ ] Color Spray
 - [ ] Command
 - [ ] Compelled Duel
-- [ ] Detect Evil and Good
-- [ ] Detect Magic
-- [ ] Detect Poison and Disease
-- [ ] Disguise Self
-- [ ] Divine Favor
-- [ ] Divine Smite
-- [ ] Ensnaring Strike
-- [ ] Entangle
 - [ ] Faerie Fire
 - [ ] False Life
 - [ ] Feather Fall
@@ -134,7 +134,7 @@ These already exist in `js/role-spell-catalog-core.js` and are covered by the An
 - [ ] Spellfire Flare
 - [ ] Wardaway
 
-Current catalog state: **17 canonical Level 1 definitions**, **3 role-only definitions awaiting canonical migration**, and **62 truly absent definitions**. That leaves **65 missing/migration items** before the Level 1 catalog is complete, plus the separate review debt on the original 9 definitions.
+Current catalog state: **25 canonical Level 1 definitions**, **3 role-only definitions awaiting canonical migration**, and **54 truly absent definitions**. That leaves **57 missing/migration items** before the Level 1 catalog is complete, plus the remaining review debt on the original pre-existing definitions.
 
 ## Canonical Spell Metadata Contract
 
@@ -199,6 +199,20 @@ This section is informational only. The authoritative task checkbox for each spe
 - Compelled Duel
 - Comprehend Languages
 - Create or Destroy Water
+
+### Batch 3 — reviewed detection / Paladin-Ranger control batch
+
+Informational only; authoritative completion remains the single inventory checkbox for each spell.
+
+- Detect Evil and Good
+- Detect Magic
+- Detect Poison and Disease
+- Disguise Self
+- Divine Favor
+- Divine Smite
+- Ensnaring Strike
+- Entangle
+- Chromatic Orb runtime correction
 
 #### Encounter Weather Modifier decisions locked during Batch 2
 
