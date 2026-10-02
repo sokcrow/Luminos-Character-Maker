@@ -12,6 +12,9 @@ on:
       - 'js/item-content-registry.js'
       - 'js/item-catalog-tools.js'
       - 'js/item-chemistry-recipe-catalog.js'
+      - 'js/item-medicine-crafting-engine.js'
+      - 'js/item-chemistry-crafting-engine.js'
+      - 'js/item-quality-engine.js'
       - 'js/item-cooking-recipe-catalog.js'
       - 'js/item-cooking-recipe-resolver.js'
       - 'js/item-cooking-equipment-engine.js'
@@ -46,6 +49,8 @@ jobs:
           node --check js/dm-item-instance-editor.js
           node --check js/dm-item-catalog-core.js
           node --check js/item-content-registry.js
+          node --check js/item-chemistry-crafting-engine.js
+          node --check js/item-medicine-crafting-engine.js
           node --check hoja_personaje.js
           node tests/dm-item-catalog-core.spec.cjs
           node --check js/inventory-hud-v2.js
