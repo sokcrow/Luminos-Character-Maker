@@ -1,4 +1,4 @@
-const assert = require("node:assert/strict");
+const assert = require("node:assert/strict");\nconst fs = require("node:fs");\nconst path = require("node:path");
 
 require("../js/item-icon-registry.js");
 require("../js/item-catalog-weapons.js");
@@ -54,3 +54,13 @@ const patch = core.quantityPatch(granted, 5);
 assert.deepEqual(patch, { quantity: 5, cantidad: 5 });
 
 console.log("dm-item-catalog-core.spec: ok");
+
+
+const dmPage = fs.readFileSync(path.join(__dirname, "..", "pantalla_dm.html"), "utf8");
+assert.match(dmPage, /css\/dm-limbus-shell\.css/);
+assert.match(dmPage, /css\/dm-item-catalog-v2\.css/);
+assert.match(dmPage, /js\/dm-item-catalog-core\.js/);
+assert.match(dmPage, /core\.buildCatalogMap\(window, firebaseItems/);
+assert.doesNotMatch(dmPage, /<\/script>\\n\s*<script src="js\/item-catalog-/);
+
+console.log("dm item page wiring: ok");
