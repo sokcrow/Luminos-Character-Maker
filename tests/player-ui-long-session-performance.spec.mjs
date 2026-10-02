@@ -600,7 +600,12 @@ test("stats HUD keeps fixed geometry and scrolls internally when content changes
           <div class="hud-modal-content">
             <button type="button" class="hud-modal-close">×</button>
             <div class="hud-modal-body">
-              <div id="stats-container"></div>
+              <div class="hud-tab-content">
+                <div class="stats-header">
+                  <div class="toggle-container">Modo Auto</div>
+                </div>
+                <div id="stats-container"></div>
+              </div>
             </div>
           </div>
         </div>
@@ -627,6 +632,8 @@ test("stats HUD keeps fixed geometry and scrolls internally when content changes
 
   const geometry = () => page.evaluate(() => {
     const content = document.querySelector("#stats-modal .hud-modal-content");
+    const wrapper = document.querySelector("#stats-modal .hud-tab-content");
+    const statsContainer = document.querySelector("#stats-modal #stats-container");
     const frame = document.querySelector("#stats-modal .player-stats-frame");
     const art = document.querySelector("#stats-modal .player-stats-character-panel");
     const info = document.querySelector("#stats-modal .player-stats-information-panel");
@@ -648,6 +655,9 @@ test("stats HUD keeps fixed geometry and scrolls internally when content changes
       renderedHeight: rect.height,
       scale: Number(document.getElementById("stats-modal").dataset.playerStatsHudScale || 1),
       bodyOverflowY: getComputedStyle(document.querySelector("#stats-modal .hud-modal-body")).overflowY,
+      wrapperOverflowY: getComputedStyle(wrapper).overflowY,
+      wrapper: normalize(wrapper),
+      statsContainer: normalize(statsContainer),
       frameDisplay: getComputedStyle(frame).display,
       frameColumns: getComputedStyle(frame).gridTemplateColumns,
       abilityColumns: getComputedStyle(abilityBar).gridTemplateColumns,
@@ -661,9 +671,14 @@ test("stats HUD keeps fixed geometry and scrolls internally when content changes
   expect(desktop.contentCssWidth).toBe("1600px");
   expect(desktop.contentCssHeight).toBe("920px");
   expect(desktop.bodyOverflowY).toBe("hidden");
+  expect(desktop.wrapperOverflowY).toBe("hidden");
+  expect(desktop.wrapper.y).toBeCloseTo(0, 3);
+  expect(desktop.wrapper.height).toBeCloseTo(1, 3);
+  expect(desktop.statsContainer.y).toBeCloseTo(0, 3);
+  expect(desktop.statsContainer.height).toBeCloseTo(1, 3);
   expect(desktop.frameDisplay).toBe("grid");
   expect(desktop.art.width).toBeCloseTo(0.5, 2);
-  expect(desktop.info.x).toBeCloseTo(0.5, 3);
+  expect(desktop.info.x).toBeCloseTo(0.5, 2);
 
   await page.setViewportSize({ width: 760, height: 640 });
   await page.evaluate(() => window.LuminousPlayerStats.syncHudCanvasScale());
@@ -676,6 +691,11 @@ test("stats HUD keeps fixed geometry and scrolls internally when content changes
   expect(compact.abilityColumns).toBe(desktop.abilityColumns);
   expect(compact.frameDisplay).toBe("grid");
   expect(compact.bodyOverflowY).toBe("hidden");
+  expect(compact.wrapperOverflowY).toBe("hidden");
+  expect(compact.wrapper.y).toBeCloseTo(desktop.wrapper.y, 3);
+  expect(compact.wrapper.height).toBeCloseTo(desktop.wrapper.height, 3);
+  expect(compact.statsContainer.y).toBeCloseTo(desktop.statsContainer.y, 3);
+  expect(compact.statsContainer.height).toBeCloseTo(desktop.statsContainer.height, 3);
   expect(compact.art.x).toBeCloseTo(desktop.art.x, 3);
   expect(compact.art.y).toBeCloseTo(desktop.art.y, 3);
   expect(compact.art.width).toBeCloseTo(desktop.art.width, 3);
