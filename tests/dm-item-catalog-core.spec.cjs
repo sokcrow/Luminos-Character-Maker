@@ -356,6 +356,30 @@ const path = require("node:path");
   ];
   const juiceResolution = contentRegistry.resolveRecipe(juiceRecipe, juiceInputs, globalThis);
   assert.equal(juiceResolution.valid, true, "procedural processing templates must resolve from runtime input context");
+
+  const strictJuiceResolution = contentRegistry.resolveRecipe(
+    juiceRecipe,
+    juiceInputs,
+    globalThis,
+    {
+      enforceEquipment: true,
+      toolItems: [{ definitionId: "cooks_utensils", quantity: 1 }],
+      unit: {},
+      availableStationIds: []
+    }
+  );
+  assert.equal(strictJuiceResolution.valid, true, "juice should resolve with its canonical required tool");
+  assert.equal(strictJuiceResolution.recipeTh, 10, "juice must carry the concrete processing recipe TH, not the method base TH");
+  assert.equal(
+    contentRegistry.recipeDifficulty(juiceRecipe, strictJuiceResolution),
+    strictJuiceResolution.effectiveTh,
+    "player synthesis must check processing against the canonical effective TH"
+  );
+  assert.notEqual(
+    contentRegistry.recipeDifficulty(juiceRecipe, strictJuiceResolution),
+    globalThis.LuminousItemProcessingEngine.METHODS.juice.baseTh,
+    "two-input juice must not fall back to the method base TH"
+  );
   const juiceOutput = contentRegistry.createRecipeOutput(juiceRecipe, {
     resolution: juiceResolution
   });
@@ -556,7 +580,10 @@ const path = require("node:path");
   assert.match(playerRuntime, /authoritativeCookingStationIds/);
   assert.match(playerRuntime, /forjaCookingStationsGlobal/);
   assert.match(playerRuntime, /campaña\/estado_mundo\/cooking_stations/);
-  assert.match(playerRuntime, /currentCookingStationId/);
+  assert.doesNotMatch(playerRuntime, /unit\.currentCookingStationId/);
+  assert.doesNotMatch(playerRuntime, /unit\.cookingStationId/);
+  assert.doesNotMatch(playerRuntime, /unit\.availableCookingStationIds/);
+  assert.doesNotMatch(playerRuntime, /unit\.available_cooking_station_ids/);
   assert.doesNotMatch(playerRuntime, /stationSelect\.value/);
   assert.match(playerRuntime, /recipeDifficulty\(recipe, match\?\.resolution\)/);
   assert.match(playerRuntime, /Selecciona explícitamente cuál quieres sintetizar/);
