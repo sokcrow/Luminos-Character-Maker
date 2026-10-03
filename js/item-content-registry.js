@@ -8,8 +8,10 @@
 
   const VERSION = 2;
   const RECIPE_SOURCES = Object.freeze([
+    Object.freeze({ globalName: "LuminousChemicalProcessedCatalog", fields: Object.freeze(["PROCESSES"]), kind: "chemistry" }),
     Object.freeze({ globalName: "LuminousChemistryRecipeCatalog", fields: Object.freeze(["RECIPES"]), kind: "chemistry" }),
     Object.freeze({ globalName: "LuminousCookingRecipeCatalog", fields: Object.freeze(["RECIPES"]), kind: "cooking" }),
+    Object.freeze({ globalName: "LuminousMedicinalProcessedCatalog", fields: Object.freeze(["PROCESSES"]), kind: "medicine" }),
     Object.freeze({ globalName: "LuminousMedicineRecipeCatalog", fields: Object.freeze(["RECIPES"]), kind: "medicine" }),
     Object.freeze({ globalName: "LuminousThrowableRecipeCatalog", fields: Object.freeze(["RECIPES"]), kind: "throwable" }),
     Object.freeze({ globalName: "LuminousItemProcessingRecipeData", fields: Object.freeze(["TEMPLATES"]), kind: "processing" })
@@ -398,9 +400,24 @@
     const opts = options || {};
     const resolver = host.LuminousCookingRecipeResolver || global.LuminousCookingRecipeResolver;
     const cookingEngine = host.LuminousCookingEngine || global.LuminousCookingEngine;
+    const cookingV2 = host.LuminousCookingV2Engine || global.LuminousCookingV2Engine;
     const equipmentEngine = host.LuminousCookingEquipmentEngine || global.LuminousCookingEquipmentEngine;
     if (!resolver || typeof resolver.resolveRecipe !== "function") {
       return { valid: false, reason: "cooking_recipe_resolver_unavailable", recipe };
+    }
+
+    const v2Function = cookingV2?.get?.(recipe) || null;
+    if (
+      v2Function?.adoption === "adapt" &&
+      cookingV2?.hasExplicitKnowledgeStore?.(opts.unit || {}) &&
+      !cookingV2?.knowsRecipe?.(opts.unit || {}, recipe)
+    ) {
+      return {
+        valid: false,
+        reason: "unknown_recipe_knowledge",
+        recipe,
+        v2Function
+      };
     }
 
     const selected = items.map((item) => Object.assign({}, clone(item), { quantity: selectedUnits(item) }));
@@ -421,6 +438,18 @@
         totalSelectedUnits,
         score
       });
+    }
+
+    const gourmet = cookingV2?.checkGourmetComponents?.(recipe, result.recipeInputs || []) || null;
+    if (gourmet && gourmet.valid === false) {
+      return {
+        valid: false,
+        reason: "gourmet_component_quality",
+        recipe,
+        v2Function,
+        gourmet,
+        resolution: result
+      };
     }
 
     const cookingRuntime = host.LuminousCookingRuntime || global.LuminousCookingRuntime;
@@ -461,6 +490,8 @@
       thBreakdown,
       effectiveTh: effectiveThBreakdown?.effectiveTh ?? thBreakdown?.recipeTh ?? null,
       effectiveThBreakdown,
+      v2Function,
+      gourmet,
       consumedUnits,
       totalSelectedUnits,
       score
@@ -790,6 +821,13 @@
         Number(opts.checkResult) || 0,
         { equipment: resolution.equipment || {} }
       );
+      const cookingV2 = global.LuminousCookingV2Engine;
+      const v2Prepared = cookingV2?.resolvePreparedFunction?.(
+        raw,
+        prepared.stars,
+        opts.unit || {},
+        { equipment: resolution.equipment || {} }
+      ) || null;
       const pricing = recipeCatalog?.resolveReferencePricing
         ? recipeCatalog.resolveReferencePricing(raw, resolution.concreteRecipe.ingredients || [], {
             stars: prepared.stars,
@@ -798,7 +836,8 @@
         : null;
       const finished = cookingRuntime.finishedFoodItem(raw, prepared, pricing, {
         createdAt: opts.createdAt,
-        instanceId: opts.instanceId
+        instanceId: opts.instanceId,
+        v2Prepared
       });
       return Object.assign({}, clone(finished), {
         canonicalId: finished.definitionId || finished.itemId || finished.id,
