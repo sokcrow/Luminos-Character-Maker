@@ -749,6 +749,28 @@
     return 18;
   }
 
+  function craftInputsFromConsumptionPlan(sourceInputs, consumptionPlan) {
+    if (!Array.isArray(sourceInputs) || !sourceInputs.length) return [];
+    if (!Array.isArray(consumptionPlan) || !consumptionPlan.length) {
+      return sourceInputs.map((input) => clone(input));
+    }
+
+    const ordered = [];
+    consumptionPlan.forEach((row) => {
+      (row.allocations || []).forEach((allocation) => {
+        const source = sourceInputs[allocation.inventoryIndex];
+        const units = Math.max(0, Number(allocation.units || 0));
+        if (!source || units <= 0) return;
+        ordered.push(Object.assign({}, clone(source), {
+          quantity: units,
+          count: units,
+          units
+        }));
+      });
+    });
+    return ordered;
+  }
+
   function createRecipeOutput(recipe, options) {
     const opts = options || {};
     const raw = clone(recipe) || {};
@@ -829,7 +851,13 @@
         : global.LuminousMedicineCraftingEngine;
       if (!engine?.craft || !sourceInputs.length) return null;
 
-      const crafted = engine.craft(raw.id || raw.recipeId, sourceInputs, {
+      const craftInputs = craftInputsFromConsumptionPlan(
+        sourceInputs,
+        resolution.consumptionPlan
+      );
+      if (!craftInputs.length) return null;
+
+      const crafted = engine.craft(raw.id || raw.recipeId, craftInputs, {
         checkTotal: Number(opts.checkResult),
         outputQuantity: opts.quantity
       });
@@ -1015,6 +1043,7 @@
     processingInputSignature,
     coalesceProcessingInputs,
     resolveRecipe,
+    craftInputsFromConsumptionPlan,
     recipeRuntimeReady,
     findMatchingRecipes,
     findMatchingRecipe,
