@@ -23,18 +23,16 @@ const playerSkills = read("js/player-skills-hud.js");
 assert.match(playerSkills, /Assets\/Images\/Buttons\/Skills\.png/);
 assert.match(playerSkills, /Assets\/Images\/Buttons\/Spells\.png/);
 
-const combatIcons = read("js/combat-player-menu-canonical-icons.js");
-assert.match(combatIcons, /inventory:\s*"Assets\/Images\/Buttons\/Inventory\.png"/);
-assert.match(combatIcons, /skills:\s*"Assets\/Images\/Buttons\/Skills\.png"/);
-assert.match(combatIcons, /spells:\s*"Assets\/Images\/Buttons\/Spells\.png"/);
-
 const skillPlanner = read("js/battle-viewer-player-skill-planner-074.js");
 const spellPlanner = read("js/battle-viewer-player-spell-planner-074.js");
 assert.match(skillPlanner, /const ICON_SRC = "Assets\/Images\/Buttons\/Skills\.png"/);
 assert.match(spellPlanner, /const ICON_SRC = "Assets\/Images\/Buttons\/Spells\.png"/);
 
 const viewer = read("Battle-viewer.html");
-assert.match(viewer, /js\/combat-player-menu-canonical-icons\.js/);
+assert.match(viewer, /SkillAttack\.png\?97118e=&format=original","Assets\/Images\/Buttons\/Skills\.png"/);
+assert.match(viewer, /imgur\.com\/DJ5lKid\.png","Assets\/Images\/Buttons\/Spells\.png"/);
+assert.match(viewer, /imgur\.com\/LA2meL7\.png","Assets\/Images\/Buttons\/Inventory\.png"/);
+assert.match(viewer, /COMBAT_MENU_ICON_SOURCE_MISSING/);
 
 const forest = read("game-engine/lab/game/forest-0.3.3.1.html");
 assert.match(forest, /data-player-menu-action="inventory"[\s\S]{0,300}\.\.\/\.\.\/\.\.\/Assets\/Images\/Buttons\/Inventory\.png/);
