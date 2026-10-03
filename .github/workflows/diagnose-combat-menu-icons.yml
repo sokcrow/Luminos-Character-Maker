@@ -1,0 +1,59 @@
+name: Diagnose combat menu icons
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  inspect-combat-menu-icons:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+      - name: Decode Combat runtime and print menu icon references
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat             combat/combat-v073-live.bundle.part01             combat/combat-v073-live.bundle.part02             combat/combat-v073-live.bundle.part03             combat/combat-v073-live.bundle.part04             combat/combat-v073-live.bundle.part05             combat/combat-v073-live.bundle.part06             combat/repair/combat-v073-live.bundle.part07.r1             combat/repair/combat-v073-live.bundle.part07.r2             combat/repair/combat-v073-live.bundle.part07.r3             combat/combat-v073-live.bundle.part08             combat/combat-v073-live.bundle.part09             combat/combat-v073-live.bundle.part10             combat/combat-v073-live.bundle.part11             | tr -d '[:space:]' | base64 -d | gzip -dc > /tmp/combat-runtime.html
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          text = Path("/tmp/combat-runtime.html").read_text(errors="replace")
+          print("COMBAT_RUNTIME_CHARS", len(text))
+
+          patterns = [
+              r"Inventory", r"Inventario", r"Items?", r"Skills?", r"Spells?",
+              r"SkillAttack", r"DJ5lKid", r"imgur", r"wiki\.gg", r"missing"
+          ]
+          rx = re.compile("|".join(patterns), re.I)
+          lines = text.splitlines()
+          matches = []
+          for i,line in enumerate(lines):
+              if rx.search(line):
+                  start=max(0,i-2); end=min(len(lines),i+3)
+                  block="\n".join(f"{j+1}: {lines[j]}" for j in range(start,end))
+                  matches.append(block)
+          print("\n===== MATCH CONTEXTS =====")
+          for block in matches[:120]:
+              print(block)
+              print("-----")
+
+          print("\n===== IMG URLS WITH MENU TERMS =====")
+          for m in re.finditer(r"<img\b[^>]*>", text, re.I):
+              tag=m.group(0)
+              if rx.search(tag):
+                  print(tag)
+
+          print("\n===== CONTROLS WITH MENU TERMS =====")
+          for m in re.finditer(r"<(?:button|a)\b[^>]*>[\s\S]{0,1000}?</(?:button|a)>", text, re.I):
+              tag=m.group(0)
+              if rx.search(tag):
+                  print(re.sub(r"\s+", " ", tag)[:1400])
+          PY
