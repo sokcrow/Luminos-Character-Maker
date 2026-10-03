@@ -15,6 +15,18 @@ on:
       - 'js/combat-v073-remote-intents.js'
       - 'js/combat-v073-library-client.js'
       - 'js/combat-v073-authority.js'
+      - 'js/player-vitals-realtime-bridge.js'
+      - 'js/player-vitals-hud.js'
+      - 'js/player-stats-ability-bar.js'
+      - 'js/derived-stats-engine.js'
+      - 'js/item-runtime-engine.js'
+      - 'js/rest-runtime-integration.js'
+      - 'js/inventory-hud-v2.js'
+      - 'js/dm-player-dnd-studio.js'
+      - 'pantalla_dm.html'
+      - 'js/battle-viewer-player-entry-074.js'
+      - 'hoja_personaje.html'
+      - 'hoja_personaje.js'
       - 'js/combat-deployment-runtime.js'
       - 'js/combat-v073-deployment-bridge.js'
       - 'js/unit-rank-runtime.js'
@@ -51,6 +63,7 @@ on:
       - 'tests/combat-v073-economy-menu-smoke.mjs'
       - 'tests/unit-combat-instantiator-smoke.mjs'
       - 'tests/universal-library-authority-smoke.mjs'
+      - 'tests/player-vitals-realtime-bridge-smoke.mjs'
       - '.github/workflows/combat-v073-live-smoke.yml'
 
 jobs:
@@ -72,6 +85,16 @@ jobs:
           node --check js/combat-v073-remote-intents.js
           node --check js/combat-v073-library-client.js
           node --check js/combat-v073-authority.js
+          node --check js/player-vitals-realtime-bridge.js
+          node --check js/player-vitals-hud.js
+          node --check js/player-stats-ability-bar.js
+          node --check js/derived-stats-engine.js
+          node --check js/item-runtime-engine.js
+          node --check js/rest-runtime-integration.js
+          node --check js/inventory-hud-v2.js
+          node --check js/dm-player-dnd-studio.js
+          node --check js/battle-viewer-player-entry-074.js
+          node --check hoja_personaje.js
           node --check js/combat-deployment-runtime.js
           node --check js/combat-v073-deployment-bridge.js
           node --check js/unit-rank-runtime.js
@@ -105,6 +128,8 @@ jobs:
         run: node tests/unit-combat-instantiator-smoke.mjs
       - name: Universal Library and authoritative Combat contract
         run: node tests/universal-library-authority-smoke.mjs
+      - name: Universal Player vitals realtime bridge
+        run: node tests/player-vitals-realtime-bridge-smoke.mjs
       - name: Player Action economy menu contract
         run: node tests/combat-v073-economy-menu-smoke.mjs
       - name: Speed persistence contract

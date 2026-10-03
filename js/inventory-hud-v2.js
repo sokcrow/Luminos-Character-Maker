@@ -11,6 +11,9 @@
     db: null,
     unit: {},
     peer: null,
+    playerVitalsRef: null,
+    playerVitalsHandler: null,
+    vitalsReady: false,
     stashUnlocked: false,
     selected: null,
     selectedContainer: "active",
@@ -735,6 +738,85 @@
     }
   }
 
+  function hydratePlayerVitals(player = {}) {
+    const vitals = global.LuminousPlayerVitalsHud?.resolveVitals?.(player);
+    if (!vitals) return false;
+    state.unit.playerId = state.playerId;
+    state.unit.hp = vitals.hpActual;
+    state.unit.hp_max = vitals.hpMax;
+    state.unit.sp = vitals.spActual;
+    state.unit.combatStats = {
+      ...(player.combatStats && typeof player.combatStats === "object" ? player.combatStats : {}),
+      ...(state.unit.combatStats && typeof state.unit.combatStats === "object" ? state.unit.combatStats : {}),
+      hp_actual: vitals.hpActual,
+      hp_max: vitals.hpMax,
+      sp_actual: vitals.spActual,
+    };
+    ["characterName", "character_name", "name", "level"].forEach((key) => {
+      if (player[key] !== undefined) state.unit[key] = player[key];
+    });
+    state.vitalsReady = true;
+    return true;
+  }
+
+  function bindPlayerVitalsRealtime() {
+    if (state.playerVitalsRef) return true;
+    if (!state.db?.ref || !state.playerId) return false;
+    state.vitalsReady = false;
+    const ref = state.db.ref(`campaña/jugadores/${state.playerId}`);
+    const handler = (snapshot) => {
+      hydratePlayerVitals(snapshot?.val?.() || {});
+      renderAll();
+    };
+    ref.on("value", handler, (error) => {
+      state.vitalsReady = false;
+      console.error("[Luminous] Player vitals realtime error:", error);
+    });
+    state.playerVitalsRef = ref;
+    state.playerVitalsHandler = handler;
+    return true;
+  }
+
+  function inventoryAndVitalsPatch(unit = state.unit) {
+    const persist = persistence();
+    const vitals = global.LuminousPlayerVitalsHud;
+    if (!persist?.serializeInventoryState || !vitals?.persistencePatch) return null;
+    const inv = persist.serializeInventoryState(unit || {});
+    const patch = {
+      inventario_activo: inv.inventario_activo || {},
+      inventario_stash: inv.inventario_stash || {},
+      itemInventorySchemaVersion: persist.schemaVersion || inv.schemaVersion || 1,
+      itemEquipmentRefs: inv.equipmentRefs || {},
+      attunedItemInstanceIds: inv.attunedItemInstanceIds || [],
+      ...vitals.persistencePatch(unit || {}),
+    };
+    [
+      "culinarySurvival",
+      "culinaryEffects",
+      "culinaryMaxHpEffects",
+      "culinaryAppliedMaxHpBonus",
+    ].forEach((key) => {
+      if (unit?.[key] !== undefined) patch[key] = JSON.parse(JSON.stringify(unit[key]));
+    });
+    return patch;
+  }
+
+  async function saveUnitWithVitals(successMessage) {
+    if (!state.db?.ref || !state.playerId || !state.vitalsReady) return false;
+    const patch = inventoryAndVitalsPatch(state.unit);
+    if (!patch) return false;
+    showStatus("SYNCING VITALS + INVENTORY...", "working");
+    try {
+      await state.db.ref(`campaña/jugadores/${state.playerId}`).update(patch);
+      showStatus(successMessage || "SYNCED", "success");
+      renderAll();
+      return true;
+    } catch (error) {
+      showStatus(`ERROR // ${error.message || error}`, "error");
+      return false;
+    }
+  }
+
   function addAction(host, label, handler, className = "", disabled = false) {
     const button = doc.createElement("button");
     button.type = "button";
@@ -907,6 +989,15 @@
   async function useSelected() {
     const item = selectedItem();
     if (!item || !state.unit || !runtime()?.useItem) return;
+    if (!state.vitalsReady) {
+      showStatus("SYNCING PLAYER VITALS...", "working");
+      return;
+    }
+    const combatGate = await global.LuminousPlayerVitalsHud?.outOfCombatWriteGate?.(state.db, state.playerId);
+    if (combatGate && combatGate.allowed === false) {
+      showStatus("BLOCKED // USE THIS ITEM THROUGH COMBAT ENGINE", "error");
+      return;
+    }
     const result = runtime().useItem(state.unit, item, {});
     if (!result?.used) {
       showStatus(`BLOCKED // ${String(result?.reason || "USE FAILED").toUpperCase()}`, "error");
@@ -917,12 +1008,21 @@
       for (const [key, entry] of entries(source)) if (entry === item || itemId(entry) === itemId(item)) delete source[key];
       state.selected = null;
     }
-    await saveUnit(`USED // ${itemName(item).toUpperCase()}`);
+    await saveUnitWithVitals(`USED // ${itemName(item).toUpperCase()}`);
   }
 
   async function eatDrinkSelected() {
     const item = selectedItem();
     if (!item || !state.unit || !foodRest()?.consumeFood) return;
+    if (!state.vitalsReady) {
+      showStatus("SYNCING PLAYER VITALS...", "working");
+      return;
+    }
+    const combatGate = await global.LuminousPlayerVitalsHud?.outOfCombatWriteGate?.(state.db, state.playerId);
+    if (combatGate && combatGate.allowed === false) {
+      showStatus("BLOCKED // EAT / DRINK THROUGH COMBAT ENGINE", "error");
+      return;
+    }
     const result = foodRest().consumeFood(state.unit, item, {});
     if (!result?.consumed) {
       showStatus(`BLOCKED // ${String(result?.reason || "EAT / DRINK FAILED").toUpperCase()}`, "error");
@@ -931,7 +1031,7 @@
     if (quantityOf(item) <= 0) state.selected = null;
     const stateNow = foodRest().ensureState?.(state.unit);
     const suffix = stateNow ? ` // H${stateNow.hungerSlots}/${stateNow.maxHungerSlots} W${stateNow.hydrationSlots}/${stateNow.maxHydrationSlots}` : "";
-    await saveUnit(`EAT / DRINK // ${itemName(item).toUpperCase()}${suffix}`);
+    await saveUnitWithVitals(`EAT / DRINK // ${itemName(item).toUpperCase()}${suffix}`);
   }
 
   function onEquipmentClick(event) {
@@ -991,6 +1091,7 @@
     state.db = resolveDb();
     state.playerId = resolvePlayerId();
     if (!state.db || !state.playerId) return false;
+    bindPlayerVitalsRealtime();
 
     if (realtime()?.bindPlayerInventory) {
       state.peer = realtime().bindPlayerInventory({
@@ -1051,6 +1152,12 @@
   function suspendRealtime() {
     state.peer?.dispose?.();
     state.peer = null;
+    if (state.playerVitalsRef && state.playerVitalsHandler) {
+      try { state.playerVitalsRef.off?.("value", state.playerVitalsHandler); } catch (_) {}
+    }
+    state.playerVitalsRef = null;
+    state.playerVitalsHandler = null;
+    state.vitalsReady = false;
   }
 
   function dispose() {
@@ -1086,6 +1193,9 @@
     renderDetail,
     equipSelectedTo,
     moveSelected,
+    hydratePlayerVitals,
+    inventoryAndVitalsPatch,
+    saveUnitWithVitals,
     useSelected,
     eatDrinkSelected,
     reloadSelected,

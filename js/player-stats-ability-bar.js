@@ -113,7 +113,7 @@
   }
   const abilityModifier = (score) => Math.floor((numberOr(score, 10) - 10) / 2);
   const formatModifier = (value) => numberOr(value, 0) >= 0 ? `+${numberOr(value, 0)}` : String(numberOr(value, 0));
-  const currentSp = (data = playerData()) => Number.parseInt(data?.combatStats?.sp_actual ?? data?.sp, 10) || 0;
+  const currentSp = (data = playerData()) => Number.parseInt(data?.sp ?? data?.sp_actual ?? data?.combatStats?.sp_actual, 10) || 0;
   const headsChance = (data = playerData()) => Math.max(5, Math.min(95, 50 + currentSp(data)));
   function levelProgress(data = playerData()) {
     const stored = integerOr(data?.xpPercent, -1);
@@ -149,8 +149,8 @@
   const playerSheetArt = (data = playerData()) => String(data?.sheetArt || data?.playerSheetArt || "").trim();
   const playerIcon = (data = playerData()) => String(data?.icono_jugador || data?.icono || data?.perfil?.icono || "").trim();
   const playerName = (data = playerData()) => String(data?.characterName || data?.character_name || data?.nombre || data?.name || "PLAYER").trim();
-  const currentHp = (data = playerData()) => Math.trunc(numberOr(data?.combatStats?.hp_actual ?? data?.hp_actual ?? data?.hp, 0));
-  const maxHp = (data = playerData()) => Math.trunc(numberOr(data?.combatStats?.hp_max ?? data?.hp_max, currentHp(data)));
+  const currentHp = (data = playerData()) => Math.trunc(numberOr(data?.hp ?? data?.hp_actual ?? data?.combatStats?.hp_actual, 0));
+  const maxHp = (data = playerData()) => Math.trunc(numberOr(data?.hp_max ?? data?.combatStats?.hp_max, currentHp(data)));
   function selectedAbility(panel) {
     const id = panel?.dataset?.activeStat || ABILITIES[0].id;
     return ABILITIES.find((ability) => ability.id === id) || ABILITIES[0];

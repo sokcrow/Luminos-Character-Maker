@@ -309,13 +309,13 @@
   function currentAndMax(unit, kind) {
     const lower = normalizeId(kind);
     const candidates = lower === "hp" ? [
+      [unit, "hp", ["hp_max", "effectiveMaxHp", "maxHp", "max_hp", "hpMax"]],
+      [unit, "currentHp", ["maxHp", "max_hp", "hp_max"]],
       [unit?.combatStats, "hp_actual", ["hp_max", "max_hp", "maxHp"]],
-      [unit, "hp", ["effectiveMaxHp", "maxHp", "max_hp", "hpMax"]],
-      [unit, "currentHp", ["maxHp", "max_hp"]],
     ] : [
-      [unit?.combatStats, "sp_actual", ["sp_max", "max_sp", "maxSp"]],
-      [unit, "sp", ["maxSp", "max_sp", "spMax"]],
+      [unit, "sp", ["sp_max", "maxSp", "max_sp", "spMax"]],
       [unit, "sanity", ["maxSanity", "sanityMax"]],
+      [unit?.combatStats, "sp_actual", ["sp_max", "max_sp", "maxSp"]],
     ];
     for (const [owner, key, maxKeys] of candidates) {
       if (!owner || !Number.isFinite(Number(owner[key]))) continue;

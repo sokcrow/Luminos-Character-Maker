@@ -5708,15 +5708,17 @@ window.processEntitiesData = function(entities) {
                 const defLvlMod = combatStats.def_lvl_mod || 0;
                 const totalDefLvl = lvl + defLvlMod;
                 const hpMax =
-                  combatStats.hp_max ||
                   data.hp_max ||
+                  combatStats.hp_max ||
                   perfil.hp_max ||
                   Math.floor(hpBase + totalDefLvl * hpCoef) ||
                   0;
                 const hpActual =
-                  combatStats.hp_actual !== undefined
-                    ? combatStats.hp_actual
-                    : hpMax;
+                  data.hp !== undefined
+                    ? data.hp
+                    : combatStats.hp_actual !== undefined
+                      ? combatStats.hp_actual
+                      : hpMax;
 
                 const clase = data.class || perfil.clase || "Desconocida";
                 const raza = data.race || perfil.raza || "Desconocida";
@@ -5767,7 +5769,7 @@ window.processEntitiesData = function(entities) {
                           </div>
                           <div style="display: flex; flex-direction: column; width: 50%;">
                               <label style="color:#c49a00; font-size:12px;">SP:</label>
-                              <span class="player-sp" style="color: #00ddff; font-weight: bold;">${combatStats.sp_actual || 0}</span>
+                              <span class="player-sp" style="color: #00ddff; font-weight: bold;">${data.sp ?? combatStats.sp_actual ?? 0}</span>
                           </div>
                       </div>
 
@@ -5843,7 +5845,7 @@ window.processEntitiesData = function(entities) {
 
                   const spDisplay = pCard.querySelector(".player-sp");
                   if (spDisplay)
-                    spDisplay.innerText = combatStats.sp_actual || 0;
+                    spDisplay.innerText = data.sp ?? combatStats.sp_actual ?? 0;
                 }
               }
               const tarjeta = document.createElement("div");
@@ -8245,9 +8247,11 @@ window.processEntitiesData = function(entities) {
             const calcHpMax = Math.floor(hpBase + totalDefLvl * hpCoef);
             const hpMax = calcHpMax || 0;
             const hpActual =
-              combatStats.hp_actual !== undefined
-                ? combatStats.hp_actual
-                : hpMax;
+              playerData.hp !== undefined
+                ? playerData.hp
+                : combatStats.hp_actual !== undefined
+                  ? combatStats.hp_actual
+                  : hpMax;
 
             // Poblar inputs
             document.getElementById("dm-player-xp").value = xp;
@@ -8259,7 +8263,7 @@ window.processEntitiesData = function(entities) {
               combatStats.def_lvl_mod || 0;
             document.getElementById("dm-off-lvl").value =
               combatStats.off_lvl_mod || 0;
-            document.getElementById("dm-sp").value = combatStats.sp_actual || 0;
+            document.getElementById("dm-sp").value = playerData.sp ?? combatStats.sp_actual ?? 0;
             document.getElementById("dm-action-slots").value =
               combatStats.action_slots || 1;
 
@@ -8284,7 +8288,7 @@ window.processEntitiesData = function(entities) {
 
         document
           .getElementById("btn-save-stats")
-          .addEventListener("click", () => {
+          .addEventListener("click", async () => {
             if (!activePlayerIdForModal) return;
 
             const xpInput =
@@ -8357,6 +8361,10 @@ window.processEntitiesData = function(entities) {
             ] = hpCoef;
             updates[`campaña/jugadores/${activePlayerIdForModal}/hp_max`] =
               hpMax;
+            updates[`campaña/jugadores/${activePlayerIdForModal}/hp`] =
+              hpActual;
+            updates[`campaña/jugadores/${activePlayerIdForModal}/sp`] =
+              sp;
 
             // Actualizar el nodo de combatStats (sobreescribe completo)
             updates[`campaña/jugadores/${activePlayerIdForModal}/combatStats`] =
@@ -8372,8 +8380,37 @@ window.processEntitiesData = function(entities) {
                 stagger_thresholds: staggerArr,
               };
 
-            db.ref()
-              .update(updates)
+            try {
+              const combatSnap = await db.ref("campaña/combate/combatants").once("value");
+              const combatants = combatSnap?.val?.() || {};
+              const activeEntry = Object.entries(combatants).find(([, unit]) => {
+                if (!unit || typeof unit !== "object") return false;
+                const linkedPlayerId = String(
+                  unit.canonicalPlayerKey
+                  || unit.ownerPlayerId
+                  || unit.playerId
+                  || unit.characterLink?.playerId
+                  || (unit.actorRef?.scope === "players" ? unit.actorRef?.id : "")
+                  || ""
+                ).trim();
+                if (linkedPlayerId !== String(activePlayerIdForModal)) return false;
+                if (unit.isBackup === true || unit.battleActive === false || unit.removed === true || unit.escaped === true || unit.defeated === true || unit.dead === true) return false;
+                const deployment = String(unit.deploymentState || unit.deployment || unit.positionState || unit.zone || "field").trim().toLowerCase().replace(/[\s-]+/g, "_");
+                return !["backup","reserve","reserves","retreat","retreated","defeated","dead","escaped","departed"].includes(deployment);
+              });
+              if (activeEntry) {
+                const [combatantKey] = activeEntry;
+                updates[`campaña/combate/combatants/${combatantKey}/hp`] = hpActual;
+                updates[`campaña/combate/combatants/${combatantKey}/maxHp`] = hpMax;
+                updates[`campaña/combate/combatants/${combatantKey}/sp`] = sp;
+              }
+              await db.ref().update(updates);
+            } catch (error) {
+              console.error("No se pudieron guardar los stats de combate del jugador:", error);
+              return;
+            }
+
+            Promise.resolve()
               .then(() => {
                 document.getElementById("dm-combat-modal").style.display =
                   "none";

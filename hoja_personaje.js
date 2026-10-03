@@ -962,44 +962,10 @@ function renderCharacterSheet(data) {
   }
 
   // --- ACTUALIZAR HUD DE VITALES (MECÁNICAS DE JUGADOR) ---
-  const hpActual =
-    data.combatStats?.hp_actual !== undefined
-      ? data.combatStats.hp_actual
-      : data.hp || 0;
-  const hpMax =
-    data.combatStats?.hp_max !== undefined
-      ? data.combatStats.hp_max
-      : data.hp_max || 0;
-  const spActual =
-    data.combatStats?.sp_actual !== undefined
-      ? data.combatStats.sp_actual
-      : data.sp || 0;
-
-  // Buscar elementos usando los IDs exactos que YA existen en el HTML
-  const hudPortrait = document.getElementById("portrait-img");
-  const hudHpActual = document.getElementById("hud-hp-actual");
-  const hudHpMax = document.getElementById("hud-hp-max");
-  const hudSpDisplay = document.getElementById("hud-sp-text");
-
-  // Inyectar datos en tiempo real
-  if (hudPortrait) {
-    const iconUrl = data.icono_jugador || "https://i.imgur.com/kP8s7Ww.png";
-    if (hudPortrait.getAttribute("href") !== iconUrl) hudPortrait.setAttribute("href", iconUrl);
-  }
-
-  // Respetar la estructura de spans separados para el HP
-  if (hudHpActual && hudHpMax) {
-    if (hudHpActual.innerText !== String(hpActual)) hudHpActual.innerText = hpActual;
-    if (hudHpMax.innerText !== String(hpMax)) hudHpMax.innerText = hpMax;
-  } else {
-    // Fallback seguro por si la estructura cambia
-    const hudHpContenedor = document.querySelector(".hud-hp-overlay-text");
-    if (hudHpContenedor) hudHpContenedor.innerText = `${hpActual} / ${hpMax}`;
-  }
-
-  if (hudSpDisplay && hudSpDisplay.innerText !== String(spActual)) {
-    hudSpDisplay.innerText = spActual;
-  }
+  // One visual contract for the numeric HP/SP, HP path fill/delay and SP sphere.
+  // The data source remains the realtime Player record; Combat authority mirrors
+  // its canonical combatant vitals into that same record through the vitals bridge.
+  window.LuminousPlayerVitalsHud?.sync?.(data, document);
 }
 
 function updatePlayerDeviceNumberUI(data = window.datosJugador) {
@@ -3300,7 +3266,7 @@ function initializeCharacterSheet() {
   // NATIVE BUTTON LISTENERS
   {
     // Escuchar clicks globales para botones de acción (simulando Roll20)
-    document.addEventListener("click", (e) => {
+    document.addEventListener("click", async (e) => {
       const btn = e.target.closest('button[type="action"]');
       if (!btn) return;
 
@@ -3347,6 +3313,16 @@ function initializeCharacterSheet() {
       }
 
       // --- Descansos ---
+      if (actName === "act_short_rest" || actName === "act_long_rest") {
+        e.preventDefault();
+        const restGate = await window.LuminousPlayerVitalsHud?.outOfCombatWriteGate?.(db, playerId);
+        if (restGate && restGate.allowed === false) {
+          console.warn("[Player Vitals] Rest blocked while Player is deployed in Combat.", restGate);
+          window.alert?.("REST BLOCKED // Tu Player sigue desplegado en Combat. Usa Combat Engine / DM authority o retíralo del encounter antes de descansar.");
+          return;
+        }
+      }
+
       if (actName === "act_short_rest") {
         if (window.LuminousFoodRestUi?.openRest && window.LuminousFoodRestRuntime) {
           e.preventDefault();
@@ -3357,8 +3333,12 @@ function initializeCharacterSheet() {
                 await window.LuminousItemPersistenceRuntime.saveInventoryState(db, playerId, unit);
               }
               await db.ref("campaña/jugadores/" + playerId).update({
-                hp: unit.hp,
-                sp: unit.sp,
+                ...(window.LuminousPlayerVitalsHud?.persistencePatch?.(unit) || {
+                  hp: unit.hp,
+                  sp: unit.sp,
+                  "combatStats/hp_actual": unit.hp,
+                  "combatStats/sp_actual": unit.sp,
+                }),
                 stagger_1_active: unit.stagger_1_active || "1",
                 stagger_2_active: unit.stagger_2_active || "1",
                 stagger_3_active: unit.stagger_3_active || "1",
@@ -3377,8 +3357,14 @@ function initializeCharacterSheet() {
         if (newHP > maxHP) newHP = maxHP;
 
         db.ref("campaña/jugadores/" + playerId).update({
-          hp: newHP,
-          sp: 0,
+          ...(window.LuminousPlayerVitalsHud?.persistencePatch?.({ hp: newHP, hp_max: maxHP, sp: 0 }) || {
+            hp: newHP,
+            hp_max: maxHP,
+            sp: 0,
+            "combatStats/hp_actual": newHP,
+            "combatStats/hp_max": maxHP,
+            "combatStats/sp_actual": 0,
+          }),
           stagger_1_active: "1",
           stagger_2_active: "1",
           stagger_3_active: "1",
@@ -3395,8 +3381,12 @@ function initializeCharacterSheet() {
                 await window.LuminousItemPersistenceRuntime.saveInventoryState(db, playerId, unit);
               }
               await db.ref("campaña/jugadores/" + playerId).update({
-                hp: unit.hp,
-                sp: unit.sp,
+                ...(window.LuminousPlayerVitalsHud?.persistencePatch?.(unit) || {
+                  hp: unit.hp,
+                  sp: unit.sp,
+                  "combatStats/hp_actual": unit.hp,
+                  "combatStats/sp_actual": unit.sp,
+                }),
                 culinarySurvival: unit.culinarySurvival || null,
                 culinaryEffects: unit.culinaryEffects || [],
               });
@@ -3406,10 +3396,16 @@ function initializeCharacterSheet() {
         }
 
         const maxHP = parseInt(currentPlayerData.hp_max) || 0;
-        db.ref("campaña/jugadores/" + playerId).update({
-          hp: maxHP,
-          sp: 0,
-        });
+        db.ref("campaña/jugadores/" + playerId).update(
+          window.LuminousPlayerVitalsHud?.persistencePatch?.({ hp: maxHP, hp_max: maxHP, sp: 0 }) || {
+            hp: maxHP,
+            hp_max: maxHP,
+            sp: 0,
+            "combatStats/hp_actual": maxHP,
+            "combatStats/hp_max": maxHP,
+            "combatStats/sp_actual": 0,
+          },
+        );
       }
 
       // --- Suerte ---
@@ -3430,7 +3426,7 @@ function initializeCharacterSheet() {
     });
 
     // Detectar cambios directos en los inputs y actualizarlos en Firebase (Reemplaza el auto-sync de Roll20)
-    document.addEventListener("change", (e) => {
+    document.addEventListener("change", async (e) => {
       // D&D Core Attributes Save
       if (e.target.id && e.target.id.match(/^stat-(fuerza|destreza|constitucion|inteligencia|sabiduria|carisma)$/)) {
         const statName = e.target.id.replace('stat-', '');
@@ -3483,6 +3479,13 @@ function initializeCharacterSheet() {
       } else if (typeof db !== "undefined") {
         // Interceptar la actualización de XP para calcular nivel y barras de progreso
         if (attrName === "xp" && typeof calculateLevelData === "function") {
+          const xpGate = await window.LuminousPlayerVitalsHud?.outOfCombatWriteGate?.(db, playerId);
+          if (xpGate && xpGate.allowed === false) {
+            console.warn("[Player Vitals] XP/level edit blocked while Player is deployed in Combat.", xpGate);
+            window.alert?.("XP EDIT BLOCKED // El Player sigue desplegado en Combat. Termina o retíralo del encounter antes de cambiar XP/nivel.");
+            renderCharacterSheet?.(currentPlayerData);
+            return;
+          }
           const xpData = calculateLevelData(val);
 
           const hpBase =
@@ -3506,10 +3509,26 @@ function initializeCharacterSheet() {
             xpPercent: xpData.xpPercent,
             xpMissing: xpData.xpMissing,
             hp_max: newHpMax,
+            "combatStats/hp_max": newHpMax,
           });
-
-          db.ref("campaña/jugadores/" + playerId + "/combatStats").update({
-            hp_max: newHpMax,
+        } else if (["hp", "hp_max", "sp"].includes(attrName)) {
+          const vitalGate = await window.LuminousPlayerVitalsHud?.outOfCombatWriteGate?.(db, playerId);
+          if (vitalGate && vitalGate.allowed === false) {
+            console.warn("[Player Vitals] Manual vital edit blocked while Player is deployed in Combat.", vitalGate);
+            window.alert?.("VITAL EDIT BLOCKED // HP/SP durante Combat se controla desde Combat Engine / DM authority.");
+            renderCharacterSheet?.(currentPlayerData);
+            return;
+          }
+          const parsedVital = Number(val);
+          const nextVital = Number.isFinite(parsedVital) ? parsedVital : 0;
+          const mirrorKey = attrName === "hp"
+            ? "combatStats/hp_actual"
+            : attrName === "sp"
+              ? "combatStats/sp_actual"
+              : "combatStats/hp_max";
+          db.ref("campaña/jugadores/" + playerId).update({
+            [attrName]: nextVital,
+            [mirrorKey]: nextVital,
           });
         } else {
           // Guardar directamente en la raiz
@@ -3605,7 +3624,7 @@ function initializeCharacterSheet() {
 
         const skillTotal = baseVal + modVal;
 
-        let sp = parseInt(pd.combatStats?.sp_actual ?? pd.sp) || 0;
+        let sp = parseInt(pd.sp ?? pd.sp_actual ?? pd.combatStats?.sp_actual) || 0;
 
         // Heads Probability = 50 + SP (min 5, max 95)
         let probHeads = 50 + sp;

@@ -94,10 +94,18 @@
     if (!db || !playerId) return null;
     const updates = { restResources: clone(character.restResources || {}) };
     if (options.includeHp !== false) {
-      if (character.combatStats && Object.prototype.hasOwnProperty.call(character.combatStats, "hp_actual")) updates["combatStats/hp_actual"] = character.combatStats.hp_actual;
-      else if (Object.prototype.hasOwnProperty.call(character, "currentHp")) updates.currentHp = character.currentHp;
-      else if (Object.prototype.hasOwnProperty.call(character, "hp_actual")) updates.hp_actual = character.hp_actual;
-      else if (Object.prototype.hasOwnProperty.call(character, "hp")) updates.hp = character.hp;
+      const hpCandidates = [character.hp, character.hp_actual, character.currentHp, character.currentHP, character.combatStats?.hp_actual];
+      const hp = hpCandidates.find((value) => Number.isFinite(Number(value)));
+      const maxCandidates = [character.hp_max, character.maxHp, character.maxHP, character.combatStats?.hp_max];
+      const hpMax = maxCandidates.find((value) => Number.isFinite(Number(value)));
+      if (hp !== undefined) {
+        updates.hp = Number(hp);
+        updates["combatStats/hp_actual"] = Number(hp);
+      }
+      if (hpMax !== undefined) {
+        updates.hp_max = Math.max(0, Number(hpMax));
+        updates["combatStats/hp_max"] = Math.max(0, Number(hpMax));
+      }
     }
     const promise = db.ref(`${PLAYER_ROOT}/${playerId}`).update(updates);
     promise?.catch?.((error) => console.warn("Rest Runtime persistence:", error));
@@ -246,16 +254,29 @@
     return true;
   }
 
+  async function requestPlayerRest(type, detail = {}) {
+    const character = detail.character || currentPlayerCharacter();
+    const db = global.firebase?.database?.();
+    const playerId = String(global.localStorage?.getItem?.(PLAYER_ID_STORAGE_KEY) || character?.playerId || character?.player_id || "").trim();
+    const gate = await global.LuminousPlayerVitalsHud?.outOfCombatWriteGate?.(db, playerId);
+    if (gate && gate.allowed === false) {
+      const blocked = { success: false, type, reason: gate.reason || "PLAYER_DEPLOYED_IN_COMBAT", combatantKey: gate.combatantKey || null };
+      emit("luminous:player-rest-blocked", blocked);
+      return blocked;
+    }
+    return type === "long_rest"
+      ? completeLongRest(character, detail)
+      : completeShortRest(character, detail);
+  }
+
   function bindRequestEvents() {
     if (state.listenersBound || !global.addEventListener) return false;
     state.listenersBound = true;
     global.addEventListener("luminous:request-short-rest", (event) => {
-      const detail = event?.detail || {};
-      completeShortRest(detail.character || currentPlayerCharacter(), detail);
+      requestPlayerRest("short_rest", event?.detail || {}).catch((error) => console.warn("Rest Runtime short-rest request:", error));
     });
     global.addEventListener("luminous:request-long-rest", (event) => {
-      const detail = event?.detail || {};
-      completeLongRest(detail.character || currentPlayerCharacter(), detail);
+      requestPlayerRest("long_rest", event?.detail || {}).catch((error) => console.warn("Rest Runtime long-rest request:", error));
     });
     return true;
   }
@@ -306,6 +327,7 @@
     persistPlayerRestState,
     completeShortRest,
     completeLongRest,
+    requestPlayerRest,
     installTraitEngineBridge,
     ensureHealthEquipmentAssets,
     install,
