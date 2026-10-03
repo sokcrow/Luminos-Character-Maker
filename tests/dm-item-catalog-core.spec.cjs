@@ -221,7 +221,7 @@ const path = require("node:path");
   });
   assert.equal(pharmaceuticalPowderOutput.definitionId, "pharmaceutical_powder");
   assert.equal(pharmaceuticalPowderOutput.family, "medicinal_processed");
-  assert.equal(pharmaceuticalPowderOutput.quality, "exceptional");
+  assert.equal(pharmaceuticalPowderOutput.quality, "fine");
   assert.ok(pharmaceuticalPowderOutput.productionValueAhn > 0);
 
   const chemistryInputs = [
