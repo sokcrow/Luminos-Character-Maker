@@ -37,6 +37,7 @@ on:
       - 'css/dm-limbus-shell-fixes.css'
       - 'tests/dm-item-instance-editor.spec.cjs'
       - 'tests/dm-item-catalog-core.spec.cjs'
+      - 'tests/dm-local-item-manager-v3.spec.cjs'
       - 'tests/inventory-runtime-cutover.spec.cjs'
       - '.github/workflows/dm-inventory-grant-gui.yml'
 
@@ -73,4 +74,4 @@ jobs:
           npm install --no-save @playwright/test@1.55.0
           npx playwright install --with-deps chromium
       - name: Browser proof for current Player inventory tooling
-        run: npx playwright test tests/dm-item-instance-editor.spec.cjs tests/inventory-runtime-cutover.spec.cjs --workers=1 --reporter=line
+        run: npx playwright test tests/dm-local-item-manager-v3.spec.cjs tests/dm-item-instance-editor.spec.cjs tests/inventory-runtime-cutover.spec.cjs --workers=1 --reporter=line
