@@ -293,7 +293,11 @@ assert.ok(restRuntime.includes("outOfCombatWriteGate?.(db, playerId)"), "Rest re
 assert.ok(statsHud.includes('data?.hp ?? data?.hp_actual ?? data?.combatStats?.hp_actual'));
 assert.ok(derivedStats.includes('["hp", "hp_actual", "currentHp", "current_hp", "combatStats.hp_actual"]'));
 assert.ok(itemRuntime.indexOf('[unit, "hp"') < itemRuntime.indexOf('[unit?.combatStats, "hp_actual"'), "item healing must prefer root HP");
-assert.ok(inventoryHud.includes("persistVitalsAfterUse"));
+assert.ok(inventoryHud.includes("bindPlayerVitalsRealtime()"), "Inventory HUD must subscribe to the full Player record for realtime vitals");
+assert.ok(inventoryHud.includes("state.vitalsReady"), "Inventory consumables must wait for Player vital hydration");
+assert.ok(inventoryHud.includes("inventoryAndVitalsPatch"), "Inventory HUD must build one combined inventory + vitals patch");
+assert.ok(inventoryHud.includes("SYNCING VITALS + INVENTORY"), "Consumable persistence must use the atomic Player save path");
+assert.equal(inventoryHud.includes("persistVitalsAfterUse"), false, "two-step inventory/vitals persistence must not return");
 assert.ok(inventoryHud.includes("outOfCombatWriteGate?.(state.db, state.playerId)"), "Inventory consumables must be blocked while the Player is deployed in Combat");
 assert.ok(dmStudio.includes("hp: hpActual"));
 assert.ok(dmStudio.includes("sp: spActual"));
