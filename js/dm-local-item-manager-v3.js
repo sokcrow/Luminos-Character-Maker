@@ -385,6 +385,7 @@
     applyFilter();
     populateLootSelect();
     syncCompatibilityCache();
+    updateSummary();
   }
 
   function updateSummary() {
