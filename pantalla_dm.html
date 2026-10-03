@@ -5845,7 +5845,7 @@ window.processEntitiesData = function(entities) {
 
                   const spDisplay = pCard.querySelector(".player-sp");
                   if (spDisplay)
-                    spDisplay.innerText = combatStats.sp_actual || 0;
+                    spDisplay.innerText = data.sp ?? combatStats.sp_actual ?? 0;
                 }
               }
               const tarjeta = document.createElement("div");
