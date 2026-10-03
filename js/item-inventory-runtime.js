@@ -143,7 +143,7 @@
       schemaVersion: SCHEMA_VERSION,
       instanceId: String(input.instanceId || input.instance_id || options.instanceId || createInstanceId(definitionId || "item")),
       definitionId,
-      quantity: Math.max(1, intOr(input.quantity ?? input.qty ?? input.cantidad ?? input.stack ?? input.count ?? options.quantity, 1)),
+      quantity: Math.max(options.allowZeroQuantity === true ? 0 : 1, intOr(input.quantity ?? input.qty ?? input.cantidad ?? input.stack ?? input.count ?? options.quantity, 1)),
       qualityTier,
       conditionMax: maxCondition,
       condition: currentCondition,
@@ -184,17 +184,17 @@
   }
 
   function serializeItemInstance(instance) {
-    return compactInstance(instance || {}, null, {});
+    return compactInstance(instance || {}, null, { allowZeroQuantity: true });
   }
 
   function deserializeItemInstance(data, options = {}) {
-    return compactInstance(data || {}, resolveDefinition(data, options), options);
+    return compactInstance(data || {}, resolveDefinition(data, options), { ...options, allowZeroQuantity: true });
   }
 
   function hydrateItemInstance(instance, options = {}) {
     if (!instance || typeof instance !== "object") return null;
     const definition = resolveDefinition(instance, options) || {};
-    const compact = compactInstance(instance, definition, options);
+    const compact = compactInstance(instance, definition, { ...options, allowZeroQuantity: true });
     const hydrated = { ...clone(definition), ...clone(compact) };
     hydrated.quality = compact.quality ?? compact.qualityTier;
     hydrated.charges = compact.chargesCurrent;
