@@ -17,6 +17,13 @@ on:
       - 'js/combat-v073-authority.js'
       - 'js/player-vitals-realtime-bridge.js'
       - 'js/player-vitals-hud.js'
+      - 'js/player-stats-ability-bar.js'
+      - 'js/derived-stats-engine.js'
+      - 'js/item-runtime-engine.js'
+      - 'js/rest-runtime-integration.js'
+      - 'js/inventory-hud-v2.js'
+      - 'js/dm-player-dnd-studio.js'
+      - 'pantalla_dm.html'
       - 'js/battle-viewer-player-entry-074.js'
       - 'hoja_personaje.html'
       - 'hoja_personaje.js'
@@ -80,6 +87,12 @@ jobs:
           node --check js/combat-v073-authority.js
           node --check js/player-vitals-realtime-bridge.js
           node --check js/player-vitals-hud.js
+          node --check js/player-stats-ability-bar.js
+          node --check js/derived-stats-engine.js
+          node --check js/item-runtime-engine.js
+          node --check js/rest-runtime-integration.js
+          node --check js/inventory-hud-v2.js
+          node --check js/dm-player-dnd-studio.js
           node --check js/battle-viewer-player-entry-074.js
           node --check hoja_personaje.js
           node --check js/combat-deployment-runtime.js
