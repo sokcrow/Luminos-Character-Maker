@@ -676,6 +676,15 @@ const path = require("node:path");
   assert.match(playerRuntime, /findMatchingRecipes\(window, items/);
   assert.match(playerRuntime, /enforceTools:\s*true/);
   assert.match(playerRuntime, /enforceEquipment:\s*true/);
+  assert.match(playerRuntime, /btnForecast\.addEventListener\("click", async \(\) =>/);
+  assert.match(playerRuntime, /btnIniciar\.addEventListener\("click", async \(\) =>/);
+  assert.match(playerRuntime, /btn-forja-confirm"\)\.addEventListener\("click", async \(\) =>/);
+  assert.ok(
+    (playerRuntime.match(/await refreshForjaMesaCrafteo\?\.\(\);/g) || []).length >= 3,
+    "Synthesis must refresh Director-owned world state before forecast, start, and confirm"
+  );
+  assert.match(playerRuntime, /contentRegistry\?\.resolveRecipe\?\.\(\s*attempt\.receta/);
+  assert.match(playerRuntime, /La Recipe ya no está autorizada con el estado actual de Tools\/Stations/);
   assert.match(playerRuntime, /authoritativeCookingStationIds/);
   assert.match(playerRuntime, /forjaCookingStationsGlobal/);
   assert.match(playerRuntime, /campaña\/estado_mundo\/cooking_stations/);
