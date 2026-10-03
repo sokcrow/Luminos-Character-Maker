@@ -21,6 +21,11 @@ async function boot(page, withFirebase = false) {
         <input id="otorgar-item-cant" value="1">
         <button id="btn-otorgar-stash">AL ALIJO</button>
         <button id="btn-otorgar-activo">EQUIPAR</button>
+        <div id="dm-inline-player-inventory">
+          <div id="dm-inline-player-inventory-status">Sin jugador.</div>
+          <div id="dm-inline-inventory-active"></div>
+          <div id="dm-inline-inventory-stash"></div>
+        </div>
       </div>
       <input id="buscador-items-dm">
       <div id="filtros-dm"><button class="dm-filter-btn active" data-filter="todo">Todo</button></div>
@@ -43,7 +48,58 @@ async function boot(page, withFirebase = false) {
 
     window.__writes = [];
     window.__listeners = {};
+    window.__dbData = {
+      "campaña/jugadores/Alice/inventario_activo": {
+        sword_1: {
+          instanceId: "sword_1",
+          definitionId: "test_sword",
+          nombre: "Owned Sword",
+          category: "weapon",
+          quantity: 2,
+          cantidad: 2
+        }
+      },
+      "campaña/jugadores/Alice/inventario_stash": {
+        med_1: {
+          instanceId: "med_1",
+          definitionId: "med",
+          nombre: "Med",
+          category: "consumable",
+          quantity: 3,
+          cantidad: 3
+        }
+      },
+      "campaña/jugadores/Alice/itemEquipmentRefs": {
+        mainHand: "sword_1",
+        offHand: null,
+        armor: null,
+        shield: null,
+        accessoryIds: []
+      },
+      "campaña/jugadores/Alice/attunedItemInstanceIds": ["sword_1"]
+    };
+    window.confirm = () => true;
     const snap = (key, value) => ({ key, val: () => value });
+
+    function parentPathOf(path) {
+      const parts = path.split("/");
+      return parts.slice(0, -1).join("/");
+    }
+
+    function notifyValue(path) {
+      const handler = window.__listeners[path + ":value"];
+      if (handler) queueMicrotask(() => handler(snap(path.split("/").pop(), window.__dbData[path] || null)));
+    }
+
+    function writeChild(path, value) {
+      const parent = parentPathOf(path);
+      const key = path.split("/").pop();
+      const container = { ...(window.__dbData[parent] || {}) };
+      if (value == null) delete container[key];
+      else container[key] = value;
+      window.__dbData[parent] = container;
+      notifyValue(parent);
+    }
 
     function makeRef(refPath) {
       return {
@@ -52,23 +108,55 @@ async function boot(page, withFirebase = false) {
           window.__listeners[refPath + ":" + event] = handler;
           if (refPath === "campaña/jugadores" && event === "child_added") {
             queueMicrotask(() => handler(snap("Alice", { nombre: "Alice" })));
+          } else if (event === "value") {
+            queueMicrotask(() => handler(snap(refPath.split("/").pop(), window.__dbData[refPath] || null)));
+          }
+        },
+        off(event, handler) {
+          if (!event || window.__listeners[refPath + ":" + event] === handler) {
+            delete window.__listeners[refPath + ":" + event];
           }
         },
         once() {
-          return Promise.resolve({ val: () => ({}) });
+          if (Object.prototype.hasOwnProperty.call(window.__dbData, refPath)) {
+            return Promise.resolve({ val: () => window.__dbData[refPath] });
+          }
+          const parent = parentPathOf(refPath);
+          const key = refPath.split("/").pop();
+          const value = window.__dbData[parent]?.[key] ?? null;
+          return Promise.resolve({ val: () => value });
         },
         child(key) {
           return makeRef(refPath + "/" + key);
         },
         transaction(updater) {
-          const next = updater(null);
+          const hasDirect = Object.prototype.hasOwnProperty.call(window.__dbData, refPath);
+          const parent = parentPathOf(refPath);
+          const key = refPath.split("/").pop();
+          const current = hasDirect ? window.__dbData[refPath] : (window.__dbData[parent]?.[key] ?? null);
+          const next = updater(current == null ? null : JSON.parse(JSON.stringify(current)));
+          if (next === undefined) {
+            return Promise.resolve({ committed: false, snapshot: { val: () => current } });
+          }
+          if (hasDirect || refPath.endsWith("/itemEquipmentRefs") || refPath.endsWith("/attunedItemInstanceIds")) {
+            window.__dbData[refPath] = next;
+            notifyValue(refPath);
+          } else {
+            writeChild(refPath, next);
+          }
           window.__writes.push({ type: "transaction", path: refPath, value: next });
           return Promise.resolve({ committed: true, snapshot: { val: () => next } });
+        },
+        remove() {
+          writeChild(refPath, null);
+          window.__writes.push({ type: "remove", path: refPath, value: null });
+          return Promise.resolve();
         },
         push() {
           const child = makeRef(refPath + "/new_1");
           child.key = "new_1";
           child.set = (value) => {
+            writeChild(child.path, value);
             window.__writes.push({ type: "set", path: child.path, value });
             return Promise.resolve();
           };
@@ -98,6 +186,58 @@ test("DM tabs and local item directory work without Firebase or initializeDMApp"
   await expect(page.locator("#dm-item-catalog-status")).toContainText("2 / 2 Items locales visibles");
   await expect(page.locator("#dm-content-registry-counts")).toContainText("Firebase no bloquea");
   await expect(page.locator("#loot-select-item option")).toHaveCount(3);
+});
+
+test("DM unified console renders selected Player Active and Stash inventories", async ({ page }) => {
+  await boot(page, true);
+
+  await expect(page.locator("#otorgar-item-jugador option")).toHaveCount(2);
+  await page.locator("#otorgar-item-jugador").selectOption("Alice");
+
+  await expect(page.locator("#dm-inline-player-inventory-status")).toContainText("Administrando: Alice");
+  await expect(page.locator("#dm-inline-inventory-active [data-dm-inventory-key]")).toHaveCount(1);
+  await expect(page.locator("#dm-inline-inventory-stash [data-dm-inventory-key]")).toHaveCount(1);
+  await expect(page.locator("#dm-inline-inventory-active")).toContainText("Owned Sword");
+  await expect(page.locator("#dm-inline-inventory-stash")).toContainText("Med");
+});
+
+test("DM unified console decrements only the selected stack", async ({ page }) => {
+  await boot(page, true);
+  await page.locator("#otorgar-item-jugador").selectOption("Alice");
+  await expect(page.locator("#dm-inline-inventory-active")).toContainText("x2");
+
+  await page.locator('#dm-inline-inventory-active [data-dm-inv-action="minus"]').click();
+  await expect(page.locator("#dm-inline-inventory-active")).toContainText("x1");
+
+  const result = await page.evaluate(() => ({
+    item: window.__dbData["campaña/jugadores/Alice/inventario_activo"].sword_1,
+    writes: window.__writes
+  }));
+  expect(result.item.quantity).toBe(1);
+  expect(result.item.cantidad).toBe(1);
+  expect(result.writes.filter((write) => write.path.includes("inventario_activo/sword_1"))).toHaveLength(1);
+  expect(result.writes.some((write) => write.path.includes("inventario_stash/med_1"))).toBe(false);
+});
+
+test("DM unified console deletes a stack and clears equipment and attunement references", async ({ page }) => {
+  await boot(page, true);
+  await page.locator("#otorgar-item-jugador").selectOption("Alice");
+
+  await page.locator('#dm-inline-inventory-active [data-dm-inv-action="delete"]').click();
+  await expect(page.locator("#dm-inline-inventory-active")).toContainText("Vacío");
+
+  const result = await page.evaluate(() => ({
+    active: window.__dbData["campaña/jugadores/Alice/inventario_activo"],
+    equipment: window.__dbData["campaña/jugadores/Alice/itemEquipmentRefs"],
+    attuned: window.__dbData["campaña/jugadores/Alice/attunedItemInstanceIds"],
+    writes: window.__writes
+  }));
+  expect(result.active.sword_1).toBeUndefined();
+  expect(result.equipment.mainHand).toBeNull();
+  expect(result.attuned).toEqual([]);
+  expect(result.writes.some((write) => write.type === "remove" && write.path.endsWith("/inventario_activo/sword_1"))).toBe(true);
+  expect(result.writes.some((write) => write.path.endsWith("/itemEquipmentRefs"))).toBe(true);
+  expect(result.writes.some((write) => write.path.endsWith("/attunedItemInstanceIds"))).toBe(true);
 });
 
 test("DM grant writes only the affected inventory child", async ({ page }) => {

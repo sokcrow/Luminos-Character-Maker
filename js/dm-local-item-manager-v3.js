@@ -30,7 +30,14 @@
     firebaseBound: false,
     searchBound: false,
     activeFilter: "todo",
-    firebaseRetry: null
+    firebaseRetry: null,
+    selectedPlayerId: "",
+    inventorySubscriptions: [],
+    playerInventory: {
+      inventario_activo: {},
+      inventario_stash: {}
+    },
+    inventoryUiBound: false
   };
 
   const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
@@ -500,11 +507,245 @@
       option.textContent = clean(data.nombre || data.name || playerId) || playerId;
       select.appendChild(option);
     });
-    if (current && state.players.has(current)) select.value = current;
+    if (current && state.players.has(current)) {
+      select.value = current;
+    } else if (state.selectedPlayerId && !state.players.has(state.selectedPlayerId)) {
+      subscribePlayerInventory("");
+    }
   }
 
   function quantityOf(item) {
     return Math.max(0, Math.trunc(Number(item && (item.quantity ?? item.cantidad ?? item.qty ?? item.count ?? 1)) || 0));
+  }
+
+
+  function inlineInventoryNodes() {
+    if (!global.document) return {};
+    return {
+      status: global.document.getElementById("dm-inline-player-inventory-status"),
+      active: global.document.getElementById("dm-inline-inventory-active"),
+      stash: global.document.getElementById("dm-inline-inventory-stash")
+    };
+  }
+
+  function setInlineInventoryStatus(message, tone) {
+    const node = inlineInventoryNodes().status;
+    if (!node) return;
+    node.textContent = message;
+    node.style.color = tone === "error" ? "#ff6b6b" : tone === "ok" ? "#7dff9b" : "#888";
+  }
+
+  function renderInlineInventoryList(containerName, items) {
+    const nodes = inlineInventoryNodes();
+    const target = containerName === "inventario_activo" ? nodes.active : nodes.stash;
+    if (!target) return;
+
+    const entries = Object.entries(items || {}).filter(([, item]) => item && quantityOf(item) > 0);
+    if (!entries.length) {
+      target.innerHTML = '<div style="color:#666; font-size:12px;">Vacío.</div>';
+      return;
+    }
+
+    const fragment = global.document.createDocumentFragment();
+    entries
+      .sort((a, b) => itemName(a[1], a[0]).localeCompare(itemName(b[1], b[0])))
+      .forEach(([key, item]) => {
+        const row = global.document.createElement("div");
+        row.dataset.dmInventoryKey = key;
+        row.dataset.dmInventoryContainer = containerName;
+        row.style.cssText = "display:flex;align-items:center;gap:8px;padding:7px;border:1px solid #2d2d2d;background:#151515;border-radius:4px;";
+
+        const icon = escapeHtml(resolveIcon(item, definitionIdOf(item, key)));
+        const name = escapeHtml(itemName(item, key));
+        const qty = quantityOf(item);
+        row.innerHTML = `
+          <img src="${icon}" alt="${name}" style="width:34px;height:34px;object-fit:contain;background:#080808;border-radius:3px;">
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:12px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${name}</div>
+            <div style="font-size:11px;color:#0df;">x${qty}</div>
+          </div>
+          <button type="button" data-dm-inv-action="minus" data-container="${containerName}" data-key="${escapeHtml(key)}"
+            style="background:#3a0909;border:1px solid #9f2f2f;color:#fff;padding:5px 8px;cursor:pointer;border-radius:3px;" title="Quitar 1">−1</button>
+          <button type="button" data-dm-inv-action="delete" data-container="${containerName}" data-key="${escapeHtml(key)}"
+            style="background:transparent;border:1px solid #ff4444;color:#ff6666;padding:5px 8px;cursor:pointer;border-radius:3px;" title="Eliminar stack completo">🗑️</button>
+        `;
+        fragment.appendChild(row);
+      });
+
+    target.replaceChildren(fragment);
+  }
+
+  function renderInlineInventories() {
+    renderInlineInventoryList("inventario_activo", state.playerInventory.inventario_activo);
+    renderInlineInventoryList("inventario_stash", state.playerInventory.inventario_stash);
+  }
+
+  function detachPlayerInventorySubscriptions() {
+    state.inventorySubscriptions.forEach(({ ref, handler }) => {
+      try { ref.off && ref.off("value", handler); } catch (_) {}
+    });
+    state.inventorySubscriptions = [];
+  }
+
+  function subscribePlayerInventory(playerId) {
+    const id = clean(playerId);
+    state.selectedPlayerId = id;
+    detachPlayerInventorySubscriptions();
+
+    if (!id) {
+      state.playerInventory.inventario_activo = {};
+      state.playerInventory.inventario_stash = {};
+      setInlineInventoryStatus("Selecciona un jugador para administrar sus ítems aquí mismo.");
+      renderInlineInventories();
+      return false;
+    }
+
+    state.playerInventory.inventario_activo = {};
+    state.playerInventory.inventario_stash = {};
+    renderInlineInventories();
+
+    if (!global.firebase || !global.firebase.apps || !global.firebase.apps.length) {
+      setInlineInventoryStatus("Esperando Firebase para cargar el inventario del jugador...");
+      return false;
+    }
+
+    setInlineInventoryStatus("Cargando inventario de " + id + "...");
+    const db = global.firebase.database();
+    [
+      ["inventario_activo", "active"],
+      ["inventario_stash", "stash"]
+    ].forEach(([containerName]) => {
+      const ref = db.ref("campaña/jugadores/" + id + "/" + containerName);
+      const handler = (snapshot) => {
+        if (state.selectedPlayerId !== id) return;
+        state.playerInventory[containerName] = snapshot.val() || {};
+        renderInlineInventoryList(containerName, state.playerInventory[containerName]);
+        const player = state.players.get(id) || {};
+        setInlineInventoryStatus(
+          "Administrando: " + (clean(player.nombre || player.name || id) || id) + " · cambios en vivo",
+          "ok"
+        );
+      };
+      ref.on("value", handler);
+      state.inventorySubscriptions.push({ ref, handler });
+    });
+
+    return true;
+  }
+
+  async function clearRemovedItemReferences(db, playerId, item, key) {
+    const instanceId = clean(item && (item.instanceId || item.instance_id) || key);
+    if (!instanceId) return;
+
+    const equipmentRef = db.ref("campaña/jugadores/" + playerId + "/itemEquipmentRefs");
+    if (equipmentRef && typeof equipmentRef.transaction === "function") {
+      await equipmentRef.transaction((refs) => {
+        if (!refs || typeof refs !== "object") return;
+        const next = clone(refs);
+        let changed = false;
+        ["mainHand", "offHand", "armor", "shield"].forEach((slot) => {
+          if (clean(next[slot]) === instanceId) {
+            next[slot] = null;
+            changed = true;
+          }
+        });
+        if (Array.isArray(next.accessoryIds)) {
+          const filtered = next.accessoryIds.filter((id) => clean(id) !== instanceId);
+          if (filtered.length !== next.accessoryIds.length) {
+            next.accessoryIds = filtered;
+            changed = true;
+          }
+        }
+        return changed ? next : undefined;
+      });
+    }
+
+    const attunementRef = db.ref("campaña/jugadores/" + playerId + "/attunedItemInstanceIds");
+    if (attunementRef && typeof attunementRef.transaction === "function") {
+      await attunementRef.transaction((ids) => {
+        if (!Array.isArray(ids)) return;
+        const filtered = ids.filter((id) => clean(id) !== instanceId);
+        return filtered.length === ids.length ? undefined : filtered;
+      });
+    }
+  }
+
+  async function mutatePlayerItem(action, containerName, key) {
+    const playerId = clean(state.selectedPlayerId);
+    if (!playerId) {
+      global.alert && global.alert("Selecciona un jugador.");
+      return { changed: false, reason: "missing_player" };
+    }
+    if (!["inventario_activo", "inventario_stash"].includes(containerName)) {
+      return { changed: false, reason: "invalid_container" };
+    }
+    if (!global.firebase || !global.firebase.apps || !global.firebase.apps.length) {
+      global.alert && global.alert("Firebase todavía no está listo.");
+      return { changed: false, reason: "firebase_unavailable" };
+    }
+
+    const db = global.firebase.database();
+    const itemRef = db.ref("campaña/jugadores/" + playerId + "/" + containerName + "/" + key);
+    const beforeSnap = await itemRef.once("value");
+    const before = beforeSnap.val();
+    if (!before) return { changed: false, reason: "item_missing" };
+
+    if (action === "delete") {
+      const approved = !global.confirm || global.confirm("¿Eliminar " + itemName(before, key) + " por completo?");
+      if (!approved) return { changed: false, reason: "cancelled" };
+      await itemRef.remove();
+      await clearRemovedItemReferences(db, playerId, before, key);
+      return { changed: true, removed: true };
+    }
+
+    if (action === "minus") {
+      const result = await itemRef.transaction((current) => {
+        if (!current) return;
+        const qty = quantityOf(current);
+        if (qty <= 1) return null;
+        const next = Object.assign({}, current);
+        next.quantity = qty - 1;
+        next.cantidad = qty - 1;
+        return next;
+      });
+      const after = result && result.snapshot && typeof result.snapshot.val === "function"
+        ? result.snapshot.val()
+        : null;
+      if (result && result.committed && !after) {
+        await clearRemovedItemReferences(db, playerId, before, key);
+      }
+      return { changed: Boolean(result && result.committed), removed: Boolean(result && result.committed && !after) };
+    }
+
+    return { changed: false, reason: "unsupported_action" };
+  }
+
+  function bindPlayerInventoryConsole() {
+    if (!global.document || state.inventoryUiBound) return;
+    state.inventoryUiBound = true;
+
+    const select = global.document.getElementById("otorgar-item-jugador");
+    if (select) {
+      select.addEventListener("change", () => subscribePlayerInventory(select.value));
+    }
+
+    const consoleRoot = global.document.getElementById("dm-inline-player-inventory");
+    if (consoleRoot) {
+      consoleRoot.addEventListener("click", (event) => {
+        const button = event.target.closest && event.target.closest("[data-dm-inv-action]");
+        if (!button) return;
+        const action = clean(button.dataset.dmInvAction);
+        const containerName = clean(button.dataset.container);
+        const key = clean(button.dataset.key);
+        button.disabled = true;
+        mutatePlayerItem(action, containerName, key)
+          .catch((error) => {
+            console.error("DM inventory mutation failed:", error);
+            global.alert && global.alert("No se pudo modificar el ítem: " + (error && error.message || error));
+          })
+          .finally(() => { button.disabled = false; });
+      });
+    }
   }
 
   function makeGrantPayload(item, quantity, playerId) {
@@ -656,6 +897,9 @@
       refreshPlayersSelect();
     });
 
+    const selectedPlayer = clean(global.document && global.document.getElementById("otorgar-item-jugador")?.value);
+    if (selectedPlayer) subscribePlayerInventory(selectedPlayer);
+
     [
       "campaña/base_datos_items",
       "campaña/base_datos_aumentos"
@@ -714,6 +958,7 @@
     refreshLocal();
     bindSearchAndFilters();
     bindGrantButtons();
+    bindPlayerInventoryConsole();
     renderAll();
     ensureFirebaseBindings();
     state.mounted = true;
@@ -750,6 +995,8 @@
     mount,
     selectItem,
     grantSelected,
+    subscribePlayerInventory,
+    mutatePlayerItem,
     getItem,
     getItemsObject: itemObject,
     snapshot,

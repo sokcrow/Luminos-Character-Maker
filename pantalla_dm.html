@@ -2164,6 +2164,25 @@ window.processEntitiesData = function(entities) {
                   <button id="btn-otorgar-stash" class="btn-cyber btn-green" style="flex:1; padding:10px; font-size: 12px; font-weight:bold;">➕ AL ALIJO (STASH)</button>
                   <button id="btn-otorgar-activo" class="btn-cyber btn-red" style="flex:1; padding:10px; font-size: 12px; font-weight:bold;">⚔️ EQUIPAR (ACTIVO)</button>
                 </div>
+                <div id="dm-inline-player-inventory" style="margin-top:10px; border-top:1px solid #28434a; padding-top:10px;">
+                  <div id="dm-inline-player-inventory-status" style="font-size:12px; color:#888; margin-bottom:8px;">
+                    Selecciona un jugador para administrar sus ítems aquí mismo.
+                  </div>
+                  <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:10px;">
+                    <section style="border:1px solid #444; background:#0d0d0d; padding:8px;">
+                      <h5 style="margin:0 0 8px; color:#ff6b6b;">INVENTARIO ACTIVO</h5>
+                      <div id="dm-inline-inventory-active" style="display:flex; flex-direction:column; gap:6px;">
+                        <div style="color:#666; font-size:12px;">Sin jugador seleccionado.</div>
+                      </div>
+                    </section>
+                    <section style="border:1px solid #444; background:#0d0d0d; padding:8px;">
+                      <h5 style="margin:0 0 8px; color:#7dff9b;">STASH / ALIJO</h5>
+                      <div id="dm-inline-inventory-stash" style="display:flex; flex-direction:column; gap:6px;">
+                        <div style="color:#666; font-size:12px;">Sin jugador seleccionado.</div>
+                      </div>
+                    </section>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
