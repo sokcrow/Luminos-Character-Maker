@@ -8288,7 +8288,7 @@ window.processEntitiesData = function(entities) {
 
         document
           .getElementById("btn-save-stats")
-          .addEventListener("click", () => {
+          .addEventListener("click", async () => {
             if (!activePlayerIdForModal) return;
 
             const xpInput =
@@ -8380,8 +8380,37 @@ window.processEntitiesData = function(entities) {
                 stagger_thresholds: staggerArr,
               };
 
-            db.ref()
-              .update(updates)
+            try {
+              const combatSnap = await db.ref("campaña/combate/combatants").once("value");
+              const combatants = combatSnap?.val?.() || {};
+              const activeEntry = Object.entries(combatants).find(([, unit]) => {
+                if (!unit || typeof unit !== "object") return false;
+                const linkedPlayerId = String(
+                  unit.canonicalPlayerKey
+                  || unit.ownerPlayerId
+                  || unit.playerId
+                  || unit.characterLink?.playerId
+                  || (unit.actorRef?.scope === "players" ? unit.actorRef?.id : "")
+                  || ""
+                ).trim();
+                if (linkedPlayerId !== String(activePlayerIdForModal)) return false;
+                if (unit.isBackup === true || unit.battleActive === false || unit.removed === true || unit.escaped === true || unit.defeated === true || unit.dead === true) return false;
+                const deployment = String(unit.deploymentState || unit.deployment || unit.positionState || unit.zone || "field").trim().toLowerCase().replace(/[\s-]+/g, "_");
+                return !["backup","reserve","reserves","retreat","retreated","defeated","dead","escaped","departed"].includes(deployment);
+              });
+              if (activeEntry) {
+                const [combatantKey] = activeEntry;
+                updates[`campaña/combate/combatants/${combatantKey}/hp`] = hpActual;
+                updates[`campaña/combate/combatants/${combatantKey}/maxHp`] = hpMax;
+                updates[`campaña/combate/combatants/${combatantKey}/sp`] = sp;
+              }
+              await db.ref().update(updates);
+            } catch (error) {
+              console.error("No se pudieron guardar los stats de combate del jugador:", error);
+              return;
+            }
+
+            Promise.resolve()
               .then(() => {
                 document.getElementById("dm-combat-modal").style.display =
                   "none";
