@@ -385,7 +385,7 @@ test("DM grants a canonical ItemInstance to Player Stash through current invento
 
 test("Player inventory HUD button uses the repository Inventory asset", async () => {
   const html = fs.readFileSync(path.join(ROOT, "hoja_personaje.html"), "utf8");
-  expect(html).toMatch(/id="btn-global-inventory"[\s\S]{0,500}Assets\/Images\/Buttons\/Inventory\.svg/);
+  expect(html).toMatch(/id="btn-global-inventory"[\s\S]{0,500}Assets\/Images\/Buttons\/Inventory\.png/);
   const iconPath = path.join(ROOT, "Assets", "Images", "Buttons", "Inventory.png");
   expect(fs.existsSync(iconPath)).toBe(true);
   expect(html).toMatch(/name="act_hud_skills"[\s\S]{0,500}Assets\/Images\/Buttons\/Skills\.png/);
