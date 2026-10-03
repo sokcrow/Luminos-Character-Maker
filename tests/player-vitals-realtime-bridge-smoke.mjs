@@ -89,6 +89,47 @@ assert.equal(bridge.isActiveCombatPhase("PRE_COMBAT_PLANNING"), false);
 assert.equal(bridge.isActiveCombatPhase({ phase: "COMBAT" }), true);
 assert.equal(bridge.isActiveCombatPhase({ phase: "COMBAT_SEALED" }), true);
 
+const activeDeployment = {
+  "player:alice": {
+    isPlayer: true,
+    canonicalPlayerKey: "alice",
+    battleActive: true,
+    deploymentState: "field",
+    hp: 37,
+    maxHp: 80,
+    sp: -12,
+  },
+};
+const inactiveDeployment = {
+  "player:alice": {
+    isPlayer: true,
+    canonicalPlayerKey: "alice",
+    battleActive: false,
+    hp: 37,
+    maxHp: 80,
+    sp: -12,
+  },
+};
+assert.equal(hud.activePlayerCombatant(activeDeployment, "alice")?.[0], "player:alice");
+assert.equal(hud.activePlayerCombatant(inactiveDeployment, "alice"), null);
+
+const gateDb = (combatants) => ({
+  ref(pathValue) {
+    assert.equal(pathValue, "campaña/combate/combatants");
+    return {
+      async once(eventName) {
+        assert.equal(eventName, "value");
+        return { val: () => combatants };
+      },
+    };
+  },
+});
+const deployedGate = await hud.outOfCombatWriteGate(gateDb(activeDeployment), "alice");
+assert.equal(deployedGate.allowed, false, "Player-sheet vital writes must be blocked while deployed in Combat");
+assert.equal(deployedGate.reason, "PLAYER_DEPLOYED_IN_COMBAT");
+const removedGate = await hud.outOfCombatWriteGate(gateDb(inactiveDeployment), "alice");
+assert.equal(removedGate.allowed, true, "Player-sheet vital writes should resume after the Player leaves Combat");
+
 const staleRoster = await bridge.syncActiveSnapshot(db, combatants, "PRE_COMBAT_PLANNING", { force: true });
 assert.equal(staleRoster.synced, false, "stored roster must not overwrite Player vitals outside an active Combat phase");
 assert.equal(staleRoster.reason, "INACTIVE_COMBAT_PHASE");
@@ -244,12 +285,14 @@ assert.match(playerJs, /LuminousPlayerVitalsHud\?\.sync\?\.\(data, document\)/);
 assert.ok(playerJs.includes('"combatStats/hp_actual"'));
 assert.ok(playerJs.includes('"combatStats/sp_actual"'));
 assert.ok(playerJs.includes("pd.sp ?? pd.sp_actual ?? pd.combatStats?.sp_actual"), "Coin Toss must prefer universal root SP");
+assert.ok(playerJs.includes("outOfCombatWriteGate?.(db, playerId)"), "Rest/manual Player vital writes must consult the Combat deployment gate");
 assert.ok(restRuntime.includes('updates.hp = Number(hp)'));
 assert.ok(restRuntime.includes('updates["combatStats/hp_actual"] = Number(hp)'));
 assert.ok(statsHud.includes('data?.hp ?? data?.hp_actual ?? data?.combatStats?.hp_actual'));
 assert.ok(derivedStats.includes('["hp", "hp_actual", "currentHp", "current_hp", "combatStats.hp_actual"]'));
 assert.ok(itemRuntime.indexOf('[unit, "hp"') < itemRuntime.indexOf('[unit?.combatStats, "hp_actual"'), "item healing must prefer root HP");
 assert.ok(inventoryHud.includes("persistVitalsAfterUse"));
+assert.ok(inventoryHud.includes("outOfCombatWriteGate?.(state.db, state.playerId)"), "Inventory consumables must be blocked while the Player is deployed in Combat");
 assert.ok(dmStudio.includes("hp: hpActual"));
 assert.ok(dmStudio.includes("sp: spActual"));
 assert.ok(dmHtml.includes("activePlayerIdForModal}/hp`]"));
