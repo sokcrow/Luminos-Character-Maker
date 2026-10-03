@@ -9,6 +9,8 @@ on:
       - 'pantalla_dm.html'
       - 'js/dm-item-instance-editor.js'
       - 'js/dm-item-catalog-core.js'
+      - 'js/dm-local-item-manager-v3.js'
+      - 'js/dm-tab-runtime-v2.js'
       - 'js/item-content-registry.js'
       - 'js/item-catalog-tools.js'
       - 'js/item-catalog-chemical-processed.js'
@@ -51,6 +53,8 @@ jobs:
         run: |
           node --check js/dm-item-instance-editor.js
           node --check js/dm-item-catalog-core.js
+          node --check js/dm-local-item-manager-v3.js
+          node --check js/dm-tab-runtime-v2.js
           node --check js/item-content-registry.js
           node --check js/item-catalog-chemical-processed.js
           node --check js/item-catalog-medicinal-processed.js
