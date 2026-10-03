@@ -121,6 +121,25 @@ assert.equal(selected.type, 'items');
 assert.equal(selected.data.instanceId, 'med_live_1');
 assert.equal(selected.data.definitionId, 'hp_generic_pocket_recovery_patch');
 
+globalThis.permanent = {
+  global: [{ id: 'help', actionKey: 'help', kind: 'global', name: 'Help', description: 'Assist an ally.', economyCost: 'action' }],
+  spells: [],
+};
+globalThis.activeMenu = 'global';
+categoryBody.children = [];
+selected = null;
+menu.renderCleanList();
+assert.equal(categoryBody.children.length, 2, 'Actions renderer must build the canonical action list and description');
+const actionList = categoryBody.children[0];
+assert.equal(actionList.children.length, 1);
+const actionButton = actionList.children[0];
+assert.equal(typeof actionButton.onclick, 'function', 'Action row must have a click handler');
+actionButton.onclick();
+assert.ok(selected, 'clicking an Action row must reach selection');
+assert.equal(selected.type, 'global');
+assert.equal(selected.data.actionKey, 'help');
+
+globalThis.activeMenu = 'items';
 assert.equal(menu.syncSpellMenuVisibility(), false, 'fighter must be treated as non-caster');
 assert.equal(spellButton.hidden, true, 'non-caster must not see the Spells command');
 assert.equal(spellButton.disabled, true, 'hidden Spells command must not be clickable');
