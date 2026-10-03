@@ -423,9 +423,8 @@
         updates[`${ROOTS.combatants}/${combatantKey}/${key}`] = value;
       });
     });
-    const digest = JSON.stringify(Object.entries(updates).sort(([a],[b]) => a.localeCompare(b)));
-    if (!Object.keys(updates).length || digest === state.lastRepairDigest) return false;
-    state.lastRepairDigest = digest;
+    if (!Object.keys(updates).length) return false;
+    state.lastRepairDigest = JSON.stringify(Object.entries(updates).sort(([a],[b]) => a.localeCompare(b)));
     await state.db.ref().update(updates);
     return true;
   }
