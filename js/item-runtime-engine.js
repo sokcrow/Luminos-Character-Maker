@@ -363,7 +363,9 @@
     const treatment = runtime.injuryTreatment || runtime.injury_treatment || details.injury_treatment || null;
     return {
       hp: numberOr(effects.hpRestore ?? effects.hp_restore ?? runtime.hpRestore ?? runtime.hp_restore ?? details.curacion_hp, 0),
+      hpHealing: clone(runtime.healing || runtime.hybridHealing?.hp || null),
       sp: numberOr(effects.spRestore ?? effects.sp_restore ?? runtime.spRestore ?? runtime.sp_restore ?? details.curacion_sp, 0),
+      statusAdjustments: clone(effects.statusAdjustments || effects.status_adjustments || runtime.statusCure?.statusAdjustments || runtime.status_cure?.status_adjustments || []),
       statusId: effects.statusId || effects.status_id || runtime.statusId || runtime.status_id || details.status_id || null,
       statusPotency: numberOr(effects.statusPotency ?? effects.status_potency ?? runtime.statusPotency ?? runtime.status_potency ?? details.status_potency, 0),
       statusCount: Math.max(0, intOr(effects.statusCount ?? effects.status_count ?? runtime.statusCount ?? runtime.status_count ?? details.status_count, 0)),
@@ -428,14 +430,60 @@
     return { repaired: after > state.current, before: state.current, after, max: state.max, amount: after - state.current };
   }
 
+  function canonicalHpHealingAmount(target, healing = null) {
+    if (!healing || typeof healing !== "object") return 0;
+    const slot = currentAndMax(target, "hp");
+    if (!slot || slot.max <= 0) return 0;
+    const missing = Math.max(0, slot.max - slot.current);
+    if (!missing) return 0;
+    if (normalizeId(healing.mode) === "full") return missing;
+    const raw = Math.max(0, numberOr(healing.flat, 0) + slot.max * (numberOr(healing.maxHpPercent ?? healing.max_hp_percent, 0) / 100));
+    const capPercent = Math.max(0, numberOr(healing.capMaxHpPercent ?? healing.cap_max_hp_percent, 0));
+    const cap = capPercent > 0 ? slot.max * (capPercent / 100) : raw;
+    return Math.min(raw, cap, missing);
+  }
+
+  function applyStatusAdjustments(target, adjustments = []) {
+    const statusEngine = engines.statuses();
+    if (!statusEngine?.getStatus || !statusEngine?.applyStatus || !statusEngine?.removeStatus) return [];
+    return asArray(adjustments).map((adjustment) => {
+      const statusId = normalizeId(adjustment?.statusId || adjustment?.status_id);
+      if (!statusId) return { statusId, changed: false, reason: "status_id_missing" };
+      const current = statusEngine.getStatus(target, statusId);
+      if (!current) return { statusId, changed: false, reason: "status_not_present" };
+      const before = { count: Math.max(0, numberOr(current.count, 0)), potency: Math.max(0, numberOr(current.potency, 0)) };
+      const after = {
+        count: Math.max(0, before.count + numberOr(adjustment.countDelta ?? adjustment.count_delta, 0)),
+        potency: Math.max(0, before.potency + numberOr(adjustment.potencyDelta ?? adjustment.potency_delta, 0)),
+      };
+      if (after.count <= 0 && after.potency <= 0) {
+        const removal = statusEngine.removeStatus(target, statusId, { from: "item" });
+        return { statusId, changed: removal?.removed === true, removed: removal?.removed === true, before, after: { count: 0, potency: 0 }, removal };
+      }
+      statusEngine.applyStatus(target, statusId, {
+        mode: "set",
+        count: after.count,
+        potency: after.potency,
+        duration: current.duration,
+        sourceTraitId: current.sourceTraitId,
+        sourceUnitId: current.sourceUnitId,
+        data: clone(current.data || {}),
+      });
+      return { statusId, changed: after.count !== before.count || after.potency !== before.potency, removed: false, before, after };
+    });
+  }
+
   function applyUseEffects(user, item, options = {}) {
     const profile = runtimeUseProfile(item);
     const target = usageTarget(item, user, options);
     if (!target) return { applied: false, reason: "missing_target", item };
-    const results = { hp: null, sp: null, status: null, removedStatuses: [], injury: null, repair: null, temporaryEffect: null };
+    const results = { hp: null, sp: null, status: null, statusAdjustments: [], removedStatuses: [], injury: null, repair: null, temporaryEffect: null };
 
-    if (profile.hp > 0) results.hp = recoverResource(target, "hp", profile.hp);
+    const canonicalHp = canonicalHpHealingAmount(target, profile.hpHealing);
+    const hpAmount = profile.hp > 0 ? profile.hp : canonicalHp;
+    if (hpAmount > 0) results.hp = recoverResource(target, "hp", hpAmount);
     if (profile.sp > 0) results.sp = recoverResource(target, "sp", profile.sp);
+    if (profile.statusAdjustments.length) results.statusAdjustments = applyStatusAdjustments(target, profile.statusAdjustments);
 
     const statusEngine = engines.statuses();
     profile.removeStatuses.forEach((statusId) => {
@@ -463,7 +511,9 @@
     if (profile.repairAmount > 0) results.repair = repairItem(options.itemTarget || options.repairTarget, profile.repairAmount);
 
     const effectCount = [results.hp, results.sp, results.status, results.temporaryEffect, results.injury, results.repair]
-      .filter(Boolean).length + results.removedStatuses.length;
+      .filter((entry) => entry && entry.changed !== false).length
+      + results.removedStatuses.length
+      + results.statusAdjustments.filter((entry) => entry?.changed).length;
     return { applied: effectCount > 0, user, target, item, profile, results };
   }
 
@@ -488,6 +538,7 @@
     const phase = normalizeId(options.phase || actionEngine?.phaseFor?.(options) || "other");
     const cost = actionCostFor(item);
     const inActionEconomy = ["planning", "combat"].includes(phase);
+    if (inActionEconomy && cost === "off_combat") return { used: false, reason: "off_combat_only", item, cost };
 
     if (!inActionEconomy || options.ignoreActionCost === true || cost === "none" || cost === "free") {
       const result = applyAndConsume(user, item, options);
@@ -830,6 +881,8 @@
     hpPercent,
     actionCostFor,
     runtimeUseProfile,
+    canonicalHpHealingAmount,
+    applyStatusAdjustments,
     useItem,
     resolveScheduledUse,
     advanceTime,
