@@ -375,10 +375,20 @@ const path = require("node:path");
     strictJuiceResolution.effectiveTh,
     "player synthesis must check processing against the canonical effective TH"
   );
-  assert.notEqual(
-    contentRegistry.recipeDifficulty(juiceRecipe, strictJuiceResolution),
-    globalThis.LuminousItemProcessingEngine.METHODS.juice.baseTh,
-    "two-input juice must not fall back to the method base TH"
+  assert.equal(
+    strictJuiceResolution.effectiveThBreakdown.recipeTh,
+    10,
+    "effective processing TH must start from the concrete recipe TH"
+  );
+  assert.equal(
+    strictJuiceResolution.effectiveThBreakdown.utensilReduction,
+    1,
+    "canonical carried utensils should apply the expected equipment reduction"
+  );
+  assert.equal(
+    strictJuiceResolution.effectiveTh,
+    9,
+    "effective processing TH should reflect the canonical equipment adjustment from recipe TH 10"
   );
   const juiceOutput = contentRegistry.createRecipeOutput(juiceRecipe, {
     resolution: juiceResolution
