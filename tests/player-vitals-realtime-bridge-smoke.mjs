@@ -105,8 +105,8 @@ assert.deepEqual(
     sp: 20,
     combatStats: { hp_actual: 25, hp_max: 100, sp_actual: -15 },
   }),
-  { hpActual: 25, hpMax: 100, spActual: -15 },
-  "HUD must prefer canonical combatStats over legacy root aliases",
+  { hpActual: 99, hpMax: 99, spActual: 20 },
+  "HUD must prefer universal Player root vitals when root and combat mirrors diverge",
 );
 assert.equal(hud.hpDashOffset(100, 100), 0);
 assert.equal(hud.hpDashOffset(50, 100), 500);
@@ -114,6 +114,32 @@ assert.equal(hud.hpDashOffset(0, 100), 1000);
 assert.equal(hud.spVisual(-45).maxNegative, true);
 assert.equal(hud.spVisual(45).maxPositive, true);
 
+assert.deepEqual(
+  hud.resolveVitals({ combatStats: { hp_actual: 25, hp_max: 100, sp_actual: -15 } }),
+  { hpActual: 25, hpMax: 100, spActual: -15 },
+  "legacy combatStats-only records remain supported as fallback",
+);
+
+const playerVitalWrites = [];
+const playerDb = {
+  ref(pathValue) {
+    assert.equal(pathValue, "campaña/jugadores/alice");
+    return { async update(patch) { playerVitalWrites.push(patch); } };
+  },
+};
+const persistedVitals = await hud.persist(playerDb, "alice", {
+  hp: 77, hp_max: 90, sp: 12,
+  combatStats: { hp_actual: 30, hp_max: 80, sp_actual: -10 },
+}, { force: true });
+assert.equal(persistedVitals.saved, true);
+assert.deepEqual(playerVitalWrites[0], {
+  hp: 77,
+  "combatStats/hp_actual": 77,
+  hp_max: 90,
+  "combatStats/hp_max": 90,
+  sp: 12,
+  "combatStats/sp_actual": 12,
+}, "Player persistence must atomically align root vitals and combat mirrors");
 function fakeNode() {
   const classes = new Set();
   const props = {};
@@ -175,9 +201,9 @@ const combatant = playerEntry.buildPlayerCombatant(actor, {
   unitResolution: { ok: false, reason: "NO_UNIT", unitId: null, unit: null },
   now: 1234,
 });
-assert.equal(combatant.hp, 37, "combat entry must use realtime Player HP");
-assert.equal(combatant.maxHp, 80, "combat entry must use realtime Player max HP");
-assert.equal(combatant.sp, -12, "combat entry must use realtime Player SP");
+assert.equal(combatant.hp, 90, "a root HP heal after Combat must survive the next encounter entry");
+assert.equal(combatant.maxHp, 90, "encounter entry must prefer universal Player max HP over a stale combat mirror");
+assert.equal(combatant.sp, 10, "a root SP recovery after Combat must survive the next encounter entry");
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.join(here, "..");
