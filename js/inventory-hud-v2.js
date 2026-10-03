@@ -782,7 +782,7 @@
     const vitals = global.LuminousPlayerVitalsHud;
     if (!persist?.serializeInventoryState || !vitals?.persistencePatch) return null;
     const inv = persist.serializeInventoryState(unit || {});
-    return {
+    const patch = {
       inventario_activo: inv.inventario_activo || {},
       inventario_stash: inv.inventario_stash || {},
       itemInventorySchemaVersion: persist.schemaVersion || inv.schemaVersion || 1,
@@ -790,6 +790,15 @@
       attunedItemInstanceIds: inv.attunedItemInstanceIds || [],
       ...vitals.persistencePatch(unit || {}),
     };
+    [
+      "culinarySurvival",
+      "culinaryEffects",
+      "culinaryMaxHpEffects",
+      "culinaryAppliedMaxHpBonus",
+    ].forEach((key) => {
+      if (unit?.[key] !== undefined) patch[key] = JSON.parse(JSON.stringify(unit[key]));
+    });
+    return patch;
   }
 
   async function saveUnitWithVitals(successMessage) {
