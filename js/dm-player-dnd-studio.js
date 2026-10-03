@@ -741,8 +741,8 @@
     field("dm-player-defensive-dm").value = String(combatBreakdown(player, "defensive").dmModifier);
     field("dm-player-hp-base").value = String(numberOr(combatStats.hp_base ?? player?.hp_base, 0));
     field("dm-player-hp-coef").value = String(numberOr(combatStats.hp_coefficient ?? player?.hp_coefficient, 0));
-    field("dm-player-hp-actual").value = String(numberOr(combatStats.hp_actual ?? player?.hp_actual, 0));
-    field("dm-player-sp").value = String(numberOr(combatStats.sp_actual ?? player?.sp, 0));
+    field("dm-player-hp-actual").value = String(numberOr(player?.hp ?? player?.hp_actual ?? combatStats.hp_actual, 0));
+    field("dm-player-sp").value = String(numberOr(player?.sp ?? combatStats.sp_actual, 0));
     field("dm-player-action-slots").value = String(Math.max(1, integerOr(combatStats.action_slots, 1)));
     field("dm-player-stagger").value = Array.isArray(combatStats.stagger_thresholds) ? combatStats.stagger_thresholds.join(", ") : "";
     field("dm-player-dnd-feedback").textContent = "";
@@ -827,7 +827,9 @@
       hp_base: hpBase,
       hp_coefficient: hpCoef,
       hp_max: hpMax,
+      hp: hpActual,
       hp_actual: hpActual,
+      sp: spActual,
       "characterBuild/raceId": racial.raceId,
       "characterBuild/raceSubtypeId": racial.raceSubtypeId,
       "characterBuild/racialStatChoices": racial.racialStatChoices,
