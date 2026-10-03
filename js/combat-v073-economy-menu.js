@@ -49,8 +49,34 @@
   function activeMenu() { return clean(lexical("activeMenu", "")); }
   function playerId() { return clean(lexical("PLAYER_ID", global.LuminousCombat073?.playerId?.() || "")); }
   function combatData() { return lexical("combatData", global.LuminousCombat073?.combatants?.() || {}) || {}; }
-  function playerUnit() { const id = playerId(); return id ? combatData()?.[id] || null : null; }
+  function canonicalPlayerId(unit = {}) {
+    return clean(unit.canonicalPlayerKey || unit.ownerPlayerId || unit.playerId || unit.characterLink?.playerId);
+  }
+  function playerUnit() {
+    const id = playerId();
+    const rows = combatData();
+    if (id && rows?.[id]) return rows[id];
+    const canonical = clean(global.LuminousCombatLiveAdapter073?.state?.playerId);
+    return Object.values(rows || {}).find((unit) =>
+      unit?.controlled === "player"
+      || (canonical && canonicalPlayerId(unit) === canonical)
+      || (id && clean(unit?.id || unit?.combatId) === id)
+    ) || null;
+  }
   function unitKits() { return lexical("UNIT_KITS", {}) || {}; }
+  function playerKit() {
+    const kits = unitKits();
+    const unit = playerUnit() || {};
+    const candidates = [
+      playerId(),
+      clean(unit.id),
+      clean(unit.combatId),
+      clean(global.LuminousCombatLiveAdapter073?.state?.playerId),
+      canonicalPlayerId(unit),
+    ].filter(Boolean);
+    for (const id of candidates) if (kits?.[id]) return kits[id];
+    return {};
+  }
   function permanent() { return lexical("permanent", {}) || {}; }
   function roundNumber() { return Math.max(1, Number(lexical("round", 1)) || 1); }
   function selectedSlotIndex() { return Math.max(0, Number(lexical("selectedSlotIndex", 0)) || 0); }
@@ -144,8 +170,84 @@
   }
 
   function liveActions(kind) {
-    const kit = unitKits()?.[playerId()] || {};
+    const kit = playerKit();
     return asArray(kit.actions).filter((row) => normalizeId(row?.kind || row?.type || row?.actionType) === kind);
+  }
+
+  function classEntries(unit = playerUnit() || {}) {
+    const build = unit?.characterBuild && typeof unit.characterBuild === "object" ? unit.characterBuild : {};
+    const raw = Array.isArray(unit.classes) ? unit.classes : (Array.isArray(build.classes) ? build.classes : []);
+    return raw.map((entry) => ({
+      classId: normalizeId(entry?.classId || entry?.id || entry?.name),
+      levels: Math.max(0, Number.parseInt(entry?.levels ?? entry?.level ?? entry?.classLevel ?? 0, 10) || 0),
+    })).filter((entry) => entry.classId && entry.levels > 0);
+  }
+
+  function spellcastingClasses(unit = playerUnit() || {}) {
+    const runtime = global.LuminousSpellcastingRuntime;
+    if (!runtime?.getClassSpellcastingProfile) return [];
+    return classEntries(unit).map((entry) => {
+      let profile = null;
+      try { profile = runtime.getClassSpellcastingProfile(entry.classId); } catch (_) {}
+      if (!profile) return null;
+      const start = Math.max(1, Number.parseInt(profile.spellcastingStartLimbusLevel ?? 1, 10) || 1);
+      return entry.levels >= start ? { ...entry, profile, startLevel: start } : null;
+    }).filter(Boolean);
+  }
+
+  function isSpellcaster(unit = playerUnit() || {}) {
+    return spellcastingClasses(unit).length > 0;
+  }
+
+  function collectSpellIds(value, out = new Set()) {
+    if (value == null) return out;
+    if (typeof value === "string" || typeof value === "number") {
+      const id = normalizeId(value);
+      if (id) out.add(id);
+      return out;
+    }
+    if (Array.isArray(value)) {
+      value.forEach((entry) => collectSpellIds(entry, out));
+      return out;
+    }
+    if (typeof value === "object") {
+      const explicit = normalizeId(value.spellId || value.id || value.key || value.definitionId);
+      if (explicit) out.add(explicit);
+      else Object.entries(value).forEach(([key, entry]) => {
+        if (entry === true) collectSpellIds(key, out);
+        else collectSpellIds(entry, out);
+      });
+    }
+    return out;
+  }
+
+  function selectedSpellIds(unit = playerUnit() || {}) {
+    const out = new Set();
+    [
+      unit.spellIds,
+      unit.spellSelections,
+      unit.knownSpellIds,
+      unit.preparedSpellIds,
+      unit.characterBuild?.spellIds,
+      unit.characterBuild?.spellSelections,
+      unit.characterBuild?.knownSpellIds,
+      unit.characterBuild?.preparedSpellIds,
+    ].forEach((value) => collectSpellIds(value, out));
+    return out;
+  }
+
+  function spellIdOf(row = {}) {
+    return normalizeId(row.spellId || row.id || row.key || row.definitionId || row.name);
+  }
+
+  function spellRowsForPlayer() {
+    const unit = playerUnit() || {};
+    if (!isSpellcaster(unit)) return [];
+    const live = liveActions("spell");
+    if (live.length) return live;
+    const selected = selectedSpellIds(unit);
+    if (!selected.size) return [];
+    return asArray(permanent()?.spells).filter((row) => selected.has(spellIdOf(row)));
   }
 
   function rowsFor(menu, tab = state.tabByMenu[menu] || ECONOMY.ACTION) {
@@ -162,9 +264,7 @@
       return liveActions("skill").filter((row) => economyTabFor(row) === tab);
     }
     if (menu === "spells") {
-      const live = liveActions("spell");
-      const source = live.length ? live : asArray(permanent()?.spells);
-      return source.filter((row) => economyTabFor(row) === tab);
+      return spellRowsForPlayer().filter((row) => economyTabFor(row) === tab);
     }
     return [];
   }
@@ -638,7 +738,7 @@
     state.installed = true; return true;
   }
 
-  const api = { version: VERSION, ECONOMY, state, normalizeEconomyCost, economyTabFor, costLabel, traitDefinitionsForPlayer, rowsFor, renderSkills, renderSpells, renderCleanList, renderCategory, selectAction, setTab, syncTabs, syncQuickBadge, syncPlanningEconomy, beginCombatEconomy, prepareReaction, triggerPreparedReaction, useQuickAction, install };
+  const api = { version: VERSION, ECONOMY, state, normalizeEconomyCost, economyTabFor, costLabel, canonicalPlayerId, playerUnit, playerKit, traitDefinitionsForPlayer, liveActions, classEntries, spellcastingClasses, isSpellcaster, selectedSpellIds, spellRowsForPlayer, rowsFor, renderSkills, renderSpells, renderCleanList, renderCategory, selectAction, setTab, syncTabs, syncQuickBadge, syncPlanningEconomy, beginCombatEconomy, prepareReaction, triggerPreparedReaction, useQuickAction, install };
 
   async function boot() { await ensureDependencies(); return install(); }
   api.boot = boot; api.ensureDependencies = ensureDependencies;
