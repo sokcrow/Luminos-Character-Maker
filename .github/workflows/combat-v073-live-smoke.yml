@@ -15,6 +15,11 @@ on:
       - 'js/combat-v073-remote-intents.js'
       - 'js/combat-v073-library-client.js'
       - 'js/combat-v073-authority.js'
+      - 'js/player-vitals-realtime-bridge.js'
+      - 'js/player-vitals-hud.js'
+      - 'js/battle-viewer-player-entry-074.js'
+      - 'hoja_personaje.html'
+      - 'hoja_personaje.js'
       - 'js/combat-deployment-runtime.js'
       - 'js/combat-v073-deployment-bridge.js'
       - 'js/unit-rank-runtime.js'
@@ -51,6 +56,7 @@ on:
       - 'tests/combat-v073-economy-menu-smoke.mjs'
       - 'tests/unit-combat-instantiator-smoke.mjs'
       - 'tests/universal-library-authority-smoke.mjs'
+      - 'tests/player-vitals-realtime-bridge-smoke.mjs'
       - '.github/workflows/combat-v073-live-smoke.yml'
 
 jobs:
@@ -72,6 +78,10 @@ jobs:
           node --check js/combat-v073-remote-intents.js
           node --check js/combat-v073-library-client.js
           node --check js/combat-v073-authority.js
+          node --check js/player-vitals-realtime-bridge.js
+          node --check js/player-vitals-hud.js
+          node --check js/battle-viewer-player-entry-074.js
+          node --check hoja_personaje.js
           node --check js/combat-deployment-runtime.js
           node --check js/combat-v073-deployment-bridge.js
           node --check js/unit-rank-runtime.js
@@ -105,6 +115,8 @@ jobs:
         run: node tests/unit-combat-instantiator-smoke.mjs
       - name: Universal Library and authoritative Combat contract
         run: node tests/universal-library-authority-smoke.mjs
+      - name: Universal Player vitals realtime bridge
+        run: node tests/player-vitals-realtime-bridge-smoke.mjs
       - name: Player Action economy menu contract
         run: node tests/combat-v073-economy-menu-smoke.mjs
       - name: Speed persistence contract
