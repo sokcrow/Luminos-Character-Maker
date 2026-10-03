@@ -244,11 +244,7 @@
   }
 
   function allocateRequirements(requirements, items) {
-    const available = items.map(selectedUnits);
-    const plan = [];
-    let score = 0;
-
-    for (const rawRequirement of requirements || []) {
+    const normalizedRequirements = (requirements || []).map((rawRequirement, originalIndex) => {
       const quantity = Math.max(1, Math.trunc(Number(rawRequirement.quantity ?? rawRequirement.units ?? 1) || 1));
       const selector = rawRequirement.selector || {};
       const requirement = {
@@ -261,47 +257,128 @@
         !valueList(requirement.anyTags).length &&
         !valueList(requirement.allTags).length &&
         !valueList(requirement.anyForms).length;
-
-      let remaining = quantity;
-      const allocations = [];
       const candidates = items
         .map((item, index) => ({
           index,
           matchScore: isGeneric ? 25 : requirementMatchScore(requirement, item)
         }))
-        .filter((entry) => entry.matchScore > 0 && available[entry.index] > 0)
+        .filter((entry) => entry.matchScore > 0)
         .sort((a, b) => b.matchScore - a.matchScore || a.index - b.index);
 
-      for (const candidate of candidates) {
-        if (remaining <= 0) break;
-        const take = Math.min(remaining, available[candidate.index]);
-        if (take <= 0) continue;
-        available[candidate.index] -= take;
-        remaining -= take;
-        score += candidate.matchScore * take;
-        allocations.push({
-          inventoryIndex: candidate.index,
-          units: take,
-          score: candidate.matchScore
-        });
+      return {
+        rawRequirement,
+        originalIndex,
+        quantity,
+        candidates
+      };
+    });
+
+    // Solve the most constrained requirements first, while preserving the
+    // original requirement order in the returned consumption plan.
+    const solveOrder = [...normalizedRequirements].sort((a, b) =>
+      a.candidates.length - b.candidates.length ||
+      b.quantity - a.quantity ||
+      a.originalIndex - b.originalIndex
+    );
+    const initialAvailable = items.map(selectedUnits);
+    const memo = new Map();
+
+    function allocationOptions(req, available) {
+      const options = [];
+      const candidates = req.candidates.filter((entry) => available[entry.index] > 0);
+
+      function walk(candidatePos, remaining, allocations, allocationScore) {
+        if (remaining === 0) {
+          options.push({
+            allocations: allocations.map((row) => ({ ...row })),
+            score: allocationScore
+          });
+          return;
+        }
+        if (candidatePos >= candidates.length) return;
+
+        const candidate = candidates[candidatePos];
+        const maxTake = Math.min(remaining, available[candidate.index]);
+
+        // Try consuming from this candidate first, but also explore skipping
+        // it so broader selectors cannot steal an item needed later.
+        for (let take = maxTake; take >= 0; take -= 1) {
+          if (take > 0) {
+            allocations.push({
+              inventoryIndex: candidate.index,
+              units: take,
+              score: candidate.matchScore
+            });
+          }
+          walk(
+            candidatePos + 1,
+            remaining - take,
+            allocations,
+            allocationScore + candidate.matchScore * take
+          );
+          if (take > 0) allocations.pop();
+        }
       }
 
-      if (remaining > 0) {
-        return {
-          valid: false,
-          reason: "missing_recipe_requirements",
-          missing: quantity - (quantity - remaining),
-          consumptionPlan: plan,
-          score
-        };
-      }
-      plan.push({
-        requirement: rawRequirement.id || null,
-        units: quantity,
-        allocations
-      });
+      walk(0, req.quantity, [], 0);
+      return options;
     }
 
+    function solve(reqPos, available) {
+      if (reqPos >= solveOrder.length) {
+        const leftover = available.reduce((sum, units) => sum + Math.max(0, units), 0);
+        return leftover === 0
+          ? { score: 0, plans: [] }
+          : null;
+      }
+
+      const memoKey = reqPos + "|" + available.join(",");
+      if (memo.has(memoKey)) return memo.get(memoKey);
+
+      const req = solveOrder[reqPos];
+      let best = null;
+      for (const option of allocationOptions(req, available)) {
+        const nextAvailable = [...available];
+        let valid = true;
+        option.allocations.forEach((allocation) => {
+          nextAvailable[allocation.inventoryIndex] -= allocation.units;
+          if (nextAvailable[allocation.inventoryIndex] < 0) valid = false;
+        });
+        if (!valid) continue;
+
+        const suffix = solve(reqPos + 1, nextAvailable);
+        if (!suffix) continue;
+
+        const candidate = {
+          score: option.score + suffix.score,
+          plans: [{
+            originalIndex: req.originalIndex,
+            requirement: req.rawRequirement.id || null,
+            units: req.quantity,
+            allocations: option.allocations
+          }, ...suffix.plans]
+        };
+        if (!best || candidate.score > best.score) best = candidate;
+      }
+
+      memo.set(memoKey, best);
+      return best;
+    }
+
+    const solved = solve(0, initialAvailable);
+    if (!solved) {
+      return {
+        valid: false,
+        reason: "missing_recipe_requirements",
+        missing: 1,
+        consumptionPlan: [],
+        score: 0
+      };
+    }
+
+    const plan = solved.plans
+      .sort((a, b) => a.originalIndex - b.originalIndex)
+      .map(({ originalIndex, ...row }) => row);
     const consumedUnits = plan.reduce((sum, row) =>
       sum + row.allocations.reduce((rowSum, allocation) => rowSum + allocation.units, 0), 0);
     const totalSelectedUnits = items.reduce((sum, item) => sum + selectedUnits(item), 0);
@@ -312,7 +389,7 @@
       consumptionPlan: plan,
       consumedUnits,
       totalSelectedUnits,
-      score
+      score: solved.score
     };
   }
 
