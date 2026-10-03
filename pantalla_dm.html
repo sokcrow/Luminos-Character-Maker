@@ -6163,6 +6163,9 @@ window.processEntitiesData = function(entities) {
 
         // Sincronizar select de jugadores destino para otorgar ítems
         function updateOtorgarJugadoresSelect() {
+            if (window.LuminousDmLocalItemManagerV3) {
+                return;
+            }
             const select = document.getElementById("otorgar-item-jugador");
             if (!select) return;
             const currentVal = select.value;
@@ -6489,6 +6492,9 @@ window.processEntitiesData = function(entities) {
 
                 // --- LÓGICA DE BÚSQUEDA Y FILTRADO (DM) ---
         function filterDMItems() {
+          if (window.LuminousDmLocalItemManagerV3) {
+            return;
+          }
           const query = searchInputDM ? searchInputDM.value.toLowerCase() : "";
           let activeFilter = "todo";
 
