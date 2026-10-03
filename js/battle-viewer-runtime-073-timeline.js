@@ -235,8 +235,11 @@
         return { resolved: true, armed: true, defenseType: subtype };
       },
       viewer_item(payload) {
-        if (typeof hooks.useItem === "function") return hooks.useItem(payload);
-        return genericItemEffect(payload);
+        const liveItem = activeInventoryItem(payload?.actor || {}, payload?.effect?.item || {});
+        if (!liveItem) return { handled: false, reason: "active_inventory_item_missing" };
+        const livePayload = { ...payload, item: liveItem, effect: { ...(payload?.effect || {}), item: liveItem } };
+        if (typeof hooks.useItem === "function") return hooks.useItem(livePayload);
+        return genericItemEffect(livePayload);
       },
       viewer_trait_action({ actor, effect, context }) {
         if (typeof hooks.resolveTraitAction === "function") return hooks.resolveTraitAction({ actor, effect, context });
