@@ -509,6 +509,36 @@ const path = require("node:path");
     "medicine_ampoule should consume exactly all three canonical inputs"
   );
 
+  const ampouleCraftInputs = contentRegistry.craftInputsFromConsumptionPlan(
+    ampouleSterileFirst.sourceInputs,
+    ampouleSterileFirst.consumptionPlan
+  );
+  assert.equal(
+    ampouleCraftInputs[0].id,
+    "medicinal_extract",
+    "craft inputs must reuse the resolver allocation instead of the original slot order"
+  );
+  assert.equal(ampouleCraftInputs[1].id, "sterile_solution");
+
+  const ampouleOutputSterileFirst = contentRegistry.createRecipeOutput(
+    medicineAmpouleRecipe,
+    {
+      resolution: ampouleSterileFirst,
+      checkResult: 26
+    }
+  );
+  assert.ok(
+    ampouleOutputSterileFirst,
+    "a backtracking-valid medicine_ampoule must still craft when sterile_solution was placed first"
+  );
+  assert.equal(ampouleOutputSterileFirst.definitionId, "medicine_ampoule");
+  assert.equal(ampouleOutputSterileFirst.craft.checkTotal, 26);
+  assert.equal(
+    ampouleOutputSterileFirst.craft.sourceInputs.length,
+    3,
+    "canonical medicine output must preserve the three resolved input allocations"
+  );
+
   const medicineRecipe = Object.values(unified.recipes)
     .find((recipe) => recipe.recipeKind === "medicine" && recipe.id === "medicine_tablet");
   const medicineInputs = [
