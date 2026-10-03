@@ -4704,7 +4704,8 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
 
                   const canonicalOutput = contentRegistry.createRecipeOutput(attempt.receta, {
                       resolution: attempt.resolution,
-                      checkResult: tirada
+                      checkResult: tirada,
+                      unit: playerData
                   });
                   if (!canonicalOutput) {
                       alert("No se pudo construir el resultado canónico de la Recipe.");
