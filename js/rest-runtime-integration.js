@@ -254,16 +254,29 @@
     return true;
   }
 
+  async function requestPlayerRest(type, detail = {}) {
+    const character = detail.character || currentPlayerCharacter();
+    const db = global.firebase?.database?.();
+    const playerId = String(global.localStorage?.getItem?.(PLAYER_ID_STORAGE_KEY) || character?.playerId || character?.player_id || "").trim();
+    const gate = await global.LuminousPlayerVitalsHud?.outOfCombatWriteGate?.(db, playerId);
+    if (gate && gate.allowed === false) {
+      const blocked = { success: false, type, reason: gate.reason || "PLAYER_DEPLOYED_IN_COMBAT", combatantKey: gate.combatantKey || null };
+      emit("luminous:player-rest-blocked", blocked);
+      return blocked;
+    }
+    return type === "long_rest"
+      ? completeLongRest(character, detail)
+      : completeShortRest(character, detail);
+  }
+
   function bindRequestEvents() {
     if (state.listenersBound || !global.addEventListener) return false;
     state.listenersBound = true;
     global.addEventListener("luminous:request-short-rest", (event) => {
-      const detail = event?.detail || {};
-      completeShortRest(detail.character || currentPlayerCharacter(), detail);
+      requestPlayerRest("short_rest", event?.detail || {}).catch((error) => console.warn("Rest Runtime short-rest request:", error));
     });
     global.addEventListener("luminous:request-long-rest", (event) => {
-      const detail = event?.detail || {};
-      completeLongRest(detail.character || currentPlayerCharacter(), detail);
+      requestPlayerRest("long_rest", event?.detail || {}).catch((error) => console.warn("Rest Runtime long-rest request:", error));
     });
     return true;
   }
@@ -314,6 +327,7 @@
     persistPlayerRestState,
     completeShortRest,
     completeLongRest,
+    requestPlayerRest,
     installTraitEngineBridge,
     ensureHealthEquipmentAssets,
     install,
