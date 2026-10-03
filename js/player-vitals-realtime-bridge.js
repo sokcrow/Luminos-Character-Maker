@@ -156,6 +156,8 @@
 
   function bind() {
     if (state.combatantsRef) return true;
+    const role = clean(adapterState()?.role).toLowerCase();
+    if (role && role !== "dm") return true;
     if (!isDmAuthority()) return false;
     const db = currentDatabase();
     if (!db?.ref) return false;
