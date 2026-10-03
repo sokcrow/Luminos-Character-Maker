@@ -679,6 +679,15 @@ const path = require("node:path");
   assert.match(playerRuntime, /btnForecast\.addEventListener\("click", async \(\) =>/);
   assert.match(playerRuntime, /btnIniciar\.addEventListener\("click", async \(\) =>/);
   assert.match(playerRuntime, /btn-forja-confirm"\)\.addEventListener\("click", async \(\) =>/);
+  const confirmHandlerStart = playerRuntime.indexOf('document.getElementById("btn-forja-confirm").addEventListener("click", async () =>');
+  const confirmHandlerEnd = playerRuntime.indexOf('function ejecutarTransaccionForja', confirmHandlerStart);
+  const confirmHandler = playerRuntime.slice(confirmHandlerStart, confirmHandlerEnd);
+  assert.ok(confirmHandlerStart >= 0 && confirmHandlerEnd > confirmHandlerStart, "forge confirm handler should be present");
+  assert.ok(
+    confirmHandler.indexOf("window.currentForjaAttempt = null;") >= 0 &&
+    confirmHandler.indexOf("window.currentForjaAttempt = null;") < confirmHandler.indexOf("await refreshForjaMesaCrafteo?.();"),
+    "forge confirm must atomically claim the attempt before the first async wait"
+  );
   assert.ok(
     (playerRuntime.match(/await refreshForjaMesaCrafteo\?\.\(\);/g) || []).length >= 3,
     "Synthesis must refresh Director-owned world state before forecast, start, and confirm"
