@@ -1,0 +1,157 @@
+import assert from 'node:assert/strict';
+
+globalThis.window = globalThis;
+
+function fakeElement(tag = 'div') {
+  const node = {
+    tagName: String(tag).toUpperCase(),
+    children: [],
+    dataset: {},
+    attributes: {},
+    style: { display: '', setProperty() {} },
+    hidden: false,
+    disabled: false,
+    textContent: '',
+    innerHTML: '',
+    appendChild(child) { this.children.push(child); return child; },
+    setAttribute(name, value) { this.attributes[name] = String(value); },
+    getAttribute(name) { return this.attributes[name] ?? null; },
+    querySelector() { return null; },
+    querySelectorAll() { return []; },
+    classList: { add() {}, remove() {}, toggle() {} },
+  };
+  return node;
+}
+
+const categoryBody = fakeElement('div');
+const spellIcon = fakeElement('img');
+spellIcon.getAttribute = (name) => name === 'src' ? 'Assets/Images/Buttons/Spells.png' : null;
+const spellButton = fakeElement('button');
+spellButton.querySelector = (selector) => selector === 'img' ? spellIcon : null;
+spellButton.textContent = 'SPELLS';
+
+const doc = {
+  body: fakeElement('body'),
+  head: fakeElement('head'),
+  createElement: fakeElement,
+  getElementById(id) {
+    if (id === 'category-body') return categoryBody;
+    return null;
+  },
+  querySelectorAll() { return [spellButton]; },
+};
+
+globalThis.document = undefined;
+const nativeSetTimeout = globalThis.setTimeout;
+globalThis.setTimeout = () => 0;
+await import('../js/combat-v073-economy-menu.js');
+globalThis.setTimeout = nativeSetTimeout;
+globalThis.document = doc;
+
+globalThis.PLAYER_ID = 'player:p1';
+globalThis.selectedSlotIndex = 0;
+globalThis.activeMenu = 'items';
+globalThis.combatData = {
+  'player:p1': {
+    id: 'player:p1',
+    isPlayer: true,
+    controlled: 'player',
+    classes: [{ classId: 'fighter', levels: 10 }],
+    inventario_activo: {
+      med_live_1: {
+        instanceId: 'med_live_1',
+        definitionId: 'hp_generic_pocket_recovery_patch',
+        name: 'Pocket Recovery Patch',
+        category: 'consumable',
+        quantity: 2,
+        runtime: { actionCost: 'action', targetMode: 'self', effects: { hpRestore: 5 } },
+      },
+      camp_kit: {
+        instanceId: 'camp_kit',
+        definitionId: 'hp_generic_civilian_recovery_pack',
+        name: 'Civilian Recovery Pack',
+        category: 'consumable',
+        quantity: 1,
+        runtime: { actionCost: 'off_combat', targetMode: 'self', effects: { hpRestore: 10 } },
+      },
+      empty_stack: {
+        instanceId: 'empty_stack',
+        definitionId: 'empty',
+        name: 'Empty Stack',
+        category: 'consumable',
+        quantity: 0,
+        runtime: { actionCost: 'action' },
+      },
+    },
+  },
+};
+
+globalThis.LuminousSpellcastingRuntime = {
+  getClassSpellcastingProfile(classId) {
+    return classId === 'wizard' ? { spellcastingStartLimbusLevel: 1 } : null;
+  },
+};
+
+globalThis.LuminousItemRuntime = {
+  quantityOf(item) { return Number(item.quantity || 0); },
+  actionCostFor(item) { return item.runtime?.actionCost || 'action'; },
+  hasFunction(item, name) { return name === 'use' && item.category === 'consumable'; },
+};
+
+const menu = globalThis.LuminousCombatEconomyMenu073;
+assert.ok(menu, 'economy menu must initialize');
+
+const rows = menu.itemRowsForPlayer();
+assert.equal(rows.length, 1, 'Combat Items must contain only usable, non-empty, combat-legal Active Inventory entries');
+assert.equal(rows[0].instanceId, 'med_live_1');
+assert.equal(rows[0].inventoryContainer, 'inventario_activo');
+
+let selected = null;
+menu.state.originals.selectAction = (value) => { selected = value; return value; };
+menu.renderItems();
+assert.equal(categoryBody.children.length, 1, 'Items renderer must create one active-inventory list');
+const itemList = categoryBody.children[0];
+assert.equal(itemList.children.length, 1, 'Items renderer must create one clickable row for the valid stack');
+const itemButton = itemList.children[0];
+assert.equal(itemButton.dataset.itemInstanceId, 'med_live_1');
+assert.equal(typeof itemButton.onclick, 'function', 'Item row must have a click handler');
+itemButton.onclick();
+assert.ok(selected, 'clicking an Item row must reach selection');
+assert.equal(selected.type, 'items');
+assert.equal(selected.data.instanceId, 'med_live_1');
+assert.equal(selected.data.definitionId, 'hp_generic_pocket_recovery_patch');
+
+assert.equal(menu.syncSpellMenuVisibility(), false, 'fighter must be treated as non-caster');
+assert.equal(spellButton.hidden, true, 'non-caster must not see the Spells command');
+assert.equal(spellButton.disabled, true, 'hidden Spells command must not be clickable');
+
+globalThis.combatData['player:p1'].classes = [{ classId: 'wizard', levels: 10 }];
+assert.equal(menu.syncSpellMenuVisibility(), true, 'wizard must be treated as caster');
+assert.equal(spellButton.hidden, false, 'caster must see the Spells command');
+assert.equal(spellButton.disabled, false, 'caster Spells command must be clickable');
+
+await import('../js/battle-viewer-runtime-073-timeline.js');
+const timeline = globalThis.LuminousBattleViewerTimeline073;
+assert.ok(timeline?.genericItemEffect, 'timeline must expose canonical item resolution for smoke coverage');
+
+const liveItem = globalThis.combatData['player:p1'].inventario_activo.med_live_1;
+const plannedCopy = JSON.parse(JSON.stringify(liveItem));
+plannedCopy.quantity = 99;
+let runtimeReceived = null;
+globalThis.LuminousItemRuntime.useItem = (actor, item, options) => {
+  runtimeReceived = { actor, item, options };
+  item.quantity = Math.max(0, Number(item.quantity || 0) - 1);
+  return { used: true, consumed: true, consumption: { before: 2, after: 1, amount: 1 } };
+};
+
+const resolved = timeline.genericItemEffect({
+  actor: globalThis.combatData['player:p1'],
+  targets: [globalThis.combatData['player:p1']],
+  effect: { item: plannedCopy, plan: { type: 'items' } },
+});
+assert.equal(resolved.handled, true);
+assert.equal(runtimeReceived.item, liveItem, 'Combat resolution must pass the live Active Inventory instance to LuminousItemRuntime');
+assert.equal(liveItem.quantity, 1, 'live Active Inventory quantity must be consumed');
+assert.equal(plannedCopy.quantity, 99, 'the detached plan copy must never be consumed');
+
+console.log('combat v0.7.3 player menu/inventory click smoke: ok');
