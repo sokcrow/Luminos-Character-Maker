@@ -418,6 +418,10 @@
       processingMethod: normalizeId(item?.processingMethod),
       quality: normalizeId(item?.quality || "standard"),
       productionValueAhn: Number(item?.productionValueAhn ?? item?.unitProductionValueAhn ?? 0) || 0,
+      sourceInstanceId: clean(item?.sourceInstanceId || item?.instanceId),
+      taste: Number.isFinite(Number(item?.taste)) ? Number(item.taste) : null,
+      culinaryProperties: clone(Array.isArray(item?.culinaryProperties) ? item.culinaryProperties : []),
+      provenance: clone(Array.isArray(item?.provenance) ? item.provenance : []),
       tags
     });
   }
@@ -447,9 +451,11 @@
     return [...groups.values()];
   }
 
-  function resolveProcessingRecipe(recipe, items, root) {
+  function resolveProcessingRecipe(recipe, items, root, options) {
     const host = root || global;
+    const opts = options || {};
     const engine = host.LuminousItemProcessingEngine || global.LuminousItemProcessingEngine;
+    const equipmentEngine = host.LuminousCookingEquipmentEngine || global.LuminousCookingEquipmentEngine;
     if (!engine || typeof engine.resolveProcessingBatch !== "function") {
       return { valid: false, reason: "processing_engine_unavailable", recipe };
     }
@@ -471,6 +477,45 @@
       };
     }
 
+    const methodSpec = engine.METHODS?.[normalizeId(result.methodId || recipe.methodId)] || null;
+    let equipmentEvaluation = null;
+    if (equipmentEngine && typeof equipmentEngine.evaluate === "function" && methodSpec) {
+      const availableToolIds = (opts.toolItems || [])
+        .flatMap((item) => [...itemIdentity(item)])
+        .filter(Boolean);
+      equipmentEvaluation = equipmentEngine.evaluate(
+        { method: methodSpec.cookingMethod || methodSpec.id },
+        opts.unit || {},
+        {
+          availableToolIds,
+          availableStationIds: opts.availableStationIds || []
+        }
+      );
+    }
+
+    if (opts.enforceEquipment === true) {
+      if (!equipmentEngine || typeof equipmentEngine.evaluate !== "function" || !methodSpec) {
+        return {
+          valid: false,
+          reason: "processing_equipment_engine_unavailable",
+          recipe,
+          processing: result,
+          equipment: equipmentEvaluation
+        };
+      }
+      if (!equipmentEvaluation?.hasRequiredTool || !equipmentEvaluation?.hasRequiredStation) {
+        return {
+          valid: false,
+          reason: "missing_processing_equipment",
+          recipe,
+          processing: result,
+          equipment: equipmentEvaluation,
+          missingToolIds: equipmentEvaluation?.missingToolIds || [],
+          missingStationIds: equipmentEvaluation?.missingStationIds || []
+        };
+      }
+    }
+
     const consumedUnits = (result.consumption?.allocations || [])
       .reduce((sum, row) => sum + Number(row.units || 0), 0);
     const totalSelectedUnits = selected.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
@@ -479,6 +524,7 @@
       reason: consumedUnits === totalSelectedUnits ? null : "extra_recipe_inputs",
       recipe,
       processing: result,
+      equipment: equipmentEvaluation,
       processingInputs: clone(selected),
       processingSourceInputs: clone(originalSelected),
       consumedUnits,
@@ -503,7 +549,7 @@
     if (adapted.recipeKind === "cooking") {
       result = resolveCookingRecipe(adapted, selected, root, opts);
     } else if (adapted.recipeKind === "processing") {
-      result = resolveProcessingRecipe(adapted, selected, root);
+      result = resolveProcessingRecipe(adapted, selected, root, opts);
     } else {
       const sourceInputs = selected.map((item) => Object.assign({}, clone(item), {
         id: item.id || item.definitionId || item.canonicalId || item.itemId || normalizeId(item.name || item.nombre),
