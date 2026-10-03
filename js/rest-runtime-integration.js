@@ -94,10 +94,18 @@
     if (!db || !playerId) return null;
     const updates = { restResources: clone(character.restResources || {}) };
     if (options.includeHp !== false) {
-      if (character.combatStats && Object.prototype.hasOwnProperty.call(character.combatStats, "hp_actual")) updates["combatStats/hp_actual"] = character.combatStats.hp_actual;
-      else if (Object.prototype.hasOwnProperty.call(character, "currentHp")) updates.currentHp = character.currentHp;
-      else if (Object.prototype.hasOwnProperty.call(character, "hp_actual")) updates.hp_actual = character.hp_actual;
-      else if (Object.prototype.hasOwnProperty.call(character, "hp")) updates.hp = character.hp;
+      const hpCandidates = [character.hp, character.hp_actual, character.currentHp, character.currentHP, character.combatStats?.hp_actual];
+      const hp = hpCandidates.find((value) => Number.isFinite(Number(value)));
+      const maxCandidates = [character.hp_max, character.maxHp, character.maxHP, character.combatStats?.hp_max];
+      const hpMax = maxCandidates.find((value) => Number.isFinite(Number(value)));
+      if (hp !== undefined) {
+        updates.hp = Number(hp);
+        updates["combatStats/hp_actual"] = Number(hp);
+      }
+      if (hpMax !== undefined) {
+        updates.hp_max = Math.max(0, Number(hpMax));
+        updates["combatStats/hp_max"] = Math.max(0, Number(hpMax));
+      }
     }
     const promise = db.ref(`${PLAYER_ROOT}/${playerId}`).update(updates);
     promise?.catch?.((error) => console.warn("Rest Runtime persistence:", error));
