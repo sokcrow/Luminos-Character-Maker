@@ -176,7 +176,11 @@
 
   function classEntries(unit = playerUnit() || {}) {
     const build = unit?.characterBuild && typeof unit.characterBuild === "object" ? unit.characterBuild : {};
-    const raw = Array.isArray(unit.classes) ? unit.classes : (Array.isArray(build.classes) ? build.classes : []);
+    let raw = Array.isArray(unit.classes) ? unit.classes : (Array.isArray(build.classes) ? build.classes : []);
+    if (!raw.length) {
+      const levels = unit.classLevels || build.classLevels || {};
+      raw = Object.entries(levels || {}).map(([classId, value]) => typeof value === "object" ? { classId, ...value } : { classId, levels: value });
+    }
     return raw.map((entry) => ({
       classId: normalizeId(entry?.classId || entry?.id || entry?.name),
       levels: Math.max(0, Number.parseInt(entry?.levels ?? entry?.level ?? entry?.classLevel ?? 0, 10) || 0),
