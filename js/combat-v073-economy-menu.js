@@ -325,6 +325,8 @@
       '[data-category="spells"]',
       '[data-action="spells"]',
       '[data-command="spells"]',
+      'img[src*="Spells.png"]',
+      'img[src*="spells.png"]',
       '#command-ring button',
       '.command-ring button',
       '.command-option',
@@ -332,7 +334,15 @@
     ];
     const nodes = new Set();
     selectors.forEach((selector) => {
-      try { global.document.querySelectorAll(selector).forEach((node) => nodes.add(node)); } catch (_) {}
+      try {
+        global.document.querySelectorAll(selector).forEach((node) => {
+          const isImage = normalizeId(node?.tagName) === "img";
+          const candidate = isImage
+            ? (node.closest?.('button,[data-menu],[data-category],[data-action],[data-command],.command-option,.menu-option') || node.parentElement || node)
+            : node;
+          nodes.add(candidate);
+        });
+      } catch (_) {}
     });
     return [...nodes].filter((node) => {
       const data = node?.dataset || {};
