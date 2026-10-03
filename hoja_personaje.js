@@ -3479,6 +3479,13 @@ function initializeCharacterSheet() {
       } else if (typeof db !== "undefined") {
         // Interceptar la actualización de XP para calcular nivel y barras de progreso
         if (attrName === "xp" && typeof calculateLevelData === "function") {
+          const xpGate = await window.LuminousPlayerVitalsHud?.outOfCombatWriteGate?.(db, playerId);
+          if (xpGate && xpGate.allowed === false) {
+            console.warn("[Player Vitals] XP/level edit blocked while Player is deployed in Combat.", xpGate);
+            window.alert?.("XP EDIT BLOCKED // El Player sigue desplegado en Combat. Termina o retíralo del encounter antes de cambiar XP/nivel.");
+            renderCharacterSheet?.(currentPlayerData);
+            return;
+          }
           const xpData = calculateLevelData(val);
 
           const hpBase =
