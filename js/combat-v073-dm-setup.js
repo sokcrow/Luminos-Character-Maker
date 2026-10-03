@@ -23,7 +23,9 @@
     subs: [],
     mounted: false,
     started: false,
-    seedAttempted: false
+    seedAttempted: false,
+    repairTimer: null,
+    lastRepairDigest: ''
   };
 
   function adapter() { return global.LuminousCombatLiveAdapter073 || null; }
@@ -382,6 +384,63 @@
     }
   }
 
+  function planningPhase() {
+    const phase = clean(adapterState()?.combatState).toLowerCase().replace(/[\s-]+/g, '_');
+    return !['combat','combat_sealed','running','sealed','combat_running','combat_resolution'].includes(phase);
+  }
+
+  function canonicalPlayerId(unit = {}) {
+    return clean(unit.canonicalPlayerKey || unit.ownerPlayerId || unit.playerId || unit.characterLink?.playerId);
+  }
+
+  function syncFieldsFromBuiltPlayer(current = {}, built = {}) {
+    const fields = [
+      'skillIds','skillSlotIds','equippedSkillIndex',
+      'characterBuild','classes','classLevels',
+      'spellIds','spellSelections','knownSpellIds','preparedSpellIds',
+      'traitDefinitions','combatTraits','actionTraits','traits','classTraits','archetypeTraits','features',
+      'inventario_activo','inventario_stash','itemInventorySchemaVersion','itemEquipmentRefs','attunedItemInstanceIds'
+    ];
+    const patch = {};
+    fields.forEach((key) => {
+      if (built[key] === undefined) return;
+      if (JSON.stringify(current[key]) !== JSON.stringify(built[key])) patch[key] = clone(built[key]);
+    });
+    return patch;
+  }
+
+  async function repairDeployedPlayerState() {
+    if (!state.db?.ref || !isDm() || !planningPhase()) return false;
+    const updates = {};
+    Object.entries(state.combatants || {}).forEach(([combatantKey, current]) => {
+      if (!isPlayerUnit(current || {})) return;
+      const playerId = canonicalPlayerId(current);
+      const player = state.players?.[playerId];
+      if (!playerId || !player) return;
+      const built = buildPlayer(playerId, player);
+      const patch = syncFieldsFromBuiltPlayer(current, built);
+      Object.entries(patch).forEach(([key, value]) => {
+        updates[`${ROOTS.combatants}/${combatantKey}/${key}`] = value;
+      });
+    });
+    const digest = JSON.stringify(Object.entries(updates).sort(([a],[b]) => a.localeCompare(b)));
+    if (!Object.keys(updates).length || digest === state.lastRepairDigest) return false;
+    state.lastRepairDigest = digest;
+    await state.db.ref().update(updates);
+    return true;
+  }
+
+  function schedulePlayerStateRepair() {
+    if (state.repairTimer || !state.started) return;
+    state.repairTimer = global.setTimeout(() => {
+      state.repairTimer = null;
+      repairDeployedPlayerState().catch((error) => {
+        state.lastRepairDigest = '';
+        global.console?.error?.('[Combat073 DM Setup player-state repair]', error);
+      });
+    }, 40);
+  }
+
   function mount() {
     if (state.mounted || !isDm() || !global.document?.body) return false;
     state.mounted = true;
@@ -421,7 +480,11 @@
 
   function subscribe(path, key) {
     const ref = state.db.ref(path);
-    const handler = (snapshot) => { state[key] = snapshot.val() || {}; render(); };
+    const handler = (snapshot) => {
+      state[key] = snapshot.val() || {};
+      render();
+      if (key === 'players' || key === 'actors' || key === 'units' || key === 'combatants') schedulePlayerStateRepair();
+    };
     ref.on('value', handler);
     state.subs.push(() => ref.off('value', handler));
   }
@@ -442,6 +505,9 @@
 
   function stop() {
     state.subs.splice(0).forEach((unsubscribe) => { try { unsubscribe(); } catch (_) {} });
+    if (state.repairTimer) global.clearTimeout?.(state.repairTimer);
+    state.repairTimer = null;
+    state.lastRepairDigest = '';
     state.started = false;
   }
 
@@ -452,7 +518,7 @@
   }, 250);
   global.addEventListener('beforeunload', stop, { once: true });
   global.LuminousCombatDmSetup073 = Object.freeze({
-    version: '0.7.3-dm-setup.2',
+    version: '0.7.3-dm-setup.3-player-state',
     state,
     start,
     mount,
@@ -463,6 +529,8 @@
     removeCombatant,
     clearEncounter,
     ensureLibraryMaterialized,
+    repairDeployedPlayerState,
+    schedulePlayerStateRepair,
     resolvePlayerUnit,
     actorForPlayer
   });
