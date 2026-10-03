@@ -95,7 +95,6 @@
 
     if (vital.hp != null) {
       updates[`${base}/hp`] = vital.hp;
-      updates[`${base}/hp_actual`] = vital.hp;
       updates[`${base}/combatStats/hp_actual`] = vital.hp;
     }
     if (vital.maxHp != null) {
@@ -104,7 +103,6 @@
     }
     if (vital.sp != null) {
       updates[`${base}/sp`] = vital.sp;
-      updates[`${base}/sp_actual`] = vital.sp;
       updates[`${base}/combatStats/sp_actual`] = vital.sp;
     }
     return updates;
