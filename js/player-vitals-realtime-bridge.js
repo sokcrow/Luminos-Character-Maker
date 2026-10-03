@@ -7,10 +7,11 @@
 })(typeof window !== "undefined" ? window : globalThis, function (global) {
   "use strict";
 
-  const VERSION = "1.0.0";
+  const VERSION = "1.0.1";
   const ROOTS = Object.freeze({
     players: "campaña/jugadores",
     combatants: "campaña/combate/combatants",
+    state: "campaña/combate/estado",
   });
 
   const state = {
@@ -18,6 +19,9 @@
     db: null,
     combatantsRef: null,
     combatantsHandler: null,
+    stateRef: null,
+    stateHandler: null,
+    combatPhase: "",
     retryTimer: null,
     lastDigest: "",
   };
@@ -122,6 +126,23 @@
     return JSON.stringify(Object.entries(updates).sort(([a], [b]) => a.localeCompare(b)));
   }
 
+  function normalizePhase(value) {
+    const raw = value && typeof value === "object"
+      ? value.phase ?? value.state ?? value.status ?? ""
+      : value;
+    return clean(raw).toLowerCase().replace(/[\s-]+/g, "_");
+  }
+
+  function isActiveCombatPhase(value) {
+    const phase = normalizePhase(value);
+    return phase === "combat"
+      || phase === "combat_sealed"
+      || phase === "running"
+      || phase === "sealed"
+      || phase === "combat_running"
+      || phase === "combat_resolution";
+  }
+
   async function syncSnapshot(db, combatants = {}, options = {}) {
     if (!db?.ref) return { synced: false, reason: "DATABASE_REQUIRED", updates: {} };
     const updates = firebaseUpdatesForSnapshot(combatants);
@@ -135,6 +156,13 @@
     await db.ref().update(updates);
     state.lastDigest = digest;
     return { synced: true, reason: null, updates };
+  }
+
+  async function syncActiveSnapshot(db, combatants = {}, phase = state.combatPhase, options = {}) {
+    if (!isActiveCombatPhase(phase)) {
+      return { synced: false, reason: "INACTIVE_COMBAT_PHASE", updates: {} };
+    }
+    return syncSnapshot(db, combatants, options);
   }
 
   function currentDatabase() {
@@ -153,7 +181,7 @@
   }
 
   function bind() {
-    if (state.combatantsRef) return true;
+    if (state.combatantsRef && state.stateRef) return true;
     const role = clean(adapterState()?.role).toLowerCase();
     if (role && role !== "dm") return true;
     if (!isDmAuthority()) return false;
@@ -161,15 +189,29 @@
     if (!db?.ref) return false;
 
     state.db = db;
-    const ref = db.ref(ROOTS.combatants);
-    const handler = (snapshot) => {
-      syncSnapshot(db, snapshot.val() || {}).catch((error) => {
-        global.console?.error?.("[Player Vitals Bridge]", error);
-      });
-    };
-    ref.on("value", handler, (error) => global.console?.error?.("[Player Vitals Bridge subscribe]", error));
-    state.combatantsRef = ref;
-    state.combatantsHandler = handler;
+
+    if (!state.stateRef) {
+      const stateRef = db.ref(ROOTS.state);
+      const stateHandler = (snapshot) => {
+        state.combatPhase = normalizePhase(snapshot.val());
+      };
+      stateRef.on("value", stateHandler, (error) => global.console?.error?.("[Player Vitals Bridge state]", error));
+      state.stateRef = stateRef;
+      state.stateHandler = stateHandler;
+    }
+
+    if (!state.combatantsRef) {
+      const ref = db.ref(ROOTS.combatants);
+      const handler = (snapshot) => {
+        const phase = state.combatPhase || normalizePhase(adapterState()?.combatState);
+        syncActiveSnapshot(db, snapshot.val() || {}, phase).catch((error) => {
+          global.console?.error?.("[Player Vitals Bridge]", error);
+        });
+      };
+      ref.on("value", handler, (error) => global.console?.error?.("[Player Vitals Bridge subscribe]", error));
+      state.combatantsRef = ref;
+      state.combatantsHandler = handler;
+    }
     return true;
   }
 
@@ -195,8 +237,14 @@
     if (state.combatantsRef && state.combatantsHandler) {
       try { state.combatantsRef.off("value", state.combatantsHandler); } catch (_) {}
     }
+    if (state.stateRef && state.stateHandler) {
+      try { state.stateRef.off("value", state.stateHandler); } catch (_) {}
+    }
     state.combatantsRef = null;
     state.combatantsHandler = null;
+    state.stateRef = null;
+    state.stateHandler = null;
+    state.combatPhase = "";
     state.db = null;
     state.lastDigest = "";
     return true;
@@ -212,7 +260,10 @@
     updatesForVital,
     firebaseUpdatesForSnapshot,
     digestUpdates,
+    normalizePhase,
+    isActiveCombatPhase,
     syncSnapshot,
+    syncActiveSnapshot,
     bind,
     start,
     stop,
