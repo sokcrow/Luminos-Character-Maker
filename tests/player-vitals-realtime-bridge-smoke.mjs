@@ -84,6 +84,20 @@ assert.equal(unchanged.synced, false);
 assert.equal(unchanged.reason, "UNCHANGED");
 assert.equal(writes.length, 1, "unchanged combat snapshots should not spam Player writes");
 
+assert.equal(bridge.normalizePhase({ phase: "PRE COMBAT PLANNING" }), "pre_combat_planning");
+assert.equal(bridge.isActiveCombatPhase("PRE_COMBAT_PLANNING"), false);
+assert.equal(bridge.isActiveCombatPhase({ phase: "COMBAT" }), true);
+assert.equal(bridge.isActiveCombatPhase({ phase: "COMBAT_SEALED" }), true);
+
+const staleRoster = await bridge.syncActiveSnapshot(db, combatants, "PRE_COMBAT_PLANNING", { force: true });
+assert.equal(staleRoster.synced, false, "stored roster must not overwrite Player vitals outside an active Combat phase");
+assert.equal(staleRoster.reason, "INACTIVE_COMBAT_PHASE");
+assert.equal(writes.length, 1, "inactive roster reads must not produce Firebase writes");
+
+const activeRoster = await bridge.syncActiveSnapshot(db, combatants, "COMBAT", { force: true });
+assert.equal(activeRoster.synced, true, "active Combat roster mutations must mirror into Player vitals");
+assert.equal(writes.length, 2);
+
 assert.deepEqual(
   hud.resolveVitals({
     hp: 99,
