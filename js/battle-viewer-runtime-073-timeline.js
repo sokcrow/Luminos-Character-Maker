@@ -179,28 +179,45 @@
     });
   }
 
+  function inventoryEntries(container) {
+    if (Array.isArray(container)) return container.map((item, index) => [String(index), item]);
+    return container && typeof container === "object" ? Object.entries(container) : [];
+  }
+
+  function activeInventoryItem(actor = {}, plannedItem = {}) {
+    const instanceId = String(plannedItem.instanceId || plannedItem.instance_id || plannedItem.itemInstanceId || plannedItem.item_instance_id || plannedItem.itemId || "").trim();
+    const definitionId = String(plannedItem.definitionId || plannedItem.definition_id || plannedItem.canonicalId || (!instanceId ? plannedItem.id : "") || "").trim();
+    const rows = inventoryEntries(actor.inventario_activo || {});
+    if (instanceId) {
+      const exact = rows.find(([key, item]) => {
+        const ids = [key, item?.instanceId, item?.instance_id, item?.itemId, item?.item_id].map((value) => String(value || "").trim()).filter(Boolean);
+        return ids.includes(instanceId);
+      });
+      return exact?.[1] || null;
+    }
+    if (!definitionId) return null;
+    const matches = rows.filter(([, item]) => {
+      const ids = [item?.definitionId, item?.definition_id, item?.canonicalId, item?.id].map((value) => String(value || "").trim()).filter(Boolean);
+      return ids.includes(definitionId);
+    });
+    return matches.length === 1 ? matches[0][1] : null;
+  }
+
   function genericItemEffect({ actor, targets, effect }) {
-    const item = effect?.item || {}, target = targets?.[0] || actor, itemType = normalizeId(item.itemType || item.type);
-    const consume = viewerFunction("consumeItem"), apply = viewerFunction("applyItemEffect");
-    if (consume && apply) {
-      if (!consume(item)) return { handled: false, reason: "item_depleted" };
-      return { handled: true, result: apply(item, target?.id || actor?.id, actor?.id, effect.plan || null) };
-    }
-    if (Number.isFinite(Number(item.quantity))) {
-      if (Number(item.quantity) <= 0) return { handled: false, reason: "item_depleted" };
-      item.quantity = Math.max(0, Number(item.quantity) - 1);
-    }
-    const amount = Math.max(0, numberOr(item.effectAmount ?? item.amount, 0));
-    if (itemType === "hp_healing" && target) {
-      const maxHp = Math.max(numberOr(target.maxHp ?? target.maxHP, target.hp), numberOr(target.hp, 0));
-      const before = numberOr(target.hp, 0); target.hp = Math.min(maxHp, before + amount);
-      return { handled: true, healed: target.hp - before, targetId: target.id || null };
-    }
-    if (itemType === "sp_healing" && target) {
-      const maxSp = numberOr(target.maxSp ?? target.maxSP, 45), before = numberOr(target.sp, 0); target.sp = Math.min(maxSp, before + amount);
-      return { handled: true, healedSp: target.sp - before, targetId: target.id || null };
-    }
-    return { handled: false, reason: "viewer_item_handler_required", itemType };
+    const plannedItem = effect?.item || {}, target = targets?.[0] || actor;
+    const liveItem = activeInventoryItem(actor || {}, plannedItem);
+    if (!liveItem) return { handled: false, reason: "active_inventory_item_missing", instanceId: plannedItem.instanceId || plannedItem.itemId || null };
+    const runtime = global.LuminousItemRuntime;
+    if (!runtime?.useItem) return { handled: false, reason: "item_runtime_unavailable", item: liveItem };
+    const result = runtime.useItem(actor, liveItem, { phase: "combat", target, ignoreActionCost: true });
+    return {
+      handled: result?.used === true,
+      reason: result?.used === true ? null : (result?.reason || "item_use_failed"),
+      result,
+      item: liveItem,
+      instanceId: liveItem.instanceId || liveItem.instance_id || null,
+      targetId: target?.id || null,
+    };
   }
   function viewerEffectHandlers() {
     const hooks = global.LuminousBattleViewerCombatHooks073 || {};
@@ -369,7 +386,7 @@
     ACTIVE_FIELD_CAP, TIMELINE_SPEED_STEP_MS, state, combatData, slotTargets, attackVectors, canOverwriteClash,
     requestClashOverwrite, confirmOverwriteClash, eventValidity, buildEvents, runTimeline, resolveEvent, executeCombatTimeline,
     applyCombatFocus, updateInvisiblePresentation, armReactiveDefenses, clearPreparedDefenses, trackEphemeralShield,
-    claimSharedAction, finishSharedAction, syncCombatPhase, ensureStyle, ensureModal,
+    claimSharedAction, finishSharedAction, syncCombatPhase, inventoryEntries, activeInventoryItem, genericItemEffect, ensureStyle, ensureModal,
   });
   global.LuminousBattleViewerTimeline073 = api;
   ensureStyle(); ensureModal();
