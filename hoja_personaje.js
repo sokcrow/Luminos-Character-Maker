@@ -4106,6 +4106,7 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
   let forjaInitialized = false;
   let forjaResolutionInitialized = false;
   let refreshForjaMesaCrafteo = null;
+  let forjaCookingStationsGlobal = [];
   const getForjaPlayerData = () => window.datosJugador || {};
 
   function initForja() {
@@ -4123,36 +4124,50 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
       let mesaCrafteoGlobal = false;
       let targetSlot = null;
 
-      // Refrescar bajo demanda: no dejamos un listener Firebase vivo cuando Synthesis está cerrado.
-      refreshForjaMesaCrafteo = () => db.ref("campaña/estado_mundo/mesa_crafteo_activa").once("value").then((snap) => {
-          mesaCrafteoGlobal = !!snap.val();
+      // Refrescar bajo demanda: no dejamos listeners Firebase vivos cuando Synthesis está cerrado.
+      // Cooking Stations son estado mundial autorizado por el Director.
+      refreshForjaMesaCrafteo = () => Promise.all([
+          db.ref("campaña/estado_mundo/mesa_crafteo_activa").once("value"),
+          db.ref("campaña/estado_mundo/cooking_stations").once("value")
+      ]).then(([mesaSnap, stationsSnap]) => {
+          mesaCrafteoGlobal = !!mesaSnap.val();
+          const stationState = stationsSnap.val() || {};
+          forjaCookingStationsGlobal = Object.entries(stationState)
+              .filter(([, enabled]) => enabled === true)
+              .map(([stationId]) => stationId);
           updateForjaSlotsVisuals();
+
+          const stationContext = document.getElementById("forja-station-context");
+          if (stationContext) {
+              stationContext.textContent = forjaCookingStationsGlobal.length
+                  ? `Station autorizada: ${forjaCookingStationsGlobal.join(" / ")}`
+                  : "Station autorizada: ninguna";
+              stationContext.style.color = forjaCookingStationsGlobal.length ? "#0df" : "#888";
+          }
       }).catch(() => {
           mesaCrafteoGlobal = false;
+          forjaCookingStationsGlobal = [];
           updateForjaSlotsVisuals();
       });
 
-      function tieneToolkit() {
-          let hasToolkit = false;
-          // Buscar toolkit en activo
-          if (getForjaPlayerData().inventario_activo) {
-              Object.values(getForjaPlayerData().inventario_activo).forEach(item => {
-                  if (item.tags && item.tags.includes("toolkit")) hasToolkit = true;
-                  if (item.keywords && item.keywords.includes("toolkit")) hasToolkit = true;
-              });
-          }
-          // Buscar toolkit en stash
-          if (getForjaPlayerData().inventario_stash) {
-              Object.values(getForjaPlayerData().inventario_stash).forEach(item => {
-                  if (item.tags && item.tags.includes("toolkit")) hasToolkit = true;
-                  if (item.keywords && item.keywords.includes("toolkit")) hasToolkit = true;
-              });
-          }
-          return hasToolkit;
+      function tieneHerramientaCanonicaSintesis() {
+          const registry = window.LuminousItemContentRegistry;
+          if (!registry?.isSynthesisSlotUnlockTool) return false;
+
+          const inventories = [
+              getForjaPlayerData().inventario_activo || {},
+              getForjaPlayerData().inventario_stash || {}
+          ];
+
+          return inventories.some(inventory =>
+              Object.values(inventory).some(item =>
+                  registry.isSynthesisSlotUnlockTool(item, window)
+              )
+          );
       }
 
       function updateForjaSlotsVisuals() {
-          const unlocked4_5 = mesaCrafteoGlobal || tieneToolkit();
+          const unlocked4_5 = mesaCrafteoGlobal || tieneHerramientaCanonicaSintesis();
 
           [4, 5].forEach(slotNum => {
               const el = document.querySelector(`.synth-slot[data-slot="${slotNum}"]`);
@@ -4307,221 +4322,297 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
       const btnIniciar = document.querySelector(".btn-synth-action");
       const btnForecast = document.querySelector(".btn-forecast");
       const probValueEl = document.querySelector(".prob-value");
+      const contentRegistry = window.LuminousItemContentRegistry;
+      const recipeSelect = document.getElementById("forja-recipe-select");
+      const stationContextEl = document.getElementById("forja-station-context");
+      const toolRequirementEl = document.getElementById("forja-tool-requirement");
 
-      btnForecast.addEventListener("click", () => {
-          // 1. Recolectar ingredientes actuales en los slots
-          let ingredientesInput = {};
-          let totalSlotsUsed = 0;
+      if (!btnIniciar || !btnForecast || !probValueEl || !recipeSelect) return;
 
+      function selectedSynthesisItems() {
+          const rows = [];
           [1,2,3,4,5].forEach(slotNum => {
-              if (window.forjaSlots[slotNum]) {
-                  let id = window.forjaSlots[slotNum].data.nombre;
-                  ingredientesInput[id] = (ingredientesInput[id] || 0) + 1;
-                  totalSlotsUsed++;
-              }
+              const slot = window.forjaSlots?.[slotNum];
+              if (!slot?.data) return;
+              rows.push({
+                  ...slot.data,
+                  __selectedUnits: 1,
+                  __forjaSlot: slotNum,
+                  __forjaInventoryKey: slot.key,
+                  __forjaInventoryType: slot.inventarioTipo
+              });
+          });
+          return rows;
+      }
+
+      function availableToolItems() {
+          const player = getForjaPlayerData();
+          return [
+              ...Object.values(player.inventario_activo || {}),
+              ...Object.values(player.inventario_stash || {})
+          ].filter(Boolean);
+      }
+
+      function authoritativeCookingStationIds() {
+          // Only Director-managed world state is authoritative for cooking stations.
+          return Array.from(new Set(
+              forjaCookingStationsGlobal
+                  .map(value => String(value || "").trim())
+                  .filter(Boolean)
+          ));
+      }
+
+      function renderStationContext(stationIds = authoritativeCookingStationIds()) {
+          if (!stationContextEl) return;
+          stationContextEl.textContent = stationIds.length
+              ? `Station autorizada: ${stationIds.join(" / ")}`
+              : "Station autorizada: ninguna";
+          stationContextEl.style.color = stationIds.length ? "#0df" : "#888";
+      }
+      renderStationContext();
+
+      function recipeDisplayName(entry) {
+          const recipe = entry?.recipe || {};
+          const base = recipe.name || recipe.label || recipe.id || "Recipe";
+          const method = recipe.method || recipe.methodId || recipe.semanticCheck || "";
+          return method ? `${base} · ${method}` : base;
+      }
+
+      function populateRecipeChoices(matches) {
+          const previous = recipeSelect.value;
+          recipeSelect.innerHTML = "";
+
+          if (!matches.length) {
+              recipeSelect.innerHTML = '<option value="">Sin Recipes disponibles para estos ingredientes</option>';
+              recipeSelect.value = "";
+              return;
+          }
+
+          if (matches.length > 1) {
+              const placeholder = document.createElement("option");
+              placeholder.value = "";
+              placeholder.textContent = `Selecciona una Recipe (${matches.length} compatibles)...`;
+              recipeSelect.appendChild(placeholder);
+          }
+
+          matches.forEach(entry => {
+              const option = document.createElement("option");
+              option.value = entry.recipeKey;
+              option.textContent = recipeDisplayName(entry);
+              recipeSelect.appendChild(option);
           });
 
-          if (totalSlotsUsed === 0) {
+          const canRestore = matches.some(entry => entry.recipeKey === previous);
+          if (canRestore) {
+              recipeSelect.value = previous;
+          } else if (matches.length === 1) {
+              recipeSelect.value = matches[0].recipeKey;
+          } else {
+              recipeSelect.value = "";
+          }
+      }
+
+      function updateToolRequirement(match) {
+          if (!toolRequirementEl) return;
+          if (!match) {
+              toolRequirementEl.textContent = "";
+              toolRequirementEl.style.color = "#aaa";
+              return;
+          }
+
+          const parts = [];
+          const required = contentRegistry?.requiredToolType?.(match.recipe) || "";
+          if (required) parts.push(`Tool: ${required}`);
+
+          const equipment = match.resolution?.equipment;
+          if (equipment?.profile?.requiredToolIds?.length) {
+              parts.push(`Tool: ${equipment.profile.requiredToolIds.join(" / ")}`);
+          }
+          if (equipment?.profile?.requiredStationIds?.length) {
+              parts.push(`Station: ${equipment.profile.requiredStationIds.join(" / ")}`);
+          }
+
+          toolRequirementEl.textContent = parts.length ? Array.from(new Set(parts)).join(" · ") : "Sin equipo obligatorio";
+          toolRequirementEl.style.color = parts.length ? "#0df" : "#888";
+      }
+
+      function resolveCanonicalSynthesis(options = {}) {
+          if (!contentRegistry?.findMatchingRecipes) return null;
+          const items = selectedSynthesisItems();
+          if (!items.length) return null;
+
+          const toolItems = availableToolItems();
+          const unit = getForjaPlayerData();
+          const availableStationIds = authoritativeCookingStationIds(unit);
+          renderStationContext(availableStationIds);
+          const allMatches = contentRegistry.findMatchingRecipes(window, items, {
+              toolItems,
+              unit,
+              availableStationIds,
+              enforceTools: false,
+              enforceEquipment: false
+          });
+          const usableMatches = contentRegistry.findMatchingRecipes(window, items, {
+              toolItems,
+              unit,
+              availableStationIds,
+              enforceTools: true,
+              enforceEquipment: true
+          });
+
+          populateRecipeChoices(usableMatches);
+
+          if (!usableMatches.length) {
+              const missingTools = new Set();
+              const missingStations = new Set();
+
+              allMatches.forEach(entry => {
+                  const strict = contentRegistry.resolveRecipe(entry.recipe, items, window, {
+                      toolItems,
+                      unit,
+                      availableStationIds,
+                      enforceTools: true,
+                      enforceEquipment: true
+                  });
+                  const required = contentRegistry.requiredToolType?.(entry.recipe);
+                  if (strict?.reason === "missing_required_tool" && required) missingTools.add(required);
+                  (strict?.missingToolIds || strict?.equipment?.missingToolIds || []).forEach(id => missingTools.add(id));
+                  (strict?.missingStationIds || strict?.equipment?.missingStationIds || []).forEach(id => missingStations.add(id));
+              });
+
+              const missingParts = [];
+              if (missingTools.size) missingParts.push(`Tool: ${[...missingTools].join(" / ")}`);
+              if (missingStations.size) missingParts.push(`Station: ${[...missingStations].join(" / ")}`);
+              if (toolRequirementEl) {
+                  toolRequirementEl.textContent = missingParts.length
+                      ? `Falta ${missingParts.join(" · ")}`
+                      : "Sin Recipe válida";
+                  toolRequirementEl.style.color = "#ff6b6b";
+              }
+              if (options.notify !== false) {
+                  alert(missingParts.length
+                      ? `Tienes los ingredientes, pero falta equipo canónico: ${missingParts.join(" · ")}.`
+                      : "La combinación de materiales es inestable. No se encontró ninguna Recipe canónica.");
+              }
+              return null;
+          }
+
+          if (usableMatches.length === 1) {
+              updateToolRequirement(usableMatches[0]);
+              return usableMatches[0];
+          }
+
+          const selectedKey = recipeSelect.value;
+          const chosen = usableMatches.find(entry => entry.recipeKey === selectedKey) || null;
+          if (!chosen) {
+              if (toolRequirementEl) {
+                  toolRequirementEl.textContent = "Elige una Recipe explícitamente";
+                  toolRequirementEl.style.color = "#c49a00";
+              }
+              if (options.notify !== false) {
+                  alert(`Hay ${usableMatches.length} Recipes compatibles. Selecciona explícitamente cuál quieres sintetizar.`);
+              }
+              return null;
+          }
+
+          updateToolRequirement(chosen);
+          return chosen;
+      }
+
+      recipeSelect.addEventListener("change", () => {
+          const items = selectedSynthesisItems();
+          if (!items.length) return;
+          const toolItems = availableToolItems();
+          const unit = getForjaPlayerData();
+          const matches = contentRegistry?.findMatchingRecipes?.(window, items, {
+              toolItems,
+              unit,
+              availableStationIds: authoritativeCookingStationIds(unit),
+              enforceTools: true,
+              enforceEquipment: true
+          }) || [];
+          updateToolRequirement(matches.find(entry => entry.recipeKey === recipeSelect.value) || null);
+      });
+
+      function synthesisDifficulty(match, includeLabels = false) {
+          const recipe = match?.recipe || {};
+          let dcActual = contentRegistry?.recipeDifficulty
+              ? contentRegistry.recipeDifficulty(recipe, match?.resolution)
+              : Math.max(0, Number(recipe?.baseThreshold ?? recipe?.dificultad_base ?? 18) || 18);
+          const modTexto = [];
+          const activeInventory = getForjaPlayerData().inventario_activo || {};
+
+          Object.values(activeInventory).forEach(item => {
+              const rawKeywords = Array.isArray(item?.keywords)
+                  ? item.keywords
+                  : typeof item?.keywords === "string"
+                    ? item.keywords.split(",").map(value => value.trim())
+                    : [];
+
+              rawKeywords.forEach(kw => {
+                  const synthMatch = String(kw).match(/synth_bonus_(\d+)/i);
+                  if (synthMatch) {
+                      dcActual -= parseInt(synthMatch[1]);
+                      if (includeLabels) modTexto.push(`+${synthMatch[1]} (Synth)`);
+                  }
+                  const craftMatch = String(kw).match(/crafting_up_(\d+)/i);
+                  if (craftMatch) {
+                      dcActual -= parseInt(craftMatch[1]);
+                      if (includeLabels) modTexto.push(`+${craftMatch[1]} (Craft)`);
+                  }
+              });
+          });
+
+          return {
+              dc: Math.max(0, dcActual),
+              labels: modTexto
+          };
+      }
+
+      btnForecast.addEventListener("click", async () => {
+          await refreshForjaMesaCrafteo?.();
+          const selectedItems = selectedSynthesisItems();
+          if (!selectedItems.length) {
               alert("Debes colocar ingredientes en los slots para predecir.");
               probValueEl.innerText = "0%";
               return;
           }
 
-          // 2. Buscar receta
-          db.ref("campaña/forja/recetas").once("value").then(snap => {
-              const recetas = snap.val() || {};
-              let recetaCoincidente = null;
+          const match = resolveCanonicalSynthesis();
+          if (!match) {
+              probValueEl.innerText = "0%";
+              return;
+          }
 
-              for (const recetaId in recetas) {
-                  const receta = recetas[recetaId];
-                  let match = true;
-
-                  let recIng = {};
-                  let totalRecIng = 0;
-                  receta.ingredientes.forEach(ing => {
-                      recIng[ing.id] = ing.cantidad;
-                      totalRecIng += ing.cantidad;
-                  });
-
-                  if (totalSlotsUsed !== totalRecIng) continue;
-
-                  for (let id in ingredientesInput) {
-                      if (ingredientesInput[id] !== recIng[id]) {
-                          match = false;
-                          break;
-                      }
-                  }
-
-                  if (match) {
-                      recetaCoincidente = receta;
-                      break;
-                  }
-              }
-
-              if (!recetaCoincidente) {
-                  alert("La combinación de materiales es inestable. No se encontró ninguna receta.");
-                  probValueEl.innerText = "0%";
-                  return;
-              }
-
-              // 3. Calcular Dificultad Dinámica
-              let dcActual = recetaCoincidente.dificultad_base;
-
-              // Buscar modificadores en el inventario activo (tags/keywords)
-              if (getForjaPlayerData().inventario_activo) {
-                  for (let key in getForjaPlayerData().inventario_activo) {
-                      let item = getForjaPlayerData().inventario_activo[key];
-                      if (item.keywords && Array.isArray(item.keywords)) {
-                          item.keywords.forEach(kw => {
-                              const synthMatch = kw.match(/synth_bonus_(\d+)/i);
-                              if (synthMatch) {
-                                  dcActual -= parseInt(synthMatch[1]);
-                              }
-                              const craftMatch = kw.match(/crafting_up_(\d+)/i);
-                              if (craftMatch) {
-                                  dcActual -= parseInt(craftMatch[1]);
-                              }
-                          });
-                      } else if (typeof item.keywords === 'string') {
-                            const kwList = item.keywords.split(',').map(k => k.trim());
-                            kwList.forEach(kw => {
-                                const synthMatch = kw.match(/synth_bonus_(\d+)/i);
-                                if (synthMatch) {
-                                    dcActual -= parseInt(synthMatch[1]);
-                                }
-                                const craftMatch = kw.match(/crafting_up_(\d+)/i);
-                                if (craftMatch) {
-                                    dcActual -= parseInt(craftMatch[1]);
-                                }
-                            });
-                      }
-                  }
-              }
-
-              if (dcActual < 0) dcActual = 0;
-
-              // Map DC to a visual probability roughly.
-              // Standard Limbus probability or generic DC mapping. (Lower DC is better)
-              // Since it's purely visual info for player, let's map DC to %.
-              let prob = 100 - (dcActual * 5); // Example naive mapping. 20 DC = 0%, 10 DC = 50%
-              if (prob < 0) prob = 0;
-              if (prob > 100) prob = 100;
-
-              probValueEl.innerText = `${prob}% [DC:${dcActual}]`;
-          });
+          const difficulty = synthesisDifficulty(match);
+          let prob = 100 - (difficulty.dc * 5);
+          prob = Math.max(0, Math.min(100, prob));
+          probValueEl.innerText = `${prob}% [DC:${difficulty.dc}] · ${match.recipe.name || match.recipe.label || match.recipe.id}`;
       });
 
-      btnIniciar.addEventListener("click", () => {
-          // 1. Recolectar ingredientes actuales en los slots
-          let ingredientesInput = {};
-          let totalSlotsUsed = 0;
-
-          [1,2,3,4,5].forEach(slotNum => {
-              if (window.forjaSlots[slotNum]) {
-                  let id = window.forjaSlots[slotNum].data.nombre;
-                  ingredientesInput[id] = (ingredientesInput[id] || 0) + 1;
-                  totalSlotsUsed++;
-              }
-          });
-
-          if (totalSlotsUsed === 0) {
+      btnIniciar.addEventListener("click", async () => {
+          await refreshForjaMesaCrafteo?.();
+          const selectedItems = selectedSynthesisItems();
+          if (!selectedItems.length) {
               alert("Debes colocar ingredientes en los slots.");
               return;
           }
 
-          // 2. Buscar receta que coincida EXACTAMENTE
-          db.ref("campaña/forja/recetas").once("value").then(snap => {
-              const recetas = snap.val() || {};
-              let recetaCoincidente = null;
+          const match = resolveCanonicalSynthesis();
+          if (!match) return;
 
-              for (const recetaId in recetas) {
-                  const receta = recetas[recetaId];
-                  let match = true;
+          const difficulty = synthesisDifficulty(match, true);
+          document.getElementById("forja-roll-dc").innerText =
+              difficulty.dc + (difficulty.labels.length > 0 ? ` [${difficulty.labels.join(", ")}]` : "");
+          document.getElementById("forja-roll-input").value = "";
+          document.getElementById("forja-roll-modal").style.display = "flex";
 
-                  // Verificar si requiere mesa y si está activa/tiene toolkit (ya validado por UI, pero por seguridad)
-
-                  // Construir mapa de ingredientes de la receta
-                  let recIng = {};
-                  let totalRecIng = 0;
-                  receta.ingredientes.forEach(ing => {
-                      recIng[ing.id] = ing.cantidad;
-                      totalRecIng += ing.cantidad;
-                  });
-
-                  if (totalSlotsUsed !== totalRecIng) continue;
-
-                  for (let id in ingredientesInput) {
-                      if (ingredientesInput[id] !== recIng[id]) {
-                          match = false;
-                          break;
-                      }
-                  }
-
-                  if (match) {
-                      recetaCoincidente = receta;
-                      break;
-                  }
-              }
-
-              if (!recetaCoincidente) {
-                  alert("La combinación de materiales es inestable. No se encontró ninguna receta.");
-                  return;
-              }
-
-              // 3. Calcular Dificultad Dinámica
-              let dcActual = recetaCoincidente.dificultad_base;
-              let modTexto = [];
-
-              // Buscar modificadores en el inventario activo (tags/keywords)
-              if (getForjaPlayerData().inventario_activo) {
-                  for (let key in getForjaPlayerData().inventario_activo) {
-                      let item = getForjaPlayerData().inventario_activo[key];
-                      if (item.keywords && Array.isArray(item.keywords)) {
-                          item.keywords.forEach(kw => {
-                              const synthMatch = kw.match(/synth_bonus_(\d+)/i);
-                              if (synthMatch) {
-                                  dcActual -= parseInt(synthMatch[1]);
-                                  modTexto.push(`+${synthMatch[1]} (Synth)`);
-                              }
-                              const craftMatch = kw.match(/crafting_up_(\d+)/i);
-                              if (craftMatch) {
-                                  dcActual -= parseInt(craftMatch[1]);
-                                  modTexto.push(`+${craftMatch[1]} (Craft)`);
-                              }
-                          });
-                      } else if (typeof item.keywords === 'string') {
-                            const kwList = item.keywords.split(',').map(k => k.trim());
-                            kwList.forEach(kw => {
-                                const synthMatch = kw.match(/synth_bonus_(\d+)/i);
-                                if (synthMatch) {
-                                    dcActual -= parseInt(synthMatch[1]);
-                                    modTexto.push(`+${synthMatch[1]} (Synth)`);
-                                }
-                                const craftMatch = kw.match(/crafting_up_(\d+)/i);
-                                if (craftMatch) {
-                                    dcActual -= parseInt(craftMatch[1]);
-                                    modTexto.push(`+${craftMatch[1]} (Craft)`);
-                                }
-                            });
-                      }
-                  }
-              }
-
-              // Asegurar DC no sea negativa extrema
-              if (dcActual < 0) dcActual = 0;
-
-              // 4. Lanzar Modal
-              document.getElementById("forja-roll-dc").innerText = dcActual + (modTexto.length > 0 ? ` [${modTexto.join(", ")}]` : "");
-              document.getElementById("forja-roll-input").value = "";
-              document.getElementById("forja-roll-modal").style.display = "flex";
-
-              // Handlers for modal
-              window.currentForjaAttempt = {
-                  receta: recetaCoincidente,
-                  dc: dcActual,
-                  slots: window.forjaSlots // copy current state
-              };
-          });
+          window.currentForjaAttempt = {
+              receta: match.recipe,
+              resolution: match.resolution,
+              dc: difficulty.dc,
+              slots: { ...window.forjaSlots }
+          };
       });
 
       document.getElementById("btn-forja-cancel").addEventListener("click", () => {
@@ -4529,106 +4620,148 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
           window.currentForjaAttempt = null;
       });
 
-      document.getElementById("btn-forja-confirm").addEventListener("click", () => {
+      document.getElementById("btn-forja-confirm").addEventListener("click", async () => {
           const tirada = parseInt(document.getElementById("forja-roll-input").value) || 0;
           const attempt = window.currentForjaAttempt;
           if (!attempt) return;
 
+          // Claim this attempt synchronously before the first await. A second
+          // click must not be able to capture and submit the same craft.
+          window.currentForjaAttempt = null;
+
+          // Re-authorize world-owned station state at the moment the craft is
+          // committed. A station may have been disabled after the roll modal
+          // was opened, so the stale resolution must never be trusted.
+          await refreshForjaMesaCrafteo?.();
+
+          const currentItems = selectedSynthesisItems();
+          const currentUnit = getForjaPlayerData();
+          const refreshedResolution = contentRegistry?.resolveRecipe?.(
+              attempt.receta,
+              currentItems,
+              window,
+              {
+                  toolItems: availableToolItems(),
+                  unit: currentUnit,
+                  availableStationIds: authoritativeCookingStationIds(),
+                  enforceTools: true,
+                  enforceEquipment: true
+              }
+          );
+
+          if (!refreshedResolution?.valid) {
+              alert("La Recipe ya no está autorizada con el estado actual de Tools/Stations.");
+              document.getElementById("forja-roll-modal").style.display = "none";
+              window.currentForjaAttempt = null;
+              return;
+          }
+
+          attempt.resolution = refreshedResolution;
+          const refreshedDifficulty = synthesisDifficulty({
+              recipe: attempt.receta,
+              resolution: refreshedResolution
+          });
+          attempt.dc = refreshedDifficulty.dc;
+
           document.getElementById("forja-roll-modal").style.display = "none";
-
-          let exito = tirada >= attempt.dc;
-
-          // EJECUTAR TRANSACCIÓN ATÓMICA
-          ejecutarTransaccionForja(attempt, exito);
+          ejecutarTransaccionForja(attempt, tirada >= attempt.dc, tirada);
       });
 
-      function ejecutarTransaccionForja(attempt, exito) {
-          // Para seguridad y atomicidad, debemos hacer un update múltiple en la base de datos del jugador
+      function ejecutarTransaccionForja(attempt, exito, tirada) {
           const playerRef = db.ref(`campaña/jugadores/${pName}`);
 
           playerRef.once("value").then(snap => {
-              const playerData = snap.val();
-              let updates = {};
+              const playerData = snap.val() || {};
+              const updates = {};
               let error = false;
+              const itemsARestarActivo = {};
+              const itemsARestarStash = {};
 
-              // 1. Restar/Consumir ingredientes de los slots
-              // Calculamos qué restar de activo y qué de stash según cómo se seleccionaron
-
-              // Para cada slot que tenga un item
-              let itemsARestarActivo = {}; // key -> cant
-              let itemsARestarStash = {}; // key -> cant
-
-              [1,2,3,4,5].forEach(s => {
-                  if (attempt.slots[s]) {
-                      const slotData = attempt.slots[s];
-                      const key = slotData.key;
-                      const invType = slotData.inventarioTipo;
-                      if (invType === "inventario_activo") {
-                          itemsARestarActivo[key] = (itemsARestarActivo[key] || 0) + 1;
-                      } else {
-                          itemsARestarStash[key] = (itemsARestarStash[key] || 0) + 1;
-                      }
-                  }
+              [1,2,3,4,5].forEach(slotNum => {
+                  const slotData = attempt.slots?.[slotNum];
+                  if (!slotData) return;
+                  const target = slotData.inventarioTipo === "inventario_activo"
+                      ? itemsARestarActivo
+                      : itemsARestarStash;
+                  target[slotData.key] = (target[slotData.key] || 0) + 1;
               });
 
-              // Validar y preparar updates para restar
-              for (let key in itemsARestarActivo) {
-                  let cantActual = playerData.inventario_activo?.[key]?.cantidad || 1; // Si no tiene cantidad, asumimos 1
-                  if (cantActual < itemsARestarActivo[key]) {
-                      error = true; break;
-                  }
-                  if (cantActual === itemsARestarActivo[key]) {
-                      updates[`inventario_activo/${key}`] = null; // Borrar
-                  } else {
-                      updates[`inventario_activo/${key}/cantidad`] = cantActual - itemsARestarActivo[key];
-                  }
-              }
-              for (let key in itemsARestarStash) {
-                  let cantActual = playerData.inventario_stash?.[key]?.cantidad || 1;
-                  if (cantActual < itemsARestarStash[key]) {
-                      error = true; break;
-                  }
-                  if (cantActual === itemsARestarStash[key]) {
-                      updates[`inventario_stash/${key}`] = null; // Borrar
-                  } else {
-                      updates[`inventario_stash/${key}/cantidad`] = cantActual - itemsARestarStash[key];
+              function prepareConsumption(containerName, requested) {
+                  const inventory = playerData[containerName] || {};
+                  for (const [key, amount] of Object.entries(requested)) {
+                      const row = inventory[key];
+                      const current = Number(row?.quantity ?? row?.cantidad ?? 1);
+                      if (!row || current < amount) {
+                          error = true;
+                          return;
+                      }
+                      const next = current - amount;
+                      if (next <= 0) {
+                          updates[`${containerName}/${key}`] = null;
+                      } else {
+                          updates[`${containerName}/${key}/quantity`] = next;
+                          updates[`${containerName}/${key}/cantidad`] = next;
+                      }
                   }
               }
+
+              prepareConsumption("inventario_activo", itemsARestarActivo);
+              if (!error) prepareConsumption("inventario_stash", itemsARestarStash);
 
               if (error) {
                   alert("Error de sincronización de inventario. No se tienen los ítems necesarios.");
-                  // Limpiar slots
                   limpiarSlotsForja();
                   return;
               }
 
-              // Si éxito, buscar el ítem en la base de datos global y agregarlo
               if (exito) {
-                  db.ref(`campaña/items_globales/${attempt.receta.item_resultado}`).once("value").then(itemSnap => {
-                      const itemData = itemSnap.val();
-                      if (itemData) {
-                          // Generar ID único para el nuevo item
-                          const newItemKey = "forjado_" + Date.now();
+                  if (!contentRegistry?.createRecipeOutput) {
+                      alert("El registro canónico de Recipes no está disponible.");
+                      limpiarSlotsForja();
+                      return;
+                  }
 
-                          // Lógica simple: lo ponemos en el inventario activo si hay espacio
-                          itemData.cantidad = 1;
-                          updates[`inventario_activo/${newItemKey}`] = itemData;
+                  const canonicalOutput = contentRegistry.createRecipeOutput(attempt.receta, {
+                      resolution: attempt.resolution,
+                      checkResult: tirada,
+                      unit: playerData
+                  });
+                  if (!canonicalOutput) {
+                      alert("No se pudo construir el resultado canónico de la Recipe.");
+                      limpiarSlotsForja();
+                      return;
+                  }
 
-                          // Commit atómico final
-                          playerRef.update(updates).then(() => {
-                              alert(`¡Síntesis Exitosa! Has creado: ${itemData.nombre}`);
-                              limpiarSlotsForja();
-                          });
-                      } else {
-                          // Item no encontrado en globales
-                          alert("Transmutación exitosa, pero el ítem resultante no existe en los registros globales.");
-                          // Aún así consumimos
-                          playerRef.update(updates);
-                          limpiarSlotsForja();
+                  const outputQuantity = Math.max(1, Number(canonicalOutput.quantity || 1));
+                  let runtimeInstance = canonicalOutput.instanceId ? canonicalOutput : null;
+                  if (!runtimeInstance) {
+                      try {
+                          runtimeInstance = window.LuminousItemInventoryRuntime?.createItemInstance?.(
+                              canonicalOutput,
+                              {
+                                  quantity: outputQuantity,
+                                  qualityTier: canonicalOutput.qualityTier
+                              }
+                          ) || null;
+                      } catch (error) {
+                          console.warn("No se pudo crear instancia runtime de síntesis; usando payload canónico.", error);
                       }
+                  }
+
+                  const itemData = JSON.parse(JSON.stringify({
+                      ...canonicalOutput,
+                      ...(runtimeInstance || {}),
+                      quantity: outputQuantity,
+                      cantidad: outputQuantity
+                  }));
+                  const newItemKey = "forjado_" + Date.now();
+                  updates[`inventario_activo/${newItemKey}`] = itemData;
+
+                  playerRef.update(updates).then(() => {
+                      alert(`¡Síntesis Exitosa! Has creado: ${itemData.nombre || itemData.name}`);
+                      limpiarSlotsForja();
                   });
               } else {
-                  // Fallo, solo consumir
                   playerRef.update(updates).then(() => {
                       alert("Síntesis Fallida. Los materiales se han consumido.");
                       limpiarSlotsForja();
@@ -4639,11 +4772,16 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
 
       function limpiarSlotsForja() {
           window.forjaSlots = {1:null, 2:null, 3:null, 4:null, 5:null};
-          // Re-render
+          recipeSelect.innerHTML = '<option value="">Coloca ingredientes para detectar Recipes...</option>';
+          renderStationContext();
+          if (toolRequirementEl) {
+              toolRequirementEl.textContent = "";
+              toolRequirementEl.style.color = "#aaa";
+          }
           document.querySelectorAll(".synth-slot").forEach(el => {
               if (!el.classList.contains("locked")) {
-                  const inner = el.querySelector('.synth-slot-inner');
-                  if (inner) inner.innerHTML = '';
+                  const inner = el.querySelector(".synth-slot-inner");
+                  if (inner) inner.innerHTML = "";
               }
           });
       }

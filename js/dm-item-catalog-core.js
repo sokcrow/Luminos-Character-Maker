@@ -9,6 +9,7 @@
   const VERSION = 1;
   const DEFAULT_ICON = "Assets/Icons/items/fallback/generic_item.png";
   const CATALOG_NAME_RE = /^Luminous.*(?:Item|Weapon|Armor|Shield|Ammo|Food|Meat|Healing|Medical|Medicinal|Chemical|Material|Component|Tool|Jewelry|Valuable|Ore|Ingot|Gem|Hide|Pelt|Organ|Blood|Ichor|Venom|Ooze|Essence|Plant|Produce|Feather|Upgrade|Throwable|Culinary|Retail|Ranged|Firearm|StatusCure|HardParts|ScaleShellChitin).*Catalog$/;
+  const RECIPE_CATALOG_NAME_RE = /RecipeCatalog$/i;
   const STACK_VARIANT_FIELDS = Object.freeze([
     "stackable", "stackPolicy", "family", "group", "category", "itemType", "quality", "iconFamily", "icon_family",
     "size", "sizeId", "lineageId", "lineageName",
@@ -226,7 +227,7 @@
     const buckets = new Map();
 
     Object.keys(host)
-      .filter((key) => CATALOG_NAME_RE.test(key))
+      .filter((key) => CATALOG_NAME_RE.test(key) && !RECIPE_CATALOG_NAME_RE.test(key))
       .sort()
       .forEach((key) => {
         const api = host[key];
@@ -407,6 +408,8 @@
   const API = Object.freeze({
     VERSION,
     DEFAULT_ICON,
+    CATALOG_NAME_RE,
+    RECIPE_CATALOG_NAME_RE,
     normalizeId,
     definitionIdOf,
     itemName,
