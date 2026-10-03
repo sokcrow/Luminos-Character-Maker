@@ -113,20 +113,24 @@ const inactiveDeployment = {
 assert.equal(hud.activePlayerCombatant(activeDeployment, "alice")?.[0], "player:alice");
 assert.equal(hud.activePlayerCombatant(inactiveDeployment, "alice"), null);
 
-const gateDb = (combatants) => ({
+const gateDb = (combatants, phase = "PRE_COMBAT_PLANNING") => ({
   ref(pathValue) {
-    assert.equal(pathValue, "campaña/combate/combatants");
+    assert.ok(
+      ["campaña/combate/combatants", "campaña/combate/estado"].includes(pathValue),
+      `unexpected gate path: ${pathValue}`,
+    );
     return {
       async once(eventName) {
         assert.equal(eventName, "value");
+        if (pathValue === "campaña/combate/estado") return { val: () => ({ phase }) };
         return { val: () => combatants };
       },
     };
   },
 });
-const deployedGate = await hud.outOfCombatWriteGate(gateDb(activeDeployment), "alice");
-assert.equal(deployedGate.allowed, false, "Player-sheet vital writes must be blocked while deployed in Combat");
-assert.equal(deployedGate.reason, "PLAYER_DEPLOYED_IN_COMBAT");
+const deployedGate = await hud.outOfCombatWriteGate(gateDb(activeDeployment, "COMBAT"), "alice");
+assert.equal(deployedGate.allowed, false, "Player-sheet vital writes must be blocked while Combat authority is active");
+assert.equal(deployedGate.reason, "ACTIVE_COMBAT_AUTHORITY");
 const removedGate = await hud.outOfCombatWriteGate(gateDb(inactiveDeployment), "alice");
 assert.equal(removedGate.allowed, true, "Player-sheet vital writes should resume after the Player leaves Combat");
 
