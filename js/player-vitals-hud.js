@@ -81,6 +81,48 @@
     return node;
   }
 
+  function normalizeId(value) {
+    return String(value ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+  }
+
+  function canonicalCombatPlayerId(unit = {}) {
+    return String(
+      unit.canonicalPlayerKey
+      || unit.ownerPlayerId
+      || unit.playerId
+      || unit.characterLink?.playerId
+      || (unit.actorRef?.scope === "players" ? unit.actorRef?.id : "")
+      || ""
+    ).trim();
+  }
+
+  function activePlayerCombatant(combatants = {}, playerId = "") {
+    const wanted = String(playerId ?? "").trim();
+    if (!wanted) return null;
+    return Object.entries(combatants || {}).find(([, unit]) => {
+      if (!unit || typeof unit !== "object") return false;
+      if (canonicalCombatPlayerId(unit) !== wanted) return false;
+      if (unit.isBackup === true || unit.battleActive === false || unit.removed === true || unit.escaped === true || unit.defeated === true || unit.dead === true) return false;
+      const deployment = normalizeId(unit.deploymentState || unit.deployment || unit.positionState || unit.zone || "field");
+      return !["backup", "reserve", "reserves", "retreat", "retreated", "defeated", "dead", "escaped", "departed"].includes(deployment);
+    }) || null;
+  }
+
+  async function outOfCombatWriteGate(db, playerId) {
+    const id = String(playerId ?? "").trim();
+    if (!db?.ref || !id) return { allowed: false, reason: "PLAYER_COMBAT_GATE_UNAVAILABLE", combatant: null };
+    try {
+      const snapshot = await db.ref("campaña/combate/combatants").once("value");
+      const combatants = snapshot?.val?.() || {};
+      const active = activePlayerCombatant(combatants, id);
+      return active
+        ? { allowed: false, reason: "PLAYER_DEPLOYED_IN_COMBAT", combatant: active[1], combatantKey: active[0] }
+        : { allowed: true, reason: null, combatant: null, combatantKey: null };
+    } catch (error) {
+      return { allowed: false, reason: "PLAYER_COMBAT_GATE_READ_FAILED", combatant: null, error };
+    }
+  }
+
   function persistencePatch(data = {}) {
     const hp = firstFinite(data?.hp, data?.hp_actual, data?.combatStats?.hp_actual);
     const hpMax = firstFinite(data?.hp_max, data?.maxHp, data?.combatStats?.hp_max);
@@ -163,6 +205,9 @@
     hpRatio,
     hpDashOffset,
     spVisual,
+    canonicalCombatPlayerId,
+    activePlayerCombatant,
+    outOfCombatWriteGate,
     persistencePatch,
     persist,
     sync,
