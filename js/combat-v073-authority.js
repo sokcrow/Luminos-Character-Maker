@@ -145,7 +145,26 @@
   }
   function domRound(fallback){const node=global.document?.getElementById?.('round'),value=Math.trunc(Number(node?.textContent));return Number.isFinite(value)&&value>0?value:fallback;}
   function combatantFirebaseUpdates(snapshot){const updates={};for(const [id,row] of Object.entries(snapshot||{})){for(const [key,value] of Object.entries(row||{}))updates[`${ROOT.combatants}/${id}/${key}`]=value;updates[`${ROOT.combatants}/${id}/actionSlotIndex`]=Object.fromEntries(Array.from({length:Math.max(1,Number(row.actionSlots)||1)},(_,i)=>[String(i),true]));}return updates;}
-  function playerVitalFirebaseUpdates(snapshot){try{return global.LuminousPlayerVitalsRealtimeBridge?.firebaseUpdatesForSnapshot?.(snapshot)||{};}catch(error){console.error('[Combat073 Authority vitals]',error);return{};}}
+  function playerVitalSnapshot(snapshot={}){
+    const live=runtime()?.combatants?.()||{},out={};
+    for(const [id,row] of Object.entries(snapshot||{})){
+      const source=live[id]||{};
+      out[id]={
+        ...row,
+        isPlayer:source.isPlayer===true,
+        actorCategory:source.actorCategory,
+        category:source.category,
+        canonicalScope:source.canonicalScope,
+        canonicalPlayerKey:source.canonicalPlayerKey,
+        ownerPlayerId:source.ownerPlayerId,
+        playerId:source.playerId,
+        characterLink:clone(source.characterLink||null),
+        actorRef:clone(source.actorRef||null)
+      };
+    }
+    return out;
+  }
+  function playerVitalFirebaseUpdates(snapshot){try{return global.LuminousPlayerVitalsRealtimeBridge?.firebaseUpdatesForSnapshot?.(playerVitalSnapshot(snapshot))||{};}catch(error){console.error('[Combat073 Authority vitals]',error);return{};}}
   async function afterRound({completedRound,nextRound}={}){
     if(!isDm())return false;const s=adapterState();if(!s?.db?.ref)return false;const done=Math.max(1,Number(completedRound)||Number(state.current.round)||1),next=Math.max(done+1,Number(nextRound)||done+1),snapshot=snapshotRuntime(),row={round:done,seq:state.lastCheckpointSeq+1,type:'round_complete',rngCursor:state.cursor,digest:checkpointDigest(snapshot,done),combatants:snapshot,updatedAt:serverTime()};const updates={...combatantFirebaseUpdates(snapshot),...playerVitalFirebaseUpdates(snapshot)};updates[`${ROOT.current}/phase`]='complete';updates[`${ROOT.current}/resultDigest`]=row.digest;updates[`${ROOT.current}/checkpoint`]=row;updates[ROOT.state]={phase:'PRE_COMBAT_PLANNING',round:next,authorityUid:s.uid,updatedAt:serverTime()};updates[ROOT.ready]=null;updates[ROOT.plans]=null;await s.db.ref().update(updates);state.current={...state.current,phase:'complete',resultDigest:row.digest,checkpoint:row};state.lastCheckpointSeq=row.seq;return row;
   }
@@ -176,6 +195,6 @@
   function stop(){if(state.retryTimer)global.clearTimeout(state.retryTimer);if(state.autoStartTimer)global.clearTimeout(state.autoStartTimer);if(state.authorityRef&&state.authorityHandler)state.authorityRef.off('value',state.authorityHandler);if(state.readyRef&&state.readyHandler)state.readyRef.off('value',state.readyHandler);state.authorityRef=state.authorityHandler=state.readyRef=state.readyHandler=null;state.started=false;}
 
   global.addEventListener('luminous:combat073-runtime-ready',()=>{installHooks();applyAuthority();});global.addEventListener('luminous:combat073-hydrated',()=>{installHooks();applyAuthority();});global.addEventListener('beforeunload',stop,{once:true});
-  global.LuminousCombatAuthority073=Object.freeze({version:'0.7.3-authority.6-vitals',ROOT,state,start,stop,isDm,isPlayer,random,resetRandom,withAuthorityRandom,snapshotRuntime,digest,checkpointDigest,queueCheckpoint,sealRound,applyAuthority,applySnapshot,combatantFirebaseUpdates,playerVitalFirebaseUpdates,afterRound,installHooks,requestStartRound,serializeRuntimePlan,readyComplete,allReadySnapshot});
+  global.LuminousCombatAuthority073=Object.freeze({version:'0.7.3-authority.6-vitals',ROOT,state,start,stop,isDm,isPlayer,random,resetRandom,withAuthorityRandom,snapshotRuntime,digest,checkpointDigest,queueCheckpoint,sealRound,applyAuthority,applySnapshot,combatantFirebaseUpdates,playerVitalSnapshot,playerVitalFirebaseUpdates,afterRound,installHooks,requestStartRound,serializeRuntimePlan,readyComplete,allReadySnapshot});
   start();
 })(window);
