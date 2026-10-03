@@ -286,6 +286,7 @@ assert.ok(playerJs.includes('"combatStats/hp_actual"'));
 assert.ok(playerJs.includes('"combatStats/sp_actual"'));
 assert.ok(playerJs.includes("pd.sp ?? pd.sp_actual ?? pd.combatStats?.sp_actual"), "Coin Toss must prefer universal root SP");
 assert.ok(playerJs.includes("outOfCombatWriteGate?.(db, playerId)"), "Rest/manual Player vital writes must consult the Combat deployment gate");
+assert.ok(playerJs.includes("XP/level edit blocked while Player is deployed in Combat"), "XP edits that can recalculate hp_max must be blocked while deployed");
 assert.ok(restRuntime.includes('updates.hp = Number(hp)'));
 assert.ok(restRuntime.includes('updates["combatStats/hp_actual"] = Number(hp)'));
 assert.ok(restRuntime.includes("async function requestPlayerRest"), "external Rest requests must use the Combat deployment gate");
