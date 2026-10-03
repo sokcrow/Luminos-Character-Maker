@@ -483,6 +483,10 @@
     }
 
     const methodSpec = engine.METHODS?.[normalizeId(result.methodId || recipe.methodId)] || null;
+    const cookingEngine = host.LuminousCookingEngine || global.LuminousCookingEngine;
+    const processingRecipe = typeof engine.buildProcessingRecipe === "function"
+      ? engine.buildProcessingRecipe(selected, result.methodId || recipe.methodId, { recipeId: recipe.id })
+      : null;
     let equipmentEvaluation = null;
     if (equipmentEngine && typeof equipmentEngine.evaluate === "function" && methodSpec) {
       const availableToolIds = (opts.toolItems || [])
@@ -521,6 +525,12 @@
       }
     }
 
+    const recipeTh = Number(processingRecipe?.th?.recipeTh);
+    const effectiveBreakdown = Number.isFinite(recipeTh) && cookingEngine?.effectiveCookingTh
+      ? cookingEngine.effectiveCookingTh(recipeTh, equipmentEvaluation || {})
+      : null;
+    const effectiveTh = Number(effectiveBreakdown?.effectiveTh);
+
     const consumedUnits = (result.consumption?.allocations || [])
       .reduce((sum, row) => sum + Number(row.units || 0), 0);
     const totalSelectedUnits = selected.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
@@ -529,6 +539,12 @@
       reason: consumedUnits === totalSelectedUnits ? null : "extra_recipe_inputs",
       recipe,
       processing: result,
+      processingRecipe,
+      recipeTh: Number.isFinite(recipeTh) ? recipeTh : null,
+      effectiveTh: Number.isFinite(effectiveTh)
+        ? effectiveTh
+        : (Number.isFinite(recipeTh) ? recipeTh : null),
+      effectiveThBreakdown: effectiveBreakdown,
       equipment: equipmentEvaluation,
       processingInputs: clone(selected),
       processingSourceInputs: clone(originalSelected),
@@ -638,10 +654,14 @@
     }
 
     if (kind === "processing") {
-      const engine = global.LuminousItemProcessingEngine;
-      const methodId = normalizeId(recipe && recipe.methodId);
-      const methodTh = Number(engine?.METHODS?.[methodId]?.baseTh);
-      if (Number.isFinite(methodTh) && methodTh >= 0) return Math.round(methodTh);
+      const effectiveProcessing = Number(resolution && resolution.effectiveTh);
+      if (Number.isFinite(effectiveProcessing) && effectiveProcessing >= 0) {
+        return Math.round(effectiveProcessing);
+      }
+      const concreteProcessing = Number(resolution && resolution.recipeTh);
+      if (Number.isFinite(concreteProcessing) && concreteProcessing >= 0) {
+        return Math.round(concreteProcessing);
+      }
     }
 
     const direct = Number(recipe && (recipe.baseThreshold ?? recipe.dificultad_base));
