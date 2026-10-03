@@ -63,6 +63,7 @@ on:
       - 'tests/combat-v073-economy-menu-smoke.mjs'
       - 'tests/combat-v073-player-menu-inventory-click-smoke.mjs'
       - 'tests/item-runtime-canonical-combat-use-smoke.mjs'
+      - 'tests/player-vitals-universal-sync-smoke.mjs'
       - 'tests/unit-combat-instantiator-smoke.mjs'
       - 'tests/universal-library-authority-smoke.mjs'
       - 'tests/player-vitals-realtime-bridge-smoke.mjs'
@@ -138,6 +139,8 @@ jobs:
         run: node tests/combat-v073-player-menu-inventory-click-smoke.mjs
       - name: Canonical ItemRuntime combat use contract
         run: node tests/item-runtime-canonical-combat-use-smoke.mjs
+      - name: Universal Player HP/SP sync contract
+        run: node tests/player-vitals-universal-sync-smoke.mjs
       - name: Speed persistence contract
         run: node tests/combat-v073-speed-persistence-smoke.mjs
       - name: DM observer mode contract
