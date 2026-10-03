@@ -4334,15 +4334,13 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
           ].filter(Boolean);
       }
 
-      function authoritativeCookingStationIds(unit = getForjaPlayerData()) {
-          const values = [
-              ...forjaCookingStationsGlobal,
-              unit.currentCookingStationId,
-              unit.cookingStationId,
-              ...(Array.isArray(unit.availableCookingStationIds) ? unit.availableCookingStationIds : []),
-              ...(Array.isArray(unit.available_cooking_station_ids) ? unit.available_cooking_station_ids : [])
-          ];
-          return Array.from(new Set(values.map(value => String(value || "").trim()).filter(Boolean)));
+      function authoritativeCookingStationIds() {
+          // Only Director-managed world state is authoritative for cooking stations.
+          return Array.from(new Set(
+              forjaCookingStationsGlobal
+                  .map(value => String(value || "").trim())
+                  .filter(Boolean)
+          ));
       }
 
       function renderStationContext(stationIds = authoritativeCookingStationIds()) {
