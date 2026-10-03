@@ -73,5 +73,5 @@ jobs:
         run: |
           npm install --no-save @playwright/test@1.55.0
           npx playwright install --with-deps chromium
-      - name: Browser proof for current Player inventory tooling
+      - name: Browser proof for DM and Player inventory tooling
         run: npx playwright test tests/dm-local-item-manager-v3.spec.cjs tests/dm-item-instance-editor.spec.cjs tests/inventory-runtime-cutover.spec.cjs --workers=1 --reporter=line
