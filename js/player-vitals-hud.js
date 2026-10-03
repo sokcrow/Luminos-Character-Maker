@@ -8,32 +8,36 @@
 
   const VERSION = "1.0.0";
   const HP_PATH_LENGTH = 1000;
+  let lastPersistDigest = "";
   const numberOr = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+  const firstFinite = (...values) => {
+    const found = values.find((value) => Number.isFinite(Number(value)));
+    return found === undefined ? null : Number(found);
+  };
 
   function resolveVitals(data = {}) {
-    const hpActual = numberOr(
-      data?.combatStats?.hp_actual
-      ?? data?.hp_actual
-      ?? data?.hp,
-      0,
+    const rawHp = firstFinite(
+      data?.hp,
+      data?.hp_actual,
+      data?.combatStats?.hp_actual,
     );
-    const hpMax = Math.max(0, numberOr(
-      data?.combatStats?.hp_max
-      ?? data?.hp_max
-      ?? data?.maxHp,
-      hpActual,
-    ));
-    const spActual = numberOr(
-      data?.combatStats?.sp_actual
-      ?? data?.sp_actual
-      ?? data?.sp,
-      0,
+    const rawMax = firstFinite(
+      data?.hp_max,
+      data?.maxHp,
+      data?.combatStats?.hp_max,
     );
+    const rawSp = firstFinite(
+      data?.sp,
+      data?.sp_actual,
+      data?.combatStats?.sp_actual,
+    );
+    const hpActual = rawHp ?? 0;
+    const hpMax = Math.max(0, rawMax ?? hpActual);
     return {
       hpActual: Math.max(0, hpMax > 0 ? Math.min(hpActual, hpMax) : hpActual),
       hpMax,
-      spActual,
+      spActual: rawSp ?? 0,
     };
   }
 
@@ -75,6 +79,38 @@
     const node = doc?.getElementById?.(id);
     if (node && node.textContent !== String(value)) node.textContent = String(value);
     return node;
+  }
+
+  function persistencePatch(data = {}) {
+    const hp = firstFinite(data?.hp, data?.hp_actual, data?.combatStats?.hp_actual);
+    const hpMax = firstFinite(data?.hp_max, data?.maxHp, data?.combatStats?.hp_max);
+    const sp = firstFinite(data?.sp, data?.sp_actual, data?.combatStats?.sp_actual);
+    const patch = {};
+    if (hp != null) {
+      patch.hp = hp;
+      patch["combatStats/hp_actual"] = hp;
+    }
+    if (hpMax != null) {
+      patch.hp_max = Math.max(0, hpMax);
+      patch["combatStats/hp_max"] = Math.max(0, hpMax);
+    }
+    if (sp != null) {
+      patch.sp = sp;
+      patch["combatStats/sp_actual"] = sp;
+    }
+    return patch;
+  }
+
+  async function persist(db, playerId, data = {}, options = {}) {
+    const id = String(playerId ?? "").trim();
+    if (!db?.ref || !id) return { saved: false, reason: "PLAYER_VITALS_PERSISTENCE_UNAVAILABLE" };
+    const patch = persistencePatch(data);
+    if (!Object.keys(patch).length) return { saved: false, reason: "NO_PLAYER_VITALS" };
+    const digest = JSON.stringify(Object.entries(patch).sort(([a], [b]) => a.localeCompare(b)));
+    if (!options.force && digest === lastPersistDigest) return { saved: false, reason: "UNCHANGED", patch };
+    await db.ref(`campaña/jugadores/${id}`).update(patch);
+    lastPersistDigest = digest;
+    return { saved: true, patch };
   }
 
   function sync(data = {}, doc = global.document) {
@@ -127,6 +163,8 @@
     hpRatio,
     hpDashOffset,
     spVisual,
+    persistencePatch,
+    persist,
     sync,
   });
 });
