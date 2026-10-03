@@ -962,44 +962,10 @@ function renderCharacterSheet(data) {
   }
 
   // --- ACTUALIZAR HUD DE VITALES (MECÁNICAS DE JUGADOR) ---
-  const hpActual =
-    data.combatStats?.hp_actual !== undefined
-      ? data.combatStats.hp_actual
-      : data.hp || 0;
-  const hpMax =
-    data.combatStats?.hp_max !== undefined
-      ? data.combatStats.hp_max
-      : data.hp_max || 0;
-  const spActual =
-    data.combatStats?.sp_actual !== undefined
-      ? data.combatStats.sp_actual
-      : data.sp || 0;
-
-  // Buscar elementos usando los IDs exactos que YA existen en el HTML
-  const hudPortrait = document.getElementById("portrait-img");
-  const hudHpActual = document.getElementById("hud-hp-actual");
-  const hudHpMax = document.getElementById("hud-hp-max");
-  const hudSpDisplay = document.getElementById("hud-sp-text");
-
-  // Inyectar datos en tiempo real
-  if (hudPortrait) {
-    const iconUrl = data.icono_jugador || "https://i.imgur.com/kP8s7Ww.png";
-    if (hudPortrait.getAttribute("href") !== iconUrl) hudPortrait.setAttribute("href", iconUrl);
-  }
-
-  // Respetar la estructura de spans separados para el HP
-  if (hudHpActual && hudHpMax) {
-    if (hudHpActual.innerText !== String(hpActual)) hudHpActual.innerText = hpActual;
-    if (hudHpMax.innerText !== String(hpMax)) hudHpMax.innerText = hpMax;
-  } else {
-    // Fallback seguro por si la estructura cambia
-    const hudHpContenedor = document.querySelector(".hud-hp-overlay-text");
-    if (hudHpContenedor) hudHpContenedor.innerText = `${hpActual} / ${hpMax}`;
-  }
-
-  if (hudSpDisplay && hudSpDisplay.innerText !== String(spActual)) {
-    hudSpDisplay.innerText = spActual;
-  }
+  // One visual contract for the numeric HP/SP, HP path fill/delay and SP sphere.
+  // The data source remains the realtime Player record; Combat authority mirrors
+  // its canonical combatant vitals into that same record through the vitals bridge.
+  window.LuminousPlayerVitalsHud?.sync?.(data, document);
 }
 
 function updatePlayerDeviceNumberUI(data = window.datosJugador) {
