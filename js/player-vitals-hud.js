@@ -106,7 +106,7 @@
     if (!db?.ref || !id) return { saved: false, reason: "PLAYER_VITALS_PERSISTENCE_UNAVAILABLE" };
     const patch = persistencePatch(data);
     if (!Object.keys(patch).length) return { saved: false, reason: "NO_PLAYER_VITALS" };
-    const digest = JSON.stringify(Object.entries(patch).sort(([a], [b]) => a.localeCompare(b)));
+    const digest = `${id}:${JSON.stringify(Object.entries(patch).sort(([a], [b]) => a.localeCompare(b)))}`;
     if (!options.force && digest === lastPersistDigest) return { saved: false, reason: "UNCHANGED", patch };
     await db.ref(`campaña/jugadores/${id}`).update(patch);
     lastPersistDigest = digest;
