@@ -265,11 +265,13 @@
     const doc = global.document;
     const button = doc?.querySelector('button[name="act_hud_skills"]');
     if (!button) return false;
-    const sword = button.querySelector("[data-player-skills-menu-sword]");
-    const spells = button.querySelector("[data-player-skills-menu-spell]");
+    const icon = button.querySelector("[data-player-skills-menu-icon]");
     const caster = isSpellcaster(character, options);
-    if (sword) sword.hidden = caster;
-    if (spells) spells.hidden = !caster;
+    if (icon) {
+      icon.src = caster
+        ? "Assets/Images/Buttons/Spells.png"
+        : "Assets/Images/Buttons/Skills.png";
+    }
     button.dataset.playerSkillsMenuMode = caster ? "spells" : "skills";
     button.title = caster ? "Habilidades y Spells" : "Habilidades";
     button.setAttribute("aria-label", caster ? "Abrir habilidades y spells" : "Abrir habilidades");
