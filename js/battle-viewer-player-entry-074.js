@@ -462,9 +462,9 @@
     const knownSpellLoadout = automaticSpellLoadoutForActor(actor);
     const raw = applyKnownSpellLoadoutToRecord(clone(actor.raw || {}) || {}, knownSpellLoadout);
     const combatId = playerCombatantKey(actor);
-    const maxHp = firstFinite(raw.maxHp, raw.maxHP, raw.hp_max, raw.combatStats?.hp_max);
-    const hp = firstFinite(raw.hp, raw.currentHp, raw.currentHP, raw.hp_actual, raw.combatStats?.hp_actual, maxHp);
-    const sp = firstFinite(raw.sp, raw.currentSp, raw.currentSP, raw.sp_actual, raw.combatStats?.sp_actual, 0);
+    const maxHp = firstFinite(raw.combatStats?.hp_max, raw.hp_max, raw.maxHp, raw.maxHP);
+    const hp = firstFinite(raw.combatStats?.hp_actual, raw.hp_actual, raw.hp, raw.currentHp, raw.currentHP, maxHp);
+    const sp = firstFinite(raw.combatStats?.sp_actual, raw.sp_actual, raw.sp, raw.currentSp, raw.currentSP, 0);
     const actionSlots = Math.max(1, Math.trunc(firstFinite(raw.actionSlots, raw.activeSlots, raw.action_slots_count, 1) || 1));
     const actionSlotIndex = buildActionSlotIndex(actionSlots);
 
