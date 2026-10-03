@@ -679,13 +679,40 @@
   }
 
   function consumedEntriesFromPlan(entries, plan) {
-    return (plan?.allocations || []).map((allocation) => ({
-      ...entries[allocation.index],
-      quantity: allocation.units,
-      consumedQuantity: allocation.units,
-      inputIndex: allocation.index,
-      requirementIds: allocation.requirementIds,
-    }));
+    const consumed = [];
+    for (const allocation of (plan?.allocations || [])) {
+      const entry = entries[allocation.index] || {};
+      const sourceStacks = Array.isArray(entry.__sourceStacks) && entry.__sourceStacks.length
+        ? entry.__sourceStacks
+        : [entry];
+      let remaining = Math.max(0, Number(allocation.units) || 0);
+
+      for (const sourceStack of sourceStacks) {
+        if (remaining <= 0) break;
+        const available = itemQuantity(sourceStack);
+        const take = Math.min(remaining, available);
+        if (take <= 0) continue;
+        consumed.push({
+          ...clone(sourceStack),
+          quantity: take,
+          consumedQuantity: take,
+          inputIndex: allocation.index,
+          requirementIds: allocation.requirementIds,
+        });
+        remaining -= take;
+      }
+
+      if (remaining > 0) {
+        consumed.push({
+          ...clone(entry),
+          quantity: remaining,
+          consumedQuantity: remaining,
+          inputIndex: allocation.index,
+          requirementIds: allocation.requirementIds,
+        });
+      }
+    }
+    return consumed;
   }
 
   function tasteFromConsumption(consumedEntries, tasteDelta, explicitTaste = null) {
