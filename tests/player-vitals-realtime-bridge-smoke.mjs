@@ -301,8 +301,14 @@ assert.equal(inventoryHud.includes("persistVitalsAfterUse"), false, "two-step in
 assert.ok(inventoryHud.includes("outOfCombatWriteGate?.(state.db, state.playerId)"), "Inventory consumables must be blocked while the Player is deployed in Combat");
 assert.ok(dmStudio.includes("hp: hpActual"));
 assert.ok(dmStudio.includes("sp: spActual"));
+assert.ok(dmStudio.includes("activeCombatantForPlayer"), "DM D&D Studio must detect active Player combatants before saving vitals");
+assert.ok(dmStudio.includes("campaña/combate/combatants/${activeCombatant.key}/hp"), "DM D&D Studio must mirror HP into the active combatant");
+assert.ok(dmStudio.includes("campaña/combate/combatants/${activeCombatant.key}/sp"), "DM D&D Studio must mirror SP into the active combatant");
 assert.ok(dmHtml.includes("activePlayerIdForModal}/hp`]"));
 assert.ok(dmHtml.includes("activePlayerIdForModal}/sp`]"));
 assert.ok(dmHtml.includes("data.sp ?? combatStats.sp_actual ?? 0"), "DM Player card must refresh from universal root SP");
+assert.ok(dmHtml.includes('db.ref("campaña/combate/combatants").once("value")'), "legacy DM Combat editor must resolve the active combatant");
+assert.ok(dmHtml.includes("campaña/combate/combatants/${combatantKey}/hp"), "legacy DM Combat editor must mirror HP into the active combatant");
+assert.ok(dmHtml.includes("campaña/combate/combatants/${combatantKey}/sp"), "legacy DM Combat editor must mirror SP into the active combatant");
 
 console.log("player-vitals-realtime-bridge-smoke: ok");
