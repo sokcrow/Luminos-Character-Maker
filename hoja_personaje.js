@@ -4550,7 +4550,8 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
           };
       }
 
-      btnForecast.addEventListener("click", () => {
+      btnForecast.addEventListener("click", async () => {
+          await refreshForjaMesaCrafteo?.();
           const selectedItems = selectedSynthesisItems();
           if (!selectedItems.length) {
               alert("Debes colocar ingredientes en los slots para predecir.");
@@ -4570,7 +4571,8 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
           probValueEl.innerText = `${prob}% [DC:${difficulty.dc}] · ${match.recipe.name || match.recipe.label || match.recipe.id}`;
       });
 
-      btnIniciar.addEventListener("click", () => {
+      btnIniciar.addEventListener("click", async () => {
+          await refreshForjaMesaCrafteo?.();
           const selectedItems = selectedSynthesisItems();
           if (!selectedItems.length) {
               alert("Debes colocar ingredientes en los slots.");
@@ -4599,10 +4601,44 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
           window.currentForjaAttempt = null;
       });
 
-      document.getElementById("btn-forja-confirm").addEventListener("click", () => {
+      document.getElementById("btn-forja-confirm").addEventListener("click", async () => {
           const tirada = parseInt(document.getElementById("forja-roll-input").value) || 0;
           const attempt = window.currentForjaAttempt;
           if (!attempt) return;
+
+          // Re-authorize world-owned station state at the moment the craft is
+          // committed. A station may have been disabled after the roll modal
+          // was opened, so the stale resolution must never be trusted.
+          await refreshForjaMesaCrafteo?.();
+
+          const currentItems = selectedSynthesisItems();
+          const currentUnit = getForjaPlayerData();
+          const refreshedResolution = contentRegistry?.resolveRecipe?.(
+              attempt.receta,
+              currentItems,
+              window,
+              {
+                  toolItems: availableToolItems(),
+                  unit: currentUnit,
+                  availableStationIds: authoritativeCookingStationIds(),
+                  enforceTools: true,
+                  enforceEquipment: true
+              }
+          );
+
+          if (!refreshedResolution?.valid) {
+              alert("La Recipe ya no está autorizada con el estado actual de Tools/Stations.");
+              document.getElementById("forja-roll-modal").style.display = "none";
+              window.currentForjaAttempt = null;
+              return;
+          }
+
+          attempt.resolution = refreshedResolution;
+          const refreshedDifficulty = synthesisDifficulty({
+              recipe: attempt.receta,
+              resolution: refreshedResolution
+          });
+          attempt.dc = refreshedDifficulty.dc;
 
           document.getElementById("forja-roll-modal").style.display = "none";
           ejecutarTransaccionForja(attempt, tirada >= attempt.dc, tirada);
