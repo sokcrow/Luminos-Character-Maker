@@ -1928,7 +1928,7 @@ function initializeCharacterSheet() {
     }
 
     // Tab switching logic for Main Nav
-    document.addEventListener("click", async (e) => {
+    document.addEventListener("click", (e) => {
       const btn = e.target.closest('button[type="action"]');
       if (!btn || !btn.name || !btn.name.startsWith("act_tab_")) return;
 
@@ -3266,7 +3266,7 @@ function initializeCharacterSheet() {
   // NATIVE BUTTON LISTENERS
   {
     // Escuchar clicks globales para botones de acción (simulando Roll20)
-    document.addEventListener("click", (e) => {
+    document.addEventListener("click", async (e) => {
       const btn = e.target.closest('button[type="action"]');
       if (!btn) return;
 
