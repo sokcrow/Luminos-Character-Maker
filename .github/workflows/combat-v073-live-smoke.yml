@@ -61,6 +61,7 @@ on:
       - 'tests/combat-v073-theatre-isolation-smoke.mjs'
       - 'tests/combat-v073-live-sync-hotfix-smoke.mjs'
       - 'tests/combat-v073-economy-menu-smoke.mjs'
+      - 'tests/combat-v073-player-menu-inventory-click-smoke.mjs'
       - 'tests/unit-combat-instantiator-smoke.mjs'
       - 'tests/universal-library-authority-smoke.mjs'
       - 'tests/player-vitals-realtime-bridge-smoke.mjs'
@@ -132,6 +133,8 @@ jobs:
         run: node tests/player-vitals-realtime-bridge-smoke.mjs
       - name: Player Action economy menu contract
         run: node tests/combat-v073-economy-menu-smoke.mjs
+      - name: Player menu and active inventory click contract
+        run: node tests/combat-v073-player-menu-inventory-click-smoke.mjs
       - name: Speed persistence contract
         run: node tests/combat-v073-speed-persistence-smoke.mjs
       - name: DM observer mode contract
