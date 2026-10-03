@@ -254,5 +254,6 @@ assert.ok(dmStudio.includes("hp: hpActual"));
 assert.ok(dmStudio.includes("sp: spActual"));
 assert.ok(dmHtml.includes("activePlayerIdForModal}/hp`]"));
 assert.ok(dmHtml.includes("activePlayerIdForModal}/sp`]"));
+assert.ok(dmHtml.includes("data.sp ?? combatStats.sp_actual ?? 0"), "DM Player card must refresh from universal root SP");
 
 console.log("player-vitals-realtime-bridge-smoke: ok");
