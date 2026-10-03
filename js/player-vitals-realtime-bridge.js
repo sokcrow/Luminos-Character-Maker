@@ -236,8 +236,14 @@
     const updates = firebaseUpdatesForSnapshot(combatants, state.players);
     if (!Object.keys(updates).length) return { synced: false, reason: "NO_PLAYER_VITALS", updates };
 
+    const digest = digestUpdates(updates);
+    const hasLivePlayerState = Object.keys(state.players || {}).length > 0;
+    if (!options.force && !hasLivePlayerState && digest === state.lastDigest) {
+      return { synced: false, reason: "UNCHANGED", updates };
+    }
+
     await db.ref().update(updates);
-    state.lastDigest = digestUpdates(updates);
+    state.lastDigest = digest;
     return { synced: true, reason: null, updates };
   }
 
