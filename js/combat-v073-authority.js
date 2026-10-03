@@ -122,7 +122,7 @@
   async function sealRound(){
     const s=adapterState();if(!s?.db?.ref||!isDm())throw new Error('DM_AUTHORITY_REQUIRED');const round=Math.max(1,Math.trunc(Number(s.round)||1));
     const [ready,plans]=await Promise.all([read(ROOT.ready),read(ROOT.plans)]),check=readyComplete(ready||{},plans||{},round);if(!check.complete)throw new Error(`ROUND_NOT_READY:${check.missing.join(',')}`);validateSpellPlans(plans||{});
-    const seed=makeSeed(round),payload={schemaVersion:1,engineVersion:'0.7.3-authority.6-vitals',round,phase:'sealed',seed,authorityUid:s.uid,plans:clone(plans||{}),aiPlans:collectAiPlans(),createdAt:serverTime(),checkpoint:null};
+    const seed=makeSeed(round),payload={schemaVersion:1,engineVersion:'0.7.3-authority.7-player-state',round,phase:'sealed',seed,authorityUid:s.uid,plans:clone(plans||{}),aiPlans:collectAiPlans(),createdAt:serverTime(),checkpoint:null};
     const updates={};updates[ROOT.current]=payload;updates[ROOT.state]={phase:'COMBAT_SEALED',round,authorityUid:s.uid,seed,updatedAt:serverTime()};await s.db.ref().update(updates);state.current={...payload,createdAt:Date.now()};resetRandom(seed,0);applyAuthority(payload);return payload;
   }
 
