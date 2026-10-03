@@ -235,13 +235,32 @@ const path = require("node:path");
   assert.ok(whiteBreadNoEquipment.missingToolIds.includes("cooks_utensils"));
   assert.ok(whiteBreadNoEquipment.missingStationIds.includes("oven"));
 
+  const spoofedStationEvaluation = globalThis.LuminousCookingEquipmentEngine.evaluate(
+    whiteBreadRecipe,
+    { currentCookingStationId: "oven", cookingStationId: "oven" },
+    {
+      availableToolIds: ["cooks_utensils"],
+      availableStationIds: []
+    }
+  );
+  assert.equal(
+    spoofedStationEvaluation.hasRequiredStation,
+    false,
+    "authoritative station lists must ignore player-controlled station fields"
+  );
+
   const whiteBreadWithEquipment = contentRegistry.resolveRecipe(whiteBreadRecipe, doughInputs, globalThis, {
     enforceEquipment: true,
     toolItems: [{ definitionId: "cooks_utensils", quantity: 1 }],
-    unit: {},
+    unit: { currentCookingStationId: "brewery", cookingStationId: "brewery" },
     availableStationIds: ["oven"]
   });
   assert.equal(whiteBreadWithEquipment.valid, true, "baking should resolve with canonical tool and authorized station");
+  assert.deepEqual(
+    whiteBreadWithEquipment.equipment.availableStationIds,
+    ["oven"],
+    "player-controlled station fields must not leak into canonical equipment evaluation"
+  );
   assert.equal(whiteBreadWithEquipment.recipeTh, 14, "White Bread should use the canonical cooking recipe TH");
   assert.equal(
     contentRegistry.recipeDifficulty(whiteBreadRecipe, whiteBreadWithEquipment),
@@ -449,6 +468,46 @@ const path = require("node:path");
   assert.ok(Array.isArray(craftedOutput.consumerHooks), "chemistry output must preserve consumer hooks");
   assert.ok(Object.prototype.hasOwnProperty.call(craftedOutput, "integrationStatus"), "chemistry output must preserve integration status");
   assert.ok(Array.isArray(craftedOutput.craft.sourceInputs), "chemistry output must preserve canonical consumed-input provenance");
+
+  const medicineAmpouleRecipe = Object.values(unified.recipes)
+    .find((recipe) => recipe.recipeKind === "medicine" && recipe.id === "medicine_ampoule");
+  assert.ok(medicineAmpouleRecipe, "medicine_ampoule recipe should exist");
+
+  const medicineAmpouleInputsSterileFirst = [
+    { definitionId: "sterile_solution", tags: ["active_solution"], quantity: 1, __selectedUnits: 1 },
+    { definitionId: "medicinal_extract", tags: ["active_medicine"], quantity: 1, __selectedUnits: 1 },
+    { definitionId: "ampoule_blank", quantity: 1, __selectedUnits: 1 }
+  ];
+  const medicineAmpouleInputsActiveFirst = [
+    medicineAmpouleInputsSterileFirst[1],
+    medicineAmpouleInputsSterileFirst[0],
+    medicineAmpouleInputsSterileFirst[2]
+  ];
+  const ampouleSterileFirst = contentRegistry.resolveRecipe(
+    medicineAmpouleRecipe,
+    medicineAmpouleInputsSterileFirst,
+    globalThis
+  );
+  const ampouleActiveFirst = contentRegistry.resolveRecipe(
+    medicineAmpouleRecipe,
+    medicineAmpouleInputsActiveFirst,
+    globalThis
+  );
+  assert.equal(
+    ampouleSterileFirst.valid,
+    true,
+    "overlapping medicine requirements must backtrack instead of consuming sterile_solution in the broad selector"
+  );
+  assert.equal(
+    ampouleActiveFirst.valid,
+    true,
+    "recipe validity must be independent of synthesis slot order"
+  );
+  assert.equal(
+    ampouleSterileFirst.consumptionPlan.reduce((sum, row) => sum + row.allocations.reduce((n, a) => n + a.units, 0), 0),
+    3,
+    "medicine_ampoule should consume exactly all three canonical inputs"
+  );
 
   const medicineRecipe = Object.values(unified.recipes)
     .find((recipe) => recipe.recipeKind === "medicine" && recipe.id === "medicine_tablet");
