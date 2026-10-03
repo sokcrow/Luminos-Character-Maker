@@ -416,12 +416,8 @@
       identity,
       processedForm: normalizeId(item?.processedForm),
       processingMethod: normalizeId(item?.processingMethod),
-      quality: normalizeId(item?.quality || "standard"),
-      productionValueAhn: Number(item?.productionValueAhn ?? item?.unitProductionValueAhn ?? 0) || 0,
-      sourceInstanceId: clean(item?.sourceInstanceId || item?.instanceId),
-      taste: Number.isFinite(Number(item?.taste)) ? Number(item.taste) : null,
-      culinaryProperties: clone(Array.isArray(item?.culinaryProperties) ? item.culinaryProperties : []),
-      provenance: clone(Array.isArray(item?.provenance) ? item.provenance : []),
+      processingMethodsAllowed: valueList(item?.processingMethodsAllowed).sort(),
+      processingMethodsDenied: valueList(item?.processingMethodsDenied).sort(),
       tags
     });
   }
@@ -432,13 +428,22 @@
       const normalized = Object.assign({}, clone(item), {
         quantity: Math.max(1, selectedUnits(item) || 1)
       });
+      const sourceStack = clone(normalized);
+      delete sourceStack.__sourceStacks;
+
       const key = processingInputSignature(normalized);
       const current = groups.get(key);
       if (!current) {
+        normalized.__sourceStacks = [sourceStack];
         groups.set(key, normalized);
         return;
       }
+
       current.quantity += normalized.quantity;
+      current.__sourceStacks = [
+        ...(Array.isArray(current.__sourceStacks) ? current.__sourceStacks : []),
+        sourceStack
+      ];
       const sourceIds = new Set([
         ...(Array.isArray(current.__sourceInstanceIds) ? current.__sourceInstanceIds : []),
         current.sourceInstanceId,
