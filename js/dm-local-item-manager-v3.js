@@ -755,6 +755,9 @@
     ownsCatalog: () => true
   });
 
+  // Build the local index immediately; DOM rendering can wait for DOMContentLoaded.
+  refreshLocal();
+
   global.LuminousDmLocalItemManagerV3 = API;
 
   if (global.document) {
