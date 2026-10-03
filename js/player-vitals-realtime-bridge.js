@@ -7,7 +7,7 @@
 })(typeof window !== "undefined" ? window : globalThis, function (global) {
   "use strict";
 
-  const VERSION = "1.0.1";
+  const VERSION = "1.1.0";
   const ROOTS = Object.freeze({
     players: "campaña/jugadores",
     combatants: "campaña/combate/combatants",
@@ -17,13 +17,18 @@
   const state = {
     started: false,
     db: null,
+    playersRef: null,
+    playersHandler: null,
     combatantsRef: null,
     combatantsHandler: null,
     stateRef: null,
     stateHandler: null,
     combatPhase: "",
+    players: {},
+    combatants: {},
     retryTimer: null,
     lastDigest: "",
+    lastPlayerToCombatDigest: "",
   };
 
   const clean = (value) => String(value ?? "").trim();
@@ -91,6 +96,63 @@
     return { playerId, hp, maxHp, sp };
   }
 
+  function playerVitalSnapshot(playerId, player = {}) {
+    const id = clean(playerId);
+    if (!id || !player || typeof player !== "object") return null;
+    const rawMax = [
+      player.hp_max,
+      player.maxHp,
+      player.maxHP,
+      player.combatStats?.hp_max,
+    ].map(finite).find((value) => value != null);
+    const rawHp = [
+      player.hp,
+      player.hp_actual,
+      player.currentHp,
+      player.currentHP,
+      player.combatStats?.hp_actual,
+    ].map(finite).find((value) => value != null);
+    const rawSp = [
+      player.sp,
+      player.sp_actual,
+      player.currentSp,
+      player.currentSP,
+      player.combatStats?.sp_actual,
+    ].map(finite).find((value) => value != null);
+
+    const maxHp = rawMax != null ? Math.max(1, rawMax) : null;
+    const hp = rawHp != null
+      ? Math.max(0, maxHp != null ? Math.min(rawHp, maxHp) : rawHp)
+      : null;
+    const sp = rawSp != null ? rawSp : null;
+    if (hp == null && maxHp == null && sp == null) return null;
+    return { playerId: id, hp, maxHp, sp };
+  }
+
+  function updatesForCombatantVital(combatantKey, vital = {}) {
+    const key = clean(combatantKey);
+    if (!key) return {};
+    const base = `${ROOTS.combatants}/${key}`;
+    const updates = {};
+    if (vital.hp != null) updates[`${base}/hp`] = vital.hp;
+    if (vital.maxHp != null) updates[`${base}/maxHp`] = vital.maxHp;
+    if (vital.sp != null) updates[`${base}/sp`] = vital.sp;
+    return updates;
+  }
+
+  function firebaseCombatantUpdatesForPlayers(players = {}, combatants = {}) {
+    const updates = {};
+    Object.entries(combatants || {}).forEach(([key, unit]) => {
+      if (!isPlayerCombatant(unit)) return;
+      if (unit.battleActive === false || unit.isBackup === true || unit.defeated === true || unit.dead === true || unit.escaped === true) return;
+      const playerId = canonicalPlayerId(unit);
+      const vital = playerVitalSnapshot(playerId, players?.[playerId]);
+      if (!vital) return;
+      Object.assign(updates, updatesForCombatantVital(key, vital));
+    });
+    return updates;
+  }
+
   function updatesForVital(vital = {}) {
     const playerId = clean(vital.playerId);
     if (!playerId) return {};
@@ -143,6 +205,20 @@
       || phase === "combat_resolution";
   }
 
+  async function syncPlayersToCombatants(db, players = state.players, combatants = state.combatants, phase = state.combatPhase, options = {}) {
+    if (!db?.ref) return { synced: false, reason: "DATABASE_REQUIRED", updates: {} };
+    if (isActiveCombatPhase(phase)) return { synced: false, reason: "ACTIVE_COMBAT_AUTHORITY", updates: {} };
+    const updates = firebaseCombatantUpdatesForPlayers(players, combatants);
+    if (!Object.keys(updates).length) return { synced: false, reason: "NO_DEPLOYED_PLAYER_VITALS", updates };
+    const digest = digestUpdates(updates);
+    if (!options.force && digest === state.lastPlayerToCombatDigest) {
+      return { synced: false, reason: "UNCHANGED", updates };
+    }
+    await db.ref().update(updates);
+    state.lastPlayerToCombatDigest = digest;
+    return { synced: true, reason: null, updates };
+  }
+
   async function syncSnapshot(db, combatants = {}, options = {}) {
     if (!db?.ref) return { synced: false, reason: "DATABASE_REQUIRED", updates: {} };
     const updates = firebaseUpdatesForSnapshot(combatants);
@@ -181,7 +257,7 @@
   }
 
   function bind() {
-    if (state.combatantsRef && state.stateRef) return true;
+    if (state.playersRef && state.combatantsRef && state.stateRef) return true;
     const role = clean(adapterState()?.role).toLowerCase();
     if (role && role !== "dm") return true;
     if (!isDmAuthority()) return false;
@@ -193,22 +269,49 @@
     if (!state.stateRef) {
       const stateRef = db.ref(ROOTS.state);
       const stateHandler = (snapshot) => {
+        const previous = state.combatPhase;
         state.combatPhase = normalizePhase(snapshot.val());
+        if (previous !== state.combatPhase && !isActiveCombatPhase(state.combatPhase)) {
+          syncPlayersToCombatants(db, state.players, state.combatants, state.combatPhase, { force: true }).catch((error) => {
+            global.console?.error?.("[Player Vitals Bridge player->combat phase]", error);
+          });
+        }
       };
       stateRef.on("value", stateHandler, (error) => global.console?.error?.("[Player Vitals Bridge state]", error));
       state.stateRef = stateRef;
       state.stateHandler = stateHandler;
     }
 
+    if (!state.playersRef) {
+      const ref = db.ref(ROOTS.players);
+      const handler = (snapshot) => {
+        state.players = snapshot.val() || {};
+        const phase = state.combatPhase || normalizePhase(adapterState()?.combatState);
+        syncPlayersToCombatants(db, state.players, state.combatants, phase).catch((error) => {
+          global.console?.error?.("[Player Vitals Bridge player->combat]", error);
+        });
+      };
+      ref.on("value", handler, (error) => global.console?.error?.("[Player Vitals Bridge players subscribe]", error));
+      state.playersRef = ref;
+      state.playersHandler = handler;
+    }
+
     if (!state.combatantsRef) {
       const ref = db.ref(ROOTS.combatants);
       const handler = (snapshot) => {
+        state.combatants = snapshot.val() || {};
         const phase = state.combatPhase || normalizePhase(adapterState()?.combatState);
-        syncActiveSnapshot(db, snapshot.val() || {}, phase).catch((error) => {
-          global.console?.error?.("[Player Vitals Bridge]", error);
-        });
+        if (isActiveCombatPhase(phase)) {
+          syncActiveSnapshot(db, state.combatants, phase).catch((error) => {
+            global.console?.error?.("[Player Vitals Bridge combat->player]", error);
+          });
+        } else {
+          syncPlayersToCombatants(db, state.players, state.combatants, phase).catch((error) => {
+            global.console?.error?.("[Player Vitals Bridge player->combat hydrate]", error);
+          });
+        }
       };
-      ref.on("value", handler, (error) => global.console?.error?.("[Player Vitals Bridge subscribe]", error));
+      ref.on("value", handler, (error) => global.console?.error?.("[Player Vitals Bridge combatants subscribe]", error));
       state.combatantsRef = ref;
       state.combatantsHandler = handler;
     }
@@ -234,19 +337,27 @@
     state.started = false;
     if (state.retryTimer) global.clearTimeout?.(state.retryTimer);
     state.retryTimer = null;
+    if (state.playersRef && state.playersHandler) {
+      try { state.playersRef.off("value", state.playersHandler); } catch (_) {}
+    }
     if (state.combatantsRef && state.combatantsHandler) {
       try { state.combatantsRef.off("value", state.combatantsHandler); } catch (_) {}
     }
     if (state.stateRef && state.stateHandler) {
       try { state.stateRef.off("value", state.stateHandler); } catch (_) {}
     }
+    state.playersRef = null;
+    state.playersHandler = null;
     state.combatantsRef = null;
     state.combatantsHandler = null;
     state.stateRef = null;
     state.stateHandler = null;
     state.combatPhase = "";
+    state.players = {};
+    state.combatants = {};
     state.db = null;
     state.lastDigest = "";
+    state.lastPlayerToCombatDigest = "";
     return true;
   }
 
@@ -257,13 +368,17 @@
     canonicalPlayerId,
     isPlayerCombatant,
     vitalSnapshot,
+    playerVitalSnapshot,
     updatesForVital,
+    updatesForCombatantVital,
     firebaseUpdatesForSnapshot,
+    firebaseCombatantUpdatesForPlayers,
     digestUpdates,
     normalizePhase,
     isActiveCombatPhase,
     syncSnapshot,
     syncActiveSnapshot,
+    syncPlayersToCombatants,
     bind,
     start,
     stop,
