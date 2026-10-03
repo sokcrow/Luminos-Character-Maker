@@ -35,12 +35,18 @@ const path = require("node:path");
   await import("../js/item-throwable-recipe-catalog.js");
   await import("../js/dm-item-catalog-core.js");
   await import("../js/item-content-registry.js");
+  await import("../js/dm-local-item-manager-v3.js");
 
   const core = globalThis.LuminousDmItemCatalogCore;
   assert.ok(core, "DM item catalog core should install on globalThis");
 
   const contentRegistry = globalThis.LuminousItemContentRegistry;
   assert.ok(contentRegistry, "unified item content registry should install on globalThis");
+  const localManager = globalThis.LuminousDmLocalItemManagerV3;
+  assert.ok(localManager, "local-first DM item manager should install on globalThis");
+  const localCatalog = localManager.collectLocalItems(globalThis);
+  assert.ok(localCatalog.size > 50, "local-first DM item manager should discover loaded item modules without Firebase");
+
 
   const catalog = core.collectCatalogMap(globalThis, {
     iconRegistry: globalThis.LuminousItemIconRegistry
@@ -687,6 +693,8 @@ const path = require("node:path");
   assert.match(dmPage, /css\/dm-limbus-shell\.css/);
   assert.match(dmPage, /css\/dm-item-catalog-v2\.css/);
   assert.match(dmPage, /js\/dm-item-catalog-core\.js/);
+  assert.match(dmPage, /js\/dm-local-item-manager-v3\.js/);
+  assert.match(dmPage, /js\/dm-tab-runtime-v2\.js/);
   assert.match(dmPage, /js\/item-content-registry\.js/);
   assert.match(dmPage, /js\/item-cooking-recipe-catalog\.js/);
   assert.match(dmPage, /js\/item-cooking-equipment-engine\.js/);
@@ -721,6 +729,8 @@ const path = require("node:path");
   assert.ok(firebaseOverlayListener >= 0, "Firebase custom item overlay listener should still exist");
   assert.ok(localBootstrap < firebaseOverlayListener, "unified canonical content must render before waiting on Firebase");
   assert.match(dmPage, /dm-content-registry-counts/);
+  assert.match(dmPage, /DIRECTORIO LOCAL DE ÍTEMS/);
+  assert.match(dmPage, /LuminousDmLocalItemManagerV3/);
   assert.doesNotMatch(dmPage, /dm-item-creator\.html/);
   assert.doesNotMatch(dmPage, /campaña\/forja\/recetas/);
   assert.doesNotMatch(dmPage, /toggle-mesa-crafteo/);

@@ -1604,7 +1604,7 @@
       <button class="dm-tab-btn" data-tab="tab-turnos">Gestión de Turnos</button>
       <button class="dm-tab-btn" data-tab="tab-banco">Banco</button>
       <button class="dm-tab-btn" data-tab="tab-comms">Comms</button>
-      <button class="dm-tab-btn" data-tab="tab-forja">Forja/Mercado</button>
+      <button class="dm-tab-btn" data-tab="tab-forja">Ítems / Mercado</button>
       <button class="dm-tab-btn" data-tab="tab-loot">Botín</button>
 
       <button class="dm-tab-btn" data-tab="tab-combate">Combate</button>
@@ -2127,17 +2127,17 @@ window.processEntitiesData = function(entities) {
       <div id="tab-forja" class="dm-tab-pane">
         <!-- NUEVO DASHBOARD: ZONA DE FORJA Y MERCADO -->
         <div id="dashboard-mercado" class="panel-cyber">
-          <h3>Arsenal / Forja / Mercado</h3>
+          <h3>Inventario DM / Ítems / Mercado</h3>
 
           <div class="form-cyber-container" style="justify-content: flex-start; align-items: stretch; gap: 15px; margin-bottom: 20px;">
             <!-- Registro canónico unificado: Items + Recipes -->
             <div class="form-cyber" id="dm-content-registry-summary" style="flex: 1; border-color: #c49a00; box-shadow: 0 0 15px rgba(196, 154, 0, 0.4); display: flex; flex-direction: column;">
-              <h4 style="color: #c49a00;">REGISTRO CANÓNICO UNIFICADO</h4>
+              <h4 style="color: #c49a00;">DIRECTORIO LOCAL DE ÍTEMS</h4>
               <p style="color: #aaa; font-size: 13px; line-height: 1.4; margin: 5px 0;">
-                Items y Recipes canónicos se cargan desde los módulos del runtime. Firebase sólo aporta contenido custom de campaña y overrides.
+                Los ítems se cargan directo desde los módulos locales. Firebase no bloquea el directorio: sólo sincroniza jugadores, overrides y el ítem que otorgas.
               </p>
               <div id="dm-content-registry-counts" class="economy-v2-meta" style="margin-top:auto; padding:10px; border:1px solid #3a3120; background:#0b0a07;">
-                Cargando registro unificado...
+                Cargando directorio local...
               </div>
               <div style="margin-top:10px; padding:10px; border:1px solid #28434a; background:#081013;">
                 <div style="color:#0df; font-size:12px; font-weight:bold; margin-bottom:6px;">COOKING STATIONS AUTORIZADAS</div>
@@ -2317,7 +2317,7 @@ window.processEntitiesData = function(entities) {
                   padding-bottom: 5px;
                 "
               >
-                Catálogo Canónico de Ítems
+                Directorio Local de Ítems
               </h4>
               <!-- Barra de Herramientas DM -->
               <div class="dm-toolbar">
@@ -2340,7 +2340,7 @@ window.processEntitiesData = function(entities) {
                   <button class="dm-filter-btn" data-filter="upgrade">Upgrades</button>
                 </div>
               </div>
-              <div id="dm-item-catalog-status">Cargando catálogo canónico...</div>
+              <div id="dm-item-catalog-status">Cargando directorio local...</div>
               <div id="grid-items-globales" class="grid-container">
                 <!-- Tarjetas de ítems inyectadas por JS -->
               </div>
@@ -3837,6 +3837,8 @@ window.processEntitiesData = function(entities) {
     <script src="js/item-throwable-recipe-catalog.js"></script>
     <script src="js/dm-item-catalog-core.js"></script>
     <script src="js/item-content-registry.js"></script>
+    <script src="js/dm-tab-runtime-v2.js"></script>
+    <script src="js/dm-local-item-manager-v3.js"></script>
 
     <script>
       const firebaseConfig = {
@@ -6161,6 +6163,9 @@ window.processEntitiesData = function(entities) {
 
         // Sincronizar select de jugadores destino para otorgar ítems
         function updateOtorgarJugadoresSelect() {
+            if (window.LuminousDmLocalItemManagerV3) {
+                return;
+            }
             const select = document.getElementById("otorgar-item-jugador");
             if (!select) return;
             const currentVal = select.value;
@@ -6175,79 +6180,83 @@ window.processEntitiesData = function(entities) {
             }
         }
 
-        // Evento para otorgar al alijo (Stash)
-        document.getElementById("btn-otorgar-stash").addEventListener("click", () => {
-            const jugador = document.getElementById("otorgar-item-jugador").value;
-            const cant = parseInt(document.getElementById("otorgar-item-cant").value) || 1;
+        // Legacy grant handlers stay disabled when the local-first manager owns the UI.
+        if (!window.LuminousDmLocalItemManagerV3) {
+          // Evento para otorgar al alijo (Stash)
+          document.getElementById("btn-otorgar-stash").addEventListener("click", () => {
+              const jugador = document.getElementById("otorgar-item-jugador").value;
+              const cant = parseInt(document.getElementById("otorgar-item-cant").value) || 1;
 
-            if (!selectedItemToOtorgar) {
-                alert("Selecciona un ítem de la base de datos primero.");
-                return;
-            }
-            if (!jugador) {
-                alert("Selecciona un jugador destino.");
-                return;
-            }
+              if (!selectedItemToOtorgar) {
+                  alert("Selecciona un ítem de la base de datos primero.");
+                  return;
+              }
+              if (!jugador) {
+                  alert("Selecciona un jugador destino.");
+                  return;
+              }
 
-            const stashRef = db.ref("campaña/jugadores/" + jugador + "/inventario_stash");
-            stashRef.once("value", snap => {
-                const stash = window.processItemsData(snap.val()) || {};
-                let foundKey = null;
-                for (const [k, v] of Object.entries(stash)) {
-                    if (sameDmItemDefinition(v, selectedItemToOtorgar)) {
-                        foundKey = k;
-                        break;
-                    }
-                }
+              const stashRef = db.ref("campaña/jugadores/" + jugador + "/inventario_stash");
+              stashRef.once("value", snap => {
+                  const stash = window.processItemsData(snap.val()) || {};
+                  let foundKey = null;
+                  for (const [k, v] of Object.entries(stash)) {
+                      if (sameDmItemDefinition(v, selectedItemToOtorgar)) {
+                          foundKey = k;
+                          break;
+                      }
+                  }
 
-                if (foundKey) {
-                    const currentCant = dmItemQuantity(stash[foundKey]);
-                    stashRef.child(foundKey).update(dmQuantityPatch(stash[foundKey], currentCant + cant))
-                        .then(() => alert("¡Otorgados " + cant + " de " + selectedItemToOtorgar.nombre + " al Alijo de " + jugador + "!"));
-                } else {
-                    const newItem = buildDmGrantPayload(selectedItemToOtorgar, cant);
-                    stashRef.push(newItem)
-                        .then(() => alert("¡Añadido " + selectedItemToOtorgar.nombre + " (x" + cant + ") al Alijo de " + jugador + "!"));
-                }
-            });
-        });
+                  if (foundKey) {
+                      const currentCant = dmItemQuantity(stash[foundKey]);
+                      stashRef.child(foundKey).update(dmQuantityPatch(stash[foundKey], currentCant + cant))
+                          .then(() => alert("¡Otorgados " + cant + " de " + selectedItemToOtorgar.nombre + " al Alijo de " + jugador + "!"));
+                  } else {
+                      const newItem = buildDmGrantPayload(selectedItemToOtorgar, cant);
+                      stashRef.push(newItem)
+                          .then(() => alert("¡Añadido " + selectedItemToOtorgar.nombre + " (x" + cant + ") al Alijo de " + jugador + "!"));
+                  }
+              });
+          });
 
-        // Evento para equipar en inventario activo
-        document.getElementById("btn-otorgar-activo").addEventListener("click", () => {
-            const jugador = document.getElementById("otorgar-item-jugador").value;
-            const cant = parseInt(document.getElementById("otorgar-item-cant").value) || 1;
+          // Evento para equipar en inventario activo
+          document.getElementById("btn-otorgar-activo").addEventListener("click", () => {
+              const jugador = document.getElementById("otorgar-item-jugador").value;
+              const cant = parseInt(document.getElementById("otorgar-item-cant").value) || 1;
 
-            if (!selectedItemToOtorgar) {
-                alert("Selecciona un ítem de la base de datos primero.");
-                return;
-            }
-            if (!jugador) {
-                alert("Selecciona un jugador destino.");
-                return;
-            }
+              if (!selectedItemToOtorgar) {
+                  alert("Selecciona un ítem de la base de datos primero.");
+                  return;
+              }
+              if (!jugador) {
+                  alert("Selecciona un jugador destino.");
+                  return;
+              }
 
-            const activoRef = db.ref("campaña/jugadores/" + jugador + "/inventario_activo");
-            activoRef.once("value", snap => {
-                const activo = window.processItemsData(snap.val()) || {};
-                let foundKey = null;
-                for (const [k, v] of Object.entries(activo)) {
-                    if (sameDmItemDefinition(v, selectedItemToOtorgar)) {
-                        foundKey = k;
-                        break;
-                    }
-                }
+              const activoRef = db.ref("campaña/jugadores/" + jugador + "/inventario_activo");
+              activoRef.once("value", snap => {
+                  const activo = window.processItemsData(snap.val()) || {};
+                  let foundKey = null;
+                  for (const [k, v] of Object.entries(activo)) {
+                      if (sameDmItemDefinition(v, selectedItemToOtorgar)) {
+                          foundKey = k;
+                          break;
+                      }
+                  }
 
-                if (foundKey) {
-                    const currentCant = dmItemQuantity(activo[foundKey]);
-                    activoRef.child(foundKey).update(dmQuantityPatch(activo[foundKey], currentCant + cant))
-                        .then(() => alert("¡Otorgados " + cant + " de " + selectedItemToOtorgar.nombre + " al Inventario de " + jugador + "!"));
-                } else {
-                    const newItem = buildDmGrantPayload(selectedItemToOtorgar, cant);
-                    activoRef.push(newItem)
-                        .then(() => alert("¡Equipado " + selectedItemToOtorgar.nombre + " (x" + cant + ") a " + jugador + "!"));
-                }
-            });
-        });
+                  if (foundKey) {
+                      const currentCant = dmItemQuantity(activo[foundKey]);
+                      activoRef.child(foundKey).update(dmQuantityPatch(activo[foundKey], currentCant + cant))
+                          .then(() => alert("¡Otorgados " + cant + " de " + selectedItemToOtorgar.nombre + " al Inventario de " + jugador + "!"));
+                  } else {
+                      const newItem = buildDmGrantPayload(selectedItemToOtorgar, cant);
+                      activoRef.push(newItem)
+                          .then(() => alert("¡Equipado " + selectedItemToOtorgar.nombre + " (x" + cant + ") a " + jugador + "!"));
+                  }
+              });
+          });
+
+        }
 
         // Sincronizar cambios de jugadores en el select
 
@@ -6398,6 +6407,27 @@ window.processEntitiesData = function(entities) {
         );
 
         function applyDmContentRegistry(statusSuffix = "registro canónico local") {
+            if (window.LuminousDmLocalItemManagerV3) {
+              const localItems = window.LuminousDmLocalItemManagerV3.getItemsObject();
+              window.dbItemsCache = localItems;
+              dbItemsCache = localItems;
+              window.dbRecipesCache = window.dbRecipesCache || {};
+              const summary = document.getElementById("dm-content-registry-counts");
+              if (summary) {
+                summary.textContent = Object.keys(localItems).length + " Items locales · carga directa · Firebase no bloquea";
+              }
+              populateDmCatalogSelects(localItems);
+              return {
+                items: localItems,
+                recipes: window.dbRecipesCache,
+                counts: {
+                  items: Object.keys(localItems).length,
+                  recipes: Object.keys(window.dbRecipesCache).length
+                },
+                ready: true,
+                source: "dm-local-item-manager-v3"
+              };
+            }
             const registry = window.LuminousItemContentRegistry;
             const core = window.LuminousDmItemCatalogCore;
             const snapshot = registry
@@ -6462,6 +6492,9 @@ window.processEntitiesData = function(entities) {
 
                 // --- LÓGICA DE BÚSQUEDA Y FILTRADO (DM) ---
         function filterDMItems() {
+          if (window.LuminousDmLocalItemManagerV3) {
+            return;
+          }
           const query = searchInputDM ? searchInputDM.value.toLowerCase() : "";
           let activeFilter = "todo";
 
