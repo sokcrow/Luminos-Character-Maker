@@ -49,10 +49,8 @@ assert.deepEqual(
     "campaña/jugadores/alice/combatStats/hp_max",
     "campaña/jugadores/alice/combatStats/sp_actual",
     "campaña/jugadores/alice/hp",
-    "campaña/jugadores/alice/hp_actual",
     "campaña/jugadores/alice/hp_max",
     "campaña/jugadores/alice/sp",
-    "campaña/jugadores/alice/sp_actual",
   ],
 );
 assert.equal(updates["campaña/jugadores/alice/hp"], 37);
@@ -61,6 +59,11 @@ assert.equal(updates["campaña/jugadores/alice/sp"], -12);
 assert.equal(updates["campaña/jugadores/bob/hp"], 0);
 assert.equal(updates["campaña/jugadores/bob/sp"], 45);
 assert.equal(Object.keys(updates).some((key) => key.includes("goblin")), false, "enemy vitals must never be mirrored into Player records");
+
+globalThis.LuminousCombatLiveAdapter073 = { state: { role: "player", db: null } };
+assert.equal(bridge.bind(), true, "Player Combat clients should consider the bridge settled without binding a writer");
+assert.equal(bridge.state.combatantsRef, null, "Player Combat clients must never subscribe as Player-vitals writers");
+delete globalThis.LuminousCombatLiveAdapter073;
 
 const writes = [];
 const db = {
