@@ -388,9 +388,10 @@ test("Player inventory HUD button uses the repository Inventory asset", async ()
   expect(html).toMatch(/id="btn-global-inventory"[\s\S]{0,500}Assets\/Images\/Buttons\/Inventory\.png/);
   const iconPath = path.join(ROOT, "Assets", "Images", "Buttons", "Inventory.png");
   expect(fs.existsSync(iconPath)).toBe(true);
-  expect(html).toMatch(/name="act_hud_skills"[\s\S]{0,500}Assets\/Images\/Buttons\/Skills\.png/);
-  const skillsIconPath = path.join(ROOT, "Assets", "Images", "Buttons", "Skills.png");
-  expect(fs.existsSync(skillsIconPath)).toBe(true);
+  expect(html).toMatch(/data-player-skills-menu-sword[\s\S]{0,300}Assets\/Images\/Buttons\/Skills\.png/);
+  expect(html).toMatch(/data-player-skills-menu-spell[\s\S]{0,300}Assets\/Images\/Buttons\/Spells\.png/);
+  expect(fs.existsSync(path.join(ROOT, "Assets", "Images", "Buttons", "Skills.png"))).toBe(true);
+  expect(fs.existsSync(path.join(ROOT, "Assets", "Images", "Buttons", "Spells.png"))).toBe(true);
 });
 
 test("canonical persistence carries local icon family metadata", async () => {
