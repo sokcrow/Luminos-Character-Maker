@@ -108,19 +108,48 @@
     return rows[0] || null;
   }
 
-  function loadoutSource(record = {}) {
-    return record.action_slots ?? record.skillSlotIds ?? record.skillIds ?? record.skill_ids ?? record.mechanics?.skills ?? record.equippedSkills ?? [];
+  function skillDeckSlots(value = {}) {
+    const source = value && typeof value === 'object' ? value : {};
+    const deck = {
+      tier1: clean(source.tier1 ?? source.t1 ?? source['1'] ?? source.skill1),
+      tier2: clean(source.tier2 ?? source.t2 ?? source['2'] ?? source.skill2),
+      tier3: clean(source.tier3 ?? source.t3 ?? source['3'] ?? source.skill3)
+    };
+    const out = [];
+    [[1, 3], [2, 2], [3, 1]].forEach(([tier, copies]) => {
+      const id = deck[`tier${tier}`];
+      for (let index = 0; id && index < copies; index += 1) out.push(id);
+    });
+    return out;
   }
 
-  function skillIdsFor(record = {}) {
+  function loadoutSource(record = {}) {
+    const canonicalDeck = skillDeckSlots(record.characterBuild?.skillDeck || record.skillDeck || {});
+    if (canonicalDeck.length) return canonicalDeck;
+    return record.skillSlotIds ?? record.skillIds ?? record.skill_ids ?? record.action_slots ?? record.mechanics?.skills ?? record.equippedSkills ?? [];
+  }
+
+  function skillSlotIdsFor(record = {}) {
     const raw = loadoutSource(record);
     let ids = [];
     if (Array.isArray(raw)) ids = raw.map((value) => clean(value?.id || value?.skillId || value)).filter(Boolean);
-    else if (raw && typeof raw === 'object') ids = Object.values(raw).map((value) => clean(value?.id || value?.skillId || value)).filter(Boolean);
+    else if (raw && typeof raw === 'object') {
+      ids = Object.entries(raw)
+        .sort(([left], [right]) => {
+          const a = Number(left), b = Number(right);
+          return Number.isFinite(a) && Number.isFinite(b) ? a - b : String(left).localeCompare(String(right));
+        })
+        .map(([, value]) => clean(value?.id || value?.skillId || value))
+        .filter(Boolean);
+    }
     if (!ids.length && record.equippedSkillIndex && typeof record.equippedSkillIndex === 'object') {
       ids = Object.keys(record.equippedSkillIndex).filter((id) => record.equippedSkillIndex[id] === true);
     }
-    return [...new Set(ids)];
+    return ids;
+  }
+
+  function skillIdsFor(record = {}) {
+    return [...new Set(skillSlotIdsFor(record))];
   }
 
   function slotsFor(record = {}) {
@@ -151,7 +180,9 @@
     const unit = unitRow?.unit || {};
     const source = { ...clone(actor), ...clone(unit), ...clone(player) };
     const uid = uidForPlayer(player) || clean(source.uid || source.ownerUid);
-    const ids = skillIdsFor(unit).length ? skillIdsFor(unit) : skillIdsFor(source);
+    const unitSlotIds = skillSlotIdsFor(unit);
+    const slotIds = unitSlotIds.length ? unitSlotIds : skillSlotIdsFor(source);
+    const ids = [...new Set(slotIds)];
     const slots = slotsFor(source);
     const stats = baseStats(source);
     const id = `player:${safe(playerId, 'player')}`;
@@ -186,7 +217,7 @@
       activeSlots: slots,
       actionSlotIndex: slotIndex(slots),
       skillIds: ids,
-      skillSlotIds: ids,
+      skillSlotIds: slotIds,
       equippedSkillIndex: equipped(ids),
       statusEffects: clone(source.statusEffects || {}),
       battleActive: true,
