@@ -3600,7 +3600,7 @@ function initializeCharacterSheet() {
 
         const skillTotal = baseVal + modVal;
 
-        let sp = parseInt(pd.combatStats?.sp_actual ?? pd.sp) || 0;
+        let sp = parseInt(pd.sp ?? pd.sp_actual ?? pd.combatStats?.sp_actual) || 0;
 
         // Heads Probability = 50 + SP (min 5, max 95)
         let probHeads = 50 + sp;
