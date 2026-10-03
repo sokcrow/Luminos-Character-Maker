@@ -18,13 +18,16 @@ const path = require("node:path");
   await import("../js/item-runtime-engine.js");
   await import("../js/item-inventory-runtime.js");
   await import("../js/item-quality-engine.js");
+  await import("../js/item-catalog-chemical-processed.js");
   await import("../js/item-chemistry-recipe-catalog.js");
   await import("../js/item-chemistry-crafting-engine.js");
   await import("../js/item-cooking-recipe-catalog.js");
   await import("../js/item-cooking-engine.js");
   await import("../js/item-cooking-recipe-resolver.js");
   await import("../js/item-cooking-equipment-engine.js");
+  await import("../js/item-cooking-v2-engine.js");
   await import("../js/item-cooking-runtime.js");
+  await import("../js/item-catalog-medicinal-processed.js");
   await import("../js/item-medicine-recipe-catalog.js");
   await import("../js/item-medicine-crafting-engine.js");
   await import("../js/item-processing-recipe-data.js");
@@ -162,6 +165,64 @@ const path = require("node:path");
     Object.values(unified.recipes).some((recipe) => recipe.recipeKind === "processing" && recipe.id === "noodles"),
     "processing recipes must be discoverable from the unified registry"
   );
+  assert.ok(
+    Object.values(unified.recipes).some((recipe) =>
+      recipe.recipeKind === "chemistry" &&
+      recipe.id === "cleaning_compound" &&
+      recipe.__catalogSource === "LuminousChemicalProcessedCatalog"
+    ),
+    "chemical processed contracts must be discoverable as canonical synthesis recipes"
+  );
+  assert.ok(
+    Object.values(unified.recipes).some((recipe) =>
+      recipe.recipeKind === "medicine" &&
+      recipe.id === "pharmaceutical_powder" &&
+      recipe.__catalogSource === "LuminousMedicinalProcessedCatalog"
+    ),
+    "medicinal processed contracts must be discoverable as canonical synthesis recipes"
+  );
+
+  const cleaningCompoundRecipe = Object.values(unified.recipes)
+    .find((recipe) => recipe.recipeKind === "chemistry" && recipe.id === "cleaning_compound");
+  const cleaningCompoundInputs = [
+    { definitionId: "solvent_test", tags: ["industrial_solvent"], quantity: 1, __selectedUnits: 1, productionValueAhn: 20 },
+    { definitionId: "absorbent_test", tags: ["environmental_absorbent"], quantity: 1, __selectedUnits: 1, productionValueAhn: 10 }
+  ];
+  const cleaningCompoundResolution = contentRegistry.resolveRecipe(
+    cleaningCompoundRecipe,
+    cleaningCompoundInputs,
+    globalThis
+  );
+  assert.equal(cleaningCompoundResolution.valid, true, "chemical processed contracts should resolve from raw ingredients");
+  const cleaningCompoundOutput = contentRegistry.createRecipeOutput(cleaningCompoundRecipe, {
+    resolution: cleaningCompoundResolution,
+    checkResult: 26
+  });
+  assert.equal(cleaningCompoundOutput.definitionId, "cleaning_compound");
+  assert.equal(cleaningCompoundOutput.family, "chemical_processed");
+  assert.equal(cleaningCompoundOutput.quality, "exceptional");
+  assert.ok(cleaningCompoundOutput.productionValueAhn > 0);
+
+  const pharmaceuticalPowderRecipe = Object.values(unified.recipes)
+    .find((recipe) => recipe.recipeKind === "medicine" && recipe.id === "pharmaceutical_powder");
+  const pharmaceuticalPowderInputs = [
+    { definitionId: "pharma_test", tags: ["pharma_reagent"], quantity: 1, __selectedUnits: 1, productionValueAhn: 25 },
+    { definitionId: "buffer_test", tags: ["medical_buffer"], quantity: 1, __selectedUnits: 1, productionValueAhn: 15 }
+  ];
+  const pharmaceuticalPowderResolution = contentRegistry.resolveRecipe(
+    pharmaceuticalPowderRecipe,
+    pharmaceuticalPowderInputs,
+    globalThis
+  );
+  assert.equal(pharmaceuticalPowderResolution.valid, true, "medicinal processed contracts should resolve from raw ingredients");
+  const pharmaceuticalPowderOutput = contentRegistry.createRecipeOutput(pharmaceuticalPowderRecipe, {
+    resolution: pharmaceuticalPowderResolution,
+    checkResult: 26
+  });
+  assert.equal(pharmaceuticalPowderOutput.definitionId, "pharmaceutical_powder");
+  assert.equal(pharmaceuticalPowderOutput.family, "medicinal_processed");
+  assert.equal(pharmaceuticalPowderOutput.quality, "exceptional");
+  assert.ok(pharmaceuticalPowderOutput.productionValueAhn > 0);
 
   const chemistryInputs = [
     { definitionId: "cleaning_compound", quantity: 1, __selectedUnits: 1, productionValueAhn: 120 },
@@ -249,6 +310,17 @@ const path = require("node:path");
     "authoritative station lists must ignore player-controlled station fields"
   );
 
+  const unknownBread = contentRegistry.resolveRecipe(whiteBreadRecipe, doughInputs, globalThis, {
+    unit: { cookingKnowledge: { white_bread: false } }
+  });
+  assert.equal(unknownBread.valid, false, "explicit cooking knowledge must block recipes the character has not learned");
+  assert.equal(unknownBread.reason, "unknown_recipe_knowledge");
+
+  const knownBread = contentRegistry.resolveRecipe(whiteBreadRecipe, doughInputs, globalThis, {
+    unit: { cookingKnowledge: { white_bread: true } }
+  });
+  assert.equal(knownBread.valid, true, "learned cooking recipes must remain available to synthesis");
+
   const whiteBreadWithEquipment = contentRegistry.resolveRecipe(whiteBreadRecipe, doughInputs, globalThis, {
     enforceEquipment: true,
     toolItems: [{ definitionId: "cooks_utensils", quantity: 1 }],
@@ -271,7 +343,8 @@ const path = require("node:path");
   const cookedBreadOutput = contentRegistry.createRecipeOutput(whiteBreadRecipe, {
     resolution: whiteBreadWithEquipment,
     checkResult: 20,
-    createdAt: 123456789
+    createdAt: 123456789,
+    unit: { proficiencyBonus: 3 }
   });
   assert.equal(cookedBreadOutput.category, "food");
   assert.equal(cookedBreadOutput.family, "food");
@@ -292,6 +365,11 @@ const path = require("node:path");
   assert.ok(Array.isArray(cookedBreadOutput.culinaryEffects), "canonical cooking output must preserve culinary effects");
   assert.ok(Array.isArray(cookedBreadOutput.provenance), "canonical cooking output must preserve provenance");
   assert.ok(Number.isFinite(cookedBreadOutput.cookingMargin), "canonical cooking output must preserve roll margin");
+  assert.equal(cookedBreadOutput.sourceLine, "cooking_v2", "synthesis food must use the canonical Cooking V2 output layer");
+  assert.ok(cookedBreadOutput.mealFocus, "Cooking V2 output must preserve meal focus");
+  assert.ok(cookedBreadOutput.restTiming, "Cooking V2 output must preserve rest timing");
+  assert.ok(cookedBreadOutput.recipeKnowledge, "Cooking V2 output must preserve recipe knowledge metadata");
+  assert.ok(cookedBreadOutput.durationHours >= 1, "Cooking V2 output must preserve proficiency-scaled duration");
 
   const bakeProcessingRecipe = Object.values(unified.recipes)
     .find((recipe) => recipe.recipeKind === "processing" && recipe.id === "bake");
@@ -662,9 +740,12 @@ const path = require("node:path");
   assert.doesNotMatch(playerPage, /id="forja-station-select"/);
   assert.match(playerPage, /js\/item-processing-engine\.js/);
   assert.match(playerPage, /js\/item-cooking-equipment-engine\.js/);
+  assert.match(playerPage, /js\/item-cooking-v2-engine\.js/);
   assert.match(playerPage, /js\/item-quality-engine\.js/);
+  assert.match(playerPage, /js\/item-catalog-chemical-processed\.js/);
   assert.match(playerPage, /js\/item-chemistry-recipe-catalog\.js/);
   assert.match(playerPage, /js\/item-chemistry-crafting-engine\.js/);
+  assert.match(playerPage, /js\/item-catalog-medicinal-processed\.js/);
   assert.match(playerPage, /js\/item-medicine-recipe-catalog\.js/);
   assert.match(playerPage, /js\/item-medicine-crafting-engine\.js/);
   assert.match(playerPage, /js\/item-processing-recipe-data\.js/);
@@ -707,6 +788,7 @@ const path = require("node:path");
   assert.match(playerRuntime, /createRecipeOutput\(attempt\.receta,\s*\{/);
   assert.match(playerRuntime, /resolution:\s*attempt\.resolution/);
   assert.match(playerRuntime, /checkResult:\s*tirada/);
+  assert.match(playerRuntime, /unit:\s*playerData/);
   assert.match(playerRuntime, /qualityTier:\s*canonicalOutput\.qualityTier/);
   assert.match(playerRuntime, /ejecutarTransaccionForja\(attempt,\s*tirada\s*>=\s*attempt\.dc,\s*tirada\)/);
   assert.match(playerRuntime, /function ejecutarTransaccionForja\(attempt,\s*exito,\s*tirada\)/);
