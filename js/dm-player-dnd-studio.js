@@ -65,6 +65,36 @@
   const formatCoef = (value) => numberOr(value, 0).toFixed(4).replace(/0+$/, "").replace(/\.$/, "");
   const normalizeId = (value) => String(value ?? "").trim().toLowerCase().replace(/\s+/g, "_");
 
+  function combatPlayerId(unit = {}) {
+    return String(
+      unit.canonicalPlayerKey
+      || unit.ownerPlayerId
+      || unit.playerId
+      || unit.characterLink?.playerId
+      || (unit.actorRef?.scope === "players" ? unit.actorRef?.id : "")
+      || ""
+    ).trim();
+  }
+
+  function activeCombatantEntry(combatants = {}, playerId = "") {
+    const wanted = String(playerId || "").trim();
+    if (!wanted) return null;
+    for (const [key, unit] of Object.entries(combatants || {})) {
+      if (!unit || combatPlayerId(unit) !== wanted) continue;
+      if (unit.isBackup === true || unit.battleActive === false || unit.removed === true || unit.escaped === true || unit.defeated === true || unit.dead === true) continue;
+      const deployment = normalizeId(unit.deploymentState || unit.deployment || unit.positionState || unit.zone || "field");
+      if (["backup","reserve","reserves","retreat","retreated","defeated","dead","escaped","departed"].includes(deployment)) continue;
+      return { key, unit };
+    }
+    return null;
+  }
+
+  async function activeCombatantForPlayer(db, playerId) {
+    if (!db?.ref || !playerId) return null;
+    const snap = await db.ref("campaña/combate/combatants").once("value");
+    return activeCombatantEntry(snap?.val?.() || {}, playerId);
+  }
+
   function rules() {
     return global.LuminousCharacterBuildRules || null;
   }
@@ -868,7 +898,19 @@
     if (button) button.disabled = true;
     if (feedback) feedback.textContent = "GUARDANDO...";
     try {
-      await state.db.ref(`${PLAYERS_ROOT}/${playerId}`).update(updates);
+      const activeCombatant = await activeCombatantForPlayer(state.db, playerId);
+      if (activeCombatant) {
+        const rootUpdates = {};
+        Object.entries(updates).forEach(([key, value]) => {
+          rootUpdates[`${PLAYERS_ROOT}/${playerId}/${key}`] = value;
+        });
+        rootUpdates[`campaña/combate/combatants/${activeCombatant.key}/hp`] = hpActual;
+        rootUpdates[`campaña/combate/combatants/${activeCombatant.key}/maxHp`] = hpMax;
+        rootUpdates[`campaña/combate/combatants/${activeCombatant.key}/sp`] = spActual;
+        await state.db.ref().update(rootUpdates);
+      } else {
+        await state.db.ref(`${PLAYERS_ROOT}/${playerId}`).update(updates);
+      }
       state.dirty = false;
       if (feedback) feedback.textContent = buildCalculation?.valid ? "JUGADOR / BUILD / STATS D&D GUARDADOS" : "JUGADOR / STATS D&D GUARDADOS";
     } catch (error) {
