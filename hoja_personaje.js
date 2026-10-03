@@ -1928,7 +1928,7 @@ function initializeCharacterSheet() {
     }
 
     // Tab switching logic for Main Nav
-    document.addEventListener("click", (e) => {
+    document.addEventListener("click", async (e) => {
       const btn = e.target.closest('button[type="action"]');
       if (!btn || !btn.name || !btn.name.startsWith("act_tab_")) return;
 
@@ -3313,6 +3313,16 @@ function initializeCharacterSheet() {
       }
 
       // --- Descansos ---
+      if (actName === "act_short_rest" || actName === "act_long_rest") {
+        e.preventDefault();
+        const restGate = await window.LuminousPlayerVitalsHud?.outOfCombatWriteGate?.(db, playerId);
+        if (restGate && restGate.allowed === false) {
+          console.warn("[Player Vitals] Rest blocked while Player is deployed in Combat.", restGate);
+          window.alert?.("REST BLOCKED // Tu Player sigue desplegado en Combat. Usa Combat Engine / DM authority o retíralo del encounter antes de descansar.");
+          return;
+        }
+      }
+
       if (actName === "act_short_rest") {
         if (window.LuminousFoodRestUi?.openRest && window.LuminousFoodRestRuntime) {
           e.preventDefault();
@@ -3416,7 +3426,7 @@ function initializeCharacterSheet() {
     });
 
     // Detectar cambios directos en los inputs y actualizarlos en Firebase (Reemplaza el auto-sync de Roll20)
-    document.addEventListener("change", (e) => {
+    document.addEventListener("change", async (e) => {
       // D&D Core Attributes Save
       if (e.target.id && e.target.id.match(/^stat-(fuerza|destreza|constitucion|inteligencia|sabiduria|carisma)$/)) {
         const statName = e.target.id.replace('stat-', '');
@@ -3495,6 +3505,13 @@ function initializeCharacterSheet() {
             "combatStats/hp_max": newHpMax,
           });
         } else if (["hp", "hp_max", "sp"].includes(attrName)) {
+          const vitalGate = await window.LuminousPlayerVitalsHud?.outOfCombatWriteGate?.(db, playerId);
+          if (vitalGate && vitalGate.allowed === false) {
+            console.warn("[Player Vitals] Manual vital edit blocked while Player is deployed in Combat.", vitalGate);
+            window.alert?.("VITAL EDIT BLOCKED // HP/SP durante Combat se controla desde Combat Engine / DM authority.");
+            renderCharacterSheet?.(currentPlayerData);
+            return;
+          }
           const parsedVital = Number(val);
           const nextVital = Number.isFinite(parsedVital) ? parsedVital : 0;
           const mirrorKey = attrName === "hp"
