@@ -3323,8 +3323,12 @@ function initializeCharacterSheet() {
                 await window.LuminousItemPersistenceRuntime.saveInventoryState(db, playerId, unit);
               }
               await db.ref("campaña/jugadores/" + playerId).update({
-                hp: unit.hp,
-                sp: unit.sp,
+                ...(window.LuminousPlayerVitalsHud?.persistencePatch?.(unit) || {
+                  hp: unit.hp,
+                  sp: unit.sp,
+                  "combatStats/hp_actual": unit.hp,
+                  "combatStats/sp_actual": unit.sp,
+                }),
                 stagger_1_active: unit.stagger_1_active || "1",
                 stagger_2_active: unit.stagger_2_active || "1",
                 stagger_3_active: unit.stagger_3_active || "1",
@@ -3343,8 +3347,14 @@ function initializeCharacterSheet() {
         if (newHP > maxHP) newHP = maxHP;
 
         db.ref("campaña/jugadores/" + playerId).update({
-          hp: newHP,
-          sp: 0,
+          ...(window.LuminousPlayerVitalsHud?.persistencePatch?.({ hp: newHP, hp_max: maxHP, sp: 0 }) || {
+            hp: newHP,
+            hp_max: maxHP,
+            sp: 0,
+            "combatStats/hp_actual": newHP,
+            "combatStats/hp_max": maxHP,
+            "combatStats/sp_actual": 0,
+          }),
           stagger_1_active: "1",
           stagger_2_active: "1",
           stagger_3_active: "1",
@@ -3361,8 +3371,12 @@ function initializeCharacterSheet() {
                 await window.LuminousItemPersistenceRuntime.saveInventoryState(db, playerId, unit);
               }
               await db.ref("campaña/jugadores/" + playerId).update({
-                hp: unit.hp,
-                sp: unit.sp,
+                ...(window.LuminousPlayerVitalsHud?.persistencePatch?.(unit) || {
+                  hp: unit.hp,
+                  sp: unit.sp,
+                  "combatStats/hp_actual": unit.hp,
+                  "combatStats/sp_actual": unit.sp,
+                }),
                 culinarySurvival: unit.culinarySurvival || null,
                 culinaryEffects: unit.culinaryEffects || [],
               });
@@ -3372,10 +3386,16 @@ function initializeCharacterSheet() {
         }
 
         const maxHP = parseInt(currentPlayerData.hp_max) || 0;
-        db.ref("campaña/jugadores/" + playerId).update({
-          hp: maxHP,
-          sp: 0,
-        });
+        db.ref("campaña/jugadores/" + playerId).update(
+          window.LuminousPlayerVitalsHud?.persistencePatch?.({ hp: maxHP, hp_max: maxHP, sp: 0 }) || {
+            hp: maxHP,
+            hp_max: maxHP,
+            sp: 0,
+            "combatStats/hp_actual": maxHP,
+            "combatStats/hp_max": maxHP,
+            "combatStats/sp_actual": 0,
+          },
+        );
       }
 
       // --- Suerte ---
@@ -3472,10 +3492,19 @@ function initializeCharacterSheet() {
             xpPercent: xpData.xpPercent,
             xpMissing: xpData.xpMissing,
             hp_max: newHpMax,
+            "combatStats/hp_max": newHpMax,
           });
-
-          db.ref("campaña/jugadores/" + playerId + "/combatStats").update({
-            hp_max: newHpMax,
+        } else if (["hp", "hp_max", "sp"].includes(attrName)) {
+          const parsedVital = Number(val);
+          const nextVital = Number.isFinite(parsedVital) ? parsedVital : 0;
+          const mirrorKey = attrName === "hp"
+            ? "combatStats/hp_actual"
+            : attrName === "sp"
+              ? "combatStats/sp_actual"
+              : "combatStats/hp_max";
+          db.ref("campaña/jugadores/" + playerId).update({
+            [attrName]: nextVital,
+            [mirrorKey]: nextVital,
           });
         } else {
           // Guardar directamente en la raiz
