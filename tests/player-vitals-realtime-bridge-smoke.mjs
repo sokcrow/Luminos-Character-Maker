@@ -297,6 +297,10 @@ assert.ok(itemRuntime.indexOf('[unit, "hp"') < itemRuntime.indexOf('[unit?.comba
 assert.ok(inventoryHud.includes("bindPlayerVitalsRealtime()"), "Inventory HUD must subscribe to the full Player record for realtime vitals");
 assert.ok(inventoryHud.includes("state.vitalsReady"), "Inventory consumables must wait for Player vital hydration");
 assert.ok(inventoryHud.includes("inventoryAndVitalsPatch"), "Inventory HUD must build one combined inventory + vitals patch");
+assert.ok(inventoryHud.includes('"culinaryMaxHpEffects"'), "temporary max-HP food effect metadata must persist with consumable vitals");
+assert.ok(inventoryHud.includes('"culinaryAppliedMaxHpBonus"'), "applied temporary max-HP bonus must persist for expiry rollback");
+assert.ok(inventoryHud.includes('"culinarySurvival"'), "food survival state must persist atomically with consumable effects");
+assert.ok(inventoryHud.includes('"culinaryEffects"'), "culinary timed effects must persist atomically with consumable effects");
 assert.ok(inventoryHud.includes("SYNCING VITALS + INVENTORY"), "Consumable persistence must use the atomic Player save path");
 assert.equal(inventoryHud.includes("persistVitalsAfterUse"), false, "two-step inventory/vitals persistence must not return");
 assert.ok(inventoryHud.includes("outOfCombatWriteGate?.(state.db, state.playerId)"), "Inventory consumables must be blocked while the Player is deployed in Combat");
