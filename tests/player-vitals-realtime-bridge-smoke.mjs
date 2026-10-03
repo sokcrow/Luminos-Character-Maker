@@ -211,6 +211,13 @@ const authoritySource = fs.readFileSync(path.join(repoRoot, "js/combat-v073-auth
 const battleViewer = fs.readFileSync(path.join(repoRoot, "Battle-viewer.html"), "utf8");
 const playerHtml = fs.readFileSync(path.join(repoRoot, "hoja_personaje.html"), "utf8");
 const playerJs = fs.readFileSync(path.join(repoRoot, "hoja_personaje.js"), "utf8");
+const restRuntime = fs.readFileSync(path.join(repoRoot, "js/rest-runtime-integration.js"), "utf8");
+const statsHud = fs.readFileSync(path.join(repoRoot, "js/player-stats-ability-bar.js"), "utf8");
+const derivedStats = fs.readFileSync(path.join(repoRoot, "js/derived-stats-engine.js"), "utf8");
+const itemRuntime = fs.readFileSync(path.join(repoRoot, "js/item-runtime-engine.js"), "utf8");
+const inventoryHud = fs.readFileSync(path.join(repoRoot, "js/inventory-hud-v2.js"), "utf8");
+const dmStudio = fs.readFileSync(path.join(repoRoot, "js/dm-player-dnd-studio.js"), "utf8");
+const dmHtml = fs.readFileSync(path.join(repoRoot, "pantalla_dm.html"), "utf8");
 
 assert.match(authoritySource, /playerVitalFirebaseUpdates\(snapshot\)/);
 assert.match(authoritySource, /\.\.\.playerVitalFirebaseUpdates\(snapshot\)/);
@@ -221,5 +228,17 @@ assert.ok(
   "Player vitals HUD runtime must load before the sheet renderer",
 );
 assert.match(playerJs, /LuminousPlayerVitalsHud\?\.sync\?\.\(data, document\)/);
+assert.ok(playerJs.includes('"combatStats/hp_actual"'));
+assert.ok(playerJs.includes('"combatStats/sp_actual"'));
+assert.ok(restRuntime.includes('updates.hp = Number(hp)'));
+assert.ok(restRuntime.includes('updates["combatStats/hp_actual"] = Number(hp)'));
+assert.ok(statsHud.includes('data?.hp ?? data?.hp_actual ?? data?.combatStats?.hp_actual'));
+assert.ok(derivedStats.includes('["hp", "hp_actual", "currentHp", "current_hp", "combatStats.hp_actual"]'));
+assert.ok(itemRuntime.indexOf('[unit, "hp"') < itemRuntime.indexOf('[unit?.combatStats, "hp_actual"'), "item healing must prefer root HP");
+assert.ok(inventoryHud.includes("persistVitalsAfterUse"));
+assert.ok(dmStudio.includes("hp: hpActual"));
+assert.ok(dmStudio.includes("sp: spActual"));
+assert.ok(dmHtml.includes("activePlayerIdForModal}/hp`]"));
+assert.ok(dmHtml.includes("activePlayerIdForModal}/sp`]"));
 
 console.log("player-vitals-realtime-bridge-smoke: ok");
