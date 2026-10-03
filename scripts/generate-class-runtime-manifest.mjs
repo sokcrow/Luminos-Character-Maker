@@ -103,6 +103,7 @@ const LEGACY_PRIMARY = [
 const DEPENDENCY_OVERRIDES = new Map([
   ["class:fighter", ["support:fighting-style-runtime", "support:universal-action-economy"]],
   ["class:monk", ["support:weapon-property-runtime", "support:universal-speed-runtime"]],
+  ["class:cleric", ["support:creature-type-catalog", "support:caster-spellcasting-traits-runtime"]],
   ["class:ranger", ["support:creature-type-catalog", "support:fighting-style-runtime", "support:caster-spellcasting-traits-runtime"]],
   ["class:sorcerer", ["support:spellcasting-runtime", "support:universal-speed-runtime"]],
   ["class:wizard", ["support:spellcasting-runtime"]],
