@@ -140,6 +140,19 @@ assert.deepEqual(playerVitalWrites[0], {
   sp: 12,
   "combatStats/sp_actual": 12,
 }, "Player persistence must atomically align root vitals and combat mirrors");
+const playerVitalWritesById = [];
+const multiPlayerDb = {
+  ref(pathValue) {
+    return {
+      async update(patch) { playerVitalWritesById.push({ pathValue, patch }); },
+    };
+  },
+};
+await hud.persist(multiPlayerDb, "alice", { hp: 50, hp_max: 80, sp: 0 }, { force: true });
+const bobPersist = await hud.persist(multiPlayerDb, "bob", { hp: 50, hp_max: 80, sp: 0 });
+assert.equal(bobPersist.saved, true, "dedupe must never suppress identical vitals for a different Player");
+assert.equal(playerVitalWritesById.at(-1)?.pathValue, "campaña/jugadores/bob");
+
 function fakeNode() {
   const classes = new Set();
   const props = {};
@@ -230,6 +243,7 @@ assert.ok(
 assert.match(playerJs, /LuminousPlayerVitalsHud\?\.sync\?\.\(data, document\)/);
 assert.ok(playerJs.includes('"combatStats/hp_actual"'));
 assert.ok(playerJs.includes('"combatStats/sp_actual"'));
+assert.ok(playerJs.includes("pd.sp ?? pd.sp_actual ?? pd.combatStats?.sp_actual"), "Coin Toss must prefer universal root SP");
 assert.ok(restRuntime.includes('updates.hp = Number(hp)'));
 assert.ok(restRuntime.includes('updates["combatStats/hp_actual"] = Number(hp)'));
 assert.ok(statsHud.includes('data?.hp ?? data?.hp_actual ?? data?.combatStats?.hp_actual'));
