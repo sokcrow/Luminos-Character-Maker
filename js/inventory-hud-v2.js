@@ -735,6 +735,13 @@
     }
   }
 
+  async function persistVitalsAfterUse() {
+    const vitals = global.LuminousPlayerVitalsHud;
+    if (!vitals?.persist || !state.db || !state.playerId || !state.unit) return false;
+    const result = await vitals.persist(state.db, state.playerId, state.unit);
+    return result?.saved === true || result?.reason === "UNCHANGED";
+  }
+
   function addAction(host, label, handler, className = "", disabled = false) {
     const button = doc.createElement("button");
     button.type = "button";
@@ -917,7 +924,9 @@
       for (const [key, entry] of entries(source)) if (entry === item || itemId(entry) === itemId(item)) delete source[key];
       state.selected = null;
     }
-    await saveUnit(`USED // ${itemName(item).toUpperCase()}`);
+    if (await saveUnit(`USED // ${itemName(item).toUpperCase()}`)) {
+      await persistVitalsAfterUse();
+    }
   }
 
   async function eatDrinkSelected() {
@@ -931,7 +940,9 @@
     if (quantityOf(item) <= 0) state.selected = null;
     const stateNow = foodRest().ensureState?.(state.unit);
     const suffix = stateNow ? ` // H${stateNow.hungerSlots}/${stateNow.maxHungerSlots} W${stateNow.hydrationSlots}/${stateNow.maxHydrationSlots}` : "";
-    await saveUnit(`EAT / DRINK // ${itemName(item).toUpperCase()}${suffix}`);
+    if (await saveUnit(`EAT / DRINK // ${itemName(item).toUpperCase()}${suffix}`)) {
+      await persistVitalsAfterUse();
+    }
   }
 
   function onEquipmentClick(event) {
