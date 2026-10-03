@@ -600,11 +600,16 @@
       return false;
     }
 
+    state.playerInventory.inventario_activo = {};
+    state.playerInventory.inventario_stash = {};
+    renderInlineInventories();
+
     if (!global.firebase || !global.firebase.apps || !global.firebase.apps.length) {
       setInlineInventoryStatus("Esperando Firebase para cargar el inventario del jugador...");
       return false;
     }
 
+    setInlineInventoryStatus("Cargando inventario de " + id + "...");
     const db = global.firebase.database();
     [
       ["inventario_activo", "active"],
