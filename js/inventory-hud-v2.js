@@ -914,6 +914,11 @@
   async function useSelected() {
     const item = selectedItem();
     if (!item || !state.unit || !runtime()?.useItem) return;
+    const combatGate = await global.LuminousPlayerVitalsHud?.outOfCombatWriteGate?.(state.db, state.playerId);
+    if (combatGate && combatGate.allowed === false) {
+      showStatus("BLOCKED // USE THIS ITEM THROUGH COMBAT ENGINE", "error");
+      return;
+    }
     const result = runtime().useItem(state.unit, item, {});
     if (!result?.used) {
       showStatus(`BLOCKED // ${String(result?.reason || "USE FAILED").toUpperCase()}`, "error");
@@ -932,6 +937,11 @@
   async function eatDrinkSelected() {
     const item = selectedItem();
     if (!item || !state.unit || !foodRest()?.consumeFood) return;
+    const combatGate = await global.LuminousPlayerVitalsHud?.outOfCombatWriteGate?.(state.db, state.playerId);
+    if (combatGate && combatGate.allowed === false) {
+      showStatus("BLOCKED // EAT / DRINK THROUGH COMBAT ENGINE", "error");
+      return;
+    }
     const result = foodRest().consumeFood(state.unit, item, {});
     if (!result?.consumed) {
       showStatus(`BLOCKED // ${String(result?.reason || "EAT / DRINK FAILED").toUpperCase()}`, "error");
