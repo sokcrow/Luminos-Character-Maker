@@ -39,7 +39,8 @@
   function canonicalPlayerId(unit={}){return clean(unit.canonicalPlayerKey||unit.ownerPlayerId||unit.playerId||unit.characterLink?.playerId);}
   function classEntries(unit={}){
     const build=unit?.characterBuild&&typeof unit.characterBuild==='object'?unit.characterBuild:{};
-    const raw=Array.isArray(unit.classes)?unit.classes:(Array.isArray(build.classes)?build.classes:[]);
+    let raw=Array.isArray(unit.classes)?unit.classes:(Array.isArray(build.classes)?build.classes:[]);
+    if(!raw.length){const levels=unit.classLevels||build.classLevels||{};raw=Object.entries(levels||{}).map(([classId,value])=>typeof value==='object'?{classId,...value}:{classId,levels:value});}
     return raw.map(entry=>({classId:norm(entry?.classId||entry?.id||entry?.name),levels:Math.max(0,Math.trunc(finite(entry?.levels??entry?.level??entry?.classLevel,0)))})).filter(entry=>entry.classId&&entry.levels>0);
   }
   function isSpellcaster(unit={}){
