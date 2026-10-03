@@ -274,6 +274,40 @@ const path = require("node:path");
   assert.ok(Array.isArray(cookedBreadOutput.provenance), "canonical cooking output must preserve provenance");
   assert.ok(Number.isFinite(cookedBreadOutput.cookingMargin), "canonical cooking output must preserve roll margin");
 
+  const bakeProcessingRecipe = Object.values(unified.recipes)
+    .find((recipe) => recipe.recipeKind === "processing" && recipe.id === "bake");
+  assert.ok(bakeProcessingRecipe, "canonical bake processing recipe should exist");
+  const bakeWithoutEquipment = contentRegistry.resolveRecipe(
+    bakeProcessingRecipe,
+    doughInputs,
+    globalThis,
+    {
+      enforceEquipment: true,
+      toolItems: [],
+      unit: {},
+      availableStationIds: []
+    }
+  );
+  assert.equal(bakeWithoutEquipment.valid, false, "processing bake must be blocked without canonical equipment");
+  assert.equal(bakeWithoutEquipment.reason, "missing_processing_equipment");
+  assert.ok(bakeWithoutEquipment.missingToolIds.includes("cooks_utensils"));
+  assert.ok(bakeWithoutEquipment.missingStationIds.includes("oven"));
+
+  const bakeWithEquipment = contentRegistry.resolveRecipe(
+    bakeProcessingRecipe,
+    doughInputs,
+    globalThis,
+    {
+      enforceEquipment: true,
+      toolItems: [{ definitionId: "cooks_utensils", quantity: 1 }],
+      unit: {},
+      availableStationIds: ["oven"]
+    }
+  );
+  assert.equal(bakeWithEquipment.valid, true, "processing bake should resolve with canonical tool and station");
+  assert.equal(bakeWithEquipment.equipment.hasRequiredTool, true);
+  assert.equal(bakeWithEquipment.equipment.hasRequiredStation, true);
+
   const noodlesRecipe = Object.values(unified.recipes)
     .find((recipe) => recipe.recipeKind === "processing" && recipe.id === "noodles");
   const noodlesResolution = contentRegistry.resolveRecipe(noodlesRecipe, doughInputs, globalThis);
@@ -296,22 +330,28 @@ const path = require("node:path");
     {
       id: "apple",
       definitionId: "apple",
+      instanceId: "apple_stack_a",
       name: "Apple",
       tags: ["juice", "juicy", "refreshing", "fruit"],
       quantity: 1,
       __selectedUnits: 1,
       productionValueAhn: 12,
-      quality: "fine"
+      quality: "fine",
+      taste: 1,
+      culinaryProperties: [{ target: "strength", sourceInstanceId: "apple_stack_a" }]
     },
     {
       id: "apple",
       definitionId: "apple",
+      instanceId: "apple_stack_b",
       name: "Apple",
       tags: ["juice", "juicy", "refreshing", "fruit"],
       quantity: 1,
       __selectedUnits: 1,
       productionValueAhn: 12,
-      quality: "fine"
+      quality: "fine",
+      taste: 3,
+      culinaryProperties: [{ target: "agility", sourceInstanceId: "apple_stack_b" }]
     }
   ];
   const juiceResolution = contentRegistry.resolveRecipe(juiceRecipe, juiceInputs, globalThis);
@@ -323,6 +363,27 @@ const path = require("node:path");
   assert.equal(juiceOutput.processingTemplateId, "juice");
   assert.equal(juiceOutput.processedForm, "juice");
   assert.ok(Array.isArray(juiceOutput.provenance), "procedural processing output must preserve provenance");
+  assert.deepEqual(
+    [...juiceOutput.sourceInstanceIds].sort(),
+    ["apple_stack_a", "apple_stack_b"],
+    "processing output must preserve source instance provenance from both stacks"
+  );
+  assert.deepEqual(
+    juiceOutput.culinaryProperties.map((property) => property.target).sort(),
+    ["agility", "strength"],
+    "processing output must preserve culinary properties from both stacks"
+  );
+  assert.equal(juiceOutput.provenance.length, 2, "metadata-distinct stacks must not be collapsed into one provenance row");
+
+  const simpleMixRecipe = Object.values(unified.recipes)
+    .find((recipe) => recipe.recipeKind === "processing" && recipe.id === "simple_mix");
+  assert.ok(simpleMixRecipe, "simple_mix processing recipe should exist");
+  const duplicateStacksAreNotDistinct = contentRegistry.resolveRecipe(simpleMixRecipe, juiceInputs, globalThis);
+  assert.equal(
+    duplicateStacksAreNotDistinct.valid,
+    false,
+    "two metadata-distinct stacks of the same item must not satisfy all_distinct processing requirements"
+  );
 
   const deferredThrowable = Object.values(unified.recipes)
     .find((recipe) => recipe.recipeKind === "throwable" && recipe.combatContractStatus === "deferred");
