@@ -83,6 +83,13 @@
   pointer-events: none !important;
 }
 
+/* Match the Player stage spacing to the DM viewport. The DM dashboard already
+   contributes a 1vw stage gap from on-game-dashboard.css; without this rule
+   Player Theatre rendered the same sprites flush against each other. */
+#theatre-view-player > #theatre-stage {
+  gap: 1vw !important;
+}
+
 #theatre-view-player > #theatre-stage > .theatre-sprite,
 .on-game-dashboard .stage-view-wrapper > #theatre-stage > .theatre-sprite {
   flex: 0 1 20%;
