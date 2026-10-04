@@ -47,7 +47,12 @@
   }
 
   function selectionSource(source = {}) {
-    const directLists = [
+    const selected = [];
+    const add = (entry) => {
+      const id = clean(entry?.spellId || entry?.id || entry);
+      if (id && !selected.includes(id)) selected.push(id);
+    };
+    [
       source.spellIds,
       source.spells,
       source.spell_ids,
@@ -59,24 +64,23 @@
       source.characterBuild?.spellSelections,
       source.characterBuild?.knownSpellIds,
       source.characterBuild?.preparedSpellIds,
-    ];
-    for (const list of directLists) if (Array.isArray(list) && list.length) return list;
+    ].forEach((list) => {
+      if (Array.isArray(list)) list.forEach(add);
+    });
 
-    const indexes = [
+    [
       source.spellSelectionIndex,
       source.knownSpellIndex,
       source.preparedSpellIndex,
       source.characterBuild?.spellSelectionIndex,
       source.characterBuild?.knownSpellIndex,
       source.characterBuild?.preparedSpellIndex,
-    ];
-    for (const index of indexes) {
+    ].forEach((index) => {
       if (index && typeof index === "object" && !Array.isArray(index)) {
-        const ids = Object.entries(index).filter(([, enabled]) => enabled === true).map(([id]) => id);
-        if (ids.length) return ids;
+        Object.entries(index).forEach(([id, enabled]) => { if (enabled === true) add(id); });
       }
-    }
-    return [];
+    });
+    return selected;
   }
 
   function rawSpellIdsFor(source = {}) {
