@@ -644,12 +644,24 @@
     return true;
   }
 
+  function debugConsoleEnabled() {
+    if (global.LUMINOUS_DEBUG_DM_CONSOLE === true) return true;
+    try {
+      const params = new URLSearchParams(global.location?.search || "");
+      return params.get("dmDebug") === "1" || params.get("debugDmConsole") === "1";
+    } catch (_) {
+      return false;
+    }
+  }
+
   function authorizeAndBoot(user = undefined) {
     const uid = user === undefined ? currentUid() : user?.uid || null;
     state.authorized = !global.firebase?.auth || uid === DM_UID;
     if (!state.authorized) { unmount(); return false; }
     state.db = state.db || (global.firebase?.database ? global.firebase.database() : null);
-    mount(); bindFirebase();
+    bindFirebase();
+    if (debugConsoleEnabled()) mount();
+    else unmount();
     return true;
   }
 
@@ -673,7 +685,7 @@
     unitSp, writeSp, readHp, readMaxHp, writeHp, writeShield, thresholdPenalty, rollCheck,
     applyDamageToUnit, applyFixedDamageToUnit, healUnit, applyStatusToUnit, removeStatusFromUnit,
     runTurnStart, runTurnEnd, runRest, runEncounterEnd, runEncounterEndAll, normalizeEncounterResult, finishEncounter,
-    sanitizeForFirebase, combatantKey, mutateCombatants, mutateSelected, isBattleViewerSurface, isDmAuthorized, mount, unmount, init,
+    sanitizeForFirebase, combatantKey, mutateCombatants, mutateSelected, isBattleViewerSurface, isDmAuthorized, debugConsoleEnabled, mount, unmount, init,
     _state: state,
   });
 
