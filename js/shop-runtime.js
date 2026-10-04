@@ -16,6 +16,13 @@
   // Ordered from the strongest intrinsic / production signal to legacy fallbacks.
   // Zero is treated as "not authored" so placeholder price/costo fields cannot
   // shadow a valid canonical value later in the Item definition.
+  const SELL_UNIT_VALUE_FIELDS = Object.freeze([
+    "unitValueAhn",
+    "standardUnitValueAhn",
+    "mediumStandardValueAhn",
+    "standardMediumValueAhn",
+  ]);
+
   const BASE_VALUE_FIELDS = Object.freeze([
     "productionValueAhn",
     "productionValue",
@@ -418,6 +425,34 @@
     return resolveBaseValueAhn(item).value || 0;
   }
 
+  function stackQuantityOf(item = {}) {
+    const quantity = Number(item.quantity ?? item.cantidad ?? 1);
+    return Number.isFinite(quantity) && quantity > 0 ? Math.max(1, Math.trunc(quantity)) : 1;
+  }
+
+  function resolveSellUnitValueAhn(item = {}) {
+    for (const field of SELL_UNIT_VALUE_FIELDS) {
+      const raw = item?.[field];
+      if (raw == null || raw === "") continue;
+      const value = Number(raw);
+      if (Number.isFinite(value) && value > 0) {
+        return Object.freeze({ resolved: true, field, value });
+      }
+    }
+
+    const total = Number(item?.totalValueAhn);
+    if (Number.isFinite(total) && total > 0) {
+      const quantity = stackQuantityOf(item);
+      return Object.freeze({
+        resolved: true,
+        field: quantity > 1 ? "totalValueAhn/quantity" : "totalValueAhn",
+        value: total / quantity,
+      });
+    }
+
+    return resolveBaseValueAhn(item);
+  }
+
   const REFERENCE_COMPONENT_CATALOGS = Object.freeze({
     armor_components: "LuminousArmorComponentCatalog",
     weapon_components: "LuminousWeaponComponentCatalog",
@@ -590,7 +625,7 @@
   }
 
   function sellBreakdown(item = {}, shop = {}) {
-    const resolution = resolveBaseValueAhn(item);
+    const resolution = resolveSellUnitValueAhn(item);
     const final = resolution.resolved
       ? roundAhn(resolution.value * BASE_SELLBACK_MULTIPLIER)
       : null;
@@ -755,6 +790,7 @@
     SHOP_TIER_PRICE_STEP,
     MAX_TIER,
     BASE_VALUE_FIELDS,
+    SELL_UNIT_VALUE_FIELDS,
     SHOP_TYPES,
     SHOP_TYPE_CATALOG,
     tierNumber,
@@ -772,6 +808,7 @@
     shopCatalogMatch,
     itemEligibleForShopType,
     resolveBaseValueAhn,
+    resolveSellUnitValueAhn,
     hasBaseValueAhn,
     baseValueAhn,
     definitionIdOf,
