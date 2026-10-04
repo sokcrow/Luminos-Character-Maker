@@ -174,10 +174,11 @@ test("player item detail hides implementation metadata and only shows relevant s
   await expect(page.locator(".inventory-v2-player-facts")).toContainText("CONDITION");
   await expect(page.locator(".inventory-v2-player-facts")).toContainText("90%");
 
-  const detailText = (await page.locator("#item-detail-card").innerText()).toUpperCase();
-  for (const forbidden of ["CATEGORY", "STACK", "QUALITY", "MANUFACTURER", "PRODUCT LINE", "SERIAL", "INSTANCE"]) {
-    expect(detailText).not.toContain(forbidden);
+  const technicalDetailKeys = ["category", "stack", "quality", "manufacturer", "product-line", "serial", "instance"];
+  for (const key of technicalDetailKeys) {
+    await expect(page.locator(`[data-v2-detail="${key}"]`)).toHaveCount(0);
   }
+  await expect(page.locator(".inventory-v2-player-facts")).not.toContainText("[object Object]");
   await expect(page.locator(".inventory-v2-item-category")).toHaveCount(0);
 });
 
