@@ -230,16 +230,16 @@
     const max = Number(maxHp);
     if (!Number.isFinite(max) || max <= 0) return null;
     const capPercent = Math.max(0, Number(hp.capMaxHpPercent || 0));
-    const cap = max * (capPercent / 100);
-    const immediateRaw = Math.max(0, Number(hp.flat || 0) + max * (Number(hp.maxHpPercent || 0) / 100));
+    const cap = Math.floor(max * (capPercent / 100));
+    const immediateRaw = Math.floor(Math.max(0, Number(hp.flat || 0) + max * (Number(hp.maxHpPercent || 0) / 100)));
     const availableTurns = Math.max(0, Math.trunc(Number(hp.regen?.turns || 0)));
     const requestedTurns = regenTurns == null ? availableTurns : Math.max(0, Math.trunc(Number(regenTurns || 0)));
     const turnsApplied = Math.min(availableTurns, requestedTurns);
     const regenPerTurn = hp.regen
-      ? Math.max(0, Number(hp.regen.flatPerTurn || 0) + max * (Number(hp.regen.maxHpPercentPerTurn || 0) / 100))
+      ? Math.floor(Math.max(0, Number(hp.regen.flatPerTurn || 0) + max * (Number(hp.regen.maxHpPercentPerTurn || 0) / 100)))
       : 0;
-    const immediate = Math.min(immediateRaw, cap);
-    const total = Math.min(immediateRaw + regenPerTurn * turnsApplied, cap);
+    const immediate = Math.floor(Math.min(immediateRaw, cap));
+    const total = Math.floor(Math.min(immediateRaw + regenPerTurn * turnsApplied, cap));
     return { immediate, regen: Math.max(0, total - immediate), total, cap, capPercent, turnsApplied };
   }
 

@@ -85,6 +85,7 @@
         ensureScript("class-milestone-engine-script", "js/class-milestone-engine.js", () => Boolean(global.LuminousClassMilestones)),
         ensureScript("trait-player-tray-script", "js/trait-player-tray.js", () => Boolean(global.LuminousTraitPlayerTray)),
         ensureScript("universal-action-economy-script", "js/universal-action-economy.js", () => Boolean(global.LuminousActionEconomy)),
+        ensureScript("trait-standardization-runtime-script", "js/trait-standardization-runtime.js", () => Boolean(global.LuminousTraitStandardizationRuntime)),
       ]));
     return state.dependencyPromise;
   }
@@ -491,23 +492,27 @@ ${response}`);
   }
 
   function bindPlayer() {
-    if (!state.db) return false;
     const nextId = String(global.localStorage?.getItem?.(PLAYER_ID_STORAGE_KEY) || "").trim();
     if (!nextId) return false;
-    if (nextId === state.playerId && state.playerRef) return true;
-
-    if (state.playerRef && state.playerListener) state.playerRef.off("value", state.playerListener);
+    const changedPlayer = nextId !== state.playerId;
     state.playerId = nextId;
-    state.character = global.datosJugador || null;
-    state.traitState = global.LuminousTraitEngine?.createState?.() || null;
-    state.playerRef = state.db.ref(`${PLAYER_ROOT}/${nextId}`);
-    state.playerListener = (snapshot) => {
-      state.character = snapshot.val() || global.datosJugador || null;
-      refresh();
-    };
-    state.playerRef.on("value", state.playerListener);
+    state.character = global.datosJugador || state.character || null;
+    if (changedPlayer || !state.traitState) {
+      state.traitState = global.LuminousTraitEngine?.createState?.() || null;
+    }
     processSharedActionResolutions();
     return true;
+  }
+
+  function handlePlayerData(event) {
+    const detail = event?.detail || {};
+    const incomingId = String(detail.playerId || global.localStorage?.getItem?.(PLAYER_ID_STORAGE_KEY) || "").trim();
+    if (state.playerId && incomingId && state.playerId !== incomingId) return;
+    state.playerId = incomingId || state.playerId;
+    state.character = detail.data || global.datosJugador || state.character || null;
+    if (!state.traitState) state.traitState = global.LuminousTraitEngine?.createState?.() || null;
+    refresh();
+    processSharedActionResolutions();
   }
 
   function connectFirebase() {
@@ -754,16 +759,16 @@ ${response}`);
   function bootRuntime() {
     global.addEventListener?.("luminous:theatre-check-completed", (event) => recordCompletedTheatreCheck(event?.detail || {}));
     global.addEventListener?.("luminous:theatre-target-selected", (event) => setTheatreTarget(event?.detail?.target || event?.detail || null));
+    global.addEventListener?.("luminous:player-data", handlePlayerData);
+    global.addEventListener?.("luminous:class-runtime-loaded", () => {
+      refresh();
+      installLifecycleBridges();
+    });
+    global.addEventListener?.("luminous:player-instance-changed", installLifecycleBridges);
     connectFirebase();
     bindPlayer();
     refresh();
     installLifecycleBridges();
-    global.setInterval(() => {
-      if (!state.db) connectFirebase();
-      bindPlayer();
-      mountTray();
-      installLifecycleBridges();
-    }, 1000);
   }
 
   global.LuminousPlayerTraitRuntime = Object.freeze({

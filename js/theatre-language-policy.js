@@ -48,7 +48,7 @@
     if (isDmView()) return;
     const ensureLog = () => ensureRuntimeScript(
       "theatre-special-language-log-runtime-script",
-      "js/theatre-special-language-log-hotfix.js",
+      "js/theatre-special-language-log-hotfix.js?v=20261004-language-comprehension-1",
       "luminousSpecialLanguageLogRuntime",
     );
     if (global.LuminousSpecialLanguageEnforcement) {
@@ -57,7 +57,7 @@
     }
     const enforcement = ensureRuntimeScript(
       "theatre-special-language-enforcement-runtime-script",
-      "js/theatre-special-language-enforcement-hotfix.js",
+      "js/theatre-special-language-enforcement-hotfix.js?v=20261004-language-comprehension-1",
       "luminousSpecialLanguageEnforcementRuntime",
     );
     enforcement.addEventListener("load", ensureLog, { once: true });
@@ -336,11 +336,13 @@
   } else {
     ensurePlayerSpecialLanguageRuntime();
     patchPlayerQueueWrites();
+    ensurePlayerSelector();
     document.addEventListener("click", (event) => {
       if (event.target?.closest?.("#btn-abrir-escritura")) global.setTimeout(ensurePlayerSelector, 0);
     }, true);
     global.addEventListener("actoresCacheUpdated", () => global.setTimeout(ensurePlayerSelector, 0));
-    global.setInterval(ensurePlayerSelector, 1000);
+    global.addEventListener("luminous:player-data", () => global.setTimeout(ensurePlayerSelector, 0));
+    global.addEventListener("luminous:player-instance-changed", () => global.setTimeout(ensurePlayerSelector, 0));
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", refresh, { once: true });

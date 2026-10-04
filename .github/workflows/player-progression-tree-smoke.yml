@@ -1,0 +1,98 @@
+name: Player Progression Tree Smoke
+
+on:
+  pull_request:
+    paths:
+      - 'hoja_personaje.html'
+      - 'js/character-build-rules.js'
+      - 'js/player-progression-tree-core.js'
+      - 'js/player-progression-tree.js'
+      - 'js/player-skills-hud.js'
+      - 'js/player-progression-level-allocation.js'
+      - 'js/player-trait-runtime.js'
+      - 'js/trait-player-tray.js'
+      - 'js/player-archetype-runtime-core.js'
+      - 'css/player-progression-tree.css'
+      - 'css/player-skills-hud.css'
+      - 'css/player-trait-tabs.css'
+      - 'tests/player-progression-tree-smoke.mjs'
+      - 'tests/player-skills-hud-smoke.mjs'
+      - 'Assets/Images/Buttons/Spells.png'
+      - 'js/dm-player-loadout-core.js'
+      - 'js/dm-player-dnd-studio-tabs.js'
+      - 'js/dm-player-loadout-manager.js'
+      - 'js/dm-player-dnd-studio.js'
+      - 'js/combat-skill-loadout-074.js'
+      - 'js/battle-viewer-player-entry-074.js'
+      - 'css/dm-player-dnd-studio-tabs.css'
+      - 'css/dm-player-loadout-manager.css'
+      - 'tests/dm-player-loadout-manager-smoke.mjs'
+      - 'tests/combat-v074-skill-loadout-smoke.mjs'
+      - 'tests/combat-v074-player-entry-smoke.mjs'
+      - '.github/workflows/player-progression-tree-smoke.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'hoja_personaje.html'
+      - 'js/character-build-rules.js'
+      - 'js/player-progression-tree-core.js'
+      - 'js/player-progression-tree.js'
+      - 'js/player-skills-hud.js'
+      - 'js/player-progression-level-allocation.js'
+      - 'js/player-trait-runtime.js'
+      - 'js/trait-player-tray.js'
+      - 'js/player-archetype-runtime-core.js'
+      - 'css/player-progression-tree.css'
+      - 'css/player-skills-hud.css'
+      - 'css/player-trait-tabs.css'
+      - 'tests/player-progression-tree-smoke.mjs'
+      - 'tests/player-skills-hud-smoke.mjs'
+      - 'Assets/Images/Buttons/Spells.png'
+      - 'js/dm-player-loadout-core.js'
+      - 'js/dm-player-dnd-studio-tabs.js'
+      - 'js/dm-player-loadout-manager.js'
+      - 'js/dm-player-dnd-studio.js'
+      - 'js/combat-skill-loadout-074.js'
+      - 'js/battle-viewer-player-entry-074.js'
+      - 'css/dm-player-dnd-studio-tabs.css'
+      - 'css/dm-player-loadout-manager.css'
+      - 'tests/dm-player-loadout-manager-smoke.mjs'
+      - 'tests/combat-v074-skill-loadout-smoke.mjs'
+      - 'tests/combat-v074-player-entry-smoke.mjs'
+      - '.github/workflows/player-progression-tree-smoke.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax check
+        run: |
+          node --check js/character-build-rules.js
+          node --check js/player-progression-tree-core.js
+          node --check js/player-progression-tree.js
+          node --check js/player-skills-hud.js
+          node --check js/player-progression-level-allocation.js
+          node --check js/player-trait-runtime.js
+          node --check js/trait-player-tray.js
+          node --check js/player-archetype-runtime-core.js
+          node --check js/dm-player-loadout-core.js
+          node --check js/dm-player-dnd-studio-tabs.js
+          node --check js/dm-player-loadout-manager.js
+          node --check js/dm-player-dnd-studio.js
+          node --check js/combat-skill-loadout-074.js
+          node --check js/battle-viewer-player-entry-074.js
+      - name: Progression tree smoke
+        run: node tests/player-progression-tree-smoke.mjs
+      - name: Player combat skills HUD smoke
+        run: node tests/player-skills-hud-smoke.mjs
+      - name: DM Player loadout smoke
+        run: node tests/dm-player-loadout-manager-smoke.mjs
+      - name: Combat Skill loadout smoke
+        run: node tests/combat-v074-skill-loadout-smoke.mjs
+      - name: Player combat entry smoke
+        run: node tests/combat-v074-player-entry-smoke.mjs

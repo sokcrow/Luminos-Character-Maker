@@ -1,0 +1,43 @@
+name: DM Local Item Manager V3
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'pantalla_dm.html'
+      - 'js/dm-local-item-manager-v3.js'
+      - 'js/dm-tab-runtime-v2.js'
+      - 'tests/dm-local-item-manager-v3.spec.cjs'
+      - 'tests/dm-item-catalog-core.spec.cjs'
+      - '.github/workflows/dm-local-item-manager-v3.yml'
+  push:
+    branches:
+      - 'fix/dm-local-item-manager-v3'
+    paths:
+      - 'pantalla_dm.html'
+      - 'js/dm-local-item-manager-v3.js'
+      - 'js/dm-tab-runtime-v2.js'
+      - 'tests/dm-local-item-manager-v3.spec.cjs'
+      - 'tests/dm-item-catalog-core.spec.cjs'
+      - '.github/workflows/dm-local-item-manager-v3.yml'
+
+jobs:
+  local-item-manager:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Runtime syntax
+        run: |
+          node --check js/dm-local-item-manager-v3.js
+          node --check js/dm-tab-runtime-v2.js
+          node tests/dm-item-catalog-core.spec.cjs
+      - name: Install Playwright
+        run: |
+          npm install --no-save @playwright/test@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Browser proof
+        run: npx playwright test tests/dm-local-item-manager-v3.spec.cjs --workers=1 --reporter=line

@@ -20,8 +20,8 @@ for (const id of ['booming_blade', 'green_flame_blade', 'true_strike']) {
   assert.ok(catalog[id].mechanics.slotEnchantment, `missing slot enchantment metadata for ${id}`);
   assert.equal(catalog[id].targetType, 'action_slot');
 }
-assert.equal(batch.STATUS_DEFINITIONS.booming.icon, 'https://imgur.com/42ESliW.png');
-assert.equal(batch.STATUS_DEFINITIONS.shillelagh.icon, 'https://imgur.com/OtAgwTp.png');
+assert.equal(batch.STATUS_DEFINITIONS.booming.icon, 'Assets/Icons/status/cantrips/booming.png');
+assert.equal(batch.STATUS_DEFINITIONS.shillelagh.icon, 'Assets/Icons/status/cantrips/shillelagh.png');
 
 const engine = {
   triggerEvent() { return null; },

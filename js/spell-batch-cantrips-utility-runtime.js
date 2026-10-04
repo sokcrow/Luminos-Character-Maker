@@ -24,26 +24,21 @@
   const ELEMENTAL_STATUSES = new Set(["burn", "chill", "shock", "corrosion", "poison", "decay", "radiance", "sinking", "tremor"]);
 
   const STATUS_DEFINITIONS = Object.freeze({
-    controlled_flame_light: Object.freeze({
-      name: "Controlled Flame Light", type: "positive", mode: "zero",
-      description: "Adjacent Units ignore Darkness Disadvantage while this controlled nonmagical flame remains active."
-    }),
     guidance: Object.freeze({
       name: "Guidance", type: "positive", mode: "zero",
+      icon: "Assets/Icons/status/cantrips/guidance.png",
       description: "Gain +2 Final Power on Checks using the chosen Skill while the caster maintains Concentration."
     }),
     resistance: Object.freeze({
       name: "Resistance", type: "positive", mode: "zero",
+      icon: "Assets/Icons/status/cantrips/resistance.png",
       description: "Once per Turn, resist the chosen Sin Type or Elemental Status Effect while the caster maintains Concentration."
-    }),
-    thaumaturgy_booming_voice: Object.freeze({
-      name: "Booming Voice", type: "positive", mode: "zero",
-      description: "Gain +2 Final Power on Intimidation Checks."
     })
   });
 
   const state = {
     terrains: [],
+    controlledFlameLights: [],
     maintainedEffects: [],
     timerByItem: new Map(),
     turnSerial: 0
@@ -153,16 +148,22 @@
     }
     if (mode === "control_light") {
       if (!target) return { ok: false, reason: "fire_source_anchor_required", mode };
-      const expiresAt = Date.now() + HOUR_MS;
-      applyStatus(target, "controlled_flame_light", {
-        mode: "set", count: 1,
-        data: { sourceSpellId: "control_flames", casterId: entityId(actor), expiresAt, nonmagicalFireOnly: true }
+      const now = Date.now();
+      const expiresAt = now + HOUR_MS;
+      const casterId = entityId(actor);
+      const targetId = entityId(target);
+      state.controlledFlameLights = state.controlledFlameLights
+        .filter((entry) => numberOr(entry.expiresAt, 0) > now)
+        .filter((entry) => !(entry.casterId === casterId && entry.targetId === targetId));
+      state.controlledFlameLights.push({
+        casterId, targetId, createdAt: now, expiresAt,
+        sourceSpellId: "control_flames", nonmagicalFireOnly: true
       });
       const adjacent = typeof baseRuntime()?.adjacentUnits === "function"
         ? baseRuntime().adjacentUnits(target, unitsFromContext(context)).map(entityId)
         : [];
       emitEvent("luminous:control-flames-light", { actor, target, adjacent, expiresAt });
-      return { ok: true, mode, targetId: entityId(target), adjacentTargetIds: adjacent, expiresAt };
+      return { ok: true, mode, targetId, adjacentTargetIds: adjacent, expiresAt };
     }
     const result = { ok: true, mode, targetId: entityId(target) || null, nonmagicalFireOnly: true };
     emitEvent("luminous:control-flames-" + mode.replace(/_/g, "-"), { actor, target, result, context });
@@ -423,7 +424,7 @@
     removeTemporaryItems(actor, (item) => item?.customData?.sourceSpellId === "encode_thoughts" && item?.customData?.casterId === entityId(actor));
     const content = action?.metadata?.thoughtContent ?? action?.metadata?.message ?? action?.metadata?.viewerPlan?.thoughtContent ?? null;
     return createTemporaryItem(actor, {
-      id: "thought_strand", name: "Thought Strand", category: "item", stackable: false,
+      id: "thought_strand", name: "Thought Strand", category: "item", stackable: false, iconFamily: "thought_strand",
       customData: { thoughtContent: content, readableBy: ["encode_thoughts", "thought_reading"] }
     }, 8 * 60 * 60, { caster: actor, sourceSpellId: "encode_thoughts", customData: { thoughtContent: content } });
   }
@@ -486,7 +487,6 @@
     const target = targets?.[0] || actor;
     if (mode === "booming_voice") {
       const effect = recordMaintainedEffect(actor, "thaumaturgy", mode, 60);
-      applyStatus(actor, "thaumaturgy_booming_voice", { mode: "set", count: 1, data: { sourceSpellId: "thaumaturgy", skillId: "intimidation", finalPower: 2, expiresAt: effect.expiresAt } });
       return { ok: true, mode, finalPower: 2, skillId: "intimidation", expiresAt: effect.expiresAt };
     }
     const maintained = ["altered_eyes", "fire_play", "tremors"].includes(mode) ? recordMaintainedEffect(actor, "thaumaturgy", mode, 60) : null;
@@ -535,7 +535,7 @@
     const spellMod = intOr(action?.metadata?.spellMod ?? sourceDefinition(action).spellMod ?? spellModFromActor(actor, 0), 0);
     removeTemporaryItems(actor, (item) => item?.customData?.sourceSpellId === "magic_stone" && item?.customData?.casterId === entityId(actor));
     return createTemporaryItem(actor, {
-      id: "magic_stone", name: "Magic Stone", category: "ammo", itemType: "ammo", stackable: true,
+      id: "magic_stone", name: "Magic Stone", category: "ammo", itemType: "ammo", stackable: true, iconFamily: "ammo",
       tags: ["ammo", "sling_ammo", "throwable"], activeStackLimit: 20, stashStackLimit: 99,
       customData: { slingAmmo: true, throwable: true, damageType: "contundente", enchanterSpellMod: spellMod, magicStoneDamage: 2 + spellMod }
     }, 60, { caster: actor, sourceSpellId: "magic_stone", quantity: 3, customData: { slingAmmo: true, throwable: true, damageType: "contundente", enchanterSpellMod: spellMod, magicStoneDamage: 2 + spellMod } });
@@ -574,11 +574,10 @@
     if (typeof originalDarknessOverride === "function" && originalDarknessOverride(unit, rows)) return true;
     const base = baseRuntime();
     const now = Date.now();
-    for (const source of rows) {
-      const entry = getStatus(source, "controlled_flame_light");
-      if (!entry) continue;
-      const expiresAt = numberOr(entry.data?.expiresAt, 0);
-      if (expiresAt && expiresAt <= now) { removeStatus(source, "controlled_flame_light"); continue; }
+    state.controlledFlameLights = state.controlledFlameLights.filter((entry) => numberOr(entry.expiresAt, 0) > now);
+    for (const entry of state.controlledFlameLights) {
+      const source = rows.find((row) => entityId(row) === entry.targetId);
+      if (!source) continue;
       const adjacent = typeof base?.adjacentUnits === "function" ? base.adjacentUnits(source, rows) : [];
       if (adjacent.some((row) => entityId(row) === entityId(unit))) return true;
     }
@@ -677,12 +676,14 @@
         const skillId = normalizeId(skillUsed || "");
         const guidance = getStatus(unit, "guidance");
         if (guidance && skillId && normalizeId(guidance.data?.skillId) === skillId) value += 2;
-        const booming = getStatus(unit, "thaumaturgy_booming_voice");
-        if (booming) {
-          const expiresAt = numberOr(booming.data?.expiresAt, 0);
-          if (expiresAt && expiresAt <= Date.now()) removeStatus(unit, "thaumaturgy_booming_voice");
-          else if (skillId === "intimidation") value += 2;
-        }
+        const now = Date.now();
+        state.maintainedEffects = state.maintainedEffects.filter((entry) => numberOr(entry.expiresAt, 0) > now);
+        const boomingVoice = state.maintainedEffects.some((entry) =>
+          entry.casterId === entityId(unit) &&
+          entry.sourceSpellId === "thaumaturgy" &&
+          entry.mode === "booming_voice"
+        );
+        if (boomingVoice && skillId === "intimidation") value += 2;
         return value;
       };
     }

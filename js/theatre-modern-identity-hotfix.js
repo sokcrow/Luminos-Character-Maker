@@ -24,6 +24,12 @@
     composerPatched: false,
     sceneRefreshQueued: false,
     playerRepairQueued: false,
+    modernActorsRef: null,
+    modernActorsHandler: null,
+    legacyActorsRef: null,
+    legacyActorsHandler: null,
+    locationRef: null,
+    locationHandler: null,
   };
 
   function getDb() {
@@ -540,37 +546,69 @@
   }
 
   function subscribeModernLocation() {
+    if (state.locationRef && state.locationHandler) return;
     const db = getDb();
     if (!db) return;
-    db.ref(MODERN_LOCATION_PATH).on("value", (snapshot) => {
+    state.locationRef = db.ref(MODERN_LOCATION_PATH);
+    state.locationHandler = (snapshot) => {
       const location = String(snapshot.val() || "").trim();
       state.location = location;
       if (location) paintLocation(location);
-    });
+    };
+    state.locationRef.on("value", state.locationHandler);
   }
 
   function subscribeModernActors() {
+    if (state.modernActorsRef && state.modernActorsHandler) return;
     const db = getDb();
     if (!db) return;
-    db.ref(MODERN_NPC_ROOT).on("value", (snapshot) => {
+    state.modernActorsRef = db.ref(MODERN_NPC_ROOT);
+    state.modernActorsHandler = (snapshot) => {
       state.modernActors = snapshot.val() || {};
       state.modernActorIds = new Set(Object.keys(state.modernActors));
       state.modernActorsLoaded = true;
 
       if (isDmView()) pruneDmRoster();
       else queuePlayerRepair();
-    });
+    };
+    state.modernActorsRef.on("value", state.modernActorsHandler);
   }
 
   function subscribeAssignedLegacyActors() {
-    if (isDmView()) return;
+    if (isDmView() || (state.legacyActorsRef && state.legacyActorsHandler)) return;
     const db = getDb();
     if (!db) return;
-    db.ref(LEGACY_ACTOR_ROOT).on("value", (snapshot) => {
+    state.legacyActorsRef = db.ref(LEGACY_ACTOR_ROOT);
+    state.legacyActorsHandler = (snapshot) => {
       state.legacyActors = snapshot.val() || {};
       state.legacyActorsLoaded = true;
       queuePlayerRepair();
-    });
+    };
+    state.legacyActorsRef.on("value", state.legacyActorsHandler);
+  }
+
+  function suspendPlayerTheatreRealtime() {
+    if (isDmView()) return;
+    if (state.modernActorsRef && state.modernActorsHandler) state.modernActorsRef.off?.("value", state.modernActorsHandler);
+    if (state.legacyActorsRef && state.legacyActorsHandler) state.legacyActorsRef.off?.("value", state.legacyActorsHandler);
+    if (state.locationRef && state.locationHandler) state.locationRef.off?.("value", state.locationHandler);
+    state.modernActorsRef = null;
+    state.modernActorsHandler = null;
+    state.legacyActorsRef = null;
+    state.legacyActorsHandler = null;
+    state.locationRef = null;
+    state.locationHandler = null;
+  }
+
+  function syncPlayerTheatreRealtime(active) {
+    if (isDmView()) return;
+    if (!active) {
+      suspendPlayerTheatreRealtime();
+      return;
+    }
+    subscribeModernActors();
+    subscribeAssignedLegacyActors();
+    subscribeModernLocation();
   }
 
   function exposeDiagnostics() {
@@ -605,10 +643,16 @@
     bindLocationButtonTakeover();
     bindSendPreflight();
     bindRosterGuard();
-    subscribeModernActors();
-    subscribeAssignedLegacyActors();
-    subscribeModernLocation();
-    seedModernLocation();
+    if (isDmView()) {
+      subscribeModernActors();
+      subscribeModernLocation();
+      seedModernLocation();
+    } else {
+      global.addEventListener?.("luminous:player-instance-changed", (event) => {
+        syncPlayerTheatreRealtime(event?.detail?.theatreActive === true);
+      });
+      syncPlayerTheatreRealtime(global.document?.body?.classList?.contains("player-instance-theatre") === true);
+    }
 
     global.addEventListener?.("actoresCacheUpdated", () => {
       if (!isDmView()) queuePlayerRepair();

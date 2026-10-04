@@ -15,23 +15,27 @@
   const STATUS_DEFINITIONS = Object.freeze({
     illusion: Object.freeze({
       name: "Illusion", type: "positive", mode: "single", maxCount: 10,
+      icon: "Assets/Icons/status/cantrips/illusion.png",
       description: "Gain +3 Defense Power. On Hit, remove this effect. On Turn End, lose 1 Count."
     }),
     blade_guard: Object.freeze({
       name: "Blade Guard", type: "positive", mode: "zero",
-      icon: "https://imgur.com/qs0vIeM.png",
+      icon: "Assets/Icons/status/cantrips/blade_guard.png",
       description: "Gain +20% Damage Reduction. Remove this effect on Turn End."
     }),
     sword_burst: Object.freeze({
       name: "Sword Burst", type: "positive", mode: "zero",
+      icon: "Assets/Icons/status/cantrips/blade_guard.png",
       description: "After each Clash, deal 3 Force Fixed Damage to the opposing Unit. Once per Clash. Remove on Turn End."
     }),
     dancing_light: Object.freeze({
       name: "Dancing Light", type: "positive", mode: "zero",
+      icon: "Assets/Icons/status/cantrips/dancing_light.png",
       description: "Ignore Darkness Disadvantage. Removed when the caster loses Concentration."
     }),
     light: Object.freeze({
       name: "Light", type: "positive", mode: "zero",
+      icon: "Assets/Icons/status/cantrips/light.png",
       description: "This Unit and its Adjacent Units ignore Darkness Disadvantage."
     })
   });
@@ -39,7 +43,15 @@
   const SPELL_ENTITY_NAMES = Object.freeze({
     produce_flame: "Produce Flame",
     infestation: "Infestation",
-    create_bonfire: "Bonfire"
+    create_bonfire: "Bonfire",
+    mage_hand: "Mage Hand"
+  });
+
+  const SPELL_ENTITY_SPRITES = Object.freeze({
+    infestation: "Assets/Images/SpellUnits/infestation.png",
+    create_bonfire: "Assets/Images/SpellUnits/bonfire.png",
+    produce_flame: "Assets/Images/SpellUnits/produce_flame.png",
+    mage_hand: "Assets/Images/SpellUnits/mage_hand.png"
   });
 
   function registry() {
@@ -414,7 +426,13 @@
       activeSlots: 0,
       statusEffects: {},
       skills: [],
-      concentrationBound: options.concentrationBound === true
+      concentrationBound: options.concentrationBound === true,
+      visual: {
+        spriteUrl: SPELL_ENTITY_SPRITES[id] || "",
+        spritePending: !SPELL_ENTITY_SPRITES[id]
+      },
+      combatSprite: SPELL_ENTITY_SPRITES[id] || "",
+      sprite: SPELL_ENTITY_SPRITES[id] || ""
     };
     const skill = entitySkill(id, level);
     if (skill) unit.skills.push(skill);

@@ -140,6 +140,8 @@ assert.equal(base.ignoresDarknessDisadvantage(caster, Object.values(globalThis.c
 assert.equal(base.ignoresDarknessDisadvantage(fastAlly, Object.values(globalThis.combatData)), true);
 assert.equal(base.ignoresDarknessDisadvantage(enemyD, Object.values(globalThis.combatData)), true);
 assert.equal(base.ignoresDarknessDisadvantage(ally, Object.values(globalThis.combatData)), false);
+assert.equal(caster.statusEffects.controlled_flame_light, undefined);
+assert.equal(utility.STATUS_DEFINITIONS.controlled_flame_light, undefined);
 
 // Gust: failed STR Save applies scaled Bind, no damage.
 enemyB.saveSuccess = false;
@@ -212,6 +214,8 @@ utility.handleAutomaticCantrip({
   actor:caster,targets:[caster],context:{}
 });
 assert.equal(globalThis.CombatEngine.calculateDndBonus(caster,'cha','intimidation'), 3);
+assert.equal(caster.statusEffects.thaumaturgy_booming_voice, undefined);
+assert.equal(utility.STATUS_DEFINITIONS.thaumaturgy_booming_voice, undefined);
 
 // Encode Thoughts creates a unique 8-hour temporary inventory item.
 result = utility.handleAutomaticCantrip({
@@ -221,6 +225,7 @@ result = utility.handleAutomaticCantrip({
 assert.equal(result.ok, true);
 assert.equal(result.item.customData.thoughtContent, 'Meet at dawn.');
 assert.equal(result.item.customData.sourceSpellId, 'encode_thoughts');
+assert.equal(result.item.iconFamily, 'thought_strand');
 const firstStrand = result.item.instanceId;
 result = utility.handleAutomaticCantrip({
   action:{source:{id:'encode_thoughts'},metadata:{thoughtContent:'Second memory.'}},
@@ -249,6 +254,7 @@ assert.equal(result.ok, true);
 assert.equal(result.item.quantity, 3);
 assert.equal(result.item.category, 'ammo');
 assert.equal(result.item.customData.magicStoneDamage, 6);
+assert.equal(result.item.iconFamily, 'ammo');
 const stoneTarget = { id:'stone-target', hp:20, statusEffects:{} };
 assert.equal(utility.resolveMagicStoneHit(result.item, stoneTarget, {engine:globalThis.CombatEngine}).damage, 6);
 assert.equal(stoneTarget.hp, 14);
@@ -262,6 +268,7 @@ assert.equal(result.ok, true);
 assert.equal(result.entity.isBackgroundUnit, true);
 assert.equal(result.entity.isSummon, false);
 assert.equal(result.entity.targetable, false);
+assert.equal(result.entity.visual.spriteUrl, 'Assets/Images/SpellUnits/mage_hand.png');
 
 // Stable: remain Downed at 0 HP and skip Death Saves until destabilized.
 const downed = { id:'downed', isPlayer:true, hp:0, maxHp:100, lifeState:'downed', isDowned:true, statusEffects:{} };

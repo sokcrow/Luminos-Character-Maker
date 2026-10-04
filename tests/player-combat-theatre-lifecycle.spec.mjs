@@ -54,6 +54,77 @@ test('Player Combat is fully destroyed outside Combat and does not accumulate hi
   expect(bodyState).toEqual({theatre:true,combat:false,battleFrames:0});
 });
 
+
+test('Combat Theater preserves the live Battle viewer and resumes the same frame',async({page})=>{
+  await bootHarness(page);
+
+  await page.evaluate(()=>window.LuminousInstanceControl.applyPlayerInstance('combate'));
+  await expect(page.locator('#player-instance-combat')).toHaveCount(1);
+  await page.evaluate(()=>{ document.getElementById('player-instance-combat').dataset.lifecycleIdentity='same-frame'; });
+
+  await page.evaluate(()=>window.LuminousInstanceControl.applyPlayerInstance('combat_theatre'));
+  await expect(page.locator('#player-instance-combat')).toHaveCount(1);
+  await expect(page.locator('#player-instance-combat')).toHaveCSS('display','none');
+  await expect(page.locator('#player-instance-combat')).toHaveAttribute('aria-hidden','true');
+  await expect(page.locator('#theatre-view-player')).toHaveCSS('display','flex');
+  await expect(page.locator('body')).toHaveClass(/player-instance-combat-theatre/);
+  expect(page.frames().filter(frame=>frame.url().includes('Battle-viewer.html')).length).toBe(1);
+
+  await page.evaluate(()=>window.LuminousInstanceControl.applyPlayerInstance('combate'));
+  await expect(page.locator('#player-instance-combat')).toHaveCount(1);
+  await expect(page.locator('#player-instance-combat')).toHaveAttribute('data-lifecycle-identity','same-frame');
+  await expect(page.locator('#player-instance-combat')).toHaveCSS('display','block');
+  await expect(page.locator('#theatre-view-player')).toHaveCSS('display','none');
+  await expect(page.locator('body')).not.toHaveClass(/player-instance-combat-theatre/);
+  expect(page.frames().filter(frame=>frame.url().includes('Battle-viewer.html')).length).toBe(1);
+});
+
+test('DM opening Theater during Combat publishes combat_theatre instead of ending Combat',async({page})=>{
+  await page.goto(BASE+'/index.html',{waitUntil:'domcontentloaded'});
+  await page.setContent(`
+    <!doctype html><html><body class="on-game-dashboard">
+      <label><input id="theatre-radio" type="radio" name="instancia" value="teatro"></label>
+      <label><input type="radio" name="instancia" value="combate"></label>
+      <section id="modulo-standby" class="game-module"></section>
+      <section id="modulo-teatro" class="game-module"></section>
+      <section id="modulo-combate" class="game-module"></section>
+      <span id="current-output-status"></span>
+      <script src="/js/instance-control.js"></script>
+    </body></html>
+  `);
+  await page.waitForFunction(()=>Boolean(window.LuminousInstanceControl));
+
+  const writes=await page.evaluate(async()=>{
+    const writes=[];
+    let instanceHandler=null;
+    const db={
+      ref(path=''){
+        return {
+          set(value){writes.push({op:'set',path,value});return Promise.resolve()},
+          update(value){writes.push({op:'update',path,value});return Promise.resolve()},
+          once(){return Promise.resolve({exists:()=>true,val:()=>({phase:'PRE_COMBAT_PLANNING',round:3,active:true})})},
+          on(event,handler){if(path==='campaña/estado_mundo/instancia_activa'&&event==='value')instanceHandler=handler},
+        };
+      }
+    };
+    window.firebase={database:{ServerValue:{TIMESTAMP:12345}}};
+    window.LuminousInstanceControl.bindDashboard({db,doc:document});
+    instanceHandler?.({val:()=> 'combate'});
+    const radio=document.getElementById('theatre-radio');
+    radio.checked=true;
+    radio.dispatchEvent(new Event('change',{bubbles:true}));
+    await new Promise(resolve=>setTimeout(resolve,20));
+    return writes;
+  });
+
+  expect(writes).toContainEqual({
+    op:'set',
+    path:'campaña/estado_mundo/instancia_activa',
+    value:'combat_theatre'
+  });
+  expect(writes.some(row=>row.path==='campaña/combate/estado')).toBe(false);
+});
+
 test('switching DM output back to Combat preserves an existing round',async({page})=>{
   await page.goto(BASE+'/index.html',{waitUntil:'domcontentloaded'});
   await page.setContent(`

@@ -15,10 +15,12 @@ on:
       - "js/class-milestone-engine.js"
       - "js/dm-player-class-milestones.js"
       - "tests/ranger-class-runtime-smoke.mjs"
+      - "tests/wizard-class-runtime-smoke.mjs"
       - "tests/bilgewater-buccaneer-archetype-runtime-smoke.cjs"
       - "tests/bilgewater-demolisher-archetype-runtime-smoke.cjs"
       - "tests/fighter-class-runtime-smoke.mjs"
       - "tests/champion-archetype-runtime-smoke.mjs"
+      - "tests/bladesinger-archetype-runtime-smoke.mjs"
       - "tests/samurai-archetype-runtime-smoke.mjs"
       - "tests/banneret-archetype-runtime-smoke.mjs"
       - "tests/monk-class-runtime-smoke.cjs"
@@ -47,10 +49,12 @@ on:
       - "js/dm-player-class-milestones.js"
       - "tests/fighting-style-runtime-smoke.mjs"
       - "tests/ranger-class-runtime-smoke.mjs"
+      - "tests/wizard-class-runtime-smoke.mjs"
       - "tests/bilgewater-buccaneer-archetype-runtime-smoke.cjs"
       - "tests/bilgewater-demolisher-archetype-runtime-smoke.cjs"
       - "tests/fighter-class-runtime-smoke.mjs"
       - "tests/champion-archetype-runtime-smoke.mjs"
+      - "tests/bladesinger-archetype-runtime-smoke.mjs"
       - "tests/samurai-archetype-runtime-smoke.mjs"
       - "tests/banneret-archetype-runtime-smoke.mjs"
       - "js/class-status-semantics.js"
@@ -84,10 +88,14 @@ jobs:
       - run: node --check js/monk-class-runtime.js
       - run: node --check js/spellcasting-runtime.js
       - run: node --check js/caster-spellcasting-traits-runtime.js
+      - run: node --check js/wizard-class-runtime.js
+      - run: node tests/wizard-class-runtime-smoke.mjs
       - run: node --check js/class-status-semantics.js
       - run: node tests/fighter-class-runtime-smoke.mjs
       - run: node --check js/champion-archetype-runtime.js
       - run: node tests/champion-archetype-runtime-smoke.mjs
+      - run: node --check js/bladesinger-archetype-runtime.js
+      - run: node tests/bladesinger-archetype-runtime-smoke.mjs
       - run: node --check js/samurai-archetype-runtime.js
       - run: node tests/samurai-archetype-runtime-smoke.mjs
       - run: node --check js/banneret-archetype-runtime.js

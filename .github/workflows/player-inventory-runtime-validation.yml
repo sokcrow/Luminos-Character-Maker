@@ -8,11 +8,21 @@ on:
       - pantalla_dm.html
       - js/injury-engine.js
       - js/inventory-hud-v2.js
+      - js/content-registry.js
+      - js/player-item-content-bootstrap.js
+      - js/item-runtime-engine.js
+      - js/shop-item-purchase-runtime.js
       - js/dm-item-instance-editor.js
       - js/dm-player-dnd-studio-hotfix.js
       - js/item-icon-registry.js
       - js/item-quality-engine.js
       - js/item-economy-standard.js
+      - js/economy-contracts-core.js
+      - js/dm-economy-contracts-runtime.js
+      - js/player-contracts-runtime.js
+      - css/economy-contracts.css
+      - database.rules.json
+      - tests/economy-contracts-core-smoke.cjs
       - js/item-affinity-engine.js
       - js/item-culinary-affinity-data.js
       - js/item-processing-recipe-data.js
@@ -97,6 +107,8 @@ on:
       - tests/item-weapon-composition-smoke.cjs
       - tests/injury-narrative-speed-smoke.cjs
       - tests/inventory-runtime-cutover.spec.cjs
+      - tests/player-item-use-hydration-smoke.mjs
+      - tests/shop-item-purchase-runtime-smoke.mjs
       - tests/dm-item-instance-editor.spec.cjs
       - .github/workflows/player-inventory-runtime-validation.yml
   push:
@@ -117,11 +129,18 @@ jobs:
           node --check hoja_personaje.js
           node --check js/injury-engine.js
           node --check js/inventory-hud-v2.js
+          node --check js/content-registry.js
+          node --check js/player-item-content-bootstrap.js
+          node --check js/item-runtime-engine.js
+          node --check js/shop-item-purchase-runtime.js
           node --check js/dm-item-instance-editor.js
           node --check js/dm-player-dnd-studio-hotfix.js
           node --check js/item-icon-registry.js
           node --check js/item-quality-engine.js
           node --check js/item-economy-standard.js
+          node --check js/economy-contracts-core.js
+          node --check js/dm-economy-contracts-runtime.js
+          node --check js/player-contracts-runtime.js
           node --check js/item-affinity-engine.js
           node --check js/item-culinary-affinity-data.js
           node --check js/item-processing-recipe-data.js
@@ -169,6 +188,11 @@ jobs:
         run: node tests/item-quality-engine-smoke.cjs
       - name: Item economy standard smoke
         run: node tests/item-economy-standard-smoke.cjs
+      - name: Economy contracts v2 smoke
+        run: node tests/economy-contracts-core-smoke.cjs
+      - name: Firebase rules JSON parse
+        run: |
+          node -e "JSON.parse(require('node:fs').readFileSync('database.rules.json','utf8')); console.log('database.rules.json: OK')"
       - name: Economy catalog rebase smoke
         run: node tests/item-economy-catalog-smoke.cjs
       - name: Item affinity engine smoke
@@ -241,6 +265,10 @@ jobs:
         run: node tests/item-weapon-composition-smoke.cjs
       - name: Injury narrative Speed smoke
         run: node tests/injury-narrative-speed-smoke.cjs
+      - name: Player canonical item hydration smoke
+        run: node tests/player-item-use-hydration-smoke.mjs
+      - name: Shop functional item purchase smoke
+        run: node tests/shop-item-purchase-runtime-smoke.mjs
       - name: Install Playwright test runner
         run: npm install --no-save @playwright/test@1.55.0
       - name: Install Chromium
