@@ -174,8 +174,8 @@ assert.match(
   "physical purchases must synchronize legacy ahn and finance.currentBalance",
 );
 assert.ok(
-  playerHtml.includes("hoja_personaje.css?v=20261004-shop-compact-2") &&
-  playerHtml.includes("hoja_personaje.js?v=20261004-shop-balance-2"),
+  playerHtml.includes("hoja_personaje.css?v=20261004-market-event-1") &&
+  playerHtml.includes("hoja_personaje.js?v=20261004-market-event-1"),
   "Shop HUD/balance changes must be cache-busted in the deployed player sheet",
 );
 assert.match(
@@ -192,6 +192,21 @@ assert.match(
   playerSource,
   /campaña\/jugadores\/\$\{accountId\}\/inventario_stash/,
   "physical Shop inventory reads/writes must use the canonical player account path",
+);
+assert.match(
+  playerHtml,
+  /id="market-event-overlay"[\s\S]*?MERCADO[\s\S]*?id="market-event-lines"/,
+  "player sheet must expose the market world-change HUD",
+);
+assert.match(
+  playerSource,
+  /campaña\/economia\/market_event[\s\S]*?setMarketEvent[\s\S]*?showMarketEventHud/,
+  "player must bind market events to Shop Runtime and the HUD",
+);
+assert.match(
+  playerCss,
+  /\.market-event-percent\.discount[\s\S]*?#54e86e[\s\S]*?\.market-event-percent\.surcharge[\s\S]*?#ff4e5b/,
+  "market HUD must distinguish discounts in green and surcharges in red",
 );
 assert.match(
   playerSource,
