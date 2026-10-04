@@ -132,6 +132,11 @@
     return 0;
   }
 
+  function positivePriceOr(value, fallback) {
+    const number = Number(value);
+    return Number.isFinite(number) && number > 0 ? Math.round(number) : fallback;
+  }
+
   function resolveIcon(item, registry, fallbackId) {
     const localExplicit = [item && item.icono, item && item.icon, item && item.image, item && item.img]
       .map(clean)
@@ -191,9 +196,9 @@
       tipo_categoria: category,
       tier: tier,
       tags: tags,
-      price: raw.price !== undefined ? raw.price : price,
-      costo: raw.costo !== undefined ? raw.costo : price,
-      valorBase: raw.valorBase !== undefined ? raw.valorBase : price,
+      price: positivePriceOr(raw.price, price),
+      costo: positivePriceOr(raw.costo, price),
+      valorBase: positivePriceOr(raw.valorBase, price),
       icono: icon,
       icon: raw.icon || icon,
       __catalogSource: options.source || raw.__catalogSource || "canonical"
