@@ -1729,9 +1729,9 @@ function initializeCharacterSheet() {
     }
 
     // 2. Fallback to the assigned ones
-    const assignedIds = (window.LuminousTheatreState && window.LuminousTheatreState.normalizeAssignedActorIds)
-        ? window.LuminousTheatreState.normalizeAssignedActorIds(window.datosJugador?.actorId || window.datosJugador?.vinculo_jugador)
-        : (window.datosJugador?.actorId ? [window.datosJugador.actorId] : []);
+    const assignedIds = normalizeAssignedTheatreActorIds(
+        window.datosJugador?.actorId ?? window.datosJugador?.vinculo_jugador ?? null
+    );
 
     if (!assignedIds || assignedIds.length === 0) return null;
 
@@ -1744,9 +1744,9 @@ function initializeCharacterSheet() {
   };
 
   window.syncPlayerTheatreComposer = function(forceActorChange = false) {
-      const assignedIds = (window.LuminousTheatreState && window.LuminousTheatreState.normalizeAssignedActorIds)
-          ? window.LuminousTheatreState.normalizeAssignedActorIds(window.datosJugador?.actorId || window.datosJugador?.vinculo_jugador)
-          : (window.datosJugador?.actorId ? [window.datosJugador.actorId] : []);
+      const assignedIds = normalizeAssignedTheatreActorIds(
+          window.datosJugador?.actorId ?? window.datosJugador?.vinculo_jugador ?? null
+      );
 
       const selectActor = document.getElementById("player-actor-select");
 
@@ -1783,6 +1783,20 @@ function initializeCharacterSheet() {
       }
 
       const assignedActor = window.getAssignedTheatreActor();
+
+      if (!assignedActor && assignedIds.length && !window.__luminousTheatreActorHydrationPending) {
+          window.__luminousTheatreActorHydrationPending = true;
+          resolveTheatreActorForSend()
+              .then((actor) => {
+                  if (actor) window.syncPlayerTheatreComposer?.(true);
+              })
+              .catch((error) => {
+                  console.error("[Luminous][Theatre] No se pudo hidratar el actor asignado:", error);
+              })
+              .finally(() => {
+                  window.__luminousTheatreActorHydrationPending = false;
+              });
+      }
 
       const exprSelect = document.getElementById("player-expression");
       const btnSend = document.getElementById("btn-enviar-teatro-modal");
