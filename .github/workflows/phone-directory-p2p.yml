@@ -8,7 +8,6 @@ on:
       - "database.rules.json"
       - "tests/phone-directory-p2p-smoke.mjs"
       - "tests/phone-group-chat-smoke.mjs"
-      - "tests/phone-group-chat-smoke.mjs"
       - ".github/workflows/phone-directory-p2p.yml"
   push:
     branches: [main]
@@ -17,6 +16,7 @@ on:
       - "hoja_personaje.html"
       - "database.rules.json"
       - "tests/phone-directory-p2p-smoke.mjs"
+      - "tests/phone-group-chat-smoke.mjs"
 
 jobs:
   phone-p2p-smoke:
