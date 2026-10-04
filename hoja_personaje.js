@@ -4346,6 +4346,26 @@ function initializeCharacterSheet() {
           return;
         }
 
+        const rewardPlan = shopPromotionRewardPlan(
+          accountData,
+          tiendaActualData,
+          idTiendaActual,
+          itemTienda,
+        );
+        const rewardReservation = await reserveShopPromotionRewards(
+          idTiendaActual,
+          tiendaActualData,
+          rewardPlan,
+        );
+        if (!rewardReservation.reserved) {
+          await restoreShopStock(idTiendaActual, itemId);
+          alert(
+            rewardReservation.message ||
+              "La promoción no puede completarse porque su recompensa no está disponible.",
+          );
+          return;
+        }
+
         // La tienda física usa el mismo saldo canónico que Banco/App:
         // finance.currentBalance con fallback legacy a ahn, y mantiene ambos espejos sincronizados.
         const newBalance = ahnActual - precio;
@@ -4355,8 +4375,52 @@ function initializeCharacterSheet() {
             [`campaña/jugadores/${accountId}/finance/currentBalance`]: newBalance,
           });
         } catch (error) {
-          await restoreShopStock(idTiendaActual, itemId);
+          await Promise.allSettled([
+            restoreShopStock(idTiendaActual, itemId),
+            restoreShopPromotionRewards(
+              idTiendaActual,
+              rewardReservation.reservations,
+            ),
+          ]);
           throw error;
+        }
+
+        let deliveredPromotionRewards = [];
+        try {
+          if (isFisico) {
+            await deliverShopPurchaseToStash(accountId, itemId, itemTienda);
+            deliveredPromotionRewards = await deliverShopPromotionRewards(
+              accountId,
+              rewardReservation.reservations,
+              { mode: "stash" },
+            );
+          } else {
+            const deliveryDays = tiendaActualData.dias_entrega || 0;
+            await deliverShopPurchaseToPending(
+              accountId,
+              itemId,
+              itemTienda,
+              deliveryDays,
+            );
+            deliveredPromotionRewards = await deliverShopPromotionRewards(
+              accountId,
+              rewardReservation.reservations,
+              { mode: "pending", deliveryDays },
+            );
+          }
+        } catch (deliveryError) {
+          await Promise.allSettled([
+            restoreShopStock(idTiendaActual, itemId),
+            restoreShopPromotionRewards(
+              idTiendaActual,
+              rewardReservation.reservations,
+            ),
+            db.ref().update({
+              [`campaña/jugadores/${accountId}/ahn`]: ahnActual,
+              [`campaña/jugadores/${accountId}/finance/currentBalance`]: ahnActual,
+            }),
+          ]);
+          throw deliveryError;
         }
 
         const purchaseTx = {
@@ -4396,161 +4460,26 @@ function initializeCharacterSheet() {
           console.warn("[Luminous][Shop] Purchase completed but commerce history could not be fully recorded.", commerceError);
         }
 
-          // Preserve the canonical functional definition when an item leaves a
-          // shop. Rebuilding a cosmetic subset here used to strip runtime.healing
-          // (and other item mechanics), producing consumables that rendered
-          // correctly but returned USE FAILED in the player's inventory.
-          const purchaseRuntime = window.LuminousShopItemPurchaseRuntime;
-          const itemToSave =
-            purchaseRuntime?.buildPurchasePayload?.(
-              itemId,
-              itemTienda,
-              playerName,
-              { inventoryRuntime: window.LuminousItemInventoryRuntime },
-            ) || {
-              ...itemTienda,
-              id: itemTienda.id || itemId,
-              definitionId:
-                itemTienda.definitionId ||
-                itemTienda.canonicalId ||
-                itemTienda.id ||
-                itemId,
-              canonicalId:
-                itemTienda.canonicalId ||
-                itemTienda.definitionId ||
-                itemTienda.id ||
-                itemId,
-              nombre: itemTienda.nombre,
-              name: itemTienda.name || itemTienda.nombre,
-              valorBase: itemTienda.costo,
-              tier: parseInt(itemTienda.tier) || 1,
-              tipo: itemTienda.tipo || "Consumible",
-              category:
-                itemTienda.category ||
-                itemTienda.tipo_categoria ||
-                "consumable",
-              itemType:
-                itemTienda.itemType ||
-                itemTienda.category ||
-                itemTienda.tipo_categoria ||
-                "consumable",
-              icono: itemTienda.icono || "",
-              descripcion: itemTienda.descripcion || "",
-              quantity: 1,
-              cantidad: 1,
-              currentOwnerId: playerName,
-            };
+        const originalHtml = btnCompra.innerHTML;
+        const originalText = btnCompra.innerText;
+        const originalBg = btnCompra.style.background;
+        const originalColor = btnCompra.style.color;
+        btnCompra.innerText = isFisico ? "COMPRADO" : "¡OK!";
+        btnCompra.style.background = "#0df";
+        btnCompra.style.color = "#000";
+        setTimeout(() => {
+          if (!btnCompra) return;
+          if (isFisico) btnCompra.innerHTML = originalHtml;
+          else btnCompra.innerText = originalText;
+          btnCompra.style.background = originalBg;
+          btnCompra.style.color = originalColor;
+        }, 500);
 
-          if (isFisico) {
-            // Añadir directo al Stash (Física)
-            const stashRef = db.ref(
-              `campaña/jugadores/${accountId}/inventario_stash`,
-            );
-            stashRef.once("value", (stashSnap) => {
-              let foundKey = null;
-              stashSnap.forEach((child) => {
-                const owned = child.val() || {};
-                const ownedDefinitionId =
-                  owned.definitionId ||
-                  owned.canonicalId ||
-                  owned.id;
-                const sameTier = purchaseRuntime?.sameTier
-                  ? purchaseRuntime.sameTier(owned.tier, itemTienda.tier)
-                  : String(owned.tier || "I") === String(itemTienda.tier || "I");
-                if (
-                  ownedDefinitionId === itemToSave.definitionId &&
-                  sameTier
-                ) {
-                  foundKey = child.key;
-                }
-              });
-
-              if (foundKey) {
-                // Also repair legacy stacks purchased before this fix. If the old
-                // stack is missing runtime.healing/category metadata, merging a
-                // newly purchased canonical item restores those fields while
-                // preserving the existing instance identity.
-                stashRef.child(foundKey).transaction((current) => {
-                  if (!current) return itemToSave;
-                  if (purchaseRuntime?.mergePurchasedStack) {
-                    return purchaseRuntime.mergePurchasedStack(
-                      current,
-                      itemToSave,
-                      1,
-                    );
-                  }
-                  const currentCant =
-                    parseInt(current.quantity ?? current.cantidad) || 1;
-                  return {
-                    ...itemToSave,
-                    ...current,
-                    runtime: current.runtime || itemToSave.runtime,
-                    definitionId:
-                      current.definitionId || itemToSave.definitionId,
-                    canonicalId:
-                      current.canonicalId || itemToSave.canonicalId,
-                    category: current.category || itemToSave.category,
-                    itemType: current.itemType || itemToSave.itemType,
-                    family: current.family || itemToSave.family,
-                    quantity: currentCant + 1,
-                    cantidad: currentCant + 1,
-                  };
-                });
-              } else {
-                stashRef.push(itemToSave);
-              }
-
-              // Feedback visual Físico
-              const originalHtml = btnCompra.innerHTML;
-              btnCompra.innerText = "COMPRADO";
-              btnCompra.style.background = "#0df";
-              btnCompra.style.color = "#000";
-              setTimeout(() => {
-                if (btnCompra) {
-                  btnCompra.innerHTML = originalHtml;
-                  btnCompra.style.background = "";
-                  btnCompra.style.color = "";
-                }
-              }, 500);
-            });
-          } else {
-            // Añadir a entregas pendientes (App En línea)
-            const diasEntrega = tiendaActualData.dias_entrega || 0;
-
-            db.ref("campaña/calendario")
-              .once("value")
-              .then((calSnap) => {
-                let diaLlegada = diasEntrega; // Fallback si no hay calendario
-                const calendario = calSnap.val();
-                if (calendario) {
-                  diaLlegada = calendario.dia + diasEntrega;
-                }
-
-                const entrega = {
-                  ...itemToSave,
-                  diaDeLlegada: diaLlegada,
-                };
-
-                db.ref(`campaña/jugadores/${playerName}/entregasPendientes`)
-                  .push(entrega)
-                  .then(() => {
-                    // Feedback visual App
-                    const originalText = btnCompra.innerText;
-                    const originalBg = btnCompra.style.background;
-                    btnCompra.innerText = "¡OK!";
-                    btnCompra.style.background = "#0df";
-                    setTimeout(() => {
-                      if (btnCompra) {
-                        btnCompra.innerText = originalText;
-                        btnCompra.style.background = originalBg;
-                      }
-                    }, 500);
-                  });
-              });
-          }
+        if (deliveredPromotionRewards.length) {
+          alert("Promoción: recibes " + deliveredPromotionRewards.join(", ") + ".");
+        }
       }
-
-      // SERVICIO DE REPARACIÓN (tienda física)
+// SERVICIO DE REPARACIÓN (tienda física)
       const btnRepair = e.target.closest(".btn-reparar-fisico");
       if (btnRepair && !btnRepair.disabled) {
         const shopId = btnRepair.getAttribute("data-tienda");
