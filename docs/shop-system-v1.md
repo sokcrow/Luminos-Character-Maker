@@ -51,7 +51,28 @@ Only the owned quantity and the Player's balance change when selling. A sale doe
 | Specialist | x1.18 | x0.55 | Rare or technical goods |
 | Black Market | x1.25 | x0.35 | Scarce or restricted goods |
 
-The DM still chooses which Items a Shop carries. The type changes the market behavior, not the canonical Item catalog.
+Shop Type now controls the automatic catalog as well as market behavior. On creation, the Shop pulls compatible Items from the global Item directory up to its Shop Tier. Changing Shop Type or Shop Tier rebuilds that catalog; Items that no longer belong are removed, newly eligible Items are added, and sold units are preserved for Items that remain compatible.
+
+The DM can still open the Shop inventory editor and remove individual compatible Items as a local exception.
+
+## Automatic catalog by Shop Type
+
+| Shop Type | Primary catalog | Secondary / scarce catalog |
+| --- | --- | --- |
+| General Store | Food, culinary staples, produce, tools, basic medical supplies | Craft components, raw chemicals/medicine, common HP/SP/status consumables |
+| Provisions | Food, staples, produce, meat | Basic medical supplies, common healing, tools, medicinal raw materials |
+| Clinic / Pharmacy | HP/SP/hybrid healing, status cures, medical supplies | Medicinal ingredients/processes, blood and organ materials |
+| Workshop | Tools, craft components, ores/ingots/gems, raw/processed chemicals | Weapon/armor/shield/throwable components, upgrades and structural materials |
+| Arms Dealer | Weapons, ammunition, weapon/firearm/ranged/armor/shield components | Throwables and combat upgrades |
+| Specialist | Valuables, Essence/Core, Ooze/Gel, venom, organs and blood | Advanced processed materials, upgrades, rare ores and specialist tools |
+| Black Market | Weapons/ammo, throwables, venom, blood/organs, Essence/Core, valuables | Advanced chemicals/medicine, combat components/upgrades; Tier IV+ unmatched goods may appear as rare fallback |
+
+Primary Items receive the strongest stock relevance multiplier. Secondary Items receive less stock. Black Market fallback goods receive the lowest stock weight.
+
+An Item must pass **both** checks to appear:
+
+1. its family/category/tags must match the Shop Type;
+2. its Item Tier must be at or below the Shop Tier.
 
 ## Shop tiers
 
@@ -74,7 +95,7 @@ Per-player base stock:
 | 2-3 | 3 |
 | 4+ | 4 |
 
-Then the Shop Type stock multiplier is applied.
+Then the Shop Type stock multiplier **and the Item's catalog relevance multiplier** are applied. Primary goods are stocked more heavily than secondary goods; rare Black Market fallback goods are stocked least.
 
 When Shop settings change, already sold units are preserved while the new maximum is recalculated. Saving the Shop inventory is an explicit restock.
 
