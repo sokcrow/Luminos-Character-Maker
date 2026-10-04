@@ -193,14 +193,35 @@ async function clickMenuIcon(page, fileName){
         pointerEvents:getComputedStyle(current).pointerEvents,
       });
     }
-    let openCategorySource='missing';
+    let openCategorySource='missing', originalRenderCategorySource='missing', goRootSource='missing';
     try{openCategorySource=(0,eval)("typeof openCategory==='function'?String(openCategory):'missing'");}catch(error){openCategorySource=String(error);}
-    return {fileName,ancestors,openCategorySource};
+    try{originalRenderCategorySource=String(window.LuminousCombatEconomyMenu073?.state?.originals?.renderCategory||'missing');}catch(error){originalRenderCategorySource=String(error);}
+    try{goRootSource=(0,eval)("typeof goRoot==='function'?String(goRoot):'missing'");}catch(error){goRootSource=String(error);}
+    return {fileName,ancestors,openCategorySource,originalRenderCategorySource,goRootSource};
   },fileName);
   console.log('PLAYER_MENU_CONTROL_DIAGNOSTIC',JSON.stringify(diagnostic));
   const control=icon.locator('xpath=ancestor-or-self::*[self::button or @onclick or @role="button"][1]');
   if(await control.count()) await control.click({force:true});
   else await icon.click({force:true});
+  const after=await page.evaluate(()=>({
+    activeMenu:(0,eval)("typeof activeMenu!=='undefined'?activeMenu:null"),
+    navState:(0,eval)("typeof navState!=='undefined'?navState:null"),
+    selected:(0,eval)("typeof selected!=='undefined'&&selected?selected.type||selected.id||true:null"),
+    categorySurface:Array.from(document.querySelectorAll('.category-surface')).map(node=>({
+      className:String(node.className||''),
+      display:getComputedStyle(node).display,
+      visibility:getComputedStyle(node).visibility,
+      opacity:getComputedStyle(node).opacity
+    })),
+    categoryBody:{
+      className:String(document.getElementById('category-body')?.className||''),
+      display:getComputedStyle(document.getElementById('category-body')).display,
+      visibility:getComputedStyle(document.getElementById('category-body')).visibility,
+      text:document.getElementById('category-body')?.textContent||''
+    },
+    introRunning:document.getElementById('game-container')?.classList?.contains('intro-running')||false
+  }));
+  console.log('PLAYER_MENU_AFTER_CLICK',JSON.stringify(after));
 }
 
 test.use({viewport:{width:1440,height:1000},colorScheme:'dark'});
