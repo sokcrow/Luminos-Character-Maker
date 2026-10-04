@@ -28,6 +28,7 @@ on:
       - 'js/player-stats-ability-bar.js'
       - 'css/player-stats-ability-bar.css'
       - 'css/theatre-hud.css'
+      - 'css/theatre-message-policy.css'
       - 'js/player-splash-framing.js'
       - 'js/player-ux-polish-core.js'
       - 'js/player-stat-tooltip-runtime.js'
@@ -59,6 +60,7 @@ on:
       - 'Battle-viewer.html'
       - 'tests/player-combat-theatre-lifecycle.spec.mjs'
       - 'tests/player-theatre-spacing-smoke.mjs'
+      - 'tests/dm-dialogue-composer-layout-smoke.mjs'
       - 'tests/theatre-queue-bank-hotfix-smoke.mjs'
       - 'tests/player-ui-long-session-performance.spec.mjs'
       - 'tests/trait-formula-display-contract.mjs'
@@ -118,6 +120,7 @@ jobs:
           node --check js/player-progression-level-allocation.js
           node --check tests/player-ui-long-session-performance.spec.mjs
           node --check tests/player-theatre-spacing-smoke.mjs
+          node --check tests/dm-dialogue-composer-layout-smoke.mjs
           node --check tests/theatre-queue-bank-hotfix-smoke.mjs
           node --check tests/trait-formula-display-contract.mjs
       - name: Trait formula display contract
@@ -126,6 +129,8 @@ jobs:
         run: node tests/combat-v073-player-renderer-performance-smoke.mjs
       - name: Player Theatre sprite spacing contract
         run: node tests/player-theatre-spacing-smoke.mjs
+      - name: DM dialogue composer layout contract
+        run: node tests/dm-dialogue-composer-layout-smoke.mjs
       - name: Theatre queue + Bank layout contract
         run: node tests/theatre-queue-bank-hotfix-smoke.mjs
 
