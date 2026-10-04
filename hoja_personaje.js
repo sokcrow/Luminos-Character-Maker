@@ -1212,7 +1212,6 @@ async function runBootSequence() {
     const initialData = initialSnapshot.val() || {};
     const knownTopLevelKeys = new Set(Object.keys(initialData));
     applyPlayerData(initialData, Object.keys(initialData), true);
-    initP2PInboxSettlement();
 
     playerRef.on("child_changed", (snap) => {
       const key = snap.key;
@@ -2146,6 +2145,8 @@ function initializeCharacterSheet() {
           }
       });
   }
+
+  initP2PInboxSettlement();
 
   if (btnOpenTransfer && transferModal) {
     btnOpenTransfer.addEventListener("click", () => {
