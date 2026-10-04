@@ -2909,6 +2909,8 @@ window.processEntitiesData = function(entities) {
             border-radius: 8px;
             width: 80%;
             max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
             display: flex;
             flex-direction: column;
           "
@@ -3107,6 +3109,63 @@ window.processEntitiesData = function(entities) {
                   border-radius: 3px;
                 "
               />
+            </div>
+
+            <!-- CONTRATO PERMANENTE DEL EDITOR DM: no retirar estos controles. -->
+            <div
+              style="display: flex; flex-direction: column; grid-column: span 2"
+            >
+              <label style="color: #c49a00; font-size: 12px; margin-bottom: 5px"
+                >VÍNCULO DE ALMAS / ACTOR DEL TEATRO</label
+              >
+              <select
+                id="dm-combat-actor-id"
+                style="
+                  padding: 5px;
+                  background: #222;
+                  color: #fff;
+                  border: 1px solid #444;
+                  border-radius: 3px;
+                "
+              >
+                <option value="">Sin vínculo</option>
+              </select>
+            </div>
+
+            <div
+              style="display: flex; flex-direction: column; grid-column: span 2"
+            >
+              <label style="color: #c49a00; font-size: 12px; margin-bottom: 5px"
+                >URL DEL SPLASH ART</label
+              >
+              <input
+                type="url"
+                id="dm-combat-splash-url"
+                placeholder="https://..."
+                style="
+                  padding: 5px;
+                  background: #222;
+                  color: #fff;
+                  border: 1px solid #444;
+                  border-radius: 3px;
+                "
+              />
+            </div>
+
+            <div
+              style="display: flex; flex-direction: column; grid-column: span 2"
+            >
+              <label style="color: #c49a00; font-size: 12px; margin-bottom: 5px"
+                >EDITOR DE RESISTENCIAS (1 = daño normal)</label
+              >
+              <div
+                id="dm-combat-resistances-grid"
+                style="
+                  display: grid;
+                  grid-template-columns: repeat(3, minmax(0, 1fr));
+                  gap: 8px;
+                "
+              ></div>
             </div>
           </div>
           <div style="display: flex; justify-content: flex-end; gap: 10px">
@@ -8215,6 +8274,22 @@ window.processEntitiesData = function(entities) {
           });
 
         // Lógica del Modal de Stats de Combate
+        // Estos 13 tipos forman parte del contrato permanente del editor de jugador del DM.
+        const DM_PLAYER_RESISTANCE_TYPES = Object.freeze([
+          "Cortante",
+          "Perforante",
+          "Contundente",
+          "Fuego",
+          "Frío",
+          "Relámpago",
+          "Ácido",
+          "Veneno",
+          "Necrótico",
+          "Radiante",
+          "Fuerza",
+          "Psíquico",
+          "Trueno",
+        ]);
         let activePlayerIdForModal = null;
 
         document.addEventListener("click", (e) => {
@@ -8270,6 +8345,55 @@ window.processEntitiesData = function(entities) {
             }
             document.getElementById("dm-stagger").value = staggerVal;
 
+            // Vínculo de Almas / Actor del Teatro
+            const actorSelect = document.getElementById("dm-combat-actor-id");
+            actorSelect.innerHTML = '<option value="">Sin vínculo</option>';
+            const currentActorId =
+              playerData.actorId ||
+              Object.keys(dbActoresCache).find(
+                (actorId) =>
+                  dbActoresCache[actorId] &&
+                  (dbActoresCache[actorId].vinculo_jugador === playerId ||
+                    dbActoresCache[actorId].vinculo_jugador === playerData.id),
+              ) ||
+              "";
+            for (const [actorId, actorData] of Object.entries(dbActoresCache)) {
+              if (!actorData || actorData.tipo !== "Jugador") continue;
+              const option = document.createElement("option");
+              option.value = actorId;
+              option.textContent = actorData.nombre || actorId;
+              option.selected = actorId === currentActorId;
+              actorSelect.appendChild(option);
+            }
+
+            document.getElementById("dm-combat-splash-url").value =
+              playerData.splash_art || "";
+
+            const resistanceGrid = document.getElementById(
+              "dm-combat-resistances-grid",
+            );
+            resistanceGrid.innerHTML = "";
+            const currentResistances = playerData.resistencias || {};
+            DM_PLAYER_RESISTANCE_TYPES.forEach((resistanceType) => {
+              const wrapper = document.createElement("label");
+              wrapper.style.cssText =
+                "display:flex; flex-direction:column; gap:3px; padding:6px; background:#111; border:1px solid #333; color:#aaa; font-size:10px;";
+              const title = document.createElement("span");
+              title.textContent = resistanceType;
+              const input = document.createElement("input");
+              input.type = "number";
+              input.step = "0.1";
+              input.className = "dm-res-input";
+              input.dataset.resistance = resistanceType;
+              const storedValue = Number(currentResistances[resistanceType]);
+              input.value = Number.isFinite(storedValue) ? storedValue : 1;
+              input.style.cssText =
+                "width:100%; box-sizing:border-box; padding:4px; background:#222; color:#fff; border:1px solid #444;";
+              wrapper.appendChild(title);
+              wrapper.appendChild(input);
+              resistanceGrid.appendChild(wrapper);
+            });
+
             // Mostrar Modal
             document.getElementById("dm-combat-modal").style.display = "flex";
           }
@@ -8303,6 +8427,10 @@ window.processEntitiesData = function(entities) {
             const actionSlots =
               parseInt(document.getElementById("dm-action-slots").value) || 1;
             const staggerStr = document.getElementById("dm-stagger").value;
+            const selectedActorId =
+              document.getElementById("dm-combat-actor-id").value || "";
+            const splashArt =
+              document.getElementById("dm-combat-splash-url").value.trim();
 
             // Forzar rango matemático
             sp = Math.max(-45, Math.min(45, sp));
@@ -8361,6 +8489,84 @@ window.processEntitiesData = function(entities) {
               hpActual;
             updates[`campaña/jugadores/${activePlayerIdForModal}/sp`] =
               sp;
+            updates[
+              `campaña/jugadores/${activePlayerIdForModal}/splash_art`
+            ] = splashArt;
+
+            const existingPlayerData =
+              window.jugadoresData &&
+              window.jugadoresData[activePlayerIdForModal]
+                ? window.jugadoresData[activePlayerIdForModal]
+                : {};
+            const resistances = {
+              ...(existingPlayerData.resistencias || {}),
+            };
+            document.querySelectorAll(".dm-res-input").forEach((input) => {
+              const resistanceType = input.dataset.resistance;
+              if (!resistanceType) return;
+              const parsed = Number(input.value);
+              resistances[resistanceType] = Number.isFinite(parsed) ? parsed : 1;
+            });
+            updates[
+              `campaña/jugadores/${activePlayerIdForModal}/resistencias`
+            ] = resistances;
+
+            // Mantener ambas puntas del Vínculo de Almas sincronizadas.
+            const previousActorId =
+              existingPlayerData.actorId ||
+              Object.keys(dbActoresCache).find(
+                (actorId) =>
+                  dbActoresCache[actorId] &&
+                  (dbActoresCache[actorId].vinculo_jugador ===
+                    activePlayerIdForModal ||
+                    dbActoresCache[actorId].vinculo_jugador ===
+                      existingPlayerData.id),
+              ) ||
+              "";
+
+            if (previousActorId && previousActorId !== selectedActorId) {
+              const previousActorPath = getActorDatabasePath(previousActorId);
+              updates[
+                `${previousActorPath}/${previousActorId}/vinculo_jugador`
+              ] = null;
+            }
+
+            if (selectedActorId) {
+              const selectedActor = dbActoresCache[selectedActorId] || {};
+              const previousPlayerOwner = selectedActor.vinculo_jugador;
+              if (
+                previousPlayerOwner &&
+                previousPlayerOwner !== activePlayerIdForModal
+              ) {
+                updates[
+                  `campaña/jugadores/${previousPlayerOwner}/actorId`
+                ] = null;
+              }
+              for (const [otherPlayerId, otherPlayerData] of Object.entries(
+                window.jugadoresData || {},
+              )) {
+                if (
+                  otherPlayerId !== activePlayerIdForModal &&
+                  otherPlayerData &&
+                  otherPlayerData.actorId === selectedActorId
+                ) {
+                  updates[
+                    `campaña/jugadores/${otherPlayerId}/actorId`
+                  ] = null;
+                }
+              }
+              const selectedActorPath = getActorDatabasePath(selectedActorId);
+              updates[
+                `${selectedActorPath}/${selectedActorId}/vinculo_jugador`
+              ] = activePlayerIdForModal;
+              updates[
+                `campaña/jugadores/${activePlayerIdForModal}/actorId`
+              ] = selectedActorId;
+            } else {
+              updates[
+                `campaña/jugadores/${activePlayerIdForModal}/actorId`
+              ] = null;
+            }
 
             // Actualizar el nodo de combatStats (sobreescribe completo)
             updates[`campaña/jugadores/${activePlayerIdForModal}/combatStats`] =
