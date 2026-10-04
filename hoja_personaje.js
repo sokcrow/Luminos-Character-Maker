@@ -636,32 +636,68 @@ let currentActorListener = null;
 window.datosJugador = null;
 window.actoresJugador = {}; // Diccionario global por Actor ID
 
-// Helper to hide the loading overlay
-window.hideLoadingOverlay = function () {
+// Player-facing loading state. Progress only advances when a real boot milestone completes.
+window.updateLoadingState = function ({ progress, title, detail } = {}) {
   const overlay = document.getElementById("system-loading-overlay");
-  if (overlay && overlay.style.display !== "none") {
-    overlay.style.opacity = "0";
-    setTimeout(() => {
-      overlay.style.display = "none";
-      overlay.remove();
-    }, 1000);
+  if (!overlay) return;
+
+  const bar = overlay.querySelector(".loading-bar");
+  const progressBar = overlay.querySelector(".loading-bar-container");
+  const progressText = document.getElementById("system-loading-progress-text");
+  const indicator = document.getElementById("system-loading-indicator");
+  const detailText = document.getElementById("system-loading-detail");
+
+  const current = Number(overlay.dataset.progress || 0);
+  const requested = Number.isFinite(Number(progress)) ? Number(progress) : current;
+  const next = Math.max(current, Math.min(100, Math.max(0, requested)));
+
+  overlay.dataset.progress = String(next);
+  overlay.classList.remove("is-error");
+  overlay.setAttribute("aria-busy", next < 100 ? "true" : "false");
+
+  if (bar) bar.style.width = `${next}%`;
+  if (progressBar) progressBar.setAttribute("aria-valuenow", String(next));
+  if (progressText) progressText.textContent = `${Math.round(next)}%`;
+  if (indicator && title) indicator.textContent = title;
+  if (detailText && detail !== undefined) detailText.textContent = detail;
+};
+
+window.showLoadingError = function (
+  detail = "No fue posible completar la carga. Revisa tu conexión e inténtalo de nuevo.",
+) {
+  const overlay = document.getElementById("system-loading-overlay");
+  if (!overlay) return;
+
+  const indicator = document.getElementById("system-loading-indicator");
+  const detailText = document.getElementById("system-loading-detail");
+  const retryButton = document.getElementById("system-loading-retry");
+
+  overlay.classList.add("is-error");
+  overlay.setAttribute("aria-busy", "false");
+  if (indicator) indicator.textContent = "NO SE PUDO COMPLETAR LA CONEXIÓN";
+  if (detailText) detailText.textContent = detail;
+  if (retryButton) {
+    retryButton.style.display = "inline-block";
+    retryButton.onclick = () => window.location.reload();
   }
 };
 
-// Route Guard and Data Init
+// Helper to hide the loading overlay once the real boot sequence reaches 100%.
+window.hideLoadingOverlay = function () {
+  const overlay = document.getElementById("system-loading-overlay");
+  if (!overlay || overlay.style.display === "none") return;
 
-function updateBootLog(message, isError = false) {
-  const logDiv = document.getElementById("boot-status-log");
-  if (logDiv) {
-    logDiv.innerText = message;
-    if (isError) {
-      logDiv.style.color = "#ff3333";
-      logDiv.style.textShadow = "0 0 5px #ff3333";
-      const btn = document.getElementById("btn-reiniciar-sistema");
-      if (btn) btn.style.display = "inline-block";
-    }
-  }
-}
+  overlay.setAttribute("aria-busy", "false");
+  requestAnimationFrame(() => {
+    overlay.style.opacity = "0";
+  });
+  setTimeout(() => {
+    overlay.style.display = "none";
+    overlay.remove();
+  }, 450);
+};
+
+// Route Guard and Data Init
 
 let lastCharacterSheetRenderSignature = "";
 
@@ -980,7 +1016,11 @@ function updatePlayerDeviceNumberUI(data = window.datosJugador) {
 async function runBootSequence() {
   try {
     // STEP 1: Verificación (Auth)
-    updateBootLog("[EJECUTANDO] 1/4: Verificando credenciales...");
+    window.updateLoadingState({
+      progress: 0,
+      title: "VERIFICANDO ACCESO",
+      detail: "Comprobando tu sesión.",
+    });
     const user = await new Promise((resolve, reject) => {
       const unsubscribe = auth.onAuthStateChanged((user) => {
         unsubscribe();
@@ -998,8 +1038,13 @@ async function runBootSequence() {
       return;
     }
 
+    window.updateLoadingState({
+      progress: 20,
+      title: "ACCESO CONFIRMADO",
+      detail: "Buscando tu personaje.",
+    });
+
     // STEP 2: Vinculación (UID Match)
-    updateBootLog("[EJECUTANDO] 2/4: Buscando Vínculo de Alma (UID)...");
     const snapshot = await db
       .ref("campaña/jugadores/")
       .orderByChild("uid")
@@ -1051,8 +1096,13 @@ async function runBootSequence() {
       );
     }
 
+    window.updateLoadingState({
+      progress: 45,
+      title: "PERSONAJE LOCALIZADO",
+      detail: "Conectando con el servidor.",
+    });
+
     // STEP 3: Estado de Conexión (Presence)
-    updateBootLog("[EJECUTANDO] 3/4: Estableciendo conexión neuronal...");
     const connectedRef = db.ref(".info/connected");
     const playerRef = db.ref("campaña/jugadores/" + playerId);
 
@@ -1085,8 +1135,13 @@ async function runBootSequence() {
       );
     });
 
+    window.updateLoadingState({
+      progress: 70,
+      title: "CONEXIÓN ESTABLECIDA",
+      detail: "Sincronizando tu expediente.",
+    });
+
     // STEP 4: Datos de Jugador (Data Sync)
-    updateBootLog("[EJECUTANDO] 4/4: Sincronizando expediente local...");
 
     const RUNTIME_IGNORED_PLAYER_KEYS = new Set([
       "online",
@@ -1224,6 +1279,11 @@ async function runBootSequence() {
     const initialData = initialSnapshot.val() || {};
     const knownTopLevelKeys = new Set(Object.keys(initialData));
     applyPlayerData(initialData, Object.keys(initialData), true);
+    window.updateLoadingState({
+      progress: 90,
+      title: "EXPEDIENTE SINCRONIZADO",
+      detail: "Preparando la interfaz.",
+    });
 
     playerRef.on("child_changed", (snap) => {
       const key = snap.key;
@@ -1251,16 +1311,22 @@ async function runBootSequence() {
     });
 
     // Success: core interaction must come up even if one optional UI subsystem is malformed.
-    window.hideLoadingOverlay();
     try {
       initializeCharacterSheet(); // Bind Theatre/HUD/phone controls after canonical player hydration.
     } catch (error) {
       console.error("[Luminous][Boot] Core sheet initialization partially failed:", error);
       window.dispatchEvent(new CustomEvent("luminous:player-ui-init-error", { detail: { error } }));
     }
+
+    window.updateLoadingState({
+      progress: 100,
+      title: "SISTEMA LISTO",
+      detail: "Entrada autorizada.",
+    });
+    window.hideLoadingOverlay();
   } catch (error) {
     console.error("Boot Sequence Error:", error);
-    updateBootLog(`[ERROR CRÍTICO]\n${error.message}`, true);
+    window.showLoadingError();
   }
 }
 
