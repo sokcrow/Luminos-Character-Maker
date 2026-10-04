@@ -186,7 +186,8 @@ jobs:
       - name: Economy contracts v2 smoke
         run: node tests/economy-contracts-core-smoke.cjs
       - name: Firebase rules JSON parse
-        run: node -e "JSON.parse(require('node:fs').readFileSync('database.rules.json','utf8')); console.log('database.rules.json: OK')"
+        run: |
+          node -e "JSON.parse(require('node:fs').readFileSync('database.rules.json','utf8')); console.log('database.rules.json: OK')"
       - name: Economy catalog rebase smoke
         run: node tests/item-economy-catalog-smoke.cjs
       - name: Item affinity engine smoke
