@@ -25,6 +25,23 @@ This is important because several catalog families expose their value through fi
 
 If no positive canonical value can be resolved, the Item is marked **unpriced**, receives no automatic Shop stock, is excluded from generated Shop catalogs, and purchase/sell transactions are blocked. `0 AHN` is therefore not a valid implicit Shop price.
 
+### Generative Items and DM grants
+
+Definitions that are templates rather than finished objects are materialized before they enter a Shop catalog. The Shop uses the Item family's existing reference resolver, stores the resulting composition/variant, and prices that same materialized Item from its resulting Production Value. The Player therefore receives the same composed object that was valued; Shops do not price a reference object and then deliver a generic zero-value template.
+
+The DM Item directory follows the same invariant. A zero-value definition is shown as **CONFIGURAR** instead of `₳0` when the system has enough information to materialize it:
+
+- weapon, ranged-weapon, firearm, armor and shield components use their canonical reference composition;
+- Jewelry is configured from metal, quality and optional cut gems;
+- processed/crafted definitions with `craftBaseMultiplier` accept the consumed-input value and derive Production Value through the existing process multiplier and quality engine;
+- definitions with no value, reference resolver or economic recipe remain blocked as **SIN CONTRATO ECONÓMICO** rather than being granted as free Items.
+
+### Loot Valuables
+
+`Goblet`, `Chalice`, `Decorative Box`, `Statuette`, `Mask`, `Ornamental Plate`, `Reliquary` and `Scepter` are loot chassis with authored fixed-value variants. They do not wait for material composition.
+
+The DM must choose the canonical `gold` (normal) or `gems` (Gem-Inlaid) variant before granting one. Each created instance carries that variant's `productionValueAhn`, `unitValueAhn`, `totalValueAhn` and `variantSignature`. When a Shop needs a reference for one of these chassis, the normal/gold variant is the deterministic default unless a different valuable variant is explicitly requested.
+
 Shop Tier multiplier is:
 
 ```text
