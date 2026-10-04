@@ -3350,12 +3350,241 @@ function initializeCharacterSheet() {
   const canAccessShop = (shop, playerName) =>
     !getShopRuntime()?.isPlayerAllowed ||
     getShopRuntime().isPlayerAllowed(shop, playerName);
-  const getShopPrice = (item, shop) => {
+
+  function buildShopCommerceContext(playerData = {}, shop = {}, shopId = "") {
     const runtime = getShopRuntime();
-    if (runtime?.purchasePrice) return runtime.purchasePrice(item, shop);
+    const commerce = playerData.shop_commerce || playerData.shopCommerce || {};
+    const merchant = runtime?.merchantNpc?.(shop) || null;
+    const chain = runtime?.shopChain?.(shop) || null;
+    const loyalty = runtime?.loyaltyProgram?.(shop) || null;
+    const shopState = commerce.shops?.[shopId] || {};
+    const merchantState = merchant?.id ? (commerce.merchants?.[merchant.id] || {}) : {};
+    const chainState = chain?.id ? (commerce.chains?.[chain.id] || {}) : {};
+    const loyaltyState = loyalty?.id ? (commerce.loyalty?.[loyalty.id] || {}) : {};
+
+    const relationSource =
+      (merchant?.id && (
+        playerData.npc_relationships?.[merchant.id] ??
+        playerData.npcRelationships?.[merchant.id] ??
+        playerData.relaciones_npc?.[merchant.id] ??
+        playerData.relationships?.[merchant.id]
+      )) ||
+      null;
+    const relationshipTier =
+      typeof relationSource === "string"
+        ? relationSource
+        : (
+            relationSource?.tier ??
+            relationSource?.stage ??
+            relationSource?.relationshipTier ??
+            relationSource?.levelName ??
+            ""
+          );
+
+    const promotionProgress = {};
+    for (const [promotionId, state] of Object.entries(commerce.promotions || {})) {
+      promotionProgress[promotionId] = Math.max(
+        0,
+        parseInt(state?.progress ?? state, 10) || 0,
+      );
+    }
+
+    const merchantPurchaseCount = Math.max(
+      0,
+      parseInt(
+        merchant?.id
+          ? (merchantState.purchase_count ?? merchantState.purchaseCount ?? 0)
+          : (shopState.purchase_count ?? shopState.purchaseCount ?? 0),
+        10,
+      ) || 0,
+    );
+
+    return {
+      shopId,
+      shopPurchaseCount: merchantPurchaseCount,
+      relationshipTier: String(relationshipTier || ""),
+      loyalty: loyaltyState,
+      loyaltyPrograms: loyalty?.id ? { [loyalty.id]: loyaltyState } : {},
+      loyaltyProgress: Math.max(
+        0,
+        parseInt(loyaltyState.progress ?? loyaltyState.stamps ?? 0, 10) || 0,
+      ),
+      promotionProgress,
+      chainPurchaseCount: Math.max(
+        0,
+        parseInt(chainState.purchase_count ?? chainState.purchaseCount ?? 0, 10) || 0,
+      ),
+    };
+  }
+
+  const getShopPriceBreakdown = (
+    item,
+    shop,
+    playerData = currentPlayerData || {},
+    shopId = "",
+  ) => {
+    const runtime = getShopRuntime();
+    if (runtime?.priceBreakdown) {
+      return runtime.priceBreakdown(item, shop, {
+        context: buildShopCommerceContext(playerData || {}, shop, shopId),
+      });
+    }
     const legacy = Math.max(0, parseInt(item?.costo, 10) || 0);
-    return legacy > 0 ? legacy : null;
+    return {
+      priceResolved: legacy > 0,
+      listPriceAhn: legacy > 0 ? legacy : null,
+      priceAhn: legacy > 0 ? legacy : null,
+      totalDiscountPercent: 0,
+      loyaltyRewardApplied: false,
+    };
   };
+
+  const getShopPrice = (
+    item,
+    shop,
+    playerData = currentPlayerData || {},
+    shopId = "",
+  ) => getShopPriceBreakdown(item, shop, playerData, shopId).priceAhn;
+
+  function shopLoyaltyLabel(shop = {}, playerData = currentPlayerData || {}, shopId = "") {
+    const runtime = getShopRuntime();
+    const program = runtime?.loyaltyProgram?.(shop);
+    if (!program) return "";
+    const context = buildShopCommerceContext(playerData, shop, shopId);
+    const status = runtime?.loyaltyStatus?.(shop, context);
+    const progress = status?.progress ?? context.loyaltyProgress ?? 0;
+    const required = status?.required ?? program.paidPurchasesRequired ?? 0;
+    if (status?.rewardReady) return program.name + " · próxima elegible gratis";
+    return program.name + " · " + progress + "/" + required + " sellos";
+  }
+
+  function renderShopMerchantPresence(shop = {}, shopId = "", surface = "physical") {
+    const runtime = getShopRuntime();
+    const merchant = runtime?.merchantNpc?.(shop);
+    const loyaltyText = shopLoyaltyLabel(shop, currentPlayerData || {}, shopId);
+
+    const prefix = surface === "theater" ? "theater-shop-" : "shop-";
+    const root = document.getElementById(prefix + "merchant" + (surface === "theater" ? "" : "-presence"));
+    const sprite = document.getElementById(prefix + "merchant-sprite");
+    const name = document.getElementById(prefix + "merchant-name");
+    const loyalty = document.getElementById(
+      surface === "theater" ? "theater-shop-loyalty" : "shop-loyalty-status",
+    );
+
+    if (root) root.style.display = merchant || loyaltyText ? "flex" : "none";
+    if (name) name.textContent = merchant?.name ? "Atiende " + merchant.name : "";
+    if (loyalty) loyalty.textContent = loyaltyText;
+    if (sprite) {
+      if (merchant?.sprite) {
+        sprite.src = merchant.sprite;
+        sprite.style.display = "block";
+      } else {
+        sprite.removeAttribute("src");
+        sprite.style.display = "none";
+      }
+    }
+  }
+
+  async function recordShopCommerceActivity(
+    playerKey,
+    playerData,
+    shopData,
+    shopId,
+    details = {},
+  ) {
+    const runtime = getShopRuntime();
+    if (!playerKey || !shopId || !runtime) return;
+
+    const commerceRef = db.ref(`campaña/jugadores/${playerKey}/shop_commerce`);
+    await commerceRef.transaction((current) => {
+      const next =
+        current && typeof current === "object"
+          ? JSON.parse(JSON.stringify(current))
+          : {};
+      next.shops = next.shops || {};
+      next.merchants = next.merchants || {};
+      next.chains = next.chains || {};
+      next.loyalty = next.loyalty || {};
+      next.promotions = next.promotions || {};
+
+      const paidAhn = Math.max(0, Number(details.paidAhn) || 0);
+      const incrementBucket = (bucket, id, field) => {
+        if (!id) return;
+        bucket[id] = bucket[id] || {};
+        bucket[id][field] = Math.max(0, parseInt(bucket[id][field], 10) || 0) + 1;
+        bucket[id].ahn_spent =
+          Math.max(0, Number(bucket[id].ahn_spent) || 0) + paidAhn;
+        bucket[id].updated_at = Date.now();
+      };
+
+      const activityField = details.kind === "service"
+        ? "service_count"
+        : "purchase_count";
+      incrementBucket(next.shops, shopId, activityField);
+
+      const merchant = runtime.merchantNpc?.(shopData);
+      if (merchant?.id) incrementBucket(next.merchants, merchant.id, activityField);
+
+      const chain = runtime.shopChain?.(shopData);
+      if (chain?.id) incrementBucket(next.chains, chain.id, activityField);
+
+      const context = buildShopCommerceContext(
+        { ...(playerData || {}), shop_commerce: next },
+        shopData,
+        shopId,
+      );
+      const program = runtime.loyaltyProgram?.(shopData);
+
+      if (program?.id) {
+        const status =
+          details.kind === "service"
+            ? runtime.loyaltyServiceStatus?.(
+                shopData,
+                context,
+                details.serviceId || "repair",
+              )
+            : runtime.loyaltyStatus?.(shopData, context, details.item || null);
+
+        if (status?.active && status.eligible !== false) {
+          const currentProgress = Math.max(0, Number(status.progress) || 0);
+          const required = Math.max(
+            1,
+            Number(status.required ?? program.paidPurchasesRequired) || 1,
+          );
+          const redeemed = details.breakdown?.loyaltyRewardApplied === true;
+          next.loyalty[program.id] = {
+            ...(next.loyalty[program.id] || {}),
+            name: program.name,
+            progress: redeemed
+              ? 0
+              : Math.min(required, currentProgress + 1),
+            updated_at: Date.now(),
+          };
+        }
+      }
+
+      if (details.kind !== "service" && details.item) {
+        for (const promotion of runtime.shopPromotions?.(shopData) || []) {
+          if (
+            promotion.type !== runtime.PROMOTION_TYPES?.BUY_X_GET_Y ||
+            !runtime.promotionMatchesItem?.(promotion, details.item)
+          ) {
+            continue;
+          }
+          const row = next.promotions[promotion.id] || {};
+          const currentProgress = Math.max(0, parseInt(row.progress, 10) || 0);
+          const triggered = currentProgress + 1 >= promotion.buyQuantity;
+          next.promotions[promotion.id] = {
+            ...row,
+            progress: triggered ? 0 : currentProgress + 1,
+            updated_at: Date.now(),
+          };
+        }
+      }
+
+      return next;
+    });
+  }
   const legacySellUnitBase = (item = {}) => {
     const unit = Number(
       item.unitValueAhn ??
