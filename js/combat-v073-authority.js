@@ -96,7 +96,7 @@
       hp:Math.max(0,finite(unit.hp,0)),maxHp:Math.max(1,finite(unit.maxHp,1)),sp:finite(unit.sp,0),
       speed:finite(unit.speed,0),speedBaseRoll:finite(unit.speedBaseRoll,0),speedTie:finite(unit.speedTie,0),speedRollTurn:Math.max(0,Math.trunc(finite(unit.speedRollTurn,0))),
       actionSlots:Math.max(1,Math.trunc(finite(unit.actionSlots??unit.activeSlots,1))),activeSlots:Math.max(1,Math.trunc(finite(unit.activeSlots??unit.actionSlots,1))),
-      statusEffects:clone(unit.statusEffects||{}),pendingStatusEffects:clone(unit.pendingStatusEffects||[]),
+      statusEffects:clone(unit.statusEffects||{}),pendingStatusEffects:clone(unit.pendingStatusEffects||[]),itemRuntimeEffects:clone(unit.itemRuntimeEffects||[]),
       battleActive:unit.battleActive!==false,isBackup:unit.isBackup===true,incapacitated:unit.incapacitated===true,
       staggerStage:Math.max(0,Math.trunc(finite(unit.staggerStage,0))),staggerActivatedRound:Math.max(0,Math.trunc(finite(unit.staggerActivatedRound,0))),staggerUntilRound:Math.max(0,Math.trunc(finite(unit.staggerUntilRound,0))),
       triggeredStaggerThresholds:clone(unit.triggeredStaggerThresholds||[]),shieldPools:clone(unit.shieldPools||{}),concentration:clone(unit.concentration||null),

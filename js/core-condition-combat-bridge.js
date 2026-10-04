@@ -144,7 +144,12 @@
       const phase = normalizeId(phaseTag).replace(/^_+|_+$/g, "");
       if (["turn_start", "round_start", "[turn_start]", "[round_start]"].includes(phase)) units.forEach((unit) => {
         const outcomes = (rt.turnStart?.(unit, { units, combatants: units, engine: this }) || []).map((outcome) => resolveTurnStartOutcome(this, outcome, units));
+        const itemRegen = global.LuminousItemRuntime?.processTurnStartEffects?.(unit, {
+          phase,
+          round: Number(this?.round ?? global.round),
+        }) || [];
         if (outcomes.length) emit("luminous:condition-turn-start-resolved", { unit, outcomes, units });
+        if (itemRegen.length) emit("luminous:item-regeneration-turn-start-resolved", { unit, outcomes: itemRegen, units });
       });
       const result = triggerPhase.call(this, phaseTag, allUnits, ...rest);
       if (["turn_end", "round_end", "[turn_end]", "[round_end]"].includes(phase)) units.forEach((unit) => {

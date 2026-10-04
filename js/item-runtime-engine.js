@@ -363,7 +363,9 @@
     const treatment = runtime.injuryTreatment || runtime.injury_treatment || details.injury_treatment || null;
     return {
       hp: numberOr(effects.hpRestore ?? effects.hp_restore ?? runtime.hpRestore ?? runtime.hp_restore ?? details.curacion_hp, 0),
+      hpHealing: clone(runtime.healing || runtime.hybridHealing?.hp || null),
       sp: numberOr(effects.spRestore ?? effects.sp_restore ?? runtime.spRestore ?? runtime.sp_restore ?? details.curacion_sp, 0),
+      statusAdjustments: clone(effects.statusAdjustments || effects.status_adjustments || runtime.statusCure?.statusAdjustments || runtime.status_cure?.status_adjustments || []),
       statusId: effects.statusId || effects.status_id || runtime.statusId || runtime.status_id || details.status_id || null,
       statusPotency: numberOr(effects.statusPotency ?? effects.status_potency ?? runtime.statusPotency ?? runtime.status_potency ?? details.status_potency, 0),
       statusCount: Math.max(0, intOr(effects.statusCount ?? effects.status_count ?? runtime.statusCount ?? runtime.status_count ?? details.status_count, 0)),
@@ -428,14 +430,128 @@
     return { repaired: after > state.current, before: state.current, after, max: state.max, amount: after - state.current };
   }
 
+  const ZERO_COUNT_CURE_STATUSES = new Set([
+    "bleed", "burn", "shock", "corrosion", "chill", "paralyze",
+    "rupture", "tremor", "sinking", "decay", "radiance",
+  ]);
+
+  function cureRemovesOnZeroCount(statusId) {
+    const id = normalizeId(statusId);
+    const profile = global.LuminousStatusCureCatalog?.CURABLE_STATUS_PROFILES?.[id];
+    if (profile && Object.prototype.hasOwnProperty.call(profile, "removeOnZeroCount")) return profile.removeOnZeroCount === true;
+    return ZERO_COUNT_CURE_STATUSES.has(id);
+  }
+
+  function canonicalHpHealingBreakdown(target, healing = null) {
+    if (!healing || typeof healing !== "object") return { immediate: 0, regenPerTurn: 0, turns: 0, cap: 0, missing: 0 };
+    const slot = currentAndMax(target, "hp");
+    if (!slot || slot.max <= 0) return { immediate: 0, regenPerTurn: 0, turns: 0, cap: 0, missing: 0 };
+    const missing = Math.max(0, slot.max - slot.current);
+    if (normalizeId(healing.mode) === "full") return { immediate: missing, regenPerTurn: 0, turns: 0, cap: missing, missing };
+    const raw = Math.max(0, numberOr(healing.flat, 0) + slot.max * (numberOr(healing.maxHpPercent ?? healing.max_hp_percent, 0) / 100));
+    const capPercent = Math.max(0, numberOr(healing.capMaxHpPercent ?? healing.cap_max_hp_percent, 0));
+    const cap = capPercent > 0 ? slot.max * (capPercent / 100) : raw;
+    const regen = healing.regen && typeof healing.regen === "object" ? healing.regen : null;
+    const turns = Math.max(0, intOr(regen?.turns, 0));
+    const regenPerTurn = regen
+      ? Math.max(0, numberOr(regen.flatPerTurn ?? regen.flat_per_turn, 0) + slot.max * (numberOr(regen.maxHpPercentPerTurn ?? regen.max_hp_percent_per_turn, 0) / 100))
+      : 0;
+    return { immediate: Math.min(raw, cap, missing), regenPerTurn, turns, cap, missing };
+  }
+
+  function canonicalHpHealingAmount(target, healing = null) {
+    return canonicalHpHealingBreakdown(target, healing).immediate;
+  }
+
+  function addHpRegenEffect(unit, item, healing, immediateApplied = 0) {
+    const breakdown = canonicalHpHealingBreakdown(unit, healing);
+    if (breakdown.turns <= 0 || breakdown.regenPerTurn <= 0) return null;
+    const remainingCap = Math.max(0, breakdown.cap - Math.max(0, numberOr(immediateApplied, 0)));
+    if (remainingCap <= 0) return null;
+    const effects = ensureRuntimeEffects(unit);
+    const id = `item_regen_${normalizeId(itemId(item))}_${Date.now()}_${effects.length + 1}`;
+    const effect = {
+      id,
+      sourceItemId: definitionId(item) || itemId(item),
+      kind: "hp_regen",
+      tick: "turn_start",
+      remainingTurns: breakdown.turns,
+      healPerTurn: breakdown.regenPerTurn,
+      remainingCap,
+      lastTickToken: null,
+      active: true,
+    };
+    effects.push(effect);
+    emit("luminous:item-regeneration-added", { unit, item, effect: clone(effect) });
+    return effect;
+  }
+
+  function processTurnStartEffects(unit, options = {}) {
+    const effects = ensureRuntimeEffects(unit);
+    const round = Number(options.round);
+    const token = Number.isFinite(round) ? `round:${round}` : String(options.tickToken || "");
+    const results = [];
+    effects.forEach((effect) => {
+      if (!effect || effect.active === false || normalizeId(effect.kind) !== "hp_regen" || normalizeId(effect.tick) !== "turn_start") return;
+      if (token && effect.lastTickToken === token) return;
+      if (token) effect.lastTickToken = token;
+      const beforeTurns = Math.max(0, intOr(effect.remainingTurns, 0));
+      if (beforeTurns <= 0) { effect.active = false; return; }
+      const wanted = Math.min(Math.max(0, numberOr(effect.healPerTurn, 0)), Math.max(0, numberOr(effect.remainingCap, 0)));
+      const healed = recoverResource(unit, "hp", wanted);
+      effect.remainingCap = Math.max(0, numberOr(effect.remainingCap, 0) - Math.max(0, numberOr(healed.amount, 0)));
+      effect.remainingTurns = Math.max(0, beforeTurns - 1);
+      if (effect.remainingTurns <= 0 || effect.remainingCap <= 0) effect.active = false;
+      results.push({ id: effect.id, healed: Math.max(0, numberOr(healed.amount, 0)), remainingTurns: effect.remainingTurns, remainingCap: effect.remainingCap, expired: effect.active === false });
+    });
+    unit.itemRuntimeEffects = effects.filter((effect) => effect && effect.active !== false);
+    if (results.length) emit("luminous:item-regeneration-tick", { unit, round: Number.isFinite(round) ? round : null, results: clone(results) });
+    return results;
+  }
+
+  function applyStatusAdjustments(target, adjustments = []) {
+    const statusEngine = engines.statuses();
+    if (!statusEngine?.getStatus || !statusEngine?.applyStatus || !statusEngine?.removeStatus) return [];
+    return asArray(adjustments).map((adjustment) => {
+      const statusId = normalizeId(adjustment?.statusId || adjustment?.status_id);
+      if (!statusId) return { statusId, changed: false, reason: "status_id_missing" };
+      const current = statusEngine.getStatus(target, statusId);
+      if (!current) return { statusId, changed: false, reason: "status_not_present" };
+      const before = { count: Math.max(0, numberOr(current.count, 0)), potency: Math.max(0, numberOr(current.potency, 0)) };
+      const after = {
+        count: Math.max(0, before.count + numberOr(adjustment.countDelta ?? adjustment.count_delta, 0)),
+        potency: Math.max(0, before.potency + numberOr(adjustment.potencyDelta ?? adjustment.potency_delta, 0)),
+      };
+      const shouldRemove = after.count <= 0 && (cureRemovesOnZeroCount(statusId) || after.potency <= 0);
+      if (shouldRemove) {
+        const removal = statusEngine.removeStatus(target, statusId, { from: "item" });
+        return { statusId, changed: removal?.removed === true, removed: removal?.removed === true, before, after: { count: 0, potency: 0 }, removal };
+      }
+      statusEngine.applyStatus(target, statusId, {
+        mode: "set",
+        count: after.count,
+        potency: after.potency,
+        duration: current.duration,
+        sourceTraitId: current.sourceTraitId,
+        sourceUnitId: current.sourceUnitId,
+        data: clone(current.data || {}),
+      });
+      return { statusId, changed: after.count !== before.count || after.potency !== before.potency, removed: false, before, after };
+    });
+  }
+
   function applyUseEffects(user, item, options = {}) {
     const profile = runtimeUseProfile(item);
     const target = usageTarget(item, user, options);
     if (!target) return { applied: false, reason: "missing_target", item };
-    const results = { hp: null, sp: null, status: null, removedStatuses: [], injury: null, repair: null, temporaryEffect: null };
+    const results = { hp: null, hpRegen: null, sp: null, status: null, statusAdjustments: [], removedStatuses: [], injury: null, repair: null, temporaryEffect: null };
 
-    if (profile.hp > 0) results.hp = recoverResource(target, "hp", profile.hp);
+    const hpBreakdown = canonicalHpHealingBreakdown(target, profile.hpHealing);
+    const hpAmount = profile.hp > 0 ? profile.hp : hpBreakdown.immediate;
+    if (hpAmount > 0) results.hp = recoverResource(target, "hp", hpAmount);
+    if (profile.hpHealing?.regen) results.hpRegen = addHpRegenEffect(target, item, profile.hpHealing, results.hp?.amount || 0);
     if (profile.sp > 0) results.sp = recoverResource(target, "sp", profile.sp);
+    if (profile.statusAdjustments.length) results.statusAdjustments = applyStatusAdjustments(target, profile.statusAdjustments);
 
     const statusEngine = engines.statuses();
     profile.removeStatuses.forEach((statusId) => {
@@ -462,8 +578,10 @@
 
     if (profile.repairAmount > 0) results.repair = repairItem(options.itemTarget || options.repairTarget, profile.repairAmount);
 
-    const effectCount = [results.hp, results.sp, results.status, results.temporaryEffect, results.injury, results.repair]
-      .filter(Boolean).length + results.removedStatuses.length;
+    const effectCount = [results.hp, results.hpRegen, results.sp, results.status, results.temporaryEffect, results.injury, results.repair]
+      .filter((entry) => entry && entry.changed !== false).length
+      + results.removedStatuses.length
+      + results.statusAdjustments.filter((entry) => entry?.changed).length;
     return { applied: effectCount > 0, user, target, item, profile, results };
   }
 
@@ -488,6 +606,7 @@
     const phase = normalizeId(options.phase || actionEngine?.phaseFor?.(options) || "other");
     const cost = actionCostFor(item);
     const inActionEconomy = ["planning", "combat"].includes(phase);
+    if (inActionEconomy && cost === "off_combat") return { used: false, reason: "off_combat_only", item, cost };
 
     if (!inActionEconomy || options.ignoreActionCost === true || cost === "none" || cost === "free") {
       const result = applyAndConsume(user, item, options);
@@ -830,6 +949,12 @@
     hpPercent,
     actionCostFor,
     runtimeUseProfile,
+    cureRemovesOnZeroCount,
+    canonicalHpHealingBreakdown,
+    canonicalHpHealingAmount,
+    addHpRegenEffect,
+    processTurnStartEffects,
+    applyStatusAdjustments,
     useItem,
     resolveScheduledUse,
     advanceTime,

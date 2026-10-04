@@ -7,8 +7,8 @@ const reviewFixSource = read('js/combat-v073-economy-review-fixes.js');
 const planSync = read('js/combat-v073-plan-sync.js');
 const traitCatalog = read('js/archetype-trait-catalog.js');
 
-assert.ok(menuSource.includes('new Set(["global", "skills", "spells"])'), 'economy tabs must be limited to ACTIONS, SKILLS and SPELLS');
-assert.ok(!menuSource.includes('new Set(["global", "skills", "spells", "defense"'), 'Defense must keep its independent UI');
+assert.ok(menuSource.includes('new Set(["global", "skills", "spells", "items"])'), 'economy tabs must cover ACTIONS, SKILLS, SPELLS and canonical active-inventory ITEMS');
+assert.ok(!menuSource.includes('"defense"]'), 'Defense must keep its independent UI');
 assert.ok(menuSource.includes('data-economy="action"') && menuSource.includes('data-economy="quick_action"') && menuSource.includes('data-economy="reaction"'), 'all three economy tabs must be rendered');
 
 assert.ok(menuSource.includes('source?.economyCost') && menuSource.includes('source?.economy?.cost'), 'content must support structured economy metadata');
@@ -28,6 +28,9 @@ assert.ok(reviewFixSource.includes('engine.triggerEvent=wrapped') && reviewFixSo
 
 assert.ok(menuSource.includes('liveActions("skill").filter'), 'Quick/Reaction Skills must come from the live Unit kit');
 assert.ok(menuSource.includes('liveActions("spell")'), 'Spell economy tabs must inspect the live Unit kit');
+assert.ok(menuSource.includes('unit.inventario_activo || {}'), 'Items must be enumerated from the Player combatant active inventory');
+assert.ok(menuSource.includes('button.dataset.itemInstanceId'), 'Item rows must preserve the concrete inventory instance id');
+assert.ok(menuSource.includes('syncSpellMenuVisibility'), 'non-caster Spell menu visibility must be synchronized, not merely rendered empty');
 
 const quickUseStart = menuSource.indexOf('function useQuickAction');
 const quickUseEnd = menuSource.indexOf('function beginQuickAction', quickUseStart);

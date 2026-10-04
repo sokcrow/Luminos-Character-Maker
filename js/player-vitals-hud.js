@@ -108,16 +108,75 @@
     }) || null;
   }
 
+  function combatPhaseOf(raw) {
+    if (raw && typeof raw === "object") return normalizeId(raw.phase || raw.state || raw.status || "");
+    return normalizeId(raw);
+  }
+
+  function activeCombatAuthorityPhase(raw) {
+    const phase = combatPhaseOf(raw);
+    return [
+      "combat",
+      "combat_active",
+      "combat_sealed",
+      "sealed",
+      "running",
+      "combat_running",
+      "combat_resolution",
+    ].includes(phase);
+  }
+
+  function playerSurfaceMode(doc = global.document) {
+    const body = doc?.body;
+    if (body?.classList?.contains?.("player-instance-combat")) return "combat";
+    if (body?.classList?.contains?.("player-instance-theatre")) return "theatre";
+    return "sheet";
+  }
+
   async function outOfCombatWriteGate(db, playerId) {
     const id = String(playerId ?? "").trim();
     if (!db?.ref || !id) return { allowed: false, reason: "PLAYER_COMBAT_GATE_UNAVAILABLE", combatant: null };
     try {
-      const snapshot = await db.ref("campaña/combate/combatants").once("value");
-      const combatants = snapshot?.val?.() || {};
+      const [combatantsSnapshot, stateSnapshot] = await Promise.all([
+        db.ref("campaña/combate/combatants").once("value"),
+        db.ref("campaña/combate/estado").once("value"),
+      ]);
+      const combatants = combatantsSnapshot?.val?.() || {};
       const active = activePlayerCombatant(combatants, id);
-      return active
-        ? { allowed: false, reason: "PLAYER_DEPLOYED_IN_COMBAT", combatant: active[1], combatantKey: active[0] }
-        : { allowed: true, reason: null, combatant: null, combatantKey: null };
+      if (!active) return { allowed: true, reason: null, combatant: null, combatantKey: null };
+
+      const combatState = stateSnapshot?.val?.();
+      const phase = combatPhaseOf(combatState);
+      const surface = playerSurfaceMode();
+      if (activeCombatAuthorityPhase(combatState)) {
+        return {
+          allowed: false,
+          reason: "ACTIVE_COMBAT_AUTHORITY",
+          combatant: active[1],
+          combatantKey: active[0],
+          phase,
+          surface,
+        };
+      }
+      if (surface === "combat") {
+        return {
+          allowed: false,
+          reason: "PLAYER_COMBAT_UI_ACTIVE",
+          combatant: active[1],
+          combatantKey: active[0],
+          phase,
+          surface,
+        };
+      }
+      return {
+        allowed: true,
+        reason: null,
+        combatant: active[1],
+        combatantKey: active[0],
+        phase,
+        surface,
+        staleDeploymentIgnored: true,
+      };
     } catch (error) {
       return { allowed: false, reason: "PLAYER_COMBAT_GATE_READ_FAILED", combatant: null, error };
     }
@@ -207,6 +266,9 @@
     spVisual,
     canonicalCombatPlayerId,
     activePlayerCombatant,
+    combatPhaseOf,
+    activeCombatAuthorityPhase,
+    playerSurfaceMode,
     outOfCombatWriteGate,
     persistencePatch,
     persist,
