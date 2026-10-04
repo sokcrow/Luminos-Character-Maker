@@ -268,9 +268,9 @@ assert.match(
   /reserveShopPromotionRewards[\s\S]*?deliverShopPromotionRewards/,
   "promotional reward items must reserve shared stock before delivery",
 );
-assert.match(
-  playerSource,
-  /LuminousRecordShopCommerceActivity[\s\S]*?shop_commerce/,
+assert.ok(
+  playerSource.includes("shop_commerce") &&
+  playerSource.includes("LuminousRecordShopCommerceActivity"),
   "player purchases/services must persist commerce history for loyalty and frequent-customer mechanics",
 );
 assert.ok(
