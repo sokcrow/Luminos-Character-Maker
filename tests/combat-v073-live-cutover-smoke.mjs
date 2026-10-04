@@ -44,6 +44,7 @@ assert.ok(viewer.includes('luminous:combat073-plan-ready-change'), 'Viewer boots
 assert.ok(viewer.includes('js/combat-v073-plan-sync.js'), 'Viewer must load Firebase plan sync bridge');
 assert.ok(viewer.includes('js/combat-v073-dm-setup.js'), 'Viewer must load the v0.7.3 DM encounter setup');
 assert.ok(viewer.includes('COMBAT_READY_BRIDGE_PATCH_MISSING'), 'READY bridge patch must fail closed when alpha signature changes');
+assert.ok(viewer.includes('resetPlayerDeckForUnit(PLAYER_ID)'), 'live hydration must rebuild the Player deck after installing its current Skill kit');
 assert.ok(!viewer.includes('js/combatEngine.js'), 'Battle-viewer bootstrap must not load legacy CombatEngine');
 
 const planSync = read('js/combat-v073-plan-sync.js');

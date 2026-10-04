@@ -173,7 +173,20 @@
 
   function liveActions(kind) {
     const kit = playerKit();
-    return asArray(kit.actions).filter((row) => normalizeId(row?.kind || row?.type || row?.actionType) === kind);
+    return asArray(kit.actions).filter((row) => {
+      const raw = normalizeId(row?.kind || row?.actionType || row?.action_type || "");
+      if (raw) return raw === kind;
+      // Canonical Skill records often use `type` for Slash/Pierce/Guard rather
+      // than for the content kind.  A missing `kind` must therefore default to
+      // Skill unless the record positively identifies itself as something else.
+      const type = normalizeId(row?.type || "");
+      const defense = row?.isDefense === true || row?.is_defense === true
+        || ["defense", "guard", "evade", "counter", "clashable_guard", "clashable_counter"].includes(type);
+      const spell = row?.isSpell === true || row?.is_spell === true || type.includes("spell");
+      if (kind === "skill") return !defense && !spell;
+      if (kind === "spell") return spell;
+      return false;
+    });
   }
 
   function spellLoadoutRuntime() {
@@ -333,7 +346,9 @@
   }
 
   function itemRowsForPlayer(unit = playerUnit() || {}) {
-    const container = unit.inventario_activo || {};
+    const kitItems = asArray(playerKit()?.items);
+    const container = unit.inventario_activo || unit.activeInventory || unit.inventory
+      || (kitItems.length ? kitItems : {});
     const seen = new Set();
     const rows = inventoryEntries(container).map(([key, raw]) => {
       if (!itemCanUseInCombat(raw)) return null;
@@ -677,6 +692,16 @@
 
   function renderCategory() {
     const result = state.originals.renderCategory?.();
+    // The bundled 0.7.3 renderer has no dedicated renderItems function and
+    // consequently falls through to its static demo list.  Re-render dynamic
+    // menus here after the shell/title has been prepared by the legacy code.
+    // This also makes the menu independent from load order: whether the live
+    // hydration or this bridge finishes first, current kit/inventory data wins.
+    const menu = activeMenu();
+    if (menu === "items") renderItems();
+    else if (menu === "skills" && (state.tabByMenu.skills || ECONOMY.ACTION) !== ECONOMY.ACTION) renderSkills();
+    else if (menu === "spells" && (state.tabByMenu.spells || ECONOMY.ACTION) !== ECONOMY.ACTION) renderSpells();
+    else if (menu === "global" && (state.tabByMenu.global || ECONOMY.ACTION) !== ECONOMY.ACTION) renderGlobalList();
     syncSpellMenuVisibility();
     syncTabs();
     updateCategoryContext();
