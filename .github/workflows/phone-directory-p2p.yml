@@ -1,1 +1,30 @@
-name: Phone directory and P2P regression\n\non:\n  pull_request:\n    paths:\n      - "hoja_personaje.js"\n      - "hoja_personaje.html"\n      - "database.rules.json"\n      - "tests/phone-directory-p2p-smoke.mjs"\n      - ".github/workflows/phone-directory-p2p.yml"\n  push:\n    branches: [main]\n    paths:\n      - "hoja_personaje.js"\n      - "hoja_personaje.html"\n      - "database.rules.json"\n      - "tests/phone-directory-p2p-smoke.mjs"\n\njobs:\n  phone-p2p-smoke:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-node@v4\n        with:\n          node-version: "20"\n      - name: Check JavaScript syntax\n        run: node --check hoja_personaje.js\n      - name: Run phone/P2P regression checks\n        run: node tests/phone-directory-p2p-smoke.mjs\n
+name: Phone directory and P2P regression
+
+on:
+  pull_request:
+    paths:
+      - "hoja_personaje.js"
+      - "hoja_personaje.html"
+      - "database.rules.json"
+      - "tests/phone-directory-p2p-smoke.mjs"
+      - ".github/workflows/phone-directory-p2p.yml"
+  push:
+    branches: [main]
+    paths:
+      - "hoja_personaje.js"
+      - "hoja_personaje.html"
+      - "database.rules.json"
+      - "tests/phone-directory-p2p-smoke.mjs"
+
+jobs:
+  phone-p2p-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Check JavaScript syntax
+        run: node --check hoja_personaje.js
+      - name: Run phone/P2P regression checks
+        run: node tests/phone-directory-p2p-smoke.mjs
