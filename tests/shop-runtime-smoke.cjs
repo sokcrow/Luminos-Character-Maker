@@ -35,6 +35,44 @@ const { pathToFileURL } = require("node:url");
     "black_market",
   ]);
 
+  // Every declared Shop Type must have a real, non-fallback market profile and
+  // a non-empty catalog rule. Adding a type without wiring its catalog must fail CI.
+  for (const [shopTypeId, meta] of Object.entries(shops.SHOP_TYPES)) {
+    assert.equal(meta.id, shopTypeId, shopTypeId + " must keep a stable canonical id");
+    assert.equal(typeof meta.label, "string", shopTypeId + " must expose a player-facing label");
+    assert.ok(meta.label.trim().length > 0, shopTypeId + " label must not be empty");
+    assert.ok(Number.isFinite(meta.priceMultiplier) && meta.priceMultiplier > 0, shopTypeId + " price multiplier must be positive");
+    assert.ok(Number.isFinite(meta.stockMultiplier) && meta.stockMultiplier > 0, shopTypeId + " stock multiplier must be positive");
+
+    const rule = shops.catalogRuleForShop({ shop_type: shopTypeId });
+    assert.ok(rule, shopTypeId + " must resolve a catalog rule");
+    assert.ok(Array.isArray(rule.primary) && rule.primary.length > 0, shopTypeId + " must have primary catalog families");
+    assert.ok(Array.isArray(rule.secondary), shopTypeId + " secondary catalog must be an array");
+  }
+
+  // Legacy Shop IDs are persistence contracts. Expanding the taxonomy must not
+  // silently change the original seven profiles already stored in campaigns.
+  const legacyProfiles = {
+    general: [1.00, 1.25],
+    provisions: [1.00, 1.50],
+    clinic: [1.05, 1.00],
+    workshop: [1.08, 0.85],
+    arms_dealer: [1.12, 0.75],
+    specialist: [1.18, 0.55],
+    black_market: [1.25, 0.35],
+  };
+  for (const [id, [priceMultiplier, stockMultiplier]] of Object.entries(legacyProfiles)) {
+    assert.equal(shops.SHOP_TYPES[id].priceMultiplier, priceMultiplier, id + " legacy price multiplier changed");
+    assert.equal(shops.SHOP_TYPES[id].stockMultiplier, stockMultiplier, id + " legacy stock multiplier changed");
+  }
+
+  assert.equal(shops.shopTypeId({ shop_type: "not_a_real_shop" }), "general", "unknown legacy data must fall back safely");
+  assert.notEqual(
+    shops.catalogRuleForShop({ shop_type: "supermarket" }),
+    shops.catalogRuleForShop({ shop_type: "general" }),
+    "new Shop Types must not silently reuse the general catalog object",
+  );
+
   assert.equal(shops.tierNumber("IV"), 4);
   assert.equal(shops.tierNumber(10), 10);
   assert.equal(shops.tierRoman(7), "VII");
@@ -74,6 +112,18 @@ const { pathToFileURL } = require("node:url");
   assert.equal(marketEvent.modifiers.general, -20);
   assert.equal(shops.marketEventPercent({ shop_type: "general" }), -20);
   assert.equal(shops.marketEventMultiplier({ shop_type: "general" }), 0.8);
+  assert.equal(shops.marketEventPercent({ shop_type: "clinic" }), 25);
+  assert.equal(shops.marketEventPercent({ shop_type: "workshop" }), 0);
+  assert.equal(shops.marketEventPercent({ shop_type: "supermarket" }), 0, "unlisted sectors must remain unaffected");
+  assert.equal(
+    shops.purchasePrice({ productionValueAhn: 100000, tier: "I" }, {
+      shop_type: "supermarket",
+      shop_tier: 1,
+      mod_venta: 100,
+    }),
+    134400,
+    "an event targeting other sectors must not leak into supermarket pricing",
+  );
   assert.equal(
     shops.purchasePrice({ productionValueAhn: 100000, tier: "I" }, {
       shop_type: "general",
