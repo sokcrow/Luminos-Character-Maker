@@ -1,15 +1,22 @@
 (function (global) {
   "use strict";
 
-  if (global.LuminousCombatEconomyMenu073) return;
-
   const VERSION = "0.7.3-economy-menu.3-player-skills-spells";
+  const previousApi = global.LuminousCombatEconomyMenu073 || null;
+  if (previousApi?.version === VERSION) {
+    previousApi.install?.();
+    return;
+  }
+  const inheritedOriginals = previousApi?.state?.originals && typeof previousApi.state.originals === "object"
+    ? previousApi.state.originals
+    : {};
+
   const TABBED_MENUS = new Set(["global", "skills", "spells", "items"]);
   const ECONOMY = Object.freeze({ ACTION: "action", QUICK: "quick_action", REACTION: "reaction" });
   const state = {
     installed: false,
     tabByMenu: { global: ECONOMY.ACTION, skills: ECONOMY.ACTION, spells: ECONOMY.ACTION, items: ECONOMY.ACTION },
-    originals: {},
+    originals: { ...inheritedOriginals },
     traitStateById: new Map(),
     preparedReaction: null,
     pendingTarget: null,
@@ -1135,7 +1142,16 @@
     if (state.installed || !global.document) return state.installed;
     const required = ["renderCategory", "renderSkills", "renderSpells", "renderCleanList", "selectAction"];
     if (required.some((name) => typeof lexical(name) !== "function")) return false;
-    state.originals = { renderCategory: lexical("renderCategory"), renderSkills: lexical("renderSkills"), renderSpells: lexical("renderSpells"), renderItems: lexical("renderItems", null), renderCleanList: lexical("renderCleanList"), selectAction: lexical("selectAction"), planTargetRule: lexical("planTargetRule", null) };
+    const inherited = state.originals || {};
+    state.originals = {
+      renderCategory: inherited.renderCategory || lexical("renderCategory"),
+      renderSkills: inherited.renderSkills || lexical("renderSkills"),
+      renderSpells: inherited.renderSpells || lexical("renderSpells"),
+      renderItems: inherited.renderItems || lexical("renderItems", null),
+      renderCleanList: inherited.renderCleanList || lexical("renderCleanList"),
+      selectAction: inherited.selectAction || lexical("selectAction"),
+      planTargetRule: inherited.planTargetRule || lexical("planTargetRule", null),
+    };
     ensureStyles(); ensureTabs();
     if (typeof state.originals.planTargetRule === "function") {
       global.__luminousEconomyPlanTargetRuleCompat = planTargetRuleCompat;
