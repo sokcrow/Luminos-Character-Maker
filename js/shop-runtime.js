@@ -6,12 +6,61 @@
     return;
   }
 
-  const VERSION = 7;
+  const VERSION = 8;
   const CURRENCY = "AHN";
   const BASE_PURCHASE_MARKUP = 1.40;
   const BASE_SELLBACK_MULTIPLIER = 0.80;
   const SHOP_TIER_PRICE_STEP = 0.04;
   const MAX_TIER = 10;
+
+  const REPAIR_SERVICE_MARKUP = 1.40;
+
+  const SERVICE_TYPES = Object.freeze({
+    repair: Object.freeze({
+      id: "repair",
+      label: "Reparación",
+      description: "Restaura puntos de Durabilidad pagando material y mano de obra.",
+      markup: REPAIR_SERVICE_MARKUP,
+    }),
+  });
+
+  const SHOP_TYPE_SERVICES = Object.freeze({
+    general: Object.freeze([]),
+    convenience: Object.freeze([]),
+    supermarket: Object.freeze([]),
+    wholesaler: Object.freeze([]),
+    provisions: Object.freeze([]),
+    restaurant: Object.freeze([]),
+    butcher: Object.freeze([]),
+    clinic: Object.freeze([]),
+    pharmacy: Object.freeze([]),
+    workshop: Object.freeze(["repair"]),
+    hardware_store: Object.freeze(["repair"]),
+    electronics: Object.freeze(["repair"]),
+    arms_dealer: Object.freeze(["repair"]),
+    jeweler: Object.freeze(["repair"]),
+    pawnshop: Object.freeze([]),
+    salvage: Object.freeze(["repair"]),
+    corporate_outlet: Object.freeze(["repair"]),
+    automated_vendor: Object.freeze([]),
+    specialist: Object.freeze([]),
+    black_market: Object.freeze([]),
+  });
+
+  const PROMOTION_TYPES = Object.freeze({
+    PERCENT_DISCOUNT: "percent_discount",
+    BUY_X_GET_Y: "buy_x_get_y",
+    GIFT_AFTER_PURCHASE: "gift_after_purchase",
+  });
+
+  const REPAIR_MATERIAL_VALUE_FIELDS = Object.freeze([
+    "repairMaterialValuePerPointAhn",
+    "repairMaterialPerPointAhn",
+    "repairMaterialUnitAhn",
+    "materialValuePerDurabilityAhn",
+    "materialValuePerPointAhn",
+    "durabilityMaterialValueAhn",
+  ]);
 
   // Ordered from the strongest intrinsic / production signal to legacy fallbacks.
   // Zero is treated as "not authored" so placeholder price/costo fields cannot
@@ -338,6 +387,435 @@
     return SHOP_TYPES[id] || SHOP_TYPES.general;
   }
 
+
+  function listValues(value) {
+    if (Array.isArray(value)) return value.filter((entry) => entry != null);
+    if (!value || typeof value !== "object") return [];
+    return Object.values(value).filter((entry) => entry != null);
+  }
+
+  function shopChain(shop = {}) {
+    const raw = shop.chain ?? shop.cadena ?? null;
+    const explicitName = String(
+      (raw && typeof raw === "object" ? (raw.name ?? raw.nombre) : raw) ??
+      shop.chain_name ??
+      shop.cadena_nombre ??
+      ""
+    ).trim();
+    const explicitId = String(
+      (raw && typeof raw === "object" ? raw.id : "") ??
+      shop.chain_id ??
+      shop.cadena_id ??
+      ""
+    ).trim();
+    const id = normalizeToken(explicitId || explicitName);
+    if (!id && !explicitName) return null;
+    return Object.freeze({
+      id: id || normalizeToken(explicitName),
+      name: explicitName || explicitId,
+      promotions: raw && typeof raw === "object" ? clone(raw.promotions ?? raw.promociones ?? []) : [],
+      loyaltyProgram: raw && typeof raw === "object"
+        ? clone(raw.loyalty_program ?? raw.loyaltyProgram ?? null)
+        : null,
+    });
+  }
+
+  function merchantNpc(shop = {}) {
+    const raw = shop.merchant_npc ?? shop.merchantNpc ?? shop.merchant ?? null;
+    if (!raw || typeof raw !== "object") return null;
+    if (raw.enabled === false || raw.activo === false) return null;
+    const name = String(raw.name ?? raw.nombre ?? "").trim();
+    const sprite = String(raw.sprite ?? raw.sprite_url ?? raw.retrato ?? "").trim();
+    const id = normalizeToken(raw.id ?? raw.npc_id ?? name);
+    if (!id && !name && !sprite) return null;
+    return Object.freeze({
+      id,
+      name,
+      sprite,
+      frequentCustomerMinPurchases: Math.max(
+        0,
+        Math.trunc(numberOr(raw.frequent_customer_min_purchases ?? raw.frequentCustomerMinPurchases, 0)),
+      ),
+      frequentCustomerDiscountPercent: clamp(
+        numberOr(raw.frequent_customer_discount_percent ?? raw.frequentCustomerDiscountPercent, 0),
+        0,
+        90,
+      ),
+      relationshipDiscounts: Object.freeze({
+        ...(raw.relationship_discounts ?? raw.relationshipDiscounts ?? {}),
+      }),
+      promotions: clone(raw.promotions ?? raw.promociones ?? []),
+    });
+  }
+
+  function defaultServiceIdsForShopType(shopOrType = {}) {
+    const typeId = typeof shopOrType === "string"
+      ? (SHOP_TYPES[shopOrType] ? shopOrType : "general")
+      : shopTypeId(shopOrType);
+    return SHOP_TYPE_SERVICES[typeId] || Object.freeze([]);
+  }
+
+  function serviceConfig(shop = {}, serviceId = "") {
+    const id = normalizeToken(serviceId);
+    if (!SERVICE_TYPES[id]) return null;
+    const raw = shop.services ?? shop.servicios;
+    if (Array.isArray(raw)) {
+      return raw.map(normalizeToken).includes(id) ? Object.freeze({ enabled: true }) : null;
+    }
+    if (raw && typeof raw === "object" && Object.prototype.hasOwnProperty.call(raw, id)) {
+      const config = raw[id];
+      if (config === true) return Object.freeze({ enabled: true });
+      if (config === false) return Object.freeze({ enabled: false });
+      if (config && typeof config === "object") {
+        return Object.freeze({ ...clone(config), enabled: config.enabled !== false });
+      }
+    }
+    return null;
+  }
+
+  function serviceEnabled(shop = {}, serviceId = "") {
+    const id = normalizeToken(serviceId);
+    if (!SERVICE_TYPES[id]) return false;
+    const explicit = serviceConfig(shop, id);
+    if (explicit) return explicit.enabled !== false;
+    return defaultServiceIdsForShopType(shop).includes(id);
+  }
+
+  function servicesForShop(shop = {}) {
+    return Object.freeze(
+      Object.keys(SERVICE_TYPES).filter((id) => serviceEnabled(shop, id)),
+    );
+  }
+
+  function firstFinite(values, { positive = false, nonNegative = false } = {}) {
+    for (const raw of values) {
+      if (raw == null || raw === "") continue;
+      const value = Number(raw);
+      if (!Number.isFinite(value)) continue;
+      if (positive && value <= 0) continue;
+      if (nonNegative && value < 0) continue;
+      return value;
+    }
+    return null;
+  }
+
+  function durabilityState(item = {}) {
+    const current = firstFinite([
+      item.durabilityCurrent,
+      item.currentDurability,
+      item.durability?.current,
+      item.durabilidad_actual,
+      item.durabilidadActual,
+      typeof item.durabilidad === "number" ? item.durabilidad : null,
+    ], { nonNegative: true });
+    const max = firstFinite([
+      item.durabilityMax,
+      item.maxDurability,
+      item.durability?.max,
+      item.durabilidad_maxima,
+      item.durabilidadMaxima,
+      item.max_durabilidad,
+    ], { positive: true });
+
+    if (current == null || max == null) {
+      return Object.freeze({
+        resolved: false,
+        current: current == null ? null : current,
+        max: max == null ? null : max,
+        missing: null,
+      });
+    }
+
+    const normalizedCurrent = clamp(current, 0, max);
+    return Object.freeze({
+      resolved: true,
+      current: normalizedCurrent,
+      max,
+      missing: Math.max(0, max - normalizedCurrent),
+    });
+  }
+
+  function resolveRepairMaterialValueAhn(item = {}, options = {}) {
+    const direct = firstFinite([
+      options.materialValuePerPointAhn,
+      options.materialValueAhn,
+      ...REPAIR_MATERIAL_VALUE_FIELDS.map((field) => item?.[field]),
+    ], { positive: true });
+    if (direct != null) {
+      return Object.freeze({ resolved: true, field: "per_point", value: direct });
+    }
+
+    if (options.material && typeof options.material === "object") {
+      const materialResolution = resolveBaseValueAhn(options.material);
+      if (materialResolution.resolved) {
+        return Object.freeze({
+          resolved: true,
+          field: "material:" + materialResolution.field,
+          value: materialResolution.value,
+        });
+      }
+    }
+
+    return Object.freeze({ resolved: false, field: null, value: null });
+  }
+
+  function repairBreakdown(item = {}, shop = {}, options = {}) {
+    const enabled = serviceEnabled(shop, "repair");
+    const durability = durabilityState(item);
+    const material = resolveRepairMaterialValueAhn(item, options);
+    const requestedPoints = options.points == null
+      ? durability.missing
+      : Math.max(0, Math.trunc(numberOr(options.points, 0)));
+    const points = durability.resolved
+      ? clamp(requestedPoints == null ? 0 : requestedPoints, 0, durability.missing)
+      : 0;
+
+    let reason = "available";
+    if (!enabled) reason = "service_unavailable";
+    else if (!durability.resolved) reason = "durability_unresolved";
+    else if (durability.missing <= 0) reason = "not_damaged";
+    else if (!material.resolved) reason = "material_unpriced";
+
+    const subtotal = reason === "available"
+      ? roundAhn(points * material.value)
+      : null;
+    const price = reason === "available"
+      ? roundAhn(subtotal * REPAIR_SERVICE_MARKUP)
+      : null;
+
+    return Object.freeze({
+      serviceId: "repair",
+      serviceLabel: SERVICE_TYPES.repair.label,
+      available: reason === "available",
+      reason,
+      currency: CURRENCY,
+      currentDurability: durability.current,
+      maxDurability: durability.max,
+      missingDurability: durability.missing,
+      points,
+      materialValuePerPointAhn: material.value,
+      materialValueSource: material.field,
+      materialSubtotalAhn: subtotal,
+      serviceMarkup: REPAIR_SERVICE_MARKUP,
+      priceAhn: price,
+    });
+  }
+
+  function repairPrice(item = {}, shop = {}, options = {}) {
+    return repairBreakdown(item, shop, options).priceAhn;
+  }
+
+  function normalizePromotion(raw = {}, index = 0) {
+    if (!raw || typeof raw !== "object" || raw.active === false || raw.enabled === false) return null;
+    const type = normalizeToken(raw.type ?? raw.kind ?? raw.promotion_type);
+    if (!Object.values(PROMOTION_TYPES).includes(type)) return null;
+    const id = normalizeToken(raw.id ?? raw.promotion_id ?? (type + "_" + index));
+    const scope = normalizeToken(raw.scope ?? "all") || "all";
+    return Object.freeze({
+      id,
+      label: String(raw.label ?? raw.name ?? raw.nombre ?? "Promoción").trim() || "Promoción",
+      type,
+      scope,
+      discountPercent: clamp(numberOr(raw.discount_percent ?? raw.discountPercent, 0), 0, 100),
+      itemIds: Object.freeze((raw.item_ids ?? raw.itemIds ?? []).map?.(normalizeToken) || []),
+      categories: Object.freeze((raw.categories ?? raw.categorias ?? []).map?.(normalizeToken) || []),
+      serviceIds: Object.freeze((raw.service_ids ?? raw.serviceIds ?? []).map?.(normalizeToken) || []),
+      buyQuantity: Math.max(1, Math.trunc(numberOr(raw.buy_quantity ?? raw.buyQuantity, 1))),
+      rewardItemId: normalizeToken(raw.reward_item_id ?? raw.rewardItemId ?? ""),
+      rewardQuantity: Math.max(1, Math.trunc(numberOr(raw.reward_quantity ?? raw.rewardQuantity, 1))),
+      stackable: raw.stackable === true,
+    });
+  }
+
+  function shopPromotions(shop = {}) {
+    const chain = shopChain(shop);
+    const merchant = merchantNpc(shop);
+    const raw = [
+      ...listValues(chain?.promotions),
+      ...listValues(shop.promotions ?? shop.promociones),
+      ...listValues(merchant?.promotions),
+    ];
+    return Object.freeze(
+      raw.map(normalizePromotion).filter(Boolean),
+    );
+  }
+
+  function promotionMatchesItem(promotion, item = {}) {
+    if (!promotion) return false;
+    if (promotion.scope === "all" || !promotion.scope) return true;
+    const ids = new Set([
+      normalizeToken(item.id),
+      normalizeToken(item.definitionId),
+      normalizeToken(item.canonicalId),
+    ].filter(Boolean));
+    if (promotion.scope === "item") {
+      return promotion.itemIds.some((id) => ids.has(id));
+    }
+    if (promotion.scope === "category") {
+      const tokens = itemCatalogTokens(item);
+      return promotion.categories.some((category) => tokensMatchRule(tokens, category));
+    }
+    return false;
+  }
+
+  function promotionDiscountBreakdown(item = {}, shop = {}) {
+    const matches = shopPromotions(shop).filter(
+      (promotion) =>
+        promotion.type === PROMOTION_TYPES.PERCENT_DISCOUNT &&
+        promotionMatchesItem(promotion, item) &&
+        promotion.discountPercent > 0,
+    );
+    const stackable = matches
+      .filter((promotion) => promotion.stackable)
+      .reduce((sum, promotion) => sum + promotion.discountPercent, 0);
+    const bestExclusive = matches
+      .filter((promotion) => !promotion.stackable)
+      .reduce((best, promotion) => Math.max(best, promotion.discountPercent), 0);
+    return Object.freeze({
+      percent: clamp(stackable + bestExclusive, 0, 90),
+      promotions: Object.freeze(matches),
+    });
+  }
+
+  function merchantDiscountPercent(shop = {}, context = {}) {
+    const merchant = merchantNpc(shop);
+    if (!merchant) return 0;
+    let total = 0;
+    const purchaseCount = Math.max(
+      0,
+      Math.trunc(numberOr(
+        context.shopPurchaseCount ??
+        context.purchaseCount ??
+        context.customer?.shopPurchaseCount,
+        0,
+      )),
+    );
+    if (
+      merchant.frequentCustomerMinPurchases > 0 &&
+      purchaseCount >= merchant.frequentCustomerMinPurchases
+    ) {
+      total += merchant.frequentCustomerDiscountPercent;
+    }
+
+    const relationshipTier = normalizeToken(
+      context.relationshipTier ??
+      context.npcRelationshipTier ??
+      context.customer?.relationshipTier ??
+      "",
+    );
+    if (relationshipTier) {
+      const raw = Number(merchant.relationshipDiscounts?.[relationshipTier]);
+      if (Number.isFinite(raw) && raw > 0) total += raw;
+    }
+
+    const direct = Number(context.merchantDiscountPercent);
+    if (Number.isFinite(direct) && direct > 0) total += direct;
+    return clamp(total, 0, 90);
+  }
+
+  function loyaltyProgram(shop = {}) {
+    const chain = shopChain(shop);
+    const raw =
+      shop.loyalty_program ??
+      shop.loyaltyProgram ??
+      chain?.loyaltyProgram ??
+      null;
+    if (!raw || typeof raw !== "object" || raw.enabled === false || raw.active === false) return null;
+    const name = String(raw.name ?? raw.nombre ?? raw.label ?? "Programa de lealtad").trim();
+    const id = normalizeToken(raw.id ?? raw.program_id ?? raw.programId ?? name);
+    const paidPurchasesRequired = Math.max(
+      1,
+      Math.trunc(numberOr(
+        raw.paid_purchases_required ??
+        raw.paidPurchasesRequired ??
+        raw.stamps_required ??
+        raw.stampsRequired,
+        9,
+      )),
+    );
+    return Object.freeze({
+      id: id || "shop_loyalty",
+      name: name || "Programa de lealtad",
+      paidPurchasesRequired,
+      rewardType: normalizeToken(raw.reward_type ?? raw.rewardType ?? "free_next") || "free_next",
+      itemIds: Object.freeze((raw.item_ids ?? raw.itemIds ?? []).map?.(normalizeToken) || []),
+      categories: Object.freeze((raw.categories ?? raw.categorias ?? []).map?.(normalizeToken) || []),
+      serviceIds: Object.freeze((raw.service_ids ?? raw.serviceIds ?? []).map?.(normalizeToken) || []),
+    });
+  }
+
+  function loyaltyAppliesToItem(program, item = {}) {
+    if (!program) return false;
+    if (!program.itemIds.length && !program.categories.length && !program.serviceIds.length) return true;
+    const ids = new Set([
+      normalizeToken(item.id),
+      normalizeToken(item.definitionId),
+      normalizeToken(item.canonicalId),
+    ].filter(Boolean));
+    if (program.itemIds.some((id) => ids.has(id))) return true;
+    const tokens = itemCatalogTokens(item);
+    return program.categories.some((category) => tokensMatchRule(tokens, category));
+  }
+
+  function loyaltyStatus(shop = {}, context = {}, item = null) {
+    const program = loyaltyProgram(shop);
+    if (!program) return Object.freeze({ active: false, program: null, progress: 0, rewardReady: false });
+    const source =
+      context.loyalty ??
+      context.loyaltyPrograms?.[program.id] ??
+      context.customer?.loyaltyPrograms?.[program.id] ??
+      {};
+    const progress = clamp(
+      Math.trunc(numberOr(source.progress ?? source.stamps ?? context.loyaltyProgress, 0)),
+      0,
+      program.paidPurchasesRequired,
+    );
+    const eligible = item ? loyaltyAppliesToItem(program, item) : true;
+    return Object.freeze({
+      active: true,
+      program,
+      progress,
+      required: program.paidPurchasesRequired,
+      eligible,
+      rewardReady: eligible && progress >= program.paidPurchasesRequired,
+    });
+  }
+
+  function nextLoyaltyProgress(shop = {}, context = {}, options = {}) {
+    const status = loyaltyStatus(shop, context, options.item || null);
+    if (!status.active || options.qualified === false || status.eligible === false) return status.progress || 0;
+    if (options.redeemed === true || status.rewardReady) return 0;
+    return Math.min(status.required, status.progress + 1);
+  }
+
+  function promotionRewardPlan(item = {}, shop = {}, context = {}) {
+    const rewards = [];
+    const progress = context.promotionProgress ?? {};
+    for (const promotion of shopPromotions(shop)) {
+      if (!promotionMatchesItem(promotion, item)) continue;
+      if (promotion.type === PROMOTION_TYPES.GIFT_AFTER_PURCHASE && promotion.rewardItemId) {
+        rewards.push(Object.freeze({
+          promotionId: promotion.id,
+          type: promotion.type,
+          itemId: promotion.rewardItemId,
+          quantity: promotion.rewardQuantity,
+        }));
+      }
+      if (promotion.type === PROMOTION_TYPES.BUY_X_GET_Y && promotion.rewardItemId) {
+        const current = Math.max(0, Math.trunc(numberOr(progress[promotion.id], 0)));
+        if (current + 1 >= promotion.buyQuantity) {
+          rewards.push(Object.freeze({
+            promotionId: promotion.id,
+            type: promotion.type,
+            itemId: promotion.rewardItemId,
+            quantity: promotion.rewardQuantity,
+          }));
+        }
+      }
+    }
+    return Object.freeze(rewards);
+  }
+
   function assignedPlayers(shop = {}) {
     const raw = shop.jugadores_presentes ?? shop.assignedPlayers ?? {};
     if (Array.isArray(raw)) return raw.map(String).filter(Boolean);
@@ -592,7 +1070,7 @@
     const localMultiplier = localPriceMultiplier(shop);
     const eventPercent = options.ignoreMarketEvent ? 0 : marketEventPercent(shop);
     const eventMultiplier = options.ignoreMarketEvent ? 1 : marketEventMultiplier(shop);
-    const final = resolution.resolved
+    const listPrice = resolution.resolved
       ? roundAhn(
           resolution.value *
           BASE_PURCHASE_MARKUP *
@@ -602,6 +1080,28 @@
           eventMultiplier
         )
       : null;
+
+    const context = options.context ?? options.customer ?? {};
+    const promotionBreakdown = options.ignoreCommerce || options.ignorePromotions
+      ? Object.freeze({ percent: 0, promotions: Object.freeze([]) })
+      : promotionDiscountBreakdown(item, shop);
+    const merchantPercent = options.ignoreCommerce || options.ignoreMerchant
+      ? 0
+      : merchantDiscountPercent(shop, context);
+    const loyalty = options.ignoreCommerce || options.ignoreLoyalty
+      ? Object.freeze({ active: false, rewardReady: false, progress: 0 })
+      : loyaltyStatus(shop, context, item);
+    const totalDiscountPercent = clamp(
+      promotionBreakdown.percent + merchantPercent,
+      0,
+      90,
+    );
+    const final = listPrice == null
+      ? null
+      : loyalty.rewardReady
+        ? 0
+        : roundAhn(listPrice * (1 - totalDiscountPercent / 100));
+
     return Object.freeze({
       currency: CURRENCY,
       baseValueAhn: resolution.resolved ? roundAhn(resolution.value) : null,
@@ -616,12 +1116,21 @@
       marketEventPercent: eventPercent,
       marketEventMultiplier: eventMultiplier,
       marketEventId: activeMarketEvent?.id || null,
+      listPriceAhn: listPrice,
+      promotionDiscountPercent: promotionBreakdown.percent,
+      appliedPromotions: promotionBreakdown.promotions,
+      merchantDiscountPercent: merchantPercent,
+      totalDiscountPercent,
+      loyaltyProgramId: loyalty.program?.id || null,
+      loyaltyProgress: loyalty.progress || 0,
+      loyaltyRequired: loyalty.required || loyalty.program?.paidPurchasesRequired || 0,
+      loyaltyRewardApplied: loyalty.rewardReady === true,
       priceAhn: final,
     });
   }
 
-  function purchasePrice(item = {}, shop = {}) {
-    return priceBreakdown(item, shop).priceAhn;
+  function purchasePrice(item = {}, shop = {}, options = {}) {
+    return priceBreakdown(item, shop, options).priceAhn;
   }
 
   function sellBreakdown(item = {}, shop = {}) {
@@ -711,7 +1220,7 @@
 
     next.stock_maximo = nextMax;
     next.stock_actual = Math.max(0, nextMax - sold);
-    const resolvedShopPrice = priceBreakdown(next, shop, { ignoreMarketEvent: true }).priceAhn;
+    const resolvedShopPrice = priceBreakdown(next, shop, { ignoreMarketEvent: true, ignoreCommerce: true }).priceAhn;
     if (resolvedShopPrice == null) delete next.shop_price_ahn;
     else next.shop_price_ahn = resolvedShopPrice;
     next.shop_stock_auto = true;
@@ -789,6 +1298,11 @@
     BASE_SELLBACK_MULTIPLIER,
     SHOP_TIER_PRICE_STEP,
     MAX_TIER,
+    REPAIR_SERVICE_MARKUP,
+    SERVICE_TYPES,
+    SHOP_TYPE_SERVICES,
+    PROMOTION_TYPES,
+    REPAIR_MATERIAL_VALUE_FIELDS,
     BASE_VALUE_FIELDS,
     SELL_UNIT_VALUE_FIELDS,
     SHOP_TYPES,
@@ -799,6 +1313,26 @@
     itemTier,
     shopTypeId,
     shopType,
+    shopChain,
+    merchantNpc,
+    defaultServiceIdsForShopType,
+    serviceConfig,
+    serviceEnabled,
+    servicesForShop,
+    durabilityState,
+    resolveRepairMaterialValueAhn,
+    repairBreakdown,
+    repairPrice,
+    normalizePromotion,
+    shopPromotions,
+    promotionMatchesItem,
+    promotionDiscountBreakdown,
+    merchantDiscountPercent,
+    loyaltyProgram,
+    loyaltyAppliesToItem,
+    loyaltyStatus,
+    nextLoyaltyProgress,
+    promotionRewardPlan,
     assignedPlayers,
     playerCount,
     isPlayerAllowed,
