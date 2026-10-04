@@ -33,6 +33,7 @@ globalThis.LuminousConditionRuntime = {
   automaticCheckFailure(unit, context = {}) { return unit.autoFail && context.kind === 'save' ? { failed: true, reason: 'test_auto_fail' } : { failed: false }; },
   turnStart(unit) { unit.started = true; return { started: true }; },
   turnEnd(unit) { unit.ended = true; return { ended: true }; },
+  onEncounterEnd(unit) { unit.conditionEncounterEnded = true; return { ok: true }; },
   startConcentration(unit, options = {}) {
     unit.concentration = { id: options.concentrationId || 'conc-test', active: true, source: options.source || null };
     return unit.concentration;
@@ -154,6 +155,21 @@ dmApi.runRest(encounter, 'unit-a', 'short_rest');
 assert.equal(unit.lastRest, 'short_rest');
 dmApi.runEncounterEnd(encounter, 'unit-a');
 assert.equal(unit.encounterEnded, true);
+assert.equal(unit.conditionEncounterEnded, true);
+
+const secondUnit = { id: 'unit-b', hp: 50, maxHp: 50, statusEffects: {} };
+const allResult = dmApi.runEncounterEndAll({ 'unit-a': unit, 'unit-b': secondUnit });
+assert.equal(allResult.count, 2);
+assert.equal(secondUnit.encounterEnded, true);
+assert.equal(secondUnit.conditionEncounterEnded, true);
+assert.equal(dmApi.normalizeEncounterResult('win'), 'victory');
+assert.equal(dmApi.normalizeEncounterResult('lose'), 'defeat');
+
+const EncounterLifecycle = require('../js/combat-encounter-lifecycle.js');
+assert.equal(EncounterLifecycle.version, '1.0.0');
+assert.equal(EncounterLifecycle.normalizeResult('won'), 'victory');
+assert.equal(EncounterLifecycle.normalizeResult('loss'), 'defeat');
+assert.equal(EncounterLifecycle.isEncounterEnded({ phase: 'ENDED', result: 'victory' }), true);
 
 const firebaseSafe = dmApi.sanitizeForFirebase({ a: 1, fn() {}, nested: { b: 2, skip: undefined } });
 assert.deepEqual(firebaseSafe, { a: 1, nested: { b: 2 } });
