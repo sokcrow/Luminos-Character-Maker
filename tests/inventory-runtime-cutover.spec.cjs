@@ -43,7 +43,7 @@ async function bootHarness(page) {
 
   await page.evaluate(() => {
     const active = {
-      blade_1: { instanceId: "blade_1", definitionId: "blade", nombre: "Test Workshop Blade", descripcion: "Instance presentation wins", category: "weapon", tier: 3, qualityTier: 3, condition: 90, conditionMax: 100, quantity: 1 },
+      blade_1: { instanceId: "blade_1", definitionId: "blade", nombre: "Test Workshop Blade", descripcion: "Instance presentation wins", category: "weapon", tier: 3, qualityTier: 3, condition: 90, conditionMax: 100, quantity: 1, installedModules: [{ definitionId: "serrated_edge", instanceId: "module_1" }] },
       coat_1: { instanceId: "coat_1", definitionId: "coat", nombre: "Reinforced Coat", category: "armor", tier: 2, qualityTier: 2, condition: 100, conditionMax: 100, quantity: 1 },
     };
     const stash = {
@@ -179,6 +179,8 @@ test("player item detail hides implementation metadata and only shows relevant s
     await expect(page.locator(`[data-v2-detail="${key}"]`)).toHaveCount(0);
   }
   await expect(page.locator(".inventory-v2-player-facts")).not.toContainText("[object Object]");
+  await expect(page.locator('.inventory-v2-modules[data-v2-detail-section="modules"]')).toBeVisible();
+  await expect(page.locator('[data-v2-detail="modules"]')).toContainText("Serrated Edge");
   await expect(page.locator(".inventory-v2-item-category")).toHaveCount(0);
 });
 
