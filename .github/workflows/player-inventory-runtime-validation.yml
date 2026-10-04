@@ -10,6 +10,7 @@ on:
       - js/inventory-hud-v2.js
       - js/item-runtime-engine.js
       - js/shop-item-purchase-runtime.js
+      - js/shop-runtime.js
       - js/dm-item-instance-editor.js
       - js/dm-player-dnd-studio-hotfix.js
       - js/item-icon-registry.js
@@ -106,6 +107,7 @@ on:
       - tests/injury-narrative-speed-smoke.cjs
       - tests/inventory-runtime-cutover.spec.cjs
       - tests/shop-item-purchase-runtime-smoke.mjs
+      - tests/shop-runtime-smoke.cjs
       - tests/dm-item-instance-editor.spec.cjs
       - .github/workflows/player-inventory-runtime-validation.yml
   push:
@@ -128,6 +130,7 @@ jobs:
           node --check js/inventory-hud-v2.js
           node --check js/item-runtime-engine.js
           node --check js/shop-item-purchase-runtime.js
+          node --check js/shop-runtime.js
           node --check js/dm-item-instance-editor.js
           node --check js/dm-player-dnd-studio-hotfix.js
           node --check js/item-icon-registry.js
@@ -261,6 +264,8 @@ jobs:
         run: node tests/injury-narrative-speed-smoke.cjs
       - name: Shop functional item purchase smoke
         run: node tests/shop-item-purchase-runtime-smoke.mjs
+      - name: Shop types, tier pricing and stock smoke
+        run: node tests/shop-runtime-smoke.cjs
       - name: Install Playwright test runner
         run: npm install --no-save @playwright/test@1.55.0
       - name: Install Chromium
