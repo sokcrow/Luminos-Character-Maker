@@ -42,7 +42,7 @@
     return runtime.spHealing || runtime.hybridHealing?.sp || null;
   }
 
-  function hpImmediateAmount(item = {}, unit = {}, runtimeApi = null) {
+  function hpImmediateAmount(item = {}, unit = {}) {
     const healing = hpHealing(item);
     if (!healing) {
       const runtime = item.runtime || {};
@@ -50,17 +50,9 @@
       return Math.max(0, Math.floor(numberOr(raw, 0)));
     }
 
-    if (runtimeApi?.canonicalHpHealingBreakdown) {
-      const breakdown = runtimeApi.canonicalHpHealingBreakdown(unit, healing);
-      if (breakdown && Number.isFinite(Number(breakdown.immediate))) return Math.max(0, Math.floor(Number(breakdown.immediate)));
-    }
+    if (normalizeId(healing.mode) === "full") return null;
 
     const maxHp = maxHpOf(unit);
-    const currentHp = currentHpOf(unit);
-    if (normalizeId(healing.mode) === "full") {
-      if (maxHp == null || currentHp == null) return null;
-      return Math.max(0, Math.floor(maxHp - currentHp));
-    }
     if (maxHp == null) {
       const flatOnly = Math.max(0, Math.floor(numberOr(healing.flat, 0)));
       return flatOnly || null;
@@ -68,8 +60,7 @@
     const raw = Math.max(0, numberOr(healing.flat, 0) + maxHp * (numberOr(healing.maxHpPercent ?? healing.max_hp_percent, 0) / 100));
     const capPercent = Math.max(0, numberOr(healing.capMaxHpPercent ?? healing.cap_max_hp_percent, 0));
     const cap = capPercent > 0 ? Math.floor(maxHp * (capPercent / 100)) : Math.floor(raw);
-    const missing = currentHp == null ? Number.POSITIVE_INFINITY : Math.max(0, Math.floor(maxHp - currentHp));
-    return Math.max(0, Math.floor(Math.min(raw, cap, missing)));
+    return Math.max(0, Math.floor(Math.min(raw, cap)));
   }
 
   function hpRegenAmount(item = {}, unit = {}) {
@@ -178,9 +169,11 @@
     const out = [];
 
     const hpHealingProfile = hpHealing(resolved);
-    const hpImmediate = hpImmediateAmount(resolved, unit, runtimeApi);
+    const hpImmediate = hpImmediateAmount(resolved, unit);
     if (hpHealingProfile || hpImmediate > 0) {
-      if (hpImmediate == null) {
+      if (normalizeId(hpHealingProfile?.mode) === "full") {
+        out.push({ kind: "hp", tone: "hp", label: "HP FULL", detail: "Restores HP to full on use." });
+      } else if (hpImmediate == null) {
         out.push({ kind: "hp", tone: "hp", label: "HP", detail: "Restores HP on use." });
       } else if (hpImmediate > 0) {
         out.push({ kind: "hp", tone: "hp", label: `HP +${hpImmediate}`, detail: `Restore ${hpImmediate} HP on use.` });
