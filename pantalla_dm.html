@@ -6874,6 +6874,25 @@ window.processEntitiesData = function(entities) {
               return;
             }
 
+            const authorizedUids = {};
+            let unresolvedShopPlayer = null;
+            for (const playerKey of Object.keys(jugadoresPresentes)) {
+              const uid = window.jugadoresData?.[playerKey]?.uid;
+              if (!uid) {
+                unresolvedShopPlayer = playerKey;
+                break;
+              }
+              authorizedUids[uid] = true;
+            }
+            if (unresolvedShopPlayer) {
+              alert(
+                "No se puede autorizar la tienda: el jugador " +
+                unresolvedShopPlayer +
+                " no tiene UID canónico registrado.",
+              );
+              return;
+            }
+
             const isEditing = editModeTiendaKey !== null;
             // In edit mode, if name didn't change enough to alter ID, we use the original.
             const idTienda = isEditing
@@ -6889,6 +6908,7 @@ window.processEntitiesData = function(entities) {
               fisica_activa: fisicaActiva,
               dias_entrega: diasEntrega,
               jugadores_presentes: jugadoresPresentes,
+              authorized_uids: authorizedUids,
               dia_restock: diaRestock,
               mod_venta: modVenta,
             };
@@ -6937,6 +6957,25 @@ window.processEntitiesData = function(entities) {
             }
           });
 
+        function authorizedUidsForShop(shop = {}) {
+          const assigned = shop.jugadores_presentes || {};
+          const expected = {};
+          for (const [playerKey, enabled] of Object.entries(assigned)) {
+            if (enabled !== true) continue;
+            const uid = window.jugadoresData?.[playerKey]?.uid;
+            if (!uid) return null;
+            expected[uid] = true;
+          }
+          return expected;
+        }
+
+        function sameBooleanMap(left = {}, right = {}) {
+          const leftKeys = Object.keys(left).filter((key) => left[key] === true).sort();
+          const rightKeys = Object.keys(right).filter((key) => right[key] === true).sort();
+          return leftKeys.length === rightKeys.length &&
+            leftKeys.every((key, index) => key === rightKeys[index]);
+        }
+
         // RENDERIZAR TIENDAS EN GRID
         const gridTiendas = document.getElementById("grid-tiendas");
         db.ref("campaña/tiendas").on("value", (snapshot) => {
@@ -6946,6 +6985,15 @@ window.processEntitiesData = function(entities) {
               for (let tId in tiendas) {
                   if (tiendas[tId].items) {
                       tiendas[tId].items = window.processItemsData(tiendas[tId].items);
+                  }
+
+                  const expectedAuthorizedUids = authorizedUidsForShop(tiendas[tId]);
+                  if (
+                    expectedAuthorizedUids &&
+                    !sameBooleanMap(tiendas[tId].authorized_uids || {}, expectedAuthorizedUids)
+                  ) {
+                    db.ref(`campaña/tiendas/${tId}/authorized_uids`).set(expectedAuthorizedUids);
+                    tiendas[tId].authorized_uids = expectedAuthorizedUids;
                   }
               }
           }
