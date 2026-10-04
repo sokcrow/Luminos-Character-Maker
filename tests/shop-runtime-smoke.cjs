@@ -86,6 +86,21 @@ const { pathToFileURL } = require("node:url");
     80000,
     "market events must not change canonical sellback",
   );
+  const eventStockedFood = shops.applyAutomaticStock(
+    { family: "food", category: "food", tier: "I", productionValueAhn: 100000 },
+    { shop_type: "general", shop_tier: 1, mod_venta: 100, jugadores_presentes: { Pierre: true } },
+    { preserveSold: false },
+  );
+  assert.equal(
+    eventStockedFood.shop_price_ahn,
+    140000,
+    "stored Shop list price must not persist a temporary Market Event",
+  );
+  assert.equal(
+    shops.purchasePrice(eventStockedFood, { shop_type: "general", shop_tier: 1, mod_venta: 100 }),
+    112000,
+    "live purchase price must still apply the active Market Event",
+  );
   shops.setMarketEvent(null);
   assert.equal(shops.marketEventPercent({ shop_type: "general" }), 0);
 
