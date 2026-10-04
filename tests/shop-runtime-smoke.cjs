@@ -464,6 +464,17 @@ const { pathToFileURL } = require("node:url");
     true,
     "DM must be able to add a service as a local exception",
   );
+  const canonicalConditionItem = {
+    condition: 72,
+    conditionMax: 100,
+    repairMaterialValuePerPointAhn: 500,
+  };
+  assert.deepEqual(
+    shops.durabilityState(canonicalConditionItem),
+    { resolved: true, current: 72, max: 100, missing: 28 },
+    "Shop repair must understand canonical inventory condition/conditionMax",
+  );
+
   const repair = shops.repairBreakdown(damagedBlade, { shop_type: "workshop" });
   assert.equal(repair.available, true);
   assert.equal(repair.missingDurability, 40);
@@ -543,6 +554,7 @@ const { pathToFileURL } = require("node:url");
       id: "mika",
       name: "Mika",
       sprite: "mika.png",
+      greeting: "Qué bueno verte.",
       frequent_customer_min_purchases: 10,
       frequent_customer_discount_percent: 5,
       relationship_discounts: {
@@ -559,6 +571,7 @@ const { pathToFileURL } = require("node:url");
   };
   assert.equal(shops.shopChain(livingShop).id, "hamham");
   assert.equal(shops.merchantNpc(livingShop).name, "Mika");
+  assert.equal(shops.merchantNpc(livingShop).greeting, "Qué bueno verte.");
   assert.equal(shops.loyaltyProgram(livingShop).paidPurchasesRequired, 9);
 
   const promotionOnly = shops.priceBreakdown(promoFood, livingShop);
