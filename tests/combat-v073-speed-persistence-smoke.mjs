@@ -18,4 +18,13 @@ assert.ok(speed.includes('a.hydrateNow()'),'persisted speed changes must rehydra
 assert.ok(speed.includes('state.refreshTimer=global.setTimeout'),'speed-driven runtime refreshes must be debounced');
 assert.ok(!speed.includes('`${ROOT}/combatants/${key}`'),'speed authority must not issue one transaction per combatant');
 
+assert.ok(viewer.includes('initializeBattleSP();ensureUnknownAISlots();'),'Viewer hydration must initialize SP without rerolling Speed');
+assert.ok(!viewer.includes('initializeBattleSP();rollTurnSpeeds(round);ensureUnknownAISlots();'),'Viewer hydration must never locally reroll canonical Speed');
+assert.ok(speed.includes('roundReady:false'),'Speed authority must wait for the canonical round before authoring Speed');
+assert.ok(speed.includes('if(state.rolling||!state.roundReady||!state.db?.ref||!isDm())return false'),'DM Speed rolls must be blocked until Firebase round state is known');
+assert.ok(speed.includes('syncRuntimeSpeedsFromCanonical'),'legacy runtime Speed must be overwritten from canonical combatants');
+assert.ok(speed.includes('patchLegacySpeedRollers'),'legacy rollTurnSpeeds/rollUnitSpeed must be patched to canonical reads');
+assert.ok(speed.includes('global.rollTurnSpeeds=function authoritativeSpeedSync'),'legacy turn Speed rolls must not randomize per viewer');
+assert.ok(speed.includes('global.rollUnitSpeed=function authoritativeUnitSpeed'),'legacy unit Speed rolls must not randomize per viewer');
+
 console.log('combat v0.7.3 speed persistence smoke: ok');
