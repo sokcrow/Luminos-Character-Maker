@@ -235,7 +235,7 @@ test.use({ viewport: { width: 673, height: 258 }, colorScheme: 'dark' });
 
 test('real Battle-viewer Player can open Actions, Skills, Spells and Items at embedded viewport', async ({ page }) => {
   const pageErrors = [];
-  page.on('pageerror', error => pageErrors.push(String(error?.message || error)));
+  page.on('pageerror', error => pageErrors.push(String(error?.stack || error?.message || error)));
   await installFirebase(page);
   await page.goto(`${BASE}/Battle-viewer.html`, { waitUntil: 'domcontentloaded' });
 
