@@ -65,6 +65,7 @@ on:
       - 'tests/combat-v073-live-sync-hotfix-smoke.mjs'
       - 'tests/combat-v073-economy-menu-smoke.mjs'
       - 'tests/combat-v073-player-menu-inventory-click-smoke.mjs'
+      - 'tests/combat-player-active-inventory-authority-smoke.mjs'
       - 'tests/item-runtime-canonical-combat-use-smoke.mjs'
       - 'tests/player-vitals-universal-sync-smoke.mjs'
       - 'tests/unit-combat-instantiator-smoke.mjs'
@@ -142,6 +143,8 @@ jobs:
         run: node tests/combat-v073-economy-menu-smoke.mjs
       - name: Player menu and active inventory click contract
         run: node tests/combat-v073-player-menu-inventory-click-smoke.mjs
+      - name: Combat Player Active Inventory authority
+        run: node tests/combat-player-active-inventory-authority-smoke.mjs
       - name: Canonical ItemRuntime combat use contract
         run: node tests/item-runtime-canonical-combat-use-smoke.mjs
       - name: Universal Player HP/SP sync contract
