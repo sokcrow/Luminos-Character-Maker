@@ -3197,9 +3197,20 @@ function initializeCharacterSheet() {
             },
           );
 
-          // Reducir cantidad o eliminar
-          if (item.cantidad > 1) {
-            itemRef.update({ cantidad: item.cantidad - 1 });
+          // Reducir cantidad o eliminar manteniendo sincronizados los dos
+          // mirrors canónicos de cantidad. Item Runtime prioriza `quantity`,
+          // mientras UI/legacy todavía leen `cantidad`.
+          const currentQuantity =
+            window.LuminousShopItemPurchaseRuntime?.quantityOf?.(item) ??
+            Math.max(
+              0,
+              parseInt(item.quantity ?? item.cantidad ?? 1) || 0,
+            );
+          if (currentQuantity > 1) {
+            itemRef.update({
+              quantity: currentQuantity - 1,
+              cantidad: currentQuantity - 1,
+            });
           } else {
             itemRef.remove();
           }
@@ -3285,7 +3296,13 @@ function initializeCharacterSheet() {
           const fragment = document.createDocumentFragment();
 
           for (const [key, item] of Object.entries(stash)) {
-            if (item.cantidad <= 0) continue;
+            const itemQuantity =
+              window.LuminousShopItemPurchaseRuntime?.quantityOf?.(item) ??
+              Math.max(
+                0,
+                parseInt(item.quantity ?? item.cantidad ?? 1) || 0,
+              );
+            if (itemQuantity <= 0) continue;
 
             // Calcular precio de venta basado en el primer tag (tipo) si existe
             // La nueva lógica usa array de tags, así que buscamos el primero
@@ -3313,7 +3330,7 @@ function initializeCharacterSheet() {
                 <img src="${item.icono || "https://via.placeholder.com/40"}" style="width: 40px; height: 40px; object-fit: contain; border-radius: 4px; background: #000;">
                 <div style="flex: 1; min-width: 0;">
                     <div style="font-weight: bold; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.nombre}</div>
-                    <div style="font-size: 12px; color: #888;">Cant: ${item.cantidad}</div>
+                    <div style="font-size: 12px; color: #888;">Cant: ${itemQuantity}</div>
                 </div>
                 <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 5px;">
                     <div style="color: #c49a00; font-weight: bold;"><span class="currency-symbol">₳</span> +${precioVenta}</div>
