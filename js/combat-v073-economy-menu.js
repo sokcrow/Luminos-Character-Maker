@@ -21,6 +21,7 @@
     menuObserver: null,
     itemRowByInstanceId: new Map(),
     rootMenuClickInstalled: false,
+    menuRefreshGeneration: 0,
   };
 
   const clean = (value) => String(value ?? "").trim();
@@ -755,16 +756,17 @@
     return true;
   }
 
-  function refreshOpenedMenu(menu, delay = 0) {
+  function refreshOpenedMenu(menu, delay = 560) {
+    const generation = ++state.menuRefreshGeneration;
     global.setTimeout?.(() => {
-      if (activeMenu() !== menu) return;
+      if (generation !== state.menuRefreshGeneration || activeMenu() !== menu) return;
       renderActiveMenuBody(menu);
       syncTabs();
       updateCategoryContext();
       syncSpellMenuVisibility();
       syncQuickBadge();
       syncResponsiveMenuLayout();
-    }, delay);
+    }, Math.max(0, Number(delay) || 0));
   }
 
   function installRootMenuClickHandler() {
@@ -774,11 +776,10 @@
       if (!button) return;
       const menu = normalizeId(button.dataset?.menu);
       if (!TABBED_MENUS.has(menu)) return;
-      // The legacy category transition mutates activeMenu before its delayed body
-      // paint. Re-apply live content after both the immediate click and animation.
-      refreshOpenedMenu(menu, 0);
-      refreshOpenedMenu(menu, 180);
-      refreshOpenedMenu(menu, 520);
+      // Let the packed legacy category transition finish before replacing its
+      // body. Replacing nodes while its geometry animation is still running can
+      // leave stale content or make legacy layout callbacks dereference removed nodes.
+      refreshOpenedMenu(menu, 560);
     }, false);
     state.rootMenuClickInstalled = true;
     return true;
@@ -1187,6 +1188,7 @@
     if (typeof state.originals.goRoot === "function") {
       global.__luminousEconomyOriginalGoRoot = state.originals.goRoot;
       global.__luminousEconomyGoRoot = function (...args) {
+        state.menuRefreshGeneration += 1;
         const result = global.__luminousEconomyOriginalGoRoot.apply(this, args);
         global.setTimeout?.(syncResponsiveMenuLayout, 0);
         return result;
