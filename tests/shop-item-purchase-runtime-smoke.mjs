@@ -85,9 +85,11 @@ const legacyBrokenStack = {
   id: definitionId,
   instanceId: "legacy_stack",
   nombre: "Pocket Recovery Patch",
-  tier: "I",
+  tier: 1,
   cantidad: 2,
 };
+
+assert.equal(shop.sameTier(legacyBrokenStack.tier, storeItem.tier), true, "legacy numeric tier must match canonical roman tier");
 
 const repaired = shop.mergePurchasedStack(legacyBrokenStack, purchased, 1);
 assert.equal(repaired.instanceId, "legacy_stack", "repair must preserve the owned instance identity");
