@@ -2705,6 +2705,23 @@ function initializeCharacterSheet() {
     "X",
   ];
 
+  const getShopRuntime = () => window.LuminousShopRuntime || null;
+  const canAccessShop = (shop, playerName) =>
+    !getShopRuntime()?.isPlayerAllowed ||
+    getShopRuntime().isPlayerAllowed(shop, playerName);
+  const getShopPrice = (item, shop) =>
+    getShopRuntime()?.purchasePrice?.(item, shop) ??
+    Math.max(0, parseInt(item?.costo, 10) || 0);
+  const getShopTierNumber = (value) =>
+    getShopRuntime()?.tierNumber?.(value) ??
+    Math.max(1, parseInt(value, 10) || 1);
+  const shopDisplayName = (shop = {}) => {
+    const meta = getShopRuntime()?.describeShop?.(shop);
+    return meta
+      ? `${shop.nombre || "Tienda"} · ${meta.typeLabel} · TIER ${meta.tierRoman}`
+      : (shop.nombre || "Tienda");
+  };
+
   // Esperar a que el DOM y typeof db !== 'undefined' existan
   {
     if (typeof db === "undefined") return;
@@ -2746,7 +2763,7 @@ function initializeCharacterSheet() {
 
       for (const [id, data] of Object.entries(tiendas)) {
         // Lógica App (En línea)
-        if (data.activa === true) {
+        if (data.activa === true && playerName && canAccessShop(data, playerName)) {
           encontrada = true;
           tiendaActivaId = id;
           tiendaActivaData = data;
@@ -2756,8 +2773,7 @@ function initializeCharacterSheet() {
         if (
           data.fisica_activa === true &&
           playerName &&
-          data.jugadores_presentes &&
-          data.jugadores_presentes[playerName]
+          canAccessShop(data, playerName)
         ) {
           tiendasFisicasDisponibles[id] = data;
           if (!badgeImageSrc)
@@ -2831,7 +2847,9 @@ function initializeCharacterSheet() {
 
         const iconUrl =
           data.icono_fisico || data.icono || "https://i.imgur.com/kP8s7Ww.png";
-        btn.innerHTML = `<img src="${iconUrl}" alt="${data.nombre}"> ${data.nombre}`;
+        const meta = getShopRuntime()?.describeShop?.(data);
+        const suffix = meta ? ` · T${meta.tierRoman}` : "";
+        btn.innerHTML = `<img src="${iconUrl}" alt="${data.nombre}"> ${data.nombre}${suffix}`;
 
         btn.addEventListener("click", () => {
           seleccionarTiendaFisica(id);
@@ -2855,11 +2873,10 @@ function initializeCharacterSheet() {
       const data = tiendasFisicasDisponibles[idTienda];
       if (!data) return;
 
-      title.innerText = data.nombre;
+      title.innerText = shopDisplayName(data);
       grid.innerHTML = "";
 
       const items = data.items || {};
-      const modVenta = data.mod_venta || 100;
 
       if (Object.keys(items).length === 0) {
         grid.innerHTML =
@@ -2888,14 +2905,18 @@ function initializeCharacterSheet() {
           const fragment = document.createDocumentFragment();
 
           for (const [itemId, item] of Object.entries(items)) {
-            const itemTier = parseInt(item.tier) || 1;
-            const valorConTier = Math.floor(
-              (item.costo || 0) * (1 + (itemTier - 1) * 0.25),
-            );
-            const precio = Math.floor(valorConTier * (modVenta / 100));
-            const isAgotado = item.stock_actual === 0;
-            const stockStr = item.stock_actual === -1 ? "∞" : item.stock_actual;
-            const tierStr = romanTiersShop[Math.min(itemTier, 10)] || "I";
+            const itemTier = getShopTierNumber(item.tier);
+            const precio = getShopPrice(item, data);
+            const disponiblePorTier =
+              getShopRuntime()?.itemAvailable?.(item, data) !== false;
+            const isAgotado = item.stock_actual === 0 || !disponiblePorTier;
+            const stockStr = !disponiblePorTier
+              ? "Fuera de Tier"
+              : (item.stock_actual === -1 ? "∞" : item.stock_actual);
+            const tierStr =
+              getShopRuntime()?.tierRoman?.(itemTier) ||
+              romanTiersShop[Math.min(itemTier, 10)] ||
+              "I";
             const countOwned = stashCounts[item.nombre] || 0;
             const tagStr = item.tag || "Objeto";
             const descStr =
@@ -2977,7 +2998,6 @@ function initializeCharacterSheet() {
         const itemId = isFisico
           ? btnCompra.getAttribute("data-item")
           : btnCompra.getAttribute("data-id");
-        const precio = parseInt(btnCompra.getAttribute("data-precio"));
 
         let idTiendaActual = null;
         let tiendaActualData = null;
@@ -2997,26 +3017,51 @@ function initializeCharacterSheet() {
         )
           return;
         const itemTienda = tiendaActualData.items[itemId];
+        if (!canAccessShop(tiendaActualData, playerName)) {
+          alert("Esta tienda no está disponible para tu personaje.");
+          return;
+        }
+        if (getShopRuntime()?.itemAvailable?.(itemTienda, tiendaActualData) === false) {
+          alert("Este objeto está por encima del Tier de la tienda.");
+          return;
+        }
+        if (itemTienda.stock_actual === 0) {
+          alert("Este objeto está agotado.");
+          return;
+        }
 
-        db.ref(`campaña/jugadores/${playerName}/ahn`).once("value", (snap) => {
+        const precio = getShopPrice(itemTienda, tiendaActualData);
+
+        db.ref(`campaña/jugadores/${playerName}/ahn`).once("value", async (snap) => {
           const ahn_actual = snap.val() || 0;
           if (ahn_actual < precio) {
             alert("Fondos insuficientes.");
             return;
           }
 
-          // Restar Ahn estrictamente
-          db.ref(`campaña/jugadores/${playerName}/ahn`).set(
-            ahn_actual - precio,
-          );
+          let stockReservation;
+          try {
+            stockReservation = await reserveShopStock(idTiendaActual, itemId);
+          } catch (error) {
+            console.error("Error reservando stock:", error);
+            alert("No se pudo reservar el stock de la tienda.");
+            return;
+          }
+          if (!stockReservation.reserved) {
+            alert("El objeto se agotó antes de completar la compra.");
+            return;
+          }
 
-          // Reducir Stock
-          if (itemTienda.stock_actual !== -1) {
-            db.ref(
-              `campaña/tiendas/${idTiendaActual}/items/${itemId}/stock_actual`,
-            ).transaction((current) => {
-              return (current || 0) - 1;
-            });
+          // El precio se recalcula desde Shop Runtime y el stock se reserva
+          // atómicamente antes de cobrar, para que todos los Players compartan
+          // el mismo inventario real de la tienda.
+          try {
+            await db.ref(`campaña/jugadores/${playerName}/ahn`).set(
+              ahn_actual - precio,
+            );
+          } catch (error) {
+            await restoreShopStock(idTiendaActual, itemId);
+            throw error;
           }
 
           // Preserve the canonical functional definition when an item leaves a
@@ -3227,7 +3272,6 @@ function initializeCharacterSheet() {
 
       grid.innerHTML = "";
       const items = tiendaActivaData.items || {};
-      const modVenta = tiendaActivaData.mod_venta || 100;
 
       if (Object.keys(items).length === 0) {
         grid.innerHTML =
@@ -3239,13 +3283,13 @@ function initializeCharacterSheet() {
       const fragment = document.createDocumentFragment();
 
       for (const [itemId, item] of Object.entries(items)) {
-        const itemTier = parseInt(item.tier) || 1;
-        const valorConTier = Math.floor(
-          (item.costo || 0) * (1 + (itemTier - 1) * 0.25),
-        );
-        const precio = Math.floor(valorConTier * (modVenta / 100));
-        const isAgotado = item.stock_actual === 0;
-        const stockStr = item.stock_actual === -1 ? "∞" : item.stock_actual;
+        const precio = getShopPrice(item, tiendaActivaData);
+        const disponiblePorTier =
+          getShopRuntime()?.itemAvailable?.(item, tiendaActivaData) !== false;
+        const isAgotado = item.stock_actual === 0 || !disponiblePorTier;
+        const stockStr = !disponiblePorTier
+          ? "Fuera de Tier"
+          : (item.stock_actual === -1 ? "∞" : item.stock_actual);
 
         const row = document.createElement("div");
         row.style.cssText =
@@ -3949,140 +3993,337 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
-// --- LÓGICA DE TIENDAS DINÁMICAS ---
-window.abrirTiendaDinamica = function(tiendaId) {
+// --- LÓGICA DE TIENDAS DINÁMICAS / THEATER ---
+function currentShopPlayerAccessKey(playerData = {}) {
+  return (
+    document
+      .querySelector('input[name="attr_character_name"]')
+      ?.value.trim() ||
+    playerData.nombre ||
+    playerData.name ||
+    playerId ||
+    ""
+  );
+}
+
+function reserveShopStock(tiendaId, itemKey) {
+  return new Promise((resolve, reject) => {
+    const stockRef = db.ref(
+      `campaña/tiendas/${tiendaId}/items/${itemKey}/stock_actual`,
+    );
+    stockRef.transaction(
+      (current) => {
+        // Legacy Shops without stock used effectively unlimited inventory.
+        if (current == null || current === -1) return -1;
+        const stock = Math.max(0, parseInt(current, 10) || 0);
+        if (stock <= 0) return;
+        return stock - 1;
+      },
+      (error, committed, snapshot) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve({
+          reserved: committed,
+          remaining: snapshot?.val?.() ?? null,
+          unlimited: snapshot?.val?.() === -1,
+        });
+      },
+      false,
+    );
+  });
+}
+
+function restoreShopStock(tiendaId, itemKey) {
+  const stockRef = db.ref(
+    `campaña/tiendas/${tiendaId}/items/${itemKey}/stock_actual`,
+  );
+  return stockRef.transaction((current) => {
+    if (current == null || current === -1) return -1;
+    return Math.max(0, parseInt(current, 10) || 0) + 1;
+  });
+}
+
+async function deliverShopPurchaseToStash(playerKey, itemKey, itemData) {
+  const purchaseRuntime = window.LuminousShopItemPurchaseRuntime;
+  const payload =
+    purchaseRuntime?.buildPurchasePayload?.(
+      itemKey,
+      itemData,
+      playerKey,
+      { inventoryRuntime: window.LuminousItemInventoryRuntime },
+    ) || {
+      ...itemData,
+      id: itemData.id || itemKey,
+      definitionId:
+        itemData.definitionId ||
+        itemData.canonicalId ||
+        itemData.id ||
+        itemKey,
+      canonicalId:
+        itemData.canonicalId ||
+        itemData.definitionId ||
+        itemData.id ||
+        itemKey,
+      quantity: 1,
+      cantidad: 1,
+      currentOwnerId: playerKey,
+    };
+
+  const stashRef = db.ref(`campaña/jugadores/${playerKey}/inventario_stash`);
+  const stashSnap = await stashRef.once("value");
+  let foundKey = null;
+
+  stashSnap.forEach((child) => {
+    const owned = child.val() || {};
+    const ownedDefinitionId =
+      owned.definitionId ||
+      owned.canonicalId ||
+      owned.id;
+    const sameTier = purchaseRuntime?.sameTier
+      ? purchaseRuntime.sameTier(owned.tier, itemData.tier)
+      : String(owned.tier || "I") === String(itemData.tier || "I");
+    if (
+      ownedDefinitionId === payload.definitionId &&
+      sameTier
+    ) {
+      foundKey = child.key;
+    }
+  });
+
+  if (!foundKey) {
+    await stashRef.push(payload);
+    return payload;
+  }
+
+  await stashRef.child(foundKey).transaction((current) => {
+    if (!current) return payload;
+    if (purchaseRuntime?.mergePurchasedStack) {
+      return purchaseRuntime.mergePurchasedStack(current, payload, 1);
+    }
+    const quantity =
+      parseInt(current.quantity ?? current.cantidad, 10) || 1;
+    return {
+      ...payload,
+      ...current,
+      runtime: current.runtime || payload.runtime,
+      quantity: quantity + 1,
+      cantidad: quantity + 1,
+    };
+  });
+  return payload;
+}
+
+window.abrirTiendaDinamica = async function(tiendaId) {
   if (!playerId) return;
 
-  db.ref(`campaña/jugadores/${playerId}/transacciones`).once('value', (transSnap) => {
-    let saldoActual = 0;
-    transSnap.forEach(t => { saldoActual += (t.val().monto || 0); });
+  try {
+    const [playerSnap, shopSnap] = await Promise.all([
+      db.ref(`campaña/jugadores/${playerId}`).once("value"),
+      db.ref(`campaña/tiendas/${tiendaId}`).once("value"),
+    ]);
 
+    const playerData = playerSnap.val() || {};
+    const data = shopSnap.val();
+    if (!data) return;
+
+    const shopRuntime = window.LuminousShopRuntime;
+    const accessKey = currentShopPlayerAccessKey(playerData);
+    if (shopRuntime?.isPlayerAllowed && !shopRuntime.isPlayerAllowed(data, accessKey)) {
+      const overlay = document.getElementById("tienda-overlay");
+      if (overlay) overlay.style.display = "none";
+      alert("Esta tienda no está disponible para tu personaje.");
+      return;
+    }
+
+    const currentBalance =
+      playerData.finance?.currentBalance !== undefined
+        ? Number(playerData.finance.currentBalance) || 0
+        : Number(playerData.ahn) || 0;
     const balanceDisplay = document.getElementById("shop-player-balance");
-    if (balanceDisplay) balanceDisplay.innerText = saldoActual;
+    if (balanceDisplay) balanceDisplay.innerText = currentBalance;
 
-    db.ref(`campaña/tiendas/${tiendaId}`).once('value', (snap) => {
-      const data = snap.val();
-      if (!data) return;
+    const meta = shopRuntime?.describeShop?.(data);
+    document.getElementById("shop-name-display").innerText = meta
+      ? `${data.nombre || "Tienda"} · ${meta.typeLabel} · TIER ${meta.tierRoman}`
+      : (data.nombre || "Tienda");
 
-      document.getElementById("shop-name-display").innerText = data.nombre || "Tienda";
-      const lista = document.getElementById("lista-items-tienda");
-      lista.innerHTML = "";
+    const lista = document.getElementById("lista-items-tienda");
+    lista.innerHTML = "";
 
-      document.getElementById("panel-item-name").innerText = "---";
-      document.getElementById("panel-item-qty").innerText = "--";
-      document.getElementById("panel-item-desc").innerHTML = "<span style='color: #666; font-style: italic;'>Selecciona un objeto...</span>";
-      const btnComprar = document.getElementById("btn-comprar-seleccionado");
-      btnComprar.style.display = "none";
+    document.getElementById("panel-item-name").innerText = "---";
+    document.getElementById("panel-item-qty").innerText = "--";
+    document.getElementById("panel-item-desc").innerHTML =
+      "<span style='color: #666; font-style: italic;'>Selecciona un objeto...</span>";
+    const btnComprar = document.getElementById("btn-comprar-seleccionado");
+    btnComprar.style.display = "none";
 
-      if (data.items) {
-        const itemsArray = Array.isArray(data.items) ? data.items : Object.keys(data.items).map(k => ({...data.items[k], _key: k}));
+    if (data.items) {
+      const itemsArray = Array.isArray(data.items)
+        ? data.items.map((item, index) => item ? { ...item, _key: index } : item)
+        : Object.keys(data.items).map((key) => ({ ...data.items[key], _key: key }));
 
-        itemsArray.forEach((item, index) => {
-          if(!item) return;
-          const row = document.createElement("div");
-          row.className = "item-row";
+      itemsArray.forEach((item, index) => {
+        if (!item) return;
+        const row = document.createElement("div");
+        row.className = "item-row";
 
-          let iconHTML = '📦';
-          if (item.icono) {
-              if (item.icono.startsWith('http') || item.icono.includes('.')) {
-                  iconHTML = `<img src="${item.icono}" style="width: 100%; height: 100%; object-fit: contain;" onerror="this.onerror=null; this.src=''; this.alt='📦';">`;
-              } else {
-                  iconHTML = item.icono;
-              }
+        let iconHTML = "📦";
+        if (item.icono) {
+          if (item.icono.startsWith("http") || item.icono.includes(".")) {
+            iconHTML = `<img src="${item.icono}" style="width: 100%; height: 100%; object-fit: contain;" onerror="this.onerror=null; this.src=''; this.alt='📦';">`;
+          } else {
+            iconHTML = item.icono;
           }
+        }
 
-          const mapRomanos = { "1": "I", "2": "II", "3": "III", "4": "IV", "5": "V" };
-          const tierText = mapRomanos[item.tier] || item.tier || "-";
-          const precioItem = item.costo || 0;
+        const tierText =
+          shopRuntime?.tierRoman?.(item.tier) ||
+          String(item.tier || "-");
+        const precioItem =
+          shopRuntime?.purchasePrice?.(item, data) ??
+          Math.max(0, parseInt(item.costo, 10) || 0);
+        const availableByTier =
+          shopRuntime?.itemAvailable?.(item, data) !== false;
+        const exhausted = item.stock_actual === 0;
+        const unavailable = exhausted || !availableByTier;
 
-          row.innerHTML = `
-            <div class="icon-slot">
-                <span class="tier">${tierText}</span>
-                <span class="icono-img" style="width: 100%; height: 100%; display: flex; justify-content: center; align-items: center;">${iconHTML}</span>
-            </div>
-            <div class="item-details">
-                <span class="item-name">${item.nombre || 'Objeto'}</span>
-                <span class="item-cost">
-                    ${precioItem} <span style="color: var(--brillo-ambar);">₳</span>
-                </span>
-            </div>
-          `;
+        row.innerHTML = `
+          <div class="icon-slot">
+              <span class="tier">${tierText}</span>
+              <span class="icono-img" style="width: 100%; height: 100%; display: flex; justify-content: center; align-items: center;">${iconHTML}</span>
+          </div>
+          <div class="item-details">
+              <span class="item-name">${item.nombre || "Objeto"}</span>
+              <span class="item-cost">
+                  ${precioItem} <span style="color: var(--brillo-ambar);">₳</span>
+              </span>
+              <span style="font-size: 11px; color: ${unavailable ? "#aa5555" : "#888"};">
+                ${!availableByTier ? "Fuera del Tier de la tienda" : (exhausted ? "Agotado" : "Disponible")}
+              </span>
+          </div>
+        `;
 
-          row.onclick = () => {
-              document.querySelectorAll('.item-row').forEach(r => r.classList.remove('selected'));
-              row.classList.add('selected');
+        row.onclick = () => {
+          document
+            .querySelectorAll(".item-row")
+            .forEach((entry) => entry.classList.remove("selected"));
+          row.classList.add("selected");
 
-              document.getElementById("panel-item-name").innerText = item.nombre;
-              document.getElementById("panel-item-desc").innerText = item.descripcion || item.desc || "Sin descripción disponible.";
+          document.getElementById("panel-item-name").innerText = item.nombre;
+          document.getElementById("panel-item-desc").innerText =
+            item.descripcion || item.desc || "Sin descripción disponible.";
 
-              let stockDisplay = "--";
-              if (item.stock_actual !== undefined) {
-                  stockDisplay = (item.stock_actual === -1) ? "∞" : item.stock_actual;
-              }
-              document.getElementById("panel-item-qty").innerText = stockDisplay;
+          let stockDisplay = "--";
+          if (!availableByTier) {
+            stockDisplay = "TIER";
+          } else if (item.stock_actual !== undefined) {
+            stockDisplay = item.stock_actual === -1 ? "∞" : item.stock_actual;
+          }
+          document.getElementById("panel-item-qty").innerText = stockDisplay;
 
-              btnComprar.style.display = "block";
-              btnComprar.innerHTML = `COMPRAR [${precioItem} ₳]`;
+          btnComprar.style.display = "block";
+          btnComprar.disabled = unavailable;
+          btnComprar.innerHTML = unavailable
+            ? (!availableByTier ? "TIER INSUFICIENTE" : "AGOTADO")
+            : `COMPRAR [${precioItem} ₳]`;
 
-              const passKey = item._key !== undefined ? item._key : index;
-              btnComprar.onclick = () => comprarItemTienda(tiendaId, passKey, precioItem);
-          };
+          const passKey = item._key !== undefined ? item._key : index;
+          btnComprar.onclick = unavailable
+            ? null
+            : () => comprarItemTienda(tiendaId, passKey);
+        };
 
-          lista.appendChild(row);
-        });
-      } else {
-        lista.innerHTML = "<span style='color: #888; padding: 20px;'>No hay objetos disponibles en esta tienda.</span>";
-      }
+        lista.appendChild(row);
+      });
+    } else {
+      lista.innerHTML =
+        "<span style='color: #888; padding: 20px;'>No hay objetos disponibles en esta tienda.</span>";
+    }
 
-      document.getElementById("tienda-overlay").style.display = "flex";
-    });
-  });
+    document.getElementById("tienda-overlay").style.display = "flex";
+  } catch (error) {
+    console.error("Error abriendo tienda:", error);
+  }
 };
 
-window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
+window.comprarItemTienda = async function(tiendaId, itemKey) {
   if (!playerId) return alert("Error: Jugador no identificado.");
 
-  db.ref(`campaña/tiendas/${tiendaId}/items/${itemKey}`).once('value', (snap) => {
-    const itemData = snap.val();
+  try {
+    const [shopSnap, playerSnap] = await Promise.all([
+      db.ref(`campaña/tiendas/${tiendaId}`).once("value"),
+      db.ref(`campaña/jugadores/${playerId}`).once("value"),
+    ]);
+    const shopData = shopSnap.val();
+    const playerData = playerSnap.val() || {};
+    if (!shopData) return alert("La tienda ya no está disponible.");
+
+    const itemData = shopData.items?.[itemKey];
     if (!itemData) return alert("El objeto ya no está disponible.");
 
-    db.ref(`campaña/jugadores/${playerId}`).once('value', (playerSnap) => {
-      const playerData = playerSnap.val();
-      const currentBalance = (playerData.finance && playerData.finance.currentBalance !== undefined) ? playerData.finance.currentBalance : (playerData.ahn || 0);
+    const shopRuntime = window.LuminousShopRuntime;
+    const accessKey = currentShopPlayerAccessKey(playerData);
+    if (shopRuntime?.isPlayerAllowed && !shopRuntime.isPlayerAllowed(shopData, accessKey)) {
+      return alert("Esta tienda no está disponible para tu personaje.");
+    }
+    if (shopRuntime?.itemAvailable?.(itemData, shopData) === false) {
+      return alert("Este objeto está por encima del Tier de la tienda.");
+    }
 
-      if (currentBalance < precioReal) {
-        return alert("Ahn insuficientes para esta compra.");
-      }
+    const precioReal =
+      shopRuntime?.purchasePrice?.(itemData, shopData) ??
+      Math.max(0, parseInt(itemData.costo, 10) || 0);
+    const currentBalance =
+      playerData.finance?.currentBalance !== undefined
+        ? Number(playerData.finance.currentBalance) || 0
+        : Number(playerData.ahn) || 0;
 
-      const newBalance = currentBalance - precioReal;
-      const tx = {
-        monto: -precioReal,
-        concepto: `Compra: ${itemData.nombre}`,
-        timestamp: Date.now(),
-        unread: true
-      };
+    if (currentBalance < precioReal) {
+      return alert("Ahn insuficientes para esta compra.");
+    }
 
-      const updates = {};
-      updates[`campaña/jugadores/${playerId}/ahn`] = newBalance; // Retro-compatibility
-      updates[`campaña/jugadores/${playerId}/finance/currentBalance`] = newBalance;
+    const stockReservation = await reserveShopStock(tiendaId, itemKey);
+    if (!stockReservation.reserved) {
+      return alert("El objeto se agotó antes de completar la compra.");
+    }
 
-      // Auto-update transaction logic
-      db.ref().update(updates).then(() => {
-        db.ref(`campaña/jugadores/${playerId}/finance/transactionHistory`).push(tx);
-        db.ref(`campaña/jugadores/${playerId}/transacciones`).push(tx); // Retro-compatibility
+    const newBalance = currentBalance - precioReal;
+    const tx = {
+      monto: -precioReal,
+      concepto: `Compra: ${itemData.nombre}`,
+      timestamp: Date.now(),
+      unread: true,
+      shopId: tiendaId,
+      shopType: shopRuntime?.shopTypeId?.(shopData) || "general",
+      shopTier: shopRuntime?.shopTier?.(shopData) || 1,
+    };
 
-        const nuevoItem = { ...itemData };
-        delete nuevoItem.costo;
-        delete nuevoItem._key;
-        nuevoItem.cantidad = 1;
-        nuevoItem.id_instancia = 'item_' + Date.now() + Math.floor(Math.random() * 1000);
-
-        db.ref(`campaña/jugadores/${playerId}/inventario_stash`).push(nuevoItem)
-          .then(() => alert(`¡Has comprado: ${itemData.nombre}!`))
-          .catch(err => console.error("Error al entregar item:", err));
+    try {
+      await db.ref().update({
+        [`campaña/jugadores/${playerId}/ahn`]: newBalance,
+        [`campaña/jugadores/${playerId}/finance/currentBalance`]: newBalance,
       });
-    });
-  });
+
+      await Promise.all([
+        db.ref(`campaña/jugadores/${playerId}/finance/transactionHistory`).push(tx),
+        db.ref(`campaña/jugadores/${playerId}/transacciones`).push(tx),
+        deliverShopPurchaseToStash(playerId, itemKey, itemData),
+      ]);
+    } catch (error) {
+      await restoreShopStock(tiendaId, itemKey);
+      throw error;
+    }
+
+    const balanceDisplay = document.getElementById("shop-player-balance");
+    if (balanceDisplay) balanceDisplay.innerText = newBalance;
+    alert(`¡Has comprado: ${itemData.nombre}!`);
+    await window.abrirTiendaDinamica(tiendaId);
+  } catch (error) {
+    console.error("Error comprando item:", error);
+    alert("No se pudo completar la compra.");
+  }
 };
 
   // Note: Contacts listener and globals are handled above in initChatSystem which already initializes contactsDictionary

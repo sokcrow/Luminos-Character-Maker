@@ -33,6 +33,9 @@ const storeItem = {
   stock_actual: 12,
   stock_maximo: 12,
   requisito_aparicion: "Siempre",
+  shop_price_ahn: 123456,
+  shop_stock_auto: true,
+  shop_runtime_version: 1,
   runtime: {
     actionCost: "action",
     targetMode: "self",
@@ -83,6 +86,9 @@ assert.equal(purchased.valorBase, 2000, "shop cost must survive as the owned ite
 assert.equal(purchased.stock_actual, undefined);
 assert.equal(purchased.stock_maximo, undefined);
 assert.equal(purchased.requisito_aparicion, undefined);
+assert.equal(purchased.shop_price_ahn, undefined);
+assert.equal(purchased.shop_stock_auto, undefined);
+assert.equal(purchased.shop_runtime_version, undefined);
 
 const legacyBrokenStack = {
   id: definitionId,
