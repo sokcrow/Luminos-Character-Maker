@@ -535,6 +535,124 @@
     });
   }
 
+  function repairMaterialPerPoint(material = {}, multiplier = 1, field = "material") {
+    if (!material || typeof material !== "object") {
+      return Object.freeze({ resolved: false, field: null, value: null });
+    }
+
+    const unitValue = firstFinite([
+      material.unitValueAhn,
+      material.standardUnitValueAhn,
+      material.valueAhn,
+      material.productionValueAhn,
+      material.priceAhn,
+    ], { positive: true });
+    const unitDurability = firstFinite([
+      material.unitDurability,
+      material.durability,
+      material.maxDurability,
+      material.conditionMax,
+    ], { positive: true });
+
+    if (unitValue == null || unitDurability == null) {
+      return Object.freeze({ resolved: false, field: null, value: null });
+    }
+
+    return Object.freeze({
+      resolved: true,
+      field,
+      value: roundAhn((unitValue / unitDurability) * Math.max(0.01, numberOr(multiplier, 1))),
+      materialId: normalizeToken(material.materialId ?? material.id ?? ""),
+      materialName: String(material.materialName ?? material.name ?? "").trim(),
+      unitValueAhn: roundAhn(unitValue),
+      unitDurability,
+    });
+  }
+
+  function repairMaterialCandidates(item = {}) {
+    const candidates = [];
+    const push = (material, multiplier = 1, field = "material") => {
+      if (!material || typeof material !== "object") return;
+      candidates.push({ material, multiplier, field });
+    };
+
+    push(item.primaryMaterial, item.repairCostMultiplier, "primaryMaterial");
+    push(item.material, item.repairCostMultiplier, "material");
+
+    const rows = Array.isArray(item.components)
+      ? item.components
+      : Array.isArray(item.composition)
+        ? item.composition
+        : [];
+
+    const primaryId = normalizeToken(item.primaryComponentId ?? item.primary_component_id ?? "");
+    const ordered = primaryId
+      ? [
+          ...rows.filter((row) =>
+            normalizeToken(
+              row?.componentId ??
+              row?.component?.componentId ??
+              row?.component?.id ??
+              ""
+            ) === primaryId
+          ),
+          ...rows.filter((row) =>
+            normalizeToken(
+              row?.componentId ??
+              row?.component?.componentId ??
+              row?.component?.id ??
+              ""
+            ) !== primaryId
+          ),
+        ]
+      : rows;
+
+    for (const row of ordered) {
+      const component = row?.component && typeof row.component === "object"
+        ? row.component
+        : row;
+      const multiplier =
+        component?.repairCostMultiplier ??
+        row?.repairCostMultiplier ??
+        item.repairCostMultiplier ??
+        1;
+
+      push(component?.primaryMaterial, multiplier, "components.primaryMaterial");
+
+      if (Array.isArray(component?.composition)) {
+        const materialRow =
+          component.composition.find((entry) => entry?.primaryMaterial === true) ??
+          component.composition[0];
+        push(
+          materialRow?.material ?? materialRow,
+          multiplier,
+          "components.composition",
+        );
+      }
+
+      if (row?.primaryMaterial && typeof row.primaryMaterial === "object") {
+        push(row.primaryMaterial, multiplier, "components.row.primaryMaterial");
+      }
+
+      if (row?.material && typeof row.material === "object") {
+        push(row.material, multiplier, "components.row.material");
+      }
+    }
+
+    if (Array.isArray(item.composition)) {
+      const primaryRow =
+        item.composition.find((entry) => entry?.primaryMaterial === true) ??
+        item.composition[0];
+      push(
+        primaryRow?.material ?? primaryRow,
+        item.repairCostMultiplier,
+        "composition.primaryMaterial",
+      );
+    }
+
+    return candidates;
+  }
+
   function resolveRepairMaterialValueAhn(item = {}, options = {}) {
     const direct = firstFinite([
       options.materialValuePerPointAhn,
@@ -542,18 +660,29 @@
       ...REPAIR_MATERIAL_VALUE_FIELDS.map((field) => item?.[field]),
     ], { positive: true });
     if (direct != null) {
-      return Object.freeze({ resolved: true, field: "per_point", value: direct });
+      return Object.freeze({
+        resolved: true,
+        field: "per_point",
+        value: roundAhn(direct),
+      });
     }
 
     if (options.material && typeof options.material === "object") {
-      const materialResolution = resolveBaseValueAhn(options.material);
-      if (materialResolution.resolved) {
-        return Object.freeze({
-          resolved: true,
-          field: "material:" + materialResolution.field,
-          value: materialResolution.value,
-        });
-      }
+      const fromOption = repairMaterialPerPoint(
+        options.material,
+        options.repairCostMultiplier ?? 1,
+        "material_option",
+      );
+      if (fromOption.resolved) return fromOption;
+    }
+
+    for (const candidate of repairMaterialCandidates(item)) {
+      const resolved = repairMaterialPerPoint(
+        candidate.material,
+        candidate.multiplier,
+        candidate.field,
+      );
+      if (resolved.resolved && resolved.value > 0) return resolved;
     }
 
     return Object.freeze({ resolved: false, field: null, value: null });
@@ -1416,6 +1545,8 @@
     serviceEnabled,
     servicesForShop,
     durabilityState,
+    repairMaterialPerPoint,
+    repairMaterialCandidates,
     resolveRepairMaterialValueAhn,
     repairBreakdown,
     repairPrice,
