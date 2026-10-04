@@ -10,7 +10,7 @@ const { pathToFileURL } = require('node:url');
   assert.ok(registry);
   assert.equal(registry.VERSION, 36);
   assert.equal(registry.DEFAULT_GROUP, 'generic_item');
-  assert.equal(Object.keys(registry.GROUPS).length, 599);
+  assert.equal(Object.keys(registry.GROUPS).length, 600);
 
   const groups = registry.list();
   assert.equal(new Set(groups.map((entry) => entry.id)).size, groups.length);
@@ -18,6 +18,31 @@ const { pathToFileURL } = require('node:url');
     assert.equal(typeof entry.label, 'string');
     assert.equal(typeof entry.labelEs, 'string');
     assert.match(entry.icon, /^Assets\/Icons\/items\/[a-z0-9_-]+\/[a-z0-9_-]+\.png$/);
+  }
+
+  assert.equal(registry.has('thought_strand'), true);
+  assert.equal(registry.resolveIcon('thought_strand'), 'Assets/Icons/items/utility/thought_strand.png');
+
+  const chocolateDonutIcons = {
+    chocolate:'Assets/Icons/items/material/chocolate.png',
+    chocolate_chips:'Assets/Icons/items/material/chocolate_chips.png',
+    donut:'Assets/Icons/items/consumable/donut.png',
+    glazed_donut:'Assets/Icons/items/consumable/glazed_donut.png',
+    sugar_donut:'Assets/Icons/items/consumable/sugar_donut.png',
+    chocolate_donut:'Assets/Icons/items/consumable/chocolate_donut.png',
+    cinnamon_donut:'Assets/Icons/items/consumable/cinnamon_donut.png',
+    jam_filled_donut:'Assets/Icons/items/consumable/jam_filled_donut.png',
+    cream_filled_donut:'Assets/Icons/items/consumable/cream_filled_donut.png',
+    chocolate_filled_donut:'Assets/Icons/items/consumable/chocolate_filled_donut.png'
+  };
+  for (const [id, icon] of Object.entries(chocolateDonutIcons)) {
+    assert.equal(registry.has(id), true, id);
+    assert.equal(registry.resolveIcon(id), icon, id);
+  }
+  assert.equal(registry.get('chocolate').domain, 'material');
+  assert.equal(registry.get('chocolate_chips').domain, 'material');
+  for (const id of ['donut','glazed_donut','sugar_donut','chocolate_donut','cinnamon_donut','jam_filled_donut','cream_filled_donut','chocolate_filled_donut']) {
+    assert.equal(registry.get(id).domain, 'consumable', id);
   }
 
   const legacyCritical = [
@@ -175,28 +200,6 @@ const { pathToFileURL } = require('node:url');
     assert.equal(registry.has(id), true, id);
     assert.equal(registry.resolveIcon(id), icon, id);
     assert.equal(registry.get(id).domain, 'consumable');
-  }
-
-  const chocolateDonutIcons = {
-    chocolate:'Assets/Icons/items/material/chocolate.png',
-    chocolate_chips:'Assets/Icons/items/material/chocolate_chips.png',
-    donut:'Assets/Icons/items/consumable/donut.png',
-    glazed_donut:'Assets/Icons/items/consumable/glazed_donut.png',
-    sugar_donut:'Assets/Icons/items/consumable/sugar_donut.png',
-    chocolate_donut:'Assets/Icons/items/consumable/chocolate_donut.png',
-    cinnamon_donut:'Assets/Icons/items/consumable/cinnamon_donut.png',
-    jam_filled_donut:'Assets/Icons/items/consumable/jam_filled_donut.png',
-    cream_filled_donut:'Assets/Icons/items/consumable/cream_filled_donut.png',
-    chocolate_filled_donut:'Assets/Icons/items/consumable/chocolate_filled_donut.png'
-  };
-  for (const [id, icon] of Object.entries(chocolateDonutIcons)) {
-    assert.equal(registry.has(id), true, id);
-    assert.equal(registry.resolveIcon(id), icon, id);
-  }
-  assert.equal(registry.get('chocolate').domain, 'material');
-  assert.equal(registry.get('chocolate_chips').domain, 'material');
-  for (const id of ['donut','glazed_donut','sugar_donut','chocolate_donut','cinnamon_donut','jam_filled_donut','cream_filled_donut','chocolate_filled_donut']) {
-    assert.equal(registry.get(id).domain, 'consumable', id);
   }
 
   const fruitIcons = {
