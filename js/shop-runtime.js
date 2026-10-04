@@ -525,7 +525,7 @@
       active: true,
       id: String(event.id || event.eventId || event.revision || ""),
       revision: Number(event.revision || event.updatedAt || 0) || 0,
-      title: String(event.title || "Cambio de mercado").trim() || "Cambio de mercado",
+      title: String(event.title || "Variación de precios").trim() || "Variación de precios",
       message: String(event.message || "").trim(),
       modifiers: Object.freeze(modifiers),
     });
