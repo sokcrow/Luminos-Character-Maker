@@ -2340,9 +2340,8 @@ function initializeCharacterSheet() {
 
   function initChatSystem() {
       if (chatListenerActive) return;
-      chatListenerActive = true;
-
       if (!playerId) return;
+      chatListenerActive = true;
 
       // Fetch my phone number and contacts from the canonical linked player record.
       db.ref(`campaña/jugadores/${playerId}`).on("value", snap => {
@@ -4223,9 +4222,8 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
   let contactsListenerActive = false;
   function initContactsSystem() {
       if (contactsListenerActive) return;
-      contactsListenerActive = true;
-
       if (!playerId) return;
+      contactsListenerActive = true;
 
       const contactsRef = db.ref(`campaña/jugadores/${playerId}/contactos`);
 
@@ -4291,26 +4289,33 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
       });
 
       const btnAdd = document.getElementById("btn-add-contact");
-      if (btnAdd) {
-          // Replace it to clear any old listeners
-          const newBtnAdd = btnAdd.cloneNode(true);
-          btnAdd.parentNode.replaceChild(newBtnAdd, btnAdd);
-
-          newBtnAdd.addEventListener("click", () => {
+      if (btnAdd && btnAdd.dataset.contactAddBound !== "true") {
+          btnAdd.dataset.contactAddBound = "true";
+          btnAdd.addEventListener("click", async () => {
               const numInput = document.getElementById("new-contact-number");
               const aliasInput = document.getElementById("new-contact-alias");
-              const phone = numInput.value.trim();
-              const alias = aliasInput.value.trim();
+              const phone = String(numInput?.value || "").trim();
+              const alias = String(aliasInput?.value || "").trim();
 
               if (!phone || !alias) {
                   alert("Debe ingresar un número y un alias.");
                   return;
               }
 
-              db.ref(`campaña/jugadores/${playerId}/contactos/${phone}`).set({ alias: alias }).then(() => {
-                  numInput.value = "";
-                  aliasInput.value = "";
-              });
+              btnAdd.disabled = true;
+              try {
+                  await db.ref(`campaña/jugadores/${playerId}/contactos/${phone}`).set({ alias });
+                  contactsDictionary[phone] = alias;
+                  if (numInput) numInput.value = "";
+                  if (aliasInput) aliasInput.value = "";
+              } catch (error) {
+                  console.error("[Luminous][Phone] No se pudo guardar el contacto:", error);
+                  alert(error?.code === "PERMISSION_DENIED"
+                      ? "Firebase rechazó guardar el contacto. Verifica que esta cuenta esté vinculada al jugador correcto."
+                      : "No se pudo guardar el contacto.");
+              } finally {
+                  btnAdd.disabled = false;
+              }
           });
       }
   }
