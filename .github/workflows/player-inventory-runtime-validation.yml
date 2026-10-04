@@ -8,6 +8,8 @@ on:
       - pantalla_dm.html
       - js/injury-engine.js
       - js/inventory-hud-v2.js
+      - js/content-registry.js
+      - js/player-item-content-bootstrap.js
       - js/item-runtime-engine.js
       - js/shop-item-purchase-runtime.js
       - js/shop-runtime.js
@@ -106,6 +108,7 @@ on:
       - tests/item-weapon-composition-smoke.cjs
       - tests/injury-narrative-speed-smoke.cjs
       - tests/inventory-runtime-cutover.spec.cjs
+      - tests/player-item-use-hydration-smoke.mjs
       - tests/shop-item-purchase-runtime-smoke.mjs
       - tests/shop-runtime-smoke.cjs
       - tests/dm-item-instance-editor.spec.cjs
@@ -128,6 +131,8 @@ jobs:
           node --check hoja_personaje.js
           node --check js/injury-engine.js
           node --check js/inventory-hud-v2.js
+          node --check js/content-registry.js
+          node --check js/player-item-content-bootstrap.js
           node --check js/item-runtime-engine.js
           node --check js/shop-item-purchase-runtime.js
           node --check js/shop-runtime.js
@@ -189,7 +194,8 @@ jobs:
       - name: Economy contracts v2 smoke
         run: node tests/economy-contracts-core-smoke.cjs
       - name: Firebase rules JSON parse
-        run: node -e "JSON.parse(require('node:fs').readFileSync('database.rules.json','utf8')); console.log('database.rules.json: OK')"
+        run: |
+          node -e "JSON.parse(require('node:fs').readFileSync('database.rules.json','utf8')); console.log('database.rules.json: OK')"
       - name: Economy catalog rebase smoke
         run: node tests/item-economy-catalog-smoke.cjs
       - name: Item affinity engine smoke
@@ -262,6 +268,8 @@ jobs:
         run: node tests/item-weapon-composition-smoke.cjs
       - name: Injury narrative Speed smoke
         run: node tests/injury-narrative-speed-smoke.cjs
+      - name: Player canonical item hydration smoke
+        run: node tests/player-item-use-hydration-smoke.mjs
       - name: Shop functional item purchase smoke
         run: node tests/shop-item-purchase-runtime-smoke.mjs
       - name: Shop types, tier pricing and stock smoke
