@@ -27,8 +27,10 @@ assert.ok(reviewFixSource.includes("global.addEventListener?.('luminous:combat07
 assert.ok(reviewFixSource.includes('engine.triggerEvent=wrapped') && reviewFixSource.includes('maybeTriggerPrepared(tag,context,targetsHit)'), 'prepared Reactions must be connected to Combat trigger events');
 
 assert.ok(menuSource.includes('liveActions("skill").filter'), 'Quick/Reaction Skills must come from the live Unit kit');
+assert.ok(menuSource.includes('row?.actionType || row?.action_type'), 'live Skills must accept canonical records whose type field describes damage rather than content kind');
 assert.ok(menuSource.includes('liveActions("spell")'), 'Spell economy tabs must inspect the live Unit kit');
-assert.ok(menuSource.includes('unit.inventario_activo || {}'), 'Items must be enumerated from the Player combatant active inventory');
+assert.ok(menuSource.includes('unit.inventario_activo || unit.activeInventory || unit.inventory'), 'Items must accept every canonical active-inventory alias');
+assert.ok(menuSource.includes('if (menu === "items") renderItems()'), 'the category dispatcher must explicitly render live Items instead of the bundled static fallback');
 assert.ok(menuSource.includes('button.dataset.itemInstanceId'), 'Item rows must preserve the concrete inventory instance id');
 assert.ok(menuSource.includes('syncSpellMenuVisibility'), 'non-caster Spell menu visibility must be synchronized, not merely rendered empty');
 
