@@ -24,6 +24,7 @@ const patchEnd=viewer.indexOf('`;',patchStart);
 const liveDeckPatch=patchStart>=0&&patchEnd>patchStart?viewer.slice(patchStart,patchEnd+2):'';
 assert.ok(liveDeckPatch.includes('initializeBattleSP();ensureUnknownAISlots();'),'Patched viewer hydration must keep SP/AI initialization');
 assert.ok(!liveDeckPatch.includes('rollTurnSpeeds'),'Patched viewer hydration must remove the local rollTurnSpeeds call');
+assert.ok(viewer.includes('speedBaseRoll:Number(d.speedBaseRoll??d.speed)||0,speedRollTurn:Number(d.speedRollTurn)||0,speedTie:Number(d.speedTie)||0'),'Runtime spawn must preserve canonical Speed roll metadata instead of resetting it to zero');
 assert.ok(speed.includes('roundReady:false'),'Speed authority must wait for the canonical round before authoring Speed');
 assert.ok(speed.includes('if(state.rolling||!state.roundReady||!state.db?.ref||!isDm())return false'),'DM Speed rolls must be blocked until Firebase round state is known');
 assert.ok(speed.includes('syncRuntimeSpeedsFromCanonical'),'legacy runtime Speed must be overwritten from canonical combatants');
