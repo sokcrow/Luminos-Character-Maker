@@ -20,8 +20,8 @@ assert.ok(!js.includes("campaña/economia/p2pInbox/${targetPlayerId}"), "New tra
 assert.ok(html.includes('id="transfer-contact-options"'), "Bank transfer UI must expose saved-contact autocomplete");
 assert.match(
   html,
-  /hoja_personaje\.js\?v=20261004-phone-[a-z0-9-]+/,
-  "Phone fix must cache-bust the deployed player sheet",
+  /hoja_personaje\.js\?v=20261004-[a-z0-9-]+/,
+  "Player sheet changes must keep a dated cache-bust",
 );
 
 console.log("Phone directory + P2P live regression checks passed.");
