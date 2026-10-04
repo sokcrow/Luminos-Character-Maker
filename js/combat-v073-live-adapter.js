@@ -277,6 +277,41 @@
     return [];
   }
 
+  function spellSelectionSignature(unit = {}) {
+    const out = new Set();
+    const collect = (value) => {
+      if (value == null) return;
+      if (typeof value === "string" || typeof value === "number") {
+        const id = normalizeId(value);
+        if (id) out.add(id);
+        return;
+      }
+      if (Array.isArray(value)) {
+        value.forEach((entry) => collect(entry?.spellId || entry?.id || entry));
+        return;
+      }
+      if (typeof value === "object") {
+        const explicit = normalizeId(value.spellId || value.id || value.key || value.definitionId);
+        if (explicit) out.add(explicit);
+        else Object.entries(value).forEach(([key, enabled]) => {
+          if (enabled === true) collect(key);
+          else if (enabled && typeof enabled === "object") collect(enabled);
+        });
+      }
+    };
+    [
+      unit.spellIds, unit.spells, unit.spellSelections, unit.knownSpellIds, unit.preparedSpellIds, unit.spellSelectionIndex,
+      unit.characterBuild?.spellIds, unit.characterBuild?.spells, unit.characterBuild?.spellSelections,
+      unit.characterBuild?.knownSpellIds, unit.characterBuild?.preparedSpellIds, unit.characterBuild?.spellSelectionIndex,
+    ].forEach(collect);
+    return [...out].sort();
+  }
+
+  function classSignature(unit = {}) {
+    const build = unit.characterBuild && typeof unit.characterBuild === "object" ? unit.characterBuild : {};
+    return clone(unit.classes || build.classes || unit.classLevels || build.classLevels || []);
+  }
+
   function inventoryEntries(container) {
     if (Array.isArray(container)) return container.map((item, index) => [String(index), item]);
     return container && typeof container === "object" ? Object.entries(container) : [];
@@ -352,6 +387,8 @@
       unit.battleActive,
       unit.statusEffects,
       skillIdsFor(unit),
+      classSignature(unit),
+      spellSelectionSignature(unit),
       inventoryHydrationSignature(unit)
     ]);
     const skillRevision = Object.entries(state.skills || {}).map(([id, skill]) => [id, skill?.updatedAt || skill?.revision || skill?.version || null]);
@@ -526,6 +563,8 @@
     explicitBattlePosition,
     kitsFor,
     activeInventoryItems,
+    spellSelectionSignature,
+    classSignature,
     inventoryHydrationSignature,
     hydrationSignature,
   });
