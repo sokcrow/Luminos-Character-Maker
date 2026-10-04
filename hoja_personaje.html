@@ -492,9 +492,12 @@
                   </div>
               </div>
               <div id="chat-active-area" style="width: 70%; display: flex; flex-direction: column; background: #000; position: relative;">
-                  <div id="chat-header" style="padding: 10px; border-bottom: 1px solid #333; background: #111; color: #fff; display: flex; justify-content: space-between; align-items: center;">
-                      <span id="chat-header-name">Selecciona un Chat</span>
-                      <button id="btn-save-contact" style="display: none; background: #222; color: #0df; border: 1px solid #0df; padding: 5px; font-family: inherit; cursor: pointer; border-radius: 3px; font-size: 0.8em;">[Guardar Contacto]</button>
+                  <div id="chat-header" style="padding: 10px; border-bottom: 1px solid #333; background: #111; color: #fff; display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                      <span id="chat-header-name" style="flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Selecciona un Chat</span>
+                      <div style="display:flex; align-items:center; gap:6px;">
+                        <button id="btn-manage-group" style="display: none; background: #222; color: #c49a00; border: 1px solid #c49a00; padding: 5px; font-family: inherit; cursor: pointer; border-radius: 3px; font-size: 0.8em;">[MIEMBROS]</button>
+                        <button id="btn-save-contact" style="display: none; background: #222; color: #0df; border: 1px solid #0df; padding: 5px; font-family: inherit; cursor: pointer; border-radius: 3px; font-size: 0.8em;">[Guardar Contacto]</button>
+                      </div>
                   </div>
                   <div id="chat-messages" style="flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 10px;">
                       <!-- Mensajes -->
@@ -13267,6 +13270,6 @@
     <script src="js/player-skills-hud.js"></script>
     <script src="js/economy-contracts-core.js"></script>
     <script src="js/player-contracts-runtime.js"></script>
-    <script src="js/player-vitals-hud.js"></script>\n    <script src="hoja_personaje.js?v=20261004-theatre-bank-hotfix-1"></script>
+    <script src="js/player-vitals-hud.js"></script>\n    <script src="hoja_personaje.js?v=20261004-phone-groups-1"></script>
   </body>
 </html>
