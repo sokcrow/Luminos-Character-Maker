@@ -6404,6 +6404,25 @@ window.comprarItemTienda = async function(tiendaId, itemKey) {
       return alert("El objeto se agotó antes de completar la compra.");
     }
 
+    const rewardPlan = shopPromotionRewardPlan(
+      playerData,
+      shopData,
+      tiendaId,
+      itemData,
+    );
+    const rewardReservation = await reserveShopPromotionRewards(
+      tiendaId,
+      shopData,
+      rewardPlan,
+    );
+    if (!rewardReservation.reserved) {
+      await restoreShopStock(tiendaId, itemKey);
+      return alert(
+        rewardReservation.message ||
+          "La promoción no puede completarse porque su recompensa no está disponible.",
+      );
+    }
+
     const newBalance = currentBalance - precioReal;
     const tx = {
       monto: -precioReal,
@@ -6427,9 +6446,18 @@ window.comprarItemTienda = async function(tiendaId, itemKey) {
         [`campaña/jugadores/${playerId}/finance/currentBalance`]: newBalance,
       });
       await deliverShopPurchaseToStash(playerId, itemKey, itemData);
+      var deliveredPromotionRewards = await deliverShopPromotionRewards(
+        playerId,
+        rewardReservation.reservations,
+        { mode: "stash" },
+      );
     } catch (error) {
       await Promise.allSettled([
         restoreShopStock(tiendaId, itemKey),
+        restoreShopPromotionRewards(
+          tiendaId,
+          rewardReservation.reservations,
+        ),
         db.ref().update({
           [`campaña/jugadores/${playerId}/ahn`]: currentBalance,
           [`campaña/jugadores/${playerId}/finance/currentBalance`]: currentBalance,
@@ -6461,10 +6489,16 @@ window.comprarItemTienda = async function(tiendaId, itemKey) {
 
     const balanceDisplay = document.getElementById("shop-player-balance");
     if (balanceDisplay) balanceDisplay.innerText = newBalance;
+    const rewardSuffix =
+      Array.isArray(deliveredPromotionRewards) && deliveredPromotionRewards.length
+        ? " · Promoción: recibes " + deliveredPromotionRewards.join(", ")
+        : "";
     alert(
-      priceBreakdown?.loyaltyRewardApplied === true
-        ? `${itemData.nombre || itemData.name || "Objeto"} corre por cuenta de la tienda.`
-        : `¡Has comprado: ${itemData.nombre || itemData.name || "Objeto"}!`,
+      (
+        priceBreakdown?.loyaltyRewardApplied === true
+          ? `${itemData.nombre || itemData.name || "Objeto"} corre por cuenta de la tienda.`
+          : `¡Has comprado: ${itemData.nombre || itemData.name || "Objeto"}!`
+      ) + rewardSuffix,
     );
     await window.abrirTiendaDinamica(tiendaId);
   } catch (error) {
