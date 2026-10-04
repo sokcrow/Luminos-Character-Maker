@@ -2396,262 +2396,673 @@ function initializeCharacterSheet() {
   // --- GLOBALS FOR CHAT ---
   let chatListenerActive = false;
   let currentChatId = null;
+  let currentChatType = null;
+  let currentGroupMeta = null;
   let myPhoneNumber = null;
   let contactsDictionary = {}; // phoneNumber -> alias
   let knownPortraits = {}; // phoneNumber -> sprite URL
+  let legacyChatIds = {};
+  let chatPlayersCache = {};
+  let discoveredPhoneGroups = {};
+  let groupEditId = null;
+  let chatListRenderGeneration = 0;
+  let activeLegacyMessagesRef = null;
+  let activeLegacyMessagesListener = null;
+
+  function normalizeChatPhone(value) {
+      return String(value || "").trim().replace(/\s+/g, "");
+  }
+
+  function playerChatDisplayName(playerKey, data = {}) {
+      return (
+          data.characterName ||
+          data.character_name ||
+          data.nombre ||
+          data.name ||
+          playerKey
+      );
+  }
+
+  function groupMemberIds(group = {}) {
+      return Object.keys(group.members || {}).filter(Boolean);
+  }
+
+  function groupHasMember(group, memberPlayerId) {
+      return Boolean(memberPlayerId && group?.members?.[memberPlayerId]);
+  }
+
+  function collectDiscoveredPhoneGroups(players = {}) {
+      const groups = {};
+      for (const [ownerPlayerId, ownerData] of Object.entries(players)) {
+          for (const [groupId, rawGroup] of Object.entries(ownerData?.phoneGroups || {})) {
+              if (!rawGroup || rawGroup.active === false) continue;
+              const group = {
+                  ...rawGroup,
+                  groupId: rawGroup.groupId || groupId,
+                  ownerPlayerId: rawGroup.ownerPlayerId || ownerPlayerId,
+              };
+              if (groupHasMember(group, playerId)) groups[group.groupId] = group;
+          }
+      }
+      return groups;
+  }
+
+  function groupLastMessageTimestamp(groupId, group = {}) {
+      let latest = Number(group.updatedAt || group.createdAt) || 0;
+      const allowed = new Set(groupMemberIds(group));
+      for (const [senderPlayerId, senderData] of Object.entries(chatPlayersCache || {})) {
+          if (!allowed.has(senderPlayerId)) continue;
+          const messages = senderData?.phoneGroupMessages?.[groupId] || {};
+          for (const message of Object.values(messages)) {
+              latest = Math.max(latest, Number(message?.timestamp) || 0);
+          }
+      }
+      return latest;
+  }
+
+  function refreshGroupUnreadState() {
+      const reads = chatPlayersCache?.[playerId]?.phoneGroupReads || {};
+      window.__luminousUnreadGroupChat = Object.values(discoveredPhoneGroups).some((group) => {
+          const lastRead = Number(reads?.[group.groupId]) || 0;
+          return groupLastMessageTimestamp(group.groupId, group) > lastRead;
+      });
+      window.updateNotifications?.();
+  }
+
+  function stopLegacyChatListener() {
+      if (activeLegacyMessagesRef && activeLegacyMessagesListener) {
+          activeLegacyMessagesRef.off("value", activeLegacyMessagesListener);
+      }
+      activeLegacyMessagesRef = null;
+      activeLegacyMessagesListener = null;
+  }
+
+  function clearActiveChat(message = "Selecciona un Chat") {
+      stopLegacyChatListener();
+      currentChatId = null;
+      currentChatType = null;
+      currentGroupMeta = null;
+      const headerName = document.getElementById("chat-header-name");
+      if (headerName) headerName.innerText = message;
+      const manage = document.getElementById("btn-manage-group");
+      if (manage) manage.style.display = "none";
+      const save = document.getElementById("btn-save-contact");
+      if (save) save.style.display = "none";
+      const messages = document.getElementById("chat-messages");
+      if (messages) messages.innerHTML = "";
+  }
+
+  function renderMessageBubble(container, { isMe, senderName, text, timestamp }) {
+      const wrap = document.createElement("div");
+      wrap.style.display = "flex";
+      wrap.style.flexDirection = "column";
+      wrap.style.alignItems = isMe ? "flex-end" : "flex-start";
+
+      const bubble = document.createElement("div");
+      bubble.style.maxWidth = "80%";
+      bubble.style.padding = "8px 12px";
+      bubble.style.borderRadius = "4px";
+      bubble.style.background = isMe ? "var(--cyan-tech)" : "#222";
+      bubble.style.color = isMe ? "#000" : "#fff";
+      bubble.style.border = isMe ? "none" : "1px solid #444";
+      bubble.style.fontFamily = "'Share Tech Mono', monospace";
+      bubble.style.overflowWrap = "anywhere";
+
+      const sender = document.createElement("strong");
+      sender.style.cssText = "font-size:0.8em;display:block;opacity:0.7;margin-bottom:2px;";
+      sender.textContent = senderName || "Contacto";
+      bubble.appendChild(sender);
+      bubble.appendChild(document.createTextNode(String(text || "")));
+
+      if (timestamp) {
+          const time = document.createElement("small");
+          time.style.cssText = "display:block;opacity:.55;margin-top:4px;font-size:.7em;";
+          time.textContent = new Date(Number(timestamp)).toLocaleTimeString("es-MX", {
+              hour: "2-digit",
+              minute: "2-digit"
+          });
+          bubble.appendChild(time);
+      }
+
+      wrap.appendChild(bubble);
+      container.appendChild(wrap);
+  }
+
+  function renderActiveGroupMessages() {
+      if (currentChatType !== "group" || !currentChatId || !currentGroupMeta) return;
+      const msgsContainer = document.getElementById("chat-messages");
+      if (!msgsContainer) return;
+
+      const allowed = new Set(groupMemberIds(currentGroupMeta));
+      const messages = [];
+      for (const [senderPlayerId, senderData] of Object.entries(chatPlayersCache || {})) {
+          if (!allowed.has(senderPlayerId)) continue;
+          const senderMessages = senderData?.phoneGroupMessages?.[currentChatId] || {};
+          for (const [messageId, message] of Object.entries(senderMessages)) {
+              if (!message || message.groupId !== currentChatId) continue;
+              messages.push({
+                  messageId,
+                  senderPlayerId,
+                  text: message.text || "",
+                  timestamp: Number(message.timestamp) || 0,
+              });
+          }
+      }
+
+      messages.sort((a, b) => (a.timestamp - b.timestamp) || a.messageId.localeCompare(b.messageId));
+      msgsContainer.innerHTML = "";
+
+      for (const message of messages) {
+          const senderData = chatPlayersCache?.[message.senderPlayerId] || {};
+          const senderPhone = normalizeChatPhone(senderData.phoneNumber);
+          const isMe = message.senderPlayerId === playerId;
+          const senderName = isMe
+              ? "Yo"
+              : (contactsDictionary[senderPhone] || playerChatDisplayName(message.senderPlayerId, senderData));
+          renderMessageBubble(msgsContainer, {
+              isMe,
+              senderName,
+              text: message.text,
+              timestamp: message.timestamp,
+          });
+      }
+      msgsContainer.scrollTop = msgsContainer.scrollHeight;
+  }
+
+  function syncPhoneGroupsFromPlayers(players = {}) {
+      chatPlayersCache = players || {};
+      discoveredPhoneGroups = collectDiscoveredPhoneGroups(chatPlayersCache);
+
+      if (currentChatType === "group" && currentChatId) {
+          const fresh = discoveredPhoneGroups[currentChatId];
+          if (!fresh) {
+              clearActiveChat("Ya no perteneces a este grupo");
+          } else {
+              currentGroupMeta = fresh;
+              const headerName = document.getElementById("chat-header-name");
+              if (headerName) {
+                  const count = groupMemberIds(fresh).length;
+                  headerName.innerText = `${fresh.name || "Chat Grupal"} · ${count} miembro${count === 1 ? "" : "s"}`;
+              }
+              const manage = document.getElementById("btn-manage-group");
+              if (manage) manage.style.display = fresh.ownerPlayerId === playerId ? "block" : "none";
+              renderActiveGroupMessages();
+          }
+      }
+
+      renderChatList(legacyChatIds);
+      refreshGroupUnreadState();
+  }
+
+  async function getPlayersForGroupCreation() {
+      if (Object.keys(chatPlayersCache).length) return chatPlayersCache;
+      const snapshot = await db.ref("campaña/jugadores").once("value");
+      chatPlayersCache = snapshot.val() || {};
+      return chatPlayersCache;
+  }
+
+  function buildGroupContactPicker(group = null) {
+      const listDiv = document.getElementById("new-group-contacts-list");
+      if (!listDiv) return;
+      listDiv.innerHTML = "";
+
+      const existingPhones = new Set();
+      if (group) {
+          for (const [memberId, member] of Object.entries(group.members || {})) {
+              if (memberId === playerId) continue;
+              const phone = normalizeChatPhone(
+                  member?.phone || chatPlayersCache?.[memberId]?.phoneNumber
+              );
+              if (phone) existingPhones.add(phone);
+          }
+      }
+
+      const entries = new Map();
+      for (const [phoneRaw, alias] of Object.entries(contactsDictionary || {})) {
+          const phone = normalizeChatPhone(phoneRaw);
+          if (phone) entries.set(phone, String(alias || phone));
+      }
+      for (const phone of existingPhones) {
+          if (!entries.has(phone)) {
+              const match = Object.entries(chatPlayersCache).find(([, data]) =>
+                  normalizeChatPhone(data?.phoneNumber) === phone
+              );
+              entries.set(phone, match ? playerChatDisplayName(match[0], match[1]) : phone);
+          }
+      }
+
+      if (!entries.size) {
+          listDiv.innerHTML = "<div style='color:#666;font-style:italic;'>No tienes contactos guardados.</div>";
+          return;
+      }
+
+      for (const [phone, alias] of [...entries.entries()].sort((a, b) => a[1].localeCompare(b[1]))) {
+          const row = document.createElement("label");
+          row.style.cssText = "display:flex;align-items:center;gap:10px;cursor:pointer;color:#ddd;font-family:'Share Tech Mono',monospace;padding:7px 5px;border-bottom:1px solid #333;";
+
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.className = "group-contact-cb";
+          checkbox.value = phone;
+          checkbox.checked = existingPhones.has(phone);
+
+          const labelText = document.createElement("span");
+          labelText.textContent = `${alias} [${phone}]`;
+
+          row.append(checkbox, labelText);
+          listDiv.appendChild(row);
+      }
+  }
+
+  function openGroupEditor(group = null) {
+      const modal = document.getElementById("modal-new-group");
+      if (!modal) return;
+      groupEditId = group?.groupId || null;
+
+      const title = modal.querySelector("h3");
+      if (title) title.textContent = group ? "ADMINISTRAR GRUPO" : "NUEVO GRUPO";
+
+      const nameInput = document.getElementById("new-group-name");
+      const iconInput = document.getElementById("new-group-icon-url");
+      if (nameInput) nameInput.value = group?.name || "";
+      if (iconInput) iconInput.value = group?.icon || "";
+
+      const confirm = document.getElementById("btn-confirm-group");
+      if (confirm) confirm.textContent = group ? "GUARDAR" : "CREAR";
+
+      buildGroupContactPicker(group);
+      modal.style.display = "flex";
+  }
+
+  async function resolveGroupMembers(selectedPhones) {
+      const players = await getPlayersForGroupCreation();
+      const phoneIndex = new Map();
+      for (const [candidateId, data] of Object.entries(players)) {
+          const phone = normalizeChatPhone(data?.phoneNumber);
+          if (!phone) continue;
+          if (!phoneIndex.has(phone)) phoneIndex.set(phone, []);
+          phoneIndex.get(phone).push([candidateId, data]);
+      }
+
+      const members = {};
+      const selfData = players[playerId] || window.datosJugador || {};
+      members[playerId] = {
+          phone: normalizeChatPhone(selfData.phoneNumber || myPhoneNumber),
+          name: playerChatDisplayName(playerId, selfData),
+      };
+
+      const unresolved = [];
+      for (const phone of selectedPhones) {
+          const matches = phoneIndex.get(normalizeChatPhone(phone)) || [];
+          if (matches.length !== 1) {
+              unresolved.push(phone);
+              continue;
+          }
+          const [memberId, memberData] = matches[0];
+          members[memberId] = {
+              phone: normalizeChatPhone(memberData.phoneNumber),
+              name: playerChatDisplayName(memberId, memberData),
+          };
+      }
+
+      if (unresolved.length) {
+          throw new Error(
+              "Estos números no están vinculados a un único jugador: " + unresolved.join(", ")
+          );
+      }
+      return members;
+  }
+
+  async function savePhoneGroup() {
+      const modal = document.getElementById("modal-new-group");
+      const confirm = document.getElementById("btn-confirm-group");
+      const groupName = String(document.getElementById("new-group-name")?.value || "").trim();
+      const iconUrl = String(document.getElementById("new-group-icon-url")?.value || "").trim();
+      const selectedPhones = Array.from(document.querySelectorAll(".group-contact-cb:checked"))
+          .map((cb) => normalizeChatPhone(cb.value))
+          .filter(Boolean);
+
+      if (!groupName) throw new Error("Nombre del Grupo requerido.");
+      if (!selectedPhones.length) throw new Error("Debes seleccionar al menos un contacto.");
+      if (!playerId || !myPhoneNumber) throw new Error("Tu dispositivo todavía no está listo.");
+
+      const members = await resolveGroupMembers(selectedPhones);
+      if (Object.keys(members).length < 2) throw new Error("El grupo necesita al menos dos miembros.");
+
+      const isEditing = Boolean(groupEditId);
+      const existing = isEditing ? discoveredPhoneGroups[groupEditId] : null;
+      if (isEditing && existing?.ownerPlayerId !== playerId) {
+          throw new Error("Solo el creador del grupo puede cambiar sus miembros.");
+      }
+
+      const groupId = groupEditId || db.ref(`campaña/jugadores/${playerId}/phoneGroups`).push().key;
+      if (!groupId) throw new Error("No se pudo generar el grupo.");
+
+      const now = Date.now();
+      const payload = {
+          schemaVersion: 1,
+          groupId,
+          ownerPlayerId: playerId,
+          ownerUid: auth.currentUser?.uid || null,
+          name: groupName,
+          icon: iconUrl || null,
+          members,
+          active: true,
+          createdAt: Number(existing?.createdAt) || now,
+          updatedAt: now,
+      };
+
+      if (confirm) confirm.disabled = true;
+      try {
+          await db.ref(`campaña/jugadores/${playerId}/phoneGroups/${groupId}`).set(payload);
+          await db.ref(`campaña/jugadores/${playerId}/phoneGroupReads/${groupId}`).set(now);
+          groupEditId = null;
+          if (modal) modal.style.display = "none";
+          currentChatId = groupId;
+          currentChatType = "group";
+          currentGroupMeta = payload;
+          loadPhoneGroup(groupId, payload);
+      } finally {
+          if (confirm) confirm.disabled = false;
+      }
+  }
+
+  async function sendCurrentChatMessage() {
+      const input = document.getElementById("chat-input");
+      const msg = String(input?.value || "").trim();
+      if (!msg || !currentChatId || !myPhoneNumber) return;
+
+      if (currentChatType === "group") {
+          if (!currentGroupMeta || !groupHasMember(currentGroupMeta, playerId)) {
+              alert("Ya no perteneces a este grupo.");
+              return;
+          }
+          const messageRef = db.ref(
+              `campaña/jugadores/${playerId}/phoneGroupMessages/${currentChatId}`
+          ).push();
+          await messageRef.set({
+              schemaVersion: 1,
+              groupId: currentChatId,
+              text: msg,
+              timestamp: Date.now(),
+          });
+          if (input) input.value = "";
+          return;
+      }
+
+      // Legacy direct chat path retained for existing one-to-one threads.
+      const ts = Date.now();
+      await db.ref(`campaña/comms/chats/${currentChatId}/messages`).push({
+          sender: myPhoneNumber,
+          text: msg,
+          timestamp: ts
+      });
+      await db.ref(`campaña/comms/chats/${currentChatId}`).update({ lastMessageTimestamp: ts });
+      if (input) input.value = "";
+  }
 
   function initChatSystem() {
       if (chatListenerActive) return;
       if (!playerId) return;
       chatListenerActive = true;
 
-      // Fetch my phone number and contacts from the canonical linked player record.
-      db.ref(`campaña/jugadores/${playerId}`).on("value", snap => {
+      db.ref(`campaña/jugadores/${playerId}`).on("value", (snap) => {
           const pData = snap.val();
           if (!pData) return;
-          myPhoneNumber = pData.phoneNumber;
+          myPhoneNumber = normalizeChatPhone(pData.phoneNumber);
 
-          // Legacy check for old 'contacts' structure just in case
-          let rawContacts = pData.contactos || pData.contacts || {};
+          const rawContacts = pData.contactos || pData.contacts || {};
           contactsDictionary = {};
           for (const [phone, data] of Object.entries(rawContacts)) {
-              if (typeof data === "object" && data.alias) {
-                 contactsDictionary[phone] = data.alias;
-              } else if (typeof data === "string") {
-                  contactsDictionary[phone] = data;
-              }
+              if (typeof data === "object" && data?.alias) contactsDictionary[normalizeChatPhone(phone)] = data.alias;
+              else if (typeof data === "string") contactsDictionary[normalizeChatPhone(phone)] = data;
           }
 
-          const chats = pData.chats || {};
-          renderChatList(chats);
+          legacyChatIds = pData.chats || {};
+          renderChatList(legacyChatIds);
       });
 
-      // Send logic
+      // One read/listener powers group discovery and group message fan-in.
+      db.ref("campaña/jugadores").on("value", (snapshot) => {
+          syncPhoneGroupsFromPlayers(snapshot.val() || {});
+      });
+
       const btnSend = document.getElementById("btn-send-chat");
-      if (btnSend) {
-          btnSend.onclick = () => {
-              if (!currentChatId || !myPhoneNumber) return;
-              const input = document.getElementById("chat-input");
-              const msg = input.value.trim();
-              if (!msg) return;
-
-              const ts = Date.now();
-              db.ref(`campaña/comms/chats/${currentChatId}/messages`).push({
-                  sender: myPhoneNumber,
-                  text: msg,
-                  timestamp: ts
+      if (btnSend && btnSend.dataset.chatSendBound !== "true") {
+          btnSend.dataset.chatSendBound = "true";
+          btnSend.addEventListener("click", () => {
+              sendCurrentChatMessage().catch((error) => {
+                  console.error("[Luminous][Chat] No se pudo enviar:", error);
+                  alert(error?.code === "PERMISSION_DENIED"
+                      ? "Firebase rechazó este chat legacy. Los grupos nuevos usan el canal compatible."
+                      : (error?.message || "No se pudo enviar el mensaje."));
               });
-              db.ref(`campaña/comms/chats/${currentChatId}`).update({ lastMessageTimestamp: ts });
-              input.value = "";
-          };
+          });
       }
 
-      // Group creation
+      const chatInput = document.getElementById("chat-input");
+      if (chatInput && chatInput.dataset.chatSendBound !== "true") {
+          chatInput.dataset.chatSendBound = "true";
+          chatInput.addEventListener("keydown", (event) => {
+              if (event.key !== "Enter" || event.shiftKey) return;
+              event.preventDefault();
+              sendCurrentChatMessage().catch((error) => {
+                  console.error("[Luminous][Chat] No se pudo enviar:", error);
+              });
+          });
+      }
+
       const btnGroup = document.getElementById("btn-create-group");
-      const modalNewGroup = document.getElementById("modal-new-group");
-      const btnCancelGroup = document.getElementById("btn-cancel-group");
-      const btnConfirmGroup = document.getElementById("btn-confirm-group");
+      if (btnGroup && btnGroup.dataset.groupCreateBound !== "true") {
+          btnGroup.dataset.groupCreateBound = "true";
+          btnGroup.addEventListener("click", () => openGroupEditor());
+      }
 
-      if (btnGroup && modalNewGroup) {
-          btnGroup.onclick = () => {
-              modalNewGroup.style.display = "flex";
-              document.getElementById("new-group-name").value = "";
-              document.getElementById("new-group-icon-url").value = "";
-
-              const listDiv = document.getElementById("new-group-contacts-list");
-              listDiv.innerHTML = "";
-
-              if (Object.keys(contactsDictionary).length === 0) {
-                  listDiv.innerHTML = "<div style='color: #666; font-style: italic;'>No tienes contactos guardados.</div>";
-              } else {
-                  for (const [phone, alias] of Object.entries(contactsDictionary)) {
-                      const div = document.createElement("div");
-                      div.style.padding = "5px";
-                      div.style.borderBottom = "1px solid #333";
-                      div.innerHTML = `
-                          <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; color: #ddd; font-family: 'Share Tech Mono', monospace;">
-                              <input type="checkbox" class="group-contact-cb" value="${phone}">
-                              <span>${alias} <span style="color: #666; font-size: 0.8em;">[${phone}]</span></span>
-                          </label>
-                      `;
-                      listDiv.appendChild(div);
-                  }
+      const btnManage = document.getElementById("btn-manage-group");
+      if (btnManage && btnManage.dataset.groupManageBound !== "true") {
+          btnManage.dataset.groupManageBound = "true";
+          btnManage.addEventListener("click", () => {
+              if (currentChatType === "group" && currentGroupMeta?.ownerPlayerId === playerId) {
+                  openGroupEditor(currentGroupMeta);
               }
-          };
+          });
       }
 
-      if (btnCancelGroup && modalNewGroup) {
-          btnCancelGroup.onclick = () => {
-              modalNewGroup.style.display = "none";
-          };
+      const btnCancelGroup = document.getElementById("btn-cancel-group");
+      if (btnCancelGroup && btnCancelGroup.dataset.groupCancelBound !== "true") {
+          btnCancelGroup.dataset.groupCancelBound = "true";
+          btnCancelGroup.addEventListener("click", () => {
+              groupEditId = null;
+              const modal = document.getElementById("modal-new-group");
+              if (modal) modal.style.display = "none";
+          });
       }
 
-      if (btnConfirmGroup && modalNewGroup) {
-          btnConfirmGroup.onclick = () => {
-              const groupName = document.getElementById("new-group-name").value.trim();
-              const iconUrl = document.getElementById("new-group-icon-url").value.trim();
-
-              if (!groupName) return alert("Nombre del Grupo requerido.");
-
-              const cbs = document.querySelectorAll(".group-contact-cb:checked");
-              const phones = Array.from(cbs).map(cb => cb.value);
-
-              if (phones.length === 0) return alert("Debes seleccionar al menos un contacto.");
-
-              const participants = {};
-              participants[myPhoneNumber] = true;
-              phones.forEach(p => participants[p] = true);
-
-              const chatData = {
-                  name: groupName,
-                  participants: participants,
-                  isGroup: true
-              };
-
-              if (iconUrl) chatData.icon = iconUrl;
-
-              const newChatRef = db.ref("campaña/comms/chats").push();
-              newChatRef.set(chatData).then(() => {
-                  // Add chat ID to myself
-                  db.ref(`campaña/jugadores/${playerId}/chats/${newChatRef.key}`).set(true);
-
-                  // Update for other players globally
-                  phones.forEach(p => {
-                      db.ref("campaña/jugadores").once("value", psnap => {
-                          const players = psnap.val() || {};
-                          for (const [pId, pData] of Object.entries(players)) {
-                              if (pData.phoneNumber === p) {
-                                  db.ref(`campaña/jugadores/${pId}/chats/${newChatRef.key}`).set(true);
-                              }
-                          }
-                      });
-                  });
-                  modalNewGroup.style.display = "none";
+      const btnConfirmGroup = document.getElementById("btn-confirm-group");
+      if (btnConfirmGroup && btnConfirmGroup.dataset.groupConfirmBound !== "true") {
+          btnConfirmGroup.dataset.groupConfirmBound = "true";
+          btnConfirmGroup.addEventListener("click", () => {
+              savePhoneGroup().catch((error) => {
+                  console.error("[Luminous][Chat] No se pudo guardar el grupo:", error);
+                  alert(error?.message || "No se pudo guardar el grupo.");
               });
-          };
+          });
       }
   }
 
-  function renderChatList(chatIds) {
+  function createChatThreadRow({ name, icon, isGroup, memberCount, unread, onClick }) {
+      const div = document.createElement("div");
+      div.style.cssText = "padding:10px;border-bottom:1px solid #333;cursor:pointer;color:#ddd;font-family:'Share Tech Mono',monospace;display:flex;align-items:center;gap:10px;";
+      if (unread) div.style.borderLeft = "3px solid var(--cyan-tech)";
+
+      if (isGroup && icon) {
+          const img = document.createElement("img");
+          img.src = icon;
+          img.alt = "";
+          img.style.cssText = "width:30px;height:30px;border-radius:2px;border:1px solid var(--cyan-tech);object-fit:cover;";
+          div.appendChild(img);
+      } else if (isGroup) {
+          const initials = document.createElement("div");
+          initials.style.cssText = "width:30px;height:30px;background:#111;border:1px solid var(--cyan-tech);border-radius:2px;display:flex;align-items:center;justify-content:center;color:var(--cyan-tech);font-family:'BebasKai',sans-serif;font-size:14px;";
+          initials.textContent = String(name || "GR").substring(0, 2).toUpperCase();
+          div.appendChild(initials);
+      } else {
+          const iconEl = document.createElement("div");
+          iconEl.style.cssText = "width:30px;height:30px;background:#222;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#aaa;";
+          iconEl.textContent = "👤";
+          div.appendChild(iconEl);
+      }
+
+      const textWrap = document.createElement("div");
+      textWrap.style.cssText = "flex:1;min-width:0;";
+      const title = document.createElement("div");
+      title.style.cssText = "white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+      title.textContent = name || "Chat";
+      textWrap.appendChild(title);
+      if (isGroup) {
+          const meta = document.createElement("small");
+          meta.style.cssText = "display:block;color:#666;margin-top:2px;";
+          meta.textContent = `${memberCount || 0} miembros`;
+          textWrap.appendChild(meta);
+      }
+      div.appendChild(textWrap);
+      div.addEventListener("click", onClick);
+      return div;
+  }
+
+  function renderChatList(chatIds = {}) {
       const listDiv = document.getElementById("chat-threads-list");
       if (!listDiv) return;
+      const generation = ++chatListRenderGeneration;
       listDiv.innerHTML = "";
-      Object.keys(chatIds).forEach(chatId => {
-          db.ref(`campaña/comms/chats/${chatId}`).once("value", snap => {
+
+      const reads = chatPlayersCache?.[playerId]?.phoneGroupReads || {};
+      const groups = Object.values(discoveredPhoneGroups).sort((a, b) =>
+          groupLastMessageTimestamp(b.groupId, b) - groupLastMessageTimestamp(a.groupId, a)
+      );
+
+      for (const group of groups) {
+          const last = groupLastMessageTimestamp(group.groupId, group);
+          const unread = last > (Number(reads?.[group.groupId]) || 0);
+          listDiv.appendChild(createChatThreadRow({
+              name: group.name || "Chat Grupal",
+              icon: group.icon || "",
+              isGroup: true,
+              memberCount: groupMemberIds(group).length,
+              unread,
+              onClick: () => loadPhoneGroup(group.groupId, group),
+          }));
+      }
+
+      for (const chatId of Object.keys(chatIds || {})) {
+          db.ref(`campaña/comms/chats/${chatId}`).once("value", (snap) => {
+              if (generation !== chatListRenderGeneration) return;
               const chatData = snap.val();
               if (!chatData) return;
-
-              const div = document.createElement("div");
-              div.style.padding = "10px";
-              div.style.borderBottom = "1px solid #333";
-              div.style.cursor = "pointer";
-              div.style.color = "#ddd";
-              div.style.fontFamily = "'Share Tech Mono', monospace";
-              div.style.display = "flex";
-              div.style.alignItems = "center";
-              div.style.gap = "10px";
-
-              const chatName = chatData.name || "Chat";
-
-              // Group Icon generation
-              let iconHtml = "";
-              if (chatData.isGroup) {
-                  if (chatData.icon) {
-                      iconHtml = `<img src="${chatData.icon}" style="width: 30px; height: 30px; border-radius: 2px; border: 1px solid var(--cyan-tech); object-fit: cover;">`;
-                  } else {
-                      const initials = chatName.substring(0, 2).toUpperCase();
-                      iconHtml = `<div style="width: 30px; height: 30px; background: #111; border: 1px solid var(--cyan-tech); border-radius: 2px; display: flex; align-items: center; justify-content: center; color: var(--cyan-tech); font-family: 'BebasKai', sans-serif; font-size: 14px; text-shadow: 0 0 5px rgba(0, 221, 255, 0.5);">${initials}</div>`;
-                  }
-              } else {
-                  iconHtml = `<div style="width: 30px; height: 30px; background: #222; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #aaa;">👤</div>`;
-              }
-
-              div.innerHTML = `
-                  ${iconHtml}
-                  <span style="flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${chatName}</span>
-              `;
-
-              div.onclick = () => loadChat(chatId, chatData);
-              listDiv.appendChild(div);
+              // Do not duplicate legacy group rows when a migrated live group uses the same key.
+              if (chatData.isGroup && discoveredPhoneGroups[chatId]) return;
+              listDiv.appendChild(createChatThreadRow({
+                  name: chatData.name || (chatData.isGroup ? "Grupo Legacy" : "Chat"),
+                  icon: chatData.icon || "",
+                  isGroup: Boolean(chatData.isGroup),
+                  memberCount: Object.keys(chatData.participants || {}).length,
+                  unread: false,
+                  onClick: () => loadChat(chatId, chatData),
+              }));
           });
-      });
+      }
+  }
+
+  function loadPhoneGroup(groupId, groupData) {
+      stopLegacyChatListener();
+      currentChatId = groupId;
+      currentChatType = "group";
+      currentGroupMeta = groupData;
+
+      const count = groupMemberIds(groupData).length;
+      const headerName = document.getElementById("chat-header-name");
+      if (headerName) {
+          headerName.innerText = `${groupData.name || "Chat Grupal"} · ${count} miembro${count === 1 ? "" : "s"}`;
+      }
+
+      const btnSave = document.getElementById("btn-save-contact");
+      if (btnSave) btnSave.style.display = "none";
+      const btnManage = document.getElementById("btn-manage-group");
+      if (btnManage) btnManage.style.display = groupData.ownerPlayerId === playerId ? "block" : "none";
+
+      const now = Date.now();
+      db.ref(`campaña/jugadores/${playerId}/phoneGroupReads/${groupId}`).set(now)
+          .catch((error) => console.error("[Luminous][Chat] No se pudo marcar grupo como leído:", error));
+
+      renderActiveGroupMessages();
   }
 
   function loadChat(chatId, chatData) {
+      stopLegacyChatListener();
       currentChatId = chatId;
+      currentChatType = "legacy";
+      currentGroupMeta = null;
+
       if (playerId) {
           db.ref(`campaña/jugadores/${playerId}/chats/${chatId}`).set({ lastRead: Date.now() }).then(() => {
-              if (typeof window.updateNotifications === 'function') {
+              if (typeof window.updateNotifications === "function") {
                   db.ref(`campaña/jugadores/${playerId}/chats`).once("value", () => {});
               }
           });
       }
+
       const headerName = document.getElementById("chat-header-name");
-      if (headerName) {
-          if (chatData.isGroup) {
-              headerName.innerText = chatData.name || "Chat Grupal";
-          } else {
-              headerName.innerText = chatData.name || "Chat";
-          }
-      }
+      if (headerName) headerName.innerText = chatData.name || (chatData.isGroup ? "Grupo Legacy" : "Chat");
+
+      const btnManage = document.getElementById("btn-manage-group");
+      if (btnManage) btnManage.style.display = "none";
       const btnSave = document.getElementById("btn-save-contact");
       if (btnSave) btnSave.style.display = "none";
 
-      // Detect unknown participants in a 1-on-1 chat
       if (chatData.participants && !chatData.isGroup) {
-          const others = Object.keys(chatData.participants).filter(p => p !== myPhoneNumber);
+          const others = Object.keys(chatData.participants).filter((phone) => normalizeChatPhone(phone) !== myPhoneNumber);
           if (others.length === 1) {
-              const otherPhone = others[0];
+              const otherPhone = normalizeChatPhone(others[0]);
               if (!contactsDictionary[otherPhone]) {
                   if (btnSave) {
                       btnSave.style.display = "block";
                       btnSave.onclick = () => saveContactPrompt(otherPhone);
                   }
-              } else {
-                  if (headerName) headerName.innerText = contactsDictionary[otherPhone];
+              } else if (headerName) {
+                  headerName.innerText = contactsDictionary[otherPhone];
               }
           }
       }
 
-      db.ref(`campaña/comms/chats/${chatId}/messages`).off();
-      db.ref(`campaña/comms/chats/${chatId}/messages`).on("value", snap => {
+      activeLegacyMessagesRef = db.ref(`campaña/comms/chats/${chatId}/messages`);
+      activeLegacyMessagesListener = (snap) => {
           const msgsContainer = document.getElementById("chat-messages");
-          if (!msgsContainer) return;
+          if (!msgsContainer || currentChatType !== "legacy" || currentChatId !== chatId) return;
           msgsContainer.innerHTML = "";
-          snap.forEach(child => {
-              const m = child.val();
-              const isMe = m.sender === myPhoneNumber;
-              const senderName = isMe ? "Yo" : (contactsDictionary[m.sender] || m.sender);
-
-              const wrap = document.createElement("div");
-              wrap.style.display = "flex";
-              wrap.style.flexDirection = "column";
-              wrap.style.alignItems = isMe ? "flex-end" : "flex-start";
-
-              const bubble = document.createElement("div");
-              bubble.style.maxWidth = "80%";
-              bubble.style.padding = "8px 12px";
-              bubble.style.borderRadius = "4px";
-              bubble.style.background = isMe ? "var(--cyan-tech)" : "#222";
-              bubble.style.color = isMe ? "#000" : "#fff";
-              bubble.style.border = isMe ? "none" : "1px solid #444";
-              bubble.style.fontFamily = "'Share Tech Mono', monospace";
-
-              bubble.innerHTML = `<strong style="font-size: 0.8em; display: block; opacity: 0.7; margin-bottom: 2px;">${senderName}</strong>${m.text}`;
-
-              wrap.appendChild(bubble);
-              msgsContainer.appendChild(wrap);
+          snap.forEach((child) => {
+              const m = child.val() || {};
+              const senderPhone = normalizeChatPhone(m.sender);
+              const isMe = senderPhone === myPhoneNumber;
+              renderMessageBubble(msgsContainer, {
+                  isMe,
+                  senderName: isMe ? "Yo" : (contactsDictionary[senderPhone] || senderPhone),
+                  text: m.text,
+                  timestamp: m.timestamp,
+              });
           });
           msgsContainer.scrollTop = msgsContainer.scrollHeight;
-      });
+      };
+      activeLegacyMessagesRef.on("value", activeLegacyMessagesListener);
   }
 
   function saveContactPrompt(phoneStr) {
-      const alias = prompt(`Guardar contacto para el número ${phoneStr}:`);
+      const normalizedPhone = normalizeChatPhone(phoneStr);
+      const alias = prompt(`Guardar contacto para el número ${normalizedPhone}:`);
       if (alias && playerId) {
-          db.ref(`campaña/jugadores/${playerId}/contactos/${phoneStr}`).set({ alias: alias.trim() }).then(() => {
+          db.ref(`campaña/jugadores/${playerId}/contactos/${normalizedPhone}`).set({ alias: alias.trim() }).then(() => {
+              contactsDictionary[normalizedPhone] = alias.trim();
               const btnSave = document.getElementById("btn-save-contact");
-              if(btnSave) btnSave.style.display = "none";
+              if (btnSave) btnSave.style.display = "none";
               const headerName = document.getElementById("chat-header-name");
               if (headerName) headerName.innerText = alias.trim();
           });
