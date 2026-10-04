@@ -5,6 +5,7 @@
   const ROOT='campaña/combate';
   const clean=v=>String(v??'').trim();
   const finite=(v,f=null)=>Number.isFinite(Number(v))?Number(v):f;
+  const clone=v=>{try{return JSON.parse(JSON.stringify(v))}catch(_){return v&&typeof v==='object'?{...v}:v}};
   const state={db:null,round:1,roundReady:false,role:null,combatants:{},started:false,rolling:false,unsubs:[],lastSpeedSignature:'',refreshTimer:null,legacyPatched:false,originalRollTurnSpeeds:null,originalRollUnitSpeed:null};
 
   function adapter(){return global.LuminousCombatLiveAdapter073||null}
@@ -24,6 +25,31 @@
   }
 
   function rollFor(unit={}){
+    // The packed runtime already owns the exact turn-start Speed rules
+    // (Exhaustion max penalty, Chill, Haste, Bind, forced Speed=1, etc.).
+    // Run that original roller only on the DM against a detached clone, then
+    // persist its result as the canonical Speed for every connected viewer.
+    const original=state.originalRollUnitSpeed;
+    if(typeof original==='function'){
+      const draft=clone(unit)||{};
+      try{
+        const result=original(draft,state.round);
+        const speed=finite(draft.speed,finite(result,null));
+        const base=finite(draft.speedBaseRoll,speed);
+        const tie=finite(draft.speedTie,null);
+        if(speed!=null&&base!=null&&tie!=null){
+          return{
+            speed,
+            speedBaseRoll:base,
+            speedRollTurn:state.round,
+            speedTie:tie,
+            speedRolledAt:global.firebase.database.ServerValue.TIMESTAMP
+          };
+        }
+      }catch(error){
+        console.error('[Combat073 SpeedAuthority] original Speed rule evaluation failed',error);
+      }
+    }
     const [min,max]=rangeFor(unit);
     const speed=min+Math.floor(Math.random()*(max-min+1));
     return{speed,speedBaseRoll:speed,speedRollTurn:state.round,speedTie:Math.random(),speedRolledAt:global.firebase.database.ServerValue.TIMESTAMP};
