@@ -395,22 +395,35 @@
       phase: "ENDED",
       active: false,
       result: normalized,
+      transition: "result",
       endedAt: timestamp,
       endedBy: currentUid(),
       updatedAt: timestamp,
     });
 
     global.LuminousCombatEncounterLifecycle?.showResult?.(normalized, { endedAt: Date.now() });
-    appendLog(`${label} · RETURNING TO THEATER`, { result: normalized });
+    appendLog(`${label} · RESULT SEAL`, { result: normalized });
 
     const displayMs = options.displayMs == null ? 1800 : options.displayMs;
+    const blackoutMs = options.blackoutMs == null ? 650 : options.blackoutMs;
     await waitForResultDisplay(displayMs);
+
+    await state.db.ref(ROOTS.state).update({
+      transition: "blackout",
+      blackoutAt: global.firebase?.database?.ServerValue?.TIMESTAMP ?? Date.now(),
+      updatedAt: global.firebase?.database?.ServerValue?.TIMESTAMP ?? Date.now(),
+    });
+    global.LuminousCombatEncounterLifecycle?.beginBlackout?.();
+    appendLog("ENCOUNTER END · BLACKOUT", { result: normalized });
+
+    await waitForResultDisplay(blackoutMs);
     await state.db.ref(ROOTS.instance).set("teatro");
 
     return {
       cancelled: false,
       result: normalized,
       resolved: resolved?.result || null,
+      transition: "blackout",
       nextInstance: "teatro",
     };
   }
