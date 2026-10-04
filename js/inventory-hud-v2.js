@@ -999,18 +999,10 @@
       showStatus("BLOCKED // USE THIS ITEM THROUGH COMBAT ENGINE", "error");
       return;
     }
-    const functionalItem = runtime().resolveItem?.(item) || item;
-    const result = runtime().useItem(state.unit, functionalItem, {});
+    const result = runtime().useItem(state.unit, item, {});
     if (!result?.used) {
       showStatus(`BLOCKED // ${String(result?.reason || "USE FAILED").toUpperCase()}`, "error");
       return;
-    }
-
-    if (functionalItem !== item) {
-      const remaining = quantityOf(functionalItem);
-      runtime()?.setQuantity?.(item, remaining);
-      item.quantity = remaining;
-      item.cantidad = remaining;
     }
 
     if (quantityOf(item) <= 0) {
