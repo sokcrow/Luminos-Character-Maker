@@ -95,6 +95,21 @@
           : {};
   }
 
+  function hasUsableRuntimeEffect(item = {}) {
+    const profile = runtimeUseProfile(item);
+    return Boolean(
+      Number(profile.hp) > 0 ||
+      profile.hpHealing ||
+      Number(profile.sp) > 0 ||
+      profile.statusId ||
+      profile.statId ||
+      profile.injuryTreatment ||
+      Number(profile.repairAmount) > 0 ||
+      (profile.statusAdjustments && profile.statusAdjustments.length) ||
+      (profile.removeStatuses && profile.removeStatuses.length)
+    );
+  }
+
   function parseFunctionTypes(item = {}) {
     const out = new Set();
     const raw = item.function ?? item.functions ?? runtimeOf(item).functions;
@@ -102,7 +117,7 @@
       if (typeof entry === "string") entry.split(/[|,;]/).forEach((part) => out.add(normalizeId(part)));
       else if (entry && typeof entry === "object") out.add(normalizeId(entry.functionType || entry.type || entry.id));
     });
-    if (categoryOf(item) === "consumable") out.add("use");
+    if (categoryOf(item) === "consumable" && hasUsableRuntimeEffect(item)) out.add("use");
     if (["weapon", "armor", "shield", "accessory"].includes(categoryOf(item))) out.add("equip");
     if (categoryOf(item) === "upgrade") { out.add("install"); out.add("remove"); }
     if (categoryOf(item) === "ammo") out.add("ammo");
@@ -628,7 +643,7 @@
   function useItem(user, itemInput, options = {}) {
     const item = findItem(user, itemInput) || itemInput;
     if (!user || !item || typeof item !== "object") return { used: false, reason: "missing_user_or_item" };
-    if (!hasFunction(item, "use") && categoryOf(item) !== "consumable") return { used: false, reason: "item_not_usable", item };
+    if (!hasFunction(item, "use")) return { used: false, reason: "item_not_usable", item };
     if (quantityOf(item) <= 0) return { used: false, reason: "insufficient_quantity", item };
 
     const actionEngine = engines.actions();
@@ -978,6 +993,7 @@
     hpPercent,
     actionCostFor,
     runtimeUseProfile,
+    hasUsableRuntimeEffect,
     noEffectReason,
     cureRemovesOnZeroCount,
     canonicalHpHealingBreakdown,
