@@ -174,6 +174,7 @@ assert.equal(persistedWrites[0]['campaña/jugadores/p1/inventario_activo'].med_l
 assert.equal(persistedWrites[0]['campaña/combate/combatants/player:p1/inventario_activo'].med_live_1.quantity, 1);
 assert.equal(persistedWrites[0]['campaña/jugadores/p1/hp'], 44);
 assert.equal(persistedWrites[0]['campaña/jugadores/p1/sp'], 12);
+globalThis.combatData['player:p1'].inventario_activo.med_live_1.quantity = 2;
 
 globalThis.permanent = {
   global: [{ id: 'help', actionKey: 'help', kind: 'global', name: 'Help', description: 'Assist an ally.', economyCost: 'action' }],
