@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "authority": "repository-local",
   "registry": "js/item-icon-registry.js",
-  "familyCount": 599,
-  "uniqueAssetCount": 646,
+  "familyCount": 600,
+  "uniqueAssetCount": 647,
   "note": "Runtime icon resolution uses repository-local paths. legacySource is provenance only and is never required at runtime.",
   "families": [
     {
@@ -4015,6 +4015,14 @@
       "legacySource": "https://imgur.com/eLUFiXE.png"
     },
     {
+      "id": "thought_strand",
+      "label": "Thought Strand",
+      "labelEs": "Hebra de pensamiento",
+      "domain": "utility",
+      "path": "Assets/Icons/items/utility/thought_strand.png",
+      "legacySource": "https://imgur.com/7MZLBdD.png"
+    },
+    {
       "id": "generic_item",
       "label": "Generic Item",
       "labelEs": "Objeto genérico",
@@ -5142,28 +5150,6 @@
       "legacySource": "https://imgur.com/awozOUf.png"
     },
     {
-      "path": "Assets/Icons/items/consumable/chocolate_donut.png",
-      "primaryId": "chocolate_donut",
-      "domain": "consumable",
-      "familyIds": [
-        "chocolate_donut"
-      ],
-      "bytes": 929015,
-      "sha256": "289cb3a246b01b43709f00d5128c6268f5c33ebd18bfa9cb32176c2bfd2364cb",
-      "legacySource": "https://imgur.com/52tS3jH.png"
-    },
-    {
-      "path": "Assets/Icons/items/consumable/chocolate_filled_donut.png",
-      "primaryId": "chocolate_filled_donut",
-      "domain": "consumable",
-      "familyIds": [
-        "chocolate_filled_donut"
-      ],
-      "bytes": 1178467,
-      "sha256": "990aa75b3a2a8f8b5718e443f134caaf1345ddfa93718740f5e7f57344f639ad",
-      "legacySource": "https://imgur.com/Ed4Q8yK.png"
-    },
-    {
       "path": "Assets/Icons/items/consumable/chocolate_muffin.png",
       "primaryId": "chocolate_muffin",
       "domain": "consumable",
@@ -5173,17 +5159,6 @@
       "bytes": 1680671,
       "sha256": "3416dd9d43b95a227b9d7e3c771f99d6391a90d58d47d5d5fc911efba26497fa",
       "legacySource": "https://imgur.com/0pNm4Au.png"
-    },
-    {
-      "path": "Assets/Icons/items/consumable/cinnamon_donut.png",
-      "primaryId": "cinnamon_donut",
-      "domain": "consumable",
-      "familyIds": [
-        "cinnamon_donut"
-      ],
-      "bytes": 1583787,
-      "sha256": "53f1b3d8a565e9ed78fc19036f4a9015971fc58bd2f2c73d7d727be5fc924cdb",
-      "legacySource": "https://imgur.com/fOCk4nd.png"
     },
     {
       "path": "Assets/Icons/items/consumable/coconut_cake.png",
@@ -5307,17 +5282,6 @@
       "legacySource": "https://imgur.com/4nwStCr.png"
     },
     {
-      "path": "Assets/Icons/items/consumable/cream_filled_donut.png",
-      "primaryId": "cream_filled_donut",
-      "domain": "consumable",
-      "familyIds": [
-        "cream_filled_donut"
-      ],
-      "bytes": 1329245,
-      "sha256": "d3d5a43bafeb31b3fe7bb1566421b0428cbbe18fdfc853dd485679486dc6f310",
-      "legacySource": "https://imgur.com/qfy4yIr.png"
-    },
-    {
       "path": "Assets/Icons/items/consumable/crepes.png",
       "primaryId": "crepes",
       "domain": "consumable",
@@ -5349,17 +5313,6 @@
       "bytes": 1254534,
       "sha256": "02f953fccbba9f88f82b80428923b42b5fbfe99d3c1c0fd6a80309df3c57c76c",
       "legacySource": "https://imgur.com/x4a5ZCH.png"
-    },
-    {
-      "path": "Assets/Icons/items/consumable/donut.png",
-      "primaryId": "donut",
-      "domain": "consumable",
-      "familyIds": [
-        "donut"
-      ],
-      "bytes": 1067371,
-      "sha256": "a7fb1c3f6bcb9cb547f3a0189212a440cdc7030f0682cb32e1826c927ad6c162",
-      "legacySource": "https://imgur.com/YbJ8lyO.png"
     },
     {
       "path": "Assets/Icons/items/consumable/dragon_fruit_tart.png",
@@ -5648,17 +5601,6 @@
       "legacySource": "https://imgur.com/A8W45Uh.png"
     },
     {
-      "path": "Assets/Icons/items/consumable/glazed_donut.png",
-      "primaryId": "glazed_donut",
-      "domain": "consumable",
-      "familyIds": [
-        "glazed_donut"
-      ],
-      "bytes": 949249,
-      "sha256": "267d6fbf4e2c5bad2af7f46356cc065fdcd1be6d3a9bd0965ea86abd6db2dabc",
-      "legacySource": "https://imgur.com/0wkzXjQ.png"
-    },
-    {
       "path": "Assets/Icons/items/consumable/healing_hp.png",
       "primaryId": "healing_hp",
       "domain": "consumable",
@@ -5756,17 +5698,6 @@
       "bytes": 1549132,
       "sha256": "df2853b5276ceca60409b6ef1918a0b7c37e2ff2b115d7fe009d4c51620cef46",
       "legacySource": "https://imgur.com/lLkRH6u.png"
-    },
-    {
-      "path": "Assets/Icons/items/consumable/jam_filled_donut.png",
-      "primaryId": "jam_filled_donut",
-      "domain": "consumable",
-      "familyIds": [
-        "jam_filled_donut"
-      ],
-      "bytes": 1502291,
-      "sha256": "40e40ba6752436912be0bdcd3b74c3af7161fc902b8f94ccbd8e67ddc6079c32",
-      "legacySource": "https://imgur.com/nTaDMmZ.png"
     },
     {
       "path": "Assets/Icons/items/consumable/kiwi_tart.png",
@@ -6383,17 +6314,6 @@
       "bytes": 1577127,
       "sha256": "62bb6ad09ab042061929d9b82e7b1db1376318e5cf46a2f653d06ce794ccde67",
       "legacySource": "https://imgur.com/BlNFVhm.png"
-    },
-    {
-      "path": "Assets/Icons/items/consumable/sugar_donut.png",
-      "primaryId": "sugar_donut",
-      "domain": "consumable",
-      "familyIds": [
-        "sugar_donut"
-      ],
-      "bytes": 1709825,
-      "sha256": "87f7514c0a1e9fd7d2b9526c3cc4d53da846309d3f22b0235c469f5df6e1f1ea",
-      "legacySource": "https://imgur.com/7T6EB9l.png"
     },
     {
       "path": "Assets/Icons/items/consumable/throwable.png",
@@ -8158,28 +8078,6 @@
       "bytes": 1083254,
       "sha256": "346043d4e7bc43afc0e00aeb30aff112fc69999bf7402585f5129c574294fcd4",
       "legacySource": "https://imgur.com/65wvcvv.png"
-    },
-    {
-      "path": "Assets/Icons/items/material/chocolate_chips.png",
-      "primaryId": "chocolate_chips",
-      "domain": "material",
-      "familyIds": [
-        "chocolate_chips"
-      ],
-      "bytes": 923273,
-      "sha256": "0cb863cec3e8f444a7ac311c232f9faaea11f1684754d260f19af8bf3ae68d7e",
-      "legacySource": "https://imgur.com/669Qpk4.png"
-    },
-    {
-      "path": "Assets/Icons/items/material/chocolate.png",
-      "primaryId": "chocolate",
-      "domain": "material",
-      "familyIds": [
-        "chocolate"
-      ],
-      "bytes": 1168742,
-      "sha256": "7de1ffd7db77972676d48dee309a6f82d69179105aea1eac6c2e8000bbd6e843",
-      "legacySource": "https://imgur.com/EMS3YO5.png"
     },
     {
       "path": "Assets/Icons/items/material/cinnamon.png",
@@ -11597,6 +11495,17 @@
       "legacySource": "https://imgur.com/GroyHFc.png"
     },
     {
+      "path": "Assets/Icons/items/utility/thought_strand.png",
+      "primaryId": "thought_strand",
+      "domain": "utility",
+      "familyIds": [
+        "thought_strand"
+      ],
+      "bytes": 996801,
+      "sha256": "d05d569009971bc397343a78a092610f1e5fad6ca29023a8d4689eeab8e6b2bb",
+      "legacySource": "https://imgur.com/7MZLBdD.png"
+    },
+    {
       "path": "Assets/Icons/items/utility/tool.png",
       "primaryId": "tool",
       "domain": "utility",
@@ -11804,6 +11713,116 @@
       "bytes": 1139774,
       "sha256": "1d5988819f8a8dd913eefc3aff0845caad7a6c3b08a191e0a2133a66b52a1c0b",
       "legacySource": "https://imgur.com/CXwtccN.png"
+    },
+    {
+      "path": "Assets/Icons/items/consumable/chocolate_donut.png",
+      "primaryId": "chocolate_donut",
+      "domain": "consumable",
+      "familyIds": [
+        "chocolate_donut"
+      ],
+      "bytes": 929015,
+      "sha256": "289cb3a246b01b43709f00d5128c6268f5c33ebd18bfa9cb32176c2bfd2364cb",
+      "legacySource": "https://imgur.com/52tS3jH.png"
+    },
+    {
+      "path": "Assets/Icons/items/consumable/chocolate_filled_donut.png",
+      "primaryId": "chocolate_filled_donut",
+      "domain": "consumable",
+      "familyIds": [
+        "chocolate_filled_donut"
+      ],
+      "bytes": 1178467,
+      "sha256": "990aa75b3a2a8f8b5718e443f134caaf1345ddfa93718740f5e7f57344f639ad",
+      "legacySource": "https://imgur.com/Ed4Q8yK.png"
+    },
+    {
+      "path": "Assets/Icons/items/consumable/cinnamon_donut.png",
+      "primaryId": "cinnamon_donut",
+      "domain": "consumable",
+      "familyIds": [
+        "cinnamon_donut"
+      ],
+      "bytes": 1583787,
+      "sha256": "53f1b3d8a565e9ed78fc19036f4a9015971fc58bd2f2c73d7d727be5fc924cdb",
+      "legacySource": "https://imgur.com/fOCk4nd.png"
+    },
+    {
+      "path": "Assets/Icons/items/consumable/cream_filled_donut.png",
+      "primaryId": "cream_filled_donut",
+      "domain": "consumable",
+      "familyIds": [
+        "cream_filled_donut"
+      ],
+      "bytes": 1329245,
+      "sha256": "d3d5a43bafeb31b3fe7bb1566421b0428cbbe18fdfc853dd485679486dc6f310",
+      "legacySource": "https://imgur.com/qfy4yIr.png"
+    },
+    {
+      "path": "Assets/Icons/items/consumable/donut.png",
+      "primaryId": "donut",
+      "domain": "consumable",
+      "familyIds": [
+        "donut"
+      ],
+      "bytes": 1067371,
+      "sha256": "a7fb1c3f6bcb9cb547f3a0189212a440cdc7030f0682cb32e1826c927ad6c162",
+      "legacySource": "https://imgur.com/YbJ8lyO.png"
+    },
+    {
+      "path": "Assets/Icons/items/consumable/glazed_donut.png",
+      "primaryId": "glazed_donut",
+      "domain": "consumable",
+      "familyIds": [
+        "glazed_donut"
+      ],
+      "bytes": 949249,
+      "sha256": "267d6fbf4e2c5bad2af7f46356cc065fdcd1be6d3a9bd0965ea86abd6db2dabc",
+      "legacySource": "https://imgur.com/0wkzXjQ.png"
+    },
+    {
+      "path": "Assets/Icons/items/consumable/jam_filled_donut.png",
+      "primaryId": "jam_filled_donut",
+      "domain": "consumable",
+      "familyIds": [
+        "jam_filled_donut"
+      ],
+      "bytes": 1502291,
+      "sha256": "40e40ba6752436912be0bdcd3b74c3af7161fc902b8f94ccbd8e67ddc6079c32",
+      "legacySource": "https://imgur.com/nTaDMmZ.png"
+    },
+    {
+      "path": "Assets/Icons/items/consumable/sugar_donut.png",
+      "primaryId": "sugar_donut",
+      "domain": "consumable",
+      "familyIds": [
+        "sugar_donut"
+      ],
+      "bytes": 1709825,
+      "sha256": "87f7514c0a1e9fd7d2b9526c3cc4d53da846309d3f22b0235c469f5df6e1f1ea",
+      "legacySource": "https://imgur.com/7T6EB9l.png"
+    },
+    {
+      "path": "Assets/Icons/items/material/chocolate_chips.png",
+      "primaryId": "chocolate_chips",
+      "domain": "material",
+      "familyIds": [
+        "chocolate_chips"
+      ],
+      "bytes": 923273,
+      "sha256": "0cb863cec3e8f444a7ac311c232f9faaea11f1684754d260f19af8bf3ae68d7e",
+      "legacySource": "https://imgur.com/669Qpk4.png"
+    },
+    {
+      "path": "Assets/Icons/items/material/chocolate.png",
+      "primaryId": "chocolate",
+      "domain": "material",
+      "familyIds": [
+        "chocolate"
+      ],
+      "bytes": 1168742,
+      "sha256": "7de1ffd7db77972676d48dee309a6f82d69179105aea1eac6c2e8000bbd6e843",
+      "legacySource": "https://imgur.com/EMS3YO5.png"
     }
   ],
   "runtimeReferences": [
