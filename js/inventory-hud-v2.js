@@ -48,6 +48,7 @@
   const realtime = () => global.LuminousItemRealtimeSync || null;
   const workshop = () => global.LuminousWorkshopRuntime || null;
   const foodRest = () => global.LuminousFoodRestRuntime || null;
+  const effectIndicator = () => global.LuminousItemEffectIndicator || null;
 
   function resolveDb() {
     try { if (typeof db !== "undefined" && db?.ref) return db; } catch (_) {}
@@ -238,6 +239,54 @@
     const generated = global.LuminousItemDescriptionEngine?.describe?.(resolved)
       || global.LuminousItemDescriptionEngine?.describe?.(item);
     return String(generated || "Objeto sin descripción disponible.");
+  }
+
+  function itemEffectIndicators(item = {}) {
+    const api = effectIndicator();
+    if (!api?.indicators) return [];
+    try {
+      return api.indicators(item, state.unit || {}, {
+        runtime: runtime(),
+        statusLibrary: global.LuminousStatusLibrary || null,
+        resolveItem: (entry) => runtime()?.resolveItem?.(entry) || entry,
+      }) || [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  function renderEffectIndicators(indicators = []) {
+    if (!indicators.length) return "";
+    const cleanses = indicators.filter((entry) => entry?.kind === "cleanse");
+    const textBadges = indicators.filter((entry) => entry?.kind !== "cleanse");
+    const chunks = [];
+
+    textBadges.forEach((entry) => {
+      const tone = entry.tone === "sp" ? "sp" : "hp";
+      chunks.push(
+        `<span class="inventory-v2-effect-badge inventory-v2-effect-${tone}" title="${escapeHtml(entry.detail || entry.label || "")}">${escapeHtml(entry.label || "")}</span>`,
+      );
+    });
+
+    if (cleanses.length) {
+      const shown = cleanses.slice(0, 3);
+      const allDetail = cleanses.map((entry) => entry.detail || entry.label || entry.statusId).join(" · ");
+      const icons = shown.map((entry) => {
+        if (entry.icon) {
+          return `<img class="inventory-v2-cleanse-icon" src="${escapeHtml(entry.icon)}" alt="${escapeHtml(entry.label || entry.statusId || "Cleanse")}" />`;
+        }
+        const fallback = String(entry.label || entry.statusId || "C").slice(0, 2).toUpperCase();
+        return `<span class="inventory-v2-cleanse-fallback">${escapeHtml(fallback)}</span>`;
+      }).join("");
+      const overflow = cleanses.length > shown.length
+        ? `<span class="inventory-v2-cleanse-more">+${cleanses.length - shown.length}</span>`
+        : "";
+      chunks.push(
+        `<span class="inventory-v2-effect-badge inventory-v2-effect-cleanse" title="${escapeHtml(allDetail)}">${icons}${overflow}</span>`,
+      );
+    }
+
+    return `<span class="inventory-v2-effect-rail" aria-hidden="true">${chunks.join("")}</span>`;
   }
 
   function itemValue(item = {}) {
@@ -484,6 +533,9 @@
     const icon = itemIcon(item);
     const gemOverlayIcon = itemGemOverlayIcon(item);
     const quantity = quantityOf(item);
+    const effectIndicators = itemEffectIndicators(item);
+    const effectIndicatorHtml = renderEffectIndicators(effectIndicators);
+    slot.classList.toggle("inventory-v2-has-effect-indicator", effectIndicators.length > 0);
     slot.innerHTML = `
       <span class="tier">${escapeHtml(tierRoman(item))}</span>
       <span class="inventory-v2-item-category">${escapeHtml(categoryLabel(category))}</span>
@@ -495,6 +547,7 @@
         <span class="item-name">${escapeHtml(itemName(item))}</span>
       </div>
       ${equipable ? '<span class="inventory-v2-equip-marker">EQUIP</span>' : ""}
+      ${effectIndicatorHtml}
       <div class="item-quantity">x${quantity}</div>`;
 
     if (containerType === "active") {
@@ -1197,6 +1250,8 @@
     renderGrid,
     renderEquipment,
     renderDetail,
+    itemEffectIndicators,
+    renderEffectIndicators,
     equipSelectedTo,
     moveSelected,
     hydratePlayerVitals,

@@ -101,6 +101,7 @@
       Number(profile.hp) > 0 ||
       profile.hpHealing ||
       Number(profile.sp) > 0 ||
+      profile.spHealing ||
       profile.statusId ||
       profile.statId ||
       profile.injuryTreatment ||
@@ -383,6 +384,7 @@
       hp: numberOr(effects.hpRestore ?? effects.hp_restore ?? runtime.hpRestore ?? runtime.hp_restore ?? details.curacion_hp, 0),
       hpHealing: clone(runtime.healing || runtime.hybridHealing?.hp || null),
       sp: numberOr(effects.spRestore ?? effects.sp_restore ?? runtime.spRestore ?? runtime.sp_restore ?? details.curacion_sp, 0),
+      spHealing: clone(runtime.spHealing || runtime.hybridHealing?.sp || null),
       statusAdjustments: clone(effects.statusAdjustments || effects.status_adjustments || runtime.statusCure?.statusAdjustments || runtime.status_cure?.status_adjustments || []),
       statusId: effects.statusId || effects.status_id || runtime.statusId || runtime.status_id || details.status_id || null,
       statusPotency: numberOr(effects.statusPotency ?? effects.status_potency ?? runtime.statusPotency ?? runtime.status_potency ?? details.status_potency, 0),
@@ -481,6 +483,22 @@
     return canonicalHpHealingBreakdown(target, healing).immediate;
   }
 
+  function canonicalSpHealingBreakdown(target, healing = null) {
+    if (!healing || typeof healing !== "object") return { immediate: 0, regenPerTurn: 0, turns: 0, missing: 0 };
+    const slot = currentAndMax(target, "sp");
+    if (!slot || slot.max <= 0) return { immediate: 0, regenPerTurn: 0, turns: 0, missing: 0 };
+    const configuredMax = Math.max(0, numberOr(healing.maxSp ?? healing.max_sp, slot.max));
+    const max = configuredMax > 0 ? Math.min(slot.max, configuredMax) : slot.max;
+    const missing = Math.max(0, Math.floor(max - slot.current));
+    const immediate = Math.max(0, Math.floor(Math.min(numberOr(healing.immediate, 0), missing)));
+    const regen = healing.regen && typeof healing.regen === "object" ? healing.regen : null;
+    const turns = Math.max(0, intOr(regen?.turns, 0));
+    const regenPerTurn = regen
+      ? Math.max(0, Math.floor(numberOr(regen.spPerTurn ?? regen.sp_per_turn ?? regen.amountPerTurn ?? regen.amount_per_turn, 0)))
+      : 0;
+    return { immediate, regenPerTurn, turns, missing };
+  }
+
   function addHpRegenEffect(unit, item, healing, immediateApplied = 0) {
     const breakdown = canonicalHpHealingBreakdown(unit, healing);
     if (breakdown.turns <= 0 || breakdown.regenPerTurn <= 0) return null;
@@ -504,23 +522,54 @@
     return effect;
   }
 
+  function addSpRegenEffect(unit, item, healing) {
+    const breakdown = canonicalSpHealingBreakdown(unit, healing);
+    if (breakdown.turns <= 0 || breakdown.regenPerTurn <= 0) return null;
+    const effects = ensureRuntimeEffects(unit);
+    const id = `item_sp_regen_${normalizeId(itemId(item))}_${Date.now()}_${effects.length + 1}`;
+    const effect = {
+      id,
+      sourceItemId: definitionId(item) || itemId(item),
+      kind: "sp_regen",
+      tick: "turn_start",
+      remainingTurns: breakdown.turns,
+      restorePerTurn: breakdown.regenPerTurn,
+      lastTickToken: null,
+      active: true,
+    };
+    effects.push(effect);
+    emit("luminous:item-regeneration-added", { unit, item, effect: clone(effect) });
+    return effect;
+  }
+
   function processTurnStartEffects(unit, options = {}) {
     const effects = ensureRuntimeEffects(unit);
     const round = Number(options.round);
     const token = Number.isFinite(round) ? `round:${round}` : String(options.tickToken || "");
     const results = [];
     effects.forEach((effect) => {
-      if (!effect || effect.active === false || normalizeId(effect.kind) !== "hp_regen" || normalizeId(effect.tick) !== "turn_start") return;
+      if (!effect || effect.active === false || normalizeId(effect.tick) !== "turn_start") return;
+      const kind = normalizeId(effect.kind);
+      if (!["hp_regen", "sp_regen"].includes(kind)) return;
       if (token && effect.lastTickToken === token) return;
       if (token) effect.lastTickToken = token;
       const beforeTurns = Math.max(0, intOr(effect.remainingTurns, 0));
       if (beforeTurns <= 0) { effect.active = false; return; }
-      const wanted = Math.min(Math.max(0, numberOr(effect.healPerTurn, 0)), Math.max(0, numberOr(effect.remainingCap, 0)));
-      const healed = recoverResource(unit, "hp", wanted);
-      effect.remainingCap = Math.max(0, numberOr(effect.remainingCap, 0) - Math.max(0, numberOr(healed.amount, 0)));
+
+      if (kind === "hp_regen") {
+        const wanted = Math.min(Math.max(0, numberOr(effect.healPerTurn, 0)), Math.max(0, numberOr(effect.remainingCap, 0)));
+        const healed = recoverResource(unit, "hp", wanted);
+        effect.remainingCap = Math.max(0, numberOr(effect.remainingCap, 0) - Math.max(0, numberOr(healed.amount, 0)));
+        effect.remainingTurns = Math.max(0, beforeTurns - 1);
+        if (effect.remainingTurns <= 0 || effect.remainingCap <= 0) effect.active = false;
+        results.push({ id: effect.id, kind, healed: Math.max(0, numberOr(healed.amount, 0)), remainingTurns: effect.remainingTurns, remainingCap: effect.remainingCap, expired: effect.active === false });
+        return;
+      }
+
+      const restored = recoverResource(unit, "sp", Math.max(0, numberOr(effect.restorePerTurn, 0)));
       effect.remainingTurns = Math.max(0, beforeTurns - 1);
-      if (effect.remainingTurns <= 0 || effect.remainingCap <= 0) effect.active = false;
-      results.push({ id: effect.id, healed: Math.max(0, numberOr(healed.amount, 0)), remainingTurns: effect.remainingTurns, remainingCap: effect.remainingCap, expired: effect.active === false });
+      if (effect.remainingTurns <= 0) effect.active = false;
+      results.push({ id: effect.id, kind, restored: Math.max(0, numberOr(restored.amount, 0)), remainingTurns: effect.remainingTurns, expired: effect.active === false });
     });
     unit.itemRuntimeEffects = effects.filter((effect) => effect && effect.active !== false);
     if (results.length) emit("luminous:item-regeneration-tick", { unit, round: Number.isFinite(round) ? round : null, results: clone(results) });
@@ -562,13 +611,14 @@
     const profile = runtimeUseProfile(item);
     const target = usageTarget(item, user, options);
     if (!target) return { applied: false, reason: "missing_target", item };
-    const results = { hp: null, hpRegen: null, sp: null, status: null, statusAdjustments: [], removedStatuses: [], injury: null, repair: null, temporaryEffect: null };
+    const results = { hp: null, hpRegen: null, sp: null, spRegen: null, status: null, statusAdjustments: [], removedStatuses: [], injury: null, repair: null, temporaryEffect: null };
 
     const hpBreakdown = canonicalHpHealingBreakdown(target, profile.hpHealing);
     const hpAmount = profile.hp > 0 ? profile.hp : hpBreakdown.immediate;
     if (hpAmount > 0) results.hp = recoverResource(target, "hp", hpAmount);
     if (profile.hpHealing?.regen) results.hpRegen = addHpRegenEffect(target, item, profile.hpHealing, results.hp?.amount || 0);
     if (profile.sp > 0) results.sp = recoverResource(target, "sp", profile.sp);
+    if (profile.spHealing?.regen) results.spRegen = addSpRegenEffect(target, item, profile.spHealing);
     if (profile.statusAdjustments.length) results.statusAdjustments = applyStatusAdjustments(target, profile.statusAdjustments);
 
     const statusEngine = engines.statuses();
@@ -596,7 +646,7 @@
 
     if (profile.repairAmount > 0) results.repair = repairItem(options.itemTarget || options.repairTarget, profile.repairAmount);
 
-    const effectCount = [results.hp, results.hpRegen, results.sp, results.status, results.temporaryEffect, results.injury, results.repair]
+    const effectCount = [results.hp, results.hpRegen, results.sp, results.spRegen, results.status, results.temporaryEffect, results.injury, results.repair]
       .filter((entry) => entry && entry.changed !== false).length
       + results.removedStatuses.length
       + results.statusAdjustments.filter((entry) => entry?.changed).length;
@@ -607,7 +657,7 @@
     const hpSlot = currentAndMax(target, "hp");
     const spSlot = currentAndMax(target, "sp");
     const hasHp = Number(profile.hp) > 0 || Boolean(profile.hpHealing);
-    const hasSp = Number(profile.sp) > 0;
+    const hasSp = Number(profile.sp) > 0 || Boolean(profile.spHealing);
     const hasOther = Boolean(
       profile.statusId ||
       profile.statId ||
@@ -998,7 +1048,9 @@
     cureRemovesOnZeroCount,
     canonicalHpHealingBreakdown,
     canonicalHpHealingAmount,
+    canonicalSpHealingBreakdown,
     addHpRegenEffect,
+    addSpRegenEffect,
     processTurnStartEffects,
     applyStatusAdjustments,
     useItem,
