@@ -496,7 +496,7 @@
     const price = priceOf(item);
     const icon = resolveIcon(item, definitionId);
 
-    return Object.assign({}, item, {
+    const normalized = Object.assign({}, item, {
       id: item.id || definitionId,
       definitionId,
       canonicalId: item.canonicalId || definitionId,
@@ -513,6 +513,9 @@
       icon: item.icon || icon,
       __dmSource: source
     });
+    return global.LuminousItemDescriptionEngine?.enrich
+      ? global.LuminousItemDescriptionEngine.enrich(normalized)
+      : normalized;
   }
 
   function extractRows(api, sourceName) {
