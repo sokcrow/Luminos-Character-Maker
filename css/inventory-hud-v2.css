@@ -321,3 +321,195 @@
     font-size:7px;
   }
 }
+
+
+/* Inventory V7 — detail card uses its canvas instead of fighting itself. */
+#inventory-modal.inventory-v2-ready .item-detail-card{
+  width:420px;
+  min-width:420px;
+  max-width:420px;
+  box-sizing:border-box;
+  padding:14px;
+  gap:12px;
+}
+#inventory-modal.inventory-v2-ready .item-detail-card.active{
+  display:grid;
+  grid-template-columns:92px minmax(0,1fr);
+  align-content:start;
+  align-items:start;
+}
+#inventory-modal.inventory-v2-ready .item-detail-card .detail-left{
+  width:92px;
+  min-width:0;
+  flex:none;
+  display:block;
+}
+#inventory-modal.inventory-v2-ready .item-detail-card .detail-icon-box{
+  width:90px;
+  height:90px;
+  margin:0;
+}
+#inventory-modal.inventory-v2-ready .item-detail-card .detail-right{
+  min-width:0;
+  width:100%;
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+}
+#inventory-modal.inventory-v2-ready .item-detail-card .detail-title-badge{
+  width:100%;
+  box-sizing:border-box;
+  margin:0 0 7px;
+  padding:7px 10px;
+  font-size:16px;
+  line-height:1.15;
+  clip-path:none;
+}
+#inventory-modal.inventory-v2-ready .inventory-v2-detail-meta{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:6px 12px;
+  margin-bottom:8px;
+  color:#a99d8d;
+  font:9px/1.2 "Share Tech Mono",monospace;
+  text-transform:uppercase;
+}
+#inventory-modal.inventory-v2-ready .inventory-v2-detail-meta .detail-tier,
+#inventory-modal.inventory-v2-ready .inventory-v2-detail-meta .detail-cost{
+  display:inline-flex;
+  align-items:baseline;
+  gap:4px;
+  margin:0;
+  font-size:9px;
+  color:#9e9283;
+}
+#inventory-modal.inventory-v2-ready .inventory-v2-detail-meta b{
+  color:#dfc797;
+  font-weight:700;
+}
+#inventory-modal.inventory-v2-ready .inventory-v2-detail-effects{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:4px;
+  margin:0 0 8px;
+}
+#inventory-modal.inventory-v2-ready .inventory-v2-detail-effects[hidden]{display:none!important}
+#inventory-modal.inventory-v2-ready .inventory-v2-detail-effects .inventory-v2-effect-badge{
+  min-height:18px;
+  padding:2px 6px;
+  font-size:8px;
+  overflow:visible;
+}
+#inventory-modal.inventory-v2-ready .item-detail-card .detail-desc{
+  width:100%;
+  box-sizing:border-box;
+  margin:0;
+  padding:9px 0 10px;
+  border-top:1px solid #2f271f;
+  color:#d9d1c6;
+  font-size:11px;
+  line-height:1.45;
+}
+#inventory-modal.inventory-v2-ready .inventory-v2-detail-extra{
+  width:auto;
+  min-width:0;
+  margin-top:0;
+  padding-top:8px;
+  border-top:1px solid #33291f;
+}
+#inventory-modal.inventory-v2-ready .inventory-v2-player-facts{
+  margin:0 0 6px;
+}
+#inventory-modal.inventory-v2-ready .inventory-v2-modules{
+  margin:0 0 6px;
+  padding:6px;
+}
+#inventory-modal.inventory-v2-ready .inventory-v2-actions{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  justify-content:flex-start;
+  gap:5px;
+  margin-top:5px;
+}
+#inventory-modal.inventory-v2-ready .inventory-v2-action{
+  flex:0 0 auto;
+  width:auto;
+  min-width:0;
+  min-height:30px;
+  padding:6px 10px;
+  font-size:8px;
+  line-height:1;
+}
+#inventory-modal.inventory-v2-ready .inventory-v2-action-status{
+  min-height:0;
+  margin-top:5px;
+}
+#inventory-modal.inventory-v2-ready .inventory-v2-action-status:empty{
+  display:none;
+}
+
+@media(max-width:1024px){
+  #inventory-modal.inventory-v2-ready .item-detail-card.active{
+    width:100%;
+    min-width:0;
+    max-width:none;
+    grid-template-columns:88px minmax(0,1fr);
+    gap:11px;
+  }
+  #inventory-modal.inventory-v2-ready .item-detail-card .detail-left{width:88px}
+  #inventory-modal.inventory-v2-ready .item-detail-card .detail-icon-box{width:86px;height:86px}
+}
+
+@media(max-width:480px){
+  #inventory-modal.inventory-v2-ready .item-detail-card.active{
+    display:grid;
+    grid-template-columns:68px minmax(0,1fr);
+    gap:9px;
+    max-height:48%;
+  }
+  #inventory-modal.inventory-v2-ready .item-detail-card .detail-left{
+    width:68px;
+    display:block;
+  }
+  #inventory-modal.inventory-v2-ready .item-detail-card .detail-icon-box{
+    width:66px;
+    height:66px;
+    margin:0;
+  }
+  #inventory-modal.inventory-v2-ready .item-detail-card .detail-title-badge{
+    font-size:14px;
+    padding:6px 8px;
+  }
+  #inventory-modal.inventory-v2-ready .item-detail-card .detail-desc{
+    font-size:10px;
+    padding:7px 0 8px;
+  }
+  #inventory-modal.inventory-v2-ready .inventory-v2-actions{
+    display:flex;
+    grid-template-columns:none;
+  }
+  #inventory-modal.inventory-v2-ready .inventory-v2-action{
+    min-height:29px;
+    padding:6px 8px;
+  }
+}
+
+@media (pointer:coarse) and (orientation:landscape) and (max-height:600px){
+  #inventory-modal.inventory-v2-ready .item-detail-card.active{
+    width:clamp(300px,38vw,380px);
+    min-width:300px;
+    max-width:380px;
+    flex-basis:auto;
+    grid-template-columns:68px minmax(0,1fr);
+    gap:8px;
+  }
+  #inventory-modal.inventory-v2-ready .item-detail-card .detail-left{width:68px}
+  #inventory-modal.inventory-v2-ready .item-detail-card .detail-icon-box{width:66px;height:66px}
+  #inventory-modal.inventory-v2-ready .inventory-v2-action{
+    min-height:30px;
+    touch-action:manipulation;
+  }
+}
