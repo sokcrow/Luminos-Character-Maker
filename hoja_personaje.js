@@ -2403,6 +2403,8 @@ function initializeCharacterSheet() {
   let knownPortraits = {}; // phoneNumber -> sprite URL
   let legacyChatIds = {};
   let chatPlayersCache = {};
+  let groupPlayerFingerprints = {};
+  let groupSyncTimer = null;
   let discoveredPhoneGroups = {};
   let groupEditId = null;
   let chatListRenderGeneration = 0;
@@ -2825,16 +2827,37 @@ function initializeCharacterSheet() {
       // Incremental player snapshots power group discovery and message fan-in
       // without reprocessing the entire player tree on every group message.
       const groupPlayersRef = db.ref("campaña/jugadores");
+      const groupRelevantFingerprint = (data = {}) => JSON.stringify({
+          phoneNumber: data.phoneNumber || "",
+          characterName: data.characterName || data.character_name || data.nombre || data.name || "",
+          phoneGroups: data.phoneGroups || {},
+          phoneGroupMessages: data.phoneGroupMessages || {},
+          phoneGroupReads: data.phoneGroupReads || {},
+      });
+      const scheduleGroupSync = () => {
+          if (groupSyncTimer) return;
+          groupSyncTimer = setTimeout(() => {
+              groupSyncTimer = null;
+              syncPhoneGroupsFromPlayers(chatPlayersCache);
+          }, 0);
+      };
       const syncGroupPlayerSnapshot = (snapshot) => {
           if (!snapshot?.key) return;
-          chatPlayersCache[snapshot.key] = snapshot.val() || {};
-          syncPhoneGroupsFromPlayers(chatPlayersCache);
+          const nextData = snapshot.val() || {};
+          const nextFingerprint = groupRelevantFingerprint(nextData);
+          if (groupPlayerFingerprints[snapshot.key] === nextFingerprint) return;
+          groupPlayerFingerprints[snapshot.key] = nextFingerprint;
+          chatPlayersCache[snapshot.key] = nextData;
+          scheduleGroupSync();
       };
       groupPlayersRef.on("child_added", syncGroupPlayerSnapshot);
       groupPlayersRef.on("child_changed", syncGroupPlayerSnapshot);
       groupPlayersRef.on("child_removed", (snapshot) => {
-          if (snapshot?.key) delete chatPlayersCache[snapshot.key];
-          syncPhoneGroupsFromPlayers(chatPlayersCache);
+          if (snapshot?.key) {
+              delete chatPlayersCache[snapshot.key];
+              delete groupPlayerFingerprints[snapshot.key];
+          }
+          scheduleGroupSync();
       });
 
       const btnSend = document.getElementById("btn-send-chat");
