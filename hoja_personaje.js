@@ -3112,11 +3112,12 @@ function initializeCharacterSheet() {
           }
       };
 
-      renderBadge('#btn-toggle-phone', unreadBank || unreadMail || unreadChat, true);
+      const groupUnread = window.__luminousUnreadGroupChat === true;
+      renderBadge('#btn-toggle-phone', unreadBank || unreadMail || unreadChat || groupUnread, true);
       renderBadge('button[name="act_tab_banco"]', unreadBank, false);
-      renderBadge('button[name="act_tab_mail"]', unreadMail || unreadChat, false);
+      renderBadge('button[name="act_tab_mail"]', unreadMail || unreadChat || groupUnread, false);
       renderBadge('#btn-show-mail', unreadMail, false);
-      renderBadge('#btn-show-chat', unreadChat, false);
+      renderBadge('#btn-show-chat', unreadChat || groupUnread, false);
   };
 
   const refreshUnreadChat = async (chats, onlyChatId = null) => {
