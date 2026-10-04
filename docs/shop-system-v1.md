@@ -25,6 +25,20 @@ Shop Tier multiplier is:
 
 The old player HUD calculation that added `+25% per Item Tier` is intentionally removed. Item Tier gates availability; it does not silently rewrite the same Item's intrinsic value.
 
+## Sellback price
+
+Players can sell owned Items back through a Shop.
+
+```text
+Sell Price =
+Intrinsic / Production Value
+× 0.80
+```
+
+The Shop therefore pays **20% below the Item's intrinsic value**. Sellback is intentionally independent from Shop Type, Shop Tier and the local purchase modifier. The legacy per-tag resale percentages and the old `+25% per Item Tier` resale calculation are deprecated.
+
+Only the owned quantity and the Player's balance change when selling. A sale does not automatically add the Item to the Shop catalog or alter shared Shop stock.
+
 ## Shop types
 
 | Type | Price | Stock | Role |
