@@ -2712,6 +2712,15 @@ function initializeCharacterSheet() {
   const getShopPrice = (item, shop) =>
     getShopRuntime()?.purchasePrice?.(item, shop) ??
     Math.max(0, parseInt(item?.costo, 10) || 0);
+  const getShopSellPrice = (item, shop) =>
+    getShopRuntime()?.sellPrice?.(item, shop) ??
+    Math.max(
+      0,
+      Math.round(
+        (Number(item?.valorBase ?? item?.productionValueAhn ?? item?.costo) || 0) *
+          0.8,
+      ),
+    );
   const getShopTierNumber = (value) =>
     getShopRuntime()?.tierNumber?.(value) ??
     Math.max(1, parseInt(value, 10) || 1);
@@ -2747,6 +2756,19 @@ function initializeCharacterSheet() {
       shopModalClose.addEventListener("click", () => {
         shopModal.classList.remove("active");
         tiendaFisicaActivaId = null;
+      });
+    }
+
+    const shopFooterBuyMode = document.getElementById("shop-footer-buy-mode");
+    const shopFooterSellMode = document.getElementById("shop-footer-sell-mode");
+    if (shopFooterBuyMode) {
+      shopFooterBuyMode.addEventListener("click", () => {
+        if (tiendaFisicaActivaId) renderizarGridFisica(tiendaFisicaActivaId);
+      });
+    }
+    if (shopFooterSellMode) {
+      shopFooterSellMode.addEventListener("click", () => {
+        if (tiendaFisicaActivaId) renderizarGridVentaFisica(tiendaFisicaActivaId);
       });
     }
 
@@ -2957,6 +2979,76 @@ function initializeCharacterSheet() {
       );
     }
 
+    function renderizarGridVentaFisica(idTienda) {
+      const grid = document.getElementById("shop-items-grid");
+      const title = document.getElementById("shop-active-name");
+      const data = tiendasFisicasDisponibles[idTienda];
+      const playerName = document
+        .querySelector('input[name="attr_character_name"]')
+        ?.value.trim();
+      if (!grid || !title || !data || !playerName) return;
+
+      title.innerText = `${shopDisplayName(data)} · VENDER`;
+      grid.innerHTML = "";
+
+      db.ref(`campaña/jugadores/${playerName}/inventario_stash`).once(
+        "value",
+        (snap) => {
+          const stash = snap.val() || {};
+          const entries = Object.entries(stash).filter(([, item]) => {
+            const quantity =
+              window.LuminousShopItemPurchaseRuntime?.quantityOf?.(item) ??
+              Math.max(0, parseInt(item?.quantity ?? item?.cantidad ?? 1, 10) || 0);
+            return quantity > 0;
+          });
+
+          if (!entries.length) {
+            grid.innerHTML =
+              '<div style="color:#666; font-size:20px; padding:20px; grid-column:1 / -1; text-align:center;">Tu Stash está vacío.</div>';
+            return;
+          }
+
+          const fragment = document.createDocumentFragment();
+          for (const [key, item] of entries) {
+            const quantity =
+              window.LuminousShopItemPurchaseRuntime?.quantityOf?.(item) ??
+              Math.max(0, parseInt(item.quantity ?? item.cantidad ?? 1, 10) || 0);
+            const precioVenta = getShopSellPrice(item, data);
+            const tierStr =
+              getShopRuntime()?.tierRoman?.(item.tier) ||
+              String(item.tier || "I");
+
+            const card = document.createElement("div");
+            card.className = "shop-item-card";
+            card.innerHTML = `
+              <div class="shop-item-image-container">
+                <img src="${item.icono || "https://via.placeholder.com/120"}" alt="${item.nombre || item.name || "Objeto"}">
+              </div>
+              <div class="shop-item-info">
+                <div class="shop-item-name">${item.nombre || item.name || "Objeto"}</div>
+                <div class="shop-item-tag">POSEES: ${quantity}</div>
+                <div class="shop-item-desc">${item.descripcion || item.desc || "Sin descripción disponible."}</div>
+              </div>
+              <div class="shop-item-meta">
+                <div class="shop-item-possession">
+                  <span class="shop-item-possession-label">REVENTA</span>
+                  <span class="shop-item-possession-value">80%</span>
+                </div>
+                <div style="display:flex; flex-direction:column; align-items:flex-end; gap:10px;">
+                  <div class="shop-item-tier">${tierStr}</div>
+                  <button class="shop-item-buy-btn btn-vender-fisico" data-tienda="${idTienda}" data-key="${key}">
+                    <span class="currency-symbol">₳</span> +${precioVenta}
+                  </button>
+                </div>
+              </div>
+            `;
+            fragment.appendChild(card);
+          }
+          grid.appendChild(fragment);
+        },
+      );
+    }
+
     // Función para manejar las pestañas internas de la app de tienda
     document.addEventListener("click", (e) => {
       if (
@@ -2982,7 +3074,7 @@ function initializeCharacterSheet() {
     });
 
     // Delegación de eventos para botones Comprar/Vender
-    document.addEventListener("click", (e) => {
+    document.addEventListener("click", async (e) => {
       const playerName = document
         .querySelector('input[name="attr_character_name"]')
         ?.value.trim();
@@ -3219,50 +3311,48 @@ function initializeCharacterSheet() {
         });
       }
 
-      // LÓGICA DE VENDER
-      if (e.target.classList.contains("btn-vender-item")) {
-        const key = e.target.getAttribute("data-key");
-        const precio = parseInt(e.target.getAttribute("data-precio"));
+      // LÓGICA DE VENDER (App o Física)
+      const btnVenta = e.target.closest(".btn-vender-item, .btn-vender-fisico");
+      if (btnVenta && !btnVenta.disabled) {
+        const isFisico = btnVenta.classList.contains("btn-vender-fisico");
+        const key = btnVenta.getAttribute("data-key");
+        const shopId = isFisico
+          ? btnVenta.getAttribute("data-tienda")
+          : tiendaActivaId;
+        const shopData = isFisico
+          ? tiendasFisicasDisponibles[shopId]
+          : tiendaActivaData;
 
-        const itemRef = db.ref(
-          `campaña/jugadores/${playerName}/inventario_stash/${key}`,
-        );
-        itemRef.once("value", (snap) => {
-          const item = snap.val();
-          if (!item) return;
+        if (!key || !shopData) return;
+        if (!canAccessShop(shopData, playerName)) {
+          alert("Esta tienda no está disponible para tu personaje.");
+          return;
+        }
 
-          // Sumar Ahn
-          db.ref(`campaña/jugadores/${playerName}/ahn`).once(
-            "value",
-            (ahnSnap) => {
-              const currentAhn = ahnSnap.val() || 0;
-              db.ref(`campaña/jugadores/${playerName}`).update({
-                ahn: currentAhn + precio,
-              });
-            },
+        try {
+          const result = await sellShopItemFromStash(
+            playerName,
+            key,
+            shopData,
+            shopId,
           );
-
-          // Reducir cantidad o eliminar manteniendo sincronizados los dos
-          // mirrors canónicos de cantidad. Item Runtime prioriza `quantity`,
-          // mientras UI/legacy todavía leen `cantidad`.
-          const currentQuantity =
-            window.LuminousShopItemPurchaseRuntime?.quantityOf?.(item) ??
-            Math.max(
-              0,
-              parseInt(item.quantity ?? item.cantidad ?? 1) || 0,
-            );
-          if (currentQuantity > 1) {
-            itemRef.update({
-              quantity: currentQuantity - 1,
-              cantidad: currentQuantity - 1,
-            });
-          } else {
-            itemRef.remove();
+          if (!result.sold) {
+            alert("El objeto ya no está disponible en tu Stash.");
+            return;
           }
 
-          // Refrescar vista
-          setTimeout(renderizarVender, 200);
-        });
+          alert(
+            `Venta completada: ${result.itemName} por ${result.priceAhn} ₳.`,
+          );
+          if (isFisico) {
+            renderizarGridVentaFisica(shopId);
+          } else {
+            renderizarVender();
+          }
+        } catch (error) {
+          console.error("Error vendiendo item:", error);
+          alert("No se pudo completar la venta.");
+        }
       }
     });
 
@@ -3334,9 +3424,6 @@ function initializeCharacterSheet() {
             return;
           }
 
-          const reglas = tiendaActivaData.tasas_por_etiqueta || {};
-          const tasaDefecto = tiendaActivaData.tasa_defecto || 50;
-
           const fragment = document.createDocumentFragment();
 
           for (const [key, item] of Object.entries(stash)) {
@@ -3348,23 +3435,7 @@ function initializeCharacterSheet() {
               );
             if (itemQuantity <= 0) continue;
 
-            // Calcular precio de venta basado en el primer tag (tipo) si existe
-            // La nueva lógica usa array de tags, así que buscamos el primero
-            let primerTag = item.tipo || ""; // Fallback a tipo si no hay tags en la DB vieja
-
-            // Find matching rule with priority: tags > tipo
-            const matchingTag =
-              (Array.isArray(item.tags) &&
-                item.tags.find((tag) => reglas[tag] !== undefined)) ||
-              (reglas[primerTag] !== undefined ? primerTag : null);
-
-            const pct = matchingTag ? reglas[matchingTag] : tasaDefecto;
-
-            const itemTier = parseInt(item.tier) || 1;
-            const valorConTier = Math.floor(
-              (item.valorBase || 0) * (1 + (itemTier - 1) * 0.25),
-            );
-            const precioVenta = Math.floor(valorConTier * (pct / 100));
+            const precioVenta = getShopSellPrice(item, tiendaActivaData);
 
             const row = document.createElement("div");
             row.style.cssText =
@@ -4115,8 +4186,100 @@ async function deliverShopPurchaseToStash(playerKey, itemKey, itemData) {
   return payload;
 }
 
+function sellShopItemFromStash(playerKey, itemKey, shopData = {}, shopId = "") {
+  return new Promise((resolve, reject) => {
+    const playerRef = db.ref(`campaña/jugadores/${playerKey}`);
+    let soldPrice = 0;
+    let soldName = "Objeto";
+    let balanceAfter = null;
+
+    playerRef.transaction(
+      (current) => {
+        if (!current || !current.inventario_stash || !current.inventario_stash[itemKey]) {
+          return;
+        }
+
+        const next = JSON.parse(JSON.stringify(current));
+        const item = next.inventario_stash[itemKey];
+        const quantity =
+          window.LuminousShopItemPurchaseRuntime?.quantityOf?.(item) ??
+          Math.max(0, parseInt(item.quantity ?? item.cantidad ?? 1, 10) || 0);
+        if (quantity <= 0) return;
+
+        soldPrice =
+          window.LuminousShopRuntime?.sellPrice?.(item, shopData) ??
+          Math.max(
+            0,
+            Math.round(
+              (Number(item.valorBase ?? item.productionValueAhn ?? item.costo) || 0) *
+                0.8,
+            ),
+          );
+        soldName = item.nombre || item.name || "Objeto";
+
+        if (quantity > 1) {
+          next.inventario_stash[itemKey] = {
+            ...item,
+            quantity: quantity - 1,
+            cantidad: quantity - 1,
+          };
+        } else {
+          delete next.inventario_stash[itemKey];
+        }
+
+        const currentBalance =
+          next.finance?.currentBalance !== undefined
+            ? Number(next.finance.currentBalance) || 0
+            : Number(next.ahn) || 0;
+        balanceAfter = currentBalance + soldPrice;
+        next.ahn = balanceAfter;
+        next.finance = {
+          ...(next.finance || {}),
+          currentBalance: balanceAfter,
+        };
+        return next;
+      },
+      (error, committed) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        if (!committed) {
+          resolve({ sold: false });
+          return;
+        }
+
+        const tx = {
+          monto: soldPrice,
+          concepto: `Venta: ${soldName}`,
+          timestamp: Date.now(),
+          unread: true,
+          kind: "shop_sale",
+          shopId: shopId || null,
+          shopType: window.LuminousShopRuntime?.shopTypeId?.(shopData) || "general",
+          shopTier: window.LuminousShopRuntime?.shopTier?.(shopData) || 1,
+        };
+
+        Promise.allSettled([
+          db.ref(`campaña/jugadores/${playerKey}/finance/transactionHistory`).push(tx),
+          db.ref(`campaña/jugadores/${playerKey}/transacciones`).push(tx),
+        ]).finally(() => {
+          resolve({
+            sold: true,
+            priceAhn: soldPrice,
+            itemName: soldName,
+            balanceAfter,
+          });
+        });
+      },
+      false,
+    );
+  });
+}
+
 window.abrirTiendaDinamica = async function(tiendaId) {
-  if (!playerId) return;
+  if (!playerId || !tiendaId) return;
+  window.__luminousActiveTheaterShopId = tiendaId;
 
   try {
     const [playerSnap, shopSnap] = await Promise.all([
@@ -4245,6 +4408,154 @@ window.abrirTiendaDinamica = async function(tiendaId) {
     document.getElementById("tienda-overlay").style.display = "flex";
   } catch (error) {
     console.error("Error abriendo tienda:", error);
+  }
+};
+
+window.abrirVentaTiendaDinamica = async function(
+  tiendaId = window.__luminousActiveTheaterShopId,
+) {
+  if (!playerId || !tiendaId) return;
+  window.__luminousActiveTheaterShopId = tiendaId;
+
+  try {
+    const [playerSnap, shopSnap] = await Promise.all([
+      db.ref(`campaña/jugadores/${playerId}`).once("value"),
+      db.ref(`campaña/tiendas/${tiendaId}`).once("value"),
+    ]);
+    const playerData = playerSnap.val() || {};
+    const shopData = shopSnap.val();
+    if (!shopData) return;
+
+    const shopRuntime = window.LuminousShopRuntime;
+    const accessKey = currentShopPlayerAccessKey(playerData);
+    if (shopRuntime?.isPlayerAllowed && !shopRuntime.isPlayerAllowed(shopData, accessKey)) {
+      alert("Esta tienda no está disponible para tu personaje.");
+      return;
+    }
+
+    const currentBalance =
+      playerData.finance?.currentBalance !== undefined
+        ? Number(playerData.finance.currentBalance) || 0
+        : Number(playerData.ahn) || 0;
+    const balanceDisplay = document.getElementById("shop-player-balance");
+    if (balanceDisplay) balanceDisplay.innerText = currentBalance;
+
+    const meta = shopRuntime?.describeShop?.(shopData);
+    document.getElementById("shop-name-display").innerText = meta
+      ? `${shopData.nombre || "Tienda"} · ${meta.typeLabel} · TIER ${meta.tierRoman} · VENDER`
+      : `${shopData.nombre || "Tienda"} · VENDER`;
+
+    const lista = document.getElementById("lista-items-tienda");
+    const btnAccion = document.getElementById("btn-comprar-seleccionado");
+    lista.innerHTML = "";
+    btnAccion.style.display = "none";
+    document.getElementById("panel-item-name").innerText = "---";
+    document.getElementById("panel-item-qty").innerText = "--";
+    document.getElementById("panel-item-desc").innerHTML =
+      "<span style='color:#666; font-style:italic;'>Selecciona un objeto de tu Stash para venderlo...</span>";
+
+    const stash = playerData.inventario_stash || {};
+    const entries = Object.entries(stash).filter(([, item]) => {
+      const quantity =
+        window.LuminousShopItemPurchaseRuntime?.quantityOf?.(item) ??
+        Math.max(0, parseInt(item?.quantity ?? item?.cantidad ?? 1, 10) || 0);
+      return quantity > 0;
+    });
+
+    if (!entries.length) {
+      lista.innerHTML =
+        "<span style='color:#888; padding:20px;'>Tu Stash está vacío.</span>";
+    }
+
+    for (const [key, item] of entries) {
+      const quantity =
+        window.LuminousShopItemPurchaseRuntime?.quantityOf?.(item) ??
+        Math.max(0, parseInt(item.quantity ?? item.cantidad ?? 1, 10) || 0);
+      const precioVenta =
+        shopRuntime?.sellPrice?.(item, shopData) ??
+        Math.max(0, Math.round((Number(item.valorBase ?? item.costo) || 0) * 0.8));
+      const tierText =
+        shopRuntime?.tierRoman?.(item.tier) ||
+        String(item.tier || "-");
+
+      const row = document.createElement("div");
+      row.className = "item-row";
+      row.innerHTML = `
+        <div class="icon-slot">
+          <span class="tier">${tierText}</span>
+          <span class="icono-img" style="width:100%; height:100%; display:flex; justify-content:center; align-items:center;">
+            ${item.icono ? `<img src="${item.icono}" style="width:100%; height:100%; object-fit:contain;">` : "📦"}
+          </span>
+        </div>
+        <div class="item-details">
+          <span class="item-name">${item.nombre || item.name || "Objeto"}</span>
+          <span class="item-cost">+${precioVenta} <span style="color:var(--brillo-ambar);">₳</span></span>
+          <span style="font-size:11px; color:#888;">Posees: ${quantity} · Reventa 80%</span>
+        </div>
+      `;
+
+      row.onclick = () => {
+        document
+          .querySelectorAll("#lista-items-tienda .item-row")
+          .forEach((entry) => entry.classList.remove("selected"));
+        row.classList.add("selected");
+        document.getElementById("panel-item-name").innerText =
+          item.nombre || item.name || "Objeto";
+        document.getElementById("panel-item-qty").innerText = quantity;
+        document.getElementById("panel-item-desc").innerText =
+          item.descripcion || item.desc || "Sin descripción disponible.";
+        btnAccion.style.display = "block";
+        btnAccion.disabled = false;
+        btnAccion.innerHTML = `VENDER [+${precioVenta} ₳]`;
+        btnAccion.onclick = () => window.venderItemTienda(tiendaId, key);
+      };
+
+      lista.appendChild(row);
+    }
+
+    document.getElementById("tienda-overlay").style.display = "flex";
+  } catch (error) {
+    console.error("Error abriendo venta de tienda:", error);
+  }
+};
+
+window.venderItemTienda = async function(tiendaId, itemKey) {
+  if (!playerId) return alert("Error: Jugador no identificado.");
+
+  try {
+    const [shopSnap, playerSnap] = await Promise.all([
+      db.ref(`campaña/tiendas/${tiendaId}`).once("value"),
+      db.ref(`campaña/jugadores/${playerId}`).once("value"),
+    ]);
+    const shopData = shopSnap.val();
+    const playerData = playerSnap.val() || {};
+    if (!shopData) return alert("La tienda ya no está disponible.");
+
+    const shopRuntime = window.LuminousShopRuntime;
+    const accessKey = currentShopPlayerAccessKey(playerData);
+    if (shopRuntime?.isPlayerAllowed && !shopRuntime.isPlayerAllowed(shopData, accessKey)) {
+      return alert("Esta tienda no está disponible para tu personaje.");
+    }
+
+    const result = await sellShopItemFromStash(
+      playerId,
+      itemKey,
+      shopData,
+      tiendaId,
+    );
+    if (!result.sold) {
+      return alert("El objeto ya no está disponible en tu Stash.");
+    }
+
+    const balanceDisplay = document.getElementById("shop-player-balance");
+    if (balanceDisplay && result.balanceAfter !== null) {
+      balanceDisplay.innerText = result.balanceAfter;
+    }
+    alert(`Venta completada: ${result.itemName} por ${result.priceAhn} ₳.`);
+    await window.abrirVentaTiendaDinamica(tiendaId);
+  } catch (error) {
+    console.error("Error vendiendo item:", error);
+    alert("No se pudo completar la venta.");
   }
 };
 
