@@ -4,7 +4,7 @@
   if (global.LuminousCombatLiveAdapter073) return;
   global.LuminousCombatLiveMode = true;
 
-  const VERSION = "0.7.3-live.3-field-only";
+  const VERSION = "0.7.3-live.4-player-inventory-authority";
   const ROOTS = Object.freeze({
     dmUid: "campaña/config/dm_uid",
     players: "campaña/jugadores",
@@ -98,6 +98,20 @@
   function isPlayerUnit(unit = {}) {
     const category = normalizeId(unit.actorCategory || unit.category || unit.type);
     return unit.isPlayer === true || category === "player" || normalizeId(unit.canonicalScope) === "player";
+  }
+
+  function playerRecordFor(unit = {}) {
+    if (!isPlayerUnit(unit)) return null;
+    const playerId = canonicalPlayerId(unit);
+    if (!playerId) return null;
+    const player = state.players?.[playerId];
+    return player && typeof player === "object" ? player : null;
+  }
+
+  function activeInventoryContainer(source = {}) {
+    const player = playerRecordFor(source);
+    if (player) return player.inventario_activo || player.activeInventory || player.inventory || {};
+    return source.inventario_activo || source.activeInventory || source.inventory || {};
   }
 
   function isFieldCombatant(unit = {}) {
@@ -195,6 +209,7 @@
       const pos = defaultPosition(faction, sideIndex[faction]++);
       const maxHp = maxHpFor(raw);
       const humanPlayer = isPlayerUnit(raw);
+      const liveActiveInventory = activeInventoryContainer(raw);
       const playerOwned = state.role === "player" && humanPlayer && canonicalPlayerId(raw) === state.playerId && (!canonicalOwnerUid(raw) || canonicalOwnerUid(raw) === state.uid);
       const controller = playerOwned ? "player" : (humanPlayer ? "remote" : "ai");
       const useFormationSpawn = planningPhase() && !explicitBattlePosition(raw);
@@ -202,6 +217,7 @@
       const y = useFormationSpawn ? pos.y : finite(raw.y ?? raw.position?.y ?? raw.combatPosition?.y, pos.y);
       result.push({
         ...clone(raw),
+        inventario_activo: clone(liveActiveInventory),
         id,
         name: clean(raw.characterName || raw.character_name || raw.nombre || raw.name || id) || id,
         faction,
@@ -288,7 +304,7 @@
   }
 
   function activeInventoryItems(source = {}) {
-    const container = source.inventario_activo || source.activeInventory || source.inventory || {};
+    const container = activeInventoryContainer(source);
     return inventoryEntries(container).map(([key, item]) => {
       if (!item || typeof item !== "object" || inventoryQuantity(item) <= 0) return null;
       const instanceId = clean(item.instanceId || item.instance_id || key);
@@ -522,6 +538,8 @@
     scheduleHydrate,
     normalizeSkill,
     isFieldCombatant,
+    playerRecordFor,
+    activeInventoryContainer,
     normalizedCombatants,
     defaultPosition,
     planningPhase,
