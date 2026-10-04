@@ -61,6 +61,21 @@ const path = require("node:path");
     core.priceOf({ price: 0, costo: 0, valorBase: 0, standardUnitValueAhn: 1800 }),
     1800,
   );
+  const normalizedPlaceholder = core.adaptDefinition(
+    { id: "placeholder_value", name: "Placeholder Value", price: 0, costo: 0, valorBase: 0, standardUnitValueAhn: 1800 },
+    {},
+  );
+  assert.equal(normalizedPlaceholder.price, 1800);
+  assert.equal(normalizedPlaceholder.costo, 1800);
+  assert.equal(normalizedPlaceholder.valorBase, 1800);
+
+  const localNormalizedPlaceholder = localManager.normalizeDefinition(
+    { id: "local_placeholder_value", name: "Local Placeholder Value", price: 0, costo: 0, valorBase: 0, standardUnitValueAhn: 1800 },
+    { source: "test" },
+  );
+  assert.equal(localNormalizedPlaceholder.price, 1800);
+  assert.equal(localNormalizedPlaceholder.costo, 1800);
+  assert.equal(localNormalizedPlaceholder.valorBase, 1800);
   const apple = catalog.apple;
   assert.ok(apple, "Plant Produce catalog should expose Apple");
   assert.equal(apple.standardUnitValueAhn, 1800);
