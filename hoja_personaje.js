@@ -3019,17 +3019,50 @@ function initializeCharacterSheet() {
             });
           }
 
-          const itemToSave = {
-            id: itemId,
-            nombre: itemTienda.nombre,
-            valorBase: itemTienda.costo, // Costo base
-            tier: parseInt(itemTienda.tier) || 1,
-            tipo: itemTienda.tipo || "Consumible",
-            icono: itemTienda.icono || "",
-            descripcion: itemTienda.descripcion || "",
-            cantidad: 1,
-          };
-          if (itemTienda.tags) itemToSave.tags = itemTienda.tags;
+          // Preserve the canonical functional definition when an item leaves a
+          // shop. Rebuilding a cosmetic subset here used to strip runtime.healing
+          // (and other item mechanics), producing consumables that rendered
+          // correctly but returned USE FAILED in the player's inventory.
+          const purchaseRuntime = window.LuminousShopItemPurchaseRuntime;
+          const itemToSave =
+            purchaseRuntime?.buildPurchasePayload?.(
+              itemId,
+              itemTienda,
+              playerName,
+              { inventoryRuntime: window.LuminousItemInventoryRuntime },
+            ) || {
+              ...itemTienda,
+              id: itemTienda.id || itemId,
+              definitionId:
+                itemTienda.definitionId ||
+                itemTienda.canonicalId ||
+                itemTienda.id ||
+                itemId,
+              canonicalId:
+                itemTienda.canonicalId ||
+                itemTienda.definitionId ||
+                itemTienda.id ||
+                itemId,
+              nombre: itemTienda.nombre,
+              name: itemTienda.name || itemTienda.nombre,
+              valorBase: itemTienda.costo,
+              tier: parseInt(itemTienda.tier) || 1,
+              tipo: itemTienda.tipo || "Consumible",
+              category:
+                itemTienda.category ||
+                itemTienda.tipo_categoria ||
+                "consumable",
+              itemType:
+                itemTienda.itemType ||
+                itemTienda.category ||
+                itemTienda.tipo_categoria ||
+                "consumable",
+              icono: itemTienda.icono || "",
+              descripcion: itemTienda.descripcion || "",
+              quantity: 1,
+              cantidad: 1,
+              currentOwnerId: playerName,
+            };
 
           if (isFisico) {
             // Añadir directo al Stash (Física)
@@ -3038,19 +3071,54 @@ function initializeCharacterSheet() {
             );
             stashRef.once("value", (stashSnap) => {
               let foundKey = null;
-              let currentCant = 0;
               stashSnap.forEach((child) => {
+                const owned = child.val() || {};
+                const ownedDefinitionId =
+                  owned.definitionId ||
+                  owned.canonicalId ||
+                  owned.id;
+                const sameTier = purchaseRuntime?.sameTier
+                  ? purchaseRuntime.sameTier(owned.tier, itemTienda.tier)
+                  : String(owned.tier || "I") === String(itemTienda.tier || "I");
                 if (
-                  child.val().id === itemId &&
-                  (child.val().tier || 1) == (itemTienda.tier || 1)
+                  ownedDefinitionId === itemToSave.definitionId &&
+                  sameTier
                 ) {
                   foundKey = child.key;
-                  currentCant = child.val().cantidad || 1;
                 }
               });
 
               if (foundKey) {
-                stashRef.child(foundKey).update({ cantidad: currentCant + 1 });
+                // Also repair legacy stacks purchased before this fix. If the old
+                // stack is missing runtime.healing/category metadata, merging a
+                // newly purchased canonical item restores those fields while
+                // preserving the existing instance identity.
+                stashRef.child(foundKey).transaction((current) => {
+                  if (!current) return itemToSave;
+                  if (purchaseRuntime?.mergePurchasedStack) {
+                    return purchaseRuntime.mergePurchasedStack(
+                      current,
+                      itemToSave,
+                      1,
+                    );
+                  }
+                  const currentCant =
+                    parseInt(current.quantity ?? current.cantidad) || 1;
+                  return {
+                    ...itemToSave,
+                    ...current,
+                    runtime: current.runtime || itemToSave.runtime,
+                    definitionId:
+                      current.definitionId || itemToSave.definitionId,
+                    canonicalId:
+                      current.canonicalId || itemToSave.canonicalId,
+                    category: current.category || itemToSave.category,
+                    itemType: current.itemType || itemToSave.itemType,
+                    family: current.family || itemToSave.family,
+                    quantity: currentCant + 1,
+                    cantidad: currentCant + 1,
+                  };
+                });
               } else {
                 stashRef.push(itemToSave);
               }
@@ -3129,9 +3197,20 @@ function initializeCharacterSheet() {
             },
           );
 
-          // Reducir cantidad o eliminar
-          if (item.cantidad > 1) {
-            itemRef.update({ cantidad: item.cantidad - 1 });
+          // Reducir cantidad o eliminar manteniendo sincronizados los dos
+          // mirrors canónicos de cantidad. Item Runtime prioriza `quantity`,
+          // mientras UI/legacy todavía leen `cantidad`.
+          const currentQuantity =
+            window.LuminousShopItemPurchaseRuntime?.quantityOf?.(item) ??
+            Math.max(
+              0,
+              parseInt(item.quantity ?? item.cantidad ?? 1) || 0,
+            );
+          if (currentQuantity > 1) {
+            itemRef.update({
+              quantity: currentQuantity - 1,
+              cantidad: currentQuantity - 1,
+            });
           } else {
             itemRef.remove();
           }
@@ -3217,7 +3296,13 @@ function initializeCharacterSheet() {
           const fragment = document.createDocumentFragment();
 
           for (const [key, item] of Object.entries(stash)) {
-            if (item.cantidad <= 0) continue;
+            const itemQuantity =
+              window.LuminousShopItemPurchaseRuntime?.quantityOf?.(item) ??
+              Math.max(
+                0,
+                parseInt(item.quantity ?? item.cantidad ?? 1) || 0,
+              );
+            if (itemQuantity <= 0) continue;
 
             // Calcular precio de venta basado en el primer tag (tipo) si existe
             // La nueva lógica usa array de tags, así que buscamos el primero
@@ -3245,7 +3330,7 @@ function initializeCharacterSheet() {
                 <img src="${item.icono || "https://via.placeholder.com/40"}" style="width: 40px; height: 40px; object-fit: contain; border-radius: 4px; background: #000;">
                 <div style="flex: 1; min-width: 0;">
                     <div style="font-weight: bold; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.nombre}</div>
-                    <div style="font-size: 12px; color: #888;">Cant: ${item.cantidad}</div>
+                    <div style="font-size: 12px; color: #888;">Cant: ${itemQuantity}</div>
                 </div>
                 <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 5px;">
                     <div style="color: #c49a00; font-weight: bold;"><span class="currency-symbol">₳</span> +${precioVenta}</div>
