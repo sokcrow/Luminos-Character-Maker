@@ -207,6 +207,10 @@
       });
 
       // --- COLA FIFO: SOLO EL DM PUBLICA EL ESTADO DE ESCENA ---
+      function theatreOutputIsActive(instanceValue) {
+        return instanceValue === "teatro" || instanceValue === "combat_theatre";
+      }
+
       function nextQueueItem() {
         return database.ref(paths().queue).orderByChild("createdAt").limitToFirst(1).once("value");
       }
@@ -225,7 +229,7 @@
           database.ref("campaña/estado_mundo/instancia_activa").once("value"),
           database.ref(paths().scene).once("value")
         ]);
-        if (generation !== processorGeneration || instanceSnap.val() !== "teatro") return;
+        if (generation !== processorGeneration || !theatreOutputIsActive(instanceSnap.val())) return;
         const scene = sceneSnap.val() || {};
         if (scene.transitioning) {
           await dropQueueForTransition();
@@ -303,7 +307,7 @@
 
       database.ref(paths().queue).on("child_added", () => processQueue());
       database.ref("campaña/estado_mundo/instancia_activa").on("value", (snapshot) => {
-        if (snapshot.val() === "teatro") processQueue();
+        if (theatreOutputIsActive(snapshot.val())) processQueue();
       });
       database.ref(paths().scene).on("value", (snapshot) => {
         const scene = snapshot.val() || {};
