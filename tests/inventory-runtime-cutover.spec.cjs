@@ -32,9 +32,17 @@ async function bootHarness(page) {
           <div class="inventory-tab-content" id="inv-sintesis"><div class="limbus-synthesis-container">Synthesis preserved</div></div>
         </div>
         <div class="item-detail-card" id="item-detail-card">
-          <img id="detail-icon" />
-          <span id="detail-tier-val"></span><span id="detail-cost-val"></span>
-          <div id="detail-title"></div><div id="detail-desc"></div><div id="detail-tags-val"></div>
+          <div class="detail-left"><div class="detail-icon-box"><img id="detail-icon" /></div></div>
+          <div class="detail-right">
+            <div class="detail-title-badge" id="detail-title"></div>
+            <div class="inventory-v2-detail-meta">
+              <span class="detail-tier">Tier <b id="detail-tier-val"></b></span>
+              <span class="detail-cost">Valor <b id="detail-cost-val"></b></span>
+            </div>
+            <div class="inventory-v2-detail-effects" id="inventory-v2-detail-effects" hidden></div>
+            <div id="detail-desc"></div>
+            <div id="detail-tags-val" hidden></div>
+          </div>
         </div>
       </div>
     </div></div>
@@ -182,6 +190,25 @@ test("player item detail hides implementation metadata and only shows relevant s
   await expect(page.locator('.inventory-v2-modules[data-v2-detail-section="modules"]')).toBeVisible();
   await expect(page.locator('[data-v2-detail="modules"]')).toContainText("Serrated Edge");
   await expect(page.locator(".inventory-v2-item-category")).toHaveCount(0);
+
+  const geometry = await page.locator("#item-detail-card").evaluate((card) => {
+    const left = card.querySelector(".detail-left").getBoundingClientRect();
+    const right = card.querySelector(".detail-right").getBoundingClientRect();
+    const extra = card.querySelector(".inventory-v2-detail-extra").getBoundingClientRect();
+    const buttons = [...card.querySelectorAll(".inventory-v2-action")].map((button) => button.getBoundingClientRect());
+    return {
+      card: card.getBoundingClientRect().width,
+      left: left.width,
+      right: right.width,
+      extra: extra.width,
+      extraInsideRight: card.querySelector(".inventory-v2-detail-extra").parentElement.classList.contains("detail-right"),
+      buttons: buttons.map((box) => box.width),
+    };
+  });
+  expect(geometry.extraInsideRight).toBe(true);
+  expect(geometry.right).toBeGreaterThan(220);
+  expect(geometry.extra).toBeLessThanOrEqual(geometry.right + 1);
+  expect(Math.max(...geometry.buttons)).toBeLessThan(geometry.right * 0.72);
 });
 
 test("inventory runtime freezes 20/80 capacity and family stack limits", async ({ page }) => {
