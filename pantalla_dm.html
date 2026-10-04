@@ -2229,8 +2229,8 @@ window.processEntitiesData = function(entities) {
                 </select>
               </div>
               <div style="font-size: 11px; color: #888; margin: 4px 0 8px 0;">
-                Precio automático: valor del ítem × 1.40 × tipo × Tier × modificador local.
-                El stock se calcula por los jugadores asignados.
+                Compra automática: valor del ítem × 1.40 × tipo × Tier × modificador local.
+                Reventa del jugador: valor intrínseco × 0.80. El stock se calcula por los jugadores asignados.
               </div>
               <div style="display: flex; gap: 10px; align-items: center">
                 <label style="color: #0df; font-size: 14px; cursor: pointer"
@@ -2279,54 +2279,21 @@ window.processEntitiesData = function(entities) {
                 placeholder="Mod. Local % (100 = normal)"
               />
 
-              <h5
+              <div
                 style="
-                  color: #0df;
-                  margin: 10px 0 5px 0;
-                  border-bottom: 1px solid #444;
-                  padding-bottom: 5px;
+                  margin: 10px 0;
+                  padding: 10px;
+                  border: 1px solid #444;
+                  background: #0b0b0b;
+                  color: #aaa;
+                  font-size: 12px;
+                  line-height: 1.4;
                 "
               >
-                Reglas de Comercio por Etiqueta
-              </h5>
-              <div style="display: flex; gap: 10px; align-items: center">
-                <input
-                  type="text"
-                  id="tienda-regla-tag"
-                  placeholder="Etiqueta (Ej. Munición)"
-                  style="flex: 2"
-                />
-                <input
-                  type="number"
-                  id="tienda-regla-pct"
-                  placeholder="% Compra"
-                  style="flex: 1"
-                />
-                <button
-                  id="btn-add-regla"
-                  class="btn-cyber"
-                  style="
-                    padding: 10px;
-                    font-size: 14px;
-                    background: #222;
-                    color: #c49a00;
-                    border: 1px solid #c49a00;
-                  "
-                >
-                  Añadir Regla
-                </button>
+                <strong style="color:#0df;">REVENTA CANÓNICA:</strong>
+                la tienda paga al jugador el 80% del valor intrínseco del ítem.
+                No usa reglas por etiqueta, Tier ni modificador local.
               </div>
-              <div
-                id="tienda-reglas-container"
-                style="display: flex; flex-direction: column; gap: 5px"
-              ></div>
-
-              <input
-                type="number"
-                id="tienda-tasa-defecto"
-                placeholder="Tasa por defecto (Para etiquetas no listadas) %"
-                style="margin-top: 10px"
-              />
 
               <div style="display: flex; gap: 10px; margin-top: auto">
                 <button
@@ -6603,47 +6570,9 @@ window.processEntitiesData = function(entities) {
           });
         });
 
-        // --- LÓGICA DE REGLAS DE TIENDA ---
-        let currentTiendaReglas = {};
+        // --- LÓGICA DE TIENDAS ---
+        // La reventa ya no usa reglas por etiqueta: Shop Runtime fija el pago al 80%.
         let editModeTiendaKey = null;
-        const tiendaReglasContainer = document.getElementById(
-          "tienda-reglas-container",
-        );
-        const tiendaReglaTagInput = document.getElementById("tienda-regla-tag");
-        const tiendaReglaPctInput = document.getElementById("tienda-regla-pct");
-
-        function renderTiendaReglas() {
-          tiendaReglasContainer.innerHTML = "";
-          for (const [tag, pct] of Object.entries(currentTiendaReglas)) {
-            const ruleItem = document.createElement("div");
-            ruleItem.className = "rule-item";
-            ruleItem.innerHTML = `
-                <span>[${tag}] - Paga al ${pct}%</span>
-                <button class="btn-remove-rule" title="Eliminar regla">&times;</button>
-            `;
-            ruleItem.querySelector(".btn-remove-rule").onclick = () => {
-              delete currentTiendaReglas[tag];
-              renderTiendaReglas();
-            };
-            tiendaReglasContainer.appendChild(ruleItem);
-          }
-        }
-
-        document
-          .getElementById("btn-add-regla")
-          .addEventListener("click", () => {
-            const tag = tiendaReglaTagInput.value.trim();
-            const pct = parseInt(tiendaReglaPctInput.value);
-
-            if (tag && !isNaN(pct)) {
-              currentTiendaReglas[tag] = pct;
-              renderTiendaReglas();
-              tiendaReglaTagInput.value = "";
-              tiendaReglaPctInput.value = "";
-            } else {
-              alert("Ingresa una etiqueta y un porcentaje de compra válido.");
-            }
-          });
 
         function resetTiendaForm() {
           document.getElementById("tienda-nombre").value = "";
@@ -6658,9 +6587,6 @@ window.processEntitiesData = function(entities) {
             .forEach((cb) => (cb.checked = false));
           document.getElementById("tienda-restock-dia").value = "Lunes";
           document.getElementById("tienda-mod-venta").value = "100";
-          document.getElementById("tienda-tasa-defecto").value = "";
-          currentTiendaReglas = {};
-          renderTiendaReglas();
           document.getElementById("btn-crear-tienda").innerText =
             "Crear Tienda";
           document.getElementById("btn-cancelar-tienda").style.display = "none";
@@ -6695,16 +6621,8 @@ window.processEntitiesData = function(entities) {
             const modVenta =
               parseInt(document.getElementById("tienda-mod-venta").value) ||
               100;
-            const tasaDefecto = parseInt(
-              document.getElementById("tienda-tasa-defecto").value,
-            );
-
             if (!nombre) {
               alert("El nombre de la tienda es requerido.");
-              return;
-            }
-            if (isNaN(tasaDefecto)) {
-              alert("La tasa por defecto es requerida.");
               return;
             }
 
@@ -6741,8 +6659,6 @@ window.processEntitiesData = function(entities) {
               jugadores_presentes: jugadoresPresentes,
               dia_restock: diaRestock,
               mod_venta: modVenta,
-              tasas_por_etiqueta: currentTiendaReglas,
-              tasa_defecto: tasaDefecto,
             };
 
             if (isEditing) {
@@ -6844,12 +6760,6 @@ window.processEntitiesData = function(entities) {
                   data.dia_restock || "Lunes";
                 document.getElementById("tienda-mod-venta").value =
                   data.mod_venta !== undefined ? data.mod_venta : 100;
-                document.getElementById("tienda-tasa-defecto").value =
-                  data.tasa_defecto !== undefined ? data.tasa_defecto : "";
-
-                currentTiendaReglas = data.tasas_por_etiqueta || {};
-                renderTiendaReglas();
-
                 document.getElementById("btn-crear-tienda").innerText =
                   "Actualizar Tienda";
                 document.getElementById("btn-cancelar-tienda").style.display =
