@@ -699,9 +699,9 @@
     // hydration or this bridge finishes first, current kit/inventory data wins.
     const menu = activeMenu();
     if (menu === "items") renderItems();
-    else if (menu === "skills" && (state.tabByMenu.skills || ECONOMY.ACTION) !== ECONOMY.ACTION) renderSkills();
-    else if (menu === "spells" && (state.tabByMenu.spells || ECONOMY.ACTION) !== ECONOMY.ACTION) renderSpells();
-    else if (menu === "global" && (state.tabByMenu.global || ECONOMY.ACTION) !== ECONOMY.ACTION) renderGlobalList();
+    else if (menu === "skills") renderSkills();
+    else if (menu === "spells") renderSpells();
+    else if (menu === "global") renderGlobalList();
     syncSpellMenuVisibility();
     syncTabs();
     updateCategoryContext();
