@@ -72,7 +72,7 @@ assert.ok(dmBridge.includes('transitionBlocking'),'DM readiness must reject a fi
 assert.ok(dmBridge.includes('introBlocking'),'DM readiness must reject a field still trapped in intro-running');
 assert.ok(dmBridge.includes('visibleSpriteCount>=combatantCount'),'DM readiness must require every deployed FIELD combatant to have visible sprite evidence');
 assert.ok(dmBridge.includes("querySelectorAll?.('.sprite-container')"),'DM fallback must restore the real DOM sprite containers, not only image nodes');
-assert.ok(dmBridge.includes("version:'1.4.0-raster-safe'"),'DM bridge version must identify the real-bootstrap readiness contract');
+assert.ok(dmBridge.includes("version:'1.5.0-encounter-controls'"),'DM bridge version must identify the production Encounter controls contract while retaining real-bootstrap readiness');
 assert.ok(liveAdapter.includes('"identity-unresolved"'),'live adapter must expose canonical identity failure instead of leaving a silent DM surface');
 assert.ok(liveAdapter.includes('"dm-identity-config"'),'live adapter must expose campaign DM identity resolution');
 assert.ok(liveAdapter.includes('"auth-ready"'),'live adapter must expose successful Firebase authentication');
