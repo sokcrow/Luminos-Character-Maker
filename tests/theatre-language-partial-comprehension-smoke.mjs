@@ -2,20 +2,15 @@ import fs from "node:fs";
 import assert from "node:assert/strict";
 import vm from "node:vm";
 
-function loadUmdCommonJs(path) {
-  const source = fs.readFileSync(path, "utf8");
-  const sandbox = {
-    module: { exports: {} },
-    exports: {},
-    globalThis: null,
-  };
-  sandbox.globalThis = sandbox;
-  vm.runInNewContext(source, sandbox, { filename: path });
-  return sandbox.module.exports;
+function loadBrowserUmdApi(file) {
+  const source = fs.readFileSync(file, "utf8");
+  const context = { module: { exports: {} }, console };
+  vm.runInNewContext(source, context, { filename: file });
+  return context.module.exports;
 }
 
-const rules = loadUmdCommonJs("js/theatre-special-language-enforcement-hotfix.js");
-const log = loadUmdCommonJs("js/theatre-special-language-log-hotfix.js");
+const rules = loadBrowserUmdApi("js/theatre-special-language-enforcement-hotfix.js");
+const log = loadBrowserUmdApi("js/theatre-special-language-log-hotfix.js");
 
 const definitions = {
   common: { nombre: "Común", universal: true, estilo_ofuscacion: "ellipsis" },
