@@ -7002,13 +7002,14 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
 }
 
 /* PC theatre layout: keep character controls useful without covering the
-   stage. Everything scales against the viewport and stays near one corner. */
+   stage. Keep HUD dimensions stable so browser zoom enlarges it naturally
+   instead of shrinking it through viewport-relative sizing. */
 @media (min-width: 769px) {
     .hud-container {
         top: 72px;
         right: 82px;
-        width: clamp(132px, 10vw, 156px);
-        height: clamp(132px, 10vw, 156px);
+        width: 156px;
+        height: 156px;
         border-radius: 8px;
     }
 
