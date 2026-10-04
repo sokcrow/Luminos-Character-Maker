@@ -476,6 +476,42 @@ const { pathToFileURL } = require("node:url");
     "partial repairs must price only the requested missing durability",
   );
 
+  const materialDrivenBlade = {
+    family: "weapons",
+    currentDurability: 80,
+    maxDurability: 100,
+    primaryComponentId: "long_blade",
+    components: [
+      {
+        componentId: "long_blade",
+        primaryMaterial: {
+          materialId: "iron",
+          materialName: "Iron",
+          unitValueAhn: 22000,
+          unitDurability: 40,
+        },
+      },
+    ],
+  };
+  assert.deepEqual(
+    shops.resolveRepairMaterialValueAhn(materialDrivenBlade),
+    {
+      resolved: true,
+      field: "components.primaryMaterial",
+      value: 550,
+      materialId: "iron",
+      materialName: "Iron",
+      unitValueAhn: 22000,
+      unitDurability: 40,
+    },
+    "repair must derive the material cost per durability point from the actual crafted material",
+  );
+  assert.equal(
+    shops.repairPrice(materialDrivenBlade, { shop_type: "workshop" }),
+    15400,
+    "20 missing PD × ₳550 material/PD × 1.40 labor must equal ₳15,400",
+  );
+
   // A chain can provide promotions and loyalty while a merchant NPC can add
   // relationship/frequent-customer benefits without changing intrinsic value.
   const livingShop = {
@@ -559,6 +595,26 @@ const { pathToFileURL } = require("node:url");
     shops.nextLoyaltyProgress(livingShop, { loyaltyProgress: 8 }, { item: promoFood }),
     9,
   );
+
+  const repairCardShop = {
+    shop_type: "workshop",
+    services: { repair: { enabled: true } },
+    loyalty_program: {
+      id: "repair_card",
+      name: "Tarjeta de Reparación",
+      scope: "services",
+      paid_purchases_required: 9,
+      reward_type: "free_next",
+      service_ids: ["repair"],
+    },
+  };
+  const loyaltyRepair = shops.repairBreakdown(damagedBlade, repairCardShop, {
+    points: 10,
+    context: { loyaltyProgress: 9 },
+  });
+  assert.equal(loyaltyRepair.listPriceAhn, 7000);
+  assert.equal(loyaltyRepair.loyaltyRewardApplied, true);
+  assert.equal(loyaltyRepair.priceAhn, 0, "the 10th eligible repair must be free after 9 paid services");
 
   // Stored catalog list price must remain stable and must not bake temporary
   // promotions, merchant relationship or loyalty into the Item.
