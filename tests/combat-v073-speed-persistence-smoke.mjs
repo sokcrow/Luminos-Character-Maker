@@ -11,6 +11,9 @@ assert.ok(speed.includes('speedTie:Math.random()'),'fallback speed tie must be g
 assert.ok(speed.includes('const original=state.originalRollUnitSpeed'),'DM authority must preserve the packed runtime turn-start Speed rules');
 assert.ok(speed.includes('const result=original(draft,state.round)'),'authoritative Speed must evaluate the original roller on a detached clone');
 assert.ok(speed.includes('speedBaseRoll:base'),'authoritative Speed must persist the original base roll after modifiers are evaluated');
+const authority=fs.readFileSync('js/combat-v073-authority.js','utf8');
+assert.ok(authority.includes('proneSpeedRound:Math.max(0,Math.trunc(finite(unit.proneSpeedRound,0)))'),'authority snapshots must persist Prone forced-Speed turn state');
+assert.ok(authority.includes('confusionTurnMode:unit.confusionTurnMode==null?null:clone(unit.confusionTurnMode)'),'authority snapshots must persist locked Confusion turn state');
 assert.ok(speed.includes('speedRolledAt:global.firebase.database.ServerValue.TIMESTAMP'),'speed roll must record authoritative timestamp');
 assert.ok(speed.includes("state.db.ref(`${ROOT}/combatants`)"),'speed persistence must transact the canonical combatant collection');
 assert.ok(speed.includes('ref.transaction(current=>'),'speed persistence must use one collection transaction');
