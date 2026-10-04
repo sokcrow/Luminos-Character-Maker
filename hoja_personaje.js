@@ -3329,6 +3329,7 @@ function initializeCharacterSheet() {
   let tiendaActivaId = null;
   let tiendasFisicasDisponibles = {}; // Para el modal físico
   let tiendaFisicaActivaId = null; // ID de la tienda seleccionada en el modal
+  let tiendaFisicaModo = "buy";
 
   // Helper array para convertir Tier en romano (ya existe en otro lado pero lo necesitamos aquí)
   const romanTiersShop = [
@@ -3414,15 +3415,29 @@ function initializeCharacterSheet() {
 
     const shopFooterBuyMode = document.getElementById("shop-footer-buy-mode");
     const shopFooterSellMode = document.getElementById("shop-footer-sell-mode");
+
+    function setPhysicalShopMode(mode) {
+      tiendaFisicaModo = mode === "sell" ? "sell" : "buy";
+      if (shopFooterBuyMode) {
+        const active = tiendaFisicaModo === "buy";
+        shopFooterBuyMode.classList.toggle("active", active);
+        shopFooterBuyMode.setAttribute("aria-selected", active ? "true" : "false");
+      }
+      if (shopFooterSellMode) {
+        const active = tiendaFisicaModo === "sell";
+        shopFooterSellMode.classList.toggle("active", active);
+        shopFooterSellMode.setAttribute("aria-selected", active ? "true" : "false");
+      }
+      if (!tiendaFisicaActivaId) return;
+      if (tiendaFisicaModo === "sell") renderizarGridVentaFisica(tiendaFisicaActivaId);
+      else renderizarGridFisica(tiendaFisicaActivaId);
+    }
+
     if (shopFooterBuyMode) {
-      shopFooterBuyMode.addEventListener("click", () => {
-        if (tiendaFisicaActivaId) renderizarGridFisica(tiendaFisicaActivaId);
-      });
+      shopFooterBuyMode.addEventListener("click", () => setPhysicalShopMode("buy"));
     }
     if (shopFooterSellMode) {
-      shopFooterSellMode.addEventListener("click", () => {
-        if (tiendaFisicaActivaId) renderizarGridVentaFisica(tiendaFisicaActivaId);
-      });
+      shopFooterSellMode.addEventListener("click", () => setPhysicalShopMode("sell"));
     }
 
     db.ref("campaña/tiendas").on("value", (snapshot) => {
@@ -3495,7 +3510,8 @@ function initializeCharacterSheet() {
             tiendaFisicaActivaId
           ) {
             if (tiendasFisicasDisponibles[tiendaFisicaActivaId]) {
-              renderizarGridFisica(tiendaFisicaActivaId);
+              if (tiendaFisicaModo === "sell") renderizarGridVentaFisica(tiendaFisicaActivaId);
+              else renderizarGridFisica(tiendaFisicaActivaId);
             } else {
               const storeKeys = Object.keys(tiendasFisicasDisponibles);
               if (storeKeys.length > 0) seleccionarTiendaFisica(storeKeys[0]);
@@ -3537,7 +3553,8 @@ function initializeCharacterSheet() {
     function seleccionarTiendaFisica(id) {
       tiendaFisicaActivaId = id;
       renderizarSidebarFisica();
-      renderizarGridFisica(id);
+      if (tiendaFisicaModo === "sell") renderizarGridVentaFisica(id);
+      else renderizarGridFisica(id);
     }
 
     function renderizarGridFisica(idTienda) {
@@ -3562,8 +3579,10 @@ function initializeCharacterSheet() {
       const playerName = document
         .querySelector('input[name="attr_character_name"]')
         ?.value.trim();
+      const accountId = playerId || playerName;
+      if (!accountId) return;
 
-      db.ref(`campaña/jugadores/${playerName}/inventario_stash`).once(
+      db.ref(`campaña/jugadores/${accountId}/inventario_stash`).once(
         "value",
         (snap) => {
           const userStash = snap.val() || {};
@@ -3642,12 +3661,13 @@ function initializeCharacterSheet() {
       const playerName = document
         .querySelector('input[name="attr_character_name"]')
         ?.value.trim();
-      if (!grid || !title || !data || !playerName) return;
+      const accountId = playerId || playerName;
+      if (!grid || !title || !data || !accountId) return;
 
       title.innerText = `${shopDisplayName(data)} · VENDER`;
       grid.innerHTML = "";
 
-      db.ref(`campaña/jugadores/${playerName}/inventario_stash`).once(
+      db.ref(`campaña/jugadores/${accountId}/inventario_stash`).once(
         "value",
         (snap) => {
           const stash = snap.val() || {};
@@ -3998,8 +4018,9 @@ function initializeCharacterSheet() {
         }
 
         try {
+          const accountId = playerId || playerName;
           const result = await sellShopItemFromStash(
-            playerName,
+            accountId,
             key,
             shopData,
             shopId,
