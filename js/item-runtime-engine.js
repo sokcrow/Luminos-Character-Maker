@@ -585,9 +585,35 @@
     return { applied: effectCount > 0, user, target, item, profile, results };
   }
 
+  function noEffectReason(profile = {}, target = null) {
+    const hpSlot = currentAndMax(target, "hp");
+    const spSlot = currentAndMax(target, "sp");
+    const hasHp = Number(profile.hp) > 0 || Boolean(profile.hpHealing);
+    const hasSp = Number(profile.sp) > 0;
+    const hasOther = Boolean(
+      profile.statusId ||
+      profile.statId ||
+      profile.injuryTreatment ||
+      Number(profile.repairAmount) > 0 ||
+      (profile.statusAdjustments && profile.statusAdjustments.length) ||
+      (profile.removeStatuses && profile.removeStatuses.length)
+    );
+
+    if (!hasHp && !hasSp && !hasOther) return "item_has_no_runtime_effect";
+    if (hasHp && !hasSp && !hasOther && hpSlot && hpSlot.current >= hpSlot.max) return "hp_already_full";
+    if (hasSp && !hasHp && !hasOther && spSlot && spSlot.current >= spSlot.max) return "sp_already_full";
+    return "no_effect_applied";
+  }
+
   function applyAndConsume(user, item, options = {}) {
     const applied = applyUseEffects(user, item, options);
-    if (!applied.applied && options.consumeOnNoEffect !== true) return { ...applied, consumed: false };
+    if (!applied.applied && options.consumeOnNoEffect !== true) {
+      return {
+        ...applied,
+        consumed: false,
+        reason: applied.reason || noEffectReason(applied.profile, applied.target),
+      };
+    }
     const consumeQty = Math.max(0, intOr(runtimeOf(item).consumeQty ?? runtimeOf(item).consume_qty ?? options.consumeQty, 1));
     const consumption = consumeQty > 0 ? consumeQuantity(item, consumeQty) : { consumed: true, before: quantityOf(item), after: quantityOf(item), amount: 0 };
     if (!consumption.consumed) return { applied: false, reason: consumption.reason, item, consumption };
@@ -949,6 +975,7 @@
     hpPercent,
     actionCostFor,
     runtimeUseProfile,
+    noEffectReason,
     cureRemovesOnZeroCount,
     canonicalHpHealingBreakdown,
     canonicalHpHealingAmount,
