@@ -114,19 +114,32 @@ The DM can still open the Shop inventory editor and remove individual compatible
 
 | Shop Type | Primary catalog | Secondary / scarce catalog |
 | --- | --- | --- |
-| General Store | Food, culinary staples, produce, tools, basic medical supplies | Craft components, raw chemicals/medicine, common HP/SP/status consumables |
-| Provisions | Food, staples, produce, meat | Basic medical supplies, common healing, tools, medicinal raw materials |
-| Clinic / Pharmacy | HP/SP/hybrid healing, status cures, medical supplies | Medicinal ingredients/processes, blood and organ materials |
-| Workshop | Tools, craft components, ores/ingots/gems, raw/processed chemicals | Weapon/armor/shield/throwable components, upgrades and structural materials |
-| Arms Dealer | Weapons, ammunition, weapon/firearm/ranged/armor/shield components | Throwables and combat upgrades |
-| Specialist | Valuables, Essence/Core, Ooze/Gel, venom, organs and blood | Advanced processed materials, upgrades, rare ores and specialist tools |
-| Black Market | Weapons/ammo, throwables, venom, blood/organs, Essence/Core, valuables | Advanced chemicals/medicine, combat components/upgrades; Tier IV+ unmatched goods may appear as rare fallback |
+| General Store | Food, staples, produce, tools, basic medical | Craft components, raw chemistry/medicine, common recovery |
+| Convenience | Retail food, basic food, immediate medicine | Small tools, staples, ammo |
+| Supermarket | Retail food, staples, produce, meat | Basic medical, tools, containers/household supply |
+| Distributor / Wholesaler | Food, materials, medical and chemical raw stock | Tools, processed materials, ores |
+| Provisions | Food, staples, produce, meat | Medical basics, healing, tools |
+| Restaurant / Canteen | Prepared food and culinary stock | Containers / serving supply |
+| Butcher | Meat, raw meat, hides | Organs, blood, staples |
+| Clinic | Recovery, cures, medical supplies | Medicinal materials, blood/organs |
+| Pharmacy | Recovery, cures, processed medicine | Medicinal raw stock and pharmaceutical inputs |
+| Workshop | Tools, craft components, ores, chemicals | Combat components, upgrades, structural materials |
+| Hardware / Supplies | Tools, fasteners, structural and mechanical parts | Ores, components, industrial chemicals |
+| Electronics / Technology | Electronics, circuitry, sensors, optics, precision | Craft components, technical chemicals, corporate precision |
+| Arms Dealer | Weapons, ammunition, combat components | Throwables and combat upgrades |
+| Jeweler | Jewelry, valuables, cut gems | Refined metals, alloys, mineral stock |
+| Pawnshop | Valuables, tools, used weapons/equipment | Minerals and miscellaneous medical stock |
+| Salvage / Recovery | Recovered materials, ores, biological materials | Combat components and raw chemistry |
+| Corporate Outlet | Corporate/precision technical goods | Advanced components, upgrades and processed materials |
+| Automated Vendor | Retail food, immediate recovery, medical, ammo | Cures and compact tools |
+| Specialist | Valuables, Essence/Core, Ooze/Gel, venom, organs, blood | Advanced processed materials, upgrades, rare ores |
+| Black Market | Weapons/ammo, throwables, biological/exotic valuables | Advanced medicine/chemicals and combat upgrades; Tier IV+ fallback |
 
 Primary Items receive the strongest stock relevance multiplier. Secondary Items receive less stock. Black Market fallback goods receive the lowest stock weight.
 
 An Item must pass **both** checks to appear:
 
-1. its family/category/tags must match the Shop Type;
+1. its family/category/tags/form must match the Shop Type;
 2. its Item Tier must be at or below the Shop Tier.
 
 ## Shop tiers
