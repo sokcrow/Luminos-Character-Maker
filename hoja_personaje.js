@@ -3727,6 +3727,7 @@ function initializeCharacterSheet() {
         tiendasFisicasDisponibles[tiendaFisicaActivaId]
       ) {
         if (tiendaFisicaModo === "sell") renderizarGridVentaFisica(tiendaFisicaActivaId);
+        else if (tiendaFisicaModo === "service") renderizarGridServiciosFisica(tiendaFisicaActivaId);
         else renderizarGridFisica(tiendaFisicaActivaId);
       }
       if (tiendaActivaData) renderizarComprar();
@@ -3764,9 +3765,11 @@ function initializeCharacterSheet() {
 
     const shopFooterBuyMode = document.getElementById("shop-footer-buy-mode");
     const shopFooterSellMode = document.getElementById("shop-footer-sell-mode");
+    const shopFooterServiceMode = document.getElementById("shop-footer-service-mode");
 
     function setPhysicalShopMode(mode) {
-      tiendaFisicaModo = mode === "sell" ? "sell" : "buy";
+      tiendaFisicaModo =
+        mode === "sell" ? "sell" : mode === "service" ? "service" : "buy";
       if (shopFooterBuyMode) {
         const active = tiendaFisicaModo === "buy";
         shopFooterBuyMode.classList.toggle("active", active);
@@ -3777,9 +3780,19 @@ function initializeCharacterSheet() {
         shopFooterSellMode.classList.toggle("active", active);
         shopFooterSellMode.setAttribute("aria-selected", active ? "true" : "false");
       }
+      if (shopFooterServiceMode) {
+        const active = tiendaFisicaModo === "service";
+        shopFooterServiceMode.classList.toggle("active", active);
+        shopFooterServiceMode.setAttribute("aria-selected", active ? "true" : "false");
+      }
       if (!tiendaFisicaActivaId) return;
-      if (tiendaFisicaModo === "sell") renderizarGridVentaFisica(tiendaFisicaActivaId);
-      else renderizarGridFisica(tiendaFisicaActivaId);
+      if (tiendaFisicaModo === "sell") {
+        renderizarGridVentaFisica(tiendaFisicaActivaId);
+      } else if (tiendaFisicaModo === "service") {
+        renderizarGridServiciosFisica(tiendaFisicaActivaId);
+      } else {
+        renderizarGridFisica(tiendaFisicaActivaId);
+      }
     }
 
     if (shopFooterBuyMode) {
@@ -3787,6 +3800,9 @@ function initializeCharacterSheet() {
     }
     if (shopFooterSellMode) {
       shopFooterSellMode.addEventListener("click", () => setPhysicalShopMode("sell"));
+    }
+    if (shopFooterServiceMode) {
+      shopFooterServiceMode.addEventListener("click", () => setPhysicalShopMode("service"));
     }
 
     db.ref("campaña/tiendas").on("value", (snapshot) => {
@@ -3860,6 +3876,7 @@ function initializeCharacterSheet() {
           ) {
             if (tiendasFisicasDisponibles[tiendaFisicaActivaId]) {
               if (tiendaFisicaModo === "sell") renderizarGridVentaFisica(tiendaFisicaActivaId);
+              else if (tiendaFisicaModo === "service") renderizarGridServiciosFisica(tiendaFisicaActivaId);
               else renderizarGridFisica(tiendaFisicaActivaId);
             } else {
               const storeKeys = Object.keys(tiendasFisicasDisponibles);
@@ -3902,7 +3919,10 @@ function initializeCharacterSheet() {
     function seleccionarTiendaFisica(id) {
       tiendaFisicaActivaId = id;
       renderizarSidebarFisica();
+      const shop = tiendasFisicasDisponibles[id];
+      renderShopMerchantPresence(shop || {}, id, "physical");
       if (tiendaFisicaModo === "sell") renderizarGridVentaFisica(id);
+      else if (tiendaFisicaModo === "service") renderizarGridServiciosFisica(id);
       else renderizarGridFisica(id);
     }
 
@@ -3949,11 +3969,26 @@ function initializeCharacterSheet() {
 
           for (const [itemId, item] of Object.entries(items)) {
             const itemTier = getShopTierNumber(item.tier);
-            const precio = getShopPrice(item, data);
+            const priceBreakdown = getShopPriceBreakdown(
+              item,
+              data,
+              currentPlayerData || {},
+              idTienda,
+            );
+            const precio = priceBreakdown.priceAhn;
             const availability = getShopRuntime()?.itemAvailability?.(item, data);
-            const sinPrecio = !(Number.isFinite(Number(precio)) && Number(precio) > 0);
+            const sinPrecio = priceBreakdown.priceResolved === false;
+            const gratis =
+              !sinPrecio &&
+              Number(precio) === 0 &&
+              priceBreakdown.loyaltyRewardApplied === true;
             const disponiblePorTier = availability?.available !== false && !sinPrecio;
             const isAgotado = item.stock_actual === 0 || !disponiblePorTier;
+            const benefitText = gratis
+              ? "Recompensa de lealtad"
+              : priceBreakdown.totalDiscountPercent > 0
+                ? "Beneficio comercial -" + Math.round(priceBreakdown.totalDiscountPercent) + "%"
+                : "";
             const stockStr = sinPrecio
               ? "Sin valor económico"
               : !disponiblePorTier
@@ -3982,6 +4017,7 @@ function initializeCharacterSheet() {
                         </div>
                         <div class="shop-item-description">${descStr}</div>
                         <div style="font-size: 11px; color: #555; margin-top: auto;">Stock en tienda: ${stockStr}</div>
+                        ${benefitText ? '<div style="font-size:11px;color:#d6b75c;margin-top:3px;">' + benefitText + '</div>' : ""}
                     </div>
                     <div class="shop-item-meta">
                         <div class="shop-item-possession">
@@ -3991,7 +4027,7 @@ function initializeCharacterSheet() {
                         <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 10px;">
                             <div class="shop-item-tier">${tierStr}</div>
                             <button class="shop-item-buy-btn btn-comprar-fisico" data-tienda="${idTienda}" data-item="${itemId}" data-precio="${precio ?? ""}" ${isAgotado ? "disabled" : ""}>
-                                ${sinPrecio ? "SIN PRECIO" : '<span class="currency-symbol">₳</span> ' + precio}
+                                ${sinPrecio ? "SIN PRECIO" : gratis ? "GRATIS" : '<span class="currency-symbol">₳</span> ' + precio}
                             </button>
                         </div>
                     </div>
@@ -4001,6 +4037,117 @@ function initializeCharacterSheet() {
           grid.appendChild(fragment);
         },
       );
+    }
+
+    async function renderizarGridServiciosFisica(idTienda) {
+      const grid = document.getElementById("shop-items-grid");
+      const title = document.getElementById("shop-active-name");
+      const data = tiendasFisicasDisponibles[idTienda];
+      const runtime = getShopRuntime();
+      const playerName = document
+        .querySelector('input[name="attr_character_name"]')
+        ?.value.trim();
+      const accountId = playerId || playerName;
+      if (!grid || !title || !data || !accountId) return;
+
+      renderShopMerchantPresence(data, idTienda, "physical");
+      title.innerText = shopDisplayName(data) + " · SERVICIOS";
+      grid.innerHTML = "";
+
+      if (!runtime?.serviceEnabled?.(data, "repair")) {
+        grid.innerHTML =
+          '<div style="color:#777;font-size:18px;padding:28px;grid-column:1/-1;text-align:center;">Este establecimiento no ofrece reparaciones.</div>';
+        return;
+      }
+
+      const playerSnap = await db.ref(`campaña/jugadores/${accountId}`).once("value");
+      const playerData = playerSnap.val() || {};
+      const context = buildShopCommerceContext(playerData, data, idTienda);
+      const entries = [
+        ...Object.entries(playerData.inventario_activo || {}).map(([key, item]) => ({
+          key,
+          item,
+          inventory: "inventario_activo",
+          inventoryLabel: "Inventario activo",
+        })),
+        ...Object.entries(playerData.inventario_stash || {}).map(([key, item]) => ({
+          key,
+          item,
+          inventory: "inventario_stash",
+          inventoryLabel: "Stash",
+        })),
+      ].filter(({ item }) => {
+        const durability = runtime.durabilityState?.(item);
+        return durability?.resolved && durability.missing > 0;
+      });
+
+      if (!entries.length) {
+        grid.innerHTML =
+          '<div style="color:#777;font-size:18px;padding:28px;grid-column:1/-1;text-align:center;">No tienes equipo dañado que necesite reparación.</div>';
+        return;
+      }
+
+      const fragment = document.createDocumentFragment();
+      for (const { key, item, inventory, inventoryLabel } of entries) {
+        const quote = runtime.repairBreakdown?.(item, data, { context });
+        const unavailable = !quote?.available;
+        const gratis = quote?.available && quote.loyaltyRewardApplied === true && Number(quote.priceAhn) === 0;
+        const priceText = unavailable
+          ? "NO DISPONIBLE"
+          : gratis
+            ? "GRATIS"
+            : '<span class="currency-symbol">₳</span> ' + Number(quote.priceAhn || 0).toLocaleString();
+        const materialText =
+          quote?.materialValuePerPointAhn != null
+            ? "Material/PD: ₳" + Number(quote.materialValuePerPointAhn).toLocaleString()
+            : "Material de reparación sin valor";
+        const reasonText =
+          quote?.reason === "material_unpriced"
+            ? "No se pudo determinar el costo del material de este objeto."
+            : quote?.reason === "durability_unresolved"
+              ? "Este objeto no expone Durabilidad reparable."
+              : "";
+
+        const card = document.createElement("div");
+        card.className = "shop-item-card";
+        card.innerHTML = `
+          <div class="shop-item-image-container">
+            <img src="${item.icono || item.icon || "https://via.placeholder.com/120"}" alt="${item.nombre || item.name || "Equipo"}">
+          </div>
+          <div class="shop-item-details">
+            <div class="shop-item-header">
+              <h4 class="shop-item-name">${item.nombre || item.name || "Equipo"}</h4>
+              <span class="shop-item-tag">${inventoryLabel}</span>
+            </div>
+            <div class="shop-item-description">
+              Durabilidad: ${quote?.currentDurability ?? "?"}/${quote?.maxDurability ?? "?"}
+              · Faltan ${quote?.missingDurability ?? "?"} PD
+            </div>
+            <div style="font-size:11px;color:#777;margin-top:4px;">${materialText}</div>
+            ${reasonText ? '<div style="font-size:11px;color:#b56b6b;margin-top:4px;">' + reasonText + '</div>' : ""}
+          </div>
+          <div class="shop-item-meta">
+            <div class="shop-item-possession">
+              <span class="shop-item-possession-label">REPARAR</span>
+              <span class="shop-item-possession-value">${quote?.missingDurability ?? 0} PD</span>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;">
+              <div style="color:${gratis ? "#d6b75c" : "#0df"};font-weight:bold;">${priceText}</div>
+              <button
+                class="shop-item-buy-btn btn-reparar-fisico"
+                data-tienda="${idTienda}"
+                data-inventory="${inventory}"
+                data-key="${key}"
+                ${unavailable ? "disabled" : ""}
+              >
+                ${gratis ? "CANJEAR REPARACIÓN" : "REPARAR COMPLETO"}
+              </button>
+            </div>
+          </div>
+        `;
+        fragment.appendChild(card);
+      }
+      grid.appendChild(fragment);
     }
 
     function renderizarGridVentaFisica(idTienda) {
