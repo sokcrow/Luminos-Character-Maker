@@ -150,6 +150,34 @@ assert.equal(fullHpUse.reason, "hp_already_full");
 assert.equal(fullHpItem.quantity, 1);
 
 const playerSource = fs.readFileSync(path.resolve("hoja_personaje.js"), "utf8");
+const playerCss = fs.readFileSync(path.resolve("hoja_personaje.css"), "utf8");
+const playerHtml = fs.readFileSync(path.resolve("hoja_personaje.html"), "utf8");
+
+assert.match(
+  playerCss,
+  /\.shop-modal-content\s*\{[\s\S]*?width:\s*70%;[\s\S]*?max-width:\s*840px;[\s\S]*?height:\s*60vh;/,
+  "desktop physical Shop HUD must remain about 30% smaller than the previous 95% / 1200px / 85vh shell",
+);
+assert.match(
+  playerSource,
+  /physicalShopBalance[\s\S]*?campaña\/jugadores\/\$\{playerId\}[\s\S]*?canonicalPlayerBalance/,
+  "physical Shop footer must bind to the canonical Player record instead of a local/debug number",
+);
+assert.match(
+  playerSource,
+  /finance\?\.currentBalance !== undefined[\s\S]*?Number\(playerData\.finance\.currentBalance\)[\s\S]*?Number\(playerData\.ahn\)/,
+  "Shop balance resolution must prefer finance.currentBalance with legacy ahn fallback",
+);
+assert.match(
+  playerSource,
+  /campaña\/jugadores\/\$\{accountId\}\/ahn[\s\S]*?campaña\/jugadores\/\$\{accountId\}\/finance\/currentBalance/,
+  "physical purchases must synchronize legacy ahn and finance.currentBalance",
+);
+assert.ok(
+  playerHtml.includes("hoja_personaje.css?v=20261004-shop-compact-1") &&
+  playerHtml.includes("hoja_personaje.js?v=20261004-shop-balance-1"),
+  "Shop HUD/balance changes must be cache-busted in the deployed player sheet",
+);
 assert.match(
   playerSource,
   /next\.inventario_stash\[itemKey\]\s*=\s*\{[\s\S]*?quantity:\s*quantity - 1,[\s\S]*?cantidad:\s*quantity - 1,/,
