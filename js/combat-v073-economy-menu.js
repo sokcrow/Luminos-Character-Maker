@@ -547,7 +547,7 @@
         max-width:30px!important;max-height:30px!important;
       }
       #game-container.combat-compact-menu.combat-category-active .command-ring{
-        pointer-events:none!important;
+        pointer-events:none!important;opacity:0!important;visibility:hidden!important;
       }
       #game-container.combat-compact-menu.combat-category-active .category-surface{
         position:absolute!important;left:auto!important;right:8px!important;top:54px!important;bottom:8px!important;
@@ -769,6 +769,46 @@
     }, Math.max(0, Number(delay) || 0));
   }
 
+  function openCompactMenu(menu) {
+    const host = global.document?.getElementById?.("game-container");
+    if (!host?.classList?.contains?.("combat-compact-menu") || !TABBED_MENUS.has(menu)) return false;
+    global.__luminousEconomyCompactMenu = menu;
+    try {
+      global.eval("activeMenu=window.__luminousEconomyCompactMenu;navState='category';selected=null;focusedIndex=0");
+    } catch (_) { return false; }
+
+    const meta = lexical("menuMeta", {})?.[menu] || {};
+    const surface = global.document?.getElementById?.("category-surface");
+    const back = global.document?.getElementById?.("back");
+    const title = global.document?.getElementById?.("category-title");
+    const subtitle = global.document?.getElementById?.("category-subtitle");
+    if (surface) {
+      surface.style.visibility = "";
+      surface.style.opacity = "";
+      surface.classList.remove("left-side", "right-side");
+      if (meta.side) surface.classList.add(meta.side === "left" ? "left-side" : "right-side");
+      surface.classList.add("open");
+      if (meta.accent) surface.style.setProperty("--accent", meta.accent);
+    }
+    if (back) {
+      back.style.visibility = "";
+      back.style.opacity = "1";
+      back.classList.add("open");
+      if (meta.accent) back.style.setProperty("--accent", meta.accent);
+    }
+    if (title) title.textContent = meta.title || String(menu).toUpperCase();
+    if (subtitle) subtitle.textContent = meta.subtitle || "";
+
+    renderActiveMenuBody(menu);
+    syncTabs();
+    updateCategoryContext();
+    syncSpellMenuVisibility();
+    syncQuickBadge();
+    syncResponsiveMenuLayout();
+    lexical("setStatus", () => {})(`${String(meta.title || menu).toUpperCase()} · PLAYER MENU`);
+    return true;
+  }
+
   function installRootMenuClickHandler() {
     if (state.rootMenuClickInstalled || !global.document?.addEventListener) return state.rootMenuClickInstalled;
     global.document.addEventListener("click", (event) => {
@@ -776,11 +816,20 @@
       if (!button) return;
       const menu = normalizeId(button.dataset?.menu);
       if (!TABBED_MENUS.has(menu)) return;
-      // Let the packed legacy category transition finish before replacing its
-      // body. Replacing nodes while its geometry animation is still running can
-      // leave stale content or make legacy layout callbacks dereference removed nodes.
+
+      const host = global.document?.getElementById?.("game-container");
+      if (host?.classList?.contains?.("combat-compact-menu")) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        state.menuRefreshGeneration += 1;
+        openCompactMenu(menu);
+        return;
+      }
+
+      // Large-layout viewers keep the original radial transition. Refresh live
+      // data once that transition has fully settled.
       refreshOpenedMenu(menu, 560);
-    }, false);
+    }, true);
     state.rootMenuClickInstalled = true;
     return true;
   }
@@ -1204,7 +1253,7 @@
     state.installed = true; return true;
   }
 
-  const api = { version: VERSION, ECONOMY, state, normalizeEconomyCost, economyTabFor, costLabel, canonicalPlayerId, playerUnit, playerKit, traitDefinitionsForPlayer, liveActions, spellLoadoutRuntime, normalizeSpellForMenu, classEntries, spellcastingClasses, isSpellcaster, selectedSpellIds, spellRowsForPlayer, inventoryEntries, quantityOf, itemTiming, itemCanUseInCombat, stableItemRow, itemRowsForPlayer, findActiveInventoryItem, spellMenuNodes, syncSpellMenuVisibility, syncResponsiveMenuLayout, renderActiveMenuBody, refreshOpenedMenu, installRootMenuClickHandler, selfTargetedItem, planTargetRuleCompat, persistQuickItemState, rowsFor, renderSkills, renderSpells, renderItems, renderCleanList, renderCategory, selectAction, setTab, syncTabs, syncQuickBadge, syncPlanningEconomy, beginCombatEconomy, prepareReaction, triggerPreparedReaction, useQuickAction, install };
+  const api = { version: VERSION, ECONOMY, state, normalizeEconomyCost, economyTabFor, costLabel, canonicalPlayerId, playerUnit, playerKit, traitDefinitionsForPlayer, liveActions, spellLoadoutRuntime, normalizeSpellForMenu, classEntries, spellcastingClasses, isSpellcaster, selectedSpellIds, spellRowsForPlayer, inventoryEntries, quantityOf, itemTiming, itemCanUseInCombat, stableItemRow, itemRowsForPlayer, findActiveInventoryItem, spellMenuNodes, syncSpellMenuVisibility, syncResponsiveMenuLayout, renderActiveMenuBody, refreshOpenedMenu, openCompactMenu, installRootMenuClickHandler, selfTargetedItem, planTargetRuleCompat, persistQuickItemState, rowsFor, renderSkills, renderSpells, renderItems, renderCleanList, renderCategory, selectAction, setTab, syncTabs, syncQuickBadge, syncPlanningEconomy, beginCombatEconomy, prepareReaction, triggerPreparedReaction, useQuickAction, install };
 
   async function boot() { await ensureDependencies(); return install(); }
   api.boot = boot; api.ensureDependencies = ensureDependencies;
