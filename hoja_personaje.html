@@ -11830,10 +11830,24 @@
           </div>
           <div class="shop-main-panel">
             <div class="shop-header">
-              <h2 id="shop-active-name">Selecciona una tienda</h2>
+              <div style="min-width:0;display:flex;align-items:center;gap:12px;">
+                <div id="shop-merchant-presence" style="display:none;align-items:center;gap:10px;min-width:0;">
+                  <img
+                    id="shop-merchant-sprite"
+                    alt="Encargado"
+                    style="display:none;width:46px;height:46px;object-fit:cover;border:1px solid #66512d;background:#090807;"
+                  />
+                  <div style="min-width:0;">
+                    <div id="shop-merchant-name" style="color:#e8dfcf;font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+                    <div id="shop-loyalty-status" style="color:#b9995f;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+                  </div>
+                </div>
+                <h2 id="shop-active-name">Selecciona una tienda</h2>
+              </div>
               <div class="shop-mode-tabs" role="tablist" aria-label="Modo de tienda">
                 <button id="shop-footer-buy-mode" class="shop-mode-tab active" type="button" role="tab" aria-selected="true">COMPRAR</button>
                 <button id="shop-footer-sell-mode" class="shop-mode-tab" type="button" role="tab" aria-selected="false">VENDER</button>
+                <button id="shop-footer-service-mode" class="shop-mode-tab" type="button" role="tab" aria-selected="false">SERVICIOS</button>
               </div>
             </div>
             <div id="shop-items-grid" class="shop-items-grid">
@@ -13137,6 +13151,7 @@
         <nav class="top-nav">
             <button class="btn-lcm btn-dropdown" onclick="window.abrirTiendaDinamica?.(window.__luminousActiveTheaterShopId)">COMPRAR</button>
             <button class="btn-lcm btn-dropdown" onclick="window.abrirVentaTiendaDinamica?.(window.__luminousActiveTheaterShopId)">VENDER</button>
+            <button class="btn-lcm btn-dropdown" onclick="window.abrirServiciosTiendaDinamica?.(window.__luminousActiveTheaterShopId)">SERVICIOS</button>
             <button class="btn-lcm btn-dropdown" onclick="document.getElementById('tienda-overlay').style.display='none'">Cerrar [X]</button>
         </nav>
         <main class="items-panel">
@@ -13144,6 +13159,17 @@
                 </div>
         </main>
         <aside class="info-panel-overlay">
+            <div id="theater-shop-merchant" style="display:none;align-items:center;gap:10px;padding:10px 0 14px;border-bottom:1px solid #4b3926;margin-bottom:14px;">
+                <img
+                    id="theater-shop-merchant-sprite"
+                    alt="Encargado"
+                    style="display:none;width:58px;height:58px;object-fit:cover;border:2px solid var(--brillo-tenue);background:#080706;"
+                />
+                <div style="min-width:0;">
+                    <div id="theater-shop-merchant-name" style="font-family:var(--fuente-tocha);color:#fff;font-size:1rem;"></div>
+                    <div id="theater-shop-loyalty" style="color:var(--brillo-ambar);font-size:0.78rem;margin-top:4px;"></div>
+                </div>
+            </div>
             <div class="qty-header">
                 <div class="qty-title">STOCK DISPONIBLE</div>
                 <div class="qty-num" id="panel-item-qty">--</div>
