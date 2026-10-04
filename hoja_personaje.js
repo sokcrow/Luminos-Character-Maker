@@ -3356,10 +3356,25 @@ function initializeCharacterSheet() {
     const legacy = Math.max(0, parseInt(item?.costo, 10) || 0);
     return legacy > 0 ? legacy : null;
   };
+  const legacySellUnitBase = (item = {}) => {
+    const unit = Number(
+      item.unitValueAhn ??
+      item.standardUnitValueAhn ??
+      item.mediumStandardValueAhn ??
+      item.standardMediumValueAhn,
+    );
+    if (Number.isFinite(unit) && unit > 0) return unit;
+
+    const total = Number(item.totalValueAhn);
+    const quantity = Math.max(1, parseInt(item.quantity ?? item.cantidad ?? 1, 10) || 1);
+    if (Number.isFinite(total) && total > 0) return total / quantity;
+
+    return Number(item.valorBase ?? item.productionValueAhn ?? item.costo) || 0;
+  };
   const getShopSellPrice = (item, shop) => {
     const runtime = getShopRuntime();
     if (runtime?.sellPrice) return runtime.sellPrice(item, shop);
-    const base = Number(item?.valorBase ?? item?.productionValueAhn ?? item?.costo) || 0;
+    const base = legacySellUnitBase(item);
     return base > 0 ? Math.max(0, Math.round(base * 0.8)) : null;
   };
   const getShopTierNumber = (value) =>
@@ -5003,21 +5018,33 @@ function sellShopItemFromStash(playerKey, itemKey, shopData = {}, shopId = "") {
           Math.max(0, parseInt(item.quantity ?? item.cantidad ?? 1, 10) || 0);
         if (quantity <= 0) return;
 
-        if (window.LuminousShopRuntime?.sellPrice) {
-          soldPrice = window.LuminousShopRuntime.sellPrice(item, shopData);
+        const sellBreakdown = window.LuminousShopRuntime?.sellBreakdown
+          ? window.LuminousShopRuntime.sellBreakdown(item, shopData)
+          : null;
+        if (sellBreakdown?.priceResolved) {
+          soldPrice = sellBreakdown.priceAhn;
         } else {
-          const legacyBase = Number(item.valorBase ?? item.productionValueAhn ?? item.costo) || 0;
+          const legacyBase = legacySellUnitBase(item);
           soldPrice = legacyBase > 0 ? Math.max(0, Math.round(legacyBase * 0.8)) : null;
         }
         if (!(Number.isFinite(Number(soldPrice)) && Number(soldPrice) > 0)) return;
         soldName = item.nombre || item.name || "Objeto";
 
         if (quantity > 1) {
-          next.inventario_stash[itemKey] = {
+          const remainingQuantity = quantity - 1;
+          const remainingItem = {
             ...item,
-            quantity: quantity - 1,
-            cantidad: quantity - 1,
+            quantity: remainingQuantity,
+            cantidad: remainingQuantity,
           };
+          if (
+            Number(item.totalValueAhn) > 0 &&
+            Number(sellBreakdown?.baseValueAhn) > 0
+          ) {
+            remainingItem.totalValueAhn =
+              Number(sellBreakdown.baseValueAhn) * remainingQuantity;
+          }
+          next.inventario_stash[itemKey] = remainingItem;
         } else {
           delete next.inventario_stash[itemKey];
         }
