@@ -97,6 +97,10 @@
     const id = assertLocalId(input.id);
     const key = canonicalId(type, id);
     const source = String(input.sourceKey || options.source || input.source?.id || input.source?.type || "core");
+    const rawDefinition = clone(input.definition ?? input);
+    const describedDefinition = type === "item" && global.LuminousItemDescriptionEngine?.enrich
+      ? global.LuminousItemDescriptionEngine.enrich(rawDefinition)
+      : rawDefinition;
     const normalized = Object.freeze({
       canonicalId: key,
       type,
@@ -104,7 +108,7 @@
       name: input.name ?? input.nombre ?? null,
       labelKey: input.labelKey ?? input.localizationKey ?? null,
       source,
-      definition: clone(input.definition ?? input),
+      definition: describedDefinition,
     });
 
     const existing = entries.get(key);
