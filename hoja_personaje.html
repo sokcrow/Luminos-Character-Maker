@@ -10,10 +10,13 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
 
 
-    <link rel="stylesheet" href="hoja_personaje.css" />
+    <link rel="stylesheet" href="hoja_personaje.css?v=20261004-theatre-bank-hotfix-1" />
     <link rel="stylesheet" href="css/theatre-dialogue.css" />
-    <link rel="stylesheet" href="css/theatre-hud.css" />
+    <link rel="stylesheet" href="css/theatre-hud.css?v=20261004-player-spacing-1" />
     <link rel="stylesheet" href="css/inventory-hud-v2.css" />
+    <link rel="stylesheet" href="css/economy-contracts.css" />
+    <link id="player-progression-tree-stylesheet" rel="stylesheet" href="css/player-progression-tree.css" />
+    <link id="player-skills-hud-stylesheet" rel="stylesheet" href="css/player-skills-hud.css" />
 
     <style>
       #system-loading-overlay {
@@ -410,7 +413,7 @@
                 class="sheet-app-btn"
               >
                 <div class="sheet-app-icon">📋</div>
-                <span>Contratos</span>
+                <span>Misiones</span>
               </button>
               <button type="action" name="act_tab_codex" class="sheet-app-btn">
                 <div class="sheet-app-icon">📚</div>
@@ -489,9 +492,12 @@
                   </div>
               </div>
               <div id="chat-active-area" style="width: 70%; display: flex; flex-direction: column; background: #000; position: relative;">
-                  <div id="chat-header" style="padding: 10px; border-bottom: 1px solid #333; background: #111; color: #fff; display: flex; justify-content: space-between; align-items: center;">
-                      <span id="chat-header-name">Selecciona un Chat</span>
-                      <button id="btn-save-contact" style="display: none; background: #222; color: #0df; border: 1px solid #0df; padding: 5px; font-family: inherit; cursor: pointer; border-radius: 3px; font-size: 0.8em;">[Guardar Contacto]</button>
+                  <div id="chat-header" style="padding: 10px; border-bottom: 1px solid #333; background: #111; color: #fff; display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                      <span id="chat-header-name" style="flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Selecciona un Chat</span>
+                      <div style="display:flex; align-items:center; gap:6px;">
+                        <button id="btn-manage-group" style="display: none; background: #222; color: #c49a00; border: 1px solid #c49a00; padding: 5px; font-family: inherit; cursor: pointer; border-radius: 3px; font-size: 0.8em;">[MIEMBROS]</button>
+                        <button id="btn-save-contact" style="display: none; background: #222; color: #0df; border: 1px solid #0df; padding: 5px; font-family: inherit; cursor: pointer; border-radius: 3px; font-size: 0.8em;">[Guardar Contacto]</button>
+                      </div>
                   </div>
                   <div id="chat-messages" style="flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 10px;">
                       <!-- Mensajes -->
@@ -578,7 +584,7 @@
               </div>
 
 
-              <div style="margin-bottom: 15px; text-align: center;">
+              <div class="sheet-banco-transfer-actions" style="margin-bottom: 15px; text-align: center;">
                 <button type="button" id="btn-open-transfer" style="background-color: var(--cyan-tech); color: #000; font-family: 'Share Tech Mono', monospace; font-size: 1.2em; font-weight: bold; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; text-transform: uppercase;">
                     Transferir Ahn
                 </button>
@@ -590,7 +596,8 @@
                     <h3 style="color: var(--cyan-tech); margin-top: 0;">NUEVA TRANSFERENCIA</h3>
 
                     <label style="color: #fff; font-size: 0.8em; margin-bottom: 5px; display: block;">CONTACTO O NÚMERO:</label>
-                    <input type="text" id="transfer-contact-input" placeholder="Ej. 555-0192" style="width: 100%; padding: 8px; background: #000; color: #0df; border: 1px solid #444; border-radius: 4px; margin-bottom: 15px; box-sizing: border-box; font-family: 'Share Tech Mono', monospace;">
+                    <input type="text" id="transfer-contact-input" placeholder="Ej. 555-0192" list="transfer-contact-options" autocomplete="off" style="width: 100%; padding: 8px; background: #000; color: #0df; border: 1px solid #444; border-radius: 4px; margin-bottom: 15px; box-sizing: border-box; font-family: 'Share Tech Mono', monospace;">
+                    <datalist id="transfer-contact-options"></datalist>
 
                     <label style="color: #fff; font-size: 0.8em; margin-bottom: 5px; display: block;">MONTO (Ahn):</label>
                     <input type="number" id="transfer-amount-input" min="1" placeholder="0" style="width: 100%; padding: 8px; background: #000; color: #0df; border: 1px solid #444; border-radius: 4px; margin-bottom: 15px; box-sizing: border-box; font-family: 'Share Tech Mono', monospace;">
@@ -5723,13 +5730,16 @@
             </div>
           </div>
 
-          <!-- Contratos Tab -->
+          <!-- Contratos / Misiones Tab -->
           <div class="sheet-tab-content sheet-tab-contratos">
-            <div class="sheet-app-header"><h2>Contratos</h2></div>
+            <div class="sheet-app-header"><h2>Misiones activas</h2></div>
             <div class="sheet-app-body">
-              <p style="color: #aaa; text-align: center; margin-top: 20px">
-                [Sistema de Contratos en desarrollo...]
-              </p>
+              <div class="economy-v2-meta" style="padding: 10px 12px 0;">
+                Aquí aparecen únicamente los contratos asignados a tu personaje. Puedes salir de tu propia participación; el resto del equipo conserva la suya.
+              </div>
+              <div id="player-contracts-list" class="player-contract-list">
+                <div class="economy-v2-empty">Cargando misiones...</div>
+              </div>
             </div>
           </div>
 
@@ -7273,22 +7283,17 @@
             <span>Atributos</span>
           </button>
 
-          <!-- Perks -->
-          <button type="action" name="act_hud_perks" class="hud-menu-item" title="Ventajas" aria-label="Abrir ventajas">
+          <!-- Progression -->
+          <button type="action" name="act_hud_perks" class="hud-menu-item" title="Progresión" aria-label="Abrir progresión de clase">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square">
               <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
             </svg>
-            <span>Ventajas</span>
+            <span>Progresión</span>
           </button>
 
-          <!-- Skills -->
+          <!-- Skills / Spells -->
           <button type="action" name="act_hud_skills" class="hud-menu-item" title="Habilidades" aria-label="Abrir habilidades">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square">
-              <path d="M14.5 17.5L3 6V3h3l11.5 11.5"></path>
-              <path d="M13 19l6-6"></path>
-              <path d="M16 16l4 4"></path>
-              <path d="M19 21l2-2"></path>
-            </svg>
+            <img data-player-skills-menu-icon src="Assets/Images/Buttons/Skills.png" width="20" height="20" alt="" aria-hidden="true" class="hud-menu-local-icon" style="width:20px;height:20px;object-fit:contain;">
             <span>Habilidades</span>
           </button>
 
@@ -7311,7 +7316,7 @@
 
           <!-- Inventory -->
           <button type="action" name="act_tab_inventory" id="btn-global-inventory" class="hud-menu-item btn-global-inventory" title="Inventario" aria-label="Abrir inventario">
-            <img src="Assets/Images/Buttons/Inventory.svg" width="20" height="20" alt="" aria-hidden="true" class="hud-menu-local-icon" style="width:20px;height:20px;object-fit:contain;">
+            <img src="Assets/Images/Buttons/Inventory.png" width="20" height="20" alt="" aria-hidden="true" class="hud-menu-local-icon" style="width:20px;height:20px;object-fit:contain;">
             <span>Inventario</span>
             <img id="tienda-fisica-badge" src="" alt="" style="display: none" />
           </button>
@@ -8521,218 +8526,30 @@
         </div>
       </div>
 
-      <div id="perks-modal" class="hud-modal modal-perks">
+      <div id="perks-modal" class="hud-modal modal-perks modal-progression">
         <div class="hud-modal-content">
           <button type="action" name="act_hud_close" class="hud-modal-close">
             ×
           </button>
           <div class="hud-modal-body">
-            <div class="hud-tab-content">
-              <input
-                type="hidden"
-                name="attr_show_perk_creator"
-                class="sheet-state-perk-creator"
-                value="0"
-              />
-
-              <div
-                style="
-                  display: flex;
-                  justify-content: space-between;
-                  align-items: center;
-                  border-bottom: 1px solid #333;
-                  margin-bottom: 15px;
-                  padding-bottom: 5px;
-                "
-              >
-                <h3
-                  class="sheet-config-title"
-                  style="margin: 0; border: none; padding: 0"
-                >
-                  CREATE PERK
-                </h3>
-                <button
-                  type="action"
-                  name="act_toggle_perk_creator"
-                  class="sheet-btn-rest"
-                  style="width: auto; padding: 0 10px; font-size: 0.8em"
-                >
-                  TOGGLE CREATOR
-                </button>
-              </div>
-
-              <div class="sheet-perk-creator-container">
-                <div
-                  class="sheet-row"
-                  style="
-                    background: #111;
-                    padding: 10px;
-                    border-radius: 5px;
-                    border: 1px solid #333;
-                  "
-                >
-                  <div class="sheet-col">
-                    <label>Name</label>
-                    <input
-                      type="text"
-                      name="attr_new_perk_name"
-                      placeholder="Perk Name"
-                    />
-                  </div>
-                  <div class="sheet-col" style="flex: 0 0 auto">
-                    <label>&nbsp;</label>
-                    <button
-                      type="action"
-                      name="act_add_perk"
-                      class="sheet-btn-rest"
-                      style="width: auto; padding: 0 10px"
-                    >
-                      ADD
-                    </button>
-                  </div>
-                  <div class="sheet-col" style="flex-basis: 100%">
-                    <label>Description</label>
-                    <textarea
-                      name="attr_new_perk_desc"
-                      style="height: 40px"
-                    ></textarea>
-                  </div>
+            <section class="player-progression-shell" aria-label="Progresión de clase">
+              <header class="player-progression-heading">
+                <div>
+                  <span>CHARACTER BUILD</span>
+                  <h2>PROGRESIÓN</h2>
                 </div>
-              </div>
+                <p>
+                  Recorre la clase con la rueda del mouse. Los arquetipos se separan en ramas;
+                  pasa el cursor sobre un nodo para inspeccionar sus Traits, Skills, Spells y
+                  fórmulas exactamente en el nivel donde se obtienen.
+                </p>
+              </header>
 
-              <h3 class="sheet-config-title" style="margin-top: 20px">
-                PERKS LIST
-              </h3>
-              <fieldset class="repeating_skills">
-                <div class="sheet-perk-row">
-                  <input
-                    type="checkbox"
-                    name="attr_edit_mode"
-                    class="sheet-state-edit-mode sheet-hide"
-                    value="1"
-                  />
+              <div id="player-progression-level-allocation-host" aria-live="polite"></div>
+              <div id="player-progression-tree-host" aria-live="polite"></div>
+              <aside id="player-progression-detail" aria-live="polite"></aside>
 
-                  <!-- View Mode -->
-                  <div class="sheet-perk-view">
-                    <div>
-                      <div
-                        style="
-                          text-align: right;
-                          margin-bottom: 5px;
-                          display: flex;
-                          justify-content: flex-end;
-                          gap: 5px;
-                          flex-wrap: wrap;
-                        "
-                      >
-                        <input
-                          type="hidden"
-                          name="attr_tag_1"
-                          class="sheet-tag-hide"
-                          value=""
-                        /><span
-                          name="attr_tag_1"
-                          class="sheet-skill-badge"
-                        ></span>
-                        <input
-                          type="hidden"
-                          name="attr_tag_2"
-                          class="sheet-tag-hide"
-                          value=""
-                        /><span
-                          name="attr_tag_2"
-                          class="sheet-skill-badge"
-                        ></span>
-                        <input
-                          type="hidden"
-                          name="attr_tag_3"
-                          class="sheet-tag-hide"
-                          value=""
-                        /><span
-                          name="attr_tag_3"
-                          class="sheet-skill-badge"
-                        ></span>
-                        <input
-                          type="hidden"
-                          name="attr_tag_4"
-                          class="sheet-tag-hide"
-                          value=""
-                        /><span
-                          name="attr_tag_4"
-                          class="sheet-skill-badge"
-                        ></span>
-                      </div>
-                      <div class="sheet-perk-header">
-                        <button
-                          type="roll"
-                          name="roll_perk"
-                          class="sheet-view-name-btn"
-                        >
-                          <span name="attr_skill_name"></span>
-                        </button>
-                        <button
-                          type="action"
-                          name="act_toggle_edit"
-                          class="sheet-btn-edit"
-                          title="Edit Perk"
-                        >
-                          <img
-                            src="https://i.imgur.com/c5hKFeC.png"
-                            class="sheet-icon-edit"
-                          />
-                        </button>
-                      </div>
-                      <span
-                        name="attr_skill_description"
-                        class="sheet-view-desc"
-                      ></span>
-                    </div>
-                  </div>
-
-                  <!-- Edit Mode -->
-                  <div class="sheet-perk-edit">
-                    <div class="sheet-perk-header">
-                      <input
-                        type="text"
-                        name="attr_skill_name"
-                        placeholder="Perk Name"
-                        class="sheet-inv-name"
-                      />
-                      <button
-                        type="action"
-                        name="act_toggle_edit"
-                        class="sheet-btn-save"
-                        title="Save Perk"
-                      >
-                        <img
-                          src="https://i.imgur.com/e4T3Egr.png"
-                          class="sheet-icon-save"
-                        />
-                      </button>
-                    </div>
-                    <div class="sheet-col" style="flex: 1; margin-top: 5px">
-                      <label style="color: #ffd700"
-                        >Etiquetas (Ej: Espada, Fuego)</label
-                      >
-                      <input
-                        type="text"
-                        name="attr_tags"
-                        style="
-                          width: 100%;
-                          background: #111;
-                          color: #fff;
-                          border: 1px solid #444;
-                        "
-                      />
-                    </div>
-                    <textarea
-                      name="attr_skill_description"
-                      placeholder="Description"
-                    ></textarea>
-                  </div>
-                </div>
-              </fieldset>
-            </div>
+            </section>
           </div>
         </div>
       </div>
@@ -12096,6 +11913,15 @@
                       </div>
                   </div>
 
+                  <div style="display:grid; grid-template-columns:auto minmax(0,1fr); gap:8px; align-items:center; margin:10px 0; padding:8px; border:1px solid #3b3322; background:#0b0a07;">
+                      <label for="forja-recipe-select" style="color:#c49a00; font-size:12px; white-space:nowrap;">RECIPE:</label>
+                      <select id="forja-recipe-select" style="min-width:0; background:#111; color:#fff; border:1px solid #555; padding:6px;">
+                          <option value="">Coloca ingredientes para detectar Recipes...</option>
+                      </select>
+                      <span id="forja-station-context" style="grid-column:1 / -1; font-size:11px; color:#888;">Station autorizada: ninguna</span>
+                      <span id="forja-tool-requirement" style="grid-column:1 / -1; font-size:11px; color:#aaa;"></span>
+                  </div>
+
                   <!-- Barra Inferior de Predicción y Probabilidad -->
                   <div class="synthesis-bottom-bar">
                       <button class="btn-forecast">PREDICCIÓN</button>
@@ -12377,8 +12203,8 @@
       // Inicializar Firebase
       firebase.initializeApp(firebaseConfig);
     </script>
-    <script src="js/instance-control.js"></script>
-    <script src="js/theatre-engine.js"></script>
+    <script src="js/instance-control.js?v=20261004-theatre-recovery-1"></script>
+    <script src="js/theatre-engine.js?v=20261004-theatre-send-recovery-2"></script>
     <script src="js/theatre-player-notification-runtime.js"></script>
     <script>
       const db = firebase.database();
@@ -13399,20 +13225,52 @@
     <script src="js/universal-modifier-engine.js"></script>
     <script src="js/item-runtime-engine.js"></script>
     <script src="js/item-icon-registry.js"></script>
+    <script src="js/content-registry.js"></script>
+    <script src="js/item-catalog-hp-healing.js"></script>
+    <script src="js/item-catalog-hybrid-healing.js"></script>
+    <script src="js/item-catalog-sp-healing.js"></script>
+    <script src="js/item-catalog-status-cure.js"></script>
+    <script src="js/item-catalog-medical-supply.js"></script>
+    <script src="js/player-item-content-bootstrap.js"></script>
     <script src="js/item-inventory-runtime.js"></script>
+    <script src="js/shop-item-purchase-runtime.js"></script>
     <script src="js/item-equipment-bridge.js"></script>
     <script src="js/item-persistence-runtime.js"></script>
     <script src="js/item-realtime-sync.js"></script>
     <script src="js/item-economy-standard.js"></script>
     <script src="js/item-cooking-engine.js"></script>
+    <script src="js/item-catalog-tools.js"></script>
+    <script src="js/item-quality-engine.js"></script>
+    <script src="js/item-catalog-chemical-processed.js"></script>
+    <script src="js/item-chemistry-recipe-catalog.js"></script>
+    <script src="js/item-chemistry-crafting-engine.js"></script>
     <script src="js/item-cooking-recipe-catalog.js"></script>
+    <script src="js/item-catalog-medicinal-processed.js"></script>
+    <script src="js/item-medicine-recipe-catalog.js"></script>
+    <script src="js/item-medicine-crafting-engine.js"></script>
+    <script src="js/item-processing-recipe-data.js"></script>
+    <script src="js/item-processing-engine.js"></script>
+    <script src="js/item-throwable-recipe-catalog.js"></script>
     <script src="js/item-cooking-recipe-resolver.js"></script>
     <script src="js/item-cooking-equipment-engine.js"></script>
+    <script src="js/item-cooking-v2-engine.js"></script>
     <script src="js/item-cooking-runtime.js"></script>
+    <script src="js/item-content-registry.js"></script>
     <script src="js/item-food-rest-runtime.js"></script>
     <script src="js/inventory-hud-v2.js"></script>
     <script src="js/item-food-rest-ui.js"></script>
     <script src="js/item-cooking-ui.js"></script>
-    <script src="hoja_personaje.js"></script>
+    <script src="js/character-build-rules.js"></script>
+    <script src="js/combat-skill-schema.js"></script>
+    <script src="js/skill-catalog-player-signature.js"></script>
+    <script src="js/combat-skill-loadout-074.js"></script>
+    <script src="js/spellcasting-runtime.js"></script>
+    <script src="js/player-progression-tree-core.js"></script>
+    <script src="js/player-progression-tree.js"></script>
+    <script src="js/player-progression-level-allocation.js"></script>
+    <script src="js/player-skills-hud.js"></script>
+    <script src="js/economy-contracts-core.js"></script>
+    <script src="js/player-contracts-runtime.js"></script>
+    <script src="js/player-vitals-hud.js"></script>\n    <script src="hoja_personaje.js?v=20261004-phone-groups-1"></script>
   </body>
 </html>
