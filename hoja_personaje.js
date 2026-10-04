@@ -1523,25 +1523,81 @@ function initializeCharacterSheet() {
     const inputEl = document.getElementById("input-teatro-modal");
     const DEFAULT_TITLE_COLOR = "#3b2918";
 
-    const sendTheatreMessage = () => {
+    function normalizeAssignedTheatreActorIds(value) {
+      const canonical = window.LuminousTheatreState?.normalizeAssignedActorIds;
+      if (typeof canonical === "function") return canonical(value);
+      const out = [];
+      const visit = (candidate) => {
+        if (candidate === undefined || candidate === null || candidate === false) return;
+        if (Array.isArray(candidate)) return candidate.forEach(visit);
+        if (typeof candidate === "object") {
+          if (candidate.actorId !== undefined) visit(candidate.actorId);
+          if (candidate.id !== undefined) visit(candidate.id);
+          Object.entries(candidate).forEach(([key, entry]) => {
+            if (key === "actorId" || key === "id") return;
+            if (entry === true || entry === 1) visit(key);
+            else visit(entry);
+          });
+          return;
+        }
+        const id = String(candidate).trim();
+        if (id && id !== "true" && id !== "false" && !out.includes(id)) out.push(id);
+      };
+      visit(value);
+      return out;
+    }
+
+    async function resolveTheatreActorForSend() {
+      const selectedId = document.getElementById("player-actor-select")?.value || "";
+      const assignedSource =
+        window.datosJugador?.actorId ??
+        window.datosJugador?.vinculo_jugador ??
+        null;
+      const assignedIds = normalizeAssignedTheatreActorIds(assignedSource);
+      const preferredId = selectedId || assignedIds[0] || "";
+
+      const resolved = window.getAssignedTheatreActor?.();
+      if (resolved) return resolved;
+      if (!preferredId) return null;
+
+      const cached =
+        window.actoresJugador?.[preferredId] ||
+        window.allActoresCache?.[preferredId];
+      if (cached) return { actorId: preferredId, ...cached };
+
+      // The send path must not depend on the Theatre cache having finished loading.
+      const [actorSnap, npcSnap] = await Promise.all([
+        db.ref(`campaña/actores/${preferredId}`).once("value"),
+        db.ref(`campaña/base_datos_npcs/${preferredId}`).once("value"),
+      ]);
+      const actorData = actorSnap.val() || npcSnap.val();
+      if (!actorData) return null;
+
+      window.actoresJugador = window.actoresJugador || {};
+      window.actoresJugador[preferredId] = actorData;
+      window.allActoresCache = window.actoresJugador;
+      window.dispatchEvent(new CustomEvent("actoresCacheUpdated"));
+      return { actorId: preferredId, ...actorData };
+    }
+
+    const sendTheatreMessage = async () => {
       const domInput = document.getElementById("input-teatro-modal");
-      if (!domInput || !domInput.value.trim() || typeof db === "undefined")
-        return;
+      const sendButton = document.getElementById("btn-enviar-teatro-modal");
+      if (!domInput || !domInput.value.trim() || typeof db === "undefined") return;
+      if (sendButton?.dataset.sending === "true") return;
+
+      if (sendButton) {
+        sendButton.dataset.sending = "true";
+        sendButton.disabled = true;
+      }
 
       try {
         const msgText = domInput.value.trim();
         const selectExp = document.getElementById("player-expression");
+        const actorAssigned = await resolveTheatreActorForSend();
 
-        const assignedActorId = window.datosJugador?.actorId || null;
-        if (!assignedActorId) {
-          console.warn("No hay actor asignado al jugador. No se puede enviar el mensaje.");
-          return;
-        }
-
-        const actorAssigned = window.getAssignedTheatreActor ? window.getAssignedTheatreActor() : null;
-        if (!actorAssigned) {
-          console.warn("No hay actor asignado al jugador válido en el pool. No se puede enviar el mensaje.");
-          return;
+        if (!actorAssigned?.actorId) {
+          throw new Error("No se pudo resolver el actor asignado para Theater.");
         }
 
         const resolveCanonicalIdentityText = window.LuminousTheatreState?.resolveCanonicalIdentityText || ((...values) => {
@@ -1552,125 +1608,111 @@ function initializeCharacterSheet() {
           return "";
         });
 
-        let actorParaEnviar = {
-            nombre: resolveCanonicalIdentityText(
-              actorAssigned.nombre,
-              window.datosJugador?.characterName,
-              window.datosJugador?.character_name,
-              window.datosJugador?.nombre,
-              window.datosJugador?.name
-            ) || "Jugador",
-            titulo: resolveCanonicalIdentityText(
-              actorAssigned.titulo,
-              window.datosJugador?.titulo,
-              window.datosJugador?.title
-            ),
-            color_nombre: actorAssigned.color_nombre || "#ffffff",
-            color_titulo: actorAssigned.color_titulo || DEFAULT_TITLE_COLOR,
-            escala: actorAssigned.escala !== undefined ? parseFloat(actorAssigned.escala) : 1.0,
-            sprite: actorAssigned.sprite || null,
-            icono: actorAssigned.icono || null,
-            icono_jugador: actorAssigned.icono_jugador || null
+        const actorParaEnviar = {
+          nombre: resolveCanonicalIdentityText(
+            actorAssigned.nombre,
+            actorAssigned.name,
+            window.datosJugador?.characterName,
+            window.datosJugador?.character_name,
+            window.datosJugador?.nombre,
+            window.datosJugador?.name
+          ) || "Jugador",
+          titulo: resolveCanonicalIdentityText(
+            actorAssigned.titulo,
+            actorAssigned.title,
+            window.datosJugador?.titulo,
+            window.datosJugador?.title
+          ),
+          color_nombre: actorAssigned.color_nombre || "#ffffff",
+          color_titulo: actorAssigned.color_titulo || DEFAULT_TITLE_COLOR,
+          escala: actorAssigned.escala !== undefined ? parseFloat(actorAssigned.escala) : 1.0,
+          sprite: actorAssigned.sprite || null,
+          icono: actorAssigned.icono || null,
+          icono_jugador: actorAssigned.icono_jugador || null,
         };
 
-        // Validamos la expresión dinámica si existe y es visible (evitando leer valores ocultos rotos)
         let selectedSprite = actorParaEnviar.sprite;
         let selectedExpression = "Neutral";
-        try {
-          if (
-            selectExp &&
-            selectExp.style.display !== "none" &&
-            selectExp.options.length > 0
-          ) {
-            const val = selectExp.value;
-            if (val && val.trim() !== "") {
-              selectedExpression = val;
-              const expOpt = selectExp.options[selectExp.selectedIndex];
-              if (expOpt && expOpt.dataset.sprite) {
-                  selectedSprite = expOpt.dataset.sprite;
-              }
-            }
+        if (selectExp && selectExp.style.display !== "none" && selectExp.options.length > 0) {
+          const val = selectExp.value;
+          if (val && val.trim() !== "") {
+            selectedExpression = val;
+            const expOpt = selectExp.options[selectExp.selectedIndex];
+            if (expOpt?.dataset?.sprite) selectedSprite = expOpt.dataset.sprite;
           }
-        } catch (e) {
-          console.warn(
-            "Fallo leyendo expresión del select, usando sprite base.",
-            e,
-          );
         }
-
-        // Construimos Payload Directo con valores limpios
-        let finalIcon = null;
-        if (actorParaEnviar) {
-            finalIcon = actorParaEnviar.icono || actorParaEnviar.icono_jugador || window.datosJugador?.icono_jugador || window.datosJugador?.icono || null;
-        }
-
 
         const tipoDialogoEl = document.getElementById("player-tipo-dialogo-select");
-        const tipoDialogo = tipoDialogoEl ? tipoDialogoEl.value : "dialogo";
-        const mostrarIdentidad = tipoDialogo !== "pensamiento";
-
+        const tipoDialogo = tipoDialogoEl?.value || "dialogo";
         const payload = {
-          actorId: actorAssigned.actorId || assignedActorId,
-          nombre: actorParaEnviar.nombre || "Jugador",
+          actorId: actorAssigned.actorId,
+          nombre: actorParaEnviar.nombre,
           titulo: actorParaEnviar.titulo || "",
-          color_nombre: actorParaEnviar.color_nombre || "#ffffff",
-          color_titulo: actorParaEnviar.color_titulo || DEFAULT_TITLE_COLOR,
-          escala: isNaN(actorParaEnviar.escala) ? 1.0 : actorParaEnviar.escala,
+          color_nombre: actorParaEnviar.color_nombre,
+          color_titulo: actorParaEnviar.color_titulo,
+          escala: Number.isFinite(actorParaEnviar.escala) ? actorParaEnviar.escala : 1.0,
           expression: selectedExpression,
           sprite: selectedSprite || null,
-          icono: finalIcon,
+          icono:
+            actorParaEnviar.icono ||
+            actorParaEnviar.icono_jugador ||
+            window.datosJugador?.icono_jugador ||
+            window.datosJugador?.icono ||
+            null,
           mensaje: msgText,
           tipo_dialogo: tipoDialogo,
-          mostrar_identidad: mostrarIdentidad,
-          createdAt: firebase.database.ServerValue.TIMESTAMP,
+          mostrar_identidad: tipoDialogo !== "pensamiento",
         };
 
-        // Aseguramos que la referencia no sea undefined y mandamos la cola
-        if (db && db.ref) {
-          db.ref("campaña/teatro/cola")
-            .push(payload)
-            .then(() => {
-              const domInput = document.getElementById("input-teatro-modal");
-              if (domInput) domInput.value = ""; // Limpiar input directo post-envío
-
-              const modal = document.getElementById('modal-escritura-teatro');
-              if (modal) modal.style.display = 'none';
-            })
-            .catch((e) => {
-              console.error("Error en Firebase enviando a la cola:", e);
-            });
+        if (typeof window.LuminousTheatreState?.enqueueIntervention === "function") {
+          const queued = await window.LuminousTheatreState.enqueueIntervention(payload);
+          if (queued?.queued === false) {
+            throw new Error(
+              queued.reason === "transition"
+                ? "Theater está cambiando de escena. Intenta de nuevo en un momento."
+                : "Theater rechazó el mensaje."
+            );
+          }
         } else {
-          console.error("La instancia db.ref es undefined.");
+          const queuePath =
+            window.LuminousTheatreState?.getPaths?.().queue ||
+            "campaña/teatro/cola";
+          await db.ref(queuePath).push({
+            ...payload,
+            createdAt: firebase.database.ServerValue.TIMESTAMP,
+          });
         }
-      } catch (err) {
-        console.error("Fallo crítico en sendTheatreMessage:", err);
+
+        domInput.value = "";
+        const modal = document.getElementById("modal-escritura-teatro");
+        if (modal) modal.style.display = "none";
+      } catch (error) {
+        console.error("[Luminous][Theatre] No se pudo enviar el mensaje:", error);
+        alert(error?.message || "No se pudo enviar el mensaje al Theater.");
+      } finally {
+        const currentButton = document.getElementById("btn-enviar-teatro-modal");
+        if (currentButton) {
+          currentButton.dataset.sending = "false";
+          currentButton.disabled = Boolean(window.isTheatreBlocked);
+        }
       }
     };
 
-    // Listeners Limpios globales
-    // Reasignamos usando query selector al documento real porque el original se copió
-    if (btnSend) {
-      const currentBtn = document.getElementById("btn-enviar-teatro-modal");
-      if (currentBtn) {
-        const newBtnSend = currentBtn.cloneNode(true);
-        currentBtn.parentNode.replaceChild(newBtnSend, currentBtn);
-        newBtnSend.addEventListener("click", sendTheatreMessage);
-      }
+    // Keep the original DOM nodes. Replacing them with clones silently removes
+    // listeners installed by Theatre compatibility modules.
+    if (btnSend && btnSend.dataset.theatreSendBound !== "true") {
+      btnSend.dataset.theatreSendBound = "true";
+      btnSend.addEventListener("click", sendTheatreMessage);
     }
 
-    if (inputEl) {
-      const currentInput = document.getElementById("input-teatro-modal");
-      if (currentInput) {
-        const newInputEl = currentInput.cloneNode(true);
-        currentInput.parentNode.replaceChild(newInputEl, currentInput);
-
-        newInputEl.addEventListener("keypress", (e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            sendTheatreMessage();
-          }
-        });
-      }
+    if (inputEl && inputEl.dataset.theatreSendBound !== "true") {
+      inputEl.dataset.theatreSendBound = "true";
+      inputEl.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" && !event.shiftKey) {
+          event.preventDefault();
+          sendTheatreMessage();
+        }
+      });
     }
   }
 
