@@ -129,6 +129,14 @@ function smartTargetForPlan(owner,plan){
     html=html.replace(localPlayerBiasNeedle,localPlayerBiasPatch)
       .replace(smartTargetNeedle,smartTargetPatch);
 
+    stage('patch-player-deck','Keeping the live Player Skill deck synchronized');
+    const liveDeckNeedle=`  deckSkills=playerDeckForUnit(PLAYER_ID);
+  initializeBattleSP();rollTurnSpeeds(round);ensureUnknownAISlots();`;
+    const liveDeckPatch=`  resetPlayerDeckForUnit(PLAYER_ID);
+  initializeBattleSP();rollTurnSpeeds(round);ensureUnknownAISlots();`;
+    if(!html.includes(liveDeckNeedle))throw new Error("COMBAT_PLAYER_DECK_PATCH_MISSING");
+    html=html.replace(liveDeckNeedle,liveDeckPatch);
+
     stage('patch-formation','Applying alternating two-row Combat formation');
     const formationPointsNeedle=`const allyPoints=[
           {x:6,y:18},{x:16,y:18},{x:26,y:18},{x:36,y:18},
@@ -287,7 +295,7 @@ function smartTargetForPlan(owner,plan){
       html=html.split(remoteSrc).join(localSrc);
     }
 
-    html=html.replace("</body>",'<script src="js/spellcasting-runtime.js"><\/script><script src="js/item-runtime-engine.js"><\/script><script src="js/item-inventory-runtime.js"><\/script><script src="js/item-persistence-runtime.js"><\/script><script src="js/player-vitals-realtime-bridge.js"><\/script><script src="js/combat-v073-plan-sync.js"><\/script><script src="js/combat-v073-remote-intents.js"><\/script><script src="js/combat-v073-camera-controls.js"><\/script><script src="js/combat-v073-dm-setup.js"><\/script><script src="js/combat-v073-speed-authority.js"><\/script><script src="js/combat-v073-dm-observer.js"><\/script></body>');
+    html=html.replace("</body>",'<script src="js/spellcasting-runtime.js"><\/script><script src="js/item-runtime-engine.js"><\/script><script src="js/item-inventory-runtime.js"><\/script><script src="js/item-persistence-runtime.js"><\/script><script src="js/player-vitals-realtime-bridge.js"><\/script><script src="js/combat-encounter-lifecycle.js"><\/script><script src="js/combat-v073-plan-sync.js"><\/script><script src="js/combat-v073-remote-intents.js"><\/script><script src="js/combat-v073-camera-controls.js"><\/script><script src="js/combat-v073-dm-setup.js"><\/script><script src="js/combat-v073-speed-authority.js"><\/script><script src="js/combat-v073-dm-observer.js"><\/script></body>');
     stage('runtime-write','Installing patched Combat document');
     document.open();document.write(html);document.close();
   }catch(error){

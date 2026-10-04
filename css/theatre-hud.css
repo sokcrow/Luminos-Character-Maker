@@ -83,6 +83,13 @@
   pointer-events: none !important;
 }
 
+/* Match the Player stage spacing to the DM viewport. The DM dashboard already
+   contributes a 1vw stage gap from on-game-dashboard.css; without this rule
+   Player Theatre rendered the same sprites flush against each other. */
+#theatre-view-player > #theatre-stage {
+  gap: 1vw !important;
+}
+
 #theatre-view-player > #theatre-stage > .theatre-sprite,
 .on-game-dashboard .stage-view-wrapper > #theatre-stage > .theatre-sprite {
   flex: 0 1 20%;
@@ -778,4 +785,158 @@ body.player-instance-theatre
   background: #222;
   color: #fff;
   font: 16px "Roboto", Arial, sans-serif;
+}
+
+
+/* ==================================================
+   DM DIALOGUE COMPOSER — CONTAINER-SAFE LAYOUT
+   The director panel is ~410px even on wide desktops, so viewport media
+   queries are not enough. Everything below sizes against the panel itself.
+   ================================================== */
+
+.on-game-dashboard #theatre-director-panel,
+.on-game-dashboard #theatre-director-panel * {
+  box-sizing: border-box;
+}
+
+.on-game-dashboard #theatre-director-panel .theatre-dm-composer {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  overflow: visible !important;
+}
+
+.on-game-dashboard #theatre-director-panel .theatre-dm-composer-title {
+  margin: 0 !important;
+  min-width: 0;
+  color: #d2a447 !important;
+  font-family: "BebasKai", Impact, "Arial Narrow", sans-serif !important;
+  font-size: 18px;
+  letter-spacing: 0.04em;
+}
+
+.on-game-dashboard #theatre-director-panel .theatre-dm-composer-selects {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) !important;
+  gap: 8px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+.on-game-dashboard #theatre-director-panel .theatre-dm-composer-selects > * {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+}
+
+.on-game-dashboard #theatre-director-panel #theatre-expression-select {
+  grid-column: 1 / -1;
+}
+
+.on-game-dashboard #theatre-director-panel .theatre-dm-composer-control,
+.on-game-dashboard #theatre-director-panel .theatre-dm-composer-textarea,
+.on-game-dashboard #theatre-director-panel .theatre-dm-composer-send {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+}
+
+.on-game-dashboard #theatre-director-panel .theatre-dm-composer-control {
+  height: 38px;
+  padding: 8px 10px !important;
+  color: #f2f2f2 !important;
+  background: #121820 !important;
+  border: 1px solid #53606d !important;
+  font: 14px "Roboto", Arial, sans-serif !important;
+}
+
+.on-game-dashboard #theatre-director-panel .theatre-dm-composer-textarea {
+  display: block !important;
+  min-height: 92px !important;
+  resize: vertical;
+  padding: 10px !important;
+}
+
+.on-game-dashboard #theatre-director-panel .theatre-dm-composer-send {
+  display: block !important;
+  min-height: 38px;
+  margin: 0 !important;
+  padding: 9px 12px !important;
+  white-space: normal !important;
+}
+
+@media (max-width: 430px) {
+  .on-game-dashboard #theatre-director-panel .theatre-dm-composer-selects {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .on-game-dashboard #theatre-director-panel #theatre-expression-select {
+    grid-column: auto;
+  }
+}
+
+
+/* DM compose action stays visible once the composer reaches the panel viewport. */
+.on-game-dashboard #theatre-director-panel .theatre-dm-compose-action {
+  position: sticky;
+  bottom: -18px;
+  z-index: 5;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 7px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin-top: 2px;
+  padding: 10px 0 18px;
+  background:
+    linear-gradient(
+      to bottom,
+      rgba(7, 8, 8, 0.90),
+      rgba(7, 8, 8, 0.99) 18px,
+      rgba(7, 8, 8, 1)
+    );
+  border-top: 1px solid rgba(163, 124, 53, 0.55);
+  box-shadow: 0 -10px 18px rgba(0, 0, 0, 0.38);
+}
+
+.on-game-dashboard #theatre-director-panel .theatre-dm-compose-label {
+  display: block;
+  margin: 0;
+  color: #b89a5d;
+  font: 10px "Share Tech Mono", monospace;
+  letter-spacing: 0.14em;
+}
+
+.on-game-dashboard #theatre-director-panel .theatre-dm-compose-action .theatre-dm-composer-textarea {
+  display: block !important;
+  width: 100% !important;
+  height: 112px !important;
+  min-height: 112px !important;
+  max-height: 220px !important;
+  margin: 0 !important;
+  padding: 10px 11px !important;
+  resize: vertical !important;
+  overflow-y: auto !important;
+  color: #f1f1f1 !important;
+  background: #111820 !important;
+  border: 1px solid #647385 !important;
+  outline: none;
+  line-height: 1.4;
+}
+
+.on-game-dashboard #theatre-director-panel .theatre-dm-compose-action .theatre-dm-composer-textarea:focus {
+  border-color: #d2a447 !important;
+  box-shadow: 0 0 0 1px rgba(210, 164, 71, 0.25);
+}
+
+.on-game-dashboard #theatre-director-panel .theatre-dm-compose-action .theatre-dm-composer-send {
+  display: block !important;
+  width: 100% !important;
+  min-height: 40px;
+  margin: 0 !important;
 }

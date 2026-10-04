@@ -11,6 +11,8 @@ on:
     branches: [main]
     paths:
       - 'js/instance-control.js'
+      - 'js/on-game-dashboard.js'
+      - 'hoja_de_DM.html'
       - 'js/player-trait-runtime.js'
       - 'js/trait-player-tray.js'
       - 'js/player-archetype-runtime-core.js'
@@ -19,12 +21,16 @@ on:
       - 'js/theatre-check-retry-watchdog.js'
       - 'js/theatre-check-coordinator.js'
       - 'js/theatre-language-policy.js'
+      - 'js/language-catalog-engine.js'
       - 'js/theatre-intervention-ux-core.js'
       - 'js/status-engine.js'
       - 'js/trait-catalog-core.js'
       - 'js/trait-standardization-runtime.js'
       - 'js/player-stats-ability-bar.js'
       - 'css/player-stats-ability-bar.css'
+      - 'css/theatre-hud.css'
+      - 'css/theatre-message-policy.css'
+      - 'js/theatre-message-policy.js'
       - 'js/player-splash-framing.js'
       - 'js/player-ux-polish-core.js'
       - 'js/player-stat-tooltip-runtime.js'
@@ -48,12 +54,18 @@ on:
       - 'js/scene-time-runtime.js'
       - 'js/fixed-damage-runtime.js'
       - 'hoja_personaje.js'
+      - 'hoja_personaje.html'
       - 'hoja_personaje.css'
       - 'css/player-trait-tabs.css'
       - 'js/player-progression-tree.js'
       - 'js/player-progression-level-allocation.js'
       - 'Battle-viewer.html'
       - 'tests/player-combat-theatre-lifecycle.spec.mjs'
+      - 'tests/player-theatre-spacing-smoke.mjs'
+      - 'tests/dm-dialogue-composer-layout-smoke.mjs'
+      - 'tests/dm-dialogue-input-visible-smoke.mjs'
+      - 'tests/theatre-queue-bank-hotfix-smoke.mjs'
+      - 'tests/theatre-language-partial-comprehension-smoke.mjs'
       - 'tests/player-ui-long-session-performance.spec.mjs'
       - 'tests/trait-formula-display-contract.mjs'
       - '.github/workflows/player-combat-theatre-lifecycle.yml'
@@ -71,6 +83,8 @@ jobs:
       - name: Syntax check
         run: |
           node --check js/instance-control.js
+          node --check js/on-game-dashboard.js
+          node --check js/theatre-message-policy.js
           node --check js/player-trait-runtime.js
           node --check js/trait-player-tray.js
           node --check js/player-archetype-runtime-core.js
@@ -79,6 +93,7 @@ jobs:
           node --check js/theatre-check-retry-watchdog.js
           node --check js/theatre-check-coordinator.js
           node --check js/theatre-language-policy.js
+          node --check js/language-catalog-engine.js
           node --check js/theatre-intervention-ux-core.js
           node --check js/status-engine.js
           node --check js/trait-catalog-core.js
@@ -110,11 +125,26 @@ jobs:
           node --check js/player-progression-tree.js
           node --check js/player-progression-level-allocation.js
           node --check tests/player-ui-long-session-performance.spec.mjs
+          node --check tests/player-theatre-spacing-smoke.mjs
+          node --check tests/dm-dialogue-composer-layout-smoke.mjs
+          node --check tests/dm-dialogue-input-visible-smoke.mjs
+          node --check tests/theatre-queue-bank-hotfix-smoke.mjs
+          node --check tests/theatre-language-partial-comprehension-smoke.mjs
           node --check tests/trait-formula-display-contract.mjs
       - name: Trait formula display contract
         run: node tests/trait-formula-display-contract.mjs
       - name: Combat renderer performance contract
         run: node tests/combat-v073-player-renderer-performance-smoke.mjs
+      - name: Player Theatre sprite spacing contract
+        run: node tests/player-theatre-spacing-smoke.mjs
+      - name: DM dialogue composer layout contract
+        run: node tests/dm-dialogue-composer-layout-smoke.mjs
+      - name: DM dialogue input visibility contract
+        run: node tests/dm-dialogue-input-visible-smoke.mjs
+      - name: Theatre queue + Bank layout contract
+        run: node tests/theatre-queue-bank-hotfix-smoke.mjs
+      - name: Theatre language comprehension contract
+        run: node tests/theatre-language-partial-comprehension-smoke.mjs
 
   combat-lifecycle:
     name: Combat teardown + round preservation

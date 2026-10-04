@@ -101,12 +101,37 @@ globalThis.LuminousItemRuntime = {
 const menu = globalThis.LuminousCombatEconomyMenu073;
 assert.ok(menu, 'economy menu must initialize');
 
+globalThis.UNIT_KITS = {
+  'player:p1': {
+    actions: [
+      { id: 'slash_without_kind', name: 'Slash Without Kind', type: 'Slash' },
+      { id: 'guard_without_kind', name: 'Guard Without Kind', type: 'Guard', isDefense: true },
+    ],
+  },
+};
+assert.deepEqual(
+  menu.liveActions('skill').map((row) => row.id),
+  ['slash_without_kind'],
+  'a canonical attack whose type is its damage type must still appear in Skills'
+);
+
 const rows = menu.itemRowsForPlayer();
 assert.equal(rows.length, 1, 'Combat Items must contain only usable, non-empty, combat-legal Active Inventory entries');
 assert.equal(rows[0].instanceId, 'med_live_1');
 assert.equal(rows[0].inventoryContainer, 'inventario_activo');
 const rowsAgain = menu.itemRowsForPlayer();
 assert.equal(rowsAgain[0], rows[0], 'the same inventory instance must reuse a stable row object so legacy reservations cannot double-book a quantity-1 stack');
+
+const aliasRows = menu.itemRowsForPlayer({ activeInventory: {
+  alias_item: {
+    instanceId: 'alias_item',
+    name: 'Alias Item',
+    category: 'consumable',
+    quantity: 1,
+    runtime: { actionCost: 'action', effects: { hpRestore: 1 } },
+  },
+} });
+assert.deepEqual(aliasRows.map((row) => row.instanceId), ['alias_item'], 'activeInventory aliases must populate the Items menu');
 
 let selected = null;
 menu.state.originals.selectAction = (value) => { selected = value; return value; };

@@ -911,7 +911,8 @@
     else if (compatible.length) addAction(host, "EQUIP", equipSelectedAuto, "primary");
     addAction(host, "STORE / GUARDAR", () => moveSelected("active", "stash"), "", !state.stashUnlocked);
     if (foodRest()?.isFood?.(item)) addAction(host, "EAT / DRINK", eatDrinkSelected, "primary");
-    const canUse = runtime()?.hasFunction?.(item, "use") || itemCategory(item).toLowerCase() === "consumable";
+    const functionalItem = runtime()?.resolveItem?.(item) || item;
+    const canUse = runtime()?.hasFunction?.(functionalItem, "use") === true;
     if (canUse) addAction(host, "USE", useSelected);
     if (reloadProfile(item)) addAction(host, "RELOAD", reloadSelected);
   }
@@ -1003,6 +1004,7 @@
       showStatus(`BLOCKED // ${String(result?.reason || "USE FAILED").toUpperCase()}`, "error");
       return;
     }
+
     if (quantityOf(item) <= 0) {
       const source = state.selectedContainer === "stash" ? state.unit.inventario_stash : state.unit.inventario_activo;
       for (const [key, entry] of entries(source)) if (entry === item || itemId(entry) === itemId(item)) delete source[key];

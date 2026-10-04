@@ -90,6 +90,134 @@
     return list.some((profile) => legacyUnderstanding(profile, languageId));
   }
 
+
+  function clampPercentage(value) {
+    return Math.max(0, Math.min(100, Number(value) || 0));
+  }
+
+  function canonicalKnowledgePercentage(profile, languageId) {
+    if (!profile || !languageId) return { found: false, value: 0 };
+    for (const key of CANONICAL_LANGUAGE_KEYS) {
+      const container = profile[key];
+      if (!container || typeof container !== "object" || !Object.prototype.hasOwnProperty.call(container, languageId)) continue;
+      const entry = container[languageId];
+      if (typeof entry === "boolean") return { found: true, value: entry ? 100 : 0 };
+      if (typeof entry === "number" || typeof entry === "string") {
+        return { found: true, value: clampPercentage(entry) };
+      }
+      if (!entry || typeof entry !== "object") return { found: true, value: 0 };
+
+      const rawPercentage = entry.porcentaje ?? entry.percent ?? entry.conocimiento ?? entry.knowledge;
+      if (rawPercentage !== undefined && rawPercentage !== null && rawPercentage !== "") {
+        return { found: true, value: clampPercentage(rawPercentage) };
+      }
+
+      const understands = entry.entiende ?? entry.understands ?? entry.comprendido ?? entry.understood;
+      if (understands !== undefined) return { found: true, value: understands ? 100 : 0 };
+      const speaks = entry.habla ?? entry.speaks ?? entry.canSpeak;
+      if (speaks !== undefined) return { found: true, value: speaks ? 100 : 0 };
+      return { found: true, value: 0 };
+    }
+    return { found: false, value: 0 };
+  }
+
+  function resolveLanguageKnowledgePercentage(profiles, languageId, definition = {}) {
+    if (!languageId || languageId === "common" || definition?.universal === true) return 100;
+    const list = Array.isArray(profiles) ? profiles : [profiles];
+    for (const profile of list) {
+      const resolved = canonicalKnowledgePercentage(profile, languageId);
+      if (resolved.found) return resolved.value;
+    }
+    return 0;
+  }
+
+  function stableHash(value) {
+    const text = String(value || "");
+    let hash = 2166136261;
+    for (let i = 0; i < text.length; i += 1) {
+      hash ^= text.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+    return hash >>> 0;
+  }
+
+  const RUNE_GLYPHS = Array.from("ᚠᚢᚦᚨᚱᚲᚷᚹᚺᚾᛁᛃᛇᛈᛉᛋᛏᛒᛖᛗᛚᛜᛞᛟ");
+
+  function maskedWord(word, style, seed) {
+    if (style === "runes" || style === "rune" || style === "runas") {
+      return Array.from(word).map((_, index) => {
+        const runeIndex = stableHash(`${seed}|${word}|${index}`) % RUNE_GLYPHS.length;
+        return RUNE_GLYPHS[runeIndex];
+      }).join("");
+    }
+    if (style === "blocks" || style === "block" || style === "redacted") {
+      return "█".repeat(Math.max(1, Array.from(word).length));
+    }
+    return "…";
+  }
+
+  function obfuscateByKnowledge(text, percentage, definition = {}, seed = "") {
+    const raw = String(text || "");
+    const knowledge = clampPercentage(percentage);
+    if (!raw || knowledge >= 100) return raw;
+
+    const prefixMatch = raw.match(/^\/em\s+/i);
+    const prefix = prefixMatch?.[0] || "";
+    const body = prefix ? raw.slice(prefix.length) : raw;
+    const tokenRegex = /[\p{L}\p{N}]+(?:['’\-][\p{L}\p{N}]+)*/gu;
+    const tokens = Array.from(body.matchAll(tokenRegex));
+    if (!tokens.length) return raw;
+
+    let revealCount = Math.round(tokens.length * knowledge / 100);
+    if (knowledge <= 0) revealCount = 0;
+    else if (knowledge < 100 && tokens.length === 1) revealCount = 0;
+    else if (knowledge > 0 && revealCount === 0) revealCount = 1;
+    if (knowledge < 100) revealCount = Math.min(revealCount, Math.max(0, tokens.length - 1));
+
+    const ranked = tokens.map((match, index) => ({
+      index,
+      score: stableHash(`${seed}|${body}|${match[0]}|${match.index}|${index}`),
+    })).sort((a, b) => (a.score - b.score) || (a.index - b.index));
+    const revealed = new Set(ranked.slice(0, revealCount).map((entry) => entry.index));
+
+    const style = String(
+      definition?.estilo_ofuscacion
+      || definition?.obfuscationStyle
+      || definition?.obfuscation
+      || "ellipsis"
+    ).toLowerCase();
+
+    let cursor = 0;
+    let output = "";
+    tokens.forEach((match, index) => {
+      const start = Number(match.index) || 0;
+      const word = match[0];
+      output += body.slice(cursor, start);
+      output += revealed.has(index) ? word : maskedWord(word, style, `${seed}|${index}`);
+      cursor = start + word.length;
+    });
+    output += body.slice(cursor);
+    return prefix + output;
+  }
+
+  function resolveLanguageText(message, definitions, profiles) {
+    const raw = String(message?.mensaje || message?.message || "");
+    const languageId = clean(message?.idiomaId || message?.languageId || message?.idioma);
+    if (!languageId) return raw;
+
+    const definition = definitions?.[languageId] || {};
+    if (languageId === "common" || definition?.universal === true) return raw;
+
+    if (isSpecialLanguage(languageId, definition)) {
+      return resolveSpecialUnderstanding(profiles, languageId)
+        ? raw
+        : unknownTextForDefinition(definition);
+    }
+
+    const percentage = resolveLanguageKnowledgePercentage(profiles, languageId, definition);
+    return obfuscateByKnowledge(raw, percentage, definition, languageId);
+  }
+
   function preferredSpecialLanguage(definitions, knowledge) {
     const candidates = Object.entries(definitions || {})
       .filter(([languageId, definition]) => languageId !== "common" && isSpecialLanguage(languageId, definition))
@@ -114,6 +242,10 @@
     specialAccess,
     canonicalUnderstanding,
     resolveSpecialUnderstanding,
+    canonicalKnowledgePercentage,
+    resolveLanguageKnowledgePercentage,
+    obfuscateByKnowledge,
+    resolveLanguageText,
     preferredSpecialLanguage,
     unknownTextForDefinition,
   });
@@ -211,13 +343,28 @@
     return result;
   }
 
-  function currentSpecialState() {
+  function currentLanguageState() {
     const languageId = clean(currentDialogue?.idiomaId || currentDialogue?.languageId || currentDialogue?.idioma);
-    if (!languageId) return { special: false, blocked: false, languageId: null, definition: null };
+    if (!languageId) {
+      return { languageId: null, definition: null, special: false, blocked: false, filtered: false, percentage: 100, text: "" };
+    }
+
     const definition = definitions[languageId] || {};
-    if (!isSpecialLanguage(languageId, definition)) return { special: false, blocked: false, languageId, definition };
-    const understands = resolveSpecialUnderstanding(viewerProfiles(), languageId);
-    return { special: true, blocked: !understands, languageId, definition };
+    const profiles = viewerProfiles();
+    const special = isSpecialLanguage(languageId, definition);
+    const percentage = special
+      ? (resolveSpecialUnderstanding(profiles, languageId) ? 100 : 0)
+      : resolveLanguageKnowledgePercentage(profiles, languageId, definition);
+    const text = resolveLanguageText(currentDialogue, definitions, profiles);
+    return {
+      languageId,
+      definition,
+      special,
+      blocked: special ? percentage < 100 : percentage <= 0,
+      filtered: percentage < 100,
+      percentage,
+      text,
+    };
   }
 
   function ensureTextObserver() {
@@ -237,19 +384,24 @@
     if (isDmView()) return;
     const textEl = ensureTextObserver();
     if (!textEl) return;
-    const state = currentSpecialState();
-    textEl.dataset.specialLanguage = state.special ? (state.languageId || "special") : "";
-    textEl.dataset.specialLanguageBlocked = state.blocked ? "true" : "false";
-    if (!state.special || !state.blocked) return;
 
-    const unknown = unknownTextForDefinition(state.definition);
-    if (textEl.textContent === unknown) return;
+    const state = currentLanguageState();
+    textEl.dataset.languageId = state.languageId || "";
+    textEl.dataset.languageKnowledgePercent = String(state.percentage);
+    textEl.dataset.languageObfuscated = state.filtered ? "true" : "false";
+    textEl.dataset.specialLanguage = state.special ? (state.languageId || "special") : "";
+    textEl.dataset.specialLanguageBlocked = state.special && state.blocked ? "true" : "false";
+
+    // 100% comprehension keeps the existing typewriter untouched.
+    if (!state.languageId || !state.filtered) return;
+    if (textEl.textContent === state.text) return;
+
     enforcingText = true;
     try {
-      // El typewriter puede seguir escribiendo cada 30 ms. MutationObserver corre
-      // antes del siguiente paint y vuelve a imponer el texto seguro.
-      textEl.textContent = unknown;
-      textEl.setAttribute("aria-label", unknown);
+      // The typewriter may keep writing raw text. MutationObserver runs before the
+      // next paint and reapplies the viewer-specific comprehension filter.
+      textEl.textContent = state.text;
+      textEl.setAttribute("aria-label", state.text);
     } finally {
       enforcingText = false;
     }
