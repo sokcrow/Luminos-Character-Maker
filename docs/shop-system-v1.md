@@ -17,6 +17,14 @@ Intrinsic / Production Value
 
 The fixed `x1.40` means an Item bought from a Shop costs 40% more than the equivalent crafted value before local market modifiers.
 
+### Canonical intrinsic-value resolution
+
+Shops never interpret a missing price as a free Item. The runtime resolves the first **positive** canonical economic value from the Item definition, prioritizing Production Value and derived family values before legacy fields such as `valorBase`, `costo` or `price`.
+
+This is important because several catalog families expose their value through fields such as `standardUnitValueAhn`, `standardValueAhn`, `standardChassisValueAhn`, `mediumStandardValueAhn`, `priceAhn` or `productionValueAhn`. A placeholder `price: 0` / `costo: 0` must not shadow those authored values.
+
+If no positive canonical value can be resolved, the Item is marked **unpriced**, receives no automatic Shop stock, is excluded from generated Shop catalogs, and purchase/sell transactions are blocked. `0 AHN` is therefore not a valid implicit Shop price.
+
 Shop Tier multiplier is:
 
 ```text
