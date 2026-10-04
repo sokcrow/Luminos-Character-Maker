@@ -16,6 +16,7 @@ assert.ok(speed.includes('return changed?next:undefined'),'transaction must abor
 assert.ok(!speed.includes("a.state.lastSignature=''"),'Speed refresh must not invalidate the whole adapter hydration cache');
 assert.ok(!speed.includes('a.hydrateNow()'),'Speed refresh must not rebuild the Combat runtime or reset Player menus');
 assert.ok(speed.includes('refreshRuntimeSpeedView'),'persisted Speed changes must refresh the live runtime in place');
+assert.ok(speed.includes("global.addEventListener('luminous:combat073-hydrated',()=>{patchLegacySpeedRollers();refreshRuntimeSpeedView();})"),'real Combat hydration must apply canonical Speed formation/visibility without a manual roll');
 assert.ok(speed.includes('runtime()?.render?.()'),'in-place Speed refresh must repaint the battlefield');
 assert.ok(speed.includes('state.refreshTimer=global.setTimeout'),'speed-driven runtime refreshes must be debounced');
 assert.ok(!speed.includes('`${ROOT}/combatants/${key}`'),'speed authority must not issue one transaction per combatant');
