@@ -6,9 +6,10 @@
     return;
   }
 
-  const VERSION = 1;
+  const VERSION = 2;
   const CURRENCY = "AHN";
   const BASE_PURCHASE_MARKUP = 1.40;
+  const BASE_SELLBACK_MULTIPLIER = 0.80;
   const SHOP_TIER_PRICE_STEP = 0.04;
   const MAX_TIER = 10;
 
@@ -202,6 +203,24 @@
     return priceBreakdown(item, shop).priceAhn;
   }
 
+  function sellBreakdown(item = {}, shop = {}) {
+    const base = baseValueAhn(item);
+    const final = roundAhn(base * BASE_SELLBACK_MULTIPLIER);
+    return Object.freeze({
+      currency: CURRENCY,
+      baseValueAhn: roundAhn(base),
+      sellbackMultiplier: BASE_SELLBACK_MULTIPLIER,
+      discountFromBase: 1 - BASE_SELLBACK_MULTIPLIER,
+      shopType: shopTypeId(shop),
+      shopTier: shopTier(shop),
+      priceAhn: final,
+    });
+  }
+
+  function sellPrice(item = {}, shop = {}) {
+    return sellBreakdown(item, shop).priceAhn;
+  }
+
   function stockUnitsPerPlayer(item = {}, shop = {}) {
     const storeTier = shopTier(shop);
     const productTier = itemTier(item);
@@ -254,6 +273,7 @@
       tierRoman: tierRoman(tier),
       playerCount: assignedPlayers(shop).length,
       purchaseMarkup: BASE_PURCHASE_MARKUP,
+      sellbackMultiplier: BASE_SELLBACK_MULTIPLIER,
       typePriceMultiplier: type.priceMultiplier,
       tierPriceMultiplier: tierPriceMultiplier(tier),
       stockMultiplier: type.stockMultiplier,
@@ -264,6 +284,7 @@
     VERSION,
     CURRENCY,
     BASE_PURCHASE_MARKUP,
+    BASE_SELLBACK_MULTIPLIER,
     SHOP_TIER_PRICE_STEP,
     MAX_TIER,
     SHOP_TYPES,
@@ -281,6 +302,8 @@
     localPriceMultiplier,
     priceBreakdown,
     purchasePrice,
+    sellBreakdown,
+    sellPrice,
     stockUnitsPerPlayer,
     stockForItem,
     itemAvailable,
