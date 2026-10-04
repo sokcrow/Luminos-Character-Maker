@@ -78,6 +78,16 @@
     payload.canonicalId = source.canonicalId || payload.definitionId;
     payload.nombre = source.nombre || source.name || payload.definitionId;
     payload.name = source.name || source.nombre || payload.nombre;
+    payload.valorBase = Number(
+      source.valorBase ??
+      source.productionValueAhn ??
+      source.unitValueAhn ??
+      source.costo ??
+      source.cost ??
+      source.price ??
+      source.precio ??
+      0
+    ) || 0;
     payload.quantity = 1;
     payload.cantidad = 1;
     if (playerId != null) payload.currentOwnerId = playerId;
