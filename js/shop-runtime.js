@@ -504,18 +504,24 @@
     const current = firstFinite([
       item.durabilityCurrent,
       item.currentDurability,
+      item.condition,
+      item.currentCondition,
       item.durability?.current,
       item.durabilidad_actual,
       item.durabilidadActual,
       typeof item.durabilidad === "number" ? item.durabilidad : null,
+      typeof item.durability === "number" ? item.durability : null,
     ], { nonNegative: true });
     const max = firstFinite([
       item.durabilityMax,
       item.maxDurability,
+      item.conditionMax,
+      item.maxCondition,
       item.durability?.max,
       item.durabilidad_maxima,
       item.durabilidadMaxima,
       item.max_durabilidad,
+      typeof item.durability === "number" ? item.durability : null,
     ], { positive: true });
 
     if (current == null || max == null) {
