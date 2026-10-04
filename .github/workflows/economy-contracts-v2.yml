@@ -31,4 +31,5 @@ jobs:
       - name: Economy core smoke
         run: node tests/economy-contracts-core-smoke.cjs
       - name: Firebase rules JSON parse
-        run: node -e "JSON.parse(require('node:fs').readFileSync('database.rules.json','utf8')); console.log('database.rules.json: OK')"
+        run: |
+          node -e "JSON.parse(require('node:fs').readFileSync('database.rules.json','utf8')); console.log('database.rules.json: OK')"
