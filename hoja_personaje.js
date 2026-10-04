@@ -4299,16 +4299,30 @@ function initializeCharacterSheet() {
           return;
         }
 
-        const precio = getShopPrice(itemTienda, tiendaActualData);
-        if (!(Number.isFinite(Number(precio)) && Number(precio) > 0)) {
-          alert("Este objeto no tiene un valor económico canónico y no puede comprarse.");
-          return;
-        }
-
         const accountId = playerId || playerName;
         const accountRef = db.ref(`campaña/jugadores/${accountId}`);
         const accountSnap = await accountRef.once("value");
         const accountData = accountSnap.val() || {};
+        const commerceContext = buildShopCommerceContext(
+          accountData,
+          tiendaActualData,
+          idTiendaActual,
+        );
+        const priceBreakdown = getShopRuntime()?.priceBreakdown
+          ? getShopRuntime().priceBreakdown(itemTienda, tiendaActualData, {
+              context: commerceContext,
+            })
+          : getShopPriceBreakdown(
+              itemTienda,
+              tiendaActualData,
+              accountData,
+              idTiendaActual,
+            );
+        if (priceBreakdown?.priceResolved === false) {
+          alert("Este objeto no tiene un valor económico canónico y no puede comprarse.");
+          return;
+        }
+        const precio = Math.max(0, Number(priceBreakdown?.priceAhn) || 0);
         const ahnActual = canonicalPlayerBalance(accountData);
         if (ahnActual < precio) {
           alert("Fondos insuficientes.");
@@ -4339,6 +4353,43 @@ function initializeCharacterSheet() {
         } catch (error) {
           await restoreShopStock(idTiendaActual, itemId);
           throw error;
+        }
+
+        const purchaseTx = {
+          monto: -precio,
+          concepto:
+            priceBreakdown?.loyaltyRewardApplied === true
+              ? `Recompensa de lealtad: ${itemTienda.nombre || itemTienda.name || "Objeto"}`
+              : `Compra: ${itemTienda.nombre || itemTienda.name || "Objeto"}`,
+          timestamp: Date.now(),
+          unread: true,
+          shopId: idTiendaActual,
+          shopType: getShopRuntime()?.shopTypeId?.(tiendaActualData) || "general",
+          shopTier: getShopRuntime()?.shopTier?.(tiendaActualData) || 1,
+          listPriceAhn: priceBreakdown?.listPriceAhn ?? precio,
+          discountPercent: priceBreakdown?.totalDiscountPercent || 0,
+          loyaltyReward: priceBreakdown?.loyaltyRewardApplied === true,
+        };
+
+        try {
+          await Promise.all([
+            db.ref(`campaña/jugadores/${accountId}/finance/transactionHistory`).push(purchaseTx),
+            db.ref(`campaña/jugadores/${accountId}/transacciones`).push(purchaseTx),
+            recordShopCommerceActivity(
+              accountId,
+              accountData,
+              tiendaActualData,
+              idTiendaActual,
+              {
+                kind: "item",
+                item: itemTienda,
+                paidAhn: precio,
+                breakdown: priceBreakdown,
+              },
+            ),
+          ]);
+        } catch (commerceError) {
+          console.warn("[Luminous][Shop] Purchase completed but commerce history could not be fully recorded.", commerceError);
         }
 
           // Preserve the canonical functional definition when an item leaves a
@@ -4495,6 +4546,39 @@ function initializeCharacterSheet() {
           }
       }
 
+      // SERVICIO DE REPARACIÓN (tienda física)
+      const btnRepair = e.target.closest(".btn-reparar-fisico");
+      if (btnRepair && !btnRepair.disabled) {
+        const shopId = btnRepair.getAttribute("data-tienda");
+        const inventory = btnRepair.getAttribute("data-inventory");
+        const itemKey = btnRepair.getAttribute("data-key");
+        const shopData = tiendasFisicasDisponibles[shopId];
+        const accountId = playerId || playerName;
+        if (!shopId || !inventory || !itemKey || !shopData || !accountId) return;
+
+        try {
+          const result = await repairShopInventoryItem(
+            accountId,
+            shopId,
+            inventory,
+            itemKey,
+          );
+          if (!result.repaired) {
+            alert(result.message || "No se pudo completar la reparación.");
+            return;
+          }
+          alert(
+            result.priceAhn === 0
+              ? `${result.itemName} ha sido reparado sin costo por tu recompensa de lealtad.`
+              : `${result.itemName} reparado por ₳${Number(result.priceAhn).toLocaleString()}.`,
+          );
+          await renderizarGridServiciosFisica(shopId);
+        } catch (error) {
+          console.error("Error reparando item:", error);
+          alert("No se pudo completar la reparación.");
+        }
+      }
+
       // LÓGICA DE VENDER (App o Física)
       const btnVenta = e.target.closest(".btn-vender-item, .btn-vender-fisico");
       if (btnVenta && !btnVenta.disabled) {
@@ -4558,9 +4642,19 @@ function initializeCharacterSheet() {
       const fragment = document.createDocumentFragment();
 
       for (const [itemId, item] of Object.entries(items)) {
-        const precio = getShopPrice(item, tiendaActivaData);
+        const priceBreakdown = getShopPriceBreakdown(
+          item,
+          tiendaActivaData,
+          currentPlayerData || {},
+          tiendaActivaId || "",
+        );
+        const precio = priceBreakdown.priceAhn;
         const availability = getShopRuntime()?.itemAvailability?.(item, tiendaActivaData);
-        const sinPrecio = !(Number.isFinite(Number(precio)) && Number(precio) > 0);
+        const sinPrecio = priceBreakdown.priceResolved === false;
+        const gratis =
+          !sinPrecio &&
+          Number(precio) === 0 &&
+          priceBreakdown.loyaltyRewardApplied === true;
         const disponiblePorTier = availability?.available !== false && !sinPrecio;
         const isAgotado = item.stock_actual === 0 || !disponiblePorTier;
         const stockStr = sinPrecio
@@ -4580,7 +4674,8 @@ function initializeCharacterSheet() {
                 <div style="font-size: 12px; color: #888;">Stock: ${stockStr}</div>
             </div>
             <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 5px;">
-                <div style="color: #0df; font-weight: bold;">${sinPrecio ? "SIN PRECIO" : '<span class="currency-symbol">₳</span> ' + precio}</div>
+                <div style="color: ${gratis ? "#d6b75c" : "#0df"}; font-weight: bold;">${sinPrecio ? "SIN PRECIO" : gratis ? "GRATIS" : '<span class="currency-symbol">₳</span> ' + precio}</div>
+                ${priceBreakdown.totalDiscountPercent > 0 && !gratis ? '<div style="font-size:10px;color:#d6b75c;">Beneficio -' + Math.round(priceBreakdown.totalDiscountPercent) + '%</div>' : ""}
                 <button class="btn-comprar-item" data-id="${itemId}" data-precio="${precio ?? ""}" ${isAgotado ? "disabled" : ""}
                         style="background: ${isAgotado ? "#333" : "#004400"}; color: ${isAgotado ? "#666" : "#fff"}; border: 1px solid ${isAgotado ? "#444" : "#00ff00"}; padding: 4px 8px; border-radius: 3px; cursor: ${isAgotado ? "not-allowed" : "pointer"}; font-weight: bold; text-transform: uppercase; font-size: 11px;">
                     ${isAgotado ? "Agotado" : "Comprar"}
