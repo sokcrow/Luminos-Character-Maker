@@ -13,6 +13,7 @@ Intrinsic / Production Value
 × Shop Type Multiplier
 × Shop Tier Multiplier
 × Local DM Modifier
+× Active Market Event
 ```
 
 The fixed `x1.40` means an Item bought from a Shop costs 40% more than the equivalent crafted value before local market modifiers.
@@ -61,6 +62,18 @@ Intrinsic / Production Value
 ```
 
 The Shop therefore pays **20% below the Item's intrinsic value**. Sellback is intentionally independent from Shop Type, Shop Tier and the local purchase modifier. The legacy per-tag resale percentages and the old `+25% per Item Tier` resale calculation are deprecated.
+
+### Market Events
+
+The DM can publish one global Market Event under `campaña/economia/market_event`. The event carries a title, optional player-facing message, a revision/id, and signed percentage modifiers keyed by Shop Type.
+
+- negative percentages are discounts, e.g. `clinic: -25` → ×0.75;
+- positive percentages are surcharges, e.g. `arms_dealer: 15` → ×1.15;
+- `0` means that Shop Type is unaffected;
+- Market Events affect **purchase prices only**;
+- canonical sellback remains `Intrinsic / Production Value × 0.80`.
+
+The Player client listens to the same event record used by Shop Runtime. When a new active revision arrives, it displays the **MERCADO** world-change HUD once for that revision. Discounts render their signed percentage in green and surcharges in red. The HUD is informational; the amount actually charged is calculated by the same Runtime event multiplier.
 
 Only the owned quantity and the Player's balance change when selling. A sale does not automatically add the Item to the Shop catalog or alter shared Shop stock.
 
