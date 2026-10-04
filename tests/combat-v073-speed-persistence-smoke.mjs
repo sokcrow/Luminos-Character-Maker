@@ -13,8 +13,10 @@ assert.ok(speed.includes("state.db.ref(`${ROOT}/combatants`)"),'speed persistenc
 assert.ok(speed.includes('ref.transaction(current=>'),'speed persistence must use one collection transaction');
 assert.ok(speed.includes('if(rolledTurn===state.round&&speed!=null&&tie!=null)continue'),'same round refresh must not reroll speed');
 assert.ok(speed.includes('return changed?next:undefined'),'transaction must abort when every combatant already has this round speed');
-assert.ok(speed.includes("a.state.lastSignature=''"),'persisted speed changes must invalidate adapter hydration cache');
-assert.ok(speed.includes('a.hydrateNow()'),'persisted speed changes must rehydrate runtime');
+assert.ok(!speed.includes("a.state.lastSignature=''"),'Speed refresh must not invalidate the whole adapter hydration cache');
+assert.ok(!speed.includes('a.hydrateNow()'),'Speed refresh must not rebuild the Combat runtime or reset Player menus');
+assert.ok(speed.includes('refreshRuntimeSpeedView'),'persisted Speed changes must refresh the live runtime in place');
+assert.ok(speed.includes('runtime()?.render?.()'),'in-place Speed refresh must repaint the battlefield');
 assert.ok(speed.includes('state.refreshTimer=global.setTimeout'),'speed-driven runtime refreshes must be debounced');
 assert.ok(!speed.includes('`${ROOT}/combatants/${key}`'),'speed authority must not issue one transaction per combatant');
 
