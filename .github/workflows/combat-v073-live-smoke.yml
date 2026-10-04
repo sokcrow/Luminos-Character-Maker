@@ -1,5 +1,8 @@
 name: Combat v0.7.3 Live Cutover Smoke
 
+permissions:
+  contents: write
+
 on:
   pull_request:
     branches:
@@ -73,6 +76,29 @@ on:
       - '.github/workflows/combat-v073-live-smoke.yml'
 
 jobs:
+  vendor-encounter-assets:
+    if: github.event_name == 'pull_request' && github.head_ref == 'feat/encounter-end-combat-theatre'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/encounter-end-combat-theatre
+      - name: Vendor Encounter result PNGs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p Assets/Images/Combat
+          curl -fL --retry 4 --retry-all-errors -A "Mozilla/5.0"             "https://limbuscompany.wiki.gg/images/Victory_Battle_Result.png?67eac9=&format=original"             -o Assets/Images/Combat/Victory_Battle_Result.png
+          curl -fL --retry 4 --retry-all-errors -A "Mozilla/5.0"             "https://limbuscompany.wiki.gg/images/Defeat_Battle_Result.png?284168=&format=original"             -o Assets/Images/Combat/Defeat_Battle_Result.png
+          test "$(xxd -p -l 8 Assets/Images/Combat/Victory_Battle_Result.png)" = "89504e470d0a1a0a"
+          test "$(xxd -p -l 8 Assets/Images/Combat/Defeat_Battle_Result.png)" = "89504e470d0a1a0a"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Assets/Images/Combat/Victory_Battle_Result.png Assets/Images/Combat/Defeat_Battle_Result.png
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "chore: vendor encounter result assets"
+          git push origin HEAD:feat/encounter-end-combat-theatre
+
   live-cutover-smoke:
     runs-on: ubuntu-latest
     steps:
