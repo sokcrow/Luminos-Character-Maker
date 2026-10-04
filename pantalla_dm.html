@@ -6675,6 +6675,101 @@ window.processEntitiesData = function(entities) {
         // La reventa ya no usa reglas por etiqueta: Shop Runtime fija el pago al 80%.
         let editModeTiendaKey = null;
 
+        const marketEventRef = db.ref("campaña/economia/market_event");
+        const marketEventInputs = Array.from(document.querySelectorAll(".market-event-mod"));
+
+        function collectMarketModifiers() {
+          const modifiers = {};
+          marketEventInputs.forEach((input) => {
+            const value = Math.max(-90, Math.min(300, Math.round(Number(input.value) || 0)));
+            input.value = value;
+            if (value !== 0) modifiers[input.dataset.shopType] = value;
+          });
+          return modifiers;
+        }
+
+        function renderMarketEventStatus(eventData) {
+          const status = document.getElementById("market-event-status");
+          if (!status) return;
+          status.innerHTML = "";
+
+          if (!eventData || eventData.active === false) {
+            status.textContent = "Sin evento económico activo.";
+            status.style.color = "#777";
+            return;
+          }
+
+          const title = document.createElement("div");
+          title.textContent = eventData.title || "Cambio de mercado";
+          title.style.cssText = "color:#fff;font-weight:bold;margin-bottom:6px;";
+          status.appendChild(title);
+
+          const modifiers = eventData.modifiers || {};
+          for (const [shopTypeId, percentRaw] of Object.entries(modifiers)) {
+            const percent = Number(percentRaw);
+            if (!Number.isFinite(percent) || percent === 0) continue;
+            const row = document.createElement("div");
+            const label = window.LuminousShopRuntime?.SHOP_TYPES?.[shopTypeId]?.label || shopTypeId;
+            row.textContent = label + " " + (percent > 0 ? "+" : "") + percent + "%";
+            row.style.color = percent < 0 ? "#59e875" : "#ff5c67";
+            status.appendChild(row);
+          }
+          status.style.color = "#fff";
+        }
+
+        marketEventRef.on("value", (snapshot) => {
+          const eventData = snapshot.val();
+          window.LuminousShopRuntime?.setMarketEvent?.(eventData);
+
+          if (eventData?.active !== false && eventData) {
+            const titleInput = document.getElementById("market-event-title");
+            const messageInput = document.getElementById("market-event-message");
+            if (titleInput) titleInput.value = eventData.title || "Cambio de mercado";
+            if (messageInput) messageInput.value = eventData.message || "";
+            marketEventInputs.forEach((input) => {
+              input.value = Number(eventData.modifiers?.[input.dataset.shopType]) || 0;
+            });
+          }
+          renderMarketEventStatus(eventData);
+        });
+
+        document.getElementById("btn-publicar-market-event")?.addEventListener("click", async () => {
+          const modifiers = collectMarketModifiers();
+          if (!Object.keys(modifiers).length) {
+            alert("Define al menos un cambio de precio distinto de 0%.");
+            return;
+          }
+
+          const now = Date.now();
+          const payload = {
+            active: true,
+            id: "market_" + now,
+            revision: now,
+            title: document.getElementById("market-event-title")?.value.trim() || "Cambio de mercado",
+            message: document.getElementById("market-event-message")?.value.trim() || "",
+            modifiers,
+            updatedAt: firebase.database.ServerValue.TIMESTAMP,
+          };
+
+          try {
+            await marketEventRef.set(payload);
+          } catch (error) {
+            alert("No se pudo publicar el evento de mercado: " + error);
+          }
+        });
+
+        document.getElementById("btn-finalizar-market-event")?.addEventListener("click", async () => {
+          try {
+            await marketEventRef.update({
+              active: false,
+              revision: Date.now(),
+              endedAt: firebase.database.ServerValue.TIMESTAMP,
+            });
+          } catch (error) {
+            alert("No se pudo finalizar el evento de mercado: " + error);
+          }
+        });
+
         function resetTiendaForm() {
           document.getElementById("tienda-nombre").value = "";
           document.getElementById("tienda-icono").value = "";
