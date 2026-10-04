@@ -35,6 +35,20 @@
     return Math.max(0, intOr(item.quantity ?? item.cantidad ?? item.qty ?? item.count, 1));
   }
 
+  function tierKey(value) {
+    const raw = clean(value || "I").toUpperCase();
+    const roman = {
+      I: 1, II: 2, III: 3, IV: 4, V: 5,
+      VI: 6, VII: 7, VIII: 8, IX: 9, X: 10,
+    };
+    const numeric = roman[raw] || intOr(raw, 1) || 1;
+    return String(Math.max(1, numeric));
+  }
+
+  function sameTier(a, b) {
+    return tierKey(a) === tierKey(b);
+  }
+
   function buildPurchasePayload(itemId, storeItem = {}, playerId = null, options = {}) {
     const source = clone(storeItem) || {};
     const definitionId = definitionIdOf(source, itemId);
@@ -115,6 +129,8 @@
     version: 1,
     definitionIdOf,
     quantityOf,
+    tierKey,
+    sameTier,
     buildPurchasePayload,
     mergePurchasedStack,
   });
