@@ -9,6 +9,8 @@ on:
       - 'combat/**'
       - 'database.rules.json'
       - 'js/combat-v073-live-adapter.js'
+      - 'js/combat-encounter-lifecycle.js'
+      - 'js/battle-viewer-dm-console-074.js'
       - 'js/combat-v073-plan-sync.js'
       - 'js/combat-v073-economy-menu.js'
       - 'js/combat-v073-economy-review-fixes.js'
@@ -59,6 +61,7 @@ on:
       - 'tests/enemy-action-slot-allocator-smoke.mjs'
       - 'tests/wolf-unit-library-smoke.mjs'
       - 'tests/combat-v073-theatre-isolation-smoke.mjs'
+      - 'tests/combat-v074-dm-console-smoke.mjs'
       - 'tests/combat-v073-live-sync-hotfix-smoke.mjs'
       - 'tests/combat-v073-economy-menu-smoke.mjs'
       - 'tests/combat-v073-player-menu-inventory-click-smoke.mjs'
@@ -82,6 +85,8 @@ jobs:
       - name: Adapter syntax
         run: |
           node --check js/combat-v073-live-adapter.js
+          node --check js/combat-encounter-lifecycle.js
+          node --check js/battle-viewer-dm-console-074.js
           node --check js/combat-v073-plan-sync.js
           node --check js/combat-v073-economy-menu.js
           node --check js/combat-v073-economy-review-fixes.js
@@ -159,3 +164,5 @@ jobs:
         run: node tests/wolf-unit-library-smoke.mjs
       - name: Combat / Theatre isolation contract
         run: node tests/combat-v073-theatre-isolation-smoke.mjs
+      - name: Encounter end and DM resolution contract
+        run: node tests/combat-v074-dm-console-smoke.mjs
