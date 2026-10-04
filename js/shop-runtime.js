@@ -485,13 +485,13 @@
     return Math.max(0.10, 1 + marketEventPercent(shop) / 100);
   }
 
-  function priceBreakdown(item = {}, shop = {}) {
+  function priceBreakdown(item = {}, shop = {}, options = {}) {
     const type = shopType(shop);
     const resolution = resolveBaseValueAhn(item);
     const tierMultiplier = tierPriceMultiplier(shop);
     const localMultiplier = localPriceMultiplier(shop);
-    const eventPercent = marketEventPercent(shop);
-    const eventMultiplier = marketEventMultiplier(shop);
+    const eventPercent = options.ignoreMarketEvent ? 0 : marketEventPercent(shop);
+    const eventMultiplier = options.ignoreMarketEvent ? 1 : marketEventMultiplier(shop);
     const final = resolution.resolved
       ? roundAhn(
           resolution.value *
@@ -611,7 +611,7 @@
 
     next.stock_maximo = nextMax;
     next.stock_actual = Math.max(0, nextMax - sold);
-    const resolvedShopPrice = purchasePrice(next, shop);
+    const resolvedShopPrice = priceBreakdown(next, shop, { ignoreMarketEvent: true }).priceAhn;
     if (resolvedShopPrice == null) delete next.shop_price_ahn;
     else next.shop_price_ahn = resolvedShopPrice;
     next.shop_stock_auto = true;
