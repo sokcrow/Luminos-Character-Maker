@@ -47,17 +47,34 @@
   }
 
   function selectionSource(source = {}) {
-    if (Array.isArray(source.spellIds)) return source.spellIds;
-    if (Array.isArray(source.spells)) return source.spells;
-    if (Array.isArray(source.spell_ids)) return source.spell_ids;
-    if (Array.isArray(source.spellSelections)) return source.spellSelections;
-    if (Array.isArray(source.characterBuild?.spellIds)) return source.characterBuild.spellIds;
-    if (Array.isArray(source.characterBuild?.spellSelections)) return source.characterBuild.spellSelections;
-    if (source.spellSelectionIndex && typeof source.spellSelectionIndex === "object") {
-      return Object.entries(source.spellSelectionIndex).filter(([, enabled]) => enabled === true).map(([id]) => id);
-    }
-    if (source.characterBuild?.spellSelectionIndex && typeof source.characterBuild.spellSelectionIndex === "object") {
-      return Object.entries(source.characterBuild.spellSelectionIndex).filter(([, enabled]) => enabled === true).map(([id]) => id);
+    const directLists = [
+      source.spellIds,
+      source.spells,
+      source.spell_ids,
+      source.spellSelections,
+      source.knownSpellIds,
+      source.preparedSpellIds,
+      source.characterBuild?.spellIds,
+      source.characterBuild?.spells,
+      source.characterBuild?.spellSelections,
+      source.characterBuild?.knownSpellIds,
+      source.characterBuild?.preparedSpellIds,
+    ];
+    for (const list of directLists) if (Array.isArray(list) && list.length) return list;
+
+    const indexes = [
+      source.spellSelectionIndex,
+      source.knownSpellIndex,
+      source.preparedSpellIndex,
+      source.characterBuild?.spellSelectionIndex,
+      source.characterBuild?.knownSpellIndex,
+      source.characterBuild?.preparedSpellIndex,
+    ];
+    for (const index of indexes) {
+      if (index && typeof index === "object" && !Array.isArray(index)) {
+        const ids = Object.entries(index).filter(([, enabled]) => enabled === true).map(([id]) => id);
+        if (ids.length) return ids;
+      }
     }
     return [];
   }
