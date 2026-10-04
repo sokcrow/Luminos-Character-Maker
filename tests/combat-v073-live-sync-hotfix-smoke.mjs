@@ -16,7 +16,10 @@ const rules = JSON.parse(read('database.rules.json'));
 
 assert.ok(adapter.includes('humanPlayer ? "remote" : "ai"'), 'other human Players must be remote, not local AI');
 assert.ok(adapter.includes('unit.scale') && adapter.includes('unit.spriteX') && adapter.includes('unit.spriteY'), 'visual fields must participate in hydration signature');
-assert.ok(adapter.includes('unit.speedTie') && adapter.includes('unit.speedRollTurn'), 'persisted Speed authority must participate in hydration signature');
+const hydrationStart = adapter.indexOf('function hydrationSignature');
+const hydrationEnd = adapter.indexOf('function setRoleUi', hydrationStart);
+const hydrationBody = hydrationStart >= 0 && hydrationEnd > hydrationStart ? adapter.slice(hydrationStart, hydrationEnd) : '';
+assert.ok(!hydrationBody.includes('unit.speedTie') && !hydrationBody.includes('unit.speedRollTurn') && !hydrationBody.includes('unit.speed,'), 'canonical Speed must sync in-place without forcing full Combat hydration');
 assert.ok(adapter.includes('viewerRole: state.role'), 'runtime hydration must know Player vs DM viewer role');
 assert.ok(adapter.includes('useFormationSpawn = planningPhase() && !explicitBattlePosition(raw)'), 'PRE-COMBAT must own canonical spawn formation instead of inheriting stale runtime x/y');
 assert.ok(adapter.includes('formationSource: useFormationSpawn ? "pre_combat_zigzag" : "runtime_position"'), 'hydrated units must expose whether zigzag or runtime coordinates won');
