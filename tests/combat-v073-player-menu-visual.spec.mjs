@@ -283,3 +283,49 @@ test('real Battle-viewer Player can open Actions, Skills, Spells and Items at em
 
   expect(pageErrors, pageErrors.join('\n')).toEqual([]);
 });
+
+
+test('desktop Player Items menu does not lock the HUD and can return to other menus', async ({ page }) => {
+  await page.setViewportSize({ width: 1365, height: 768 });
+  const pageErrors = [];
+  page.on('pageerror', error => pageErrors.push(String(error?.stack || error?.message || error)));
+  await installFirebase(page);
+  await page.goto(`${BASE}/Battle-viewer.html`, { waitUntil: 'domcontentloaded' });
+
+  await page.waitForFunction(() => {
+    const adapter = window.LuminousCombatLiveAdapter073;
+    const menu = window.LuminousCombatEconomyMenu073;
+    const unit = window.LuminousCombat073?.combatants?.()?.['player:p1'];
+    return adapter?.state?.role === 'player'
+      && adapter?.state?.playerId === 'p1'
+      && menu?.state?.installed === true
+      && unit?.controlled === 'player';
+  }, null, { timeout: 30000 });
+
+  await page.waitForFunction(() => window.LuminousCombatEconomyMenu073?.itemRowsForPlayer?.().some(row => row.name === 'CI Recovery Patch'), null, { timeout: 15000 });
+
+  await goRoot(page);
+  await clickRootMenu(page, 'items');
+  await assertCategoryVisible(page, 'CI Recovery Patch', 'items-desktop');
+
+  // Opening Items must not starve the browser event loop.
+  const heartbeat = await page.evaluate(() => new Promise(resolve => {
+    const started = performance.now();
+    setTimeout(() => resolve(performance.now() - started), 50);
+  }));
+  expect(heartbeat).toBeLessThan(1000);
+
+  // Use the actual HUD Back control; do not bypass the UI with eval.
+  const back = page.locator('#back,.category-back').first();
+  await expect(back).toBeVisible({ timeout: 5000 });
+  await back.click({ timeout: 5000 });
+  await page.waitForFunction(() => {
+    try { return String((0, eval)('activeMenu') || '') === ''; } catch (_) { return false; }
+  }, null, { timeout: 5000 });
+
+  // The HUD must remain interactive after visiting Items.
+  await clickRootMenu(page, 'skills');
+  await assertCategoryVisible(page, 'CI Visible Skill', 'skills-after-items-desktop');
+
+  expect(pageErrors, pageErrors.join('\n')).toEqual([]);
+});
