@@ -2,7 +2,7 @@
   'use strict';
   if(global.LuminousCombatEconomyReviewFixes073)return;
 
-  const VERSION='0.7.3-economy-review-fixes.1';
+  const VERSION='0.7.3-economy-review-fixes.2-render-guard';
   const ECONOMY=Object.freeze({ACTION:'action',QUICK:'quick_action',REACTION:'reaction'});
   const state={installed:false,originalPlayerDeckForUnit:null,pendingTraitTarget:null,triggerPoll:null,lastWrappedTrigger:null};
   const clean=v=>String(v??'').trim();
@@ -73,7 +73,12 @@
     const menu=api();
     annotateEconomySources();
     if(activeMenu()==='global')return withActionTraits(()=>menu?.renderCleanList?.());
-    return menu?.renderCleanList?.();
+
+    const original=menu?.state?.originals?.renderCleanList;
+    if(typeof original==='function'&&original!==renderCleanList&&original!==menu?.renderCleanList){
+      return original();
+    }
+    return undefined;
   }
   function renderSkills(){
     const menu=api();
