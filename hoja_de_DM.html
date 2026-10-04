@@ -8,8 +8,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/on-game-dashboard.css">
   <link rel="stylesheet" href="css/theatre-dialogue.css">
-  <link rel="stylesheet" href="css/theatre-hud.css?v=20261004-dm-composer-1">
-  <link rel="stylesheet" href="css/theatre-message-policy.css?v=20261004-dm-composer-1">
+  <link rel="stylesheet" href="css/theatre-hud.css?v=20261004-dm-input-visible-1">
+  <link rel="stylesheet" href="css/theatre-message-policy.css?v=20261004-dm-input-visible-1">
   <link rel="stylesheet" href="css/weather-fx.css">
 </head>
 <body class="on-game-dashboard">
@@ -108,8 +108,11 @@
               </select>
             </div>
 
-            <textarea id="theatre-dialogue-input" class="theatre-dm-composer-textarea" placeholder="Diálogo en vivo"></textarea>
-            <button id="btn-send-dialogue" class="theatre-dm-composer-send" type="button">ENVIAR DIÁLOGO</button>
+            <div class="theatre-dm-compose-action" data-theatre-compose-action>
+              <label class="theatre-dm-compose-label" for="theatre-dialogue-input">MENSAJE</label>
+              <textarea id="theatre-dialogue-input" class="theatre-dm-composer-textarea" placeholder="Escribe el diálogo aquí..."></textarea>
+              <button id="btn-send-dialogue" class="theatre-dm-composer-send" type="button">ENVIAR DIÁLOGO</button>
+            </div>
           </div>
         </div>
       </details>
@@ -244,7 +247,7 @@
   <script src="js/character-manager-live-sync.js"></script>
   <script src="js/theatre-controls.js?v=20261004-theatre-send-recovery-2"></script>
   <script src="js/theatre-language-policy.js"></script>
-  <script src="js/theatre-message-policy.js"></script>
+  <script src="js/theatre-message-policy.js?v=20261004-dm-input-visible-1"></script>
   <script src="js/on-game-dashboard.js?v=20261004-theatre-bank-hotfix-1"></script>
 </body>
 </html>
