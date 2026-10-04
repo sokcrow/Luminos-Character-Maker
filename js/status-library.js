@@ -317,8 +317,21 @@
 
   global.LuminousStatusLibrary = api;
   api.install();
-  const bridgeTimer = typeof global.setInterval === 'function' ? global.setInterval(installStatusEngineBridge, 250) : null;
-  bridgeTimer?.unref?.();
+
+  let bridgeRetryTimer = null;
+  let bridgeRetryCount = 0;
+  function scheduleStatusEngineBridge() {
+    if (installStatusEngineBridge()) return true;
+    if (bridgeRetryCount >= 40 || typeof global.setTimeout !== 'function') return false;
+    bridgeRetryCount += 1;
+    bridgeRetryTimer = global.setTimeout(() => {
+      bridgeRetryTimer = null;
+      scheduleStatusEngineBridge();
+    }, 250);
+    bridgeRetryTimer?.unref?.();
+    return false;
+  }
+  scheduleStatusEngineBridge();
 
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);
