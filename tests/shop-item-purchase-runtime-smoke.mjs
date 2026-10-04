@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { pathToFileURL } from "node:url";
 import path from "node:path";
+import fs from "node:fs";
 
 for (const key of [
   "LuminousShopItemPurchaseRuntime",
@@ -26,6 +27,7 @@ const storeItem = {
   itemType: "consumable",
   family: "healing_hp",
   tier: "I",
+  costo: 2000,
   quantity: 99,
   cantidad: 99,
   stock_actual: 12,
@@ -77,6 +79,7 @@ assert.equal(purchased.family, "healing_hp");
 assert.equal(purchased.quantity, 1);
 assert.equal(purchased.cantidad, 1);
 assert.equal(purchased.currentOwnerId, "Player");
+assert.equal(purchased.valorBase, 2000, "shop cost must survive as the owned item's resale base value");
 assert.equal(purchased.stock_actual, undefined);
 assert.equal(purchased.stock_maximo, undefined);
 assert.equal(purchased.requisito_aparicion, undefined);
@@ -140,4 +143,11 @@ assert.equal(fullHpUse.used, false);
 assert.equal(fullHpUse.reason, "hp_already_full");
 assert.equal(fullHpItem.quantity, 1);
 
-console.log("shop item purchase runtime smoke: OK (50/180 HP heal + legacy stack repair)");
+const playerSource = fs.readFileSync(path.resolve("hoja_personaje.js"), "utf8");
+assert.match(
+  playerSource,
+  /itemRef\.update\(\{\s*quantity:\s*currentQuantity - 1,\s*cantidad:\s*currentQuantity - 1,/s,
+  "selling a stack must decrement quantity and cantidad together",
+);
+
+console.log("shop item purchase runtime smoke: OK (50/180 HP heal + legacy stack repair + resale mirrors)");
