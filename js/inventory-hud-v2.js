@@ -736,7 +736,12 @@
     if (factsHost) {
       const facts = [];
       if (conditionPercent < 100) {
-        const stateLabel = String(conditionState?.state || conditionState || "DAMAGED").replace(/_/g, " ").toUpperCase();
+        const stateLabel = String(
+          conditionState?.id
+          || conditionState?.state
+          || conditionState?.label
+          || (typeof conditionState === "string" ? conditionState : "DAMAGED"),
+        ).replace(/_/g, " ").toUpperCase();
         facts.push(`<span class="inventory-v2-player-fact"><b>CONDITION</b> ${conditionPercent}% · ${escapeHtml(stateLabel)}</span>`);
       }
       if (charges?.current != null) {
