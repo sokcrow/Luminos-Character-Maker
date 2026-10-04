@@ -8,6 +8,7 @@ on:
       - pantalla_dm.html
       - js/injury-engine.js
       - js/inventory-hud-v2.js
+      - js/item-description-engine.js
       - js/content-registry.js
       - js/player-item-content-bootstrap.js
       - js/item-runtime-engine.js
@@ -108,6 +109,7 @@ on:
       - tests/injury-narrative-speed-smoke.cjs
       - tests/inventory-runtime-cutover.spec.cjs
       - tests/player-item-use-hydration-smoke.mjs
+      - tests/item-description-engine-smoke.mjs
       - tests/shop-item-purchase-runtime-smoke.mjs
       - tests/dm-item-instance-editor.spec.cjs
       - .github/workflows/player-inventory-runtime-validation.yml
@@ -129,6 +131,7 @@ jobs:
           node --check hoja_personaje.js
           node --check js/injury-engine.js
           node --check js/inventory-hud-v2.js
+          node --check js/item-description-engine.js
           node --check js/content-registry.js
           node --check js/player-item-content-bootstrap.js
           node --check js/item-runtime-engine.js
@@ -267,6 +270,8 @@ jobs:
         run: node tests/injury-narrative-speed-smoke.cjs
       - name: Player canonical item hydration smoke
         run: node tests/player-item-use-hydration-smoke.mjs
+      - name: Item player description coverage smoke
+        run: node tests/item-description-engine-smoke.mjs
       - name: Shop functional item purchase smoke
         run: node tests/shop-item-purchase-runtime-smoke.mjs
       - name: Install Playwright test runner
