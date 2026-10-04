@@ -197,7 +197,19 @@ async function clickMenuIcon(page, fileName){
     try{openCategorySource=(0,eval)("typeof openCategory==='function'?String(openCategory):'missing'");}catch(error){openCategorySource=String(error);}
     try{originalRenderCategorySource=String(window.LuminousCombatEconomyMenu073?.state?.originals?.renderCategory||'missing');}catch(error){originalRenderCategorySource=String(error);}
     try{goRootSource=(0,eval)("typeof goRoot==='function'?String(goRoot):'missing'");}catch(error){goRootSource=String(error);}
-    return {fileName,ancestors,openCategorySource,originalRenderCategorySource,goRootSource};
+    return {
+      fileName,
+      ancestors,
+      openCategorySource,
+      originalRenderCategorySource,
+      goRootSource,
+      economyVersion:window.LuminousCombatEconomyMenu073?.version||null,
+      economyInstalled:window.LuminousCombatEconomyMenu073?.state?.installed||false,
+      commandHandlersInstalled:window.LuminousCombatEconomyMenu073?.state?.commandHandlersInstalled||false,
+      buttonCanonicalBound:Boolean(node.closest?.('#command-ring .command[data-menu]')?.__luminousCanonicalMenuBound),
+      hasOpenCanonicalCategory:typeof window.LuminousCombatEconomyMenu073?.openCanonicalCategory==='function',
+      economyScripts:Array.from(document.scripts).map(script=>script.src||'').filter(src=>src.includes('combat-v073-economy-menu.js')),
+    };
   },fileName);
   console.log('PLAYER_MENU_CONTROL_DIAGNOSTIC',JSON.stringify(diagnostic));
   const control=icon.locator('xpath=ancestor-or-self::*[self::button or @onclick or @role="button"][1]');
