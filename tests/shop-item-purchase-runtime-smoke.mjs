@@ -131,7 +131,7 @@ const brokenUse = runtime.useItem(
   { ignoreActionCost: true },
 );
 assert.equal(brokenUse.used, false);
-assert.equal(brokenUse.reason, "item_has_no_runtime_effect");
+assert.equal(brokenUse.reason, "item_not_usable");
 assert.equal(broken.quantity, 1);
 
 const fullHpItem = shop.buildPurchasePayload(
