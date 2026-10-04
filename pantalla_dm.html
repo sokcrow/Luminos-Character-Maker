@@ -6941,12 +6941,14 @@ window.processEntitiesData = function(entities) {
               : { available: true, tierEligible: true, catalogBand: "legacy" };
             const isChecked = itemEnTienda && availability.available ? "checked" : "";
             const itemFuente = itemEnTienda || dataGlobal;
-            const valorBase = shopRuntime?.baseValueAhn
-              ? shopRuntime.baseValueAhn(itemFuente)
-              : (itemFuente.costo || 0);
+            const valueResolution = shopRuntime?.resolveBaseValueAhn
+              ? shopRuntime.resolveBaseValueAhn(itemFuente)
+              : { resolved: Number(itemFuente.costo) > 0, value: Number(itemFuente.costo) || null, field: "costo" };
+            const valorBase = valueResolution.resolved ? valueResolution.value : null;
             const precioActual = shopRuntime?.purchasePrice
               ? shopRuntime.purchasePrice(itemFuente, dataTienda)
               : valorBase;
+            const precioResuelto = Number.isFinite(Number(precioActual)) && Number(precioActual) > 0;
             const stockActual = shopRuntime?.stockForItem
               ? shopRuntime.stockForItem(itemFuente, dataTienda)
               : (itemEnTienda ? itemEnTienda.stock_maximo : -1);
@@ -6989,9 +6991,9 @@ window.processEntitiesData = function(entities) {
                 </div>
                 <div class="modal-item-inputs">
                     <label style="font-size: 12px; color: #aaa;">Valor Base:</label>
-                    <input type="number" class="input-precio" value="${valorBase}" readonly title="Valor intrínseco; la tienda no lo reescribe">
+                    <input type="text" class="input-precio" value="${valorBase ?? "SIN VALOR"}" readonly title="${valueResolution.resolved ? "Fuente: " + valueResolution.field : "No existe un valor económico canónico positivo"}">
                     <label style="font-size: 12px; color: #aaa;">Compra:</label>
-                    <input type="number" class="input-shop-price" value="${precioActual}" readonly title="Precio calculado por Shop Runtime">
+                    <input type="text" class="input-shop-price" value="${precioResuelto ? precioActual : "NO VENDIBLE"}" readonly title="Precio calculado por Shop Runtime">
                     <label style="font-size: 12px; color: #aaa;">Stock Auto:</label>
                     <input type="number" class="input-stock" value="${stockActual}" readonly title="Stock compartido calculado por jugadores, tipo y Tier">
                     <span style="font-size: 11px; color: ${disponibleEnTienda ? "#7ee787" : "#ff6b6b"};">
@@ -7008,7 +7010,7 @@ window.processEntitiesData = function(entities) {
                     </select>
                 </div>
                 <label class="switch">
-                    <input type="checkbox" class="toggle-item" ${isChecked} ${disponiblePorTier ? "" : "disabled"}>
+                    <input type="checkbox" class="toggle-item" ${isChecked} ${disponiblePorTier && precioResuelto ? "" : "disabled"}>
                     <span class="slider"></span>
                 </label>
             `;
@@ -7051,6 +7053,7 @@ window.processEntitiesData = function(entities) {
               const baseValue = shopRuntime?.baseValueAhn
                 ? shopRuntime.baseValueAhn(dataGlobal)
                 : (dataGlobal.costo || 0);
+              if (!(Number.isFinite(Number(baseValue)) && Number(baseValue) > 0)) return;
 
               let shopItem = {
                 ...dataGlobal,
