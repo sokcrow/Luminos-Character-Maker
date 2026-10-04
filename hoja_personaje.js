@@ -2705,6 +2705,23 @@ function initializeCharacterSheet() {
     "X",
   ];
 
+  const getShopRuntime = () => window.LuminousShopRuntime || null;
+  const canAccessShop = (shop, playerName) =>
+    !getShopRuntime()?.isPlayerAllowed ||
+    getShopRuntime().isPlayerAllowed(shop, playerName);
+  const getShopPrice = (item, shop) =>
+    getShopRuntime()?.purchasePrice?.(item, shop) ??
+    Math.max(0, parseInt(item?.costo, 10) || 0);
+  const getShopTierNumber = (value) =>
+    getShopRuntime()?.tierNumber?.(value) ??
+    Math.max(1, parseInt(value, 10) || 1);
+  const shopDisplayName = (shop = {}) => {
+    const meta = getShopRuntime()?.describeShop?.(shop);
+    return meta
+      ? `${shop.nombre || "Tienda"} · ${meta.typeLabel} · TIER ${meta.tierRoman}`
+      : (shop.nombre || "Tienda");
+  };
+
   // Esperar a que el DOM y typeof db !== 'undefined' existan
   {
     if (typeof db === "undefined") return;
@@ -2746,7 +2763,7 @@ function initializeCharacterSheet() {
 
       for (const [id, data] of Object.entries(tiendas)) {
         // Lógica App (En línea)
-        if (data.activa === true) {
+        if (data.activa === true && playerName && canAccessShop(data, playerName)) {
           encontrada = true;
           tiendaActivaId = id;
           tiendaActivaData = data;
@@ -2756,8 +2773,7 @@ function initializeCharacterSheet() {
         if (
           data.fisica_activa === true &&
           playerName &&
-          data.jugadores_presentes &&
-          data.jugadores_presentes[playerName]
+          canAccessShop(data, playerName)
         ) {
           tiendasFisicasDisponibles[id] = data;
           if (!badgeImageSrc)
@@ -2831,7 +2847,9 @@ function initializeCharacterSheet() {
 
         const iconUrl =
           data.icono_fisico || data.icono || "https://i.imgur.com/kP8s7Ww.png";
-        btn.innerHTML = `<img src="${iconUrl}" alt="${data.nombre}"> ${data.nombre}`;
+        const meta = getShopRuntime()?.describeShop?.(data);
+        const suffix = meta ? ` · T${meta.tierRoman}` : "";
+        btn.innerHTML = `<img src="${iconUrl}" alt="${data.nombre}"> ${data.nombre}${suffix}`;
 
         btn.addEventListener("click", () => {
           seleccionarTiendaFisica(id);
@@ -2855,11 +2873,10 @@ function initializeCharacterSheet() {
       const data = tiendasFisicasDisponibles[idTienda];
       if (!data) return;
 
-      title.innerText = data.nombre;
+      title.innerText = shopDisplayName(data);
       grid.innerHTML = "";
 
       const items = data.items || {};
-      const modVenta = data.mod_venta || 100;
 
       if (Object.keys(items).length === 0) {
         grid.innerHTML =
@@ -2888,14 +2905,18 @@ function initializeCharacterSheet() {
           const fragment = document.createDocumentFragment();
 
           for (const [itemId, item] of Object.entries(items)) {
-            const itemTier = parseInt(item.tier) || 1;
-            const valorConTier = Math.floor(
-              (item.costo || 0) * (1 + (itemTier - 1) * 0.25),
-            );
-            const precio = Math.floor(valorConTier * (modVenta / 100));
-            const isAgotado = item.stock_actual === 0;
-            const stockStr = item.stock_actual === -1 ? "∞" : item.stock_actual;
-            const tierStr = romanTiersShop[Math.min(itemTier, 10)] || "I";
+            const itemTier = getShopTierNumber(item.tier);
+            const precio = getShopPrice(item, data);
+            const disponiblePorTier =
+              getShopRuntime()?.itemAvailable?.(item, data) !== false;
+            const isAgotado = item.stock_actual === 0 || !disponiblePorTier;
+            const stockStr = !disponiblePorTier
+              ? "Fuera de Tier"
+              : (item.stock_actual === -1 ? "∞" : item.stock_actual);
+            const tierStr =
+              getShopRuntime()?.tierRoman?.(itemTier) ||
+              romanTiersShop[Math.min(itemTier, 10)] ||
+              "I";
             const countOwned = stashCounts[item.nombre] || 0;
             const tagStr = item.tag || "Objeto";
             const descStr =
@@ -2977,7 +2998,6 @@ function initializeCharacterSheet() {
         const itemId = isFisico
           ? btnCompra.getAttribute("data-item")
           : btnCompra.getAttribute("data-id");
-        const precio = parseInt(btnCompra.getAttribute("data-precio"));
 
         let idTiendaActual = null;
         let tiendaActualData = null;
@@ -2997,6 +3017,20 @@ function initializeCharacterSheet() {
         )
           return;
         const itemTienda = tiendaActualData.items[itemId];
+        if (!canAccessShop(tiendaActualData, playerName)) {
+          alert("Esta tienda no está disponible para tu personaje.");
+          return;
+        }
+        if (getShopRuntime()?.itemAvailable?.(itemTienda, tiendaActualData) === false) {
+          alert("Este objeto está por encima del Tier de la tienda.");
+          return;
+        }
+        if (itemTienda.stock_actual === 0) {
+          alert("Este objeto está agotado.");
+          return;
+        }
+
+        const precio = getShopPrice(itemTienda, tiendaActualData);
 
         db.ref(`campaña/jugadores/${playerName}/ahn`).once("value", (snap) => {
           const ahn_actual = snap.val() || 0;
@@ -3015,7 +3049,9 @@ function initializeCharacterSheet() {
             db.ref(
               `campaña/tiendas/${idTiendaActual}/items/${itemId}/stock_actual`,
             ).transaction((current) => {
-              return (current || 0) - 1;
+              if (current === -1) return -1;
+              const stock = Math.max(0, parseInt(current, 10) || 0);
+              return stock > 0 ? stock - 1 : 0;
             });
           }
 
@@ -3216,7 +3252,6 @@ function initializeCharacterSheet() {
 
       grid.innerHTML = "";
       const items = tiendaActivaData.items || {};
-      const modVenta = tiendaActivaData.mod_venta || 100;
 
       if (Object.keys(items).length === 0) {
         grid.innerHTML =
@@ -3228,13 +3263,13 @@ function initializeCharacterSheet() {
       const fragment = document.createDocumentFragment();
 
       for (const [itemId, item] of Object.entries(items)) {
-        const itemTier = parseInt(item.tier) || 1;
-        const valorConTier = Math.floor(
-          (item.costo || 0) * (1 + (itemTier - 1) * 0.25),
-        );
-        const precio = Math.floor(valorConTier * (modVenta / 100));
-        const isAgotado = item.stock_actual === 0;
-        const stockStr = item.stock_actual === -1 ? "∞" : item.stock_actual;
+        const precio = getShopPrice(item, tiendaActivaData);
+        const disponiblePorTier =
+          getShopRuntime()?.itemAvailable?.(item, tiendaActivaData) !== false;
+        const isAgotado = item.stock_actual === 0 || !disponiblePorTier;
+        const stockStr = !disponiblePorTier
+          ? "Fuera de Tier"
+          : (item.stock_actual === -1 ? "∞" : item.stock_actual);
 
         const row = document.createElement("div");
         row.style.cssText =
