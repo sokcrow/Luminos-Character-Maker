@@ -230,8 +230,8 @@ assert.ok(
 );
 assert.match(
   playerSource,
-  /next\.inventario_stash\[itemKey\]\s*=\s*\{[\s\S]*?quantity:\s*quantity - 1,[\s\S]*?cantidad:\s*quantity - 1,/,
-  "selling a stack must decrement quantity and cantidad together inside the player transaction",
+  /const remainingQuantity\s*=\s*quantity - 1;[\s\S]*?quantity:\s*remainingQuantity,[\s\S]*?cantidad:\s*remainingQuantity,[\s\S]*?next\.inventario_stash\[itemKey\]\s*=\s*remainingItem;/,
+  "selling a stack must compute one remaining quantity and persist it to quantity/cantidad together",
 );
 assert.match(
   playerSource,
