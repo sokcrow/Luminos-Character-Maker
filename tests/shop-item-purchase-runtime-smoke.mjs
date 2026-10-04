@@ -175,8 +175,8 @@ assert.match(
   "physical purchases must synchronize legacy ahn and finance.currentBalance",
 );
 assert.ok(
-  playerHtml.includes("hoja_personaje.css?v=20261004-market-event-2") &&
-  playerHtml.includes("hoja_personaje.js?v=20261004-market-event-2"),
+  playerHtml.includes("hoja_personaje.css?v=20261004-shop-commerce-1") &&
+  playerHtml.includes("hoja_personaje.js?v=20261004-shop-commerce-1"),
   "Shop HUD/balance changes must be cache-busted in the deployed player sheet",
 );
 assert.match(
@@ -248,5 +248,43 @@ assert.match(
   /next\.ahn\s*=\s*balanceAfter;[\s\S]*?currentBalance:\s*balanceAfter,/,
   "selling must keep legacy Ahn and finance.currentBalance synchronized",
 );
+assert.ok(
+  playerHtml.includes('id="shop-footer-service-mode"') &&
+  playerHtml.includes("SERVICIOS"),
+  "physical Shop must expose Services as a real player-facing mode",
+);
+assert.ok(
+  playerHtml.includes("abrirServiciosTiendaDinamica") &&
+  playerHtml.includes("theater-shop-merchant"),
+  "Theater Shop must expose the same Services and merchant surface",
+);
+assert.match(
+  playerSource,
+  /function repairShopInventoryItem[\s\S]*?repairBreakdown[\s\S]*?applyFullShopRepair/,
+  "repair service must quote through Shop Runtime and mutate canonical durability/condition",
+);
+assert.match(
+  playerSource,
+  /reserveShopPromotionRewards[\s\S]*?deliverShopPromotionRewards/,
+  "promotional reward items must reserve shared stock before delivery",
+);
+assert.match(
+  playerSource,
+  /LuminousRecordShopCommerceActivity[\s\S]*?shop_commerce/,
+  "player purchases/services must persist commerce history for loyalty and frequent-customer mechanics",
+);
+assert.ok(
+  dmHtml.includes('id="tienda-npc-sprite"') &&
+  dmHtml.includes('id="tienda-npc-saludo"') &&
+  dmHtml.includes('id="tienda-servicio-reparacion"') &&
+  dmHtml.includes('id="tienda-lealtad-activa"'),
+  "DM Shop authoring must expose NPC presentation, Repair and loyalty controls",
+);
+assert.ok(
+  dmHtml.includes('id="tienda-promocion-tipo"') &&
+  dmHtml.includes('id="tienda-promocion-producto"') &&
+  dmHtml.includes('id="tienda-promocion-regalo"'),
+  "DM Shop authoring must expose product-facing promotion controls",
+);
 
-console.log("shop item purchase runtime smoke: OK (50/180 HP heal + legacy stack repair + resale mirrors)");
+console.log("shop item purchase runtime smoke: OK (functional purchases + commerce + repair + loyalty + promotions)");
