@@ -526,6 +526,50 @@
       .economy-action-detail button:disabled{opacity:.4;cursor:default}
       #game-container.economy-targeting .command-ring,#game-container.economy-targeting .category-surface,#game-container.economy-targeting .category-back{pointer-events:none;opacity:.26}
       #game-container.economy-targeting .sprite-container{cursor:crosshair}
+      #game-container.combat-compact-menu.combat-root-menu-active .command-ring{
+        position:absolute!important;
+        left:auto!important;right:8px!important;top:66px!important;bottom:auto!important;
+        width:min(344px,calc(100vw - 16px))!important;height:auto!important;
+        display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
+        grid-auto-rows:54px!important;gap:5px!important;padding:0!important;
+        overflow:visible!important;transform:none!important;z-index:220!important;
+        pointer-events:auto!important;
+      }
+      #game-container.combat-compact-menu.combat-root-menu-active .command-ring button{
+        position:relative!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;
+        width:auto!important;min-width:0!important;height:54px!important;margin:0!important;
+        transform:none!important;visibility:visible!important;opacity:1!important;
+        pointer-events:auto!important;font-size:clamp(7px,1.8vw,10px)!important;
+      }
+      #game-container.combat-compact-menu.combat-root-menu-active .command-ring button img{
+        max-width:30px!important;max-height:30px!important;
+      }
+      #game-container.combat-compact-menu.combat-category-active .command-ring{
+        pointer-events:none!important;
+      }
+      #game-container.combat-compact-menu.combat-category-active .category-surface{
+        position:absolute!important;left:auto!important;right:8px!important;top:54px!important;bottom:8px!important;
+        width:min(330px,calc(100vw - 24px))!important;height:auto!important;max-height:none!important;
+        transform:none!important;overflow:hidden!important;box-sizing:border-box!important;z-index:225!important;
+      }
+      #game-container.combat-compact-menu.combat-category-active #category-body{
+        max-height:calc(100vh - 118px)!important;overflow-y:auto!important;overscroll-behavior:contain;
+      }
+      #game-container.combat-compact-menu.combat-category-active .category-back,
+      #game-container.combat-compact-menu.combat-category-active #back{
+        position:absolute!important;left:auto!important;right:12px!important;top:10px!important;bottom:auto!important;
+        transform:none!important;z-index:230!important;
+      }
+      @media (max-width:520px){
+        #game-container.combat-compact-menu.combat-root-menu-active .command-ring{
+          left:8px!important;right:8px!important;width:auto!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;
+          grid-auto-rows:48px!important;top:58px!important;
+        }
+        #game-container.combat-compact-menu.combat-root-menu-active .command-ring button{height:48px!important}
+        #game-container.combat-compact-menu.combat-category-active .category-surface{
+          left:8px!important;right:8px!important;width:auto!important;top:48px!important;
+        }
+      }
     `;
     global.document.head.appendChild(style);
   }
@@ -690,7 +734,19 @@
     return renderGlobalList();
   }
 
+  function syncResponsiveMenuLayout() {
+    const host = global.document?.getElementById?.("game-container");
+    if (!host) return false;
+    const compact = Number(global.innerHeight || 0) <= 360 || Number(global.innerWidth || 0) <= 760;
+    const menu = activeMenu();
+    host.classList.toggle("combat-compact-menu", compact);
+    host.classList.toggle("combat-root-menu-active", compact && !menu);
+    host.classList.toggle("combat-category-active", compact && Boolean(menu));
+    return compact;
+  }
+
   function renderCategory() {
+    syncResponsiveMenuLayout();
     const result = state.originals.renderCategory?.();
     // The bundled 0.7.3 renderer has no dedicated renderItems function and
     // consequently falls through to its static demo list.  Re-render dynamic
@@ -706,6 +762,7 @@
     syncTabs();
     updateCategoryContext();
     syncQuickBadge();
+    syncResponsiveMenuLayout();
     return result;
   }
 
@@ -1084,7 +1141,7 @@
     if (state.installed || !global.document) return state.installed;
     const required = ["renderCategory", "renderSkills", "renderSpells", "renderCleanList", "selectAction"];
     if (required.some((name) => typeof lexical(name) !== "function")) return false;
-    state.originals = { renderCategory: lexical("renderCategory"), renderSkills: lexical("renderSkills"), renderSpells: lexical("renderSpells"), renderItems: lexical("renderItems", null), renderCleanList: lexical("renderCleanList"), selectAction: lexical("selectAction"), planTargetRule: lexical("planTargetRule", null) };
+    state.originals = { renderCategory: lexical("renderCategory"), renderSkills: lexical("renderSkills"), renderSpells: lexical("renderSpells"), renderItems: lexical("renderItems", null), renderCleanList: lexical("renderCleanList"), selectAction: lexical("selectAction"), planTargetRule: lexical("planTargetRule", null), goRoot: lexical("goRoot", null) };
     ensureStyles(); ensureTabs();
     if (typeof state.originals.planTargetRule === "function") {
       global.__luminousEconomyPlanTargetRuleCompat = planTargetRuleCompat;
@@ -1096,20 +1153,30 @@
     assignLexical("renderCleanList", "window.LuminousCombatEconomyMenu073.renderCleanList");
     assignLexical("renderCategory", "window.LuminousCombatEconomyMenu073.renderCategory");
     assignLexical("selectAction", "window.LuminousCombatEconomyMenu073.selectAction");
-    installPhaseHooks(); installTargetHandler(); syncPlanningEconomy(false); syncQuickBadge(); syncSpellMenuVisibility();
+    if (typeof state.originals.goRoot === "function") {
+      global.__luminousEconomyOriginalGoRoot = state.originals.goRoot;
+      global.__luminousEconomyGoRoot = function (...args) {
+        const result = global.__luminousEconomyOriginalGoRoot.apply(this, args);
+        global.setTimeout?.(syncResponsiveMenuLayout, 0);
+        return result;
+      };
+      assignLexical("goRoot", "window.__luminousEconomyGoRoot");
+    }
+    installPhaseHooks(); installTargetHandler(); syncPlanningEconomy(false); syncQuickBadge(); syncSpellMenuVisibility(); syncResponsiveMenuLayout();
+    global.addEventListener?.("resize", syncResponsiveMenuLayout);
     if (!state.menuObserver && typeof MutationObserver === "function" && global.document?.body) {
-      state.menuObserver = new MutationObserver(() => syncSpellMenuVisibility());
+      state.menuObserver = new MutationObserver(() => { syncSpellMenuVisibility(); syncResponsiveMenuLayout(); });
       state.menuObserver.observe(global.document.body, { childList: true, subtree: true });
     }
     state.installed = true; return true;
   }
 
-  const api = { version: VERSION, ECONOMY, state, normalizeEconomyCost, economyTabFor, costLabel, canonicalPlayerId, playerUnit, playerKit, traitDefinitionsForPlayer, liveActions, spellLoadoutRuntime, normalizeSpellForMenu, classEntries, spellcastingClasses, isSpellcaster, selectedSpellIds, spellRowsForPlayer, inventoryEntries, quantityOf, itemTiming, itemCanUseInCombat, stableItemRow, itemRowsForPlayer, findActiveInventoryItem, spellMenuNodes, syncSpellMenuVisibility, selfTargetedItem, planTargetRuleCompat, persistQuickItemState, rowsFor, renderSkills, renderSpells, renderItems, renderCleanList, renderCategory, selectAction, setTab, syncTabs, syncQuickBadge, syncPlanningEconomy, beginCombatEconomy, prepareReaction, triggerPreparedReaction, useQuickAction, install };
+  const api = { version: VERSION, ECONOMY, state, normalizeEconomyCost, economyTabFor, costLabel, canonicalPlayerId, playerUnit, playerKit, traitDefinitionsForPlayer, liveActions, spellLoadoutRuntime, normalizeSpellForMenu, classEntries, spellcastingClasses, isSpellcaster, selectedSpellIds, spellRowsForPlayer, inventoryEntries, quantityOf, itemTiming, itemCanUseInCombat, stableItemRow, itemRowsForPlayer, findActiveInventoryItem, spellMenuNodes, syncSpellMenuVisibility, syncResponsiveMenuLayout, selfTargetedItem, planTargetRuleCompat, persistQuickItemState, rowsFor, renderSkills, renderSpells, renderItems, renderCleanList, renderCategory, selectAction, setTab, syncTabs, syncQuickBadge, syncPlanningEconomy, beginCombatEconomy, prepareReaction, triggerPreparedReaction, useQuickAction, install };
 
   async function boot() { await ensureDependencies(); return install(); }
   api.boot = boot; api.ensureDependencies = ensureDependencies;
   global.LuminousCombatEconomyMenu073 = Object.freeze(api);
-  global.addEventListener?.("luminous:combat073-hydrated", () => { syncPlanningEconomy(false); syncQuickBadge(); syncSpellMenuVisibility(); const render = lexical("renderCategory"); if (activeMenu() && typeof render === "function") render(); });
+  global.addEventListener?.("luminous:combat073-hydrated", () => { syncPlanningEconomy(false); syncQuickBadge(); syncSpellMenuVisibility(); syncResponsiveMenuLayout(); const render = lexical("renderCategory"); if (activeMenu() && typeof render === "function") render(); });
   global.addEventListener?.("luminous:combat073-runtime-ready", () => global.setTimeout(boot, 0));
   global.setTimeout(boot, 0);
 
