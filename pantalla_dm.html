@@ -6875,22 +6875,9 @@ window.processEntitiesData = function(entities) {
             }
 
             const authorizedUids = {};
-            let unresolvedShopPlayer = null;
             for (const playerKey of Object.keys(jugadoresPresentes)) {
               const uid = window.jugadoresData?.[playerKey]?.uid;
-              if (!uid) {
-                unresolvedShopPlayer = playerKey;
-                break;
-              }
-              authorizedUids[uid] = true;
-            }
-            if (unresolvedShopPlayer) {
-              alert(
-                "No se puede autorizar la tienda: el jugador " +
-                unresolvedShopPlayer +
-                " no tiene UID canónico registrado.",
-              );
-              return;
+              if (uid) authorizedUids[uid] = true;
             }
 
             const isEditing = editModeTiendaKey !== null;
