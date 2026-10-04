@@ -3077,9 +3077,12 @@ function initializeCharacterSheet() {
                   owned.definitionId ||
                   owned.canonicalId ||
                   owned.id;
+                const sameTier = purchaseRuntime?.sameTier
+                  ? purchaseRuntime.sameTier(owned.tier, itemTienda.tier)
+                  : String(owned.tier || "I") === String(itemTienda.tier || "I");
                 if (
                   ownedDefinitionId === itemToSave.definitionId &&
-                  (owned.tier || 1) == (itemTienda.tier || 1)
+                  sameTier
                 ) {
                   foundKey = child.key;
                 }
