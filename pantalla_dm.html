@@ -2321,43 +2321,37 @@ window.processEntitiesData = function(entities) {
             </div>
 
             <div class="form-cyber" id="dm-market-event-panel">
-              <h4 style="color:#fff;">Evento de Mercado</h4>
+              <h4 style="color:#fff;">Alteración del Mercado</h4>
               <div style="font-size:11px;color:#888;margin-bottom:8px;line-height:1.4;">
-                Los porcentajes afectan el precio real de compra por Tipo de Tienda.
-                Negativo = descuento. Positivo = aumento. La reventa permanece al 80%.
+                Describe una causa dentro del mundo: escasez, sobreoferta, bloqueo, huelga, subsidio, cacería, crisis, etc.
+                El jugador sólo verá el boletín y sus consecuencias. Negativo = baja de precios. Positivo = aumento. La reventa permanece al 80%.
               </div>
               <input
                 type="text"
                 id="market-event-title"
                 maxlength="80"
-                value="Cambio de mercado"
-                placeholder="Título del evento"
+                value="Variación de precios"
+                placeholder="Titular dentro del mundo"
               />
               <textarea
                 id="market-event-message"
                 maxlength="220"
                 rows="3"
-                placeholder="Ej. La escasez de suministros médicos altera los precios en el Distrito."
+                placeholder="Ej. Un bloqueo de rutas redujo la entrada de medicamentos y dejó excedentes de alimentos en varios sectores."
                 style="width:100%;box-sizing:border-box;resize:vertical;background:#090909;color:#fff;border:1px solid #444;padding:8px;"
               ></textarea>
 
               <div id="market-event-modifiers" style="display:grid;grid-template-columns:1fr 86px;gap:6px 10px;align-items:center;margin-top:10px;">
-                <label>Almacén General</label><input class="market-event-mod" data-shop-type="general" type="number" min="-90" max="300" step="1" value="0" />
-                <label>Provisiones</label><input class="market-event-mod" data-shop-type="provisions" type="number" min="-90" max="300" step="1" value="0" />
-                <label>Clínica / Farmacia</label><input class="market-event-mod" data-shop-type="clinic" type="number" min="-90" max="300" step="1" value="0" />
-                <label>Workshop</label><input class="market-event-mod" data-shop-type="workshop" type="number" min="-90" max="300" step="1" value="0" />
-                <label>Armería</label><input class="market-event-mod" data-shop-type="arms_dealer" type="number" min="-90" max="300" step="1" value="0" />
-                <label>Especialista</label><input class="market-event-mod" data-shop-type="specialist" type="number" min="-90" max="300" step="1" value="0" />
-                <label>Mercado Negro</label><input class="market-event-mod" data-shop-type="black_market" type="number" min="-90" max="300" step="1" value="0" />
+                <!-- Se genera desde LuminousShopRuntime.SHOP_TYPES -->
               </div>
 
               <div id="market-event-status" style="margin-top:10px;padding:8px;border:1px solid #333;background:#080808;color:#777;font-size:12px;">
-                Sin evento económico activo.
+                Sin alteración de mercado activa.
               </div>
 
               <div style="display:flex;gap:8px;margin-top:10px;">
-                <button id="btn-publicar-market-event" class="btn-cyber btn-green" style="flex:1;">Publicar Evento</button>
-                <button id="btn-finalizar-market-event" class="btn-cyber" style="flex:1;background:#341515;color:#ff8b8b;border-color:#662626;">Finalizar</button>
+                <button id="btn-publicar-market-event" class="btn-cyber btn-green" style="flex:1;">Publicar Cambio</button>
+                <button id="btn-finalizar-market-event" class="btn-cyber" style="flex:1;background:#341515;color:#ff8b8b;border-color:#662626;">Restablecer Mercado</button>
               </div>
             </div>
           </div>
