@@ -78,6 +78,11 @@
 
     global.rollTurnSpeeds=function authoritativeSpeedSync(round){
       syncRuntimeSpeedsFromCanonical(round??state.round);
+      // Preserve the original turn-start side effects without preserving its RNG:
+      // canonical Speed determines order/formation, then the viewer lays units out
+      // and refreshes visibility exactly once for the new turn.
+      try{global.layoutSpeedFormation?.()}catch(error){console.error('[Combat073 SpeedAuthority] formation refresh failed',error)}
+      try{global.syncAllUnitVisibility?.()}catch(error){console.error('[Combat073 SpeedAuthority] visibility refresh failed',error)}
       return runtimeCombatants();
     };
     global.rollTurnSpeeds.__luminousCanonicalSpeed=true;
