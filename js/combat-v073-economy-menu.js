@@ -20,6 +20,7 @@
     classObserver: null,
     menuObserver: null,
     itemRowByInstanceId: new Map(),
+    rootMenuClickInstalled: false,
   };
 
   const clean = (value) => String(value ?? "").trim();
@@ -745,19 +746,49 @@
     return compact;
   }
 
-  function renderCategory() {
-    syncResponsiveMenuLayout();
-    const result = state.originals.renderCategory?.();
-    // The bundled 0.7.3 renderer has no dedicated renderItems function and
-    // consequently falls through to its static demo list.  Re-render dynamic
-    // menus here after the shell/title has been prepared by the legacy code.
-    // This also makes the menu independent from load order: whether the live
-    // hydration or this bridge finishes first, current kit/inventory data wins.
-    const menu = activeMenu();
+  function renderActiveMenuBody(menu = activeMenu()) {
     if (menu === "items") renderItems();
     else if (menu === "skills") renderSkills();
     else if (menu === "spells") renderSpells();
     else if (menu === "global") renderGlobalList();
+    else return false;
+    return true;
+  }
+
+  function refreshOpenedMenu(menu, delay = 0) {
+    global.setTimeout?.(() => {
+      if (activeMenu() !== menu) return;
+      renderActiveMenuBody(menu);
+      syncTabs();
+      updateCategoryContext();
+      syncSpellMenuVisibility();
+      syncQuickBadge();
+      syncResponsiveMenuLayout();
+    }, delay);
+  }
+
+  function installRootMenuClickHandler() {
+    if (state.rootMenuClickInstalled || !global.document?.addEventListener) return state.rootMenuClickInstalled;
+    global.document.addEventListener("click", (event) => {
+      const button = event.target?.closest?.(".command-ring button[data-menu],.command-ring [data-menu]");
+      if (!button) return;
+      const menu = normalizeId(button.dataset?.menu);
+      if (!TABBED_MENUS.has(menu)) return;
+      // The legacy category transition mutates activeMenu before its delayed body
+      // paint. Re-apply live content after both the immediate click and animation.
+      refreshOpenedMenu(menu, 0);
+      refreshOpenedMenu(menu, 180);
+      refreshOpenedMenu(menu, 520);
+    }, false);
+    state.rootMenuClickInstalled = true;
+    return true;
+  }
+
+  function renderCategory() {
+    syncResponsiveMenuLayout();
+    const result = state.originals.renderCategory?.();
+    // Always replace legacy/demo category contents with canonical live Player data.
+    renderActiveMenuBody(activeMenu());
     syncSpellMenuVisibility();
     syncTabs();
     updateCategoryContext();
@@ -1162,7 +1193,7 @@
       };
       assignLexical("goRoot", "window.__luminousEconomyGoRoot");
     }
-    installPhaseHooks(); installTargetHandler(); syncPlanningEconomy(false); syncQuickBadge(); syncSpellMenuVisibility(); syncResponsiveMenuLayout();
+    installPhaseHooks(); installTargetHandler(); installRootMenuClickHandler(); syncPlanningEconomy(false); syncQuickBadge(); syncSpellMenuVisibility(); syncResponsiveMenuLayout();
     global.addEventListener?.("resize", syncResponsiveMenuLayout);
     if (!state.menuObserver && typeof MutationObserver === "function" && global.document?.body) {
       state.menuObserver = new MutationObserver(() => { syncSpellMenuVisibility(); syncResponsiveMenuLayout(); });
@@ -1171,7 +1202,7 @@
     state.installed = true; return true;
   }
 
-  const api = { version: VERSION, ECONOMY, state, normalizeEconomyCost, economyTabFor, costLabel, canonicalPlayerId, playerUnit, playerKit, traitDefinitionsForPlayer, liveActions, spellLoadoutRuntime, normalizeSpellForMenu, classEntries, spellcastingClasses, isSpellcaster, selectedSpellIds, spellRowsForPlayer, inventoryEntries, quantityOf, itemTiming, itemCanUseInCombat, stableItemRow, itemRowsForPlayer, findActiveInventoryItem, spellMenuNodes, syncSpellMenuVisibility, syncResponsiveMenuLayout, selfTargetedItem, planTargetRuleCompat, persistQuickItemState, rowsFor, renderSkills, renderSpells, renderItems, renderCleanList, renderCategory, selectAction, setTab, syncTabs, syncQuickBadge, syncPlanningEconomy, beginCombatEconomy, prepareReaction, triggerPreparedReaction, useQuickAction, install };
+  const api = { version: VERSION, ECONOMY, state, normalizeEconomyCost, economyTabFor, costLabel, canonicalPlayerId, playerUnit, playerKit, traitDefinitionsForPlayer, liveActions, spellLoadoutRuntime, normalizeSpellForMenu, classEntries, spellcastingClasses, isSpellcaster, selectedSpellIds, spellRowsForPlayer, inventoryEntries, quantityOf, itemTiming, itemCanUseInCombat, stableItemRow, itemRowsForPlayer, findActiveInventoryItem, spellMenuNodes, syncSpellMenuVisibility, syncResponsiveMenuLayout, renderActiveMenuBody, refreshOpenedMenu, installRootMenuClickHandler, selfTargetedItem, planTargetRuleCompat, persistQuickItemState, rowsFor, renderSkills, renderSpells, renderItems, renderCleanList, renderCategory, selectAction, setTab, syncTabs, syncQuickBadge, syncPlanningEconomy, beginCombatEconomy, prepareReaction, triggerPreparedReaction, useQuickAction, install };
 
   async function boot() { await ensureDependencies(); return install(); }
   api.boot = boot; api.ensureDependencies = ensureDependencies;
