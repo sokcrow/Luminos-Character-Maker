@@ -318,6 +318,32 @@
     return Array.isArray(raw) ? raw : Object.values(raw || {});
   }
 
+  function moduleDisplayName(entry) {
+    const objectEntry = entry && typeof entry === "object" ? entry : null;
+    const definitionRef = String(
+      objectEntry?.definitionId
+      || objectEntry?.canonicalId
+      || objectEntry?.id
+      || (typeof entry === "string" ? entry : "")
+      || "",
+    ).trim();
+    const resolved = definitionRef
+      ? inventory()?.resolveDefinition?.(definitionRef, { type: "module" })
+      : null;
+    const explicit = objectEntry?.displayName
+      || objectEntry?.nombre
+      || objectEntry?.name
+      || resolved?.displayName
+      || resolved?.nombre
+      || resolved?.name;
+    if (explicit) return String(explicit).trim();
+    const fallback = definitionRef || objectEntry?.instanceId || objectEntry?.instance_id || "";
+    return String(fallback)
+      .trim()
+      .replace(/[_-]+/g, " ")
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+  }
+
   function ensureActiveLayout() {
     const activePane = doc.getElementById("inv-active");
     const grid = doc.getElementById("inv-active-grid");
@@ -761,7 +787,7 @@
       const tech = Array.isArray(item.signatureTechnologyIds) ? item.signatureTechnologyIds : [];
       const values = [...modules, ...tech]
         .filter(Boolean)
-        .map((entry) => typeof entry === "string" ? entry : entry.name || entry.id || "")
+        .map(moduleDisplayName)
         .filter(Boolean);
       moduleHost.innerHTML = values.map((entry) => `<span>${escapeHtml(entry)}</span>`).join("");
       moduleSection.hidden = values.length === 0;
