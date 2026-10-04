@@ -30,6 +30,8 @@ assert.ok(speed.includes('if(state.rolling||!state.roundReady||!state.db?.ref||!
 assert.ok(speed.includes('syncRuntimeSpeedsFromCanonical'),'legacy runtime Speed must be overwritten from canonical combatants');
 assert.ok(speed.includes('patchLegacySpeedRollers'),'legacy rollTurnSpeeds/rollUnitSpeed must be patched to canonical reads');
 assert.ok(speed.includes('global.rollTurnSpeeds=function authoritativeSpeedSync'),'legacy turn Speed rolls must not randomize per viewer');
+assert.ok(speed.includes('global.layoutSpeedFormation?.()'),'canonical turn Speed sync must preserve formation refresh side effects');
+assert.ok(speed.includes('global.syncAllUnitVisibility?.()'),'canonical turn Speed sync must preserve visibility refresh side effects');
 assert.ok(speed.includes('global.rollUnitSpeed=function authoritativeUnitSpeed'),'legacy unit Speed rolls must not randomize per viewer');
 
 console.log('combat v0.7.3 speed persistence smoke: ok');
