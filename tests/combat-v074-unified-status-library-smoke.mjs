@@ -127,6 +127,19 @@ assert.equal(globalThis.STATUS_REGISTRY.poison.name, 'Poison');
 
 const managerSource = fs.readFileSync(path.join(root, 'js/statusManager.js'), 'utf8');
 const compatSource = fs.readFileSync(path.join(root, 'js/elemental-status-compat.js'), 'utf8');
+const librarySource = fs.readFileSync(path.join(root, 'js/status-library.js'), 'utf8');
+const engineSource = fs.readFileSync(path.join(root, 'js/status-engine.js'), 'utf8');
+
+assert.doesNotMatch(
+  librarySource,
+  /setInterval\s*\(/,
+  'Status Library must not poll forever waiting for Status Engine',
+);
+assert.match(
+  engineSource,
+  /LuminousStatusLibrary\?\.installStatusEngineBridge\?\.\(\)/,
+  'Status Engine must bridge once when it publishes its API',
+);
 assert.match(managerSource, /status-library\.js/);
 assert.doesNotMatch(managerSource, /const\s+STATUS_REGISTRY\s*=\s*\{/);
 assert.match(compatSource, /canonical-status-library/);
