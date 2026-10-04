@@ -127,14 +127,13 @@
         outline: none;
       }
 
-      #system-loading-overlay.is-error .loading-bar,
-      #system-loading-overlay.is-error #system-loading-progress-text {
+      #system-loading-overlay.is-error .loading-bar {
         background-color: #d32f2f;
-        color: #ffb3b3;
+        box-shadow: 0 0 12px rgba(211, 47, 47, 0.5);
       }
 
-      #system-loading-overlay.is-error .loading-bar {
-        box-shadow: 0 0 12px rgba(211, 47, 47, 0.5);
+      #system-loading-overlay.is-error #system-loading-progress-text {
+        color: #ffb3b3;
       }
 
       @font-face {
