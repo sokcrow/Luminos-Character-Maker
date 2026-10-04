@@ -233,7 +233,11 @@
     const explicit = item.descripcion || item.description || item.desc;
     if (explicit) return String(explicit);
     const resolved = runtime()?.resolveItem?.(item) || item;
-    return String(resolved.descripcion || resolved.description || resolved.desc || "Sin descripción.");
+    const resolvedExplicit = resolved.descripcion || resolved.description || resolved.desc;
+    if (resolvedExplicit) return String(resolvedExplicit);
+    const generated = global.LuminousItemDescriptionEngine?.describe?.(resolved)
+      || global.LuminousItemDescriptionEngine?.describe?.(item);
+    return String(generated || "Objeto sin descripción disponible.");
   }
 
   function itemValue(item = {}) {
