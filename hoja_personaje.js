@@ -2043,7 +2043,11 @@ function initializeCharacterSheet() {
                 bodyElements.forEach(el => el.style.display = "none");
               } else {
                 if (overlay) overlay.style.display = "none";
-                bodyElements.forEach(el => el.style.display = "flex");
+                bodyElements.forEach((el) => {
+                  // Bank is a vertical document; forcing flex here collapses its
+                  // balance card, transfer CTA and history into side-by-side columns.
+                  el.style.display = tabName === "banco" ? "block" : "flex";
+                });
               }
 
               if (tabName === "banco") {
