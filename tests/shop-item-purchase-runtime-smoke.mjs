@@ -152,6 +152,7 @@ assert.equal(fullHpItem.quantity, 1);
 const playerSource = fs.readFileSync(path.resolve("hoja_personaje.js"), "utf8");
 const playerCss = fs.readFileSync(path.resolve("hoja_personaje.css"), "utf8");
 const playerHtml = fs.readFileSync(path.resolve("hoja_personaje.html"), "utf8");
+const dmHtml = fs.readFileSync(path.resolve("pantalla_dm.html"), "utf8");
 
 assert.match(
   playerCss,
@@ -174,8 +175,8 @@ assert.match(
   "physical purchases must synchronize legacy ahn and finance.currentBalance",
 );
 assert.ok(
-  playerHtml.includes("hoja_personaje.css?v=20261004-market-event-1") &&
-  playerHtml.includes("hoja_personaje.js?v=20261004-market-event-1"),
+  playerHtml.includes("hoja_personaje.css?v=20261004-market-event-2") &&
+  playerHtml.includes("hoja_personaje.js?v=20261004-market-event-2"),
   "Shop HUD/balance changes must be cache-busted in the deployed player sheet",
 );
 assert.match(
@@ -207,6 +208,25 @@ assert.match(
   playerCss,
   /\.market-event-percent\.discount[\s\S]*?#54e86e[\s\S]*?\.market-event-percent\.surcharge[\s\S]*?#ff4e5b/,
   "market HUD must distinguish discounts in green and surcharges in red",
+);
+assert.match(
+  playerSource,
+  /Variación de precios[\s\S]*?cambios de oferta y demanda/,
+  "player-facing market fallback copy must stay diegetic",
+);
+assert.doesNotMatch(
+  playerSource,
+  /El DM ha activado|DM activó|DM hizo/,
+  "player-facing market HUD must never expose the DM as an in-world cause",
+);
+assert.match(
+  dmHtml,
+  /syncShopTypeControls[\s\S]*?LuminousShopRuntime\?\.SHOP_TYPES[\s\S]*?market-event-mod/,
+  "DM Shop and Market controls must be generated from the Runtime taxonomy",
+);
+assert.ok(
+  dmHtml.includes("Describe una causa dentro del mundo"),
+  "DM market authoring must explicitly request diegetic player-facing copy",
 );
 assert.match(
   playerSource,
