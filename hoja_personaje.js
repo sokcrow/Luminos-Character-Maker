@@ -1212,6 +1212,7 @@ async function runBootSequence() {
     const initialData = initialSnapshot.val() || {};
     const knownTopLevelKeys = new Set(Object.keys(initialData));
     applyPlayerData(initialData, Object.keys(initialData), true);
+    initP2PInboxSettlement();
 
     playerRef.on("child_changed", (snap) => {
       const key = snap.key;
@@ -2007,139 +2008,203 @@ function initializeCharacterSheet() {
     if (homeTab) homeTab.style.display = "block";
 
 
-  // Transferencia P2P Automatizada
+  // Transferencia P2P por inbox.
+  // El emisor solo modifica su propio saldo y crea un paquete para el receptor.
+  // El receptor acredita el paquete desde su propia sesión; processedP2P evita dobles créditos.
   const btnOpenTransfer = document.getElementById("btn-open-transfer");
   const transferModal = document.getElementById("transfer-modal");
   const btnCancelTransfer = document.getElementById("btn-cancel-transfer");
   const btnConfirmTransfer = document.getElementById("btn-confirm-transfer");
+  let p2pInboxListenerActive = false;
+
+  function normalizePhoneLookup(value) {
+      return String(value || "").trim().replace(/\s+/g, "");
+  }
+
+  function resolveTransferLookup(rawValue) {
+      const raw = String(rawValue || "").trim();
+      if (!raw) return "";
+      const normalizedRaw = normalizePhoneLookup(raw);
+      const aliasMatch = Object.entries(contactsDictionary || {}).find(([, alias]) =>
+          String(alias || "").trim().toLowerCase() === raw.toLowerCase()
+      );
+      return aliasMatch ? normalizePhoneLookup(aliasMatch[0]) : normalizedRaw;
+  }
+
+  function closeTransferModal() {
+      if (!transferModal) return;
+      transferModal.style.display = "none";
+      ["transfer-contact-input", "transfer-amount-input", "transfer-concept-input"].forEach((id) => {
+          const input = document.getElementById(id);
+          if (input) input.value = "";
+      });
+  }
+
+  async function queuePlayerTransfer(senderId, targetPlayerId, targetData, amount, concept) {
+      if (!senderId || !targetPlayerId) throw new Error("Identificador de transferencia inválido.");
+      if (senderId === targetPlayerId) throw new Error("No puedes transferirte Ahn a ti mismo.");
+
+      const senderRef = db.ref(`campaña/jugadores/${senderId}`);
+      const senderSnap = await senderRef.once("value");
+      const senderData = senderSnap.val();
+      if (!senderData) throw new Error("No se encontró tu cuenta.");
+
+      const currentBalance = senderData.finance?.currentBalance ?? senderData.ahn ?? 0;
+      if (!Number.isFinite(Number(currentBalance)) || Number(currentBalance) < amount) {
+          throw new Error("Ahn insuficientes para esta transferencia.");
+      }
+
+      const transferId = db.ref(`campaña/economia/p2pInbox/${targetPlayerId}`).push().key;
+      if (!transferId) throw new Error("No se pudo generar la transferencia.");
+
+      const timestamp = Date.now();
+      const targetName = targetData.character_name || targetData.nombre || targetPlayerId;
+      const senderName = senderData.character_name || senderData.nombre || senderId;
+      const nextBalance = Number(currentBalance) - amount;
+      const txOut = {
+          id: transferId,
+          monto: -amount,
+          concepto: `A: ${targetName} - ${concept}`,
+          timestamp,
+          unread: true,
+          type: "p2p_out"
+      };
+
+      const packet = {
+          transferId,
+          senderPlayerId: senderId,
+          senderUid: auth.currentUser?.uid || senderData.uid || null,
+          senderName,
+          senderPhone: senderData.phoneNumber || "",
+          recipientPlayerId: targetPlayerId,
+          recipientUid: targetData.uid || null,
+          recipientName: targetName,
+          amount,
+          concept,
+          createdAt: timestamp,
+          status: "pending"
+      };
+
+      const updates = {};
+      updates[`campaña/jugadores/${senderId}/ahn`] = nextBalance;
+      updates[`campaña/jugadores/${senderId}/finance/currentBalance`] = nextBalance;
+      updates[`campaña/jugadores/${senderId}/finance/transactionHistory/${transferId}`] = txOut;
+      updates[`campaña/jugadores/${senderId}/transacciones/${transferId}`] = txOut;
+      updates[`campaña/economia/p2pInbox/${targetPlayerId}/${transferId}`] = packet;
+
+      await db.ref().update(updates);
+      return { transferId, targetName };
+  }
+
+  function initP2PInboxSettlement() {
+      if (p2pInboxListenerActive || !playerId) return;
+      p2pInboxListenerActive = true;
+
+      const inboxRef = db.ref(`campaña/economia/p2pInbox/${playerId}`);
+      inboxRef.on("child_added", async (snap) => {
+          const packet = snap.val() || {};
+          const transferId = packet.transferId || snap.key;
+          const amount = Number(packet.amount);
+
+          if (!transferId || packet.status === "settled" || !Number.isFinite(amount) || amount <= 0) return;
+
+          try {
+              const playerRef = db.ref(`campaña/jugadores/${playerId}`);
+              const result = await playerRef.transaction((current) => {
+                  if (!current) return current;
+                  current.finance = current.finance || {};
+                  current.finance.transactionHistory = current.finance.transactionHistory || {};
+                  current.transacciones = current.transacciones || {};
+                  current.processedP2P = current.processedP2P || {};
+
+                  if (current.processedP2P[transferId]) return current;
+
+                  const currentBalance = Number(current.finance.currentBalance ?? current.ahn ?? 0);
+                  const nextBalance = currentBalance + amount;
+                  const txIn = {
+                      id: transferId,
+                      monto: amount,
+                      concepto: `De: ${packet.senderName || packet.senderPlayerId || "Contacto"} - ${packet.concept || "Transferencia P2P"}`,
+                      timestamp: packet.createdAt || Date.now(),
+                      unread: true,
+                      type: "p2p_in"
+                  };
+
+                  current.ahn = nextBalance;
+                  current.finance.currentBalance = nextBalance;
+                  current.finance.transactionHistory[transferId] = txIn;
+                  current.transacciones[transferId] = txIn;
+                  current.processedP2P[transferId] = packet.createdAt || Date.now();
+                  return current;
+              });
+
+              if (result.committed) {
+                  await snap.ref.update({ status: "settled", settledAt: Date.now() });
+              }
+          } catch (error) {
+              console.error("[Luminous][P2P] No se pudo liquidar transferencia:", transferId, error);
+          }
+      });
+  }
 
   if (btnOpenTransfer && transferModal) {
     btnOpenTransfer.addEventListener("click", () => {
         transferModal.style.display = "flex";
+        const contactInput = document.getElementById("transfer-contact-input");
+        if (contactInput) {
+            contactInput.setAttribute("list", "transfer-contact-options");
+        }
     });
 
-    btnCancelTransfer.addEventListener("click", () => {
-        transferModal.style.display = "none";
-        document.getElementById("transfer-contact-input").value = "";
-        document.getElementById("transfer-amount-input").value = "";
-        document.getElementById("transfer-concept-input").value = "";
-    });
+    btnCancelTransfer?.addEventListener("click", closeTransferModal);
 
-    btnConfirmTransfer.addEventListener("click", () => {
-        const contactInput = document.getElementById("transfer-contact-input").value.trim();
-        const amount = parseInt(document.getElementById("transfer-amount-input").value, 10);
-        const concept = document.getElementById("transfer-concept-input").value.trim() || "Transferencia P2P";
+    btnConfirmTransfer?.addEventListener("click", async () => {
+        const contactInput = document.getElementById("transfer-contact-input")?.value.trim() || "";
+        const amount = Number.parseInt(document.getElementById("transfer-amount-input")?.value || "", 10);
+        const concept = document.getElementById("transfer-concept-input")?.value.trim() || "Transferencia P2P";
 
-        if (!contactInput || isNaN(amount) || amount <= 0) {
+        if (!contactInput || !Number.isFinite(amount) || amount <= 0) {
             alert("Datos inválidos.");
             return;
         }
 
-        // Find target player by phoneNumber or Name
-        db.ref('campaña/jugadores').once('value', (snap) => {
+        const lookup = resolveTransferLookup(contactInput);
+        btnConfirmTransfer.disabled = true;
+
+        try {
+            const snap = await db.ref("campaña/jugadores").once("value");
             const players = snap.val() || {};
             let targetPlayerId = null;
+            let targetData = null;
 
-            // Search by name or phone
-            for (const [pId, pData] of Object.entries(players)) {
-                if (pData.phoneNumber === contactInput || pId.toLowerCase() === contactInput.toLowerCase() || (pData.character_name && pData.character_name.toLowerCase() === contactInput.toLowerCase())) {
-                    targetPlayerId = pId;
+            for (const [candidateId, candidateData] of Object.entries(players)) {
+                const candidatePhone = normalizePhoneLookup(candidateData?.phoneNumber);
+                const candidateName = String(candidateData?.character_name || candidateData?.nombre || "").trim().toLowerCase();
+                if (
+                    candidatePhone === lookup ||
+                    candidateId.toLowerCase() === contactInput.toLowerCase() ||
+                    candidateName === contactInput.toLowerCase()
+                ) {
+                    targetPlayerId = candidateId;
+                    targetData = candidateData;
                     break;
                 }
             }
 
-            if (!targetPlayerId) {
-                // Check actors
-                Promise.all([
-                    db.ref('campaña/actores').once('value'),
-                    db.ref('campaña/base_datos_npcs').once('value')
-                ]).then(([actSnap, npcsSnap]) => {
-                    const legacyActors = actSnap.val() || {};
-                    const modernActors = npcsSnap.val() || {};
-
-                    let mergedActors = {};
-                    let actorSourcePathById = {};
-
-                    for (const [id, data] of Object.entries(legacyActors)) {
-                        mergedActors[id] = data;
-                        actorSourcePathById[id] = 'campaña/actores';
-                    }
-                    for (const [id, data] of Object.entries(modernActors)) {
-                        mergedActors[id] = data;
-                        actorSourcePathById[id] = 'campaña/base_datos_npcs';
-                    }
-
-                    let targetActorId = null;
-                    for (const [aId, aData] of Object.entries(mergedActors)) {
-                        if (aData.phoneNumber === contactInput || aId.toLowerCase() === contactInput.toLowerCase() || (aData.nombre && aData.nombre.toLowerCase() === contactInput.toLowerCase())) {
-                            targetActorId = aId;
-                            break;
-                        }
-                    }
-
-                    if (!targetActorId) {
-                        alert("Destinatario no encontrado. Verifica el número.");
-                    } else {
-                        // Transfer to NPC
-                        const path = actorSourcePathById[targetActorId];
-                        processTransfer(playerId, path + '/' + targetActorId, amount, concept, mergedActors[targetActorId].nombre || targetActorId);
-                    }
-                });
-            } else {
-                // Transfer to Player
-                processTransfer(playerId, 'campaña/jugadores/'+targetPlayerId, amount, concept, players[targetPlayerId].character_name || targetPlayerId);
+            if (!targetPlayerId || !targetData) {
+                throw new Error("Destinatario no encontrado. Usa un contacto guardado o un número asignado.");
             }
-        });
+
+            const result = await queuePlayerTransfer(playerId, targetPlayerId, targetData, amount, concept);
+            alert(`Transferencia de ${amount} Ahn a ${result.targetName} enviada.`);
+            closeTransferModal();
+        } catch (error) {
+            console.error("[Luminous][P2P] Error de transferencia:", error);
+            alert(error?.message || "No se pudo completar la transferencia.");
+        } finally {
+            btnConfirmTransfer.disabled = false;
+        }
     });
-  }
-
-  function processTransfer(senderId, targetPath, amount, concept, targetName) {
-      db.ref(`campaña/jugadores/${senderId}`).once('value', (snap) => {
-          const senderData = snap.val();
-          const currentBalance = (senderData.finance && senderData.finance.currentBalance !== undefined) ? senderData.finance.currentBalance : (senderData.ahn || 0);
-
-          if (currentBalance < amount) {
-              alert("Ahn insuficientes para esta transferencia.");
-              return;
-          }
-
-          const newSenderBalance = currentBalance - amount;
-          const txOut = { monto: -amount, concepto: `A: ${targetName} - ${concept}`, timestamp: Date.now(), unread: true };
-          const txIn = { monto: amount, concepto: `De: ${senderData.character_name || senderId} - ${concept}`, timestamp: Date.now(), unread: true };
-
-          // Actualizar sender
-          const updates = {};
-          updates[`campaña/jugadores/${senderId}/ahn`] = newSenderBalance;
-          updates[`campaña/jugadores/${senderId}/finance/currentBalance`] = newSenderBalance;
-
-          // Try to update target balance if it's a player
-          db.ref(targetPath).once('value', (tgtSnap) => {
-              const tgtData = tgtSnap.val();
-              if (targetPath.includes('jugadores')) {
-                  const targetBalance = (tgtData.finance && tgtData.finance.currentBalance !== undefined) ? tgtData.finance.currentBalance : (tgtData.ahn || 0);
-                  const newTgtBalance = targetBalance + amount;
-                  updates[`${targetPath}/ahn`] = newTgtBalance;
-                  updates[`${targetPath}/finance/currentBalance`] = newTgtBalance;
-              }
-
-              db.ref().update(updates).then(() => {
-                  // Push transactions
-                  db.ref(`campaña/jugadores/${senderId}/finance/transactionHistory`).push(txOut);
-                  db.ref(`campaña/jugadores/${senderId}/transacciones`).push(txOut);
-
-                  db.ref(`${targetPath}/finance/transactionHistory`).push(txIn);
-                  db.ref(`${targetPath}/transacciones`).push(txIn);
-
-                  alert(`Transferencia de ${amount} Ahn a ${targetName} completada.`);
-                  if (transferModal) {
-                      transferModal.style.display = "none";
-                      document.getElementById("transfer-contact-input").value = "";
-                      document.getElementById("transfer-amount-input").value = "";
-                      document.getElementById("transfer-concept-input").value = "";
-                  }
-              });
-          });
-      });
   }
 
   // --- NUEVO SISTEMA DE NAVEGACIÓN DE VENTANAS (VANILLA JS) ---
@@ -2210,12 +2275,10 @@ function initializeCharacterSheet() {
       if (chatListenerActive) return;
       chatListenerActive = true;
 
-      const charNameInput = document.querySelector('input[name="attr_character_name"]');
-      const pName = charNameInput ? charNameInput.value.trim() : "";
-      if (!pName) return;
+      if (!playerId) return;
 
-      // Fetch my phone number and contacts
-      db.ref(`campaña/jugadores/${pName}`).on("value", snap => {
+      // Fetch my phone number and contacts from the canonical linked player record.
+      db.ref(`campaña/jugadores/${playerId}`).on("value", snap => {
           const pData = snap.val();
           if (!pData) return;
           myPhoneNumber = pData.phoneNumber;
@@ -2322,7 +2385,7 @@ function initializeCharacterSheet() {
               const newChatRef = db.ref("campaña/comms/chats").push();
               newChatRef.set(chatData).then(() => {
                   // Add chat ID to myself
-                  db.ref(`campaña/jugadores/${pName}/chats/${newChatRef.key}`).set(true);
+                  db.ref(`campaña/jugadores/${playerId}/chats/${newChatRef.key}`).set(true);
 
                   // Update for other players globally
                   phones.forEach(p => {
@@ -2388,16 +2451,10 @@ function initializeCharacterSheet() {
 
   function loadChat(chatId, chatData) {
       currentChatId = chatId;
-      const charNameInput = document.querySelector('input[name="attr_character_name"]');
-      const pName = charNameInput ? charNameInput.value.trim() : "";
-      if (pName) {
-          db.ref(`campaña/jugadores/${pName}/chats/${chatId}`).set({ lastRead: Date.now() }).then(() => {
+      if (playerId) {
+          db.ref(`campaña/jugadores/${playerId}/chats/${chatId}`).set({ lastRead: Date.now() }).then(() => {
               if (typeof window.updateNotifications === 'function') {
-                  // Trigger a manual check to hide the badge quickly
-                  db.ref(`campaña/jugadores/${pName}/chats`).once("value", snap => {
-                     // The global listener will handle it, but we can force it
-                     // Or just rely on the global `value` listener that will fire after the `set`.
-                  });
+                  db.ref(`campaña/jugadores/${playerId}/chats`).once("value", () => {});
               }
           });
       }
@@ -2463,17 +2520,13 @@ function initializeCharacterSheet() {
 
   function saveContactPrompt(phoneStr) {
       const alias = prompt(`Guardar contacto para el número ${phoneStr}:`);
-      if (alias) {
-          const charNameInput = document.querySelector('input[name="attr_character_name"]');
-          const pName = charNameInput ? charNameInput.value.trim() : "";
-          if (pName) {
-              db.ref(`campaña/jugadores/${pName}/contactos/${phoneStr}`).set({ alias: alias }).then(() => {
-                  const btnSave = document.getElementById("btn-save-contact");
-                  if(btnSave) btnSave.style.display = "none";
-                  const headerName = document.getElementById("chat-header-name");
-                  if (headerName) headerName.innerText = alias;
-              });
-          }
+      if (alias && playerId) {
+          db.ref(`campaña/jugadores/${playerId}/contactos/${phoneStr}`).set({ alias: alias.trim() }).then(() => {
+              const btnSave = document.getElementById("btn-save-contact");
+              if(btnSave) btnSave.style.display = "none";
+              const headerName = document.getElementById("chat-header-name");
+              if (headerName) headerName.innerText = alias.trim();
+          });
       }
   }
 
@@ -2482,12 +2535,10 @@ function initializeCharacterSheet() {
   const btnMute = document.getElementById("btn-toggle-mute");
   if (btnMute) {
       btnMute.addEventListener("click", () => {
-          const charNameInput = document.querySelector('input[name="attr_character_name"]');
-          const pName = charNameInput ? charNameInput.value.trim() : "";
-          if (pName) {
-              db.ref(`campaña/jugadores/${pName}/settings/isMuted`).once("value", snap => {
+          if (playerId) {
+              db.ref(`campaña/jugadores/${playerId}/settings/isMuted`).once("value", snap => {
                   const currentMuted = snap.val() === true;
-                  db.ref(`campaña/jugadores/${pName}/settings/isMuted`).set(!currentMuted);
+                  db.ref(`campaña/jugadores/${playerId}/settings/isMuted`).set(!currentMuted);
               });
           }
       });
@@ -4093,11 +4144,9 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
       if (contactsListenerActive) return;
       contactsListenerActive = true;
 
-      const charNameInput = document.querySelector('input[name="attr_character_name"]');
-      const pName = charNameInput ? charNameInput.value.trim() : "";
-      if (!pName) return;
+      if (!playerId) return;
 
-      const contactsRef = db.ref(`campaña/jugadores/${pName}/contactos`);
+      const contactsRef = db.ref(`campaña/jugadores/${playerId}/contactos`);
 
       contactsRef.on("value", snap => {
           const listDiv = document.getElementById("contacts-list");
@@ -4145,7 +4194,7 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
                   const currentAlias = contactsDictionary[phone];
                   const newAlias = prompt("Nuevo alias para " + phone + ":", currentAlias);
                   if (newAlias && newAlias.trim() !== "") {
-                      db.ref(`campaña/jugadores/${pName}/contactos/${phone}`).set({ alias: newAlias.trim() });
+                      db.ref(`campaña/jugadores/${playerId}/contactos/${phone}`).set({ alias: newAlias.trim() });
                   }
               });
           });
@@ -4154,7 +4203,7 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
               btn.addEventListener("click", (e) => {
                   const phone = e.target.getAttribute("data-phone");
                   if (confirm("¿Eliminar a " + (contactsDictionary[phone] || phone) + " de tus contactos?")) {
-                      db.ref(`campaña/jugadores/${pName}/contactos/${phone}`).remove();
+                      db.ref(`campaña/jugadores/${playerId}/contactos/${phone}`).remove();
                   }
               });
           });
@@ -4177,7 +4226,7 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
                   return;
               }
 
-              db.ref(`campaña/jugadores/${pName}/contactos/${phone}`).set({ alias: alias }).then(() => {
+              db.ref(`campaña/jugadores/${playerId}/contactos/${phone}`).set({ alias: alias }).then(() => {
                   numInput.value = "";
                   aliasInput.value = "";
               });
