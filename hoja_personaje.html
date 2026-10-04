@@ -12071,55 +12071,27 @@
           </div>
           <!-- End of inventory-left-panel -->
 
-          <!-- Detail Card (Inspirada en Limbus E.G.O Gift) -->
+          <!-- Player item detail: compact gameplay information only -->
           <div class="item-detail-card" id="item-detail-card">
             <div class="detail-left">
               <div class="detail-icon-box">
                 <img id="detail-icon" src="" alt="Icono" />
               </div>
-              <div class="detail-tier">
-                Tier: <span id="detail-tier-val" class="tier-orange">I</span>
-              </div>
-              <div class="detail-cost">
-                Valor: <span class="currency-symbol">₳</span>
-                <span id="detail-cost-val">0</span>
-              </div>
-              <div class="detail-tags" id="detail-tags-val"></div>
             </div>
             <div class="detail-right">
-              <div
-                style="
-                  display: flex;
-                  justify-content: space-between;
-                  align-items: flex-start;
-                  margin-bottom: 5px;
-                "
-              >
-                <div
-                  class="detail-title-badge"
-                  id="detail-title"
-                  style="flex: 1"
-                >
-                  Nombre del Item
-                </div>
-                
+              <div class="detail-title-badge" id="detail-title">
+                Nombre del Item
               </div>
-              <div
-                id="detail-vinculo-info"
-                style="
-                  display: none;
-                  margin-bottom: 10px;
-                  padding: 8px;
-                  background: rgba(0, 255, 255, 0.1);
-                  border: 1px solid var(--cyan-tech);
-                  border-radius: 4px;
-                "
-              >
-                <!-- Injected via JS -->
+              <div class="inventory-v2-detail-meta">
+                <span class="detail-tier">Tier <b id="detail-tier-val" class="tier-orange">I</b></span>
+                <span class="detail-cost">Valor <span class="currency-symbol">₳</span><b id="detail-cost-val">0</b></span>
               </div>
+              <div class="inventory-v2-detail-effects" id="inventory-v2-detail-effects" hidden></div>
               <div class="detail-desc" id="detail-desc">
                 Descripción del item detallada para lectura cómoda.
               </div>
+              <div class="detail-tags" id="detail-tags-val" hidden></div>
+              <div id="detail-vinculo-info" hidden></div>
             </div>
           </div>
         </div>
