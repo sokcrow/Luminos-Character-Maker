@@ -947,16 +947,18 @@
     installPlayerRollGate();
     if (isDmSurface()) mountDmConsole();
     bindAuthLifecycle();
-    let attempts = 0;
-    const timer = global.setInterval(() => {
-      attempts += 1;
+    bindAuthorizedData();
+
+    global.addEventListener?.("online", bindAuthorizedData);
+    global.addEventListener?.("luminous:player-data", bindAuthorizedData);
+    global.addEventListener?.("luminous:player-instance-changed", () => {
       installFrontLayerBridge();
       if (isDmSurface()) mountDmConsole();
       bindAuthorizedData();
-      if (attempts > 150 || (currentUid() && (!isDmSurface() || $("theatre-check-director")))) {
-        global.clearInterval(timer);
-      }
-    }, 100);
+    });
+    if (typeof global.CustomEvent === "function") {
+      global.dispatchEvent?.(new global.CustomEvent("luminous:theatre-check-coordinator-ready"));
+    }
   }
 
   if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", boot, { once: true });

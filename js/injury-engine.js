@@ -686,9 +686,11 @@
   function install() {
     bindEvents();
     installCombatBridge();
-    if (typeof global.setInterval === "function" && !state.patchTimer) {
-      state.patchTimer = global.setInterval(() => installCombatBridge(), PATCH_INTERVAL_MS);
-      if (typeof state.patchTimer?.unref === "function") state.patchTimer.unref();
+    if (global.document && !state.patchEventsBound) {
+      state.patchEventsBound = true;
+      ["luminous:combat073-runtime-ready", "luminous:player-instance-changed"]
+        .forEach((name) => global.addEventListener?.(name, installCombatBridge));
+      global.addEventListener?.("load", installCombatBridge, { once: true });
     }
     return true;
   }

@@ -222,5 +222,8 @@ assert.match(runtimeSource, /combat-spell-loadout-074\.js/);
 assert.match(runtimeSource, /battle-viewer-spell-adapter-074\.js/);
 assert.match(runtimeSource, /battle-viewer-spell-runtime-074\.js/);
 assert.match(runtimeSource, /battle-viewer-player-spell-planner-074\.js/);
+const spellPlannerSource = fs.readFileSync(path.join(here, '..', 'js', 'battle-viewer-player-spell-planner-074.js'), 'utf8');
+assert.match(spellPlannerSource, /Assets\/Images\/Buttons\/Spells\.png/);
+assert.equal(fs.existsSync(path.join(here, '..', 'Assets', 'Images', 'Buttons', 'Spells.png')), true);
 
 console.log('combat-v074-player-spell-planner-smoke: ok');

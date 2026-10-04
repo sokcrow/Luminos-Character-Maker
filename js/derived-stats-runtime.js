@@ -294,6 +294,14 @@
 
   if (doc) {
     install();
-    global.setInterval?.(install, 500);
+    [
+      "luminous:player-data",
+      "luminous:traits-refreshed",
+      "luminous:class-runtime-loaded",
+      "luminous:player-instance-changed",
+    ].forEach((name) => global.addEventListener?.(name, install));
+    doc.addEventListener?.("change", (event) => {
+      if (event.target?.closest?.("#stats-modal, #dashboard-jugadores")) install();
+    });
   }
 })(typeof window !== "undefined" ? window : globalThis);

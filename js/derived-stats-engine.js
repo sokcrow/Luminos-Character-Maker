@@ -341,8 +341,8 @@
   function hpSnapshot(character, calculation, options = {}) {
     const storedBase = readFirst(character, ["combatStats.hp_base", "hp_base"], 0);
     const storedCoef = readFirst(character, ["combatStats.hp_coefficient", "hp_coefficient"], 0);
-    const storedMax = readFirst(character, ["combatStats.hp_max", "hp_max", "maxHp", "max_hp"], null);
-    const current = readFirst(character, ["combatStats.hp_actual", "hp_actual", "hp", "currentHp", "current_hp"], storedMax ?? 0);
+    const storedMax = readFirst(character, ["hp_max", "maxHp", "max_hp", "combatStats.hp_max"], null);
+    const current = readFirst(character, ["hp", "hp_actual", "currentHp", "current_hp", "combatStats.hp_actual"], storedMax ?? 0);
     const base = calculation?.valid ? numberOr(calculation.hpBase, storedBase) : storedBase;
     const coefficient = calculation?.valid ? numberOr(calculation.intrinsicHpCoef, storedCoef) : storedCoef;
     const runtimeCoefficient = numberOr(options.runtimeHpCoef, 0);
@@ -353,7 +353,7 @@
   }
 
   function spSnapshot(character) {
-    const current = readFirst(character, ["combatStats.sp_actual", "combatStats.sp", "sp_actual", "sp", "currentSp", "current_sp"], 0);
+    const current = readFirst(character, ["sp", "sp_actual", "currentSp", "current_sp", "combatStats.sp_actual", "combatStats.sp"], 0);
     const max = readFirst(character, ["combatStats.sp_max", "combatStats.maxSp", "sp_max", "maxSp", "max_sp"], null);
     return Object.freeze({ current, max, source: max == null ? "current-only" : "stored" });
   }

@@ -157,14 +157,14 @@
     if (!entry || !Number.isFinite(hp) || hp <= 0) return null;
     const healing = entry.runtime?.healing || {};
     const capPercent = Math.max(0, Number(healing.capMaxHpPercent || 0));
-    const cap = hp * (capPercent / 100);
+    const cap = Math.floor(hp * (capPercent / 100));
 
     if (healing.mode === "full") {
-      const total = Math.min(hp, cap || hp);
+      const total = Math.floor(Math.min(hp, cap || hp));
       return { immediate: total, regen: 0, total, cap, capPercent, turnsApplied: 0 };
     }
 
-    const immediateRaw = Math.max(0, Number(healing.flat || 0) + hp * (Number(healing.maxHpPercent || 0) / 100));
+    const immediateRaw = Math.floor(Math.max(0, Number(healing.flat || 0) + hp * (Number(healing.maxHpPercent || 0) / 100)));
     const profile = healing.regen || null;
     const availableTurns = Math.max(0, Math.trunc(Number(profile?.turns || 0)));
     const requestedTurns = options.regenTurns == null
@@ -172,10 +172,10 @@
       : Math.max(0, Math.trunc(Number(options.regenTurns || 0)));
     const turnsApplied = Math.min(availableTurns, requestedTurns);
     const regenPerTurn = profile
-      ? Math.max(0, Number(profile.flatPerTurn || 0) + hp * (Number(profile.maxHpPercentPerTurn || 0) / 100))
+      ? Math.floor(Math.max(0, Number(profile.flatPerTurn || 0) + hp * (Number(profile.maxHpPercentPerTurn || 0) / 100)))
       : 0;
-    const immediate = Math.min(immediateRaw, cap || hp);
-    const total = Math.min(immediateRaw + regenPerTurn * turnsApplied, cap || hp);
+    const immediate = Math.floor(Math.min(immediateRaw, cap || hp));
+    const total = Math.floor(Math.min(immediateRaw + regenPerTurn * turnsApplied, cap || hp));
     return { immediate, regen: Math.max(0, total - immediate), total, cap, capPercent, turnsApplied };
   }
 

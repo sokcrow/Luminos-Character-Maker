@@ -7,7 +7,7 @@
   const clean=value=>String(value??'').trim();
   const norm=value=>clean(value).toLowerCase().replace(/[\s-]+/g,'_');
   const clone=value=>value==null?value:JSON.parse(JSON.stringify(value));
-  const state={started:false,readyRef:null,readyHandler:null,authRef:null,authHandler:null,rawTargets:{},authority:{},retryTimer:null};
+  const state={started:false,readyRef:null,readyHandler:null,authRef:null,authHandler:null,rawTargets:{},authority:{},retryTimer:null,renderTimer:null};
   function adapter(){return global.LuminousCombatLiveAdapter073||null;}
   function adapterState(){return adapter()?.state||null;}
   function runtime(){return global.LuminousCombat073||null;}
@@ -48,6 +48,24 @@
     }
     return out;
   }
+  function canRenderNow() {
+    const combat=runtime(),s=adapterState();
+    if (!combat?.render || !s?.hydratedOnce) return false;
+    const focusId=clean(combat.playerId?.()||"");
+    if (!focusId || !global.document?.getElementById) return true;
+    return Boolean(global.document.getElementById(`sprite-${focusId}`));
+  }
+  function scheduleRender(){
+    if(state.renderTimer)return true;
+    state.renderTimer=global.setTimeout(()=>{
+      state.renderTimer=null;
+      const combat=runtime();
+      if(!canRenderNow())return;
+      combat.render?.();
+      global.LuminousWebGL2Renderer?.requestRender?.(80);
+    },0);
+    return true;
+  }
   function applyRows(rows,fullPlans){
     const combat=runtime(),s=adapterState();if(!combat?.combatants||!s)return false;const data=combat.combatants();
     Object.values(data).forEach(unit=>{if(unit?.controlled==='remote')unit.autoPlans=[];});
@@ -59,7 +77,7 @@
         const slotIndex=Math.max(0,Number(raw.sourceSlotIndex??slotKey)||0);unit.autoPlans=Array.isArray(unit.autoPlans)?unit.autoPlans:[];unit.autoPlans[slotIndex]=fullPlans?runtimePlan(raw,slotIndex,unit):intentPlan(raw,slotIndex,unit);
       }
     }
-    combat.render?.();global.LuminousWebGL2Renderer?.requestRender?.(80);return true;
+    scheduleRender();return true;
   }
   function apply(){
     const s=adapterState(),phase=norm(state.authority?.phase),round=Number(state.authority?.round)||0,full=round===Number(s?.round)&&['sealed','running'].includes(phase);
@@ -71,8 +89,8 @@
     state.authRef=s.db.ref(AUTH_ROOT);state.authHandler=snapshot=>{state.authority=snapshot.val()||{};apply();};state.authRef.on('value',state.authHandler,error=>console.error('[Combat073 AuthorityPlans]',error));return true;
   }
   function start(){if(state.started)return true;state.started=true;const attempt=()=>{if(bind())return true;state.retryTimer=global.setTimeout(attempt,250);return false;};attempt();return true;}
-  function stop(){if(state.retryTimer)global.clearTimeout(state.retryTimer);state.retryTimer=null;if(state.readyRef&&state.readyHandler)state.readyRef.off('value',state.readyHandler);if(state.authRef&&state.authHandler)state.authRef.off('value',state.authHandler);state.readyRef=state.readyHandler=state.authRef=state.authHandler=null;state.started=false;}
+  function stop(){if(state.retryTimer)global.clearTimeout(state.retryTimer);if(state.renderTimer)global.clearTimeout(state.renderTimer);state.retryTimer=state.renderTimer=null;if(state.readyRef&&state.readyHandler)state.readyRef.off('value',state.readyHandler);if(state.authRef&&state.authHandler)state.authRef.off('value',state.authHandler);state.readyRef=state.readyHandler=state.authRef=state.authHandler=null;state.started=false;}
   global.addEventListener('luminous:combat073-hydrated',apply);global.addEventListener('luminous:combat073-runtime-ready',apply);global.addEventListener('beforeunload',stop,{once:true});
-  global.LuminousCombatRemoteIntents073=Object.freeze({version:'0.7.3-remote-intents.4-targets-only',READY_ROOT,AUTH_ROOT,state,start,stop,bind,apply,applyRows,rowsFromReady,runtimePlan,intentPlan,inferTargetSide});
+  global.LuminousCombatRemoteIntents073=Object.freeze({version:'0.7.3-remote-intents.4-targets-only',READY_ROOT,AUTH_ROOT,state,start,stop,bind,apply,applyRows,canRenderNow,scheduleRender,rowsFromReady,runtimePlan,intentPlan,inferTargetSide});
   start();
 })(window);

@@ -143,11 +143,14 @@
   function evaluate(recipe={}, unit={}, options={}) {
     const req=profileForRecipe(recipe);
     const toolIds=new Set((options.availableToolIds || carriedToolIds(unit)).map(normalizeId));
+    const hasAuthoritativeStationList=Array.isArray(options.availableStationIds);
     const stationIds=new Set([
       ...(options.availableStationIds || []),
       options.stationId,
-      unit.currentCookingStationId,
-      unit.cookingStationId,
+      ...(hasAuthoritativeStationList ? [] : [
+        unit.currentCookingStationId,
+        unit.cookingStationId,
+      ]),
     ].map(canonicalStationId).filter(Boolean));
 
     const hasRequiredTool=req.requiredToolIds.length===0 || req.requiredToolIds.some(id=>toolIds.has(id));

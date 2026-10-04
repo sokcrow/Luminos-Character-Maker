@@ -237,8 +237,10 @@
 
   global.LuminousFixedDamageRuntime = api;
   patchAll();
-  const timer = typeof global.setInterval === "function" ? global.setInterval(patchAll, PATCH_INTERVAL_MS) : null;
-  timer?.unref?.();
+  if (global.document) {
+    ["luminous:player-data", "luminous:traits-refreshed", "luminous:class-runtime-loaded", "luminous:combat073-runtime-ready"]
+      .forEach((name) => global.addEventListener?.(name, patchAll));
+  }
 
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);

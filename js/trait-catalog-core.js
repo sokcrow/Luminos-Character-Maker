@@ -570,27 +570,6 @@
   global.LuminousTraitCatalogCore = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 
-  if (typeof document !== "undefined" && !global.LuminousTraitStandardizationRuntime && !document.getElementById("trait-standardization-runtime-script")) {
-    const script = document.createElement("script");
-    script.id = "trait-standardization-runtime-script";
-    script.src = "js/trait-standardization-runtime.js";
-    script.async = false;
-    document.head?.appendChild(script);
-  }
-
-  if (typeof document !== "undefined" && !global.LuminousShieldDurationRuntime && !document.getElementById("shield-duration-runtime-script")) {
-    const script = document.createElement("script");
-    script.id = "shield-duration-runtime-script";
-    script.src = "js/shield-duration-runtime.js";
-    script.async = false;
-    document.head?.appendChild(script);
-  }
-
-  if (typeof document !== "undefined" && !global.LuminousBarbarianClassRuntime && !document.getElementById("barbarian-class-runtime-script")) {
-    const script = document.createElement("script");
-    script.id = "barbarian-class-runtime-script";
-    script.src = "js/barbarian-class-runtime.js";
-    script.async = false;
-    document.head?.appendChild(script);
-  }
+  // Catalog files are data-only. Runtime adapters are loaded by the surface that
+  // actually needs them; importing trait definitions must never boot Combat.
 })(typeof window !== "undefined" ? window : globalThis);

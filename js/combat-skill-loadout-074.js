@@ -45,11 +45,28 @@
     return { ...(skills || {}), ...signature };
   }
 
+  function skillDeckSlots(value = {}) {
+    const source = value && typeof value === "object" ? value : {};
+    const deck = {
+      tier1: clean(source.tier1 ?? source.t1 ?? source["1"] ?? source.skill1),
+      tier2: clean(source.tier2 ?? source.t2 ?? source["2"] ?? source.skill2),
+      tier3: clean(source.tier3 ?? source.t3 ?? source["3"] ?? source.skill3),
+    };
+    const out = [];
+    [[1, 3], [2, 2], [3, 1]].forEach(([tier, copies]) => {
+      const id = deck[`tier${tier}`];
+      for (let index = 0; id && index < copies; index += 1) out.push(id);
+    });
+    return out;
+  }
+
   function firstLoadoutSource(source = {}) {
-    if (source.action_slots != null) return source.action_slots;
+    const canonicalDeck = skillDeckSlots(source.characterBuild?.skillDeck || source.skillDeck || {});
+    if (canonicalDeck.length) return canonicalDeck;
     if (source.skillSlotIds != null) return source.skillSlotIds;
     if (source.skillIds != null) return source.skillIds;
     if (source.skill_ids != null) return source.skill_ids;
+    if (source.action_slots != null) return source.action_slots;
     if (source.mechanics?.skills != null) return source.mechanics.skills;
     return [];
   }
@@ -287,6 +304,7 @@
   return Object.freeze({
     version: VERSION,
     ROOTS,
+    skillDeckSlots,
     skillSlotEntries,
     skillSlotIdsFor,
     skillIdsFor,

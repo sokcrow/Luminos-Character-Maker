@@ -682,6 +682,9 @@
 
   global.LuminousCollegeOfWhispersRuntime = api;
   install();
-  if (global.document && global.setInterval) global.setInterval(install, PATCH_INTERVAL_MS);
+  if (global.document) {
+    ["luminous:player-data", "luminous:traits-refreshed", "luminous:class-runtime-loaded", "luminous:combat073-runtime-ready"]
+      .forEach((name) => global.addEventListener?.(name, install));
+  }
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);

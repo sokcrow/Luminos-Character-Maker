@@ -143,7 +143,7 @@
       schemaVersion: SCHEMA_VERSION,
       instanceId: String(input.instanceId || input.instance_id || options.instanceId || createInstanceId(definitionId || "item")),
       definitionId,
-      quantity: Math.max(1, intOr(input.quantity ?? input.qty ?? input.cantidad ?? input.stack ?? input.count ?? options.quantity, 1)),
+      quantity: Math.max(options.allowZeroQuantity === true ? 0 : 1, intOr(input.quantity ?? input.qty ?? input.cantidad ?? input.stack ?? input.count ?? options.quantity, 1)),
       qualityTier,
       conditionMax: maxCondition,
       condition: currentCondition,
@@ -184,17 +184,17 @@
   }
 
   function serializeItemInstance(instance) {
-    return compactInstance(instance || {}, null, {});
+    return compactInstance(instance || {}, null, { allowZeroQuantity: true });
   }
 
   function deserializeItemInstance(data, options = {}) {
-    return compactInstance(data || {}, resolveDefinition(data, options), options);
+    return compactInstance(data || {}, resolveDefinition(data, options), { ...options, allowZeroQuantity: true });
   }
 
   function hydrateItemInstance(instance, options = {}) {
     if (!instance || typeof instance !== "object") return null;
     const definition = resolveDefinition(instance, options) || {};
-    const compact = compactInstance(instance, definition, options);
+    const compact = compactInstance(instance, definition, { ...options, allowZeroQuantity: true });
     const hydrated = { ...clone(definition), ...clone(compact) };
     hydrated.quality = compact.quality ?? compact.qualityTier;
     hydrated.charges = compact.chargesCurrent;
@@ -714,6 +714,46 @@
     };
   }
 
+  function functionalUseItem(rawItem, options = {}) {
+    if (!rawItem || typeof rawItem !== "object") return rawItem;
+    if (base()?.hasUsableRuntimeEffect?.(rawItem)) return rawItem;
+    const hydrated = resolveItem(rawItem, options);
+    if (hydrated && base()?.hasUsableRuntimeEffect?.(hydrated)) return hydrated;
+    return rawItem;
+  }
+
+  function syncUseState(rawItem, functionalItem) {
+    if (!rawItem || !functionalItem || rawItem === functionalItem) return;
+    const remaining = Math.max(0, intOr(base()?.quantityOf?.(functionalItem) ?? quantityOf(functionalItem), 0));
+    rawItem.quantity = remaining;
+    rawItem.cantidad = remaining;
+    if (functionalItem.runtimeState && typeof functionalItem.runtimeState === "object") {
+      rawItem.runtimeState = clone(functionalItem.runtimeState);
+    }
+  }
+
+  function useItem(unit, itemInput, options = {}) {
+    if (!base()?.useItem) return { used: false, reason: "item_runtime_unavailable" };
+    const rawItem = findItem(unit, itemInput, options) || itemInput;
+    if (!rawItem || typeof rawItem !== "object") return base().useItem(unit, itemInput, options);
+    const functionalItem = functionalUseItem(rawItem, options);
+    const result = base().useItem(unit, functionalItem, options);
+    syncUseState(rawItem, functionalItem);
+    return { ...result, item: rawItem, functionalItem };
+  }
+
+  function resolveScheduledUse(unit, plannedAction, options = {}) {
+    if (!base()?.resolveScheduledUse) return { resolved: false, reason: "item_runtime_unavailable" };
+    const entry = plannedAction?.entry || plannedAction || {};
+    const ref = options.item || entry?.data?.itemInstanceId || entry?.data?.definitionId || entry?.sourceId;
+    const rawItem = typeof options.item === "object" ? options.item : findItem(unit, ref, options);
+    if (!rawItem) return base().resolveScheduledUse(unit, plannedAction, options);
+    const functionalItem = functionalUseItem(rawItem, options);
+    const result = base().resolveScheduledUse(unit, plannedAction, { ...options, item: functionalItem });
+    syncUseState(rawItem, functionalItem);
+    return { ...result, item: rawItem, functionalItem };
+  }
+
   const inventoryApi = Object.freeze({
     version: 2,
     schemaVersion: SCHEMA_VERSION,
@@ -762,6 +802,9 @@
     migrateLegacyInventory,
     inventorySnapshot,
     describeInventory,
+    functionalUseItem,
+    useItem,
+    resolveScheduledUse,
   });
 
   global.LuminousItemInventoryRuntime = inventoryApi;

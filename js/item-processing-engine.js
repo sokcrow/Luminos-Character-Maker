@@ -584,16 +584,34 @@
     const inputPlan = template?.inputPlan || {};
 
     if (inputPlan.kind === "all_distinct") {
-      const eligible = entries
-        .map((item, index) => ({ item, index }))
-        .filter(({ item }) => selectorMatches(item, inputPlan.selector || {}));
+      const eligibleGroups = new Map();
+      entries.forEach((item, index) => {
+        if (!selectorMatches(item, inputPlan.selector || {})) return;
+        const identity = sourceId(item) || normalizeId(sourceName(item)) || `entry_${index}`;
+        const group = eligibleGroups.get(identity) || [];
+        group.push(index);
+        eligibleGroups.set(identity, group);
+      });
+
       const minimum = Math.max(1, Number(inputPlan.minDistinct) || 1);
-      if (eligible.length < minimum) return Object.freeze({ valid: false, reason: "insufficient_distinct_inputs", templateId: template.id });
+      if (eligibleGroups.size < minimum) {
+        return Object.freeze({ valid: false, reason: "insufficient_distinct_inputs", templateId: template.id });
+      }
+
       const unitsEach = Math.max(1, Number(inputPlan.unitsEach) || 1) * count;
-      for (const { index } of eligible) {
-        if (available[index] < unitsEach) return Object.freeze({ valid: false, reason: "insufficient_input_quantity", templateId: template.id });
-        available[index] -= unitsEach;
-        allocations.push({ index, units: unitsEach, requirementId: "distinct_input" });
+      for (const indexes of eligibleGroups.values()) {
+        let remaining = unitsEach;
+        for (const index of indexes) {
+          if (remaining <= 0) break;
+          const take = Math.min(remaining, available[index]);
+          if (take <= 0) continue;
+          available[index] -= take;
+          remaining -= take;
+          allocations.push({ index, units: take, requirementId: "distinct_input" });
+        }
+        if (remaining > 0) {
+          return Object.freeze({ valid: false, reason: "insufficient_input_quantity", templateId: template.id });
+        }
       }
     } else {
       for (const requirement of (inputPlan.requirements || [])) {
@@ -661,13 +679,40 @@
   }
 
   function consumedEntriesFromPlan(entries, plan) {
-    return (plan?.allocations || []).map((allocation) => ({
-      ...entries[allocation.index],
-      quantity: allocation.units,
-      consumedQuantity: allocation.units,
-      inputIndex: allocation.index,
-      requirementIds: allocation.requirementIds,
-    }));
+    const consumed = [];
+    for (const allocation of (plan?.allocations || [])) {
+      const entry = entries[allocation.index] || {};
+      const sourceStacks = Array.isArray(entry.__sourceStacks) && entry.__sourceStacks.length
+        ? entry.__sourceStacks
+        : [entry];
+      let remaining = Math.max(0, Number(allocation.units) || 0);
+
+      for (const sourceStack of sourceStacks) {
+        if (remaining <= 0) break;
+        const available = itemQuantity(sourceStack);
+        const take = Math.min(remaining, available);
+        if (take <= 0) continue;
+        consumed.push({
+          ...clone(sourceStack),
+          quantity: take,
+          consumedQuantity: take,
+          inputIndex: allocation.index,
+          requirementIds: allocation.requirementIds,
+        });
+        remaining -= take;
+      }
+
+      if (remaining > 0) {
+        consumed.push({
+          ...clone(entry),
+          quantity: remaining,
+          consumedQuantity: remaining,
+          inputIndex: allocation.index,
+          requirementIds: allocation.requirementIds,
+        });
+      }
+    }
+    return consumed;
   }
 
   function tasteFromConsumption(consumedEntries, tasteDelta, explicitTaste = null) {
