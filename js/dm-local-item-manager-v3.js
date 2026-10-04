@@ -6,7 +6,7 @@
     return;
   }
 
-  const VERSION = 3;
+  const VERSION = 4;
   const DEFAULT_ICON = "Assets/Icons/items/fallback/generic_item.png";
   const CATALOG_NAME_RE = /^Luminous.*Catalog$/;
   const RECIPE_NAME_RE = /RecipeCatalog$/i;
@@ -15,10 +15,21 @@
     "AMMO", "MATERIALS", "EQUIPMENT", "ENTRIES", "CATALOG"
   ];
   const PRICE_FIELDS = [
-    "price", "costo", "valorBase", "priceAhn", "unitValueAhn", "standardUnitValueAhn",
-    "standardValueAhn", "standardChassisValueAhn", "mediumStandardValueAhn",
-    "retailValueAhn", "baseValueAhn", "productionValueAhn", "productionValue"
+    "productionValueAhn", "productionValue", "createdProductionValueAhn",
+    "standardProductionValueAhn", "craftBaseValueAhn", "cookedBaseValueAhn",
+    "totalValueAhn", "standardMediumValueAhn", "mediumStandardValueAhn",
+    "standardUnitValueAhn", "standardValueAhn", "standardChassisValueAhn",
+    "unitValueAhn", "baseValueAhn", "baseMundaneValueAhn",
+    "enchantmentBaseValueAhn", "roughValueAhn", "priceAhn", "retailValueAhn",
+    "valorBase", "costo", "price"
   ];
+  const REFERENCE_FAMILIES = new Set([
+    "armor_components",
+    "weapon_components",
+    "ranged_weapon_components",
+    "firearm_components",
+    "shield_components"
+  ]);
 
   const state = {
     mounted: false,
@@ -119,10 +130,311 @@
 
   function priceOf(item) {
     for (const field of PRICE_FIELDS) {
-      const value = Number(item && item[field]);
-      if (Number.isFinite(value)) return Math.round(value);
+      const raw = item && item[field];
+      if (raw == null || raw === "") continue;
+      const value = Number(raw);
+      if (Number.isFinite(value) && value > 0) return Math.round(value);
     }
     return 0;
+  }
+
+  function positivePriceOr(value, fallback) {
+    const numeric = Number(value);
+    return Number.isFinite(numeric) && numeric > 0 ? Math.round(numeric) : fallback;
+  }
+
+  function economicRuntime() {
+    return global.LuminousShopRuntime || null;
+  }
+
+  function jewelryCatalog() {
+    return global.LuminousJewelryValuableCatalog || null;
+  }
+
+  function itemFamily(item) {
+    return normalizeId(item && (item.family || item.group || item.catalogId || item.catalog_id));
+  }
+
+  function isValuableDefinition(item) {
+    return itemFamily(item) === "jewelry_valuables" && (
+      normalizeId(item && item.kind) === "valuable" ||
+      normalizeId(item && item.category) === "valuable" ||
+      normalizeId(item && item.itemType) === "valuable" ||
+      item && item.lootOnly === true
+    );
+  }
+
+  function isJewelryDefinition(item) {
+    return itemFamily(item) === "jewelry_valuables" && !isValuableDefinition(item);
+  }
+
+  function qualityRows() {
+    const engine = global.LuminousItemQualityEngine;
+    const order = engine && Array.isArray(engine.QUALITY_ORDER)
+      ? engine.QUALITY_ORDER
+      : ["ruined", "poor", "standard", "fine", "exceptional"];
+    return order.map((id) => {
+      const row = engine && engine.QUALITIES && engine.QUALITIES[id];
+      return { id, label: row && (row.labelEs || row.label) || id };
+    });
+  }
+
+  function oreRows() {
+    const catalog = global.LuminousOreIngotGemCatalog;
+    if (!catalog) return [];
+    try {
+      if (typeof catalog.list === "function") return catalog.list({});
+    } catch (_) {}
+    return asArray(catalog.ITEMS || catalog.ENTRIES || []);
+  }
+
+  function jewelryMetals() {
+    return oreRows().filter((row) =>
+      ["refined_metal", "alloy"].includes(normalizeId(row && row.form)) &&
+      Number(row && row.standardUnitValueAhn) > 0
+    );
+  }
+
+  function cutGems() {
+    return oreRows().filter((row) =>
+      normalizeId(row && row.form) === "cut_gem" &&
+      Number(row && row.standardUnitValueAhn) > 0
+    );
+  }
+
+  function stampEconomicAliases(item) {
+    const next = clone(item) || {};
+    const value = priceOf(next);
+    if (!(value > 0)) return next;
+    next.price = positivePriceOr(next.price, value);
+    next.costo = positivePriceOr(next.costo, value);
+    next.valorBase = positivePriceOr(next.valorBase, value);
+    return next;
+  }
+
+  function materializeGrantDefinition(item, options = {}) {
+    if (!item) return null;
+    if (priceOf(item) > 0) return stampEconomicAliases(item);
+
+    const id = definitionIdOf(item);
+    const catalog = jewelryCatalog();
+
+    if (isValuableDefinition(item) && catalog && typeof catalog.create === "function") {
+      try {
+        const created = catalog.create(id, {
+          origin: "loot",
+          variant: normalizeId(options.valuableVariant || "gold") || "gold"
+        });
+        if (created && created.valid !== false && priceOf(created) > 0) {
+          return stampEconomicAliases(Object.assign({}, clone(item), clone(created)));
+        }
+      } catch (_) {}
+      return null;
+    }
+
+    if (isJewelryDefinition(item) && catalog && typeof catalog.create === "function") {
+      try {
+        const created = catalog.create(id, {
+          metalId: options.metalId || catalog.DEFAULT_METAL_ID || "silver",
+          quality: options.quality || "standard",
+          gems: options.gems || []
+        });
+        if (created && created.valid !== false && priceOf(created) > 0) {
+          return stampEconomicAliases(Object.assign({}, clone(item), clone(created)));
+        }
+      } catch (_) {}
+      return null;
+    }
+
+    const runtime = economicRuntime();
+    if (runtime && typeof runtime.materializeReferenceItem === "function") {
+      try {
+        const created = runtime.materializeReferenceItem(item, options);
+        if (created && priceOf(created) > 0) return stampEconomicAliases(created);
+      } catch (_) {}
+    }
+
+    const inputValue = Number(options.inputValueAhn);
+    const multiplier = Number(item.craftBaseMultiplier);
+    if (Number.isFinite(inputValue) && inputValue > 0 && Number.isFinite(multiplier) && multiplier > 0) {
+      const craftBaseValueAhn = Math.round(inputValue * multiplier);
+      const quality = normalizeId(options.quality || item.quality || item.baseQuality || "standard") || "standard";
+      const engine = global.LuminousItemQualityEngine;
+      const productionValueAhn = engine && typeof engine.applyValue === "function"
+        ? engine.applyValue(craftBaseValueAhn, quality, { rounding: "round" })
+        : craftBaseValueAhn;
+      return stampEconomicAliases(Object.assign({}, clone(item), {
+        quality,
+        consumedInputValueAhn: Math.round(inputValue),
+        craftBaseValueAhn,
+        productionValueAhn,
+        unitValueAhn: productionValueAhn,
+        totalValueAhn: productionValueAhn
+      }));
+    }
+
+    return null;
+  }
+
+  function valuablePriceRange(item) {
+    if (!isValuableDefinition(item) || !item.variants || typeof item.variants !== "object") return null;
+    const values = Object.values(item.variants)
+      .map((row) => Number(row && row.standardValueAhn))
+      .filter((value) => Number.isFinite(value) && value > 0);
+    if (!values.length) return null;
+    return { min: Math.min(...values), max: Math.max(...values) };
+  }
+
+  function economicLabel(item) {
+    const value = priceOf(item);
+    if (value > 0) return "₳ " + value.toLocaleString();
+    const range = valuablePriceRange(item);
+    if (range) {
+      return range.min === range.max
+        ? "₳ " + range.min.toLocaleString()
+        : "₳ " + range.min.toLocaleString() + " – ₳ " + range.max.toLocaleString();
+    }
+    if (
+      isJewelryDefinition(item) ||
+      REFERENCE_FAMILIES.has(itemFamily(item)) ||
+      Number(item && item.craftBaseMultiplier) > 0
+    ) {
+      return "CONFIGURAR";
+    }
+    return "SIN VALOR";
+  }
+
+  function setGrantButtonsEnabled(enabled) {
+    if (!global.document) return;
+    ["btn-otorgar-stash", "btn-otorgar-activo"].forEach((id) => {
+      const button = global.document.getElementById(id);
+      if (button) button.disabled = !enabled;
+    });
+  }
+
+  function readEconomicConfiguration(item) {
+    const out = {};
+    if (!global.document) return out;
+
+    if (isValuableDefinition(item)) {
+      out.valuableVariant = global.document.getElementById("dm-item-config-valuable-variant")?.value || "gold";
+    }
+
+    if (isJewelryDefinition(item)) {
+      out.metalId = global.document.getElementById("dm-item-config-metal")?.value || jewelryCatalog()?.DEFAULT_METAL_ID || "silver";
+      out.quality = global.document.getElementById("dm-item-config-quality")?.value || "standard";
+      const gemId = global.document.getElementById("dm-item-config-gem")?.value || "";
+      const gemQuantity = Math.max(1, Math.trunc(Number(global.document.getElementById("dm-item-config-gem-qty")?.value) || 1));
+      out.gems = gemId ? [{ id: gemId, quantity: gemQuantity }] : [];
+    }
+
+    if (Number(item && item.craftBaseMultiplier) > 0) {
+      out.inputValueAhn = Number(global.document.getElementById("dm-item-config-input-value")?.value || 0);
+      out.quality = global.document.getElementById("dm-item-config-quality")?.value || out.quality || "standard";
+    }
+    return out;
+  }
+
+  function configuredGrantItem(item) {
+    return materializeGrantDefinition(item, readEconomicConfiguration(item));
+  }
+
+  function updateEconomicPreview(item) {
+    if (!global.document) return null;
+    const preview = global.document.getElementById("dm-item-economic-preview");
+    const resolved = configuredGrantItem(item);
+    const value = resolved ? priceOf(resolved) : 0;
+    if (preview) {
+      if (resolved && value > 0) {
+        preview.textContent = (resolved.displayName || resolved.nombre || resolved.name || itemName(item)) +
+          " · ₳ " + value.toLocaleString();
+        preview.style.color = "#7dff9b";
+      } else {
+        preview.textContent = "Completa una configuración económica válida para poder otorgar este ítem.";
+        preview.style.color = "#ff9b6b";
+      }
+    }
+    setGrantButtonsEnabled(Boolean(resolved && value > 0));
+    return resolved;
+  }
+
+  function renderEconomicConfigurator(item) {
+    if (!global.document) return;
+    const details = global.document.getElementById("consumo-item-detalles");
+    if (!details) return;
+
+    const directValue = priceOf(item);
+    if (directValue > 0) {
+      setGrantButtonsEnabled(true);
+      return;
+    }
+
+    const wrapper = global.document.createElement("div");
+    wrapper.id = "dm-item-economic-config";
+    wrapper.style.cssText = "margin-top:10px;padding:10px;border:1px solid #333;background:#111;border-radius:4px;display:grid;gap:8px;";
+
+    if (isValuableDefinition(item)) {
+      const variants = item.variants || {};
+      const options = Object.entries(variants).map(([id, row]) => {
+        const value = Math.max(0, Math.round(Number(row && row.standardValueAhn) || 0));
+        const label = id === "gems" ? "Con gemas" : id === "gold" ? "Normal / Gold" : id;
+        return '<option value="' + escapeHtml(id) + '">' + escapeHtml(label) + " · ₳ " + value.toLocaleString() + "</option>";
+      }).join("");
+      wrapper.innerHTML =
+        '<strong style="color:#0df;">VARIANTE DE LOOT</strong>' +
+        '<label style="font-size:12px;color:#aaa;">Variante</label>' +
+        '<select id="dm-item-config-valuable-variant" style="padding:7px;background:#090909;color:#fff;border:1px solid #444;">' + options + '</select>' +
+        '<div id="dm-item-economic-preview" style="font-size:12px;"></div>';
+    } else if (isJewelryDefinition(item)) {
+      const metals = jewelryMetals();
+      const gems = cutGems();
+      const metalOptions = metals.length
+        ? metals.map((row) => '<option value="' + escapeHtml(row.id) + '">' + escapeHtml(row.name || row.id) + '</option>').join("")
+        : '<option value="silver">Silver</option>';
+      const gemOptions = '<option value="">Sin gema</option>' + gems.map((row) =>
+        '<option value="' + escapeHtml(row.id) + '">' + escapeHtml(row.name || row.id) + ' · ₳ ' + Number(row.standardUnitValueAhn).toLocaleString() + '</option>'
+      ).join("");
+      const qualityOptions = qualityRows().map((row) =>
+        '<option value="' + escapeHtml(row.id) + '"' + (row.id === "standard" ? " selected" : "") + '>' + escapeHtml(row.label) + '</option>'
+      ).join("");
+      wrapper.innerHTML =
+        '<strong style="color:#0df;">CONFIGURAR JOYERÍA</strong>' +
+        '<label style="font-size:12px;color:#aaa;">Metal</label><select id="dm-item-config-metal" style="padding:7px;background:#090909;color:#fff;border:1px solid #444;">' + metalOptions + '</select>' +
+        '<label style="font-size:12px;color:#aaa;">Calidad</label><select id="dm-item-config-quality" style="padding:7px;background:#090909;color:#fff;border:1px solid #444;">' + qualityOptions + '</select>' +
+        '<label style="font-size:12px;color:#aaa;">Gema opcional</label><select id="dm-item-config-gem" style="padding:7px;background:#090909;color:#fff;border:1px solid #444;">' + gemOptions + '</select>' +
+        '<label style="font-size:12px;color:#aaa;">Cantidad de gemas</label><input id="dm-item-config-gem-qty" type="number" min="1" value="1" style="padding:7px;background:#090909;color:#fff;border:1px solid #444;">' +
+        '<div id="dm-item-economic-preview" style="font-size:12px;"></div>';
+    } else {
+      const reference = materializeGrantDefinition(item, {});
+      if (reference && priceOf(reference) > 0) {
+        wrapper.innerHTML =
+          '<strong style="color:#0df;">COMPOSICIÓN DE REFERENCIA</strong>' +
+          '<span style="font-size:12px;color:#aaa;">Se usará la composición estándar definida por este catálogo. El objeto entregado conservará esa composición.</span>' +
+          '<div id="dm-item-economic-preview" style="font-size:12px;"></div>';
+      } else if (Number(item && item.craftBaseMultiplier) > 0) {
+        const qualityOptions = qualityRows().map((row) =>
+          '<option value="' + escapeHtml(row.id) + '"' + (row.id === "standard" ? " selected" : "") + '>' + escapeHtml(row.label) + '</option>'
+        ).join("");
+        wrapper.innerHTML =
+          '<strong style="color:#0df;">VALOR DE FABRICACIÓN</strong>' +
+          '<span style="font-size:12px;color:#aaa;">Indica el valor total de los insumos usados. El sistema aplica el multiplicador de proceso del ítem.</span>' +
+          '<label style="font-size:12px;color:#aaa;">Valor de insumos (AHN)</label><input id="dm-item-config-input-value" type="number" min="1" step="1" placeholder="0" style="padding:7px;background:#090909;color:#fff;border:1px solid #444;">' +
+          '<label style="font-size:12px;color:#aaa;">Calidad</label><select id="dm-item-config-quality" style="padding:7px;background:#090909;color:#fff;border:1px solid #444;">' + qualityOptions + '</select>' +
+          '<div id="dm-item-economic-preview" style="font-size:12px;"></div>';
+      } else {
+        wrapper.innerHTML =
+          '<strong style="color:#ff8b8b;">SIN CONTRATO ECONÓMICO</strong>' +
+          '<span style="font-size:12px;color:#aaa;">Esta definición todavía no tiene valor, composición de referencia ni receta económica suficiente. No se puede otorgar como un ítem ₳0.</span>' +
+          '<div id="dm-item-economic-preview" style="font-size:12px;"></div>';
+      }
+    }
+
+    details.appendChild(wrapper);
+    wrapper.querySelectorAll("select,input").forEach((field) => {
+      field.addEventListener("input", () => updateEconomicPreview(item));
+      field.addEventListener("change", () => updateEconomicPreview(item));
+    });
+    updateEconomicPreview(item);
   }
 
   function rowLooksLikeItem(row) {
@@ -194,9 +506,9 @@
       tipo_categoria: category,
       tags,
       tier,
-      price: item.price !== undefined ? item.price : price,
-      costo: item.costo !== undefined ? item.costo : price,
-      valorBase: item.valorBase !== undefined ? item.valorBase : price,
+      price: positivePriceOr(item.price, price),
+      costo: positivePriceOr(item.costo, price),
+      valorBase: positivePriceOr(item.valorBase, price),
       icono: icon,
       icon: item.icon || icon,
       __dmSource: source
@@ -343,7 +655,7 @@
       <img src="${escapeHtml(resolveIcon(item, item.definitionId || key))}" alt="${escapeHtml(item.nombre)}">
       <h5>${escapeHtml(item.nombre)}</h5>
       <span style="font-size:0.8em;color:#aaa;">${escapeHtml((item.tags || []).join(", ") || item.category || "item")}</span>
-      <span style="color:#0df;font-weight:bold;"><span class="currency-symbol">₳</span> ${Number(item.price || item.costo || 0).toLocaleString()}</span>
+      <span style="color:#0df;font-weight:bold;">${escapeHtml(economicLabel(item))}</span>
     `;
   }
 
@@ -370,6 +682,7 @@
       const details = global.document && global.document.getElementById("consumo-item-detalles");
       if (title) title.textContent = "Selecciona un Ítem";
       if (details) details.textContent = "Selecciona un ítem del directorio local para otorgarlo.";
+      setGrantButtonsEnabled(false);
     }
   }
 
@@ -460,6 +773,7 @@
         " &nbsp; <strong>ID:</strong> " + escapeHtml(item.definitionId || key) +
         "<br><strong>Tags:</strong> " + escapeHtml((item.tags || []).join(", ") || "—");
     }
+    renderEconomicConfigurator(item);
 
     const panel = global.document.getElementById("panel-consumo-item");
     if (panel) panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -777,6 +1091,10 @@
     if (runtime && typeof runtime.canStack === "function") {
       try { return runtime.canStack(a, b); } catch (_) {}
     }
+    if ((a && a.stackable === false) || (b && b.stackable === false)) return false;
+    if (clean(a && a.variantSignature) || clean(b && b.variantSignature)) {
+      if (clean(a && a.variantSignature) !== clean(b && b.variantSignature)) return false;
+    }
     return definitionIdOf(a) === definitionIdOf(b) &&
       clean(a && a.tier || "I") === clean(b && b.tier || "I");
   }
@@ -797,6 +1115,11 @@
       global.alert && global.alert("Selecciona un jugador destino.");
       return;
     }
+    const configuredItem = configuredGrantItem(item);
+    if (!configuredItem || !(priceOf(configuredItem) > 0)) {
+      global.alert && global.alert("Configura una variante con valor económico antes de otorgar este ítem.");
+      return;
+    }
     if (!global.firebase || !global.firebase.apps || !global.firebase.apps.length) {
       global.alert && global.alert("Firebase todavía no está listo para escribir el inventario.");
       return;
@@ -804,7 +1127,7 @@
 
     const db = global.firebase.database();
     const containerRef = db.ref("campaña/jugadores/" + playerId + "/" + containerName);
-    const payload = makeGrantPayload(item, quantity, playerId);
+    const payload = makeGrantPayload(configuredItem, quantity, playerId);
     const snapshot = await containerRef.once("value");
     const current = snapshot.val() || {};
     let stackKey = "";
@@ -832,7 +1155,8 @@
     }
 
     const destination = containerName === "inventario_activo" ? "Inventario Activo" : "Alijo";
-    global.alert && global.alert(item.nombre + " x" + quantity + " → " + destination + " de " + playerId);
+    const grantedName = configuredItem.displayName || configuredItem.nombre || configuredItem.name || item.nombre;
+    global.alert && global.alert(grantedName + " x" + quantity + " → " + destination + " de " + playerId);
   }
 
   function bindGrantButtons() {
@@ -991,6 +1315,8 @@
     version: VERSION,
     collectLocalItems,
     normalizeDefinition,
+    priceOf,
+    materializeGrantDefinition,
     refreshLocal,
     mount,
     selectItem,
