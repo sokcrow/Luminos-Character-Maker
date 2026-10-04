@@ -174,22 +174,43 @@ async function clickRootMenu(page, menu) {
       const src = String(img?.getAttribute?.('src') || img?.src || '').toLowerCase();
       return direct === wanted || direct === label || text === wanted || text === label || text.includes(label) || (iconToken && src.includes(iconToken));
     });
-    if (!node) {
+    const ring = document.querySelector('.command-ring');
+    const ringRect = ring?.getBoundingClientRect?.();
+    const ringStyle = ring ? getComputedStyle(ring) : null;
+    const diagnostics = candidates.map(button => {
+      const rect = button.getBoundingClientRect();
+      const style = getComputedStyle(button);
       return {
-        found:false,
-        buttons:candidates.map(button => ({
-          text:String(button.textContent||'').trim(),
-          id:button.id||'',
-          data:{...(button.dataset||{})},
-          img:String(button.querySelector?.('img')?.getAttribute?.('src')||'')
-        }))
+        text:String(button.textContent||'').trim(),
+        id:button.id||'',
+        data:{...(button.dataset||{})},
+        img:String(button.querySelector?.('img')?.getAttribute?.('src')||''),
+        rect:{x:rect.x,y:rect.y,width:rect.width,height:rect.height},
+        display:style.display,
+        visibility:style.visibility,
+        opacity:style.opacity,
+        transform:style.transform
       };
-    }
+    });
+    const ringInfo = ring ? {
+      rect:ringRect?{x:ringRect.x,y:ringRect.y,width:ringRect.width,height:ringRect.height}:null,
+      position:ringStyle.position,
+      left:ringStyle.left,
+      top:ringStyle.top,
+      right:ringStyle.right,
+      bottom:ringStyle.bottom,
+      width:ringStyle.width,
+      height:ringStyle.height,
+      transform:ringStyle.transform,
+      transformOrigin:ringStyle.transformOrigin,
+      overflow:ringStyle.overflow
+    } : null;
+    if (!node) return {found:false,buttons:diagnostics,ring:ringInfo};
     const rect = node.getBoundingClientRect();
     const style = getComputedStyle(node);
-    const visible = rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden' && Number(style.opacity || 1) > 0;
+    const visible = rect.width > 0 && rect.height > 0 && rect.x + rect.width > 0 && rect.y + rect.height > 0 && rect.x < innerWidth && rect.y < innerHeight && style.display !== 'none' && style.visibility !== 'hidden' && Number(style.opacity || 1) > 0;
     if (visible) node.click();
-    return {found:true,visible,rect:{x:rect.x,y:rect.y,width:rect.width,height:rect.height},text:String(node.textContent||'').trim()};
+    return {found:true,visible,rect:{x:rect.x,y:rect.y,width:rect.width,height:rect.height},text:String(node.textContent||'').trim(),buttons:diagnostics,ring:ringInfo};
   }, menu);
   expect(result.found, JSON.stringify(result.buttons || [])).toBe(true);
   expect(result.visible, JSON.stringify(result)).toBe(true);
