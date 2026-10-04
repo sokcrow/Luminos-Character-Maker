@@ -2013,6 +2013,27 @@ window.processEntitiesData = function(entities) {
           >
             <!-- Tarjetas de jugadores generadas por JS -->
           </div>
+
+          <div
+            id="dm-p2p-live-panel"
+            style="
+              width: 100%;
+              box-sizing: border-box;
+              margin-top: 8px;
+              padding: 12px;
+              background: #080808;
+              border: 1px solid #0df;
+              border-radius: 4px;
+            "
+          >
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:8px;">
+              <strong style="color:#0df;">TRANSFERENCIAS P2P · TIEMPO REAL</strong>
+              <span id="dm-p2p-live-count" style="color:#888; font-size:12px;">0 movimientos</span>
+            </div>
+            <div id="dm-p2p-live-feed" style="display:flex; flex-direction:column; gap:6px; max-height:320px; overflow-y:auto;">
+              <div style="color:#666; text-align:center; padding:12px;">Sin transferencias P2P registradas.</div>
+            </div>
+          </div>
         </div>
 
         <!-- ECONOMÍA V2: IDENTIDAD DE JUGADORES -->
@@ -5730,10 +5751,106 @@ window.processEntitiesData = function(entities) {
         );
         const jugadoresContainer = document.getElementById("grid-jugadores");
 
+        function getDmPlayerBalance(playerData = {}) {
+          const canonical = playerData.finance?.currentBalance;
+          if (Number.isFinite(Number(canonical))) return Number(canonical);
+          return Number(playerData.ahn) || 0;
+        }
+
+        function dmPlayerDisplayName(playerId, playerData = {}) {
+          return (
+            playerData.characterName ||
+            playerData.character_name ||
+            playerData.nombre ||
+            playerData.name ||
+            playerId
+          );
+        }
+
+        function renderDmP2PLiveFeed(jugadores = {}) {
+          const feed = document.getElementById("dm-p2p-live-feed");
+          const count = document.getElementById("dm-p2p-live-count");
+          if (!feed) return;
+
+          const transfers = [];
+          for (const [senderPlayerId, senderData] of Object.entries(jugadores || {})) {
+            const outbox = senderData?.p2pOutbox || {};
+            for (const [transferKey, packetRaw] of Object.entries(outbox)) {
+              const packet = packetRaw || {};
+              const transferId = packet.transferId || transferKey;
+              const recipientPlayerId = packet.recipientPlayerId || "";
+              const recipientData = jugadores?.[recipientPlayerId] || {};
+              const settled = Boolean(recipientData?.processedP2P?.[transferId]);
+
+              transfers.push({
+                transferId,
+                senderPlayerId,
+                senderName: packet.senderName || dmPlayerDisplayName(senderPlayerId, senderData),
+                senderPhone: packet.senderPhone || senderData?.phoneNumber || "",
+                recipientPlayerId,
+                recipientName:
+                  packet.recipientName ||
+                  dmPlayerDisplayName(recipientPlayerId, recipientData),
+                recipientPhone: recipientData?.phoneNumber || "",
+                amount: Number(packet.amount) || 0,
+                concept: packet.concept || "Transferencia P2P",
+                createdAt: Number(packet.createdAt) || 0,
+                settled,
+              });
+            }
+          }
+
+          transfers.sort((a, b) => b.createdAt - a.createdAt);
+          const visible = transfers.slice(0, 50);
+          if (count) count.textContent = `${transfers.length} movimiento${transfers.length === 1 ? "" : "s"}`;
+          feed.innerHTML = "";
+
+          if (!visible.length) {
+            feed.innerHTML = '<div style="color:#666; text-align:center; padding:12px;">Sin transferencias P2P registradas.</div>';
+            return;
+          }
+
+          visible.forEach((tx) => {
+            const row = document.createElement("div");
+            row.dataset.transferId = tx.transferId;
+            row.style.cssText =
+              "display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; padding:8px 10px; background:#111; border:1px solid #2b2b2b; border-left:3px solid " +
+              (tx.settled ? "#00cc66" : "#c49a00") +
+              "; font-size:12px;";
+
+            const when = tx.createdAt
+              ? new Date(tx.createdAt).toLocaleString("es-MX")
+              : "Sin fecha";
+            const senderPhone = tx.senderPhone ? ` [${tx.senderPhone}]` : "";
+            const recipientPhone = tx.recipientPhone ? ` [${tx.recipientPhone}]` : "";
+            row.innerHTML = `
+              <div style="min-width:0;">
+                <div style="color:#fff; font-weight:bold; overflow:hidden; text-overflow:ellipsis;">
+                  ${tx.senderName}${senderPhone}
+                  <span style="color:#666;"> → </span>
+                  ${tx.recipientName}${recipientPhone}
+                </div>
+                <div style="color:#aaa; margin-top:2px; overflow:hidden; text-overflow:ellipsis;">
+                  ${when} · ${tx.concept}
+                </div>
+                <div style="color:#555; font-size:10px; margin-top:2px;">ID: ${tx.transferId}</div>
+              </div>
+              <div style="text-align:right; white-space:nowrap;">
+                <div style="color:#0df; font-size:14px; font-weight:bold;">${tx.amount} Ahn</div>
+                <div style="color:${tx.settled ? "#00cc66" : "#c49a00"}; font-weight:bold;">
+                  ${tx.settled ? "LIQUIDADA" : "PENDIENTE"}
+                </div>
+              </div>
+            `;
+            feed.appendChild(row);
+          });
+        }
+
         db.ref("campaña/jugadores/").on("value", (snapshot) => {
           bancoContainer.innerHTML = "";
           const jugadores = window.processEntitiesData(snapshot.val());
           window.jugadoresData = jugadores; // Guarda para el modal
+          renderDmP2PLiveFeed(jugadores || {});
 
           const pendingContainer = document.getElementById(
             "grid-reclutas-pendientes",
@@ -5967,7 +6084,7 @@ window.processEntitiesData = function(entities) {
 
               const inputAhn = document.createElement("input");
               inputAhn.type = "number";
-              inputAhn.value = data.ahn || 0;
+              inputAhn.value = getDmPlayerBalance(data);
               inputAhn.style.cssText =
                 "padding: 5px; width: 80%; text-align: center; background: #111; color: #0df; border: 1px solid #c49a00; border-radius: 3px; font-size: 16px; font-weight: bold;";
 
@@ -5978,7 +6095,7 @@ window.processEntitiesData = function(entities) {
               btnForzar.onclick = () => {
                 const nuevoAhn = parseInt(inputAhn.value) || 0;
                 db.ref(`campaña/jugadores/${nombre}`)
-                  .update({ ahn: nuevoAhn })
+                  .update({ ahn: nuevoAhn, "finance/currentBalance": nuevoAhn })
                   .then(() => alert(`Ahn actualizado para ${nombre}`))
                   .catch((e) => alert("Error: " + e));
               };
@@ -6014,7 +6131,7 @@ window.processEntitiesData = function(entities) {
                           txs.forEach(tx => {
                               const amountColor = tx.monto >= 0 ? '#00ff00' : '#ff4444';
                               const sign = tx.monto > 0 ? '+' : '';
-                              const dateStr = new Date(tx.fecha || Date.now()).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
+                              const dateStr = new Date(tx.timestamp || tx.fecha || Date.now()).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
 
                               const txEl = document.createElement('div');
                               txEl.style.cssText = "display: flex; justify-content: space-between; border-bottom: 1px solid #222; padding-bottom: 2px;";
@@ -6161,38 +6278,50 @@ window.processEntitiesData = function(entities) {
             }
 
             const playerRef = db.ref(`campaña/jugadores/${nombre}`);
-            playerRef
-              .child("ahn")
-              .once("value")
-              .then((snapshot) => {
-                const currentAhn = parseInt(snapshot.val()) || 0;
-                const newAhn = currentAhn + monto;
+            const txId = playerRef.child("finance/transactionHistory").push().key;
+            let nextBalance = 0;
+            let failureReason = "";
 
-                // Actualizar saldo
-                playerRef
-                  .update({ ahn: newAhn })
-                  .then(() => {
-                    // Guardar transacción
-                    const transaccion = {
-                      monto: monto,
-                      concepto: concepto,
-                      timestamp: Date.now(),
-                    };
-                    playerRef
-                      .child("transacciones")
-                      .push(transaccion)
-                      .then(() => {
-                        alert(
-                          `Transacción ejecutada con éxito. Nuevo saldo de ${nombre}: ${newAhn} Ahn.`,
-                        );
-                        document.getElementById("banco-nombre").value = "";
-                        document.getElementById("banco-monto").value = "";
-                        document.getElementById("banco-concepto").value = "";
-                      });
-                  })
-                  .catch((e) => alert("Error actualizando saldo: " + e));
+            playerRef
+              .transaction((current) => {
+                if (!current) {
+                  failureReason = "Jugador no encontrado.";
+                  return;
+                }
+
+                const currentAhn = getDmPlayerBalance(current);
+                nextBalance = currentAhn + monto;
+                const timestamp = Date.now();
+                const transaccion = {
+                  id: txId,
+                  monto,
+                  concepto,
+                  timestamp,
+                  unread: true,
+                  type: "dm_adjustment",
+                };
+
+                current.ahn = nextBalance;
+                current.finance = current.finance || {};
+                current.finance.currentBalance = nextBalance;
+                current.finance.transactionHistory = current.finance.transactionHistory || {};
+                current.transacciones = current.transacciones || {};
+                current.finance.transactionHistory[txId] = transaccion;
+                current.transacciones[txId] = transaccion;
+                return current;
               })
-              .catch((e) => alert("Error leyendo saldo actual: " + e));
+              .then((result) => {
+                if (!result.committed) {
+                  throw new Error(failureReason || "No se pudo ejecutar la transacción.");
+                }
+                alert(
+                  `Transacción ejecutada con éxito. Nuevo saldo de ${nombre}: ${nextBalance} Ahn.`,
+                );
+                document.getElementById("banco-nombre").value = "";
+                document.getElementById("banco-monto").value = "";
+                document.getElementById("banco-concepto").value = "";
+              })
+              .catch((e) => alert("Error ejecutando transacción: " + e.message));
           });
 
         // --- LÓGICA DEL DASHBOARD DE FORJA Y MERCADO ---
