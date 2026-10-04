@@ -2703,8 +2703,9 @@ function initializeCharacterSheet() {
       });
   });
 
-  // Set up Sub-Tab Switcher once DOM is ready
-  document.addEventListener("DOMContentLoaded", () => {
+  // Phone communication subtabs must bind even when async auth finishes
+  // after DOMContentLoaded (the normal production path).
+  function initPhoneCommunicationTabs() {
         const btnMail = document.getElementById("btn-show-mail");
         const btnChat = document.getElementById("btn-show-chat");
         const btnContacts = document.getElementById("btn-show-contacts");
@@ -2729,18 +2730,31 @@ function initializeCharacterSheet() {
             if(activeSub) activeSub.style.display = "flex";
         }
 
-        if (btnMail && btnChat && btnContacts) {
+        if (btnMail && btnMail.dataset.phoneSubtabBound !== "true") {
+            btnMail.dataset.phoneSubtabBound = "true";
             btnMail.addEventListener("click", () => switchTab(btnMail, subMail));
+        }
+        if (btnChat && btnChat.dataset.phoneSubtabBound !== "true") {
+            btnChat.dataset.phoneSubtabBound = "true";
             btnChat.addEventListener("click", () => {
                 switchTab(btnChat, subChat);
                 initChatSystem();
             });
+        }
+        if (btnContacts && btnContacts.dataset.phoneSubtabBound !== "true") {
+            btnContacts.dataset.phoneSubtabBound = "true";
             btnContacts.addEventListener("click", () => {
                 switchTab(btnContacts, subContacts);
                 initContactsSystem();
             });
         }
-  });
+  }
+
+  if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", initPhoneCommunicationTabs, { once: true });
+  } else {
+      initPhoneCommunicationTabs();
+  }
 
   // --- Mail listener setup (Inventory UI migrated to LuminousInventoryHudV2) ---
   {
