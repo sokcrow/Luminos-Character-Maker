@@ -19,6 +19,7 @@
     reactionSpentRound: null,
     classObserver: null,
     menuObserver: null,
+    itemRowByInstanceId: new Map(),
   };
 
   const clean = (value) => String(value ?? "").trim();
@@ -281,15 +282,30 @@
     return category === "consumable" || Boolean(item.runtime?.effects || item.runtime?.healing || item.runtime?.spHealing || item.runtime?.statusCure);
   }
 
+  function stableItemRow(instanceId, snapshot = {}) {
+    const key = clean(instanceId);
+    if (!key) return snapshot;
+    let row = state.itemRowByInstanceId.get(key);
+    if (!row) {
+      row = {};
+      state.itemRowByInstanceId.set(key, row);
+    }
+    Object.keys(row).forEach((field) => { if (!Object.prototype.hasOwnProperty.call(snapshot, field)) delete row[field]; });
+    Object.assign(row, snapshot);
+    return row;
+  }
+
   function itemRowsForPlayer(unit = playerUnit() || {}) {
     const container = unit.inventario_activo || {};
-    return inventoryEntries(container).map(([key, raw]) => {
+    const seen = new Set();
+    const rows = inventoryEntries(container).map(([key, raw]) => {
       if (!itemCanUseInCombat(raw)) return null;
       const instanceId = clean(raw.instanceId || raw.instance_id || key);
       const definitionId = clean(raw.definitionId || raw.definition_id || raw.canonicalId || raw.itemId || raw.item_id || raw.id || key);
       const timing = itemTiming(raw);
       const actionCost = timing === ECONOMY.QUICK ? ECONOMY.QUICK : (timing === ECONOMY.REACTION ? ECONOMY.REACTION : ECONOMY.ACTION);
-      return {
+      seen.add(instanceId);
+      return stableItemRow(instanceId, {
         ...clone(raw),
         id: instanceId || definitionId,
         itemId: instanceId || definitionId,
@@ -303,8 +319,10 @@
         name: clean(raw.displayName || raw.name || raw.nombre || definitionId || instanceId || "Item"),
         description: clean(raw.description || raw.descripcion || raw.desc || ""),
         quantity: quantityOf(raw),
-      };
+      });
     }).filter(Boolean);
+    for (const key of [...state.itemRowByInstanceId.keys()]) if (!seen.has(key)) state.itemRowByInstanceId.delete(key);
+    return rows;
   }
 
   function findActiveInventoryItem(unit = playerUnit() || {}, ref = null) {
@@ -653,6 +671,19 @@
     lexical("layoutCategory", () => {})();
   }
 
+  function selfTargetedItem(source = {}) {
+    return normalizeId(source.runtime?.targetMode || source.runtime?.target_mode || source.targetMode || source.target_mode) === "self";
+  }
+
+  function planTargetRuleCompat(source = {}) {
+    const original = state.originals.planTargetRule;
+    if (typeof original !== "function") return null;
+    if (selfTargetedItem(source)) {
+      return original({ ...source, itemType: "hp_healing", item_type: "hp_healing" });
+    }
+    return original(source);
+  }
+
   function selectAction(sel) {
     const menu = activeMenu();
     const tab = economyTabFor(sel?.data || {});
@@ -760,6 +791,76 @@
     }
   }
 
+  function quickMutationSnapshot(unit = {}, item = null) {
+    return {
+      hp: unit.hp,
+      hpActual: unit.hp_actual,
+      sp: unit.sp,
+      spActual: unit.sp_actual,
+      combatStats: clone(unit.combatStats || null),
+      statusEffects: clone(unit.statusEffects || {}),
+      itemRuntimeEffects: clone(unit.itemRuntimeEffects || []),
+      item: item ? clone(item) : null,
+    };
+  }
+
+  function restoreQuickMutation(unit = {}, item = null, snapshot = null) {
+    if (!snapshot) return false;
+    if (snapshot.hp !== undefined) unit.hp = snapshot.hp;
+    if (snapshot.hpActual !== undefined) unit.hp_actual = snapshot.hpActual;
+    if (snapshot.sp !== undefined) unit.sp = snapshot.sp;
+    if (snapshot.spActual !== undefined) unit.sp_actual = snapshot.spActual;
+    if (snapshot.combatStats) unit.combatStats = clone(snapshot.combatStats);
+    unit.statusEffects = clone(snapshot.statusEffects || {});
+    unit.itemRuntimeEffects = clone(snapshot.itemRuntimeEffects || []);
+    if (item && snapshot.item) {
+      Object.keys(item).forEach((key) => { if (!Object.prototype.hasOwnProperty.call(snapshot.item, key)) delete item[key]; });
+      Object.assign(item, clone(snapshot.item));
+    }
+    return true;
+  }
+
+  async function persistQuickItemState(unit = {}) {
+    const adapterState = global.LuminousCombatLiveAdapter073?.state;
+    const db = adapterState?.db;
+    if (!db?.ref) return { saved: false, skipped: true, reason: "combat_db_unavailable" };
+    const playerKey = canonicalPlayerId(unit) || clean(adapterState?.playerId);
+    const persistence = global.LuminousItemPersistenceRuntime;
+    if (!playerKey) return { saved: false, reason: "canonical_player_id_missing" };
+    if (!persistence?.serializeInventoryState) return { saved: false, reason: "item_persistence_runtime_unavailable" };
+
+    const serialized = persistence.serializeInventoryState(unit);
+    const combatantEntry = Object.entries(combatData() || {}).find(([key, row]) =>
+      row === unit
+      || clean(row?.id || row?.combatId) === clean(unit.id || unit.combatId)
+      || canonicalPlayerId(row || {}) === playerKey
+    );
+    const combatantKey = clean(combatantEntry?.[0] || unit.id || unit.combatId);
+    const updates = {
+      [`campaña/jugadores/${playerKey}/inventario_activo`]: clone(serialized.inventario_activo || {}),
+      [`campaña/jugadores/${playerKey}/inventario_stash`]: clone(serialized.inventario_stash || {}),
+      [`campaña/jugadores/${playerKey}/itemInventorySchemaVersion`]: serialized.schemaVersion || 3,
+      [`campaña/jugadores/${playerKey}/itemEquipmentRefs`]: clone(serialized.equipmentRefs || {}),
+      [`campaña/jugadores/${playerKey}/attunedItemInstanceIds`]: clone(serialized.attunedItemInstanceIds || []),
+    };
+    if (combatantKey) {
+      updates[`campaña/combate/combatants/${combatantKey}/inventario_activo`] = clone(serialized.inventario_activo || {});
+      updates[`campaña/combate/combatants/${combatantKey}/inventario_stash`] = clone(serialized.inventario_stash || {});
+      updates[`campaña/combate/combatants/${combatantKey}/itemInventorySchemaVersion`] = serialized.schemaVersion || 3;
+      updates[`campaña/combate/combatants/${combatantKey}/itemEquipmentRefs`] = clone(serialized.equipmentRefs || {});
+      updates[`campaña/combate/combatants/${combatantKey}/attunedItemInstanceIds`] = clone(serialized.attunedItemInstanceIds || []);
+    }
+    try {
+      Object.assign(updates, global.LuminousPlayerVitalsRealtimeBridge?.firebaseUpdatesForSnapshot?.({
+        [combatantKey || clean(unit.id) || "player"]: unit,
+      }, {}) || {});
+      await db.ref().update(updates);
+      return { saved: true, playerId: playerKey, combatantId: combatantKey || null, updates };
+    } catch (error) {
+      return { saved: false, reason: "quick_item_persistence_failed", error };
+    }
+  }
+
   function requestQuickResolution(sel, action, targetId) {
     const detail = { version: VERSION, action, source: clone(sel.data || {}), sourceType: sel.type, targetId, handled: false, result: null };
     try { global.dispatchEvent(new CustomEvent("luminous:combat073-quick-action-request", { detail })); } catch (_) {}
@@ -777,19 +878,36 @@
     return { handled: false, reason: "quick_action_runtime_unavailable" };
   }
 
-  function useQuickAction(sel, targetId = null) {
+  async function useQuickAction(sel, targetId = null) {
     const unit = playerUnit(), economy = economyRuntime();
     if (!unit || !economy) return false;
     const gate = economy.availability?.(unit, ECONOMY.QUICK, { phase: "planning" });
     if (gate?.available === false) { lexical("setStatus", () => {})(`QUICK ACTION · ${gate.reason || "UNAVAILABLE"}`); return false; }
     const action = compilerFor(sel, targetId);
     if (!action) { lexical("setStatus", () => {})("QUICK ACTION · COMBAT ACTION COMPILER UNAVAILABLE"); return false; }
+
+    const isItem = sel.type === "item" || sel.type === "items";
+    const liveItem = isItem ? findActiveInventoryItem(unit, sel.data || {}) : null;
+    const before = isItem ? quickMutationSnapshot(unit, liveItem) : null;
     const resolution = requestQuickResolution(sel, action, targetId);
     if (!resolution.handled) {
       lexical("setStatus", () => {})(`QUICK ACTION · ${sel.data?.name || "Action"} · ${String(resolution.reason || "RUNTIME NOT CONNECTED").replaceAll("_", " ").toUpperCase()}`);
       return false;
     }
-    if (!economy.consume(unit, ECONOMY.QUICK, { phase: "planning" })) return false;
+
+    if (isItem) {
+      const persisted = await persistQuickItemState(unit);
+      if (persisted.saved === false && persisted.skipped !== true) {
+        restoreQuickMutation(unit, liveItem, before);
+        lexical("setStatus", () => {})(`QUICK ACTION · ${sel.data?.name || "Item"} · PERSISTENCE FAILED`);
+        return false;
+      }
+    }
+
+    if (!economy.consume(unit, ECONOMY.QUICK, { phase: "planning" })) {
+      if (isItem) restoreQuickMutation(unit, liveItem, before);
+      return false;
+    }
     state.quickSpentRound = roundNumber();
     syncQuickBadge(); syncTabs(); updateCategoryContext();
     lexical("setStatus", () => {})(`QUICK ACTION · ${sel.data?.name || "Action"} · USED`);
@@ -902,8 +1020,12 @@
     if (state.installed || !global.document) return state.installed;
     const required = ["renderCategory", "renderSkills", "renderSpells", "renderCleanList", "selectAction"];
     if (required.some((name) => typeof lexical(name) !== "function")) return false;
-    state.originals = { renderCategory: lexical("renderCategory"), renderSkills: lexical("renderSkills"), renderSpells: lexical("renderSpells"), renderItems: lexical("renderItems", null), renderCleanList: lexical("renderCleanList"), selectAction: lexical("selectAction") };
+    state.originals = { renderCategory: lexical("renderCategory"), renderSkills: lexical("renderSkills"), renderSpells: lexical("renderSpells"), renderItems: lexical("renderItems", null), renderCleanList: lexical("renderCleanList"), selectAction: lexical("selectAction"), planTargetRule: lexical("planTargetRule", null) };
     ensureStyles(); ensureTabs();
+    if (typeof state.originals.planTargetRule === "function") {
+      global.__luminousEconomyPlanTargetRuleCompat = planTargetRuleCompat;
+      assignLexical("planTargetRule", "window.__luminousEconomyPlanTargetRuleCompat");
+    }
     assignLexical("renderSkills", "window.LuminousCombatEconomyMenu073.renderSkills");
     assignLexical("renderSpells", "window.LuminousCombatEconomyMenu073.renderSpells");
     if (typeof state.originals.renderItems === "function") assignLexical("renderItems", "window.LuminousCombatEconomyMenu073.renderItems");
@@ -918,7 +1040,7 @@
     state.installed = true; return true;
   }
 
-  const api = { version: VERSION, ECONOMY, state, normalizeEconomyCost, economyTabFor, costLabel, canonicalPlayerId, playerUnit, playerKit, traitDefinitionsForPlayer, liveActions, classEntries, spellcastingClasses, isSpellcaster, selectedSpellIds, spellRowsForPlayer, inventoryEntries, quantityOf, itemTiming, itemCanUseInCombat, itemRowsForPlayer, findActiveInventoryItem, spellMenuNodes, syncSpellMenuVisibility, rowsFor, renderSkills, renderSpells, renderItems, renderCleanList, renderCategory, selectAction, setTab, syncTabs, syncQuickBadge, syncPlanningEconomy, beginCombatEconomy, prepareReaction, triggerPreparedReaction, useQuickAction, install };
+  const api = { version: VERSION, ECONOMY, state, normalizeEconomyCost, economyTabFor, costLabel, canonicalPlayerId, playerUnit, playerKit, traitDefinitionsForPlayer, liveActions, classEntries, spellcastingClasses, isSpellcaster, selectedSpellIds, spellRowsForPlayer, inventoryEntries, quantityOf, itemTiming, itemCanUseInCombat, stableItemRow, itemRowsForPlayer, findActiveInventoryItem, spellMenuNodes, syncSpellMenuVisibility, selfTargetedItem, planTargetRuleCompat, persistQuickItemState, rowsFor, renderSkills, renderSpells, renderItems, renderCleanList, renderCategory, selectAction, setTab, syncTabs, syncQuickBadge, syncPlanningEconomy, beginCombatEconomy, prepareReaction, triggerPreparedReaction, useQuickAction, install };
 
   async function boot() { await ensureDependencies(); return install(); }
   api.boot = boot; api.ensureDependencies = ensureDependencies;
