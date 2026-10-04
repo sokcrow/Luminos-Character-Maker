@@ -21,6 +21,7 @@ on:
       - 'js/theatre-check-retry-watchdog.js'
       - 'js/theatre-check-coordinator.js'
       - 'js/theatre-language-policy.js'
+      - 'js/language-catalog-engine.js'
       - 'js/theatre-intervention-ux-core.js'
       - 'js/status-engine.js'
       - 'js/trait-catalog-core.js'
@@ -64,6 +65,7 @@ on:
       - 'tests/dm-dialogue-composer-layout-smoke.mjs'
       - 'tests/dm-dialogue-input-visible-smoke.mjs'
       - 'tests/theatre-queue-bank-hotfix-smoke.mjs'
+      - 'tests/theatre-language-partial-comprehension-smoke.mjs'
       - 'tests/player-ui-long-session-performance.spec.mjs'
       - 'tests/trait-formula-display-contract.mjs'
       - '.github/workflows/player-combat-theatre-lifecycle.yml'
@@ -91,6 +93,7 @@ jobs:
           node --check js/theatre-check-retry-watchdog.js
           node --check js/theatre-check-coordinator.js
           node --check js/theatre-language-policy.js
+          node --check js/language-catalog-engine.js
           node --check js/theatre-intervention-ux-core.js
           node --check js/status-engine.js
           node --check js/trait-catalog-core.js
@@ -126,6 +129,7 @@ jobs:
           node --check tests/dm-dialogue-composer-layout-smoke.mjs
           node --check tests/dm-dialogue-input-visible-smoke.mjs
           node --check tests/theatre-queue-bank-hotfix-smoke.mjs
+          node --check tests/theatre-language-partial-comprehension-smoke.mjs
           node --check tests/trait-formula-display-contract.mjs
       - name: Trait formula display contract
         run: node tests/trait-formula-display-contract.mjs
@@ -139,6 +143,8 @@ jobs:
         run: node tests/dm-dialogue-input-visible-smoke.mjs
       - name: Theatre queue + Bank layout contract
         run: node tests/theatre-queue-bank-hotfix-smoke.mjs
+      - name: Theatre language comprehension contract
+        run: node tests/theatre-language-partial-comprehension-smoke.mjs
 
   combat-lifecycle:
     name: Combat teardown + round preservation
