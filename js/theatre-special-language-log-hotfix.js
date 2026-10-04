@@ -21,12 +21,17 @@
     const raw = String(message?.mensaje || message?.message || "");
     const languageId = clean(message?.idiomaId || message?.languageId || message?.idioma);
     let resolved = raw;
+
     if (languageId && rules) {
-      const definition = definitions?.[languageId] || {};
-      if (rules.isSpecialLanguage?.(languageId, definition)) {
-        resolved = rules.resolveSpecialUnderstanding?.(profiles, languageId)
-          ? raw
-          : rules.unknownTextForDefinition?.(definition) || "[No comprendes este lenguaje especial.]";
+      if (typeof rules.resolveLanguageText === "function") {
+        resolved = rules.resolveLanguageText(message, definitions, profiles);
+      } else {
+        const definition = definitions?.[languageId] || {};
+        if (rules.isSpecialLanguage?.(languageId, definition)) {
+          resolved = rules.resolveSpecialUnderstanding?.(profiles, languageId)
+            ? raw
+            : rules.unknownTextForDefinition?.(definition) || "[No comprendes este lenguaje especial.]";
+        }
       }
     }
     return formatActionText(message, resolved);
@@ -160,11 +165,19 @@
         if (paragraph.textContent !== safeText) paragraph.textContent = safeText;
         const languageId = clean(message?.idiomaId || message?.languageId || message?.idioma);
         const definition = definitions[languageId] || {};
+        const special = Boolean(languageId && activeRules?.isSpecialLanguage?.(languageId, definition));
         const blocked = Boolean(
-          languageId
-          && activeRules?.isSpecialLanguage?.(languageId, definition)
+          special
           && !activeRules?.resolveSpecialUnderstanding?.(profiles, languageId)
         );
+        const percentage = languageId
+          ? (special
+              ? (blocked ? 0 : 100)
+              : (activeRules?.resolveLanguageKnowledgePercentage?.(profiles, languageId, definition) ?? 100))
+          : 100;
+        row.dataset.languageId = languageId || "";
+        row.dataset.languageKnowledgePercent = String(percentage);
+        row.dataset.languageObfuscated = languageId && percentage < 100 ? "true" : "false";
         row.dataset.specialLanguageBlocked = blocked ? "true" : "false";
       });
     } finally {
@@ -196,7 +209,8 @@
 
   function syncInitialTheatreState() {
     return db.ref(INSTANCE_PATH).once("value").then((snapshot) => {
-      setTheatreActive(String(snapshot.val() || "").trim() === "teatro");
+      const instance = String(snapshot.val() || "").trim();
+      setTheatreActive(instance === "teatro" || instance === "combat_theatre");
     }).catch(() => {
       setTheatreActive(false);
     });
