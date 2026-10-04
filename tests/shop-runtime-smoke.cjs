@@ -8,7 +8,7 @@ const { pathToFileURL } = require("node:url");
 
   const shops = globalThis.LuminousShopRuntime;
   assert.ok(shops);
-  assert.equal(shops.VERSION, 2);
+  assert.equal(shops.VERSION, 3);
   assert.equal(shops.BASE_PURCHASE_MARKUP, 1.40);
   assert.equal(shops.BASE_SELLBACK_MULTIPLIER, 0.80);
 
@@ -84,13 +84,34 @@ const { pathToFileURL } = require("node:url");
     200000
   );
 
-  // Tier gates availability and stock scales with assigned players.
-  assert.equal(shops.stockForItem({ tier: "IV" }, assigned), 0);
-  assert.equal(shops.stockForItem({ tier: "III" }, assigned), 3);
-  assert.equal(shops.stockForItem({ tier: "I" }, assigned), 8);
+  // Shop Type now gates catalog eligibility before Tier/stock are evaluated.
+  const food = { family: "food", category: "food", itemType: "consumable", tier: "I", productionValueAhn: 100000 };
+  const weapon = { family: "weapons", category: "weapon", itemType: "weapon", tier: "I", productionValueAhn: 100000 };
+  const medicine = { family: "healing_hp", category: "consumable", itemType: "consumable", tier: "I", productionValueAhn: 100000 };
+  const component = { family: "craft_components", category: "ingredient", itemType: "component", tier: "I", productionValueAhn: 100000 };
+
+  assert.equal(shops.itemEligibleForShopType(food, { shop_type: "provisions" }), true);
+  assert.equal(shops.itemEligibleForShopType(weapon, { shop_type: "provisions" }), false);
+  assert.equal(shops.itemEligibleForShopType(medicine, { shop_type: "clinic" }), true);
+  assert.equal(shops.itemEligibleForShopType(component, { shop_type: "workshop" }), true);
+  assert.equal(shops.itemEligibleForShopType(weapon, { shop_type: "arms_dealer" }), true);
+
+  // Tier still gates availability and stock scales with assigned players.
+  assert.equal(shops.stockForItem({ ...food, tier: "IV" }, assigned), 0);
+  assert.equal(shops.stockForItem({ ...food, tier: "III" }, assigned), 3);
+  assert.equal(shops.stockForItem(food, assigned), 8);
+  assert.equal(shops.stockForItem(weapon, assigned), 0);
+
+  const generated = shops.generateCatalog(
+    { food, weapon, medicine, component },
+    { ...assigned, shop_type: "clinic" },
+  );
+  assert.deepEqual(Object.keys(generated), ["medicine"]);
+  assert.equal(generated.medicine.stock_actual > 0, true);
+  assert.equal(generated.medicine.shop_stock_auto, true);
 
   const rebalanced = shops.applyAutomaticStock(
-    { tier: "I", productionValueAhn: 100000, stock_maximo: 8, stock_actual: 5 },
+    { ...food, stock_maximo: 8, stock_actual: 5 },
     { ...assigned, jugadores_presentes: { Pierre: true, Agatha: true, Angelo: true } },
     { preserveSold: true }
   );
@@ -98,7 +119,7 @@ const { pathToFileURL } = require("node:url");
   assert.equal(rebalanced.stock_actual, 8);
   assert.equal(rebalanced.shop_stock_auto, true);
 
-  console.log("Shop Runtime smoke: OK (types, tiers, +40% buy, -20% sellback, access and automatic shared stock)");
+  console.log("Shop Runtime smoke: OK (type catalogs, tiers, +40% buy, -20% sellback, access and automatic shared stock)");
 })().catch((error) => {
   console.error(error);
   process.exitCode = 1;
