@@ -6936,11 +6936,14 @@ window.processEntitiesData = function(entities) {
 
             visibleCatalogRows += 1;
             const itemEnTienda = itemsTienda[keyItem];
+            const materializedGlobal = shopRuntime?.materializeReferenceItem
+              ? (shopRuntime.materializeReferenceItem(dataGlobal, { purpose: "dm_shop_editor" }) || dataGlobal)
+              : dataGlobal;
+            const itemFuente = itemEnTienda || materializedGlobal;
             const availability = shopRuntime?.itemAvailability
-              ? shopRuntime.itemAvailability(dataGlobal, dataTienda)
+              ? shopRuntime.itemAvailability(itemFuente, dataTienda)
               : { available: true, tierEligible: true, catalogBand: "legacy" };
             const isChecked = itemEnTienda && availability.available ? "checked" : "";
-            const itemFuente = itemEnTienda || dataGlobal;
             const valueResolution = shopRuntime?.resolveBaseValueAhn
               ? shopRuntime.resolveBaseValueAhn(itemFuente)
               : { resolved: Number(itemFuente.costo) > 0, value: Number(itemFuente.costo) || null, field: "costo" };
@@ -7043,21 +7046,25 @@ window.processEntitiesData = function(entities) {
 
               const keyItem = fila.dataset.key;
               const dataGlobal = dbItemsCache[keyItem];
+              const materializedGlobal = shopRuntime?.materializeReferenceItem
+                ? (shopRuntime.materializeReferenceItem(dataGlobal, { purpose: "dm_shop_editor" }) || dataGlobal)
+                : dataGlobal;
               if (
                 shopRuntime?.itemAvailable &&
-                !shopRuntime.itemAvailable(dataGlobal, shopData)
+                !shopRuntime.itemAvailable(materializedGlobal, shopData)
               ) {
                 return;
               }
               const requisito = fila.querySelector(".input-requisito").value;
               const baseValue = shopRuntime?.baseValueAhn
-                ? shopRuntime.baseValueAhn(dataGlobal)
-                : (dataGlobal.costo || 0);
+                ? shopRuntime.baseValueAhn(materializedGlobal)
+                : (materializedGlobal.costo || 0);
               if (!(Number.isFinite(Number(baseValue)) && Number(baseValue) > 0)) return;
 
               let shopItem = {
-                ...dataGlobal,
+                ...materializedGlobal,
                 costo: baseValue,
+                valorBase: Number(materializedGlobal.valorBase) > 0 ? materializedGlobal.valorBase : baseValue,
                 requisito_aparicion: requisito,
               };
 
