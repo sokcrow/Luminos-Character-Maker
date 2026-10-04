@@ -5774,6 +5774,7 @@ window.abrirTiendaDinamica = async function(tiendaId) {
         : Number(playerData.ahn) || 0;
     const balanceDisplay = document.getElementById("shop-player-balance");
     if (balanceDisplay) balanceDisplay.innerText = currentBalance;
+    window.LuminousRenderShopMerchantPresence?.(data, tiendaId, "theater");
 
     const meta = shopRuntime?.describeShop?.(data);
     document.getElementById("shop-name-display").innerText = meta
@@ -5812,14 +5813,31 @@ window.abrirTiendaDinamica = async function(tiendaId) {
         const tierText =
           shopRuntime?.tierRoman?.(item.tier) ||
           String(item.tier || "-");
-        const precioItem = shopRuntime?.purchasePrice
-          ? shopRuntime.purchasePrice(item, data)
+        const commerceContext = window.LuminousShopCommerceContext
+          ? window.LuminousShopCommerceContext(playerData, data, tiendaId)
+          : {};
+        const priceBreakdown = shopRuntime?.priceBreakdown
+          ? shopRuntime.priceBreakdown(item, data, { context: commerceContext })
+          : null;
+        const precioItem = priceBreakdown
+          ? priceBreakdown.priceAhn
           : (Math.max(0, parseInt(item.costo, 10) || 0) || null);
         const availability = shopRuntime?.itemAvailability?.(item, data);
-        const priceResolved = Number.isFinite(Number(precioItem)) && Number(precioItem) > 0;
+        const priceResolved = priceBreakdown
+          ? priceBreakdown.priceResolved !== false
+          : Number.isFinite(Number(precioItem)) && Number(precioItem) > 0;
+        const loyaltyFree =
+          priceResolved &&
+          Number(precioItem) === 0 &&
+          priceBreakdown?.loyaltyRewardApplied === true;
         const availableByTier = availability?.available !== false && priceResolved;
         const exhausted = item.stock_actual === 0;
         const unavailable = exhausted || !availableByTier;
+        const benefitText = loyaltyFree
+          ? "Recompensa de lealtad"
+          : priceBreakdown?.totalDiscountPercent > 0
+            ? "Beneficio comercial -" + Math.round(priceBreakdown.totalDiscountPercent) + "%"
+            : "";
 
         row.innerHTML = `
           <div class="icon-slot">
@@ -5829,10 +5847,10 @@ window.abrirTiendaDinamica = async function(tiendaId) {
           <div class="item-details">
               <span class="item-name">${item.nombre || "Objeto"}</span>
               <span class="item-cost">
-                  ${priceResolved ? precioItem + ' <span style="color: var(--brillo-ambar);">₳</span>' : "SIN PRECIO"}
+                  ${!priceResolved ? "SIN PRECIO" : loyaltyFree ? "GRATIS" : precioItem + ' <span style="color: var(--brillo-ambar);">₳</span>'}
               </span>
               <span style="font-size: 11px; color: ${unavailable ? "#aa5555" : "#888"};">
-                ${!priceResolved ? "Sin valor económico" : (!availableByTier ? "No disponible para esta tienda" : (exhausted ? "Agotado" : "Disponible"))}
+                ${!priceResolved ? "Sin valor económico" : (!availableByTier ? "No disponible para esta tienda" : (exhausted ? "Agotado" : (benefitText || "Disponible")))}
               </span>
           </div>
         `;
@@ -5859,7 +5877,9 @@ window.abrirTiendaDinamica = async function(tiendaId) {
           btnComprar.disabled = unavailable;
           btnComprar.innerHTML = unavailable
             ? (!priceResolved ? "SIN PRECIO" : (!availableByTier ? "NO DISPONIBLE" : "AGOTADO"))
-            : `COMPRAR [${precioItem} ₳]`;
+            : loyaltyFree
+              ? "CANJEAR GRATIS"
+              : `COMPRAR [${precioItem} ₳]`;
 
           const passKey = item._key !== undefined ? item._key : index;
           btnComprar.onclick = unavailable
@@ -5908,6 +5928,7 @@ window.abrirVentaTiendaDinamica = async function(
         : Number(playerData.ahn) || 0;
     const balanceDisplay = document.getElementById("shop-player-balance");
     if (balanceDisplay) balanceDisplay.innerText = currentBalance;
+    window.LuminousRenderShopMerchantPresence?.(shopData, tiendaId, "theater");
 
     const meta = shopRuntime?.describeShop?.(shopData);
     document.getElementById("shop-name-display").innerText = meta
@@ -5988,6 +6009,173 @@ window.abrirVentaTiendaDinamica = async function(
   }
 };
 
+window.abrirServiciosTiendaDinamica = async function(
+  tiendaId = window.__luminousActiveTheaterShopId,
+) {
+  if (!playerId || !tiendaId) return;
+  window.__luminousActiveTheaterShopId = tiendaId;
+
+  try {
+    const [playerSnap, shopSnap] = await Promise.all([
+      db.ref(`campaña/jugadores/${playerId}`).once("value"),
+      db.ref(`campaña/tiendas/${tiendaId}`).once("value"),
+    ]);
+    const playerData = playerSnap.val() || {};
+    const shopData = shopSnap.val();
+    if (!shopData) return;
+
+    const runtime = window.LuminousShopRuntime;
+    const accessKey = currentShopPlayerAccessKey(playerData);
+    if (runtime?.isPlayerAllowed && !runtime.isPlayerAllowed(shopData, accessKey)) {
+      alert("Esta tienda no está disponible para tu personaje.");
+      return;
+    }
+
+    const currentBalance =
+      playerData.finance?.currentBalance !== undefined
+        ? Number(playerData.finance.currentBalance) || 0
+        : Number(playerData.ahn) || 0;
+    const balanceDisplay = document.getElementById("shop-player-balance");
+    if (balanceDisplay) balanceDisplay.innerText = currentBalance;
+    window.LuminousRenderShopMerchantPresence?.(shopData, tiendaId, "theater");
+
+    const meta = runtime?.describeShop?.(shopData);
+    document.getElementById("shop-name-display").innerText = meta
+      ? `${shopData.nombre || "Tienda"} · ${meta.typeLabel} · TIER ${meta.tierRoman} · SERVICIOS`
+      : `${shopData.nombre || "Tienda"} · SERVICIOS`;
+
+    const lista = document.getElementById("lista-items-tienda");
+    const btnAccion = document.getElementById("btn-comprar-seleccionado");
+    lista.innerHTML = "";
+    btnAccion.style.display = "none";
+    document.getElementById("panel-item-name").innerText = "---";
+    document.getElementById("panel-item-qty").innerText = "--";
+
+    if (!runtime?.serviceEnabled?.(shopData, "repair")) {
+      document.getElementById("panel-item-desc").innerHTML =
+        "<span style='color:#777;'>Este establecimiento no ofrece reparaciones.</span>";
+      lista.innerHTML =
+        "<span style='color:#888;padding:20px;'>No hay servicios disponibles.</span>";
+      document.getElementById("tienda-overlay").style.display = "flex";
+      return;
+    }
+
+    document.getElementById("panel-item-desc").innerHTML =
+      "<span style='color:#888;'>Selecciona equipo dañado para ver el costo de reparación.</span>";
+
+    const context = window.LuminousShopCommerceContext
+      ? window.LuminousShopCommerceContext(playerData, shopData, tiendaId)
+      : {};
+    const entries = [
+      ...Object.entries(playerData.inventario_activo || {}).map(([key, item]) => ({
+        key,
+        item,
+        inventory: "inventario_activo",
+        label: "ACTIVO",
+      })),
+      ...Object.entries(playerData.inventario_stash || {}).map(([key, item]) => ({
+        key,
+        item,
+        inventory: "inventario_stash",
+        label: "STASH",
+      })),
+    ].filter(({ item }) => {
+      const state = runtime.durabilityState?.(item);
+      return state?.resolved && state.missing > 0;
+    });
+
+    if (!entries.length) {
+      lista.innerHTML =
+        "<span style='color:#888;padding:20px;'>No tienes equipo dañado.</span>";
+    }
+
+    for (const { key, item, inventory, label } of entries) {
+      const quote = runtime.repairBreakdown(item, shopData, { context });
+      const unavailable = !quote?.available;
+      const free =
+        quote?.available &&
+        quote.loyaltyRewardApplied === true &&
+        Number(quote.priceAhn) === 0;
+      const row = document.createElement("div");
+      row.className = "item-row";
+      row.innerHTML = `
+        <div class="icon-slot">
+          <span class="tier">${label}</span>
+          <span class="icono-img" style="width:100%;height:100%;display:flex;justify-content:center;align-items:center;">
+            ${item.icono ? `<img src="${item.icono}" style="width:100%;height:100%;object-fit:contain;">` : "🔧"}
+          </span>
+        </div>
+        <div class="item-details">
+          <span class="item-name">${item.nombre || item.name || "Equipo"}</span>
+          <span class="item-cost">
+            ${unavailable ? "NO DISPONIBLE" : free ? "GRATIS" : Number(quote.priceAhn).toLocaleString() + ' <span style="color:var(--brillo-ambar);">₳</span>'}
+          </span>
+          <span style="font-size:11px;color:${unavailable ? "#aa5555" : "#888"};">
+            Durabilidad ${quote?.currentDurability ?? "?"}/${quote?.maxDurability ?? "?"} · ${quote?.missingDurability ?? "?"} PD por reparar
+          </span>
+        </div>
+      `;
+
+      row.onclick = () => {
+        document
+          .querySelectorAll("#lista-items-tienda .item-row")
+          .forEach((entry) => entry.classList.remove("selected"));
+        row.classList.add("selected");
+        document.getElementById("panel-item-name").innerText =
+          item.nombre || item.name || "Equipo";
+        document.getElementById("panel-item-qty").innerText =
+          quote?.missingDurability ?? "--";
+        document.getElementById("panel-item-desc").innerText =
+          unavailable
+            ? "No se pudo determinar el material necesario para esta reparación."
+            : `Reparación completa: ${quote.points} PD. Material/PD: ₳${Number(quote.materialValuePerPointAhn).toLocaleString()}. Mano de obra incluida.`;
+        btnAccion.style.display = "block";
+        btnAccion.disabled = unavailable;
+        btnAccion.innerHTML = unavailable
+          ? "NO DISPONIBLE"
+          : free
+            ? "CANJEAR REPARACIÓN"
+            : `REPARAR [${Number(quote.priceAhn).toLocaleString()} ₳]`;
+        btnAccion.onclick = unavailable
+          ? null
+          : () => window.repararItemTienda(tiendaId, inventory, key);
+      };
+
+      lista.appendChild(row);
+    }
+
+    document.getElementById("tienda-overlay").style.display = "flex";
+  } catch (error) {
+    console.error("Error abriendo servicios de tienda:", error);
+  }
+};
+
+window.repararItemTienda = async function(tiendaId, inventoryKey, itemKey) {
+  if (!playerId) return alert("Error: Jugador no identificado.");
+  try {
+    const result = await repairShopInventoryItem(
+      playerId,
+      tiendaId,
+      inventoryKey,
+      itemKey,
+    );
+    if (!result.repaired) {
+      return alert(result.message || "No se pudo completar la reparación.");
+    }
+    const balanceDisplay = document.getElementById("shop-player-balance");
+    if (balanceDisplay) balanceDisplay.innerText = result.balanceAfter;
+    alert(
+      result.priceAhn === 0
+        ? `${result.itemName} ha sido reparado sin costo por tu recompensa de lealtad.`
+        : `${result.itemName} reparado por ₳${Number(result.priceAhn).toLocaleString()}.`,
+    );
+    await window.abrirServiciosTiendaDinamica(tiendaId);
+  } catch (error) {
+    console.error("Error reparando item:", error);
+    alert("No se pudo completar la reparación.");
+  }
+};
+
 window.venderItemTienda = async function(tiendaId, itemKey) {
   if (!playerId) return alert("Error: Jugador no identificado.");
 
@@ -6057,10 +6245,19 @@ window.comprarItemTienda = async function(tiendaId, itemKey) {
       );
     }
 
-    const precioReal = shopRuntime?.purchasePrice
-      ? shopRuntime.purchasePrice(itemData, shopData)
+    const commerceContext = window.LuminousShopCommerceContext
+      ? window.LuminousShopCommerceContext(playerData, shopData, tiendaId)
+      : {};
+    const priceBreakdown = shopRuntime?.priceBreakdown
+      ? shopRuntime.priceBreakdown(itemData, shopData, { context: commerceContext })
+      : null;
+    if (priceBreakdown?.priceResolved === false) {
+      return alert("Este objeto no tiene un valor económico canónico y no puede comprarse.");
+    }
+    const precioReal = priceBreakdown
+      ? Math.max(0, Number(priceBreakdown.priceAhn) || 0)
       : (Math.max(0, parseInt(itemData.costo, 10) || 0) || null);
-    if (!(Number.isFinite(Number(precioReal)) && Number(precioReal) > 0)) {
+    if (precioReal == null) {
       return alert("Este objeto no tiene un valor económico canónico y no puede comprarse.");
     }
     const currentBalance =
@@ -6080,12 +6277,18 @@ window.comprarItemTienda = async function(tiendaId, itemKey) {
     const newBalance = currentBalance - precioReal;
     const tx = {
       monto: -precioReal,
-      concepto: `Compra: ${itemData.nombre}`,
+      concepto:
+        priceBreakdown?.loyaltyRewardApplied === true
+          ? `Recompensa de lealtad: ${itemData.nombre || itemData.name || "Objeto"}`
+          : `Compra: ${itemData.nombre || itemData.name || "Objeto"}`,
       timestamp: Date.now(),
       unread: true,
       shopId: tiendaId,
       shopType: shopRuntime?.shopTypeId?.(shopData) || "general",
       shopTier: shopRuntime?.shopTier?.(shopData) || 1,
+      listPriceAhn: priceBreakdown?.listPriceAhn ?? precioReal,
+      discountPercent: priceBreakdown?.totalDiscountPercent || 0,
+      loyaltyReward: priceBreakdown?.loyaltyRewardApplied === true,
     };
 
     try {
@@ -6093,20 +6296,46 @@ window.comprarItemTienda = async function(tiendaId, itemKey) {
         [`campaña/jugadores/${playerId}/ahn`]: newBalance,
         [`campaña/jugadores/${playerId}/finance/currentBalance`]: newBalance,
       });
+      await deliverShopPurchaseToStash(playerId, itemKey, itemData);
+    } catch (error) {
+      await Promise.allSettled([
+        restoreShopStock(tiendaId, itemKey),
+        db.ref().update({
+          [`campaña/jugadores/${playerId}/ahn`]: currentBalance,
+          [`campaña/jugadores/${playerId}/finance/currentBalance`]: currentBalance,
+        }),
+      ]);
+      throw error;
+    }
 
+    try {
       await Promise.all([
         db.ref(`campaña/jugadores/${playerId}/finance/transactionHistory`).push(tx),
         db.ref(`campaña/jugadores/${playerId}/transacciones`).push(tx),
-        deliverShopPurchaseToStash(playerId, itemKey, itemData),
+        window.LuminousRecordShopCommerceActivity?.(
+          playerId,
+          playerData,
+          shopData,
+          tiendaId,
+          {
+            kind: "item",
+            item: itemData,
+            paidAhn: precioReal,
+            breakdown: priceBreakdown,
+          },
+        ),
       ]);
-    } catch (error) {
-      await restoreShopStock(tiendaId, itemKey);
-      throw error;
+    } catch (commerceError) {
+      console.warn("[Luminous][Shop] Purchase completed but commerce history could not be fully recorded.", commerceError);
     }
 
     const balanceDisplay = document.getElementById("shop-player-balance");
     if (balanceDisplay) balanceDisplay.innerText = newBalance;
-    alert(`¡Has comprado: ${itemData.nombre}!`);
+    alert(
+      priceBreakdown?.loyaltyRewardApplied === true
+        ? `${itemData.nombre || itemData.name || "Objeto"} corre por cuenta de la tienda.`
+        : `¡Has comprado: ${itemData.nombre || itemData.name || "Objeto"}!`,
+    );
     await window.abrirTiendaDinamica(tiendaId);
   } catch (error) {
     console.error("Error comprando item:", error);
