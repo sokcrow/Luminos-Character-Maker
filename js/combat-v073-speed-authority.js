@@ -107,18 +107,28 @@
     return true;
   }
 
-  function forceRuntimeRefresh(){
+  function refreshRuntimeSpeedView(){
     const a=adapter();
-    if(!a?.state||!a?.hydrateNow)return;
+    if(!state.roundReady||!a?.state?.hydratedOnce)return false;
+    syncRuntimeSpeedsFromCanonical();
+    try{global.layoutSpeedFormation?.()}catch(error){console.error('[Combat073 SpeedAuthority] formation refresh failed',error)}
+    try{global.syncAllUnitVisibility?.()}catch(error){console.error('[Combat073 SpeedAuthority] visibility refresh failed',error)}
+    try{runtime()?.render?.()}catch(error){console.error('[Combat073 SpeedAuthority] render refresh failed',error)}
+    try{global.LuminousWebGL2Renderer?.requestRender?.(80)}catch(_){}
+    return true;
+  }
+
+  function forceRuntimeRefresh(){
+    if(!state.roundReady)return false;
     const sig=speedSignature();
-    if(sig===state.lastSpeedSignature)return;
+    if(sig===state.lastSpeedSignature)return false;
     state.lastSpeedSignature=sig;
     if(state.refreshTimer)global.clearTimeout(state.refreshTimer);
     state.refreshTimer=global.setTimeout(()=>{
       state.refreshTimer=null;
-      a.state.lastSignature='';
-      try{a.hydrateNow()}catch(error){console.error('[Combat073 SpeedAuthority] hydrate failed',error)}
+      refreshRuntimeSpeedView();
     },80);
+    return true;
   }
 
   async function ensureRoundSpeeds(){
@@ -166,14 +176,13 @@
       state.round=parseRound(snap.val());
       state.roundReady=true;
       patchLegacySpeedRollers();
-      syncRuntimeSpeedsFromCanonical();
+      forceRuntimeRefresh();
       ensureRoundSpeeds().catch(error=>console.error('[Combat073 SpeedAuthority] round roll failed',error));
     });
     subscribe(`${ROOT}/combatants`,snap=>{
       state.combatants=snap.val()||{};
       patchLegacySpeedRollers();
-      syncRuntimeSpeedsFromCanonical();
-      forceRuntimeRefresh();
+      if(state.roundReady)forceRuntimeRefresh();
       if(state.roundReady)ensureRoundSpeeds().catch(error=>console.error('[Combat073 SpeedAuthority] roll failed',error));
     });
     return true;
@@ -186,8 +195,8 @@
   }
 
   let tries=0;const timer=global.setInterval(()=>{tries++;if(start()||tries>120)global.clearInterval(timer)},250);
-  global.addEventListener('luminous:combat073-runtime-ready',()=>{patchLegacySpeedRollers();syncRuntimeSpeedsFromCanonical();});
-  global.addEventListener('luminous:combat073-hydrated',()=>{patchLegacySpeedRollers();syncRuntimeSpeedsFromCanonical();});
+  global.addEventListener('luminous:combat073-runtime-ready',()=>{patchLegacySpeedRollers();refreshRuntimeSpeedView();});
+  global.addEventListener('luminous:combat073-hydrated',()=>{patchLegacySpeedRollers();refreshRuntimeSpeedView();});
   global.addEventListener('beforeunload',stop,{once:true});
-  global.LuminousCombatSpeedAuthority073=Object.freeze({state,start,stop,rangeFor,rollFor,speedSignature,runtimeCombatants,canonicalRowFor,syncRuntimeSpeedsFromCanonical,patchLegacySpeedRollers,ensureRoundSpeeds,forceRuntimeRefresh});
+  global.LuminousCombatSpeedAuthority073=Object.freeze({state,start,stop,rangeFor,rollFor,speedSignature,runtimeCombatants,canonicalRowFor,syncRuntimeSpeedsFromCanonical,refreshRuntimeSpeedView,patchLegacySpeedRollers,ensureRoundSpeeds,forceRuntimeRefresh});
 })(window);
