@@ -95,22 +95,39 @@
     );
   }
 
+  const PRICE_FIELDS = Object.freeze([
+    "productionValueAhn",
+    "productionValue",
+    "createdProductionValueAhn",
+    "standardProductionValueAhn",
+    "craftBaseValueAhn",
+    "cookedBaseValueAhn",
+    "totalValueAhn",
+    "standardMediumValueAhn",
+    "mediumStandardValueAhn",
+    "standardUnitValueAhn",
+    "standardValueAhn",
+    "standardChassisValueAhn",
+    "unitValueAhn",
+    "baseValueAhn",
+    "baseMundaneValueAhn",
+    "enchantmentBaseValueAhn",
+    "roughValueAhn",
+    "priceAhn",
+    "retailValueAhn",
+    "valorBase",
+    "costo",
+    "price"
+  ]);
+
   function priceOf(item) {
-    const candidates = [
-      item && item.price,
-      item && item.costo,
-      item && item.valorBase,
-      item && item.unitValueAhn,
-      item && item.standardValueAhn,
-      item && item.standardChassisValueAhn,
-      item && item.mediumStandardValueAhn,
-      item && item.retailValueAhn,
-      item && item.baseValueAhn,
-      item && item.productionValueAhn
-    ];
-    for (const value of candidates) {
-      const number = Number(value);
-      if (Number.isFinite(number)) return Math.round(number);
+    for (const field of PRICE_FIELDS) {
+      const raw = item && item[field];
+      if (raw == null || raw === "") continue;
+      const number = Number(raw);
+      // Zero in legacy price/costo/valorBase is frequently a placeholder.
+      // Prefer the first authored positive canonical value instead.
+      if (Number.isFinite(number) && number > 0) return Math.round(number);
     }
     return 0;
   }
@@ -410,6 +427,7 @@
     DEFAULT_ICON,
     CATALOG_NAME_RE,
     RECIPE_CATALOG_NAME_RE,
+    PRICE_FIELDS,
     normalizeId,
     definitionIdOf,
     itemName,
