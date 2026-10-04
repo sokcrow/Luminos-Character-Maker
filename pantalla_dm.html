@@ -2334,6 +2334,13 @@ window.processEntitiesData = function(entities) {
                       title="Descuento cuando la relación con el encargado llega a Confianza"
                     />
                   </div>
+                  <input
+                    type="text"
+                    id="tienda-npc-saludo"
+                    maxlength="160"
+                    placeholder="Saludo al entrar (opcional)"
+                    style="grid-column:1 / -1;"
+                  />
                 </div>
 
                 <input type="text" id="tienda-cadena-nombre" maxlength="80" placeholder="Cadena / franquicia (opcional)" />
@@ -7216,6 +7223,7 @@ window.processEntitiesData = function(entities) {
           document.getElementById("tienda-npc-activa").checked = false;
           document.getElementById("tienda-npc-nombre").value = "";
           document.getElementById("tienda-npc-sprite").value = "";
+          document.getElementById("tienda-npc-saludo").value = "";
           document.getElementById("tienda-cadena-nombre").value = "";
           document.getElementById("tienda-cliente-frecuente-compras").value = "10";
           document.getElementById("tienda-cliente-frecuente-descuento").value = "5";
@@ -7267,6 +7275,8 @@ window.processEntitiesData = function(entities) {
               document.getElementById("tienda-npc-nombre").value.trim();
             const merchantSprite =
               document.getElementById("tienda-npc-sprite").value.trim();
+            const merchantGreeting =
+              document.getElementById("tienda-npc-saludo").value.trim();
             const chainName =
               document.getElementById("tienda-cadena-nombre").value.trim();
             const repairEnabled =
@@ -7344,6 +7354,7 @@ window.processEntitiesData = function(entities) {
                   id: merchantId,
                   name: merchantName || "Encargado",
                   sprite: merchantSprite,
+                  greeting: merchantGreeting,
                   frequent_customer_min_purchases: frequentCustomerMinPurchases,
                   frequent_customer_discount_percent: frequentCustomerDiscountPercent,
                   relationship_discounts: {
@@ -7566,6 +7577,8 @@ window.processEntitiesData = function(entities) {
                   merchant?.name || "";
                 document.getElementById("tienda-npc-sprite").value =
                   merchant?.sprite || "";
+                document.getElementById("tienda-npc-saludo").value =
+                  merchant?.greeting || "";
                 document.getElementById("tienda-cadena-nombre").value =
                   chain?.name || "";
                 document.getElementById("tienda-servicio-reparacion").checked =
