@@ -3379,6 +3379,19 @@ function initializeCharacterSheet() {
     const badgeFisica = document.getElementById("tienda-fisica-badge");
     const shopModal = document.getElementById("shop-modal");
     const shopModalClose = document.getElementById("shop-modal-close");
+    const physicalShopBalance = document.getElementById("shop-display-ahn");
+
+    function canonicalPlayerBalance(playerData = {}) {
+      return playerData.finance?.currentBalance !== undefined
+        ? Number(playerData.finance.currentBalance) || 0
+        : Number(playerData.ahn) || 0;
+    }
+
+    if (playerId && physicalShopBalance) {
+      db.ref(`campaña/jugadores/${playerId}`).on("value", (snap) => {
+        physicalShopBalance.textContent = canonicalPlayerBalance(snap.val() || {}).toLocaleString();
+      });
+    }
 
     if (badgeFisica && shopModal) {
       badgeFisica.addEventListener("click", (e) => {
@@ -3776,37 +3789,41 @@ function initializeCharacterSheet() {
           return;
         }
 
-        db.ref(`campaña/jugadores/${playerName}/ahn`).once("value", async (snap) => {
-          const ahn_actual = snap.val() || 0;
-          if (ahn_actual < precio) {
-            alert("Fondos insuficientes.");
-            return;
-          }
+        const accountId = playerId || playerName;
+        const accountRef = db.ref(`campaña/jugadores/${accountId}`);
+        const accountSnap = await accountRef.once("value");
+        const accountData = accountSnap.val() || {};
+        const ahnActual = canonicalPlayerBalance(accountData);
+        if (ahnActual < precio) {
+          alert("Fondos insuficientes.");
+          return;
+        }
 
-          let stockReservation;
-          try {
-            stockReservation = await reserveShopStock(idTiendaActual, itemId);
-          } catch (error) {
-            console.error("Error reservando stock:", error);
-            alert("No se pudo reservar el stock de la tienda.");
-            return;
-          }
-          if (!stockReservation.reserved) {
-            alert("El objeto se agotó antes de completar la compra.");
-            return;
-          }
+        let stockReservation;
+        try {
+          stockReservation = await reserveShopStock(idTiendaActual, itemId);
+        } catch (error) {
+          console.error("Error reservando stock:", error);
+          alert("No se pudo reservar el stock de la tienda.");
+          return;
+        }
+        if (!stockReservation.reserved) {
+          alert("El objeto se agotó antes de completar la compra.");
+          return;
+        }
 
-          // El precio se recalcula desde Shop Runtime y el stock se reserva
-          // atómicamente antes de cobrar, para que todos los Players compartan
-          // el mismo inventario real de la tienda.
-          try {
-            await db.ref(`campaña/jugadores/${playerName}/ahn`).set(
-              ahn_actual - precio,
-            );
-          } catch (error) {
-            await restoreShopStock(idTiendaActual, itemId);
-            throw error;
-          }
+        // La tienda física usa el mismo saldo canónico que Banco/App:
+        // finance.currentBalance con fallback legacy a ahn, y mantiene ambos espejos sincronizados.
+        const newBalance = ahnActual - precio;
+        try {
+          await db.ref().update({
+            [`campaña/jugadores/${accountId}/ahn`]: newBalance,
+            [`campaña/jugadores/${accountId}/finance/currentBalance`]: newBalance,
+          });
+        } catch (error) {
+          await restoreShopStock(idTiendaActual, itemId);
+          throw error;
+        }
 
           // Preserve the canonical functional definition when an item leaves a
           // shop. Rebuilding a cosmetic subset here used to strip runtime.healing
@@ -3856,7 +3873,7 @@ function initializeCharacterSheet() {
           if (isFisico) {
             // Añadir directo al Stash (Física)
             const stashRef = db.ref(
-              `campaña/jugadores/${playerName}/inventario_stash`,
+              `campaña/jugadores/${accountId}/inventario_stash`,
             );
             stashRef.once("value", (stashSnap) => {
               let foundKey = null;
