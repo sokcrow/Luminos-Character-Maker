@@ -8,7 +8,7 @@ const { pathToFileURL } = require("node:url");
 
   const shops = globalThis.LuminousShopRuntime;
   assert.ok(shops);
-  assert.equal(shops.VERSION, 4);
+  assert.equal(shops.VERSION, 5);
   assert.equal(shops.BASE_PURCHASE_MARKUP, 1.40);
   assert.equal(shops.BASE_SELLBACK_MULTIPLIER, 0.80);
 
@@ -76,6 +76,95 @@ const { pathToFileURL } = require("node:url");
     140000,
     "standardValueAhn must be a canonical Shop price source",
   );
+
+  // Generative definitions are materialized before entering a Shop catalog.
+  globalThis.LuminousArmorComponentCatalog = {
+    resolveReferenceComponent(id) {
+      if (id !== "armor_plate") return null;
+      return {
+        valid: true,
+        componentId: id,
+        name: "Armor Plate",
+        quality: "standard",
+        composition: [{ materialId: "iron", quantity: 4 }],
+        productionValueAhn: 156000,
+      };
+    },
+  };
+  const rawArmorPlate = {
+    id: "armor_plate",
+    definitionId: "armor_plate",
+    family: "armor_components",
+    category: "component",
+    itemType: "armor_component",
+    tier: "I",
+    price: 0,
+    costo: 0,
+    valorBase: 0,
+  };
+  const materializedArmorPlate = shops.materializeReferenceItem(rawArmorPlate);
+  assert.equal(materializedArmorPlate.productionValueAhn, 156000);
+  assert.equal(materializedArmorPlate.costo, 156000);
+  assert.equal(materializedArmorPlate.composition[0].materialId, "iron");
+
+  const generatedWorkshop = shops.generateCatalog(
+    { armor_plate: rawArmorPlate },
+    {
+      shop_type: "workshop",
+      shop_tier: 1,
+      mod_venta: 100,
+      jugadores_presentes: { Pierre: true },
+    },
+  );
+  assert.equal(generatedWorkshop.armor_plate.productionValueAhn, 156000);
+  assert.equal(generatedWorkshop.armor_plate.shop_price_ahn, 235870);
+  assert.equal(generatedWorkshop.armor_plate.composition[0].materialId, "iron");
+  delete globalThis.LuminousArmorComponentCatalog;
+
+  // Loot valuables already have canonical fixed variants. A Shop reference uses
+  // the normal/gold variant rather than treating the chassis as a zero-Ahn item.
+  globalThis.LuminousJewelryValuableCatalog = {
+    DEFAULT_METAL_ID: "silver",
+    create(id, options = {}) {
+      if (id !== "goblet" || options.origin !== "loot") return { valid: false };
+      const gems = options.variant === "gems";
+      const value = gems ? 780000 : 420000;
+      return {
+        valid: true,
+        id,
+        definitionId: id,
+        name: "Goblet",
+        displayName: gems ? "Gem-Inlaid Goblet" : "Gold Goblet",
+        kind: "valuable",
+        category: "valuable",
+        itemType: "valuable",
+        valuableVariant: gems ? "gems" : "gold",
+        variantSignature: id + ":" + (gems ? "gems" : "gold"),
+        productionValueAhn: value,
+        unitValueAhn: value,
+        totalValueAhn: value,
+      };
+    },
+  };
+  const rawGoblet = {
+    id: "goblet",
+    family: "jewelry_valuables",
+    kind: "valuable",
+    category: "valuable",
+    itemType: "valuable",
+    lootOnly: true,
+    tier: "I",
+    variants: {
+      gold: { standardValueAhn: 420000 },
+      gems: { standardValueAhn: 780000 },
+    },
+  };
+  assert.equal(shops.materializeReferenceItem(rawGoblet).productionValueAhn, 420000);
+  assert.equal(
+    shops.materializeReferenceItem(rawGoblet, { valuableVariant: "gems" }).productionValueAhn,
+    780000,
+  );
+  delete globalThis.LuminousJewelryValuableCatalog;
 
   const unresolved = {
     family: "food",
