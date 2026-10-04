@@ -70,3 +70,62 @@
 @media (max-width: 760px) {
   .theatre-message-policy .tmp-grid { grid-template-columns: 1fr 1fr; }
 }
+
+
+/* DM panel is a narrow sidebar even on desktop. Size MESSAGE FLOW against the
+   sidebar, not the browser viewport, so no control can escape the composer. */
+.on-game-dashboard #theatre-director-panel .theatre-message-policy {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.on-game-dashboard #theatre-director-panel .theatre-message-policy .tmp-head {
+  min-width: 0;
+  gap: 8px;
+}
+
+.on-game-dashboard #theatre-director-panel .theatre-message-policy .tmp-head > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.on-game-dashboard #theatre-director-panel .theatre-message-policy .tmp-head code {
+  flex: 0 0 auto;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.on-game-dashboard #theatre-director-panel .theatre-message-policy .tmp-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  width: 100%;
+  min-width: 0;
+}
+
+.on-game-dashboard #theatre-director-panel .theatre-message-policy .tmp-grid > *,
+.on-game-dashboard #theatre-director-panel .theatre-message-policy label,
+.on-game-dashboard #theatre-director-panel .theatre-message-policy input,
+.on-game-dashboard #theatre-director-panel .theatre-message-policy select,
+.on-game-dashboard #theatre-director-panel #btn-theatre-message-next {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.on-game-dashboard #theatre-director-panel #btn-theatre-message-next {
+  height: 36px;
+  justify-self: stretch;
+  white-space: nowrap;
+}
+
+@media (max-width: 430px) {
+  .on-game-dashboard #theatre-director-panel .theatre-message-policy .tmp-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
