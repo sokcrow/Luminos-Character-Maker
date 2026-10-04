@@ -8,16 +8,29 @@ const { pathToFileURL } = require("node:url");
 
   const shops = globalThis.LuminousShopRuntime;
   assert.ok(shops);
-  assert.equal(shops.VERSION, 6);
+  assert.equal(shops.VERSION, 7);
   assert.equal(shops.BASE_PURCHASE_MARKUP, 1.40);
   assert.equal(shops.BASE_SELLBACK_MULTIPLIER, 0.80);
 
   assert.deepEqual(Object.keys(shops.SHOP_TYPES), [
     "general",
+    "convenience",
+    "supermarket",
+    "wholesaler",
     "provisions",
+    "restaurant",
+    "butcher",
     "clinic",
+    "pharmacy",
     "workshop",
+    "hardware_store",
+    "electronics",
     "arms_dealer",
+    "jeweler",
+    "pawnshop",
+    "salvage",
+    "corporate_outlet",
+    "automated_vendor",
     "specialist",
     "black_market",
   ]);
@@ -51,7 +64,7 @@ const { pathToFileURL } = require("node:url");
     active: true,
     id: "field_test_market",
     revision: 101,
-    title: "Cambio de mercado",
+    title: "Variación de precios",
     modifiers: {
       general: -20,
       clinic: 25,
@@ -292,6 +305,36 @@ const { pathToFileURL } = require("node:url");
   assert.equal(shops.itemEligibleForShopType(medicine, { shop_type: "clinic" }), true);
   assert.equal(shops.itemEligibleForShopType(component, { shop_type: "workshop" }), true);
   assert.equal(shops.itemEligibleForShopType(weapon, { shop_type: "arms_dealer" }), true);
+
+  // Modern/urban commerce profiles must have distinct catalog behavior.
+  assert.equal(shops.itemEligibleForShopType(food, { shop_type: "supermarket" }), true);
+  assert.equal(shops.itemEligibleForShopType(weapon, { shop_type: "supermarket" }), false);
+  assert.equal(shops.itemEligibleForShopType(medicine, { shop_type: "pharmacy" }), true);
+  assert.equal(shops.itemEligibleForShopType(component, { shop_type: "hardware_store" }), true);
+  assert.equal(
+    shops.itemEligibleForShopType(
+      { id: "sensor_component", family: "craft_components", category: "component", tier: "I", productionValueAhn: 100000 },
+      { shop_type: "electronics" },
+    ),
+    true,
+  );
+  assert.equal(
+    shops.itemEligibleForShopType(
+      { family: "jewelry_valuables", kind: "valuable", category: "valuable", tier: "I", productionValueAhn: 100000 },
+      { shop_type: "jeweler" },
+    ),
+    true,
+  );
+  assert.equal(
+    shops.purchasePrice(food, { shop_type: "supermarket", shop_tier: 1, mod_venta: 100 }),
+    134400,
+    "supermarket profile should use its lower high-volume multiplier",
+  );
+  assert.equal(
+    shops.purchasePrice(food, { shop_type: "convenience", shop_tier: 1, mod_venta: 100 }),
+    151200,
+    "convenience profile should charge for immediate availability",
+  );
 
   // Tier still gates availability and stock scales with assigned players.
   assert.equal(shops.stockForItem({ ...food, tier: "IV" }, assigned), 0);
