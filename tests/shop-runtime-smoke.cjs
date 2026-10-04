@@ -275,6 +275,39 @@ const { pathToFileURL } = require("node:url");
     158760
   );
 
+  // Sellback always prices one owned unit, never the whole stack.
+  const valuedStack = {
+    productionValueAhn: 5000,
+    unitValueAhn: 1000,
+    totalValueAhn: 5000,
+    quantity: 5,
+    cantidad: 5,
+    tier: "I",
+  };
+  assert.deepEqual(
+    shops.resolveSellUnitValueAhn(valuedStack),
+    { resolved: true, field: "unitValueAhn", value: 1000 },
+  );
+  assert.equal(
+    shops.sellPrice(valuedStack, { shop_type: "general", shop_tier: 1 }),
+    800,
+  );
+
+  const totalOnlyStack = {
+    totalValueAhn: 5000,
+    quantity: 5,
+    cantidad: 5,
+    tier: "I",
+  };
+  assert.deepEqual(
+    shops.resolveSellUnitValueAhn(totalOnlyStack),
+    { resolved: true, field: "totalValueAhn/quantity", value: 1000 },
+  );
+  assert.equal(
+    shops.sellPrice(totalOnlyStack, { shop_type: "general", shop_tier: 1 }),
+    800,
+  );
+
   // Selling is always 20% below intrinsic value. Shop type, Tier and
   // local purchase modifiers do not alter the sellback value.
   assert.equal(
