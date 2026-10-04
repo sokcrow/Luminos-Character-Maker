@@ -579,9 +579,29 @@
     const subtotal = reason === "available"
       ? roundAhn(points * material.value)
       : null;
-    const price = reason === "available"
+    const listPrice = reason === "available"
       ? roundAhn(subtotal * REPAIR_SERVICE_MARKUP)
       : null;
+    const context = options.context ?? options.customer ?? {};
+    const promotionBreakdown = options.ignoreCommerce || options.ignorePromotions
+      ? Object.freeze({ percent: 0, promotions: Object.freeze([]) })
+      : promotionDiscountBreakdownForService("repair", shop);
+    const merchantPercent = options.ignoreCommerce || options.ignoreMerchant
+      ? 0
+      : merchantDiscountPercent(shop, context);
+    const loyalty = options.ignoreCommerce || options.ignoreLoyalty
+      ? Object.freeze({ active: false, rewardReady: false, progress: 0 })
+      : loyaltyServiceStatus(shop, context, "repair");
+    const totalDiscountPercent = clamp(
+      promotionBreakdown.percent + merchantPercent,
+      0,
+      90,
+    );
+    const price = listPrice == null
+      ? null
+      : loyalty.rewardReady
+        ? 0
+        : roundAhn(listPrice * (1 - totalDiscountPercent / 100));
 
     return Object.freeze({
       serviceId: "repair",
@@ -597,6 +617,15 @@
       materialValueSource: material.field,
       materialSubtotalAhn: subtotal,
       serviceMarkup: REPAIR_SERVICE_MARKUP,
+      listPriceAhn: listPrice,
+      promotionDiscountPercent: promotionBreakdown.percent,
+      appliedPromotions: promotionBreakdown.promotions,
+      merchantDiscountPercent: merchantPercent,
+      totalDiscountPercent,
+      loyaltyProgramId: loyalty.program?.id || null,
+      loyaltyProgress: loyalty.progress || 0,
+      loyaltyRequired: loyalty.required || loyalty.program?.paidPurchasesRequired || 0,
+      loyaltyRewardApplied: loyalty.rewardReady === true,
       priceAhn: price,
     });
   }
@@ -677,6 +706,38 @@
     });
   }
 
+  function promotionMatchesService(promotion, serviceId = "") {
+    if (!promotion) return false;
+    const id = normalizeToken(serviceId);
+    if (!id) return false;
+    if (promotion.scope === "service") {
+      return !promotion.serviceIds.length || promotion.serviceIds.includes(id);
+    }
+    if (promotion.scope === "all" || !promotion.scope) {
+      return !promotion.serviceIds.length || promotion.serviceIds.includes(id);
+    }
+    return false;
+  }
+
+  function promotionDiscountBreakdownForService(serviceId = "", shop = {}) {
+    const matches = shopPromotions(shop).filter(
+      (promotion) =>
+        promotion.type === PROMOTION_TYPES.PERCENT_DISCOUNT &&
+        promotionMatchesService(promotion, serviceId) &&
+        promotion.discountPercent > 0,
+    );
+    const stackable = matches
+      .filter((promotion) => promotion.stackable)
+      .reduce((sum, promotion) => sum + promotion.discountPercent, 0);
+    const bestExclusive = matches
+      .filter((promotion) => !promotion.stackable)
+      .reduce((best, promotion) => Math.max(best, promotion.discountPercent), 0);
+    return Object.freeze({
+      percent: clamp(stackable + bestExclusive, 0, 90),
+      promotions: Object.freeze(matches),
+    });
+  }
+
   function merchantDiscountPercent(shop = {}, context = {}) {
     const merchant = merchantNpc(shop);
     if (!merchant) return 0;
@@ -738,6 +799,7 @@
       name: name || "Programa de lealtad",
       paidPurchasesRequired,
       rewardType: normalizeToken(raw.reward_type ?? raw.rewardType ?? "free_next") || "free_next",
+      scope: normalizeToken(raw.scope ?? "all") || "all",
       itemIds: Object.freeze((raw.item_ids ?? raw.itemIds ?? []).map?.(normalizeToken) || []),
       categories: Object.freeze((raw.categories ?? raw.categorias ?? []).map?.(normalizeToken) || []),
       serviceIds: Object.freeze((raw.service_ids ?? raw.serviceIds ?? []).map?.(normalizeToken) || []),
@@ -746,6 +808,7 @@
 
   function loyaltyAppliesToItem(program, item = {}) {
     if (!program) return false;
+    if (program.scope === "services" || program.scope === "service") return false;
     if (!program.itemIds.length && !program.categories.length && !program.serviceIds.length) return true;
     const ids = new Set([
       normalizeToken(item.id),
@@ -771,6 +834,39 @@
       program.paidPurchasesRequired,
     );
     const eligible = item ? loyaltyAppliesToItem(program, item) : true;
+    return Object.freeze({
+      active: true,
+      program,
+      progress,
+      required: program.paidPurchasesRequired,
+      eligible,
+      rewardReady: eligible && progress >= program.paidPurchasesRequired,
+    });
+  }
+
+  function loyaltyAppliesToService(program, serviceId = "") {
+    if (!program) return false;
+    if (program.scope === "items" || program.scope === "item" || program.scope === "products") return false;
+    const id = normalizeToken(serviceId);
+    if (!id) return false;
+    if (!program.serviceIds.length) return true;
+    return program.serviceIds.includes(id);
+  }
+
+  function loyaltyServiceStatus(shop = {}, context = {}, serviceId = "") {
+    const program = loyaltyProgram(shop);
+    if (!program) return Object.freeze({ active: false, program: null, progress: 0, rewardReady: false });
+    const source =
+      context.loyalty ??
+      context.loyaltyPrograms?.[program.id] ??
+      context.customer?.loyaltyPrograms?.[program.id] ??
+      {};
+    const progress = clamp(
+      Math.trunc(numberOr(source.progress ?? source.stamps ?? context.loyaltyProgress, 0)),
+      0,
+      program.paidPurchasesRequired,
+    );
+    const eligible = loyaltyAppliesToService(program, serviceId);
     return Object.freeze({
       active: true,
       program,
@@ -1327,10 +1423,14 @@
     shopPromotions,
     promotionMatchesItem,
     promotionDiscountBreakdown,
+    promotionMatchesService,
+    promotionDiscountBreakdownForService,
     merchantDiscountPercent,
     loyaltyProgram,
     loyaltyAppliesToItem,
     loyaltyStatus,
+    loyaltyAppliesToService,
+    loyaltyServiceStatus,
     nextLoyaltyProgress,
     promotionRewardPlan,
     assignedPlayers,
