@@ -101,6 +101,7 @@
       staggerStage:Math.max(0,Math.trunc(finite(unit.staggerStage,0))),staggerActivatedRound:Math.max(0,Math.trunc(finite(unit.staggerActivatedRound,0))),staggerUntilRound:Math.max(0,Math.trunc(finite(unit.staggerUntilRound,0))),
       triggeredStaggerThresholds:clone(unit.triggeredStaggerThresholds||[]),shieldPools:clone(unit.shieldPools||{}),concentration:clone(unit.concentration||null),
       x:finite(unit.x,0),y:finite(unit.y,0),retreatPendingRound:Math.max(0,Math.trunc(finite(unit.retreatPendingRound,0))),escapePendingRound:Math.max(0,Math.trunc(finite(unit.escapePendingRound,0))),
+      proneSpeedRound:Math.max(0,Math.trunc(finite(unit.proneSpeedRound,0))),confusionTurnMode:unit.confusionTurnMode==null?null:clone(unit.confusionTurnMode),
       escaped:unit.escaped===true,damageTakenThisRound:Math.max(0,finite(unit.damageTakenThisRound,0)),
       quickActionRemaining:finite(unit.quickActionRemaining,unit.quickActionsRemaining??1),reactionRemaining:finite(unit.reactionRemaining,unit.reactionsRemaining??1)
     };

@@ -133,9 +133,21 @@ function smartTargetForPlan(owner,plan){
     const liveDeckNeedle=`  deckSkills=playerDeckForUnit(PLAYER_ID);
   initializeBattleSP();rollTurnSpeeds(round);ensureUnknownAISlots();`;
     const liveDeckPatch=`  resetPlayerDeckForUnit(PLAYER_ID);
-  initializeBattleSP();rollTurnSpeeds(round);ensureUnknownAISlots();`;
+  initializeBattleSP();ensureUnknownAISlots();`;
     if(!html.includes(liveDeckNeedle))throw new Error("COMBAT_PLAYER_DECK_PATCH_MISSING");
     html=html.replace(liveDeckNeedle,liveDeckPatch);
+
+    stage('patch-speed-state','Preserving canonical Speed metadata while rebuilding Combatants');
+    const speedStateNeedle="autoPlans:[],speedRollTurn:0,speedTie:0,observationKnown:[]";
+    const speedStatePatch="autoPlans:[],speedBaseRoll:Number(d.speedBaseRoll??d.speed)||0,speedRollTurn:Number(d.speedRollTurn)||0,speedTie:Number(d.speedTie)||0,speedRolledAt:d.speedRolledAt??null,observationKnown:[]";
+    if(!html.includes(speedStateNeedle))throw new Error("COMBAT_CANONICAL_SPEED_STATE_PATCH_MISSING");
+    html=html.replace(speedStateNeedle,speedStatePatch);
+
+    stage('patch-condition-turn-state','Preserving transient forced-Speed condition state while rebuilding Combatants');
+    const conditionTurnStateNeedle="confusionTurnMode:null,proneSpeedRound:0,";
+    const conditionTurnStatePatch="confusionTurnMode:d.confusionTurnMode??null,proneSpeedRound:Number(d.proneSpeedRound)||0,";
+    if(!html.includes(conditionTurnStateNeedle))throw new Error("COMBAT_CONDITION_TURN_STATE_PATCH_MISSING");
+    html=html.replace(conditionTurnStateNeedle,conditionTurnStatePatch);
 
     stage('patch-formation','Applying alternating two-row Combat formation');
     const formationPointsNeedle=`const allyPoints=[

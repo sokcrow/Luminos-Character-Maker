@@ -9,11 +9,13 @@ on:
       - 'js/unit-rank-runtime.js'
       - 'js/enemy-action-slot-allocator.js'
       - 'js/combat-v073-live-adapter.js'
+      - 'js/combat-v073-speed-authority.js'
       - 'js/combat-v073-economy-menu.js'
       - 'js/combat-v073-economy-review-fixes.js'
       - 'js/combat-spell-loadout-074.js'
       - 'js/spell-catalog-core.js'
       - 'tests/combat-v073-player-menu-visual.spec.mjs'
+      - 'tests/combat-v073-speed-multiview-visual.spec.mjs'
       - 'tests/individual-goap-combat-ai-smoke.mjs'
       - 'tests/unit-rank-command-smoke.mjs'
       - 'tests/enemy-action-slot-allocator-smoke.mjs'
@@ -53,6 +55,8 @@ jobs:
         run: npx playwright test tests/enemy-target-formation-visual.spec.mjs --reporter=line
       - name: Browser proof real Player Actions + Skills + Spells + Items
         run: npx playwright test tests/combat-v073-player-menu-visual.spec.mjs --reporter=line
+      - name: Browser proof canonical Speed across DM + Player viewers
+        run: npx playwright test tests/combat-v073-speed-multiview-visual.spec.mjs --reporter=line
       - name: Upload target and formation evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -61,5 +65,6 @@ jobs:
           path: |
             artifacts/enemy-target-formation/*.png
             artifacts/player-menu-visual/*.png
+            artifacts/speed-authority-visual/*.png
           if-no-files-found: warn
           retention-days: 14
