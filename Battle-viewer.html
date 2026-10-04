@@ -143,6 +143,12 @@ function smartTargetForPlan(owner,plan){
     if(!html.includes(speedStateNeedle))throw new Error("COMBAT_CANONICAL_SPEED_STATE_PATCH_MISSING");
     html=html.replace(speedStateNeedle,speedStatePatch);
 
+    stage('patch-condition-turn-state','Preserving transient forced-Speed condition state while rebuilding Combatants');
+    const conditionTurnStateNeedle="confusionTurnMode:null,proneSpeedRound:0,";
+    const conditionTurnStatePatch="confusionTurnMode:d.confusionTurnMode??null,proneSpeedRound:Number(d.proneSpeedRound)||0,";
+    if(!html.includes(conditionTurnStateNeedle))throw new Error("COMBAT_CONDITION_TURN_STATE_PATCH_MISSING");
+    html=html.replace(conditionTurnStateNeedle,conditionTurnStatePatch);
+
     stage('patch-formation','Applying alternating two-row Combat formation');
     const formationPointsNeedle=`const allyPoints=[
           {x:6,y:18},{x:16,y:18},{x:26,y:18},{x:36,y:18},
