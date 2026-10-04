@@ -5300,7 +5300,17 @@ function applyFullShopRepair(item = {}, maxDurability = 0) {
   const next = JSON.parse(JSON.stringify(item || {}));
   const max = Math.max(0, Number(maxDurability) || 0);
 
-  if (Object.prototype.hasOwnProperty.call(next, "durabilityCurrent")) {
+  if (Object.prototype.hasOwnProperty.call(next, "condition")) {
+    next.condition = max;
+    if (Object.prototype.hasOwnProperty.call(next, "conditionMax")) {
+      next.conditionMax = max;
+    }
+  } else if (Object.prototype.hasOwnProperty.call(next, "currentCondition")) {
+    next.currentCondition = max;
+    if (Object.prototype.hasOwnProperty.call(next, "maxCondition")) {
+      next.maxCondition = max;
+    }
+  } else if (Object.prototype.hasOwnProperty.call(next, "durabilityCurrent")) {
     next.durabilityCurrent = max;
   } else if (Object.prototype.hasOwnProperty.call(next, "currentDurability")) {
     next.currentDurability = max;
