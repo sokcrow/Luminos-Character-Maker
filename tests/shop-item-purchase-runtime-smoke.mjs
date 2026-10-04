@@ -107,7 +107,7 @@ const player = {
 };
 const use = runtime.useItem(player, repaired, { ignoreActionCost: true });
 assert.equal(use.used, true, "a purchased healing item must be usable at 50/180 HP");
-assert.equal(player.hp, 57.4);
+assert.equal(player.hp, 57, "HP healing must floor fractional recovery");
 assert.equal(repaired.quantity, 2);
 
 const broken = {
