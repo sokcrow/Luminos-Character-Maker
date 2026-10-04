@@ -3,7 +3,7 @@
 
   if (global.LuminousCombatEconomyMenu073) return;
 
-  const VERSION = "0.7.3-economy-menu.2-canonical-player-menu";
+  const VERSION = "0.7.3-economy-menu.3-menu-transition-recovery";
   const TABBED_MENUS = new Set(["global", "skills", "spells", "items"]);
   const ECONOMY = Object.freeze({ ACTION: "action", QUICK: "quick_action", REACTION: "reaction" });
   const state = {
@@ -732,8 +732,67 @@
   }
 
   function renderCleanList() {
-    if (activeMenu() !== "global") return state.originals.renderCleanList?.();
-    return renderGlobalList();
+    if (activeMenu() === "global") return renderGlobalList();
+
+    // Never bounce into the review wrapper as an "original" renderer. Depending
+    // on script timing, that wrapper may have been installed before this module
+    // captured its lexical originals, creating EconomyMenu -> ReviewFixes ->
+    // EconomyMenu recursion until the HUD exhausts the call stack.
+    const original = state.originals.renderCleanList;
+    const reviewWrapper = global.LuminousCombatEconomyReviewFixes073?.renderCleanList;
+    if (typeof original === "function" && original !== renderCleanList && original !== reviewWrapper) {
+      return original();
+    }
+    return undefined;
+  }
+
+  function layoutRadialCommandsStable() {
+    const original = state.originals.layoutRadialCommands;
+    const result = typeof original === "function" ? original() : undefined;
+    if (clean(lexical("navState", "root")) !== "root") return result;
+
+    const ring = global.document?.querySelector?.(".command-ring");
+    const spriteCenter = lexical("spriteCenter", null);
+    if (!ring || typeof spriteCenter !== "function") return result;
+
+    const center = spriteCenter();
+    const ringRect = ring.getBoundingClientRect();
+    const cx = Number(center?.x);
+    const cy = Number(center?.y);
+    if (!Number.isFinite(cx) || !Number.isFinite(cy)) return result;
+
+    // spriteCenter() is viewport-relative, while command left/top are local to
+    // command-ring. Camera focus can translate the ring hundreds of pixels, so
+    // using viewport coordinates directly applies the camera offset twice.
+    const localX = cx - ringRect.left;
+    const localY = cy - ringRect.top;
+    const rx = 225;
+    const ry = 145;
+    const menuScale = 1.27;
+
+    global.document.querySelectorAll(".command").forEach((button) => {
+      const angle = Number(button.dataset?.angle);
+      if (!Number.isFinite(angle)) return;
+      const rad = angle * Math.PI / 180;
+      const width = (Number(button.dataset?.width) || 150) * menuScale;
+      const height = 50;
+      const px = localX + rx * Math.cos(rad);
+      const py = localY + ry * Math.sin(rad);
+      const leftSide = Math.cos(rad) < 0;
+      const rotation = leftSide ? (angle > 90 ? angle - 180 : angle + 180) : angle;
+
+      button.style.setProperty("--w", `${width}px`);
+      if (button.dataset?.accent) button.style.setProperty("--accent", button.dataset.accent);
+      button.classList.toggle("radial-left", leftSide);
+      button.classList.toggle("radial-right", !leftSide);
+      button.style.setProperty("--rot", `${rotation}deg`);
+      button.style.setProperty("--icon-counter-rot", `${-rotation}deg`);
+      button.style.left = `${leftSide ? px - width : px}px`;
+      button.style.top = `${py - height / 2}px`;
+    });
+
+    try { lexical("syncReadyControl", () => {})(); } catch (_) {}
+    return result;
   }
 
   function syncResponsiveMenuLayout() {
@@ -756,10 +815,50 @@
     return true;
   }
 
+  function ensureCategorySurfaceOpen(menu = activeMenu()) {
+    if (!TABBED_MENUS.has(menu) || activeMenu() !== menu) return false;
+    const meta = lexical("menuMeta", {})?.[menu] || {};
+    const surface = global.document?.getElementById?.("category-surface");
+    const back = global.document?.getElementById?.("back");
+    if (!surface) return false;
+
+    // The packed desktop runtime hides the category surface while its command
+    // transition is running. If that Web Animation is cancelled or never fires
+    // onfinish, navState remains "category" while the only usable panel stays
+    // visibility:hidden, which effectively locks the Player HUD.
+    surface.style.visibility = "";
+    surface.style.opacity = "";
+    surface.classList.remove("left-side", "right-side");
+    if (meta.side) surface.classList.add(meta.side === "left" ? "left-side" : "right-side");
+    surface.classList.add("open");
+    if (meta.accent) surface.style.setProperty("--accent", meta.accent);
+
+    if (back) {
+      back.style.visibility = "";
+      back.style.opacity = "1";
+      back.classList.add("open");
+      if (meta.accent) back.style.setProperty("--accent", meta.accent);
+    }
+
+    try { lexical("layoutCategory", () => {})(); } catch (_) {}
+    return true;
+  }
+
   function refreshOpenedMenu(menu, delay = 560) {
     const generation = ++state.menuRefreshGeneration;
+    const stillCurrent = () => generation === state.menuRefreshGeneration && activeMenu() === menu;
+
+    // Desktop transitions are 230ms in the packed runtime. Give the animation
+    // its normal chance to finish, then recover the surface if it got stranded
+    // hidden. This is intentionally earlier than the data refresh below.
     global.setTimeout?.(() => {
-      if (generation !== state.menuRefreshGeneration || activeMenu() !== menu) return;
+      if (!stillCurrent()) return;
+      ensureCategorySurfaceOpen(menu);
+    }, Math.min(Math.max(280, Number(delay) || 0), 360));
+
+    global.setTimeout?.(() => {
+      if (!stillCurrent()) return;
+      ensureCategorySurfaceOpen(menu);
       renderActiveMenuBody(menu);
       syncTabs();
       updateCategoryContext();
@@ -1222,7 +1321,7 @@
     if (state.installed || !global.document) return state.installed;
     const required = ["renderCategory", "renderSkills", "renderSpells", "renderCleanList", "selectAction"];
     if (required.some((name) => typeof lexical(name) !== "function")) return false;
-    state.originals = { renderCategory: lexical("renderCategory"), renderSkills: lexical("renderSkills"), renderSpells: lexical("renderSpells"), renderItems: lexical("renderItems", null), renderCleanList: lexical("renderCleanList"), selectAction: lexical("selectAction"), planTargetRule: lexical("planTargetRule", null), goRoot: lexical("goRoot", null) };
+    state.originals = { renderCategory: lexical("renderCategory"), renderSkills: lexical("renderSkills"), renderSpells: lexical("renderSpells"), renderItems: lexical("renderItems", null), renderCleanList: lexical("renderCleanList"), selectAction: lexical("selectAction"), planTargetRule: lexical("planTargetRule", null), goRoot: lexical("goRoot", null), layoutRadialCommands: lexical("layoutRadialCommands", null) };
     ensureStyles(); ensureTabs();
     if (typeof state.originals.planTargetRule === "function") {
       global.__luminousEconomyPlanTargetRuleCompat = planTargetRuleCompat;
@@ -1234,6 +1333,7 @@
     assignLexical("renderCleanList", "window.LuminousCombatEconomyMenu073.renderCleanList");
     assignLexical("renderCategory", "window.LuminousCombatEconomyMenu073.renderCategory");
     assignLexical("selectAction", "window.LuminousCombatEconomyMenu073.selectAction");
+    if (typeof state.originals.layoutRadialCommands === "function") assignLexical("layoutRadialCommands", "window.LuminousCombatEconomyMenu073.layoutRadialCommandsStable");
     if (typeof state.originals.goRoot === "function") {
       global.__luminousEconomyOriginalGoRoot = state.originals.goRoot;
       global.__luminousEconomyGoRoot = function (...args) {
@@ -1253,7 +1353,7 @@
     state.installed = true; return true;
   }
 
-  const api = { version: VERSION, ECONOMY, state, normalizeEconomyCost, economyTabFor, costLabel, canonicalPlayerId, playerUnit, playerKit, traitDefinitionsForPlayer, liveActions, spellLoadoutRuntime, normalizeSpellForMenu, classEntries, spellcastingClasses, isSpellcaster, selectedSpellIds, spellRowsForPlayer, inventoryEntries, quantityOf, itemTiming, itemCanUseInCombat, stableItemRow, itemRowsForPlayer, findActiveInventoryItem, spellMenuNodes, syncSpellMenuVisibility, syncResponsiveMenuLayout, renderActiveMenuBody, refreshOpenedMenu, openCompactMenu, installRootMenuClickHandler, selfTargetedItem, planTargetRuleCompat, persistQuickItemState, rowsFor, renderSkills, renderSpells, renderItems, renderCleanList, renderCategory, selectAction, setTab, syncTabs, syncQuickBadge, syncPlanningEconomy, beginCombatEconomy, prepareReaction, triggerPreparedReaction, useQuickAction, install };
+  const api = { version: VERSION, ECONOMY, state, normalizeEconomyCost, economyTabFor, costLabel, canonicalPlayerId, playerUnit, playerKit, traitDefinitionsForPlayer, liveActions, spellLoadoutRuntime, normalizeSpellForMenu, classEntries, spellcastingClasses, isSpellcaster, selectedSpellIds, spellRowsForPlayer, inventoryEntries, quantityOf, itemTiming, itemCanUseInCombat, stableItemRow, itemRowsForPlayer, findActiveInventoryItem, spellMenuNodes, syncSpellMenuVisibility, layoutRadialCommandsStable, syncResponsiveMenuLayout, renderActiveMenuBody, ensureCategorySurfaceOpen, refreshOpenedMenu, openCompactMenu, installRootMenuClickHandler, selfTargetedItem, planTargetRuleCompat, persistQuickItemState, rowsFor, renderSkills, renderSpells, renderItems, renderCleanList, renderCategory, selectAction, setTab, syncTabs, syncQuickBadge, syncPlanningEconomy, beginCombatEconomy, prepareReaction, triggerPreparedReaction, useQuickAction, install };
 
   async function boot() { await ensureDependencies(); return install(); }
   api.boot = boot; api.ensureDependencies = ensureDependencies;

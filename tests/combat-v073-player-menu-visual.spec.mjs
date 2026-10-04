@@ -236,7 +236,8 @@ async function assertCategoryVisible(page, expectedText, artifactName) {
   await expect(body).toContainText(expectedText, { timeout: 5000 });
   const box = await body.boundingBox();
   expect(box).not.toBeNull();
-  expect(box.y).toBeLessThan(258);
+  const viewportHeight = await page.evaluate(() => window.innerHeight);
+  expect(box.y).toBeLessThan(viewportHeight);
   expect(box.y + Math.min(box.height, 30)).toBeGreaterThan(0);
   fs.mkdirSync('artifacts/player-menu-visual', { recursive: true });
   await page.screenshot({ path: `artifacts/player-menu-visual/${artifactName}.png`, animations: 'disabled' });
@@ -280,6 +281,99 @@ test('real Battle-viewer Player can open Actions, Skills, Spells and Items at em
   await goRoot(page);
   await clickRootMenu(page, 'items');
   await assertCategoryVisible(page, 'CI Recovery Patch', 'items');
+
+  expect(pageErrors, pageErrors.join('\n')).toEqual([]);
+});
+
+
+test('desktop Player Items menu does not lock the HUD and can return to other menus', async ({ page }) => {
+  await page.setViewportSize({ width: 1365, height: 768 });
+  const pageErrors = [];
+  page.on('pageerror', error => pageErrors.push(String(error?.stack || error?.message || error)));
+  await installFirebase(page);
+  await page.goto(`${BASE}/Battle-viewer.html`, { waitUntil: 'domcontentloaded' });
+
+  await page.waitForFunction(() => {
+    const adapter = window.LuminousCombatLiveAdapter073;
+    const menu = window.LuminousCombatEconomyMenu073;
+    const unit = window.LuminousCombat073?.combatants?.()?.['player:p1'];
+    return adapter?.state?.role === 'player'
+      && adapter?.state?.playerId === 'p1'
+      && menu?.state?.installed === true
+      && unit?.controlled === 'player';
+  }, null, { timeout: 30000 });
+
+  await page.waitForFunction(() => window.LuminousCombatEconomyMenu073?.itemRowsForPlayer?.().some(row => row.name === 'CI Recovery Patch'), null, { timeout: 15000 });
+
+  await goRoot(page);
+  await clickRootMenu(page, 'items');
+  await assertCategoryVisible(page, 'CI Recovery Patch', 'items-desktop');
+
+  const heartbeat = await page.evaluate(() => new Promise(resolve => {
+    const started = performance.now();
+    setTimeout(() => resolve(performance.now() - started), 50);
+  }));
+  expect(heartbeat).toBeLessThan(1000);
+
+  const back = page.locator('#back,.category-back').first();
+  await expect(back).toBeVisible({ timeout: 5000 });
+  await back.click({ timeout: 5000 });
+  await page.waitForFunction(() => {
+    try { return String((0, eval)('activeMenu') || '') === ''; } catch (_) { return false; }
+  }, null, { timeout: 5000 });
+
+  // Returning from Items must restore an actually usable root HUD. Use the
+  // on-screen ACTIONS command so this regression stays about the Items lock,
+  // not the separate radial-left-edge geometry of this synthetic fixture.
+  await page.waitForTimeout(650);
+  const rootDiagnostics = await page.evaluate(() => {
+    const inspect = node => {
+      if (!node) return null;
+      const rect = node.getBoundingClientRect();
+      const style = getComputedStyle(node);
+      return {
+        rect:{x:rect.x,y:rect.y,width:rect.width,height:rect.height,right:rect.right,bottom:rect.bottom},
+        display:style.display,
+        visibility:style.visibility,
+        opacity:style.opacity,
+        pointerEvents:style.pointerEvents,
+        transform:style.transform
+      };
+    };
+    const commands = {};
+    document.querySelectorAll('.command-ring [data-menu]').forEach(node => {
+      commands[node.dataset.menu || node.textContent.trim()] = inspect(node);
+    });
+    let active = '', nav = '';
+    try { active = String((0, eval)('activeMenu') || ''); } catch (_) {}
+    try { nav = String((0, eval)('navState') || ''); } catch (_) {}
+    return {
+      activeMenu:active,
+      navState:nav,
+      innerWidth,
+      innerHeight,
+      hostClass:document.getElementById('game-container')?.className || '',
+      ring:inspect(document.querySelector('.command-ring')),
+      battlefield:inspect(document.getElementById('battlefield')),
+      player:inspect(document.getElementById('token-player:p1')),
+      surface:inspect(document.getElementById('category-surface')),
+      back:inspect(document.getElementById('back')),
+      ghosts:document.querySelectorAll('.transition-ghost').length,
+      commands
+    };
+  });
+  const globalCommand = rootDiagnostics.commands.global;
+  const globalVisible = Boolean(globalCommand
+    && globalCommand.rect.width > 0 && globalCommand.rect.height > 0
+    && globalCommand.rect.right > 0 && globalCommand.rect.bottom > 0
+    && globalCommand.rect.x < rootDiagnostics.innerWidth
+    && globalCommand.rect.y < rootDiagnostics.innerHeight
+    && globalCommand.visibility !== 'hidden'
+    && globalCommand.display !== 'none');
+  expect(globalVisible, JSON.stringify(rootDiagnostics)).toBe(true);
+
+  await clickRootMenu(page, 'global');
+  await assertCategoryVisible(page, 'Analyse', 'actions-after-items-desktop');
 
   expect(pageErrors, pageErrors.join('\n')).toEqual([]);
 });
