@@ -2,6 +2,7 @@
   'use strict';
   if(global.LuminousCombatPlanSync073)return;
   const ROOT='campaña/combate';
+  const REQUIRED_ECONOMY_MENU_VERSION='0.7.3-economy-menu.3-player-skills-spells';
   const clean=v=>String(v??'').trim();
   const norm=v=>clean(v).toLowerCase().replace(/[\s-]+/g,'_');
   const safe=v=>clean(v).replace(/[.#$\[\]\/]/g,'_');
@@ -59,7 +60,21 @@
   function onReady(event){queue(event?.detail||{},'ready');}
   function onPlan(event){queue(event?.detail||{},'targets');}
   function ensureEconomyReviewFixes(){if(global.LuminousCombatEconomyReviewFixes073){global.LuminousCombatEconomyReviewFixes073.install?.();return global.LuminousCombatEconomyReviewFixes073;}if(!global.document||!global.LuminousCombatEconomyMenu073)return null;const id='combat-v073-economy-review-fixes-script';let script=global.document.getElementById(id);if(script)return script;script=global.document.createElement('script');script.id=id;script.src='js/combat-v073-economy-review-fixes.js';script.async=false;global.document.head?.appendChild(script);return script;}
-  function ensureEconomyMenu(){if(global.LuminousCombatEconomyMenu073){ensureEconomyReviewFixes();return global.LuminousCombatEconomyMenu073;}if(!global.document)return null;const id='combat-v073-economy-menu-script';let script=global.document.getElementById(id);if(script){script.addEventListener('load',ensureEconomyReviewFixes,{once:true});return script;}script=global.document.createElement('script');script.id=id;script.src='js/combat-v073-economy-menu.js';script.async=false;script.addEventListener('load',ensureEconomyReviewFixes,{once:true});global.document.head?.appendChild(script);return script;}
+  function ensureEconomyMenu(){
+    const current=global.LuminousCombatEconomyMenu073;
+    if(current?.version===REQUIRED_ECONOMY_MENU_VERSION){current.install?.();ensureEconomyReviewFixes();return current;}
+    if(!global.document)return null;
+    const id='combat-v073-economy-menu-script-v3-player-skills-spells';
+    let script=global.document.getElementById(id);
+    if(script){script.addEventListener('load',ensureEconomyReviewFixes,{once:true});return script;}
+    script=global.document.createElement('script');
+    script.id=id;
+    script.src='js/combat-v073-economy-menu.js?v=0.7.3-economy-menu.3-player-skills-spells';
+    script.async=false;
+    script.addEventListener('load',()=>{global.LuminousCombatEconomyMenu073?.install?.();ensureEconomyReviewFixes();},{once:true});
+    global.document.head?.appendChild(script);
+    return script;
+  }
   function loadBridge(id,src,ready){
     if(ready())return Promise.resolve(true);if(!global.document?.head)return Promise.resolve(false);
     return new Promise(resolve=>{
@@ -80,6 +95,6 @@
   }
   global.addEventListener('luminous:combat073-plan-ready-change',onReady);global.addEventListener('luminous:combat073-plan-change',onPlan);global.addEventListener('luminous:combat073-runtime-ready',ensureEconomyMenu);
   global.addEventListener('beforeunload',()=>{global.removeEventListener('luminous:combat073-plan-ready-change',onReady);global.removeEventListener('luminous:combat073-plan-change',onPlan);global.removeEventListener('luminous:combat073-runtime-ready',ensureEconomyMenu);},{once:true});
-  global.LuminousCombatPlanSync073=Object.freeze({version:'0.7.3-plan-sync.12-deployment-lifecycle',ROOT,sync:syncReady,syncReady,syncLivePlans:syncLiveTargets,syncLiveTargets,queue,kindOf,payloadFor,targetPayloadFor,targetIndex,ownCombatant,ensureEconomyMenu,ensureEconomyReviewFixes,ensureCoreBridges});
+  global.LuminousCombatPlanSync073=Object.freeze({version:'0.7.3-plan-sync.13-player-menu-upgrade',ROOT,REQUIRED_ECONOMY_MENU_VERSION,sync:syncReady,syncReady,syncLivePlans:syncLiveTargets,syncLiveTargets,queue,kindOf,payloadFor,targetPayloadFor,targetIndex,ownCombatant,ensureEconomyMenu,ensureEconomyReviewFixes,ensureCoreBridges});
   ensureEconomyMenu();global.setTimeout(()=>ensureCoreBridges().catch(error=>console.error('[Combat073 core bridges]',error)),0);
 })(window);
