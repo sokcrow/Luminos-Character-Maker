@@ -2281,6 +2281,96 @@ window.processEntitiesData = function(entities) {
               />
 
               <div
+                id="tienda-comercio-vivo"
+                style="
+                  margin-top: 12px;
+                  padding: 12px;
+                  border: 1px solid #3b3b3b;
+                  background: #0a0a0a;
+                  display: grid;
+                  gap: 9px;
+                "
+              >
+                <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;">
+                  <div>
+                    <strong style="color:#fff;">Identidad y servicios</strong>
+                    <div style="font-size:11px;color:#777;margin-top:2px;">
+                      Convierte una tienda automática en un lugar con encargado, servicios y beneficios para clientes.
+                    </div>
+                  </div>
+                  <label style="color:#0df;font-size:12px;white-space:nowrap;cursor:pointer;">
+                    <input type="checkbox" id="tienda-npc-activa" />
+                    Administrada por NPC
+                  </label>
+                </div>
+
+                <div id="tienda-npc-opciones" style="display:none;grid-template-columns:1fr 1fr;gap:8px;">
+                  <input type="text" id="tienda-npc-nombre" maxlength="80" placeholder="Nombre del encargado" />
+                  <input type="text" id="tienda-npc-sprite" placeholder="Retrato / sprite (URL)" />
+                  <div style="grid-column:1 / -1;display:grid;grid-template-columns:1fr 110px 110px;gap:8px;">
+                    <input
+                      type="number"
+                      id="tienda-cliente-frecuente-compras"
+                      min="0"
+                      value="10"
+                      placeholder="Compras para cliente frecuente"
+                    />
+                    <input
+                      type="number"
+                      id="tienda-cliente-frecuente-descuento"
+                      min="0"
+                      max="90"
+                      value="5"
+                      placeholder="% frecuente"
+                      title="Descuento para cliente frecuente"
+                    />
+                    <input
+                      type="number"
+                      id="tienda-descuento-confianza"
+                      min="0"
+                      max="90"
+                      value="10"
+                      placeholder="% confianza"
+                      title="Descuento cuando la relación con el encargado llega a Confianza"
+                    />
+                  </div>
+                </div>
+
+                <input type="text" id="tienda-cadena-nombre" maxlength="80" placeholder="Cadena / franquicia (opcional)" />
+
+                <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;">
+                  <label style="color:#ddd;font-size:12px;cursor:pointer;">
+                    <input type="checkbox" id="tienda-servicio-reparacion" />
+                    Reparación por Durabilidad
+                  </label>
+                  <label style="color:#ddd;font-size:12px;cursor:pointer;">
+                    <input type="checkbox" id="tienda-lealtad-activa" />
+                    Tarjeta de lealtad
+                  </label>
+                </div>
+
+                <div id="tienda-lealtad-opciones" style="display:none;grid-template-columns:1fr 120px 150px;gap:8px;align-items:center;">
+                  <input type="text" id="tienda-lealtad-nombre" maxlength="80" placeholder="Nombre de la tarjeta" />
+                  <input
+                    type="number"
+                    id="tienda-lealtad-compras"
+                    min="1"
+                    max="99"
+                    value="9"
+                    title="Compras o servicios pagados antes de la recompensa"
+                  />
+                  <select id="tienda-lealtad-alcance" title="Qué llena y usa la tarjeta">
+                    <option value="all">Compras y servicios</option>
+                    <option value="items">Sólo productos</option>
+                    <option value="services">Sólo servicios</option>
+                  </select>
+                  <div style="grid-column:1 / -1;font-size:11px;color:#888;">
+                    Al completar los sellos, la siguiente compra elegible es gratis. Ejemplo: 9 pagadas → 10.ª gratis.
+                  </div>
+                </div>
+              </div>
+
+              <div
                 style="
                   margin: 10px 0;
                   padding: 10px;
@@ -6712,7 +6802,49 @@ window.processEntitiesData = function(entities) {
           marketEventInputs = Array.from(document.querySelectorAll(".market-event-mod"));
         }
 
+        function slugShopCommerce(value) {
+          return String(value || "")
+            .trim()
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/[^a-z0-9]+/g, "_")
+            .replace(/^_+|_+$/g, "");
+        }
+
+        function syncShopCommerceControls(options = {}) {
+          const npcEnabled = !!document.getElementById("tienda-npc-activa")?.checked;
+          const npcPanel = document.getElementById("tienda-npc-opciones");
+          if (npcPanel) npcPanel.style.display = npcEnabled ? "grid" : "none";
+
+          const loyaltyEnabled = !!document.getElementById("tienda-lealtad-activa")?.checked;
+          const loyaltyPanel = document.getElementById("tienda-lealtad-opciones");
+          if (loyaltyPanel) loyaltyPanel.style.display = loyaltyEnabled ? "grid" : "none";
+
+          if (options.useTypeDefault === true) {
+            const type = document.getElementById("tienda-tipo")?.value || "general";
+            const repair = document.getElementById("tienda-servicio-reparacion");
+            if (repair && window.LuminousShopRuntime?.serviceEnabled) {
+              repair.checked = window.LuminousShopRuntime.serviceEnabled(
+                { shop_type: type },
+                "repair",
+              );
+            }
+          }
+        }
+
+        document.getElementById("tienda-npc-activa")?.addEventListener("change", function () {
+          syncShopCommerceControls();
+        });
+        document.getElementById("tienda-lealtad-activa")?.addEventListener("change", function () {
+          syncShopCommerceControls();
+        });
+        document.getElementById("tienda-tipo")?.addEventListener("change", function () {
+          syncShopCommerceControls({ useTypeDefault: true });
+        });
+
         syncShopTypeControls();
+        syncShopCommerceControls({ useTypeDefault: true });
 
         function collectMarketModifiers() {
           const modifiers = {};
@@ -6819,6 +6951,18 @@ window.processEntitiesData = function(entities) {
             .forEach((cb) => (cb.checked = false));
           document.getElementById("tienda-restock-dia").value = "Lunes";
           document.getElementById("tienda-mod-venta").value = "100";
+          document.getElementById("tienda-npc-activa").checked = false;
+          document.getElementById("tienda-npc-nombre").value = "";
+          document.getElementById("tienda-npc-sprite").value = "";
+          document.getElementById("tienda-cadena-nombre").value = "";
+          document.getElementById("tienda-cliente-frecuente-compras").value = "10";
+          document.getElementById("tienda-cliente-frecuente-descuento").value = "5";
+          document.getElementById("tienda-descuento-confianza").value = "10";
+          document.getElementById("tienda-lealtad-activa").checked = false;
+          document.getElementById("tienda-lealtad-nombre").value = "";
+          document.getElementById("tienda-lealtad-compras").value = "9";
+          document.getElementById("tienda-lealtad-alcance").value = "all";
+          syncShopCommerceControls({ useTypeDefault: true });
           document.getElementById("btn-crear-tienda").innerText =
             "Crear Tienda";
           document.getElementById("btn-cancelar-tienda").style.display = "none";
@@ -6853,6 +6997,44 @@ window.processEntitiesData = function(entities) {
             const modVenta =
               parseInt(document.getElementById("tienda-mod-venta").value) ||
               100;
+            const npcManaged =
+              document.getElementById("tienda-npc-activa").checked;
+            const merchantName =
+              document.getElementById("tienda-npc-nombre").value.trim();
+            const merchantSprite =
+              document.getElementById("tienda-npc-sprite").value.trim();
+            const chainName =
+              document.getElementById("tienda-cadena-nombre").value.trim();
+            const repairEnabled =
+              document.getElementById("tienda-servicio-reparacion").checked;
+            const loyaltyEnabled =
+              document.getElementById("tienda-lealtad-activa").checked;
+            const loyaltyName =
+              document.getElementById("tienda-lealtad-nombre").value.trim();
+            const loyaltyPaidPurchases = Math.max(
+              1,
+              parseInt(document.getElementById("tienda-lealtad-compras").value) || 9,
+            );
+            const loyaltyScope =
+              document.getElementById("tienda-lealtad-alcance").value || "all";
+            const frequentCustomerMinPurchases = Math.max(
+              0,
+              parseInt(document.getElementById("tienda-cliente-frecuente-compras").value) || 0,
+            );
+            const frequentCustomerDiscountPercent = Math.max(
+              0,
+              Math.min(
+                90,
+                parseFloat(document.getElementById("tienda-cliente-frecuente-descuento").value) || 0,
+              ),
+            );
+            const trustedDiscountPercent = Math.max(
+              0,
+              Math.min(
+                90,
+                parseFloat(document.getElementById("tienda-descuento-confianza").value) || 0,
+              ),
+            );
             if (!nombre) {
               alert("El nombre de la tienda es requerido.");
               return;
@@ -6886,6 +7068,41 @@ window.processEntitiesData = function(entities) {
               ? editModeTiendaKey
               : nombre.toLowerCase().replace(/[^a-z0-9]/g, "_");
 
+            const chainId = slugShopCommerce(chainName);
+            const merchantId = slugShopCommerce(merchantName);
+            const loyaltyProgramId = slugShopCommerce(
+              (chainName || nombre) + "_lealtad",
+            );
+
+            const merchantNpc = npcManaged
+              ? {
+                  enabled: true,
+                  id: merchantId,
+                  name: merchantName || "Encargado",
+                  sprite: merchantSprite,
+                  frequent_customer_min_purchases: frequentCustomerMinPurchases,
+                  frequent_customer_discount_percent: frequentCustomerDiscountPercent,
+                  relationship_discounts: {
+                    trusted: trustedDiscountPercent,
+                  },
+                }
+              : null;
+
+            const loyaltyProgram = loyaltyEnabled
+              ? {
+                  enabled: true,
+                  id: loyaltyProgramId,
+                  name:
+                    loyaltyName ||
+                    (chainName ? "Tarjeta " + chainName : "Tarjeta " + nombre),
+                  paid_purchases_required: loyaltyPaidPurchases,
+                  reward_type: "free_next",
+                  scope: loyaltyScope,
+                  service_ids:
+                    loyaltyScope === "services" ? ["repair"] : [],
+                }
+              : null;
+
             const tiendaData = {
               nombre: nombre,
               icono: icono,
@@ -6898,6 +7115,18 @@ window.processEntitiesData = function(entities) {
               authorized_uids: authorizedUids,
               dia_restock: diaRestock,
               mod_venta: modVenta,
+              services: {
+                repair: { enabled: repairEnabled },
+              },
+              merchant_npc: merchantNpc,
+              chain: chainName
+                ? {
+                    id: chainId,
+                    name: chainName,
+                    loyalty_program: loyaltyProgram,
+                  }
+                : null,
+              loyalty_program: chainName ? null : loyaltyProgram,
             };
 
             if (isEditing) {
@@ -7002,6 +7231,28 @@ window.processEntitiesData = function(entities) {
                     <h5 style="color:#c49a00;">${data.nombre}</h5>
                     <span>${window.LuminousShopRuntime?.shopType?.(data)?.label || data.shop_type || "General"} · TIER ${window.LuminousShopRuntime?.tierRoman?.(data.shop_tier || 1) || data.shop_tier || "I"}</span>
                     <span>Ítems: ${Object.keys(data.items || {}).length} · Restock: ${data.dia_restock}</span>
+                    ${
+                      window.LuminousShopRuntime?.merchantNpc?.(data)?.name
+                        ? '<span style="color:#ddd;">Encargado: ' + window.LuminousShopRuntime.merchantNpc(data).name + '</span>'
+                        : ""
+                    }
+                    ${
+                      window.LuminousShopRuntime?.shopChain?.(data)?.name
+                        ? '<span style="color:#888;">Cadena: ' + window.LuminousShopRuntime.shopChain(data).name + '</span>'
+                        : ""
+                    }
+                    ${
+                      window.LuminousShopRuntime?.servicesForShop?.(data)?.length
+                        ? '<span style="color:#7fd;">Servicios: ' + window.LuminousShopRuntime.servicesForShop(data)
+                            .map((serviceId) => window.LuminousShopRuntime.SERVICE_TYPES?.[serviceId]?.label || serviceId)
+                            .join(" · ") + '</span>'
+                        : ""
+                    }
+                    ${
+                      window.LuminousShopRuntime?.loyaltyProgram?.(data)
+                        ? '<span style="color:#d6b75c;">' + window.LuminousShopRuntime.loyaltyProgram(data).name + ": " + window.LuminousShopRuntime.loyaltyProgram(data).paidPurchasesRequired + " pagadas → siguiente gratis</span>"
+                        : ""
+                    }
                     <label class="switch" style="margin-top: 5px;" title="Activar / Desactivar Tienda">
                         <input type="checkbox" class="toggle-activa-store" data-id="${idTienda}" ${data.activa ? "checked" : ""}>
                         <span class="slider"></span>
@@ -7039,6 +7290,32 @@ window.processEntitiesData = function(entities) {
                   data.dia_restock || "Lunes";
                 document.getElementById("tienda-mod-venta").value =
                   data.mod_venta !== undefined ? data.mod_venta : 100;
+                const merchant = window.LuminousShopRuntime?.merchantNpc?.(data);
+                const chain = window.LuminousShopRuntime?.shopChain?.(data);
+                const loyalty = window.LuminousShopRuntime?.loyaltyProgram?.(data);
+                document.getElementById("tienda-npc-activa").checked = !!merchant;
+                document.getElementById("tienda-npc-nombre").value =
+                  merchant?.name || "";
+                document.getElementById("tienda-npc-sprite").value =
+                  merchant?.sprite || "";
+                document.getElementById("tienda-cadena-nombre").value =
+                  chain?.name || "";
+                document.getElementById("tienda-servicio-reparacion").checked =
+                  window.LuminousShopRuntime?.serviceEnabled?.(data, "repair") || false;
+                document.getElementById("tienda-cliente-frecuente-compras").value =
+                  merchant?.frequentCustomerMinPurchases ?? 10;
+                document.getElementById("tienda-cliente-frecuente-descuento").value =
+                  merchant?.frequentCustomerDiscountPercent ?? 5;
+                document.getElementById("tienda-descuento-confianza").value =
+                  merchant?.relationshipDiscounts?.trusted ?? 10;
+                document.getElementById("tienda-lealtad-activa").checked = !!loyalty;
+                document.getElementById("tienda-lealtad-nombre").value =
+                  loyalty?.name || "";
+                document.getElementById("tienda-lealtad-compras").value =
+                  loyalty?.paidPurchasesRequired ?? 9;
+                document.getElementById("tienda-lealtad-alcance").value =
+                  loyalty?.scope || "all";
+                syncShopCommerceControls();
                 document.getElementById("btn-crear-tienda").innerText =
                   "Actualizar Tienda";
                 document.getElementById("btn-cancelar-tienda").style.display =
