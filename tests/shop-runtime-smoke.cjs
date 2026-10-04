@@ -8,7 +8,7 @@ const { pathToFileURL } = require("node:url");
 
   const shops = globalThis.LuminousShopRuntime;
   assert.ok(shops);
-  assert.equal(shops.VERSION, 3);
+  assert.equal(shops.VERSION, 4);
   assert.equal(shops.BASE_PURCHASE_MARKUP, 1.40);
   assert.equal(shops.BASE_SELLBACK_MULTIPLIER, 0.80);
 
@@ -45,6 +45,56 @@ const { pathToFileURL } = require("node:url");
     }),
     140000
   );
+
+  // Placeholder zero fields must never shadow a real value authored by the
+  // Item family. This is the regression that previously produced free Shops.
+  const zeroPlaceholderMaterial = {
+    family: "craft_components",
+    category: "material",
+    tier: "I",
+    price: 0,
+    costo: 0,
+    valorBase: 0,
+    mediumStandardValueAhn: 32000,
+  };
+  assert.equal(shops.baseValueAhn(zeroPlaceholderMaterial), 32000);
+  assert.deepEqual(
+    shops.resolveBaseValueAhn(zeroPlaceholderMaterial),
+    { resolved: true, field: "mediumStandardValueAhn", value: 32000 },
+  );
+  assert.equal(
+    shops.purchasePrice(zeroPlaceholderMaterial, {
+      shop_type: "general",
+      shop_tier: 1,
+      mod_venta: 100,
+    }),
+    44800,
+  );
+
+  assert.equal(
+    shops.baseValueAhn({ price: 0, costo: 0, standardValueAhn: 140000 }),
+    140000,
+    "standardValueAhn must be a canonical Shop price source",
+  );
+
+  const unresolved = {
+    family: "food",
+    category: "food",
+    tier: "I",
+    price: 0,
+    costo: 0,
+    valorBase: 0,
+  };
+  const unresolvedAvailability = shops.itemAvailability(unresolved, {
+    shop_type: "provisions",
+    shop_tier: 1,
+  });
+  assert.equal(unresolvedAvailability.available, false);
+  assert.equal(unresolvedAvailability.reason, "unpriced");
+  assert.equal(unresolvedAvailability.priceEligible, false);
+  assert.equal(shops.purchasePrice(unresolved, { shop_type: "provisions", shop_tier: 1 }), null);
+  assert.equal(shops.sellPrice(unresolved, { shop_type: "provisions", shop_tier: 1 }), null);
+  assert.equal(shops.stockForItem(unresolved, { shop_type: "provisions", shop_tier: 1 }), 0);
 
   // Shop tier affects market price; item tier no longer gets a second ad-hoc +25%.
   assert.equal(
@@ -103,7 +153,7 @@ const { pathToFileURL } = require("node:url");
   assert.equal(shops.stockForItem(weapon, assigned), 0);
 
   const generated = shops.generateCatalog(
-    { food, weapon, medicine, component },
+    { food, weapon, medicine, component, unresolved },
     { ...assigned, shop_type: "clinic" },
   );
   assert.deepEqual(Object.keys(generated), ["medicine"]);
