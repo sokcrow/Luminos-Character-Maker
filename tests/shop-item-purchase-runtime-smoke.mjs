@@ -235,6 +235,16 @@ assert.match(
 );
 assert.match(
   playerSource,
+  /remainingItem\.totalValueAhn\s*=\s*[\s\S]*?sellBreakdown\.baseValueAhn[\s\S]*?remainingQuantity/,
+  "selling one unit must also reduce totalValueAhn for the remaining stack",
+);
+assert.match(
+  playerSource,
+  /legacySellUnitBase[\s\S]*?unitValueAhn[\s\S]*?totalValueAhn[\s\S]*?\/ quantity/,
+  "legacy sellback fallback must also price one stack unit",
+);
+assert.match(
+  playerSource,
   /next\.ahn\s*=\s*balanceAfter;[\s\S]*?currentBalance:\s*balanceAfter,/,
   "selling must keep legacy Ahn and finance.currentBalance synchronized",
 );
