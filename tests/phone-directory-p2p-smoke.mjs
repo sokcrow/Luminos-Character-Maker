@@ -9,7 +9,11 @@ assert.ok(js.includes("campaña/jugadores/${playerId}/contactos"), "Phone contac
 assert.ok(!js.includes("campaña/jugadores/${pName}/contactos"), "Legacy character-name contact paths must not return");
 assert.ok(js.includes("campaña/economia/p2pInbox/${targetPlayerId}"), "Transfers must queue into the recipient P2P inbox");
 assert.ok(js.includes("processedP2P[transferId]"), "Incoming transfers need an idempotency marker");
-assert.ok(js.includes("initP2PInboxSettlement();"), "P2P settlement must start during player hydration");
+const p2pDefinitionIndex = js.indexOf("function initP2PInboxSettlement");
+const p2pCallIndex = js.indexOf("initP2PInboxSettlement();");
+const initializeIndex = js.indexOf("function initializeCharacterSheet()");
+assert.ok(p2pDefinitionIndex >= initializeIndex, "P2P settlement must be defined inside character-sheet initialization");
+assert.ok(p2pCallIndex > p2pDefinitionIndex, "P2P settlement must only start after its scoped function is defined");
 assert.ok(html.includes('id="transfer-contact-options"'), "Bank transfer UI must expose saved-contact autocomplete");
 assert.ok(rules.includes('"p2pInbox"'), "Firebase rules must authorize the P2P inbox");
 assert.ok(rules.includes("newData.child(\'senderUid\').val() === auth.uid"), "P2P inbox creation must be bound to the authenticated sender");
