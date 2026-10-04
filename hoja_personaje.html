@@ -21,8 +21,7 @@
     <style>
       #system-loading-overlay {
         position: fixed;
-        top: 0;
-        left: 0;
+        inset: 0;
         width: 100vw;
         height: 100vh;
         z-index: 10000;
@@ -30,37 +29,54 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        transition: opacity 1s ease;
+        transition: opacity 0.45s ease;
       }
 
       #system-loading-overlay img {
         position: absolute;
+        inset: 0;
         width: 100vw;
         height: 100vh;
         object-fit: cover;
-        opacity: 1;
+        opacity: 0.72;
+        filter: brightness(0.48) contrast(1.08);
         z-index: -1;
       }
 
       .loading-content {
+        width: min(460px, calc(100vw - 48px));
         display: flex;
         flex-direction: column;
-        align-items: center;
-        gap: 15px;
+        align-items: stretch;
+        gap: 12px;
         z-index: 2;
+        padding: 24px 28px;
+        background: rgba(11, 10, 10, 0.86);
+        border: 1px solid rgba(255, 215, 0, 0.72);
+        box-shadow: 0 18px 45px rgba(0, 0, 0, 0.55);
       }
 
       #system-loading-indicator {
         color: #ffd700;
         font-family: "BebasKai", sans-serif;
-        font-size: 2rem;
+        font-size: clamp(1.7rem, 4vw, 2.2rem);
+        letter-spacing: 0.05em;
+        text-align: center;
         text-shadow: 2px 2px 4px #000;
       }
 
+      #system-loading-detail {
+        min-height: 1.4em;
+        color: #e8e4d9;
+        font-family: "Roboto", sans-serif;
+        font-size: 0.95rem;
+        text-align: center;
+      }
+
       .loading-bar-container {
-        width: 300px;
-        height: 10px;
-        background-color: #3e2723;
+        width: 100%;
+        height: 12px;
+        background-color: #241713;
         border: 1px solid #ffd700;
         overflow: hidden;
       }
@@ -69,20 +85,58 @@
         width: 0%;
         height: 100%;
         background-color: #ffd700;
-        animation: loadingAnim 2s infinite ease-in-out;
+        box-shadow: 0 0 12px rgba(255, 215, 0, 0.5);
+        transition: width 0.32s ease-out;
       }
 
-      @keyframes loadingAnim {
-        0% {
-          width: 0%;
-        }
-        50% {
-          width: 100%;
-        }
-        100% {
-          width: 0%;
-        }
+      .loading-progress-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        color: #c9c3b6;
+        font-family: "Share Tech Mono", monospace;
+        font-size: 0.82rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
       }
+
+      #system-loading-progress-text {
+        color: #ffd700;
+        font-variant-numeric: tabular-nums;
+      }
+
+      #system-loading-retry {
+        display: none;
+        align-self: center;
+        min-width: 150px;
+        margin-top: 6px;
+        padding: 10px 18px;
+        border: 1px solid #ffd700;
+        background: #17110d;
+        color: #ffd700;
+        font-family: "BebasKai", sans-serif;
+        font-size: 1.15rem;
+        letter-spacing: 0.06em;
+        cursor: pointer;
+      }
+
+      #system-loading-retry:hover,
+      #system-loading-retry:focus-visible {
+        background: #ffd700;
+        color: #0b0a0a;
+        outline: none;
+      }
+
+      #system-loading-overlay.is-error .loading-bar,
+      #system-loading-overlay.is-error #system-loading-progress-text {
+        background-color: #d32f2f;
+        color: #ffb3b3;
+      }
+
+      #system-loading-overlay.is-error .loading-bar {
+        box-shadow: 0 0 12px rgba(211, 47, 47, 0.5);
+      }
+
       @font-face {
         font-family: "BebasKai";
         src: url("Fonts/BebasKai.otf") format("opentype");
@@ -91,18 +145,35 @@
     </style>
   </head>
   <body>
-    <div id="system-loading-overlay">
+    <div
+      id="system-loading-overlay"
+      aria-live="polite"
+      aria-busy="true"
+      data-progress="0"
+    >
       <img
         src="https://limbuscompany.wiki.gg/images/thumb/DanteStar.png/1024px-DanteStar.png?e52927"
-        alt="Loading"
+        alt=""
+        aria-hidden="true"
       />
       <div class="loading-content">
-        <div id="system-loading-indicator">
-          ESTABLECIENDO VÍNCULO DE ALMAS...
-        </div>
-        <div class="loading-bar-container">
+        <div id="system-loading-indicator">INICIANDO SISTEMA</div>
+        <div id="system-loading-detail">Preparando la conexión.</div>
+        <div
+          class="loading-bar-container"
+          role="progressbar"
+          aria-label="Carga del sistema"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          aria-valuenow="0"
+        >
           <div class="loading-bar"></div>
         </div>
+        <div class="loading-progress-row" aria-hidden="true">
+          <span>Carga</span>
+          <span id="system-loading-progress-text">0%</span>
+        </div>
+        <button id="system-loading-retry" type="button">REINTENTAR</button>
       </div>
     </div>
 
