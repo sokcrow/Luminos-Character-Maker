@@ -3585,6 +3585,10 @@ function initializeCharacterSheet() {
       return next;
     });
   }
+  window.LuminousShopCommerceContext = buildShopCommerceContext;
+  window.LuminousRecordShopCommerceActivity = recordShopCommerceActivity;
+  window.LuminousRenderShopMerchantPresence = renderShopMerchantPresence;
+
   const legacySellUnitBase = (item = {}) => {
     const unit = Number(
       item.unitValueAhn ??
@@ -5348,6 +5352,177 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // --- LÓGICA DE TIENDAS DINÁMICAS / THEATER ---
+function applyFullShopRepair(item = {}, maxDurability = 0) {
+  const next = JSON.parse(JSON.stringify(item || {}));
+  const max = Math.max(0, Number(maxDurability) || 0);
+
+  if (Object.prototype.hasOwnProperty.call(next, "durabilityCurrent")) {
+    next.durabilityCurrent = max;
+  } else if (Object.prototype.hasOwnProperty.call(next, "currentDurability")) {
+    next.currentDurability = max;
+  } else if (next.durability && typeof next.durability === "object") {
+    next.durability = { ...next.durability, current: max };
+  } else if (Object.prototype.hasOwnProperty.call(next, "durabilidad_actual")) {
+    next.durabilidad_actual = max;
+  } else if (Object.prototype.hasOwnProperty.call(next, "durabilidadActual")) {
+    next.durabilidadActual = max;
+  } else if (
+    Object.prototype.hasOwnProperty.call(next, "durabilidad") &&
+    typeof next.durabilidad === "number"
+  ) {
+    next.durabilidad = max;
+  } else {
+    next.currentDurability = max;
+  }
+
+  return next;
+}
+
+async function repairShopInventoryItem(playerKey, shopId, inventoryKey, itemKey) {
+  const allowedInventories = new Set(["inventario_activo", "inventario_stash"]);
+  if (!playerKey || !shopId || !itemKey || !allowedInventories.has(inventoryKey)) {
+    return { repaired: false, message: "No se pudo identificar el equipo a reparar." };
+  }
+
+  const runtime = window.LuminousShopRuntime;
+  if (!runtime?.repairBreakdown) {
+    return { repaired: false, message: "El servicio de reparación no está disponible." };
+  }
+
+  const [shopSnap, playerSnap] = await Promise.all([
+    db.ref(`campaña/tiendas/${shopId}`).once("value"),
+    db.ref(`campaña/jugadores/${playerKey}`).once("value"),
+  ]);
+  const shopData = shopSnap.val();
+  const playerBefore = playerSnap.val() || {};
+  if (!shopData) {
+    return { repaired: false, message: "La tienda ya no está disponible." };
+  }
+
+  const accessKey = currentShopPlayerAccessKey(playerBefore);
+  if (runtime.isPlayerAllowed && !runtime.isPlayerAllowed(shopData, accessKey)) {
+    return { repaired: false, message: "Esta tienda no está disponible para tu personaje." };
+  }
+  if (!runtime.serviceEnabled?.(shopData, "repair")) {
+    return { repaired: false, message: "Este establecimiento no ofrece reparaciones." };
+  }
+
+  let capturedQuote = null;
+  let capturedName = "Equipo";
+  let failureMessage = "No se pudo completar la reparación.";
+  const playerRef = db.ref(`campaña/jugadores/${playerKey}`);
+
+  const transactionResult = await playerRef.transaction((current) => {
+    if (!current?.[inventoryKey]?.[itemKey]) {
+      failureMessage = "El objeto ya no está en ese inventario.";
+      return;
+    }
+
+    const item = current[inventoryKey][itemKey];
+    const context = window.LuminousShopCommerceContext
+      ? window.LuminousShopCommerceContext(current, shopData, shopId)
+      : {};
+    const quote = runtime.repairBreakdown(item, shopData, { context });
+    capturedName = item.nombre || item.name || "Equipo";
+
+    if (!quote?.available) {
+      if (quote?.reason === "not_damaged") {
+        failureMessage = "Ese objeto ya está en Durabilidad máxima.";
+      } else if (quote?.reason === "material_unpriced") {
+        failureMessage = "No se pudo calcular el material necesario para reparar este objeto.";
+      } else if (quote?.reason === "durability_unresolved") {
+        failureMessage = "Este objeto no tiene una Durabilidad reparable.";
+      } else {
+        failureMessage = "Este establecimiento no puede reparar ese objeto.";
+      }
+      return;
+    }
+
+    const balance =
+      current.finance?.currentBalance !== undefined
+        ? Number(current.finance.currentBalance) || 0
+        : Number(current.ahn) || 0;
+    const price = Math.max(0, Number(quote.priceAhn) || 0);
+    if (balance < price) {
+      failureMessage = "Ahn insuficientes para completar la reparación.";
+      return;
+    }
+
+    const next = JSON.parse(JSON.stringify(current));
+    next[inventoryKey][itemKey] = applyFullShopRepair(
+      item,
+      quote.maxDurability,
+    );
+    const balanceAfter = balance - price;
+    next.ahn = balanceAfter;
+    next.finance = {
+      ...(next.finance || {}),
+      currentBalance: balanceAfter,
+    };
+    capturedQuote = quote;
+    return next;
+  });
+
+  if (!transactionResult.committed || !capturedQuote) {
+    return { repaired: false, message: failureMessage };
+  }
+
+  const priceAhn = Math.max(0, Number(capturedQuote.priceAhn) || 0);
+  const tx = {
+    monto: -priceAhn,
+    concepto:
+      capturedQuote.loyaltyRewardApplied === true
+        ? `Recompensa de lealtad: reparación de ${capturedName}`
+        : `Reparación: ${capturedName}`,
+    timestamp: Date.now(),
+    unread: true,
+    kind: "shop_service_repair",
+    shopId,
+    shopType: runtime.shopTypeId?.(shopData) || "general",
+    shopTier: runtime.shopTier?.(shopData) || 1,
+    repairPoints: capturedQuote.points,
+    materialValuePerPointAhn: capturedQuote.materialValuePerPointAhn,
+    listPriceAhn: capturedQuote.listPriceAhn,
+    discountPercent: capturedQuote.totalDiscountPercent || 0,
+    loyaltyReward: capturedQuote.loyaltyRewardApplied === true,
+  };
+
+  try {
+    await Promise.all([
+      db.ref(`campaña/jugadores/${playerKey}/finance/transactionHistory`).push(tx),
+      db.ref(`campaña/jugadores/${playerKey}/transacciones`).push(tx),
+      window.LuminousRecordShopCommerceActivity?.(
+        playerKey,
+        playerBefore,
+        shopData,
+        shopId,
+        {
+          kind: "service",
+          serviceId: "repair",
+          paidAhn: priceAhn,
+          breakdown: capturedQuote,
+        },
+      ),
+    ]);
+  } catch (commerceError) {
+    console.warn("[Luminous][Shop] Repair completed but commerce history could not be fully recorded.", commerceError);
+  }
+
+  const after = transactionResult.snapshot.val() || {};
+  const balanceAfter =
+    after.finance?.currentBalance !== undefined
+      ? Number(after.finance.currentBalance) || 0
+      : Number(after.ahn) || 0;
+
+  return {
+    repaired: true,
+    itemName: capturedName,
+    priceAhn,
+    balanceAfter,
+    quote: capturedQuote,
+  };
+}
+
 function currentShopPlayerAccessKey(playerData = {}) {
   return (
     document
