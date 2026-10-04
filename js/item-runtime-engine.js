@@ -327,14 +327,17 @@
   }
 
   function recoverResource(unit, kind, amount) {
-    const value = Math.max(0, numberOr(amount, 0));
-    if (!value) return { changed: false, amount: 0, kind: normalizeId(kind) };
+    const resourceId = normalizeId(kind);
+    let value = Math.max(0, numberOr(amount, 0));
+    if (resourceId === "hp") value = Math.floor(value);
+    if (!value) return { changed: false, amount: 0, kind: resourceId };
     const slot = currentAndMax(unit, kind);
-    if (!slot) return { changed: false, reason: `${normalizeId(kind)}_resource_not_found`, amount: 0 };
+    if (!slot) return { changed: false, reason: `${resourceId}_resource_not_found`, amount: 0 };
     const before = slot.current;
-    const after = clamp(before + value, 0, Math.max(before, slot.max));
+    let after = clamp(before + value, 0, Math.max(before, slot.max));
+    if (resourceId === "hp") after = Math.floor(after);
     slot.owner[slot.key] = after;
-    return { changed: after !== before, before, after, amount: after - before, kind: normalizeId(kind) };
+    return { changed: after !== before, before, after, amount: after - before, kind: resourceId };
   }
 
   function hpPercent(unit) {
@@ -446,17 +449,17 @@
     if (!healing || typeof healing !== "object") return { immediate: 0, regenPerTurn: 0, turns: 0, cap: 0, missing: 0 };
     const slot = currentAndMax(target, "hp");
     if (!slot || slot.max <= 0) return { immediate: 0, regenPerTurn: 0, turns: 0, cap: 0, missing: 0 };
-    const missing = Math.max(0, slot.max - slot.current);
+    const missing = Math.floor(Math.max(0, slot.max - slot.current));
     if (normalizeId(healing.mode) === "full") return { immediate: missing, regenPerTurn: 0, turns: 0, cap: missing, missing };
-    const raw = Math.max(0, numberOr(healing.flat, 0) + slot.max * (numberOr(healing.maxHpPercent ?? healing.max_hp_percent, 0) / 100));
+    const raw = Math.floor(Math.max(0, numberOr(healing.flat, 0) + slot.max * (numberOr(healing.maxHpPercent ?? healing.max_hp_percent, 0) / 100)));
     const capPercent = Math.max(0, numberOr(healing.capMaxHpPercent ?? healing.cap_max_hp_percent, 0));
-    const cap = capPercent > 0 ? slot.max * (capPercent / 100) : raw;
+    const cap = Math.floor(capPercent > 0 ? slot.max * (capPercent / 100) : raw);
     const regen = healing.regen && typeof healing.regen === "object" ? healing.regen : null;
     const turns = Math.max(0, intOr(regen?.turns, 0));
     const regenPerTurn = regen
-      ? Math.max(0, numberOr(regen.flatPerTurn ?? regen.flat_per_turn, 0) + slot.max * (numberOr(regen.maxHpPercentPerTurn ?? regen.max_hp_percent_per_turn, 0) / 100))
+      ? Math.floor(Math.max(0, numberOr(regen.flatPerTurn ?? regen.flat_per_turn, 0) + slot.max * (numberOr(regen.maxHpPercentPerTurn ?? regen.max_hp_percent_per_turn, 0) / 100)))
       : 0;
-    return { immediate: Math.min(raw, cap, missing), regenPerTurn, turns, cap, missing };
+    return { immediate: Math.floor(Math.min(raw, cap, missing)), regenPerTurn, turns, cap, missing };
   }
 
   function canonicalHpHealingAmount(target, healing = null) {
