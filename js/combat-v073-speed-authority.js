@@ -139,7 +139,7 @@
     syncRuntimeSpeedsFromCanonical();
     try{global.layoutSpeedFormation?.()}catch(error){console.error('[Combat073 SpeedAuthority] formation refresh failed',error)}
     try{global.syncAllUnitVisibility?.()}catch(error){console.error('[Combat073 SpeedAuthority] visibility refresh failed',error)}
-    try{runtime()?.render?.()}catch(error){console.error('[Combat073 SpeedAuthority] render refresh failed',error)}
+    try{global.LuminousCombat073?.render?.()}catch(error){console.error('[Combat073 SpeedAuthority] render refresh failed',error)}
     try{global.LuminousWebGL2Renderer?.requestRender?.(80)}catch(_){}
     return true;
   }
