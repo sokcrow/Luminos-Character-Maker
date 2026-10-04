@@ -31,8 +31,8 @@ assert.ok(
   "NEXT control must not escape the director panel",
 );
 assert.ok(
-  html.includes("css/theatre-message-policy.css?v=20261004-dm-composer-1") &&
-  html.includes("css/theatre-hud.css?v=20261004-dm-composer-1"),
+  /css\/theatre-message-policy\.css\?v=20261004-dm-[a-z0-9-]+/.test(html) &&
+  /css\/theatre-hud\.css\?v=20261004-dm-[a-z0-9-]+/.test(html),
   "DM composer CSS must be cache-busted",
 );
 

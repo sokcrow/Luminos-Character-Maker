@@ -77,29 +77,51 @@
     return "allies";
   }
 
-  function consumeEconomy(action, actor, context = {}) {
-    if (action.economy.cost === schema.ECONOMY_COSTS.ACTION) return { consumed: true, reason: null };
+  function consumeEconomyCost(cost, action, actor, context = {}) {
+    const normalized = normalizeId(cost || schema.ECONOMY_COSTS.ACTION);
+    if (normalized === schema.ECONOMY_COSTS.ACTION) return { consumed: true, reason: null, cost: normalized };
 
-    if (action.economy.cost === schema.ECONOMY_COSTS.QUICK_ACTION) {
+    if (normalized === schema.ECONOMY_COSTS.QUICK_ACTION) {
       const economy = context.teamEconomy || global.LuminousTeamActionEconomy;
       if (economy?.consumeQuickAction && context.encounter) {
-        return economy.consumeQuickAction(context.encounter, sideForActor(actor));
+        const result = economy.consumeQuickAction(context.encounter, sideForActor(actor)) || {};
+        return { ...result, cost: normalized };
       }
-      if (typeof context.consumeQuickAction === "function") return context.consumeQuickAction({ action, actor, context });
-      return { consumed: false, reason: "team_quick_action_runtime_required" };
+      if (typeof context.consumeQuickAction === "function") {
+        const result = context.consumeQuickAction({ action, actor, context }) || {};
+        return { ...result, cost: normalized };
+      }
+      return { consumed: false, reason: "team_quick_action_runtime_required", cost: normalized };
     }
 
-    if (action.economy.cost === schema.ECONOMY_COSTS.REACTION) {
-      if (typeof context.consumeReaction === "function") return context.consumeReaction({ action, actor, context });
+    if (normalized === schema.ECONOMY_COSTS.REACTION) {
+      if (typeof context.consumeReaction === "function") {
+        const result = context.consumeReaction({ action, actor, context }) || {};
+        return { ...result, cost: normalized };
+      }
       const legacy = global.LuminousActionEconomy;
       if (legacy?.consume) {
         const ok = legacy.consume(actor, "reaction", { phase: "combat" });
-        return { consumed: Boolean(ok), reason: ok ? null : "reaction_unavailable" };
+        return { consumed: Boolean(ok), reason: ok ? null : "reaction_unavailable", cost: normalized };
       }
-      return { consumed: false, reason: "reaction_runtime_required" };
+      return { consumed: false, reason: "reaction_runtime_required", cost: normalized };
     }
 
-    return { consumed: true, reason: null };
+    return { consumed: true, reason: null, cost: normalized };
+  }
+
+  function consumeEconomy(action, actor, context = {}) {
+    const costs = [
+      action.economy?.cost || schema.ECONOMY_COSTS.ACTION,
+      ...(Array.isArray(action.metadata?.economyAddons) ? action.metadata.economyAddons : []),
+    ];
+    const results = [];
+    for (const cost of costs) {
+      const result = consumeEconomyCost(cost, action, actor, context);
+      results.push(result);
+      if (result?.consumed === false) return { consumed: false, reason: result.reason || "economy_unavailable", cost: result.cost, results };
+    }
+    return { consumed: true, reason: null, results };
   }
 
   function consumeHelpBudget(actor, context = {}) {
@@ -379,6 +401,7 @@
     const clash = engine.resolveStandardClash(unitA, skillA, unitB, skillB);
     const winner = clash.winner;
     let attack = null;
+    let unbreakableAttack = null;
     let winningAction = null;
     let losingAction = null;
 
@@ -402,6 +425,30 @@
           mitigationPenalty: clash.mitigationPenalty,
         });
       }
+
+      const losingSkill = winner === "A" ? skillB : skillA;
+      const latentUnbreakableCoins = Array.isArray(losingSkill?.coins)
+        ? losingSkill.coins.filter((coin) => coin?.type === "unbreakable" && coin?.status === "latent")
+        : [];
+      if (losingAction && latentUnbreakableCoins.length) {
+        const losingUnit = winner === "A" ? unitB : unitA;
+        const winningUnit = winner === "A" ? unitA : unitB;
+        const latentSkill = cloneAttackSkill(losingSkill);
+        latentSkill.coins = latentUnbreakableCoins.map((coin) => ({ ...coin }));
+        latentSkill.coinAmount = latentSkill.coins.length;
+        latentSkill.coin_count = latentSkill.coins.length;
+        latentSkill.coinCount = latentSkill.coins.length;
+        const targetResolution = resolveTargets(losingAction, context);
+        let targets = targetResolution.targets;
+        if (!targets.some((target) => entityId(target) === entityId(winningUnit))) targets.unshift(winningUnit);
+        targets = targets.slice(0, Math.max(1, losingAction.targeting.attackWeight));
+        unbreakableAttack = resolveDirectAttack(losingAction, losingUnit, targets, context, {
+          skill: latentSkill,
+          skipUseHooks: true,
+          clashResult: "Lose",
+          clashCount: clash.clashLogs?.length || 0,
+        });
+      }
     }
 
     actionA.state = "resolved";
@@ -416,6 +463,7 @@
       winner,
       clash,
       attack,
+      unbreakableAttack,
       winningActionId: winningAction?.id || null,
       losingActionId: losingAction?.id || null,
       resources: { A: consumedA, B: consumedB },
@@ -438,6 +486,9 @@
     const spell = definitionForEngine(action, actor);
     spell.statUsed = action.resolution.save?.abilityId;
     spell.saveDC = Number(action.resolution.save?.dc || 0);
+    spell.sourceUnitId = entityId(actor);
+    spell.casterId = entityId(actor);
+    spell.slotLevel = Number(action.metadata?.slotLevel ?? spell.slotLevel ?? spell.level ?? 0) || 0;
     const saveAttackOnFailure = spell?.mechanics?.saveAttackOnFailure === true;
     const results = targets.map((target, index) => {
       const saveResult = engine.resolveSpell(spell, target, rollSaveHeads(engine, target, context));
@@ -556,12 +607,14 @@
       action.state = "locked";
       return { resolved: false, reason: resolution.reason || "resolution_failed", resolution, resources, economy, action };
     }
+    const postEffects = action.resolution.type === "automatic" ? null : applyAutomaticEffects(action, actor, targets, context);
     action.state = "resolved";
-    return { resolved: true, action, resolution, resources, economy, targetResolution, resolvedActionIds: [action.id] };
+    return { resolved: true, action, resolution, postEffects, resources, economy, targetResolution, resolvedActionIds: [action.id] };
   }
 
   const api = Object.freeze({
     currentPhase,
+    consumeEconomyCost,
     consumeEconomy,
     validateResources,
     consumeResources,

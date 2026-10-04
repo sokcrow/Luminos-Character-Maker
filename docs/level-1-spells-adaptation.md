@@ -1,28 +1,232 @@
 # Level 1 Spells Adaptation
 
-This branch is the dedicated integration line for adapting D&D Level 1 spells into Luminous/Limbus combat and theater systems.
+This branch is the dedicated integration line for Level 1 D&D spells in Luminous/Limbus.
 
 ## Scope
 
-- Add Level 1 spell definitions to the canonical spell catalog.
-- Reuse the cantrip systems already merged into `main` where applicable.
-- Add new reusable runtimes only when Level 1 spells require mechanics that do not already exist.
-- Keep player-facing spell text compact; put complex behavior in statuses, runtime contracts, and tooltips.
-- Prefer official 2024 spell behavior when an official revised version exists; otherwise use the latest official legacy version already established for the project.
-- Preserve Luminous combat balance and existing Save, Clash, Unopposed, Concentration, Summon, Background Unit, Temporary Item, terrain, status, and local visual-asset conventions.
+Working target: **82 published Level 1 spells**.
 
-## Integration rules
+- **64** Player's Handbook 2024 Level 1 spells.
+- **16** additional published official 5e Level 1 spells from legacy supplemental / setting books that remain relevant to the project's broad spell scope.
+- **2** current 2024-rules Level 1 spells from *Forgotten Realms: Heroes of Faerûn* (2025).
+- Unearthed Arcana is **not** included.
+- When a spell has a revised official 2024 version, use that version.
+- Otherwise use the latest published official legacy version available to the project.
 
-- New offensive spells should explicitly declare whether they resolve through Clash, Save, or Unopposed flow.
-- Persistent effects should use existing Status Effects or reusable runtime state rather than one-off hidden flags.
-- Concentration effects must clean up their dependent entities/statuses when Concentration ends.
-- New summons use the shared Summon HP rule unless a spell explicitly defines another contract.
-- Spell choices should use the generic `mechanics.requiresChoice` planner path where possible.
-- New visible Status Effects, spell Units, and Temporary Items should declare their visual asset requirements as part of the spell batch.
-- Add smoke coverage alongside each implemented batch.
+## Inventory
 
-## Status
+There are **82** Level 1 spells in scope.
 
-Cantrips are complete at **46/46**, including their finalized local Status icons, Spell Unit sprites, and Temporary Item visual rules, and are merged to `main`.
+### Canonical catalog definitions present — 25 / 82
 
-Level 1 spell adaptation starts from the post-cantrip-visual `main`.
+The 9 pre-existing definitions remain review items until their metadata, mechanics, visuals/dependencies and smoke coverage meet the current spell contract. A checkbox is only completed after explicit user review/approval; implementation presence alone does not close the task.
+
+- [ ] Absorb Elements
+- [ ] Animal Friendship
+- [ ] Charm Person
+- [x] Chromatic Orb
+- [ ] Dissonant Whispers
+- [ ] Expeditious Retreat
+- [ ] Shield
+- [ ] Silvery Barbs
+- [ ] Thunderwave
+- [x] Alarm
+- [x] Armor of Agathys
+- [x] Arms of Hadar
+- [x] Bane
+- [x] Bless
+- [x] Burning Hands
+- [x] Create or Destroy Water
+- [x] Cure Wounds
+- [x] Detect Evil and Good
+- [x] Detect Magic
+- [x] Detect Poison and Disease
+- [x] Disguise Self
+- [x] Divine Favor
+- [x] Divine Smite
+- [x] Ensnaring Strike
+- [x] Entangle
+
+#### Review decision for the 9 pre-existing definitions
+
+Do **not** rewrite the shared Spell Slot / class-gating infrastructure. Reuse it and review the definitions/runtimes spell by spell.
+
+- **Absorb Elements** — keep the Reaction/resource shell; review only the Luminous resistance/retaliation mapping and expiry details.
+- **Animal Friendship** — metadata updated to the current Beast/WIS-save contract; remove the obsolete Intelligence cap. Runtime/charm cleanup can stay shared.
+- **Charm Person** — metadata/target contract updated; still needs runtime support for the fighting-target Save advantage and end-of-spell awareness where relevant.
+- **Chromatic Orb** — reviewed and implemented: elemental choice/status mapping retained; Critical Hit jumps to a different non-repeated enemy, with maximum jumps equal to Spell Slot Used; upcast also adds +1 Coin Power per Slot Level above 1.
+- **Dissonant Whispers** — **mechanics restructuring required**. It should enter the Save pipeline and model the failed-save forced Reaction movement rather than remain a plain focused attack.
+- **Expeditious Retreat** — keep the Concentration + Quick Action shell; review whether the existing Haste mapping is still the intended Luminous movement abstraction.
+- **Shield** — keep the Reaction shell and shared Shield runtime; review trigger/expiry semantics as a deliberate Luminous adaptation.
+- **Silvery Barbs** — **mechanics restructuring required**. The current `combat_start` trigger is not a valid reaction trigger for the spell.
+- **Thunderwave** — **mechanics restructuring required**. Move it to the CON Save / failed-save effect pipeline and model the push through Luminous positioning/control rather than as a plain AoE attack.
+
+### Legacy role definitions awaiting canonical migration — 3 / 82
+
+These already exist in `js/role-spell-catalog-core.js` and are covered by the Angelo smoke, so they must **not** be reimplemented as unrelated duplicates. They still count as pending work because the role catalog is not the authoritative shared spell definition.
+
+- [x] Comprehend Languages
+- [ ] Speak with Animals
+- [ ] Distort Value
+
+### Truly absent definitions — 54 / 82
+
+#### 2024 PHB baseline — 39
+
+- [x] Color Spray
+- [x] Command
+- [x] Compelled Duel
+- [ ] Faerie Fire
+- [ ] False Life
+- [ ] Feather Fall
+- [ ] Find Familiar
+- [ ] Fog Cloud
+- [ ] Goodberry
+- [ ] Grease
+- [ ] Guiding Bolt
+- [ ] Hail of Thorns
+- [ ] Healing Word
+- [ ] Hellish Rebuke
+- [ ] Heroism
+- [ ] Hex
+- [ ] Hunter's Mark
+- [ ] Ice Knife
+- [ ] Identify
+- [ ] Illusory Script
+- [ ] Inflict Wounds
+- [ ] Jump
+- [ ] Longstrider
+- [ ] Mage Armor
+- [ ] Magic Missile
+- [ ] Protection from Evil and Good
+- [ ] Purify Food and Drink
+- [ ] Ray of Sickness
+- [ ] Sanctuary
+- [ ] Searing Smite
+- [ ] Shield of Faith
+- [ ] Silent Image
+- [ ] Sleep
+- [ ] Tasha's Hideous Laughter
+- [ ] Tenser's Floating Disk
+- [ ] Thunderous Smite
+- [ ] Unseen Servant
+- [ ] Witch Bolt
+- [ ] Wrathful Smite
+
+#### Published legacy supplemental / setting — 13
+
+- [ ] Beast Bond
+- [x] Catapult
+- [ ] Cause Fear
+- [ ] Ceremony
+- [ ] Chaos Bolt
+- [ ] Earth Tremor
+- [ ] Frost Fingers
+- [ ] Gift of Alacrity
+- [ ] Jim's Magic Missile
+- [ ] Magnify Gravity
+- [ ] Snare
+- [ ] Tasha's Caustic Brew
+- [ ] Zephyr Strike
+
+#### Forgotten Realms: Heroes of Faerûn (2025) — 2
+
+- [ ] Spellfire Flare
+- [ ] Wardaway
+
+Current catalog state: **25 canonical Level 1 definitions**, **3 role-only definitions awaiting canonical migration**, and **54 truly absent definitions**. That leaves **57 missing/migration items** before the Level 1 catalog is complete, plus the remaining review debt on the original pre-existing definitions.
+
+## Canonical Spell Metadata Contract
+
+Every canonical spell definition must carry enough data for both authorization and filtering:
+
+- `id`, `name` / `nombre`
+- `level` / `spellLevel`, `cantrip`
+- `classIds` — authoritative class availability
+- `school` — one of `abjuration`, `conjuration`, `divination`, `enchantment`, `evocation`, `illusion`, `necromancy`, `transmutation`
+- `contexts` — at least one of `combat`, `theater`
+- `castingTime`, `concentration`, and `ritual` when applicable
+- canonical targeting / resolution fields and `mechanics`
+- `upcast` where the spell changes with a higher-level slot
+
+Player-facing catalogs may filter the player's legal/known spells by school, level and context. DM/catalog surfaces may additionally filter the full catalog by `classIds`. UI filters never replace the cast-time class gate.
+
+## Spell Slot Contract
+
+Spell Slot spending remains owned by the shared Spellcasting + CombatAction resource pipeline:
+
+- cantrips / level 0: no Spell Slot resource;
+- leveled spells: one canonical `spell_slot` resource at the selected slot level;
+- class legality is validated from `classIds` before planning/casting;
+- ritual/free-cast features must opt into their existing class runtime rather than bypassing the resource system ad hoc.
+
+Individual spell runtimes must not decrement Spell Slots themselves.
+
+## Adaptation Rules
+
+- Keep player-facing spell descriptions compact.
+- Reuse existing statuses and runtimes before adding spell-specific one-offs.
+- Explicitly choose Clash, Save, failed-Save Unopposed, Reaction, Quick Action, automatic, or non-combat resolution.
+- D&D movement/range language is converted to Luminous mechanics rather than exposed as feet in player-facing copy.
+- Concentration effects clean up dependent statuses/entities.
+- Summons use the shared Summon HP contract unless the spell defines a justified exception.
+- Background Units do not automatically use Summon HP.
+- Temporary Items use the shared inventory/expiry systems.
+- Visual assets use the shared `LuminousSpellVisualAssetRegistry` / item icon registry and are tagged by domain.
+- Every batch adds smoke coverage.
+
+## Batch Plan
+
+Keep integration batches at **5–6 spells** so each batch can be reviewed and reverted independently.
+
+### Batch 1 — foundational Level 1 shapes (implemented, pending explicit user review)
+
+- Alarm
+- Armor of Agathys
+- Arms of Hadar
+- Bane
+- Bless
+- Burning Hands
+
+This batch intentionally covers ritual/theater, self-defense, save/AoE, concentration debuff, concentration buff, and elemental AoE so the reusable Level 1 runtime shapes are established before the remaining spells.
+
+### Batch 2 — SPR review in progress
+
+This section is informational only. The authoritative task checkbox for each spell appears once in the inventory above.
+
+- Color Spray
+- Command
+- Compelled Duel
+- Comprehend Languages
+- Create or Destroy Water
+
+### Batch 3 — reviewed detection / Paladin-Ranger control batch
+
+Informational only; authoritative completion remains the single inventory checkbox for each spell.
+
+- Detect Evil and Good
+- Detect Magic
+- Detect Poison and Disease
+- Disguise Self
+- Divine Favor
+- Divine Smite
+- Ensnaring Strike
+- Entangle
+- Chromatic Orb runtime correction
+
+#### Encounter Weather Modifier decisions locked during Batch 2
+
+- **Rain** — all units take +10% damage from Electric effects, Hazards, and Skills.
+- **Thunderstorm** — Rain electric modifier; 15% lightning-strike chance per unit; lightning deals 30 Fixed Damage + 5 Shock + 5 Shock Count; conductive metal adds 10 Fixed Damage + 3 Shock; Spears add +10% strike chance.
+- **Light Fog** — units without True Sight suffer -1 Clash Power, Analyse, and Sight Perception Checks.
+- **Heavy Fog** — units without True Sight suffer -3 Clash Power, Analyse, and Sight Perception Checks.
+
+
+## Review Workflow
+
+1. Normalize the shared spell metadata/filter contract.
+2. Review the 9 existing canonical Level 1 spells against the same contract.
+3. Migrate the 3 role-only Level 1 definitions into the canonical catalog without duplicate IDs.
+4. Adapt the truly missing spells in 5–6 spell batches.
+5. Mark a spell complete only when its definition, runtime behavior, status/entity/item dependencies, visuals when required, and tests are all in place.
+6. Keep this checklist as the single progress source of truth.

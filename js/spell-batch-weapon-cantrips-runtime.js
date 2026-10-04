@@ -110,9 +110,26 @@
     for (const raw of rows) {
       const id = normalizeId(raw?.spellId || raw?.id);
       if (id === "green_flame_blade" && skillWeight(next) !== 1) return { ok:false, reason:"green_flame_blade_requires_1_atk_weight" };
-      if (id === "booming_blade") resolved.push({ id, level, boomingCount:Math.max(1,Math.floor(level/5)) });
-      if (id === "green_flame_blade") resolved.push({ id, level, secondaryDamagePct:20+Math.floor(level/4), burn:1+Math.floor(level/15) });
-      if (id === "true_strike") resolved.push({ id, level, damagePct:2+Math.floor(level/10), radiance:1 });
+      if (id === "booming_blade") resolved.push({ id, level, boomingCount:Math.max(1,Math.floor(level/5)), school:normalizeId(raw?.school || "evocation"), castingTime:normalizeId(raw?.castingTime || "quick_action") });
+      if (id === "green_flame_blade") resolved.push({ id, level, secondaryDamagePct:20+Math.floor(level/4), burn:1+Math.floor(level/15), school:normalizeId(raw?.school || "evocation"), castingTime:normalizeId(raw?.castingTime || "quick_action") });
+      if (id === "true_strike") resolved.push({ id, level, damagePct:2+Math.floor(level/10), radiance:1, school:normalizeId(raw?.school || "divination"), castingTime:normalizeId(raw?.castingTime || "quick_action") });
+      if (id === "divine_smite") resolved.push({
+        id,
+        slotLevel: Math.max(1,intOr(raw?.slotLevel,1)),
+        classId: normalizeId(raw?.classId || "paladin"),
+        spellSelectionKey: raw?.spellSelectionKey ?? null,
+        overcast: raw?.overcast === true,
+        wizardFreeCast: raw?.wizardFreeCast || null,
+        school: normalizeId(raw?.school || "evocation"),
+        castingTime: normalizeId(raw?.castingTime || "quick_action"),
+        targetDrawId: String(raw?.targetDrawId || "").trim() || null,
+        targetSkillId: String(raw?.targetSkillId || "").trim() || null,
+        finalPowerIfTargetHasRadiance: 1,
+        fixedDamageBase: 4,
+        fixedDamagePerSlot: 4,
+        radiance: 2,
+        fiendUndeadMultiplier: 1.5
+      });
     }
     next.__luminousSlotEnchantments = resolved;
     if (action) {
@@ -243,6 +260,30 @@
           const actor=source.combatData?.()?.[source.unitIdFromSlot?.(slotId)] || null;
           const materialized=materializeSlotEnchantments(actor, action.metadata?.sourceDefinition || {}, plan.enchantments, action);
           if (!materialized.ok) return {...result,action:null,reason:materialized.reason};
+
+          const deck=global.LuminousDeckEngine;
+          if (plan.deckSelection?.drawId && deck?.bindActionToCard) {
+            try { deck.bindActionToCard(action,actor,plan.deckSelection.slotId || slotId,plan.deckSelection.drawId); }
+            catch (error) { return {...result,action:null,reason:error?.message || "deck_card_not_in_hand"}; }
+          }
+
+          const spellAdapter=global.LuminousBattleViewerSpellAdapter074;
+          const spellResources=[];
+          const economyAddons=[];
+          for (const enchantment of plan.enchantments) {
+            const enchantmentLevel=Math.max(0,intOr(enchantment?.slotLevel,0));
+            if (enchantmentLevel>0) {
+              const resource=typeof spellAdapter?.canonicalCastResource==="function"
+                ? spellAdapter.canonicalCastResource(enchantment.classId,enchantmentLevel,enchantment.overcast===true,enchantment)
+                : {owner:"source",type:"spell_slot",id:enchantment.classId,amount:1,metadata:{slotLevel:enchantmentLevel}};
+              spellResources.push(resource);
+            }
+            const addon=normalizeId(enchantment?.economyAddon);
+            if (addon) economyAddons.push(addon);
+          }
+          if (spellResources.length) action.resources=[...(action.resources||[]),...spellResources];
+          if (economyAddons.length) action.metadata={...(action.metadata||{}),economyAddons:[...new Set(economyAddons)]};
+          action.metadata={...(action.metadata||{}),slotEnchantmentSchools:[...new Set(plan.enchantments.map((row)=>normalizeId(row?.school)).filter(Boolean))]};
         }
         if (normalizeId(action.source?.type)==="spell" && normalizeId(action.source?.id)==="shillelagh") {
           action.effects=[...(action.effects||[]),{type:"weapon_cantrip_prepare",cantripId:"shillelagh"}];

@@ -82,6 +82,14 @@
     };
   }
 
+  function combatPropsRuntime() {
+    if (global?.LuminousCombatPropsRuntime) return global.LuminousCombatPropsRuntime;
+    if (typeof require === "function") {
+      try { return require("./combat-props-runtime.js"); } catch (_) {}
+    }
+    return null;
+  }
+
   function actorLevel(actor = {}) {
     const direct = actor.Level ?? actor.level ?? actor.characterBuild?.calculatedAtLevel;
     if (Number.isFinite(Number(direct))) return Math.max(0, Math.trunc(Number(direct)));
@@ -163,7 +171,12 @@
       }));
     }
     if (mechanics.onHitStatus?.status) {
-      effects.push(resolvedStatusEffect(mechanics.onHitStatus.status, mechanics.onHitStatus.potency, mechanics.onHitStatus.count, "on_hit", "target", {
+      const perSlot = Number(mechanics.onHitStatus.potencyPerSlotLevel);
+      const minimum = Math.max(0, Number(mechanics.onHitStatus.minimumPotency) || 0);
+      const potency = Number.isFinite(perSlot)
+        ? Math.max(minimum, Math.trunc(slotLevel * perSlot))
+        : mechanics.onHitStatus.potency;
+      effects.push(resolvedStatusEffect(mechanics.onHitStatus.status, potency, mechanics.onHitStatus.count, "on_hit", "target", {
         perCoin: mechanics.onHitStatus.perCoin === true
       }));
     }
@@ -191,15 +204,41 @@
       ));
     }
 
-    if (mechanics.requiresChoice?.key === "element") {
-      const element = normalizeId(plan.element || plan.elementId || plan.choice?.element);
-      const allowed = mechanics.requiresChoice.values || [];
-      if (!element || !allowed.includes(element)) {
-        return { ok: false, reason: "spell_choice_required", choiceKey: "element", choices: clone(allowed) };
+    if (mechanics.requiresChoice?.key) {
+      const choiceKey = normalizeId(mechanics.requiresChoice.key);
+      const plannedChoice = plan.spellChoice && normalizeId(plan.spellChoice.key) === choiceKey ? plan.spellChoice.value : null;
+      const choiceValue = normalizeId(
+        plannedChoice
+        ?? plan[choiceKey]
+        ?? (choiceKey === "element" ? plan.elementId : null)
+        ?? plan.choice?.[choiceKey]
+      );
+      const allowed = (mechanics.requiresChoice.values || []).map(normalizeId);
+      if (!choiceValue || (allowed.length && !allowed.includes(choiceValue))) {
+        return { ok: false, reason: "spell_choice_required", choiceKey, choices: clone(allowed) };
       }
-      const elementEffect = mechanics.elementalStatus?.[element];
-      if (elementEffect?.status) effects.push(resolvedStatusEffect(elementEffect.status, elementEffect.potency, elementEffect.count, "on_hit", "target", { element }));
-      definition.selectedElement = element;
+      definition.selectedChoice = { key: choiceKey, value: choiceValue };
+      if (choiceKey === "element") {
+        const elementEffect = mechanics.elementalStatus?.[choiceValue];
+        if (elementEffect?.status) effects.push(resolvedStatusEffect(elementEffect.status, elementEffect.potency, elementEffect.count, "on_hit", "target", { element: choiceValue }));
+        definition.selectedElement = choiceValue;
+      }
+    }
+
+    if (mechanics.combatProp?.required === true) {
+      const selectedPropId = clean(plan.combatPropId || plan.propId || plan.catapult?.propId);
+      if (!selectedPropId) return { ok: false, reason: "combat_prop_required", props: combatPropsRuntime()?.listUsableProps?.() || [] };
+      const props = combatPropsRuntime();
+      if (!props?.validateCatapultProp) return { ok: false, reason: "combat_props_runtime_required" };
+      const validation = props.validateCatapultProp(selectedPropId, slotLevel);
+      if (!validation?.ok) return { ok: false, reason: validation?.reason || "combat_prop_invalid", prop: validation?.prop || null, maxWeight: validation?.maxWeight };
+      definition.selectedPropId = selectedPropId;
+      definition.selectedProp = clone(validation.prop);
+      definition.__luminousPropUse = {
+        propId: selectedPropId,
+        wear: Math.max(1, Number(mechanics.combatProp.hiddenHpCost) || 1),
+        cause: mechanics.combatProp.mode || "spell"
+      };
     }
 
     definition.effects = [...(Array.isArray(definition.effects) ? definition.effects : []), ...effects];
@@ -238,7 +277,12 @@
       sinAffinity: definition.sinAffinity || definition.affinity || null,
       slotLevel,
       sourceDefinition: clone(definition),
-      spellChoice: clone(plan.choice || (definition.selectedElement ? { element: definition.selectedElement } : null))
+      spellChoice: clone(
+        plan.spellChoice
+        || definition.selectedChoice
+        || plan.choice
+        || (definition.selectedElement ? { key: "element", value: definition.selectedElement } : null)
+      )
     };
     if (action.targeting) action.targeting.attackWeight = Math.max(1, Number(definition.attackWeight || definition.atkWeight || action.targeting.attackWeight || 1));
     if (normalizeId(definition.castingTime) === "quick_action" && action.economy) action.economy.cost = "quick_action";

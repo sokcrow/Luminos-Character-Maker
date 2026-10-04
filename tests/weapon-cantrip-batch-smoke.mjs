@@ -23,6 +23,9 @@ for (const id of ['booming_blade', 'green_flame_blade', 'true_strike']) {
 assert.equal(batch.STATUS_DEFINITIONS.booming.icon, 'Assets/Icons/status/cantrips/booming.png');
 assert.equal(batch.STATUS_DEFINITIONS.shillelagh.icon, 'Assets/Icons/status/cantrips/shillelagh.png');
 
+assert.equal(catalog.divine_smite.targetType, 'action_slot');
+assert.equal(catalog.divine_smite.mechanics.slotEnchantment.id, 'divine_smite');
+
 const engine = {
   triggerEvent() { return null; },
   resolveStandardClash() { return { winner: 'A', clashLogs: [{ round: 1 }] }; },
@@ -91,6 +94,22 @@ assert.equal(materialized.skill.__luminousSlotEnchantments[0].damagePct, 5);
 assert.equal(engine.calculateCoinDamage(caster, target, materialized.skill, 10, false, 0, {}), 105);
 engine.triggerEvent('[On Hit]', { engine, unitAttacker: caster, currentTarget: target, defender: target, skill: materialized.skill, damageDealt: 105 }, [target]);
 assert.equal(target.statusEffects.radiance.count, 1);
+
+action = { targeting: { mainTargetId: 'target', attackWeight: 1 }, metadata: { sourceDefinition: structuredClone(baseMelee) } };
+materialized = batch.materializeSlotEnchantments(caster, baseMelee, [{
+  spellId: 'divine_smite',
+  slotLevel: 3,
+  classId: 'paladin',
+  school: 'evocation',
+  castingTime: 'quick_action',
+  targetDrawId: 'draw_smite',
+  targetSkillId: 'slash',
+}], action);
+assert.equal(materialized.ok, true);
+assert.equal(materialized.skill.__luminousSlotEnchantments[0].id, 'divine_smite');
+assert.equal(materialized.skill.__luminousSlotEnchantments[0].slotLevel, 3);
+assert.equal(materialized.skill.__luminousSlotEnchantments[0].targetDrawId, 'draw_smite');
+assert.equal(materialized.skill.__luminousSlotEnchantments[0].school, 'evocation');
 
 const invalidGreen = batch.materializeSlotEnchantments(caster, { ...baseMelee, attackWeight: 2, atkWeight: 2 }, [{ spellId: 'green_flame_blade' }], null);
 assert.equal(invalidGreen.ok, false);

@@ -224,6 +224,12 @@
     const target = options.target || check.target || null;
     const targetCharmed = target ? status(target, "charmed") : null;
     if (targetCharmed && statusSourceMatches(targetCharmed, unit) && checkAbility(check) === "cha") value += 5;
+    const skill = normalizeId(check.skillId || check.skill || "");
+    const disguise = status(unit, "disguise_self");
+    if (disguise && skill === "deception") {
+      const expiresAt = Number(disguise.data?.expiresAt);
+      if (!Number.isFinite(expiresAt) || Date.now() < expiresAt) value += numberOr(disguise.data?.deceptionFinalPowerBonus, 4);
+    }
     return value;
   }
   function applyCheckThreshold(unit, check = {}, options = {}) {
@@ -413,17 +419,42 @@
     return damage;
   }
 
+  function spellRestrainedEscapeDc(restrainedUnit) {
+    const entry = status(restrainedUnit, "restrained");
+    const sourceSpellId = normalizeId(entry?.data?.sourceSpellId);
+    const dc = Number(entry?.data?.escapeDC);
+    return ["ensnaring_strike", "entangle"].includes(sourceSpellId) && Number.isFinite(dc)
+      ? { sourceSpellId, dc }
+      : null;
+  }
   function liberateThreshold(restrainedUnit, method, options = {}) {
+    const spellEscape = spellRestrainedEscapeDc(restrainedUnit);
+    if (spellEscape) return Math.max(0, spellEscape.dc);
     const count = Math.max(0, numberOr(status(restrainedUnit, "restrained")?.count, 0));
     const id = normalizeId(method);
     const base = ["sleight_of_hand", "sleight", "sleightofhand"].includes(id) ? 12 : 14;
     return Math.max(0, base + count + (options.self ? 4 : 0) - (options.inCombat === false ? 4 : 0));
   }
   function buildLiberateRequest(actor, target, method, options = {}) {
-    const id = normalizeId(method); const self = sameUnit(actor, target);
+    const self = sameUnit(actor, target);
+    const spellEscape = spellRestrainedEscapeDc(target);
+    if (spellEscape) {
+      return {
+        type: "liberate_check",
+        actor,
+        target,
+        method: "strength",
+        threshold: spellEscape.dc,
+        sourceSpellId: spellEscape.sourceSpellId,
+        economy: "action",
+        check: { kind: "ability", abilityId: "str", skillId: null, threshold: spellEscape.dc }
+      };
+    }
+    const id = normalizeId(method);
     const skillId = ["sleight_of_hand", "sleight", "sleightofhand"].includes(id) ? "sleight_of_hand" : (id === "athletics" ? "athletics" : null);
     const abilityId = skillId === "sleight_of_hand" ? "dex" : "str";
-    return { type: "liberate_check", actor, target, method: id, threshold: liberateThreshold(target, id, { self, inCombat: options.inCombat !== false }), check: { kind: skillId ? "skill" : "ability", abilityId, skillId, threshold: liberateThreshold(target, id, { self, inCombat: options.inCombat !== false }) } };
+    const threshold = liberateThreshold(target, id, { self, inCombat: options.inCombat !== false });
+    return { type: "liberate_check", actor, target, method: id, threshold, check: { kind: skillId ? "skill" : "ability", abilityId, skillId, threshold } };
   }
   function buildCalmRequest(actor, target) {
     const entry = status(target, "frightened"); const threshold = Number(entry?.data?.saveThreshold);
@@ -515,7 +546,7 @@
     contextualModifiers, fixedSpeedFor, damageTakenMultiplier, sleepNextAttackMultiplier, consumeSleepAttackBonus, shouldAutoCrit, autoCritConsumesPoise, onDamageTaken,
     startConcentration, getConcentration, recordConcentrationDamage, concentrationThreshold, loseConcentration, resetConcentrationRoundDamage,
     hasNoticedInvisible, hasLocatedInvisible, markInvisibleNotice, markInvisibleLocated,
-    turnStart, turnEnd, liberateThreshold, buildLiberateRequest, buildCalmRequest, buildFindRequest, buildWakeUpAction, contextualActions,
+    turnStart, turnEnd, spellRestrainedEscapeDc, liberateThreshold, buildLiberateRequest, buildCalmRequest, buildFindRequest, buildWakeUpAction, contextualActions,
     encounterForOptions, reserveGrappleSlot, releaseGrappleSlot, breakGrapple, grapple, installModifierBridge, install,
   });
 
