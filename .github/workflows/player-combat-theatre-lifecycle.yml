@@ -29,6 +29,7 @@ on:
       - 'css/player-stats-ability-bar.css'
       - 'css/theatre-hud.css'
       - 'css/theatre-message-policy.css'
+      - 'js/theatre-message-policy.js'
       - 'js/player-splash-framing.js'
       - 'js/player-ux-polish-core.js'
       - 'js/player-stat-tooltip-runtime.js'
@@ -61,6 +62,7 @@ on:
       - 'tests/player-combat-theatre-lifecycle.spec.mjs'
       - 'tests/player-theatre-spacing-smoke.mjs'
       - 'tests/dm-dialogue-composer-layout-smoke.mjs'
+      - 'tests/dm-dialogue-input-visible-smoke.mjs'
       - 'tests/theatre-queue-bank-hotfix-smoke.mjs'
       - 'tests/player-ui-long-session-performance.spec.mjs'
       - 'tests/trait-formula-display-contract.mjs'
@@ -80,6 +82,7 @@ jobs:
         run: |
           node --check js/instance-control.js
           node --check js/on-game-dashboard.js
+          node --check js/theatre-message-policy.js
           node --check js/player-trait-runtime.js
           node --check js/trait-player-tray.js
           node --check js/player-archetype-runtime-core.js
@@ -121,6 +124,7 @@ jobs:
           node --check tests/player-ui-long-session-performance.spec.mjs
           node --check tests/player-theatre-spacing-smoke.mjs
           node --check tests/dm-dialogue-composer-layout-smoke.mjs
+          node --check tests/dm-dialogue-input-visible-smoke.mjs
           node --check tests/theatre-queue-bank-hotfix-smoke.mjs
           node --check tests/trait-formula-display-contract.mjs
       - name: Trait formula display contract
@@ -131,6 +135,8 @@ jobs:
         run: node tests/player-theatre-spacing-smoke.mjs
       - name: DM dialogue composer layout contract
         run: node tests/dm-dialogue-composer-layout-smoke.mjs
+      - name: DM dialogue input visibility contract
+        run: node tests/dm-dialogue-input-visible-smoke.mjs
       - name: Theatre queue + Bank layout contract
         run: node tests/theatre-queue-bank-hotfix-smoke.mjs
 
