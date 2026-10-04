@@ -1,10 +1,16 @@
 import fs from "node:fs";
 import assert from "node:assert/strict";
-import { createRequire } from "node:module";
+import vm from "node:vm";
 
-const require = createRequire(import.meta.url);
-const rules = require("../js/theatre-special-language-enforcement-hotfix.js");
-const log = require("../js/theatre-special-language-log-hotfix.js");
+function loadBrowserUmdApi(file) {
+  const source = fs.readFileSync(file, "utf8");
+  const context = { module: { exports: {} }, console };
+  vm.runInNewContext(source, context, { filename: file });
+  return context.module.exports;
+}
+
+const rules = loadBrowserUmdApi("js/theatre-special-language-enforcement-hotfix.js");
+const log = loadBrowserUmdApi("js/theatre-special-language-log-hotfix.js");
 
 const definitions = {
   common: { nombre: "Común", universal: true, estilo_ofuscacion: "ellipsis" },
