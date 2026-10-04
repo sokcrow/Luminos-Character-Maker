@@ -2206,6 +2206,33 @@ window.processEntitiesData = function(entities) {
                 placeholder="URL de Icono Físico (Mapa/HUD)"
               />
               <div style="display: flex; gap: 10px; align-items: center">
+                <select id="tienda-tipo" style="flex: 2">
+                  <option value="general">Almacén General</option>
+                  <option value="provisions">Provisiones</option>
+                  <option value="clinic">Clínica / Farmacia</option>
+                  <option value="workshop">Workshop</option>
+                  <option value="arms_dealer">Armería</option>
+                  <option value="specialist">Especialista</option>
+                  <option value="black_market">Mercado Negro</option>
+                </select>
+                <select id="tienda-tier" style="flex: 1">
+                  <option value="1">Tier I</option>
+                  <option value="2">Tier II</option>
+                  <option value="3">Tier III</option>
+                  <option value="4">Tier IV</option>
+                  <option value="5">Tier V</option>
+                  <option value="6">Tier VI</option>
+                  <option value="7">Tier VII</option>
+                  <option value="8">Tier VIII</option>
+                  <option value="9">Tier IX</option>
+                  <option value="10">Tier X</option>
+                </select>
+              </div>
+              <div style="font-size: 11px; color: #888; margin: 4px 0 8px 0;">
+                Precio automático: valor del ítem × 1.40 × tipo × Tier × modificador local.
+                El stock se calcula por los jugadores asignados.
+              </div>
+              <div style="display: flex; gap: 10px; align-items: center">
                 <label style="color: #0df; font-size: 14px; cursor: pointer"
                   ><input type="checkbox" id="tienda-fisica-activa" /> Tienda
                   Física Activa</label
@@ -2249,7 +2276,7 @@ window.processEntitiesData = function(entities) {
               <input
                 type="number"
                 id="tienda-mod-venta"
-                placeholder="Mod. Venta % (ej. 120)"
+                placeholder="Mod. Local % (100 = normal)"
               />
 
               <h5
@@ -6621,13 +6648,15 @@ window.processEntitiesData = function(entities) {
           document.getElementById("tienda-nombre").value = "";
           document.getElementById("tienda-icono").value = "";
           document.getElementById("tienda-icono-fisico").value = "";
+          document.getElementById("tienda-tipo").value = "general";
+          document.getElementById("tienda-tier").value = "1";
           document.getElementById("tienda-fisica-activa").checked = false;
           document.getElementById("tienda-dias-entrega").value = "";
           document
             .querySelectorAll(".tienda-jugador-cb")
             .forEach((cb) => (cb.checked = false));
           document.getElementById("tienda-restock-dia").value = "Lunes";
-          document.getElementById("tienda-mod-venta").value = "";
+          document.getElementById("tienda-mod-venta").value = "100";
           document.getElementById("tienda-tasa-defecto").value = "";
           currentTiendaReglas = {};
           renderTiendaReglas();
@@ -6652,6 +6681,8 @@ window.processEntitiesData = function(entities) {
             let iconoFisico = document
               .getElementById("tienda-icono-fisico")
               .value.trim();
+            const shopType = document.getElementById("tienda-tipo").value || "general";
+            const shopTier = parseInt(document.getElementById("tienda-tier").value) || 1;
             const fisicaActiva = document.getElementById(
               "tienda-fisica-activa",
             ).checked;
@@ -6687,6 +6718,11 @@ window.processEntitiesData = function(entities) {
               }
             });
 
+            if (Object.keys(jugadoresPresentes).length === 0) {
+              alert("Selecciona al menos un jugador para calcular acceso y stock compartido.");
+              return;
+            }
+
             const isEditing = editModeTiendaKey !== null;
             // In edit mode, if name didn't change enough to alter ID, we use the original.
             const idTienda = isEditing
@@ -6697,6 +6733,8 @@ window.processEntitiesData = function(entities) {
               nombre: nombre,
               icono: icono,
               icono_fisico: iconoFisico,
+              shop_type: shopType,
+              shop_tier: shopTier,
               fisica_activa: fisicaActiva,
               dias_entrega: diasEntrega,
               jugadores_presentes: jugadoresPresentes,
@@ -6707,10 +6745,23 @@ window.processEntitiesData = function(entities) {
             };
 
             if (isEditing) {
-              db.ref(`campaña/tiendas/${editModeTiendaKey}`)
-                .update(tiendaData)
+              const shopRef = db.ref(`campaña/tiendas/${editModeTiendaKey}`);
+              shopRef
+                .once("value")
+                .then((snapshot) => {
+                  const current = snapshot.val() || {};
+                  const runtime = window.LuminousShopRuntime;
+                  const currentItems = current.items || {};
+                  const items = {};
+                  for (const [itemId, item] of Object.entries(currentItems)) {
+                    items[itemId] = runtime?.applyAutomaticStock
+                      ? runtime.applyAutomaticStock(item, tiendaData, { preserveSold: true })
+                      : item;
+                  }
+                  return shopRef.update({ ...tiendaData, items });
+                })
                 .then(() => {
-                  alert("Tienda actualizada exitosamente.");
+                  alert("Tienda actualizada: precios y stock recalculados.");
                   resetTiendaForm();
                 })
                 .catch((e) => alert("Error actualizando tienda: " + e));
@@ -6772,6 +6823,10 @@ window.processEntitiesData = function(entities) {
                   data.icono || "";
                 document.getElementById("tienda-icono-fisico").value =
                   data.icono_fisico || "";
+                document.getElementById("tienda-tipo").value =
+                  data.shop_type || "general";
+                document.getElementById("tienda-tier").value =
+                  data.shop_tier || 1;
                 document.getElementById("tienda-fisica-activa").checked =
                   data.fisica_activa || false;
                 document.getElementById("tienda-dias-entrega").value =
@@ -6787,7 +6842,7 @@ window.processEntitiesData = function(entities) {
                 document.getElementById("tienda-restock-dia").value =
                   data.dia_restock || "Lunes";
                 document.getElementById("tienda-mod-venta").value =
-                  data.mod_venta !== undefined ? data.mod_venta : "";
+                  data.mod_venta !== undefined ? data.mod_venta : 100;
                 document.getElementById("tienda-tasa-defecto").value =
                   data.tasa_defecto !== undefined ? data.tasa_defecto : "";
 
@@ -6889,10 +6944,20 @@ window.processEntitiesData = function(entities) {
             const itemEnTienda = itemsTienda[keyItem]; // Existe en la tienda?
 
             const isChecked = itemEnTienda ? "checked" : "";
-            const precioActual = itemEnTienda
-              ? itemEnTienda.costo
-              : dataGlobal.costo;
-            const stockActual = itemEnTienda ? itemEnTienda.stock_maximo : -1;
+            const shopRuntime = window.LuminousShopRuntime;
+            const itemFuente = itemEnTienda || dataGlobal;
+            const valorBase = shopRuntime?.baseValueAhn
+              ? shopRuntime.baseValueAhn(itemFuente)
+              : (itemFuente.costo || 0);
+            const precioActual = shopRuntime?.purchasePrice
+              ? shopRuntime.purchasePrice(itemFuente, dataTienda)
+              : valorBase;
+            const stockActual = shopRuntime?.stockForItem
+              ? shopRuntime.stockForItem(itemFuente, dataTienda)
+              : (itemEnTienda ? itemEnTienda.stock_maximo : -1);
+            const disponiblePorTier = shopRuntime?.itemAvailable
+              ? shopRuntime.itemAvailable(itemFuente, dataTienda)
+              : true;
             const requisitoActual =
               itemEnTienda && itemEnTienda.requisito_aparicion
                 ? itemEnTienda.requisito_aparicion
@@ -6921,10 +6986,15 @@ window.processEntitiesData = function(entities) {
                     <span style="font-size: 0.8em;">${tagsStr}</span>
                 </div>
                 <div class="modal-item-inputs">
-                    <label style="font-size: 12px; color: #aaa;">Precio:</label>
-                    <input type="number" class="input-precio" value="${precioActual}">
-                    <label style="font-size: 12px; color: #aaa;">Stock:</label>
-                    <input type="number" class="input-stock" value="${stockActual}" title="-1 para infinito">
+                    <label style="font-size: 12px; color: #aaa;">Valor Base:</label>
+                    <input type="number" class="input-precio" value="${valorBase}" readonly title="Valor intrínseco; la tienda no lo reescribe">
+                    <label style="font-size: 12px; color: #aaa;">Compra:</label>
+                    <input type="number" class="input-shop-price" value="${precioActual}" readonly title="Precio calculado por Shop Runtime">
+                    <label style="font-size: 12px; color: #aaa;">Stock Auto:</label>
+                    <input type="number" class="input-stock" value="${stockActual}" readonly title="Stock compartido calculado por jugadores, tipo y Tier">
+                    <span style="font-size: 11px; color: ${disponiblePorTier ? "#7ee787" : "#ff6b6b"};">
+                      ${disponiblePorTier ? "Disponible" : "Fuera del Tier de la tienda"}
+                    </span>
                     <label style="font-size: 12px; color: #aaa;">Req:</label>
                     <select class="input-requisito" style="padding: 5px; background: #111; color: #0df; border: 1px solid #444; border-radius: 3px;">
                         <option value="Siempre" ${requisitoActual === "Siempre" ? "selected" : ""}>Siempre</option>
@@ -6948,44 +7018,50 @@ window.processEntitiesData = function(entities) {
         }
 
         // GUARDAR INVENTARIO
-        btnGuardarInventario.addEventListener("click", () => {
+        btnGuardarInventario.addEventListener("click", async () => {
           if (!tiendaActualEditada) return;
 
-          const updates = {};
-          const filas = listaItemsModal.querySelectorAll(".modal-item-row");
+          try {
+            const shopSnap = await db.ref(`campaña/tiendas/${tiendaActualEditada}`).once("value");
+            const shopData = shopSnap.val() || {};
+            const shopRuntime = window.LuminousShopRuntime;
+            const updates = {};
+            const filas = listaItemsModal.querySelectorAll(".modal-item-row");
 
-          filas.forEach((fila) => {
-            const toggle = fila.querySelector(".toggle-item");
-            if (toggle.checked) {
+            filas.forEach((fila) => {
+              const toggle = fila.querySelector(".toggle-item");
+              if (!toggle.checked) return;
+
               const keyItem = fila.dataset.key;
               const dataGlobal = dbItemsCache[keyItem];
-              const precio =
-                parseInt(fila.querySelector(".input-precio").value) ||
-                dataGlobal.costo;
-              const stockMax =
-                parseInt(fila.querySelector(".input-stock").value) || -1;
               const requisito = fila.querySelector(".input-requisito").value;
+              const baseValue = shopRuntime?.baseValueAhn
+                ? shopRuntime.baseValueAhn(dataGlobal)
+                : (dataGlobal.costo || 0);
 
-              // Construir el objeto del ítem para la tienda
-              updates[keyItem] = {
+              let shopItem = {
                 ...dataGlobal,
-                costo: precio,
-                stock_maximo: stockMax,
-                stock_actual: stockMax, // Se resetea al máximo al guardar
+                costo: baseValue,
                 requisito_aparicion: requisito,
               };
-            }
-          });
 
-          // Sobrescribir el nodo 'items' de la tienda con el nuevo objeto updates
-          db.ref(`campaña/tiendas/${tiendaActualEditada}/items`)
-            .set(updates)
-            .then(() => {
-              alert("Inventario de la tienda actualizado exitosamente.");
-              modalEditar.style.display = "none";
-              tiendaActualEditada = null;
-            })
-            .catch((e) => alert("Error guardando inventario: " + e));
+              // Saving the catalog is an explicit restock. Stock is shared by
+              // all assigned Players and generated from Shop Type + Tier.
+              if (shopRuntime?.applyAutomaticStock) {
+                shopItem = shopRuntime.applyAutomaticStock(shopItem, shopData, {
+                  preserveSold: false,
+                });
+              }
+              updates[keyItem] = shopItem;
+            });
+
+            await db.ref(`campaña/tiendas/${tiendaActualEditada}/items`).set(updates);
+            alert("Inventario guardado y stock automático restablecido.");
+            modalEditar.style.display = "none";
+            tiendaActualEditada = null;
+          } catch (e) {
+            alert("Error guardando inventario: " + e);
+          }
         });
 
         // --- LÓGICA DEL MODAL DE INVENTARIO (DM) ---
