@@ -171,6 +171,89 @@ When Shop settings change, already sold units are preserved while the new maximu
 
 If a Shop has an assigned-player list, only those Players can see/use it from the Character Sheet / Theater surface. Legacy Shops without an assignment map remain accessible for compatibility.
 
+## Services
+
+Shops can expose services independently from their product catalog. Service availability has Shop Type defaults but the DM may enable or disable a service on an individual Shop.
+
+### Repair
+
+Repair restores missing Durability / Condition and is priced from the material actually used by the Item rather than from the finished Item's resale value.
+
+```text
+Material Value per PD =
+Material Unit Value / Material Durability
+
+Repair List Price =
+PD restored
+× Material Value per PD
+× 1.40
+```
+
+The `x1.40` is the service labor/convenience margin. It is not multiplied by the normal Shop purchase markup a second time.
+
+For composed weapons, armor and shields, Shop Runtime walks the canonical composition and prefers the primary material. Material rows already authored by the equipment catalogs expose their unit value and durability, so a finished Item can be quoted without inventing a separate arbitrary repair tariff. Explicit `repairMaterialValuePerPointAhn` data remains supported for content that needs a fixed per-PD contract.
+
+Repair uses the same commerce benefits as product purchases. Eligible promotions, merchant benefits and service-scoped loyalty can reduce the list price, including a free loyalty redemption. The Player transaction revalidates the current Item, balance and quote before restoring its canonical Condition/Durability.
+
+## Merchant NPCs
+
+A Shop may be managed by an NPC. The commerce record can carry:
+
+- display name;
+- sprite / portrait;
+- optional in-world greeting;
+- frequent-customer purchase threshold and discount;
+- relationship-tier discounts;
+- merchant-specific promotions.
+
+The Player surfaces present the merchant as part of the Shop rather than exposing internal IDs or rule payloads.
+
+Frequent-customer progress is native to the Shop commerce history and advances through completed purchases. Relationship discounts consume an existing relationship tier if another game system provides one; Shop Runtime does not invent or advance friendship state on its own.
+
+## Chains and loyalty
+
+A Shop may identify a chain / franchise. Chain metadata can provide shared promotion and loyalty definitions to that Shop.
+
+Player commerce state is keyed by stable loyalty-program IDs, so branches configured with the same chain/program ID can use the same Player progress. The current implementation does **not** maintain a separate global chain registry that automatically propagates an edit to every branch; each Shop persists the chain configuration it was authored with.
+
+A loyalty program defines how many paid eligible transactions fill the card and whether it applies to products, services or both. The default reward is the next eligible transaction for free.
+
+Example:
+
+```text
+9 paid eligible transactions
+→ card reaches 9 / 9
+→ next eligible transaction is free
+→ progress resets to 0
+```
+
+A legitimate loyalty reward may therefore resolve to `0 AHN` while still having a valid canonical economic value. This is distinct from an unpriced Item, which remains blocked.
+
+## Promotions
+
+The DM Shop editor supports product-facing promotion authoring:
+
+- percentage discount on the whole Shop or a selected product;
+- **Buy X, get Y**;
+- gift Item after buying a selected product.
+
+Promotion labels are shown to Players in readable world-facing copy. Internal Item IDs remain implementation data.
+
+Free reward Items use the same canonical purchase payload as paid Items. Their Shop stock is reserved before the purchase completes. If the required reward stock is unavailable, the promotion transaction is blocked instead of silently charging the Player and omitting the advertised reward.
+
+Delivery follows the purchase surface:
+
+- physical Shop / Theater → Player Stash;
+- App / remote Shop → pending delivery using that Shop's delivery delay.
+
+Discount promotions modify the live checkout price. Gift promotions do not rewrite the intrinsic value of either Item.
+
+## Restaurants
+
+`restaurant` remains a normal Shop Type using the common Shop Runtime; it is not a parallel economy.
+
+Its generated catalog comes from prepared food / culinary families, while NPC identity, greetings, loyalty and promotions provide the authored personality. Player-facing physical and Theater surfaces present restaurant inventory as a **MENU** so food establishments read as places rather than generic item terminals.
+
 ## Runtime
 
 Canonical implementation:
