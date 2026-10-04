@@ -71,18 +71,14 @@
 
   function renderCleanList(){
     const menu=api();
-    if(activeMenu()==='global'&&(menu?.state?.tabByMenu?.global||ECONOMY.ACTION)===ECONOMY.ACTION){
-      return withActionTraits(()=>menu?.state?.originals?.renderCleanList?.());
-    }
+    annotateEconomySources();
+    if(activeMenu()==='global')return withActionTraits(()=>menu?.renderCleanList?.());
     return menu?.renderCleanList?.();
   }
   function renderSkills(){
-    const menu=api(),tab=menu?.state?.tabByMenu?.skills||ECONOMY.ACTION;
-    if(tab!==ECONOMY.ACTION)return menu?.renderSkills?.();
+    const menu=api();
     annotateEconomySources();
-    const p=permanent(),original=Array.isArray(p?.granted)?p.granted:[];
-    if(p&&Array.isArray(original))p.granted=original.filter(row=>canonicalCost(row)===ECONOMY.ACTION);
-    try{return menu?.state?.originals?.renderSkills?.()}finally{if(p&&Array.isArray(original))p.granted=original}
+    return menu?.renderSkills?.();
   }
   function selectAction(sel){
     const menu=api(),source=sel?.data||{};
