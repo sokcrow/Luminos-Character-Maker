@@ -3462,6 +3462,9 @@ function initializeCharacterSheet() {
     const runtime = getShopRuntime();
     const merchant = runtime?.merchantNpc?.(shop);
     const loyaltyText = shopLoyaltyLabel(shop, currentPlayerData || {}, shopId);
+    const presenceText = [merchant?.greeting, loyaltyText]
+      .filter(Boolean)
+      .join(" · ");
 
     const prefix = surface === "theater" ? "theater-shop-" : "shop-";
     const root = document.getElementById(prefix + "merchant" + (surface === "theater" ? "" : "-presence"));
@@ -3471,9 +3474,9 @@ function initializeCharacterSheet() {
       surface === "theater" ? "theater-shop-loyalty" : "shop-loyalty-status",
     );
 
-    if (root) root.style.display = merchant || loyaltyText ? "flex" : "none";
+    if (root) root.style.display = merchant || presenceText ? "flex" : "none";
     if (name) name.textContent = merchant?.name ? "Atiende " + merchant.name : "";
-    if (loyalty) loyalty.textContent = loyaltyText;
+    if (loyalty) loyalty.textContent = presenceText;
     if (sprite) {
       if (merchant?.sprite) {
         sprite.src = merchant.sprite;
@@ -3938,7 +3941,8 @@ function initializeCharacterSheet() {
       const data = tiendasFisicasDisponibles[idTienda];
       if (!data) return;
 
-      title.innerText = shopDisplayName(data);
+      const isRestaurant = getShopRuntime()?.shopTypeId?.(data) === "restaurant";
+      title.innerText = shopDisplayName(data) + (isRestaurant ? " · MENÚ" : "");
       grid.innerHTML = "";
 
       const items = data.items || {};
@@ -5847,9 +5851,10 @@ window.abrirTiendaDinamica = async function(tiendaId) {
     window.LuminousRenderShopMerchantPresence?.(data, tiendaId, "theater");
 
     const meta = shopRuntime?.describeShop?.(data);
+    const restaurantMenu = shopRuntime?.shopTypeId?.(data) === "restaurant";
     document.getElementById("shop-name-display").innerText = meta
-      ? `${data.nombre || "Tienda"} · ${meta.typeLabel} · TIER ${meta.tierRoman}`
-      : (data.nombre || "Tienda");
+      ? `${data.nombre || "Tienda"} · ${meta.typeLabel} · TIER ${meta.tierRoman}${restaurantMenu ? " · MENÚ" : ""}`
+      : ((data.nombre || "Tienda") + (restaurantMenu ? " · MENÚ" : ""));
 
     const lista = document.getElementById("lista-items-tienda");
     lista.innerHTML = "";
