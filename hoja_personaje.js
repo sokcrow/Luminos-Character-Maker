@@ -636,12 +636,118 @@ let currentActorListener = null;
 window.datosJugador = null;
 window.actoresJugador = {}; // Diccionario global por Actor ID
 
+const PLAYER_LOADING_SCENES = Object.freeze([
+  {
+    image: "Assets/Loading/loading-combat-clash.webp",
+    category: "CONSEJO DE COMBATE",
+    tip: "Si una unidad queda aislada, prioriza defensa o reposicionamiento antes de gastar tus recursos más fuertes.",
+  },
+  {
+    image: "Assets/Loading/loading-workshop-crafting.webp",
+    category: "CONSEJO DE CRAFT",
+    tip: "Revisa receta, materiales y herramienta antes de confirmar una fabricación.",
+  },
+  {
+    image: "Assets/Loading/loading-lizalin-biodistrict.webp",
+    category: "RAZA · LIZALIN",
+    tip: "Para los Lizalin, naturaleza y tecnología no son opuestos: una ciudad también puede respirar como un ecosistema.",
+  },
+  {
+    image: "Assets/Loading/loading-yuanti-obscurum.webp",
+    category: "RAZA · YUAN-TI",
+    tip: "Los Yuan-ti Pura Sangre favorecen el control, la jerarquía y la magia sutil. La calma no siempre significa confianza.",
+  },
+  {
+    image: "Assets/Loading/loading-lanae-mountain.webp",
+    category: "RAZA · LANAE",
+    tip: "Los Lanae proceden de enclaves montañosos y dan gran valor a los lazos de comunidad.",
+  },
+  {
+    image: "Assets/Loading/loading-city-backstreets.webp",
+    category: "CONSEJO DE EXPLORACIÓN",
+    tip: "Antes de internarte en una zona desconocida, identifica una salida y conserva recursos para regresar.",
+  },
+  {
+    image: "Assets/Loading/loading-abnormality-containment.webp",
+    category: "CONSEJO DE OBSERVACIÓN",
+    tip: "No asumas que dos entidades obedecen la misma lógica. Observa primero y compromete recursos después.",
+  },
+  {
+    image: "Assets/Loading/loading-interdistrict-transit.webp",
+    category: "CONSEJO DE VIAJE",
+    tip: "Antes de moverte entre zonas, revisa equipo, recursos y objetivos activos.",
+  },
+]);
+
+const PLAYER_LOADING_FALLBACK_IMAGE =
+  "https://limbuscompany.wiki.gg/images/thumb/DanteStar.png/1024px-DanteStar.png?e52927";
+
+function syncLoadingSegments(progress = 0) {
+  const container = document.getElementById("system-loading-segments");
+  if (!container) return;
+
+  if (!container.children.length) {
+    const fragment = document.createDocumentFragment();
+    for (let index = 0; index < 20; index += 1) {
+      const segment = document.createElement("span");
+      segment.className = "loading-segment";
+      fragment.appendChild(segment);
+    }
+    container.appendChild(fragment);
+  }
+
+  const activeCount = progress <= 0 ? 0 : Math.ceil(Math.min(100, progress) / 5);
+  Array.from(container.children).forEach((segment, index) => {
+    segment.classList.toggle("is-active", index < activeCount);
+  });
+}
+
+function applyLoadingScene(scene) {
+  if (!scene) return;
+  const category = document.getElementById("system-loading-tip-category");
+  const tip = document.getElementById("system-loading-tip-text");
+  if (category) category.textContent = scene.category || "CONSEJO";
+  if (tip) tip.textContent = scene.tip || "";
+}
+
+function initializeLoadingPresentation() {
+  const background = document.getElementById("system-loading-background");
+  syncLoadingSegments(0);
+  if (!background || !PLAYER_LOADING_SCENES.length) return;
+
+  background.src = PLAYER_LOADING_FALLBACK_IMAGE;
+
+  const scenes = [...PLAYER_LOADING_SCENES];
+  for (let i = scenes.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [scenes[i], scenes[j]] = [scenes[j], scenes[i]];
+  }
+
+  const tryScene = (index) => {
+    const scene = scenes[index];
+    if (!scene) return;
+
+    const probe = new Image();
+    probe.onload = () => {
+      background.style.opacity = "0.72";
+      requestAnimationFrame(() => {
+        background.src = scene.image;
+        applyLoadingScene(scene);
+        background.style.opacity = "1";
+      });
+    };
+    probe.onerror = () => tryScene(index + 1);
+    probe.src = scene.image;
+  };
+
+  tryScene(0);
+}
+
 // Player-facing loading state. Progress only advances when a real boot milestone completes.
 window.updateLoadingState = function ({ progress, title, detail } = {}) {
   const overlay = document.getElementById("system-loading-overlay");
   if (!overlay) return;
 
-  const bar = overlay.querySelector(".loading-bar");
   const progressBar = overlay.querySelector(".loading-bar-container");
   const progressText = document.getElementById("system-loading-progress-text");
   const indicator = document.getElementById("system-loading-indicator");
@@ -655,7 +761,7 @@ window.updateLoadingState = function ({ progress, title, detail } = {}) {
   overlay.classList.remove("is-error");
   overlay.setAttribute("aria-busy", next < 100 ? "true" : "false");
 
-  if (bar) bar.style.width = `${next}%`;
+  syncLoadingSegments(next);
   if (progressBar) progressBar.setAttribute("aria-valuenow", String(next));
   if (progressText) progressText.textContent = `${Math.round(next)}%`;
   if (indicator && title) indicator.textContent = title;
@@ -1014,6 +1120,7 @@ function updatePlayerDeviceNumberUI(data = window.datosJugador) {
 }
 
 async function runBootSequence() {
+  initializeLoadingPresentation();
   try {
     // STEP 1: Verificación (Auth)
     window.updateLoadingState({
