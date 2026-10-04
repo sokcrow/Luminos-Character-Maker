@@ -452,10 +452,12 @@
 }
 
 @media(max-width:1024px){
-  #inventory-modal.inventory-v2-ready .item-detail-card.active{
+  #inventory-modal.inventory-v2-ready .item-detail-card{
     width:100%;
     min-width:0;
     max-width:none;
+  }
+  #inventory-modal.inventory-v2-ready .item-detail-card.active{
     grid-template-columns:88px minmax(0,1fr);
     gap:11px;
   }
