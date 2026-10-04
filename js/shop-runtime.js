@@ -6,7 +6,7 @@
     return;
   }
 
-  const VERSION = 6;
+  const VERSION = 7;
   const CURRENCY = "AHN";
   const BASE_PURCHASE_MARKUP = 1.40;
   const BASE_SELLBACK_MULTIPLIER = 0.80;
