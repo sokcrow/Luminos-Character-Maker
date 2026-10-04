@@ -239,7 +239,14 @@
 
   let tries=0;const timer=global.setInterval(()=>{tries++;if(start()||tries>120)global.clearInterval(timer)},250);
   global.addEventListener('luminous:combat073-runtime-ready',()=>{patchLegacySpeedRollers();refreshRuntimeSpeedView();});
-  global.addEventListener('luminous:combat073-hydrated',()=>{patchLegacySpeedRollers();refreshRuntimeSpeedView();});
+  global.addEventListener('luminous:combat073-hydrated',()=>{
+    patchLegacySpeedRollers();
+    // Hydration rebuilds runtime combatants from canonical snapshots. Re-apply
+    // the already-rolled Speed formation even within the same round so unrelated
+    // live updates (for example Player Active Inventory) cannot restore stale x/y.
+    if(state.roundReady)state.lastFormationRound=0;
+    refreshRuntimeSpeedView();
+  });
   global.addEventListener('beforeunload',stop,{once:true});
   global.LuminousCombatSpeedAuthority073=Object.freeze({state,start,stop,rangeFor,rollFor,speedSignature,runtimeCombatants,canonicalRowFor,syncRuntimeSpeedsFromCanonical,canonicalRoundComplete,applyRoundSideEffectsOnce,refreshRuntimeSpeedView,patchLegacySpeedRollers,ensureRoundSpeeds,forceRuntimeRefresh});
 })(window);
