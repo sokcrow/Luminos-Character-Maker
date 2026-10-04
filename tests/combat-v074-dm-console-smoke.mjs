@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 
@@ -165,11 +166,67 @@ assert.equal(secondUnit.conditionEncounterEnded, true);
 assert.equal(dmApi.normalizeEncounterResult('win'), 'victory');
 assert.equal(dmApi.normalizeEncounterResult('lose'), 'defeat');
 
-const EncounterLifecycle = require('../js/combat-encounter-lifecycle.js');
-assert.equal(EncounterLifecycle.version, '1.0.0');
+const EncounterLifecycleModule = require('../js/combat-encounter-lifecycle.js');
+const EncounterLifecycle = EncounterLifecycleModule?.version ? EncounterLifecycleModule : globalThis.LuminousCombatEncounterLifecycle;
+assert.equal(EncounterLifecycle.version, '1.1.0');
 assert.equal(EncounterLifecycle.normalizeResult('won'), 'victory');
 assert.equal(EncounterLifecycle.normalizeResult('loss'), 'defeat');
 assert.equal(EncounterLifecycle.isEncounterEnded({ phase: 'ENDED', result: 'victory' }), true);
+assert.equal(EncounterLifecycle.RESULT_IMAGES.victory, 'Assets/Images/Combat/Victory_Battle_Result.png');
+assert.equal(EncounterLifecycle.RESULT_IMAGES.defeat, 'Assets/Images/Combat/Defeat_Battle_Result.png');
+assert.equal(Object.values(EncounterLifecycle.RESULT_IMAGES).some((url) => /^https?:/i.test(url)), false);
+assert.equal(EncounterLifecycle.applyState({ phase: 'ENDED', active: false, result: 'victory', transition: 'blackout' }).transition, 'blackout');
+
+const pngSignature = '89504e470d0a1a0a';
+const victoryPng = fs.readFileSync(new URL('../Assets/Images/Combat/Victory_Battle_Result.png', import.meta.url));
+const defeatPng = fs.readFileSync(new URL('../Assets/Images/Combat/Defeat_Battle_Result.png', import.meta.url));
+assert.equal(victoryPng.subarray(0, 8).toString('hex'), pngSignature);
+assert.equal(defeatPng.subarray(0, 8).toString('hex'), pngSignature);
+assert.ok(victoryPng.length > 100000);
+assert.ok(defeatPng.length > 100000);
+
+const encounterWrites = [];
+let encounterCombatants = {
+  alpha: { id: 'alpha', hp: 20, maxHp: 20, statusEffects: {} },
+  beta: { id: 'beta', hp: 20, maxHp: 20, statusEffects: {} },
+};
+const fakeDb = {
+  ref(path) {
+    if (path === dmApi.ROOTS.combatants) {
+      return {
+        async transaction(mutator) {
+          encounterCombatants = mutator(encounterCombatants);
+          return { committed: true, snapshot: { val: () => encounterCombatants } };
+        },
+      };
+    }
+    if (path === dmApi.ROOTS.audit) {
+      return {
+        push() {
+          return { set: async (value) => { encounterWrites.push({ op: 'audit', path, value }); } };
+        },
+      };
+    }
+    return {
+      async update(value) { encounterWrites.push({ op: 'update', path, value }); },
+      async set(value) { encounterWrites.push({ op: 'set', path, value }); },
+    };
+  },
+};
+dmApi._state.db = fakeDb;
+const finished = await dmApi.finishEncounter('victory', { confirm: false, displayMs: 0, blackoutMs: 0 });
+assert.equal(finished.result, 'victory');
+assert.equal(finished.transition, 'blackout');
+assert.equal(finished.nextInstance, 'teatro');
+const stateUpdates = encounterWrites.filter((entry) => entry.op === 'update' && entry.path === dmApi.ROOTS.state);
+assert.equal(stateUpdates.length, 2);
+assert.equal(stateUpdates[0].value.transition, 'result');
+assert.equal(stateUpdates[0].value.phase, 'ENDED');
+assert.equal(stateUpdates[0].value.active, false);
+assert.equal(stateUpdates[1].value.transition, 'blackout');
+assert.ok(encounterWrites.some((entry) => entry.op === 'set' && entry.path === dmApi.ROOTS.instance && entry.value === 'teatro'));
+assert.equal(encounterCombatants.alpha.encounterEnded, true);
+assert.equal(encounterCombatants.beta.encounterEnded, true);
 
 const firebaseSafe = dmApi.sanitizeForFirebase({ a: 1, fn() {}, nested: { b: 2, skip: undefined } });
 assert.deepEqual(firebaseSafe, { a: 1, nested: { b: 2 } });
