@@ -6671,7 +6671,48 @@ window.processEntitiesData = function(entities) {
         let editModeTiendaKey = null;
 
         const marketEventRef = db.ref("campaña/economia/market_event");
-        const marketEventInputs = Array.from(document.querySelectorAll(".market-event-mod"));
+        let marketEventInputs = [];
+
+        function syncShopTypeControls() {
+          const types = Object.values(window.LuminousShopRuntime?.SHOP_TYPES || {});
+          const typeSelect = document.getElementById("tienda-tipo");
+          const modifiersRoot = document.getElementById("market-event-modifiers");
+
+          if (typeSelect && types.length) {
+            const previous = typeSelect.value || "general";
+            typeSelect.innerHTML = "";
+            types.forEach((meta) => {
+              const option = document.createElement("option");
+              option.value = meta.id;
+              option.textContent = meta.label;
+              typeSelect.appendChild(option);
+            });
+            typeSelect.value = types.some((meta) => meta.id === previous) ? previous : "general";
+          }
+
+          if (modifiersRoot && types.length) {
+            modifiersRoot.innerHTML = "";
+            types.forEach((meta) => {
+              const label = document.createElement("label");
+              label.textContent = meta.label;
+
+              const input = document.createElement("input");
+              input.className = "market-event-mod";
+              input.dataset.shopType = meta.id;
+              input.type = "number";
+              input.min = "-90";
+              input.max = "300";
+              input.step = "1";
+              input.value = "0";
+
+              modifiersRoot.append(label, input);
+            });
+          }
+
+          marketEventInputs = Array.from(document.querySelectorAll(".market-event-mod"));
+        }
+
+        syncShopTypeControls();
 
         function collectMarketModifiers() {
           const modifiers = {};
@@ -6689,13 +6730,13 @@ window.processEntitiesData = function(entities) {
           status.innerHTML = "";
 
           if (!eventData || eventData.active === false) {
-            status.textContent = "Sin evento económico activo.";
+            status.textContent = "Sin alteración de mercado activa.";
             status.style.color = "#777";
             return;
           }
 
           const title = document.createElement("div");
-          title.textContent = eventData.title || "Cambio de mercado";
+          title.textContent = eventData.title || "Variación de precios";
           title.style.cssText = "color:#fff;font-weight:bold;margin-bottom:6px;";
           status.appendChild(title);
 
@@ -6719,7 +6760,7 @@ window.processEntitiesData = function(entities) {
           if (eventData?.active !== false && eventData) {
             const titleInput = document.getElementById("market-event-title");
             const messageInput = document.getElementById("market-event-message");
-            if (titleInput) titleInput.value = eventData.title || "Cambio de mercado";
+            if (titleInput) titleInput.value = eventData.title || "Variación de precios";
             if (messageInput) messageInput.value = eventData.message || "";
             marketEventInputs.forEach((input) => {
               input.value = Number(eventData.modifiers?.[input.dataset.shopType]) || 0;
@@ -6740,7 +6781,7 @@ window.processEntitiesData = function(entities) {
             active: true,
             id: "market_" + now,
             revision: now,
-            title: document.getElementById("market-event-title")?.value.trim() || "Cambio de mercado",
+            title: document.getElementById("market-event-title")?.value.trim() || "Variación de precios",
             message: document.getElementById("market-event-message")?.value.trim() || "",
             modifiers,
             updatedAt: firebase.database.ServerValue.TIMESTAMP,
@@ -6749,7 +6790,7 @@ window.processEntitiesData = function(entities) {
           try {
             await marketEventRef.set(payload);
           } catch (error) {
-            alert("No se pudo publicar el evento de mercado: " + error);
+            alert("No se pudo publicar la alteración de mercado: " + error);
           }
         });
 
@@ -6761,7 +6802,7 @@ window.processEntitiesData = function(entities) {
               endedAt: firebase.database.ServerValue.TIMESTAMP,
             });
           } catch (error) {
-            alert("No se pudo finalizar el evento de mercado: " + error);
+            alert("No se pudo restablecer el mercado: " + error);
           }
         });
 
