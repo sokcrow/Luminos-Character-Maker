@@ -30,6 +30,8 @@ on:
       - 'js/inventory-hud-v2.js'
       - 'js/item-icon-registry.js'
       - 'js/item-inventory-runtime.js'
+      - 'js/shop-item-purchase-runtime.js'
+      - 'js/shop-runtime.js'
       - 'js/item-persistence-runtime.js'
       - 'css/dm-item-instance-editor.css'
       - 'css/dm-item-catalog-v2.css'
@@ -39,6 +41,8 @@ on:
       - 'tests/dm-item-catalog-core.spec.cjs'
       - 'tests/dm-local-item-manager-v3.spec.cjs'
       - 'tests/inventory-runtime-cutover.spec.cjs'
+      - 'tests/shop-item-purchase-runtime-smoke.mjs'
+      - 'tests/shop-runtime-smoke.cjs'
       - '.github/workflows/dm-inventory-grant-gui.yml'
 
 jobs:
@@ -66,9 +70,15 @@ jobs:
           node tests/dm-item-catalog-core.spec.cjs
           node --check js/inventory-hud-v2.js
           node --check js/item-inventory-runtime.js
+          node --check js/shop-item-purchase-runtime.js
+          node --check js/shop-runtime.js
           node --check js/item-persistence-runtime.js
       - name: Local item icon registry
         run: node tests/item-icon-registry-smoke.cjs
+      - name: Shop runtime smoke
+        run: |
+          node tests/shop-runtime-smoke.cjs
+          node tests/shop-item-purchase-runtime-smoke.mjs
       - name: Install Playwright
         run: |
           npm install --no-save @playwright/test@1.55.0
