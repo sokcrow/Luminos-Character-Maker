@@ -138,7 +138,7 @@ async function bootHarness(page) {
   await page.waitForFunction(() => window.LuminousInventoryHudV2?.state?.peer?.bound && document.querySelectorAll("#inv-active-grid [data-key]").length === 2);
 }
 
-test("HUD V2 owns rendering and creates the canonical 5x4 Active grid", async ({ page }) => {
+test("HUD V2 owns rendering and keeps 20 Active slots in readable cards", async ({ page }) => {
   await bootHarness(page);
   expect(await page.evaluate(() => typeof window.renderInventoryGrid)).toBe("undefined");
   await expect(page.locator(".inventory-v2-equipment")).toHaveCount(1);
@@ -150,7 +150,35 @@ test("HUD V2 owns rendering and creates the canonical 5x4 Active grid", async ({
   await expect(page.locator("#inventory-v2-carry-count")).toHaveText("02 / 20");
   await expect(page.locator("#inventory-v2-stash-count")).toContainText("01 / 80 SLOTS");
   const columns = await page.locator("#inv-active-grid").evaluate((el) => getComputedStyle(el).gridTemplateColumns.split(" ").filter(Boolean).length);
-  expect(columns).toBe(5);
+  expect(columns).toBe(4);
+  const name = page.locator('#inv-active-grid [data-key="blade_1"] .item-name');
+  await expect(name).toHaveText("Test Workshop Blade");
+  await expect(name).toBeVisible();
+  const style = await name.evaluate((el) => ({
+    whiteSpace: getComputedStyle(el).whiteSpace,
+    lineHeight: getComputedStyle(el).lineHeight,
+    width: el.getBoundingClientRect().width,
+    height: el.getBoundingClientRect().height,
+  }));
+  expect(style.whiteSpace).toBe("normal");
+  expect(style.width).toBeGreaterThan(40);
+  expect(style.height).toBeGreaterThan(8);
+});
+
+test("player item detail hides implementation metadata and only shows relevant state", async ({ page }) => {
+  await bootHarness(page);
+  await page.locator('#inv-active-grid [data-key="blade_1"]').click();
+
+  await expect(page.locator("#detail-title")).toHaveText("Test Workshop Blade");
+  await expect(page.locator("#detail-desc")).toHaveText("Instance presentation wins");
+  await expect(page.locator(".inventory-v2-player-facts")).toContainText("CONDITION");
+  await expect(page.locator(".inventory-v2-player-facts")).toContainText("90%");
+
+  const detailText = (await page.locator("#item-detail-card").innerText()).toUpperCase();
+  for (const forbidden of ["CATEGORY", "STACK", "QUALITY", "MANUFACTURER", "PRODUCT LINE", "SERIAL", "INSTANCE"]) {
+    expect(detailText).not.toContain(forbidden);
+  }
+  await expect(page.locator(".inventory-v2-item-category")).toHaveCount(0);
 });
 
 test("inventory runtime freezes 20/80 capacity and family stack limits", async ({ page }) => {
