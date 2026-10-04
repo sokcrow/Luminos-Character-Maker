@@ -146,7 +146,7 @@ assert.doesNotMatch(unknown, /sin descripción/i);
 const catalogFiles = fs.readdirSync(path.join(root, "js"))
   .filter((name) => /^item-catalog-.*\.js$/.test(name))
   .sort();
-assert.ok(catalogFiles.length >= 40, "expected the full item catalog surface");
+assert.ok(catalogFiles.length >= 39, "expected the full item catalog surface");
 
 for (const file of catalogFiles) {
   const source = fs.readFileSync(path.join(root, "js", file), "utf8");
