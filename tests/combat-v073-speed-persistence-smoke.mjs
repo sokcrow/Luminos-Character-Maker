@@ -3,6 +3,7 @@ import fs from 'node:fs';
 
 const viewer=fs.readFileSync('Battle-viewer.html','utf8');
 const speed=fs.readFileSync('js/combat-v073-speed-authority.js','utf8');
+const adapter=fs.readFileSync('js/combat-v073-live-adapter.js','utf8');
 
 assert.ok(viewer.includes('js/combat-v073-speed-authority.js'),'Viewer must load speed authority');
 assert.ok(speed.includes("adapterState()?.role==='dm'"),'only DM may author speed rolls');
@@ -23,7 +24,8 @@ assert.ok(!speed.includes("a.state.lastSignature=''"),'Speed refresh must not in
 assert.ok(!speed.includes('a.hydrateNow()'),'Speed refresh must not rebuild the Combat runtime or reset Player menus');
 assert.ok(speed.includes('refreshRuntimeSpeedView'),'persisted Speed changes must refresh the live runtime in place');
 assert.ok(speed.includes("global.addEventListener('luminous:combat073-hydrated',()=>{patchLegacySpeedRollers();refreshRuntimeSpeedView();})"),'real Combat hydration must apply canonical Speed formation/visibility without a manual roll');
-assert.ok(speed.includes('runtime()?.render?.()'),'in-place Speed refresh must repaint the battlefield');
+assert.ok(speed.includes('global.LuminousCombat073?.render?.()'),'in-place Speed refresh must repaint through the real Combat runtime');
+assert.ok(!speed.includes('runtime()?.render?.()'),'Speed refresh must not call an undefined runtime() helper');
 assert.ok(speed.includes('state.refreshTimer=global.setTimeout'),'speed-driven runtime refreshes must be debounced');
 assert.ok(!speed.includes('`${ROOT}/combatants/${key}`'),'speed authority must not issue one transaction per combatant');
 
@@ -34,6 +36,14 @@ const liveDeckPatch=patchStart>=0&&patchEnd>patchStart?viewer.slice(patchStart,p
 assert.ok(liveDeckPatch.includes('initializeBattleSP();ensureUnknownAISlots();'),'Patched viewer hydration must keep SP/AI initialization');
 assert.ok(!liveDeckPatch.includes('rollTurnSpeeds'),'Patched viewer hydration must remove the local rollTurnSpeeds call');
 assert.ok(viewer.includes('speedBaseRoll:Number(d.speedBaseRoll??d.speed)||0,speedRollTurn:Number(d.speedRollTurn)||0,speedTie:Number(d.speedTie)||0'),'Runtime spawn must preserve canonical Speed roll metadata instead of resetting it to zero');
+assert.ok(viewer.includes('confusionTurnMode:d.confusionTurnMode??null,proneSpeedRound:Number(d.proneSpeedRound)||0'),'Runtime spawn must preserve transient forced-Speed condition state');
+const hydrationStart=adapter.indexOf('function hydrationSignature');
+const hydrationEnd=adapter.indexOf('function setRoleUi',hydrationStart);
+const hydrationSource=hydrationStart>=0&&hydrationEnd>hydrationStart?adapter.slice(hydrationStart,hydrationEnd):'';
+assert.ok(!hydrationSource.includes('unit.speed,'),'speed-only changes must not invalidate the full Combat hydration signature');
+assert.ok(!hydrationSource.includes('unit.speedTie'),'speedTie-only changes must not invalidate the full Combat hydration signature');
+assert.ok(!hydrationSource.includes('unit.speedRollTurn'),'speedRollTurn-only changes must not invalidate the full Combat hydration signature');
+assert.ok(hydrationSource.includes('unit.proneSpeedRound')&&hydrationSource.includes('unit.confusionTurnMode'),'condition turn-state changes must still invalidate full hydration');
 assert.ok(speed.includes('roundReady:false'),'Speed authority must wait for the canonical round before authoring Speed');
 assert.ok(speed.includes('if(state.rolling||!state.roundReady||!state.db?.ref||!isDm())return false'),'DM Speed rolls must be blocked until Firebase round state is known');
 assert.ok(speed.includes('syncRuntimeSpeedsFromCanonical'),'legacy runtime Speed must be overwritten from canonical combatants');
