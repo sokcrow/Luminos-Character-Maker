@@ -39,52 +39,83 @@
 
   const SHOP_TYPES = Object.freeze({
     general: Object.freeze({
-      id: "general",
-      label: "Almacén General",
-      priceMultiplier: 1.00,
-      stockMultiplier: 1.25,
-      description: "Inventario amplio y disponibilidad por encima de la media.",
+      id: "general", label: "Almacén General", priceMultiplier: 1.00, stockMultiplier: 1.25,
+      description: "Comercio multipropósito con surtido amplio de bienes cotidianos.",
+    }),
+    convenience: Object.freeze({
+      id: "convenience", label: "Tienda de Conveniencia", priceMultiplier: 1.08, stockMultiplier: 0.95,
+      description: "Compra rápida, surtido corto y recargo por disponibilidad inmediata.",
+    }),
+    supermarket: Object.freeze({
+      id: "supermarket", label: "Supermercado", priceMultiplier: 0.96, stockMultiplier: 1.80,
+      description: "Alimentos, básicos y consumo cotidiano con alto volumen y margen menor.",
+    }),
+    wholesaler: Object.freeze({
+      id: "wholesaler", label: "Distribuidor / Mayorista", priceMultiplier: 0.90, stockMultiplier: 2.20,
+      description: "Proveedor de alto volumen para comercios, talleres y organizaciones.",
     }),
     provisions: Object.freeze({
-      id: "provisions",
-      label: "Provisiones",
-      priceMultiplier: 1.00,
-      stockMultiplier: 1.50,
+      id: "provisions", label: "Provisiones", priceMultiplier: 1.00, stockMultiplier: 1.50,
       description: "Comida, suministros y consumibles comunes con stock abundante.",
     }),
+    restaurant: Object.freeze({
+      id: "restaurant", label: "Restaurante / Comedor", priceMultiplier: 1.18, stockMultiplier: 0.80,
+      description: "Alimentos preparados y productos culinarios listos para consumo.",
+    }),
+    butcher: Object.freeze({
+      id: "butcher", label: "Carnicería", priceMultiplier: 1.03, stockMultiplier: 1.20,
+      description: "Carne, cortes y subproductos biológicos aptos para cocina o procesamiento.",
+    }),
     clinic: Object.freeze({
-      id: "clinic",
-      label: "Clínica / Farmacia",
-      priceMultiplier: 1.05,
-      stockMultiplier: 1.00,
-      description: "Medicina, curación y suministros especializados.",
+      id: "clinic", label: "Clínica", priceMultiplier: 1.05, stockMultiplier: 1.00,
+      description: "Atención médica y suministros de tratamiento inmediato.",
+    }),
+    pharmacy: Object.freeze({
+      id: "pharmacy", label: "Farmacia", priceMultiplier: 1.08, stockMultiplier: 1.15,
+      description: "Medicamentos, curación, antídotos y suministros farmacéuticos.",
     }),
     workshop: Object.freeze({
-      id: "workshop",
-      label: "Workshop",
-      priceMultiplier: 1.08,
-      stockMultiplier: 0.85,
+      id: "workshop", label: "Workshop", priceMultiplier: 1.08, stockMultiplier: 0.85,
       description: "Herramientas, componentes y equipo fabricado.",
     }),
+    hardware_store: Object.freeze({
+      id: "hardware_store", label: "Ferretería / Suministros", priceMultiplier: 1.02, stockMultiplier: 1.25,
+      description: "Herramientas, piezas estructurales, fijaciones y consumibles industriales.",
+    }),
+    electronics: Object.freeze({
+      id: "electronics", label: "Electrónica / Tecnología", priceMultiplier: 1.15, stockMultiplier: 0.70,
+      description: "Componentes eléctricos, circuitos, sensores, óptica y precisión.",
+    }),
     arms_dealer: Object.freeze({
-      id: "arms_dealer",
-      label: "Armería",
-      priceMultiplier: 1.12,
-      stockMultiplier: 0.75,
+      id: "arms_dealer", label: "Armería", priceMultiplier: 1.12, stockMultiplier: 0.75,
       description: "Armas, armaduras, munición y equipo de combate.",
     }),
+    jeweler: Object.freeze({
+      id: "jeweler", label: "Joyería", priceMultiplier: 1.18, stockMultiplier: 0.60,
+      description: "Joyas, gemas, metales refinados y objetos de valor.",
+    }),
+    pawnshop: Object.freeze({
+      id: "pawnshop", label: "Casa de Empeño", priceMultiplier: 0.95, stockMultiplier: 0.70,
+      description: "Bienes usados, herramientas, equipo y valuables de procedencia variable.",
+    }),
+    salvage: Object.freeze({
+      id: "salvage", label: "Chatarrería / Recuperación", priceMultiplier: 0.88, stockMultiplier: 1.10,
+      description: "Material recuperado, piezas, componentes y recursos de segunda mano.",
+    }),
+    corporate_outlet: Object.freeze({
+      id: "corporate_outlet", label: "Tienda Corporativa", priceMultiplier: 1.10, stockMultiplier: 0.90,
+      description: "Suministro técnico y productos de línea corporativa o de alta precisión.",
+    }),
+    automated_vendor: Object.freeze({
+      id: "automated_vendor", label: "Punto Automatizado", priceMultiplier: 1.12, stockMultiplier: 0.65,
+      description: "Venta automática de consumibles y suministros de uso inmediato.",
+    }),
     specialist: Object.freeze({
-      id: "specialist",
-      label: "Especialista",
-      priceMultiplier: 1.18,
-      stockMultiplier: 0.55,
+      id: "specialist", label: "Especialista", priceMultiplier: 1.18, stockMultiplier: 0.55,
       description: "Bienes raros, técnicos o de nicho con disponibilidad limitada.",
     }),
     black_market: Object.freeze({
-      id: "black_market",
-      label: "Mercado Negro",
-      priceMultiplier: 1.25,
-      stockMultiplier: 0.35,
+      id: "black_market", label: "Mercado Negro", priceMultiplier: 1.25, stockMultiplier: 0.35,
       description: "Mercancía escasa o restringida a precios de riesgo.",
     }),
   });
@@ -95,70 +126,103 @@
     general: Object.freeze({
       primary: Object.freeze(["food", "culinary_staples", "plant_produce", "tools", "medical_supply"]),
       secondary: Object.freeze(["craft_components", "chemical_raw", "medicinal_raw", "healing_hp", "healing_sp", "status_cure"]),
-      primaryStockMultiplier: 1.00,
-      secondaryStockMultiplier: 0.70,
+      primaryStockMultiplier: 1.00, secondaryStockMultiplier: 0.70,
+    }),
+    convenience: Object.freeze({
+      primary: Object.freeze(["retail_food", "food", "healing_hp", "medical_supply", "status_cure"]),
+      secondary: Object.freeze(["tools", "culinary_staples", "plant_produce", "firearm_ammunition", "ammo"]),
+      primaryStockMultiplier: 1.00, secondaryStockMultiplier: 0.45,
+    }),
+    supermarket: Object.freeze({
+      primary: Object.freeze(["retail_food", "food", "culinary_staples", "plant_produce", "meat"]),
+      secondary: Object.freeze(["medical_supply", "healing_hp", "tools", "processed_textile", "container", "cleaning_compound"]),
+      primaryStockMultiplier: 1.20, secondaryStockMultiplier: 0.70,
+    }),
+    wholesaler: Object.freeze({
+      primary: Object.freeze(["food", "culinary_staples", "plant_produce", "meat", "craft_components", "medical_supply", "chemical_raw", "medicinal_raw"]),
+      secondary: Object.freeze(["tools", "chemical_processed", "medicinal_processed", "ore_ingot_gem"]),
+      primaryStockMultiplier: 1.35, secondaryStockMultiplier: 0.90,
     }),
     provisions: Object.freeze({
       primary: Object.freeze(["food", "culinary_staples", "plant_produce", "meat"]),
       secondary: Object.freeze(["medical_supply", "healing_hp", "tools", "medicinal_raw"]),
-      primaryStockMultiplier: 1.15,
-      secondaryStockMultiplier: 0.65,
+      primaryStockMultiplier: 1.15, secondaryStockMultiplier: 0.65,
+    }),
+    restaurant: Object.freeze({
+      primary: Object.freeze(["retail_food", "food", "meat", "plant_produce", "culinary_staples"]),
+      secondary: Object.freeze(["container"]),
+      primaryStockMultiplier: 0.95, secondaryStockMultiplier: 0.35,
+    }),
+    butcher: Object.freeze({
+      primary: Object.freeze(["meat", "raw_meat", "hide_pelt"]),
+      secondary: Object.freeze(["organ_gland", "blood_ichor", "culinary_staples"]),
+      primaryStockMultiplier: 1.10, secondaryStockMultiplier: 0.55,
     }),
     clinic: Object.freeze({
       primary: Object.freeze(["healing_hp", "healing_sp", "healing_hybrid", "status_cure", "medical_supply"]),
       secondary: Object.freeze(["medicinal_raw", "medicinal_processed", "blood_ichor", "organ_gland"]),
-      primaryStockMultiplier: 1.00,
-      secondaryStockMultiplier: 0.60,
+      primaryStockMultiplier: 1.00, secondaryStockMultiplier: 0.60,
+    }),
+    pharmacy: Object.freeze({
+      primary: Object.freeze(["healing_hp", "healing_sp", "healing_hybrid", "status_cure", "medical_supply", "medicinal_processed"]),
+      secondary: Object.freeze(["medicinal_raw", "antitoxin_base", "pharmaceutical_powder", "medical_gel_base"]),
+      primaryStockMultiplier: 1.10, secondaryStockMultiplier: 0.65,
     }),
     workshop: Object.freeze({
       primary: Object.freeze(["tools", "craft_components", "ore_ingot_gem", "chemical_raw", "chemical_processed"]),
-      secondary: Object.freeze([
-        "armor_components", "weapon_components", "firearm_components", "ranged_weapon_components",
-        "shield_components", "throwable_components", "armor_upgrades", "shield_upgrades",
-        "weapon_upgrade", "armor_upgrade", "shield_upgrade", "weapon_component",
-        "armor_component", "shield_component", "component", "hide_pelt", "scale_shell_chitin",
-        "feather_raw_fiber", "hard_parts"
-      ]),
-      primaryStockMultiplier: 1.00,
-      secondaryStockMultiplier: 0.65,
+      secondary: Object.freeze(["armor_components", "weapon_components", "firearm_components", "ranged_weapon_components", "shield_components", "throwable_components", "armor_upgrades", "shield_upgrades", "weapon_upgrade", "armor_upgrade", "shield_upgrade", "weapon_component", "armor_component", "shield_component", "component", "hide_pelt", "scale_shell_chitin", "feather_raw_fiber", "hard_parts"]),
+      primaryStockMultiplier: 1.00, secondaryStockMultiplier: 0.65,
+    }),
+    hardware_store: Object.freeze({
+      primary: Object.freeze(["tools", "craft_components", "fasteners_hardware", "structural_stock", "mechanical_parts", "adhesive_binder_sealant"]),
+      secondary: Object.freeze(["ore_ingot_gem", "armor_components", "weapon_components", "shield_components", "chemical_raw", "chemical_processed"]),
+      primaryStockMultiplier: 1.10, secondaryStockMultiplier: 0.70,
+    }),
+    electronics: Object.freeze({
+      primary: Object.freeze(["electronic_parts", "electrical_component", "circuitry", "sensor_component", "precision_component", "optical_component", "calibration_component", "tools"]),
+      secondary: Object.freeze(["craft_components", "chemical_processed", "corp_wing_precision_component"]),
+      primaryStockMultiplier: 0.95, secondaryStockMultiplier: 0.55,
     }),
     arms_dealer: Object.freeze({
-      primary: Object.freeze([
-        "weapons", "weapon", "firearm_ammunition", "ammo_component", "weapon_components",
-        "firearm_components", "ranged_weapon_components", "armor_components", "shield_components",
-        "armor", "shield", "ammo"
-      ]),
-      secondary: Object.freeze([
-        "throwable_components", "armor_upgrades", "shield_upgrades", "weapon_upgrade",
-        "armor_upgrade", "shield_upgrade", "weapon_component", "armor_component", "shield_component"
-      ]),
-      primaryStockMultiplier: 1.00,
-      secondaryStockMultiplier: 0.55,
+      primary: Object.freeze(["weapons", "weapon", "firearm_ammunition", "ammo_component", "weapon_components", "firearm_components", "ranged_weapon_components", "armor_components", "shield_components", "armor", "shield", "ammo"]),
+      secondary: Object.freeze(["throwable_components", "armor_upgrades", "shield_upgrades", "weapon_upgrade", "armor_upgrade", "shield_upgrade", "weapon_component", "armor_component", "shield_component"]),
+      primaryStockMultiplier: 1.00, secondaryStockMultiplier: 0.55,
+    }),
+    jeweler: Object.freeze({
+      primary: Object.freeze(["jewelry_valuables", "jewelry", "valuable", "cut_gem", "gem", "gemstone"]),
+      secondary: Object.freeze(["ore_ingot_gem", "refined_metal", "alloy"]),
+      primaryStockMultiplier: 0.90, secondaryStockMultiplier: 0.55,
+    }),
+    pawnshop: Object.freeze({
+      primary: Object.freeze(["valuable", "jewelry_valuables", "tools", "weapons", "weapon", "armor", "shield"]),
+      secondary: Object.freeze(["ore_ingot_gem", "medical_supply"]),
+      primaryStockMultiplier: 0.75, secondaryStockMultiplier: 0.45,
+    }),
+    salvage: Object.freeze({
+      primary: Object.freeze(["craft_components", "ore_ingot_gem", "hide_pelt", "scale_shell_chitin", "feather_raw_fiber", "hard_parts"]),
+      secondary: Object.freeze(["weapon_components", "armor_components", "shield_components", "firearm_components", "ranged_weapon_components", "chemical_raw"]),
+      primaryStockMultiplier: 1.05, secondaryStockMultiplier: 0.70,
+    }),
+    corporate_outlet: Object.freeze({
+      primary: Object.freeze(["corp_wing_precision_component", "exotic_industrial_component", "precision_component", "electronic_parts", "tools", "medical_supply"]),
+      secondary: Object.freeze(["weapon_components", "armor_upgrades", "weapon_upgrade", "ore_ingot_gem", "chemical_processed"]),
+      primaryStockMultiplier: 0.90, secondaryStockMultiplier: 0.50,
+    }),
+    automated_vendor: Object.freeze({
+      primary: Object.freeze(["retail_food", "food", "healing_hp", "healing_sp", "medical_supply", "firearm_ammunition", "ammo"]),
+      secondary: Object.freeze(["status_cure", "tools"]),
+      primaryStockMultiplier: 0.80, secondaryStockMultiplier: 0.35,
     }),
     specialist: Object.freeze({
       primary: Object.freeze(["jewelry_valuables", "valuable", "essence_core", "ooze_gel", "venom_secretion", "organ_gland", "blood_ichor"]),
-      secondary: Object.freeze([
-        "medicinal_processed", "chemical_processed", "armor_upgrades", "shield_upgrades",
-        "weapon_upgrade", "armor_upgrade", "shield_upgrade", "ore_ingot_gem", "tools"
-      ]),
-      primaryStockMultiplier: 0.85,
-      secondaryStockMultiplier: 0.50,
+      secondary: Object.freeze(["medicinal_processed", "chemical_processed", "armor_upgrades", "shield_upgrades", "weapon_upgrade", "armor_upgrade", "shield_upgrade", "ore_ingot_gem", "tools"]),
+      primaryStockMultiplier: 0.85, secondaryStockMultiplier: 0.50,
     }),
     black_market: Object.freeze({
-      primary: Object.freeze([
-        "weapons", "weapon", "firearm_ammunition", "ammo_component", "throwable_components",
-        "venom_secretion", "blood_ichor", "organ_gland", "essence_core", "jewelry_valuables", "valuable"
-      ]),
-      secondary: Object.freeze([
-        "chemical_processed", "medicinal_processed", "healing_hybrid", "status_cure",
-        "weapon_components", "firearm_components", "ranged_weapon_components",
-        "armor_components", "shield_components", "armor_upgrades", "shield_upgrades",
-        "weapon_upgrade", "armor_upgrade", "shield_upgrade"
-      ]),
-      primaryStockMultiplier: 0.70,
-      secondaryStockMultiplier: 0.45,
-      highTierFallbackStockMultiplier: 0.35,
-      highTierFallbackMinTier: 4,
+      primary: Object.freeze(["weapons", "weapon", "firearm_ammunition", "ammo_component", "throwable_components", "venom_secretion", "blood_ichor", "organ_gland", "essence_core", "jewelry_valuables", "valuable"]),
+      secondary: Object.freeze(["chemical_processed", "medicinal_processed", "healing_hybrid", "status_cure", "weapon_components", "firearm_components", "ranged_weapon_components", "armor_components", "shield_components", "armor_upgrades", "shield_upgrades", "weapon_upgrade", "armor_upgrade", "shield_upgrade"]),
+      primaryStockMultiplier: 0.70, secondaryStockMultiplier: 0.45,
+      highTierFallbackStockMultiplier: 0.35, highTierFallbackMinTier: 4,
     }),
   });
 
@@ -199,6 +263,7 @@
       item.id, item.definitionId, item.canonicalId, item.family, item.group,
       item.category, item.tipo, item.tipo_categoria, item.itemType, item.item_type,
       item.iconFamily, item.icon_family, item.toolCategory, item.processId,
+      item.form, item.processedForm, item.outputForm, item.materialClass,
       item.sourceLine, item.scope
     ].forEach(add);
 
