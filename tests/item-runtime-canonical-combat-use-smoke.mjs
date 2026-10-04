@@ -111,4 +111,66 @@ assert.deepEqual(
 );
 assert.equal(cureItem.quantity, 0);
 
+const zeroCountUnit = {
+  id: 'zero-count-unit',
+  hp: 10,
+  hp_max: 10,
+  statusEffects: {},
+};
+statuses.applyStatus(zeroCountUnit, 'bleed', { mode: 'set', count: 1, potency: 5 });
+const zeroCountItem = {
+  instanceId: 'zero-count-cure',
+  definitionId: 'cure_bleed_zero_count',
+  category: 'consumable',
+  quantity: 1,
+  runtime: {
+    actionCost: 'action',
+    targetMode: 'self',
+    consumeQty: 1,
+    handler: 'status_cure',
+    effects: { statusAdjustments: [{ statusId: 'bleed', countDelta: -3, potencyDelta: -1 }] },
+  },
+};
+const zeroCountUse = runtime.useItem(zeroCountUnit, zeroCountItem, { phase: 'combat', ignoreActionCost: true });
+assert.equal(zeroCountUse.used, true);
+assert.equal(statuses.getStatus(zeroCountUnit, 'bleed'), null, 'Bleed must be removed when Count reaches zero even if Potency would remain');
+assert.equal(zeroCountItem.quantity, 0);
+
+const regenUnit = {
+  id: 'regen-unit',
+  hp: 20,
+  hp_max: 100,
+};
+const regenItem = {
+  instanceId: 'regen-live',
+  definitionId: 'hp_generic_slowburn_strip',
+  category: 'consumable',
+  quantity: 1,
+  runtime: {
+    actionCost: 'action',
+    targetMode: 'self',
+    consumeQty: 1,
+    healing: {
+      flat: 1,
+      maxHpPercent: 2,
+      capMaxHpPercent: 30,
+      regen: { turns: 2, tick: 'turn_start', flatPerTurn: 1, maxHpPercentPerTurn: 1 },
+    },
+  },
+};
+const regenUse = runtime.useItem(regenUnit, regenItem, { phase: 'combat', ignoreActionCost: true });
+assert.equal(regenUse.used, true);
+assert.equal(regenUnit.hp, 23, 'regen item must apply immediate canonical healing first');
+assert.equal(regenUnit.itemRuntimeEffects.length, 1, 'regen item must schedule a turn-start effect');
+let ticks = runtime.processTurnStartEffects(regenUnit, { round: 1 });
+assert.equal(ticks.length, 1);
+assert.equal(regenUnit.hp, 25, 'first regeneration turn must heal');
+ticks = runtime.processTurnStartEffects(regenUnit, { round: 1 });
+assert.equal(ticks.length, 0, 'same-round duplicate turn-start hooks must not double tick regeneration');
+assert.equal(regenUnit.hp, 25);
+ticks = runtime.processTurnStartEffects(regenUnit, { round: 2 });
+assert.equal(ticks.length, 1);
+assert.equal(regenUnit.hp, 27, 'second regeneration turn must heal');
+assert.equal(regenUnit.itemRuntimeEffects.length, 0, 'regeneration effect must expire after its declared turns');
+
 console.log('canonical Combat ItemRuntime use smoke: ok');
