@@ -19,7 +19,7 @@ assert.ok(speed.includes('state.refreshTimer=global.setTimeout'),'speed-driven r
 assert.ok(!speed.includes('`${ROOT}/combatants/${key}`'),'speed authority must not issue one transaction per combatant');
 
 assert.ok(viewer.includes('initializeBattleSP();ensureUnknownAISlots();'),'Viewer hydration must initialize SP without rerolling Speed');
-assert.ok(!viewer.includes('initializeBattleSP();rollTurnSpeeds(round);ensureUnknownAISlots();'),'Viewer hydration must never locally reroll canonical Speed');
+assert.ok(viewer.includes("const liveDeckPatch=\`  resetPlayerDeckForUnit(PLAYER_ID);\\n  initializeBattleSP();ensureUnknownAISlots();\`;"),'Patched viewer hydration must remove the local rollTurnSpeeds call');
 assert.ok(speed.includes('roundReady:false'),'Speed authority must wait for the canonical round before authoring Speed');
 assert.ok(speed.includes('if(state.rolling||!state.roundReady||!state.db?.ref||!isDm())return false'),'DM Speed rolls must be blocked until Firebase round state is known');
 assert.ok(speed.includes('syncRuntimeSpeedsFromCanonical'),'legacy runtime Speed must be overwritten from canonical combatants');
