@@ -6657,6 +6657,7 @@ window.processEntitiesData = function(entities) {
               window.dbItemsCache = localItems;
               dbItemsCache = localItems;
               window.dbRecipesCache = window.dbRecipesCache || {};
+              refreshPromotionProductOptions();
               const summary = document.getElementById("dm-content-registry-counts");
               if (summary) {
                 summary.textContent = Object.keys(localItems).length + " Items locales · carga directa · Firebase no bloquea";
@@ -6695,6 +6696,7 @@ window.processEntitiesData = function(entities) {
             window.dbItemsCache = snapshot.items || {};
             window.dbRecipesCache = snapshot.recipes || {};
             dbItemsCache = window.dbItemsCache;
+            refreshPromotionProductOptions();
 
             const summary = document.getElementById("dm-content-registry-counts");
             if (summary) {
@@ -6807,6 +6809,7 @@ window.processEntitiesData = function(entities) {
 
         const marketEventRef = db.ref("campaña/economia/market_event");
         let marketEventInputs = [];
+        let shopPromotionsDraft = [];
 
         function syncShopTypeControls() {
           const types = Object.values(window.LuminousShopRuntime?.SHOP_TYPES || {});
@@ -6857,6 +6860,155 @@ window.processEntitiesData = function(entities) {
             .replace(/^_+|_+$/g, "");
         }
 
+        function promotionCompatibleItems() {
+          const runtime = window.LuminousShopRuntime;
+          const catalog = window.dbItemsCache || {};
+          const shop = {
+            shop_type: document.getElementById("tienda-tipo")?.value || "general",
+            shop_tier:
+              parseInt(document.getElementById("tienda-tier")?.value, 10) || 1,
+          };
+
+          return Object.entries(catalog)
+            .map(([id, raw]) => {
+              const seed = { ...raw, id: raw.id || id };
+              const item = runtime?.materializeReferenceItem
+                ? runtime.materializeReferenceItem(seed)
+                : seed;
+              return { id, item };
+            })
+            .filter(({ item }) => {
+              if (!item) return false;
+              const availability = runtime?.itemAvailability?.(item, shop);
+              return availability ? availability.available === true : true;
+            })
+            .sort((a, b) =>
+              String(a.item.nombre || a.item.name || a.id).localeCompare(
+                String(b.item.nombre || b.item.name || b.id),
+                "es",
+              ),
+            );
+        }
+
+        function refreshPromotionProductOptions() {
+          const target = document.getElementById("tienda-promocion-producto");
+          const reward = document.getElementById("tienda-promocion-regalo");
+          if (!target || !reward) return;
+
+          const previousTarget = target.value;
+          const previousReward = reward.value;
+          const items = promotionCompatibleItems();
+
+          target.innerHTML = '<option value="">Toda la tienda</option>';
+          reward.innerHTML = '<option value="">Producto de regalo...</option>';
+
+          for (const { id, item } of items) {
+            const label = String(item.nombre || item.name || id);
+            const targetOption = document.createElement("option");
+            targetOption.value = id;
+            targetOption.textContent = label;
+            target.appendChild(targetOption);
+
+            const rewardOption = document.createElement("option");
+            rewardOption.value = id;
+            rewardOption.textContent = label;
+            reward.appendChild(rewardOption);
+          }
+
+          if ([...target.options].some((option) => option.value === previousTarget)) {
+            target.value = previousTarget;
+          }
+          if ([...reward.options].some((option) => option.value === previousReward)) {
+            reward.value = previousReward;
+          }
+        }
+
+        function syncPromotionBuilder() {
+          const type =
+            document.getElementById("tienda-promocion-tipo")?.value ||
+            "percent_discount";
+          const discount = document.getElementById("tienda-promocion-descuento");
+          const rewardRow = document.getElementById("tienda-promocion-recompensa");
+          const quantity = document.getElementById("tienda-promocion-cantidad");
+          const target = document.getElementById("tienda-promocion-producto");
+
+          if (discount) {
+            discount.style.display =
+              type === "percent_discount" ? "block" : "none";
+          }
+          if (rewardRow) {
+            rewardRow.style.display =
+              type === "percent_discount" ? "none" : "grid";
+          }
+          if (quantity) {
+            quantity.style.display = type === "buy_x_get_y" ? "block" : "none";
+            if (type !== "buy_x_get_y") quantity.value = "1";
+          }
+          if (target?.options?.length) {
+            target.options[0].textContent =
+              type === "percent_discount"
+                ? "Toda la tienda"
+                : "Producto que activa la oferta...";
+          }
+        }
+
+        function promotionDraftLabel(promotion = {}) {
+          if (promotion.label) return promotion.label;
+          if (promotion.type === "percent_discount") {
+            return String(promotion.discount_percent || 0) + "% de descuento";
+          }
+          if (promotion.type === "buy_x_get_y") {
+            return "Compra " + String(promotion.buy_quantity || 1) + " y recibe un producto";
+          }
+          return "Regalo con compra";
+        }
+
+        function renderShopPromotionsDraft() {
+          const root = document.getElementById("tienda-promociones-list");
+          if (!root) return;
+          root.innerHTML = "";
+
+          if (!shopPromotionsDraft.length) {
+            const empty = document.createElement("div");
+            empty.style.cssText = "font-size:11px;color:#666;";
+            empty.textContent = "Sin promociones configuradas.";
+            root.appendChild(empty);
+            return;
+          }
+
+          shopPromotionsDraft.forEach((promotion, index) => {
+            const row = document.createElement("div");
+            row.style.cssText =
+              "display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 8px;border:1px solid #333;background:#111;";
+            const text = document.createElement("span");
+            text.style.cssText = "color:#ddd;font-size:12px;";
+            text.textContent = promotionDraftLabel(promotion);
+
+            const remove = document.createElement("button");
+            remove.type = "button";
+            remove.className = "btn-cyber";
+            remove.style.cssText = "padding:3px 7px;font-size:11px;";
+            remove.textContent = "Quitar";
+            remove.addEventListener("click", () => {
+              shopPromotionsDraft.splice(index, 1);
+              renderShopPromotionsDraft();
+            });
+
+            row.append(text, remove);
+            root.appendChild(row);
+          });
+        }
+
+        function selectedPromotionProduct(selectId) {
+          const select = document.getElementById(selectId);
+          if (!select || !select.value) return null;
+          const option = select.options[select.selectedIndex];
+          return {
+            id: select.value,
+            name: option?.textContent?.trim() || "Producto",
+          };
+        }
+
         function syncShopCommerceControls(options = {}) {
           const npcEnabled = !!document.getElementById("tienda-npc-activa")?.checked;
           const npcPanel = document.getElementById("tienda-npc-opciones");
@@ -6876,6 +7028,8 @@ window.processEntitiesData = function(entities) {
               );
             }
           }
+          refreshPromotionProductOptions();
+          syncPromotionBuilder();
         }
 
         document.getElementById("tienda-npc-activa")?.addEventListener("change", function () {
@@ -6886,6 +7040,69 @@ window.processEntitiesData = function(entities) {
         });
         document.getElementById("tienda-tipo")?.addEventListener("change", function () {
           syncShopCommerceControls({ useTypeDefault: true });
+        });
+        document.getElementById("tienda-tier")?.addEventListener("change", function () {
+          refreshPromotionProductOptions();
+        });
+        document.getElementById("tienda-promocion-tipo")?.addEventListener("change", function () {
+          syncPromotionBuilder();
+        });
+        document.getElementById("btn-agregar-promocion-tienda")?.addEventListener("click", function () {
+          const type =
+            document.getElementById("tienda-promocion-tipo")?.value ||
+            "percent_discount";
+          const target = selectedPromotionProduct("tienda-promocion-producto");
+          const reward = selectedPromotionProduct("tienda-promocion-regalo");
+          const discount = Math.max(
+            1,
+            Math.min(
+              90,
+              parseFloat(document.getElementById("tienda-promocion-descuento")?.value) || 10,
+            ),
+          );
+          const buyQuantity = Math.max(
+            1,
+            parseInt(document.getElementById("tienda-promocion-cantidad")?.value, 10) || 1,
+          );
+
+          if (type !== "percent_discount" && !target) {
+            alert("Selecciona el producto que activa la promoción.");
+            return;
+          }
+          if (type !== "percent_discount" && !reward) {
+            alert("Selecciona el producto que recibe el jugador.");
+            return;
+          }
+
+          const promotion = {
+            id: "promo_" + Date.now() + "_" + shopPromotionsDraft.length,
+            type,
+            active: true,
+            scope: target ? "item" : "all",
+            item_ids: target ? [target.id] : [],
+            stackable: false,
+          };
+
+          if (type === "percent_discount") {
+            promotion.discount_percent = discount;
+            promotion.label = target
+              ? discount + "% menos en " + target.name
+              : discount + "% menos en toda la tienda";
+          } else if (type === "buy_x_get_y") {
+            promotion.buy_quantity = buyQuantity;
+            promotion.reward_item_id = reward.id;
+            promotion.reward_quantity = 1;
+            promotion.label =
+              "Compra " + buyQuantity + " × " + target.name + " y recibe " + reward.name;
+          } else {
+            promotion.reward_item_id = reward.id;
+            promotion.reward_quantity = 1;
+            promotion.label =
+              "Compra " + target.name + " y recibe " + reward.name;
+          }
+
+          shopPromotionsDraft.push(promotion);
+          renderShopPromotionsDraft();
         });
 
         syncShopTypeControls();
@@ -7007,6 +7224,8 @@ window.processEntitiesData = function(entities) {
           document.getElementById("tienda-lealtad-nombre").value = "";
           document.getElementById("tienda-lealtad-compras").value = "9";
           document.getElementById("tienda-lealtad-alcance").value = "all";
+          shopPromotionsDraft = [];
+          renderShopPromotionsDraft();
           syncShopCommerceControls({ useTypeDefault: true });
           document.getElementById("btn-crear-tienda").innerText =
             "Crear Tienda";
@@ -7169,9 +7388,13 @@ window.processEntitiesData = function(entities) {
                     id: chainId,
                     name: chainName,
                     loyalty_program: loyaltyProgram,
+                    promotions: shopPromotionsDraft.map((promotion) => ({ ...promotion })),
                   }
                 : null,
               loyalty_program: chainName ? null : loyaltyProgram,
+              promotions: chainName
+                ? []
+                : shopPromotionsDraft.map((promotion) => ({ ...promotion })),
             };
 
             if (isEditing) {
@@ -7360,6 +7583,10 @@ window.processEntitiesData = function(entities) {
                   loyalty?.paidPurchasesRequired ?? 9;
                 document.getElementById("tienda-lealtad-alcance").value =
                   loyalty?.scope || "all";
+                shopPromotionsDraft = JSON.parse(
+                  JSON.stringify(data.chain?.promotions || data.promotions || []),
+                );
+                renderShopPromotionsDraft();
                 syncShopCommerceControls();
                 document.getElementById("btn-crear-tienda").innerText =
                   "Actualizar Tienda";
