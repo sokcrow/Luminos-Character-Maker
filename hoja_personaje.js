@@ -2151,8 +2151,16 @@ function initializeCharacterSheet() {
     btnOpenTransfer.addEventListener("click", () => {
         transferModal.style.display = "flex";
         const contactInput = document.getElementById("transfer-contact-input");
-        if (contactInput) {
-            contactInput.setAttribute("list", "transfer-contact-options");
+        const options = document.getElementById("transfer-contact-options");
+        if (contactInput) contactInput.setAttribute("list", "transfer-contact-options");
+        if (options) {
+            options.innerHTML = "";
+            for (const [phone, alias] of Object.entries(contactsDictionary || {})) {
+                const option = document.createElement("option");
+                option.value = alias || phone;
+                option.label = phone;
+                options.appendChild(option);
+            }
         }
     });
 
