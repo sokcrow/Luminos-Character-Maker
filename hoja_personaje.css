@@ -5505,6 +5505,223 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
     100% { transform: scale(1); box-shadow: 0 0 5px #00ffff; }
 }
 
+/* World-change style Market Event HUD */
+.market-event-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 24000;
+    background: rgba(0, 0, 0, 0.78);
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    box-sizing: border-box;
+}
+
+.market-event-overlay.active {
+    display: flex;
+    animation: market-event-backdrop-in 160ms ease-out both;
+}
+
+.market-event-card {
+    position: relative;
+    width: min(760px, 72vw);
+    min-height: 310px;
+    padding: 78px 62px 58px 70px;
+    box-sizing: border-box;
+    color: #fff;
+    background:
+        linear-gradient(168deg, transparent 0 7%, #292929 7.2% 89%, transparent 89.2%),
+        linear-gradient(176deg, transparent 0 4%, #171717 4.2% 94%, transparent 94.2%);
+    filter: drop-shadow(18px 22px 0 rgba(0,0,0,0.7));
+    transform: rotate(-1.2deg) scale(0.96);
+    animation: market-event-card-in 260ms cubic-bezier(.2,.9,.25,1.18) both;
+    isolation: isolate;
+}
+
+.market-event-card::before,
+.market-event-card::after {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    background: #111;
+}
+
+.market-event-card::before {
+    inset: 24px -24px -24px 34px;
+    transform: rotate(2.1deg);
+    clip-path: polygon(4% 0, 96% 5%, 100% 91%, 5% 100%, 0 13%);
+}
+
+.market-event-card::after {
+    right: -72px;
+    bottom: 26px;
+    width: 88px;
+    height: 62px;
+    background: #fff;
+    clip-path: polygon(0 52%, 100% 0, 68% 72%, 10% 100%);
+    transform: rotate(-8deg);
+    box-shadow: 8px 8px 0 #050505;
+}
+
+.market-event-stamp {
+    position: absolute;
+    top: -26px;
+    left: -38px;
+    padding: 4px 14px 2px;
+    color: #fff;
+    background: #050505;
+    border: 6px solid #fff;
+    font-family: 'BebasKai', 'Arial Black', sans-serif;
+    font-size: 54px;
+    font-weight: 900;
+    line-height: 0.95;
+    letter-spacing: 1px;
+    transform: rotate(-6deg) skewX(-8deg);
+    text-shadow: 4px 4px 0 #111;
+    box-shadow: 7px 7px 0 #050505;
+    z-index: 3;
+}
+
+.market-event-title-strip {
+    position: absolute;
+    top: 30px;
+    left: 115px;
+    right: 54px;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 20px;
+    box-sizing: border-box;
+    background: #f4f4f4;
+    color: #090909;
+    font-family: 'BebasKai', 'Arial Black', sans-serif;
+    font-size: 26px;
+    font-weight: 900;
+    letter-spacing: 0.8px;
+    transform: rotate(-1deg) skewX(-4deg);
+    box-shadow: 8px 7px 0 rgba(0,0,0,0.55);
+}
+
+.market-event-title-strip > span {
+    transform: skewX(4deg);
+}
+
+.market-event-message {
+    margin: 28px 0 20px;
+    max-width: 620px;
+    color: #f0f0f0;
+    font-family: 'ExcelsiorSans', Arial, sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1.45;
+    letter-spacing: 0.2px;
+}
+
+.market-event-lines {
+    display: grid;
+    gap: 8px;
+    margin-top: 14px;
+}
+
+.market-event-line {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 24px;
+    padding-right: 34px;
+    font-family: 'ExcelsiorSans', Arial, sans-serif;
+    font-size: 17px;
+    font-weight: 800;
+    line-height: 1.25;
+}
+
+.market-event-shop-label {
+    color: #fff;
+}
+
+.market-event-percent {
+    min-width: 72px;
+    text-align: right;
+    font-family: 'BebasKai', 'Arial Black', sans-serif;
+    font-size: 28px;
+    letter-spacing: 1px;
+}
+
+.market-event-percent.discount {
+    color: #54e86e;
+    text-shadow: 0 0 10px rgba(84,232,110,0.22);
+}
+
+.market-event-percent.surcharge {
+    color: #ff4e5b;
+    text-shadow: 0 0 10px rgba(255,78,91,0.22);
+}
+
+.market-event-hint {
+    position: absolute;
+    right: 54px;
+    bottom: 20px;
+    color: #aaa;
+    font-family: 'ExcelsiorSans', Arial, sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.3px;
+}
+
+.market-event-corner {
+    position: absolute;
+    top: -42px;
+    right: -42px;
+    width: 92px;
+    height: 92px;
+    border: 7px solid #fff;
+    background: #080808;
+    transform: rotate(10deg);
+    clip-path: polygon(14% 0, 100% 8%, 90% 88%, 28% 100%, 0 46%);
+}
+
+.market-event-corner::before,
+.market-event-corner::after {
+    content: "";
+    position: absolute;
+    background: #fff;
+    transform-origin: bottom center;
+}
+
+.market-event-corner::before {
+    width: 8px;
+    height: 58px;
+    left: 42px;
+    top: 14px;
+    transform: rotate(42deg);
+}
+
+.market-event-corner::after {
+    width: 8px;
+    height: 48px;
+    left: 42px;
+    top: 22px;
+    transform: rotate(-34deg);
+}
+
+@keyframes market-event-backdrop-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes market-event-card-in {
+    from { opacity: 0; transform: translateY(24px) rotate(-3deg) scale(0.88); }
+    to { opacity: 1; transform: translateY(0) rotate(-1.2deg) scale(0.96); }
+}
+
+@media (max-width: 1050px) {
+    .market-event-card {
+        width: min(700px, 82vw);
+    }
+}
+
 /* Limbus Dispensary Style Shop Modal */
 .shop-modal-content {
     background: rgba(10, 10, 10, 0.95);
