@@ -8,8 +8,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/on-game-dashboard.css">
   <link rel="stylesheet" href="css/theatre-dialogue.css">
-  <link rel="stylesheet" href="css/theatre-hud.css">
-  <link rel="stylesheet" href="css/theatre-message-policy.css">
+  <link rel="stylesheet" href="css/theatre-hud.css?v=20261004-dm-composer-1">
+  <link rel="stylesheet" href="css/theatre-message-policy.css?v=20261004-dm-composer-1">
   <link rel="stylesheet" href="css/weather-fx.css">
 </head>
 <body class="on-game-dashboard">
@@ -92,24 +92,24 @@
             </div>
           </div>
 
-          <div class="theatre-controls" style="display: flex; flex-direction: column; gap: 10px;">
-            <h4 style="color: #a37c35; margin: 0; font-family: 'Cinzel', serif;">Compositor de Diálogo</h4>
-            <div style="display: flex; gap: 8px;">
-              <select id="theatre-speaker-select" style="flex: 1; padding: 9px; background: #121820; color: white; border: 1px solid #53606d;">
+          <div class="theatre-controls theatre-dm-composer">
+            <h4 class="theatre-dm-composer-title">Compositor de Diálogo</h4>
+            <div class="theatre-dm-composer-selects">
+              <select id="theatre-speaker-select" class="theatre-dm-composer-control">
                 <option value="narrador">Narrador</option>
               </select>
-              <select id="dm-tipo-dialogo-select" style="flex: 1; padding: 9px; background: #121820; color: white; border: 1px solid #53606d;">
+              <select id="dm-tipo-dialogo-select" class="theatre-dm-composer-control">
                 <option value="dialogo">Diálogo</option>
                 <option value="narracion">Narración</option>
                 <option value="pensamiento">Pensamiento</option>
               </select>
-              <select id="theatre-expression-select" style="flex: 1; padding: 9px; background: #121820; color: white; border: 1px solid #53606d;">
+              <select id="theatre-expression-select" class="theatre-dm-composer-control">
                 <option value="Neutral">Neutral</option>
               </select>
             </div>
 
-            <textarea id="theatre-dialogue-input" placeholder="Diálogo en vivo" style="min-height: 80px;"></textarea>
-            <button id="btn-send-dialogue" type="button">ENVIAR DIÁLOGO</button>
+            <textarea id="theatre-dialogue-input" class="theatre-dm-composer-textarea" placeholder="Diálogo en vivo"></textarea>
+            <button id="btn-send-dialogue" class="theatre-dm-composer-send" type="button">ENVIAR DIÁLOGO</button>
           </div>
         </div>
       </details>
