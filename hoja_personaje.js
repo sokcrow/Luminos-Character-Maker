@@ -3388,6 +3388,111 @@ function initializeCharacterSheet() {
         : Number(playerData.ahn) || 0;
     }
 
+    const marketEventOverlay = document.getElementById("market-event-overlay");
+    const marketEventTitle = document.getElementById("market-event-title-display");
+    const marketEventMessage = document.getElementById("market-event-message-display");
+    const marketEventLines = document.getElementById("market-event-lines");
+
+    function dismissMarketEventHud() {
+      if (!marketEventOverlay) return;
+      marketEventOverlay.classList.remove("active");
+      marketEventOverlay.setAttribute("aria-hidden", "true");
+    }
+
+    function marketEventSignature(eventData = {}) {
+      return String(eventData.id || "market") + ":" + String(eventData.revision || eventData.updatedAt || 0);
+    }
+
+    function showMarketEventHud(eventData = {}) {
+      const runtime = getShopRuntime();
+      const activeEvent = runtime?.getMarketEvent?.();
+      if (!marketEventOverlay || !activeEvent || eventData.active === false) return;
+
+      const storageKey =
+        "luminous_market_event_seen:" +
+        String(playerId || "player") +
+        ":" +
+        marketEventSignature(activeEvent);
+
+      try {
+        if (localStorage.getItem(storageKey) === "1") return;
+      } catch (_) {}
+
+      if (marketEventTitle) {
+        marketEventTitle.textContent = activeEvent.title || "Cambio de mercado";
+      }
+      if (marketEventMessage) {
+        marketEventMessage.textContent =
+          activeEvent.message ||
+          "Las condiciones del mercado han alterado temporalmente los precios de ciertas tiendas.";
+      }
+      if (marketEventLines) {
+        marketEventLines.innerHTML = "";
+        for (const [shopTypeId, percentRaw] of Object.entries(activeEvent.modifiers || {})) {
+          const percent = Number(percentRaw);
+          if (!Number.isFinite(percent) || percent === 0) continue;
+
+          const row = document.createElement("div");
+          row.className = "market-event-line";
+
+          const label = document.createElement("span");
+          label.className = "market-event-shop-label";
+          label.textContent = runtime?.SHOP_TYPES?.[shopTypeId]?.label || shopTypeId;
+
+          const value = document.createElement("span");
+          value.className =
+            "market-event-percent " + (percent < 0 ? "discount" : "surcharge");
+          value.textContent = (percent > 0 ? "+" : "") + Math.round(percent) + "%";
+
+          row.append(label, value);
+          marketEventLines.appendChild(row);
+        }
+      }
+
+      marketEventOverlay.classList.add("active");
+      marketEventOverlay.setAttribute("aria-hidden", "false");
+      try {
+        localStorage.setItem(storageKey, "1");
+      } catch (_) {}
+    }
+
+    if (marketEventOverlay && marketEventOverlay.dataset.bound !== "true") {
+      marketEventOverlay.dataset.bound = "true";
+      marketEventOverlay.addEventListener("click", dismissMarketEventHud);
+      document.addEventListener("keydown", (event) => {
+        if (!marketEventOverlay.classList.contains("active")) return;
+        if (event.key === "Escape" || event.key === "Enter" || event.key === " ") {
+          dismissMarketEventHud();
+        }
+      });
+    }
+
+    db.ref("campaña/economia/market_event").on("value", (snapshot) => {
+      const eventData = snapshot.val();
+      getShopRuntime()?.setMarketEvent?.(eventData);
+
+      if (eventData?.active !== false && eventData) {
+        showMarketEventHud(eventData);
+      } else {
+        dismissMarketEventHud();
+      }
+
+      if (
+        shopModal?.classList.contains("active") &&
+        tiendaFisicaActivaId &&
+        tiendasFisicasDisponibles[tiendaFisicaActivaId]
+      ) {
+        if (tiendaFisicaModo === "sell") renderizarGridVentaFisica(tiendaFisicaActivaId);
+        else renderizarGridFisica(tiendaFisicaActivaId);
+      }
+      if (tiendaActivaData) renderizarComprar();
+
+      const theaterShopId = window.__luminousActiveTheaterShopId;
+      if (theaterShopId && typeof window.abrirTiendaDinamica === "function") {
+        setTimeout(() => window.abrirTiendaDinamica(theaterShopId), 0);
+      }
+    });
+
     if (playerId && physicalShopBalance) {
       db.ref(`campaña/jugadores/${playerId}`).on("value", (snap) => {
         physicalShopBalance.textContent = canonicalPlayerBalance(snap.val() || {}).toLocaleString();
