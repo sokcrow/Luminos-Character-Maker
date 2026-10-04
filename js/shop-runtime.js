@@ -6,7 +6,7 @@
     return;
   }
 
-  const VERSION = 4;
+  const VERSION = 5;
   const CURRENCY = "AHN";
   const BASE_PURCHASE_MARKUP = 1.40;
   const BASE_SELLBACK_MULTIPLIER = 0.80;
@@ -351,6 +351,90 @@
     return resolveBaseValueAhn(item).value || 0;
   }
 
+  const REFERENCE_COMPONENT_CATALOGS = Object.freeze({
+    armor_components: "LuminousArmorComponentCatalog",
+    weapon_components: "LuminousWeaponComponentCatalog",
+    ranged_weapon_components: "LuminousRangedWeaponComponentCatalog",
+    firearm_components: "LuminousFirearmComponentCatalog",
+    shield_components: "LuminousShieldComponentCatalog",
+  });
+
+  function definitionIdOf(item = {}) {
+    return normalizeToken(
+      item.definitionId ?? item.definition_id ?? item.canonicalId ??
+      item.itemId ?? item.item_id ?? item.id ?? item.key ?? ""
+    );
+  }
+
+  function positiveEconomicAlias(value, fallback) {
+    const numeric = Number(value);
+    return Number.isFinite(numeric) && numeric > 0 ? numeric : fallback;
+  }
+
+  function materializeReferenceItem(item = {}, options = {}) {
+    const source = clone(item) || {};
+    const authored = resolveBaseValueAhn(source);
+    if (authored.resolved) return source;
+
+    const definitionId = definitionIdOf(source);
+    if (!definitionId) return null;
+
+    const family = normalizeToken(source.family || source.group || source.catalogId || source.catalog_id);
+    let resolved = null;
+
+    const componentGlobalName = REFERENCE_COMPONENT_CATALOGS[family];
+    const componentCatalog = componentGlobalName ? global[componentGlobalName] : null;
+    if (componentCatalog && typeof componentCatalog.resolveReferenceComponent === "function") {
+      try {
+        resolved = componentCatalog.resolveReferenceComponent(definitionId);
+      } catch (_) {}
+    }
+
+    if ((!resolved || resolved.valid === false) && family === "jewelry_valuables") {
+      const catalog = global.LuminousJewelryValuableCatalog;
+      if (catalog && typeof catalog.create === "function") {
+        const isValuable =
+          normalizeToken(source.kind) === "valuable" ||
+          normalizeToken(source.category) === "valuable" ||
+          normalizeToken(source.itemType) === "valuable" ||
+          source.lootOnly === true;
+
+        try {
+          if (isValuable) {
+            resolved = catalog.create(definitionId, {
+              origin: "loot",
+              variant: normalizeToken(options.valuableVariant || source.valuableVariant || "gold") || "gold",
+            });
+          } else {
+            resolved = catalog.create(definitionId, {
+              metalId: options.metalId || options.metal || source.metalId || catalog.DEFAULT_METAL_ID || "silver",
+              quality: options.quality || source.quality || "standard",
+              gems: options.gems || source.gems || [],
+            });
+          }
+        } catch (_) {}
+      }
+    }
+
+    if (!resolved || resolved.valid === false) return null;
+
+    const merged = Object.assign({}, source, clone(resolved));
+    merged.id = source.id || resolved.id || definitionId;
+    merged.definitionId = source.definitionId || resolved.definitionId || definitionId;
+    merged.canonicalId = source.canonicalId || merged.definitionId;
+    merged.nombre = resolved.displayName || source.nombre || resolved.name || source.name || definitionId;
+    merged.name = resolved.name || source.name || source.nombre || merged.nombre;
+
+    const valueResolution = resolveBaseValueAhn(merged);
+    if (!valueResolution.resolved) return null;
+
+    const value = roundAhn(valueResolution.value);
+    merged.price = positiveEconomicAlias(merged.price, value);
+    merged.costo = positiveEconomicAlias(merged.costo, value);
+    merged.valorBase = positiveEconomicAlias(merged.valorBase, value);
+    return merged;
+  }
+
   function tierPriceMultiplier(shopOrTier = {}) {
     const tier = typeof shopOrTier === "object" ? shopTier(shopOrTier) : tierNumber(shopOrTier);
     return 1 + (tier - 1) * SHOP_TIER_PRICE_STEP;
@@ -494,11 +578,14 @@
     const preserveSold = options.preserveSold === true;
     for (const [itemId, globalItem] of Object.entries(globalItems || {})) {
       if (!globalItem || typeof globalItem !== "object") continue;
-      if (!itemAvailable(globalItem, shop)) continue;
+      const materialized = materializeReferenceItem(globalItem, {
+        purpose: "shop_catalog",
+      });
+      if (!materialized || !itemAvailable(materialized, shop)) continue;
 
       const existing = existingItems?.[itemId] || {};
       const source = {
-        ...clone(globalItem),
+        ...clone(materialized),
         requisito_aparicion:
           existing.requisito_aparicion ||
           globalItem.requisito_aparicion ||
@@ -526,7 +613,8 @@
       if (match.band === "primary") summary.primary += 1;
       if (match.band === "secondary") summary.secondary += 1;
       if (match.band === "high_tier_fallback") summary.highTierFallback += 1;
-      if (itemAvailability(item, shop).available) summary.available += 1;
+      const materialized = materializeReferenceItem(item, { purpose: "catalog_summary" });
+      if (materialized && itemAvailability(materialized, shop).available) summary.available += 1;
     }
     return Object.freeze(summary);
   }
@@ -575,6 +663,8 @@
     resolveBaseValueAhn,
     hasBaseValueAhn,
     baseValueAhn,
+    definitionIdOf,
+    materializeReferenceItem,
     tierPriceMultiplier,
     localPriceMultiplier,
     priceBreakdown,
