@@ -244,7 +244,12 @@
     return true;
   }
   function tick() { ensureStyles(); patchTraitTray(); }
-  function boot() { tick(); global.setInterval?.(tick, 500); }
+  function boot() {
+    tick();
+    ["luminous:player-data", "luminous:traits-refreshed", "luminous:class-runtime-loaded", "luminous:class-runtimes-ready"]
+      .forEach((name) => global.addEventListener?.(name, tick));
+    global.addEventListener?.("load", tick, { once: true });
+  }
 
   const api = Object.freeze({ VARIABLE_LABELS, formulaIdentifiers, tokenizeFormula, humanizeFormula, substituteFormula, collectTraitFormulas, resolveFormula, formulaPattern, formulaRegex, displayForSignedFormula, decorateTraitFormulaDescription, patchTraitTray, tick });
   global.LuminousTraitFormulaViewPatch = api;

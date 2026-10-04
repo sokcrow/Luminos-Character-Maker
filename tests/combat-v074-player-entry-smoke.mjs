@@ -58,6 +58,16 @@ const skills = {
     basePower: 5, coinPower: 4, coinAmount: 1,
     damageType: 'perforante', sinAffinity: 'pride', effects: [], coins: [{ effects: [] }], schemaVersion: 2,
   },
+  skill_c: {
+    name: 'Canonical Skill C', type: 'Attack', tier: 2,
+    basePower: 6, coinPower: 4, coinAmount: 2,
+    damageType: 'contundente', sinAffinity: 'sloth', effects: [], coins: [{ effects: [] }, { effects: [] }], schemaVersion: 2,
+  },
+  skill_d: {
+    name: 'Canonical Skill D', type: 'Attack', tier: 3,
+    basePower: 7, coinPower: 4, coinAmount: 3,
+    damageType: 'cortante', sinAffinity: 'gluttony', effects: [], coins: [{ effects: [] }, { effects: [] }, { effects: [] }], schemaVersion: 2,
+  },
 };
 
 const [actor] = playerEntry.normalizePlayerActors(players, actors);
@@ -114,11 +124,55 @@ assert.equal(combatant.enteredCombatAt, 123456);
 assert.equal(combatant.entrySource, 'dm_player_entry_074');
 
 const noUnitCombatant = playerEntry.buildPlayerCombatant(actor, { now: 123457, units: {}, skills });
-assert.equal(noUnitCombatant.skillLoadoutState, 'unit_not_found');
+assert.equal(noUnitCombatant.skillLoadoutState, 'loadout_not_found');
 assert.deepEqual(noUnitCombatant.skillSlotIds, []);
 assert.deepEqual(noUnitCombatant.skillIds, []);
 assert.deepEqual(noUnitCombatant.equippedSkillIndex, {});
 assert.equal(noUnitCombatant.unitRef, undefined);
+
+// A Player-managed canonical Deck must work without relying on a Unit loadout.
+const managedActor = {
+  category: 'player',
+  playerId: 'player_managed',
+  sourceId: 'player_managed',
+  ownerUid: 'uid-managed',
+  linkedActorId: 'actor_managed',
+  actorId: 'actor_managed',
+  name: 'Managed Build',
+  raw: {
+    uid: 'uid-managed',
+    actorId: 'actor_managed',
+    characterName: 'Managed Build',
+    characterBuild: {
+      skillDeck: { tier1: 'skill_a', tier2: 'skill_c', tier3: 'skill_d' },
+      skillLoadoutSource: 'dm_loadout_manager',
+      spellSelections: ['fire_bolt'],
+      spellIds: ['fire_bolt'],
+      spellSelectionIndex: { fire_bolt: true },
+      spellLoadoutSource: 'dm_loadout_manager',
+    },
+  },
+};
+assert.equal(playerEntry.hasPlayerManagedSkillLoadout(managedActor.raw), true);
+assert.equal(playerEntry.hasPlayerManagedSpellLoadout(managedActor.raw), true);
+assert.equal(playerEntry.automaticSkillLoadoutForActor(managedActor), null);
+assert.equal(playerEntry.automaticSpellLoadoutForActor(managedActor), null);
+
+const managedCombatant = playerEntry.buildPlayerCombatant(managedActor, {
+  now: 123458,
+  units: {},
+  skills,
+});
+assert.equal(managedCombatant.skillLoadoutState, 'ready');
+assert.deepEqual(managedCombatant.skillSlotIds, [
+  'skill_a', 'skill_a', 'skill_a',
+  'skill_c', 'skill_c',
+  'skill_d',
+]);
+assert.deepEqual(managedCombatant.skillIds, ['skill_a', 'skill_c', 'skill_d']);
+assert.deepEqual(managedCombatant.equippedSkillIndex, { skill_a: true, skill_c: true, skill_d: true });
+assert.equal(managedCombatant.characterBuild.spellSelections.includes('fire_bolt'), true);
+assert.equal(managedCombatant.unitRef, undefined);
 
 assert.equal(playerEntry.playerAlreadyInCombat(actor, {}), null);
 const existing = playerEntry.playerAlreadyInCombat(actor, {

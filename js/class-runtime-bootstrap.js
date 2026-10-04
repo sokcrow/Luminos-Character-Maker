@@ -12,6 +12,7 @@
   const initialScriptContext = doc?.currentScript?.dataset?.luminousContext || null;
   let infrastructurePromise = null;
   const bootPromises = new Map();
+  let playerDataListenerBound = false;
 
   function scriptExists(src) {
     if (!doc) return null;
@@ -56,7 +57,8 @@
     if (global.LUMINOUS_RUNTIME_CONTEXT) return global.LUMINOUS_RUNTIME_CONTEXT;
     const pathname = String(global.location?.pathname || "").toLowerCase();
     if (/battle|combat/.test(pathname)) return "combat";
-    if (/hoja_personaje|theatre|theater|character/.test(pathname)) return "theatre";
+    if (/hoja_personaje/.test(pathname)) return "player";
+    if (/theatre|theater/.test(pathname)) return "theatre";
     return "any";
   }
 
@@ -84,11 +86,107 @@
     return infrastructurePromise;
   }
 
+  const runtimeSlug = (value) => String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[_\s]+/g, "-")
+    .replace(/[^a-z0-9-]+/g, "")
+    .replace(/^-+|-+$/g, "");
+
+  function playerBuildRuntimeIds(character = {}) {
+    const build = character?.characterBuild && typeof character.characterBuild === "object"
+      ? character.characterBuild
+      : {};
+    const classSource = [build.classes, character.classes, character.classLevels, character.classesById, character?.dnd?.classes]
+      .find((value) => Array.isArray(value)
+        ? value.length > 0
+        : (value && typeof value === "object" && Object.keys(value).length > 0));
+
+    const classRows = Array.isArray(classSource)
+      ? classSource
+      : Object.entries(classSource || {}).map(([classId, value]) =>
+          typeof value === "object" ? { classId, ...value } : { classId, levels: value });
+
+    const classIds = classRows
+      .filter((entry) => Number(entry?.levels ?? entry?.level ?? entry?.classLevel ?? 0) > 0)
+      .map((entry) => runtimeSlug(entry?.classId || entry?.id || entry?.name))
+      .filter(Boolean);
+
+    const archetypeSource = build.archetypes || character.archetypes || character.subclasses || [];
+    const archetypeRows = Array.isArray(archetypeSource)
+      ? archetypeSource
+      : Object.entries(archetypeSource || {}).map(([classId, value]) =>
+          typeof value === "object" ? { classId, ...value } : { classId, archetypeId: value });
+
+    const archetypeIds = archetypeRows
+      .map((entry) => runtimeSlug(entry?.archetypeId || entry?.subclassId || entry?.id))
+      .filter(Boolean);
+
+    return [...new Set([
+      ...classIds.map((id) => `class:${id}`),
+      ...archetypeIds.map((id) => `archetype:${id}`),
+    ])];
+  }
+
+  function bindPlayerDataBoot() {
+    if (playerDataListenerBound || !global.addEventListener) return;
+    playerDataListenerBound = true;
+    global.addEventListener("luminous:player-data", (event) => {
+      boot({ context: "player", character: event?.detail?.data || global.datosJugador || {} })
+        .catch((error) => console.error("Class Runtime Bootstrap:", error));
+    });
+  }
+
+  async function loadPlayerBuild(registry, manifest, character = {}) {
+    bindPlayerDataBoot();
+    const requested = playerBuildRuntimeIds(character);
+    const available = requested.filter((id) => Boolean(registry.get(id)));
+    const missing = requested.filter((id) => !registry.get(id));
+    const signature = available.slice().sort().join("|") || "empty";
+    const key = `player:${signature}`;
+    if (bootPromises.has(key)) return bootPromises.get(key);
+
+    const promise = (async () => {
+      const loaded = [];
+      const errors = [];
+      for (const id of available) {
+        try { loaded.push(await registry.load(id, { context: "any" })); }
+        catch (error) { errors.push({ id, error: String(error?.message || error) }); }
+      }
+      const result = {
+        context: "player",
+        loaded,
+        errors,
+        missing,
+        ok: errors.length === 0,
+        manifestVersion: manifest.version,
+        manifestEntries: manifest.entries.length,
+        selectedRuntimeIds: available,
+      };
+      if (global.dispatchEvent && typeof global.CustomEvent === "function") {
+        global.dispatchEvent(new global.CustomEvent("luminous:class-runtimes-ready", { detail: result }));
+      }
+      if (!result.ok) console.error("Class Runtime Bootstrap:", result.errors);
+      return result;
+    })();
+
+    bootPromises.set(key, promise);
+    return promise;
+  }
+
   async function boot(options = {}) {
     // Resolve context synchronously, before awaiting infrastructure. Otherwise
     // document.currentScript may become null and context-specific adapters vanish.
     const requestedContext = detectContext(options.context);
     const { registry, manifest } = await ensureInfrastructure();
+
+    // The Player sheet must never load every class/archetype runtime. Its build
+    // arrives through the canonical player-data stream, so load only the active
+    // class/archetype graph and let registry dependencies follow from there.
+    if (requestedContext === "player") {
+      return loadPlayerBuild(registry, manifest, options.character || global.datosJugador || {});
+    }
+
     const context = registry.normalizeContext(requestedContext);
     if (bootPromises.has(context) && options.force !== true) return bootPromises.get(context);
 
@@ -113,6 +211,8 @@
     version: 1,
     detectContext,
     ensureInfrastructure,
+    playerBuildRuntimeIds,
+    loadPlayerBuild,
     boot,
     ready,
   });

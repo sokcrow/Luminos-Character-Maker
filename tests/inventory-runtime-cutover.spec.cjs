@@ -134,6 +134,7 @@ async function bootHarness(page) {
   await page.addScriptTag({ path: REALTIME });
   await page.addScriptTag({ path: BRIDGE });
   await page.addScriptTag({ path: HUD });
+  await page.locator("#btn-global-inventory").click();
   await page.waitForFunction(() => window.LuminousInventoryHudV2?.state?.peer?.bound && document.querySelectorAll("#inv-active-grid [data-key]").length === 2);
 }
 

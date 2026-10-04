@@ -425,6 +425,10 @@
   }
 
   function renderArchetypeSelector() {
+    if (doc.getElementById("player-progression-tree-host")) {
+      doc.getElementById("player-archetype-selector")?.remove();
+      return true;
+    }
     const host = doc.getElementById("player-trait-runtime-host");
     if (!host) return false;
     let panel = doc.getElementById("player-archetype-selector");
@@ -854,9 +858,11 @@
     installPatches();
     global.addEventListener?.("luminous:traits-refreshed", () => {
       state.lastSelectionSignature = "";
-      renderArchetypeSelector();
+      installPatches();
     });
-    global.setInterval(installPatches, PATCH_INTERVAL_MS);
+    global.addEventListener?.("luminous:class-runtime-loaded", installPatches);
+    global.addEventListener?.("luminous:player-data", installPatches);
+    global.addEventListener?.("luminous:player-instance-changed", installPatches);
   }
 
   const api = Object.freeze({

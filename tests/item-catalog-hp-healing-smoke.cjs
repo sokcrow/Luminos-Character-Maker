@@ -42,6 +42,10 @@ const { pathToFileURL } = require('node:url');
     assert.ok(item.runtime.healing.capMaxHpPercent <= catalog.SOURCE_CAPS[item.sourceLine]);
   }
 
+  const fractionalFloor = catalog.healingBreakdown('hp_generic_pocket_recovery_patch', 180);
+  assert.equal(fractionalFloor.immediate, 7, 'HP healing must floor fractional recovery');
+  assert.equal(Number.isInteger(fractionalFloor.immediate), true);
+
   const genericAt200 = catalog.healingBreakdown('hp_generic_executive_recovery_case', 200);
   assert.equal(genericAt200.total, 58);
   assert.equal(genericAt200.cap, 60);

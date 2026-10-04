@@ -47,6 +47,25 @@
   const SWORD_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 2.2 22 3.4 10.2 15.2 8.8 13.8z" fill="currentColor"/><path d="M7.2 12.2 11.8 16.8M5.7 13.7 10.3 18.3M8 18l-4.3 4.3M2.8 21.2l1 1" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>';
   const SHIELD_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5 19 5v5.8c0 4.4-2.3 8-7 10.7-4.7-2.7-7-6.3-7-10.7V5z" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 5.5v12" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>';
   const HEART_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.3 4.7 13C1.9 10.2 2.3 5.7 5.6 3.9c2.2-1.2 4.8-.6 6.4 1.2 1.6-1.8 4.2-2.4 6.4-1.2 3.3 1.8 3.7 6.3.9 9.1z"/></svg>';
+  const HUD_CANVAS = Object.freeze({ width: 1600, height: 920, gutter: 24 });
+  function hudScaleForViewport(width, height) {
+    const viewportWidth = Math.max(1, numberOr(width, HUD_CANVAS.width));
+    const viewportHeight = Math.max(1, numberOr(height, HUD_CANVAS.height));
+    const availableWidth = Math.max(1, viewportWidth - HUD_CANVAS.gutter);
+    const availableHeight = Math.max(1, viewportHeight - HUD_CANVAS.gutter);
+    return Math.min(1, availableWidth / HUD_CANVAS.width, availableHeight / HUD_CANVAS.height);
+  }
+  function syncHudCanvasScale() {
+    const modal = doc.getElementById("stats-modal");
+    if (!modal) return false;
+    const viewport = global.visualViewport;
+    const width = numberOr(viewport?.width, doc.documentElement?.clientWidth || global.innerWidth || HUD_CANVAS.width);
+    const height = numberOr(viewport?.height, doc.documentElement?.clientHeight || global.innerHeight || HUD_CANVAS.height);
+    const scale = hudScaleForViewport(width, height);
+    modal.style.setProperty("--player-stats-hud-scale", scale.toFixed(5));
+    modal.dataset.playerStatsHudScale = scale.toFixed(5);
+    return true;
+  }
   const playerData = () => global.datosJugador || {};
   const numberOr = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
   const integerOr = (value, fallback = 0) => Number.isFinite(Number.parseInt(value, 10)) ? Number.parseInt(value, 10) : fallback;
@@ -94,7 +113,7 @@
   }
   const abilityModifier = (score) => Math.floor((numberOr(score, 10) - 10) / 2);
   const formatModifier = (value) => numberOr(value, 0) >= 0 ? `+${numberOr(value, 0)}` : String(numberOr(value, 0));
-  const currentSp = (data = playerData()) => Number.parseInt(data?.combatStats?.sp_actual ?? data?.sp, 10) || 0;
+  const currentSp = (data = playerData()) => Number.parseInt(data?.sp ?? data?.sp_actual ?? data?.combatStats?.sp_actual, 10) || 0;
   const headsChance = (data = playerData()) => Math.max(5, Math.min(95, 50 + currentSp(data)));
   function levelProgress(data = playerData()) {
     const stored = integerOr(data?.xpPercent, -1);
@@ -130,8 +149,8 @@
   const playerSheetArt = (data = playerData()) => String(data?.sheetArt || data?.playerSheetArt || "").trim();
   const playerIcon = (data = playerData()) => String(data?.icono_jugador || data?.icono || data?.perfil?.icono || "").trim();
   const playerName = (data = playerData()) => String(data?.characterName || data?.character_name || data?.nombre || data?.name || "PLAYER").trim();
-  const currentHp = (data = playerData()) => Math.trunc(numberOr(data?.combatStats?.hp_actual ?? data?.hp_actual ?? data?.hp, 0));
-  const maxHp = (data = playerData()) => Math.trunc(numberOr(data?.combatStats?.hp_max ?? data?.hp_max, currentHp(data)));
+  const currentHp = (data = playerData()) => Math.trunc(numberOr(data?.hp ?? data?.hp_actual ?? data?.combatStats?.hp_actual, 0));
+  const maxHp = (data = playerData()) => Math.trunc(numberOr(data?.hp_max ?? data?.combatStats?.hp_max, currentHp(data)));
   function selectedAbility(panel) {
     const id = panel?.dataset?.activeStat || ABILITIES[0].id;
     return ABILITIES.find((ability) => ability.id === id) || ABILITIES[0];
@@ -472,22 +491,38 @@
     });
     return true;
   }
-  function boot() {
+  function syncRuntimeSurface() {
     ensureRacialStatRuntime();
     buildPanel();
+    syncPanel();
+    syncHudCanvasScale();
     installCoinResultAdjustment();
-    global.setInterval(() => {
-      ensureRacialStatRuntime();
-      buildPanel();
-      syncPanel();
-      installCoinResultAdjustment();
-    }, 1000);
+  }
+
+  function boot() {
+    syncRuntimeSurface();
+    global.addEventListener?.("resize", syncHudCanvasScale, { passive: true });
+    global.visualViewport?.addEventListener?.("resize", syncHudCanvasScale, { passive: true });
+    [
+      "luminous:player-data",
+      "luminous:traits-refreshed",
+      "luminous:class-runtime-loaded",
+      "luminous:player-instance-changed",
+    ].forEach((name) => global.addEventListener?.(name, syncRuntimeSurface));
+    doc.addEventListener("click", (event) => {
+      if (event.target?.closest?.('[name="act_hud_stats"], #stats-modal, [data-dnd-roll]')) {
+        global.queueMicrotask?.(syncRuntimeSurface);
+      }
+    }, true);
   }
   if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", boot, { once: true });
   else boot();
   global.LuminousPlayerStats = Object.freeze({
     ABILITIES,
     PROFICIENCY_STATES,
+    HUD_CANVAS,
+    hudScaleForViewport,
+    syncHudCanvasScale,
     abilityScore,
     abilityRollMath,
     abilityModifier,

@@ -20,6 +20,7 @@
   const actionEconomy = () => global.LuminousActionEconomy || safeRequire('./universal-action-economy.js');
 
   const AMMO = Object.freeze({
+    bullets: Object.freeze({ id: 'bullets', name: 'Bullets', icon: null, type: 'neutral', mode: 'single', description: 'Ammunition for firearm and gun Skills.' }),
     pebbles: Object.freeze({ id: 'pebbles', name: 'Pebbles', icon: 'https://imgur.com/hhYbwsi.png', type: 'neutral', mode: 'single', description: 'Ammunition for ranged Skills.' }),
     rock: Object.freeze({ id: 'rock', name: 'Rock', icon: 'https://imgur.com/7rOv1S0.png', type: 'neutral', mode: 'single', maxCount: 1, description: 'Ammunition for ranged Skills.', metadata: Object.freeze({ projectileAsset: 'https://imgur.com/P4J48yc.png' }) }),
     arrows: Object.freeze({ id: 'arrows', name: 'Arrows', icon: 'https://imgur.com/ivdNbBA.png', type: 'neutral', mode: 'single', description: 'Ammunition for ranged Skills.', metadata: Object.freeze({ onHitStatusId: 'pierced' }) }),

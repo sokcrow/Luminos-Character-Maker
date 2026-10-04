@@ -23,7 +23,7 @@ assert.match(index, /id="fullscreenGame"/);
 assert.match(index, /Pantalla completa horizontal/);
 assert.match(index, /id="hpStat"/);
 assert.match(index, />HP<\/i>/);
-assert.match(index, /Assets\/Images\/Buttons\/Inventory\.svg/);
+assert.match(index, /Assets\/Images\/Buttons\/Inventory\.png/);
 assert.match(index, /Offensive Level/);
 assert.match(index, /Defensive Level/);
 

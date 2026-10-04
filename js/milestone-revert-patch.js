@@ -199,7 +199,19 @@
 
   function boot() {
     tick();
-    global.setInterval?.(tick, 500);
+    ["luminous:player-data", "luminous:traits-refreshed", "luminous:class-runtime-loaded", "luminous:class-runtimes-ready"]
+      .forEach((name) => global.addEventListener?.(name, tick));
+    if (doc.body) {
+      let scheduled = false;
+      new MutationObserver(() => {
+        if (scheduled) return;
+        scheduled = true;
+        global.queueMicrotask?.(() => {
+          scheduled = false;
+          tick();
+        });
+      }).observe(doc.body, { childList: true, subtree: true });
+    }
   }
 
   const api = Object.freeze({

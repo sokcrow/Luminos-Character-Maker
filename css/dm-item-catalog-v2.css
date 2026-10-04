@@ -1,0 +1,189 @@
+/* DM Item Catalog V2 - canonical catalog + modern Director presentation. */
+
+#tab-forja #dashboard-mercado {
+  --dm-item-bg: #0c0c0a;
+  --dm-item-panel: #12110e;
+  --dm-item-line: #403a30;
+  --dm-item-gold: #b09055;
+  --dm-item-red: #7d241e;
+  --dm-item-cyan: #78aeb0;
+}
+
+#tab-forja #dashboard-mercado > h3 {
+  letter-spacing: .12em !important;
+}
+
+#tab-forja .dm-toolbar {
+  display: grid !important;
+  grid-template-columns: minmax(240px, 1fr);
+  gap: 10px !important;
+  padding: 12px !important;
+  margin-bottom: 8px;
+  background: #0b0b09 !important;
+  border: 1px solid var(--dm-item-line) !important;
+  border-left: 3px solid var(--dm-item-red) !important;
+}
+
+#tab-forja #buscador-items-dm {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 40px;
+  background: #080806 !important;
+  border: 1px solid #4d4639 !important;
+  color: #ded6c2 !important;
+  letter-spacing: .04em;
+}
+
+#tab-forja #filtros-dm {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+#tab-forja #filtros-dm .dm-filter-btn {
+  flex: 0 0 auto;
+  min-height: 30px;
+  padding: 5px 10px !important;
+  border: 1px solid #454036 !important;
+  border-radius: 0 !important;
+  background: #11100d !important;
+  color: #918b7e !important;
+  font-size: 10px !important;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+#tab-forja #filtros-dm .dm-filter-btn:hover,
+#tab-forja #filtros-dm .dm-filter-btn.active {
+  border-color: var(--dm-item-gold) !important;
+  color: #eee4ca !important;
+  background: #241b12 !important;
+  box-shadow: inset 3px 0 0 var(--dm-item-red) !important;
+}
+
+#dm-item-catalog-status {
+  min-height: 18px;
+  margin: 6px 0 10px;
+  color: #777166;
+  font-size: 10px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+#grid-items-globales {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)) !important;
+  gap: 9px !important;
+  align-items: stretch;
+}
+
+#grid-items-globales .card-item {
+  min-height: 182px;
+  box-sizing: border-box;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start !important;
+  justify-content: flex-start;
+  gap: 5px;
+  padding: 12px !important;
+  overflow: hidden;
+  background:
+    linear-gradient(135deg, rgba(176, 144, 85, .05), transparent 45%),
+    var(--dm-item-panel) !important;
+  border: 1px solid #39352d !important;
+  border-left: 3px solid #5b211d !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+  transition: transform 100ms ease, border-color 100ms ease, background 100ms ease;
+}
+
+#grid-items-globales .card-item:hover {
+  transform: translateY(-2px);
+  border-color: #77684e !important;
+  border-left-color: #9d3028 !important;
+  background: #18150f !important;
+}
+
+#grid-items-globales .card-item > img {
+  width: 68px !important;
+  height: 68px !important;
+  object-fit: contain !important;
+  align-self: center;
+  margin: 4px auto 5px;
+  padding: 4px;
+  box-sizing: border-box;
+  background: #080806 !important;
+  border: 1px solid #3c382f;
+  image-rendering: auto;
+}
+
+#grid-items-globales .card-item > h5 {
+  width: 100%;
+  margin: 2px 0 !important;
+  color: #ddd3ba !important;
+  font-size: 12px !important;
+  line-height: 1.2;
+  letter-spacing: .04em;
+  text-align: left !important;
+}
+
+#grid-items-globales .card-item > span {
+  width: 100%;
+  text-align: left;
+}
+
+#grid-items-globales .btn-delete-item {
+  opacity: .28;
+  filter: grayscale(1);
+  transition: opacity 100ms ease, filter 100ms ease;
+}
+
+#grid-items-globales .card-item:hover .btn-delete-item {
+  opacity: .8;
+  filter: none;
+}
+
+#panel-consumo-item {
+  background: #0d0d0b !important;
+  border: 1px solid #4c4538 !important;
+  border-left: 3px solid #6f2821 !important;
+  box-shadow: none !important;
+}
+
+#panel-consumo-item #consumo-item-nombre {
+  color: #d9c99d !important;
+  letter-spacing: .08em;
+}
+
+#panel-consumo-item #consumo-item-detalles {
+  color: #948f83 !important;
+  line-height: 1.45;
+}
+
+#btn-otorgar-stash,
+#btn-otorgar-activo {
+  border-radius: 0 !important;
+  letter-spacing: .06em;
+}
+
+#modal-inventario-dm .modal-content {
+  border-radius: 0 !important;
+}
+
+@media (max-width: 720px) {
+  #grid-items-globales {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  #grid-items-globales .card-item {
+    min-height: 160px;
+    padding: 9px !important;
+  }
+
+  #grid-items-globales .card-item > img {
+    width: 56px !important;
+    height: 56px !important;
+  }
+}
