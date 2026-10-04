@@ -11,6 +11,10 @@ assert.match(html, /role="progressbar"/);
 assert.match(html, /aria-valuenow="0"/);
 assert.match(html, /id="system-loading-progress-text">0%/);
 assert.match(html, /id="system-loading-retry"/);
+assert.match(html, /id="system-loading-background"/);
+assert.match(html, /id="system-loading-tip-category"/);
+assert.match(html, /id="system-loading-tip-text"/);
+assert.match(html, /id="system-loading-segments"/);
 assert.doesNotMatch(html, /loadingAnim/);
 assert.doesNotMatch(html, /animation:\s*loading/i);
 
@@ -18,6 +22,17 @@ for (const progress of [20, 45, 70, 90, 100]) {
   assert.match(js, new RegExp(`progress:\\s*${progress}\\b`));
 }
 
+assert.match(js, /PLAYER_LOADING_SCENES/);
+assert.match(js, /loading-combat-clash\.webp/);
+assert.match(js, /loading-workshop-crafting\.webp/);
+assert.match(js, /loading-lizalin-biodistrict\.webp/);
+assert.match(js, /loading-yuanti-obscurum\.webp/);
+assert.match(js, /loading-lanae-mountain\.webp/);
+assert.match(js, /loading-city-backstreets\.webp/);
+assert.match(js, /loading-abnormality-containment\.webp/);
+assert.match(js, /loading-interdistrict-transit\.webp/);
+assert.match(js, /function syncLoadingSegments/);
+assert.match(js, /for \(let index = 0; index < 20; index \+= 1\)/);
 assert.match(js, /window\.updateLoadingState/);
 assert.match(js, /window\.showLoadingError/);
 assert.match(js, /window\.hideLoadingOverlay/);
