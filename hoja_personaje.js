@@ -1955,38 +1955,49 @@ function initializeCharacterSheet() {
     ];
 
 
-    function checkCellphone(playerId, callback) {
-      if (!playerId) {
+    function checkCellphone(playerKey, callback) {
+      if (!playerKey) {
         callback(false);
         return;
       }
 
-      let hasCellphone = false;
+      db.ref(`campaña/jugadores/${playerKey}`).once("value")
+        .then((playerSnap) => {
+          const playerData = playerSnap.val() || {};
 
-      // We will do a one-time check or we can track it globally.
-      // Let's check both activo and stash right away.
-      const checkInventories = [
-        db.ref(`campaña/jugadores/${playerId}/inventario_activo`).once('value'),
-        db.ref(`campaña/jugadores/${playerId}/inventario_stash`).once('value')
-      ];
+          // A provisioned phone number means the player's terminal is ready.
+          // Keep inventory detection as a legacy fallback for unprovisioned characters.
+          if (String(playerData.phoneNumber || "").trim()) {
+            callback(true);
+            return;
+          }
 
-      Promise.all(checkInventories).then(snaps => {
-        snaps.forEach(snap => {
-          const inv = snap.val();
-          if (inv) {
-            Object.values(inv).forEach(item => {
-              // We'll check if id is "cellphone" or tags includes "cellphone"
-              // Just in case, let's also check if id was defined as "cellphone"
-              if (item.id === "cellphone" || (item.tags && typeof item.tags === 'string' && item.tags.toLowerCase().includes("cellphone"))) {
+          let hasCellphone = false;
+          const inventories = [
+            playerData.inventario_activo || {},
+            playerData.inventario_stash || {}
+          ];
+
+          inventories.forEach((inv) => {
+            Object.values(inv).forEach((item) => {
+              const tags = Array.isArray(item?.tags)
+                ? item.tags.join(" ")
+                : String(item?.tags || "");
+              if (
+                item?.id === "cellphone" ||
+                tags.toLowerCase().includes("cellphone")
+              ) {
                 hasCellphone = true;
               }
             });
-          }
+          });
+
+          callback(hasCellphone);
+        })
+        .catch((error) => {
+          console.error("[Luminous][Phone] No se pudo verificar el dispositivo:", error);
+          callback(false);
         });
-        callback(hasCellphone);
-      }).catch(() => {
-        callback(false);
-      });
     }
 
     // Tab switching logic for Main Nav
@@ -2022,11 +2033,8 @@ function initializeCharacterSheet() {
         targetTab.style.display = "block";
 
         if (tabName === "banco" || tabName === "mail") {
-          const charNameInput = document.querySelector('input[name="attr_character_name"]');
-          const pName = charNameInput ? charNameInput.value.trim() : "";
-
-          if (pName) {
-            checkCellphone(pName, (hasDevice) => {
+          if (playerId) {
+            checkCellphone(playerId, (hasDevice) => {
               const overlay = targetTab.querySelector('.sheet-no-signal-overlay');
               const bodyElements = targetTab.querySelectorAll('.sheet-app-body, .sheet-app-body-mail');
 
@@ -2036,11 +2044,11 @@ function initializeCharacterSheet() {
               } else {
                 if (overlay) overlay.style.display = "none";
                 bodyElements.forEach(el => el.style.display = "flex");
-                // Reset to display block for app body if it's not flex originally, but flex works or empty
               }
+
               if (tabName === "banco") {
-                  // Limpiar unread transacciones
-                  const txRef = db.ref(`campaña/jugadores/${pName}/finance/transactionHistory`);
+                  // Limpiar unread transacciones usando la key canónica del jugador.
+                  const txRef = db.ref(`campaña/jugadores/${playerId}/finance/transactionHistory`);
                   txRef.once("value", snap => {
                       const updates = {};
                       let hasUpdates = false;
@@ -2054,7 +2062,6 @@ function initializeCharacterSheet() {
                       if (hasUpdates) txRef.update(updates);
                   });
               }
-
             });
           }
         }
@@ -2106,54 +2113,68 @@ function initializeCharacterSheet() {
       if (senderId === targetPlayerId) throw new Error("No puedes transferirte Ahn a ti mismo.");
 
       const senderRef = db.ref(`campaña/jugadores/${senderId}`);
-      const senderSnap = await senderRef.once("value");
-      const senderData = senderSnap.val();
-      if (!senderData) throw new Error("No se encontró tu cuenta.");
-
-      const currentBalance = senderData.finance?.currentBalance ?? senderData.ahn ?? 0;
-      if (!Number.isFinite(Number(currentBalance)) || Number(currentBalance) < amount) {
-          throw new Error("Ahn insuficientes para esta transferencia.");
-      }
-
-      const transferId = db.ref(`campaña/economia/p2pInbox/${targetPlayerId}`).push().key;
+      const transferId = db.ref(`campaña/jugadores/${senderId}/p2pOutbox`).push().key;
       if (!transferId) throw new Error("No se pudo generar la transferencia.");
 
-      const timestamp = Date.now();
-      const targetName = targetData.character_name || targetData.nombre || targetPlayerId;
-      const senderName = senderData.character_name || senderData.nombre || senderId;
-      const nextBalance = Number(currentBalance) - amount;
-      const txOut = {
-          id: transferId,
-          monto: -amount,
-          concepto: `A: ${targetName} - ${concept}`,
-          timestamp,
-          unread: true,
-          type: "p2p_out"
-      };
+      let abortReason = "";
+      let targetName = targetData.characterName || targetData.character_name || targetData.nombre || targetPlayerId;
 
-      const packet = {
-          transferId,
-          senderPlayerId: senderId,
-          senderUid: auth.currentUser?.uid || senderData.uid || null,
-          senderName,
-          senderPhone: senderData.phoneNumber || "",
-          recipientPlayerId: targetPlayerId,
-          recipientUid: targetData.uid || null,
-          recipientName: targetName,
-          amount,
-          concept,
-          createdAt: timestamp,
-          status: "pending"
-      };
+      const result = await senderRef.transaction((current) => {
+          if (!current) {
+              abortReason = "No se encontró tu cuenta.";
+              return;
+          }
 
-      const updates = {};
-      updates[`campaña/jugadores/${senderId}/ahn`] = nextBalance;
-      updates[`campaña/jugadores/${senderId}/finance/currentBalance`] = nextBalance;
-      updates[`campaña/jugadores/${senderId}/finance/transactionHistory/${transferId}`] = txOut;
-      updates[`campaña/jugadores/${senderId}/transacciones/${transferId}`] = txOut;
-      updates[`campaña/economia/p2pInbox/${targetPlayerId}/${transferId}`] = packet;
+          const currentBalance = Number(current.finance?.currentBalance ?? current.ahn ?? 0);
+          if (!Number.isFinite(currentBalance) || currentBalance < amount) {
+              abortReason = "Ahn insuficientes para esta transferencia.";
+              return;
+          }
 
-      await db.ref().update(updates);
+          const timestamp = Date.now();
+          const senderName = current.characterName || current.character_name || current.nombre || senderId;
+          targetName = targetData.characterName || targetData.character_name || targetData.nombre || targetPlayerId;
+          const nextBalance = currentBalance - amount;
+          const txOut = {
+              id: transferId,
+              monto: -amount,
+              concepto: `A: ${targetName} - ${concept}`,
+              timestamp,
+              unread: true,
+              type: "p2p_out"
+          };
+
+          const packet = {
+              transferId,
+              senderPlayerId: senderId,
+              senderUid: auth.currentUser?.uid || current.uid || null,
+              senderName,
+              senderPhone: current.phoneNumber || "",
+              recipientPlayerId: targetPlayerId,
+              recipientUid: targetData.uid || null,
+              recipientName: targetName,
+              amount,
+              concept,
+              createdAt: timestamp,
+              status: "pending"
+          };
+
+          current.ahn = nextBalance;
+          current.finance = current.finance || {};
+          current.finance.currentBalance = nextBalance;
+          current.finance.transactionHistory = current.finance.transactionHistory || {};
+          current.finance.transactionHistory[transferId] = txOut;
+          current.transacciones = current.transacciones || {};
+          current.transacciones[transferId] = txOut;
+          current.p2pOutbox = current.p2pOutbox || {};
+          current.p2pOutbox[transferId] = packet;
+          return current;
+      });
+
+      if (!result.committed) {
+          throw new Error(abortReason || "No se pudo registrar la transferencia.");
+      }
+
       return { transferId, targetName };
   }
 
@@ -2161,18 +2182,26 @@ function initializeCharacterSheet() {
       if (p2pInboxListenerActive || !playerId) return;
       p2pInboxListenerActive = true;
 
-      const inboxRef = db.ref(`campaña/economia/p2pInbox/${playerId}`);
-      inboxRef.on("child_added", async (snap) => {
-          const packet = snap.val() || {};
-          const transferId = packet.transferId || snap.key;
-          const amount = Number(packet.amount);
+      const inFlight = new Set();
 
-          if (!transferId || packet.status === "settled" || !Number.isFinite(amount) || amount <= 0) return;
+      async function settlePacket(packet, transferId) {
+          const amount = Number(packet?.amount);
+          if (
+              !transferId ||
+              packet?.recipientPlayerId !== playerId ||
+              !Number.isFinite(amount) ||
+              amount <= 0 ||
+              inFlight.has(transferId)
+          ) {
+              return;
+          }
 
+          inFlight.add(transferId);
           try {
-              const playerRef = db.ref(`campaña/jugadores/${playerId}`);
-              const result = await playerRef.transaction((current) => {
+              const recipientRef = db.ref(`campaña/jugadores/${playerId}`);
+              const result = await recipientRef.transaction((current) => {
                   if (!current) return current;
+
                   current.finance = current.finance || {};
                   current.finance.transactionHistory = current.finance.transactionHistory || {};
                   current.transacciones = current.transacciones || {};
@@ -2199,12 +2228,37 @@ function initializeCharacterSheet() {
                   return current;
               });
 
-              if (result.committed) {
-                  await snap.ref.update({ status: "settled", settledAt: Date.now() });
+              if (!result.committed) {
+                  console.error("[Luminous][P2P] No se pudo acreditar transferencia:", transferId);
               }
           } catch (error) {
               console.error("[Luminous][P2P] No se pudo liquidar transferencia:", transferId, error);
+          } finally {
+              inFlight.delete(transferId);
           }
+      }
+
+      function inspectSenderSnapshot(senderSnap) {
+          const senderData = senderSnap?.val?.() || {};
+          const outbox = senderData.p2pOutbox || {};
+          for (const [transferId, packet] of Object.entries(outbox)) {
+              if (packet?.recipientPlayerId === playerId) {
+                  settlePacket(packet, packet.transferId || transferId);
+              }
+          }
+      }
+
+      // Sender-owned outboxes work with the long-standing player write rules:
+      // sender writes only their node, recipient reads campaign data and credits only their own node.
+      const playersRef = db.ref("campaña/jugadores");
+      playersRef.on("child_added", inspectSenderSnapshot);
+      playersRef.on("child_changed", inspectSenderSnapshot);
+
+      // Backwards compatibility: settle packets created by the short-lived p2pInbox implementation.
+      const legacyInboxRef = db.ref(`campaña/economia/p2pInbox/${playerId}`);
+      legacyInboxRef.on("child_added", (snap) => {
+          const packet = snap.val() || {};
+          settlePacket(packet, packet.transferId || snap.key);
       });
   }
 
@@ -2250,7 +2304,7 @@ function initializeCharacterSheet() {
 
             for (const [candidateId, candidateData] of Object.entries(players)) {
                 const candidatePhone = normalizePhoneLookup(candidateData?.phoneNumber);
-                const candidateName = String(candidateData?.character_name || candidateData?.nombre || "").trim().toLowerCase();
+                const candidateName = String(candidateData?.characterName || candidateData?.character_name || candidateData?.nombre || "").trim().toLowerCase();
                 if (
                     candidatePhone === lookup ||
                     candidateId.toLowerCase() === contactInput.toLowerCase() ||
@@ -2344,9 +2398,8 @@ function initializeCharacterSheet() {
 
   function initChatSystem() {
       if (chatListenerActive) return;
-      chatListenerActive = true;
-
       if (!playerId) return;
+      chatListenerActive = true;
 
       // Fetch my phone number and contacts from the canonical linked player record.
       db.ref(`campaña/jugadores/${playerId}`).on("value", snap => {
@@ -2707,8 +2760,9 @@ function initializeCharacterSheet() {
       });
   });
 
-  // Set up Sub-Tab Switcher once DOM is ready
-  document.addEventListener("DOMContentLoaded", () => {
+  // Phone communication subtabs must bind even when async auth finishes
+  // after DOMContentLoaded (the normal production path).
+  function initPhoneCommunicationTabs() {
         const btnMail = document.getElementById("btn-show-mail");
         const btnChat = document.getElementById("btn-show-chat");
         const btnContacts = document.getElementById("btn-show-contacts");
@@ -2733,18 +2787,31 @@ function initializeCharacterSheet() {
             if(activeSub) activeSub.style.display = "flex";
         }
 
-        if (btnMail && btnChat && btnContacts) {
+        if (btnMail && btnMail.dataset.phoneSubtabBound !== "true") {
+            btnMail.dataset.phoneSubtabBound = "true";
             btnMail.addEventListener("click", () => switchTab(btnMail, subMail));
+        }
+        if (btnChat && btnChat.dataset.phoneSubtabBound !== "true") {
+            btnChat.dataset.phoneSubtabBound = "true";
             btnChat.addEventListener("click", () => {
                 switchTab(btnChat, subChat);
                 initChatSystem();
             });
+        }
+        if (btnContacts && btnContacts.dataset.phoneSubtabBound !== "true") {
+            btnContacts.dataset.phoneSubtabBound = "true";
             btnContacts.addEventListener("click", () => {
                 switchTab(btnContacts, subContacts);
                 initContactsSystem();
             });
         }
-  });
+  }
+
+  if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", initPhoneCommunicationTabs, { once: true });
+  } else {
+      initPhoneCommunicationTabs();
+  }
 
   // --- Mail listener setup (Inventory UI migrated to LuminousInventoryHudV2) ---
   {
@@ -4213,9 +4280,8 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
   let contactsListenerActive = false;
   function initContactsSystem() {
       if (contactsListenerActive) return;
-      contactsListenerActive = true;
-
       if (!playerId) return;
+      contactsListenerActive = true;
 
       const contactsRef = db.ref(`campaña/jugadores/${playerId}/contactos`);
 
@@ -4281,26 +4347,33 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
       });
 
       const btnAdd = document.getElementById("btn-add-contact");
-      if (btnAdd) {
-          // Replace it to clear any old listeners
-          const newBtnAdd = btnAdd.cloneNode(true);
-          btnAdd.parentNode.replaceChild(newBtnAdd, btnAdd);
-
-          newBtnAdd.addEventListener("click", () => {
+      if (btnAdd && btnAdd.dataset.contactAddBound !== "true") {
+          btnAdd.dataset.contactAddBound = "true";
+          btnAdd.addEventListener("click", async () => {
               const numInput = document.getElementById("new-contact-number");
               const aliasInput = document.getElementById("new-contact-alias");
-              const phone = numInput.value.trim();
-              const alias = aliasInput.value.trim();
+              const phone = String(numInput?.value || "").trim();
+              const alias = String(aliasInput?.value || "").trim();
 
               if (!phone || !alias) {
                   alert("Debe ingresar un número y un alias.");
                   return;
               }
 
-              db.ref(`campaña/jugadores/${playerId}/contactos/${phone}`).set({ alias: alias }).then(() => {
-                  numInput.value = "";
-                  aliasInput.value = "";
-              });
+              btnAdd.disabled = true;
+              try {
+                  await db.ref(`campaña/jugadores/${playerId}/contactos/${phone}`).set({ alias });
+                  contactsDictionary[phone] = alias;
+                  if (numInput) numInput.value = "";
+                  if (aliasInput) aliasInput.value = "";
+              } catch (error) {
+                  console.error("[Luminous][Phone] No se pudo guardar el contacto:", error);
+                  alert(error?.code === "PERMISSION_DENIED"
+                      ? "Firebase rechazó guardar el contacto. Verifica que esta cuenta esté vinculada al jugador correcto."
+                      : "No se pudo guardar el contacto.");
+              } finally {
+                  btnAdd.disabled = false;
+              }
           });
       }
   }
