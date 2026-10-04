@@ -5644,6 +5644,136 @@ async function deliverShopPurchaseToStash(playerKey, itemKey, itemData) {
   return payload;
 }
 
+async function deliverShopPurchaseToPending(
+  playerKey,
+  itemKey,
+  itemData,
+  deliveryDays = 0,
+) {
+  const purchaseRuntime = window.LuminousShopItemPurchaseRuntime;
+  const payload =
+    purchaseRuntime?.buildPurchasePayload?.(
+      itemKey,
+      itemData,
+      playerKey,
+      { inventoryRuntime: window.LuminousItemInventoryRuntime },
+    ) || {
+      ...itemData,
+      id: itemData.id || itemKey,
+      definitionId:
+        itemData.definitionId ||
+        itemData.canonicalId ||
+        itemData.id ||
+        itemKey,
+      canonicalId:
+        itemData.canonicalId ||
+        itemData.definitionId ||
+        itemData.id ||
+        itemKey,
+      quantity: 1,
+      cantidad: 1,
+      currentOwnerId: playerKey,
+    };
+
+  const calSnap = await db.ref("campaña/calendario").once("value");
+  const calendar = calSnap.val();
+  const days = Math.max(0, parseInt(deliveryDays, 10) || 0);
+  const arrivalDay = calendar?.dia !== undefined
+    ? Number(calendar.dia || 0) + days
+    : days;
+
+  const delivery = {
+    ...payload,
+    diaDeLlegada: arrivalDay,
+  };
+  await db.ref(`campaña/jugadores/${playerKey}/entregasPendientes`).push(delivery);
+  return delivery;
+}
+
+function shopPromotionRewardPlan(playerData, shopData, shopId, itemData) {
+  const runtime = window.LuminousShopRuntime;
+  if (!runtime?.promotionRewardPlan) return [];
+  const context = window.LuminousShopCommerceContext
+    ? window.LuminousShopCommerceContext(playerData || {}, shopData || {}, shopId || "")
+    : {};
+  return runtime.promotionRewardPlan(itemData, shopData, context) || [];
+}
+
+async function reserveShopPromotionRewards(shopId, shopData, rewards = []) {
+  const reservations = [];
+  for (const reward of rewards) {
+    const rewardItem = shopData?.items?.[reward.itemId];
+    if (!rewardItem) {
+      await Promise.allSettled(
+        reservations.map((entry) => restoreShopStock(shopId, entry.itemKey)),
+      );
+      return {
+        reserved: false,
+        reservations: [],
+        message: "La recompensa de esta promoción ya no forma parte del catálogo.",
+      };
+    }
+
+    const quantity = Math.max(1, parseInt(reward.quantity, 10) || 1);
+    for (let unit = 0; unit < quantity; unit += 1) {
+      const stock = await reserveShopStock(shopId, reward.itemId);
+      if (!stock.reserved) {
+        await Promise.allSettled(
+          reservations.map((entry) => restoreShopStock(shopId, entry.itemKey)),
+        );
+        return {
+          reserved: false,
+          reservations: [],
+          message: "La recompensa de la promoción se agotó antes de completar la compra.",
+        };
+      }
+      reservations.push({
+        promotionId: reward.promotionId,
+        itemKey: reward.itemId,
+        itemData: rewardItem,
+      });
+    }
+  }
+
+  return { reserved: true, reservations };
+}
+
+async function restoreShopPromotionRewards(shopId, reservations = []) {
+  await Promise.allSettled(
+    reservations.map((entry) => restoreShopStock(shopId, entry.itemKey)),
+  );
+}
+
+async function deliverShopPromotionRewards(
+  playerKey,
+  reservations = [],
+  options = {},
+) {
+  const deliveredNames = [];
+  for (const reservation of reservations) {
+    if (options.mode === "pending") {
+      await deliverShopPurchaseToPending(
+        playerKey,
+        reservation.itemKey,
+        reservation.itemData,
+        options.deliveryDays || 0,
+      );
+    } else {
+      await deliverShopPurchaseToStash(
+        playerKey,
+        reservation.itemKey,
+        reservation.itemData,
+      );
+    }
+    deliveredNames.push(
+      reservation.itemData.nombre ||
+      reservation.itemData.name ||
+      "Recompensa",
+    );
+  }
+  return deliveredNames;
+}
+
 function sellShopItemFromStash(playerKey, itemKey, shopData = {}, shopId = "") {
   return new Promise((resolve, reject) => {
     const playerRef = db.ref(`campaña/jugadores/${playerKey}`);
