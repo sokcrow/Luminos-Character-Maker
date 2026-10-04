@@ -1955,38 +1955,49 @@ function initializeCharacterSheet() {
     ];
 
 
-    function checkCellphone(playerId, callback) {
-      if (!playerId) {
+    function checkCellphone(playerKey, callback) {
+      if (!playerKey) {
         callback(false);
         return;
       }
 
-      let hasCellphone = false;
+      db.ref(`campaña/jugadores/${playerKey}`).once("value")
+        .then((playerSnap) => {
+          const playerData = playerSnap.val() || {};
 
-      // We will do a one-time check or we can track it globally.
-      // Let's check both activo and stash right away.
-      const checkInventories = [
-        db.ref(`campaña/jugadores/${playerId}/inventario_activo`).once('value'),
-        db.ref(`campaña/jugadores/${playerId}/inventario_stash`).once('value')
-      ];
+          // A provisioned phone number means the player's terminal is ready.
+          // Keep inventory detection as a legacy fallback for unprovisioned characters.
+          if (String(playerData.phoneNumber || "").trim()) {
+            callback(true);
+            return;
+          }
 
-      Promise.all(checkInventories).then(snaps => {
-        snaps.forEach(snap => {
-          const inv = snap.val();
-          if (inv) {
-            Object.values(inv).forEach(item => {
-              // We'll check if id is "cellphone" or tags includes "cellphone"
-              // Just in case, let's also check if id was defined as "cellphone"
-              if (item.id === "cellphone" || (item.tags && typeof item.tags === 'string' && item.tags.toLowerCase().includes("cellphone"))) {
+          let hasCellphone = false;
+          const inventories = [
+            playerData.inventario_activo || {},
+            playerData.inventario_stash || {}
+          ];
+
+          inventories.forEach((inv) => {
+            Object.values(inv).forEach((item) => {
+              const tags = Array.isArray(item?.tags)
+                ? item.tags.join(" ")
+                : String(item?.tags || "");
+              if (
+                item?.id === "cellphone" ||
+                tags.toLowerCase().includes("cellphone")
+              ) {
                 hasCellphone = true;
               }
             });
-          }
+          });
+
+          callback(hasCellphone);
+        })
+        .catch((error) => {
+          console.error("[Luminous][Phone] No se pudo verificar el dispositivo:", error);
+          callback(false);
         });
-        callback(hasCellphone);
-      }).catch(() => {
-        callback(false);
-      });
     }
 
     // Tab switching logic for Main Nav
