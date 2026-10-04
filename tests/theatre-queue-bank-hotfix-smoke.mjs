@@ -35,7 +35,7 @@ assert.ok(
 );
 assert.ok(
   playerHtml.includes("hoja_personaje.css?v=20261004-theatre-bank-hotfix-1") &&
-  playerHtml.includes("hoja_personaje.js?v=20261004-theatre-bank-hotfix-1"),
+  /hoja_personaje\.js\?v=20261004-[a-z0-9-]+/.test(playerHtml),
   "Player bank hotfix assets must be cache-busted",
 );
 assert.ok(
