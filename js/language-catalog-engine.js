@@ -127,6 +127,6 @@
   ensureScript("luminous-special-language-access-script", "js/theatre-special-language-access.js", "luminous-special-languages");
   // Hotfix: ENTIENDE canónico, selección automática del idioma especial del hablante
   // y protección del diálogo activo + Log del jugador.
-  ensureScript("luminous-special-language-enforcement-script", "js/theatre-special-language-enforcement-hotfix.js", "luminous-special-language-enforcement");
-  ensureScript("luminous-special-language-log-script", "js/theatre-special-language-log-hotfix.js", "luminous-special-language-log");
+  ensureScript("luminous-special-language-enforcement-script", "js/theatre-special-language-enforcement-hotfix.js?v=20261004-language-comprehension-1", "luminous-special-language-enforcement");
+  ensureScript("luminous-special-language-log-script", "js/theatre-special-language-log-hotfix.js?v=20261004-language-comprehension-1", "luminous-special-language-log");
 })(window);
