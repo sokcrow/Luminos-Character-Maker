@@ -174,9 +174,24 @@ assert.match(
   "physical purchases must synchronize legacy ahn and finance.currentBalance",
 );
 assert.ok(
-  playerHtml.includes("hoja_personaje.css?v=20261004-shop-compact-1") &&
-  playerHtml.includes("hoja_personaje.js?v=20261004-shop-balance-1"),
+  playerHtml.includes("hoja_personaje.css?v=20261004-shop-compact-2") &&
+  playerHtml.includes("hoja_personaje.js?v=20261004-shop-balance-2"),
   "Shop HUD/balance changes must be cache-busted in the deployed player sheet",
+);
+assert.match(
+  playerHtml,
+  /shop-mode-tabs[\s\S]*?shop-footer-buy-mode[\s\S]*?COMPRAR[\s\S]*?shop-footer-sell-mode[\s\S]*?VENDER/,
+  "physical Shop must expose Comprar/Vender as visible mode tabs",
+);
+assert.match(
+  playerSource,
+  /setPhysicalShopMode\("sell"\)[\s\S]*?renderizarGridVentaFisica/,
+  "Vender tab must switch the physical Shop into Stash resale mode",
+);
+assert.match(
+  playerSource,
+  /campaña\/jugadores\/\$\{accountId\}\/inventario_stash/,
+  "physical Shop inventory reads/writes must use the canonical player account path",
 );
 assert.match(
   playerSource,
