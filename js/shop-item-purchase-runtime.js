@@ -86,6 +86,9 @@
     delete payload.stock_actual;
     delete payload.stock_maximo;
     delete payload.requisito_aparicion;
+    delete payload.shop_price_ahn;
+    delete payload.shop_stock_auto;
+    delete payload.shop_runtime_version;
 
     return payload;
   }
