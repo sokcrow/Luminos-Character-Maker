@@ -105,6 +105,8 @@ const rows = menu.itemRowsForPlayer();
 assert.equal(rows.length, 1, 'Combat Items must contain only usable, non-empty, combat-legal Active Inventory entries');
 assert.equal(rows[0].instanceId, 'med_live_1');
 assert.equal(rows[0].inventoryContainer, 'inventario_activo');
+const rowsAgain = menu.itemRowsForPlayer();
+assert.equal(rowsAgain[0], rows[0], 'the same inventory instance must reuse a stable row object so legacy reservations cannot double-book a quantity-1 stack');
 
 let selected = null;
 menu.state.originals.selectAction = (value) => { selected = value; return value; };
@@ -120,6 +122,58 @@ assert.ok(selected, 'clicking an Item row must reach selection');
 assert.equal(selected.type, 'items');
 assert.equal(selected.data.instanceId, 'med_live_1');
 assert.equal(selected.data.definitionId, 'hp_generic_pocket_recovery_patch');
+
+menu.state.originals.planTargetRule = (source) => source.itemType === 'hp_healing' ? 'self' : 'enemy';
+assert.equal(
+  menu.planTargetRuleCompat(rows[0]),
+  'self',
+  'canonical self-target Items must route through the legacy self-target rule instead of enemy targeting'
+);
+
+const persistedWrites = [];
+globalThis.LuminousCombatLiveAdapter073 = {
+  state: {
+    playerId: 'p1',
+    db: {
+      ref() {
+        return {
+          async update(updates) { persistedWrites.push(updates); },
+        };
+      },
+    },
+  },
+};
+globalThis.LuminousItemPersistenceRuntime = {
+  serializeInventoryState(unit) {
+    return {
+      schemaVersion: 3,
+      inventario_activo: JSON.parse(JSON.stringify(unit.inventario_activo || {})),
+      inventario_stash: {},
+      equipmentRefs: {},
+      attunedItemInstanceIds: [],
+    };
+  },
+};
+globalThis.LuminousPlayerVitalsRealtimeBridge = {
+  firebaseUpdatesForSnapshot(snapshot) {
+    const unit = Object.values(snapshot)[0];
+    return {
+      'campaña/jugadores/p1/hp': unit.hp ?? 0,
+      'campaña/jugadores/p1/sp': unit.sp ?? 0,
+    };
+  },
+};
+globalThis.combatData['player:p1'].canonicalPlayerKey = 'p1';
+globalThis.combatData['player:p1'].hp = 44;
+globalThis.combatData['player:p1'].sp = 12;
+globalThis.combatData['player:p1'].inventario_activo.med_live_1.quantity = 1;
+const persisted = await menu.persistQuickItemState(globalThis.combatData['player:p1']);
+assert.equal(persisted.saved, true, 'Quick Item state must persist immediately');
+assert.equal(persistedWrites.length, 1);
+assert.equal(persistedWrites[0]['campaña/jugadores/p1/inventario_activo'].med_live_1.quantity, 1);
+assert.equal(persistedWrites[0]['campaña/combate/combatants/player:p1/inventario_activo'].med_live_1.quantity, 1);
+assert.equal(persistedWrites[0]['campaña/jugadores/p1/hp'], 44);
+assert.equal(persistedWrites[0]['campaña/jugadores/p1/sp'], 12);
 
 globalThis.permanent = {
   global: [{ id: 'help', actionKey: 'help', kind: 'global', name: 'Help', description: 'Assist an ally.', economyCost: 'action' }],
