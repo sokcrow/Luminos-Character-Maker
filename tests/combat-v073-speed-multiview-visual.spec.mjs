@@ -243,13 +243,18 @@ test('DM and Player keep one canonical Speed across tab changes, hydrations and 
   ]);
   await Promise.all([waitReady(player,'player'),waitReady(dm,'dm')]);
 
-  // One canonical turn-start pass is allowed to lay out the formation from the
-  // already-persisted Speed values. Everything after this baseline must remain stable.
-  await Promise.all([
-    player.evaluate(()=>window.rollTurnSpeeds?.(7)),
-    dm.evaluate(()=>window.rollTurnSpeeds?.(7))
-  ]);
-  await Promise.all([player.waitForTimeout(250),dm.waitForTimeout(250)]);
+  // Production hydration itself must apply canonical Speed formation. Do not call
+  // rollTurnSpeeds here: that would mask a missing hydrate-time layout refresh.
+  const expectedFormation={
+    'player:p2':{x:10,y:18},
+    'player:p1':{x:10,y:42},
+    'enemy:wolf2':{x:90,y:18},
+    'enemy:wolf1':{x:90,y:42}
+  };
+  await Promise.all([player,dm].map(page=>page.waitForFunction(expected=>{
+    const rows=window.LuminousCombat073?.combatants?.()||{};
+    return Object.entries(expected).every(([id,pos])=>Number(rows[id]?.x)===pos.x&&Number(rows[id]?.y)===pos.y);
+  },expectedFormation,{timeout:10000})));
 
   const playerBefore=await snapshot(player);
   const dmBefore=await snapshot(dm);
