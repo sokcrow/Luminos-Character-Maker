@@ -339,9 +339,9 @@
       unit.hp,
       unit.maxHp,
       unit.sp,
-      unit.speed,
-      unit.speedTie,
-      unit.speedRollTurn,
+      // Speed is synchronized in-place by LuminousCombatSpeedAuthority073.
+      // Excluding its canonical roll fields prevents a speed-only Firebase
+      // update from rebuilding Combat and resetting Player planning/menu state.
       unit.x,
       unit.y,
       unit.scale,
@@ -351,6 +351,8 @@
       unit.img,
       unit.battleActive,
       unit.statusEffects,
+      unit.proneSpeedRound,
+      unit.confusionTurnMode,
       skillIdsFor(unit),
       inventoryHydrationSignature(unit)
     ]);
