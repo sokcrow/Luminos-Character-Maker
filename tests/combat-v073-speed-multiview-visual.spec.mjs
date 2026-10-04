@@ -178,7 +178,7 @@ async function snapshot(page) {
     const units={};
     for(const [id,row] of Object.entries(rows)){
       const node=document.getElementById('sprite-'+id);
-      const rect=node?.getBoundingClientRect?.();
+      const speedNode=document.getElementById('ui-panel-'+id)?.querySelector?.('.speed-number');
       units[id]={
         speed:Number(row.speed),
         speedBaseRoll:Number(row.speedBaseRoll),
@@ -186,7 +186,8 @@ async function snapshot(page) {
         speedTie:Number(row.speedTie),
         x:Number(row.x),
         y:Number(row.y),
-        rect:rect?{x:Math.round(rect.x*100)/100,y:Math.round(rect.y*100)/100}:null
+        cssPosition:node?{left:node.style.left||'',bottom:node.style.bottom||''}:null,
+        speedText:String(speedNode?.textContent??'').trim()
       };
     }
     return {
@@ -263,11 +264,13 @@ test('DM and Player keep one canonical Speed across tab changes, hydrations and 
   expect(dmAfter.transactions.committed).toBe(0);
   expect(playerAfter.transactions.committed).toBe(0);
 
-  // The battlefield itself must also stay put. Compare each viewer to its own baseline
-  // because DM and Player use different camera framing.
+  // Camera focus may shift the whole field by a pixel when browser tabs swap.
+  // The unit's actual battlefield position and visible Speed must not change.
   for(const id of Object.keys(playerBefore.units)){
-    expect(playerAfter.units[id].rect).toEqual(playerBefore.units[id].rect);
-    expect(dmAfter.units[id].rect).toEqual(dmBefore.units[id].rect);
+    expect(playerAfter.units[id].cssPosition).toEqual(playerBefore.units[id].cssPosition);
+    expect(dmAfter.units[id].cssPosition).toEqual(dmBefore.units[id].cssPosition);
+    expect(playerAfter.units[id].speedText).toEqual(playerBefore.units[id].speedText);
+    expect(dmAfter.units[id].speedText).toEqual(dmBefore.units[id].speedText);
   }
 
   fs.mkdirSync('artifacts/speed-authority-visual',{recursive:true});
