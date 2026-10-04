@@ -235,7 +235,7 @@ test('real Battle-viewer Player can open Actions, Skills, Spells and Items at em
   await goRoot(page);
   await clickRootMenu(page, 'global');
   await page.waitForFunction(() => document.querySelectorAll('#category-body .clean-row').length > 0, null, { timeout: 5000 });
-  await assertCategoryVisible(page, 'ACTION', 'actions');
+  await assertCategoryVisible(page, 'Analyse', 'actions');
 
   await goRoot(page);
   await clickRootMenu(page, 'skills');
