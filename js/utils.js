@@ -207,9 +207,15 @@ function ensurePlayerSplashFramingAssets(doc) {
 
 function ensureTheatreModernIdentityHotfix(doc) {
     const documentRef = doc || (typeof document !== 'undefined' ? document : null);
-    const isPlayer = documentRef?.querySelector?.('.sheet-phone-wrapper, #theatre-view-player');
-    const isDm = documentRef?.body?.classList?.contains('on-game-dashboard') || documentRef?.querySelector?.('#modulo-teatro');
-    if (!isPlayer && !isDm) return null;
+    const isPlayer = Boolean(documentRef?.querySelector?.('.sheet-phone-wrapper, #theatre-view-player'));
+    const isDm = Boolean(documentRef?.body?.classList?.contains('on-game-dashboard') || documentRef?.querySelector?.('#modulo-teatro'));
+    const playerTheatreActive = Boolean(
+        isPlayer && (
+            documentRef?.body?.classList?.contains('player-instance-theatre') ||
+            documentRef?.querySelector?.('#theatre-view-player.theatre-active')
+        )
+    );
+    if (!isDm && !playerTheatreActive) return null;
     return ensureScriptAsset(documentRef, 'theatre-modern-identity-hotfix-script', 'js/theatre-modern-identity-hotfix.js', { engine: 'theatre-modern-identity-hotfix' });
 }
 
@@ -334,6 +340,11 @@ if (typeof document !== 'undefined') {
     ensureDmTraitLibraryAssets(document);
     ensurePlayerSplashFramingAssets(document);
     ensureTheatreModernIdentityHotfix(document);
+    if (document.querySelector?.('.sheet-phone-wrapper, #theatre-view-player')) {
+        window.addEventListener?.('luminous:player-instance-changed', (event) => {
+            if (event?.detail?.theatreActive === true) ensureTheatreModernIdentityHotfix(document);
+        });
+    }
     ensureWeatherSystemAssets(document);
     ensurePlayerTheatreLanguagePolicy(document);
     ensureDmCharacterManagerAssets(document);

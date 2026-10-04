@@ -16,6 +16,7 @@
   const PANEL_ID = "bv074-player-spell-planner";
   const STYLE_ID = "bv074-player-spell-planner-style";
   const HOOK_GUARD = "__luminousPlayerSpellPlanner074";
+  const ICON_SRC = "Assets/Images/Buttons/Spells.png";
 
   const state = {
     db: null,
@@ -28,6 +29,8 @@
     selectedClassId: null,
     selectedSlotLevel: null,
     overcast: false,
+    selectedSpellChoiceKey: null,
+    selectedSpellChoiceValue: null,
     pendingTargeting: null,
     subscriptions: [],
     authUnsubscribe: null,
@@ -57,6 +60,11 @@
       try { return require("./spellcasting-basic-rules-runtime.js"); } catch (_) {}
       try { return require("./spellcasting-runtime.js"); } catch (_) {}
     }
+    return null;
+  }
+  function wizardRuntime() {
+    if (global?.LuminousWizardClassRuntime) return global.LuminousWizardClassRuntime;
+    if (typeof require === "function") { try { return require("./wizard-class-runtime.js"); } catch (_) {} }
     return null;
   }
 
@@ -138,6 +146,10 @@
 
   function castResourcePreflight(combatant, spell, classId, slotLevel, overcast) {
     if (spell?.cantrip === true || Number(slotLevel) === 0) return { available: true, reason: null, cantrip: true };
+    if (normalizeId(classId) === "wizard") {
+      const wizardFreeCast = wizardRuntime()?.freeCastMode?.(combatant, spell, slotLevel);
+      if (wizardFreeCast) return { available: true, reason: null, wizardFreeCast };
+    }
     const runtime = spellcastingRuntime();
     if (!runtime) return { available: false, reason: "SPELLCASTING_RUNTIME_REQUIRED" };
     const slot = runtime.canSpendSpellSlot?.(combatant, classId, slotLevel);
@@ -148,7 +160,7 @@
     return { available: true, reason: null, slot, overcast: true, currentSp: sp };
   }
 
-  function buildSpellPlan({ authUid = currentAuthUid(), ownerPlayerId = null, slotIndex = null, slotId = null, spellId, classId = null, slotLevel = null, overcast = false, targetId } = {}) {
+  function buildSpellPlan({ authUid = currentAuthUid(), ownerPlayerId = null, slotIndex = null, slotId = null, spellId, classId = null, slotLevel = null, overcast = false, targetId, spellChoiceValue = null } = {}) {
     const uid = clean(authUid);
     if (!uid) return { ok: false, reason: "AUTH_REQUIRED", payload: null };
     const player = ownerPlayerId ? { ok: true, playerId: clean(ownerPlayerId), player: state.players?.[clean(ownerPlayerId)] || null } : resolveAuthenticatedPlayer(uid);
@@ -163,11 +175,20 @@
 
     const id = clean(spellId);
     if (!id) return { ok: false, reason: "SPELL_ID_REQUIRED", payload: null };
-    const selectionKey = spellSelectionKey(player.player || {}, id);
-    if (selectionKey == null) return { ok: false, reason: "SPELL_NOT_SELECTED", payload: null };
     const loadout = spellLoadoutRuntime();
+    let selectionKey = spellSelectionKey(player.player || {}, id);
+    if (selectionKey == null && loadout?.ownsSpell?.(resolved.unit, id)) selectionKey = `runtime:${normalizeId(id)}`;
+    if (selectionKey == null) return { ok: false, reason: "SPELL_NOT_SELECTED", payload: null };
     const trusted = loadout?.resolveSpellForCombatant?.(resolved.unit, id, { classId });
     if (!trusted?.ok) return { ok: false, reason: trusted?.reason || "SPELL_UNAVAILABLE", payload: null };
+
+    const choiceRule = trusted.spell?.mechanics?.requiresChoice || null;
+    const choiceKey = clean(choiceRule?.key);
+    const choiceValues = Array.isArray(choiceRule?.values) ? choiceRule.values.map(clean).filter(Boolean) : [];
+    const choiceValue = clean(spellChoiceValue ?? state.selectedSpellChoiceValue);
+    if (choiceKey && (!choiceValue || (choiceValues.length && !choiceValues.includes(choiceValue)))) {
+      return { ok: false, reason: "SPELL_CHOICE_REQUIRED", payload: null, choice: { key: choiceKey, values: choiceValues } };
+    }
 
     const baseLevel = Math.max(0, Number(trusted.spell?.level ?? trusted.spell?.spellLevel ?? 0) || 0);
     const requestedLevel = trusted.spell?.cantrip === true ? 0 : Math.max(baseLevel, Number.isFinite(Number(slotLevel)) ? Math.trunc(Number(slotLevel)) : baseLevel);
@@ -175,9 +196,12 @@
     const resource = castResourcePreflight(resolved.unit, trusted.spell, trusted.classId, requestedLevel, overcast === true);
     if (!resource.available) return { ok: false, reason: resource.reason || "SPELL_RESOURCE_UNAVAILABLE", payload: null, resource };
 
-    const target = clean(targetId || (String(trusted.spell?.targetType || trusted.spell?.target_type).toLowerCase() === "self" ? resolved.unitId : ""));
+    const slotEnchantment = Boolean(trusted.spell?.mechanics?.slotEnchantment);
+    const target = slotEnchantment
+      ? clean(resolved.unitId)
+      : clean(targetId || (String(trusted.spell?.targetType || trusted.spell?.target_type).toLowerCase() === "self" ? resolved.unitId : ""));
     if (!target) return { ok: false, reason: "TARGET_REQUIRED", payload: null };
-    if (!state.combatants?.[target] && target !== clean(resolved.unitId)) return { ok: false, reason: "TARGET_NOT_FOUND", payload: null };
+    if (!slotEnchantment && !state.combatants?.[target] && target !== clean(resolved.unitId)) return { ok: false, reason: "TARGET_NOT_FOUND", payload: null };
 
     const payload = {
       unitId: clean(resolved.unitId || resolved.unit?.id || resolved.unit?.unitId),
@@ -187,7 +211,13 @@
       classId: trusted.classId,
       slotLevel: requestedLevel,
       overcast: overcast === true,
+      ...(resource.wizardFreeCast ? { wizardFreeCast: clone(resource.wizardFreeCast) } : {}),
       targetId: target,
+      ...(choiceKey ? { spellChoice: { key: choiceKey, value: choiceValue } } : {}),
+      ...(slotEnchantment ? {
+        targetActionSlotId: clean(slotId) || `${clean(resolved.unitId)}_slot_${requestedSlotIndex}`,
+        slotEnchantment: true,
+      } : {}),
       status: "planned",
       scheduledBy: player.playerId,
       schedulerUid: uid,
@@ -195,10 +225,20 @@
 
     const authorization = ownershipRuntime()?.authorizePlanWrite?.({ authUid: uid, ownerPlayerId: player.playerId, slotIndex: requestedSlotIndex, action: payload, combatants: state.combatants, players: state.players, allowLegacy: true });
     if (!authorization?.ok) return { ok: false, reason: authorization?.reason || "PLAN_NOT_AUTHORIZED", payload: null };
-    return { ok: true, reason: null, ownerPlayerId: player.playerId, unit: resolved.unit, unitId: payload.unitId, slotIndex: requestedSlotIndex, spell: trusted.spell, classId: trusted.classId, resource, payload };
+    return { ok: true, reason: null, ownerPlayerId: player.playerId, unit: resolved.unit, unitId: payload.unitId, slotIndex: requestedSlotIndex, spell: trusted.spell, classId: trusted.classId, resource, slotEnchantment, payload };
   }
 
   function planAt(ownerPlayerId, slotIndex) { return state.plans?.[clean(ownerPlayerId)]?.[slotIndex] || state.plans?.[clean(ownerPlayerId)]?.[String(slotIndex)] || null; }
+
+  function isAttackSkillPlan(plan = {}) {
+    const kind = clean(plan.kind || plan.type).toLowerCase();
+    return ["skill", "attack", "deck", "granted"].includes(kind) || Boolean(plan.skillId);
+  }
+
+  function ownerHasSlotEnchantment(ownerPlayerId) {
+    const plans = state.plans?.[clean(ownerPlayerId)] || {};
+    return Object.values(plans).some((plan) => Array.isArray(plan?.enchantments) && plan.enchantments.length > 0);
+  }
 
   async function scheduleSpell(options = {}) {
     if (clean(state.combatState).toUpperCase() !== "PRE_COMBAT_PLANNING") return { ok: false, reason: "NOT_IN_PLANNING", payload: null };
@@ -207,6 +247,26 @@
     const db = options.db || state.db;
     if (!db?.ref) return { ok: false, reason: "FIREBASE_DATABASE_REQUIRED", payload: null };
     const path = `${ROOTS.plannedActions}/${built.ownerPlayerId}/${built.slotIndex}`, ref = db.ref(path), existing = planAt(built.ownerPlayerId, built.slotIndex);
+
+    if (built.slotEnchantment) {
+      if (!existing || !isAttackSkillPlan(existing)) return { ok: false, reason: "SLOT_ENCHANTMENT_REQUIRES_PLANNED_ATTACK_SKILL", payload: null };
+      if (clean(existing.schedulerUid) !== clean(built.payload.schedulerUid) || clean(existing.scheduledBy) !== built.ownerPlayerId || clean(existing.status) !== "planned") return { ok: false, reason: "ACTION_SLOT_NOT_OWNED", payload: null };
+      if (ownerHasSlotEnchantment(built.ownerPlayerId)) return { ok: false, reason: "QUICK_ACTION_ALREADY_RESERVED", payload: null };
+      const enchantment = {
+        spellId: built.payload.spellId,
+        classId: built.payload.classId,
+        slotLevel: 0,
+        castingTime: "quick_action",
+        economyAddon: "quick_action",
+        targetActionSlotId: built.payload.targetActionSlotId,
+      };
+      const nextPlan = { ...clone(existing), enchantments: [...(Array.isArray(existing.enchantments) ? existing.enchantments : []), enchantment] };
+      await ref.set(nextPlan);
+      state.plans = { ...(state.plans || {}), [built.ownerPlayerId]: { ...(state.plans?.[built.ownerPlayerId] || {}), [String(built.slotIndex)]: clone(nextPlan) } };
+      render();
+      return { ...built, payload: nextPlan, enchantment, written: true };
+    }
+
     if (existing) {
       if (clean(existing.schedulerUid) !== clean(built.payload.schedulerUid) || clean(existing.scheduledBy) !== built.ownerPlayerId || clean(existing.status) !== "planned") return { ok: false, reason: "ACTION_SLOT_ALREADY_RESERVED", payload: null };
       await ref.remove();
@@ -226,7 +286,15 @@
     if (clean(existing.schedulerUid) !== uid || clean(existing.scheduledBy) !== owner.playerId || clean(existing.status) !== "planned") return { ok: false, reason: "PLAN_NOT_OWNED" };
     const db = options.db || state.db;
     if (!db?.ref) return { ok: false, reason: "FIREBASE_DATABASE_REQUIRED" };
-    await db.ref(`${ROOTS.plannedActions}/${owner.playerId}/${index}`).remove();
+    const ref = db.ref(`${ROOTS.plannedActions}/${owner.playerId}/${index}`);
+    if (Array.isArray(existing.enchantments) && existing.enchantments.length) {
+      const nextPlan = { ...clone(existing), enchantments: [] };
+      await ref.set(nextPlan);
+      state.plans = { ...(state.plans || {}), [owner.playerId]: { ...(state.plans?.[owner.playerId] || {}), [String(index)]: nextPlan } };
+      render();
+      return { ok: true, reason: null, removed: true, enchantmentOnly: true };
+    }
+    await ref.remove();
     const next = { ...(state.plans?.[owner.playerId] || {}) }; delete next[String(index)];
     state.plans = { ...(state.plans || {}), [owner.playerId]: next };
     render();
@@ -245,6 +313,9 @@
     state.selectedClassId = classes.length === 1 ? classes[0] : clean(row.spell?.sourceClassId || row.spell?.classId) || null;
     state.selectedSlotLevel = row.spell?.cantrip ? 0 : Math.max(1, Number(row.spell?.level ?? row.spell?.spellLevel ?? 1) || 1);
     state.overcast = false;
+    const choiceRule = row.spell?.mechanics?.requiresChoice || null;
+    state.selectedSpellChoiceKey = clean(choiceRule?.key) || null;
+    state.selectedSpellChoiceValue = Array.isArray(choiceRule?.values) && choiceRule.values.length ? clean(choiceRule.values[0]) : null;
     const skills = skillPlanner();
     if (skills?.state) skills.state.selectedSkillId = null;
     skills?.render?.();
@@ -252,7 +323,7 @@
     return { ok: true, reason: null, spellId: id };
   }
 
-  function clearSelectedSpell() { state.selectedSpellId = null; state.selectedClassId = null; state.selectedSlotLevel = null; state.overcast = false; render(); }
+  function clearSelectedSpell() { state.selectedSpellId = null; state.selectedClassId = null; state.selectedSlotLevel = null; state.overcast = false; state.selectedSpellChoiceKey = null; state.selectedSpellChoiceValue = null; render(); }
 
   function emitLog(message, type = "normal") {
     try { if (typeof global.addLogEntry === "function") global.addLogEntry(message, type); else global.console?.log?.(`[PlayerSpellPlanner074] ${message}`); } catch (_) {}
@@ -262,7 +333,7 @@
     const doc = global.document;
     if (!doc || doc.getElementById(STYLE_ID)) return;
     const style = doc.createElement("style"); style.id = STYLE_ID;
-    style.textContent = `#${PANEL_ID}{position:fixed;left:12px;bottom:150px;z-index:16001;width:min(620px,calc(100vw - 24px));background:rgba(8,10,16,.97);border:1px solid #596ca0;box-shadow:0 8px 28px rgba(0,0,0,.65);color:#eee;font:12px Arial,sans-serif;padding:10px;box-sizing:border-box}#${PANEL_ID}[hidden]{display:none!important}.bv074-pspell-title{font:700 15px var(--font-limbus,Arial);letter-spacing:.1em;color:#9fc6ff;margin-bottom:7px}.bv074-pspell-meta{color:#aab2c2;font-size:10px;margin-bottom:7px}.bv074-pspell-list{display:flex;gap:5px;flex-wrap:wrap}.bv074-pspell-btn{border:1px solid #485a86;background:#101522;color:#d8e6ff;padding:6px 8px;cursor:pointer}.bv074-pspell-btn.selected{border-color:#9fc6ff;color:#fff;box-shadow:0 0 8px rgba(159,198,255,.3)}.bv074-pspell-btn:disabled{opacity:.45;cursor:not-allowed}.bv074-pspell-cast{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px}.bv074-pspell-cast select,.bv074-pspell-cast input{background:#0b0f18;border:1px solid #485a86;color:#fff;padding:4px}.bv074-pspell-slots{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}.bv074-pspell-slot{border:1px solid #343e59;padding:4px 6px;color:#aab2c2}.bv074-pspell-cancel{border:0;background:#351b25;color:#ff9cb3;cursor:pointer;padding:2px 5px}.bv074-pspell-hint{margin-top:7px;color:#a9c7ef;font-size:10px}`;
+    style.textContent = `#${PANEL_ID}{position:fixed;left:12px;bottom:150px;z-index:16001;width:min(620px,calc(100vw - 24px));background:rgba(8,10,16,.97);border:1px solid #596ca0;box-shadow:0 8px 28px rgba(0,0,0,.65);color:#eee;font:12px Arial,sans-serif;padding:10px;box-sizing:border-box}#${PANEL_ID}[hidden]{display:none!important}.bv074-pspell-title{display:flex;align-items:center;gap:7px;font:700 15px var(--font-limbus,Arial);letter-spacing:.1em;color:#9fc6ff;margin-bottom:7px}.bv074-pspell-title-icon{width:20px;height:20px;object-fit:contain;flex:0 0 auto}.bv074-pspell-meta{color:#aab2c2;font-size:10px;margin-bottom:7px}.bv074-pspell-list{display:flex;gap:5px;flex-wrap:wrap}.bv074-pspell-btn{border:1px solid #485a86;background:#101522;color:#d8e6ff;padding:6px 8px;cursor:pointer}.bv074-pspell-btn.selected{border-color:#9fc6ff;color:#fff;box-shadow:0 0 8px rgba(159,198,255,.3)}.bv074-pspell-btn:disabled{opacity:.45;cursor:not-allowed}.bv074-pspell-cast{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px}.bv074-pspell-cast select,.bv074-pspell-cast input{background:#0b0f18;border:1px solid #485a86;color:#fff;padding:4px}.bv074-pspell-slots{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}.bv074-pspell-slot{border:1px solid #343e59;padding:4px 6px;color:#aab2c2}.bv074-pspell-cancel{border:0;background:#351b25;color:#ff9cb3;cursor:pointer;padding:2px 5px}.bv074-pspell-hint{margin-top:7px;color:#a9c7ef;font-size:10px}`;
     doc.head?.appendChild(style);
   }
 
@@ -281,6 +352,7 @@
         if (event.target?.id === "bv074-spell-class") state.selectedClassId = clean(event.target.value) || null;
         if (event.target?.id === "bv074-spell-level") state.selectedSlotLevel = Math.max(0, Math.trunc(Number(event.target.value) || 0));
         if (event.target?.id === "bv074-spell-overcast") state.overcast = event.target.checked === true;
+        if (event.target?.id === "bv074-spell-choice") state.selectedSpellChoiceValue = clean(event.target.value) || null;
         render();
       });
       doc.body.appendChild(panel);
@@ -300,7 +372,13 @@
     const maxSlots = ownershipRuntime()?.actionSlotCount?.(resolved.unit) || Number(resolved.unit?.actionSlots || 1);
     const slots = Array.from({ length: maxSlots }, (_, index) => ({ index, plan: planAt(owner.playerId, index) }));
     const baseLevel = selected?.spell?.cantrip ? 0 : Math.max(1, Number(selected?.spell?.level ?? selected?.spell?.spellLevel ?? 1) || 1);
-    panel.innerHTML = `<div class="bv074-pspell-title">PLAYER SPELLS · 0.7.4</div><div class="bv074-pspell-meta">${htmlEscape(owner.playerId)} · ${clean(state.combatState).toUpperCase() || "NO PHASE"} · definitions are resolved from Content Registry.</div><div class="bv074-pspell-list">${spells.map((row) => `<button type="button" class="bv074-pspell-btn${state.selectedSpellId === row.id ? " selected" : ""}" data-bv074-spell="${htmlEscape(row.id)}" ${row.ready ? "" : "disabled"} title="${htmlEscape(row.reason || "")}">${htmlEscape(row.name)}${row.ready ? "" : " · INVALID"}</button>`).join("")}</div>${selected ? `<div class="bv074-pspell-cast"><label>Class <select id="bv074-spell-class">${classes.map((id) => `<option value="${htmlEscape(id)}" ${state.selectedClassId === id ? "selected" : ""}>${htmlEscape(id)}</option>`).join("")}</select></label><label>Slot <input id="bv074-spell-level" type="number" min="${baseLevel}" max="9" value="${Number(state.selectedSlotLevel ?? baseLevel)}" ${selected.spell?.cantrip ? "disabled" : ""}></label><label><input id="bv074-spell-overcast" type="checkbox" ${state.overcast ? "checked" : ""} ${selected.spell?.cantrip ? "disabled" : ""}> Overcast</label></div>` : ""}<div class="bv074-pspell-slots">${slots.map(({ index, plan }) => `<div class="bv074-pspell-slot">SLOT ${index + 1}: ${plan ? htmlEscape(plan.spellId || plan.skillId || plan.traitId || plan.kind || "reserved") : "free"}${plan && clean(plan.schedulerUid) === currentAuthUid() && clean(plan.status) === "planned" ? ` <button class="bv074-pspell-cancel" data-bv074-spell-cancel="${index}">×</button>` : ""}</div>`).join("")}</div><div class="bv074-pspell-hint">${selected ? `Selected: ${htmlEscape(selected.name)} · drag one of your Action Slots onto a target.` : spells.some((row) => row.ready) ? "Select a valid Spell, then drag one of your Action Slots onto a target." : "Selected Spell IDs exist, but no canonical Spell definitions are registered yet."}</div>`;
+    const selectedChoiceRule = selected?.spell?.mechanics?.requiresChoice || null;
+    const selectedChoiceKey = clean(selectedChoiceRule?.key);
+    const selectedChoiceValues = Array.isArray(selectedChoiceRule?.values) ? selectedChoiceRule.values.map(clean).filter(Boolean) : [];
+    const selectedChoiceHtml = selectedChoiceKey && selectedChoiceValues.length
+      ? `<label>${htmlEscape(selectedChoiceKey)} <select id="bv074-spell-choice">${selectedChoiceValues.map((value) => `<option value="${htmlEscape(value)}" ${state.selectedSpellChoiceValue === value ? "selected" : ""}>${htmlEscape(value)}</option>`).join("")}</select></label>`
+      : "";
+    panel.innerHTML = `<div class="bv074-pspell-title"><img class="bv074-pspell-title-icon" src="${ICON_SRC}" alt="" aria-hidden="true">PLAYER SPELLS · 0.7.4</div><div class="bv074-pspell-meta">${htmlEscape(owner.playerId)} · ${clean(state.combatState).toUpperCase() || "NO PHASE"} · definitions are resolved from Content Registry.</div><div class="bv074-pspell-list">${spells.map((row) => `<button type="button" class="bv074-pspell-btn${state.selectedSpellId === row.id ? " selected" : ""}" data-bv074-spell="${htmlEscape(row.id)}" ${row.ready ? "" : "disabled"} title="${htmlEscape(row.reason || "")}">${htmlEscape(row.name)}${row.ready ? "" : " · INVALID"}</button>`).join("")}</div>${selected ? `<div class="bv074-pspell-cast"><label>Class <select id="bv074-spell-class">${classes.map((id) => `<option value="${htmlEscape(id)}" ${state.selectedClassId === id ? "selected" : ""}>${htmlEscape(id)}</option>`).join("")}</select></label><label>Slot <input id="bv074-spell-level" type="number" min="${baseLevel}" max="9" value="${Number(state.selectedSlotLevel ?? baseLevel)}" ${selected.spell?.cantrip ? "disabled" : ""}></label><label><input id="bv074-spell-overcast" type="checkbox" ${state.overcast ? "checked" : ""} ${selected.spell?.cantrip ? "disabled" : ""}> Overcast</label>${selectedChoiceHtml}</div>` : ""}<div class="bv074-pspell-slots">${slots.map(({ index, plan }) => `<div class="bv074-pspell-slot">SLOT ${index + 1}: ${plan ? htmlEscape(plan.spellId || plan.skillId || plan.traitId || plan.kind || "reserved") : "free"}${plan && clean(plan.schedulerUid) === currentAuthUid() && clean(plan.status) === "planned" ? ` <button class="bv074-pspell-cancel" data-bv074-spell-cancel="${index}">×</button>` : ""}</div>`).join("")}</div><div class="bv074-pspell-hint">${selected ? `Selected: ${htmlEscape(selected.name)} · ${selected.spell?.mechanics?.slotEnchantment ? "use a Slot that already contains a Melee Attack Skill; the Skill plan is preserved and enchanted." : "drag one of your Action Slots onto a target."}` : spells.some((row) => row.ready) ? "Select a valid Spell, then drag one of your Action Slots onto a target." : "Selected Spell IDs exist, but no canonical Spell definitions are registered yet."}</div>`;
     return true;
   }
 

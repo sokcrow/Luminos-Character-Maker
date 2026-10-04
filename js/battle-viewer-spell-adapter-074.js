@@ -8,6 +8,8 @@
 
   const VERSION = "0.7.4";
   const OVERCAST_PREFIX = "__overcast__";
+  const WIZARD_MASTERY_PREFIX = "__wizard_mastery__:";
+  const WIZARD_SIGNATURE_PREFIX = "__wizard_signature__:";
   const clean = (value) => String(value ?? "").trim();
   const normalizeId = (value) => clean(value).toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
   const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
@@ -61,12 +63,22 @@
     return Math.max(baseLevel, Number.isFinite(requested) ? Math.trunc(requested) : baseLevel);
   }
 
-  function canonicalCastResource(classId, slotLevel, overcast) {
+  function canonicalCastResource(classId, slotLevel, overcast, plan = {}) {
+    const free = plan?.wizardFreeCast || null;
+    const spellId = normalizeId(free?.spellId || plan?.spellId);
+    let resourceId = overcast === true ? `${OVERCAST_PREFIX}${clean(classId)}` : clean(classId);
+    if (free?.type === "spell_mastery" && spellId) resourceId = `${WIZARD_MASTERY_PREFIX}${spellId}`;
+    if (free?.type === "signature_spells" && spellId) resourceId = `${WIZARD_SIGNATURE_PREFIX}${spellId}`;
     return {
       owner: "source", type: "spell_slot",
-      id: overcast === true ? `${OVERCAST_PREFIX}${clean(classId)}` : clean(classId),
+      id: resourceId,
       amount: 1,
-      metadata: { classId: clean(classId), slotLevel: Math.max(0, Number(slotLevel) || 0), overcast: overcast === true }
+      metadata: {
+        classId: clean(classId),
+        slotLevel: Math.max(0, Number(slotLevel) || 0),
+        overcast: overcast === true,
+        ...(free ? { wizardFreeCast: clone(free) } : {})
+      }
     };
   }
 
@@ -77,10 +89,30 @@
     return classes.reduce((sum, row) => sum + Math.max(0, Math.trunc(Number(row?.levels ?? row?.level ?? 0) || 0)), 0);
   }
 
-  function spellcastingValues(actor, classId) {
+  function spellcastingValues(actor, classId, spell = {}) {
     const runtime = spellcastingRuntime();
     try {
-      if (typeof runtime?.resolveSpellcasting === "function") return runtime.resolveSpellcasting(actor, classId) || null;
+      const base = typeof runtime?.resolveSpellcasting === "function" ? (runtime.resolveSpellcasting(actor, classId) || null) : null;
+      const requestedAbility = typeof runtime?.normalizeAbilityId === "function"
+        ? runtime.normalizeAbilityId(spell.castAbilityId || spell.spellcastingAbilityId || spell.abilityId)
+        : normalizeId(spell.castAbilityId || spell.spellcastingAbilityId || spell.abilityId);
+      if (!requestedAbility || !base || requestedAbility === base.abilityId) return base;
+
+      const aliases = runtime?.ABILITY_ALIASES?.[requestedAbility] || [requestedAbility];
+      const stats = actor?.stats || actor?.dndStats || {};
+      const score = aliases
+        .map((alias) => stats?.[alias] ?? actor?.[alias])
+        .find((value) => Number.isFinite(Number(value)));
+      const spellMod = Math.floor(((Number.isFinite(Number(score)) ? Number(score) : 10) - 10) / 2);
+      const proficiency = Number.isFinite(Number(base.proficiency)) ? Number(base.proficiency) : Math.ceil(actorLevel(actor) / 20);
+      return {
+        ...base,
+        abilityId: requestedAbility,
+        spellMod,
+        proficiency,
+        spellAttack: spellMod + proficiency,
+        spellDC: 8 + spellMod + proficiency,
+      };
     } catch (_) {}
     return null;
   }
@@ -99,7 +131,7 @@
     const mechanics = definition.mechanics || {};
     const baseLevel = Math.max(0, Math.trunc(Number(definition.level ?? definition.spellLevel ?? 0) || 0));
     const extraLevels = Math.max(0, slotLevel - baseLevel);
-    const casting = spellcastingValues(actor, classId) || {};
+    const casting = spellcastingValues(actor, classId, definition) || {};
     const spellMod = Number(casting.spellMod) || 0;
     const level = actorLevel(actor);
 
@@ -185,9 +217,9 @@
     const runtime = spellcastingRuntime();
     let resolved = null;
     try {
-      if (typeof runtime?.resolveSpellSave === "function") resolved = runtime.resolveSpellSave(actor, classId, spell);
-      if (!resolved && typeof runtime?.resolveSpellcasting === "function") {
-        const casting = runtime.resolveSpellcasting(actor, classId);
+      if (!spell?.castAbilityId && typeof runtime?.resolveSpellSave === "function") resolved = runtime.resolveSpellSave(actor, classId, spell);
+      if (!resolved) {
+        const casting = spellcastingValues(actor, classId, spell);
         if (casting) resolved = { dc: casting.spellDC };
       }
     } catch (_) {}
@@ -234,7 +266,7 @@
     if (!compiled?.action) return compiled;
 
     compiled.action.source = { type: "spell", id: trusted.spellId };
-    compiled.action.resources = trusted.spell.cantrip === true || slotLevel === 0 ? [] : [canonicalCastResource(trusted.classId, slotLevel, plan.overcast === true)];
+    compiled.action.resources = trusted.spell.cantrip === true || slotLevel === 0 ? [] : [canonicalCastResource(trusted.classId, slotLevel, plan.overcast === true, plan)];
     compiled.action.effects = [
       { type: "viewer_spell_cast", spellId: trusted.spellId, classId: trusted.classId, slotLevel, concentration: trusted.spell.concentration === true },
       ...(compiled.action.effects || [])
@@ -280,7 +312,7 @@
   }
 
   const api = Object.freeze({
-    version: VERSION, OVERCAST_PREFIX, spellIdForPlan, isSpellPlan, trustedSpell, requestedSlotLevel,
+    version: VERSION, OVERCAST_PREFIX, WIZARD_MASTERY_PREFIX, WIZARD_SIGNATURE_PREFIX, spellIdForPlan, isSpellPlan, trustedSpell, requestedSlotLevel,
     canonicalCastResource, actorLevel, spellcastingValues, materializeSpell, applyCanonicalSave,
     applyCanonicalMetadata, compileCanonicalSpell, install
   });

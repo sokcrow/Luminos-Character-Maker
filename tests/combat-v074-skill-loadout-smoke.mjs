@@ -37,6 +37,28 @@ const objectSlots = {
 };
 assert.deepEqual(loadout.skillSlotIdsFor(objectSlots), ['skill_a', 'skill_b', 'skill_c']);
 
+const canonicalDeck = {
+  action_slots: ['legacy_a', 'legacy_b'],
+  characterBuild: {
+    skillDeck: {
+      tier1: 'skill_t1',
+      tier2: 'skill_t2',
+      tier3: 'skill_t3',
+    },
+  },
+};
+assert.deepEqual(loadout.skillDeckSlots(canonicalDeck.characterBuild.skillDeck), [
+  'skill_t1', 'skill_t1', 'skill_t1',
+  'skill_t2', 'skill_t2',
+  'skill_t3',
+]);
+assert.deepEqual(
+  loadout.skillSlotIdsFor(canonicalDeck),
+  ['skill_t1', 'skill_t1', 'skill_t1', 'skill_t2', 'skill_t2', 'skill_t3'],
+  'canonical Player skillDeck must override legacy action_slots',
+);
+assert.deepEqual(loadout.skillIdsFor(canonicalDeck), ['skill_t1', 'skill_t2', 'skill_t3']);
+
 // Player -> Unit resolution must use canonical identity signals, never display names.
 const units = {};
 for (let i = 1; i <= 8; i += 1) {

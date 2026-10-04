@@ -60,6 +60,8 @@
         slotLevelSource: "class_level",
         limbusLevelConversion: "dnd_level_1_equals_limbus_1_then_dnd_level_times_5",
         recovery: profile.recovery,
+        spellcastingStartDndLevel: profile.spellcastingStartDndLevel || 1,
+        spellcastingStartLimbusLevel: profile.spellcastingStartLimbusLevel || 1,
         spellAttackFormula: "Proficiency + SpellMod",
         spellSaveDcFormula: "8 + Proficiency + SpellMod",
       },
@@ -71,12 +73,14 @@
 
   function grantFor(classId) {
     const traitId = traitIdFor(classId);
+    const profile = spellcasting.getClassSpellcastingProfile(classId) || {};
+    const atLevel = Math.max(1, Number(profile.spellcastingStartLimbusLevel || 1));
     return {
-      id: `core_class_${classId}_l1_${traitId}`,
+      id: `core_class_${classId}_l${atLevel}_${traitId}`,
       sourceType: "class",
       sourceId: classId,
-      source: { className: CLASS_NAMES[classId] || classId, atLevel: 1, requiredClassLevel: 1 },
-      atLevel: 1,
+      source: { className: CLASS_NAMES[classId] || classId, atLevel, requiredClassLevel: atLevel },
+      atLevel,
       traitId,
       grantType: "trait",
       multiclassPolicy: "allowed",
@@ -188,9 +192,9 @@
     queueMicrotask(install);
   }
 
-  if (global.document && global.setInterval) {
-    const timer = global.setInterval(install, 800);
-    timer?.unref?.();
+  if (global.document) {
+    ["luminous:player-data", "luminous:traits-refreshed", "luminous:class-runtime-loaded", "luminous:class-runtimes-ready"]
+      .forEach((name) => global.addEventListener?.(name, install));
   }
 
   if (typeof module !== "undefined" && module.exports) module.exports = api;

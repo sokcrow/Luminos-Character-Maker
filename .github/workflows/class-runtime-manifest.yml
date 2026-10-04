@@ -10,6 +10,24 @@ on:
       - "js/class-runtime-registry.js"
       - "js/class-runtime-manifest.js"
       - "js/class-runtime-bootstrap.js"
+      - "js/fighting-style-runtime.js"
+      - "js/universal-action-economy.js"
+      - "js/class-milestone-engine.js"
+      - "js/dm-player-class-milestones.js"
+      - "tests/ranger-class-runtime-smoke.mjs"
+      - "tests/wizard-class-runtime-smoke.mjs"
+      - "tests/bilgewater-buccaneer-archetype-runtime-smoke.cjs"
+      - "tests/bilgewater-demolisher-archetype-runtime-smoke.cjs"
+      - "tests/fighter-class-runtime-smoke.mjs"
+      - "tests/champion-archetype-runtime-smoke.mjs"
+      - "tests/bladesinger-archetype-runtime-smoke.mjs"
+      - "tests/samurai-archetype-runtime-smoke.mjs"
+      - "tests/banneret-archetype-runtime-smoke.mjs"
+      - "tests/monk-class-runtime-smoke.cjs"
+      - "js/class-status-semantics.js"
+      - "js/caster-spellcasting-traits-runtime.js"
+      - "js/spellcasting-runtime.js"
+      - "tests/fighting-style-runtime-smoke.mjs"
       - "js/player-archetype-runtime.js"
       - "js/archetype-combat-event-runtime.js"
       - "js/status-engine.js"
@@ -25,6 +43,23 @@ on:
       - "js/class-runtime-registry.js"
       - "js/class-runtime-manifest.js"
       - "js/class-runtime-bootstrap.js"
+      - "js/fighting-style-runtime.js"
+      - "js/universal-action-economy.js"
+      - "js/class-milestone-engine.js"
+      - "js/dm-player-class-milestones.js"
+      - "tests/fighting-style-runtime-smoke.mjs"
+      - "tests/ranger-class-runtime-smoke.mjs"
+      - "tests/wizard-class-runtime-smoke.mjs"
+      - "tests/bilgewater-buccaneer-archetype-runtime-smoke.cjs"
+      - "tests/bilgewater-demolisher-archetype-runtime-smoke.cjs"
+      - "tests/fighter-class-runtime-smoke.mjs"
+      - "tests/champion-archetype-runtime-smoke.mjs"
+      - "tests/bladesinger-archetype-runtime-smoke.mjs"
+      - "tests/samurai-archetype-runtime-smoke.mjs"
+      - "tests/banneret-archetype-runtime-smoke.mjs"
+      - "js/class-status-semantics.js"
+      - "js/caster-spellcasting-traits-runtime.js"
+      - "js/spellcasting-runtime.js"
       - "js/player-archetype-runtime.js"
       - "js/archetype-combat-event-runtime.js"
       - "js/status-engine.js"
@@ -43,6 +78,36 @@ jobs:
       - run: node --check js/class-runtime-registry.js
       - run: node --check js/class-runtime-manifest.js
       - run: node --check js/class-runtime-bootstrap.js
+      - run: node --check js/fighting-style-runtime.js
+      - run: node --check js/universal-action-economy.js
+      - run: node --check js/class-milestone-engine.js
+      - run: node --check js/dm-player-class-milestones.js
+      - run: node tests/fighting-style-runtime-smoke.mjs
+      - run: node --check js/fighter-class-runtime.js
+      - run: node --check js/ranger-class-runtime.js
+      - run: node --check js/monk-class-runtime.js
+      - run: node --check js/spellcasting-runtime.js
+      - run: node --check js/caster-spellcasting-traits-runtime.js
+      - run: node --check js/wizard-class-runtime.js
+      - run: node tests/wizard-class-runtime-smoke.mjs
+      - run: node --check js/class-status-semantics.js
+      - run: node tests/fighter-class-runtime-smoke.mjs
+      - run: node --check js/champion-archetype-runtime.js
+      - run: node tests/champion-archetype-runtime-smoke.mjs
+      - run: node --check js/bladesinger-archetype-runtime.js
+      - run: node tests/bladesinger-archetype-runtime-smoke.mjs
+      - run: node --check js/samurai-archetype-runtime.js
+      - run: node tests/samurai-archetype-runtime-smoke.mjs
+      - run: node --check js/banneret-archetype-runtime.js
+      - run: node tests/banneret-archetype-runtime-smoke.mjs
+      - run: node tests/ranger-class-runtime-smoke.mjs
+      - run: node --check js/bilgewater-demolisher-archetype-runtime.js
+      - run: node --check js/bilgewater-demolisher-combat-runtime.js
+      - run: node tests/bilgewater-demolisher-archetype-runtime-smoke.cjs
+      - run: node --check js/bilgewater-buccaneer-archetype-runtime.js
+      - run: node --check js/bilgewater-buccaneer-combat-runtime.js
+      - run: node tests/bilgewater-buccaneer-archetype-runtime-smoke.cjs
+      - run: node tests/monk-class-runtime-smoke.cjs
       - run: node --check js/player-archetype-runtime.js
       - run: node --check js/archetype-combat-event-runtime.js
       - run: node --check js/status-engine.js

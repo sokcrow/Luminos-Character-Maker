@@ -12,6 +12,7 @@
     players: "campaña/jugadores",
     combatants: "campaña/combate/combatants",
     state: "campaña/combate/estado",
+    instance: "campaña/estado_mundo/instancia_activa",
     audit: "campaña/combate/dmAudit",
   });
   const PANEL_ID = "dm-dashboard";
@@ -301,8 +302,19 @@
     const list = Object.values(units || {});
     const unit = units?.[selectedId] || list.find((entry) => identityValues(entry).includes(String(selectedId)));
     if (!unit) return null;
+    const conditions = global.LuminousConditionRuntime?.onEncounterEnd?.(unit, { units: list, source: "dm_console" }) || null;
     const elemental = global.LuminousElementalStatusRuntime?.onEncounterEnd?.(unit, { allUnits: list, source: "dm_console" }) || null;
-    return { unit, out: { elemental } };
+    return { unit, out: { conditions, elemental } };
+  }
+
+  function runEncounterEndAll(units) {
+    const working = units && typeof units === "object" ? units : {};
+    const results = {};
+    for (const key of Object.keys(working)) {
+      const result = runEncounterEnd(working, key);
+      if (result) results[key] = result.out;
+    }
+    return { count: Object.keys(results).length, results };
   }
 
   function sanitizeForFirebase(value) {
@@ -347,6 +359,73 @@
       if (!key || !working[key]) throw new Error(`Combatant ${selected} is no longer available.`);
       return mutator(working[key], working, key);
     }, { ...audit, unitId: selected });
+  }
+
+  function normalizeEncounterResult(value) {
+    const normalized = normalizeId(value);
+    if (["victory", "win", "won"].includes(normalized)) return "victory";
+    if (["defeat", "lose", "loss", "lost"].includes(normalized)) return "defeat";
+    return "";
+  }
+
+  function waitForResultDisplay(ms) {
+    const delay = Math.max(0, Math.floor(numberOr(ms, 0)));
+    if (!delay) return Promise.resolve();
+    return new Promise((resolve) => (global.setTimeout || setTimeout)(resolve, delay));
+  }
+
+  async function finishEncounter(result, options = {}) {
+    if (!state.db?.ref) throw new Error("DM console database is not ready.");
+    const normalized = normalizeEncounterResult(result);
+    if (!normalized) throw new Error("Encounter result must be victory or defeat.");
+
+    const label = normalized === "victory" ? "VICTORY" : "DEFEAT";
+    if (options.confirm !== false && typeof global.confirm === "function") {
+      const accepted = global.confirm(`END ENCOUNTER · ${label}?\n\nEncounter End effects will resolve for every combatant and everyone will be sent to Theater.`);
+      if (!accepted) return { cancelled: true, result: normalized };
+    }
+
+    const resolved = await mutateCombatants(
+      (working) => runEncounterEndAll(working),
+      { type: "encounter_end", result: normalized, label: `ENCOUNTER END · ${label}` }
+    );
+
+    const timestamp = global.firebase?.database?.ServerValue?.TIMESTAMP ?? Date.now();
+    await state.db.ref(ROOTS.state).update({
+      phase: "ENDED",
+      active: false,
+      result: normalized,
+      transition: "result",
+      endedAt: timestamp,
+      endedBy: currentUid(),
+      updatedAt: timestamp,
+    });
+
+    global.LuminousCombatEncounterLifecycle?.showResult?.(normalized, { endedAt: Date.now() });
+    appendLog(`${label} · RESULT SEAL`, { result: normalized });
+
+    const displayMs = options.displayMs == null ? 1800 : options.displayMs;
+    const blackoutMs = options.blackoutMs == null ? 650 : options.blackoutMs;
+    await waitForResultDisplay(displayMs);
+
+    await state.db.ref(ROOTS.state).update({
+      transition: "blackout",
+      blackoutAt: global.firebase?.database?.ServerValue?.TIMESTAMP ?? Date.now(),
+      updatedAt: global.firebase?.database?.ServerValue?.TIMESTAMP ?? Date.now(),
+    });
+    global.LuminousCombatEncounterLifecycle?.beginBlackout?.();
+    appendLog("ENCOUNTER END · BLACKOUT", { result: normalized });
+
+    await waitForResultDisplay(blackoutMs);
+    await state.db.ref(ROOTS.instance).set("teatro");
+
+    return {
+      cancelled: false,
+      result: normalized,
+      resolved: resolved?.result || null,
+      transition: "blackout",
+      nextInstance: "teatro",
+    };
   }
 
   async function writeAudit(payload = {}) {
@@ -418,8 +497,11 @@
         <section class="dm074-card"><div class="dm074-title">Direct Runtime Controls</div>
           <div class="dm074-row"><input id="dm074-amount" type="number" value="10"><button id="dm074-damage" class="danger" type="button">DAMAGE</button><button id="dm074-fixed" class="danger" type="button">FIXED</button><button id="dm074-heal" class="good" type="button">HEAL</button></div>
           <div class="dm074-row"><input id="dm074-sp-delta" type="number" value="5"><button id="dm074-sp" type="button">± SP</button><input id="dm074-shield-delta" type="number" value="10"><button id="dm074-shield" type="button">± SHIELD</button></div>
-          <div class="dm074-row"><button id="dm074-turn-start" type="button">TURN START</button><button id="dm074-turn-end" type="button">TURN END</button><button id="dm074-enc-end" type="button">ENCOUNTER END</button></div>
+          <div class="dm074-row"><button id="dm074-turn-start" type="button">TURN START</button><button id="dm074-turn-end" type="button">TURN END</button></div>
           <div class="dm074-row"><button id="dm074-short-rest" type="button">SHORT REST</button><button id="dm074-long-rest" type="button">LONG REST</button><button id="dm074-break-conc" class="danger" type="button">BREAK CONC.</button></div>
+        </section>
+        <section class="dm074-card"><div class="dm074-title">Encounter Resolution</div><div class="dm074-muted" style="margin-bottom:6px">Resolves Encounter End for all combatants, records the result, then returns every client to Theater.</div>
+          <div class="dm074-row"><button id="dm074-end-victory" class="good" type="button">VICTORY → THEATER</button><button id="dm074-end-defeat" class="danger" type="button">DEFEAT → THEATER</button></div>
         </section>
         <section class="dm074-card"><div class="dm074-title">5-Coin Check Test</div><div class="dm074-test-grid"><select id="dm074-check-kind"><option value="ability">Ability Check</option><option value="save">Saving Throw</option><option value="skill">Skill Check</option></select><select id="dm074-check-ability">${ABILITIES.map((a) => `<option value="${a.id}">${a.code} · ${a.name}</option>`).join("")}</select><select id="dm074-check-skill"></select><input id="dm074-check-threshold" type="number" value="12" placeholder="Threshold"></div><div class="dm074-row" style="margin-top:5px"><button id="dm074-roll" type="button">ROLL 5 COINS</button><div id="dm074-roll-result" class="dm074-muted">—</div></div></section>
         <section class="dm074-card"><div class="dm074-title">DM Audit</div><div id="dm074-log" class="dm074-log"></div></section>
@@ -529,7 +611,8 @@
 
     $("dm074-turn-start").onclick = () => mutateSelected((unit, all, key) => runTurnStart(all, key), { type: "turn_start", label: "FORCE TURN START" }).catch(showError);
     $("dm074-turn-end").onclick = () => mutateSelected((unit, all, key) => runTurnEnd(all, key), { type: "turn_end", label: "FORCE TURN END" }).catch(showError);
-    $("dm074-enc-end").onclick = () => mutateSelected((unit, all, key) => runEncounterEnd(all, key), { type: "encounter_end", label: "FORCE ENCOUNTER END" }).catch(showError);
+    $("dm074-end-victory").onclick = () => finishEncounter("victory").catch(showError);
+    $("dm074-end-defeat").onclick = () => finishEncounter("defeat").catch(showError);
     $("dm074-short-rest").onclick = () => mutateSelected((unit, all, key) => runRest(all, key, "short_rest"), { type: "short_rest", label: "SHORT REST" }).catch(showError);
     $("dm074-long-rest").onclick = () => mutateSelected((unit, all, key) => runRest(all, key, "long_rest"), { type: "long_rest", label: "LONG REST" }).catch(showError);
     $("dm074-break-conc").onclick = () => mutateSelected((unit, all) => global.LuminousConditionRuntime?.loseConcentration?.(unit, { units: Object.values(all), reason: "dm_console" }) || null, { type: "break_concentration", label: "BREAK CONCENTRATION" }).catch(showError);
@@ -589,8 +672,8 @@
     effectiveAbilityScore, abilityProficiencyState, skillProficiencyState, saveTotal, abilityCheckTotal, skillTotal,
     unitSp, writeSp, readHp, readMaxHp, writeHp, writeShield, thresholdPenalty, rollCheck,
     applyDamageToUnit, applyFixedDamageToUnit, healUnit, applyStatusToUnit, removeStatusFromUnit,
-    runTurnStart, runTurnEnd, runRest, runEncounterEnd, sanitizeForFirebase, combatantKey,
-    mutateCombatants, mutateSelected, isBattleViewerSurface, isDmAuthorized, mount, unmount, init,
+    runTurnStart, runTurnEnd, runRest, runEncounterEnd, runEncounterEndAll, normalizeEncounterResult, finishEncounter,
+    sanitizeForFirebase, combatantKey, mutateCombatants, mutateSelected, isBattleViewerSurface, isDmAuthorized, mount, unmount, init,
     _state: state,
   });
 

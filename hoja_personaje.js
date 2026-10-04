@@ -663,8 +663,43 @@ function updateBootLog(message, isError = false) {
   }
 }
 
+let lastCharacterSheetRenderSignature = "";
+
+function characterSheetRenderSignature(data) {
+  const skills = {};
+  Object.keys(data || {}).forEach((key) => {
+    if (key.startsWith("skill_")) skills[key] = data[key];
+  });
+  return JSON.stringify({
+    characterName: data?.characterName,
+    ahn: data?.ahn,
+    hp: data?.hp,
+    hp_max: data?.hp_max,
+    sp: data?.sp,
+    luck: data?.luck,
+    luck_max: data?.luck_max,
+    xp: data?.xp,
+    level: data?.level,
+    stats: data?.stats || null,
+    baseStats: data?.baseStats || null,
+    modifiers: data?.modifiers || null,
+    skills,
+    perks: data?.perks || null,
+    humanPerks: data?.humanPerks || null,
+    mails: data?.mails || null,
+    financeTransactions: data?.finance?.transactionHistory || null,
+    transacciones: data?.transacciones || null,
+    transactions: data?.transactions || null,
+    combatStats: data?.combatStats || null,
+    icono_jugador: data?.icono_jugador || null,
+  });
+}
+
 function renderCharacterSheet(data) {
   if (!data) return;
+  const nextRenderSignature = characterSheetRenderSignature(data);
+  if (nextRenderSignature === lastCharacterSheetRenderSignature) return;
+  lastCharacterSheetRenderSignature = nextRenderSignature;
 
   // --- 1. ACTUALIZAR DATOS BÁSICOS Y DINERO ---
   const camposDinamicos = [
@@ -711,13 +746,14 @@ function renderCharacterSheet(data) {
       coreStats.forEach(stat => {
           const val = data.stats[stat] !== undefined ? data.stats[stat] : 10;
           const inputEl = document.getElementById(`stat-${stat}`);
-          if (inputEl && document.activeElement !== inputEl) {
+          if (inputEl && document.activeElement !== inputEl && inputEl.value !== String(val)) {
               inputEl.value = val;
           }
           const mod = Math.floor((val - 10) / 2);
           const modEl = document.getElementById(`mod-${stat}`);
           if (modEl) {
-              modEl.textContent = (mod >= 0 ? '+' : '') + mod;
+              const nextMod = (mod >= 0 ? '+' : '') + mod;
+              if (modEl.textContent !== nextMod) modEl.textContent = nextMod;
           }
       });
   }
@@ -728,7 +764,7 @@ function renderCharacterSheet(data) {
   if (combatHudPortrait) {
     // Al ser un elemento SVG <image>, se debe usar setAttribute con 'href'
     const iconUrl = data.icono_jugador || "https://i.imgur.com/kP8s7Ww.png";
-    combatHudPortrait.setAttribute("href", iconUrl);
+    if (combatHudPortrait.getAttribute("href") !== iconUrl) combatHudPortrait.setAttribute("href", iconUrl);
   }
 
   // --- 2. ACTUALIZAR CUERPO, MENTE Y ALMA ---
@@ -926,44 +962,19 @@ function renderCharacterSheet(data) {
   }
 
   // --- ACTUALIZAR HUD DE VITALES (MECÁNICAS DE JUGADOR) ---
-  const hpActual =
-    data.combatStats?.hp_actual !== undefined
-      ? data.combatStats.hp_actual
-      : data.hp || 0;
-  const hpMax =
-    data.combatStats?.hp_max !== undefined
-      ? data.combatStats.hp_max
-      : data.hp_max || 0;
-  const spActual =
-    data.combatStats?.sp_actual !== undefined
-      ? data.combatStats.sp_actual
-      : data.sp || 0;
+  // One visual contract for the numeric HP/SP, HP path fill/delay and SP sphere.
+  // The data source remains the realtime Player record; Combat authority mirrors
+  // its canonical combatant vitals into that same record through the vitals bridge.
+  window.LuminousPlayerVitalsHud?.sync?.(data, document);
+}
 
-  // Buscar elementos usando los IDs exactos que YA existen en el HTML
-  const hudPortrait = document.getElementById("portrait-img");
-  const hudHpActual = document.getElementById("hud-hp-actual");
-  const hudHpMax = document.getElementById("hud-hp-max");
-  const hudSpDisplay = document.getElementById("hud-sp-text");
-
-  // Inyectar datos en tiempo real
-  if (hudPortrait) {
-    const iconUrl = data.icono_jugador || "https://i.imgur.com/kP8s7Ww.png";
-    hudPortrait.setAttribute("href", iconUrl);
-  }
-
-  // Respetar la estructura de spans separados para el HP
-  if (hudHpActual && hudHpMax) {
-    hudHpActual.innerText = hpActual;
-    hudHpMax.innerText = hpMax;
-  } else {
-    // Fallback seguro por si la estructura cambia
-    const hudHpContenedor = document.querySelector(".hud-hp-overlay-text");
-    if (hudHpContenedor) hudHpContenedor.innerText = `${hpActual} / ${hpMax}`;
-  }
-
-  if (hudSpDisplay) {
-    hudSpDisplay.innerText = spActual;
-  }
+function updatePlayerDeviceNumberUI(data = window.datosJugador) {
+  const deviceNumberUI = document.getElementById("player-device-number");
+  if (!deviceNumberUI) return;
+  const nextText = data?.phoneNumber
+    ? `Mi Dispositivo: [${data.phoneNumber}]`
+    : "Mi Dispositivo: Sin Red";
+  if (deviceNumberUI.innerText !== nextText) deviceNumberUI.innerText = nextText;
 }
 
 async function runBootSequence() {
@@ -1077,42 +1088,176 @@ async function runBootSequence() {
     // STEP 4: Datos de Jugador (Data Sync)
     updateBootLog("[EJECUTANDO] 4/4: Sincronizando expediente local...");
 
-    // Set up the listener but wait for the first initial payload
-    await new Promise((resolve, reject) => {
-      playerRef.on(
-        "value",
-        (snap) => {
-          if (!snap.exists() || snap.val() === null) {
-            reject(new Error("Expediente vacío o permisos denegados."));
-            return;
-          }
+    const RUNTIME_IGNORED_PLAYER_KEYS = new Set([
+      "online",
+      "ultima_conexion",
+      "backgroundHeartbeat",
+      "finance",
+      "chats",
+      "correos",
+      "contactos",
+      "mails",
+      "transactionHistory",
+      "transacciones",
+      "transactions",
+      "settings",
+      "phoneNumber",
+      "inventario_activo",
+      "inventario_stash",
+      "itemInventorySchemaVersion",
+    ]);
+    const NOTIFICATION_PLAYER_KEYS = new Set([
+      "finance",
+      "chats",
+      "correos",
+      "settings",
+    ]);
+    const CACHE_IGNORED_PLAYER_KEYS = new Set([
+      "online",
+      "ultima_conexion",
+      "backgroundHeartbeat",
+      "finance",
+      "chats",
+      "correos",
+      "contactos",
+      "mails",
+      "transactionHistory",
+      "transacciones",
+      "transactions",
+    ]);
+    const CRAFTING_PLAYER_KEYS = new Set([
+      "inventario_activo",
+      "inventario_stash",
+      "recetas",
+      "recipes",
+      "crafting",
+      "materiales",
+      "materials",
+    ]);
+    const EXPRESSION_PLAYER_KEYS = new Set([
+      "expresiones",
+      "expressions",
+      "expression",
+      "sprite",
+      "icono_jugador",
+      "actorId",
+      "vinculo_jugador",
+      "characterName",
+    ]);
 
-          window.datosJugador = snap.val();
-          currentPlayerData = snap.val();
+    function applyPlayerData(nextData, changedKeys = [], initial = false) {
+      window.datosJugador = nextData || {};
+      currentPlayerData = window.datosJugador;
 
-          // Cache data
-          localStorage.setItem(
-            "datosJugadorCache",
-            JSON.stringify(window.datosJugador),
-          );
+      if (initial || changedKeys.includes("phoneNumber")) {
+        updatePlayerDeviceNumberUI(window.datosJugador);
+      }
 
-          renderCharacterSheet(window.datosJugador);
-          if (typeof window.renderRecetasCrafteo === "function") {
-            window.renderRecetasCrafteo();
-          }
-          if (typeof window.actualizarExpresionesDesdeDropdown === "function") {
-            window.actualizarExpresionesDesdeDropdown();
-          }
+      const runtimeRelevant = initial || changedKeys.some((key) => !RUNTIME_IGNORED_PLAYER_KEYS.has(key));
+      if (runtimeRelevant) {
+        window.dispatchEvent(new CustomEvent("luminous:player-data", {
+          detail: {
+            playerId,
+            data: window.datosJugador,
+            changedKeys: [...changedKeys],
+            initial,
+          },
+        }));
+      }
 
-          resolve();
-        },
-        reject,
-      );
+      const notificationRelevant = initial || changedKeys.some((key) => NOTIFICATION_PLAYER_KEYS.has(key));
+      if (notificationRelevant) {
+        window.dispatchEvent(new CustomEvent("luminous:player-notification-data", {
+          detail: {
+            playerId,
+            data: window.datosJugador,
+            changedKeys: [...changedKeys],
+            initial,
+          },
+        }));
+      }
+
+      const cacheRelevant = initial || changedKeys.some((key) => !CACHE_IGNORED_PLAYER_KEYS.has(key));
+      if (cacheRelevant) {
+        localStorage.setItem(
+          "datosJugadorCache",
+          JSON.stringify(window.datosJugador),
+        );
+      }
+
+      try {
+        renderCharacterSheet(window.datosJugador);
+      } catch (error) {
+        console.error("[Luminous][Boot] Character render failed; keeping core UI alive:", error);
+      }
+
+      if (
+        typeof window.renderRecetasCrafteo === "function"
+        && (initial || changedKeys.some((key) => CRAFTING_PLAYER_KEYS.has(key)))
+      ) {
+        try {
+          window.renderRecetasCrafteo();
+        } catch (error) {
+          console.error("[Luminous][Boot] Crafting render failed:", error);
+        }
+      }
+
+      if (
+        typeof window.actualizarExpresionesDesdeDropdown === "function"
+        && (initial || changedKeys.some((key) => EXPRESSION_PLAYER_KEYS.has(key)))
+      ) {
+        try {
+          window.actualizarExpresionesDesdeDropdown();
+        } catch (error) {
+          console.error("[Luminous][Boot] Expression render failed:", error);
+        }
+      }
+    }
+
+    // Hydrate once, then listen to top-level child deltas. A change to chat,
+    // presence or another unrelated subtree must not rerun every player runtime.
+    const initialSnapshot = await playerRef.once("value");
+    if (!initialSnapshot.exists() || initialSnapshot.val() === null) {
+      throw new Error("Expediente vacío o permisos denegados.");
+    }
+
+    const initialData = initialSnapshot.val() || {};
+    const knownTopLevelKeys = new Set(Object.keys(initialData));
+    applyPlayerData(initialData, Object.keys(initialData), true);
+
+    playerRef.on("child_changed", (snap) => {
+      const key = snap.key;
+      if (!key) return;
+      const nextData = { ...(window.datosJugador || {}), [key]: snap.val() };
+      knownTopLevelKeys.add(key);
+      applyPlayerData(nextData, [key], false);
     });
 
-    // Success!
+    playerRef.on("child_removed", (snap) => {
+      const key = snap.key;
+      if (!key) return;
+      const nextData = { ...(window.datosJugador || {}) };
+      delete nextData[key];
+      knownTopLevelKeys.delete(key);
+      applyPlayerData(nextData, [key], false);
+    });
+
+    playerRef.on("child_added", (snap) => {
+      const key = snap.key;
+      if (!key || knownTopLevelKeys.has(key)) return;
+      knownTopLevelKeys.add(key);
+      const nextData = { ...(window.datosJugador || {}), [key]: snap.val() };
+      applyPlayerData(nextData, [key], false);
+    });
+
+    // Success: core interaction must come up even if one optional UI subsystem is malformed.
     window.hideLoadingOverlay();
-    initializeCharacterSheet(); // Still call to setup remaining listeners if needed, though we moved data fetching here
+    try {
+      initializeCharacterSheet(); // Bind Theatre/HUD/phone controls after canonical player hydration.
+    } catch (error) {
+      console.error("[Luminous][Boot] Core sheet initialization partially failed:", error);
+      window.dispatchEvent(new CustomEvent("luminous:player-ui-init-error", { detail: { error } }));
+    }
   } catch (error) {
     console.error("Boot Sequence Error:", error);
     updateBootLog(`[ERROR CRÍTICO]\n${error.message}`, true);
@@ -1136,6 +1281,9 @@ function initializeCharacterSheet() {
     });
   }
   if (!playerId) return;
+
+  // Contracts are lazy: subscribe only while the Contracts tab is actually open.
+  window.LuminousPlayerContractsRuntime?.dispose?.();
 
   // --- DESCARGAR ACTORES PARA EL JUGADOR ---
   if (typeof db !== "undefined") {
@@ -1175,25 +1323,40 @@ function initializeCharacterSheet() {
           if (window.syncPlayerTheatreComposer) window.syncPlayerTheatreComposer();
       }
 
-      db.ref("campaña/actores").on("value", (snap) => {
-        rawActorsCache = snap.val() || {};
-        refreshAllActoresCache();
-      });
+      let actorLoadGeneration = 0;
+      const loadActorsForTheatre = () => {
+        const generation = ++actorLoadGeneration;
+        Promise.all([
+          db.ref("campaña/actores").once("value"),
+          db.ref("campaña/base_datos_npcs").once("value"),
+        ]).then(([actorsSnap, npcsSnap]) => {
+          if (generation !== actorLoadGeneration) return;
+          rawActorsCache = actorsSnap.val() || {};
+          npcsCache = npcsSnap.val() || {};
+          refreshAllActoresCache();
+        }).catch((error) => {
+          console.error("[Luminous] No se pudo cargar el cache de actores del teatro:", error);
+        });
+      };
 
-      db.ref("campaña/base_datos_npcs").on("value", (snap) => {
-        npcsCache = snap.val() || {};
-        refreshAllActoresCache();
+      const syncActorCacheLifecycle = (theatreActive) => {
+        if (theatreActive) {
+          loadActorsForTheatre();
+          return;
+        }
+        actorLoadGeneration += 1;
+        rawActorsCache = {};
+        npcsCache = {};
+        window.actoresJugador = {};
+        window.allActoresCache = window.actoresJugador;
+      };
+
+      window.addEventListener("luminous:player-instance-changed", (event) => {
+        syncActorCacheLifecycle(event?.detail?.theatreActive === true);
       });
+      syncActorCacheLifecycle(document.body?.classList?.contains("player-instance-theatre") === true);
     }
   }
-
-  // Fallback to update UI
-  setInterval(() => {
-        const deviceNumberUI = document.getElementById("player-device-number");
-        if (deviceNumberUI) {
-            deviceNumberUI.innerText = window.datosJugador?.phoneNumber ? `Mi Dispositivo: [${window.datosJugador.phoneNumber}]` : "Mi Dispositivo: Sin Red";
-        }
-  }, 1000);
 
   // --- REPARACIÓN: LÓGICA DE ENVÍO Y LECTURA DEL TEATRO DE LA MENTE ---
   {
@@ -1318,24 +1481,41 @@ function initializeCharacterSheet() {
         }
       };
 
-      db.ref("campaña/teatro/log")
-        .limitToLast(20)
-        .on("value", (snap) => {
-          ultimoSnapLog = snap;
-          renderizarLog(snap);
-        });
+      const theatreLogRef = db.ref("campaña/teatro/log").limitToLast(20);
+      const theatreBlockRef = db.ref("campaña/teatro/bloqueo_interaccion");
+      let theatreRealtimeBound = false;
 
-      window.addEventListener("actoresCacheUpdated", () => {
-        if (ultimoSnapLog) {
-          renderizarLog(ultimoSnapLog);
-        }
-      });
-
-      // 2. Lectura de estado de bloqueo (Modo Lore)
-      db.ref("campaña/teatro/bloqueo_interaccion").on("value", (snap) => {
+      const theatreLogHandler = (snap) => {
+        ultimoSnapLog = snap;
+        renderizarLog(snap);
+      };
+      const theatreBlockHandler = (snap) => {
         window.isTheatreBlocked = snap.val();
         if (window.syncPlayerTheatreComposer) window.syncPlayerTheatreComposer();
+      };
+      const syncTheatreRealtime = (active) => {
+        if (active && !theatreRealtimeBound) {
+          theatreRealtimeBound = true;
+          theatreLogRef.on("value", theatreLogHandler);
+          theatreBlockRef.on("value", theatreBlockHandler);
+          return;
+        }
+        if (!active && theatreRealtimeBound) {
+          theatreRealtimeBound = false;
+          theatreLogRef.off("value", theatreLogHandler);
+          theatreBlockRef.off("value", theatreBlockHandler);
+          ultimoSnapLog = null;
+          window.isTheatreBlocked = false;
+        }
+      };
+
+      window.addEventListener("actoresCacheUpdated", () => {
+        if (ultimoSnapLog) renderizarLog(ultimoSnapLog);
       });
+      window.addEventListener("luminous:player-instance-changed", (event) => {
+        syncTheatreRealtime(event?.detail?.theatreActive === true);
+      });
+      syncTheatreRealtime(document.body?.classList?.contains("player-instance-theatre") === true);
     }
 
     // === ENVÍO AL TEATRO DE LA MENTE ===
@@ -1343,25 +1523,81 @@ function initializeCharacterSheet() {
     const inputEl = document.getElementById("input-teatro-modal");
     const DEFAULT_TITLE_COLOR = "#3b2918";
 
-    const sendTheatreMessage = () => {
+    function normalizeAssignedTheatreActorIds(value) {
+      const canonical = window.LuminousTheatreState?.normalizeAssignedActorIds;
+      if (typeof canonical === "function") return canonical(value);
+      const out = [];
+      const visit = (candidate) => {
+        if (candidate === undefined || candidate === null || candidate === false) return;
+        if (Array.isArray(candidate)) return candidate.forEach(visit);
+        if (typeof candidate === "object") {
+          if (candidate.actorId !== undefined) visit(candidate.actorId);
+          if (candidate.id !== undefined) visit(candidate.id);
+          Object.entries(candidate).forEach(([key, entry]) => {
+            if (key === "actorId" || key === "id") return;
+            if (entry === true || entry === 1) visit(key);
+            else visit(entry);
+          });
+          return;
+        }
+        const id = String(candidate).trim();
+        if (id && id !== "true" && id !== "false" && !out.includes(id)) out.push(id);
+      };
+      visit(value);
+      return out;
+    }
+
+    async function resolveTheatreActorForSend() {
+      const selectedId = document.getElementById("player-actor-select")?.value || "";
+      const assignedSource =
+        window.datosJugador?.actorId ??
+        window.datosJugador?.vinculo_jugador ??
+        null;
+      const assignedIds = normalizeAssignedTheatreActorIds(assignedSource);
+      const preferredId = selectedId || assignedIds[0] || "";
+
+      const resolved = window.getAssignedTheatreActor?.();
+      if (resolved) return resolved;
+      if (!preferredId) return null;
+
+      const cached =
+        window.actoresJugador?.[preferredId] ||
+        window.allActoresCache?.[preferredId];
+      if (cached) return { actorId: preferredId, ...cached };
+
+      // The send path must not depend on the Theatre cache having finished loading.
+      const [actorSnap, npcSnap] = await Promise.all([
+        db.ref(`campaña/actores/${preferredId}`).once("value"),
+        db.ref(`campaña/base_datos_npcs/${preferredId}`).once("value"),
+      ]);
+      const actorData = actorSnap.val() || npcSnap.val();
+      if (!actorData) return null;
+
+      window.actoresJugador = window.actoresJugador || {};
+      window.actoresJugador[preferredId] = actorData;
+      window.allActoresCache = window.actoresJugador;
+      window.dispatchEvent(new CustomEvent("actoresCacheUpdated"));
+      return { actorId: preferredId, ...actorData };
+    }
+
+    const sendTheatreMessage = async () => {
       const domInput = document.getElementById("input-teatro-modal");
-      if (!domInput || !domInput.value.trim() || typeof db === "undefined")
-        return;
+      const sendButton = document.getElementById("btn-enviar-teatro-modal");
+      if (!domInput || !domInput.value.trim() || typeof db === "undefined") return;
+      if (sendButton?.dataset.sending === "true") return;
+
+      if (sendButton) {
+        sendButton.dataset.sending = "true";
+        sendButton.disabled = true;
+      }
 
       try {
         const msgText = domInput.value.trim();
         const selectExp = document.getElementById("player-expression");
+        const actorAssigned = await resolveTheatreActorForSend();
 
-        const assignedActorId = window.datosJugador?.actorId || null;
-        if (!assignedActorId) {
-          console.warn("No hay actor asignado al jugador. No se puede enviar el mensaje.");
-          return;
-        }
-
-        const actorAssigned = window.getAssignedTheatreActor ? window.getAssignedTheatreActor() : null;
-        if (!actorAssigned) {
-          console.warn("No hay actor asignado al jugador válido en el pool. No se puede enviar el mensaje.");
-          return;
+        if (!actorAssigned?.actorId) {
+          throw new Error("No se pudo resolver el actor asignado para Theater.");
         }
 
         const resolveCanonicalIdentityText = window.LuminousTheatreState?.resolveCanonicalIdentityText || ((...values) => {
@@ -1372,125 +1608,100 @@ function initializeCharacterSheet() {
           return "";
         });
 
-        let actorParaEnviar = {
-            nombre: resolveCanonicalIdentityText(
-              actorAssigned.nombre,
-              window.datosJugador?.characterName,
-              window.datosJugador?.character_name,
-              window.datosJugador?.nombre,
-              window.datosJugador?.name
-            ) || "Jugador",
-            titulo: resolveCanonicalIdentityText(
-              actorAssigned.titulo,
-              window.datosJugador?.titulo,
-              window.datosJugador?.title
-            ),
-            color_nombre: actorAssigned.color_nombre || "#ffffff",
-            color_titulo: actorAssigned.color_titulo || DEFAULT_TITLE_COLOR,
-            escala: actorAssigned.escala !== undefined ? parseFloat(actorAssigned.escala) : 1.0,
-            sprite: actorAssigned.sprite || null,
-            icono: actorAssigned.icono || null,
-            icono_jugador: actorAssigned.icono_jugador || null
+        const actorParaEnviar = {
+          nombre: resolveCanonicalIdentityText(
+            actorAssigned.nombre,
+            actorAssigned.name,
+            window.datosJugador?.characterName,
+            window.datosJugador?.character_name,
+            window.datosJugador?.nombre,
+            window.datosJugador?.name
+          ) || "Jugador",
+          titulo: resolveCanonicalIdentityText(
+            actorAssigned.titulo,
+            actorAssigned.title,
+            window.datosJugador?.titulo,
+            window.datosJugador?.title
+          ),
+          color_nombre: actorAssigned.color_nombre || "#ffffff",
+          color_titulo: actorAssigned.color_titulo || DEFAULT_TITLE_COLOR,
+          escala: actorAssigned.escala !== undefined ? parseFloat(actorAssigned.escala) : 1.0,
+          sprite: actorAssigned.sprite || null,
+          icono: actorAssigned.icono || null,
+          icono_jugador: actorAssigned.icono_jugador || null,
         };
 
-        // Validamos la expresión dinámica si existe y es visible (evitando leer valores ocultos rotos)
         let selectedSprite = actorParaEnviar.sprite;
         let selectedExpression = "Neutral";
-        try {
-          if (
-            selectExp &&
-            selectExp.style.display !== "none" &&
-            selectExp.options.length > 0
-          ) {
-            const val = selectExp.value;
-            if (val && val.trim() !== "") {
-              selectedExpression = val;
-              const expOpt = selectExp.options[selectExp.selectedIndex];
-              if (expOpt && expOpt.dataset.sprite) {
-                  selectedSprite = expOpt.dataset.sprite;
-              }
-            }
+        if (selectExp && selectExp.style.display !== "none" && selectExp.options.length > 0) {
+          const val = selectExp.value;
+          if (val && val.trim() !== "") {
+            selectedExpression = val;
+            const expOpt = selectExp.options[selectExp.selectedIndex];
+            if (expOpt?.dataset?.sprite) selectedSprite = expOpt.dataset.sprite;
           }
-        } catch (e) {
-          console.warn(
-            "Fallo leyendo expresión del select, usando sprite base.",
-            e,
-          );
         }
-
-        // Construimos Payload Directo con valores limpios
-        let finalIcon = null;
-        if (actorParaEnviar) {
-            finalIcon = actorParaEnviar.icono || actorParaEnviar.icono_jugador || window.datosJugador?.icono_jugador || window.datosJugador?.icono || null;
-        }
-
 
         const tipoDialogoEl = document.getElementById("player-tipo-dialogo-select");
-        const tipoDialogo = tipoDialogoEl ? tipoDialogoEl.value : "dialogo";
-        const mostrarIdentidad = tipoDialogo !== "pensamiento";
-
+        const tipoDialogo = tipoDialogoEl?.value || "dialogo";
         const payload = {
-          actorId: actorAssigned.actorId || assignedActorId,
-          nombre: actorParaEnviar.nombre || "Jugador",
+          actorId: actorAssigned.actorId,
+          nombre: actorParaEnviar.nombre,
           titulo: actorParaEnviar.titulo || "",
-          color_nombre: actorParaEnviar.color_nombre || "#ffffff",
-          color_titulo: actorParaEnviar.color_titulo || DEFAULT_TITLE_COLOR,
-          escala: isNaN(actorParaEnviar.escala) ? 1.0 : actorParaEnviar.escala,
+          color_nombre: actorParaEnviar.color_nombre,
+          color_titulo: actorParaEnviar.color_titulo,
+          escala: Number.isFinite(actorParaEnviar.escala) ? actorParaEnviar.escala : 1.0,
           expression: selectedExpression,
           sprite: selectedSprite || null,
-          icono: finalIcon,
+          icono:
+            actorParaEnviar.icono ||
+            actorParaEnviar.icono_jugador ||
+            window.datosJugador?.icono_jugador ||
+            window.datosJugador?.icono ||
+            null,
           mensaje: msgText,
           tipo_dialogo: tipoDialogo,
-          mostrar_identidad: mostrarIdentidad,
-          createdAt: firebase.database.ServerValue.TIMESTAMP,
+          mostrar_identidad: tipoDialogo !== "pensamiento",
         };
 
-        // Aseguramos que la referencia no sea undefined y mandamos la cola
-        if (db && db.ref) {
-          db.ref("campaña/teatro/cola")
-            .push(payload)
-            .then(() => {
-              const domInput = document.getElementById("input-teatro-modal");
-              if (domInput) domInput.value = ""; // Limpiar input directo post-envío
+        const queuePath =
+          window.LuminousTheatreState?.getPaths?.().queue ||
+          "campaña/teatro/cola";
+        await db.ref(queuePath).push({
+          ...payload,
+          createdAt: firebase.database.ServerValue.TIMESTAMP,
+        });
 
-              const modal = document.getElementById('modal-escritura-teatro');
-              if (modal) modal.style.display = 'none';
-            })
-            .catch((e) => {
-              console.error("Error en Firebase enviando a la cola:", e);
-            });
-        } else {
-          console.error("La instancia db.ref es undefined.");
+        domInput.value = "";
+        const modal = document.getElementById("modal-escritura-teatro");
+        if (modal) modal.style.display = "none";
+      } catch (error) {
+        console.error("[Luminous][Theatre] No se pudo enviar el mensaje:", error);
+        alert(error?.message || "No se pudo enviar el mensaje al Theater.");
+      } finally {
+        const currentButton = document.getElementById("btn-enviar-teatro-modal");
+        if (currentButton) {
+          currentButton.dataset.sending = "false";
+          currentButton.disabled = Boolean(window.isTheatreBlocked);
         }
-      } catch (err) {
-        console.error("Fallo crítico en sendTheatreMessage:", err);
       }
     };
 
-    // Listeners Limpios globales
-    // Reasignamos usando query selector al documento real porque el original se copió
-    if (btnSend) {
-      const currentBtn = document.getElementById("btn-enviar-teatro-modal");
-      if (currentBtn) {
-        const newBtnSend = currentBtn.cloneNode(true);
-        currentBtn.parentNode.replaceChild(newBtnSend, currentBtn);
-        newBtnSend.addEventListener("click", sendTheatreMessage);
-      }
+    // Keep the original DOM nodes. Replacing them with clones silently removes
+    // listeners installed by Theatre compatibility modules.
+    if (btnSend && btnSend.dataset.theatreSendBound !== "true") {
+      btnSend.dataset.theatreSendBound = "true";
+      btnSend.addEventListener("click", sendTheatreMessage);
     }
 
-    if (inputEl) {
-      const currentInput = document.getElementById("input-teatro-modal");
-      if (currentInput) {
-        const newInputEl = currentInput.cloneNode(true);
-        currentInput.parentNode.replaceChild(newInputEl, currentInput);
-
-        newInputEl.addEventListener("keypress", (e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            sendTheatreMessage();
-          }
-        });
-      }
+    if (inputEl && inputEl.dataset.theatreSendBound !== "true") {
+      inputEl.dataset.theatreSendBound = "true";
+      inputEl.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" && !event.shiftKey) {
+          event.preventDefault();
+          sendTheatreMessage();
+        }
+      });
     }
   }
 
@@ -1507,9 +1718,9 @@ function initializeCharacterSheet() {
     }
 
     // 2. Fallback to the assigned ones
-    const assignedIds = (window.LuminousTheatreState && window.LuminousTheatreState.normalizeAssignedActorIds)
-        ? window.LuminousTheatreState.normalizeAssignedActorIds(window.datosJugador?.actorId || window.datosJugador?.vinculo_jugador)
-        : (window.datosJugador?.actorId ? [window.datosJugador.actorId] : []);
+    const assignedIds = normalizeAssignedTheatreActorIds(
+        window.datosJugador?.actorId ?? window.datosJugador?.vinculo_jugador ?? null
+    );
 
     if (!assignedIds || assignedIds.length === 0) return null;
 
@@ -1522,9 +1733,9 @@ function initializeCharacterSheet() {
   };
 
   window.syncPlayerTheatreComposer = function(forceActorChange = false) {
-      const assignedIds = (window.LuminousTheatreState && window.LuminousTheatreState.normalizeAssignedActorIds)
-          ? window.LuminousTheatreState.normalizeAssignedActorIds(window.datosJugador?.actorId || window.datosJugador?.vinculo_jugador)
-          : (window.datosJugador?.actorId ? [window.datosJugador.actorId] : []);
+      const assignedIds = normalizeAssignedTheatreActorIds(
+          window.datosJugador?.actorId ?? window.datosJugador?.vinculo_jugador ?? null
+      );
 
       const selectActor = document.getElementById("player-actor-select");
 
@@ -1561,6 +1772,20 @@ function initializeCharacterSheet() {
       }
 
       const assignedActor = window.getAssignedTheatreActor();
+
+      if (!assignedActor && assignedIds.length && !window.__luminousTheatreActorHydrationPending) {
+          window.__luminousTheatreActorHydrationPending = true;
+          resolveTheatreActorForSend()
+              .then((actor) => {
+                  if (actor) window.syncPlayerTheatreComposer?.(true);
+              })
+              .catch((error) => {
+                  console.error("[Luminous][Theatre] No se pudo hidratar el actor asignado:", error);
+              })
+              .finally(() => {
+                  window.__luminousTheatreActorHydrationPending = false;
+              });
+      }
 
       const exprSelect = document.getElementById("player-expression");
       const btnSend = document.getElementById("btn-enviar-teatro-modal");
@@ -1696,6 +1921,19 @@ function initializeCharacterSheet() {
     if (toggleBtn && phoneWrapper) {
       toggleBtn.addEventListener("click", () => {
         phoneWrapper.classList.toggle("phone-hidden");
+        const terminalHidden = phoneWrapper.classList.contains("phone-hidden");
+        if (terminalHidden) {
+          window.LuminousPlayerContractsRuntime?.dispose?.();
+        } else {
+          const activeTab =
+            document.querySelector('input[name="attr_tab"]')?.value ||
+            document.querySelector(".sheet-state-tab")?.value ||
+            "";
+          if (activeTab === "contratos") {
+            window.LuminousPlayerContractsRuntime?.init?.({ db, playerId });
+          }
+        }
+        window.LuminousInstanceControl?.syncPlayerCombatOcclusion?.(document);
       });
     }
 
@@ -1717,38 +1955,49 @@ function initializeCharacterSheet() {
     ];
 
 
-    function checkCellphone(playerId, callback) {
-      if (!playerId) {
+    function checkCellphone(playerKey, callback) {
+      if (!playerKey) {
         callback(false);
         return;
       }
 
-      let hasCellphone = false;
+      db.ref(`campaña/jugadores/${playerKey}`).once("value")
+        .then((playerSnap) => {
+          const playerData = playerSnap.val() || {};
 
-      // We will do a one-time check or we can track it globally.
-      // Let's check both activo and stash right away.
-      const checkInventories = [
-        db.ref(`campaña/jugadores/${playerId}/inventario_activo`).once('value'),
-        db.ref(`campaña/jugadores/${playerId}/inventario_stash`).once('value')
-      ];
+          // A provisioned phone number means the player's terminal is ready.
+          // Keep inventory detection as a legacy fallback for unprovisioned characters.
+          if (String(playerData.phoneNumber || "").trim()) {
+            callback(true);
+            return;
+          }
 
-      Promise.all(checkInventories).then(snaps => {
-        snaps.forEach(snap => {
-          const inv = snap.val();
-          if (inv) {
-            Object.values(inv).forEach(item => {
-              // We'll check if id is "cellphone" or tags includes "cellphone"
-              // Just in case, let's also check if id was defined as "cellphone"
-              if (item.id === "cellphone" || (item.tags && typeof item.tags === 'string' && item.tags.toLowerCase().includes("cellphone"))) {
+          let hasCellphone = false;
+          const inventories = [
+            playerData.inventario_activo || {},
+            playerData.inventario_stash || {}
+          ];
+
+          inventories.forEach((inv) => {
+            Object.values(inv).forEach((item) => {
+              const tags = Array.isArray(item?.tags)
+                ? item.tags.join(" ")
+                : String(item?.tags || "");
+              if (
+                item?.id === "cellphone" ||
+                tags.toLowerCase().includes("cellphone")
+              ) {
                 hasCellphone = true;
               }
             });
-          }
+          });
+
+          callback(hasCellphone);
+        })
+        .catch((error) => {
+          console.error("[Luminous][Phone] No se pudo verificar el dispositivo:", error);
+          callback(false);
         });
-        callback(hasCellphone);
-      }).catch(() => {
-        callback(false);
-      });
     }
 
     // Tab switching logic for Main Nav
@@ -1757,6 +2006,12 @@ function initializeCharacterSheet() {
       if (!btn || !btn.name || !btn.name.startsWith("act_tab_")) return;
 
       const tabName = btn.name.replace("act_tab_", "");
+
+      if (tabName === "contratos") {
+        window.LuminousPlayerContractsRuntime?.init?.({ db, playerId });
+      } else {
+        window.LuminousPlayerContractsRuntime?.dispose?.();
+      }
 
       const tabInput =
         document.querySelector('input[name="attr_tab"]') ||
@@ -1778,11 +2033,8 @@ function initializeCharacterSheet() {
         targetTab.style.display = "block";
 
         if (tabName === "banco" || tabName === "mail") {
-          const charNameInput = document.querySelector('input[name="attr_character_name"]');
-          const pName = charNameInput ? charNameInput.value.trim() : "";
-
-          if (pName) {
-            checkCellphone(pName, (hasDevice) => {
+          if (playerId) {
+            checkCellphone(playerId, (hasDevice) => {
               const overlay = targetTab.querySelector('.sheet-no-signal-overlay');
               const bodyElements = targetTab.querySelectorAll('.sheet-app-body, .sheet-app-body-mail');
 
@@ -1791,12 +2043,16 @@ function initializeCharacterSheet() {
                 bodyElements.forEach(el => el.style.display = "none");
               } else {
                 if (overlay) overlay.style.display = "none";
-                bodyElements.forEach(el => el.style.display = "flex");
-                // Reset to display block for app body if it's not flex originally, but flex works or empty
+                bodyElements.forEach((el) => {
+                  // Bank is a vertical document; forcing flex here collapses its
+                  // balance card, transfer CTA and history into side-by-side columns.
+                  el.style.display = tabName === "banco" ? "block" : "flex";
+                });
               }
+
               if (tabName === "banco") {
-                  // Limpiar unread transacciones
-                  const txRef = db.ref(`campaña/jugadores/${pName}/finance/transactionHistory`);
+                  // Limpiar unread transacciones usando la key canónica del jugador.
+                  const txRef = db.ref(`campaña/jugadores/${playerId}/finance/transactionHistory`);
                   txRef.once("value", snap => {
                       const updates = {};
                       let hasUpdates = false;
@@ -1810,7 +2066,6 @@ function initializeCharacterSheet() {
                       if (hasUpdates) txRef.update(updates);
                   });
               }
-
             });
           }
         }
@@ -1825,139 +2080,260 @@ function initializeCharacterSheet() {
     if (homeTab) homeTab.style.display = "block";
 
 
-  // Transferencia P2P Automatizada
+  // Transferencia P2P por inbox.
+  // El emisor solo modifica su propio saldo y crea un paquete para el receptor.
+  // El receptor acredita el paquete desde su propia sesión; processedP2P evita dobles créditos.
   const btnOpenTransfer = document.getElementById("btn-open-transfer");
   const transferModal = document.getElementById("transfer-modal");
   const btnCancelTransfer = document.getElementById("btn-cancel-transfer");
   const btnConfirmTransfer = document.getElementById("btn-confirm-transfer");
+  let p2pInboxListenerActive = false;
+
+  function normalizePhoneLookup(value) {
+      return String(value || "").trim().replace(/\s+/g, "");
+  }
+
+  function resolveTransferLookup(rawValue) {
+      const raw = String(rawValue || "").trim();
+      if (!raw) return "";
+      const normalizedRaw = normalizePhoneLookup(raw);
+      const aliasMatch = Object.entries(contactsDictionary || {}).find(([, alias]) =>
+          String(alias || "").trim().toLowerCase() === raw.toLowerCase()
+      );
+      return aliasMatch ? normalizePhoneLookup(aliasMatch[0]) : normalizedRaw;
+  }
+
+  function closeTransferModal() {
+      if (!transferModal) return;
+      transferModal.style.display = "none";
+      ["transfer-contact-input", "transfer-amount-input", "transfer-concept-input"].forEach((id) => {
+          const input = document.getElementById(id);
+          if (input) input.value = "";
+      });
+  }
+
+  async function queuePlayerTransfer(senderId, targetPlayerId, targetData, amount, concept) {
+      if (!senderId || !targetPlayerId) throw new Error("Identificador de transferencia inválido.");
+      if (senderId === targetPlayerId) throw new Error("No puedes transferirte Ahn a ti mismo.");
+
+      const senderRef = db.ref(`campaña/jugadores/${senderId}`);
+      const transferId = db.ref(`campaña/jugadores/${senderId}/p2pOutbox`).push().key;
+      if (!transferId) throw new Error("No se pudo generar la transferencia.");
+
+      let abortReason = "";
+      let targetName = targetData.characterName || targetData.character_name || targetData.nombre || targetPlayerId;
+
+      const result = await senderRef.transaction((current) => {
+          if (!current) {
+              abortReason = "No se encontró tu cuenta.";
+              return;
+          }
+
+          const currentBalance = Number(current.finance?.currentBalance ?? current.ahn ?? 0);
+          if (!Number.isFinite(currentBalance) || currentBalance < amount) {
+              abortReason = "Ahn insuficientes para esta transferencia.";
+              return;
+          }
+
+          const timestamp = Date.now();
+          const senderName = current.characterName || current.character_name || current.nombre || senderId;
+          targetName = targetData.characterName || targetData.character_name || targetData.nombre || targetPlayerId;
+          const nextBalance = currentBalance - amount;
+          const txOut = {
+              id: transferId,
+              monto: -amount,
+              concepto: `A: ${targetName} - ${concept}`,
+              timestamp,
+              unread: true,
+              type: "p2p_out"
+          };
+
+          const packet = {
+              transferId,
+              senderPlayerId: senderId,
+              senderUid: auth.currentUser?.uid || current.uid || null,
+              senderName,
+              senderPhone: current.phoneNumber || "",
+              recipientPlayerId: targetPlayerId,
+              recipientUid: targetData.uid || null,
+              recipientName: targetName,
+              amount,
+              concept,
+              createdAt: timestamp,
+              status: "pending"
+          };
+
+          current.ahn = nextBalance;
+          current.finance = current.finance || {};
+          current.finance.currentBalance = nextBalance;
+          current.finance.transactionHistory = current.finance.transactionHistory || {};
+          current.finance.transactionHistory[transferId] = txOut;
+          current.transacciones = current.transacciones || {};
+          current.transacciones[transferId] = txOut;
+          current.p2pOutbox = current.p2pOutbox || {};
+          current.p2pOutbox[transferId] = packet;
+          return current;
+      });
+
+      if (!result.committed) {
+          throw new Error(abortReason || "No se pudo registrar la transferencia.");
+      }
+
+      return { transferId, targetName };
+  }
+
+  function initP2PInboxSettlement() {
+      if (p2pInboxListenerActive || !playerId) return;
+      p2pInboxListenerActive = true;
+
+      const inFlight = new Set();
+
+      async function settlePacket(packet, transferId) {
+          const amount = Number(packet?.amount);
+          if (
+              !transferId ||
+              packet?.recipientPlayerId !== playerId ||
+              !Number.isFinite(amount) ||
+              amount <= 0 ||
+              inFlight.has(transferId)
+          ) {
+              return;
+          }
+
+          inFlight.add(transferId);
+          try {
+              const recipientRef = db.ref(`campaña/jugadores/${playerId}`);
+              const result = await recipientRef.transaction((current) => {
+                  if (!current) return current;
+
+                  current.finance = current.finance || {};
+                  current.finance.transactionHistory = current.finance.transactionHistory || {};
+                  current.transacciones = current.transacciones || {};
+                  current.processedP2P = current.processedP2P || {};
+
+                  if (current.processedP2P[transferId]) return current;
+
+                  const currentBalance = Number(current.finance.currentBalance ?? current.ahn ?? 0);
+                  const nextBalance = currentBalance + amount;
+                  const txIn = {
+                      id: transferId,
+                      monto: amount,
+                      concepto: `De: ${packet.senderName || packet.senderPlayerId || "Contacto"} - ${packet.concept || "Transferencia P2P"}`,
+                      timestamp: packet.createdAt || Date.now(),
+                      unread: true,
+                      type: "p2p_in"
+                  };
+
+                  current.ahn = nextBalance;
+                  current.finance.currentBalance = nextBalance;
+                  current.finance.transactionHistory[transferId] = txIn;
+                  current.transacciones[transferId] = txIn;
+                  current.processedP2P[transferId] = packet.createdAt || Date.now();
+                  return current;
+              });
+
+              if (!result.committed) {
+                  console.error("[Luminous][P2P] No se pudo acreditar transferencia:", transferId);
+              }
+          } catch (error) {
+              console.error("[Luminous][P2P] No se pudo liquidar transferencia:", transferId, error);
+          } finally {
+              inFlight.delete(transferId);
+          }
+      }
+
+      function inspectSenderSnapshot(senderSnap) {
+          const senderData = senderSnap?.val?.() || {};
+          const outbox = senderData.p2pOutbox || {};
+          for (const [transferId, packet] of Object.entries(outbox)) {
+              if (packet?.recipientPlayerId === playerId) {
+                  settlePacket(packet, packet.transferId || transferId);
+              }
+          }
+      }
+
+      // Sender-owned outboxes work with the long-standing player write rules:
+      // sender writes only their node, recipient reads campaign data and credits only their own node.
+      const playersRef = db.ref("campaña/jugadores");
+      playersRef.on("child_added", inspectSenderSnapshot);
+      playersRef.on("child_changed", inspectSenderSnapshot);
+
+      // Backwards compatibility: settle packets created by the short-lived p2pInbox implementation.
+      const legacyInboxRef = db.ref(`campaña/economia/p2pInbox/${playerId}`);
+      legacyInboxRef.on("child_added", (snap) => {
+          const packet = snap.val() || {};
+          settlePacket(packet, packet.transferId || snap.key);
+      });
+  }
+
+  initP2PInboxSettlement();
 
   if (btnOpenTransfer && transferModal) {
     btnOpenTransfer.addEventListener("click", () => {
         transferModal.style.display = "flex";
+        const contactInput = document.getElementById("transfer-contact-input");
+        const options = document.getElementById("transfer-contact-options");
+        if (contactInput) contactInput.setAttribute("list", "transfer-contact-options");
+        if (options) {
+            options.innerHTML = "";
+            for (const [phone, alias] of Object.entries(contactsDictionary || {})) {
+                const option = document.createElement("option");
+                option.value = alias || phone;
+                option.label = phone;
+                options.appendChild(option);
+            }
+        }
     });
 
-    btnCancelTransfer.addEventListener("click", () => {
-        transferModal.style.display = "none";
-        document.getElementById("transfer-contact-input").value = "";
-        document.getElementById("transfer-amount-input").value = "";
-        document.getElementById("transfer-concept-input").value = "";
-    });
+    btnCancelTransfer?.addEventListener("click", closeTransferModal);
 
-    btnConfirmTransfer.addEventListener("click", () => {
-        const contactInput = document.getElementById("transfer-contact-input").value.trim();
-        const amount = parseInt(document.getElementById("transfer-amount-input").value, 10);
-        const concept = document.getElementById("transfer-concept-input").value.trim() || "Transferencia P2P";
+    btnConfirmTransfer?.addEventListener("click", async () => {
+        const contactInput = document.getElementById("transfer-contact-input")?.value.trim() || "";
+        const amount = Number.parseInt(document.getElementById("transfer-amount-input")?.value || "", 10);
+        const concept = document.getElementById("transfer-concept-input")?.value.trim() || "Transferencia P2P";
 
-        if (!contactInput || isNaN(amount) || amount <= 0) {
+        if (!contactInput || !Number.isFinite(amount) || amount <= 0) {
             alert("Datos inválidos.");
             return;
         }
 
-        // Find target player by phoneNumber or Name
-        db.ref('campaña/jugadores').once('value', (snap) => {
+        const lookup = resolveTransferLookup(contactInput);
+        btnConfirmTransfer.disabled = true;
+
+        try {
+            const snap = await db.ref("campaña/jugadores").once("value");
             const players = snap.val() || {};
             let targetPlayerId = null;
+            let targetData = null;
 
-            // Search by name or phone
-            for (const [pId, pData] of Object.entries(players)) {
-                if (pData.phoneNumber === contactInput || pId.toLowerCase() === contactInput.toLowerCase() || (pData.character_name && pData.character_name.toLowerCase() === contactInput.toLowerCase())) {
-                    targetPlayerId = pId;
+            for (const [candidateId, candidateData] of Object.entries(players)) {
+                const candidatePhone = normalizePhoneLookup(candidateData?.phoneNumber);
+                const candidateName = String(candidateData?.characterName || candidateData?.character_name || candidateData?.nombre || "").trim().toLowerCase();
+                if (
+                    candidatePhone === lookup ||
+                    candidateId.toLowerCase() === contactInput.toLowerCase() ||
+                    candidateName === contactInput.toLowerCase()
+                ) {
+                    targetPlayerId = candidateId;
+                    targetData = candidateData;
                     break;
                 }
             }
 
-            if (!targetPlayerId) {
-                // Check actors
-                Promise.all([
-                    db.ref('campaña/actores').once('value'),
-                    db.ref('campaña/base_datos_npcs').once('value')
-                ]).then(([actSnap, npcsSnap]) => {
-                    const legacyActors = actSnap.val() || {};
-                    const modernActors = npcsSnap.val() || {};
-
-                    let mergedActors = {};
-                    let actorSourcePathById = {};
-
-                    for (const [id, data] of Object.entries(legacyActors)) {
-                        mergedActors[id] = data;
-                        actorSourcePathById[id] = 'campaña/actores';
-                    }
-                    for (const [id, data] of Object.entries(modernActors)) {
-                        mergedActors[id] = data;
-                        actorSourcePathById[id] = 'campaña/base_datos_npcs';
-                    }
-
-                    let targetActorId = null;
-                    for (const [aId, aData] of Object.entries(mergedActors)) {
-                        if (aData.phoneNumber === contactInput || aId.toLowerCase() === contactInput.toLowerCase() || (aData.nombre && aData.nombre.toLowerCase() === contactInput.toLowerCase())) {
-                            targetActorId = aId;
-                            break;
-                        }
-                    }
-
-                    if (!targetActorId) {
-                        alert("Destinatario no encontrado. Verifica el número.");
-                    } else {
-                        // Transfer to NPC
-                        const path = actorSourcePathById[targetActorId];
-                        processTransfer(playerId, path + '/' + targetActorId, amount, concept, mergedActors[targetActorId].nombre || targetActorId);
-                    }
-                });
-            } else {
-                // Transfer to Player
-                processTransfer(playerId, 'campaña/jugadores/'+targetPlayerId, amount, concept, players[targetPlayerId].character_name || targetPlayerId);
+            if (!targetPlayerId || !targetData) {
+                throw new Error("Destinatario no encontrado. Usa un contacto guardado o un número asignado.");
             }
-        });
+
+            const result = await queuePlayerTransfer(playerId, targetPlayerId, targetData, amount, concept);
+            alert(`Transferencia de ${amount} Ahn a ${result.targetName} enviada.`);
+            closeTransferModal();
+        } catch (error) {
+            console.error("[Luminous][P2P] Error de transferencia:", error);
+            alert(error?.message || "No se pudo completar la transferencia.");
+        } finally {
+            btnConfirmTransfer.disabled = false;
+        }
     });
-  }
-
-  function processTransfer(senderId, targetPath, amount, concept, targetName) {
-      db.ref(`campaña/jugadores/${senderId}`).once('value', (snap) => {
-          const senderData = snap.val();
-          const currentBalance = (senderData.finance && senderData.finance.currentBalance !== undefined) ? senderData.finance.currentBalance : (senderData.ahn || 0);
-
-          if (currentBalance < amount) {
-              alert("Ahn insuficientes para esta transferencia.");
-              return;
-          }
-
-          const newSenderBalance = currentBalance - amount;
-          const txOut = { monto: -amount, concepto: `A: ${targetName} - ${concept}`, timestamp: Date.now(), unread: true };
-          const txIn = { monto: amount, concepto: `De: ${senderData.character_name || senderId} - ${concept}`, timestamp: Date.now(), unread: true };
-
-          // Actualizar sender
-          const updates = {};
-          updates[`campaña/jugadores/${senderId}/ahn`] = newSenderBalance;
-          updates[`campaña/jugadores/${senderId}/finance/currentBalance`] = newSenderBalance;
-
-          // Try to update target balance if it's a player
-          db.ref(targetPath).once('value', (tgtSnap) => {
-              const tgtData = tgtSnap.val();
-              if (targetPath.includes('jugadores')) {
-                  const targetBalance = (tgtData.finance && tgtData.finance.currentBalance !== undefined) ? tgtData.finance.currentBalance : (tgtData.ahn || 0);
-                  const newTgtBalance = targetBalance + amount;
-                  updates[`${targetPath}/ahn`] = newTgtBalance;
-                  updates[`${targetPath}/finance/currentBalance`] = newTgtBalance;
-              }
-
-              db.ref().update(updates).then(() => {
-                  // Push transactions
-                  db.ref(`campaña/jugadores/${senderId}/finance/transactionHistory`).push(txOut);
-                  db.ref(`campaña/jugadores/${senderId}/transacciones`).push(txOut);
-
-                  db.ref(`${targetPath}/finance/transactionHistory`).push(txIn);
-                  db.ref(`${targetPath}/transacciones`).push(txIn);
-
-                  alert(`Transferencia de ${amount} Ahn a ${targetName} completada.`);
-                  if (transferModal) {
-                      transferModal.style.display = "none";
-                      document.getElementById("transfer-contact-input").value = "";
-                      document.getElementById("transfer-amount-input").value = "";
-                      document.getElementById("transfer-concept-input").value = "";
-                  }
-              });
-          });
-      });
   }
 
   // --- NUEVO SISTEMA DE NAVEGACIÓN DE VENTANAS (VANILLA JS) ---
@@ -2020,278 +2396,711 @@ function initializeCharacterSheet() {
   // --- GLOBALS FOR CHAT ---
   let chatListenerActive = false;
   let currentChatId = null;
+  let currentChatType = null;
+  let currentGroupMeta = null;
   let myPhoneNumber = null;
   let contactsDictionary = {}; // phoneNumber -> alias
   let knownPortraits = {}; // phoneNumber -> sprite URL
+  let legacyChatIds = {};
+  let chatPlayersCache = {};
+  let groupPlayerFingerprints = {};
+  let groupSyncTimer = null;
+  let discoveredPhoneGroups = {};
+  let groupEditId = null;
+  let chatListRenderGeneration = 0;
+  let activeLegacyMessagesRef = null;
+  let activeLegacyMessagesListener = null;
+
+  function normalizeChatPhone(value) {
+      return String(value || "").trim().replace(/\s+/g, "");
+  }
+
+  function playerChatDisplayName(playerKey, data = {}) {
+      return (
+          data.characterName ||
+          data.character_name ||
+          data.nombre ||
+          data.name ||
+          playerKey
+      );
+  }
+
+  function groupMemberIds(group = {}) {
+      return Object.keys(group.members || {}).filter(Boolean);
+  }
+
+  function groupHasMember(group, memberPlayerId) {
+      return Boolean(memberPlayerId && group?.members?.[memberPlayerId]);
+  }
+
+  function collectDiscoveredPhoneGroups(players = {}) {
+      const groups = {};
+      for (const [ownerPlayerId, ownerData] of Object.entries(players)) {
+          for (const [groupId, rawGroup] of Object.entries(ownerData?.phoneGroups || {})) {
+              if (!rawGroup || rawGroup.active === false) continue;
+              const group = {
+                  ...rawGroup,
+                  groupId: rawGroup.groupId || groupId,
+                  ownerPlayerId: rawGroup.ownerPlayerId || ownerPlayerId,
+              };
+              if (groupHasMember(group, playerId)) groups[group.groupId] = group;
+          }
+      }
+      return groups;
+  }
+
+  function groupLastMessageTimestamp(groupId, group = {}) {
+      let latest = Number(group.updatedAt || group.createdAt) || 0;
+      const allowed = new Set(groupMemberIds(group));
+      for (const [senderPlayerId, senderData] of Object.entries(chatPlayersCache || {})) {
+          if (!allowed.has(senderPlayerId)) continue;
+          const messages = senderData?.phoneGroupMessages?.[groupId] || {};
+          for (const message of Object.values(messages)) {
+              latest = Math.max(latest, Number(message?.timestamp) || 0);
+          }
+      }
+      return latest;
+  }
+
+  function refreshGroupUnreadState() {
+      const reads = chatPlayersCache?.[playerId]?.phoneGroupReads || {};
+      window.__luminousUnreadGroupChat = Object.values(discoveredPhoneGroups).some((group) => {
+          const lastRead = Number(reads?.[group.groupId]) || 0;
+          return groupLastMessageTimestamp(group.groupId, group) > lastRead;
+      });
+      window.updateNotifications?.();
+  }
+
+  function stopLegacyChatListener() {
+      if (activeLegacyMessagesRef && activeLegacyMessagesListener) {
+          activeLegacyMessagesRef.off("value", activeLegacyMessagesListener);
+      }
+      activeLegacyMessagesRef = null;
+      activeLegacyMessagesListener = null;
+  }
+
+  function clearActiveChat(message = "Selecciona un Chat") {
+      stopLegacyChatListener();
+      currentChatId = null;
+      currentChatType = null;
+      currentGroupMeta = null;
+      const headerName = document.getElementById("chat-header-name");
+      if (headerName) headerName.innerText = message;
+      const manage = document.getElementById("btn-manage-group");
+      if (manage) manage.style.display = "none";
+      const save = document.getElementById("btn-save-contact");
+      if (save) save.style.display = "none";
+      const messages = document.getElementById("chat-messages");
+      if (messages) messages.innerHTML = "";
+  }
+
+  function renderMessageBubble(container, { isMe, senderName, text, timestamp }) {
+      const wrap = document.createElement("div");
+      wrap.style.display = "flex";
+      wrap.style.flexDirection = "column";
+      wrap.style.alignItems = isMe ? "flex-end" : "flex-start";
+
+      const bubble = document.createElement("div");
+      bubble.style.maxWidth = "80%";
+      bubble.style.padding = "8px 12px";
+      bubble.style.borderRadius = "4px";
+      bubble.style.background = isMe ? "var(--cyan-tech)" : "#222";
+      bubble.style.color = isMe ? "#000" : "#fff";
+      bubble.style.border = isMe ? "none" : "1px solid #444";
+      bubble.style.fontFamily = "'Share Tech Mono', monospace";
+      bubble.style.overflowWrap = "anywhere";
+
+      const sender = document.createElement("strong");
+      sender.style.cssText = "font-size:0.8em;display:block;opacity:0.7;margin-bottom:2px;";
+      sender.textContent = senderName || "Contacto";
+      bubble.appendChild(sender);
+      bubble.appendChild(document.createTextNode(String(text || "")));
+
+      if (timestamp) {
+          const time = document.createElement("small");
+          time.style.cssText = "display:block;opacity:.55;margin-top:4px;font-size:.7em;";
+          time.textContent = new Date(Number(timestamp)).toLocaleTimeString("es-MX", {
+              hour: "2-digit",
+              minute: "2-digit"
+          });
+          bubble.appendChild(time);
+      }
+
+      wrap.appendChild(bubble);
+      container.appendChild(wrap);
+  }
+
+  function renderActiveGroupMessages() {
+      if (currentChatType !== "group" || !currentChatId || !currentGroupMeta) return;
+      const msgsContainer = document.getElementById("chat-messages");
+      if (!msgsContainer) return;
+
+      const allowed = new Set(groupMemberIds(currentGroupMeta));
+      const messages = [];
+      for (const [senderPlayerId, senderData] of Object.entries(chatPlayersCache || {})) {
+          if (!allowed.has(senderPlayerId)) continue;
+          const senderMessages = senderData?.phoneGroupMessages?.[currentChatId] || {};
+          for (const [messageId, message] of Object.entries(senderMessages)) {
+              if (!message || message.groupId !== currentChatId) continue;
+              messages.push({
+                  messageId,
+                  senderPlayerId,
+                  text: message.text || "",
+                  timestamp: Number(message.timestamp) || 0,
+              });
+          }
+      }
+
+      messages.sort((a, b) => (a.timestamp - b.timestamp) || a.messageId.localeCompare(b.messageId));
+      msgsContainer.innerHTML = "";
+
+      for (const message of messages) {
+          const senderData = chatPlayersCache?.[message.senderPlayerId] || {};
+          const senderPhone = normalizeChatPhone(senderData.phoneNumber);
+          const isMe = message.senderPlayerId === playerId;
+          const senderName = isMe
+              ? "Yo"
+              : (contactsDictionary[senderPhone] || playerChatDisplayName(message.senderPlayerId, senderData));
+          renderMessageBubble(msgsContainer, {
+              isMe,
+              senderName,
+              text: message.text,
+              timestamp: message.timestamp,
+          });
+      }
+      msgsContainer.scrollTop = msgsContainer.scrollHeight;
+  }
+
+  function syncPhoneGroupsFromPlayers(players = {}) {
+      chatPlayersCache = players || {};
+      discoveredPhoneGroups = collectDiscoveredPhoneGroups(chatPlayersCache);
+
+      if (currentChatType === "group" && currentChatId) {
+          const fresh = discoveredPhoneGroups[currentChatId];
+          if (!fresh) {
+              clearActiveChat("Ya no perteneces a este grupo");
+          } else {
+              currentGroupMeta = fresh;
+              const headerName = document.getElementById("chat-header-name");
+              if (headerName) {
+                  const count = groupMemberIds(fresh).length;
+                  headerName.innerText = `${fresh.name || "Chat Grupal"} · ${count} miembro${count === 1 ? "" : "s"}`;
+              }
+              const manage = document.getElementById("btn-manage-group");
+              if (manage) manage.style.display = fresh.ownerPlayerId === playerId ? "block" : "none";
+              renderActiveGroupMessages();
+          }
+      }
+
+      renderChatList(legacyChatIds);
+      refreshGroupUnreadState();
+  }
+
+  async function getPlayersForGroupCreation() {
+      // Creation is rare; take one authoritative snapshot so a contact is not
+      // rejected merely because the incremental cache is still warming up.
+      const snapshot = await db.ref("campaña/jugadores").once("value");
+      const players = snapshot.val() || {};
+      chatPlayersCache = { ...chatPlayersCache, ...players };
+      return players;
+  }
+
+  function buildGroupContactPicker(group = null) {
+      const listDiv = document.getElementById("new-group-contacts-list");
+      if (!listDiv) return;
+      listDiv.innerHTML = "";
+
+      const existingPhones = new Set();
+      if (group) {
+          for (const [memberId, member] of Object.entries(group.members || {})) {
+              if (memberId === playerId) continue;
+              const phone = normalizeChatPhone(
+                  member?.phone || chatPlayersCache?.[memberId]?.phoneNumber
+              );
+              if (phone) existingPhones.add(phone);
+          }
+      }
+
+      const entries = new Map();
+      for (const [phoneRaw, alias] of Object.entries(contactsDictionary || {})) {
+          const phone = normalizeChatPhone(phoneRaw);
+          if (phone) entries.set(phone, String(alias || phone));
+      }
+      for (const phone of existingPhones) {
+          if (!entries.has(phone)) {
+              const match = Object.entries(chatPlayersCache).find(([, data]) =>
+                  normalizeChatPhone(data?.phoneNumber) === phone
+              );
+              entries.set(phone, match ? playerChatDisplayName(match[0], match[1]) : phone);
+          }
+      }
+
+      if (!entries.size) {
+          listDiv.innerHTML = "<div style='color:#666;font-style:italic;'>No tienes contactos guardados.</div>";
+          return;
+      }
+
+      for (const [phone, alias] of [...entries.entries()].sort((a, b) => a[1].localeCompare(b[1]))) {
+          const row = document.createElement("label");
+          row.style.cssText = "display:flex;align-items:center;gap:10px;cursor:pointer;color:#ddd;font-family:'Share Tech Mono',monospace;padding:7px 5px;border-bottom:1px solid #333;";
+
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.className = "group-contact-cb";
+          checkbox.value = phone;
+          checkbox.checked = existingPhones.has(phone);
+
+          const labelText = document.createElement("span");
+          labelText.textContent = `${alias} [${phone}]`;
+
+          row.append(checkbox, labelText);
+          listDiv.appendChild(row);
+      }
+  }
+
+  function openGroupEditor(group = null) {
+      const modal = document.getElementById("modal-new-group");
+      if (!modal) return;
+      groupEditId = group?.groupId || null;
+
+      const title = modal.querySelector("h3");
+      if (title) title.textContent = group ? "ADMINISTRAR GRUPO" : "NUEVO GRUPO";
+
+      const nameInput = document.getElementById("new-group-name");
+      const iconInput = document.getElementById("new-group-icon-url");
+      if (nameInput) nameInput.value = group?.name || "";
+      if (iconInput) iconInput.value = group?.icon || "";
+
+      const confirm = document.getElementById("btn-confirm-group");
+      if (confirm) confirm.textContent = group ? "GUARDAR" : "CREAR";
+
+      buildGroupContactPicker(group);
+      modal.style.display = "flex";
+  }
+
+  async function resolveGroupMembers(selectedPhones) {
+      const players = await getPlayersForGroupCreation();
+      const phoneIndex = new Map();
+      for (const [candidateId, data] of Object.entries(players)) {
+          const phone = normalizeChatPhone(data?.phoneNumber);
+          if (!phone) continue;
+          if (!phoneIndex.has(phone)) phoneIndex.set(phone, []);
+          phoneIndex.get(phone).push([candidateId, data]);
+      }
+
+      const members = {};
+      const selfData = players[playerId] || window.datosJugador || {};
+      members[playerId] = {
+          phone: normalizeChatPhone(selfData.phoneNumber || myPhoneNumber),
+          name: playerChatDisplayName(playerId, selfData),
+      };
+
+      const unresolved = [];
+      for (const phone of selectedPhones) {
+          const matches = phoneIndex.get(normalizeChatPhone(phone)) || [];
+          if (matches.length !== 1) {
+              unresolved.push(phone);
+              continue;
+          }
+          const [memberId, memberData] = matches[0];
+          members[memberId] = {
+              phone: normalizeChatPhone(memberData.phoneNumber),
+              name: playerChatDisplayName(memberId, memberData),
+          };
+      }
+
+      if (unresolved.length) {
+          throw new Error(
+              "Estos números no están vinculados a un único jugador: " + unresolved.join(", ")
+          );
+      }
+      return members;
+  }
+
+  async function savePhoneGroup() {
+      const modal = document.getElementById("modal-new-group");
+      const confirm = document.getElementById("btn-confirm-group");
+      const groupName = String(document.getElementById("new-group-name")?.value || "").trim();
+      const iconUrl = String(document.getElementById("new-group-icon-url")?.value || "").trim();
+      const selectedPhones = Array.from(document.querySelectorAll(".group-contact-cb:checked"))
+          .map((cb) => normalizeChatPhone(cb.value))
+          .filter(Boolean);
+
+      if (!groupName) throw new Error("Nombre del Grupo requerido.");
+      if (!selectedPhones.length) throw new Error("Debes seleccionar al menos un contacto.");
+      if (!playerId || !myPhoneNumber) throw new Error("Tu dispositivo todavía no está listo.");
+
+      const members = await resolveGroupMembers(selectedPhones);
+      if (Object.keys(members).length < 2) throw new Error("El grupo necesita al menos dos miembros.");
+
+      const isEditing = Boolean(groupEditId);
+      const existing = isEditing ? discoveredPhoneGroups[groupEditId] : null;
+      if (isEditing && existing?.ownerPlayerId !== playerId) {
+          throw new Error("Solo el creador del grupo puede cambiar sus miembros.");
+      }
+
+      const groupId = groupEditId || db.ref(`campaña/jugadores/${playerId}/phoneGroups`).push().key;
+      if (!groupId) throw new Error("No se pudo generar el grupo.");
+
+      const now = Date.now();
+      const payload = {
+          schemaVersion: 1,
+          groupId,
+          ownerPlayerId: playerId,
+          ownerUid: auth.currentUser?.uid || null,
+          name: groupName,
+          icon: iconUrl || null,
+          members,
+          active: true,
+          createdAt: Number(existing?.createdAt) || now,
+          updatedAt: now,
+      };
+
+      if (confirm) confirm.disabled = true;
+      try {
+          await db.ref(`campaña/jugadores/${playerId}/phoneGroups/${groupId}`).set(payload);
+          await db.ref(`campaña/jugadores/${playerId}/phoneGroupReads/${groupId}`).set(now);
+          groupEditId = null;
+          if (modal) modal.style.display = "none";
+          currentChatId = groupId;
+          currentChatType = "group";
+          currentGroupMeta = payload;
+          loadPhoneGroup(groupId, payload);
+      } finally {
+          if (confirm) confirm.disabled = false;
+      }
+  }
+
+  async function sendCurrentChatMessage() {
+      const input = document.getElementById("chat-input");
+      const msg = String(input?.value || "").trim();
+      if (!msg || !currentChatId || !myPhoneNumber) return;
+
+      if (currentChatType === "group") {
+          if (!currentGroupMeta || !groupHasMember(currentGroupMeta, playerId)) {
+              alert("Ya no perteneces a este grupo.");
+              return;
+          }
+          const messageRef = db.ref(
+              `campaña/jugadores/${playerId}/phoneGroupMessages/${currentChatId}`
+          ).push();
+          await messageRef.set({
+              schemaVersion: 1,
+              groupId: currentChatId,
+              text: msg,
+              timestamp: Date.now(),
+          });
+          if (input) input.value = "";
+          return;
+      }
+
+      // Legacy direct chat path retained for existing one-to-one threads.
+      const ts = Date.now();
+      await db.ref(`campaña/comms/chats/${currentChatId}/messages`).push({
+          sender: myPhoneNumber,
+          text: msg,
+          timestamp: ts
+      });
+      await db.ref(`campaña/comms/chats/${currentChatId}`).update({ lastMessageTimestamp: ts });
+      if (input) input.value = "";
+  }
 
   function initChatSystem() {
       if (chatListenerActive) return;
+      if (!playerId) return;
       chatListenerActive = true;
 
-      const charNameInput = document.querySelector('input[name="attr_character_name"]');
-      const pName = charNameInput ? charNameInput.value.trim() : "";
-      if (!pName) return;
-
-      // Fetch my phone number and contacts
-      db.ref(`campaña/jugadores/${pName}`).on("value", snap => {
+      db.ref(`campaña/jugadores/${playerId}`).on("value", (snap) => {
           const pData = snap.val();
           if (!pData) return;
-          myPhoneNumber = pData.phoneNumber;
+          myPhoneNumber = normalizeChatPhone(pData.phoneNumber);
 
-          // Legacy check for old 'contacts' structure just in case
-          let rawContacts = pData.contactos || pData.contacts || {};
+          const rawContacts = pData.contactos || pData.contacts || {};
           contactsDictionary = {};
           for (const [phone, data] of Object.entries(rawContacts)) {
-              if (typeof data === "object" && data.alias) {
-                 contactsDictionary[phone] = data.alias;
-              } else if (typeof data === "string") {
-                  contactsDictionary[phone] = data;
-              }
+              if (typeof data === "object" && data?.alias) contactsDictionary[normalizeChatPhone(phone)] = data.alias;
+              else if (typeof data === "string") contactsDictionary[normalizeChatPhone(phone)] = data;
           }
 
-          const chats = pData.chats || {};
-          renderChatList(chats);
+          legacyChatIds = pData.chats || {};
+          renderChatList(legacyChatIds);
       });
 
-      // Send logic
+      // Incremental player snapshots power group discovery and message fan-in
+      // without reprocessing the entire player tree on every group message.
+      const groupPlayersRef = db.ref("campaña/jugadores");
+      const groupRelevantFingerprint = (data = {}) => JSON.stringify({
+          phoneNumber: data.phoneNumber || "",
+          characterName: data.characterName || data.character_name || data.nombre || data.name || "",
+          phoneGroups: data.phoneGroups || {},
+          phoneGroupMessages: data.phoneGroupMessages || {},
+          phoneGroupReads: data.phoneGroupReads || {},
+      });
+      const scheduleGroupSync = () => {
+          if (groupSyncTimer) return;
+          groupSyncTimer = setTimeout(() => {
+              groupSyncTimer = null;
+              syncPhoneGroupsFromPlayers(chatPlayersCache);
+          }, 0);
+      };
+      const syncGroupPlayerSnapshot = (snapshot) => {
+          if (!snapshot?.key) return;
+          const nextData = snapshot.val() || {};
+          const nextFingerprint = groupRelevantFingerprint(nextData);
+          if (groupPlayerFingerprints[snapshot.key] === nextFingerprint) return;
+          groupPlayerFingerprints[snapshot.key] = nextFingerprint;
+          chatPlayersCache[snapshot.key] = nextData;
+          scheduleGroupSync();
+      };
+      groupPlayersRef.on("child_added", syncGroupPlayerSnapshot);
+      groupPlayersRef.on("child_changed", syncGroupPlayerSnapshot);
+      groupPlayersRef.on("child_removed", (snapshot) => {
+          if (snapshot?.key) {
+              delete chatPlayersCache[snapshot.key];
+              delete groupPlayerFingerprints[snapshot.key];
+          }
+          scheduleGroupSync();
+      });
+
       const btnSend = document.getElementById("btn-send-chat");
-      if (btnSend) {
-          btnSend.onclick = () => {
-              if (!currentChatId || !myPhoneNumber) return;
-              const input = document.getElementById("chat-input");
-              const msg = input.value.trim();
-              if (!msg) return;
-
-              const ts = Date.now();
-              db.ref(`campaña/comms/chats/${currentChatId}/messages`).push({
-                  sender: myPhoneNumber,
-                  text: msg,
-                  timestamp: ts
+      if (btnSend && btnSend.dataset.chatSendBound !== "true") {
+          btnSend.dataset.chatSendBound = "true";
+          btnSend.addEventListener("click", () => {
+              sendCurrentChatMessage().catch((error) => {
+                  console.error("[Luminous][Chat] No se pudo enviar:", error);
+                  alert(error?.code === "PERMISSION_DENIED"
+                      ? "Firebase rechazó este chat legacy. Los grupos nuevos usan el canal compatible."
+                      : (error?.message || "No se pudo enviar el mensaje."));
               });
-              db.ref(`campaña/comms/chats/${currentChatId}`).update({ lastMessageTimestamp: ts });
-              input.value = "";
-          };
+          });
       }
 
-      // Group creation
+      const chatInput = document.getElementById("chat-input");
+      if (chatInput && chatInput.dataset.chatSendBound !== "true") {
+          chatInput.dataset.chatSendBound = "true";
+          chatInput.addEventListener("keydown", (event) => {
+              if (event.key !== "Enter" || event.shiftKey) return;
+              event.preventDefault();
+              sendCurrentChatMessage().catch((error) => {
+                  console.error("[Luminous][Chat] No se pudo enviar:", error);
+              });
+          });
+      }
+
       const btnGroup = document.getElementById("btn-create-group");
-      const modalNewGroup = document.getElementById("modal-new-group");
-      const btnCancelGroup = document.getElementById("btn-cancel-group");
-      const btnConfirmGroup = document.getElementById("btn-confirm-group");
+      if (btnGroup && btnGroup.dataset.groupCreateBound !== "true") {
+          btnGroup.dataset.groupCreateBound = "true";
+          btnGroup.addEventListener("click", () => openGroupEditor());
+      }
 
-      if (btnGroup && modalNewGroup) {
-          btnGroup.onclick = () => {
-              modalNewGroup.style.display = "flex";
-              document.getElementById("new-group-name").value = "";
-              document.getElementById("new-group-icon-url").value = "";
-
-              const listDiv = document.getElementById("new-group-contacts-list");
-              listDiv.innerHTML = "";
-
-              if (Object.keys(contactsDictionary).length === 0) {
-                  listDiv.innerHTML = "<div style='color: #666; font-style: italic;'>No tienes contactos guardados.</div>";
-              } else {
-                  for (const [phone, alias] of Object.entries(contactsDictionary)) {
-                      const div = document.createElement("div");
-                      div.style.padding = "5px";
-                      div.style.borderBottom = "1px solid #333";
-                      div.innerHTML = `
-                          <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; color: #ddd; font-family: 'Share Tech Mono', monospace;">
-                              <input type="checkbox" class="group-contact-cb" value="${phone}">
-                              <span>${alias} <span style="color: #666; font-size: 0.8em;">[${phone}]</span></span>
-                          </label>
-                      `;
-                      listDiv.appendChild(div);
-                  }
+      const btnManage = document.getElementById("btn-manage-group");
+      if (btnManage && btnManage.dataset.groupManageBound !== "true") {
+          btnManage.dataset.groupManageBound = "true";
+          btnManage.addEventListener("click", () => {
+              if (currentChatType === "group" && currentGroupMeta?.ownerPlayerId === playerId) {
+                  openGroupEditor(currentGroupMeta);
               }
-          };
+          });
       }
 
-      if (btnCancelGroup && modalNewGroup) {
-          btnCancelGroup.onclick = () => {
-              modalNewGroup.style.display = "none";
-          };
+      const btnCancelGroup = document.getElementById("btn-cancel-group");
+      if (btnCancelGroup && btnCancelGroup.dataset.groupCancelBound !== "true") {
+          btnCancelGroup.dataset.groupCancelBound = "true";
+          btnCancelGroup.addEventListener("click", () => {
+              groupEditId = null;
+              const modal = document.getElementById("modal-new-group");
+              if (modal) modal.style.display = "none";
+          });
       }
 
-      if (btnConfirmGroup && modalNewGroup) {
-          btnConfirmGroup.onclick = () => {
-              const groupName = document.getElementById("new-group-name").value.trim();
-              const iconUrl = document.getElementById("new-group-icon-url").value.trim();
-
-              if (!groupName) return alert("Nombre del Grupo requerido.");
-
-              const cbs = document.querySelectorAll(".group-contact-cb:checked");
-              const phones = Array.from(cbs).map(cb => cb.value);
-
-              if (phones.length === 0) return alert("Debes seleccionar al menos un contacto.");
-
-              const participants = {};
-              participants[myPhoneNumber] = true;
-              phones.forEach(p => participants[p] = true);
-
-              const chatData = {
-                  name: groupName,
-                  participants: participants,
-                  isGroup: true
-              };
-
-              if (iconUrl) chatData.icon = iconUrl;
-
-              const newChatRef = db.ref("campaña/comms/chats").push();
-              newChatRef.set(chatData).then(() => {
-                  // Add chat ID to myself
-                  db.ref(`campaña/jugadores/${pName}/chats/${newChatRef.key}`).set(true);
-
-                  // Update for other players globally
-                  phones.forEach(p => {
-                      db.ref("campaña/jugadores").once("value", psnap => {
-                          const players = psnap.val() || {};
-                          for (const [pId, pData] of Object.entries(players)) {
-                              if (pData.phoneNumber === p) {
-                                  db.ref(`campaña/jugadores/${pId}/chats/${newChatRef.key}`).set(true);
-                              }
-                          }
-                      });
-                  });
-                  modalNewGroup.style.display = "none";
+      const btnConfirmGroup = document.getElementById("btn-confirm-group");
+      if (btnConfirmGroup && btnConfirmGroup.dataset.groupConfirmBound !== "true") {
+          btnConfirmGroup.dataset.groupConfirmBound = "true";
+          btnConfirmGroup.addEventListener("click", () => {
+              savePhoneGroup().catch((error) => {
+                  console.error("[Luminous][Chat] No se pudo guardar el grupo:", error);
+                  alert(error?.message || "No se pudo guardar el grupo.");
               });
-          };
+          });
       }
   }
 
-  function renderChatList(chatIds) {
+  function createChatThreadRow({ name, icon, isGroup, memberCount, unread, onClick }) {
+      const div = document.createElement("div");
+      div.style.cssText = "padding:10px;border-bottom:1px solid #333;cursor:pointer;color:#ddd;font-family:'Share Tech Mono',monospace;display:flex;align-items:center;gap:10px;";
+      if (unread) div.style.borderLeft = "3px solid var(--cyan-tech)";
+
+      if (isGroup && icon) {
+          const img = document.createElement("img");
+          img.src = icon;
+          img.alt = "";
+          img.style.cssText = "width:30px;height:30px;border-radius:2px;border:1px solid var(--cyan-tech);object-fit:cover;";
+          div.appendChild(img);
+      } else if (isGroup) {
+          const initials = document.createElement("div");
+          initials.style.cssText = "width:30px;height:30px;background:#111;border:1px solid var(--cyan-tech);border-radius:2px;display:flex;align-items:center;justify-content:center;color:var(--cyan-tech);font-family:'BebasKai',sans-serif;font-size:14px;";
+          initials.textContent = String(name || "GR").substring(0, 2).toUpperCase();
+          div.appendChild(initials);
+      } else {
+          const iconEl = document.createElement("div");
+          iconEl.style.cssText = "width:30px;height:30px;background:#222;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#aaa;";
+          iconEl.textContent = "👤";
+          div.appendChild(iconEl);
+      }
+
+      const textWrap = document.createElement("div");
+      textWrap.style.cssText = "flex:1;min-width:0;";
+      const title = document.createElement("div");
+      title.style.cssText = "white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+      title.textContent = name || "Chat";
+      textWrap.appendChild(title);
+      if (isGroup) {
+          const meta = document.createElement("small");
+          meta.style.cssText = "display:block;color:#666;margin-top:2px;";
+          meta.textContent = `${memberCount || 0} miembros`;
+          textWrap.appendChild(meta);
+      }
+      div.appendChild(textWrap);
+      div.addEventListener("click", onClick);
+      return div;
+  }
+
+  function renderChatList(chatIds = {}) {
       const listDiv = document.getElementById("chat-threads-list");
       if (!listDiv) return;
+      const generation = ++chatListRenderGeneration;
       listDiv.innerHTML = "";
-      Object.keys(chatIds).forEach(chatId => {
-          db.ref(`campaña/comms/chats/${chatId}`).once("value", snap => {
+
+      const reads = chatPlayersCache?.[playerId]?.phoneGroupReads || {};
+      const groups = Object.values(discoveredPhoneGroups).sort((a, b) =>
+          groupLastMessageTimestamp(b.groupId, b) - groupLastMessageTimestamp(a.groupId, a)
+      );
+
+      for (const group of groups) {
+          const last = groupLastMessageTimestamp(group.groupId, group);
+          const unread = last > (Number(reads?.[group.groupId]) || 0);
+          listDiv.appendChild(createChatThreadRow({
+              name: group.name || "Chat Grupal",
+              icon: group.icon || "",
+              isGroup: true,
+              memberCount: groupMemberIds(group).length,
+              unread,
+              onClick: () => loadPhoneGroup(group.groupId, group),
+          }));
+      }
+
+      for (const chatId of Object.keys(chatIds || {})) {
+          db.ref(`campaña/comms/chats/${chatId}`).once("value", (snap) => {
+              if (generation !== chatListRenderGeneration) return;
               const chatData = snap.val();
               if (!chatData) return;
-
-              const div = document.createElement("div");
-              div.style.padding = "10px";
-              div.style.borderBottom = "1px solid #333";
-              div.style.cursor = "pointer";
-              div.style.color = "#ddd";
-              div.style.fontFamily = "'Share Tech Mono', monospace";
-              div.style.display = "flex";
-              div.style.alignItems = "center";
-              div.style.gap = "10px";
-
-              const chatName = chatData.name || "Chat";
-
-              // Group Icon generation
-              let iconHtml = "";
-              if (chatData.isGroup) {
-                  if (chatData.icon) {
-                      iconHtml = `<img src="${chatData.icon}" style="width: 30px; height: 30px; border-radius: 2px; border: 1px solid var(--cyan-tech); object-fit: cover;">`;
-                  } else {
-                      const initials = chatName.substring(0, 2).toUpperCase();
-                      iconHtml = `<div style="width: 30px; height: 30px; background: #111; border: 1px solid var(--cyan-tech); border-radius: 2px; display: flex; align-items: center; justify-content: center; color: var(--cyan-tech); font-family: 'BebasKai', sans-serif; font-size: 14px; text-shadow: 0 0 5px rgba(0, 221, 255, 0.5);">${initials}</div>`;
-                  }
-              } else {
-                  iconHtml = `<div style="width: 30px; height: 30px; background: #222; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #aaa;">👤</div>`;
-              }
-
-              div.innerHTML = `
-                  ${iconHtml}
-                  <span style="flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${chatName}</span>
-              `;
-
-              div.onclick = () => loadChat(chatId, chatData);
-              listDiv.appendChild(div);
+              // Do not duplicate legacy group rows when a migrated live group uses the same key.
+              if (chatData.isGroup && discoveredPhoneGroups[chatId]) return;
+              listDiv.appendChild(createChatThreadRow({
+                  name: chatData.name || (chatData.isGroup ? "Grupo Legacy" : "Chat"),
+                  icon: chatData.icon || "",
+                  isGroup: Boolean(chatData.isGroup),
+                  memberCount: Object.keys(chatData.participants || {}).length,
+                  unread: false,
+                  onClick: () => loadChat(chatId, chatData),
+              }));
           });
-      });
+      }
+  }
+
+  function loadPhoneGroup(groupId, groupData) {
+      stopLegacyChatListener();
+      currentChatId = groupId;
+      currentChatType = "group";
+      currentGroupMeta = groupData;
+
+      const count = groupMemberIds(groupData).length;
+      const headerName = document.getElementById("chat-header-name");
+      if (headerName) {
+          headerName.innerText = `${groupData.name || "Chat Grupal"} · ${count} miembro${count === 1 ? "" : "s"}`;
+      }
+
+      const btnSave = document.getElementById("btn-save-contact");
+      if (btnSave) btnSave.style.display = "none";
+      const btnManage = document.getElementById("btn-manage-group");
+      if (btnManage) btnManage.style.display = groupData.ownerPlayerId === playerId ? "block" : "none";
+
+      const now = Date.now();
+      db.ref(`campaña/jugadores/${playerId}/phoneGroupReads/${groupId}`).set(now)
+          .catch((error) => console.error("[Luminous][Chat] No se pudo marcar grupo como leído:", error));
+
+      renderActiveGroupMessages();
   }
 
   function loadChat(chatId, chatData) {
+      stopLegacyChatListener();
       currentChatId = chatId;
-      const charNameInput = document.querySelector('input[name="attr_character_name"]');
-      const pName = charNameInput ? charNameInput.value.trim() : "";
-      if (pName) {
-          db.ref(`campaña/jugadores/${pName}/chats/${chatId}`).set({ lastRead: Date.now() }).then(() => {
-              if (typeof window.updateNotifications === 'function') {
-                  // Trigger a manual check to hide the badge quickly
-                  db.ref(`campaña/jugadores/${pName}/chats`).once("value", snap => {
-                     // The global listener will handle it, but we can force it
-                     // Or just rely on the global `value` listener that will fire after the `set`.
-                  });
+      currentChatType = "legacy";
+      currentGroupMeta = null;
+
+      if (playerId) {
+          db.ref(`campaña/jugadores/${playerId}/chats/${chatId}`).set({ lastRead: Date.now() }).then(() => {
+              if (typeof window.updateNotifications === "function") {
+                  db.ref(`campaña/jugadores/${playerId}/chats`).once("value", () => {});
               }
           });
       }
+
       const headerName = document.getElementById("chat-header-name");
-      if (headerName) {
-          if (chatData.isGroup) {
-              headerName.innerText = chatData.name || "Chat Grupal";
-          } else {
-              headerName.innerText = chatData.name || "Chat";
-          }
-      }
+      if (headerName) headerName.innerText = chatData.name || (chatData.isGroup ? "Grupo Legacy" : "Chat");
+
+      const btnManage = document.getElementById("btn-manage-group");
+      if (btnManage) btnManage.style.display = "none";
       const btnSave = document.getElementById("btn-save-contact");
       if (btnSave) btnSave.style.display = "none";
 
-      // Detect unknown participants in a 1-on-1 chat
       if (chatData.participants && !chatData.isGroup) {
-          const others = Object.keys(chatData.participants).filter(p => p !== myPhoneNumber);
+          const others = Object.keys(chatData.participants).filter((phone) => normalizeChatPhone(phone) !== myPhoneNumber);
           if (others.length === 1) {
-              const otherPhone = others[0];
+              const otherPhone = normalizeChatPhone(others[0]);
               if (!contactsDictionary[otherPhone]) {
                   if (btnSave) {
                       btnSave.style.display = "block";
                       btnSave.onclick = () => saveContactPrompt(otherPhone);
                   }
-              } else {
-                  if (headerName) headerName.innerText = contactsDictionary[otherPhone];
+              } else if (headerName) {
+                  headerName.innerText = contactsDictionary[otherPhone];
               }
           }
       }
 
-      db.ref(`campaña/comms/chats/${chatId}/messages`).off();
-      db.ref(`campaña/comms/chats/${chatId}/messages`).on("value", snap => {
+      activeLegacyMessagesRef = db.ref(`campaña/comms/chats/${chatId}/messages`);
+      activeLegacyMessagesListener = (snap) => {
           const msgsContainer = document.getElementById("chat-messages");
-          if (!msgsContainer) return;
+          if (!msgsContainer || currentChatType !== "legacy" || currentChatId !== chatId) return;
           msgsContainer.innerHTML = "";
-          snap.forEach(child => {
-              const m = child.val();
-              const isMe = m.sender === myPhoneNumber;
-              const senderName = isMe ? "Yo" : (contactsDictionary[m.sender] || m.sender);
-
-              const wrap = document.createElement("div");
-              wrap.style.display = "flex";
-              wrap.style.flexDirection = "column";
-              wrap.style.alignItems = isMe ? "flex-end" : "flex-start";
-
-              const bubble = document.createElement("div");
-              bubble.style.maxWidth = "80%";
-              bubble.style.padding = "8px 12px";
-              bubble.style.borderRadius = "4px";
-              bubble.style.background = isMe ? "var(--cyan-tech)" : "#222";
-              bubble.style.color = isMe ? "#000" : "#fff";
-              bubble.style.border = isMe ? "none" : "1px solid #444";
-              bubble.style.fontFamily = "'Share Tech Mono', monospace";
-
-              bubble.innerHTML = `<strong style="font-size: 0.8em; display: block; opacity: 0.7; margin-bottom: 2px;">${senderName}</strong>${m.text}`;
-
-              wrap.appendChild(bubble);
-              msgsContainer.appendChild(wrap);
+          snap.forEach((child) => {
+              const m = child.val() || {};
+              const senderPhone = normalizeChatPhone(m.sender);
+              const isMe = senderPhone === myPhoneNumber;
+              renderMessageBubble(msgsContainer, {
+                  isMe,
+                  senderName: isMe ? "Yo" : (contactsDictionary[senderPhone] || senderPhone),
+                  text: m.text,
+                  timestamp: m.timestamp,
+              });
           });
           msgsContainer.scrollTop = msgsContainer.scrollHeight;
-      });
+      };
+      activeLegacyMessagesRef.on("value", activeLegacyMessagesListener);
   }
 
   function saveContactPrompt(phoneStr) {
-      const alias = prompt(`Guardar contacto para el número ${phoneStr}:`);
-      if (alias) {
-          const charNameInput = document.querySelector('input[name="attr_character_name"]');
-          const pName = charNameInput ? charNameInput.value.trim() : "";
-          if (pName) {
-              db.ref(`campaña/jugadores/${pName}/contactos/${phoneStr}`).set({ alias: alias }).then(() => {
-                  const btnSave = document.getElementById("btn-save-contact");
-                  if(btnSave) btnSave.style.display = "none";
-                  const headerName = document.getElementById("chat-header-name");
-                  if (headerName) headerName.innerText = alias;
-              });
-          }
+      const normalizedPhone = normalizeChatPhone(phoneStr);
+      const alias = prompt(`Guardar contacto para el número ${normalizedPhone}:`);
+      if (alias && playerId) {
+          db.ref(`campaña/jugadores/${playerId}/contactos/${normalizedPhone}`).set({ alias: alias.trim() }).then(() => {
+              contactsDictionary[normalizedPhone] = alias.trim();
+              const btnSave = document.getElementById("btn-save-contact");
+              if (btnSave) btnSave.style.display = "none";
+              const headerName = document.getElementById("chat-header-name");
+              if (headerName) headerName.innerText = alias.trim();
+          });
       }
   }
 
@@ -2300,45 +3109,30 @@ function initializeCharacterSheet() {
   const btnMute = document.getElementById("btn-toggle-mute");
   if (btnMute) {
       btnMute.addEventListener("click", () => {
-          const charNameInput = document.querySelector('input[name="attr_character_name"]');
-          const pName = charNameInput ? charNameInput.value.trim() : "";
-          if (pName) {
-              db.ref(`campaña/jugadores/${pName}/settings/isMuted`).once("value", snap => {
+          if (playerId) {
+              db.ref(`campaña/jugadores/${playerId}/settings/isMuted`).once("value", snap => {
                   const currentMuted = snap.val() === true;
-                  db.ref(`campaña/jugadores/${pName}/settings/isMuted`).set(!currentMuted);
+                  db.ref(`campaña/jugadores/${playerId}/settings/isMuted`).set(!currentMuted);
               });
           }
       });
   }
 
-  // Escuchar isMuted
-  const charNameInputGlobal = document.querySelector('input[name="attr_character_name"]');
-  const globalPName = charNameInputGlobal ? charNameInputGlobal.value.trim() : "";
-  if (globalPName) {
-      db.ref(`campaña/jugadores/${globalPName}/settings/isMuted`).on("value", snap => {
-          const isMuted = snap.val() === true;
-          if (btnMute) {
-              btnMute.innerText = isMuted ? "🔕" : "🔔";
-          }
-          window.isPhoneMuted = isMuted;
-          if (typeof updateNotifications === 'function') updateNotifications();
-      });
-  }
-
-
   // --- SISTEMA DE NOTIFICACIONES REACTIVAS ---
+  // Player-owned state comes from the canonical player listener. Do not open
+  // parallel Firebase subscriptions for mute/bank/mail/chat metadata.
   let unreadBank = false;
   let unreadMail = false;
   let unreadChat = false;
+  let notificationChats = {};
+  let notificationChatSignature = "";
 
   window.updateNotifications = function() {
-      // Helper para renderizar badges
       const renderBadge = (elementIdOrSelector, hasUnread, checkMuted = false) => {
           const el = document.querySelector(elementIdOrSelector);
           if (!el) return;
 
           let badge = el.querySelector('.limbus-badge');
-
           const shouldShow = hasUnread && (!checkMuted || !window.isPhoneMuted);
 
           if (shouldShow) {
@@ -2348,99 +3142,78 @@ function initializeCharacterSheet() {
                   badge.innerText = '!';
                   el.appendChild(badge);
               }
-          } else {
-              if (badge) {
-                  badge.remove();
-              }
+          } else if (badge) {
+              badge.remove();
           }
       };
 
-      // Main HUD Icon (checks if muted)
-      renderBadge('#btn-toggle-phone', unreadBank || unreadMail || unreadChat, true);
-
-      // Inside apps (always shows if unread)
+      const groupUnread = window.__luminousUnreadGroupChat === true;
+      renderBadge('#btn-toggle-phone', unreadBank || unreadMail || unreadChat || groupUnread, true);
       renderBadge('button[name="act_tab_banco"]', unreadBank, false);
-      renderBadge('button[name="act_tab_mail"]', unreadMail || unreadChat, false);
-
-      // Subtabs
+      renderBadge('button[name="act_tab_mail"]', unreadMail || unreadChat || groupUnread, false);
       renderBadge('#btn-show-mail', unreadMail, false);
-      renderBadge('#btn-show-chat', unreadChat, false);
+      renderBadge('#btn-show-chat', unreadChat || groupUnread, false);
   };
 
-  // Listeners para Banco
-  const charNameInputGlobal2 = document.querySelector('input[name="attr_character_name"]');
-  const globalPName2 = charNameInputGlobal2 ? charNameInputGlobal2.value.trim() : "";
-  if (globalPName2) {
-      db.ref(`campaña/jugadores/${globalPName2}/finance/transactionHistory`).on("value", snap => {
-          let hasUnread = false;
-          snap.forEach(child => {
-              if (child.val().unread === true) hasUnread = true;
+  const refreshUnreadChat = async (chats, onlyChatId = null) => {
+      const entries = Object.entries(chats || {}).filter(([chatId]) => !onlyChatId || chatId === onlyChatId);
+      if (onlyChatId && !entries.length) return;
+      const results = await Promise.all(entries.map(async ([chatId, data]) => {
+          const lastRead = typeof data === "object" && data?.lastRead ? data.lastRead : 0;
+          const tsSnap = await db.ref(`campaña/comms/chats/${chatId}/lastMessageTimestamp`).once("value");
+          return (tsSnap.val() || 0) > lastRead;
+      }));
+      if (onlyChatId) {
+          if (results.some(Boolean)) unreadChat = true;
+      } else {
+          unreadChat = results.some(Boolean);
+      }
+      window.updateNotifications();
+  };
+
+  const syncPlayerNotificationState = (playerData = {}) => {
+      window.isPhoneMuted = playerData.settings?.isMuted === true;
+      if (btnMute) btnMute.innerText = window.isPhoneMuted ? "🔕" : "🔔";
+
+      unreadBank = Object.values(playerData.finance?.transactionHistory || {})
+        .some((tx) => tx?.unread === true);
+      unreadMail = Object.values(playerData.correos || {})
+        .some((mail) => mail?.leido === false);
+
+      notificationChats = playerData.chats && typeof playerData.chats === "object"
+        ? playerData.chats
+        : {};
+      const nextSignature = Object.entries(notificationChats)
+        .map(([chatId, data]) => `${chatId}:${data?.lastRead || 0}`)
+        .sort()
+        .join("|");
+      if (nextSignature !== notificationChatSignature) {
+          notificationChatSignature = nextSignature;
+          refreshUnreadChat(notificationChats).catch((error) => {
+              console.error("[Luminous] No se pudieron actualizar notificaciones de chat:", error);
           });
-          unreadBank = hasUnread;
-          window.updateNotifications();
+      }
+      window.updateNotifications();
+  };
+
+  window.addEventListener("luminous:player-notification-data", (event) => {
+      syncPlayerNotificationState(event?.detail?.data || window.datosJugador || {});
+  });
+  if (window.datosJugador) syncPlayerNotificationState(window.datosJugador);
+
+  // Keep one global chat change subscription so incoming messages can raise
+  // the badge, but ignore chats the player does not participate in.
+  db.ref("campaña/comms/chats").on("child_changed", (snap) => {
+      const chatId = snap?.key;
+      if (!chatId || !notificationChats?.[chatId]) return;
+      refreshUnreadChat(notificationChats, chatId).catch((error) => {
+          console.error("[Luminous] No se pudo actualizar badge de chat:", error);
       });
+  });
 
-      // Listeners para Mail
-      db.ref(`campaña/jugadores/${globalPName2}/correos`).on("value", snap => {
-          let hasUnread = false;
-          snap.forEach(child => {
-              if (child.val().leido === false) hasUnread = true;
-          });
-          unreadMail = hasUnread;
-          window.updateNotifications();
-      });
-
-      // Listeners para Chat
-      db.ref(`campaña/jugadores/${globalPName2}/chats`).on("value", snap => {
-          const chats = snap.val() || {};
-          let hasUnread = false;
-
-          // Need to compare lastRead against global lastMessageTimestamp
-          const checkPromises = Object.entries(chats).map(([chatId, data]) => {
-              const lastRead = typeof data === 'object' && data.lastRead ? data.lastRead : 0;
-
-              return db.ref(`campaña/comms/chats/${chatId}/lastMessageTimestamp`).once("value").then(tsSnap => {
-                  const lastMsg = tsSnap.val() || 0;
-                  if (lastMsg > lastRead) {
-                      return true;
-                  }
-                  return false;
-              });
-          });
-
-          Promise.all(checkPromises).then(results => {
-              if (results.some(r => r === true)) {
-                  unreadChat = true;
-              } else {
-                  unreadChat = false;
-              }
-              window.updateNotifications();
-          });
-      });
-
-      // Update once when global chat updates as well
-      db.ref(`campaña/comms/chats`).on("child_changed", snap => {
-          // Trigger a re-eval of chat badges
-          db.ref(`campaña/jugadores/${globalPName2}/chats`).once("value", snap2 => {
-              const chats = snap2.val() || {};
-              let hasUnread = false;
-              const checkPromises = Object.entries(chats).map(([chatId, data]) => {
-                  const lastRead = typeof data === 'object' && data.lastRead ? data.lastRead : 0;
-                  return db.ref(`campaña/comms/chats/${chatId}/lastMessageTimestamp`).once("value").then(tsSnap => {
-                      if ((tsSnap.val() || 0) > lastRead) return true;
-                      return false;
-                  });
-              });
-              Promise.all(checkPromises).then(results => {
-                  unreadChat = results.some(r => r === true);
-                  window.updateNotifications();
-              });
-          });
-      });
-  }
-
-  // Set up Sub-Tab Switcher once DOM is ready
-  document.addEventListener("DOMContentLoaded", () => {
+  // Phone communication subtabs must bind even when async auth finishes
+  // after DOMContentLoaded (the normal production path).
+  function initPhoneCommunicationTabs() {
         const btnMail = document.getElementById("btn-show-mail");
         const btnChat = document.getElementById("btn-show-chat");
         const btnContacts = document.getElementById("btn-show-contacts");
@@ -2465,18 +3238,31 @@ function initializeCharacterSheet() {
             if(activeSub) activeSub.style.display = "flex";
         }
 
-        if (btnMail && btnChat && btnContacts) {
+        if (btnMail && btnMail.dataset.phoneSubtabBound !== "true") {
+            btnMail.dataset.phoneSubtabBound = "true";
             btnMail.addEventListener("click", () => switchTab(btnMail, subMail));
+        }
+        if (btnChat && btnChat.dataset.phoneSubtabBound !== "true") {
+            btnChat.dataset.phoneSubtabBound = "true";
             btnChat.addEventListener("click", () => {
                 switchTab(btnChat, subChat);
                 initChatSystem();
             });
+        }
+        if (btnContacts && btnContacts.dataset.phoneSubtabBound !== "true") {
+            btnContacts.dataset.phoneSubtabBound = "true";
             btnContacts.addEventListener("click", () => {
                 switchTab(btnContacts, subContacts);
                 initContactsSystem();
             });
         }
-  });
+  }
+
+  if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", initPhoneCommunicationTabs, { once: true });
+  } else {
+      initPhoneCommunicationTabs();
+  }
 
   // --- Mail listener setup (Inventory UI migrated to LuminousInventoryHudV2) ---
   {
@@ -2873,17 +3659,50 @@ function initializeCharacterSheet() {
             });
           }
 
-          const itemToSave = {
-            id: itemId,
-            nombre: itemTienda.nombre,
-            valorBase: itemTienda.costo, // Costo base
-            tier: parseInt(itemTienda.tier) || 1,
-            tipo: itemTienda.tipo || "Consumible",
-            icono: itemTienda.icono || "",
-            descripcion: itemTienda.descripcion || "",
-            cantidad: 1,
-          };
-          if (itemTienda.tags) itemToSave.tags = itemTienda.tags;
+          // Preserve the canonical functional definition when an item leaves a
+          // shop. Rebuilding a cosmetic subset here used to strip runtime.healing
+          // (and other item mechanics), producing consumables that rendered
+          // correctly but returned USE FAILED in the player's inventory.
+          const purchaseRuntime = window.LuminousShopItemPurchaseRuntime;
+          const itemToSave =
+            purchaseRuntime?.buildPurchasePayload?.(
+              itemId,
+              itemTienda,
+              playerName,
+              { inventoryRuntime: window.LuminousItemInventoryRuntime },
+            ) || {
+              ...itemTienda,
+              id: itemTienda.id || itemId,
+              definitionId:
+                itemTienda.definitionId ||
+                itemTienda.canonicalId ||
+                itemTienda.id ||
+                itemId,
+              canonicalId:
+                itemTienda.canonicalId ||
+                itemTienda.definitionId ||
+                itemTienda.id ||
+                itemId,
+              nombre: itemTienda.nombre,
+              name: itemTienda.name || itemTienda.nombre,
+              valorBase: itemTienda.costo,
+              tier: parseInt(itemTienda.tier) || 1,
+              tipo: itemTienda.tipo || "Consumible",
+              category:
+                itemTienda.category ||
+                itemTienda.tipo_categoria ||
+                "consumable",
+              itemType:
+                itemTienda.itemType ||
+                itemTienda.category ||
+                itemTienda.tipo_categoria ||
+                "consumable",
+              icono: itemTienda.icono || "",
+              descripcion: itemTienda.descripcion || "",
+              quantity: 1,
+              cantidad: 1,
+              currentOwnerId: playerName,
+            };
 
           if (isFisico) {
             // Añadir directo al Stash (Física)
@@ -2892,19 +3711,54 @@ function initializeCharacterSheet() {
             );
             stashRef.once("value", (stashSnap) => {
               let foundKey = null;
-              let currentCant = 0;
               stashSnap.forEach((child) => {
+                const owned = child.val() || {};
+                const ownedDefinitionId =
+                  owned.definitionId ||
+                  owned.canonicalId ||
+                  owned.id;
+                const sameTier = purchaseRuntime?.sameTier
+                  ? purchaseRuntime.sameTier(owned.tier, itemTienda.tier)
+                  : String(owned.tier || "I") === String(itemTienda.tier || "I");
                 if (
-                  child.val().id === itemId &&
-                  (child.val().tier || 1) == (itemTienda.tier || 1)
+                  ownedDefinitionId === itemToSave.definitionId &&
+                  sameTier
                 ) {
                   foundKey = child.key;
-                  currentCant = child.val().cantidad || 1;
                 }
               });
 
               if (foundKey) {
-                stashRef.child(foundKey).update({ cantidad: currentCant + 1 });
+                // Also repair legacy stacks purchased before this fix. If the old
+                // stack is missing runtime.healing/category metadata, merging a
+                // newly purchased canonical item restores those fields while
+                // preserving the existing instance identity.
+                stashRef.child(foundKey).transaction((current) => {
+                  if (!current) return itemToSave;
+                  if (purchaseRuntime?.mergePurchasedStack) {
+                    return purchaseRuntime.mergePurchasedStack(
+                      current,
+                      itemToSave,
+                      1,
+                    );
+                  }
+                  const currentCant =
+                    parseInt(current.quantity ?? current.cantidad) || 1;
+                  return {
+                    ...itemToSave,
+                    ...current,
+                    runtime: current.runtime || itemToSave.runtime,
+                    definitionId:
+                      current.definitionId || itemToSave.definitionId,
+                    canonicalId:
+                      current.canonicalId || itemToSave.canonicalId,
+                    category: current.category || itemToSave.category,
+                    itemType: current.itemType || itemToSave.itemType,
+                    family: current.family || itemToSave.family,
+                    quantity: currentCant + 1,
+                    cantidad: currentCant + 1,
+                  };
+                });
               } else {
                 stashRef.push(itemToSave);
               }
@@ -2983,9 +3837,20 @@ function initializeCharacterSheet() {
             },
           );
 
-          // Reducir cantidad o eliminar
-          if (item.cantidad > 1) {
-            itemRef.update({ cantidad: item.cantidad - 1 });
+          // Reducir cantidad o eliminar manteniendo sincronizados los dos
+          // mirrors canónicos de cantidad. Item Runtime prioriza `quantity`,
+          // mientras UI/legacy todavía leen `cantidad`.
+          const currentQuantity =
+            window.LuminousShopItemPurchaseRuntime?.quantityOf?.(item) ??
+            Math.max(
+              0,
+              parseInt(item.quantity ?? item.cantidad ?? 1) || 0,
+            );
+          if (currentQuantity > 1) {
+            itemRef.update({
+              quantity: currentQuantity - 1,
+              cantidad: currentQuantity - 1,
+            });
           } else {
             itemRef.remove();
           }
@@ -3071,7 +3936,13 @@ function initializeCharacterSheet() {
           const fragment = document.createDocumentFragment();
 
           for (const [key, item] of Object.entries(stash)) {
-            if (item.cantidad <= 0) continue;
+            const itemQuantity =
+              window.LuminousShopItemPurchaseRuntime?.quantityOf?.(item) ??
+              Math.max(
+                0,
+                parseInt(item.quantity ?? item.cantidad ?? 1) || 0,
+              );
+            if (itemQuantity <= 0) continue;
 
             // Calcular precio de venta basado en el primer tag (tipo) si existe
             // La nueva lógica usa array de tags, así que buscamos el primero
@@ -3099,7 +3970,7 @@ function initializeCharacterSheet() {
                 <img src="${item.icono || "https://via.placeholder.com/40"}" style="width: 40px; height: 40px; object-fit: contain; border-radius: 4px; background: #000;">
                 <div style="flex: 1; min-width: 0;">
                     <div style="font-weight: bold; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.nombre}</div>
-                    <div style="font-size: 12px; color: #888;">Cant: ${item.cantidad}</div>
+                    <div style="font-size: 12px; color: #888;">Cant: ${itemQuantity}</div>
                 </div>
                 <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 5px;">
                     <div style="color: #c49a00; font-weight: bold;"><span class="currency-symbol">₳</span> +${precioVenta}</div>
@@ -3120,7 +3991,7 @@ function initializeCharacterSheet() {
   // NATIVE BUTTON LISTENERS
   {
     // Escuchar clicks globales para botones de acción (simulando Roll20)
-    document.addEventListener("click", (e) => {
+    document.addEventListener("click", async (e) => {
       const btn = e.target.closest('button[type="action"]');
       if (!btn) return;
 
@@ -3167,6 +4038,16 @@ function initializeCharacterSheet() {
       }
 
       // --- Descansos ---
+      if (actName === "act_short_rest" || actName === "act_long_rest") {
+        e.preventDefault();
+        const restGate = await window.LuminousPlayerVitalsHud?.outOfCombatWriteGate?.(db, playerId);
+        if (restGate && restGate.allowed === false) {
+          console.warn("[Player Vitals] Rest blocked while Player is deployed in Combat.", restGate);
+          window.alert?.("REST BLOCKED // Tu Player sigue desplegado en Combat. Usa Combat Engine / DM authority o retíralo del encounter antes de descansar.");
+          return;
+        }
+      }
+
       if (actName === "act_short_rest") {
         if (window.LuminousFoodRestUi?.openRest && window.LuminousFoodRestRuntime) {
           e.preventDefault();
@@ -3177,8 +4058,12 @@ function initializeCharacterSheet() {
                 await window.LuminousItemPersistenceRuntime.saveInventoryState(db, playerId, unit);
               }
               await db.ref("campaña/jugadores/" + playerId).update({
-                hp: unit.hp,
-                sp: unit.sp,
+                ...(window.LuminousPlayerVitalsHud?.persistencePatch?.(unit) || {
+                  hp: unit.hp,
+                  sp: unit.sp,
+                  "combatStats/hp_actual": unit.hp,
+                  "combatStats/sp_actual": unit.sp,
+                }),
                 stagger_1_active: unit.stagger_1_active || "1",
                 stagger_2_active: unit.stagger_2_active || "1",
                 stagger_3_active: unit.stagger_3_active || "1",
@@ -3197,8 +4082,14 @@ function initializeCharacterSheet() {
         if (newHP > maxHP) newHP = maxHP;
 
         db.ref("campaña/jugadores/" + playerId).update({
-          hp: newHP,
-          sp: 0,
+          ...(window.LuminousPlayerVitalsHud?.persistencePatch?.({ hp: newHP, hp_max: maxHP, sp: 0 }) || {
+            hp: newHP,
+            hp_max: maxHP,
+            sp: 0,
+            "combatStats/hp_actual": newHP,
+            "combatStats/hp_max": maxHP,
+            "combatStats/sp_actual": 0,
+          }),
           stagger_1_active: "1",
           stagger_2_active: "1",
           stagger_3_active: "1",
@@ -3215,8 +4106,12 @@ function initializeCharacterSheet() {
                 await window.LuminousItemPersistenceRuntime.saveInventoryState(db, playerId, unit);
               }
               await db.ref("campaña/jugadores/" + playerId).update({
-                hp: unit.hp,
-                sp: unit.sp,
+                ...(window.LuminousPlayerVitalsHud?.persistencePatch?.(unit) || {
+                  hp: unit.hp,
+                  sp: unit.sp,
+                  "combatStats/hp_actual": unit.hp,
+                  "combatStats/sp_actual": unit.sp,
+                }),
                 culinarySurvival: unit.culinarySurvival || null,
                 culinaryEffects: unit.culinaryEffects || [],
               });
@@ -3226,10 +4121,16 @@ function initializeCharacterSheet() {
         }
 
         const maxHP = parseInt(currentPlayerData.hp_max) || 0;
-        db.ref("campaña/jugadores/" + playerId).update({
-          hp: maxHP,
-          sp: 0,
-        });
+        db.ref("campaña/jugadores/" + playerId).update(
+          window.LuminousPlayerVitalsHud?.persistencePatch?.({ hp: maxHP, hp_max: maxHP, sp: 0 }) || {
+            hp: maxHP,
+            hp_max: maxHP,
+            sp: 0,
+            "combatStats/hp_actual": maxHP,
+            "combatStats/hp_max": maxHP,
+            "combatStats/sp_actual": 0,
+          },
+        );
       }
 
       // --- Suerte ---
@@ -3250,7 +4151,7 @@ function initializeCharacterSheet() {
     });
 
     // Detectar cambios directos en los inputs y actualizarlos en Firebase (Reemplaza el auto-sync de Roll20)
-    document.addEventListener("change", (e) => {
+    document.addEventListener("change", async (e) => {
       // D&D Core Attributes Save
       if (e.target.id && e.target.id.match(/^stat-(fuerza|destreza|constitucion|inteligencia|sabiduria|carisma)$/)) {
         const statName = e.target.id.replace('stat-', '');
@@ -3303,6 +4204,13 @@ function initializeCharacterSheet() {
       } else if (typeof db !== "undefined") {
         // Interceptar la actualización de XP para calcular nivel y barras de progreso
         if (attrName === "xp" && typeof calculateLevelData === "function") {
+          const xpGate = await window.LuminousPlayerVitalsHud?.outOfCombatWriteGate?.(db, playerId);
+          if (xpGate && xpGate.allowed === false) {
+            console.warn("[Player Vitals] XP/level edit blocked while Player is deployed in Combat.", xpGate);
+            window.alert?.("XP EDIT BLOCKED // El Player sigue desplegado en Combat. Termina o retíralo del encounter antes de cambiar XP/nivel.");
+            renderCharacterSheet?.(currentPlayerData);
+            return;
+          }
           const xpData = calculateLevelData(val);
 
           const hpBase =
@@ -3326,10 +4234,26 @@ function initializeCharacterSheet() {
             xpPercent: xpData.xpPercent,
             xpMissing: xpData.xpMissing,
             hp_max: newHpMax,
+            "combatStats/hp_max": newHpMax,
           });
-
-          db.ref("campaña/jugadores/" + playerId + "/combatStats").update({
-            hp_max: newHpMax,
+        } else if (["hp", "hp_max", "sp"].includes(attrName)) {
+          const vitalGate = await window.LuminousPlayerVitalsHud?.outOfCombatWriteGate?.(db, playerId);
+          if (vitalGate && vitalGate.allowed === false) {
+            console.warn("[Player Vitals] Manual vital edit blocked while Player is deployed in Combat.", vitalGate);
+            window.alert?.("VITAL EDIT BLOCKED // HP/SP durante Combat se controla desde Combat Engine / DM authority.");
+            renderCharacterSheet?.(currentPlayerData);
+            return;
+          }
+          const parsedVital = Number(val);
+          const nextVital = Number.isFinite(parsedVital) ? parsedVital : 0;
+          const mirrorKey = attrName === "hp"
+            ? "combatStats/hp_actual"
+            : attrName === "sp"
+              ? "combatStats/sp_actual"
+              : "combatStats/hp_max";
+          db.ref("campaña/jugadores/" + playerId).update({
+            [attrName]: nextVital,
+            [mirrorKey]: nextVital,
           });
         } else {
           // Guardar directamente en la raiz
@@ -3425,7 +4349,7 @@ function initializeCharacterSheet() {
 
         const skillTotal = baseVal + modVal;
 
-        let sp = parseInt(pd.combatStats?.sp_actual ?? pd.sp) || 0;
+        let sp = parseInt(pd.sp ?? pd.sp_actual ?? pd.combatStats?.sp_actual) || 0;
 
         // Heads Probability = 50 + SP (min 5, max 95)
         let probHeads = 50 + sp;
@@ -3807,13 +4731,10 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
   let contactsListenerActive = false;
   function initContactsSystem() {
       if (contactsListenerActive) return;
+      if (!playerId) return;
       contactsListenerActive = true;
 
-      const charNameInput = document.querySelector('input[name="attr_character_name"]');
-      const pName = charNameInput ? charNameInput.value.trim() : "";
-      if (!pName) return;
-
-      const contactsRef = db.ref(`campaña/jugadores/${pName}/contactos`);
+      const contactsRef = db.ref(`campaña/jugadores/${playerId}/contactos`);
 
       contactsRef.on("value", snap => {
           const listDiv = document.getElementById("contacts-list");
@@ -3861,7 +4782,7 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
                   const currentAlias = contactsDictionary[phone];
                   const newAlias = prompt("Nuevo alias para " + phone + ":", currentAlias);
                   if (newAlias && newAlias.trim() !== "") {
-                      db.ref(`campaña/jugadores/${pName}/contactos/${phone}`).set({ alias: newAlias.trim() });
+                      db.ref(`campaña/jugadores/${playerId}/contactos/${phone}`).set({ alias: newAlias.trim() });
                   }
               });
           });
@@ -3870,33 +4791,40 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
               btn.addEventListener("click", (e) => {
                   const phone = e.target.getAttribute("data-phone");
                   if (confirm("¿Eliminar a " + (contactsDictionary[phone] || phone) + " de tus contactos?")) {
-                      db.ref(`campaña/jugadores/${pName}/contactos/${phone}`).remove();
+                      db.ref(`campaña/jugadores/${playerId}/contactos/${phone}`).remove();
                   }
               });
           });
       });
 
       const btnAdd = document.getElementById("btn-add-contact");
-      if (btnAdd) {
-          // Replace it to clear any old listeners
-          const newBtnAdd = btnAdd.cloneNode(true);
-          btnAdd.parentNode.replaceChild(newBtnAdd, btnAdd);
-
-          newBtnAdd.addEventListener("click", () => {
+      if (btnAdd && btnAdd.dataset.contactAddBound !== "true") {
+          btnAdd.dataset.contactAddBound = "true";
+          btnAdd.addEventListener("click", async () => {
               const numInput = document.getElementById("new-contact-number");
               const aliasInput = document.getElementById("new-contact-alias");
-              const phone = numInput.value.trim();
-              const alias = aliasInput.value.trim();
+              const phone = String(numInput?.value || "").trim();
+              const alias = String(aliasInput?.value || "").trim();
 
               if (!phone || !alias) {
                   alert("Debe ingresar un número y un alias.");
                   return;
               }
 
-              db.ref(`campaña/jugadores/${pName}/contactos/${phone}`).set({ alias: alias }).then(() => {
-                  numInput.value = "";
-                  aliasInput.value = "";
-              });
+              btnAdd.disabled = true;
+              try {
+                  await db.ref(`campaña/jugadores/${playerId}/contactos/${phone}`).set({ alias });
+                  contactsDictionary[phone] = alias;
+                  if (numInput) numInput.value = "";
+                  if (aliasInput) aliasInput.value = "";
+              } catch (error) {
+                  console.error("[Luminous][Phone] No se pudo guardar el contacto:", error);
+                  alert(error?.code === "PERMISSION_DENIED"
+                      ? "Firebase rechazó guardar el contacto. Verifica que esta cuenta esté vinculada al jugador correcto."
+                      : "No se pudo guardar el contacto.");
+              } finally {
+                  btnAdd.disabled = false;
+              }
           });
       }
   }
@@ -3904,7 +4832,16 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
   // ==========================================
   // MOTOR DE SÍNTESIS (FORJA)
   // ==========================================
+  let forjaInitialized = false;
+  let forjaResolutionInitialized = false;
+  let refreshForjaMesaCrafteo = null;
+  let forjaCookingStationsGlobal = [];
+  const getForjaPlayerData = () => window.datosJugador || {};
+
   function initForja() {
+      if (forjaInitialized) return;
+      forjaInitialized = true;
+
       let forjaSlots = {
           1: null, // { key, inventarioTipo, data }
           2: null,
@@ -3916,33 +4853,50 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
       let mesaCrafteoGlobal = false;
       let targetSlot = null;
 
-      // Escuchar la mesa de crafteo global
-      db.ref("campaña/estado_mundo/mesa_crafteo_activa").on("value", snap => {
-          mesaCrafteoGlobal = !!snap.val();
+      // Refrescar bajo demanda: no dejamos listeners Firebase vivos cuando Synthesis está cerrado.
+      // Cooking Stations son estado mundial autorizado por el Director.
+      refreshForjaMesaCrafteo = () => Promise.all([
+          db.ref("campaña/estado_mundo/mesa_crafteo_activa").once("value"),
+          db.ref("campaña/estado_mundo/cooking_stations").once("value")
+      ]).then(([mesaSnap, stationsSnap]) => {
+          mesaCrafteoGlobal = !!mesaSnap.val();
+          const stationState = stationsSnap.val() || {};
+          forjaCookingStationsGlobal = Object.entries(stationState)
+              .filter(([, enabled]) => enabled === true)
+              .map(([stationId]) => stationId);
+          updateForjaSlotsVisuals();
+
+          const stationContext = document.getElementById("forja-station-context");
+          if (stationContext) {
+              stationContext.textContent = forjaCookingStationsGlobal.length
+                  ? `Station autorizada: ${forjaCookingStationsGlobal.join(" / ")}`
+                  : "Station autorizada: ninguna";
+              stationContext.style.color = forjaCookingStationsGlobal.length ? "#0df" : "#888";
+          }
+      }).catch(() => {
+          mesaCrafteoGlobal = false;
+          forjaCookingStationsGlobal = [];
           updateForjaSlotsVisuals();
       });
 
-      function tieneToolkit() {
-          let hasToolkit = false;
-          // Buscar toolkit en activo
-          if (localPlayerData.inventario_activo) {
-              Object.values(localPlayerData.inventario_activo).forEach(item => {
-                  if (item.tags && item.tags.includes("toolkit")) hasToolkit = true;
-                  if (item.keywords && item.keywords.includes("toolkit")) hasToolkit = true;
-              });
-          }
-          // Buscar toolkit en stash
-          if (localPlayerData.inventario_stash) {
-              Object.values(localPlayerData.inventario_stash).forEach(item => {
-                  if (item.tags && item.tags.includes("toolkit")) hasToolkit = true;
-                  if (item.keywords && item.keywords.includes("toolkit")) hasToolkit = true;
-              });
-          }
-          return hasToolkit;
+      function tieneHerramientaCanonicaSintesis() {
+          const registry = window.LuminousItemContentRegistry;
+          if (!registry?.isSynthesisSlotUnlockTool) return false;
+
+          const inventories = [
+              getForjaPlayerData().inventario_activo || {},
+              getForjaPlayerData().inventario_stash || {}
+          ];
+
+          return inventories.some(inventory =>
+              Object.values(inventory).some(item =>
+                  registry.isSynthesisSlotUnlockTool(item, window)
+              )
+          );
       }
 
       function updateForjaSlotsVisuals() {
-          const unlocked4_5 = mesaCrafteoGlobal || tieneToolkit();
+          const unlocked4_5 = mesaCrafteoGlobal || tieneHerramientaCanonicaSintesis();
 
           [4, 5].forEach(slotNum => {
               const el = document.querySelector(`.synth-slot[data-slot="${slotNum}"]`);
@@ -4064,15 +5018,12 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
               }
           }
 
-          renderGrid(localPlayerData.inventario_activo, activeGrid, "inventario_activo");
-          renderGrid(localPlayerData.inventario_stash, stashGrid, "inventario_stash");
+          renderGrid(getForjaPlayerData().inventario_activo, activeGrid, "inventario_activo");
+          renderGrid(getForjaPlayerData().inventario_stash, stashGrid, "inventario_stash");
       }
 
-      // Update whenever player data changes
-      db.ref(`campaña/jugadores/${pName}`).on("value", (snap) => {
-          updateForjaSlotsVisuals();
-          // We don't automatically clear slots if items disappear, but extraction validation will catch it
-      });
+      // Player inventory state already arrives through the canonical player listener.
+      // Do not open a second Firebase listener for the forge.
 
       // INIT
       updateForjaSlotsVisuals();
@@ -4081,232 +5032,316 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
       window.forjaSlots = forjaSlots;
   }
 
-  // Llama a initForja después de cargar
-  setTimeout(initForja, 2000);
+  // Forge setup is lazy and runs only when the synthesis tab is opened.
+  window.addEventListener("luminous:inventory-tab-changed", (event) => {
+      if (event?.detail?.tab !== "inv-sintesis") return;
+      initForja();
+      initForjaResolution();
+      refreshForjaMesaCrafteo?.();
+  });
 
 
   // ==========================================
   // RESOLUCIÓN DE CRAFTEO (SÍNTESIS)
   // ==========================================
   function initForjaResolution() {
+      if (forjaResolutionInitialized) return;
+      forjaResolutionInitialized = true;
+
       const btnIniciar = document.querySelector(".btn-synth-action");
       const btnForecast = document.querySelector(".btn-forecast");
       const probValueEl = document.querySelector(".prob-value");
+      const contentRegistry = window.LuminousItemContentRegistry;
+      const recipeSelect = document.getElementById("forja-recipe-select");
+      const stationContextEl = document.getElementById("forja-station-context");
+      const toolRequirementEl = document.getElementById("forja-tool-requirement");
 
-      btnForecast.addEventListener("click", () => {
-          // 1. Recolectar ingredientes actuales en los slots
-          let ingredientesInput = {};
-          let totalSlotsUsed = 0;
+      if (!btnIniciar || !btnForecast || !probValueEl || !recipeSelect) return;
 
+      function selectedSynthesisItems() {
+          const rows = [];
           [1,2,3,4,5].forEach(slotNum => {
-              if (window.forjaSlots[slotNum]) {
-                  let id = window.forjaSlots[slotNum].data.nombre;
-                  ingredientesInput[id] = (ingredientesInput[id] || 0) + 1;
-                  totalSlotsUsed++;
-              }
+              const slot = window.forjaSlots?.[slotNum];
+              if (!slot?.data) return;
+              rows.push({
+                  ...slot.data,
+                  __selectedUnits: 1,
+                  __forjaSlot: slotNum,
+                  __forjaInventoryKey: slot.key,
+                  __forjaInventoryType: slot.inventarioTipo
+              });
+          });
+          return rows;
+      }
+
+      function availableToolItems() {
+          const player = getForjaPlayerData();
+          return [
+              ...Object.values(player.inventario_activo || {}),
+              ...Object.values(player.inventario_stash || {})
+          ].filter(Boolean);
+      }
+
+      function authoritativeCookingStationIds() {
+          // Only Director-managed world state is authoritative for cooking stations.
+          return Array.from(new Set(
+              forjaCookingStationsGlobal
+                  .map(value => String(value || "").trim())
+                  .filter(Boolean)
+          ));
+      }
+
+      function renderStationContext(stationIds = authoritativeCookingStationIds()) {
+          if (!stationContextEl) return;
+          stationContextEl.textContent = stationIds.length
+              ? `Station autorizada: ${stationIds.join(" / ")}`
+              : "Station autorizada: ninguna";
+          stationContextEl.style.color = stationIds.length ? "#0df" : "#888";
+      }
+      renderStationContext();
+
+      function recipeDisplayName(entry) {
+          const recipe = entry?.recipe || {};
+          const base = recipe.name || recipe.label || recipe.id || "Recipe";
+          const method = recipe.method || recipe.methodId || recipe.semanticCheck || "";
+          return method ? `${base} · ${method}` : base;
+      }
+
+      function populateRecipeChoices(matches) {
+          const previous = recipeSelect.value;
+          recipeSelect.innerHTML = "";
+
+          if (!matches.length) {
+              recipeSelect.innerHTML = '<option value="">Sin Recipes disponibles para estos ingredientes</option>';
+              recipeSelect.value = "";
+              return;
+          }
+
+          if (matches.length > 1) {
+              const placeholder = document.createElement("option");
+              placeholder.value = "";
+              placeholder.textContent = `Selecciona una Recipe (${matches.length} compatibles)...`;
+              recipeSelect.appendChild(placeholder);
+          }
+
+          matches.forEach(entry => {
+              const option = document.createElement("option");
+              option.value = entry.recipeKey;
+              option.textContent = recipeDisplayName(entry);
+              recipeSelect.appendChild(option);
           });
 
-          if (totalSlotsUsed === 0) {
+          const canRestore = matches.some(entry => entry.recipeKey === previous);
+          if (canRestore) {
+              recipeSelect.value = previous;
+          } else if (matches.length === 1) {
+              recipeSelect.value = matches[0].recipeKey;
+          } else {
+              recipeSelect.value = "";
+          }
+      }
+
+      function updateToolRequirement(match) {
+          if (!toolRequirementEl) return;
+          if (!match) {
+              toolRequirementEl.textContent = "";
+              toolRequirementEl.style.color = "#aaa";
+              return;
+          }
+
+          const parts = [];
+          const required = contentRegistry?.requiredToolType?.(match.recipe) || "";
+          if (required) parts.push(`Tool: ${required}`);
+
+          const equipment = match.resolution?.equipment;
+          if (equipment?.profile?.requiredToolIds?.length) {
+              parts.push(`Tool: ${equipment.profile.requiredToolIds.join(" / ")}`);
+          }
+          if (equipment?.profile?.requiredStationIds?.length) {
+              parts.push(`Station: ${equipment.profile.requiredStationIds.join(" / ")}`);
+          }
+
+          toolRequirementEl.textContent = parts.length ? Array.from(new Set(parts)).join(" · ") : "Sin equipo obligatorio";
+          toolRequirementEl.style.color = parts.length ? "#0df" : "#888";
+      }
+
+      function resolveCanonicalSynthesis(options = {}) {
+          if (!contentRegistry?.findMatchingRecipes) return null;
+          const items = selectedSynthesisItems();
+          if (!items.length) return null;
+
+          const toolItems = availableToolItems();
+          const unit = getForjaPlayerData();
+          const availableStationIds = authoritativeCookingStationIds(unit);
+          renderStationContext(availableStationIds);
+          const allMatches = contentRegistry.findMatchingRecipes(window, items, {
+              toolItems,
+              unit,
+              availableStationIds,
+              enforceTools: false,
+              enforceEquipment: false
+          });
+          const usableMatches = contentRegistry.findMatchingRecipes(window, items, {
+              toolItems,
+              unit,
+              availableStationIds,
+              enforceTools: true,
+              enforceEquipment: true
+          });
+
+          populateRecipeChoices(usableMatches);
+
+          if (!usableMatches.length) {
+              const missingTools = new Set();
+              const missingStations = new Set();
+
+              allMatches.forEach(entry => {
+                  const strict = contentRegistry.resolveRecipe(entry.recipe, items, window, {
+                      toolItems,
+                      unit,
+                      availableStationIds,
+                      enforceTools: true,
+                      enforceEquipment: true
+                  });
+                  const required = contentRegistry.requiredToolType?.(entry.recipe);
+                  if (strict?.reason === "missing_required_tool" && required) missingTools.add(required);
+                  (strict?.missingToolIds || strict?.equipment?.missingToolIds || []).forEach(id => missingTools.add(id));
+                  (strict?.missingStationIds || strict?.equipment?.missingStationIds || []).forEach(id => missingStations.add(id));
+              });
+
+              const missingParts = [];
+              if (missingTools.size) missingParts.push(`Tool: ${[...missingTools].join(" / ")}`);
+              if (missingStations.size) missingParts.push(`Station: ${[...missingStations].join(" / ")}`);
+              if (toolRequirementEl) {
+                  toolRequirementEl.textContent = missingParts.length
+                      ? `Falta ${missingParts.join(" · ")}`
+                      : "Sin Recipe válida";
+                  toolRequirementEl.style.color = "#ff6b6b";
+              }
+              if (options.notify !== false) {
+                  alert(missingParts.length
+                      ? `Tienes los ingredientes, pero falta equipo canónico: ${missingParts.join(" · ")}.`
+                      : "La combinación de materiales es inestable. No se encontró ninguna Recipe canónica.");
+              }
+              return null;
+          }
+
+          if (usableMatches.length === 1) {
+              updateToolRequirement(usableMatches[0]);
+              return usableMatches[0];
+          }
+
+          const selectedKey = recipeSelect.value;
+          const chosen = usableMatches.find(entry => entry.recipeKey === selectedKey) || null;
+          if (!chosen) {
+              if (toolRequirementEl) {
+                  toolRequirementEl.textContent = "Elige una Recipe explícitamente";
+                  toolRequirementEl.style.color = "#c49a00";
+              }
+              if (options.notify !== false) {
+                  alert(`Hay ${usableMatches.length} Recipes compatibles. Selecciona explícitamente cuál quieres sintetizar.`);
+              }
+              return null;
+          }
+
+          updateToolRequirement(chosen);
+          return chosen;
+      }
+
+      recipeSelect.addEventListener("change", () => {
+          const items = selectedSynthesisItems();
+          if (!items.length) return;
+          const toolItems = availableToolItems();
+          const unit = getForjaPlayerData();
+          const matches = contentRegistry?.findMatchingRecipes?.(window, items, {
+              toolItems,
+              unit,
+              availableStationIds: authoritativeCookingStationIds(unit),
+              enforceTools: true,
+              enforceEquipment: true
+          }) || [];
+          updateToolRequirement(matches.find(entry => entry.recipeKey === recipeSelect.value) || null);
+      });
+
+      function synthesisDifficulty(match, includeLabels = false) {
+          const recipe = match?.recipe || {};
+          let dcActual = contentRegistry?.recipeDifficulty
+              ? contentRegistry.recipeDifficulty(recipe, match?.resolution)
+              : Math.max(0, Number(recipe?.baseThreshold ?? recipe?.dificultad_base ?? 18) || 18);
+          const modTexto = [];
+          const activeInventory = getForjaPlayerData().inventario_activo || {};
+
+          Object.values(activeInventory).forEach(item => {
+              const rawKeywords = Array.isArray(item?.keywords)
+                  ? item.keywords
+                  : typeof item?.keywords === "string"
+                    ? item.keywords.split(",").map(value => value.trim())
+                    : [];
+
+              rawKeywords.forEach(kw => {
+                  const synthMatch = String(kw).match(/synth_bonus_(\d+)/i);
+                  if (synthMatch) {
+                      dcActual -= parseInt(synthMatch[1]);
+                      if (includeLabels) modTexto.push(`+${synthMatch[1]} (Synth)`);
+                  }
+                  const craftMatch = String(kw).match(/crafting_up_(\d+)/i);
+                  if (craftMatch) {
+                      dcActual -= parseInt(craftMatch[1]);
+                      if (includeLabels) modTexto.push(`+${craftMatch[1]} (Craft)`);
+                  }
+              });
+          });
+
+          return {
+              dc: Math.max(0, dcActual),
+              labels: modTexto
+          };
+      }
+
+      btnForecast.addEventListener("click", async () => {
+          await refreshForjaMesaCrafteo?.();
+          const selectedItems = selectedSynthesisItems();
+          if (!selectedItems.length) {
               alert("Debes colocar ingredientes en los slots para predecir.");
               probValueEl.innerText = "0%";
               return;
           }
 
-          // 2. Buscar receta
-          db.ref("campaña/forja/recetas").once("value").then(snap => {
-              const recetas = snap.val() || {};
-              let recetaCoincidente = null;
+          const match = resolveCanonicalSynthesis();
+          if (!match) {
+              probValueEl.innerText = "0%";
+              return;
+          }
 
-              for (const recetaId in recetas) {
-                  const receta = recetas[recetaId];
-                  let match = true;
-
-                  let recIng = {};
-                  let totalRecIng = 0;
-                  receta.ingredientes.forEach(ing => {
-                      recIng[ing.id] = ing.cantidad;
-                      totalRecIng += ing.cantidad;
-                  });
-
-                  if (totalSlotsUsed !== totalRecIng) continue;
-
-                  for (let id in ingredientesInput) {
-                      if (ingredientesInput[id] !== recIng[id]) {
-                          match = false;
-                          break;
-                      }
-                  }
-
-                  if (match) {
-                      recetaCoincidente = receta;
-                      break;
-                  }
-              }
-
-              if (!recetaCoincidente) {
-                  alert("La combinación de materiales es inestable. No se encontró ninguna receta.");
-                  probValueEl.innerText = "0%";
-                  return;
-              }
-
-              // 3. Calcular Dificultad Dinámica
-              let dcActual = recetaCoincidente.dificultad_base;
-
-              // Buscar modificadores en el inventario activo (tags/keywords)
-              if (localPlayerData.inventario_activo) {
-                  for (let key in localPlayerData.inventario_activo) {
-                      let item = localPlayerData.inventario_activo[key];
-                      if (item.keywords && Array.isArray(item.keywords)) {
-                          item.keywords.forEach(kw => {
-                              const synthMatch = kw.match(/synth_bonus_(\d+)/i);
-                              if (synthMatch) {
-                                  dcActual -= parseInt(synthMatch[1]);
-                              }
-                              const craftMatch = kw.match(/crafting_up_(\d+)/i);
-                              if (craftMatch) {
-                                  dcActual -= parseInt(craftMatch[1]);
-                              }
-                          });
-                      } else if (typeof item.keywords === 'string') {
-                            const kwList = item.keywords.split(',').map(k => k.trim());
-                            kwList.forEach(kw => {
-                                const synthMatch = kw.match(/synth_bonus_(\d+)/i);
-                                if (synthMatch) {
-                                    dcActual -= parseInt(synthMatch[1]);
-                                }
-                                const craftMatch = kw.match(/crafting_up_(\d+)/i);
-                                if (craftMatch) {
-                                    dcActual -= parseInt(craftMatch[1]);
-                                }
-                            });
-                      }
-                  }
-              }
-
-              if (dcActual < 0) dcActual = 0;
-
-              // Map DC to a visual probability roughly.
-              // Standard Limbus probability or generic DC mapping. (Lower DC is better)
-              // Since it's purely visual info for player, let's map DC to %.
-              let prob = 100 - (dcActual * 5); // Example naive mapping. 20 DC = 0%, 10 DC = 50%
-              if (prob < 0) prob = 0;
-              if (prob > 100) prob = 100;
-
-              probValueEl.innerText = `${prob}% [DC:${dcActual}]`;
-          });
+          const difficulty = synthesisDifficulty(match);
+          let prob = 100 - (difficulty.dc * 5);
+          prob = Math.max(0, Math.min(100, prob));
+          probValueEl.innerText = `${prob}% [DC:${difficulty.dc}] · ${match.recipe.name || match.recipe.label || match.recipe.id}`;
       });
 
-      btnIniciar.addEventListener("click", () => {
-          // 1. Recolectar ingredientes actuales en los slots
-          let ingredientesInput = {};
-          let totalSlotsUsed = 0;
-
-          [1,2,3,4,5].forEach(slotNum => {
-              if (window.forjaSlots[slotNum]) {
-                  let id = window.forjaSlots[slotNum].data.nombre;
-                  ingredientesInput[id] = (ingredientesInput[id] || 0) + 1;
-                  totalSlotsUsed++;
-              }
-          });
-
-          if (totalSlotsUsed === 0) {
+      btnIniciar.addEventListener("click", async () => {
+          await refreshForjaMesaCrafteo?.();
+          const selectedItems = selectedSynthesisItems();
+          if (!selectedItems.length) {
               alert("Debes colocar ingredientes en los slots.");
               return;
           }
 
-          // 2. Buscar receta que coincida EXACTAMENTE
-          db.ref("campaña/forja/recetas").once("value").then(snap => {
-              const recetas = snap.val() || {};
-              let recetaCoincidente = null;
+          const match = resolveCanonicalSynthesis();
+          if (!match) return;
 
-              for (const recetaId in recetas) {
-                  const receta = recetas[recetaId];
-                  let match = true;
+          const difficulty = synthesisDifficulty(match, true);
+          document.getElementById("forja-roll-dc").innerText =
+              difficulty.dc + (difficulty.labels.length > 0 ? ` [${difficulty.labels.join(", ")}]` : "");
+          document.getElementById("forja-roll-input").value = "";
+          document.getElementById("forja-roll-modal").style.display = "flex";
 
-                  // Verificar si requiere mesa y si está activa/tiene toolkit (ya validado por UI, pero por seguridad)
-
-                  // Construir mapa de ingredientes de la receta
-                  let recIng = {};
-                  let totalRecIng = 0;
-                  receta.ingredientes.forEach(ing => {
-                      recIng[ing.id] = ing.cantidad;
-                      totalRecIng += ing.cantidad;
-                  });
-
-                  if (totalSlotsUsed !== totalRecIng) continue;
-
-                  for (let id in ingredientesInput) {
-                      if (ingredientesInput[id] !== recIng[id]) {
-                          match = false;
-                          break;
-                      }
-                  }
-
-                  if (match) {
-                      recetaCoincidente = receta;
-                      break;
-                  }
-              }
-
-              if (!recetaCoincidente) {
-                  alert("La combinación de materiales es inestable. No se encontró ninguna receta.");
-                  return;
-              }
-
-              // 3. Calcular Dificultad Dinámica
-              let dcActual = recetaCoincidente.dificultad_base;
-              let modTexto = [];
-
-              // Buscar modificadores en el inventario activo (tags/keywords)
-              if (localPlayerData.inventario_activo) {
-                  for (let key in localPlayerData.inventario_activo) {
-                      let item = localPlayerData.inventario_activo[key];
-                      if (item.keywords && Array.isArray(item.keywords)) {
-                          item.keywords.forEach(kw => {
-                              const synthMatch = kw.match(/synth_bonus_(\d+)/i);
-                              if (synthMatch) {
-                                  dcActual -= parseInt(synthMatch[1]);
-                                  modTexto.push(`+${synthMatch[1]} (Synth)`);
-                              }
-                              const craftMatch = kw.match(/crafting_up_(\d+)/i);
-                              if (craftMatch) {
-                                  dcActual -= parseInt(craftMatch[1]);
-                                  modTexto.push(`+${craftMatch[1]} (Craft)`);
-                              }
-                          });
-                      } else if (typeof item.keywords === 'string') {
-                            const kwList = item.keywords.split(',').map(k => k.trim());
-                            kwList.forEach(kw => {
-                                const synthMatch = kw.match(/synth_bonus_(\d+)/i);
-                                if (synthMatch) {
-                                    dcActual -= parseInt(synthMatch[1]);
-                                    modTexto.push(`+${synthMatch[1]} (Synth)`);
-                                }
-                                const craftMatch = kw.match(/crafting_up_(\d+)/i);
-                                if (craftMatch) {
-                                    dcActual -= parseInt(craftMatch[1]);
-                                    modTexto.push(`+${craftMatch[1]} (Craft)`);
-                                }
-                            });
-                      }
-                  }
-              }
-
-              // Asegurar DC no sea negativa extrema
-              if (dcActual < 0) dcActual = 0;
-
-              // 4. Lanzar Modal
-              document.getElementById("forja-roll-dc").innerText = dcActual + (modTexto.length > 0 ? ` [${modTexto.join(", ")}]` : "");
-              document.getElementById("forja-roll-input").value = "";
-              document.getElementById("forja-roll-modal").style.display = "flex";
-
-              // Handlers for modal
-              window.currentForjaAttempt = {
-                  receta: recetaCoincidente,
-                  dc: dcActual,
-                  slots: window.forjaSlots // copy current state
-              };
-          });
+          window.currentForjaAttempt = {
+              receta: match.recipe,
+              resolution: match.resolution,
+              dc: difficulty.dc,
+              slots: { ...window.forjaSlots }
+          };
       });
 
       document.getElementById("btn-forja-cancel").addEventListener("click", () => {
@@ -4314,106 +5349,148 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
           window.currentForjaAttempt = null;
       });
 
-      document.getElementById("btn-forja-confirm").addEventListener("click", () => {
+      document.getElementById("btn-forja-confirm").addEventListener("click", async () => {
           const tirada = parseInt(document.getElementById("forja-roll-input").value) || 0;
           const attempt = window.currentForjaAttempt;
           if (!attempt) return;
 
+          // Claim this attempt synchronously before the first await. A second
+          // click must not be able to capture and submit the same craft.
+          window.currentForjaAttempt = null;
+
+          // Re-authorize world-owned station state at the moment the craft is
+          // committed. A station may have been disabled after the roll modal
+          // was opened, so the stale resolution must never be trusted.
+          await refreshForjaMesaCrafteo?.();
+
+          const currentItems = selectedSynthesisItems();
+          const currentUnit = getForjaPlayerData();
+          const refreshedResolution = contentRegistry?.resolveRecipe?.(
+              attempt.receta,
+              currentItems,
+              window,
+              {
+                  toolItems: availableToolItems(),
+                  unit: currentUnit,
+                  availableStationIds: authoritativeCookingStationIds(),
+                  enforceTools: true,
+                  enforceEquipment: true
+              }
+          );
+
+          if (!refreshedResolution?.valid) {
+              alert("La Recipe ya no está autorizada con el estado actual de Tools/Stations.");
+              document.getElementById("forja-roll-modal").style.display = "none";
+              window.currentForjaAttempt = null;
+              return;
+          }
+
+          attempt.resolution = refreshedResolution;
+          const refreshedDifficulty = synthesisDifficulty({
+              recipe: attempt.receta,
+              resolution: refreshedResolution
+          });
+          attempt.dc = refreshedDifficulty.dc;
+
           document.getElementById("forja-roll-modal").style.display = "none";
-
-          let exito = tirada >= attempt.dc;
-
-          // EJECUTAR TRANSACCIÓN ATÓMICA
-          ejecutarTransaccionForja(attempt, exito);
+          ejecutarTransaccionForja(attempt, tirada >= attempt.dc, tirada);
       });
 
-      function ejecutarTransaccionForja(attempt, exito) {
-          // Para seguridad y atomicidad, debemos hacer un update múltiple en la base de datos del jugador
+      function ejecutarTransaccionForja(attempt, exito, tirada) {
           const playerRef = db.ref(`campaña/jugadores/${pName}`);
 
           playerRef.once("value").then(snap => {
-              const playerData = snap.val();
-              let updates = {};
+              const playerData = snap.val() || {};
+              const updates = {};
               let error = false;
+              const itemsARestarActivo = {};
+              const itemsARestarStash = {};
 
-              // 1. Restar/Consumir ingredientes de los slots
-              // Calculamos qué restar de activo y qué de stash según cómo se seleccionaron
-
-              // Para cada slot que tenga un item
-              let itemsARestarActivo = {}; // key -> cant
-              let itemsARestarStash = {}; // key -> cant
-
-              [1,2,3,4,5].forEach(s => {
-                  if (attempt.slots[s]) {
-                      const slotData = attempt.slots[s];
-                      const key = slotData.key;
-                      const invType = slotData.inventarioTipo;
-                      if (invType === "inventario_activo") {
-                          itemsARestarActivo[key] = (itemsARestarActivo[key] || 0) + 1;
-                      } else {
-                          itemsARestarStash[key] = (itemsARestarStash[key] || 0) + 1;
-                      }
-                  }
+              [1,2,3,4,5].forEach(slotNum => {
+                  const slotData = attempt.slots?.[slotNum];
+                  if (!slotData) return;
+                  const target = slotData.inventarioTipo === "inventario_activo"
+                      ? itemsARestarActivo
+                      : itemsARestarStash;
+                  target[slotData.key] = (target[slotData.key] || 0) + 1;
               });
 
-              // Validar y preparar updates para restar
-              for (let key in itemsARestarActivo) {
-                  let cantActual = playerData.inventario_activo?.[key]?.cantidad || 1; // Si no tiene cantidad, asumimos 1
-                  if (cantActual < itemsARestarActivo[key]) {
-                      error = true; break;
-                  }
-                  if (cantActual === itemsARestarActivo[key]) {
-                      updates[`inventario_activo/${key}`] = null; // Borrar
-                  } else {
-                      updates[`inventario_activo/${key}/cantidad`] = cantActual - itemsARestarActivo[key];
-                  }
-              }
-              for (let key in itemsARestarStash) {
-                  let cantActual = playerData.inventario_stash?.[key]?.cantidad || 1;
-                  if (cantActual < itemsARestarStash[key]) {
-                      error = true; break;
-                  }
-                  if (cantActual === itemsARestarStash[key]) {
-                      updates[`inventario_stash/${key}`] = null; // Borrar
-                  } else {
-                      updates[`inventario_stash/${key}/cantidad`] = cantActual - itemsARestarStash[key];
+              function prepareConsumption(containerName, requested) {
+                  const inventory = playerData[containerName] || {};
+                  for (const [key, amount] of Object.entries(requested)) {
+                      const row = inventory[key];
+                      const current = Number(row?.quantity ?? row?.cantidad ?? 1);
+                      if (!row || current < amount) {
+                          error = true;
+                          return;
+                      }
+                      const next = current - amount;
+                      if (next <= 0) {
+                          updates[`${containerName}/${key}`] = null;
+                      } else {
+                          updates[`${containerName}/${key}/quantity`] = next;
+                          updates[`${containerName}/${key}/cantidad`] = next;
+                      }
                   }
               }
+
+              prepareConsumption("inventario_activo", itemsARestarActivo);
+              if (!error) prepareConsumption("inventario_stash", itemsARestarStash);
 
               if (error) {
                   alert("Error de sincronización de inventario. No se tienen los ítems necesarios.");
-                  // Limpiar slots
                   limpiarSlotsForja();
                   return;
               }
 
-              // Si éxito, buscar el ítem en la base de datos global y agregarlo
               if (exito) {
-                  db.ref(`campaña/items_globales/${attempt.receta.item_resultado}`).once("value").then(itemSnap => {
-                      const itemData = itemSnap.val();
-                      if (itemData) {
-                          // Generar ID único para el nuevo item
-                          const newItemKey = "forjado_" + Date.now();
+                  if (!contentRegistry?.createRecipeOutput) {
+                      alert("El registro canónico de Recipes no está disponible.");
+                      limpiarSlotsForja();
+                      return;
+                  }
 
-                          // Lógica simple: lo ponemos en el inventario activo si hay espacio
-                          itemData.cantidad = 1;
-                          updates[`inventario_activo/${newItemKey}`] = itemData;
+                  const canonicalOutput = contentRegistry.createRecipeOutput(attempt.receta, {
+                      resolution: attempt.resolution,
+                      checkResult: tirada,
+                      unit: playerData
+                  });
+                  if (!canonicalOutput) {
+                      alert("No se pudo construir el resultado canónico de la Recipe.");
+                      limpiarSlotsForja();
+                      return;
+                  }
 
-                          // Commit atómico final
-                          playerRef.update(updates).then(() => {
-                              alert(`¡Síntesis Exitosa! Has creado: ${itemData.nombre}`);
-                              limpiarSlotsForja();
-                          });
-                      } else {
-                          // Item no encontrado en globales
-                          alert("Transmutación exitosa, pero el ítem resultante no existe en los registros globales.");
-                          // Aún así consumimos
-                          playerRef.update(updates);
-                          limpiarSlotsForja();
+                  const outputQuantity = Math.max(1, Number(canonicalOutput.quantity || 1));
+                  let runtimeInstance = canonicalOutput.instanceId ? canonicalOutput : null;
+                  if (!runtimeInstance) {
+                      try {
+                          runtimeInstance = window.LuminousItemInventoryRuntime?.createItemInstance?.(
+                              canonicalOutput,
+                              {
+                                  quantity: outputQuantity,
+                                  qualityTier: canonicalOutput.qualityTier
+                              }
+                          ) || null;
+                      } catch (error) {
+                          console.warn("No se pudo crear instancia runtime de síntesis; usando payload canónico.", error);
                       }
+                  }
+
+                  const itemData = JSON.parse(JSON.stringify({
+                      ...canonicalOutput,
+                      ...(runtimeInstance || {}),
+                      quantity: outputQuantity,
+                      cantidad: outputQuantity
+                  }));
+                  const newItemKey = "forjado_" + Date.now();
+                  updates[`inventario_activo/${newItemKey}`] = itemData;
+
+                  playerRef.update(updates).then(() => {
+                      alert(`¡Síntesis Exitosa! Has creado: ${itemData.nombre || itemData.name}`);
+                      limpiarSlotsForja();
                   });
               } else {
-                  // Fallo, solo consumir
                   playerRef.update(updates).then(() => {
                       alert("Síntesis Fallida. Los materiales se han consumido.");
                       limpiarSlotsForja();
@@ -4424,14 +5501,19 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
 
       function limpiarSlotsForja() {
           window.forjaSlots = {1:null, 2:null, 3:null, 4:null, 5:null};
-          // Re-render
+          recipeSelect.innerHTML = '<option value="">Coloca ingredientes para detectar Recipes...</option>';
+          renderStationContext();
+          if (toolRequirementEl) {
+              toolRequirementEl.textContent = "";
+              toolRequirementEl.style.color = "#aaa";
+          }
           document.querySelectorAll(".synth-slot").forEach(el => {
               if (!el.classList.contains("locked")) {
-                  const inner = el.querySelector('.synth-slot-inner');
-                  if (inner) inner.innerHTML = '';
+                  const inner = el.querySelector(".synth-slot-inner");
+                  if (inner) inner.innerHTML = "";
               }
           });
       }
   }
 
-  setTimeout(initForjaResolution, 2100);
+

@@ -223,9 +223,9 @@
 
   global.LuminousInjuryEquipmentRuntime = api;
   install();
-  if (typeof global.setInterval === "function") {
-    state.timer = global.setInterval(install, PATCH_INTERVAL_MS);
-    if (typeof state.timer?.unref === "function") state.timer.unref();
+  if (global.document) {
+    ["luminous:player-data", "luminous:player-instance-changed", "luminous:combat073-runtime-ready", "luminous:encounter-end", "luminous:encounter-ended"]
+      .forEach((name) => global.addEventListener?.(name, install));
   }
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);

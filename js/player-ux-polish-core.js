@@ -75,7 +75,8 @@
     polishLogRows();
     const log = doc.getElementById("theatre-log-container");
     if (log) new MutationObserver(polishLogRows).observe(log, { childList: true, subtree: true });
-    global.setInterval(polishLogRows, 1500);
+    global.addEventListener?.("actoresCacheUpdated", polishLogRows);
+    global.addEventListener?.("luminous:player-instance-changed", polishLogRows);
   }
 
   function normalizePhoneLauncher() {

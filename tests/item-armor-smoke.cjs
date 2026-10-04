@@ -39,6 +39,8 @@ assert.strictEqual(steelPlate.orientation.secondary,"pierce");
 assert.strictEqual(steelPlate.orientation.sacrifice,"blunt");
 assert.deepStrictEqual(steelPlate.physicalResistanceProfile,{slash:0.65,pierce:0.85,blunt:1.35});
 assert.strictEqual(steelPlate.strengthTarget<=13,true);
+assert.strictEqual(steelPlate.baseClassification,"heavy");
+assert.strictEqual(steelPlate.classification,"heavy");
 
 const chitinPlate=Armor.resolvePreset("plate_armor",{
   armor_plate:{body:{materialId:"chitin",name:"Chitin"}},
@@ -53,8 +55,17 @@ const titaniumPlate=Armor.resolvePreset("plate_armor",{
   armor_reinforcement:{body:{materialId:"titanium_alloy",name:"Titanium Alloy"}},
 },{craftResult:24});
 assert.strictEqual(titaniumPlate.valid,true);
+assert.strictEqual(titaniumPlate.baseClassification,"heavy");
+assert.strictEqual(titaniumPlate.classification,"medium","lightweight material should move Heavy Armor down one class");
 assert.ok(titaniumPlate.weightEffect.max>steelPlate.weightEffect.max,"lighter plate should preserve more Max Speed");
 assert.ok(titaniumPlate.strengthTarget<=steelPlate.strengthTarget);
+
+const tungstenBreastplate=Armor.resolvePreset("breastplate",{
+  armor_plate:{body:{materialId:"tungsten_alloy",name:"Tungsten Alloy"}},
+},{craftResult:20});
+assert.strictEqual(tungstenBreastplate.valid,true);
+assert.strictEqual(tungstenBreastplate.baseClassification,"medium");
+assert.strictEqual(tungstenBreastplate.classification,"heavy","heavy material should move Medium Armor up one class");
 
 const plateComponent=Components.resolveComponent("armor_plate",{body:"hardened_steel"});
 assert.strictEqual(plateComponent.upgradeCapacity,3);

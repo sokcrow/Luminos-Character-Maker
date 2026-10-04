@@ -23,12 +23,19 @@
   function clone(value) { return value == null ? value : JSON.parse(JSON.stringify(value)); }
   function slot(componentId, required = true) { return Object.freeze({componentId:normalizeId(componentId),required:!!required}); }
 
+  function propertiesForChassis(handMode, explicit = ["ammunition"]) {
+    const base = Array.isArray(explicit) ? explicit : ["ammunition"];
+    const mode = normalizeId(handMode);
+    const derived = mode === "two_handed" ? ["two_handed"] : mode === "versatile" ? ["versatile"] : [];
+    return Object.freeze([...new Set([...base, ...derived].map(normalizeId).filter(Boolean))]);
+  }
+
   function chassis(def) {
     return Object.freeze({
       id:normalizeId(def.id), name:def.name, classification:normalizeId(def.classification), iconFamily:normalizeId(def.iconFamily),
       components:Object.freeze(def.components.slice()), optionalComponents:Object.freeze((def.optionalComponents || []).slice()),
       baseThreshold:Number(def.baseThreshold), assemblyMultiplier:Number(def.assemblyMultiplier), requiredToolType:normalizeId(def.requiredToolType || "technical_tools"),
-      semanticCheck:normalizeId(def.semanticCheck || "firearm_assembly"), handMode:normalizeId(def.handMode), handCost:Number(def.handCost),
+      semanticCheck:normalizeId(def.semanticCheck || "firearm_assembly"), handMode:normalizeId(def.handMode), handCost:Number(def.handCost), properties:propertiesForChassis(def.handMode, def.properties),
       rangeProfile:normalizeId(def.rangeProfile), allowedCadenceModes:Object.freeze((def.allowedCadenceModes || []).map(normalizeId)),
       feedTypes:Object.freeze((def.feedTypes || []).map(normalizeId)),
     });
@@ -136,7 +143,7 @@
     return Object.freeze({
       valid:true,chassisId:def.id,name:def.name,classification:def.classification,iconFamily:def.iconFamily,
       components:Object.freeze(rows),productionValueAhn:productionValue(rows,def.assemblyMultiplier),baseThreshold:def.baseThreshold,
-      assemblyMultiplier:def.assemblyMultiplier,requiredToolType:def.requiredToolType,semanticCheck:def.semanticCheck,handMode:def.handMode,handCost:def.handCost,
+      assemblyMultiplier:def.assemblyMultiplier,requiredToolType:def.requiredToolType,semanticCheck:def.semanticCheck,handMode:def.handMode,handCost:def.handCost,properties:propertiesForChassis(def.handMode,def.properties),
       quality:DEFAULT_QUALITY,profile:deriveProfile(rows,def),
     });
   }
@@ -150,12 +157,12 @@
     return Object.freeze({
       valid:true,chassisId:def.id,name:def.name,classification:def.classification,iconFamily:def.iconFamily,components:rows,
       productionValueAhn:productionValue(rows,def.assemblyMultiplier),baseThreshold:def.baseThreshold,assemblyMultiplier:def.assemblyMultiplier,
-      requiredToolType:def.requiredToolType,semanticCheck:def.semanticCheck,handMode:def.handMode,handCost:def.handCost,
+      requiredToolType:def.requiredToolType,semanticCheck:def.semanticCheck,handMode:def.handMode,handCost:def.handCost,properties:propertiesForChassis(def.handMode,def.properties),
       quality:finalQuality(rows,craftResult,def.baseThreshold),profile:deriveProfile(rows,def),
     });
   }
 
-  const API = Object.freeze({VERSION,DEFAULT_QUALITY,CHASSIS,normalizeId,getChassis,listChassis,validateAssembly,deriveProfile,compositionQuality,craftAdjustment,finalQuality,productionValue,referenceBuild,assemble});
+  const API = Object.freeze({VERSION,DEFAULT_QUALITY,CHASSIS,propertiesForChassis,normalizeId,getChassis,listChassis,validateAssembly,deriveProfile,compositionQuality,craftAdjustment,finalQuality,productionValue,referenceBuild,assemble});
   global.LuminousFirearmCompositionEngine = API;
   if (typeof module !== "undefined" && module.exports) module.exports = API;
 })(typeof globalThis !== "undefined" ? globalThis : window);

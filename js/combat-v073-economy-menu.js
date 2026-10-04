@@ -3,12 +3,12 @@
 
   if (global.LuminousCombatEconomyMenu073) return;
 
-  const VERSION = "0.7.3-economy-menu.1";
-  const TABBED_MENUS = new Set(["global", "skills", "spells"]);
+  const VERSION = "0.7.3-economy-menu.2-canonical-player-menu";
+  const TABBED_MENUS = new Set(["global", "skills", "spells", "items"]);
   const ECONOMY = Object.freeze({ ACTION: "action", QUICK: "quick_action", REACTION: "reaction" });
   const state = {
     installed: false,
-    tabByMenu: { global: ECONOMY.ACTION, skills: ECONOMY.ACTION, spells: ECONOMY.ACTION },
+    tabByMenu: { global: ECONOMY.ACTION, skills: ECONOMY.ACTION, spells: ECONOMY.ACTION, items: ECONOMY.ACTION },
     originals: {},
     traitStateById: new Map(),
     preparedReaction: null,
@@ -18,6 +18,10 @@
     quickSpentRound: null,
     reactionSpentRound: null,
     classObserver: null,
+    menuObserver: null,
+    itemRowByInstanceId: new Map(),
+    rootMenuClickInstalled: false,
+    menuRefreshGeneration: 0,
   };
 
   const clean = (value) => String(value ?? "").trim();
@@ -49,8 +53,34 @@
   function activeMenu() { return clean(lexical("activeMenu", "")); }
   function playerId() { return clean(lexical("PLAYER_ID", global.LuminousCombat073?.playerId?.() || "")); }
   function combatData() { return lexical("combatData", global.LuminousCombat073?.combatants?.() || {}) || {}; }
-  function playerUnit() { const id = playerId(); return id ? combatData()?.[id] || null : null; }
+  function canonicalPlayerId(unit = {}) {
+    return clean(unit.canonicalPlayerKey || unit.ownerPlayerId || unit.playerId || unit.characterLink?.playerId);
+  }
+  function playerUnit() {
+    const id = playerId();
+    const rows = combatData();
+    if (id && rows?.[id]) return rows[id];
+    const canonical = clean(global.LuminousCombatLiveAdapter073?.state?.playerId);
+    return Object.values(rows || {}).find((unit) =>
+      unit?.controlled === "player"
+      || (canonical && canonicalPlayerId(unit) === canonical)
+      || (id && clean(unit?.id || unit?.combatId) === id)
+    ) || null;
+  }
   function unitKits() { return lexical("UNIT_KITS", {}) || {}; }
+  function playerKit() {
+    const kits = unitKits();
+    const unit = playerUnit() || {};
+    const candidates = [
+      playerId(),
+      clean(unit.id),
+      clean(unit.combatId),
+      clean(global.LuminousCombatLiveAdapter073?.state?.playerId),
+      canonicalPlayerId(unit),
+    ].filter(Boolean);
+    for (const id of candidates) if (kits?.[id]) return kits[id];
+    return {};
+  }
   function permanent() { return lexical("permanent", {}) || {}; }
   function roundNumber() { return Math.max(1, Number(lexical("round", 1)) || 1); }
   function selectedSlotIndex() { return Math.max(0, Number(lexical("selectedSlotIndex", 0)) || 0); }
@@ -144,8 +174,271 @@
   }
 
   function liveActions(kind) {
-    const kit = unitKits()?.[playerId()] || {};
-    return asArray(kit.actions).filter((row) => normalizeId(row?.kind || row?.type || row?.actionType) === kind);
+    const kit = playerKit();
+    return asArray(kit.actions).filter((row) => {
+      const raw = normalizeId(row?.kind || row?.actionType || row?.action_type || "");
+      if (raw) return raw === kind;
+      // Canonical Skill records often use `type` for Slash/Pierce/Guard rather
+      // than for the content kind.  A missing `kind` must therefore default to
+      // Skill unless the record positively identifies itself as something else.
+      const type = normalizeId(row?.type || "");
+      const defense = row?.isDefense === true || row?.is_defense === true
+        || ["defense", "guard", "evade", "counter", "clashable_guard", "clashable_counter"].includes(type);
+      const spell = row?.isSpell === true || row?.is_spell === true || type.includes("spell");
+      if (kind === "skill") return !defense && !spell;
+      if (kind === "spell") return spell;
+      return false;
+    });
+  }
+
+  function spellLoadoutRuntime() {
+    return global.LuminousCombatSpellLoadout074 || null;
+  }
+
+  function normalizeSpellForMenu(spell = {}, spellId = "") {
+    const id = normalizeId(spell.spellId || spell.id || spellId || spell.name);
+    const casting = normalizeId(spell.castingTime || spell.casting_time || spell.actionCost || spell.action_cost || "action");
+    const actionCost = ["quick", "quick_action", "bonus", "bonus_action"].includes(casting)
+      ? ECONOMY.QUICK
+      : (["reaction", "reactive"].includes(casting) ? ECONOMY.REACTION : ECONOMY.ACTION);
+    return {
+      ...clone(spell),
+      id,
+      spellId: id,
+      kind: "spell",
+      sourceType: "spell",
+      actionCost,
+      economyCost: actionCost,
+      name: clean(spell.name || spell.nombre || id) || id,
+      description: clean(spell.description || spell.descripcion || ""),
+    };
+  }
+
+  function classEntries(unit = playerUnit() || {}) {
+    const build = unit?.characterBuild && typeof unit.characterBuild === "object" ? unit.characterBuild : {};
+    let raw = Array.isArray(unit.classes) ? unit.classes : (Array.isArray(build.classes) ? build.classes : []);
+    if (!raw.length) {
+      const levels = unit.classLevels || build.classLevels || {};
+      raw = Object.entries(levels || {}).map(([classId, value]) => typeof value === "object" ? { classId, ...value } : { classId, levels: value });
+    }
+    return raw.map((entry) => ({
+      classId: normalizeId(entry?.classId || entry?.id || entry?.name),
+      levels: Math.max(0, Number.parseInt(entry?.levels ?? entry?.level ?? entry?.classLevel ?? 0, 10) || 0),
+    })).filter((entry) => entry.classId && entry.levels > 0);
+  }
+
+  function spellcastingClasses(unit = playerUnit() || {}) {
+    const runtime = global.LuminousSpellcastingRuntime;
+    if (!runtime?.getClassSpellcastingProfile) return [];
+    return classEntries(unit).map((entry) => {
+      let profile = null;
+      try { profile = runtime.getClassSpellcastingProfile(entry.classId); } catch (_) {}
+      if (!profile) return null;
+      const start = Math.max(1, Number.parseInt(profile.spellcastingStartLimbusLevel ?? 1, 10) || 1);
+      return entry.levels >= start ? { ...entry, profile, startLevel: start } : null;
+    }).filter(Boolean);
+  }
+
+  function isSpellcaster(unit = playerUnit() || {}) {
+    return spellcastingClasses(unit).length > 0;
+  }
+
+  function collectSpellIds(value, out = new Set()) {
+    if (value == null) return out;
+    if (typeof value === "string" || typeof value === "number") {
+      const id = normalizeId(value);
+      if (id) out.add(id);
+      return out;
+    }
+    if (Array.isArray(value)) {
+      value.forEach((entry) => collectSpellIds(entry, out));
+      return out;
+    }
+    if (typeof value === "object") {
+      const explicit = normalizeId(value.spellId || value.id || value.key || value.definitionId);
+      if (explicit) out.add(explicit);
+      else Object.entries(value).forEach(([key, entry]) => {
+        if (entry === true) collectSpellIds(key, out);
+        else collectSpellIds(entry, out);
+      });
+    }
+    return out;
+  }
+
+  function selectedSpellIds(unit = playerUnit() || {}) {
+    const out = new Set();
+    [
+      unit.spellIds,
+      unit.spellSelections,
+      unit.knownSpellIds,
+      unit.preparedSpellIds,
+      unit.characterBuild?.spellIds,
+      unit.characterBuild?.spellSelections,
+      unit.characterBuild?.knownSpellIds,
+      unit.characterBuild?.preparedSpellIds,
+    ].forEach((value) => collectSpellIds(value, out));
+    return out;
+  }
+
+  function spellIdOf(row = {}) {
+    return normalizeId(row.spellId || row.id || row.key || row.definitionId || row.name);
+  }
+
+  function spellRowsForPlayer() {
+    const unit = playerUnit() || {};
+    if (!isSpellcaster(unit)) return [];
+
+    const loadout = spellLoadoutRuntime();
+    if (loadout?.spellIdsFor && loadout?.resolveSpellDefinition) {
+      const ids = loadout.spellIdsFor(unit);
+      const resolved = ids.map((id) => {
+        const definition = loadout.resolveSpellDefinition(id);
+        return definition?.ok && definition.spell ? normalizeSpellForMenu(definition.spell, id) : null;
+      }).filter(Boolean);
+      if (resolved.length) return resolved;
+    }
+
+    const live = liveActions("spell").map((row) => normalizeSpellForMenu(row, row?.id));
+    if (live.length) return live;
+
+    const selected = selectedSpellIds(unit);
+    if (!selected.size) return [];
+    return asArray(permanent()?.spells)
+      .filter((row) => selected.has(spellIdOf(row)))
+      .map((row) => normalizeSpellForMenu(row, row?.id));
+  }
+
+  function inventoryEntries(container) {
+    if (Array.isArray(container)) return container.map((item, index) => [String(index), item]);
+    return container && typeof container === "object" ? Object.entries(container) : [];
+  }
+
+  function quantityOf(item = {}) {
+    const runtime = global.LuminousItemRuntime;
+    if (runtime?.quantityOf) return Math.max(0, Number(runtime.quantityOf(item)) || 0);
+    const value = Number(item.quantity ?? item.qty ?? item.cantidad ?? item.stack ?? item.count ?? 1);
+    return Number.isFinite(value) ? Math.max(0, Math.trunc(value)) : 0;
+  }
+
+  function itemTiming(item = {}) {
+    const runtime = global.LuminousItemRuntime;
+    return normalizeId(runtime?.actionCostFor?.(item) || item.runtime?.actionCost || item.runtime?.action_cost || item.consumable_details?.action_cost || item.actionCost || item.action_cost || "action");
+  }
+
+  function itemCanUseInCombat(item = {}) {
+    if (!item || typeof item !== "object" || quantityOf(item) <= 0) return false;
+    if (itemTiming(item) === "off_combat") return false;
+    const runtime = global.LuminousItemRuntime;
+    if (runtime?.hasFunction?.(item, "use")) return true;
+    const category = normalizeId(item.category || item.tipo_categoria || item.itemType || item.item_type || item.type);
+    return category === "consumable" || Boolean(item.runtime?.effects || item.runtime?.healing || item.runtime?.spHealing || item.runtime?.statusCure);
+  }
+
+  function stableItemRow(instanceId, snapshot = {}) {
+    const key = clean(instanceId);
+    if (!key) return snapshot;
+    let row = state.itemRowByInstanceId.get(key);
+    if (!row) {
+      row = {};
+      state.itemRowByInstanceId.set(key, row);
+    }
+    Object.keys(row).forEach((field) => { if (!Object.prototype.hasOwnProperty.call(snapshot, field)) delete row[field]; });
+    Object.assign(row, snapshot);
+    return row;
+  }
+
+  function itemRowsForPlayer(unit = playerUnit() || {}) {
+    const kitItems = asArray(playerKit()?.items);
+    const container = unit.inventario_activo || unit.activeInventory || unit.inventory
+      || (kitItems.length ? kitItems : {});
+    const seen = new Set();
+    const rows = inventoryEntries(container).map(([key, raw]) => {
+      if (!itemCanUseInCombat(raw)) return null;
+      const instanceId = clean(raw.instanceId || raw.instance_id || key);
+      const definitionId = clean(raw.definitionId || raw.definition_id || raw.canonicalId || raw.itemId || raw.item_id || raw.id || key);
+      const timing = itemTiming(raw);
+      const actionCost = timing === ECONOMY.QUICK ? ECONOMY.QUICK : (timing === ECONOMY.REACTION ? ECONOMY.REACTION : ECONOMY.ACTION);
+      seen.add(instanceId);
+      return stableItemRow(instanceId, {
+        ...clone(raw),
+        id: instanceId || definitionId,
+        itemId: instanceId || definitionId,
+        instanceId: instanceId || null,
+        definitionId: definitionId || null,
+        kind: "item",
+        sourceType: "item",
+        inventoryContainer: "inventario_activo",
+        actionCost,
+        economyCost: actionCost,
+        name: clean(raw.displayName || raw.name || raw.nombre || definitionId || instanceId || "Item"),
+        description: clean(raw.description || raw.descripcion || raw.desc || ""),
+        quantity: quantityOf(raw),
+      });
+    }).filter(Boolean);
+    for (const key of [...state.itemRowByInstanceId.keys()]) if (!seen.has(key)) state.itemRowByInstanceId.delete(key);
+    return rows;
+  }
+
+  function findActiveInventoryItem(unit = playerUnit() || {}, ref = null) {
+    const wanted = clean(typeof ref === "object" ? (ref.instanceId || ref.instance_id || ref.itemId || ref.id) : ref);
+    if (!wanted) return null;
+    for (const [key, item] of inventoryEntries(unit.inventario_activo || {})) {
+      if (!item || typeof item !== "object") continue;
+      const ids = [key, item.instanceId, item.instance_id, item.itemId, item.item_id, item.id].map(clean).filter(Boolean);
+      if (ids.includes(wanted)) return item;
+    }
+    return null;
+  }
+
+  function spellMenuNodes() {
+    if (!global.document?.querySelectorAll) return [];
+    const selectors = [
+      '[data-menu="spells"]',
+      '[data-category="spells"]',
+      '[data-action="spells"]',
+      '[data-command="spells"]',
+      'img[src*="Spells.png"]',
+      'img[src*="spells.png"]',
+      '#command-ring button',
+      '.command-ring button',
+      '.command-option',
+      '.menu-option'
+    ];
+    const nodes = new Set();
+    selectors.forEach((selector) => {
+      try {
+        global.document.querySelectorAll(selector).forEach((node) => {
+          const isImage = normalizeId(node?.tagName) === "img";
+          const candidate = isImage
+            ? (node.closest?.('button,[data-menu],[data-category],[data-action],[data-command],.command-option,.menu-option') || node.parentElement || node)
+            : node;
+          nodes.add(candidate);
+        });
+      } catch (_) {}
+    });
+    return [...nodes].filter((node) => {
+      const data = node?.dataset || {};
+      const direct = normalizeId(data.menu || data.category || data.action || data.command || data.key || node?.id || node?.getAttribute?.("aria-label") || node?.getAttribute?.("title"));
+      if (direct === "spells" || direct === "spell") return true;
+      const img = node?.querySelector?.("img");
+      const src = clean(img?.getAttribute?.("src") || img?.src).toLowerCase();
+      if (src.includes("/spells.png") || src.endsWith("spells.png")) return true;
+      return normalizeId(node?.textContent) === "spells";
+    });
+  }
+
+  function syncSpellMenuVisibility() {
+    const caster = isSpellcaster(playerUnit() || {});
+    spellMenuNodes().forEach((node) => {
+      node.hidden = !caster;
+      if (node.style) node.style.display = caster ? "" : "none";
+      node.setAttribute?.("aria-hidden", caster ? "false" : "true");
+      if ("disabled" in node) node.disabled = !caster;
+    });
+    if (!caster && activeMenu() === "spells") {
+      try { lexical("goRoot", () => {})(); } catch (_) {}
+    }
+    return caster;
   }
 
   function rowsFor(menu, tab = state.tabByMenu[menu] || ECONOMY.ACTION) {
@@ -158,13 +451,13 @@
       return [...globals, ...traits];
     }
     if (menu === "skills") {
-      if (tab === ECONOMY.ACTION) return [];
       return liveActions("skill").filter((row) => economyTabFor(row) === tab);
     }
     if (menu === "spells") {
-      const live = liveActions("spell");
-      const source = live.length ? live : asArray(permanent()?.spells);
-      return source.filter((row) => economyTabFor(row) === tab);
+      return spellRowsForPlayer().filter((row) => economyTabFor(row) === tab);
+    }
+    if (menu === "items") {
+      return itemRowsForPlayer().filter((row) => economyTabFor(row) === tab);
     }
     return [];
   }
@@ -235,6 +528,50 @@
       .economy-action-detail button:disabled{opacity:.4;cursor:default}
       #game-container.economy-targeting .command-ring,#game-container.economy-targeting .category-surface,#game-container.economy-targeting .category-back{pointer-events:none;opacity:.26}
       #game-container.economy-targeting .sprite-container{cursor:crosshair}
+      #game-container.combat-compact-menu.combat-root-menu-active .command-ring{
+        position:absolute!important;
+        left:auto!important;right:8px!important;top:66px!important;bottom:auto!important;
+        width:min(344px,calc(100vw - 16px))!important;height:auto!important;
+        display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
+        grid-auto-rows:54px!important;gap:5px!important;padding:0!important;
+        overflow:visible!important;transform:none!important;z-index:220!important;
+        pointer-events:auto!important;
+      }
+      #game-container.combat-compact-menu.combat-root-menu-active .command-ring button{
+        position:relative!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;
+        width:auto!important;min-width:0!important;height:54px!important;margin:0!important;
+        transform:none!important;visibility:visible!important;opacity:1!important;
+        pointer-events:auto!important;font-size:clamp(7px,1.8vw,10px)!important;
+      }
+      #game-container.combat-compact-menu.combat-root-menu-active .command-ring button img{
+        max-width:30px!important;max-height:30px!important;
+      }
+      #game-container.combat-compact-menu.combat-category-active .command-ring{
+        pointer-events:none!important;opacity:0!important;visibility:hidden!important;
+      }
+      #game-container.combat-compact-menu.combat-category-active .category-surface{
+        position:absolute!important;left:auto!important;right:8px!important;top:54px!important;bottom:8px!important;
+        width:min(330px,calc(100vw - 24px))!important;height:auto!important;max-height:none!important;
+        transform:none!important;overflow:hidden!important;box-sizing:border-box!important;z-index:225!important;
+      }
+      #game-container.combat-compact-menu.combat-category-active #category-body{
+        max-height:calc(100vh - 118px)!important;overflow-y:auto!important;overscroll-behavior:contain;
+      }
+      #game-container.combat-compact-menu.combat-category-active .category-back,
+      #game-container.combat-compact-menu.combat-category-active #back{
+        position:absolute!important;left:auto!important;right:12px!important;top:10px!important;bottom:auto!important;
+        transform:none!important;z-index:230!important;
+      }
+      @media (max-width:520px){
+        #game-container.combat-compact-menu.combat-root-menu-active .command-ring{
+          left:8px!important;right:8px!important;width:auto!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;
+          grid-auto-rows:48px!important;top:58px!important;
+        }
+        #game-container.combat-compact-menu.combat-root-menu-active .command-ring button{height:48px!important}
+        #game-container.combat-compact-menu.combat-category-active .category-surface{
+          left:8px!important;right:8px!important;width:auto!important;top:48px!important;
+        }
+      }
     `;
     global.document.head.appendChild(style);
   }
@@ -316,7 +653,6 @@
 
   function renderSkills() {
     const tab = state.tabByMenu.skills || ECONOMY.ACTION;
-    if (tab === ECONOMY.ACTION) return state.originals.renderSkills?.();
     const body = global.document?.getElementById?.("category-body");
     if (!body) return;
     body.innerHTML = "";
@@ -339,6 +675,34 @@
     stack.className = "skill-stack";
     rows.forEach((row) => stack.appendChild(skillRowButton(row, "spell")));
     body.appendChild(stack);
+  }
+
+  function renderItems() {
+    const tab = state.tabByMenu.items || ECONOMY.ACTION;
+    const body = global.document?.getElementById?.("category-body");
+    if (!body) return;
+    body.innerHTML = "";
+    const rows = rowsFor("items", tab);
+    if (!rows.length) {
+      body.innerHTML = `<div class="combat-economy-empty">No ${tab.replaceAll("_", " ")} Items available in Active Inventory.</div>`;
+      lexical("layoutCategory", () => {})();
+      return;
+    }
+    const list = global.document.createElement("div");
+    list.className = "clean-list";
+    rows.forEach((row, index) => {
+      const button = global.document.createElement("button");
+      button.type = "button";
+      button.className = `clean-row ${index === 0 ? "focused" : ""}`;
+      button.dataset.itemInstanceId = row.instanceId || row.id || "";
+      button.style?.setProperty?.("--row-accent", lexical("menuMeta", {})?.items?.accent || "#f0bf72");
+      const qty = Math.max(0, Number(row.quantity) || 0);
+      button.innerHTML = `<span class="clean-name">${htmlEscape(row.name)}</span><span class="clean-cost">x${qty} · ${htmlEscape(costLabel(row))}</span>`;
+      button.onclick = () => api.selectAction({ type: "items", slotIndex: selectedSlotIndex(), data: row });
+      list.appendChild(button);
+    });
+    body.appendChild(list);
+    lexical("layoutCategory", () => {})();
   }
 
   function renderGlobalList() {
@@ -372,11 +736,114 @@
     return renderGlobalList();
   }
 
+  function syncResponsiveMenuLayout() {
+    const host = global.document?.getElementById?.("game-container");
+    if (!host) return false;
+    const compact = Number(global.innerHeight || 0) <= 360 || Number(global.innerWidth || 0) <= 760;
+    const menu = activeMenu();
+    host.classList.toggle("combat-compact-menu", compact);
+    host.classList.toggle("combat-root-menu-active", compact && !menu);
+    host.classList.toggle("combat-category-active", compact && Boolean(menu));
+    return compact;
+  }
+
+  function renderActiveMenuBody(menu = activeMenu()) {
+    if (menu === "items") renderItems();
+    else if (menu === "skills") renderSkills();
+    else if (menu === "spells") renderSpells();
+    else if (menu === "global") renderGlobalList();
+    else return false;
+    return true;
+  }
+
+  function refreshOpenedMenu(menu, delay = 560) {
+    const generation = ++state.menuRefreshGeneration;
+    global.setTimeout?.(() => {
+      if (generation !== state.menuRefreshGeneration || activeMenu() !== menu) return;
+      renderActiveMenuBody(menu);
+      syncTabs();
+      updateCategoryContext();
+      syncSpellMenuVisibility();
+      syncQuickBadge();
+      syncResponsiveMenuLayout();
+    }, Math.max(0, Number(delay) || 0));
+  }
+
+  function openCompactMenu(menu) {
+    const host = global.document?.getElementById?.("game-container");
+    if (!host?.classList?.contains?.("combat-compact-menu") || !TABBED_MENUS.has(menu)) return false;
+    global.__luminousEconomyCompactMenu = menu;
+    try {
+      global.eval("activeMenu=window.__luminousEconomyCompactMenu;navState='category';selected=null;focusedIndex=0");
+    } catch (_) { return false; }
+
+    const meta = lexical("menuMeta", {})?.[menu] || {};
+    const surface = global.document?.getElementById?.("category-surface");
+    const back = global.document?.getElementById?.("back");
+    const title = global.document?.getElementById?.("category-title");
+    const subtitle = global.document?.getElementById?.("category-subtitle");
+    if (surface) {
+      surface.style.visibility = "";
+      surface.style.opacity = "";
+      surface.classList.remove("left-side", "right-side");
+      if (meta.side) surface.classList.add(meta.side === "left" ? "left-side" : "right-side");
+      surface.classList.add("open");
+      if (meta.accent) surface.style.setProperty("--accent", meta.accent);
+    }
+    if (back) {
+      back.style.visibility = "";
+      back.style.opacity = "1";
+      back.classList.add("open");
+      if (meta.accent) back.style.setProperty("--accent", meta.accent);
+    }
+    if (title) title.textContent = meta.title || String(menu).toUpperCase();
+    if (subtitle) subtitle.textContent = meta.subtitle || "";
+
+    renderActiveMenuBody(menu);
+    syncTabs();
+    updateCategoryContext();
+    syncSpellMenuVisibility();
+    syncQuickBadge();
+    syncResponsiveMenuLayout();
+    lexical("setStatus", () => {})(`${String(meta.title || menu).toUpperCase()} · PLAYER MENU`);
+    return true;
+  }
+
+  function installRootMenuClickHandler() {
+    if (state.rootMenuClickInstalled || !global.document?.addEventListener) return state.rootMenuClickInstalled;
+    global.document.addEventListener("click", (event) => {
+      const button = event.target?.closest?.(".command-ring button[data-menu],.command-ring [data-menu]");
+      if (!button) return;
+      const menu = normalizeId(button.dataset?.menu);
+      if (!TABBED_MENUS.has(menu)) return;
+
+      const host = global.document?.getElementById?.("game-container");
+      if (host?.classList?.contains?.("combat-compact-menu")) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        state.menuRefreshGeneration += 1;
+        openCompactMenu(menu);
+        return;
+      }
+
+      // Large-layout viewers keep the original radial transition. Refresh live
+      // data once that transition has fully settled.
+      refreshOpenedMenu(menu, 560);
+    }, true);
+    state.rootMenuClickInstalled = true;
+    return true;
+  }
+
   function renderCategory() {
+    syncResponsiveMenuLayout();
     const result = state.originals.renderCategory?.();
+    // Always replace legacy/demo category contents with canonical live Player data.
+    renderActiveMenuBody(activeMenu());
+    syncSpellMenuVisibility();
     syncTabs();
     updateCategoryContext();
     syncQuickBadge();
+    syncResponsiveMenuLayout();
     return result;
   }
 
@@ -402,6 +869,19 @@
     lexical("layoutCategory", () => {})();
   }
 
+  function selfTargetedItem(source = {}) {
+    return normalizeId(source.runtime?.targetMode || source.runtime?.target_mode || source.targetMode || source.target_mode) === "self";
+  }
+
+  function planTargetRuleCompat(source = {}) {
+    const original = state.originals.planTargetRule;
+    if (typeof original !== "function") return null;
+    if (selfTargetedItem(source)) {
+      return original({ ...source, itemType: "hp_healing", item_type: "hp_healing" });
+    }
+    return original(source);
+  }
+
   function selectAction(sel) {
     const menu = activeMenu();
     const tab = economyTabFor(sel?.data || {});
@@ -413,6 +893,8 @@
   }
 
   function targetingAllegiance(source = {}) {
+    const runtimeTarget = normalizeId(source.runtime?.targetMode || source.runtime?.target_mode || source.targetMode || source.target_mode || "");
+    if (runtimeTarget === "self") return "self";
     const raw = normalizeId(source.targeting?.allegiance || source.targetSide || (source.targetAlly === true ? "ally" : ""));
     if (raw === "self") return "self";
     if (["ally", "allies", "friendly"].includes(raw)) return "ally";
@@ -474,6 +956,19 @@
     if (sel.type === "spell") return adapters.compileSpellToCombatAction(actor, source, options);
     if (sel.type === "skill") return adapters.compileSkillToCombatAction(actor, source, options);
     if (sel.type === "global") return adapters.compileUniversalAction(actor, source.actionKey || source.id, options);
+    if (sel.type === "item" || sel.type === "items") {
+      return schema.createCombatAction({
+        actorId: clean(actor.id),
+        actionSlotId: null,
+        source: { type: "item", id: clean(source.instanceId || source.itemId || source.id) },
+        phase: { selectedAt: schema.PHASES.PLANNING_PHASE_PLAYER, executesAt: schema.PHASES.PLANNING_PHASE_PLAYER },
+        economy: { cost: ECONOMY.QUICK },
+        targeting: { allegiance: targetingAllegiance(source), mode: needsTarget(source) ? "single" : "self", mainTargetId: targetId || clean(actor.id), targetIds: targetId ? [targetId] : [clean(actor.id)] },
+        resolution: { type: "automatic" },
+        effects: [],
+        metadata: { viewer073EconomyMenu: true, sourceDefinition: clone(source), name: source.name || source.id || "Item" },
+      });
+    }
     return null;
   }
 
@@ -494,27 +989,123 @@
     }
   }
 
+  function quickMutationSnapshot(unit = {}, item = null) {
+    return {
+      hp: unit.hp,
+      hpActual: unit.hp_actual,
+      sp: unit.sp,
+      spActual: unit.sp_actual,
+      combatStats: clone(unit.combatStats || null),
+      statusEffects: clone(unit.statusEffects || {}),
+      itemRuntimeEffects: clone(unit.itemRuntimeEffects || []),
+      item: item ? clone(item) : null,
+    };
+  }
+
+  function restoreQuickMutation(unit = {}, item = null, snapshot = null) {
+    if (!snapshot) return false;
+    if (snapshot.hp !== undefined) unit.hp = snapshot.hp;
+    if (snapshot.hpActual !== undefined) unit.hp_actual = snapshot.hpActual;
+    if (snapshot.sp !== undefined) unit.sp = snapshot.sp;
+    if (snapshot.spActual !== undefined) unit.sp_actual = snapshot.spActual;
+    if (snapshot.combatStats) unit.combatStats = clone(snapshot.combatStats);
+    unit.statusEffects = clone(snapshot.statusEffects || {});
+    unit.itemRuntimeEffects = clone(snapshot.itemRuntimeEffects || []);
+    if (item && snapshot.item) {
+      Object.keys(item).forEach((key) => { if (!Object.prototype.hasOwnProperty.call(snapshot.item, key)) delete item[key]; });
+      Object.assign(item, clone(snapshot.item));
+    }
+    return true;
+  }
+
+  async function persistQuickItemState(unit = {}) {
+    const adapterState = global.LuminousCombatLiveAdapter073?.state;
+    const db = adapterState?.db;
+    if (!db?.ref) return { saved: false, skipped: true, reason: "combat_db_unavailable" };
+    const playerKey = canonicalPlayerId(unit) || clean(adapterState?.playerId);
+    const persistence = global.LuminousItemPersistenceRuntime;
+    if (!playerKey) return { saved: false, reason: "canonical_player_id_missing" };
+    if (!persistence?.serializeInventoryState) return { saved: false, reason: "item_persistence_runtime_unavailable" };
+
+    const serialized = persistence.serializeInventoryState(unit);
+    const combatantEntry = Object.entries(combatData() || {}).find(([key, row]) =>
+      row === unit
+      || clean(row?.id || row?.combatId) === clean(unit.id || unit.combatId)
+      || canonicalPlayerId(row || {}) === playerKey
+    );
+    const combatantKey = clean(combatantEntry?.[0] || unit.id || unit.combatId);
+    const updates = {
+      [`campaña/jugadores/${playerKey}/inventario_activo`]: clone(serialized.inventario_activo || {}),
+      [`campaña/jugadores/${playerKey}/inventario_stash`]: clone(serialized.inventario_stash || {}),
+      [`campaña/jugadores/${playerKey}/itemInventorySchemaVersion`]: serialized.schemaVersion || 3,
+      [`campaña/jugadores/${playerKey}/itemEquipmentRefs`]: clone(serialized.equipmentRefs || {}),
+      [`campaña/jugadores/${playerKey}/attunedItemInstanceIds`]: clone(serialized.attunedItemInstanceIds || []),
+    };
+    if (combatantKey) {
+      updates[`campaña/combate/combatants/${combatantKey}/inventario_activo`] = clone(serialized.inventario_activo || {});
+      updates[`campaña/combate/combatants/${combatantKey}/inventario_stash`] = clone(serialized.inventario_stash || {});
+      updates[`campaña/combate/combatants/${combatantKey}/itemInventorySchemaVersion`] = serialized.schemaVersion || 3;
+      updates[`campaña/combate/combatants/${combatantKey}/itemEquipmentRefs`] = clone(serialized.equipmentRefs || {});
+      updates[`campaña/combate/combatants/${combatantKey}/attunedItemInstanceIds`] = clone(serialized.attunedItemInstanceIds || []);
+    }
+    try {
+      Object.assign(updates, global.LuminousPlayerVitalsRealtimeBridge?.firebaseUpdatesForSnapshot?.({
+        [combatantKey || clean(unit.id) || "player"]: unit,
+      }, {}) || {});
+      await db.ref().update(updates);
+      return { saved: true, playerId: playerKey, combatantId: combatantKey || null, updates };
+    } catch (error) {
+      return { saved: false, reason: "quick_item_persistence_failed", error };
+    }
+  }
+
   function requestQuickResolution(sel, action, targetId) {
     const detail = { version: VERSION, action, source: clone(sel.data || {}), sourceType: sel.type, targetId, handled: false, result: null };
     try { global.dispatchEvent(new CustomEvent("luminous:combat073-quick-action-request", { detail })); } catch (_) {}
     if (detail.handled) return { handled: true, result: detail.result };
     if (sel.type === "trait") return executeTraitQuickAction(sel.data || {}, action, targetId);
+    if (sel.type === "item" || sel.type === "items") {
+      const unit = playerUnit(), runtime = global.LuminousItemRuntime;
+      const liveItem = findActiveInventoryItem(unit || {}, sel.data || {});
+      if (!unit || !liveItem) return { handled: false, reason: "active_inventory_item_missing" };
+      if (!runtime?.useItem) return { handled: false, reason: "item_runtime_unavailable" };
+      const target = targetId ? combatData()?.[targetId] || null : unit;
+      const result = runtime.useItem(unit, liveItem, { phase: "planning", target, ignoreActionCost: true });
+      return result?.used ? { handled: true, result } : { handled: false, reason: result?.reason || "item_use_failed", result };
+    }
     return { handled: false, reason: "quick_action_runtime_unavailable" };
   }
 
-  function useQuickAction(sel, targetId = null) {
+  async function useQuickAction(sel, targetId = null) {
     const unit = playerUnit(), economy = economyRuntime();
     if (!unit || !economy) return false;
     const gate = economy.availability?.(unit, ECONOMY.QUICK, { phase: "planning" });
     if (gate?.available === false) { lexical("setStatus", () => {})(`QUICK ACTION · ${gate.reason || "UNAVAILABLE"}`); return false; }
     const action = compilerFor(sel, targetId);
     if (!action) { lexical("setStatus", () => {})("QUICK ACTION · COMBAT ACTION COMPILER UNAVAILABLE"); return false; }
+
+    const isItem = sel.type === "item" || sel.type === "items";
+    const liveItem = isItem ? findActiveInventoryItem(unit, sel.data || {}) : null;
+    const before = isItem ? quickMutationSnapshot(unit, liveItem) : null;
     const resolution = requestQuickResolution(sel, action, targetId);
     if (!resolution.handled) {
       lexical("setStatus", () => {})(`QUICK ACTION · ${sel.data?.name || "Action"} · ${String(resolution.reason || "RUNTIME NOT CONNECTED").replaceAll("_", " ").toUpperCase()}`);
       return false;
     }
-    if (!economy.consume(unit, ECONOMY.QUICK, { phase: "planning" })) return false;
+
+    if (isItem) {
+      const persisted = await persistQuickItemState(unit);
+      if (persisted.saved === false && persisted.skipped !== true) {
+        restoreQuickMutation(unit, liveItem, before);
+        lexical("setStatus", () => {})(`QUICK ACTION · ${sel.data?.name || "Item"} · PERSISTENCE FAILED`);
+        return false;
+      }
+    }
+
+    if (!economy.consume(unit, ECONOMY.QUICK, { phase: "planning" })) {
+      if (isItem) restoreQuickMutation(unit, liveItem, before);
+      return false;
+    }
     state.quickSpentRound = roundNumber();
     syncQuickBadge(); syncTabs(); updateCategoryContext();
     lexical("setStatus", () => {})(`QUICK ACTION · ${sel.data?.name || "Action"} · USED`);
@@ -579,6 +1170,10 @@
 
   async function ensureDependencies() {
     await loadScript("combat-action-schema-economy073", "js/combat-action-schema.js", () => Boolean(global.LuminousCombatAction));
+    await loadScript("content-registry-economy073", "js/content-registry.js", () => Boolean(global.LuminousContentRegistry));
+    await loadScript("content-registry-bootstrap-economy073", "js/content-registry-bootstrap.js", () => Boolean(global.LuminousContentRegistryBootstrap));
+    await loadScript("spell-catalog-core-economy073", "js/spell-catalog-core.js", () => Boolean(global.LuminousSpellCatalog));
+    await loadScript("combat-spell-loadout-074-economy073", "js/combat-spell-loadout-074.js", () => Boolean(global.LuminousCombatSpellLoadout074));
     await loadScript("combat-action-adapters-economy073", "js/combat-action-adapters.js", () => Boolean(global.LuminousCombatActionAdapters));
     await loadScript("trait-engine-economy073", "js/trait-engine.js", () => Boolean(global.LuminousTraitEngine));
     await loadScript("archetype-engine-economy073", "js/archetype-engine.js", () => Boolean(global.LuminousArchetypeEngine));
@@ -627,23 +1222,43 @@
     if (state.installed || !global.document) return state.installed;
     const required = ["renderCategory", "renderSkills", "renderSpells", "renderCleanList", "selectAction"];
     if (required.some((name) => typeof lexical(name) !== "function")) return false;
-    state.originals = { renderCategory: lexical("renderCategory"), renderSkills: lexical("renderSkills"), renderSpells: lexical("renderSpells"), renderCleanList: lexical("renderCleanList"), selectAction: lexical("selectAction") };
+    state.originals = { renderCategory: lexical("renderCategory"), renderSkills: lexical("renderSkills"), renderSpells: lexical("renderSpells"), renderItems: lexical("renderItems", null), renderCleanList: lexical("renderCleanList"), selectAction: lexical("selectAction"), planTargetRule: lexical("planTargetRule", null), goRoot: lexical("goRoot", null) };
     ensureStyles(); ensureTabs();
+    if (typeof state.originals.planTargetRule === "function") {
+      global.__luminousEconomyPlanTargetRuleCompat = planTargetRuleCompat;
+      assignLexical("planTargetRule", "window.__luminousEconomyPlanTargetRuleCompat");
+    }
     assignLexical("renderSkills", "window.LuminousCombatEconomyMenu073.renderSkills");
     assignLexical("renderSpells", "window.LuminousCombatEconomyMenu073.renderSpells");
+    if (typeof state.originals.renderItems === "function") assignLexical("renderItems", "window.LuminousCombatEconomyMenu073.renderItems");
     assignLexical("renderCleanList", "window.LuminousCombatEconomyMenu073.renderCleanList");
     assignLexical("renderCategory", "window.LuminousCombatEconomyMenu073.renderCategory");
     assignLexical("selectAction", "window.LuminousCombatEconomyMenu073.selectAction");
-    installPhaseHooks(); installTargetHandler(); syncPlanningEconomy(false); syncQuickBadge();
+    if (typeof state.originals.goRoot === "function") {
+      global.__luminousEconomyOriginalGoRoot = state.originals.goRoot;
+      global.__luminousEconomyGoRoot = function (...args) {
+        state.menuRefreshGeneration += 1;
+        const result = global.__luminousEconomyOriginalGoRoot.apply(this, args);
+        global.setTimeout?.(syncResponsiveMenuLayout, 0);
+        return result;
+      };
+      assignLexical("goRoot", "window.__luminousEconomyGoRoot");
+    }
+    installPhaseHooks(); installTargetHandler(); installRootMenuClickHandler(); syncPlanningEconomy(false); syncQuickBadge(); syncSpellMenuVisibility(); syncResponsiveMenuLayout();
+    global.addEventListener?.("resize", syncResponsiveMenuLayout);
+    if (!state.menuObserver && typeof MutationObserver === "function" && global.document?.body) {
+      state.menuObserver = new MutationObserver(() => { syncSpellMenuVisibility(); syncResponsiveMenuLayout(); });
+      state.menuObserver.observe(global.document.body, { childList: true, subtree: true });
+    }
     state.installed = true; return true;
   }
 
-  const api = { version: VERSION, ECONOMY, state, normalizeEconomyCost, economyTabFor, costLabel, traitDefinitionsForPlayer, rowsFor, renderSkills, renderSpells, renderCleanList, renderCategory, selectAction, setTab, syncTabs, syncQuickBadge, syncPlanningEconomy, beginCombatEconomy, prepareReaction, triggerPreparedReaction, useQuickAction, install };
+  const api = { version: VERSION, ECONOMY, state, normalizeEconomyCost, economyTabFor, costLabel, canonicalPlayerId, playerUnit, playerKit, traitDefinitionsForPlayer, liveActions, spellLoadoutRuntime, normalizeSpellForMenu, classEntries, spellcastingClasses, isSpellcaster, selectedSpellIds, spellRowsForPlayer, inventoryEntries, quantityOf, itemTiming, itemCanUseInCombat, stableItemRow, itemRowsForPlayer, findActiveInventoryItem, spellMenuNodes, syncSpellMenuVisibility, syncResponsiveMenuLayout, renderActiveMenuBody, refreshOpenedMenu, openCompactMenu, installRootMenuClickHandler, selfTargetedItem, planTargetRuleCompat, persistQuickItemState, rowsFor, renderSkills, renderSpells, renderItems, renderCleanList, renderCategory, selectAction, setTab, syncTabs, syncQuickBadge, syncPlanningEconomy, beginCombatEconomy, prepareReaction, triggerPreparedReaction, useQuickAction, install };
 
   async function boot() { await ensureDependencies(); return install(); }
   api.boot = boot; api.ensureDependencies = ensureDependencies;
   global.LuminousCombatEconomyMenu073 = Object.freeze(api);
-  global.addEventListener?.("luminous:combat073-hydrated", () => { syncPlanningEconomy(false); syncQuickBadge(); const render = lexical("renderCategory"); if (activeMenu() && typeof render === "function") render(); });
+  global.addEventListener?.("luminous:combat073-hydrated", () => { syncPlanningEconomy(false); syncQuickBadge(); syncSpellMenuVisibility(); syncResponsiveMenuLayout(); const render = lexical("renderCategory"); if (activeMenu() && typeof render === "function") render(); });
   global.addEventListener?.("luminous:combat073-runtime-ready", () => global.setTimeout(boot, 0));
   global.setTimeout(boot, 0);
 

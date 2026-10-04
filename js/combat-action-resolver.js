@@ -438,10 +438,21 @@
     const spell = definitionForEngine(action, actor);
     spell.statUsed = action.resolution.save?.abilityId;
     spell.saveDC = Number(action.resolution.save?.dc || 0);
-    const results = targets.map((target) => ({
-      targetId: entityId(target),
-      result: engine.resolveSpell(spell, target, rollSaveHeads(engine, target, context)),
-    }));
+    const saveAttackOnFailure = spell?.mechanics?.saveAttackOnFailure === true;
+    const results = targets.map((target, index) => {
+      const saveResult = engine.resolveSpell(spell, target, rollSaveHeads(engine, target, context));
+      let attack = null;
+      if (saveAttackOnFailure && saveResult?.isSuccess === false && typeof engine.resolveUnilateralWithCounter === "function") {
+        const skill = cloneAttackSkill(spell);
+        attack = engine.resolveUnilateralWithCounter(actor, skill, target, null, {
+          skipUseHooks: index > 0,
+          clashResult: null,
+          clashCount: 0,
+          combatants: context.units || Object.values(context.combatData || {}),
+        });
+      }
+      return { targetId: entityId(target), result: saveResult, attack };
+    });
     return { resolved: true, type: "save", results };
   }
 
