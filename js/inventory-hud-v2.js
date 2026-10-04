@@ -288,6 +288,20 @@
     return `<span class="inventory-v2-effect-rail" aria-hidden="true">${chunks.join("")}</span>`;
   }
 
+  function renderDetailEffectIndicators(indicators = []) {
+    if (!indicators.length) return "";
+    return indicators.map((entry) => {
+      if (entry?.kind === "cleanse") {
+        const icon = entry.icon
+          ? `<img class="inventory-v2-cleanse-icon" src="${escapeHtml(entry.icon)}" alt="" />`
+          : `<span class="inventory-v2-cleanse-fallback">${escapeHtml(String(entry.label || entry.statusId || "C").slice(0, 2).toUpperCase())}</span>`;
+        return `<span class="inventory-v2-effect-badge inventory-v2-effect-cleanse">${icon}<span>${escapeHtml(entry.label || entry.statusId || "Cleanse")}</span></span>`;
+      }
+      const tone = entry.tone === "sp" ? "sp" : "hp";
+      return `<span class="inventory-v2-effect-badge inventory-v2-effect-${tone}">${escapeHtml(entry.label || "")}</span>`;
+    }).join("");
+  }
+
   function itemValue(item = {}) {
     const explicit = item.valorBase ?? item.costo ?? item.cost ?? item.price ?? item.precio ?? item.productionValueAhn ?? item.totalValueAhn ?? item.unitValueAhn;
     if (explicit != null) return Number(explicit) || 0;
@@ -400,7 +414,12 @@
     const card = doc.getElementById("item-detail-card");
     if (!card) return;
     card.querySelector("#detail-equip-btn-container")?.remove();
-    if (card.querySelector(".inventory-v2-detail-extra")) return;
+    const detailRight = card.querySelector(".detail-right") || card;
+    const existing = card.querySelector(".inventory-v2-detail-extra");
+    if (existing) {
+      if (existing.parentElement !== detailRight) detailRight.appendChild(existing);
+      return;
+    }
 
     const extra = doc.createElement("div");
     extra.className = "inventory-v2-detail-extra";
@@ -412,7 +431,7 @@
       </div>
       <div class="inventory-v2-actions" id="inventory-v2-actions"></div>
       <div class="inventory-v2-action-status" id="inventory-v2-action-status"></div>`;
-    card.appendChild(extra);
+    detailRight.appendChild(extra);
   }
 
   function rethemeTabs() {
@@ -752,6 +771,12 @@
     if (title) title.textContent = itemName(item);
     const desc = doc.getElementById("detail-desc");
     if (desc) desc.textContent = itemDescription(item);
+    const detailEffects = doc.getElementById("inventory-v2-detail-effects");
+    if (detailEffects) {
+      const indicators = itemEffectIndicators(item);
+      detailEffects.innerHTML = renderDetailEffectIndicators(indicators);
+      detailEffects.hidden = indicators.length === 0;
+    }
     const tagsHost = doc.getElementById("detail-tags-val");
     if (tagsHost) {
       tagsHost.innerHTML = "";
@@ -1274,6 +1299,7 @@
     renderDetail,
     itemEffectIndicators,
     renderEffectIndicators,
+    renderDetailEffectIndicators,
     equipSelectedTo,
     moveSelected,
     hydratePlayerVitals,
