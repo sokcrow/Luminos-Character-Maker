@@ -34,7 +34,18 @@ const FIREBASE_STUB = `
     characterName:'CI PLAYER',
     classes:[{classId:'wizard',levels:10}],
     spellIds:['mage_hand'],
-    spellSelections:['mage_hand']
+    spellSelections:['mage_hand'],
+    inventario_activo:{
+      ci_recovery:{
+        instanceId:'ci_recovery',
+        definitionId:'ci_recovery_patch',
+        id:'ci_recovery_patch',
+        name:'CI Recovery Patch',
+        category:'consumable',
+        quantity:2,
+        runtime:{actionCost:'action',targetMode:'self',effects:{hpRestore:5}}
+      }
+    }
   };
   const combatant={
     id:'player:p1',
