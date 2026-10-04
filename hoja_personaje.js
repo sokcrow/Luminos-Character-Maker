@@ -3419,12 +3419,12 @@ function initializeCharacterSheet() {
       } catch (_) {}
 
       if (marketEventTitle) {
-        marketEventTitle.textContent = activeEvent.title || "Cambio de mercado";
+        marketEventTitle.textContent = activeEvent.title || "Variación de precios";
       }
       if (marketEventMessage) {
         marketEventMessage.textContent =
           activeEvent.message ||
-          "Las condiciones del mercado han alterado temporalmente los precios de ciertas tiendas.";
+          "Se registraron cambios de oferta y demanda en distintos sectores comerciales del Distrito.";
       }
       if (marketEventLines) {
         marketEventLines.innerHTML = "";
