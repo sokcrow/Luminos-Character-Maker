@@ -2022,11 +2022,8 @@ function initializeCharacterSheet() {
         targetTab.style.display = "block";
 
         if (tabName === "banco" || tabName === "mail") {
-          const charNameInput = document.querySelector('input[name="attr_character_name"]');
-          const pName = charNameInput ? charNameInput.value.trim() : "";
-
-          if (pName) {
-            checkCellphone(pName, (hasDevice) => {
+          if (playerId) {
+            checkCellphone(playerId, (hasDevice) => {
               const overlay = targetTab.querySelector('.sheet-no-signal-overlay');
               const bodyElements = targetTab.querySelectorAll('.sheet-app-body, .sheet-app-body-mail');
 
@@ -2036,11 +2033,11 @@ function initializeCharacterSheet() {
               } else {
                 if (overlay) overlay.style.display = "none";
                 bodyElements.forEach(el => el.style.display = "flex");
-                // Reset to display block for app body if it's not flex originally, but flex works or empty
               }
+
               if (tabName === "banco") {
-                  // Limpiar unread transacciones
-                  const txRef = db.ref(`campaña/jugadores/${pName}/finance/transactionHistory`);
+                  // Limpiar unread transacciones usando la key canónica del jugador.
+                  const txRef = db.ref(`campaña/jugadores/${playerId}/finance/transactionHistory`);
                   txRef.once("value", snap => {
                       const updates = {};
                       let hasUpdates = false;
@@ -2054,7 +2051,6 @@ function initializeCharacterSheet() {
                       if (hasUpdates) txRef.update(updates);
                   });
               }
-
             });
           }
         }
