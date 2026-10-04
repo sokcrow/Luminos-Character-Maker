@@ -88,8 +88,8 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p Assets/Images/Combat
-          curl -fL --retry 4 --retry-all-errors -A "Mozilla/5.0"             "https://limbuscompany.wiki.gg/images/Victory_Battle_Result.png?67eac9=&format=original"             -o Assets/Images/Combat/Victory_Battle_Result.png
-          curl -fL --retry 4 --retry-all-errors -A "Mozilla/5.0"             "https://limbuscompany.wiki.gg/images/Defeat_Battle_Result.png?284168=&format=original"             -o Assets/Images/Combat/Defeat_Battle_Result.png
+          curl -fL --retry 4 --retry-all-errors -A "Mozilla/5.0"             "https://images.weserv.nl/?url=https%3A%2F%2Flimbuscompany.wiki.gg%2Fimages%2FVictory_Battle_Result.png%3F67eac9%3D%26format%3Doriginal&output=png"             -o Assets/Images/Combat/Victory_Battle_Result.png
+          curl -fL --retry 4 --retry-all-errors -A "Mozilla/5.0"             "https://images.weserv.nl/?url=https%3A%2F%2Flimbuscompany.wiki.gg%2Fimages%2FDefeat_Battle_Result.png%3F284168%3D%26format%3Doriginal&output=png"             -o Assets/Images/Combat/Defeat_Battle_Result.png
           test "$(xxd -p -l 8 Assets/Images/Combat/Victory_Battle_Result.png)" = "89504e470d0a1a0a"
           test "$(xxd -p -l 8 Assets/Images/Combat/Defeat_Battle_Result.png)" = "89504e470d0a1a0a"
           git config user.name "github-actions[bot]"
