@@ -6,12 +6,36 @@
     return;
   }
 
-  const VERSION = 3;
+  const VERSION = 4;
   const CURRENCY = "AHN";
   const BASE_PURCHASE_MARKUP = 1.40;
   const BASE_SELLBACK_MULTIPLIER = 0.80;
   const SHOP_TIER_PRICE_STEP = 0.04;
   const MAX_TIER = 10;
+
+  // Ordered from the strongest intrinsic / production signal to legacy fallbacks.
+  // Zero is treated as "not authored" so placeholder price/costo fields cannot
+  // shadow a valid canonical value later in the Item definition.
+  const BASE_VALUE_FIELDS = Object.freeze([
+    "productionValueAhn",
+    "productionValue",
+    "createdProductionValueAhn",
+    "craftBaseValueAhn",
+    "cookedBaseValueAhn",
+    "totalValueAhn",
+    "standardMediumValueAhn",
+    "mediumStandardValueAhn",
+    "standardUnitValueAhn",
+    "standardValueAhn",
+    "standardChassisValueAhn",
+    "unitValueAhn",
+    "baseValueAhn",
+    "priceAhn",
+    "retailValueAhn",
+    "valorBase",
+    "costo",
+    "price",
+  ]);
 
   const SHOP_TYPES = Object.freeze({
     general: Object.freeze({
@@ -307,25 +331,24 @@
     return shopCatalogMatch(item, shop).eligible;
   }
 
-  function baseValueAhn(item = {}) {
-    const candidates = [
-      item.productionValueAhn,
-      item.productionValue,
-      item.createdProductionValueAhn,
-      item.totalValueAhn,
-      item.standardMediumValueAhn,
-      item.standardUnitValueAhn,
-      item.standardChassisValueAhn,
-      item.valorBase,
-      item.costo,
-      item.priceAhn,
-      item.unitValueAhn,
-    ];
-    for (const candidate of candidates) {
-      const value = numberOr(candidate, NaN);
-      if (Number.isFinite(value) && value >= 0) return value;
+  function resolveBaseValueAhn(item = {}) {
+    for (const field of BASE_VALUE_FIELDS) {
+      const raw = item?.[field];
+      if (raw == null || raw === "") continue;
+      const value = Number(raw);
+      if (Number.isFinite(value) && value > 0) {
+        return Object.freeze({ resolved: true, field, value });
+      }
     }
-    return 0;
+    return Object.freeze({ resolved: false, field: null, value: null });
+  }
+
+  function hasBaseValueAhn(item = {}) {
+    return resolveBaseValueAhn(item).resolved;
+  }
+
+  function baseValueAhn(item = {}) {
+    return resolveBaseValueAhn(item).value || 0;
   }
 
   function tierPriceMultiplier(shopOrTier = {}) {
@@ -340,19 +363,23 @@
 
   function priceBreakdown(item = {}, shop = {}) {
     const type = shopType(shop);
-    const base = baseValueAhn(item);
+    const resolution = resolveBaseValueAhn(item);
     const tierMultiplier = tierPriceMultiplier(shop);
     const localMultiplier = localPriceMultiplier(shop);
-    const final = roundAhn(
-      base *
-      BASE_PURCHASE_MARKUP *
-      type.priceMultiplier *
-      tierMultiplier *
-      localMultiplier
-    );
+    const final = resolution.resolved
+      ? roundAhn(
+          resolution.value *
+          BASE_PURCHASE_MARKUP *
+          type.priceMultiplier *
+          tierMultiplier *
+          localMultiplier
+        )
+      : null;
     return Object.freeze({
       currency: CURRENCY,
-      baseValueAhn: roundAhn(base),
+      baseValueAhn: resolution.resolved ? roundAhn(resolution.value) : null,
+      baseValueSource: resolution.field,
+      priceResolved: resolution.resolved,
       purchaseMarkup: BASE_PURCHASE_MARKUP,
       shopType: type.id,
       shopTypeMultiplier: type.priceMultiplier,
@@ -368,11 +395,15 @@
   }
 
   function sellBreakdown(item = {}, shop = {}) {
-    const base = baseValueAhn(item);
-    const final = roundAhn(base * BASE_SELLBACK_MULTIPLIER);
+    const resolution = resolveBaseValueAhn(item);
+    const final = resolution.resolved
+      ? roundAhn(resolution.value * BASE_SELLBACK_MULTIPLIER)
+      : null;
     return Object.freeze({
       currency: CURRENCY,
-      baseValueAhn: roundAhn(base),
+      baseValueAhn: resolution.resolved ? roundAhn(resolution.value) : null,
+      baseValueSource: resolution.field,
+      priceResolved: resolution.resolved,
       sellbackMultiplier: BASE_SELLBACK_MULTIPLIER,
       discountFromBase: 1 - BASE_SELLBACK_MULTIPLIER,
       shopType: shopTypeId(shop),
@@ -397,6 +428,7 @@
   }
 
   function stockForItem(item = {}, shop = {}, options = {}) {
+    if (!hasBaseValueAhn(item)) return 0;
     const catalogMatch = shopCatalogMatch(item, shop);
     if (!catalogMatch.eligible) return 0;
     const units = stockUnitsPerPlayer(item, shop);
@@ -412,17 +444,24 @@
   function itemAvailability(item = {}, shop = {}) {
     const catalogMatch = shopCatalogMatch(item, shop);
     const tierOk = itemTier(item) <= shopTier(shop);
+    const valueResolution = resolveBaseValueAhn(item);
+    const priceOk = valueResolution.resolved;
     return Object.freeze({
-      available: catalogMatch.eligible && tierOk,
+      available: catalogMatch.eligible && tierOk && priceOk,
       typeEligible: catalogMatch.eligible,
       tierEligible: tierOk,
+      priceEligible: priceOk,
+      baseValueAhn: valueResolution.value,
+      baseValueSource: valueResolution.field,
       catalogBand: catalogMatch.band,
       stockMultiplier: catalogMatch.stockMultiplier,
       reason: !catalogMatch.eligible
         ? "shop_type"
         : !tierOk
           ? "shop_tier"
-          : "available",
+          : !priceOk
+            ? "unpriced"
+            : "available",
     });
   }
 
@@ -442,7 +481,9 @@
 
     next.stock_maximo = nextMax;
     next.stock_actual = Math.max(0, nextMax - sold);
-    next.shop_price_ahn = purchasePrice(next, shop);
+    const resolvedShopPrice = purchasePrice(next, shop);
+    if (resolvedShopPrice == null) delete next.shop_price_ahn;
+    else next.shop_price_ahn = resolvedShopPrice;
     next.shop_stock_auto = true;
     next.shop_runtime_version = VERSION;
     return next;
@@ -485,7 +526,7 @@
       if (match.band === "primary") summary.primary += 1;
       if (match.band === "secondary") summary.secondary += 1;
       if (match.band === "high_tier_fallback") summary.highTierFallback += 1;
-      if (itemTier(item) <= shopTier(shop)) summary.available += 1;
+      if (itemAvailability(item, shop).available) summary.available += 1;
     }
     return Object.freeze(summary);
   }
@@ -514,6 +555,7 @@
     BASE_SELLBACK_MULTIPLIER,
     SHOP_TIER_PRICE_STEP,
     MAX_TIER,
+    BASE_VALUE_FIELDS,
     SHOP_TYPES,
     SHOP_TYPE_CATALOG,
     tierNumber,
@@ -530,6 +572,8 @@
     catalogRuleForShop,
     shopCatalogMatch,
     itemEligibleForShopType,
+    resolveBaseValueAhn,
+    hasBaseValueAhn,
     baseValueAhn,
     tierPriceMultiplier,
     localPriceMultiplier,
