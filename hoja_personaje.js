@@ -1185,20 +1185,32 @@ async function runBootSequence() {
         );
       }
 
-      renderCharacterSheet(window.datosJugador);
+      try {
+        renderCharacterSheet(window.datosJugador);
+      } catch (error) {
+        console.error("[Luminous][Boot] Character render failed; keeping core UI alive:", error);
+      }
 
       if (
         typeof window.renderRecetasCrafteo === "function"
         && (initial || changedKeys.some((key) => CRAFTING_PLAYER_KEYS.has(key)))
       ) {
-        window.renderRecetasCrafteo();
+        try {
+          window.renderRecetasCrafteo();
+        } catch (error) {
+          console.error("[Luminous][Boot] Crafting render failed:", error);
+        }
       }
 
       if (
         typeof window.actualizarExpresionesDesdeDropdown === "function"
         && (initial || changedKeys.some((key) => EXPRESSION_PLAYER_KEYS.has(key)))
       ) {
-        window.actualizarExpresionesDesdeDropdown();
+        try {
+          window.actualizarExpresionesDesdeDropdown();
+        } catch (error) {
+          console.error("[Luminous][Boot] Expression render failed:", error);
+        }
       }
     }
 
@@ -1238,9 +1250,14 @@ async function runBootSequence() {
       applyPlayerData(nextData, [key], false);
     });
 
-    // Success!
+    // Success: core interaction must come up even if one optional UI subsystem is malformed.
     window.hideLoadingOverlay();
-    initializeCharacterSheet(); // Still call to setup remaining listeners if needed, though we moved data fetching here
+    try {
+      initializeCharacterSheet(); // Bind Theatre/HUD/phone controls after canonical player hydration.
+    } catch (error) {
+      console.error("[Luminous][Boot] Core sheet initialization partially failed:", error);
+      window.dispatchEvent(new CustomEvent("luminous:player-ui-init-error", { detail: { error } }));
+    }
   } catch (error) {
     console.error("Boot Sequence Error:", error);
     updateBootLog(`[ERROR CRÍTICO]\n${error.message}`, true);
