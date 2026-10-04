@@ -316,9 +316,10 @@
   });
 
   global.LuminousStatusLibrary = api;
+  // Install immediately when the Status Engine already exists. If the Engine
+  // loads later, status-engine.js calls this bridge once after publishing its API.
+  // This keeps the player sheet interval-idle instead of polling every 250 ms.
   api.install();
-  const bridgeTimer = typeof global.setInterval === 'function' ? global.setInterval(installStatusEngineBridge, 250) : null;
-  bridgeTimer?.unref?.();
 
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);
