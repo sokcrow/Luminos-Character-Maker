@@ -20,7 +20,6 @@
     ready: false,
   };
 
-  const qualityNames = { 1: "LOW", 2: "STANDARD", 3: "GOOD", 4: "FINE", 5: "EXCEPTIONAL" };
   const romanTiers = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
   const slotSpecs = [
     { id: "mainHand", label: "MAIN HAND", hint: "WEAPON / SHIELD", className: "inv2-eq-main" },
@@ -319,6 +318,32 @@
     return Array.isArray(raw) ? raw : Object.values(raw || {});
   }
 
+  function moduleDisplayName(entry) {
+    const objectEntry = entry && typeof entry === "object" ? entry : null;
+    const definitionRef = String(
+      objectEntry?.definitionId
+      || objectEntry?.canonicalId
+      || objectEntry?.id
+      || (typeof entry === "string" ? entry : "")
+      || "",
+    ).trim();
+    const resolved = definitionRef
+      ? inventory()?.resolveDefinition?.(definitionRef, { type: "module" })
+      : null;
+    const explicit = objectEntry?.displayName
+      || objectEntry?.nombre
+      || objectEntry?.name
+      || resolved?.displayName
+      || resolved?.nombre
+      || resolved?.name;
+    if (explicit) return String(explicit).trim();
+    const fallback = definitionRef || objectEntry?.instanceId || objectEntry?.instance_id || "";
+    return String(fallback)
+      .trim()
+      .replace(/[_-]+/g, " ")
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+  }
+
   function ensureActiveLayout() {
     const activePane = doc.getElementById("inv-active");
     const grid = doc.getElementById("inv-active-grid");
@@ -380,21 +405,10 @@
     const extra = doc.createElement("div");
     extra.className = "inventory-v2-detail-extra";
     extra.innerHTML = `
-      <div class="inventory-v2-detail-grid">
-        <div><span>CATEGORY</span><b data-v2-detail="category">—</b></div>
-        <div><span>STACK</span><b data-v2-detail="stack">—</b></div>
-        <div><span>QUALITY</span><b data-v2-detail="quality">—</b></div>
-        <div><span>CONDITION</span><b data-v2-detail="condition">—</b></div>
-        <div><span>MANUFACTURER</span><b data-v2-detail="manufacturer">—</b></div>
-        <div><span>PRODUCT LINE</span><b data-v2-detail="product-line">—</b></div>
-        <div><span>SERIAL</span><b data-v2-detail="serial">—</b></div>
-        <div><span>EQUIPMENT</span><b data-v2-detail="equipment">—</b></div>
-        <div><span>CHARGES</span><b data-v2-detail="charges">—</b></div>
-        <div><span>INSTANCE</span><b data-v2-detail="instance">—</b></div>
-      </div>
-      <div class="inventory-v2-modules">
-        <span>INSTALLED / INSTANCE TRAITS</span>
-        <div data-v2-detail="modules">NO INSTALLED MODIFIERS</div>
+      <div class="inventory-v2-player-facts" data-v2-detail="facts" hidden></div>
+      <div class="inventory-v2-modules" data-v2-detail-section="modules" hidden>
+        <span>MODIFICATIONS</span>
+        <div data-v2-detail="modules"></div>
       </div>
       <div class="inventory-v2-actions" id="inventory-v2-actions"></div>
       <div class="inventory-v2-action-status" id="inventory-v2-action-status"></div>`;
@@ -527,7 +541,7 @@
     slot.classList.toggle("inventory-v2-equipable", equipable);
     slot.style.position = "relative";
     slot.draggable = containerType === "active";
-    slot.title = `${itemName(item)} // ${categoryLabel(category)}`;
+    slot.title = itemName(item);
     slot.setAttribute("aria-label", `${itemName(item)}, ${categoryLabel(category)}, quantity ${quantityOf(item)}`);
 
     const icon = itemIcon(item);
@@ -538,7 +552,6 @@
     slot.classList.toggle("inventory-v2-has-effect-indicator", effectIndicators.length > 0);
     slot.innerHTML = `
       <span class="tier">${escapeHtml(tierRoman(item))}</span>
-      <span class="inventory-v2-item-category">${escapeHtml(categoryLabel(category))}</span>
       <div class="item-display">
         <div class="item-icon${icon ? " has-icon" : ""}"${icon ? ` style="background-image:url(&quot;${escapeHtml(icon)}&quot;)"` : ""}>
           <span class="inventory-v2-icon-fallback">${escapeHtml(categoryLabel(category).slice(0, 3))}</span>
@@ -720,7 +733,6 @@
     }
     card.classList.add("active");
 
-    const quality = Number(item.qualityTier ?? item.quality ?? 1);
     const condition = runtime()?.getCondition?.(item);
     const conditionPercent = condition?.percent ?? Math.max(0, Math.min(100, Math.round((Number(item.condition ?? 100) / Math.max(1, Number(item.conditionMax ?? 100))) * 100)));
     const conditionState = runtime()?.getConditionState?.(item);
@@ -741,34 +753,44 @@
     const desc = doc.getElementById("detail-desc");
     if (desc) desc.textContent = itemDescription(item);
     const tagsHost = doc.getElementById("detail-tags-val");
-    if (tagsHost) tagsHost.innerHTML = itemTags(item).map((tag) => `<span class="tag-pill">${escapeHtml(tag)}</span>`).join("");
+    if (tagsHost) {
+      tagsHost.innerHTML = "";
+      tagsHost.hidden = true;
+    }
 
-    const set = (name, value) => {
-      const target = card.querySelector(`[data-v2-detail="${name}"]`);
-      if (target) target.textContent = value;
-    };
-    const compatible = bridge()?.compatibleSlots?.(item) || [];
-    set("category", `${categoryLabel(itemCategory(item))} // ${categoryLabel(equipmentKind(item))}`);
-    const stackContainer = state.selectedContainer === "stash" ? "stash" : "active";
-    const stackMax = inventory()?.stackLimit?.(item, stackContainer);
-    set("stack", stackMax ? `x${quantityOf(item)} / ${stackMax} // ${stackContainer.toUpperCase()}` : `x${quantityOf(item)} // ${stackContainer.toUpperCase()}`);
-    set("quality", `${qualityNames[quality] || `Q${quality}`} // Q${quality}`);
-    set("condition", `${conditionPercent}% // ${String(conditionState?.state || conditionState || "SERVICEABLE").toUpperCase()}`);
-    set("manufacturer", manufacturerName(item));
-    set("product-line", productLineName(item));
-    set("serial", item.productSerial || item.product_serial || "—");
-    set("equipment", equippedSlot ? String(equippedSlot).toUpperCase() : (compatible.length ? `READY // ${compatible.map((slot) => String(slot).toUpperCase()).join(" / ")}` : "NOT EQUIPPABLE"));
-    set("charges", charges?.current == null ? "—" : `${charges.current} / ${charges.max ?? "∞"}`);
-    set("instance", item.instanceId || item.instance_id || state.selected?.key || "—");
+    const factsHost = card.querySelector('[data-v2-detail="facts"]');
+    if (factsHost) {
+      const facts = [];
+      if (conditionPercent < 100) {
+        const stateLabel = String(
+          conditionState?.id
+          || conditionState?.state
+          || conditionState?.label
+          || (typeof conditionState === "string" ? conditionState : "DAMAGED"),
+        ).replace(/_/g, " ").toUpperCase();
+        facts.push(`<span class="inventory-v2-player-fact"><b>CONDITION</b> ${conditionPercent}% · ${escapeHtml(stateLabel)}</span>`);
+      }
+      if (charges?.current != null) {
+        facts.push(`<span class="inventory-v2-player-fact"><b>CHARGES</b> ${escapeHtml(String(charges.current))} / ${escapeHtml(String(charges.max ?? "∞"))}</span>`);
+      }
+      if (equippedSlot) {
+        facts.push(`<span class="inventory-v2-player-fact"><b>EQUIPPED</b> ${escapeHtml(String(equippedSlot).replace(/([a-z])([A-Z])/g, "$1 $2").toUpperCase())}</span>`);
+      }
+      factsHost.innerHTML = facts.join("");
+      factsHost.hidden = facts.length === 0;
+    }
 
+    const moduleSection = card.querySelector('[data-v2-detail-section="modules"]');
     const moduleHost = card.querySelector('[data-v2-detail="modules"]');
-    if (moduleHost) {
+    if (moduleHost && moduleSection) {
       const modules = installedModules(item);
       const tech = Array.isArray(item.signatureTechnologyIds) ? item.signatureTechnologyIds : [];
       const values = [...modules, ...tech]
         .filter(Boolean)
-        .map((entry) => typeof entry === "string" ? entry : entry.name || entry.id || "MODULE");
-      moduleHost.innerHTML = values.length ? values.map((entry) => `<span>${escapeHtml(entry)}</span>`).join("") : "NO INSTALLED MODULES";
+        .map(moduleDisplayName)
+        .filter(Boolean);
+      moduleHost.innerHTML = values.map((entry) => `<span>${escapeHtml(entry)}</span>`).join("");
+      moduleSection.hidden = values.length === 0;
     }
     renderActions(item, equippedSlot);
   }

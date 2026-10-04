@@ -174,3 +174,150 @@
   #inventory-modal.inventory-v2-ready .inventory-v2-effect-badge{font-size:5.5px;min-height:10px;padding:1px 2px}
   #inventory-modal.inventory-v2-ready .inventory-v2-cleanse-icon,#inventory-modal.inventory-v2-ready .inventory-v2-cleanse-fallback{width:11px;height:11px;flex-basis:11px}
 }
+
+
+/* Inventory V6 — player-first cards and clean detail surface. */
+#inventory-modal.inventory-v2-ready .inventory-v2-item-category{display:none!important}
+#inventory-modal.inventory-v2-ready #detail-tags-val,
+#inventory-modal.inventory-v2-ready #detail-vinculo-info{display:none!important}
+
+#inventory-modal.inventory-v2-ready #inv-active-grid.inv-grid{
+  grid-template-columns:repeat(4,minmax(132px,1fr));
+  grid-template-rows:none;
+  grid-auto-rows:108px;
+  gap:9px;
+}
+#inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-runtime-slot{
+  min-height:108px;
+}
+#inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-runtime-slot .item-display{
+  inset:19px 8px 25px;
+  display:flex;
+  flex-direction:row;
+  align-items:center;
+  justify-content:flex-start;
+  gap:9px;
+  min-width:0;
+}
+#inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-runtime-slot .item-icon{
+  width:48px;
+  height:48px;
+  flex:0 0 48px;
+}
+#inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-runtime-slot .item-name{
+  display:-webkit-box;
+  width:auto;
+  min-width:0;
+  max-width:100%;
+  overflow:hidden;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:2;
+  white-space:normal;
+  text-overflow:ellipsis;
+  text-align:left;
+  color:#e1d4c1;
+  font:9px/1.25 "Share Tech Mono",monospace;
+  letter-spacing:.025em;
+  text-transform:uppercase;
+}
+#inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-runtime-slot:hover .item-name,
+#inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-runtime-slot.active .item-name{
+  color:#fff1d6;
+}
+#inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-effect-rail{
+  max-width:70%;
+}
+#inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-equip-marker{
+  bottom:16px;
+}
+
+#inventory-modal.inventory-v2-ready .inventory-v2-detail-extra{
+  width:100%;
+  margin-top:10px;
+  padding-top:9px;
+  border-top:1px solid #33291f;
+}
+#inventory-modal.inventory-v2-ready .inventory-v2-player-facts{
+  display:flex;
+  flex-wrap:wrap;
+  gap:5px;
+  margin-bottom:7px;
+}
+#inventory-modal.inventory-v2-ready .inventory-v2-player-facts[hidden],
+#inventory-modal.inventory-v2-ready .inventory-v2-modules[hidden]{
+  display:none!important;
+}
+#inventory-modal.inventory-v2-ready .inventory-v2-player-fact{
+  padding:4px 6px;
+  border:1px solid #3c3228;
+  background:#0a0807;
+  color:#a99d8c;
+  font:8px/1.25 "Share Tech Mono",monospace;
+  letter-spacing:.04em;
+}
+#inventory-modal.inventory-v2-ready .inventory-v2-player-fact b{
+  color:#d9bd82;
+  font-weight:700;
+}
+#inventory-modal.inventory-v2-ready .inventory-v2-modules{
+  margin-top:0;
+  margin-bottom:7px;
+}
+#inventory-modal.inventory-v2-ready .inventory-v2-actions{
+  margin-top:4px;
+}
+
+@media(max-width:1024px){
+  #inventory-modal.inventory-v2-ready #inv-active-grid.inv-grid{
+    grid-template-columns:repeat(3,minmax(128px,1fr));
+    grid-auto-rows:104px;
+  }
+  #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-runtime-slot{
+    min-height:104px;
+  }
+}
+
+@media(max-width:760px){
+  #inventory-modal.inventory-v2-ready #inv-active-grid.inv-grid{
+    grid-template-columns:repeat(2,minmax(132px,1fr));
+    grid-auto-rows:102px;
+  }
+  #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-runtime-slot{
+    min-height:102px;
+  }
+  #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-runtime-slot .item-display{
+    inset:18px 6px 23px;
+    gap:7px;
+  }
+  #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-runtime-slot .item-icon{
+    width:42px;
+    height:42px;
+    flex-basis:42px;
+  }
+  #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-runtime-slot .item-name{
+    font-size:8px;
+  }
+}
+
+@media (pointer:coarse) and (orientation:landscape) and (max-height:600px){
+  #inventory-modal.inventory-v2-ready #inv-active-grid.inv-grid{
+    grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+    grid-auto-rows:88px;
+  }
+  #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-runtime-slot{
+    min-height:88px;
+    height:88px;
+  }
+  #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-runtime-slot .item-display{
+    inset:16px 6px 20px;
+    gap:6px;
+  }
+  #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-runtime-slot .item-icon{
+    width:36px;
+    height:36px;
+    flex-basis:36px;
+  }
+  #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-runtime-slot .item-name{
+    font-size:7px;
+  }
+}
