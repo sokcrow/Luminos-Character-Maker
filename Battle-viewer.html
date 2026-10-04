@@ -137,6 +137,12 @@ function smartTargetForPlan(owner,plan){
     if(!html.includes(liveDeckNeedle))throw new Error("COMBAT_PLAYER_DECK_PATCH_MISSING");
     html=html.replace(liveDeckNeedle,liveDeckPatch);
 
+    stage('patch-speed-state','Preserving canonical Speed metadata while rebuilding Combatants');
+    const speedStateNeedle="autoPlans:[],speedRollTurn:0,speedTie:0,observationKnown:[]";
+    const speedStatePatch="autoPlans:[],speedBaseRoll:Number(d.speedBaseRoll??d.speed)||0,speedRollTurn:Number(d.speedRollTurn)||0,speedTie:Number(d.speedTie)||0,speedRolledAt:d.speedRolledAt??null,observationKnown:[]";
+    if(!html.includes(speedStateNeedle))throw new Error("COMBAT_CANONICAL_SPEED_STATE_PATCH_MISSING");
+    html=html.replace(speedStateNeedle,speedStatePatch);
+
     stage('patch-formation','Applying alternating two-row Combat formation');
     const formationPointsNeedle=`const allyPoints=[
           {x:6,y:18},{x:16,y:18},{x:26,y:18},{x:36,y:18},
