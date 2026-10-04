@@ -6737,12 +6737,14 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
     right: 20px;
     width: 220px;
     height: 220px;
-    background: #111;
+    /* The HUD is an irregular SVG, so its fixed positioning box must not paint
+       a square panel over the sheet/theatre behind it. */
+    background: transparent;
     display: none; /* Toggled by JS */
     justify-content: center;
     align-items: center;
     border-radius: 15px;
-    box-shadow: 0 5px 20px rgba(0,0,0,0.5);
+    box-shadow: none;
     transition: filter 0.5s ease-out;
     z-index: 9998;
 }
