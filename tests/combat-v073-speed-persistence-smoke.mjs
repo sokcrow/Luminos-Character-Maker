@@ -49,6 +49,10 @@ assert.ok(speed.includes('if(state.rolling||!state.roundReady||!state.db?.ref||!
 assert.ok(speed.includes('syncRuntimeSpeedsFromCanonical'),'legacy runtime Speed must be overwritten from canonical combatants');
 assert.ok(speed.includes('patchLegacySpeedRollers'),'legacy rollTurnSpeeds/rollUnitSpeed must be patched to canonical reads');
 assert.ok(speed.includes('global.rollTurnSpeeds=function authoritativeSpeedSync'),'legacy turn Speed rolls must not randomize per viewer');
+assert.ok(speed.includes('lastFormationRound:0'),'Speed formation side effects must be tracked per canonical round');
+assert.ok(speed.includes('function canonicalRoundComplete'),'formation must wait until every active unit has canonical Speed for the round');
+assert.ok(speed.includes('function applyRoundSideEffectsOnce'),'formation/visibility must be guarded behind a once-per-round gate');
+assert.ok(speed.includes('state.lastFormationRound===expected'),'repeated same-round rollTurnSpeeds calls must not relayout units');
 assert.ok(speed.includes('global.layoutSpeedFormation?.()'),'canonical turn Speed sync must preserve formation refresh side effects');
 assert.ok(speed.includes('global.syncAllUnitVisibility?.()'),'canonical turn Speed sync must preserve visibility refresh side effects');
 assert.ok(speed.includes('global.rollUnitSpeed=function authoritativeUnitSpeed'),'legacy unit Speed rolls must not randomize per viewer');
