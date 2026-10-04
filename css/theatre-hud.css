@@ -786,3 +786,95 @@ body.player-instance-theatre
   color: #fff;
   font: 16px "Roboto", Arial, sans-serif;
 }
+
+
+/* ==================================================
+   DM DIALOGUE COMPOSER — CONTAINER-SAFE LAYOUT
+   The director panel is ~410px even on wide desktops, so viewport media
+   queries are not enough. Everything below sizes against the panel itself.
+   ================================================== */
+
+.on-game-dashboard #theatre-director-panel,
+.on-game-dashboard #theatre-director-panel * {
+  box-sizing: border-box;
+}
+
+.on-game-dashboard #theatre-director-panel .theatre-dm-composer {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+.on-game-dashboard #theatre-director-panel .theatre-dm-composer-title {
+  margin: 0 !important;
+  min-width: 0;
+  color: #d2a447 !important;
+  font-family: "BebasKai", Impact, "Arial Narrow", sans-serif !important;
+  font-size: 18px;
+  letter-spacing: 0.04em;
+}
+
+.on-game-dashboard #theatre-director-panel .theatre-dm-composer-selects {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) !important;
+  gap: 8px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+.on-game-dashboard #theatre-director-panel .theatre-dm-composer-selects > * {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+}
+
+.on-game-dashboard #theatre-director-panel #theatre-expression-select {
+  grid-column: 1 / -1;
+}
+
+.on-game-dashboard #theatre-director-panel .theatre-dm-composer-control,
+.on-game-dashboard #theatre-director-panel .theatre-dm-composer-textarea,
+.on-game-dashboard #theatre-director-panel .theatre-dm-composer-send {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+}
+
+.on-game-dashboard #theatre-director-panel .theatre-dm-composer-control {
+  height: 38px;
+  padding: 8px 10px !important;
+  color: #f2f2f2 !important;
+  background: #121820 !important;
+  border: 1px solid #53606d !important;
+  font: 14px "Roboto", Arial, sans-serif !important;
+}
+
+.on-game-dashboard #theatre-director-panel .theatre-dm-composer-textarea {
+  display: block !important;
+  min-height: 92px !important;
+  resize: vertical;
+  padding: 10px !important;
+}
+
+.on-game-dashboard #theatre-director-panel .theatre-dm-composer-send {
+  display: block !important;
+  min-height: 38px;
+  margin: 0 !important;
+  padding: 9px 12px !important;
+  white-space: normal !important;
+}
+
+@media (max-width: 430px) {
+  .on-game-dashboard #theatre-director-panel .theatre-dm-composer-selects {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .on-game-dashboard #theatre-director-panel #theatre-expression-select {
+    grid-column: auto;
+  }
+}
