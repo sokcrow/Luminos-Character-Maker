@@ -6,7 +6,7 @@
     return;
   }
 
-  const VERSION = 5;
+  const VERSION = 6;
   const CURRENCY = "AHN";
   const BASE_PURCHASE_MARKUP = 1.40;
   const BASE_SELLBACK_MULTIPLIER = 0.80;
@@ -88,6 +88,8 @@
       description: "Mercancía escasa o restringida a precios de riesgo.",
     }),
   });
+
+  let activeMarketEvent = null;
 
   const SHOP_TYPE_CATALOG = Object.freeze({
     general: Object.freeze({
@@ -445,18 +447,59 @@
     return clamp(percent, 25, 400) / 100;
   }
 
+  function sanitizeMarketEvent(event = null) {
+    if (!event || event.active === false) return null;
+    const modifiers = {};
+    for (const id of Object.keys(SHOP_TYPES)) {
+      const raw = Number(event.modifiers?.[id] ?? event.shopTypeModifiers?.[id]);
+      if (!Number.isFinite(raw) || raw === 0) continue;
+      modifiers[id] = clamp(Math.round(raw), -90, 300);
+    }
+    if (!Object.keys(modifiers).length) return null;
+    return Object.freeze({
+      active: true,
+      id: String(event.id || event.eventId || event.revision || ""),
+      revision: Number(event.revision || event.updatedAt || 0) || 0,
+      title: String(event.title || "Cambio de mercado").trim() || "Cambio de mercado",
+      message: String(event.message || "").trim(),
+      modifiers: Object.freeze(modifiers),
+    });
+  }
+
+  function setMarketEvent(event = null) {
+    activeMarketEvent = sanitizeMarketEvent(event);
+    return activeMarketEvent;
+  }
+
+  function getMarketEvent() {
+    return activeMarketEvent;
+  }
+
+  function marketEventPercent(shop = {}) {
+    if (!activeMarketEvent) return 0;
+    const percent = Number(activeMarketEvent.modifiers?.[shopTypeId(shop)]);
+    return Number.isFinite(percent) ? percent : 0;
+  }
+
+  function marketEventMultiplier(shop = {}) {
+    return Math.max(0.10, 1 + marketEventPercent(shop) / 100);
+  }
+
   function priceBreakdown(item = {}, shop = {}) {
     const type = shopType(shop);
     const resolution = resolveBaseValueAhn(item);
     const tierMultiplier = tierPriceMultiplier(shop);
     const localMultiplier = localPriceMultiplier(shop);
+    const eventPercent = marketEventPercent(shop);
+    const eventMultiplier = marketEventMultiplier(shop);
     const final = resolution.resolved
       ? roundAhn(
           resolution.value *
           BASE_PURCHASE_MARKUP *
           type.priceMultiplier *
           tierMultiplier *
-          localMultiplier
+          localMultiplier *
+          eventMultiplier
         )
       : null;
     return Object.freeze({
@@ -470,6 +513,9 @@
       shopTier: shopTier(shop),
       shopTierMultiplier: tierMultiplier,
       localMultiplier,
+      marketEventPercent: eventPercent,
+      marketEventMultiplier: eventMultiplier,
+      marketEventId: activeMarketEvent?.id || null,
       priceAhn: final,
     });
   }
@@ -667,6 +713,11 @@
     materializeReferenceItem,
     tierPriceMultiplier,
     localPriceMultiplier,
+    sanitizeMarketEvent,
+    setMarketEvent,
+    getMarketEvent,
+    marketEventPercent,
+    marketEventMultiplier,
     priceBreakdown,
     purchasePrice,
     sellBreakdown,
