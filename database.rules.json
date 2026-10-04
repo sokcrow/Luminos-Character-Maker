@@ -81,7 +81,7 @@
           "items": {
             "$itemId": {
               "stock_actual": {
-                ".write": "auth != null && ((auth.uid === root.child('campaña').child('config').child('dm_uid').val() || (!root.child('campaña').child('config').child('dm_uid').exists() && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1')) || (data.isNumber() && newData.isNumber() && ((data.val() === -1 && newData.val() === -1) || (data.val() > 0 && newData.val() === data.val() - 1 && newData.val() >= 0))))"
+                ".write": "auth != null && ((auth.uid === root.child('campaña').child('config').child('dm_uid').val() || (!root.child('campaña').child('config').child('dm_uid').exists() && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1')) || (data.isNumber() && newData.isNumber() && ((data.val() === -1 && newData.val() === -1) || (data.val() > 0 && newData.val() === data.val() - 1 && newData.val() >= 0) || (data.val() >= 0 && newData.val() === data.val() + 1 && data.parent().child('stock_maximo').isNumber() && newData.val() <= data.parent().child('stock_maximo').val())))))"
               }
             }
           }
