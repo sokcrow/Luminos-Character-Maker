@@ -2206,6 +2206,34 @@ window.processEntitiesData = function(entities) {
                 placeholder="URL de Icono Físico (Mapa/HUD)"
               />
               <div style="display: flex; gap: 10px; align-items: center">
+                <select id="tienda-tipo" style="flex: 2">
+                  <option value="general">Almacén General</option>
+                  <option value="provisions">Provisiones</option>
+                  <option value="clinic">Clínica / Farmacia</option>
+                  <option value="workshop">Workshop</option>
+                  <option value="arms_dealer">Armería</option>
+                  <option value="specialist">Especialista</option>
+                  <option value="black_market">Mercado Negro</option>
+                </select>
+                <select id="tienda-tier" style="flex: 1">
+                  <option value="1">Tier I</option>
+                  <option value="2">Tier II</option>
+                  <option value="3">Tier III</option>
+                  <option value="4">Tier IV</option>
+                  <option value="5">Tier V</option>
+                  <option value="6">Tier VI</option>
+                  <option value="7">Tier VII</option>
+                  <option value="8">Tier VIII</option>
+                  <option value="9">Tier IX</option>
+                  <option value="10">Tier X</option>
+                </select>
+              </div>
+              <div style="font-size: 11px; color: #888; margin: 4px 0 8px 0;">
+                Catálogo automático: el Tipo de Tienda decide qué familias de ítems puede ofrecer y el Tier decide hasta qué nivel aparecen.
+                Compra: valor del ítem × 1.40 × tipo × Tier × modificador local. Reventa: valor intrínseco × 0.80.
+                El stock compartido se calcula por jugadores asignados, Tipo, Tier y relevancia del ítem para esa tienda.
+              </div>
+              <div style="display: flex; gap: 10px; align-items: center">
                 <label style="color: #0df; font-size: 14px; cursor: pointer"
                   ><input type="checkbox" id="tienda-fisica-activa" /> Tienda
                   Física Activa</label
@@ -2249,57 +2277,166 @@ window.processEntitiesData = function(entities) {
               <input
                 type="number"
                 id="tienda-mod-venta"
-                placeholder="Mod. Venta % (ej. 120)"
+                placeholder="Mod. Local % (100 = normal)"
               />
 
-              <h5
+              <div
+                id="tienda-comercio-vivo"
                 style="
-                  color: #0df;
-                  margin: 10px 0 5px 0;
-                  border-bottom: 1px solid #444;
-                  padding-bottom: 5px;
+                  margin-top: 12px;
+                  padding: 12px;
+                  border: 1px solid #3b3b3b;
+                  background: #0a0a0a;
+                  display: grid;
+                  gap: 9px;
                 "
               >
-                Reglas de Comercio por Etiqueta
-              </h5>
-              <div style="display: flex; gap: 10px; align-items: center">
-                <input
-                  type="text"
-                  id="tienda-regla-tag"
-                  placeholder="Etiqueta (Ej. Munición)"
-                  style="flex: 2"
-                />
-                <input
-                  type="number"
-                  id="tienda-regla-pct"
-                  placeholder="% Compra"
-                  style="flex: 1"
-                />
-                <button
-                  id="btn-add-regla"
-                  class="btn-cyber"
-                  style="
-                    padding: 10px;
-                    font-size: 14px;
-                    background: #222;
-                    color: #c49a00;
-                    border: 1px solid #c49a00;
-                  "
-                >
-                  Añadir Regla
-                </button>
-              </div>
-              <div
-                id="tienda-reglas-container"
-                style="display: flex; flex-direction: column; gap: 5px"
-              ></div>
+                <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;">
+                  <div>
+                    <strong style="color:#fff;">Identidad y servicios</strong>
+                    <div style="font-size:11px;color:#777;margin-top:2px;">
+                      Convierte una tienda automática en un lugar con encargado, servicios y beneficios para clientes.
+                    </div>
+                  </div>
+                  <label style="color:#0df;font-size:12px;white-space:nowrap;cursor:pointer;">
+                    <input type="checkbox" id="tienda-npc-activa" />
+                    Administrada por NPC
+                  </label>
+                </div>
 
-              <input
-                type="number"
-                id="tienda-tasa-defecto"
-                placeholder="Tasa por defecto (Para etiquetas no listadas) %"
-                style="margin-top: 10px"
-              />
+                <div id="tienda-npc-opciones" style="display:none;grid-template-columns:1fr 1fr;gap:8px;">
+                  <input type="text" id="tienda-npc-nombre" maxlength="80" placeholder="Nombre del encargado" />
+                  <input type="text" id="tienda-npc-sprite" placeholder="Retrato / sprite (URL)" />
+                  <div style="grid-column:1 / -1;display:grid;grid-template-columns:1fr 110px 110px;gap:8px;">
+                    <input
+                      type="number"
+                      id="tienda-cliente-frecuente-compras"
+                      min="0"
+                      value="10"
+                      placeholder="Compras para cliente frecuente"
+                    />
+                    <input
+                      type="number"
+                      id="tienda-cliente-frecuente-descuento"
+                      min="0"
+                      max="90"
+                      value="5"
+                      placeholder="% frecuente"
+                      title="Descuento para cliente frecuente"
+                    />
+                    <input
+                      type="number"
+                      id="tienda-descuento-confianza"
+                      min="0"
+                      max="90"
+                      value="10"
+                      placeholder="% confianza"
+                      title="Descuento cuando la relación con el encargado llega a Confianza"
+                    />
+                  </div>
+                  <input
+                    type="text"
+                    id="tienda-npc-saludo"
+                    maxlength="160"
+                    placeholder="Saludo al entrar (opcional)"
+                    style="grid-column:1 / -1;"
+                  />
+                </div>
+
+                <input type="text" id="tienda-cadena-nombre" maxlength="80" placeholder="Cadena / franquicia (opcional)" />
+
+                <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;">
+                  <label style="color:#ddd;font-size:12px;cursor:pointer;">
+                    <input type="checkbox" id="tienda-servicio-reparacion" />
+                    Reparación por Durabilidad
+                  </label>
+                  <label style="color:#ddd;font-size:12px;cursor:pointer;">
+                    <input type="checkbox" id="tienda-lealtad-activa" />
+                    Tarjeta de lealtad
+                  </label>
+                </div>
+
+                <div id="tienda-lealtad-opciones" style="display:none;grid-template-columns:1fr 120px 150px;gap:8px;align-items:center;">
+                  <input type="text" id="tienda-lealtad-nombre" maxlength="80" placeholder="Nombre de la tarjeta" />
+                  <input
+                    type="number"
+                    id="tienda-lealtad-compras"
+                    min="1"
+                    max="99"
+                    value="9"
+                    title="Compras o servicios pagados antes de la recompensa"
+                  />
+                  <select id="tienda-lealtad-alcance" title="Qué llena y usa la tarjeta">
+                    <option value="all">Compras y servicios</option>
+                    <option value="items">Sólo productos</option>
+                    <option value="services">Sólo servicios</option>
+                  </select>
+                  <div style="grid-column:1 / -1;font-size:11px;color:#888;">
+                    Al completar los sellos, la siguiente compra elegible es gratis. Ejemplo: 9 pagadas → 10.ª gratis.
+                  </div>
+                </div>
+
+                <div style="border-top:1px solid #2c2c2c;padding-top:10px;display:grid;gap:8px;">
+                  <div>
+                    <strong style="color:#fff;">Promociones</strong>
+                    <div style="font-size:11px;color:#777;margin-top:2px;">
+                      Ofertas visibles para el jugador. Elige productos por nombre; el sistema resuelve stock y precio.
+                    </div>
+                  </div>
+                  <div style="display:grid;grid-template-columns:170px 1fr 105px;gap:8px;">
+                    <select id="tienda-promocion-tipo">
+                      <option value="percent_discount">Descuento</option>
+                      <option value="buy_x_get_y">Compra X y llévate Y</option>
+                      <option value="gift_after_purchase">Regalo con compra</option>
+                    </select>
+                    <select id="tienda-promocion-producto">
+                      <option value="">Toda la tienda</option>
+                    </select>
+                    <input
+                      id="tienda-promocion-descuento"
+                      type="number"
+                      min="1"
+                      max="90"
+                      value="10"
+                      placeholder="%"
+                      title="Porcentaje de descuento"
+                    />
+                  </div>
+                  <div id="tienda-promocion-recompensa" style="display:none;grid-template-columns:120px 1fr;gap:8px;">
+                    <input
+                      id="tienda-promocion-cantidad"
+                      type="number"
+                      min="1"
+                      max="99"
+                      value="1"
+                      title="Compras necesarias"
+                    />
+                    <select id="tienda-promocion-regalo">
+                      <option value="">Producto de regalo...</option>
+                    </select>
+                  </div>
+                  <button id="btn-agregar-promocion-tienda" type="button" class="btn-cyber" style="justify-self:start;">
+                    Añadir promoción
+                  </button>
+                  <div id="tienda-promociones-list" style="display:grid;gap:6px;"></div>
+                </div>
+              </div>
+
+              <div
+                style="
+                  margin: 10px 0;
+                  padding: 10px;
+                  border: 1px solid #444;
+                  background: #0b0b0b;
+                  color: #aaa;
+                  font-size: 12px;
+                  line-height: 1.4;
+                "
+              >
+                <strong style="color:#0df;">REVENTA CANÓNICA:</strong>
+                la tienda paga al jugador el 80% del valor intrínseco del ítem.
+                No usa reglas por etiqueta, Tier ni modificador local.
+              </div>
 
               <div style="display: flex; gap: 10px; margin-top: auto">
                 <button
@@ -2322,6 +2459,41 @@ window.processEntitiesData = function(entities) {
                 >
                   Cancelar
                 </button>
+              </div>
+            </div>
+
+            <div class="form-cyber" id="dm-market-event-panel">
+              <h4 style="color:#fff;">Alteración del Mercado</h4>
+              <div style="font-size:11px;color:#888;margin-bottom:8px;line-height:1.4;">
+                Describe una causa dentro del mundo: escasez, sobreoferta, bloqueo, huelga, subsidio, cacería, crisis, etc.
+                El jugador sólo verá el boletín y sus consecuencias. Negativo = baja de precios. Positivo = aumento. La reventa permanece al 80%.
+              </div>
+              <input
+                type="text"
+                id="market-event-title"
+                maxlength="80"
+                value="Variación de precios"
+                placeholder="Titular dentro del mundo"
+              />
+              <textarea
+                id="market-event-message"
+                maxlength="220"
+                rows="3"
+                placeholder="Ej. Un bloqueo de rutas redujo la entrada de medicamentos y dejó excedentes de alimentos en varios sectores."
+                style="width:100%;box-sizing:border-box;resize:vertical;background:#090909;color:#fff;border:1px solid #444;padding:8px;"
+              ></textarea>
+
+              <div id="market-event-modifiers" style="display:grid;grid-template-columns:1fr 86px;gap:6px 10px;align-items:center;margin-top:10px;">
+                <!-- Se genera desde LuminousShopRuntime.SHOP_TYPES -->
+              </div>
+
+              <div id="market-event-status" style="margin-top:10px;padding:8px;border:1px solid #333;background:#080808;color:#777;font-size:12px;">
+                Sin alteración de mercado activa.
+              </div>
+
+              <div style="display:flex;gap:8px;margin-top:10px;">
+                <button id="btn-publicar-market-event" class="btn-cyber btn-green" style="flex:1;">Publicar Cambio</button>
+                <button id="btn-finalizar-market-event" class="btn-cyber" style="flex:1;background:#341515;color:#ff8b8b;border-color:#662626;">Restablecer Mercado</button>
               </div>
             </div>
           </div>
@@ -3865,6 +4037,7 @@ window.processEntitiesData = function(entities) {
     <script src="js/item-icon-registry.js"></script>
     <script src="js/item-runtime-engine.js"></script>
     <script src="js/item-inventory-runtime.js"></script>
+    <script src="js/shop-runtime.js?v=7-shop-taxonomy"></script>
     <!-- Canonical item definitions used by the Director catalog. -->
     <!-- Prerequisites must load before component catalogs in browser mode. -->
     <script src="js/item-armor-material-profile.js"></script>
@@ -6491,6 +6664,7 @@ window.processEntitiesData = function(entities) {
               window.dbItemsCache = localItems;
               dbItemsCache = localItems;
               window.dbRecipesCache = window.dbRecipesCache || {};
+              refreshPromotionProductOptions();
               const summary = document.getElementById("dm-content-registry-counts");
               if (summary) {
                 summary.textContent = Object.keys(localItems).length + " Items locales · carga directa · Firebase no bloquea";
@@ -6529,6 +6703,7 @@ window.processEntitiesData = function(entities) {
             window.dbItemsCache = snapshot.items || {};
             window.dbRecipesCache = snapshot.recipes || {};
             dbItemsCache = window.dbItemsCache;
+            refreshPromotionProductOptions();
 
             const summary = document.getElementById("dm-content-registry-counts");
             if (summary) {
@@ -6635,62 +6810,431 @@ window.processEntitiesData = function(entities) {
           });
         });
 
-        // --- LÓGICA DE REGLAS DE TIENDA ---
-        let currentTiendaReglas = {};
+        // --- LÓGICA DE TIENDAS ---
+        // La reventa ya no usa reglas por etiqueta: Shop Runtime fija el pago al 80%.
         let editModeTiendaKey = null;
-        const tiendaReglasContainer = document.getElementById(
-          "tienda-reglas-container",
-        );
-        const tiendaReglaTagInput = document.getElementById("tienda-regla-tag");
-        const tiendaReglaPctInput = document.getElementById("tienda-regla-pct");
 
-        function renderTiendaReglas() {
-          tiendaReglasContainer.innerHTML = "";
-          for (const [tag, pct] of Object.entries(currentTiendaReglas)) {
-            const ruleItem = document.createElement("div");
-            ruleItem.className = "rule-item";
-            ruleItem.innerHTML = `
-                <span>[${tag}] - Paga al ${pct}%</span>
-                <button class="btn-remove-rule" title="Eliminar regla">&times;</button>
-            `;
-            ruleItem.querySelector(".btn-remove-rule").onclick = () => {
-              delete currentTiendaReglas[tag];
-              renderTiendaReglas();
-            };
-            tiendaReglasContainer.appendChild(ruleItem);
+        const marketEventRef = db.ref("campaña/economia/market_event");
+        let marketEventInputs = [];
+        let shopPromotionsDraft = [];
+
+        function syncShopTypeControls() {
+          const types = Object.values(window.LuminousShopRuntime?.SHOP_TYPES || {});
+          const typeSelect = document.getElementById("tienda-tipo");
+          const modifiersRoot = document.getElementById("market-event-modifiers");
+
+          if (typeSelect && types.length) {
+            const previous = typeSelect.value || "general";
+            typeSelect.innerHTML = "";
+            types.forEach((meta) => {
+              const option = document.createElement("option");
+              option.value = meta.id;
+              option.textContent = meta.label;
+              typeSelect.appendChild(option);
+            });
+            typeSelect.value = types.some((meta) => meta.id === previous) ? previous : "general";
+          }
+
+          if (modifiersRoot && types.length) {
+            modifiersRoot.innerHTML = "";
+            types.forEach((meta) => {
+              const label = document.createElement("label");
+              label.textContent = meta.label;
+
+              const input = document.createElement("input");
+              input.className = "market-event-mod";
+              input.dataset.shopType = meta.id;
+              input.type = "number";
+              input.min = "-90";
+              input.max = "300";
+              input.step = "1";
+              input.value = "0";
+
+              modifiersRoot.append(label, input);
+            });
+          }
+
+          marketEventInputs = Array.from(document.querySelectorAll(".market-event-mod"));
+        }
+
+        function slugShopCommerce(value) {
+          return String(value || "")
+            .trim()
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/[^a-z0-9]+/g, "_")
+            .replace(/^_+|_+$/g, "");
+        }
+
+        function promotionCompatibleItems() {
+          const runtime = window.LuminousShopRuntime;
+          const catalog = window.dbItemsCache || {};
+          const shop = {
+            shop_type: document.getElementById("tienda-tipo")?.value || "general",
+            shop_tier:
+              parseInt(document.getElementById("tienda-tier")?.value, 10) || 1,
+          };
+
+          return Object.entries(catalog)
+            .map(([id, raw]) => {
+              const seed = { ...raw, id: raw.id || id };
+              const item = runtime?.materializeReferenceItem
+                ? runtime.materializeReferenceItem(seed)
+                : seed;
+              return { id, item };
+            })
+            .filter(({ item }) => {
+              if (!item) return false;
+              const availability = runtime?.itemAvailability?.(item, shop);
+              return availability ? availability.available === true : true;
+            })
+            .sort((a, b) =>
+              String(a.item.nombre || a.item.name || a.id).localeCompare(
+                String(b.item.nombre || b.item.name || b.id),
+                "es",
+              ),
+            );
+        }
+
+        function refreshPromotionProductOptions() {
+          const target = document.getElementById("tienda-promocion-producto");
+          const reward = document.getElementById("tienda-promocion-regalo");
+          if (!target || !reward) return;
+
+          const previousTarget = target.value;
+          const previousReward = reward.value;
+          const items = promotionCompatibleItems();
+
+          target.innerHTML = '<option value="">Toda la tienda</option>';
+          reward.innerHTML = '<option value="">Producto de regalo...</option>';
+
+          for (const { id, item } of items) {
+            const label = String(item.nombre || item.name || id);
+            const targetOption = document.createElement("option");
+            targetOption.value = id;
+            targetOption.textContent = label;
+            target.appendChild(targetOption);
+
+            const rewardOption = document.createElement("option");
+            rewardOption.value = id;
+            rewardOption.textContent = label;
+            reward.appendChild(rewardOption);
+          }
+
+          if ([...target.options].some((option) => option.value === previousTarget)) {
+            target.value = previousTarget;
+          }
+          if ([...reward.options].some((option) => option.value === previousReward)) {
+            reward.value = previousReward;
           }
         }
 
-        document
-          .getElementById("btn-add-regla")
-          .addEventListener("click", () => {
-            const tag = tiendaReglaTagInput.value.trim();
-            const pct = parseInt(tiendaReglaPctInput.value);
+        function syncPromotionBuilder() {
+          const type =
+            document.getElementById("tienda-promocion-tipo")?.value ||
+            "percent_discount";
+          const discount = document.getElementById("tienda-promocion-descuento");
+          const rewardRow = document.getElementById("tienda-promocion-recompensa");
+          const quantity = document.getElementById("tienda-promocion-cantidad");
+          const target = document.getElementById("tienda-promocion-producto");
 
-            if (tag && !isNaN(pct)) {
-              currentTiendaReglas[tag] = pct;
-              renderTiendaReglas();
-              tiendaReglaTagInput.value = "";
-              tiendaReglaPctInput.value = "";
-            } else {
-              alert("Ingresa una etiqueta y un porcentaje de compra válido.");
-            }
+          if (discount) {
+            discount.style.display =
+              type === "percent_discount" ? "block" : "none";
+          }
+          if (rewardRow) {
+            rewardRow.style.display =
+              type === "percent_discount" ? "none" : "grid";
+          }
+          if (quantity) {
+            quantity.style.display = type === "buy_x_get_y" ? "block" : "none";
+            if (type !== "buy_x_get_y") quantity.value = "1";
+          }
+          if (target?.options?.length) {
+            target.options[0].textContent =
+              type === "percent_discount"
+                ? "Toda la tienda"
+                : "Producto que activa la oferta...";
+          }
+        }
+
+        function promotionDraftLabel(promotion = {}) {
+          if (promotion.label) return promotion.label;
+          if (promotion.type === "percent_discount") {
+            return String(promotion.discount_percent || 0) + "% de descuento";
+          }
+          if (promotion.type === "buy_x_get_y") {
+            return "Compra " + String(promotion.buy_quantity || 1) + " y recibe un producto";
+          }
+          return "Regalo con compra";
+        }
+
+        function renderShopPromotionsDraft() {
+          const root = document.getElementById("tienda-promociones-list");
+          if (!root) return;
+          root.innerHTML = "";
+
+          if (!shopPromotionsDraft.length) {
+            const empty = document.createElement("div");
+            empty.style.cssText = "font-size:11px;color:#666;";
+            empty.textContent = "Sin promociones configuradas.";
+            root.appendChild(empty);
+            return;
+          }
+
+          shopPromotionsDraft.forEach((promotion, index) => {
+            const row = document.createElement("div");
+            row.style.cssText =
+              "display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 8px;border:1px solid #333;background:#111;";
+            const text = document.createElement("span");
+            text.style.cssText = "color:#ddd;font-size:12px;";
+            text.textContent = promotionDraftLabel(promotion);
+
+            const remove = document.createElement("button");
+            remove.type = "button";
+            remove.className = "btn-cyber";
+            remove.style.cssText = "padding:3px 7px;font-size:11px;";
+            remove.textContent = "Quitar";
+            remove.addEventListener("click", () => {
+              shopPromotionsDraft.splice(index, 1);
+              renderShopPromotionsDraft();
+            });
+
+            row.append(text, remove);
+            root.appendChild(row);
           });
+        }
+
+        function selectedPromotionProduct(selectId) {
+          const select = document.getElementById(selectId);
+          if (!select || !select.value) return null;
+          const option = select.options[select.selectedIndex];
+          return {
+            id: select.value,
+            name: option?.textContent?.trim() || "Producto",
+          };
+        }
+
+        function syncShopCommerceControls(options = {}) {
+          const npcEnabled = !!document.getElementById("tienda-npc-activa")?.checked;
+          const npcPanel = document.getElementById("tienda-npc-opciones");
+          if (npcPanel) npcPanel.style.display = npcEnabled ? "grid" : "none";
+
+          const loyaltyEnabled = !!document.getElementById("tienda-lealtad-activa")?.checked;
+          const loyaltyPanel = document.getElementById("tienda-lealtad-opciones");
+          if (loyaltyPanel) loyaltyPanel.style.display = loyaltyEnabled ? "grid" : "none";
+
+          if (options.useTypeDefault === true) {
+            const type = document.getElementById("tienda-tipo")?.value || "general";
+            const repair = document.getElementById("tienda-servicio-reparacion");
+            if (repair && window.LuminousShopRuntime?.serviceEnabled) {
+              repair.checked = window.LuminousShopRuntime.serviceEnabled(
+                { shop_type: type },
+                "repair",
+              );
+            }
+          }
+          refreshPromotionProductOptions();
+          syncPromotionBuilder();
+        }
+
+        document.getElementById("tienda-npc-activa")?.addEventListener("change", function () {
+          syncShopCommerceControls();
+        });
+        document.getElementById("tienda-lealtad-activa")?.addEventListener("change", function () {
+          syncShopCommerceControls();
+        });
+        document.getElementById("tienda-tipo")?.addEventListener("change", function () {
+          syncShopCommerceControls({ useTypeDefault: true });
+        });
+        document.getElementById("tienda-tier")?.addEventListener("change", function () {
+          refreshPromotionProductOptions();
+        });
+        document.getElementById("tienda-promocion-tipo")?.addEventListener("change", function () {
+          syncPromotionBuilder();
+        });
+        document.getElementById("btn-agregar-promocion-tienda")?.addEventListener("click", function () {
+          const type =
+            document.getElementById("tienda-promocion-tipo")?.value ||
+            "percent_discount";
+          const target = selectedPromotionProduct("tienda-promocion-producto");
+          const reward = selectedPromotionProduct("tienda-promocion-regalo");
+          const discount = Math.max(
+            1,
+            Math.min(
+              90,
+              parseFloat(document.getElementById("tienda-promocion-descuento")?.value) || 10,
+            ),
+          );
+          const buyQuantity = Math.max(
+            1,
+            parseInt(document.getElementById("tienda-promocion-cantidad")?.value, 10) || 1,
+          );
+
+          if (type !== "percent_discount" && !target) {
+            alert("Selecciona el producto que activa la promoción.");
+            return;
+          }
+          if (type !== "percent_discount" && !reward) {
+            alert("Selecciona el producto que recibe el jugador.");
+            return;
+          }
+
+          const promotion = {
+            id: "promo_" + Date.now() + "_" + shopPromotionsDraft.length,
+            type,
+            active: true,
+            scope: target ? "item" : "all",
+            item_ids: target ? [target.id] : [],
+            stackable: false,
+          };
+
+          if (type === "percent_discount") {
+            promotion.discount_percent = discount;
+            promotion.label = target
+              ? discount + "% menos en " + target.name
+              : discount + "% menos en toda la tienda";
+          } else if (type === "buy_x_get_y") {
+            promotion.buy_quantity = buyQuantity;
+            promotion.reward_item_id = reward.id;
+            promotion.reward_quantity = 1;
+            promotion.label =
+              "Compra " + buyQuantity + " × " + target.name + " y recibe " + reward.name;
+          } else {
+            promotion.reward_item_id = reward.id;
+            promotion.reward_quantity = 1;
+            promotion.label =
+              "Compra " + target.name + " y recibe " + reward.name;
+          }
+
+          shopPromotionsDraft.push(promotion);
+          renderShopPromotionsDraft();
+        });
+
+        syncShopTypeControls();
+        syncShopCommerceControls({ useTypeDefault: true });
+
+        function collectMarketModifiers() {
+          const modifiers = {};
+          marketEventInputs.forEach((input) => {
+            const value = Math.max(-90, Math.min(300, Math.round(Number(input.value) || 0)));
+            input.value = value;
+            if (value !== 0) modifiers[input.dataset.shopType] = value;
+          });
+          return modifiers;
+        }
+
+        function renderMarketEventStatus(eventData) {
+          const status = document.getElementById("market-event-status");
+          if (!status) return;
+          status.innerHTML = "";
+
+          if (!eventData || eventData.active === false) {
+            status.textContent = "Sin alteración de mercado activa.";
+            status.style.color = "#777";
+            return;
+          }
+
+          const title = document.createElement("div");
+          title.textContent = eventData.title || "Variación de precios";
+          title.style.cssText = "color:#fff;font-weight:bold;margin-bottom:6px;";
+          status.appendChild(title);
+
+          const modifiers = eventData.modifiers || {};
+          for (const [shopTypeId, percentRaw] of Object.entries(modifiers)) {
+            const percent = Number(percentRaw);
+            if (!Number.isFinite(percent) || percent === 0) continue;
+            const row = document.createElement("div");
+            const label = window.LuminousShopRuntime?.SHOP_TYPES?.[shopTypeId]?.label || shopTypeId;
+            row.textContent = label + " " + (percent > 0 ? "+" : "") + percent + "%";
+            row.style.color = percent < 0 ? "#59e875" : "#ff5c67";
+            status.appendChild(row);
+          }
+          status.style.color = "#fff";
+        }
+
+        marketEventRef.on("value", (snapshot) => {
+          const eventData = snapshot.val();
+          window.LuminousShopRuntime?.setMarketEvent?.(eventData);
+
+          if (eventData?.active !== false && eventData) {
+            const titleInput = document.getElementById("market-event-title");
+            const messageInput = document.getElementById("market-event-message");
+            if (titleInput) titleInput.value = eventData.title || "Variación de precios";
+            if (messageInput) messageInput.value = eventData.message || "";
+            marketEventInputs.forEach((input) => {
+              input.value = Number(eventData.modifiers?.[input.dataset.shopType]) || 0;
+            });
+          }
+          renderMarketEventStatus(eventData);
+        });
+
+        document.getElementById("btn-publicar-market-event")?.addEventListener("click", async () => {
+          const modifiers = collectMarketModifiers();
+          if (!Object.keys(modifiers).length) {
+            alert("Define al menos un cambio de precio distinto de 0%.");
+            return;
+          }
+
+          const now = Date.now();
+          const payload = {
+            active: true,
+            id: "market_" + now,
+            revision: now,
+            title: document.getElementById("market-event-title")?.value.trim() || "Variación de precios",
+            message: document.getElementById("market-event-message")?.value.trim() || "",
+            modifiers,
+            updatedAt: firebase.database.ServerValue.TIMESTAMP,
+          };
+
+          try {
+            await marketEventRef.set(payload);
+          } catch (error) {
+            alert("No se pudo publicar la alteración de mercado: " + error);
+          }
+        });
+
+        document.getElementById("btn-finalizar-market-event")?.addEventListener("click", async () => {
+          try {
+            await marketEventRef.update({
+              active: false,
+              revision: Date.now(),
+              endedAt: firebase.database.ServerValue.TIMESTAMP,
+            });
+          } catch (error) {
+            alert("No se pudo restablecer el mercado: " + error);
+          }
+        });
 
         function resetTiendaForm() {
           document.getElementById("tienda-nombre").value = "";
           document.getElementById("tienda-icono").value = "";
           document.getElementById("tienda-icono-fisico").value = "";
+          document.getElementById("tienda-tipo").value = "general";
+          document.getElementById("tienda-tier").value = "1";
           document.getElementById("tienda-fisica-activa").checked = false;
           document.getElementById("tienda-dias-entrega").value = "";
           document
             .querySelectorAll(".tienda-jugador-cb")
             .forEach((cb) => (cb.checked = false));
           document.getElementById("tienda-restock-dia").value = "Lunes";
-          document.getElementById("tienda-mod-venta").value = "";
-          document.getElementById("tienda-tasa-defecto").value = "";
-          currentTiendaReglas = {};
-          renderTiendaReglas();
+          document.getElementById("tienda-mod-venta").value = "100";
+          document.getElementById("tienda-npc-activa").checked = false;
+          document.getElementById("tienda-npc-nombre").value = "";
+          document.getElementById("tienda-npc-sprite").value = "";
+          document.getElementById("tienda-npc-saludo").value = "";
+          document.getElementById("tienda-cadena-nombre").value = "";
+          document.getElementById("tienda-cliente-frecuente-compras").value = "10";
+          document.getElementById("tienda-cliente-frecuente-descuento").value = "5";
+          document.getElementById("tienda-descuento-confianza").value = "10";
+          document.getElementById("tienda-lealtad-activa").checked = false;
+          document.getElementById("tienda-lealtad-nombre").value = "";
+          document.getElementById("tienda-lealtad-compras").value = "9";
+          document.getElementById("tienda-lealtad-alcance").value = "all";
+          shopPromotionsDraft = [];
+          renderShopPromotionsDraft();
+          syncShopCommerceControls({ useTypeDefault: true });
           document.getElementById("btn-crear-tienda").innerText =
             "Crear Tienda";
           document.getElementById("btn-cancelar-tienda").style.display = "none";
@@ -6712,6 +7256,8 @@ window.processEntitiesData = function(entities) {
             let iconoFisico = document
               .getElementById("tienda-icono-fisico")
               .value.trim();
+            const shopType = document.getElementById("tienda-tipo").value || "general";
+            const shopTier = parseInt(document.getElementById("tienda-tier").value) || 1;
             const fisicaActiva = document.getElementById(
               "tienda-fisica-activa",
             ).checked;
@@ -6723,16 +7269,48 @@ window.processEntitiesData = function(entities) {
             const modVenta =
               parseInt(document.getElementById("tienda-mod-venta").value) ||
               100;
-            const tasaDefecto = parseInt(
-              document.getElementById("tienda-tasa-defecto").value,
+            const npcManaged =
+              document.getElementById("tienda-npc-activa").checked;
+            const merchantName =
+              document.getElementById("tienda-npc-nombre").value.trim();
+            const merchantSprite =
+              document.getElementById("tienda-npc-sprite").value.trim();
+            const merchantGreeting =
+              document.getElementById("tienda-npc-saludo").value.trim();
+            const chainName =
+              document.getElementById("tienda-cadena-nombre").value.trim();
+            const repairEnabled =
+              document.getElementById("tienda-servicio-reparacion").checked;
+            const loyaltyEnabled =
+              document.getElementById("tienda-lealtad-activa").checked;
+            const loyaltyName =
+              document.getElementById("tienda-lealtad-nombre").value.trim();
+            const loyaltyPaidPurchases = Math.max(
+              1,
+              parseInt(document.getElementById("tienda-lealtad-compras").value) || 9,
             );
-
+            const loyaltyScope =
+              document.getElementById("tienda-lealtad-alcance").value || "all";
+            const frequentCustomerMinPurchases = Math.max(
+              0,
+              parseInt(document.getElementById("tienda-cliente-frecuente-compras").value) || 0,
+            );
+            const frequentCustomerDiscountPercent = Math.max(
+              0,
+              Math.min(
+                90,
+                parseFloat(document.getElementById("tienda-cliente-frecuente-descuento").value) || 0,
+              ),
+            );
+            const trustedDiscountPercent = Math.max(
+              0,
+              Math.min(
+                90,
+                parseFloat(document.getElementById("tienda-descuento-confianza").value) || 0,
+              ),
+            );
             if (!nombre) {
               alert("El nombre de la tienda es requerido.");
-              return;
-            }
-            if (isNaN(tasaDefecto)) {
-              alert("La tasa por defecto es requerida.");
               return;
             }
 
@@ -6747,44 +7325,151 @@ window.processEntitiesData = function(entities) {
               }
             });
 
+            if (Object.keys(jugadoresPresentes).length === 0) {
+              alert("Selecciona al menos un jugador para calcular acceso y stock compartido.");
+              return;
+            }
+
+            const authorizedUids = {};
+            for (const playerKey of Object.keys(jugadoresPresentes)) {
+              const uid = window.jugadoresData?.[playerKey]?.uid;
+              if (uid) authorizedUids[uid] = true;
+            }
+
             const isEditing = editModeTiendaKey !== null;
             // In edit mode, if name didn't change enough to alter ID, we use the original.
             const idTienda = isEditing
               ? editModeTiendaKey
               : nombre.toLowerCase().replace(/[^a-z0-9]/g, "_");
 
+            const chainId = slugShopCommerce(chainName);
+            const merchantId = slugShopCommerce(merchantName);
+            const loyaltyProgramId = slugShopCommerce(
+              (chainName || nombre) + "_lealtad",
+            );
+
+            const merchantNpc = npcManaged
+              ? {
+                  enabled: true,
+                  id: merchantId,
+                  name: merchantName || "Encargado",
+                  sprite: merchantSprite,
+                  greeting: merchantGreeting,
+                  frequent_customer_min_purchases: frequentCustomerMinPurchases,
+                  frequent_customer_discount_percent: frequentCustomerDiscountPercent,
+                  relationship_discounts: {
+                    trusted: trustedDiscountPercent,
+                  },
+                }
+              : null;
+
+            const loyaltyProgram = loyaltyEnabled
+              ? {
+                  enabled: true,
+                  id: loyaltyProgramId,
+                  name:
+                    loyaltyName ||
+                    (chainName ? "Tarjeta " + chainName : "Tarjeta " + nombre),
+                  paid_purchases_required: loyaltyPaidPurchases,
+                  reward_type: "free_next",
+                  scope: loyaltyScope,
+                  service_ids:
+                    loyaltyScope === "services" ? ["repair"] : [],
+                }
+              : null;
+
             const tiendaData = {
               nombre: nombre,
               icono: icono,
               icono_fisico: iconoFisico,
+              shop_type: shopType,
+              shop_tier: shopTier,
               fisica_activa: fisicaActiva,
               dias_entrega: diasEntrega,
               jugadores_presentes: jugadoresPresentes,
+              authorized_uids: authorizedUids,
               dia_restock: diaRestock,
               mod_venta: modVenta,
-              tasas_por_etiqueta: currentTiendaReglas,
-              tasa_defecto: tasaDefecto,
+              services: {
+                repair: { enabled: repairEnabled },
+              },
+              merchant_npc: merchantNpc,
+              chain: chainName
+                ? {
+                    id: chainId,
+                    name: chainName,
+                    loyalty_program: loyaltyProgram,
+                    promotions: shopPromotionsDraft.map((promotion) => ({ ...promotion })),
+                  }
+                : null,
+              loyalty_program: chainName ? null : loyaltyProgram,
+              promotions: chainName
+                ? []
+                : shopPromotionsDraft.map((promotion) => ({ ...promotion })),
             };
 
             if (isEditing) {
-              db.ref(`campaña/tiendas/${editModeTiendaKey}`)
-                .update(tiendaData)
+              const shopRef = db.ref(`campaña/tiendas/${editModeTiendaKey}`);
+              shopRef
+                .once("value")
+                .then((snapshot) => {
+                  const current = snapshot.val() || {};
+                  const runtime = window.LuminousShopRuntime;
+                  const currentItems = current.items || {};
+                  const items = runtime?.generateCatalog
+                    ? runtime.generateCatalog(
+                        dbItemsCache,
+                        tiendaData,
+                        currentItems,
+                        { preserveSold: true },
+                      )
+                    : currentItems;
+                  return shopRef.update({ ...tiendaData, items });
+                })
                 .then(() => {
-                  alert("Tienda actualizada exitosamente.");
+                  alert("Tienda actualizada: precios y stock recalculados.");
                   resetTiendaForm();
                 })
                 .catch((e) => alert("Error actualizando tienda: " + e));
             } else {
-              tiendaData.items = {}; // Empty initially
+              const runtime = window.LuminousShopRuntime;
+              tiendaData.items = runtime?.generateCatalog
+                ? runtime.generateCatalog(dbItemsCache, tiendaData, {}, {
+                    preserveSold: false,
+                  })
+                : {};
+
               db.ref(`campaña/tiendas/${idTienda}`)
                 .set(tiendaData)
                 .then(() => {
-                  alert("Tienda creada exitosamente.");
+                  const itemCount = Object.keys(tiendaData.items || {}).length;
+                  alert(
+                    `Tienda creada exitosamente con ${itemCount} ítems automáticos según Tipo y Tier.`,
+                  );
                   resetTiendaForm();
                 })
                 .catch((e) => alert("Error creando tienda: " + e));
             }
           });
+
+        function authorizedUidsForShop(shop = {}) {
+          const assigned = shop.jugadores_presentes || {};
+          const expected = {};
+          for (const [playerKey, enabled] of Object.entries(assigned)) {
+            if (enabled !== true) continue;
+            const uid = window.jugadoresData?.[playerKey]?.uid;
+            if (!uid) return null;
+            expected[uid] = true;
+          }
+          return expected;
+        }
+
+        function sameBooleanMap(left = {}, right = {}) {
+          const leftKeys = Object.keys(left).filter((key) => left[key] === true).sort();
+          const rightKeys = Object.keys(right).filter((key) => right[key] === true).sort();
+          return leftKeys.length === rightKeys.length &&
+            leftKeys.every((key, index) => key === rightKeys[index]);
+        }
 
         // RENDERIZAR TIENDAS EN GRID
         const gridTiendas = document.getElementById("grid-tiendas");
@@ -6795,6 +7480,15 @@ window.processEntitiesData = function(entities) {
               for (let tId in tiendas) {
                   if (tiendas[tId].items) {
                       tiendas[tId].items = window.processItemsData(tiendas[tId].items);
+                  }
+
+                  const expectedAuthorizedUids = authorizedUidsForShop(tiendas[tId]);
+                  if (
+                    expectedAuthorizedUids &&
+                    !sameBooleanMap(tiendas[tId].authorized_uids || {}, expectedAuthorizedUids)
+                  ) {
+                    db.ref(`campaña/tiendas/${tId}/authorized_uids`).set(expectedAuthorizedUids);
+                    tiendas[tId].authorized_uids = expectedAuthorizedUids;
                   }
               }
           }
@@ -6814,7 +7508,30 @@ window.processEntitiesData = function(entities) {
                     <button class="btn-edit-store" data-id="${idTienda}" style="position: absolute; top: 5px; right: 30px; background: transparent; border: none; cursor: pointer; font-size: 16px;" title="Editar Info">✏️</button>
                     <img src="${imgUrl}" alt="${data.nombre}">
                     <h5 style="color:#c49a00;">${data.nombre}</h5>
-                    <span>Restock: ${data.dia_restock}</span>
+                    <span>${window.LuminousShopRuntime?.shopType?.(data)?.label || data.shop_type || "General"} · TIER ${window.LuminousShopRuntime?.tierRoman?.(data.shop_tier || 1) || data.shop_tier || "I"}</span>
+                    <span>Ítems: ${Object.keys(data.items || {}).length} · Restock: ${data.dia_restock}</span>
+                    ${
+                      window.LuminousShopRuntime?.merchantNpc?.(data)?.name
+                        ? '<span style="color:#ddd;">Encargado: ' + window.LuminousShopRuntime.merchantNpc(data).name + '</span>'
+                        : ""
+                    }
+                    ${
+                      window.LuminousShopRuntime?.shopChain?.(data)?.name
+                        ? '<span style="color:#888;">Cadena: ' + window.LuminousShopRuntime.shopChain(data).name + '</span>'
+                        : ""
+                    }
+                    ${
+                      window.LuminousShopRuntime?.servicesForShop?.(data)?.length
+                        ? '<span style="color:#7fd;">Servicios: ' + window.LuminousShopRuntime.servicesForShop(data)
+                            .map((serviceId) => window.LuminousShopRuntime.SERVICE_TYPES?.[serviceId]?.label || serviceId)
+                            .join(" · ") + '</span>'
+                        : ""
+                    }
+                    ${
+                      window.LuminousShopRuntime?.loyaltyProgram?.(data)
+                        ? '<span style="color:#d6b75c;">' + window.LuminousShopRuntime.loyaltyProgram(data).name + ": " + window.LuminousShopRuntime.loyaltyProgram(data).paidPurchasesRequired + " pagadas → siguiente gratis</span>"
+                        : ""
+                    }
                     <label class="switch" style="margin-top: 5px;" title="Activar / Desactivar Tienda">
                         <input type="checkbox" class="toggle-activa-store" data-id="${idTienda}" ${data.activa ? "checked" : ""}>
                         <span class="slider"></span>
@@ -6832,6 +7549,10 @@ window.processEntitiesData = function(entities) {
                   data.icono || "";
                 document.getElementById("tienda-icono-fisico").value =
                   data.icono_fisico || "";
+                document.getElementById("tienda-tipo").value =
+                  data.shop_type || "general";
+                document.getElementById("tienda-tier").value =
+                  data.shop_tier || 1;
                 document.getElementById("tienda-fisica-activa").checked =
                   data.fisica_activa || false;
                 document.getElementById("tienda-dias-entrega").value =
@@ -6847,13 +7568,39 @@ window.processEntitiesData = function(entities) {
                 document.getElementById("tienda-restock-dia").value =
                   data.dia_restock || "Lunes";
                 document.getElementById("tienda-mod-venta").value =
-                  data.mod_venta !== undefined ? data.mod_venta : "";
-                document.getElementById("tienda-tasa-defecto").value =
-                  data.tasa_defecto !== undefined ? data.tasa_defecto : "";
-
-                currentTiendaReglas = data.tasas_por_etiqueta || {};
-                renderTiendaReglas();
-
+                  data.mod_venta !== undefined ? data.mod_venta : 100;
+                const merchant = window.LuminousShopRuntime?.merchantNpc?.(data);
+                const chain = window.LuminousShopRuntime?.shopChain?.(data);
+                const loyalty = window.LuminousShopRuntime?.loyaltyProgram?.(data);
+                document.getElementById("tienda-npc-activa").checked = !!merchant;
+                document.getElementById("tienda-npc-nombre").value =
+                  merchant?.name || "";
+                document.getElementById("tienda-npc-sprite").value =
+                  merchant?.sprite || "";
+                document.getElementById("tienda-npc-saludo").value =
+                  merchant?.greeting || "";
+                document.getElementById("tienda-cadena-nombre").value =
+                  chain?.name || "";
+                document.getElementById("tienda-servicio-reparacion").checked =
+                  window.LuminousShopRuntime?.serviceEnabled?.(data, "repair") || false;
+                document.getElementById("tienda-cliente-frecuente-compras").value =
+                  merchant?.frequentCustomerMinPurchases ?? 10;
+                document.getElementById("tienda-cliente-frecuente-descuento").value =
+                  merchant?.frequentCustomerDiscountPercent ?? 5;
+                document.getElementById("tienda-descuento-confianza").value =
+                  merchant?.relationshipDiscounts?.trusted ?? 10;
+                document.getElementById("tienda-lealtad-activa").checked = !!loyalty;
+                document.getElementById("tienda-lealtad-nombre").value =
+                  loyalty?.name || "";
+                document.getElementById("tienda-lealtad-compras").value =
+                  loyalty?.paidPurchasesRequired ?? 9;
+                document.getElementById("tienda-lealtad-alcance").value =
+                  loyalty?.scope || "all";
+                shopPromotionsDraft = JSON.parse(
+                  JSON.stringify(data.chain?.promotions || data.promotions || []),
+                );
+                renderShopPromotionsDraft();
+                syncShopCommerceControls();
                 document.getElementById("btn-crear-tienda").innerText =
                   "Actualizar Tienda";
                 document.getElementById("btn-cancelar-tienda").style.display =
@@ -6944,15 +7691,49 @@ window.processEntitiesData = function(entities) {
           listaItemsModal.innerHTML = "";
           const itemsTienda = dataTienda.items || {};
 
-          // Iterar sobre TODOS los ítems globales para mostrarlos
-          for (const [keyItem, dataGlobal] of Object.entries(dbItemsCache)) {
-            const itemEnTienda = itemsTienda[keyItem]; // Existe en la tienda?
+          const shopRuntime = window.LuminousShopRuntime;
+          let visibleCatalogRows = 0;
 
-            const isChecked = itemEnTienda ? "checked" : "";
-            const precioActual = itemEnTienda
-              ? itemEnTienda.costo
-              : dataGlobal.costo;
-            const stockActual = itemEnTienda ? itemEnTienda.stock_maximo : -1;
+          // El Tipo de Tienda filtra el catálogo; el Tier controla disponibilidad.
+          for (const [keyItem, dataGlobal] of Object.entries(dbItemsCache)) {
+            if (
+              shopRuntime?.itemEligibleForShopType &&
+              !shopRuntime.itemEligibleForShopType(dataGlobal, dataTienda)
+            ) {
+              continue;
+            }
+
+            visibleCatalogRows += 1;
+            const itemEnTienda = itemsTienda[keyItem];
+            const materializedGlobal = shopRuntime?.materializeReferenceItem
+              ? (shopRuntime.materializeReferenceItem(dataGlobal, { purpose: "dm_shop_editor" }) || dataGlobal)
+              : dataGlobal;
+            const itemFuente = itemEnTienda || materializedGlobal;
+            const availability = shopRuntime?.itemAvailability
+              ? shopRuntime.itemAvailability(itemFuente, dataTienda)
+              : { available: true, tierEligible: true, catalogBand: "legacy" };
+            const isChecked = itemEnTienda && availability.available ? "checked" : "";
+            const valueResolution = shopRuntime?.resolveBaseValueAhn
+              ? shopRuntime.resolveBaseValueAhn(itemFuente)
+              : { resolved: Number(itemFuente.costo) > 0, value: Number(itemFuente.costo) || null, field: "costo" };
+            const valorBase = valueResolution.resolved ? valueResolution.value : null;
+            const precioActual = shopRuntime?.purchasePrice
+              ? shopRuntime.purchasePrice(itemFuente, dataTienda)
+              : valorBase;
+            const precioResuelto = Number.isFinite(Number(precioActual)) && Number(precioActual) > 0;
+            const stockActual = shopRuntime?.stockForItem
+              ? shopRuntime.stockForItem(itemFuente, dataTienda)
+              : (itemEnTienda ? itemEnTienda.stock_maximo : -1);
+            const disponiblePorTier = availability.tierEligible !== false;
+            const disponibleEnTienda = availability.available !== false;
+            const bandaCatalogo =
+              availability.catalogBand === "primary"
+                ? "Principal"
+                : availability.catalogBand === "secondary"
+                  ? "Secundario"
+                  : availability.catalogBand === "high_tier_fallback"
+                    ? "Raro"
+                    : "Catálogo";
             const requisitoActual =
               itemEnTienda && itemEnTienda.requisito_aparicion
                 ? itemEnTienda.requisito_aparicion
@@ -6981,10 +7762,15 @@ window.processEntitiesData = function(entities) {
                     <span style="font-size: 0.8em;">${tagsStr}</span>
                 </div>
                 <div class="modal-item-inputs">
-                    <label style="font-size: 12px; color: #aaa;">Precio:</label>
-                    <input type="number" class="input-precio" value="${precioActual}">
-                    <label style="font-size: 12px; color: #aaa;">Stock:</label>
-                    <input type="number" class="input-stock" value="${stockActual}" title="-1 para infinito">
+                    <label style="font-size: 12px; color: #aaa;">Valor Base:</label>
+                    <input type="text" class="input-precio" value="${valorBase ?? "SIN VALOR"}" readonly title="${valueResolution.resolved ? "Fuente: " + valueResolution.field : "No existe un valor económico canónico positivo"}">
+                    <label style="font-size: 12px; color: #aaa;">Compra:</label>
+                    <input type="text" class="input-shop-price" value="${precioResuelto ? precioActual : "NO VENDIBLE"}" readonly title="Precio calculado por Shop Runtime">
+                    <label style="font-size: 12px; color: #aaa;">Stock Auto:</label>
+                    <input type="number" class="input-stock" value="${stockActual}" readonly title="Stock compartido calculado por jugadores, tipo y Tier">
+                    <span style="font-size: 11px; color: ${disponibleEnTienda ? "#7ee787" : "#ff6b6b"};">
+                      ${disponibleEnTienda ? `Disponible · ${bandaCatalogo}` : "Fuera del Tier de la tienda"}
+                    </span>
                     <label style="font-size: 12px; color: #aaa;">Req:</label>
                     <select class="input-requisito" style="padding: 5px; background: #111; color: #0df; border: 1px solid #444; border-radius: 3px;">
                         <option value="Siempre" ${requisitoActual === "Siempre" ? "selected" : ""}>Siempre</option>
@@ -6996,7 +7782,7 @@ window.processEntitiesData = function(entities) {
                     </select>
                 </div>
                 <label class="switch">
-                    <input type="checkbox" class="toggle-item" ${isChecked}>
+                    <input type="checkbox" class="toggle-item" ${isChecked} ${disponiblePorTier && precioResuelto ? "" : "disabled"}>
                     <span class="slider"></span>
                 </label>
             `;
@@ -7004,48 +7790,72 @@ window.processEntitiesData = function(entities) {
             listaItemsModal.appendChild(row);
           }
 
+          if (visibleCatalogRows === 0) {
+            listaItemsModal.innerHTML =
+              '<div style="color:#888; padding:20px; text-align:center;">No hay ítems compatibles con este Tipo de Tienda en el catálogo global.</div>';
+          }
+
           modalEditar.style.display = "flex";
         }
 
         // GUARDAR INVENTARIO
-        btnGuardarInventario.addEventListener("click", () => {
+        btnGuardarInventario.addEventListener("click", async () => {
           if (!tiendaActualEditada) return;
 
-          const updates = {};
-          const filas = listaItemsModal.querySelectorAll(".modal-item-row");
+          try {
+            const shopSnap = await db.ref(`campaña/tiendas/${tiendaActualEditada}`).once("value");
+            const shopData = shopSnap.val() || {};
+            const shopRuntime = window.LuminousShopRuntime;
+            const updates = {};
+            const filas = listaItemsModal.querySelectorAll(".modal-item-row");
 
-          filas.forEach((fila) => {
-            const toggle = fila.querySelector(".toggle-item");
-            if (toggle.checked) {
+            filas.forEach((fila) => {
+              const toggle = fila.querySelector(".toggle-item");
+              if (!toggle.checked) return;
+
               const keyItem = fila.dataset.key;
               const dataGlobal = dbItemsCache[keyItem];
-              const precio =
-                parseInt(fila.querySelector(".input-precio").value) ||
-                dataGlobal.costo;
-              const stockMax =
-                parseInt(fila.querySelector(".input-stock").value) || -1;
+              const materializedGlobal = shopRuntime?.materializeReferenceItem
+                ? (shopRuntime.materializeReferenceItem(dataGlobal, { purpose: "dm_shop_editor" }) || dataGlobal)
+                : dataGlobal;
+              if (
+                shopRuntime?.itemAvailable &&
+                !shopRuntime.itemAvailable(materializedGlobal, shopData)
+              ) {
+                return;
+              }
               const requisito = fila.querySelector(".input-requisito").value;
+              const baseValue = shopRuntime?.baseValueAhn
+                ? shopRuntime.baseValueAhn(materializedGlobal)
+                : (materializedGlobal.costo || 0);
+              if (!(Number.isFinite(Number(baseValue)) && Number(baseValue) > 0)) return;
 
-              // Construir el objeto del ítem para la tienda
-              updates[keyItem] = {
-                ...dataGlobal,
-                costo: precio,
-                stock_maximo: stockMax,
-                stock_actual: stockMax, // Se resetea al máximo al guardar
+              let shopItem = {
+                ...materializedGlobal,
+                costo: baseValue,
+                valorBase: Number(materializedGlobal.valorBase) > 0 ? materializedGlobal.valorBase : baseValue,
                 requisito_aparicion: requisito,
               };
-            }
-          });
 
-          // Sobrescribir el nodo 'items' de la tienda con el nuevo objeto updates
-          db.ref(`campaña/tiendas/${tiendaActualEditada}/items`)
-            .set(updates)
-            .then(() => {
-              alert("Inventario de la tienda actualizado exitosamente.");
-              modalEditar.style.display = "none";
-              tiendaActualEditada = null;
-            })
-            .catch((e) => alert("Error guardando inventario: " + e));
+              // Saving the catalog is an explicit restock. Stock is shared by
+              // all assigned Players and generated from Shop Type + Tier.
+              if (shopRuntime?.applyAutomaticStock) {
+                shopItem = shopRuntime.applyAutomaticStock(shopItem, shopData, {
+                  preserveSold: false,
+                });
+              }
+              updates[keyItem] = shopItem;
+            });
+
+            await db.ref(`campaña/tiendas/${tiendaActualEditada}/items`).set(updates);
+            alert(
+              `Inventario guardado: ${Object.keys(updates).length} ítems compatibles y stock automático restablecido.`,
+            );
+            modalEditar.style.display = "none";
+            tiendaActualEditada = null;
+          } catch (e) {
+            alert("Error guardando inventario: " + e);
+          }
         });
 
         // --- LÓGICA DEL MODAL DE INVENTARIO (DM) ---

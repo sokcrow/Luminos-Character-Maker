@@ -167,6 +167,7 @@
   });
 
   global.LuminousStatusEngine = api;
+  global.LuminousStatusLibrary?.installStatusEngineBridge?.();
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 
   if (typeof require === "function") {

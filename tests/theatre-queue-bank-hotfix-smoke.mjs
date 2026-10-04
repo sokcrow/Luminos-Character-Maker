@@ -34,8 +34,8 @@ assert.ok(
   "Transfer CTA must have a Bank-scoped width constraint",
 );
 assert.ok(
-  playerHtml.includes("hoja_personaje.css?v=20261004-hud-zoom-traits-1") &&
-  playerHtml.includes("hoja_personaje.js?v=20261004-phone-groups-1"),
+  /hoja_personaje\.css\?v=20261004-[a-z0-9-]+/.test(playerHtml) &&
+  /hoja_personaje\.js\?v=20261004-[a-z0-9-]+/.test(playerHtml),
   "Player bank hotfix assets must be cache-busted",
 );
 assert.ok(

@@ -18,6 +18,10 @@ assert.ok(js.includes('playersRef.on("child_changed", inspectSenderSnapshot)'), 
 assert.ok(js.includes("candidateData?.characterName"), "Transfer lookup must support canonical characterName");
 assert.ok(!js.includes("campaña/economia/p2pInbox/${targetPlayerId}"), "New transfers must not depend on p2pInbox write rules");
 assert.ok(html.includes('id="transfer-contact-options"'), "Bank transfer UI must expose saved-contact autocomplete");
-assert.ok(html.includes("hoja_personaje.js?v=20261004-phone-groups-1"), "Phone fix must cache-bust the deployed player sheet");
+assert.match(
+  html,
+  /hoja_personaje\.js\?v=20261004-[a-z0-9-]+/,
+  "Player sheet changes must keep a dated cache-bust",
+);
 
 console.log("Phone directory + P2P live regression checks passed.");

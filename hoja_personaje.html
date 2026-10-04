@@ -10,7 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
 
 
-    <link rel="stylesheet" href="hoja_personaje.css?v=20261004-hud-zoom-traits-1" />
+    <link rel="stylesheet" href="hoja_personaje.css?v=20261004-shop-commerce-1" />
     <link rel="stylesheet" href="css/theatre-dialogue.css" />
     <link rel="stylesheet" href="css/theatre-hud.css?v=20261004-player-spacing-1" />
     <link rel="stylesheet" href="css/inventory-hud-v2.css" />
@@ -11806,6 +11806,20 @@
     </div>
     <!-- End Limbus Main -->
 
+    <!-- Global Market Event HUD -->
+    <div id="market-event-overlay" class="market-event-overlay" aria-hidden="true">
+      <div class="market-event-card" role="dialog" aria-modal="true" aria-labelledby="market-event-title-display">
+        <div class="market-event-stamp">MERCADO</div>
+        <div class="market-event-title-strip">
+          <span id="market-event-title-display">Variación de precios</span>
+        </div>
+        <div id="market-event-message-display" class="market-event-message"></div>
+        <div id="market-event-lines" class="market-event-lines"></div>
+        <div class="market-event-corner" aria-hidden="true"></div>
+        <div class="market-event-hint">CLICK PARA CONTINUAR</div>
+      </div>
+    </div>
+
     <!-- Shop Modal (Limbus Dispensary Style) -->
     <div id="shop-modal" class="inventory-modal">
       <div class="shop-modal-content">
@@ -11816,7 +11830,25 @@
           </div>
           <div class="shop-main-panel">
             <div class="shop-header">
-              <h2 id="shop-active-name">Selecciona una tienda</h2>
+              <div style="min-width:0;display:flex;align-items:center;gap:12px;">
+                <div id="shop-merchant-presence" style="display:none;align-items:center;gap:10px;min-width:0;">
+                  <img
+                    id="shop-merchant-sprite"
+                    alt="Encargado"
+                    style="display:none;width:46px;height:46px;object-fit:cover;border:1px solid #66512d;background:#090807;"
+                  />
+                  <div style="min-width:0;">
+                    <div id="shop-merchant-name" style="color:#e8dfcf;font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+                    <div id="shop-loyalty-status" style="color:#b9995f;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+                  </div>
+                </div>
+                <h2 id="shop-active-name">Selecciona una tienda</h2>
+              </div>
+              <div class="shop-mode-tabs" role="tablist" aria-label="Modo de tienda">
+                <button id="shop-footer-buy-mode" class="shop-mode-tab active" type="button" role="tab" aria-selected="true">COMPRAR</button>
+                <button id="shop-footer-sell-mode" class="shop-mode-tab" type="button" role="tab" aria-selected="false">VENDER</button>
+                <button id="shop-footer-service-mode" class="shop-mode-tab" type="button" role="tab" aria-selected="false">SERVICIOS</button>
+              </div>
             </div>
             <div id="shop-items-grid" class="shop-items-grid">
               <!-- Items injected via JS -->
@@ -11830,7 +11862,6 @@
                 >
                 <span id="shop-display-ahn" class="shop-footer-ahn-val">0</span>
               </div>
-              <button class="shop-footer-buy-btn">COMPRAR</button>
             </div>
           </div>
         </div>
@@ -13118,6 +13149,9 @@
             <h1 id="shop-name-display">Cargando...</h1>
         </div>
         <nav class="top-nav">
+            <button class="btn-lcm btn-dropdown" onclick="window.abrirTiendaDinamica?.(window.__luminousActiveTheaterShopId)">COMPRAR</button>
+            <button class="btn-lcm btn-dropdown" onclick="window.abrirVentaTiendaDinamica?.(window.__luminousActiveTheaterShopId)">VENDER</button>
+            <button class="btn-lcm btn-dropdown" onclick="window.abrirServiciosTiendaDinamica?.(window.__luminousActiveTheaterShopId)">SERVICIOS</button>
             <button class="btn-lcm btn-dropdown" onclick="document.getElementById('tienda-overlay').style.display='none'">Cerrar [X]</button>
         </nav>
         <main class="items-panel">
@@ -13125,6 +13159,17 @@
                 </div>
         </main>
         <aside class="info-panel-overlay">
+            <div id="theater-shop-merchant" style="display:none;align-items:center;gap:10px;padding:10px 0 14px;border-bottom:1px solid #4b3926;margin-bottom:14px;">
+                <img
+                    id="theater-shop-merchant-sprite"
+                    alt="Encargado"
+                    style="display:none;width:58px;height:58px;object-fit:cover;border:2px solid var(--brillo-tenue);background:#080706;"
+                />
+                <div style="min-width:0;">
+                    <div id="theater-shop-merchant-name" style="font-family:var(--fuente-tocha);color:#fff;font-size:1rem;"></div>
+                    <div id="theater-shop-loyalty" style="color:var(--brillo-ambar);font-size:0.78rem;margin-top:4px;"></div>
+                </div>
+            </div>
             <div class="qty-header">
                 <div class="qty-title">STOCK DISPONIBLE</div>
                 <div class="qty-num" id="panel-item-qty">--</div>
@@ -13240,6 +13285,7 @@
     <script src="js/item-persistence-runtime.js"></script>
     <script src="js/item-realtime-sync.js"></script>
     <script src="js/item-economy-standard.js"></script>
+    <script src="js/shop-runtime.js?v=7-shop-taxonomy"></script>
     <script src="js/item-cooking-engine.js"></script>
     <script src="js/item-catalog-tools.js"></script>
     <script src="js/item-quality-engine.js"></script>
@@ -13273,6 +13319,7 @@
     <script src="js/player-skills-hud.js"></script>
     <script src="js/economy-contracts-core.js"></script>
     <script src="js/player-contracts-runtime.js"></script>
-    <script src="js/player-vitals-hud.js"></script>\n    <script src="hoja_personaje.js?v=20261004-phone-groups-1"></script>
+    <script src="js/player-vitals-hud.js"></script>
+    <script src="hoja_personaje.js?v=20261004-shop-commerce-1"></script>
   </body>
 </html>

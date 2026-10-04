@@ -14,6 +14,6 @@ assert.ok(js.includes("resolveGroupMembers"), "Selected contact phone numbers mu
 assert.ok(!js.includes("campaña/jugadores/${pId}/chats/${newChatRef.key}"), "Group creation must never write another player's chat registry");
 assert.ok(!js.includes('db.ref("campaña/comms/chats").push()'), "New group creation must not depend on unwritable global comms paths");
 assert.ok(html.includes('id="btn-manage-group"'), "Group owners need a member management control");
-assert.ok(html.includes("hoja_personaje.js?v=20261004-phone-groups-1"), "Group chat fix must cache-bust player JS");
+assert.match(html, /hoja_personaje\.js\?v=20261004-[a-z0-9-]+/, "Player sheet changes must keep a dated cache-bust");
 
 console.log("Phone group chat live smoke: OK");

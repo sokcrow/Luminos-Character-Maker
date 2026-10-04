@@ -8,6 +8,7 @@ const path = require("node:path");
   await import("../js/item-catalog-tools.js");
   await import("../js/item-catalog-hp-healing.js");
   await import("../js/item-catalog-ore-ingot-gem.js");
+  await import("../js/item-catalog-plant-produce.js");
   await import("../js/item-catalog-weapon-components.js");
   await import("../js/item-catalog-firearm-components.js");
   await import("../js/item-catalog-firearm-ammo.js");
@@ -53,6 +54,34 @@ const path = require("node:path");
   });
 
   assert.ok(Object.keys(catalog).length > 50, "canonical item catalog should not be empty");
+
+  // Canonical value fields must survive DM normalization. Legacy zero
+  // placeholders must never hide a real authored Ahn value.
+  assert.equal(
+    core.priceOf({ price: 0, costo: 0, valorBase: 0, standardUnitValueAhn: 1800 }),
+    1800,
+  );
+  const normalizedPlaceholder = core.adaptDefinition(
+    { id: "placeholder_value", name: "Placeholder Value", price: 0, costo: 0, valorBase: 0, standardUnitValueAhn: 1800 },
+    {},
+  );
+  assert.equal(normalizedPlaceholder.price, 1800);
+  assert.equal(normalizedPlaceholder.costo, 1800);
+  assert.equal(normalizedPlaceholder.valorBase, 1800);
+
+  const localNormalizedPlaceholder = localManager.normalizeDefinition(
+    { id: "local_placeholder_value", name: "Local Placeholder Value", price: 0, costo: 0, valorBase: 0, standardUnitValueAhn: 1800 },
+    { source: "test" },
+  );
+  assert.equal(localNormalizedPlaceholder.price, 1800);
+  assert.equal(localNormalizedPlaceholder.costo, 1800);
+  assert.equal(localNormalizedPlaceholder.valorBase, 1800);
+  const apple = catalog.apple;
+  assert.ok(apple, "Plant Produce catalog should expose Apple");
+  assert.equal(apple.standardUnitValueAhn, 1800);
+  assert.equal(apple.price, 1800);
+  assert.equal(apple.costo, 1800);
+  assert.equal(apple.valorBase, 1800);
 
   const longsword = catalog.longsword;
   assert.ok(longsword, "Longsword should be collected from the weapon catalog");
