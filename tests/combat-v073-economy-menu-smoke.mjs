@@ -19,7 +19,9 @@ assert.ok(traitCatalog.includes('devil_lineage_improved_demonic_resistance') && 
 
 assert.ok(reviewFixSource.includes('source?.castingTime??source?.casting_time'), 'canonical Spell castingTime must participate in economy classification');
 assert.ok(reviewFixSource.includes("canonicalCost(row)===ECONOMY.ACTION"), 'the Action deck must exclude Quick Action and Reaction entries');
-assert.ok(reviewFixSource.includes("withActionTraits(()=>menu?.state?.originals?.renderCleanList?.())"), 'Action rows must keep the canonical confirmation renderer');
+assert.ok(reviewFixSource.includes("withActionTraits(()=>menu?.renderCleanList?.())"), 'Action rows must use the live economy renderer instead of the legacy demo renderer');
+assert.ok(reviewFixSource.includes('return menu?.renderSkills?.()'), 'Action Skills must use the live Player kit renderer instead of the legacy demo renderer');
+assert.ok(menuSource.includes('else if (menu === "skills") renderSkills();') && menuSource.includes('else if (menu === "spells") renderSpells();') && menuSource.includes('else if (menu === "global") renderGlobalList();'), 'renderCategory must refresh live Action content for every Player menu tab');
 assert.ok(reviewFixSource.includes("sel?.type==='global'"), 'Action-cost Trait rows must be converted back to Trait plans before canonical confirmation');
 assert.ok(reviewFixSource.includes('engine.canActivateTrait(source,runtime,tState)') && reviewFixSource.includes('engine.activateTrait(source,runtime,tState)'), 'Quick Action Traits must pass their canonical activation and usage gates');
 assert.ok(reviewFixSource.indexOf('engine.canActivateTrait(source,runtime,tState)') < reviewFixSource.indexOf('engine.activateTrait(source,runtime,tState)'), 'Trait activation gate must run before activation');
