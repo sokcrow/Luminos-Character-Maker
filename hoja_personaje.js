@@ -2822,9 +2822,19 @@ function initializeCharacterSheet() {
           renderChatList(legacyChatIds);
       });
 
-      // One read/listener powers group discovery and group message fan-in.
-      db.ref("campaña/jugadores").on("value", (snapshot) => {
-          syncPhoneGroupsFromPlayers(snapshot.val() || {});
+      // Incremental player snapshots power group discovery and message fan-in
+      // without reprocessing the entire player tree on every group message.
+      const groupPlayersRef = db.ref("campaña/jugadores");
+      const syncGroupPlayerSnapshot = (snapshot) => {
+          if (!snapshot?.key) return;
+          chatPlayersCache[snapshot.key] = snapshot.val() || {};
+          syncPhoneGroupsFromPlayers(chatPlayersCache);
+      };
+      groupPlayersRef.on("child_added", syncGroupPlayerSnapshot);
+      groupPlayersRef.on("child_changed", syncGroupPlayerSnapshot);
+      groupPlayersRef.on("child_removed", (snapshot) => {
+          if (snapshot?.key) delete chatPlayersCache[snapshot.key];
+          syncPhoneGroupsFromPlayers(chatPlayersCache);
       });
 
       const btnSend = document.getElementById("btn-send-chat");
