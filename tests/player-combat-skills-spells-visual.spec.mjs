@@ -179,7 +179,7 @@ async function installFirebasePlayerStub(page){
 async function clickMenuIcon(page, fileName){
   const icon=page.locator('img[src*="'+fileName+'"]').first();
   await expect(icon, fileName+' command icon must be visible').toBeVisible({timeout:30000});
-  const diagnostic=await icon.evaluate(node=>{
+  const diagnostic=await icon.evaluate((node,fileName)=>{
     const ancestors=[];
     let current=node;
     for(let depth=0;current&&depth<8;depth+=1,current=current.parentElement){
@@ -196,7 +196,7 @@ async function clickMenuIcon(page, fileName){
     let openCategorySource='missing';
     try{openCategorySource=(0,eval)("typeof openCategory==='function'?String(openCategory):'missing'");}catch(error){openCategorySource=String(error);}
     return {fileName,ancestors,openCategorySource};
-  });
+  },fileName);
   console.log('PLAYER_MENU_CONTROL_DIAGNOSTIC',JSON.stringify(diagnostic));
   const control=icon.locator('xpath=ancestor-or-self::*[self::button or @onclick or @role="button"][1]');
   if(await control.count()) await control.click({force:true});
