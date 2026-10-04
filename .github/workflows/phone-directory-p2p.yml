@@ -6,7 +6,9 @@ on:
       - "hoja_personaje.js"
       - "hoja_personaje.html"
       - "database.rules.json"
+      - "pantalla_dm.html"
       - "tests/phone-directory-p2p-smoke.mjs"
+      - "tests/dm-p2p-live-ledger-smoke.mjs"
       - ".github/workflows/phone-directory-p2p.yml"
   push:
     branches: [main]
@@ -14,7 +16,9 @@ on:
       - "hoja_personaje.js"
       - "hoja_personaje.html"
       - "database.rules.json"
+      - "pantalla_dm.html"
       - "tests/phone-directory-p2p-smoke.mjs"
+      - "tests/dm-p2p-live-ledger-smoke.mjs"
 
 jobs:
   phone-p2p-smoke:
@@ -28,3 +32,5 @@ jobs:
         run: node --check hoja_personaje.js
       - name: Run phone/P2P regression checks
         run: node tests/phone-directory-p2p-smoke.mjs
+      - name: Run DM realtime P2P ledger checks
+        run: node tests/dm-p2p-live-ledger-smoke.mjs
