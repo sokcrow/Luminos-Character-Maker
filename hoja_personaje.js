@@ -1664,24 +1664,13 @@ function initializeCharacterSheet() {
           mostrar_identidad: tipoDialogo !== "pensamiento",
         };
 
-        if (typeof window.LuminousTheatreState?.enqueueIntervention === "function") {
-          const queued = await window.LuminousTheatreState.enqueueIntervention(payload);
-          if (queued?.queued === false) {
-            throw new Error(
-              queued.reason === "transition"
-                ? "Theater está cambiando de escena. Intenta de nuevo en un momento."
-                : "Theater rechazó el mensaje."
-            );
-          }
-        } else {
-          const queuePath =
-            window.LuminousTheatreState?.getPaths?.().queue ||
-            "campaña/teatro/cola";
-          await db.ref(queuePath).push({
-            ...payload,
-            createdAt: firebase.database.ServerValue.TIMESTAMP,
-          });
-        }
+        const queuePath =
+          window.LuminousTheatreState?.getPaths?.().queue ||
+          "campaña/teatro/cola";
+        await db.ref(queuePath).push({
+          ...payload,
+          createdAt: firebase.database.ServerValue.TIMESTAMP,
+        });
 
         domInput.value = "";
         const modal = document.getElementById("modal-escritura-teatro");
