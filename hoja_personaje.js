@@ -3988,11 +3988,16 @@ function initializeCharacterSheet() {
               priceBreakdown.loyaltyRewardApplied === true;
             const disponiblePorTier = availability?.available !== false && !sinPrecio;
             const isAgotado = item.stock_actual === 0 || !disponiblePorTier;
+            const productOffer = (getShopRuntime()?.shopPromotions?.(data) || []).find(
+              (promotion) =>
+                promotion.type !== getShopRuntime()?.PROMOTION_TYPES?.PERCENT_DISCOUNT &&
+                getShopRuntime()?.promotionMatchesItem?.(promotion, item),
+            );
             const benefitText = gratis
               ? "Recompensa de lealtad"
               : priceBreakdown.totalDiscountPercent > 0
                 ? "Beneficio comercial -" + Math.round(priceBreakdown.totalDiscountPercent) + "%"
-                : "";
+                : (productOffer?.label || "");
             const stockStr = sinPrecio
               ? "Sin valor económico"
               : !disponiblePorTier
@@ -4595,6 +4600,11 @@ function initializeCharacterSheet() {
           : !disponiblePorTier
             ? "No disponible"
             : (item.stock_actual === -1 ? "∞" : item.stock_actual);
+        const productOffer = (getShopRuntime()?.shopPromotions?.(tiendaActivaData) || []).find(
+          (promotion) =>
+            promotion.type !== getShopRuntime()?.PROMOTION_TYPES?.PERCENT_DISCOUNT &&
+            getShopRuntime()?.promotionMatchesItem?.(promotion, item),
+        );
 
         const row = document.createElement("div");
         row.style.cssText =
@@ -4605,6 +4615,7 @@ function initializeCharacterSheet() {
             <div style="flex: 1; min-width: 0;">
                 <div style="font-weight: bold; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.nombre}</div>
                 <div style="font-size: 12px; color: #888;">Stock: ${stockStr}</div>
+                ${productOffer?.label ? '<div style="font-size:10px;color:#d6b75c;margin-top:2px;">' + productOffer.label + '</div>' : ""}
             </div>
             <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 5px;">
                 <div style="color: ${gratis ? "#d6b75c" : "#0df"}; font-weight: bold;">${sinPrecio ? "SIN PRECIO" : gratis ? "GRATIS" : '<span class="currency-symbol">₳</span> ' + precio}</div>
@@ -5892,11 +5903,16 @@ window.abrirTiendaDinamica = async function(tiendaId) {
         const availableByTier = availability?.available !== false && priceResolved;
         const exhausted = item.stock_actual === 0;
         const unavailable = exhausted || !availableByTier;
+        const productOffer = (shopRuntime?.shopPromotions?.(data) || []).find(
+          (promotion) =>
+            promotion.type !== shopRuntime?.PROMOTION_TYPES?.PERCENT_DISCOUNT &&
+            shopRuntime?.promotionMatchesItem?.(promotion, item),
+        );
         const benefitText = loyaltyFree
           ? "Recompensa de lealtad"
           : priceBreakdown?.totalDiscountPercent > 0
             ? "Beneficio comercial -" + Math.round(priceBreakdown.totalDiscountPercent) + "%"
-            : "";
+            : (productOffer?.label || "");
 
         row.innerHTML = `
           <div class="icon-slot">
