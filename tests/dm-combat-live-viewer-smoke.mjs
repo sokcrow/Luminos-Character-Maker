@@ -6,6 +6,7 @@ const read=file=>fs.readFileSync(file,'utf8');
 const dmPanel=read('pantalla_dm.html');
 const utils=read('js/utils.js');
 const bridge=read('js/dm-combat-live-viewer.js');
+const dmConsole=read('js/battle-viewer-dm-console-074.js');
 
 assert.ok(dmPanel.includes('id="tab-combate"'),'actual pantalla_dm Combat pane must exist');
 assert.ok(dmPanel.includes('<script src="js/utils.js"></script>'),'actual pantalla_dm must load the bootstrap that installs Combat assets');
@@ -18,6 +19,12 @@ assert.ok(bridge.includes('visualEvidence'),'DM bridge must expose an explicit v
 assert.ok(bridge.includes("visualMode==='dom-base-webgl-vfx'"),'DM bridge must require the DOM-base/WebGL-VFX composition mode');
 assert.ok(bridge.includes("surface?.ready&&surface?.role==='dm'"),'DM bridge must require canonical DM role before reporting observer readiness');
 assert.ok(!bridge.includes('surfaceActive!==false)}'),'renderer activity alone must never be enough to declare the DM Battle visible');
+assert.ok(bridge.includes('dm-combat-end-encounter'),'normal DM Combat UI must expose a visible END ENCOUNTER control');
+assert.ok(bridge.includes('dm-combat-end-modal'),'END ENCOUNTER must open a production confirmation modal');
+assert.ok(bridge.includes('VICTORY')&&bridge.includes('DEFEAT'),'Encounter modal must expose explicit Victory and Defeat choices');
+assert.ok(bridge.includes("api.finishEncounter(normalized,{confirm:false})"),'production DM control must invoke the canonical Encounter lifecycle instead of duplicating it');
+assert.ok(dmConsole.includes('debugConsoleEnabled()'),'technical DM console must be guarded behind an explicit debug opt-in');
+assert.ok(dmConsole.includes('if (debugConsoleEnabled()) mount();'),'DM TEST CONSOLE must not mount during a normal session');
 
 class FakeClassList {
   constructor(...names){this.values=new Set(names.filter(Boolean));}
@@ -45,7 +52,7 @@ class FakeElement {
   set src(value){this._src=String(value);this.attributes.src=this._src;}
   get src(){return this._src;}
   insertBefore(node){this.children.unshift(node);this.firstChild=this.children[0]||null;}
-  appendChild(node){this.children.push(node);if(!this.firstChild)this.firstChild=node;}
+  appendChild(node){this.children.push(node);if(node?.id)elements.set(node.id,node);if(!this.firstChild)this.firstChild=node;}
   addEventListener(type,handler){(this.listeners[type]||=[]).push(handler);}
   dispatch(type){for(const handler of this.listeners[type]||[])handler({type,target:this});}
   getAttribute(name){return this.attributes[name]??null;}
@@ -64,9 +71,11 @@ class FakeElement {
 }
 
 const elements=new Map();
+const body=new FakeElement('body','body');elements.set(body.id,body);
 const host=new FakeElement('div','tab-combate');host._hidden=true;elements.set(host.id,host);
 const tabButton=new FakeElement('button','combat-tab-button');tabButton.dataset.tab='tab-combate';
 let enabledCalls=0,enforceCalls=0,renderCalls=0,resizeCalls=0;
+const encounterResults=[];
 const game=new FakeElement('div','game-container');game.dataset.viewerRole='dm';game.classList.add('webgl2-background-ready');
 const field=new FakeElement('div','battlefield');
 const sprite=new FakeElement('img','sprite-enemy-1');sprite.rect={width:160,height:220};sprite.classList.add('sprite-img','webgl2-texture-backed');game._sprites=[sprite];
@@ -78,6 +87,9 @@ const child={
   },
   LuminousCombatLiveAdapter073:{state:{role:'dm'}},
   LuminousCombat073:{combatants(){return {enemy1:{id:'enemy1'}};},render(){renderCalls+=1;}},
+  LuminousBattleViewerDmConsole074:{
+    async finishEncounter(result,options){encounterResults.push({result,options});return {result,nextInstance:'teatro'};}
+  },
   document:{getElementById(id){if(id==='game-container')return game;if(id==='battlefield')return field;return null;}},
   getComputedStyle(node){return {display:'block',visibility:'visible',opacity:node===sprite&&node.classList.contains('webgl2-texture-backed')?'0':'1'};},
   Event:class{constructor(type){this.type=type;}},
@@ -85,6 +97,7 @@ const child={
 };
 const document={
   readyState:'complete',
+  body,
   getElementById(id){return elements.get(id)||null;},
   querySelector(selector){return selector==='[data-tab="tab-combate"]'?tabButton:null;},
   createElement(tag){const node=new FakeElement(tag);if(tag==='iframe')node.contentWindow=child;return node;},
@@ -117,6 +130,17 @@ while(timers.length)timers.shift()();
 assert.equal(frame.src,'Battle-viewer.html','opening the real Combat tab must boot the canonical Battle Viewer while visible');
 frame.dispatch('load');
 while(timers.length)timers.shift()();
+
+const endEncounterButton=elements.get('dm-combat-end-encounter');
+assert.ok(endEncounterButton,'real DM Battle header must render END ENCOUNTER');
+endEncounterButton.dispatch('click');
+const endModal=elements.get('dm-combat-end-modal');
+assert.ok(endModal,'END ENCOUNTER must render a dedicated modal');
+assert.equal(endModal.hidden,false,'END ENCOUNTER modal must become visible from the normal DM UI');
+assert.equal(endModal.style.display,'flex','END ENCOUNTER modal must use the production overlay');
+assert.equal(await window.LuminousDmCombatLiveViewer.finishEncounterFromUi('victory'),true,'Victory choice must resolve through the canonical Encounter lifecycle');
+assert.deepEqual(encounterResults,[{result:'victory',options:{confirm:false}}],'production UI must pass the explicit result to canonical finishEncounter');
+assert.equal(endModal.hidden,true,'successful Encounter resolution must close the modal');
 assert.ok(enabledCalls>0,'visible DM runtime must keep renderer enabled for VFX');
 assert.ok(enforceCalls>0,'visible DM runtime must invoke observer visibility enforcement');
 assert.ok(renderCalls>0,'visible DM runtime must request a real redraw');
