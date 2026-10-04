@@ -3,7 +3,9 @@ const path = require("path");
 
 const ROOT = path.resolve(__dirname, "..");
 const TAB_RUNTIME = path.join(ROOT, "js/dm-tab-runtime-v2.js");
+const SHOP_RUNTIME = path.join(ROOT, "js/shop-runtime.js");
 const ITEM_MANAGER = path.join(ROOT, "js/dm-local-item-manager-v3.js");
+const JEWELRY_CATALOG = path.join(ROOT, "js/item-catalog-jewelry-valuables.js");
 
 async function boot(page, withFirebase = false) {
   await page.setContent(`<!doctype html><html><body>
@@ -174,6 +176,7 @@ async function boot(page, withFirebase = false) {
   }, withFirebase);
 
   await page.addScriptTag({ path: TAB_RUNTIME });
+  await page.addScriptTag({ path: SHOP_RUNTIME });
   await page.addScriptTag({ path: ITEM_MANAGER });
 }
 
@@ -257,4 +260,87 @@ test("DM grant writes only the affected inventory child", async ({ page }) => {
   expect(writes[0].value.definitionId).toBe("test_sword");
   expect(writes[0].value.quantity).toBe(3);
   expect(writes[0].value.cantidad).toBe(3);
+});
+
+test("DM Valuable grant requires a real loot variant and preserves its canonical value", async ({ page }) => {
+  await boot(page, true);
+  await page.addScriptTag({ path: JEWELRY_CATALOG });
+  await page.evaluate(() => window.LuminousDmLocalItemManagerV3.refreshLocal());
+
+  const goblet = page.locator("#grid-items-globales .card-item").filter({ hasText: "Goblet" }).first();
+  await expect(goblet).toContainText("₳ 420,000");
+  await expect(goblet).toContainText("₳ 780,000");
+  await goblet.click();
+
+  await expect(page.locator("#dm-item-config-valuable-variant")).toHaveValue("gold");
+  await expect(page.locator("#dm-item-economic-preview")).toContainText("Gold Goblet");
+  await expect(page.locator("#dm-item-economic-preview")).toContainText("420,000");
+
+  await page.locator("#dm-item-config-valuable-variant").selectOption("gems");
+  await expect(page.locator("#dm-item-economic-preview")).toContainText("Gem-Inlaid Goblet");
+  await expect(page.locator("#dm-item-economic-preview")).toContainText("780,000");
+
+  await page.locator("#otorgar-item-jugador").selectOption("Alice");
+  await page.locator("#btn-otorgar-stash").click();
+  await page.waitForFunction(() => window.__writes.length === 1);
+
+  const granted = await page.evaluate(() => window.__writes[0].value);
+  expect(granted.definitionId).toBe("goblet");
+  expect(granted.valuableVariant).toBe("gems");
+  expect(granted.variantSignature).toBe("goblet:gems");
+  expect(granted.productionValueAhn).toBe(780000);
+  expect(granted.costo).toBe(780000);
+  expect(granted.valorBase).toBe(780000);
+});
+
+test("DM zero-value component grant materializes the catalog reference composition", async ({ page }) => {
+  await boot(page, true);
+
+  await page.evaluate(() => {
+    window.LuminousArmorComponentCatalog = {
+      COMPONENTS: [{
+        id: "armor_plate",
+        name: "Armor Plate",
+        family: "armor_components",
+        category: "component",
+        itemType: "armor_component",
+        tier: "I",
+        stackable: true,
+        price: 0,
+        costo: 0,
+        valorBase: 0
+      }],
+      resolveReferenceComponent(id) {
+        if (id !== "armor_plate") return null;
+        return {
+          valid: true,
+          componentId: id,
+          name: "Armor Plate",
+          quality: "standard",
+          composition: [{ materialId: "iron", quantity: 4 }],
+          productionValueAhn: 156000
+        };
+      }
+    };
+    window.LuminousDmLocalItemManagerV3.refreshLocal();
+  });
+
+  const plate = page.locator("#grid-items-globales .card-item").filter({ hasText: "Armor Plate" }).first();
+  await expect(plate).toContainText("CONFIGURAR");
+  await plate.click();
+
+  await expect(page.locator("#dm-item-economic-config")).toContainText("COMPOSICIÓN DE REFERENCIA");
+  await expect(page.locator("#dm-item-economic-preview")).toContainText("156,000");
+  await expect(page.locator("#btn-otorgar-stash")).toBeEnabled();
+
+  await page.locator("#otorgar-item-jugador").selectOption("Alice");
+  await page.locator("#btn-otorgar-stash").click();
+  await page.waitForFunction(() => window.__writes.length === 1);
+
+  const granted = await page.evaluate(() => window.__writes[0].value);
+  expect(granted.definitionId).toBe("armor_plate");
+  expect(granted.productionValueAhn).toBe(156000);
+  expect(granted.costo).toBe(156000);
+  expect(granted.valorBase).toBe(156000);
+  expect(granted.composition).toEqual([{ materialId: "iron", quantity: 4 }]);
 });
