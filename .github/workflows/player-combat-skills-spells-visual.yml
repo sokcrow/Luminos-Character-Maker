@@ -1,0 +1,53 @@
+name: Player Combat Skills + Spells Visual
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'Battle-viewer.html'
+      - 'js/combat-v073-economy-menu.js'
+      - 'js/combat-v073-live-adapter.js'
+      - 'js/combat-v073-library-client.js'
+      - 'js/combat-v073-plan-sync.js'
+      - 'js/combat-spell-loadout-074.js'
+      - 'js/spellcasting-runtime.js'
+      - 'js/spell-catalog-core.js'
+      - 'js/content-registry.js'
+      - 'js/content-registry-bootstrap.js'
+      - 'tests/player-combat-skills-spells-visual.spec.mjs'
+      - '.github/workflows/player-combat-skills-spells-visual.yml'
+
+jobs:
+  player-menu-visual:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Chromium
+        run: |
+          npm install --no-save @playwright/test@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Serve repository
+        run: |
+          python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/player-combat-menu-http.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:4173/Battle-viewer.html >/dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/player-combat-menu-http.log
+          exit 1
+      - name: Player opens Skills and Spells
+        run: npx playwright test tests/player-combat-skills-spells-visual.spec.mjs --reporter=line
+      - name: Upload Player menu proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: player-combat-skills-spells-proof
+          path: |
+            artifacts/player-combat-skills-spells/*.png
+            test-results/**/*.png
+          if-no-files-found: warn
+          retention-days: 14
