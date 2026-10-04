@@ -11826,7 +11826,10 @@
                 >
                 <span id="shop-display-ahn" class="shop-footer-ahn-val">0</span>
               </div>
-              <button class="shop-footer-buy-btn">COMPRAR</button>
+              <div style="display:flex; gap:8px;">
+                <button id="shop-footer-buy-mode" class="shop-footer-buy-btn">COMPRAR</button>
+                <button id="shop-footer-sell-mode" class="shop-footer-buy-btn">VENDER</button>
+              </div>
             </div>
           </div>
         </div>
@@ -13114,6 +13117,8 @@
             <h1 id="shop-name-display">Cargando...</h1>
         </div>
         <nav class="top-nav">
+            <button class="btn-lcm btn-dropdown" onclick="window.abrirTiendaDinamica?.(window.__luminousActiveTheaterShopId)">COMPRAR</button>
+            <button class="btn-lcm btn-dropdown" onclick="window.abrirVentaTiendaDinamica?.(window.__luminousActiveTheaterShopId)">VENDER</button>
             <button class="btn-lcm btn-dropdown" onclick="document.getElementById('tienda-overlay').style.display='none'">Cerrar [X]</button>
         </nav>
         <main class="items-panel">
