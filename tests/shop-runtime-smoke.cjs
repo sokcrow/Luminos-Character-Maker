@@ -8,7 +8,7 @@ const { pathToFileURL } = require("node:url");
 
   const shops = globalThis.LuminousShopRuntime;
   assert.ok(shops);
-  assert.equal(shops.VERSION, 7);
+  assert.equal(shops.VERSION, 8);
   assert.equal(shops.BASE_PURCHASE_MARKUP, 1.40);
   assert.equal(shops.BASE_SELLBACK_MULTIPLIER, 0.80);
 
@@ -442,7 +442,162 @@ const { pathToFileURL } = require("node:url");
   assert.equal(rebalanced.stock_actual, 8);
   assert.equal(rebalanced.shop_stock_auto, true);
 
-  console.log("Shop Runtime smoke: OK (type catalogs, tiers, +40% buy, -20% sellback, access and automatic shared stock)");
+
+  // Repair is a service economy, not a resale calculation:
+  // (durability points repaired × material value per point) × 1.40.
+  const damagedBlade = {
+    family: "weapons",
+    category: "weapon",
+    durabilityCurrent: 60,
+    durabilityMax: 100,
+    repairMaterialValuePerPointAhn: 500,
+  };
+  assert.equal(shops.serviceEnabled({ shop_type: "workshop" }, "repair"), true);
+  assert.equal(shops.serviceEnabled({ shop_type: "restaurant" }, "repair"), false);
+  assert.equal(
+    shops.serviceEnabled({ shop_type: "workshop", services: { repair: { enabled: false } } }, "repair"),
+    false,
+    "DM must be able to disable a default service locally",
+  );
+  assert.equal(
+    shops.serviceEnabled({ shop_type: "restaurant", services: { repair: { enabled: true } } }, "repair"),
+    true,
+    "DM must be able to add a service as a local exception",
+  );
+  const repair = shops.repairBreakdown(damagedBlade, { shop_type: "workshop" });
+  assert.equal(repair.available, true);
+  assert.equal(repair.missingDurability, 40);
+  assert.equal(repair.materialSubtotalAhn, 20000);
+  assert.equal(repair.serviceMarkup, 1.40);
+  assert.equal(repair.priceAhn, 28000);
+  assert.equal(
+    shops.repairPrice(damagedBlade, { shop_type: "workshop" }, { points: 10 }),
+    7000,
+    "partial repairs must price only the requested missing durability",
+  );
+
+  // A chain can provide promotions and loyalty while a merchant NPC can add
+  // relationship/frequent-customer benefits without changing intrinsic value.
+  const livingShop = {
+    shop_type: "general",
+    shop_tier: 1,
+    mod_venta: 100,
+    chain: {
+      id: "hamham",
+      name: "HamHam",
+      promotions: [
+        {
+          id: "food_week",
+          type: "percent_discount",
+          scope: "category",
+          categories: ["food"],
+          discount_percent: 20,
+        },
+      ],
+      loyalty_program: {
+        id: "hamham_card",
+        name: "Tarjeta HamHam",
+        paid_purchases_required: 9,
+        reward_type: "free_next",
+        categories: ["food"],
+      },
+    },
+    merchant_npc: {
+      enabled: true,
+      id: "mika",
+      name: "Mika",
+      sprite: "mika.png",
+      frequent_customer_min_purchases: 10,
+      frequent_customer_discount_percent: 5,
+      relationship_discounts: {
+        trusted: 10,
+      },
+    },
+  };
+  const promoFood = {
+    id: "burger",
+    family: "food",
+    category: "food",
+    tier: "I",
+    productionValueAhn: 100000,
+  };
+  assert.equal(shops.shopChain(livingShop).id, "hamham");
+  assert.equal(shops.merchantNpc(livingShop).name, "Mika");
+  assert.equal(shops.loyaltyProgram(livingShop).paidPurchasesRequired, 9);
+
+  const promotionOnly = shops.priceBreakdown(promoFood, livingShop);
+  assert.equal(promotionOnly.listPriceAhn, 140000);
+  assert.equal(promotionOnly.promotionDiscountPercent, 20);
+  assert.equal(promotionOnly.priceAhn, 112000);
+
+  const knownCustomer = shops.priceBreakdown(promoFood, livingShop, {
+    context: {
+      shopPurchaseCount: 12,
+      relationshipTier: "trusted",
+      loyaltyProgress: 4,
+    },
+  });
+  assert.equal(knownCustomer.promotionDiscountPercent, 20);
+  assert.equal(knownCustomer.merchantDiscountPercent, 15);
+  assert.equal(knownCustomer.totalDiscountPercent, 35);
+  assert.equal(knownCustomer.priceAhn, 91000);
+  assert.equal(knownCustomer.loyaltyProgress, 4);
+
+  const tenthPurchase = shops.priceBreakdown(promoFood, livingShop, {
+    context: {
+      loyaltyProgress: 9,
+    },
+  });
+  assert.equal(tenthPurchase.priceResolved, true);
+  assert.equal(tenthPurchase.loyaltyRewardApplied, true);
+  assert.equal(tenthPurchase.priceAhn, 0, "the purchase after nine paid stamps must be free");
+  assert.equal(
+    shops.nextLoyaltyProgress(livingShop, { loyaltyProgress: 9 }, { item: promoFood, redeemed: true }),
+    0,
+  );
+  assert.equal(
+    shops.nextLoyaltyProgress(livingShop, { loyaltyProgress: 8 }, { item: promoFood }),
+    9,
+  );
+
+  // Stored catalog list price must remain stable and must not bake temporary
+  // promotions, merchant relationship or loyalty into the Item.
+  const promotedStock = shops.applyAutomaticStock(
+    promoFood,
+    { ...livingShop, jugadores_presentes: { Pierre: true } },
+    { preserveSold: false },
+  );
+  assert.equal(promotedStock.shop_price_ahn, 140000);
+
+  const rewardShop = {
+    shop_type: "restaurant",
+    promotions: [
+      {
+        id: "burger_drink",
+        type: "gift_after_purchase",
+        scope: "item",
+        item_ids: ["burger"],
+        reward_item_id: "soft_drink",
+        reward_quantity: 1,
+      },
+      {
+        id: "two_burgers_fries",
+        type: "buy_x_get_y",
+        scope: "item",
+        item_ids: ["burger"],
+        buy_quantity: 2,
+        reward_item_id: "fries",
+      },
+    ],
+  };
+  assert.deepEqual(
+    shops.promotionRewardPlan(promoFood, rewardShop, {
+      promotionProgress: { two_burgers_fries: 1 },
+    }).map((reward) => reward.itemId),
+    ["soft_drink", "fries"],
+  );
+
+  console.log("Shop Runtime smoke: OK (type catalogs, tiers, +40% buy, -20% sellback, access and automatic shared stock, repair, promotions, loyalty and NPC commerce)");
 })().catch((error) => {
   console.error(error);
   process.exitCode = 1;
