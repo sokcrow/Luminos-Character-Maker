@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url';
 
 await import('../js/content-registry.js');
 await import('../js/content-registry-bootstrap.js');
+await import('../js/spell-catalog-core.js');
+const canonicalSpellCatalog = globalThis.LuminousSpellCatalog;
 await import('../js/spellcasting-runtime.js');
 await import('../js/spellcasting-basic-rules-runtime.js');
 await import('../js/combat-action-schema.js');
@@ -42,12 +44,20 @@ registry.register({
   type: 'spell', id: 'other_spell', name: 'Other Spell', sourceKey: 'test-spells',
   definition: { id: 'other_spell', name: 'Other Spell', kind: 'spell', level: 1, sourceClassId: 'sorcerer', basePower: 3, coinPower: 2, coinAmount: 1 },
 });
+registry.register({
+  type: 'spell', id: 'mode_spell', name: 'Mode Spell', sourceKey: 'test-spells',
+  definition: {
+    id: 'mode_spell', name: 'Mode Spell', kind: 'spell', level: 0, cantrip: true, sourceClassId: 'sorcerer',
+    targetType: 'single', isUnclashable: true,
+    mechanics: { requiresChoice: { key: 'mode', values: ['alpha','beta'] } },
+  },
+});
 
 const actor = {
   id: 'player:player_a', combatId: 'player:player_a', isPlayer: true, actorCategory: 'player', canonicalScope: 'player',
   canonicalPlayerKey: 'player_a', canonicalOwnerUid: 'uid-a', playerId: 'player_a', ownerUid: 'uid-a',
   actionSlots: 1, activeSlots: 1, actionSlotIndex: { '0': true },
-  characterBuild: { classes: [{ classId: 'sorcerer', levels: 3 }], spellSelections: ['arc_bolt'] },
+  characterBuild: { classes: [{ classId: 'sorcerer', levels: 3 }], spellSelections: ['arc_bolt','mode_spell'] },
   sp: 30,
 };
 
@@ -93,6 +103,14 @@ assert.equal(compiled.action.resources[0].metadata.slotLevel, 2);
 assert.equal(compiled.action.effects[0].type, 'viewer_spell_cast');
 assert.equal(compiled.action.metadata.sourceDefinition.coinPower, 4, 'Level 2 cast should apply one canonical Coin Power upcast level');
 
+
+const modeCompiled = adapter.compilePlan('player:player_a_slot_0', 'enemy_1_slot_0', {
+  kind:'spell', spellId:'mode_spell', classId:'sorcerer', slotLevel:0, unitId:'player:player_a',
+  targetId:'enemy_1', spellChoice:{key:'mode',value:'beta'}, __ownerPlayerId:'player_a',
+});
+assert.ok(modeCompiled.action, modeCompiled.reason || 'mode Spell should compile');
+assert.deepEqual(modeCompiled.action.metadata.spellChoice,{key:'mode',value:'beta'});
+
 const notSelected = adapter.compilePlan('player:player_a_slot_0', 'enemy_1_slot_0', { kind: 'spell', spellId: 'other_spell', classId: 'sorcerer', targetId: 'enemy_1', __ownerPlayerId: 'player_a' });
 assert.equal(notSelected.action, null);
 assert.equal(notSelected.reason, 'spell_not_selected');
@@ -128,7 +146,7 @@ assert.ok(castHook.concentration, 'concentration Spell should start Concentratio
 // Player planner writes only selected Spell references and cast choices.
 await import('../js/battle-viewer-player-spell-planner-074.js');
 const planner = globalThis.LuminousBattleViewerPlayerSpellPlanner074;
-planner.applyPlayers({ player_a: { uid: 'uid-a', characterBuild: { spellSelections: ['arc_bolt'] } } });
+planner.applyPlayers({ player_a: { uid: 'uid-a', characterBuild: { spellSelections: ['arc_bolt','mode_spell'] } } });
 planner.applyCombatants(globalThis.combatData);
 planner.applyCombatState('PRE_COMBAT_PLANNING');
 const built = planner.buildSpellPlan({ authUid: 'uid-a', ownerPlayerId: 'player_a', slotIndex: 0, spellId: 'arc_bolt', classId: 'sorcerer', slotLevel: 1, overcast: true, targetId: 'enemy_1' });
@@ -140,6 +158,53 @@ assert.deepEqual(built.payload, {
 assert.equal('data' in built.payload, false);
 assert.equal('spell' in built.payload, false);
 assert.equal(planner.buildSpellPlan({ authUid: 'uid-a', ownerPlayerId: 'player_a', slotIndex: 0, spellId: 'other_spell', classId: 'sorcerer', slotLevel: 1, overcast: true, targetId: 'enemy_1' }).reason, 'SPELL_NOT_SELECTED');
+
+
+const missingModeChoice = planner.buildSpellPlan({ authUid:'uid-a', ownerPlayerId:'player_a', slotIndex:0, spellId:'mode_spell', classId:'sorcerer', targetId:'enemy_1' });
+assert.equal(missingModeChoice.reason,'SPELL_CHOICE_REQUIRED');
+const modeBuilt = planner.buildSpellPlan({ authUid:'uid-a', ownerPlayerId:'player_a', slotIndex:0, spellId:'mode_spell', classId:'sorcerer', targetId:'enemy_1', spellChoiceValue:'alpha' });
+assert.equal(modeBuilt.ok,true,modeBuilt.reason);
+assert.deepEqual(modeBuilt.payload.spellChoice,{key:'mode',value:'alpha'});
+
+// Character-sheet grants may explicitly override the casting class and ability
+// without broadening the canonical Spell's class list for every character.
+for (const spellId of ['calm_emotions', 'mirror_image']) {
+  const definition = canonicalSpellCatalog[spellId];
+  registry.register({ type: 'spell', id: spellId, name: definition.name, sourceKey: 'canonical-sheet-spells', definition });
+}
+const calipsys = {
+  id: 'player:calipsys', combatId: 'player:calipsys', isPlayer: true, actorCategory: 'player', canonicalScope: 'player',
+  canonicalPlayerKey: 'calipsys', canonicalOwnerUid: 'uid-calipsys', playerId: 'calipsys', ownerUid: 'uid-calipsys',
+  actionSlots: 1, activeSlots: 1, actionSlotIndex: { '0': true },
+  stats: { inteligencia: 18, carisma: 12 },
+  proficiency: 3,
+  characterBuild: {
+    classes: [{ classId: 'artificer', levels: 35 }],
+    spellSelections: ['calm_emotions', 'mirror_image'],
+    spellCastOverrides: {
+      calm_emotions: { classId: 'artificer', abilityId: 'cha', source: 'lanae' },
+      mirror_image: { classId: 'artificer', source: 'armorer' },
+    },
+  },
+};
+globalThis.combatData['player:calipsys'] = calipsys;
+const calmGrant = loadout.resolveSpellForCombatant(calipsys, 'calm_emotions');
+assert.equal(calmGrant.ok, true, calmGrant.reason);
+assert.equal(calmGrant.classId, 'artificer');
+assert.equal(calmGrant.castOverride.abilityId, 'cha');
+assert.equal(calmGrant.spell.castAbilityId, 'cha');
+const mirrorGrant = loadout.resolveSpellForCombatant(calipsys, 'mirror_image');
+assert.equal(mirrorGrant.ok, true, mirrorGrant.reason);
+assert.equal(mirrorGrant.classId, 'artificer');
+
+const calmCompiled = adapter.compilePlan('player:calipsys_slot_0', 'enemy_1_slot_0', {
+  kind: 'spell', spellId: 'calm_emotions', classId: 'artificer', slotLevel: 2,
+  unitId: 'player:calipsys', targetId: 'enemy_1', __ownerPlayerId: 'calipsys',
+});
+assert.ok(calmCompiled.action, calmCompiled.reason || 'Lanae Calm Emotions should compile through the explicit grant');
+assert.equal(calmCompiled.action.metadata.sourceClassId, 'artificer');
+assert.equal(calmCompiled.action.metadata.spellDC, 12, 'Calm Emotions must use Calipsys CHA override, not Artificer INT');
+assert.equal(calmCompiled.action.resources[0].id, 'artificer');
 
 // Firebase Rules verify the selection array entry, not only a client-provided spellId.
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -157,5 +222,8 @@ assert.match(runtimeSource, /combat-spell-loadout-074\.js/);
 assert.match(runtimeSource, /battle-viewer-spell-adapter-074\.js/);
 assert.match(runtimeSource, /battle-viewer-spell-runtime-074\.js/);
 assert.match(runtimeSource, /battle-viewer-player-spell-planner-074\.js/);
+const spellPlannerSource = fs.readFileSync(path.join(here, '..', 'js', 'battle-viewer-player-spell-planner-074.js'), 'utf8');
+assert.match(spellPlannerSource, /Assets\/Images\/Buttons\/Spells\.png/);
+assert.equal(fs.existsSync(path.join(here, '..', 'Assets', 'Images', 'Buttons', 'Spells.png')), true);
 
 console.log('combat-v074-player-spell-planner-smoke: ok');

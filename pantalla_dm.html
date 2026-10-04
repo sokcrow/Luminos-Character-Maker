@@ -3,8 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Panel de DM - Luminous</title>
+    <title>LUMINOUS // Director Terminal</title>
     <link rel="stylesheet" href="css/actor-studio.css" />
+    <link rel="stylesheet" href="css/economy-contracts.css" />
+    <link rel="stylesheet" href="css/dm-limbus-shell.css" />
+    <link rel="stylesheet" href="css/dm-limbus-shell-fixes.css" />
+    <link rel="stylesheet" href="css/dm-item-catalog-v2.css" />
     <style>
       body {
         background-color: #050505;
@@ -1600,7 +1604,7 @@
       <button class="dm-tab-btn" data-tab="tab-turnos">Gestión de Turnos</button>
       <button class="dm-tab-btn" data-tab="tab-banco">Banco</button>
       <button class="dm-tab-btn" data-tab="tab-comms">Comms</button>
-      <button class="dm-tab-btn" data-tab="tab-forja">Forja/Mercado</button>
+      <button class="dm-tab-btn" data-tab="tab-forja">Ítems / Mercado</button>
       <button class="dm-tab-btn" data-tab="tab-loot">Botín</button>
 
       <button class="dm-tab-btn" data-tab="tab-combate">Combate</button>
@@ -2011,52 +2015,109 @@ window.processEntitiesData = function(entities) {
           </div>
         </div>
 
-        <!-- NUEVO DASHBOARD: CONTRATOS ACTIVOS -->
-        <div id="dashboard-contratos" class="panel-cyber" style="margin-top: 20px; width: 100%;">
-          <h3 style="color: #c49a00;">Contratos Activos (Smart Contracts)</h3>
-
-          <div class="form-cyber-container" style="margin-bottom: 20px;">
-            <div class="form-cyber" style="width: 100%; max-width: 800px; display: flex; gap: 10px; align-items: flex-start;">
-              <div style="flex: 1; display: flex; flex-direction: column; gap: 10px;">
-                  <input type="text" id="contrato-nombre" placeholder="Nombre del Contrato" />
-                  <input type="number" id="contrato-recompensa" placeholder="Recompensa Total (Ahn)" />
-              </div>
-              <div style="flex: 1; border: 1px solid #333; padding: 10px; background: #0a0a0a; border-radius: 4px;">
-                  <h4 style="margin-top: 0; color: #aaa; margin-bottom: 5px;">Jugadores Asignados:</h4>
-                  <div id="contrato-jugadores-checkboxes" style="display: flex; flex-direction: column; gap: 5px; max-height: 100px; overflow-y: auto;">
-                      <!-- Checkboxes inyectados por JS -->
-                  </div>
-              </div>
-              <button id="btn-crear-contrato" class="btn-cyber" style="background: #222; border-color: #c49a00; color: #c49a00; height: 100%;">Crear Contrato</button>
-            </div>
-          </div>
-
-          <div id="contratos-activos-container" style="display: flex; flex-wrap: wrap; gap: 15px; justify-content: center;">
-              <!-- Tarjetas de contratos inyectadas por JS -->
+        <!-- ECONOMÍA V2: IDENTIDAD DE JUGADORES -->
+        <div id="dashboard-economy-roster" class="panel-cyber" style="margin-top: 20px; width: 100%;">
+          <h3 style="color:#fff;">Jugadores · nombres visibles</h3>
+          <p class="economy-v2-meta">
+            Puedes corregir el nombre visible que usa el panel de Economía y sus selectores sin cambiar el ID interno ni el nombre técnico que otras funciones antiguas todavía usan como ruta.
+          </p>
+          <div id="economy-player-roster" class="economy-v2-roster">
+            <div class="economy-v2-empty">Cargando jugadores...</div>
           </div>
         </div>
 
-        <!-- NUEVO DASHBOARD: SISTEMA DE NÓMINAS (SALARIOS) -->
-        <div id="dashboard-salarios" class="panel-cyber" style="margin-top: 20px; width: 100%;">
-          <h3 style="color: #0df;">Sistema de Nóminas (Salarios)</h3>
+        <!-- ECONOMÍA V2: MISIONES / CONTRATOS -->
+        <div id="dashboard-contratos" class="panel-cyber" style="margin-top: 20px; width: 100%;">
+          <h3 style="color: #c49a00;">Misiones / Contratos</h3>
+          <p class="economy-v2-meta">
+            La bolsa total se reparte entre los jugadores seleccionados usando únicamente Ahn enteros. El adelanto se deposita al crear la misión y el resto al completarla.
+          </p>
 
-          <div class="form-cyber-container" style="margin-bottom: 20px;">
-            <div class="form-cyber" style="width: 100%; max-width: 800px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-              <select id="salario-jugador" style="flex: 1; min-width: 200px;">
-                <option value="">Selecciona Jugador...</option>
-              </select>
-              <input type="number" id="salario-monto" placeholder="Monto (Ahn)" style="width: 150px;" />
-              <select id="salario-frecuencia" style="width: 150px;">
-                <option value="1">Diario</option>
-                <option value="7">Semanal</option>
-                <option value="30">Mensual</option>
-              </select>
-              <button id="btn-crear-salario" class="btn-cyber" style="background: #222; border-color: #0df; color: #0df;">Asignar Salario</button>
+          <div class="form-cyber-container" style="margin-bottom: 16px;">
+            <div class="economy-v2-form">
+              <label>
+                Nombre de la misión
+                <input type="text" id="contrato-nombre" placeholder="Ej. Limpieza del Distrito 12" />
+              </label>
+              <label>
+                Bolsa total (Ahn)
+                <input type="number" id="contrato-recompensa" min="1" step="1" placeholder="1000000" />
+              </label>
+              <label>
+                Adelanto (% entero, 0–50)
+                <input type="number" id="contrato-adelanto" min="0" max="50" step="1" value="0" />
+              </label>
+              <div style="display:flex; align-items:end;">
+                <button id="btn-crear-contrato" class="btn-cyber" style="width:100%; background:#222; border-color:#c49a00; color:#c49a00; min-height:38px;">Crear y asignar misión</button>
+              </div>
             </div>
           </div>
 
-          <div id="salarios-activos-container" style="display: flex; flex-wrap: wrap; gap: 15px; justify-content: center;">
-              <!-- Tarjetas de salarios inyectadas por JS -->
+          <h4 style="color:#aaa; margin:8px 0;">Jugadores asignados</h4>
+          <div id="contrato-jugadores-checkboxes" class="economy-v2-player-picker">
+            <div class="economy-v2-empty">Cargando jugadores...</div>
+          </div>
+
+          <div id="contratos-activos-container" class="economy-v2-grid" style="margin-top:16px;">
+            <div class="economy-v2-empty">Cargando misiones...</div>
+          </div>
+        </div>
+
+        <!-- ECONOMÍA V2: NÓMINAS -->
+        <div id="dashboard-salarios" class="panel-cyber" style="margin-top: 20px; width: 100%;">
+          <h3 style="color: #0df;">Nóminas / Salarios</h3>
+          <p class="economy-v2-meta">
+            El pago queda ligado al calendario del mundo. Ya no depende de un contador ambiguo de “días restantes”.
+          </p>
+
+          <div class="form-cyber-container" style="margin-bottom: 12px;">
+            <div class="economy-v2-form">
+              <label>
+                Jugador
+                <select id="salario-jugador">
+                  <option value="">Selecciona jugador...</option>
+                </select>
+              </label>
+              <label>
+                Monto por pago (Ahn)
+                <input type="number" id="salario-monto" min="1" step="1" placeholder="750000" />
+              </label>
+              <label>
+                Frecuencia
+                <select id="salario-frecuencia">
+                  <option value="1">Diario</option>
+                  <option value="7" selected>Semanal</option>
+                  <option value="30">Mensual</option>
+                </select>
+              </label>
+              <label id="salario-dia-semana-wrap">
+                Día de pago semanal
+                <select id="salario-dia-semana">
+                  <option value="1" selected>Lunes</option>
+                  <option value="2">Martes</option>
+                  <option value="3">Miércoles</option>
+                  <option value="4">Jueves</option>
+                  <option value="5">Viernes</option>
+                  <option value="6">Sábado</option>
+                  <option value="0">Domingo</option>
+                </select>
+              </label>
+              <label id="salario-dia-mes-wrap" style="display:none;">
+                Día del mes
+                <input type="number" id="salario-dia-mes" min="1" max="31" step="1" value="1" />
+              </label>
+              <div style="display:flex; align-items:end;">
+                <button id="btn-crear-salario" class="btn-cyber" style="width:100%; background:#222; border-color:#0df; color:#0df; min-height:38px;">Asignar salario</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="salario-preview" class="economy-v2-meta" style="padding:8px 10px; border:1px solid #26343b; background:#080d10; margin-bottom:14px;">
+            Calculando próximo pago...
+          </div>
+
+          <div id="salarios-activos-container" class="economy-v2-grid">
+            <div class="economy-v2-empty">Cargando salarios...</div>
           </div>
         </div>
 
@@ -2066,21 +2127,24 @@ window.processEntitiesData = function(entities) {
       <div id="tab-forja" class="dm-tab-pane">
         <!-- NUEVO DASHBOARD: ZONA DE FORJA Y MERCADO -->
         <div id="dashboard-mercado" class="panel-cyber">
-          <h3>Dashboard: Forja y Mercado</h3>
+          <h3>Inventario DM / Ítems / Mercado</h3>
 
           <div class="form-cyber-container" style="justify-content: flex-start; align-items: stretch; gap: 15px; margin-bottom: 20px;">
-            <!-- Panel: Acceso al Forjador Standalone -->
-            <div class="form-cyber" style="flex: 1; border-color: #c49a00; box-shadow: 0 0 15px rgba(196, 154, 0, 0.4); display: flex; flex-direction: column;">
-              <h4 style="color: #c49a00;">🛠️ COFRE Y FORJA DE COMPILACIONES</h4>
+            <!-- Registro canónico unificado: Items + Recipes -->
+            <div class="form-cyber" id="dm-content-registry-summary" style="flex: 1; border-color: #c49a00; box-shadow: 0 0 15px rgba(196, 154, 0, 0.4); display: flex; flex-direction: column;">
+              <h4 style="color: #c49a00;">DIRECTORIO LOCAL DE ÍTEMS</h4>
               <p style="color: #aaa; font-size: 13px; line-height: 1.4; margin: 5px 0;">
-                El sistema de edición y creación de ítems está desacoplado del panel de juego para garantizar una arquitectura modular (Limbus UI Doctrine).
+                Los ítems se cargan directo desde los módulos locales. Firebase no bloquea el directorio: sólo sincroniza jugadores, overrides y el ítem que otorgas.
               </p>
-              <p style="color: #aaa; font-size: 13px; line-height: 1.4; margin: 5px 0;">
-                Haz clic en el botón de abajo para abrir el <strong>Gestor de Ítems y Mercado Standalone</strong>, donde podrás forjar armas, armaduras, escudos, accesorios, consumibles, upgrades, augmentations y recetas.
-              </p>
-              <button class="btn-cyber" onclick="window.open('dm-item-creator.html', '_blank')" style="background: #8b0000; border-color: #ff4444; color: white; padding: 12px; font-weight: bold; font-family: inherit; font-size: 14px; margin-top: auto; cursor: pointer; text-shadow: 0 0 5px #000; width: 100%;">
-                ⚙️ ABRIR GESTOR STANDALONE
-              </button>
+              <div id="dm-content-registry-counts" class="economy-v2-meta" style="margin-top:auto; padding:10px; border:1px solid #3a3120; background:#0b0a07;">
+                Cargando directorio local...
+              </div>
+              <div style="margin-top:10px; padding:10px; border:1px solid #28434a; background:#081013;">
+                <div style="color:#0df; font-size:12px; font-weight:bold; margin-bottom:6px;">COOKING STATIONS AUTORIZADAS</div>
+                <div id="dm-cooking-station-controls" style="display:flex; gap:6px; flex-wrap:wrap; font-size:11px; color:#bbb;">
+                  Cargando estaciones...
+                </div>
+              </div>
             </div>
 
             <!-- Panel: Consumo / Distribución de Ítems (Utilizar) -->
@@ -2099,6 +2163,25 @@ window.processEntitiesData = function(entities) {
                 <div style="display:flex; gap:10px;">
                   <button id="btn-otorgar-stash" class="btn-cyber btn-green" style="flex:1; padding:10px; font-size: 12px; font-weight:bold;">➕ AL ALIJO (STASH)</button>
                   <button id="btn-otorgar-activo" class="btn-cyber btn-red" style="flex:1; padding:10px; font-size: 12px; font-weight:bold;">⚔️ EQUIPAR (ACTIVO)</button>
+                </div>
+                <div id="dm-inline-player-inventory" style="margin-top:10px; border-top:1px solid #28434a; padding-top:10px;">
+                  <div id="dm-inline-player-inventory-status" style="font-size:12px; color:#888; margin-bottom:8px;">
+                    Selecciona un jugador para administrar sus ítems aquí mismo.
+                  </div>
+                  <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:10px;">
+                    <section style="border:1px solid #444; background:#0d0d0d; padding:8px;">
+                      <h5 style="margin:0 0 8px; color:#ff6b6b;">INVENTARIO ACTIVO</h5>
+                      <div id="dm-inline-inventory-active" style="display:flex; flex-direction:column; gap:6px;">
+                        <div style="color:#666; font-size:12px;">Sin jugador seleccionado.</div>
+                      </div>
+                    </section>
+                    <section style="border:1px solid #444; background:#0d0d0d; padding:8px;">
+                      <h5 style="margin:0 0 8px; color:#7dff9b;">STASH / ALIJO</h5>
+                      <div id="dm-inline-inventory-stash" style="display:flex; flex-direction:column; gap:6px;">
+                        <div style="color:#666; font-size:12px;">Sin jugador seleccionado.</div>
+                      </div>
+                    </section>
+                  </div>
                 </div>
               </div>
             </div>
@@ -2253,7 +2336,7 @@ window.processEntitiesData = function(entities) {
                   padding-bottom: 5px;
                 "
               >
-                Base de Datos de Ítems (Global)
+                Directorio Local de Ítems
               </h4>
               <!-- Barra de Herramientas DM -->
               <div class="dm-toolbar">
@@ -2264,23 +2347,19 @@ window.processEntitiesData = function(entities) {
                   placeholder="Buscar por nombre, tier o tipo..."
                 />
                 <div class="dm-filters" id="filtros-dm">
-                  <button class="dm-filter-btn active" data-filter="Todo">
-                    Todo
-                  </button>
-                  <button class="dm-filter-btn" data-filter="Arma">
-                    Armas
-                  </button>
-                  <button class="dm-filter-btn" data-filter="Armadura">
-                    Armaduras
-                  </button>
-                  <button class="dm-filter-btn" data-filter="Consumible">
-                    Consumibles
-                  </button>
-                  <button class="dm-filter-btn" data-filter="Clave">
-                    Clave
-                  </button>
+                  <button class="dm-filter-btn active" data-filter="todo">Todo</button>
+                  <button class="dm-filter-btn" data-filter="weapon">Armas</button>
+                  <button class="dm-filter-btn" data-filter="armor">Armaduras</button>
+                  <button class="dm-filter-btn" data-filter="shield">Escudos</button>
+                  <button class="dm-filter-btn" data-filter="consumable">Consumibles</button>
+                  <button class="dm-filter-btn" data-filter="material">Materiales</button>
+                  <button class="dm-filter-btn" data-filter="ammo">Munición</button>
+                  <button class="dm-filter-btn" data-filter="tool">Herramientas</button>
+                  <button class="dm-filter-btn" data-filter="accessory">Accesorios</button>
+                  <button class="dm-filter-btn" data-filter="upgrade">Upgrades</button>
                 </div>
               </div>
+              <div id="dm-item-catalog-status">Cargando directorio local...</div>
               <div id="grid-items-globales" class="grid-container">
                 <!-- Tarjetas de ítems inyectadas por JS -->
               </div>
@@ -2830,6 +2909,8 @@ window.processEntitiesData = function(entities) {
             border-radius: 8px;
             width: 80%;
             max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
             display: flex;
             flex-direction: column;
           "
@@ -3028,6 +3109,63 @@ window.processEntitiesData = function(entities) {
                   border-radius: 3px;
                 "
               />
+            </div>
+
+            <!-- CONTRATO PERMANENTE DEL EDITOR DM: no retirar estos controles. -->
+            <div
+              style="display: flex; flex-direction: column; grid-column: span 2"
+            >
+              <label style="color: #c49a00; font-size: 12px; margin-bottom: 5px"
+                >VÍNCULO DE ALMAS / ACTOR DEL TEATRO</label
+              >
+              <select
+                id="dm-combat-actor-id"
+                style="
+                  padding: 5px;
+                  background: #222;
+                  color: #fff;
+                  border: 1px solid #444;
+                  border-radius: 3px;
+                "
+              >
+                <option value="">Sin vínculo</option>
+              </select>
+            </div>
+
+            <div
+              style="display: flex; flex-direction: column; grid-column: span 2"
+            >
+              <label style="color: #c49a00; font-size: 12px; margin-bottom: 5px"
+                >URL DEL SPLASH ART</label
+              >
+              <input
+                type="url"
+                id="dm-combat-splash-url"
+                placeholder="https://..."
+                style="
+                  padding: 5px;
+                  background: #222;
+                  color: #fff;
+                  border: 1px solid #444;
+                  border-radius: 3px;
+                "
+              />
+            </div>
+
+            <div
+              style="display: flex; flex-direction: column; grid-column: span 2"
+            >
+              <label style="color: #c49a00; font-size: 12px; margin-bottom: 5px"
+                >EDITOR DE RESISTENCIAS (1 = daño normal)</label
+              >
+              <div
+                id="dm-combat-resistances-grid"
+                style="
+                  display: grid;
+                  grid-template-columns: repeat(3, minmax(0, 1fr));
+                  gap: 8px;
+                "
+              ></div>
             </div>
           </div>
           <div style="display: flex; justify-content: flex-end; gap: 10px">
@@ -3721,7 +3859,64 @@ window.processEntitiesData = function(entities) {
     <!-- Firebase Realtime Database -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <script src="js/utils.js"></script>
+    <script src="js/economy-contracts-core.js"></script>
+    <script src="js/dm-economy-contracts-runtime.js"></script>
     <script src="js/item-icon-registry.js"></script>
+    <script src="js/item-runtime-engine.js"></script>
+    <script src="js/item-inventory-runtime.js"></script>
+    <!-- Canonical item definitions used by the Director catalog. -->
+    <!-- Prerequisites must load before component catalogs in browser mode. -->
+    <script src="js/item-armor-material-profile.js"></script>
+    <script src="js/item-catalog-weapon-components.js"></script>
+    <script src="js/item-catalog-armor-components.js"></script>
+    <script src="js/item-catalog-armor-upgrades.js"></script>
+    <script src="js/item-catalog-blood-ichor.js"></script>
+    <script src="js/item-catalog-chemical-processed.js"></script>
+    <script src="js/item-catalog-chemical-raw.js"></script>
+    <script src="js/item-catalog-craft-components.js"></script>
+    <script src="js/item-catalog-culinary-staples.js"></script>
+    <script src="js/item-catalog-essence-core.js"></script>
+    <script src="js/item-catalog-feather-raw-fiber.js"></script>
+    <script src="js/item-catalog-firearm-ammo.js"></script>
+    <script src="js/item-catalog-firearm-components.js"></script>
+    <script src="js/item-catalog-food.js"></script>
+    <script src="js/item-catalog-hard-parts.js"></script>
+    <script src="js/item-catalog-hide-pelt.js"></script>
+    <script src="js/item-catalog-hp-healing.js"></script>
+    <script src="js/item-catalog-hybrid-healing.js"></script>
+    <script src="js/item-catalog-jewelry-valuables.js"></script>
+    <script src="js/item-catalog-meat.js"></script>
+    <script src="js/item-catalog-medical-supply.js"></script>
+    <script src="js/item-catalog-medicinal-processed.js"></script>
+    <script src="js/item-catalog-medicinal-raw.js"></script>
+    <script src="js/item-catalog-ooze-gel.js"></script>
+    <script src="js/item-catalog-ore-ingot-gem.js"></script>
+    <script src="js/item-catalog-organ-gland.js"></script>
+    <script src="js/item-catalog-plant-produce.js"></script>
+    <script src="js/item-catalog-ranged-weapon-components.js"></script>
+    <script src="js/item-catalog-ranged-weapon-upgrades.js"></script>
+    <script src="js/item-catalog-retail-food.js"></script>
+    <script src="js/item-catalog-scale-shell-chitin.js"></script>
+    <script src="js/item-catalog-shield-components.js"></script>
+    <script src="js/item-catalog-shield-upgrades.js"></script>
+    <script src="js/item-catalog-sp-healing.js"></script>
+    <script src="js/item-catalog-status-cure.js"></script>
+    <script src="js/item-catalog-throwable-components.js"></script>
+    <script src="js/item-catalog-tools.js"></script>
+    <script src="js/item-catalog-venom-secretion.js"></script>
+    <script src="js/item-catalog-weapon-upgrades.js"></script>
+    <script src="js/item-catalog-weapons.js"></script>
+    <!-- Canonical recipe definitions exposed through the unified content registry. -->
+    <script src="js/item-chemistry-recipe-catalog.js"></script>
+    <script src="js/item-cooking-recipe-catalog.js"></script>
+    <script src="js/item-cooking-equipment-engine.js"></script>
+    <script src="js/item-medicine-recipe-catalog.js"></script>
+    <script src="js/item-processing-recipe-data.js"></script>
+    <script src="js/item-throwable-recipe-catalog.js"></script>
+    <script src="js/dm-item-catalog-core.js"></script>
+    <script src="js/item-content-registry.js"></script>
+    <script src="js/dm-tab-runtime-v2.js"></script>
+    <script src="js/dm-local-item-manager-v3.js"></script>
 
     <script>
       const firebaseConfig = {
@@ -4139,7 +4334,6 @@ window.processEntitiesData = function(entities) {
 
             // Check for Rollover (Cambio de Día)
             if (currentWorldDate.getDate() !== oldDate) {
-                procesarSalarios();
                 const nextWeather = calculateNextWeather(currentWeather, previousWeather);
                 previousWeather = currentWeather;
                 currentWeather = nextWeather;
@@ -5522,281 +5716,12 @@ window.processEntitiesData = function(entities) {
         }
 
 
-        // --- ZONA DE CONTRATOS Y SALARIOS ACTIVOS ---
-        const contratoNombreInput = document.getElementById('contrato-nombre');
-        const contratoRecompensaInput = document.getElementById('contrato-recompensa');
-        const contratoJugadoresCheckboxes = document.getElementById('contrato-jugadores-checkboxes');
-        const btnCrearContrato = document.getElementById('btn-crear-contrato');
-        const contratosContainer = document.getElementById('contratos-activos-container');
-
-        const salarioJugadorSelect = document.getElementById('salario-jugador');
-        const salarioMontoInput = document.getElementById('salario-monto');
-        const salarioFrecuenciaSelect = document.getElementById('salario-frecuencia');
-        const btnCrearSalario = document.getElementById('btn-crear-salario');
-        const salariosContainer = document.getElementById('salarios-activos-container');
-
-        // Poblar checkboxes y select cuando jugadores cambian
-        db.ref("campaña/jugadores/").on("value", (snapshot) => {
-          const jugadores = window.processEntitiesData(snapshot.val());
-            if (contratoJugadoresCheckboxes) {
-                const checked = Array.from(contratoJugadoresCheckboxes.querySelectorAll('input:checked')).map(cb => cb.value);
-                contratoJugadoresCheckboxes.innerHTML = '';
-                if(jugadores) {
-                    for (const nombre of Object.keys(jugadores)) {
-                        const lbl = document.createElement("label");
-                        lbl.style.cssText = "color:#fff; font-size:12px; display:flex; align-items:center; gap:5px; cursor:pointer;";
-                        const isChecked = checked.includes(nombre) ? "checked" : "";
-                        lbl.innerHTML = `<input type="checkbox" value="${nombre}" class="check-jugador-contrato" ${isChecked}/> ${nombre}`;
-                        contratoJugadoresCheckboxes.appendChild(lbl);
-                    }
-                }
-            }
-            if (salarioJugadorSelect) {
-                const currentVal = salarioJugadorSelect.value;
-                salarioJugadorSelect.innerHTML = '<option value="">Selecciona Jugador...</option>';
-                if(jugadores) {
-                    for (const nombre of Object.keys(jugadores)) {
-                        const option = document.createElement("option");
-                        option.value = nombre;
-                        option.textContent = nombre;
-                        salarioJugadorSelect.appendChild(option);
-                    }
-                    if(currentVal && jugadores[currentVal]) {
-                        salarioJugadorSelect.value = currentVal;
-                    }
-                }
-            }
-        });
-
-        // Crear Contrato
-        if(btnCrearContrato) {
-            btnCrearContrato.addEventListener('click', () => {
-                const nombre = contratoNombreInput.value.trim();
-                const recompensa = parseInt(contratoRecompensaInput.value) || 0;
-                const checkboxes = document.querySelectorAll('.check-jugador-contrato:checked');
-                const asignados = Array.from(checkboxes).map(cb => cb.value);
-
-                if(!nombre || recompensa <= 0 || asignados.length === 0) {
-                    alert("Faltan datos (nombre, recompensa válida, o al menos 1 jugador asignado).");
-                    return;
-                }
-
-                const newContratoRef = db.ref('campaña/economia/contratos').push();
-                newContratoRef.set({
-                    nombre: nombre,
-                    recompensa: recompensa,
-                    asignados: asignados,
-                    fecha: Date.now()
-                }).then(() => {
-                    contratoNombreInput.value = '';
-                    contratoRecompensaInput.value = '';
-                    checkboxes.forEach(cb => cb.checked = false);
-                }).catch(err => alert("Error creando contrato: " + err));
-            });
-        }
-
-        // Crear Salario
-        if(btnCrearSalario) {
-            btnCrearSalario.addEventListener('click', () => {
-                const jugador = salarioJugadorSelect.value;
-                const monto = parseInt(salarioMontoInput.value) || 0;
-                const frecuencia = parseInt(salarioFrecuenciaSelect.value) || 1;
-
-                if(!jugador || monto <= 0) {
-                    alert("Selecciona un jugador y un monto válido.");
-                    return;
-                }
-
-                const newSalarioRef = db.ref('campaña/economia/salarios').push();
-                newSalarioRef.set({
-                    jugador: jugador,
-                    monto: monto,
-                    frecuencia: frecuencia,
-                    diasRestantes: frecuencia
-                }).then(() => {
-                    salarioMontoInput.value = '';
-                }).catch(err => alert("Error creando salario: " + err));
-            });
-        }
-
-        // Leer y Renderizar Contratos
-        db.ref('campaña/economia/contratos').on('value', snap => {
-            if(!contratosContainer) return;
-            contratosContainer.innerHTML = '';
-
-            const contratos = snap.val();
-            if(!contratos) {
-                contratosContainer.innerHTML = '<span style="color: #888;">Sin contratos activos.</span>';
-                return;
-            }
-
-            for(const [id, data] of Object.entries(contratos)) {
-                const card = document.createElement('div');
-                card.className = 'card-cyber';
-                card.style.cssText = "display: flex; flex-direction: column; gap: 10px; width: 250px; background: #0a0a0a; border: 1px solid #c49a00; padding: 15px;";
-
-                card.innerHTML = `
-                    <h4 style="margin: 0; color: #c49a00; text-align: center;">${data.nombre}</h4>
-                    <div style="font-size: 14px; color: #fff;">Recompensa Total: <span style="color: #0df; font-weight: bold;">${data.recompensa} Ahn</span></div>
-                    <div style="font-size: 12px; color: #aaa;">Asignados: ${data.asignados.join(', ')}</div>
-                    <div style="display: flex; gap: 10px; margin-top: auto;">
-                        <button class="btn-cyber btn-completar-contrato" data-id="${id}" style="flex: 1; background: #004400; color: #00ff00; border-color: #00ff00;">✔ Completar</button>
-                        <button class="btn-cyber btn-fallar-contrato" data-id="${id}" style="flex: 1; background: #440000; color: #ff4444; border-color: #ff4444;">❌ Fallar</button>
-                    </div>
-                `;
-                contratosContainer.appendChild(card);
-            }
-
-            // Eventos para completar
-            document.querySelectorAll('.btn-completar-contrato').forEach(btn => {
-                btn.addEventListener('click', async (e) => {
-                    const id = e.target.getAttribute('data-id');
-                    const cData = contratos[id];
-                    if(!cData) return;
-
-                    const porJugador = Math.floor(cData.recompensa / cData.asignados.length);
-
-                    for(const jugador of cData.asignados) {
-                        try {
-                            const pSnap = await db.ref(`campaña/jugadores/${jugador}`).once('value');
-                            if(pSnap.exists()) {
-                                const pData = pSnap.val();
-                                const oldAhn = pData.ahn || 0;
-                                await db.ref(`campaña/jugadores/${jugador}`).update({ ahn: oldAhn + porJugador });
-
-                                // Log de transacción
-                                await db.ref(`campaña/jugadores/${jugador}/transacciones`).push({
-                                    concepto: `Contrato Completado: ${cData.nombre}`,
-                                    monto: porJugador,
-                                    fecha: Date.now()
-                                });
-                            }
-                        } catch(err) {
-                            console.error(`Error procesando pago a ${jugador}:`, err);
-                        }
-                    }
-
-                    db.ref(`campaña/economia/contratos/${id}`).remove();
-                });
-            });
-
-            // Eventos para fallar
-            document.querySelectorAll('.btn-fallar-contrato').forEach(btn => {
-                btn.addEventListener('click', async (e) => {
-                    const id = e.target.getAttribute('data-id');
-                    const cData = contratos[id];
-                    if(!cData) return;
-
-                    const multa = prompt("Ingresa la multa corporativa (Ahn):");
-                    if(multa === null) return;
-
-                    const multaNum = parseInt(multa);
-                    if(isNaN(multaNum) || multaNum < 0) {
-                        alert("Multa inválida.");
-                        return;
-                    }
-
-                    for(const jugador of cData.asignados) {
-                        try {
-                            const pSnap = await db.ref(`campaña/jugadores/${jugador}`).once('value');
-                            if(pSnap.exists()) {
-                                const pData = pSnap.val();
-                                const oldAhn = pData.ahn || 0;
-                                await db.ref(`campaña/jugadores/${jugador}`).update({ ahn: oldAhn - multaNum });
-
-                                // Log de transacción
-                                await db.ref(`campaña/jugadores/${jugador}/transacciones`).push({
-                                    concepto: `Contrato Fallado: ${cData.nombre}`,
-                                    monto: -multaNum,
-                                    fecha: Date.now()
-                                });
-                            }
-                        } catch(err) {
-                            console.error(`Error procesando multa a ${jugador}:`, err);
-                        }
-                    }
-
-                    db.ref(`campaña/economia/contratos/${id}`).remove();
-                });
-            });
-        });
-
-        // Leer y Renderizar Salarios
-        db.ref('campaña/economia/salarios').on('value', snap => {
-            if(!salariosContainer) return;
-            salariosContainer.innerHTML = '';
-
-            const salarios = snap.val();
-            if(!salarios) {
-                salariosContainer.innerHTML = '<span style="color: #888;">Sin salarios activos.</span>';
-                return;
-            }
-
-            for(const [id, data] of Object.entries(salarios)) {
-                const card = document.createElement('div');
-                card.className = 'card-cyber';
-                card.style.cssText = "display: flex; flex-direction: column; gap: 5px; width: 220px; background: #0a0a0a; border: 1px solid #0df; padding: 15px; position: relative;";
-
-                let freqText = data.frecuencia == 1 ? "Diario" : (data.frecuencia == 7 ? "Semanal" : "Mensual");
-
-                card.innerHTML = `
-                    <button class="btn-eliminar-salario" data-id="${id}" style="position: absolute; top: 5px; right: 5px; background: transparent; border: none; color: #ff4444; cursor: pointer; font-weight: bold;">X</button>
-                    <h4 style="margin: 0; color: #fff;">${data.jugador}</h4>
-                    <div style="font-size: 14px; color: #0df; font-weight: bold;">+${data.monto} Ahn</div>
-                    <div style="font-size: 12px; color: #aaa;">Frecuencia: ${freqText}</div>
-                    <div style="font-size: 12px; color: #c49a00;">Días restantes: ${data.diasRestantes}</div>
-                `;
-                salariosContainer.appendChild(card);
-            }
-
-            document.querySelectorAll('.btn-eliminar-salario').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const id = e.target.getAttribute('data-id');
-                    if(confirm("¿Eliminar este salario?")) {
-                        db.ref(`campaña/economia/salarios/${id}`).remove();
-                    }
-                });
-            });
-        });
-
-        async function procesarSalarios() {
-            try {
-                const snap = await db.ref('campaña/economia/salarios').once('value');
-                if(!snap.exists()) return;
-
-                const salarios = snap.val();
-                for(const [id, data] of Object.entries(salarios)) {
-                    let diasRestantes = (data.diasRestantes || 1) - 1;
-
-                    if(diasRestantes <= 0) {
-                        // Pay salary
-                        try {
-                            const pSnap = await db.ref(`campaña/jugadores/${data.jugador}`).once('value');
-                            if(pSnap.exists()) {
-                                const pData = pSnap.val();
-                                const oldAhn = pData.ahn || 0;
-                                await db.ref(`campaña/jugadores/${data.jugador}`).update({ ahn: oldAhn + data.monto });
-
-                                // Log
-                                await db.ref(`campaña/jugadores/${data.jugador}/transacciones`).push({
-                                    concepto: `Pago de Nómina (${data.frecuencia == 1 ? 'Diaria' : data.frecuencia == 7 ? 'Semanal' : 'Mensual'})`,
-                                    monto: data.monto,
-                                    fecha: Date.now()
-                                });
-                            }
-                        } catch(e) {
-                            console.error(`Error pagando salario a ${data.jugador}`, e);
-                        }
-
-                        // Reset
-                        diasRestantes = data.frecuencia;
-                    }
-
-                    await db.ref(`campaña/economia/salarios/${id}`).update({ diasRestantes: diasRestantes });
-                }
-            } catch(e) {
-                console.error("Error procesando salarios:", e);
-            }
+        // --- ECONOMÍA V2: MISIONES, NÓMINA Y NOMBRES VISIBLES ---
+        if (window.LuminousDMEconomyRuntime?.init) {
+          window.LuminousDMEconomyRuntime.init({
+            db,
+            getWorldDate: () => new Date(currentWorldDate.getTime()),
+          });
         }
 
         // --- ZONA A: RED BANCARIA ---
@@ -5874,15 +5799,17 @@ window.processEntitiesData = function(entities) {
                 const defLvlMod = combatStats.def_lvl_mod || 0;
                 const totalDefLvl = lvl + defLvlMod;
                 const hpMax =
-                  combatStats.hp_max ||
                   data.hp_max ||
+                  combatStats.hp_max ||
                   perfil.hp_max ||
                   Math.floor(hpBase + totalDefLvl * hpCoef) ||
                   0;
                 const hpActual =
-                  combatStats.hp_actual !== undefined
-                    ? combatStats.hp_actual
-                    : hpMax;
+                  data.hp !== undefined
+                    ? data.hp
+                    : combatStats.hp_actual !== undefined
+                      ? combatStats.hp_actual
+                      : hpMax;
 
                 const clase = data.class || perfil.clase || "Desconocida";
                 const raza = data.race || perfil.raza || "Desconocida";
@@ -5933,7 +5860,7 @@ window.processEntitiesData = function(entities) {
                           </div>
                           <div style="display: flex; flex-direction: column; width: 50%;">
                               <label style="color:#c49a00; font-size:12px;">SP:</label>
-                              <span class="player-sp" style="color: #00ddff; font-weight: bold;">${combatStats.sp_actual || 0}</span>
+                              <span class="player-sp" style="color: #00ddff; font-weight: bold;">${data.sp ?? combatStats.sp_actual ?? 0}</span>
                           </div>
                       </div>
 
@@ -6009,7 +5936,7 @@ window.processEntitiesData = function(entities) {
 
                   const spDisplay = pCard.querySelector(".player-sp");
                   if (spDisplay)
-                    spDisplay.innerText = combatStats.sp_actual || 0;
+                    spDisplay.innerText = data.sp ?? combatStats.sp_actual ?? 0;
                 }
               }
               const tarjeta = document.createElement("div");
@@ -6270,127 +6197,53 @@ window.processEntitiesData = function(entities) {
 
         // --- LÓGICA DEL DASHBOARD DE FORJA Y MERCADO ---
 
-        // --- MOTOR DE RECETAS ---
-        const toggleMesaCrafteo = document.getElementById("toggle-mesa-crafteo");
-        db.ref("campaña/estado_mundo/mesa_crafteo_activa").on("value", (snap) => {
-            toggleMesaCrafteo.checked = !!snap.val();
-        });
-        toggleMesaCrafteo.addEventListener("change", (e) => {
-            db.ref("campaña/estado_mundo/mesa_crafteo_activa").set(e.target.checked);
-        });
-
-        // El editor de recetas ahora vive en la herramienta standalone. En esta
-        // pantalla el botón puede no existir; no debemos abortar el inicializador
-        // completo del DM (incluido el Teatro) por ese control opcional.
-        document.getElementById("btn-crear-receta")?.addEventListener("click", () => {
-            const itemResultado = document.getElementById("receta-item-resultado").value.trim();
-            const ingredientesStr = document.getElementById("receta-ingredientes").value.trim();
-            const dificultad = parseInt(document.getElementById("receta-dificultad").value) || 0;
-            const requiereMesa = document.getElementById("receta-requiere-mesa").checked;
-
-            if (!itemResultado || !ingredientesStr) {
-                alert("Completa el ID del ítem y los ingredientes.");
-                return;
-            }
-
-            // Parsear ingredientes: "scrap:2, metal:1" -> [{id: "scrap", cantidad: 2}, {id: "metal", cantidad: 1}]
-            const ingredientes = [];
-            const pares = ingredientesStr.split(",");
-            for (let par of pares) {
-                const [id, cant] = par.split(":");
-                if (id && cant) {
-                    ingredientes.push({ id: id.trim(), cantidad: parseInt(cant.trim()) || 1 });
-                }
-            }
-
-            if (ingredientes.length === 0) {
-                alert("Formato de ingredientes inválido. Usa ID:Cant (Ej: chatarra:2)");
-                return;
-            }
-
-            const nuevaReceta = {
-                item_resultado: itemResultado,
-                ingredientes: ingredientes,
-                dificultad_base: dificultad,
-                requiere_mesa: requiereMesa
-            };
-
-            const recetaId = itemResultado + "_" + Date.now(); // Generar ID único simple
-            db.ref(`campaña/forja/recetas/${recetaId}`).set(nuevaReceta).then(() => {
-                document.getElementById("receta-item-resultado").value = "";
-                document.getElementById("receta-ingredientes").value = "";
-                document.getElementById("receta-dificultad").value = "";
-                document.getElementById("receta-requiere-mesa").checked = false;
-                alert("Receta añadida con éxito");
-            });
-        });
-
-        // Renderizar lista de recetas
-        db.ref("campaña/forja/recetas").on("value", (snap) => {
-            const container = document.getElementById("lista-recetas-globales");
-            container.innerHTML = "";
-            const recetas = snap.val();
-            if (recetas) {
-                for (const [id, data] of Object.entries(recetas)) {
-                    const div = document.createElement("div");
-                    div.style.background = "#222";
-                    div.style.padding = "10px";
-                    div.style.borderLeft = "3px solid #f90";
-                    div.style.display = "flex";
-                    div.style.justifyContent = "space-between";
-                    div.style.alignItems = "center";
-
-                    const ingredientesText = data.ingredientes.map(i => `${i.id} (x${i.cantidad})`).join(", ");
-
-                    div.innerHTML = `
-                        <div>
-                            <strong style="color: #0df;">${data.item_resultado}</strong> <span style="font-size:12px; color:#aaa;">(DC: ${data.dificultad_base})</span>
-                            <div style="font-size: 12px; color: #ccc;">Req: ${ingredientesText}</div>
-                            ${data.requiere_mesa ? '<div style="font-size:10px; color:#f90;">Requiere Mesa de Crafteo</div>' : ''}
-                        </div>
-                        <button class="btn-cyber btn-red" style="padding: 5px; font-size: 12px;" onclick="eliminarReceta('${id}')">Borrar</button>
-                    `;
-                    container.appendChild(div);
-                }
-            } else {
-                 container.innerHTML = "<div style='color: #888; font-size: 12px;'>No hay recetas globales.</div>";
-            }
-        });
-
-        window.eliminarReceta = function(id) {
-            if (confirm("¿Borrar esta receta?")) {
-                db.ref(`campaña/forja/recetas/${id}`).remove();
-            }
-        };
-
+        // Recipes are canonical runtime content and are exposed by
+        // LuminousItemContentRegistry. Legacy Firebase recipe editing was removed
+        // from this page to keep one authoritative content path.
 
         function resolveDmLocalItemIcon(item = {}, fallbackId = "") {
           const registry = window.LuminousItemIconRegistry;
-          const candidates = [
-            item.iconFamily, item.icon_family, item.family, item.group,
-            fallbackId, item.id, item.definitionId, item.category, item.tipo_categoria, item.itemType
-          ].map((value) => String(value || "").trim()).filter(Boolean);
-          if (registry?.get && registry?.resolveIcon) {
-            for (const candidate of candidates) {
-              const row = registry.get(candidate, { fallback: false });
-              if (!row) continue;
-              const icon = String(registry.resolveIcon(row.id, { fallback: false }) || "").trim();
-              if (icon && !/^(?:https?:)?\/\//i.test(icon)) return icon;
-            }
-          }
+          const core = window.LuminousDmItemCatalogCore;
+          const canonical = core?.resolveIcon?.(item, registry, fallbackId);
+          if (canonical) return canonical;
           const explicit = [item.icono, item.icon, item.image, item.img]
             .map((value) => String(value || "").trim())
-            .find((value) => value && !/^(?:https?:)?\/\//i.test(value) && !/^(?:data|blob):/i.test(value));
+            .find(Boolean);
           return explicit || "Assets/Icons/items/fallback/generic_item.png";
         }
 
+        function dmItemQuantity(item = {}) {
+          return window.LuminousDmItemCatalogCore?.quantityOf?.(item)
+            || Math.max(1, parseInt(item.quantity ?? item.cantidad ?? 1) || 1);
+        }
+
+        function dmQuantityPatch(item, nextQuantity) {
+          return window.LuminousDmItemCatalogCore?.quantityPatch?.(item, nextQuantity)
+            || { quantity: nextQuantity, cantidad: nextQuantity };
+        }
+
+        function sameDmItemDefinition(a, b) {
+          return window.LuminousDmItemCatalogCore?.sameDefinition?.(a, b)
+            || (a?.nombre === b?.nombre && String(a?.tier || "I") === String(b?.tier || "I"));
+        }
+
+        function buildDmGrantPayload(item, quantity) {
+          return window.LuminousDmItemCatalogCore?.createGrantPayload?.(item, quantity, {
+            iconRegistry: window.LuminousItemIconRegistry,
+            inventoryRuntime: window.LuminousItemInventoryRuntime
+          }) || { ...item, quantity, cantidad: quantity };
+        }
+
         let dbItemsCache = {}; // Caché local de TODOS los ítems globales
-        let dbAugmentationsCache = {}; // Caché de aumentos
         let tiendaActualEditada = null; // ID de la tienda abierta en el modal
         let selectedItemToOtorgar = null; // El ítem seleccionado para distribuir
+        let dmItemCatalogStatusSuffix = "catálogo canónico local";
 
         // Sincronizar select de jugadores destino para otorgar ítems
         function updateOtorgarJugadoresSelect() {
+            if (window.LuminousDmLocalItemManagerV3) {
+                return;
+            }
             const select = document.getElementById("otorgar-item-jugador");
             if (!select) return;
             const currentVal = select.value;
@@ -6405,91 +6258,91 @@ window.processEntitiesData = function(entities) {
             }
         }
 
-        // Evento para otorgar al alijo (Stash)
-        document.getElementById("btn-otorgar-stash").addEventListener("click", () => {
-            const jugador = document.getElementById("otorgar-item-jugador").value;
-            const cant = parseInt(document.getElementById("otorgar-item-cant").value) || 1;
+        // Legacy grant handlers stay disabled when the local-first manager owns the UI.
+        if (!window.LuminousDmLocalItemManagerV3) {
+          // Evento para otorgar al alijo (Stash)
+          document.getElementById("btn-otorgar-stash").addEventListener("click", () => {
+              const jugador = document.getElementById("otorgar-item-jugador").value;
+              const cant = parseInt(document.getElementById("otorgar-item-cant").value) || 1;
 
-            if (!selectedItemToOtorgar) {
-                alert("Selecciona un ítem de la base de datos primero.");
-                return;
-            }
-            if (!jugador) {
-                alert("Selecciona un jugador destino.");
-                return;
-            }
+              if (!selectedItemToOtorgar) {
+                  alert("Selecciona un ítem de la base de datos primero.");
+                  return;
+              }
+              if (!jugador) {
+                  alert("Selecciona un jugador destino.");
+                  return;
+              }
 
-            const stashRef = db.ref("campaña/jugadores/" + jugador + "/inventario_stash");
-            stashRef.once("value", snap => {
-                const stash = window.processItemsData(snap.val()) || {};
-                let foundKey = null;
-                for (const [k, v] of Object.entries(stash)) {
-                    if (v.nombre === selectedItemToOtorgar.nombre && (v.tier || 'I') === (selectedItemToOtorgar.tier || 'I')) {
-                        foundKey = k;
-                        break;
-                    }
-                }
+              const stashRef = db.ref("campaña/jugadores/" + jugador + "/inventario_stash");
+              stashRef.once("value", snap => {
+                  const stash = window.processItemsData(snap.val()) || {};
+                  let foundKey = null;
+                  for (const [k, v] of Object.entries(stash)) {
+                      if (sameDmItemDefinition(v, selectedItemToOtorgar)) {
+                          foundKey = k;
+                          break;
+                      }
+                  }
 
-                if (foundKey) {
-                    const currentCant = stash[foundKey].cantidad || 1;
-                    stashRef.child(foundKey).update({ cantidad: currentCant + cant })
-                        .then(() => alert("¡Otorgados " + cant + " de " + selectedItemToOtorgar.nombre + " al Alijo de " + jugador + "!"));
-                } else {
-                    const newItem = {
-                        ...selectedItemToOtorgar,
-                        cantidad: cant,
-                        valorBase: selectedItemToOtorgar.price || selectedItemToOtorgar.costo || 0
-                    };
-                    stashRef.push(newItem)
-                        .then(() => alert("¡Añadido " + selectedItemToOtorgar.nombre + " (x" + cant + ") al Alijo de " + jugador + "!"));
-                }
-            });
-        });
+                  if (foundKey) {
+                      const currentCant = dmItemQuantity(stash[foundKey]);
+                      stashRef.child(foundKey).update(dmQuantityPatch(stash[foundKey], currentCant + cant))
+                          .then(() => alert("¡Otorgados " + cant + " de " + selectedItemToOtorgar.nombre + " al Alijo de " + jugador + "!"));
+                  } else {
+                      const newItem = buildDmGrantPayload(selectedItemToOtorgar, cant);
+                      stashRef.push(newItem)
+                          .then(() => alert("¡Añadido " + selectedItemToOtorgar.nombre + " (x" + cant + ") al Alijo de " + jugador + "!"));
+                  }
+              });
+          });
 
-        // Evento para equipar en inventario activo
-        document.getElementById("btn-otorgar-activo").addEventListener("click", () => {
-            const jugador = document.getElementById("otorgar-item-jugador").value;
-            const cant = parseInt(document.getElementById("otorgar-item-cant").value) || 1;
+          // Evento para equipar en inventario activo
+          document.getElementById("btn-otorgar-activo").addEventListener("click", () => {
+              const jugador = document.getElementById("otorgar-item-jugador").value;
+              const cant = parseInt(document.getElementById("otorgar-item-cant").value) || 1;
 
-            if (!selectedItemToOtorgar) {
-                alert("Selecciona un ítem de la base de datos primero.");
-                return;
-            }
-            if (!jugador) {
-                alert("Selecciona un jugador destino.");
-                return;
-            }
+              if (!selectedItemToOtorgar) {
+                  alert("Selecciona un ítem de la base de datos primero.");
+                  return;
+              }
+              if (!jugador) {
+                  alert("Selecciona un jugador destino.");
+                  return;
+              }
 
-            const activoRef = db.ref("campaña/jugadores/" + jugador + "/inventario_activo");
-            activoRef.once("value", snap => {
-                const activo = window.processItemsData(snap.val()) || {};
-                let foundKey = null;
-                for (const [k, v] of Object.entries(activo)) {
-                    if (v.nombre === selectedItemToOtorgar.nombre && (v.tier || 'I') === (selectedItemToOtorgar.tier || 'I')) {
-                        foundKey = k;
-                        break;
-                    }
-                }
+              const activoRef = db.ref("campaña/jugadores/" + jugador + "/inventario_activo");
+              activoRef.once("value", snap => {
+                  const activo = window.processItemsData(snap.val()) || {};
+                  let foundKey = null;
+                  for (const [k, v] of Object.entries(activo)) {
+                      if (sameDmItemDefinition(v, selectedItemToOtorgar)) {
+                          foundKey = k;
+                          break;
+                      }
+                  }
 
-                if (foundKey) {
-                    const currentCant = activo[foundKey].cantidad || 1;
-                    activoRef.child(foundKey).update({ cantidad: currentCant + cant })
-                        .then(() => alert("¡Otorgados " + cant + " de " + selectedItemToOtorgar.nombre + " al Inventario de " + jugador + "!"));
-                } else {
-                    const newItem = {
-                        ...selectedItemToOtorgar,
-                        cantidad: cant,
-                        valorBase: selectedItemToOtorgar.price || selectedItemToOtorgar.costo || 0
-                    };
-                    activoRef.push(newItem)
-                        .then(() => alert("¡Equipado " + selectedItemToOtorgar.nombre + " (x" + cant + ") a " + jugador + "!"));
-                }
-            });
-        });
+                  if (foundKey) {
+                      const currentCant = dmItemQuantity(activo[foundKey]);
+                      activoRef.child(foundKey).update(dmQuantityPatch(activo[foundKey], currentCant + cant))
+                          .then(() => alert("¡Otorgados " + cant + " de " + selectedItemToOtorgar.nombre + " al Inventario de " + jugador + "!"));
+                  } else {
+                      const newItem = buildDmGrantPayload(selectedItemToOtorgar, cant);
+                      activoRef.push(newItem)
+                          .then(() => alert("¡Equipado " + selectedItemToOtorgar.nombre + " (x" + cant + ") a " + jugador + "!"));
+                  }
+              });
+          });
+
+        }
 
         // Sincronizar cambios de jugadores en el select
 
 
+        const searchInputDM = document.getElementById("buscador-items-dm");
+        const filterBtnsDM = document.querySelectorAll(
+          "#filtros-dm .dm-filter-btn",
+        );
         const gridItemsGlobales = document.getElementById("grid-items-globales");
 
         function renderGlobalItemsAndAugments() {
@@ -6503,8 +6356,8 @@ window.processEntitiesData = function(entities) {
                     card.className = "card-cyber card-item";
                     card.style.cursor = "pointer";
 
-                    card.dataset.name = data.nombre.toLowerCase();
-                    card.dataset.tier = (data.tier || "").toLowerCase();
+                    card.dataset.name = String(data.nombre || data.name || key).toLowerCase();
+                    card.dataset.tier = String(data.tier || "").toLowerCase();
 
                     let tagsStr = "";
                     let tagsLower = "";
@@ -6520,9 +6373,12 @@ window.processEntitiesData = function(entities) {
                     card.dataset.tags = tagsLower;
 
                     const imgUrl = resolveDmLocalItemIcon(data, key);
+                    const deleteHtml = data.__firebasePath
+                      ? '<button class="btn-delete-item" data-id="' + key + '" style="position: absolute; top: 5px; right: 5px; background: transparent; border: none; cursor: pointer; font-size: 16px;" title="Eliminar contenido custom de Firebase">🗑️</button>'
+                      : "";
 
                     card.innerHTML = `
-                        <button class="btn-delete-item" data-id="${key}" style="position: absolute; top: 5px; right: 5px; background: transparent; border: none; cursor: pointer; font-size: 16px;" title="Eliminar Ítem">🗑️</button>
+                        ${deleteHtml}
                         <img src="${imgUrl}" alt="${data.nombre}">
                         <h5>${data.nombre}</h5>
                         <span style="font-size: 0.8em; color: #aaa;">${tagsStr}</span>
@@ -6531,11 +6387,14 @@ window.processEntitiesData = function(entities) {
 
                     // Evento para eliminar
                     const btnDelete = card.querySelector(".btn-delete-item");
-                    btnDelete.addEventListener("click", (e) => {
+                    if (btnDelete) btnDelete.addEventListener("click", (e) => {
                         e.stopPropagation();
                         if (confirm("¿Estás seguro de eliminar este ítem permanentemente?")) {
-                            db.ref("campaña/base_datos_items/" + key).remove()
-                                .then(() => alert("Ítem eliminado."));
+                            const firebasePath = data.__firebasePath;
+                            const firebaseKey = data.__firebaseKey || key;
+                            if (!firebasePath) return;
+                            db.ref(firebasePath + "/" + firebaseKey).remove()
+                                .then(() => alert("Contenido custom eliminado."));
                         }
                     });
 
@@ -6557,96 +6416,163 @@ window.processEntitiesData = function(entities) {
                 }
             }
 
-            // Render Augmentations (Aumentos)
-            if (window.dbAugmentationsCache) {
-                for (const [key, data] of Object.entries(window.dbAugmentationsCache)) {
-                    const card = document.createElement("div");
-                    card.className = "card-cyber card-item";
-                    card.style.cursor = "pointer";
-                    card.style.borderLeftColor = "#8a1c1c"; // Red border for Augmentations
-
-                    card.dataset.name = data.nombre.toLowerCase();
-                    card.dataset.tier = (data.tier || "I").toLowerCase();
-                    card.dataset.tags = "augmentation,aumento";
-
-                    const imgUrl = resolveDmLocalItemIcon(data, key);
-
-                    card.innerHTML = `
-                        <button class="btn-delete-item" data-id="${key}" style="position: absolute; top: 5px; right: 5px; background: transparent; border: none; cursor: pointer; font-size: 16px;" title="Eliminar Aumento">🗑️</button>
-                        <img src="${imgUrl}" alt="${data.nombre}">
-                        <h5>${data.nombre}</h5>
-                        <span style="font-size: 0.8em; color: #8a1c1c;">Corporal / Augment</span>
-                        <span style="color:#0df; font-weight:bold;"><span class="currency-symbol">₳</span> ${data.price || 0}</span>
-                    `;
-
-                    // Evento para eliminar
-                    const btnDelete = card.querySelector(".btn-delete-item");
-                    btnDelete.addEventListener("click", (e) => {
-                        e.stopPropagation();
-                        if (confirm("¿Estás seguro de eliminar este aumento permanentemente?")) {
-                            db.ref("campaña/base_datos_aumentos/" + key).remove()
-                                .then(() => alert("Aumento eliminado."));
-                        }
-                    });
-
-                    // Evento para seleccionar e inyectar al distribuidor
-                    card.addEventListener("click", () => {
-                        selectedItemToOtorgar = { ...data, id: key };
-                        document.getElementById("panel-consumo-item").style.display = "flex";
-                        document.getElementById("consumo-item-nombre").innerText = data.nombre;
-
-                        let detailsHtml = `<strong>Aumento Corporal</strong> | <strong>Price:</strong> ₳ ${data.price || 0}<br>`;
-                        if (data.descripcion) {
-                            detailsHtml += `<em>${data.descripcion}</em>`;
-                        }
-                        document.getElementById("consumo-item-detalles").innerHTML = detailsHtml;
-                        document.getElementById("panel-consumo-item").scrollIntoView({ behavior: "smooth" });
-                    });
-
-                    fragmentGlobalItems.appendChild(card);
-                }
-            }
-
             gridItemsGlobales.appendChild(fragmentGlobalItems);
+            const status = document.getElementById("dm-item-catalog-status");
+            if (status) {
+              const total = gridItemsGlobales.querySelectorAll(".card-item").length;
+              status.textContent = total
+                ? total + " Items otorgables · " + Object.keys(window.dbRecipesCache || {}).length + " Recipes registradas · " + dmItemCatalogStatusSuffix
+                : "Sin definiciones disponibles. Revisa la carga de item-catalog-*.";
+            }
             filterDMItems();
         }
 
-        // Escuchar base_datos_items
-        db.ref("campaña/base_datos_items").on("value", (snapshot) => {
-            const items = window.processItemsData(snapshot.val());
-            window.dbItemsCache = items || {};
-            dbItemsCache = window.dbItemsCache; // Fallback sync
-            renderGlobalItemsAndAugments();
-
-            // Populate selects in other tabs exactly as before
+        function populateDmCatalogSelects(items = {}) {
             const lootItemSelect = document.getElementById("loot-select-item");
-            if (lootItemSelect) {
-                lootItemSelect.innerHTML = '<option value="">Selecciona Ítem Global...</option>';
-                if (items) {
-                    const sortedKeys = Object.keys(items).sort();
-                    for (const key of sortedKeys) {
-                        const option = document.createElement("option");
-                        option.value = key;
-                        option.textContent = items[key].nombre;
-                        lootItemSelect.appendChild(option);
-                    }
-                }
+            if (!lootItemSelect) return;
+            lootItemSelect.innerHTML = '<option value="">Selecciona Ítem Global...</option>';
+            Object.keys(items).sort().forEach((key) => {
+                const option = document.createElement("option");
+                option.value = key;
+                option.textContent = items[key].nombre || items[key].name || key;
+                lootItemSelect.appendChild(option);
+            });
+        }
+
+        let dmFirebaseItemsOverlay = {};
+        let dmFirebaseAugmentationsOverlay = {};
+        let dmCookingStationsState = {};
+
+        function renderDmCookingStationControls(activeStations = {}) {
+            const container = document.getElementById("dm-cooking-station-controls");
+            if (!container) return;
+            const stations = Object.values(window.LuminousCookingEquipmentEngine?.STATIONS || {});
+            if (!stations.length) {
+              container.textContent = "No hay estaciones canónicas registradas.";
+              return;
             }
-        });
+            container.innerHTML = "";
+            stations.forEach((station) => {
+              const label = document.createElement("label");
+              label.style.cssText = "display:flex;align-items:center;gap:5px;padding:5px 7px;border:1px solid #29434a;background:#0b1518;cursor:pointer;";
+              const input = document.createElement("input");
+              input.type = "checkbox";
+              input.dataset.cookingStationId = station.id;
+              input.checked = activeStations?.[station.id] === true;
+              input.addEventListener("change", () => {
+                const stationId = input.dataset.cookingStationId;
+                db.ref("campaña/estado_mundo/cooking_stations").child(stationId)
+                  .set(input.checked ? true : null)
+                  .catch((error) => console.error("No se pudo actualizar Cooking Station:", stationId, error));
+              });
+              const text = document.createElement("span");
+              text.textContent = station.label || station.id;
+              label.append(input, text);
+              container.appendChild(label);
+            });
+        }
 
-        // Escuchar base_datos_aumentos
-        db.ref("campaña/base_datos_aumentos").on("value", (snapshot) => {
-            window.dbAugmentationsCache = window.processItemsData(snapshot.val()) || {};
-            renderGlobalItemsAndAugments();
-        });
-
-                // --- LÓGICA DE BÚSQUEDA Y FILTRADO (DM) ---
-        const searchInputDM = document.getElementById("buscador-items-dm");
-        const filterBtnsDM = document.querySelectorAll(
-          "#filtros-dm .dm-filter-btn",
+        db.ref("campaña/estado_mundo/cooking_stations").on(
+          "value",
+          (snapshot) => {
+            dmCookingStationsState = snapshot.val() || {};
+            renderDmCookingStationControls(dmCookingStationsState);
+          },
+          (error) => {
+            console.error("No se pudieron cargar Cooking Stations autorizadas:", error);
+            renderDmCookingStationControls({});
+          },
         );
 
+        function applyDmContentRegistry(statusSuffix = "registro canónico local") {
+            if (window.LuminousDmLocalItemManagerV3) {
+              const localItems = window.LuminousDmLocalItemManagerV3.getItemsObject();
+              window.dbItemsCache = localItems;
+              dbItemsCache = localItems;
+              window.dbRecipesCache = window.dbRecipesCache || {};
+              const summary = document.getElementById("dm-content-registry-counts");
+              if (summary) {
+                summary.textContent = Object.keys(localItems).length + " Items locales · carga directa · Firebase no bloquea";
+              }
+              populateDmCatalogSelects(localItems);
+              return {
+                items: localItems,
+                recipes: window.dbRecipesCache,
+                counts: {
+                  items: Object.keys(localItems).length,
+                  recipes: Object.keys(window.dbRecipesCache).length
+                },
+                ready: true,
+                source: "dm-local-item-manager-v3"
+              };
+            }
+            const registry = window.LuminousItemContentRegistry;
+            const core = window.LuminousDmItemCatalogCore;
+            const snapshot = registry
+              ? registry.build(window, {
+                  firebaseItems: dmFirebaseItemsOverlay,
+                  firebaseAugmentations: dmFirebaseAugmentationsOverlay,
+                  iconRegistry: window.LuminousItemIconRegistry
+                })
+              : {
+                  items: core
+                    ? core.buildCatalogMap(window, dmFirebaseItemsOverlay, { iconRegistry: window.LuminousItemIconRegistry })
+                    : dmFirebaseItemsOverlay,
+                  recipes: {},
+                  counts: { items: 0, recipes: 0 },
+                  ready: Boolean(core)
+                };
+
+            dmItemCatalogStatusSuffix = statusSuffix;
+            window.dmContentRegistrySnapshot = snapshot;
+            window.dbItemsCache = snapshot.items || {};
+            window.dbRecipesCache = snapshot.recipes || {};
+            dbItemsCache = window.dbItemsCache;
+
+            const summary = document.getElementById("dm-content-registry-counts");
+            if (summary) {
+              const itemCount = Object.keys(window.dbItemsCache).length;
+              const recipeCount = Object.keys(window.dbRecipesCache).length;
+              summary.textContent = itemCount + " Items · " + recipeCount + " Recipes · " + statusSuffix;
+            }
+
+            renderGlobalItemsAndAugments();
+            populateDmCatalogSelects(window.dbItemsCache);
+            return snapshot;
+        }
+
+        // Canonical content is local and must render before Firebase responds.
+        applyDmContentRegistry("registro canónico local");
+
+        db.ref("campaña/base_datos_items").on(
+          "value",
+          (snapshot) => {
+            dmFirebaseItemsOverlay = window.processItemsData(snapshot.val()) || {};
+            applyDmContentRegistry("canónico + custom Firebase");
+          },
+          (error) => {
+            console.error("No se pudieron cargar overrides de ítems desde Firebase:", error);
+            applyDmContentRegistry("canónico · custom Firebase no disponible");
+          },
+        );
+
+        db.ref("campaña/base_datos_aumentos").on(
+          "value",
+          (snapshot) => {
+            dmFirebaseAugmentationsOverlay = window.processItemsData(snapshot.val()) || {};
+            applyDmContentRegistry("canónico + custom Firebase");
+          },
+          (error) => {
+            console.error("No se pudieron cargar aumentos custom desde Firebase:", error);
+            applyDmContentRegistry("canónico · aumentos custom no disponibles");
+          },
+        );
+
+                // --- LÓGICA DE BÚSQUEDA Y FILTRADO (DM) ---
         function filterDMItems() {
+          if (window.LuminousDmLocalItemManagerV3) {
+            return;
+          }
           const query = searchInputDM ? searchInputDM.value.toLowerCase() : "";
           let activeFilter = "todo";
 
@@ -6659,6 +6585,7 @@ window.processEntitiesData = function(entities) {
           const dmGrid = document.getElementById("grid-items-globales");
           if (dmGrid) {
             const cards = dmGrid.querySelectorAll(".card-item");
+            let visibleCount = 0;
             cards.forEach((card) => {
               const name = card.dataset.name || "";
               const tier = card.dataset.tier || "";
@@ -6673,10 +6600,13 @@ window.processEntitiesData = function(entities) {
 
               if (matchesQuery && matchesFilter) {
                 card.style.display = "flex";
+                visibleCount += 1;
               } else {
                 card.style.display = "none";
               }
             });
+            const status = document.getElementById("dm-item-catalog-status");
+            if (status) status.textContent = visibleCount + " / " + cards.length + " Items visibles · " + Object.keys(window.dbRecipesCache || {}).length + " Recipes registradas · " + dmItemCatalogStatusSuffix;
           }
         }
 
@@ -7169,16 +7099,16 @@ window.processEntitiesData = function(entities) {
               : item.tipo || "Sin Tipo";
 
           row.innerHTML = `
-            <img src="${item.icono && !String(item.icono).toLowerCase().startsWith("http") && !String(item.icono).startsWith("//") ? item.icono : "Assets/Icons/items/fallback/generic_item.png"}" style="width: 40px; height: 40px; object-fit: contain; background: #000; border-radius: 4px;">
+            <img src="${resolveDmLocalItemIcon(item, item.definitionId || item.id || key)}" style="width: 40px; height: 40px; object-fit: contain; background: #000; border-radius: 4px;">
             <div style="flex: 1; min-width: 150px;">
-                <h5 style="margin: 0; color: #fff;">${item.nombre}</h5>
+                <h5 style="margin: 0; color: #fff;">${item.nombre || item.name || item.definitionId || "Item"}</h5>
                 <span style="font-size: 12px; color: #888;">[${tagsStr}] Tier ${item.tier || "I"}</span>
             </div>
             <div style="display: flex; align-items: center; gap: 10px;">
                 <button class="btn-inv-mod" data-action="${switchAction}" data-key="${key}" data-list="${listType}" style="background:transparent; border:1px solid ${switchColor}; color:${switchColor}; cursor:pointer; padding:5px 10px; font-weight:bold; border-radius: 4px; font-size: 11px;" title="Mover">${switchIcon}</button>
                 <div style="width: 1px; height: 20px; background: #444; margin: 0 5px;"></div>
                 <button class="btn-inv-mod" data-action="minus" data-key="${key}" data-list="${listType}" style="background:#440000; border:1px solid #ff0000; color:#fff; cursor:pointer; padding:5px 10px; font-weight:bold; border-radius: 4px;">-</button>
-                <span style="color:#0df; font-weight:bold; width: 30px; text-align:center;">${item.cantidad}</span>
+                <span style="color:#0df; font-weight:bold; width: 30px; text-align:center;">${dmItemQuantity(item)}</span>
                 <button class="btn-inv-mod" data-action="plus" data-key="${key}" data-list="${listType}" style="background:#004400; border:1px solid #00ff00; color:#fff; cursor:pointer; padding:5px 10px; font-weight:bold; border-radius: 4px;">+</button>
                 <button class="btn-inv-mod" data-action="delete" data-key="${key}" data-list="${listType}" style="background:transparent; border:none; color:#ff4444; cursor:pointer; font-size:18px; margin-left:10px;" title="Eliminar">🗑️</button>
             </div>
@@ -7194,12 +7124,12 @@ window.processEntitiesData = function(entities) {
 
           if (dbItemsCache) {
             const sortedKeys = Object.keys(dbItemsCache).sort((a, b) =>
-              dbItemsCache[a].nombre.localeCompare(dbItemsCache[b].nombre),
+              String(dbItemsCache[a].nombre || dbItemsCache[a].name || a).localeCompare(String(dbItemsCache[b].nombre || dbItemsCache[b].name || b)),
             );
             for (const key of sortedKeys) {
               const opt = document.createElement("option");
               opt.value = key;
-              opt.textContent = `${dbItemsCache[key].nombre} [Tier ${dbItemsCache[key].tier || "I"}]`;
+              opt.textContent = `${dbItemsCache[key].nombre || dbItemsCache[key].name || key} [${dbItemsCache[key].category || "item"} · ${dbItemsCache[key].tier || "I"}]`;
               selectAdd.appendChild(opt);
             }
           }
@@ -7238,13 +7168,9 @@ window.processEntitiesData = function(entities) {
 
               // Check if it already exists to increment quantity instead
               for (const [k, item] of Object.entries(targetData)) {
-                if (
-                  item.nombre === dataGlobal.nombre &&
-                  (parseInt(item.tier) || 1) ===
-                    (parseInt(dataGlobal.tier) || 1)
-                ) {
+                if (sameDmItemDefinition(item, dataGlobal)) {
                   foundKey = k;
-                  currentCant = item.cantidad || 1;
+                  currentCant = dmItemQuantity(item);
                   break;
                 }
               }
@@ -7252,18 +7178,14 @@ window.processEntitiesData = function(entities) {
               if (foundKey) {
                 targetRef
                   .child(foundKey)
-                  .update({ cantidad: currentCant + cant })
+                  .update(dmQuantityPatch(targetData[foundKey], currentCant + cant))
                   .then(() =>
                     alert(
                       `Se añadieron ${cant} a ${dataGlobal.nombre} en ${targetList}.`,
                     ),
                   );
               } else {
-                const newItem = {
-                  ...dataGlobal,
-                  cantidad: cant,
-                  valorBase: dataGlobal.costo || 0, // Para la tienda
-                };
+                const newItem = buildDmGrantPayload(dataGlobal, cant);
                 targetRef
                   .push(newItem)
                   .then(() =>
@@ -7349,10 +7271,10 @@ window.processEntitiesData = function(entities) {
                 if (!item) return;
 
                 if (action === "plus") {
-                  itemRef.update({ cantidad: item.cantidad + 1 });
+                  itemRef.update(dmQuantityPatch(item, dmItemQuantity(item) + 1));
                 } else if (action === "minus") {
-                  if (item.cantidad > 1) {
-                    itemRef.update({ cantidad: item.cantidad - 1 });
+                  if (dmItemQuantity(item) > 1) {
+                    itemRef.update(dmQuantityPatch(item, dmItemQuantity(item) - 1));
                   } else {
                     itemRef.remove();
                   }
@@ -7370,7 +7292,7 @@ window.processEntitiesData = function(entities) {
                   );
 
                   // Move 1 unit
-                  let itemToMove = { ...item, cantidad: 1 };
+                  let itemToMove = { ...item, quantity: 1, cantidad: 1 };
 
                   targetRef.once("value", (targetSnap) => {
                     const targetData = targetSnap.val() || {};
@@ -7384,7 +7306,7 @@ window.processEntitiesData = function(entities) {
                           (parseInt(item.tier) || 1)
                       ) {
                         foundKey = k;
-                        targetCurrentCant = targetItem.cantidad || 1;
+                        targetCurrentCant = dmItemQuantity(targetItem);
                         break;
                       }
                     }
@@ -7394,15 +7316,15 @@ window.processEntitiesData = function(entities) {
                     if (foundKey) {
                       promiseAdd = targetRef
                         .child(foundKey)
-                        .update({ cantidad: targetCurrentCant + 1 });
+                        .update(dmQuantityPatch(targetData[foundKey], targetCurrentCant + 1));
                     } else {
                       promiseAdd = targetRef.push(itemToMove);
                     }
 
                     // Remove from source
                     promiseAdd.then(() => {
-                      if (item.cantidad > 1) {
-                        itemRef.update({ cantidad: item.cantidad - 1 });
+                      if (dmItemQuantity(item) > 1) {
+                        itemRef.update(dmQuantityPatch(item, dmItemQuantity(item) - 1));
                       } else {
                         itemRef.remove();
                       }
@@ -8352,6 +8274,22 @@ window.processEntitiesData = function(entities) {
           });
 
         // Lógica del Modal de Stats de Combate
+        // Estos 13 tipos forman parte del contrato permanente del editor de jugador del DM.
+        const DM_PLAYER_RESISTANCE_TYPES = Object.freeze([
+          "Cortante",
+          "Perforante",
+          "Contundente",
+          "Fuego",
+          "Frío",
+          "Relámpago",
+          "Ácido",
+          "Veneno",
+          "Necrótico",
+          "Radiante",
+          "Fuerza",
+          "Psíquico",
+          "Trueno",
+        ]);
         let activePlayerIdForModal = null;
 
         document.addEventListener("click", (e) => {
@@ -8380,9 +8318,11 @@ window.processEntitiesData = function(entities) {
             const calcHpMax = Math.floor(hpBase + totalDefLvl * hpCoef);
             const hpMax = calcHpMax || 0;
             const hpActual =
-              combatStats.hp_actual !== undefined
-                ? combatStats.hp_actual
-                : hpMax;
+              playerData.hp !== undefined
+                ? playerData.hp
+                : combatStats.hp_actual !== undefined
+                  ? combatStats.hp_actual
+                  : hpMax;
 
             // Poblar inputs
             document.getElementById("dm-player-xp").value = xp;
@@ -8394,7 +8334,7 @@ window.processEntitiesData = function(entities) {
               combatStats.def_lvl_mod || 0;
             document.getElementById("dm-off-lvl").value =
               combatStats.off_lvl_mod || 0;
-            document.getElementById("dm-sp").value = combatStats.sp_actual || 0;
+            document.getElementById("dm-sp").value = playerData.sp ?? combatStats.sp_actual ?? 0;
             document.getElementById("dm-action-slots").value =
               combatStats.action_slots || 1;
 
@@ -8404,6 +8344,55 @@ window.processEntitiesData = function(entities) {
               staggerVal = combatStats.stagger_thresholds.join(", ");
             }
             document.getElementById("dm-stagger").value = staggerVal;
+
+            // Vínculo de Almas / Actor del Teatro
+            const actorSelect = document.getElementById("dm-combat-actor-id");
+            actorSelect.innerHTML = '<option value="">Sin vínculo</option>';
+            const currentActorId =
+              playerData.actorId ||
+              Object.keys(dbActoresCache).find(
+                (actorId) =>
+                  dbActoresCache[actorId] &&
+                  (dbActoresCache[actorId].vinculo_jugador === playerId ||
+                    dbActoresCache[actorId].vinculo_jugador === playerData.id),
+              ) ||
+              "";
+            for (const [actorId, actorData] of Object.entries(dbActoresCache)) {
+              if (!actorData || actorData.tipo !== "Jugador") continue;
+              const option = document.createElement("option");
+              option.value = actorId;
+              option.textContent = actorData.nombre || actorId;
+              option.selected = actorId === currentActorId;
+              actorSelect.appendChild(option);
+            }
+
+            document.getElementById("dm-combat-splash-url").value =
+              playerData.splash_art || "";
+
+            const resistanceGrid = document.getElementById(
+              "dm-combat-resistances-grid",
+            );
+            resistanceGrid.innerHTML = "";
+            const currentResistances = playerData.resistencias || {};
+            DM_PLAYER_RESISTANCE_TYPES.forEach((resistanceType) => {
+              const wrapper = document.createElement("label");
+              wrapper.style.cssText =
+                "display:flex; flex-direction:column; gap:3px; padding:6px; background:#111; border:1px solid #333; color:#aaa; font-size:10px;";
+              const title = document.createElement("span");
+              title.textContent = resistanceType;
+              const input = document.createElement("input");
+              input.type = "number";
+              input.step = "0.1";
+              input.className = "dm-res-input";
+              input.dataset.resistance = resistanceType;
+              const storedValue = Number(currentResistances[resistanceType]);
+              input.value = Number.isFinite(storedValue) ? storedValue : 1;
+              input.style.cssText =
+                "width:100%; box-sizing:border-box; padding:4px; background:#222; color:#fff; border:1px solid #444;";
+              wrapper.appendChild(title);
+              wrapper.appendChild(input);
+              resistanceGrid.appendChild(wrapper);
+            });
 
             // Mostrar Modal
             document.getElementById("dm-combat-modal").style.display = "flex";
@@ -8419,7 +8408,7 @@ window.processEntitiesData = function(entities) {
 
         document
           .getElementById("btn-save-stats")
-          .addEventListener("click", () => {
+          .addEventListener("click", async () => {
             if (!activePlayerIdForModal) return;
 
             const xpInput =
@@ -8438,6 +8427,10 @@ window.processEntitiesData = function(entities) {
             const actionSlots =
               parseInt(document.getElementById("dm-action-slots").value) || 1;
             const staggerStr = document.getElementById("dm-stagger").value;
+            const selectedActorId =
+              document.getElementById("dm-combat-actor-id").value || "";
+            const splashArt =
+              document.getElementById("dm-combat-splash-url").value.trim();
 
             // Forzar rango matemático
             sp = Math.max(-45, Math.min(45, sp));
@@ -8492,6 +8485,88 @@ window.processEntitiesData = function(entities) {
             ] = hpCoef;
             updates[`campaña/jugadores/${activePlayerIdForModal}/hp_max`] =
               hpMax;
+            updates[`campaña/jugadores/${activePlayerIdForModal}/hp`] =
+              hpActual;
+            updates[`campaña/jugadores/${activePlayerIdForModal}/sp`] =
+              sp;
+            updates[
+              `campaña/jugadores/${activePlayerIdForModal}/splash_art`
+            ] = splashArt;
+
+            const existingPlayerData =
+              window.jugadoresData &&
+              window.jugadoresData[activePlayerIdForModal]
+                ? window.jugadoresData[activePlayerIdForModal]
+                : {};
+            const resistances = {
+              ...(existingPlayerData.resistencias || {}),
+            };
+            document.querySelectorAll(".dm-res-input").forEach((input) => {
+              const resistanceType = input.dataset.resistance;
+              if (!resistanceType) return;
+              const parsed = Number(input.value);
+              resistances[resistanceType] = Number.isFinite(parsed) ? parsed : 1;
+            });
+            updates[
+              `campaña/jugadores/${activePlayerIdForModal}/resistencias`
+            ] = resistances;
+
+            // Mantener ambas puntas del Vínculo de Almas sincronizadas.
+            const previousActorId =
+              existingPlayerData.actorId ||
+              Object.keys(dbActoresCache).find(
+                (actorId) =>
+                  dbActoresCache[actorId] &&
+                  (dbActoresCache[actorId].vinculo_jugador ===
+                    activePlayerIdForModal ||
+                    dbActoresCache[actorId].vinculo_jugador ===
+                      existingPlayerData.id),
+              ) ||
+              "";
+
+            if (previousActorId && previousActorId !== selectedActorId) {
+              const previousActorPath = getActorDatabasePath(previousActorId);
+              updates[
+                `${previousActorPath}/${previousActorId}/vinculo_jugador`
+              ] = null;
+            }
+
+            if (selectedActorId) {
+              const selectedActor = dbActoresCache[selectedActorId] || {};
+              const previousPlayerOwner = selectedActor.vinculo_jugador;
+              if (
+                previousPlayerOwner &&
+                previousPlayerOwner !== activePlayerIdForModal
+              ) {
+                updates[
+                  `campaña/jugadores/${previousPlayerOwner}/actorId`
+                ] = null;
+              }
+              for (const [otherPlayerId, otherPlayerData] of Object.entries(
+                window.jugadoresData || {},
+              )) {
+                if (
+                  otherPlayerId !== activePlayerIdForModal &&
+                  otherPlayerData &&
+                  otherPlayerData.actorId === selectedActorId
+                ) {
+                  updates[
+                    `campaña/jugadores/${otherPlayerId}/actorId`
+                  ] = null;
+                }
+              }
+              const selectedActorPath = getActorDatabasePath(selectedActorId);
+              updates[
+                `${selectedActorPath}/${selectedActorId}/vinculo_jugador`
+              ] = activePlayerIdForModal;
+              updates[
+                `campaña/jugadores/${activePlayerIdForModal}/actorId`
+              ] = selectedActorId;
+            } else {
+              updates[
+                `campaña/jugadores/${activePlayerIdForModal}/actorId`
+              ] = null;
+            }
 
             // Actualizar el nodo de combatStats (sobreescribe completo)
             updates[`campaña/jugadores/${activePlayerIdForModal}/combatStats`] =
@@ -8507,8 +8582,37 @@ window.processEntitiesData = function(entities) {
                 stagger_thresholds: staggerArr,
               };
 
-            db.ref()
-              .update(updates)
+            try {
+              const combatSnap = await db.ref("campaña/combate/combatants").once("value");
+              const combatants = combatSnap?.val?.() || {};
+              const activeEntry = Object.entries(combatants).find(([, unit]) => {
+                if (!unit || typeof unit !== "object") return false;
+                const linkedPlayerId = String(
+                  unit.canonicalPlayerKey
+                  || unit.ownerPlayerId
+                  || unit.playerId
+                  || unit.characterLink?.playerId
+                  || (unit.actorRef?.scope === "players" ? unit.actorRef?.id : "")
+                  || ""
+                ).trim();
+                if (linkedPlayerId !== String(activePlayerIdForModal)) return false;
+                if (unit.isBackup === true || unit.battleActive === false || unit.removed === true || unit.escaped === true || unit.defeated === true || unit.dead === true) return false;
+                const deployment = String(unit.deploymentState || unit.deployment || unit.positionState || unit.zone || "field").trim().toLowerCase().replace(/[\s-]+/g, "_");
+                return !["backup","reserve","reserves","retreat","retreated","defeated","dead","escaped","departed"].includes(deployment);
+              });
+              if (activeEntry) {
+                const [combatantKey] = activeEntry;
+                updates[`campaña/combate/combatants/${combatantKey}/hp`] = hpActual;
+                updates[`campaña/combate/combatants/${combatantKey}/maxHp`] = hpMax;
+                updates[`campaña/combate/combatants/${combatantKey}/sp`] = sp;
+              }
+              await db.ref().update(updates);
+            } catch (error) {
+              console.error("No se pudieron guardar los stats de combate del jugador:", error);
+              return;
+            }
+
+            Promise.resolve()
               .then(() => {
                 document.getElementById("dm-combat-modal").style.display =
                   "none";

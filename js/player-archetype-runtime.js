@@ -28,7 +28,8 @@
   function context() {
     const pathname = String(global.location?.pathname || "").toLowerCase();
     if (/battle|combat/.test(pathname)) return "combat";
-    if (/hoja_personaje|theatre|theater|character/.test(pathname)) return "theatre";
+    if (/hoja_personaje/.test(pathname)) return "player";
+    if (/theatre|theater/.test(pathname)) return "theatre";
     return "any";
   }
 

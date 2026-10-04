@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "authority": "repository-local",
   "registry": "js/item-icon-registry.js",
-  "familyCount": 589,
-  "uniqueAssetCount": 636,
+  "familyCount": 590,
+  "uniqueAssetCount": 637,
   "note": "Runtime icon resolution uses repository-local paths. legacySource is provenance only and is never required at runtime.",
   "families": [
     {
@@ -4013,6 +4013,14 @@
       "domain": "utility",
       "path": "Assets/Icons/items/utility/quest_item.png",
       "legacySource": "https://imgur.com/eLUFiXE.png"
+    },
+    {
+      "id": "thought_strand",
+      "label": "Thought Strand",
+      "labelEs": "Hebra de pensamiento",
+      "domain": "utility",
+      "path": "Assets/Icons/items/utility/thought_strand.png",
+      "legacySource": "https://imgur.com/7MZLBdD.png"
     },
     {
       "id": "generic_item",
@@ -11405,6 +11413,17 @@
       "bytes": 1010944,
       "sha256": "5a244a60b7e0cee59e0e7939548abf3f91698733bfa5c6c4861c5b7766419210",
       "legacySource": "https://imgur.com/GroyHFc.png"
+    },
+    {
+      "path": "Assets/Icons/items/utility/thought_strand.png",
+      "primaryId": "thought_strand",
+      "domain": "utility",
+      "familyIds": [
+        "thought_strand"
+      ],
+      "bytes": 996801,
+      "sha256": "d05d569009971bc397343a78a092610f1e5fad6ca29023a8d4689eeab8e6b2bb",
+      "legacySource": "https://imgur.com/7MZLBdD.png"
     },
     {
       "path": "Assets/Icons/items/utility/tool.png",

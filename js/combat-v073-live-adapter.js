@@ -277,13 +277,57 @@
     return [];
   }
 
+  function inventoryEntries(container) {
+    if (Array.isArray(container)) return container.map((item, index) => [String(index), item]);
+    return container && typeof container === "object" ? Object.entries(container) : [];
+  }
+
+  function inventoryQuantity(item = {}) {
+    const value = Number(item.quantity ?? item.qty ?? item.cantidad ?? item.stack ?? item.count ?? 1);
+    return Number.isFinite(value) ? Math.max(0, Math.trunc(value)) : 0;
+  }
+
+  function activeInventoryItems(source = {}) {
+    const container = source.inventario_activo || source.activeInventory || source.inventory || {};
+    return inventoryEntries(container).map(([key, item]) => {
+      if (!item || typeof item !== "object" || inventoryQuantity(item) <= 0) return null;
+      const instanceId = clean(item.instanceId || item.instance_id || key);
+      const definitionId = clean(item.definitionId || item.definition_id || item.canonicalId || item.itemId || item.item_id || item.id || key);
+      return {
+        ...clone(item),
+        id: instanceId || definitionId,
+        itemId: instanceId || definitionId,
+        instanceId: instanceId || null,
+        definitionId: definitionId || null,
+        kind: "item",
+        inventoryContainer: "inventario_activo",
+      };
+    }).filter(Boolean);
+  }
+
+  function inventoryHydrationSignature(unit = {}) {
+    return activeInventoryItems(unit).map((item) => [
+      item.instanceId || item.id,
+      item.definitionId || null,
+      inventoryQuantity(item),
+      Number(item.chargesCurrent ?? item.charges_current ?? item.carga_actual ?? 0) || 0,
+      Number(item.chargesMax ?? item.charges_max ?? item.carga_max ?? item.carga_maxima ?? 0) || 0,
+      item.condition ?? item.currentCondition ?? item.durability ?? null,
+    ]);
+  }
+
   function kitsFor(combatants) {
     const kits = {};
     for (const unit of combatants) {
       const source = state.combatants?.[unit.id] || Object.values(state.combatants || {}).find((raw) => clean(raw?.id || raw?.combatId) === unit.id) || unit;
       const actions = skillIdsFor(source).map((skillId) => state.skills?.[skillId] ? normalizeSkill(skillId, state.skills[skillId]) : null).filter(Boolean);
       const embedded = Array.isArray(source.actions) ? source.actions.map((row, index) => normalizeSkill(clean(row?.id || `${unit.id}:action:${index}`), row || {})) : [];
-      kits[unit.id] = { role: clean(source.buildRole || source.combatRole || source.role || ""), actions: actions.length ? actions : embedded };
+      kits[unit.id] = {
+        role: clean(source.buildRole || source.combatRole || source.role || ""),
+        actions: actions.length ? actions : embedded,
+        items: activeInventoryItems(source),
+        inventorySource: "inventario_activo",
+      };
     }
     return kits;
   }
@@ -307,7 +351,8 @@
       unit.img,
       unit.battleActive,
       unit.statusEffects,
-      skillIdsFor(unit)
+      skillIdsFor(unit),
+      inventoryHydrationSignature(unit)
     ]);
     const skillRevision = Object.entries(state.skills || {}).map(([id, skill]) => [id, skill?.updatedAt || skill?.revision || skill?.version || null]);
     return JSON.stringify([state.role, playerId, state.combatState, state.round, summary, skillRevision]);
@@ -480,6 +525,8 @@
     planningPhase,
     explicitBattlePosition,
     kitsFor,
+    activeInventoryItems,
+    inventoryHydrationSignature,
     hydrationSignature,
   });
 

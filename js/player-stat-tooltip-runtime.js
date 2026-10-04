@@ -223,7 +223,15 @@
   function boot() {
     ensureMilestoneTraitModifierPatch();
     sync();
-    global.setInterval?.(sync, 500);
+    [
+      "luminous:player-data",
+      "luminous:traits-refreshed",
+      "luminous:class-runtime-loaded",
+      "luminous:player-instance-changed",
+    ].forEach((name) => global.addEventListener?.(name, sync));
+    doc.addEventListener?.("change", (event) => {
+      if (event.target?.closest?.("#stats-modal, #dashboard-jugadores")) sync();
+    });
   }
 
   const api = Object.freeze({

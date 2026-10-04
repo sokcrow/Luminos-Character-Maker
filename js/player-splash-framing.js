@@ -321,24 +321,33 @@
     return true;
   }
 
+  function syncSurface() {
+    if (doc.getElementById("dashboard-jugadores")) {
+      mountDmControls();
+      const selected = String(doc.getElementById("dm-player-dnd-select")?.value || "");
+      if (selected !== state.dmPlayerId) void loadDmFrame(selected);
+      if (state.dmMounted) syncDmPreview();
+    }
+
+    if (doc.querySelector(".sheet-phone-wrapper")) {
+      state.playerMounted = syncPlayerFrame() || state.playerMounted;
+    }
+  }
+
   function boot() {
     ensureStatModifierTooltipRuntime();
     ensureDerivedStatsRuntime();
-    const tick = () => {
-      if (doc.getElementById("dashboard-jugadores")) {
-        mountDmControls();
-        const selected = String(doc.getElementById("dm-player-dnd-select")?.value || "");
-        if (selected !== state.dmPlayerId) void loadDmFrame(selected);
-        if (state.dmMounted) syncDmPreview();
+    syncSurface();
+    ["luminous:player-data", "luminous:traits-refreshed", "luminous:player-instance-changed"]
+      .forEach((name) => global.addEventListener?.(name, syncSurface));
+    doc.addEventListener("change", (event) => {
+      if (event.target?.id === "dm-player-dnd-select") syncSurface();
+    });
+    doc.addEventListener("click", (event) => {
+      if (event.target?.closest?.('[name="act_hud_stats"], [data-player-splash-expand]')) {
+        global.queueMicrotask?.(syncSurface);
       }
-
-      if (doc.querySelector(".sheet-phone-wrapper")) {
-        state.playerMounted = syncPlayerFrame() || state.playerMounted;
-      }
-    };
-
-    tick();
-    global.setInterval(tick, 500);
+    }, true);
   }
 
   if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", boot, { once: true });

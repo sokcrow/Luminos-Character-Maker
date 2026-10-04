@@ -272,9 +272,9 @@
 
   global.LuminousDevilLineageRuntime = api;
   install();
-  if (typeof global.setInterval === "function") {
-    state.timer = global.setInterval(install, PATCH_INTERVAL_MS);
-    if (typeof state.timer?.unref === "function") state.timer.unref();
+  if (global.document) {
+    ["luminous:player-data", "luminous:traits-refreshed", "luminous:class-runtime-loaded", "luminous:combat073-runtime-ready"]
+      .forEach((name) => global.addEventListener?.(name, install));
   }
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);

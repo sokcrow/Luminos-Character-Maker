@@ -21,12 +21,17 @@
     const raw = String(message?.mensaje || message?.message || "");
     const languageId = clean(message?.idiomaId || message?.languageId || message?.idioma);
     let resolved = raw;
+
     if (languageId && rules) {
-      const definition = definitions?.[languageId] || {};
-      if (rules.isSpecialLanguage?.(languageId, definition)) {
-        resolved = rules.resolveSpecialUnderstanding?.(profiles, languageId)
-          ? raw
-          : rules.unknownTextForDefinition?.(definition) || "[No comprendes este lenguaje especial.]";
+      if (typeof rules.resolveLanguageText === "function") {
+        resolved = rules.resolveLanguageText(message, definitions, profiles);
+      } else {
+        const definition = definitions?.[languageId] || {};
+        if (rules.isSpecialLanguage?.(languageId, definition)) {
+          resolved = rules.resolveSpecialUnderstanding?.(profiles, languageId)
+            ? raw
+            : rules.unknownTextForDefinition?.(definition) || "[No comprendes este lenguaje especial.]";
+        }
       }
     }
     return formatActionText(message, resolved);
@@ -40,6 +45,7 @@
   const doc = global.document;
   const db = global.firebase.database();
   const languageRoots = ["campaña/idiomas", "campaña/teatro/idiomas"];
+  const INSTANCE_PATH = "campaña/estado_mundo/instancia_activa";
   const languageSources = {};
   let definitions = {};
   let players = {};
@@ -51,6 +57,7 @@
   let observedContainer = null;
   let applying = false;
   let timer = null;
+  let theatreActive = false;
 
   function isDmView() {
     return Boolean(doc.body?.classList.contains("on-game-dashboard"));
@@ -158,11 +165,19 @@
         if (paragraph.textContent !== safeText) paragraph.textContent = safeText;
         const languageId = clean(message?.idiomaId || message?.languageId || message?.idioma);
         const definition = definitions[languageId] || {};
+        const special = Boolean(languageId && activeRules?.isSpecialLanguage?.(languageId, definition));
         const blocked = Boolean(
-          languageId
-          && activeRules?.isSpecialLanguage?.(languageId, definition)
+          special
           && !activeRules?.resolveSpecialUnderstanding?.(profiles, languageId)
         );
+        const percentage = languageId
+          ? (special
+              ? (blocked ? 0 : 100)
+              : (activeRules?.resolveLanguageKnowledgePercentage?.(profiles, languageId, definition) ?? 100))
+          : 100;
+        row.dataset.languageId = languageId || "";
+        row.dataset.languageKnowledgePercent = String(percentage);
+        row.dataset.languageObfuscated = languageId && percentage < 100 ? "true" : "false";
         row.dataset.specialLanguageBlocked = blocked ? "true" : "false";
       });
     } finally {
@@ -177,10 +192,46 @@
     global.setTimeout(applyPrivacy, 40);
   }
 
-  function bindLog() {
-    const path = global.LuminousTheatreState?.getPaths?.().log || "campaña/teatro/log";
-    if (path === boundLogPath) return;
+  function playerTheatreActive() {
+    return theatreActive === true;
+  }
+
+  function setTheatreActive(active) {
+    theatreActive = active === true;
+    if (!theatreActive) {
+      unbindLog();
+      return false;
+    }
+    bindLog();
+    scheduleApply();
+    return true;
+  }
+
+  function syncInitialTheatreState() {
+    return db.ref(INSTANCE_PATH).once("value").then((snapshot) => {
+      const instance = String(snapshot.val() || "").trim();
+      setTheatreActive(instance === "teatro" || instance === "combat_theatre");
+    }).catch(() => {
+      setTheatreActive(false);
+    });
+  }
+
+  function unbindLog() {
     if (logRef && logListener) logRef.off("value", logListener);
+    logRef = null;
+    logListener = null;
+    boundLogPath = null;
+    logEntries = [];
+  }
+
+  function bindLog() {
+    if (!playerTheatreActive()) {
+      unbindLog();
+      return;
+    }
+    const path = global.LuminousTheatreState?.getPaths?.().log || "campaña/teatro/log";
+    if (path === boundLogPath && logRef && logListener) return;
+    unbindLog();
     boundLogPath = path;
     logRef = db.ref(path).limitToLast(20);
     logListener = (snapshot) => {
@@ -205,15 +256,19 @@
 
   function boot() {
     if (isDmView()) return;
-    bindLog();
     ensureObserver();
-    scheduleApply();
-    if (!timer) {
-      timer = global.setInterval(() => {
-        bindLog();
-        scheduleApply();
-      }, 750);
-    }
+    const resync = () => {
+      if (!playerTheatreActive()) return;
+      bindLog();
+      scheduleApply();
+    };
+    const syncInstance = (event) => {
+      setTheatreActive(event?.detail?.theatreActive === true);
+    };
+    global.addEventListener?.("actoresCacheUpdated", resync);
+    global.addEventListener?.("luminous:player-data", resync);
+    global.addEventListener?.("luminous:player-instance-changed", syncInstance);
+    syncInitialTheatreState();
   }
 
   if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", boot, { once: true });

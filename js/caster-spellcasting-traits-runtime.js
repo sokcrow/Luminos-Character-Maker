@@ -192,9 +192,9 @@
     queueMicrotask(install);
   }
 
-  if (global.document && global.setInterval) {
-    const timer = global.setInterval(install, 800);
-    timer?.unref?.();
+  if (global.document) {
+    ["luminous:player-data", "luminous:traits-refreshed", "luminous:class-runtime-loaded", "luminous:class-runtimes-ready"]
+      .forEach((name) => global.addEventListener?.(name, install));
   }
 
   if (typeof module !== "undefined" && module.exports) module.exports = api;

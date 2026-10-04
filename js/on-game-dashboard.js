@@ -207,6 +207,10 @@
       });
 
       // --- COLA FIFO: SOLO EL DM PUBLICA EL ESTADO DE ESCENA ---
+      function theatreOutputIsActive(instanceValue) {
+        return instanceValue === "teatro" || instanceValue === "combat_theatre";
+      }
+
       function nextQueueItem() {
         return database.ref(paths().queue).orderByChild("createdAt").limitToFirst(1).once("value");
       }
@@ -225,7 +229,7 @@
           database.ref("campaña/estado_mundo/instancia_activa").once("value"),
           database.ref(paths().scene).once("value")
         ]);
-        if (generation !== processorGeneration || instanceSnap.val() !== "teatro") return;
+        if (generation !== processorGeneration || !theatreOutputIsActive(instanceSnap.val())) return;
         const scene = sceneSnap.val() || {};
         if (scene.transitioning) {
           await dropQueueForTransition();
@@ -303,7 +307,7 @@
 
       database.ref(paths().queue).on("child_added", () => processQueue());
       database.ref("campaña/estado_mundo/instancia_activa").on("value", (snapshot) => {
-        if (snapshot.val() === "teatro") processQueue();
+        if (theatreOutputIsActive(snapshot.val())) processQueue();
       });
       database.ref(paths().scene).on("value", (snapshot) => {
         const scene = snapshot.val() || {};
@@ -319,64 +323,90 @@
       const speakerSelect = document.getElementById("theatre-speaker-select");
       const expressionSelect = document.getElementById("theatre-expression-select");
 
-      btnSendDialogue?.addEventListener("click", async () => {
+      const sendDmTheatreMessage = async () => {
         const dialogueInput = document.getElementById("theatre-dialogue-input");
         const typeSelect = document.getElementById("dm-tipo-dialogo-select");
         const languageSelect = document.getElementById("theatre-language-select");
         const text = dialogueInput?.value.trim() || "";
         if (!text) return;
+        if (btnSendDialogue?.dataset.sending === "true") return;
 
-        let type = typeSelect?.value || "dialogo";
-        let speaker = {
-          nombre: "",
-          titulo: "",
-          actorId: null,
-          expression: null,
-          sprite: null,
-          icono: null,
-          color_nombre: "",
-          color_titulo: ""
-        };
+        if (btnSendDialogue) {
+          btnSendDialogue.dataset.sending = "true";
+          btnSendDialogue.disabled = true;
+        }
 
-        if (!speakerSelect || speakerSelect.value === "narrador") {
-          type = "narracion";
-        } else {
-          const option = speakerSelect.options[speakerSelect.selectedIndex];
-          const expressionOption = expressionSelect?.options[expressionSelect.selectedIndex];
-          speaker = {
-            nombre: option.dataset.nombre || "",
-            titulo: option.dataset.titulo || "",
-            actorId: speakerSelect.value,
-            expression: expressionSelect?.value || "Neutral",
-            sprite: expressionOption?.dataset.sprite || null,
-            icono: option.dataset.icono || null,
-            color_nombre: option.dataset.colorNombre || "",
-            color_titulo: option.dataset.colorTitulo || ""
+        try {
+          let type = typeSelect?.value || "dialogo";
+          let speaker = {
+            nombre: "",
+            titulo: "",
+            actorId: null,
+            expression: null,
+            sprite: null,
+            icono: null,
+            color_nombre: "",
+            color_titulo: ""
           };
+
+          if (!speakerSelect || speakerSelect.value === "narrador") {
+            type = "narracion";
+          } else {
+            const option = speakerSelect.options[speakerSelect.selectedIndex];
+            const expressionOption = expressionSelect?.options[expressionSelect.selectedIndex];
+            speaker = {
+              nombre: option.dataset.nombre || "",
+              titulo: option.dataset.titulo || "",
+              actorId: speakerSelect.value,
+              expression: expressionSelect?.value || "Neutral",
+              sprite: expressionOption?.dataset.sprite || null,
+              icono: option.dataset.icono || null,
+              color_nombre: option.dataset.colorNombre || "",
+              color_titulo: option.dataset.colorTitulo || ""
+            };
+          }
+
+          const actorDialogue = Boolean(speaker.actorId && type === "dialogo");
+
+          const queued = await theatre.enqueueIntervention({
+            mensaje: text,
+            nombre: speaker.nombre,
+            titulo: speaker.titulo,
+            actorId: speaker.actorId,
+            expression: actorDialogue ? speaker.expression : null,
+            sprite: actorDialogue ? speaker.sprite : null,
+            icono: speaker.icono,
+            color_nombre: speaker.color_nombre,
+            color_titulo: speaker.color_titulo,
+            tipo_dialogo: type,
+            mostrar_identidad: actorDialogue,
+            idiomaId: languageSelect?.value || null
+          });
+
+          if (!queued?.queued) {
+            throw new Error(
+              queued?.reason === "transition"
+                ? "La escena está en transición. El mensaje no fue enviado."
+                : "Theater rechazó el mensaje."
+            );
+          }
+          if (dialogueInput) dialogueInput.value = "";
+        } catch (error) {
+          console.error("[Luminous][Theatre] No se pudo enviar el mensaje del DM:", error);
+          alert(error?.message || "No se pudo enviar el mensaje al Theater.");
+        } finally {
+          if (btnSendDialogue) {
+            btnSendDialogue.dataset.sending = "false";
+            btnSendDialogue.disabled = false;
+          }
         }
+      };
 
-        const actorDialogue = Boolean(speaker.actorId && type === "dialogo");
-
-        const queued = await theatre.enqueueIntervention({
-          mensaje: text,
-          nombre: speaker.nombre,
-          titulo: speaker.titulo,
-          actorId: speaker.actorId,
-          expression: actorDialogue ? speaker.expression : null,
-          sprite: actorDialogue ? speaker.sprite : null,
-          icono: speaker.icono,
-          color_nombre: speaker.color_nombre,
-          color_titulo: speaker.color_titulo,
-          tipo_dialogo: type,
-          mostrar_identidad: actorDialogue,
-          idiomaId: languageSelect?.value || null
-        });
-
-        if (!queued.queued) {
-          if (queued.reason === "transition") alert("La escena está en transición. El mensaje no fue enviado.");
-          return;
-        }
-        if (dialogueInput) dialogueInput.value = "";
+      btnSendDialogue?.addEventListener("click", sendDmTheatreMessage);
+      document.getElementById("theatre-dialogue-input")?.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" || event.shiftKey) return;
+        event.preventDefault();
+        sendDmTheatreMessage();
       });
 
       database.ref(`${paths().scene}/actores`).on("value", (snapshot) => {

@@ -380,6 +380,9 @@
 
   global.LuminousSpellcastingRuntime = api;
   install();
-  if (global.document && global.setInterval) global.setInterval(install, 800);
+  if (global.document) {
+    ["luminous:player-data", "luminous:traits-refreshed", "luminous:class-runtime-loaded", "luminous:class-runtimes-ready", "luminous:combat073-runtime-ready"]
+      .forEach((name) => global.addEventListener?.(name, install));
+  }
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);

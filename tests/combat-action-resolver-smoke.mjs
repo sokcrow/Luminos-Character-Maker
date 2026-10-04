@@ -81,6 +81,22 @@ assert.equal(saveResult.resolution.results[0].result.isSuccess, false);
 assert.equal(saveResult.resolution.results[1].result.isSuccess, true);
 assert.equal(schema.canReceiveHelp(save), false);
 
+
+attackCalls = 0; attackTargetLog.length = 0;
+b.hp = 20; e2.hp = 20;
+const saveAttack = adapters.compileSpellToCombatAction(a, {
+  id:'sapping_like', slotLevel:0, saveAbility:'constitution', targetType:'area', attackWeight:2,
+  basePower:5, coinPower:3, coinAmount:1, mechanics:{saveAttackOnFailure:true}
+}, { saveDC:14, targetIds:['b','e2'] });
+const saveAttackResult = resolver.resolveCombatAction(saveAttack, common);
+assert.equal(saveAttackResult.resolved, true);
+assert.equal(saveAttackResult.resolution.results[0].result.isSuccess, false);
+assert.ok(saveAttackResult.resolution.results[0].attack, 'failed Save must resolve the Spell Skill as Unopposed');
+assert.equal(saveAttackResult.resolution.results[1].result.isSuccess, true);
+assert.equal(saveAttackResult.resolution.results[1].attack, null, 'successful Save must negate the attack');
+assert.equal(attackCalls, 1);
+assert.deepEqual(attackTargetLog, ['b']);
+
 const targetAction = adapters.compileSkillToCombatAction(a, { id:'helped', isClashable:true }, { targetId:'b' });
 const help = adapters.compileUniversalAction({id:'ally2',faction:'allies'}, 'help', { targetUnitId:'a', targetActionId:targetAction.id, targetActionSlotId:'a_slot_0' });
 let helpBudget = 1;
