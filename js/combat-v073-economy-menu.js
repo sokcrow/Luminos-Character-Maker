@@ -176,6 +176,29 @@
     return asArray(kit.actions).filter((row) => normalizeId(row?.kind || row?.type || row?.actionType) === kind);
   }
 
+  function spellLoadoutRuntime() {
+    return global.LuminousCombatSpellLoadout074 || null;
+  }
+
+  function normalizeSpellForMenu(spell = {}, spellId = "") {
+    const id = normalizeId(spell.spellId || spell.id || spellId || spell.name);
+    const casting = normalizeId(spell.castingTime || spell.casting_time || spell.actionCost || spell.action_cost || "action");
+    const actionCost = ["quick", "quick_action", "bonus", "bonus_action"].includes(casting)
+      ? ECONOMY.QUICK
+      : (["reaction", "reactive"].includes(casting) ? ECONOMY.REACTION : ECONOMY.ACTION);
+    return {
+      ...clone(spell),
+      id,
+      spellId: id,
+      kind: "spell",
+      sourceType: "spell",
+      actionCost,
+      economyCost: actionCost,
+      name: clean(spell.name || spell.nombre || id) || id,
+      description: clean(spell.description || spell.descripcion || ""),
+    };
+  }
+
   function classEntries(unit = playerUnit() || {}) {
     const build = unit?.characterBuild && typeof unit.characterBuild === "object" ? unit.characterBuild : {};
     let raw = Array.isArray(unit.classes) ? unit.classes : (Array.isArray(build.classes) ? build.classes : []);
@@ -249,11 +272,25 @@
   function spellRowsForPlayer() {
     const unit = playerUnit() || {};
     if (!isSpellcaster(unit)) return [];
-    const live = liveActions("spell");
+
+    const loadout = spellLoadoutRuntime();
+    if (loadout?.spellIdsFor && loadout?.resolveSpellDefinition) {
+      const ids = loadout.spellIdsFor(unit);
+      const resolved = ids.map((id) => {
+        const definition = loadout.resolveSpellDefinition(id);
+        return definition?.ok && definition.spell ? normalizeSpellForMenu(definition.spell, id) : null;
+      }).filter(Boolean);
+      if (resolved.length) return resolved;
+    }
+
+    const live = liveActions("spell").map((row) => normalizeSpellForMenu(row, row?.id));
     if (live.length) return live;
+
     const selected = selectedSpellIds(unit);
     if (!selected.size) return [];
-    return asArray(permanent()?.spells).filter((row) => selected.has(spellIdOf(row)));
+    return asArray(permanent()?.spells)
+      .filter((row) => selected.has(spellIdOf(row)))
+      .map((row) => normalizeSpellForMenu(row, row?.id));
   }
 
   function inventoryEntries(container) {
@@ -397,7 +434,6 @@
       return [...globals, ...traits];
     }
     if (menu === "skills") {
-      if (tab === ECONOMY.ACTION) return [];
       return liveActions("skill").filter((row) => economyTabFor(row) === tab);
     }
     if (menu === "spells") {
@@ -556,7 +592,6 @@
 
   function renderSkills() {
     const tab = state.tabByMenu.skills || ECONOMY.ACTION;
-    if (tab === ECONOMY.ACTION) return state.originals.renderSkills?.();
     const body = global.document?.getElementById?.("category-body");
     if (!body) return;
     body.innerHTML = "";
@@ -972,6 +1007,10 @@
 
   async function ensureDependencies() {
     await loadScript("combat-action-schema-economy073", "js/combat-action-schema.js", () => Boolean(global.LuminousCombatAction));
+    await loadScript("content-registry-economy073", "js/content-registry.js", () => Boolean(global.LuminousContentRegistry));
+    await loadScript("content-registry-bootstrap-economy073", "js/content-registry-bootstrap.js", () => Boolean(global.LuminousContentRegistryBootstrap));
+    await loadScript("spell-catalog-core-economy073", "js/spell-catalog-core.js", () => Boolean(global.LuminousSpellCatalog));
+    await loadScript("combat-spell-loadout-074-economy073", "js/combat-spell-loadout-074.js", () => Boolean(global.LuminousCombatSpellLoadout074));
     await loadScript("combat-action-adapters-economy073", "js/combat-action-adapters.js", () => Boolean(global.LuminousCombatActionAdapters));
     await loadScript("trait-engine-economy073", "js/trait-engine.js", () => Boolean(global.LuminousTraitEngine));
     await loadScript("archetype-engine-economy073", "js/archetype-engine.js", () => Boolean(global.LuminousArchetypeEngine));
@@ -1040,7 +1079,7 @@
     state.installed = true; return true;
   }
 
-  const api = { version: VERSION, ECONOMY, state, normalizeEconomyCost, economyTabFor, costLabel, canonicalPlayerId, playerUnit, playerKit, traitDefinitionsForPlayer, liveActions, classEntries, spellcastingClasses, isSpellcaster, selectedSpellIds, spellRowsForPlayer, inventoryEntries, quantityOf, itemTiming, itemCanUseInCombat, stableItemRow, itemRowsForPlayer, findActiveInventoryItem, spellMenuNodes, syncSpellMenuVisibility, selfTargetedItem, planTargetRuleCompat, persistQuickItemState, rowsFor, renderSkills, renderSpells, renderItems, renderCleanList, renderCategory, selectAction, setTab, syncTabs, syncQuickBadge, syncPlanningEconomy, beginCombatEconomy, prepareReaction, triggerPreparedReaction, useQuickAction, install };
+  const api = { version: VERSION, ECONOMY, state, normalizeEconomyCost, economyTabFor, costLabel, canonicalPlayerId, playerUnit, playerKit, traitDefinitionsForPlayer, liveActions, spellLoadoutRuntime, normalizeSpellForMenu, classEntries, spellcastingClasses, isSpellcaster, selectedSpellIds, spellRowsForPlayer, inventoryEntries, quantityOf, itemTiming, itemCanUseInCombat, stableItemRow, itemRowsForPlayer, findActiveInventoryItem, spellMenuNodes, syncSpellMenuVisibility, selfTargetedItem, planTargetRuleCompat, persistQuickItemState, rowsFor, renderSkills, renderSpells, renderItems, renderCleanList, renderCategory, selectAction, setTab, syncTabs, syncQuickBadge, syncPlanningEconomy, beginCombatEconomy, prepareReaction, triggerPreparedReaction, useQuickAction, install };
 
   async function boot() { await ensureDependencies(); return install(); }
   api.boot = boot; api.ensureDependencies = ensureDependencies;
