@@ -49,6 +49,15 @@
               }
             }
           }
+        },
+        "p2pInbox": {
+          "$recipientPlayerId": {
+            ".read": "auth != null && (auth.uid === root.child('campaña').child('config').child('dm_uid').val() || (!root.child('campaña').child('config').child('dm_uid').exists() && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1') || root.child('campaña').child('jugadores').child($recipientPlayerId).child('uid').val() === auth.uid)",
+            "$transferId": {
+              ".write": "auth != null && ((auth.uid === root.child('campaña').child('config').child('dm_uid').val() || (!root.child('campaña').child('config').child('dm_uid').exists() && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1')) || root.child('campaña').child('jugadores').child($recipientPlayerId).child('uid').val() === auth.uid || (!data.exists() && newData.exists() && newData.child('transferId').val() === $transferId && newData.child('recipientPlayerId').val() === $recipientPlayerId && newData.child('senderPlayerId').isString() && root.child('campaña').child('jugadores').child(newData.child('senderPlayerId').val()).child('uid').val() === auth.uid && newData.child('senderUid').val() === auth.uid && newData.child('amount').isNumber() && newData.child('amount').val() > 0 && newData.child('status').val() === 'pending'))",
+              ".validate": "newData.val() == null || (newData.child('transferId').val() === $transferId && newData.child('recipientPlayerId').val() === $recipientPlayerId && newData.child('senderPlayerId').isString() && newData.child('amount').isNumber() && newData.child('amount').val() > 0 && (newData.child('status').val() === 'pending' || newData.child('status').val() === 'settled'))"
+            }
+          }
         }
       },
       "tiempo": {
