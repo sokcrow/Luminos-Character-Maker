@@ -3349,18 +3349,18 @@ function initializeCharacterSheet() {
   const canAccessShop = (shop, playerName) =>
     !getShopRuntime()?.isPlayerAllowed ||
     getShopRuntime().isPlayerAllowed(shop, playerName);
-  const getShopPrice = (item, shop) =>
-    getShopRuntime()?.purchasePrice?.(item, shop) ??
-    Math.max(0, parseInt(item?.costo, 10) || 0);
-  const getShopSellPrice = (item, shop) =>
-    getShopRuntime()?.sellPrice?.(item, shop) ??
-    Math.max(
-      0,
-      Math.round(
-        (Number(item?.valorBase ?? item?.productionValueAhn ?? item?.costo) || 0) *
-          0.8,
-      ),
-    );
+  const getShopPrice = (item, shop) => {
+    const runtime = getShopRuntime();
+    if (runtime?.purchasePrice) return runtime.purchasePrice(item, shop);
+    const legacy = Math.max(0, parseInt(item?.costo, 10) || 0);
+    return legacy > 0 ? legacy : null;
+  };
+  const getShopSellPrice = (item, shop) => {
+    const runtime = getShopRuntime();
+    if (runtime?.sellPrice) return runtime.sellPrice(item, shop);
+    const base = Number(item?.valorBase ?? item?.productionValueAhn ?? item?.costo) || 0;
+    return base > 0 ? Math.max(0, Math.round(base * 0.8)) : null;
+  };
   const getShopTierNumber = (value) =>
     getShopRuntime()?.tierNumber?.(value) ??
     Math.max(1, parseInt(value, 10) || 1);
@@ -3569,12 +3569,15 @@ function initializeCharacterSheet() {
           for (const [itemId, item] of Object.entries(items)) {
             const itemTier = getShopTierNumber(item.tier);
             const precio = getShopPrice(item, data);
-            const disponiblePorTier =
-              getShopRuntime()?.itemAvailable?.(item, data) !== false;
+            const availability = getShopRuntime()?.itemAvailability?.(item, data);
+            const sinPrecio = !(Number.isFinite(Number(precio)) && Number(precio) > 0);
+            const disponiblePorTier = availability?.available !== false && !sinPrecio;
             const isAgotado = item.stock_actual === 0 || !disponiblePorTier;
-            const stockStr = !disponiblePorTier
-              ? "Fuera de Tier"
-              : (item.stock_actual === -1 ? "∞" : item.stock_actual);
+            const stockStr = sinPrecio
+              ? "Sin valor económico"
+              : !disponiblePorTier
+                ? "No disponible"
+                : (item.stock_actual === -1 ? "∞" : item.stock_actual);
             const tierStr =
               getShopRuntime()?.tierRoman?.(itemTier) ||
               romanTiersShop[Math.min(itemTier, 10)] ||
@@ -3606,8 +3609,8 @@ function initializeCharacterSheet() {
                         </div>
                         <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 10px;">
                             <div class="shop-item-tier">${tierStr}</div>
-                            <button class="shop-item-buy-btn btn-comprar-fisico" data-tienda="${idTienda}" data-item="${itemId}" data-precio="${precio}" ${isAgotado ? "disabled" : ""}>
-                                <span class="currency-symbol">₳</span> ${precio}
+                            <button class="shop-item-buy-btn btn-comprar-fisico" data-tienda="${idTienda}" data-item="${itemId}" data-precio="${precio ?? ""}" ${isAgotado ? "disabled" : ""}>
+                                ${sinPrecio ? "SIN PRECIO" : '<span class="currency-symbol">₳</span> ' + precio}
                             </button>
                         </div>
                     </div>
@@ -3753,8 +3756,13 @@ function initializeCharacterSheet() {
           alert("Esta tienda no está disponible para tu personaje.");
           return;
         }
-        if (getShopRuntime()?.itemAvailable?.(itemTienda, tiendaActualData) === false) {
-          alert("Este objeto está por encima del Tier de la tienda.");
+        const itemAvailability = getShopRuntime()?.itemAvailability?.(itemTienda, tiendaActualData);
+        if (itemAvailability?.available === false) {
+          alert(
+            itemAvailability.reason === "unpriced"
+              ? "Este objeto no tiene un valor económico canónico y no puede comprarse."
+              : "Este objeto no está disponible para esta tienda o su Tier.",
+          );
           return;
         }
         if (itemTienda.stock_actual === 0) {
@@ -3763,6 +3771,10 @@ function initializeCharacterSheet() {
         }
 
         const precio = getShopPrice(itemTienda, tiendaActualData);
+        if (!(Number.isFinite(Number(precio)) && Number(precio) > 0)) {
+          alert("Este objeto no tiene un valor económico canónico y no puede comprarse.");
+          return;
+        }
 
         db.ref(`campaña/jugadores/${playerName}/ahn`).once("value", async (snap) => {
           const ahn_actual = snap.val() || 0;
@@ -4014,12 +4026,15 @@ function initializeCharacterSheet() {
 
       for (const [itemId, item] of Object.entries(items)) {
         const precio = getShopPrice(item, tiendaActivaData);
-        const disponiblePorTier =
-          getShopRuntime()?.itemAvailable?.(item, tiendaActivaData) !== false;
+        const availability = getShopRuntime()?.itemAvailability?.(item, tiendaActivaData);
+        const sinPrecio = !(Number.isFinite(Number(precio)) && Number(precio) > 0);
+        const disponiblePorTier = availability?.available !== false && !sinPrecio;
         const isAgotado = item.stock_actual === 0 || !disponiblePorTier;
-        const stockStr = !disponiblePorTier
-          ? "Fuera de Tier"
-          : (item.stock_actual === -1 ? "∞" : item.stock_actual);
+        const stockStr = sinPrecio
+          ? "Sin valor económico"
+          : !disponiblePorTier
+            ? "No disponible"
+            : (item.stock_actual === -1 ? "∞" : item.stock_actual);
 
         const row = document.createElement("div");
         row.style.cssText =
@@ -4032,8 +4047,8 @@ function initializeCharacterSheet() {
                 <div style="font-size: 12px; color: #888;">Stock: ${stockStr}</div>
             </div>
             <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 5px;">
-                <div style="color: #0df; font-weight: bold;"><span class="currency-symbol">₳</span> ${precio}</div>
-                <button class="btn-comprar-item" data-id="${itemId}" data-precio="${precio}" ${isAgotado ? "disabled" : ""}
+                <div style="color: #0df; font-weight: bold;">${sinPrecio ? "SIN PRECIO" : '<span class="currency-symbol">₳</span> ' + precio}</div>
+                <button class="btn-comprar-item" data-id="${itemId}" data-precio="${precio ?? ""}" ${isAgotado ? "disabled" : ""}
                         style="background: ${isAgotado ? "#333" : "#004400"}; color: ${isAgotado ? "#666" : "#fff"}; border: 1px solid ${isAgotado ? "#444" : "#00ff00"}; padding: 4px 8px; border-radius: 3px; cursor: ${isAgotado ? "not-allowed" : "pointer"}; font-weight: bold; text-transform: uppercase; font-size: 11px;">
                     ${isAgotado ? "Agotado" : "Comprar"}
                 </button>
@@ -4846,15 +4861,13 @@ function sellShopItemFromStash(playerKey, itemKey, shopData = {}, shopId = "") {
           Math.max(0, parseInt(item.quantity ?? item.cantidad ?? 1, 10) || 0);
         if (quantity <= 0) return;
 
-        soldPrice =
-          window.LuminousShopRuntime?.sellPrice?.(item, shopData) ??
-          Math.max(
-            0,
-            Math.round(
-              (Number(item.valorBase ?? item.productionValueAhn ?? item.costo) || 0) *
-                0.8,
-            ),
-          );
+        if (window.LuminousShopRuntime?.sellPrice) {
+          soldPrice = window.LuminousShopRuntime.sellPrice(item, shopData);
+        } else {
+          const legacyBase = Number(item.valorBase ?? item.productionValueAhn ?? item.costo) || 0;
+          soldPrice = legacyBase > 0 ? Math.max(0, Math.round(legacyBase * 0.8)) : null;
+        }
+        if (!(Number.isFinite(Number(soldPrice)) && Number(soldPrice) > 0)) return;
         soldName = item.nombre || item.name || "Objeto";
 
         if (quantity > 1) {
@@ -4984,11 +4997,12 @@ window.abrirTiendaDinamica = async function(tiendaId) {
         const tierText =
           shopRuntime?.tierRoman?.(item.tier) ||
           String(item.tier || "-");
-        const precioItem =
-          shopRuntime?.purchasePrice?.(item, data) ??
-          Math.max(0, parseInt(item.costo, 10) || 0);
-        const availableByTier =
-          shopRuntime?.itemAvailable?.(item, data) !== false;
+        const precioItem = shopRuntime?.purchasePrice
+          ? shopRuntime.purchasePrice(item, data)
+          : (Math.max(0, parseInt(item.costo, 10) || 0) || null);
+        const availability = shopRuntime?.itemAvailability?.(item, data);
+        const priceResolved = Number.isFinite(Number(precioItem)) && Number(precioItem) > 0;
+        const availableByTier = availability?.available !== false && priceResolved;
         const exhausted = item.stock_actual === 0;
         const unavailable = exhausted || !availableByTier;
 
@@ -5000,10 +5014,10 @@ window.abrirTiendaDinamica = async function(tiendaId) {
           <div class="item-details">
               <span class="item-name">${item.nombre || "Objeto"}</span>
               <span class="item-cost">
-                  ${precioItem} <span style="color: var(--brillo-ambar);">₳</span>
+                  ${priceResolved ? precioItem + ' <span style="color: var(--brillo-ambar);">₳</span>' : "SIN PRECIO"}
               </span>
               <span style="font-size: 11px; color: ${unavailable ? "#aa5555" : "#888"};">
-                ${!availableByTier ? "Fuera del Tier de la tienda" : (exhausted ? "Agotado" : "Disponible")}
+                ${!priceResolved ? "Sin valor económico" : (!availableByTier ? "No disponible para esta tienda" : (exhausted ? "Agotado" : "Disponible"))}
               </span>
           </div>
         `;
@@ -5029,7 +5043,7 @@ window.abrirTiendaDinamica = async function(tiendaId) {
           btnComprar.style.display = "block";
           btnComprar.disabled = unavailable;
           btnComprar.innerHTML = unavailable
-            ? (!availableByTier ? "TIER INSUFICIENTE" : "AGOTADO")
+            ? (!priceResolved ? "SIN PRECIO" : (!availableByTier ? "NO DISPONIBLE" : "AGOTADO"))
             : `COMPRAR [${precioItem} ₳]`;
 
           const passKey = item._key !== undefined ? item._key : index;
@@ -5219,13 +5233,21 @@ window.comprarItemTienda = async function(tiendaId, itemKey) {
     if (shopRuntime?.isPlayerAllowed && !shopRuntime.isPlayerAllowed(shopData, accessKey)) {
       return alert("Esta tienda no está disponible para tu personaje.");
     }
-    if (shopRuntime?.itemAvailable?.(itemData, shopData) === false) {
-      return alert("Este objeto está por encima del Tier de la tienda.");
+    const availability = shopRuntime?.itemAvailability?.(itemData, shopData);
+    if (availability?.available === false) {
+      return alert(
+        availability.reason === "unpriced"
+          ? "Este objeto no tiene un valor económico canónico y no puede comprarse."
+          : "Este objeto no está disponible para esta tienda o su Tier.",
+      );
     }
 
-    const precioReal =
-      shopRuntime?.purchasePrice?.(itemData, shopData) ??
-      Math.max(0, parseInt(itemData.costo, 10) || 0);
+    const precioReal = shopRuntime?.purchasePrice
+      ? shopRuntime.purchasePrice(itemData, shopData)
+      : (Math.max(0, parseInt(itemData.costo, 10) || 0) || null);
+    if (!(Number.isFinite(Number(precioReal)) && Number(precioReal) > 0)) {
+      return alert("Este objeto no tiene un valor económico canónico y no puede comprarse.");
+    }
     const currentBalance =
       playerData.finance?.currentBalance !== undefined
         ? Number(playerData.finance.currentBalance) || 0
