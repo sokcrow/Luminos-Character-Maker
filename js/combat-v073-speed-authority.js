@@ -6,7 +6,7 @@
   const clean=v=>String(v??'').trim();
   const finite=(v,f=null)=>Number.isFinite(Number(v))?Number(v):f;
   const clone=v=>{try{return JSON.parse(JSON.stringify(v))}catch(_){return v&&typeof v==='object'?{...v}:v}};
-  const state={db:null,round:1,roundReady:false,role:null,combatants:{},started:false,rolling:false,unsubs:[],lastSpeedSignature:'',refreshTimer:null,legacyPatched:false,originalRollTurnSpeeds:null,originalRollUnitSpeed:null};
+  const state={db:null,round:1,roundReady:false,role:null,combatants:{},started:false,rolling:false,unsubs:[],lastSpeedSignature:'',refreshTimer:null,legacyPatched:false,originalRollTurnSpeeds:null,originalRollUnitSpeed:null,lastFormationRound:0};
 
   function adapter(){return global.LuminousCombatLiveAdapter073||null}
   function adapterState(){return adapter()?.state||null}
@@ -94,6 +94,25 @@
     return changed;
   }
 
+  function canonicalRoundComplete(round=state.round){
+    const expected=Math.max(1,Math.trunc(finite(round,state.round)||state.round||1));
+    const rows=Object.values(state.combatants||{}).filter(unit=>unit&&unit.battleActive!==false&&!unit.incapacitated);
+    if(!rows.length)return false;
+    return rows.every(unit=>{
+      const rolledTurn=Math.trunc(finite(unit.speedRollTurn,0)||0);
+      return rolledTurn===expected&&finite(unit.speed,null)!=null&&finite(unit.speedTie,null)!=null;
+    });
+  }
+
+  function applyRoundSideEffectsOnce(round=state.round){
+    const expected=Math.max(1,Math.trunc(finite(round,state.round)||state.round||1));
+    if(!state.roundReady||state.lastFormationRound===expected||!canonicalRoundComplete(expected))return false;
+    try{global.layoutSpeedFormation?.()}catch(error){console.error('[Combat073 SpeedAuthority] formation refresh failed',error)}
+    try{global.syncAllUnitVisibility?.()}catch(error){console.error('[Combat073 SpeedAuthority] visibility refresh failed',error)}
+    state.lastFormationRound=expected;
+    return true;
+  }
+
   function patchLegacySpeedRollers(){
     if(state.legacyPatched)return true;
     const originalTurn=typeof global.rollTurnSpeeds==='function'?global.rollTurnSpeeds:null;
@@ -103,12 +122,9 @@
     state.originalRollUnitSpeed=state.originalRollUnitSpeed||originalUnit;
 
     global.rollTurnSpeeds=function authoritativeSpeedSync(round){
-      syncRuntimeSpeedsFromCanonical(round??state.round);
-      // Preserve the original turn-start side effects without preserving its RNG:
-      // canonical Speed determines order/formation, then the viewer lays units out
-      // and refreshes visibility exactly once for the new turn.
-      try{global.layoutSpeedFormation?.()}catch(error){console.error('[Combat073 SpeedAuthority] formation refresh failed',error)}
-      try{global.syncAllUnitVisibility?.()}catch(error){console.error('[Combat073 SpeedAuthority] visibility refresh failed',error)}
+      const expected=round??state.round;
+      syncRuntimeSpeedsFromCanonical(expected);
+      applyRoundSideEffectsOnce(expected);
       return runtimeCombatants();
     };
     global.rollTurnSpeeds.__luminousCanonicalSpeed=true;
@@ -137,8 +153,7 @@
     const a=adapter();
     if(!state.roundReady||!a?.state?.hydratedOnce)return false;
     syncRuntimeSpeedsFromCanonical();
-    try{global.layoutSpeedFormation?.()}catch(error){console.error('[Combat073 SpeedAuthority] formation refresh failed',error)}
-    try{global.syncAllUnitVisibility?.()}catch(error){console.error('[Combat073 SpeedAuthority] visibility refresh failed',error)}
+    applyRoundSideEffectsOnce();
     try{global.LuminousCombat073?.render?.()}catch(error){console.error('[Combat073 SpeedAuthority] render refresh failed',error)}
     try{global.LuminousWebGL2Renderer?.requestRender?.(80)}catch(_){}
     return true;
@@ -199,8 +214,10 @@
     // Never author Speed until the canonical Combat round has arrived from Firebase.
     // A viewer may boot with adapter.round=1 while the encounter is actually on a later round.
     subscribe(`${ROOT}/estado`,snap=>{
+      const previousRound=state.round;
       state.round=parseRound(snap.val());
       state.roundReady=true;
+      if(state.round!==previousRound&&state.lastFormationRound===state.round)state.lastFormationRound=0;
       patchLegacySpeedRollers();
       forceRuntimeRefresh();
       ensureRoundSpeeds().catch(error=>console.error('[Combat073 SpeedAuthority] round roll failed',error));
@@ -217,12 +234,12 @@
   function stop(){
     state.unsubs.splice(0).forEach(fn=>{try{fn()}catch(_){}});
     if(state.refreshTimer)global.clearTimeout(state.refreshTimer);
-    state.refreshTimer=null;state.started=false;state.db=null;state.roundReady=false;
+    state.refreshTimer=null;state.started=false;state.db=null;state.roundReady=false;state.lastFormationRound=0;
   }
 
   let tries=0;const timer=global.setInterval(()=>{tries++;if(start()||tries>120)global.clearInterval(timer)},250);
   global.addEventListener('luminous:combat073-runtime-ready',()=>{patchLegacySpeedRollers();refreshRuntimeSpeedView();});
   global.addEventListener('luminous:combat073-hydrated',()=>{patchLegacySpeedRollers();refreshRuntimeSpeedView();});
   global.addEventListener('beforeunload',stop,{once:true});
-  global.LuminousCombatSpeedAuthority073=Object.freeze({state,start,stop,rangeFor,rollFor,speedSignature,runtimeCombatants,canonicalRowFor,syncRuntimeSpeedsFromCanonical,refreshRuntimeSpeedView,patchLegacySpeedRollers,ensureRoundSpeeds,forceRuntimeRefresh});
+  global.LuminousCombatSpeedAuthority073=Object.freeze({state,start,stop,rangeFor,rollFor,speedSignature,runtimeCombatants,canonicalRowFor,syncRuntimeSpeedsFromCanonical,canonicalRoundComplete,applyRoundSideEffectsOnce,refreshRuntimeSpeedView,patchLegacySpeedRollers,ensureRoundSpeeds,forceRuntimeRefresh});
 })(window);
