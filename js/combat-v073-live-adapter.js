@@ -51,10 +51,11 @@
   const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
   const normalizeId = (value) => clean(value).toLowerCase().replace(/[\s-]+/g, "_");
 
-  function setStatus(message) {
+  function setStatus(message, stageName="runtime-status") {
     try {
       const node = global.document?.getElementById?.("status");
       if (node) node.textContent = message;
+      global.LuminousCombatBootstrapStage?.(stageName, message);
     } catch (_) {}
   }
 
@@ -169,6 +170,20 @@
       : { x: Math.min(42, 10 + column * 9), y: row ? 42 : 18 };
   }
 
+  function planningPhase() {
+    const raw = state.combatState && typeof state.combatState === "object"
+      ? (state.combatState.phase || state.combatState.state || state.combatState.status)
+      : state.combatState;
+    const phase = String(raw || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+    return phase === "pre_combat_planning" || phase === "planning";
+  }
+
+  function explicitBattlePosition(unit = {}) {
+    return unit.positionPinned === true || unit.positionLocked === true || unit.manualPosition === true ||
+      unit.combatPosition?.pinned === true || unit.combatPosition?.locked === true ||
+      unit.positionAuthority === "manual" || unit.positionAuthority === "dm";
+  }
+
   function normalizedCombatants() {
     const sideIndex = { ally: 0, enemy: 0 };
     const result = [];
@@ -182,8 +197,9 @@
       const humanPlayer = isPlayerUnit(raw);
       const playerOwned = state.role === "player" && humanPlayer && canonicalPlayerId(raw) === state.playerId && (!canonicalOwnerUid(raw) || canonicalOwnerUid(raw) === state.uid);
       const controller = playerOwned ? "player" : (humanPlayer ? "remote" : "ai");
-      const x = finite(raw.x ?? raw.position?.x ?? raw.combatPosition?.x, pos.x);
-      const y = finite(raw.y ?? raw.position?.y ?? raw.combatPosition?.y, pos.y);
+      const useFormationSpawn = planningPhase() && !explicitBattlePosition(raw);
+      const x = useFormationSpawn ? pos.x : finite(raw.x ?? raw.position?.x ?? raw.combatPosition?.x, pos.x);
+      const y = useFormationSpawn ? pos.y : finite(raw.y ?? raw.position?.y ?? raw.combatPosition?.y, pos.y);
       result.push({
         ...clone(raw),
         id,
@@ -204,6 +220,9 @@
         img: spriteFor(raw),
         x,
         y,
+        formationRow: pos.y === 42 ? 1 : 0,
+        formationColumn: Math.max(0, Math.floor((sideIndex[faction] - 1) / 2)),
+        formationSource: useFormationSpawn ? "pre_combat_zigzag" : "runtime_position",
         scale: finite(raw.scale ?? raw.visualScale ?? raw.escala ?? raw.combatVisual?.scale, 1) || 1,
         spriteX: finite(raw.spriteX ?? raw.combatVisual?.x, 0) || 0,
         spriteY: finite(raw.spriteY ?? raw.combatVisual?.y, 0) || 0,
@@ -258,13 +277,57 @@
     return [];
   }
 
+  function inventoryEntries(container) {
+    if (Array.isArray(container)) return container.map((item, index) => [String(index), item]);
+    return container && typeof container === "object" ? Object.entries(container) : [];
+  }
+
+  function inventoryQuantity(item = {}) {
+    const value = Number(item.quantity ?? item.qty ?? item.cantidad ?? item.stack ?? item.count ?? 1);
+    return Number.isFinite(value) ? Math.max(0, Math.trunc(value)) : 0;
+  }
+
+  function activeInventoryItems(source = {}) {
+    const container = source.inventario_activo || source.activeInventory || source.inventory || {};
+    return inventoryEntries(container).map(([key, item]) => {
+      if (!item || typeof item !== "object" || inventoryQuantity(item) <= 0) return null;
+      const instanceId = clean(item.instanceId || item.instance_id || key);
+      const definitionId = clean(item.definitionId || item.definition_id || item.canonicalId || item.itemId || item.item_id || item.id || key);
+      return {
+        ...clone(item),
+        id: instanceId || definitionId,
+        itemId: instanceId || definitionId,
+        instanceId: instanceId || null,
+        definitionId: definitionId || null,
+        kind: "item",
+        inventoryContainer: "inventario_activo",
+      };
+    }).filter(Boolean);
+  }
+
+  function inventoryHydrationSignature(unit = {}) {
+    return activeInventoryItems(unit).map((item) => [
+      item.instanceId || item.id,
+      item.definitionId || null,
+      inventoryQuantity(item),
+      Number(item.chargesCurrent ?? item.charges_current ?? item.carga_actual ?? 0) || 0,
+      Number(item.chargesMax ?? item.charges_max ?? item.carga_max ?? item.carga_maxima ?? 0) || 0,
+      item.condition ?? item.currentCondition ?? item.durability ?? null,
+    ]);
+  }
+
   function kitsFor(combatants) {
     const kits = {};
     for (const unit of combatants) {
       const source = state.combatants?.[unit.id] || Object.values(state.combatants || {}).find((raw) => clean(raw?.id || raw?.combatId) === unit.id) || unit;
       const actions = skillIdsFor(source).map((skillId) => state.skills?.[skillId] ? normalizeSkill(skillId, state.skills[skillId]) : null).filter(Boolean);
       const embedded = Array.isArray(source.actions) ? source.actions.map((row, index) => normalizeSkill(clean(row?.id || `${unit.id}:action:${index}`), row || {})) : [];
-      kits[unit.id] = { role: clean(source.buildRole || source.combatRole || source.role || ""), actions: actions.length ? actions : embedded };
+      kits[unit.id] = {
+        role: clean(source.buildRole || source.combatRole || source.role || ""),
+        actions: actions.length ? actions : embedded,
+        items: activeInventoryItems(source),
+        inventorySource: "inventario_activo",
+      };
     }
     return kits;
   }
@@ -288,7 +351,8 @@
       unit.img,
       unit.battleActive,
       unit.statusEffects,
-      skillIdsFor(unit)
+      skillIdsFor(unit),
+      inventoryHydrationSignature(unit)
     ]);
     const skillRevision = Object.entries(state.skills || {}).map(([id, skill]) => [id, skill?.updatedAt || skill?.revision || skill?.version || null]);
     return JSON.stringify([state.role, playerId, state.combatState, state.round, summary, skillRevision]);
@@ -336,13 +400,14 @@
     state.role = identity.role;
     state.playerId = identity.playerId;
     if (!state.role) {
-      setStatus("COMBAT · USER NOT LINKED TO A CAMPAIGN PLAYER");
+      setStatus("COMBAT · AUTHENTICATED USER IS NOT THE DM OR A LINKED CAMPAIGN PLAYER","identity-unresolved");
       return false;
     }
+    global.LuminousCombatBootstrapStage?.(`identity-${state.role}`,state.role==="dm"?"Canonical DM identity confirmed":`Player identity confirmed · ${state.playerId||"unknown"}`);
     const focusEntry = state.role === "player" ? playerCombatantEntry() : dmFocusEntry();
     if (!focusEntry) {
       global.LuminousCombat073.reset();
-      setStatus("COMBAT · WAITING FOR DM TO DEPLOY COMBATANTS");
+      setStatus("COMBAT · WAITING FOR DM TO DEPLOY COMBATANTS","waiting-field");
       return false;
     }
     const [focusKey, focusUnit] = focusEntry;
@@ -400,17 +465,22 @@
     });
     state.db.ref(ROOTS.dmUid).once("value").then((snapshot) => {
       state.dmUid = clean(snapshot.val()) || FALLBACK_DM_UID;
+      global.LuminousCombatBootstrapStage?.("dm-identity-config","Campaign DM identity loaded");
       scheduleHydrate();
-    }).catch(() => {});
+    }).catch((error) => {
+      global.LuminousCombatBootstrapStage?.("dm-identity-config-error",error?.code||error?.message||"DM identity read failed",error?.code||error?.message||"DM identity read failed");
+      scheduleHydrate();
+    });
   }
 
   function onAuth(user) {
     state.user = user || null;
     state.uid = clean(user?.uid) || null;
     if (!user) {
-      setStatus("COMBAT · AUTH REQUIRED");
+      setStatus("COMBAT · AUTH REQUIRED","auth-required");
       return;
     }
+    global.LuminousCombatBootstrapStage?.("auth-ready","Firebase user authenticated");
     bindRealtime();
     scheduleHydrate();
   }
@@ -451,7 +521,12 @@
     normalizeSkill,
     isFieldCombatant,
     normalizedCombatants,
+    defaultPosition,
+    planningPhase,
+    explicitBattlePosition,
     kitsFor,
+    activeInventoryItems,
+    inventoryHydrationSignature,
     hydrationSignature,
   });
 

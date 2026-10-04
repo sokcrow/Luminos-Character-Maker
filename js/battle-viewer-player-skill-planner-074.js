@@ -16,6 +16,7 @@
   const PANEL_ID = "bv074-player-skill-planner";
   const STYLE_ID = "bv074-player-skill-planner-style";
   const HOOK_GUARD = "__luminousPlayerSkillPlanner074";
+  const ICON_SRC = "Assets/Images/Buttons/Skills.png";
 
   const state = {
     db: null,
@@ -272,7 +273,7 @@
     style.id = STYLE_ID;
     style.textContent = `
       #${PANEL_ID}{position:fixed;left:12px;bottom:12px;z-index:16000;width:min(560px,calc(100vw - 24px));background:rgba(10,8,7,.96);border:1px solid #8a673d;box-shadow:0 8px 28px rgba(0,0,0,.65);color:#eee;font:12px Arial,sans-serif;padding:10px;box-sizing:border-box}
-      #${PANEL_ID}[hidden]{display:none!important}.bv074-psp-title{font:700 15px var(--font-limbus,Arial);letter-spacing:.1em;color:#ffe877;margin-bottom:7px}.bv074-psp-meta{color:#aaa;font-size:10px;margin-bottom:7px}.bv074-psp-skills{display:flex;gap:5px;flex-wrap:wrap}.bv074-psp-skill{border:1px solid #68543a;background:#17130f;color:#ddd;padding:6px 8px;cursor:pointer}.bv074-psp-skill.selected{border-color:#ffe877;color:#ffe877;box-shadow:0 0 8px rgba(255,232,119,.25)}.bv074-psp-slots{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}.bv074-psp-slot{display:flex;align-items:center;gap:5px;border:1px solid #3d342b;padding:4px 6px;color:#aaa}.bv074-psp-cancel{border:0;background:#3a1914;color:#ff9c8b;cursor:pointer;padding:2px 5px}.bv074-psp-hint{margin-top:7px;color:#8fd6a0;font-size:10px}`;
+      #${PANEL_ID}[hidden]{display:none!important}.bv074-psp-title{display:flex;align-items:center;gap:7px;font:700 15px var(--font-limbus,Arial);letter-spacing:.1em;color:#ffe877;margin-bottom:7px}.bv074-psp-title-icon{width:20px;height:20px;object-fit:contain;flex:0 0 auto}.bv074-psp-meta{color:#aaa;font-size:10px;margin-bottom:7px}.bv074-psp-skills{display:flex;gap:5px;flex-wrap:wrap}.bv074-psp-skill{border:1px solid #68543a;background:#17130f;color:#ddd;padding:6px 8px;cursor:pointer}.bv074-psp-skill.selected{border-color:#ffe877;color:#ffe877;box-shadow:0 0 8px rgba(255,232,119,.25)}.bv074-psp-slots{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}.bv074-psp-slot{display:flex;align-items:center;gap:5px;border:1px solid #3d342b;padding:4px 6px;color:#aaa}.bv074-psp-cancel{border:0;background:#3a1914;color:#ff9c8b;cursor:pointer;padding:2px 5px}.bv074-psp-hint{margin-top:7px;color:#8fd6a0;font-size:10px}`;
     doc.head?.appendChild(style);
   }
 
@@ -325,7 +326,7 @@
       return `<span class="bv074-psp-slot">A${index + 1}: ${htmlEscape(label)}${plan?.status === "planned" ? `<button type="button" class="bv074-psp-cancel" data-bv074-cancel-slot="${index}" title="Cancel planned action">×</button>` : ""}</span>`;
     }).join("");
     panel.innerHTML = `
-      <div class="bv074-psp-title">PLAYER SKILLS · ${htmlEscape(context.unit?.name || context.playerId)}</div>
+      <div class="bv074-psp-title"><img class="bv074-psp-title-icon" src="${ICON_SRC}" alt="" aria-hidden="true">PLAYER SKILLS · ${htmlEscape(context.unit?.name || context.playerId)}</div>
       <div class="bv074-psp-meta">${htmlEscape(phase)} · ${skills.length} equipped Skill${skills.length === 1 ? "" : "s"}</div>
       <div class="bv074-psp-skills">${skillButtons}</div>
       <div class="bv074-psp-slots">${slots}</div>

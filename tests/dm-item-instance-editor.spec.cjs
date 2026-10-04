@@ -13,6 +13,7 @@ async function bootDmHarness(page) {
         <div class="modal-body">
           <div id="modal-inv-lista-activos">
             <div class="legacy-row">
+              <img src="https://via.placeholder.com/40" alt="">
               <span>Sword</span>
               <button class="btn-inv-mod" data-action="to_stash" data-key="sword_1" data-list="activo">MOVE</button>
               <button class="btn-inv-mod" data-action="minus" data-key="sword_1" data-list="activo">-</button>
@@ -22,8 +23,17 @@ async function bootDmHarness(page) {
           </div>
           <div id="modal-inv-lista-stash">
             <div class="legacy-row">
+              <img src="https://via.placeholder.com/40" alt="">
               <span>Cell</span>
               <button class="btn-inv-mod" data-action="to_activo" data-key="cell_1" data-list="stash">MOVE</button>
+            </div>
+          </div>
+          <div id="legacy-grant-section">
+            <div>
+              <select id="dm-inv-add-select"><option value="">legacy</option></select>
+              <select id="dm-inv-add-target"><option value="inventario_stash">stash</option></select>
+              <input id="dm-inv-add-cant" value="1">
+              <button id="btn-dm-inv-add">Añadir legacy</button>
             </div>
           </div>
         </div>
@@ -67,6 +77,42 @@ async function bootDmHarness(page) {
       inventario_activo: { sword_1: sword },
       inventario_stash: { cell_1: cell },
       equipment: { mainHand: sword, accessories: [] },
+    };
+    window.dbItemsCache = {
+      field_recovery_patch: {
+        id: "field_recovery_patch",
+        nombre: "Field Recovery Patch",
+        category: "consumable",
+        tipo_categoria: "consumable",
+        iconFamily: "healing_hp",
+        tier: "I",
+        tags: ["healing", "medical"],
+        costo: 125,
+        descripcion: "Canonical local healing item",
+      },
+      field_dagger: {
+        id: "field_dagger",
+        nombre: "Field Dagger",
+        category: "weapon",
+        tipo_categoria: "weapon",
+        iconFamily: "weapon_dagger",
+        tier: "II",
+        tags: ["weapon", "blade"],
+        costo: 400,
+      },
+    };
+    window.LuminousItemIconRegistry = {
+      get(id, options = {}) {
+        const rows = {
+          healing_hp: { id: "healing_hp", icon: "Assets/Icons/items/consumable/healing_hp.png" },
+          weapon_dagger: { id: "weapon_dagger", icon: "Assets/Icons/items/equipment/weapon_dagger.png" },
+          generic_item: { id: "generic_item", icon: "Assets/Icons/items/fallback/generic_item.png" },
+        };
+        return rows[id] || (options.fallback === false ? null : rows.generic_item);
+      },
+      resolveIcon(id, options = {}) {
+        return this.get(id, options)?.icon || null;
+      },
     };
     window.__saves = [];
     window.__legacyCalls = 0;
@@ -133,6 +179,37 @@ async function bootDmHarness(page) {
       },
       getCharges(item) {
         return { current: item.chargesCurrent ?? null, max: item.chargesMax ?? null };
+      },
+      createItemInstance(definition, options = {}) {
+        const id = String(definition.definitionId || definition.id || "item");
+        return {
+          schemaVersion: 3,
+          instanceId: id + "_grant_" + String(Date.now()),
+          definitionId: id,
+          quantity: Math.max(1, Number(options.quantity) || 1),
+          cantidad: Math.max(1, Number(options.quantity) || 1),
+          qualityTier: Math.max(1, Number(options.qualityTier) || 1),
+          condition: 100,
+          conditionMax: 100,
+          currentOwnerId: options.currentOwnerId || null,
+          category: definition.category || definition.tipo_categoria || "item",
+          itemType: definition.itemType || definition.category || "item",
+          iconFamily: definition.iconFamily || null,
+          tags: clone(definition.tags || []),
+        };
+      },
+      insertItem(unit, instance, containerType) {
+        const target = containerType === "stash"
+          ? (unit.inventario_stash || (unit.inventario_stash = {}))
+          : (unit.inventario_activo || (unit.inventario_activo = {}));
+        target[instance.instanceId] = clone(instance);
+        return {
+          inserted: true,
+          quantity: Number(instance.quantity) || 1,
+          remaining: 0,
+          instanceId: instance.instanceId,
+          containerType,
+        };
       },
       moveToStash(unit, ref) { return move(unit, ref, "inventario_activo", "inventario_stash"); },
       moveToActive(unit, ref) { return move(unit, ref, "inventario_stash", "inventario_activo"); },
@@ -254,6 +331,76 @@ test("moving an equipped DM item to Stash clears equipment references", async ({
   expect(saved.stash.sword_1.equipped).toBe(false);
   expect(saved.mainHand).toBeNull();
   expect(await page.evaluate(() => window.__legacyCalls)).toBe(0);
+});
+
+
+test("DM inventory GUI replaces legacy grant controls and uses repository-local icons", async ({ page }) => {
+  await bootDmHarness(page);
+
+  await expect(page.locator("#dm-item-grant-console")).toHaveCount(1);
+  await expect(page.locator("#btn-dm-inv-add")).toBeHidden();
+  await expect(page.locator("#dm-item-grant-search")).toBeVisible();
+
+  await page.locator("#dm-item-grant-search").fill("recovery");
+  await expect(page.locator('.dm-item-grant-result[data-definition-id="field_recovery_patch"]')).toHaveCount(1);
+  await page.locator('.dm-item-grant-result[data-definition-id="field_recovery_patch"]').click();
+
+  await expect(page.locator("#dm-item-grant-name")).toHaveText("Field Recovery Patch");
+  await expect(page.locator("#dm-item-grant-icon")).toHaveAttribute("src", "Assets/Icons/items/consumable/healing_hp.png");
+  expect(await page.locator("#dm-item-grant-icon").getAttribute("src")).not.toMatch(/^https?:/);
+
+  const rowIcon = await page.locator('#modal-inv-lista-activos [data-runtime-item-row="true"] img').getAttribute("src");
+  expect(rowIcon).toBe("Assets/Icons/items/fallback/generic_item.png");
+  expect(rowIcon).not.toMatch(/^https?:/);
+});
+
+test("DM grants a canonical ItemInstance to Player Stash through current inventory runtime", async ({ page }) => {
+  await bootDmHarness(page);
+
+  await page.locator('.dm-item-grant-result[data-definition-id="field_recovery_patch"]').click();
+  await page.locator("#dm-item-grant-quantity").fill("3");
+  await page.locator("#dm-item-grant-quality").selectOption("2");
+  await page.locator("#dm-item-grant-target").selectOption("stash");
+  await page.locator("#dm-item-grant-add").click();
+
+  await page.waitForFunction(() => window.__saves.length === 1);
+  const result = await page.evaluate(() => {
+    const saved = window.__saves[0];
+    const granted = Object.values(saved.stash).find((item) => item.definitionId === "field_recovery_patch");
+    return { granted, status: document.getElementById("dm-item-grant-status")?.textContent || "" };
+  });
+
+  expect(result.granted).toBeTruthy();
+  expect(result.granted.schemaVersion).toBe(3);
+  expect(result.granted.definitionId).toBe("field_recovery_patch");
+  expect(result.granted.quantity).toBe(3);
+  expect(result.granted.cantidad).toBe(3);
+  expect(result.granted.qualityTier).toBe(2);
+  expect(result.granted.currentOwnerId).toBe("player_test");
+  expect(result.granted.iconFamily).toBe("healing_hp");
+  expect(result.granted.icono).toBe("Assets/Icons/items/consumable/healing_hp.png");
+  expect(result.granted.nombre).toBe("Field Recovery Patch");
+  expect(result.status).toContain("ADDED ×3 TO STASH");
+});
+
+test("Player inventory HUD button uses the repository Inventory asset", async () => {
+  const html = fs.readFileSync(path.join(ROOT, "hoja_personaje.html"), "utf8");
+  expect(html).toMatch(/id="btn-global-inventory"[\s\S]{0,500}Assets\/Images\/Buttons\/Inventory\.png/);
+  const iconPath = path.join(ROOT, "Assets", "Images", "Buttons", "Inventory.png");
+  expect(fs.existsSync(iconPath)).toBe(true);
+  expect(html).toMatch(/data-player-skills-menu-icon[\s\S]{0,300}Assets\/Images\/Buttons\/Skills\.png/);
+  const skillsHudSource = fs.readFileSync(path.join(ROOT, "js", "player-skills-hud.js"), "utf8");
+  expect(skillsHudSource).toMatch(/data-player-skills-menu-icon/);
+  expect(skillsHudSource).toMatch(/Assets\/Images\/Buttons\/Spells\.png/);
+  expect(fs.existsSync(path.join(ROOT, "Assets", "Images", "Buttons", "Skills.png"))).toBe(true);
+  expect(fs.existsSync(path.join(ROOT, "Assets", "Images", "Buttons", "Spells.png"))).toBe(true);
+});
+
+test("canonical persistence carries local icon family metadata", async () => {
+  const inventorySource = fs.readFileSync(path.join(ROOT, "js", "item-inventory-runtime.js"), "utf8");
+  const persistenceSource = fs.readFileSync(path.join(ROOT, "js", "item-persistence-runtime.js"), "utf8");
+  expect(inventorySource).toContain('"iconFamily", "icon_family"');
+  expect(persistenceSource).toContain('"iconFamily", "icon_family"');
 });
 
 test("DM bootstrap loads the ItemInstance editor assets", async () => {

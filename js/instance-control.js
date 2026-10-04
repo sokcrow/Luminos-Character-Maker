@@ -11,7 +11,9 @@
 
   function normalizeInstance(instance) {
     const normalized = typeof instance === "string" && instance.trim() ? instance.trim() : "ninguno";
-    return normalized === "mapa" ? "ninguno" : normalized;
+    if (normalized === "mapa") return "ninguno";
+    if (["combat-theatre", "combat_theater", "combat-theater"].includes(normalized)) return "combat_theatre";
+    return normalized;
   }
 
   function applyDmInstance(instance, doc) {
@@ -23,12 +25,18 @@
     const documentRef = doc || global.document;
     if (!documentRef) return "ninguno";
     const activeInstance = normalizeInstance(instance);
-    const radioBtn = documentRef.querySelector(`input[name="instancia"][value="${activeInstance}"]`);
+    const combatTheatreActive = activeInstance === "combat_theatre";
+    const theatreActive = activeInstance === "teatro" || combatTheatreActive;
+    const radioValue = combatTheatreActive ? "teatro" : activeInstance;
+    const radioBtn = documentRef.querySelector(`input[name="instancia"][value="${radioValue}"]`);
     if (radioBtn) radioBtn.checked = true;
 
     const statusText = documentRef.getElementById("current-output-status");
     if (statusText) {
-      if (activeInstance === "teatro") {
+      if (combatTheatreActive) {
+        statusText.textContent = "SALIDA ACTUAL: COMBAT THEATER";
+        statusText.style.color = "#d4a63a";
+      } else if (activeInstance === "teatro") {
         statusText.textContent = "SALIDA ACTUAL: TEATRO / LORE";
         statusText.style.color = "#4CAF50";
       } else if (activeInstance === "combate") {
@@ -46,7 +54,7 @@
     });
 
     let activeModuleId = "modulo-standby";
-    if (activeInstance === "teatro") activeModuleId = "modulo-teatro";
+    if (theatreActive) activeModuleId = "modulo-teatro";
     else if (activeInstance === "combate") activeModuleId = "modulo-combate";
 
     const activeModule = documentRef.getElementById(activeModuleId);
@@ -131,41 +139,101 @@
     documentRef.body?.classList.remove("player-instance-map");
   }
 
+  function createPlayerCombatView(documentRef) {
+    if (!documentRef?.body) return null;
+    let combatView = documentRef.getElementById("player-instance-combat");
+    if (combatView) return combatView;
+
+    combatView = documentRef.createElement("iframe");
+    combatView.id = "player-instance-combat";
+    combatView.title = "Combate táctico";
+    combatView.dataset.battleSrc = "Battle-viewer.html";
+    combatView.setAttribute("aria-hidden", "false");
+    Object.assign(combatView.style, {
+      display: "block", position: "fixed", inset: "0", width: "100vw",
+      height: "100vh", border: "0", zIndex: "10000", background: "#000",
+    });
+    combatView.addEventListener("load", () => {
+      const current = String(combatView.getAttribute("src") || "");
+      if (!current || current === "about:blank") return;
+      ensureCombatTraitRuntime(combatView).catch((error) => {
+        console.error("No se pudo cargar el runtime universal de Traits en combate:", error);
+      });
+    });
+    combatView.src = combatView.dataset.battleSrc;
+    documentRef.body.appendChild(combatView);
+    return combatView;
+  }
+
+  function syncPlayerCombatOcclusion(documentRef) {
+    const combatView = documentRef?.getElementById?.("player-instance-combat");
+    if (!combatView) return false;
+
+    const phoneWrapper = documentRef.querySelector?.(".sheet-phone-wrapper") || null;
+    const terminalOpen = Boolean(phoneWrapper && !phoneWrapper.classList?.contains?.("phone-hidden"));
+    const combatActive = Boolean(documentRef.body?.classList?.contains?.("player-instance-combat"));
+    const shouldShow = combatActive && !terminalOpen && !documentRef.hidden;
+
+    combatView.style.visibility = shouldShow ? "visible" : "hidden";
+    combatView.style.pointerEvents = shouldShow ? "auto" : "none";
+    combatView.setAttribute("aria-hidden", shouldShow ? "false" : "true");
+    combatView.dataset.occludedByTerminal = terminalOpen ? "true" : "false";
+    return shouldShow;
+  }
+
+  function stopPlayerCombatRuntime(combatView) {
+    if (!combatView) return false;
+    try {
+      const child = combatView.contentWindow;
+      child?.LuminousWebGL2Renderer?.setEnabled?.(false);
+      child?.LuminousCombatRuntimeHotfix073?.syncLifecycle?.("player-instance-exit");
+      child?.LuminousCombatSpeedAuthority073?.stop?.();
+      child?.LuminousCombatRemoteIntents073?.stop?.();
+      child?.LuminousCombatAuthority073?.stop?.();
+      child?.LuminousCombatLiveAdapter073?.stop?.();
+    } catch (_) {}
+    return true;
+  }
+
+  function destroyPlayerCombatView(documentRef) {
+    const combatView = documentRef?.getElementById?.("player-instance-combat");
+    if (!combatView) return false;
+    stopPlayerCombatRuntime(combatView);
+    combatView.setAttribute("aria-hidden", "true");
+    combatView.style.display = "none";
+    try { combatView.src = "about:blank"; } catch (_) {}
+    combatView.remove();
+    return true;
+  }
+
   function applyPlayerInstance(instance, doc) {
     const documentRef = doc || global.document;
     if (!documentRef) return "ninguno";
     const activeInstance = normalizeInstance(instance);
-    const theatreActive = activeInstance === "teatro";
+    const combatTheatreActive = activeInstance === "combat_theatre";
+    const theatreActive = activeInstance === "teatro" || combatTheatreActive;
+    const combatActive = activeInstance === "combate";
+    const combatRuntimeActive = combatActive || combatTheatreActive;
     const blackoutActive = activeInstance === "ninguno";
     const theatreView = documentRef.getElementById("theatre-view-player");
     const blackout = documentRef.getElementById("player-instance-blackout");
-    let combatView = documentRef.getElementById("player-instance-combat");
 
     cleanupLegacyPlayerMapArtifacts(documentRef);
 
-    if (!combatView && documentRef.body) {
-      combatView = documentRef.createElement("iframe");
-      combatView.id = "player-instance-combat";
-      combatView.title = "Combate táctico";
-      combatView.setAttribute("aria-hidden", "true");
-      Object.assign(combatView.style, {
-        display: "none", position: "fixed", inset: "0", width: "100vw",
-        height: "100vh", border: "0", zIndex: "10000", background: "#000",
-      });
-      combatView.addEventListener("load", () => {
+    let combatView = documentRef.getElementById("player-instance-combat");
+    if (combatRuntimeActive) {
+      combatView = createPlayerCombatView(documentRef);
+      if (combatView?.contentDocument?.readyState === "complete") {
         ensureCombatTraitRuntime(combatView).catch((error) => {
-          console.error("No se pudo cargar el runtime universal de Traits en combate:", error);
+          console.error("No se pudo verificar el runtime universal de Traits en combate:", error);
         });
-      });
-      combatView.src = "Battle-viewer.html";
-      documentRef.body.appendChild(combatView);
+      }
     }
-
-    if (combatView?.contentDocument?.readyState === "complete") {
-      ensureCombatTraitRuntime(combatView).catch((error) => {
-        console.error("No se pudo verificar el runtime universal de Traits en combate:", error);
-      });
+    if (combatView) {
+      combatView.style.display = combatActive ? "block" : "none";
+      combatView.setAttribute("aria-hidden", combatActive ? "false" : "true");
     }
+    if (!combatRuntimeActive) destroyPlayerCombatView(documentRef);
 
     if (theatreView) {
       theatreView.style.display = theatreActive ? "flex" : "none";
@@ -176,14 +244,17 @@
       blackout.classList.toggle("active", blackoutActive);
       blackout.setAttribute("aria-hidden", blackoutActive ? "false" : "true");
     }
-    if (combatView) {
-      const combatActive = activeInstance === "combate";
-      combatView.style.display = combatActive ? "block" : "none";
-      combatView.setAttribute("aria-hidden", combatActive ? "false" : "true");
-    }
     if (documentRef.body) {
       documentRef.body.classList.toggle("player-instance-theatre", theatreActive);
+      documentRef.body.classList.toggle("player-instance-combat", combatActive);
+      documentRef.body.classList.toggle("player-instance-combat-theatre", combatTheatreActive);
       documentRef.body.classList.toggle("player-instance-blackout", blackoutActive);
+    }
+    if (combatActive) syncPlayerCombatOcclusion(documentRef);
+    if (global.dispatchEvent && typeof global.CustomEvent === "function") {
+      global.dispatchEvent(new global.CustomEvent("luminous:player-instance-changed", {
+        detail: { instance: activeInstance, theatreActive, combatActive, combatTheatreActive, blackoutActive },
+      }));
     }
     return activeInstance;
   }
@@ -340,6 +411,7 @@
     const documentRef = doc || global.document;
     if (!db || !documentRef) return;
     const instanceRef = db.ref(INSTANCE_PATH);
+    let currentInstance = "ninguno";
 
     ensureTheatreRollVisualizerAssets(documentRef);
     ensureTheatreCheckCoordinatorAssets(documentRef);
@@ -350,16 +422,33 @@
 
     documentRef.querySelectorAll('input[name="instancia"]').forEach((radio) => {
       radio.addEventListener("change", (evento) => {
-        const nuevaInstancia = normalizeInstance(evento.target.value);
+        const requestedInstance = normalizeInstance(evento.target.value);
+        const nuevaInstancia = requestedInstance === "teatro" && ["combate", "combat_theatre"].includes(currentInstance)
+          ? "combat_theatre"
+          : requestedInstance;
         instanceRef.set(nuevaInstancia).catch((error) => {
           console.error("Error al transicionar instancia de juego:", error);
         });
         if (nuevaInstancia === "combate") {
-          const updates = {};
-          updates["campaña/combate/estado"] = "PRE_COMBAT_PLANNING";
-          updates["campaña/combate/planningStartedAt"] = global.firebase.database.ServerValue.TIMESTAMP;
-          updates["campaña/combate/planningDuration"] = 60;
-          db.ref().update(updates);
+          const stateRef = db.ref("campaña/combate/estado");
+          stateRef.once("value").then((snapshot) => {
+            const existing = snapshot.val?.() || null;
+            if (snapshot.exists() && existing?.phase !== "ENDED" && existing?.active !== false) return;
+            return stateRef.update({
+              phase: "PRE_COMBAT_PLANNING",
+              round: 1,
+              active: true,
+              result: null,
+              endedAt: null,
+              endedBy: null,
+              updatedAt: global.firebase.database.ServerValue.TIMESTAMP
+            }).then(() => db.ref("campaña/combate").update({
+              planningStartedAt: global.firebase.database.ServerValue.TIMESTAMP,
+              planningDuration: 60
+            }));
+          }).catch((error) => {
+            console.error("No se pudo inicializar el estado de Combat:", error);
+          });
         }
       });
     });
@@ -367,6 +456,7 @@
     instanceRef.on("value", (snapshot) => {
       const rawInstance = snapshot.val();
       const activeInstance = normalizeInstance(rawInstance);
+      currentInstance = activeInstance;
       applyDashboardInstance(activeInstance, documentRef);
       if (rawInstance === "mapa") {
         instanceRef.set("ninguno").catch((error) => {
@@ -390,6 +480,10 @@
     applyDmInstance,
     applyPlayerInstance,
     applyDashboardInstance,
+    createPlayerCombatView,
+    syncPlayerCombatOcclusion,
+    stopPlayerCombatRuntime,
+    destroyPlayerCombatView,
     ensureCombatTraitRuntime,
     ensureDmLocationControl,
     ensureTheatreRollVisualizerAssets,

@@ -138,6 +138,7 @@
       quality: normalizeId(source.quality || DEFAULT_QUALITY),
       durability: source.durability,
       unitValueAhn: source.unitValueAhn ?? source.standardUnitValueAhn,
+      weight: source.weight ?? source.weightFactor ?? source.unitWeight,
       tags: source.tags,
       name: source.name || null,
     };
@@ -149,6 +150,7 @@
     const composition = [];
     let durability = 0;
     let inputValue = 0;
+    let weightScore = 0;
     let primaryMaterial = null;
 
     for (const input of def.materialInputs) {
@@ -157,11 +159,13 @@
       if (!validation.valid) return Object.freeze({valid:false,componentId:def.id,reason:"incompatible_material",slot:input.slot,missing:validation.missing});
       const unitDurability = Base.getMaterialDurability(selected.materialId, selected.durability);
       const unitValueAhn = getMaterialValue(selected.materialId, selected.unitValueAhn);
+      const unitWeight = Base.getMaterialWeight(selected.materialId, selected.weight);
       if (!Number.isFinite(unitDurability)) return Object.freeze({valid:false,componentId:def.id,reason:"missing_material_durability",slot:input.slot,materialId:selected.materialId});
       if (!Number.isFinite(unitValueAhn)) return Object.freeze({valid:false,componentId:def.id,reason:"missing_material_value",slot:input.slot,materialId:selected.materialId});
       durability += input.quantity * unitDurability;
       inputValue += input.quantity * unitValueAhn;
-      const row = Object.freeze({slot:input.slot,materialId:selected.materialId,materialName:selected.name,quantity:input.quantity,quality:selected.quality,unitDurability,unitValueAhn,primaryMaterial:input.primaryMaterial});
+      weightScore += input.quantity * unitWeight;
+      const row = Object.freeze({slot:input.slot,materialId:selected.materialId,materialName:selected.name,quantity:input.quantity,quality:selected.quality,unitDurability,unitValueAhn,unitWeight,primaryMaterial:input.primaryMaterial});
       composition.push(row);
       if (input.primaryMaterial) primaryMaterial = row;
     }
@@ -169,7 +173,7 @@
     return Object.freeze({
       valid:true, componentId:def.id, name:def.name, iconFamily:def.iconFamily, icon:def.icon, role:def.role, sizeClass:def.sizeClass,
       primaryEligible:def.primaryEligible, composition:Object.freeze(composition), primaryMaterial:primaryMaterial ? clone(primaryMaterial) : null,
-      durability, productionValueAhn:roundAhn(inputValue * def.processMultiplier), quality:normalizeId(craft.quality || DEFAULT_QUALITY),
+      durability, weightScore, productionValueAhn:roundAhn(inputValue * def.processMultiplier), quality:normalizeId(craft.quality || DEFAULT_QUALITY),
       processMultiplier:def.processMultiplier, batchSurfaceOnly:def.batchSurfaceOnly,
     });
   }

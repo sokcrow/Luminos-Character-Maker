@@ -31,11 +31,42 @@
     return null;
   }
 
+  function signatureSkillCatalog() {
+    if (global?.LuminousPlayerSignatureSkillCatalog) return global.LuminousPlayerSignatureSkillCatalog;
+    if (typeof require === "function") {
+      try { return require("./skill-catalog-player-signature.js"); } catch (_) {}
+    }
+    return null;
+  }
+
+  function mergedSkillLibrary(skills = state.skills) {
+    const catalog = signatureSkillCatalog();
+    const signature = catalog?.DEFINITIONS && typeof catalog.DEFINITIONS === "object" ? catalog.DEFINITIONS : {};
+    return { ...(skills || {}), ...signature };
+  }
+
+  function skillDeckSlots(value = {}) {
+    const source = value && typeof value === "object" ? value : {};
+    const deck = {
+      tier1: clean(source.tier1 ?? source.t1 ?? source["1"] ?? source.skill1),
+      tier2: clean(source.tier2 ?? source.t2 ?? source["2"] ?? source.skill2),
+      tier3: clean(source.tier3 ?? source.t3 ?? source["3"] ?? source.skill3),
+    };
+    const out = [];
+    [[1, 3], [2, 2], [3, 1]].forEach(([tier, copies]) => {
+      const id = deck[`tier${tier}`];
+      for (let index = 0; id && index < copies; index += 1) out.push(id);
+    });
+    return out;
+  }
+
   function firstLoadoutSource(source = {}) {
-    if (source.action_slots != null) return source.action_slots;
+    const canonicalDeck = skillDeckSlots(source.characterBuild?.skillDeck || source.skillDeck || {});
+    if (canonicalDeck.length) return canonicalDeck;
     if (source.skillSlotIds != null) return source.skillSlotIds;
     if (source.skillIds != null) return source.skillIds;
     if (source.skill_ids != null) return source.skill_ids;
+    if (source.action_slots != null) return source.action_slots;
     if (source.mechanics?.skills != null) return source.mechanics.skills;
     return [];
   }
@@ -184,6 +215,7 @@
   }
 
   function hydrateLoadout(source = {}, skills = state.skills) {
+    const library = mergedSkillLibrary(skills);
     const entries = skillSlotEntries(source);
     const slots = [];
     const skillsById = {};
@@ -191,7 +223,7 @@
     const invalidIds = [];
 
     for (const entry of entries) {
-      const raw = skills?.[entry.skillId];
+      const raw = library?.[entry.skillId];
       if (!raw) {
         slots.push({ ...entry, status: "missing", skill: null, reason: "SKILL_NOT_FOUND" });
         if (!missingIds.includes(entry.skillId)) missingIds.push(entry.skillId);
@@ -230,17 +262,18 @@
   }
 
   function resolveSkillForCombatant(combatant = {}, skillId, skills = state.skills) {
+    const library = mergedSkillLibrary(skills);
     const id = clean(skillId);
     if (!id) return { ok: false, reason: "SKILL_ID_REQUIRED", skillId: id, skill: null };
     if (!ownsSkill(combatant, id)) return { ok: false, reason: "SKILL_NOT_EQUIPPED", skillId: id, skill: null };
-    const raw = skills?.[id];
+    const raw = library?.[id];
     if (!raw) return { ok: false, reason: "SKILL_NOT_FOUND", skillId: id, skill: null };
     return normalizeSkillRecord(id, raw);
   }
 
   function applySkills(value) { state.skills = value && typeof value === "object" ? value : {}; return state.skills; }
   function applyUnits(value) { state.units = value && typeof value === "object" ? value : {}; return state.units; }
-  function skillLibrary() { return state.skills; }
+  function skillLibrary() { return mergedSkillLibrary(state.skills); }
   function unitLibrary() { return state.units; }
 
   function subscribe(path, assign) {
@@ -271,6 +304,7 @@
   return Object.freeze({
     version: VERSION,
     ROOTS,
+    skillDeckSlots,
     skillSlotEntries,
     skillSlotIdsFor,
     skillIdsFor,
@@ -282,6 +316,8 @@
     resolvePlayerUnit,
     validateSkillRecord,
     normalizeSkillRecord,
+    signatureSkillCatalog,
+    mergedSkillLibrary,
     hydrateLoadout,
     ownsSkill,
     resolveSkillForCombatant,

@@ -213,5 +213,8 @@ assert.match(runtimeSource, /battle-viewer-player-skill-planner-074\.js/);
 assert.match(runtimeSource, /battle-viewer-firebase-session-074\.js/);
 assert.match(runtimeSource, /result\.role === "player"/);
 assert.match(runtimeSource, /parts\.playerSkillPlanner\?\.init\?\.\(scoped\)/);
+const skillPlannerSource = fs.readFileSync(path.join(here, '..', 'js', 'battle-viewer-player-skill-planner-074.js'), 'utf8');
+assert.match(skillPlannerSource, /Assets\/Images\/Buttons\/Skills\.png/);
+assert.equal(fs.existsSync(path.join(here, '..', 'Assets', 'Images', 'Buttons', 'Skills.png')), true);
 
 console.log('combat-v074-player-skill-planner-smoke: ok');

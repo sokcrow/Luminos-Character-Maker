@@ -520,6 +520,7 @@
     ["valuable","Valuable","Objeto de valor","utility","Assets/Icons/items/utility/valuable.png"],
     ["relic","Relic","Reliquia","utility","Assets/Icons/items/utility/relic.png"],
     ["quest_item","Quest Item","Objeto de misión","utility","Assets/Icons/items/utility/quest_item.png"],
+    ["thought_strand","Thought Strand","Hebra de pensamiento","utility","Assets/Icons/items/utility/thought_strand.png"],
     ["generic_item","Generic Item","Objeto genérico","fallback","Assets/Icons/items/fallback/generic_item.png"],
     ["weapon_melee","Melee Weapon","Arma cuerpo a cuerpo","equipment","Assets/Icons/items/equipment/weapon_melee.png"],
     ["weapon_ranged","Ranged Weapon","Arma a distancia","equipment","Assets/Icons/items/equipment/weapon_ranged.png"],

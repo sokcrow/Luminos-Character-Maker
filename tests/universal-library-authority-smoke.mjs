@@ -171,6 +171,13 @@ const snapA = a.LuminousCombatAuthority073.snapshotRuntime();
 const snapB = b.LuminousCombatAuthority073.snapshotRuntime();
 assert.equal(a.LuminousCombatAuthority073.checkpointDigest(snapA, 1), b.LuminousCombatAuthority073.checkpointDigest(snapB, 1));
 
+const vitalSnap = a.LuminousCombatAuthority073.playerVitalSnapshot(snapA);
+assert.equal(vitalSnap['player:a'].canonicalPlayerKey, 'a', 'checkpoint vitals must restore canonical Player identity stripped by compactUnit');
+assert.equal(vitalSnap['player:a'].isPlayer, true, 'checkpoint vitals must preserve Player classification');
+assert.equal(vitalSnap['player:a'].hp, 30, 'checkpoint HP must remain the compact authoritative value');
+assert.equal(vitalSnap['player:b'].canonicalPlayerKey, 'b', 'remote Player identity must also survive checkpoint mirroring');
+assert.equal(vitalSnap.goblin.isPlayer, false, 'non-Player units must not be promoted into Player vitals');
+
 a.LuminousCombatAuthority073.installHooks();
 const queue = a.buildExecutionQueue();
 assert.ok(queue.some((row) => row.ownerId === 'player:a'));

@@ -33,7 +33,7 @@ const { pathToFileURL } = require("node:url");
 
   assert.ok(resolver);
   assert.equal(resolver.VERSION, 1);
-  assert.equal(catalog.RECIPES.length, 140);
+  assert.equal(catalog.RECIPES.length, 147);
 
   const stack = (catalogApi, id, quantity, sourceInstanceId) => ({
     ...catalogApi.get(id),

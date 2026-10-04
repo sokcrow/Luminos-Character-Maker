@@ -189,52 +189,98 @@
     return script;
   }
 
-  function ensureCoreConditionRuntime() {
-    if (!global.document || global.LuminousConditionRuntime) return;
+  function browserContext() {
+    const pathname = String(global.location?.pathname || "").toLowerCase();
+    if (/battle|combat/.test(pathname)) return "combat";
+    if (/hoja_personaje/.test(pathname)) return "player";
+    if (/theatre|theater/.test(pathname)) return "theatre";
+    return "other";
+  }
+
+  // StatusEngine is a data/mechanics primitive, not a global runtime bootstrap.
+  // The legacy browser bootstrap pulled combat, spellcasting, class, creature,
+  // injury and equipment graphs into every page that merely needed statuses.
+  // Only the actual Combat document may opt into that graph automatically.
+  function ensureCombatRuntimeGraph() {
+    if (!global.document || browserContext() !== "combat") return false;
+
     const loadConditions = () => {
       if (!global.LuminousConditionRuntime) loadScript("core-condition-runtime-script", "js/core-condition-runtime.js");
     };
-    if (global.LuminousExhaustionEngine) return loadConditions();
-    const exhaustion = loadScript("exhaustion-engine-script", "js/exhaustion-engine.js");
-    exhaustion?.addEventListener?.("load", loadConditions, { once: true });
+    if (global.LuminousExhaustionEngine) loadConditions();
+    else {
+      const exhaustion = loadScript("exhaustion-engine-script", "js/exhaustion-engine.js");
+      exhaustion?.addEventListener?.("load", loadConditions, { once: true });
+    }
+
+    if (!global.LuminousThrownProjectileSequenceRuntime) loadScript("thrown-projectile-sequence-runtime-script", "js/thrown-projectile-sequence-runtime.js");
+    if (!global.LuminousThrownProjectileSequenceProfiles) loadScript("thrown-projectile-sequence-profiles-script", "js/thrown-projectile-sequence-profiles.js");
+    if (!global.LuminousConditionCombatBridge) loadScript("core-condition-combat-bridge-script", "js/core-condition-combat-bridge.js");
+    if (!global.LuminousCharacterBuildRules) loadScript("character-build-rules-script", "js/character-build-rules.js");
+    if (!global.LuminousRestEngine) loadScript("rest-engine-script", "js/rest-engine.js");
+    if (!global.LuminousRestRuntime) loadScript("rest-runtime-integration-script", "js/rest-runtime-integration.js");
+    if (!global.LuminousUniversalSpeedRuntime) loadScript("universal-speed-runtime-script", "js/universal-speed-runtime.js");
+    if (!global.LuminousUniversalRangedAmmoRuntime) loadScript("universal-ranged-ammo-runtime-script", "js/universal-ranged-ammo-runtime.js");
+    if (!global.LuminousGoblinUnitRuntime) loadScript("goblin-unit-runtime-script", "js/goblin-unit-runtime.js");
+    if (!global.LuminousWolfUnitRuntime) loadScript("wolf-unit-runtime-script", "js/wolf-unit-runtime.js");
+    if (!global.LuminousFixedDamageRuntime) loadScript("fixed-damage-runtime-script", "js/fixed-damage-runtime.js");
+    if (!global.LuminousElementalStatusRuntime) loadScript("elemental-status-runtime-script", "js/elemental-status-runtime.js");
+    if (!global.LuminousElementalStatusCompatibility) loadScript("elemental-status-compat-script", "js/elemental-status-compat.js");
+    if (!global.LuminousRacialTraitRuntimeBridge) loadScript("racial-trait-runtime-bridge-script", "js/racial-trait-runtime-bridge.js");
+    if (!global.LuminousSpellcastingRuntime) loadScript("spellcasting-runtime-script", "js/spellcasting-runtime.js");
+    if (!global.LuminousClassRuntimeBootstrap) loadScript("class-runtime-bootstrap-script", "js/class-runtime-bootstrap.js");
+    if (!global.LuminousArchetypeCombatEventRuntime) loadScript("archetype-combat-event-runtime-script", "js/archetype-combat-event-runtime.js");
+    if (!global.LuminousDeathSaveRuntime) loadScript("death-save-runtime-script", "js/death-save-runtime.js");
+
+    const ensureInjuryEquipmentRuntime = () => {
+      const ensureBridge = () => {
+        if (!global.LuminousInjuryEquipmentRuntime) loadScript("injury-equipment-runtime-script", "js/injury-equipment-runtime.js");
+      };
+      const ensureInjury = () => {
+        if (global.LuminousInjuryEngine) return ensureBridge();
+        const injuryScript = loadScript("injury-engine-script", "js/injury-engine.js");
+        injuryScript?.addEventListener?.("load", ensureBridge, { once: true });
+      };
+      if (global.LuminousAnatomyEquipmentEngine) return ensureInjury();
+      const anatomyScript = loadScript("anatomy-equipment-engine-script", "js/anatomy-equipment-engine.js");
+      anatomyScript?.addEventListener?.("load", ensureInjury, { once: true });
+    };
+    ensureInjuryEquipmentRuntime();
+    return true;
   }
 
-  ensureCoreConditionRuntime();
-  if (global.document && !global.LuminousThrownProjectileSequenceRuntime) loadScript("thrown-projectile-sequence-runtime-script", "js/thrown-projectile-sequence-runtime.js");
-  if (global.document && !global.LuminousThrownProjectileSequenceProfiles) loadScript("thrown-projectile-sequence-profiles-script", "js/thrown-projectile-sequence-profiles.js");
-  if (global.document && !global.LuminousConditionCombatBridge) loadScript("core-condition-combat-bridge-script", "js/core-condition-combat-bridge.js");
-  if (global.document && !global.LuminousConditionTheatreBridge) loadScript("core-condition-theatre-bridge-script", "js/core-condition-theatre-bridge.js");
-  if (global.document && !global.LuminousCharacterBuildRules) loadScript("character-build-rules-script", "js/character-build-rules.js");
-  if (global.document && !global.LuminousRestEngine) loadScript("rest-engine-script", "js/rest-engine.js");
-  if (global.document && !global.LuminousRestRuntime) loadScript("rest-runtime-integration-script", "js/rest-runtime-integration.js");
-  if (global.document && !global.LuminousUniversalSpeedRuntime) loadScript("universal-speed-runtime-script", "js/universal-speed-runtime.js");
-  if (global.document && !global.LuminousUniversalRangedAmmoRuntime) loadScript("universal-ranged-ammo-runtime-script", "js/universal-ranged-ammo-runtime.js");
-  if (global.document && !global.LuminousGoblinUnitRuntime) loadScript("goblin-unit-runtime-script", "js/goblin-unit-runtime.js");
-  if (global.document && !global.LuminousWolfUnitRuntime) loadScript("wolf-unit-runtime-script", "js/wolf-unit-runtime.js");
-  if (global.document && !global.LuminousFixedDamageRuntime) loadScript("fixed-damage-runtime-script", "js/fixed-damage-runtime.js");
-  if (global.document && !global.LuminousElementalStatusRuntime) loadScript("elemental-status-runtime-script", "js/elemental-status-runtime.js");
-  if (global.document && !global.LuminousElementalStatusCompatibility) loadScript("elemental-status-compat-script", "js/elemental-status-compat.js");
-  if (global.document && !global.LuminousRacialTraitRuntimeBridge) loadScript("racial-trait-runtime-bridge-script", "js/racial-trait-runtime-bridge.js");
-  if (global.document && !global.LuminousSpellcastingRuntime) loadScript("spellcasting-runtime-script", "js/spellcasting-runtime.js");
-  if (global.document && !global.LuminousClassRuntimeBootstrap) loadScript("class-runtime-bootstrap-script", "js/class-runtime-bootstrap.js");
+  function ensureTheatreConditionGraph() {
+    if (!global.document || !["player", "theatre"].includes(browserContext())) return false;
 
-  if (global.document && !global.LuminousArchetypeCombatEventRuntime) loadScript("archetype-combat-event-runtime-script", "js/archetype-combat-event-runtime.js");
-  if (global.document && !global.LuminousDeathSaveRuntime) loadScript("death-save-runtime-script", "js/death-save-runtime.js");
-
-  function ensureInjuryEquipmentRuntime() {
-    if (!global.document) return;
     const ensureBridge = () => {
-      if (!global.LuminousInjuryEquipmentRuntime) loadScript("injury-equipment-runtime-script", "js/injury-equipment-runtime.js");
+      if (global.LuminousConditionTheatreBridge) {
+        global.LuminousConditionTheatreBridge.install?.();
+        return;
+      }
+      const existing = global.document.getElementById("core-condition-theatre-bridge-script");
+      const bridge = existing || loadScript("core-condition-theatre-bridge-script", "js/core-condition-theatre-bridge.js");
+      bridge?.addEventListener?.("load", () => global.LuminousConditionTheatreBridge?.install?.(), { once: true });
     };
-    const ensureInjury = () => {
-      if (global.LuminousInjuryEngine) return ensureBridge();
-      const injuryScript = loadScript("injury-engine-script", "js/injury-engine.js");
-      injuryScript?.addEventListener?.("load", ensureBridge, { once: true });
+
+    const ensureConditions = () => {
+      if (global.LuminousConditionRuntime) {
+        ensureBridge();
+        return;
+      }
+      const existing = global.document.getElementById("core-condition-runtime-script");
+      const conditions = existing || loadScript("core-condition-runtime-script", "js/core-condition-runtime.js");
+      conditions?.addEventListener?.("load", ensureBridge, { once: true });
     };
-    if (global.LuminousAnatomyEquipmentEngine) return ensureInjury();
-    const anatomyScript = loadScript("anatomy-equipment-engine-script", "js/anatomy-equipment-engine.js");
-    anatomyScript?.addEventListener?.("load", ensureInjury, { once: true });
+
+    if (global.LuminousExhaustionEngine) ensureConditions();
+    else {
+      const existing = global.document.getElementById("exhaustion-engine-script");
+      const exhaustion = existing || loadScript("exhaustion-engine-script", "js/exhaustion-engine.js");
+      exhaustion?.addEventListener?.("load", ensureConditions, { once: true });
+    }
+    return true;
   }
 
-  ensureInjuryEquipmentRuntime();
+  ensureCombatRuntimeGraph();
+  ensureTheatreConditionGraph();
 })(typeof window !== "undefined" ? window : globalThis);

@@ -13,6 +13,20 @@
   const DEFAULT_QUALITY = "standard";
   const MATERIAL_UNIT = "material_unit";
   const MATERIAL_UNIT_ABBREVIATION = "MU";
+  const MATERIAL_WEIGHT_FACTOR = Object.freeze({
+    lithium:0.10, lead:1.45, zinc:0.90, tin:0.90, gold:1.50, silver:1.20,
+    aluminum:0.45, copper:1.10, manganese:0.95, iron:1.00, nickel:1.00,
+    chromium:0.90, cobalt:1.00, vanadium:0.75, niobium:1.00, molybdenum:1.15,
+    tantalum:1.35, tungsten:1.45, titanium:0.60, platinum:1.50,
+    rare_earth_refined_material:1.00, refined_uranium_material:1.35,
+    superconductive_material:0.90, refined_metamaterial:0.65,
+    null_dampening_material:0.85, exotic_refined_material:0.75,
+    bronze:1.05, brass:1.05, carbon_steel:0.95, high_carbon_steel:0.98,
+    stainless_steel:0.98, hardened_steel:0.95, nickel_steel:1.00,
+    chrome_steel:1.00, cobalt_alloy:1.05, tungsten_alloy:1.50,
+    titanium_alloy:0.55, advanced_titanium_alloy:0.50, superalloy:0.95,
+    augment_grade_alloy:0.60, corp_composite_alloy:0.55, exotic_alloy:0.65,
+  });
   const RAW_MINERAL_PRICING_MODEL = "ahn_material_unit_tiered_v2";
   const REFINED_PRICING_MODEL = "source_raw_value_x_refinement_multiplier_v2";
   const REFINEMENT_PROFILES = Object.freeze({
@@ -84,6 +98,7 @@
   function refinedMetal(id, name, standardUnitValueAhn, form = "refined_metal", iconFamily = "metal_ingot") {
     return material({
       id, name, materialNoun: name, form, materialClass: form === "alloy" ? "alloy" : "refined_metal",
+      weightFactor: MATERIAL_WEIGHT_FACTOR[normalizeId(id)] ?? 1,
       iconFamily: normalizeId(iconFamily || "metal_ingot"), standardUnitValueAhn: Math.round(standardUnitValueAhn * AHN_ECONOMY_SCALE), measure: MATERIAL_UNIT, unitAbbreviation: MATERIAL_UNIT_ABBREVIATION,
       pieceBased: false, processed: true, rawCraftingReagent: false,
       sourceKinds: ["metallurgy"], useTags: ["weapons", "armor", "tools", "augments", "industrial_fabrication", "upgrade_material"],
@@ -106,6 +121,7 @@
       materialNoun: def.name,
       form,
       materialClass: "refined_metal",
+      weightFactor: MATERIAL_WEIGHT_FACTOR[normalizeId(def.id)] ?? 1,
       iconFamily: normalizeId(def.iconFamily || "metal_ingot"),
       standardUnitValueAhn: Math.round(source.standardUnitValueAhn * profile.multiplier),
       measure: MATERIAL_UNIT,
@@ -398,7 +414,7 @@
   }
 
   const API = Object.freeze({
-    VERSION, FAMILY, CURRENCY, DEFAULT_QUALITY, MATERIAL_UNIT, MATERIAL_UNIT_ABBREVIATION, RAW_MINERAL_PRICING_MODEL, REFINED_PRICING_MODEL, REFINEMENT_PROFILES, GEM_PRICING_MODEL, LAPIDARY_PROFILES,
+    VERSION, FAMILY, CURRENCY, DEFAULT_QUALITY, MATERIAL_UNIT, MATERIAL_UNIT_ABBREVIATION, MATERIAL_WEIGHT_FACTOR, RAW_MINERAL_PRICING_MODEL, REFINED_PRICING_MODEL, REFINEMENT_PROFILES, GEM_PRICING_MODEL, LAPIDARY_PROFILES,
     RAW_MINERALS, REFINED_METALS, ALLOYS, ROUGH_GEMS, CUT_GEMS, ITEMS, ALIASES,
     CREATURE_MINERAL_HARVEST_RULE, get, list, unitValueForQuality, canSourceFromCreatureBody, createStack, createCreatureHarvestStack,
   });

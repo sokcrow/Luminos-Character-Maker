@@ -22,6 +22,165 @@
     return String(value ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
   }
 
+  const BASE_WEAPON_PROPERTIES = Object.freeze({
+  club: [
+    "light"
+  ],
+  dagger: [
+    "finesse",
+    "light",
+    "thrown"
+  ],
+  greatclub: [
+    "two_handed"
+  ],
+  handaxe: [
+    "light",
+    "thrown"
+  ],
+  javelin: [
+    "thrown"
+  ],
+  light_hammer: [
+    "light",
+    "thrown"
+  ],
+  mace: [],
+  quarterstaff: [
+    "versatile"
+  ],
+  sickle: [
+    "light"
+  ],
+  spear: [
+    "thrown",
+    "versatile"
+  ],
+  light_crossbow: [
+    "ammunition",
+    "heavy",
+    "loading",
+    "two_handed"
+  ],
+  dart: [
+    "finesse",
+    "light",
+    "thrown"
+  ],
+  shortbow: [
+    "ammunition",
+    "two_handed"
+  ],
+  sling: [
+    "ammunition",
+    "light"
+  ],
+  battleaxe: [
+    "versatile"
+  ],
+  flail: [],
+  glaive: [
+    "heavy",
+    "reach",
+    "two_handed"
+  ],
+  greataxe: [
+    "heavy",
+    "two_handed"
+  ],
+  greatsword: [
+    "heavy",
+    "two_handed"
+  ],
+  halberd: [
+    "heavy",
+    "reach",
+    "two_handed"
+  ],
+  lance: [
+    "reach"
+  ],
+  longsword: [
+    "versatile"
+  ],
+  maul: [
+    "heavy",
+    "two_handed"
+  ],
+  morningstar: [],
+  pike: [
+    "reach",
+    "two_handed"
+  ],
+  rapier: [
+    "finesse"
+  ],
+  scimitar: [
+    "finesse"
+  ],
+  shortsword: [
+    "finesse"
+  ],
+  trident: [
+    "thrown",
+    "versatile"
+  ],
+  war_pick: [],
+  warhammer: [
+    "versatile"
+  ],
+  whip: [
+    "finesse",
+    "reach"
+  ],
+  blowgun: [
+    "ammunition",
+    "light",
+    "loading"
+  ],
+  hand_crossbow: [
+    "ammunition",
+    "loading"
+  ],
+  heavy_crossbow: [
+    "ammunition",
+    "heavy",
+    "loading",
+    "two_handed"
+  ],
+  longbow: [
+    "ammunition",
+    "two_handed"
+  ],
+  net: [
+    "thrown"
+  ]
+});
+
+  const REFERENCE_WEIGHT_CLASS = Object.freeze({
+    club:"light", dagger:"light", greatclub:"neutral", handaxe:"light", javelin:"neutral",
+    light_hammer:"light", mace:"neutral", quarterstaff:"neutral", sickle:"light", spear:"neutral",
+    light_crossbow:"heavy", dart:"light", shortbow:"neutral", sling:"light",
+    battleaxe:"neutral", flail:"neutral", glaive:"heavy", greataxe:"heavy", greatsword:"heavy",
+    halberd:"heavy", lance:"neutral", longsword:"neutral", maul:"heavy", morningstar:"neutral",
+    pike:"neutral", rapier:"neutral", scimitar:"neutral", shortsword:"neutral", trident:"neutral",
+    war_pick:"neutral", warhammer:"neutral", whip:"neutral", blowgun:"light", hand_crossbow:"neutral",
+    heavy_crossbow:"heavy", longbow:"neutral", net:"neutral",
+  });
+
+  function referenceWeightClass(id) {
+    return REFERENCE_WEIGHT_CLASS[normalizeId(id)] || "neutral";
+  }
+
+  function propertiesForWeapon(id, explicit) {
+    const weaponId = normalizeId(id);
+    const source = Array.isArray(explicit) ? explicit : (BASE_WEAPON_PROPERTIES[weaponId] || []);
+    const properties = source.map(normalizeId).filter((propertyId) => propertyId && !["light","heavy"].includes(propertyId));
+    const weightClass = referenceWeightClass(weaponId);
+    if (weightClass === "light" || weightClass === "heavy") properties.push(weightClass);
+    return [...new Set(properties)];
+  }
+
   const QUALITY_ORDER = Object.freeze(["ruined", "poor", "standard", "fine", "exceptional"]);
   const QUALITY = Object.freeze({
     ruined: Object.freeze({ id: "ruined", valueMultiplier: 0.20, improvised: true, destroyAtZero: true }),
@@ -102,8 +261,10 @@
       materialDurabilityModifierStatus: MATERIAL_DURABILITY_STATUS,
       equipment: Object.freeze({ handCost }),
       handCost,
+      weightClass: referenceWeightClass(id),
+      properties: Object.freeze(propertiesForWeapon(id, def.properties)),
       recipe: recipeFor(id, def.recipeProfile),
-      tags: Object.freeze(["weapon", "equipment", normalizeId(def.classification), normalizeId(def.weaponFamily), normalizeId(def.iconFamily)]),
+      tags: Object.freeze(["weapon", "equipment", normalizeId(def.classification), normalizeId(def.weaponFamily), normalizeId(def.iconFamily), ...propertiesForWeapon(id, def.properties)]),
     });
   }
 
@@ -203,7 +364,7 @@
     return entry?.recipe ? clone(entry.recipe) : null;
   }
 
-  const API = Object.freeze({ VERSION, FAMILY, CURRENCY, DEFAULT_QUALITY, PRICING_MODEL, PRICE_REFERENCE_SCOPE, IMPROVISED_THRESHOLD_PENALTY, MATERIAL_DURABILITY_STATUS, STATION_REQUIREMENTS_STATUS, QUALITY_ORDER, QUALITY, RECIPE_PROFILES, ITEMS, ALIASES, normalizeId, getQuality, get, list, getRecipe, chassisValueForQuality, maxDurability, degradeQuality, resolveDurabilityBreak, repairState });
+  const API = Object.freeze({ VERSION, FAMILY, CURRENCY, DEFAULT_QUALITY, PRICING_MODEL, PRICE_REFERENCE_SCOPE, IMPROVISED_THRESHOLD_PENALTY, MATERIAL_DURABILITY_STATUS, STATION_REQUIREMENTS_STATUS, QUALITY_ORDER, QUALITY, RECIPE_PROFILES, BASE_WEAPON_PROPERTIES, REFERENCE_WEIGHT_CLASS, ITEMS, ALIASES, normalizeId, referenceWeightClass, propertiesForWeapon, getQuality, get, list, getRecipe, chassisValueForQuality, maxDurability, degradeQuality, resolveDurabilityBreak, repairState });
   global.LuminousWeaponCatalog = API;
   if (typeof module !== "undefined" && module.exports) module.exports = API;
 })(typeof globalThis !== "undefined" ? globalThis : window);

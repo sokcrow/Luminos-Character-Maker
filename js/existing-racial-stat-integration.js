@@ -249,13 +249,17 @@
 
   global.LuminousExistingRacialStatIntegration = api;
   install();
-  if (global.document && typeof global.setInterval === "function") {
-    const retry = global.setInterval(() => {
-      const ready = Boolean(installRules());
-      const uiReady = bindDom();
-      if (ready && uiReady && field("dm-player-build-race")) global.clearInterval(retry);
-    }, 100);
-    global.setTimeout?.(() => global.clearInterval(retry), 10000);
+  if (global.document) {
+    const resync = () => {
+      installRules();
+      bindDom();
+      refreshChoiceUi();
+    };
+    ["luminous:player-data", "luminous:class-runtimes-ready", "luminous:traits-refreshed"]
+      .forEach((name) => global.addEventListener?.(name, resync));
+    global.document.addEventListener?.("change", (event) => {
+      if (event.target?.closest?.("#dm-player-dnd-studio, #stats-modal")) resync();
+    });
   }
 
   if (typeof module !== "undefined" && module.exports) module.exports = api;

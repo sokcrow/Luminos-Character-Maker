@@ -98,7 +98,7 @@
       isAi: String((combatData()[unitIdFromSlot(slotId)] || {}).controlled || "").toLowerCase() === "ai",
       targetId: ids[0] || null, mainTargetId: ids[0] || null, targetIds: ids,
       allegiance: targetAllegiance(plan, data),
-      metadata: { viewer073: true, viewerPlanType: plan.type || plan.kind || data.kind || null, viewerSlotIndex: slotIndexFromId(slotId), sharedOwnerPlayerId: plan.__ownerPlayerId || null },
+      metadata: { viewer073: true, viewerPlanType: plan.type || plan.kind || data.kind || null, viewerSlotIndex: slotIndexFromId(slotId), sharedOwnerPlayerId: plan.__ownerPlayerId || null, spellChoice: clone(plan.spellChoice || null) },
     };
   }
   function normalizeExistingAction(raw, slotId, explicitTargetId) {

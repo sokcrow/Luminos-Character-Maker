@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 
 await import('../js/combat-skill-schema.js');
+await import('../js/skill-catalog-player-signature.js');
 await import('../js/combat-skill-loadout-074.js');
-await import('../js/vtt/actor-library.js');
-const actorLibrary = globalThis.LuminousVttActorLibrary;
-if (!actorLibrary) throw new Error('LuminousVttActorLibrary was not initialized.');
+await import('../js/spell-catalog-core.js');
+await import('../js/role-spell-catalog-core.js');
 
 await import('../js/battle-viewer-player-entry-074.js');
 const playerEntry = globalThis.LuminousBattleViewerPlayerEntry074;
@@ -57,6 +57,16 @@ const skills = {
     name: 'Canonical Skill B', type: 'Attack', tier: 1,
     basePower: 5, coinPower: 4, coinAmount: 1,
     damageType: 'perforante', sinAffinity: 'pride', effects: [], coins: [{ effects: [] }], schemaVersion: 2,
+  },
+  skill_c: {
+    name: 'Canonical Skill C', type: 'Attack', tier: 2,
+    basePower: 6, coinPower: 4, coinAmount: 2,
+    damageType: 'contundente', sinAffinity: 'sloth', effects: [], coins: [{ effects: [] }, { effects: [] }], schemaVersion: 2,
+  },
+  skill_d: {
+    name: 'Canonical Skill D', type: 'Attack', tier: 3,
+    basePower: 7, coinPower: 4, coinAmount: 3,
+    damageType: 'cortante', sinAffinity: 'gluttony', effects: [], coins: [{ effects: [] }, { effects: [] }, { effects: [] }], schemaVersion: 2,
   },
 };
 
@@ -114,11 +124,55 @@ assert.equal(combatant.enteredCombatAt, 123456);
 assert.equal(combatant.entrySource, 'dm_player_entry_074');
 
 const noUnitCombatant = playerEntry.buildPlayerCombatant(actor, { now: 123457, units: {}, skills });
-assert.equal(noUnitCombatant.skillLoadoutState, 'unit_not_found');
+assert.equal(noUnitCombatant.skillLoadoutState, 'loadout_not_found');
 assert.deepEqual(noUnitCombatant.skillSlotIds, []);
 assert.deepEqual(noUnitCombatant.skillIds, []);
 assert.deepEqual(noUnitCombatant.equippedSkillIndex, {});
 assert.equal(noUnitCombatant.unitRef, undefined);
+
+// A Player-managed canonical Deck must work without relying on a Unit loadout.
+const managedActor = {
+  category: 'player',
+  playerId: 'player_managed',
+  sourceId: 'player_managed',
+  ownerUid: 'uid-managed',
+  linkedActorId: 'actor_managed',
+  actorId: 'actor_managed',
+  name: 'Managed Build',
+  raw: {
+    uid: 'uid-managed',
+    actorId: 'actor_managed',
+    characterName: 'Managed Build',
+    characterBuild: {
+      skillDeck: { tier1: 'skill_a', tier2: 'skill_c', tier3: 'skill_d' },
+      skillLoadoutSource: 'dm_loadout_manager',
+      spellSelections: ['fire_bolt'],
+      spellIds: ['fire_bolt'],
+      spellSelectionIndex: { fire_bolt: true },
+      spellLoadoutSource: 'dm_loadout_manager',
+    },
+  },
+};
+assert.equal(playerEntry.hasPlayerManagedSkillLoadout(managedActor.raw), true);
+assert.equal(playerEntry.hasPlayerManagedSpellLoadout(managedActor.raw), true);
+assert.equal(playerEntry.automaticSkillLoadoutForActor(managedActor), null);
+assert.equal(playerEntry.automaticSpellLoadoutForActor(managedActor), null);
+
+const managedCombatant = playerEntry.buildPlayerCombatant(managedActor, {
+  now: 123458,
+  units: {},
+  skills,
+});
+assert.equal(managedCombatant.skillLoadoutState, 'ready');
+assert.deepEqual(managedCombatant.skillSlotIds, [
+  'skill_a', 'skill_a', 'skill_a',
+  'skill_c', 'skill_c',
+  'skill_d',
+]);
+assert.deepEqual(managedCombatant.skillIds, ['skill_a', 'skill_c', 'skill_d']);
+assert.deepEqual(managedCombatant.equippedSkillIndex, { skill_a: true, skill_c: true, skill_d: true });
+assert.equal(managedCombatant.characterBuild.spellSelections.includes('fire_bolt'), true);
+assert.equal(managedCombatant.unitRef, undefined);
 
 assert.equal(playerEntry.playerAlreadyInCombat(actor, {}), null);
 const existing = playerEntry.playerAlreadyInCombat(actor, {
@@ -142,7 +196,9 @@ assert.equal(entries[0].unitResolution.unitId, 'unit_jeske');
 assert.equal(entries[0].loadout.ready, true);
 assert.deepEqual(entries[0].loadout.skillIds, ['skill_a', 'skill_b']);
 
-const unlinkedPlayer = actorLibrary.normalizePlayerActor('player_2', { uid: 'uid-player-2', characterName: 'No Actor' }, {});
+const [unlinkedPlayer] = playerEntry.normalizePlayerActors({
+  player_2: { uid: 'uid-player-2', characterName: 'No Actor' },
+}, {});
 assert.equal(unlinkedPlayer.linkedActorId, null);
 assert.throws(() => playerEntry.buildPlayerCombatant(unlinkedPlayer), /PLAYER_ACTOR_LINK_REQUIRED/);
 
@@ -195,5 +251,198 @@ const ambiguousResult = await playerEntry.addPlayerActor(actor, {
 assert.equal(ambiguousResult.added, false);
 assert.equal(ambiguousResult.reason, 'ambiguous_player_unit');
 assert.equal(writes.length, 1, 'ambiguous Unit linkage must not write a combatant');
+
+
+const combatSpellCatalog = globalThis.LuminousSpellCatalog;
+const roleSpellCatalog = globalThis.LuminousRoleSpellCatalog;
+
+const calipsysLoadout = playerEntry.knownSpellLoadoutForActor({ playerId: 'Calipsys', name: 'Calipsys', raw: {} });
+assert.ok(calipsysLoadout);
+assert.equal(calipsysLoadout.id, 'calipsys');
+assert.deepEqual(calipsysLoadout.combatSpellIds, [
+  'fire_bolt', 'absorb_elements', 'thunderwave', 'calm_emotions', 'mirror_image',
+]);
+assert.equal(calipsysLoadout.spellCastOverrides.calm_emotions.abilityId, 'cha');
+
+const pierreLoadout = playerEntry.knownSpellLoadoutForActor({
+  playerId: 'pierre',
+  name: 'Pierre Carême Kikunae - wizza',
+  raw: {},
+});
+assert.ok(pierreLoadout);
+assert.equal(pierreLoadout.id, 'pierre_careme_kikunae');
+assert.deepEqual(pierreLoadout.roleSpellIds, ['message', 'thaumaturgy']);
+
+const angeloLoadout = playerEntry.knownSpellLoadoutForActor({ playerId: 'angelo', name: 'Angelo V.', raw: {} });
+assert.ok(angeloLoadout);
+assert.equal(angeloLoadout.id, 'angelo_v');
+assert.equal(angeloLoadout.spellCastOverrides.mirror_image.classId, 'bard');
+
+for (const loadout of playerEntry.KNOWN_PLAYER_SPELL_LOADOUTS) {
+  for (const spellId of loadout.combatSpellIds) assert.ok(combatSpellCatalog[spellId], `known Player combat spell must be canonical: ${loadout.id}/${spellId}`);
+  for (const spellId of loadout.roleSpellIds) assert.ok(roleSpellCatalog[spellId], `known Player role spell must be canonical: ${loadout.id}/${spellId}`);
+}
+
+const placeholderRecord = {
+  spellIds: ['placeholder_spell'],
+  spellSelections: ['placeholder_spell'],
+  spellSelectionIndex: { placeholder_spell: true },
+  characterBuild: {
+    spellIds: ['placeholder_spell'],
+    spellSelections: ['placeholder_spell'],
+    spellSelectionIndex: { placeholder_spell: true },
+  },
+};
+const cleanedCalipsys = playerEntry.applyKnownSpellLoadoutToRecord(placeholderRecord, calipsysLoadout);
+assert.equal(cleanedCalipsys.spellIds.includes('placeholder_spell'), false);
+assert.equal(cleanedCalipsys.spellSelections.includes('placeholder_spell'), false);
+assert.equal(cleanedCalipsys.characterBuild.spellSelections.includes('placeholder_spell'), false);
+assert.deepEqual(cleanedCalipsys.characterBuild.spellSelections, calipsysLoadout.combatSpellIds);
+assert.deepEqual(cleanedCalipsys.characterBuild.roleSpellSelections, []);
+
+const spellSyncWrites = [];
+const spellSyncDb = {
+  ref(path) {
+    return {
+      async update(patch) {
+        spellSyncWrites.push({ path, patch });
+      },
+    };
+  },
+};
+const pierreActor = {
+  category: 'player',
+  playerId: 'Pierre Carême Kikunae',
+  sourceId: 'Pierre Carême Kikunae',
+  name: 'Pierre Carême Kikunae - wizza',
+  raw: { characterBuild: { spellSelections: ['old_placeholder'] } },
+};
+const pierreSync = await playerEntry.syncKnownPlayerSpellLoadout(pierreActor, {
+  db: spellSyncDb,
+  players: { 'Pierre Carême Kikunae': pierreActor.raw },
+  combatants: {},
+});
+assert.equal(pierreSync.matched, true);
+assert.equal(pierreSync.synced, true);
+assert.equal(spellSyncWrites.length, 1);
+assert.equal(spellSyncWrites[0].path, 'campaña/jugadores/Pierre Carême Kikunae');
+assert.deepEqual(spellSyncWrites[0].patch['characterBuild/spellSelections'], pierreLoadout.combatSpellIds);
+assert.equal(spellSyncWrites[0].patch['characterBuild/spellSelections'].includes('old_placeholder'), false);
+
+
+const pierreSignature = playerEntry.knownSkillLoadoutForActor({
+  playerId: 'pierre',
+  name: 'Pierre Carême Kikunae - wizza',
+  raw: {},
+});
+assert.ok(pierreSignature);
+assert.equal(pierreSignature.id, 'pierre_careme_kikunae');
+assert.deepEqual(pierreSignature.skillSlotIds, [
+  'pierre_sukseong',
+  'pierre_mise_en_place',
+  'pierre_maridaje',
+]);
+for (const id of pierreSignature.skillSlotIds) assert.ok(globalThis.LuminousPlayerSignatureSkillCatalog.get(id), `missing canonical Pierre skill ${id}`);
+
+const angeloSignature = playerEntry.knownSkillLoadoutForActor({ playerId: 'angelo', name: 'Angelo V.', raw: {} });
+assert.ok(angeloSignature);
+assert.equal(angeloSignature.id, 'angelo_v');
+assert.deepEqual(angeloSignature.skillSlotIds, [
+  'angelo_steps_to_perfection',
+  'angelo_blood_art',
+  'angelo_my_masterpiece',
+]);
+
+const angeloActor = {
+  category: 'player',
+  playerId: 'angelo',
+  sourceId: 'angelo',
+  ownerUid: 'uid-angelo',
+  linkedActorId: 'actor_angelo',
+  actorId: 'actor_angelo',
+  name: 'Angelo V.',
+  raw: { uid: 'uid-angelo', characterName: 'Angelo V.' },
+};
+const angeloUnits = {
+  unit_angelo: {
+    id: 'unit_angelo',
+    isPlayer: true,
+    linkedPlayerUID: 'uid-angelo',
+    action_slots: ['legacy_skill'],
+  },
+};
+const angeloSkills = {
+  legacy_skill: {
+    name: 'Legacy Skill', type: 'Attack', tier: 1,
+    basePower: 4, coinPower: 4, coinAmount: 1,
+    effects: [], coins: [{ effects: [] }], schemaVersion: 2,
+  },
+};
+const angeloCombatant = playerEntry.buildPlayerCombatant(angeloActor, {
+  now: 555,
+  units: angeloUnits,
+  skills: angeloSkills,
+});
+assert.deepEqual(angeloCombatant.skillSlotIds.slice(0, 3), angeloSignature.skillSlotIds);
+assert.equal(angeloCombatant.skillSlotIds.includes('legacy_skill'), true, 'signature injection must preserve existing Unit skills');
+for (const id of angeloSignature.skillSlotIds) assert.equal(angeloCombatant.equippedSkillIndex[id], true);
+
+const signatureCatalog = globalThis.LuminousPlayerSignatureSkillCatalog;
+for (const id of angeloSignature.skillSlotIds) assert.ok(signatureCatalog.get(id), `missing canonical Angelo skill ${id}`);
+
+const signatureSyncWrites = [];
+const signatureSyncDb = {
+  ref(path) {
+    return {
+      async update(patch) { signatureSyncWrites.push({ path, patch }); },
+    };
+  },
+};
+const existingAngelo = {
+  'player:angelo': {
+    ...angeloCombatant,
+    skillSlotIds: ['legacy_skill'],
+    skillIds: ['legacy_skill'],
+    equippedSkillIndex: { legacy_skill: true },
+  },
+};
+const signatureSync = await playerEntry.syncKnownPlayerSkillLoadout(angeloActor, {
+  db: signatureSyncDb,
+  combatants: existingAngelo,
+});
+assert.equal(signatureSync.matched, true);
+assert.equal(signatureSync.synced, true);
+assert.equal(signatureSyncWrites.length, 1);
+assert.equal(signatureSyncWrites[0].path, 'campaña/combate/combatants/player:angelo');
+assert.deepEqual(signatureSyncWrites[0].patch.skillSlotIds.slice(0, 3), angeloSignature.skillSlotIds);
+assert.equal(signatureSyncWrites[0].patch.equippedSkillIndex.angelo_my_masterpiece, true);
+
+const pierreSkillActor = {
+  category: 'player',
+  playerId: 'pierre',
+  sourceId: 'pierre',
+  ownerUid: 'uid-pierre',
+  linkedActorId: 'actor_pierre',
+  actorId: 'actor_pierre',
+  name: 'Pierre Carême Kikunae - wizza',
+  raw: { uid: 'uid-pierre', characterName: 'Pierre Carême Kikunae - wizza' },
+};
+const pierreSkillUnits = {
+  unit_pierre: {
+    id: 'unit_pierre',
+    isPlayer: true,
+    linkedPlayerUID: 'uid-pierre',
+    action_slots: ['legacy_skill'],
+  },
+};
+const pierreCombatant = playerEntry.buildPlayerCombatant(pierreSkillActor, {
+  now: 777,
+  units: pierreSkillUnits,
+  skills: angeloSkills,
+});
+assert.deepEqual(pierreCombatant.skillSlotIds.slice(0, 3), pierreSignature.skillSlotIds);
+assert.equal(pierreCombatant.skillSlotIds.includes('legacy_skill'), true);
+assert.equal(pierreCombatant.characterBuild.signatureSkillCharacterId, 'pierre_careme_kikunae');
+for (const id of pierreSignature.skillSlotIds) assert.equal(pierreCombatant.equippedSkillIndex[id], true);
 
 console.log('combat-v074-player-entry-smoke: ok');

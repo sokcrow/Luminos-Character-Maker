@@ -10,6 +10,26 @@
   const DAMAGE_TYPES = Object.freeze(["slash", "pierce", "blunt"]);
   const ELEMENTS = Object.freeze(["fire", "cold", "lightning", "acid"]);
   const MATERIAL_ECONOMY_SCALE = 2.5;
+  const MATERIAL_WEIGHT = Object.freeze({
+    raw_fiber:0.30, processed_textile:0.30, textile:0.30,
+    leather:0.50, processed_leather:0.50, hide:0.60,
+    structural_wood:0.65, wood:0.65, bone:0.70, horn:0.65,
+    chitin:0.55, scale:0.65, shell:0.80,
+    industrial_stone:1.20, obsidian:0.85, quartz:0.80, glass:0.65, ceramic:0.70,
+    lithium:0.10, lead:1.45, zinc:0.90, tin:0.90, gold:1.50, silver:1.20,
+    aluminum:0.45, copper:1.10, manganese:0.95, iron:1.00, nickel:1.00,
+    chromium:0.90, cobalt:1.00, vanadium:0.75, niobium:1.00, molybdenum:1.15,
+    tantalum:1.35, tungsten:1.45, titanium:0.60,
+    rare_earth_refined_material:1.00, refined_uranium_material:1.35,
+    superconductive_material:0.90, refined_metamaterial:0.65,
+    null_dampening_material:0.85, exotic_refined_material:0.75,
+    brass:1.05, bronze:1.05, carbon_steel:0.95, high_carbon_steel:0.98,
+    stainless_steel:0.98, nickel_steel:1.00, chrome_steel:1.00,
+    hardened_steel:0.95, hardened_weapon_steel:0.95, armor_steel:1.00,
+    cobalt_alloy:1.05, tungsten_alloy:1.50, titanium_alloy:0.55,
+    advanced_titanium_alloy:0.50, superalloy:0.95, augment_grade_alloy:0.60,
+    corp_composite_alloy:0.55, exotic_alloy:0.65,
+  });
 
   function clone(value) { return value == null ? value : JSON.parse(JSON.stringify(value)); }
   function normalizeId(value) {
@@ -25,7 +45,7 @@
         blunt: Number(def.affinity?.blunt || 0),
       }),
       durability: Number(def.durability || 0),
-      weight: Number(def.weight || 1),
+      weight: Number(def.weight ?? MATERIAL_WEIGHT[normalizeId(def.id)] ?? 1),
       unitValueAhn: Math.round(Number(def.unitValueAhn || 0) * MATERIAL_ECONOMY_SCALE),
       elementalWear: Object.freeze({
         fire: Number(def.elementalWear?.fire || 1),
@@ -101,10 +121,10 @@
     const isMetal = tags.has("metal") || materialClass === "alloy" || materialClass === "refined_metal" || /steel|alloy|metal|iron|titan|tungsten|nickel|chrome|cobalt|bronze|brass/.test(key);
     const isFlexible = tags.has("flexible") || /textile|fiber|leather|hide|pelt|skin/.test(key);
     const base = isMetal
-      ? { affinity:{slash:2,pierce:1,blunt:-2}, durability:25, weight:1.00, unitValueAhn:0, elementalWear:{fire:1.10,cold:1.00,lightning:1.20,acid:1.45}, tags:["solid","structural","linkable","metal","scale_compatible"] }
+      ? { affinity:{slash:2,pierce:1,blunt:-2}, durability:25, weight:MATERIAL_WEIGHT[key] ?? 1.00, unitValueAhn:0, elementalWear:{fire:1.10,cold:1.00,lightning:1.20,acid:1.45}, tags:["solid","structural","linkable","metal","scale_compatible"] }
       : isFlexible
-        ? { affinity:{slash:1,pierce:-1,blunt:1}, durability:10, weight:0.50, unitValueAhn:0, elementalWear:{fire:1.30,cold:1.00,lightning:1.00,acid:1.30}, tags:["flexible","structural"] }
-        : { affinity:{slash:1,pierce:0,blunt:-1}, durability:18, weight:0.80, unitValueAhn:0, elementalWear:{fire:1.10,cold:1.00,lightning:1.00,acid:1.25}, tags:["solid","structural"] };
+        ? { affinity:{slash:1,pierce:-1,blunt:1}, durability:10, weight:MATERIAL_WEIGHT[key] ?? 0.50, unitValueAhn:0, elementalWear:{fire:1.30,cold:1.00,lightning:1.00,acid:1.30}, tags:["flexible","structural"] }
+        : { affinity:{slash:1,pierce:0,blunt:-1}, durability:18, weight:MATERIAL_WEIGHT[key] ?? 0.80, unitValueAhn:0, elementalWear:{fire:1.10,cold:1.00,lightning:1.00,acid:1.25}, tags:["solid","structural"] };
     return freezeProfile({ id:key || "unknown_material", name: explicit.name || String(id || "Unknown Material"), ...base });
   }
 
@@ -139,7 +159,7 @@
     return 1;
   }
 
-  const API = Object.freeze({ VERSION, DAMAGE_TYPES, ELEMENTS, ALIASES, PROFILES, normalizeId, canonicalId, resolve, upgradeSlotsForDurability });
+  const API = Object.freeze({ VERSION, DAMAGE_TYPES, ELEMENTS, MATERIAL_WEIGHT, ALIASES, PROFILES, normalizeId, canonicalId, resolve, upgradeSlotsForDurability });
   global.LuminousArmorMaterialProfile = API;
   if (typeof module !== "undefined" && module.exports) module.exports = API;
 })(typeof globalThis !== "undefined" ? globalThis : window);

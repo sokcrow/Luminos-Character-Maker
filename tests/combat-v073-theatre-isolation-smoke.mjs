@@ -13,7 +13,10 @@ assert.ok(viewer.includes("attributeFilter:['class','style','aria-hidden']"),'Co
 assert.ok(viewer.includes('if(!surfaceActive){')&&viewer.includes('if(rafId){cancelAnimationFrame(rafId);rafId=0}'),'hidden Combat must cancel RAF immediately');
 assert.ok(viewer.includes('cameraTransitionActive=false;continuousUntil=0'),'hidden Combat must clear transient renderer animation state');
 assert.ok(instanceControl.includes('combatView.style.display = combatActive ? "block" : "none"'),'instance control must continue isolating Player Combat from Theatre with iframe display state');
+assert.ok(instanceControl.includes('combatRuntimeActive = combatActive || combatTheatreActive'),'Combat Theater must keep the Battle runtime alive while the Theatre surface is visible');
+assert.ok(instanceControl.includes('player-instance-combat-theatre'),'Combat Theater must have an explicit player lifecycle state');
 assert.ok(instanceControl.includes('theatreView.style.display = theatreActive ? "flex" : "none"'),'Theatre visibility contract must remain independent from Combat renderer state');
+assert.ok(viewer.includes('js/combat-encounter-lifecycle.js'),'Battle-viewer must load the Encounter result lifecycle without loading Theatre runtime code');
 
 const theatreFiles=fs.readdirSync(path.join(root,'js'))
   .filter(name=>name.startsWith('theatre-')&&name.endsWith('.js'));

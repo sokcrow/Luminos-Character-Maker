@@ -122,12 +122,12 @@
   ]);
 
   const CLASS_SPELLCASTING_PROFILES = Object.freeze({
-    artificer: Object.freeze({ classId: "artificer", abilityId: "int", progression: "half", recovery: "long_rest" }),
+    artificer: Object.freeze({ classId: "artificer", abilityId: "int", progression: "half", recovery: "long_rest", spellcastingStartDndLevel: 1, spellcastingStartLimbusLevel: 1 }),
     bard: Object.freeze({ classId: "bard", abilityId: "cha", progression: "full", recovery: "long_rest" }),
     cleric: Object.freeze({ classId: "cleric", abilityId: "wis", progression: "full", recovery: "long_rest" }),
     druid: Object.freeze({ classId: "druid", abilityId: "wis", progression: "full", recovery: "long_rest" }),
-    paladin: Object.freeze({ classId: "paladin", abilityId: "cha", progression: "half", recovery: "long_rest" }),
-    ranger: Object.freeze({ classId: "ranger", abilityId: "wis", progression: "half", recovery: "long_rest" }),
+    paladin: Object.freeze({ classId: "paladin", abilityId: "cha", progression: "half", recovery: "long_rest", spellcastingStartDndLevel: 2, spellcastingStartLimbusLevel: 10 }),
+    ranger: Object.freeze({ classId: "ranger", abilityId: "wis", progression: "half", recovery: "long_rest", spellcastingStartDndLevel: 2, spellcastingStartLimbusLevel: 10 }),
     sorcerer: Object.freeze({ classId: "sorcerer", abilityId: "cha", progression: "full", recovery: "long_rest" }),
     warlock: Object.freeze({ classId: "warlock", abilityId: "cha", progression: "pact", recovery: "short_or_long_rest" }),
     wizard: Object.freeze({ classId: "wizard", abilityId: "int", progression: "full", recovery: "long_rest" }),
@@ -162,7 +162,9 @@
     if (!classKey) throw new Error("Spellcasting Class id is required.");
     if (!ABILITY_VARIABLES[abilityId]) throw new Error(`Unsupported Spellcasting Ability: ${profile.abilityId || profile.ability || profile.stat}`);
     if (!["full", "half", "third", "pact"].includes(progression)) throw new Error(`Unsupported Spellcasting progression: ${profile.progression}`);
-    const next = { classId: classKey, abilityId, progression, recovery };
+    const spellcastingStartDndLevel = Math.max(1, intOr(profile.spellcastingStartDndLevel, 1));
+    const spellcastingStartLimbusLevel = Math.max(1, intOr(profile.spellcastingStartLimbusLevel, spellcastingStartDndLevel === 1 ? 1 : spellcastingStartDndLevel * 5));
+    const next = { classId: classKey, abilityId, progression, recovery, spellcastingStartDndLevel, spellcastingStartLimbusLevel };
     classProfiles.set(classKey, next);
     classAbilities.set(classKey, abilityId);
     return clone(next);
@@ -241,7 +243,9 @@
     const profile = getClassSpellcastingProfile(classId);
     if (!profile) return {};
     const limbusLevel = classLevel == null ? getClassLevel(character, classId) : Math.max(0, intOr(classLevel, 0));
+    if (limbusLevel < Math.max(1, intOr(profile.spellcastingStartLimbusLevel, 1))) return {};
     const dndLevel = limbusClassLevelToDndLevel(limbusLevel);
+    if (dndLevel < Math.max(1, intOr(profile.spellcastingStartDndLevel, 1))) return {};
     return slotTableForProgression(profile.progression, dndLevel);
   }
 
@@ -376,6 +380,9 @@
 
   global.LuminousSpellcastingRuntime = api;
   install();
-  if (global.document && global.setInterval) global.setInterval(install, 800);
+  if (global.document) {
+    ["luminous:player-data", "luminous:traits-refreshed", "luminous:class-runtime-loaded", "luminous:class-runtimes-ready", "luminous:combat073-runtime-ready"]
+      .forEach((name) => global.addEventListener?.(name, install));
+  }
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);
