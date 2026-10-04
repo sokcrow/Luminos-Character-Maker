@@ -3977,7 +3977,6 @@ function initializeCharacterSheet() {
                   });
               });
           }
-        });
       }
 
       // LÓGICA DE VENDER (App o Física)
