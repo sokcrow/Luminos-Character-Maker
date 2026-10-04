@@ -515,7 +515,7 @@
     slot.classList.toggle("inventory-v2-equipable", equipable);
     slot.style.position = "relative";
     slot.draggable = containerType === "active";
-    slot.title = `${itemName(item)} // ${categoryLabel(category)}`;
+    slot.title = itemName(item);
     slot.setAttribute("aria-label", `${itemName(item)}, ${categoryLabel(category)}, quantity ${quantityOf(item)}`);
 
     const icon = itemIcon(item);
