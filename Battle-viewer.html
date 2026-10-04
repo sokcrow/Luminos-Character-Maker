@@ -133,7 +133,7 @@ function smartTargetForPlan(owner,plan){
     const liveDeckNeedle=`  deckSkills=playerDeckForUnit(PLAYER_ID);
   initializeBattleSP();rollTurnSpeeds(round);ensureUnknownAISlots();`;
     const liveDeckPatch=`  resetPlayerDeckForUnit(PLAYER_ID);
-  initializeBattleSP();rollTurnSpeeds(round);ensureUnknownAISlots();`;
+  initializeBattleSP();ensureUnknownAISlots();`;
     if(!html.includes(liveDeckNeedle))throw new Error("COMBAT_PLAYER_DECK_PATCH_MISSING");
     html=html.replace(liveDeckNeedle,liveDeckPatch);
 
