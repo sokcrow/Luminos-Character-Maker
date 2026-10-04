@@ -2597,10 +2597,12 @@ function initializeCharacterSheet() {
   }
 
   async function getPlayersForGroupCreation() {
-      if (Object.keys(chatPlayersCache).length) return chatPlayersCache;
+      // Creation is rare; take one authoritative snapshot so a contact is not
+      // rejected merely because the incremental cache is still warming up.
       const snapshot = await db.ref("campaña/jugadores").once("value");
-      chatPlayersCache = snapshot.val() || {};
-      return chatPlayersCache;
+      const players = snapshot.val() || {};
+      chatPlayersCache = { ...chatPlayersCache, ...players };
+      return players;
   }
 
   function buildGroupContactPicker(group = null) {
