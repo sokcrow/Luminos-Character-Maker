@@ -98,7 +98,10 @@
         </button>
       </div>
     `;
-    host.insertBefore(panel, host.querySelector("textarea") || host.firstChild);
+    const actionHost = host.querySelector("[data-theatre-compose-action]");
+    const textarea = host.querySelector("textarea");
+    const insertionPoint = actionHost || (textarea?.parentElement === host ? textarea : null) || host.firstChild;
+    host.insertBefore(panel, insertionPoint);
     panel.querySelector("#btn-theatre-message-next")?.addEventListener("click", advance);
     ["theatre-message-policy-mode", "theatre-message-policy-speed", "theatre-message-policy-hold"].forEach((id) => {
       panel.querySelector(`#${id}`)?.addEventListener("change", saveConfig);
