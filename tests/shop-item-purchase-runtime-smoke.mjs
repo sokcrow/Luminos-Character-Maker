@@ -152,8 +152,13 @@ assert.equal(fullHpItem.quantity, 1);
 const playerSource = fs.readFileSync(path.resolve("hoja_personaje.js"), "utf8");
 assert.match(
   playerSource,
-  /itemRef\.update\(\{\s*quantity:\s*currentQuantity - 1,\s*cantidad:\s*currentQuantity - 1,/s,
-  "selling a stack must decrement quantity and cantidad together",
+  /next\.inventario_stash\[itemKey\]\s*=\s*\{[\s\S]*?quantity:\s*quantity - 1,[\s\S]*?cantidad:\s*quantity - 1,/,
+  "selling a stack must decrement quantity and cantidad together inside the player transaction",
+);
+assert.match(
+  playerSource,
+  /next\.ahn\s*=\s*balanceAfter;[\s\S]*?currentBalance:\s*balanceAfter,/,
+  "selling must keep legacy Ahn and finance.currentBalance synchronized",
 );
 
 console.log("shop item purchase runtime smoke: OK (50/180 HP heal + legacy stack repair + resale mirrors)");
