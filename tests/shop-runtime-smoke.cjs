@@ -8,7 +8,7 @@ const { pathToFileURL } = require("node:url");
 
   const shops = globalThis.LuminousShopRuntime;
   assert.ok(shops);
-  assert.equal(shops.VERSION, 5);
+  assert.equal(shops.VERSION, 6);
   assert.equal(shops.BASE_PURCHASE_MARKUP, 1.40);
   assert.equal(shops.BASE_SELLBACK_MULTIPLIER, 0.80);
 
@@ -45,6 +45,49 @@ const { pathToFileURL } = require("node:url");
     }),
     140000
   );
+
+  // A global market event modifies purchase prices only for affected Shop Types.
+  const marketEvent = shops.setMarketEvent({
+    active: true,
+    id: "field_test_market",
+    revision: 101,
+    title: "Cambio de mercado",
+    modifiers: {
+      general: -20,
+      clinic: 25,
+      workshop: 0,
+    },
+  });
+  assert.equal(marketEvent.modifiers.general, -20);
+  assert.equal(shops.marketEventPercent({ shop_type: "general" }), -20);
+  assert.equal(shops.marketEventMultiplier({ shop_type: "general" }), 0.8);
+  assert.equal(
+    shops.purchasePrice({ productionValueAhn: 100000, tier: "I" }, {
+      shop_type: "general",
+      shop_tier: 1,
+      mod_venta: 100,
+    }),
+    112000,
+  );
+  assert.equal(
+    shops.purchasePrice({ productionValueAhn: 100000, tier: "I" }, {
+      shop_type: "clinic",
+      shop_tier: 1,
+      mod_venta: 100,
+    }),
+    183750,
+  );
+  assert.equal(
+    shops.sellPrice({ productionValueAhn: 100000, tier: "I" }, {
+      shop_type: "clinic",
+      shop_tier: 1,
+      mod_venta: 100,
+    }),
+    80000,
+    "market events must not change canonical sellback",
+  );
+  shops.setMarketEvent(null);
+  assert.equal(shops.marketEventPercent({ shop_type: "general" }), 0);
 
   // Placeholder zero fields must never shadow a real value authored by the
   // Item family. This is the regression that previously produced free Shops.
