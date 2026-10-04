@@ -432,6 +432,7 @@
       id,
       name,
       sprite,
+      greeting: String(raw.greeting ?? raw.saludo ?? raw.welcome ?? "").trim(),
       frequentCustomerMinPurchases: Math.max(
         0,
         Math.trunc(numberOr(raw.frequent_customer_min_purchases ?? raw.frequentCustomerMinPurchases, 0)),
