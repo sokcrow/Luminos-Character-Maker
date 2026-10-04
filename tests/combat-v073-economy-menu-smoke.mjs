@@ -26,8 +26,10 @@ assert.ok(reviewFixSource.indexOf('engine.canActivateTrait(source,runtime,tState
 assert.ok(reviewFixSource.includes("global.addEventListener?.('luminous:combat073-reaction-trigger',onReactionTrigger)"), 'prepared Reaction resolution must have a runtime handler');
 assert.ok(reviewFixSource.includes('engine.triggerEvent=wrapped') && reviewFixSource.includes('maybeTriggerPrepared(tag,context,targetsHit)'), 'prepared Reactions must be connected to Combat trigger events');
 
-assert.ok(menuSource.includes('liveActions("skill").filter'), 'Quick/Reaction Skills must come from the live Unit kit');
-assert.ok(menuSource.includes('liveActions("spell")'), 'Spell economy tabs must inspect the live Unit kit');
+assert.ok(menuSource.includes('return liveActions("skill")'), 'all Skill economy tabs must come from the live Unit kit');
+assert.ok(!menuSource.includes('if (tab === ECONOMY.ACTION) return state.originals.renderSkills'), 'Action Skills must not delegate back to the legacy renderer');
+assert.ok(menuSource.includes('LuminousCombatSpellLoadout074'), 'Spell rows must resolve through the canonical Combat spell loadout');
+assert.ok(menuSource.includes('loadout.resolveSpellForCombatant(unit, spellId)'), 'selected Player Spell IDs must resolve to canonical Spell definitions');
 assert.ok(menuSource.includes('unit.inventario_activo || {}'), 'Items must be enumerated from the Player combatant active inventory');
 assert.ok(menuSource.includes('button.dataset.itemInstanceId'), 'Item rows must preserve the concrete inventory instance id');
 assert.ok(menuSource.includes('syncSpellMenuVisibility'), 'non-caster Spell menu visibility must be synchronized, not merely rendered empty');
