@@ -160,6 +160,7 @@
       });
     });
     state.active = true;
+    overlay.style.opacity = "";
     overlay.classList.remove("error");
     overlay.classList.add("active");
     overlay.setAttribute("aria-busy", "true");
