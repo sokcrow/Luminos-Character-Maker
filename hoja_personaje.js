@@ -639,45 +639,54 @@ window.actoresJugador = {}; // Diccionario global por Actor ID
 const PLAYER_LOADING_SCENES = Object.freeze([
   {
     image: "Assets/Loading/loading-combat-clash.webp",
+    source: "https://imgur.com/haWXQhp.png",
+    weight: 18,
     category: "CONSEJO DE COMBATE",
     tip: "Si una unidad queda aislada, prioriza defensa o reposicionamiento antes de gastar tus recursos más fuertes.",
   },
   {
     image: "Assets/Loading/loading-workshop-crafting.webp",
+    source: "https://imgur.com/zbr096W.png",
+    weight: 14,
     category: "CONSEJO DE CRAFT",
     tip: "Revisa receta, materiales y herramienta antes de confirmar una fabricación.",
   },
   {
     image: "Assets/Loading/loading-lizalin-biodistrict.webp",
+    source: "https://imgur.com/N2YXVUr.png",
+    weight: 12,
     category: "RAZA · LIZALIN",
     tip: "Para los Lizalin, naturaleza y tecnología no son opuestos: una ciudad también puede respirar como un ecosistema.",
   },
   {
     image: "Assets/Loading/loading-yuanti-obscurum.webp",
+    source: "https://imgur.com/mSzXSqz.png",
+    weight: 12,
     category: "RAZA · YUAN-TI",
     tip: "Los Yuan-ti Pura Sangre favorecen el control, la jerarquía y la magia sutil. La calma no siempre significa confianza.",
   },
   {
     image: "Assets/Loading/loading-lanae-mountain.webp",
+    source: "https://imgur.com/JUUc6Ye.png",
+    weight: 12,
     category: "RAZA · LANAE",
     tip: "Los Lanae proceden de enclaves montañosos y dan gran valor a los lazos de comunidad.",
   },
   {
     image: "Assets/Loading/loading-city-backstreets.webp",
+    source: "https://imgur.com/Xt7V809.png",
+    weight: 18,
     category: "CONSEJO DE EXPLORACIÓN",
     tip: "Antes de internarte en una zona desconocida, identifica una salida y conserva recursos para regresar.",
   },
   {
     image: "Assets/Loading/loading-abnormality-containment.webp",
+    source: "https://imgur.com/AmAaJ7M.png",
+    weight: 14,
     category: "CONSEJO DE OBSERVACIÓN",
     tip: "No asumas que dos entidades obedecen la misma lógica. Observa primero y compromete recursos después.",
   },
-  {
-    image: "Assets/Loading/loading-interdistrict-transit.webp",
-    category: "CONSEJO DE VIAJE",
-    tip: "Antes de moverte entre zonas, revisa equipo, recursos y objetivos activos.",
-  },
-]);
+])
 
 const PLAYER_LOADING_FALLBACK_IMAGE =
   "https://limbuscompany.wiki.gg/images/thumb/DanteStar.png/1024px-DanteStar.png?e52927";
@@ -713,34 +722,76 @@ function applyLoadingScene(scene) {
   if (tip) tip.textContent = scene.tip || "";
 }
 
+function buildWeightedLoadingQueue(scenes) {
+  const remaining = [...scenes];
+  const ordered = [];
+
+  while (remaining.length) {
+    const totalWeight = remaining.reduce(
+      (sum, scene) => sum + Math.max(0, Number(scene.weight) || 0),
+      0,
+    );
+
+    if (totalWeight <= 0) {
+      ordered.push(...remaining);
+      break;
+    }
+
+    let roll = Math.random() * totalWeight;
+    let pickedIndex = remaining.length - 1;
+
+    for (let index = 0; index < remaining.length; index += 1) {
+      roll -= Math.max(0, Number(remaining[index].weight) || 0);
+      if (roll < 0) {
+        pickedIndex = index;
+        break;
+      }
+    }
+
+    ordered.push(remaining[pickedIndex]);
+    remaining.splice(pickedIndex, 1);
+  }
+
+  return ordered;
+}
+
 function initializeLoadingPresentation() {
   const background = document.getElementById("system-loading-background");
   syncLoadingSegments(0);
   if (!background || !PLAYER_LOADING_SCENES.length) return;
 
   background.src = PLAYER_LOADING_FALLBACK_IMAGE;
-
-  const scenes = [...PLAYER_LOADING_SCENES];
-  for (let i = scenes.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [scenes[i], scenes[j]] = [scenes[j], scenes[i]];
-  }
+  const scenes = buildWeightedLoadingQueue(PLAYER_LOADING_SCENES);
 
   const tryScene = (index) => {
     const scene = scenes[index];
     if (!scene) return;
 
-    const probe = new Image();
-    probe.onload = () => {
+    const applyLoadedScene = (src) => {
       background.style.opacity = "0.72";
       requestAnimationFrame(() => {
-        background.src = scene.image;
+        background.src = src;
         applyLoadingScene(scene);
         background.style.opacity = "1";
       });
     };
-    probe.onerror = () => tryScene(index + 1);
-    probe.src = scene.image;
+
+    const tryRemoteSource = () => {
+      if (!scene.source || scene.source === scene.image) {
+        tryScene(index + 1);
+        return;
+      }
+
+      const remoteProbe = new Image();
+      remoteProbe.onload = () => applyLoadedScene(scene.source);
+      remoteProbe.onerror = () => tryScene(index + 1);
+      remoteProbe.src = scene.source;
+    };
+
+    const localProbe = new Image();
+    localProbe.onload = () => applyLoadedScene(scene.image);
+    localProbe.onerror = tryRemoteSource;
+    localProbe.src = scene.image;
   };
 
   tryScene(0);
