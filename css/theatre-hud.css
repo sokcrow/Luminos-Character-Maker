@@ -941,16 +941,16 @@ body.player-instance-theatre
   margin: 0 !important;
 }
 
-/* Canonical player dropdown geometry: large icons need real layout space. */
+/* Canonical player dropdown geometry: reserve compact space for 40px icons. */
 body.player-instance-theatre #hud-menu-dropdown {
-  height: 122px !important;
+  height: 62px !important;
 }
 
 body.player-instance-theatre #hud-menu-dropdown .hud-menu-item {
-  width: 112px !important;
-  height: 112px !important;
-  min-width: 112px !important;
-  min-height: 112px !important;
+  width: 52px !important;
+  height: 52px !important;
+  min-width: 52px !important;
+  min-height: 52px !important;
   padding: 0 !important;
   overflow: hidden !important;
 }
