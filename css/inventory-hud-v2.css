@@ -515,3 +515,173 @@
     touch-action:manipulation;
   }
 }
+
+
+/* Inventory V8 — Active cards use the whole tile as a compact gameplay ficha. */
+#inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-active-card .item-display{
+  inset:18px 8px 22px;
+  display:grid;
+  grid-template-columns:56px minmax(0,1fr);
+  grid-template-rows:minmax(30px,1fr) 18px;
+  column-gap:10px;
+  row-gap:3px;
+  align-items:center;
+  justify-content:stretch;
+}
+#inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-active-card .item-icon{
+  grid-column:1;
+  grid-row:1 / span 2;
+  width:56px;
+  height:56px;
+  flex:none;
+  align-self:center;
+}
+#inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-active-card .item-name{
+  grid-column:2;
+  grid-row:1;
+  align-self:end;
+  width:100%;
+  min-width:0;
+  max-width:none;
+  font-size:10px;
+  line-height:1.2;
+  -webkit-line-clamp:2;
+}
+#inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-card-meta{
+  grid-column:2;
+  grid-row:2;
+  min-width:0;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:7px;
+  padding-top:3px;
+  border-top:1px solid rgba(116,92,58,.38);
+  color:#928777;
+  font:8px/1 "Share Tech Mono",monospace;
+  letter-spacing:.035em;
+  white-space:nowrap;
+}
+#inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-card-value{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  color:#d3b36f;
+}
+#inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-card-qty{
+  flex:0 0 auto;
+  color:#b8ad9d;
+  font-weight:700;
+}
+#inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-active-card .tier{
+  left:7px;
+  top:5px;
+  font-size:9px;
+}
+#inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-active-card .inventory-v2-effect-rail{
+  right:6px;
+  bottom:4px;
+  max-width:72%;
+}
+#inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-active-card .inventory-v2-equip-marker{
+  left:7px;
+  bottom:5px;
+  max-width:26%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+#inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-active-card .inventory-v2-item-state{
+  left:7px;
+  bottom:5px;
+  max-width:34%;
+}
+#inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-active-card.inventory-v2-equipped .inventory-v2-item-state{
+  color:#d7a54e;
+}
+
+@media(max-width:1024px){
+  #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-active-card .item-display{
+    grid-template-columns:50px minmax(0,1fr);
+    grid-template-rows:minmax(28px,1fr) 17px;
+    column-gap:8px;
+  }
+  #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-active-card .item-icon{
+    width:50px;
+    height:50px;
+  }
+  #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-active-card .item-name{
+    font-size:9px;
+  }
+}
+
+@media(max-width:760px){
+  #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-active-card .item-display{
+    inset:17px 6px 21px;
+    grid-template-columns:44px minmax(0,1fr);
+    grid-template-rows:minmax(26px,1fr) 16px;
+    column-gap:7px;
+    row-gap:2px;
+  }
+  #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-active-card .item-icon{
+    width:44px;
+    height:44px;
+  }
+  #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-active-card .item-name{
+    font-size:8px;
+  }
+  #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-card-meta{
+    gap:4px;
+    padding-top:2px;
+    font-size:7px;
+  }
+}
+
+@media (pointer:coarse) and (orientation:landscape) and (max-height:600px){
+  #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-active-card .item-display{
+    inset:15px 5px 18px;
+    grid-template-columns:38px minmax(0,1fr);
+    grid-template-rows:minmax(22px,1fr) 14px;
+    column-gap:6px;
+  }
+  #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-active-card .item-icon{
+    width:38px;
+    height:38px;
+  }
+  #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-active-card .item-name{
+    font-size:7px;
+  }
+  #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-card-meta{
+    font-size:6.5px;
+  }
+}
+
+
+/* Active grid density follows available canvas instead of stretching four giant tiles. */
+#inventory-modal.inventory-v2-ready #inv-active-grid.inv-grid{
+  grid-template-columns:repeat(auto-fit,minmax(170px,1fr));
+  grid-auto-rows:100px;
+}
+#inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-runtime-slot{
+  min-height:100px;
+}
+
+@media(max-width:1024px) and (min-width:761px){
+  #inventory-modal.inventory-v2-ready #inv-active-grid.inv-grid{
+    grid-template-columns:repeat(auto-fit,minmax(155px,1fr));
+    grid-auto-rows:96px;
+  }
+  #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-runtime-slot{
+    min-height:96px;
+  }
+}
+
+@media(max-width:760px){
+  #inventory-modal.inventory-v2-ready #inv-active-grid.inv-grid{
+    grid-template-columns:repeat(2,minmax(132px,1fr));
+    grid-auto-rows:98px;
+  }
+  #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-runtime-slot{
+    min-height:98px;
+  }
+}
