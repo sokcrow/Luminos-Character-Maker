@@ -1,0 +1,70 @@
+name: Enemy Target + Formation Visual
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'Battle-viewer.html'
+      - 'js/individual-goap-combat-ai.js'
+      - 'js/unit-rank-runtime.js'
+      - 'js/enemy-action-slot-allocator.js'
+      - 'js/combat-v073-live-adapter.js'
+      - 'js/combat-v073-speed-authority.js'
+      - 'js/combat-v073-economy-menu.js'
+      - 'js/combat-v073-economy-review-fixes.js'
+      - 'js/combat-spell-loadout-074.js'
+      - 'js/spell-catalog-core.js'
+      - 'tests/combat-v073-player-menu-visual.spec.mjs'
+      - 'tests/combat-v073-speed-multiview-visual.spec.mjs'
+      - 'tests/individual-goap-combat-ai-smoke.mjs'
+      - 'tests/unit-rank-command-smoke.mjs'
+      - 'tests/enemy-action-slot-allocator-smoke.mjs'
+      - 'tests/enemy-target-formation-visual.spec.mjs'
+      - 'tests/enemy-target-runtime-contract.mjs'
+      - '.github/workflows/enemy-target-formation-visual.yml'
+
+jobs:
+  seven-vs-three:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Unit targeting contracts
+        run: |
+          node tests/individual-goap-combat-ai-smoke.mjs
+          node tests/unit-rank-command-smoke.mjs
+          node tests/enemy-action-slot-allocator-smoke.mjs
+          node tests/enemy-target-runtime-contract.mjs
+      - name: Install Chromium
+        run: |
+          npm install --no-save @playwright/test@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Serve repo
+        run: |
+          python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/enemy-target-http.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:4173/pantalla_dm.html >/dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/enemy-target-http.log
+          exit 1
+      - name: Browser proof 7 Players + 3 Wolves
+        run: npx playwright test tests/enemy-target-formation-visual.spec.mjs --reporter=line
+      - name: Browser proof real Player Actions + Skills + Spells + Items
+        run: npx playwright test tests/combat-v073-player-menu-visual.spec.mjs --reporter=line
+      - name: Browser proof canonical Speed across DM + Player viewers
+        run: npx playwright test tests/combat-v073-speed-multiview-visual.spec.mjs --reporter=line
+      - name: Upload target and formation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: enemy-target-formation-visual
+          path: |
+            artifacts/enemy-target-formation/*.png
+            artifacts/player-menu-visual/*.png
+            artifacts/speed-authority-visual/*.png
+          if-no-files-found: warn
+          retention-days: 14

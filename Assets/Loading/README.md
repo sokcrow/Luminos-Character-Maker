@@ -1,53 +1,43 @@
-# Loading Screen Art Brief
+# Loading Screen Art
 
-La pantalla de carga usa fondos aleatorios desde esta carpeta.
+La pantalla de carga de Jugador y DM usa un pool compartido de fondos, con tips distintos según la superficie.
 
-## Reglas para todos los fondos
+## Reglas de arte
 
-- Formato recomendado: **2560x1440, 16:9, WebP**.
-- El archivo debe ser **solo arte**: sin texto, sin porcentaje, sin barra, sin logotipos y sin UI dibujada.
-- Deja el **tercio derecho con contraste más bajo** para que el consejo sea legible.
-- Evita detalle crítico en la **esquina inferior izquierda**, donde vive la barra segmentada.
-- El foco principal funciona mejor en el centro o centro-izquierda.
-- Estética: fantasía urbana oscura + sci-fi industrial + surrealismo, con iluminación dramática.
-- El código añade por sí mismo viñeta, scanlines, tip, progreso y estado de carga.
+- Resolución recomendada: **2560×1440, 16:9**.
+- El archivo debe ser **solo arte**: sin texto, porcentaje, barra, logos ni HUD dibujado.
+- Deja el **tercio derecho relativamente limpio** para el tip.
+- Evita información crítica en la **esquina inferior izquierda**, donde vive la barra segmentada.
+- El foco principal funciona mejor en centro o centro-izquierda.
+- La UI añade viñeta, scanlines, tip, progreso y estado de carga.
 
-## Fondos requeridos
+## Pool activo
 
-### loading-combat-clash.webp
+| Archivo local | Origen | Aparición |
+| --- | --- | ---: |
+| `loading-combat-clash.png` | https://imgur.com/haWXQhp.png | 18% |
+| `loading-workshop-crafting.png` | https://imgur.com/zbr096W.png | 14% |
+| `loading-lizalin-biodistrict.png` | https://imgur.com/N2YXVUr.png | 12% |
+| `loading-yuanti-obscurum.png` | https://imgur.com/mSzXSqz.png | 12% |
+| `loading-lanae-mountain.png` | https://imgur.com/JUUc6Ye.png | 12% |
+| `loading-city-backstreets.png` | https://imgur.com/Xt7V809.png | 18% |
+| `loading-abnormality-containment.png` | https://imgur.com/AmAaJ7M.png | 14% |
 
-Escena de combate urbano en pleno impacto. Dos siluetas enfrentadas en una calle destruida o azotea industrial; chispas, polvo y líneas de energía. Composición dinámica pero con el tercio derecho oscuro y relativamente limpio. Sin números ni HUD.
+**Total: 100%.**
 
-### loading-workshop-crafting.webp
+## Resolución de assets
 
-Taller industrial-alquímico. Mesa de trabajo con herramientas, piezas mecánicas, frascos, componentes extraños y una fuente de calor o luz ámbar. Una figura trabajando de espaldas o en silueta. Ambiente cargado de humo y maquinaria.
+El loader intenta cada escena en este orden:
 
-### loading-lizalin-biodistrict.webp
+1. `Assets/Loading/<archivo>.png`.
+2. Si el archivo local todavía no existe o no carga, usa el URL de origen registrado para esa misma escena.
+3. Si tampoco carga el origen, intenta la siguiente escena del queue ponderado.
+4. Si ninguna funciona, conserva el fondo general de respaldo.
 
-Distrito húmedo biotecnológico. Arquitectura curva, vegetación integrada con tuberías y estructuras sintéticas, condensación, vapor y agua reflectante. Una figura reptiliana discreta recorriendo el lugar. Sensación de ciudad que está viva.
+Esto permite introducir los PNG locales sin tener que volver a tocar la lógica de aparición.
 
-### loading-yuanti-obscurum.webp
+## Selección ponderada
 
-Interior monumental oscuro y elegante. Arquitectura serpentina, piedra negra, metal, oro envejecido y luz ritual. Una figura humanoide de rasgos serpentinos observando desde una escalinata o balcón. Frío, jerárquico y ceremonial.
+La primera escena del queue se elige usando `weight`, por lo que los porcentajes anteriores representan la probabilidad objetivo de aparición en una carga normal. Después se construye un orden ponderado sin reemplazo para que, si una imagen falla, el fallback no favorezca siempre al mismo fondo.
 
-### loading-lanae-mountain.webp
-
-Asentamiento de gran altitud. Nieve, roca, pasarelas y viviendas iluminadas con luz cálida entre una tormenta fría. Una figura cornuda y lanuda con capa mirando el enclave desde una cornisa. Contraste entre comunidad cálida y montaña hostil.
-
-### loading-city-backstreets.webp
-
-Callejón de una megaciudad bajo lluvia. Carteles luminosos desenfocados, estructuras verticales enormes, cables, vapor, basura y reflejos en el suelo. Una o dos siluetas pequeñas para enfatizar escala. Sensación de peligro cotidiano.
-
-### loading-abnormality-containment.webp
-
-Sala de contención clínica-industrial. Cristal grueso, luces de emergencia y una presencia imposible detrás de niebla, estática o líquido. No mostrar completamente a la criatura; la silueta debe generar inquietud. Mucho espacio negativo.
-
-### loading-interdistrict-transit.webp
-
-Viaje entre zonas de una ciudad gigantesca. Tren, autobús o transporte elevado atravesando estructuras colosales, puentes y luces lejanas. Puede verse una figura desde dentro mirando por una ventana. Sensación de distancia y transición.
-
-## Integración
-
-Los nombres anteriores están registrados en `PLAYER_LOADING_SCENES` dentro de `hoja_personaje.js`.
-
-Si un archivo todavía no existe o no carga, el loader conserva un fondo de respaldo y continúa funcionando. Cuando al menos uno de estos archivos exista, el sistema intentará usar uno aleatoriamente en cada carga.
+Jugador y DM comparten los mismos porcentajes y fondos. Los textos y consejos sí son específicos para cada superficie.
