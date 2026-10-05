@@ -4822,16 +4822,37 @@ window.processEntitiesData = function(entities) {
           .catch((error) => markDMBootError("connection", error));
 
         (async () => {
-          try {
-            const probeRef = db.ref(`campaña/runtime_health/dm_boot/${user.uid}`);
-            await probeRef.set({
-              at: firebase.database.ServerValue.TIMESTAMP,
-              surface: "pantalla_dm",
-            });
+          const payload = {
+            at: firebase.database.ServerValue.TIMESTAMP,
+            surface: "pantalla_dm",
+          };
+          const runProbe = async (path) => {
+            const probeRef = db.ref(path);
+            await probeRef.set(payload);
             await probeRef.remove();
+          };
+
+          try {
+            await runProbe(`campaña/runtime_health/dm_boot/${user.uid}`);
             markDMBootReady("permissions", "Escritura DM confirmada por Firebase");
-          } catch (error) {
-            markDMBootError("permissions", error);
+          } catch (primaryError) {
+            const code = String(primaryError?.code || "").toUpperCase();
+            if (!code.includes("PERMISSION_DENIED")) {
+              markDMBootError("permissions", primaryError);
+              return;
+            }
+
+            try {
+              await runProbe(`campaña/calendario/runtime_health/dm_boot/${user.uid}`);
+              console.warn("[DM Boot] Reglas Firebase desfasadas: usando sonda de escritura compatible.");
+              markDMBootReady("permissions", "Escritura DM confirmada");
+            } catch (fallbackError) {
+              const error = new Error(
+                "Firebase denegó la escritura del Director. Las reglas de Realtime Database deben actualizarse.",
+              );
+              error.cause = fallbackError;
+              markDMBootError("permissions", error);
+            }
           }
         })();
 
