@@ -940,3 +940,17 @@ body.player-instance-theatre
   min-height: 40px;
   margin: 0 !important;
 }
+
+/* Canonical player dropdown geometry: large icons need real layout space. */
+body.player-instance-theatre #hud-menu-dropdown {
+  height: 122px !important;
+}
+
+body.player-instance-theatre #hud-menu-dropdown .hud-menu-item {
+  width: 112px !important;
+  height: 112px !important;
+  min-width: 112px !important;
+  min-height: 112px !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
