@@ -655,3 +655,33 @@
     font-size:6.5px;
   }
 }
+
+
+/* Active grid density follows available canvas instead of stretching four giant tiles. */
+#inventory-modal.inventory-v2-ready #inv-active-grid.inv-grid{
+  grid-template-columns:repeat(auto-fit,minmax(170px,1fr));
+  grid-auto-rows:100px;
+}
+#inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-runtime-slot{
+  min-height:100px;
+}
+
+@media(max-width:1024px) and (min-width:761px){
+  #inventory-modal.inventory-v2-ready #inv-active-grid.inv-grid{
+    grid-template-columns:repeat(auto-fit,minmax(155px,1fr));
+    grid-auto-rows:96px;
+  }
+  #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-runtime-slot{
+    min-height:96px;
+  }
+}
+
+@media(max-width:760px){
+  #inventory-modal.inventory-v2-ready #inv-active-grid.inv-grid{
+    grid-template-columns:repeat(2,minmax(132px,1fr));
+    grid-auto-rows:98px;
+  }
+  #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-runtime-slot{
+    min-height:98px;
+  }
+}
