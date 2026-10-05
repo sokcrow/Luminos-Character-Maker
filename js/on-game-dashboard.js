@@ -495,15 +495,35 @@
         [document.getElementById("btn-end-combat-cancel"), "cancelled"],
       ].filter(([button]) => Boolean(button));
 
+      const waitForEncounterFinisher = (timeoutMs = 5000) => new Promise((resolve, reject) => {
+        const combatFrame = document.getElementById("dm-combat-view");
+        if (!combatFrame) {
+          reject(new Error("COMBAT_FRAME_UNAVAILABLE"));
+          return;
+        }
+        const startedAt = Date.now();
+        const probe = () => {
+          try {
+            const api = combatFrame.contentWindow?.LuminousBattleViewerDmConsole074;
+            if (api?.finishEncounter && api?.isDmAuthorized?.() && api?._state?.db?.ref) {
+              resolve(api);
+              return;
+            }
+          } catch (_) {}
+          if (Date.now() - startedAt >= timeoutMs) {
+            reject(new Error("CANONICAL_ENCOUNTER_FINISHER_UNAVAILABLE"));
+            return;
+          }
+          setTimeout(probe, 50);
+        };
+        probe();
+      });
+
       const finishEncounter = async (result) => {
-        if (!window.LuminousInstanceControl?.endEncounter) throw new Error("INSTANCE_CONTROL_UNAVAILABLE");
         encounterEndButtons.forEach(([button]) => { button.disabled = true; });
         try {
-          await window.LuminousInstanceControl.endEncounter({
-            db: database,
-            result,
-            reason: result === "cancelled" ? "dm_cancelled" : "dm_result"
-          });
+          const finisher = await waitForEncounterFinisher();
+          await finisher.finishEncounter(result, { confirm: false });
         } finally {
           encounterEndButtons.forEach(([button]) => { button.disabled = false; });
         }
