@@ -3,7 +3,7 @@
 
   if (global.LuminousCombatEconomyMenu073) return;
 
-  const VERSION = "0.7.3-economy-menu.5-item-detail-plan-compat";
+  const VERSION = "0.7.3-economy-menu.6-ready-event";
   const TABBED_MENUS = new Set(["global", "skills", "spells", "items"]);
   const ECONOMY = Object.freeze({ ACTION: "action", QUICK: "quick_action", REACTION: "reaction" });
   const state = {
@@ -1405,7 +1405,11 @@
       state.menuObserver = new MutationObserver(() => { syncSpellMenuVisibility(); syncResponsiveMenuLayout(); });
       state.menuObserver.observe(global.document.body, { childList: true, subtree: true });
     }
-    state.installed = true; return true;
+    state.installed = true;
+    try {
+      global.dispatchEvent?.(new global.CustomEvent("luminous:combat073-economy-menu-ready", { detail: { version: VERSION } }));
+    } catch (_) {}
+    return true;
   }
 
   const api = { version: VERSION, ECONOMY, state, normalizeEconomyCost, economyTabFor, costLabel, canonicalPlayerId, playerUnit, playerKit, traitDefinitionsForPlayer, liveActions, spellLoadoutRuntime, normalizeSpellForMenu, classEntries, spellcastingClasses, isSpellcaster, selectedSpellIds, spellRowsForPlayer, inventoryEntries, quantityOf, itemTiming, itemIconUrl, itemCanUseInCombat, stableItemRow, itemRowsForPlayer, findActiveInventoryItem, spellMenuNodes, syncSpellMenuVisibility, layoutRadialCommandsStable, syncResponsiveMenuLayout, renderActiveMenuBody, ensureCategorySurfaceOpen, refreshOpenedMenu, openCompactMenu, installRootMenuClickHandler, selfTargetedItem, planTargetRuleCompat, persistQuickItemState, rowsFor, renderSkills, renderSpells, renderItems, renderCleanList, renderCategory, selectAction, confirmLegacyItemSelection, setTab, syncTabs, syncQuickBadge, syncPlanningEconomy, beginCombatEconomy, prepareReaction, triggerPreparedReaction, useQuickAction, install };
