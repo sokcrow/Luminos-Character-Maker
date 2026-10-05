@@ -414,25 +414,18 @@ test("real player sheet stays stable for 60 seconds under background player upda
   await installPageInstrumentation(page);
   await page.goto(BASE + "/hoja_personaje.html", { waitUntil: "domcontentloaded" });
   await page.waitForFunction(() => window.datosJugador?.characterName === "Performance Test", null, { timeout: 20_000 });
-  await page.waitForTimeout(2_000);
+  // hoja_personaje.html removes its legacy system-loading overlay on a 5s
+  // emergency fallback timer. That subtree is intentionally temporary, so do
+  // not include it in the long-session DOM baseline.
+  await page.waitForFunction(() => !document.getElementById("system-loading-overlay"), null, { timeout: 10_000 });
+  await page.waitForTimeout(250);
 
   const result = await page.evaluate(async () => {
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-    // Warm the player-update path once before measuring long-session stability.
-    // The first synthetic player snapshot performs deterministic one-time DOM
-    // cleanup on the real sheet; measuring before that makes the soak report a
-    // false node "loss" even when every subsequent update is stable.
-    window.__fakeFirebase.emitPlayer({ backgroundHeartbeat: "warmup" });
-    await sleep(0);
-    await new Promise((resolve) => requestAnimationFrame(() => resolve()));
-
-    // The sheet still performs a small amount of one-time DOM cleanup after
-    // player data is ready. Slow CI runners can finish that cleanup after the
-    // outer 2s boot wait, which makes a pre-cleanup baseline look like a node
-    // loss during the soak. Establish the baseline only after node count has
-    // remained unchanged for 3 continuous seconds; the final assertion below
-    // remains exact, so real stacking/leaks still fail.
+    // Establish the baseline only after the post-loading DOM has remained
+    // unchanged for 3 continuous seconds. The final assertion below remains
+    // exact, so real stacking/leaks still fail.
     let settledNodeCount = document.getElementsByTagName("*").length;
     let stableNodeSamples = 0;
     while (stableNodeSamples < 30) {
