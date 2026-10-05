@@ -428,7 +428,13 @@ test('real Player internal Combat buttons advance selection state on physical cl
       bodyText:String(body?.innerText || body?.textContent || '').trim(),
       body:inspect(body),
       surface:inspect(surface),
-      back:inspect(back)
+      back:inspect(back),
+      selectorBridge:{
+        originalIsReview:window.LuminousCombatEconomyMenu073?.state?.originals?.selectAction === window.LuminousCombatEconomyReviewFixes073?.selectAction,
+        originalIsEconomy:window.LuminousCombatEconomyMenu073?.state?.originals?.selectAction === window.LuminousCombatEconomyMenu073?.selectAction,
+        originalName:window.LuminousCombatEconomyMenu073?.state?.originals?.selectAction?.name || '',
+        lexicalName:(()=>{try{return (0,eval)('selectAction')?.name || ''}catch(_){return ''}})()
+      }
     };
   });
 
