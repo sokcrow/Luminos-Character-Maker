@@ -16,7 +16,35 @@ assert.match(html, /aria-valuenow="0"/);
 assert.match(html, /const DM_LOADING_SCENES/);
 assert.match(html, /DIRECCIÓN · COMBATE/);
 assert.match(html, /DIRECCIÓN · ENCOUNTER/);
-assert.match(html, /DIRECCIÓN · RITMO/);
+assert.doesNotMatch(html, /DIRECCIÓN · RITMO/);
+
+const expectedLoadingScenes = [
+  ["loading-combat-clash.png", "https://imgur.com/haWXQhp.png", 18],
+  ["loading-workshop-crafting.png", "https://imgur.com/zbr096W.png", 14],
+  ["loading-lizalin-biodistrict.png", "https://imgur.com/N2YXVUr.png", 12],
+  ["loading-yuanti-obscurum.png", "https://imgur.com/mSzXSqz.png", 12],
+  ["loading-lanae-mountain.png", "https://imgur.com/JUUc6Ye.png", 12],
+  ["loading-city-backstreets.png", "https://imgur.com/Xt7V809.png", 18],
+  ["loading-abnormality-containment.png", "https://imgur.com/AmAaJ7M.png", 14],
+];
+
+for (const [filename, source, weight] of expectedLoadingScenes) {
+  assert.ok(html.includes(`Assets/Loading/${filename}`), `missing DM loading asset: ${filename}`);
+  assert.ok(html.includes(source), `missing DM loading source: ${source}`);
+  assert.match(
+    html,
+    new RegExp(`image: "Assets/Loading/${filename.replace(".", "\\.")}",[\\s\\S]{0,160}?weight: ${weight}\\b`),
+  );
+}
+
+assert.equal(
+  expectedLoadingScenes.reduce((sum, scene) => sum + scene[2], 0),
+  100,
+  "DM loading weights must sum to 100",
+);
+assert.doesNotMatch(html, /loading-interdistrict-transit/);
+assert.match(html, /function buildWeightedDMLoadingQueue/);
+assert.match(html, /localProbe\.onerror = tryRemoteSource/);
 
 assert.match(html, /const DM_BOOT_REQUIRED = new Set\(\["players", "npcs", "actors", "calendar"\]\)/);
 assert.match(html, /markDMBootReady\("players"\)/);
