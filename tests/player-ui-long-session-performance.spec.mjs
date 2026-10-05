@@ -418,6 +418,26 @@ test("real player sheet stays stable for 60 seconds under background player upda
 
   const result = await page.evaluate(async () => {
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    // The sheet still performs a small amount of one-time DOM cleanup after
+    // player data is ready. Slow CI runners can finish that cleanup after the
+    // outer 2s boot wait, which makes a pre-cleanup baseline look like a node
+    // loss during the soak. Establish the baseline only after node count has
+    // remained unchanged for 3 continuous seconds; the final assertion below
+    // remains exact, so real stacking/leaks still fail.
+    let settledNodeCount = document.getElementsByTagName("*").length;
+    let stableNodeSamples = 0;
+    while (stableNodeSamples < 30) {
+      await sleep(100);
+      const nextNodeCount = document.getElementsByTagName("*").length;
+      if (nextNodeCount === settledNodeCount) {
+        stableNodeSamples += 1;
+      } else {
+        settledNodeCount = nextNodeCount;
+        stableNodeSamples = 0;
+      }
+    }
+
     const watched = [
       document.getElementById("player-progression-tree-host"),
       document.getElementById("player-progression-level-allocation-host"),
