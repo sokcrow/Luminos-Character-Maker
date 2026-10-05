@@ -213,9 +213,19 @@ const fakeDb = {
     };
   },
 };
+const combatLogSurface = {
+  appendChild() {},
+  scrollHeight: 0,
+  scrollTop: 0,
+};
 globalThis.document = {
   getElementById(id) {
-    return id === 'battlefield' || id === 'combat-log-terminal' ? {} : null;
+    if (id === 'battlefield') return {};
+    if (id === 'combat-log-terminal') return combatLogSurface;
+    return null;
+  },
+  createElement() {
+    return { className: '', textContent: '' };
   },
 };
 
