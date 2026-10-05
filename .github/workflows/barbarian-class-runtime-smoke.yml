@@ -1,0 +1,52 @@
+name: Barbarian Class Runtime Smoke
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'js/trait-catalog-core.js'
+      - 'js/universal-modifier-engine.js'
+      - 'js/trait-standardization-runtime.js'
+      - 'js/player-trait-runtime.js'
+      - 'js/class-status-semantics.js'
+      - 'js/barbarian-class-runtime.js'
+      - 'tests/barbarian-class-runtime-smoke.mjs'
+      - 'tests/class-status-semantics-smoke.mjs'
+      - '.github/workflows/barbarian-class-runtime-smoke.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'js/trait-catalog-core.js'
+      - 'js/universal-modifier-engine.js'
+      - 'js/trait-standardization-runtime.js'
+      - 'js/player-trait-runtime.js'
+      - 'js/class-status-semantics.js'
+      - 'js/barbarian-class-runtime.js'
+      - 'tests/barbarian-class-runtime-smoke.mjs'
+      - 'tests/class-status-semantics-smoke.mjs'
+      - '.github/workflows/barbarian-class-runtime-smoke.yml'
+
+jobs:
+  barbarian-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Runtime syntax
+        run: |
+          node --check js/trait-catalog-core.js
+          node --check js/universal-modifier-engine.js
+          node --check js/trait-standardization-runtime.js
+          node --check js/player-trait-runtime.js
+          node --check js/class-status-semantics.js
+          node --check js/barbarian-class-runtime.js
+      - name: Barbarian trait contract
+        run: node tests/barbarian-class-runtime-smoke.mjs
+      - name: Class Status semantics
+        run: node tests/class-status-semantics-smoke.mjs
