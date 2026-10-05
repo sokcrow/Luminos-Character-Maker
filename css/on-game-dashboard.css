@@ -54,3 +54,51 @@ body { margin: 0; overflow: hidden; background: #020304; color: #e8edf2; }
     position: relative;
     z-index: 100;
 }
+
+/* Encounter lifecycle controls: production HUD, not debug chrome. */
+#combat-log-and-controls {
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+#combat-log-and-controls > span {
+  margin-right: auto;
+  color: #b7aa94;
+  font: 700 11px "Share Tech Mono", monospace;
+  letter-spacing: .06em;
+}
+#combat-log-and-controls button {
+  min-height: 36px;
+  padding: 9px 14px;
+  border: 1px solid #5f5548;
+  background: #17130f;
+  color: #e8dfd0;
+  font: 700 11px "Share Tech Mono", monospace;
+  letter-spacing: .055em;
+  cursor: pointer;
+}
+#combat-log-and-controls button:disabled {
+  opacity: .45;
+  cursor: default;
+}
+#btn-trigger-combat {
+  background: #8b111d;
+  color: #fff;
+  border-color: #ff6575;
+}
+#btn-end-combat-victory {
+  border-color: #b58a3e;
+  background: #352712;
+  color: #f0d39d;
+}
+#btn-end-combat-defeat {
+  border-color: #9b403b;
+  background: #321413;
+  color: #f1aaa5;
+}
+#btn-end-combat-cancel {
+  border-color: #555;
+  background: #111;
+  color: #aaa;
+}
+

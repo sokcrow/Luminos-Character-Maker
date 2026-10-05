@@ -1342,6 +1342,71 @@
         text-shadow: 0 2px 4px #000;
       }
 
+      #system-loading-checks {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 5px 14px;
+        margin-top: 13px;
+        max-height: min(25vh, 210px);
+        overflow: auto;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(231, 163, 66, 0.45) transparent;
+      }
+
+      .system-loading-check {
+        display: grid;
+        grid-template-columns: 11px minmax(0, 1fr);
+        gap: 8px;
+        align-items: start;
+        color: rgba(232, 228, 217, 0.5);
+        font-family: "Share Tech Mono", monospace;
+        font-size: 0.7rem;
+        line-height: 1.25;
+        letter-spacing: 0.045em;
+        text-transform: uppercase;
+      }
+
+      .system-loading-check::before {
+        content: "";
+        width: 7px;
+        height: 7px;
+        margin-top: 1px;
+        border: 1px solid rgba(232, 228, 217, 0.35);
+        background: rgba(30, 27, 22, 0.78);
+        transform: rotate(45deg);
+      }
+
+      .system-loading-check.is-ready {
+        color: rgba(244, 233, 211, 0.92);
+      }
+
+      .system-loading-check.is-ready::before {
+        border-color: #e7a342;
+        background: #e7a342;
+        box-shadow: 0 0 7px rgba(231, 163, 66, 0.5);
+      }
+
+      .system-loading-check.is-error {
+        color: #ef756a;
+      }
+
+      .system-loading-check.is-error::before {
+        border-color: #ef756a;
+        background: #8e2d28;
+        box-shadow: 0 0 7px rgba(239, 117, 106, 0.45);
+      }
+
+      .system-loading-check small {
+        display: block;
+        margin-top: 2px;
+        color: rgba(232, 228, 217, 0.46);
+        font-family: "Roboto", sans-serif;
+        font-size: 0.64rem;
+        line-height: 1.25;
+        letter-spacing: 0;
+        text-transform: none;
+      }
+
       .loading-bar-container {
         width: 100%;
         border: 0;
@@ -1652,6 +1717,7 @@
         </div>
 
         <div class="loading-rule" aria-hidden="true"></div>
+        <div id="system-loading-checks" aria-label="Comprobaciones de la consola"></div>
         <button id="system-loading-retry" type="button">REINTENTAR</button>
       </div>
     </div>
@@ -4426,8 +4492,28 @@ window.processEntitiesData = function(entities) {
       const DM_LOADING_FALLBACK_IMAGE =
         "https://limbuscompany.wiki.gg/images/thumb/DanteStar.png/1024px-DanteStar.png?e52927";
 
-      const DM_BOOT_REQUIRED = new Set(["players", "npcs", "actors", "calendar"]);
-      const dmBootReady = new Set();
+      const BOOTSTRAP_DM_UID = "e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1";
+      const DM_BOOT_CHECKS = Object.freeze([
+        ["auth", "Identidad del Director"],
+        ["connection", "Conexión Firebase"],
+        ["permissions", "Permisos de escritura DM"],
+        ["players", "Jugadores"],
+        ["npcs", "NPCs"],
+        ["actors", "Actores"],
+        ["calendar", "Calendario"],
+        ["world", "Mundo, clima y tiempo"],
+        ["shops", "Tiendas"],
+        ["economy", "Economía"],
+        ["items", "Catálogo de ítems"],
+        ["content", "Units, Skills y Loot"],
+        ["communications", "Comunicaciones"],
+        ["combat", "Combat"],
+        ["theatre", "Theater"],
+        ["director-tools", "Herramientas privadas"],
+        ["tools", "Editores del Director"],
+      ]);
+      const DM_BOOT_REQUIRED = new Set(DM_BOOT_CHECKS.map(([key]) => key));
+      const dmBootState = new Map(DM_BOOT_CHECKS.map(([key, label]) => [key, { key, label, status: "pending", detail: "" }]));
       let dmBootFinalizing = false;
       let dmBootFailed = false;
 
@@ -4598,45 +4684,63 @@ window.processEntitiesData = function(entities) {
         }, 450);
       };
 
-      async function finishDMLoadingPresentation() {
-        const durationMs = 5000 + Math.floor(Math.random() * 5001);
-        const finalSteps = [96, 97, 98, 99, 100];
-        const stepDelay = Math.round(durationMs / finalSteps.length);
-
-        window.updateLoadingState({
-          progress: 95,
-          title: "FINALIZANDO CONSOLA",
-          detail: "Preparando herramientas del Director.",
+      function renderDMBootChecks() {
+        const host = document.getElementById("system-loading-checks");
+        if (!host) return;
+        host.innerHTML = "";
+        DM_BOOT_CHECKS.forEach(([key]) => {
+          const row = dmBootState.get(key);
+          if (!row) return;
+          const node = document.createElement("div");
+          node.className = "system-loading-check";
+          if (row.status === "ready") node.classList.add("is-ready");
+          if (row.status === "error") node.classList.add("is-error");
+          const text = document.createElement("span");
+          text.textContent = row.label;
+          if (row.detail) {
+            const detail = document.createElement("small");
+            detail.textContent = row.detail;
+            text.appendChild(detail);
+          }
+          node.appendChild(text);
+          host.appendChild(node);
         });
-
-        for (const progress of finalSteps) {
-          await new Promise((resolve) => setTimeout(resolve, stepDelay));
-          window.updateLoadingState({
-            progress,
-            title: progress < 100 ? "FINALIZANDO CONSOLA" : "CONSOLA LISTA",
-            detail: progress < 100
-              ? "Preparando herramientas del Director."
-              : "Control de campaña disponible.",
-          });
-        }
       }
 
-      function markDMBootReady(key) {
-        if (dmBootFailed || !DM_BOOT_REQUIRED.has(key) || dmBootReady.has(key)) return;
-        dmBootReady.add(key);
+      async function finishDMLoadingPresentation() {
+        window.updateLoadingState({
+          progress: 100,
+          title: "CONSOLA LISTA",
+          detail: "Todos los sistemas requeridos respondieron correctamente.",
+        });
+        await new Promise((resolve) => requestAnimationFrame(() => resolve()));
+      }
 
-        const progress = Math.min(
-          95,
-          30 + Math.round((dmBootReady.size / DM_BOOT_REQUIRED.size) * 65),
-        );
+      function setDMBootCheck(key, status = "ready", detail = "") {
+        if (dmBootFailed || !DM_BOOT_REQUIRED.has(key)) return;
+        const row = dmBootState.get(key);
+        if (!row) return;
+        row.status = status;
+        row.detail = String(detail || "");
+        renderDMBootChecks();
+
+        if (status === "error") {
+          dmBootFailed = true;
+          window.showLoadingError(`${row.label}: ${row.detail || "No respondió correctamente."}`);
+          return;
+        }
+
+        const readyCount = Array.from(dmBootState.values()).filter((entry) => entry.status === "ready").length;
+        const progress = Math.min(95, 8 + Math.round((readyCount / DM_BOOT_REQUIRED.size) * 87));
+        const currentPending = Array.from(dmBootState.values()).find((entry) => entry.status === "pending");
 
         window.updateLoadingState({
           progress,
-          title: "SINCRONIZANDO CAMPAÑA",
-          detail: "Cargando datos necesarios para dirigir.",
+          title: readyCount < DM_BOOT_REQUIRED.size ? "COMPROBANDO SISTEMAS" : "FINALIZANDO CONSOLA",
+          detail: currentPending ? `Verificando ${currentPending.label}.` : "Todas las comprobaciones respondieron.",
         });
 
-        if (dmBootReady.size === DM_BOOT_REQUIRED.size && !dmBootFinalizing) {
+        if (readyCount === DM_BOOT_REQUIRED.size && !dmBootFinalizing) {
           dmBootFinalizing = true;
           void finishDMLoadingPresentation().then(() => {
             window.hideLoadingOverlay();
@@ -4644,7 +4748,126 @@ window.processEntitiesData = function(entities) {
         }
       }
 
+      function markDMBootReady(key, detail = "") {
+        setDMBootCheck(key, "ready", detail);
+      }
+
+      function markDMBootError(key, error) {
+        const message = error?.message || String(error || "Error desconocido");
+        setDMBootCheck(key, "error", message);
+      }
+
+      function waitForFirebaseConnection(timeoutMs = 10000) {
+        return new Promise((resolve, reject) => {
+          const ref = db.ref(".info/connected");
+          let settled = false;
+          const timer = setTimeout(() => {
+            if (settled) return;
+            settled = true;
+            ref.off("value", onValue);
+            reject(new Error("Firebase no confirmó conexión dentro del tiempo esperado."));
+          }, timeoutMs);
+          const finish = (handler, value) => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timer);
+            ref.off("value", onValue);
+            handler(value);
+          };
+          const onValue = (snapshot) => {
+            if (snapshot.val() === true) finish(resolve, true);
+          };
+          ref.on("value", onValue, (error) => finish(reject, error));
+        });
+      }
+
+      async function probeDMBootRead(key, paths) {
+        try {
+          const list = Array.isArray(paths) ? paths : [paths];
+          await Promise.all(list.map((path) => db.ref(path).once("value")));
+          markDMBootReady(key, list.length > 1 ? `${list.length} fuentes disponibles` : "Disponible");
+        } catch (error) {
+          markDMBootError(key, error);
+        }
+      }
+
+      function waitForDMTools(timeoutMs = 12000) {
+        return new Promise((resolve, reject) => {
+          const started = Date.now();
+          const poll = () => {
+            const ready = Boolean(
+              window.LuminousDmPlayerDndStudio &&
+              window.LuminousCharacterManager &&
+              window.LuminousDmCombatTabManager &&
+              window.LuminousShopRuntime &&
+              window.LuminousDMEconomyRuntime
+            );
+            if (ready) {
+              resolve(true);
+              return;
+            }
+            if (Date.now() - started >= timeoutMs) {
+              reject(new Error("Uno o más editores del Director no terminaron de iniciar."));
+              return;
+            }
+            setTimeout(poll, 100);
+          };
+          poll();
+        });
+      }
+
+      async function runDMBootSystemChecks(user) {
+        waitForFirebaseConnection()
+          .then(() => markDMBootReady("connection", "Sincronizado"))
+          .catch((error) => markDMBootError("connection", error));
+
+        (async () => {
+          try {
+            const probeRef = db.ref(`campaña/runtime_health/dm_boot/${user.uid}`);
+            await probeRef.set({
+              at: firebase.database.ServerValue.TIMESTAMP,
+              surface: "pantalla_dm",
+            });
+            await probeRef.remove();
+            markDMBootReady("permissions", "Escritura DM confirmada por Firebase");
+          } catch (error) {
+            markDMBootError("permissions", error);
+          }
+        })();
+
+        void probeDMBootRead("shops", "campaña/tiendas");
+        void probeDMBootRead("economy", "campaña/economia");
+        void probeDMBootRead("items", "campaña/base_datos_items");
+        void probeDMBootRead("content", [
+          "campaña/base_datos_unidades",
+          "campaña/base_datos_skills",
+          "campaña/tablas_loot",
+          "campaña/base_datos_aumentos",
+          "campaña/keywords",
+        ]);
+        void probeDMBootRead("world", [
+          "campaña/estado_mundo",
+          "campaña/hora_actual",
+          "campaña/climas_info",
+          "campaña/worldData/weatherForecast",
+          "campaña/rol_turns",
+        ]);
+        void probeDMBootRead("communications", "campaña/comms/chats");
+        void probeDMBootRead("combat", "campaña/combate");
+        void probeDMBootRead("theatre", [
+          "campaña/teatro",
+          "campaña/estado_mundo/escena_actual",
+        ]);
+        void probeDMBootRead("director-tools", "dm_private");
+
+        waitForDMTools()
+          .then(() => markDMBootReady("tools", "Editores disponibles"))
+          .catch((error) => markDMBootError("tools", error));
+      }
+
+
       initializeDMLoadingPresentation();
+      renderDMBootChecks();
       window.updateLoadingState({
         progress: 0,
         title: "VERIFICANDO DIRECTOR",
@@ -4652,21 +4875,49 @@ window.processEntitiesData = function(entities) {
       });
 
       // --- LÓGICA DE AUTENTICACIÓN Y PROTECCIÓN DE RUTA DM ---
-      auth.onAuthStateChanged((user) => {
-        if (!user || user.uid !== "e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1") {
-          // Unauthenticated or not the DM -> Kick them out immediately
-          if (user) {
-            window.location.replace("hoja_personaje.html"); // They are a player
-          } else {
-            window.location.replace("index.html");
+      auth.onAuthStateChanged(async (user) => {
+        if (!user) {
+          window.location.replace("index.html");
+          return;
+        }
+
+        try {
+          const dmSnapshot = await db.ref("campaña/config/dm_uid").once("value");
+          const configuredDmUid = String(dmSnapshot.val() || "").trim();
+          const isDirector = user.uid === BOOTSTRAP_DM_UID || (configuredDmUid && user.uid === configuredDmUid);
+
+          if (!isDirector) {
+            window.location.replace("hoja_personaje.html");
+            return;
           }
-        } else {
+
+          markDMBootReady(
+            "auth",
+            user.uid === BOOTSTRAP_DM_UID ? "Director bootstrap autorizado" : "Director configurado autorizado",
+          );
+
+          window.__luminousDmAuthReady = true;
+          window.dispatchEvent(new CustomEvent("luminous:dm-auth-ready", {
+            detail: { uid: user.uid, configuredDmUid: configuredDmUid || null },
+          }));
+
           window.updateLoadingState({
-            progress: 20,
+            progress: 12,
             title: "ACCESO DE DIRECTOR CONFIRMADO",
-            detail: "Preparando la consola de campaña.",
+            detail: "Comprobando sistemas y permisos de campaña.",
           });
-          initializeDMApp();
+
+          try {
+            initializeDMApp();
+          } catch (error) {
+            console.error("No se pudo inicializar la consola del Director:", error);
+            window.showLoadingError("La consola del Director falló durante su inicialización.");
+            return;
+          }
+          runDMBootSystemChecks(user);
+        } catch (error) {
+          console.error("No se pudo verificar la autoridad del Director:", error);
+          markDMBootError("auth", error);
         }
       });
 
@@ -4721,7 +4972,7 @@ window.processEntitiesData = function(entities) {
                 markDMBootReady("players");
             }, (error) => {
                 showActorDirectoryError("campaña/jugadores", error);
-                window.showLoadingError("No se pudo cargar el directorio de jugadores.");
+                markDMBootError("players", error);
             });
 
             db.ref("campaña/base_datos_npcs").on("value", (snapshot) => {
@@ -4733,7 +4984,7 @@ window.processEntitiesData = function(entities) {
                 markDMBootReady("npcs");
             }, (error) => {
                 showActorDirectoryError("campaña/base_datos_npcs", error);
-                window.showLoadingError("No se pudo cargar el directorio de NPCs.");
+                markDMBootError("npcs", error);
             });
 
             db.ref("campaña/actores").on("value", (snapshot) => {
@@ -4745,7 +4996,7 @@ window.processEntitiesData = function(entities) {
                 markDMBootReady("actors");
             }, (error) => {
                 showActorDirectoryError("campaña/actores", error);
-                window.showLoadingError("No se pudo cargar el directorio de actores.");
+                markDMBootError("actors", error);
             });
         }
 
@@ -6275,7 +6526,7 @@ window.processEntitiesData = function(entities) {
           },
           (error) => {
             console.error(error);
-            window.showLoadingError("No se pudo sincronizar el estado de la campaña.");
+            markDMBootError("calendar", error);
           },
         );
 

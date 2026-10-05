@@ -13,8 +13,10 @@
       }
 
       db.ref("campaña/config/dm_uid").once("value").then((snapshot) => {
-        const expectedUid = snapshot.val() || "e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1";
-        if (user.uid !== expectedUid) {
+        const bootstrapUid = "e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1";
+        const configuredUid = String(snapshot.val() || "").trim();
+        const isDirector = user.uid === bootstrapUid || (configuredUid && user.uid === configuredUid);
+        if (!isDirector) {
           if (authBlocker) authBlocker.style.display = "flex";
           return;
         }
@@ -464,11 +466,75 @@
       });
 
       const btnTriggerCombat = document.getElementById("btn-trigger-combat");
-      btnTriggerCombat?.addEventListener("click", () => {
-        database.ref("campaña/estado_mundo/instancia_activa").set("combate");
-        database.ref("campaña/combate").update({
-          estado: "COMBAT_ACTIVE",
-          startedAt: window.firebase.database.ServerValue.TIMESTAMP
+      btnTriggerCombat?.addEventListener("click", async () => {
+        if (btnTriggerCombat.disabled) return;
+        btnTriggerCombat.disabled = true;
+        try {
+          const timestamp = window.firebase.database.ServerValue.TIMESTAMP;
+          await database.ref("campaña/combate/estado").update({
+            phase: "COMBAT_ACTIVE",
+            active: true,
+            result: null,
+            outcome: null,
+            transition: null,
+            startedAt: timestamp,
+            updatedAt: timestamp
+          });
+          await database.ref("campaña/combate").update({ startedAt: timestamp });
+        } catch (error) {
+          console.error("No se pudo iniciar Combat:", error);
+          window.alert?.("No se pudo iniciar el combate.");
+        } finally {
+          btnTriggerCombat.disabled = false;
+        }
+      });
+
+      const encounterEndButtons = [
+        [document.getElementById("btn-end-combat-victory"), "victory"],
+        [document.getElementById("btn-end-combat-defeat"), "defeat"],
+        [document.getElementById("btn-end-combat-cancel"), "cancelled"],
+      ].filter(([button]) => Boolean(button));
+
+      const waitForEncounterFinisher = (timeoutMs = 5000) => new Promise((resolve, reject) => {
+        const combatFrame = document.getElementById("dm-combat-view");
+        if (!combatFrame) {
+          reject(new Error("COMBAT_FRAME_UNAVAILABLE"));
+          return;
+        }
+        const startedAt = Date.now();
+        const probe = () => {
+          try {
+            const api = combatFrame.contentWindow?.LuminousBattleViewerDmConsole074;
+            if (api?.finishEncounter && api?.isDmAuthorized?.() && api?._state?.db?.ref) {
+              resolve(api);
+              return;
+            }
+          } catch (_) {}
+          if (Date.now() - startedAt >= timeoutMs) {
+            reject(new Error("CANONICAL_ENCOUNTER_FINISHER_UNAVAILABLE"));
+            return;
+          }
+          setTimeout(probe, 50);
+        };
+        probe();
+      });
+
+      const finishEncounter = async (result) => {
+        encounterEndButtons.forEach(([button]) => { button.disabled = true; });
+        try {
+          const finisher = await waitForEncounterFinisher();
+          await finisher.finishEncounter(result, { confirm: false });
+        } finally {
+          encounterEndButtons.forEach(([button]) => { button.disabled = false; });
+        }
+      };
+
+      encounterEndButtons.forEach(([button, result]) => {
+        button.addEventListener("click", () => {
+          finishEncounter(result).catch((error) => {
+            console.error("No se pudo cerrar el encounter:", error);
+            window.alert?.("No se pudo cerrar el encounter.");
+          });
         });
       });
     }
