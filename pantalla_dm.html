@@ -4500,11 +4500,13 @@ window.processEntitiesData = function(entities) {
         ["players", "Jugadores"],
         ["npcs", "NPCs"],
         ["actors", "Actores"],
-        ["calendar", "Calendario y mundo"],
+        ["calendar", "Calendario"],
+        ["world", "Mundo, clima y tiempo"],
         ["shops", "Tiendas"],
         ["economy", "Economía"],
         ["items", "Catálogo de ítems"],
         ["content", "Units, Skills y Loot"],
+        ["communications", "Comunicaciones"],
         ["combat", "Combat"],
         ["theatre", "Theater"],
         ["director-tools", "Herramientas privadas"],
@@ -4840,7 +4842,17 @@ window.processEntitiesData = function(entities) {
           "campaña/base_datos_unidades",
           "campaña/base_datos_skills",
           "campaña/tablas_loot",
+          "campaña/base_datos_aumentos",
+          "campaña/keywords",
         ]);
+        void probeDMBootRead("world", [
+          "campaña/estado_mundo",
+          "campaña/hora_actual",
+          "campaña/climas_info",
+          "campaña/worldData/weatherForecast",
+          "campaña/rol_turns",
+        ]);
+        void probeDMBootRead("communications", "campaña/comms/chats");
         void probeDMBootRead("combat", "campaña/combate");
         void probeDMBootRead("theatre", [
           "campaña/teatro",
