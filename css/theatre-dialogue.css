@@ -402,3 +402,19 @@ html body.on-game-dashboard #modulo-teatro.game-module {
     );
   }
 }
+
+/* Canonical player dropdown icon size: keep after legacy Theatre normalization. */
+html body.player-instance-theatre .hud-sidebar-right #hud-menu-dropdown .hud-menu-item > svg,
+html body.player-instance-theatre .hud-sidebar-right #hud-menu-dropdown .hud-menu-item > img:not(#tienda-fisica-badge) {
+  width: 100px !important;
+  height: 100px !important;
+  min-width: 100px !important;
+  min-height: 100px !important;
+  max-width: 100px !important;
+  max-height: 100px !important;
+  flex: 0 0 100px !important;
+  object-fit: contain !important;
+  object-position: center !important;
+  aspect-ratio: 1 / 1 !important;
+  margin: 0 !important;
+}
