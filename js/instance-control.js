@@ -2,7 +2,9 @@
   "use strict";
 
   const INSTANCE_PATH = "campaña/estado_mundo/instancia_activa";
+  const COMBAT_STATE_PATH = "campaña/combate/estado";
   const DEFAULT_THEATRE_SCENE_PATH = "campaña/estado_mundo/escena_actual";
+  const RESULT_PRESENTATION_MS = 1800;
   const COMBAT_RUNTIME_SCRIPTS = Object.freeze([
     ["combat-player-trait-runtime-script", "js/player-trait-runtime.js", "LuminousPlayerTraitRuntime"],
     ["combat-trait-standardization-runtime-script", "js/trait-standardization-runtime.js", "LuminousTraitStandardizationRuntime"],
@@ -13,6 +15,88 @@
     const normalized = typeof instance === "string" && instance.trim() ? instance.trim() : "ninguno";
     if (normalized === "mapa") return "ninguno";
     if (["combat-theatre", "combat_theater", "combat-theater"].includes(normalized)) return "combat_theatre";
+    return normalized;
+  }
+
+  function loadingApi() {
+    return global.LuminousGameLoading || null;
+  }
+
+  function normalizeCombatResult(value) {
+    const api = loadingApi();
+    if (api?.normalizeResult) return api.normalizeResult(value);
+    const normalized = String(value || "").trim().toLowerCase();
+    if (["victory", "win", "won"].includes(normalized)) return "victory";
+    if (["defeat", "lose", "loss", "lost"].includes(normalized)) return "defeat";
+    if (["cancelled", "canceled", "cancel", "aborted", "abort"].includes(normalized)) return "cancelled";
+    return "";
+  }
+
+  function isEncounterEnded(value = {}) {
+    return String(value?.phase || "").trim().toUpperCase() === "ENDED" || value?.active === false;
+  }
+
+  function combatResultToken(value = {}) {
+    return [
+      normalizeCombatResult(value?.result || value?.outcome),
+      String(value?.endedAt || ""),
+      String(value?.endedBy || ""),
+    ].join("|");
+  }
+
+  function beginCombatLoading({ db, doc, role } = {}) {
+    const documentRef = doc || global.document;
+    const frameId = role === "dm" ? "dm-combat-view" : "player-instance-combat";
+    const frame = documentRef?.getElementById?.(frameId);
+    const api = loadingApi();
+    if (!frame || !api?.waitForCombatFrame) return Promise.resolve(false);
+    return api.waitForCombatFrame(frame, {
+      db,
+      doc: documentRef,
+      role: role || "viewer",
+      timeoutMs: 25000,
+    }).catch((error) => {
+      global.console?.error?.("No se pudo completar la carga de Battle:", error);
+      return false;
+    });
+  }
+
+  function beginTheatreLoading({ db, doc, result } = {}) {
+    const documentRef = doc || global.document;
+    const api = loadingApi();
+    if (!api?.waitForTheatre) return Promise.resolve(false);
+    return api.waitForTheatre({
+      db,
+      doc: documentRef,
+      result: normalizeCombatResult(result),
+      scenePath: getTheatreScenePath(),
+      timeoutMs: 12000,
+    }).then((ready) => {
+      if (ready && result) api.showResultRecap?.(result, { doc: documentRef });
+      return ready;
+    }).catch((error) => {
+      global.console?.error?.("No se pudo completar el regreso al Theater:", error);
+      return false;
+    });
+  }
+
+  async function endEncounter({ db, result, reason = "" } = {}) {
+    const database = db || global.firebase?.database?.();
+    if (!database?.ref) throw new Error("DATABASE_UNAVAILABLE");
+    const normalized = normalizeCombatResult(result);
+    if (!normalized) throw new Error("INVALID_COMBAT_RESULT");
+    const uid = String(global.firebase?.auth?.()?.currentUser?.uid || "").trim();
+    await database.ref(COMBAT_STATE_PATH).update({
+      phase: "ENDED",
+      active: false,
+      result: normalized,
+      outcome: normalized,
+      transition: "result",
+      endReason: String(reason || ""),
+      endedAt: global.firebase?.database?.ServerValue?.TIMESTAMP || Date.now(),
+      endedBy: uid || null,
+      updatedAt: global.firebase?.database?.ServerValue?.TIMESTAMP || Date.now(),
+    });
     return normalized;
   }
 
@@ -411,7 +495,11 @@
     const documentRef = doc || global.document;
     if (!db || !documentRef) return;
     const instanceRef = db.ref(INSTANCE_PATH);
+    const combatStateRef = db.ref(COMBAT_STATE_PATH);
     let currentInstance = "ninguno";
+    let combatState = {};
+    let lastAutoTransitionToken = "";
+    let endTransitionTimer = null;
 
     ensureTheatreRollVisualizerAssets(documentRef);
     ensureTheatreCheckCoordinatorAssets(documentRef);
@@ -420,35 +508,66 @@
     ensureDashboardActorStudioAssets(documentRef);
     ensureDmLocationControl({ db, doc: documentRef });
 
+    const scheduleEndedEncounterTransition = () => {
+      if (currentInstance !== "combate" || !isEncounterEnded(combatState)) return;
+      const result = normalizeCombatResult(combatState?.result || combatState?.outcome);
+      if (!result) return;
+      const token = combatResultToken(combatState);
+      if (!token || token === lastAutoTransitionToken) return;
+      lastAutoTransitionToken = token;
+      if (endTransitionTimer) global.clearTimeout(endTransitionTimer);
+      const presentationMs = result === "cancelled" ? 0 : RESULT_PRESENTATION_MS;
+      endTransitionTimer = global.setTimeout(() => {
+        endTransitionTimer = null;
+        if (currentInstance !== "combate") return;
+        instanceRef.set("teatro").catch((error) => {
+          console.error("No se pudo regresar al Theater después del encounter:", error);
+          loadingApi()?.fail?.("instance", error?.message || String(error), documentRef);
+        });
+      }, presentationMs);
+    };
+
+    combatStateRef.on("value", (snapshot) => {
+      combatState = snapshot.val() || {};
+      scheduleEndedEncounterTransition();
+    }, (error) => {
+      console.error("No se pudo observar el estado del encounter:", error);
+    });
+
     documentRef.querySelectorAll('input[name="instancia"]').forEach((radio) => {
-      radio.addEventListener("change", (evento) => {
+      radio.addEventListener("change", async (evento) => {
         const requestedInstance = normalizeInstance(evento.target.value);
         const nuevaInstancia = requestedInstance === "teatro" && ["combate", "combat_theatre"].includes(currentInstance)
           ? "combat_theatre"
           : requestedInstance;
-        instanceRef.set(nuevaInstancia).catch((error) => {
-          console.error("Error al transicionar instancia de juego:", error);
-        });
-        if (nuevaInstancia === "combate") {
-          const stateRef = db.ref("campaña/combate/estado");
-          stateRef.once("value").then((snapshot) => {
+
+        try {
+          if (nuevaInstancia === "combate") {
+            const snapshot = await combatStateRef.once("value");
             const existing = snapshot.val?.() || null;
-            if (snapshot.exists() && existing?.phase !== "ENDED" && existing?.active !== false) return;
-            return stateRef.update({
-              phase: "PRE_COMBAT_PLANNING",
-              round: 1,
-              active: true,
-              result: null,
-              endedAt: null,
-              endedBy: null,
-              updatedAt: global.firebase.database.ServerValue.TIMESTAMP
-            }).then(() => db.ref("campaña/combate").update({
-              planningStartedAt: global.firebase.database.ServerValue.TIMESTAMP,
-              planningDuration: 60
-            }));
-          }).catch((error) => {
-            console.error("No se pudo inicializar el estado de Combat:", error);
-          });
+            if (!snapshot.exists() || existing?.phase === "ENDED" || existing?.active === false) {
+              await combatStateRef.set({
+                phase: "PRE_COMBAT_PLANNING",
+                round: 1,
+                active: true,
+                result: null,
+                outcome: null,
+                transition: null,
+                endedAt: null,
+                endedBy: null,
+                endReason: null,
+                updatedAt: global.firebase.database.ServerValue.TIMESTAMP
+              });
+              await db.ref("campaña/combate").update({
+                planningStartedAt: global.firebase.database.ServerValue.TIMESTAMP,
+                planningDuration: 60
+              });
+            }
+          }
+          await instanceRef.set(nuevaInstancia);
+        } catch (error) {
+          console.error("Error al transicionar instancia de juego:", error);
+          loadingApi()?.fail?.("instance", error?.message || String(error), documentRef);
         }
       });
     });
@@ -456,27 +575,91 @@
     instanceRef.on("value", (snapshot) => {
       const rawInstance = snapshot.val();
       const activeInstance = normalizeInstance(rawInstance);
+      const previousInstance = currentInstance;
+      const returningToTheatre =
+        (activeInstance === "teatro" || activeInstance === "combat_theatre") &&
+        ["combate", "combat_theatre"].includes(previousInstance);
+      const result = normalizeCombatResult(combatState?.result || combatState?.outcome);
+
+      if (returningToTheatre) {
+        void beginTheatreLoading({ db, doc: documentRef, result });
+      }
+
       currentInstance = activeInstance;
       applyDashboardInstance(activeInstance, documentRef);
+
+      if (activeInstance === "combate" && previousInstance !== "combate") {
+        const combatView = documentRef.getElementById("dm-combat-view");
+        if (combatView && !combatView.getAttribute("src")) {
+          combatView.src = combatView.dataset.src || "Battle-viewer.html";
+        }
+        void beginCombatLoading({ db, doc: documentRef, role: "dm" });
+      }
+
       if (rawInstance === "mapa") {
         instanceRef.set("ninguno").catch((error) => {
           console.error("No se pudo migrar la instancia legacy de mapa táctico:", error);
         });
       }
+
+      scheduleEndedEncounterTransition();
+    }, (error) => {
+      console.error("No se pudo observar la instancia activa:", error);
+      loadingApi()?.fail?.("instance", error?.message || String(error), documentRef);
     });
   }
 
   function bindPlayer({ db, doc } = {}) {
     const documentRef = doc || global.document;
     if (!db || !documentRef) return;
+    const instanceRef = db.ref(INSTANCE_PATH);
+    const combatStateRef = db.ref(COMBAT_STATE_PATH);
+    let currentInstance = "ninguno";
+    let combatState = {};
+
     ensureTheatreRollVisualizerAssets(documentRef);
     ensureTheatreCheckCoordinatorAssets(documentRef);
     ensureTheatreOpposedAssets(documentRef);
-    db.ref(INSTANCE_PATH).on("value", (snapshot) => applyPlayerInstance(snapshot.val(), documentRef));
+
+    combatStateRef.on("value", (snapshot) => {
+      combatState = snapshot.val() || {};
+    }, (error) => {
+      console.error("No se pudo observar el estado del encounter para el jugador:", error);
+    });
+
+    instanceRef.on("value", (snapshot) => {
+      const activeInstance = normalizeInstance(snapshot.val());
+      const previousInstance = currentInstance;
+      const returningToTheatre =
+        (activeInstance === "teatro" || activeInstance === "combat_theatre") &&
+        ["combate", "combat_theatre"].includes(previousInstance);
+      const result = normalizeCombatResult(combatState?.result || combatState?.outcome);
+
+      if (returningToTheatre) {
+        void beginTheatreLoading({ db, doc: documentRef, result });
+      }
+
+      currentInstance = activeInstance;
+      applyPlayerInstance(activeInstance, documentRef);
+
+      if (activeInstance === "combate" && previousInstance !== "combate") {
+        void beginCombatLoading({ db, doc: documentRef, role: "player" });
+      }
+    }, (error) => {
+      console.error("No se pudo observar la instancia activa para el jugador:", error);
+      loadingApi()?.fail?.("instance", error?.message || String(error), documentRef);
+    });
   }
 
   global.LuminousInstanceControl = Object.freeze({
     INSTANCE_PATH,
+    COMBAT_STATE_PATH,
+    RESULT_PRESENTATION_MS,
+    normalizeCombatResult,
+    isEncounterEnded,
+    endEncounter,
+    beginCombatLoading,
+    beginTheatreLoading,
     applyDmInstance,
     applyPlayerInstance,
     applyDashboardInstance,
