@@ -2,7 +2,7 @@
   'use strict';
   if(global.LuminousCombatEconomyReviewFixes073)return;
 
-  const VERSION='0.7.3-economy-review-fixes.4-bounded-install-retry';
+  const VERSION='0.7.3-economy-review-fixes.5-menu-ready-retry';
   const ECONOMY=Object.freeze({ACTION:'action',QUICK:'quick_action',REACTION:'reaction'});
   const INSTALL_MAX_ATTEMPTS=24;
   const state={installed:false,installRetry:null,installAttempts:0,originalPlayerDeckForUnit:null,pendingTraitTarget:null,triggerPoll:null,lastWrappedTrigger:null};
@@ -265,11 +265,13 @@
 
   const reviewApi={version:VERSION,state,canonicalCost,annotateEconomySources,filteredPlayerDeckForUnit,renderCleanList,renderSkills,selectAction,executeTraitQuick,beginTraitQuick,reactionTriggerIds,matchesPreparedTrigger,installCombatTriggerBridge,install};
   global.LuminousCombatEconomyReviewFixes073=Object.freeze(reviewApi);
-  global.addEventListener?.('luminous:combat073-runtime-ready',()=>{
+  function retryInstallFromReadySignal(){
     if(state.installed)return;
     state.installAttempts=0;
     scheduleInstall(0);
-  });
+  }
+  global.addEventListener?.('luminous:combat073-runtime-ready',retryInstallFromReadySignal);
+  global.addEventListener?.('luminous:combat073-economy-menu-ready',retryInstallFromReadySignal);
   scheduleInstall(0);
   if(typeof module!=='undefined'&&module.exports)module.exports=reviewApi;
 })(typeof window!=='undefined'?window:globalThis);
