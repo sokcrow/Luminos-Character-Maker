@@ -144,9 +144,14 @@ assert.equal(itemButton.dataset.itemInstanceId, 'med_live_1');
 assert.equal(typeof itemButton.onclick, 'function', 'Item row must have a click handler');
 itemButton.onclick();
 assert.ok(selected, 'clicking an Item row must reach selection');
-assert.equal(selected.type, 'items');
+assert.equal(selected.type, 'item', 'a concrete inventory row must enter the legacy action-detail selector as a singular item');
 assert.equal(selected.data.instanceId, 'med_live_1');
 assert.equal(selected.data.definitionId, 'hp_generic_pocket_recovery_patch');
+
+selected = null;
+menu.selectAction({ type: 'items', slotIndex: 0, data: rows[0] });
+assert.ok(selected, 'legacy plural item selections must still reach the action-detail selector');
+assert.equal(selected.type, 'item', 'legacy plural item selections must normalize before crossing into the packed selector');
 
 menu.state.originals.planTargetRule = (source) => source.itemType === 'hp_healing' ? 'self' : 'enemy';
 assert.equal(
