@@ -2,9 +2,10 @@
   'use strict';
   if(global.LuminousCombatEconomyReviewFixes073)return;
 
-  const VERSION='0.7.3-economy-review-fixes.3-install-order-guard';
+  const VERSION='0.7.3-economy-review-fixes.4-bounded-install-retry';
   const ECONOMY=Object.freeze({ACTION:'action',QUICK:'quick_action',REACTION:'reaction'});
-  const state={installed:false,installRetry:null,originalPlayerDeckForUnit:null,pendingTraitTarget:null,triggerPoll:null,lastWrappedTrigger:null};
+  const INSTALL_MAX_ATTEMPTS=24;
+  const state={installed:false,installRetry:null,installAttempts:0,originalPlayerDeckForUnit:null,pendingTraitTarget:null,triggerPoll:null,lastWrappedTrigger:null};
   const clean=v=>String(v??'').trim();
   const norm=v=>clean(v).toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'');
   const arr=v=>v==null?[]:(Array.isArray(v)?v:[v]);
@@ -229,9 +230,16 @@
     assign('selectAction','window.LuminousCombatEconomyReviewFixes073.selectAction');
     refreshPlayerDeck();return true;
   }
+  function nextInstallDelay(){
+    const step=Math.min(5,Math.max(0,state.installAttempts));
+    return Math.min(500,25*(2**step));
+  }
   function scheduleInstall(delay=50){
     if(state.installed||state.installRetry!=null)return false;
-    const timer=global.setTimeout?.(()=>{state.installRetry=null;install()},Math.max(0,Number(delay)||0));
+    if(!global.document||typeof global.setTimeout!=='function')return false;
+    if(state.installAttempts>=INSTALL_MAX_ATTEMPTS)return false;
+    state.installAttempts+=1;
+    const timer=global.setTimeout(()=>{state.installRetry=null;install()},Math.max(0,Number(delay)||0));
     state.installRetry=timer??null;
     return timer!=null;
   }
@@ -239,13 +247,14 @@
     if(state.installed)return true;
     const menu=api();
     if(!menu?.state?.installed||typeof menu?.state?.originals?.selectAction!=='function'){
-      scheduleInstall();
+      scheduleInstall(nextInstallDelay());
       return false;
     }
     if(!installLexicalPatches()){
-      scheduleInstall();
+      scheduleInstall(nextInstallDelay());
       return false;
     }
+    state.installAttempts=0;
     global.document?.addEventListener?.('click',onCaptureClick,true);
     global.addEventListener?.('luminous:combat073-reaction-trigger',onReactionTrigger);
     global.addEventListener?.('luminous:combat073-hydrated',()=>{annotateEconomySources();installLexicalPatches();installCombatTriggerBridge()});
@@ -256,7 +265,11 @@
 
   const reviewApi={version:VERSION,state,canonicalCost,annotateEconomySources,filteredPlayerDeckForUnit,renderCleanList,renderSkills,selectAction,executeTraitQuick,beginTraitQuick,reactionTriggerIds,matchesPreparedTrigger,installCombatTriggerBridge,install};
   global.LuminousCombatEconomyReviewFixes073=Object.freeze(reviewApi);
-  global.addEventListener?.('luminous:combat073-runtime-ready',()=>{if(!state.installed)scheduleInstall(0)});
-  global.setTimeout?.(install,0);
+  global.addEventListener?.('luminous:combat073-runtime-ready',()=>{
+    if(state.installed)return;
+    state.installAttempts=0;
+    scheduleInstall(0);
+  });
+  scheduleInstall(0);
   if(typeof module!=='undefined'&&module.exports)module.exports=reviewApi;
 })(typeof window!=='undefined'?window:globalThis);
