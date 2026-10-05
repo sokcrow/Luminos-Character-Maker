@@ -25,8 +25,22 @@ auth.onAuthStateChanged(user => {
     }
 });
 
-function redirectUser(user) {
-    if (user.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1') {
+async function isDirectorUser(user) {
+    const bootstrapUid = 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1';
+    if (!user?.uid) return false;
+    if (user.uid === bootstrapUid) return true;
+    try {
+        const snapshot = await db.ref('campaña/config/dm_uid').once('value');
+        const configuredUid = String(snapshot.val() || '').trim();
+        return Boolean(configuredUid && configuredUid === user.uid);
+    } catch (error) {
+        console.error("Error checking DM authority:", error);
+        return false;
+    }
+}
+
+async function redirectUser(user) {
+    if (await isDirectorUser(user)) {
         window.location.replace('pantalla_dm.html');
         return;
     }
@@ -159,12 +173,7 @@ document.addEventListener('DOMContentLoaded', () => {
             .then((userCredential) => {
                 const user = userCredential.user;
 
-                if (user.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1') {
-                    redirectUser(user);
-                    return;
-                }
-
-                // For everyone else, route through redirectUser to ensure they hit the Traffic Controller
+                // All users route through the same authority-aware Traffic Controller.
                 redirectUser(user);
             })
             .catch((error) => {
