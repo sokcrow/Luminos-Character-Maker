@@ -448,9 +448,26 @@ test('real Player internal Combat buttons advance selection state on physical cl
     await row.click({ timeout: 5000 });
     await page.waitForTimeout(120);
     const after = await state();
+    const physicalAdvanced = after.navState === 'action' || after.selectedName === entry.label || (entry.menu === 'items' && /USE ITEM/.test(after.bodyText));
+    let direct = null;
+    if (!physicalAdvanced) {
+      await row.evaluate(node => {
+        if (typeof node.onclick === 'function') {
+          node.onclick({
+            currentTarget:node,
+            target:node,
+            preventDefault(){},
+            stopPropagation(){},
+            stopImmediatePropagation(){}
+          });
+        }
+      });
+      await page.waitForTimeout(80);
+      direct = await state();
+    }
     expect(
-      after.navState === 'action' || after.selectedName === entry.label || (entry.menu === 'items' && /USE ITEM/.test(after.bodyText)),
-      JSON.stringify({ entry, before, after })
+      physicalAdvanced,
+      JSON.stringify({ entry, before, after, direct, hasOnclick: await row.evaluate(node => typeof node.onclick === 'function') })
     ).toBe(true);
   }
 
