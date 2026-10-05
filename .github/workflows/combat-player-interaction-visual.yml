@@ -9,6 +9,7 @@ on:
       - 'js/combat-v073-economy-menu.js'
       - 'js/combat-v073-economy-review-fixes.js'
       - 'tests/combat-v073-player-menu-visual.spec.mjs'
+      - 'tests/combat-v073-economy-review-install-retry-smoke.mjs'
       - '.github/workflows/combat-player-interaction-visual.yml'
 
 jobs:
@@ -20,6 +21,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+      - name: Bounded install retry contract
+        run: node tests/combat-v073-economy-review-install-retry-smoke.mjs
       - name: Install Chromium
         run: |
           npm install --no-save @playwright/test@1.55.0
