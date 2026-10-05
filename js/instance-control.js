@@ -86,16 +86,19 @@
     const normalized = normalizeCombatResult(result);
     if (!normalized) throw new Error("INVALID_COMBAT_RESULT");
     const uid = String(global.firebase?.auth?.()?.currentUser?.uid || "").trim();
-    await database.ref(COMBAT_STATE_PATH).update({
-      phase: "ENDED",
-      active: false,
-      result: normalized,
-      outcome: normalized,
-      transition: "result",
-      endReason: String(reason || ""),
-      endedAt: global.firebase?.database?.ServerValue?.TIMESTAMP || Date.now(),
-      endedBy: uid || null,
-      updatedAt: global.firebase?.database?.ServerValue?.TIMESTAMP || Date.now(),
+    const timestamp = global.firebase?.database?.ServerValue?.TIMESTAMP || Date.now();
+    await database.ref().update({
+      [`${COMBAT_STATE_PATH}/phase`]: "ENDED",
+      [`${COMBAT_STATE_PATH}/active`]: false,
+      [`${COMBAT_STATE_PATH}/result`]: normalized,
+      [`${COMBAT_STATE_PATH}/outcome`]: normalized,
+      [`${COMBAT_STATE_PATH}/transition`]: "result",
+      [`${COMBAT_STATE_PATH}/endReason`]: String(reason || ""),
+      [`${COMBAT_STATE_PATH}/endedAt`]: timestamp,
+      [`${COMBAT_STATE_PATH}/endedBy`]: uid || null,
+      [`${COMBAT_STATE_PATH}/updatedAt`]: timestamp,
+      "campaña/combate/plannedActions": null,
+      "campaña/combate/readyPlayers": null,
     });
     return normalized;
   }
