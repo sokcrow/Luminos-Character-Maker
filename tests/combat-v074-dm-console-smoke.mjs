@@ -252,6 +252,9 @@ assert.ok(encounterWrites.some((entry) => entry.op === 'set' && entry.path === d
 assert.equal(encounterCombatants.alpha.encounterEnded, true);
 assert.equal(encounterCombatants.beta.encounterEnded, true);
 
+delete globalThis.document;
+globalThis.LuminousCombatEncounterLifecycle = EncounterLifecycle;
+
 const firebaseSafe = dmApi.sanitizeForFirebase({ a: 1, fn() {}, nested: { b: 2, skip: undefined } });
 assert.deepEqual(firebaseSafe, { a: 1, nested: { b: 2 } });
 
