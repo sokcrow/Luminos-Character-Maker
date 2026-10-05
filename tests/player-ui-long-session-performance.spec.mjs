@@ -414,10 +414,31 @@ test("real player sheet stays stable for 60 seconds under background player upda
   await installPageInstrumentation(page);
   await page.goto(BASE + "/hoja_personaje.html", { waitUntil: "domcontentloaded" });
   await page.waitForFunction(() => window.datosJugador?.characterName === "Performance Test", null, { timeout: 20_000 });
-  await page.waitForTimeout(2_000);
+  // hoja_personaje.html removes its legacy system-loading overlay on a 5s
+  // emergency fallback timer. That subtree is intentionally temporary, so do
+  // not include it in the long-session DOM baseline.
+  await page.waitForFunction(() => !document.getElementById("system-loading-overlay"), null, { timeout: 10_000 });
+  await page.waitForTimeout(250);
 
   const result = await page.evaluate(async () => {
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    // Establish the baseline only after the post-loading DOM has remained
+    // unchanged for 3 continuous seconds. The final assertion below remains
+    // exact, so real stacking/leaks still fail.
+    let settledNodeCount = document.getElementsByTagName("*").length;
+    let stableNodeSamples = 0;
+    while (stableNodeSamples < 30) {
+      await sleep(100);
+      const nextNodeCount = document.getElementsByTagName("*").length;
+      if (nextNodeCount === settledNodeCount) {
+        stableNodeSamples += 1;
+      } else {
+        settledNodeCount = nextNodeCount;
+        stableNodeSamples = 0;
+      }
+    }
+
     const watched = [
       document.getElementById("player-progression-tree-host"),
       document.getElementById("player-progression-level-allocation-host"),

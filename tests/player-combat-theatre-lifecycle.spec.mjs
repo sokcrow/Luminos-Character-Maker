@@ -182,6 +182,10 @@ test('DM instance callback sends Player Combat to Theatre with zero Battle resid
         };
       }
     };
+    // page.setContent() replaces the document but preserves window globals from
+    // index.html. Remove the inherited Auth surface so this unit harness binds
+    // data immediately instead of waiting for a real auth restoration event.
+    window.firebase={database:{ServerValue:{TIMESTAMP:12345}}};
     window.LuminousInstanceControl.bindPlayer({db,doc:document});
     const emit=value=>instanceHandler?.({val:()=>value});
 

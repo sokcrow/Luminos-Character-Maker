@@ -168,7 +168,7 @@ assert.equal(dmApi.normalizeEncounterResult('lose'), 'defeat');
 
 const EncounterLifecycleModule = require('../js/combat-encounter-lifecycle.js');
 const EncounterLifecycle = EncounterLifecycleModule?.version ? EncounterLifecycleModule : globalThis.LuminousCombatEncounterLifecycle;
-assert.equal(EncounterLifecycle.version, '1.1.0');
+assert.equal(EncounterLifecycle.version, '1.2.0');
 assert.equal(EncounterLifecycle.normalizeResult('won'), 'victory');
 assert.equal(EncounterLifecycle.normalizeResult('loss'), 'defeat');
 assert.equal(EncounterLifecycle.isEncounterEnded({ phase: 'ENDED', result: 'victory' }), true);
@@ -213,20 +213,47 @@ const fakeDb = {
     };
   },
 };
+const combatLogSurface = {
+  appendChild() {},
+  scrollHeight: 0,
+  scrollTop: 0,
+};
+globalThis.document = {
+  getElementById(id) {
+    if (id === 'battlefield') return {};
+    if (id === 'combat-log-terminal') return combatLogSurface;
+    return null;
+  },
+  createElement() {
+    return { className: '', textContent: '' };
+  },
+};
+
+globalThis.LuminousCombatEncounterLifecycle = {
+  ...EncounterLifecycle,
+  showResult() { return true; },
+  beginBlackout() { return true; },
+};
 dmApi._state.db = fakeDb;
 const finished = await dmApi.finishEncounter('victory', { confirm: false, displayMs: 0, blackoutMs: 0 });
 assert.equal(finished.result, 'victory');
 assert.equal(finished.transition, 'blackout');
 assert.equal(finished.nextInstance, 'teatro');
+const rootUpdates = encounterWrites.filter((entry) => entry.op === 'update' && entry.path == null);
+assert.equal(rootUpdates.length, 1);
+assert.equal(rootUpdates[0].value[`${dmApi.ROOTS.state}/transition`], 'result');
+assert.equal(rootUpdates[0].value[`${dmApi.ROOTS.state}/phase`], 'ENDED');
+assert.equal(rootUpdates[0].value[`${dmApi.ROOTS.state}/active`], false);
+assert.equal(rootUpdates[0].value[`${dmApi.ROOTS.state}/result`], 'victory');
 const stateUpdates = encounterWrites.filter((entry) => entry.op === 'update' && entry.path === dmApi.ROOTS.state);
-assert.equal(stateUpdates.length, 2);
-assert.equal(stateUpdates[0].value.transition, 'result');
-assert.equal(stateUpdates[0].value.phase, 'ENDED');
-assert.equal(stateUpdates[0].value.active, false);
-assert.equal(stateUpdates[1].value.transition, 'blackout');
+assert.equal(stateUpdates.length, 1);
+assert.equal(stateUpdates[0].value.transition, 'blackout');
 assert.ok(encounterWrites.some((entry) => entry.op === 'set' && entry.path === dmApi.ROOTS.instance && entry.value === 'teatro'));
 assert.equal(encounterCombatants.alpha.encounterEnded, true);
 assert.equal(encounterCombatants.beta.encounterEnded, true);
+
+delete globalThis.document;
+globalThis.LuminousCombatEncounterLifecycle = EncounterLifecycle;
 
 const firebaseSafe = dmApi.sanitizeForFirebase({ a: 1, fn() {}, nested: { b: 2, skip: undefined } });
 assert.deepEqual(firebaseSafe, { a: 1, nested: { b: 2 } });
