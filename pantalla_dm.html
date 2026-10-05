@@ -4352,43 +4352,52 @@ window.processEntitiesData = function(entities) {
       const DM_LOADING_SCENES = Object.freeze([
         {
           image: "Assets/Loading/loading-combat-clash.webp",
+          source: "https://imgur.com/haWXQhp.png",
+          weight: 18,
           category: "DIRECCIÓN · COMBATE",
           tip: "Antes de iniciar un encounter, confirma condición de victoria, derrota y salida. El combate debe saber cuándo terminó.",
         },
         {
           image: "Assets/Loading/loading-workshop-crafting.webp",
+          source: "https://imgur.com/zbr096W.png",
+          weight: 14,
           category: "DIRECCIÓN · RECURSOS",
           tip: "Cuando entregues materiales o recompensas, define para qué sistema existen antes de convertirlos en inventario.",
         },
         {
           image: "Assets/Loading/loading-lizalin-biodistrict.webp",
+          source: "https://imgur.com/N2YXVUr.png",
+          weight: 12,
           category: "DIRECCIÓN · MUNDO",
           tip: "Una cultura se siente distinta cuando sus lugares, costumbres y problemas cotidianos reflejan cómo vive su gente.",
         },
         {
           image: "Assets/Loading/loading-yuanti-obscurum.webp",
+          source: "https://imgur.com/mSzXSqz.png",
+          weight: 12,
           category: "DIRECCIÓN · NPC",
           tip: "Un NPC memorable necesita intención, límites y algo que quiera de los jugadores; no necesita explicar toda su historia.",
         },
         {
           image: "Assets/Loading/loading-lanae-mountain.webp",
+          source: "https://imgur.com/JUUc6Ye.png",
+          weight: 12,
           category: "DIRECCIÓN · ESCENA",
           tip: "Si una escena se estanca, cambia la situación: introduce una decisión, una consecuencia o una nueva presión.",
         },
         {
           image: "Assets/Loading/loading-city-backstreets.webp",
+          source: "https://imgur.com/Xt7V809.png",
+          weight: 18,
           category: "DIRECCIÓN · EXPLORACIÓN",
           tip: "Da señales antes del peligro. La información incompleta crea tensión; la ausencia total de información crea azar.",
         },
         {
           image: "Assets/Loading/loading-abnormality-containment.webp",
+          source: "https://imgur.com/AmAaJ7M.png",
+          weight: 14,
           category: "DIRECCIÓN · ENCOUNTER",
           tip: "No reveles toda la lógica de una entidad al primer contacto. Deja que observación y consecuencias enseñen sus reglas.",
-        },
-        {
-          image: "Assets/Loading/loading-interdistrict-transit.webp",
-          category: "DIRECCIÓN · RITMO",
-          tip: "No todo trayecto necesita una escena. Juega el viaje cuando introduce una decisión, un costo o información nueva.",
         },
       ]);
 
@@ -4432,34 +4441,76 @@ window.processEntitiesData = function(entities) {
         if (tip) tip.textContent = scene.tip || "";
       }
 
+      function buildWeightedDMLoadingQueue(scenes) {
+        const remaining = [...scenes];
+        const ordered = [];
+
+        while (remaining.length) {
+          const totalWeight = remaining.reduce(
+            (sum, scene) => sum + Math.max(0, Number(scene.weight) || 0),
+            0,
+          );
+
+          if (totalWeight <= 0) {
+            ordered.push(...remaining);
+            break;
+          }
+
+          let roll = Math.random() * totalWeight;
+          let pickedIndex = remaining.length - 1;
+
+          for (let index = 0; index < remaining.length; index += 1) {
+            roll -= Math.max(0, Number(remaining[index].weight) || 0);
+            if (roll < 0) {
+              pickedIndex = index;
+              break;
+            }
+          }
+
+          ordered.push(remaining[pickedIndex]);
+          remaining.splice(pickedIndex, 1);
+        }
+
+        return ordered;
+      }
+
       function initializeDMLoadingPresentation() {
         const background = document.getElementById("system-loading-background");
         syncDMLoadingSegments(0);
         if (!background || !DM_LOADING_SCENES.length) return;
 
         background.src = DM_LOADING_FALLBACK_IMAGE;
-
-        const scenes = [...DM_LOADING_SCENES];
-        for (let i = scenes.length - 1; i > 0; i -= 1) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [scenes[i], scenes[j]] = [scenes[j], scenes[i]];
-        }
+        const scenes = buildWeightedDMLoadingQueue(DM_LOADING_SCENES);
 
         const tryScene = (index) => {
           const scene = scenes[index];
           if (!scene) return;
 
-          const probe = new Image();
-          probe.onload = () => {
+          const applyLoadedScene = (src) => {
             background.style.opacity = "0.72";
             requestAnimationFrame(() => {
-              background.src = scene.image;
+              background.src = src;
               applyDMLoadingScene(scene);
               background.style.opacity = "1";
             });
           };
-          probe.onerror = () => tryScene(index + 1);
-          probe.src = scene.image;
+
+          const tryRemoteSource = () => {
+            if (!scene.source || scene.source === scene.image) {
+              tryScene(index + 1);
+              return;
+            }
+
+            const remoteProbe = new Image();
+            remoteProbe.onload = () => applyLoadedScene(scene.source);
+            remoteProbe.onerror = () => tryScene(index + 1);
+            remoteProbe.src = scene.source;
+          };
+
+          const localProbe = new Image();
+          localProbe.onload = () => applyLoadedScene(scene.image);
+          localProbe.onerror = tryRemoteSource;
+          localProbe.src = scene.image;
         };
 
         tryScene(0);
