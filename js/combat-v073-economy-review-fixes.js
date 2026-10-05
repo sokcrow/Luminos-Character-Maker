@@ -2,9 +2,9 @@
   'use strict';
   if(global.LuminousCombatEconomyReviewFixes073)return;
 
-  const VERSION='0.7.3-economy-review-fixes.2-render-guard';
+  const VERSION='0.7.3-economy-review-fixes.3-install-order-guard';
   const ECONOMY=Object.freeze({ACTION:'action',QUICK:'quick_action',REACTION:'reaction'});
-  const state={installed:false,originalPlayerDeckForUnit:null,pendingTraitTarget:null,triggerPoll:null,lastWrappedTrigger:null};
+  const state={installed:false,installRetry:null,originalPlayerDeckForUnit:null,pendingTraitTarget:null,triggerPoll:null,lastWrappedTrigger:null};
   const clean=v=>String(v??'').trim();
   const norm=v=>clean(v).toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'');
   const arr=v=>v==null?[]:(Array.isArray(v)?v:[v]);
@@ -219,7 +219,8 @@
   }
 
   function installLexicalPatches(){
-    const menu=api();if(!menu?.state?.originals)return false;
+    const menu=api();
+    if(!menu?.state?.installed||typeof menu?.state?.originals?.selectAction!=='function')return false;
     annotateEconomySources();
     state.originalPlayerDeckForUnit=state.originalPlayerDeckForUnit||lexical('playerDeckForUnit',null);
     assign('playerDeckForUnit','window.LuminousCombatEconomyReviewFixes073.filteredPlayerDeckForUnit');
@@ -228,9 +229,23 @@
     assign('selectAction','window.LuminousCombatEconomyReviewFixes073.selectAction');
     refreshPlayerDeck();return true;
   }
+  function scheduleInstall(delay=50){
+    if(state.installed||state.installRetry!=null)return false;
+    const timer=global.setTimeout?.(()=>{state.installRetry=null;install()},Math.max(0,Number(delay)||0));
+    state.installRetry=timer??null;
+    return timer!=null;
+  }
   function install(){
-    if(state.installed)return true;if(!api())return false;
-    installLexicalPatches();
+    if(state.installed)return true;
+    const menu=api();
+    if(!menu?.state?.installed||typeof menu?.state?.originals?.selectAction!=='function'){
+      scheduleInstall();
+      return false;
+    }
+    if(!installLexicalPatches()){
+      scheduleInstall();
+      return false;
+    }
     global.document?.addEventListener?.('click',onCaptureClick,true);
     global.addEventListener?.('luminous:combat073-reaction-trigger',onReactionTrigger);
     global.addEventListener?.('luminous:combat073-hydrated',()=>{annotateEconomySources();installLexicalPatches();installCombatTriggerBridge()});
@@ -241,6 +256,7 @@
 
   const reviewApi={version:VERSION,state,canonicalCost,annotateEconomySources,filteredPlayerDeckForUnit,renderCleanList,renderSkills,selectAction,executeTraitQuick,beginTraitQuick,reactionTriggerIds,matchesPreparedTrigger,installCombatTriggerBridge,install};
   global.LuminousCombatEconomyReviewFixes073=Object.freeze(reviewApi);
+  global.addEventListener?.('luminous:combat073-runtime-ready',()=>{if(!state.installed)scheduleInstall(0)});
   global.setTimeout?.(install,0);
   if(typeof module!=='undefined'&&module.exports)module.exports=reviewApi;
 })(typeof window!=='undefined'?window:globalThis);
