@@ -218,6 +218,12 @@ globalThis.document = {
     return id === 'battlefield' || id === 'combat-log-terminal' ? {} : null;
   },
 };
+
+globalThis.LuminousCombatEncounterLifecycle = {
+  ...EncounterLifecycle,
+  showResult() { return true; },
+  beginBlackout() { return true; },
+};
 dmApi._state.db = fakeDb;
 const finished = await dmApi.finishEncounter('victory', { confirm: false, displayMs: 0, blackoutMs: 0 });
 assert.equal(finished.result, 'victory');
