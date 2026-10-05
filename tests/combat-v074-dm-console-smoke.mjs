@@ -168,7 +168,7 @@ assert.equal(dmApi.normalizeEncounterResult('lose'), 'defeat');
 
 const EncounterLifecycleModule = require('../js/combat-encounter-lifecycle.js');
 const EncounterLifecycle = EncounterLifecycleModule?.version ? EncounterLifecycleModule : globalThis.LuminousCombatEncounterLifecycle;
-assert.equal(EncounterLifecycle.version, '1.1.0');
+assert.equal(EncounterLifecycle.version, '1.2.0');
 assert.equal(EncounterLifecycle.normalizeResult('won'), 'victory');
 assert.equal(EncounterLifecycle.normalizeResult('loss'), 'defeat');
 assert.equal(EncounterLifecycle.isEncounterEnded({ phase: 'ENDED', result: 'victory' }), true);
@@ -213,17 +213,25 @@ const fakeDb = {
     };
   },
 };
+globalThis.document = {
+  getElementById(id) {
+    return id === 'battlefield' || id === 'combat-log-terminal' ? {} : null;
+  },
+};
 dmApi._state.db = fakeDb;
 const finished = await dmApi.finishEncounter('victory', { confirm: false, displayMs: 0, blackoutMs: 0 });
 assert.equal(finished.result, 'victory');
 assert.equal(finished.transition, 'blackout');
 assert.equal(finished.nextInstance, 'teatro');
+const rootUpdates = encounterWrites.filter((entry) => entry.op === 'update' && entry.path == null);
+assert.equal(rootUpdates.length, 1);
+assert.equal(rootUpdates[0].value[`${dmApi.ROOTS.state}/transition`], 'result');
+assert.equal(rootUpdates[0].value[`${dmApi.ROOTS.state}/phase`], 'ENDED');
+assert.equal(rootUpdates[0].value[`${dmApi.ROOTS.state}/active`], false);
+assert.equal(rootUpdates[0].value[`${dmApi.ROOTS.state}/result`], 'victory');
 const stateUpdates = encounterWrites.filter((entry) => entry.op === 'update' && entry.path === dmApi.ROOTS.state);
-assert.equal(stateUpdates.length, 2);
-assert.equal(stateUpdates[0].value.transition, 'result');
-assert.equal(stateUpdates[0].value.phase, 'ENDED');
-assert.equal(stateUpdates[0].value.active, false);
-assert.equal(stateUpdates[1].value.transition, 'blackout');
+assert.equal(stateUpdates.length, 1);
+assert.equal(stateUpdates[0].value.transition, 'blackout');
 assert.ok(encounterWrites.some((entry) => entry.op === 'set' && entry.path === dmApi.ROOTS.instance && entry.value === 'teatro'));
 assert.equal(encounterCombatants.alpha.encounterEnded, true);
 assert.equal(encounterCombatants.beta.encounterEnded, true);
