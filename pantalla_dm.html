@@ -4349,24 +4349,232 @@ window.processEntitiesData = function(entities) {
         window.open('hoja_de_DM.html', 'DirectorDashboard', 'width=1920,height=1080');
       });
 
-      let isInitialLoad = true;
-      setTimeout(() => {
-          if(window.hideLoadingOverlay) window.hideLoadingOverlay();
-      }, 5000); // Failsafe
+      const DM_LOADING_SCENES = Object.freeze([
+        {
+          image: "Assets/Loading/loading-combat-clash.webp",
+          category: "DIRECCIÓN · COMBATE",
+          tip: "Antes de iniciar un encounter, confirma condición de victoria, derrota y salida. El combate debe saber cuándo terminó.",
+        },
+        {
+          image: "Assets/Loading/loading-workshop-crafting.webp",
+          category: "DIRECCIÓN · RECURSOS",
+          tip: "Cuando entregues materiales o recompensas, define para qué sistema existen antes de convertirlos en inventario.",
+        },
+        {
+          image: "Assets/Loading/loading-lizalin-biodistrict.webp",
+          category: "DIRECCIÓN · MUNDO",
+          tip: "Una cultura se siente distinta cuando sus lugares, costumbres y problemas cotidianos reflejan cómo vive su gente.",
+        },
+        {
+          image: "Assets/Loading/loading-yuanti-obscurum.webp",
+          category: "DIRECCIÓN · NPC",
+          tip: "Un NPC memorable necesita intención, límites y algo que quiera de los jugadores; no necesita explicar toda su historia.",
+        },
+        {
+          image: "Assets/Loading/loading-lanae-mountain.webp",
+          category: "DIRECCIÓN · ESCENA",
+          tip: "Si una escena se estanca, cambia la situación: introduce una decisión, una consecuencia o una nueva presión.",
+        },
+        {
+          image: "Assets/Loading/loading-city-backstreets.webp",
+          category: "DIRECCIÓN · EXPLORACIÓN",
+          tip: "Da señales antes del peligro. La información incompleta crea tensión; la ausencia total de información crea azar.",
+        },
+        {
+          image: "Assets/Loading/loading-abnormality-containment.webp",
+          category: "DIRECCIÓN · ENCOUNTER",
+          tip: "No reveles toda la lógica de una entidad al primer contacto. Deja que observación y consecuencias enseñen sus reglas.",
+        },
+        {
+          image: "Assets/Loading/loading-interdistrict-transit.webp",
+          category: "DIRECCIÓN · RITMO",
+          tip: "No todo trayecto necesita una escena. Juega el viaje cuando introduce una decisión, un costo o información nueva.",
+        },
+      ]);
 
-      // Helper to hide the loading overlay
-      window.hideLoadingOverlay = function () {
+      const DM_LOADING_FALLBACK_IMAGE =
+        "https://limbuscompany.wiki.gg/images/thumb/DanteStar.png/1024px-DanteStar.png?e52927";
+
+      const DM_BOOT_REQUIRED = new Set(["players", "npcs", "actors", "calendar"]);
+      const dmBootReady = new Set();
+      let dmBootFinalizing = false;
+
+      function syncDMLoadingSegments(progress = 0) {
+        const container = document.getElementById("system-loading-segments");
+        if (!container) return;
+
+        if (!container.children.length) {
+          const fragment = document.createDocumentFragment();
+          for (let index = 0; index < 20; index += 1) {
+            const segment = document.createElement("span");
+            segment.className = "loading-segment";
+            fragment.appendChild(segment);
+          }
+          container.appendChild(fragment);
+        }
+
+        const normalizedProgress = Math.min(100, Math.max(0, Number(progress) || 0));
+        const activeCount = normalizedProgress >= 100
+          ? 20
+          : Math.floor(normalizedProgress / 5);
+
+        Array.from(container.children).forEach((segment, index) => {
+          segment.classList.toggle("is-active", index < activeCount);
+        });
+      }
+
+      function applyDMLoadingScene(scene) {
+        if (!scene) return;
+        const category = document.getElementById("system-loading-tip-category");
+        const tip = document.getElementById("system-loading-tip-text");
+        if (category) category.textContent = scene.category || "DIRECCIÓN";
+        if (tip) tip.textContent = scene.tip || "";
+      }
+
+      function initializeDMLoadingPresentation() {
+        const background = document.getElementById("system-loading-background");
+        syncDMLoadingSegments(0);
+        if (!background || !DM_LOADING_SCENES.length) return;
+
+        background.src = DM_LOADING_FALLBACK_IMAGE;
+
+        const scenes = [...DM_LOADING_SCENES];
+        for (let i = scenes.length - 1; i > 0; i -= 1) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [scenes[i], scenes[j]] = [scenes[j], scenes[i]];
+        }
+
+        const tryScene = (index) => {
+          const scene = scenes[index];
+          if (!scene) return;
+
+          const probe = new Image();
+          probe.onload = () => {
+            background.style.opacity = "0.72";
+            requestAnimationFrame(() => {
+              background.src = scene.image;
+              applyDMLoadingScene(scene);
+              background.style.opacity = "1";
+            });
+          };
+          probe.onerror = () => tryScene(index + 1);
+          probe.src = scene.image;
+        };
+
+        tryScene(0);
+      }
+
+      window.updateLoadingState = function ({ progress, title, detail } = {}) {
         const overlay = document.getElementById("system-loading-overlay");
-        if (overlay && overlay.style.display !== "none") {
-          overlay.style.pointerEvents = "none";
-          overlay.style.zIndex = "-1";
-          overlay.style.opacity = "0";
-          setTimeout(() => {
-            overlay.style.display = "none";
-            overlay.remove();
-          }, 1000);
+        if (!overlay) return;
+
+        const progressBar = overlay.querySelector(".loading-bar-container");
+        const progressText = document.getElementById("system-loading-progress-text");
+        const indicator = document.getElementById("system-loading-indicator");
+        const detailText = document.getElementById("system-loading-detail");
+
+        const current = Number(overlay.dataset.progress || 0);
+        const requested = Number.isFinite(Number(progress)) ? Number(progress) : current;
+        const next = Math.max(current, Math.min(100, Math.max(0, requested)));
+
+        overlay.dataset.progress = String(next);
+        overlay.classList.remove("is-error");
+        overlay.setAttribute("aria-busy", next < 100 ? "true" : "false");
+
+        syncDMLoadingSegments(next);
+        if (progressBar) progressBar.setAttribute("aria-valuenow", String(next));
+        if (progressText) progressText.textContent = `${Math.round(next)}%`;
+        if (indicator && title) indicator.textContent = title;
+        if (detailText && detail !== undefined) detailText.textContent = detail;
+      };
+
+      window.showLoadingError = function (
+        detail = "No fue posible preparar la consola del Director. Revisa tu conexión e inténtalo de nuevo.",
+      ) {
+        const overlay = document.getElementById("system-loading-overlay");
+        if (!overlay) return;
+
+        const indicator = document.getElementById("system-loading-indicator");
+        const detailText = document.getElementById("system-loading-detail");
+        const retryButton = document.getElementById("system-loading-retry");
+
+        overlay.classList.add("is-error");
+        overlay.setAttribute("aria-busy", "false");
+        if (indicator) indicator.textContent = "NO SE PUDO PREPARAR LA CONSOLA";
+        if (detailText) detailText.textContent = detail;
+        if (retryButton) {
+          retryButton.style.display = "inline-block";
+          retryButton.onclick = () => window.location.reload();
         }
       };
+
+      window.hideLoadingOverlay = function () {
+        const overlay = document.getElementById("system-loading-overlay");
+        if (!overlay || overlay.style.display === "none") return;
+
+        overlay.setAttribute("aria-busy", "false");
+        overlay.style.pointerEvents = "none";
+        requestAnimationFrame(() => {
+          overlay.style.opacity = "0";
+        });
+        setTimeout(() => {
+          overlay.style.display = "none";
+          overlay.remove();
+        }, 450);
+      };
+
+      async function finishDMLoadingPresentation() {
+        const durationMs = 5000 + Math.floor(Math.random() * 5001);
+        const finalSteps = [96, 97, 98, 99, 100];
+        const stepDelay = Math.round(durationMs / finalSteps.length);
+
+        window.updateLoadingState({
+          progress: 95,
+          title: "FINALIZANDO CONSOLA",
+          detail: "Preparando herramientas del Director.",
+        });
+
+        for (const progress of finalSteps) {
+          await new Promise((resolve) => setTimeout(resolve, stepDelay));
+          window.updateLoadingState({
+            progress,
+            title: progress < 100 ? "FINALIZANDO CONSOLA" : "CONSOLA LISTA",
+            detail: progress < 100
+              ? "Preparando herramientas del Director."
+              : "Control de campaña disponible.",
+          });
+        }
+      }
+
+      function markDMBootReady(key) {
+        if (!DM_BOOT_REQUIRED.has(key) || dmBootReady.has(key)) return;
+        dmBootReady.add(key);
+
+        const progress = Math.min(
+          95,
+          30 + Math.round((dmBootReady.size / DM_BOOT_REQUIRED.size) * 65),
+        );
+
+        window.updateLoadingState({
+          progress,
+          title: "SINCRONIZANDO CAMPAÑA",
+          detail: "Cargando datos necesarios para dirigir.",
+        });
+
+        if (dmBootReady.size === DM_BOOT_REQUIRED.size && !dmBootFinalizing) {
+          dmBootFinalizing = true;
+          void finishDMLoadingPresentation().then(() => {
+            window.hideLoadingOverlay();
+          });
+        }
+      }
+
+      initializeDMLoadingPresentation();
+      window.updateLoadingState({
+        progress: 0,
+        title: "VERIFICANDO DIRECTOR",
+        detail: "Comprobando acceso a la campaña.",
+      });
 
       // --- LÓGICA DE AUTENTICACIÓN Y PROTECCIÓN DE RUTA DM ---
       auth.onAuthStateChanged((user) => {
@@ -4378,12 +4586,21 @@ window.processEntitiesData = function(entities) {
             window.location.replace("index.html");
           }
         } else {
+          window.updateLoadingState({
+            progress: 20,
+            title: "ACCESO DE DIRECTOR CONFIRMADO",
+            detail: "Preparando la consola de campaña.",
+          });
           initializeDMApp();
         }
       });
 
       function initializeDMApp() {
-
+        window.updateLoadingState({
+          progress: 30,
+          title: "INICIANDO CONSOLA",
+          detail: "Abriendo herramientas de dirección.",
+        });
 
         const ACTOR_DATABASE_PATHS = ["campaña/base_datos_npcs", "campaña/actores"];
         let dbJugadoresCache = {};
@@ -4426,7 +4643,11 @@ window.processEntitiesData = function(entities) {
                 renderListaActores();
                 if (typeof updateOtorgarJugadoresSelect === "function") updateOtorgarJugadoresSelect();
                 if (typeof renderActorAsignacion === "function") renderActorAsignacion();
-            }, (error) => showActorDirectoryError("campaña/jugadores", error));
+                markDMBootReady("players");
+            }, (error) => {
+                showActorDirectoryError("campaña/jugadores", error);
+                window.showLoadingError("No se pudo cargar el directorio de jugadores.");
+            });
 
             db.ref("campaña/base_datos_npcs").on("value", (snapshot) => {
                 clearActorDirectoryError("campaña/base_datos_npcs");
@@ -4434,7 +4655,11 @@ window.processEntitiesData = function(entities) {
                 dbNpcsCache = window.processEntitiesData ? window.processEntitiesData(data) : data;
                 refreshActorCache();
                 renderListaActores();
-            }, (error) => showActorDirectoryError("campaña/base_datos_npcs", error));
+                markDMBootReady("npcs");
+            }, (error) => {
+                showActorDirectoryError("campaña/base_datos_npcs", error);
+                window.showLoadingError("No se pudo cargar el directorio de NPCs.");
+            });
 
             db.ref("campaña/actores").on("value", (snapshot) => {
                 clearActorDirectoryError("campaña/actores");
@@ -4442,7 +4667,11 @@ window.processEntitiesData = function(entities) {
                 dbActoresRawCache = window.processEntitiesData ? window.processEntitiesData(data) : data;
                 refreshActorCache();
                 renderListaActores();
-            }, (error) => showActorDirectoryError("campaña/actores", error));
+                markDMBootReady("actors");
+            }, (error) => {
+                showActorDirectoryError("campaña/actores", error);
+                window.showLoadingError("No se pudo cargar el directorio de actores.");
+            });
         }
 
         startActorDirectorySubscriptions();
@@ -5955,12 +6184,6 @@ window.processEntitiesData = function(entities) {
           (snapshot) => {
             const data = snapshot.val();
 
-            // Hide loading overlay on first successful initial data read
-            if (isInitialLoad) {
-              isInitialLoad = false;
-              window.hideLoadingOverlay();
-            }
-
             if (data) {
               estadoActual.año = data.año || 984;
               estadoActual.dia = data.dia || 1;
@@ -5972,15 +6195,12 @@ window.processEntitiesData = function(entities) {
                 renderClimaRadial(estadoActual.clima, estadoActual.mes);
               }
             }
+
+            markDMBootReady("calendar");
           },
           (error) => {
             console.error(error);
-            window.hideLoadingOverlay();
-            alert(
-              "ERROR DE VÍNCULO: CONSULTE CON EL DM. (Error: " +
-                error.message +
-                ")",
-            );
+            window.showLoadingError("No se pudo sincronizar el estado de la campaña.");
           },
         );
 
