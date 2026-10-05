@@ -12,6 +12,8 @@
     players: "campaña/jugadores",
     combatants: "campaña/combate/combatants",
     state: "campaña/combate/estado",
+    plannedActions: "campaña/combate/plannedActions",
+    readyPlayers: "campaña/combate/readyPlayers",
     instance: "campaña/estado_mundo/instancia_activa",
     audit: "campaña/combate/dmAudit",
   });
@@ -67,8 +69,23 @@
   function isDmAuthorized() {
     if (!isBattleViewerSurface()) return false;
     if (!global.firebase?.auth) return true;
-    const uid = currentUid();
-    return uid === DM_UID;
+    return state.authorized === true;
+  }
+
+  async function resolveDmAuthorization(user = undefined) {
+    if (!global.firebase?.auth) return true;
+    const uid = user === undefined ? currentUid() : user?.uid || null;
+    if (!uid) return false;
+    if (uid === DM_UID) return true;
+    const db = state.db || (global.firebase?.database ? global.firebase.database() : null);
+    if (!db?.ref) return false;
+    try {
+      const snapshot = await db.ref("campaña/config/dm_uid").once("value");
+      return String(snapshot.val() || "").trim() === String(uid);
+    } catch (error) {
+      global.console?.error?.("[Battle Viewer DM Console] DM authority lookup failed:", error);
+      return false;
+    }
   }
 
   function identityValues(entity = {}) {
@@ -365,6 +382,7 @@
     const normalized = normalizeId(value);
     if (["victory", "win", "won"].includes(normalized)) return "victory";
     if (["defeat", "lose", "loss", "lost"].includes(normalized)) return "defeat";
+    if (["cancelled", "canceled", "cancel", "aborted", "abort"].includes(normalized)) return "cancelled";
     return "";
   }
 
@@ -376,10 +394,11 @@
 
   async function finishEncounter(result, options = {}) {
     if (!state.db?.ref) throw new Error("DM console database is not ready.");
+    if (!isDmAuthorized()) throw new Error("DM_ONLY");
     const normalized = normalizeEncounterResult(result);
-    if (!normalized) throw new Error("Encounter result must be victory or defeat.");
+    if (!normalized) throw new Error("Encounter result must be victory, defeat or cancelled.");
 
-    const label = normalized === "victory" ? "VICTORY" : "DEFEAT";
+    const label = normalized === "victory" ? "VICTORY" : normalized === "defeat" ? "DEFEAT" : "CANCELLED";
     if (options.confirm !== false && typeof global.confirm === "function") {
       const accepted = global.confirm(`END ENCOUNTER · ${label}?\n\nEncounter End effects will resolve for every combatant and everyone will be sent to Theater.`);
       if (!accepted) return { cancelled: true, result: normalized };
@@ -391,20 +410,23 @@
     );
 
     const timestamp = global.firebase?.database?.ServerValue?.TIMESTAMP ?? Date.now();
-    await state.db.ref(ROOTS.state).update({
-      phase: "ENDED",
-      active: false,
-      result: normalized,
-      transition: "result",
-      endedAt: timestamp,
-      endedBy: currentUid(),
-      updatedAt: timestamp,
+    await state.db.ref().update({
+      [`${ROOTS.state}/phase`]: "ENDED",
+      [`${ROOTS.state}/active`]: false,
+      [`${ROOTS.state}/result`]: normalized,
+      [`${ROOTS.state}/outcome`]: normalized,
+      [`${ROOTS.state}/transition`]: "result",
+      [`${ROOTS.state}/endedAt`]: timestamp,
+      [`${ROOTS.state}/endedBy`]: currentUid(),
+      [`${ROOTS.state}/updatedAt`]: timestamp,
+      [ROOTS.plannedActions]: null,
+      [ROOTS.readyPlayers]: null,
     });
 
     global.LuminousCombatEncounterLifecycle?.showResult?.(normalized, { endedAt: Date.now() });
     appendLog(`${label} · RESULT SEAL`, { result: normalized });
 
-    const displayMs = options.displayMs == null ? 1800 : options.displayMs;
+    const displayMs = options.displayMs == null ? (normalized === "cancelled" ? 900 : 1800) : options.displayMs;
     const blackoutMs = options.blackoutMs == null ? 650 : options.blackoutMs;
     await waitForResultDisplay(displayMs);
 
@@ -654,11 +676,10 @@
     }
   }
 
-  function authorizeAndBoot(user = undefined) {
-    const uid = user === undefined ? currentUid() : user?.uid || null;
-    state.authorized = !global.firebase?.auth || uid === DM_UID;
-    if (!state.authorized) { unmount(); return false; }
+  async function authorizeAndBoot(user = undefined) {
     state.db = state.db || (global.firebase?.database ? global.firebase.database() : null);
+    state.authorized = await resolveDmAuthorization(user);
+    if (!state.authorized) { unmount(); return false; }
     bindFirebase();
     if (debugConsoleEnabled()) mount();
     else unmount();
@@ -671,11 +692,12 @@
     if (!global.document) return true;
     const auth = global.firebase?.auth?.();
     if (auth?.onAuthStateChanged) {
-      auth.onAuthStateChanged((user) => authorizeAndBoot(user));
-      if (auth.currentUser) authorizeAndBoot(auth.currentUser);
+      auth.onAuthStateChanged((user) => { void authorizeAndBoot(user); });
+      if (auth.currentUser) void authorizeAndBoot(auth.currentUser);
       return true;
     }
-    return authorizeAndBoot(undefined);
+    void authorizeAndBoot(undefined);
+    return true;
   }
 
   const api = Object.freeze({
@@ -685,7 +707,7 @@
     unitSp, writeSp, readHp, readMaxHp, writeHp, writeShield, thresholdPenalty, rollCheck,
     applyDamageToUnit, applyFixedDamageToUnit, healUnit, applyStatusToUnit, removeStatusFromUnit,
     runTurnStart, runTurnEnd, runRest, runEncounterEnd, runEncounterEndAll, normalizeEncounterResult, finishEncounter,
-    sanitizeForFirebase, combatantKey, mutateCombatants, mutateSelected, isBattleViewerSurface, isDmAuthorized, debugConsoleEnabled, mount, unmount, init,
+    sanitizeForFirebase, combatantKey, mutateCombatants, mutateSelected, isBattleViewerSurface, isDmAuthorized, resolveDmAuthorization, debugConsoleEnabled, mount, unmount, init,
     _state: state,
   });
 
