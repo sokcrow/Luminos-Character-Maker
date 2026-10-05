@@ -92,7 +92,7 @@
       [`${COMBAT_STATE_PATH}/active`]: false,
       [`${COMBAT_STATE_PATH}/result`]: normalized,
       [`${COMBAT_STATE_PATH}/outcome`]: normalized,
-      [`${COMBAT_STATE_PATH}/transition`]: "result",
+      [`${COMBAT_STATE_PATH}/transition`]: "auto_theatre",
       [`${COMBAT_STATE_PATH}/endReason`]: String(reason || ""),
       [`${COMBAT_STATE_PATH}/endedAt`]: timestamp,
       [`${COMBAT_STATE_PATH}/endedBy`]: uid || null,
@@ -515,6 +515,8 @@
       if (currentInstance !== "combate" || !isEncounterEnded(combatState)) return;
       const result = normalizeCombatResult(combatState?.result || combatState?.outcome);
       if (!result) return;
+      const transition = String(combatState?.transition || "").trim().toLowerCase();
+      if (transition === "result" || transition === "blackout") return;
       const token = combatResultToken(combatState);
       if (!token || token === lastAutoTransitionToken) return;
       lastAutoTransitionToken = token;
