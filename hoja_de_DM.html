@@ -123,6 +123,9 @@
       <div id="combat-log-and-controls">
         <span>FASE INICIAL: 60 s · PRE_COMBAT_PLANNING</span>
         <button id="btn-trigger-combat" type="button">INICIAR COMBATE (Fin de Planeación)</button>
+        <button id="btn-end-combat-victory" type="button">TERMINAR · VICTORIA</button>
+        <button id="btn-end-combat-defeat" type="button">TERMINAR · DERROTA</button>
+        <button id="btn-end-combat-cancel" type="button">CANCELAR ENCOUNTER</button>
       </div>
     </section>
   </main>
@@ -137,7 +140,8 @@
   <script src="js/theatre-director-menu-guard.js"></script>
   <script src="js/weather-readonly-engine.js"></script>
   <script src="js/weather-fx.js"></script>
-  <script src="js/instance-control.js"></script>
+  <script src="js/game-loading-coordinator.js?v=20261005-real-gates-1"></script>
+  <script src="js/instance-control.js?v=20261005-real-gates-1"></script>
   <script>
     (function () {
       const combatModule = document.getElementById("modulo-combate");

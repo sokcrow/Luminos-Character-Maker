@@ -328,6 +328,24 @@ function ensureDmCombatTabManagerAssets(doc) {
     return { manager, liveViewer };
 }
 
+function ensureDmAuthenticatedAssets(doc) {
+    const documentRef = doc || (typeof document !== 'undefined' ? document : null);
+    if (!documentRef) return null;
+    return {
+        playerStudio: ensureDmPlayerDndStudioAssets(documentRef),
+        traits: ensureDmTraitLibraryAssets(documentRef),
+        weather: ensureWeatherSystemAssets(documentRef),
+        characterManager: ensureDmCharacterManagerAssets(documentRef),
+        combat: ensureDmCombatTabManagerAssets(documentRef)
+    };
+}
+
+if (typeof window !== 'undefined') {
+    window.LuminousDmAuthenticatedAssets = Object.freeze({
+        start: () => ensureDmAuthenticatedAssets(document)
+    });
+}
+
 if (typeof document !== 'undefined') {
     ensurePlayerTerminalStyles(document);
     ensurePlayerTerminalVisibility(document);
@@ -336,8 +354,6 @@ if (typeof document !== 'undefined') {
     ensurePlayerTraitRuntimeAssets(document);
     ensurePlayerRestRuntimeAssets(document);
     ensurePlayerArchetypeRuntimeAssets(document);
-    ensureDmPlayerDndStudioAssets(document);
-    ensureDmTraitLibraryAssets(document);
     ensurePlayerSplashFramingAssets(document);
     ensureTheatreModernIdentityHotfix(document);
     if (document.querySelector?.('.sheet-phone-wrapper, #theatre-view-player')) {
@@ -345,10 +361,17 @@ if (typeof document !== 'undefined') {
             if (event?.detail?.theatreActive === true) ensureTheatreModernIdentityHotfix(document);
         });
     }
-    ensureWeatherSystemAssets(document);
+
+    const isDmSurface = Boolean(document.querySelector?.('#dashboard-jugadores, #dashboard-actores, #tab-combate, #tab-clima'));
+    if (isDmSurface) {
+        const startDmAssets = () => ensureDmAuthenticatedAssets(document);
+        if (typeof window !== 'undefined' && window.__luminousDmAuthReady === true) startDmAssets();
+        else window.addEventListener?.('luminous:dm-auth-ready', startDmAssets, { once: true });
+    } else {
+        ensureWeatherSystemAssets(document);
+    }
+
     ensurePlayerTheatreLanguagePolicy(document);
-    ensureDmCharacterManagerAssets(document);
-    ensureDmCombatTabManagerAssets(document);
 }
 
 if (typeof module !== 'undefined' && module.exports) {
@@ -369,6 +392,7 @@ if (typeof module !== 'undefined' && module.exports) {
         ensureWeatherSystemAssets,
         ensurePlayerTheatreLanguagePolicy,
         ensureDmCharacterManagerAssets,
-        ensureDmCombatTabManagerAssets
+        ensureDmCombatTabManagerAssets,
+        ensureDmAuthenticatedAssets
     };
 }
