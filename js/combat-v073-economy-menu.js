@@ -3,7 +3,7 @@
 
   if (global.LuminousCombatEconomyMenu073) return;
 
-  const VERSION = "0.7.3-economy-menu.4-item-icons";
+  const VERSION = "0.7.3-economy-menu.5-item-detail-plan-compat";
   const TABBED_MENUS = new Set(["global", "skills", "spells", "items"]);
   const ECONOMY = Object.freeze({ ACTION: "action", QUICK: "quick_action", REACTION: "reaction" });
   const state = {
@@ -735,7 +735,7 @@
       const iconUrl = itemIconUrl(row);
       const icon = iconUrl ? `<span class="combat-item-icon"><img src="${htmlEscape(iconUrl)}" alt=""></span>` : "";
       button.innerHTML = `${icon}<span class="clean-name">${htmlEscape(row.name)}</span><span class="clean-cost">x${qty} · ${htmlEscape(costLabel(row))}</span>`;
-      button.onclick = () => api.selectAction({ type: "item", slotIndex: selectedSlotIndex(), data: row });
+      button.onclick = () => api.selectAction({ type: "items", slotIndex: selectedSlotIndex(), data: row });
       list.appendChild(button);
     });
     body.appendChild(list);
@@ -996,13 +996,22 @@
     const body = global.document?.getElementById?.("category-body");
     if (!body) return;
     const quick = tab === ECONOMY.QUICK;
+    const actionItem = tab === ECONOMY.ACTION && normalizeId(source.kind || source.sourceType) === "item";
     const reactionMode = reactionModeOf(source);
     const canPrepare = tab === ECONOMY.REACTION && reactionMode === "prepared";
-    const buttonLabel = quick ? "USE QUICK ACTION" : (canPrepare ? "PREPARE REACTION" : "ADAPTIVE REACTION");
+    const buttonLabel = actionItem ? "USE ITEM" : (quick ? "USE QUICK ACTION" : (canPrepare ? "PREPARE REACTION" : "ADAPTIVE REACTION"));
     body.innerHTML = `<div class="economy-action-detail"><div class="economy-kind">${htmlEscape(tab.replaceAll("_", " "))}${tab === ECONOMY.REACTION ? ` · ${reactionMode}` : ""}</div><h3>${htmlEscape(source.name || source.id || "Action")}</h3><div class="economy-copy">${source.description || ""}</div><div class="economy-cost">${htmlEscape(costLabel(source))}</div><button id="economy-action-confirm" ${tab === ECONOMY.REACTION && !canPrepare ? "disabled" : ""}>${buttonLabel}</button></div>`;
     const confirm = global.document.getElementById("economy-action-confirm");
-    if (confirm && !confirm.disabled) confirm.onclick = () => quick ? beginQuickAction(sel) : prepareReaction(sel);
+    if (confirm && !confirm.disabled) {
+      if (actionItem) confirm.onclick = () => confirmLegacyItemSelection(sel);
+      else confirm.onclick = () => quick ? beginQuickAction(sel) : prepareReaction(sel);
+    }
     lexical("layoutCategory", () => {})();
+  }
+
+  function confirmLegacyItemSelection(sel) {
+    if (!sel) return undefined;
+    return state.originals.selectAction?.({ ...sel, type: "items" });
   }
 
   function selfTargetedItem(source = {}) {
@@ -1020,13 +1029,20 @@
 
   function selectAction(sel) {
     const menu = activeMenu();
-    const normalizedSel = sel?.type === "items" ? { ...sel, type: "item" } : sel;
-    const tab = economyTabFor(normalizedSel?.data || {});
-    if (!TABBED_MENUS.has(menu) || tab === ECONOMY.ACTION) return state.originals.selectAction?.(normalizedSel);
-    global.__luminousEconomySelected = normalizedSel;
+    const tab = economyTabFor(sel?.data || {});
+    const actionItem = menu === "items" && tab === ECONOMY.ACTION && normalizeId(sel?.data?.kind || sel?.data?.sourceType) === "item";
+    if (!TABBED_MENUS.has(menu) || (tab === ECONOMY.ACTION && !actionItem)) return state.originals.selectAction?.(sel);
+
+    global.__luminousEconomySelected = sel;
     try { global.eval("selected=window.__luminousEconomySelected;navState='action'"); } catch (_) {}
-    detailForEconomySelection(normalizedSel);
-    lexical("setStatus", () => {})(`${tab === ECONOMY.QUICK ? "QUICK ACTION" : "REACTION"} · ${normalizedSel?.data?.name || "Action"}`);
+    detailForEconomySelection(sel);
+
+    if (actionItem) {
+      lexical("setStatus", () => {})(`ITEM · ${sel?.data?.name || "Item"}`);
+      return sel;
+    }
+    lexical("setStatus", () => {})(`${tab === ECONOMY.QUICK ? "QUICK ACTION" : "REACTION"} · ${sel?.data?.name || "Action"}`);
+    return sel;
   }
 
   function targetingAllegiance(source = {}) {
@@ -1392,7 +1408,7 @@
     state.installed = true; return true;
   }
 
-  const api = { version: VERSION, ECONOMY, state, normalizeEconomyCost, economyTabFor, costLabel, canonicalPlayerId, playerUnit, playerKit, traitDefinitionsForPlayer, liveActions, spellLoadoutRuntime, normalizeSpellForMenu, classEntries, spellcastingClasses, isSpellcaster, selectedSpellIds, spellRowsForPlayer, inventoryEntries, quantityOf, itemTiming, itemIconUrl, itemCanUseInCombat, stableItemRow, itemRowsForPlayer, findActiveInventoryItem, spellMenuNodes, syncSpellMenuVisibility, layoutRadialCommandsStable, syncResponsiveMenuLayout, renderActiveMenuBody, ensureCategorySurfaceOpen, refreshOpenedMenu, openCompactMenu, installRootMenuClickHandler, selfTargetedItem, planTargetRuleCompat, persistQuickItemState, rowsFor, renderSkills, renderSpells, renderItems, renderCleanList, renderCategory, selectAction, setTab, syncTabs, syncQuickBadge, syncPlanningEconomy, beginCombatEconomy, prepareReaction, triggerPreparedReaction, useQuickAction, install };
+  const api = { version: VERSION, ECONOMY, state, normalizeEconomyCost, economyTabFor, costLabel, canonicalPlayerId, playerUnit, playerKit, traitDefinitionsForPlayer, liveActions, spellLoadoutRuntime, normalizeSpellForMenu, classEntries, spellcastingClasses, isSpellcaster, selectedSpellIds, spellRowsForPlayer, inventoryEntries, quantityOf, itemTiming, itemIconUrl, itemCanUseInCombat, stableItemRow, itemRowsForPlayer, findActiveInventoryItem, spellMenuNodes, syncSpellMenuVisibility, layoutRadialCommandsStable, syncResponsiveMenuLayout, renderActiveMenuBody, ensureCategorySurfaceOpen, refreshOpenedMenu, openCompactMenu, installRootMenuClickHandler, selfTargetedItem, planTargetRuleCompat, persistQuickItemState, rowsFor, renderSkills, renderSpells, renderItems, renderCleanList, renderCategory, selectAction, confirmLegacyItemSelection, setTab, syncTabs, syncQuickBadge, syncPlanningEconomy, beginCombatEconomy, prepareReaction, triggerPreparedReaction, useQuickAction, install };
 
   async function boot() { await ensureDependencies(); return install(); }
   api.boot = boot; api.ensureDependencies = ensureDependencies;
