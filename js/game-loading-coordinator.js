@@ -18,6 +18,7 @@
     checks: new Map(),
     active: false,
     generation: 0,
+    hideTimer: null,
   };
 
   function clean(value) {
@@ -159,6 +160,10 @@
         detail: clean(check?.detail || ""),
       });
     });
+    if (state.hideTimer) {
+      global.clearTimeout(state.hideTimer);
+      state.hideTimer = null;
+    }
     state.active = true;
     overlay.style.opacity = "";
     overlay.classList.remove("error");
@@ -204,9 +209,13 @@
     });
     render(documentRef);
     overlay.setAttribute("aria-busy", "false");
+    const completingGeneration = state.generation;
     requestAnimationFrame(() => {
+      if (completingGeneration !== state.generation) return;
       overlay.style.opacity = "0";
-      global.setTimeout(() => {
+      state.hideTimer = global.setTimeout(() => {
+        state.hideTimer = null;
+        if (completingGeneration !== state.generation) return;
         overlay.classList.remove("active");
         overlay.style.opacity = "";
         state.active = false;
