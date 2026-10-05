@@ -1,0 +1,41 @@
+name: Player Menu Icon Validation
+
+on:
+  pull_request:
+    paths:
+      - "Assets/Images/Buttons/**"
+      - "hoja_personaje.html"
+      - "js/player-skills-hud.js"
+      - "Battle-viewer.html"
+      - "game-engine/lab/game/forest-0.3.3.1.html"
+      - "tests/player-menu-canonical-icons-smoke.mjs"
+      - ".github/workflows/player-menu-icons-validation.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "Assets/Images/Buttons/**"
+      - "hoja_personaje.html"
+      - "js/player-skills-hud.js"
+      - "Battle-viewer.html"
+      - "game-engine/lab/game/forest-0.3.3.1.html"
+      - "tests/player-menu-canonical-icons-smoke.mjs"
+      - ".github/workflows/player-menu-icons-validation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Validate canonical player menu icons
+        run: node tests/player-menu-canonical-icons-smoke.mjs
