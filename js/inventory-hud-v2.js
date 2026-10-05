@@ -566,9 +566,12 @@
     const icon = itemIcon(item);
     const gemOverlayIcon = itemGemOverlayIcon(item);
     const quantity = quantityOf(item);
+    const value = itemValue(item);
     const effectIndicators = itemEffectIndicators(item);
     const effectIndicatorHtml = renderEffectIndicators(effectIndicators);
+    const activeCard = containerType === "active";
     slot.classList.toggle("inventory-v2-has-effect-indicator", effectIndicators.length > 0);
+    slot.classList.toggle("inventory-v2-active-card", activeCard);
     slot.innerHTML = `
       <span class="tier">${escapeHtml(tierRoman(item))}</span>
       <div class="item-display">
@@ -577,10 +580,11 @@
           ${gemOverlayIcon ? `<span class="inventory-v2-gem-overlay" aria-hidden="true" style="background-image:url(&quot;${escapeHtml(gemOverlayIcon)}&quot;)"></span>` : ""}
         </div>
         <span class="item-name">${escapeHtml(itemName(item))}</span>
+        ${activeCard ? `<span class="inventory-v2-card-meta"><span class="inventory-v2-card-value">₳ ${escapeHtml(String(value))}</span><span class="inventory-v2-card-qty">x${escapeHtml(String(quantity))}</span></span>` : ""}
       </div>
       ${equipable ? '<span class="inventory-v2-equip-marker">EQUIP</span>' : ""}
       ${effectIndicatorHtml}
-      <div class="item-quantity">x${quantity}</div>`;
+      ${activeCard ? "" : `<div class="item-quantity">x${quantity}</div>`}`;
 
     if (containerType === "active") {
       slot.addEventListener("dragstart", (event) => {
