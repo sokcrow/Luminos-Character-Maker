@@ -63,6 +63,7 @@ globalThis.combatData = {
         definitionId: 'hp_generic_pocket_recovery_patch',
         name: 'Pocket Recovery Patch',
         category: 'consumable',
+        iconFamily: 'medicine_patch',
         quantity: 2,
         runtime: { actionCost: 'action', targetMode: 'self', effects: { hpRestore: 5 } },
       },
@@ -96,6 +97,14 @@ globalThis.LuminousItemRuntime = {
   quantityOf(item) { return Number(item.quantity || 0); },
   actionCostFor(item) { return item.runtime?.actionCost || 'action'; },
   hasFunction(item, name) { return name === 'use' && item.category === 'consumable'; },
+};
+
+globalThis.LuminousItemIconRegistry = {
+  resolveIcon(id, options = {}) {
+    if (id === 'medicine_patch') return 'Assets/Icons/items/consumable/medicine_patch.png';
+    if (id === 'generic_item' && options.fallback === false) return 'Assets/Icons/items/fallback/generic_item.png';
+    return '';
+  },
 };
 
 const menu = globalThis.LuminousCombatEconomyMenu073;
@@ -141,12 +150,28 @@ const itemList = categoryBody.children[0];
 assert.equal(itemList.children.length, 1, 'Items renderer must create one clickable row for the valid stack');
 const itemButton = itemList.children[0];
 assert.equal(itemButton.dataset.itemInstanceId, 'med_live_1');
+assert.match(
+  itemButton.innerHTML,
+  /Assets\/Icons\/items\/consumable\/medicine_patch\.png/,
+  'Combat Item rows must render the canonical small icon for the item iconFamily'
+);
+assert.equal(
+  menu.itemIconUrl(rows[0]),
+  'Assets/Icons/items/consumable/medicine_patch.png',
+  'Combat Item icon resolution must use the repository-local item icon registry'
+);
 assert.equal(typeof itemButton.onclick, 'function', 'Item row must have a click handler');
-itemButton.onclick();
-assert.ok(selected, 'clicking an Item row must reach selection');
-assert.equal(selected.type, 'items');
+const detailSelection = itemButton.onclick();
+assert.equal(selected, null, 'clicking an Action-cost Item must open its detail before crossing into the packed selector');
+assert.equal(detailSelection.type, 'items', 'Combat Item selections must preserve the legacy plural plan type');
+assert.equal(detailSelection.data.instanceId, 'med_live_1');
+assert.equal(detailSelection.data.definitionId, 'hp_generic_pocket_recovery_patch');
+assert.match(categoryBody.innerHTML, /USE ITEM/, 'clicking an Item row must render a visible confirmation detail');
+
+menu.confirmLegacyItemSelection(detailSelection);
+assert.ok(selected, 'confirming an Item must reach the packed selector');
+assert.equal(selected.type, 'items', 'confirmed Item plans must keep the plural type required by targeting and execution');
 assert.equal(selected.data.instanceId, 'med_live_1');
-assert.equal(selected.data.definitionId, 'hp_generic_pocket_recovery_patch');
 
 menu.state.originals.planTargetRule = (source) => source.itemType === 'hp_healing' ? 'self' : 'enemy';
 assert.equal(

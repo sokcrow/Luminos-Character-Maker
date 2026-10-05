@@ -3,7 +3,7 @@
 
   if (global.LuminousCombatEconomyMenu073) return;
 
-  const VERSION = "0.7.3-economy-menu.3-menu-transition-recovery";
+  const VERSION = "0.7.3-economy-menu.5-item-detail-plan-compat";
   const TABBED_MENUS = new Set(["global", "skills", "spells", "items"]);
   const ECONOMY = Object.freeze({ ACTION: "action", QUICK: "quick_action", REACTION: "reaction" });
   const state = {
@@ -325,6 +325,39 @@
     return normalizeId(runtime?.actionCostFor?.(item) || item.runtime?.actionCost || item.runtime?.action_cost || item.consumable_details?.action_cost || item.actionCost || item.action_cost || "action");
   }
 
+  function localItemIconAsset(value) {
+    const raw = clean(value);
+    if (!raw || /^(?:https?:)?\/\//i.test(raw) || /^(?:data|blob):/i.test(raw)) return "";
+    return raw;
+  }
+
+  function itemIconUrl(item = {}) {
+    const runtime = global.LuminousItemInventoryRuntime || global.LuminousItemRuntime;
+    let resolved = item;
+    try { resolved = runtime?.resolveItem?.(item) || item; } catch (_) {}
+    const registry = global.LuminousItemIconRegistry;
+
+    const families = [
+      item.iconFamily, item.icon_family,
+      resolved?.iconFamily, resolved?.icon_family,
+      item.family, item.group,
+      resolved?.family, resolved?.group,
+    ].map(clean).filter(Boolean);
+
+    for (const family of families) {
+      const icon = clean(registry?.resolveIcon?.(family, { fallback: false }));
+      if (icon) return icon;
+    }
+
+    const explicit = [
+      item.icono, item.icon, item.image, item.img,
+      resolved?.icono, resolved?.icon, resolved?.image, resolved?.img,
+    ].map(localItemIconAsset).find(Boolean);
+    if (explicit) return explicit;
+
+    return clean(registry?.resolveIcon?.("generic_item", { fallback: false }));
+  }
+
   function itemCanUseInCombat(item = {}) {
     if (!item || typeof item !== "object" || quantityOf(item) <= 0) return false;
     if (itemTiming(item) === "off_combat") return false;
@@ -519,6 +552,8 @@
       .combat-economy-tab.active{color:#090705;background:var(--accent);border-color:#fff}
       .combat-economy-tab:disabled{opacity:.42;cursor:default}
       .combat-economy-empty{padding:22px 14px;text-align:center;color:#8f8679;font:800 9px/1.45 Arial,sans-serif;letter-spacing:1px;text-transform:uppercase;border:1px dashed rgba(255,255,255,.16);background:rgba(0,0,0,.25)}
+      .combat-item-icon{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;flex:0 0 26px;margin-right:7px}
+      .combat-item-icon img{display:block;width:24px;height:24px;object-fit:contain}
       .economy-action-detail{padding:12px;background:#100c08;border-left:3px solid var(--accent);box-shadow:7px 7px 0 rgba(0,0,0,.45)}
       .economy-action-detail h3{margin:0 0 5px;color:#f0e5d4;font:22px/1 var(--font);text-transform:uppercase}
       .economy-action-detail .economy-kind{color:var(--accent);font:900 8px Arial,sans-serif;letter-spacing:1.4px;text-transform:uppercase}
@@ -697,7 +732,9 @@
       button.dataset.itemInstanceId = row.instanceId || row.id || "";
       button.style?.setProperty?.("--row-accent", lexical("menuMeta", {})?.items?.accent || "#f0bf72");
       const qty = Math.max(0, Number(row.quantity) || 0);
-      button.innerHTML = `<span class="clean-name">${htmlEscape(row.name)}</span><span class="clean-cost">x${qty} · ${htmlEscape(costLabel(row))}</span>`;
+      const iconUrl = itemIconUrl(row);
+      const icon = iconUrl ? `<span class="combat-item-icon"><img src="${htmlEscape(iconUrl)}" alt=""></span>` : "";
+      button.innerHTML = `${icon}<span class="clean-name">${htmlEscape(row.name)}</span><span class="clean-cost">x${qty} · ${htmlEscape(costLabel(row))}</span>`;
       button.onclick = () => api.selectAction({ type: "items", slotIndex: selectedSlotIndex(), data: row });
       list.appendChild(button);
     });
@@ -959,13 +996,22 @@
     const body = global.document?.getElementById?.("category-body");
     if (!body) return;
     const quick = tab === ECONOMY.QUICK;
+    const actionItem = tab === ECONOMY.ACTION && normalizeId(source.kind || source.sourceType) === "item";
     const reactionMode = reactionModeOf(source);
     const canPrepare = tab === ECONOMY.REACTION && reactionMode === "prepared";
-    const buttonLabel = quick ? "USE QUICK ACTION" : (canPrepare ? "PREPARE REACTION" : "ADAPTIVE REACTION");
+    const buttonLabel = actionItem ? "USE ITEM" : (quick ? "USE QUICK ACTION" : (canPrepare ? "PREPARE REACTION" : "ADAPTIVE REACTION"));
     body.innerHTML = `<div class="economy-action-detail"><div class="economy-kind">${htmlEscape(tab.replaceAll("_", " "))}${tab === ECONOMY.REACTION ? ` · ${reactionMode}` : ""}</div><h3>${htmlEscape(source.name || source.id || "Action")}</h3><div class="economy-copy">${source.description || ""}</div><div class="economy-cost">${htmlEscape(costLabel(source))}</div><button id="economy-action-confirm" ${tab === ECONOMY.REACTION && !canPrepare ? "disabled" : ""}>${buttonLabel}</button></div>`;
     const confirm = global.document.getElementById("economy-action-confirm");
-    if (confirm && !confirm.disabled) confirm.onclick = () => quick ? beginQuickAction(sel) : prepareReaction(sel);
+    if (confirm && !confirm.disabled) {
+      if (actionItem) confirm.onclick = () => confirmLegacyItemSelection(sel);
+      else confirm.onclick = () => quick ? beginQuickAction(sel) : prepareReaction(sel);
+    }
     lexical("layoutCategory", () => {})();
+  }
+
+  function confirmLegacyItemSelection(sel) {
+    if (!sel) return undefined;
+    return state.originals.selectAction?.({ ...sel, type: "items" });
   }
 
   function selfTargetedItem(source = {}) {
@@ -984,11 +1030,19 @@
   function selectAction(sel) {
     const menu = activeMenu();
     const tab = economyTabFor(sel?.data || {});
-    if (!TABBED_MENUS.has(menu) || tab === ECONOMY.ACTION) return state.originals.selectAction?.(sel);
+    const actionItem = menu === "items" && tab === ECONOMY.ACTION && normalizeId(sel?.data?.kind || sel?.data?.sourceType) === "item";
+    if (!TABBED_MENUS.has(menu) || (tab === ECONOMY.ACTION && !actionItem)) return state.originals.selectAction?.(sel);
+
     global.__luminousEconomySelected = sel;
     try { global.eval("selected=window.__luminousEconomySelected;navState='action'"); } catch (_) {}
     detailForEconomySelection(sel);
+
+    if (actionItem) {
+      lexical("setStatus", () => {})(`ITEM · ${sel?.data?.name || "Item"}`);
+      return sel;
+    }
     lexical("setStatus", () => {})(`${tab === ECONOMY.QUICK ? "QUICK ACTION" : "REACTION"} · ${sel?.data?.name || "Action"}`);
+    return sel;
   }
 
   function targetingAllegiance(source = {}) {
@@ -1268,6 +1322,7 @@
   }
 
   async function ensureDependencies() {
+    await loadScript("item-icon-registry-economy073", "js/item-icon-registry.js", () => Boolean(global.LuminousItemIconRegistry));
     await loadScript("combat-action-schema-economy073", "js/combat-action-schema.js", () => Boolean(global.LuminousCombatAction));
     await loadScript("content-registry-economy073", "js/content-registry.js", () => Boolean(global.LuminousContentRegistry));
     await loadScript("content-registry-bootstrap-economy073", "js/content-registry-bootstrap.js", () => Boolean(global.LuminousContentRegistryBootstrap));
@@ -1353,7 +1408,7 @@
     state.installed = true; return true;
   }
 
-  const api = { version: VERSION, ECONOMY, state, normalizeEconomyCost, economyTabFor, costLabel, canonicalPlayerId, playerUnit, playerKit, traitDefinitionsForPlayer, liveActions, spellLoadoutRuntime, normalizeSpellForMenu, classEntries, spellcastingClasses, isSpellcaster, selectedSpellIds, spellRowsForPlayer, inventoryEntries, quantityOf, itemTiming, itemCanUseInCombat, stableItemRow, itemRowsForPlayer, findActiveInventoryItem, spellMenuNodes, syncSpellMenuVisibility, layoutRadialCommandsStable, syncResponsiveMenuLayout, renderActiveMenuBody, ensureCategorySurfaceOpen, refreshOpenedMenu, openCompactMenu, installRootMenuClickHandler, selfTargetedItem, planTargetRuleCompat, persistQuickItemState, rowsFor, renderSkills, renderSpells, renderItems, renderCleanList, renderCategory, selectAction, setTab, syncTabs, syncQuickBadge, syncPlanningEconomy, beginCombatEconomy, prepareReaction, triggerPreparedReaction, useQuickAction, install };
+  const api = { version: VERSION, ECONOMY, state, normalizeEconomyCost, economyTabFor, costLabel, canonicalPlayerId, playerUnit, playerKit, traitDefinitionsForPlayer, liveActions, spellLoadoutRuntime, normalizeSpellForMenu, classEntries, spellcastingClasses, isSpellcaster, selectedSpellIds, spellRowsForPlayer, inventoryEntries, quantityOf, itemTiming, itemIconUrl, itemCanUseInCombat, stableItemRow, itemRowsForPlayer, findActiveInventoryItem, spellMenuNodes, syncSpellMenuVisibility, layoutRadialCommandsStable, syncResponsiveMenuLayout, renderActiveMenuBody, ensureCategorySurfaceOpen, refreshOpenedMenu, openCompactMenu, installRootMenuClickHandler, selfTargetedItem, planTargetRuleCompat, persistQuickItemState, rowsFor, renderSkills, renderSpells, renderItems, renderCleanList, renderCategory, selectAction, confirmLegacyItemSelection, setTab, syncTabs, syncQuickBadge, syncPlanningEconomy, beginCombatEconomy, prepareReaction, triggerPreparedReaction, useQuickAction, install };
 
   async function boot() { await ensureDependencies(); return install(); }
   api.boot = boot; api.ensureDependencies = ensureDependencies;
