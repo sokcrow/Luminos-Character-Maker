@@ -616,39 +616,58 @@
     const combatStateRef = db.ref(COMBAT_STATE_PATH);
     let currentInstance = "ninguno";
     let combatState = {};
+    let dataBound = false;
 
     ensureTheatreRollVisualizerAssets(documentRef);
     ensureTheatreCheckCoordinatorAssets(documentRef);
     ensureTheatreOpposedAssets(documentRef);
 
-    combatStateRef.on("value", (snapshot) => {
-      combatState = snapshot.val() || {};
-    }, (error) => {
-      console.error("No se pudo observar el estado del encounter para el jugador:", error);
-    });
+    const bindData = () => {
+      if (dataBound) return;
+      dataBound = true;
 
-    instanceRef.on("value", (snapshot) => {
-      const activeInstance = normalizeInstance(snapshot.val());
-      const previousInstance = currentInstance;
-      const returningToTheatre =
-        (activeInstance === "teatro" || activeInstance === "combat_theatre") &&
-        ["combate", "combat_theatre"].includes(previousInstance);
-      const result = normalizeCombatResult(combatState?.result || combatState?.outcome);
+      combatStateRef.on("value", (snapshot) => {
+        combatState = snapshot.val() || {};
+      }, (error) => {
+        console.error("No se pudo observar el estado del encounter para el jugador:", error);
+        loadingApi()?.fail?.("combat-state", error?.message || String(error), documentRef);
+      });
 
-      if (returningToTheatre) {
-        void beginTheatreLoading({ db, doc: documentRef, result });
-      }
+      instanceRef.on("value", (snapshot) => {
+        const activeInstance = normalizeInstance(snapshot.val());
+        const previousInstance = currentInstance;
+        const returningToTheatre =
+          (activeInstance === "teatro" || activeInstance === "combat_theatre") &&
+          ["combate", "combat_theatre"].includes(previousInstance);
+        const result = normalizeCombatResult(combatState?.result || combatState?.outcome);
 
-      currentInstance = activeInstance;
-      applyPlayerInstance(activeInstance, documentRef);
+        if (returningToTheatre) {
+          void beginTheatreLoading({ db, doc: documentRef, result });
+        }
 
-      if (activeInstance === "combate" && previousInstance !== "combate") {
-        void beginCombatLoading({ db, doc: documentRef, role: "player" });
-      }
-    }, (error) => {
-      console.error("No se pudo observar la instancia activa para el jugador:", error);
-      loadingApi()?.fail?.("instance", error?.message || String(error), documentRef);
-    });
+        currentInstance = activeInstance;
+        applyPlayerInstance(activeInstance, documentRef);
+
+        if (activeInstance === "combate" && previousInstance !== "combate") {
+          void beginCombatLoading({ db, doc: documentRef, role: "player" });
+        }
+      }, (error) => {
+        console.error("No se pudo observar la instancia activa para el jugador:", error);
+        loadingApi()?.fail?.("instance", error?.message || String(error), documentRef);
+      });
+    };
+
+    const auth = global.firebase?.auth?.();
+    if (auth?.onAuthStateChanged) {
+      auth.onAuthStateChanged((user) => {
+        if (user) bindData();
+      }, (error) => {
+        console.error("No se pudo restaurar Auth antes de iniciar las instancias del jugador:", error);
+        loadingApi()?.fail?.("auth", error?.message || String(error), documentRef);
+      });
+    } else {
+      bindData();
+    }
   }
 
   global.LuminousInstanceControl = Object.freeze({
