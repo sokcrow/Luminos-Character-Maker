@@ -419,6 +419,14 @@ test("real player sheet stays stable for 60 seconds under background player upda
   const result = await page.evaluate(async () => {
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+    // Warm the player-update path once before measuring long-session stability.
+    // The first synthetic player snapshot performs deterministic one-time DOM
+    // cleanup on the real sheet; measuring before that makes the soak report a
+    // false node "loss" even when every subsequent update is stable.
+    window.__fakeFirebase.emitPlayer({ backgroundHeartbeat: "warmup" });
+    await sleep(0);
+    await new Promise((resolve) => requestAnimationFrame(() => resolve()));
+
     // The sheet still performs a small amount of one-time DOM cleanup after
     // player data is ready. Slow CI runners can finish that cleanup after the
     // outer 2s boot wait, which makes a pre-cleanup baseline look like a node
