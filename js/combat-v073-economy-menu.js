@@ -698,7 +698,7 @@
       button.style?.setProperty?.("--row-accent", lexical("menuMeta", {})?.items?.accent || "#f0bf72");
       const qty = Math.max(0, Number(row.quantity) || 0);
       button.innerHTML = `<span class="clean-name">${htmlEscape(row.name)}</span><span class="clean-cost">x${qty} · ${htmlEscape(costLabel(row))}</span>`;
-      button.onclick = () => api.selectAction({ type: "items", slotIndex: selectedSlotIndex(), data: row });
+      button.onclick = () => api.selectAction({ type: "item", slotIndex: selectedSlotIndex(), data: row });
       list.appendChild(button);
     });
     body.appendChild(list);
@@ -983,12 +983,13 @@
 
   function selectAction(sel) {
     const menu = activeMenu();
-    const tab = economyTabFor(sel?.data || {});
-    if (!TABBED_MENUS.has(menu) || tab === ECONOMY.ACTION) return state.originals.selectAction?.(sel);
-    global.__luminousEconomySelected = sel;
+    const normalizedSel = sel?.type === "items" ? { ...sel, type: "item" } : sel;
+    const tab = economyTabFor(normalizedSel?.data || {});
+    if (!TABBED_MENUS.has(menu) || tab === ECONOMY.ACTION) return state.originals.selectAction?.(normalizedSel);
+    global.__luminousEconomySelected = normalizedSel;
     try { global.eval("selected=window.__luminousEconomySelected;navState='action'"); } catch (_) {}
-    detailForEconomySelection(sel);
-    lexical("setStatus", () => {})(`${tab === ECONOMY.QUICK ? "QUICK ACTION" : "REACTION"} · ${sel?.data?.name || "Action"}`);
+    detailForEconomySelection(normalizedSel);
+    lexical("setStatus", () => {})(`${tab === ECONOMY.QUICK ? "QUICK ACTION" : "REACTION"} · ${normalizedSel?.data?.name || "Action"}`);
   }
 
   function targetingAllegiance(source = {}) {
