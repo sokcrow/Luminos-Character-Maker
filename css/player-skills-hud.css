@@ -412,6 +412,16 @@ body:not(.on-game-dashboard) #skills-modal .hud-modal-close:hover{
   display:block;
 }
 
+.hud-menu-item [data-player-skills-menu-icon]{
+  width:35px!important;
+  height:35px!important;
+  min-width:35px!important;
+  min-height:35px!important;
+  max-width:35px!important;
+  max-height:35px!important;
+  flex:0 0 35px!important;
+}
+
 @media (prefers-reduced-motion:reduce){
   body:not(.on-game-dashboard) #skills-modal .hud-modal-close,
   .player-skills-deck-slot,
