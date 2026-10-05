@@ -64,6 +64,64 @@ const { pathToFileURL } = require("node:url");
 
   assert.equal(requiredTypes.size, 0, "standard presets must cover all intended shop profiles");
 
+  const quickStop = presets.get("quickstop_chain").shop;
+  const quickStopWithoutPromotion = {
+    ...quickStop,
+    chain: { ...quickStop.chain, promotions: [] },
+  };
+  const convenienceItem = {
+    id: "test_food",
+    family: "food",
+    productionValueAhn: 1000,
+    tier: "I",
+  };
+  assert.ok(
+    shops.purchasePrice(convenienceItem, quickStop) <
+      shops.purchasePrice(convenienceItem, quickStopWithoutPromotion),
+    "QuickStop chain promotion must reduce the purchase price",
+  );
+
+  const workshop = presets.get("district_workshop").shop;
+  const repairQuote = shops.repairBreakdown(
+    {
+      id: "test_damaged_tool",
+      productionValueAhn: 5000,
+      tier: "I",
+      condition: 50,
+      conditionMax: 100,
+      repairMaterialValuePerPointAhn: 25,
+    },
+    workshop,
+    { points: 10 },
+  );
+  assert.equal(repairQuote.available, true, "Workshop preset must make repair available");
+  assert.equal(repairQuote.reason, "available");
+  assert.equal(repairQuote.priceAhn, 420);
+
+  const syntheticCatalog = {
+    food: convenienceItem,
+    medical: { id: "medical", family: "medical_supply", productionValueAhn: 1000, tier: "I" },
+    healing: { id: "healing", family: "healing_hp", productionValueAhn: 1000, tier: "I" },
+    tools: { id: "tools", family: "tools", productionValueAhn: 1000, tier: "I" },
+    components: { id: "components", family: "craft_components", productionValueAhn: 1000, tier: "I" },
+    weapons: { id: "weapons", family: "weapons", productionValueAhn: 1000, tier: "I" },
+    retail: { id: "retail", family: "retail_food", productionValueAhn: 1000, tier: "I" },
+    essence: { id: "essence", family: "essence_core", productionValueAhn: 1000, tier: "IV" },
+  };
+  for (const preset of list) {
+    const generated = shops.generateCatalog(
+      syntheticCatalog,
+      {
+        ...preset.shop,
+        jugadores_presentes: { Tester: true },
+      },
+    );
+    assert.ok(
+      Object.keys(generated).length > 0,
+      preset.id + " must generate at least one item from the synthetic coverage catalog",
+    );
+  }
+
   const cloneA = presets.get("quickstop_chain");
   const cloneB = presets.get("quickstop_chain");
   cloneA.shop.nombre = "MUTATED";
