@@ -279,11 +279,14 @@
 
     return new Promise((resolve, reject) => {
       let settled = false;
+      let connectionReady = false;
+      let combatStateReady = false;
+      let combatantsReadable = false;
       let runtimeReady = false;
       let hydrated = false;
       const finishIfReady = () => {
         if (settled || generation !== state.generation) return;
-        if (!runtimeReady || !hydrated) return;
+        if (!connectionReady || !combatStateReady || !combatantsReadable || !runtimeReady || !hydrated) return;
         settled = true;
         cleanup();
         complete({ doc: documentRef, title: "BATTLE LISTO", detail: role === "dm" ? "Control táctico sincronizado." : "Encounter sincronizado." });
@@ -316,7 +319,14 @@
           hydrated = true;
           runtimeReady = true;
           setCheck("combat-runtime", "ready", "Runtime activo", documentRef);
-          setCheck("combatants", "ready", clean(payload.detail || "Estado hidratado"), documentRef);
+          setCheck(
+            "combatants",
+            combatantsReadable ? "ready" : "pending",
+            combatantsReadable
+              ? clean(payload.detail || "Datos accesibles y runtime hidratado")
+              : clean(payload.detail || "Runtime hidratado · verificando datos"),
+            documentRef,
+          );
           finishIfReady();
           return;
         }
@@ -330,16 +340,27 @@
       global.addEventListener?.("message", onMessage);
 
       waitForConnection(db, { timeoutMs: Math.min(timeoutMs, 12000) })
-        .then(() => setCheck("connection", "ready", "En línea", documentRef))
+        .then(() => {
+          connectionReady = true;
+          setCheck("connection", "ready", "En línea", documentRef);
+          finishIfReady();
+        })
         .catch((error) => failLoad("connection", error));
 
       probeRead(db, "campaña/combate/estado")
-        .then(() => setCheck("combat-state", "ready", "Estado accesible", documentRef))
+        .then(() => {
+          combatStateReady = true;
+          setCheck("combat-state", "ready", "Estado accesible", documentRef);
+          finishIfReady();
+        })
         .catch((error) => failLoad("combat-state", error));
 
       probeRead(db, "campaña/combate/combatants")
         .then(() => {
-          if (!hydrated) setCheck("combatants", "pending", "Esperando hidratación del runtime", documentRef);
+          combatantsReadable = true;
+          if (hydrated) setCheck("combatants", "ready", "Datos accesibles y runtime hidratado", documentRef);
+          else setCheck("combatants", "pending", "Datos accesibles · esperando hidratación", documentRef);
+          finishIfReady();
         })
         .catch((error) => failLoad("combatants", error));
 
@@ -350,7 +371,14 @@
           hydrated = true;
           runtimeReady = true;
           setCheck("combat-runtime", "ready", "Runtime activo", documentRef);
-          setCheck("combatants", "ready", clean(childState.detail || "Estado hidratado"), documentRef);
+          setCheck(
+            "combatants",
+            combatantsReadable ? "ready" : "pending",
+            combatantsReadable
+              ? clean(childState.detail || "Datos accesibles y runtime hidratado")
+              : clean(childState.detail || "Runtime hidratado · verificando datos"),
+            documentRef,
+          );
           finishIfReady();
         } else if (childState?.stage === "runtime-ready") {
           runtimeReady = true;
