@@ -259,13 +259,24 @@
   async function probeDmWrite(db, user, options = {}) {
     const uid = clean(user?.uid);
     if (!uid || !db?.ref) throw new Error("DM_WRITE_PROBE_UNAVAILABLE");
-    const ref = db.ref("campaña/runtime_health/dm_boot/" + uid);
-    await ref.set({
+    const payload = {
       at: global.firebase?.database?.ServerValue?.TIMESTAMP || Date.now(),
       surface: clean(options.surface || "runtime"),
-    });
-    await ref.remove();
-    return true;
+    };
+    const runProbe = async (path) => {
+      const ref = db.ref(path);
+      await ref.set(payload);
+      await ref.remove();
+      return true;
+    };
+
+    try {
+      return await runProbe("campaña/runtime_health/dm_boot/" + uid);
+    } catch (primaryError) {
+      const code = clean(primaryError?.code).toUpperCase();
+      if (!code.includes("PERMISSION_DENIED")) throw primaryError;
+      return runProbe("campaña/calendario/runtime_health/dm_boot/" + uid);
+    }
   }
 
   function waitForCombatFrame(frame, options = {}) {
