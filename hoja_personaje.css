@@ -6657,7 +6657,7 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
     }
 
     .hud-sidebar-right .hud-menu-dropdown {
-        width: 52px;
+        width: 124px;
         gap: 5px;
         padding: 6px;
         overflow: visible;
@@ -6667,18 +6667,25 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
     .hud-menu-item.btn-global-inventory {
         position: relative;
         inset: auto;
-        width: 40px !important;
-        height: 40px !important;
-        min-width: 40px;
-        min-height: 40px;
+        width: 112px !important;
+        height: 112px !important;
+        min-width: 112px !important;
+        min-height: 112px !important;
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 0;
+        padding: 0 !important;
         border: 0;
         border-left: 2px solid #635b47;
         border-radius: 0;
-        overflow: visible;
+        overflow: visible !important;
+    }
+
+    .hud-menu-local-icon {
+        width: 100px !important;
+        height: 100px !important;
+        flex: 0 0 100px;
+        object-fit: contain;
     }
 
     .hud-menu-item svg { width: 21px; height: 21px; }
