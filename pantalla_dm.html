@@ -4398,6 +4398,7 @@ window.processEntitiesData = function(entities) {
       const DM_BOOT_REQUIRED = new Set(["players", "npcs", "actors", "calendar"]);
       const dmBootReady = new Set();
       let dmBootFinalizing = false;
+      let dmBootFailed = false;
 
       function syncDMLoadingSegments(progress = 0) {
         const container = document.getElementById("system-loading-segments");
@@ -4498,6 +4499,7 @@ window.processEntitiesData = function(entities) {
         const detailText = document.getElementById("system-loading-detail");
         const retryButton = document.getElementById("system-loading-retry");
 
+        dmBootFailed = true;
         overlay.classList.add("is-error");
         overlay.setAttribute("aria-busy", "false");
         if (indicator) indicator.textContent = "NO SE PUDO PREPARAR LA CONSOLA";
@@ -4547,7 +4549,7 @@ window.processEntitiesData = function(entities) {
       }
 
       function markDMBootReady(key) {
-        if (!DM_BOOT_REQUIRED.has(key) || dmBootReady.has(key)) return;
+        if (dmBootFailed || !DM_BOOT_REQUIRED.has(key) || dmBootReady.has(key)) return;
         dmBootReady.add(key);
 
         const progress = Math.min(
