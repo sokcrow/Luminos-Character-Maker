@@ -165,7 +165,22 @@ async function goRoot(page) {
   await page.evaluate(() => {
     try { (0, eval)("goRoot()"); } catch (_) {}
   });
-  await page.waitForTimeout(100);
+  await page.waitForFunction(() => {
+    let active = '', nav = '';
+    try { active = String((0, eval)('activeMenu') || ''); } catch (_) {}
+    try { nav = String((0, eval)('navState') || ''); } catch (_) {}
+    const commands = [...document.querySelectorAll('.command-ring [data-menu]')];
+    return active === '' && nav === 'root' && commands.some(node => {
+      const rect = node.getBoundingClientRect();
+      const style = getComputedStyle(node);
+      return rect.width > 0 && rect.height > 0
+        && rect.right > 0 && rect.bottom > 0
+        && rect.x < innerWidth && rect.y < innerHeight
+        && style.display !== 'none'
+        && style.visibility !== 'hidden'
+        && style.pointerEvents !== 'none';
+    });
+  }, null, { timeout: 5000 });
 }
 
 async function clickRootMenu(page, menu) {
@@ -374,6 +389,106 @@ test('desktop Player Items menu does not lock the HUD and can return to other me
 
   await clickRootMenu(page, 'global');
   await assertCategoryVisible(page, 'Analyse', 'actions-after-items-desktop');
+
+  expect(pageErrors, pageErrors.join('\n')).toEqual([]);
+});
+
+
+test('real Player internal Combat buttons advance selection state on physical click', async ({ page }) => {
+  await page.setViewportSize({ width: 1365, height: 768 });
+  const pageErrors = [];
+  page.on('pageerror', error => pageErrors.push(String(error?.stack || error?.message || error)));
+  await installFirebase(page);
+  await page.goto(`${BASE}/Battle-viewer.html`, { waitUntil: 'domcontentloaded' });
+
+  await page.waitForFunction(() => {
+    const adapter = window.LuminousCombatLiveAdapter073;
+    const menu = window.LuminousCombatEconomyMenu073;
+    const unit = window.LuminousCombat073?.combatants?.()?.['player:p1'];
+    return adapter?.state?.role === 'player'
+      && adapter?.state?.playerId === 'p1'
+      && menu?.state?.installed === true
+      && unit?.controlled === 'player';
+  }, null, { timeout: 30000 });
+
+  await page.waitForFunction(() => window.LuminousCombatEconomyMenu073?.liveActions?.('skill')?.some(row => row.id === 'ci_player_skill'), null, { timeout: 15000 });
+  await page.waitForFunction(() => window.LuminousCombatEconomyMenu073?.spellRowsForPlayer?.().some(row => row.spellId === 'mage_hand'), null, { timeout: 15000 });
+  await page.waitForFunction(() => window.LuminousCombatEconomyMenu073?.itemRowsForPlayer?.().some(row => row.name === 'CI Recovery Patch'), null, { timeout: 15000 });
+
+  const state = async () => page.evaluate(() => {
+    let activeMenu = '', navState = '', selected = null;
+    try { activeMenu = String((0, eval)('activeMenu') || ''); } catch (_) {}
+    try { navState = String((0, eval)('navState') || ''); } catch (_) {}
+    try { selected = (0, eval)('selected'); } catch (_) {}
+    const body = document.getElementById('category-body');
+    const surface = document.getElementById('category-surface');
+    const back = document.getElementById('back');
+    const inspect = node => {
+      if (!node) return null;
+      const rect = node.getBoundingClientRect();
+      const style = getComputedStyle(node);
+      return {
+        rect:{x:rect.x,y:rect.y,width:rect.width,height:rect.height},
+        display:style.display,
+        visibility:style.visibility,
+        opacity:style.opacity,
+        pointerEvents:style.pointerEvents
+      };
+    };
+    return {
+      activeMenu,
+      navState,
+      selectedType:selected?.type || null,
+      selectedName:selected?.data?.name || selected?.data?.id || null,
+      bodyText:String(body?.innerText || body?.textContent || '').trim(),
+      body:inspect(body),
+      surface:inspect(surface),
+      back:inspect(back),
+      selectorBridge:{
+        originalIsReview:window.LuminousCombatEconomyMenu073?.state?.originals?.selectAction === window.LuminousCombatEconomyReviewFixes073?.selectAction,
+        originalIsEconomy:window.LuminousCombatEconomyMenu073?.state?.originals?.selectAction === window.LuminousCombatEconomyMenu073?.selectAction,
+        originalName:window.LuminousCombatEconomyMenu073?.state?.originals?.selectAction?.name || '',
+        lexicalName:(()=>{try{return (0,eval)('selectAction')?.name || ''}catch(_){return ''}})()
+      }
+    };
+  });
+
+  const cases = [
+    { menu:'global', selector:'#category-body .clean-row', label:'Help' },
+    { menu:'skills', selector:'#category-body .skill-option', label:'CI Visible Skill' },
+    { menu:'spells', selector:'#category-body .skill-option', label:'Mage Hand' },
+    { menu:'items', selector:'#category-body .clean-row', label:'CI Recovery Patch' },
+  ];
+
+  for (const entry of cases) {
+    await page.evaluate((wanted) => {
+      window.__combatInteractionMenu = wanted;
+      try { (0, eval)("activeMenu=window.__combatInteractionMenu;navState='category';selected=null;focusedIndex=0"); } catch (_) {}
+      const menu = window.LuminousCombatEconomyMenu073;
+      menu?.renderCategory?.();
+      menu?.ensureCategorySurfaceOpen?.(wanted);
+      menu?.syncTabs?.();
+    }, entry.menu);
+    await page.waitForFunction((wanted) => {
+      try { return String((0, eval)('activeMenu') || '') === wanted && String((0, eval)('navState') || '') === 'category'; } catch (_) { return false; }
+    }, entry.menu, { timeout: 5000 });
+    const row = page.locator(entry.selector).filter({ hasText: entry.label }).first();
+    await expect(row).toBeVisible({ timeout: 5000 });
+    const before = await state();
+    const hasOnclick = await row.evaluate(node => typeof node.onclick === 'function');
+    await row.click({ timeout: 5000 });
+    await page.waitForTimeout(360);
+    const after = await state();
+    const physicalAdvanced = after.navState !== before.navState
+      || after.selectedType !== before.selectedType
+      || after.selectedName !== before.selectedName
+      || after.bodyText !== before.bodyText
+      || (entry.menu === 'items' && /USE ITEM/.test(after.bodyText));
+    expect(
+      physicalAdvanced,
+      JSON.stringify({ entry, before, after, hasOnclick })
+    ).toBe(true);
+  }
 
   expect(pageErrors, pageErrors.join('\n')).toEqual([]);
 });
