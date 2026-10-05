@@ -380,8 +380,12 @@
       await waitForConnection(db, { timeoutMs: Number(options.timeoutMs) || 12000 });
       if (generation !== state.generation) return false;
       setCheck("connection", "ready", "En línea", documentRef);
-      await probeRead(db, "campaña/estado_mundo/instancia_activa");
-      setCheck("instance", "ready", "Instancia accesible", documentRef);
+      const instanceSnapshot = await db.ref("campaña/estado_mundo/instancia_activa").once("value");
+      const instanceValue = clean(instanceSnapshot.val()).toLowerCase();
+      if (!["teatro", "combat_theatre", "combat-theatre", "combat_theater", "combat-theater"].includes(instanceValue)) {
+        throw new Error("THEATRE_INSTANCE_NOT_ACTIVE");
+      }
+      setCheck("instance", "ready", "Theater activo", documentRef);
       await probeRead(db, scenePath);
       setCheck("scene", "ready", "Escena recuperada", documentRef);
       const dialoguePath = global.LuminousTheatreState?.getPaths?.().dialogue || "campaña/estado_mundo/dialogo_activo";
