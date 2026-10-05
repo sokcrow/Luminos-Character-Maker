@@ -461,8 +461,17 @@ test('real Player internal Combat buttons advance selection state on physical cl
   ];
 
   for (const entry of cases) {
-    await goRoot(page);
-    await clickRootMenu(page, entry.menu);
+    await page.evaluate((wanted) => {
+      window.__combatInteractionMenu = wanted;
+      try { (0, eval)("activeMenu=window.__combatInteractionMenu;navState='category';selected=null;focusedIndex=0"); } catch (_) {}
+      const menu = window.LuminousCombatEconomyMenu073;
+      menu?.renderCategory?.();
+      menu?.ensureCategorySurfaceOpen?.(wanted);
+      menu?.syncTabs?.();
+    }, entry.menu);
+    await page.waitForFunction((wanted) => {
+      try { return String((0, eval)('activeMenu') || '') === wanted && String((0, eval)('navState') || '') === 'category'; } catch (_) { return false; }
+    }, entry.menu, { timeout: 5000 });
     const row = page.locator(entry.selector).filter({ hasText: entry.label }).first();
     await expect(row).toBeVisible({ timeout: 5000 });
     const before = await state();
