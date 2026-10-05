@@ -2423,6 +2423,27 @@ window.processEntitiesData = function(entities) {
             </div>
           </div>
           <div class="form-cyber-container">
+            <div
+              id="shop-standard-presets-panel"
+              class="form-cyber"
+              style="margin-bottom:12px;"
+            >
+              <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:10px;">
+                <div>
+                  <h4 style="margin:0 0 4px;">Tiendas Estándar de Prueba</h4>
+                  <div style="font-size:11px;color:#777;line-height:1.4;">
+                    Carga una configuración conocida para probar catálogo, stock, servicios, cadenas, promociones y lealtad.
+                    Al cargar un preset se marcan los jugadores actuales; puedes desmarcarlos antes de crear la tienda.
+                  </div>
+                </div>
+                <span id="shop-standard-presets-count" style="color:#0df;font-size:11px;white-space:nowrap;"></span>
+              </div>
+              <div
+                id="shop-standard-presets-grid"
+                style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px;"
+              ></div>
+            </div>
+
                         <!-- Formulario: Crear Tienda -->
             <div class="form-cyber">
               <h4>Registrar Nueva Tienda</h4>
@@ -4274,6 +4295,7 @@ window.processEntitiesData = function(entities) {
     <script src="js/item-runtime-engine.js"></script>
     <script src="js/item-inventory-runtime.js"></script>
     <script src="js/shop-runtime.js?v=7-shop-taxonomy"></script>
+    <script src="js/shop-standard-presets.js?v=2"></script>
     <!-- Canonical item definitions used by the Director catalog. -->
     <!-- Prerequisites must load before component catalogs in browser mode. -->
     <script src="js/item-armor-material-profile.js"></script>
@@ -7327,6 +7349,143 @@ window.processEntitiesData = function(entities) {
         let marketEventInputs = [];
         let shopPromotionsDraft = [];
 
+        function loadStandardShopPreset(presetId) {
+          const library = window.LuminousShopStandardPresets;
+          const preset = library?.get?.(presetId);
+          if (!preset?.shop) return;
+
+          resetTiendaForm();
+
+          const shop = preset.shop;
+          const setValue = (id, value) => {
+            const input = document.getElementById(id);
+            if (input) input.value = value == null ? "" : value;
+          };
+          const setChecked = (id, value) => {
+            const input = document.getElementById(id);
+            if (input) input.checked = value === true;
+          };
+
+          setValue("tienda-nombre", shop.nombre || preset.name || "");
+          setValue("tienda-icono", shop.icono || "");
+          setValue("tienda-icono-fisico", shop.icono_fisico || "");
+          setValue("tienda-tipo", shop.shop_type || "general");
+          setValue("tienda-tier", shop.shop_tier || 1);
+          setChecked("tienda-fisica-activa", shop.fisica_activa === true);
+          setValue("tienda-dias-entrega", shop.dias_entrega ?? 0);
+          setValue("tienda-restock-dia", shop.dia_restock || "Lunes");
+          setValue("tienda-mod-venta", shop.mod_venta ?? 100);
+
+          document.querySelectorAll(".tienda-jugador-cb").forEach((cb) => {
+            cb.checked = true;
+          });
+
+          const merchant = shop.merchant_npc?.enabled === false ? null : shop.merchant_npc;
+          setChecked("tienda-npc-activa", !!merchant);
+          setValue("tienda-npc-nombre", merchant?.name || "");
+          setValue("tienda-npc-sprite", merchant?.sprite || "");
+          setValue("tienda-npc-saludo", merchant?.greeting || "");
+          setValue(
+            "tienda-cliente-frecuente-compras",
+            merchant?.frequent_customer_min_purchases ?? merchant?.frequentCustomerMinPurchases ?? 10,
+          );
+          setValue(
+            "tienda-cliente-frecuente-descuento",
+            merchant?.frequent_customer_discount_percent ?? merchant?.frequentCustomerDiscountPercent ?? 5,
+          );
+          setValue(
+            "tienda-descuento-confianza",
+            merchant?.relationship_discounts?.trusted ?? merchant?.relationshipDiscounts?.trusted ?? 10,
+          );
+
+          const chain = shop.chain || null;
+          setValue("tienda-cadena-nombre", chain?.name || "");
+
+          const loyalty = shop.loyalty_program || chain?.loyalty_program || chain?.loyaltyProgram || null;
+          setChecked("tienda-lealtad-activa", !!loyalty?.enabled);
+          setValue("tienda-lealtad-nombre", loyalty?.name || "");
+          setValue(
+            "tienda-lealtad-compras",
+            loyalty?.paid_purchases_required ?? loyalty?.paidPurchasesRequired ?? 9,
+          );
+          setValue("tienda-lealtad-alcance", loyalty?.scope || "all");
+
+          setChecked(
+            "tienda-servicio-reparacion",
+            shop.services?.repair?.enabled === true,
+          );
+
+          shopPromotionsDraft = JSON.parse(
+            JSON.stringify(chain?.promotions || shop.promotions || []),
+          );
+
+          renderShopPromotionsDraft();
+          syncShopCommerceControls();
+          refreshPromotionProductOptions();
+
+          document.getElementById("tienda-nombre")?.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          });
+        }
+
+        function renderStandardShopPresets() {
+          const root = document.getElementById("shop-standard-presets-grid");
+          const count = document.getElementById("shop-standard-presets-count");
+          const library = window.LuminousShopStandardPresets;
+          const presets = library?.list?.() || [];
+          if (!root) return;
+
+          root.innerHTML = "";
+          if (count) count.textContent = presets.length + " presets";
+
+          if (!presets.length) {
+            root.innerHTML = '<div style="color:#777;font-size:12px;">No se cargó la biblioteca de tiendas estándar.</div>';
+            return;
+          }
+
+          presets.forEach((preset) => {
+            const shop = preset.shop || {};
+            const typeLabel =
+              window.LuminousShopRuntime?.SHOP_TYPES?.[shop.shop_type]?.label ||
+              shop.shop_type ||
+              "Tienda";
+            const tierLabel =
+              window.LuminousShopRuntime?.tierRoman?.(shop.shop_tier || 1) ||
+              String(shop.shop_tier || 1);
+
+            const card = document.createElement("div");
+            card.style.cssText =
+              "border:1px solid #343434;background:#0b0b0b;padding:9px;display:grid;gap:6px;align-content:start;";
+
+            const title = document.createElement("strong");
+            title.style.color = "#fff";
+            title.textContent = preset.name;
+
+            const meta = document.createElement("div");
+            meta.style.cssText = "font-size:11px;color:#0df;";
+            meta.textContent = typeLabel + " · TIER " + tierLabel;
+
+            const description = document.createElement("div");
+            description.style.cssText = "font-size:11px;color:#888;line-height:1.35;";
+            description.textContent = preset.description || "";
+
+            const focus = document.createElement("div");
+            focus.style.cssText = "font-size:10px;color:#b8a46a;";
+            focus.textContent = "Prueba: " + (preset.testFocus || []).join(" · ");
+
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "btn-cyber";
+            button.style.cssText = "margin-top:2px;justify-self:start;";
+            button.textContent = "Cargar preset";
+            button.addEventListener("click", () => loadStandardShopPreset(preset.id));
+
+            card.append(title, meta, description, focus, button);
+            root.appendChild(card);
+          });
+        }
+
         function syncShopTypeControls() {
           const types = Object.values(window.LuminousShopRuntime?.SHOP_TYPES || {});
           const typeSelect = document.getElementById("tienda-tipo");
@@ -7623,6 +7782,7 @@ window.processEntitiesData = function(entities) {
 
         syncShopTypeControls();
         syncShopCommerceControls({ useTypeDefault: true });
+        renderStandardShopPresets();
 
         function collectMarketModifiers() {
           const modifiers = {};
