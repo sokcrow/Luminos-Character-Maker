@@ -380,6 +380,7 @@ test('desktop Player Items menu does not lock the HUD and can return to other me
 
 
 test('real Player internal Combat buttons advance selection state on physical click', async ({ page }) => {
+  await page.setViewportSize({ width: 1365, height: 768 });
   const pageErrors = [];
   page.on('pageerror', error => pageErrors.push(String(error?.stack || error?.message || error)));
   await installFirebase(page);
