@@ -751,9 +751,19 @@
       const check = canUseSkillByTraits(unitAttacker, attackSkill);
       if (!check.usable) return blockedSkillResult(check, { attackLogs: [{ message: check.reason, class: "error" }], damageTaken: 0 });
       const unitDefender = rest[0] || null;
-      return withModifierTargets([[unitAttacker, unitDefender], [unitDefender, unitAttacker]], () =>
-        originalUnilateral.call(this, unitAttacker, attackSkill, ...rest)
-      );
+      const hadMarker = attackSkill && Object.prototype.hasOwnProperty.call(attackSkill, "__luminousUnopposed");
+      const previousMarker = attackSkill?.__luminousUnopposed;
+      if (attackSkill && typeof attackSkill === "object") attackSkill.__luminousUnopposed = true;
+      try {
+        return withModifierTargets([[unitAttacker, unitDefender], [unitDefender, unitAttacker]], () =>
+          originalUnilateral.call(this, unitAttacker, attackSkill, ...rest)
+        );
+      } finally {
+        if (attackSkill && typeof attackSkill === "object") {
+          if (hadMarker) attackSkill.__luminousUnopposed = previousMarker;
+          else delete attackSkill.__luminousUnopposed;
+        }
+      }
     };
 
     if (originalClash) engine.resolveStandardClash = function (unitA, skillA, unitB, skillB, ...rest) {
@@ -787,6 +797,7 @@
         unit,
         character: isCurrentPlayerUnit(unit) ? global.LuminousPlayerTraitRuntime?.getCharacter?.() || unit : unit,
         traits,
+        traitState: isCurrentPlayerUnit(unit) ? global.LuminousPlayerTraitRuntime?.getTraitState?.() || {} : (unit?.traitState || {}),
         skill: contextOptions?.skill || null,
         target,
         targetedByAlly: contextOptions?.targetedByAlly ?? isTargetedByAlly(unit, target),
