@@ -696,7 +696,10 @@ function syncLoadingSegments(progress = 0) {
     container.appendChild(fragment);
   }
 
-  const activeCount = progress <= 0 ? 0 : Math.ceil(Math.min(100, progress) / 5);
+  const normalizedProgress = Math.min(100, Math.max(0, Number(progress) || 0));
+  const activeCount = normalizedProgress >= 100
+    ? 20
+    : Math.floor(normalizedProgress / 5);
   Array.from(container.children).forEach((segment, index) => {
     segment.classList.toggle("is-active", index < activeCount);
   });
@@ -767,6 +770,27 @@ window.updateLoadingState = function ({ progress, title, detail } = {}) {
   if (indicator && title) indicator.textContent = title;
   if (detailText && detail !== undefined) detailText.textContent = detail;
 };
+
+async function finishLoadingPresentation() {
+  const durationMs = 5000 + Math.floor(Math.random() * 5001);
+  const finalSteps = [96, 97, 98, 99, 100];
+  const stepDelay = Math.round(durationMs / finalSteps.length);
+
+  window.updateLoadingState({
+    progress: 95,
+    title: "FINALIZANDO CONEXIÓN",
+    detail: "Preparando la entrada.",
+  });
+
+  for (const progress of finalSteps) {
+    await new Promise((resolve) => setTimeout(resolve, stepDelay));
+    window.updateLoadingState({
+      progress,
+      title: progress < 100 ? "FINALIZANDO CONEXIÓN" : "SISTEMA LISTO",
+      detail: progress < 100 ? "Preparando la entrada." : "Entrada autorizada.",
+    });
+  }
+}
 
 window.showLoadingError = function (
   detail = "No fue posible completar la carga. Revisa tu conexión e inténtalo de nuevo.",
@@ -1425,11 +1449,7 @@ async function runBootSequence() {
       window.dispatchEvent(new CustomEvent("luminous:player-ui-init-error", { detail: { error } }));
     }
 
-    window.updateLoadingState({
-      progress: 100,
-      title: "SISTEMA LISTO",
-      detail: "Entrada autorizada.",
-    });
+    await finishLoadingPresentation();
     window.hideLoadingOverlay();
   } catch (error) {
     console.error("Boot Sequence Error:", error);
