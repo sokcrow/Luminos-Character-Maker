@@ -165,7 +165,22 @@ async function goRoot(page) {
   await page.evaluate(() => {
     try { (0, eval)("goRoot()"); } catch (_) {}
   });
-  await page.waitForTimeout(100);
+  await page.waitForFunction(() => {
+    let active = '', nav = '';
+    try { active = String((0, eval)('activeMenu') || ''); } catch (_) {}
+    try { nav = String((0, eval)('navState') || ''); } catch (_) {}
+    const commands = [...document.querySelectorAll('.command-ring [data-menu]')];
+    return active === '' && nav === 'root' && commands.some(node => {
+      const rect = node.getBoundingClientRect();
+      const style = getComputedStyle(node);
+      return rect.width > 0 && rect.height > 0
+        && rect.right > 0 && rect.bottom > 0
+        && rect.x < innerWidth && rect.y < innerHeight
+        && style.display !== 'none'
+        && style.visibility !== 'hidden'
+        && style.pointerEvents !== 'none';
+    });
+  }, null, { timeout: 5000 });
 }
 
 async function clickRootMenu(page, menu) {
