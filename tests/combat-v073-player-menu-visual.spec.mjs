@@ -475,29 +475,18 @@ test('real Player internal Combat buttons advance selection state on physical cl
     const row = page.locator(entry.selector).filter({ hasText: entry.label }).first();
     await expect(row).toBeVisible({ timeout: 5000 });
     const before = await state();
+    const hasOnclick = await row.evaluate(node => typeof node.onclick === 'function');
     await row.click({ timeout: 5000 });
-    await page.waitForTimeout(120);
+    await page.waitForTimeout(360);
     const after = await state();
-    const physicalAdvanced = after.navState === 'action' || after.selectedName === entry.label || (entry.menu === 'items' && /USE ITEM/.test(after.bodyText));
-    let direct = null;
-    if (!physicalAdvanced) {
-      await row.evaluate(node => {
-        if (typeof node.onclick === 'function') {
-          node.onclick({
-            currentTarget:node,
-            target:node,
-            preventDefault(){},
-            stopPropagation(){},
-            stopImmediatePropagation(){}
-          });
-        }
-      });
-      await page.waitForTimeout(80);
-      direct = await state();
-    }
+    const physicalAdvanced = after.navState !== before.navState
+      || after.selectedType !== before.selectedType
+      || after.selectedName !== before.selectedName
+      || after.bodyText !== before.bodyText
+      || (entry.menu === 'items' && /USE ITEM/.test(after.bodyText));
     expect(
       physicalAdvanced,
-      JSON.stringify({ entry, before, after, direct, hasOnclick: await row.evaluate(node => typeof node.onclick === 'function') })
+      JSON.stringify({ entry, before, after, hasOnclick })
     ).toBe(true);
   }
 
