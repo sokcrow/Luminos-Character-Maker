@@ -1,7 +1,7 @@
 (function (global) {
   "use strict";
 
-  const VERSION = "1.1.0";
+  const VERSION = "1.2.0";
   const STATE_PATH = "campaña/combate/estado";
   const RESULT_IMAGES = Object.freeze({
     victory: "Assets/Images/Combat/Victory_Battle_Result.png",
@@ -22,6 +22,7 @@
     const normalized = String(value || "").trim().toLowerCase();
     if (["victory", "win", "won"].includes(normalized)) return "victory";
     if (["defeat", "lose", "loss", "lost"].includes(normalized)) return "defeat";
+    if (["cancelled", "canceled", "cancel", "aborted", "abort"].includes(normalized)) return "cancelled";
     return "";
   }
 
@@ -69,10 +70,18 @@
     const image = overlay.querySelector("img");
     const fallback = overlay.querySelector(".combat-result-fallback");
     if (image) {
-      image.src = RESULT_IMAGES[normalized];
-      image.alt = normalized === "victory" ? "Victory" : "Defeat";
+      const source = RESULT_IMAGES[normalized] || "";
+      image.src = source;
+      image.alt = normalized === "victory" ? "Victory" : normalized === "defeat" ? "Defeat" : "";
+      image.style.display = source ? "block" : "none";
     }
-    if (fallback) fallback.textContent = normalized === "victory" ? "VICTORY" : "DEFEAT";
+    if (fallback) {
+      fallback.textContent = normalized === "victory"
+        ? "VICTORY"
+        : normalized === "defeat"
+          ? "DEFEAT"
+          : "ENCOUNTER CANCELADO";
+    }
     overlay.dataset.result = normalized;
     overlay.dataset.endedAt = String(state?.endedAt || "");
     overlay.classList.remove("blackout");
