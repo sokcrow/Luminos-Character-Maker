@@ -377,3 +377,81 @@ test('desktop Player Items menu does not lock the HUD and can return to other me
 
   expect(pageErrors, pageErrors.join('\n')).toEqual([]);
 });
+
+
+test('real Player internal Combat buttons advance selection state on physical click', async ({ page }) => {
+  const pageErrors = [];
+  page.on('pageerror', error => pageErrors.push(String(error?.stack || error?.message || error)));
+  await installFirebase(page);
+  await page.goto(`${BASE}/Battle-viewer.html`, { waitUntil: 'domcontentloaded' });
+
+  await page.waitForFunction(() => {
+    const adapter = window.LuminousCombatLiveAdapter073;
+    const menu = window.LuminousCombatEconomyMenu073;
+    const unit = window.LuminousCombat073?.combatants?.()?.['player:p1'];
+    return adapter?.state?.role === 'player'
+      && adapter?.state?.playerId === 'p1'
+      && menu?.state?.installed === true
+      && unit?.controlled === 'player';
+  }, null, { timeout: 30000 });
+
+  await page.waitForFunction(() => window.LuminousCombatEconomyMenu073?.liveActions?.('skill')?.some(row => row.id === 'ci_player_skill'), null, { timeout: 15000 });
+  await page.waitForFunction(() => window.LuminousCombatEconomyMenu073?.spellRowsForPlayer?.().some(row => row.spellId === 'mage_hand'), null, { timeout: 15000 });
+  await page.waitForFunction(() => window.LuminousCombatEconomyMenu073?.itemRowsForPlayer?.().some(row => row.name === 'CI Recovery Patch'), null, { timeout: 15000 });
+
+  const state = async () => page.evaluate(() => {
+    let activeMenu = '', navState = '', selected = null;
+    try { activeMenu = String((0, eval)('activeMenu') || ''); } catch (_) {}
+    try { navState = String((0, eval)('navState') || ''); } catch (_) {}
+    try { selected = (0, eval)('selected'); } catch (_) {}
+    const body = document.getElementById('category-body');
+    const surface = document.getElementById('category-surface');
+    const back = document.getElementById('back');
+    const inspect = node => {
+      if (!node) return null;
+      const rect = node.getBoundingClientRect();
+      const style = getComputedStyle(node);
+      return {
+        rect:{x:rect.x,y:rect.y,width:rect.width,height:rect.height},
+        display:style.display,
+        visibility:style.visibility,
+        opacity:style.opacity,
+        pointerEvents:style.pointerEvents
+      };
+    };
+    return {
+      activeMenu,
+      navState,
+      selectedType:selected?.type || null,
+      selectedName:selected?.data?.name || selected?.data?.id || null,
+      bodyText:String(body?.innerText || body?.textContent || '').trim(),
+      body:inspect(body),
+      surface:inspect(surface),
+      back:inspect(back)
+    };
+  });
+
+  const cases = [
+    { menu:'global', selector:'#category-body .clean-row', label:'Analyse' },
+    { menu:'skills', selector:'#category-body .skill-option', label:'CI Visible Skill' },
+    { menu:'spells', selector:'#category-body .skill-option', label:'Mage Hand' },
+    { menu:'items', selector:'#category-body .clean-row', label:'CI Recovery Patch' },
+  ];
+
+  for (const entry of cases) {
+    await goRoot(page);
+    await clickRootMenu(page, entry.menu);
+    const row = page.locator(entry.selector).filter({ hasText: entry.label }).first();
+    await expect(row).toBeVisible({ timeout: 5000 });
+    const before = await state();
+    await row.click({ timeout: 5000 });
+    await page.waitForTimeout(120);
+    const after = await state();
+    expect(
+      after.navState === 'action' || after.selectedName === entry.label || (entry.menu === 'items' && /USE ITEM/.test(after.bodyText)),
+      JSON.stringify({ entry, before, after })
+    ).toBe(true);
+  }
+
+  expect(pageErrors, pageErrors.join('\n')).toEqual([]);
+});
