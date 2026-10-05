@@ -1,0 +1,25 @@
+name: Inspect Paper Player Menu Temp
+
+on:
+  push:
+    branches:
+      - fix/game-player-menu-icon-size
+    paths:
+      - '.github/workflows/inspect-paper-player-menu-temp.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/game-player-menu-icon-size
+      - name: Show player menu CSS
+        shell: bash
+        run: |
+          set -euo pipefail
+          FILE='game-engine/lab/game/forest-0.3.3.1.html'
+          grep -n -B 8 -A 18 -E '#paperPlayerMenu\{|#paperPlayerMenuStrip\{|\.paper-menu-hex\{' "$FILE" | head -n 220
