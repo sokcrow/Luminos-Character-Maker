@@ -774,6 +774,7 @@ ${response}`);
   global.LuminousPlayerTraitRuntime = Object.freeze({
     getCharacter,
     getTraits: resolveTraits,
+    getTraitState: () => state.traitState,
     getRuntime,
     dispatch,
     resolveTheatreCheck,
