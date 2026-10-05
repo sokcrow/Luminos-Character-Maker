@@ -439,7 +439,7 @@ test('real Player internal Combat buttons advance selection state on physical cl
   });
 
   const cases = [
-    { menu:'global', selector:'#category-body .clean-row', label:'Analyse' },
+    { menu:'global', selector:'#category-body .clean-row', label:'Help' },
     { menu:'skills', selector:'#category-body .skill-option', label:'CI Visible Skill' },
     { menu:'spells', selector:'#category-body .skill-option', label:'Mage Hand' },
     { menu:'items', selector:'#category-body .clean-row', label:'CI Recovery Patch' },
