@@ -13,8 +13,10 @@
       }
 
       db.ref("campaña/config/dm_uid").once("value").then((snapshot) => {
-        const expectedUid = snapshot.val() || "e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1";
-        if (user.uid !== expectedUid) {
+        const bootstrapUid = "e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1";
+        const configuredUid = String(snapshot.val() || "").trim();
+        const isDirector = user.uid === bootstrapUid || (configuredUid && user.uid === configuredUid);
+        if (!isDirector) {
           if (authBlocker) authBlocker.style.display = "flex";
           return;
         }
