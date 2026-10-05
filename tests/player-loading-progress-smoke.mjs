@@ -23,14 +23,34 @@ for (const progress of [20, 45, 70, 90, 100]) {
 }
 
 assert.match(js, /PLAYER_LOADING_SCENES/);
-assert.match(js, /loading-combat-clash\.webp/);
-assert.match(js, /loading-workshop-crafting\.webp/);
-assert.match(js, /loading-lizalin-biodistrict\.webp/);
-assert.match(js, /loading-yuanti-obscurum\.webp/);
-assert.match(js, /loading-lanae-mountain\.webp/);
-assert.match(js, /loading-city-backstreets\.webp/);
-assert.match(js, /loading-abnormality-containment\.webp/);
-assert.match(js, /loading-interdistrict-transit\.webp/);
+
+const expectedLoadingScenes = [
+  ["loading-combat-clash.png", "https://imgur.com/haWXQhp.png", 18],
+  ["loading-workshop-crafting.png", "https://imgur.com/zbr096W.png", 14],
+  ["loading-lizalin-biodistrict.png", "https://imgur.com/N2YXVUr.png", 12],
+  ["loading-yuanti-obscurum.png", "https://imgur.com/mSzXSqz.png", 12],
+  ["loading-lanae-mountain.png", "https://imgur.com/JUUc6Ye.png", 12],
+  ["loading-city-backstreets.png", "https://imgur.com/Xt7V809.png", 18],
+  ["loading-abnormality-containment.png", "https://imgur.com/AmAaJ7M.png", 14],
+];
+
+for (const [filename, source, weight] of expectedLoadingScenes) {
+  assert.ok(js.includes(`Assets/Loading/${filename}`), `missing local loading asset: ${filename}`);
+  assert.ok(js.includes(source), `missing loading source: ${source}`);
+  assert.match(
+    js,
+    new RegExp(`image: "Assets/Loading/${filename.replace(".", "\\.")}",[\\s\\S]{0,160}?weight: ${weight}\\b`),
+  );
+}
+
+assert.equal(
+  expectedLoadingScenes.reduce((sum, scene) => sum + scene[2], 0),
+  100,
+  "loading weights must sum to 100",
+);
+assert.doesNotMatch(js, /loading-interdistrict-transit/);
+assert.match(js, /function buildWeightedLoadingQueue/);
+assert.match(js, /localProbe\.onerror = tryRemoteSource/);
 assert.match(js, /function syncLoadingSegments/);
 assert.match(js, /for \(let index = 0; index < 20; index \+= 1\)/);
 assert.match(js, /Math\.floor\(normalizedProgress \/ 5\)/);
