@@ -158,7 +158,18 @@
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 
   if (global.document) {
-    const boot = () => bind();
+    const boot = () => {
+      const auth = global.firebase?.auth?.();
+      if (!auth?.onAuthStateChanged) {
+        bind();
+        return;
+      }
+      auth.onAuthStateChanged((user) => {
+        if (user) bind();
+      }, (error) => {
+        global.console?.error?.("[Combat Encounter Lifecycle] Auth restoration failed:", error);
+      });
+    };
     if (global.document.readyState === "loading") global.document.addEventListener("DOMContentLoaded", boot, { once: true });
     else boot();
   }
