@@ -466,11 +466,55 @@
       });
 
       const btnTriggerCombat = document.getElementById("btn-trigger-combat");
-      btnTriggerCombat?.addEventListener("click", () => {
-        database.ref("campaña/estado_mundo/instancia_activa").set("combate");
-        database.ref("campaña/combate").update({
-          estado: "COMBAT_ACTIVE",
-          startedAt: window.firebase.database.ServerValue.TIMESTAMP
+      btnTriggerCombat?.addEventListener("click", async () => {
+        if (btnTriggerCombat.disabled) return;
+        btnTriggerCombat.disabled = true;
+        try {
+          const timestamp = window.firebase.database.ServerValue.TIMESTAMP;
+          await database.ref("campaña/combate/estado").update({
+            phase: "COMBAT_ACTIVE",
+            active: true,
+            result: null,
+            outcome: null,
+            transition: null,
+            startedAt: timestamp,
+            updatedAt: timestamp
+          });
+          await database.ref("campaña/combate").update({ startedAt: timestamp });
+        } catch (error) {
+          console.error("No se pudo iniciar Combat:", error);
+          window.alert?.("No se pudo iniciar el combate.");
+        } finally {
+          btnTriggerCombat.disabled = false;
+        }
+      });
+
+      const encounterEndButtons = [
+        [document.getElementById("btn-end-combat-victory"), "victory"],
+        [document.getElementById("btn-end-combat-defeat"), "defeat"],
+        [document.getElementById("btn-end-combat-cancel"), "cancelled"],
+      ].filter(([button]) => Boolean(button));
+
+      const finishEncounter = async (result) => {
+        if (!window.LuminousInstanceControl?.endEncounter) throw new Error("INSTANCE_CONTROL_UNAVAILABLE");
+        encounterEndButtons.forEach(([button]) => { button.disabled = true; });
+        try {
+          await window.LuminousInstanceControl.endEncounter({
+            db: database,
+            result,
+            reason: result === "cancelled" ? "dm_cancelled" : "dm_result"
+          });
+        } finally {
+          encounterEndButtons.forEach(([button]) => { button.disabled = false; });
+        }
+      };
+
+      encounterEndButtons.forEach(([button, result]) => {
+        button.addEventListener("click", () => {
+          finishEncounter(result).catch((error) => {
+            console.error("No se pudo cerrar el encounter:", error);
+            window.alert?.("No se pudo cerrar el encounter.");
+          });
         });
       });
     }
