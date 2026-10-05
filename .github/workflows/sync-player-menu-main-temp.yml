@@ -29,11 +29,6 @@ jobs:
           git fetch origin main
           git merge --no-ff origin/main -m "merge: sync player menu icon PR with latest main"
 
-      - name: Align encounter lifecycle contract
-        shell: bash
-        run: |
-          python3 -c 'from pathlib import Path; p=Path("tests/combat-v074-dm-console-smoke.mjs"); s=p.read_text(); old="assert.equal(EncounterLifecycle.version, '\''1.1.0'\'');"; new="assert.equal(EncounterLifecycle.version, '\''1.2.0'\'');"; assert old in s, "version assertion anchor missing"; p.write_text(s.replace(old,new,1))'
-
       - name: Validate affected smoke tests
         shell: bash
         run: |
@@ -45,6 +40,5 @@ jobs:
         run: |
           set -euo pipefail
           git rm .github/workflows/sync-player-menu-main-temp.yml
-          git add tests/combat-v074-dm-console-smoke.mjs
           git commit --amend --no-edit
           git push origin HEAD:feat/player-menu-icon-refresh
