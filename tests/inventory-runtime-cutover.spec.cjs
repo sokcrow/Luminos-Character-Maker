@@ -51,7 +51,7 @@ async function bootHarness(page) {
 
   await page.evaluate(() => {
     const active = {
-      blade_1: { instanceId: "blade_1", definitionId: "blade", nombre: "Test Workshop Blade", descripcion: "Instance presentation wins", category: "weapon", tier: 3, qualityTier: 3, condition: 90, conditionMax: 100, quantity: 1, installedModules: [{ definitionId: "serrated_edge", instanceId: "module_1" }] },
+      blade_1: { instanceId: "blade_1", definitionId: "blade", nombre: "Test Workshop Blade", descripcion: "Instance presentation wins", category: "weapon", tier: 3, qualityTier: 3, condition: 90, conditionMax: 100, quantity: 1, valorBase: 120, installedModules: [{ definitionId: "serrated_edge", instanceId: "module_1" }] },
       coat_1: { instanceId: "coat_1", definitionId: "coat", nombre: "Reinforced Coat", category: "armor", tier: 2, qualityTier: 2, condition: 100, conditionMax: 100, quantity: 1 },
     };
     const stash = {
@@ -157,25 +157,57 @@ test("HUD V2 owns rendering and keeps 20 Active slots in readable cards", async 
   await expect(page.locator("#inv-active-grid .inventory-v2-empty-slot")).toHaveCount(18);
   await expect(page.locator("#inventory-v2-carry-count")).toHaveText("02 / 20");
   await expect(page.locator("#inventory-v2-stash-count")).toContainText("01 / 80 SLOTS");
-  const columns = await page.locator("#inv-active-grid").evaluate((el) => getComputedStyle(el).gridTemplateColumns.split(" ").filter(Boolean).length);
-  expect(columns).toBe(4);
-  const name = page.locator('#inv-active-grid [data-key="blade_1"] .item-name');
+  const layout = await page.locator("#inv-active-grid").evaluate((el) => {
+    const first = el.querySelector('[data-key="blade_1"]');
+    return {
+      columns: getComputedStyle(el).gridTemplateColumns.split(" ").filter(Boolean).length,
+      cardWidth: first?.getBoundingClientRect().width || 0,
+    };
+  });
+  expect(layout.columns).toBeGreaterThanOrEqual(5);
+  expect(layout.cardWidth).toBeGreaterThanOrEqual(160);
+  expect(layout.cardWidth).toBeLessThan(235);
+
+  const card = page.locator('#inv-active-grid [data-key="blade_1"]');
+  const name = card.locator(".item-name");
   await expect(name).toHaveText("Test Workshop Blade");
   await expect(name).toBeVisible();
-  const style = await name.evaluate((el) => ({
-    whiteSpace: getComputedStyle(el).whiteSpace,
-    lineHeight: getComputedStyle(el).lineHeight,
-    width: el.getBoundingClientRect().width,
-    height: el.getBoundingClientRect().height,
-  }));
-  expect(style.whiteSpace).toBe("normal");
-  expect(style.width).toBeGreaterThan(40);
-  expect(style.height).toBeGreaterThan(8);
+  await expect(card.locator(".inventory-v2-card-value")).toHaveText("₳ 120");
+  await expect(card.locator(".inventory-v2-card-qty")).toHaveText("x1");
+
+  const geometry = await card.evaluate((el) => {
+    const icon = el.querySelector(".item-icon").getBoundingClientRect();
+    const name = el.querySelector(".item-name").getBoundingClientRect();
+    const meta = el.querySelector(".inventory-v2-card-meta").getBoundingClientRect();
+    return {
+      iconWidth: icon.width,
+      nameWidth: name.width,
+      metaWidth: meta.width,
+      nameStartsAfterIcon: name.left > icon.right,
+      metaBelowName: meta.top >= name.top,
+    };
+  });
+  expect(geometry.iconWidth).toBeGreaterThanOrEqual(50);
+  expect(geometry.nameWidth).toBeGreaterThan(70);
+  expect(geometry.metaWidth).toBeGreaterThan(70);
+  expect(geometry.nameStartsAfterIcon).toBe(true);
+  expect(geometry.metaBelowName).toBe(true);
 });
 
 test("player item detail hides implementation metadata and only shows relevant state", async ({ page }) => {
   await bootHarness(page);
   await page.locator('#inv-active-grid [data-key="blade_1"]').click();
+
+  const selectedGrid = await page.locator("#inv-active-grid").evaluate((el) => {
+    const first = el.querySelector('[data-key="blade_1"]');
+    return {
+      columns: getComputedStyle(el).gridTemplateColumns.split(" ").filter(Boolean).length,
+      cardWidth: first?.getBoundingClientRect().width || 0,
+    };
+  });
+  expect(selectedGrid.columns).toBeGreaterThanOrEqual(3);
+  expect(selectedGrid.cardWidth).toBeGreaterThanOrEqual(150);
+  expect(selectedGrid.cardWidth).toBeLessThan(235);
 
   await expect(page.locator("#detail-title")).toHaveText("Test Workshop Blade");
   await expect(page.locator("#detail-desc")).toHaveText("Instance presentation wins");
