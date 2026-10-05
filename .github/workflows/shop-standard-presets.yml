@@ -1,0 +1,39 @@
+name: Standard Shop Presets
+
+on:
+  pull_request:
+    paths:
+      - "pantalla_dm.html"
+      - "js/shop-runtime.js"
+      - "js/shop-standard-presets.js"
+      - "tests/shop-runtime-smoke.cjs"
+      - "tests/shop-standard-presets-smoke.cjs"
+      - ".github/workflows/shop-standard-presets.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "pantalla_dm.html"
+      - "js/shop-runtime.js"
+      - "js/shop-standard-presets.js"
+      - "tests/shop-runtime-smoke.cjs"
+      - "tests/shop-standard-presets-smoke.cjs"
+      - ".github/workflows/shop-standard-presets.yml"
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Syntax check
+        run: |
+          node --check js/shop-runtime.js
+          node --check js/shop-standard-presets.js
+          node --check tests/shop-standard-presets-smoke.cjs
+      - name: Shop runtime smoke
+        run: node tests/shop-runtime-smoke.cjs
+      - name: Standard shop presets smoke
+        run: node tests/shop-standard-presets-smoke.cjs
