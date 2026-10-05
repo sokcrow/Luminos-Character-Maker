@@ -55,7 +55,10 @@ const { pathToFileURL } = require("node:url");
 
     for (const promotion of shops.shopPromotions(preset.shop)) {
       assert.ok(promotion.id, preset.id + " promotion must keep an id");
-      assert.equal(promotion.active, true);
+      assert.ok(
+        Object.values(shops.PROMOTION_TYPES).includes(promotion.type),
+        preset.id + " promotion must normalize to a supported type",
+      );
     }
   }
 
