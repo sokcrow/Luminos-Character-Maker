@@ -161,16 +161,17 @@ assert.equal(
   'Combat Item icon resolution must use the repository-local item icon registry'
 );
 assert.equal(typeof itemButton.onclick, 'function', 'Item row must have a click handler');
-itemButton.onclick();
-assert.ok(selected, 'clicking an Item row must reach selection');
-assert.equal(selected.type, 'item', 'a concrete inventory row must enter the legacy action-detail selector as a singular item');
-assert.equal(selected.data.instanceId, 'med_live_1');
-assert.equal(selected.data.definitionId, 'hp_generic_pocket_recovery_patch');
+const detailSelection = itemButton.onclick();
+assert.equal(selected, null, 'clicking an Action-cost Item must open its detail before crossing into the packed selector');
+assert.equal(detailSelection.type, 'items', 'Combat Item selections must preserve the legacy plural plan type');
+assert.equal(detailSelection.data.instanceId, 'med_live_1');
+assert.equal(detailSelection.data.definitionId, 'hp_generic_pocket_recovery_patch');
+assert.match(categoryBody.innerHTML, /USE ITEM/, 'clicking an Item row must render a visible confirmation detail');
 
-selected = null;
-menu.selectAction({ type: 'items', slotIndex: 0, data: rows[0] });
-assert.ok(selected, 'legacy plural item selections must still reach the action-detail selector');
-assert.equal(selected.type, 'item', 'legacy plural item selections must normalize before crossing into the packed selector');
+menu.confirmLegacyItemSelection(detailSelection);
+assert.ok(selected, 'confirming an Item must reach the packed selector');
+assert.equal(selected.type, 'items', 'confirmed Item plans must keep the plural type required by targeting and execution');
+assert.equal(selected.data.instanceId, 'med_live_1');
 
 menu.state.originals.planTargetRule = (source) => source.itemType === 'hp_healing' ? 'self' : 'enemy';
 assert.equal(
