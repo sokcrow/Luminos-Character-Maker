@@ -62,6 +62,7 @@ on:
       - 'Battle-viewer.html'
       - 'tests/player-combat-theatre-lifecycle.spec.mjs'
       - 'tests/player-theatre-spacing-smoke.mjs'
+      - 'tests/player-theatre-mobile-render-smoke.mjs'
       - 'tests/dm-dialogue-composer-layout-smoke.mjs'
       - 'tests/dm-dialogue-input-visible-smoke.mjs'
       - 'tests/theatre-queue-bank-hotfix-smoke.mjs'
@@ -126,6 +127,7 @@ jobs:
           node --check js/player-progression-level-allocation.js
           node --check tests/player-ui-long-session-performance.spec.mjs
           node --check tests/player-theatre-spacing-smoke.mjs
+          node --check tests/player-theatre-mobile-render-smoke.mjs
           node --check tests/dm-dialogue-composer-layout-smoke.mjs
           node --check tests/dm-dialogue-input-visible-smoke.mjs
           node --check tests/theatre-queue-bank-hotfix-smoke.mjs
@@ -137,6 +139,8 @@ jobs:
         run: node tests/combat-v073-player-renderer-performance-smoke.mjs
       - name: Player Theatre sprite spacing contract
         run: node tests/player-theatre-spacing-smoke.mjs
+      - name: Player Theatre mobile render contract
+        run: node tests/player-theatre-mobile-render-smoke.mjs
       - name: DM dialogue composer layout contract
         run: node tests/dm-dialogue-composer-layout-smoke.mjs
       - name: DM dialogue input visibility contract
