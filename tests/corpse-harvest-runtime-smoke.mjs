@@ -58,10 +58,10 @@ assert.ok(damagedPelt.recoverableYield.qualityMultiplier < 1, "combat damage mus
 const poisoned = harvest.createDamageRecord();
 harvest.recordStatusExposure(poisoned, "poison", 2);
 const contaminatedWolf = corpse.resolveCorpseHarvest(wolf, poisoned);
-const contaminatedOrgan = contaminatedWolf.resources.find((entry) => entry.id === "internal_organs");
-assert.equal(contaminatedOrgan.integrity.status, "contaminated");
-assert.equal(contaminatedOrgan.integrity.contaminated, true);
-assert.ok(contaminatedOrgan.recoverableYield.qualityMultiplier < contaminatedOrgan.recoverableYield.quantityMultiplier);
+const contaminatedBlood = contaminatedWolf.resources.find((entry) => entry.id === "blood");
+assert.equal(contaminatedBlood.integrity.status, "contaminated");
+assert.equal(contaminatedBlood.integrity.contaminated, true);
+assert.ok(contaminatedBlood.recoverableYield.qualityMultiplier < contaminatedBlood.recoverableYield.quantityMultiplier);
 
 const crushed = harvest.createDamageRecord();
 harvest.recordEvent(crushed, { sourceType: "weapon", physical: true, damageType: "bludgeoning", damage: 100 });
