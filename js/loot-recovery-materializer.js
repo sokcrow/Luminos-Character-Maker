@@ -70,7 +70,19 @@
     const species = normalizeId(unit.species ?? unit.family ?? unit.id);
     const creatureType = creatureTypeOf(unit);
 
-    if (authoredItemId) return deepFreeze({ catalog: normalizeId(resource.catalogFamily || family), itemId: authoredItemId, source: "authored" });
+    if (authoredItemId) {
+      const familyCatalog = {
+        organ_internal: "organ_gland",
+        organ_sensory: "organ_gland",
+        organ_brain: "organ_gland",
+        organ_gland: "organ_gland",
+        hard_cover_modular: "scale_shell_chitin",
+        hard_cover_structural: "scale_shell_chitin",
+        feather_raw: "feather_raw_fiber",
+        raw_fiber: "feather_raw_fiber",
+      };
+      return deepFreeze({ catalog: normalizeId(resource.catalogFamily || familyCatalog[family] || family), itemId: authoredItemId, source: "authored" });
+    }
 
     if (family === "meat") {
       const itemId = species.includes("wolf") ? "meat_wolf" : creatureType === "humanoid" ? "meat_humanoid" : null;
@@ -420,10 +432,10 @@
     return target;
   }
 
-  function deliverAtomic(recipient = {}, materialized = {}, options = {}) {
+  function simulateDelivery(recipient = {}, materialized = {}, options = {}) {
     const inv = inventory();
     if (!inv?.insertItem) throw new Error("ITEM_INVENTORY_RUNTIME_REQUIRED");
-    if (!materialized.materialized) return deepFreeze({ delivered: false, reason: "materialization_failed", failures: clone(materialized.failures || []) });
+    if (!materialized.materialized) return { delivered: false, reason: "materialization_failed", failures: clone(materialized.failures || []) };
 
     const simulated = clone(recipient);
     const results = [];
@@ -434,19 +446,30 @@
       });
       results.push({ instanceId: item.instanceId, definitionId: item.definitionId, ...clone(result) });
       if (!result.inserted) {
-        return deepFreeze({
+        return {
           delivered: false,
           reason: "inventory_capacity_rejected_recovery",
-          results: deepFreeze(results),
+          results,
           failedItem: item.instanceId,
-        });
+        };
       }
     }
 
-    commitInventoryClone(recipient, simulated);
+    return {
+      delivered: true,
+      results,
+      simulated,
+    };
+  }
+
+  function deliverAtomic(recipient = {}, materialized = {}, options = {}) {
+    const inv = inventory();
+    const simulation = simulateDelivery(recipient, materialized, options);
+    if (!simulation.delivered) return deepFreeze(clone(simulation));
+    commitInventoryClone(recipient, simulation.simulated);
     return deepFreeze({
       delivered: true,
-      results: deepFreeze(results),
+      results: deepFreeze(clone(simulation.results)),
       inventory: deepFreeze(inv.describeInventory?.(recipient) || {}),
     });
   }
@@ -482,20 +505,65 @@
       });
     }
 
-    const delivery = deliverAtomic(recipient, materialized, {
+    const currency = materialized.currency;
+    const currencyAmount = Math.max(0, integer(currency?.amount, 0));
+    const currencyHandler = options.currencyHandler || null;
+    if (currencyAmount > 0 && (!currencyHandler?.preview || !currencyHandler?.commit)) {
+      return deepFreeze({
+        committed: false,
+        state: clone(originalState),
+        reason: "currency_delivery_handler_required",
+        materialized,
+      });
+    }
+
+    if (currencyAmount > 0) {
+      const preview = currencyHandler.preview(currency, recipient, options);
+      if (preview === false || preview?.accepted === false) {
+        return deepFreeze({
+          committed: false,
+          state: clone(originalState),
+          reason: preview?.reason || "currency_delivery_rejected",
+          materialized,
+        });
+      }
+    }
+
+    const simulation = simulateDelivery(recipient, materialized, {
       ...options,
       ownerId: ownerIdOf(recipient, { ownerId: actorId || options.ownerId }),
     });
 
-    if (!delivery.delivered) {
+    if (!simulation.delivered) {
       return deepFreeze({
         committed: false,
         state: clone(originalState),
-        reason: delivery.reason,
+        reason: simulation.reason,
         materialized,
-        delivery,
+        delivery: deepFreeze(clone(simulation)),
       });
     }
+
+    let currencyReceipt = null;
+    if (currencyAmount > 0) {
+      currencyReceipt = currencyHandler.commit(currency, recipient, options);
+      if (currencyReceipt === false || currencyReceipt?.credited === false) {
+        return deepFreeze({
+          committed: false,
+          state: clone(originalState),
+          reason: currencyReceipt?.reason || "currency_delivery_failed",
+          materialized,
+        });
+      }
+    }
+
+    commitInventoryClone(recipient, simulation.simulated);
+    const inv = inventory();
+    const delivery = deepFreeze({
+      delivered: true,
+      results: deepFreeze(clone(simulation.results)),
+      inventory: deepFreeze(inv.describeInventory?.(recipient) || {}),
+    });
 
     const compendium = mergeKnowledgeFromItems(
       options.compendium || actionOutcome.result.knowledge?.compendium || null,
@@ -511,6 +579,7 @@
       delivery,
       compendium: compendium ? clone(compendium) : null,
       currency: materialized.currency,
+      currencyReceipt: currencyReceipt ? clone(currencyReceipt) : null,
     });
   }
 
@@ -550,6 +619,7 @@
     ownerIdOf,
     destinations,
     insertFully,
+    simulateDelivery,
     deliverAtomic,
     mergeKnowledgeFromItems,
     commitActionRecovery,
