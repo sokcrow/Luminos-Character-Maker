@@ -192,6 +192,21 @@
       ],
       metadata: { poisonCountIfTargetAlreadyPoisoned: 1, conditionalStatusPolicy: "target_had_status_before_hit" },
     })),
+    spider_bite: Object.freeze(attack({
+      id: "spider_bite", name: "Bite", species: "spider",
+      basePower: 5, coinPower: 5, damageType: "perforante",
+      coinEffects: [poison1()],
+    })),
+    vulture_beak: Object.freeze(attack({
+      id: "vulture_beak", name: "Beak", species: "vulture",
+      basePower: 5, coinPower: 5, damageType: "perforante",
+      coinEffects: [bleed1()],
+    })),
+    weasel_bite: Object.freeze(attack({
+      id: "weasel_bite", name: "Bite", species: "weasel",
+      basePower: 5, coinPower: 5, damageType: "perforante",
+      coinEffects: [bleed1()],
+    })),
   });
 
   function list() { return Object.values(DEFINITIONS).map(clone); }
@@ -216,7 +231,7 @@
     return payload;
   }
 
-  const api = Object.freeze({ version: "1.1.0", DEFINITIONS, list, get, finalPower, firebasePayload });
+  const api = Object.freeze({ version: "1.2.0", DEFINITIONS, list, get, finalPower, firebasePayload });
   global.LuminousBeastCr0SkillCatalog = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);
