@@ -12,6 +12,7 @@ on:
       - "js/creature-type-catalog.js"
       - "js/loot-social-profile-contract.js"
       - "js/loot-encounter-context.js"
+      - "js/loot-instance-runtime.js"
       - "js/unit-catalog-kobold-tier1.js"
       - "js/unit-catalog-goblin.js"
       - "js/unit-catalog-wolf.js"
@@ -21,6 +22,7 @@ on:
       - "tests/loot-ammo-reconciliation-smoke.mjs"
       - "tests/loot-social-profile-contract-smoke.mjs"
       - "tests/loot-encounter-context-smoke.mjs"
+      - "tests/loot-instance-runtime-smoke.mjs"
       - "tests/ranger-class-runtime-smoke.mjs"
       - "tests/battle-master-archetype-runtime-smoke.mjs"
       - ".github/workflows/unit-loot-profile-validation.yml"
@@ -38,6 +40,7 @@ on:
       - "js/creature-type-catalog.js"
       - "js/loot-social-profile-contract.js"
       - "js/loot-encounter-context.js"
+      - "js/loot-instance-runtime.js"
       - "js/unit-catalog-kobold-tier1.js"
       - "js/unit-catalog-goblin.js"
       - "js/unit-catalog-wolf.js"
@@ -47,6 +50,7 @@ on:
       - "tests/loot-ammo-reconciliation-smoke.mjs"
       - "tests/loot-social-profile-contract-smoke.mjs"
       - "tests/loot-encounter-context-smoke.mjs"
+      - "tests/loot-instance-runtime-smoke.mjs"
       - "tests/ranger-class-runtime-smoke.mjs"
       - "tests/battle-master-archetype-runtime-smoke.mjs"
       - ".github/workflows/unit-loot-profile-validation.yml"
@@ -69,6 +73,8 @@ jobs:
         run: node tests/loot-social-profile-contract-smoke.mjs
       - name: Validate Encounter Zone and Event loot context
         run: node tests/loot-encounter-context-smoke.mjs
+      - name: Validate deterministic Loot Instance generation and lock lifecycle
+        run: node tests/loot-instance-runtime-smoke.mjs
       - name: Validate Ranger Analyze bypass
         run: node tests/ranger-class-runtime-smoke.mjs
       - name: Validate Battle Master Analyze bypass
