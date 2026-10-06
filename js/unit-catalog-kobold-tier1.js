@@ -6,11 +6,53 @@
   const rankRuntime = global.LuminousUnitRankRuntime || (typeof require !== 'undefined' ? (() => { try { return require('./unit-rank-runtime.js'); } catch (_) { return null; } })() : null);
   const combatMechanics = global.LuminousUnitCombatMechanics || (typeof require !== 'undefined' ? (() => { try { return require('./unit-combat-mechanics-runtime.js'); } catch (_) { return null; } })() : null);
   const rangedAmmo = global.LuminousUniversalRangedAmmoRuntime || (typeof require !== 'undefined' ? (() => { try { return require('./universal-ranged-ammo-runtime.js'); } catch (_) { return null; } })() : null);
+  const lootContract = global.LuminousUnitLootProfileContract || (typeof require !== 'undefined' ? (() => { try { return require('./unit-loot-profile-contract.js'); } catch (_) { return null; } })() : null);
 
   const STAGGER_THRESHOLDS = Object.freeze([75, 50, 25]);
   const SCORES = Object.freeze({ str: 7, dex: 15, con: 9, int: 8, wis: 7, cha: 8 });
   const PROFICIENCIES = Object.freeze({ savingThrows: Object.freeze({ dex: 'proficient' }), skills: Object.freeze({ stealth: 'proficient' }) });
   const PACK_TACTICS_ID = 'pack_tactics';
+
+  const KOBOLD_LOOT_PROFILES = lootContract?.createProfiles ? lootContract.createProfiles({
+    bodyProfile: {
+      kind: 'organic',
+      materials: ['flesh', 'blood', 'bone', 'scale'],
+      edible: true,
+      resources: [
+        { id: 'meat', integrityFamily: 'meat', sourceMaterial: 'flesh' },
+        { id: 'scales', integrityFamily: 'hide_pelt', sourceMaterial: 'scale' },
+        { id: 'bones', integrityFamily: 'hard_parts', sourceMaterial: 'bone' },
+        { id: 'internal_organs', integrityFamily: 'organ_internal', sourceMaterial: 'flesh' },
+        { id: 'sensory_organs', integrityFamily: 'organ_sensory', sourceMaterial: 'flesh' },
+        { id: 'brain', integrityFamily: 'organ_brain', sourceMaterial: 'flesh' },
+        { id: 'glands', integrityFamily: 'organ_gland', sourceMaterial: 'flesh' },
+        { id: 'blood', integrityFamily: 'blood_ichor', sourceMaterial: 'blood' },
+      ],
+    },
+    lootProfile: {
+      carried: [],
+      equipment: { source: 'unit_loadout' },
+      currency: null,
+      harvest: { source: 'body_profile' },
+      impossibleCategories: [],
+      notes: 'Base profile only. Wealth, Encounter Zone and Event modifiers are resolved by later Loot Update slices.',
+    },
+  }) : Object.freeze({
+    bodyProfile: Object.freeze({
+      version: 1, kind: 'organic', materials: Object.freeze(['flesh', 'blood', 'bone', 'scale']), edible: true,
+      resources: Object.freeze([
+        Object.freeze({ id: 'meat', integrityFamily: 'meat', sourceMaterial: 'flesh', yield: null }),
+        Object.freeze({ id: 'scales', integrityFamily: 'hide_pelt', sourceMaterial: 'scale', yield: null }),
+        Object.freeze({ id: 'bones', integrityFamily: 'hard_parts', sourceMaterial: 'bone', yield: null }),
+        Object.freeze({ id: 'internal_organs', integrityFamily: 'organ_internal', sourceMaterial: 'flesh', yield: null }),
+        Object.freeze({ id: 'sensory_organs', integrityFamily: 'organ_sensory', sourceMaterial: 'flesh', yield: null }),
+        Object.freeze({ id: 'brain', integrityFamily: 'organ_brain', sourceMaterial: 'flesh', yield: null }),
+        Object.freeze({ id: 'glands', integrityFamily: 'organ_gland', sourceMaterial: 'flesh', yield: null }),
+        Object.freeze({ id: 'blood', integrityFamily: 'blood_ichor', sourceMaterial: 'blood', yield: null }),
+      ]),
+    }),
+    lootProfile: Object.freeze({ version: 1, carried: Object.freeze([]), equipment: Object.freeze({ source: 'unit_loadout' }), currency: null, harvest: Object.freeze({ source: 'body_profile' }), impossibleCategories: Object.freeze([]) }),
+  });
 
   const FALLBACK_RANKS = Object.freeze({
     normal: Object.freeze({ id: 'normal', levelMultiplier: 1, minSpeedBonus: 0, maxSpeedBonus: 0, applyBonus: 0, basePowerBonus: 0, commandLevel: 0, aiCoordination: 'independent', targetPriority: 'random', turnEndSpRecovery: 0 }),
@@ -58,6 +100,7 @@
     const allSkills = [...cfg.tier1, ...(cfg.tier2 || []), ...(cfg.tier3 || [])];
     return {
       id: cfg.id, name: cfg.name, species: 'kobold', variant: cfg.variant, unitType: 'enemy', faction: 'enemy', actorCategory: 'enemy', isPlayer: false, linkedPlayerUID: '',
+      bodyProfile: clone(KOBOLD_LOOT_PROFILES.bodyProfile), lootProfile: clone(KOBOLD_LOOT_PROFILES.lootProfile),
       tags: ['canonical', 'kobold', 'enemy', ...(cfg.tags || [])], icono: cfg.sprite, visual: visual(cfg.sprite, cfg.spriteVariants),
       naturalWorldLevel: clone(cfg.naturalWorldLevel), baseLevel: clone(cfg.naturalWorldLevel), scores: clone(SCORES), proficiencies: clone(PROFICIENCIES), size: 'kobold',
       traitIds, traits: [{ id: PACK_TACTICS_ID, source: 'racial_trait_catalog' }, ...(cfg.traits || []).map(clone)],
