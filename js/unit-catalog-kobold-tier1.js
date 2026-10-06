@@ -112,7 +112,7 @@
         speed: cfg.speed, speedBonus: clone(cfg.speedBonus || { min: 0, max: 0 }), actionSlots: 1, maxSlotsLimit: 1, skills: allSkills.slice(),
         staggerThresholds: clone(STAGGER_THRESHOLDS), stagger: '75%,50%,25%', damageTypeDefense: { resist: cfg.resist, weak: cfg.weak }, ...(clone(cfg.mechanics || {})),
       },
-      schemaVersion: 2,
+      schemaVersion: 3,
       metadata: { canonicalUnit: true, catalog: 'kobold-batch', rankModel: 'universal_normal_captain_leader', hpModel: 'chassis_coefficient', naturalWorldLevelIsReferenceOnly: true },
     };
   }
@@ -203,7 +203,7 @@
   function firebasePayload() { const payload = {}; list().forEach((u) => { payload[u.id] = u; }); return payload; }
   function firebaseSkillPayload(schema) { if (!skillCatalog?.firebasePayload) throw new Error('KOBOLD_SKILL_CATALOG_REQUIRED'); return skillCatalog.firebasePayload(schema); }
 
-  const api = Object.freeze({ version: '2.1.0', STAGGER_THRESHOLDS, SCORES, PROFICIENCIES, PACK_TACTICS_ID, UNIVERSAL_RANKS, AMMO_PEBBLES, AMMO_ROCK, AERIAL_HARRIER, DRAGONHEART, DRAGON_RESISTANCE, SPELL_CASTER_CHARISMA, DEFINITIONS, list, get, resolve, resolveSkill, firebasePayload, firebaseSkillPayload });
+  const api = Object.freeze({ version: '2.2.0', STAGGER_THRESHOLDS, SCORES, PROFICIENCIES, PACK_TACTICS_ID, UNIVERSAL_RANKS, AMMO_PEBBLES, AMMO_ROCK, AERIAL_HARRIER, DRAGONHEART, DRAGON_RESISTANCE, SPELL_CASTER_CHARISMA, DEFINITIONS, list, get, resolve, resolveSkill, firebasePayload, firebaseSkillPayload });
   global.LuminousKoboldUnitCatalog = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);
