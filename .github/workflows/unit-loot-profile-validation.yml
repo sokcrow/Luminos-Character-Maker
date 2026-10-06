@@ -1,15 +1,22 @@
-name: Unit Loot Profile Validation
+name: Loot Foundation Validation
 
 on:
   pull_request:
     paths:
       - "js/unit-loot-profile-contract.js"
       - "js/item-harvest-integrity-engine.js"
+      - "js/corpse-harvest-runtime.js"
+      - "js/loot-ammo-reconciliation.js"
+      - "js/combat-analyze-check-contract.js"
       - "js/unit-catalog-kobold-tier1.js"
       - "js/unit-catalog-goblin.js"
       - "js/unit-catalog-wolf.js"
       - "js/combat-unit-library-sync.js"
       - "tests/unit-loot-profile-contract-smoke.mjs"
+      - "tests/corpse-harvest-runtime-smoke.mjs"
+      - "tests/loot-ammo-reconciliation-smoke.mjs"
+      - "tests/ranger-class-runtime-smoke.mjs"
+      - "tests/battle-master-archetype-runtime-smoke.mjs"
       - ".github/workflows/unit-loot-profile-validation.yml"
   push:
     branches:
@@ -18,15 +25,22 @@ on:
     paths:
       - "js/unit-loot-profile-contract.js"
       - "js/item-harvest-integrity-engine.js"
+      - "js/corpse-harvest-runtime.js"
+      - "js/loot-ammo-reconciliation.js"
+      - "js/combat-analyze-check-contract.js"
       - "js/unit-catalog-kobold-tier1.js"
       - "js/unit-catalog-goblin.js"
       - "js/unit-catalog-wolf.js"
       - "js/combat-unit-library-sync.js"
       - "tests/unit-loot-profile-contract-smoke.mjs"
+      - "tests/corpse-harvest-runtime-smoke.mjs"
+      - "tests/loot-ammo-reconciliation-smoke.mjs"
+      - "tests/ranger-class-runtime-smoke.mjs"
+      - "tests/battle-master-archetype-runtime-smoke.mjs"
       - ".github/workflows/unit-loot-profile-validation.yml"
 
 jobs:
-  unit-loot-profile:
+  loot-foundation:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -35,3 +49,11 @@ jobs:
           node-version: 20
       - name: Validate Unit Loot / Body Profile contracts
         run: node tests/unit-loot-profile-contract-smoke.mjs
+      - name: Validate corpse harvest yield and integrity
+        run: node tests/corpse-harvest-runtime-smoke.mjs
+      - name: Validate post-combat ammunition reconciliation
+        run: node tests/loot-ammo-reconciliation-smoke.mjs
+      - name: Validate Ranger Analyze bypass
+        run: node tests/ranger-class-runtime-smoke.mjs
+      - name: Validate Battle Master Analyze bypass
+        run: node tests/battle-master-archetype-runtime-smoke.mjs
