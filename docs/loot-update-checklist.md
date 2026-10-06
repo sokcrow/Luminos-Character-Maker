@@ -131,7 +131,7 @@ This document freezes the current scope and lets the Loot Update be completed in
 - [x] Add Harvest for organic/general body resources.
 - [x] Add Extract for delicate anatomical resources.
 - [x] Add Salvage for artificial/mineral/mechanical bodies.
-- [ ] Add Examine / Autopsy for knowledge acquisition.
+- [x] Add Examine / Autopsy for knowledge acquisition.
 - [x] Define which actions consume/remove recovered resources from the corpse.
 - [x] Prevent multiple players from independently extracting the same finite resource.
 - [x] Support partial discovery: hidden carried loot may remain on the corpse after a failed search.
@@ -141,7 +141,7 @@ This document freezes the current scope and lets the Loot Update be completed in
 - [x] Search uses Investigation (INT) as the default check.
 - [x] Harvest uses Survival (WIS) as the default practical field check.
 - [x] Delicate organ/anatomical extraction uses Medicine (WIS).
-- [ ] Autopsy supports Medicine (WIS) and Investigation (INT) for different information.
+- [x] Autopsy supports Medicine (WIS) and Investigation (INT) for different information.
 - [ ] Wire generic Combat Analyze to Perception (WIS) for observable combat information.
 - [x] Define the generic Analyze resolution contract as Perception (WIS) while preserving class-feature bypass signals.
 - [x] Use actual player/ally/NPC D&D modifiers, proficiency, half proficiency and expertise.
@@ -163,47 +163,47 @@ This document freezes the current scope and lets the Loot Update be completed in
 
 ## Post-combat investigation knowledge
 
-- [ ] Let Autopsy/Examine reveal anatomy and body composition.
-- [ ] Let Medicine reveal biological information.
-- [ ] Let Investigation reveal technical/equipment/contextual information.
-- [ ] Allow high-quality post-combat investigation to reveal selected Ability Score/stat-block facts where justified.
-- [ ] Keep combat-observable and autopsy-only knowledge as separate categories.
+- [x] Let Autopsy/Examine reveal anatomy and body composition.
+- [x] Let Medicine reveal biological information.
+- [x] Let Investigation reveal technical/equipment/contextual information.
+- [x] Allow high-quality post-combat investigation to reveal selected Ability Score/stat-block facts where justified.
+- [x] Keep combat-observable and autopsy-only knowledge as separate categories.
 
 ## Player Compendium
 
-- [ ] Create a persistent local Compendium per player.
-- [ ] Reference canonical Unit IDs instead of copying full Unit definitions.
-- [ ] Store knowledge as discovered facts/fields.
-- [ ] Support partial entries rather than discovered/not-discovered only.
-- [ ] Store known combat data.
-- [ ] Store known biology/body data.
-- [ ] Store known harvest data.
-- [ ] Store known loot/currency ranges.
-- [ ] Store known environmental/zone variants.
-- [ ] Store knowledge provenance where useful.
-- [ ] Support player-authored notes per Unit entry.
+- [x] Create a persistent local Compendium per player.
+- [x] Reference canonical Unit IDs instead of copying full Unit definitions.
+- [x] Store knowledge as discovered facts/fields.
+- [x] Support partial entries rather than discovered/not-discovered only.
+- [x] Store known combat data.
+- [x] Store known biology/body data.
+- [x] Store known harvest data.
+- [x] Store known loot/currency ranges.
+- [x] Store known environmental/zone variants.
+- [x] Store knowledge provenance where useful.
+- [x] Support player-authored notes per Unit entry.
 
 ## Shared Compendium
 
-- [ ] Let a player keep newly discovered information private.
-- [ ] Let a player share discovered facts with the party/global shared compendium.
-- [ ] Support direct player-to-player knowledge transfer where needed.
-- [ ] Preserve author attribution on player notes.
-- [ ] Do not merge personal notes into a single anonymous note.
-- [ ] Distinguish local knowledge from shared knowledge.
-- [ ] Never expose undiscovered Unit Library truth through the shared layer.
+- [x] Let a player keep newly discovered information private.
+- [x] Let a player share discovered facts with the party/global shared compendium.
+- [x] Support direct player-to-player knowledge transfer where needed.
+- [x] Preserve author attribution on player notes.
+- [x] Do not merge personal notes into a single anonymous note.
+- [x] Distinguish local knowledge from shared knowledge.
+- [x] Never expose undiscovered Unit Library truth through the shared layer.
 
 ## Loot knowledge in Compendium
 
-- [ ] Track observed possible carried Items.
-- [ ] Track observed currency ranges.
-- [ ] Track observed equipment.
-- [ ] Track harvestable resources.
-- [ ] Track edible/culinary resources.
+- [x] Track observed possible carried Items.
+- [x] Track observed currency ranges.
+- [x] Track observed equipment.
+- [x] Track harvestable resources.
+- [x] Track edible/culinary resources.
 - [ ] Track valuable organs/materials.
 - [ ] Track known uses in Cooking/crafting where systems support them.
-- [ ] Allow player-facing rarity labels such as Very Rare / Rare / Uncommon / Common / Likely / Guaranteed.
-- [ ] Keep exact percentages hidden unless a future knowledge/perk system explicitly unlocks them.
+- [x] Allow player-facing rarity labels such as Very Rare / Rare / Uncommon / Common / Likely / Guaranteed.
+- [x] Keep exact percentages hidden unless a future knowledge/perk system explicitly unlocks them.
 
 ## Inventory / provenance
 
@@ -214,7 +214,7 @@ This document freezes the current scope and lets the Loot Update be completed in
 - [x] Record Encounter Zone where relevant.
 - [x] Record Encounter Event where relevant.
 - [ ] Record acquisition method: search / harvest / extract / salvage / equipment / DM grant.
-- [ ] Record integrity/condition where relevant.
+- [x] Record integrity/condition where relevant.
 - [ ] Preserve culinary/procedural provenance for harvested food ingredients.
 - [ ] Respect Active Inventory / Stash limits and normal transfer rules.
 
@@ -244,8 +244,8 @@ This document freezes the current scope and lets the Loot Update be completed in
 - [x] Add Wealth/Role interaction tests.
 - [x] Add corpse-integrity/harvest integration tests.
 - [x] Add Search/Harvest/Salvage finite-resource tests.
-- [ ] Add Compendium knowledge persistence tests.
-- [ ] Add private/share knowledge tests.
+- [x] Add Compendium knowledge persistence tests.
+- [x] Add private/share knowledge tests.
 - [x] Add Inventory Runtime integration tests.
 - [x] Add post-combat ammunition reconciliation regression tests.
 - [x] Add Analyze resolution-contract regression coverage for Ranger Favored Enemy and Battle Master Know Your Enemy bypasses.
