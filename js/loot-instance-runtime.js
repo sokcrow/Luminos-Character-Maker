@@ -488,6 +488,7 @@
       if (equipmentId && removed.has(equipmentId)) return;
       const provenance = provenanceFor(identity, context, generation, {
         sourceMethod: "equipment_snapshot",
+        acquisitionMethod: "equipment",
         sourceKind: index < source.entries.length ? source.mode : "dm_override",
       });
 
