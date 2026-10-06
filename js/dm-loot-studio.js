@@ -294,7 +294,15 @@
 
     const snap = await db.ref(`campaña/jugadores/${playerId}`).once("value");
     const player = clone(snap.val() || {});
-    const result = grantInstancesToPlayerRecord(player, state.preview.carried || [], { ownerId: playerId, preferredContainer: "stash" });
+    const grantedItems = (state.preview.carried || []).map((item) => ({
+      ...clone(item),
+      provenance: {
+        ...clone(item.provenance || {}),
+        acquisitionMethod: "dm_grant",
+        grantedFromLootInstanceId: state.preview.lootInstanceId,
+      },
+    }));
+    const result = grantInstancesToPlayerRecord(player, grantedItems, { ownerId: playerId, preferredContainer: "stash" });
     if (!result.granted) return result;
     await db.ref(`campaña/jugadores/${playerId}`).update({
       inventario_stash: clone(result.player.inventario_stash || {}),
