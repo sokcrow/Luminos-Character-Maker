@@ -16,7 +16,8 @@
   const WOLF_SCORES = Object.freeze({ str: 14, dex: 15, con: 12, int: 3, wis: 12, cha: 6 });
   const DIRE_WOLF_SCORES = Object.freeze({ str: 17, dex: 15, con: 15, int: 3, wis: 12, cha: 7 });
   const WOLF_PROFICIENCIES = Object.freeze({ savingThrows: Object.freeze({}), skills: Object.freeze({ perception: 'expertise', stealth: 'proficient' }) });
-  const WOLF_SENSES = Object.freeze({ darkvision: 60, passivePerception: 15 });
+  const WOLF_SENSES = Object.freeze({ darkvision: 60, darkvisionFt: 60, passivePerception: 15 });
+  const DARKVISION_RULES = Object.freeze({ ignoresDarkness: true });
 
   const FALLBACK_RANKS = Object.freeze({
     normal: Object.freeze({ id: 'normal', levelMultiplier: 1, minSpeedBonus: 0, maxSpeedBonus: 0, applyBonus: 0, basePowerBonus: 0, commandLevel: 0, aiCoordination: 'independent', targetPriority: 'random', turnEndSpRecovery: 0 }),
@@ -55,14 +56,14 @@
       action_slots: Object.freeze(skillRefs('wolf')),
       mechanics: Object.freeze({
         hpBase: 11, hpCoefficient: null, hpGrowthPendingCanonicalCoefficient: true,
-        movementFeet: Object.freeze({ ground: 40 }), preferredMovementMode: 'ground',
+        movementFeet: Object.freeze({ ground: 40 }), preferredMovementMode: 'ground', darkvision: DARKVISION_RULES,
         naturalWeapon: 'fangs', build: Object.freeze(['bleed', 'sinking']),
         packTacticsTraitId: PACK_TACTICS_ID, meaningTraitId: MEANING.id,
         huntingHowling: Object.freeze({ requiredRank: 'captain', economy: 'quick_action', spRecovery: 5, attackPowerUp: 1, backupUnitId: 'wolf', backupAmount: 3, backupOncePerEncounter: true }),
         encounterComposition: Object.freeze({ requiredRank: 'captain', minimum: 1 }),
         skills: Object.freeze(skillRefs('wolf')), staggerThresholds: STAGGER_THRESHOLDS,
       }),
-      metadata: Object.freeze({ canonicalUnit: true, catalog: 'wolf-batch', oneCaptainPerEncounter: true, physicalProfilePending: false, speedPending: false, scoresPending: false, speedModel: 'movement_feet_plus_size', canonicalSourceName: 'Wolf', canonicalScores: true, canonicalProficiencies: true }),
+      metadata: Object.freeze({ canonicalUnit: true, catalog: 'wolf-batch', oneCaptainPerEncounter: true, physicalProfilePending: false, speedPending: false, scoresPending: false, speedModel: 'movement_feet_plus_size', canonicalSourceName: 'Wolf', canonicalSourceBook: 'Monster Manual (2025)', canonicalScores: true, canonicalProficiencies: true }),
       schemaVersion: 2,
     }),
 
@@ -84,14 +85,14 @@
       action_slots: Object.freeze(skillRefs('dire_wolf')),
       mechanics: Object.freeze({
         hpBase: 37, hpCoefficient: null, hpGrowthPendingCanonicalCoefficient: true,
-        movementFeet: Object.freeze({ ground: 50 }), preferredMovementMode: 'ground',
+        movementFeet: Object.freeze({ ground: 50 }), preferredMovementMode: 'ground', darkvision: DARKVISION_RULES,
         naturalWeapon: 'fangs', build: Object.freeze(['bleed', 'sinking']),
         packTacticsTraitId: PACK_TACTICS_ID, meaningTraitId: MEANING.id,
         huntingHowling: Object.freeze({ requiredRank: 'leader', economy: 'quick_action', spRecovery: 5, attackPowerUp: 1, backupUnitId: 'wolf', backupAmount: 3, backupOncePerEncounter: true }),
         encounterComposition: Object.freeze({ requiredRank: 'leader', minimum: 1 }),
         skills: Object.freeze(skillRefs('dire_wolf')), staggerThresholds: STAGGER_THRESHOLDS,
       }),
-      metadata: Object.freeze({ canonicalUnit: true, catalog: 'wolf-batch', oneLeaderPerEncounter: true, physicalProfilePending: false, speedPending: false, scoresPending: false, speedModel: 'movement_feet_plus_size', canonicalSourceName: 'Dire Wolf', canonicalScores: true, canonicalProficiencies: true }),
+      metadata: Object.freeze({ canonicalUnit: true, catalog: 'wolf-batch', oneLeaderPerEncounter: true, physicalProfilePending: false, speedPending: false, scoresPending: false, speedModel: 'movement_feet_plus_size', canonicalSourceName: 'Dire Wolf', canonicalSourceBook: 'Monster Manual (2025)', canonicalScores: true, canonicalProficiencies: true }),
       schemaVersion: 2,
     }),
   });
