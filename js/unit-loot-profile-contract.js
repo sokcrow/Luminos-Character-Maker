@@ -1,8 +1,9 @@
 (function (global) {
   "use strict";
 
-  if (global.LuminousUnitLootProfileContract) {
-    if (typeof module !== "undefined" && module.exports) module.exports = global.LuminousUnitLootProfileContract;
+  const existingContract = global.LuminousUnitLootProfileContract;
+  if (existingContract?.VERSION === 1 && typeof existingContract.validateUnit === "function") {
+    if (typeof module !== "undefined" && module.exports) module.exports = existingContract;
     return;
   }
 
