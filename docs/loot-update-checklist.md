@@ -67,31 +67,31 @@ This document freezes the current scope and lets the Loot Update be completed in
 
 ## Wealth and social/economic profile
 
-- [ ] Reuse the canonical AHN salary/economic bands already present in the repository.
-- [ ] Give eligible humanoids/NPCs a wealth profile.
-- [ ] Separate wealth from carried cash.
-- [ ] Let wealth influence item quality/value and plausible carried categories.
-- [ ] Support extreme poverty, poor, low, stable-low, middle, high, Nest bands, very rich and City elite.
-- [ ] Avoid assuming rich units carry their total wealth on their person.
-- [ ] Allow valuable low-cash profiles such as scavengers carrying scrap/materials.
+- [x] Reuse the canonical AHN salary/economic bands already present in the repository.
+- [x] Give eligible humanoids/NPCs a wealth profile.
+- [x] Separate wealth from carried cash.
+- [x] Let wealth influence item quality/value and plausible carried categories.
+- [x] Support extreme poverty, poor, low, stable-low, middle, high, Nest bands, very rich and City elite.
+- [x] Avoid assuming rich units carry their total wealth on their person.
+- [x] Allow valuable low-cash profiles such as scavengers carrying scrap/materials.
 
 ## Role / profession modifiers
 
-- [ ] Add role tags that modify plausible carried loot.
-- [ ] Support civilian.
-- [ ] Support worker.
-- [ ] Support miner.
-- [ ] Support cook.
-- [ ] Support merchant.
-- [ ] Support doctor/medic.
-- [ ] Support soldier/security.
-- [ ] Support Fixer.
-- [ ] Support executive.
-- [ ] Support researcher.
-- [ ] Support hunter.
-- [ ] Support scavenger.
-- [ ] Support cultist/smuggler/other authored roles.
-- [ ] Allow role-specific guaranteed equipment where appropriate.
+- [x] Add role tags that modify plausible carried loot.
+- [x] Support civilian.
+- [x] Support worker.
+- [x] Support miner.
+- [x] Support cook.
+- [x] Support merchant.
+- [x] Support doctor/medic.
+- [x] Support soldier/security.
+- [x] Support Fixer.
+- [x] Support executive.
+- [x] Support researcher.
+- [x] Support hunter.
+- [x] Support scavenger.
+- [x] Support cultist/smuggler/other authored roles.
+- [x] Allow role-specific guaranteed equipment where appropriate.
 
 ## Encounter Zone modifiers
 
@@ -241,7 +241,7 @@ This document freezes the current scope and lets the Loot Update be completed in
 - [ ] Add deterministic instance-generation tests.
 - [ ] Add Zone modifier tests.
 - [ ] Add Event modifier tests.
-- [ ] Add Wealth/Role interaction tests.
+- [x] Add Wealth/Role interaction tests.
 - [x] Add corpse-integrity/harvest integration tests.
 - [ ] Add Search/Harvest/Salvage finite-resource tests.
 - [ ] Add Compendium knowledge persistence tests.
