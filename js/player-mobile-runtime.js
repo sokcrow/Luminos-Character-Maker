@@ -12,6 +12,8 @@
     title: null,
     copy: null,
     button: null,
+    standby: null,
+    instance: "ninguno",
   };
 
   const fullscreenMedia = global.matchMedia?.("(display-mode: fullscreen)") || null;
@@ -116,6 +118,46 @@
     return gate;
   }
 
+  function buildStandby() {
+    if (state.standby) return state.standby;
+
+    const standby = doc.createElement("section");
+    standby.id = "player-mobile-standby";
+    standby.hidden = true;
+    standby.setAttribute("aria-live", "polite");
+
+    const card = doc.createElement("div");
+    card.className = "player-mobile-standby-card";
+
+    const title = doc.createElement("h2");
+    title.className = "player-mobile-standby-title";
+    title.textContent = "Esperando escena";
+
+    const copy = doc.createElement("p");
+    copy.className = "player-mobile-standby-copy";
+    copy.textContent = "Cuando el Director active Teatro o Combate, aparecerá aquí.";
+
+    card.append(title, copy);
+    standby.appendChild(card);
+    doc.body.appendChild(standby);
+    state.standby = standby;
+    return standby;
+  }
+
+  function syncStandby() {
+    if (!isPhoneDevice()) return;
+    const standby = buildStandby();
+    const show = state.mode === "game" && state.entered && state.instance === "ninguno";
+    standby.hidden = !show;
+
+    const blackout = doc.getElementById("player-instance-blackout");
+    if (blackout) {
+      blackout.classList.remove("active");
+      blackout.setAttribute("aria-hidden", "true");
+    }
+    doc.body?.classList.remove("player-instance-blackout");
+  }
+
   function syncGate() {
     if (!isPhoneDevice()) return;
 
@@ -124,6 +166,7 @@
 
     if (state.mode === "cellphone") {
       state.gate.hidden = true;
+      syncStandby();
       return;
     }
 
@@ -133,10 +176,12 @@
     if (fullscreenReady && landscapeReady) {
       state.entered = true;
       state.gate.hidden = true;
+      syncStandby();
       return;
     }
 
     state.gate.hidden = false;
+    syncStandby();
 
     if (!fullscreenReady) {
       state.title.textContent = state.entered ? "Volver a pantalla completa" : "Entrar al juego";
@@ -190,6 +235,16 @@
     state.installed = true;
     doc.body.classList.add("player-mobile-runtime");
     buildGate();
+    buildStandby();
+
+    global.addEventListener("luminous:player-instance-changed", (event) => {
+      state.instance = String(event?.detail?.instance || "ninguno");
+      syncStandby();
+    });
+
+    if (doc.body?.classList?.contains("player-instance-theatre")) state.instance = "teatro";
+    else if (doc.body?.classList?.contains("player-instance-combat")) state.instance = "combate";
+    else state.instance = "ninguno";
 
     doc.addEventListener("fullscreenchange", syncGate);
     doc.addEventListener("webkitfullscreenchange", syncGate);
@@ -226,5 +281,6 @@
     isLandscape,
     isPortrait,
     mode: () => state.mode,
+    instance: () => state.instance,
   });
 })(window);
