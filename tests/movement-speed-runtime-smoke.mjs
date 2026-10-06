@@ -56,7 +56,7 @@ owl.flying = false;
 assert.equal(speed.rangeForEntity(owl).mode, "ground");
 assert.deepEqual(
   { min: speed.rangeForEntity(owl).min, max: speed.rangeForEntity(owl).max },
-  { min: 0, max: 4 },
+  { min: 0, max: 3 },
 );
 
 const octopus = {
