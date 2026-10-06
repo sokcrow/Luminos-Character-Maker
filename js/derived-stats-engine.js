@@ -364,18 +364,23 @@
 
   function speedSnapshot(character, channels, options = {}) {
     const movementRuntime = options.movementSpeedRuntime || movementSpeedRuntime();
-    const movementRange = movementRuntime?.rangeForEntity?.(options.unit || character, options) || null;
+    const speedUnit = options.unit || character;
+    const explicitRange = Array.isArray(speedUnit?.speedRange) && speedUnit.speedRange.length >= 2
+      ? { min: Number(speedUnit.speedRange[0]), max: Number(speedUnit.speedRange[1]), mode: speedUnit.speedProfileMode || null }
+      : null;
+    const movementRange = movementRuntime?.rangeForEntity?.(speedUnit, options) || null;
     const storedCurrent = readFirst(character, ["combatStats.speed", "baseSpeed", "base_speed", "speed"], null);
     const storedMin = readFirst(character, ["combatStats.minSpeed", "combatStats.min_speed", "minSpeed", "min_speed"], null);
     const storedMax = readFirst(character, ["combatStats.maxSpeed", "combatStats.max_speed", "maxSpeed", "max_speed"], null);
+    const authoredRange = explicitRange && Number.isFinite(explicitRange.min) && Number.isFinite(explicitRange.max) ? explicitRange : null;
 
     const baseMin = Math.max(1, numberOr(
-      options.baseMinSpeed ?? movementRange?.min ?? storedMin ?? storedCurrent ?? 1,
-      movementRange?.min ?? 1,
+      options.baseMinSpeed ?? authoredRange?.min ?? movementRange?.min ?? storedMin ?? storedCurrent ?? 1,
+      authoredRange?.min ?? movementRange?.min ?? 1,
     ));
     const baseMax = Math.max(2, baseMin, numberOr(
-      options.baseMaxSpeed ?? movementRange?.max ?? storedMax ?? storedCurrent ?? 6,
-      movementRange?.max ?? 6,
+      options.baseMaxSpeed ?? authoredRange?.max ?? movementRange?.max ?? storedMax ?? storedCurrent ?? 6,
+      authoredRange?.max ?? movementRange?.max ?? 6,
     ));
     const baseCurrent = Math.max(1, numberOr(
       options.baseSpeed ?? storedCurrent ?? baseMin,
@@ -398,8 +403,8 @@
       passiveModifier: passive,
       minModifier,
       maxModifier,
-      source: movementRange ? "movement-size" : "stored",
-      movementMode: movementRange?.mode || null,
+      source: authoredRange ? "resolved-range" : (movementRange ? "movement-size" : "stored"),
+      movementMode: authoredRange?.mode || movementRange?.mode || null,
       movementFeet: movementRange?.movementFeet || null,
       sizeMaxSpeedModifier: movementRange?.sizeMaxSpeedModifier || 0,
     });
