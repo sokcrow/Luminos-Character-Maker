@@ -59,6 +59,16 @@
   const isDmSurface = () => doc.body?.classList?.contains("on-game-dashboard");
   const isDm = () => currentUid() === DM_UID || isDmSurface();
   const numberOr = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
+  function ensureProficiencyRuntime() {
+    if (global.LuminousProficiencyRuntime) return true;
+    if (!doc?.head || doc.getElementById("proficiency-runtime-script")) return false;
+    const script = doc.createElement("script");
+    script.id = "proficiency-runtime-script";
+    script.src = "js/proficiency-runtime.js";
+    script.async = false;
+    doc.head.appendChild(script);
+    return false;
+  }
   const parseSigned = (value) => {
     const match = String(value ?? "").replace(/,/g, "").match(/[+-]?\d+(?:\.\d+)?/);
     return match ? Number(match[0]) : 0;
@@ -265,22 +275,23 @@
   }
 
   function normalizeProfState(value) {
+    if (global.LuminousProficiencyRuntime?.normalizeState) return global.LuminousProficiencyRuntime.normalizeState(value);
     const normalized = String(value || "none").toLowerCase();
     return Object.prototype.hasOwnProperty.call(PROFICIENCY_MULTIPLIER, normalized) ? normalized : "none";
   }
 
   function playerProficiencyBonus(player) {
-    return Math.ceil(Math.max(0, numberOr(player?.level, 1)) / 20);
+    return global.LuminousProficiencyRuntime?.proficiencyBonus?.(player?.level) ?? Math.ceil(Math.max(0, numberOr(player?.level, 1)) / 20);
   }
 
   function playerRollPreview(player, spec) {
     if (!player || !spec) return { base: 0, headsChance: 50 };
     const ability = abilityById(spec.abilityId);
     const score = numberOr(player?.stats?.[ability.key], 10);
-    const modifier = Math.floor((score - 10) / 2);
+    const modifier = global.LuminousProficiencyRuntime?.abilityModifier?.(score) ?? Math.floor((score - 10) / 2);
     const profBonus = playerProficiencyBonus(player);
     const abilityState = normalizeProfState(player?.abilityProficiency?.[ability.id] ?? player?.abilityProficiency?.[ability.key]);
-    const abilityProf = Math.floor(profBonus * PROFICIENCY_MULTIPLIER[abilityState]);
+    const abilityProf = global.LuminousProficiencyRuntime?.contribution?.(player?.level, abilityState) ?? Math.floor(profBonus * PROFICIENCY_MULTIPLIER[abilityState]);
     let base = modifier + abilityProf;
 
     if (spec.kind === "skill") {
@@ -289,7 +300,7 @@
       if (Number.isFinite(Number(stored))) base = Number(stored);
       else {
         const skillState = normalizeProfState(player?.skillProficiency?.[skill?.id] ?? player?.dndSkills?.[skill?.id]?.proficiency ?? player?.dndSkills?.[skill?.id]?.proficiencyState);
-        base = modifier + Math.floor(profBonus * PROFICIENCY_MULTIPLIER[skillState]);
+        base = modifier + (global.LuminousProficiencyRuntime?.contribution?.(player?.level, skillState) ?? Math.floor(profBonus * PROFICIENCY_MULTIPLIER[skillState]));
       }
     }
     const sp = numberOr(player?.combatStats?.sp_actual ?? player?.sp, 0);
@@ -942,6 +953,7 @@
 
   function boot() {
     if (state.mounted) return;
+    ensureProficiencyRuntime();
     state.mounted = true;
     installFrontLayerBridge();
     installPlayerRollGate();
