@@ -1,0 +1,27 @@
+name: Loot Check Runtime Validation
+
+on:
+  pull_request:
+    paths:
+      - "js/loot-check-runtime.js"
+      - "tests/loot-check-runtime-smoke.cjs"
+      - ".github/workflows/loot-check-runtime-validation.yml"
+  push:
+    branches:
+      - main
+      - "loot-update/**"
+    paths:
+      - "js/loot-check-runtime.js"
+      - "tests/loot-check-runtime-smoke.cjs"
+      - ".github/workflows/loot-check-runtime-validation.yml"
+
+jobs:
+  loot-check-runtime:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Run Loot Check smoke test
+        run: node tests/loot-check-runtime-smoke.cjs
