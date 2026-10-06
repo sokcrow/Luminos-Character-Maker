@@ -149,7 +149,11 @@
       speedRange = [1, 6];
       speedFallback = true;
     }
-    speedRange = [Math.trunc(Math.min(...speedRange)), Math.trunc(Math.max(...speedRange))];
+    speedRange = [
+      Math.max(1, Math.trunc(Math.min(...speedRange))),
+      Math.max(2, Math.trunc(Math.max(...speedRange))),
+    ];
+    if (speedRange[1] < speedRange[0]) speedRange[1] = speedRange[0];
     const sprite = spriteFor(material);
     const scale = firstNumber(material, ['visualScale', 'scale', 'combatScale', 'combatVisual.scale', 'visual.scale'], 1) || 1;
     const spriteX = firstNumber(material, ['spriteX', 'combatSpriteX', 'combatVisual.x', 'visual.spriteX'], 0) || 0;
