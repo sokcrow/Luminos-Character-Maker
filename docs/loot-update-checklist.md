@@ -142,7 +142,7 @@ This document freezes the current scope and lets the Loot Update be completed in
 - [x] Harvest uses Survival (WIS) as the default practical field check.
 - [x] Delicate organ/anatomical extraction uses Medicine (WIS).
 - [x] Autopsy supports Medicine (WIS) and Investigation (INT) for different information.
-- [ ] Wire generic Combat Analyze to Perception (WIS) for observable combat information.
+- [x] Wire generic Combat Analyze to Perception (WIS) for observable combat information.
 - [x] Define the generic Analyze resolution contract as Perception (WIS) while preserving class-feature bypass signals.
 - [x] Use actual player/ally/NPC D&D modifiers, proficiency, half proficiency and expertise.
 - [x] Use the existing Coin Engine instead of raw percentage rolls for player-facing checks.
@@ -151,15 +151,15 @@ This document freezes the current scope and lets the Loot Update be completed in
 
 ## Combat Analyze / Observation
 
-- [ ] Replace only the generic automatic Analyze path with a real Perception-based check; preserve Ranger Favored Enemy `bypassCheck` and Battle Master Know Your Enemy `bypassAnalyseCheck` automatic-success paths.
-- [ ] Use observable combat facts only.
-- [ ] Allow discovery of Speed-related information.
-- [ ] Allow discovery of used/observable Skills.
-- [ ] Allow discovery of visible traits/behavior.
-- [ ] Allow discovery of observed resistances/weaknesses after interaction.
-- [ ] Do not reveal arbitrary hidden Ability Scores through combat observation alone.
-- [ ] Reuse/extend `observationKnown` as encounter-level knowledge where appropriate.
-- [ ] Allow successful knowledge to be kept private or shared.
+- [x] Replace only the generic automatic Analyze path with a real Perception-based check; preserve Ranger Favored Enemy `bypassCheck` and Battle Master Know Your Enemy `bypassAnalyseCheck` automatic-success paths.
+- [x] Use observable combat facts only.
+- [x] Allow discovery of Speed-related information.
+- [x] Allow discovery of used/observable Skills.
+- [x] Allow discovery of visible traits/behavior.
+- [x] Allow discovery of observed resistances/weaknesses after interaction.
+- [x] Do not reveal arbitrary hidden Ability Scores through combat observation alone.
+- [x] Reuse/extend `observationKnown` as encounter-level knowledge where appropriate.
+- [x] Allow successful knowledge to be kept private or shared.
 
 ## Post-combat investigation knowledge
 
@@ -200,14 +200,14 @@ This document freezes the current scope and lets the Loot Update be completed in
 - [x] Track observed equipment.
 - [x] Track harvestable resources.
 - [x] Track edible/culinary resources.
-- [ ] Track valuable organs/materials.
-- [ ] Track known uses in Cooking/crafting where systems support them.
+- [x] Track valuable organs/materials.
+- [x] Track known uses in Cooking/crafting where systems support them.
 - [x] Allow player-facing rarity labels such as Very Rare / Rare / Uncommon / Common / Likely / Guaranteed.
 - [x] Keep exact percentages hidden unless a future knowledge/perk system explicitly unlocks them.
 
 ## Inventory / provenance
 
-- [ ] Create harvested/looted outputs as real Item Instances.
+- [x] Create harvested/looted outputs as real Item Instances.
 - [x] Record source Unit ID.
 - [x] Record source Unit instance/corpse ID.
 - [x] Record Encounter ID.
@@ -215,8 +215,8 @@ This document freezes the current scope and lets the Loot Update be completed in
 - [x] Record Encounter Event where relevant.
 - [ ] Record acquisition method: search / harvest / extract / salvage / equipment / DM grant.
 - [x] Record integrity/condition where relevant.
-- [ ] Preserve culinary/procedural provenance for harvested food ingredients.
-- [ ] Respect Active Inventory / Stash limits and normal transfer rules.
+- [x] Preserve culinary/procedural provenance for harvested food ingredients.
+- [x] Respect Active Inventory / Stash limits and normal transfer rules.
 
 ## DM Loot Studio
 
@@ -249,7 +249,7 @@ This document freezes the current scope and lets the Loot Update be completed in
 - [x] Add Inventory Runtime integration tests.
 - [x] Add post-combat ammunition reconciliation regression tests.
 - [x] Add Analyze resolution-contract regression coverage for Ranger Favored Enemy and Battle Master Know Your Enemy bypasses.
-- [ ] Add Battle Analyze end-to-end regression tests when Analyze is wired into Battle Viewer.
+- [x] Add Battle Analyze end-to-end regression tests when Analyze is wired into Battle Viewer.
 - [ ] Add DM Loot Studio smoke coverage.
 
 ## Explicitly deferred
