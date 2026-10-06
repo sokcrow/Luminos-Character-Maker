@@ -20,19 +20,19 @@ assert.deepEqual(
 
 assert.deepEqual(
   { min: speed.rangeFromFeet(25, "medium").min, max: speed.rangeFromFeet(25, "medium").max },
-  { min: 0, max: 5 },
+  { min: 1, max: 5 },
 );
 assert.deepEqual(
   { min: speed.rangeFromFeet(20, "medium").min, max: speed.rangeFromFeet(20, "medium").max },
-  { min: 0, max: 4 },
+  { min: 1, max: 4 },
 );
 assert.deepEqual(
   { min: speed.rangeFromFeet(10, "medium").min, max: speed.rangeFromFeet(10, "medium").max },
-  { min: 0, max: 2 },
+  { min: 1, max: 2 },
 );
 assert.deepEqual(
   { min: speed.rangeFromFeet(5, "medium").min, max: speed.rangeFromFeet(5, "medium").max },
-  { min: 0, max: 2 },
+  { min: 1, max: 2 },
   "Max Speed must never fall below 2 from movement penalties.",
 );
 
@@ -41,6 +41,14 @@ assert.equal(speed.rangeFromFeet(30, "small").max, 8);
 assert.equal(speed.rangeFromFeet(30, "large").max, 5);
 assert.equal(speed.rangeFromFeet(30, "huge").max, 4);
 assert.equal(speed.rangeFromFeet(30, "gargantuan").max, 3);
+
+for (const feet of [5, 10, 20, 25, 30, 35, 40, 50, 60]) {
+  for (const size of ["tiny", "small", "medium", "large", "huge", "gargantuan"]) {
+    const range = speed.rangeFromFeet(feet, size);
+    assert.ok(range.min >= 1, `${size} ${feet} ft Min Speed must never fall below 1`);
+    assert.ok(range.max >= 2, `${size} ${feet} ft Max Speed must never fall below 2`);
+  }
+}
 
 const owl = {
   size: "tiny",
@@ -56,7 +64,7 @@ owl.flying = false;
 assert.equal(speed.rangeForEntity(owl).mode, "ground");
 assert.deepEqual(
   { min: speed.rangeForEntity(owl).min, max: speed.rangeForEntity(owl).max },
-  { min: 0, max: 3 },
+  { min: 1, max: 4 },
 );
 
 const octopus = {
