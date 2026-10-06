@@ -9,6 +9,8 @@ on:
       - "js/loot-ammo-reconciliation.js"
       - "js/combat-analyze-check-contract.js"
       - "js/combat-analyze-runtime.js"
+      - "js/dm-loot-studio.js"
+      - "pantalla_dm.html"
       - "js/combat-action-adapters.js"
       - "js/combat-action-resolver.js"
       - "js/battle-viewer-action-adapter-073.js"
@@ -41,6 +43,7 @@ on:
       - "tests/loot-knowledge-runtime-smoke.mjs"
       - "tests/loot-recovery-delivery-runtime-smoke.mjs"
       - "tests/combat-analyze-end-to-end-smoke.mjs"
+      - "tests/dm-loot-studio-smoke.mjs"
       - "tests/ranger-class-runtime-smoke.mjs"
       - "tests/battle-master-archetype-runtime-smoke.mjs"
       - ".github/workflows/unit-loot-profile-validation.yml"
@@ -55,6 +58,8 @@ on:
       - "js/loot-ammo-reconciliation.js"
       - "js/combat-analyze-check-contract.js"
       - "js/combat-analyze-runtime.js"
+      - "js/dm-loot-studio.js"
+      - "pantalla_dm.html"
       - "js/combat-action-adapters.js"
       - "js/combat-action-resolver.js"
       - "js/battle-viewer-action-adapter-073.js"
@@ -87,6 +92,7 @@ on:
       - "tests/loot-knowledge-runtime-smoke.mjs"
       - "tests/loot-recovery-delivery-runtime-smoke.mjs"
       - "tests/combat-analyze-end-to-end-smoke.mjs"
+      - "tests/dm-loot-studio-smoke.mjs"
       - "tests/ranger-class-runtime-smoke.mjs"
       - "tests/battle-master-archetype-runtime-smoke.mjs"
       - ".github/workflows/unit-loot-profile-validation.yml"
@@ -119,6 +125,8 @@ jobs:
         run: node tests/loot-recovery-delivery-runtime-smoke.mjs
       - name: Validate Battle Analyze end-to-end Perception and observation
         run: node tests/combat-analyze-end-to-end-smoke.mjs
+      - name: Validate DM Loot Studio preview lock override and grant flow
+        run: node tests/dm-loot-studio-smoke.mjs
       - name: Validate Ranger Analyze bypass
         run: node tests/ranger-class-runtime-smoke.mjs
       - name: Validate Battle Master Analyze bypass
