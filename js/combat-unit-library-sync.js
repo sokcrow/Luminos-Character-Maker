@@ -12,6 +12,8 @@
   const CATALOG_SCRIPTS=Object.freeze([
     'js/universal-library-runtime.js',
     'js/combat-skill-schema.js',
+    'js/proficiency-runtime.js',
+    'js/skill-catalog-beast-cr0.js',
     'js/skill-catalog-kobold-tier1.js',
     'js/skill-catalog-goblin-tier1.js',
     'js/skill-catalog-wolf.js',
@@ -21,6 +23,7 @@
     'js/creature-type-catalog.js',
     'js/goblin-unit-runtime.js',
     'js/wolf-unit-runtime.js',
+    'js/unit-catalog-beast-cr0.js',
     'js/unit-catalog-kobold-tier1.js',
     'js/unit-catalog-goblin.js',
     'js/unit-catalog-wolf.js'
@@ -34,6 +37,8 @@
     const checks={
       'js/universal-library-runtime.js':()=>Boolean(global.LuminousUniversalLibrary),
       'js/combat-skill-schema.js':()=>Boolean(global.CombatSkillSchema),
+      'js/proficiency-runtime.js':()=>Boolean(global.LuminousProficiencyRuntime),
+      'js/skill-catalog-beast-cr0.js':()=>Boolean(global.LuminousBeastCr0SkillCatalog),
       'js/skill-catalog-kobold-tier1.js':()=>Boolean(global.LuminousKoboldTier1SkillCatalog),
       'js/skill-catalog-goblin-tier1.js':()=>Boolean(global.LuminousGoblinTier1SkillCatalog),
       'js/skill-catalog-wolf.js':()=>Boolean(global.LuminousWolfSkillCatalog),
@@ -43,6 +48,7 @@
       'js/creature-type-catalog.js':()=>Boolean(global.LuminousCreatureTypeCatalog),
       'js/goblin-unit-runtime.js':()=>Boolean(global.LuminousGoblinUnitRuntime),
       'js/wolf-unit-runtime.js':()=>Boolean(global.LuminousWolfUnitRuntime),
+      'js/unit-catalog-beast-cr0.js':()=>Boolean(global.LuminousBeastCr0UnitCatalog),
       'js/unit-catalog-kobold-tier1.js':()=>Boolean(global.LuminousKoboldUnitCatalog),
       'js/unit-catalog-goblin.js':()=>Boolean(global.LuminousGoblinUnitCatalog),
       'js/unit-catalog-wolf.js':()=>Boolean(global.LuminousWolfUnitCatalog),
@@ -67,7 +73,7 @@
       if(!existing){script.src=src;script.async=false;global.document.head.appendChild(script);}else if(readyForScript(src)||existing.dataset?.loaded==='1'||existing.readyState==='complete')finish();
     });
   }
-  function catalogsReady(){return Boolean(global.LuminousUniversalLibrary&&global.CombatSkillSchema&&global.LuminousKoboldUnitCatalog&&global.LuminousGoblinTier1SkillCatalog&&global.LuminousGoblinUnitCatalog&&global.LuminousWolfUnitCatalog);}
+  function catalogsReady(){return Boolean(global.LuminousUniversalLibrary&&global.CombatSkillSchema&&global.LuminousProficiencyRuntime&&global.LuminousBeastCr0SkillCatalog&&global.LuminousBeastCr0UnitCatalog&&global.LuminousKoboldUnitCatalog&&global.LuminousGoblinTier1SkillCatalog&&global.LuminousGoblinUnitCatalog&&global.LuminousWolfUnitCatalog);}
   async function ensureCatalogs(){
     if(catalogsReady())return true;
     if(state.loading)return state.loading;
@@ -88,9 +94,9 @@
   }
   async function buildPayloads(){
     await ensureCatalogs();
-    const schema=global.CombatSkillSchema,kobolds=global.LuminousKoboldUnitCatalog,goblins=global.LuminousGoblinUnitCatalog,wolves=global.LuminousWolfUnitCatalog;
-    const units=mergePayloads(kobolds.firebasePayload(),goblins.firebasePayload(),wolves.firebasePayload());
-    const skills=mergePayloads(kobolds.firebaseSkillPayload(schema),goblins.firebaseSkillPayload(schema),wolves.firebaseSkillPayload(schema));
+    const schema=global.CombatSkillSchema,beasts=global.LuminousBeastCr0UnitCatalog,kobolds=global.LuminousKoboldUnitCatalog,goblins=global.LuminousGoblinUnitCatalog,wolves=global.LuminousWolfUnitCatalog;
+    const units=mergePayloads(beasts.firebasePayload(),kobolds.firebasePayload(),goblins.firebasePayload(),wolves.firebasePayload());
+    const skills=mergePayloads(beasts.firebaseSkillPayload(schema),kobolds.firebaseSkillPayload(schema),goblins.firebaseSkillPayload(schema),wolves.firebaseSkillPayload(schema));
     state.localUnits=clone(units)||{};state.localSkills=clone(skills)||{};
     return{units,skills};
   }
@@ -100,6 +106,7 @@
       pendingSprites:rows.filter(({unit})=>unit.metadata?.spritePending===true||!clean(unit.combatSprite||unit.visual?.spriteUrl||unit.icono||unit.img)).map(({id})=>id),
       pendingWeaponSkills:rows.filter(({unit})=>unit.metadata?.weaponSkillsPendingCanonicalCatalog===true).map(({id})=>id),
       families:{
+        beastCr0:rows.filter(({unit})=>clean(unit.family).toLowerCase()==='beast_cr0').length,
         kobold:rows.filter(({unit,id})=>clean(unit.species||unit.family||id).toLowerCase().includes('kobold')).length,
         goblin:rows.filter(({unit,id})=>clean(unit.species||unit.family||id).toLowerCase().includes('goblin')).length,
         wolf:rows.filter(({unit,id})=>clean(unit.species||unit.family||id).toLowerCase().includes('wolf')).length
