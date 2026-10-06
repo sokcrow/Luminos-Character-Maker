@@ -71,7 +71,7 @@
       if(!existing){script.src=src;script.async=false;global.document.head.appendChild(script);}else if(readyForScript(src)||existing.dataset?.loaded==='1'||existing.readyState==='complete')finish();
     });
   }
-  function catalogsReady(){return Boolean(global.LuminousUniversalLibrary&&global.CombatSkillSchema&&global.LuminousItemHarvestIntegrityEngine&&global.LuminousUnitLootProfileContract&&global.LuminousKoboldUnitCatalog&&global.LuminousGoblinTier1SkillCatalog&&global.LuminousGoblinUnitCatalog&&global.LuminousWolfUnitCatalog);}
+  function catalogsReady(){return Boolean(global.LuminousUniversalLibrary&&global.CombatSkillSchema&&global.LuminousKoboldUnitCatalog&&global.LuminousGoblinTier1SkillCatalog&&global.LuminousGoblinUnitCatalog&&global.LuminousWolfUnitCatalog);}
   async function ensureCatalogs(){
     if(catalogsReady())return true;
     if(state.loading)return state.loading;
