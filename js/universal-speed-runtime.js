@@ -111,18 +111,18 @@
     ensureMovementSpeedRuntime();
     const movementRange = global.LuminousMovementSpeedRuntime?.rangeForEntity?.(unit || character, options) || null;
     if (movementRange) return { min: movementRange.min, max: movementRange.max, source: "movement-size", movementRange };
-    const min = firstFinite(character, ["combatStats.minSpeed", "combatStats.min_speed", "minSpeed", "min_speed"])
+    const min = Math.max(1, firstFinite(character, ["combatStats.minSpeed", "combatStats.min_speed", "minSpeed", "min_speed"])
       ?? firstFinite(unit, ["combatStats.minSpeed", "combatStats.min_speed", "minSpeed", "min_speed"])
-      ?? baseSpeed;
-    const max = firstFinite(character, ["combatStats.maxSpeed", "combatStats.max_speed", "maxSpeed", "max_speed"])
+      ?? baseSpeed);
+    const max = Math.max(2, min, firstFinite(character, ["combatStats.maxSpeed", "combatStats.max_speed", "maxSpeed", "max_speed"])
       ?? firstFinite(unit, ["combatStats.maxSpeed", "combatStats.max_speed", "maxSpeed", "max_speed"])
-      ?? Math.max(min, baseSpeed);
-    return { min, max: Math.max(min, max), source: "stored" };
+      ?? Math.max(min, baseSpeed));
+    return { min, max, source: "stored" };
   }
 
   function effectiveSpeed(unit, options = {}) {
     const fixed = global.LuminousConditionRuntime?.fixedSpeedFor?.(unit);
-    if (fixed != null && Number.isFinite(Number(fixed))) return Number(fixed);
+    if (fixed != null && Number.isFinite(Number(fixed))) return Math.max(1, Number(fixed));
     const derived = global.LuminousDerivedStatsRuntime?.snapshot?.(
       options.character || (isCurrentPlayerUnit(unit) ? currentPlayerCharacter() : unit) || unit || {},
       { unit, traits: options.traits || traitsForUnit(unit), context: "combat", baseSpeed: options.baseSpeed },
@@ -134,7 +134,7 @@
     const traits = options.traits || traitsForUnit(unit);
     const explicitBase = Number.isFinite(Number(options.baseSpeed)) ? Number(options.baseSpeed) : null;
     const baseSpeed = explicitBase ?? rawSpeed(unit, 0);
-    if (!modifiers?.resolveCharacterSnapshot || !unit) return baseSpeed;
+    if (!modifiers?.resolveCharacterSnapshot || !unit) return Math.max(1, baseSpeed);
 
     const snapshot = modifiers.resolveCharacterSnapshot({
       unit,
@@ -144,9 +144,9 @@
     });
     const range = baseSpeedRange(character, unit, baseSpeed, options);
     const passiveSpeed = numberOr(snapshot.modifiers?.speed, 0);
-    const minSpeed = range.min + numberOr(snapshot.modifiers?.min_speed, 0) + passiveSpeed;
-    const maxSpeed = Math.max(minSpeed, range.max + numberOr(snapshot.modifiers?.max_speed, 0) + passiveSpeed);
-    return clamp(baseSpeed + passiveSpeed, minSpeed, maxSpeed);
+    const minSpeed = Math.max(1, range.min + numberOr(snapshot.modifiers?.min_speed, 0) + passiveSpeed);
+    const maxSpeed = Math.max(2, minSpeed, range.max + numberOr(snapshot.modifiers?.max_speed, 0) + passiveSpeed);
+    return clamp(Math.max(1, baseSpeed + passiveSpeed), minSpeed, maxSpeed);
   }
 
   function decorateSpeed(unit) {
