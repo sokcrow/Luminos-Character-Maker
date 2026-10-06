@@ -25,43 +25,43 @@ This document freezes the current scope and lets the Loot Update be completed in
 
 ## Unit loot profile
 
-- [ ] Add a canonical Loot Profile contract to Unit Library definitions.
-- [ ] Separate carried loot from body harvest.
-- [ ] Separate actual equipped/loadout Items from random carried loot.
-- [ ] Support currency ranges and zero-currency outcomes.
-- [ ] Support consumables, tools, valuables, documents, food, ammunition and personal Items.
-- [ ] Support explicit impossible categories so a high roll cannot bypass world logic.
-- [ ] Support rarity/weight classes without requiring player-facing exact percentages.
+- [x] Add a canonical Loot Profile contract to Unit Library definitions.
+- [x] Separate carried loot from body harvest.
+- [x] Separate actual equipped/loadout Items from random carried loot.
+- [x] Support currency ranges and zero-currency outcomes.
+- [x] Support consumables, tools, valuables, documents, food, ammunition and personal Items.
+- [x] Support explicit impossible categories so a high roll cannot bypass world logic.
+- [x] Support rarity/weight classes without requiring player-facing exact percentages.
 
 ## Body Profile
 
-- [ ] Add Body Profile data independent of creature type.
-- [ ] Support organic flesh/blood/bone bodies.
-- [ ] Support hide/pelt, scale/chitin/shell and hard-part bodies.
-- [ ] Support metal/mechanical bodies.
-- [ ] Support stone/mineral bodies.
-- [ ] Support wood/plant bodies.
-- [ ] Support ooze/gel bodies.
-- [ ] Support crystal/synthetic/other non-organic bodies.
-- [ ] Support mixed bodies with multiple recoverable material families.
-- [ ] Do not expose biologically impossible resources from incompatible bodies.
+- [x] Add Body Profile data independent of creature type.
+- [x] Support organic flesh/blood/bone bodies.
+- [x] Support hide/pelt, scale/chitin/shell and hard-part bodies.
+- [x] Support metal/mechanical bodies.
+- [x] Support stone/mineral bodies.
+- [x] Support wood/plant bodies.
+- [x] Support ooze/gel bodies.
+- [x] Support crystal/synthetic/other non-organic bodies.
+- [x] Support mixed bodies with multiple recoverable material families.
+- [x] Do not expose biologically impossible resources from incompatible bodies.
 
 ## Harvest / Salvage Profile
 
-- [ ] Define recoverable resources per Unit/Body Profile.
-- [ ] Reuse `item-harvest-integrity-engine.js` for corpse damage/integrity.
+- [x] Define recoverable resources per Unit/Body Profile.
+- [x] Reuse `item-harvest-integrity-engine.js` for corpse damage/integrity.
 - [ ] Make combat damage affect final harvestable quality/yield.
-- [ ] Support meat.
-- [ ] Support hide/pelt.
-- [ ] Support hard parts / bones / structural parts.
-- [ ] Support internal organs.
-- [ ] Support sensory organs.
-- [ ] Support brain tissue.
-- [ ] Support glands.
-- [ ] Support blood/ichor.
-- [ ] Support venom/secretion.
-- [ ] Support ooze/gel.
-- [ ] Add salvage equivalents for metal, stone, mechanical and synthetic bodies.
+- [x] Support meat.
+- [x] Support hide/pelt.
+- [x] Support hard parts / bones / structural parts.
+- [x] Support internal organs.
+- [x] Support sensory organs.
+- [x] Support brain tissue.
+- [x] Support glands.
+- [x] Support blood/ichor.
+- [x] Support venom/secretion.
+- [x] Support ooze/gel.
+- [x] Add salvage equivalents for metal, stone, mechanical and synthetic bodies.
 - [ ] Define quantity/yield ranges by body size/species/profile.
 - [ ] Track whether a resource is intact, damaged, contaminated or destroyed.
 
@@ -233,8 +233,8 @@ This document freezes the current scope and lets the Loot Update be completed in
 
 ## Tests and validation
 
-- [ ] Add schema/unit tests for Loot Profiles.
-- [ ] Add Body Profile validation.
+- [x] Add schema/unit tests for Loot Profiles.
+- [x] Add Body Profile validation.
 - [ ] Add impossible-loot regression tests.
 - [ ] Add deterministic instance-generation tests.
 - [ ] Add Zone modifier tests.
