@@ -157,7 +157,7 @@
     doc.body?.classList.remove("player-cellphone-surface-open");
 
     if (global.LuminousPlayerMobileRuntime?.isPhoneDevice?.()) {
-      await global.LuminousPlayerMobileRuntime.setMode("game");
+      await global.LuminousPlayerMobileRuntime.setMode("game", { requestFullscreen: true });
     } else if (isRootFullscreen()) {
       await lockOrientation("landscape");
     } else {
