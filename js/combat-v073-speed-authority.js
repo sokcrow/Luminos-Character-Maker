@@ -15,10 +15,10 @@
   function rangeFor(unit={}){
     const movementRange=global.LuminousMovementSpeedRuntime?.rangeForEntity?.(unit)||null;
     let min,max;
-    if(movementRange){
-      min=finite(movementRange.min,1);max=finite(movementRange.max,6);
-    }else if(Array.isArray(unit.speedRange)&&unit.speedRange.length>=2){
+    if(Array.isArray(unit.speedRange)&&unit.speedRange.length>=2){
       min=finite(unit.speedRange[0],1);max=finite(unit.speedRange[1],6);
+    }else if(movementRange){
+      min=finite(movementRange.min,1);max=finite(movementRange.max,6);
     }else{
       min=finite(unit.speedMin,1);max=finite(unit.speedMax,6);
     }
