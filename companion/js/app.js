@@ -17,6 +17,11 @@
     return /iPhone|iPod|Windows Phone|Mobi|Android.+Mobile/i.test(ua);
   }
 
+  function isEmbeddedSurface() {
+    const params = new URLSearchParams(global.location.search);
+    return params.get("surface") === "desktop";
+  }
+
   function isInstalledDisplayMode() {
     return fullscreenMedia.matches || standaloneMedia.matches || navigator.standalone === true;
   }
@@ -65,22 +70,24 @@
   }
 
   function syncPresentation() {
+    const embedded = isEmbeddedSurface();
     const phone = isPhone();
     const installed = isInstalledDisplayMode();
-    const landscape = isLandscape();
-    const needsEntryGesture = phone && !installed && !launchAcknowledged;
+    const landscape = embedded ? true : isLandscape();
+    const needsEntryGesture = !embedded && phone && !installed && !launchAcknowledged;
 
-    byId("device-gate").hidden = phone;
-    byId("mobile-entry-gate").hidden = !needsEntryGesture;
-    byId("orientation-gate").hidden = !phone || needsEntryGesture || landscape;
-    byId("mobile-app").hidden = !phone || needsEntryGesture || !landscape;
+    byId("device-gate").hidden = embedded || phone;
+    byId("mobile-entry-gate").hidden = embedded || !needsEntryGesture;
+    byId("orientation-gate").hidden = embedded || !phone || needsEntryGesture || landscape;
+    byId("mobile-app").hidden = !embedded && (!phone || needsEntryGesture || !landscape);
 
-    document.documentElement.dataset.companionDevice = phone ? "phone" : "unsupported";
+    document.documentElement.dataset.companionDevice = embedded ? "desktop-embed" : (phone ? "phone" : "unsupported");
+    document.documentElement.dataset.companionSurface = embedded ? "desktop" : "mobile";
     document.documentElement.dataset.companionOrientation = landscape ? "landscape" : "portrait";
 
     const fullscreenButton = byId("fullscreen-app");
     if (fullscreenButton) {
-      fullscreenButton.hidden = isFullscreen() || installed;
+      fullscreenButton.hidden = embedded || isFullscreen() || installed;
     }
   }
 
@@ -124,6 +131,12 @@
   }
 
   function bindPresentation() {
+    if (isEmbeddedSurface()) {
+      launchAcknowledged = true;
+      syncPresentation();
+      return;
+    }
+
     byId("enter-companion").addEventListener("click", enterPresentation);
     byId("retry-landscape").addEventListener("click", enterPresentation);
     byId("fullscreen-app").addEventListener("click", enterPresentation);
@@ -179,11 +192,15 @@
   function boot() {
     bindPresentation();
 
-    if (!isPhone()) return;
+    const embedded = isEmbeddedSurface();
+    if (!embedded && !isPhone()) return;
 
     bindNavigation();
-    bindInstall();
-    registerServiceWorker();
+
+    if (!embedded) {
+      bindInstall();
+      registerServiceWorker();
+    }
   }
 
   document.addEventListener("DOMContentLoaded", boot, { once: true });

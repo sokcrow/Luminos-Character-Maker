@@ -30,6 +30,9 @@ Incluido:
 - Service worker limitado a recursos estáticos del shell.
 - Slots explícitos para Inicio, Economía, Contratos, Stash y Perfil.
 - Ningún listener de economía, contratos, inventario o combate.
+- Botón **Celular** en la hoja del jugador que abre el Companion a pantalla completa.
+- Modo `surface=desktop` para reutilizar exactamente el mismo Companion dentro de la superficie fullscreen de escritorio.
+- El botón **Terminal** legacy permanece temporalmente durante la migración.
 
 Sub-batch A.1 pendiente:
 
@@ -60,4 +63,4 @@ Si este batch descubre que una lectura debe restringirse más por usuario, el ca
 
 ## Regla de integración
 
-El PR permanece en Draft durante todos los batches. No se marca Ready for review hasta completar integración funcional, revisión de reglas y pruebas en dispositivo real.
+Esta foundation puede integrarse a `main` como base estable. Firebase/Auth, datos reales y seguridad continúan en PRs posteriores, evitando mantener una rama de foundation abierta durante toda la migración.
