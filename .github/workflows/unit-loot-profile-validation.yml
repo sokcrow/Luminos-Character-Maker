@@ -1,0 +1,37 @@
+name: Unit Loot Profile Validation
+
+on:
+  pull_request:
+    paths:
+      - "js/unit-loot-profile-contract.js"
+      - "js/item-harvest-integrity-engine.js"
+      - "js/unit-catalog-kobold-tier1.js"
+      - "js/unit-catalog-goblin.js"
+      - "js/unit-catalog-wolf.js"
+      - "js/combat-unit-library-sync.js"
+      - "tests/unit-loot-profile-contract-smoke.cjs"
+      - ".github/workflows/unit-loot-profile-validation.yml"
+  push:
+    branches:
+      - main
+      - "loot-update/**"
+    paths:
+      - "js/unit-loot-profile-contract.js"
+      - "js/item-harvest-integrity-engine.js"
+      - "js/unit-catalog-kobold-tier1.js"
+      - "js/unit-catalog-goblin.js"
+      - "js/unit-catalog-wolf.js"
+      - "js/combat-unit-library-sync.js"
+      - "tests/unit-loot-profile-contract-smoke.cjs"
+      - ".github/workflows/unit-loot-profile-validation.yml"
+
+jobs:
+  unit-loot-profile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Validate Unit Loot / Body Profile contracts
+        run: node tests/unit-loot-profile-contract-smoke.cjs
