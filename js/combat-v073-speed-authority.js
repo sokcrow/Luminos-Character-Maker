@@ -13,8 +13,11 @@
   function isDm(){return adapterState()?.role==='dm'}
 
   function rangeFor(unit={}){
+    const movementRange=global.LuminousMovementSpeedRuntime?.rangeForEntity?.(unit)||null;
     let min,max;
-    if(Array.isArray(unit.speedRange)&&unit.speedRange.length>=2){
+    if(movementRange){
+      min=finite(movementRange.min,1);max=finite(movementRange.max,6);
+    }else if(Array.isArray(unit.speedRange)&&unit.speedRange.length>=2){
       min=finite(unit.speedRange[0],1);max=finite(unit.speedRange[1],6);
     }else{
       min=finite(unit.speedMin,1);max=finite(unit.speedMax,6);
@@ -32,6 +35,13 @@
     const original=state.originalRollUnitSpeed;
     if(typeof original==='function'){
       const draft=clone(unit)||{};
+      const derivedRange=global.LuminousMovementSpeedRuntime?.rangeForEntity?.(draft)||null;
+      if(derivedRange){
+        draft.speedRange=[derivedRange.min,derivedRange.max];
+        draft.speedMin=derivedRange.min;
+        draft.speedMax=derivedRange.max;
+        draft.speedProfileMode=derivedRange.mode;
+      }
       try{
         const result=original(draft,state.round);
         const speed=finite(draft.speed,finite(result,null));
