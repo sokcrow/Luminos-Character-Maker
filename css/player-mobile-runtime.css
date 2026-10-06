@@ -371,6 +371,29 @@ body.player-mobile-runtime:not(.player-cellphone-surface-open) .sheet-limbus-mai
    MOBILE INSTANCE SURFACES
    ================================================== */
 
+/* On touch-first devices the legacy blackout is never a valid player surface.
+   This rule must work before JavaScript boots, so a slow runtime cannot flash the old black screen. */
+@media (pointer: coarse) {
+  #player-instance-blackout,
+  #player-instance-blackout.active {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+
+  #player-mobile-standby:not([hidden]) {
+    display: grid;
+  }
+
+  body.player-instance-theatre #player-mobile-standby,
+  body.player-instance-combat #player-mobile-standby,
+  body.player-instance-combat-theatre #player-mobile-standby,
+  body.player-cellphone-surface-open #player-mobile-standby {
+    display: none !important;
+  }
+}
+
+
 body.player-mobile-runtime #player-instance-blackout {
   display: none !important;
 }
@@ -379,7 +402,7 @@ body.player-mobile-runtime #player-instance-blackout {
   position: fixed;
   inset: 0;
   z-index: 1200;
-  display: grid;
+  display: none;
   place-items: center;
   padding:
     max(20px, env(safe-area-inset-top))
