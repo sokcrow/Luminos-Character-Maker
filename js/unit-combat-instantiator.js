@@ -123,14 +123,15 @@
   }
 
   function speedRangeFor(record = {}) {
+    const explicit = parseRange(record.speedRange) || parseRange(record.mechanics?.speedRange);
+    if (explicit) return explicit;
     const movementRuntime = global.LuminousMovementSpeedRuntime || safeRequire('./movement-speed-runtime.js');
     const derived = movementRuntime?.rangeForEntity?.(record) || null;
     if (derived) return [derived.min, derived.max];
-    return parseRange(record.speedRange) ||
-      ((finite(record.speedMin, null) != null || finite(record.speedMax, null) != null)
+    return ((finite(record.speedMin, null) != null || finite(record.speedMax, null) != null)
         ? [finite(record.speedMin, finite(record.speedMax, 1)), finite(record.speedMax, finite(record.speedMin, 6))]
         : null) ||
-      parseRange(record.mechanics?.speedRange) || parseRange(record.mechanics?.speed) || parseRange(record.speed);
+      parseRange(record.mechanics?.speed) || parseRange(record.speed);
   }
 
   function normalizeDefinition(unitId, definition = {}, options = {}) {
