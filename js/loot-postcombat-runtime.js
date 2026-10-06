@@ -131,6 +131,7 @@
       }),
       attempts: deepFreeze([]),
       history: deepFreeze([]),
+      pendingDeliveries: deepFreeze([]),
     });
   }
 
