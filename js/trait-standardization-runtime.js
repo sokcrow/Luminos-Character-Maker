@@ -751,9 +751,13 @@
       const check = canUseSkillByTraits(unitAttacker, attackSkill);
       if (!check.usable) return blockedSkillResult(check, { attackLogs: [{ message: check.reason, class: "error" }], damageTaken: 0 });
       const unitDefender = rest[0] || null;
+      const resolutionOptions = rest.length && rest[rest.length - 1] && typeof rest[rest.length - 1] === "object" && !Array.isArray(rest[rest.length - 1])
+        ? rest[rest.length - 1]
+        : null;
+      const isGenuinelyUnopposed = !normalizeId(resolutionOptions?.clashResult);
       const hadMarker = attackSkill && Object.prototype.hasOwnProperty.call(attackSkill, "__luminousUnopposed");
       const previousMarker = attackSkill?.__luminousUnopposed;
-      if (attackSkill && typeof attackSkill === "object") attackSkill.__luminousUnopposed = true;
+      if (attackSkill && typeof attackSkill === "object") attackSkill.__luminousUnopposed = isGenuinelyUnopposed;
       try {
         return withModifierTargets([[unitAttacker, unitDefender], [unitDefender, unitAttacker]], () =>
           originalUnilateral.call(this, unitAttacker, attackSkill, ...rest)
