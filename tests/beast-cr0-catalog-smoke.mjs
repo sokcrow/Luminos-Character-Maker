@@ -150,13 +150,18 @@ assert.equal(skills.get("scorpion_sting").coins[0].effects[0].status, "poison");
 
 assert.deepEqual(units.get("hyena").speedRange, [1, 10]);
 assert.deepEqual(units.get("jackal").speedRange, [1, 10]);
-assert.deepEqual(units.get("lizard").speedRange, [0, 6]);
+assert.deepEqual(units.get("lizard").speedRange, [1, 6]);
 assert.deepEqual(units.get("octopus").speedRange, [1, 8]);
 assert.deepEqual(units.get("owl").speedRange, [1, 14]);
 assert.deepEqual(units.get("piranha").speedRange, [1, 10]);
-assert.deepEqual(units.get("rat").speedRange, [0, 6]);
+assert.deepEqual(units.get("rat").speedRange, [1, 6]);
 assert.deepEqual(units.get("raven").speedRange, [1, 12]);
-assert.deepEqual(units.get("scorpion").speedRange, [0, 4]);
+assert.deepEqual(units.get("scorpion").speedRange, [1, 4]);
+
+for (const unit of units.list()) {
+  assert.ok(unit.speedRange[0] >= 1, `${unit.id} Min Speed must never be below 1`);
+  assert.ok(unit.speedRange[1] >= 2, `${unit.id} Max Speed must never be below 2`);
+}
 
 const eagle65 = units.resolve("eagle", { level: 65 });
 assert.equal(eagle65.proficiencyBonus, 4);
@@ -165,7 +170,7 @@ assert.equal(eagle65.maxHp, 9);
 assert.equal(eagle65.speedProfileMode, "fly");
 
 const groundedOwl = units.resolve("owl", { level: 1, flying: false });
-assert.deepEqual(groundedOwl.speedRange, [0, 3]);
+assert.deepEqual(groundedOwl.speedRange, [1, 4]);
 assert.equal(groundedOwl.speedProfileMode, "ground");
 
 const underwaterOctopus = units.resolve("octopus", { level: 1, encounterTags: ["underwater"] });
@@ -173,7 +178,7 @@ assert.deepEqual(underwaterOctopus.speedRange, [1, 8]);
 assert.equal(underwaterOctopus.speedProfileMode, "swim");
 
 const dryOctopus = units.resolve("octopus", { level: 1, encounterTags: ["land"] });
-assert.deepEqual(dryOctopus.speedRange, [0, 3]);
+assert.deepEqual(dryOctopus.speedRange, [1, 4]);
 assert.equal(dryOctopus.speedProfileMode, "ground");
 
 console.log("CR0 beast catalog smoke: ok");
