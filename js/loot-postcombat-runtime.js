@@ -6,7 +6,7 @@
     return;
   }
 
-  const VERSION = 1;
+  const VERSION = 2;
   const SCHEMA_VERSION = 1;
 
   const ACTION_PROFILES = Object.freeze({
@@ -14,6 +14,8 @@
     harvest: Object.freeze({ id: "harvest", checkId: "harvest", defaultDc: 10 }),
     extract: Object.freeze({ id: "extract", checkId: "extract", defaultDc: 12 }),
     salvage: Object.freeze({ id: "salvage", checkId: "salvage", defaultDc: 10 }),
+    autopsy: Object.freeze({ id: "autopsy", checkId: "autopsy", defaultDc: 12 }),
+    examine: Object.freeze({ id: "examine", checkId: "autopsy", defaultDc: 10, defaultSkill: "investigation" }),
   });
 
   const DELICATE_FAMILIES = Object.freeze(new Set([
@@ -35,6 +37,7 @@
 
   function checks() { return global.LuminousLootCheckRuntime || null; }
   function inventory() { return global.LuminousItemInventoryRuntime || null; }
+  function knowledge() { return global.LuminousLootKnowledgeRuntime || null; }
 
   function normalizeId(value) {
     return String(value ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
@@ -149,7 +152,7 @@
     return runtime.createLootCheckDefinition(actor, profile.checkId, {
       threshold: options.threshold ?? options.dc ?? profile.defaultDc,
       thresholdModifier: options.thresholdModifier ?? options.dcModifier ?? 0,
-      skill: options.skill,
+      skill: options.skill || profile.defaultSkill,
       metadata: {
         corpseId: options.corpseId || null,
         targetItemId: options.targetItemId || null,
@@ -311,6 +314,51 @@
     };
   }
 
+  function applyKnowledgeAction(state, actorId, actionId, result, options = {}) {
+    const runtime = knowledge();
+    if (!runtime?.discoverPostCombatFacts) throw new Error("LOOT_KNOWLEDGE_RUNTIME_REQUIRED");
+    const unit = options.unitTruth || options.unit || null;
+    if (!unit) throw new Error("POST_COMBAT_UNIT_TRUTH_REQUIRED");
+    const sourceUnitId = runtime.canonicalUnitId?.(unit, state.sourceUnitId) || normalizeId(unit.id);
+    if (sourceUnitId && normalizeId(state.sourceUnitId) && sourceUnitId !== normalizeId(state.sourceUnitId)) {
+      throw new Error("POST_COMBAT_UNIT_TRUTH_MISMATCH");
+    }
+
+    const facts = runtime.discoverPostCombatFacts(
+      unit,
+      state,
+      options.lootInstance || {},
+      result,
+      {
+        discoveredBy: actorId,
+        discoveredAt: options.now,
+        visibility: options.visibility || "private",
+        skill: result.skill,
+      },
+    );
+
+    let compendium = options.compendium ? clone(options.compendium) : null;
+    if (compendium && facts.length) {
+      compendium = clone(runtime.mergeFacts(compendium, state.sourceUnitId, facts, {
+        visibility: options.visibility || "private",
+        now: options.now,
+      }));
+    }
+
+    return {
+      next: clone(state),
+      recovery: deepFreeze({
+        items: deepFreeze([]),
+        currency: null,
+        resources: deepFreeze([]),
+      }),
+      knowledge: deepFreeze({
+        facts,
+        compendium: compendium ? deepFreeze(compendium) : null,
+      }),
+    };
+  }
+
   function appendAttempt(next, actorId, actionId, result, options = {}, recovery = {}) {
     const entry = {
       key: attemptKey(actorId, actionId, options),
@@ -329,6 +377,7 @@
       recoveredItemIds: (recovery.items || []).map((item) => item.instanceId),
       recoveredCurrency: recovery.currency?.amount || 0,
       recoveredResources: (recovery.resources || []).map((entry) => ({ resourceId: entry.resourceId, quantity: entry.quantity })),
+      discoveredFactIds: (recovery.knowledge?.facts || []).map((fact) => fact.id),
     };
     next.attempts.push(entry);
     next.history.push({ type: "post_combat_action", ...entry });
@@ -353,10 +402,16 @@
     const result = normalizeCheckResult(definition, checkResult);
     const applied = action === "search"
       ? applySearch(state, actorId, result, options)
-      : applyResourceAction(state, actorId, action, result, options);
+      : (action === "autopsy" || action === "examine")
+        ? applyKnowledgeAction(state, actorId, action, result, options)
+        : applyResourceAction(state, actorId, action, result, options);
 
     const next = applied.next;
-    const attempt = appendAttempt(next, actorId, action, result, options, applied.recovery);
+    const recoveryForAttempt = {
+      ...(applied.recovery || {}),
+      knowledge: applied.knowledge || null,
+    };
+    const attempt = appendAttempt(next, actorId, action, result, options, recoveryForAttempt);
 
     return deepFreeze({
       state: deepFreeze(next),
@@ -365,6 +420,7 @@
         actorId,
         check: result,
         recovery: applied.recovery,
+        knowledge: applied.knowledge || null,
         attempt,
       }),
     });
@@ -414,6 +470,7 @@
     searchCandidates,
     resourceAction,
     eligibleResources,
+    applyKnowledgeAction,
     applyResolvedAction,
     performAction,
     performActionWithCoinEngine,
