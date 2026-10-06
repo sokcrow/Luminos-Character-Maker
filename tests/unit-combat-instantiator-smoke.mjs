@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
+await import('../js/movement-speed-runtime.js');
 await import('../js/unit-rank-runtime.js');
 await import('../js/universal-ranged-ammo-runtime.js');
 await import('../js/creature-type-catalog.js');
