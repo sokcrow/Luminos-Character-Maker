@@ -255,6 +255,18 @@
     return Object.freeze(out);
   }
 
+  function mergeRarityWeights(...sources) {
+    const out = {};
+    for (const source of sources) {
+      for (const [rawRarity, weight] of Object.entries(source || {})) {
+        const rarity = normalizeId(rawRarity);
+        if (!RARITY_CLASSES.includes(rarity)) continue;
+        out[rarity] = (out[rarity] ?? 1) * positiveWeight(weight, 1);
+      }
+    }
+    return Object.freeze(out);
+  }
+
   function normalizeZoneProfile(input = {}) {
     const presetId = normalizeId(input.profileId ?? input.zoneProfileId ?? input.id);
     const preset = ZONE_PROFILES[presetId] || null;
@@ -384,7 +396,7 @@
       normalizedZone.weights,
       ...normalizedEvents.map((event) => event.weights),
     );
-    const rarityWeights = mergeWeights(
+    const rarityWeights = mergeRarityWeights(
       ...normalizedEvents.map((event) => event.rarityWeights),
     );
     const quantityMultiplier = normalizedEvents.reduce((value, event) => value * event.quantityMultiplier, normalizedZone.quantityMultiplier);
@@ -445,6 +457,7 @@
     normalizeCategories,
     normalizeRarityWeights,
     mergeWeights,
+    mergeRarityWeights,
     normalizeZoneProfile,
     validateZoneProfile,
     normalizeEventProfile,
