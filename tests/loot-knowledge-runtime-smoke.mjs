@@ -156,6 +156,7 @@ assert.equal(examined.result.check.ability, "int");
 assert.equal(examined.result.check.threshold, 10);
 assert.ok(examined.result.knowledge.facts.some((fact) => fact.id === "loot.observed_equipment"));
 assert.ok(examined.result.knowledge.facts.some((fact) => fact.id === "environment.encounter_zone"));
+assert.ok(examined.result.knowledge.facts.some((fact) => fact.id === "environment.zone_variant_forest"));
 assert.ok(examined.result.knowledge.facts.some((fact) => fact.id === "environment.encounter_events"));
 assert.ok(examined.result.knowledge.facts.some((fact) => fact.id === "loot.observed_carried_items"));
 assert.ok(examined.result.knowledge.facts.some((fact) => fact.id === "loot.observed_currency"));
@@ -172,7 +173,41 @@ assert.equal(observedEquipment.value[0].weaponId, "shortbow");
 assert.equal(observedEquipment.value[0].ammoType, "arrows");
 
 const observedCurrency = examined.result.knowledge.facts.find((fact) => fact.id === "loot.observed_currency");
-assert.deepEqual(observedCurrency.value, { currencyId: "ahn", observedAmount: 100 });
+assert.deepEqual(observedCurrency.value, { currencyId: "ahn", minObserved: 100, maxObserved: 100 });
+
+
+const edibleFacts = knowledge.edibleResourceFacts({
+  bodyProfile: {
+    edible: true,
+    resources: [
+      { id: "meat", integrityFamily: "meat", sourceMaterial: "flesh" },
+      { id: "bones", integrityFamily: "hard_parts", sourceMaterial: "bone" },
+    ],
+  },
+}, { discoveredBy: "player_medic" });
+assert.equal(edibleFacts.length, 1);
+assert.deepEqual(edibleFacts[0].value, [
+  { resourceId: "meat", integrityFamily: "meat", sourceMaterial: "flesh" },
+]);
+
+let accumulated = knowledge.createCompendium("player_observer");
+accumulated = knowledge.mergeFacts(accumulated, unit.id, [
+  knowledge.makeFact("loot", "observed_currency", { currencyId: "ahn", minObserved: 100, maxObserved: 100 }),
+  knowledge.makeFact("loot", "observed_carried_items", ["ration"]),
+]);
+accumulated = knowledge.mergeFacts(accumulated, unit.id, [
+  knowledge.makeFact("loot", "observed_currency", { currencyId: "ahn", minObserved: 40, maxObserved: 180 }),
+  knowledge.makeFact("loot", "observed_carried_items", ["medkit", "ration"]),
+]);
+assert.deepEqual(accumulated.units.knowledge_test_goblin.facts["loot.observed_currency"].value, {
+  currencyId: "ahn",
+  minObserved: 40,
+  maxObserved: 180,
+});
+assert.deepEqual(
+  accumulated.units.knowledge_test_goblin.facts["loot.observed_carried_items"].value.sort(),
+  ["medkit", "ration"],
+);
 
 const combatFacts = knowledge.combatObservationFacts({
   sourceUnitId: unit.id,
