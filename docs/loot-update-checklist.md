@@ -11,8 +11,8 @@ This document freezes the current scope and lets the Loot Update be completed in
 - [ ] Reserve enchanted-item creation/editing for the Enchanter's Update.
 - [ ] Reserve magical drop integration for the Magic Loot Update.
 - [ ] Preserve one canonical Unit Library as source of truth instead of duplicating full stat blocks into player compendiums.
-- [ ] Make loot deterministic at the instance level once generated: re-searching must not regenerate the corpse/inventory.
-- [ ] Enforce the rule: Skill rolls may discover/recover possible loot; they must never create impossible loot.
+- [x] Make loot deterministic at the instance level once generated: re-searching must not regenerate the corpse/inventory.
+- [x] Enforce the rule: Skill rolls may discover/recover possible loot; they must never create impossible loot.
 
 ## Existing DM Loot tab
 
@@ -116,38 +116,38 @@ This document freezes the current scope and lets the Loot Update be completed in
 
 - [x] Resolve Unit Profile + Body + Role + Wealth + Zone + Event + DM overrides.
 - [x] Generate carried loot only once per Unit instance.
-- [ ] Freeze generated carried loot before player search actions.
+- [x] Freeze generated carried loot before player search actions.
 - [x] Reconcile ammunition from authoritative post-combat state before loot lock: remaining ammo plus surviving recovered projectiles; never regenerate spent ammo from the initial loadout.
 - [x] Preserve actual equipped Items separately from hidden carried Items.
 - [x] Generate/record currency once per Unit instance.
 - [x] Generate corpse harvest capacity once using Body Profile and integrity.
-- [ ] Prevent repeated search/harvest from rerolling the source inventory.
+- [x] Prevent repeated search/harvest from rerolling the source inventory.
 - [x] Support explicit DM regeneration only before the loot instance is locked.
 - [x] Give every generated Item proper instance IDs and provenance.
 
 ## Post-combat interactions
 
-- [ ] Add Search Corpse for carried Items/currency.
-- [ ] Add Harvest for organic/general body resources.
-- [ ] Add Extract for delicate anatomical resources.
-- [ ] Add Salvage for artificial/mineral/mechanical bodies.
+- [x] Add Search Corpse for carried Items/currency.
+- [x] Add Harvest for organic/general body resources.
+- [x] Add Extract for delicate anatomical resources.
+- [x] Add Salvage for artificial/mineral/mechanical bodies.
 - [ ] Add Examine / Autopsy for knowledge acquisition.
-- [ ] Define which actions consume/remove recovered resources from the corpse.
-- [ ] Prevent multiple players from independently extracting the same finite resource.
-- [ ] Support partial discovery: hidden carried loot may remain on the corpse after a failed search.
+- [x] Define which actions consume/remove recovered resources from the corpse.
+- [x] Prevent multiple players from independently extracting the same finite resource.
+- [x] Support partial discovery: hidden carried loot may remain on the corpse after a failed search.
 
 ## D&D Skill integration
 
-- [ ] Search uses Investigation (INT) as the default check.
-- [ ] Harvest uses Survival (WIS) as the default practical field check.
-- [ ] Delicate organ/anatomical extraction uses Medicine (WIS).
+- [x] Search uses Investigation (INT) as the default check.
+- [x] Harvest uses Survival (WIS) as the default practical field check.
+- [x] Delicate organ/anatomical extraction uses Medicine (WIS).
 - [ ] Autopsy supports Medicine (WIS) and Investigation (INT) for different information.
 - [ ] Wire generic Combat Analyze to Perception (WIS) for observable combat information.
 - [x] Define the generic Analyze resolution contract as Perception (WIS) while preserving class-feature bypass signals.
-- [ ] Use actual player/ally/NPC D&D modifiers, proficiency, half proficiency and expertise.
-- [ ] Use the existing Coin Engine instead of raw percentage rolls for player-facing checks.
-- [ ] Keep impossible loot at probability zero regardless of roll result.
-- [ ] Let successful checks reveal/recover more of an already-valid loot source rather than generating new impossible categories.
+- [x] Use actual player/ally/NPC D&D modifiers, proficiency, half proficiency and expertise.
+- [x] Use the existing Coin Engine instead of raw percentage rolls for player-facing checks.
+- [x] Keep impossible loot at probability zero regardless of roll result.
+- [x] Let successful checks reveal/recover more of an already-valid loot source rather than generating new impossible categories.
 
 ## Combat Analyze / Observation
 
@@ -243,7 +243,7 @@ This document freezes the current scope and lets the Loot Update be completed in
 - [x] Add Event modifier tests.
 - [x] Add Wealth/Role interaction tests.
 - [x] Add corpse-integrity/harvest integration tests.
-- [ ] Add Search/Harvest/Salvage finite-resource tests.
+- [x] Add Search/Harvest/Salvage finite-resource tests.
 - [ ] Add Compendium knowledge persistence tests.
 - [ ] Add private/share knowledge tests.
 - [x] Add Inventory Runtime integration tests.
