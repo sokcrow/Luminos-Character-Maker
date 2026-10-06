@@ -20,7 +20,9 @@
     'js/universal-ranged-ammo-runtime.js',
     'js/item-harvest-integrity-engine.js',
     'js/unit-loot-profile-contract.js',
+    'js/item-economy-standard.js',
     'js/creature-type-catalog.js',
+    'js/loot-social-profile-contract.js',
     'js/goblin-unit-runtime.js',
     'js/wolf-unit-runtime.js',
     'js/unit-catalog-kobold-tier1.js',
@@ -44,7 +46,9 @@
       'js/universal-ranged-ammo-runtime.js':()=>Boolean(global.LuminousUniversalRangedAmmoRuntime),
       'js/item-harvest-integrity-engine.js':()=>Boolean(global.LuminousItemHarvestIntegrityEngine),
       'js/unit-loot-profile-contract.js':()=>Boolean(global.LuminousUnitLootProfileContract),
+      'js/item-economy-standard.js':()=>Boolean(global.LuminousItemEconomyStandard),
       'js/creature-type-catalog.js':()=>Boolean(global.LuminousCreatureTypeCatalog),
+      'js/loot-social-profile-contract.js':()=>Boolean(global.LuminousLootSocialProfileContract),
       'js/goblin-unit-runtime.js':()=>Boolean(global.LuminousGoblinUnitRuntime),
       'js/wolf-unit-runtime.js':()=>Boolean(global.LuminousWolfUnitRuntime),
       'js/unit-catalog-kobold-tier1.js':()=>Boolean(global.LuminousKoboldUnitCatalog),
@@ -104,10 +108,15 @@
     const invalidLootProfiles=lootContract?.validateUnit
       ? rows.map(({id,unit})=>({id,result:lootContract.validateUnit(unit,{harvestEngine:global.LuminousItemHarvestIntegrityEngine})})).filter(({result})=>!result.valid).map(({id,result})=>({id,errors:[...(result.errors||[])]}))
       : [];
+    const socialContract=global.LuminousLootSocialProfileContract;
+    const invalidSocialProfiles=socialContract?.validateUnitSocialProfile
+      ? rows.map(({id,unit})=>({id,result:socialContract.validateUnitSocialProfile(unit)})).filter(({result})=>!result.valid).map(({id,result})=>({id,errors:[...(result.errors||[])]}))
+      : [];
     return{
       pendingSprites:rows.filter(({unit})=>unit.metadata?.spritePending===true||!clean(unit.combatSprite||unit.visual?.spriteUrl||unit.icono||unit.img)).map(({id})=>id),
       pendingWeaponSkills:rows.filter(({unit})=>unit.metadata?.weaponSkillsPendingCanonicalCatalog===true).map(({id})=>id),
       invalidLootProfiles,
+      invalidSocialProfiles,
       families:{
         kobold:rows.filter(({unit,id})=>clean(unit.species||unit.family||id).toLowerCase().includes('kobold')).length,
         goblin:rows.filter(({unit,id})=>clean(unit.species||unit.family||id).toLowerCase().includes('goblin')).length,
@@ -168,7 +177,7 @@
   async function syncAll(db){return materialize(db,{force:true});}
 
   global.LuminousCombatUnitLibrarySync=Object.freeze({
-    version:'2.1.0',ROOTS,CATALOG_SCRIPTS,DEPLOYMENT_SCRIPTS,state,loadScript,ensureCatalogs,ensureDeploymentRuntime,mergePayloads,buildPayloads,diagnostics,
+    version:'2.2.0',ROOTS,CATALOG_SCRIPTS,DEPLOYMENT_SCRIPTS,state,loadScript,ensureCatalogs,ensureDeploymentRuntime,mergePayloads,buildPayloads,diagnostics,
     canonicalUpgradeNeeded,mergeCanonicalUpgrade,installRuntimeFallback,applyRuntimeFallback,refreshCombatTabSelector,refreshEncounterSelector,ensureMissing,syncAll,materialize
   });
 })(window);
