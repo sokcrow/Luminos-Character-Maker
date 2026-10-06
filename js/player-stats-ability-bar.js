@@ -82,11 +82,22 @@
     doc.head.appendChild(script);
     return false;
   }
+  function ensureProficiencyRuntime() {
+    if (global.LuminousProficiencyRuntime) return true;
+    if (!doc?.head || doc.getElementById("proficiency-runtime-script")) return false;
+    const script = doc.createElement("script");
+    script.id = "proficiency-runtime-script";
+    script.src = "js/proficiency-runtime.js";
+    script.async = false;
+    doc.head.appendChild(script);
+    return false;
+  }
   const currentLevel = (data = playerData()) => Math.max(1, Math.trunc(numberOr(data?.level, 1)));
   function proficiencyBonus(level) {
-    return Math.ceil(Math.max(0, numberOr(level, 0)) / 20);
+    return global.LuminousProficiencyRuntime?.proficiencyBonus?.(level) ?? Math.ceil(Math.max(0, numberOr(level, 0)) / 20);
   }
   function normalizeProficiencyState(value) {
+    if (global.LuminousProficiencyRuntime?.normalizeState) return global.LuminousProficiencyRuntime.normalizeState(value);
     const normalized = String(value || "none").trim().toLowerCase();
     return Object.prototype.hasOwnProperty.call(PROFICIENCY_STATES, normalized) ? normalized : "none";
   }
@@ -100,6 +111,7 @@
     return normalizeProficiencyState(map?.[skill.id] ?? nested?.proficiency ?? nested?.proficiencyState);
   }
   function proficiencyContribution(level, profState) {
+    if (global.LuminousProficiencyRuntime?.contribution) return global.LuminousProficiencyRuntime.contribution(level, profState);
     const definition = PROFICIENCY_STATES[normalizeProficiencyState(profState)];
     return Math.floor(proficiencyBonus(level) * definition.multiplier);
   }
@@ -111,7 +123,7 @@
     const fromInput = Number.parseInt(doc.getElementById(`stat-${ability.key}`)?.value, 10);
     return Number.isFinite(fromInput) ? fromInput : 10;
   }
-  const abilityModifier = (score) => Math.floor((numberOr(score, 10) - 10) / 2);
+  const abilityModifier = (score) => global.LuminousProficiencyRuntime?.abilityModifier?.(score) ?? Math.floor((numberOr(score, 10) - 10) / 2);
   const formatModifier = (value) => numberOr(value, 0) >= 0 ? `+${numberOr(value, 0)}` : String(numberOr(value, 0));
   const currentSp = (data = playerData()) => Number.parseInt(data?.sp ?? data?.sp_actual ?? data?.combatStats?.sp_actual, 10) || 0;
   const headsChance = (data = playerData()) => Math.max(5, Math.min(95, 50 + currentSp(data)));
@@ -500,6 +512,7 @@
   }
 
   function boot() {
+    ensureProficiencyRuntime();
     syncRuntimeSurface();
     global.addEventListener?.("resize", syncHudCanvasScale, { passive: true });
     global.visualViewport?.addEventListener?.("resize", syncHudCanvasScale, { passive: true });
