@@ -14,6 +14,13 @@ const fakeSkills = {
 };
 
 globalThis.CombatSkillSchema = {};
+globalThis.LuminousProficiencyRuntime = {};
+globalThis.LuminousMovementSpeedRuntime = {};
+globalThis.LuminousBeastCr0SkillCatalog = {};
+globalThis.LuminousBeastCr0UnitCatalog = {
+  firebasePayload: () => ({}),
+  firebaseSkillPayload: () => ({}),
+};
 globalThis.LuminousKoboldTier1SkillCatalog = {};
 globalThis.LuminousGoblinTier1SkillCatalog = {};
 globalThis.LuminousWolfSkillCatalog = {};
