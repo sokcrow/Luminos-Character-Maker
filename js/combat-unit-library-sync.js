@@ -13,6 +13,7 @@
     'js/universal-library-runtime.js',
     'js/combat-skill-schema.js',
     'js/proficiency-runtime.js',
+    'js/movement-speed-runtime.js',
     'js/skill-catalog-beast-cr0.js',
     'js/skill-catalog-kobold-tier1.js',
     'js/skill-catalog-goblin-tier1.js',
@@ -38,6 +39,7 @@
       'js/universal-library-runtime.js':()=>Boolean(global.LuminousUniversalLibrary),
       'js/combat-skill-schema.js':()=>Boolean(global.CombatSkillSchema),
       'js/proficiency-runtime.js':()=>Boolean(global.LuminousProficiencyRuntime),
+      'js/movement-speed-runtime.js':()=>Boolean(global.LuminousMovementSpeedRuntime),
       'js/skill-catalog-beast-cr0.js':()=>Boolean(global.LuminousBeastCr0SkillCatalog),
       'js/skill-catalog-kobold-tier1.js':()=>Boolean(global.LuminousKoboldTier1SkillCatalog),
       'js/skill-catalog-goblin-tier1.js':()=>Boolean(global.LuminousGoblinTier1SkillCatalog),
@@ -73,7 +75,7 @@
       if(!existing){script.src=src;script.async=false;global.document.head.appendChild(script);}else if(readyForScript(src)||existing.dataset?.loaded==='1'||existing.readyState==='complete')finish();
     });
   }
-  function catalogsReady(){return Boolean(global.LuminousUniversalLibrary&&global.CombatSkillSchema&&global.LuminousProficiencyRuntime&&global.LuminousBeastCr0SkillCatalog&&global.LuminousBeastCr0UnitCatalog&&global.LuminousKoboldUnitCatalog&&global.LuminousGoblinTier1SkillCatalog&&global.LuminousGoblinUnitCatalog&&global.LuminousWolfUnitCatalog);}
+  function catalogsReady(){return Boolean(global.LuminousUniversalLibrary&&global.CombatSkillSchema&&global.LuminousProficiencyRuntime&&global.LuminousMovementSpeedRuntime&&global.LuminousBeastCr0SkillCatalog&&global.LuminousBeastCr0UnitCatalog&&global.LuminousKoboldUnitCatalog&&global.LuminousGoblinTier1SkillCatalog&&global.LuminousGoblinUnitCatalog&&global.LuminousWolfUnitCatalog);}
   async function ensureCatalogs(){
     if(catalogsReady())return true;
     if(state.loading)return state.loading;
