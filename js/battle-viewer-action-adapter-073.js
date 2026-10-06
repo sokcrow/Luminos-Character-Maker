@@ -204,7 +204,8 @@
         targetUnit,
         turnNumber: plan.turnNumber ?? data.turnNumber ?? global.turnNumber ?? lexical("turnNumber", lexical("turn", null)),
         observedEnemyType: targetUnit?.species || targetUnit?.family || null,
-        metadata: { ...options.metadata, sourceDefinition: clone(data), name: data.name || data.actionKey || "Action" },
+        knowledgeVisibility: plan.knowledgeVisibility || data.knowledgeVisibility || "private",
+        metadata: { ...options.metadata, sourceDefinition: clone(data), name: data.name || data.actionKey || "Action", knowledgeVisibility: plan.knowledgeVisibility || data.knowledgeVisibility || "private" },
       });
     } else if (plan.traitId || kind === "trait") {
       const options = optionsFor(slotId, plan, explicitTargetId);
