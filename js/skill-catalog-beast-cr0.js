@@ -88,150 +88,122 @@
 
   const bleed1 = () => statusEffect("bleed", 1, 1);
   const tremor1 = () => statusEffect("tremor", 1, 1);
+  const poison1 = () => statusEffect("poison", 1, 1);
 
   const DEFINITIONS = Object.freeze({
     baboon_bite: Object.freeze(attack({
-      id: "baboon_bite",
-      name: "Bite",
-      species: "baboon",
-      basePower: 6,
-      coinPower: 5,
-      damageType: "perforante",
-      coinEffects: [bleed1()],
+      id: "baboon_bite", name: "Bite", species: "baboon",
+      basePower: 6, coinPower: 5, damageType: "perforante", coinEffects: [bleed1()],
     })),
     badger_bite: Object.freeze(attack({
-      id: "badger_bite",
-      name: "Bite",
-      species: "badger",
-      basePower: 5,
-      coinPower: 5,
-      damageType: "perforante",
-      coinEffects: [bleed1()],
+      id: "badger_bite", name: "Bite", species: "badger",
+      basePower: 5, coinPower: 5, damageType: "perforante", coinEffects: [bleed1()],
     })),
     bat_bite: Object.freeze(attack({
-      id: "bat_bite",
-      name: "Bite",
-      species: "bat",
-      basePower: 5,
-      coinPower: 5,
-      damageType: "perforante",
+      id: "bat_bite", name: "Bite", species: "bat",
+      basePower: 5, coinPower: 5, damageType: "perforante",
       coinEffects: [
         bleed1(),
-        healEffect(2, {
-          conditionPolicy: "target_had_status_before_hit",
-          conditionStatus: "bleed",
-        }),
+        healEffect(2, { conditionPolicy: "target_had_status_before_hit", conditionStatus: "bleed" }),
       ],
-      metadata: {
-        healOnBleedingTarget: 2,
-        healConditionPolicy: "target_had_status_before_hit",
-      },
+      metadata: { healOnBleedingTarget: 2, healConditionPolicy: "target_had_status_before_hit" },
     })),
     cat_scratch: Object.freeze(attack({
-      id: "cat_scratch",
-      name: "Scratch",
-      species: "cat",
-      basePower: 5,
-      coinPower: 5,
-      damageType: "cortante",
+      id: "cat_scratch", name: "Scratch", species: "cat",
+      basePower: 5, coinPower: 5, damageType: "cortante",
       coinEffects: [statusEffect("bleed", 2, 1)],
     })),
     crab_claw: Object.freeze(attack({
-      id: "crab_claw",
-      name: "Claw",
-      species: "crab",
-      basePower: 5,
-      coinPower: 5,
-      damageType: "contundente",
-      coinEffects: [tremor1()],
+      id: "crab_claw", name: "Claw", species: "crab",
+      basePower: 5, coinPower: 5, damageType: "contundente", coinEffects: [tremor1()],
     })),
     deer_ram: Object.freeze(attack({
-      id: "deer_ram",
-      name: "Ram",
-      species: "deer",
-      basePower: 6,
-      coinPower: 5,
-      damageType: "contundente",
-      coinEffects: [tremor1()],
+      id: "deer_ram", name: "Ram", species: "deer",
+      basePower: 6, coinPower: 5, damageType: "contundente", coinEffects: [tremor1()],
     })),
     eagle_talons: Object.freeze(attack({
-      id: "eagle_talons",
-      name: "Talons",
-      species: "eagle",
-      basePower: 6,
-      coinPower: 5,
-      damageType: "cortante",
-      coinEffects: [bleed1()],
+      id: "eagle_talons", name: "Talons", species: "eagle",
+      basePower: 6, coinPower: 5, damageType: "cortante", coinEffects: [bleed1()],
     })),
     frog_bite: Object.freeze(attack({
-      id: "frog_bite",
-      name: "Bite",
-      species: "frog",
-      basePower: 5,
-      coinPower: 5,
-      damageType: "perforante",
-      coinEffects: [bleed1()],
+      id: "frog_bite", name: "Bite", species: "frog",
+      basePower: 5, coinPower: 5, damageType: "perforante", coinEffects: [bleed1()],
     })),
     giant_fire_beetle_bite: Object.freeze(attack({
-      id: "giant_fire_beetle_bite",
-      name: "Bite",
-      species: "giant_fire_beetle",
-      basePower: 5,
-      coinPower: 5,
-      damageType: "fire",
+      id: "giant_fire_beetle_bite", name: "Bite", species: "giant_fire_beetle",
+      basePower: 5, coinPower: 5, damageType: "fire",
       coinEffects: [
         statusEffect("burn", 1, 0),
-        statusEffect("burn", 0, 1, {
-          conditionPolicy: "target_had_status_before_hit",
-          conditionStatus: "burn",
-        }),
+        statusEffect("burn", 0, 1, { conditionPolicy: "target_had_status_before_hit", conditionStatus: "burn" }),
       ],
-      metadata: {
-        burnCountIfTargetAlreadyBurning: 1,
-        conditionalStatusPolicy: "target_had_status_before_hit",
-      },
+      metadata: { burnCountIfTargetAlreadyBurning: 1, conditionalStatusPolicy: "target_had_status_before_hit" },
     })),
     goat_ram: Object.freeze(attack({
-      id: "goat_ram",
-      name: "Ram",
-      species: "goat",
-      basePower: 5,
-      coinPower: 5,
-      damageType: "contundente",
-      coinEffects: [tremor1()],
-      metadata: {
-        conditionalClashPower: {
-          condition: "target_speed_lower_than_self",
-          bonus: 1,
-        },
-      },
+      id: "goat_ram", name: "Ram", species: "goat",
+      basePower: 5, coinPower: 5, damageType: "contundente", coinEffects: [tremor1()],
+      metadata: { conditionalClashPower: { condition: "target_speed_lower_than_self", bonus: 1 } },
     })),
     hawk_talons: Object.freeze(attack({
-      id: "hawk_talons",
-      name: "Talons",
-      species: "hawk",
-      basePower: 5,
-      coinPower: 5,
-      damageType: "cortante",
-      coinEffects: [bleed1()],
+      id: "hawk_talons", name: "Talons", species: "hawk",
+      basePower: 5, coinPower: 5, damageType: "cortante", coinEffects: [bleed1()],
+    })),
+    hyena_bite: Object.freeze(attack({
+      id: "hyena_bite", name: "Bite", species: "hyena",
+      basePower: 6, coinPower: 5, damageType: "perforante", coinEffects: [bleed1()],
+    })),
+    jackal_bite: Object.freeze(attack({
+      id: "jackal_bite", name: "Bite", species: "jackal",
+      basePower: 5, coinPower: 5, damageType: "perforante", coinEffects: [bleed1()],
+    })),
+    lizard_bite: Object.freeze(attack({
+      id: "lizard_bite", name: "Bite", species: "lizard",
+      basePower: 5, coinPower: 5, damageType: "perforante", coinEffects: [bleed1()],
+    })),
+    octopus_tentacles: Object.freeze(attack({
+      id: "octopus_tentacles", name: "Tentacles", species: "octopus",
+      basePower: 5, coinPower: 5, damageType: "contundente", coinEffects: [tremor1()],
+    })),
+    owl_talons: Object.freeze(attack({
+      id: "owl_talons", name: "Talons", species: "owl",
+      basePower: 5, coinPower: 5, damageType: "cortante", coinEffects: [bleed1()],
+    })),
+    piranha_bite: Object.freeze(attack({
+      id: "piranha_bite", name: "Bite", species: "piranha",
+      basePower: 5, coinPower: 5, damageType: "perforante", coinEffects: [bleed1()],
+      metadata: {
+        conditionalFlatDamage: { condition: "target_hp_below_max", bonus: 10 },
+        conditionalClashPower: { condition: "target_had_bleed_before_hit", bonus: 1 },
+      },
+    })),
+    rat_bite: Object.freeze(attack({
+      id: "rat_bite", name: "Bite", species: "rat",
+      basePower: 5, coinPower: 5, damageType: "perforante", coinEffects: [bleed1()],
+    })),
+    raven_beak: Object.freeze(attack({
+      id: "raven_beak", name: "Beak", species: "raven",
+      basePower: 5, coinPower: 5, damageType: "perforante", coinEffects: [bleed1()],
+    })),
+    scorpion_sting: Object.freeze(attack({
+      id: "scorpion_sting", name: "Sting", species: "scorpion",
+      basePower: 5, coinPower: 5, damageType: "perforante",
+      coinEffects: [
+        poison1(),
+        statusEffect("poison", 0, 1, { conditionPolicy: "target_had_status_before_hit", conditionStatus: "poison" }),
+      ],
+      metadata: { poisonCountIfTargetAlreadyPoisoned: 1, conditionalStatusPolicy: "target_had_status_before_hit" },
     })),
   });
 
-  function list() {
-    return Object.values(DEFINITIONS).map(clone);
-  }
-
+  function list() { return Object.values(DEFINITIONS).map(clone); }
   function get(id) {
     const value = DEFINITIONS[String(id || "")];
     return value ? clone(value) : null;
   }
-
   function finalPower(skillOrId) {
     const skill = typeof skillOrId === "string" ? get(skillOrId) : skillOrId;
     if (!skill) return null;
     return Number(skill.basePower || 0) + Number(skill.coinPower || 0) * Number(skill.coinAmount || 0);
   }
-
   function firebasePayload(schema = global.CombatSkillSchema) {
     const payload = {};
     list().forEach((skill) => {
@@ -239,22 +211,12 @@
         const validation = schema.validateCombatSkill(skill);
         if (!validation.valid) throw new Error(`${skill.id}: ${validation.errors.join(" · ")}`);
         payload[skill.id] = schema.serializeCombatSkill({ ...validation.skill, id: skill.id }, { includeLegacyAliases: true });
-      } else {
-        payload[skill.id] = skill;
-      }
+      } else payload[skill.id] = skill;
     });
     return payload;
   }
 
-  const api = Object.freeze({
-    version: "1.0.0",
-    DEFINITIONS,
-    list,
-    get,
-    finalPower,
-    firebasePayload,
-  });
-
+  const api = Object.freeze({ version: "1.1.0", DEFINITIONS, list, get, finalPower, firebasePayload });
   global.LuminousBeastCr0SkillCatalog = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);
