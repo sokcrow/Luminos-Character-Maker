@@ -18,6 +18,7 @@ await import("../js/item-catalog-blood-ichor.js");
 await import("../js/item-catalog-venom-secretion.js");
 await import("../js/item-catalog-ooze-gel.js");
 await import("../js/item-catalog-feather-raw-fiber.js");
+await import("../js/item-catalog-salvage-raw.js");
 
 await import("../js/unit-loot-profile-contract.js");
 await import("../js/unit-catalog-kobold-tier1.js");
@@ -220,6 +221,116 @@ const boneItem = Object.values(claimed.recipientUnit.inventario_stash).find((ite
 assert.ok(boneItem);
 assert.equal(boneItem.currentOwnerId, "player_full");
 assert.equal(boneItem.provenance.acquisitionMethod, "harvest");
+
+const salvageMaterialized = delivery.materializeResourceRecovery({
+  resourceId: "metal_frame",
+  itemId: "scrap_metal",
+  catalogFamily: "raw_salvage",
+  quantity: 2,
+  integrityFamily: "hard_cover_structural",
+  sourceMaterial: "metal",
+  integrity: { integrityPercent: 80, status: "damaged", contaminated: false },
+  provenance: {
+    acquisitionMethod: "salvage",
+    acquiredByActorId: "player_salvager",
+    sourceUnitId: "construct",
+    sourceUnitInstanceId: "enemy:construct:001",
+    corpseId: "corpse_construct_001",
+    encounterId: "encounter_construct_001",
+    lootInstanceId: "loot_construct_001",
+  },
+}, { margin: 10 }, {
+  sourceUnitId: "construct",
+  sourceUnitName: "Construct",
+  species: "construct",
+});
+assert.equal(salvageMaterialized.materialized, true);
+assert.equal(salvageMaterialized.item.definitionId, "scrap_metal");
+assert.equal(salvageMaterialized.item.quantity, 2);
+assert.equal(salvageMaterialized.item.provenance.acquisitionMethod, "salvage");
+assert.equal(salvageMaterialized.item.condition, 80);
+
+const searchItem = inventory.createItemInstance({
+  id: "ration",
+  name: "Ration",
+  category: "food",
+  itemType: "consumable",
+  stackable: true,
+}, {
+  instanceId: "ration_currency_test",
+  quantity: 1,
+  provenance: {
+    sourceUnitId: "goblin",
+    sourceUnitInstanceId: "enemy:goblin:currency",
+    corpseId: "corpse_goblin_currency",
+    encounterId: "encounter_currency",
+    lootInstanceId: "loot_currency",
+  },
+});
+const lockedSearch = {
+  lootInstanceId: "loot_currency",
+  locked: true,
+  sourceUnitId: "goblin",
+  sourceUnitInstanceId: "enemy:goblin:currency",
+  corpseId: "corpse_goblin_currency",
+  encounterId: "encounter_currency",
+  sourceDigest: "currency_digest",
+  generation: 0,
+  carried: [searchItem],
+  currency: { currencyId: "ahn", amount: 100, provenance: { sourceUnitId: "goblin" } },
+  equipment: { source: "none", items: [] },
+  harvest: { bodyKind: "organic", sizeClass: "small", resources: [] },
+};
+const currencyState = postCombat.createInteractionState(lockedSearch);
+const searcher = {
+  id: "player_currency_searcher",
+  stats: { int: 16 },
+  proficiencyBonus: 2,
+  skillProficiency: { investigation: "expertise" },
+  sp: 0,
+};
+const currencyRecipient = {
+  id: "player_currency_searcher",
+  inventoryRules: { activeSlotLimit: 20, stashSlotLimit: 80 },
+  inventario_activo: {},
+  inventario_stash: {},
+  walletAhn: 0,
+};
+const currencyPending = delivery.performAndDeliver(currencyState, searcher, "search", {
+  rng: allHeads,
+  recipientUnit: currencyRecipient,
+  preferredContainer: "stash",
+});
+assert.equal(currencyPending.committed, true);
+assert.equal(currencyPending.delivered, false);
+assert.equal(currencyPending.reason, "currency_delivery_handler_required");
+assert.ok(currencyPending.pending);
+assert.equal(Object.keys(currencyPending.recipientUnit.inventario_stash).length, 0);
+assert.equal(currencyPending.pending.currency.amount, 100);
+
+const currencyHandler = {
+  preview(currency) {
+    return { accepted: currency.currencyId === "ahn" };
+  },
+  commit(currency, recipientUnit) {
+    recipientUnit.walletAhn = Number(recipientUnit.walletAhn || 0) + currency.amount;
+    return { credited: true, currencyId: currency.currencyId, amount: currency.amount };
+  },
+};
+const currencyClaimed = delivery.claimPendingDelivery(
+  currencyPending.state,
+  currencyRecipient,
+  currencyPending.pending.id,
+  { preferredContainer: "stash", currencyHandler },
+);
+assert.equal(currencyClaimed.claimed, true);
+assert.equal(currencyClaimed.state.pendingDeliveries.length, 0);
+assert.equal(currencyClaimed.recipientUnit.walletAhn, 100);
+assert.ok(Object.values(currencyClaimed.recipientUnit.inventario_stash).some((item) => item.definitionId === "ration"));
+assert.equal(
+  Object.values(currencyClaimed.recipientUnit.inventario_stash).find((item) => item.definitionId === "ration").provenance.acquisitionMethod,
+  "search",
+);
 
 const missingMappingUnit = {
   id: "bad_harvest_mapping",
