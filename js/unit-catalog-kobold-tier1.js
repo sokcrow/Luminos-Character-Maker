@@ -18,6 +18,7 @@
   const NO_PROFICIENCIES = Object.freeze({ savingThrows: Object.freeze({}), skills: Object.freeze({}) });
   const DRAGONSHIELD_PROFICIENCIES = Object.freeze({ savingThrows: Object.freeze({}), skills: Object.freeze({ perception: 'proficient' }) });
   const SCALE_SORCERER_PROFICIENCIES = Object.freeze({ savingThrows: Object.freeze({}), skills: Object.freeze({ arcana: 'proficient', medicine: 'proficient' }) });
+  const DARKVISION_RULES = Object.freeze({ ignoresDarkness: true });
   const PACK_TACTICS_ID = 'pack_tactics';
 
   const FALLBACK_RANKS = Object.freeze({
@@ -72,7 +73,7 @@
       scores: clone(cfg.scores || KOBOLD_WARRIOR_SCORES), proficiencies: clone(cfg.proficiencies || NO_PROFICIENCIES),
       size: 'small', movement: clone(cfg.movement || { ground: 30 }), movementFeet: clone(cfg.movement || { ground: 30 }),
       preferredMovementMode: cfg.defaultMovementMode || (cfg.startsFlying ? 'fly' : 'ground'),
-      senses: clone(cfg.senses || { darkvision: 60, passivePerception: 8 }),
+      senses: clone(cfg.senses || { darkvision: 60, darkvisionFt: 60, passivePerception: 8 }),
       traitIds, traits: [{ id: PACK_TACTICS_ID, source: 'racial_trait_catalog' }, ...(cfg.traits || []).map(clone)],
       staggerThresholds: clone(STAGGER_THRESHOLDS), rankProfiles: clone(UNIVERSAL_RANKS), allowedRanks: (cfg.allowedRanks || ['normal', 'captain', 'leader']).slice(),
       action_slots: allSkills.slice(), attack_tier_1_sequence: cfg.tier1.filter((id) => !id.startsWith('spell:')), attack_tier_2_sequence: (cfg.tier2 || []).slice(), attack_tier_3_sequence: (cfg.tier3 || []).slice(),
@@ -82,6 +83,7 @@
       mechanics: {
         hpModel: 'chassis_coefficient', hpBase: cfg.hpBase, hpCoefficient: cfg.hpCoefficient, defLvlMod: cfg.defLvlMod || 0, sp: 0,
         movementFeet: clone(cfg.movement || { ground: 30 }), preferredMovementMode: cfg.defaultMovementMode || (cfg.startsFlying ? 'fly' : 'ground'),
+        darkvision: DARKVISION_RULES,
         speedBonus: clone(cfg.speedBonus || { min: 0, max: 0 }), actionSlots: 1, maxSlotsLimit: 1, skills: allSkills.slice(),
         staggerThresholds: clone(STAGGER_THRESHOLDS), stagger: '75%,50%,25%', damageTypeDefense: { resist: cfg.resist, weak: cfg.weak }, ...(clone(cfg.mechanics || {})),
       },
@@ -89,7 +91,7 @@
       metadata: {
         canonicalUnit: true, catalog: 'kobold-batch', rankModel: 'universal_normal_captain_leader',
         hpModel: 'chassis_coefficient', naturalWorldLevelIsReferenceOnly: true, speedModel: 'movement_feet_plus_size',
-        canonicalSourceName: cfg.canonicalSourceName || 'Kobold Warrior', canonicalScores: true, canonicalProficiencies: true,
+        canonicalSourceName: cfg.canonicalSourceName || 'Kobold Warrior', canonicalSourceBook: cfg.canonicalSourceBook || 'Monster Manual (2025)', canonicalScores: true, canonicalProficiencies: true,
       },
     };
     movementRuntime?.decorateEntity?.(unit, { movementMode: unit.preferredMovementMode });
@@ -99,12 +101,12 @@
   const DEFINITIONS = Object.freeze({
     kobold_dagger: Object.freeze(makeUnit({ id: 'kobold_dagger', name: 'Kobold · Dagger', variant: 'dagger', sprite: 'https://imgur.com/2BBvM2s.png', canonicalSourceName: 'Kobold Warrior',
       naturalWorldLevel: { min: 1, max: 3 }, hpBase: 5, hpCoefficient: 0.19,
-      scores: KOBOLD_WARRIOR_SCORES, proficiencies: NO_PROFICIENCIES, movement: { ground: 30 }, senses: { darkvision: 60, passivePerception: 8 },
+      scores: KOBOLD_WARRIOR_SCORES, proficiencies: NO_PROFICIENCIES, movement: { ground: 30 }, senses: { darkvision: 60, darkvisionFt: 60, passivePerception: 8 },
       resist: 'perforante', weak: 'contundente', tags: ['tier1'], tier1: ['kobold_dagger_jab', 'kobold_desperate_stab', 'kobold_scurry'] })),
     kobold_sling: Object.freeze(makeUnit({
       id: 'kobold_sling', name: 'Kobold · Sling', variant: 'sling', sprite: 'https://imgur.com/ndB257N.png', canonicalSourceName: 'Kobold Warrior',
       naturalWorldLevel: { min: 1, max: 3 }, hpBase: 5, hpCoefficient: 0.19,
-      scores: KOBOLD_WARRIOR_SCORES, proficiencies: NO_PROFICIENCIES, movement: { ground: 30 }, senses: { darkvision: 60, passivePerception: 8 },
+      scores: KOBOLD_WARRIOR_SCORES, proficiencies: NO_PROFICIENCIES, movement: { ground: 30 }, senses: { darkvision: 60, darkvisionFt: 60, passivePerception: 8 },
       resist: 'perforante', weak: 'contundente', tags: ['tier1', 'ranged'], traits: [AMMO_PEBBLES], tier1: ['kobold_sling_shot', 'kobold_rapid_pebble', 'kobold_duck_away'],
       mechanics: { ammoLoadout: [{ id: 'pebbles', amount: 6 }], ammunition: { pebbles: { type: 'single', icon: 'https://imgur.com/hhYbwsi.png' } } },
     })),
@@ -113,7 +115,7 @@
       spriteVariants: { dagger: 'https://imgur.com/evsrs1B.png', holdingRock: 'https://imgur.com/529fa4E.png', withoutRock: 'https://imgur.com/zmA1FPz.png', rockAsset: 'https://imgur.com/P4J48yc.png' },
       canonicalSourceName: 'Winged Kobold', naturalWorldLevel: { min: 2, max: 4 }, hpBase: 7, hpCoefficient: 0.22,
       scores: WINGED_KOBOLD_SCORES, proficiencies: NO_PROFICIENCIES, movement: { ground: 30, fly: 30 }, defaultMovementMode: 'fly', startsFlying: true,
-      senses: { darkvision: 60, passivePerception: 8 }, resist: 'cortante', weak: 'perforante',
+      senses: { darkvision: 60, darkvisionFt: 60, passivePerception: 8 }, resist: 'cortante', weak: 'perforante',
       tags: ['tier1', 'tier2', 'flying'], traits: [AERIAL_HARRIER, AMMO_ROCK], tier1: ['winged_kobold_falling_rock', 'winged_kobold_dagger'], tier2: ['winged_kobold_dive_stab'],
       mechanics: {
         flying: true,
@@ -124,16 +126,16 @@
       },
     })),
     dragonheart_kobold: Object.freeze(makeUnit({
-      id: 'dragonheart_kobold', name: 'Dragonheart Kobold', variant: 'dragonheart', sprite: 'https://imgur.com/4EYu3us.png', canonicalSourceName: 'Kobold Dragonshield',
+      id: 'dragonheart_kobold', name: 'Dragonheart Kobold', variant: 'dragonheart', sprite: 'https://imgur.com/4EYu3us.png', canonicalSourceName: 'Kobold Dragonshield', canonicalSourceBook: 'Mordenkainen Presents: Monsters of the Multiverse',
       naturalWorldLevel: { min: 5, max: 9 }, hpBase: 44, hpCoefficient: 0.30,
-      scores: DRAGONSHIELD_SCORES, proficiencies: DRAGONSHIELD_PROFICIENCIES, movement: { ground: 20 }, senses: { darkvision: 60, passivePerception: 11 },
+      scores: DRAGONSHIELD_SCORES, proficiencies: DRAGONSHIELD_PROFICIENCIES, movement: { ground: 20 }, senses: { darkvision: 60, darkvisionFt: 60, passivePerception: 11 },
       defLvlMod: 3, resist: 'cortante', weak: 'contundente', tags: ['tier1', 'tier2', 'tier3', 'commander'],
       traits: [DRAGONHEART, DRAGON_RESISTANCE], allowedRanks: ['captain', 'leader'], tier1: ['dragonheart_spear_thrust'], tier2: ['dragonheart_guarding_skewer'], tier3: ['dragonheart_dragon_spear'],
     })),
     scale_sorcerer_kobold: Object.freeze(makeUnit({
-      id: 'scale_sorcerer_kobold', name: 'Scale Sorcerer Kobold', variant: 'scale_sorcerer', sprite: 'https://imgur.com/TOHr6Dk.png', canonicalSourceName: 'Kobold Scale Sorcerer', creatureType: 'humanoid',
+      id: 'scale_sorcerer_kobold', name: 'Scale Sorcerer Kobold', variant: 'scale_sorcerer', sprite: 'https://imgur.com/TOHr6Dk.png', canonicalSourceName: 'Kobold Scale Sorcerer', canonicalSourceBook: 'Mordenkainen Presents: Monsters of the Multiverse', creatureType: 'humanoid',
       naturalWorldLevel: { min: 5, max: 9 }, hpBase: 27, hpCoefficient: 0.25,
-      scores: SCALE_SORCERER_SCORES, proficiencies: SCALE_SORCERER_PROFICIENCIES, movement: { ground: 30 }, senses: { darkvision: 60, passivePerception: 9 },
+      scores: SCALE_SORCERER_SCORES, proficiencies: SCALE_SORCERER_PROFICIENCIES, movement: { ground: 30 }, senses: { darkvision: 60, darkvisionFt: 60, passivePerception: 9 },
       defLvlMod: 3, resist: 'perforante', weak: 'cortante', tags: ['spellcaster', 'commander'], traits: [SPELL_CASTER_CHARISMA], allowedRanks: ['captain', 'leader'],
       tier1: ['kobold_dagger_jab', 'spell:fire_bolt', 'spell:poison_spray', 'spell:charm_person', 'spell:chromatic_orb', 'spell:expeditious_retreat', 'spell:scorching_ray'],
       mechanics: { spellcasting: { ability: 'charisma', saveThresholdFormula: '10 + CHA_MOD', spellSlots: { 1: 4, 2: 2 } }, sorceryPoints: { encounterStart: 3, runtime: 'sorcerer_class_runtime', metamagic: ['subtle_spell', 'heightened_spell'] }, spellReferencesPendingCanonicalCatalog: true },
