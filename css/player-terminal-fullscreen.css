@@ -1,6 +1,5 @@
-/* Legacy Terminal fullscreen presentation mode.
-   Important: fullscreen scales the existing 400x800 terminal as one surface.
-   It does not rotate, stretch, or reflow the terminal layout. */
+/* Fullscreen/mobile presentation for the single existing Player cellphone.
+   This reflows the CURRENT cellphone DOM; it does not create a second interface. */
 
 .sheet-phone-navbar {
   gap: 12px;
@@ -8,25 +7,21 @@
 
 .sheet-terminal-fullscreen-btn {
   position: absolute;
-  right: 14px;
+  right: max(14px, env(safe-area-inset-right));
   top: 50%;
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
   transform: translateY(-50%);
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 50%;
-  background: rgba(12, 12, 14, 0.74);
+  background: rgba(12, 12, 14, 0.78);
   color: #fff;
   display: grid;
   place-items: center;
   cursor: pointer;
-  opacity: 0.82;
-  transition:
-    opacity 0.18s ease,
-    border-color 0.18s ease,
-    background-color 0.18s ease,
-    transform 0.18s ease;
-  z-index: 3;
+  opacity: 0.88;
+  transition: opacity 0.18s ease, border-color 0.18s ease, background-color 0.18s ease, transform 0.18s ease;
+  z-index: 30;
 }
 
 .sheet-terminal-fullscreen-btn:hover,
@@ -44,19 +39,14 @@
 .sheet-terminal-fullscreen-icon {
   position: relative;
   display: block;
-  width: 17px;
-  height: 17px;
-}
-
-.sheet-terminal-fullscreen-icon::before,
-.sheet-terminal-fullscreen-icon::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
+  width: 18px;
+  height: 18px;
 }
 
 .sheet-terminal-fullscreen-icon::before {
+  content: "";
+  position: absolute;
+  inset: 0;
   background:
     linear-gradient(#fff, #fff) left top / 7px 2px no-repeat,
     linear-gradient(#fff, #fff) left top / 2px 7px no-repeat,
@@ -80,52 +70,41 @@
     linear-gradient(#fff, #fff) right 4px bottom / 2px 7px no-repeat;
 }
 
+/* One shared expanded state: native fullscreen, fallback fullscreen, or real phone. */
 .sheet-phone-wrapper.terminal-presentation-mode,
 .sheet-phone-wrapper:fullscreen,
-.sheet-phone-wrapper:-webkit-full-screen {
-  --terminal-base-width: 400px;
-  --terminal-base-height: 800px;
-  width: var(--terminal-base-width) !important;
-  min-width: var(--terminal-base-width) !important;
-  max-width: var(--terminal-base-width) !important;
-  height: var(--terminal-base-height) !important;
-  min-height: var(--terminal-base-height) !important;
-  max-height: var(--terminal-base-height) !important;
+.sheet-phone-wrapper:-webkit-full-screen,
+body.player-phone-device .sheet-phone-wrapper {
+  width: 100vw !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  height: 100dvh !important;
+  min-height: 100dvh !important;
+  max-height: none !important;
   margin: 0 !important;
   position: fixed !important;
-  top: 50% !important;
-  left: 50% !important;
-  right: auto !important;
-  bottom: auto !important;
-  transform:
-    translate(-50%, -50%)
-    scale(var(--terminal-presentation-scale, 1)) !important;
-  transform-origin: center center !important;
+  inset: 0 !important;
+  transform: none !important;
   transition: none !important;
   visibility: visible !important;
   opacity: 1 !important;
   overflow: hidden !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
   z-index: 25001 !important;
-  contain: layout paint style;
+  background: #08090b !important;
 }
 
-.sheet-phone-wrapper:fullscreen,
-.sheet-phone-wrapper:-webkit-full-screen {
-  background: #000;
-}
-
-.sheet-phone-wrapper::backdrop {
-  background:
-    radial-gradient(circle at center, rgba(24, 24, 27, 0.96), rgba(2, 2, 3, 1) 72%);
-}
-
+.sheet-phone-wrapper::backdrop,
 .sheet-phone-wrapper::-webkit-backdrop {
-  background:
-    radial-gradient(circle at center, rgba(24, 24, 27, 0.96), rgba(2, 2, 3, 1) 72%);
+  background: #08090b;
 }
 
-body.player-terminal-pseudo-fullscreen {
+body.player-terminal-pseudo-fullscreen,
+body.player-phone-device {
   overflow: hidden !important;
+  background: #08090b !important;
 }
 
 body.player-terminal-pseudo-fullscreen::before {
@@ -133,19 +112,184 @@ body.player-terminal-pseudo-fullscreen::before {
   position: fixed;
   inset: 0;
   z-index: 25000;
-  background:
-    radial-gradient(circle at center, rgba(24, 24, 27, 0.96), rgba(2, 2, 3, 1) 72%);
+  background: #08090b;
 }
 
-body.player-terminal-pseudo-fullscreen .hud-sidebar-right,
-body.player-terminal-pseudo-fullscreen #system-loading-overlay {
-  pointer-events: none;
+body.player-phone-device .sheet-limbus-main {
+  width: 100vw !important;
+  min-width: 100vw !important;
+  max-width: none !important;
+  height: 100dvh !important;
+  max-height: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: #08090b !important;
 }
 
-@media (max-width: 430px) {
-  .sheet-terminal-fullscreen-btn {
-    right: 10px;
-    width: 36px;
-    height: 36px;
+body.player-phone-device .hud-sidebar-right {
+  display: none !important;
+}
+
+body.player-phone-device #system-loading-overlay.is-hidden,
+body.player-phone-device #system-loading-overlay[aria-hidden="true"] {
+  display: none !important;
+}
+
+.sheet-phone-wrapper.terminal-presentation-mode .sheet-phone-statusbar,
+.sheet-phone-wrapper:fullscreen .sheet-phone-statusbar,
+.sheet-phone-wrapper:-webkit-full-screen .sheet-phone-statusbar,
+body.player-phone-device .sheet-phone-statusbar {
+  padding:
+    max(5px, env(safe-area-inset-top))
+    max(24px, env(safe-area-inset-right))
+    5px
+    max(24px, env(safe-area-inset-left));
+}
+
+.sheet-phone-wrapper.terminal-presentation-mode .sheet-phone-screen,
+.sheet-phone-wrapper:fullscreen .sheet-phone-screen,
+.sheet-phone-wrapper:-webkit-full-screen .sheet-phone-screen,
+body.player-phone-device .sheet-phone-screen {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  padding:
+    max(32px, calc(env(safe-area-inset-top) + 22px))
+    max(18px, env(safe-area-inset-right))
+    calc(68px + env(safe-area-inset-bottom))
+    max(18px, env(safe-area-inset-left)) !important;
+  overflow: hidden !important;
+}
+
+.sheet-phone-wrapper.terminal-presentation-mode .sheet-phone-navbar,
+.sheet-phone-wrapper:fullscreen .sheet-phone-navbar,
+.sheet-phone-wrapper:-webkit-full-screen .sheet-phone-navbar,
+body.player-phone-device .sheet-phone-navbar {
+  bottom: max(8px, env(safe-area-inset-bottom));
+  width: min(560px, calc(100% - max(32px, env(safe-area-inset-left)) - max(32px, env(safe-area-inset-right))));
+}
+
+/* HOME: same app buttons, reflowed to use landscape width instead of a portrait column. */
+.sheet-phone-wrapper.terminal-presentation-mode .sheet-tab-home,
+.sheet-phone-wrapper:fullscreen .sheet-tab-home,
+.sheet-phone-wrapper:-webkit-full-screen .sheet-tab-home,
+body.player-phone-device .sheet-tab-home {
+  align-items: stretch !important;
+  justify-content: center !important;
+  overflow: auto !important;
+}
+
+.sheet-phone-wrapper.terminal-presentation-mode .sheet-tab-home .sheet-app-grid,
+.sheet-phone-wrapper:fullscreen .sheet-tab-home .sheet-app-grid,
+.sheet-phone-wrapper:-webkit-full-screen .sheet-tab-home .sheet-app-grid,
+body.player-phone-device .sheet-tab-home .sheet-app-grid {
+  grid-template-columns: repeat(5, minmax(92px, 1fr)) !important;
+  gap: clamp(10px, 2vw, 24px) !important;
+  width: min(1180px, 100%) !important;
+  margin: auto !important;
+  padding: clamp(16px, 3vw, 30px) !important;
+}
+
+.sheet-phone-wrapper.terminal-presentation-mode .sheet-app-btn,
+.sheet-phone-wrapper:fullscreen .sheet-app-btn,
+.sheet-phone-wrapper:-webkit-full-screen .sheet-app-btn,
+body.player-phone-device .sheet-app-btn {
+  min-height: clamp(92px, 18vh, 150px);
+}
+
+/* Existing app surfaces keep their DOM/functionality and simply receive usable landscape room. */
+.sheet-phone-wrapper.terminal-presentation-mode .sheet-tab-content,
+.sheet-phone-wrapper:fullscreen .sheet-tab-content,
+.sheet-phone-wrapper:-webkit-full-screen .sheet-tab-content,
+body.player-phone-device .sheet-tab-content {
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+}
+
+.sheet-phone-wrapper.terminal-presentation-mode .sheet-app-body,
+.sheet-phone-wrapper.terminal-presentation-mode .sheet-app-body-scroll,
+.sheet-phone-wrapper:fullscreen .sheet-app-body,
+.sheet-phone-wrapper:fullscreen .sheet-app-body-scroll,
+.sheet-phone-wrapper:-webkit-full-screen .sheet-app-body,
+.sheet-phone-wrapper:-webkit-full-screen .sheet-app-body-scroll,
+body.player-phone-device .sheet-app-body,
+body.player-phone-device .sheet-app-body-scroll {
+  width: 100% !important;
+  max-width: 1200px !important;
+  min-width: 0 !important;
+  margin-inline: auto !important;
+  overflow: auto !important;
+}
+
+/* Banco uses its existing cards, arranged as a dashboard in landscape. */
+@media (orientation: landscape) {
+  .sheet-phone-wrapper.terminal-presentation-mode .sheet-tab-banco .sheet-app-body,
+  .sheet-phone-wrapper:fullscreen .sheet-tab-banco .sheet-app-body,
+  .sheet-phone-wrapper:-webkit-full-screen .sheet-tab-banco .sheet-app-body,
+  body.player-phone-device .sheet-tab-banco .sheet-app-body {
+    display: grid !important;
+    grid-template-columns: minmax(280px, 0.85fr) minmax(360px, 1.15fr);
+    grid-template-areas:
+      "balance transactions"
+      "transfer transactions";
+    align-content: start;
+    gap: 16px 24px;
+    padding: 18px clamp(18px, 4vw, 56px) !important;
+  }
+
+  .sheet-tab-banco .sheet-banco-balance-card { grid-area: balance; }
+  .sheet-tab-banco .sheet-banco-transfer-actions { grid-area: transfer; }
+  .sheet-tab-banco .sheet-banco-transactions { grid-area: transactions; min-width: 0; }
+}
+
+/* Portrait is not treated as a tiny landscape. On a real phone, ask for rotation. */
+@media (orientation: portrait) and (pointer: coarse) {
+  body.player-phone-device::after {
+    content: "GIRA TU CELULAR\AEl celular de Limbus está diseñado para usarse en horizontal.";
+    white-space: pre-line;
+    position: fixed;
+    inset: 0;
+    z-index: 30000;
+    display: grid;
+    place-items: center;
+    padding: 28px;
+    background: #08090b;
+    color: #f1f1f2;
+    font-family: "Share Tech Mono", monospace;
+    font-size: clamp(1rem, 5vw, 1.45rem);
+    line-height: 1.5;
+    letter-spacing: 0.04em;
+    text-align: center;
+    pointer-events: none;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .sheet-phone-wrapper.terminal-presentation-mode .sheet-phone-screen,
+  .sheet-phone-wrapper:fullscreen .sheet-phone-screen,
+  .sheet-phone-wrapper:-webkit-full-screen .sheet-phone-screen,
+  body.player-phone-device .sheet-phone-screen {
+    padding-top: max(28px, calc(env(safe-area-inset-top) + 18px)) !important;
+    padding-bottom: calc(58px + env(safe-area-inset-bottom)) !important;
+  }
+
+  .sheet-phone-wrapper.terminal-presentation-mode .sheet-tab-home .sheet-app-grid,
+  .sheet-phone-wrapper:fullscreen .sheet-tab-home .sheet-app-grid,
+  .sheet-phone-wrapper:-webkit-full-screen .sheet-tab-home .sheet-app-grid,
+  body.player-phone-device .sheet-tab-home .sheet-app-grid {
+    grid-template-columns: repeat(5, minmax(82px, 1fr)) !important;
+    gap: 9px !important;
+    padding: 10px 16px !important;
+  }
+
+  .sheet-phone-wrapper.terminal-presentation-mode .sheet-app-btn,
+  .sheet-phone-wrapper:fullscreen .sheet-app-btn,
+  .sheet-phone-wrapper:-webkit-full-screen .sheet-app-btn,
+  body.player-phone-device .sheet-app-btn {
+    min-height: 76px;
   }
 }
