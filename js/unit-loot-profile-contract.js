@@ -216,8 +216,13 @@
     for (const [index, entry] of carried.entries()) {
       const category = normalizeId(entry?.category);
       const rarity = normalizeId(entry?.rarity ?? "common");
+      const chance = entry?.chance == null ? null : Number(entry.chance);
+      const min = entry?.min == null ? (entry?.quantity == null ? 1 : Number(entry.quantity)) : Number(entry.min);
+      const max = entry?.max == null ? (entry?.quantity == null ? min : Number(entry.quantity)) : Number(entry.max);
       if (!CARRIED_CATEGORIES.includes(category)) errors.push(`UNKNOWN_CARRIED_CATEGORY:${index}:${category || "missing"}`);
       if (!RARITIES.includes(rarity)) errors.push(`UNKNOWN_LOOT_RARITY:${index}:${rarity || "missing"}`);
+      if (chance != null && (!Number.isFinite(chance) || chance < 0 || chance > 1)) errors.push(`LOOT_CHANCE_OUT_OF_RANGE:${index}`);
+      if (!Number.isFinite(min) || !Number.isFinite(max) || min < 0 || max < min) errors.push(`LOOT_QUANTITY_RANGE_INVALID:${index}`);
       if (rarity === "impossible" && !impossibleCategories.includes(category)) {
         errors.push(`IMPOSSIBLE_CARRIED_CATEGORY_NOT_DECLARED:${category}`);
       }
@@ -256,11 +261,22 @@
   function normalizeLootProfile(profile = {}) {
     return Object.freeze({
       version: VERSION,
-      carried: Object.freeze((Array.isArray(profile.carried) ? profile.carried : []).map((entry) => Object.freeze({
-        category: normalizeId(entry.category),
-        rarity: normalizeId(entry.rarity ?? "common"),
-        ...(entry.tags ? { tags: Object.freeze(uniqueIds(entry.tags)) } : {}),
-      }))),
+      carried: Object.freeze((Array.isArray(profile.carried) ? profile.carried : []).map((entry) => {
+        const min = Math.max(0, Number(entry.min ?? entry.quantity ?? 1) || 0);
+        const max = Math.max(min, Number(entry.max ?? entry.quantity ?? min) || min);
+        const chance = entry.chance == null ? null : Math.max(0, Math.min(1, Number(entry.chance) || 0));
+        return Object.freeze({
+          itemId: normalizeId(entry.itemId ?? entry.definitionId ?? entry.id),
+          category: normalizeId(entry.category),
+          rarity: normalizeId(entry.rarity ?? "common"),
+          min,
+          max,
+          chance,
+          ...(entry.ammoId ? { ammoId: normalizeId(entry.ammoId) } : {}),
+          ...(entry.reconcilePostCombatAmmo === true ? { reconcilePostCombatAmmo: true } : {}),
+          ...(entry.tags ? { tags: Object.freeze(uniqueIds(entry.tags)) } : {}),
+        });
+      })),
       equipment: Object.freeze({
         source: normalizeId(profile.equipment?.source ?? "unit_loadout"),
       }),
