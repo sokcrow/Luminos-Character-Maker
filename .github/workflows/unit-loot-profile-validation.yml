@@ -15,6 +15,7 @@ on:
       - "js/loot-instance-runtime.js"
       - "js/loot-check-runtime.js"
       - "js/loot-postcombat-runtime.js"
+      - "js/loot-knowledge-runtime.js"
       - "js/unit-catalog-kobold-tier1.js"
       - "js/unit-catalog-goblin.js"
       - "js/unit-catalog-wolf.js"
@@ -26,6 +27,7 @@ on:
       - "tests/loot-encounter-context-smoke.mjs"
       - "tests/loot-instance-runtime-smoke.mjs"
       - "tests/loot-postcombat-runtime-smoke.mjs"
+      - "tests/loot-knowledge-runtime-smoke.mjs"
       - "tests/ranger-class-runtime-smoke.mjs"
       - "tests/battle-master-archetype-runtime-smoke.mjs"
       - ".github/workflows/unit-loot-profile-validation.yml"
@@ -46,6 +48,7 @@ on:
       - "js/loot-instance-runtime.js"
       - "js/loot-check-runtime.js"
       - "js/loot-postcombat-runtime.js"
+      - "js/loot-knowledge-runtime.js"
       - "js/unit-catalog-kobold-tier1.js"
       - "js/unit-catalog-goblin.js"
       - "js/unit-catalog-wolf.js"
@@ -57,6 +60,7 @@ on:
       - "tests/loot-encounter-context-smoke.mjs"
       - "tests/loot-instance-runtime-smoke.mjs"
       - "tests/loot-postcombat-runtime-smoke.mjs"
+      - "tests/loot-knowledge-runtime-smoke.mjs"
       - "tests/ranger-class-runtime-smoke.mjs"
       - "tests/battle-master-archetype-runtime-smoke.mjs"
       - ".github/workflows/unit-loot-profile-validation.yml"
@@ -83,6 +87,8 @@ jobs:
         run: node tests/loot-instance-runtime-smoke.mjs
       - name: Validate finite post-combat Loot interactions and D&D checks
         run: node tests/loot-postcombat-runtime-smoke.mjs
+      - name: Validate Autopsy Examine and Compendium knowledge
+        run: node tests/loot-knowledge-runtime-smoke.mjs
       - name: Validate Ranger Analyze bypass
         run: node tests/ranger-class-runtime-smoke.mjs
       - name: Validate Battle Master Analyze bypass
