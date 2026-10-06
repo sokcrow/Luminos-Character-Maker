@@ -95,21 +95,21 @@ This document freezes the current scope and lets the Loot Update be completed in
 
 ## Encounter Zone modifiers
 
-- [ ] Define an Encounter Zone loot-context contract.
-- [ ] Let Zones modify availability/weights instead of rewriting canonical Item value.
-- [ ] Support environmental tags such as forest, mine, industrial, hospital, rich district, poor district, laboratory, ruins, etc.
-- [ ] Let Zones increase/decrease categories such as food, medicine, technology, gems, biomaterials and industrial materials.
-- [ ] Allow Zones to mark categories impossible when appropriate.
+- [x] Define an Encounter Zone loot-context contract.
+- [x] Let Zones modify availability/weights instead of rewriting canonical Item value.
+- [x] Support environmental tags such as forest, mine, industrial, hospital, rich district, poor district, laboratory, ruins, etc.
+- [x] Let Zones increase/decrease categories such as food, medicine, technology, gems, biomaterials and industrial materials.
+- [x] Allow Zones to mark categories impossible when appropriate.
 - [ ] Make Zone context visible to the DM when inspecting generated loot.
 
 ## Encounter Event modifiers
 
-- [ ] Define an Encounter Event loot modifier contract.
-- [ ] Let Events add otherwise unavailable loot categories when narratively justified.
-- [ ] Let Events guarantee authored Items.
-- [ ] Let Events increase/decrease rarity weights.
-- [ ] Let Events modify quantities and quality.
-- [ ] Support examples such as convoy, robbery, famine, war, evacuation, plague, medical shipment, mining expedition, smuggling operation, laboratory escape, treasure expedition and black-market deal.
+- [x] Define an Encounter Event loot modifier contract.
+- [x] Let Events add otherwise unavailable loot categories when narratively justified.
+- [x] Let Events guarantee authored Items.
+- [x] Let Events increase/decrease rarity weights.
+- [x] Let Events modify quantities and quality.
+- [x] Support examples such as convoy, robbery, famine, war, evacuation, plague, medical shipment, mining expedition, smuggling operation, laboratory escape, treasure expedition and black-market deal.
 - [ ] Record Event provenance on generated loot.
 
 ## Loot instance generation
@@ -239,8 +239,8 @@ This document freezes the current scope and lets the Loot Update be completed in
 - [x] Add Body Profile validation.
 - [x] Add impossible-loot regression tests.
 - [ ] Add deterministic instance-generation tests.
-- [ ] Add Zone modifier tests.
-- [ ] Add Event modifier tests.
+- [x] Add Zone modifier tests.
+- [x] Add Event modifier tests.
 - [x] Add Wealth/Role interaction tests.
 - [x] Add corpse-integrity/harvest integration tests.
 - [ ] Add Search/Harvest/Salvage finite-resource tests.
