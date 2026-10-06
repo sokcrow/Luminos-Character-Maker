@@ -71,7 +71,7 @@
   const RESOURCE_MATERIAL_COMPATIBILITY = Object.freeze({
     meat: Object.freeze(["flesh"]),
     hide_pelt: Object.freeze(["hide", "pelt", "scale", "chitin", "shell"]),
-    hard_parts: Object.freeze(["bone", "scale", "chitin", "shell", "crystal"]),
+    hard_parts: Object.freeze(["bone", "scale", "chitin", "shell", "crystal", "metal", "mechanical", "stone", "mineral", "synthetic"]),
     hard_cover_modular: Object.freeze(["metal", "mechanical", "stone", "mineral", "crystal", "synthetic"]),
     hard_cover_structural: Object.freeze(["metal", "mechanical", "stone", "mineral", "wood", "crystal", "synthetic"]),
     feather_raw: Object.freeze(["feather"]),
