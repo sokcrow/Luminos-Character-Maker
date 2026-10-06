@@ -173,6 +173,7 @@ assert.equal(first.equipment.items.length, 1);
 assert.equal(first.equipment.items[0].instanceId, "equipment_live_sword_001");
 assert.equal(first.equipment.items[0].condition, 72);
 assert.equal(first.equipment.items[0].lootEquipmentSnapshot, true);
+assert.equal(first.equipment.items[0].provenance.acquisitionMethod, "equipment");
 assert.ok(!first.carried.some((item) => item.instanceId === "equipment_live_sword_001"), "actual equipment must not be mixed into hidden carried loot");
 
 assert.equal(first.currency.currencyId, "ahn");
