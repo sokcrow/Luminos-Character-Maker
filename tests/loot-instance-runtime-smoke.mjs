@@ -70,8 +70,8 @@ const profiles = lootContract.createProfiles({
 assert.equal(profiles.lootProfile.carried[0].itemId, "ration");
 assert.equal(profiles.lootProfile.carried[1].chance, 1);
 assert.equal(profiles.lootProfile.carried[1].max, 2);
-assert.equal(profiles.lootProfile.carried[3].ammoId, "arrows");
-assert.equal(profiles.lootProfile.carried[3].reconcilePostCombatAmmo, true);
+assert.equal(profiles.lootProfile.carried[2].ammoId, "arrows");
+assert.equal(profiles.lootProfile.carried[2].reconcilePostCombatAmmo, true);
 
 const unit = {
   id: "test_scavenger",
