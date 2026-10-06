@@ -28,6 +28,7 @@
     venom_secretion: () => global.LuminousVenomSecretionCatalog || safeRequire("./item-catalog-venom-secretion.js"),
     ooze_gel: () => global.LuminousOozeGelCatalog || safeRequire("./item-catalog-ooze-gel.js"),
     feather_raw_fiber: () => global.LuminousFeatherRawFiberCatalog || safeRequire("./item-catalog-feather-raw-fiber.js"),
+    raw_salvage: () => global.LuminousRawSalvageCatalog || safeRequire("./item-catalog-salvage-raw.js"),
   });
 
   const FAMILY_ALIASES = Object.freeze({
@@ -44,6 +45,7 @@
     meat: "meat",
     hide_pelt: "hide_pelt",
     hard_parts: "hard_parts",
+    raw_salvage: "raw_salvage",
   });
 
   function normalizeId(value) {
@@ -321,6 +323,37 @@
     });
   }
 
+  function currencyAmount(materialized = {}) {
+    return Math.max(0, int(materialized.currency?.amount, 0));
+  }
+
+  function previewCurrency(materialized = {}, recipientUnit = {}, options = {}) {
+    const amount = currencyAmount(materialized);
+    if (amount <= 0) return deepFreeze({ accepted: true, amount: 0, reason: null });
+    const handler = options.currencyHandler;
+    if (!handler?.preview || !handler?.commit) {
+      return deepFreeze({ accepted: false, amount, reason: "currency_delivery_handler_required" });
+    }
+    const result = handler.preview(materialized.currency, recipientUnit, options);
+    if (result === false || result?.accepted === false) {
+      return deepFreeze({ accepted: false, amount, reason: result?.reason || "currency_delivery_rejected" });
+    }
+    return deepFreeze({ accepted: true, amount, reason: null, preview: clone(result || null) });
+  }
+
+  function commitCurrency(materialized = {}, recipientUnit = {}, options = {}) {
+    const amount = currencyAmount(materialized);
+    if (amount <= 0) return deepFreeze({ credited: true, amount: 0, receipt: null, recipientUnit: deepFreeze(clone(recipientUnit)) });
+    const handler = options.currencyHandler;
+    if (!handler?.commit) return deepFreeze({ credited: false, amount, reason: "currency_delivery_handler_required", recipientUnit: deepFreeze(clone(recipientUnit)) });
+    const working = clone(recipientUnit);
+    const receipt = handler.commit(materialized.currency, working, options);
+    if (receipt === false || receipt?.credited === false) {
+      return deepFreeze({ credited: false, amount, reason: receipt?.reason || "currency_delivery_failed", receipt: clone(receipt || null), recipientUnit: deepFreeze(clone(recipientUnit)) });
+    }
+    return deepFreeze({ credited: true, amount, receipt: clone(receipt || null), recipientUnit: deepFreeze(working) });
+  }
+
   function pendingDeliveryId(state = {}, result = {}) {
     const hash = lootInstances()?.hashHex;
     const source = [
@@ -368,32 +401,40 @@
       });
     }
 
+    const currencyPreview = previewCurrency(materialized, options.recipientUnit, options);
+    if (!currencyPreview.accepted) {
+      const pending = addPendingDelivery(provisional.state, provisional.result, materialized, currencyPreview.reason);
+      return deepFreeze({
+        committed: true, delivered: false, pending: pending.delivery, reason: currencyPreview.reason,
+        state: pending.state, recipientUnit: deepFreeze(clone(options.recipientUnit)),
+        result: provisional.result, materialized, delivery: null,
+      });
+    }
+
     const delivery = insertBatchAtomic(options.recipientUnit, materialized.items, options);
     if (!delivery.inserted) {
       const pending = addPendingDelivery(provisional.state, provisional.result, materialized, delivery.reason);
       return deepFreeze({
-        committed: true,
-        delivered: false,
-        pending: pending.delivery,
-        reason: delivery.reason,
-        state: pending.state,
-        recipientUnit: deepFreeze(clone(options.recipientUnit)),
-        result: provisional.result,
-        materialized,
-        delivery,
+        committed: true, delivered: false, pending: pending.delivery, reason: delivery.reason,
+        state: pending.state, recipientUnit: deepFreeze(clone(options.recipientUnit)),
+        result: provisional.result, materialized, delivery,
+      });
+    }
+
+    const currency = commitCurrency(materialized, delivery.recipient, options);
+    if (!currency.credited) {
+      const pending = addPendingDelivery(provisional.state, provisional.result, materialized, currency.reason);
+      return deepFreeze({
+        committed: true, delivered: false, pending: pending.delivery, reason: currency.reason,
+        state: pending.state, recipientUnit: deepFreeze(clone(options.recipientUnit)),
+        result: provisional.result, materialized, delivery: null,
       });
     }
 
     return deepFreeze({
-      committed: true,
-      delivered: true,
-      pending: null,
-      reason: null,
-      state: provisional.state,
-      recipientUnit: delivery.recipient,
-      result: provisional.result,
-      materialized,
-      delivery,
+      committed: true, delivered: true, pending: null, reason: null,
+      state: provisional.state, recipientUnit: currency.recipientUnit,
+      result: provisional.result, materialized, delivery, currencyReceipt: currency.receipt,
     });
   }
 
@@ -414,31 +455,41 @@
         materialized,
       });
     }
+
+    const currencyPreview = previewCurrency(materialized, options.recipientUnit, options);
+    if (!currencyPreview.accepted) {
+      const pending = addPendingDelivery(provisional.state, provisional.result, materialized, currencyPreview.reason);
+      return deepFreeze({
+        committed: true, delivered: false, pending: pending.delivery, reason: currencyPreview.reason,
+        state: pending.state, recipientUnit: deepFreeze(clone(options.recipientUnit)),
+        result: provisional.result, materialized, delivery: null,
+      });
+    }
+
     const delivery = insertBatchAtomic(options.recipientUnit, materialized.items, options);
     if (!delivery.inserted) {
       const pending = addPendingDelivery(provisional.state, provisional.result, materialized, delivery.reason);
       return deepFreeze({
-        committed: true,
-        delivered: false,
-        pending: pending.delivery,
-        reason: delivery.reason,
-        state: pending.state,
-        recipientUnit: deepFreeze(clone(options.recipientUnit)),
-        result: provisional.result,
-        materialized,
-        delivery,
+        committed: true, delivered: false, pending: pending.delivery, reason: delivery.reason,
+        state: pending.state, recipientUnit: deepFreeze(clone(options.recipientUnit)),
+        result: provisional.result, materialized, delivery,
       });
     }
+
+    const currency = commitCurrency(materialized, delivery.recipient, options);
+    if (!currency.credited) {
+      const pending = addPendingDelivery(provisional.state, provisional.result, materialized, currency.reason);
+      return deepFreeze({
+        committed: true, delivered: false, pending: pending.delivery, reason: currency.reason,
+        state: pending.state, recipientUnit: deepFreeze(clone(options.recipientUnit)),
+        result: provisional.result, materialized, delivery: null,
+      });
+    }
+
     return deepFreeze({
-      committed: true,
-      delivered: true,
-      pending: null,
-      reason: null,
-      state: provisional.state,
-      recipientUnit: delivery.recipient,
-      result: provisional.result,
-      materialized,
-      delivery,
+      committed: true, delivered: true, pending: null, reason: null,
+      state: provisional.state, recipientUnit: currency.recipientUnit,
+      result: provisional.result, materialized, delivery, currencyReceipt: currency.receipt,
     });
   }
 
@@ -448,17 +499,29 @@
     const index = list.findIndex((entry) => String(entry.id) === String(deliveryId));
     if (index < 0) return deepFreeze({ claimed: false, reason: "pending_delivery_not_found", state: deepFreeze(next), recipientUnit: deepFreeze(clone(recipientUnit)) });
     const pending = list[index];
+    const materialized = { items: pending.items || [], currency: pending.currency || null };
+
+    const currencyPreview = previewCurrency(materialized, recipientUnit, options);
+    if (!currencyPreview.accepted) {
+      return deepFreeze({ claimed: false, reason: currencyPreview.reason, state: deepFreeze(next), recipientUnit: deepFreeze(clone(recipientUnit)), pending: deepFreeze(clone(pending)) });
+    }
+
     const delivery = insertBatchAtomic(recipientUnit, pending.items || [], options);
     if (!delivery.inserted) {
       return deepFreeze({ claimed: false, reason: delivery.reason, state: deepFreeze(next), recipientUnit: deepFreeze(clone(recipientUnit)), pending: deepFreeze(clone(pending)) });
     }
+
+    const currency = commitCurrency(materialized, delivery.recipient, options);
+    if (!currency.credited) {
+      return deepFreeze({ claimed: false, reason: currency.reason, state: deepFreeze(next), recipientUnit: deepFreeze(clone(recipientUnit)), pending: deepFreeze(clone(pending)) });
+    }
+
     next.pendingDeliveries.splice(index, 1);
     return deepFreeze({
-      claimed: true,
-      reason: null,
-      state: deepFreeze(next),
-      recipientUnit: delivery.recipient,
+      claimed: true, reason: null, state: deepFreeze(next),
+      recipientUnit: currency.recipientUnit,
       currency: deepFreeze(clone(pending.currency || null)),
+      currencyReceipt: currency.receipt,
       delivery,
     });
   }
@@ -481,6 +544,9 @@
     ownerId,
     insertOne,
     insertBatchAtomic,
+    currencyAmount,
+    previewCurrency,
+    commitCurrency,
     pendingDeliveryId,
     addPendingDelivery,
     performAndDeliver,
