@@ -77,7 +77,8 @@ context = runtime.resolveEncounterContext({
   events: [treasure],
 });
 assert.equal(runtime.categoryState(context, "gems").state, "allowed_by_exception");
-assert.ok(runtime.categoryState(context, "gems").weight > 1);
+assert.ok(runtime.categoryState(context, "gems").weight > 0);
+assert.ok(runtime.categoryState(context, "gems").weight < 1, "exception may make gems possible without making them common in a forest");
 assert.equal(runtime.categoryState(context, "technology").state, "impossible", "event may unlock only its authored categories");
 assert.equal(context.rarityWeights.rare, 1.5);
 assert.equal(context.rarityWeights.common, 0.75);
