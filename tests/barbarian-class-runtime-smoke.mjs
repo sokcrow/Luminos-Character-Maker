@@ -240,6 +240,7 @@ state = engine.dispatchCombatEvent("turn_end", {
   skill: meleeSkill,
 }).state;
 assert.equal(Boolean(state.flags.reckless_attack_vulnerable), false);
+assert.equal(state.statuses.fragile, undefined, "Reckless Fragile must expire from Trait state at Turn End");
 
 // Danger Sense is Save-specific: +4 Dexterity Save Power, not all Dexterity Checks.
 character = makeBarbarian(10);
@@ -316,6 +317,13 @@ state = engine.dispatchCombatEvent("encounter_start", {
 }).state;
 assert.equal(state.statuses.haste?.count, 4);
 assert.equal(state.statuses.haste?.duration, "this_turn");
+state = engine.dispatchCombatEvent("turn_end", {
+  character,
+  self: character,
+  traits,
+  state,
+}).state;
+assert.equal(state.statuses.haste, undefined, "Wild Instincts Haste must expire from Trait state at Turn End");
 
 const weakBarbarian = makeBarbarian(35, 8, 18);
 state = engine.dispatchCombatEvent("encounter_start", {
