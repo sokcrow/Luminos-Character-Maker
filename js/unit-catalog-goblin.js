@@ -121,7 +121,7 @@
         staggerThresholds: STAGGER_THRESHOLDS,
       }),
       metadata: Object.freeze({ canonicalUnit: true, catalog: 'goblin-batch', spritePending: true, weaponSkillsPendingCanonicalCatalog: false, physicalProfilePending: true, speedPending: true }),
-      schemaVersion: 2,
+      schemaVersion: 3,
     }),
 
     goblin_boss: Object.freeze({
@@ -153,7 +153,7 @@
         staggerThresholds: STAGGER_THRESHOLDS,
       }),
       metadata: Object.freeze({ canonicalUnit: true, catalog: 'goblin-batch', alwaysCaptain: true, spritePending: true, weaponSkillsPendingCanonicalCatalog: false, physicalProfilePending: true, speedPending: true }),
-      schemaVersion: 2,
+      schemaVersion: 3,
     }),
   });
 
@@ -217,7 +217,7 @@
   }
 
   const api = Object.freeze({
-    version: '1.1.0', STAGGER_THRESHOLDS, RACIAL_TRAIT_IDS, GOBLIN_SCORES, GOBLIN_BOSS_SCORES, UNIVERSAL_RANKS,
+    version: '1.2.0', STAGGER_THRESHOLDS, RACIAL_TRAIT_IDS, GOBLIN_SCORES, GOBLIN_BOSS_SCORES, UNIVERSAL_RANKS,
     AMMO_ARROWS, AMMO_JAVELIN, MULTI_ATTACK, REDIRECT_ATTACK, DEFINITIONS, get, list, resolveSkill, resolve, firebasePayload, firebaseSkillPayload,
   });
 
