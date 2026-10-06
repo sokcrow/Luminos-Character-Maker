@@ -18,7 +18,7 @@ assert.ok(authority.includes('confusionTurnMode:unit.confusionTurnMode==null?nul
 assert.ok(speed.includes('speedRolledAt:global.firebase.database.ServerValue.TIMESTAMP'),'speed roll must record authoritative timestamp');
 assert.ok(speed.includes("state.db.ref(`${ROOT}/combatants`)"),'speed persistence must transact the canonical combatant collection');
 assert.ok(speed.includes('ref.transaction(current=>'),'speed persistence must use one collection transaction');
-assert.ok(speed.includes('if(rolledTurn===state.round&&speed!=null&&tie!=null)continue'),'same round refresh must not reroll speed');
+assert.ok(speed.includes('if(rolledTurn===state.round&&speed!=null&&speed>=1&&tie!=null)continue'),'same round refresh must not reroll legal Speed; invalid Speed 0 must be rerolled');
 assert.ok(speed.includes('return changed?next:undefined'),'transaction must abort when every combatant already has this round speed');
 assert.ok(!speed.includes("a.state.lastSignature=''"),'Speed refresh must not invalidate the whole adapter hydration cache');
 assert.ok(!speed.includes('a.hydrateNow()'),'Speed refresh must not rebuild the Combat runtime or reset Player menus');
