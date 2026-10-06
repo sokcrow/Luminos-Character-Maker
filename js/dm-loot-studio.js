@@ -288,6 +288,10 @@
     if (!state.preview?.locked) throw new Error("DM_LOOT_INSTANCE_MUST_BE_LOCKED");
     const db = dbFrom(options);
     if (!db?.ref) throw new Error("DM_LOOT_DATABASE_REQUIRED");
+    const grantPath = `${ROOT}/${state.preview.lootInstanceId}/grants/${playerId}`;
+    const priorGrant = await db.ref(grantPath).once("value");
+    if (priorGrant.val()) throw new Error("DM_LOOT_ALREADY_GRANTED_TO_PLAYER");
+
     const snap = await db.ref(`campaña/jugadores/${playerId}`).once("value");
     const player = clone(snap.val() || {});
     const result = grantInstancesToPlayerRecord(player, state.preview.carried || [], { ownerId: playerId, preferredContainer: "stash" });
@@ -295,6 +299,12 @@
     await db.ref(`campaña/jugadores/${playerId}`).update({
       inventario_stash: clone(result.player.inventario_stash || {}),
       inventario_activo: clone(result.player.inventario_activo || {}),
+    });
+    await db.ref(grantPath).set({
+      playerId,
+      lootInstanceId: state.preview.lootInstanceId,
+      itemInstanceIds: (state.preview.carried || []).map((item) => item.instanceId),
+      grantedAt: options.now ?? Date.now(),
     });
     return result;
   }
