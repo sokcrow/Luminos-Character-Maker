@@ -198,6 +198,15 @@
         id: normalizeId(resource.id ?? resource.resourceId ?? resource.integrityFamily ?? resource.family),
         integrityFamily: normalizeId(resource.integrityFamily ?? resource.family),
         sourceMaterial: normalizeId(resource.sourceMaterial ?? resource.material),
+        itemId: normalizeId(resource.itemId ?? resource.definitionId),
+        catalogFamily: normalizeId(resource.catalogFamily ?? resource.itemFamily ?? resource.integrityFamily ?? resource.family),
+        anatomicalIdentity: normalizeId(resource.anatomicalIdentity ?? resource.anatomicalPart ?? resource.part),
+        lineageId: normalizeId(resource.lineageId),
+        lineageName: resource.lineageName ? String(resource.lineageName) : null,
+        valuable: resource.valuable === true,
+        culinary: resource.culinary === true,
+        knownUses: Object.freeze(uniqueIds(resource.knownUses ?? resource.uses)),
+        tags: Object.freeze(uniqueIds(resource.tags)),
         yield: resource.yield != null || resource.min != null || resource.max != null
           ? normalizeYield(resource.yield || resource)
           : null,
