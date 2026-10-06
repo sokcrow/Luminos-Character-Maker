@@ -205,7 +205,7 @@ assert.deepEqual(accumulated.units.knowledge_test_goblin.facts["loot.observed_cu
   maxObserved: 180,
 });
 assert.deepEqual(
-  accumulated.units.knowledge_test_goblin.facts["loot.observed_carried_items"].value.sort(),
+  [...accumulated.units.knowledge_test_goblin.facts["loot.observed_carried_items"].value].sort(),
   ["medkit", "ration"],
 );
 
