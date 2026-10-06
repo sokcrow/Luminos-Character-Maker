@@ -77,7 +77,7 @@
     wolf: Object.freeze({
       id: 'wolf', name: 'Wolf', species: 'wolf', variant: 'standard', unitType: 'enemy', actorCategory: 'enemy', faction: 'enemy', isPlayer: false,
       naturalWorldLevel: Object.freeze({ min: 2, max: 4 }), baseLevel: Object.freeze({ min: 2, max: 4 }),
-      bodyProfile: WOLF_LOOT_PROFILES.bodyProfile, lootProfile: WOLF_LOOT_PROFILES.lootProfile,
+      bodyProfile: Object.freeze({ ...WOLF_LOOT_PROFILES.bodyProfile, sizeClass: 'medium' }), lootProfile: WOLF_LOOT_PROFILES.lootProfile,
       hpBase: 11, hpCoefficient: null,
       traitIds: Object.freeze([PACK_TACTICS_ID, MEANING.id, HUNTING_HOWLING.id]),
       traits: Object.freeze([packTacticsRef(), MEANING, Object.freeze(rankHowling('captain'))]),
@@ -102,7 +102,7 @@
     dire_wolf: Object.freeze({
       id: 'dire_wolf', name: 'Dire Wolf', species: 'dire_wolf', variant: 'dire', unitType: 'enemy', actorCategory: 'enemy', faction: 'enemy', isPlayer: false,
       naturalWorldLevel: Object.freeze({ min: 5, max: 5 }), baseLevel: Object.freeze({ min: 5, max: 5 }),
-      bodyProfile: WOLF_LOOT_PROFILES.bodyProfile, lootProfile: WOLF_LOOT_PROFILES.lootProfile,
+      bodyProfile: Object.freeze({ ...WOLF_LOOT_PROFILES.bodyProfile, sizeClass: 'large' }), lootProfile: WOLF_LOOT_PROFILES.lootProfile,
       hpBase: 37, hpCoefficient: null,
       traitIds: Object.freeze([PACK_TACTICS_ID, MEANING.id, HUNTING_HOWLING.id]),
       traits: Object.freeze([packTacticsRef(), MEANING, Object.freeze(rankHowling('leader'))]),
