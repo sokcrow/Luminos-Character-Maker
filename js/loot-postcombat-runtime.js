@@ -307,6 +307,7 @@
           integrityFamily: normalizeId(candidate.integrityFamily),
           sourceMaterial: normalizeId(candidate.sourceMaterial),
           integrity: clone(candidate.integrity || null),
+          recoverableYield: clone(candidate.recoverableYield || null),
           provenance: acquisitionProvenance(candidate.provenance || {}, actionId, actorId, state),
         }));
         units -= amount;
