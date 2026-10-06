@@ -131,7 +131,8 @@
     const profile = UNIVERSAL_RANKS[rank];
     const effectiveLevel = rankRuntime?.effectiveLevel ? rankRuntime.effectiveLevel(level, rank) : level * Number(profile.levelMultiplier || 1);
     const maxHp = unit.hpCoefficient == null ? Number(unit.hpBase) : Math.floor(Number(unit.hpBase) + effectiveLevel * Number(unit.hpCoefficient));
-    const baseSpeed = movementRuntime?.rangeForEntity?.(unit) || { min: 1, max: 6, mode: 'ground' };
+    const baseSpeed = movementRuntime?.rangeForEntity?.(unit);
+    if (!baseSpeed) throw new Error('MOVEMENT_SPEED_RUNTIME_REQUIRED:wolf');
     const minSpeed = Math.max(1, Number(baseSpeed.min || 1) + Number(profile.minSpeedBonus || 0));
     const maxSpeed = Math.max(2, minSpeed, Number(baseSpeed.max || 6) + Number(profile.maxSpeedBonus || 0));
     unit.rank = rank; unit.runtimeLevel = level; unit.baseLevelSelected = level; unit.effectiveLevel = effectiveLevel; unit.rankBonuses = clone(profile);
