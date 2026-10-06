@@ -2,7 +2,7 @@
   "use strict";
 
   const engine = global.LuminousTraitEngine || (typeof require === "function" ? require("./trait-engine.js") : null);
-  const CATALOG_VERSION = 5;
+  const CATALOG_VERSION = 6;
 
   const RULE_TYPES = Object.freeze([
     "modifier",
@@ -54,26 +54,44 @@
       schemaVersion: 1,
       id: "armorless_defense",
       name: "Armorless Defense",
-      description: "Without Armor:\nGain +(1, Constitution Mod) Defensive Level.\n\n[On Encounter Start] Without Armor:\nGain (Class Level)% Max HP as Shield for encounter\n\nRemove 1 Stagger Threshold.",
+      description: "Without Armor:\nGain +max(1, Constitution Mod / 2) Defensive Level.\n\nOnce per Encounter, when entering Rage without Armor:\nGain (Barbarian Class Level * 1.2) Shield.\n\nRemove 1 Stagger Threshold.",
+      display: {
+        playerDescription: "Without Armor, gain {defensiveLevel} Defensive Level. Once per Encounter when entering Rage, gain {rageShield} Shield. Remove 1 Stagger Threshold.",
+        resolvedValues: [
+          { id: "defensiveLevel", label: "Defensive Level", formula: "max(1, ConstitutionMod / 2)", signed: true },
+          { id: "rageShield", label: "Rage Shield", formula: "ClassLevel * 1.2", unit: "flat" },
+        ],
+      },
       source: classSource,
       contexts: ["combat"],
       activation: { type: "passive", actionCost: "none" },
       mechanics: {
-        defensiveLevelFormula: "max(1, ConstitutionMod)",
-        encounterShieldPercentFormula: "ClassLevel",
-        encounterShieldAmountFormula: "MaxHP * ClassLevel / 100",
-        encounterShieldType: "encounter",
+        defensiveLevelFormula: "max(1, ConstitutionMod / 2)",
+        rageShieldFormula: "ClassLevel * 1.2",
+        rageShieldScope: "once_per_encounter",
       },
-      effects: [{
-        id: "armorless_defense_encounter_shield",
-        contexts: ["combat"],
-        trigger: "encounter_start",
-        conditions: [{ path: "equipment.armorEquipped", operator: "falsy" }],
-        operations: [
-          { type: "modify", path: "self.shieldPools.encounter", mode: "add", formula: "MaxHP * ClassLevel / 100" },
-          { type: "modify", path: "self.shield", mode: "add", formula: "MaxHP * ClassLevel / 100" },
-        ],
-      }],
+      effects: [
+        {
+          id: "armorless_defense_encounter_ready",
+          contexts: ["combat"],
+          trigger: "encounter_start",
+          conditions: [],
+          operations: [
+            { type: "set_flag", flagId: "armorless_defense_present", value: true },
+            { type: "clear_flag", flagId: "armorless_defense_shield_used" },
+          ],
+        },
+        {
+          id: "armorless_defense_encounter_cleanup",
+          contexts: ["combat"],
+          trigger: "encounter_end",
+          conditions: [],
+          operations: [
+            { type: "clear_flag", flagId: "armorless_defense_present" },
+            { type: "clear_flag", flagId: "armorless_defense_shield_used" },
+          ],
+        },
+      ],
       rules: [
         {
           type: "modifier",
@@ -81,7 +99,7 @@
           target: "self",
           channel: "defensive_level",
           mode: "add",
-          formula: "max(1, ConstitutionMod)",
+          formula: "max(1, ConstitutionMod / 2)",
           conditions: [{ path: "equipment.armorEquipped", operator: "falsy" }],
         },
         {
@@ -96,11 +114,20 @@
       ],
     },
 
+
+
     rage: {
       schemaVersion: 1,
       id: "rage",
       name: "Rage",
-      description: "Spend a Quick Action to gain Rage. Uses and Rage scaling use Barbarian Class Level, not total Character Level or Offensive Level. Uses are always at least 1 and reset on Long Rest.",
+      description: "Spend a Quick Action to gain Rage. Uses scale with Barbarian Class Level and reset on Long Rest. While Raging: reduce Slash, Pierce, and Blunt Damage by 50%; lose 5 SP at Turn End; deal 10 + (Barbarian Class Level * 0.4)% additional Damage; and Wrath Skills gain +1 Wrath Resource. Spell Skills cannot be used while Raging.",
+      display: {
+        playerDescription: "Quick Action. While Raging, deal {rageDamage} additional Damage, reduce Slash/Pierce/Blunt Damage by 50%, lose 5 SP at Turn End, and gain +1 Wrath Resource from Wrath Skills.",
+        resolvedValues: [
+          { id: "rageDamage", label: "Rage Damage", formula: "10 + (ClassLevel * 0.4)", unit: "percent", signed: true },
+          { id: "rageUses", label: "Rage Uses", formula: "max(1, floor(ClassLevel / 7))", unit: "flat" },
+        ],
+      },
       source: classSource,
       contexts: ["combat"],
       activation: {
@@ -109,13 +136,29 @@
         uses: { formula: "max(1, floor(ClassLevel / 7))", reset: "long_rest" },
         conditions: [{ statusId: "rage", operator: "falsy" }],
       },
-      effects: [{
-        id: "rage_activate",
-        contexts: ["combat"],
-        trigger: "on_use",
-        conditions: [],
-        operations: [{ type: "apply_status", statusId: "rage", duration: "until_removed" }],
-      }],
+      effects: [
+        {
+          id: "rage_activate",
+          contexts: ["combat"],
+          trigger: "on_use",
+          conditions: [],
+          operations: [{ type: "apply_status", statusId: "rage", duration: "until_removed" }],
+        },
+        {
+          id: "rage_armorless_defense_shield",
+          contexts: ["combat"],
+          trigger: "on_use",
+          conditions: [
+            { flagId: "armorless_defense_present", operator: "truthy" },
+            { flagId: "armorless_defense_shield_used", operator: "falsy" },
+            { path: "equipment.armorEquipped", operator: "falsy" },
+          ],
+          operations: [
+            { type: "gain_shield", path: "self.shield", formula: "ClassLevel * 1.2" },
+            { type: "set_flag", flagId: "armorless_defense_shield_used", value: true },
+          ],
+        },
+      ],
       rules: [
         {
           type: "modifier",
@@ -139,7 +182,7 @@
           target: "self",
           channel: "damage_dealt_multiplier",
           mode: "add",
-          formula: "ClassLevel",
+          formula: "10 + (ClassLevel * 0.4)",
           unit: "percent",
           whileStatus: "rage",
         },
@@ -147,27 +190,16 @@
           { path: "skill.affinity", operator: "eq", value: "Wrath" },
           { path: "skill.sinAffinity", operator: "eq", value: "Wrath" },
         ] }] },
-        {
-          type: "modifier",
-          trigger: "passive",
-          target: "self",
-          channel: "final_power",
-          mode: "add",
-          formula: "floor(ClassLevel / 30)",
-          whileStatus: "rage",
-          conditions: [{ any: [
-            { path: "skill.affinity", operator: "eq", value: "Wrath" },
-            { path: "skill.sinAffinity", operator: "eq", value: "Wrath" },
-          ] }],
-        },
       ],
     },
+
+
 
     reckless_attack: {
       schemaVersion: 1,
       id: "reckless_attack",
       name: "Reckless Attack",
-      description: "Quick Action, once per Turn. The next Skill makes all Coins Red; Coins already Red gain +1 Coin Power. On Hit with that Skill, gain 1 Fragile.",
+      description: "Quick Action, once per Turn. Enhance one Action Slot containing a Melee Skill. That Skill gains +3 Final Power; if it is Unopposed, it deals +10% Damage; and on its first Hit, gain 1 Fragile. Until Turn End, if targeted by an Unopposed attack, take +20% Damage.",
       source: classSource,
       contexts: ["combat"],
       activation: {
@@ -175,37 +207,142 @@
         actionCost: "quick_action",
         uses: { formula: "1", reset: "turn" },
       },
-      effects: [{
-        id: "reckless_attack_arm",
-        contexts: ["combat"],
-        trigger: "on_use",
-        conditions: [],
-        operations: [{ type: "apply_status", statusId: "reckless_attack_armed", duration: "next_skill" }],
-      }],
+      effects: [
+        {
+          id: "reckless_attack_arm",
+          contexts: ["combat"],
+          trigger: "on_use",
+          conditions: [],
+          operations: [
+            { type: "set_flag", flagId: "reckless_attack_armed", value: true },
+            { type: "set_flag", flagId: "reckless_attack_vulnerable", value: true },
+          ],
+        },
+        {
+          id: "reckless_attack_disarm",
+          contexts: ["combat"],
+          trigger: "attack_end",
+          conditions: [
+            { flagId: "reckless_attack_armed", operator: "truthy" },
+            { any: [
+              { path: "skill.attackMode", operator: "eq", value: "melee" },
+              { path: "skill.isMelee", operator: "truthy" },
+            ] },
+          ],
+          operations: [{ type: "clear_flag", flagId: "reckless_attack_armed" }],
+        },
+        {
+          id: "reckless_attack_turn_end_cleanup",
+          contexts: ["combat"],
+          trigger: "turn_end",
+          conditions: [],
+          operations: [
+            { type: "clear_flag", flagId: "reckless_attack_armed" },
+            { type: "clear_flag", flagId: "reckless_attack_vulnerable" },
+          ],
+        },
+      ],
       rules: [
-        { type: "coin", trigger: "before_skill", action: "set_type", target: "self", coinType: "unbreakable", displayType: "red", scope: "next_skill", whileStatus: "reckless_attack_armed", alreadyTypePowerBonus: 1 },
-        { type: "status", trigger: "on_hit", action: "gain", target: "self", statusId: "fragile", count: 1, scope: "next_skill", whileStatus: "reckless_attack_armed" },
-        { type: "status", trigger: "attack_end", action: "remove", target: "self", statusId: "reckless_attack_armed" },
+        {
+          type: "modifier",
+          trigger: "passive",
+          target: "self",
+          channel: "final_power",
+          mode: "add",
+          value: 3,
+          conditions: [
+            { flagId: "reckless_attack_armed", operator: "truthy" },
+            { any: [
+              { path: "skill.attackMode", operator: "eq", value: "melee" },
+              { path: "skill.isMelee", operator: "truthy" },
+            ] },
+          ],
+        },
+        {
+          type: "modifier",
+          trigger: "passive",
+          target: "self",
+          channel: "damage_dealt_multiplier",
+          mode: "add",
+          value: 10,
+          unit: "percent",
+          conditions: [
+            { flagId: "reckless_attack_armed", operator: "truthy" },
+            { path: "skill.__luminousUnopposed", operator: "truthy" },
+            { any: [
+              { path: "skill.attackMode", operator: "eq", value: "melee" },
+              { path: "skill.isMelee", operator: "truthy" },
+            ] },
+          ],
+        },
+        {
+          type: "status",
+          trigger: "on_hit",
+          action: "gain",
+          target: "self",
+          statusId: "fragile",
+          count: 1,
+          duration: "this_turn",
+          scope: "once_per_skill",
+          conditions: [
+            { flagId: "reckless_attack_armed", operator: "truthy" },
+            { any: [
+              { path: "skill.attackMode", operator: "eq", value: "melee" },
+              { path: "skill.isMelee", operator: "truthy" },
+            ] },
+          ],
+        },
+        {
+          type: "modifier",
+          trigger: "passive",
+          target: "self",
+          channel: "damage_taken_multiplier",
+          mode: "add",
+          value: 20,
+          unit: "percent_increase",
+          conditions: [
+            { flagId: "reckless_attack_vulnerable", operator: "truthy" },
+            { path: "skill.__luminousUnopposed", operator: "truthy" },
+          ],
+        },
       ],
     },
+
+
 
     danger_senses: {
       schemaVersion: 1,
       id: "danger_senses",
-      name: "Danger Senses",
-      description: "Reduce Dexterity check Difficulty by 4 before the roll resolves.",
+      name: "Danger Sense",
+      description: "Dexterity Save Power +4.",
       source: classSource,
-      contexts: ["theatre"],
+      contexts: ["combat", "theatre"],
       activation: { type: "passive", actionCost: "none" },
       effects: [{
-        id: "danger_senses_dex_check",
+        id: "danger_sense_dex_save",
         contexts: ["theatre"],
         trigger: "before_check",
-        conditions: [{ path: "check.abilityId", operator: "eq", value: "dex" }],
-        operations: [{ type: "modify", path: "check.difficulty", mode: "add", value: -4 }],
+        conditions: [
+          { path: "check.abilityId", operator: "in", value: ["dex", "dexterity", "destreza"] },
+          { path: "check.kind", operator: "eq", value: "save" },
+        ],
+        operations: [{ type: "modify", path: "check.finalPower", mode: "add", value: 4 }],
       }],
-      rules: [],
+      rules: [{
+        type: "modifier",
+        trigger: "passive",
+        target: "self",
+        channel: "final_power",
+        mode: "add",
+        value: 4,
+        conditions: [
+          { path: "skill.type", operator: "eq", value: "save" },
+          { path: "skill.statUsed", operator: "in", value: ["dex", "dexterity", "destreza"] },
+        ],
+      }],
     },
+
+
 
     additional_attack: {
       schemaVersion: 1,
@@ -240,19 +377,29 @@
       schemaVersion: 1,
       id: "fast_movement",
       name: "Fast Movement",
-      description: "Gain +1 Min Speed.",
+      description: "While not wearing Heavy Armor, gain +1 Min Speed.",
       source: classSource,
       contexts: ["combat"],
       activation: { type: "passive", actionCost: "none" },
       effects: [],
-      rules: [{ type: "modifier", trigger: "passive", target: "self", channel: "min_speed", mode: "add", value: 1 }],
+      rules: [{
+        type: "modifier",
+        trigger: "passive",
+        target: "self",
+        channel: "min_speed",
+        mode: "add",
+        value: 1,
+        conditions: [{ path: "equipment.armorCategory", operator: "ne", value: "heavy" }],
+      }],
     },
+
+
 
     wild_instincts: {
       schemaVersion: 1,
       id: "wild_instincts",
       name: "Wild Instincts",
-      description: "At Encounter Start gain STR Mod Haste. While Surprised, Speed is not Halved.",
+      description: "[Encounter Start] Gain max(1, Strength Mod) Haste. While Surprised, Speed cannot be Halved.",
       source: classSource,
       contexts: ["combat"],
       activation: { type: "automatic", actionCost: "none" },
@@ -261,12 +408,14 @@
         contexts: ["combat"],
         trigger: "encounter_start",
         conditions: [],
-        operations: [{ type: "apply_status", statusId: "haste", count: { formula: "StrengthMod" }, duration: "encounter" }],
+        operations: [{ type: "apply_status", statusId: "haste", count: { formula: "max(1, StrengthMod)" }, duration: "this_turn" }],
       }],
       rules: [
         { type: "speed_override", trigger: "passive", target: "self", action: "ignore_halving", whileStatus: "surprised" },
       ],
     },
+
+
 
     brutal_critical: {
       schemaVersion: 1,

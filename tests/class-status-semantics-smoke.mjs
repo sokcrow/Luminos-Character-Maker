@@ -58,9 +58,17 @@ assert.equal(library.has('haste'), true, 'Wild Instincts may still apply the can
 const reckless = globalThis.LuminousTraitCatalogCore.getDefinition('reckless_attack');
 assert.ok(reckless, 'Reckless Attack must remain in the Trait catalog');
 const arm = reckless.effects.find((effect) => effect.id === 'reckless_attack_arm');
-assert.deepEqual(arm?.operations, [{ type: 'set_flag', flagId: 'reckless_attack_armed', value: true }]);
+assert.deepEqual(arm?.operations, [
+  { type: 'set_flag', flagId: 'reckless_attack_armed', value: true },
+  { type: 'set_flag', flagId: 'reckless_attack_vulnerable', value: true },
+]);
 const disarm = reckless.effects.find((effect) => effect.id === 'reckless_attack_disarm');
 assert.deepEqual(disarm?.operations, [{ type: 'clear_flag', flagId: 'reckless_attack_armed' }]);
+const turnEndCleanup = reckless.effects.find((effect) => effect.id === 'reckless_attack_turn_end_cleanup');
+assert.deepEqual(turnEndCleanup?.operations, [
+  { type: 'clear_flag', flagId: 'reckless_attack_armed' },
+  { type: 'clear_flag', flagId: 'reckless_attack_vulnerable' },
+]);
 assert.equal(reckless.effects.some((effect) => (effect.operations || []).some((op) => op.type === 'apply_status' && op.statusId === 'reckless_attack_armed')), false);
 assert.equal(reckless.rules.some((rule) => rule.statusId === 'reckless_attack_armed'), false);
 for (const rule of reckless.rules.filter((rule) => ['coin', 'status'].includes(rule.type))) {

@@ -106,14 +106,16 @@ assert.ok(
 assert.deepEqual(leftovers, [], "No recognized player-facing formula may remain after shared display resolution.");
 
 const armorless = renderResolvedText(api, definitions.armorless_defense, runtime).text;
-assert.match(armorless, /Gain \+7 Defensive Level\./);
-assert.match(armorless, /Gain 100% Max HP as Shield/);
+assert.match(armorless, /gain \+3\.5 Defensive Level\./);
+assert.match(armorless, /gain 120 Shield/);
 assert.doesNotMatch(armorless, /stitution Mod/);
 
-const rage = renderResolvedText(api, definitions.rage, runtime).text;
-assert.match(rage, /Rage scaling use Barbarian Class Level/);
-assert.match(rage, /Uses=14/);
-assert.match(rage, /Final Power=3/);
+const rageRendered = renderResolvedText(api, definitions.rage, runtime);
+const rage = rageRendered.text;
+assert.match(rage, /deal \+50% additional Damage/);
+assert.match(rage, /reduce Slash\/Pierce\/Blunt Damage by 50%/);
+assert.equal(rageRendered.resolved.values.rageUses.value, 14);
+assert.doesNotMatch(rage, /Final Power/);
 
 const cunning = renderResolvedText(api, definitions.cunning_action, runtime).text;
 assert.match(cunning, /Gain \+5 Max Speed, \+10 Defense Power/);
