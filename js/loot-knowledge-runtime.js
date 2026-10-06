@@ -130,11 +130,14 @@
     const context = lootInstance.context || options.context || {};
     const facts = [];
     if (context.provenance?.zoneProfileId || context.provenance?.zoneId) {
-      facts.push(makeFact("environment", "encounter_zone", {
+      const zoneValue = {
         zoneId: context.provenance?.zoneId ?? null,
         zoneProfileId: context.provenance?.zoneProfileId ?? null,
         tags: uniqueStrings(context.tags || []),
-      }, { ...options, source: options.source || "examine" }));
+      };
+      facts.push(makeFact("environment", "encounter_zone", zoneValue, { ...options, source: options.source || "examine" }));
+      const variantId = normalizeId(context.provenance?.zoneProfileId || context.provenance?.zoneId);
+      if (variantId) facts.push(makeFact("environment", `zone_variant_${variantId}`, zoneValue, { ...options, source: options.source || "examine" }));
     }
     const eventTypes = uniqueStrings(context.provenance?.eventTypes || []);
     if (eventTypes.length) {
@@ -159,12 +162,31 @@
       }));
     }
     if ((postCombatState.currency?.discoveredBy || []).length || (postCombatState.currency?.recoveredBy || []).length || postCombatState.currency?.remaining === 0) {
+      const amount = numberOr(postCombatState.currency?.amount, 0);
       facts.push(makeFact("loot", "observed_currency", {
         currencyId: normalizeId(postCombatState.currency?.currencyId || "ahn"),
-        observedAmount: numberOr(postCombatState.currency?.amount, 0),
+        minObserved: amount,
+        maxObserved: amount,
       }, { ...options, source: options.source || "search" }));
     }
     return facts;
+  }
+
+  function edibleResourceFacts(unit = {}, options = {}) {
+    if (unit.bodyProfile?.edible !== true) return [];
+    const edibleFamilies = new Set(["meat", "ooze_gel", "raw_fiber"]);
+    const resources = (unit.bodyProfile?.resources || [])
+      .filter((resource) => edibleFamilies.has(normalizeId(resource.integrityFamily)))
+      .map((resource) => ({
+        resourceId: normalizeId(resource.id ?? resource.integrityFamily),
+        integrityFamily: normalizeId(resource.integrityFamily),
+        sourceMaterial: normalizeId(resource.sourceMaterial),
+      }));
+    if (!resources.length) return [];
+    return [makeFact("loot", "edible_resources", resources, {
+      ...options,
+      source: options.source || "autopsy_medicine",
+    })];
   }
 
   function rarityFacts(unit = {}, options = {}) {
@@ -259,6 +281,7 @@
       facts = [
         ...bodyFacts(unit, { ...common, source: "autopsy_medicine" }),
         ...harvestFacts(unit, postCombatState, { ...common, source: "autopsy_medicine" }),
+        ...edibleResourceFacts(unit, { ...common, source: "autopsy_medicine" }),
       ];
     } else if (skill === "investigation") {
       facts = [
@@ -296,6 +319,49 @@
     };
   }
 
+  function mergeArrayByKey(prior = [], next = [], keyFn) {
+    const map = new Map();
+    for (const value of [...(prior || []), ...(next || [])]) map.set(keyFn(value), clone(value));
+    return [...map.values()];
+  }
+
+  function mergeFactValue(priorFact, nextFact) {
+    const id = String(nextFact?.id || "");
+    const prior = priorFact?.value;
+    const next = nextFact?.value;
+
+    if (id === "loot.observed_carried_items" && Array.isArray(next)) {
+      return [...new Set([...(Array.isArray(prior) ? prior : []), ...next].map(normalizeId).filter(Boolean))];
+    }
+    if (id === "loot.observed_currency" && next && typeof next === "object") {
+      if (!prior || normalizeId(prior.currencyId) !== normalizeId(next.currencyId)) return clone(next);
+      return {
+        currencyId: normalizeId(next.currencyId),
+        minObserved: Math.min(numberOr(prior.minObserved, next.minObserved), numberOr(next.minObserved, prior.minObserved)),
+        maxObserved: Math.max(numberOr(prior.maxObserved, next.maxObserved), numberOr(next.maxObserved, prior.maxObserved)),
+      };
+    }
+    if (id === "loot.observed_equipment" && Array.isArray(next)) {
+      return mergeArrayByKey(Array.isArray(prior) ? prior : [], next, (entry) => JSON.stringify([
+        normalizeId(entry.definitionId),
+        normalizeId(entry.weaponId),
+        normalizeId(entry.equipmentId),
+        normalizeId(entry.range),
+        normalizeId(entry.ammoType),
+      ]));
+    }
+    if (id === "biology.harvestable_resources" && Array.isArray(next)) {
+      return mergeArrayByKey(Array.isArray(prior) ? prior : [], next, (entry) => normalizeId(entry.id || entry.resourceId || entry.integrityFamily));
+    }
+    if (id === "loot.edible_resources" && Array.isArray(next)) {
+      return mergeArrayByKey(Array.isArray(prior) ? prior : [], next, (entry) => normalizeId(entry.resourceId || entry.integrityFamily));
+    }
+    if (id === "loot.known_rarity_labels" && Array.isArray(next)) {
+      return mergeArrayByKey(Array.isArray(prior) ? prior : [], next, (entry) => normalizeId(entry.itemId));
+    }
+    return clone(next);
+  }
+
   function mergeFacts(compendium = {}, unitId, facts = [], options = {}) {
     const id = normalizeId(unitId);
     if (!id) throw new Error("COMPENDIUM_UNIT_ID_REQUIRED");
@@ -310,7 +376,7 @@
       entry.facts[fact.id] = {
         ...(prior || {}),
         ...fact,
-        value: clone(fact.value),
+        value: mergeFactValue(prior, fact),
         provenance: clone(fact.provenance || prior?.provenance || {}),
         visibility: normalizeId(options.visibility || fact.visibility || prior?.visibility || "private"),
       };
@@ -475,12 +541,15 @@
     equipmentFacts,
     contextFacts,
     observedLootFacts,
+    edibleResourceFacts,
     rarityFacts,
     combatObservationFacts,
     highMarginStatFacts,
     discoverPostCombatFacts,
     createCompendium,
     entryFor,
+    mergeArrayByKey,
+    mergeFactValue,
     mergeFacts,
     addNote,
     selectFacts,
