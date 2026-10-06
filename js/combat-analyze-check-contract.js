@@ -61,7 +61,7 @@
   }
 
   function genericCheck(options = {}) {
-    const threshold = numberOr(options.threshold ?? options.dc, null);
+    const threshold = numberOr(options.threshold ?? options.dc, 10);
     return Object.freeze({
       type: "check",
       check: Object.freeze({
