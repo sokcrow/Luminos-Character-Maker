@@ -8,6 +8,7 @@
   const decoratedUnits = typeof WeakSet === "function" ? new WeakSet() : null;
   const resolvingUnits = typeof WeakSet === "function" ? new WeakSet() : null;
   let derivedLoaderStarted = false;
+  let movementLoaderStarted = false;
 
   function ensureDerivedStatsRuntime() {
     if (global.LuminousDerivedStatsRuntime) {
@@ -34,6 +35,29 @@
       doc.head?.appendChild(script);
     }
     script.addEventListener?.("load", () => global.LuminousDerivedStatsRuntime?.install?.(), { once: true });
+    return false;
+  }
+
+
+  function ensureMovementSpeedRuntime() {
+    if (global.LuminousMovementSpeedRuntime) return true;
+    if (typeof require === "function") {
+      try {
+        if (require("./movement-speed-runtime.js")) return true;
+      } catch (_) {}
+    }
+    const doc = global.document;
+    if (!doc || movementLoaderStarted) return false;
+    movementLoaderStarted = true;
+    let script = doc.getElementById("movement-speed-runtime-script");
+    if (!script) {
+      script = doc.createElement("script");
+      script.id = "movement-speed-runtime-script";
+      script.src = "js/movement-speed-runtime.js";
+      script.async = false;
+      script.dataset.engine = "movement-speed-v1";
+      doc.head?.appendChild(script);
+    }
     return false;
   }
 
@@ -83,14 +107,17 @@
     return numberOr(unit.speed, fallback);
   }
 
-  function baseSpeedRange(character, unit, baseSpeed) {
+  function baseSpeedRange(character, unit, baseSpeed, options = {}) {
+    ensureMovementSpeedRuntime();
+    const movementRange = global.LuminousMovementSpeedRuntime?.rangeForEntity?.(unit || character, options) || null;
+    if (movementRange) return { min: movementRange.min, max: movementRange.max, source: "movement-size", movementRange };
     const min = firstFinite(character, ["combatStats.minSpeed", "combatStats.min_speed", "minSpeed", "min_speed"])
       ?? firstFinite(unit, ["combatStats.minSpeed", "combatStats.min_speed", "minSpeed", "min_speed"])
       ?? baseSpeed;
     const max = firstFinite(character, ["combatStats.maxSpeed", "combatStats.max_speed", "maxSpeed", "max_speed"])
       ?? firstFinite(unit, ["combatStats.maxSpeed", "combatStats.max_speed", "maxSpeed", "max_speed"])
       ?? Math.max(min, baseSpeed);
-    return { min, max: Math.max(min, max) };
+    return { min, max: Math.max(min, max), source: "stored" };
   }
 
   function effectiveSpeed(unit, options = {}) {
@@ -115,7 +142,7 @@
       traits,
       context: "combat",
     });
-    const range = baseSpeedRange(character, unit, baseSpeed);
+    const range = baseSpeedRange(character, unit, baseSpeed, options);
     const passiveSpeed = numberOr(snapshot.modifiers?.speed, 0);
     const minSpeed = range.min + numberOr(snapshot.modifiers?.min_speed, 0) + passiveSpeed;
     const maxSpeed = Math.max(minSpeed, range.max + numberOr(snapshot.modifiers?.max_speed, 0) + passiveSpeed);
@@ -190,6 +217,7 @@
   }
 
   function install() {
+    ensureMovementSpeedRuntime();
     ensureDerivedStatsRuntime();
     const engine = global.CombatEngine;
     const modifiers = global.LuminousUniversalModifiers;
@@ -230,7 +258,7 @@
     return true;
   }
 
-  const api = Object.freeze({ effectiveSpeed, decorateSpeed, decorateKnownCombatants, rawSpeed, withResolvedSpeeds, ensureDerivedStatsRuntime, install });
+  const api = Object.freeze({ effectiveSpeed, decorateSpeed, decorateKnownCombatants, rawSpeed, withResolvedSpeeds, baseSpeedRange, ensureMovementSpeedRuntime, ensureDerivedStatsRuntime, install });
   global.LuminousUniversalSpeedRuntime = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 
