@@ -90,7 +90,7 @@
       schemaVersion: 2,
       metadata: {
         canonicalUnit: true, catalog: 'kobold-batch', rankModel: 'universal_normal_captain_leader',
-        hpModel: 'chassis_coefficient', naturalWorldLevelIsReferenceOnly: true, speedModel: 'movement_feet_plus_size',
+        hpModel: 'chassis_coefficient', naturalWorldLevelIsReferenceOnly: true, speedModel: 'movement_feet_plus_size', speedPending: false, physicalProfilePending: false,
         canonicalSourceName: cfg.canonicalSourceName || 'Kobold Warrior', canonicalSourceBook: cfg.canonicalSourceBook || 'Monster Manual (2025)', canonicalScores: true, canonicalProficiencies: true,
       },
     };
@@ -182,7 +182,8 @@
     const effectiveLevel = rankRuntime?.effectiveLevel ? rankRuntime.effectiveLevel(level, rank) : level * Number(profile.levelMultiplier || 1);
     const maxHp = Math.floor(Number(unit.mechanics.hpBase || 0) + effectiveLevel * Number(unit.mechanics.hpCoefficient || 0));
     const defensiveLevel = effectiveLevel + Number(unit.mechanics.defLvlMod || 0);
-    const baseSpeed = movementRuntime?.rangeForEntity?.(unit, { movementMode: opts.movementMode }) || { min: 1, max: 6, mode: unit.preferredMovementMode || 'ground' };
+    const baseSpeed = movementRuntime?.rangeForEntity?.(unit, { movementMode: opts.movementMode });
+    if (!baseSpeed) throw new Error('MOVEMENT_SPEED_RUNTIME_REQUIRED:kobold');
     const sb = unit.mechanics.speedBonus || {};
     const minSpeed = Math.max(1, Number(baseSpeed.min || 1) + Number(sb.min || 0) + Number(profile.minSpeedBonus || 0));
     const maxSpeed = Math.max(2, minSpeed, Number(baseSpeed.max || 6) + Number(sb.max || 0) + Number(profile.maxSpeedBonus || 0));
