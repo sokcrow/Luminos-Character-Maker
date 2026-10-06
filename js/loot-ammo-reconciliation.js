@@ -66,6 +66,7 @@
     if (Number.isFinite(Number(explicit))) return intOr(explicit, 0);
     const runtime = global.LuminousUniversalRangedAmmoRuntime;
     if (runtime?.ammoCount) {
+      if (runtime.AMMO && !runtime.AMMO[id]) return null;
       const value = runtime.ammoCount(unit, id);
       if (Number.isFinite(Number(value))) return intOr(value, 0);
     }
