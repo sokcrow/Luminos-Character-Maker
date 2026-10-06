@@ -11,11 +11,50 @@
   const rangedAmmo = global.LuminousUniversalRangedAmmoRuntime || safeRequire('./universal-ranged-ammo-runtime.js');
   const goblinRuntime = global.LuminousGoblinUnitRuntime || safeRequire('./goblin-unit-runtime.js');
   const skillCatalog = global.LuminousGoblinTier1SkillCatalog || safeRequire('./skill-catalog-goblin-tier1.js');
+  const lootContract = global.LuminousUnitLootProfileContract || safeRequire('./unit-loot-profile-contract.js');
 
   const STAGGER_THRESHOLDS = Object.freeze([75, 50, 25]);
   const RACIAL_TRAIT_IDS = Object.freeze(['goblin_fury_of_small', 'goblin_nimble_escape']);
   const GOBLIN_SCORES = Object.freeze({ str: 8, dex: 15, con: 10, int: 10, wis: 9, cha: 8 });
   const GOBLIN_BOSS_SCORES = Object.freeze({ str: 10, dex: 16, con: 12, int: 11, wis: 10, cha: 12 });
+
+  const GOBLIN_LOOT_PROFILES = lootContract?.createProfiles ? lootContract.createProfiles({
+    bodyProfile: {
+      kind: 'organic',
+      materials: ['flesh', 'blood', 'bone'],
+      resources: [
+        { id: 'flesh', integrityFamily: 'meat', sourceMaterial: 'flesh' },
+        { id: 'bones', integrityFamily: 'hard_parts', sourceMaterial: 'bone' },
+        { id: 'internal_organs', integrityFamily: 'organ_internal', sourceMaterial: 'flesh' },
+        { id: 'sensory_organs', integrityFamily: 'organ_sensory', sourceMaterial: 'flesh' },
+        { id: 'brain', integrityFamily: 'organ_brain', sourceMaterial: 'flesh' },
+        { id: 'glands', integrityFamily: 'organ_gland', sourceMaterial: 'flesh' },
+        { id: 'blood', integrityFamily: 'blood_ichor', sourceMaterial: 'blood' },
+      ],
+    },
+    lootProfile: {
+      carried: [],
+      equipment: { source: 'unit_loadout' },
+      currency: null,
+      harvest: { source: 'body_profile' },
+      impossibleCategories: [],
+      notes: 'Base profile only. Wealth, Encounter Zone and Event modifiers are resolved by later Loot Update slices.',
+    },
+  }) : Object.freeze({
+    bodyProfile: Object.freeze({
+      version: 1, kind: 'organic', materials: Object.freeze(['flesh', 'blood', 'bone']), edible: false,
+      resources: Object.freeze([
+        Object.freeze({ id: 'flesh', integrityFamily: 'meat', sourceMaterial: 'flesh', yield: null }),
+        Object.freeze({ id: 'bones', integrityFamily: 'hard_parts', sourceMaterial: 'bone', yield: null }),
+        Object.freeze({ id: 'internal_organs', integrityFamily: 'organ_internal', sourceMaterial: 'flesh', yield: null }),
+        Object.freeze({ id: 'sensory_organs', integrityFamily: 'organ_sensory', sourceMaterial: 'flesh', yield: null }),
+        Object.freeze({ id: 'brain', integrityFamily: 'organ_brain', sourceMaterial: 'flesh', yield: null }),
+        Object.freeze({ id: 'glands', integrityFamily: 'organ_gland', sourceMaterial: 'flesh', yield: null }),
+        Object.freeze({ id: 'blood', integrityFamily: 'blood_ichor', sourceMaterial: 'blood', yield: null }),
+      ]),
+    }),
+    lootProfile: Object.freeze({ version: 1, carried: Object.freeze([]), equipment: Object.freeze({ source: 'unit_loadout' }), currency: null, harvest: Object.freeze({ source: 'body_profile' }), impossibleCategories: Object.freeze([]) }),
+  });
 
   const FALLBACK_RANKS = Object.freeze({
     normal: Object.freeze({ id: 'normal', levelMultiplier: 1, minSpeedBonus: 0, maxSpeedBonus: 0, applyBonus: 0, basePowerBonus: 0, commandLevel: 0, aiCoordination: 'independent', targetPriority: 'random', turnEndSpRecovery: 0 }),
@@ -59,6 +98,7 @@
       id: 'goblin', name: 'Goblin', species: 'goblin', variant: 'standard', unitType: 'enemy', actorCategory: 'enemy', faction: 'enemy', isPlayer: false,
       naturalWorldLevel: Object.freeze({ min: 2, max: 4 }), baseLevel: Object.freeze({ min: 2, max: 4 }),
       scores: GOBLIN_SCORES,
+      bodyProfile: GOBLIN_LOOT_PROFILES.bodyProfile, lootProfile: GOBLIN_LOOT_PROFILES.lootProfile,
       hpBase: 7, hpCoefficient: 0.21,
       size: 'goblin',
       traitIds: Object.freeze([...RACIAL_TRAIT_IDS, AMMO_ARROWS.id]),
@@ -88,6 +128,7 @@
       id: 'goblin_boss', name: 'Goblin Boss', species: 'goblin', variant: 'boss', unitType: 'enemy', actorCategory: 'enemy', faction: 'enemy', isPlayer: false,
       naturalWorldLevel: Object.freeze({ min: 5, max: 5 }), baseLevel: Object.freeze({ min: 5, max: 5 }),
       scores: GOBLIN_BOSS_SCORES,
+      bodyProfile: GOBLIN_LOOT_PROFILES.bodyProfile, lootProfile: GOBLIN_LOOT_PROFILES.lootProfile,
       hpBase: 21, hpCoefficient: 0.24,
       size: 'goblin',
       traitIds: Object.freeze([...RACIAL_TRAIT_IDS, AMMO_JAVELIN.id, MULTI_ATTACK.id, REDIRECT_ATTACK.id]),
