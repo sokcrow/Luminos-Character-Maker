@@ -543,7 +543,18 @@
     return true;
   }
 
+  function ensureMobileStyles() {
+    if (!global.document?.head || global.document.getElementById("combat-mobile-runtime-stylesheet")) return;
+    const link = global.document.createElement("link");
+    link.id = "combat-mobile-runtime-stylesheet";
+    link.rel = "stylesheet";
+    link.href = "css/combat-mobile-runtime.css?v=20261006-mobile-combat-1";
+    link.dataset.ui = "combat-mobile-runtime";
+    global.document.head.appendChild(link);
+  }
+
   function ensureStyles() {
+    ensureMobileStyles();
     if (!global.document || global.document.getElementById("combat073-economy-tabs-style")) return;
     const style = global.document.createElement("style");
     style.id = "combat073-economy-tabs-style";
