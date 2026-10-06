@@ -557,3 +557,38 @@ body.player-mobile-runtime #player-instance-blackout {
     min-height: 44px !important;
   }
 }
+
+
+/* Theatre must own the mobile game surface whenever the cellphone is closed.
+   The legacy cellphone wrapper is intentionally higher on desktop, so mobile
+   needs an explicit stacking contract instead of relying on incidental z-indexes. */
+@media (orientation: landscape) and (pointer: coarse) {
+  body.player-mobile-runtime.player-instance-theatre:not(.player-cellphone-surface-open) #theatre-view-player {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 12000 !important;
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    background-position: center center !important;
+  }
+
+  body.player-mobile-runtime.player-instance-theatre:not(.player-cellphone-surface-open) .sheet-phone-wrapper {
+    z-index: 1000 !important;
+  }
+
+  body.player-mobile-runtime.player-instance-theatre:not(.player-cellphone-surface-open) .hud-sidebar-right {
+    z-index: 13000 !important;
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+
+  body.player-mobile-runtime.player-instance-theatre:not(.player-cellphone-surface-open) #theatre-view-player > #theatre-stage,
+  body.player-mobile-runtime.player-instance-theatre:not(.player-cellphone-surface-open) #theatre-view-player .theatre-dialogue-wrapper,
+  body.player-mobile-runtime.player-instance-theatre:not(.player-cellphone-surface-open) #theatre-view-player .theatre-location {
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+}
