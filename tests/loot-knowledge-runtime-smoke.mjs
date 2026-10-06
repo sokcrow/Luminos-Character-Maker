@@ -5,6 +5,7 @@ globalThis.window = globalThis;
 await import("../js/item-inventory-runtime.js");
 await import("../js/item-harvest-integrity-engine.js");
 await import("../js/unit-loot-profile-contract.js");
+await import("../js/loot-encounter-context.js");
 await import("../js/loot-check-runtime.js");
 await import("../js/corpse-harvest-runtime.js");
 await import("../js/loot-instance-runtime.js");
