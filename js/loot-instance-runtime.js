@@ -425,9 +425,10 @@
       let quantity = 0;
       if (selected) {
         const rawQuantity = rollInt(rng, candidate.min, candidate.max);
+        const effectiveQuantityMultiplier = candidate.reconcilePostCombatAmmo === true ? 1 : quantityMultiplier;
         quantity = candidate.force
-          ? Math.max(1, Math.round(rawQuantity * quantityMultiplier))
-          : Math.max(0, Math.round(rawQuantity * quantityMultiplier));
+          ? Math.max(1, Math.round(rawQuantity * effectiveQuantityMultiplier))
+          : Math.max(0, Math.round(rawQuantity * effectiveQuantityMultiplier));
       }
 
       rolls.push(deepFreeze({
