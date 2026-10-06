@@ -365,3 +365,172 @@ body.player-mobile-runtime:not(.player-cellphone-surface-open) .sheet-limbus-mai
     max-width: 620px !important;
   }
 }
+
+
+/* ==================================================
+   MOBILE INSTANCE SURFACES
+   ================================================== */
+
+body.player-mobile-runtime #player-instance-blackout {
+  display: none !important;
+}
+
+#player-mobile-standby {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  padding:
+    max(20px, env(safe-area-inset-top))
+    max(20px, env(safe-area-inset-right))
+    max(20px, env(safe-area-inset-bottom))
+    max(20px, env(safe-area-inset-left));
+  box-sizing: border-box;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 48% 42%, rgba(128, 26, 33, 0.2), transparent 34%),
+    linear-gradient(135deg, #11100e 0%, #08090b 55%, #11100e 100%);
+}
+
+#player-mobile-standby[hidden] {
+  display: none !important;
+}
+
+.player-mobile-standby-card {
+  width: min(520px, 84vw);
+  padding: clamp(18px, 4vw, 28px);
+  border: 1px solid rgba(190, 154, 85, 0.55);
+  border-left: 4px solid #8e241d;
+  background: rgba(10, 10, 11, 0.82);
+  box-shadow: 0 14px 42px rgba(0, 0, 0, 0.56);
+  text-align: center;
+}
+
+.player-mobile-standby-title {
+  margin: 0 0 8px;
+  color: #e5c785;
+  font-family: "BebasKai", "Share Tech Mono", sans-serif;
+  font-size: clamp(1.5rem, 5.4vw, 2.35rem);
+  letter-spacing: 0.06em;
+}
+
+.player-mobile-standby-copy {
+  margin: 0;
+  color: rgba(236, 232, 220, 0.74);
+  font: 500 clamp(0.82rem, 2.8vw, 0.98rem)/1.4 "Roboto", Arial, sans-serif;
+}
+
+/* ==================================================
+   THEATRE — MOBILE LANDSCAPE COMPOSER
+   ================================================== */
+
+@media (orientation: landscape) and (pointer: coarse) {
+  body.player-mobile-runtime.player-instance-theatre #modal-escritura-teatro {
+    align-items: center !important;
+    justify-content: center !important;
+    padding:
+      max(8px, env(safe-area-inset-top))
+      max(10px, env(safe-area-inset-right))
+      max(8px, env(safe-area-inset-bottom))
+      max(10px, env(safe-area-inset-left)) !important;
+    box-sizing: border-box !important;
+    background: rgba(4, 4, 5, 0.72) !important;
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+  }
+
+  body.player-mobile-runtime.player-instance-theatre #modal-escritura-teatro > div {
+    width: min(720px, 96vw) !important;
+    max-width: none !important;
+    max-height: calc(100dvh - 16px) !important;
+    min-height: 0 !important;
+    padding: clamp(12px, 3dvh, 18px) !important;
+    gap: clamp(8px, 2.4dvh, 12px) !important;
+    overflow-y: auto !important;
+    box-sizing: border-box !important;
+    border-width: 1px !important;
+    box-shadow: 0 16px 44px rgba(0, 0, 0, 0.68);
+  }
+
+  body.player-mobile-runtime.player-instance-theatre #modal-escritura-teatro h3 {
+    font-size: clamp(18px, 4.8dvh, 24px) !important;
+    line-height: 1 !important;
+  }
+
+  body.player-mobile-runtime.player-instance-theatre #theatre-modal-readonly-icon {
+    width: clamp(42px, 10dvh, 54px) !important;
+    height: clamp(42px, 10dvh, 54px) !important;
+    flex: 0 0 auto;
+  }
+
+  body.player-mobile-runtime.player-instance-theatre #theatre-modal-readonly-name {
+    font-size: clamp(18px, 4.6dvh, 24px) !important;
+  }
+
+  body.player-mobile-runtime.player-instance-theatre #theatre-modal-readonly-title {
+    font-size: clamp(12px, 3dvh, 15px) !important;
+  }
+
+  body.player-mobile-runtime.player-instance-theatre #contenedor-selectores-emocion {
+    gap: 8px !important;
+  }
+
+  body.player-mobile-runtime.player-instance-theatre #player-actor-select,
+  body.player-mobile-runtime.player-instance-theatre #player-tipo-dialogo-select,
+  body.player-mobile-runtime.player-instance-theatre #player-expression {
+    min-height: 44px !important;
+    padding: 8px 10px !important;
+    font-size: 15px !important;
+    box-sizing: border-box !important;
+  }
+
+  body.player-mobile-runtime.player-instance-theatre #input-teatro-modal {
+    display: block !important;
+    width: 100% !important;
+    min-height: clamp(72px, 21dvh, 118px) !important;
+    max-height: 30dvh !important;
+    padding: 10px 12px !important;
+    font-size: 16px !important;
+    line-height: 1.35 !important;
+    box-sizing: border-box !important;
+    resize: none !important;
+  }
+
+  body.player-mobile-runtime.player-instance-theatre #modal-escritura-teatro > div > div:last-child {
+    gap: 8px !important;
+  }
+
+  body.player-mobile-runtime.player-instance-theatre #btn-cerrar-escritura,
+  body.player-mobile-runtime.player-instance-theatre #btn-enviar-teatro-modal {
+    min-height: 46px !important;
+    min-width: 108px !important;
+    padding: 9px 18px !important;
+    font-size: 15px !important;
+    touch-action: manipulation;
+  }
+
+  /* Make the Theatre actions easy to reach without enlarging the whole HUD. */
+  body.player-mobile-runtime.player-instance-theatre #btn-abrir-escritura,
+  body.player-mobile-runtime.player-instance-theatre #btn-toggle-theatre-log-player {
+    border-color: rgba(208, 166, 78, 0.82) !important;
+  }
+}
+
+@media (orientation: landscape) and (pointer: coarse) and (max-height: 360px) {
+  body.player-mobile-runtime.player-instance-theatre #modal-escritura-teatro > div {
+    width: min(760px, 98vw) !important;
+    padding: 10px 12px !important;
+    gap: 7px !important;
+  }
+
+  body.player-mobile-runtime.player-instance-theatre #input-teatro-modal {
+    min-height: 66px !important;
+    max-height: 24dvh !important;
+  }
+
+  body.player-mobile-runtime.player-instance-theatre #btn-cerrar-escritura,
+  body.player-mobile-runtime.player-instance-theatre #btn-enviar-teatro-modal {
+    min-height: 44px !important;
+  }
+}

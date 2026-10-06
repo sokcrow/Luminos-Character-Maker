@@ -836,7 +836,8 @@
   function syncResponsiveMenuLayout() {
     const host = global.document?.getElementById?.("game-container");
     if (!host) return false;
-    const compact = Number(global.innerHeight || 0) <= 360 || Number(global.innerWidth || 0) <= 760;
+    const coarsePointer = global.matchMedia?.("(pointer: coarse)")?.matches === true;
+    const compact = coarsePointer || Number(global.innerHeight || 0) <= 360 || Number(global.innerWidth || 0) <= 760;
     const menu = activeMenu();
     host.classList.toggle("combat-compact-menu", compact);
     host.classList.toggle("combat-root-menu-active", compact && !menu);
