@@ -47,7 +47,7 @@ const profiles = lootContract.createProfiles({
     equipment: { source: "unit_loadout" },
     currency: { currencyId: "ahn", min: 50, max: 50, zeroAllowed: true },
     harvest: { source: "body_profile" },
-    impossibleCategories: ["gems"],
+    impossibleCategories: ["luxury"],
   },
 });
 
