@@ -18,6 +18,7 @@
     <link id="player-progression-tree-stylesheet" rel="stylesheet" href="css/player-progression-tree.css" />
     <link id="player-skills-hud-stylesheet" rel="stylesheet" href="css/player-skills-hud.css?v=20261005-player-menu-40px-force-1&skills=35px-1" />
     <link rel="stylesheet" href="css/player-companion-launcher.css?v=20261006-companion-1" />
+    <link rel="stylesheet" href="css/player-terminal-fullscreen.css?v=20261006-terminal-fullscreen-1" />
 
     <style>
       #system-loading-overlay {
@@ -7483,8 +7484,18 @@
         </div>
         <!-- End Phone Screen -->
         <div class="sheet-phone-navbar">
-          <button type="action" name="act_tab_home" class="sheet-home-btn">
+          <button type="action" name="act_tab_home" class="sheet-home-btn" title="Inicio" aria-label="Inicio">
             🔲
+          </button>
+          <button
+            type="button"
+            id="btn-terminal-fullscreen"
+            class="sheet-terminal-fullscreen-btn"
+            title="Pantalla completa"
+            aria-label="Abrir Terminal en pantalla completa"
+            aria-pressed="false"
+          >
+            <span class="sheet-terminal-fullscreen-icon" aria-hidden="true"></span>
           </button>
         </div>
       </div>
@@ -13516,6 +13527,7 @@
     <script src="js/player-contracts-runtime.js"></script>
     <script src="js/player-vitals-hud.js"></script>
     <script src="js/player-companion-launcher.js?v=20261006-companion-1"></script>
+    <script src="js/player-terminal-fullscreen.js?v=20261006-terminal-fullscreen-1"></script>
     <script src="hoja_personaje.js?v=20261004-shop-commerce-1"></script>
   </body>
 </html>
