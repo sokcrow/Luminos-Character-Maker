@@ -96,7 +96,7 @@
         skills: Object.freeze(skillRefs('wolf')), staggerThresholds: STAGGER_THRESHOLDS,
       }),
       metadata: Object.freeze({ canonicalUnit: true, catalog: 'wolf-batch', oneCaptainPerEncounter: true, physicalProfilePending: true, speedPending: true, scoresPending: true }),
-      schemaVersion: 2,
+      schemaVersion: 3,
     }),
 
     dire_wolf: Object.freeze({
@@ -121,7 +121,7 @@
         skills: Object.freeze(skillRefs('dire_wolf')), staggerThresholds: STAGGER_THRESHOLDS,
       }),
       metadata: Object.freeze({ canonicalUnit: true, catalog: 'wolf-batch', oneLeaderPerEncounter: true, physicalProfilePending: true, speedPending: true, scoresPending: true }),
-      schemaVersion: 2,
+      schemaVersion: 3,
     }),
   });
 
@@ -171,7 +171,7 @@
   function firebaseSkillPayload(schema) { if (!skillCatalog?.firebasePayload) throw new Error('WOLF_SKILL_CATALOG_REQUIRED'); return skillCatalog.firebasePayload(schema); }
 
   const api = Object.freeze({
-    version: '1.0.0', STAGGER_THRESHOLDS, PACK_TACTICS_ID, UNIVERSAL_RANKS, MEANING, HUNTING_HOWLING,
+    version: '1.1.0', STAGGER_THRESHOLDS, PACK_TACTICS_ID, UNIVERSAL_RANKS, MEANING, HUNTING_HOWLING,
     DEFINITIONS, get, list, resolve, resolveSkill, firebasePayload, firebaseSkillPayload,
   });
   global.LuminousWolfUnitCatalog = api;
