@@ -189,10 +189,26 @@
     return Object.freeze({ valid: errors.length === 0, errors: Object.freeze(errors) });
   }
 
+  function normalizeCustomRoles(source = {}) {
+    const out = {};
+    for (const [rawId, rawProfile] of Object.entries(source || {})) {
+      const id = normalizeId(rawId);
+      if (!id || !rawProfile || typeof rawProfile !== "object") continue;
+      out[id] = Object.freeze({
+        id,
+        carriedCategoryWeights: Object.freeze({ ...(rawProfile.carriedCategoryWeights || {}) }),
+        guaranteedEquipmentTags: Object.freeze(uniqueIds(rawProfile.guaranteedEquipmentTags)),
+        valuableLowCashAllowed: rawProfile.valuableLowCashAllowed === true,
+      });
+    }
+    return Object.freeze(out);
+  }
+
   function normalizeRoleProfile(profile = {}) {
     const roles = uniqueIds(profile.roles ?? profile.roleIds ?? profile.role);
     return Object.freeze({
       roles: Object.freeze(roles),
+      customRoles: normalizeCustomRoles(profile.customRoles),
       source: normalizeId(profile.source || "authored"),
     });
   }
@@ -200,9 +216,10 @@
   function validateRoleProfile(profile = {}) {
     const errors = [];
     const roles = uniqueIds(profile.roles ?? profile.roleIds ?? profile.role);
+    const customRoles = normalizeCustomRoles(profile.customRoles);
     if (!roles.length) errors.push("LOOT_ROLE_REQUIRED");
     for (const roleId of roles) {
-      if (!ROLE_PROFILES[roleId]) errors.push(`UNKNOWN_LOOT_ROLE:${roleId}`);
+      if (!ROLE_PROFILES[roleId] && !customRoles[roleId]) errors.push(`UNKNOWN_LOOT_ROLE:${roleId}`);
     }
     return Object.freeze({ valid: errors.length === 0, errors: Object.freeze(errors) });
   }
@@ -212,13 +229,14 @@
     return ROLE_PROFILES[id] ? Object.freeze(clone(ROLE_PROFILES[id])) : null;
   }
 
-  function mergeRoleModifiers(roleIds = []) {
+  function mergeRoleModifiers(roleIds = [], customRoles = {}) {
     const roles = uniqueIds(roleIds);
+    const authored = normalizeCustomRoles(customRoles);
     const categoryWeights = {};
     const guaranteedEquipmentTags = new Set();
     let valuableLowCashAllowed = false;
     for (const roleId of roles) {
-      const profile = ROLE_PROFILES[roleId];
+      const profile = ROLE_PROFILES[roleId] || authored[roleId];
       if (!profile) continue;
       for (const [category, weight] of Object.entries(profile.carriedCategoryWeights || {})) {
         categoryWeights[category] = (categoryWeights[category] ?? 1) * Number(weight || 0);
@@ -252,7 +270,7 @@
     const errors = [...wealthValidation.errors, ...roleValidation.errors];
     if (errors.length) return Object.freeze({ valid: false, errors: Object.freeze(errors) });
 
-    const roles = mergeRoleModifiers(role.roles);
+    const roles = mergeRoleModifiers(role.roles, role.customRoles);
     const categoryWeights = { ...roles.carriedCategoryWeights };
     for (const [category, weight] of Object.entries(wealthCategoryWeights(wealthProfile))) {
       categoryWeights[category] = (categoryWeights[category] ?? 1) * weight;
@@ -302,6 +320,7 @@
     isHumanoidEligible,
     normalizeWealthProfile,
     validateWealthProfile,
+    normalizeCustomRoles,
     normalizeRoleProfile,
     validateRoleProfile,
     roleProfile,
