@@ -115,6 +115,7 @@ assert.equal(canonicalUnits.length, 9);
 for (const unit of canonicalUnits) {
   assert.ok(unit.bodyProfile, `${unit.id} must expose bodyProfile`);
   assert.ok(unit.lootProfile, `${unit.id} must expose lootProfile`);
+  assert.ok(Number(unit.schemaVersion) >= 3, `${unit.id} must bump schemaVersion for canonical loot-profile migration`);
   const validation = contract.validateUnit(unit, { harvestEngine: harvest });
   assert.equal(validation.valid, true, `${unit.id}: ${validation.errors.join(", ")}`);
   assert.equal(unit.lootProfile.harvest.source, "body_profile");
