@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 globalThis.window = globalThis;
 
 globalThis.LuminousUniversalRangedAmmoRuntime = {
+  AMMO: { arrows: { id: "arrows" } },
   ammoCount(unit, ammoId) {
     return Number(unit?.liveAmmo?.[ammoId] ?? 0);
   },
