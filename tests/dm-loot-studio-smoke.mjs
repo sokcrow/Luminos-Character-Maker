@@ -262,7 +262,8 @@ for (const id of [
   assert.ok(html.includes(`id="${id}"`), `DM Loot Studio control missing: ${id}`);
 }
 assert.match(html, /Plantillas Custom \/ Compatibilidad/);
-assert.match(html, /LuminousDmLootStudio\.grantLegacyTemplateDrops/);
+assert.match(html, /window\.LuminousDmLootStudio/);
+assert.match(html, /studio\.grantLegacyTemplateDrops/);
 assert.doesNotMatch(
   html.slice(html.indexOf("// D. GENERADOR DE BOTÍN"), html.indexOf("// --- LÓGICA GESTIÓN DE ACTORES ---")),
   /inventario_stash[^\n]*\.push\(item\)/,
