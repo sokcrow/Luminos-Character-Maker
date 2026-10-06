@@ -318,6 +318,22 @@
         wrapper.style.removeProperty("--terminal-presentation-scale");
         doc.body?.classList.remove("player-terminal-pseudo-fullscreen");
       }
+
+      // Some mobile browsers consume the hardware Back action by leaving
+      // fullscreen before they pop history. Treat that as "close cellphone"
+      // instead of leaving a portrait phone stranded over the game.
+      if (
+        mobileCellphoneOpen
+        && isPhoneDevice()
+        && !global.LuminousPlayerMobileRuntime?.isFullscreenLike?.()
+      ) {
+        if (cellphoneHistoryActive && history.state?.luminousCellphoneOpen === true) {
+          try { history.back(); } catch (_) { finishCloseMobileCellphone(); }
+        } else {
+          finishCloseMobileCellphone();
+        }
+      }
+
       syncControls();
     };
 
