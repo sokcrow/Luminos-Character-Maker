@@ -83,7 +83,13 @@
     next.effects = (next.effects || []).map((effect) => {
       const patched = clone(effect);
       if (normalizeId(patched.id) === "reckless_attack_arm") {
-        patched.operations = [{ type: "set_flag", flagId: "reckless_attack_armed", value: true }];
+        const operations = (patched.operations || []).filter((operation) =>
+          !(normalizeId(operation?.type) === "apply_status" && normalizeId(operation?.statusId) === "reckless_attack_armed")
+        );
+        if (!operations.some((operation) => normalizeId(operation?.type) === "set_flag" && normalizeId(operation?.flagId) === "reckless_attack_armed")) {
+          operations.unshift({ type: "set_flag", flagId: "reckless_attack_armed", value: true });
+        }
+        patched.operations = operations;
       }
       return patched;
     });

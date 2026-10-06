@@ -85,8 +85,8 @@
     }
     const equipment = unit.equipment && typeof unit.equipment === "object" ? unit.equipment : {};
     const armor = equipment.armor && typeof equipment.armor === "object" ? equipment.armor : {};
-    const legacyType = normalizeId(unit.armorType || unit.armor_type || "none");
-    const category = normalizeId(armor.category || armor.type || legacyType || "none") || "none";
+    const legacyType = normalizeId(unit.armorType || unit.armor_type || unit.armorClassification || unit.armor_classification || "none");
+    const category = normalizeId(armor.category || armor.classification || armor.type || legacyType || "none") || "none";
     const armorEquipped = Boolean(
       armor.itemId || armor.id ||
       (category && !["none", "unarmored", "no_armor", "sin_armadura"].includes(category))
@@ -174,12 +174,15 @@
     return Boolean(traitState?.statuses?.[normalizeId(statusId)]);
   }
 
-  function conditionMatches(condition, runtime, character = runtime?.character || {}, trait = {}) {
+  function conditionMatches(condition, runtime, character = runtime?.character || {}, trait = {}, traitState = runtime?.traitState || {}) {
     if (!condition || typeof condition !== "object") return Boolean(condition);
-    if (Array.isArray(condition.all)) return condition.all.every((entry) => conditionMatches(entry, runtime, character, trait));
-    if (Array.isArray(condition.any)) return condition.any.some((entry) => conditionMatches(entry, runtime, character, trait));
-    if (condition.not) return !conditionMatches(condition.not, runtime, character, trait);
-    const left = condition.path ? getPath(runtime, condition.path) : condition.left;
+    if (Array.isArray(condition.all)) return condition.all.every((entry) => conditionMatches(entry, runtime, character, trait, traitState));
+    if (Array.isArray(condition.any)) return condition.any.some((entry) => conditionMatches(entry, runtime, character, trait, traitState));
+    if (condition.not) return !conditionMatches(condition.not, runtime, character, trait, traitState);
+    const flagId = condition.flagId ? normalizeId(condition.flagId) : null;
+    const left = flagId
+      ? (traitState?.flags?.[flagId] ?? runtime?.self?.__traitRuntimeFlags?.[flagId])
+      : condition.path ? getPath(runtime, condition.path) : condition.left;
     const right = condition.valueFormula != null && traitEngine?.evaluateFormula && traitEngine?.buildVariables
       ? traitEngine.evaluateFormula(condition.valueFormula, traitEngine.buildVariables(character || {}, runtime || {}, trait || {}))
       : condition.value;
@@ -243,7 +246,7 @@
     const equipment = options.equipment || resolveEquipment(unit);
     const traitState = options.traitState || {};
     const context = normalizeId(options.context || "combat");
-    const runtime = { context, character, self: unit, skill, equipment, target: options.target || null, targetedByAlly: Boolean(options.targetedByAlly), variables: options.variables || {} };
+    const runtime = { context, character, self: unit, skill, equipment, target: options.target || null, targetedByAlly: Boolean(options.targetedByAlly), variables: options.variables || {}, traitState };
     const output = emptyModifiers();
 
     (options.traits || []).forEach((trait) => {
@@ -251,7 +254,7 @@
       (trait.rules || []).forEach((rule) => {
         if (normalizeId(rule.type) !== "modifier" || normalizeId(rule.trigger || "passive") !== "passive") return;
         if (rule.whileStatus && !hasStatus(unit, rule.whileStatus, traitState)) return;
-        if (!(rule.conditions || []).every((condition) => conditionMatches(condition, runtime, character, trait))) return;
+        if (!(rule.conditions || []).every((condition) => conditionMatches(condition, runtime, character, trait, traitState))) return;
         const channel = channelForRule(rule);
         if (!channel) return;
         const amount = normalizeChannelAmount(channel, rule, valueForRule(rule, character, runtime, trait));

@@ -2159,14 +2159,26 @@ function initializeCharacterSheet() {
 
   // UI EVENT LISTENERS
   {
-    // Phone Toggle
+    // Celular: misma interfaz existente, con presentación contextual.
+    // Juego móvil = landscape; Celular abierto = fullscreen portrait.
     const toggleBtn = document.getElementById("btn-toggle-phone");
     const phoneWrapper = document.querySelector(".sheet-phone-wrapper");
+    const isPhoneDevice = (() => {
+      if (navigator.userAgentData && typeof navigator.userAgentData.mobile === "boolean") {
+        return navigator.userAgentData.mobile;
+      }
+      return /iPhone|iPod|Windows Phone|Mobi|Android.+Mobile/i.test(navigator.userAgent || "");
+    })();
+
     if (toggleBtn && phoneWrapper) {
-      toggleBtn.addEventListener("click", () => {
-        phoneWrapper.classList.toggle("phone-hidden");
-        const terminalHidden = phoneWrapper.classList.contains("phone-hidden");
-        if (terminalHidden) {
+      const syncCellphoneRuntime = () => {
+        const cellphoneHidden = phoneWrapper.classList.contains("phone-hidden");
+        toggleBtn.setAttribute("aria-expanded", cellphoneHidden ? "false" : "true");
+        toggleBtn.dataset.terminalOpen = cellphoneHidden ? "false" : "true";
+        toggleBtn.classList.toggle("is-terminal-open", !cellphoneHidden);
+        document.body.classList.toggle("player-terminal-open", !cellphoneHidden);
+
+        if (cellphoneHidden) {
           window.LuminousPlayerContractsRuntime?.dispose?.();
         } else {
           const activeTab =
@@ -2177,7 +2189,38 @@ function initializeCharacterSheet() {
             window.LuminousPlayerContractsRuntime?.init?.({ db, playerId });
           }
         }
+
         window.LuminousInstanceControl?.syncPlayerCombatOcclusion?.(document);
+      };
+
+      window.LuminousPlayerCellphoneRuntime = Object.freeze({
+        sync: syncCellphoneRuntime,
+        isPhoneDevice: () => isPhoneDevice,
+        isOpen: () => !phoneWrapper.classList.contains("phone-hidden"),
+      });
+
+      if (isPhoneDevice) {
+        document.body.classList.add("player-phone-device");
+        // No cargar una pantalla vertical sobre el juego horizontal.
+        phoneWrapper.classList.add("phone-hidden");
+        phoneWrapper.classList.remove("cellphone-native-surface");
+        document.body.classList.remove("player-cellphone-surface-open");
+        toggleBtn.title = "Celular";
+        toggleBtn.setAttribute("aria-label", "Abrir celular");
+        syncCellphoneRuntime();
+      }
+
+      toggleBtn.addEventListener("click", async () => {
+        if (isPhoneDevice) {
+          if (phoneWrapper.classList.contains("phone-hidden")) {
+            await window.LuminousPlayerTerminalFullscreen?.openMobileCellphone?.();
+          } else {
+            await window.LuminousPlayerTerminalFullscreen?.closeMobileCellphone?.();
+          }
+        } else {
+          phoneWrapper.classList.toggle("phone-hidden");
+        }
+        syncCellphoneRuntime();
       });
     }
 

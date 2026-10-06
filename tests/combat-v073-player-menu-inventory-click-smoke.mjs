@@ -30,10 +30,12 @@ const spellButton = fakeElement('button');
 spellButton.querySelector = (selector) => selector === 'img' ? spellIcon : null;
 spellButton.textContent = 'SPELLS';
 
+const documentListeners = new Map();
 const doc = {
   body: fakeElement('body'),
   head: fakeElement('head'),
   createElement: fakeElement,
+  addEventListener(type, handler) { documentListeners.set(type, handler); },
   getElementById(id) {
     if (id === 'category-body') return categoryBody;
     return null;
@@ -172,6 +174,34 @@ menu.confirmLegacyItemSelection(detailSelection);
 assert.ok(selected, 'confirming an Item must reach the packed selector');
 assert.equal(selected.type, 'items', 'confirmed Item plans must keep the plural type required by targeting and execution');
 assert.equal(selected.data.instanceId, 'med_live_1');
+
+globalThis.permanent = {
+  global: [{ id: 'analyse', name: 'Analyse', kind: 'action', actionCost: 'action', description: 'Inspect the target.' }],
+};
+globalThis.activeMenu = 'global';
+globalThis.navState = 'action';
+globalThis.selected = { type: 'global', data: globalThis.permanent.global[0] };
+globalThis.focusedIndex = 4;
+assert.equal(menu.installActionBackRecovery(), true, 'global Action details must install a Back recovery handler');
+
+let prevented = false;
+let stopped = false;
+const backTarget = {
+  closest(selector) { return selector.includes('#back') ? { id: 'back' } : null; },
+};
+documentListeners.get('click')?.({
+  target: backTarget,
+  preventDefault() { prevented = true; },
+  stopImmediatePropagation() { stopped = true; },
+});
+
+assert.equal(prevented, true, 'Back from Analyse must intercept the legacy broken navigation');
+assert.equal(stopped, true, 'Back recovery must stop the legacy handler from re-trapping the menu');
+assert.equal(globalThis.navState, 'category', 'Back from Analyse must return to the Global Actions category');
+assert.equal(globalThis.selected, null, 'Back from Analyse must clear the selected detail');
+assert.equal(globalThis.focusedIndex, 0, 'Back from Analyse must restore category focus');
+
+globalThis.activeMenu = 'items';
 
 menu.state.originals.planTargetRule = (source) => source.itemType === 'hp_healing' ? 'self' : 'enemy';
 assert.equal(
