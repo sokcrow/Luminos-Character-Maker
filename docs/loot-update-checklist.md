@@ -50,7 +50,7 @@ This document freezes the current scope and lets the Loot Update be completed in
 
 - [x] Define recoverable resources per Unit/Body Profile.
 - [x] Reuse `item-harvest-integrity-engine.js` for corpse damage/integrity.
-- [ ] Make combat damage affect final harvestable quality/yield.
+- [x] Make combat damage affect final harvestable quality/yield.
 - [x] Support meat.
 - [x] Support hide/pelt.
 - [x] Support hard parts / bones / structural parts.
@@ -62,8 +62,8 @@ This document freezes the current scope and lets the Loot Update be completed in
 - [x] Support venom/secretion.
 - [x] Support ooze/gel.
 - [x] Add salvage equivalents for metal, stone, mechanical and synthetic bodies.
-- [ ] Define quantity/yield ranges by body size/species/profile.
-- [ ] Track whether a resource is intact, damaged, contaminated or destroyed.
+- [x] Define quantity/yield ranges by body size/species/profile.
+- [x] Track whether a resource is intact, damaged, contaminated or destroyed.
 
 ## Wealth and social/economic profile
 
@@ -117,6 +117,7 @@ This document freezes the current scope and lets the Loot Update be completed in
 - [ ] Resolve Unit Profile + Body + Role + Wealth + Zone + Event + DM overrides.
 - [ ] Generate carried loot only once per Unit instance.
 - [ ] Freeze generated carried loot before player search actions.
+- [x] Reconcile ammunition from authoritative post-combat state before loot lock: remaining ammo plus surviving recovered projectiles; never regenerate spent ammo from the initial loadout.
 - [ ] Preserve actual equipped Items separately from hidden carried Items.
 - [ ] Generate/record currency once per Unit instance.
 - [ ] Generate corpse harvest capacity once using Body Profile and integrity.
@@ -141,7 +142,8 @@ This document freezes the current scope and lets the Loot Update be completed in
 - [ ] Harvest uses Survival (WIS) as the default practical field check.
 - [ ] Delicate organ/anatomical extraction uses Medicine (WIS).
 - [ ] Autopsy supports Medicine (WIS) and Investigation (INT) for different information.
-- [ ] Combat Analyze uses Perception (WIS) for observable combat information.
+- [ ] Wire generic Combat Analyze to Perception (WIS) for observable combat information.
+- [x] Define the generic Analyze resolution contract as Perception (WIS) while preserving class-feature bypass signals.
 - [ ] Use actual player/ally/NPC D&D modifiers, proficiency, half proficiency and expertise.
 - [ ] Use the existing Coin Engine instead of raw percentage rolls for player-facing checks.
 - [ ] Keep impossible loot at probability zero regardless of roll result.
@@ -149,7 +151,7 @@ This document freezes the current scope and lets the Loot Update be completed in
 
 ## Combat Analyze / Observation
 
-- [ ] Replace automatic Analyze resolution with a real Perception-based check.
+- [ ] Replace only the generic automatic Analyze path with a real Perception-based check; preserve Ranger Favored Enemy `bypassCheck` and Battle Master Know Your Enemy `bypassAnalyseCheck` automatic-success paths.
 - [ ] Use observable combat facts only.
 - [ ] Allow discovery of Speed-related information.
 - [ ] Allow discovery of used/observable Skills.
@@ -235,17 +237,19 @@ This document freezes the current scope and lets the Loot Update be completed in
 
 - [x] Add schema/unit tests for Loot Profiles.
 - [x] Add Body Profile validation.
-- [ ] Add impossible-loot regression tests.
+- [x] Add impossible-loot regression tests.
 - [ ] Add deterministic instance-generation tests.
 - [ ] Add Zone modifier tests.
 - [ ] Add Event modifier tests.
 - [ ] Add Wealth/Role interaction tests.
-- [ ] Add corpse-integrity/harvest integration tests.
+- [x] Add corpse-integrity/harvest integration tests.
 - [ ] Add Search/Harvest/Salvage finite-resource tests.
 - [ ] Add Compendium knowledge persistence tests.
 - [ ] Add private/share knowledge tests.
 - [ ] Add Inventory Runtime integration tests.
-- [ ] Add Battle Analyze regression tests when Analyze is wired.
+- [x] Add post-combat ammunition reconciliation regression tests.
+- [x] Add Analyze resolution-contract regression coverage for Ranger Favored Enemy and Battle Master Know Your Enemy bypasses.
+- [ ] Add Battle Analyze end-to-end regression tests when Analyze is wired into Battle Viewer.
 - [ ] Add DM Loot Studio smoke coverage.
 
 ## Explicitly deferred
