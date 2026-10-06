@@ -177,6 +177,8 @@ for (const item of grantedItems) {
   assert.equal(item.currentOwnerId, "player_1");
   assert.ok(item.instanceId);
   assert.ok(item.provenance?.sourceUnitId);
+  assert.equal(item.provenance.acquisitionMethod, "dm_grant");
+  assert.equal(item.provenance.grantedFromLootInstanceId, locked.lootInstanceId);
 }
 
 await assert.rejects(
