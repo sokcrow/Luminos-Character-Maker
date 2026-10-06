@@ -59,7 +59,7 @@
     button.setAttribute("aria-pressed", active ? "true" : "false");
     button.setAttribute(
       "aria-label",
-      active ? "Salir de pantalla completa" : "Abrir Terminal en pantalla completa"
+      active ? "Salir de pantalla completa" : "Abrir Celular en pantalla completa"
     );
     button.title = active ? "Salir de pantalla completa" : "Pantalla completa";
 

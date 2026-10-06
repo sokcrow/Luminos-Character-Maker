@@ -34,8 +34,8 @@
 
     if (!wrapper.id) wrapper.id = "player-personal-terminal";
     toggle.setAttribute("aria-controls", wrapper.id);
-    toggle.setAttribute("aria-label", "Abrir terminal");
-    toggle.title = "Terminal";
+    toggle.setAttribute("aria-label", "Abrir celular");
+    toggle.title = "Celular";
 
     if (wrapper.dataset.defaultVisibilityApplied !== "true") {
       wrapper.dataset.defaultVisibilityApplied = "true";
