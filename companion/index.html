@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0b0b0d">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -14,13 +14,35 @@
   <link rel="stylesheet" href="./css/companion.css">
 </head>
 <body>
-  <section id="device-gate" class="device-gate" hidden>
+  <section id="device-gate" class="gate-screen" hidden>
     <div class="gate-card">
       <img src="./assets/icon.svg" alt="" class="gate-icon">
       <p class="eyebrow">LIMBUS COMPANION</p>
-      <h1>Interfaz exclusiva para celular</h1>
-      <p>Abre esta misma ruta desde tu teléfono. El Companion no sustituye la interfaz de juego de escritorio.</p>
-      <p class="muted">El acceso por QR se añadirá cuando la URL pública del Companion quede fijada.</p>
+      <h1>Disponible desde celular</h1>
+      <p>Abre esta misma ruta desde tu teléfono para usar el Companion.</p>
+    </div>
+  </section>
+
+  <section id="mobile-entry-gate" class="gate-screen" hidden>
+    <div class="gate-card">
+      <img src="./assets/icon.svg" alt="" class="gate-icon">
+      <p class="eyebrow">LIMBUS COMPANION</p>
+      <h1>Usa tu teléfono en horizontal</h1>
+      <p>El Companion utiliza toda la pantalla para mantener controles, imágenes y texto a un tamaño cómodo.</p>
+      <button id="enter-companion" class="primary-button" type="button">Abrir en pantalla completa</button>
+      <p class="muted">Si tu navegador no puede rotar la pantalla automáticamente, gira el teléfono manualmente.</p>
+    </div>
+  </section>
+
+  <section id="orientation-gate" class="gate-screen" hidden>
+    <div class="gate-card">
+      <div class="rotate-device" aria-hidden="true">
+        <span></span>
+      </div>
+      <p class="eyebrow">LIMBUS COMPANION</p>
+      <h1>Gira tu teléfono</h1>
+      <p>Esta aplicación está diseñada para utilizarse en horizontal.</p>
+      <button id="retry-landscape" class="ghost-button" type="button">Intentar pantalla completa</button>
     </div>
   </section>
 
@@ -30,61 +52,57 @@
         <p class="eyebrow">LIMBUS</p>
         <h1>Companion</h1>
       </div>
-      <button id="install-app" class="ghost-button" type="button" hidden>Instalar</button>
+      <div class="topbar-actions">
+        <button id="fullscreen-app" class="ghost-button compact-button" type="button">Pantalla completa</button>
+        <button id="install-app" class="ghost-button compact-button" type="button" hidden>Instalar</button>
+      </div>
     </header>
 
     <main class="viewport">
-      <section class="identity-card">
-        <div>
-          <p class="eyebrow">FOUNDATION</p>
-          <h2>Companion v1</h2>
-        </div>
-        <span class="badge badge-pending">Firebase pendiente</span>
-      </section>
-
       <section class="route-view" data-view="home">
-        <article class="panel">
-          <p class="eyebrow">INICIO</p>
-          <h2>Base móvil separada</h2>
-          <p>Este scaffold valida la entrada móvil, navegación y PWA sin cargar ningún runtime de combate.</p>
+        <article class="panel hero-panel">
+          <p class="eyebrow">COMPANION</p>
+          <h2>Servicios del personaje</h2>
+          <p>Consulta desde aquí las funciones personales disponibles fuera del runtime de juego.</p>
         </article>
-        <div class="quick-grid">
-          <article class="mini-card"><span>Sesión</span><strong>Batch A.1</strong></article>
-          <article class="mini-card"><span>Economía</span><strong>Batch B</strong></article>
-          <article class="mini-card"><span>Contratos</span><strong>Batch B</strong></article>
-          <article class="mini-card"><span>Stash</span><strong>Solo lectura</strong></article>
+
+        <div class="quick-grid" aria-label="Servicios del Companion">
+          <article class="mini-card"><span>Economía</span><strong>Finanzas</strong></article>
+          <article class="mini-card"><span>Contratos</span><strong>Misiones</strong></article>
+          <article class="mini-card"><span>Stash</span><strong>Consulta</strong></article>
+          <article class="mini-card"><span>Perfil</span><strong>Personaje</strong></article>
         </div>
       </section>
 
       <section class="route-view" data-view="economy" hidden>
         <article class="panel">
           <p class="eyebrow">ECONOMÍA</p>
-          <h2>Reservado para Batch B</h2>
-          <p>Saldo, movimientos y pagos vivirán aquí. No se implementan escrituras económicas en este scaffold.</p>
+          <h2>Finanzas personales</h2>
+          <p>El saldo, movimientos y pagos del personaje aparecerán en esta sección.</p>
         </article>
       </section>
 
       <section class="route-view" data-view="contracts" hidden>
         <article class="panel">
           <p class="eyebrow">CONTRATOS</p>
-          <h2>Reservado para Batch B</h2>
-          <p>Esta vista consumirá únicamente los contratos relacionados con el jugador autenticado.</p>
+          <h2>Misiones y acuerdos</h2>
+          <p>Los contratos vinculados a tu personaje aparecerán en esta sección.</p>
         </article>
       </section>
 
       <section class="route-view" data-view="stash" hidden>
         <article class="panel">
           <p class="eyebrow">STASH</p>
-          <h2>Consulta solamente</h2>
-          <p>El Companion podrá consultar el Stash. No equipará, moverá, consumirá ni administrará el inventario activo.</p>
+          <h2>Consulta de almacenamiento</h2>
+          <p>Desde el Companion podrás revisar lo guardado en tu Stash. La gestión del inventario seguirá perteneciendo a la experiencia de PC.</p>
         </article>
       </section>
 
       <section class="route-view" data-view="profile" hidden>
         <article class="panel">
           <p class="eyebrow">PERFIL</p>
-          <h2>Reservado para sesión</h2>
-          <p class="muted">La resolución Firebase UID → jugador se conectará en el siguiente sub-batch de infraestructura.</p>
+          <h2>Tu personaje</h2>
+          <p class="muted">La información personal de la sesión aparecerá aquí.</p>
         </article>
       </section>
     </main>

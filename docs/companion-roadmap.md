@@ -13,15 +13,20 @@ La PC conserva el runtime de juego. El Companion concentra servicios personales 
 - Stash: visible desde Companion en modo de consulta solamente.
 - Firebase Auth y Realtime Database siguen siendo la fuente compartida de identidad/estado.
 - La restricción de teléfono es una decisión de UX, no una regla de seguridad de Firebase.
+- En teléfono, Companion se diseña para pantalla completa y orientación horizontal.
+- Si el navegador no permite forzar fullscreen/orientación, la UI pide al usuario girar el dispositivo en lugar de comprimir la interfaz en portrait.
 
 ## Batch A — Foundation
 
-Primer commit:
+Incluido:
 
 - Entrada independiente `/companion/`.
-- Shell móvil y navegación inferior.
+- Shell móvil y navegación propia.
 - Detección de teléfono; escritorio recibe una pantalla de derivación.
-- Manifest PWA, modo standalone y orientación vertical.
+- Manifest PWA con `display: fullscreen` y orientación `landscape`.
+- Entrada táctil para solicitar Fullscreen API y Orientation Lock cuando el navegador los soporta.
+- Gate de orientación: el Companion no renderiza su interfaz principal comprimida en portrait.
+- Layout horizontal que utiliza el ancho completo del teléfono y respeta safe areas.
 - Service worker limitado a recursos estáticos del shell.
 - Slots explícitos para Inicio, Economía, Contratos, Stash y Perfil.
 - Ningún listener de economía, contratos, inventario o combate.

@@ -2,7 +2,12 @@
   "use strict";
 
   const byId = (id) => document.getElementById(id);
+  const landscapeMedia = global.matchMedia("(orientation: landscape)");
+  const fullscreenMedia = global.matchMedia("(display-mode: fullscreen)");
+  const standaloneMedia = global.matchMedia("(display-mode: standalone)");
+
   let deferredInstallPrompt = null;
+  let launchAcknowledged = false;
 
   function isPhone() {
     if (navigator.userAgentData && typeof navigator.userAgentData.mobile === "boolean") {
@@ -12,12 +17,84 @@
     return /iPhone|iPod|Windows Phone|Mobi|Android.+Mobile/i.test(ua);
   }
 
-  function setDeviceMode() {
+  function isInstalledDisplayMode() {
+    return fullscreenMedia.matches || standaloneMedia.matches || navigator.standalone === true;
+  }
+
+  function isFullscreen() {
+    return Boolean(document.fullscreenElement) || fullscreenMedia.matches;
+  }
+
+  function isLandscape() {
+    return landscapeMedia.matches || global.innerWidth > global.innerHeight;
+  }
+
+  async function requestFullscreen() {
+    if (isFullscreen()) return true;
+
+    const root = document.documentElement;
+    const request = root.requestFullscreen
+      || root.webkitRequestFullscreen
+      || root.msRequestFullscreen;
+
+    if (typeof request !== "function") return false;
+
+    try {
+      await request.call(root, { navigationUI: "hide" });
+      return true;
+    } catch (_) {
+      try {
+        await request.call(root);
+        return true;
+      } catch (_) {
+        return false;
+      }
+    }
+  }
+
+  async function lockLandscape() {
+    const orientation = global.screen?.orientation;
+    if (!orientation || typeof orientation.lock !== "function") return false;
+
+    try {
+      await orientation.lock("landscape");
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function syncPresentation() {
     const phone = isPhone();
+    const installed = isInstalledDisplayMode();
+    const landscape = isLandscape();
+    const needsEntryGesture = phone && !installed && !launchAcknowledged;
+
     byId("device-gate").hidden = phone;
-    byId("mobile-app").hidden = !phone;
+    byId("mobile-entry-gate").hidden = !needsEntryGesture;
+    byId("orientation-gate").hidden = !phone || needsEntryGesture || landscape;
+    byId("mobile-app").hidden = !phone || needsEntryGesture || !landscape;
+
     document.documentElement.dataset.companionDevice = phone ? "phone" : "unsupported";
-    return phone;
+    document.documentElement.dataset.companionOrientation = landscape ? "landscape" : "portrait";
+
+    const fullscreenButton = byId("fullscreen-app");
+    if (fullscreenButton) {
+      fullscreenButton.hidden = isFullscreen() || installed;
+    }
+  }
+
+  async function enterPresentation() {
+    launchAcknowledged = true;
+
+    await requestFullscreen();
+    await lockLandscape();
+    syncPresentation();
+
+    if (!isLandscape()) {
+      byId("orientation-gate").hidden = false;
+      byId("mobile-app").hidden = true;
+    }
   }
 
   function showRoute(route) {
@@ -41,8 +118,30 @@
       const button = event.target.closest("[data-route]");
       if (button) showRoute(button.dataset.route);
     });
+
     global.addEventListener("hashchange", () => showRoute(location.hash.slice(1) || "home"));
     showRoute(location.hash.slice(1) || "home");
+  }
+
+  function bindPresentation() {
+    byId("enter-companion").addEventListener("click", enterPresentation);
+    byId("retry-landscape").addEventListener("click", enterPresentation);
+    byId("fullscreen-app").addEventListener("click", enterPresentation);
+
+    landscapeMedia.addEventListener?.("change", syncPresentation);
+    fullscreenMedia.addEventListener?.("change", syncPresentation);
+    standaloneMedia.addEventListener?.("change", syncPresentation);
+
+    global.addEventListener("orientationchange", syncPresentation);
+    global.addEventListener("resize", syncPresentation);
+    document.addEventListener("fullscreenchange", syncPresentation);
+
+    if (isInstalledDisplayMode()) {
+      launchAcknowledged = true;
+      lockLandscape().finally(syncPresentation);
+    } else {
+      syncPresentation();
+    }
   }
 
   function bindInstall() {
@@ -70,6 +169,7 @@
 
   function registerServiceWorker() {
     if (!("serviceWorker" in navigator)) return;
+
     global.addEventListener("load", () => {
       navigator.serviceWorker.register("./sw.js", { scope: "./" })
         .catch((error) => console.error("Companion service worker registration failed:", error));
@@ -77,7 +177,10 @@
   }
 
   function boot() {
-    if (!setDeviceMode()) return;
+    bindPresentation();
+
+    if (!isPhone()) return;
+
     bindNavigation();
     bindInstall();
     registerServiceWorker();
