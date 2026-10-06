@@ -58,7 +58,6 @@ const profiles = lootContract.createProfiles({
     carried: [
       { itemId: "ration", category: "food", rarity: "guaranteed", quantity: 2 },
       { itemId: "medkit", category: "medicine", chance: 1, min: 1, max: 2 },
-      { itemId: "luxury_case", category: "luxury", chance: 1, quantity: 1 },
       { itemId: "ammo_arrows", category: "ammunition", rarity: "guaranteed", quantity: 10, ammoId: "arrows", reconcilePostCombatAmmo: true },
     ],
     equipment: { source: "unit_loadout" },
@@ -129,6 +128,9 @@ const options = {
     },
   ],
   equipmentInstances: [liveSword],
+  carriedCandidates: [
+    { itemId: "luxury_case", category: "luxury", chance: 1, quantity: 1 },
+  ],
   damageRecord,
   catalog,
   now: 1000,
