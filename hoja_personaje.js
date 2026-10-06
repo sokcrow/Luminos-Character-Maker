@@ -2159,14 +2159,25 @@ function initializeCharacterSheet() {
 
   // UI EVENT LISTENERS
   {
-    // Phone Toggle
+    // Celular: una sola interfaz para PC y teléfono.
     const toggleBtn = document.getElementById("btn-toggle-phone");
     const phoneWrapper = document.querySelector(".sheet-phone-wrapper");
+    const isPhoneDevice = (() => {
+      if (navigator.userAgentData && typeof navigator.userAgentData.mobile === "boolean") {
+        return navigator.userAgentData.mobile;
+      }
+      return /iPhone|iPod|Windows Phone|Mobi|Android.+Mobile/i.test(navigator.userAgent || "");
+    })();
+
     if (toggleBtn && phoneWrapper) {
-      toggleBtn.addEventListener("click", () => {
-        phoneWrapper.classList.toggle("phone-hidden");
-        const terminalHidden = phoneWrapper.classList.contains("phone-hidden");
-        if (terminalHidden) {
+      const syncCellphoneRuntime = () => {
+        const cellphoneHidden = phoneWrapper.classList.contains("phone-hidden");
+        toggleBtn.setAttribute("aria-expanded", cellphoneHidden ? "false" : "true");
+        toggleBtn.dataset.terminalOpen = cellphoneHidden ? "false" : "true";
+        toggleBtn.classList.toggle("is-terminal-open", !cellphoneHidden);
+        document.body.classList.toggle("player-terminal-open", !cellphoneHidden);
+
+        if (cellphoneHidden) {
           window.LuminousPlayerContractsRuntime?.dispose?.();
         } else {
           const activeTab =
@@ -2177,7 +2188,26 @@ function initializeCharacterSheet() {
             window.LuminousPlayerContractsRuntime?.init?.({ db, playerId });
           }
         }
+
         window.LuminousInstanceControl?.syncPlayerCombatOcclusion?.(document);
+      };
+
+      if (isPhoneDevice) {
+        // En teléfono, el celular existente ES la superficie principal.
+        document.body.classList.add("player-phone-device");
+        phoneWrapper.classList.remove("phone-hidden");
+        toggleBtn.title = "Celular";
+        toggleBtn.setAttribute("aria-label", "Celular");
+        syncCellphoneRuntime();
+      }
+
+      toggleBtn.addEventListener("click", () => {
+        if (isPhoneDevice) {
+          phoneWrapper.classList.remove("phone-hidden");
+        } else {
+          phoneWrapper.classList.toggle("phone-hidden");
+        }
+        syncCellphoneRuntime();
       });
     }
 
