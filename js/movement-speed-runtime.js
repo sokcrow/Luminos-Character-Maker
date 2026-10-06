@@ -62,9 +62,11 @@
       max -= Math.ceil((BASELINE.movementFeet - feet) / 5);
     }
 
+    min = Math.max(BASELINE.minSpeed, Math.trunc(min));
+    max = Math.max(BASELINE.maxSpeedFloor, Math.trunc(max));
+
     max += sizeMaxSpeedModifier(sizeInput);
     max = Math.max(BASELINE.maxSpeedFloor, Math.trunc(max));
-    min = Math.trunc(min);
     if (min > max) min = max;
 
     return Object.freeze({
