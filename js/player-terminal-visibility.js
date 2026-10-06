@@ -9,6 +9,13 @@
   let classObserver = null;
   let bootstrapTimer = null;
 
+  function isPhoneDevice() {
+    if (navigator.userAgentData && typeof navigator.userAgentData.mobile === "boolean") {
+      return navigator.userAgentData.mobile;
+    }
+    return /iPhone|iPod|Windows Phone|Mobi|Android.+Mobile/i.test(navigator.userAgent || "");
+  }
+
   function getParts() {
     return {
       wrapper: doc.querySelector(".sheet-phone-wrapper"),
@@ -19,16 +26,19 @@
   function syncState() {
     const { wrapper, toggle } = getParts();
     if (!wrapper || !toggle) return false;
+
     const open = !wrapper.classList.contains("phone-hidden");
     wrapper.setAttribute("aria-hidden", open ? "false" : "true");
     toggle.setAttribute("aria-expanded", open ? "true" : "false");
     toggle.dataset.terminalOpen = open ? "true" : "false";
     toggle.classList.toggle("is-terminal-open", open);
     doc.body?.classList.toggle("player-terminal-open", open);
+
+    if (isPhoneDevice()) doc.body?.classList.add("player-phone-device");
     return true;
   }
 
-  function closeByDefault() {
+  function applyDefaultVisibility() {
     const { wrapper, toggle } = getParts();
     if (!wrapper || !toggle) return false;
 
@@ -39,7 +49,12 @@
 
     if (wrapper.dataset.defaultVisibilityApplied !== "true") {
       wrapper.dataset.defaultVisibilityApplied = "true";
-      wrapper.classList.add("phone-hidden");
+      if (isPhoneDevice()) {
+        wrapper.classList.remove("phone-hidden");
+        doc.body?.classList.add("player-phone-device");
+      } else {
+        wrapper.classList.add("phone-hidden");
+      }
     }
 
     syncState();
@@ -49,10 +64,11 @@
 
   function install() {
     if (installed) return true;
+
     const { wrapper, toggle } = getParts();
     if (!wrapper || !toggle) return false;
 
-    closeByDefault();
+    applyDefaultVisibility();
 
     toggle.addEventListener("click", () => {
       global.setTimeout(syncState, 0);
@@ -67,6 +83,7 @@
   function boot() {
     if (install()) return;
     if (bootstrapTimer) return;
+
     bootstrapTimer = global.setInterval(() => {
       if (install()) {
         global.clearInterval(bootstrapTimer);
@@ -81,8 +98,14 @@
   global.LuminousPlayerTerminalVisibility = Object.freeze({
     close: () => {
       const { wrapper } = getParts();
+      if (isPhoneDevice()) {
+        wrapper?.classList.remove("phone-hidden");
+        syncState();
+        return false;
+      }
       wrapper?.classList.add("phone-hidden");
       syncState();
+      return true;
     },
     sync: syncState,
     isOpen: () => {
