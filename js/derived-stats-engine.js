@@ -369,25 +369,25 @@
     const storedMin = readFirst(character, ["combatStats.minSpeed", "combatStats.min_speed", "minSpeed", "min_speed"], null);
     const storedMax = readFirst(character, ["combatStats.maxSpeed", "combatStats.max_speed", "maxSpeed", "max_speed"], null);
 
-    const baseMin = numberOr(
+    const baseMin = Math.max(1, numberOr(
       options.baseMinSpeed ?? movementRange?.min ?? storedMin ?? storedCurrent ?? 1,
       movementRange?.min ?? 1,
-    );
-    const baseMax = Math.max(baseMin, numberOr(
+    ));
+    const baseMax = Math.max(2, baseMin, numberOr(
       options.baseMaxSpeed ?? movementRange?.max ?? storedMax ?? storedCurrent ?? 6,
       movementRange?.max ?? 6,
     ));
-    const baseCurrent = numberOr(
+    const baseCurrent = Math.max(1, numberOr(
       options.baseSpeed ?? storedCurrent ?? baseMin,
       baseMin,
-    );
+    ));
 
     const passive = numberOr(channels.merged?.speed, 0);
     const minModifier = numberOr(channels.merged?.min_speed, 0);
     const maxModifier = numberOr(channels.merged?.max_speed, 0);
-    const min = baseMin + minModifier + passive;
-    const max = Math.max(min, baseMax + maxModifier + passive);
-    const current = Math.max(min, Math.min(max, baseCurrent + passive));
+    const min = Math.max(1, baseMin + minModifier + passive);
+    const max = Math.max(2, min, baseMax + maxModifier + passive);
+    const current = Math.max(min, Math.min(max, Math.max(1, baseCurrent + passive)));
     return Object.freeze({
       current,
       min,
