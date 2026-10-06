@@ -19,7 +19,8 @@
   const GOBLIN_BOSS_SCORES = Object.freeze({ str: 10, dex: 15, con: 10, int: 10, wis: 8, cha: 10 });
   const GOBLIN_PROFICIENCIES = Object.freeze({ savingThrows: Object.freeze({}), skills: Object.freeze({ stealth: 'expertise' }) });
   const GOBLIN_MOVEMENT = Object.freeze({ ground: 30 });
-  const GOBLIN_SENSES = Object.freeze({ darkvision: 60, passivePerception: 9 });
+  const GOBLIN_SENSES = Object.freeze({ darkvision: 60, darkvisionFt: 60, passivePerception: 9 });
+  const DARKVISION_RULES = Object.freeze({ ignoresDarkness: true });
 
   const FALLBACK_RANKS = Object.freeze({
     normal: Object.freeze({ id: 'normal', levelMultiplier: 1, minSpeedBonus: 0, maxSpeedBonus: 0, applyBonus: 0, basePowerBonus: 0, commandLevel: 0, aiCoordination: 'independent', targetPriority: 'random', turnEndSpRecovery: 0 }),
@@ -77,7 +78,7 @@
       action_slots: Object.freeze(skillRefs('goblin')),
       mechanics: Object.freeze({
         hpModel: 'chassis_coefficient', hpBase: 7, hpCoefficient: 0.21,
-        movementFeet: GOBLIN_MOVEMENT, preferredMovementMode: 'ground',
+        movementFeet: GOBLIN_MOVEMENT, preferredMovementMode: 'ground', darkvision: DARKVISION_RULES,
         build: Object.freeze(['pierced', 'bind', 'bleed']),
         ammoLoadout: Object.freeze([{ id: 'arrows', amount: 10 }]),
         ammunition: Object.freeze({ arrows: Object.freeze({ type: 'single', icon: 'https://imgur.com/ivdNbBA.png' }) }),
@@ -88,7 +89,7 @@
         skills: Object.freeze(skillRefs('goblin')),
         staggerThresholds: STAGGER_THRESHOLDS,
       }),
-      metadata: Object.freeze({ canonicalUnit: true, catalog: 'goblin-batch', spritePending: true, weaponSkillsPendingCanonicalCatalog: false, physicalProfilePending: false, speedPending: false, speedModel: 'movement_feet_plus_size', canonicalSourceName: 'Goblin Warrior', canonicalScores: true, canonicalProficiencies: true }),
+      metadata: Object.freeze({ canonicalUnit: true, catalog: 'goblin-batch', spritePending: true, weaponSkillsPendingCanonicalCatalog: false, physicalProfilePending: false, speedPending: false, speedModel: 'movement_feet_plus_size', canonicalSourceName: 'Goblin Warrior', canonicalSourceBook: 'Monster Manual (2025)', canonicalScores: true, canonicalProficiencies: true }),
       schemaVersion: 2,
     }),
 
@@ -110,7 +111,7 @@
       action_slots: Object.freeze(skillRefs('goblin_boss')),
       mechanics: Object.freeze({
         hpModel: 'chassis_coefficient', hpBase: 21, hpCoefficient: 0.24,
-        movementFeet: GOBLIN_MOVEMENT, preferredMovementMode: 'ground',
+        movementFeet: GOBLIN_MOVEMENT, preferredMovementMode: 'ground', darkvision: DARKVISION_RULES,
         build: Object.freeze(['pierced', 'bind', 'bleed']),
         ammoLoadout: Object.freeze([{ id: 'javelin', amount: 6 }]),
         ammunition: Object.freeze({ javelin: Object.freeze({ type: 'single', icon: 'https://imgur.com/3wBN5qk.png' }) }),
@@ -123,7 +124,7 @@
         redirectAttack: REDIRECT_ATTACK.mechanics || null,
         staggerThresholds: STAGGER_THRESHOLDS,
       }),
-      metadata: Object.freeze({ canonicalUnit: true, catalog: 'goblin-batch', alwaysCaptain: true, spritePending: true, weaponSkillsPendingCanonicalCatalog: false, physicalProfilePending: false, speedPending: false, speedModel: 'movement_feet_plus_size', canonicalSourceName: 'Goblin Boss', canonicalScores: true, canonicalProficiencies: true }),
+      metadata: Object.freeze({ canonicalUnit: true, catalog: 'goblin-batch', alwaysCaptain: true, spritePending: true, weaponSkillsPendingCanonicalCatalog: false, physicalProfilePending: false, speedPending: false, speedModel: 'movement_feet_plus_size', canonicalSourceName: 'Goblin Boss', canonicalSourceBook: 'Monster Manual (2025)', canonicalScores: true, canonicalProficiencies: true }),
       schemaVersion: 2,
     }),
   });
