@@ -212,6 +212,20 @@ assert.equal(legacyItem.provenance.acquisitionMethod, "dm_grant");
 assert.equal(legacyItem.provenance.sourceKind, "dm_custom_loot_template");
 assert.equal(legacyItem.provenance.templateId, "street_thug_custom");
 
+assert.equal(studio.isDeferredMagicDefinition({ tags: ["enchanted"] }), true);
+assert.equal(studio.isDeferredMagicDefinition({ category: "medicine" }), false);
+await assert.rejects(
+  () => studio.grantLegacyTemplateDrops({
+    db: legacyDb,
+    playerId: "player_legacy",
+    templateId: "magic_should_wait",
+    items: [
+      { itemId: "cursed_relic", definition: { id: "cursed_relic", name: "Cursed Relic", tags: ["cursed"] } },
+    ],
+  }),
+  /MAGIC_LOOT_DEFERRED/,
+);
+
 const fullPlayer = {
   id: "full",
   inventoryRules: { activeSlotLimit: 0, stashSlotLimit: 0 },
