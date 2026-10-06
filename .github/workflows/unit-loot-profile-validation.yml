@@ -9,7 +9,7 @@ on:
       - "js/unit-catalog-goblin.js"
       - "js/unit-catalog-wolf.js"
       - "js/combat-unit-library-sync.js"
-      - "tests/unit-loot-profile-contract-smoke.cjs"
+      - "tests/unit-loot-profile-contract-smoke.mjs"
       - ".github/workflows/unit-loot-profile-validation.yml"
   push:
     branches:
@@ -22,7 +22,7 @@ on:
       - "js/unit-catalog-goblin.js"
       - "js/unit-catalog-wolf.js"
       - "js/combat-unit-library-sync.js"
-      - "tests/unit-loot-profile-contract-smoke.cjs"
+      - "tests/unit-loot-profile-contract-smoke.mjs"
       - ".github/workflows/unit-loot-profile-validation.yml"
 
 jobs:
@@ -34,4 +34,4 @@ jobs:
         with:
           node-version: 20
       - name: Validate Unit Loot / Body Profile contracts
-        run: node tests/unit-loot-profile-contract-smoke.cjs
+        run: node tests/unit-loot-profile-contract-smoke.mjs
