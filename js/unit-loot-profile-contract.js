@@ -192,7 +192,9 @@
         id: normalizeId(resource.id ?? resource.resourceId ?? resource.integrityFamily ?? resource.family),
         integrityFamily: normalizeId(resource.integrityFamily ?? resource.family),
         sourceMaterial: normalizeId(resource.sourceMaterial ?? resource.material),
-        yield: normalizeYield(resource.yield || resource),
+        yield: resource.yield != null || resource.min != null || resource.max != null
+          ? normalizeYield(resource.yield || resource)
+          : null,
         ...(resource.notes ? { notes: String(resource.notes) } : {}),
       })),
       ...(profile.notes ? { notes: String(profile.notes) } : {}),
