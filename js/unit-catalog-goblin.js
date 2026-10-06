@@ -21,6 +21,7 @@
   const GOBLIN_LOOT_PROFILES = lootContract?.createProfiles ? lootContract.createProfiles({
     bodyProfile: {
       kind: 'organic',
+      sizeClass: 'small',
       materials: ['flesh', 'blood', 'bone'],
       resources: [
         { id: 'flesh', integrityFamily: 'meat', sourceMaterial: 'flesh' },
@@ -42,7 +43,7 @@
     },
   }) : Object.freeze({
     bodyProfile: Object.freeze({
-      version: 1, kind: 'organic', materials: Object.freeze(['flesh', 'blood', 'bone']), edible: false,
+      version: 1, kind: 'organic', sizeClass: 'small', materials: Object.freeze(['flesh', 'blood', 'bone']), edible: false,
       resources: Object.freeze([
         Object.freeze({ id: 'flesh', integrityFamily: 'meat', sourceMaterial: 'flesh', yield: null }),
         Object.freeze({ id: 'bones', integrityFamily: 'hard_parts', sourceMaterial: 'bone', yield: null }),
