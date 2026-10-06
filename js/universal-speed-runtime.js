@@ -109,6 +109,12 @@
 
   function baseSpeedRange(character, unit, baseSpeed, options = {}) {
     ensureMovementSpeedRuntime();
+    const explicit = Array.isArray(unit?.speedRange) && unit.speedRange.length >= 2
+      ? { min: Number(unit.speedRange[0]), max: Number(unit.speedRange[1]) }
+      : null;
+    if (explicit && Number.isFinite(explicit.min) && Number.isFinite(explicit.max)) {
+      return { min: Math.max(1, explicit.min), max: Math.max(2, explicit.min, explicit.max), source: "resolved-range" };
+    }
     const movementRange = global.LuminousMovementSpeedRuntime?.rangeForEntity?.(unit || character, options) || null;
     if (movementRange) return { min: movementRange.min, max: movementRange.max, source: "movement-size", movementRange };
     const min = Math.max(1, firstFinite(character, ["combatStats.minSpeed", "combatStats.min_speed", "minSpeed", "min_speed"])
