@@ -10,8 +10,50 @@
   const rankRuntime = global.LuminousUnitRankRuntime || safeRequire('./unit-rank-runtime.js');
   const skillCatalog = global.LuminousWolfSkillCatalog || safeRequire('./skill-catalog-wolf.js');
   const wolfRuntime = global.LuminousWolfUnitRuntime || safeRequire('./wolf-unit-runtime.js');
+  const lootContract = global.LuminousUnitLootProfileContract || safeRequire('./unit-loot-profile-contract.js');
   const STAGGER_THRESHOLDS = Object.freeze([75, 50, 25]);
   const PACK_TACTICS_ID = 'pack_tactics';
+
+  const WOLF_LOOT_PROFILES = lootContract?.createProfiles ? lootContract.createProfiles({
+    bodyProfile: {
+      kind: 'organic',
+      materials: ['flesh', 'blood', 'bone', 'pelt'],
+      edible: true,
+      resources: [
+        { id: 'meat', integrityFamily: 'meat', sourceMaterial: 'flesh' },
+        { id: 'pelt', integrityFamily: 'hide_pelt', sourceMaterial: 'pelt' },
+        { id: 'bones', integrityFamily: 'hard_parts', sourceMaterial: 'bone' },
+        { id: 'internal_organs', integrityFamily: 'organ_internal', sourceMaterial: 'flesh' },
+        { id: 'sensory_organs', integrityFamily: 'organ_sensory', sourceMaterial: 'flesh' },
+        { id: 'brain', integrityFamily: 'organ_brain', sourceMaterial: 'flesh' },
+        { id: 'glands', integrityFamily: 'organ_gland', sourceMaterial: 'flesh' },
+        { id: 'blood', integrityFamily: 'blood_ichor', sourceMaterial: 'blood' },
+      ],
+    },
+    lootProfile: {
+      carried: [],
+      equipment: { source: 'none' },
+      currency: null,
+      harvest: { source: 'body_profile' },
+      impossibleCategories: [],
+      notes: 'Natural animal base profile. Encounter Events may add contextual carried objects in later Loot Update slices.',
+    },
+  }) : Object.freeze({
+    bodyProfile: Object.freeze({
+      version: 1, kind: 'organic', materials: Object.freeze(['flesh', 'blood', 'bone', 'pelt']), edible: true,
+      resources: Object.freeze([
+        Object.freeze({ id: 'meat', integrityFamily: 'meat', sourceMaterial: 'flesh', yield: null }),
+        Object.freeze({ id: 'pelt', integrityFamily: 'hide_pelt', sourceMaterial: 'pelt', yield: null }),
+        Object.freeze({ id: 'bones', integrityFamily: 'hard_parts', sourceMaterial: 'bone', yield: null }),
+        Object.freeze({ id: 'internal_organs', integrityFamily: 'organ_internal', sourceMaterial: 'flesh', yield: null }),
+        Object.freeze({ id: 'sensory_organs', integrityFamily: 'organ_sensory', sourceMaterial: 'flesh', yield: null }),
+        Object.freeze({ id: 'brain', integrityFamily: 'organ_brain', sourceMaterial: 'flesh', yield: null }),
+        Object.freeze({ id: 'glands', integrityFamily: 'organ_gland', sourceMaterial: 'flesh', yield: null }),
+        Object.freeze({ id: 'blood', integrityFamily: 'blood_ichor', sourceMaterial: 'blood', yield: null }),
+      ]),
+    }),
+    lootProfile: Object.freeze({ version: 1, carried: Object.freeze([]), equipment: Object.freeze({ source: 'none' }), currency: null, harvest: Object.freeze({ source: 'body_profile' }), impossibleCategories: Object.freeze([]) }),
+  });
 
   const FALLBACK_RANKS = Object.freeze({
     normal: Object.freeze({ id: 'normal', levelMultiplier: 1, minSpeedBonus: 0, maxSpeedBonus: 0, applyBonus: 0, basePowerBonus: 0, commandLevel: 0, aiCoordination: 'independent', targetPriority: 'random', turnEndSpRecovery: 0 }),
@@ -35,6 +77,7 @@
     wolf: Object.freeze({
       id: 'wolf', name: 'Wolf', species: 'wolf', variant: 'standard', unitType: 'enemy', actorCategory: 'enemy', faction: 'enemy', isPlayer: false,
       naturalWorldLevel: Object.freeze({ min: 2, max: 4 }), baseLevel: Object.freeze({ min: 2, max: 4 }),
+      bodyProfile: WOLF_LOOT_PROFILES.bodyProfile, lootProfile: WOLF_LOOT_PROFILES.lootProfile,
       hpBase: 11, hpCoefficient: null,
       traitIds: Object.freeze([PACK_TACTICS_ID, MEANING.id, HUNTING_HOWLING.id]),
       traits: Object.freeze([packTacticsRef(), MEANING, Object.freeze(rankHowling('captain'))]),
@@ -59,6 +102,7 @@
     dire_wolf: Object.freeze({
       id: 'dire_wolf', name: 'Dire Wolf', species: 'dire_wolf', variant: 'dire', unitType: 'enemy', actorCategory: 'enemy', faction: 'enemy', isPlayer: false,
       naturalWorldLevel: Object.freeze({ min: 5, max: 5 }), baseLevel: Object.freeze({ min: 5, max: 5 }),
+      bodyProfile: WOLF_LOOT_PROFILES.bodyProfile, lootProfile: WOLF_LOOT_PROFILES.lootProfile,
       hpBase: 37, hpCoefficient: null,
       traitIds: Object.freeze([PACK_TACTICS_ID, MEANING.id, HUNTING_HOWLING.id]),
       traits: Object.freeze([packTacticsRef(), MEANING, Object.freeze(rankHowling('leader'))]),
