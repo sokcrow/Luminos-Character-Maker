@@ -11,6 +11,10 @@ on:
       - 'js/dm-item-catalog-core.js'
       - 'js/dm-local-item-manager-v3.js'
       - 'js/dm-tab-runtime-v2.js'
+      - 'js/dm-loot-studio.js'
+      - 'js/loot-instance-runtime.js'
+      - 'js/loot-encounter-context.js'
+      - 'js/corpse-harvest-runtime.js'
       - 'js/item-content-registry.js'
       - 'js/item-catalog-tools.js'
       - 'js/item-catalog-chemical-processed.js'
@@ -41,6 +45,7 @@ on:
       - 'tests/dm-item-catalog-core.spec.cjs'
       - 'tests/dm-local-item-manager-v3.spec.cjs'
       - 'tests/inventory-runtime-cutover.spec.cjs'
+      - 'tests/dm-loot-studio-smoke.mjs'
       - 'tests/shop-item-purchase-runtime-smoke.mjs'
       - 'tests/shop-runtime-smoke.cjs'
       - '.github/workflows/dm-inventory-grant-gui.yml'
@@ -60,6 +65,7 @@ jobs:
           node --check js/dm-item-catalog-core.js
           node --check js/dm-local-item-manager-v3.js
           node --check js/dm-tab-runtime-v2.js
+          node --check js/dm-loot-studio.js
           node --check js/item-content-registry.js
           node --check js/item-catalog-chemical-processed.js
           node --check js/item-catalog-medicinal-processed.js
@@ -73,6 +79,8 @@ jobs:
           node --check js/shop-item-purchase-runtime.js
           node --check js/shop-runtime.js
           node --check js/item-persistence-runtime.js
+      - name: DM Loot Studio smoke
+        run: node tests/dm-loot-studio-smoke.mjs
       - name: Local item icon registry
         run: node tests/item-icon-registry-smoke.cjs
       - name: Shop runtime smoke
