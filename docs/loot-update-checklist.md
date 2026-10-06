@@ -6,22 +6,22 @@ This document freezes the current scope and lets the Loot Update be completed in
 
 ## Scope rules
 
-- [ ] Keep the Loot Update focused on mundane loot, corpse resources, search, harvest/salvage, encounter context and compendium knowledge.
-- [ ] Keep Magic Items, enchantments, cursed items, magical affixes and random magical loot outside this update.
-- [ ] Reserve enchanted-item creation/editing for the Enchanter's Update.
-- [ ] Reserve magical drop integration for the Magic Loot Update.
-- [ ] Preserve one canonical Unit Library as source of truth instead of duplicating full stat blocks into player compendiums.
+- [x] Keep the Loot Update focused on mundane loot, corpse resources, search, harvest/salvage, encounter context and compendium knowledge.
+- [x] Keep Magic Items, enchantments, cursed items, magical affixes and random magical loot outside this update.
+- [x] Reserve enchanted-item creation/editing for the Enchanter's Update.
+- [x] Reserve magical drop integration for the Magic Loot Update.
+- [x] Preserve one canonical Unit Library as source of truth instead of duplicating full stat blocks into player compendiums.
 - [x] Make loot deterministic at the instance level once generated: re-searching must not regenerate the corpse/inventory.
 - [x] Enforce the rule: Skill rolls may discover/recover possible loot; they must never create impossible loot.
 
 ## Existing DM Loot tab
 
-- [ ] Replace the legacy `RESOURCES / LOOT` table-only workflow in `pantalla_dm.html`.
-- [ ] Preserve the existing DM entry point/tab instead of adding a second Loot dashboard.
-- [ ] Stop copying raw global Item definitions directly into player stash.
-- [ ] Route awarded/generated Items through the modern Item Instance / Inventory Runtime.
-- [ ] Add DM inspection of generated loot provenance and source modifiers.
-- [ ] Keep manual/custom DM loot overrides for exceptional encounters.
+- [x] Replace the legacy `RESOURCES / LOOT` table-only workflow in `pantalla_dm.html`.
+- [x] Preserve the existing DM entry point/tab instead of adding a second Loot dashboard.
+- [x] Stop copying raw global Item definitions directly into player stash.
+- [x] Route awarded/generated Items through the modern Item Instance / Inventory Runtime.
+- [x] Add DM inspection of generated loot provenance and source modifiers.
+- [x] Keep manual/custom DM loot overrides for exceptional encounters.
 
 ## Unit loot profile
 
@@ -100,7 +100,7 @@ This document freezes the current scope and lets the Loot Update be completed in
 - [x] Support environmental tags such as forest, mine, industrial, hospital, rich district, poor district, laboratory, ruins, etc.
 - [x] Let Zones increase/decrease categories such as food, medicine, technology, gems, biomaterials and industrial materials.
 - [x] Allow Zones to mark categories impossible when appropriate.
-- [ ] Make Zone context visible to the DM when inspecting generated loot.
+- [x] Make Zone context visible to the DM when inspecting generated loot.
 
 ## Encounter Event modifiers
 
@@ -213,25 +213,25 @@ This document freezes the current scope and lets the Loot Update be completed in
 - [x] Record Encounter ID.
 - [x] Record Encounter Zone where relevant.
 - [x] Record Encounter Event where relevant.
-- [ ] Record acquisition method: search / harvest / extract / salvage / equipment / DM grant.
+- [x] Record acquisition method: search / harvest / extract / salvage / equipment / DM grant.
 - [x] Record integrity/condition where relevant.
 - [x] Preserve culinary/procedural provenance for harvested food ingredients.
 - [x] Respect Active Inventory / Stash limits and normal transfer rules.
 
 ## DM Loot Studio
 
-- [ ] Show Unit/Profile source.
-- [ ] Show Body Profile.
-- [ ] Show Wealth and Role modifiers.
-- [ ] Show Encounter Zone modifiers.
-- [ ] Show Encounter Event modifiers.
-- [ ] Show generated carried loot.
-- [ ] Show corpse/harvest resources.
-- [ ] Show impossible vs allowed categories.
-- [ ] Allow explicit DM override/add/remove.
-- [ ] Allow preview before locking a loot instance.
-- [ ] Allow lock/finalize.
-- [ ] Avoid player-facing debug information.
+- [x] Show Unit/Profile source.
+- [x] Show Body Profile.
+- [x] Show Wealth and Role modifiers.
+- [x] Show Encounter Zone modifiers.
+- [x] Show Encounter Event modifiers.
+- [x] Show generated carried loot.
+- [x] Show corpse/harvest resources.
+- [x] Show impossible vs allowed categories.
+- [x] Allow explicit DM override/add/remove.
+- [x] Allow preview before locking a loot instance.
+- [x] Allow lock/finalize.
+- [x] Avoid player-facing debug information.
 
 ## Tests and validation
 
@@ -250,7 +250,7 @@ This document freezes the current scope and lets the Loot Update be completed in
 - [x] Add post-combat ammunition reconciliation regression tests.
 - [x] Add Analyze resolution-contract regression coverage for Ranger Favored Enemy and Battle Master Know Your Enemy bypasses.
 - [x] Add Battle Analyze end-to-end regression tests when Analyze is wired into Battle Viewer.
-- [ ] Add DM Loot Studio smoke coverage.
+- [x] Add DM Loot Studio smoke coverage.
 
 ## Explicitly deferred
 
