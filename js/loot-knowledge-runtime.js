@@ -91,8 +91,13 @@
       const state = stateMap.get(id);
       return {
         id,
+        itemId: normalizeId(resource.itemId),
+        catalogFamily: normalizeId(resource.catalogFamily),
         integrityFamily: normalizeId(resource.integrityFamily),
         sourceMaterial: normalizeId(resource.sourceMaterial),
+        valuable: resource.valuable === true,
+        culinary: resource.culinary === true,
+        knownUses: uniqueStrings(resource.knownUses || []).map(normalizeId).filter(Boolean),
         knownIntegrity: state?.integrity ? {
           status: normalizeId(state.integrity.status),
           integrityPercent: Number.isFinite(Number(state.integrity.integrityPercent)) ? Number(state.integrity.integrityPercent) : null,
@@ -170,6 +175,37 @@
       }, { ...options, source: options.source || "search" }));
     }
     return facts;
+  }
+
+  function valuableResourceFacts(unit = {}, options = {}) {
+    const resources = (unit.bodyProfile?.resources || [])
+      .filter((resource) => resource.valuable === true)
+      .map((resource) => ({
+        resourceId: normalizeId(resource.id ?? resource.integrityFamily),
+        itemId: normalizeId(resource.itemId),
+        catalogFamily: normalizeId(resource.catalogFamily),
+        knownUses: uniqueStrings(resource.knownUses || []).map(normalizeId).filter(Boolean),
+      }));
+    if (!resources.length) return [];
+    return [makeFact("loot", "valuable_resources", resources, {
+      ...options,
+      source: options.source || "autopsy_medicine",
+    })];
+  }
+
+  function resourceUseFacts(unit = {}, options = {}) {
+    const resources = (unit.bodyProfile?.resources || [])
+      .map((resource) => ({
+        resourceId: normalizeId(resource.id ?? resource.integrityFamily),
+        itemId: normalizeId(resource.itemId),
+        uses: uniqueStrings(resource.knownUses || []).map(normalizeId).filter(Boolean),
+      }))
+      .filter((resource) => resource.uses.length);
+    if (!resources.length) return [];
+    return [makeFact("loot", "known_resource_uses", resources, {
+      ...options,
+      source: options.source || "autopsy_medicine",
+    })];
   }
 
   function edibleResourceFacts(unit = {}, options = {}) {
@@ -281,6 +317,8 @@
       facts = [
         ...bodyFacts(unit, { ...common, source: "autopsy_medicine" }),
         ...harvestFacts(unit, postCombatState, { ...common, source: "autopsy_medicine" }),
+        ...valuableResourceFacts(unit, { ...common, source: "autopsy_medicine" }),
+        ...resourceUseFacts(unit, { ...common, source: "autopsy_medicine" }),
         ...edibleResourceFacts(unit, { ...common, source: "autopsy_medicine" }),
       ];
     } else if (skill === "investigation") {
@@ -541,6 +579,8 @@
     equipmentFacts,
     contextFacts,
     observedLootFacts,
+    valuableResourceFacts,
+    resourceUseFacts,
     edibleResourceFacts,
     rarityFacts,
     combatObservationFacts,
