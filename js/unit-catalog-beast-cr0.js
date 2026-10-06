@@ -127,6 +127,33 @@
         afterSkill: Object.freeze({ action: "escape" }),
       }),
     }),
+    bubble_dash: Object.freeze({
+      id: "bubble_dash",
+      name: "Bubble Dash",
+      type: "active",
+      activation: Object.freeze({
+        actionCost: "action",
+        requirementsAll: Object.freeze(["encounter_is_underwater"]),
+      }),
+      mechanics: Object.freeze({
+        movementMode: "swim",
+        moveUpToMovementSpeed: true,
+        reposition: true,
+        provokesCounterAttacks: false,
+        provokesOpportunityAttacks: false,
+      }),
+    }),
+    web_walker: Object.freeze({
+      id: "web_walker",
+      name: "Web Walker",
+      type: "passive",
+      mechanics: Object.freeze({
+        encounterModifierId: "web",
+        ignoresWebBind: true,
+        ignoresWebMovementRestrictions: true,
+        detectsUnitsInSameWeb: true,
+      }),
+    }),
   });
 
   const CAT_APPEARANCES = Object.freeze([
@@ -256,6 +283,8 @@
         canonicalScores: true,
         canonicalProficiencies: true,
         speedModel: "movement_feet_plus_size",
+        ...(cfg.canonicalSourceName ? { canonicalSourceName: cfg.canonicalSourceName } : {}),
+        ...(cfg.canonicalSourceBook ? { canonicalSourceBook: cfg.canonicalSourceBook } : {}),
       },
     };
 
@@ -426,6 +455,49 @@
       proficiencies: {}, movement: { ground: 10 }, senses: { blindsight: 10, passivePerception: 9 },
       skills: ["scorpion_sting"],
     })),
+    seahorse: Object.freeze(makeUnit({
+      id: "seahorse", name: "Seahorse", size: "tiny", sprite: "https://imgur.com/C2FzYsB",
+      canonicalSourceName: "Seahorse", canonicalSourceBook: "Basic Rules (2024)",
+      hpBase: 5, hpCoefficient: 0.05,
+      scores: { str: 1, dex: 12, con: 8, int: 1, wis: 10, cha: 2 },
+      proficiencies: { skills: { perception: "proficient", stealth: "expertise" } },
+      movement: { ground: 5, swim: 20 }, defaultMovementMode: "swim",
+      senses: { passivePerception: 12 },
+      traits: [{ id: "water_breathing" }, { id: "bubble_dash" }],
+      mechanics: { waterBreathing: WATER_BREATHING_RULES },
+      skills: [],
+    })),
+    spider: Object.freeze(makeUnit({
+      id: "spider", name: "Spider", size: "tiny", sprite: "https://imgur.com/f7L5sIP",
+      canonicalSourceName: "Spider", canonicalSourceBook: "Monster Manual (2025)",
+      hpBase: 5, hpCoefficient: 0.05,
+      scores: { str: 2, dex: 14, con: 8, int: 1, wis: 10, cha: 2 },
+      proficiencies: { skills: { stealth: "proficient" } },
+      movement: { ground: 20, climb: 20 }, senses: { darkvision: 30, passivePerception: 10 },
+      traits: [{ id: "spider_climb" }, { id: "web_walker" }],
+      mechanics: { webWalker: { encounterModifierId: "web", ignoresWebBind: true, detectsUnitsInSameWeb: true } },
+      skills: ["spider_bite"],
+    })),
+    vulture: Object.freeze(makeUnit({
+      id: "vulture", name: "Vulture", size: "medium", sprite: "https://imgur.com/EnY1GTK",
+      canonicalSourceName: "Vulture", canonicalSourceBook: "Monster Manual (2025)",
+      hpBase: 7, hpCoefficient: 0.07,
+      scores: { str: 7, dex: 10, con: 13, int: 2, wis: 12, cha: 4 },
+      proficiencies: { skills: { perception: "proficient" } },
+      movement: { ground: 10, fly: 50 }, defaultMovementMode: "fly", startsFlying: true,
+      senses: { passivePerception: 13 },
+      traits: [{ id: "pack_tactics", source: "racial_trait_catalog" }],
+      skills: ["vulture_beak"],
+    })),
+    weasel: Object.freeze(makeUnit({
+      id: "weasel", name: "Weasel", size: "tiny", sprite: "https://imgur.com/q2qcdIH",
+      canonicalSourceName: "Weasel", canonicalSourceBook: "Monster Manual (2025)",
+      hpBase: 5, hpCoefficient: 0.05,
+      scores: { str: 3, dex: 16, con: 8, int: 2, wis: 12, cha: 3 },
+      proficiencies: { skills: { acrobatics: "proficient", perception: "proficient", stealth: "proficient" } },
+      movement: { ground: 30, climb: 30 }, senses: { darkvision: 60, passivePerception: 13 },
+      traits: [], skills: ["weasel_bite"],
+    })),
   });
 
   function list() { return Object.values(DEFINITIONS).map(clone); }
@@ -487,7 +559,7 @@
   }
 
   const api = Object.freeze({
-    version: "1.1.0",
+    version: "1.2.0",
     STAGGER_THRESHOLDS,
     ELEVATED_TARGETABILITY,
     FLIGHT_RULES,
