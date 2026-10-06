@@ -20,6 +20,8 @@
     "mixed",
   ]);
 
+  const BODY_SIZE_CLASSES = Object.freeze(["tiny", "small", "medium", "large", "huge", "gargantuan"]);
+
   const BODY_MATERIALS = Object.freeze([
     "flesh",
     "blood",
@@ -147,10 +149,12 @@
     const warnings = [];
     const kind = normalizeId(profile.kind ?? profile.bodyKind);
     const materials = uniqueIds(profile.materials);
+    const sizeClass = normalizeId(profile.sizeClass ?? profile.bodySize ?? profile.size);
     const harvestEngine = options.harvestEngine ?? global.LuminousItemHarvestIntegrityEngine;
     const families = knownIntegrityFamilies(harvestEngine);
 
     if (!BODY_KINDS.includes(kind)) errors.push(`UNKNOWN_BODY_KIND:${kind || "missing"}`);
+    if (sizeClass && !BODY_SIZE_CLASSES.includes(sizeClass)) errors.push(`UNKNOWN_BODY_SIZE_CLASS:${sizeClass}`);
     if (!materials.length && kind !== "ethereal") errors.push("BODY_MATERIALS_REQUIRED");
     for (const material of materials) {
       if (!BODY_MATERIALS.includes(material)) errors.push(`UNKNOWN_BODY_MATERIAL:${material}`);
@@ -187,6 +191,7 @@
     const normalized = {
       version: VERSION,
       kind: normalizeId(profile.kind ?? profile.bodyKind),
+      sizeClass: normalizeId(profile.sizeClass ?? profile.bodySize ?? profile.size),
       materials: uniqueIds(profile.materials),
       edible: profile.edible === true,
       resources: (Array.isArray(profile.resources) ? profile.resources : []).map((resource) => ({
@@ -299,6 +304,7 @@
   const API = Object.freeze({
     VERSION,
     BODY_KINDS,
+    BODY_SIZE_CLASSES,
     BODY_MATERIALS,
     RARITIES,
     CARRIED_CATEGORIES,
