@@ -12,6 +12,7 @@
   const goblinRuntime = global.LuminousGoblinUnitRuntime || safeRequire('./goblin-unit-runtime.js');
   const skillCatalog = global.LuminousGoblinTier1SkillCatalog || safeRequire('./skill-catalog-goblin-tier1.js');
   const lootContract = global.LuminousUnitLootProfileContract || safeRequire('./unit-loot-profile-contract.js');
+  const socialLoot = global.LuminousLootSocialProfileContract || safeRequire('./loot-social-profile-contract.js');
 
   const STAGGER_THRESHOLDS = Object.freeze([75, 50, 25]);
   const RACIAL_TRAIT_IDS = Object.freeze(['goblin_fury_of_small', 'goblin_nimble_escape']);
@@ -100,6 +101,8 @@
       naturalWorldLevel: Object.freeze({ min: 2, max: 4 }), baseLevel: Object.freeze({ min: 2, max: 4 }),
       scores: GOBLIN_SCORES,
       bodyProfile: GOBLIN_LOOT_PROFILES.bodyProfile, lootProfile: GOBLIN_LOOT_PROFILES.lootProfile,
+      wealthProfile: socialLoot?.normalizeWealthProfile ? socialLoot.normalizeWealthProfile({ bandId: 'backstreets_very_poor', source: 'catalog_default' }) : Object.freeze({ bandId: 'backstreets_very_poor', source: 'catalog_default', carriedCashSeparate: true }),
+      roleProfile: socialLoot?.normalizeRoleProfile ? socialLoot.normalizeRoleProfile({ roles: ['soldier'], source: 'catalog_default' }) : Object.freeze({ roles: Object.freeze(['soldier']), source: 'catalog_default' }),
       hpBase: 7, hpCoefficient: 0.21,
       size: 'goblin',
       traitIds: Object.freeze([...RACIAL_TRAIT_IDS, AMMO_ARROWS.id]),
@@ -122,7 +125,7 @@
         staggerThresholds: STAGGER_THRESHOLDS,
       }),
       metadata: Object.freeze({ canonicalUnit: true, catalog: 'goblin-batch', spritePending: true, weaponSkillsPendingCanonicalCatalog: false, physicalProfilePending: true, speedPending: true }),
-      schemaVersion: 3,
+      schemaVersion: 4,
     }),
 
     goblin_boss: Object.freeze({
@@ -130,6 +133,8 @@
       naturalWorldLevel: Object.freeze({ min: 5, max: 5 }), baseLevel: Object.freeze({ min: 5, max: 5 }),
       scores: GOBLIN_BOSS_SCORES,
       bodyProfile: GOBLIN_LOOT_PROFILES.bodyProfile, lootProfile: GOBLIN_LOOT_PROFILES.lootProfile,
+      wealthProfile: socialLoot?.normalizeWealthProfile ? socialLoot.normalizeWealthProfile({ bandId: 'backstreets_low', source: 'catalog_default' }) : Object.freeze({ bandId: 'backstreets_low', source: 'catalog_default', carriedCashSeparate: true }),
+      roleProfile: socialLoot?.normalizeRoleProfile ? socialLoot.normalizeRoleProfile({ roles: ['soldier', 'commander'], source: 'catalog_default' }) : Object.freeze({ roles: Object.freeze(['soldier', 'commander']), source: 'catalog_default' }),
       hpBase: 21, hpCoefficient: 0.24,
       size: 'goblin',
       traitIds: Object.freeze([...RACIAL_TRAIT_IDS, AMMO_JAVELIN.id, MULTI_ATTACK.id, REDIRECT_ATTACK.id]),
@@ -154,7 +159,7 @@
         staggerThresholds: STAGGER_THRESHOLDS,
       }),
       metadata: Object.freeze({ canonicalUnit: true, catalog: 'goblin-batch', alwaysCaptain: true, spritePending: true, weaponSkillsPendingCanonicalCatalog: false, physicalProfilePending: true, speedPending: true }),
-      schemaVersion: 3,
+      schemaVersion: 4,
     }),
   });
 
@@ -218,7 +223,7 @@
   }
 
   const api = Object.freeze({
-    version: '1.2.0', STAGGER_THRESHOLDS, RACIAL_TRAIT_IDS, GOBLIN_SCORES, GOBLIN_BOSS_SCORES, UNIVERSAL_RANKS,
+    version: '1.3.0', STAGGER_THRESHOLDS, RACIAL_TRAIT_IDS, GOBLIN_SCORES, GOBLIN_BOSS_SCORES, UNIVERSAL_RANKS,
     AMMO_ARROWS, AMMO_JAVELIN, MULTI_ATTACK, REDIRECT_ATTACK, DEFINITIONS, get, list, resolveSkill, resolve, firebasePayload, firebaseSkillPayload,
   });
 
