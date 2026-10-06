@@ -183,6 +183,32 @@
     })];
   }
 
+  function combatObservationFacts(observation = {}, unitId = "", options = {}) {
+    const common = {
+      discoveredBy: options.discoveredBy || null,
+      discoveredAt: options.discoveredAt,
+      visibility: options.visibility || "private",
+      source: "combat_observation",
+      provenance: {
+        sourceUnitId: normalizeId(unitId || observation.sourceUnitId),
+        encounterId: observation.encounterId || null,
+        observationId: observation.observationId || null,
+      },
+    };
+    const facts = [];
+    if (observation.speed != null) facts.push(makeFact("combat", "observed_speed", clone(observation.speed), common));
+    const skills = uniqueStrings(observation.usedSkills || observation.skills).map(normalizeId).filter(Boolean);
+    if (skills.length) facts.push(makeFact("combat", "observed_skills", skills, common));
+    const traits = uniqueStrings(observation.visibleTraits || observation.traits).map(normalizeId).filter(Boolean);
+    if (traits.length) facts.push(makeFact("combat", "visible_traits", traits, common));
+    const defenses = Array.isArray(observation.defenseInteractions) ? observation.defenseInteractions.map((entry) => ({
+      damageType: normalizeId(entry.damageType),
+      observedResult: normalizeId(entry.observedResult || entry.result),
+    })).filter((entry) => entry.damageType && entry.observedResult) : [];
+    if (defenses.length) facts.push(makeFact("combat", "observed_defense_interactions", defenses, common));
+    return deepFreeze(facts);
+  }
+
   function highMarginStatFacts(unit = {}, check = {}, skill = "", options = {}) {
     if (check.success !== true || numberOr(check.margin, 0) < 10) return [];
     const scores = unit.scores || unit.stats || {};
@@ -450,6 +476,7 @@
     contextFacts,
     observedLootFacts,
     rarityFacts,
+    combatObservationFacts,
     highMarginStatFacts,
     discoverPostCombatFacts,
     createCompendium,
