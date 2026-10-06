@@ -110,20 +110,20 @@ This document freezes the current scope and lets the Loot Update be completed in
 - [x] Let Events increase/decrease rarity weights.
 - [x] Let Events modify quantities and quality.
 - [x] Support examples such as convoy, robbery, famine, war, evacuation, plague, medical shipment, mining expedition, smuggling operation, laboratory escape, treasure expedition and black-market deal.
-- [ ] Record Event provenance on generated loot.
+- [x] Record Event provenance on generated loot.
 
 ## Loot instance generation
 
-- [ ] Resolve Unit Profile + Body + Role + Wealth + Zone + Event + DM overrides.
-- [ ] Generate carried loot only once per Unit instance.
+- [x] Resolve Unit Profile + Body + Role + Wealth + Zone + Event + DM overrides.
+- [x] Generate carried loot only once per Unit instance.
 - [ ] Freeze generated carried loot before player search actions.
 - [x] Reconcile ammunition from authoritative post-combat state before loot lock: remaining ammo plus surviving recovered projectiles; never regenerate spent ammo from the initial loadout.
-- [ ] Preserve actual equipped Items separately from hidden carried Items.
-- [ ] Generate/record currency once per Unit instance.
-- [ ] Generate corpse harvest capacity once using Body Profile and integrity.
+- [x] Preserve actual equipped Items separately from hidden carried Items.
+- [x] Generate/record currency once per Unit instance.
+- [x] Generate corpse harvest capacity once using Body Profile and integrity.
 - [ ] Prevent repeated search/harvest from rerolling the source inventory.
-- [ ] Support explicit DM regeneration only before the loot instance is locked.
-- [ ] Give every generated Item proper instance IDs and provenance.
+- [x] Support explicit DM regeneration only before the loot instance is locked.
+- [x] Give every generated Item proper instance IDs and provenance.
 
 ## Post-combat interactions
 
@@ -208,11 +208,11 @@ This document freezes the current scope and lets the Loot Update be completed in
 ## Inventory / provenance
 
 - [ ] Create harvested/looted outputs as real Item Instances.
-- [ ] Record source Unit ID.
-- [ ] Record source Unit instance/corpse ID.
-- [ ] Record Encounter ID.
-- [ ] Record Encounter Zone where relevant.
-- [ ] Record Encounter Event where relevant.
+- [x] Record source Unit ID.
+- [x] Record source Unit instance/corpse ID.
+- [x] Record Encounter ID.
+- [x] Record Encounter Zone where relevant.
+- [x] Record Encounter Event where relevant.
 - [ ] Record acquisition method: search / harvest / extract / salvage / equipment / DM grant.
 - [ ] Record integrity/condition where relevant.
 - [ ] Preserve culinary/procedural provenance for harvested food ingredients.
@@ -238,7 +238,7 @@ This document freezes the current scope and lets the Loot Update be completed in
 - [x] Add schema/unit tests for Loot Profiles.
 - [x] Add Body Profile validation.
 - [x] Add impossible-loot regression tests.
-- [ ] Add deterministic instance-generation tests.
+- [x] Add deterministic instance-generation tests.
 - [x] Add Zone modifier tests.
 - [x] Add Event modifier tests.
 - [x] Add Wealth/Role interaction tests.
@@ -246,7 +246,7 @@ This document freezes the current scope and lets the Loot Update be completed in
 - [ ] Add Search/Harvest/Salvage finite-resource tests.
 - [ ] Add Compendium knowledge persistence tests.
 - [ ] Add private/share knowledge tests.
-- [ ] Add Inventory Runtime integration tests.
+- [x] Add Inventory Runtime integration tests.
 - [x] Add post-combat ammunition reconciliation regression tests.
 - [x] Add Analyze resolution-contract regression coverage for Ranger Favored Enemy and Battle Master Know Your Enemy bypasses.
 - [ ] Add Battle Analyze end-to-end regression tests when Analyze is wired into Battle Viewer.
