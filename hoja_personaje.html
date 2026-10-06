@@ -12884,7 +12884,7 @@
       // Listen to background
       db.ref("campaña/teatro/fondo").on("value", (snap) => {
         const bg = snap.val();
-        const view = document.getElementById("modulo-teatro");
+        const view = document.getElementById("theatre-view-player") || document.getElementById("modulo-teatro");
         if (view && bg) view.style.backgroundImage = `url('${bg}')`;
       });
 
@@ -12893,11 +12893,9 @@
         const state = snap.val();
         if (!state) return;
 
-        const titlePlate = document.getElementById(
-          "player-theatre-plate-title",
-        );
-        const namePlate = document.getElementById("player-theatre-plate-name");
-        const textBox = document.getElementById("player-theatre-dialogue-text");
+        const titlePlate = document.getElementById("dialogue-title");
+        const namePlate = document.getElementById("dialogue-name");
+        const textBox = document.getElementById("dialogue-text");
 
         const platesContainer = document.querySelector(
           ".theatre-plates-container",
@@ -12954,7 +12952,7 @@
           }
         }
 
-        const stage = document.getElementById("player-theatre-stage");
+        const stage = document.getElementById("theatre-stage");
         if (!stage) return;
 
         const activeSpriteUrl = state.sprite;
