@@ -49,6 +49,25 @@
   function unitName(unit = {}, fallback = "") {
     return clean(unit.name || unit.nombre || unit.characterName || unit.displayName || unit.id || fallback) || fallback;
   }
+  function isDeferredMagicDefinition(definition = {}) {
+    if (!definition || typeof definition !== "object") return false;
+    if (definition.magical === true || definition.isMagic === true || definition.magicItem === true || definition.cursed === true) return true;
+    if (definition.enchantment || definition.enchantments || definition.affixes?.magical || definition.curse || definition.artifactProperties) return true;
+    const words = [
+      definition.category,
+      definition.itemType,
+      definition.family,
+      definition.rarityType,
+      ...(Array.isArray(definition.tags) ? definition.tags : []),
+    ].map(normalizeId).filter(Boolean);
+    return words.some((value) => ["magic", "magical", "enchanted", "enchantment", "cursed", "artifact"].includes(value));
+  }
+
+  function assertMundaneDefinition(definition = {}) {
+    if (isDeferredMagicDefinition(definition)) throw new Error("MAGIC_LOOT_DEFERRED");
+    return definition;
+  }
+
   function categoryFor(definition = {}) {
     const raw = normalizeId(definition.category || definition.itemType || definition.family || "material");
     const map = {
@@ -129,6 +148,7 @@
   }
 
   function overrides() {
+    for (const entry of state.overrideItems) assertMundaneDefinition(state.items[entry.itemId] || {});
     return {
       guaranteedItems: state.overrideItems.map((entry) => ({
         itemId: entry.itemId,
@@ -327,6 +347,7 @@
     const player = clone(snap.val() || {});
     const items = (options.items || []).map((entry, index) => {
       const definition = clone(entry.definition || entry.item || entry);
+      assertMundaneDefinition(definition);
       const definitionId = normalizeId(entry.itemId || entry.definitionId || definition.id || definition.itemId);
       if (!definitionId) throw new Error("DM_LOOT_LEGACY_ITEM_ID_REQUIRED");
       definition.id = definition.id || definitionId;
@@ -515,7 +536,7 @@
     );
     renderSelectOptions(
       doc?.getElementById?.("dm-loot-override-item"),
-      Object.entries(state.items).sort((a,b) => itemName(a[1],a[0]).localeCompare(itemName(b[1],b[0]))),
+      Object.entries(state.items).filter(([, definition]) => !isDeferredMagicDefinition(definition)).sort((a,b) => itemName(a[1],a[0]).localeCompare(itemName(b[1],b[0]))),
       "Añadir Item override...",
       itemName,
     );
@@ -577,6 +598,8 @@
     normalizeId,
     dbFrom,
     currentItems,
+    isDeferredMagicDefinition,
+    assertMundaneDefinition,
     categoryFor,
     loadUnits,
     loadPlayers,
