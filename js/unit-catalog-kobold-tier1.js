@@ -16,6 +16,7 @@
   const KOBOLD_LOOT_PROFILES = lootContract?.createProfiles ? lootContract.createProfiles({
     bodyProfile: {
       kind: 'organic',
+      sizeClass: 'small',
       materials: ['flesh', 'blood', 'bone', 'scale'],
       edible: true,
       resources: [
@@ -39,7 +40,7 @@
     },
   }) : Object.freeze({
     bodyProfile: Object.freeze({
-      version: 1, kind: 'organic', materials: Object.freeze(['flesh', 'blood', 'bone', 'scale']), edible: true,
+      version: 1, kind: 'organic', sizeClass: 'small', materials: Object.freeze(['flesh', 'blood', 'bone', 'scale']), edible: true,
       resources: Object.freeze([
         Object.freeze({ id: 'meat', integrityFamily: 'meat', sourceMaterial: 'flesh', yield: null }),
         Object.freeze({ id: 'scales', integrityFamily: 'hide_pelt', sourceMaterial: 'scale', yield: null }),
