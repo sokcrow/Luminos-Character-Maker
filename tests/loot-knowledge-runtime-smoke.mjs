@@ -37,11 +37,11 @@ const profiles = lootContract.createProfiles({
     materials: ["flesh", "blood", "bone"],
     edible: false,
     resources: [
-      { id: "flesh", integrityFamily: "meat", sourceMaterial: "flesh" },
-      { id: "bones", integrityFamily: "hard_parts", sourceMaterial: "bone" },
-      { id: "internal_organs", integrityFamily: "organ_internal", sourceMaterial: "flesh" },
-      { id: "brain", integrityFamily: "organ_brain", sourceMaterial: "flesh" },
-      { id: "blood", integrityFamily: "blood_ichor", sourceMaterial: "blood" },
+      { id: "flesh", integrityFamily: "meat", sourceMaterial: "flesh", itemId: "meat_humanoid", catalogFamily: "meat", culinary: true, knownUses: ["cooking"] },
+      { id: "bones", integrityFamily: "hard_parts", sourceMaterial: "bone", itemId: "hard_bone", catalogFamily: "hard_parts", knownUses: ["primitive_crafting"] },
+      { id: "internal_organs", integrityFamily: "organ_internal", sourceMaterial: "flesh", itemId: "internal_organ", catalogFamily: "organ_gland", valuable: true, knownUses: ["medicine", "crafting"] },
+      { id: "brain", integrityFamily: "organ_brain", sourceMaterial: "flesh", itemId: "brain", catalogFamily: "organ_gland", valuable: true, knownUses: ["medicine", "research"] },
+      { id: "blood", integrityFamily: "blood_ichor", sourceMaterial: "blood", itemId: "humanoid_blood", catalogFamily: "blood_ichor", knownUses: ["medicine", "crafting"] },
     ],
   },
   lootProfile: {
@@ -132,6 +132,8 @@ assert.equal(autopsy.result.check.success, true);
 assert.ok(autopsy.result.knowledge.facts.some((fact) => fact.id === "biology.body_kind"));
 assert.ok(autopsy.result.knowledge.facts.some((fact) => fact.id === "biology.materials"));
 assert.ok(autopsy.result.knowledge.facts.some((fact) => fact.id === "biology.harvestable_resources"));
+assert.ok(autopsy.result.knowledge.facts.some((fact) => fact.id === "loot.valuable_resources"));
+assert.ok(autopsy.result.knowledge.facts.some((fact) => fact.id === "loot.known_resource_uses"));
 assert.ok(autopsy.result.knowledge.facts.some((fact) => fact.id === "stats.constitution_score"), "high-margin Medicine may reveal a selected physical stat");
 assert.ok(!autopsy.result.knowledge.facts.some((fact) => fact.id === "stats.dexterity_score"));
 assert.ok(!autopsy.result.knowledge.facts.some((fact) => fact.id === "stats.intelligence_score"));
