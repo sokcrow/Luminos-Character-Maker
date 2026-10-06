@@ -241,6 +241,46 @@
   function compileUniversalAction(actor, actionId, options = {}) {
     const id = normalizeId(actionId);
     const base = baseInput(actor, "universal", id, options);
+    if (id === "analyze" || id === "analyse") {
+      const analyzeContract = global.LuminousCombatAnalyzeCheckContract
+        || (typeof require === "function" ? (() => { try { return require("./combat-analyze-check-contract.js"); } catch (_) { return null; } })() : null);
+      const target = options.target || options.targetUnit || {};
+      const resolved = analyzeContract?.resolveAnalyzeContract
+        ? analyzeContract.resolveAnalyzeContract(actor, target, {
+            ...options,
+            threshold: options.threshold ?? options.dc ?? options.metadata?.threshold ?? 10,
+          })
+        : { type: "check", check: { stat: "wis", skill: "perception", threshold: 10 }, source: "generic_analyze" };
+      const bypass = resolved.type === "automatic" || resolved.bypassCheck === true || resolved.automaticSuccess === true;
+      return schema.createCombatAction({
+        ...base,
+        targeting: {
+          allegiance: "enemy",
+          mode: "single",
+          mainTargetId: options.targetUnitId || options.targetId || options.mainTargetId || null,
+          targetIds: options.targetIds || [],
+        },
+        resolution: bypass
+          ? { type: "automatic" }
+          : {
+              type: "check",
+              check: {
+                stat: resolved.check?.stat || "wis",
+                skill: resolved.check?.skill || "perception",
+                threshold: numberOr(resolved.check?.threshold, 10),
+              },
+            },
+        effects: options.effects || [],
+        metadata: {
+          ...(options.metadata || {}),
+          universalRule: "analyze",
+          analyzeContract: clone(resolved),
+          analyzeBypass: bypass,
+          analyzeSource: resolved.source || "generic_analyze",
+          knowledgeVisibility: normalizeId(options.knowledgeVisibility || options.metadata?.knowledgeVisibility || "private") || "private",
+        },
+      });
+    }
     if (id === "grapple") {
       return schema.createCombatAction({
         ...base,
