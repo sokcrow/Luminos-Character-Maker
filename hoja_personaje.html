@@ -17,7 +17,7 @@
     <link rel="stylesheet" href="css/economy-contracts.css" />
     <link id="player-progression-tree-stylesheet" rel="stylesheet" href="css/player-progression-tree.css" />
     <link id="player-skills-hud-stylesheet" rel="stylesheet" href="css/player-skills-hud.css?v=20261005-player-menu-40px-force-1&skills=35px-1" />
-    <link rel="stylesheet" href="css/player-terminal-fullscreen.css?v=20261006-terminal-fullscreen-1" />
+    <link rel="stylesheet" href="css/player-terminal-fullscreen.css?v=20261006-cellphone-context-1" />
 
     <style>
       #system-loading-overlay {
@@ -7483,6 +7483,15 @@
         </div>
         <!-- End Phone Screen -->
         <div class="sheet-phone-navbar">
+          <button
+            type="button"
+            id="btn-cellphone-back"
+            class="sheet-cellphone-back-btn"
+            title="Volver al juego"
+            aria-label="Volver al juego"
+          >
+            <span aria-hidden="true">←</span>
+          </button>
           <button type="action" name="act_tab_home" class="sheet-home-btn" title="Inicio" aria-label="Inicio">
             🔲
           </button>
@@ -13519,7 +13528,7 @@
     <script src="js/economy-contracts-core.js"></script>
     <script src="js/player-contracts-runtime.js"></script>
     <script src="js/player-vitals-hud.js"></script>
-    <script src="js/player-terminal-fullscreen.js?v=20261006-terminal-fullscreen-1"></script>
+    <script src="js/player-terminal-fullscreen.js?v=20261006-cellphone-context-1"></script>
     <script src="hoja_personaje.js?v=20261004-shop-commerce-1"></script>
   </body>
 </html>

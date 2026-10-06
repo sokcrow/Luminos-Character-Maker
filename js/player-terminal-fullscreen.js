@@ -4,13 +4,19 @@
   const doc = global.document;
   if (!doc || global.LuminousPlayerTerminalFullscreen) return;
 
+  const BASE_WIDTH = 400;
+  const BASE_HEIGHT = 800;
+  const VIEWPORT_MARGIN = 24;
+
   let installed = false;
   let pseudoFullscreen = false;
+  let mobileCellphoneOpen = false;
 
   function parts() {
     return {
       wrapper: doc.querySelector(".sheet-phone-wrapper"),
-      button: doc.getElementById("btn-terminal-fullscreen"),
+      fullscreenButton: doc.getElementById("btn-terminal-fullscreen"),
+      backButton: doc.getElementById("btn-cellphone-back"),
     };
   }
 
@@ -21,28 +27,33 @@
     return /iPhone|iPod|Windows Phone|Mobi|Android.+Mobile/i.test(navigator.userAgent || "");
   }
 
-  function nativeFullscreenElement() {
+  function fullscreenElement() {
     return doc.fullscreenElement || doc.webkitFullscreenElement || null;
   }
 
-  function isNativeFullscreen(wrapper) {
-    return nativeFullscreenElement() === wrapper;
+  function isRootFullscreen() {
+    const current = fullscreenElement();
+    return current === doc.documentElement || current === doc.body;
   }
 
-  function isActive(wrapper) {
-    return Boolean(wrapper && (isNativeFullscreen(wrapper) || pseudoFullscreen));
+  function isWrapperFullscreen(wrapper) {
+    return fullscreenElement() === wrapper;
   }
 
-  async function requestNativeFullscreen(wrapper) {
-    const request = wrapper.requestFullscreen || wrapper.webkitRequestFullscreen || wrapper.msRequestFullscreen;
+  async function requestFullscreen(target) {
+    const request =
+      target?.requestFullscreen
+      || target?.webkitRequestFullscreen
+      || target?.msRequestFullscreen;
+
     if (typeof request !== "function") return false;
 
     try {
-      await request.call(wrapper, { navigationUI: "hide" });
+      await request.call(target, { navigationUI: "hide" });
       return true;
     } catch (_) {
       try {
-        await request.call(wrapper);
+        await request.call(target);
         return true;
       } catch (_) {
         return false;
@@ -50,9 +61,10 @@
     }
   }
 
-  async function exitNativeFullscreen() {
+  async function exitFullscreen() {
     const exit = doc.exitFullscreen || doc.webkitExitFullscreen || doc.msExitFullscreen;
     if (typeof exit !== "function") return false;
+
     try {
       await exit.call(doc);
       return true;
@@ -61,120 +73,237 @@
     }
   }
 
-  async function lockLandscape() {
+  async function lockOrientation(mode) {
     const orientation = global.screen?.orientation;
     if (!orientation || typeof orientation.lock !== "function") return false;
+
     try {
-      await orientation.lock("landscape");
+      await orientation.lock(mode);
       return true;
     } catch (_) {
       return false;
     }
   }
 
-  function unlockOrientation() {
-    try {
-      global.screen?.orientation?.unlock?.();
-    } catch (_) {}
+  function updateDesktopScale() {
+    const { wrapper } = parts();
+    if (!wrapper) return;
+
+    const desktopFullscreen = isWrapperFullscreen(wrapper) || pseudoFullscreen;
+    if (!desktopFullscreen || mobileCellphoneOpen) return;
+
+    const vv = global.visualViewport;
+    const width = Math.max(1, Number(vv?.width || global.innerWidth || BASE_WIDTH));
+    const height = Math.max(1, Number(vv?.height || global.innerHeight || BASE_HEIGHT));
+    const usableWidth = Math.max(1, width - VIEWPORT_MARGIN * 2);
+    const usableHeight = Math.max(1, height - VIEWPORT_MARGIN * 2);
+    const scale = Math.max(0.1, Math.min(usableWidth / BASE_WIDTH, usableHeight / BASE_HEIGHT));
+
+    wrapper.style.setProperty("--terminal-presentation-scale", scale.toFixed(4));
   }
 
-  function syncButton() {
-    const { wrapper, button } = parts();
-    if (!wrapper || !button) return;
+  function syncControls() {
+    const { wrapper, fullscreenButton } = parts();
+    if (!wrapper || !fullscreenButton) return;
 
-    const active = isActive(wrapper);
-    button.setAttribute("aria-pressed", active ? "true" : "false");
-    button.setAttribute("aria-label", active ? "Salir de pantalla completa" : "Abrir Celular en pantalla completa");
-    button.title = active ? "Salir de pantalla completa" : "Pantalla completa";
+    const nativeFullscreen = Boolean(fullscreenElement());
+    doc.body?.classList.toggle("is-native-fullscreen", nativeFullscreen);
+
+    if (mobileCellphoneOpen) {
+      fullscreenButton.hidden = isRootFullscreen();
+      fullscreenButton.setAttribute("aria-pressed", isRootFullscreen() ? "true" : "false");
+      fullscreenButton.setAttribute(
+        "aria-label",
+        isRootFullscreen() ? "Pantalla completa activa" : "Reintentar pantalla completa"
+      );
+      fullscreenButton.title = isRootFullscreen() ? "Pantalla completa activa" : "Pantalla completa";
+      return;
+    }
+
+    const active = isWrapperFullscreen(wrapper) || pseudoFullscreen;
+    fullscreenButton.hidden = false;
+    fullscreenButton.setAttribute("aria-pressed", active ? "true" : "false");
+    fullscreenButton.setAttribute(
+      "aria-label",
+      active ? "Salir de pantalla completa" : "Abrir Celular en pantalla completa"
+    );
+    fullscreenButton.title = active ? "Salir de pantalla completa" : "Pantalla completa";
+
+    if (active) updateDesktopScale();
   }
 
-  function enterPseudoFullscreen(wrapper) {
+  function syncCellphoneRuntime() {
+    global.LuminousPlayerCellphoneRuntime?.sync?.();
+  }
+
+  async function openMobileCellphone() {
+    const { wrapper } = parts();
+    if (!wrapper) return false;
+
+    mobileCellphoneOpen = true;
+    pseudoFullscreen = false;
+
+    wrapper.classList.remove("phone-hidden", "terminal-presentation-mode");
+    wrapper.classList.add("cellphone-native-surface");
+    wrapper.style.removeProperty("--terminal-presentation-scale");
+    doc.body?.classList.remove("player-terminal-pseudo-fullscreen");
+    doc.body?.classList.add("player-cellphone-surface-open");
+
+    if (!isRootFullscreen()) {
+      if (fullscreenElement()) await exitFullscreen();
+      await requestFullscreen(doc.documentElement);
+    }
+
+    await lockOrientation("portrait");
+    syncControls();
+    syncCellphoneRuntime();
+    return true;
+  }
+
+  async function closeMobileCellphone() {
+    const { wrapper } = parts();
+    if (!wrapper) return false;
+
+    mobileCellphoneOpen = false;
+    wrapper.classList.remove("cellphone-native-surface");
+    wrapper.classList.add("phone-hidden");
+    doc.body?.classList.remove("player-cellphone-surface-open");
+
+    // Keep the game in fullscreen when possible; switch its orientation back to landscape.
+    if (isRootFullscreen()) {
+      await lockOrientation("landscape");
+    } else {
+      try { global.screen?.orientation?.unlock?.(); } catch (_) {}
+    }
+
+    syncControls();
+    syncCellphoneRuntime();
+    return true;
+  }
+
+  function enterPseudoDesktopFullscreen(wrapper) {
     pseudoFullscreen = true;
     wrapper.classList.add("terminal-presentation-mode");
     doc.body?.classList.add("player-terminal-pseudo-fullscreen");
-    syncButton();
+    updateDesktopScale();
+    syncControls();
   }
 
-  function exitPseudoFullscreen(wrapper) {
+  function exitPseudoDesktopFullscreen(wrapper) {
     pseudoFullscreen = false;
     wrapper?.classList.remove("terminal-presentation-mode");
+    wrapper?.style.removeProperty("--terminal-presentation-scale");
     doc.body?.classList.remove("player-terminal-pseudo-fullscreen");
-    unlockOrientation();
-    syncButton();
+    syncControls();
   }
 
-  async function enter() {
+  async function enterDesktopFullscreen() {
     const { wrapper } = parts();
     if (!wrapper) return false;
 
     wrapper.classList.remove("phone-hidden");
-    global.LuminousPlayerTerminalVisibility?.sync?.();
+    syncCellphoneRuntime();
 
-    const nativeEntered = await requestNativeFullscreen(wrapper);
-    if (!nativeEntered) {
-      enterPseudoFullscreen(wrapper);
-    } else {
+    const entered = await requestFullscreen(wrapper);
+    if (!entered) enterPseudoDesktopFullscreen(wrapper);
+    else {
       pseudoFullscreen = false;
       wrapper.classList.remove("terminal-presentation-mode");
       doc.body?.classList.remove("player-terminal-pseudo-fullscreen");
+      updateDesktopScale();
+      syncControls();
     }
-
-    if (isPhoneDevice()) await lockLandscape();
-    syncButton();
     return true;
   }
 
-  async function exit() {
+  async function exitDesktopFullscreen() {
     const { wrapper } = parts();
     if (!wrapper) return false;
 
     if (pseudoFullscreen) {
-      exitPseudoFullscreen(wrapper);
+      exitPseudoDesktopFullscreen(wrapper);
       return true;
     }
 
-    if (isNativeFullscreen(wrapper)) {
-      await exitNativeFullscreen();
-      unlockOrientation();
+    if (isWrapperFullscreen(wrapper)) {
+      await exitFullscreen();
       return true;
     }
 
     return false;
   }
 
-  async function toggle(event) {
+  async function closeCellphone() {
+    const { wrapper } = parts();
+    if (!wrapper) return false;
+
+    if (isPhoneDevice() || mobileCellphoneOpen) {
+      return closeMobileCellphone();
+    }
+
+    await exitDesktopFullscreen();
+    wrapper.classList.add("phone-hidden");
+    syncCellphoneRuntime();
+    return true;
+  }
+
+  async function toggleFullscreen(event) {
     event?.preventDefault?.();
     event?.stopPropagation?.();
 
     const { wrapper } = parts();
     if (!wrapper) return;
 
-    if (isActive(wrapper)) await exit();
-    else await enter();
+    if (mobileCellphoneOpen) {
+      if (!isRootFullscreen()) {
+        await requestFullscreen(doc.documentElement);
+        await lockOrientation("portrait");
+        syncControls();
+      }
+      return;
+    }
+
+    if (isWrapperFullscreen(wrapper) || pseudoFullscreen) await exitDesktopFullscreen();
+    else await enterDesktopFullscreen();
   }
 
   function install() {
     if (installed) return true;
 
-    const { wrapper, button } = parts();
-    if (!wrapper || !button) return false;
+    const { wrapper, fullscreenButton, backButton } = parts();
+    if (!wrapper || !fullscreenButton || !backButton) return false;
 
-    button.addEventListener("click", toggle);
+    fullscreenButton.addEventListener("click", toggleFullscreen);
+    backButton.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      closeCellphone();
+    });
 
     const onFullscreenChange = () => {
-      if (!isNativeFullscreen(wrapper) && !pseudoFullscreen) unlockOrientation();
-      syncButton();
+      if (!isWrapperFullscreen(wrapper) && !mobileCellphoneOpen) {
+        pseudoFullscreen = false;
+        wrapper.classList.remove("terminal-presentation-mode");
+        wrapper.style.removeProperty("--terminal-presentation-scale");
+        doc.body?.classList.remove("player-terminal-pseudo-fullscreen");
+      }
+      syncControls();
     };
 
     doc.addEventListener("fullscreenchange", onFullscreenChange);
     doc.addEventListener("webkitfullscreenchange", onFullscreenChange);
 
+    global.addEventListener("resize", updateDesktopScale, { passive: true });
+    global.visualViewport?.addEventListener?.("resize", updateDesktopScale, { passive: true });
+
     doc.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && pseudoFullscreen) exitPseudoFullscreen(wrapper);
+      if (event.key !== "Escape") return;
+      if (mobileCellphoneOpen) closeMobileCellphone();
+      else if (pseudoFullscreen) exitPseudoDesktopFullscreen(wrapper);
     });
 
     installed = true;
-    syncButton();
+    syncControls();
     return true;
   }
 
@@ -189,12 +318,12 @@
   if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", boot, { once: true });
 
   global.LuminousPlayerTerminalFullscreen = Object.freeze({
-    enter,
-    exit,
-    toggle,
-    isActive: () => {
-      const { wrapper } = parts();
-      return isActive(wrapper);
-    },
+    openMobileCellphone,
+    closeMobileCellphone,
+    closeCellphone,
+    enter: enterDesktopFullscreen,
+    exit: exitDesktopFullscreen,
+    toggle: toggleFullscreen,
+    isMobileCellphoneOpen: () => mobileCellphoneOpen,
   });
 })(window);
