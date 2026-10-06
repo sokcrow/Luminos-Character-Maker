@@ -121,6 +121,12 @@
   function buildStandby() {
     if (state.standby) return state.standby;
 
+    const existing = doc.getElementById("player-mobile-standby");
+    if (existing) {
+      state.standby = existing;
+      return existing;
+    }
+
     const standby = doc.createElement("section");
     standby.id = "player-mobile-standby";
     standby.hidden = true;
