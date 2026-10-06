@@ -2159,7 +2159,8 @@ function initializeCharacterSheet() {
 
   // UI EVENT LISTENERS
   {
-    // Celular: una sola interfaz para PC y teléfono.
+    // Celular: misma interfaz existente, con presentación contextual.
+    // Juego móvil = landscape; Celular abierto = fullscreen portrait.
     const toggleBtn = document.getElementById("btn-toggle-phone");
     const phoneWrapper = document.querySelector(".sheet-phone-wrapper");
     const isPhoneDevice = (() => {
@@ -2192,18 +2193,30 @@ function initializeCharacterSheet() {
         window.LuminousInstanceControl?.syncPlayerCombatOcclusion?.(document);
       };
 
+      window.LuminousPlayerCellphoneRuntime = Object.freeze({
+        sync: syncCellphoneRuntime,
+        isPhoneDevice: () => isPhoneDevice,
+        isOpen: () => !phoneWrapper.classList.contains("phone-hidden"),
+      });
+
       if (isPhoneDevice) {
-        // En teléfono, el celular existente ES la superficie principal.
         document.body.classList.add("player-phone-device");
-        phoneWrapper.classList.remove("phone-hidden");
+        // No cargar una pantalla vertical sobre el juego horizontal.
+        phoneWrapper.classList.add("phone-hidden");
+        phoneWrapper.classList.remove("cellphone-native-surface");
+        document.body.classList.remove("player-cellphone-surface-open");
         toggleBtn.title = "Celular";
-        toggleBtn.setAttribute("aria-label", "Celular");
+        toggleBtn.setAttribute("aria-label", "Abrir celular");
         syncCellphoneRuntime();
       }
 
-      toggleBtn.addEventListener("click", () => {
+      toggleBtn.addEventListener("click", async () => {
         if (isPhoneDevice) {
-          phoneWrapper.classList.remove("phone-hidden");
+          if (phoneWrapper.classList.contains("phone-hidden")) {
+            await window.LuminousPlayerTerminalFullscreen?.openMobileCellphone?.();
+          } else {
+            await window.LuminousPlayerTerminalFullscreen?.closeMobileCellphone?.();
+          }
         } else {
           phoneWrapper.classList.toggle("phone-hidden");
         }
