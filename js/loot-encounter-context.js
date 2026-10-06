@@ -26,6 +26,15 @@
     "industrial_materials",
   ]);
 
+  const RARITY_CLASSES = Object.freeze([
+    "very_rare",
+    "rare",
+    "uncommon",
+    "common",
+    "likely",
+    "guaranteed",
+  ]);
+
   const CHANNEL_ALIASES = Object.freeze({
     consumable: "consumables",
     tool: "tools",
@@ -224,6 +233,16 @@
     return Object.freeze(uniqueIds(values).map(canonicalChannel).filter((id) => LOOT_CHANNELS.includes(id)));
   }
 
+  function normalizeRarityWeights(weights = {}) {
+    const out = {};
+    for (const [rawRarity, rawWeight] of Object.entries(weights || {})) {
+      const rarity = normalizeId(rawRarity);
+      if (!RARITY_CLASSES.includes(rarity)) continue;
+      out[rarity] = positiveWeight(rawWeight, 1);
+    }
+    return Object.freeze(out);
+  }
+
   function mergeWeights(...sources) {
     const out = {};
     for (const source of sources) {
@@ -286,6 +305,7 @@
       eventType: preset?.id || presetId || null,
       tags: Object.freeze([...new Set([...(preset?.tags || []), ...uniqueIds(input.tags)])]),
       weights: mergeWeights(preset?.weights, normalizeWeights(input.weights)),
+      rarityWeights: normalizeRarityWeights(input.rarityWeights),
       allowCategories: Object.freeze([...new Set([...(preset?.allowCategories || []), ...normalizeCategories(input.allowCategories)])]),
       blockCategories: normalizeCategories(input.blockCategories),
       guaranteedItems: Object.freeze(guaranteedItems),
@@ -364,6 +384,9 @@
       normalizedZone.weights,
       ...normalizedEvents.map((event) => event.weights),
     );
+    const rarityWeights = mergeWeights(
+      ...normalizedEvents.map((event) => event.rarityWeights),
+    );
     const quantityMultiplier = normalizedEvents.reduce((value, event) => value * event.quantityMultiplier, normalizedZone.quantityMultiplier);
     const qualityMultiplier = normalizedEvents.reduce((value, event) => value * event.qualityMultiplier, normalizedZone.qualityMultiplier);
     const guaranteedItems = normalizedEvents.flatMap((event) => event.guaranteedItems.map((entry) => Object.freeze({
@@ -380,6 +403,7 @@
         ...normalizedEvents.flatMap((event) => event.tags),
       ])]),
       weights,
+      rarityWeights,
       impossibleCategories: Object.freeze([...impossible]),
       allowedCategories: Object.freeze([...allowed]),
       quantityMultiplier,
@@ -410,6 +434,7 @@
   const API = Object.freeze({
     VERSION,
     LOOT_CHANNELS,
+    RARITY_CLASSES,
     CHANNEL_ALIASES,
     ZONE_PROFILES,
     EVENT_PROFILES,
@@ -418,6 +443,7 @@
     canonicalChannel,
     normalizeWeights,
     normalizeCategories,
+    normalizeRarityWeights,
     mergeWeights,
     normalizeZoneProfile,
     validateZoneProfile,
