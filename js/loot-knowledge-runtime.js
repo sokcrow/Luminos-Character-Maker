@@ -333,6 +333,71 @@
     return deepFreeze(facts);
   }
 
+  function materializedLootFacts(items = [], options = {}) {
+    const knownUses = [];
+    const valuable = [];
+
+    for (const item of Array.isArray(items) ? items : []) {
+      const itemId = normalizeId(item.definitionId ?? item.itemId ?? item.id);
+      if (!itemId) continue;
+      const harvest = item.customData?.harvest || {};
+      const def = harvest.definition || {};
+      const tags = new Set([...(def.tags || []), ...(item.tags || [])].map(normalizeId).filter(Boolean));
+      const useTags = [...(def.useTags || []), ...(item.useTags || [])].map(normalizeId).filter(Boolean);
+      const family = normalizeId(def.family || item.family);
+      const category = normalizeId(def.category || item.category);
+      const itemType = normalizeId(def.itemType || item.itemType);
+
+      const uses = new Set();
+      if (def.edibleRaw === true || family === "meat" || tags.has("meat") || item.culinaryAffinityProfileId || (item.culinaryProperties || []).length) {
+        uses.add("cooking");
+      }
+      if (def.rawCraftingReagent === true || itemType === "material" || tags.has("crafting_input") || useTags.length) {
+        uses.add("crafting");
+      }
+      if (uses.size) {
+        knownUses.push({
+          itemId,
+          uses: [...uses],
+          useTags,
+        });
+      }
+
+      const medicalStandard = Number(def.transplantMedicalStandardMediumValueAhn);
+      const medicalRange = def.transplantMedicalRangeAhn;
+      const valuableTags = ["rare", "exotic", "precious", "precious_metal", "gemstone"];
+      const taggedValuable = valuableTags.some((tag) => tags.has(tag));
+      const medicallyValuable = Number.isFinite(medicalStandard) || (medicalRange && (medicalRange.minAhn != null || medicalRange.maxAhn != null));
+      if (taggedValuable || medicallyValuable) {
+        valuable.push({
+          itemId,
+          reasons: [
+            ...(medicallyValuable ? ["medical_value"] : []),
+            ...(taggedValuable ? ["rare_or_exotic_material"] : []),
+          ],
+          medicalValueAhn: Number.isFinite(medicalStandard) ? medicalStandard : null,
+          medicalRangeAhn: clone(medicalRange || null),
+          observedUnitValueAhn: numberOr(def.unitValueAhn, 0) || null,
+        });
+      }
+    }
+
+    const facts = [];
+    if (knownUses.length) {
+      facts.push(makeFact("loot", "known_uses", knownUses, {
+        ...options,
+        source: options.source || "materialized_recovery",
+      }));
+    }
+    if (valuable.length) {
+      facts.push(makeFact("loot", "valuable_organs_materials", valuable, {
+        ...options,
+        source: options.source || "materialized_recovery",
+      }));
+    }
+    return deepFreeze(facts);
+  }
+
   function createCompendium(playerId, options = {}) {
     const id = String(playerId || "").trim();
     if (!id) throw new Error("COMPENDIUM_PLAYER_ID_REQUIRED");
@@ -395,6 +460,12 @@
       return mergeArrayByKey(Array.isArray(prior) ? prior : [], next, (entry) => normalizeId(entry.resourceId || entry.integrityFamily));
     }
     if (id === "loot.known_rarity_labels" && Array.isArray(next)) {
+      return mergeArrayByKey(Array.isArray(prior) ? prior : [], next, (entry) => normalizeId(entry.itemId));
+    }
+    if (id === "loot.known_uses" && Array.isArray(next)) {
+      return mergeArrayByKey(Array.isArray(prior) ? prior : [], next, (entry) => normalizeId(entry.itemId));
+    }
+    if (id === "loot.valuable_organs_materials" && Array.isArray(next)) {
       return mergeArrayByKey(Array.isArray(prior) ? prior : [], next, (entry) => normalizeId(entry.itemId));
     }
     return clone(next);
@@ -586,6 +657,7 @@
     combatObservationFacts,
     highMarginStatFacts,
     discoverPostCombatFacts,
+    materializedLootFacts,
     createCompendium,
     entryFor,
     mergeArrayByKey,
