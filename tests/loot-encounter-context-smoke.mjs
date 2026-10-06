@@ -70,6 +70,7 @@ assert.equal(runtime.categoryState(context, "technology").state, "impossible");
 const treasure = runtime.normalizeEventProfile({
   id: "robbed_jewelry_convoy",
   eventType: "treasure_expedition",
+  rarityWeights: { rare: 1.5, common: 0.75 },
 });
 context = runtime.resolveEncounterContext({
   zone: sealedForest,
@@ -78,6 +79,8 @@ context = runtime.resolveEncounterContext({
 assert.equal(runtime.categoryState(context, "gems").state, "allowed_by_exception");
 assert.ok(runtime.categoryState(context, "gems").weight > 1);
 assert.equal(runtime.categoryState(context, "technology").state, "impossible", "event may unlock only its authored categories");
+assert.equal(context.rarityWeights.rare, 1.5);
+assert.equal(context.rarityWeights.common, 0.75);
 assert.deepEqual(context.provenance.eventIds, ["robbed_jewelry_convoy"]);
 assert.deepEqual(context.provenance.eventTypes, ["treasure_expedition"]);
 assert.equal(context.provenance.zoneId, "forest_vaultless");
