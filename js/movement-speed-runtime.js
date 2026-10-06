@@ -116,6 +116,10 @@
     const underwater = options.underwater ?? hasTag(entity, "underwater");
     if (underwater && map.swim > 0) return "swim";
 
+    if (entity.flying === false && map.ground > 0) return "ground";
+    const waterOnly = entity?.mechanics?.waterBreathing?.onlyUnderwater === true || entity?.waterBreathingOnly === true;
+    if (waterOnly && !underwater && map.ground > 0) return "ground";
+
     const preferred = clean(options.preferredMovementMode ?? entity.preferredMovementMode ?? entity.mechanics?.preferredMovementMode ?? "");
     if (MODES.includes(preferred) && map[preferred] > 0) return preferred;
 
