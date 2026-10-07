@@ -12,6 +12,20 @@
   z-index:1;
 }
 
+/* Player Theatre reserves its top command strip for the hamburger rail.
+   Check prompts/HUDs begin below that strip instead of fighting for top-right. */
+body.player-instance-theatre .theatre-check-front-layer{
+  --theatre-player-menu-safe-top:max(104px,calc(env(safe-area-inset-top) + 88px));
+}
+body.player-instance-theatre .theatre-check-front-layer .theatre-check-hud,
+body.player-instance-theatre .theatre-check-front-layer .theatre-opposed-hud,
+body.player-instance-theatre .theatre-check-front-layer .dm-npc-roll-hud,
+body.player-instance-theatre .theatre-check-front-layer .theatre-check-player-notice,
+body.player-instance-theatre .theatre-check-front-layer .theatre-check-command-prompt,
+body.player-instance-theatre .theatre-check-front-layer .theatre-opposed-result-notice{
+  top:var(--theatre-player-menu-safe-top)!important;
+}
+
 .theatre-check-front-layer .theatre-check-hud{
   top:clamp(24px,4vh,44px)!important;
   width:min(390px,64vw)!important;
