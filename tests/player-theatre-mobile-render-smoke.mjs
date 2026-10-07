@@ -47,6 +47,22 @@ assert.match(
   'Player check prompts must stay below the hamburger rail'
 );
 
+assert.match(
+  checkCss,
+  /body\.player-instance-theatre \.theatre-check-front-layer \.theatre-roll-result-card[\s\S]{0,220}top:var\(--theatre-player-menu-safe-top\)!important;/,
+  'Remote roll-result cards must also stay below the hamburger rail'
+);
+assert.match(
+  checkCss,
+  /@media\(max-height:430px\) and \(orientation:landscape\)[\s\S]{0,1200}max-height:calc\(100dvh - var\(--theatre-player-menu-safe-top\) - 8px\)[\s\S]{0,600}overflow-y:auto;/,
+  'Compact landscape Theatre must keep the full check HUD reachable inside short viewports'
+);
+assert.match(
+  checkCss,
+  /@media\(max-height:430px\) and \(orientation:landscape\)[\s\S]{0,500}--theatre-player-menu-safe-top:max\(92px,calc\(env\(safe-area-inset-top\) \+ 76px\)\);/,
+  'Compact landscape Theatre must shrink the menu-safe offset instead of forcing 104px'
+);
+
 assert.match(engine, /scene:\s*["']campaña\/estado_mundo\/escena_actual["']/);
 assert.match(engine, /dialogue:\s*["']campaña\/estado_mundo\/dialogo_activo["']/);
 
