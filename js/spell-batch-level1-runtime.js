@@ -1231,6 +1231,10 @@
     ].map(String);
     unit.familiarOriginalSkillIds = [...new Set(originalSkillIds)];
     unit.familiarCannotAttack = false;
+    const inferredSlots = Math.max(1, originalSkillIds.length || 1);
+    if (!Number.isFinite(Number(unit.actionSlots))) unit.actionSlots = inferredSlots;
+    if (!Number.isFinite(Number(unit.activeSlots))) unit.activeSlots = unit.actionSlots;
+    if (!Number.isFinite(Number(unit.maxSlotsLimit))) unit.maxSlotsLimit = unit.actionSlots;
     return unit;
   }
 
