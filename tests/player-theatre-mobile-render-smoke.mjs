@@ -5,6 +5,7 @@ const html = fs.readFileSync(new URL('../hoja_personaje.html', import.meta.url),
 const mobileCss = fs.readFileSync(new URL('../css/player-mobile-runtime.css', import.meta.url), 'utf8');
 const checkCss = fs.readFileSync(new URL('../css/theatre-check-coordinator.css', import.meta.url), 'utf8');
 const engine = fs.readFileSync(new URL('../js/theatre-engine.js', import.meta.url), 'utf8');
+const hudNavigation = fs.readFileSync(new URL('../js/player-hud-navigation.js', import.meta.url), 'utf8');
 
 for (const id of ['dialogue-title','dialogue-name','dialogue-text','theatre-stage']) {
   assert.match(html, new RegExp(`id=["']${id}["']`), `Player Theatre DOM must expose #${id}`);
@@ -30,6 +31,11 @@ assert.match(
   engine,
   /getElementById\(["']btn-toggle-theatre-self-actor["']\)/,
   'Theatre Engine must bind the hamburger self-visibility toggle'
+);
+assert.match(
+  hudNavigation,
+  /#btn-toggle-theatre-self-actor/,
+  'Mobile touch bridge must include the Theatre self-visibility toggle'
 );
 assert.equal(
   engine.includes("position:absolute;right:16px;top:16px"),
@@ -66,6 +72,16 @@ assert.match(
   checkCss,
   /@media\(max-height:430px\) and \(orientation:landscape\)[\s\S]{0,500}--theatre-player-menu-safe-top:max\(92px,calc\(env\(safe-area-inset-top\) \+ 76px\)\);/,
   'Compact landscape Theatre must shrink the menu-safe offset instead of forcing 104px'
+);
+assert.match(
+  checkCss,
+  /\.theatre-roll-result-card:nth-of-type\(2\)\{[\s\S]{0,120}top:calc\(var\(--theatre-player-menu-safe-top\) \+ 64px\)!important;/,
+  'Compact landscape second roll result must use the short-stack offset'
+);
+assert.match(
+  checkCss,
+  /\.theatre-roll-result-card:nth-of-type\(3\)\{[\s\S]{0,120}top:calc\(var\(--theatre-player-menu-safe-top\) \+ 128px\)!important;/,
+  'Compact landscape third roll result must stay inside short Theatre viewports'
 );
 
 assert.match(engine, /scene:\s*["']campaña\/estado_mundo\/escena_actual["']/);
