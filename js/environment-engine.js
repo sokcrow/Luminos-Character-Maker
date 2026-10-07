@@ -61,6 +61,7 @@
     difficult_terrain: { label: "Difficult Terrain", category: "terrain", defaultScope: SCOPES.ZONE, severity: SEVERITIES.MODERATE, description: "Movement resolvers may increase movement cost in this terrain.", implies: [] },
     hazardous_terrain: { label: "Hazardous Terrain", category: "terrain", defaultScope: SCOPES.ZONE, severity: SEVERITIES.CONTEXT, description: "The terrain contains a hazard whose specific rule defines the consequence.", implies: [] },
     slippery: { label: "Slippery", category: "terrain", defaultScope: SCOPES.ZONE, severity: SEVERITIES.CONTEXT, description: "Actions that care about footing may inspect this trigger; no permanent generic penalty is applied.", implies: [] },
+    web: { label: "Web", category: "terrain", defaultScope: SCOPES.ZONE, severity: SEVERITIES.MODERATE, description: "Encounter Modifier. Its dedicated runtime applies Bind at Turn End; Web Walker ignores the Web penalty.", implies: [] },
   });
 
   const WEATHER_PRESETS = deepFreeze({
