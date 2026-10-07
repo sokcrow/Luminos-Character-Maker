@@ -234,11 +234,28 @@ globalThis.LuminousCombatEncounterLifecycle = {
   showResult() { return true; },
   beginBlackout() { return true; },
 };
+const lootFinalizationCalls = [];
+globalThis.LuminousLootLivePostCombatRuntime = {
+  async ensureEncounterId({ db }) {
+    assert.equal(db, fakeDb);
+    return 'smoke-encounter';
+  },
+  async finalizeEncounterLoot(payload) {
+    lootFinalizationCalls.push(payload);
+    return { finalized: [], skipped: [] };
+  },
+};
 dmApi._state.db = fakeDb;
 const finished = await dmApi.finishEncounter('victory', { confirm: false, displayMs: 0, blackoutMs: 0 });
 assert.equal(finished.result, 'victory');
 assert.equal(finished.transition, 'blackout');
 assert.equal(finished.nextInstance, 'teatro');
+assert.deepEqual(finished.lootFinalization, { finalized: [], skipped: [] });
+assert.equal(lootFinalizationCalls.length, 1);
+assert.equal(lootFinalizationCalls[0].encounterId, 'smoke-encounter');
+assert.equal(lootFinalizationCalls[0].result, 'victory');
+assert.equal(lootFinalizationCalls[0].db, fakeDb);
+assert.equal(lootFinalizationCalls[0].combatants, encounterCombatants);
 const rootUpdates = encounterWrites.filter((entry) => entry.op === 'update' && entry.path == null);
 assert.equal(rootUpdates.length, 1);
 assert.equal(rootUpdates[0].value[`${dmApi.ROOTS.state}/transition`], 'result');
@@ -253,6 +270,7 @@ assert.equal(encounterCombatants.alpha.encounterEnded, true);
 assert.equal(encounterCombatants.beta.encounterEnded, true);
 
 delete globalThis.document;
+delete globalThis.LuminousLootLivePostCombatRuntime;
 globalThis.LuminousCombatEncounterLifecycle = EncounterLifecycle;
 
 const firebaseSafe = dmApi.sanitizeForFirebase({ a: 1, fn() {}, nested: { b: 2, skip: undefined } });

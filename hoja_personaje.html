@@ -13,6 +13,9 @@
     <link rel="stylesheet" href="hoja_personaje.css?v=20261004-shop-commerce-1&menu=20261005-player-menu-40px-force-1" />
     <link rel="stylesheet" href="css/theatre-dialogue.css?v=20261005-player-menu-40px-force-1" />
     <link rel="stylesheet" href="css/theatre-hud.css?v=20261004-player-spacing-1&menu=20261005-player-menu-40px-force-1" />
+    <link rel="stylesheet" href="css/theatre-roll-visualizer.css?v=20261007-check-placement-1" />
+    <link rel="stylesheet" href="css/theatre-opposed-checks.css?v=20261007-check-placement-1" />
+    <link rel="stylesheet" href="css/theatre-check-coordinator.css?v=20261007-check-placement-1" />
     <link rel="stylesheet" href="css/inventory-hud-v2.css" />
     <link rel="stylesheet" href="css/economy-contracts.css" />
     <link id="player-progression-tree-stylesheet" rel="stylesheet" href="css/player-progression-tree.css" />
@@ -7575,6 +7578,19 @@
           </button>
 
 
+          <button
+            id="btn-toggle-theatre-self-actor"
+            class="hud-menu-item hud-menu-item--theatre"
+            type="button"
+            title="Mostrar mi personaje"
+            aria-label="Mostrar mi personaje en escena"
+            aria-pressed="false"
+            disabled
+          >
+            <img src="Assets/Images/Buttons/Player.svg" width="40" height="40" alt="" aria-hidden="true" class="hud-menu-local-icon" style="width:40px;height:40px;object-fit:contain;">
+            <span data-theatre-self-visibility-label>Mostrar personaje</span>
+          </button>
+
           <button id="btn-abrir-escritura" class="hud-menu-item hud-menu-item--theatre" type="button" title="Actuar en el Teatro">
             <img src="Assets/Images/Buttons/Theatre.png" width="40" height="40" alt="" aria-hidden="true" class="hud-menu-local-icon" style="width:40px;height:40px;object-fit:contain;">
             <span>Actuar</span>
@@ -12451,7 +12467,10 @@
     </script>
     <script src="js/game-loading-coordinator.js?v=20261005-real-gates-1"></script>
     <script src="js/instance-control.js?v=20261005-real-gates-1"></script>
-    <script src="js/theatre-engine.js?v=20261004-theatre-send-recovery-2"></script>
+    <script src="js/theatre-engine.js?v=20261007-menu-self-visibility-1"></script>
+    <script src="js/theatre-roll-visualizer.js?v=20261007-check-placement-1"></script>
+    <script src="js/theatre-check-coordinator.js?v=20261007-check-placement-1"></script>
+    <script src="js/theatre-opposed-checks.js?v=20261007-check-placement-1"></script>
     <script>
       const db = firebase.database();
 
@@ -13373,6 +13392,6 @@
     <script src="js/loot-live-postcombat-runtime.js"></script>
     <script src="js/player-postcombat-loot.js"></script>
     <script src="hoja_personaje.js?v=20261004-shop-commerce-1&menu=20261006-mobile-menu-2"></script>
-    <script src="js/player-hud-navigation.js?v=20261007-mobile-touch-menu-2"></script>
+    <script src="js/player-hud-navigation.js?v=20261007-mobile-touch-menu-3"></script>
   </body>
 </html>

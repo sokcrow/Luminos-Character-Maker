@@ -12,6 +12,27 @@
   z-index:1;
 }
 
+/* Player Theatre reserves its top command strip for the hamburger rail.
+   Check prompts/HUDs begin below that strip instead of fighting for top-right. */
+body.player-instance-theatre .theatre-check-front-layer{
+  --theatre-player-menu-safe-top:max(104px,calc(env(safe-area-inset-top) + 88px));
+}
+body.player-instance-theatre .theatre-check-front-layer .theatre-check-hud,
+body.player-instance-theatre .theatre-check-front-layer .theatre-opposed-hud,
+body.player-instance-theatre .theatre-check-front-layer .dm-npc-roll-hud,
+body.player-instance-theatre .theatre-check-front-layer .theatre-check-player-notice,
+body.player-instance-theatre .theatre-check-front-layer .theatre-check-command-prompt,
+body.player-instance-theatre .theatre-check-front-layer .theatre-opposed-result-notice,
+body.player-instance-theatre .theatre-check-front-layer .theatre-roll-result-card{
+  top:var(--theatre-player-menu-safe-top)!important;
+}
+body.player-instance-theatre .theatre-check-front-layer .theatre-roll-result-card:nth-of-type(2){
+  top:calc(var(--theatre-player-menu-safe-top) + 120px)!important;
+}
+body.player-instance-theatre .theatre-check-front-layer .theatre-roll-result-card:nth-of-type(3){
+  top:calc(var(--theatre-player-menu-safe-top) + 240px)!important;
+}
+
 .theatre-check-front-layer .theatre-check-hud{
   top:clamp(24px,4vh,44px)!important;
   width:min(390px,64vw)!important;
@@ -112,6 +133,75 @@ body.theatre-check-active #coin-toss-panel{opacity:0!important;visibility:hidden
 .on-game-dashboard #theatre-check-front-layer .dm-npc-roll-hud-metrics strong{font-size:38px!important}
 .on-game-dashboard #theatre-check-front-layer .dm-npc-roll-vs{font-size:34px!important}
 .on-game-dashboard #theatre-check-front-layer .dm-npc-roll-hud-status{min-height:30px!important;margin:0 8px 9px!important;font-size:14px!important}
+
+@media(max-height:430px) and (orientation:landscape){
+  body.player-instance-theatre .theatre-check-front-layer{
+    --theatre-player-menu-safe-top:max(92px,calc(env(safe-area-inset-top) + 76px));
+  }
+  body.player-instance-theatre .theatre-check-front-layer .theatre-check-hud,
+  body.player-instance-theatre .theatre-check-front-layer .theatre-opposed-hud{
+    max-height:calc(100dvh - var(--theatre-player-menu-safe-top) - 8px);
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    scrollbar-width:thin;
+    pointer-events:auto;
+    touch-action:pan-y;
+  }
+  body.player-instance-theatre .theatre-check-front-layer .theatre-check-tip{margin-bottom:5px!important;padding:5px 12px 6px!important}
+  body.player-instance-theatre .theatre-check-front-layer .theatre-check-tip-title{margin-bottom:2px!important;font-size:.82rem!important}
+  body.player-instance-theatre .theatre-check-front-layer .theatre-check-tip-copy{font-size:.62rem!important;line-height:1.15!important}
+  body.player-instance-theatre .theatre-check-front-layer .theatre-check-coins{min-height:42px!important;padding:5px 10px 4px!important}
+  body.player-instance-theatre .theatre-check-front-layer .theatre-check-coin-image{width:30px!important;height:30px!important;flex-basis:30px!important}
+  body.player-instance-theatre .theatre-check-front-layer .theatre-check-comparison{min-height:76px!important}
+  body.player-instance-theatre .theatre-check-front-layer .theatre-check-block{height:54px!important;margin:0 5px!important}
+  body.player-instance-theatre .theatre-check-front-layer .theatre-check-block-label{font-size:.62rem!important}
+  body.player-instance-theatre .theatre-check-front-layer .theatre-check-block-value{font-size:2rem!important}
+  body.player-instance-theatre .theatre-check-front-layer .theatre-check-block-sub{min-height:9px!important;font-size:.5rem!important}
+  body.player-instance-theatre .theatre-check-front-layer .theatre-check-operator{font-size:2.35rem!important}
+  body.player-instance-theatre .theatre-check-front-layer .theatre-check-status{min-height:22px!important;margin:4px 6px 5px!important;font-size:.92rem!important}
+  body.player-instance-theatre .theatre-check-front-layer .theatre-opposed-caption{padding:3px 8px!important;font-size:7px!important}
+  body.player-instance-theatre .theatre-check-front-layer .theatre-opposed-tip{padding:4px 8px!important;font-size:7px!important;line-height:1.15!important}
+  body.player-instance-theatre .theatre-check-front-layer .theatre-opposed-coins{min-height:40px!important;gap:5px!important;padding:4px 10px!important}
+  body.player-instance-theatre .theatre-check-front-layer .theatre-opposed-coin{width:28px!important;height:28px!important;flex-basis:28px!important}
+  body.player-instance-theatre .theatre-check-front-layer .theatre-opposed-threshold{min-height:54px!important;gap:1px!important}
+  body.player-instance-theatre .theatre-check-front-layer .theatre-opposed-threshold span,
+  body.player-instance-theatre .theatre-check-front-layer .theatre-opposed-compare span{font-size:8px!important}
+  body.player-instance-theatre .theatre-check-front-layer .theatre-opposed-threshold strong{font-size:30px!important}
+  body.player-instance-theatre .theatre-check-front-layer .theatre-opposed-compare{min-height:66px!important;grid-template-columns:minmax(0,1fr) 38px minmax(0,1fr)!important}
+  body.player-instance-theatre .theatre-check-front-layer .theatre-opposed-compare>div{height:46px!important;margin:0 5px!important}
+  body.player-instance-theatre .theatre-check-front-layer .theatre-opposed-compare strong{font-size:28px!important}
+  body.player-instance-theatre .theatre-check-front-layer .theatre-opposed-compare>b{font-size:32px!important}
+  body.player-instance-theatre .theatre-check-front-layer .theatre-opposed-status{min-height:20px!important;margin:4px 6px 5px!important;font-size:12px!important}
+  body.player-instance-theatre .theatre-check-front-layer .theatre-roll-result-card{
+    width:min(250px,42vw)!important;
+    padding:5px 9px 6px!important;
+  }
+  body.player-instance-theatre .theatre-check-front-layer .theatre-roll-result-card:nth-of-type(2){
+    top:calc(var(--theatre-player-menu-safe-top) + 64px)!important;
+  }
+  body.player-instance-theatre .theatre-check-front-layer .theatre-roll-result-card:nth-of-type(3){
+    top:calc(var(--theatre-player-menu-safe-top) + 128px)!important;
+  }
+  body.player-instance-theatre .theatre-check-front-layer .theatre-roll-result-name{
+    font-size:.72rem!important;
+    line-height:1!important;
+  }
+  body.player-instance-theatre .theatre-check-front-layer .theatre-roll-result-total{
+    margin-top:1px!important;
+    font-size:1.45rem!important;
+    line-height:.9!important;
+  }
+  body.player-instance-theatre .theatre-check-front-layer .theatre-roll-result-total::after{
+    margin-left:3px!important;
+    font-size:.45rem!important;
+  }
+  body.player-instance-theatre .theatre-check-front-layer .theatre-roll-result-outcome{
+    margin-top:2px!important;
+    padding-top:2px!important;
+    font-size:.55rem!important;
+    line-height:1.05!important;
+  }
+}
 
 @media(max-width:700px){.theatre-check-front-layer .theatre-check-hud{width:min(370px,90vw)!important}.theatre-check-player-notice,.theatre-check-command-prompt{right:10px;width:min(270px,74vw)}.theatre-check-compose-grid{grid-template-columns:1fr}.theatre-check-compose-grid .wide{grid-column:auto}.theatre-check-compose-actions{grid-template-columns:1fr 1fr}}
 @media(prefers-reduced-motion:reduce){.theatre-check-front-layer .theatre-check-hud,.theatre-check-dm-toast,.theatre-check-player-notice,.theatre-check-command-prompt{animation:none!important}}
