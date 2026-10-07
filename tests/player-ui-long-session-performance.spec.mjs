@@ -462,7 +462,7 @@ test("mobile Theatre renders live dialogue and sprites on the real player sheet"
       stage: box("#theatre-stage"),
       dialogue: box("#theatre-view-player .theatre-dialogue-wrapper"),
       hud: box(".hud-sidebar-right"),
-      sprite: box("#theatre-stage .sprite-wrapper img")
+      sprite: box("#theatre-stage .theatre-sprite")
     };
   });
 
