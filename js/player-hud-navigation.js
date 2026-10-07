@@ -59,10 +59,58 @@
     openHudModal(action.replace("act_hud_", ""));
   }
 
+  const touchBridgeState = {
+    button: null,
+    at: 0,
+  };
+
+  function isTouchBridgeTarget(button) {
+    if (!button) return false;
+    if (button.id === "btn-toggle-phone" || button.id === "btn-abrir-escritura") return false;
+    return Boolean(
+      button.matches(
+        "#btn-toggle-hud-menu, #btn-toggle-hud, #btn-global-inventory, #btn-toggle-theatre-log-player, button[name^='act_hud_']",
+      ),
+    );
+  }
+
+  function onPointerUp(event) {
+    if (event.pointerType !== "touch") return;
+
+    const button = event.target?.closest?.(".hud-sidebar-right button");
+    if (!isTouchBridgeTarget(button)) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    touchBridgeState.button = button;
+    touchBridgeState.at = global.performance?.now?.() || Date.now();
+
+    // Fire the same click path used on desktop while we are still inside the
+    // trusted touch gesture task. Existing menu/inventory/HUD listeners keep
+    // ownership of their behavior.
+    button.click();
+  }
+
+  function suppressDuplicateNativeClick(event) {
+    const button = event.target?.closest?.(".hud-sidebar-right button");
+    if (!button || touchBridgeState.button !== button) return;
+
+    const now = global.performance?.now?.() || Date.now();
+    if (event.detail !== 0 && now - touchBridgeState.at < 900) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      touchBridgeState.button = null;
+      touchBridgeState.at = 0;
+    }
+  }
+
+  doc.addEventListener("pointerup", onPointerUp, true);
+  doc.addEventListener("click", suppressDuplicateNativeClick, true);
   doc.addEventListener("click", onClick, true);
 
   global.LuminousPlayerHudNavigation = Object.freeze({
-    version: 1,
+    version: 2,
     open: openHudModal,
     closeAll: closeHudModals,
   });

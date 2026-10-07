@@ -488,14 +488,14 @@ test("mobile Theatre renders live dialogue and sprites on the real player sheet"
   const ensureRailOpen = async () => {
     const rail = page.locator(".hud-sidebar-right");
     if (!(await rail.evaluate((node) => node.classList.contains("is-open")))) {
-      await page.locator("#btn-toggle-hud-menu").click();
+      await page.locator("#btn-toggle-hud-menu").tap();
     }
     await expect(rail).toHaveClass(/is-open/);
   };
 
   await ensureRailOpen();
 
-  await page.locator('button[name="act_hud_stats"]').click();
+  await page.locator('button[name="act_hud_stats"]').tap();
   await expect(page.locator("#stats-modal")).toBeVisible();
   const statsLayers = await page.evaluate(() => ({
     theatre: Number.parseInt(getComputedStyle(document.getElementById("theatre-view-player")).zIndex || "0", 10) || 0,
@@ -505,7 +505,7 @@ test("mobile Theatre renders live dialogue and sprites on the real player sheet"
   expect(statsLayers.modal).toBeGreaterThan(statsLayers.theatre);
   expect(statsLayers.pointerEvents).not.toBe("none");
 
-  await page.locator('#stats-modal button[name="act_hud_close"]').click();
+  await page.locator('#stats-modal button[name="act_hud_close"]').tap();
   await expect(page.locator("#stats-modal")).toBeHidden();
 
   const hudCases = [
@@ -515,39 +515,39 @@ test("mobile Theatre renders live dialogue and sprites on the real player sheet"
   ];
 
   for (const [buttonSelector, modalSelector] of hudCases) {
-    await page.locator("#btn-toggle-hud-menu").click();
+    await page.locator("#btn-toggle-hud-menu").tap();
     await expect(page.locator(".hud-sidebar-right")).toHaveClass(/is-open/);
-    await page.locator(buttonSelector).click();
+    await page.locator(buttonSelector).tap();
     await expect(page.locator(modalSelector)).toBeVisible();
     const layers = await page.evaluate((selector) => ({
       theatre: Number.parseInt(getComputedStyle(document.getElementById("theatre-view-player")).zIndex || "0", 10) || 0,
       modal: Number.parseInt(getComputedStyle(document.querySelector(selector)).zIndex || "0", 10) || 0
     }), modalSelector);
     expect(layers.modal).toBeGreaterThan(layers.theatre);
-    await page.locator(`${modalSelector} button[name="act_hud_close"]`).click();
+    await page.locator(`${modalSelector} button[name="act_hud_close"]`).tap();
     await expect(page.locator(modalSelector)).toBeHidden();
   }
 
   await ensureRailOpen();
-  await page.locator("#btn-toggle-hud").click();
+  await page.locator("#btn-toggle-hud").tap();
   await expect(page.locator("#player-combat-hud")).toBeVisible();
   const vitalsLayers = await page.evaluate(() => ({
     theatre: Number.parseInt(getComputedStyle(document.getElementById("theatre-view-player")).zIndex || "0", 10) || 0,
     vitals: Number.parseInt(getComputedStyle(document.getElementById("player-combat-hud")).zIndex || "0", 10) || 0
   }));
   expect(vitalsLayers.vitals).toBeGreaterThan(vitalsLayers.theatre);
-  await page.locator("#btn-toggle-hud").click();
+  await page.locator("#btn-toggle-hud").tap();
   await expect(page.locator("#player-combat-hud")).toBeHidden();
 
   await ensureRailOpen();
-  await page.locator("#btn-toggle-theatre-log-player").click();
+  await page.locator("#btn-toggle-theatre-log-player").tap();
   await expect(page.locator("#theatre-log-container")).toHaveClass(/open/);
-  await page.locator("#btn-toggle-theatre-log-player").click();
+  await page.locator("#btn-toggle-theatre-log-player").tap();
   await expect(page.locator("#theatre-log-container")).not.toHaveClass(/open/);
 
   await ensureRailOpen();
 
-  await page.locator("#btn-global-inventory").click();
+  await page.locator("#btn-global-inventory").tap();
   await expect(page.locator("#inventory-modal")).toHaveClass(/active/);
   await expect(page.locator("#inventory-modal")).toBeVisible();
   const inventoryLayers = await page.evaluate(() => ({
