@@ -311,7 +311,8 @@
           inserted: false,
           recipient: deepFreeze(clone(recipient)),
           receipts: deepFreeze(receipts),
-          reason: result.reason || "inventory_capacity_exceeded",
+          reason: "inventory_capacity_exceeded",
+          rawReason: result.reason || null,
         });
       }
     }
