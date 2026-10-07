@@ -464,7 +464,7 @@ An Enchantment selects one authored route. The gemstone does not grant all affin
 - [ ] Add Item/Gem TH cap tests and external-tool separation tests.
 - [ ] Add ritual-consumable loss tests on success/failure.
 - [ ] Add Gem Anchor break/depletion/Dormant tests.
-- [ ] Add Resonant Overflow capacity tests.
+- [ ] Add separate Base Enchantment Slot vs Enchantment Gem Socket capacity tests, including Rank II multi-anchor, Rank III exclusivity and fourth-gem catastrophe.
 - [ ] Add per-action Fire/Cold channel-choice regression tests.
 - [ ] Add intentional/accidental Bind tests.
 - [ ] Add intentional/accidental Curse recipe tests.
