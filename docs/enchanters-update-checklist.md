@@ -286,7 +286,7 @@ Canonical contract: [`docs/enchanters-update-part-d-magic-items.md`](./enchanter
 - [ ] Preserve application provenance.
 - [ ] Preserve who/what applied the Enchantment.
 - [ ] Preserve application Encounter/Location/Service context when relevant.
-- [ ] Preserve charge state independently per Item Instance.
+- [ ] Preserve Item Charge presentation/state per Item Instance while keeping its resource authority mapped to canonical Magical Durability.
 - [ ] Preserve dormant/disabled state independently per Item Instance.
 - [ ] Preserve removal/replacement history where needed.
 - [ ] Hydrate/serialize enchantment state through Item Inventory Runtime.
@@ -359,9 +359,9 @@ Canonical contract: [`docs/enchanters-update-part-d-magic-items.md`](./enchanter
 ## 8. Charges and usage lifecycle
 
 - [x] Define charge initialization/resource authority: Charges are Item-defined projections backed by Magical Durability; concrete maxima/recharge remain authored content.
-- [ ] Persist current/max charges per Item Instance.
-- [ ] Consume charges through authoritative gameplay actions.
-- [ ] Prevent negative charges.
+- [ ] Persist current/max player-facing Charge state per Item Instance when authored, with Charge spending backed by canonical Magical Durability.
+- [ ] Consume authored Charges/Magical Durability through authoritative gameplay actions.
+- [ ] Prevent negative Charges or Magical Durability.
 - [x] Define behavior at zero magical resource: ordinary enchanted effects deplete/inactivate while physical Items remain usable; Bind/Curse may author persistence/recharge.
 - [x] Support recharge rules only when authored by the Enchantment/Magic Item definition.
 - [ ] Prevent UI/client-only charge resets.
