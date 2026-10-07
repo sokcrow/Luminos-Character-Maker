@@ -233,6 +233,10 @@ const firebaseStub = `
   function auth() { return authState; }
 
   window.__fakeFirebase = {
+    emitPath(raw, value) {
+      write(raw, value);
+      emit(raw, "value");
+    },
     emitPlayer(patch = {}) {
       const raw = "campaña/jugadores/player_test";
       const current = read(raw) || {};
@@ -376,6 +380,104 @@ test("source keeps the static player surface free of permanent polling and dupli
     const source = fs.readFileSync(path.join(ROOT, file), "utf8");
     expect(source, file).not.toMatch(/(?:global\.)?setInterval\s*\(/);
   });
+});
+
+test("mobile Theatre renders live dialogue and sprites on the real player sheet", async ({ browser }) => {
+  const context = await browser.newContext({
+    viewport: { width: 844, height: 390 },
+    isMobile: true,
+    hasTouch: true,
+    userAgent: "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36",
+    colorScheme: "dark"
+  });
+  const page = await context.newPage();
+  await installPageInstrumentation(page);
+  await page.goto(BASE + "/hoja_personaje.html", { waitUntil: "domcontentloaded" });
+  await page.waitForFunction(() => window.datosJugador?.characterName === "Performance Test", null, { timeout: 20_000 });
+
+  await page.evaluate(() => {
+    const sprite = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='260'%3E%3Crect width='180' height='260' fill='%23b98a32'/%3E%3C/svg%3E";
+    const background = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='9'%3E%3Crect width='16' height='9' fill='%23121212'/%3E%3C/svg%3E";
+
+    window.__fakeFirebase.emitPath("campaña/estado_mundo/instancia_activa", "teatro");
+    window.__fakeFirebase.emitPath("campaña/teatro/conocimiento_identidad/player_test/actor_mobile", { known: true });
+    window.__fakeFirebase.emitPath("campaña/estado_mundo/escena_actual", {
+      locacion: "Mobile Theatre",
+      fondo: background,
+      max_actores_visibles: 5,
+      actores_visibles: ["actor_mobile"],
+      actores: {
+        actor_mobile: {
+          nombre: "Mobile Actor",
+          titulo: "Test",
+          color_nombre: "#416268",
+          color_titulo: "#3b2918",
+          sprite,
+          escala: 0.72,
+          orientacion: "normal"
+        }
+      },
+      active_actor: "actor_mobile",
+      focus_mode: "dialogo",
+      transitioning: false
+    });
+    window.__fakeFirebase.emitPath("campaña/estado_mundo/dialogo_activo", {
+      actorId: "actor_mobile",
+      nombre: "Mobile Actor",
+      titulo: "Test",
+      mensaje: "Mobile dialogue visible",
+      color_nombre: "#416268",
+      color_titulo: "#3b2918",
+      tipo_dialogo: "dialogo",
+      mostrar_identidad: true,
+      startedAt: Date.now() - 5000,
+      speedMs: 1
+    });
+  });
+
+  await expect(page.locator("body")).toHaveClass(/player-instance-theatre/);
+  await expect(page.locator("#theatre-view-player")).toHaveCSS("display", "flex");
+  await expect(page.locator("#theatre-stage .theatre-sprite")).toHaveCount(1);
+  await expect(page.locator("#dialogue-name")).not.toHaveText("");
+  await expect(page.locator("#dialogue-text")).toContainText("Mobile dialogue visible", { timeout: 5_000 });
+  await expect(page.locator("#theatre-location")).toContainText("Mobile Theatre");
+
+  const surface = await page.evaluate(() => {
+    const box = (selector) => {
+      const node = document.querySelector(selector);
+      if (!node) return null;
+      const rect = node.getBoundingClientRect();
+      const style = getComputedStyle(node);
+      return {
+        width: rect.width,
+        height: rect.height,
+        display: style.display,
+        visibility: style.visibility,
+        opacity: Number(style.opacity || 1),
+        zIndex: Number.parseInt(style.zIndex || "0", 10) || 0
+      };
+    };
+    return {
+      theatre: box("#theatre-view-player"),
+      stage: box("#theatre-stage"),
+      dialogue: box("#theatre-view-player .theatre-dialogue-wrapper"),
+      hud: box(".hud-sidebar-right"),
+      sprite: box("#theatre-stage .theatre-sprite")
+    };
+  });
+
+  for (const [name, entry] of Object.entries(surface)) {
+    expect(entry, name).not.toBeNull();
+    expect(entry.width, name + " width").toBeGreaterThan(0);
+    expect(entry.height, name + " height").toBeGreaterThan(0);
+    expect(entry.display, name + " display").not.toBe("none");
+    expect(entry.visibility, name + " visibility").not.toBe("hidden");
+    expect(entry.opacity, name + " opacity").toBeGreaterThan(0);
+  }
+  expect(surface.theatre.zIndex).toBeGreaterThan(3010);
+  expect(surface.hud.zIndex).toBeGreaterThan(surface.theatre.zIndex);
+
+  await context.close();
 });
 
 test("real player sheet reaches interval-idle after boot", async ({ page }) => {

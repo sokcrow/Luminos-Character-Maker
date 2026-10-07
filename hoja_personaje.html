@@ -18,7 +18,7 @@
     <link id="player-progression-tree-stylesheet" rel="stylesheet" href="css/player-progression-tree.css" />
     <link id="player-skills-hud-stylesheet" rel="stylesheet" href="css/player-skills-hud.css?v=20261005-player-menu-40px-force-1&skills=35px-1" />
     <link rel="stylesheet" href="css/player-terminal-fullscreen.css?v=20261006-cellphone-context-1" />
-    <link rel="stylesheet" href="css/player-mobile-runtime.css?v=20261006-mobile-runtime-3" />
+    <link rel="stylesheet" href="css/player-mobile-runtime.css?v=20261006-mobile-runtime-4" />
 
     <style>
       #system-loading-overlay {
@@ -12820,18 +12820,6 @@
       );
 
       // --- LÓGICA DEL TEATRO DE LA MENTE (PLAYER VIEW) ---
-      let isTheatreBlocked = false;
-      let currentAssignedActor = null;
-      let playerSpritesEnEscena = new Set();
-      let currentMaxSprites = 4;
-
-      db.ref("campaña/teatro/max_sprites").on("value", (snap) => {
-        const val = snap.val();
-        if (val) {
-          currentMaxSprites = parseInt(val) || 4;
-        }
-      });
-
       // El callback reactivo impone directamente Teatro o Pantalla Negra en el DOM.
       window.LuminousInstanceControl.bindPlayer({ db });
 
@@ -12874,164 +12862,10 @@
         }
       });
 
-      // Listen to location
-      db.ref("campaña/teatro/locacion").on("value", (snap) => {
-        const loc = snap.val();
-        const locText = document.getElementById("theatre-location");
-        if (locText && loc) locText.innerText = loc;
-      });
-
-      // Listen to background
-      db.ref("campaña/teatro/fondo").on("value", (snap) => {
-        const bg = snap.val();
-        const view = document.getElementById("modulo-teatro");
-        if (view && bg) view.style.backgroundImage = `url('${bg}')`;
-      });
-
-      // Listen to current state (the actual dialogue and sprites)
-      db.ref("campaña/teatro/estado_actual").on("value", (snap) => {
-        const state = snap.val();
-        if (!state) return;
-
-        const titlePlate = document.getElementById(
-          "player-theatre-plate-title",
-        );
-        const namePlate = document.getElementById("player-theatre-plate-name");
-        const textBox = document.getElementById("player-theatre-dialogue-text");
-
-        const platesContainer = document.querySelector(
-          ".theatre-plates-container",
-        );
-        if (platesContainer) {
-          if (!state.nombre || state.nombre.trim() === "") {
-            platesContainer.style.display = "none";
-          } else {
-            platesContainer.style.display = "flex";
-          }
-        }
-
-        if (titlePlate) {
-          const spanElement = titlePlate.querySelector("span");
-          if (spanElement) {
-            spanElement.innerText = state.titulo || "";
-          }
-
-          let titleColor = state.color_titulo || "#3b2918";
-          if (typeof titleColor === "string") {
-            titleColor = titleColor.trim();
-          }
-          if (!/^#[0-9a-f]{3,8}$/i.test(titleColor) && (!window.CSS || !window.CSS.supports || !window.CSS.supports("color", titleColor))) {
-            titleColor = "#3b2918";
-          }
-
-          titlePlate.style.setProperty("color", "#ffffff", "important");
-          titlePlate.style.setProperty("background", `linear-gradient(90deg, ${titleColor} 0%, ${titleColor} 68%, #17110b 100%)`, "important");
-          titlePlate.style.setProperty("border-left-color", titleColor, "important");
-        }
-
-        if (namePlate) {
-          namePlate.innerText = state.nombre || "Desconocido";
-          namePlate.style.backgroundColor = state.color_nombre || "#416268";
-          namePlate.style.color = "#ffffff";
-        }
-
-        if (textBox) {
-          if (textBox.typewriterInterval) {
-            clearInterval(textBox.typewriterInterval);
-          }
-          textBox.textContent = "";
-          const fullText = state.mensaje || "";
-          let charIndex = 0;
-          if (fullText.length > 0) {
-            textBox.typewriterInterval = setInterval(() => {
-              textBox.textContent += fullText.charAt(charIndex);
-              charIndex++;
-              if (charIndex >= fullText.length) {
-                clearInterval(textBox.typewriterInterval);
-                textBox.typewriterInterval = null;
-              }
-            }, 30); // 30ms per character
-          }
-        }
-
-        const stage = document.getElementById("player-theatre-stage");
-        if (!stage) return;
-
-        const activeSpriteUrl = state.sprite;
-        const activeName = state.nombre || "Desconocido";
-        const actorEscala = state.escala !== undefined ? state.escala : 1.0;
-
-        if (!activeSpriteUrl || activeSpriteUrl.trim() === "") {
-          // Narrator mode: dim all existing sprites and return
-          Array.from(stage.children).forEach((wrapper) => {
-            let img = wrapper.querySelector("img");
-            if (img) {
-              img.className = "sprite-dimmed";
-              img.style.filter = "brightness(0.4) grayscale(0.5)";
-              img.style.transform = "translateX(-50%) scale(0.95)";
-            }
-          });
-          return;
-        }
-
-        let existingWrapper = Array.from(stage.children).find(
-          (wrapper) => wrapper.dataset.name === activeName,
-        );
-
-        if (existingWrapper) {
-          let img = existingWrapper.querySelector("img");
-          img.src = activeSpriteUrl;
-          existingWrapper.dataset.url = activeSpriteUrl;
-          existingWrapper.dataset.lastActive = Date.now();
-          img.style.height = `calc(100vh * ${actorEscala})`;
-        } else {
-          playerSpritesEnEscena.add(activeName);
-          const wrapper = document.createElement("div");
-          wrapper.className = "sprite-wrapper";
-          wrapper.dataset.url = activeSpriteUrl;
-          wrapper.dataset.name = activeName;
-          wrapper.dataset.lastActive = Date.now();
-
-          const img = document.createElement("img");
-          img.src = activeSpriteUrl;
-          img.style.cssText = `height: calc(100vh * ${actorEscala}); object-fit: contain; transition: all 0.4s ease;`;
-
-          wrapper.appendChild(img);
-          stage.appendChild(wrapper);
-
-          while (stage.children.length > currentMaxSprites) {
-            let oldestWrapper = Array.from(stage.children).reduce(
-              (oldest, current) => {
-                let oldestTime = parseInt(oldest.dataset.lastActive || 0);
-                let currentTime = parseInt(current.dataset.lastActive || 0);
-                return oldestTime < currentTime ? oldest : current;
-              },
-            );
-            if (oldestWrapper) {
-              playerSpritesEnEscena.delete(oldestWrapper.dataset.name);
-              stage.removeChild(oldestWrapper);
-            } else {
-              break;
-            }
-          }
-        }
-
-        Array.from(stage.children).forEach((wrapper) => {
-          let img = wrapper.querySelector("img");
-          if (
-            wrapper.dataset.name === activeName &&
-            wrapper.dataset.url === activeSpriteUrl
-          ) {
-            img.className = "sprite-active";
-            img.style.filter = "none"; // Ensure no dimming
-            img.style.transform = "translateX(-50%) scale(1)";
-          } else {
-            img.className = "sprite-dimmed";
-            img.style.filter = "brightness(0.4) grayscale(0.5)";
-            img.style.transform = "translateX(-50%) scale(0.95)";
-          }
-        });
-      });
+      // Visual rendering is owned exclusively by js/theatre-engine.js.
+      // Do not bind legacy campaña/teatro/estado_actual here: it races the
+      // canonical escena_actual/dialogo_activo renderer and can clear or
+      // overwrite the Player Theatre DOM.
     </script>
 
     <style id="estilos-tienda-dinamica">
