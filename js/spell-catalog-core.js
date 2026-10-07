@@ -1305,6 +1305,244 @@
       effects: []
     }),
 
+
+    fog_cloud: Object.freeze({
+      id: "fog_cloud", name: "Fog Cloud", nombre: "Nube de Niebla",
+      description: "Create a persistent Heavy Fog zone while you maintain Concentration. Units without Blindsight or Truesight suffer the Fog Cloud visibility penalties.",
+      level: 1, spellLevel: 1, cantrip: false,
+      classIds: ["druid", "ranger", "sorcerer", "wizard"],
+      school: "conjuration", contexts: ["combat", "theater"],
+      sinAffinity: "gloom", damageType: null,
+      targetType: "area", targetingType: "area", attackWeight: 0, atkWeight: 0,
+      castingTime: "action", concentration: true, duration: "1_hour", isUnclashable: true, resolutionType: "automatic",
+      mechanics: {
+        level1Runtime: "fog_cloud",
+        areaEffect: "heavy_fog",
+        clashPowerModifier: -3,
+        unopposedFinalPowerModifier: -4,
+        sightPerceptionCheckModifier: -3,
+        analyseThresholdModifier: 5,
+        bypassSenses: ["blindsight", "truesight"],
+        dispersesBy: ["strong_wind"],
+        suppressibleByDestroyFog: true
+      },
+      upcast: { additionalAreaRingPerLevel: 1 },
+      effects: [{ type: "level1_fog_cloud_area" }]
+    }),
+
+    goodberry: Object.freeze({
+      id: "goodberry", name: "Goodberry", nombre: "Goodberry",
+      description: "Create 10 Goodberries in the form of Blueberries. Each restores 3 Hunger and 3 Hydration. After 24 hours, remaining Goodberries become normal Blueberries.",
+      level: 1, spellLevel: 1, cantrip: false,
+      classIds: ["druid", "ranger"],
+      school: "transmutation", contexts: ["combat", "theater"],
+      sinAffinity: "gluttony", damageType: null,
+      targetType: "self", targetingType: "self", attackWeight: 0, atkWeight: 0,
+      castingTime: "action", concentration: false, duration: "24_hours", isUnclashable: true, resolutionType: "automatic",
+      mechanics: {
+        level1Runtime: "goodberry",
+        requiresChoice: { key: "goodberryVariant", values: ["goodberry", "goodshrooms"] },
+        variants: {
+          goodberry: { label: "Goodberry", definitionId: "blueberry", quantity: 10 },
+          goodshrooms: { label: "Goodshrooms", definitionId: "common_mushroom", quantity: 10 }
+        },
+        hungerRestore: 3,
+        hydrationRestore: 3,
+        durationHours: 24,
+        hiddenIngredientProperties: true
+      },
+      effects: [{ type: "level1_goodberry" }]
+    }),
+
+    grease: Object.freeze({
+      id: "grease", name: "Grease", nombre: "Grasa",
+      description: "Create a persistent Grease zone for 10 Turns. Grounded Units in the zone have -1 Speed and make a DEX Save when the zone appears, when entering it, and at Turn End. On a Failed Save, gain Prone.",
+      level: 1, spellLevel: 1, cantrip: false,
+      classIds: ["sorcerer", "wizard"],
+      school: "conjuration", contexts: ["combat"],
+      sinAffinity: "sloth", damageType: null,
+      targetType: "area", targetingType: "area", attackWeight: 0, atkWeight: 0,
+      castingTime: "action", concentration: false, durationTurns: 10, isUnclashable: true,
+      save: { abilityId: "dex", onSuccess: "negates_prone" },
+      mechanics: {
+        level1Runtime: "grease",
+        areaEffect: "grease_zone",
+        groundedOnly: true,
+        speedModifier: -1,
+        saveTriggers: ["on_create", "on_enter", "turn_end"],
+        onFailedSave: { status: "prone" },
+        durationTurns: 10
+      },
+      effects: [{ type: "level1_grease_area" }]
+    }),
+
+    guiding_bolt: Object.freeze({
+      id: "guiding_bolt", name: "Guiding Bolt", nombre: "Proyectil Guía",
+      description: "On Hit, inflict 2 Radiance and Guided Light. The next Attack Skill targeting that Unit gains +2 Final Power, then Guided Light is removed.",
+      level: 1, spellLevel: 1, cantrip: false,
+      classIds: ["cleric"],
+      school: "evocation", contexts: ["combat"],
+      sinAffinity: "pride", damageType: "perforante",
+      targetType: "enemy", targetingType: "focused_attack", attackWeight: 1, atkWeight: 1,
+      castingTime: "action", concentration: false,
+      basePower: 5, coinPower: 10, coinAmount: 1, coins: 1,
+      mechanics: {
+        level1Runtime: "guiding_bolt",
+        onHitStatus: { status: "radiance", count: 2 },
+        guidedLight: { status: "guided_light", finalPowerBonus: 2, expires: "caster_next_turn_end", consumeOn: "next_attack_skill" }
+      },
+      upcast: { coinPowerPerLevel: 1 },
+      effects: []
+    }),
+
+    hail_of_thorns: Object.freeze({
+      id: "hail_of_thorns", name: "Hail of Thorns", nombre: "Lluvia de Espinas",
+      description: "Quick Action after one of your Ranged Weapon Attack Skills hits. Affected Units make a DEX Save; deal 5 × Spell Slot Used Fixed Damage on failure, half on success.",
+      level: 1, spellLevel: 1, cantrip: false,
+      classIds: ["ranger"],
+      school: "conjuration", contexts: ["combat"],
+      sinAffinity: "gluttony", damageType: "perforante",
+      targetType: "enemies", targetingType: "aoe", attackWeight: 3, atkWeight: 3,
+      castingTime: "quick_action", concentration: false, isUnclashable: true,
+      save: { abilityId: "dex", onSuccess: "half" },
+      mechanics: {
+        level1Runtime: "hail_of_thorns",
+        trigger: "after_ranged_weapon_attack_hit",
+        fixedDamagePerSpellSlotUsed: 5,
+        secondaryEffect: true
+      },
+      upcast: { fixedDamagePerLevel: 5 },
+      effects: [{ type: "level1_hail_of_thorns" }]
+    }),
+
+    healing_word: Object.freeze({
+      id: "healing_word", name: "Healing Word", nombre: "Palabra Sanadora",
+      description: "Heal (1 × Spell Slot Used) + (2, 2 × Spell Mod)% Max HP.",
+      level: 1, spellLevel: 1, cantrip: false,
+      classIds: ["bard", "cleric", "druid"],
+      school: "abjuration", contexts: ["combat"],
+      sinAffinity: "sinless", damageType: null,
+      targetType: "allies", targetingType: "single", attackWeight: 0, atkWeight: 0,
+      castingTime: "quick_action", concentration: false, isUnclashable: true, resolutionType: "automatic",
+      mechanics: {
+        level1Runtime: "healing_word",
+        canTargetSelf: true,
+        healing: {
+          flatPerSpellSlotUsed: 1,
+          maxHpPercent: { minimum: 2, perSpellMod: 2 }
+        }
+      },
+      effects: [{ type: "level1_healing_word" }]
+    }),
+
+    hellish_rebuke: Object.freeze({
+      id: "hellish_rebuke", name: "Hellish Rebuke", nombre: "Reprensión Infernal",
+      description: "Reaction after taking damage from a Unit you can see. DEX Save; on failure take (5 + 5 × Spell Slot Used) Fixed Damage and gain 3 Burn Count; on success take half Fixed Damage.",
+      level: 1, spellLevel: 1, cantrip: false,
+      classIds: ["warlock"],
+      school: "evocation", contexts: ["combat"],
+      sinAffinity: "wrath", damageType: "perforante",
+      targetType: "enemy", targetingType: "single", attackWeight: 1, atkWeight: 1,
+      castingTime: "reaction", concentration: false, isUnclashable: true,
+      save: { abilityId: "dex", onSuccess: "half" },
+      mechanics: {
+        level1Runtime: "hellish_rebuke",
+        trigger: "after_taking_damage_from_visible_unit",
+        fixedDamage: { base: 5, perSpellSlotUsed: 5 },
+        onFailedSaveStatus: { status: "burn", count: 3 }
+      },
+      upcast: { fixedDamagePerLevel: 5 },
+      effects: [{ type: "level1_hellish_rebuke" }]
+    }),
+
+    heroism: Object.freeze({
+      id: "heroism", name: "Heroism", nombre: "Heroísmo",
+      description: "Choose 1 allied Unit. While you maintain Concentration, refresh Heroism Shield to 3 × Spell Mod at the start of its Turn. Frightened immunity lasts only while Heroism Shield remains.",
+      level: 1, spellLevel: 1, cantrip: false,
+      classIds: ["bard", "paladin"],
+      school: "enchantment", contexts: ["combat"],
+      sinAffinity: "pride", damageType: null,
+      targetType: "allies", targetingType: "single", attackWeight: 0, atkWeight: 0,
+      castingTime: "action", concentration: true, durationTurns: 10, isUnclashable: true, resolutionType: "automatic",
+      mechanics: {
+        level1Runtime: "heroism",
+        shieldPerSpellMod: 3,
+        refresh: "target_turn_start",
+        frightenedImmunityWhileShield: true,
+        removeFrightenedOnApply: true
+      },
+      upcast: { additionalTargetsPerLevel: 1 },
+      effects: [{ type: "level1_heroism" }]
+    }),
+
+    hex: Object.freeze({
+      id: "hex", name: "Hex", nombre: "Hex",
+      description: "Choose 1 Unit and STR, DEX, CON, INT, WIS, or CHA. Checks using that Ability gain +3 Threshold. When you hit the Hexed Unit with an Attack Skill, deal 3 Fixed Damage and inflict 1 Decay Count once per Skill.",
+      level: 1, spellLevel: 1, cantrip: false,
+      classIds: ["warlock"],
+      school: "enchantment", contexts: ["combat", "theater"],
+      sinAffinity: "gloom", damageType: null,
+      targetType: "enemy", targetingType: "single", attackWeight: 0, atkWeight: 0,
+      castingTime: "quick_action", concentration: true, duration: "1_hour", isUnclashable: true, resolutionType: "automatic",
+      mechanics: {
+        level1Runtime: "hex",
+        requiresChoice: { key: "hexAbility", values: ["str", "dex", "con", "int", "wis", "cha"] },
+        status: "hexed",
+        checkThresholdModifier: 3,
+        savesUnaffected: true,
+        onCasterAttackSkillHit: { fixedDamage: 3, status: "decay", count: 1, oncePerSkill: true },
+        transferOnTargetZeroHp: { economy: "quick_action", noAdditionalSpellSlot: true }
+      },
+      upcast: { durationBySlot: { "1": "1_hour", "2": "4_hours", "3": "8_hours", "4": "8_hours", "5": "24_hours" } },
+      effects: [{ type: "level1_hex" }]
+    }),
+
+    hunters_mark: Object.freeze({
+      id: "hunters_mark", name: "Hunter's Mark", nombre: "Marca del Cazador",
+      description: "Choose 1 Unit. When you hit your Marked Quarry with an Attack Skill, deal 4 Fixed Damage once per Skill. Analyse Threshold -2 against it; Perception and Survival Check Threshold -3 to locate or track it.",
+      level: 1, spellLevel: 1, cantrip: false,
+      classIds: ["ranger"],
+      school: "divination", contexts: ["combat", "theater"],
+      sinAffinity: "pride", damageType: null,
+      targetType: "enemy", targetingType: "single", attackWeight: 0, atkWeight: 0,
+      castingTime: "quick_action", concentration: true, duration: "1_hour", isUnclashable: true, resolutionType: "automatic",
+      mechanics: {
+        level1Runtime: "hunters_mark",
+        status: "marked_quarry",
+        onCasterAttackSkillHit: { fixedDamage: 4, oncePerSkill: true },
+        analyseThresholdModifier: -2,
+        locatePerceptionThresholdModifier: -3,
+        trackSurvivalThresholdModifier: -3,
+        transferOnTargetZeroHp: { economy: "quick_action", noAdditionalSpellSlot: true }
+      },
+      upcast: { durationBySlot: { "1": "1_hour", "2": "1_hour", "3": "8_hours", "4": "8_hours", "5": "24_hours" } },
+      effects: [{ type: "level1_hunters_mark" }]
+    }),
+
+    ice_knife: Object.freeze({
+      id: "ice_knife", name: "Ice Knife", nombre: "Cuchillo de Hielo",
+      description: "Focused Attack. After the Skill resolves, Hit or Miss, the knife explodes with ATK Weight 3. Affected Units make a DEX Save; on failure take (3 + 3 × Spell Slot Used) Fixed Damage and gain 2 Chill Count.",
+      level: 1, spellLevel: 1, cantrip: false,
+      classIds: ["druid", "sorcerer", "wizard"],
+      school: "conjuration", contexts: ["combat"],
+      sinAffinity: "gloom", damageType: "perforante",
+      targetType: "enemy", targetingType: "focused_attack", attackWeight: 1, atkWeight: 1,
+      castingTime: "action", concentration: false,
+      basePower: 5, coinPower: 10, coinAmount: 1, coins: 1,
+      mechanics: {
+        level1Runtime: "ice_knife",
+        explosion: {
+          trigger: "after_skill_resolves_hit_or_miss",
+          attackWeight: 3,
+          save: { abilityId: "dex", onSuccess: "negates" },
+          fixedDamage: { base: 3, perSpellSlotUsed: 3 },
+          onFailedSaveStatus: { status: "chill", count: 2 }
+        }
+      },
+      upcast: { explosionFixedDamagePerLevel: 3 },
+      effects: [{ type: "level1_ice_knife_explosion" }]
+    }),
+
     absorb_elements: Object.freeze({
       id: "absorb_elements", name: "Absorb Elements", nombre: "Absorber Elementos",
       level: 1, spellLevel: 1, cantrip: false,
