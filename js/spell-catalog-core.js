@@ -1219,6 +1219,40 @@
       effects: [{ type: "level1_entangle_area" }]
     }),
 
+    find_familiar: Object.freeze({
+      id: "find_familiar", name: "Find Familiar", nombre: "Encontrar Familiar",
+      description: "Summon a Familiar using a real Unit from the Unit Library. Choose its animal form, available variant, and spirit type.",
+      level: 1, spellLevel: 1, cantrip: false,
+      classIds: ["wizard"],
+      school: "conjuration", contexts: ["theater"],
+      sinAffinity: "sloth", damageType: null,
+      targetType: "self", targetingType: "self", attackWeight: 1, atkWeight: 1,
+      castingTime: "1_hour", ritual: true, concentration: false, resolutionType: "automatic",
+      mechanics: {
+        level1Runtime: "find_familiar",
+        requiresChoice: { key: "spirit_type", values: ["celestial", "fey", "fiend"] },
+        unitLibraryChoice: {
+          key: "familiar_unit_id",
+          root: "campaña/base_datos_unidades",
+          allowedForms: ["bat", "cat", "frog", "hawk", "lizard", "octopus", "owl", "rat", "raven", "spider", "weasel"],
+          allowOtherCr0Beasts: true,
+          chooseVariantWhenAvailable: true
+        },
+        summon: {
+          kind: "familiar",
+          onePerCaster: true,
+          useUnitLibraryStats: true,
+          targetable: true,
+          ownTurn: true,
+          cannotUseAttackSkills: true,
+          telepathyFeet: 100,
+          familiarSensesQuickAction: true,
+          deliverTouchSpell: { rangeFeet: 100, familiarReaction: true }
+        }
+      },
+      effects: [{ type: "level1_find_familiar" }]
+    }),
+
     charm_person: Object.freeze({
       id: "charm_person", name: "Charm Person", nombre: "Hechizar Persona",
       level: 1, spellLevel: 1, cantrip: false,
