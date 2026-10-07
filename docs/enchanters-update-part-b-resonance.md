@@ -211,69 +211,44 @@ External factors may reduce TH further, including authored:
 
 Improvised/poor conditions may likewise increase TH.
 
-## 10. Base Slots and Resonant Overflow
+## 10. Base Enchantment Slots and Enchantment Gem Sockets
 
-Part A's slot limit is clarified as:
-
-```text
-maximum Base Enchantment Slots = 3
-```
-
-A physical Gem Anchor may create a special **Resonant Overflow Slot**.
-
-Canonical rule:
-
-- maximum Base Slots remain 3;
-- an Item may gain at most **+1 Resonant Overflow Slot**;
-- the Overflow Slot is not a generic free slot;
-- it can only sustain an Enchantment physically anchored to a valid mounted gemstone;
-- removing, breaking or depleting that gemstone removes the overflow support.
-
-Therefore a Tier V Item may reach an effective 4-slot configuration only when one slot is sustained by a Gem Anchor.
-
-Examples:
+Part C clarifies that direct/pure Item Enchantments and physical Gem-Anchored Enchantments use **separate capacity tracks**.
 
 ```text
-Tier V base: 3
-
-Flamebound III  = 3 base slots
-Frostbound I    = 1 resonant overflow slot
+Base Enchantment Slots
+!=
+Enchantment Gem Sockets
 ```
 
-or:
+Direct/pure Item Enchantments continue to use Part A Base Slot rules:
 
-```text
-Flamebound II = 2
-Frostbound II = 1 base + 1 resonant overflow
-```
+- Rank I -> 1 Base Slot;
+- Rank II -> 2 Base Slots;
+- Rank III -> 3 Base Slots;
+- maximum Base Slots = 3.
 
-The overflow rule exists so physical gems remain meaningful when an Item specializes deeply instead of becoming dead decoration.
+Physical Gem-Anchored Enchantments use explicit **Enchantment Gem Sockets** instead.
 
-## 11. Rank pressure still limits multi-Enchantment builds
+Canonical Gem Socket rules:
 
-Rank consumption remains:
+- an enchantable chassis may support up to 3 Enchantment Gem Sockets;
+- one physical Gem Anchor occupies one Gem Socket;
+- one Gem Anchor channels one Enchantment;
+- strengthening a Gem-Anchored Enchantment does not automatically consume another physical Gem Socket;
+- up to three Rank II Gem-Anchored Enchantments may coexist where all three sockets are valid;
+- only one Rank III Gem-Anchored Enchantment may exist on the Item;
+- attempting to install a fourth Enchantment Gem is catastrophic: the Item and prior Gem Anchors are destroyed and the last inserted gem is the only gem left by that event.
 
-- Rank I -> 1 slot;
-- Rank II -> 2 slots;
-- Rank III -> 3 slots.
+Mundane decorative gemstone composition in Jewelry is not the same thing as an Enchantment Gem Socket.
 
-Without Resonant Overflow:
+## 11. Gem Rank pressure
 
-```text
-Flamebound I + Frostbound I + third Rank I
-= 3 slots
+Gem Anchors are intentionally more valuable/flexible than direct Enchantments because physical channeling gives them their own socket capacity and generally better Magical Durability.
 
-Flamebound II + Frostbound I
-= 3 slots
+This does **not** make one gem grant every affinity it possesses: one Gem Anchor still channels one installed Enchantment.
 
-Flamebound II + Frostbound II
-= 4 slots -> invalid without Resonant Overflow
-
-Any Rank III + another Enchantment
-= invalid without Resonant Overflow
-```
-
-The gem exception therefore increases build flexibility by one anchored Rank-I-equivalent slot, not by removing Rank pressure.
+The exact validation of a Rank III Gem Anchor coexisting with lower-rank Gem Anchors must be explicit in the catalog/runtime tests before implementation is considered complete.
 
 ## 12. Per-action channel choice remains authoritative
 
@@ -458,14 +433,16 @@ An Enchantment selects one authored route. The gemstone does not grant all affin
 - [ ] Keep external facility/tool TH modifiers separate from Item/Gem stabilization.
 - [ ] Add Enchantment Table / Arcane Workshop/tool integration seam.
 
-### Resonant Overflow
+### Gem Socket capacity
 
-- [ ] Clarify runtime capacity as max 3 Base Slots plus max 1 Resonant Overflow Slot.
-- [ ] Allow Overflow only for an Enchantment with a valid physical Gem Anchor.
-- [ ] Prevent Overflow from becoming a generic fourth slot.
-- [ ] Revalidate capacity when an Anchor is removed/broken/depleted.
-- [ ] Support configurations such as Rank III + anchored Rank I and Rank II + anchored Rank II where the single Overflow Slot supplies the excess capacity.
-- [ ] Add UI representation that distinguishes Base Slots from the Resonant Overflow Slot without debug terminology.
+- [ ] Keep direct/pure Base Enchantment Slots separate from Enchantment Gem Sockets.
+- [ ] Add explicit per-Item Enchantment Gem Socket capacity with hard maximum 3.
+- [ ] Enforce one Gem Anchor / one Enchantment per socket.
+- [ ] Allow up to three Rank II Gem-Anchored Enchantments where valid.
+- [ ] Enforce only one Rank III Gem-Anchored Enchantment per Item.
+- [ ] Finalize/test exact Rank III coexistence with lower-rank Gem Anchors.
+- [ ] Block/warn ordinary fourth-gem installation and implement the authored catastrophic forced outcome.
+- [ ] Keep mundane Jewelry gemstone composition separate from Enchantment Gem Sockets.
 
 ### Bind / Curse recipe integration
 
