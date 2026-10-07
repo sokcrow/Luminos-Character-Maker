@@ -16,7 +16,7 @@ Design decisions are marked complete here; implementation remains open.
 ### Frozen design decisions
 
 - [x] Item Tier capacity is fixed at Tier I = 0, Tier II = 1, Tier III = 1, Tier IV = 2, Tier V = 3 Enchantment Slots.
-- [x] Hard maximum is 3 Enchantment Slots.
+- [x] Hard maximum is 3 Base Enchantment Slots; Part B permits at most +1 Resonant Overflow Slot sustained by a valid mounted Gem Anchor.
 - [x] Rank I/II/III normally consumes 1/2/3 slots respectively.
 - [x] Multiple compatible Enchantments may coexist while total slot use fits capacity.
 - [x] Unknown magic equipment uses generic naming such as `Enchanted Longsword`.
@@ -54,6 +54,56 @@ Design decisions are marked complete here; implementation remains open.
 - [ ] Add Bind and Curse runtime behavior.
 - [ ] Add physical/magical repair authority.
 - [ ] Add regression/smoke tests and CI path coverage.
+
+## Part B — Resonance, Gem Anchors and Enchantment Recipes (design frozen)
+
+Canonical contract: [`docs/enchanters-update-part-b-resonance.md`](./enchanters-update-part-b-resonance.md)
+
+### Frozen design decisions
+
+- [x] Keep Physical Item Material, Gem Anchor, Consumed Ritual Material and Enchantment Effect as separate concepts.
+- [x] Preserve the existing 12 gemstone `resonanceTags` as canonical core resonance.
+- [x] Let gemstones expose multiple coherent Enchantment Affinities instead of one hard-coded Enchantment each.
+- [x] One mounted Gem Anchor channels one installed Enchantment at a time even if the gem has many compatible affinities.
+- [x] Mounted Gem Anchors remain physically in the Item on successful application; non-gem ritual materials are consumed by the ritual.
+- [x] Once an application attempt begins, consumed ritual materials are lost on success or failure.
+- [x] A failed/unstable attempt may break, deplete, destabilize or corrupt its Gem Anchor.
+- [x] Gem Quality governs stable Enchantment Rank capacity: Poor Rank I unstable, Standard Rank I, Fine up to Rank II, Exceptional up to Rank III.
+- [x] Overchanneling above a gem's stable Rank is allowed as an unstable attempt and increases failure risk.
+- [x] Enchantment compatibility supports primary/ideal, accepted and incompatible resonance/affinity routes.
+- [x] Non-elemental branches such as HP, regeneration, SP, Intelligence, Speed and resistance may be gem-compatible when authored.
+- [x] Opal/Prismatic and Starstone/Exotic are specialized routes, not universal substitutes.
+- [x] Same-family Gem Anchors create Resonance Specialization; mixed families create Hybrid Resonance.
+- [x] Hybrid builds gain more branches but do not receive the full accumulated same-branch specialization benefit.
+- [x] Compatible Gem Anchor baseline stabilization is -2 TH.
+- [x] Gem Quality/specialization may improve the Item/Gem stabilization contribution until Rank I base TH 22 can reach TH 18.
+- [x] TH 18 is only the Item/Gem stabilization floor for that Rank-I example; proper tables, workshops, tools and facilities may reduce TH further.
+- [x] Base capacity remains max 3 slots, with at most +1 Resonant Overflow Slot.
+- [x] Resonant Overflow is not a generic fourth slot and may only sustain a valid Gem-Anchored Enchantment.
+- [x] If Gem Anchor support disappears and capacity is exceeded, dependent Enchantments become Dormant rather than being silently deleted.
+- [x] Multiple conflicting elemental/branch Enchantments may coexist, but exclusive action channels require the wielder to choose which property participates in an action.
+- [x] Bind can occur accidentally or be intentionally attempted; intentional Bind initially adds +4 TH and retains the Part A x1.25 positive-effect modifier.
+- [x] Curse can occur through instability/backlash or be intentionally authored with profane/corrupted materials; intentional Curse initially adds +6 TH.
+- [x] Cursed drawbacks are authored per Enchantment and may include HP/SP/Sanity drain, stat penalties or other explicit disadvantages.
+- [x] Gem-affinity authoring is separate from effect authoring: a Ruby can enable Fire/HP/Regeneration-compatible paths but never grants all of them simultaneously.
+- [x] Approved example affinity directions include Ruby -> Fire/Heat plus HP/Vigor/Regeneration/Fire Resistance; Sapphire -> Cold/Ice plus SP/INT/Focus/Cold Resistance; Topaz -> Lightning/Energy plus Speed/Initiative/Movement.
+
+### Part B implementation gate
+
+- [ ] Add canonical `gemMagicProfile` data for all 12 gemstone identities.
+- [ ] Author and validate the full 12-gem Enchantment Affinity matrix.
+- [ ] Add Gem Quality -> stable Rank capacity and Overchannel resolution.
+- [ ] Add one-Gem-Anchor -> one-Enchantment linkage and persistence.
+- [ ] Add Gem Anchor broken/depleted/unstable states and Dormant overflow-dependent Enchantments.
+- [ ] Add primary/accepted/incompatible resonance and affinity recipe validation.
+- [ ] Add semantic consumed-material requirements and exact-Item recipe escape hatch.
+- [ ] Add Resonance Specialization versus Hybrid Resonance resolution.
+- [ ] Add compatible-gem/quality/specialization TH stabilization with Item/Gem cap.
+- [ ] Add external Enchantment Table / Arcane Workshop / tool modifier seam.
+- [ ] Add max +1 Resonant Overflow Slot validation and revalidation.
+- [ ] Add Bind recipe modifier / accidental Bind outcome flow.
+- [ ] Add intentional/accidental Curse recipe flow with profane reagent tags.
+- [ ] Add Gem Anchor, recipe, specialization/hybrid, overflow, Bind/Curse and channel-choice regression tests.
 
 ## 1. Scope and hard rules
 
