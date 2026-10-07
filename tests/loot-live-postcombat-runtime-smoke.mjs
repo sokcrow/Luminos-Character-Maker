@@ -448,6 +448,12 @@ assert.ok(Object.keys(examinedCompendium.units.goblin.facts).some((id) => id.sta
 const battleHtml = fs.readFileSync(new URL("../Battle-viewer.html", import.meta.url), "utf8");
 const playerHtml = fs.readFileSync(new URL("../hoja_personaje.html", import.meta.url), "utf8");
 const playerUi = fs.readFileSync(new URL("../js/player-postcombat-loot.js", import.meta.url), "utf8");
+const dmSetup = fs.readFileSync(new URL("../js/combat-v073-dm-setup.js", import.meta.url), "utf8");
+const dmConsole = fs.readFileSync(new URL("../js/battle-viewer-dm-console-074.js", import.meta.url), "utf8");
+assert.match(dmSetup, /ensureEncounterIdentity/);
+assert.match(dmSetup, /encounterId:\\s*null/);
+assert.match(dmConsole, /finalizeEncounterLoot/);
+assert.match(dmConsole, /normalized === "victory"/);
 assert.match(battleHtml, /js\/loot-live-postcombat-runtime\.js/);
 assert.match(playerHtml, /js\/loot-live-postcombat-runtime\.js/);
 assert.match(playerHtml, /js\/player-postcombat-loot\.js/);
