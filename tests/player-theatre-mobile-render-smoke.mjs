@@ -54,8 +54,13 @@ assert.match(
 );
 assert.match(
   checkCss,
-  /@media\(max-height:430px\) and \(orientation:landscape\)[\s\S]{0,1200}max-height:calc\(100dvh - var\(--theatre-player-menu-safe-top\) - 8px\)[\s\S]{0,600}overflow-y:auto;/,
-  'Compact landscape Theatre must keep the full check HUD reachable inside short viewports'
+  /@media\(max-height:430px\) and \(orientation:landscape\)[\s\S]{0,1400}\.theatre-check-hud,[\s\S]{0,200}\.theatre-opposed-hud[\s\S]{0,700}max-height:calc\(100dvh - var\(--theatre-player-menu-safe-top\) - 8px\)[\s\S]{0,500}overflow-y:auto;[\s\S]{0,300}pointer-events:auto;[\s\S]{0,200}touch-action:pan-y;/,
+  'Compact landscape check and opposed HUDs must remain scrollable and touch-reachable'
+);
+assert.match(
+  checkCss,
+  /@media\(max-height:430px\) and \(orientation:landscape\)[\s\S]{0,3200}\.theatre-opposed-coins\{min-height:40px!important;[\s\S]{0,1200}\.theatre-opposed-compare\{min-height:66px!important;[\s\S]{0,1200}\.theatre-opposed-status\{min-height:20px!important;/,
+  'Compact landscape Theatre must shrink opposed-check content so results stay visible'
 );
 assert.match(
   checkCss,
