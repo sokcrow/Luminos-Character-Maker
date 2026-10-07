@@ -281,6 +281,7 @@
       result: normalizeId(options.result || combatState.result || combatState.outcome),
       finalizedAt: options.now ?? Date.now(),
       corpseCount: finalized.length,
+      open: true,
     });
 
     return deepFreeze({ encounterId, finalized: deepFreeze(finalized), skipped: deepFreeze(skipped) });
