@@ -132,6 +132,51 @@
     return { used: true, flying: true, removedProne: true };
   }
 
+  function hasTrait(unit, traitId) {
+    const id = normalizeId(traitId);
+    const ids = Array.isArray(unit?.traitIds) ? unit.traitIds.map(normalizeId) : [];
+    if (ids.includes(id)) return true;
+    return Array.isArray(unit?.traits) && unit.traits.some((trait) => normalizeId(trait?.id || trait?.name) === id);
+  }
+
+  function underwaterContext(unit, options = {}) {
+    const tags = [
+      ...(Array.isArray(options.encounterTags) ? options.encounterTags : []),
+      ...(Array.isArray(options.environmentTags) ? options.environmentTags : []),
+      ...(Array.isArray(unit?.encounterTags) ? unit.encounterTags : []),
+      ...(Array.isArray(unit?.environmentTags) ? unit.environmentTags : []),
+    ].map(normalizeId);
+    if (tags.includes('underwater') || tags.includes('submerged')) return true;
+    const environment = options.environment || unit?.environment || null;
+    if (normalizeId(environment?.encounterType) === 'underwater') return true;
+    const effectIds = Array.isArray(environment?.effectIds) ? environment.effectIds.map(normalizeId) : [];
+    return effectIds.includes('submerged') || effectIds.includes('in_water');
+  }
+
+  function canUseBubbleDash(unit, options = {}) {
+    if (!hasTrait(unit, 'bubble_dash')) return { available: false, reason: 'bubble_dash_trait_required' };
+    if (!underwaterContext(unit, options)) return { available: false, reason: 'underwater_required' };
+    const gate = actionEconomy?.availability?.(unit, 'action', options);
+    if (gate && gate.available === false) return gate;
+    return { available: true, reason: null };
+  }
+
+  function useBubbleDash(unit, options = {}) {
+    const gate = canUseBubbleDash(unit, options);
+    if (!gate.available) return { used: false, reason: gate.reason };
+    if (actionEconomy?.consume && !actionEconomy.consume(unit, 'action', options)) return { used: false, reason: 'action_unavailable' };
+    const movementFeet = Math.max(0, Number(unit?.movementFeet?.swim ?? unit?.movement?.swim ?? unit?.mechanics?.movementFeet?.swim ?? 0) || 0);
+    const reposition = {
+      source: 'bubble_dash',
+      movementMode: 'swim',
+      maxMovementFeet: movementFeet,
+      provokesCounterAttacks: false,
+      provokesOpportunityAttacks: false,
+    };
+    unit.__luminousReposition = reposition;
+    return { used: true, reposition: true, ...reposition };
+  }
+
   function resourceCostForSkill(skill) { return (Array.isArray(skill?.resourceCosts) ? skill.resourceCosts : []).map(clone); }
   function consumeSkillAmmunition(unit, skill) {
     const costs = resourceCostForSkill(skill).filter((cost) => normalizeId(cost?.type) === 'ammunition');
@@ -144,9 +189,10 @@
   registerRockStatus();
 
   const api = Object.freeze({
-    version: '2.1.0', ROCK_STATUS, registerRockStatus, ammunitionCount, setAmmunition, gainAmmunition, consumeAmmunition,
+    version: '2.2.0', ROCK_STATUS, registerRockStatus, ammunitionCount, setAmmunition, gainAmmunition, consumeAmmunition,
     consumeSkillAmmunition, onEncounterStart, onComeback, hasFlightCapability, isFlyingUnit, isClimbingUnit, deliveryType, skillHasReach,
     elevatedState, elevatedTargetRule, elevatedClashDamageRule, flyingTargetRule, flyingClashDamageRule, onKnockedDown, canUseFlyQuickAction, useFlyQuickAction,
+    hasTrait, underwaterContext, canUseBubbleDash, useBubbleDash,
   });
 
   global.LuminousUnitCombatMechanics = api;
