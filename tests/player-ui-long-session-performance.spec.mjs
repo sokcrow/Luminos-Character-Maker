@@ -497,6 +497,39 @@ test("mobile Theatre renders live dialogue and sprites on the real player sheet"
   }));
   console.log("HUD_RUNTIME_BEFORE", JSON.stringify(hudRuntimeBefore));
 
+  const statsHitTest = await page.evaluate(() => {
+    const button = document.querySelector('button[name="act_hud_stats"]');
+    const rail = document.querySelector(".hud-sidebar-right");
+    const dropdown = document.getElementById("hud-menu-dropdown");
+    const theatre = document.getElementById("theatre-view-player");
+    const rect = button?.getBoundingClientRect();
+    const x = rect ? rect.left + rect.width / 2 : 0;
+    const y = rect ? rect.top + rect.height / 2 : 0;
+    const hit = document.elementFromPoint(x, y);
+    const describe = (node) => node ? {
+      tag: node.tagName,
+      id: node.id || "",
+      className: typeof node.className === "string" ? node.className : "",
+      zIndex: getComputedStyle(node).zIndex,
+      pointerEvents: getComputedStyle(node).pointerEvents,
+      display: getComputedStyle(node).display,
+      visibility: getComputedStyle(node).visibility,
+      rect: (() => {
+        const r = node.getBoundingClientRect();
+        return { left:r.left, top:r.top, width:r.width, height:r.height };
+      })()
+    } : null;
+    return {
+      button: describe(button),
+      hit: describe(hit),
+      rail: describe(rail),
+      dropdown: describe(dropdown),
+      theatre: describe(theatre),
+      point: { x, y }
+    };
+  });
+  console.log("HUD_STATS_HITTEST", JSON.stringify(statsHitTest));
+
   await page.locator('button[name="act_hud_stats"]').click({ force: true });
 
   const hudRuntimeAfter = await page.evaluate(() => ({
