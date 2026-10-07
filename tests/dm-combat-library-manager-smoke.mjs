@@ -20,7 +20,7 @@ assert.ok(manager.includes('FORCE SYNC UNIT LIBRARY'), 'real Combat tab must exp
 assert.ok(manager.includes("units: 'campaña/base_datos_unidades'"), 'real Combat tab must subscribe to the canonical Unit root');
 assert.ok(manager.includes('ENEMIES · ALL SOURCES') && manager.includes('UNIT LIBRARY'), 'real Combat tab must expose Enemy and Unit Library selectors');
 
-assert.ok(librarySync.includes("version:'2.1.0'"), 'canonical Unit sync must use the Universal Library + real-UI fallback runtime');
+assert.ok(librarySync.includes("version:'2.2.0'"), 'canonical Unit sync must use the Universal Library + real-UI fallback runtime');
 assert.ok(librarySync.includes('installRuntimeFallback'), 'canonical Units must be available locally before Firebase persistence');
 assert.ok(librarySync.includes('refreshCombatTabSelector'), 'local canonical Units must refresh the Panel DM selector');
 assert.ok(librarySync.includes('refreshEncounterSelector'), 'local canonical Units must refresh Encounter Setup');

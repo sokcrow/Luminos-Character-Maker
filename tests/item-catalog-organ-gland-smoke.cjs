@@ -14,8 +14,10 @@ const { pathToFileURL } = require('node:url');
   assert.ok(catalog);
   assert.equal(catalog.VERSION, 1);
   assert.equal(catalog.FAMILY, 'organ_gland');
-  assert.equal(catalog.ITEMS.length, 10);
+  assert.equal(catalog.ITEMS.length, 11);
 
+  assert.equal(catalog.get('internal_organ').standardMediumValueAhn, 17500);
+  assert.equal(catalog.get('internal_organs').id, 'internal_organ');
   assert.equal(catalog.get('heart').standardMediumValueAhn, 35000);
   assert.equal(catalog.get('brain').standardMediumValueAhn, 45000);
   assert.equal(catalog.get('exotic_organ').standardMediumValueAhn, 75000);
@@ -86,7 +88,7 @@ const { pathToFileURL } = require('node:url');
   assert.equal(gland.quantity, 2);
   assert.equal(gland.displayName, 'Small Test Serpent Venom Gland');
 
-  console.log('Organ/Gland catalog smoke: OK (10 bases, anatomy counts, integrity caps, transplant metadata)');
+  console.log('Organ/Gland catalog smoke: OK (11 bases, generic internal organ, anatomy counts, integrity caps, transplant metadata)');
 })().catch((error) => {
   console.error(error);
   process.exitCode = 1;

@@ -11,11 +11,52 @@
   const rangedAmmo = global.LuminousUniversalRangedAmmoRuntime || safeRequire('./universal-ranged-ammo-runtime.js');
   const goblinRuntime = global.LuminousGoblinUnitRuntime || safeRequire('./goblin-unit-runtime.js');
   const skillCatalog = global.LuminousGoblinTier1SkillCatalog || safeRequire('./skill-catalog-goblin-tier1.js');
+  const lootContract = global.LuminousUnitLootProfileContract || safeRequire('./unit-loot-profile-contract.js');
+  const socialLoot = global.LuminousLootSocialProfileContract || safeRequire('./loot-social-profile-contract.js');
 
   const STAGGER_THRESHOLDS = Object.freeze([75, 50, 25]);
   const RACIAL_TRAIT_IDS = Object.freeze(['goblin_fury_of_small', 'goblin_nimble_escape']);
   const GOBLIN_SCORES = Object.freeze({ str: 8, dex: 15, con: 10, int: 10, wis: 9, cha: 8 });
   const GOBLIN_BOSS_SCORES = Object.freeze({ str: 10, dex: 16, con: 12, int: 11, wis: 10, cha: 12 });
+
+  const GOBLIN_LOOT_PROFILES = lootContract?.createProfiles ? lootContract.createProfiles({
+    bodyProfile: {
+      kind: 'organic',
+      sizeClass: 'small',
+      materials: ['flesh', 'blood', 'bone'],
+      resources: [
+        { id: 'flesh', integrityFamily: 'meat', sourceMaterial: 'flesh', itemId: 'meat_humanoid', catalogFamily: 'meat', culinary: true, knownUses: ['cooking'], tags: ['humanoid'] },
+        { id: 'bones', integrityFamily: 'hard_parts', sourceMaterial: 'bone', itemId: 'hard_bone', catalogFamily: 'hard_parts', anatomicalIdentity: 'bone', knownUses: ['primitive_crafting'] },
+        { id: 'internal_organs', integrityFamily: 'organ_internal', sourceMaterial: 'flesh', itemId: 'internal_organ', catalogFamily: 'organ_gland', anatomicalIdentity: 'internal_organ', valuable: true, knownUses: ['medicine', 'crafting'] },
+        { id: 'sensory_organs', integrityFamily: 'organ_sensory', sourceMaterial: 'flesh', itemId: 'eye', catalogFamily: 'organ_gland', anatomicalIdentity: 'eye', valuable: true, knownUses: ['medicine', 'crafting'] },
+        { id: 'brain', integrityFamily: 'organ_brain', sourceMaterial: 'flesh', itemId: 'brain', catalogFamily: 'organ_gland', anatomicalIdentity: 'brain', valuable: true, knownUses: ['medicine', 'research'] },
+        { id: 'glands', integrityFamily: 'organ_gland', sourceMaterial: 'flesh', itemId: 'gland', catalogFamily: 'organ_gland', anatomicalIdentity: 'gland', valuable: true, knownUses: ['medicine', 'crafting'] },
+        { id: 'blood', integrityFamily: 'blood_ichor', sourceMaterial: 'blood', itemId: 'humanoid_blood', catalogFamily: 'blood_ichor', knownUses: ['medicine', 'crafting'] },
+      ],
+    },
+    lootProfile: {
+      carried: [],
+      equipment: { source: 'unit_loadout' },
+      currency: null,
+      harvest: { source: 'body_profile' },
+      impossibleCategories: [],
+      notes: 'Base profile only. Wealth, Encounter Zone and Event modifiers are resolved by later Loot Update slices.',
+    },
+  }) : Object.freeze({
+    bodyProfile: Object.freeze({
+      version: 1, kind: 'organic', sizeClass: 'small', materials: Object.freeze(['flesh', 'blood', 'bone']), edible: false,
+      resources: Object.freeze([
+        Object.freeze({ id: 'flesh', integrityFamily: 'meat', sourceMaterial: 'flesh', yield: null }),
+        Object.freeze({ id: 'bones', integrityFamily: 'hard_parts', sourceMaterial: 'bone', yield: null }),
+        Object.freeze({ id: 'internal_organs', integrityFamily: 'organ_internal', sourceMaterial: 'flesh', yield: null }),
+        Object.freeze({ id: 'sensory_organs', integrityFamily: 'organ_sensory', sourceMaterial: 'flesh', yield: null }),
+        Object.freeze({ id: 'brain', integrityFamily: 'organ_brain', sourceMaterial: 'flesh', yield: null }),
+        Object.freeze({ id: 'glands', integrityFamily: 'organ_gland', sourceMaterial: 'flesh', yield: null }),
+        Object.freeze({ id: 'blood', integrityFamily: 'blood_ichor', sourceMaterial: 'blood', yield: null }),
+      ]),
+    }),
+    lootProfile: Object.freeze({ version: 1, carried: Object.freeze([]), equipment: Object.freeze({ source: 'unit_loadout' }), currency: null, harvest: Object.freeze({ source: 'body_profile' }), impossibleCategories: Object.freeze([]) }),
+  });
 
   const FALLBACK_RANKS = Object.freeze({
     normal: Object.freeze({ id: 'normal', levelMultiplier: 1, minSpeedBonus: 0, maxSpeedBonus: 0, applyBonus: 0, basePowerBonus: 0, commandLevel: 0, aiCoordination: 'independent', targetPriority: 'random', turnEndSpRecovery: 0 }),
@@ -59,6 +100,9 @@
       id: 'goblin', name: 'Goblin', species: 'goblin', variant: 'standard', unitType: 'enemy', actorCategory: 'enemy', faction: 'enemy', isPlayer: false,
       naturalWorldLevel: Object.freeze({ min: 2, max: 4 }), baseLevel: Object.freeze({ min: 2, max: 4 }),
       scores: GOBLIN_SCORES,
+      bodyProfile: GOBLIN_LOOT_PROFILES.bodyProfile, lootProfile: GOBLIN_LOOT_PROFILES.lootProfile,
+      wealthProfile: socialLoot?.normalizeWealthProfile ? socialLoot.normalizeWealthProfile({ bandId: 'backstreets_very_poor', source: 'catalog_default' }) : Object.freeze({ bandId: 'backstreets_very_poor', source: 'catalog_default', carriedCashSeparate: true }),
+      roleProfile: socialLoot?.normalizeRoleProfile ? socialLoot.normalizeRoleProfile({ roles: ['soldier'], source: 'catalog_default' }) : Object.freeze({ roles: Object.freeze(['soldier']), source: 'catalog_default' }),
       hpBase: 7, hpCoefficient: 0.21,
       size: 'goblin',
       traitIds: Object.freeze([...RACIAL_TRAIT_IDS, AMMO_ARROWS.id]),
@@ -81,13 +125,16 @@
         staggerThresholds: STAGGER_THRESHOLDS,
       }),
       metadata: Object.freeze({ canonicalUnit: true, catalog: 'goblin-batch', spritePending: true, weaponSkillsPendingCanonicalCatalog: false, physicalProfilePending: true, speedPending: true }),
-      schemaVersion: 2,
+      schemaVersion: 4,
     }),
 
     goblin_boss: Object.freeze({
       id: 'goblin_boss', name: 'Goblin Boss', species: 'goblin', variant: 'boss', unitType: 'enemy', actorCategory: 'enemy', faction: 'enemy', isPlayer: false,
       naturalWorldLevel: Object.freeze({ min: 5, max: 5 }), baseLevel: Object.freeze({ min: 5, max: 5 }),
       scores: GOBLIN_BOSS_SCORES,
+      bodyProfile: GOBLIN_LOOT_PROFILES.bodyProfile, lootProfile: GOBLIN_LOOT_PROFILES.lootProfile,
+      wealthProfile: socialLoot?.normalizeWealthProfile ? socialLoot.normalizeWealthProfile({ bandId: 'backstreets_low', source: 'catalog_default' }) : Object.freeze({ bandId: 'backstreets_low', source: 'catalog_default', carriedCashSeparate: true }),
+      roleProfile: socialLoot?.normalizeRoleProfile ? socialLoot.normalizeRoleProfile({ roles: ['soldier', 'commander'], source: 'catalog_default' }) : Object.freeze({ roles: Object.freeze(['soldier', 'commander']), source: 'catalog_default' }),
       hpBase: 21, hpCoefficient: 0.24,
       size: 'goblin',
       traitIds: Object.freeze([...RACIAL_TRAIT_IDS, AMMO_JAVELIN.id, MULTI_ATTACK.id, REDIRECT_ATTACK.id]),
@@ -112,7 +159,7 @@
         staggerThresholds: STAGGER_THRESHOLDS,
       }),
       metadata: Object.freeze({ canonicalUnit: true, catalog: 'goblin-batch', alwaysCaptain: true, spritePending: true, weaponSkillsPendingCanonicalCatalog: false, physicalProfilePending: true, speedPending: true }),
-      schemaVersion: 2,
+      schemaVersion: 4,
     }),
   });
 
@@ -176,7 +223,7 @@
   }
 
   const api = Object.freeze({
-    version: '1.1.0', STAGGER_THRESHOLDS, RACIAL_TRAIT_IDS, GOBLIN_SCORES, GOBLIN_BOSS_SCORES, UNIVERSAL_RANKS,
+    version: '1.3.0', STAGGER_THRESHOLDS, RACIAL_TRAIT_IDS, GOBLIN_SCORES, GOBLIN_BOSS_SCORES, UNIVERSAL_RANKS,
     AMMO_ARROWS, AMMO_JAVELIN, MULTI_ATTACK, REDIRECT_ATTACK, DEFINITIONS, get, list, resolveSkill, resolve, firebasePayload, firebaseSkillPayload,
   });
 

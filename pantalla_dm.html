@@ -2880,10 +2880,68 @@ window.processEntitiesData = function(entities) {
 
       <!-- TAB: BOTÍN -->
       <div id="tab-loot" class="dm-tab-pane">
-        <!-- NUEVO DASHBOARD: GESTOR DE TABLAS DE BOTÍN -->
-        <div id="dashboard-loot" class="panel-cyber" style="margin-top: 20px">
-          <h3>Gestor de Tablas de Botín</h3>
-          <div class="form-cyber-container">
+        <!-- DM LOOT STUDIO -->
+        <div id="dashboard-loot" class="panel-cyber" style="margin-top: 20px; width:min(1180px,96vw);">
+          <h3 style="margin-bottom:6px;">Loot Studio</h3>
+          <p style="color:#999;max-width:900px;margin:0 auto 16px;">Genera una instancia de botín desde la Unit Library, contexto del encuentro y overrides del Director. Vista previa primero; finalización después.</p>
+
+          <div id="dm-loot-studio-app" style="display:grid;grid-template-columns:minmax(240px,0.8fr) minmax(320px,1.2fr);gap:14px;align-items:start;">
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              <div class="form-cyber">
+                <h4 style="color:#0df;margin-top:0;">Fuente y Contexto</h4>
+                <label>Unit Library</label>
+                <select id="dm-loot-unit"><option value="">Cargando Units...</option></select>
+                <label>Encounter Zone</label>
+                <select id="dm-loot-zone"><option value="">Neutral / authored</option></select>
+                <label>Encounter Events</label>
+                <select id="dm-loot-event" multiple size="6" style="min-height:132px;"></select>
+                <label>Jugador destino</label>
+                <select id="dm-loot-player"><option value="">Cargando jugadores...</option></select>
+              </div>
+
+              <div class="form-cyber">
+                <h4 style="color:#c49a00;margin-top:0;">Overrides del Director</h4>
+                <select id="dm-loot-override-item"><option value="">Cargando Items...</option></select>
+                <div style="display:flex;gap:8px;">
+                  <input id="dm-loot-override-qty" type="number" min="1" value="1" style="width:78px;">
+                  <button id="dm-loot-add-override" type="button" class="btn-cyber" style="flex:1;">Añadir Item</button>
+                </div>
+                <div id="dm-loot-override-list" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;"></div>
+              </div>
+
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <button id="dm-loot-preview" type="button" class="btn-cyber btn-green">Vista previa</button>
+                <button id="dm-loot-regenerate" type="button" class="btn-cyber" disabled>Regenerar</button>
+                <button id="dm-loot-lock" type="button" class="btn-cyber" style="border-color:#c49a00;color:#c49a00;" disabled>Finalizar / Lock</button>
+                <button id="dm-loot-grant" type="button" class="btn-cyber" style="border-color:#0df;color:#0df;" disabled>Entregar Items</button>
+              </div>
+              <div id="dm-loot-status" style="border:1px solid #333;background:#090b0d;padding:10px;color:#888;">Preparando Loot Studio...</div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+              <section class="form-cyber">
+                <h4 style="color:#0df;margin-top:0;">Unit / Profile</h4>
+                <div id="dm-loot-source" style="line-height:1.55;color:#ccc;">—</div>
+              </section>
+              <section class="form-cyber">
+                <h4 style="color:#c49a00;margin-top:0;">Contexto resuelto</h4>
+                <div id="dm-loot-context" style="line-height:1.55;color:#ccc;">—</div>
+              </section>
+              <section class="form-cyber" style="grid-column:1 / -1;">
+                <h4 style="color:#77ff99;margin-top:0;">Loot Instance</h4>
+                <div id="dm-loot-output" style="line-height:1.5;color:#ddd;">—</div>
+              </section>
+              <details class="form-cyber" style="grid-column:1 / -1;">
+                <summary style="cursor:pointer;color:#aaa;">Procedencia</summary>
+                <div id="dm-loot-provenance" style="margin-top:8px;line-height:1.45;color:#bbb;">—</div>
+              </details>
+            </div>
+          </div>
+
+          <details id="dm-loot-custom-templates" style="margin-top:18px;border-top:1px solid #333;padding-top:12px;">
+            <summary style="cursor:pointer;color:#888;text-transform:uppercase;letter-spacing:1px;">Plantillas Custom / Compatibilidad</summary>
+            <h3 style="margin-top:16px;">Plantillas manuales de Override</h3>
+            <div class="form-cyber-container">
             <!-- A. Crear Tabla -->
             <div class="form-cyber">
               <h4 style="color: #0df">A. Crear Nueva Tabla</h4>
@@ -2930,7 +2988,7 @@ window.processEntitiesData = function(entities) {
                 box-shadow: 0 0 10px rgba(139, 0, 0, 0.5);
               "
             >
-              <h4 style="color: #ff4444">C. Generador de Botín</h4>
+              <h4 style="color: #ff8844">C. Probar / Entregar Plantilla</h4>
               <select id="loot-select-jugador">
                 <option value="">Cargando Jugadores...</option>
               </select>
@@ -2948,7 +3006,7 @@ window.processEntitiesData = function(entities) {
                   border: 2px solid #fff;
                 "
               >
-                Tirar Dados de Loot
+                Aplicar Plantilla Custom
               </button>
               <div
                 id="loot-log"
@@ -2968,6 +3026,7 @@ window.processEntitiesData = function(entities) {
               </div>
             </div>
           </div>
+          </details>
         </div>
       </div>
 
@@ -4395,6 +4454,7 @@ window.processEntitiesData = function(entities) {
     <script src="js/item-catalog-ranged-weapon-upgrades.js"></script>
     <script src="js/item-catalog-retail-food.js"></script>
     <script src="js/item-catalog-scale-shell-chitin.js"></script>
+    <script src="js/item-catalog-salvage-raw.js"></script>
     <script src="js/item-catalog-shield-components.js"></script>
     <script src="js/item-catalog-shield-upgrades.js"></script>
     <script src="js/item-catalog-sp-healing.js"></script>
@@ -9236,8 +9296,8 @@ window.processEntitiesData = function(entities) {
                 // El item cayó
                 const fullItemData = dbItemsCache[itemInfo.id_item];
                 if (fullItemData) {
-                  itemsDropeados.push(fullItemData);
-                  logMessage += `[ÉXITO] ${tirada}% vs ${itemInfo.probabilidad}% -> ¡Cayó ${itemInfo.nombre}!\n`;
+                  itemsDropeados.push({ itemId: itemInfo.id_item, definition: fullItemData, quantity: 1 });
+                  logMessage += `[ÉXITO] ${tirada}% vs ${itemInfo.probabilidad}% -> ¡Incluye ${itemInfo.nombre}!\n`;
                 } else {
                   logMessage += `[ERROR] El ítem original para ${itemInfo.nombre} ya no existe en la BD.\n`;
                 }
@@ -9251,21 +9311,28 @@ window.processEntitiesData = function(entities) {
             if (itemsDropeados.length > 0) {
               logMessage += `\nRESUMEN: Entregando ${itemsDropeados.length} ítem(s) al stash de ${idJugador}...`;
 
-              const promises = itemsDropeados.map((item) => {
-                // Hacer push al inventario_stash del jugador
-                return db
-                  .ref(`campaña/jugadores/${idJugador}/inventario_stash`)
-                  .push(item);
-              });
+              const studio = window.LuminousDmLootStudio;
+              if (!studio?.grantLegacyTemplateDrops) {
+                logMessage += "\n[NO DISPONIBLE] Loot Studio todavía no está listo.";
+                logDiv.style.color = "#ff4444";
+                logDiv.innerText = logMessage;
+                return;
+              }
 
-              Promise.all(promises)
-                .then(() => {
-                  logMessage += `\n[ENTREGA COMPLETADA]`;
+              studio.grantLegacyTemplateDrops({
+                db,
+                playerId: idJugador,
+                items: itemsDropeados,
+                templateId: idTabla,
+              })
+                .then((result) => {
+                  if (!result.granted) throw new Error(result.reason || "No hay espacio suficiente en inventario.");
+                  logMessage += `\n[ENTREGA COMPLETADA] Item Instances creados y entregados por Inventory Runtime.`;
                   logDiv.style.color = "#0df";
                   logDiv.innerText = logMessage;
                 })
                 .catch((e) => {
-                  logMessage += `\n[ERROR AL ENTREGAR] ${e}`;
+                  logMessage += `\n[ERROR AL ENTREGAR] ${e.message || e}`;
                   logDiv.style.color = "#ff4444";
                   logDiv.innerText = logMessage;
                 });
@@ -10518,6 +10585,14 @@ window.processEntitiesData = function(entities) {
         }
       }
     </script>
+
+    <!-- Loot Update: DM Studio runtime chain -->
+    <script src="js/combat-unit-library-sync.js"></script>
+    <script src="js/loot-encounter-context.js"></script>
+    <script src="js/corpse-harvest-runtime.js"></script>
+    <script src="js/loot-ammo-reconciliation.js"></script>
+    <script src="js/loot-instance-runtime.js"></script>
+    <script src="js/dm-loot-studio.js"></script>
 
     <div id="dm-modal-new-group" class="dm-modal-overlay">
         <div class="dm-modal-box">

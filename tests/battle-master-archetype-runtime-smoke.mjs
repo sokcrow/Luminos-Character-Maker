@@ -29,6 +29,7 @@ g.LuminousArchetypeRuntime = { syncArchetypeTraitsForUnit() { return []; } };
 
 await import("../js/fighter-maneuver-catalog.js");
 await import("../js/battle-master-archetype-runtime.js");
+await import("../js/combat-analyze-check-contract.js");
 const runtime = g.LuminousBattleMasterArchetypeRuntime;
 assert.ok(runtime, "Battle Master archetype runtime should install");
 assert.equal(runtime.ARCHETYPE_ID, "battle_master");
@@ -62,6 +63,14 @@ assert.equal(runtime.maneuverDamageCap(makeCharacter(90, { hp: 26, maxHp: 100 })
 assert.equal(runtime.knowYourEnemyUnlockDue(makeCharacter(35), 9), false);
 assert.equal(runtime.knowYourEnemyUnlockDue(makeCharacter(35), 10), true);
 assert.deepEqual(runtime.knowYourEnemyRequest(makeCharacter(35), 10, "kobold"), { type: "analyse_feature_unlock", sourceTraitId: "know_your_enemy", enemyType: "kobold", unlockFeatures: 1, bypassAnalyseCheck: true, advanceObservationLevel: true, useExistingObservationTarget: true });
+const analyzeContract = g.LuminousCombatAnalyzeCheckContract;
+const knowEnemyAnalyze = analyzeContract.resolveAnalyzeContract(makeCharacter(35), { species: "kobold" }, { turnNumber: 10, observedEnemyType: "kobold", threshold: 15 });
+assert.equal(knowEnemyAnalyze.type, "automatic");
+assert.equal(knowEnemyAnalyze.bypassCheck, true);
+assert.equal(knowEnemyAnalyze.sourceTraitId, "know_your_enemy");
+const normalAnalyze = analyzeContract.resolveAnalyzeContract(makeCharacter(35), { species: "kobold" }, { turnNumber: 9, observedEnemyType: "kobold", threshold: 15 });
+assert.equal(normalAnalyze.type, "check");
+assert.deepEqual(normalAnalyze.check, { stat: "wis", skill: "perception", threshold: 15 });
 assert.match(g.LuminousArchetypeTraitCatalog.getDefinition("know_your_enemy").description, /Analyse Check/);
 
 console.log("Battle Master archetype smoke passed.");

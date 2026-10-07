@@ -105,7 +105,7 @@ await import(`../js/universal-library-runtime.js?real-ui-library=${Date.now()}`)
 await import(`../js/combat-unit-library-sync.js?real-ui-smoke=${Date.now()}`);
 const api = globalThis.LuminousCombatUnitLibrarySync;
 assert.ok(api, 'Unit Library sync runtime must initialize');
-assert.equal(api.version, '2.1.0');
+assert.equal(api.version, '2.2.0');
 
 const db = makeDb();
 const result = await api.ensureMissing(db);

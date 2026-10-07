@@ -77,6 +77,7 @@
   }
 
   const ITEMS = Object.freeze([
+    item("internal_organ", "Internal Organ", "Internal Organ", "organ_internal", 3500, "organ_internal", "conditional", [8000, 20000], ["organ", "generic_internal"]),
     item("heart", "Heart", "Heart", "organ_internal", 7000, "organ_internal", "standard", 60000, ["organ", "circulatory"]),
     item("liver", "Liver", "Liver", "organ_internal", 5000, "organ_internal", "standard", 40000, ["organ", "digestive", "metabolic"]),
     item("kidney", "Kidney", "Kidney", "organ_internal", 3000, "organ_internal", "standard", 20000, ["organ", "renal"]),
@@ -92,6 +93,8 @@
   function get(id) {
     const key = normalizeId(id);
     const aliases = {
+      internal_organs: "internal_organ",
+      generic_internal_organ: "internal_organ",
       sensory_organ: "eye",
       digestive_organ: "stomach",
       sac: "sac_bladder",
