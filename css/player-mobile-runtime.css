@@ -579,7 +579,7 @@ body.player-mobile-runtime #player-instance-blackout {
   }
 
   body.player-mobile-runtime.player-instance-theatre:not(.player-cellphone-surface-open) .hud-sidebar-right {
-    z-index: 22000 !important;
+    z-index: 19500 !important;
     display: flex !important;
     visibility: visible !important;
     opacity: 1 !important;

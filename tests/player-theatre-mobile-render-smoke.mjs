@@ -42,7 +42,7 @@ assert.match(
 
 assert.match(
   mobileCss,
-  /player-instance-theatre:not\(\.player-cellphone-surface-open\) \.hud-sidebar-right[\s\S]*z-index:\s*22000\s*!important/,
+  /player-instance-theatre:not\(\.player-cellphone-surface-open\) \.hud-sidebar-right[\s\S]*z-index:\s*19500\s*!important/,
   'Mobile Theatre HUD must stack above the Theatre surface'
 );
 
