@@ -49,4 +49,20 @@ assert.equal(flyer.flying, true);
 assert.equal(statuses.hasStatus(flyer, "prone"), false);
 assert.equal(economy.snapshot(flyer, { phase: "planning" }).quick_action, 0);
 
+const seahorse = {
+  id: "seahorse_test",
+  traitIds: ["water_breathing", "bubble_dash"],
+  movementFeet: { ground: 5, swim: 20 },
+  statusEffects: {},
+  actionSlots: 1,
+};
+economy.beginPlanning(seahorse);
+assert.equal(mechanics.canUseBubbleDash(seahorse, { encounterTags: ["land"], phase: "planning" }).available, false);
+const dash = mechanics.useBubbleDash(seahorse, { encounterTags: ["underwater"], phase: "planning" });
+assert.equal(dash.used, true);
+assert.equal(dash.maxMovementFeet, 20);
+assert.equal(dash.provokesCounterAttacks, false);
+assert.equal(dash.provokesOpportunityAttacks, false);
+assert.equal(economy.snapshot(seahorse, { phase: "planning" }).action, 0);
+
 console.log("beast mobility runtime smoke: ok");
