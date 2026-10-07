@@ -89,6 +89,10 @@ assert.ok(!dmSetup.includes('COMBAT ASSET + SKILL EDITOR'), 'legacy duplicate as
 assert.ok(!dmSetup.includes('SAVE EQUIPPED SKILLS'), 'legacy duplicate Skill editor must be removed from Viewer');
 assert.ok(!dmSetup.includes('SAVE SPRITE'), 'legacy duplicate sprite editor must be removed from Viewer');
 
+await import('../js/proficiency-runtime.js');
+await import('../js/movement-speed-runtime.js');
+await import('../js/skill-catalog-beast-cr0.js');
+await import('../js/unit-catalog-beast-cr0.js');
 await import('../js/unit-rank-runtime.js');
 await import('../js/universal-action-economy.js');
 await import('../js/universal-ranged-ammo-runtime.js');
@@ -101,23 +105,28 @@ await import('../js/unit-catalog-kobold-tier1.js');
 await import('../js/unit-catalog-goblin.js');
 await import('../js/unit-catalog-wolf.js');
 
+const beasts = globalThis.LuminousBeastCr0UnitCatalog;
 const kobolds = globalThis.LuminousKoboldUnitCatalog;
 const goblins = globalThis.LuminousGoblinUnitCatalog;
 const wolves = globalThis.LuminousWolfUnitCatalog;
-assert.ok(kobolds && goblins && wolves, 'all three canonical Unit catalogs must initialize');
+assert.ok(beasts && kobolds && goblins && wolves, 'all canonical Unit catalogs must initialize');
 
+const beastPayload = beasts.firebasePayload();
 const koboldPayload = kobolds.firebasePayload();
 const goblinPayload = goblins.firebasePayload();
 const wolfPayload = wolves.firebasePayload();
+assert.equal(Object.keys(beastPayload).length, 24, 'all 24 canonical CR0 Beast Units must be materialized into the Unit Library');
+assert.ok(Object.values(beastPayload).every((unit) => unit.metadata?.canonicalUnit === true), 'every CR0 Beast library payload must be canonical');
 assert.equal(Object.keys(koboldPayload).length, 5, 'five canonical Kobold variants must be deployable');
 assert.deepEqual(Object.keys(goblinPayload).sort(), ['goblin', 'goblin_boss'], 'Goblin and Goblin Boss must be deployable');
 assert.deepEqual(Object.keys(wolfPayload).sort(), ['dire_wolf', 'wolf'], 'Wolf and Dire Wolf must be deployable');
 
-for (const [id, unit] of [...Object.entries(koboldPayload), ...Object.entries(wolfPayload)]) {
+for (const [id, unit] of [...Object.entries(beastPayload), ...Object.entries(koboldPayload), ...Object.entries(wolfPayload)]) {
   const sprite = unit.combatSprite || unit.sprite_combate || unit.visual?.spriteUrl || unit.icono || unit.img;
   assert.ok(sprite, `${id} must expose a combat sprite before field deployment`);
   const skills = unit.action_slots || unit.skillIds || unit.skillSlotIds || unit.mechanics?.skills || [];
-  assert.ok(Array.isArray(skills) && skills.length > 0, `${id} must expose canonical combat Skills`);
+  if (id === 'seahorse') assert.equal(Array.isArray(skills) ? skills.length : 0, 0, 'Seahorse intentionally has no natural attack Skill');
+  else assert.ok(Array.isArray(skills) && skills.length > 0, `${id} must expose canonical combat Skills`);
 }
 
 for (const [id, unit] of Object.entries(goblinPayload)) {

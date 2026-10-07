@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 
 await import('../js/status-engine.js');
+await import('../js/movement-speed-runtime.js');
 await import('../js/universal-ranged-ammo-runtime.js');
 await import('../js/skill-catalog-kobold-tier1.js');
 await import('../js/unit-rank-runtime.js');

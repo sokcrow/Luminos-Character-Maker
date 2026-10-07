@@ -13,15 +13,18 @@
   function isDm(){return adapterState()?.role==='dm'}
 
   function rangeFor(unit={}){
+    const movementRange=global.LuminousMovementSpeedRuntime?.rangeForEntity?.(unit)||null;
     let min,max;
     if(Array.isArray(unit.speedRange)&&unit.speedRange.length>=2){
       min=finite(unit.speedRange[0],1);max=finite(unit.speedRange[1],6);
+    }else if(movementRange){
+      min=finite(movementRange.min,1);max=finite(movementRange.max,6);
     }else{
       min=finite(unit.speedMin,1);max=finite(unit.speedMax,6);
     }
-    min=Math.trunc(min??1);max=Math.trunc(max??6);
-    if(max<min)[min,max]=[max,min];
-    return[Math.max(-99,min),Math.min(999,max)];
+    min=Math.max(1,Math.trunc(min??1));max=Math.max(2,Math.trunc(max??6));
+    if(max<min)max=min;
+    return[min,Math.min(999,max)];
   }
 
   function rollFor(unit={}){
@@ -32,10 +35,18 @@
     const original=state.originalRollUnitSpeed;
     if(typeof original==='function'){
       const draft=clone(unit)||{};
+      const derivedRange=global.LuminousMovementSpeedRuntime?.rangeForEntity?.(draft)||null;
+      if(derivedRange){
+        draft.speedRange=[derivedRange.min,derivedRange.max];
+        draft.speedMin=derivedRange.min;
+        draft.speedMax=derivedRange.max;
+        draft.speedProfileMode=derivedRange.mode;
+      }
       try{
         const result=original(draft,state.round);
-        const speed=finite(draft.speed,finite(result,null));
-        const base=finite(draft.speedBaseRoll,speed);
+        const rawSpeed=finite(draft.speed,finite(result,null));
+        const speed=rawSpeed==null?null:Math.max(1,rawSpeed);
+        const base=Math.max(1,finite(draft.speedBaseRoll,speed));
         const tie=finite(draft.speedTie,null);
         if(speed!=null&&base!=null&&tie!=null){
           return{
@@ -79,7 +90,8 @@
       const canonical=canonicalRowFor(unitId,unit);
       if(!canonical)continue;
       const rolledTurn=Math.trunc(finite(canonical.speedRollTurn,0)||0);
-      const speed=finite(canonical.speed,null);
+      const rawSpeed=finite(canonical.speed,null);
+      const speed=rawSpeed==null?null:Math.max(1,rawSpeed);
       const tie=finite(canonical.speedTie,null);
       if(rolledTurn!==expected||speed==null||tie==null)continue;
       const before=[finite(unit.speed,null),finite(unit.speedBaseRoll,null),Math.trunc(finite(unit.speedRollTurn,0)||0),finite(unit.speedTie,null)];
@@ -100,7 +112,8 @@
     if(!rows.length)return false;
     return rows.every(unit=>{
       const rolledTurn=Math.trunc(finite(unit.speedRollTurn,0)||0);
-      return rolledTurn===expected&&finite(unit.speed,null)!=null&&finite(unit.speedTie,null)!=null;
+      const speed=finite(unit.speed,null);
+      return rolledTurn===expected&&speed!=null&&speed>=1&&finite(unit.speedTie,null)!=null;
     });
   }
 
@@ -135,13 +148,13 @@
       const canonical=canonicalRowFor(id,unit||{});
       const expected=Math.max(1,Math.trunc(finite(state.round,1)||1));
       if(canonical&&Math.trunc(finite(canonical.speedRollTurn,0)||0)===expected&&finite(canonical.speed,null)!=null){
-        unit.speed=finite(canonical.speed,unit?.speed??0);
-        unit.speedBaseRoll=finite(canonical.speedBaseRoll,unit.speed);
+        unit.speed=Math.max(1,finite(canonical.speed,unit?.speed??1));
+        unit.speedBaseRoll=Math.max(1,finite(canonical.speedBaseRoll,unit.speed));
         unit.speedRollTurn=expected;
         unit.speedTie=finite(canonical.speedTie,unit.speedTie??0);
         return unit.speed;
       }
-      return finite(unit?.speed,0);
+      return Math.max(1,finite(unit?.speed,1));
     };
     global.rollUnitSpeed.__luminousCanonicalSpeed=true;
     global.rollUnitSpeed.__luminousOriginal=state.originalRollUnitSpeed;
@@ -186,7 +199,7 @@
           const rolledTurn=Math.trunc(finite(unit.speedRollTurn,0)||0);
           const speed=finite(unit.speed,null);
           const tie=finite(unit.speedTie,null);
-          if(rolledTurn===state.round&&speed!=null&&tie!=null)continue;
+          if(rolledTurn===state.round&&speed!=null&&speed>=1&&tie!=null)continue;
           next[key]={...unit,...rollFor(unit)};
           changed=true;
         }

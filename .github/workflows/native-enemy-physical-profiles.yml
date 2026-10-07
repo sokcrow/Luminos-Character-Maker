@@ -1,0 +1,41 @@
+name: Native Enemy Physical Profiles
+
+on:
+  pull_request:
+    paths:
+      - "js/movement-speed-runtime.js"
+      - "js/derived-stats-engine.js"
+      - "js/universal-speed-runtime.js"
+      - "js/combat-v073-speed-authority.js"
+      - "js/unit-combat-instantiator.js"
+      - "js/unit-catalog-kobold-tier1.js"
+      - "js/unit-catalog-goblin.js"
+      - "js/unit-catalog-wolf.js"
+      - "tests/native-enemy-physical-profiles-smoke.mjs"
+      - "tests/unit-combat-instantiator-smoke.mjs"
+      - ".github/workflows/native-enemy-physical-profiles.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  native-enemy-profiles:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Syntax
+        run: |
+          node --check js/unit-catalog-kobold-tier1.js
+          node --check js/unit-catalog-goblin.js
+          node --check js/unit-catalog-wolf.js
+          node --check js/derived-stats-engine.js
+          node --check js/universal-speed-runtime.js
+          node --check js/combat-v073-speed-authority.js
+      - name: Physical profile contract
+        run: node tests/native-enemy-physical-profiles-smoke.mjs
+      - name: FIELD instantiation contract
+        run: node tests/unit-combat-instantiator-smoke.mjs

@@ -11,13 +11,18 @@
   const rangedAmmo = global.LuminousUniversalRangedAmmoRuntime || safeRequire('./universal-ranged-ammo-runtime.js');
   const goblinRuntime = global.LuminousGoblinUnitRuntime || safeRequire('./goblin-unit-runtime.js');
   const skillCatalog = global.LuminousGoblinTier1SkillCatalog || safeRequire('./skill-catalog-goblin-tier1.js');
+  const movementRuntime = global.LuminousMovementSpeedRuntime || safeRequire('./movement-speed-runtime.js');
   const lootContract = global.LuminousUnitLootProfileContract || safeRequire('./unit-loot-profile-contract.js');
   const socialLoot = global.LuminousLootSocialProfileContract || safeRequire('./loot-social-profile-contract.js');
 
   const STAGGER_THRESHOLDS = Object.freeze([75, 50, 25]);
   const RACIAL_TRAIT_IDS = Object.freeze(['goblin_fury_of_small', 'goblin_nimble_escape']);
-  const GOBLIN_SCORES = Object.freeze({ str: 8, dex: 15, con: 10, int: 10, wis: 9, cha: 8 });
-  const GOBLIN_BOSS_SCORES = Object.freeze({ str: 10, dex: 16, con: 12, int: 11, wis: 10, cha: 12 });
+  const GOBLIN_SCORES = Object.freeze({ str: 8, dex: 15, con: 10, int: 10, wis: 8, cha: 8 });
+  const GOBLIN_BOSS_SCORES = Object.freeze({ str: 10, dex: 15, con: 10, int: 10, wis: 8, cha: 10 });
+  const GOBLIN_PROFICIENCIES = Object.freeze({ savingThrows: Object.freeze({}), skills: Object.freeze({ stealth: 'expertise' }) });
+  const GOBLIN_MOVEMENT = Object.freeze({ ground: 30 });
+  const GOBLIN_SENSES = Object.freeze({ darkvision: 60, darkvisionFt: 60, passivePerception: 9 });
+  const DARKVISION_RULES = Object.freeze({ ignoresDarkness: true });
 
   const GOBLIN_LOOT_PROFILES = lootContract?.createProfiles ? lootContract.createProfiles({
     bodyProfile: {
@@ -100,11 +105,14 @@
       id: 'goblin', name: 'Goblin', species: 'goblin', variant: 'standard', unitType: 'enemy', actorCategory: 'enemy', faction: 'enemy', isPlayer: false,
       naturalWorldLevel: Object.freeze({ min: 2, max: 4 }), baseLevel: Object.freeze({ min: 2, max: 4 }),
       scores: GOBLIN_SCORES,
+      proficiencies: GOBLIN_PROFICIENCIES,
       bodyProfile: GOBLIN_LOOT_PROFILES.bodyProfile, lootProfile: GOBLIN_LOOT_PROFILES.lootProfile,
       wealthProfile: socialLoot?.normalizeWealthProfile ? socialLoot.normalizeWealthProfile({ bandId: 'backstreets_very_poor', source: 'catalog_default' }) : Object.freeze({ bandId: 'backstreets_very_poor', source: 'catalog_default', carriedCashSeparate: true }),
       roleProfile: socialLoot?.normalizeRoleProfile ? socialLoot.normalizeRoleProfile({ roles: ['soldier'], source: 'catalog_default' }) : Object.freeze({ roles: Object.freeze(['soldier']), source: 'catalog_default' }),
       hpBase: 7, hpCoefficient: 0.21,
-      size: 'goblin',
+      creatureType: 'fey', size: 'small',
+      movement: GOBLIN_MOVEMENT, movementFeet: GOBLIN_MOVEMENT, preferredMovementMode: 'ground',
+      senses: GOBLIN_SENSES,
       traitIds: Object.freeze([...RACIAL_TRAIT_IDS, AMMO_ARROWS.id]),
       traits: Object.freeze([...racialTraits(), AMMO_ARROWS]),
       allowedRanks: Object.freeze(['normal', 'captain', 'leader']),
@@ -114,6 +122,7 @@
       action_slots: Object.freeze(skillRefs('goblin')),
       mechanics: Object.freeze({
         hpModel: 'chassis_coefficient', hpBase: 7, hpCoefficient: 0.21,
+        movementFeet: GOBLIN_MOVEMENT, preferredMovementMode: 'ground', darkvision: DARKVISION_RULES,
         build: Object.freeze(['pierced', 'bind', 'bleed']),
         ammoLoadout: Object.freeze([{ id: 'arrows', amount: 10 }]),
         ammunition: Object.freeze({ arrows: Object.freeze({ type: 'single', icon: 'https://imgur.com/ivdNbBA.png' }) }),
@@ -124,7 +133,7 @@
         skills: Object.freeze(skillRefs('goblin')),
         staggerThresholds: STAGGER_THRESHOLDS,
       }),
-      metadata: Object.freeze({ canonicalUnit: true, catalog: 'goblin-batch', spritePending: true, weaponSkillsPendingCanonicalCatalog: false, physicalProfilePending: true, speedPending: true }),
+      metadata: Object.freeze({ canonicalUnit: true, catalog: 'goblin-batch', spritePending: true, weaponSkillsPendingCanonicalCatalog: false, physicalProfilePending: false, speedPending: false, speedModel: 'movement_feet_plus_size', canonicalSourceName: 'Goblin Warrior', canonicalSourceBook: 'Monster Manual (2025)', canonicalScores: true, canonicalProficiencies: true }),
       schemaVersion: 4,
     }),
 
@@ -132,11 +141,14 @@
       id: 'goblin_boss', name: 'Goblin Boss', species: 'goblin', variant: 'boss', unitType: 'enemy', actorCategory: 'enemy', faction: 'enemy', isPlayer: false,
       naturalWorldLevel: Object.freeze({ min: 5, max: 5 }), baseLevel: Object.freeze({ min: 5, max: 5 }),
       scores: GOBLIN_BOSS_SCORES,
+      proficiencies: GOBLIN_PROFICIENCIES,
       bodyProfile: GOBLIN_LOOT_PROFILES.bodyProfile, lootProfile: GOBLIN_LOOT_PROFILES.lootProfile,
       wealthProfile: socialLoot?.normalizeWealthProfile ? socialLoot.normalizeWealthProfile({ bandId: 'backstreets_low', source: 'catalog_default' }) : Object.freeze({ bandId: 'backstreets_low', source: 'catalog_default', carriedCashSeparate: true }),
       roleProfile: socialLoot?.normalizeRoleProfile ? socialLoot.normalizeRoleProfile({ roles: ['soldier', 'commander'], source: 'catalog_default' }) : Object.freeze({ roles: Object.freeze(['soldier', 'commander']), source: 'catalog_default' }),
       hpBase: 21, hpCoefficient: 0.24,
-      size: 'goblin',
+      creatureType: 'fey', size: 'small',
+      movement: GOBLIN_MOVEMENT, movementFeet: GOBLIN_MOVEMENT, preferredMovementMode: 'ground',
+      senses: GOBLIN_SENSES,
       traitIds: Object.freeze([...RACIAL_TRAIT_IDS, AMMO_JAVELIN.id, MULTI_ATTACK.id, REDIRECT_ATTACK.id]),
       traits: Object.freeze([...racialTraits(), AMMO_JAVELIN, MULTI_ATTACK, REDIRECT_ATTACK]),
       allowedRanks: Object.freeze(['captain']),
@@ -146,6 +158,7 @@
       action_slots: Object.freeze(skillRefs('goblin_boss')),
       mechanics: Object.freeze({
         hpModel: 'chassis_coefficient', hpBase: 21, hpCoefficient: 0.24,
+        movementFeet: GOBLIN_MOVEMENT, preferredMovementMode: 'ground', darkvision: DARKVISION_RULES,
         build: Object.freeze(['pierced', 'bind', 'bleed']),
         ammoLoadout: Object.freeze([{ id: 'javelin', amount: 6 }]),
         ammunition: Object.freeze({ javelin: Object.freeze({ type: 'single', icon: 'https://imgur.com/3wBN5qk.png' }) }),
@@ -158,7 +171,7 @@
         redirectAttack: REDIRECT_ATTACK.mechanics || null,
         staggerThresholds: STAGGER_THRESHOLDS,
       }),
-      metadata: Object.freeze({ canonicalUnit: true, catalog: 'goblin-batch', alwaysCaptain: true, spritePending: true, weaponSkillsPendingCanonicalCatalog: false, physicalProfilePending: true, speedPending: true }),
+      metadata: Object.freeze({ canonicalUnit: true, catalog: 'goblin-batch', alwaysCaptain: true, spritePending: true, weaponSkillsPendingCanonicalCatalog: false, physicalProfilePending: false, speedPending: false, speedModel: 'movement_feet_plus_size', canonicalSourceName: 'Goblin Boss', canonicalSourceBook: 'Monster Manual (2025)', canonicalScores: true, canonicalProficiencies: true }),
       schemaVersion: 4,
     }),
   });
@@ -198,6 +211,10 @@
     const profile = UNIVERSAL_RANKS[rank];
     const effectiveLevel = rankRuntime?.effectiveLevel ? rankRuntime.effectiveLevel(level, rank) : level * Number(profile.levelMultiplier || 1);
     const maxHp = Math.floor(Number(unit.hpBase) + effectiveLevel * Number(unit.hpCoefficient));
+    const baseSpeed = movementRuntime?.rangeForEntity?.(unit);
+    if (!baseSpeed) throw new Error('MOVEMENT_SPEED_RUNTIME_REQUIRED:goblin');
+    const minSpeed = Math.max(1, Number(baseSpeed.min || 1) + Number(profile.minSpeedBonus || 0));
+    const maxSpeed = Math.max(2, minSpeed, Number(baseSpeed.max || 6) + Number(profile.maxSpeedBonus || 0));
     unit.rank = rank;
     unit.runtimeLevel = level;
     unit.baseLevelSelected = level;
@@ -206,8 +223,12 @@
     unit.commandProfile = { commandLevel: profile.commandLevel, aiCoordination: profile.aiCoordination, targetPriority: profile.targetPriority, turnEndSpRecovery: profile.turnEndSpRecovery };
     unit.hp = maxHp;
     unit.maxHp = maxHp;
+    unit.speedRange = [minSpeed, maxSpeed];
+    unit.speedMin = minSpeed;
+    unit.speedMax = maxSpeed;
+    unit.speedProfileMode = baseSpeed.mode || 'ground';
     unit.resolvedSkills = skillRefs(id).map((skillId) => resolveSkill(skillId, rank));
-    unit.mechanics = { ...unit.mechanics, hp: maxHp, maxHp, level: effectiveLevel, runtimeLevel: level, rank, commandLevel: profile.commandLevel, basePowerBonus: profile.basePowerBonus, statusApplyBonus: profile.applyBonus };
+    unit.mechanics = { ...unit.mechanics, hp: maxHp, maxHp, level: effectiveLevel, runtimeLevel: level, rank, speedRange: [minSpeed, maxSpeed], minSpeed, maxSpeed, speed: `${minSpeed}-${maxSpeed}`, speedProfileMode: unit.speedProfileMode, commandLevel: profile.commandLevel, basePowerBonus: profile.basePowerBonus, statusApplyBonus: profile.applyBonus };
     if (options.initializeEncounter === true) rangedAmmo?.onEncounterStart?.(unit);
     return unit;
   }
@@ -223,7 +244,7 @@
   }
 
   const api = Object.freeze({
-    version: '1.3.0', STAGGER_THRESHOLDS, RACIAL_TRAIT_IDS, GOBLIN_SCORES, GOBLIN_BOSS_SCORES, UNIVERSAL_RANKS,
+    version: '1.4.0', STAGGER_THRESHOLDS, RACIAL_TRAIT_IDS, GOBLIN_SCORES, GOBLIN_BOSS_SCORES, GOBLIN_PROFICIENCIES, GOBLIN_MOVEMENT, GOBLIN_SENSES, UNIVERSAL_RANKS,
     AMMO_ARROWS, AMMO_JAVELIN, MULTI_ATTACK, REDIRECT_ATTACK, DEFINITIONS, get, list, resolveSkill, resolve, firebasePayload, firebaseSkillPayload,
   });
 

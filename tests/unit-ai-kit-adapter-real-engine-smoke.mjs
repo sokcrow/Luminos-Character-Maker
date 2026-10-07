@@ -10,6 +10,7 @@ const engineSource = readFileSync(new URL('../js/combatEngine.js', import.meta.u
 vm.runInThisContext(engineSource, { filename: 'js/combatEngine.js' });
 const engine = globalThis.CombatEngine;
 
+await import('../js/movement-speed-runtime.js');
 await import('../js/status-engine.js');
 await import('../js/universal-ranged-ammo-runtime.js');
 await import('../js/skill-catalog-kobold-tier1.js');
