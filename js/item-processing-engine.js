@@ -280,6 +280,8 @@
     mixed_base: freezeList(["simmer", "steam", "bake", "deep_fry"]),
     reduction: freezeList(["simple_mix", "bake"]),
     culinary_extract: freezeList(["simple_mix", "brew"]),
+    chocolate: freezeList(["chop", "simple_mix", "bake"]),
+    chocolate_chips: freezeList(["simple_mix", "bake"]),
   });
 
   const CANONICAL_OUTPUTS = Object.freeze({
@@ -305,6 +307,8 @@
     processed_wrapper: Object.freeze({ id: "processed_wrapper", name: "Wrapper", form: "wrapper", tags: freezeList(["wrapper", "dough", "base"]) }),
     processed_ground_meat: Object.freeze({ id: "processed_ground_meat", name: "Ground Meat", form: "ground_meat", tags: freezeList(["ground_meat", "meat", "protein", "filling"]) }),
     processed_miso_paste: Object.freeze({ id: "processed_miso_paste", name: "Miso Paste", form: "miso_paste", tags: freezeList(["miso_paste", "paste", "seasoning", "savory"]) }),
+    chocolate: Object.freeze({ id: "chocolate", name: "Chocolate", form: "chocolate", iconFamily: "chocolate", tags: freezeList(["chocolate", "dessert_base", "sweet"]) }),
+    chocolate_chips: Object.freeze({ id: "chocolate_chips", name: "Chocolate Chips", form: "chocolate_chips", iconFamily: "chocolate_chips", tags: freezeList(["chocolate_chips", "chocolate", "dessert_base"]) }),
   });
 
   function valuesFrom(item, key) {
@@ -823,6 +827,7 @@
       name: outputName,
       displayName: outputName,
       family: PROCESSED_FAMILY,
+      iconFamily: canonical?.iconFamily || null,
       category: "ingredient",
       itemType: "material",
       sourceLine: "culinary_processing",
@@ -897,6 +902,32 @@
     });
   }
 
+  function createChocolate(inputs, options = {}) {
+    return createProcessedItem(inputs, "simple_mix", { ...options, templateId: "chocolate" });
+  }
+
+  function createChocolateChips(input, options = {}) {
+    return createProcessedItem(input, "chop", { ...options, templateId: "chocolate_chips" });
+  }
+
+  function buildChocolateRecipe(inputs, options = {}) {
+    const batch = resolveProcessingBatch(inputs, "simple_mix", {
+      templateId: "chocolate",
+      batches: options.batches || 1,
+    });
+    if (!batch.valid) return batch;
+    const built = buildProcessingRecipe(inputs, "simple_mix", {
+      ...options,
+      roles: options.roles || ["core", "major", "minor"],
+    });
+    if (!built.valid) return built;
+    return Object.freeze({
+      ...built,
+      processingTemplateId: "chocolate",
+      consumption: batch.consumption,
+    });
+  }
+
   function validateMethodThAgainstCooking() {
     const cooking = cookingEngine();
     if (!cooking?.methodBaseTh) return Object.freeze({ valid: true, checked: false, mismatches: [] });
@@ -927,7 +958,10 @@
     resolveProcessingBatch,
     processingEconomy,
     createProcessedItem,
+    createChocolate,
+    createChocolateChips,
     buildProcessingRecipe,
+    buildChocolateRecipe,
     validateMethodThAgainstCooking,
   });
 

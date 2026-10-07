@@ -65,10 +65,22 @@
       inputPlan: { requirements: [{ id: "dough", units: 1, selector: { anyTags: ["dough"], anyForms: ["dough"] } }] } }),
     template({ id: "cut", methodId: "cut", outputUnits: 1, tasteDelta: 0, productionMultiplier: 1.00,
       inputPlan: { requirements: [{ id: "source", units: 1 }] } }),
+    template({ id: "chocolate_chips", methodId: "chop", priority: 140, outputUnits: 2, tasteDelta: 0, productionMultiplier: 1.05,
+      outputId: "chocolate_chips", outputForm: "chocolate_chips",
+      inputPlan: { requirements: [{ id: "chocolate", units: 1, selector: { anyTags: ["chocolate"], anyForms: ["chocolate"] } }] },
+      notes: "Portion prepared chocolate into baking chips; raw cacao never matches this template." }),
     template({ id: "chop", methodId: "chop", outputUnits: 1, tasteDelta: 0, productionMultiplier: 1.00,
       inputPlan: { requirements: [{ id: "source", units: 1 }] } }),
     template({ id: "crush", methodId: "crush", outputUnits: 1, tasteDelta: 0, productionMultiplier: 1.00,
       inputPlan: { requirements: [{ id: "source", units: 1 }] } }),
+    template({ id: "chocolate", methodId: "simple_mix", priority: 150, outputUnits: 1, tasteDelta: 1, productionMultiplier: 1.20,
+      outputId: "chocolate", outputForm: "chocolate",
+      inputPlan: { requirements: [
+        { id: "cacao", units: 1, selector: { anyTags: ["chocolate_source"], excludeTags: ["processed"] } },
+        { id: "sweetener", units: 1, selector: { anyTags: ["sweetener", "sweetener_base", "sweetener_source", "syrup"], anyForms: ["syrup"] } },
+        { id: "fat", units: 1, selector: { anyTags: ["fat", "oil", "cream"], anyForms: ["oil", "cream"] } }
+      ] },
+      notes: "Single playable confection step: raw cacao plus sweetener and fat becomes recipe-ready chocolate." }),
     template({ id: "batter", methodId: "simple_mix", priority: 120, outputUnits: 2, tasteDelta: 0, productionMultiplier: 1.08,
       outputId: "processed_batter", outputForm: "batter",
       inputPlan: { requirements: [

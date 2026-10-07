@@ -209,6 +209,38 @@ const { pathToFileURL } = require('node:url');
   assert.equal(friedWolf.consumptionPlan.length, 2);
   assert.equal(friedWolf.batchProductionValueAhn, 21275);
 
+  const cacaoDef = plants.get('cacao');
+  const cacaoStack = plants.createIngredientStack('cacao', {
+    quantity: 1,
+    sourceInstanceId: 'cacao-a',
+    affinityRoll: 0,
+  });
+  const chocolateInputs = [
+    { ...cacaoDef, ...cacaoStack },
+    { itemId:'sweetener-test', name:'Sweetener', recipeRoles:['sweetener'], processingTags:['sweetener','raw'], quantity:1, unitProductionValueAhn:1200 },
+    { itemId:'fat-test', name:'Fat', processed:true, processedForm:'oil', processingTags:['fat','oil'], quantity:1, unitProductionValueAhn:900 },
+  ];
+  const chocolateRecipe = processing.buildChocolateRecipe(chocolateInputs);
+  assert.equal(chocolateRecipe.valid, true);
+  assert.equal(chocolateRecipe.processingTemplateId, 'chocolate');
+  assert.ok(chocolateRecipe.th.recipeTh >= 8 && chocolateRecipe.th.recipeTh <= 24);
+
+  const chocolate = processing.createChocolate(chocolateInputs);
+  assert.equal(chocolate.created, true);
+  assert.equal(chocolate.itemId, 'chocolate');
+  assert.equal(chocolate.iconFamily, 'chocolate');
+  assert.equal(chocolate.processedForm, 'chocolate');
+  assert.equal(chocolate.processingTemplateId, 'chocolate');
+  assert.equal(chocolate.sourceItemIds.includes('cacao'), true);
+
+  const chips = processing.createChocolateChips({ ...chocolate, quantity:1 });
+  assert.equal(chips.created, true);
+  assert.equal(chips.itemId, 'chocolate_chips');
+  assert.equal(chips.iconFamily, 'chocolate_chips');
+  assert.equal(chips.processedForm, 'chocolate_chips');
+  assert.equal(chips.quantity, 2);
+  assert.equal(chips.processingTemplateId, 'chocolate_chips');
+
   const processRecipe = processing.buildProcessingRecipe({ ...wheat, ...wheatStack }, 'grind', {
     ability: 'dex',
   });
