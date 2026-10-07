@@ -343,16 +343,33 @@
       const harvest = item.customData?.harvest || {};
       const def = harvest.definition || {};
       const tags = new Set([...(def.tags || []), ...(item.tags || [])].map(normalizeId).filter(Boolean));
-      const useTags = [...(def.useTags || []), ...(item.useTags || [])].map(normalizeId).filter(Boolean);
-      const family = normalizeId(def.family || item.family);
+      const authoredUses = [...(harvest.knownUses || []), ...(item.provenance?.knownUses || [])].map(normalizeId).filter(Boolean);
+      const useTags = [...(def.useTags || []), ...(item.useTags || []), ...authoredUses].map(normalizeId).filter(Boolean);
+      const family = normalizeId(def.family || item.family || harvest.catalogFamily || harvest.integrityFamily);
       const category = normalizeId(def.category || item.category);
       const itemType = normalizeId(def.itemType || item.itemType);
 
       const uses = new Set();
-      if (def.edibleRaw === true || family === "meat" || tags.has("meat") || item.culinaryAffinityProfileId || (item.culinaryProperties || []).length) {
+      if (
+        def.edibleRaw === true ||
+        family === "meat" ||
+        tags.has("meat") ||
+        harvest.culinary === true ||
+        item.provenance?.culinarySource === true ||
+        item.customData?.culinaryProvenance ||
+        authoredUses.includes("cooking") ||
+        item.culinaryAffinityProfileId ||
+        (item.culinaryProperties || []).length
+      ) {
         uses.add("cooking");
       }
-      if (def.rawCraftingReagent === true || itemType === "material" || tags.has("crafting_input") || useTags.length) {
+      if (
+        def.rawCraftingReagent === true ||
+        itemType === "material" ||
+        tags.has("crafting_input") ||
+        authoredUses.some((use) => use.includes("craft") || use.includes("tailor") || use.includes("armor")) ||
+        useTags.length
+      ) {
         uses.add("crafting");
       }
       if (uses.size) {
@@ -368,12 +385,14 @@
       const valuableTags = ["rare", "exotic", "precious", "precious_metal", "gemstone"];
       const taggedValuable = valuableTags.some((tag) => tags.has(tag));
       const medicallyValuable = Number.isFinite(medicalStandard) || (medicalRange && (medicalRange.minAhn != null || medicalRange.maxAhn != null));
-      if (taggedValuable || medicallyValuable) {
+      const authoredValuable = harvest.valuable === true || item.provenance?.valuable === true;
+      if (taggedValuable || medicallyValuable || authoredValuable) {
         valuable.push({
           itemId,
           reasons: [
             ...(medicallyValuable ? ["medical_value"] : []),
             ...(taggedValuable ? ["rare_or_exotic_material"] : []),
+            ...(authoredValuable && !taggedValuable && !medicallyValuable ? ["known_valuable_resource"] : []),
           ],
           medicalValueAhn: Number.isFinite(medicalStandard) ? medicalStandard : null,
           medicalRangeAhn: clone(medicalRange || null),
