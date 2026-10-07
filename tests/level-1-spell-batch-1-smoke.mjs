@@ -35,7 +35,7 @@ for (const spell of Object.values(catalog).filter((entry) => Number(entry?.level
 
 const batchIds = [
   "alarm", "armor_of_agathys", "arms_of_hadar", "bane", "bless", "burning_hands", "catapult",
-  "detect_evil_and_good", "detect_magic", "detect_poison_and_disease", "disguise_self",
+  "detect_evil_and_good", "detect_magic", "detect_poison_and_disease", "disguise_self", "find_familiar",
   "divine_favor", "divine_smite", "ensnaring_strike", "entangle"
 ];
 for (const id of batchIds) {
@@ -247,6 +247,15 @@ assert.equal(ensnaringLiberate.economy, "action");
 
 assert.equal(catalog.entangle.attackWeight, 4);
 assert.equal(catalog.entangle.save.abilityId, "str");
+
+assert.ok(catalog.find_familiar);
+assert.deepEqual(catalog.find_familiar.classIds, ["wizard"]);
+assert.equal(catalog.find_familiar.school, "conjuration");
+assert.deepEqual(catalog.find_familiar.contexts, ["theater"]);
+assert.equal(catalog.find_familiar.ritual, true);
+assert.equal(catalog.find_familiar.mechanics.unitLibraryChoice.chooseVariantWhenAvailable, true);
+assert.deepEqual(catalog.find_familiar.mechanics.requiresChoice.values, ["celestial", "fey", "fiend"]);
+
 const entangleCaster = { id: "druid", statusEffects: {} };
 const entangleArea = batch.createEntangleArea(entangleCaster, [{ id: "enemy_a" }, { id: "enemy_b" }]);
 assert.equal(entangleArea.area.difficultTerrain, true);
@@ -365,5 +374,51 @@ assert.equal(alarm.ward.dmManagedTrigger, true);
 assert.equal(alarm.persistence.effect.kind, "alarm");
 assert.equal(alarm.persistence.effect.subjectPlayerId, "player_1");
 assert.equal(alarm.persistence.effect.expiresAt, 1000 + 8 * 60 * 60 * 1000);
+
+const familiarLibrary = {
+  cat_black: { id: "cat_black", name: "Cat · Black", species: "cat", hp: 4, maxHp: 4, action_slots: ["cat_scratch"] },
+  cat_white: { id: "cat_white", name: "Cat · White", species: "cat", hp: 4, maxHp: 4, action_slots: ["cat_scratch"] },
+  owl: { id: "owl", name: "Owl", species: "owl", hp: 3, maxHp: 3, action_slots: ["owl_talons"] },
+  wolf: { id: "wolf", name: "Wolf", species: "wolf", hp: 11, maxHp: 11, action_slots: ["wolf_bite"] }
+};
+const familiarOptions = batch.listFindFamiliarOptions(familiarLibrary);
+assert.deepEqual(familiarOptions.filter((row) => row.form === "cat").map((row) => row.id), ["cat_black", "cat_white"]);
+assert.ok(familiarOptions.some((row) => row.id === "owl"));
+assert.equal(familiarOptions.some((row) => row.id === "wolf"), false);
+
+const familiarCaster = { id: "wizard_familiar", faction: "ally" };
+const familiarContext = { unitLibrary: familiarLibrary, combatData: {}, units: [familiarCaster] };
+const firstFamiliar = batch.summonFindFamiliar(familiarCaster, {
+  familiarUnitId: "cat_black",
+  spiritType: "celestial",
+  context: familiarContext
+});
+assert.equal(firstFamiliar.resolved, true);
+assert.equal(firstFamiliar.familiar.familiarUnitId, "cat_black");
+assert.equal(firstFamiliar.familiar.familiarForm, "cat");
+assert.equal(firstFamiliar.familiar.creatureType, "celestial");
+assert.equal(firstFamiliar.familiar.familiarCannotAttack, true);
+assert.deepEqual(firstFamiliar.familiar.action_slots, []);
+assert.equal(firstFamiliar.familiar.actionSlots, 1);
+
+const oldFamiliarId = firstFamiliar.familiar.id;
+const secondFamiliar = batch.summonFindFamiliar(familiarCaster, {
+  familiarUnitId: "cat_white",
+  spiritType: "fey",
+  context: familiarContext
+});
+assert.equal(secondFamiliar.resolved, true);
+assert.equal(secondFamiliar.familiar.familiarUnitId, "cat_white");
+assert.equal(familiarContext.combatData[oldFamiliarId], undefined, "recasting must replace the previous Familiar");
+assert.equal(familiarCaster.__luminousFindFamiliar.unitLibraryId, "cat_white");
+
+const touchDelivery = batch.deliverTouchSpellThroughFamiliar(familiarCaster, secondFamiliar.familiar, {
+  id: "touch_spell_action",
+  metadata: {}
+});
+assert.equal(touchDelivery.resolved, true);
+assert.equal(touchDelivery.action.metadata.spellOriginUnitId, secondFamiliar.familiar.id);
+assert.equal(touchDelivery.action.metadata.familiarReactionRequired, true);
+
 
 console.log("Level 1 spell batch 1 smoke: OK");
