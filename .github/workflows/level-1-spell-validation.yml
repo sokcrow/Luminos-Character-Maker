@@ -8,6 +8,7 @@ on:
       - "js/spell-batch-level1-runtime.js"
       - "js/universal-speed-runtime.js"
       - "tests/item-cooking-runtime-smoke.cjs"
+      - "tests/item-runtime-canonical-combat-use-smoke.mjs"
       - "js/item-runtime-engine.js"
       - "js/item-cooking-runtime.js"
       - "js/combat-props-runtime.js"
@@ -93,6 +94,9 @@ jobs:
 
       - name: Goodberry cooking smoke
         run: node tests/item-cooking-runtime-smoke.cjs
+
+      - name: Goodberry dish expiry smoke
+        run: node tests/item-runtime-canonical-combat-use-smoke.mjs
 
       - name: Unbreakable clash smoke
         run: node tests/level-1-spell-unbreakable-smoke.mjs
