@@ -306,7 +306,7 @@ Specific Enchantments may still require exact named Items when their fiction/mec
 
 ## 14. Bind construction
 
-Bind is an Enchantment property from Part A.
+Bind is a special Curse-family Enchantment state. It may occur accidentally or be intentionally attempted; Part D defines its equip/Attunement lock and recharge behavior.
 
 Bind may occur as an **accidental beneficial outcome** or be intentionally attempted.
 
@@ -451,7 +451,7 @@ An Enchantment selects one authored route. The gemstone does not grant all affin
 - [ ] Add intentional Curse modifier flow with initial +6 TH baseline.
 - [ ] Add profane/corrupted semantic reagent requirements for authored Curses.
 - [ ] Allow instability/backlash to create accidental Curse only when the relevant recipe/outcome permits it.
-- [ ] Preserve Part A x1.25 Bind and x1.50 Curse positive-effect modifiers.
+- [ ] Preserve Part A x1.25 Bound and x1.50 Curse positive-effect modifiers while applying Part D Curse-family runtime behavior.
 
 ### Tests / CI
 
