@@ -477,6 +477,41 @@ test("mobile Theatre renders live dialogue and sprites on the real player sheet"
   expect(surface.theatre.zIndex).toBeGreaterThan(3010);
   expect(surface.hud.zIndex).toBeGreaterThan(surface.theatre.zIndex);
 
+  // The mobile entry gate is not the subject of this test; once gameplay is
+  // active, every menu opened from the Theatre command rail must beat the
+  // Theatre stacking context and remain touchable.
+  await page.evaluate(() => {
+    const gate = document.getElementById("player-mobile-entry-gate");
+    if (gate) gate.hidden = true;
+  });
+
+  await page.locator("#btn-toggle-hud-menu").click({ force: true });
+  await expect(page.locator(".hud-sidebar-right")).toHaveClass(/is-open/);
+
+  await page.locator('button[name="act_hud_stats"]').click({ force: true });
+  await expect(page.locator("#stats-modal")).toBeVisible();
+  const statsLayers = await page.evaluate(() => ({
+    theatre: Number.parseInt(getComputedStyle(document.getElementById("theatre-view-player")).zIndex || "0", 10) || 0,
+    modal: Number.parseInt(getComputedStyle(document.getElementById("stats-modal")).zIndex || "0", 10) || 0,
+    pointerEvents: getComputedStyle(document.getElementById("stats-modal")).pointerEvents
+  }));
+  expect(statsLayers.modal).toBeGreaterThan(statsLayers.theatre);
+  expect(statsLayers.pointerEvents).not.toBe("none");
+
+  await page.locator('#stats-modal button[name="act_hud_close"]').click({ force: true });
+  await expect(page.locator("#stats-modal")).toBeHidden();
+
+  await page.locator("#btn-global-inventory").click({ force: true });
+  await expect(page.locator("#inventory-modal")).toHaveClass(/active/);
+  await expect(page.locator("#inventory-modal")).toBeVisible();
+  const inventoryLayers = await page.evaluate(() => ({
+    theatre: Number.parseInt(getComputedStyle(document.getElementById("theatre-view-player")).zIndex || "0", 10) || 0,
+    modal: Number.parseInt(getComputedStyle(document.getElementById("inventory-modal")).zIndex || "0", 10) || 0,
+    pointerEvents: getComputedStyle(document.getElementById("inventory-modal")).pointerEvents
+  }));
+  expect(inventoryLayers.modal).toBeGreaterThan(inventoryLayers.theatre);
+  expect(inventoryLayers.pointerEvents).not.toBe("none");
+
   await context.close();
 });
 
