@@ -458,14 +458,18 @@
         detail: { open: Boolean(openState) },
       }));
     };
-    const openInventory = () => {
+    const openInventory = (event) => {
+      event?.preventDefault?.();
+      event?.stopPropagation?.();
       modal.classList.add("active");
       bindRealtime();
       state.ready = true;
       renderAll();
       emitVisibility(true);
     };
-    const closeInventory = () => {
+    const closeInventory = (event) => {
+      event?.preventDefault?.();
+      event?.stopPropagation?.();
       modal.classList.remove("active");
       suspendRealtime();
       emitVisibility(false);

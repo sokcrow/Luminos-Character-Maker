@@ -123,6 +123,7 @@ jobs:
           node --check js/scene-time-runtime.js
           node --check js/fixed-damage-runtime.js
           node --check hoja_personaje.js
+          node --check js/player-hud-navigation.js
           node --check js/player-progression-tree.js
           node --check js/player-progression-level-allocation.js
           node --check tests/player-ui-long-session-performance.spec.mjs

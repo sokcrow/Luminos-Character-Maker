@@ -36,14 +36,26 @@ for (const legacyPath of [
 
 assert.match(
   mobileCss,
-  /player-instance-theatre:not\(\.player-cellphone-surface-open\) #theatre-view-player[\s\S]*z-index:\s*12000\s*!important/,
+  /player-instance-theatre:not\(\.player-cellphone-surface-open\) #theatre-view-player[\s\S]*z-index:\s*4000\s*!important/,
   'Mobile Theatre must stack above the dormant cellphone wrapper'
 );
 
 assert.match(
   mobileCss,
-  /player-instance-theatre:not\(\.player-cellphone-surface-open\) \.hud-sidebar-right[\s\S]*z-index:\s*13000\s*!important/,
+  /player-instance-theatre:not\(\.player-cellphone-surface-open\) \.hud-sidebar-right[\s\S]*z-index:\s*19500\s*!important/,
   'Mobile Theatre HUD must stack above the Theatre surface'
 );
 
 console.log('player theatre mobile render contract: ok');
+
+assert.match(
+  mobileCss,
+  /player-instance-theatre:not\(\.player-cellphone-surface-open\) \.hud-modal[\s\S]*z-index:\s*20000\s*!important/,
+  'Mobile Theatre menus must stack above the Theatre surface'
+);
+
+assert.match(
+  mobileCss,
+  /player-instance-theatre:not\(\.player-cellphone-surface-open\) \.inventory-modal[\s\S]*z-index:\s*20000\s*!important/,
+  'Mobile Theatre inventory must stack above the Theatre surface'
+);
