@@ -41,6 +41,13 @@
     "durability", "maxDurability", "available", "spent", "destroyed",
     "sourceLine", "sourceInstanceId", "sourceEntityId", "originCreatureType", "originCreatureId",
     "originRaceId", "originSubtypeId", "provenance",
+    "displayName", "materialName", "measure", "partSize", "creatureSize", "anatomicalPart", "anatomicalIdentity", "anatomicalLabel", "form",
+    "hideUnits", "remainingUnits", "bloodUnits", "remainingBloodUnits", "secretionUnits", "remainingSecretionUnits",
+    "oozeUnits", "remainingOozeUnits", "fiberUnits", "remainingFiberUnits", "hungerPerUnit", "rationEquivalentPerUnit",
+    "harvestIntegrityFamily", "integritySnapshot", "rawCraftingReagent", "reagentTags", "specialProperties",
+    "transplantMode", "transplantableByAnatomy", "transplantMedicalValueRangeAhn", "physicalMode",
+    "modularCoverageMaterial", "discreteStructuralPart", "canAggregateCoverage", "canMergeForLargerPart", "canDownsizeForSmallerUse",
+    "primitiveHardMaterial", "lineageValueMultiplier",
     "unitValueAhn", "totalValueAhn", "productionValueAhn", "productionValue", "retailValueAhn"
   ]);
   let instanceCounter = 0;

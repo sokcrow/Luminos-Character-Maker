@@ -5,6 +5,7 @@
   const bridge = global.LuminousCombatActionEngineBridge || (typeof require === "function" ? require("./combat-action-engine-bridge.js") : null);
   const queueApi = global.LuminousCombatActionQueue || (typeof require === "function" ? (() => { try { return require("./combat-action-queue.js"); } catch (_) { return null; } })() : null);
   const shieldRuntime = global.LuminousShieldRuntime || (typeof require === "function" ? (() => { try { return require("./item-shield-runtime.js"); } catch (_) { return null; } })() : null);
+  const analyzeRuntime = global.LuminousCombatAnalyzeRuntime || (typeof require === "function" ? (() => { try { return require("./combat-analyze-runtime.js"); } catch (_) { return null; } })() : null);
   if (!schema) return;
 
   const normalizeId = (value) => String(value ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
@@ -533,7 +534,9 @@
     const targets = targetResolution.targets;
     let resolution;
 
-    if (action.resolution.type === "clash") {
+    if (analyzeRuntime?.isAnalyzeAction?.(action)) {
+      resolution = analyzeRuntime.resolveAnalyze(action, actor, targets[0] || null, context);
+    } else if (action.resolution.type === "clash") {
       resolution = resolveDirectAttack(action, actor, targets, context, { skill: definitionForEngine(action, actor) });
     } else if (action.resolution.type === "unopposed") {
       resolution = resolveDirectAttack(action, actor, targets, context, { skill: definitionForEngine(action, actor) });
@@ -572,6 +575,7 @@
     resolveClashPair,
     resolveSave,
     resolveCheck,
+    resolveAnalyze: analyzeRuntime?.resolveAnalyze || null,
     resolveContest,
     resolveAutomatic,
     resolveCombatAction,

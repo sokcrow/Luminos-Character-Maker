@@ -11,6 +11,7 @@
   const skillCatalog = global.LuminousWolfSkillCatalog || safeRequire('./skill-catalog-wolf.js');
   const wolfRuntime = global.LuminousWolfUnitRuntime || safeRequire('./wolf-unit-runtime.js');
   const movementRuntime = global.LuminousMovementSpeedRuntime || safeRequire('./movement-speed-runtime.js');
+  const lootContract = global.LuminousUnitLootProfileContract || safeRequire('./unit-loot-profile-contract.js');
   const STAGGER_THRESHOLDS = Object.freeze([75, 50, 25]);
   const PACK_TACTICS_ID = 'pack_tactics';
   const WOLF_SCORES = Object.freeze({ str: 14, dex: 15, con: 12, int: 3, wis: 12, cha: 6 });
@@ -18,6 +19,47 @@
   const WOLF_PROFICIENCIES = Object.freeze({ savingThrows: Object.freeze({}), skills: Object.freeze({ perception: 'expertise', stealth: 'proficient' }) });
   const WOLF_SENSES = Object.freeze({ darkvision: 60, darkvisionFt: 60, passivePerception: 15 });
   const DARKVISION_RULES = Object.freeze({ ignoresDarkness: true });
+
+  const WOLF_LOOT_PROFILES = lootContract?.createProfiles ? lootContract.createProfiles({
+    bodyProfile: {
+      kind: 'organic',
+      materials: ['flesh', 'blood', 'bone', 'pelt'],
+      edible: true,
+      resources: [
+        { id: 'meat', integrityFamily: 'meat', sourceMaterial: 'flesh', itemId: 'meat_wolf', catalogFamily: 'meat', culinary: true, knownUses: ['cooking'], tags: ['mammal', 'wolf'] },
+        { id: 'pelt', integrityFamily: 'hide_pelt', sourceMaterial: 'pelt', itemId: 'pelt_fur', catalogFamily: 'hide_pelt', valuable: true, knownUses: ['armor_crafting', 'tailoring'], tags: ['mammal', 'fur'] },
+        { id: 'bones', integrityFamily: 'hard_parts', sourceMaterial: 'bone', itemId: 'hard_bone', catalogFamily: 'hard_parts', anatomicalIdentity: 'bone', knownUses: ['primitive_crafting'] },
+        { id: 'internal_organs', integrityFamily: 'organ_internal', sourceMaterial: 'flesh', itemId: 'internal_organ', catalogFamily: 'organ_gland', anatomicalIdentity: 'internal_organ', valuable: true, knownUses: ['medicine', 'crafting'] },
+        { id: 'sensory_organs', integrityFamily: 'organ_sensory', sourceMaterial: 'flesh', itemId: 'eye', catalogFamily: 'organ_gland', anatomicalIdentity: 'eye', valuable: true, knownUses: ['medicine', 'crafting'] },
+        { id: 'brain', integrityFamily: 'organ_brain', sourceMaterial: 'flesh', itemId: 'brain', catalogFamily: 'organ_gland', anatomicalIdentity: 'brain', valuable: true, knownUses: ['medicine', 'research'] },
+        { id: 'glands', integrityFamily: 'organ_gland', sourceMaterial: 'flesh', itemId: 'gland', catalogFamily: 'organ_gland', anatomicalIdentity: 'gland', valuable: true, knownUses: ['medicine', 'crafting'] },
+        { id: 'blood', integrityFamily: 'blood_ichor', sourceMaterial: 'blood', itemId: 'blood', catalogFamily: 'blood_ichor', knownUses: ['medicine', 'crafting'] },
+      ],
+    },
+    lootProfile: {
+      carried: [],
+      equipment: { source: 'none' },
+      currency: null,
+      harvest: { source: 'body_profile' },
+      impossibleCategories: [],
+      notes: 'Natural animal base profile. Encounter Events may add contextual carried objects in later Loot Update slices.',
+    },
+  }) : Object.freeze({
+    bodyProfile: Object.freeze({
+      version: 1, kind: 'organic', materials: Object.freeze(['flesh', 'blood', 'bone', 'pelt']), edible: true,
+      resources: Object.freeze([
+        Object.freeze({ id: 'meat', integrityFamily: 'meat', sourceMaterial: 'flesh', yield: null }),
+        Object.freeze({ id: 'pelt', integrityFamily: 'hide_pelt', sourceMaterial: 'pelt', yield: null }),
+        Object.freeze({ id: 'bones', integrityFamily: 'hard_parts', sourceMaterial: 'bone', yield: null }),
+        Object.freeze({ id: 'internal_organs', integrityFamily: 'organ_internal', sourceMaterial: 'flesh', yield: null }),
+        Object.freeze({ id: 'sensory_organs', integrityFamily: 'organ_sensory', sourceMaterial: 'flesh', yield: null }),
+        Object.freeze({ id: 'brain', integrityFamily: 'organ_brain', sourceMaterial: 'flesh', yield: null }),
+        Object.freeze({ id: 'glands', integrityFamily: 'organ_gland', sourceMaterial: 'flesh', yield: null }),
+        Object.freeze({ id: 'blood', integrityFamily: 'blood_ichor', sourceMaterial: 'blood', yield: null }),
+      ]),
+    }),
+    lootProfile: Object.freeze({ version: 1, carried: Object.freeze([]), equipment: Object.freeze({ source: 'none' }), currency: null, harvest: Object.freeze({ source: 'body_profile' }), impossibleCategories: Object.freeze([]) }),
+  });
 
   const FALLBACK_RANKS = Object.freeze({
     normal: Object.freeze({ id: 'normal', levelMultiplier: 1, minSpeedBonus: 0, maxSpeedBonus: 0, applyBonus: 0, basePowerBonus: 0, commandLevel: 0, aiCoordination: 'independent', targetPriority: 'random', turnEndSpRecovery: 0 }),
@@ -45,6 +87,7 @@
       creatureType: 'beast', size: 'medium',
       movement: Object.freeze({ ground: 40 }), movementFeet: Object.freeze({ ground: 40 }), preferredMovementMode: 'ground',
       senses: WOLF_SENSES,
+      bodyProfile: Object.freeze({ ...WOLF_LOOT_PROFILES.bodyProfile, sizeClass: 'medium' }), lootProfile: WOLF_LOOT_PROFILES.lootProfile,
       hpBase: 11, hpCoefficient: null,
       traitIds: Object.freeze([PACK_TACTICS_ID, MEANING.id, HUNTING_HOWLING.id]),
       traits: Object.freeze([packTacticsRef(), MEANING, Object.freeze(rankHowling('captain'))]),
@@ -64,7 +107,7 @@
         skills: Object.freeze(skillRefs('wolf')), staggerThresholds: STAGGER_THRESHOLDS,
       }),
       metadata: Object.freeze({ canonicalUnit: true, catalog: 'wolf-batch', oneCaptainPerEncounter: true, physicalProfilePending: false, speedPending: false, scoresPending: false, speedModel: 'movement_feet_plus_size', canonicalSourceName: 'Wolf', canonicalSourceBook: 'Monster Manual (2025)', canonicalScores: true, canonicalProficiencies: true }),
-      schemaVersion: 2,
+      schemaVersion: 3,
     }),
 
     dire_wolf: Object.freeze({
@@ -74,6 +117,7 @@
       creatureType: 'beast', size: 'large',
       movement: Object.freeze({ ground: 50 }), movementFeet: Object.freeze({ ground: 50 }), preferredMovementMode: 'ground',
       senses: WOLF_SENSES,
+      bodyProfile: Object.freeze({ ...WOLF_LOOT_PROFILES.bodyProfile, sizeClass: 'large' }), lootProfile: WOLF_LOOT_PROFILES.lootProfile,
       hpBase: 37, hpCoefficient: null,
       traitIds: Object.freeze([PACK_TACTICS_ID, MEANING.id, HUNTING_HOWLING.id]),
       traits: Object.freeze([packTacticsRef(), MEANING, Object.freeze(rankHowling('leader'))]),
@@ -93,7 +137,7 @@
         skills: Object.freeze(skillRefs('dire_wolf')), staggerThresholds: STAGGER_THRESHOLDS,
       }),
       metadata: Object.freeze({ canonicalUnit: true, catalog: 'wolf-batch', oneLeaderPerEncounter: true, physicalProfilePending: false, speedPending: false, scoresPending: false, speedModel: 'movement_feet_plus_size', canonicalSourceName: 'Dire Wolf', canonicalSourceBook: 'Monster Manual (2025)', canonicalScores: true, canonicalProficiencies: true }),
-      schemaVersion: 2,
+      schemaVersion: 3,
     }),
   });
 
@@ -148,7 +192,7 @@
   function firebaseSkillPayload(schema) { if (!skillCatalog?.firebasePayload) throw new Error('WOLF_SKILL_CATALOG_REQUIRED'); return skillCatalog.firebasePayload(schema); }
 
   const api = Object.freeze({
-    version: '1.1.0', STAGGER_THRESHOLDS, PACK_TACTICS_ID, WOLF_SCORES, DIRE_WOLF_SCORES, WOLF_PROFICIENCIES, WOLF_SENSES, UNIVERSAL_RANKS, MEANING, HUNTING_HOWLING,
+    version: '1.2.0', STAGGER_THRESHOLDS, PACK_TACTICS_ID, WOLF_SCORES, DIRE_WOLF_SCORES, WOLF_PROFICIENCIES, WOLF_SENSES, UNIVERSAL_RANKS, MEANING, HUNTING_HOWLING,
     DEFINITIONS, get, list, resolve, resolveSkill, firebasePayload, firebaseSkillPayload,
   });
   global.LuminousWolfUnitCatalog = api;

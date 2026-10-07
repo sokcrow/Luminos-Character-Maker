@@ -2,7 +2,7 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Hoja de Personaje - Luminous</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -18,6 +18,7 @@
     <link id="player-progression-tree-stylesheet" rel="stylesheet" href="css/player-progression-tree.css" />
     <link id="player-skills-hud-stylesheet" rel="stylesheet" href="css/player-skills-hud.css?v=20261005-player-menu-40px-force-1&skills=35px-1" />
     <link rel="stylesheet" href="css/player-terminal-fullscreen.css?v=20261006-cellphone-context-1" />
+    <link rel="stylesheet" href="css/player-mobile-runtime.css?v=20261006-mobile-runtime-3" />
 
     <style>
       #system-loading-overlay {
@@ -349,6 +350,13 @@
       <div class="player-blackout-status">TRANSMISIÓN INTERRUMPIDA</div>
       <div class="player-blackout-label">PANTALLA NEGRA</div>
     </div>
+
+    <section id="player-mobile-standby" aria-live="polite">
+      <div class="player-mobile-standby-card">
+        <h2 class="player-mobile-standby-title">Esperando escena</h2>
+        <p class="player-mobile-standby-copy">Cuando el Director active Teatro o Combate, aparecerá aquí.</p>
+      </div>
+    </section>
 
     <!-- Main Wrapper -->
     <div class="sheet-limbus-main">
@@ -13528,7 +13536,10 @@
     <script src="js/economy-contracts-core.js"></script>
     <script src="js/player-contracts-runtime.js"></script>
     <script src="js/player-vitals-hud.js"></script>
+    <script src="js/player-mobile-runtime.js?v=20261006-mobile-runtime-3"></script>
     <script src="js/player-terminal-fullscreen.js?v=20261006-cellphone-context-1"></script>
+    <script src="js/loot-live-postcombat-runtime.js"></script>
+    <script src="js/player-postcombat-loot.js"></script>
     <script src="hoja_personaje.js?v=20261004-shop-commerce-1"></script>
   </body>
 </html>

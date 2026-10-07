@@ -22,6 +22,7 @@ await import("../js/spellcasting-runtime.js");
 await import("../js/caster-spellcasting-traits-runtime.js");
 await import("../js/combat-action-schema.js");
 await import("../js/ranger-class-runtime.js");
+await import("../js/combat-analyze-check-contract.js");
 
 const runtime = globalThis.LuminousRangerClassRuntime;
 const engine = globalThis.LuminousTraitEngine;
@@ -58,6 +59,14 @@ assert.equal(runtime.favoredEnemyFinalPowerBonus(lv1, wolf), 1);
 assert.equal(runtime.survivalTrackingBonus(lv1, wolf), 4);
 assert.equal(runtime.analyseAutomaticallySucceeds(lv1, wolf), true);
 assert.equal(runtime.resolveAnalyse(lv1, wolf).bypassCheck, true);
+const analyzeContract = globalThis.LuminousCombatAnalyzeCheckContract;
+const favoredAnalyze = analyzeContract.resolveAnalyzeContract(lv1, wolf, { threshold: 12 });
+assert.equal(favoredAnalyze.type, "automatic");
+assert.equal(favoredAnalyze.bypassCheck, true);
+assert.equal(favoredAnalyze.sourceTraitId, "favored_enemy");
+const genericAnalyze = analyzeContract.resolveAnalyzeContract(lv1, goblin, { threshold: 12 });
+assert.equal(genericAnalyze.type, "check");
+assert.deepEqual(genericAnalyze.check, { stat: "wis", skill: "perception", threshold: 12 });
 assert.equal(runtime.naturalExplorerMatches(lv1, { terrain: "forest" }), true);
 assert.equal(runtime.naturalExplorerMatches(lv1, { terrain: "desert" }), false);
 

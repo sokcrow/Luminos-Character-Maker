@@ -543,7 +543,18 @@
     return true;
   }
 
+  function ensureMobileStyles() {
+    if (!global.document?.head || global.document.getElementById("combat-mobile-runtime-stylesheet")) return;
+    const link = global.document.createElement("link");
+    link.id = "combat-mobile-runtime-stylesheet";
+    link.rel = "stylesheet";
+    link.href = "css/combat-mobile-runtime.css?v=20261006-mobile-combat-1";
+    link.dataset.ui = "combat-mobile-runtime";
+    global.document.head.appendChild(link);
+  }
+
   function ensureStyles() {
+    ensureMobileStyles();
     if (!global.document || global.document.getElementById("combat073-economy-tabs-style")) return;
     const style = global.document.createElement("style");
     style.id = "combat073-economy-tabs-style";
@@ -836,7 +847,8 @@
   function syncResponsiveMenuLayout() {
     const host = global.document?.getElementById?.("game-container");
     if (!host) return false;
-    const compact = Number(global.innerHeight || 0) <= 360 || Number(global.innerWidth || 0) <= 760;
+    const coarsePointer = global.matchMedia?.("(pointer: coarse)")?.matches === true;
+    const compact = coarsePointer || Number(global.innerHeight || 0) <= 360 || Number(global.innerWidth || 0) <= 760;
     const menu = activeMenu();
     host.classList.toggle("combat-compact-menu", compact);
     host.classList.toggle("combat-root-menu-active", compact && !menu);

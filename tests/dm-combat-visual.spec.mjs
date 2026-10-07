@@ -93,8 +93,8 @@ test('DM real Combat tab renders a visible FIELD with all deployed sprites', asy
   });
   await installFirebaseDmStub(page);
   await page.goto(`${BASE}/pantalla_dm.html`,{waitUntil:'domcontentloaded'});
-  await page.locator('[data-tab="tab-combate"]').click();
   await page.evaluate(()=>window.hideLoadingOverlay?.());
+  await page.locator('[data-tab="tab-combate"]').click();
 
   try{
     await expect(page.locator('#dm-combat-live-frame')).toHaveAttribute('src',/Battle-viewer\.html/,{timeout:10000});

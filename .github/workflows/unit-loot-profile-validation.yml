@@ -1,0 +1,149 @@
+name: Loot Foundation Validation
+
+on:
+  pull_request:
+    paths:
+      - "js/unit-loot-profile-contract.js"
+      - "js/item-harvest-integrity-engine.js"
+      - "js/corpse-harvest-runtime.js"
+      - "js/loot-ammo-reconciliation.js"
+      - "js/combat-analyze-check-contract.js"
+      - "js/combat-analyze-runtime.js"
+      - "js/dm-loot-studio.js"
+      - "pantalla_dm.html"
+      - "js/combat-action-adapters.js"
+      - "js/combat-action-resolver.js"
+      - "js/battle-viewer-action-adapter-073.js"
+      - "js/item-economy-standard.js"
+      - "js/creature-type-catalog.js"
+      - "js/loot-social-profile-contract.js"
+      - "js/loot-encounter-context.js"
+      - "js/loot-instance-runtime.js"
+      - "js/loot-check-runtime.js"
+      - "js/loot-postcombat-runtime.js"
+      - "js/loot-knowledge-runtime.js"
+      - "js/loot-recovery-delivery-runtime.js"
+      - "js/loot-live-postcombat-runtime.js"
+      - "js/player-postcombat-loot.js"
+      - "Battle-viewer.html"
+      - "hoja_personaje.html"
+      - "js/combat-v073-dm-setup.js"
+      - "js/battle-viewer-dm-console-074.js"
+      - "js/item-inventory-runtime.js"
+      - "js/item-quality-engine.js"
+      - "js/item-size-lineage-engine.js"
+      - "js/item-affinity-engine.js"
+      - "js/item-culinary-affinity-data.js"
+      - "js/item-catalog-*.js"
+      - "js/unit-catalog-kobold-tier1.js"
+      - "js/unit-catalog-goblin.js"
+      - "js/unit-catalog-wolf.js"
+      - "js/combat-unit-library-sync.js"
+      - "tests/unit-loot-profile-contract-smoke.mjs"
+      - "tests/corpse-harvest-runtime-smoke.mjs"
+      - "tests/loot-ammo-reconciliation-smoke.mjs"
+      - "tests/loot-social-profile-contract-smoke.mjs"
+      - "tests/loot-encounter-context-smoke.mjs"
+      - "tests/loot-instance-runtime-smoke.mjs"
+      - "tests/loot-postcombat-runtime-smoke.mjs"
+      - "tests/loot-knowledge-runtime-smoke.mjs"
+      - "tests/loot-recovery-delivery-runtime-smoke.mjs"
+      - "tests/loot-live-postcombat-runtime-smoke.mjs"
+      - "tests/combat-analyze-end-to-end-smoke.mjs"
+      - "tests/dm-loot-studio-smoke.mjs"
+      - "tests/ranger-class-runtime-smoke.mjs"
+      - "tests/battle-master-archetype-runtime-smoke.mjs"
+      - ".github/workflows/unit-loot-profile-validation.yml"
+  push:
+    branches:
+      - main
+      - "loot-update/**"
+    paths:
+      - "js/unit-loot-profile-contract.js"
+      - "js/item-harvest-integrity-engine.js"
+      - "js/corpse-harvest-runtime.js"
+      - "js/loot-ammo-reconciliation.js"
+      - "js/combat-analyze-check-contract.js"
+      - "js/combat-analyze-runtime.js"
+      - "js/dm-loot-studio.js"
+      - "pantalla_dm.html"
+      - "js/combat-action-adapters.js"
+      - "js/combat-action-resolver.js"
+      - "js/battle-viewer-action-adapter-073.js"
+      - "js/item-economy-standard.js"
+      - "js/creature-type-catalog.js"
+      - "js/loot-social-profile-contract.js"
+      - "js/loot-encounter-context.js"
+      - "js/loot-instance-runtime.js"
+      - "js/loot-check-runtime.js"
+      - "js/loot-postcombat-runtime.js"
+      - "js/loot-knowledge-runtime.js"
+      - "js/loot-recovery-delivery-runtime.js"
+      - "js/loot-live-postcombat-runtime.js"
+      - "js/player-postcombat-loot.js"
+      - "Battle-viewer.html"
+      - "hoja_personaje.html"
+      - "js/combat-v073-dm-setup.js"
+      - "js/battle-viewer-dm-console-074.js"
+      - "js/item-inventory-runtime.js"
+      - "js/item-quality-engine.js"
+      - "js/item-size-lineage-engine.js"
+      - "js/item-affinity-engine.js"
+      - "js/item-culinary-affinity-data.js"
+      - "js/item-catalog-*.js"
+      - "js/unit-catalog-kobold-tier1.js"
+      - "js/unit-catalog-goblin.js"
+      - "js/unit-catalog-wolf.js"
+      - "js/combat-unit-library-sync.js"
+      - "tests/unit-loot-profile-contract-smoke.mjs"
+      - "tests/corpse-harvest-runtime-smoke.mjs"
+      - "tests/loot-ammo-reconciliation-smoke.mjs"
+      - "tests/loot-social-profile-contract-smoke.mjs"
+      - "tests/loot-encounter-context-smoke.mjs"
+      - "tests/loot-instance-runtime-smoke.mjs"
+      - "tests/loot-postcombat-runtime-smoke.mjs"
+      - "tests/loot-knowledge-runtime-smoke.mjs"
+      - "tests/loot-recovery-delivery-runtime-smoke.mjs"
+      - "tests/loot-live-postcombat-runtime-smoke.mjs"
+      - "tests/combat-analyze-end-to-end-smoke.mjs"
+      - "tests/dm-loot-studio-smoke.mjs"
+      - "tests/ranger-class-runtime-smoke.mjs"
+      - "tests/battle-master-archetype-runtime-smoke.mjs"
+      - ".github/workflows/unit-loot-profile-validation.yml"
+
+jobs:
+  loot-foundation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Validate Unit Loot / Body Profile contracts
+        run: node tests/unit-loot-profile-contract-smoke.mjs
+      - name: Validate corpse harvest yield and integrity
+        run: node tests/corpse-harvest-runtime-smoke.mjs
+      - name: Validate post-combat ammunition reconciliation
+        run: node tests/loot-ammo-reconciliation-smoke.mjs
+      - name: Validate Wealth and Role loot profiles
+        run: node tests/loot-social-profile-contract-smoke.mjs
+      - name: Validate Encounter Zone and Event loot context
+        run: node tests/loot-encounter-context-smoke.mjs
+      - name: Validate deterministic Loot Instance generation and lock lifecycle
+        run: node tests/loot-instance-runtime-smoke.mjs
+      - name: Validate finite post-combat Loot interactions and D&D checks
+        run: node tests/loot-postcombat-runtime-smoke.mjs
+      - name: Validate Autopsy Examine and Compendium knowledge
+        run: node tests/loot-knowledge-runtime-smoke.mjs
+      - name: Validate harvested Item materialization and inventory delivery
+        run: node tests/loot-recovery-delivery-runtime-smoke.mjs
+      - name: Validate live post-combat persistence concurrency and finance
+        run: node tests/loot-live-postcombat-runtime-smoke.mjs
+      - name: Validate Battle Analyze end-to-end Perception and observation
+        run: node tests/combat-analyze-end-to-end-smoke.mjs
+      - name: Validate DM Loot Studio preview lock override and grant flow
+        run: node tests/dm-loot-studio-smoke.mjs
+      - name: Validate Ranger Analyze bypass
+        run: node tests/ranger-class-runtime-smoke.mjs
+      - name: Validate Battle Master Analyze bypass
+        run: node tests/battle-master-archetype-runtime-smoke.mjs

@@ -11,6 +11,7 @@
   let installed = false;
   let pseudoFullscreen = false;
   let mobileCellphoneOpen = false;
+  let cellphoneHistoryActive = false;
 
   function parts() {
     return {
@@ -136,6 +137,38 @@
     global.LuminousPlayerCellphoneRuntime?.sync?.();
   }
 
+  function pushCellphoneHistory() {
+    if (!isPhoneDevice() || cellphoneHistoryActive) return;
+    try {
+      const current = history.state && typeof history.state === "object" ? history.state : {};
+      history.pushState(Object.assign({}, current, { luminousCellphoneOpen: true }), "", global.location.href);
+      cellphoneHistoryActive = true;
+    } catch (_) {}
+  }
+
+  async function finishCloseMobileCellphone() {
+    const { wrapper } = parts();
+    if (!wrapper) return false;
+
+    mobileCellphoneOpen = false;
+    cellphoneHistoryActive = false;
+    wrapper.classList.remove("cellphone-native-surface");
+    wrapper.classList.add("phone-hidden");
+    doc.body?.classList.remove("player-cellphone-surface-open");
+
+    if (global.LuminousPlayerMobileRuntime?.isPhoneDevice?.()) {
+      await global.LuminousPlayerMobileRuntime.setMode("game", { requestFullscreen: true });
+    } else if (isRootFullscreen()) {
+      await lockOrientation("landscape");
+    } else {
+      try { global.screen?.orientation?.unlock?.(); } catch (_) {}
+    }
+
+    syncControls();
+    syncCellphoneRuntime();
+    return true;
+  }
+
   async function openMobileCellphone() {
     const { wrapper } = parts();
     if (!wrapper) return false;
@@ -149,36 +182,34 @@
     doc.body?.classList.remove("player-terminal-pseudo-fullscreen");
     doc.body?.classList.add("player-cellphone-surface-open");
 
-    if (!isRootFullscreen()) {
-      if (fullscreenElement()) await exitFullscreen();
-      await requestFullscreen(doc.documentElement);
+    pushCellphoneHistory();
+
+    if (global.LuminousPlayerMobileRuntime?.isPhoneDevice?.()) {
+      await global.LuminousPlayerMobileRuntime.setMode("cellphone", { requestFullscreen: true });
+    } else {
+      if (!isRootFullscreen()) {
+        if (fullscreenElement()) await exitFullscreen();
+        await requestFullscreen(doc.documentElement);
+      }
+      await lockOrientation("portrait");
     }
 
-    await lockOrientation("portrait");
     syncControls();
     syncCellphoneRuntime();
     return true;
   }
 
-  async function closeMobileCellphone() {
-    const { wrapper } = parts();
-    if (!wrapper) return false;
+  async function closeMobileCellphone(options = {}) {
+    if (!mobileCellphoneOpen) return false;
 
-    mobileCellphoneOpen = false;
-    wrapper.classList.remove("cellphone-native-surface");
-    wrapper.classList.add("phone-hidden");
-    doc.body?.classList.remove("player-cellphone-surface-open");
-
-    // Keep the game in fullscreen when possible; switch its orientation back to landscape.
-    if (isRootFullscreen()) {
-      await lockOrientation("landscape");
-    } else {
-      try { global.screen?.orientation?.unlock?.(); } catch (_) {}
+    if (!options.fromHistory && cellphoneHistoryActive && history.state?.luminousCellphoneOpen === true) {
+      try {
+        history.back();
+        return true;
+      } catch (_) {}
     }
 
-    syncControls();
-    syncCellphoneRuntime();
-    return true;
+    return finishCloseMobileCellphone();
   }
 
   function enterPseudoDesktopFullscreen(wrapper) {
@@ -287,6 +318,22 @@
         wrapper.style.removeProperty("--terminal-presentation-scale");
         doc.body?.classList.remove("player-terminal-pseudo-fullscreen");
       }
+
+      // Some mobile browsers consume the hardware Back action by leaving
+      // fullscreen before they pop history. Treat that as "close cellphone"
+      // instead of leaving a portrait phone stranded over the game.
+      if (
+        mobileCellphoneOpen
+        && isPhoneDevice()
+        && !global.LuminousPlayerMobileRuntime?.isFullscreenLike?.()
+      ) {
+        if (cellphoneHistoryActive && history.state?.luminousCellphoneOpen === true) {
+          try { history.back(); } catch (_) { finishCloseMobileCellphone(); }
+        } else {
+          finishCloseMobileCellphone();
+        }
+      }
+
       syncControls();
     };
 
@@ -300,6 +347,14 @@
       if (event.key !== "Escape") return;
       if (mobileCellphoneOpen) closeMobileCellphone();
       else if (pseudoFullscreen) exitPseudoDesktopFullscreen(wrapper);
+    });
+
+    global.addEventListener("popstate", () => {
+      if (!mobileCellphoneOpen) {
+        cellphoneHistoryActive = false;
+        return;
+      }
+      finishCloseMobileCellphone();
     });
 
     installed = true;

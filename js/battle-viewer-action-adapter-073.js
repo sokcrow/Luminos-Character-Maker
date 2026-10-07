@@ -196,7 +196,17 @@
       action = compileItem(actor, data, slotId, plan, explicitTargetId);
     } else if (["global", "universal", "universal_action"].includes(kind) || data.actionKey) {
       const options = optionsFor(slotId, plan, explicitTargetId);
-      action = adapters.compileUniversalAction(actor, data.actionKey || data.id || plan.actionKey || "action", { ...options, targetUnitId: options.mainTargetId, metadata: { ...options.metadata, sourceDefinition: clone(data), name: data.name || data.actionKey || "Action" } });
+      const targetUnit = options.mainTargetId ? combatData()[options.mainTargetId] || combatUnitForOwner(options.mainTargetId) : null;
+      action = adapters.compileUniversalAction(actor, data.actionKey || data.id || plan.actionKey || "action", {
+        ...options,
+        targetUnitId: options.mainTargetId,
+        target: targetUnit,
+        targetUnit,
+        turnNumber: plan.turnNumber ?? data.turnNumber ?? global.turnNumber ?? lexical("turnNumber", lexical("turn", null)),
+        observedEnemyType: targetUnit?.species || targetUnit?.family || null,
+        knowledgeVisibility: plan.knowledgeVisibility || data.knowledgeVisibility || "private",
+        metadata: { ...options.metadata, sourceDefinition: clone(data), name: data.name || data.actionKey || "Action", knowledgeVisibility: plan.knowledgeVisibility || data.knowledgeVisibility || "private" },
+      });
     } else if (plan.traitId || kind === "trait") {
       const options = optionsFor(slotId, plan, explicitTargetId);
       const traitId = plan.traitId || data.traitId || data.id;

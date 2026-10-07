@@ -7,19 +7,61 @@
   const combatMechanics = global.LuminousUnitCombatMechanics || (typeof require !== 'undefined' ? (() => { try { return require('./unit-combat-mechanics-runtime.js'); } catch (_) { return null; } })() : null);
   const rangedAmmo = global.LuminousUniversalRangedAmmoRuntime || (typeof require !== 'undefined' ? (() => { try { return require('./universal-ranged-ammo-runtime.js'); } catch (_) { return null; } })() : null);
   const movementRuntime = global.LuminousMovementSpeedRuntime || (typeof require !== 'undefined' ? (() => { try { return require('./movement-speed-runtime.js'); } catch (_) { return null; } })() : null);
+  const lootContract = global.LuminousUnitLootProfileContract || (typeof require !== 'undefined' ? (() => { try { return require('./unit-loot-profile-contract.js'); } catch (_) { return null; } })() : null);
+  const socialLoot = global.LuminousLootSocialProfileContract || (typeof require !== 'undefined' ? (() => { try { return require('./loot-social-profile-contract.js'); } catch (_) { return null; } })() : null);
 
   const STAGGER_THRESHOLDS = Object.freeze([75, 50, 25]);
-
   const KOBOLD_WARRIOR_SCORES = Object.freeze({ str: 7, dex: 15, con: 9, int: 8, wis: 7, cha: 8 });
   const WINGED_KOBOLD_SCORES = Object.freeze({ str: 7, dex: 16, con: 9, int: 8, wis: 7, cha: 8 });
   const DRAGONSHIELD_SCORES = Object.freeze({ str: 12, dex: 15, con: 14, int: 8, wis: 9, cha: 10 });
   const SCALE_SORCERER_SCORES = Object.freeze({ str: 7, dex: 15, con: 14, int: 10, wis: 9, cha: 14 });
-
   const NO_PROFICIENCIES = Object.freeze({ savingThrows: Object.freeze({}), skills: Object.freeze({}) });
   const DRAGONSHIELD_PROFICIENCIES = Object.freeze({ savingThrows: Object.freeze({}), skills: Object.freeze({ perception: 'proficient' }) });
   const SCALE_SORCERER_PROFICIENCIES = Object.freeze({ savingThrows: Object.freeze({}), skills: Object.freeze({ arcana: 'proficient', medicine: 'proficient' }) });
   const DARKVISION_RULES = Object.freeze({ ignoresDarkness: true });
   const PACK_TACTICS_ID = 'pack_tactics';
+
+  const KOBOLD_LOOT_PROFILES = lootContract?.createProfiles ? lootContract.createProfiles({
+    bodyProfile: {
+      kind: 'organic',
+      sizeClass: 'small',
+      materials: ['flesh', 'blood', 'bone', 'scale'],
+      edible: true,
+      resources: [
+        { id: 'meat', integrityFamily: 'meat', sourceMaterial: 'flesh', itemId: 'meat_reptilian', catalogFamily: 'meat', culinary: true, knownUses: ['cooking'], tags: ['humanoid', 'reptile'] },
+        { id: 'scales', integrityFamily: 'hide_pelt', sourceMaterial: 'scale', itemId: 'scale', catalogFamily: 'scale_shell_chitin', valuable: true, knownUses: ['armor_crafting'], tags: ['scale', 'reptile'] },
+        { id: 'bones', integrityFamily: 'hard_parts', sourceMaterial: 'bone', itemId: 'hard_bone', catalogFamily: 'hard_parts', anatomicalIdentity: 'bone', knownUses: ['primitive_crafting'] },
+        { id: 'internal_organs', integrityFamily: 'organ_internal', sourceMaterial: 'flesh', itemId: 'internal_organ', catalogFamily: 'organ_gland', anatomicalIdentity: 'internal_organ', valuable: true, knownUses: ['medicine', 'crafting'] },
+        { id: 'sensory_organs', integrityFamily: 'organ_sensory', sourceMaterial: 'flesh', itemId: 'eye', catalogFamily: 'organ_gland', anatomicalIdentity: 'eye', valuable: true, knownUses: ['medicine', 'crafting'] },
+        { id: 'brain', integrityFamily: 'organ_brain', sourceMaterial: 'flesh', itemId: 'brain', catalogFamily: 'organ_gland', anatomicalIdentity: 'brain', valuable: true, knownUses: ['medicine', 'research'] },
+        { id: 'glands', integrityFamily: 'organ_gland', sourceMaterial: 'flesh', itemId: 'gland', catalogFamily: 'organ_gland', anatomicalIdentity: 'gland', valuable: true, knownUses: ['medicine', 'crafting'] },
+        { id: 'blood', integrityFamily: 'blood_ichor', sourceMaterial: 'blood', itemId: 'humanoid_blood', catalogFamily: 'blood_ichor', knownUses: ['medicine', 'crafting'] },
+      ],
+    },
+    lootProfile: {
+      carried: [],
+      equipment: { source: 'unit_loadout' },
+      currency: null,
+      harvest: { source: 'body_profile' },
+      impossibleCategories: [],
+      notes: 'Base profile only. Wealth, Encounter Zone and Event modifiers are resolved by later Loot Update slices.',
+    },
+  }) : Object.freeze({
+    bodyProfile: Object.freeze({
+      version: 1, kind: 'organic', sizeClass: 'small', materials: Object.freeze(['flesh', 'blood', 'bone', 'scale']), edible: true,
+      resources: Object.freeze([
+        Object.freeze({ id: 'meat', integrityFamily: 'meat', sourceMaterial: 'flesh', yield: null }),
+        Object.freeze({ id: 'scales', integrityFamily: 'hide_pelt', sourceMaterial: 'scale', yield: null }),
+        Object.freeze({ id: 'bones', integrityFamily: 'hard_parts', sourceMaterial: 'bone', yield: null }),
+        Object.freeze({ id: 'internal_organs', integrityFamily: 'organ_internal', sourceMaterial: 'flesh', yield: null }),
+        Object.freeze({ id: 'sensory_organs', integrityFamily: 'organ_sensory', sourceMaterial: 'flesh', yield: null }),
+        Object.freeze({ id: 'brain', integrityFamily: 'organ_brain', sourceMaterial: 'flesh', yield: null }),
+        Object.freeze({ id: 'glands', integrityFamily: 'organ_gland', sourceMaterial: 'flesh', yield: null }),
+        Object.freeze({ id: 'blood', integrityFamily: 'blood_ichor', sourceMaterial: 'blood', yield: null }),
+      ]),
+    }),
+    lootProfile: Object.freeze({ version: 1, carried: Object.freeze([]), equipment: Object.freeze({ source: 'unit_loadout' }), currency: null, harvest: Object.freeze({ source: 'body_profile' }), impossibleCategories: Object.freeze([]) }),
+  });
 
   const FALLBACK_RANKS = Object.freeze({
     normal: Object.freeze({ id: 'normal', levelMultiplier: 1, minSpeedBonus: 0, maxSpeedBonus: 0, applyBonus: 0, basePowerBonus: 0, commandLevel: 0, aiCoordination: 'independent', targetPriority: 'random', turnEndSpRecovery: 0 }),
@@ -68,6 +110,9 @@
     const unit = {
       id: cfg.id, name: cfg.name, species: 'kobold', variant: cfg.variant, creatureType: cfg.creatureType || 'dragon',
       unitType: 'enemy', faction: 'enemy', actorCategory: 'enemy', isPlayer: false, linkedPlayerUID: '',
+      bodyProfile: clone(KOBOLD_LOOT_PROFILES.bodyProfile), lootProfile: clone(KOBOLD_LOOT_PROFILES.lootProfile),
+      wealthProfile: socialLoot?.normalizeWealthProfile ? socialLoot.normalizeWealthProfile({ bandId: cfg.wealthBand || 'backstreets_very_poor', source: 'catalog_default' }) : { bandId: cfg.wealthBand || 'backstreets_very_poor', source: 'catalog_default', carriedCashSeparate: true },
+      roleProfile: socialLoot?.normalizeRoleProfile ? socialLoot.normalizeRoleProfile({ roles: cfg.lootRoles || ['soldier'], source: 'catalog_default' }) : { roles: (cfg.lootRoles || ['soldier']).slice(), source: 'catalog_default' },
       tags: ['canonical', 'kobold', 'enemy', ...(cfg.tags || [])], icono: cfg.sprite, visual: visual(cfg.sprite, cfg.spriteVariants),
       naturalWorldLevel: clone(cfg.naturalWorldLevel), baseLevel: clone(cfg.naturalWorldLevel),
       scores: clone(cfg.scores || KOBOLD_WARRIOR_SCORES), proficiencies: clone(cfg.proficiencies || NO_PROFICIENCIES),
@@ -87,7 +132,7 @@
         speedBonus: clone(cfg.speedBonus || { min: 0, max: 0 }), actionSlots: 1, maxSlotsLimit: 1, skills: allSkills.slice(),
         staggerThresholds: clone(STAGGER_THRESHOLDS), stagger: '75%,50%,25%', damageTypeDefense: { resist: cfg.resist, weak: cfg.weak }, ...(clone(cfg.mechanics || {})),
       },
-      schemaVersion: 2,
+      schemaVersion: 4,
       metadata: {
         canonicalUnit: true, catalog: 'kobold-batch', rankModel: 'universal_normal_captain_leader',
         hpModel: 'chassis_coefficient', naturalWorldLevelIsReferenceOnly: true, speedModel: 'movement_feet_plus_size', speedPending: false, physicalProfilePending: false,
@@ -99,19 +144,19 @@
   }
 
   const DEFINITIONS = Object.freeze({
-    kobold_dagger: Object.freeze(makeUnit({ id: 'kobold_dagger', name: 'Kobold · Dagger', variant: 'dagger', sprite: 'https://imgur.com/2BBvM2s.png', canonicalSourceName: 'Kobold Warrior',
+    kobold_dagger: Object.freeze(makeUnit({ id: 'kobold_dagger', name: 'Kobold · Dagger', variant: 'dagger', lootRoles: ['soldier'], sprite: 'https://imgur.com/2BBvM2s.png', canonicalSourceName: 'Kobold Warrior',
       naturalWorldLevel: { min: 1, max: 3 }, hpBase: 5, hpCoefficient: 0.19,
       scores: KOBOLD_WARRIOR_SCORES, proficiencies: NO_PROFICIENCIES, movement: { ground: 30 }, senses: { darkvision: 60, darkvisionFt: 60, passivePerception: 8 },
       resist: 'perforante', weak: 'contundente', tags: ['tier1'], tier1: ['kobold_dagger_jab', 'kobold_desperate_stab', 'kobold_scurry'] })),
     kobold_sling: Object.freeze(makeUnit({
-      id: 'kobold_sling', name: 'Kobold · Sling', variant: 'sling', sprite: 'https://imgur.com/ndB257N.png', canonicalSourceName: 'Kobold Warrior',
+      id: 'kobold_sling', name: 'Kobold · Sling', variant: 'sling', lootRoles: ['hunter'], sprite: 'https://imgur.com/ndB257N.png', canonicalSourceName: 'Kobold Warrior',
       naturalWorldLevel: { min: 1, max: 3 }, hpBase: 5, hpCoefficient: 0.19,
       scores: KOBOLD_WARRIOR_SCORES, proficiencies: NO_PROFICIENCIES, movement: { ground: 30 }, senses: { darkvision: 60, darkvisionFt: 60, passivePerception: 8 },
       resist: 'perforante', weak: 'contundente', tags: ['tier1', 'ranged'], traits: [AMMO_PEBBLES], tier1: ['kobold_sling_shot', 'kobold_rapid_pebble', 'kobold_duck_away'],
       mechanics: { ammoLoadout: [{ id: 'pebbles', amount: 6 }], ammunition: { pebbles: { type: 'single', icon: 'https://imgur.com/hhYbwsi.png' } } },
     })),
     winged_kobold: Object.freeze(makeUnit({
-      id: 'winged_kobold', name: 'Winged Kobold', variant: 'winged', sprite: 'https://imgur.com/529fa4E.png',
+      id: 'winged_kobold', name: 'Winged Kobold', variant: 'winged', lootRoles: ['soldier'], sprite: 'https://imgur.com/529fa4E.png',
       spriteVariants: { dagger: 'https://imgur.com/evsrs1B.png', holdingRock: 'https://imgur.com/529fa4E.png', withoutRock: 'https://imgur.com/zmA1FPz.png', rockAsset: 'https://imgur.com/P4J48yc.png' },
       canonicalSourceName: 'Winged Kobold', naturalWorldLevel: { min: 2, max: 4 }, hpBase: 7, hpCoefficient: 0.22,
       scores: WINGED_KOBOLD_SCORES, proficiencies: NO_PROFICIENCIES, movement: { ground: 30, fly: 30 }, defaultMovementMode: 'fly', startsFlying: true,
@@ -126,14 +171,14 @@
       },
     })),
     dragonheart_kobold: Object.freeze(makeUnit({
-      id: 'dragonheart_kobold', name: 'Dragonheart Kobold', variant: 'dragonheart', sprite: 'https://imgur.com/4EYu3us.png', canonicalSourceName: 'Kobold Dragonshield', canonicalSourceBook: 'Mordenkainen Presents: Monsters of the Multiverse',
+      id: 'dragonheart_kobold', name: 'Dragonheart Kobold', variant: 'dragonheart', lootRoles: ['soldier', 'commander'], wealthBand: 'backstreets_low', sprite: 'https://imgur.com/4EYu3us.png', canonicalSourceName: 'Kobold Dragonshield', canonicalSourceBook: 'Mordenkainen Presents: Monsters of the Multiverse',
       naturalWorldLevel: { min: 5, max: 9 }, hpBase: 44, hpCoefficient: 0.30,
       scores: DRAGONSHIELD_SCORES, proficiencies: DRAGONSHIELD_PROFICIENCIES, movement: { ground: 20 }, senses: { darkvision: 60, darkvisionFt: 60, passivePerception: 11 },
       defLvlMod: 3, resist: 'cortante', weak: 'contundente', tags: ['tier1', 'tier2', 'tier3', 'commander'],
       traits: [DRAGONHEART, DRAGON_RESISTANCE], allowedRanks: ['captain', 'leader'], tier1: ['dragonheart_spear_thrust'], tier2: ['dragonheart_guarding_skewer'], tier3: ['dragonheart_dragon_spear'],
     })),
     scale_sorcerer_kobold: Object.freeze(makeUnit({
-      id: 'scale_sorcerer_kobold', name: 'Scale Sorcerer Kobold', variant: 'scale_sorcerer', sprite: 'https://imgur.com/TOHr6Dk.png', canonicalSourceName: 'Kobold Scale Sorcerer', canonicalSourceBook: 'Mordenkainen Presents: Monsters of the Multiverse', creatureType: 'humanoid',
+      id: 'scale_sorcerer_kobold', name: 'Scale Sorcerer Kobold', variant: 'scale_sorcerer', lootRoles: ['commander'], wealthBand: 'backstreets_low', sprite: 'https://imgur.com/TOHr6Dk.png', canonicalSourceName: 'Kobold Scale Sorcerer', canonicalSourceBook: 'Mordenkainen Presents: Monsters of the Multiverse', creatureType: 'humanoid',
       naturalWorldLevel: { min: 5, max: 9 }, hpBase: 27, hpCoefficient: 0.25,
       scores: SCALE_SORCERER_SCORES, proficiencies: SCALE_SORCERER_PROFICIENCIES, movement: { ground: 30 }, senses: { darkvision: 60, darkvisionFt: 60, passivePerception: 9 },
       defLvlMod: 3, resist: 'perforante', weak: 'cortante', tags: ['spellcaster', 'commander'], traits: [SPELL_CASTER_CHARISMA], allowedRanks: ['captain', 'leader'],
@@ -199,7 +244,7 @@
   function firebasePayload() { const payload = {}; list().forEach((u) => { payload[u.id] = u; }); return payload; }
   function firebaseSkillPayload(schema) { if (!skillCatalog?.firebasePayload) throw new Error('KOBOLD_SKILL_CATALOG_REQUIRED'); return skillCatalog.firebasePayload(schema); }
 
-  const api = Object.freeze({ version: '2.2.0', STAGGER_THRESHOLDS, KOBOLD_WARRIOR_SCORES, WINGED_KOBOLD_SCORES, DRAGONSHIELD_SCORES, SCALE_SORCERER_SCORES, NO_PROFICIENCIES, DRAGONSHIELD_PROFICIENCIES, SCALE_SORCERER_PROFICIENCIES, PACK_TACTICS_ID, UNIVERSAL_RANKS, AMMO_PEBBLES, AMMO_ROCK, AERIAL_HARRIER, DRAGONHEART, DRAGON_RESISTANCE, SPELL_CASTER_CHARISMA, DEFINITIONS, list, get, resolve, resolveSkill, firebasePayload, firebaseSkillPayload });
+  const api = Object.freeze({ version: '2.4.0', STAGGER_THRESHOLDS, KOBOLD_WARRIOR_SCORES, WINGED_KOBOLD_SCORES, DRAGONSHIELD_SCORES, SCALE_SORCERER_SCORES, NO_PROFICIENCIES, DRAGONSHIELD_PROFICIENCIES, SCALE_SORCERER_PROFICIENCIES, PACK_TACTICS_ID, UNIVERSAL_RANKS, AMMO_PEBBLES, AMMO_ROCK, AERIAL_HARRIER, DRAGONHEART, DRAGON_RESISTANCE, SPELL_CASTER_CHARISMA, DEFINITIONS, list, get, resolve, resolveSkill, firebasePayload, firebaseSkillPayload });
   global.LuminousKoboldUnitCatalog = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);
