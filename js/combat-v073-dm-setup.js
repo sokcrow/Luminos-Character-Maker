@@ -6,7 +6,8 @@
     players: 'campaña/jugadores',
     actors: 'campaña/actores',
     units: 'campaña/base_datos_unidades',
-    combatants: 'campaña/combate/combatants'
+    combatants: 'campaña/combate/combatants',
+    state: 'campaña/combate/estado'
   });
   const LIBRARY_SYNC_SCRIPT = 'js/combat-unit-library-sync.js';
   const clean = (value) => String(value ?? '').trim();
@@ -269,11 +270,18 @@
     };
   }
 
+  async function ensureEncounterIdentity() {
+    const runtime = global.LuminousLootLivePostCombatRuntime;
+    if (!runtime?.ensureEncounterId) return null;
+    return runtime.ensureEncounterId({ db: state.db });
+  }
+
   async function deployPlayer(playerId) {
     if (!isDm()) throw new Error('DM_ONLY');
     const player = state.players[playerId];
     if (!player) throw new Error('PLAYER_NOT_FOUND');
     const combatant = buildPlayer(playerId, player);
+    await ensureEncounterIdentity();
     await state.db.ref(`${ROOTS.combatants}/${combatant.id}`).set(combatant);
     return combatant;
   }
@@ -283,6 +291,7 @@
     const unit = state.units[unitId];
     if (!unit || isPlayerUnit(unit)) throw new Error('UNIT_NOT_FOUND');
     const count = Math.max(1, Math.min(20, Math.trunc(Number(quantity) || 1)));
+    await ensureEncounterIdentity();
     const updates = {};
     for (let index = 0; index < count; index += 1) {
       const serial = `${Date.now().toString(36)}_${index}_${Math.random().toString(36).slice(2, 6)}`;
@@ -303,6 +312,18 @@
     await state.db.ref(ROOTS.combatants).remove();
     await state.db.ref('campaña/combate/plannedActions').remove();
     await state.db.ref('campaña/combate/readyPlayers').remove();
+    await state.db.ref(ROOTS.state).update({
+      encounterId: null,
+      encounterCreatedAt: null,
+      result: null,
+      outcome: null,
+      endedAt: null,
+      endedBy: null,
+      transition: null,
+      phase: 'SETUP',
+      active: false,
+      updatedAt: global.firebase?.database?.ServerValue?.TIMESTAMP ?? Date.now(),
+    });
   }
 
   function esc(value) {
