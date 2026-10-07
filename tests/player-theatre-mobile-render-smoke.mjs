@@ -22,6 +22,30 @@ assert.match(
   'Player sheet must load the canonical Theatre Engine'
 );
 
+for (const stylesheet of [
+  'css/theatre-roll-visualizer.css',
+  'css/theatre-opposed-checks.css',
+  'css/theatre-check-coordinator.css',
+]) {
+  assert.equal(
+    html.includes(stylesheet),
+    true,
+    `Player sheet must load ${stylesheet}`,
+  );
+}
+
+for (const script of [
+  'js/theatre-roll-visualizer.js',
+  'js/theatre-check-coordinator.js',
+  'js/theatre-opposed-checks.js',
+]) {
+  assert.equal(
+    html.includes(script),
+    true,
+    `Player sheet must load ${script}`,
+  );
+}
+
 assert.match(
   html,
   /id=["']btn-toggle-theatre-self-actor["'][\s\S]{0,900}Assets\/Images\/Buttons\/Player\.svg/,
