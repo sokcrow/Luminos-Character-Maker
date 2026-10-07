@@ -164,7 +164,6 @@
   function useBubbleDash(unit, options = {}) {
     const gate = canUseBubbleDash(unit, options);
     if (!gate.available) return { used: false, reason: gate.reason };
-    if (actionEconomy?.consume && !actionEconomy.consume(unit, 'action', options)) return { used: false, reason: 'action_unavailable' };
     const movementFeet = Math.max(0, Number(unit?.movementFeet?.swim ?? unit?.movement?.swim ?? unit?.mechanics?.movementFeet?.swim ?? 0) || 0);
     const reposition = {
       source: 'bubble_dash',
@@ -173,8 +172,16 @@
       provokesCounterAttacks: false,
       provokesOpportunityAttacks: false,
     };
+    const scheduled = actionEconomy?.scheduleAction?.(unit, {
+      kind: 'trait_action',
+      traitId: 'bubble_dash',
+      sourceId: 'bubble_dash',
+      data: reposition,
+    }, options);
+    if (scheduled && scheduled.scheduled === false) return { used: false, reason: scheduled.reason || 'action_unavailable' };
+    if (!scheduled && actionEconomy?.consume && !actionEconomy.consume(unit, 'action', options)) return { used: false, reason: 'action_unavailable' };
     unit.__luminousReposition = reposition;
-    return { used: true, reposition: true, ...reposition };
+    return { used: true, reposition: true, scheduled: scheduled || null, ...reposition };
   }
 
   function resourceCostForSkill(skill) { return (Array.isArray(skill?.resourceCosts) ? skill.resourceCosts : []).map(clone); }
