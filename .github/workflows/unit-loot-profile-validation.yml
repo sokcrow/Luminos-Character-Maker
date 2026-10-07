@@ -23,6 +23,12 @@ on:
       - "js/loot-postcombat-runtime.js"
       - "js/loot-knowledge-runtime.js"
       - "js/loot-recovery-delivery-runtime.js"
+      - "js/loot-live-postcombat-runtime.js"
+      - "js/player-postcombat-loot.js"
+      - "Battle-viewer.html"
+      - "hoja_personaje.html"
+      - "js/combat-v073-dm-setup.js"
+      - "js/battle-viewer-dm-console-074.js"
       - "js/item-inventory-runtime.js"
       - "js/item-quality-engine.js"
       - "js/item-size-lineage-engine.js"
@@ -42,6 +48,7 @@ on:
       - "tests/loot-postcombat-runtime-smoke.mjs"
       - "tests/loot-knowledge-runtime-smoke.mjs"
       - "tests/loot-recovery-delivery-runtime-smoke.mjs"
+      - "tests/loot-live-postcombat-runtime-smoke.mjs"
       - "tests/combat-analyze-end-to-end-smoke.mjs"
       - "tests/dm-loot-studio-smoke.mjs"
       - "tests/ranger-class-runtime-smoke.mjs"
@@ -72,6 +79,12 @@ on:
       - "js/loot-postcombat-runtime.js"
       - "js/loot-knowledge-runtime.js"
       - "js/loot-recovery-delivery-runtime.js"
+      - "js/loot-live-postcombat-runtime.js"
+      - "js/player-postcombat-loot.js"
+      - "Battle-viewer.html"
+      - "hoja_personaje.html"
+      - "js/combat-v073-dm-setup.js"
+      - "js/battle-viewer-dm-console-074.js"
       - "js/item-inventory-runtime.js"
       - "js/item-quality-engine.js"
       - "js/item-size-lineage-engine.js"
@@ -91,6 +104,7 @@ on:
       - "tests/loot-postcombat-runtime-smoke.mjs"
       - "tests/loot-knowledge-runtime-smoke.mjs"
       - "tests/loot-recovery-delivery-runtime-smoke.mjs"
+      - "tests/loot-live-postcombat-runtime-smoke.mjs"
       - "tests/combat-analyze-end-to-end-smoke.mjs"
       - "tests/dm-loot-studio-smoke.mjs"
       - "tests/ranger-class-runtime-smoke.mjs"
@@ -123,6 +137,8 @@ jobs:
         run: node tests/loot-knowledge-runtime-smoke.mjs
       - name: Validate harvested Item materialization and inventory delivery
         run: node tests/loot-recovery-delivery-runtime-smoke.mjs
+      - name: Validate live post-combat persistence concurrency and finance
+        run: node tests/loot-live-postcombat-runtime-smoke.mjs
       - name: Validate Battle Analyze end-to-end Perception and observation
         run: node tests/combat-analyze-end-to-end-smoke.mjs
       - name: Validate DM Loot Studio preview lock override and grant flow
