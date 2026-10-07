@@ -6,7 +6,7 @@
     return;
   }
 
-  const VERSION = "0.2.0";
+  const VERSION = "0.3.0";
   const normalizeId = (value) => String(value ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
   const numberOr = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
   const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
@@ -60,6 +60,41 @@
       maxCount: 10,
       rules: [],
       description: "Weapon Attack Skills trigger Divine Favor once per Skill."
+    }),
+    guided_light: Object.freeze({
+      name: "Guided Light",
+      type: "negative",
+      mode: "single",
+      icon: "https://imgur.com/9OdpgRZ",
+      maxCount: 1,
+      rules: [],
+      description: "The next Attack Skill targeting this Unit gains +2 Final Power. Guided Light is then removed."
+    }),
+    heroism: Object.freeze({
+      name: "Heroism",
+      type: "positive",
+      mode: "single",
+      maxCount: 10,
+      rules: [],
+      description: "Tracks Heroism Shield and Frightened immunity while Concentration remains."
+    }),
+    hexed: Object.freeze({
+      name: "Hexed",
+      type: "negative",
+      mode: "single",
+      icon: "https://imgur.com/M89vPkr",
+      maxCount: 1,
+      rules: [],
+      description: "Chosen Ability Checks gain +3 Threshold. The caster's Attack Skills trigger Hex once per Skill."
+    }),
+    marked_quarry: Object.freeze({
+      name: "Marked Quarry",
+      type: "negative",
+      mode: "single",
+      icon: "https://imgur.com/bwjqA28",
+      maxCount: 1,
+      rules: [],
+      description: "The caster gains Analyse Threshold -2 and improved Perception/Survival tracking against this Unit."
     })
   });
 
@@ -75,6 +110,14 @@
     if (global.LuminousShieldDurationRuntime) return global.LuminousShieldDurationRuntime;
     if (typeof require === "function") {
       try { return require("./shield-duration-runtime.js"); } catch (_) {}
+    }
+    return null;
+  }
+
+  function inventoryRuntime() {
+    if (global.LuminousItemInventoryRuntime) return global.LuminousItemInventoryRuntime;
+    if (typeof require === "function") {
+      try { return require("./item-inventory-runtime.js"); } catch (_) {}
     }
     return null;
   }
@@ -650,6 +693,8 @@
   function tickSpellDurations(units = []) {
     for (const unit of units || []) {
       if (statusActive(unit, "divine_favor")) reduceStatusCount(unit, "divine_favor", 1);
+      if (statusActive(unit, "guided_light")) removeStatus(unit, "guided_light");
+      expireGoodMagicFood(unit);
       const restrained = getStatus(unit, "restrained");
       if (["ensnaring_strike", "entangle"].includes(normalizeId(restrained?.data?.sourceSpellId))) {
         restrained.data.remainingTurns = Math.max(0, Math.trunc(numberOr(restrained.data.remainingTurns, 10) - 1));
@@ -660,6 +705,19 @@
           .map((area) => ({ ...area, remainingTurns: Math.max(0, Math.trunc(numberOr(area.remainingTurns, 10) - 1)) }))
           .filter((area) => area.remainingTurns > 0);
       }
+      if (Array.isArray(unit.__luminousGreaseAreas)) {
+        unit.__luminousGreaseAreas = unit.__luminousGreaseAreas
+          .map((area) => {
+            area.remainingTurns = Math.max(0, Math.trunc(numberOr(area.remainingTurns, 10) - 1));
+            if (area.remainingTurns <= 0) {
+              area.active = false;
+              activeGreaseAreas.delete(area.id);
+            }
+            return area;
+          })
+          .filter((area) => area.remainingTurns > 0);
+      }
+      recomputeGreaseSpeedModifier(unit);
     }
   }
 
@@ -884,7 +942,7 @@
 
   function cleanupConcentrationStatuses(units = []) {
     for (const unit of units || []) {
-      for (const statusId of ["bane", "bless"]) {
+      for (const statusId of ["bane", "bless", "heroism", "hexed", "marked_quarry"]) {
         const entry = getStatus(unit, statusId);
         if (!entry) continue;
         const sourceUnitId = entry.sourceUnitId || entry.data?.sourceUnitId;
@@ -901,6 +959,16 @@
       }
       if (Array.isArray(unit.__luminousEntangleAreas)) {
         unit.__luminousEntangleAreas = unit.__luminousEntangleAreas.filter((area) => sourceStillConcentrating(unit, "entangle") && numberOr(area.remainingTurns, 0) > 0);
+      }
+      const heroismState = unit?.__luminousHeroism;
+      if (heroismState) {
+        const source = findSource(units, heroismState.sourceUnitId);
+        if (source && !sourceStillConcentrating(source, "heroism")) clearHeroism(unit);
+        else if (heroismHasShield(unit)) removeStatus(unit, "frightened");
+      }
+      for (const area of [...activeFogCloudAreas.values()]) {
+        const source = findSource(units, area.sourceUnitId);
+        if (source && !sourceStillConcentrating(source, "fog_cloud")) disperseFogCloud(area, units, "concentration_end");
       }
       if (getStatus(unit, "reaction_suppressed")) removeStatus(unit, "reaction_suppressed");
       if (unit?.__luminousArmorOfAgathys && numberOr(unit.shield, 0) <= 0) clearArmorOfAgathys(unit);
@@ -941,12 +1009,26 @@
     const originalCalculateFinalPower = typeof engine.calculateFinalPower === "function" ? engine.calculateFinalPower : null;
     const originalTriggerEvent = typeof engine.triggerEvent === "function" ? engine.triggerEvent : null;
     const originalTriggerPhase = typeof engine.triggerPhase === "function" ? engine.triggerPhase : null;
+    const originalApplyDamage = typeof engine.applyDamage === "function" ? engine.applyDamage : null;
 
     if (originalCalculateFinalPower) {
       engine.calculateFinalPower = function (skill, headsFlipped, unit = null) {
         const value = originalCalculateFinalPower.call(this, skill, headsFlipped, unit);
         const target = activePowerTargets.get(unitId(unit));
-        return value + divineSmitePowerBonus(unit, target, skill);
+        return value
+          + divineSmitePowerBonus(unit, target, skill)
+          + guidedLightPowerBonus(unit, target)
+          + fogCloudPowerModifier(unit, target, skill?.__luminousResolutionType || "clash");
+      };
+    }
+
+    if (originalApplyDamage) {
+      engine.applyDamage = function (unitDefender, amount, ...rest) {
+        const shieldBefore = Math.max(0, numberOr(unitDefender?.shield, 0));
+        const result = originalApplyDamage.call(this, unitDefender, amount, ...rest);
+        const shieldAfter = Math.max(0, numberOr(unitDefender?.shield, 0));
+        if (shieldBefore > shieldAfter) consumeHeroismShield(unitDefender, shieldBefore - shieldAfter);
+        return result;
       };
     }
 
@@ -958,6 +1040,7 @@
           const sourceUnitId = spellSkill?.sourceUnitId || spellSkill?.casterId || null;
           if (id === "bane") applyBane(target, sourceUnitId);
           if (id === "arms_of_hadar") suppressReaction(target);
+          if (id === "grease") resolveGreaseSave(target, false, spellSkill?.__luminousGreaseAreaId || null);
           if (id === "entangle" || id === "ensnaring_strike") {
             const data = spellSkill?.__luminousRestrainedData || {};
             applySpellRestrained(target, {
@@ -977,11 +1060,15 @@
       engine.resolveStandardClash = function (unitA, skillA, unitB, skillB, ...rest) {
         activePowerTargets.set(unitId(unitA), unitB);
         activePowerTargets.set(unitId(unitB), unitA);
-        try { return originalResolveStandardClash.call(this, unitA, skillA, unitB, skillB, ...rest); }
+        let result;
+        try { result = originalResolveStandardClash.call(this, unitA, skillA, unitB, skillB, ...rest); }
         finally {
           activePowerTargets.delete(unitId(unitA));
           activePowerTargets.delete(unitId(unitB));
         }
+        if (getStatus(unitB, "guided_light")) consumeGuidedLight(unitB);
+        if (getStatus(unitA, "guided_light")) consumeGuidedLight(unitA);
+        return result;
       };
     }
 
@@ -990,14 +1077,23 @@
         activePowerTargets.set(unitId(unitAttacker), unitDefender);
         const agathysStateBefore = armorOfAgathysState(unitDefender);
         const agathysShieldBefore = numberOr(unitDefender?.shield, 0);
+        const previousResolutionType = attackSkill?.__luminousResolutionType;
+        if (attackSkill && typeof attackSkill === "object") attackSkill.__luminousResolutionType = "unopposed";
         let result;
         try { result = originalUnilateral.call(this, unitAttacker, attackSkill, unitDefender, counterSkill, options); }
-        finally { activePowerTargets.delete(unitId(unitAttacker)); }
+        finally {
+          activePowerTargets.delete(unitId(unitAttacker));
+          if (attackSkill && typeof attackSkill === "object") {
+            if (previousResolutionType === undefined) delete attackSkill.__luminousResolutionType;
+            else attackSkill.__luminousResolutionType = previousResolutionType;
+          }
+        }
         const retaliation = retaliateArmorOfAgathys(this, unitAttacker, unitDefender, attackSkill, result, {
           state: agathysStateBefore,
           shieldBefore: agathysShieldBefore
         });
         if (retaliation && result && typeof result === "object") result.armorOfAgathysRetaliation = retaliation;
+        if (getStatus(unitDefender, "guided_light")) consumeGuidedLight(unitDefender);
         return result;
       };
     }
@@ -1013,6 +1109,9 @@
           resolveDivineFavorHit(attacker, target, skill, { ...(context || {}), engine: this });
           resolveDivineSmiteHit(attacker, target, skill, { ...(context || {}), engine: this });
           resolveEnsnaringStrikeHit(attacker, target, skill, { ...(context || {}), engine: this });
+          resolveGuidingBoltHit(attacker, target, skill);
+          resolveHexHit(attacker, target, skill, { ...(context || {}), engine: this });
+          resolveHuntersMarkHit(attacker, target, skill, { ...(context || {}), engine: this });
           if (normalizeId(skill?.id || skill?.spellId || skill?.sourceSpellId || skill?.name) === "arms_of_hadar") suppressReaction(target);
         }
         if (key === "on_crit") resolveChromaticOrbCrit({ ...(context || {}), engine: this });
@@ -1023,7 +1122,7 @@
     if (originalTriggerPhase) {
       engine.triggerPhase = function (phaseTag, allUnits = [], ...rest) {
         const phase = normalizeId(phaseTag).replace(/^_+|_+$/g, "");
-        if (phase === "turn_start") applyEnsnaringTurnStart(allUnits || []);
+        if (phase === "turn_start") { applyEnsnaringTurnStart(allUnits || []); refreshHeroismAtTurnStart(allUnits || []); }
         const result = originalTriggerPhase.call(this, phaseTag, allUnits, ...rest);
         if (phase === "round_end") tickSpellDurations(allUnits || []);
         if (["turn_end", "round_end"].includes(phase)) cleanupConcentrationStatuses(allUnits || []);
@@ -1131,16 +1230,7 @@
       ...(Array.isArray(unit.action_slots) ? unit.action_slots : [])
     ].map(String);
     unit.familiarOriginalSkillIds = [...new Set(originalSkillIds)];
-    unit.skillIds = [];
-    unit.skillSlotIds = [];
-    unit.action_slots = [];
-    unit.skills = [];
-    unit.resolvedSkills = [];
-    unit.equippedSkillIndex = {};
-    unit.actionSlots = 1;
-    unit.activeSlots = 1;
-    unit.maxSlotsLimit = 1;
-    unit.familiarCannotAttack = true;
+    unit.familiarCannotAttack = false;
     return unit;
   }
 
@@ -1249,6 +1339,587 @@
     return { resolved: true, action };
   }
 
+
+  const activeFogCloudAreas = new Map();
+  const activeGreaseAreas = new Map();
+
+  function arrayIds(value) {
+    return Array.isArray(value) ? value.map(String).filter(Boolean) : [];
+  }
+
+  function addAreaMembership(unit, key, areaId) {
+    if (!unit || !areaId) return [];
+    const current = new Set(arrayIds(unit[key]));
+    current.add(String(areaId));
+    unit[key] = [...current];
+    return unit[key];
+  }
+
+  function removeAreaMembership(unit, key, areaId) {
+    if (!unit) return [];
+    unit[key] = arrayIds(unit[key]).filter((id) => id !== String(areaId));
+    return unit[key];
+  }
+
+  function senseTokens(unit = {}) {
+    const rows = [
+      unit.senses, unit.sense, unit.traits, unit.traitIds, unit.trait_ids,
+      unit.features, unit.passives, unit.specialSenses, unit.special_senses
+    ].flatMap((value) => {
+      if (Array.isArray(value)) return value;
+      if (value && typeof value === "object") return [...Object.keys(value), ...Object.values(value)];
+      return value == null ? [] : [value];
+    });
+    return rows.map((value) => normalizeId(typeof value === "object" ? (value.id || value.name || value.type || "") : value)).filter(Boolean);
+  }
+
+  function hasFogBypass(unit = {}) {
+    const tokens = senseTokens(unit);
+    return tokens.some((id) => ["truesight", "true_sight", "blindsight", "blind_sight"].includes(id));
+  }
+
+  function createFogCloudArea(caster, targets = [], options = {}) {
+    if (!caster) return { resolved: false, reason: "caster_required" };
+    const slotLevel = Math.max(1, Math.trunc(numberOr(options.slotLevel, 1)));
+    const id = String(options.id || `fog_cloud_${unitId(caster) || "caster"}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`);
+    const members = (targets || []).filter(Boolean);
+    const area = {
+      id,
+      kind: "spell_area",
+      sourceSpellId: "fog_cloud",
+      sourceUnitId: unitId(caster),
+      encounterModifierId: "heavy_fog",
+      visibility: "heavily_obscured",
+      slotLevel,
+      additionalAreaRings: Math.max(0, slotLevel - 1),
+      clashPowerModifier: -3,
+      unopposedFinalPowerModifier: -4,
+      sightPerceptionCheckModifier: -3,
+      analyseThresholdModifier: 5,
+      bypassSenses: ["blindsight", "truesight"],
+      suppressed: false,
+      active: true,
+      targetIds: members.map(unitId).filter(Boolean)
+    };
+    activeFogCloudAreas.set(id, area);
+    caster.__luminousFogCloudAreas = [...(caster.__luminousFogCloudAreas || []).filter((row) => row?.active !== false), area];
+    members.forEach((unit) => addAreaMembership(unit, "__luminousFogCloudAreaIds", id));
+    return { resolved: true, area };
+  }
+
+  function fogCloudAreasForUnit(unit) {
+    return arrayIds(unit?.__luminousFogCloudAreaIds)
+      .map((id) => activeFogCloudAreas.get(id))
+      .filter((area) => area?.active !== false && area?.suppressed !== true);
+  }
+
+  function setFogCloudMembership(areaOrId, unit, inside = true) {
+    const area = typeof areaOrId === "string" ? activeFogCloudAreas.get(areaOrId) : areaOrId;
+    if (!area || !unit) return false;
+    const id = unitId(unit);
+    area.targetIds = arrayIds(area.targetIds).filter((row) => row !== id);
+    if (inside && id) area.targetIds.push(id);
+    if (inside) addAreaMembership(unit, "__luminousFogCloudAreaIds", area.id);
+    else removeAreaMembership(unit, "__luminousFogCloudAreaIds", area.id);
+    return true;
+  }
+
+  function disperseFogCloud(areaOrId, units = [], reason = "strong_wind") {
+    const area = typeof areaOrId === "string" ? activeFogCloudAreas.get(areaOrId) : areaOrId;
+    if (!area) return { resolved: false, reason: "fog_area_missing" };
+    area.active = false;
+    area.dispersedBy = reason;
+    (units || []).forEach((unit) => removeAreaMembership(unit, "__luminousFogCloudAreaIds", area.id));
+    activeFogCloudAreas.delete(area.id);
+    return { resolved: true, areaId: area.id, reason };
+  }
+
+  function suppressFogCloud(areaOrId, suppressed = true) {
+    const area = typeof areaOrId === "string" ? activeFogCloudAreas.get(areaOrId) : areaOrId;
+    if (!area) return false;
+    area.suppressed = suppressed === true;
+    return true;
+  }
+
+  function fogCloudPowerModifier(attacker, target, resolutionType = "clash") {
+    if (!attacker || hasFogBypass(attacker)) return 0;
+    if (!fogCloudAreasForUnit(attacker).length && !fogCloudAreasForUnit(target).length) return 0;
+    return normalizeId(resolutionType) === "unopposed" ? -4 : -3;
+  }
+
+  function fogCloudAnalyseThresholdModifier(analyser, target) {
+    if (!target || hasFogBypass(analyser)) return 0;
+    return fogCloudAreasForUnit(target).length ? 5 : 0;
+  }
+
+  function fogCloudSightPerceptionModifier(unit) {
+    if (!unit || hasFogBypass(unit)) return 0;
+    return fogCloudAreasForUnit(unit).length ? -3 : 0;
+  }
+
+  function isGrounded(unit = {}) {
+    if (unit.isFlying === true || unit.flying === true || normalizeId(unit.activeMovementMode || unit.movementMode) === "fly") return false;
+    if (numberOr(unit.altitude, 0) > 0) return false;
+    return true;
+  }
+
+  function recomputeGreaseSpeedModifier(unit) {
+    if (!unit) return 0;
+    const active = arrayIds(unit.__luminousGreaseAreaIds)
+      .map((id) => activeGreaseAreas.get(id))
+      .some((area) => area?.active !== false && numberOr(area.remainingTurns, 0) > 0);
+    unit.__luminousAreaSpeedModifier = active && isGrounded(unit) ? -1 : 0;
+    return unit.__luminousAreaSpeedModifier;
+  }
+
+  function createGreaseArea(caster, targets = [], options = {}) {
+    if (!caster) return { resolved: false, reason: "caster_required" };
+    const id = String(options.id || `grease_${unitId(caster) || "caster"}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`);
+    const members = (targets || []).filter(Boolean);
+    const area = {
+      id,
+      kind: "spell_area",
+      sourceSpellId: "grease",
+      sourceUnitId: unitId(caster),
+      spellDC: numberOr(options.spellDC, 0),
+      remainingTurns: 10,
+      speedModifier: -1,
+      groundedOnly: true,
+      active: true,
+      targetIds: members.map(unitId).filter(Boolean)
+    };
+    activeGreaseAreas.set(id, area);
+    caster.__luminousGreaseAreas = [...(caster.__luminousGreaseAreas || []), area];
+    members.forEach((unit) => {
+      addAreaMembership(unit, "__luminousGreaseAreaIds", id);
+      recomputeGreaseSpeedModifier(unit);
+    });
+    return { resolved: true, area };
+  }
+
+  function setGreaseMembership(areaOrId, unit, inside = true) {
+    const area = typeof areaOrId === "string" ? activeGreaseAreas.get(areaOrId) : areaOrId;
+    if (!area || !unit) return false;
+    const id = unitId(unit);
+    area.targetIds = arrayIds(area.targetIds).filter((row) => row !== id);
+    if (inside && id) area.targetIds.push(id);
+    if (inside) addAreaMembership(unit, "__luminousGreaseAreaIds", area.id);
+    else removeAreaMembership(unit, "__luminousGreaseAreaIds", area.id);
+    recomputeGreaseSpeedModifier(unit);
+    return true;
+  }
+
+  function greaseSpeedModifier(unit) {
+    return recomputeGreaseSpeedModifier(unit);
+  }
+
+  function resolveGreaseSave(target, saveSucceeded, areaOrId = null) {
+    if (!target || !isGrounded(target)) return { resolved: false, ignored: true, reason: "not_grounded" };
+    const area = typeof areaOrId === "string" ? activeGreaseAreas.get(areaOrId) : areaOrId;
+    if (saveSucceeded === true) return { resolved: true, success: true, areaId: area?.id || null };
+    const status = applyStatus(target, "prone", {
+      mode: "set",
+      count: 1,
+      sourceUnitId: area?.sourceUnitId || null,
+      data: { sourceSpellId: "grease", areaId: area?.id || null }
+    });
+    return { resolved: true, success: false, status, areaId: area?.id || null };
+  }
+
+  function saveSucceededFor(target, action = {}, effect = {}) {
+    const id = unitId(target);
+    const map = action?.metadata?.saveResults || action?.metadata?.viewerPlan?.saveResults || effect?.saveResults || {};
+    const raw = map?.[id] ?? map?.[target?.id] ?? effect?.saveSucceeded ?? action?.metadata?.saveSucceeded;
+    if (typeof raw === "boolean") return raw;
+    if (raw && typeof raw === "object" && typeof raw.success === "boolean") return raw.success;
+    return false;
+  }
+
+  function goodMagicFoodSpec(variant = "goodberry") {
+    const id = normalizeId(variant);
+    if (id === "goodshrooms" || id === "goodshroom") {
+      return { variant: "goodshrooms", definitionId: "common_mushroom", magicalName: "Goodshrooms", baseName: "Common Mushroom", compatibleTags: ["fungus", "mushroom"] };
+    }
+    return { variant: "goodberry", definitionId: "blueberry", magicalName: "Goodberry", baseName: "Blueberry", compatibleTags: ["berry", "blueberry", "fruit"] };
+  }
+
+  function createGoodMagicFood(caster, variant = "goodberry", options = {}) {
+    if (!caster) return { resolved: false, reason: "caster_required" };
+    const spec = goodMagicFoodSpec(variant);
+    const now = Number.isFinite(Number(options.now)) ? Number(options.now) : Date.now();
+    const expiresAt = now + 24 * 60 * 60 * 1000;
+    const inv = inventoryRuntime();
+    const instanceId = inv?.createInstanceId?.(spec.definitionId) || `${spec.definitionId}_${now}_${Math.random().toString(36).slice(2, 7)}`;
+    const secretCooking = {
+      hidden: true,
+      requiredQuantity: 10,
+      compatibleTags: spec.compatibleTags,
+      healFlat: 15,
+      healMaxHpPercent: 10,
+      inheritIngredientExpiration: true,
+      removeHealingOnExpiration: true
+    };
+    const item = {
+      instanceId,
+      definitionId: spec.definitionId,
+      itemId: spec.definitionId,
+      quantity: 10,
+      displayName: spec.magicalName,
+      name: spec.magicalName,
+      edible: true,
+      hungerSlotsRestored: 3,
+      hydrationSlotsRestored: 3,
+      temporary: true,
+      expiresAt,
+      tags: ["food", "ingredient", "temporary_magical_food", ...spec.compatibleTags],
+      runtimeState: {
+        goodMagicFood: { sourceSpellId: "goodberry", variant: spec.variant, expiresAt, hungerSlotsRestored: 3, hydrationSlotsRestored: 3 }
+      },
+      customData: {
+        goodMagicFood: {
+          sourceSpellId: "goodberry",
+          variant: spec.variant,
+          baseDefinitionId: spec.definitionId,
+          baseName: spec.baseName,
+          expiresAt,
+          hungerSlotsRestored: 3,
+          hydrationSlotsRestored: 3,
+          ingredient: true,
+          secretCooking
+        }
+      }
+    };
+    const insertion = inv?.insertItem?.(caster, item, options.destination || "active") || (() => {
+      caster.inventory ||= {};
+      caster.inventory[instanceId] = item;
+      return { inserted: true, quantity: 10, instanceId };
+    })();
+    return { resolved: insertion.inserted === true, item, insertion, variant: spec.variant, expiresAt };
+  }
+
+  function expireGoodMagicFoodItem(item, now = Date.now()) {
+    const data = item?.customData?.goodMagicFood || item?.runtimeState?.goodMagicFood;
+    if (!data || numberOr(data.expiresAt, Infinity) > now) return false;
+    const spec = goodMagicFoodSpec(data.variant);
+    item.displayName = spec.baseName;
+    item.name = spec.baseName;
+    item.temporary = false;
+    delete item.expiresAt;
+    delete item.hungerSlotsRestored;
+    delete item.hydrationSlotsRestored;
+    if (item.customData) delete item.customData.goodMagicFood;
+    if (item.runtimeState) delete item.runtimeState.goodMagicFood;
+    item.tags = arrayIds(item.tags).filter((tag) => !["temporary_magical_food"].includes(normalizeId(tag)));
+    return true;
+  }
+
+  function expireGoodMagicFood(unit, now = Date.now()) {
+    const inv = inventoryRuntime();
+    const containers = [
+      inv?.activeContainer?.(unit, false)?.value,
+      inv?.stashContainer?.(unit, false)?.value,
+      unit?.inventory,
+      unit?.inventario
+    ].filter(Boolean);
+    let expired = 0;
+    const seen = new Set();
+    for (const container of containers) {
+      for (const item of Object.values(container || {})) {
+        if (!item || seen.has(item)) continue;
+        seen.add(item);
+        if (expireGoodMagicFoodItem(item, now)) expired += 1;
+      }
+    }
+    return expired;
+  }
+
+  function resolveGoodMagicCookingEnhancement(ingredients = [], now = Date.now()) {
+    const groups = new Map();
+    for (const raw of ingredients || []) {
+      const item = raw?.item || raw;
+      const data = item?.customData?.goodMagicFood || item?.runtimeState?.goodMagicFood;
+      if (!data || numberOr(data.expiresAt, 0) <= now) continue;
+      const key = normalizeId(data.variant || "goodberry");
+      const qty = Math.max(0, Math.trunc(numberOr(raw?.units ?? raw?.quantity ?? item?.quantity, 1)));
+      const row = groups.get(key) || { quantity: 0, expiresAt: Infinity, data };
+      row.quantity += qty;
+      row.expiresAt = Math.min(row.expiresAt, numberOr(data.expiresAt, Infinity));
+      groups.set(key, row);
+    }
+    for (const [variant, row] of groups) {
+      if (row.quantity >= 10) {
+        return {
+          active: true,
+          secret: true,
+          variant,
+          requiredQuantity: 10,
+          healing: { flat: 15, maxHpPercent: 10 },
+          expiresAt: row.expiresAt,
+          inheritIngredientExpiration: true
+        };
+      }
+    }
+    return { active: false };
+  }
+
+  function calculateHealingWordHealing(slotLevel = 1, spellMod = 0, maxHp = 0) {
+    const slot = Math.max(1, Math.trunc(numberOr(slotLevel, 1)));
+    const mod = numberOr(spellMod, 0);
+    const hp = Math.max(0, numberOr(maxHp, 0));
+    const flat = slot;
+    const maxHpPercent = Math.max(2, 2 * mod);
+    const percentHealing = hp * (maxHpPercent / 100);
+    return { slotLevel: slot, spellMod: mod, flat, maxHpPercent, percentHealing, total: flat + percentHealing };
+  }
+
+  function applyHealingWord(target, slotLevel = 1, spellMod = 0) {
+    if (!target) return { resolved: false, reason: "target_required" };
+    const maxHp = maxHpOf(target);
+    if (maxHp <= 0) return { resolved: false, reason: "max_hp_required" };
+    const hpBefore = Math.min(maxHp, currentHpOf(target));
+    const healing = calculateHealingWordHealing(slotLevel, spellMod, maxHp);
+    const hpAfter = Math.min(maxHp, hpBefore + healing.total);
+    setCurrentHp(target, hpAfter);
+    return { resolved: true, targetId: unitId(target), hpBefore, hpAfter, healed: Math.max(0, hpAfter - hpBefore), ...healing };
+  }
+
+  function guidedLightPowerBonus(attacker, target) {
+    if (!attacker || !target || !getStatus(target, "guided_light")) return 0;
+    return 2;
+  }
+
+  function applyGuidedLight(target, caster = null) {
+    return applyStatus(target, "guided_light", {
+      mode: "set", count: 1, sourceUnitId: unitId(caster),
+      duration: "caster_next_turn_end",
+      data: { sourceSpellId: "guiding_bolt", sourceUnitId: unitId(caster), finalPowerBonus: 2 }
+    });
+  }
+
+  function consumeGuidedLight(target) {
+    if (!getStatus(target, "guided_light")) return false;
+    removeStatus(target, "guided_light");
+    return true;
+  }
+
+  function markSkillProc(skill, key, target) {
+    if (!skill || typeof skill !== "object") return true;
+    const procKey = `${normalizeId(key)}:${unitId(target)}`;
+    const used = new Set(arrayIds(skill.__luminousSpellProcKeys));
+    if (used.has(procKey)) return false;
+    used.add(procKey);
+    skill.__luminousSpellProcKeys = [...used];
+    return true;
+  }
+
+  function resolveGuidingBoltHit(caster, target, skill = {}) {
+    if (normalizeId(skill.id || skill.spellId || skill.sourceSpellId || skill.name) !== "guiding_bolt" || !target) return null;
+    applyStatus(target, "radiance", { mode: "add", count: 2, sourceUnitId: unitId(caster), data: { sourceSpellId: "guiding_bolt" } });
+    const guided = applyGuidedLight(target, caster);
+    return { resolved: true, radianceCount: 2, guidedLight: guided };
+  }
+
+  function heroismDesiredShield(spellMod = 0) {
+    return Math.max(0, 3 * numberOr(spellMod, 0));
+  }
+
+  function addRawShield(unit, amount) {
+    const value = Math.max(0, numberOr(amount, 0));
+    if (value <= 0) return 0;
+    const shields = shieldRuntime();
+    if (shields?.gainShield) return shields.gainShield(unit, value, shields.SHIELD_TYPES?.PERSISTENT || "persistent");
+    unit.shield = Math.max(0, numberOr(unit.shield, 0)) + value;
+    return value;
+  }
+
+  function removeRawShield(unit, amount) {
+    let value = Math.max(0, numberOr(amount, 0));
+    if (value <= 0 || !unit) return 0;
+    const pools = unit.shieldPools;
+    if (pools && typeof pools === "object") {
+      const fromPersistent = Math.min(value, Math.max(0, numberOr(pools.persistent, 0)));
+      pools.persistent = Math.max(0, numberOr(pools.persistent, 0) - fromPersistent);
+      value -= fromPersistent;
+      unit.shield = Math.max(0, numberOr(pools.ephemeral, 0) + numberOr(pools.encounter, 0) + numberOr(pools.persistent, 0));
+      return fromPersistent;
+    }
+    const before = Math.max(0, numberOr(unit.shield, 0));
+    const removed = Math.min(before, value);
+    unit.shield = before - removed;
+    return removed;
+  }
+
+  function grantHeroism(target, caster, spellMod = 0) {
+    if (!target || !caster) return { resolved: false, reason: "target_and_caster_required" };
+    clearHeroism(target, false);
+    const desired = heroismDesiredShield(spellMod);
+    const gained = addRawShield(target, desired);
+    target.__luminousHeroism = { sourceUnitId: unitId(caster), desiredShield: desired, remainingShield: gained, sourceSpellId: "heroism" };
+    removeStatus(target, "frightened");
+    const status = applyStatus(target, "heroism", {
+      mode: "set", count: 10, sourceUnitId: unitId(caster),
+      data: { sourceUnitId: unitId(caster), concentrationSpellId: "heroism", desiredShield: desired }
+    });
+    return { resolved: true, desiredShield: desired, shieldGranted: gained, status };
+  }
+
+  function heroismHasShield(unit) {
+    return numberOr(unit?.__luminousHeroism?.remainingShield, 0) > 0;
+  }
+
+  function clearHeroism(unit, removeStatusToo = true) {
+    const state = unit?.__luminousHeroism;
+    if (!state) return false;
+    removeRawShield(unit, state.remainingShield);
+    delete unit.__luminousHeroism;
+    if (removeStatusToo) removeStatus(unit, "heroism");
+    return true;
+  }
+
+  function consumeHeroismShield(unit, shieldConsumed = 0) {
+    const state = unit?.__luminousHeroism;
+    if (!state) return 0;
+    state.remainingShield = Math.max(0, numberOr(state.remainingShield, 0) - Math.max(0, numberOr(shieldConsumed, 0)));
+    return state.remainingShield;
+  }
+
+  function refreshHeroismAtTurnStart(units = []) {
+    const refreshed = [];
+    for (const unit of units || []) {
+      const state = unit?.__luminousHeroism;
+      if (!state) continue;
+      const source = findSource(units, state.sourceUnitId);
+      if (source && !sourceStillConcentrating(source, "heroism")) {
+        clearHeroism(unit);
+        continue;
+      }
+      const missing = Math.max(0, numberOr(state.desiredShield, 0) - numberOr(state.remainingShield, 0));
+      if (missing > 0) {
+        const gained = addRawShield(unit, missing);
+        state.remainingShield += gained;
+      }
+      if (heroismHasShield(unit)) removeStatus(unit, "frightened");
+      refreshed.push({ targetId: unitId(unit), shield: state.remainingShield });
+    }
+    return refreshed;
+  }
+
+  function applyHex(caster, target, abilityId, slotLevel = 1, now = Date.now()) {
+    if (!caster || !target) return { resolved: false, reason: "target_and_caster_required" };
+    const ability = normalizeId(abilityId);
+    if (!["str", "dex", "con", "int", "wis", "cha"].includes(ability)) return { resolved: false, reason: "hex_ability_required" };
+    const oldTargetId = caster.__luminousHex?.targetId;
+    if (oldTargetId && oldTargetId !== unitId(target)) {
+      const old = allCombatUnits({}).find((unit) => unitId(unit) === oldTargetId);
+      if (old) removeStatus(old, "hexed");
+    }
+    const hours = slotLevel >= 5 ? 24 : slotLevel >= 3 ? 8 : slotLevel >= 2 ? 4 : 1;
+    const state = { sourceSpellId: "hex", sourceUnitId: unitId(caster), targetId: unitId(target), ability, slotLevel, expiresAt: now + hours * 60 * 60 * 1000 };
+    caster.__luminousHex = state;
+    const status = applyStatus(target, "hexed", { mode: "set", count: 1, sourceUnitId: unitId(caster), data: { ...state, concentrationSpellId: "hex" } });
+    return { resolved: true, state, status };
+  }
+
+  function hexCheckThresholdModifier(unit, abilityId) {
+    const status = getStatus(unit, "hexed");
+    if (!status) return 0;
+    return normalizeId(status.data?.ability) === normalizeId(abilityId) ? 3 : 0;
+  }
+
+  function resolveHexHit(caster, target, skill = {}, context = {}) {
+    const state = caster?.__luminousHex;
+    if (!state || unitId(target) !== state.targetId || !getStatus(target, "hexed") || !markSkillProc(skill, "hex", target)) return null;
+    const applied = applyFixedDamage(target, 3, { engine: context.engine, damageKind: "directo", sourceSpellId: "hex", sourceUnitId: unitId(caster) });
+    const decay = applyStatus(target, "decay", { mode: "add", count: 1, sourceUnitId: unitId(caster), data: { sourceSpellId: "hex" } });
+    return { resolved: true, fixedDamage: 3, decayCount: 1, applied, status: decay };
+  }
+
+  function transferHex(caster, target) {
+    const state = caster?.__luminousHex;
+    if (!state || !target) return { resolved: false, reason: "active_hex_required" };
+    const previous = allCombatUnits({}).find((unit) => unitId(unit) === state.targetId);
+    if (previous) removeStatus(previous, "hexed");
+    return applyHex(caster, target, state.ability, state.slotLevel, Date.now());
+  }
+
+  function applyHuntersMark(caster, target, slotLevel = 1, now = Date.now()) {
+    if (!caster || !target) return { resolved: false, reason: "target_and_caster_required" };
+    const hours = slotLevel >= 5 ? 24 : slotLevel >= 3 ? 8 : 1;
+    const state = { sourceSpellId: "hunters_mark", sourceUnitId: unitId(caster), targetId: unitId(target), slotLevel, expiresAt: now + hours * 60 * 60 * 1000 };
+    caster.__luminousHuntersMark = state;
+    const status = applyStatus(target, "marked_quarry", { mode: "set", count: 1, sourceUnitId: unitId(caster), data: { ...state, concentrationSpellId: "hunters_mark" } });
+    return { resolved: true, state, status };
+  }
+
+  function markedQuarryAnalyseThresholdModifier(analyser, target) {
+    const status = getStatus(target, "marked_quarry");
+    return status && String(status.sourceUnitId || status.data?.sourceUnitId) === unitId(analyser) ? -2 : 0;
+  }
+
+  function markedQuarryTrackingThresholdModifier(analyser, target, skillId) {
+    const status = getStatus(target, "marked_quarry");
+    if (!status || String(status.sourceUnitId || status.data?.sourceUnitId) !== unitId(analyser)) return 0;
+    const id = normalizeId(skillId);
+    return ["perception", "survival"].includes(id) ? -3 : 0;
+  }
+
+  function resolveHuntersMarkHit(caster, target, skill = {}, context = {}) {
+    const state = caster?.__luminousHuntersMark;
+    if (!state || unitId(target) !== state.targetId || !getStatus(target, "marked_quarry") || !markSkillProc(skill, "hunters_mark", target)) return null;
+    const applied = applyFixedDamage(target, 4, { engine: context.engine, damageKind: "directo", sourceSpellId: "hunters_mark", sourceUnitId: unitId(caster) });
+    return { resolved: true, fixedDamage: 4, applied };
+  }
+
+  function transferHuntersMark(caster, target) {
+    const state = caster?.__luminousHuntersMark;
+    if (!state || !target) return { resolved: false, reason: "active_hunters_mark_required" };
+    const previous = allCombatUnits({}).find((unit) => unitId(unit) === state.targetId);
+    if (previous) removeStatus(previous, "marked_quarry");
+    return applyHuntersMark(caster, target, state.slotLevel, Date.now());
+  }
+
+  function resolveAreaSaveDamage(targets = [], damage = 0, action = {}, effect = {}, options = {}) {
+    const results = [];
+    for (const target of (targets || []).filter(Boolean)) {
+      const success = saveSucceededFor(target, action, effect);
+      const amount = success ? Math.floor(damage * numberOr(options.successMultiplier, 0)) : damage;
+      const applied = amount > 0 ? applyFixedDamage(target, amount, { engine: options.engine || action?.metadata?.engine, damageKind: "directo", sourceSpellId: options.sourceSpellId }) : null;
+      if (!success && options.failedStatus) {
+        applyStatus(target, options.failedStatus.status, {
+          mode: "add",
+          count: numberOr(options.failedStatus.count, 1),
+          potency: numberOr(options.failedStatus.potency, 0),
+          data: { sourceSpellId: options.sourceSpellId }
+        });
+      }
+      results.push({ targetId: unitId(target), success, damage: amount, applied });
+    }
+    return { resolved: results.length > 0, results };
+  }
+
+  function resolveHailOfThorns(targets = [], slotLevel = 1, action = {}, effect = {}) {
+    const damage = 5 * Math.max(1, Math.trunc(numberOr(slotLevel, 1)));
+    return { damage, ...resolveAreaSaveDamage(targets, damage, action, effect, { sourceSpellId: "hail_of_thorns", successMultiplier: 0.5 }) };
+  }
+
+  function resolveHellishRebuke(target, slotLevel = 1, action = {}, effect = {}) {
+    if (!target) return { resolved: false, reason: "target_required" };
+    const damage = 5 + 5 * Math.max(1, Math.trunc(numberOr(slotLevel, 1)));
+    return {
+      damage,
+      ...resolveAreaSaveDamage([target], damage, action, effect, {
+        sourceSpellId: "hellish_rebuke",
+        successMultiplier: 0.5,
+        failedStatus: { status: "burn", count: 3 }
+      })
+    };
+  }
+
+  function resolveIceKnifeExplosion(targets = [], slotLevel = 1, action = {}, effect = {}) {
+    const damage = 3 + 3 * Math.max(1, Math.trunc(numberOr(slotLevel, 1)));
+    return { damage, attackWeight: 3, ...resolveAreaSaveDamage(targets, damage, action, effect, { sourceSpellId: "ice_knife", successMultiplier: 0, failedStatus: { status: "chill", count: 2 } }) };
+  }
+
   function effectHandlers() {
     return {
       level1_alarm({ actor, effect, action } = {}) {
@@ -1293,6 +1964,51 @@
         const familiarUnitId = plan.familiarUnitId || effect.familiarUnitId || action?.metadata?.familiarUnitId;
         const spiritType = plan.spellChoice?.value || plan.spiritType || effect.spiritType || "fey";
         return summonFindFamiliar(actor, { familiarUnitId, spiritType, context });
+      },
+      level1_fog_cloud_area({ actor, targets = [], action = {}, effect = {} } = {}) {
+        return createFogCloudArea(actor, targets, { slotLevel: action?.metadata?.slotLevel ?? effect.slotLevel ?? 1 });
+      },
+      level1_goodberry({ actor, action = {}, effect = {} } = {}) {
+        const plan = action?.metadata?.viewerPlan || {};
+        const variant = plan.spellChoice?.value || plan.goodberryVariant || effect.variant || "goodberry";
+        return createGoodMagicFood(actor, variant);
+      },
+      level1_grease_area({ actor, targets = [], action = {}, effect = {} } = {}) {
+        const areaResult = createGreaseArea(actor, targets, { spellDC: action?.metadata?.spellDC ?? effect.spellDC ?? 0 });
+        if (areaResult.resolved) {
+          for (const target of (targets || []).filter(Boolean)) resolveGreaseSave(target, saveSucceededFor(target, action, effect), areaResult.area);
+        }
+        return areaResult;
+      },
+      level1_healing_word({ actor, targets = [], action = {}, effect = {} } = {}) {
+        const target = (targets || []).filter(Boolean)[0] || actor;
+        const slotLevel = action?.metadata?.slotLevel ?? effect.slotLevel ?? 1;
+        const spellMod = resolveCureWoundsSpellMod(actor, action, effect);
+        return applyHealingWord(target, slotLevel, spellMod);
+      },
+      level1_hail_of_thorns({ targets = [], action = {}, effect = {} } = {}) {
+        return resolveHailOfThorns(targets, action?.metadata?.slotLevel ?? effect.slotLevel ?? 1, action, effect);
+      },
+      level1_hellish_rebuke({ targets = [], action = {}, effect = {} } = {}) {
+        return resolveHellishRebuke((targets || []).filter(Boolean)[0], action?.metadata?.slotLevel ?? effect.slotLevel ?? 1, action, effect);
+      },
+      level1_heroism({ actor, targets = [], action = {}, effect = {} } = {}) {
+        const spellMod = resolveCureWoundsSpellMod(actor, action, effect);
+        const applied = (targets || []).filter(Boolean).map((target) => grantHeroism(target, actor, spellMod));
+        return { resolved: applied.length > 0, applied };
+      },
+      level1_hex({ actor, targets = [], action = {}, effect = {} } = {}) {
+        const plan = action?.metadata?.viewerPlan || {};
+        const ability = plan.spellChoice?.value || plan.hexAbility || effect.ability;
+        const target = (targets || []).filter(Boolean)[0];
+        return applyHex(actor, target, ability, action?.metadata?.slotLevel ?? effect.slotLevel ?? 1);
+      },
+      level1_hunters_mark({ actor, targets = [], action = {}, effect = {} } = {}) {
+        const target = (targets || []).filter(Boolean)[0];
+        return applyHuntersMark(actor, target, action?.metadata?.slotLevel ?? effect.slotLevel ?? 1);
+      },
+      level1_ice_knife_explosion({ targets = [], action = {}, effect = {} } = {}) {
+        return resolveIceKnifeExplosion(targets, action?.metadata?.slotLevel ?? effect.slotLevel ?? 1, action, effect);
       }
     };
   }
@@ -1357,6 +2073,50 @@
     restoreFindFamiliar,
     cleanupDefeatedFamiliars,
     deliverTouchSpellThroughFamiliar,
+    activeFogCloudAreas,
+    createFogCloudArea,
+    fogCloudAreasForUnit,
+    setFogCloudMembership,
+    disperseFogCloud,
+    suppressFogCloud,
+    hasFogBypass,
+    fogCloudPowerModifier,
+    fogCloudAnalyseThresholdModifier,
+    fogCloudSightPerceptionModifier,
+    activeGreaseAreas,
+    createGreaseArea,
+    setGreaseMembership,
+    greaseSpeedModifier,
+    resolveGreaseSave,
+    goodMagicFoodSpec,
+    createGoodMagicFood,
+    expireGoodMagicFoodItem,
+    expireGoodMagicFood,
+    resolveGoodMagicCookingEnhancement,
+    calculateHealingWordHealing,
+    applyHealingWord,
+    applyGuidedLight,
+    guidedLightPowerBonus,
+    consumeGuidedLight,
+    resolveGuidingBoltHit,
+    heroismDesiredShield,
+    grantHeroism,
+    heroismHasShield,
+    clearHeroism,
+    consumeHeroismShield,
+    refreshHeroismAtTurnStart,
+    applyHex,
+    transferHex,
+    hexCheckThresholdModifier,
+    resolveHexHit,
+    applyHuntersMark,
+    transferHuntersMark,
+    markedQuarryAnalyseThresholdModifier,
+    markedQuarryTrackingThresholdModifier,
+    resolveHuntersMarkHit,
+    resolveHailOfThorns,
+    resolveHellishRebuke,
+    resolveIceKnifeExplosion,
     tickSpellDurations,
     chromaticJumpLimit,
     nextChromaticOrbTarget,
