@@ -6,7 +6,7 @@ This document records the canonical Part A rules for PR #931. It is the source o
 
 ## 1. Equipment eligibility and Enchantment Slots
 
-Equipment Enchantments use a dedicated slot capacity. The hard maximum is **3 Base Enchantment Slots**. Part B adds a narrowly-scoped exception: an Item may gain at most **+1 Resonant Overflow Slot** when that extra capacity is physically sustained by a valid mounted Gem Anchor.
+Direct/pure Item Enchantments use a dedicated **Base Enchantment Slot** capacity with a hard maximum of 3. Part C clarifies that physical **Enchantment Gem Sockets are a separate capacity track** and do not use the same Rank-to-Base-Slot arithmetic.
 
 Canonical Item Tier capacity:
 
@@ -26,7 +26,7 @@ An Enchantment Rank normally consumes the matching number of slots:
 
 A Rank III Enchantment is therefore a full specialization on a Tier V Item rather than a minor complementary effect.
 
-Multiple Enchantments may coexist when total slot cost fits capacity and their interaction rules allow it. Base capacity never exceeds 3; the Part B Resonant Overflow exception is not a generic fourth slot and only supports a valid Gem-Anchored Enchantment.
+Multiple direct/pure Enchantments may coexist when total Base Slot cost fits capacity and their interaction rules allow it. Base capacity never exceeds 3. Gem-Anchored Enchantments are validated separately through Enchantment Gem Sockets under Part C.
 
 ## 2. Naming and player knowledge
 
@@ -62,9 +62,7 @@ Baseline identification thresholds:
 | II | 28 |
 | III | 34 |
 
-`Identify` reveals ordinary Enchantment identity without requiring the Arcana TH.
-
-Curse detection is separate from ordinary Enchantment identification.
+`Identify` reveals ordinary Enchantment identity without requiring the Arcana TH. If the Item is cursed, Identify may reveal that the Item is **Cursed**, but it does **not** reveal the hidden Curse drawback/effect description. The Curse detail remains on its dedicated Curse-reading path and stays obfuscated until understood.
 
 ## 3. Magic Item versus Magic Hit
 
@@ -169,14 +167,20 @@ Magical Labor
 
 The economy must continue to use the existing AHN salary/value scale and must not silently apply normal Shop purchase markup a second time to a service.
 
-### Failure baseline
+### Outcome baseline
 
-- Margin >= 0 -> success.
-- Margin -1 to -3 -> attempt fails; attempt materials are consumed; previous Enchantment remains.
-- Margin -4 to -7 -> serious failure; materials are consumed; Magical Durability is damaged; previous Enchantment remains.
-- Margin <= -8 -> Arcane Backlash; materials are consumed; severe Magical Durability damage; previous Enchantment remains; individual Enchantments may author additional backlash consequences.
+Player self-enchanting Checks resolve **control/deviation**, not a mundane binary success/failure.
 
-A Curse is not automatically created by every failed Enchantment attempt. Only content that explicitly authors curse/backlash behavior may do so.
+- Margin >= 0 -> intended/controlled result.
+- Margin -1 to -3 -> minor altered/abstract result from the authored outcome pool.
+- Margin -4 to -7 -> major magical deviation; Gem Anchor or Magical Durability may be damaged/depleted and the result may gain an unintended property.
+- Margin <= -8 -> Arcane Backlash; severe authored deviation may include Curse, accidental Bind, Anchor loss/depletion or other recipe-defined consequences.
+
+Ritual-consumed materials remain consumed once the attempt begins according to Part B. Recoverable/unconsumed Items are handled by the service contract in Part C.
+
+A Curse is not automatic on every negative margin. Only authored instability/backlash outcomes may create one.
+
+NPC Enchanter services do not roll this Player-style Check; Part C uses provider reliability/specialization and controlled-outcome probability instead.
 
 ## 7. Enchantment interactions
 
@@ -224,25 +228,21 @@ Material/reagent requirements for actually creating the Enchantment are handled 
 
 ## 9. Physical and Magical Durability
 
-The first Enchantment converts the Item's maintenance model into a split physical/magical structure while preserving the same total Max Durability.
+Part C supersedes the earlier 50/50 split model.
 
-Example for a 100 Max Durability Item:
+Enchanting an Item does **not** reduce or divide its existing Physical Durability.
 
-```text
-Physical Durability  50 / 50
-Magical Durability   50 / 50
-Total                100 / 100
-```
+The Item keeps its normal Physical Durability and gains a separate **Magical Durability / magical-power integrity** resource.
 
-Additional Enchantments do not divide the Item again.
+- Physical Durability tracks the mundane/mechanical body of the Item.
+- Magical Durability tracks the usable integrity/charge of its Enchantment.
+- active and passive Enchantments may spend Magical Durability according to their authored behavior;
+- Gem-Anchored Enchantments generally support more Magical Durability than equivalent direct/pure Item Enchantments;
+- where magic is the protective/consumed layer, magical wear is resolved before ordinary physical wear.
 
-Physical damage is repaired by the appropriate physical specialist (Blacksmith/Armorer/etc.).
+At zero Magical Durability, the Enchantment is depleted/inactive rather than permanently erased. It may be repaired/recharged by the appropriate magical service. Player self-repair materials remain deferred to the **Magic Loot Update**.
 
-Magical damage is repaired by an Enchanter.
-
-A fully damaged enchanted Item may therefore require both forms of maintenance. This follows the same product philosophy used by mechanically modified equipment, where nonstandard subsystems require their appropriate specialist.
-
-Player self-repair of magical damage requires special magical tools/items and is deferred to the **Magic Loot Update** content pass.
+Bound Enchantments do not discharge through the normal Magical Durability cycle, although the physical Item itself can still be damaged or destroyed.
 
 ## 10. Removal, replacement, Bind and Curse
 
@@ -255,6 +255,8 @@ Normal removable Enchantments may be removed/replaced through the Enchanter serv
 - Bind is not shown in the Item's display name.
 - A Bound Enchantment remains upgradable.
 - A Bound Enchantment cannot be removed/replaced/transferred through the normal Enchanter procedure.
+- A Bound Enchantment does not discharge through the normal Magical Durability cycle.
+- A Bound Gem Anchor is permanent to the Item under normal gameplay; attempting to remove that Bound Gem Anchor destroys the Item.
 - Bind increases the positive authored Enchantment effect by **25% (x1.25)**.
 - The x1.25 applies to the authored effect, not automatically to weapon damage.
 
@@ -319,11 +321,9 @@ magic: {
       rank: 1
     }
   ],
-  durability: {
-    physicalMax: 50,
-    physicalCurrent: 50,
-    magicalMax: 50,
-    magicalCurrent: 47
+  magicalDurability: {
+    max: 50,
+    current: 47
   }
 }
 ```
@@ -345,7 +345,7 @@ Effect values, interaction rules, Magic Hit grants, Bind/Curse modifiers and aut
 
 - [ ] Implement canonical Tier I-V Enchantment Slot capacity.
 - [ ] Implement Rank I/II/III slot consumption.
-- [ ] Enforce hard maximum of 3 Base Slots plus the Part B max +1 Resonant Overflow exception.
+- [ ] Enforce hard maximum of 3 Base Slots for direct/pure Item Enchantments; validate Gem-Anchored capacity separately through Part C Gem Sockets.
 - [ ] Validate available capacity before application/strengthening.
 - [ ] Implement hard conflicts.
 - [ ] Implement exclusive per-action channel conflicts.
@@ -355,7 +355,7 @@ Effect values, interaction rules, Magic Hit grants, Bind/Curse modifiers and aut
 
 - [ ] Add canonical `magic.enchantments[]` Item Instance state.
 - [ ] Add used/max Enchantment Slot state.
-- [ ] Split enchanted Item Durability into physical and magical halves on first Enchantment application without changing total Max Durability.
+- [ ] Preserve normal Physical Durability and add separate Magical Durability / magical-power integrity state.
 - [ ] Preserve enchantment state through inventory, stash, transfer, equip/unequip and save/load.
 - [ ] Prevent stack merging when magical state differs.
 - [ ] Keep player knowledge/identification state separate from Item truth.
