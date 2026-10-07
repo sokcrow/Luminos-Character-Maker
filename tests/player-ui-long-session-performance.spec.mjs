@@ -485,8 +485,15 @@ test("mobile Theatre renders live dialogue and sprites on the real player sheet"
     if (gate) gate.hidden = true;
   });
 
-  await page.locator("#btn-toggle-hud-menu").click();
-  await expect(page.locator(".hud-sidebar-right")).toHaveClass(/is-open/);
+  const ensureRailOpen = async () => {
+    const rail = page.locator(".hud-sidebar-right");
+    if (!(await rail.evaluate((node) => node.classList.contains("is-open")))) {
+      await page.locator("#btn-toggle-hud-menu").click();
+    }
+    await expect(rail).toHaveClass(/is-open/);
+  };
+
+  await ensureRailOpen();
 
   await page.locator('button[name="act_hud_stats"]').click();
   await expect(page.locator("#stats-modal")).toBeVisible();
@@ -521,8 +528,7 @@ test("mobile Theatre renders live dialogue and sprites on the real player sheet"
     await expect(page.locator(modalSelector)).toBeHidden();
   }
 
-  await page.locator("#btn-toggle-hud-menu").click();
-  await expect(page.locator(".hud-sidebar-right")).toHaveClass(/is-open/);
+  await ensureRailOpen();
   await page.locator("#btn-toggle-hud").click();
   await expect(page.locator("#player-combat-hud")).toBeVisible();
   const vitalsLayers = await page.evaluate(() => ({
@@ -533,15 +539,13 @@ test("mobile Theatre renders live dialogue and sprites on the real player sheet"
   await page.locator("#btn-toggle-hud").click();
   await expect(page.locator("#player-combat-hud")).toBeHidden();
 
-  await page.locator("#btn-toggle-hud-menu").click();
-  await expect(page.locator(".hud-sidebar-right")).toHaveClass(/is-open/);
+  await ensureRailOpen();
   await page.locator("#btn-toggle-theatre-log-player").click();
   await expect(page.locator("#theatre-log-container")).toHaveClass(/open/);
   await page.locator("#btn-toggle-theatre-log-player").click();
   await expect(page.locator("#theatre-log-container")).not.toHaveClass(/open/);
 
-  await page.locator("#btn-toggle-hud-menu").click();
-  await expect(page.locator(".hud-sidebar-right")).toHaveClass(/is-open/);
+  await ensureRailOpen();
 
   await page.locator("#btn-global-inventory").click();
   await expect(page.locator("#inventory-modal")).toHaveClass(/active/);
