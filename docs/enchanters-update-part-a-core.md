@@ -250,12 +250,12 @@ Normal removable Enchantments may be removed/replaced through the Enchanter serv
 
 ### Bind
 
-`bind` is an Enchantment property.
+`bind` is a **Curse-family Enchantment state**. It may occur accidentally or be deliberately authored, but it carries attachment/attunement costs in exchange for unusually persistent magic.
 
-- Bind is not shown in the Item's display name.
+- Bind is not shown in the ordinary Item display name until the relevant Curse/Bind knowledge is revealed.
 - A Bound Enchantment remains upgradable.
 - A Bound Enchantment cannot be removed/replaced/transferred through the normal Enchanter procedure.
-- A Bound Enchantment does not discharge through the normal Magical Durability cycle.
+- A Bound Enchantment ignores ordinary/background Magical Durability wear. Special activated powers may still spend their authored magical resource; Part D defines faster recharge and life/HP-backed emergency refill at zero.
 - A Bound Gem Anchor is permanent to the Item under normal gameplay; attempting to remove that Bound Gem Anchor destroys the Item.
 - Bind increases the positive authored Enchantment effect by **25% (x1.25)**.
 - The x1.25 applies to the authored effect, not automatically to weapon damage.
@@ -296,7 +296,7 @@ Cursed market value = clean equivalent market value x0.60
 
 This market discount does **not** reduce the actual magical labor/material cost required to create the effect.
 
-Curse detection and Curse identification should remain separate states so the game may reveal that an Item is cursed before revealing the complete curse behavior.
+Curse detection and Curse identification should remain separate states so the game may reveal that an Item is cursed before revealing the complete curse behavior. Part D classifies Bind as a special Curse-family state and distinguishes normal Curse, Bound Curse and inseparable Relic drawback.
 
 ## 11. Instance representation
 
