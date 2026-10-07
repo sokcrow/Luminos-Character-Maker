@@ -6,37 +6,86 @@ The Enchanter's Update is responsible for **authoring, validating, applying, rem
 
 Random magical drops, random affix rolls, cursed random loot and artifact generation remain outside this update and belong to a later **Magic Loot Update**.
 
+
+## Part A — Enchantment Core (design frozen)
+
+Canonical contract: [`docs/enchanters-update-part-a-core.md`](./enchanters-update-part-a-core.md)
+
+Design decisions are marked complete here; implementation remains open.
+
+### Frozen design decisions
+
+- [x] Item Tier capacity is fixed at Tier I = 0, Tier II = 1, Tier III = 1, Tier IV = 2, Tier V = 3 Enchantment Slots.
+- [x] Hard maximum is 3 Enchantment Slots.
+- [x] Rank I/II/III normally consumes 1/2/3 slots respectively.
+- [x] Multiple compatible Enchantments may coexist while total slot use fits capacity.
+- [x] Unknown magic equipment uses generic naming such as `Enchanted Longsword`.
+- [x] Identified named Enchantments use naming such as `Flamebound Longsword`; Rank is shown in details, not as a `+N` suffix.
+- [x] Arcana identification baseline is TH 22 / 28 / 34 for Rank I / II / III.
+- [x] `Identify` reveals ordinary Enchantment identity; Curse detection remains separate.
+- [x] Unread magical inscriptions use rune-style obfuscation without treating Arcane script as a spoken language.
+- [x] Every enchanted Item is a Magic Item, but Magic Hit is an independently authored Enchantment property.
+- [x] Magic Hit is the bypass used against defenses that reduce compatible Non-Magic Hit Ranged/Melee damage to 50%.
+- [x] Damage-focused Rank baseline is +10% / +15% / +25%.
+- [x] Optional secondary damage baseline is +4% / +8% / +18% and is never automatic.
+- [x] Enchantment effects resolve like equipment-bound Traits from canonical definitions.
+- [x] Strengthening uses TH 22 / 28 / 34 with sharply increasing labor/material cost.
+- [x] Baseline magical labor floors are 750k / 2.5m / 7.5m AHN and Rank factors x0.75 / x1.50 / x3.00 against `enchantmentBaseValueAhn`.
+- [x] Failed strengthening preserves the previous Enchantment; worse margins consume materials and damage Magical Durability according to the Part A contract.
+- [x] Interaction model supports hard conflicts plus mutually exclusive per-action channels where the wielder chooses which compatible property to use.
+- [x] Incompatible materials double Magical Durability wear rather than automatically making the Enchantment impossible.
+- [x] First Enchantment splits maintenance into 50% Physical Durability / 50% Magical Durability without changing total Max Durability.
+- [x] Physical damage and magical damage require their appropriate specialists; one repair path cannot silently restore the other half.
+- [x] `bind` is a property: hidden from naming, x1.25 positive effect, upgradable, and not normally removable/replaced/transferred.
+- [x] `curse` is hidden until detected, x1.50 positive effect, can strengthen, may scale penalties, and has lower market value than the clean equivalent.
+- [x] Initial cursed market baseline is x0.60 of the clean equivalent; creation/service cost is not discounted by that market penalty.
+- [x] Item Instances persist stable Enchantment IDs/Ranks/state while canonical definitions remain effect authority.
+
+### Part A implementation gate
+
+- [ ] Add canonical Enchantment catalog/schema.
+- [ ] Add Enchantment engine/runtime.
+- [ ] Add Tier/Rank slot validation and conflict/channel resolution.
+- [ ] Add Item Instance persistence/hydration for enchantments and split Durability.
+- [ ] Add Arcana/Identify/Curse knowledge resolution and rune-obfuscated display.
+- [ ] Add Magic Item vs Magic Hit combat bridge.
+- [ ] Add equipment-Trait effect resolution and authored damage/buff support.
+- [ ] Add strengthening TH, AHN/material economy and failure resolution.
+- [ ] Add Bind and Curse runtime behavior.
+- [ ] Add physical/magical repair authority.
+- [ ] Add regression/smoke tests and CI path coverage.
+
 ## 1. Scope and hard rules
 
-- [ ] Keep Enchanter's Update separate from Magic Loot random generation.
-- [ ] Apply enchantments to Item Instances, not by mutating canonical Item definitions.
-- [ ] Preserve the original Item definition as the non-magical source of truth.
-- [ ] Keep every applied enchantment traceable to a canonical Enchantment definition ID.
+- [x] Keep Enchanter's Update separate from Magic Loot random generation.
+- [x] Apply enchantments to Item Instances, not by mutating canonical Item definitions.
+- [x] Preserve the original Item definition as the non-magical source of truth.
+- [x] Keep every applied enchantment traceable to a canonical Enchantment definition ID.
 - [ ] Make enchantment state persist through inventory, stash, transfer and equipment flows.
 - [ ] Do not allow client UI to invent enchantments that the canonical registry does not contain.
-- [ ] Keep player-facing UI free of debug-only controls/data.
-- [ ] Reserve an integration seam for a future Magic Loot Provider without implementing random magic loot now.
+- [x] Keep player-facing UI free of debug-only controls/data.
+- [x] Reserve an integration seam for a future Magic Loot Provider without implementing random magic loot now.
 
 ## 2. Canonical Enchantment definition contract
 
 - [ ] Create a canonical Enchantment registry/runtime.
-- [ ] Give every Enchantment a stable internal ID.
-- [ ] Store player-facing name and description separately from internal IDs.
-- [ ] Define Enchantment tier/power level.
+- [x] Give every Enchantment a stable internal ID.
+- [x] Store player-facing name and description separately from internal IDs.
+- [x] Define Enchantment tier/power level.
 - [ ] Define Enchantment tags/categories.
 - [ ] Define eligible Item families/categories/types.
 - [ ] Define explicit ineligible Item families/categories/types.
 - [ ] Define allowed equipment slots where relevant.
-- [ ] Define conflict/exclusion groups.
-- [ ] Define stacking policy.
+- [x] Define conflict/exclusion groups.
+- [x] Define stacking policy.
 - [ ] Define maximum copies per Item.
-- [ ] Define whether the Enchantment is permanent, removable or replaceable.
+- [x] Define whether the Enchantment is permanent, removable or replaceable.
 - [ ] Define charges/uses when an Enchantment is charge-based.
 - [ ] Define activation trigger when an Enchantment is conditional.
-- [ ] Define canonical effect payloads without arbitrary eval/script execution.
+- [x] Define canonical effect payloads without arbitrary eval/script execution.
 - [ ] Define canonical icon/visual metadata.
 - [ ] Define economy metadata: AHN cost/value contribution.
-- [ ] Define material/reagent requirements.
+- [x] Define material/reagent requirements.
 - [ ] Validate malformed Enchantment definitions before runtime use.
 
 ## 3. Item Instance integration
@@ -57,9 +106,9 @@ Random magical drops, random affix rolls, cursed random loot and artifact genera
 
 ## 4. Enchantment capacity / slots
 
-- [ ] Define how many Enchantments an Item can support.
+- [x] Define how many Enchantments an Item can support.
 - [ ] Allow Item definitions to override default enchantment capacity.
-- [ ] Support zero-capacity Items.
+- [x] Support zero-capacity Items.
 - [ ] Support Item-family defaults for enchantment capacity.
 - [ ] Validate slot/capacity before application.
 - [ ] Prevent applying more Enchantments than allowed.
@@ -195,8 +244,8 @@ Random magical drops, random affix rolls, cursed random loot and artifact genera
 
 - [ ] Display known Enchantments on Item details.
 - [ ] Keep internal IDs separate from player-facing names.
-- [ ] Define whether Enchantments can be hidden/unidentified.
-- [ ] If hidden Enchantments are supported, store knowledge separately from Item truth.
+- [x] Define whether Enchantments can be hidden/unidentified.
+- [x] If hidden Enchantments are supported, store knowledge separately from Item truth.
 - [ ] Ensure sharing/trading an Item does not automatically leak hidden metadata unless rules allow it.
 - [ ] Integrate identified Enchantment knowledge with Compendium/knowledge systems only where useful.
 
@@ -220,11 +269,11 @@ Random magical drops, random affix rolls, cursed random loot and artifact genera
 
 ## 16. Explicitly deferred to Magic Loot Update
 
-- [ ] RANDOM MAGIC LOOT — intentionally deferred.
-- [ ] Random Enchantment/Affix rolls on enemy drops — intentionally deferred.
-- [ ] Random magical rarity generation — intentionally deferred.
-- [ ] Random cursed Item generation — intentionally deferred.
-- [ ] Artifact/random legendary property generation — intentionally deferred.
-- [ ] Random magic-loot tables/pools — intentionally deferred.
-- [ ] Zone/Event-driven random magical drop generation — intentionally deferred.
+- [x] RANDOM MAGIC LOOT — intentionally deferred.
+- [x] Random Enchantment/Affix rolls on enemy drops — intentionally deferred.
+- [x] Random magical rarity generation — intentionally deferred.
+- [x] Random cursed Item generation — intentionally deferred.
+- [x] Artifact/random legendary property generation — intentionally deferred.
+- [x] Random magic-loot tables/pools — intentionally deferred.
+- [x] Zone/Event-driven random magical drop generation — intentionally deferred.
 - [ ] Connect a future Magic Loot Provider only after the Enchanter core is stable.
