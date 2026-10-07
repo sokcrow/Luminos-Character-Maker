@@ -379,9 +379,11 @@
     const details = item.consumable_details || {};
     const effects = runtime.effects && typeof runtime.effects === "object" ? runtime.effects : {};
     const treatment = runtime.injuryTreatment || runtime.injury_treatment || details.injury_treatment || null;
+    const magicalFoodExpiresAt = numberOr(runtime.magicalFoodExpiresAt ?? runtime.magical_food_expires_at ?? item.magicalFoodExpiresAt ?? item.customData?.goodMagicDish?.expiresAt, 0);
+    const magicalFoodExpired = magicalFoodExpiresAt > 0 && Date.now() >= magicalFoodExpiresAt;
     return {
       hp: numberOr(effects.hpRestore ?? effects.hp_restore ?? runtime.hpRestore ?? runtime.hp_restore ?? details.curacion_hp, 0),
-      hpHealing: clone(runtime.healing || runtime.hybridHealing?.hp || null),
+      hpHealing: magicalFoodExpired ? null : clone(runtime.healing || runtime.hybridHealing?.hp || null),
       sp: numberOr(effects.spRestore ?? effects.sp_restore ?? runtime.spRestore ?? runtime.sp_restore ?? details.curacion_sp, 0),
       statusAdjustments: clone(effects.statusAdjustments || effects.status_adjustments || runtime.statusCure?.statusAdjustments || runtime.status_cure?.status_adjustments || []),
       statusId: effects.statusId || effects.status_id || runtime.statusId || runtime.status_id || details.status_id || null,
