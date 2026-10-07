@@ -1249,6 +1249,265 @@
     return { resolved: true, action };
   }
 
+  const FIND_FAMILIAR_FORM_ALIASES = Object.freeze({
+    bat: Object.freeze(["bat", "murcielago"]),
+    cat: Object.freeze(["cat", "gato", "gata"]),
+    crab: Object.freeze(["crab", "cangrejo"]),
+    frog: Object.freeze(["frog", "toad", "rana", "sapo"]),
+    hawk: Object.freeze(["hawk", "halcon"]),
+    lizard: Object.freeze(["lizard", "lagarto"]),
+    octopus: Object.freeze(["octopus", "pulpo"]),
+    owl: Object.freeze(["owl", "buho", "lechuza"]),
+    poisonous_snake: Object.freeze(["poisonous_snake", "snake", "serpiente", "serpiente_venenosa"]),
+    fish: Object.freeze(["fish", "quipper", "pez"]),
+    rat: Object.freeze(["rat", "rata"]),
+    raven: Object.freeze(["raven", "cuervo"]),
+    sea_horse: Object.freeze(["sea_horse", "seahorse", "caballito_de_mar"]),
+    spider: Object.freeze(["spider", "arana"]),
+    weasel: Object.freeze(["weasel", "comadreja"])
+  });
+  const FIND_FAMILIAR_SPIRIT_TYPES = Object.freeze(["celestial", "fey", "fiend"]);
+
+  function unitLibrarySources(options = {}) {
+    const sources = [
+      options.unitLibrary,
+      global.LuminousCombatUnitLibrarySync?.state?.remoteCampaignUnits,
+      global.LuminousCombatUnitLibrarySync?.state?.localUnits,
+      global.LuminousCombatDmSetup073?.state?.units,
+      global.LuminousDmCombatTabManager?.state?.units,
+      global.LuminousBattleViewerEncounterSetup074?.state?.units
+    ].filter((value) => value && typeof value === "object");
+    return Object.assign({}, ...sources.map((value) => clone(value) || {}));
+  }
+
+  function familiarFormFor(unitLibraryId, definition = {}) {
+    const explicit = normalizeId(
+      definition.familiarForm
+      || definition.familiar_form
+      || definition.metadata?.familiarForm
+      || definition.metadata?.familiar_form
+      || ""
+    );
+    if (explicit && FIND_FAMILIAR_FORM_ALIASES[explicit]) return explicit;
+
+    const haystack = normalizeId([
+      unitLibraryId,
+      definition.id,
+      definition.name,
+      definition.nombre,
+      definition.displayName,
+      definition.species,
+      definition.family,
+      definition.creatureName
+    ].filter(Boolean).join(" "));
+
+    for (const [form, aliases] of Object.entries(FIND_FAMILIAR_FORM_ALIASES)) {
+      if (aliases.some((alias) => haystack.includes(normalizeId(alias)))) return form;
+    }
+    return null;
+  }
+
+  function familiarChallengeRating(definition = {}) {
+    const raw = definition.challengeRating
+      ?? definition.challenge_rating
+      ?? definition.cr
+      ?? definition.mechanics?.challengeRating
+      ?? definition.mechanics?.cr
+      ?? null;
+    if (raw == null || raw === "") return null;
+    const text = String(raw).trim();
+    if (/^0(?:\.0+)?$/.test(text)) return 0;
+    const fraction = text.match(/^(\d+)\s*\/\s*(\d+)$/);
+    if (fraction && Number(fraction[2]) !== 0) return Number(fraction[1]) / Number(fraction[2]);
+    return Number.isFinite(Number(raw)) ? Number(raw) : null;
+  }
+
+  function isFindFamiliarLibraryUnit(unitLibraryId, definition = {}) {
+    if (!definition || typeof definition !== "object" || definition.isPlayer === true) return false;
+    if (definition.metadata?.findFamiliar === false || definition.findFamiliar === false) return false;
+    if (definition.metadata?.findFamiliar === true || definition.findFamiliar === true || definition.familiarEligible === true) return true;
+    const form = familiarFormFor(unitLibraryId, definition);
+    if (!form) return false;
+    const cr = familiarChallengeRating(definition);
+    return cr == null || cr <= 0;
+  }
+
+  function findFamiliarChoices(unitLibraryInput = null, options = {}) {
+    const library = unitLibraryInput && typeof unitLibraryInput === "object"
+      ? unitLibraryInput
+      : unitLibrarySources(options);
+    const requestedForm = normalizeId(options.form || "");
+    return Object.entries(library || {})
+      .filter(([id, definition]) => isFindFamiliarLibraryUnit(id, definition))
+      .map(([id, definition]) => ({
+        unitId: String(id),
+        form: familiarFormFor(id, definition) || normalizeId(definition.metadata?.familiarForm || "familiar"),
+        name: definition.name || definition.nombre || definition.displayName || id,
+        sprite: definition.combatSprite || definition.sprite_combate || definition.combatVisual?.spriteUrl || definition.visual?.spriteUrl || definition.img || null
+      }))
+      .filter((row) => !requestedForm || row.form === requestedForm)
+      .sort((a, b) => a.form.localeCompare(b.form) || String(a.name).localeCompare(String(b.name)));
+  }
+
+  function findFamiliarDefinition(unitLibraryId, options = {}) {
+    const id = String(unitLibraryId || "").trim();
+    if (!id) return { ok: false, reason: "familiar_unit_required", unitId: null, definition: null };
+    const library = unitLibrarySources(options);
+    const definition = library[id] || null;
+    if (!definition) return { ok: false, reason: "familiar_unit_not_found", unitId: id, definition: null };
+    if (!isFindFamiliarLibraryUnit(id, definition)) return { ok: false, reason: "unit_not_valid_familiar", unitId: id, definition: null };
+    return { ok: true, reason: null, unitId: id, definition: clone(definition), form: familiarFormFor(id, definition) };
+  }
+
+  function findFamiliarCombatPool(context = {}) {
+    if (context.combatData && typeof context.combatData === "object" && !Array.isArray(context.combatData)) return context.combatData;
+    if (context.combatants && typeof context.combatants === "object" && !Array.isArray(context.combatants)) return context.combatants;
+    if (global.combatData && typeof global.combatData === "object") return global.combatData;
+    return null;
+  }
+
+  function removeFamiliarFromCombat(familiar, context = {}) {
+    const id = unitId(familiar);
+    const pool = findFamiliarCombatPool(context);
+    if (pool && id && pool[id]) delete pool[id];
+    if (Array.isArray(context.units)) {
+      const index = context.units.findIndex((unit) => unitId(unit) === id);
+      if (index >= 0) context.units.splice(index, 1);
+    }
+    return true;
+  }
+
+  function addFamiliarToCombat(familiar, context = {}) {
+    const id = unitId(familiar);
+    const pool = findFamiliarCombatPool(context);
+    if (pool && id) pool[id] = familiar;
+    if (Array.isArray(context.units) && id && !context.units.some((unit) => unitId(unit) === id)) context.units.push(familiar);
+    return familiar;
+  }
+
+  function dismissFindFamiliar(caster, options = {}) {
+    const familiar = caster?.__luminousFindFamiliar || null;
+    if (!familiar) return { resolved: false, reason: "familiar_missing" };
+    removeFamiliarFromCombat(familiar, options.context || {});
+    if (options.permanent === true) {
+      familiar.__despawned = true;
+      delete caster.__luminousFindFamiliar;
+      if (caster.__luminousSpellEntities?.find_familiar) delete caster.__luminousSpellEntities.find_familiar;
+      return { resolved: true, permanent: true, familiarId: unitId(familiar) };
+    }
+    familiar.__luminousDismissed = true;
+    return { resolved: true, permanent: false, familiarId: unitId(familiar) };
+  }
+
+  function recallFindFamiliar(caster, options = {}) {
+    const familiar = caster?.__luminousFindFamiliar || null;
+    if (!familiar || familiar.__despawned) return { resolved: false, reason: "familiar_missing" };
+    familiar.__luminousDismissed = false;
+    addFamiliarToCombat(familiar, options.context || {});
+    return { resolved: true, familiar };
+  }
+
+  function summonFindFamiliar(caster, options = {}) {
+    if (!caster || typeof caster !== "object") return { resolved: false, reason: "caster_required" };
+    const selected = findFamiliarDefinition(options.unitId || options.familiarUnitId, options);
+    if (!selected.ok) return { resolved: false, reason: selected.reason, choices: findFamiliarChoices(null, options) };
+
+    const spiritType = normalizeId(options.spiritType || "fey");
+    if (!FIND_FAMILIAR_SPIRIT_TYPES.includes(spiritType)) return { resolved: false, reason: "invalid_familiar_spirit_type" };
+
+    if (caster.__luminousFindFamiliar) dismissFindFamiliar(caster, { permanent: true, context: options.context || {} });
+
+    const instantiator = global.LuminousUnitCombatInstantiator
+      || (typeof require === "function" ? (() => { try { return require("./unit-combat-instantiator.js"); } catch (_) { return null; } })() : null);
+    const casterId = unitId(caster) || "caster";
+    const faction = normalizeId(caster.faction || caster.faccion || caster.side || caster.team).includes("enemy") ? "enemy" : "ally";
+    const serial = String(options.serial || `find_familiar_${Date.now().toString(36)}`);
+    let familiar = instantiator?.instantiate
+      ? instantiator.instantiate(selected.unitId, selected.definition, { faction, serial, initializeEncounter: true })
+      : { ...clone(selected.definition), id: `summon:find_familiar:${casterId}:${normalizeId(selected.unitId)}` };
+
+    familiar.sourceSpellId = "find_familiar";
+    familiar.summonerId = casterId;
+    familiar.summonerLevel = Math.max(1, Math.trunc(numberOr(caster.level ?? caster.characterBuild?.calculatedAtLevel, 1)));
+    familiar.summonerSpellMod = numberOr(options.spellMod ?? caster.spellMod ?? caster.spellcastingModifier, 0);
+    familiar.libraryUnitId = selected.unitId;
+    familiar.unitRef = { scope: "units", id: selected.unitId };
+    familiar.isSummon = true;
+    familiar.isFamiliar = true;
+    familiar.targetable = true;
+    familiar.familiarForm = selected.form;
+    familiar.familiarSpiritType = spiritType;
+    familiar.familiarCanAttack = false;
+    familiar.canAttack = false;
+    familiar.concentrationBound = false;
+    familiar.__luminousDismissed = false;
+    familiar.__despawned = false;
+
+    // Find Familiar uses the chosen Unit Library statblock/visuals, but never its Attack Skills.
+    familiar.familiarOriginalSkillIds = clone(familiar.skillIds || familiar.skillSlotIds || familiar.action_slots || []);
+    familiar.skillIds = [];
+    familiar.skillSlotIds = [];
+    familiar.action_slots = [];
+    familiar.equippedSkillIndex = {};
+    if (Array.isArray(familiar.skills)) familiar.skills = [];
+
+    if (!caster.__luminousSpellEntities || typeof caster.__luminousSpellEntities !== "object") caster.__luminousSpellEntities = {};
+    caster.__luminousFindFamiliar = familiar;
+    caster.__luminousSpellEntities.find_familiar = familiar;
+    addFamiliarToCombat(familiar, options.context || {});
+    return {
+      resolved: true,
+      familiar,
+      unitId: selected.unitId,
+      form: selected.form,
+      spiritType,
+      usedUnitLibraryStats: true
+    };
+  }
+
+  function findFamiliarState(caster) {
+    const familiar = caster?.__luminousFindFamiliar || null;
+    if (!familiar || familiar.__despawned) return null;
+    return {
+      familiarId: unitId(familiar),
+      unitId: familiar.libraryUnitId || null,
+      form: familiar.familiarForm || null,
+      spiritType: familiar.familiarSpiritType || null,
+      dismissed: familiar.__luminousDismissed === true
+    };
+  }
+
+  function useFamiliarSenses(caster, options = {}) {
+    const familiar = caster?.__luminousFindFamiliar || null;
+    if (!familiar || familiar.__despawned || familiar.__luminousDismissed) return { resolved: false, reason: "familiar_unavailable" };
+    const distanceFeet = options.distanceFeet == null ? null : numberOr(options.distanceFeet, Infinity);
+    if (distanceFeet != null && distanceFeet > 100) return { resolved: false, reason: "familiar_out_of_range" };
+    caster.__luminousFamiliarSenses = {
+      familiarId: unitId(familiar),
+      economy: "quick_action",
+      expires: "next_turn_start"
+    };
+    return { resolved: true, familiarId: unitId(familiar), economy: "quick_action", expires: "next_turn_start" };
+  }
+
+  function deliverTouchSpellThroughFamiliar(caster, spell = {}, options = {}) {
+    const familiar = caster?.__luminousFindFamiliar || null;
+    if (!familiar || familiar.__despawned || familiar.__luminousDismissed) return { resolved: false, reason: "familiar_unavailable" };
+    const targetType = normalizeId(spell.targetType || spell.target_type || spell.rangeType || spell.range_type || "");
+    if (!["touch", "touch_spell"].includes(targetType)) return { resolved: false, reason: "touch_spell_required" };
+    const distanceFeet = options.distanceFeet == null ? null : numberOr(options.distanceFeet, Infinity);
+    if (distanceFeet != null && distanceFeet > 100) return { resolved: false, reason: "familiar_out_of_range" };
+    return {
+      resolved: true,
+      originUnitId: unitId(familiar),
+      casterUnitId: unitId(caster),
+      familiarReactionRequired: true,
+      preserveCasterSpellPower: true,
+      preserveCasterSpellDc: true,
+      preserveCasterResources: true
+    };
+  }
+
   function effectHandlers() {
     return {
       level1_alarm({ actor, effect, action } = {}) {
@@ -1287,6 +1546,16 @@
       },
       level1_entangle_area({ actor, targets = [] } = {}) {
         return createEntangleArea(actor, targets);
+      },
+      level1_find_familiar({ actor, action = {}, effect = {}, context = {} } = {}) {
+        const plan = action?.metadata?.viewerPlan?.findFamiliar || action?.metadata?.findFamiliar || effect?.findFamiliar || {};
+        return summonFindFamiliar(actor, {
+          ...plan,
+          unitId: plan.unitId || plan.familiarUnitId,
+          spiritType: plan.spiritType || "fey",
+          spellMod: action?.metadata?.spellMod,
+          context
+        });
       },
       level1_find_familiar({ actor, action = {}, effect = {}, context = {} } = {}) {
         const plan = action?.metadata?.viewerPlan || {};
@@ -1348,6 +1617,19 @@
     applyEnsnaringTurnStart,
     createEntangleArea,
     entangleAreaForUnit,
+    FIND_FAMILIAR_FORM_ALIASES,
+    FIND_FAMILIAR_SPIRIT_TYPES,
+    unitLibrarySources,
+    familiarFormFor,
+    isFindFamiliarLibraryUnit,
+    findFamiliarChoices,
+    findFamiliarDefinition,
+    summonFindFamiliar,
+    findFamiliarState,
+    dismissFindFamiliar,
+    recallFindFamiliar,
+    useFamiliarSenses,
+    deliverTouchSpellThroughFamiliar,
     FIND_FAMILIAR_FORMS,
     familiarForm,
     listFindFamiliarOptions,
