@@ -488,7 +488,28 @@ test("mobile Theatre renders live dialogue and sprites on the real player sheet"
   await page.locator("#btn-toggle-hud-menu").click({ force: true });
   await expect(page.locator(".hud-sidebar-right")).toHaveClass(/is-open/);
 
+  const hudRuntimeBefore = await page.evaluate(() => ({
+    runtime: Boolean(window.LuminousPlayerHudNavigation),
+    state: document.querySelector(".sheet-state-hud-modal")?.value || "",
+    modalClass: document.getElementById("stats-modal")?.className || "",
+    modalInlineDisplay: document.getElementById("stats-modal")?.style.display || "",
+    modalComputedDisplay: getComputedStyle(document.getElementById("stats-modal")).display
+  }));
+  console.log("HUD_RUNTIME_BEFORE", JSON.stringify(hudRuntimeBefore));
+
   await page.locator('button[name="act_hud_stats"]').click({ force: true });
+
+  const hudRuntimeAfter = await page.evaluate(() => ({
+    runtime: Boolean(window.LuminousPlayerHudNavigation),
+    state: document.querySelector(".sheet-state-hud-modal")?.value || "",
+    modalClass: document.getElementById("stats-modal")?.className || "",
+    modalInlineDisplay: document.getElementById("stats-modal")?.style.display || "",
+    modalComputedDisplay: getComputedStyle(document.getElementById("stats-modal")).display,
+    modalVisibility: getComputedStyle(document.getElementById("stats-modal")).visibility,
+    modalOpacity: getComputedStyle(document.getElementById("stats-modal")).opacity
+  }));
+  console.log("HUD_RUNTIME_AFTER", JSON.stringify(hudRuntimeAfter));
+
   await expect(page.locator("#stats-modal")).toBeVisible();
   const statsLayers = await page.evaluate(() => ({
     theatre: Number.parseInt(getComputedStyle(document.getElementById("theatre-view-player")).zIndex || "0", 10) || 0,
