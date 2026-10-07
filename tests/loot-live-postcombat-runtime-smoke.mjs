@@ -451,7 +451,7 @@ const playerUi = fs.readFileSync(new URL("../js/player-postcombat-loot.js", impo
 const dmSetup = fs.readFileSync(new URL("../js/combat-v073-dm-setup.js", import.meta.url), "utf8");
 const dmConsole = fs.readFileSync(new URL("../js/battle-viewer-dm-console-074.js", import.meta.url), "utf8");
 assert.match(dmSetup, /ensureEncounterIdentity/);
-assert.match(dmSetup, /encounterId:\\s*null/);
+assert.match(dmSetup, /encounterId:\s*null/);
 assert.match(dmConsole, /finalizeEncounterLoot/);
 assert.match(dmConsole, /normalized === "victory"/);
 assert.match(battleHtml, /js\/loot-live-postcombat-runtime\.js/);
