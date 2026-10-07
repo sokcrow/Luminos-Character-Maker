@@ -69,7 +69,7 @@
     if (button.id === "btn-toggle-phone" || button.id === "btn-abrir-escritura") return false;
     return Boolean(
       button.matches(
-        "#btn-toggle-hud-menu, #btn-toggle-hud, #btn-global-inventory, #btn-toggle-theatre-log-player, button[name^='act_hud_']",
+        "#btn-toggle-hud-menu, #btn-toggle-hud, #btn-global-inventory, #btn-toggle-theatre-log-player, #btn-toggle-theatre-self-actor, button[name^='act_hud_']",
       ),
     );
   }
