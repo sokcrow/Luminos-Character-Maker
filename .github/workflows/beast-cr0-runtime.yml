@@ -10,6 +10,8 @@ on:
       - "js/combat-v073-speed-authority.js"
       - "js/unit-combat-instantiator.js"
       - "js/unit-combat-mechanics-runtime.js"
+      - "js/encounter-modifier-runtime.js"
+      - "js/environment-engine.js"
       - "js/status-engine.js"
       - "js/skill-catalog-beast-cr0.js"
       - "js/unit-catalog-beast-cr0.js"
@@ -19,6 +21,7 @@ on:
       - "tests/proficiency-runtime-smoke.mjs"
       - "tests/beast-cr0-catalog-smoke.mjs"
       - "tests/beast-mobility-runtime-smoke.mjs"
+      - "tests/encounter-modifier-web-smoke.mjs"
       - ".github/workflows/beast-cr0-runtime.yml"
 
 permissions:
@@ -42,6 +45,8 @@ jobs:
           node --check js/combat-v073-speed-authority.js
           node --check js/unit-combat-instantiator.js
           node --check js/unit-combat-mechanics-runtime.js
+          node --check js/encounter-modifier-runtime.js
+          node --check js/environment-engine.js
           node --check js/status-engine.js
           node --check js/skill-catalog-beast-cr0.js
           node --check js/unit-catalog-beast-cr0.js
@@ -51,3 +56,4 @@ jobs:
           node tests/proficiency-runtime-smoke.mjs
           node tests/beast-cr0-catalog-smoke.mjs
           node tests/beast-mobility-runtime-smoke.mjs
+          node tests/encounter-modifier-web-smoke.mjs
