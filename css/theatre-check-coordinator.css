@@ -172,6 +172,35 @@ body.theatre-check-active #coin-toss-panel{opacity:0!important;visibility:hidden
   body.player-instance-theatre .theatre-check-front-layer .theatre-opposed-compare strong{font-size:28px!important}
   body.player-instance-theatre .theatre-check-front-layer .theatre-opposed-compare>b{font-size:32px!important}
   body.player-instance-theatre .theatre-check-front-layer .theatre-opposed-status{min-height:20px!important;margin:4px 6px 5px!important;font-size:12px!important}
+  body.player-instance-theatre .theatre-check-front-layer .theatre-roll-result-card{
+    width:min(250px,42vw)!important;
+    padding:5px 9px 6px!important;
+  }
+  body.player-instance-theatre .theatre-check-front-layer .theatre-roll-result-card:nth-of-type(2){
+    top:calc(var(--theatre-player-menu-safe-top) + 64px)!important;
+  }
+  body.player-instance-theatre .theatre-check-front-layer .theatre-roll-result-card:nth-of-type(3){
+    top:calc(var(--theatre-player-menu-safe-top) + 128px)!important;
+  }
+  body.player-instance-theatre .theatre-check-front-layer .theatre-roll-result-name{
+    font-size:.72rem!important;
+    line-height:1!important;
+  }
+  body.player-instance-theatre .theatre-check-front-layer .theatre-roll-result-total{
+    margin-top:1px!important;
+    font-size:1.45rem!important;
+    line-height:.9!important;
+  }
+  body.player-instance-theatre .theatre-check-front-layer .theatre-roll-result-total::after{
+    margin-left:3px!important;
+    font-size:.45rem!important;
+  }
+  body.player-instance-theatre .theatre-check-front-layer .theatre-roll-result-outcome{
+    margin-top:2px!important;
+    padding-top:2px!important;
+    font-size:.55rem!important;
+    line-height:1.05!important;
+  }
 }
 
 @media(max-width:700px){.theatre-check-front-layer .theatre-check-hud{width:min(370px,90vw)!important}.theatre-check-player-notice,.theatre-check-command-prompt{right:10px;width:min(270px,74vw)}.theatre-check-compose-grid{grid-template-columns:1fr}.theatre-check-compose-grid .wide{grid-column:auto}.theatre-check-compose-actions{grid-template-columns:1fr 1fr}}
