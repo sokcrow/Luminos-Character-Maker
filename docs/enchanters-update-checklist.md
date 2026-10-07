@@ -16,7 +16,7 @@ Design decisions are marked complete here; implementation remains open.
 ### Frozen design decisions
 
 - [x] Item Tier capacity is fixed at Tier I = 0, Tier II = 1, Tier III = 1, Tier IV = 2, Tier V = 3 Enchantment Slots.
-- [x] Hard maximum is 3 Base Enchantment Slots; Part B permits at most +1 Resonant Overflow Slot sustained by a valid mounted Gem Anchor.
+- [x] Hard maximum is 3 Base Enchantment Slots for direct/pure Item Enchantments; physical Gem-Anchored Enchantments use a separate max-3 Enchantment Gem Socket track.
 - [x] Rank I/II/III normally consumes 1/2/3 slots respectively.
 - [x] Multiple compatible Enchantments may coexist while total slot use fits capacity.
 - [x] Unknown magic equipment uses generic naming such as `Enchanted Longsword`.
@@ -34,7 +34,7 @@ Design decisions are marked complete here; implementation remains open.
 - [x] Failed strengthening preserves the previous Enchantment; worse margins consume materials and damage Magical Durability according to the Part A contract.
 - [x] Interaction model supports hard conflicts plus mutually exclusive per-action channels where the wielder chooses which compatible property to use.
 - [x] Incompatible materials double Magical Durability wear rather than automatically making the Enchantment impossible.
-- [x] First Enchantment splits maintenance into 50% Physical Durability / 50% Magical Durability without changing total Max Durability.
+- [x] Enchanting preserves full Physical Durability and adds separate Magical Durability / magical-power integrity.
 - [x] Physical damage and magical damage require their appropriate specialists; one repair path cannot silently restore the other half.
 - [x] `bind` is a property: hidden from naming, x1.25 positive effect, upgradable, and not normally removable/replaced/transferred.
 - [x] `curse` is hidden until detected, x1.50 positive effect, can strengthen, may scale penalties, and has lower market value than the clean equivalent.
@@ -46,7 +46,7 @@ Design decisions are marked complete here; implementation remains open.
 - [ ] Add canonical Enchantment catalog/schema.
 - [ ] Add Enchantment engine/runtime.
 - [ ] Add Tier/Rank slot validation and conflict/channel resolution.
-- [ ] Add Item Instance persistence/hydration for enchantments and split Durability.
+- [ ] Add Item Instance persistence/hydration for enchantments plus separate Magical Durability.
 - [ ] Add Arcana/Identify/Curse knowledge resolution and rune-obfuscated display.
 - [ ] Add Magic Item vs Magic Hit combat bridge.
 - [ ] Add equipment-Trait effect resolution and authored damage/buff support.
@@ -78,9 +78,12 @@ Canonical contract: [`docs/enchanters-update-part-b-resonance.md`](./enchanters-
 - [x] Compatible Gem Anchor baseline stabilization is -2 TH.
 - [x] Gem Quality/specialization may improve the Item/Gem stabilization contribution until Rank I base TH 22 can reach TH 18.
 - [x] TH 18 is only the Item/Gem stabilization floor for that Rank-I example; proper tables, workshops, tools and facilities may reduce TH further.
-- [x] Base capacity remains max 3 slots, with at most +1 Resonant Overflow Slot.
-- [x] Resonant Overflow is not a generic fourth slot and may only sustain a valid Gem-Anchored Enchantment.
-- [x] If Gem Anchor support disappears and capacity is exceeded, dependent Enchantments become Dormant rather than being silently deleted.
+- [x] Base Enchantment Slots and Enchantment Gem Sockets are separate capacity tracks.
+- [x] Enchantment Gem Sockets have a hard maximum of 3 where the Item chassis supports them.
+- [x] One Gem Anchor occupies one Gem Socket and channels one Enchantment.
+- [x] Up to three Rank II Gem-Anchored Enchantments may coexist where all three sockets are valid.
+- [x] Only one Rank III Gem-Anchored Enchantment may exist on an Item.
+- [x] A fourth Enchantment Gem is catastrophic if forcibly attempted: the Item and prior Gem Anchors are destroyed and only the last inserted gem remains.
 - [x] Multiple conflicting elemental/branch Enchantments may coexist, but exclusive action channels require the wielder to choose which property participates in an action.
 - [x] Bind can occur accidentally or be intentionally attempted; intentional Bind initially adds +4 TH and retains the Part A x1.25 positive-effect modifier.
 - [x] Curse can occur through instability/backlash or be intentionally authored with profane/corrupted materials; intentional Curse initially adds +6 TH.
@@ -100,10 +103,78 @@ Canonical contract: [`docs/enchanters-update-part-b-resonance.md`](./enchanters-
 - [ ] Add Resonance Specialization versus Hybrid Resonance resolution.
 - [ ] Add compatible-gem/quality/specialization TH stabilization with Item/Gem cap.
 - [ ] Add external Enchantment Table / Arcane Workshop / tool modifier seam.
-- [ ] Add max +1 Resonant Overflow Slot validation and revalidation.
+- [ ] Add separate max-3 Enchantment Gem Socket validation, Rank II multi-anchor support, Rank III exclusivity and fourth-gem catastrophe handling.
 - [ ] Add Bind recipe modifier / accidental Bind outcome flow.
 - [ ] Add intentional/accidental Curse recipe flow with profane reagent tags.
 - [ ] Add Gem Anchor, recipe, specialization/hybrid, overflow, Bind/Curse and channel-choice regression tests.
+
+## Part C — Enchanter Services, Knowledge and Magical Maintenance (design frozen)
+
+Canonical contract: [`docs/enchanters-update-part-c-services.md`](./enchanters-update-part-c-services.md)
+
+### Frozen design decisions
+
+- [x] Canonical services include Enchant, Strengthen, Remove/Rewrite, Identify, Curse analysis, Magical Repair/Recharge, Bind, Curse, Mount Gem and Extract Gem.
+- [x] Normal Player/Enchanter reproduction is capped at Rank III.
+- [x] Rank IV/V are Relic Enchantments from deep Dungeons/Ruins/high-end content and cannot be reproduced at full Rank.
+- [x] Relics may be studied to derive lower Rank I-III known recipes.
+- [x] Enchantments use a discoverable Compendium/recipe-knowledge layer with source/provenance.
+- [x] Recipe books/manuals/tablets obey language comprehension; unread sources render as runes/obfuscation rather than leaking recipes.
+- [x] NPC Enchanters do not make normal Player-style crafting Checks.
+- [x] NPC service quality uses provider specialization/knowledge/reliability and a controlled-result probability.
+- [x] Knowing/providing an unfamiliar recipe does not grant an NPC automatic mastery.
+- [x] Enchanting outcomes are not binary mundane pass/fail; altered results, unexpected properties, Bind, Curse and Anchor damage/depletion are valid authored outcomes.
+- [x] Player self-enchanting continues to use Arcana/TH.
+- [x] Passive Arcana is 10 + Arcana Mod for automatic magical-information tiers.
+- [x] Active deeper Arcana study may be retried and costs 1 SP per attempt.
+- [x] Difficulty/probability/details above the character's knowledge tier remain runic/obfuscated.
+- [x] Player-supplied valid materials discount the full-service quote; mixed Player/provider material supply is supported.
+- [x] Service cost separates labor/facility from provider-supplied materials and does not double-apply normal Shop retail markup.
+- [x] Rank I service time is measured in hours; Rank II is approximately 1-3 days; Rank III is approximately one week or more.
+- [x] Enchantment rarity may affect knowledge, availability, time, materials, price and provider reliability without allowing Rank IV/V reproduction.
+- [x] Magical Durability is a separate resource added on top of full Physical Durability.
+- [x] Magical Durability represents usable magical integrity/charge; depletion makes the Enchantment inactive/depleted rather than permanently erasing it.
+- [x] Gem-Anchored Enchantments generally have better Magical Durability than equivalent direct/pure Enchantments.
+- [x] Depleted magical runes stop glowing as a visible cue.
+- [x] Bound Enchantments do not discharge through the normal Magical Durability cycle.
+- [x] Magical Repair/Recharge restores magical integrity only; physical repair restores physical condition only.
+- [x] Removing a Bound Gem Anchor destroys the Item 100%.
+- [x] Item-side Enchantment removal/rewrite and destructive Gem-Anchor-side removal are separate service procedures.
+- [x] Safe Item-side de-enchant/rewrite may preserve the gem but reduces its magical quality/rarity because it has already been magically written.
+- [x] Gem-Anchor-side Enchantment removal may destroy the gem while preserving the Item.
+- [x] Identify reveals ordinary magical properties and may flag Cursed, but does not reveal the hidden Curse drawback.
+- [x] Dedicated Curse reading reveals the hidden Curse information; Curse text remains distinct purple/red runic content while unknown.
+- [x] Enchanter profiles may attach to specialized NPCs, Shops, Workshops, Jewelers/magic specialists or occult/Black Market providers using one backend.
+- [x] Existing Workshop Tier/specialization/reputation/quality should be reused rather than duplicated.
+- [x] DM tooling must support general provider authoring and validated custom Enchantment/Curse combinations without raw debug UI.
+- [x] Player Item/service visibility depends on Arcana/Identify/Curse knowledge rather than raw Item truth.
+- [x] Future Magic Loot handoff records ordinary enemy magical-equipment intent around 5-10% and magic-user intent around 50-75%, with exact rates deferred to encounter/content balance.
+
+### Part C implementation gate
+
+- [ ] Create canonical Enchanter Service runtime on top of Shop/Workshop service architecture.
+- [ ] Add provider profile: known Enchantments, specialties, Rank cap III, reliability, delivery time, material supply, Bind/Curse capability and price modifiers.
+- [ ] Implement controlled/altered NPC magical outcome resolution instead of NPC crafting Checks.
+- [ ] Add Enchantment Compendium with language-aware recipe sources and Relic-derived lower-rank knowledge.
+- [ ] Block Player/NPC reproduction of Rank IV/V Relic Enchantments.
+- [ ] Implement Passive Arcana information tiers and repeatable 1-SP active Arcana study.
+- [ ] Implement knowledge-gated service preview with rune obfuscation.
+- [ ] Implement Identify -> Cursed flag without Curse drawback leakage and dedicated Curse-detail resolution.
+- [ ] Implement Player/mixed/provider material quote paths and recoverable-material return rules.
+- [ ] Implement in-world delivery time for Rank I/II/III services.
+- [ ] Replace obsolete 50/50 Durability logic with full Physical Durability + separate Magical Durability.
+- [ ] Add Magical Durability wear, depletion, recharge/repair and rune-glow state.
+- [ ] Give Gem-Anchored Enchantments greater magical endurance than equivalent direct/pure Enchantments.
+- [ ] Exempt Bound Enchantments from normal magical discharge.
+- [ ] Implement separate Item-side removal/rewrite and Gem-Anchor destructive removal flows.
+- [ ] Implement Bound Gem Anchor removal -> 100% Item destruction.
+- [ ] Implement gem magical-quality/rarity degradation after safe de-enchant/rewrite.
+- [ ] Implement explicit max-3 Enchantment Gem Sockets separately from Base Enchantment Slots.
+- [ ] Support up to three Rank II Gem-Anchored Enchantments and only one Rank III Gem-Anchored Enchantment.
+- [ ] Finalize/test exact Rank III Gem-Anchor coexistence with lower-rank Gem Anchors.
+- [ ] Block/warn normal fourth-gem installation and implement catastrophic forced fourth-gem outcome.
+- [ ] Add DM Enchanter authoring and Player service UI without internal IDs/debug schema.
+- [ ] Add Part C regression tests for services, knowledge, outcomes, durability, gem removal, Relics, time and economy.
 
 ## 1. Scope and hard rules
 
@@ -253,9 +324,9 @@ Canonical contract: [`docs/enchanters-update-part-b-resonance.md`](./enchanters-
 
 ## 11. Economy / value
 
-- [ ] Define how Enchantments contribute to Item AHN value.
-- [ ] Keep base Item value separate from Enchantment value contribution.
-- [ ] Define service application cost independently from resale value.
+- [x] Define how Enchantments contribute to Item AHN value.
+- [x] Keep base Item value separate from Enchantment value contribution.
+- [x] Define service application cost independently from resale value.
 - [ ] Support tier-based cost curves.
 - [ ] Support reagent/material costs.
 - [ ] Support authored Enchanter markup/discount profiles.
