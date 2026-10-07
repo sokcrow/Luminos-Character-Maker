@@ -275,17 +275,22 @@ At zero Magical Durability:
 
 Physical Durability remains a separate mundane/mechanical condition.
 
-## 13. Bind and Magical Durability
+## 13. Bind, Curse and Magical Durability
 
-A Bound Enchantment does **not** discharge in the normal way.
+Part D classifies Bind as a **special Curse-family state** rather than a purely beneficial standalone property.
 
-Its permanent attachment is one of Bind's major advantages and part of why Bind is:
+A Bound Enchantment ignores ordinary/background magical wear. Its permanent attachment is one of its major advantages and part of why Bind is:
 
 - harder;
 - more expensive;
 - rarer;
 - more dangerous to author;
-- impossible to remove normally.
+- impossible to remove normally;
+- capable of locking equip/Attunement state.
+
+Special activated powers may still spend their authored magical resource. Bound magic recharges faster according to its definition and may fully recharge at zero by draining the user's Life/HP according to the authored Bind profile.
+
+Other Curses may likewise author persistence/self-preservation and magical recharge behavior.
 
 Bind does not make the physical Item indestructible.
 
