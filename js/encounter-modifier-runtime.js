@@ -13,7 +13,7 @@
     try { return require(path); } catch (_) { return null; }
   };
 
-  const statusEngine = global.LuminousStatusEngine || safeRequire("./status-engine.js");
+  function statusEngine() { return global.LuminousStatusEngine || safeRequire("./status-engine.js"); }
 
   const WEB = Object.freeze({
     id: "web",
@@ -129,7 +129,8 @@
   }
 
   function hasBind(unit) {
-    if (statusEngine?.hasStatus) return statusEngine.hasStatus(unit, "bind");
+    const statuses = statusEngine();
+    if (statuses?.hasStatus) return statuses.hasStatus(unit, "bind");
     const bind = unit?.statusEffects?.bind;
     return Boolean(bind && Number(bind.count ?? bind.potency ?? 1) > 0);
   }
@@ -144,7 +145,7 @@
       }
       const alreadyBound = hasBind(unit);
       const amount = alreadyBound ? WEB.bindOnBoundTarget : WEB.bindOnClearTarget;
-      const status = statusEngine?.applyStatus?.(unit, "bind", {
+      const status = statusEngine()?.applyStatus?.(unit, "bind", {
         mode: "gain",
         count: amount,
         sourceTraitId: "encounter_modifier:web",
