@@ -7,6 +7,9 @@ on:
       - "js/spell-catalog-core.js"
       - "js/spell-batch-level1-runtime.js"
       - "js/universal-speed-runtime.js"
+      - "tests/item-cooking-runtime-smoke.cjs"
+      - "js/item-runtime-engine.js"
+      - "js/item-cooking-runtime.js"
       - "js/combat-props-runtime.js"
       - "js/combatEngine.js"
       - "js/dm-managed-effect-engine.js"
@@ -71,6 +74,8 @@ jobs:
           node --check js/spell-catalog-core.js
           node --check js/spell-batch-level1-runtime.js
           node --check js/universal-speed-runtime.js
+          node --check js/item-runtime-engine.js
+          node --check js/item-cooking-runtime.js
           node --check js/combat-props-runtime.js
           node --check js/combatEngine.js
           node --check js/dm-managed-effect-engine.js
@@ -85,6 +90,9 @@ jobs:
 
       - name: Level 1 batch smoke
         run: node tests/level-1-spell-batch-1-smoke.mjs
+
+      - name: Goodberry cooking smoke
+        run: node tests/item-cooking-runtime-smoke.cjs
 
       - name: Unbreakable clash smoke
         run: node tests/level-1-spell-unbreakable-smoke.mjs
