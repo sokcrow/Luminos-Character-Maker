@@ -20,6 +20,7 @@
   function equipment() { return global.LuminousCookingEquipmentEngine || safeRequire("./item-cooking-equipment-engine.js"); }
   function inventory() { return global.LuminousItemInventoryRuntime || safeRequire("./item-inventory-runtime.js"); }
   function itemRuntime() { return global.LuminousItemRuntime || safeRequire("./item-runtime-engine.js"); }
+  function spellBatch() { return global.LuminousLevel1SpellBatchRuntime || safeRequire("./spell-batch-level1-runtime.js"); }
 
   function normalizeId(value) {
     return String(value ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
@@ -139,6 +140,88 @@
     });
   }
 
+
+  function goodMagicFoodData(item={}) {
+    return item?.customData?.goodMagicFood || item?.runtimeState?.goodMagicFood || null;
+  }
+
+  function secretGoodMagicCookingPlan(unit={},preview={},options={}) {
+    const now=Number(options.createdAt ?? Date.now());
+    const selected=(preview?.resolution?.recipeInputs || []).filter(input=>{
+      const data=goodMagicFoodData(input);
+      return data && Number(data.expiresAt || 0)>now;
+    });
+    if(!selected.length) return Object.freeze({active:false,sourcePlan:preview.sourcePlan || []});
+
+    const chosen=selected[0];
+    const chosenData=goodMagicFoodData(chosen);
+    const variant=normalizeId(chosenData.variant || "goodberry");
+    const view=inventoryView(unit,options);
+    const candidates=view.sources
+      .map((source,index)=>({source,index,data:goodMagicFoodData(source.item),quantity:quantityOf(source.item)}))
+      .filter(row=>row.data && normalizeId(row.data.variant || "goodberry")===variant && Number(row.data.expiresAt || 0)>now && row.quantity>0);
+    const available=candidates.reduce((sum,row)=>sum+row.quantity,0);
+    if(available<10) return Object.freeze({active:false,sourcePlan:preview.sourcePlan || []});
+
+    const plan=(preview.sourcePlan || []).map(row=>({...row,requirements:[...(row.requirements || [])],roles:[...(row.roles || [])]}));
+    let alreadyPlanned=0;
+    for(const row of plan) {
+      const candidate=candidates.find(entry=>entry.index===row.inventoryIndex);
+      if(candidate) alreadyPlanned+=Number(row.units || 0);
+    }
+    let extra=Math.max(0,10-alreadyPlanned);
+    let expiresAt=Infinity;
+    for(const candidate of candidates) {
+      if(extra<=0) break;
+      const existing=plan.find(row=>row.inventoryIndex===candidate.index);
+      const already=Number(existing?.units || 0);
+      const room=Math.max(0,candidate.quantity-already);
+      const add=Math.min(room,extra);
+      if(add<=0) continue;
+      if(existing) existing.units=already+add;
+      else plan.push({
+        inventoryIndex:candidate.index,
+        containerType:candidate.source.containerType,
+        key:candidate.source.key,
+        units:add,
+        requirements:["secret_good_magic_food"],
+        roles:["magical_ingredient"],
+      });
+      extra-=add;
+    }
+    if(extra>0) return Object.freeze({active:false,sourcePlan:preview.sourcePlan || []});
+
+    let counted=0;
+    for(const candidate of candidates) {
+      if(counted>=10) break;
+      const row=plan.find(entry=>entry.inventoryIndex===candidate.index);
+      if(!row) continue;
+      const used=Math.min(Number(row.units || 0),10-counted);
+      if(used>0) {
+        expiresAt=Math.min(expiresAt,Number(candidate.data.expiresAt || Infinity));
+        counted+=used;
+      }
+    }
+
+    const enhancement=spellBatch()?.resolveGoodMagicCookingEnhancement?.(
+      candidates.map(candidate=>({item:candidate.source.item,units:Math.min(candidate.quantity,10)})),
+      now
+    ) || {
+      active:true,secret:true,variant,requiredQuantity:10,
+      healing:{flat:15,maxHpPercent:10},expiresAt,
+      inheritIngredientExpiration:true,
+    };
+    return Object.freeze({
+      ...enhancement,
+      active:true,
+      variant,
+      requiredQuantity:10,
+      healing:{flat:15,maxHpPercent:10},
+      expiresAt:Number.isFinite(expiresAt)?expiresAt:enhancement.expiresAt,
+      sourcePlan:Object.freeze(plan.map(row=>Object.freeze({...row,requirements:Object.freeze([...(row.requirements || [])]),roles:Object.freeze([...(row.roles || [])])}))),
+    });
+  }
+
   function canInsertFinishedItem(unit={},destination="active") {
     const inv=inventory();
     if (!inv) return true;
@@ -181,6 +264,7 @@
   }
 
   function finishedFoodItem(recipe,prepared,pricing,options={}) {
+    const goodMagic=options.goodMagicEnhancement?.active===true ? options.goodMagicEnhancement : null;
     const now=Number(options.createdAt ?? Date.now());
     const v2Prepared=options.v2Prepared || null;
     const id=`food_prepared_${normalizeId(recipe.id)}`;
@@ -237,7 +321,29 @@
       priceClass:recipe.priceClass || null,
       currency:"AHN",
       createdAt:now,
-      runtime:Object.freeze({functions:["eat_drink"],actionCost:"none",consumeQty:1}),
+      ...(goodMagic ? {
+        magicalFoodExpiresAt:Number(goodMagic.expiresAt || 0),
+        customData:{
+          goodMagicDish:{
+            hidden:true,
+            variant:goodMagic.variant,
+            sourceSpellId:"goodberry",
+            requiredQuantity:10,
+            expiresAt:Number(goodMagic.expiresAt || 0),
+            healing:{flat:15,maxHpPercent:10},
+          }
+        }
+      } : {}),
+      runtime:Object.freeze({
+        functions:["eat_drink"],
+        actionCost:"none",
+        consumeQty:1,
+        ...(goodMagic ? {
+          healing:{flat:15,maxHpPercent:10},
+          magicalFoodExpiresAt:Number(goodMagic.expiresAt || 0),
+          goodMagicDish:true,
+        } : {}),
+      }),
     };
   }
 
@@ -266,10 +372,11 @@
       venue:options.venue || preview.recipe.defaultVenue,
     }) || null;
 
-    const consumption=consumeSourcePlan(unit,preview.sourcePlan,options);
+    const goodMagicEnhancement=secretGoodMagicCookingPlan(unit,preview,options);
+    const consumption=consumeSourcePlan(unit,goodMagicEnhancement.active ? goodMagicEnhancement.sourcePlan : preview.sourcePlan,options);
     if (!consumption.consumed) return Object.freeze({cooked:false,reason:consumption.reason,preview,consumption});
 
-    const item=finishedFoodItem(preview.recipe,prepared,pricing,{...options,v2Prepared});
+    const item=finishedFoodItem(preview.recipe,prepared,pricing,{...options,v2Prepared,goodMagicEnhancement});
     const insertion=insertFinishedItem(unit,item,destination);
     if (!insertion.inserted) return Object.freeze({cooked:false,reason:insertion.reason,preview,consumption});
 
@@ -279,6 +386,7 @@
       item:Object.freeze(clone(item)),
       prepared,
       preparedV2:v2Prepared ? Object.freeze(clone(v2Prepared)) : null,
+      goodMagicEnhancement:goodMagicEnhancement.active ? Object.freeze(clone(goodMagicEnhancement)) : null,
       pricing,
       consumption,
       insertion:Object.freeze({containerType:insertion.containerType,key:insertion.key}),
@@ -294,7 +402,7 @@
 
   const API=Object.freeze({
     VERSION,normalizeId,inventoryView,inferredTaste,concreteRecipe,previewCook,
-    finishedFoodItem,executeCook,
+    goodMagicFoodData,secretGoodMagicCookingPlan,finishedFoodItem,executeCook,
   });
 
   global.LuminousCookingRuntime=API;
