@@ -107,7 +107,8 @@
     const traits = options.traits || traitsForUnit(unit);
     const explicitBase = Number.isFinite(Number(options.baseSpeed)) ? Number(options.baseSpeed) : null;
     const baseSpeed = explicitBase ?? rawSpeed(unit, 0);
-    if (!modifiers?.resolveCharacterSnapshot || !unit) return baseSpeed;
+    const areaSpeedModifier = numberOr(unit?.__luminousAreaSpeedModifier, 0);
+    if (!modifiers?.resolveCharacterSnapshot || !unit) return Math.max(1, baseSpeed + areaSpeedModifier);
 
     const snapshot = modifiers.resolveCharacterSnapshot({
       unit,
@@ -119,7 +120,7 @@
     const passiveSpeed = numberOr(snapshot.modifiers?.speed, 0);
     const minSpeed = range.min + numberOr(snapshot.modifiers?.min_speed, 0) + passiveSpeed;
     const maxSpeed = Math.max(minSpeed, range.max + numberOr(snapshot.modifiers?.max_speed, 0) + passiveSpeed);
-    return clamp(baseSpeed + passiveSpeed, minSpeed, maxSpeed);
+    return Math.max(1, clamp(baseSpeed + passiveSpeed, minSpeed, maxSpeed) + areaSpeedModifier);
   }
 
   function decorateSpeed(unit) {
