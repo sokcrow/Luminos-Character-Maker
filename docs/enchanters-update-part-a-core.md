@@ -6,7 +6,7 @@ This document records the canonical Part A rules for PR #931. It is the source o
 
 ## 1. Equipment eligibility and Enchantment Slots
 
-Equipment Enchantments use a dedicated slot capacity. The hard maximum is **3 Enchantment Slots**.
+Equipment Enchantments use a dedicated slot capacity. The hard maximum is **3 Base Enchantment Slots**. Part B adds a narrowly-scoped exception: an Item may gain at most **+1 Resonant Overflow Slot** when that extra capacity is physically sustained by a valid mounted Gem Anchor.
 
 Canonical Item Tier capacity:
 
@@ -26,7 +26,7 @@ An Enchantment Rank normally consumes the matching number of slots:
 
 A Rank III Enchantment is therefore a full specialization on a Tier V Item rather than a minor complementary effect.
 
-Multiple Enchantments may coexist when total slot cost fits capacity and their interaction rules allow it.
+Multiple Enchantments may coexist when total slot cost fits capacity and their interaction rules allow it. Base capacity never exceeds 3; the Part B Resonant Overflow exception is not a generic fourth slot and only supports a valid Gem-Anchored Enchantment.
 
 ## 2. Naming and player knowledge
 
@@ -345,7 +345,7 @@ Effect values, interaction rules, Magic Hit grants, Bind/Curse modifiers and aut
 
 - [ ] Implement canonical Tier I-V Enchantment Slot capacity.
 - [ ] Implement Rank I/II/III slot consumption.
-- [ ] Enforce hard maximum of 3 slots.
+- [ ] Enforce hard maximum of 3 Base Slots plus the Part B max +1 Resonant Overflow exception.
 - [ ] Validate available capacity before application/strengthening.
 - [ ] Implement hard conflicts.
 - [ ] Implement exclusive per-action channel conflicts.
