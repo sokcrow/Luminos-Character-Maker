@@ -79,7 +79,7 @@ These already exist in `js/role-spell-catalog-core.js` and are covered by the An
 - [ ] Faerie Fire
 - [ ] False Life
 - [ ] Feather Fall
-- [ ] Find Familiar
+- [x] Find Familiar
 - [ ] Fog Cloud
 - [ ] Goodberry
 - [ ] Grease
