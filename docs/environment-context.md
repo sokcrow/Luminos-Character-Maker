@@ -111,6 +111,25 @@ They are severe exposure triggers. This change intentionally does **not** invent
 - `difficult_terrain`: movement resolver may increase movement cost.
 - `hazardous_terrain`: a specific hazard defines its own consequence.
 - `slippery`: actions that care about footing may inspect it.
+- `web`: canonical Encounter Modifier context. Web itself is not a Status; its dedicated Encounter Modifier runtime applies Bind.
+
+### Web Encounter Modifier
+
+`Web` has two area modes:
+
+- `single`: the anchor Slot/space/Unit plus the adjacent spaces/Units supplied by Encounter placement.
+- `zone`: every active Unit in the Encounter.
+
+At Turn End:
+
+- an affected Unit with no Bind gains **+3 Bind**;
+- an affected Unit that already had Bind before Turn End gains **+6 Bind** instead.
+
+The runtime snapshots whether Bind existed before normal Turn End decay, then applies the new Bind after cleanup. This prevents `total_loss` Bind decay from erasing Web's newly applied Bind in the same Turn End.
+
+`Web Walker` ignores Web's Bind/movement restriction and can detect other Units in contact with the same Web.
+
+Canonical implementation: `js/encounter-modifier-runtime.js`.
 
 ## Origin tags
 
