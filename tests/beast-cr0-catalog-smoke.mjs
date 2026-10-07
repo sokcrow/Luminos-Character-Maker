@@ -34,9 +34,13 @@ const expectedIds = [
   "rat",
   "raven",
   "scorpion",
+  "seahorse",
+  "spider",
+  "vulture",
+  "weasel",
 ];
 assert.deepEqual(Object.keys(units.firebasePayload()).sort(), expectedIds.slice().sort());
-assert.equal(skills.list().length, 20);
+assert.equal(skills.list().length, 23);
 
 assert.deepEqual(units.get("baboon").scores, { str: 8, dex: 14, con: 11, int: 4, wis: 12, cha: 6 });
 assert.deepEqual(units.get("badger").proficiencies.skills, { perception: "proficient" });
@@ -58,6 +62,10 @@ assert.deepEqual(units.get("octopus").proficiencies.skills, { perception: "profi
 assert.deepEqual(units.get("owl").proficiencies.skills, { perception: "expertise", stealth: "expertise" });
 assert.deepEqual(units.get("rat").proficiencies.skills, { perception: "proficient" });
 assert.deepEqual(units.get("raven").proficiencies.skills, { perception: "proficient" });
+assert.deepEqual(units.get("seahorse").proficiencies.skills, { perception: "proficient", stealth: "expertise" });
+assert.deepEqual(units.get("spider").proficiencies.skills, { stealth: "proficient" });
+assert.deepEqual(units.get("vulture").proficiencies.skills, { perception: "proficient" });
+assert.deepEqual(units.get("weasel").proficiencies.skills, { acrobatics: "proficient", perception: "proficient", stealth: "proficient" });
 
 assert.equal(units.CAT_APPEARANCES.length, 10);
 assert.equal(units.get("cat").summon.selectableAppearance, true);
@@ -104,6 +112,27 @@ assert.deepEqual(mimicry.mechanics.save, { ability: "wis", threshold: 10 });
 assert.equal(mimicry.mechanics.onFail.status, "clash_power_down");
 assert.equal(mimicry.mechanics.onFail.potency, 1);
 
+const seahorse = units.get("seahorse");
+assert.equal(seahorse.visual.spriteUrl, "https://imgur.com/C2FzYsB");
+assert.deepEqual(seahorse.movementFeet, { ground: 5, swim: 20 });
+assert.equal(seahorse.traits.find((trait) => trait.id === "bubble_dash").activation.actionCost, "action");
+assert.equal(seahorse.traits.find((trait) => trait.id === "bubble_dash").mechanics.provokesCounterAttacks, false);
+assert.equal(seahorse.mechanics.skills.length, 0);
+
+const spider = units.get("spider");
+assert.equal(spider.visual.spriteUrl, "https://imgur.com/f7L5sIP");
+assert.equal(spider.traits.find((trait) => trait.id === "web_walker").mechanics.ignoresWebBind, true);
+assert.equal(spider.traits.find((trait) => trait.id === "web_walker").mechanics.detectsUnitsInSameWeb, true);
+
+const vulture = units.get("vulture");
+assert.equal(vulture.visual.spriteUrl, "https://imgur.com/EnY1GTK");
+assert.equal(vulture.flying, true);
+assert.ok(vulture.traitIds.includes("pack_tactics"));
+
+const weasel = units.get("weasel");
+assert.equal(weasel.visual.spriteUrl, "https://imgur.com/q2qcdIH");
+assert.equal(weasel.senses.darkvision, 60);
+
 const badger = units.get("badger");
 assert.equal(badger.mechanics.poisonResistance.statusDamageMultiplier, 0.5);
 assert.equal(badger.mechanics.burrow.durationTurns, 1);
@@ -135,6 +164,9 @@ const expectedFinalPower = {
   rat_bite: 10,
   raven_beak: 10,
   scorpion_sting: 10,
+  spider_bite: 10,
+  vulture_beak: 10,
+  weasel_bite: 10,
 };
 Object.entries(expectedFinalPower).forEach(([id, value]) => assert.equal(skills.finalPower(id), value, id));
 
@@ -147,6 +179,9 @@ assert.equal(skills.get("bat_bite").metadata.healOnBleedingTarget, 2);
 assert.equal(skills.get("piranha_bite").metadata.conditionalFlatDamage.bonus, 10);
 assert.equal(skills.get("piranha_bite").metadata.conditionalClashPower.bonus, 1);
 assert.equal(skills.get("scorpion_sting").coins[0].effects[0].status, "poison");
+assert.equal(skills.get("spider_bite").coins[0].effects[0].status, "poison");
+assert.equal(skills.get("vulture_beak").coins[0].effects[0].status, "bleed");
+assert.equal(skills.get("weasel_bite").coins[0].effects[0].status, "bleed");
 
 assert.deepEqual(units.get("hyena").speedRange, [1, 10]);
 assert.deepEqual(units.get("jackal").speedRange, [1, 10]);
@@ -157,6 +192,14 @@ assert.deepEqual(units.get("piranha").speedRange, [1, 10]);
 assert.deepEqual(units.get("rat").speedRange, [1, 6]);
 assert.deepEqual(units.get("raven").speedRange, [1, 12]);
 assert.deepEqual(units.get("scorpion").speedRange, [1, 4]);
+assert.deepEqual(units.get("seahorse").speedRange, [1, 6]);
+assert.deepEqual(units.get("spider").speedRange, [1, 6]);
+assert.deepEqual(units.get("vulture").speedRange, [1, 10]);
+assert.deepEqual(units.get("weasel").speedRange, [1, 8]);
+
+for (const id of expectedIds) {
+  assert.equal(units.get(id).metadata.canonicalUnit, true, `${id} must be a canonical Unit`);
+}
 
 for (const unit of units.list()) {
   assert.ok(unit.speedRange[0] >= 1, `${unit.id} Min Speed must never be below 1`);
@@ -180,5 +223,17 @@ assert.equal(underwaterOctopus.speedProfileMode, "swim");
 const dryOctopus = units.resolve("octopus", { level: 1, encounterTags: ["land"] });
 assert.deepEqual(dryOctopus.speedRange, [1, 4]);
 assert.equal(dryOctopus.speedProfileMode, "ground");
+
+const underwaterSeahorse = units.resolve("seahorse", { level: 1, encounterTags: ["underwater"] });
+assert.deepEqual(underwaterSeahorse.speedRange, [1, 6]);
+assert.equal(underwaterSeahorse.speedProfileMode, "swim");
+
+const drySeahorse = units.resolve("seahorse", { level: 1, encounterTags: ["land"] });
+assert.deepEqual(drySeahorse.speedRange, [1, 4]);
+assert.equal(drySeahorse.speedProfileMode, "ground");
+
+const groundedVulture = units.resolve("vulture", { level: 1, flying: false });
+assert.deepEqual(groundedVulture.speedRange, [1, 2]);
+assert.equal(groundedVulture.speedProfileMode, "ground");
 
 console.log("CR0 beast catalog smoke: ok");
