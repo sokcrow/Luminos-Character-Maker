@@ -36,7 +36,7 @@ Design decisions are marked complete here; implementation remains open.
 - [x] Incompatible materials double Magical Durability wear rather than automatically making the Enchantment impossible.
 - [x] Enchanting preserves full Physical Durability and adds separate Magical Durability / magical-power integrity.
 - [x] Physical damage and magical damage require their appropriate specialists; one repair path cannot silently restore the other half.
-- [x] `bind` is a property: hidden from naming, x1.25 positive effect, upgradable, and not normally removable/replaced/transferred.
+- [x] `bind` is a Curse-family state: x1.25 positive effect, upgradable, not normally removable/replaced/transferred, and subject to Part D equip/Attunement lock + recharge rules.
 - [x] `curse` is hidden until detected, x1.50 positive effect, can strengthen, may scale penalties, and has lower market value than the clean equivalent.
 - [x] Initial cursed market baseline is x0.60 of the clean equivalent; creation/service cost is not discounted by that market penalty.
 - [x] Item Instances persist stable Enchantment IDs/Ranks/state while canonical definitions remain effect authority.
@@ -136,7 +136,7 @@ Canonical contract: [`docs/enchanters-update-part-c-services.md`](./enchanters-u
 - [x] Magical Durability represents usable magical integrity/charge; depletion makes the Enchantment inactive/depleted rather than permanently erasing it.
 - [x] Gem-Anchored Enchantments generally have better Magical Durability than equivalent direct/pure Enchantments.
 - [x] Depleted magical runes stop glowing as a visible cue.
-- [x] Bound Enchantments do not discharge through the normal Magical Durability cycle.
+- [x] Bound Enchantments ignore ordinary/background Magical Durability wear; special activated powers may spend authored magic and use Part D accelerated/life-backed recharge.
 - [x] Magical Repair/Recharge restores magical integrity only; physical repair restores physical condition only.
 - [x] Removing a Bound Gem Anchor destroys the Item 100%.
 - [x] Item-side Enchantment removal/rewrite and destructive Gem-Anchor-side removal are separate service procedures.
@@ -175,6 +175,76 @@ Canonical contract: [`docs/enchanters-update-part-c-services.md`](./enchanters-u
 - [ ] Block/warn normal fourth-gem installation and implement catastrophic forced fourth-gem outcome.
 - [ ] Add DM Enchanter authoring and Player service UI without internal IDs/debug schema.
 - [ ] Add Part C regression tests for services, knowledge, outcomes, durability, gem removal, Relics, time and economy.
+
+## Part D — Magic Item Runtime Integration (design frozen)
+
+Canonical contract: [`docs/enchanters-update-part-d-magic-items.md`](./enchanters-update-part-d-magic-items.md)
+
+### Frozen design decisions
+
+- [x] Every enchanted Item is a Magic Item, but Magic Item does not automatically mean Magic Hit.
+- [x] Base Attunement capacity remains 3 Items unless a canonical Trait/effect modifies it.
+- [x] One Item consumes one Attunement Slot regardless of how many Enchantments/Gem Anchors it contains.
+- [x] Normal Rank I Enchanted Items do not require Attunement by default.
+- [x] Any normal Enchanted Item carrying Rank II or Rank III magic requires Attunement.
+- [x] Unattuning preserves the Item's Enchantments but suppresses its attunement-gated magical benefits.
+- [x] Individual Gem Anchors never consume separate Attunement Slots from their parent Item.
+- [x] Enchantments may author their own activation timing/trigger family.
+- [x] Installed Enchantment identity cannot be dynamically retuned during normal gameplay; changing it requires the proper rewrite/removal service when allowed.
+- [x] Player-facing Charges are backed by Magical Durability/magical-power integrity rather than an unrelated second battery.
+- [x] Some Items spend Magical Durability only when activating special properties.
+- [x] Recharge behavior is definition-driven.
+- [x] Item-bound Spells with their own Charges/resource do not consume the wielder's Spell Slots.
+- [x] Spell-enabling/conduit Items without their own Item resource use the wielder's normal Spell Slot/resource.
+- [x] SP is spent only when explicitly authored by the Item, Enchantment or Curse.
+- [x] A depleted enchanted physical Item remains usable as its mundane form while Physical Durability permits.
+- [x] Physical Durability 0 uses existing damaged/broken Item rules and does not automatically annihilate/explode the Item.
+- [x] Bind is a special Curse-family state.
+- [x] Bound magic ignores ordinary/background Magical Durability wear, but special activated powers may still spend authored magic.
+- [x] Bound magic recharges faster according to its definition and may fully recharge at zero by draining the user's Life/HP.
+- [x] Bound Items block normal unequip; if Attuned, they also block normal unattunement and lock that Attunement Slot.
+- [x] Persistent Curses may ignore normal magical depletion and author self-preservation/recharge behavior.
+- [x] A character can use a known activatable function without fully understanding the Item's arcane internals; passive effects require no conscious understanding.
+- [x] Native Magic Items and Enchanted Items are distinct origins but share one `item-magic-runtime.js` backend.
+- [x] Native Wondrous/utility Magic Items need not use normal Enchantment Slots or Gem Sockets.
+- [x] Scrolls, talismans and enchanted ammunition remain supported future Magic Item families; Potions are not a priority for the adaptation.
+- [x] Classic D&D-style +1/+2/+3 items must be adapted into named Enchantment/Rank content rather than restoring universal +N naming.
+- [x] Rank IV/V are Relic/Legendary Magic Items that may exceed normal curves but still use the shared Magic Item runtime.
+- [x] Relics use authored special repair/recharge procedures discoverable through Arcana/knowledge.
+- [x] Identify has a 5% exceptional breakthrough chance on Relics to reveal an authored deeper information layer.
+- [x] Relic drawbacks may be inseparable properties rather than removable normal Curses.
+- [x] Unique/Artifact/Relic definitions may require unique Item Instances and provenance.
+- [x] DM tooling must support creating Magic Items from scratch and modifying existing Items through validated canonical effect modules.
+- [x] Full D&D Magic Item content adaptation is deferred to a separate Magic Items Update after this Enchantment framework is ready.
+
+### Part D implementation gate
+
+- [ ] Extend `LuminousItemMagicRuntime.isMagicItem()` to recognize applied Enchantments.
+- [ ] Keep Magic Item status independent from Magic Hit.
+- [ ] Implement Rank II+ automatic Attunement requirement for normal Enchanted Items.
+- [ ] Preserve base Attunement capacity 3 plus Trait/effect modifiers.
+- [ ] Enforce one Item = one Attunement Slot regardless of Enchantment/Gem count.
+- [ ] Suppress attunement-gated Enchantment benefits when unattuned without deleting magic state.
+- [ ] Add Native Magic Item origin support through the same runtime.
+- [ ] Add whitelisted activation trigger families and practical activation-knowledge handling.
+- [ ] Keep installed Enchantment identity fixed outside proper service rewrite/removal.
+- [ ] Refactor Charges to project from/spend canonical Magical Durability.
+- [ ] Add per-property Charge -> Magical Durability mapping and definition-driven recharge.
+- [ ] Preserve Item-bound Spell casting without user Spell Slot cost when the Item provides its own resource.
+- [ ] Support conduit Items that use the wielder's normal Spell Slots/resources.
+- [ ] Spend SP only when explicitly authored.
+- [ ] Keep depleted enchanted physical Items mundanely usable when physically intact.
+- [ ] Migrate Bind to Curse-family runtime behavior.
+- [ ] Block normal unequip/unattune for Bound Items and lock their occupied Attunement Slot.
+- [ ] Add Bound accelerated recharge and authored life/HP-backed full recharge at zero.
+- [ ] Add persistent Curse self-preservation/recharge hooks.
+- [ ] Distinguish normal Curse, Bound Curse and inseparable Relic drawback.
+- [ ] Add Rank IV/V Relic support without normal reproduction.
+- [ ] Add Relic maintenance/repair knowledge gates and 5% Identify breakthrough.
+- [ ] Add unique-instance/provenance support for Relics/Artifacts.
+- [ ] Preserve Native Wondrous Item, Scroll, talisman and enchanted-ammunition seams for the Magic Items Update.
+- [ ] Add validated DM Magic Item creation/editing.
+- [ ] Add representative Part D regression fixtures/tests before starting mass Magic Item content adaptation.
 
 ## 1. Scope and hard rules
 
@@ -288,12 +358,12 @@ Canonical contract: [`docs/enchanters-update-part-c-services.md`](./enchanters-u
 
 ## 8. Charges and usage lifecycle
 
-- [ ] Define charge initialization.
+- [x] Define charge initialization/resource authority: Charges are Item-defined projections backed by Magical Durability; concrete maxima/recharge remain authored content.
 - [ ] Persist current/max charges per Item Instance.
 - [ ] Consume charges through authoritative gameplay actions.
 - [ ] Prevent negative charges.
-- [ ] Define behavior at zero charges.
-- [ ] Support recharge rules only when authored by the Enchantment definition.
+- [x] Define behavior at zero magical resource: ordinary enchanted effects deplete/inactivate while physical Items remain usable; Bind/Curse may author persistence/recharge.
+- [x] Support recharge rules only when authored by the Enchantment/Magic Item definition.
 - [ ] Prevent UI/client-only charge resets.
 - [ ] Preserve charge state across save/load, transfer and equipment changes.
 - [ ] Add charge lifecycle regression tests.
