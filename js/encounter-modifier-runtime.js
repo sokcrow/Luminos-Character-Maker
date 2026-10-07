@@ -142,7 +142,12 @@
       if (isWebWalker(unit)) {
         return { unitId: unitId(unit), applied: false, ignored: true, reason: "web_walker" };
       }
-      const alreadyBound = hasBind(unit);
+      const preexisting = context.preexistingBindUnitIds;
+      const alreadyBound = preexisting instanceof Set
+        ? preexisting.has(unitId(unit))
+        : Array.isArray(preexisting)
+          ? preexisting.map(String).includes(unitId(unit))
+          : hasBind(unit);
       const amount = alreadyBound ? WEB.bindOnBoundTarget : WEB.bindOnClearTarget;
       const status = statusEngine()?.applyStatus?.(unit, "bind", {
         mode: "gain",
@@ -207,12 +212,18 @@
     if (functionChainHasMarker(engine.triggerPhase, "__luminousEncounterModifierWrapped")) return true;
     const original = engine.triggerPhase;
     const wrapped = function triggerPhaseWithEncounterModifiers(phaseTag, allUnits, ...rest) {
+      const isTurnEnd = normalizeId(phaseTag) === "round_end";
+      const units = Array.isArray(allUnits) ? allUnits : [];
+      const modifiers = this.encounterModifiers || global.encounterModifiers || state.modifiers;
+      const preexistingBindUnitIds = isTurnEnd
+        ? new Set(units.filter((unit) => hasBind(unit)).map(unitId).filter(Boolean))
+        : null;
       const result = original.call(this, phaseTag, allUnits, ...rest);
-      if (normalizeId(phaseTag) === "round_end") {
-        const modifiers = this.encounterModifiers || global.encounterModifiers || state.modifiers;
-        this.lastEncounterModifierTurnEnd = applyTurnEnd(modifiers, Array.isArray(allUnits) ? allUnits : [], {
+      if (isTurnEnd) {
+        this.lastEncounterModifierTurnEnd = applyTurnEnd(modifiers, units, {
           adjacencyByUnitId: this.adjacencyByUnitId || global.encounterAdjacencyByUnitId || null,
           adjacentSpaceIds: this.adjacentSpaceIds || global.encounterAdjacentSpaceIds || null,
+          preexistingBindUnitIds,
         });
       }
       return result;
