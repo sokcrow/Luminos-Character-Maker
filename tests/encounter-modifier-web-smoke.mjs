@@ -3,6 +3,16 @@ import assert from "node:assert/strict";
 await import("../js/status-library.js");
 await import("../js/status-engine.js");
 await import("../js/environment-engine.js");
+
+globalThis.CombatEngine = {
+  triggerPhase(phaseTag, allUnits) {
+    if (phaseTag === "[Round End]") {
+      for (const unit of allUnits || []) globalThis.LuminousStatusEngine.removeStatus(unit, "bind", { ignoreProtection: true, from: "round_end_decay" });
+    }
+    return { phaseTag };
+  },
+};
+
 await import("../js/encounter-modifier-runtime.js");
 
 const statuses = globalThis.LuminousStatusEngine;
@@ -61,5 +71,13 @@ assert.deepEqual(detection, ["prey"], "Web Walker detects Units touching the sam
 assert.equal(modifiers.WEB.bindOnClearTarget, 3);
 assert.equal(modifiers.WEB.bindOnBoundTarget, 6);
 assert.deepEqual(modifiers.WEB.modes, ["single", "zone"]);
+
+const lifecycleBound = { id: "lifecycle_bound", hp: 10, statusEffects: {} };
+const lifecycleClear = { id: "lifecycle_clear", hp: 10, statusEffects: {} };
+statuses.applyStatus(lifecycleBound, "bind", { mode: "set", count: 2 });
+modifiers.setModifiers([{ id: "web", mode: "zone" }]);
+globalThis.CombatEngine.triggerPhase("[Round End]", [lifecycleBound, lifecycleClear]);
+assert.equal(statuses.getStatus(lifecycleBound, "bind").count, 6, "Web must inspect Bind before Round End decay, then apply +6 after decay");
+assert.equal(statuses.getStatus(lifecycleClear, "bind").count, 3, "Web must apply +3 after Round End cleanup");
 
 console.log("Encounter Modifier Web runtime smoke: ok");
