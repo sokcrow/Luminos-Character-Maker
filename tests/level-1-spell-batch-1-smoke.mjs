@@ -36,7 +36,9 @@ for (const spell of Object.values(catalog).filter((entry) => Number(entry?.level
 const batchIds = [
   "alarm", "armor_of_agathys", "arms_of_hadar", "bane", "bless", "burning_hands", "catapult",
   "detect_evil_and_good", "detect_magic", "detect_poison_and_disease", "disguise_self", "find_familiar",
-  "divine_favor", "divine_smite", "ensnaring_strike", "entangle"
+  "divine_favor", "divine_smite", "ensnaring_strike", "entangle",
+  "fog_cloud", "goodberry", "grease", "guiding_bolt", "hail_of_thorns", "healing_word",
+  "hellish_rebuke", "heroism", "hex", "hunters_mark", "ice_knife"
 ];
 for (const id of batchIds) {
   const spell = catalog[id];
@@ -397,9 +399,9 @@ assert.equal(firstFamiliar.resolved, true);
 assert.equal(firstFamiliar.familiar.familiarUnitId, "cat_black");
 assert.equal(firstFamiliar.familiar.familiarForm, "cat");
 assert.equal(firstFamiliar.familiar.creatureType, "celestial");
-assert.equal(firstFamiliar.familiar.familiarCannotAttack, true);
-assert.deepEqual(firstFamiliar.familiar.action_slots, []);
-assert.equal(firstFamiliar.familiar.actionSlots, 1);
+assert.equal(firstFamiliar.familiar.familiarCannotAttack, false);
+assert.deepEqual(firstFamiliar.familiar.action_slots, ["cat_scratch"]);
+assert.ok(firstFamiliar.familiar.actionSlots >= 1);
 
 const oldFamiliarId = firstFamiliar.familiar.id;
 const secondFamiliar = batch.summonFindFamiliar(familiarCaster, {
@@ -420,5 +422,154 @@ assert.equal(touchDelivery.resolved, true);
 assert.equal(touchDelivery.action.metadata.spellOriginUnitId, secondFamiliar.familiar.id);
 assert.equal(touchDelivery.action.metadata.familiarReactionRequired, true);
 
+
+
+assert.deepEqual(catalog.fog_cloud.classIds, ["druid", "ranger", "sorcerer", "wizard"]);
+assert.equal(catalog.fog_cloud.mechanics.clashPowerModifier, -3);
+assert.equal(catalog.fog_cloud.mechanics.unopposedFinalPowerModifier, -4);
+assert.equal(catalog.fog_cloud.mechanics.analyseThresholdModifier, 5);
+assert.deepEqual(catalog.fog_cloud.mechanics.bypassSenses, ["blindsight", "truesight"]);
+
+assert.deepEqual(catalog.goodberry.classIds, ["druid", "ranger"]);
+assert.deepEqual(catalog.goodberry.mechanics.requiresChoice.values, ["goodberry", "goodshrooms"]);
+assert.equal(catalog.goodberry.description.includes("Cooking"), false, "Goodberry player-facing text must not reveal secret cooking");
+
+assert.equal(catalog.grease.mechanics.speedModifier, -1);
+assert.deepEqual(catalog.grease.mechanics.saveTriggers, ["on_create", "on_enter", "turn_end"]);
+
+assert.deepEqual(catalog.guiding_bolt.classIds, ["cleric"]);
+assert.equal(catalog.guiding_bolt.attackWeight, 1);
+assert.equal(catalog.guiding_bolt.damageType, "perforante");
+assert.equal(batch.STATUS_DEFINITIONS.guided_light.icon, "https://imgur.com/9OdpgRZ", "Guided Light should use the approved icon");
+
+assert.equal(catalog.hail_of_thorns.attackWeight, 3);
+assert.equal(catalog.hail_of_thorns.mechanics.fixedDamagePerSpellSlotUsed, 5);
+
+assert.equal(catalog.healing_word.attackWeight, 0, "healing/buff target count must not use ATK Weight");
+assert.deepEqual(catalog.healing_word.classIds, ["bard", "cleric", "druid"]);
+
+assert.equal(catalog.hellish_rebuke.mechanics.onFailedSaveStatus.count, 3);
+assert.equal(catalog.heroism.attackWeight, 0, "buff target count must not use ATK Weight");
+assert.equal(catalog.heroism.mechanics.shieldPerSpellMod, 3);
+assert.equal(batch.STATUS_DEFINITIONS.hexed.icon, "https://imgur.com/M89vPkr");
+assert.equal(batch.STATUS_DEFINITIONS.marked_quarry.icon, "https://imgur.com/bwjqA28");
+assert.equal(catalog.hunters_mark.mechanics.analyseThresholdModifier, -2);
+assert.equal(catalog.ice_knife.mechanics.explosion.attackWeight, 3);
+
+const fogCaster = {
+  id: "fog_caster",
+  spellcastingState: { concentration: { active: { spellId: "fog_cloud" } } },
+};
+const fogAttacker = { id: "fog_attacker", statusEffects: {} };
+const fogTarget = { id: "fog_target", statusEffects: {} };
+const fog = batch.createFogCloudArea(fogCaster, [fogTarget], { slotLevel: 2, id: "fog_test" });
+assert.equal(fog.resolved, true);
+assert.equal(fog.area.additionalAreaRings, 1);
+assert.equal(batch.fogCloudPowerModifier(fogAttacker, fogTarget, "clash"), -3);
+assert.equal(batch.fogCloudPowerModifier(fogAttacker, fogTarget, "unopposed"), -4);
+assert.equal(batch.fogCloudAnalyseThresholdModifier(fogAttacker, fogTarget), 5);
+fogAttacker.traits = ["Truesight"];
+assert.equal(batch.fogCloudPowerModifier(fogAttacker, fogTarget, "clash"), 0);
+assert.equal(batch.fogCloudAnalyseThresholdModifier(fogAttacker, fogTarget), 0);
+assert.equal(batch.disperseFogCloud("fog_test", [fogTarget], "strong_wind").resolved, true);
+
+const greaseCaster = { id: "grease_caster" };
+const greaseTarget = { id: "grease_target", speed: 5, statusEffects: {} };
+const grease = batch.createGreaseArea(greaseCaster, [greaseTarget], { id: "grease_test", spellDC: 14 });
+assert.equal(grease.resolved, true);
+assert.equal(batch.greaseSpeedModifier(greaseTarget), -1);
+batch.resolveGreaseSave(greaseTarget, false, grease.area);
+assert.ok(greaseTarget.statusEffects.prone);
+batch.setGreaseMembership(grease.area, greaseTarget, false);
+assert.equal(batch.greaseSpeedModifier(greaseTarget), 0);
+
+const foodCaster = { id: "food_caster", inventory: {} };
+const goodberry = batch.createGoodMagicFood(foodCaster, "goodberry", { now: 1000 });
+assert.equal(goodberry.resolved, true);
+assert.equal(goodberry.item.definitionId, "blueberry");
+assert.equal(goodberry.item.quantity, 10);
+assert.equal(goodberry.item.hungerSlotsRestored, 3);
+assert.equal(goodberry.item.hydrationSlotsRestored, 3);
+assert.equal(goodberry.item.customData.goodMagicFood.secretCooking.healFlat, 15);
+assert.equal(goodberry.item.customData.goodMagicFood.secretCooking.healMaxHpPercent, 10);
+assert.equal(
+  batch.resolveGoodMagicCookingEnhancement([{ item: goodberry.item, units: 10 }], 2000).healing.maxHpPercent,
+  10
+);
+const goodshrooms = batch.createGoodMagicFood({ id: "shroom_caster", inventory: {} }, "goodshrooms", { now: 1000 });
+assert.equal(goodshrooms.item.definitionId, "common_mushroom");
+assert.equal(goodshrooms.variant, "goodshrooms");
+
+const healingTarget = { id: "healing_target", hp: 50, maxHp: 100 };
+const healing = batch.applyHealingWord(healingTarget, 2, 3);
+assert.equal(healing.flat, 2);
+assert.equal(healing.maxHpPercent, 6);
+assert.equal(healing.healed, 8);
+assert.equal(healingTarget.hp, 58);
+
+const guideCaster = { id: "guide_caster" };
+const guideTarget = { id: "guide_target", statusEffects: {} };
+batch.resolveGuidingBoltHit(guideCaster, guideTarget, { id: "guiding_bolt" });
+assert.equal(guideTarget.statusEffects.radiance.count, 2);
+assert.ok(guideTarget.statusEffects.guided_light);
+assert.equal(batch.guidedLightPowerBonus({ id: "ally" }, guideTarget), 2);
+assert.equal(batch.consumeGuidedLight(guideTarget), true);
+assert.equal(guideTarget.statusEffects.guided_light, undefined);
+
+const heroCaster = {
+  id: "hero_caster",
+  spellcastingState: { concentration: { active: { spellId: "heroism" } } },
+};
+const heroTarget = { id: "hero_target", shield: 0, statusEffects: { frightened: { id: "frightened", count: 2 } } };
+const hero = batch.grantHeroism(heroTarget, heroCaster, 4);
+assert.equal(hero.desiredShield, 12);
+assert.equal(heroTarget.__luminousHeroism.remainingShield, 12);
+assert.equal(heroTarget.statusEffects.frightened, undefined);
+batch.consumeHeroismShield(heroTarget, 12);
+assert.equal(batch.heroismHasShield(heroTarget), false);
+batch.refreshHeroismAtTurnStart([heroCaster, heroTarget]);
+assert.equal(batch.heroismHasShield(heroTarget), true);
+assert.equal(heroTarget.__luminousHeroism.remainingShield, 12);
+
+const hexCaster = { id: "hex_caster", hp: 100 };
+const hexTarget = { id: "hex_target", hp: 100, maxHp: 100, statusEffects: {} };
+const hexResult = batch.applyHex(hexCaster, hexTarget, "wis", 1, 1000);
+assert.equal(hexResult.resolved, true);
+assert.equal(batch.hexCheckThresholdModifier(hexTarget, "wis"), 3);
+assert.equal(batch.hexCheckThresholdModifier(hexTarget, "dex"), 0);
+const hexSkill = { id: "slash" };
+batch.resolveHexHit(hexCaster, hexTarget, hexSkill, { engine: { applyDamage(unit, amount) { unit.hp -= amount; } } });
+assert.equal(hexTarget.hp, 97);
+assert.equal(hexTarget.statusEffects.decay.count, 1);
+assert.equal(batch.resolveHexHit(hexCaster, hexTarget, hexSkill, { engine: { applyDamage(unit, amount) { unit.hp -= amount; } } }), null, "Hex must trigger once per Attack Skill");
+
+const ranger = { id: "ranger", hp: 100 };
+const quarry = { id: "quarry", hp: 100, maxHp: 100, statusEffects: {} };
+batch.applyHuntersMark(ranger, quarry, 1, 1000);
+assert.equal(batch.markedQuarryAnalyseThresholdModifier(ranger, quarry), -2);
+assert.equal(batch.markedQuarryTrackingThresholdModifier(ranger, quarry, "perception"), -3);
+const markSkill = { id: "arrow" };
+batch.resolveHuntersMarkHit(ranger, quarry, markSkill, { engine: { applyDamage(unit, amount) { unit.hp -= amount; } } });
+assert.equal(quarry.hp, 96);
+
+const hailA = { id: "hail_a", hp: 30, statusEffects: {} };
+const hailB = { id: "hail_b", hp: 30, statusEffects: {} };
+const hail = batch.resolveHailOfThorns([hailA, hailB], 2, { metadata: { saveResults: { hail_a: false, hail_b: true } } }, {});
+assert.equal(hail.damage, 10);
+assert.equal(hail.results[0].damage, 10);
+assert.equal(hail.results[1].damage, 5);
+
+const rebukeTarget = { id: "rebuke_target", hp: 40, statusEffects: {} };
+const rebuke = batch.resolveHellishRebuke(rebukeTarget, 2, { metadata: { saveResults: { rebuke_target: false } } }, {});
+assert.equal(rebuke.damage, 15);
+assert.equal(rebukeTarget.statusEffects.burn.count, 3);
+
+const iceA = { id: "ice_a", hp: 40, statusEffects: {} };
+const iceB = { id: "ice_b", hp: 40, statusEffects: {} };
+const ice = batch.resolveIceKnifeExplosion([iceA, iceB], 2, { metadata: { saveResults: { ice_a: false, ice_b: true } } }, {});
+assert.equal(ice.damage, 9);
+assert.equal(ice.attackWeight, 3);
+assert.equal(iceA.statusEffects.chill.count, 2);
+assert.equal(iceB.statusEffects.chill, undefined);
 
 console.log("Level 1 spell batch 1 smoke: OK");
