@@ -485,64 +485,10 @@ test("mobile Theatre renders live dialogue and sprites on the real player sheet"
     if (gate) gate.hidden = true;
   });
 
-  await page.locator("#btn-toggle-hud-menu").click({ force: true });
+  await page.locator("#btn-toggle-hud-menu").click();
   await expect(page.locator(".hud-sidebar-right")).toHaveClass(/is-open/);
 
-  const hudRuntimeBefore = await page.evaluate(() => ({
-    runtime: Boolean(window.LuminousPlayerHudNavigation),
-    state: document.querySelector(".sheet-state-hud-modal")?.value || "",
-    modalClass: document.getElementById("stats-modal")?.className || "",
-    modalInlineDisplay: document.getElementById("stats-modal")?.style.display || "",
-    modalComputedDisplay: getComputedStyle(document.getElementById("stats-modal")).display
-  }));
-  console.log("HUD_RUNTIME_BEFORE", JSON.stringify(hudRuntimeBefore));
-
-  const statsHitTest = await page.evaluate(() => {
-    const button = document.querySelector('button[name="act_hud_stats"]');
-    const rail = document.querySelector(".hud-sidebar-right");
-    const dropdown = document.getElementById("hud-menu-dropdown");
-    const theatre = document.getElementById("theatre-view-player");
-    const rect = button?.getBoundingClientRect();
-    const x = rect ? rect.left + rect.width / 2 : 0;
-    const y = rect ? rect.top + rect.height / 2 : 0;
-    const hit = document.elementFromPoint(x, y);
-    const describe = (node) => node ? {
-      tag: node.tagName,
-      id: node.id || "",
-      className: typeof node.className === "string" ? node.className : "",
-      zIndex: getComputedStyle(node).zIndex,
-      pointerEvents: getComputedStyle(node).pointerEvents,
-      display: getComputedStyle(node).display,
-      visibility: getComputedStyle(node).visibility,
-      rect: (() => {
-        const r = node.getBoundingClientRect();
-        return { left:r.left, top:r.top, width:r.width, height:r.height };
-      })()
-    } : null;
-    return {
-      button: describe(button),
-      hit: describe(hit),
-      rail: describe(rail),
-      dropdown: describe(dropdown),
-      theatre: describe(theatre),
-      point: { x, y }
-    };
-  });
-  console.log("HUD_STATS_HITTEST", JSON.stringify(statsHitTest));
-
-  await page.locator('button[name="act_hud_stats"]').click({ force: true });
-
-  const hudRuntimeAfter = await page.evaluate(() => ({
-    runtime: Boolean(window.LuminousPlayerHudNavigation),
-    state: document.querySelector(".sheet-state-hud-modal")?.value || "",
-    modalClass: document.getElementById("stats-modal")?.className || "",
-    modalInlineDisplay: document.getElementById("stats-modal")?.style.display || "",
-    modalComputedDisplay: getComputedStyle(document.getElementById("stats-modal")).display,
-    modalVisibility: getComputedStyle(document.getElementById("stats-modal")).visibility,
-    modalOpacity: getComputedStyle(document.getElementById("stats-modal")).opacity
-  }));
-  console.log("HUD_RUNTIME_AFTER", JSON.stringify(hudRuntimeAfter));
-
+  await page.locator('button[name="act_hud_stats"]').click();
   await expect(page.locator("#stats-modal")).toBeVisible();
   const statsLayers = await page.evaluate(() => ({
     theatre: Number.parseInt(getComputedStyle(document.getElementById("theatre-view-player")).zIndex || "0", 10) || 0,
@@ -552,10 +498,52 @@ test("mobile Theatre renders live dialogue and sprites on the real player sheet"
   expect(statsLayers.modal).toBeGreaterThan(statsLayers.theatre);
   expect(statsLayers.pointerEvents).not.toBe("none");
 
-  await page.locator('#stats-modal button[name="act_hud_close"]').click({ force: true });
+  await page.locator('#stats-modal button[name="act_hud_close"]').click();
   await expect(page.locator("#stats-modal")).toBeHidden();
 
-  await page.locator("#btn-global-inventory").click({ force: true });
+  const hudCases = [
+    ['button[name="act_hud_perks"]', "#perks-modal"],
+    ['button[name="act_hud_skills"]', "#skills-modal"],
+    ['button[name="act_hud_apego"]', "#apego-modal"]
+  ];
+
+  for (const [buttonSelector, modalSelector] of hudCases) {
+    await page.locator("#btn-toggle-hud-menu").click();
+    await expect(page.locator(".hud-sidebar-right")).toHaveClass(/is-open/);
+    await page.locator(buttonSelector).click();
+    await expect(page.locator(modalSelector)).toBeVisible();
+    const layers = await page.evaluate((selector) => ({
+      theatre: Number.parseInt(getComputedStyle(document.getElementById("theatre-view-player")).zIndex || "0", 10) || 0,
+      modal: Number.parseInt(getComputedStyle(document.querySelector(selector)).zIndex || "0", 10) || 0
+    }), modalSelector);
+    expect(layers.modal).toBeGreaterThan(layers.theatre);
+    await page.locator(`${modalSelector} button[name="act_hud_close"]`).click();
+    await expect(page.locator(modalSelector)).toBeHidden();
+  }
+
+  await page.locator("#btn-toggle-hud-menu").click();
+  await expect(page.locator(".hud-sidebar-right")).toHaveClass(/is-open/);
+  await page.locator("#btn-toggle-hud").click();
+  await expect(page.locator("#player-combat-hud")).toBeVisible();
+  const vitalsLayers = await page.evaluate(() => ({
+    theatre: Number.parseInt(getComputedStyle(document.getElementById("theatre-view-player")).zIndex || "0", 10) || 0,
+    vitals: Number.parseInt(getComputedStyle(document.getElementById("player-combat-hud")).zIndex || "0", 10) || 0
+  }));
+  expect(vitalsLayers.vitals).toBeGreaterThan(vitalsLayers.theatre);
+  await page.locator("#btn-toggle-hud").click();
+  await expect(page.locator("#player-combat-hud")).toBeHidden();
+
+  await page.locator("#btn-toggle-hud-menu").click();
+  await expect(page.locator(".hud-sidebar-right")).toHaveClass(/is-open/);
+  await page.locator("#btn-toggle-theatre-log-player").click();
+  await expect(page.locator("#theatre-log-container")).toHaveClass(/open/);
+  await page.locator("#btn-toggle-theatre-log-player").click();
+  await expect(page.locator("#theatre-log-container")).not.toHaveClass(/open/);
+
+  await page.locator("#btn-toggle-hud-menu").click();
+  await expect(page.locator(".hud-sidebar-right")).toHaveClass(/is-open/);
+
+  await page.locator("#btn-global-inventory").click();
   await expect(page.locator("#inventory-modal")).toHaveClass(/active/);
   await expect(page.locator("#inventory-modal")).toBeVisible();
   const inventoryLayers = await page.evaluate(() => ({

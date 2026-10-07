@@ -585,6 +585,19 @@ body.player-mobile-runtime #player-instance-blackout {
     opacity: 1 !important;
   }
 
+  body.player-mobile-runtime.player-instance-theatre:not(.player-cellphone-surface-open) .hud-sidebar-right.is-open #hud-menu-dropdown {
+    visibility: visible !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    transform: translateX(0) !important;
+  }
+
+  body.player-mobile-runtime.player-instance-theatre:not(.player-cellphone-surface-open) .hud-sidebar-right.is-open #hud-menu-dropdown .hud-menu-item {
+    visibility: visible !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+
   /* Mobile interaction contract:
      game surface < gameplay HUD/panels < command rail < cellphone/entry gates.
      Theatre must never cover a menu the player intentionally opened. */
