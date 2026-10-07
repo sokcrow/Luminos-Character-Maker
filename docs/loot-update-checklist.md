@@ -254,17 +254,17 @@ This document freezes the current scope and lets the Loot Update be completed in
 
 ## Live post-combat integration
 
-- [ ] Give every real combat Encounter a stable canonical Encounter ID.
-- [ ] Auto-finalize and persist locked Loot Instances for defeated loot-eligible enemies when a victorious Encounter ends.
-- [ ] Initialize and persist one shared post-combat Interaction State per corpse/Loot Instance.
-- [ ] Make finite corpse recovery concurrency-safe so multiple players cannot recover the same resource twice.
-- [ ] Persist recovered Item Instances into the canonical Player Active Inventory / Stash authority.
-- [ ] Credit recovered AHN through the canonical Player finance balance and transaction history.
-- [ ] Keep failed-capacity/currency deliveries as resumable idempotent Pending Deliveries.
-- [ ] Persist post-combat Compendium facts produced by Examine / Autopsy and recovered material knowledge.
-- [ ] Load the Loot post-combat runtime stack in the real Battle Viewer.
-- [ ] Add a clean player-facing post-combat corpse/action surface after Victory.
-- [ ] Add live integration regression coverage for refresh/resume, contested recovery, AHN credit and Battle Viewer bootstrap.
+- [x] Give every real combat Encounter a stable canonical Encounter ID.
+- [x] Auto-finalize and persist locked Loot Instances for defeated loot-eligible enemies when a victorious Encounter ends.
+- [x] Initialize and persist one shared post-combat Interaction State per corpse/Loot Instance.
+- [x] Make finite corpse recovery concurrency-safe so multiple players cannot recover the same resource twice.
+- [x] Persist recovered Item Instances into the canonical Player Active Inventory / Stash authority.
+- [x] Credit recovered AHN through the canonical Player finance balance and transaction history.
+- [x] Keep failed-capacity/currency deliveries as resumable idempotent Pending Deliveries.
+- [x] Persist post-combat Compendium facts produced by Examine / Autopsy and recovered material knowledge.
+- [x] Load the Loot post-combat runtime stack in the real Battle Viewer.
+- [x] Add a clean player-facing post-combat corpse/action surface after Victory.
+- [x] Add live integration regression coverage for refresh/resume, contested recovery, AHN credit and Battle Viewer bootstrap.
 
 ## Explicitly deferred
 
