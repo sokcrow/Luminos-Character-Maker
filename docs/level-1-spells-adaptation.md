@@ -80,18 +80,19 @@ These already exist in `js/role-spell-catalog-core.js` and are covered by the An
 - [ ] False Life
 - [ ] Feather Fall
 - [x] Find Familiar
-- [ ] Fog Cloud
-- [ ] Goodberry
-- [ ] Grease
-- [ ] Guiding Bolt
-- [ ] Hail of Thorns
-- [ ] Healing Word
-- [ ] Hellish Rebuke
-- [ ] Heroism
-- [ ] Hex
-- [ ] Hunter's Mark
-- [ ] Ice Knife
-- [ ] Identify
+- [x] Fog Cloud
+- [x] Goodberry
+  - Goodberry creates magical Blueberries; hidden `Goodshrooms` variant creates magical Common Mushrooms. Secret Cooking enhancement remains data/runtime-only and is not exposed in player-facing spell text.
+- [x] Grease
+- [x] Guiding Bolt
+- [x] Hail of Thorns
+- [x] Healing Word
+- [x] Hellish Rebuke
+- [x] Heroism
+- [x] Hex
+- [x] Hunter's Mark
+- [x] Ice Knife
+- [ ] Identify — deferred until the Enchanter's Update is complete
 - [ ] Illusory Script
 - [ ] Inflict Wounds
 - [ ] Jump
