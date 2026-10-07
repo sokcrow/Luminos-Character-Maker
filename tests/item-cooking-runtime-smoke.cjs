@@ -86,6 +86,40 @@ const { pathToFileURL } = require("node:url");
   },null,{createdAt:1000,instanceId:"apple-pie-made"});
   assert.equal(piePreviewItem.iconFamily,"apple_pie");
 
+
+  const magicExpiresAt=24*60*60*1000;
+  const magicUnit={
+    hp:50,hp_max:100,sp:0,sp_max:45,proficiencyBonus:3,
+    inventario_activo:{
+      dough:{instanceId:"dough-magic",itemId:"test_dough",quantity:1,tags:["ingredient","dough"],flavorTags:["neutral"]},
+      berries:{
+        instanceId:"goodberry-stack",definitionId:"blueberry",itemId:"blueberry",quantity:10,
+        tags:["ingredient","fruit","berry","blueberry","temporary_magical_food"],flavorTags:["sweet"],
+        customData:{goodMagicFood:{sourceSpellId:"goodberry",variant:"goodberry",expiresAt:magicExpiresAt,ingredient:true}}
+      },
+      sugar:{instanceId:"sweet-magic",itemId:"test_sweetener",quantity:1,tags:["ingredient","sweetener"],flavorTags:["sweet"]},
+    },
+    inventario_stash:{},
+  };
+  const magicPreview=rt.previewCook(magicUnit,"blueberry_pie",{includeStash:true,equipment:{stationId:"oven"}});
+  assert.equal(magicPreview.valid,true);
+  assert.equal(magicPreview.resolution.recipeInputs.find(row=>row.itemId==="blueberry").quantity,2);
+  const secretPlan=rt.secretGoodMagicCookingPlan(magicUnit,magicPreview,{createdAt:1000});
+  assert.equal(secretPlan.active,true);
+  assert.equal(secretPlan.requiredQuantity,10);
+  assert.equal(secretPlan.healing.flat,15);
+  assert.equal(secretPlan.healing.maxHpPercent,10);
+  assert.equal(secretPlan.sourcePlan.find(row=>row.key==="berries").units,10);
+  const magicPie=rt.executeCook(magicUnit,"blueberry_pie",20,{includeStash:true,equipment:{stationId:"oven"},createdAt:1000,instanceId:"goodberry-pie-made"});
+  assert.equal(magicPie.cooked,true);
+  assert.equal(magicPie.goodMagicEnhancement.active,true);
+  assert.equal(magicPie.item.runtime.healing.flat,15);
+  assert.equal(magicPie.item.runtime.healing.maxHpPercent,10);
+  assert.equal(magicPie.item.runtime.magicalFoodExpiresAt,magicExpiresAt);
+  assert.equal(magicPie.item.customData.goodMagicDish.hidden,true);
+  assert.equal(magicPie.item.customData.goodMagicDish.requiredQuantity,10);
+  assert.equal(magicUnit.inventario_activo.berries,undefined,"Secret Goodberry enhancement must use all 10 Goodberries");
+
   const second=rt.previewCook(unit,"burger",{equipment:{stationId:"grill"}});
   assert.equal(second.valid,false);
   assert.equal(second.reason,"missing_recipe_requirements");
