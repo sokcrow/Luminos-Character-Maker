@@ -409,6 +409,25 @@
       { type: "encounter_end", result: normalized, label: `ENCOUNTER END · ${label}` }
     );
 
+    let lootFinalization = null;
+    if (normalized === "victory") {
+      const lootLive = global.LuminousLootLivePostCombatRuntime;
+      if (!lootLive?.finalizeEncounterLoot) throw new Error("LOOT_LIVE_POSTCOMBAT_RUNTIME_REQUIRED");
+      const encounterId = await lootLive.ensureEncounterId({ db: state.db });
+      lootFinalization = await lootLive.finalizeEncounterLoot({
+        db: state.db,
+        encounterId,
+        combatants: resolved?.combatants || state.combatants,
+        result: normalized,
+        now: Date.now(),
+      });
+      appendLog("LOOT · POST-COMBAT FINALIZED", {
+        encounterId,
+        corpses: lootFinalization.finalized?.length || 0,
+        skipped: lootFinalization.skipped?.length || 0,
+      });
+    }
+
     const timestamp = global.firebase?.database?.ServerValue?.TIMESTAMP ?? Date.now();
     await state.db.ref().update({
       [`${ROOTS.state}/phase`]: "ENDED",
@@ -445,6 +464,7 @@
       cancelled: false,
       result: normalized,
       resolved: resolved?.result || null,
+      lootFinalization,
       transition: "blackout",
       nextInstance: "teatro",
     };
