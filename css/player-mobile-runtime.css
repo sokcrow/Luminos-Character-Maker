@@ -630,3 +630,20 @@ body.player-mobile-runtime #player-instance-blackout {
     opacity: 1 !important;
   }
 }
+
+
+/* Real touch contract for the mobile command rail.
+   These controls must behave as controls, not as horizontal-scroll content. */
+@media (orientation: landscape) and (pointer: coarse) {
+  body.player-mobile-runtime:not(.player-cellphone-surface-open) .hud-sidebar-right,
+  body.player-mobile-runtime:not(.player-cellphone-surface-open) .hud-menu-toggle,
+  body.player-mobile-runtime:not(.player-cellphone-surface-open) #hud-menu-dropdown .hud-menu-item {
+    touch-action: manipulation !important;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body.player-mobile-runtime:not(.player-cellphone-surface-open) .hud-menu-toggle,
+  body.player-mobile-runtime:not(.player-cellphone-surface-open) #hud-menu-dropdown .hud-menu-item {
+    pointer-events: auto !important;
+  }
+}
