@@ -130,9 +130,8 @@
 
   function hasBind(unit) {
     const statuses = statusEngine();
-    if (statuses?.hasStatus) return statuses.hasStatus(unit, "bind");
-    const bind = unit?.statusEffects?.bind;
-    return Boolean(bind && Number(bind.count ?? bind.potency ?? 1) > 0);
+    const bind = statuses?.getStatus?.(unit, "bind") || unit?.statusEffects?.bind || null;
+    return Boolean(bind && Number(bind.count ?? bind.potency ?? 0) > 0);
   }
 
   function applyWebTurnEnd(modifierInput, unitsInput = [], context = {}) {
@@ -191,10 +190,21 @@
   function clearModifiers() { state.modifiers = []; return true; }
   function getModifiers() { return clone(state.modifiers); }
 
+  function functionChainHasMarker(fn, marker) {
+    const seen = new Set();
+    let current = fn;
+    while (typeof current === "function" && !seen.has(current)) {
+      if (current[marker] === true) return true;
+      seen.add(current);
+      current = current.__legacy;
+    }
+    return false;
+  }
+
   function installCombatEngine() {
     const engine = global.CombatEngine;
     if (!engine || typeof engine.triggerPhase !== "function") return false;
-    if (engine.triggerPhase.__luminousEncounterModifierWrapped) return true;
+    if (functionChainHasMarker(engine.triggerPhase, "__luminousEncounterModifierWrapped")) return true;
     const original = engine.triggerPhase;
     const wrapped = function triggerPhaseWithEncounterModifiers(phaseTag, allUnits, ...rest) {
       const result = original.call(this, phaseTag, allUnits, ...rest);
@@ -232,6 +242,7 @@
     applyWebTurnEnd,
     applyTurnEnd,
     webDetectionForUnit,
+    functionChainHasMarker,
     setModifiers,
     addModifier,
     clearModifiers,
