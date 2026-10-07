@@ -342,10 +342,14 @@
       lootProfile: unitTruth?.lootProfile,
     });
 
-    const actorId = postCombat().actorIdOf(actor, options);
+    const actorIdentityOptions = {
+      ...options,
+      actorId: clean(options.actorId || options.playerId),
+    };
+    const actorId = postCombat().actorIdOf(actor, actorIdentityOptions);
     if (!actorId) throw new Error("POST_COMBAT_ACTOR_ID_REQUIRED");
     const definition = postCombat().checkDefinition(actor, actionId, {
-      ...options,
+      ...actorIdentityOptions,
       corpseId: locked.corpseId,
     });
     const checkResult = options.checkResult || checks().rollCheck(definition, options);
@@ -359,7 +363,7 @@
       let outcome;
       try {
         outcome = postCombat().applyResolvedAction(current, actor, actionId, checkResult, {
-          ...options,
+          ...actorIdentityOptions,
           lootInstance: locked,
           unitTruth,
         });
@@ -598,7 +602,10 @@
   }
 
   function availableActions(state = {}, actor = {}, options = {}) {
-    const actorId = postCombat()?.actorIdOf?.(actor, options) || clean(options.playerId);
+    const actorId = postCombat()?.actorIdOf?.(actor, {
+      ...options,
+      actorId: clean(options.actorId || options.playerId),
+    }) || clean(options.playerId);
     const actions = [];
     const searchAvailable = (state.carried || []).some((entry) => int(entry.remaining, 0) > 0) || int(state.currency?.remaining, 0) > 0;
     if (searchAvailable && !postCombat().hasAttempted(state, actorId, "search", {})) actions.push("search");
