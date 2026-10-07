@@ -173,4 +173,26 @@ assert.equal(ticks.length, 1);
 assert.equal(regenUnit.hp, 27, 'second regeneration turn must heal');
 assert.equal(regenUnit.itemRuntimeEffects.length, 0, 'regeneration effect must expire after its declared turns');
 
+
+const activeGoodberryDish = {
+  instanceId: 'active-goodberry-dish',
+  category: 'consumable',
+  runtime: {
+    healing: { flat: 15, maxHpPercent: 10 },
+    magicalFoodExpiresAt: Date.now() + 60_000,
+  },
+};
+assert.deepEqual(runtime.runtimeUseProfile(activeGoodberryDish).hpHealing, { flat: 15, maxHpPercent: 10 });
+
+const expiredGoodberryDish = {
+  instanceId: 'expired-goodberry-dish',
+  category: 'consumable',
+  customData: { goodMagicDish: { expiresAt: 1 } },
+  runtime: {
+    healing: { flat: 15, maxHpPercent: 10 },
+    magicalFoodExpiresAt: 1,
+  },
+};
+assert.equal(runtime.runtimeUseProfile(expiredGoodberryDish).hpHealing, null, 'Goodberry dish healing must expire with the inherited ingredient timer');
+
 console.log('canonical Combat ItemRuntime use smoke: ok');
