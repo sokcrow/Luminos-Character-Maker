@@ -1221,7 +1221,7 @@
 
     find_familiar: Object.freeze({
       id: "find_familiar", name: "Find Familiar", nombre: "Encontrar Familiar",
-      description: "Summon a Familiar using a real Unit from the Unit Library. Choose its animal form, available variant, and spirit type.",
+      description: "Summon a Familiar using a real Unit from the Unit Library. Choose its animal Unit/variant and Celestial, Fey, or Fiend spirit type.",
       level: 1, spellLevel: 1, cantrip: false,
       classIds: ["wizard"],
       school: "conjuration", contexts: ["theater"],
@@ -1246,38 +1246,10 @@
           ownTurn: true,
           cannotUseAttackSkills: true,
           telepathyFeet: 100,
-          familiarSensesQuickAction: true,
-          deliverTouchSpell: { rangeFeet: 100, familiarReaction: true }
+          familiarSenses: { economy: "quick_action", expires: "next_turn_start" },
+          deliverTouchSpell: { rangeFeet: 100, familiarEconomy: "reaction", originOnly: true },
+          dismiss: { economy: "action", temporary: true, canDismissPermanently: true }
         }
-      },
-      effects: [{ type: "level1_find_familiar" }]
-    }),
-
-    find_familiar: Object.freeze({
-      id: "find_familiar", name: "Find Familiar", nombre: "Encontrar Familiar",
-      description: "Summon a Familiar using an eligible creature from the Unit Library. Choose the creature form, its Unit Library variant when available, and Celestial, Fey, or Fiend spirit type.",
-      level: 1, spellLevel: 1, cantrip: false,
-      classIds: ["wizard"],
-      school: "conjuration", contexts: ["theater"],
-      sinAffinity: "sloth", damageType: null,
-      targetType: "self", targetingType: "self", attackWeight: 1, atkWeight: 1,
-      castingTime: "1_hour", ritual: true, concentration: false, resolutionType: "automatic",
-      mechanics: {
-        level1Runtime: "find_familiar",
-        unitLibrarySummon: {
-          onePerSpell: true,
-          sourceRoot: "campaña/base_datos_unidades",
-          useUnitLibraryStats: true,
-          targetable: true,
-          cannotAttack: true,
-          chooseForm: true,
-          chooseVariantWhenAvailable: true,
-          spiritTypes: ["celestial", "fey", "fiend"]
-        },
-        telepathyRangeFeet: 100,
-        familiarSenses: { economy: "quick_action", expires: "next_turn_start" },
-        deliverTouchSpell: { rangeFeet: 100, familiarEconomy: "reaction", originOnly: true },
-        dismiss: { economy: "action", temporary: true, canDismissPermanently: true }
       },
       effects: [{ type: "level1_find_familiar" }]
     }),
