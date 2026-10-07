@@ -7575,6 +7575,19 @@
           </button>
 
 
+          <button
+            id="btn-toggle-theatre-self-actor"
+            class="hud-menu-item hud-menu-item--theatre"
+            type="button"
+            title="Mostrar mi personaje"
+            aria-label="Mostrar mi personaje en escena"
+            aria-pressed="false"
+            disabled
+          >
+            <img src="Assets/Images/Buttons/Player.svg" width="40" height="40" alt="" aria-hidden="true" class="hud-menu-local-icon" style="width:40px;height:40px;object-fit:contain;">
+            <span data-theatre-self-visibility-label>Mostrar personaje</span>
+          </button>
+
           <button id="btn-abrir-escritura" class="hud-menu-item hud-menu-item--theatre" type="button" title="Actuar en el Teatro">
             <img src="Assets/Images/Buttons/Theatre.png" width="40" height="40" alt="" aria-hidden="true" class="hud-menu-local-icon" style="width:40px;height:40px;object-fit:contain;">
             <span>Actuar</span>
@@ -12451,7 +12464,7 @@
     </script>
     <script src="js/game-loading-coordinator.js?v=20261005-real-gates-1"></script>
     <script src="js/instance-control.js?v=20261005-real-gates-1"></script>
-    <script src="js/theatre-engine.js?v=20261004-theatre-send-recovery-2"></script>
+    <script src="js/theatre-engine.js?v=20261007-menu-self-visibility-1"></script>
     <script>
       const db = firebase.database();
 
