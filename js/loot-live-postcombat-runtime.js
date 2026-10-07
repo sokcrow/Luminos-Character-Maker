@@ -25,6 +25,7 @@
     "js/item-processing-engine.js",
     "js/item-harvest-integrity-engine.js",
     "js/item-economy-standard.js",
+    "js/coin-engine-core.js",
     "js/creature-type-catalog.js",
     "js/loot-social-profile-contract.js",
     "js/loot-encounter-context.js",
