@@ -81,7 +81,7 @@
     button.type = "button";
     button.className = "hud-menu-item";
     button.title = "Revisar botín post-combate";
-    button.innerHTML = '<span aria-hidden="true" style="font-size:22px;width:40px;text-align:center">⌁</span><span>Botín</span><span class="postcombat-loot-badge">0</span>';
+    button.innerHTML = '<img src="Assets/Icons/items/utility/harvest_kit.png" width="40" height="40" alt="" aria-hidden="true" class="hud-menu-local-icon" style="width:40px;height:40px;object-fit:contain;"><span>Botín</span><span class="postcombat-loot-badge">0</span>';
     button.addEventListener("click", () => open());
     if (inventory?.nextSibling) menu.insertBefore(button, inventory.nextSibling);
     else menu.appendChild(button);
