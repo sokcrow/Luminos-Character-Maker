@@ -154,6 +154,32 @@ for (const {label,data} of legacyVariants) {
   assert.equal(milestone.earnedMilestones(normalized).some(row=>row.classId==='fighter'&&row.milestoneLevel===30),
     true,label+' earned bonus milestone');
 }
+// Codex P1: migrating array-backed claims must never drop earlier Traits,
+// stats claims, timestamps, or unrelated classes.
+const legacyClaims=[
+  {classId:'fighter',milestoneLevel:20,type:'stats',allocation:{fuerza:2},selectedAt:111,origin:'older-build'},
+  {classId:'fighter',level:30,type:'trait',traitId:'general_keen',selectedAt:222,notes:'keep-this-note'},
+  {classId:'monk',milestoneLevel:40,type:'trait',traitId:'superior_technique',selectedAt:333},
+];
+const sourceCopy=structuredClone(legacyClaims);
+const mapped=milestone.migrateMilestoneChoices(legacyClaims);
+assert.deepEqual(legacyClaims,sourceCopy,'Migration must not modify its input');
+assert.ok(!Array.isArray(mapped),'Converted milestones use the supported nested object map');
+assert.deepEqual(mapped.fighter["20"],sourceCopy[0],'Old stat claim and metadata retained verbatim');
+assert.deepEqual(mapped.fighter["30"],sourceCopy[1],'Old Trait and metadata retained verbatim');
+assert.deepEqual(mapped.monk["40"],sourceCopy[2],'Other class choices remain intact');
+assert.equal(milestone.choiceAt(mapped,'fighter',20)?.type,'stats');
+assert.equal(milestone.choiceAt(mapped,'fighter',30)?.traitId,'general_keen');
+assert.deepEqual(milestone.selectedGeneralTraitIds({characterBuild:{classMilestones:mapped}}),
+  ['general_keen','superior_technique']);
+assert.equal(milestone.migrateMilestoneChoices(mapped),mapped,'Already mapped choices remain unchanged');
+assert.deepEqual(milestone.migrateMilestoneChoices([null,...legacyClaims]),mapped,
+  'Sparse Firebase-style lists do not discard actual claims');
+assert.throws(()=>milestone.migrateMilestoneChoices([...legacyClaims,{type:'stats',allocation:{fuerza:2}}]),
+  /datos incompletos/,'Malformed existing claims must block a potentially lossy save');
+assert.throws(()=>milestone.migrateMilestoneChoices([...legacyClaims,sourceCopy[0]]),
+  /duplicados/,'Conflicting existing claims must not be overwritten');
+
 const noSelection={characterBuild:{
   classes:{fighter:{levels:40}},archetypes:{fighter:{archetypeId:'champion'}},
 }};
