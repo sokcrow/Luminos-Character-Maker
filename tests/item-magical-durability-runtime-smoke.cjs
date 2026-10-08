@@ -16,9 +16,9 @@ const Inventory = globalThis.LuminousItemInventoryRuntime;
 const Magic = globalThis.LuminousItemMagicRuntime;
 
 assert.ok(Catalog && Engine && Inventory && Magic);
-assert.strictEqual(Catalog.VERSION, 4);
-assert.strictEqual(Engine.VERSION,9);
-assert.strictEqual(Magic.VERSION, 3);
+assert.strictEqual(Catalog.VERSION,5);
+assert.strictEqual(Engine.VERSION,10);
+assert.strictEqual(Magic.VERSION,4);
 
 const baseWeapon = {
   instanceId:"md_weapon",
@@ -292,7 +292,7 @@ delete globalThis.LuminousItemEnchantmentCombatRuntime;
 require("../js/item-enchantment-combat-runtime.js");
 const CombatMagic = globalThis.LuminousItemEnchantmentCombatRuntime;
 assert.ok(CombatMagic);
-assert.strictEqual(CombatMagic.VERSION, 1);
+assert.strictEqual(CombatMagic.VERSION,2);
 
 const combatItem = JSON.parse(JSON.stringify(direct.item));
 const attacker = {id:"combat_attacker",equipment:{mainHand:combatItem}};
