@@ -101,7 +101,8 @@
 
   function normalizeMagicalDurability(raw = {}, refs = [], options = {}) {
     const source = raw && typeof raw === "object" ? raw : {};
-    const autoManaged = source.autoManaged !== false && source.authored !== true;
+    const explicitMax = source.max != null || source.maximum != null;
+    const autoManaged = source.autoManaged === true || (!explicitMax && source.authored !== true);
     const desiredMax = autoManaged
       ? inferredMagicalDurabilityMax(refs, options)
       : Math.max(0, Number(source.max ?? source.maximum ?? options.max ?? 0) || 0);
@@ -443,7 +444,7 @@
     if (!gate.allowed) return Object.freeze({ applied:false, ...clone(gate), item:clone(item) });
     const refs = appliedEnchantments(item);
     refs.push(gate.reference);
-    const out = withMagicState(item, refs, gate.candidateAnchors || gemAnchors(item));
+    const out = withMagicState(item, refs, gate.candidateAnchors || gemAnchors(item), options);
     return Object.freeze({
       applied:true,
       item:Object.freeze(out),
@@ -505,7 +506,7 @@
 
     const refs = appliedEnchantments(item);
     refs[gate.index] = gate.next;
-    const out = withMagicState(item, refs, gate.candidateAnchors || gemAnchors(item));
+    const out = withMagicState(item, refs, gate.candidateAnchors || gemAnchors(item), options);
     return Object.freeze({
       strengthened:true,
       item:Object.freeze(out),
@@ -1035,7 +1036,7 @@
     const anchors = currentAnchors;
     refs.push(gate.reference);
     anchors.push(gate.anchor);
-    const out = withMagicState(item, refs, anchors);
+    const out = withMagicState(item, refs, anchors, options);
     return Object.freeze({
       mounted:true,
       item:Object.freeze(out),
@@ -1225,9 +1226,10 @@
     return Object.freeze(results);
   }
 
-  function actionChannels(item = {}) {
+  function actionChannels(item = {}, context = {}) {
     const groups = new Map();
     for (const entry of resolvedEnchantments(item, { trigger:context.trigger, magicActive:context.magicActive })) {
+      if (context.trigger && entry.effects.length === 0) continue;
       const channel = normalizeId(entry.definition.interaction?.exclusiveChannel);
       if (!channel || entry.definition.interaction?.exclusivePerAction !== true) continue;
       if (!groups.has(channel)) groups.set(channel, []);
@@ -1249,11 +1251,11 @@
     const effects = [];
     const unresolvedChannels = [];
 
-    for (const entry of resolvedEnchantments(item)) {
+    for (const entry of resolvedEnchantments(item, { trigger:context.trigger, magicActive:context.magicActive })) {
       const interaction = entry.definition.interaction || {};
       const channel = normalizeId(interaction.exclusiveChannel);
       if (channel && interaction.exclusivePerAction === true) {
-        const choices = actionChannels(item).find((row) => row.channel === channel);
+        const choices = actionChannels(item, context).find((row) => row.channel === channel);
         const selectedId = normalizeId(selected[channel]);
         if (choices?.requiresChoice && !selectedId) {
           if (!unresolvedChannels.includes(channel)) unresolvedChannels.push(channel);
