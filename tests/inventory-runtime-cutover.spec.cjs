@@ -10,6 +10,7 @@ const REALTIME = path.join(ROOT, "js/item-realtime-sync.js");
 const BRIDGE = path.join(ROOT, "js/item-equipment-bridge.js");
 const HUD = path.join(ROOT, "js/inventory-hud-v2.js");
 const CSS = path.join(ROOT, "css/inventory-hud-v2.css");
+const GOTHIC_CSS = path.join(ROOT, "css/inventory-gothic-art.css");
 
 async function bootHarness(page) {
   await page.setContent(`<!doctype html><html><head></head><body>
@@ -48,6 +49,7 @@ async function bootHarness(page) {
     </div></div>
   </body></html>`);
   await page.addStyleTag({ path: CSS });
+  await page.addStyleTag({ path: GOTHIC_CSS });
 
   await page.evaluate(() => {
     const active = {
@@ -146,16 +148,16 @@ async function bootHarness(page) {
   await page.waitForFunction(() => window.LuminousInventoryHudV2?.state?.peer?.bound && document.querySelectorAll("#inv-active-grid [data-key]").length === 2);
 }
 
-test("HUD V2 owns rendering and keeps 20 Active slots in readable cards", async ({ page }) => {
+test("HUD V2 uses gothic layout with 24 Active inventory slots", async ({ page }) => {
   await bootHarness(page);
   expect(await page.evaluate(() => typeof window.renderInventoryGrid)).toBe("undefined");
   await expect(page.locator(".inventory-v2-equipment")).toHaveCount(1);
   await expect(page.locator(".inventory-v2-equipment [data-equipment-slot]")).toHaveCount(8);
   await expect(page.locator('[data-equipment-slot="augment0"]')).toHaveCount(1);
   await expect(page.locator('[data-equipment-slot="augment1"]')).toHaveCount(1);
-  await expect(page.locator("#inv-active-grid .inventory-v2-runtime-slot")).toHaveCount(20);
-  await expect(page.locator("#inv-active-grid .inventory-v2-empty-slot")).toHaveCount(18);
-  await expect(page.locator("#inventory-v2-carry-count")).toHaveText("02 / 20");
+  await expect(page.locator("#inv-active-grid .inventory-v2-runtime-slot")).toHaveCount(24);
+  await expect(page.locator("#inv-active-grid .inventory-v2-empty-slot")).toHaveCount(22);
+  await expect(page.locator("#inventory-v2-carry-count")).toHaveText("02 / 24");
   await expect(page.locator("#inventory-v2-stash-count")).toContainText("01 / 80 SLOTS");
   const layout = await page.locator("#inv-active-grid").evaluate((el) => {
     const first = el.querySelector('[data-key="blade_1"]');
@@ -164,9 +166,9 @@ test("HUD V2 owns rendering and keeps 20 Active slots in readable cards", async 
       cardWidth: first?.getBoundingClientRect().width || 0,
     };
   });
-  expect(layout.columns).toBeGreaterThanOrEqual(5);
-  expect(layout.cardWidth).toBeGreaterThanOrEqual(160);
-  expect(layout.cardWidth).toBeLessThan(235);
+  expect(layout.columns).toBe(6);
+  expect(layout.cardWidth).toBeGreaterThanOrEqual(65);
+  expect(layout.cardWidth).toBeLessThan(160);
 
   const card = page.locator('#inv-active-grid [data-key="blade_1"]');
   const name = card.locator(".item-name");
@@ -183,15 +185,40 @@ test("HUD V2 owns rendering and keeps 20 Active slots in readable cards", async 
       iconWidth: icon.width,
       nameWidth: name.width,
       metaWidth: meta.width,
-      nameStartsAfterIcon: name.left > icon.right,
+      nameBelowIcon: name.top >= icon.top,
       metaBelowName: meta.top >= name.top,
     };
   });
-  expect(geometry.iconWidth).toBeGreaterThanOrEqual(50);
-  expect(geometry.nameWidth).toBeGreaterThan(70);
-  expect(geometry.metaWidth).toBeGreaterThan(70);
-  expect(geometry.nameStartsAfterIcon).toBe(true);
+  expect(geometry.iconWidth).toBeGreaterThanOrEqual(30);
+  expect(geometry.nameWidth).toBeGreaterThan(50);
+  expect(geometry.metaWidth).toBeGreaterThan(50);
+  expect(geometry.nameBelowIcon).toBe(true);
   expect(geometry.metaBelowName).toBe(true);
+});
+
+test("inventory shows the combat sprite rather than the portrait, with a fallback", async ({ page }) => {
+  await bootHarness(page);
+  const hud = page.locator(".inventory-v2-combat-stage");
+  await expect(hud).toHaveCount(1);
+  await expect(page.locator(".inventory-v2-combat-sprite")).toHaveCount(1);
+  await page.evaluate(() => {
+    const inv = window.LuminousInventoryHudV2;
+    inv.hydratePlayerVitals({
+      combatSprite: "https://example.invalid/battle-sprite.png",
+      icono_jugador: "https://example.invalid/hud-portrait.png",
+      spriteX: 12, spriteY: -4, visualScale: 1.2,
+    });
+    inv.renderAll();
+  });
+  await expect(page.locator(".inventory-v2-combat-sprite")).toHaveAttribute("src", "https://example.invalid/battle-sprite.png");
+  const result = await page.evaluate(() => window.LuminousInventoryHudV2.state.combatSprite);
+  expect(result).toMatchObject({ src: "https://example.invalid/battle-sprite.png", x: 12, y: -4, scale: 1.2 });
+  await page.evaluate(() => {
+    window.LuminousInventoryHudV2.hydratePlayerVitals({ icono_jugador: "https://example.invalid/hud-portrait.png" });
+    window.LuminousInventoryHudV2.renderAll();
+  });
+  await expect(page.locator(".inventory-v2-combat-sprite")).not.toHaveAttribute("src", /portrait/);
+  await expect(page.locator(".inventory-v2-sprite-fallback")).toBeVisible();
 });
 
 test("player item detail hides implementation metadata and only shows relevant state", async ({ page }) => {
@@ -205,9 +232,9 @@ test("player item detail hides implementation metadata and only shows relevant s
       cardWidth: first?.getBoundingClientRect().width || 0,
     };
   });
-  expect(selectedGrid.columns).toBeGreaterThanOrEqual(3);
-  expect(selectedGrid.cardWidth).toBeGreaterThanOrEqual(150);
-  expect(selectedGrid.cardWidth).toBeLessThan(235);
+  expect(selectedGrid.columns).toBe(6);
+  expect(selectedGrid.cardWidth).toBeGreaterThanOrEqual(65);
+  expect(selectedGrid.cardWidth).toBeLessThan(160);
 
   await expect(page.locator("#detail-title")).toHaveText("Test Workshop Blade");
   await expect(page.locator("#detail-desc")).toHaveText("Instance presentation wins");
@@ -243,12 +270,15 @@ test("player item detail hides implementation metadata and only shows relevant s
   expect(Math.max(...geometry.buttons)).toBeLessThan(geometry.right * 0.72);
 });
 
-test("inventory runtime freezes 20/80 capacity and family stack limits", async ({ page }) => {
+test("inventory runtime freezes 24/80 capacity and family stack limits", async ({ page }) => {
   await bootHarness(page);
   const result = await page.evaluate(() => {
     const inv = window.LuminousItemInventoryRuntime;
     return {
       activeSlots: inv.activeSlotLimit({}),
+      legacySlots: inv.activeSlotLimit({ activeSlotLimit: 20 }),
+      legacyNestedSlots: inv.activeSlotLimit({ inventoryRules: { activeSlotLimit: 20 } }),
+      expandedSlots: inv.activeSlotLimit({ activeSlotLimit: 30 }),
       stashSlots: inv.stashSlotLimit({}),
       weaponActive: inv.stackLimit({ category: "weapon" }, "active"),
       weaponStash: inv.stackLimit({ category: "weapon" }, "stash"),
@@ -261,7 +291,7 @@ test("inventory runtime freezes 20/80 capacity and family stack limits", async (
     };
   });
   expect(result).toEqual({
-    activeSlots: 20, stashSlots: 80,
+    activeSlots: 24, legacySlots: 24, legacyNestedSlots: 24, expandedSlots: 30, stashSlots: 80,
     weaponActive: 1, weaponStash: 1, toolActive: 1,
     ammoActive: 20, ammoStash: 99, consumableActive: 5, ingredientActive: 10, upgradeActive: 5,
   });
@@ -301,7 +331,7 @@ test("slot limits reject new stacks but still allow merging into an existing ful
     const mergeResult = inv.moveToStash(mergeStash, "ammo_move");
 
     const fullActive = { inventario_activo: {}, inventario_stash: { incoming: make("incoming") } };
-    for (let i = 0; i < 20; i += 1) fullActive.inventario_activo[`active_${i}`] = make(`active_${i}`);
+    for (let i = 0; i < 24; i += 1) fullActive.inventario_activo[`active_${i}`] = make(`active_${i}`);
     const rejectActive = inv.moveToActive(fullActive, "incoming");
 
     return {
