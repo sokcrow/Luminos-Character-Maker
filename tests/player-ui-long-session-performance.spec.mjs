@@ -1651,5 +1651,54 @@ for (const width of [390, 1280]) {
     expect(reversed.player.baseStats).not.toHaveProperty("str");
     expect(reversed.player.characterBuild.classMilestones.fighter?.["20"]).toBeUndefined();
     expect(reversed.player.stats.customScore).toBe("keep");
+
+    // Codex P2: reverting Superior Technique removes one maneuver slot. The
+    // player must be able to discard ONLY excess learned maneuvers, not swap
+    // previously learned ones for an unrelated new choice.
+    await page.evaluate(() => {
+      const char = {
+        level:40,
+        stats:{fuerza:14,destreza:12,constitucion:13,inteligencia:10,sabiduria:11,carisma:12},
+        characterBuild:{
+          classes:[{classId:"fighter",levels:40}],
+          archetypes:[{classId:"fighter",archetypeId:"battle_master"}],
+          classMilestones:{fighter:{"20":{classId:"fighter",milestoneLevel:20,type:"trait",
+            traitId:"superior_technique",selectedAt:111}}},
+          maneuvers:{battle_master:["parry","rally","ambush","bait_and_switch"]}
+        }
+      };
+      window.datosJugador=char;
+      window.__server=structuredClone(char);
+      window.LuminousPlayerProgressionTree.refresh();
+    });
+    const battleMaster=page.locator(".player-progression-branch-label.is-selected");
+    await expect(battleMaster).toContainText("MANIOBRAS 4/4");
+    await battleMaster.locator(".player-progression-branch-configure").click();
+    const shrinkPanel=page.locator("#player-progression-detail .player-progression-maneuver-panel");
+    await expect(shrinkPanel.locator(".player-progression-maneuver-counter")).toContainText("4 / 4");
+    await page.evaluate(() => {
+      const result=window.LuminousMilestoneRevertPatch.revertMilestoneState(window.__server,"fighter",20);
+      if(!result.valid) throw Error(result.error||"Superior Technique reversion failed");
+      window.__server=structuredClone(result.player);
+      window.datosJugador=structuredClone(result.player);
+      window.LuminousPlayerProgressionTree.refresh();
+    });
+    await expect(battleMaster).toContainText("MANIOBRAS 4/3");
+    await battleMaster.locator(".player-progression-branch-configure").click();
+    await expect(shrinkPanel.locator(".player-progression-maneuver-counter")).toContainText("4 / 3");
+    await expect(shrinkPanel).toContainText("Desmarca 1 maniobra");
+    await expect(shrinkPanel.locator('input[value="parry"]')).toBeEnabled();
+    await expect(shrinkPanel.locator('input[value="feinting_attack"]')).toBeDisabled();
+    await expect(shrinkPanel.getByRole("button",{name:"GUARDAR MANIOBRAS"})).toBeDisabled();
+    await shrinkPanel.locator('input[value="ambush"]').uncheck();
+    await expect(shrinkPanel.locator(".player-progression-maneuver-counter")).toContainText("3 / 3");
+    await shrinkPanel.getByRole("button",{name:"GUARDAR MANIOBRAS"}).click();
+    expect(await page.evaluate(()=>window.__server.characterBuild.maneuvers.battle_master.sort()))
+      .toEqual(["bait_and_switch","parry","rally"]);
+    await expect(battleMaster).toContainText("MANIOBRAS 3/3");
+    await battleMaster.locator(".player-progression-branch-configure").click();
+    await expect(shrinkPanel.locator('input[value="parry"]')).toBeDisabled();
+    await expect(shrinkPanel.locator('input[value="feinting_attack"]')).toBeEnabled();
+    await expect(shrinkPanel.getByRole("button",{name:"GUARDAR MANIOBRAS"})).toBeDisabled();
   });
 }
