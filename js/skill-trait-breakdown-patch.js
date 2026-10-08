@@ -240,6 +240,22 @@
       row.title = tooltip(skill, ability, breakdown);
       row.dataset.traitSkillBreakdown = "true";
     });
+    // Ability and Saving Throw buttons need the same accurate context-aware
+    // bonus preview without changing the permanent Ability Score on screen.
+    const ability = stats.ABILITIES.find((entry) => entry.id === panel.dataset.activeStat);
+    const runtime = global.LuminousPlayerTraitRuntime;
+    const engine = global.LuminousTraitEngine;
+    if (ability && runtime?.getTraits && engine) {
+      const character = runtime.getCharacter?.() || data;
+      for (const kind of ["ability", "save"]) {
+        const button = panel.querySelector(`[data-dnd-roll="${kind}"]`);
+        if (!button) continue;
+        const bonuses = evaluatedCheckBonuses(engine, runtime.getTraits(), character, { kind, abilityId: ability.id });
+        const plus = bonuses.checkPowerTotal + bonuses.finalPowerTotal;
+        const label = kind === "save" ? `${ability.name} Saving Throw` : `${ability.name} Ability Check`;
+        button.title = plus ? `${label}: ${formatSigned(plus)} bonus de Traits` : label;
+      }
+    }
     return changed;
   }
 
