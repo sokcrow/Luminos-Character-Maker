@@ -12,7 +12,7 @@ const Engine = globalThis.LuminousItemEnchantmentEngine;
 
 assert.ok(Catalog && Engine);
 assert.strictEqual(Catalog.VERSION, 4);
-assert.strictEqual(Engine.VERSION, 8);
+assert.strictEqual(Engine.VERSION,9);
 
 const ritualDefinition = {
   ...Catalog.get("flamebound"),
