@@ -109,8 +109,39 @@
     return { check: special.check, outcomes: resolved.outcomes || [], specialContributions: special.contributions };
   }
 
+  // Never call resolveTheatreCheck merely to draw a Skill: the real engine may
+  // consume once-per-rest resources (e.g. Orosh Fragmented Blessing). Only
+  // declarative pure previews and deterministic passive class bonuses belong here.
+  function previewCheck(engine, traits = [], character = {}, checkInput = {}) {
+    const actor = canonicalCharacter(character, traits);
+    const check = { abilityPower: 0, checkPower: 0, power: 0, finalPower: 0, ...checkInput };
+    const bridge = global.LuminousSkillTraitBreakdownPatch;
+    const checkContributions = bridge?.checkPowerContributions?.(engine, traits, actor, checkInput) || [];
+    const finalContributions = bridge?.finalPowerContributions?.(engine, traits, actor, checkInput) || [];
+    check.checkPower = checkContributions.reduce((sum, entry) => sum + numberOr(entry.amount), 0);
+    check.finalPower = finalContributions.reduce((sum, entry) => sum + numberOr(entry.amount), 0);
+    const specials = applyClassCheckBonuses(check, actor, traits);
+    const adjusted = specials.check;
+    const contributions = [...specials.contributions];
+    const id = normalizeId(checkInput.skillId || checkInput.skill);
+    const kind = normalizeId(checkInput.kind);
+    const prof = proficiencyState(actor, kind === "skill" ? id : abilityId(checkInput.abilityId), kind === "save" ? "save" : "skill");
+    if (hasTrait(traits, "reliable_talent") && kind === "skill" && ["proficient", "expertise"].includes(prof)) {
+      adjusted.finalPower += 3;
+      contributions.push({ traitId: "reliable_talent", name: "Reliable Talent", amount: 3, channel: "final_power" });
+    }
+    if (hasTrait(traits, "jack_of_all_trades") && prof === "none") {
+      const amount = Math.max(0, Math.floor(proficiencyBonus(actor) / 2));
+      if (amount) {
+        adjusted.finalPower += amount;
+        contributions.push({ traitId: "jack_of_all_trades", name: "Jack of All Trades", amount, channel: "final_power" });
+      }
+    }
+    return { check: adjusted, checkContributions, finalContributions, specialContributions: contributions };
+  }
+
   const api = Object.freeze({
-    baseId, hasTrait, abilityId, canonicalCharacter, applyClassCheckBonuses, resolveCheck,
+    baseId, hasTrait, abilityId, canonicalCharacter, applyClassCheckBonuses, previewCheck, resolveCheck,
   });
   global.LuminousCheckTraitBonusRuntime = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
