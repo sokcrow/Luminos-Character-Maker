@@ -637,16 +637,24 @@ ${response}`);
     const traitEngine = global.LuminousTraitEngine;
     if (!traitEngine?.resolveTheatreCheck) return null;
     if (!state.traitState) state.traitState = traitEngine.createState();
-    const character = getCharacter();
+    const resolver = global.LuminousCheckTraitBonusRuntime;
+    const traits = resolveTraits();
+    const character = resolver?.canonicalCharacter?.(getCharacter(), traits) || getCharacter();
     const preparedCheck = normalizeTheatreCheckInput(check, runtimeInput);
-    applyApprovedDmEffects(preparedCheck, runtimeInput);
+    // Threshold reductions (e.g. Devil Lineage STR checks) are Check rules,
+    // not Ability Score changes. Preserve them in the resolved check object.
+    const withThresholdTraits = global.LuminousArchetypeRuntime?.applyTheatreCheckMechanics?.(preparedCheck) || preparedCheck;
+    applyApprovedDmEffects(withThresholdTraits, runtimeInput);
     const hadThreshold = finiteNumber(preparedCheck.thresholdRaw ?? preparedCheck.threshold) != null;
     const result = traitEngine.resolveTheatreCheck({
       character,
-      traits: resolveTraits(),
-      check: preparedCheck,
+      traits,
+      check: withThresholdTraits,
       state: state.traitState,
     });
+    if (result?.check && resolver?.applyClassCheckBonuses) {
+      result.check = resolver.applyClassCheckBonuses(result.check, character, traits).check;
+    }
     if (hadThreshold && finiteNumber(result?.check?.difficulty) != null) {
       result.check.thresholdRaw = Number(result.check.difficulty);
     }
