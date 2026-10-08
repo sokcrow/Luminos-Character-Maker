@@ -400,6 +400,7 @@
         if(!result?.committed)throw Error(abortReason);
         updateLocal(character,result.snapshot?.val?.());
         say(notice,"Maniobras guardadas.","success");
+        global.LuminousPlayerTraitRuntime?.refresh?.();
         onSaved?.();
       }catch(error){say(notice,error?.message||abortReason);}
       finally{save.disabled=false;save.textContent="GUARDAR MANIOBRAS";update();}
