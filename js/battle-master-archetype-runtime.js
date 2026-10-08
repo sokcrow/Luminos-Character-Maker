@@ -17,7 +17,7 @@
   const DEFINITIONS = Object.freeze({
     combat_superiority: Object.freeze({
       schemaVersion: 1, id: "combat_superiority", name: "Combat Superiority",
-      description: "Learn 3 Maneuvers from the Fighter Maneuver list. You can gain Superiority. [On Clash Win] Gain +3 Superiority. [On Hit] Gain +1 Superiority. Maneuver Damage Cap is 10%.",
+      description: "Learn 3 Maneuvers from the Fighter Maneuver list. You can gain Superiority. [On Clash Win] Gain +3 Superiority. [On Hit] Gain +1 Superiority. Maneuver Damage Cap is 10%. When multiple Maneuver Damage bonuses apply to the same attack, their combined bonus cannot exceed this cap. Non-Damage effects use their own limits.",
       source: SOURCE, contexts: ["combat", "any"], activation: { type: "passive", actionCost: "none" }, effects: [], rules: [],
       mechanics: { maneuverCatalog: "fighter", learnManeuvers: 3, superiority: { clashWinGain: 3, onHitGain: 1 }, maneuverDamageCap: 0.10, superiorTechniqueManeuverCountsAgainstLimit: false },
     }),
@@ -33,7 +33,7 @@
     }),
     combat_superiority_plus: Object.freeze({
       schemaVersion: 1, id: "combat_superiority_plus", name: "Combat Superiority+",
-      description: "Learn +1 additional Maneuver. [On Clash Win] Gain +4 Superiority. [On Hit] Gain +2 Superiority. Maneuver Damage Cap becomes 15%.",
+      description: "Learn +1 additional Maneuver. [On Clash Win] Gain +4 Superiority. [On Hit] Gain +2 Superiority. Maneuver Damage Cap becomes 15% (shared by combined Maneuver Damage bonuses on the same attack).",
       source: SOURCE, contexts: ["combat", "any"], activation: { type: "passive", actionCost: "none" }, effects: [], rules: [],
       mechanics: { additionalManeuvers: 1, superiority: { clashWinGain: 4, onHitGain: 2 }, maneuverDamageCap: 0.15 },
     }),
@@ -45,7 +45,7 @@
     }),
     combat_superiority_plus_plus: Object.freeze({
       schemaVersion: 1, id: "combat_superiority_plus_plus", name: "Combat Superiority++",
-      description: "Learn +1 additional Maneuver. [On Clash Win] Gain +5 Superiority. [On Hit] Gain +3 Superiority. Maneuver Damage Cap becomes 20%.",
+      description: "Learn +1 additional Maneuver. [On Clash Win] Gain +5 Superiority. [On Hit] Gain +3 Superiority. Maneuver Damage Cap becomes 20% (shared by combined Maneuver Damage bonuses on the same attack).",
       source: SOURCE, contexts: ["combat", "any"], activation: { type: "passive", actionCost: "none" }, effects: [], rules: [],
       mechanics: { additionalManeuvers: 1, superiority: { clashWinGain: 5, onHitGain: 3 }, maneuverDamageCap: 0.20 },
     }),
