@@ -11,6 +11,15 @@ on:
       - "js/derived-stats-engine.js"
       - "hoja_personaje.html"
       - "tests/trait-check-power-smoke.mjs"
+      - "tests/all-trait-check-bonuses-smoke.mjs"
+      - "js/check-trait-bonus-runtime.js"
+      - "js/player-trait-runtime.js"
+      - "js/theatre-check-coordinator.js"
+      - "js/champion-archetype-runtime.js"
+      - "js/banneret-archetype-runtime.js"
+      - "js/bladesinger-archetype-runtime.js"
+      - "js/samurai-archetype-runtime.js"
+      - "pantalla_dm.html"
       - ".github/workflows/trait-check-power-smoke.yml"
   push:
     branches: [main]
@@ -23,6 +32,15 @@ on:
       - "js/derived-stats-engine.js"
       - "hoja_personaje.html"
       - "tests/trait-check-power-smoke.mjs"
+      - "tests/all-trait-check-bonuses-smoke.mjs"
+      - "js/check-trait-bonus-runtime.js"
+      - "js/player-trait-runtime.js"
+      - "js/theatre-check-coordinator.js"
+      - "js/champion-archetype-runtime.js"
+      - "js/banneret-archetype-runtime.js"
+      - "js/bladesinger-archetype-runtime.js"
+      - "js/samurai-archetype-runtime.js"
+      - "pantalla_dm.html"
       - ".github/workflows/trait-check-power-smoke.yml"
 
 jobs:
@@ -38,4 +56,12 @@ jobs:
       - run: node --check js/player-stats-ability-bar.js
       - run: node --check js/derived-stats-engine.js
       - run: node --check js/skill-trait-breakdown-patch.js
+      - run: node --check js/check-trait-bonus-runtime.js
+      - run: node --check js/player-trait-runtime.js
+      - run: node --check js/theatre-check-coordinator.js
       - run: node tests/trait-check-power-smoke.mjs
+      - run: node tests/all-trait-check-bonuses-smoke.mjs
+      - run: node tests/champion-archetype-runtime-smoke.mjs
+      - run: node tests/banneret-archetype-runtime-smoke.mjs
+      - run: node tests/bladesinger-archetype-runtime-smoke.mjs
+      - run: node tests/samurai-archetype-runtime-smoke.mjs
