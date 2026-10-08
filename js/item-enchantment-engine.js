@@ -455,7 +455,7 @@
 
     const refs = appliedEnchantments(item);
     refs[gate.index] = gate.next;
-    const out = withMagicState(item, refs);
+    const out = withMagicState(item, refs, gate.candidateAnchors || gemAnchors(item));
     return Object.freeze({
       strengthened:true,
       item:Object.freeze(out),
