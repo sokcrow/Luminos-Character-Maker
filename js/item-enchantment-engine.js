@@ -18,6 +18,13 @@
 
   const VERSION = 10;
   const TIER_BASE_SLOT_CAPACITY = Object.freeze({ 1: 0, 2: 1, 3: 1, 4: 2, 5: 3 });
+  const ITEM_KIND_SLOT_CAPACITY_LIMIT = Object.freeze({
+    weapon:3,
+    armor:3,
+    shield:3,
+    accessory:3,
+    valuable:3,
+  });
   const BIND_POSITIVE_MULTIPLIER = 1.25;
   const CURSE_POSITIVE_MULTIPLIER = 1.50;
   const SUPPORTED_APPLICATION_SOURCES = Object.freeze(["direct", "gem"]);
