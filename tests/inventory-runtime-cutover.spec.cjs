@@ -221,6 +221,34 @@ test("inventory shows the combat sprite rather than the portrait, with a fallbac
   await expect(page.locator(".inventory-v2-sprite-fallback")).toBeVisible();
 });
 
+test("combat sprite sources accept relative paths and data images from the DM editor", async ({ page }) => {
+  await bootHarness(page);
+  const img = page.locator(".inventory-v2-combat-sprite");
+  const sources = ["dm-custom.png", "./sprites/player.png", "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="];
+  for (const src of sources) {
+    await page.evaluate((url) => {
+      const inv = window.LuminousInventoryHudV2;
+      inv.hydratePlayerVitals({ combatSprite: url, icono_jugador: "portrait-only.png" });
+      inv.renderAll();
+    }, src);
+    await expect(img).toHaveAttribute("src", src);
+  }
+  await expect(img).toBeVisible();
+  await expect(page.locator(".inventory-v2-sprite-fallback")).toBeHidden();
+});
+
+test("inventory HUD respects explicitly disabled active capacity", async ({ page }) => {
+  await bootHarness(page);
+  await page.evaluate(() => {
+    const hud = window.LuminousInventoryHudV2;
+    hud.state.unit.inventoryRules = { activeSlotLimit: 0 };
+    hud.state.unit.inventario_activo = {};
+    hud.renderAll();
+  });
+  await expect(page.locator("#inventory-v2-carry-count")).toHaveText("00 / 0");
+  await expect(page.locator("#inv-active-grid .inventory-v2-runtime-slot")).toHaveCount(0);
+});
+
 test("player item detail hides implementation metadata and only shows relevant state", async ({ page }) => {
   await bootHarness(page);
   await page.locator('#inv-active-grid [data-key="blade_1"]').click();
@@ -279,6 +307,7 @@ test("inventory runtime freezes 24/80 capacity and family stack limits", async (
       legacySlots: inv.activeSlotLimit({ activeSlotLimit: 20 }),
       legacyNestedSlots: inv.activeSlotLimit({ inventoryRules: { activeSlotLimit: 20 } }),
       dmDisabledSlots: inv.activeSlotLimit({ inventoryRules: { activeSlotLimit: 0 } }),
+      dmRestrictedSlots: inv.activeSlotLimit({ activeSlotLimit: 12 }),
       expandedSlots: inv.activeSlotLimit({ activeSlotLimit: 30 }),
       stashSlots: inv.stashSlotLimit({}),
       weaponActive: inv.stackLimit({ category: "weapon" }, "active"),
@@ -292,7 +321,7 @@ test("inventory runtime freezes 24/80 capacity and family stack limits", async (
     };
   });
   expect(result).toEqual({
-    activeSlots: 24, legacySlots: 24, legacyNestedSlots: 24, dmDisabledSlots: 0, expandedSlots: 30, stashSlots: 80,
+    activeSlots: 24, legacySlots: 24, legacyNestedSlots: 24, dmDisabledSlots: 0, dmRestrictedSlots: 12, expandedSlots: 30, stashSlots: 80,
     weaponActive: 1, weaponStash: 1, toolActive: 1,
     ammoActive: 20, ammoStash: 99, consumableActive: 5, ingredientActive: 10, upgradeActive: 5,
   });
@@ -405,12 +434,12 @@ test("stash filters derive from live item families", async ({ page }) => {
   await expect(page.locator('#filtros-stash .inv-filter-btn[data-filter="chemical_processed"]')).toHaveCount(1);
 });
 
-test("gothic inventory uses three mobile columns without horizontal modal overflow", async ({ page }) => {
+test("gothic inventory preserves two readable mobile columns without horizontal modal overflow", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await bootHarness(page);
   await page.locator("#inventory-modal").evaluate((el) => el.classList.add("active"));
   const columns = await page.locator("#inv-active-grid").evaluate((el) => getComputedStyle(el).gridTemplateColumns.split(" ").filter(Boolean).length);
-  expect(columns).toBe(3);
+  expect(columns).toBe(2);
   const overflow = await page.locator(".inventory-modal-content").evaluate((el) => ({ clientWidth: el.clientWidth, scrollWidth: el.scrollWidth }));
   expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth + 1);
   await expect(page.locator(".inventory-v2-equipment [data-equipment-slot]")).toHaveCount(8);
