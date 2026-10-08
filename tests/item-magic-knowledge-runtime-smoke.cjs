@@ -18,7 +18,7 @@ const Persistence = globalThis.LuminousItemPersistenceRuntime;
 const Knowledge = globalThis.LuminousItemMagicKnowledgeRuntime;
 
 assert.ok(Engine && Magic && Persistence && Knowledge);
-assert.strictEqual(Magic.VERSION, 3);
+assert.strictEqual(Magic.VERSION,4);
 assert.strictEqual(Knowledge.VERSION, 1);
 assert.deepStrictEqual(Knowledge.ARCANA_IDENTIFY_TH, {1:22,2:28,3:34});
 
