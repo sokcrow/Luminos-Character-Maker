@@ -19,7 +19,7 @@
     throw new Error("Enchantment Catalog, Enchantment Engine and Magic Runtime are required before Enchanter Service Runtime.");
   }
 
-  const VERSION = 2;
+  const VERSION = 3;
   const MAX_REPRODUCIBLE_RANK = 3;
   const SERVICE_IDS = Object.freeze([
     "enchant",
@@ -561,6 +561,258 @@
   }
 
 
+
+  function rollD20(options={}) {
+    if (Number.isFinite(Number(options.roll))) return clamp(Math.trunc(Number(options.roll)),1,20);
+    if (typeof options.rollD20==="function") return clamp(Math.trunc(Number(options.rollD20()))||1,1,20);
+    return 1+Math.floor(Math.random()*20);
+  }
+
+  function controlBandFromMargin(margin) {
+    const value=Number(margin);
+    if (value>=0) return "controlled";
+    if (value>=-3) return "minor_deviation";
+    if (value>=-7) return "major_deviation";
+    return "arcane_backlash";
+  }
+
+  function outcomePoolForBand(options={},band="") {
+    const pools=options.outcomePools || options.outcomes || {};
+    if (Array.isArray(pools)) {
+      return pools.filter((entry)=> {
+        const bands=asArray(entry?.bands || entry?.band).map(normalizeId);
+        return !bands.length || bands.includes(normalizeId(band));
+      });
+    }
+    return asArray(pools?.[band] || pools?.[normalizeId(band)]);
+  }
+
+  function selectPlayerDeviationOutcome(options={},band="",roll=0) {
+    const pool=outcomePoolForBand(options,band);
+    if (!pool.length) return null;
+    return weightedOutcome(pool,roll);
+  }
+
+  function applyPlayerDeviation(item={},definitionId,outcome={},options={}) {
+    const kind=normalizeId(outcome?.kind || outcome?.outcome || "");
+    if (!kind) return Object.freeze({ applied:false, reason:"authored_deviation_outcome_required", item:clone(item) });
+
+    if (["anchor_broken","anchor_depleted","anchor_unstable","accidental_bind","accidental_curse"].includes(kind)) {
+      const anchorId=String(options.anchorId || outcome.anchorId || "");
+      if (anchorId) {
+        const result=Engine.applyGemArcaneOutcome(item,anchorId,kind,{
+          allowAccidentalBind:kind==="accidental_bind",
+          allowAccidentalCurse:kind==="accidental_curse",
+        });
+        return Object.freeze({ applied:result.changed===true, kind, result, item:result.item || clone(item) });
+      }
+      if (kind==="accidental_bind" || kind==="accidental_curse") {
+        const property=kind==="accidental_bind"?"bind":"curse";
+        const result=Engine.addEnchantmentProperty(item,definitionId,property);
+        return Object.freeze({ applied:result.changed===true, kind, result, item:result.item || clone(item) });
+      }
+      return Object.freeze({ applied:false, kind, reason:"gem_anchor_required_for_outcome", item:clone(item) });
+    }
+
+    if (kind==="magical_durability_damage") {
+      const target=clone(item);
+      const amount=Math.max(0,numberOr(outcome.amount ?? options.magicalDurabilityDamage,0));
+      if (amount<=0) return Object.freeze({ applied:false, kind, reason:"magical_durability_damage_unresolved", item:target });
+      const result=Magic.spendMagicalDurability(target,amount,{normalWear:false,specialUse:true,allowPartial:true});
+      return Object.freeze({ applied:result.spent===true, kind, result, item:Object.freeze(target) });
+    }
+
+    if (kind==="alternate_enchantment") {
+      const alternateId=normalizeId(outcome.alternateEnchantmentId || outcome.enchantmentId || "");
+      if (!alternateId) return Object.freeze({ applied:false, kind, reason:"alternate_enchantment_unresolved", item:clone(item) });
+      const rank=Math.max(1,Math.trunc(numberOr(outcome.rank ?? options.rank,1)));
+      const properties=asArray(outcome.properties || options.properties);
+      const result=options.gem
+        ? Engine.mountGemAnchor(item,options.gem,alternateId,rank,{...options,properties})
+        : Engine.applyEnchantment(item,alternateId,rank,{...options,properties});
+      return Object.freeze({ applied:Boolean(result.applied||result.mounted), kind, result, item:result.item || clone(item) });
+    }
+
+    if (kind==="unchanged_existing" || kind==="abstract_only") {
+      return Object.freeze({ applied:true, kind, item:Object.freeze(clone(item)), abstract:true });
+    }
+
+    return Object.freeze({ applied:false, kind, reason:"unsupported_authored_deviation_outcome", item:clone(item) });
+  }
+
+  function playerAttemptThreshold(item={},definitionOrId,rank=1,options={}) {
+    return Engine.ritualThresholdPreview(item,definitionOrId,rank,{
+      ...options,
+      gem:options.gem || null,
+      properties:options.properties,
+    });
+  }
+
+  function resolvePlayerControlCheck(item={},definitionOrId,rank=1,options={}) {
+    const threshold=playerAttemptThreshold(item,definitionOrId,rank,options);
+    if (!threshold.valid) return Object.freeze({ resolved:false, reason:threshold.reason || "invalid_attempt", threshold });
+    const die=rollD20(options);
+    const modifier=numberOr(options.arcanaModifier,0);
+    const total=die+modifier;
+    const margin=total-Number(threshold.finalThreshold);
+    const band=controlBandFromMargin(margin);
+    return Object.freeze({
+      resolved:true,
+      die,
+      modifier,
+      total,
+      threshold:Number(threshold.finalThreshold),
+      thresholdDetail:threshold,
+      margin,
+      band,
+      controlled:band==="controlled",
+    });
+  }
+
+  function protectedAnchorForDefinition(item={},definitionId="") {
+    const ref=Engine.appliedEnchantments(item).find((entry)=>normalizeId(entry.definitionId)===normalizeId(definitionId));
+    if (!ref || ref.source!=="gem") return null;
+    const anchor=Engine.gemAnchors(item).find((entry)=>entry.anchorId===ref.anchorId);
+    if (!anchor) return null;
+    return {
+      ref,
+      anchor,
+      gem:{
+        definitionId:anchor.gemDefinitionId,
+        instanceId:anchor.gemInstanceId,
+        quality:anchor.gemQuality,
+      },
+    };
+  }
+
+  function consumePlayerAttemptMaterials(definitionOrId,options={}) {
+    const materials=asArray(options.materials || options.playerMaterials);
+    if (!materials.length) return Object.freeze({ consumed:true, skipped:true, reason:"no_authored_materials_supplied" });
+    return Engine.consumeRecipeMaterials(definitionOrId,materials,{
+      properties:options.properties,
+      accidental:false,
+      gem:options.gem,
+      anchorGemInstanceId:options.gem?.instanceId || options.anchorGemInstanceId,
+    });
+  }
+
+  function attemptPlayerEnchant(item={},definitionOrId,rank=1,options={}) {
+    const definition=typeof definitionOrId==="string"?Enchantments.get(definitionOrId):clone(definitionOrId);
+    if (!definition) return Object.freeze({ attempted:false, reason:"unknown_enchantment" });
+    const validation=options.gem
+      ? Engine.validateGemAnchorApplication(item,options.gem,definition,rank,options)
+      : Engine.validateApplication(item,definition,rank,options);
+    if (!validation.allowed) return Object.freeze({ attempted:false, reason:validation.reason || "invalid_enchantment_application", validation });
+
+    const check=resolvePlayerControlCheck(item,definition,rank,options);
+    if (!check.resolved) return Object.freeze({ attempted:false, reason:check.reason, check });
+    const materials=consumePlayerAttemptMaterials(definition,options);
+    if (!materials.consumed) return Object.freeze({ attempted:false, reason:materials.reason || "material_consumption_failed", check, materials });
+
+    if (check.controlled) {
+      const result=options.gem
+        ? Engine.mountGemAnchor(item,options.gem,definition,rank,options)
+        : Engine.applyEnchantment(item,definition,rank,options);
+      return Object.freeze({
+        attempted:true,
+        controlled:true,
+        band:check.band,
+        check,
+        materials,
+        result,
+        item:result.item || clone(item),
+      });
+    }
+
+    const deviationRoll=Number.isFinite(Number(options.deviationRoll))?clamp(Number(options.deviationRoll),0,0.999999999):Math.random();
+    const outcome=selectPlayerDeviationOutcome(options,check.band,deviationRoll);
+    if (!outcome) {
+      return Object.freeze({
+        attempted:true,
+        controlled:false,
+        band:check.band,
+        check,
+        materials,
+        resolved:false,
+        reason:"authored_deviation_outcome_required",
+        item:Object.freeze(clone(item)),
+      });
+    }
+    const deviation=applyPlayerDeviation(item,definition.id,outcome,{...options,rank});
+    return Object.freeze({
+      attempted:true,
+      controlled:false,
+      band:check.band,
+      check,
+      materials,
+      outcome,
+      deviation,
+      resolved:deviation.applied===true,
+      item:deviation.item || clone(item),
+    });
+  }
+
+  function attemptPlayerStrengthen(item={},definitionId,targetRank,options={}) {
+    const definition=Enchantments.get(definitionId);
+    if (!definition) return Object.freeze({ attempted:false, reason:"unknown_enchantment" });
+    const strengthening=Engine.validateStrengthening(item,definition.id,targetRank,options);
+    if (!strengthening.allowed) return Object.freeze({ attempted:false, reason:strengthening.reason, strengthening });
+
+    const anchorInfo=protectedAnchorForDefinition(item,definition.id);
+    const properties=strengthening.current.properties;
+    const checkOptions={
+      ...options,
+      properties,
+      gem:anchorInfo?.gem || null,
+      anchorId:anchorInfo?.anchor?.anchorId || options.anchorId,
+      anchorGemInstanceId:anchorInfo?.anchor?.gemInstanceId || options.anchorGemInstanceId,
+    };
+    const check=resolvePlayerControlCheck(item,definition,targetRank,checkOptions);
+    if (!check.resolved) return Object.freeze({ attempted:false, reason:check.reason, check });
+    const materials=consumePlayerAttemptMaterials(definition,checkOptions);
+    if (!materials.consumed) return Object.freeze({ attempted:false, reason:materials.reason || "material_consumption_failed", check, materials });
+
+    if (check.controlled) {
+      const result=Engine.strengthenEnchantment(item,definition.id,targetRank,options);
+      return Object.freeze({
+        attempted:true,
+        controlled:true,
+        band:check.band,
+        check,
+        materials,
+        result,
+        item:result.item || clone(item),
+      });
+    }
+
+    const deviationRoll=Number.isFinite(Number(options.deviationRoll))?clamp(Number(options.deviationRoll),0,0.999999999):Math.random();
+    const outcome=selectPlayerDeviationOutcome(options,check.band,deviationRoll);
+    if (!outcome) {
+      return Object.freeze({
+        attempted:true,
+        controlled:false,
+        band:check.band,
+        check,
+        materials,
+        resolved:false,
+        reason:"authored_deviation_outcome_required",
+        item:Object.freeze(clone(item)),
+      });
+    }
+    const deviation=applyPlayerDeviation(item,definition.id,outcome,{...checkOptions,rank:targetRank});
+    return Object.freeze({
+      attempted:true,
+      controlled:false,
+      band:check.band,
+      check,
+      materials,
+      outcome,
+      deviation,
+      resolved:deviation.applied===true,
+      item:deviation.item || clone(item),
+    });
+  }
+
   function quoteGemProcedure(provider={},item={},anchorId,procedure="safe_extract",options={}) {
     const profile=provider.maxRank?provider:normalizeProviderProfile(provider,options);
     const mode=normalizeId(procedure || "safe_extract");
@@ -727,6 +979,15 @@
     quoteStrengthenService,
     quoteMagicalRepair,
     quoteFixedService,
+    rollD20,
+    controlBandFromMargin,
+    outcomePoolForBand,
+    selectPlayerDeviationOutcome,
+    applyPlayerDeviation,
+    playerAttemptThreshold,
+    resolvePlayerControlCheck,
+    attemptPlayerEnchant,
+    attemptPlayerStrengthen,
     quoteGemProcedure,
     beginService,
     serviceReady,
