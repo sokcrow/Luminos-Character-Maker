@@ -326,6 +326,7 @@
     renderSkills(panel, ability, data);
     // Keep Trait-adjusted Skill totals visible after every Stats redraw/tab change.
     global.LuminousSkillTraitBreakdownPatch?.syncPlayerSkillPreviews?.();
+    global.LuminousSkillTraitBreakdownPatch?.syncPlayerAbilityPreviews?.();
     return true;
     } finally {
       renderDerivedStats = null;
