@@ -119,6 +119,85 @@
     return output;
   }
 
+  // Legacy Firebase builds may store claimed milestones as an array.
+  // Copy every existing claim, including metadata (selectedAt, notes, etc.),
+  // before a new claim is written into the canonical nested map.
+  // Fail closed rather than silently erase malformed or duplicate claims.
+  function migrateMilestoneChoices(choices) {
+    if (!Array.isArray(choices)) {
+      return choices && typeof choices === "object" ? choices : {};
+    }
+    const migrated = {};
+    for (const raw of choices) {
+      // Sparse Firebase arrays can contain empty slots, not claims.
+      if (raw == null) continue;
+      const classId = normalizeId(raw?.classId);
+      const level = int(raw?.milestoneLevel ?? raw?.level, 0);
+      if (!raw || typeof raw !== "object" || Array.isArray(raw)
+        || !classId || !/^[a-z][a-z0-9_]*$/.test(classId) || level <= 0) {
+        throw new Error("Hay un Milestone antiguo con datos incompletos; no se guardó para evitar borrar elecciones.");
+      }
+      if (!Object.prototype.hasOwnProperty.call(migrated, classId)) migrated[classId] = {};
+      const key = String(level);
+      if (Object.prototype.hasOwnProperty.call(migrated[classId], key)) {
+        throw new Error("Hay Milestones duplicados en los datos anteriores; no se guardó para evitar perder elecciones.");
+      }
+      migrated[classId][key] = { ...raw };
+    }
+    return migrated;
+  }
+
+
+  // Canonicalize every supported Milestone storage format before appending.
+  // Old players may have a top-level store, a nested store, or both. Merge
+  // them by class+level instead of favoring one and hiding older claims.
+  // A conflicting duplicate must block writes rather than re-award stats.
+  function mergeMilestoneChoices(character = {}) {
+    const merged = {};
+    const stores = [
+      migrateMilestoneChoices(character?.classMilestones),
+      migrateMilestoneChoices(character?.characterBuild?.classMilestones),
+    ];
+    for (const store of stores) {
+      for (const [key, value] of Object.entries(store)) {
+        const entries = key.includes(":")
+          ? [[key.split(":")[0], key.split(":")[1], value]]
+          : value && typeof value === "object" && !Array.isArray(value)
+            ? Object.entries(value).map(([level, claim]) => [key, level, claim])
+            : null;
+        if (!entries || (key.includes(":") && key.split(":").length !== 2)) {
+          throw new Error("Hay Milestones antiguos con estructura inválida; no se guardó para conservar elecciones.");
+        }
+        for (const [classKey, levelKey, raw] of entries) {
+          const classId = normalizeId(classKey);
+          const level = int(levelKey, 0);
+          const choice = raw && typeof raw === "object" && !Array.isArray(raw) ? normalizeChoice(raw) : null;
+          if (!classId || !/^[a-z][a-z0-9_]*$/.test(classId)
+            || !/^[1-9][0-9]*$/.test(String(levelKey)) || level <= 0
+            || !choice || !["stats", "trait"].includes(choice.type)
+            || (choice.type === "trait" && !choice.traitId)
+            || (choice.type === "stats" && !Object.keys(choice.allocation || {}).length)
+            || (raw.classId && normalizeId(raw.classId) !== classId)
+            || ((raw.milestoneLevel != null || raw.level != null)
+              && int(raw.milestoneLevel ?? raw.level, 0) !== level)) {
+            throw new Error("Hay un Milestone antiguo con datos incompletos; no se guardó para conservar elecciones.");
+          }
+          if (!Object.prototype.hasOwnProperty.call(merged, classId)) merged[classId] = {};
+          const existing = merged[classId][String(level)];
+          if (existing) {
+            if (JSON.stringify(existing) !== JSON.stringify(raw)) {
+              throw new Error("Hay Milestones duplicados incompatibles; no se guardó para evitar perder elecciones.");
+            }
+          } else {
+            // Preserve all original fields (selectedAt, notes, stats, etc.).
+            merged[classId][String(level)] = { ...raw };
+          }
+        }
+      }
+    }
+    return merged;
+  }
+
   function pendingMilestones(classes, choices) {
     return earnedMilestones(classes).filter((entry) => !choiceAt(choices, entry.classId, entry.milestoneLevel));
   }
@@ -128,15 +207,31 @@
     STAT_KEYS.forEach((key) => { output[key] = 10; });
     Object.entries(stats || {}).forEach(([key, rawValue]) => {
       const stat = canonicalStatKey(key);
-      if (!stat) return;
+      // A canonical score is the source of truth if a legacy alias still
+      // exists. Object insertion order must never decide the current score.
+      if (!stat || (key !== stat && Object.prototype.hasOwnProperty.call(stats, stat))) return;
       output[stat] = int(rawValue, output[stat]);
     });
     return output;
   }
 
   function rawStatValue(stats, stat) {
+    if (Object.prototype.hasOwnProperty.call(stats || {}, stat)) return stats[stat];
     const entry = Object.entries(stats || {}).find(([key]) => canonicalStatKey(key) === stat);
     return entry ? entry[1] : undefined;
+  }
+
+  // Keep unrelated/unknown player fields untouched while migrating only the
+  // awarded stat. This is shared by Player, DM and milestone reversion: a
+  // duplicate alias must not survive as a second effective score.
+  function writeCanonicalStat(stats, statKey, value) {
+    const canonical = canonicalStatKey(statKey);
+    if (!canonical || !stats || typeof stats !== "object" || Array.isArray(stats)) return false;
+    Object.keys(stats).forEach((key) => {
+      if (key !== canonical && canonicalStatKey(key) === canonical) delete stats[key];
+    });
+    stats[canonical] = value;
+    return true;
   }
 
   function validateStatAllocation(stats, allocation) {
@@ -186,6 +281,30 @@
     return { valid: true, errors: [], stats: next, allocation: validation.allocation };
   }
 
+  // Stats saved by the DM studio are derived from baseStats + racial bonuses.
+  // A claimed milestone must increase BOTH the effective Stats and the base
+  // Stats when that base source exists, or the next unrelated DM save will
+  // recalculate the effective score and silently erase the milestone reward.
+  // For older characters without baseStats, leave the field absent: the
+  // studio already derives its base from effective stats minus racial bonuses.
+  function applyPlayerStatAllocation(character = {}, allocation = {}) {
+    const applied = applyStatAllocation(character?.stats || {}, allocation);
+    if (!applied.valid) return applied;
+    const hasBase = character?.baseStats && typeof character.baseStats === "object" && !Array.isArray(character.baseStats);
+    if (!hasBase) return { ...applied, baseStats: null };
+    const nextBase = { ...character.baseStats };
+    for (const [stat, amount] of Object.entries(applied.allocation)) {
+      const raw = rawStatValue(nextBase, stat);
+      const before = Number(raw);
+      if (raw == null || String(raw).trim() === "" || !Number.isInteger(before)) {
+        return { valid: false, errors: [`El Stat base ${stat} no es válido; corrígelo en el estudio del DM antes de aplicar el Milestone.`] };
+      }
+      // The studio explicitly reads the Spanish canonical key on load.
+      writeCanonicalStat(nextBase, stat, before + amount);
+    }
+    return { ...applied, baseStats: nextBase };
+  }
+
   function isGeneralTraitDefinition(definition = {}) {
     const sourceType = normalizeId(definition?.source?.type || definition?.sourceType);
     const category = normalizeId(definition?.category || definition?.traitCategory);
@@ -193,8 +312,13 @@
   }
 
   function selectedGeneralTraitIds(character = {}) {
-    const choices = character?.characterBuild?.classMilestones || character?.classMilestones || {};
-    return [...new Set(allChoices(choices)
+    // Both locations can coexist on legacy Firebase records. Reading only
+    // the first one hides older General Traits until a claim is migrated.
+    const choices = [
+      ...allChoices(character?.classMilestones),
+      ...allChoices(character?.characterBuild?.classMilestones),
+    ];
+    return [...new Set(choices
       .filter((choice) => choice.type === "trait" && choice.traitId)
       .map((choice) => normalizeId(choice.traitId))
       .filter(Boolean))];
@@ -221,6 +345,7 @@
     STAT_KEYS,
     STAT_ALIASES,
     canonicalStatKey,
+    writeCanonicalStat,
     normalizeClasses,
     milestoneKey,
     milestonePath,
@@ -231,10 +356,13 @@
     normalizeChoice,
     choiceAt,
     allChoices,
+    migrateMilestoneChoices,
+    mergeMilestoneChoices,
     normalizeStats,
     validateStatAllocation,
     validateChoice,
     applyStatAllocation,
+    applyPlayerStatAllocation,
     isGeneralTraitDefinition,
     selectedGeneralTraitIds,
     resolveSelectedGeneralTraits,

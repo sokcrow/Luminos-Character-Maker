@@ -24,10 +24,36 @@
     })[normalizeId(value)] || null;
   }
 
+  function persistedStatValue(stats, canonical) {
+    if (Object.prototype.hasOwnProperty.call(stats || {}, canonical)) return stats[canonical];
+    const alias = Object.keys(stats || {}).find(key => canonicalStatKey(key) === canonical);
+    return alias ? stats[alias] : undefined;
+  }
+
+  function writeCanonicalStoredStat(stats, canonical, value) {
+    const writer = global.LuminousClassMilestones?.writeCanonicalStat;
+    if (writer) return writer(stats, canonical, value);
+    // Older clients must still be able to revert existing legacy milestones.
+    Object.keys(stats).forEach(key => {
+      if (key !== canonical && canonicalStatKey(key) === canonical) delete stats[key];
+    });
+    stats[canonical] = value;
+    return true;
+  }
+
   function milestoneChoiceAt(player, classId, level) {
     const api = global.LuminousClassMilestones;
-    if (api?.choiceAt) return api.choiceAt(player?.characterBuild?.classMilestones, classId, level);
-    const store = player?.characterBuild?.classMilestones || {};
+    if (api?.mergeMilestoneChoices && api?.choiceAt) {
+      try {
+        // Read legacy top-level AND canonical claims; fail closed on conflicts.
+        const canonical = api.mergeMilestoneChoices(player);
+        const raw = canonical?.[normalizeId(classId)]?.[String(integerOr(level, 0))];
+        return raw || api.choiceAt(canonical, classId, level);
+      } catch (_) {
+        return null;
+      }
+    }
+    const store = player?.characterBuild?.classMilestones || player?.classMilestones || {};
     const cid = normalizeId(classId), milestoneLevel = integerOr(level, 0);
     return store?.[cid]?.[String(milestoneLevel)] || store?.[`${cid}:${milestoneLevel}`] || null;
   }
@@ -43,7 +69,12 @@
       .filter(([stat, amount]) => stat && amount > 0)
       .sort(([a], [b]) => a.localeCompare(b))
       .forEach(([stat, amount]) => { allocation[stat] = amount; });
-    return JSON.stringify({ type: ["stats", "stat"].includes(type) ? "stats" : type, allocation, selectedAt: choice.selectedAt ?? null });
+    return JSON.stringify({
+      type: ["stats", "stat"].includes(type) ? "stats" : type,
+      allocation,
+      selectedAt: choice.selectedAt ?? null,
+      baseStatsApplied: typeof choice.baseStatsApplied === "boolean" ? choice.baseStatsApplied : null,
+    });
   }
 
   function sameMilestoneChoice(left, right) {
@@ -78,8 +109,23 @@
   function revertMilestoneState(player, classId, level) {
     const current = clone(player);
     if (!current || typeof current !== "object") return { valid: false, error: "El jugador ya no existe." };
-    const choice = milestoneChoiceAt(current, classId, level);
+    const api = global.LuminousClassMilestones;
+    let canonical;
+    try {
+      canonical = api?.mergeMilestoneChoices
+        ? api.mergeMilestoneChoices(current)
+        : clone(current?.characterBuild?.classMilestones || current?.classMilestones || {});
+    } catch (error) {
+      return { valid: false, error: error?.message || "Los Milestones existentes tienen datos incompatibles." };
+    }
+    const choice = api?.choiceAt?.(canonical, classId, level) || milestoneChoiceAt(current, classId, level);
     if (!choice) return { valid: false, error: "Ese milestone ya no está reclamado." };
+    // Before this fix, historical milestone claims only modified effective
+    // stats. Their baseStats must NOT be blindly decremented on revert.
+    // New claims record whether a base source existed at award time; false
+    // means the studio may have subsequently constructed one from stats.
+    const recordedChoice = canonical?.[normalizeId(classId)]?.[String(integerOr(level, 0))];
+    const baseSourceTracked = typeof recordedChoice?.baseStatsApplied === "boolean";
     const type = normalizeId(choice.type || choice.choiceType || choice.mode);
     if (["stats", "stat"].includes(type)) {
       const allocation = choice.allocation || choice.stats || choice.statAllocation || {};
@@ -89,19 +135,36 @@
       for (const [rawStat, rawAmount] of entries) {
         const stat = canonicalStatKey(rawStat), amount = integerOr(rawAmount, 0);
         if (!stat || amount <= 0) return { valid: false, error: "El allocation guardado del milestone no es válido." };
-        const existingKey = Object.keys(current.stats).find((key) => canonicalStatKey(key) === stat) || stat;
-        const before = Number(current.stats[existingKey]);
+        const before = Number(persistedStatValue(current.stats, stat));
         if (!Number.isFinite(before) || !Number.isInteger(before)) return { valid: false, error: `${stat} no tiene un valor entero persistido.` };
         const after = before - amount;
         if (after < 1) return { valid: false, error: `No se puede revertir ${stat}: el resultado sería menor que 1.` };
-        current.stats[existingKey] = after;
+        writeCanonicalStoredStat(current.stats, stat, after);
+        // Reverse the DM base source only for claims recorded with the new
+        // baseStats bookkeeping. An old, unmarked claim updated stats ONLY;
+        // subtracting its baseStats would remove a bonus it never applied.
+        if (baseSourceTracked && current.baseStats
+          && typeof current.baseStats === "object" && !Array.isArray(current.baseStats)) {
+          const storedBase = persistedStatValue(current.baseStats, stat);
+          const beforeBase = Number(storedBase);
+          if (storedBase == null || String(storedBase).trim() === "" || !Number.isInteger(beforeBase)) {
+            return { valid: false, error: `No se puede revertir ${stat}: el Stat base no es válido.` };
+          }
+          if (beforeBase - amount < 1) {
+            return { valid: false, error: `No se puede revertir ${stat}: el Stat base quedaría menor que 1.` };
+          }
+          writeCanonicalStoredStat(current.baseStats, stat, beforeBase - amount);
+        }
       }
     } else if (!["trait", "general_trait", "generaltrait"].includes(type)) {
       return { valid: false, error: "El tipo de milestone guardado no es compatible con reversión." };
     }
     current.characterBuild = current.characterBuild && typeof current.characterBuild === "object" ? current.characterBuild : {};
-    current.characterBuild.classMilestones = current.characterBuild.classMilestones && typeof current.characterBuild.classMilestones === "object" ? current.characterBuild.classMilestones : {};
+    current.characterBuild.classMilestones = canonical;
     removeMilestoneChoice(current.characterBuild.classMilestones, classId, level);
+    // Other legacy claims were preserved in the canonical map; do not leave
+    // duplicate shadow entries that would resurrect a reverted reward.
+    delete current.classMilestones;
     return { valid: true, player: current, choice: clone(choice), summary: milestoneRevertSummary(choice) };
   }
 

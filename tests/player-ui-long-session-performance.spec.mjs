@@ -1259,3 +1259,452 @@ for (const width of [390, 1280]) {
     expect(noOverflow).toBe(true);
   });
 }
+
+
+for (const width of [390, 1280]) {
+  test(`Avance class milestone and Battle Master maneuver picks at ${width}px`, async ({ page }) => {
+    await page.goto(BASE + "/index.html");
+    await page.setViewportSize({ width, height: width < 700 ? 844 : 900 });
+    await page.setContent(`
+      <!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">
+      <link rel="stylesheet" href="${BASE}/css/player-progression-tree.css">
+      <link rel="stylesheet" href="${BASE}/css/player-progression-mystic.css">
+      <style>
+        body{margin:0;background:#080808}
+        #perks-modal{display:flex;justify-content:center;align-items:center;min-height:100dvh}
+        .hud-modal-content{display:flex;flex-direction:column;position:relative}
+        .hud-modal-body{overflow:auto}
+      </style></head><body>
+        <div id="perks-modal" class="hud-modal modal-progression active"><div class="hud-modal-content">
+          <div class="hud-modal-body"><section class="player-progression-shell">
+            <header class="player-progression-heading"><h2>AVANCE</h2></header>
+            <div id="player-progression-tree-host"></div>
+            <aside id="player-progression-detail"></aside>
+          </section></div>
+        </div></div>
+      <script>
+        window.currentPlayerId = "choice_test";
+        window.datosJugador = {
+          level:40,
+          stats:{fuerza:14,destreza:12,constitucion:13,inteligencia:10,sabiduria:11,carisma:12},
+          characterBuild:{
+            classes:[{classId:"fighter",levels:40}],
+            archetypes:[{classId:"fighter",archetypeId:"battle_master"}],
+            classMilestones:{}
+          }
+        };
+        window.__server = structuredClone(window.datosJugador);
+        window.__rejectWrite = false;
+        window.__writes = 0;
+        window.firebase = {apps:[{}],database:()=>({
+          ref: path=>({
+            once:async()=>({val:()=>({
+              general_keen:{id:"general_keen",name:"Keen Eye",description:"Improved observation.",source:{type:"general"}}
+            })}),
+            transaction:async update=>{
+              if(window.__rejectWrite)throw new Error("Firebase rejected write");
+              const next=update(structuredClone(window.__server));
+              if(next===undefined)return {committed:false,snapshot:{val:()=>structuredClone(window.__server)}};
+              window.__server=structuredClone(next);
+              window.__writes++;
+              return {committed:true,snapshot:{val:()=>structuredClone(window.__server)}};
+            }
+          })
+        })};
+        window.LuminousCharacterBuildRules = {CLASSES:[{id:"fighter",name:"Fighter"}]};
+        window.LuminousTraitCatalogCore = {
+          allGrants:()=>[],allDefinitions:()=>({
+            general_keen:{id:"general_keen",name:"Keen Eye",description:"Improved observation.",source:{type:"general"}}
+          })
+        };
+      </script>
+      <script src="${BASE}/js/archetype-engine.js"></script>
+      <script src="${BASE}/js/archetype-trait-catalog.js"></script>
+      <script src="${BASE}/js/archetype-progression-preview-catalog.js"></script>
+      <script src="${BASE}/js/class-milestone-engine.js"></script>
+      <script src="${BASE}/js/fighter-maneuver-catalog.js"></script>
+      <script src="${BASE}/js/player-progression-tree-core.js"></script>
+      <script src="${BASE}/js/player-progression-choices.js"></script>
+      <script src="${BASE}/js/player-progression-tree.js"></script>
+    </body></html>`, {waitUntil:"load"});
+
+    const fighter = page.locator(".player-progression-class");
+    const level20 = page.locator('[data-progression-key="fighter:milestone:base:20"]');
+    const level30 = page.locator('[data-progression-key="fighter:milestone:base:30"]');
+    const level40 = page.locator('[data-progression-key="fighter:milestone:base:40"]');
+    await expect(level20).toHaveCount(1);
+    await expect(level30).toHaveCount(1);
+    await expect(level40).toHaveCount(1);
+
+    await level20.click();
+    let editor = page.locator("#player-progression-detail .player-progression-choice-panel");
+    await expect(editor).toContainText("MEJORA DE CLASE");
+    await editor.locator(".player-progression-choice-stat").selectOption("fuerza");
+    await editor.getByRole("button",{name:"CONFIRMAR MEJORA"}).click();
+    await expect(editor).toContainText("GUARDADO");
+    expect(await page.evaluate(()=>window.__server.stats.fuerza)).toBe(16);
+    expect(await page.evaluate(()=>window.__server.characterBuild.classMilestones.fighter["20"].type)).toBe("stats");
+
+    await level30.click();
+    editor = page.locator("#player-progression-detail .player-progression-choice-panel");
+    await editor.locator(".player-progression-choice-select").selectOption("trait");
+    await editor.locator(".player-progression-choice-trait").selectOption("general_keen");
+    await editor.getByRole("button",{name:"CONFIRMAR MEJORA"}).click();
+    await expect(editor).toContainText("GUARDADO");
+    expect(await page.evaluate(()=>window.__server.characterBuild.classMilestones.fighter["30"].traitId)).toBe("general_keen");
+
+    await level40.click();
+    editor = page.locator("#player-progression-detail .player-progression-choice-panel");
+    await editor.locator(".player-progression-choice-select").selectOption("stats_split");
+    const stats = editor.locator(".player-progression-choice-stat");
+    await stats.nth(0).selectOption("destreza");
+    await stats.nth(1).selectOption("constitucion");
+    await page.evaluate(()=>window.__rejectWrite=true);
+    await editor.getByRole("button",{name:"CONFIRMAR MEJORA"}).click();
+    await expect(editor.locator(".player-progression-choice-feedback")).toContainText("Firebase rejected write");
+    expect(await page.evaluate(()=>window.__server.characterBuild.classMilestones.fighter["40"])).toBeUndefined();
+    await page.evaluate(()=>window.__rejectWrite=false);
+    await editor.getByRole("button",{name:"CONFIRMAR MEJORA"}).click();
+    await expect(editor).toContainText("GUARDADO");
+    expect(await page.evaluate(()=>window.__server.stats.destreza)).toBe(13);
+    expect(await page.evaluate(()=>window.__server.stats.constitucion)).toBe(14);
+
+    const master = fighter.locator(".player-progression-branch-label.is-selected");
+    await expect(master).toContainText("Battle Master");
+    await master.locator(".player-progression-branch-configure").click();
+    const maneuvers = page.locator("#player-progression-detail .player-progression-maneuver-panel");
+    await expect(maneuvers.locator(".player-progression-maneuver")).toHaveCount(23);
+    await expect(maneuvers.locator(".player-progression-maneuver-counter")).toContainText("0 / 3");
+    for (const key of ["parry","rally","ambush"]) {
+      await maneuvers.locator('input[value="'+key+'"]').check();
+    }
+    await expect(maneuvers.locator(".player-progression-maneuver-counter")).toContainText("3 / 3");
+    await maneuvers.getByRole("button",{name:"GUARDAR MANIOBRAS"}).click();
+    await expect(maneuvers.locator(".player-progression-maneuver-counter")).toContainText("3 / 3");
+    expect(await page.evaluate(()=>window.__server.characterBuild.maneuvers.battle_master.sort()))
+      .toEqual(["ambush","parry","rally"]);
+    await expect(master).toContainText("MANIOBRAS 3/3");
+
+    const champion = fighter.locator(".player-progression-branch-label").filter({hasText:"Champion"});
+    await champion.locator(".player-progression-branch-preview").click();
+    const preview = page.locator("#player-progression-detail .player-progression-preview-features").first();
+    await expect(preview).toContainText("Improved Critical");
+    await expect(preview).toContainText("Crit Damage");
+    await expect(fighter.locator(".player-progression-mystic-scroll")).toHaveCount(1);
+
+    // The saved character can use all supported legacy map formats. The class
+    // tree, choice form, transaction, and maneuver capacity must all agree.
+    for (const format of ["build_class_levels", "top_class_levels", "classes_by_id", "build_classes_map"]) {
+      await page.evaluate((kind) => {
+        const char = {
+          level: 40,
+          stats:{fuerza:14,destreza:12,constitucion:13,inteligencia:10,sabiduria:11,carisma:12},
+          characterBuild:{
+            archetypes:{fighter:{archetypeId:"battle_master"}},
+            classMilestones:{},
+            maneuvers:{}
+          },
+        };
+        const fighterEntry = {fighter:{levels:40}};
+        if (kind === "build_class_levels") char.characterBuild.classLevels = fighterEntry;
+        else if (kind === "top_class_levels") char.classLevels = fighterEntry;
+        else if (kind === "classes_by_id") char.classesById = fighterEntry;
+        else char.characterBuild.classes = fighterEntry;
+        window.datosJugador = char;
+        window.__server = structuredClone(char);
+        window.LuminousPlayerProgressionTree.refresh();
+      }, format);
+      await expect(page.locator(".player-progression-class")).toContainText("CLASS LV. 40");
+      await expect(page.locator(".player-progression-branch-label.is-selected")).toContainText("MANIOBRAS 0/3");
+      const milestone20 = page.locator('[data-progression-key="fighter:milestone:base:20"]');
+      await milestone20.click();
+      const choicePanel = page.locator("#player-progression-detail .player-progression-choice-panel");
+      await expect(choicePanel).toContainText("MEJORA DE CLASE");
+      await expect(choicePanel).not.toContainText("Se desbloquea al alcanzar");
+      await choicePanel.locator(".player-progression-choice-stat").selectOption("fuerza");
+      await choicePanel.getByRole("button",{name:"CONFIRMAR MEJORA"}).click();
+      await expect(choicePanel).toContainText("GUARDADO");
+      expect(await page.evaluate(()=>window.__server.characterBuild.classMilestones.fighter["20"].type)).toBe("stats");
+      expect(await page.evaluate(()=>window.__server.stats.fuerza)).toBe(16);
+    }
+
+    // Codex P1 regression: legacy milestone arrays must not be replaced by
+    // empty objects when claiming another level. Previously chosen General
+    // Traits, allocated stats, timestamps and arbitrary metadata must survive.
+    await page.evaluate(() => {
+      const char = {
+        level: 40,
+        stats:{fuerza:16,destreza:12,constitucion:13,inteligencia:10,sabiduria:11,carisma:12},
+        characterBuild:{
+          classes:[{classId:"fighter",levels:40}],
+          archetypes:[{classId:"fighter",archetypeId:"battle_master"}],
+          classMilestones:[
+            {classId:"fighter",milestoneLevel:20,type:"stats",allocation:{fuerza:2},selectedAt:111},
+            {classId:"fighter",milestoneLevel:30,type:"trait",traitId:"general_keen",selectedAt:222,notes:"legacy-choice"}
+          ]
+        }
+      };
+      window.datosJugador = char;
+      window.__server = structuredClone(char);
+      window.LuminousPlayerProgressionTree.refresh();
+    });
+    await level20.click();
+    const oldChoice = page.locator("#player-progression-detail .player-progression-choice-panel");
+    await expect(oldChoice).toContainText("GUARDADO");
+    await expect(oldChoice.getByRole("button",{name:"CONFIRMAR MEJORA"})).toHaveCount(0);
+    await level40.click();
+    const newChoice = page.locator("#player-progression-detail .player-progression-choice-panel");
+    await newChoice.locator(".player-progression-choice-stat").selectOption("constitucion");
+    await newChoice.getByRole("button",{name:"CONFIRMAR MEJORA"}).click();
+    await expect(newChoice).toContainText("GUARDADO");
+    const historical = await page.evaluate(() => {
+      const player = window.__server;
+      const api = window.LuminousClassMilestones;
+      return {
+        isArray: Array.isArray(player.characterBuild.classMilestones),
+        previousStat: api.choiceAt(player.characterBuild.classMilestones,"fighter",20),
+        previousTrait: api.choiceAt(player.characterBuild.classMilestones,"fighter",30),
+        newClaim: api.choiceAt(player.characterBuild.classMilestones,"fighter",40),
+        rawTrait: player.characterBuild.classMilestones.fighter["30"],
+        chosenGeneralTraits: api.selectedGeneralTraitIds(player),
+        stats: player.stats,
+      };
+    });
+    expect(historical.isArray).toBe(false);
+    expect(historical.previousStat.allocation.fuerza).toBe(2);
+    expect(historical.previousTrait.traitId).toBe("general_keen");
+    expect(historical.rawTrait.selectedAt).toBe(222);
+    expect(historical.rawTrait.notes).toBe("legacy-choice");
+    expect(historical.chosenGeneralTraits).toContain("general_keen");
+    expect(historical.newClaim.allocation.constitucion).toBe(2);
+    expect(historical.stats.fuerza).toBe(16);
+    expect(historical.stats.constitucion).toBe(15);
+    await level20.click();
+    await expect(page.locator("#player-progression-detail .player-progression-choice-panel")).toContainText("GUARDADO");
+
+    // Codex P1 regression: historical claims stored ONLY at the top level
+    // must remain selectable, preserve General Traits, and be migrated before
+    // an entirely new reward can be claimed.
+    await page.evaluate(() => {
+      const char = {
+        level:40,
+        stats:{fuerza:16,destreza:12,constitucion:13,inteligencia:10,sabiduria:11,carisma:12},
+        classMilestones:[
+          {classId:"fighter",milestoneLevel:20,type:"stats",allocation:{fuerza:2},selectedAt:101,notes:"original-stat"},
+          {classId:"fighter",milestoneLevel:30,type:"trait",traitId:"general_keen",selectedAt:202,notes:"original-trait"}
+        ],
+        characterBuild:{classes:[{classId:"fighter",levels:40}],
+          archetypes:[{classId:"fighter",archetypeId:"battle_master"}],classMilestones:{}}
+      };
+      window.datosJugador=char;
+      window.__server=structuredClone(char);
+      window.LuminousPlayerProgressionTree.refresh();
+    });
+    await level20.click();
+    await expect(page.locator("#player-progression-detail .player-progression-choice-panel")).toContainText("GUARDADO");
+    await level30.click();
+    await expect(page.locator("#player-progression-detail .player-progression-choice-panel")).toContainText("GUARDADO");
+    await level40.click();
+    const topLegacy = page.locator("#player-progression-detail .player-progression-choice-panel");
+    await topLegacy.locator(".player-progression-choice-stat").selectOption("constitucion");
+    await topLegacy.getByRole("button",{name:"CONFIRMAR MEJORA"}).click();
+    await expect(topLegacy).toContainText("GUARDADO");
+    const preserved = await page.evaluate(() => {
+      const player=window.__server,api=window.LuminousClassMilestones;
+      return {
+        oldStat:player.characterBuild.classMilestones.fighter["20"],
+        oldTrait:player.characterBuild.classMilestones.fighter["30"],
+        newStat:player.characterBuild.classMilestones.fighter["40"],
+        selectedGeneral:api.selectedGeneralTraitIds(player),
+        legacyTopCleared:!Object.prototype.hasOwnProperty.call(player,'classMilestones'),
+        fuerza:player.stats.fuerza,
+        constitucion:player.stats.constitucion
+      };
+    });
+    expect(preserved.oldStat.notes).toBe("original-stat");
+    expect(preserved.oldStat.selectedAt).toBe(101);
+    expect(preserved.oldTrait.notes).toBe("original-trait");
+    expect(preserved.oldTrait.selectedAt).toBe(202);
+    expect(preserved.newStat.allocation.constitucion).toBe(2);
+    expect(preserved.selectedGeneral).toContain("general_keen");
+    expect(preserved.legacyTopCleared).toBe(true);
+    expect(preserved.fuerza).toBe(16);
+    expect(preserved.constitucion).toBe(15);
+
+    // Both a top-level and a nested claim for the same level but different
+    // payouts are ambiguous; saving must abort, not overwrite either.
+    await page.evaluate(() => {
+      const char = {
+        level:40,
+        stats:{fuerza:16,destreza:12,constitucion:13,inteligencia:10,sabiduria:11,carisma:12},
+        classMilestones:{fighter:{20:{classId:"fighter",milestoneLevel:20,
+          type:"stats",allocation:{fuerza:2},selectedAt:11}}},
+        characterBuild:{
+          classes:[{classId:"fighter",levels:40}],
+          archetypes:[{classId:"fighter",archetypeId:"battle_master"}],
+          classMilestones:{fighter:{20:{classId:"fighter",milestoneLevel:20,
+            type:"stats",allocation:{destreza:2},selectedAt:22}}}
+        }
+      };
+      window.datosJugador=char;
+      window.__server=structuredClone(char);
+      window.LuminousPlayerProgressionTree.refresh();
+    });
+    await level40.click();
+    const conflict = page.locator("#player-progression-detail .player-progression-choice-panel");
+    await conflict.locator(".player-progression-choice-stat").selectOption("constitucion");
+    await conflict.getByRole("button",{name:"CONFIRMAR MEJORA"}).click();
+    await expect(conflict.locator(".player-progression-choice-feedback")).toContainText("duplicados incompatibles");
+    expect(await page.evaluate(() => window.__server.characterBuild.classMilestones.fighter["40"])).toBeUndefined();
+    expect(await page.evaluate(() => window.__server.stats.constitucion)).toBe(13);
+
+    // Codex P1: DM Studio persists effective Stats from baseStats + racial.
+    // Claiming a Milestone must update both scores AND migrate legacy claims.
+    await page.evaluate(() => {
+      const char = {
+        level:40,
+        stats:{fuerza:14,destreza:12,constitucion:13,inteligencia:10,sabiduria:11,carisma:12},
+        baseStats:{fuerza:12,destreza:12,constitucion:13,inteligencia:10,sabiduria:11,carisma:12},
+        classMilestones:[
+          {classId:"fighter",milestoneLevel:30,type:"trait",traitId:"general_keen",
+            selectedAt:121,notes:"keep-this-trait"}
+        ],
+        characterBuild:{
+          classes:[{classId:"fighter",levels:40}],
+          archetypes:[{classId:"fighter",archetypeId:"battle_master"}],
+          breakdown:{racialStatBonuses:{str:2}},
+          classMilestones:{}
+        }
+      };
+      window.datosJugador=char;
+      window.__server=structuredClone(char);
+      window.LuminousPlayerProgressionTree.refresh();
+    });
+    await level20.click();
+    const studioClaim = page.locator("#player-progression-detail .player-progression-choice-panel");
+    await studioClaim.locator(".player-progression-choice-stat").selectOption("fuerza");
+    await studioClaim.getByRole("button",{name:"CONFIRMAR MEJORA"}).click();
+    await expect(studioClaim).toContainText("GUARDADO");
+    const studioPersistence = await page.evaluate(() => {
+      const c=window.__server,api=window.LuminousClassMilestones;
+      return {
+        effective:c.stats.fuerza,
+        base:c.baseStats.fuerza,
+        recomputedFromStudio:c.baseStats.fuerza+c.characterBuild.breakdown.racialStatBonuses.str,
+        legacyRemoved:!Object.hasOwn(c,"classMilestones"),
+        oldTrait:c.characterBuild.classMilestones.fighter["30"],
+        savedMilestone:api.choiceAt(c.characterBuild.classMilestones,"fighter",20)
+      };
+    });
+    expect(studioPersistence.effective).toBe(16);
+    expect(studioPersistence.base).toBe(14);
+    expect(studioPersistence.recomputedFromStudio).toBe(16);
+    expect(studioPersistence.legacyRemoved).toBe(true);
+    expect(studioPersistence.oldTrait?.notes).toBe("keep-this-trait");
+    expect(studioPersistence.savedMilestone?.allocation?.fuerza).toBe(2);
+
+    // Codex P2: legacy stat aliases must not remain next to the canonical
+    // score after claiming a reward. This test uses the actual Player DOM
+    // and mock Firebase transaction, then the DM's real reversion logic.
+    await page.evaluate(() => {
+      const char = {
+        level:40,
+        stats:{str:14,destreza:12,constitucion:13,inteligencia:10,sabiduria:11,carisma:12,
+          customScore:"keep"},
+        baseStats:{str:12,destreza:12,constitucion:13,inteligencia:10,sabiduria:11,carisma:12,
+          customBase:"keep"},
+        characterBuild:{
+          classes:[{classId:"fighter",levels:40}],
+          archetypes:[{classId:"fighter",archetypeId:"battle_master"}],
+          classMilestones:{}
+        }
+      };
+      window.datosJugador=char;
+      window.__server=structuredClone(char);
+      window.LuminousPlayerProgressionTree.refresh();
+    });
+    await level20.click();
+    const aliasClaim=page.locator("#player-progression-detail .player-progression-choice-panel");
+    await aliasClaim.locator(".player-progression-choice-stat").selectOption("fuerza");
+    await aliasClaim.getByRole("button",{name:"CONFIRMAR MEJORA"}).click();
+    await expect(aliasClaim).toContainText("GUARDADO");
+    const aliasAward=await page.evaluate(() => ({
+      stats:window.__server.stats,
+      base:window.__server.baseStats,
+      awarded:window.__server.characterBuild.classMilestones.fighter["20"],
+    }));
+    expect(aliasAward.stats.fuerza).toBe(16);
+    expect(aliasAward.base.fuerza).toBe(14);
+    expect(aliasAward.stats).not.toHaveProperty("str");
+    expect(aliasAward.base).not.toHaveProperty("str");
+    expect(aliasAward.stats.customScore).toBe("keep");
+    expect(aliasAward.base.customBase).toBe("keep");
+    expect(aliasAward.awarded.baseStatsApplied).toBe(true);
+
+    await page.addScriptTag({url:BASE + "/js/milestone-revert-patch.js"});
+    const reversed=await page.evaluate(() =>
+      window.LuminousMilestoneRevertPatch.revertMilestoneState(window.__server,"fighter",20));
+    expect(reversed.valid).toBe(true);
+    expect(reversed.player.stats.fuerza).toBe(14);
+    expect(reversed.player.baseStats.fuerza).toBe(12);
+    expect(reversed.player.stats).not.toHaveProperty("str");
+    expect(reversed.player.baseStats).not.toHaveProperty("str");
+    expect(reversed.player.characterBuild.classMilestones.fighter?.["20"]).toBeUndefined();
+    expect(reversed.player.stats.customScore).toBe("keep");
+
+    // Codex P2: reverting Superior Technique removes one maneuver slot. The
+    // player must be able to discard ONLY excess learned maneuvers, not swap
+    // previously learned ones for an unrelated new choice.
+    await page.evaluate(() => {
+      const char = {
+        level:40,
+        stats:{fuerza:14,destreza:12,constitucion:13,inteligencia:10,sabiduria:11,carisma:12},
+        characterBuild:{
+          classes:[{classId:"fighter",levels:40}],
+          archetypes:[{classId:"fighter",archetypeId:"battle_master"}],
+          classMilestones:{fighter:{"20":{classId:"fighter",milestoneLevel:20,type:"trait",
+            traitId:"superior_technique",selectedAt:111}}},
+          maneuvers:{battle_master:["parry","rally","ambush","bait_and_switch"]}
+        }
+      };
+      window.datosJugador=char;
+      window.__server=structuredClone(char);
+      window.LuminousPlayerProgressionTree.refresh();
+    });
+    const battleMaster=page.locator(".player-progression-branch-label.is-selected");
+    await expect(battleMaster).toContainText("MANIOBRAS 4/4");
+    await battleMaster.locator(".player-progression-branch-configure").click();
+    const shrinkPanel=page.locator("#player-progression-detail .player-progression-maneuver-panel");
+    await expect(shrinkPanel.locator(".player-progression-maneuver-counter")).toContainText("4 / 4");
+    await page.evaluate(() => {
+      const result=window.LuminousMilestoneRevertPatch.revertMilestoneState(window.__server,"fighter",20);
+      if(!result.valid) throw Error(result.error||"Superior Technique reversion failed");
+      window.__server=structuredClone(result.player);
+      window.datosJugador=structuredClone(result.player);
+      window.LuminousPlayerProgressionTree.refresh();
+    });
+    await expect(battleMaster).toContainText("MANIOBRAS 4/3");
+    await battleMaster.locator(".player-progression-branch-configure").click();
+    await expect(shrinkPanel.locator(".player-progression-maneuver-counter")).toContainText("4 / 3");
+    await expect(shrinkPanel).toContainText("Desmarca 1 maniobra");
+    await expect(shrinkPanel.locator('input[value="parry"]')).toBeEnabled();
+    await expect(shrinkPanel.locator('input[value="feinting_attack"]')).toBeDisabled();
+    await expect(shrinkPanel.getByRole("button",{name:"GUARDAR MANIOBRAS"})).toBeDisabled();
+    await shrinkPanel.locator('input[value="ambush"]').uncheck();
+    await expect(shrinkPanel.locator(".player-progression-maneuver-counter")).toContainText("3 / 3");
+    // A concurrent addition must not be silently discarded by an open editor.
+    await page.evaluate(()=>window.__server.characterBuild.maneuvers.battle_master.push("feinting_attack"));
+    await shrinkPanel.getByRole("button",{name:"GUARDAR MANIOBRAS"}).click();
+    await expect(shrinkPanel.locator(".player-progression-choice-feedback")).toContainText("Las maniobras cambiaron");
+    expect(await page.evaluate(()=>window.__server.characterBuild.maneuvers.battle_master.length)).toBe(5);
+    await page.evaluate(()=>window.__server.characterBuild.maneuvers.battle_master.pop());
+    await shrinkPanel.getByRole("button",{name:"GUARDAR MANIOBRAS"}).click();
+    expect(await page.evaluate(()=>window.__server.characterBuild.maneuvers.battle_master.sort()))
+      .toEqual(["bait_and_switch","parry","rally"]);
+    await expect(battleMaster).toContainText("MANIOBRAS 3/3");
+    await battleMaster.locator(".player-progression-branch-configure").click();
+    await expect(shrinkPanel.locator('input[value="parry"]')).toBeDisabled();
+    await expect(shrinkPanel.locator('input[value="feinting_attack"]')).toBeEnabled();
+    await expect(shrinkPanel.getByRole("button",{name:"GUARDAR MANIOBRAS"})).toBeDisabled();
+  });
+}

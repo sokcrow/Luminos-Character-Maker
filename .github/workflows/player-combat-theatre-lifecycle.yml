@@ -201,7 +201,7 @@ jobs:
       - name: Run Stats HUD and trait display regressions
         run: >
           npx playwright test tests/player-ui-long-session-performance.spec.mjs
-          --grep "stats HUD keeps fixed geometry|shared trait formula display resolves|trait formula breakdown stays hidden|mobile Theatre renders live dialogue and sprites|Avance milestone and archetype selection"
+          --grep "stats HUD keeps fixed geometry|shared trait formula display resolves|trait formula breakdown stays hidden|mobile Theatre renders live dialogue and sprites|Avance milestone and archetype selection|Avance class milestone and Battle Master maneuver picks"
           --reporter=line
 
   player-ui-performance:

@@ -198,7 +198,8 @@
     heading.append(title, element("small", saved ? "is-saved" : "is-unsaved", saved ? "NIVEL GUARDADO" : "GUARDA EL BUILD PARA RECLAMAR"));
     row.appendChild(heading);
 
-    const existing = api.choiceAt(state.player?.characterBuild?.classMilestones, milestone.classId, milestone.milestoneLevel);
+    const existing = api.choiceAt(state.player?.characterBuild?.classMilestones, milestone.classId, milestone.milestoneLevel)
+      || api.choiceAt(state.player?.classMilestones, milestone.classId, milestone.milestoneLevel);
     if (existing) {
       row.classList.add("is-complete");
       row.appendChild(element("div", "dm-player-milestone-complete", choiceLabel(existing)));
@@ -289,10 +290,16 @@
           return;
         }
 
-        current.characterBuild.classMilestones = current.characterBuild.classMilestones && typeof current.characterBuild.classMilestones === "object"
-          ? current.characterBuild.classMilestones
-          : {};
-        if (api.choiceAt(current.characterBuild.classMilestones, classId, milestoneLevel)) {
+        let preservedMilestones;
+        try {
+          // DM and Player must include the top-level legacy claims AND
+          // characterBuild claims before checking if this reward was paid.
+          preservedMilestones = api.mergeMilestoneChoices(current);
+        } catch (error) {
+          abortReason = error?.message || "No fue posible conservar los Milestones anteriores.";
+          return;
+        }
+        if (api.choiceAt(preservedMilestones, classId, milestoneLevel)) {
           abortReason = "Ese milestone ya fue reclamado.";
           return;
         }
@@ -305,24 +312,30 @@
 
         if (validation.choice.type === "trait") {
           const traitId = normalizeId(validation.choice.traitId);
-          if (api.selectedGeneralTraitIds(current).includes(traitId)) {
+          if (api.selectedGeneralTraitIds({characterBuild:{classMilestones:preservedMilestones}}).includes(traitId)) {
             abortReason = "Ese Trait General ya fue elegido en otro milestone.";
             return;
           }
         }
 
+        let baseStatsApplied = false;
         if (validation.choice.type === "stats") {
-          const applied = api.applyStatAllocation(current.stats || {}, validation.choice.allocation);
+          const applied = api.applyPlayerStatAllocation(current, validation.choice.allocation);
           if (!applied.valid) {
             abortReason = applied.errors.join(" ");
             return;
           }
           current.stats = current.stats && typeof current.stats === "object" ? current.stats : {};
-          Object.entries(applied.allocation).forEach(([stat]) => { current.stats[stat] = applied.stats[stat]; });
+          Object.entries(applied.allocation).forEach(([stat]) => {
+            api.writeCanonicalStat(current.stats,stat,applied.stats[stat]);
+          });
+          if (applied.baseStats) current.baseStats = applied.baseStats;
+          baseStatsApplied = Boolean(applied.baseStats);
           resultingStats = applied.stats;
           committedAllocation = applied.allocation;
         }
 
+        current.characterBuild.classMilestones = preservedMilestones;
         if (!current.characterBuild.classMilestones[classId] || typeof current.characterBuild.classMilestones[classId] !== "object") {
           current.characterBuild.classMilestones[classId] = {};
         }
@@ -331,7 +344,11 @@
           milestoneLevel,
           ...validation.choice,
           selectedAt: Date.now(),
+          ...(validation.choice.type === "stats" ? { baseStatsApplied } : {}),
         };
+        // Atomic migration: do not leave top-level legacy claims that can
+        // reappear after the DM reverses a canonical milestone.
+        delete current.classMilestones;
         return current;
       });
 

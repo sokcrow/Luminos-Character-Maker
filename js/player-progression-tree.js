@@ -64,6 +64,7 @@
   }
 
   function nodeTitle(node) {
+    if (node?.choiceMilestone) return node.milestoneClaimed ? "Mejora de clase elegida" : "Mejora de clase";
     if (!node?.items?.length) return `LV.${node?.level || "?"}`;
     if (node.items.length === 1) return node.items[0].name;
     return `${node.items.length} mejoras`;
@@ -200,8 +201,20 @@
         </div>
         <b class="player-progression-state is-${escapeHtml(node.status)}">${escapeHtml(statusLabel(node.status))}</b>
       </header>
-      <p class="player-progression-detail__guidance">Los hitos se obtienen automáticamente al alcanzar el nivel. Aquí puedes consultar sus recompensas.</p>
-      <div class="player-progression-detail__items">${items || "<p>Sin recompensas registradas en este hito.</p>"}</div>`;
+      <p class="player-progression-detail__guidance">${node.choiceMilestone
+        ? "Este Milestone requiere que elijas y guardes tu mejora de clase."
+        : "Los hitos automáticos se obtienen al alcanzar el nivel. Aquí puedes consultar sus recompensas."}</p>
+      <div class="player-progression-detail__items">${items || "<p>No hay recompensas adicionales registradas en este nivel.</p>"}</div>`;
+    if (node.choiceMilestone && !branch) {
+      const editor = doc.createElement("div");
+      editor.className = "player-progression-inline-choice";
+      state.detail.appendChild(editor);
+      global.LuminousPlayerProgressionChoices?.renderMilestone?.(editor,{
+        character:currentCharacter(),classId:classModel.classId,level:node.level,
+        playerId:currentPlayerId(),db:state.db || global.firebase?.database?.(),
+        onSaved:()=>refresh(),
+      });
+    }
   }
 
   function showBranchDetail(classModel, branch, anchor = null) {
@@ -215,7 +228,16 @@
           ? "Puedes elegir este arquetipo ahora con el botón de su tarjeta."
           : `Disponible al alcanzar el nivel ${branch.unlockLevel} en ${classModel.className}.`;
     const milestones = branchMilestones(classModel, branch).map(node => `
-      <li><b>LV. ${node.level}</b><span>${(node.items || []).map(item=>escapeHtml(item.name)).join(", ") || "Mejora del arquetipo"}</span></li>`).join("");
+      <li>
+        <b>LV. ${node.level}</b>
+        <div class="player-progression-preview-features">
+          ${(node.items || []).length ? (node.items || []).map(item => `
+            <article>
+              <strong>${escapeHtml(item.name)}</strong>
+              ${item.description ? `<p>${escapeHtml(item.description)}</p>` : ""}
+            </article>`).join("") : "<p>Este nivel no tiene una habilidad documentada en el catálogo.</p>"}
+        </div>
+      </li>`).join("");
     state.detail.innerHTML = `
       <header class="player-progression-detail__header">
         <div><span>${escapeHtml(classModel.className)} · ARQUETIPO</span><h3>${escapeHtml(branch.name)}</h3></div>
@@ -226,6 +248,15 @@
         <p class="player-progression-detail__guidance">${escapeHtml(message)}</p>
         ${milestones ? `<strong>Hitos de esta rama</strong><ul class="player-progression-archetype-rewards">${milestones}</ul>` : ""}
       </div>`;
+    if (branch.id === "battle_master" && branch.status === "selected") {
+      const editor = doc.createElement("div");
+      editor.className = "player-progression-inline-choice";
+      state.detail.appendChild(editor);
+      global.LuminousPlayerProgressionChoices?.renderManeuvers?.(editor,{
+        character:currentCharacter(),db:state.db || global.firebase?.database?.(),
+        playerId:currentPlayerId(),onSaved:()=>refresh(),
+      });
+    }
   }
 
   function escapeHtml(value) {
@@ -337,10 +368,24 @@
     } else {
       const status = doc.createElement("span");
       status.className = "player-progression-branch-status";
-      status.textContent = branch.status === "selected" ? "✦ ELEGIDO"
+      const knownCount = branch.id === "battle_master"
+        ? global.LuminousPlayerProgressionChoices?.chosenManeuvers?.(currentCharacter())?.length || 0 : 0;
+      const capacity = branch.id === "battle_master"
+        ? global.LuminousPlayerProgressionChoices?.maneuverLimit?.(currentCharacter()) || 0 : 0;
+      status.textContent = branch.status === "selected"
+        ? `✦ ELEGIDO${branch.id === "battle_master" ? ` · MANIOBRAS ${knownCount}/${capacity}` : ""}`
         : branch.status === "locked" ? "OTRA RAMA ELEGIDA"
         : `DISPONIBLE EN LV. ${branch.unlockLevel}`;
       actions.appendChild(status);
+      if (branch.id === "battle_master" && branch.status === "selected") {
+        const configure = doc.createElement("button");
+        configure.type = "button";
+        configure.className = "player-progression-branch-configure";
+        configure.textContent = "ELEGIR MANIOBRAS";
+        configure.addEventListener("click",inspect);
+        configure.addEventListener("click",()=>state.detail?.scrollIntoView?.({behavior:"smooth",block:"nearest"}));
+        actions.appendChild(configure);
+      }
       card.appendChild(actions);
     }
 
@@ -433,8 +478,10 @@
       </header>`;
     const list = doc.createElement("div");
     list.className = "player-progression-grid player-progression-milestone-list";
-    classModel.commonNodes.forEach((node) => list.appendChild(createNode(classModel, node)));
-    if (!classModel.commonNodes.length) {
+    const classNodes = global.LuminousPlayerProgressionChoices?.milestoneNodes?.(classModel,currentCharacter())
+      || classModel.commonNodes;
+    classNodes.forEach((node) => list.appendChild(createNode(classModel, node)));
+    if (!classNodes.length) {
       const empty = doc.createElement("p");
       empty.className = "player-progression-class__empty";
       empty.textContent = "No hay hitos de clase registrados en el catálogo.";
@@ -500,6 +547,8 @@
     const signature = JSON.stringify({
       playerId: currentPlayerId(),
       model,
+      milestoneSelections:character?.characterBuild?.classMilestones || null,
+      maneuverSelections:character?.characterBuild?.maneuvers?.battle_master || null,
       catalogVersion: global.LuminousTraitCatalogCore?.VERSION || global.LuminousTraitCatalogCore?.version || null,
     });
     if (!force && signature === state.signature) return true;
