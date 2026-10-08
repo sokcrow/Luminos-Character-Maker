@@ -195,6 +195,49 @@
     syncDetailPlacement();
   }
 
+  function familyForItem(item) {
+    // Class-milestone choices are placeholders, not Trait definitions.
+    if (!item || item.kind === "milestone_choice") return null;
+    return global.LuminousTraitFamilies?.resolve?.(
+      item?.definition || { id: item?.id, name: item?.name, description: item?.description }
+    ) || null;
+  }
+
+  function familyIconMarkup(family, extraClass = "") {
+    if (!family) return "";
+    return '<span class="player-progression-family ' + extraClass + '" title="Familia funcional: ' +
+      escapeHtml(family.label) + '">' +
+      '<img src="' + escapeHtml(family.icon) + '" alt="" loading="lazy" aria-hidden="true">' +
+      '<span>' + escapeHtml(family.label) + '</span></span>';
+  }
+
+  function nodeFamilyMarkup(node) {
+    const families = global.LuminousTraitFamilies?.forMilestone?.(node) || [];
+    if (!families.length) return "";
+    const displayed = families.slice(0, 3);
+    const remaining = families.length - displayed.length;
+    return '<span class="player-progression-node__families ' +
+      (families.length === 1 ? 'is-single' : 'is-multiple') +
+      '" aria-label="Familias: ' + escapeHtml(families.map((family) => family.label).join(', ')) + '">' +
+      displayed.map((family) => familyIconMarkup(family)).join("") +
+      (remaining > 0 ? '<span class="player-progression-family__more">+' + remaining + '</span>' : '') +
+      '</span>';
+  }
+
+  function bindMissingFamilyIcons(root) {
+    root?.querySelectorAll?.(".player-progression-family img")?.forEach((image) => {
+      image.addEventListener("error", () => {
+        const seal = image.closest?.(".player-progression-node__seal");
+        image.closest?.(".player-progression-family")?.remove();
+        if (seal && !seal.querySelector(".player-progression-family img")) {
+          const node = seal.closest(".player-progression-node");
+          seal.innerHTML = classSealMarkup({ classId: node?.dataset?.progressionClassId }, "star");
+          if (node) bindClassIconFallback(node, "star");
+        }
+      }, { once: true });
+    });
+  }
+
   function showNodeDetail(classModel, node, branch = null, anchor = null) {
     if (!state.detail || !node) return;
     placeDetail(anchor);
@@ -207,6 +250,7 @@
         <article class="player-progression-detail__item">
           <div class="player-progression-detail__item-head">
             <span class="player-progression-kind">${escapeHtml(item.kind)}</span>
+            ${familyIconMarkup(familyForItem(item))}
             <strong>${escapeHtml(item.name)}</strong>
           </div>
           ${item.description ? `<p>${escapeHtml(item.description)}</p>` : ""}
@@ -230,6 +274,7 @@
         ? "Este Milestone requiere que elijas y guardes tu mejora de clase."
         : "Los hitos automáticos se obtienen al alcanzar el nivel. Aquí puedes consultar sus recompensas."}</p>
       <div class="player-progression-detail__items">${items || "<p>No hay recompensas adicionales registradas en este nivel.</p>"}</div>`;
+    bindMissingFamilyIcons(state.detail);
     if (node.choiceMilestone && !branch) {
       const editor = doc.createElement("div");
       editor.className = "player-progression-inline-choice";
@@ -299,16 +344,19 @@
     button.className = `player-progression-node is-${node.status} ${branch ? "is-archetype-milestone" : "is-class-milestone"}`;
     button.dataset.progressionLevel = String(node.level);
     button.dataset.progressionStatus = node.status;
+    button.dataset.progressionClassId = classModel.classId;
     button.dataset.progressionKey = `${classModel.classId}:milestone:${branch?.id || "base"}:${node.level}`;
     button.setAttribute("aria-controls", "player-progression-detail");
     button.setAttribute("aria-pressed", "false");
     button.setAttribute("aria-label", `Ver hito de ${classModel.className} nivel ${node.level}: ${nodeTitle(node)}`);
+    const familySeal = nodeFamilyMarkup(node);
     const fallbackSigil = sigilFor(nodeTitle(node), node.level);
     button.innerHTML = `
-      <span class="player-progression-node__seal">${classSealMarkup(classModel, fallbackSigil)}</span>
+      <span class="player-progression-node__seal">${familySeal || classSealMarkup(classModel, fallbackSigil)}</span>
       <span class="player-progression-node__level">LV. ${node.level}</span>
       <strong>${escapeHtml(nodeTitle(node))}</strong>
       <small>${escapeHtml(statusLabel(node.status))}</small>`;
+    bindMissingFamilyIcons(button);
     bindClassIconFallback(button, fallbackSigil);
     const inspect = () => showNodeDetail(classModel, node, branch, button);
     button.__inspect = inspect;
