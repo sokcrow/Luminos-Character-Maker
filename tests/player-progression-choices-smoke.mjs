@@ -180,6 +180,52 @@ assert.throws(()=>milestone.migrateMilestoneChoices([...legacyClaims,{type:'stat
 assert.throws(()=>milestone.migrateMilestoneChoices([...legacyClaims,sourceCopy[0]]),
   /duplicados/,'Conflicting existing claims must not be overwritten');
 
+// Codex P1: top-level claims can coexist with an empty or partial build
+// claim store. Both must be migrated BEFORE checking and appending rewards.
+const legacyTopLevel = {
+  classMilestones:[
+    {classId:'fighter',milestoneLevel:20,type:'stats',allocation:{fuerza:2},selectedAt:111,notes:'original-stats'},
+    {classId:'fighter',milestoneLevel:30,type:'trait',traitId:'general_keen',selectedAt:222,notes:'original-trait'},
+    {classId:'monk',milestoneLevel:40,type:'trait',traitId:'superior_technique',selectedAt:333},
+  ],
+  characterBuild:{classMilestones:{fighter:{
+    40:{classId:'fighter',milestoneLevel:40,type:'stats',allocation:{constitucion:2},selectedAt:444},
+  }}},
+};
+const legacyBefore=structuredClone(legacyTopLevel);
+const mergedClaims=milestone.mergeMilestoneChoices(legacyTopLevel);
+assert.deepEqual(legacyTopLevel,legacyBefore,'Merge must not alter either original store');
+assert.deepEqual(mergedClaims.fighter["20"],legacyBefore.classMilestones[0]);
+assert.deepEqual(mergedClaims.fighter["30"],legacyBefore.classMilestones[1]);
+assert.deepEqual(mergedClaims.fighter["40"],legacyBefore.characterBuild.classMilestones.fighter["40"]);
+assert.deepEqual(mergedClaims.monk["40"],legacyBefore.classMilestones[2]);
+assert.equal(milestone.choiceAt(mergedClaims,'fighter',20)?.type,'stats');
+assert.equal(milestone.choiceAt(mergedClaims,'fighter',30)?.traitId,'general_keen');
+assert.deepEqual(milestone.selectedGeneralTraitIds(legacyTopLevel),['general_keen','superior_technique'],
+  'Trait resolution must consider top-level claims even when nested store exists');
+assert.deepEqual(milestone.selectedGeneralTraitIds({characterBuild:{classMilestones:mergedClaims}}),
+  ['general_keen','superior_technique'],'Both Traits remain available after canonical migration');
+assert.deepEqual(milestone.mergeMilestoneChoices({classMilestones:legacyTopLevel.classMilestones}),
+  milestone.migrateMilestoneChoices(legacyTopLevel.classMilestones),
+  'Top-level-only claims must survive a first canonical write');
+assert.deepEqual(milestone.mergeMilestoneChoices({characterBuild:{classMilestones:legacyTopLevel.classMilestones}}),
+  milestone.migrateMilestoneChoices(legacyTopLevel.classMilestones),
+  'Nested-only claims must still survive');
+assert.deepEqual(milestone.mergeMilestoneChoices({classMilestones:mergedClaims,characterBuild:{classMilestones:mergedClaims}}),
+  mergedClaims,'Identical copies must not trigger a false conflict');
+assert.deepEqual(milestone.mergeMilestoneChoices({classMilestones:{'fighter:20':legacyBefore.classMilestones[0]},
+  characterBuild:{classMilestones:{fighter:{30:legacyBefore.classMilestones[1]}}}}),
+  {fighter:{"20":legacyBefore.classMilestones[0],"30":legacyBefore.classMilestones[1]}},
+  'Flat and nested Milestone keys must merge safely');
+assert.throws(()=>milestone.mergeMilestoneChoices({
+  classMilestones:legacyTopLevel.classMilestones,
+  characterBuild:{classMilestones:{fighter:{20:{type:'stats',allocation:{destreza:2},selectedAt:999}}}},
+}),/duplicados incompatibles/,'Conflicting history must abort without rewriting stats');
+assert.throws(()=>milestone.mergeMilestoneChoices({
+  classMilestones:legacyTopLevel.classMilestones,
+  characterBuild:{classMilestones:[{type:'trait',traitId:'general_keen'}]},
+}),/datos incompletos/,'Malformed nested history must abort the entire write');
+
 const noSelection={characterBuild:{
   classes:{fighter:{levels:40}},archetypes:{fighter:{archetypeId:'champion'}},
 }};
