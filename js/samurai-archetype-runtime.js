@@ -256,7 +256,7 @@
     }
 
     check.finalPower = numberOr(check.finalPower, 0) + bonus;
-    Object.defineProperty(check, "__samuraiElegantCourtierAdjusted", { value: true, enumerable: false, configurable: true });
+    Object.defineProperty(check, "__samuraiElegantCourtierAdjusted", { value: true, enumerable: true, configurable: true });
     return check;
   }
 
