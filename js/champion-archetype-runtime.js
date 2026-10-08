@@ -143,7 +143,7 @@
     const check = { ...(checkInput || {}) };
     if (check.__championRemarkableAthleteAdjusted || !hasChampionLevel(character, 35) || !isPhysicalChampionCheck(check)) return check;
     check.finalPower = numberOr(check.finalPower, 0) + 1;
-    Object.defineProperty(check, "__championRemarkableAthleteAdjusted", { value: true, enumerable: false, configurable: true });
+    Object.defineProperty(check, "__championRemarkableAthleteAdjusted", { value: true, enumerable: true, configurable: true });
     return check;
   }
 
