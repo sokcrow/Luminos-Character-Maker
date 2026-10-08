@@ -343,7 +343,6 @@
     "targetlevel", "targetmaxhp", "targetcurrenthp", "targetoffensivelevel", "targetdefensivelevel",
     "aliveallies", "aliveenemies", "turnnumber", "roundnumber",
   ]);
-  let formulaInspectModeBound = false;
 
   function escapeFormulaRegExp(value) {
     return String(value || "").replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
@@ -929,24 +928,9 @@
     return description;
   }
 
-  function bindFormulaInspectMode() {
-    const doc = global.document;
-    if (!doc || formulaInspectModeBound) return;
-    formulaInspectModeBound = true;
-    const setInspect = (active) => doc.body?.classList.toggle("player-trait-formula-inspect", Boolean(active));
-    doc.addEventListener("keydown", (event) => {
-      if (event.key === "Shift") setInspect(true);
-    });
-    doc.addEventListener("keyup", (event) => {
-      if (event.key === "Shift") setInspect(false);
-    });
-    global.addEventListener?.("blur", () => setInspect(false));
-  }
-
   function ensureStyles() {
     const doc = global.document;
     if (!doc) return;
-    bindFormulaInspectMode();
     if (doc.getElementById("player-trait-tabs-stylesheet")) return;
     const link = doc.createElement("link");
     link.id = "player-trait-tabs-stylesheet";
