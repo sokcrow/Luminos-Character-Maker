@@ -116,6 +116,7 @@ on:
       - tests/item-enchantment-ritual-smoke.cjs
       - tests/item-magical-durability-runtime-smoke.cjs
       - tests/item-magic-knowledge-runtime-smoke.cjs
+      - tests/item-bound-equipment-lock-smoke.cjs
       - tests/item-enchantment-engine-smoke.cjs
       - tests/item-enchantment-inventory-smoke.cjs
       - tests/item-enchantment-magic-runtime-smoke.cjs
@@ -297,6 +298,8 @@ jobs:
         run: node tests/item-magical-durability-runtime-smoke.cjs
       - name: Magic Item Arcana Identify knowledge smoke
         run: node tests/item-magic-knowledge-runtime-smoke.cjs
+      - name: Bound Item equipment lock smoke
+        run: node tests/item-bound-equipment-lock-smoke.cjs
       - name: Enchantment core engine smoke
         run: node tests/item-enchantment-engine-smoke.cjs
       - name: Enchantment inventory persistence smoke
