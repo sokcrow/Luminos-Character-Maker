@@ -17,7 +17,7 @@ const Magic = globalThis.LuminousItemMagicRuntime;
 
 assert.ok(Catalog && Engine && Inventory && Magic);
 assert.strictEqual(Catalog.VERSION, 4);
-assert.strictEqual(Engine.VERSION, 7);
+assert.strictEqual(Engine.VERSION, 8);
 assert.strictEqual(Magic.VERSION, 3);
 
 const baseWeapon = {
