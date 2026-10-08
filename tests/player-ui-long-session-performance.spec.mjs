@@ -1231,7 +1231,7 @@ for (const width of [390, 1280]) {
       path:"campaña/jugadores/browser_test/characterBuild/archetypes",
       value:[{classId:"monk",archetypeId:"shadow",selectedAtClassLevel:20}]
     }]);
-    await expect(archetypes.locator(".player-progression-branch-label.is-locked")).toContainText("Sun Monk");
+    await expect(archetypes.locator(".player-progression-branch-label.is-locked").filter({ hasText: "Sun Monk" })).toContainText("Sun Monk");
     const noOverflow = await page.locator(".player-progression-class").evaluate(el => el.scrollWidth <= el.clientWidth + 2);
     expect(noOverflow).toBe(true);
   });
