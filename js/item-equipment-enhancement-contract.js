@@ -6,7 +6,7 @@
     return;
   }
 
-  const VERSION = 2;
+  const VERSION = 3;
   const ELIGIBLE_KINDS = Object.freeze(["weapon","armor","shield","accessory","valuable"]);
   const ENCHANTMENT_LEVELS = Object.freeze([1,2,3]);
   const MUNDANE_LEVEL = 0;
@@ -37,8 +37,16 @@
     if (source !== "enchantment") return Object.freeze({valid:false,reason:"positive_enhancement_requires_enchantment_source",kind,level,source});
     return Object.freeze({valid:true,kind,level,source:"enchantment",suffix:` +${level}`});
   }
+  function canonicalEnchantmentRefs(item = {}) {
+    const refs = item?.magic?.enchantments || item?.runtime?.magic?.enchantments || [];
+    return Array.isArray(refs) ? refs.filter((entry) => entry && typeof entry === "object") : [];
+  }
+  function usesCanonicalEnchantmentPresentation(item = {}) {
+    return canonicalEnchantmentRefs(item).length > 0;
+  }
   function displayName(item = {}, baseName = null) {
     const base = String(baseName || item.name || item.displayName || "").trim();
+    if (usesCanonicalEnchantmentPresentation(item)) return base;
     const state = validate(item);
     if (!state.valid || state.level === 0) return base;
     return `${base}${state.suffix}`.trim();
@@ -51,7 +59,7 @@
 
   const API = Object.freeze({
     VERSION, ELIGIBLE_KINDS, ENCHANTMENT_LEVELS, MUNDANE_LEVEL,
-    normalizeId, kindOf, levelOf, sourceOf, validate, displayName, mundane,
+    normalizeId, kindOf, levelOf, sourceOf, validate, canonicalEnchantmentRefs, usesCanonicalEnchantmentPresentation, displayName, mundane,
   });
 
   global.LuminousEquipmentEnhancementContract = API;
