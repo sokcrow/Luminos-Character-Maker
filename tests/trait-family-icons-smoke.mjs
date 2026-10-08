@@ -112,7 +112,7 @@ assert.ok(familyScript >= 0 && familyScript < progressionScript, "Load families 
 assert.match(tray, /LuminousTraitFamilies\?\.resolve/);
 assert.match(tray, /player-trait-family__icon/);
 assert.match(runtime, /nodeFamilyMarkup\(node\)/);
-assert.match(runtime, /familySeal \|\| sigilSvg/);
+assert.match(runtime, /familySeal \|\| classSealMarkup\(classModel, fallbackSigil\)/);
 assert.match(progressionCss, /player-progression-node__seal \.player-progression-node__families/);
 assert.match(runtime, /familyIconMarkup\(familyForItem\(item\)\)/);
 assert.match(traitCss, /player-trait-family__icon/);
