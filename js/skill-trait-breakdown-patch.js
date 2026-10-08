@@ -67,8 +67,8 @@
     if (!engine?.dispatchTrait || !engine?.createState) return [];
     const runtime = {
       context: "theatre",
-      character: clone(character) || {},
-      self: clone(character) || {},
+      character: clone(global.LuminousCheckTraitBonusRuntime?.canonicalCharacter?.(character, traits) || character) || {},
+      self: clone(global.LuminousCheckTraitBonusRuntime?.canonicalCharacter?.(character, traits) || character) || {},
       check: { abilityPower: 0, checkPower: 0, power: 0, finalPower: 0, ...(clone(check) || {}) },
     };
     const traitState = engine.createState();
@@ -261,7 +261,14 @@
         const check = { kind: "skill", abilityId: ability.id, skillId: skill.id };
         const contributions = checkPowerContributions(engine, traits, character, check);
         const finalPower = finalPowerContributions(engine, traits, character, check);
-        const total = abilityMod + proficiency + contributions.reduce((sum, entry) => sum + entry.amount, 0);
+        const preview = global.LuminousCheckTraitBonusRuntime?.resolveCheck?.(engine, traits, character, check);
+        const declaredFinal = finalPower.reduce((sum, entry) => sum + entry.amount, 0);
+        const effectiveFinal = preview ? numberOr(preview.check.finalPower, 0) : declaredFinal;
+        const specials = preview?.specialContributions || [];
+        finalPower.push(...specials);
+        const otherFinal = effectiveFinal - declaredFinal - specials.reduce((sum, item) => sum + item.amount, 0);
+        if (otherFinal) finalPower.push({ name: "Otros Traits", amount: otherFinal });
+        const total = abilityMod + proficiency + contributions.reduce((sum, entry) => sum + entry.amount, 0) + effectiveFinal;
         const node = doc.querySelector(`[data-skill-total="${skill.id}"]`);
         if (!node) return;
         const value = formatSigned(total);
