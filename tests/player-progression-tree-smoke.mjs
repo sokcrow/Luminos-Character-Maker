@@ -214,11 +214,17 @@ assert.match(progressionCss, /\.player-level-allocation__body\[hidden\]/);
 // Shrink the former 1500px modal and 190px tracks. On mobile, cards are
 // presented in a two-column stack instead of forcing sideways traversal.
 assert.match(progressionCss, /width:min\(92vw,1080px\)/);
-assert.match(progressionRuntime, /148px repeat\(\$\{levels\.length\}, 150px\)/);
-assert.match(progressionCss, /grid-template-columns:repeat\(2,minmax\(0,1fr\)\)!important/);
-assert.match(progressionCss, /\.player-progression-rail\{\s*display:none/);
+assert.match(progressionRuntime, /player-progression-milestone-list/);
+assert.match(progressionCss, /grid-template-columns:repeat\(auto-fit,minmax\(min\(100%,218px\),1fr\)\)!important/);
+assert.match(progressionCss, /\.player-progression-archetype-list/);
 assert.match(progressionRuntime, /button\.addEventListener\("click", inspect\)/);
-assert.match(progressionRuntime, /wrap\.addEventListener\("keydown"/);
+assert.match(progressionRuntime, /ELEGIR ARQUETIPO/);
+assert.match(progressionRuntime, /state\.selectedKey = card\.dataset\.progressionKey/);
+assert.match(progressionRuntime, /await db\.ref\(/);
+assert.match(progressionRuntime, /No hay conexión para guardar el arquetipo/);
+assert.match(progressionRuntime, /className = "player-progression-choose-error"/);
+assert.match(progressionRuntime, /matched\?\.__inspect\(\)/);
+assert.match(progressionRuntime, /preview\.addEventListener\("click", inspect\)/);
 assert.match(progressionRuntime, /host\.contains\(state\.detail\)/);
 assert.match(progressionRuntime, /mobileLayout\?\.addEventListener\?\.\("change", syncDetailPlacement\)/);
 assert.match(progressionRuntime, /state\.root\?\.contains\(anchor\)/);
