@@ -26,6 +26,7 @@
     plans: {},
     combatState: null,
     selectedSkillId: null,
+    selectedWeaponInstanceId: null,
     pendingTargeting: null,
     subscriptions: [],
     authUnsubscribe: null,
@@ -56,6 +57,16 @@
       try { return require("./combat-skill-loadout-074.js"); } catch (_) {}
     }
     return null;
+  }
+
+  function itemWeaponLink() { return global.LuminousEnchantmentCombatLink || null; }
+  function trustedWeaponContext(unit = {}, player = {}) {
+    const link = itemWeaponLink();
+    if (!link) return { unit, weapons: [] };
+    const inventory = player?.inventario_activo || unit?.inventario_activo || {};
+    const linked = link.resolveEquipment(unit, player, inventory);
+    const combatUnit = { ...unit, ...linked };
+    return { unit: combatUnit, weapons: link.equippedWeapons(combatUnit) };
   }
 
   function playerUid(player = {}) {
@@ -132,7 +143,7 @@
     return ids.has(unitId) && ownership?.isAuthorizedActionSlot?.(combatant.unit, slotIndex) === true;
   }
 
-  function buildSkillPlan({ authUid = currentAuthUid(), ownerPlayerId = null, slotIndex = null, slotId = null, skillId, targetId } = {}) {
+  function buildSkillPlan({ authUid = currentAuthUid(), ownerPlayerId = null, slotIndex = null, slotId = null, skillId, targetId, weaponInstanceId = null } = {}) {
     const uid = clean(authUid);
     if (!uid) return { ok: false, reason: "AUTH_REQUIRED", payload: null };
 
@@ -153,6 +164,15 @@
     const selectedSkillId = clean(skillId);
     if (!selectedSkillId) return { ok: false, reason: "SKILL_ID_REQUIRED", payload: null };
     if (!loadout?.ownsSkill?.(resolved.unit, selectedSkillId)) return { ok: false, reason: "SKILL_NOT_EQUIPPED", payload: null };
+    const link = itemWeaponLink();
+    const trustedSkill = loadout?.skillLibrary?.()?.[selectedSkillId] || null;
+    let binding = null;
+    if (link && trustedSkill) {
+      const source = trustedWeaponContext(resolved.unit, player.player || state.players?.[player.playerId] || {});
+      binding = link.bindTrustedSkill(source.unit, trustedSkill, weaponInstanceId);
+      if (link.isWeaponSkill(trustedSkill) && !binding.bound) return { ok: false, reason: binding.reason || "WEAPON_SOURCE_REQUIRED", payload: null };
+      if (!link.isWeaponSkill(trustedSkill) && weaponInstanceId) return { ok: false, reason: "WEAPON_NOT_ALLOWED_FOR_SKILL", payload: null };
+    }
 
     const target = clean(targetId);
     if (!target) return { ok: false, reason: "TARGET_REQUIRED", payload: null };
@@ -168,6 +188,7 @@
       scheduledBy: player.playerId,
       schedulerUid: uid,
     };
+    if (binding?.bound) payload.weaponInstanceId = binding.instanceId;
 
     const ownership = ownershipRuntime();
     const authorization = ownership?.authorizePlanWrite?.({
@@ -249,6 +270,7 @@
     if (!owner.ok) return { ok: false, reason: owner.reason || "PLAYER_NOT_FOUND" };
     const allowed = equippedSkillsFor(owner.playerId).some((row) => row.id === id);
     if (!allowed) return { ok: false, reason: "SKILL_NOT_EQUIPPED" };
+    if (state.selectedSkillId !== id) state.selectedWeaponInstanceId = null;
     state.selectedSkillId = id;
     render();
     return { ok: true, reason: null, skillId: id };
@@ -256,6 +278,7 @@
 
   function clearSelectedSkill() {
     state.selectedSkillId = null;
+    state.selectedWeaponInstanceId = null;
     render();
   }
 
@@ -285,6 +308,12 @@
     if (!panel) {
       panel = doc.createElement("section");
       panel.id = PANEL_ID;
+      panel.addEventListener("change", (event) => {
+        if (event.target?.id === "bv074-psp-weapon-select") {
+          state.selectedWeaponInstanceId = clean(event.target.value) || null;
+          render();
+        }
+      });
       panel.addEventListener("click", (event) => {
         const skillButton = event.target?.closest?.("[data-bv074-skill]");
         if (skillButton) {
@@ -364,7 +393,7 @@
         if (!owner.ok) return result;
         const slotIndex = slotIndexFromId(pending.attackerSlotId);
         const targetId = unitIdFromSlot(pending.targetSlotId);
-        scheduleSkill({ ownerPlayerId: owner.playerId, slotId: pending.attackerSlotId, slotIndex, skillId: selected, targetId })
+        scheduleSkill({ ownerPlayerId: owner.playerId, slotId: pending.attackerSlotId, slotIndex, skillId: selected, targetId, weaponInstanceId: state.selectedWeaponInstanceId })
           .then((scheduled) => {
             if (scheduled.ok) emitLog(`[ PLAYER SKILL ] ${selected} → ${targetId} reservado en Action Slot ${slotIndex + 1}.`);
             else emitLog(`[ PLAYER SKILL FAILED ] ${scheduled.reason}`, "interrupt");
@@ -413,6 +442,7 @@
     if (state.auth?.onAuthStateChanged) {
       state.authUnsubscribe = state.auth.onAuthStateChanged(() => {
         state.selectedSkillId = null;
+        state.selectedWeaponInstanceId = null;
         render();
       });
     }
