@@ -113,13 +113,96 @@
     return checkPowerContributions(engine, traits, character, check);
   }
 
+
+  // Legacy class/archetype Check bonuses were applied only by dedicated roll
+  // wrappers.  Resolve them here for both the sheet preview and the actual
+  // authorised Check. Do not invent an unconditional bonus for conditional
+  // mechanics (Bladesong, a chosen Save proficiency, etc.).
+  function specialCheckContributions(traits = [], character = {}, check = {}) {
+    const ids = new Map((traits || []).map((trait) =>
+      [normalizeId(trait?.baseTraitId || String(trait?.id || "").split("__class__")[0]), trait]));
+    const skill = normalizeId(check.skillId || check.skill);
+    const kind = normalizeId(check.kind || check.checkKind || check.type);
+    const ability = normalizeId(check.abilityId || check.statId || check.ability);
+    const aliases = { strength: "str", fuerza: "str", dexterity: "dex", destreza: "dex",
+      constitution: "con", constitucion: "con", wisdom: "wis", sabiduria: "wis" };
+    const stat = aliases[ability] || ability;
+    const score = (id) => {
+      const keys = { wis: ["sabiduria", "wisdom", "wis"], str: ["fuerza", "strength", "str"] }[id] || [id];
+      const data = character.stats || character.dndStats || {};
+      const source = keys.map((key) => data[key] ?? character[key]).find((value) => value != null && Number.isFinite(Number(value)));
+      return source == null ? 10 : Number(source);
+    };
+    const proficiency = Math.max(0, Math.floor(numberOr(character.proficiency ?? character.proficiencyBonus,
+      Math.ceil(numberOr(character.characterBuild?.calculatedAtLevel ?? character.level, 1) / 20))));
+    const normalizeProficiency = (value) => {
+      if (value === true) return "proficient";
+      const id = normalizeId(value);
+      if (["expertise", "expert"].includes(id)) return "expertise";
+      if (["proficient", "proficiency", "trained"].includes(id)) return "proficient";
+      if (["half", "half_proficiency"].includes(id)) return "half";
+      return "none";
+    };
+    const skillState = () => normalizeProficiency(check.proficiencyState
+      ?? check.profState ?? character.skillProficiency?.[skill]
+      ?? character.skillProficiencies?.[skill] ?? character.dndSkillProficiency?.[skill]
+      ?? character.dndSkills?.[skill]?.proficiency
+      ?? character.dndSkills?.[skill]?.proficiencyState);
+    const saveState = (id) => normalizeProficiency(
+      character.saveProficiency?.[id] ?? character.savingThrowProficiency?.[id]
+      ?? character.savingThrowProficiencies?.[id]
+      ?? character.abilityProficiency?.[id] ?? character.abilityProficiencies?.[id]);
+    const result = [];
+    function add(id, amount) {
+      if (!ids.has(id) || !Number.isFinite(Number(amount)) || Number(amount) === 0) return;
+      result.push({ traitId: id, name: String(ids.get(id)?.name || id), amount: Number(amount),
+        channel: "final_power", marker: id });
+    }
+    if (ids.has("jack_of_all_trades") && skillState() === "none" && (
+      kind === "skill" || kind === "ability" || kind === "save"
+    )) add("jack_of_all_trades", Math.floor(proficiency / 2));
+    if (kind === "skill" && ids.has("reliable_talent") && ["proficient", "expertise"].includes(skillState())) {
+      add("reliable_talent", numberOr(ids.get("reliable_talent")?.mechanics?.proficientCheckFinalPower, 3));
+    }
+    if (ids.has("remarkable_athlete") && ["str", "dex", "con"].includes(stat) &&
+        ["skill", "ability", "save"].includes(kind)) {
+      add("remarkable_athlete", numberOr(ids.get("remarkable_athlete")?.mechanics?.physicalCheckFinalPower, 1));
+    }
+    if (skill === "persuasion" && kind === "skill" && ids.has("royal_envoy")) {
+      const current = skillState();
+      if (current !== "expertise") {
+        const oldBonus = current === "proficient" ? proficiency : current === "half" ? Math.floor(proficiency / 2) : 0;
+        const newBonus = current === "proficient" ? 2 * proficiency : proficiency;
+        add("royal_envoy", newBonus - oldBonus);
+      }
+    }
+    if (ids.has("elegant_courtier")) {
+      if (kind === "skill" && skill === "persuasion") add("elegant_courtier", Math.floor((score("wis") - 10) / 2));
+      if (kind === "save") {
+        const alreadyWis = ["proficient", "expertise"].includes(saveState("wis"));
+        const choice = normalizeId(character.traitChoices?.elegant_courtier_save
+          ?? character.characterBuild?.traitChoices?.elegant_courtier_save
+          ?? character.elegantCourtierSave);
+        const granted = alreadyWis ? (["int", "cha"].includes(choice) ? choice : "") : "wis";
+        if (granted && stat === granted && saveState(granted) === "none") add("elegant_courtier", proficiency);
+      }
+    }
+    if (kind === "skill" && skill === "acrobatics" && ids.has("bladesong")) {
+      const active = global.LuminousBladesingerArchetypeRuntime?.bladesongActive
+        ? global.LuminousBladesingerArchetypeRuntime.bladesongActive(character)
+        : Boolean(character.statusEffects?.bladesong || character.traitStatuses?.bladesong);
+      if (active) add("bladesong", numberOr(ids.get("bladesong")?.mechanics?.acrobaticsBonus, 4));
+    }
+    return result;
+  }
+
   function tooltip(skill, ability, breakdown) {
-    const lines = [`${skill.name} Check Power: ${formatSigned(breakdown.total)}`];
+    const lines = [`${skill.name} Total de Check: ${formatSigned(breakdown.total)}`];
     if (breakdown.abilityMod) lines.push(`${formatSigned(breakdown.abilityMod)} ${ability.code} Mod`);
     if (breakdown.proficiency) lines.push(`${formatSigned(breakdown.proficiency)} Proficiency`);
     breakdown.contributions.forEach((entry) => lines.push(`${formatSigned(entry.amount)} ${entry.name}`));
     if (breakdown.finalPowerContributions?.length) {
-      lines.push("Final Power · se aplica después de la tirada");
+      lines.push("Final Power · incluido en el total mostrado; se suma después de los Coins");
       breakdown.finalPowerContributions.forEach((entry) => lines.push(`${formatSigned(entry.amount)} ${entry.name}`));
     }
     return lines.join("\n");
@@ -146,9 +229,11 @@
     const character = runtime.getCharacter?.() || data;
     const check = { kind: "skill", abilityId: ability.id, skillId: skill.id };
     const contributions = checkPowerContributions(engine, runtime.getTraits(), character, check);
-    const finalPower = finalPowerContributions(engine, runtime.getTraits(), character, check);
+    const finalPower = [...finalPowerContributions(engine, runtime.getTraits(), character, check),
+      ...specialCheckContributions(runtime.getTraits(), character, { ...check, proficiencyState: stats.skillProficiencyState(skill, data) })];
     const traitBonus = contributions.reduce((sum, entry) => sum + entry.amount, 0);
-    return { base, abilityMod, proficiency, contributions, finalPowerContributions: finalPower, traitBonus, total: base + traitBonus };
+    const finalBonus = finalPower.reduce((sum, entry) => sum + entry.amount, 0);
+    return { base, abilityMod, proficiency, contributions, finalPowerContributions: finalPower, traitBonus, finalBonus, total: base + traitBonus + finalBonus };
   }
 
   function syncPlayerSkillPreviews() {
@@ -244,8 +329,10 @@
         const proficiency = studio.proficiencyContribution?.(level, doc.getElementById(`dm-player-skill-${skill.id}`)?.value || "none") || 0;
         const check = { kind: "skill", abilityId: ability.id, skillId: skill.id };
         const contributions = checkPowerContributions(engine, traits, character, check);
-        const finalPower = finalPowerContributions(engine, traits, character, check);
-        const total = abilityMod + proficiency + contributions.reduce((sum, entry) => sum + entry.amount, 0);
+        const finalPower = [...finalPowerContributions(engine, traits, character, check),
+          ...specialCheckContributions(traits, character, { ...check, proficiencyState: doc.getElementById(`dm-player-skill-${skill.id}`)?.value || "none" })];
+        const total = abilityMod + proficiency + contributions.reduce((sum, entry) => sum + entry.amount, 0)
+          + finalPower.reduce((sum, entry) => sum + entry.amount, 0);
         const node = doc.querySelector(`[data-skill-total="${skill.id}"]`);
         if (!node) return;
         const value = formatSigned(total);
@@ -391,6 +478,7 @@
     traitCheckContribution,
     checkPowerContributions,
     finalPowerContributions,
+    specialCheckContributions,
     skillTraitContributions,
     playerCheckPower,
     playerSkillBreakdown,
