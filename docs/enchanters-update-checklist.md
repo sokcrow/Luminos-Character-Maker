@@ -46,7 +46,7 @@ Design decisions are marked complete here; implementation remains open.
 - [x] Add canonical Enchantment catalog/schema.
 - [x] Add Enchantment engine/runtime.
 - [x] Add Tier/Rank slot validation and conflict/channel resolution.
-- [ ] Add Item Instance persistence/hydration for enchantments plus separate Magical Durability.
+- [x] Persist/hydrate canonical Enchantment state, slot state and existing separate Magical Durability through Item Instances.
 - [ ] Add Arcana/Identify/Curse knowledge resolution and rune-obfuscated display.
 - [ ] Add Magic Item vs Magic Hit combat bridge.
 - [ ] Add equipment-Trait effect resolution and authored damage/buff support.
@@ -55,6 +55,7 @@ Design decisions are marked complete here; implementation remains open.
 - [ ] Add physical/magical repair authority.
 - [ ] Add regression/smoke tests and CI path coverage.
   - [x] Initial Enchantment core schema/engine smoke is wired into Inventory Runtime Validation CI.
+  - [x] Enchantment inventory persistence + Magic Item Attunement bridge smokes are wired into CI.
 
 ## Part B — Resonance, Gem Anchors and Enchantment Recipes (design frozen)
 
@@ -220,11 +221,11 @@ Canonical contract: [`docs/enchanters-update-part-d-magic-items.md`](./enchanter
 
 ### Part D implementation gate
 
-- [ ] Extend `LuminousItemMagicRuntime.isMagicItem()` to recognize applied Enchantments.
-- [ ] Keep Magic Item status independent from Magic Hit.
-- [ ] Implement Rank II+ automatic Attunement requirement for normal Enchanted Items.
-- [ ] Preserve base Attunement capacity 3 plus Trait/effect modifiers.
-- [ ] Enforce one Item = one Attunement Slot regardless of Enchantment/Gem count.
+- [x] Extend `LuminousItemMagicRuntime.isMagicItem()` to recognize applied Enchantments.
+- [x] Keep Magic Item status independent from Magic Hit.
+- [x] Implement Rank II+ automatic Attunement requirement for normal Enchanted Items.
+- [x] Preserve base Attunement capacity 3 plus Trait/effect modifiers.
+- [x] Enforce one Item = one Attunement Slot regardless of Enchantment/Gem count.
 - [ ] Suppress attunement-gated Enchantment benefits when unattuned without deleting magic state.
 - [ ] Add Native Magic Item origin support through the same runtime.
 - [ ] Add whitelisted activation trigger families and practical activation-knowledge handling.
@@ -235,8 +236,9 @@ Canonical contract: [`docs/enchanters-update-part-d-magic-items.md`](./enchanter
 - [ ] Support conduit Items that use the wielder's normal Spell Slots/resources.
 - [ ] Spend SP only when explicitly authored.
 - [ ] Keep depleted enchanted physical Items mundanely usable when physically intact.
-- [ ] Migrate Bind to Curse-family runtime behavior.
+- [x] Migrate Bind to Curse-family runtime behavior.
 - [ ] Block normal unequip/unattune for Bound Items and lock their occupied Attunement Slot.
+  - [x] Normal Bound unattunement is blocked; equipment unequip lock remains open.
 - [ ] Add Bound accelerated recharge and authored life/HP-backed full recharge at zero.
 - [ ] Add persistent Curse self-preservation/recharge hooks.
 - [ ] Distinguish normal Curse, Bound Curse and inseparable Relic drawback.
@@ -282,19 +284,19 @@ Canonical contract: [`docs/enchanters-update-part-d-magic-items.md`](./enchanter
 
 ## 3. Item Instance integration
 
-- [ ] Add canonical applied-enchantment state to Item Instances.
-- [ ] Preserve Enchantment definition ID, tier and instance-specific state.
+- [x] Add canonical applied-enchantment state to Item Instances.
+- [x] Preserve Enchantment definition ID, Rank and instance-specific state.
 - [ ] Preserve application provenance.
 - [ ] Preserve who/what applied the Enchantment.
 - [ ] Preserve application Encounter/Location/Service context when relevant.
 - [ ] Preserve Item Charge presentation/state per Item Instance while keeping its resource authority mapped to canonical Magical Durability.
 - [ ] Preserve dormant/disabled state independently per Item Instance.
 - [ ] Preserve removal/replacement history where needed.
-- [ ] Hydrate/serialize enchantment state through Item Inventory Runtime.
-- [ ] Ensure stack merging refuses Items with different enchantment state.
+- [x] Hydrate/serialize enchantment state through Item Inventory Runtime.
+- [x] Ensure stack merging refuses Items with different enchantment state.
 - [ ] Ensure stack splitting preserves the correct enchantment state.
-- [ ] Ensure transfer/trade does not strip enchantments.
-- [ ] Ensure equipped Items keep their enchantments after save/load.
+- [x] Ensure transfer/trade does not strip enchantments.
+- [x] Ensure equipped Items keep their enchantments after save/load.
 
 ## 4. Enchantment capacity / slots
 
@@ -372,11 +374,11 @@ Canonical contract: [`docs/enchanters-update-part-d-magic-items.md`](./enchanter
 ## 9. Inventory / equipment / transfer integration
 
 - [ ] Validate enchanted Items through Item Inventory Runtime.
-- [ ] Preserve Enchantments in Active Inventory.
-- [ ] Preserve Enchantments in Stash.
-- [ ] Preserve Enchantments during player-to-player transfer.
-- [ ] Preserve Enchantments when equipping/unequipping.
-- [ ] Prevent stack merge across non-identical Enchantment state.
+- [x] Preserve Enchantments in Active Inventory.
+- [x] Preserve Enchantments in Stash.
+- [x] Preserve Enchantments during player-to-player transfer.
+- [x] Preserve Enchantments when equipping/unequipping.
+- [x] Prevent stack merge across non-identical Enchantment state.
 - [ ] Ensure Item comparison/details expose canonical Enchantment differences.
 - [ ] Ensure Item provenance and Enchantment provenance remain separate but linked.
 - [ ] Add inventory serialization/hydration regression tests.
