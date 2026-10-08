@@ -317,8 +317,11 @@
     }
     const existing = chosenManeuvers(character);
     const chosen = new Set(existing);
-    outer.appendChild(make("p","player-progression-choice-rule",
-      "Aprende "+count+" maniobras. Las que ya conoces se conservan; los espacios nuevos se desbloquean con la progresión."));
+    const needsReduction = existing.length > count;
+    outer.appendChild(make("p","player-progression-choice-rule", needsReduction
+      ? "Tienes "+existing.length+" maniobras aprendidas, pero ahora sólo puedes conservar "+count+
+        ". Desmarca "+(existing.length-count)+" maniobra(s) aprendida(s) y guarda la selección. No puedes reemplazarlas por otras."
+      : "Aprende "+count+" maniobras. Las que ya conoces se conservan; los espacios nuevos se desbloquean con la progresión."));
     const counter = make("strong","player-progression-maneuver-counter","");
     const list = make("div","player-progression-maneuver-list");
     list.setAttribute("role","group");
@@ -337,7 +340,10 @@
       input.type="checkbox";
       input.value=maneuver.id;
       input.checked=chosen.has(maneuver.id);
-      input.disabled=existing.includes(maneuver.id);
+      // Normal progression locks mastered maneuvers. If a milestone is
+      // reverted and capacity shrinks, only mastered maneuvers can be
+      // unchecked to reduce the list; new maneuvers cannot be substituted.
+      input.disabled=needsReduction ? !existing.includes(maneuver.id) : existing.includes(maneuver.id);
       const content = make("span","player-progression-maneuver-copy");
       content.append(make("strong","",maneuver.name),make("small","",maneuver.description));
       if(existing.includes(maneuver.id)) content.appendChild(make("em","","APRENDIDA"));
@@ -366,7 +372,15 @@
           const currentLimit=maneuverLimit(current);
           const prior=chosenManeuvers(current);
           if(currentLimit!==proposed.length){abortReason="Tu límite de maniobras cambió. Actualiza Avance.";return;}
-          if(prior.some(key=>!proposed.includes(key))){abortReason="No puedes perder maniobras ya aprendidas.";return;}
+          if (prior.length > currentLimit) {
+            // The DM may have reverted Superior Technique. Permit ONLY
+            // discarding the excess from the previously learned set.
+            if (proposed.some(key=>!prior.includes(key))) {
+              abortReason="Al reducir maniobras sólo puedes conservar las ya aprendidas.";return;
+            }
+          } else if(prior.some(key=>!proposed.includes(key))){
+            abortReason="No puedes perder maniobras ya aprendidas.";return;
+          }
           if(new Set(proposed).size!==proposed.length || proposed.some(key=>!catalog?.get?.(key))){
             abortReason="La selección contiene una maniobra desconocida.";return;
           }
