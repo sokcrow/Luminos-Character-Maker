@@ -73,6 +73,8 @@ const jack = trait("jack_of_all_trades");
 assert.equal(amount([jack], ch, skill("athletics", "str")), 2);
 assert.equal(amount([jack], ch, skill("performance", "cha")), 0);
 assert.equal(amount([jack], ch, { kind: "ability", abilityId: "wis" }), 2);
+assert.equal(amount([jack], { ...ch, abilityProficiency: { wis: "proficient" } },
+  { kind: "ability", abilityId: "wis" }), 0, "Jack excludes proficient Ability checks.");
 
 // Mixed Traits are additive exactly once, including negative conditional mods.
 const check = skill("persuasion", "cha");
@@ -101,5 +103,7 @@ assert.match(playerRuntimeSource, /applySpecialCheckBonuses\?\.\(/);
 const previews = fs.readFileSync("js/skill-trait-breakdown-patch.js", "utf8");
 assert.match(previews, /\.\.\.specialCheckContributions\(runtime\.getTraits\(\)/);
 assert.match(previews, /\.\.\.specialCheckContributions\(traits, character/);
+assert.match(previews, /function syncPlayerAbilityPreviews\(/);
+assert.match(previews, /applySpecialCheckBonuses\(/);
 
 console.log("trait-special-check-regression: OK (Rogue, Champion, Banneret, Samurai, Bladesinger, Bard, Jackpot, no double counting)");
