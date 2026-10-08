@@ -24,6 +24,23 @@
     })[normalizeId(value)] || null;
   }
 
+  function persistedStatValue(stats, canonical) {
+    if (Object.prototype.hasOwnProperty.call(stats || {}, canonical)) return stats[canonical];
+    const alias = Object.keys(stats || {}).find(key => canonicalStatKey(key) === canonical);
+    return alias ? stats[alias] : undefined;
+  }
+
+  function writeCanonicalStoredStat(stats, canonical, value) {
+    const writer = global.LuminousClassMilestones?.writeCanonicalStat;
+    if (writer) return writer(stats, canonical, value);
+    // Older clients must still be able to revert existing legacy milestones.
+    Object.keys(stats).forEach(key => {
+      if (key !== canonical && canonicalStatKey(key) === canonical) delete stats[key];
+    });
+    stats[canonical] = value;
+    return true;
+  }
+
   function milestoneChoiceAt(player, classId, level) {
     const api = global.LuminousClassMilestones;
     if (api?.mergeMilestoneChoices && api?.choiceAt) {
@@ -118,19 +135,17 @@
       for (const [rawStat, rawAmount] of entries) {
         const stat = canonicalStatKey(rawStat), amount = integerOr(rawAmount, 0);
         if (!stat || amount <= 0) return { valid: false, error: "El allocation guardado del milestone no es válido." };
-        const existingKey = Object.keys(current.stats).find((key) => canonicalStatKey(key) === stat) || stat;
-        const before = Number(current.stats[existingKey]);
+        const before = Number(persistedStatValue(current.stats, stat));
         if (!Number.isFinite(before) || !Number.isInteger(before)) return { valid: false, error: `${stat} no tiene un valor entero persistido.` };
         const after = before - amount;
         if (after < 1) return { valid: false, error: `No se puede revertir ${stat}: el resultado sería menor que 1.` };
-        current.stats[existingKey] = after;
+        writeCanonicalStoredStat(current.stats, stat, after);
         // Reverse the DM base source only for claims recorded with the new
         // baseStats bookkeeping. An old, unmarked claim updated stats ONLY;
         // subtracting its baseStats would remove a bonus it never applied.
         if (baseSourceTracked && current.baseStats
           && typeof current.baseStats === "object" && !Array.isArray(current.baseStats)) {
-          const baseKey = Object.keys(current.baseStats).find((key) => canonicalStatKey(key) === stat);
-          const storedBase = baseKey ? current.baseStats[baseKey] : undefined;
+          const storedBase = persistedStatValue(current.baseStats, stat);
           const beforeBase = Number(storedBase);
           if (storedBase == null || String(storedBase).trim() === "" || !Number.isInteger(beforeBase)) {
             return { valid: false, error: `No se puede revertir ${stat}: el Stat base no es válido.` };
@@ -138,8 +153,7 @@
           if (beforeBase - amount < 1) {
             return { valid: false, error: `No se puede revertir ${stat}: el Stat base quedaría menor que 1.` };
           }
-          current.baseStats[stat] = beforeBase - amount;
-          if (baseKey !== stat && baseKey) delete current.baseStats[baseKey];
+          writeCanonicalStoredStat(current.baseStats, stat, beforeBase - amount);
         }
       }
     } else if (!["trait", "general_trait", "generaltrait"].includes(type)) {
