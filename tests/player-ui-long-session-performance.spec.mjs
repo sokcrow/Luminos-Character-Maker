@@ -1262,13 +1262,13 @@ for (const width of [390, 1280]) {
 
 
 for (const width of [390, 1280]) {
-  test(\`Avance class milestone and Battle Master maneuver picks at \${width}px\`, async ({ page }) => {
+  test(`Avance class milestone and Battle Master maneuver picks at ${width}px`, async ({ page }) => {
     await page.goto(BASE + "/index.html");
     await page.setViewportSize({ width, height: width < 700 ? 844 : 900 });
-    await page.setContent(\`
+    await page.setContent(`
       <!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">
-      <link rel="stylesheet" href="\${BASE}/css/player-progression-tree.css">
-      <link rel="stylesheet" href="\${BASE}/css/player-progression-mystic.css">
+      <link rel="stylesheet" href="${BASE}/css/player-progression-tree.css">
+      <link rel="stylesheet" href="${BASE}/css/player-progression-mystic.css">
       <style>
         body{margin:0;background:#080808}
         #perks-modal{display:flex;justify-content:center;align-items:center;min-height:100dvh}
@@ -1318,15 +1318,15 @@ for (const width of [390, 1280]) {
           })
         };
       </script>
-      <script src="\${BASE}/js/archetype-engine.js"></script>
-      <script src="\${BASE}/js/archetype-trait-catalog.js"></script>
-      <script src="\${BASE}/js/archetype-progression-preview-catalog.js"></script>
-      <script src="\${BASE}/js/class-milestone-engine.js"></script>
-      <script src="\${BASE}/js/fighter-maneuver-catalog.js"></script>
-      <script src="\${BASE}/js/player-progression-tree-core.js"></script>
-      <script src="\${BASE}/js/player-progression-choices.js"></script>
-      <script src="\${BASE}/js/player-progression-tree.js"></script>
-    </body></html>\`, {waitUntil:"load"});
+      <script src="${BASE}/js/archetype-engine.js"></script>
+      <script src="${BASE}/js/archetype-trait-catalog.js"></script>
+      <script src="${BASE}/js/archetype-progression-preview-catalog.js"></script>
+      <script src="${BASE}/js/class-milestone-engine.js"></script>
+      <script src="${BASE}/js/fighter-maneuver-catalog.js"></script>
+      <script src="${BASE}/js/player-progression-tree-core.js"></script>
+      <script src="${BASE}/js/player-progression-choices.js"></script>
+      <script src="${BASE}/js/player-progression-tree.js"></script>
+    </body></html>`, {waitUntil:"load"});
 
     const fighter = page.locator(".player-progression-class");
     const level20 = page.locator('[data-progression-key="fighter:milestone:base:20"]');
