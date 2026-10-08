@@ -15,7 +15,7 @@
   const intOr = (value, fallback = 0) => Number.isFinite(Number(value)) ? Math.trunc(Number(value)) : fallback;
   const normalizeId = (value) => String(value ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
   const asArray = (value) => value == null ? [] : (Array.isArray(value) ? value : [value]);
-  const VERSION = 2;
+  const VERSION = 3;
   const DEFAULT_ATTUNEMENT_CAPACITY = 3;
 
   function itemRuntimeFor(method) {
@@ -88,6 +88,14 @@
     return enchantmentRefs(item).filter((entry) => {
       const properties = asArray(entry.properties).map(normalizeId);
       return properties.includes("bind") || normalizeId(entry.curseType || entry.curse_type) === "bind";
+    });
+  }
+
+  function cursedEnchantmentRefs(item = {}) {
+    return enchantmentRefs(item).filter((entry) => {
+      const properties = asArray(entry.properties).map(normalizeId);
+      return properties.includes("curse") || properties.includes("bind") ||
+        ["curse","bind"].includes(normalizeId(entry.curseType || entry.curse_type));
     });
   }
 
@@ -630,7 +638,8 @@
   function isCursed(item = {}) {
     const runtime = runtimeOf(item);
     const profile = magicProfile(item);
-    return item.cursed === true || runtime.cursed === true || Boolean(runtime.curse || profile.curse || item.curse) || isBoundItem(item);
+    return item.cursed === true || runtime.cursed === true || Boolean(runtime.curse || profile.curse || item.curse) ||
+      cursedEnchantmentRefs(item).length > 0 || isBoundItem(item);
   }
 
   function revealCurse(item) {
@@ -652,6 +661,15 @@
         enchantmentDefinitionIds: boundRefs.map((entry) => String(entry.definitionId || entry.enchantmentId || entry.id || "")).filter(Boolean),
         attunementLocked: true,
         unequipLocked: true,
+      };
+    }
+    const curseRefs = cursedEnchantmentRefs(item);
+    if (curseRefs.length) {
+      return {
+        kind: "curse",
+        source: "enchantment",
+        enchantmentDefinitionIds: curseRefs.map((entry) => String(entry.definitionId || entry.enchantmentId || entry.id || "")).filter(Boolean),
+        hiddenDrawback: true,
       };
     }
     return null;
@@ -690,6 +708,7 @@
     enchantmentRefs,
     highestEnchantmentRank,
     boundEnchantmentRefs,
+    cursedEnchantmentRefs,
     isBoundItem,
     isMagicItem,
     requiresAttunement,
