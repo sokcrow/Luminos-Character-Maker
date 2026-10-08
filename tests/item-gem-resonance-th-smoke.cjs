@@ -99,6 +99,14 @@ assert.strictEqual(standardPreview.qualityAdjustment, 0);
 assert.strictEqual(standardPreview.specializationApplied, false);
 assert.strictEqual(standardPreview.finalThreshold, 20);
 
+const standardOverchannel = Engine.gemThresholdPreview(weapon, "flamebound", rubyStandard, 2);
+assert.strictEqual(standardOverchannel.overchannel,true);
+assert.strictEqual(standardOverchannel.overchannelSteps,1);
+assert.strictEqual(standardOverchannel.overchannelAdjustment,2);
+assert.strictEqual(standardOverchannel.baseThreshold,28);
+assert.strictEqual(standardOverchannel.itemGemAdjustment,-2);
+assert.strictEqual(standardOverchannel.finalThreshold,28,"Rank II on Standard gem pays +2 TH Overchannel pressure");
+
 const finePreview = Engine.gemThresholdPreview(weapon, "flamebound", rubyFine, 1);
 assert.strictEqual(finePreview.itemGemAdjustment, -3);
 assert.strictEqual(finePreview.finalThreshold, 19);
