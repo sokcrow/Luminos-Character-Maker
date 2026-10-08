@@ -15,7 +15,7 @@
   const intOr = (value, fallback = 0) => Number.isFinite(Number(value)) ? Math.trunc(Number(value)) : fallback;
   const normalizeId = (value) => String(value ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
   const asArray = (value) => value == null ? [] : (Array.isArray(value) ? value : [value]);
-  const VERSION = 4;
+  const VERSION = 5;
   const DEFAULT_ATTUNEMENT_CAPACITY = 3;
 
   function itemRuntimeFor(method) {
@@ -579,16 +579,12 @@
     return Object.freeze({allowed:true,plan,charges,magicalDurability:md});
   }
 
-  function activateEnchantmentEffects(user,item,context={}) {
-    const resolution=enchantmentEffectResolution(user,item,{...context,specialUse:true});
-    if(!resolution.resolved) return Object.freeze({activated:false,reason:resolution.reason || "effect_resolution_failed",resolution});
-    const plan=activationResourcePlan(resolution);
+  function payActivationResourcePlan(user,item,plan={}) {
     const gate=canPayActivationResources(user,item,plan);
-    if(!gate.allowed) return Object.freeze({activated:false,...gate,resolution});
-
+    if(!gate.allowed) return Object.freeze({paid:false,...gate});
     const before={
-      chargesCurrent:item.chargesCurrent,
-      charges:item.charges,
+      chargesCurrent:item?.chargesCurrent,
+      charges:item?.charges,
       magicalDurability:clone(magicProfile(item).magicalDurability || null),
       sp:user?.sp,
     };
@@ -606,24 +602,32 @@
       }
       if(plan.sp>0 && user) user.sp=Math.max(0,Number(user.sp)-plan.sp);
     }catch(error){
-      if(before.chargesCurrent!==undefined) item.chargesCurrent=before.chargesCurrent;
-      if(before.charges!==undefined) item.charges=before.charges;
-      if(before.magicalDurability){
+      if(item && before.chargesCurrent!==undefined) item.chargesCurrent=before.chargesCurrent;
+      if(item && before.charges!==undefined) item.charges=before.charges;
+      if(item && before.magicalDurability){
         if(!item.magic || typeof item.magic!=="object") item.magic={};
         item.magic.magicalDurability=clone(before.magicalDurability);
       }
       if(user && before.sp!==undefined) user.sp=before.sp;
-      return Object.freeze({activated:false,reason:String(error?.message || error),resolution,plan,rolledBack:true});
+      return Object.freeze({paid:false,reason:String(error?.message || error),plan,rolledBack:true});
     }
+    return Object.freeze({paid:true,plan,chargeSpend,magicalDurabilitySpend,spSpent:plan.sp});
+  }
 
+  function activateEnchantmentEffects(user,item,context={}) {
+    const resolution=enchantmentEffectResolution(user,item,{...context,specialUse:true});
+    if(!resolution.resolved) return Object.freeze({activated:false,reason:resolution.reason || "effect_resolution_failed",resolution});
+    const plan=activationResourcePlan(resolution);
+    const payment=payActivationResourcePlan(user,item,plan);
+    if(!payment.paid) return Object.freeze({activated:false,...payment,resolution});
     const result=Object.freeze({
       activated:true,
       resolution,
       effects:resolution.effects,
       plan,
-      chargeSpend,
-      magicalDurabilitySpend,
-      spSpent:plan.sp,
+      chargeSpend:payment.chargeSpend,
+      magicalDurabilitySpend:payment.magicalDurabilitySpend,
+      spSpent:payment.spSpent,
     });
     emit("luminous:enchantment-effects-activated",{user,item,...result});
     return result;
@@ -920,6 +924,7 @@
     enchantmentCombatSummary,
     activationResourcePlan,
     canPayActivationResources,
+    payActivationResourcePlan,
     activateEnchantmentEffects,
     spendResolvedEnchantmentWear,
     nonMagicHitDefenseMultiplier,
