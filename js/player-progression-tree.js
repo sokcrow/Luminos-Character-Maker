@@ -185,18 +185,27 @@
   }
 
   function nodeFamilyMarkup(node) {
-    const families = [...new Map((node?.items || []).map(familyForItem).filter(Boolean)
-      .map((family) => [family.id, family])).values()];
+    const families = global.LuminousTraitFamilies?.forMilestone?.(node) || [];
     if (!families.length) return "";
-    const items = families.slice(0, 3).map((family) => familyIconMarkup(family)).join("");
-    const remaining = families.length - 3;
-    return '<span class="player-progression-node__families" aria-label="Familias funcionales">' +
-      items + (remaining > 0 ? '<span class="player-progression-family__more">+' + remaining + '</span>' : '') + '</span>';
+    const displayed = families.slice(0, 3);
+    const remaining = families.length - displayed.length;
+    return '<span class="player-progression-node__families ' +
+      (families.length === 1 ? 'is-single' : 'is-multiple') +
+      '" aria-label="Familias: ' + escapeHtml(families.map((family) => family.label).join(', ')) + '">' +
+      displayed.map((family) => familyIconMarkup(family)).join("") +
+      (remaining > 0 ? '<span class="player-progression-family__more">+' + remaining + '</span>' : '') +
+      '</span>';
   }
 
   function bindMissingFamilyIcons(root) {
     root?.querySelectorAll?.(".player-progression-family img")?.forEach((image) => {
-      image.addEventListener("error", () => image.remove(), { once: true });
+      image.addEventListener("error", () => {
+        const seal = image.closest?.(".player-progression-node__seal");
+        image.closest?.(".player-progression-family")?.remove();
+        if (seal && !seal.querySelector(".player-progression-family img")) {
+          seal.innerHTML = sigilSvg("star");
+        }
+      }, { once: true });
     });
   }
 
@@ -310,9 +319,9 @@
     button.setAttribute("aria-controls", "player-progression-detail");
     button.setAttribute("aria-pressed", "false");
     button.setAttribute("aria-label", `Ver hito de ${classModel.className} nivel ${node.level}: ${nodeTitle(node)}`);
+    const familySeal = nodeFamilyMarkup(node);
     button.innerHTML = `
-      <span class="player-progression-node__seal">${sigilSvg(sigilFor(nodeTitle(node), node.level))}</span>
-      ${nodeFamilyMarkup(node)}
+      <span class="player-progression-node__seal">${familySeal || sigilSvg(sigilFor(nodeTitle(node), node.level))}</span>
       <span class="player-progression-node__level">LV. ${node.level}</span>
       <strong>${escapeHtml(nodeTitle(node))}</strong>
       <small>${escapeHtml(statusLabel(node.status))}</small>`;
