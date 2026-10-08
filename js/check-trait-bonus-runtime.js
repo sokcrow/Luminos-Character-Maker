@@ -6,7 +6,7 @@
   }
 
   const numberOr = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
-  const normalizeId = (value) => String(value ?? "").trim().toLowerCase().replace(/[\\s-]+/g, "_");
+  const normalizeId = (value) => String(value ?? "").trim().toLowerCase().replace(/[\s-]+/g, "_");
   const baseId = (trait) => normalizeId(trait?.baseTraitId || String(trait?.id || "").split("__")[0]);
   const hasTrait = (traits, id) => (traits || []).some((trait) => baseId(trait) === id);
   const abilityId = (value) => ({
