@@ -188,7 +188,9 @@
           ?? character.characterBuild?.traitChoices?.elegant_courtier_save
           ?? character.elegantCourtierSave);
         const granted = alreadyWis ? (["int", "cha"].includes(choice) ? choice : "") : "wis";
-        if (granted && stat === granted && saveState(granted) === "none") add("elegant_courtier", proficiency);
+        if (granted && stat === granted && !["proficient", "expertise"].includes(saveState(granted))) {
+          add("elegant_courtier", proficiency - (saveState(granted) === "half" ? Math.floor(proficiency / 2) : 0));
+        }
       }
     }
     if (kind === "skill" && skill === "acrobatics" && ids.has("bladesong")) {
