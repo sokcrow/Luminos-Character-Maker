@@ -294,6 +294,12 @@
   #inventory-modal.inventory-v2-ready .inventory-v2-carry-header strong{font-size:28px}
   #inventory-modal.inventory-v2-ready #inv-active-grid.inv-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
 }
+/* Preserve the established readable two-column inventory on phone-size screens. */
+@media(max-width:760px){
+  #inventory-modal.inventory-v2-ready #inv-active-grid.inv-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
 @media(max-width:600px){
   #inventory-modal.inventory-v2-ready .inventory-modal-content{
     width:100vw;max-width:none;height:100dvh;max-height:none;border:0;
@@ -316,8 +322,8 @@
   #inventory-modal.inventory-v2-ready .inventory-v2-eq-name{font-size:9px}
   #inventory-modal.inventory-v2-ready .inventory-v2-grid-host{padding:8px}
   #inventory-modal.inventory-v2-ready #inv-active-grid.inv-grid{
-    grid-template-columns:repeat(3,minmax(0,1fr));
-    grid-auto-rows:minmax(94px,1fr);gap:6px;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    grid-auto-rows:minmax(112px,auto);gap:7px;
   }
   #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-runtime-slot{min-height:94px}
   #inventory-modal.inventory-v2-ready .item-detail-card.active{max-height:37%}
