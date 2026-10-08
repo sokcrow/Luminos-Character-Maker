@@ -116,6 +116,11 @@
     return Math.floor(proficiencyBonus(level) * definition.multiplier);
   }
   function abilityScore(ability, data = playerData()) {
+    // Persisted background/Trait score bonuses are part of the actual Ability
+    // Score, not just the preview. Use the canonical derived-stat resolver for
+    // both the displayed score and the skill/Coin roll modifier.
+    const derived = global.LuminousDerivedStats?.resolveAbility?.(data, ability?.id);
+    if (derived && Number.isFinite(Number(derived.score))) return Number(derived.score);
     const effective = global.LuminousRacialStatRuntime?.abilityScore?.(ability?.id, data);
     if (Number.isFinite(Number(effective))) return Number(effective);
     const fromData = Number.parseInt(data?.stats?.[ability.key], 10);
