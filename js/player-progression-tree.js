@@ -26,13 +26,14 @@
   const mobileLayout = global.matchMedia?.("(max-width: 760px)") || null;
 
   function ensureStyles() {
-    if (doc.getElementById("player-progression-tree-stylesheet")) return;
-    const link = doc.createElement("link");
-    link.id = "player-progression-tree-stylesheet";
-    link.rel = "stylesheet";
-    link.href = "css/player-progression-tree.css";
-    link.dataset.ui = "player-progression";
-    (doc.head || doc.documentElement).appendChild(link);
+    if (!doc.getElementById("player-progression-tree-stylesheet")) {
+      const link = doc.createElement("link");
+      link.id = "player-progression-tree-stylesheet";
+      link.rel = "stylesheet";
+      link.href = "css/player-progression-tree.css";
+      link.dataset.ui = "player-progression";
+      (doc.head || doc.documentElement).appendChild(link);
+    }
     if (!doc.getElementById("player-progression-mystic-stylesheet")) {
       const mystic = doc.createElement("link");
       mystic.id = "player-progression-mystic-stylesheet";
@@ -504,9 +505,12 @@
     if (!force && signature === state.signature) return true;
     state.signature = signature;
 
-    // Only move the shared panel before actually replacing the tree.
-    // Otherwise an unrelated HP/player-data update would displace an open
-    // mobile detail from its selected milestone.
+    // Record each class's horizontal position before DOM replacement, so
+    // saving an Archetype never snaps the player back to another branch.
+    const scrollPositions = new Map(
+      [...host.querySelectorAll(".player-progression-mystic-scroll")].map(node => [node.dataset.classId, node.scrollLeft]),
+    );
+    // Only move shared details when this render actually changes the tree.
     if (state.detail && host.contains(state.detail)) host.after(state.detail);
     host.replaceChildren();
     if (!model.classes.length) {
@@ -519,9 +523,6 @@
     }
 
     const previousSelection = state.selectedKey;
-    const scrollPositions = new Map(
-      [...host.querySelectorAll(".player-progression-mystic-scroll")].map(node => [node.dataset.classId, node.scrollLeft]),
-    );
     model.classes.forEach((classModel) => host.appendChild(renderClassTree(classModel)));
     host.querySelectorAll(".player-progression-mystic-scroll").forEach((viewport) => {
       const previous = scrollPositions.get(viewport.dataset.classId);
