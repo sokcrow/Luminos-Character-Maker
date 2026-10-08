@@ -178,14 +178,15 @@
   }
 
   function getRuntime(overrides = {}) {
-    // Grant resolution and formula evaluation must see the same class allocation.
-    const character = normalizeCharacterForGrantResolution(getCharacter());
+    // Trait actions must mutate the live character, not a grant-resolution snapshot.
+    // buildVariables reads class allocations from characterBuild.classes directly.
+    const character = getCharacter();
     const input = overrides || {};
     const context = normalizeId(input.context || inferContext()) || "any";
     const self = Object.prototype.hasOwnProperty.call(input, "self")
       ? input.self
       : (context === "combat" ? currentCombatUnit() : character);
-    const level = Number(input.Level ?? input.level ?? character?.level ?? character?.characterBuild?.calculatedAtLevel ?? 0) || 0;
+    const level = Number(input.Level ?? input.level ?? character?.characterBuild?.calculatedAtLevel ?? character?.level ?? 0) || 0;
     const completed = context === "theatre" ? state.lastCompletedCheck : null;
     const check = Object.prototype.hasOwnProperty.call(input, "check") ? input.check : completed?.check;
     const target = Object.prototype.hasOwnProperty.call(input, "target") ? input.target : (completed?.target || state.theatreTarget || null);
