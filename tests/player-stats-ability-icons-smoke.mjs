@@ -21,10 +21,10 @@ assert.match(runtime, /class="player-ability-icon"/);
 assert.match(runtime, /class="player-ability-name"/);
 assert.match(runtime, /class="player-prof-indicator"/);
 assert.match(runtime, /role="tab"/);
-assert.match(runtime, /data-stat="\\$\\{ability\\.id\\}"/);
-assert.match(runtime, /aria-selected="\\$\\{index === 0/);
+assert.ok(runtime.includes('data-stat="${ability.id}"'), "Each tab must retain its original stat ID");
+assert.ok(runtime.includes('aria-selected="${index === 0'), "Tab selection must remain accessible");
 // The original bar's dimensions, click bindings and tab state remain unchanged.
-assert.match(css, /\\.player-ability-bar\\{flex:0 0 98px/);
+assert.ok(css.includes(".player-ability-bar{flex:0 0 98px"), "Do not change the Stats tab bar height");
 assert.match(runtime, /button\.addEventListener\("click", \(\) => activate\(panel, button\.dataset\.stat\)\)/);
 assert.match(runtime, /image\.addEventListener\("error", \(\) => \{ image\.hidden = true; \}/);
 assert.match(css, /\.player-ability-icon\[hidden\]/);
