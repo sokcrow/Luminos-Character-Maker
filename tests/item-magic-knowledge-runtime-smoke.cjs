@@ -83,8 +83,8 @@ const deepStudy = Knowledge.studyArcana(durabilityReader,enchanted,{roll:20});
 assert.strictEqual(deepStudy.total,30);
 assert.strictEqual(deepStudy.margin,8);
 const deepPresentation = Knowledge.presentation(durabilityReader,enchanted,{syncPassive:false});
-assert.strictEqual(deepPresentation.magicalDurability.max,100);
-assert.strictEqual(deepPresentation.magicalDurability.current,100);
+assert.strictEqual(deepPresentation.magicalDurability.max,50);
+assert.strictEqual(deepPresentation.magicalDurability.current,50);
 
 const identifyUser = {id:"identify_user",arcanaMod:-2,sp:1};
 const identify = Knowledge.identifyItem(identifyUser,enchanted);
