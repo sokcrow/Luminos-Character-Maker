@@ -361,14 +361,14 @@ Canonical Gem Socket rules from the current design:
 - one Gem Anchor channels one Enchantment;
 - Gem-Anchored Enchantments may be strengthened without automatically consuming a second physical Gem Socket;
 - up to three Rank II Gem-Anchored Enchantments may coexist when all three sockets are valid;
-- only one Rank III Gem-Anchored Enchantment may exist on the Item;
+- a Rank III Gem-Anchored Enchantment is exclusive: it must be the Item's only Gem-Anchored Enchantment;
 - attempting to install a **fourth Enchantment Gem** is a catastrophic invalid operation: the Item is destroyed and the existing Gem Anchors are destroyed; the last inserted gem is the only gem left by that event.
 
 Normal service UI should block/warn against a fourth-socket attempt rather than presenting it as an ordinary safe purchase.
 
 Mundane decorative gemstone composition on Jewelry remains separate from these explicit Enchantment Gem Sockets.
 
-The exact coexistence rules for a Rank III Gem Anchor alongside lower-rank Gem Anchors must be represented explicitly in validation tests/catalog data before implementation is considered complete.
+The Rank III coexistence rule is explicit: a Rank III Gem Anchor cannot coexist with lower-rank Gem Anchors. Strengthening to Rank III is blocked until the other Gem Anchors are removed through their proper procedures.
 
 ## 17. Strengthening and preview
 
@@ -531,13 +531,13 @@ Part C only guarantees that generated enchanted equipment can be represented, id
 
 ### Gem Socket service rules
 
-- [ ] Implement explicit Enchantment Gem Sockets separately from Base Enchantment Slots.
-- [ ] Enforce max 3 Enchantment Gem Sockets.
-- [ ] Support up to three Rank II Gem-Anchored Enchantments where valid.
-- [ ] Enforce only one Rank III Gem-Anchored Enchantment per Item.
-- [ ] Finalize/test Rank III Gem coexistence with lower-rank Gem Anchors.
-- [ ] Block/warn normal fourth-gem installation.
-- [ ] Implement catastrophic fourth-gem forced outcome: Item and prior Gem Anchors destroyed, last inserted gem survives.
+- [x] Implement explicit Enchantment Gem Sockets separately from Base Enchantment Slots.
+- [x] Enforce max 3 Enchantment Gem Sockets.
+- [x] Support up to three Rank II Gem-Anchored Enchantments where valid.
+- [x] Enforce Rank III Gem-Anchored magic as exclusive on the Item.
+- [x] Finalize/test Rank III Gem coexistence: Rank III cannot coexist with lower-rank Gem Anchors.
+- [x] Block/warn normal fourth-gem installation.
+- [x] Implement catastrophic fourth-gem forced outcome: Item and prior Gem Anchors destroyed, last inserted gem survives.
 - [ ] Destroy the Item 100% when removing a Bound Gem Anchor.
 - [ ] Support safe extraction of removable/non-Bound Gem Anchors.
 - [ ] Implement gem magical-quality/rarity degradation after safe de-enchant/rewrite.
@@ -570,7 +570,7 @@ Part C only guarantees that generated enchanted equipment can be represented, id
 - [ ] Add delivery-time tests.
 - [ ] Add partial-material/full-material quote tests.
 - [ ] Add Magical Durability depletion/recharge/Bind tests.
-- [ ] Add Gem Socket capacity and catastrophic fourth-gem tests.
+- [x] Add Gem Socket capacity and catastrophic fourth-gem tests.
 - [ ] Add Bound Gem removal destroys-Item test.
 - [ ] Add Rank IV/V reproduction rejection tests.
 - [ ] Preserve Magic Loot generation rates as deferred handoff data, not Enchanter Service behavior.
