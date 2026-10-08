@@ -350,6 +350,7 @@
       const target = findPlayerRollTarget(check);
       if (!target) return;
       target.dataset.resolvedCheckPower = String(checkPowerValue(check));
+      state.pendingCheckResolution = { target, check: { ...(check || {}) } };
     });
     return true;
   }
@@ -392,16 +393,34 @@
       if (!descriptor) return;
 
       const data = global.datosJugador || global.LuminousPlayerTraitRuntime?.getCharacter?.() || {};
-      const hasResolved = Object.prototype.hasOwnProperty.call(target.dataset, "resolvedCheckPower");
-      const resolvedPower = hasResolved ? numberOr(target.dataset.resolvedCheckPower, 0) : null;
-      if (hasResolved) delete target.dataset.resolvedCheckPower;
-      const previewPower = hasResolved ? resolvedPower : playerCheckPower(descriptor.check, data).total;
-      if (!previewPower) return;
+      // DM Checks are already modified by all installed armCheck hooks.
+      // Manual clicks must resolve their own Traits, even if no DM is present.
+      const runtime = global.LuminousPlayerTraitRuntime;
+      const engine = global.LuminousTraitEngine;
+      const character = runtime?.getCharacter?.() || data;
+      const traits = runtime?.getTraits?.() || [];
+      const pending = state.pendingCheckResolution;
+      const fromDm = pending?.target === target;
+      let resolvedCheck = fromDm ? { ...pending.check } : null;
+      if (!resolvedCheck && runtime?.resolveTheatreCheck) {
+        resolvedCheck = runtime.resolveTheatreCheck(descriptor.check)?.check || null;
+        if (resolvedCheck) resolvedCheck = applySpecialArmedCheck(resolvedCheck, traits, character);
+      }
+      if (!resolvedCheck && engine?.resolveTheatreCheck) {
+        resolvedCheck = engine.resolveTheatreCheck({ character, traits, check: descriptor.check })?.check || null;
+        if (resolvedCheck) resolvedCheck = applySpecialArmedCheck(resolvedCheck, traits, character);
+      }
+      if (!resolvedCheck) return;
 
+      if (Object.prototype.hasOwnProperty.call(target.dataset, "resolvedCheckPower")) delete target.dataset.resolvedCheckPower;
+      state.pendingCheckResolution = null;
+      // Final Power belongs to the post-coin bridge and must never be part of
+      // the starting roll modifier (where it would be counted twice).
+      global.LuminousTraitStandardizationRuntime?.armPlayerCheck?.(resolvedCheck);
       event.preventDefault();
       event.stopPropagation();
       event.stopImmediatePropagation();
-      stats.triggerCoinRoll(descriptor.ability, descriptor.label, rawRollBase(descriptor, data, stats) + previewPower);
+      stats.triggerCoinRoll(descriptor.ability, descriptor.label, rawRollBase(descriptor, data, stats) + checkPowerValue(resolvedCheck));
     }, true);
     return true;
   }
@@ -417,7 +436,7 @@
     state.playerListener = null;
     if (!nextId) return false;
     state.playerRef = state.db.ref(`${PLAYER_ROOT}/${nextId}`);
-    state.playerListener = (snapshot) => { state.player = snapshot.val() || null; };
+    state.playerListener = (snapshot) => { state.player = snapshot.val() || null; syncDmSkillPreviews(); };
     state.playerRef.on("value", state.playerListener);
     return true;
   }
@@ -452,6 +471,9 @@
       .forEach((name) => global.addEventListener?.(name, tick));
     global.addEventListener?.("luminous:theatre-rolls-ready", tick);
     global.addEventListener?.("load", tick, { once: true });
+    doc.addEventListener?.("change", (event) => {
+      if (event.target?.closest?.("#dashboard-jugadores")) tick();
+    });
   }
 
   const api = Object.freeze({
