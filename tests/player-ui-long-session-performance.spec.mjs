@@ -1602,5 +1602,54 @@ for (const width of [390, 1280]) {
     expect(studioPersistence.legacyRemoved).toBe(true);
     expect(studioPersistence.oldTrait?.notes).toBe("keep-this-trait");
     expect(studioPersistence.savedMilestone?.allocation?.fuerza).toBe(2);
+
+    // Codex P2: legacy stat aliases must not remain next to the canonical
+    // score after claiming a reward. This test uses the actual Player DOM
+    // and mock Firebase transaction, then the DM's real reversion logic.
+    await page.evaluate(() => {
+      const char = {
+        level:40,
+        stats:{str:14,destreza:12,constitucion:13,inteligencia:10,sabiduria:11,carisma:12,
+          customScore:"keep"},
+        baseStats:{str:12,destreza:12,constitucion:13,inteligencia:10,sabiduria:11,carisma:12,
+          customBase:"keep"},
+        characterBuild:{
+          classes:[{classId:"fighter",levels:40}],
+          archetypes:[{classId:"fighter",archetypeId:"battle_master"}],
+          classMilestones:{}
+        }
+      };
+      window.datosJugador=char;
+      window.__server=structuredClone(char);
+      window.LuminousPlayerProgressionTree.refresh();
+    });
+    await level20.click();
+    const aliasClaim=page.locator("#player-progression-detail .player-progression-choice-panel");
+    await aliasClaim.locator(".player-progression-choice-stat").selectOption("fuerza");
+    await aliasClaim.getByRole("button",{name:"CONFIRMAR MEJORA"}).click();
+    await expect(aliasClaim).toContainText("GUARDADO");
+    const aliasAward=await page.evaluate(() => ({
+      stats:window.__server.stats,
+      base:window.__server.baseStats,
+      awarded:window.__server.characterBuild.classMilestones.fighter["20"],
+    }));
+    expect(aliasAward.stats.fuerza).toBe(16);
+    expect(aliasAward.base.fuerza).toBe(14);
+    expect(aliasAward.stats).not.toHaveProperty("str");
+    expect(aliasAward.base).not.toHaveProperty("str");
+    expect(aliasAward.stats.customScore).toBe("keep");
+    expect(aliasAward.base.customBase).toBe("keep");
+    expect(aliasAward.awarded.baseStatsApplied).toBe(true);
+
+    await page.addScriptTag({url:BASE + "/js/milestone-revert-patch.js"});
+    const reversed=await page.evaluate(() =>
+      window.LuminousMilestoneRevertPatch.revertMilestoneState(window.__server,"fighter",20));
+    expect(reversed.valid).toBe(true);
+    expect(reversed.player.stats.fuerza).toBe(14);
+    expect(reversed.player.baseStats.fuerza).toBe(12);
+    expect(reversed.player.stats).not.toHaveProperty("str");
+    expect(reversed.player.baseStats).not.toHaveProperty("str");
+    expect(reversed.player.characterBuild.classMilestones.fighter?.["20"]).toBeUndefined();
+    expect(reversed.player.stats.customScore).toBe("keep");
   });
 }
