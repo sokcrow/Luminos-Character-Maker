@@ -233,12 +233,14 @@
               .includes(id(proposed.traitId))) {
             abortReason = "Ese Trait General ya se eligió.";return;
           }
+          let baseStatsApplied = false;
           if (checked.choice.type === "stats") {
             const applied = api().applyPlayerStatAllocation(current,checked.choice.allocation);
             if (!applied.valid) { abortReason=applied.errors.join(" ");return; }
             current.stats = current.stats && typeof current.stats==="object" ? current.stats : {};
             Object.keys(applied.allocation).forEach(key=>{ current.stats[key] = applied.stats[key]; });
             if (applied.baseStats) current.baseStats = applied.baseStats;
+            baseStatsApplied = Boolean(applied.baseStats);
           }
           current.characterBuild = build;
           build.classMilestones = preservedMilestones;
@@ -246,6 +248,7 @@
             build.classMilestones[id(classId)] = {};
           build.classMilestones[id(classId)][String(level)] = {
             classId:id(classId),milestoneLevel:Number(level),...checked.choice,selectedAt:Date.now(),
+            ...(checked.choice.type === "stats" ? { baseStatsApplied } : {}),
           };
           // No shadow legacy store: reverting a migrated claim must remove
           // the sole canonical claim, not reveal an old top-level duplicate.
