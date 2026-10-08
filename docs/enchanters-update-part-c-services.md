@@ -259,6 +259,15 @@ The Item keeps its normal Physical Durability and gains a separate **Magical Dur
 
 Magical Durability represents how long the Enchantment can keep expressing magical power before it must be repaired/recharged.
 
+Initial auto-managed baseline:
+
+```text
+Direct/pure Enchantment: 50% of Physical Durability Max
+Gem-Anchored Enchantment: 75% of Physical Durability Max
+```
+
+Authored/native Magic Items and Relics may override this value.
+
 - active Enchantment use may spend Magical Durability;
 - passive Enchantments may also wear over time/use according to their definition;
 - Gem-Anchored Enchantments generally have better magical endurance than equivalent pure/direct Item Enchantments;
@@ -494,19 +503,19 @@ Part C only guarantees that generated enchanted equipment can be represented, id
 
 ### Player Arcana knowledge
 
-- [ ] Implement Passive Arcana = 10 + Arcana Mod for automatic information tiers.
-- [ ] Implement repeatable active Arcana study attempts costing 1 SP each.
-- [ ] Gate difficulty, percentage, effect preview and Magical Durability details by knowledge tier.
-- [ ] Render unread fields as magical runes rather than hidden debug placeholders.
-- [ ] Add blue Enchantment and purple/red Curse inscription presentation.
+- [x] Implement Passive Arcana = 10 + Arcana Mod for automatic information tiers.
+- [x] Implement repeatable active Arcana study attempts costing 1 SP each.
+- [x] Gate Item difficulty, effect identity and Magical Durability details by knowledge tier; provider percentage remains service-runtime work.
+- [x] Render unread magical Item fields as magical runes rather than hidden debug placeholders.
+- [x] Add blue Enchantment and purple Curse inscription presentation.
 
 ### Identify / Curse
 
-- [ ] Make Identify reveal normal Enchantment identity/effects.
-- [ ] Make Identify able to flag that an Item is Cursed without revealing the Curse drawback.
-- [ ] Add dedicated Curse-reading resolution that reveals hidden Curse information.
-- [ ] Keep Curse detail state separate from ordinary identified state.
-- [ ] Add regression coverage so Identify never leaks the hidden Curse drawback.
+- [x] Make Identify reveal normal Enchantment identity/effects.
+- [x] Make Identify flag that an Item is Cursed without revealing the Curse drawback.
+- [x] Add dedicated Curse-reading resolution that reveals hidden Curse information.
+- [x] Keep Curse detail state separate from ordinary identified state.
+- [x] Add regression coverage so Identify never leaks the hidden Curse drawback.
 
 ### Magical outcome resolution
 
@@ -521,9 +530,9 @@ Part C only guarantees that generated enchanted equipment can be represented, id
 
 - [x] Replace the obsolete 50/50 Physical/Magical Durability split with separate full Physical Durability + Magical Durability resources.
 - [x] Add trigger-driven use/passive-wear hooks for Magical Durability.
-- [x] Make Gem-Anchored Enchantments use the higher auto-managed Magical Durability baseline (150 vs direct 100), while preserving authored overrides.
+- [x] Make Gem-Anchored Enchantments use the higher proportional auto-managed Magical Durability baseline (75% vs direct 50% of Physical Durability Max), while preserving authored overrides.
 - [x] Make depleted Enchantments inactive but repairable/rechargeable instead of permanently erased.
-- [ ] Make depleted rune visuals stop glowing.
+- [x] Make depleted rune visuals stop glowing.
 - [x] Keep magical wear isolated from Physical Durability so magical integrity is consumed without silently damaging the physical Item.
 - [x] Exempt Bound Enchantments from normal/background magical discharge while permitting authored special-use spend.
 - [ ] Add Magical Repair/Recharge pricing contract.
@@ -565,8 +574,8 @@ Part C only guarantees that generated enchanted equipment can be represented, id
 
 - [ ] Add NPC controlled-outcome tests with specialization differences.
 - [ ] Add Compendium/language/rune tests.
-- [ ] Add Passive Arcana and 1-SP active study tests.
-- [ ] Add Identify vs hidden-Curse regression tests.
+- [x] Add Passive Arcana and 1-SP active study tests.
+- [x] Add Identify vs hidden-Curse regression tests.
 - [ ] Add delivery-time tests.
 - [ ] Add partial-material/full-material quote tests.
 - [x] Add Magical Durability depletion/recharge/Bind tests.
