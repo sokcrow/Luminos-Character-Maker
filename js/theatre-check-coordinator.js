@@ -287,7 +287,7 @@
   function playerRollPreview(player, spec) {
     if (!player || !spec) return { base: 0, headsChance: 50 };
     const ability = abilityById(spec.abilityId);
-    const score = numberOr(player?.stats?.[ability.key], 10);
+    const score = numberOr(global.LuminousDerivedStats?.resolveAbility?.(player, ability.id)?.score ?? player?.stats?.[ability.key], 10);
     const modifier = global.LuminousProficiencyRuntime?.abilityModifier?.(score) ?? Math.floor((score - 10) / 2);
     const profBonus = playerProficiencyBonus(player);
     const abilityState = normalizeProfState(player?.abilityProficiency?.[ability.id] ?? player?.abilityProficiency?.[ability.key]);
@@ -302,6 +302,19 @@
         const skillState = normalizeProfState(player?.skillProficiency?.[skill?.id] ?? player?.dndSkills?.[skill?.id]?.proficiency ?? player?.dndSkills?.[skill?.id]?.proficiencyState);
         base = modifier + (global.LuminousProficiencyRuntime?.contribution?.(player?.level, skillState) ?? Math.floor(profBonus * PROFICIENCY_MULTIPLIER[skillState]));
       }
+    }
+    // The DM composer previews the same passive Check total the player sees.
+    // Preview-only: do not resolve live Checks or consume limited-use Traits.
+    const traitEngine = global.LuminousTraitEngine;
+    const traitPatch = global.LuminousSkillTraitBreakdownPatch;
+    const resolver = global.LuminousCheckTraitBonusRuntime;
+    if (traitEngine && traitPatch?.resolvedDmTraits && resolver?.previewCheck) {
+      const traits = traitPatch.resolvedDmTraits(player);
+      const preview = resolver.previewCheck(traitEngine, traits, player, {
+        kind: spec.kind, abilityId: ability.id, skillId: spec.kind === "skill" ? spec.skillId : null,
+      });
+      if (preview?.check) base += numberOr(preview.check.abilityPower) + numberOr(preview.check.checkPower)
+        + numberOr(preview.check.power) + numberOr(preview.check.finalPower);
     }
     const sp = numberOr(player?.combatStats?.sp_actual ?? player?.sp, 0);
     return { base, headsChance: clamp(50 + sp, 5, 95) };
