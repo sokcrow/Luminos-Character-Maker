@@ -6,7 +6,7 @@
     return;
   }
 
-  const VERSION = 4;
+  const VERSION = 5;
   const FAMILY = "enchantments";
   const SUPPORTED_RANKS = Object.freeze([1, 2, 3]);
   const BASE_SLOT_COST_BY_RANK = Object.freeze({ 1: 1, 2: 2, 3: 3 });
@@ -21,8 +21,13 @@
   const APPLIED_PROPERTIES = Object.freeze(["bind", "curse"]);
 
   const EFFECT_TYPES = Object.freeze([
+    "damage_flat",
     "damage_percent",
     "secondary_damage_percent",
+    "item_stat_flat",
+    "item_stat_percent",
+    "defense_flat",
+    "defense_percent",
     "magic_hit",
     "resistance_percent",
     "status_resistance_percent",
@@ -96,7 +101,7 @@
       "value", "damageType", "statusId", "axis", "spellId", "flag",
       "target", "scope", "duration", "stacks", "magicHitScope",
       "magicalWear", "magicalDurabilityCost", "chargeCost", "resource",
-      "usesWielderSpellSlot", "spCost",
+      "usesWielderSpellSlot", "spCost", "stat", "stacking", "order",
     ];
     for (const key of passthrough) {
       if (raw[key] !== undefined) effect[key] = clone(raw[key]);
@@ -120,6 +125,8 @@
       rankFactor: Number.isFinite(Number(raw.rankFactor)) ? Number(raw.rankFactor) : RANK_FACTOR_BY_RANK[r],
       effects: Object.freeze((raw.effects || []).map(normalizeEffect)),
       magicalWear: raw.magicalWear == null ? null : Math.max(0, Number(raw.magicalWear) || 0),
+      valueContributionAhn: raw.valueContributionAhn == null ? null : Math.max(0, Number(raw.valueContributionAhn) || 0),
+      valueMultiplier: raw.valueMultiplier == null ? null : Math.max(0, Number(raw.valueMultiplier) || 0),
     });
   }
 
@@ -136,6 +143,12 @@
       description: String(def.description || "").trim(),
       family: FAMILY,
       catalogStatus: normalizeId(def.catalogStatus || "core"),
+      iconId: normalizeId(def.iconId || def.icon || "enchantment") || "enchantment",
+      visual:Object.freeze({
+        tone:normalizeId(def.visual?.tone || ""),
+        runeTone:normalizeId(def.visual?.runeTone || def.visual?.rune_tone || ""),
+        effectIconId:normalizeId(def.visual?.effectIconId || def.visual?.effect_icon_id || ""),
+      }),
       tags: normalizeIds(def.tags),
       categories: normalizeIds(def.categories),
       eligibleItemKinds: normalizeKinds(def.eligibleItemKinds || ELIGIBLE_ITEM_KINDS),
@@ -180,9 +193,12 @@
     if (!EFFECT_TYPES.includes(type)) errors.push("unsupported_effect_type");
     if (!ACTIVATION_TRIGGERS.includes(trigger)) errors.push("unsupported_activation_trigger");
     if (hasExecutablePayload(effect)) errors.push("executable_effect_payload_forbidden");
-    if (["damage_percent", "secondary_damage_percent", "resistance_percent", "status_resistance_percent", "max_hp_percent", "max_sp_percent", "speed_percent", "initiative_flat"].includes(type)) {
+    if (["damage_flat","damage_percent","secondary_damage_percent","item_stat_flat","item_stat_percent","defense_flat","defense_percent","resistance_percent","status_resistance_percent","max_hp_percent","max_sp_percent","speed_percent","initiative_flat"].includes(type)) {
       if (!Number.isFinite(Number(effect.value))) errors.push("effect_value_must_be_numeric");
     }
+    if (["item_stat_flat","item_stat_percent"].includes(type) && !normalizeId(effect.stat)) errors.push("item_stat_effect_requires_stat");
+    if (effect.stacking !== undefined && !["additive","multiplicative","highest"].includes(normalizeId(effect.stacking))) errors.push("unsupported_effect_stacking");
+    if (effect.order !== undefined && !Number.isFinite(Number(effect.order))) errors.push("effect_order_must_be_numeric");
     if (type === "magic_hit" && effect.value !== undefined && typeof effect.value !== "boolean") {
       errors.push("magic_hit_value_must_be_boolean");
     }
@@ -212,6 +228,8 @@
       }
       const data = def.rankData[rank];
       if (!data || Number(data.slotCost) !== BASE_SLOT_COST_BY_RANK[rank]) errors.push("rank_slot_cost_mismatch");
+      if (data?.valueContributionAhn != null && (!Number.isFinite(Number(data.valueContributionAhn)) || Number(data.valueContributionAhn) < 0)) errors.push("invalid_value_contribution_ahn");
+      if (data?.valueMultiplier != null && (!Number.isFinite(Number(data.valueMultiplier)) || Number(data.valueMultiplier) < 0)) errors.push("invalid_value_multiplier");
       if (!Array.isArray(data.effects)) {
         errors.push("rank_effects_must_be_array");
         continue;
