@@ -81,6 +81,8 @@ const applied = Persistence.applyInventoryState(target, snapshot);
 assert.strictEqual(applied.applied, true);
 assert.deepStrictEqual(target.inventario_activo[base.instanceId].magic, base.magic, "save/load application must retain Enchantments and Magical Durability");
 assert.deepStrictEqual(target.attunedItemInstanceIds, [base.instanceId], "Attunement instance reference must survive alongside magic state");
+assert.ok(target.equipment.mainHand, "equipment reference must restore");
+assert.deepStrictEqual(target.equipment.mainHand.magic, base.magic, "equipped Item must keep its magic state after save/load");
 
 const movable = JSON.parse(JSON.stringify(base));
 movable.instanceId = "enchanted_blade_move";
@@ -93,6 +95,9 @@ assert.strictEqual(moved.moved, true);
 const movedItem = owner.inventario_stash[movable.instanceId];
 assert.ok(movedItem);
 assert.deepStrictEqual(movedItem.magic, base.magic, "active -> stash transfer must retain magic state");
+const ownership = Inventory.transferOwnership(movedItem, "new_owner");
+assert.strictEqual(ownership.transferred, true);
+assert.deepStrictEqual(movedItem.magic, base.magic, "ownership transfer must not strip magic state");
 
 const appliedByEngine = Enchantments.applyEnchantment(
   { definitionId:"engine_blade", itemType:"weapon", tier:3, stackable:false },
