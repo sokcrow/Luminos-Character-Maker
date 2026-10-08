@@ -95,9 +95,9 @@ Canonical contract: [`docs/enchanters-update-part-b-resonance.md`](./enchanters-
 
 ### Part B implementation gate
 
-- [ ] Add canonical `gemMagicProfile` data for all 12 gemstone identities.
-- [ ] Author and validate the full 12-gem Enchantment Affinity matrix.
-- [ ] Add Gem Quality -> stable Rank capacity and Overchannel resolution.
+- [x] Add canonical `gemMagicProfile` data for all 12 gemstone identities.
+- [x] Author and validate the full 12-gem Enchantment Affinity matrix.
+- [x] Add Gem Quality -> stable Rank capacity and Overchannel resolution.
 - [ ] Add one-Gem-Anchor -> one-Enchantment linkage and persistence.
 - [ ] Add Gem Anchor broken/depleted/unstable states and Dormant overflow-dependent Enchantments.
 - [ ] Add primary/accepted/incompatible resonance and affinity recipe validation.
@@ -108,7 +108,8 @@ Canonical contract: [`docs/enchanters-update-part-b-resonance.md`](./enchanters-
 - [ ] Add separate max-3 Enchantment Gem Socket validation, Rank II multi-anchor support, Rank III exclusivity and fourth-gem catastrophe handling.
 - [ ] Add Bind recipe modifier / accidental Bind outcome flow.
 - [ ] Add intentional/accidental Curse recipe flow with profane reagent tags.
-- [ ] Add Gem Anchor, recipe, specialization/hybrid, overflow, Bind/Curse and channel-choice regression tests.
+- [ ] Add Gem Anchor, recipe, specialization/hybrid, Gem Socket, Bind/Curse and channel-choice regression tests.
+  - [x] Gem profile/Quality-Rank smoke is wired into Inventory Runtime Validation CI.
 
 ## Part C — Enchanter Services, Knowledge and Magical Maintenance (design frozen)
 
