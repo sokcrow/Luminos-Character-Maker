@@ -97,6 +97,68 @@ delete globalThis.LuminousBattleMasterArchetypeRuntime;
 selected.characterBuild.archetypes=[];
 assert.equal(choices.maneuverLimit(selected),0);
 
+// Model/render/save eligibility must agree for every supported class format,
+// including map-valued entries rather than only arrays.
+const legacyVariants = [
+  {
+    label:'characterBuild.classLevels object',
+    data:{ characterBuild:{
+      classLevels:{ fighter:{levels:40} },
+      archetypes:{fighter:{archetypeId:'battle_master'}},
+    }},
+  },
+  {
+    label:'top-level classLevels object',
+    data:{ classLevels:{fighter:{levels:40}},
+      archetypes:{fighter:{archetypeId:'battle_master'}} },
+  },
+  {
+    label:'classesById object',
+    data:{ classesById:{fighter:{levels:40}},
+      archetypes:{fighter:'battle_master'} },
+  },
+  {
+    label:'characterBuild.classesById object',
+    data:{ characterBuild:{
+      classesById:{fighter:{levels:40}},
+      archetypes:[{classId:'fighter',archetypeId:'battle_master'}],
+    }},
+  },
+  {
+    label:'characterBuild.classes object',
+    data:{characterBuild:{
+      classes:{fighter:{levels:40}},
+      archetypes:{fighter:{archetypeId:'battle_master'}},
+    }},
+  },
+  {
+    label:'top-level classes object',
+    data:{classes:{fighter:{levels:40}},
+      archetypes:{fighter:{archetypeId:'battle_master'}}},
+  },
+  {
+    label:'dnd classes map',
+    data:{dnd:{classes:{fighter:{levels:40}}},
+      archetypes:{fighter:{archetypeId:'battle_master'}}},
+  },
+];
+for (const {label,data} of legacyVariants) {
+  const normalized = engine.normalizeClasses(data);
+  assert.equal(normalized.find(row=>row.classId==='fighter')?.levels,40,label+' class level');
+  assert.equal(engine.selectedArchetypeForClass(data,'fighter')?.archetypeId,'battle_master',label+' selected archetype');
+  const fighterModel = engine.buildProgressionModel(data).classes.find(row=>row.classId==='fighter');
+  assert.ok(fighterModel,label+' rendered in Avance');
+  assert.ok(fighterModel.branches.some(row=>row.id==='battle_master'&&row.status==='selected'),
+    label+' picked branch');
+  assert.equal(choices.maneuverLimit(data),3,label+' maneuver limit');
+  assert.equal(milestone.earnedMilestones(normalized).some(row=>row.classId==='fighter'&&row.milestoneLevel===30),
+    true,label+' earned bonus milestone');
+}
+const noSelection={characterBuild:{
+  classes:{fighter:{levels:40}},archetypes:{fighter:{archetypeId:'champion'}},
+}};
+assert.equal(choices.maneuverLimit(noSelection),0,'Other fighter specialization must not unlock maneuvers');
+
 const script=fs.readFileSync(path.join(root,'js/player-progression-tree.js'),'utf8');
 assert.match(script,/renderMilestone\?\.\(/);
 assert.match(script,/renderManeuvers\?\.\(/);
