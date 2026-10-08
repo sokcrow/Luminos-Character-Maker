@@ -319,13 +319,14 @@
         }
 
         if (validation.choice.type === "stats") {
-          const applied = api.applyStatAllocation(current.stats || {}, validation.choice.allocation);
+          const applied = api.applyPlayerStatAllocation(current, validation.choice.allocation);
           if (!applied.valid) {
             abortReason = applied.errors.join(" ");
             return;
           }
           current.stats = current.stats && typeof current.stats === "object" ? current.stats : {};
           Object.entries(applied.allocation).forEach(([stat]) => { current.stats[stat] = applied.stats[stat]; });
+          if (applied.baseStats) current.baseStats = applied.baseStats;
           resultingStats = applied.stats;
           committedAllocation = applied.allocation;
         }
@@ -340,6 +341,9 @@
           ...validation.choice,
           selectedAt: Date.now(),
         };
+        // Atomic migration: do not leave top-level legacy claims that can
+        // reappear after the DM reverses a canonical milestone.
+        delete current.classMilestones;
         return current;
       });
 
