@@ -16,7 +16,7 @@
   if (!Catalog) throw new Error("LuminousEnchantmentCatalog is required before LuminousItemEnchantmentEngine.");
   if (!Gems) throw new Error("LuminousOreIngotGemCatalog is required before LuminousItemEnchantmentEngine.");
 
-  const VERSION = 4;
+  const VERSION = 5;
   const TIER_BASE_SLOT_CAPACITY = Object.freeze({ 1: 0, 2: 1, 3: 1, 4: 2, 5: 3 });
   const BIND_POSITIVE_MULTIPLIER = 1.25;
   const CURSE_POSITIVE_MULTIPLIER = 1.50;
@@ -33,6 +33,8 @@
   ]);
   const INTENTIONAL_BIND_TH_ADJUSTMENT = 4;
   const INTENTIONAL_CURSE_TH_ADJUSTMENT = 6;
+  const DIRECT_MAGIC_DURABILITY_BASELINE = 100;
+  const GEM_MAGIC_DURABILITY_BASELINE = 150;
   const CURSE_REAGENT_TAGS = Object.freeze([
     "profane", "corrupted", "blood", "ichor", "necrotic", "necrotic_reagent",
     "decay_reagent", "vitality_drain", "sanity_corruption", "mental_corruption",
@@ -88,6 +90,34 @@
         ? runtime.magic
         : {};
     return clone(state);
+  }
+
+
+  function inferredMagicalDurabilityMax(refs = [], options = {}) {
+    if (Number.isFinite(Number(options.max))) return Math.max(0, Number(options.max));
+    const hasGem = asArray(refs).map(normalizeAppliedReference).some((ref) => ref.source === "gem");
+    return hasGem ? GEM_MAGIC_DURABILITY_BASELINE : DIRECT_MAGIC_DURABILITY_BASELINE;
+  }
+
+  function normalizeMagicalDurability(raw = {}, refs = [], options = {}) {
+    const source = raw && typeof raw === "object" ? raw : {};
+    const autoManaged = source.autoManaged !== false && source.authored !== true;
+    const desiredMax = autoManaged
+      ? inferredMagicalDurabilityMax(refs, options)
+      : Math.max(0, Number(source.max ?? source.maximum ?? options.max ?? 0) || 0);
+    const previousMax = Math.max(0, Number(source.max ?? source.maximum ?? desiredMax) || desiredMax);
+    let current = source.current == null ? desiredMax : Math.max(0, Number(source.current) || 0);
+    if (autoManaged && desiredMax > previousMax) current += desiredMax - previousMax;
+    current = Math.min(desiredMax, current);
+    return Object.freeze({
+      max:desiredMax,
+      current,
+      depleted:desiredMax > 0 && current <= 0,
+      autoManaged,
+      profile:autoManaged
+        ? (asArray(refs).map(normalizeAppliedReference).some((ref) => ref.source === "gem") ? "gem_anchored" : "direct")
+        : normalizeId(source.profile || "authored") || "authored",
+    });
   }
 
   function gemSocketCapacity(item = {}) {
@@ -386,19 +416,24 @@
     });
   }
 
-  function withMagicState(item, refs, anchors = gemAnchors(item)) {
+  function withMagicState(item, refs, anchors = gemAnchors(item), options = {}) {
     const out = clone(item || {});
     const current = magicStateOf(out);
     const capacity = baseSlotCapacity(out);
     const used = slotsUsed(refs);
     const normalizedAnchors = asArray(anchors).map(normalizeGemAnchor);
+    const normalizedRefs = refs.map((entry) => clone(normalizeAppliedReference(entry)));
+    const magicalDurability = refs.length
+      ? normalizeMagicalDurability(current.magicalDurability || current.magical_durability || {}, normalizedRefs, options.magicalDurability || {})
+      : clone(current.magicalDurability || current.magical_durability || null);
     out.magic = {
       ...current,
       enabled:refs.length > 0,
-      enchantments:refs.map((entry) => clone(normalizeAppliedReference(entry))),
+      enchantments:normalizedRefs,
       enchantmentSlots:{ max:capacity, used },
       gemSockets:{ max:gemSocketCapacity(out), used:normalizedAnchors.length },
       gemAnchors:normalizedAnchors.map(clone),
+      ...(magicalDurability ? { magicalDurability:clone(magicalDurability) } : {}),
     };
     return out;
   }
@@ -1099,6 +1134,54 @@
       : null;
   }
 
+
+  function itemMaterialTags(item = {}) {
+    const tags = [
+      ...asArray(item.materialTags),
+      ...asArray(item.tags),
+      ...asArray(item.itemTags),
+      item.materialId,
+      item.material,
+      item.primaryMaterialId,
+      item.primaryMaterial,
+    ];
+    for (const entry of asArray(item.composition)) {
+      if (typeof entry === "string") tags.push(entry);
+      else if (entry && typeof entry === "object") {
+        tags.push(entry.materialId, entry.id, entry.material, ...asArray(entry.tags));
+      }
+    }
+    return Object.freeze([...new Set(tags.map(normalizeId).filter(Boolean))]);
+  }
+
+  function materialCompatibility(item = {}, definitionOrId) {
+    const definition = typeof definitionOrId === "string" ? Catalog.get(definitionOrId) : clone(definitionOrId);
+    if (!definition) return Object.freeze({compatible:true,authored:false,wearMultiplier:1,matched:Object.freeze([])});
+    const required = asArray(definition.compatibility?.materialTags).map(normalizeId).filter(Boolean);
+    if (!required.length) return Object.freeze({compatible:true,authored:false,wearMultiplier:1,matched:Object.freeze([])});
+    const itemTags = itemMaterialTags(item);
+    const matched = required.filter((tag) => itemTags.includes(tag));
+    const compatible = matched.length > 0;
+    return Object.freeze({
+      compatible,
+      authored:true,
+      wearMultiplier:compatible ? 1 : 2,
+      required:Object.freeze(required),
+      itemTags,
+      matched:Object.freeze(matched),
+    });
+  }
+
+  function materialWearMultiplier(item = {}, definitionOrId) {
+    return materialCompatibility(item, definitionOrId).wearMultiplier;
+  }
+
+  function effectTriggerMatches(effect = {}, trigger = null) {
+    const wanted = normalizeId(trigger);
+    if (!wanted) return true;
+    return normalizeId(effect.trigger || "passive") === wanted;
+  }
+
   function positiveEffectMultiplier(ref) {
     const properties = normalizeProperties(ref?.properties);
     if (properties.includes("bind")) return BIND_POSITIVE_MULTIPLIER;
@@ -1119,6 +1202,7 @@
 
   function resolvedEnchantments(item = {}, options = {}) {
     const includeDormant = options.includeDormant === true;
+    if (options.magicActive === false) return Object.freeze([]);
     const results = [];
     for (const raw of appliedEnchantments(item)) {
       const ref = normalizeAppliedReference(raw);
@@ -1130,7 +1214,12 @@
         reference:ref,
         definition:Object.freeze(definition),
         rank:Object.freeze(rank),
-        effects:Object.freeze(rank.effects.map((effect) => Object.freeze(scaledEffect(effect, ref)))),
+        effects:Object.freeze(rank.effects
+          .filter((effect) => effectTriggerMatches(effect, options.trigger))
+          .map((effect) => Object.freeze({
+            ...scaledEffect(effect, ref),
+            sourceMagicalWear:Number(effect.magicalWear ?? rank.magicalWear ?? 0) || 0,
+          }))),
       }));
     }
     return Object.freeze(results);
@@ -1138,7 +1227,7 @@
 
   function actionChannels(item = {}) {
     const groups = new Map();
-    for (const entry of resolvedEnchantments(item)) {
+    for (const entry of resolvedEnchantments(item, { trigger:context.trigger, magicActive:context.magicActive })) {
       const channel = normalizeId(entry.definition.interaction?.exclusiveChannel);
       if (!channel || entry.definition.interaction?.exclusivePerAction !== true) continue;
       if (!groups.has(channel)) groups.set(channel, []);
@@ -1179,6 +1268,9 @@
           sourceEnchantmentId:entry.definition.id,
           sourceRank:entry.reference.rank,
           sourceProperties:Object.freeze(entry.reference.properties.slice()),
+          sourceApplicationSource:entry.reference.source,
+          sourceAnchorId:entry.reference.anchorId,
+          materialWearMultiplier:materialWearMultiplier(item, entry.definition),
         }));
       }
     }
@@ -1206,12 +1298,16 @@
     EXTERNAL_TH_SOURCE_TYPES,
     INTENTIONAL_BIND_TH_ADJUSTMENT,
     INTENTIONAL_CURSE_TH_ADJUSTMENT,
+    DIRECT_MAGIC_DURABILITY_BASELINE,
+    GEM_MAGIC_DURABILITY_BASELINE,
     CURSE_REAGENT_TAGS,
     normalizeId,
     itemKindOf,
     tierOf,
     baseSlotCapacity,
     magicStateOf,
+    inferredMagicalDurabilityMax,
+    normalizeMagicalDurability,
     gemSocketCapacity,
     gemAnchors,
     gemDefinitionIdOf,
@@ -1259,6 +1355,10 @@
     consumeRecipeMaterials,
     gemAttemptRiskProfile,
     applyGemArcaneOutcome,
+    itemMaterialTags,
+    materialCompatibility,
+    materialWearMultiplier,
+    effectTriggerMatches,
     positiveEffectMultiplier,
     resolvedEnchantments,
     actionChannels,
