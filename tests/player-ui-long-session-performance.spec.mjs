@@ -1481,5 +1481,81 @@ for (const width of [390, 1280]) {
     expect(historical.stats.constitucion).toBe(15);
     await level20.click();
     await expect(page.locator("#player-progression-detail .player-progression-choice-panel")).toContainText("GUARDADO");
+
+    // Codex P1 regression: historical claims stored ONLY at the top level
+    // must remain selectable, preserve General Traits, and be migrated before
+    // an entirely new reward can be claimed.
+    await page.evaluate(() => {
+      const char = {
+        level:40,
+        stats:{fuerza:16,destreza:12,constitucion:13,inteligencia:10,sabiduria:11,carisma:12},
+        classMilestones:[
+          {classId:"fighter",milestoneLevel:20,type:"stats",allocation:{fuerza:2},selectedAt:101,notes:"original-stat"},
+          {classId:"fighter",milestoneLevel:30,type:"trait",traitId:"general_keen",selectedAt:202,notes:"original-trait"}
+        ],
+        characterBuild:{classes:[{classId:"fighter",levels:40}],
+          archetypes:[{classId:"fighter",archetypeId:"battle_master"}],classMilestones:{}}
+      };
+      window.datosJugador=char;
+      window.__server=structuredClone(char);
+      window.LuminousPlayerProgressionTree.refresh();
+    });
+    await level20.click();
+    await expect(page.locator("#player-progression-detail .player-progression-choice-panel")).toContainText("GUARDADO");
+    await level30.click();
+    await expect(page.locator("#player-progression-detail .player-progression-choice-panel")).toContainText("GUARDADO");
+    await level40.click();
+    const topLegacy = page.locator("#player-progression-detail .player-progression-choice-panel");
+    await topLegacy.locator(".player-progression-choice-stat").selectOption("constitucion");
+    await topLegacy.getByRole("button",{name:"CONFIRMAR MEJORA"}).click();
+    await expect(topLegacy).toContainText("GUARDADO");
+    const preserved = await page.evaluate(() => {
+      const player=window.__server,api=window.LuminousClassMilestones;
+      return {
+        oldStat:player.characterBuild.classMilestones.fighter["20"],
+        oldTrait:player.characterBuild.classMilestones.fighter["30"],
+        newStat:player.characterBuild.classMilestones.fighter["40"],
+        selectedGeneral:api.selectedGeneralTraitIds(player),
+        originalTopCount:player.classMilestones.length,
+        fuerza:player.stats.fuerza,
+        constitucion:player.stats.constitucion
+      };
+    });
+    expect(preserved.oldStat.notes).toBe("original-stat");
+    expect(preserved.oldStat.selectedAt).toBe(101);
+    expect(preserved.oldTrait.notes).toBe("original-trait");
+    expect(preserved.oldTrait.selectedAt).toBe(202);
+    expect(preserved.newStat.allocation.constitucion).toBe(2);
+    expect(preserved.selectedGeneral).toContain("general_keen");
+    expect(preserved.originalTopCount).toBe(2);
+    expect(preserved.fuerza).toBe(16);
+    expect(preserved.constitucion).toBe(15);
+
+    // Both a top-level and a nested claim for the same level but different
+    // payouts are ambiguous; saving must abort, not overwrite either.
+    await page.evaluate(() => {
+      const char = {
+        level:40,
+        stats:{fuerza:16,destreza:12,constitucion:13,inteligencia:10,sabiduria:11,carisma:12},
+        classMilestones:{fighter:{20:{classId:"fighter",milestoneLevel:20,
+          type:"stats",allocation:{fuerza:2},selectedAt:11}}},
+        characterBuild:{
+          classes:[{classId:"fighter",levels:40}],
+          archetypes:[{classId:"fighter",archetypeId:"battle_master"}],
+          classMilestones:{fighter:{20:{classId:"fighter",milestoneLevel:20,
+            type:"stats",allocation:{destreza:2},selectedAt:22}}}
+        }
+      };
+      window.datosJugador=char;
+      window.__server=structuredClone(char);
+      window.LuminousPlayerProgressionTree.refresh();
+    });
+    await level40.click();
+    const conflict = page.locator("#player-progression-detail .player-progression-choice-panel");
+    await conflict.locator(".player-progression-choice-stat").selectOption("constitucion");
+    await conflict.getByRole("button",{name:"CONFIRMAR MEJORA"}).click();
+    await expect(conflict.locator(".player-progression-choice-feedback")).toContainText("duplicados incompatibles");
+    expect(await page.evaluate(() => window.__server.characterBuild.classMilestones.fighter["40"])).toBeUndefined();
+    expect(await page.evaluate(() => window.__server.stats.constitucion)).toBe(13);
   });
 }
