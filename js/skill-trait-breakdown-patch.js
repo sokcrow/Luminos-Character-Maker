@@ -196,6 +196,32 @@
     return result;
   }
 
+  // Every caller, including authorised DM Checks, uses the exact same
+  // contribution list as the sheet. Mark individual Traits, not the entire
+  // Check, because one check can legitimately benefit from multiple Traits.
+  function applySpecialCheckBonuses(traits = [], character = {}, check = {}) {
+    const markers = {
+      jack_of_all_trades: "__jackOfAllTradesApplied",
+      reliable_talent: "__rogueReliableTalentApplied",
+      remarkable_athlete: "__championRemarkableAthleteAdjusted",
+      royal_envoy: "__banneretRoyalEnvoyAdjusted",
+      elegant_courtier: "__samuraiElegantCourtierAdjusted",
+      bladesong: "__bladesongAcrobaticsAdjusted",
+    };
+    const applied = new Set(check.__luminousSpecialTraitsApplied || []);
+    const appliedContributions = [];
+    specialCheckContributions(traits, character, check).forEach((entry) => {
+      const marker = markers[entry.marker];
+      if (applied.has(entry.marker) || (marker && check[marker])) return;
+      check.finalPower = numberOr(check.finalPower, 0) + entry.amount;
+      if (marker) check[marker] = true;
+      applied.add(entry.marker);
+      appliedContributions.push(entry);
+    });
+    if (applied.size) check.__luminousSpecialTraitsApplied = [...applied];
+    return appliedContributions;
+  }
+
   function tooltip(skill, ability, breakdown) {
     const lines = [`${skill.name} Total de Check: ${formatSigned(breakdown.total)}`];
     if (breakdown.abilityMod) lines.push(`${formatSigned(breakdown.abilityMod)} ${ability.code} Mod`);
@@ -479,6 +505,7 @@
     checkPowerContributions,
     finalPowerContributions,
     specialCheckContributions,
+    applySpecialCheckBonuses,
     skillTraitContributions,
     playerCheckPower,
     playerSkillBreakdown,
