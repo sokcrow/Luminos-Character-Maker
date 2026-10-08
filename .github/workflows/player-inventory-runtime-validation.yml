@@ -111,6 +111,7 @@ on:
       - tests/item-gem-magic-profile-smoke.cjs
       - tests/item-gem-anchor-runtime-smoke.cjs
       - tests/item-gem-resonance-th-smoke.cjs
+      - tests/item-enchantment-ritual-smoke.cjs
       - tests/item-enchantment-engine-smoke.cjs
       - tests/item-enchantment-inventory-smoke.cjs
       - tests/item-enchantment-magic-runtime-smoke.cjs
@@ -284,6 +285,8 @@ jobs:
         run: node tests/item-gem-anchor-runtime-smoke.cjs
       - name: Gem resonance compatibility and TH smoke
         run: node tests/item-gem-resonance-th-smoke.cjs
+      - name: Enchantment ritual materials Bind Curse smoke
+        run: node tests/item-enchantment-ritual-smoke.cjs
       - name: Enchantment core engine smoke
         run: node tests/item-enchantment-engine-smoke.cjs
       - name: Enchantment inventory persistence smoke
