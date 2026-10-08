@@ -549,7 +549,7 @@
       ...source,
       __archetypeRuntimeIntegrated: true,
       armCheck(check = {}) {
-        return originalArmCheck(applyTheatreCheckMechanics(check));
+        return originalArmCheck(global.LuminousPlayerTraitRuntime?.resolveTheatreCheck ? check : applyTheatreCheckMechanics(check));
       },
     });
     global.LuminousTheatreRolls = wrapped;
