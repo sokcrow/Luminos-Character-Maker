@@ -49,6 +49,27 @@
   const workshop = () => global.LuminousWorkshopRuntime || null;
   const foodRest = () => global.LuminousFoodRestRuntime || null;
   const effectIndicator = () => global.LuminousItemEffectIndicator || null;
+  const enchantmentRuntime = () => global.LuminousItemEnchantmentRuntime || null;
+  const magicRuntime = () => global.LuminousItemMagicRuntime || null;
+  const enchantmentLabels = Object.freeze({
+    offensive_level: "Nivel ofensivo", defensive_level: "Nivel defensivo",
+    base_power: "Poder base", final_power: "Poder final",
+    clash_power: "Poder de choque", guard_power: "Poder de guardia",
+    speed: "Velocidad", min_speed: "Velocidad mínima", max_speed: "Velocidad máxima",
+  });
+  function enchantmentInfo(item = {}) {
+    const ench = enchantmentRuntime()?.activeEnchantment?.(item) || null;
+    if (!ench) return null;
+    const requires = magicRuntime()?.requiresAttunement?.(item) === true;
+    const attuned = requires && magicRuntime()?.isAttuned?.(state.unit, item) === true;
+    return {
+      tier: ench.tier,
+      label: enchantmentLabels[ench.focus.channel] || "Efecto mágico",
+      value: ench.focus.value,
+      requiresAttunement: requires,
+      attuned,
+    };
+  }
 
   function resolveDb() {
     try { if (typeof db !== "undefined" && db?.ref) return db; } catch (_) {}
@@ -77,9 +98,10 @@
 
   function itemName(item = {}) {
     const explicit = item.displayName || item.nombre || item.name;
-    if (explicit) return String(explicit).trim();
-    const resolved = runtime()?.resolveItem?.(item) || item;
-    return String(resolved?.displayName || resolved?.nombre || resolved?.name || item.definitionId || item.id || "ITEM").trim();
+    const resolved = explicit ? item : runtime()?.resolveItem?.(item) || item;
+    const base = String(explicit || resolved?.displayName || resolved?.nombre || resolved?.name || item.definitionId || item.id || "ITEM").trim();
+    const ench = enchantmentInfo(item);
+    return ench && !new RegExp("\\s\\+" + ench.tier + "$").test(base) ? base + " +" + ench.tier : base;
   }
 
   function itemCategory(item = {}) {
@@ -592,7 +614,9 @@
     const value = itemValue(item);
     const effectIndicators = itemEffectIndicators(item);
     const effectIndicatorHtml = renderEffectIndicators(effectIndicators);
+    const enchantment = enchantmentInfo(item);
     const activeCard = containerType === "active";
+    slot.classList.toggle("inventory-v2-enchanted", Boolean(enchantment));
     slot.classList.toggle("inventory-v2-has-effect-indicator", effectIndicators.length > 0);
     slot.classList.toggle("inventory-v2-active-card", activeCard);
     slot.innerHTML = `
@@ -603,6 +627,7 @@
           ${gemOverlayIcon ? `<span class="inventory-v2-gem-overlay" aria-hidden="true" style="background-image:url(&quot;${escapeHtml(gemOverlayIcon)}&quot;)"></span>` : ""}
         </div>
         <span class="item-name">${escapeHtml(itemName(item))}</span>
+        ${enchantment ? `<span class="inventory-v2-enchantment-badge" title="Encantamiento mágico +${enchantment.tier}: ${escapeHtml(enchantment.label)}">✦ +${enchantment.tier}</span>` : ""}
         ${activeCard ? `<span class="inventory-v2-card-meta"><span class="inventory-v2-card-value">₳ ${escapeHtml(String(value))}</span><span class="inventory-v2-card-qty">x${escapeHtml(String(quantity))}</span></span>` : ""}
       </div>
       ${equipable ? '<span class="inventory-v2-equip-marker">EQUIP</span>' : ""}
@@ -767,6 +792,7 @@
       );
       if (item) {
         name.textContent = itemName(item);
+        button.classList.toggle("inventory-v2-enchanted", Boolean(enchantmentInfo(item)));
         const condition = runtime()?.getCondition?.(item);
         const percent = condition?.percent ?? (item.condition != null ? Math.round(Number(item.condition)) : null);
         hint.textContent = `${item.tier ? `TIER ${tierRoman(item)}` : itemCategory(item).toUpperCase()} // ${percent != null ? `${percent}%` : "READY"}`;
@@ -869,7 +895,11 @@
     const title = doc.getElementById("detail-title");
     if (title) title.textContent = itemName(item);
     const desc = doc.getElementById("detail-desc");
-    if (desc) desc.textContent = itemDescription(item);
+    if (desc) {
+      const magic = enchantmentInfo(item);
+      const magicDescription = magic ? `Encantamiento +${magic.tier}: +${magic.value} ${magic.label.toLowerCase()}. ${magic.requiresAttunement ? (magic.attuned ? "Sintonizado." : "Requiere sintonización para estar activo.") : "Se activa al equipar el objeto compatible."}` : "";
+      desc.textContent = [itemDescription(item), magicDescription].filter(Boolean).join("\\n\\n");
+    }
     const detailEffects = doc.getElementById("inventory-v2-detail-effects");
     if (detailEffects) {
       const indicators = itemEffectIndicators(item);
@@ -896,6 +926,10 @@
       }
       if (charges?.current != null) {
         facts.push(`<span class="inventory-v2-player-fact"><b>CHARGES</b> ${escapeHtml(String(charges.current))} / ${escapeHtml(String(charges.max ?? "∞"))}</span>`);
+      }
+      const magic = enchantmentInfo(item);
+      if (magic) {
+        facts.push(`<span class="inventory-v2-player-fact inventory-v2-player-magic"><b>ENCANTAMIENTO +${magic.tier}</b> +${magic.value} ${escapeHtml(magic.label)}${magic.requiresAttunement ? (magic.attuned ? " · SINTONIZADO" : " · REQUIERE SINTONIZACIÓN") : ""}</span>`);
       }
       if (equippedSlot) {
         facts.push(`<span class="inventory-v2-player-fact"><b>EQUIPPED</b> ${escapeHtml(String(equippedSlot).replace(/([a-z])([A-Z])/g, "$1 $2").toUpperCase())}</span>`);
