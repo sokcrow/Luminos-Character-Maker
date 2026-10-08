@@ -1172,16 +1172,19 @@
       if (!trait) return null;
       const card = createElement("article", "player-trait-card player-background-narrative-trait");
       card.dataset.traitCategory = "background";
+      const description = profile.legacy ? trait.description : String(trait.description)
+        .replace(/Reduce en X el Threshold/gi, "Reduce el Threshold")
+        .replace(/\+X\b/gi, "un bono de");
       card.append(
         createElement("span", "player-trait-source player-trait-source--background", "BACKGROUND · " + profile.name),
         createElement("h3", "player-trait-card__name", trait.name),
-        createElement("p", "player-trait-card__description", trait.description),
+        createElement("p", "player-trait-card__description", description),
       );
       const note = profile.legacy
         ? "Estas ventajas ya están reflejadas en tus estadísticas. Consultarlas aquí no las suma de nuevo."
         : /(?:^|[^a-z])X(?:[^a-z]|$)/.test(trait.description)
-          ? "Trait narrativo: el valor X está pendiente de balance. No modifica las tiradas automáticamente."
-          : "Trait narrativo de tu Background. No tiene automatización de efectos.";
+          ? "El valor concreto de esta ventaja se determina durante la partida."
+          : "Esta ventaja se utiliza según las circunstancias y las reglas de la partida.";
       card.appendChild(createElement("p", "player-background-trait-note", note));
       return card;
     }
