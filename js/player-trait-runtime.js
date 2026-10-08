@@ -639,12 +639,17 @@ ${response}`);
     if (!state.traitState) state.traitState = traitEngine.createState();
     const character = getCharacter();
     const preparedCheck = normalizeTheatreCheckInput(check, runtimeInput);
-    applyApprovedDmEffects(preparedCheck, runtimeInput);
+    // Context-dependent racial Traits (e.g. Orosh Emotional Echo) must see
+    // the selected Theatre target on the actual Check, never in a pure preview.
+    const target = runtimeInput.target || preparedCheck.target || state.theatreTarget || null;
+    if (target && !preparedCheck.target) preparedCheck.target = target;
+    applyApprovedDmEffects(preparedCheck, { ...runtimeInput, target });
     const hadThreshold = finiteNumber(preparedCheck.thresholdRaw ?? preparedCheck.threshold) != null;
     const result = traitEngine.resolveTheatreCheck({
       character,
       traits: resolveTraits(),
       check: preparedCheck,
+      target,
       state: state.traitState,
     });
     if (hadThreshold && finiteNumber(result?.check?.difficulty) != null) {
