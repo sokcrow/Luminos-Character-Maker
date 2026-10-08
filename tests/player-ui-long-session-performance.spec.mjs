@@ -1203,7 +1203,12 @@ for (const width of [390, 1280]) {
     const tree = page.locator(".player-progression-ritual-tree");
     const viewport = page.locator(".player-progression-mystic-scroll");
     await expect(page.locator("#player-progression-mystic-stylesheet")).toHaveCount(1);
-    await expect(tree.locator(".player-progression-root__seal svg")).toHaveCount(1);
+    // Class identity is rendered from the local PNG, not a generic SVG.
+    const rootIcon = tree.locator(".player-progression-root__seal .player-progression-class-icon");
+    await expect(rootIcon).toHaveCount(1);
+    await expect(rootIcon).toHaveAttribute("src", "Assets/Icons/classes/monk.png");
+    await expect.poll(() => rootIcon.evaluate(img => img.complete && img.naturalWidth > 0)).toBe(true);
+    await expect(tree.locator(".player-progression-milestone-list .player-progression-node__seal .player-progression-class-icon")).toHaveCount(2);
     await expect(tree.locator(".player-progression-fork")).toHaveCount(1);
     await expect(tree.locator(".player-progression-branch-preview__seal svg")).toHaveCount(3);
     await expect(tree.locator(".player-progression-archetype-list")).toHaveCSS("display", "grid");
