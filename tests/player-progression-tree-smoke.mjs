@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url';
 
 await import('../js/trait-engine.js');
 await import('../js/character-build-rules.js');
+await import('../js/archetype-engine.js');
+await import('../js/archetype-trait-catalog.js');
 await import('../js/player-progression-tree-core.js');
 
 const core = globalThis.LuminousPlayerProgressionTreeCore;
@@ -171,12 +173,53 @@ const archetypeRuntime = fs.readFileSync(path.join(here, '..', 'js', 'player-arc
 const levelAllocationRuntime = fs.readFileSync(path.join(here, '..', 'js', 'player-progression-level-allocation.js'), 'utf8');
 const progressionRuntime = fs.readFileSync(path.join(here, '..', 'js', 'player-progression-tree.js'), 'utf8');
 const progressionCss = fs.readFileSync(path.join(here, '..', 'css', 'player-progression-tree.css'), 'utf8');
+const mysticCss = fs.readFileSync(path.join(here, '..', 'css', 'player-progression-mystic.css'), 'utf8');
 const traitCss = fs.readFileSync(path.join(here, '..', 'css', 'player-trait-tabs.css'), 'utf8');
 const statsCss = fs.readFileSync(path.join(here, '..', 'css', 'player-stats-ability-bar.css'), 'utf8');
 
 assert.match(html, /title="Progresión"/);
 assert.match(html, /id="player-progression-level-allocation-host"/);
 assert.match(html, /id="player-progression-tree-host"/);
+// The Player sheet must load choice metadata even when no Archetype is selected.
+// Class-runtime-bootstrap alone loads only the active build graph.
+const engineScript = html.indexOf('src="js/archetype-engine.js"');
+const catalogScript = html.indexOf('src="js/archetype-trait-catalog.js"');
+const treeScript = html.indexOf('src="js/player-progression-tree-core.js"');
+assert.ok(engineScript > 0 && engineScript < catalogScript && catalogScript < treeScript);
+const unselectedBarbarian = core.buildProgressionModel(
+  { level:15, characterBuild:{ classes:[{classId:'barbarian',levels:15}], archetypes:[] } },
+  { archetypeCatalog:globalThis.LuminousArchetypeTraitCatalog, traitGrants:[], archetypeGrants:[], definitions:{} },
+);
+assert.equal(
+  unselectedBarbarian.classes[0].branches.find(entry=>entry.id==='path_of_the_devil_lineage')?.status,
+  'available',
+  'Eligible archetypes must appear without having an archetype runtime selected first',
+);
+// All shipped archetype runtime choices must be visible before selection.
+// Metadata registration is independent from loading their combat runtimes.
+const choiceCatalog = globalThis.LuminousArchetypeTraitCatalog.allArchetypes();
+const expectedChoices = {
+  barbarian:['path_of_the_devil_lineage','path_of_the_zealot'],
+  bard:['college_of_whispers'],
+  fighter:['banneret','battle_master','champion','samurai'],
+  ranger:['bilgewater_buccaneer','bilgewater_demolisher'],
+  rogue:['mastermind'],
+  sorcerer:['orosh_lineage'],
+  wizard:['bladesinger'],
+};
+assert.equal(Object.keys(choiceCatalog).length,12);
+for(const [classId,choices] of Object.entries(expectedChoices)) {
+  const character = {level:35,characterBuild:{classes:[{classId,levels:35}],archetypes:[]}};
+  const available = core.buildProgressionModel(character,{
+    archetypeCatalog:globalThis.LuminousArchetypeTraitCatalog,
+    traitGrants:[],archetypeGrants:[],definitions:{},
+  }).classes[0].branches;
+  for(const id of choices) {
+    assert.equal(available.find(entry=>entry.id===id)?.status,'available',
+      `${classId} should offer ${id} without a preselected archetype`);
+  }
+}
+
 // Traits are a primary Stats/Desktop surface. Progression must not own or duplicate them.
 assert.doesNotMatch(html, /id="player-progression-traits-host"/);
 assert.doesNotMatch(html, /player-progression-traits-dossier/);
@@ -211,20 +254,48 @@ assert.match(levelAllocationRuntime, /class="player-level-allocation__body"/);
 assert.match(progressionCss, /#player-progression-detail\[hidden\]/);
 assert.match(progressionCss, /\.player-level-allocation__body\[hidden\]/);
 
-// Shrink the former 1500px modal and 190px tracks. On mobile, cards are
-// presented in a two-column stack instead of forcing sideways traversal.
-assert.match(progressionCss, /width:min\(92vw,1080px\)/);
-assert.match(progressionRuntime, /148px repeat\(\$\{levels\.length\}, 150px\)/);
-assert.match(progressionCss, /grid-template-columns:repeat\(2,minmax\(0,1fr\)\)!important/);
-assert.match(progressionCss, /\.player-progression-rail\{\s*display:none/);
+// The Avance view is now a branching skill tree, not a column of cards.
+assert.match(progressionRuntime, /player-progression-ritual-tree/);
+assert.match(progressionRuntime, /player-progression-root/);
+assert.match(progressionRuntime, /player-progression-fork/);
+assert.match(progressionRuntime, /player-progression-milestone-list/);
+assert.match(progressionRuntime, /player-progression-branch-milestones/);
+assert.match(progressionRuntime, /function branchMilestones\(/);
+assert.match(progressionRuntime, /branch\.traitLevels/);
+assert.match(progressionRuntime, /sigilSvg\("compass"\)/);
+assert.match(progressionRuntime, /player-progression-mystic-stylesheet/);
+assert.match(progressionRuntime, /player-progression-tree-arrow/);
+assert.match(progressionRuntime, /viewport\.scrollLeft = previous/);
 assert.match(progressionRuntime, /button\.addEventListener\("click", inspect\)/);
-assert.match(progressionRuntime, /wrap\.addEventListener\("keydown"/);
+assert.match(progressionRuntime, /preview\.addEventListener\("click", inspect\)/);
+assert.match(progressionRuntime, /ELEGIR ARQUETIPO/);
+assert.match(progressionRuntime, /state\.selectedKey = card\.dataset\.progressionKey/);
+assert.match(progressionRuntime, /await db\.ref\(/);
+assert.match(progressionRuntime, /No hay conexión para guardar el arquetipo/);
+assert.match(progressionRuntime, /className = "player-progression-choose-error"/);
+assert.match(progressionRuntime, /selected\.__inspect\(\)/);
 assert.match(progressionRuntime, /host\.contains\(state\.detail\)/);
 assert.match(progressionRuntime, /mobileLayout\?\.addEventListener\?\.\("change", syncDetailPlacement\)/);
 assert.match(progressionRuntime, /state\.root\?\.contains\(anchor\)/);
+assert.match(progressionRuntime, /classSection\.after\(state\.detail\)/);
+assert.doesNotMatch(progressionRuntime, /gridTemplateColumns = `148px/);
+assert.match(mysticCss, /\.player-progression-root__seal/);
+assert.match(mysticCss, /\.player-progression-archetype-list::before/);
+assert.match(mysticCss, /\.player-progression-branch-label::before/);
+assert.match(mysticCss, /\.player-progression-branch-milestones::before/);
+assert.match(mysticCss, /grid-template-columns:repeat\(var\(--branch-count,1\),minmax\(168px,1fr\)\)!important/);
+assert.match(mysticCss, /\.player-progression-mystic-scroll/);
+assert.match(mysticCss, /\.player-progression-tree-arrow/);
+assert.match(mysticCss, /@media\(max-width:720px\)/);
+assert.match(mysticCss, /@media\(prefers-reduced-motion:reduce\)/);
+assert.match(progressionCss, /#player-progression-detail\[hidden\]/);
+// No-op data updates must not move visible details or recreate the whole tree.
 const noOpGuard = progressionRuntime.indexOf('if (!force && signature === state.signature) return true;');
 const rehome = progressionRuntime.indexOf('if (state.detail && host.contains(state.detail)) host.after(state.detail);');
-assert.ok(noOpGuard >= 0 && rehome > noOpGuard, 'No-op data refresh must leave inline details in place');
+const scrollCapture = progressionRuntime.indexOf('const scrollPositions = new Map(');
+const hostClear = progressionRuntime.indexOf('host.replaceChildren();');
+assert.ok(noOpGuard >= 0 && rehome > noOpGuard, 'No-op refresh must not displace open details');
+assert.ok(scrollCapture > noOpGuard && scrollCapture < hostClear, 'Save horizontal position before re-rendering');
 assert.match(html, /Selecciona un nivel o arquetipo para ver sus mejoras/);
 assert.doesNotMatch(html, /Recorre la clase con la rueda del mouse/);
 

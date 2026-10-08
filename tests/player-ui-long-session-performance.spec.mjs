@@ -1134,3 +1134,128 @@ test("trait formula breakdown stays hidden until clicked and closes with Escape"
   await value.click();
   await expect(panel).toBeHidden();
 });
+
+
+for (const width of [390, 1280]) {
+  test(`Avance milestone and archetype selection at ${width}px`, async ({ page }) => {
+    await page.goto(BASE + "/index.html");
+    await page.setViewportSize({ width, height: width < 700 ? 844 : 900 });
+    await page.setContent(`
+      <!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1">
+      <link rel="stylesheet" href="${BASE}/css/player-progression-tree.css">
+      <style>
+        body {margin:0; background:#0b0a09}
+        #perks-modal {display:flex; justify-content:center; align-items:center; min-height:100dvh}
+        .hud-modal-content {display:flex; flex-direction:column; position:relative}
+        .hud-modal-body {overflow:auto}
+      </style></head><body>
+      <div id="perks-modal" class="hud-modal modal-progression active">
+        <div class="hud-modal-content">
+          <div class="hud-modal-body">
+            <section class="player-progression-shell">
+              <header class="player-progression-heading"><h2>PROGRESIÓN</h2></header>
+              <div id="player-progression-tree-host"></div>
+              <aside id="player-progression-detail"></aside>
+            </section>
+          </div>
+        </div>
+      </div>
+      <script>
+        window.currentPlayerId = "browser_test";
+        window.__savedArchetypes = [];
+        window.__denySelection = true;
+        window.datosJugador = {
+          level:20,
+          characterBuild:{classes:[{classId:"monk",levels:20}],archetypes:[]}
+        };
+        window.LuminousCharacterBuildRules = {CLASSES:[{id:"monk",name:"Monk"}]};
+        window.LuminousTraitCatalogCore = {
+          allDefinitions:()=>({
+            monk_base:{id:"monk_base",name:"Base Milestone",description:"Milestone reward"},
+            monk_burst:{id:"monk_burst",name:"Burst Milestone",description:"Higher reward"}
+          }),
+          allGrants:()=>[
+            {sourceType:"class",sourceId:"monk",classId:"monk",atLevel:5,traitId:"monk_base"},
+            {sourceType:"class",sourceId:"monk",classId:"monk",atLevel:20,traitId:"monk_burst"}
+          ]
+        };
+        window.LuminousArchetypeTraitCatalog = {
+          allArchetypes:()=>({
+            shadow:{id:"shadow",classId:"monk",name:"Shadow Monk",description:"Stealth choices",unlockLevel:15,traitLevels:[15,35]},
+            sun:{id:"sun",classId:"monk",name:"Sun Monk",description:"Radiant choices",unlockLevel:15,traitLevels:[15,35]},
+            high:{id:"high",classId:"monk",name:"High Monk",unlockLevel:35,traitLevels:[35,50]}
+          }),
+          allDefinitions:()=>({}),allGrants:()=>[]
+        };
+        window.firebase = {apps:[{}],database:()=>({
+          ref:(path)=>({set:async (value)=>{
+            if (window.__denySelection) throw new Error("Firebase rejected write");
+            window.__savedArchetypes.push({path,value});
+          }})
+        })};
+      </script>
+      <script src="${BASE}/js/archetype-engine.js"></script>
+      <script src="${BASE}/js/player-progression-tree-core.js"></script>
+      <script src="${BASE}/js/player-progression-tree.js"></script>
+      </body></html>
+    `, { waitUntil: "load" });
+
+    const tree = page.locator(".player-progression-ritual-tree");
+    const viewport = page.locator(".player-progression-mystic-scroll");
+    await expect(page.locator("#player-progression-mystic-stylesheet")).toHaveCount(1);
+    await expect(tree.locator(".player-progression-root__seal svg")).toHaveCount(1);
+    await expect(tree.locator(".player-progression-fork")).toHaveCount(1);
+    await expect(tree.locator(".player-progression-branch-preview__seal svg")).toHaveCount(3);
+    await expect(tree.locator(".player-progression-archetype-list")).toHaveCSS("display", "grid");
+    const geometry = await viewport.evaluate(el => ({
+      content:el.scrollWidth,visible:el.clientWidth,
+      rootConnector:getComputedStyle(el.querySelector(".player-progression-root"),"::after").content,
+      forkConnector:getComputedStyle(el.querySelector(".player-progression-archetype-list"),"::before").content
+    }));
+    expect(geometry.rootConnector).not.toBe("none");
+    expect(geometry.forkConnector).not.toBe("none");
+    expect(geometry.content > geometry.visible + 2).toBe(width < 700);
+    if (width < 700) {
+      const start = await viewport.evaluate(el => el.scrollLeft);
+      await page.getByRole("button",{name:"Desplazar árbol hacia la derecha"}).click();
+      await expect.poll(() => viewport.evaluate(el => el.scrollLeft)).toBeGreaterThan(start);
+    }
+    const milestones = page.locator(".player-progression-milestone-list .player-progression-node");
+    await expect(milestones).toHaveCount(2);
+    await milestones.first().click();
+    await expect(milestones.first()).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator("#player-progression-detail")).toContainText("Base Milestone");
+    await milestones.last().click();
+    await expect(milestones.first()).toHaveAttribute("aria-pressed", "false");
+    await expect(page.locator("#player-progression-detail")).toContainText("Burst Milestone");
+
+    const archetypes = page.locator(".player-progression-archetype-list");
+    await expect(archetypes.locator(".player-progression-branch-label")).toHaveCount(3);
+    await expect(archetypes.locator(".player-progression-branch-milestones .player-progression-node")).toHaveCount(6);
+    await expect(archetypes.locator(".is-future")).toContainText("DISPONIBLE EN LV. 35");
+    const shadow = archetypes.locator(".player-progression-branch-label").filter({hasText:"Shadow Monk"});
+    await shadow.locator(".player-progression-branch-milestones .player-progression-node").first().click();
+    await expect(page.locator("#player-progression-detail")).toContainText("Hito · Nivel 15");
+    await shadow.locator(".player-progression-branch-preview").click();
+    await expect(page.locator("#player-progression-detail")).toContainText("Shadow Monk");
+
+    const choose = shadow.getByRole("button", {name:"Elegir Shadow Monk para Monk"});
+    await expect(choose).toBeEnabled();
+    await choose.click();
+    await expect(shadow.locator(".player-progression-choose-error")).toContainText("Firebase rejected write");
+    expect(await page.evaluate(() => window.__savedArchetypes)).toHaveLength(0);
+    expect(await page.evaluate(() => window.datosJugador.characterBuild.archetypes)).toHaveLength(0);
+
+    await page.evaluate(() => window.__denySelection = false);
+    await choose.click();
+    await expect(archetypes.locator(".player-progression-branch-label.is-selected")).toContainText("Shadow Monk");
+    await expect(page.locator("#player-progression-detail")).toContainText("Shadow Monk");
+    expect(await page.evaluate(() => window.__savedArchetypes)).toEqual([{
+      path:"campaña/jugadores/browser_test/characterBuild/archetypes",
+      value:[{classId:"monk",archetypeId:"shadow",selectedAtClassLevel:20}]
+    }]);
+    await expect(archetypes.locator(".player-progression-branch-label.is-locked").filter({ hasText: "Sun Monk" })).toContainText("Sun Monk");
+    const noOverflow = await page.locator(".player-progression-class").evaluate(el => el.scrollWidth <= el.clientWidth + 2);
+    expect(noOverflow).toBe(true);
+  });
+}
