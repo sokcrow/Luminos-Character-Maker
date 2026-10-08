@@ -194,6 +194,31 @@ assert.equal(
   'available',
   'Eligible archetypes must appear without having an archetype runtime selected first',
 );
+// All shipped archetype runtime choices must be visible before selection.
+// Metadata registration is independent from loading their combat runtimes.
+const choiceCatalog = globalThis.LuminousArchetypeTraitCatalog.allArchetypes();
+const expectedChoices = {
+  barbarian:['path_of_the_devil_lineage','path_of_the_zealot'],
+  bard:['college_of_whispers'],
+  fighter:['banneret','battle_master','champion','samurai'],
+  ranger:['bilgewater_buccaneer','bilgewater_demolisher'],
+  rogue:['mastermind'],
+  sorcerer:['orosh_lineage'],
+  wizard:['bladesinger'],
+};
+assert.equal(Object.keys(choiceCatalog).length,12);
+for(const [classId,choices] of Object.entries(expectedChoices)) {
+  const character = {level:35,characterBuild:{classes:[{classId,levels:35}],archetypes:[]}};
+  const available = core.buildProgressionModel(character,{
+    archetypeCatalog:globalThis.LuminousArchetypeTraitCatalog,
+    traitGrants:[],archetypeGrants:[],definitions:{},
+  }).classes[0].branches;
+  for(const id of choices) {
+    assert.equal(available.find(entry=>entry.id===id)?.status,'available',
+      `${classId} should offer ${id} without a preselected archetype`);
+  }
+}
+
 // Traits are a primary Stats/Desktop surface. Progression must not own or duplicate them.
 assert.doesNotMatch(html, /id="player-progression-traits-host"/);
 assert.doesNotMatch(html, /player-progression-traits-dossier/);
