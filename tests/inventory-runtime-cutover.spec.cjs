@@ -278,6 +278,7 @@ test("inventory runtime freezes 24/80 capacity and family stack limits", async (
       activeSlots: inv.activeSlotLimit({}),
       legacySlots: inv.activeSlotLimit({ activeSlotLimit: 20 }),
       legacyNestedSlots: inv.activeSlotLimit({ inventoryRules: { activeSlotLimit: 20 } }),
+      dmDisabledSlots: inv.activeSlotLimit({ inventoryRules: { activeSlotLimit: 0 } }),
       expandedSlots: inv.activeSlotLimit({ activeSlotLimit: 30 }),
       stashSlots: inv.stashSlotLimit({}),
       weaponActive: inv.stackLimit({ category: "weapon" }, "active"),
@@ -291,7 +292,7 @@ test("inventory runtime freezes 24/80 capacity and family stack limits", async (
     };
   });
   expect(result).toEqual({
-    activeSlots: 24, legacySlots: 24, legacyNestedSlots: 24, expandedSlots: 30, stashSlots: 80,
+    activeSlots: 24, legacySlots: 24, legacyNestedSlots: 24, dmDisabledSlots: 0, expandedSlots: 30, stashSlots: 80,
     weaponActive: 1, weaponStash: 1, toolActive: 1,
     ammoActive: 20, ammoStash: 99, consumableActive: 5, ingredientActive: 10, upgradeActive: 5,
   });
