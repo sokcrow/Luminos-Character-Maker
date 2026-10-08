@@ -16,7 +16,7 @@
   if (!Catalog) throw new Error("LuminousEnchantmentCatalog is required before LuminousItemEnchantmentEngine.");
   if (!Gems) throw new Error("LuminousOreIngotGemCatalog is required before LuminousItemEnchantmentEngine.");
 
-  const VERSION = 5;
+  const VERSION = 6;
   const TIER_BASE_SLOT_CAPACITY = Object.freeze({ 1: 0, 2: 1, 3: 1, 4: 2, 5: 3 });
   const BIND_POSITIVE_MULTIPLIER = 1.25;
   const CURSE_POSITIVE_MULTIPLIER = 1.50;
@@ -33,8 +33,8 @@
   ]);
   const INTENTIONAL_BIND_TH_ADJUSTMENT = 4;
   const INTENTIONAL_CURSE_TH_ADJUSTMENT = 6;
-  const DIRECT_MAGIC_DURABILITY_BASELINE = 100;
-  const GEM_MAGIC_DURABILITY_BASELINE = 150;
+  const DIRECT_MAGIC_DURABILITY_RATIO = 0.50;
+  const GEM_MAGIC_DURABILITY_RATIO = 0.75;
   const CURSE_REAGENT_TAGS = Object.freeze([
     "profane", "corrupted", "blood", "ichor", "necrotic", "necrotic_reagent",
     "decay_reagent", "vitality_drain", "sanity_corruption", "mental_corruption",
@@ -93,18 +93,45 @@
   }
 
 
-  function inferredMagicalDurabilityMax(refs = [], options = {}) {
-    if (Number.isFinite(Number(options.max))) return Math.max(0, Number(options.max));
-    const hasGem = asArray(refs).map(normalizeAppliedReference).some((ref) => ref.source === "gem");
-    return hasGem ? GEM_MAGIC_DURABILITY_BASELINE : DIRECT_MAGIC_DURABILITY_BASELINE;
+  function physicalDurabilityMaxOf(item = {}) {
+    const candidates = [
+      item.conditionMax,
+      item.maxCondition,
+      item.maxDurability,
+      item.physicalDurabilityMax,
+      item.physical_durability_max,
+      item.durabilityProfile?.max,
+      item.durability?.max,
+      item.runtimeState?.conditionMax,
+      item.runtime?.conditionMax,
+    ];
+    const explicit = candidates.find((value) => Number.isFinite(Number(value)));
+    if (explicit != null) return Math.max(0, Number(explicit));
+
+    const currentOnly = [
+      item.condition,
+      item.currentCondition,
+      item.currentDurability,
+      typeof item.durability === "number" ? item.durability : null,
+    ].find((value) => Number.isFinite(Number(value)));
+    return currentOnly == null ? 0 : Math.max(0, Number(currentOnly));
   }
 
-  function normalizeMagicalDurability(raw = {}, refs = [], options = {}) {
+  function inferredMagicalDurabilityMax(item = {}, refs = [], options = {}) {
+    if (Number.isFinite(Number(options.max))) return Math.max(0, Number(options.max));
+    const physicalMax = physicalDurabilityMaxOf(item);
+    if (physicalMax <= 0) return 0;
+    const hasGem = asArray(refs).map(normalizeAppliedReference).some((ref) => ref.source === "gem");
+    const ratio = hasGem ? GEM_MAGIC_DURABILITY_RATIO : DIRECT_MAGIC_DURABILITY_RATIO;
+    return Math.max(1, Math.round(physicalMax * ratio));
+  }
+
+  function normalizeMagicalDurability(item = {}, raw = {}, refs = [], options = {}) {
     const source = raw && typeof raw === "object" ? raw : {};
     const explicitMax = source.max != null || source.maximum != null;
     const autoManaged = source.autoManaged === true || (!explicitMax && source.authored !== true);
     const desiredMax = autoManaged
-      ? inferredMagicalDurabilityMax(refs, options)
+      ? inferredMagicalDurabilityMax(item, refs, options)
       : Math.max(0, Number(source.max ?? source.maximum ?? options.max ?? 0) || 0);
     const previousMax = Math.max(0, Number(source.max ?? source.maximum ?? desiredMax) || desiredMax);
     let current = source.current == null ? desiredMax : Math.max(0, Number(source.current) || 0);
@@ -113,11 +140,15 @@
     return Object.freeze({
       max:desiredMax,
       current,
-      depleted:desiredMax > 0 && current <= 0,
+      depleted:desiredMax <= 0 || current <= 0,
       autoManaged,
       profile:autoManaged
         ? (asArray(refs).map(normalizeAppliedReference).some((ref) => ref.source === "gem") ? "gem_anchored" : "direct")
         : normalizeId(source.profile || "authored") || "authored",
+      physicalDurabilityMax:physicalDurabilityMaxOf(item),
+      physicalRatio:autoManaged
+        ? (asArray(refs).map(normalizeAppliedReference).some((ref) => ref.source === "gem") ? GEM_MAGIC_DURABILITY_RATIO : DIRECT_MAGIC_DURABILITY_RATIO)
+        : null,
     });
   }
 
@@ -425,7 +456,7 @@
     const normalizedAnchors = asArray(anchors).map(normalizeGemAnchor);
     const normalizedRefs = refs.map((entry) => clone(normalizeAppliedReference(entry)));
     const magicalDurability = refs.length
-      ? normalizeMagicalDurability(current.magicalDurability || current.magical_durability || {}, normalizedRefs, options.magicalDurability || {})
+      ? normalizeMagicalDurability(out, current.magicalDurability || current.magical_durability || {}, normalizedRefs, options.magicalDurability || {})
       : clone(current.magicalDurability || current.magical_durability || null);
     out.magic = {
       ...current,
@@ -1300,14 +1331,15 @@
     EXTERNAL_TH_SOURCE_TYPES,
     INTENTIONAL_BIND_TH_ADJUSTMENT,
     INTENTIONAL_CURSE_TH_ADJUSTMENT,
-    DIRECT_MAGIC_DURABILITY_BASELINE,
-    GEM_MAGIC_DURABILITY_BASELINE,
+    DIRECT_MAGIC_DURABILITY_RATIO,
+    GEM_MAGIC_DURABILITY_RATIO,
     CURSE_REAGENT_TAGS,
     normalizeId,
     itemKindOf,
     tierOf,
     baseSlotCapacity,
     magicStateOf,
+    physicalDurabilityMaxOf,
     inferredMagicalDurabilityMax,
     normalizeMagicalDurability,
     gemSocketCapacity,
