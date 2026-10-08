@@ -222,7 +222,18 @@
       source,
       contexts: ["any"],
       activation: { type: "passive", actionCost: "none" },
-      effects: [],
+      // Skill check bonuses belong to the shared Check Power pipeline, so the
+      // sheet preview, manual Coin rolls and DM-issued Checks use one rule.
+      effects: [{
+        id: "devil_lineage_jackpot_performance",
+        contexts: ["theatre"],
+        trigger: "before_check",
+        conditions: [
+          { path: "check.kind", operator: "eq", value: "skill" },
+          { path: "check.skillId", operator: "eq", value: "performance" },
+        ],
+        operations: [{ type: "modify", path: "check.checkPower", mode: "add", formula: "StrengthMod" }],
+      }],
       rules: [],
       mechanics: {
         ammoCoinDamagePercentFormula: "10 * StrengthMod",
