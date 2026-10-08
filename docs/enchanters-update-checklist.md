@@ -101,17 +101,18 @@ Canonical contract: [`docs/enchanters-update-part-b-resonance.md`](./enchanters-
 - [x] Add one-Gem-Anchor -> one-Enchantment linkage and persistence.
 - [x] Add Gem Anchor broken/depleted/unstable states and Dormant dependent Enchantments.
 - [x] Add primary/accepted/incompatible resonance and affinity recipe validation.
-- [ ] Add semantic consumed-material requirements and exact-Item recipe escape hatch.
+- [x] Add semantic consumed-material requirements and exact-Item recipe escape hatch.
 - [x] Add Resonance Specialization versus Hybrid Resonance resolution.
 - [x] Add compatible-gem/quality/specialization TH stabilization with Item/Gem cap.
 - [x] Add external Enchantment Table / Arcane Workshop / tool modifier seam.
 - [x] Add separate max-3 Enchantment Gem Socket validation, Rank II multi-anchor support, exclusive Rank III handling and fourth-gem catastrophe handling.
-- [ ] Add Bind recipe modifier / accidental Bind outcome flow.
-- [ ] Add intentional/accidental Curse recipe flow with profane reagent tags.
-- [ ] Add Gem Anchor, recipe, specialization/hybrid, Gem Socket, Bind/Curse and channel-choice regression tests.
+- [x] Add Bind recipe modifier / accidental Bind outcome flow.
+- [x] Add intentional/accidental Curse recipe flow with profane reagent tags.
+- [x] Add Gem Anchor, recipe, specialization/hybrid, Gem Socket, Bind/Curse and channel-choice regression tests.
   - [x] Gem profile/Quality-Rank smoke is wired into Inventory Runtime Validation CI.
   - [x] Gem Anchor/Gem Socket persistence, Dormant-state, Rank pressure, catastrophe and channel-choice smoke is wired into CI.
   - [x] Gem compatibility/Specialization/Hybrid/TH-cap smoke is wired into CI.
+  - [x] Ritual material consumption + Overchannel + Bind/Curse outcome smoke is wired into CI.
 
 ## Part C — Enchanter Services, Knowledge and Magical Maintenance (design frozen)
 
