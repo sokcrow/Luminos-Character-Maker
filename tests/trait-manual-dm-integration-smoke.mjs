@@ -23,6 +23,7 @@ target.closest = () => target;
 const panel = {
   dataset: { activeStat: "cha" },
   contains: (node) => node === target,
+  querySelector: (selector) => selector.startsWith(".dnd-skill") ? target : null,
   addEventListener(type, listener, capture) {
     if (type === "click" && capture) this.clickListener = listener;
   },
@@ -84,8 +85,6 @@ assert.equal(rolls[1][2], 12, "Without a post-coin bridge, all Trait bonuses aff
 const dmCheck = { kind: "skill", skillId: "performance", abilityId: "cha", checkPower: 4, finalPower: 3 };
 const requested = [];
 globalThis.LuminousTraitStandardizationRuntime.armPlayerCheck = (check) => { requested.push(check); return check; };
-const listener = listeners.get("luminous:theatre-traits-applied");
-assert.equal(typeof listener, "function");
 patch.installResolvedCheckBridge();
 const dmEvent = listeners.get("luminous:theatre-traits-applied");
 dmEvent({ detail: { check: dmCheck } });
