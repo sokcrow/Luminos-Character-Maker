@@ -144,10 +144,14 @@
       return "none";
     };
     const skillState = () => normalizeProficiency(check.proficiencyState
-      ?? check.profState ?? character.skillProficiency?.[skill]
-      ?? character.skillProficiencies?.[skill] ?? character.dndSkillProficiency?.[skill]
-      ?? character.dndSkills?.[skill]?.proficiency
-      ?? character.dndSkills?.[skill]?.proficiencyState);
+      ?? check.profState ?? (kind === "skill" ? (
+        character.skillProficiency?.[skill] ?? character.skillProficiencies?.[skill]
+        ?? character.dndSkillProficiency?.[skill] ?? character.dndSkills?.[skill]?.proficiency
+        ?? character.dndSkills?.[skill]?.proficiencyState
+      ) : (
+        character.abilityProficiency?.[stat] ?? character.abilityProficiencies?.[stat]
+        ?? character.saveProficiency?.[stat] ?? character.savingThrowProficiency?.[stat]
+      )));
     const saveState = (id) => normalizeProficiency(
       character.saveProficiency?.[id] ?? character.savingThrowProficiency?.[id]
       ?? character.savingThrowProficiencies?.[id]
@@ -282,6 +286,48 @@
       row.title = tooltip(skill, ability, breakdown);
       row.dataset.traitSkillBreakdown = "true";
     });
+    return changed;
+  }
+
+
+  function syncPlayerAbilityPreviews() {
+    if (!doc) return false;
+    const panel = doc.querySelector("#stats-modal .player-ability-console");
+    const stats = global.LuminousPlayerStats;
+    const runtime = global.LuminousPlayerTraitRuntime;
+    const engine = global.LuminousTraitEngine;
+    if (!panel || !stats?.ABILITIES || !stats.abilityRollMath || !runtime?.getTraits || !engine) return false;
+    const ability = stats.ABILITIES.find((entry) => entry.id === panel.dataset.activeStat);
+    if (!ability) return false;
+    const data = global.datosJugador || runtime.getCharacter?.() || {};
+    const character = runtime.getCharacter?.() || data;
+    const traits = runtime.getTraits();
+    const math = stats.abilityRollMath(ability, data) || {};
+    const proficiencyState = stats.abilityProficiencyState?.(ability, data) || "none";
+    let changed = false;
+    for (const kind of ["ability", "save"]) {
+      const check = { kind, abilityId: ability.id, proficiencyState };
+      const regular = checkPowerContributions(engine, traits, character, check);
+      const final = [...finalPowerContributions(engine, traits, character, check),
+        ...specialCheckContributions(traits, character, check)];
+      const bonus = [...regular, ...final].reduce((sum, entry) => sum + entry.amount, 0);
+      const base = numberOr(math.modifier, 0) + (kind === "save" ? numberOr(math.proficiencyValue, 0) : 0);
+      const total = base + bonus;
+      const button = panel.querySelector(`[data-dnd-roll="${kind}"]`);
+      if (!button) continue;
+      button.title = [`${ability.name} ${kind === "save" ? "Saving Throw" : "Ability Check"}: ${formatSigned(total)}`,
+        `Base ${formatSigned(base)}`,
+        ...regular.map((entry) => `${formatSigned(entry.amount)} ${entry.name} (Check Power)`),
+        ...final.map((entry) => `${formatSigned(entry.amount)} ${entry.name} (Final Power)`)].join("\n");
+      button.dataset.effectiveCheckTotal = String(total);
+      if (kind === "save") {
+        const node = panel.querySelector("[data-stat-save]");
+        if (node && node.textContent !== formatSigned(total)) {
+          node.textContent = formatSigned(total);
+          changed = true;
+        }
+      }
+    }
     return changed;
   }
 
@@ -484,6 +530,7 @@
     installResolvedCheckBridge();
     installPlayerRollBridge();
     syncPlayerSkillPreviews();
+    syncPlayerAbilityPreviews();
     syncDmSkillPreviews();
   }
 
@@ -510,6 +557,7 @@
     playerCheckPower,
     playerSkillBreakdown,
     syncPlayerSkillPreviews,
+    syncPlayerAbilityPreviews,
     syncDmSkillPreviews,
     installResolvedCheckBridge,
     installPlayerRollBridge,
