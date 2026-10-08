@@ -1181,9 +1181,9 @@ for (const width of [390, 1280]) {
         };
         window.LuminousArchetypeTraitCatalog = {
           allArchetypes:()=>({
-            shadow:{id:"shadow",classId:"monk",name:"Shadow Monk",description:"Stealth choices",unlockLevel:15},
-            sun:{id:"sun",classId:"monk",name:"Sun Monk",description:"Radiant choices",unlockLevel:15},
-            high:{id:"high",classId:"monk",name:"High Monk",unlockLevel:35}
+            shadow:{id:"shadow",classId:"monk",name:"Shadow Monk",description:"Stealth choices",unlockLevel:15,traitLevels:[15,35]},
+            sun:{id:"sun",classId:"monk",name:"Sun Monk",description:"Radiant choices",unlockLevel:15,traitLevels:[15,35]},
+            high:{id:"high",classId:"monk",name:"High Monk",unlockLevel:35,traitLevels:[35,50]}
           }),
           allDefinitions:()=>({}),allGrants:()=>[]
         };
@@ -1200,7 +1200,27 @@ for (const width of [390, 1280]) {
       </body></html>
     `, { waitUntil: "load" });
 
-    const milestones = page.locator(".player-progression-node");
+    const tree = page.locator(".player-progression-ritual-tree");
+    const viewport = page.locator(".player-progression-mystic-scroll");
+    await expect(page.locator("#player-progression-mystic-stylesheet")).toHaveCount(1);
+    await expect(tree.locator(".player-progression-root__seal svg")).toHaveCount(1);
+    await expect(tree.locator(".player-progression-fork")).toHaveCount(1);
+    await expect(tree.locator(".player-progression-branch-preview__seal svg")).toHaveCount(3);
+    await expect(tree.locator(".player-progression-archetype-list")).toHaveCSS("display", "grid");
+    const geometry = await viewport.evaluate(el => ({
+      content:el.scrollWidth,visible:el.clientWidth,
+      rootConnector:getComputedStyle(el.querySelector(".player-progression-root"),"::after").content,
+      forkConnector:getComputedStyle(el.querySelector(".player-progression-archetype-list"),"::before").content
+    }));
+    expect(geometry.rootConnector).not.toBe("none");
+    expect(geometry.forkConnector).not.toBe("none");
+    expect(geometry.content > geometry.visible + 2).toBe(width < 700);
+    if (width < 700) {
+      const start = await viewport.evaluate(el => el.scrollLeft);
+      await page.getByRole("button",{name:"Desplazar árbol hacia la derecha"}).click();
+      await expect.poll(() => viewport.evaluate(el => el.scrollLeft)).toBeGreaterThan(start);
+    }
+    const milestones = page.locator(".player-progression-milestone-list .player-progression-node");
     await expect(milestones).toHaveCount(2);
     await milestones.first().click();
     await expect(milestones.first()).toHaveAttribute("aria-pressed", "true");
@@ -1211,8 +1231,11 @@ for (const width of [390, 1280]) {
 
     const archetypes = page.locator(".player-progression-archetype-list");
     await expect(archetypes.locator(".player-progression-branch-label")).toHaveCount(3);
+    await expect(archetypes.locator(".player-progression-branch-milestones .player-progression-node")).toHaveCount(6);
     await expect(archetypes.locator(".is-future")).toContainText("DISPONIBLE EN LV. 35");
     const shadow = archetypes.locator(".player-progression-branch-label").filter({hasText:"Shadow Monk"});
+    await shadow.locator(".player-progression-branch-milestones .player-progression-node").first().click();
+    await expect(page.locator("#player-progression-detail")).toContainText("Hito · Nivel 15");
     await shadow.locator(".player-progression-branch-preview").click();
     await expect(page.locator("#player-progression-detail")).toContainText("Shadow Monk");
 
