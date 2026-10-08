@@ -405,12 +405,12 @@ test("stash filters derive from live item families", async ({ page }) => {
   await expect(page.locator('#filtros-stash .inv-filter-btn[data-filter="chemical_processed"]')).toHaveCount(1);
 });
 
-test("inventory becomes a two-column mobile grid without horizontal modal overflow", async ({ page }) => {
+test("gothic inventory uses three mobile columns without horizontal modal overflow", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await bootHarness(page);
   await page.locator("#inventory-modal").evaluate((el) => el.classList.add("active"));
   const columns = await page.locator("#inv-active-grid").evaluate((el) => getComputedStyle(el).gridTemplateColumns.split(" ").filter(Boolean).length);
-  expect(columns).toBe(2);
+  expect(columns).toBe(3);
   const overflow = await page.locator(".inventory-modal-content").evaluate((el) => ({ clientWidth: el.clientWidth, scrollWidth: el.scrollWidth }));
   expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth + 1);
   await expect(page.locator(".inventory-v2-equipment [data-equipment-slot]")).toHaveCount(8);
