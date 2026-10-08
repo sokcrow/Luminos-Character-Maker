@@ -109,6 +109,6 @@ assert.equal(preview.applySpecialArmedCheck(bladesongArmed, [bladesong], bladesi
 assert.equal(sum(preview.specialFinalPowerContributions([bladesong], { ...bladesinger, statusEffects: {} }, acrobatics)), 0);
 
 assert.match(source("js/trait-standardization-runtime.js"), /armPlayerCheck/);
-assert.match(source("js/skill-trait-breakdown-patch.js"), /armPlayerCheck\?\.\(resolvedCheck\)/);
+assert.match(source("js/skill-trait-breakdown-patch.js"), /standard\.armPlayerCheck\(resolvedCheck\)/);
 assert.match(source("pantalla_dm.html"), /src="js\/skill-trait-breakdown-patch\.js"/);
 console.log("Trait Check/Final Power unified: declared effects, Champion, Banneret, Bladesinger, Rogue, Bard, DM UI and manual roll bridge OK.");
