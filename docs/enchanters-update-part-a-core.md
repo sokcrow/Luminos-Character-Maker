@@ -350,7 +350,7 @@ Effect values, interaction rules, Magic Hit grants, Bind/Curse modifiers and aut
 - [x] Define canonical Enchantment schema: stable ID, Rank data, slot cost, effects, compatibility, interaction channels, material compatibility, properties and baseline Rank economy metadata.
 - [x] Validate malformed definitions and unsupported effect payloads.
 - [x] Bridge positive Enchantment state into `LuminousItemMagicRuntime.isMagicItem()`.
-- [ ] Remove the old assumption that generic `enhancementLevel +1/+2/+3` is the player-facing universal Enchantment identity.
+- [x] Suppress legacy `+N` presentation whenever canonical `magic.enchantments[]` state exists; legacy +N remains only for unmigrated compatibility content until the Magic Items Update.
 
 ### Capacity / validation
 
@@ -395,49 +395,48 @@ Effect values, interaction rules, Magic Hit grants, Bind/Curse modifiers and aut
 
 ### Strengthening / economy
 
-- [ ] Implement TH 22/28/34 application/strengthening checks.
-- [ ] Implement magical labor floors: 750k / 2.5m / 7.5m AHN.
-- [ ] Implement Rank factors x0.75 / x1.50 / x3.00 against `enchantmentBaseValueAhn`.
-- [ ] Add reagent/material costs on top of labor.
-- [ ] Keep Enchanter service price separate from resale value and normal Shop purchase markup.
-- [ ] Implement failure margins and Magical Durability damage.
-- [ ] Allow authored Arcane Backlash consequences without universal automatic curses.
+- [x] Implement TH 22/28/34 Player application/strengthening control Checks, including Gem/Bind/Curse modifiers.
+- [x] Implement magical labor floors: 750k / 2.5m / 7.5m AHN.
+- [x] Implement Rank factors x0.75 / x1.50 / x3.00 against `enchantmentBaseValueAhn`.
+- [x] Add provider-supplied reagent/material costs on top of labor while discounting valid Player-supplied requirements.
+- [x] Keep Enchanter service price separate from resale value and normal Shop purchase markup.
+- [x] Implement Player control/deviation margins; negative margins resolve authored altered outcomes such as Magical Durability damage instead of a generic binary failure.
+- [x] Allow authored Arcane Backlash consequences without universal automatic curses.
 
 ### Bind / Curse
 
 - [x] Implement Bind property and x1.25 positive-effect multiplier.
 - [x] Block normal Enchantment removal/replacement for Bound Enchantments; Item transfer ownership remains allowed while the Bind stays on the Item.
 - [x] Allow Bound Enchantments to strengthen.
-- [ ] Implement Curse hidden naming/knowledge behavior.
+- [x] Implement Curse hidden naming/knowledge behavior.
 - [x] Implement x1.50 positive-effect multiplier for Cursed Enchantments.
-- [ ] Support scaling authored Curse penalties.
-- [ ] Implement initial x0.60 cursed market-value baseline independently from creation/service cost.
+- [x] Support Rank-authored Curse penalty payloads through the canonical per-Rank effect model.
+- [x] Implement x0.60 cursed market-value baseline in Shop purchase/sellback pricing without changing intrinsic value or Enchanter creation/service cost.
 - [x] Allow Cursed Enchantments to strengthen.
 
 ### Maintenance
 
-- [ ] Route physical repair to physical specialists.
-- [ ] Route Magical Durability repair to Enchanter service.
-- [ ] Prevent a normal physical repair service from silently restoring Magical Durability.
-- [ ] Prevent Enchanter magical repair from silently restoring physical damage.
-- [ ] Reserve player magical self-repair materials/tools for Magic Loot Update.
+- [x] Route Physical Durability repair through the existing Shop/physical repair service.
+- [x] Route Magical Durability repair through the Enchanter service runtime.
+- [x] Keep physical repair isolated from Magical Durability.
+- [x] Keep Enchanter Magical Repair isolated from Physical Durability.
+- [x] Reserve player magical self-repair materials/tools for the deferred Magic Loot Update.
 
 ### Tests / CI
 
-- [ ] Add Enchantment schema smoke tests.
-- [ ] Add Tier/slot/rank-capacity tests.
-- [ ] Add hard-conflict and channel-choice tests.
+- [x] Add Enchantment schema smoke tests.
+- [x] Add Tier/slot/rank-capacity tests.
+- [x] Add hard-conflict and channel-choice tests.
 - [x] Add material compatibility / doubled magical wear tests.
 - [x] Add Magic Item versus Magic Hit and Non-Magic Hit bypass tests.
 - [x] Add damage scaling tests through the combat bridge.
-- [ ] Add physical/magical Durability split and repair-authority tests.
-  - [x] Physical vs Magical Durability separation/depletion/recharge is covered; service repair authority remains pending.
-- [ ] Add strengthening TH/economy/failure tests.
+- [x] Add Physical/Magical Durability separation and repair-authority tests.
+- [x] Add strengthening TH/economy/control-deviation tests.
 - [x] Add Bind power, wear-exemption and life-recharge tests.
-- [ ] Add Curse knowledge/power/value tests.
-- [ ] Add Arcana/Identify/rune-obfuscation tests.
+- [x] Add Curse knowledge/power/value coverage across knowledge, effect and Shop pricing smokes.
+- [x] Add Arcana/Identify/rune-obfuscation tests.
 - [x] Add inventory persistence/transfer/stacking tests.
-- [ ] Add Enchanter's Update CI workflow/path coverage.
+- [x] Add Enchanter's Update runtime/test path coverage to CI.
 
 ## 13. Deferred from Part A
 
