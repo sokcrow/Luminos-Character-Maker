@@ -411,12 +411,12 @@ Recommended representative validation coverage:
 
 ### Shared Magic Item runtime
 
-- [ ] Extend `LuminousItemMagicRuntime.isMagicItem()` so every applied Enchantment is recognized as a Magic Item.
-- [ ] Keep Magic Item status independent from Magic Hit.
-- [ ] Keep base Attunement capacity at 3 and allow canonical Traits/effects to modify it.
-- [ ] Make each Item consume one Attunement Slot regardless of Enchantment/Gem count.
-- [ ] Make normal Enchanted Items require Attunement when any installed Enchantment is Rank II+.
-- [ ] Keep Rank I Enchanted Items unattuned by default unless another property requires Attunement.
+- [x] Extend `LuminousItemMagicRuntime.isMagicItem()` so every applied Enchantment is recognized as a Magic Item.
+- [x] Keep Magic Item status independent from Magic Hit.
+- [x] Keep base Attunement capacity at 3 and allow canonical Traits/effects to modify it.
+- [x] Make each Item consume one Attunement Slot regardless of Enchantment/Gem count.
+- [x] Make normal Enchanted Items require Attunement when any installed Enchantment is Rank II+.
+- [x] Keep Rank I Enchanted Items unattuned by default unless another property requires Attunement.
 - [ ] Suppress attunement-gated Enchantment benefits while unattuned without deleting Item magic.
 - [ ] Add Native Magic Item origin support without forcing Enchantment Slot/Gem Socket semantics.
 
@@ -447,8 +447,9 @@ Recommended representative validation coverage:
 
 ### Bind / Curse
 
-- [ ] Migrate Bind to a Curse-family state while preserving intentional/accidental creation support.
+- [x] Migrate Bind to a Curse-family state while preserving intentional/accidental creation support.
 - [ ] Block normal unequip and unattune for Bound Items.
+  - [x] Normal Bound unattunement is blocked in `LuminousItemMagicRuntime`; equipment unequip lock remains pending.
 - [ ] Lock the occupied Attunement Slot for an attuned Bound Item.
 - [ ] Preserve x1.25 Bound positive-effect multiplier.
 - [ ] Ignore ordinary/background Magical Durability wear for Bound magic.
