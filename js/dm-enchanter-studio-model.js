@@ -111,11 +111,11 @@
     if (!api) return { changed: false, reason: "runtime_unavailable" };
     const copy = clone(item);
     if (draft.action === "remove") {
-      const result = api.removeEnchantment(copy);
+      const result = api.removeEnchantment(copy, { emit: false });
       return result.removed ? { changed: true, item: copy } : { changed: false, reason: result.reason || "invalid_change" };
     }
     if (draft.action === "apply") {
-      const result = api.applyEnchantment(copy, { level: draft.level, channel: draft.channel }, { replace: draft.replace === true });
+      const result = api.applyEnchantment(copy, { level: draft.level, channel: draft.channel }, { replace: draft.replace === true, emit: false });
       return result.applied ? { changed: true, item: copy } : { changed: false, reason: result.reason || "invalid_change" };
     }
     return { changed: false, reason: "invalid_change" };
