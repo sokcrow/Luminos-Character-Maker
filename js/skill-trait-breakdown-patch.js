@@ -484,13 +484,21 @@
       const hasResolved = Object.prototype.hasOwnProperty.call(target.dataset, "resolvedCheckPower");
       const resolvedPower = hasResolved ? numberOr(target.dataset.resolvedCheckPower, 0) : null;
       if (hasResolved) delete target.dataset.resolvedCheckPower;
-      const previewPower = hasResolved ? resolvedPower : playerCheckPower(descriptor.check, data).total;
-      if (!previewPower) return;
+      // An actual player click is a real Check: resolve it once, including
+      // contextual/limited-use Traits. HUD previews deliberately never do this.
+      // When a DM has armed the Check, the Theatre completion bridge applies
+      // Final Power separately; here we must add only its resolved Check Power.
+      const live = hasResolved ? null : global.LuminousPlayerTraitRuntime?.resolveTheatreCheck?.(descriptor.check);
+      const check = live?.check;
+      const bonus = hasResolved ? resolvedPower
+        : check ? checkPowerValue(check) + finalPowerValue(check)
+          : playerCheckPower(descriptor.check, data).total;
+      if (!bonus) return;
 
       event.preventDefault();
       event.stopPropagation();
       event.stopImmediatePropagation();
-      stats.triggerCoinRoll(descriptor.ability, descriptor.label, rawRollBase(descriptor, data, stats) + previewPower);
+      stats.triggerCoinRoll(descriptor.ability, descriptor.label, rawRollBase(descriptor, data, stats) + bonus);
     }, true);
     return true;
   }
@@ -506,7 +514,7 @@
     state.playerListener = null;
     if (!nextId) return false;
     state.playerRef = state.db.ref(`${PLAYER_ROOT}/${nextId}`);
-    state.playerListener = (snapshot) => { state.player = snapshot.val() || null; };
+    state.playerListener = (snapshot) => { state.player = snapshot.val() || null; syncDmSkillPreviews(); };
     state.playerRef.on("value", state.playerListener);
     return true;
   }
@@ -516,11 +524,11 @@
     if (!state.db) state.db = global.firebase.database();
     if (!state.definitionsBound) {
       state.definitionsBound = true;
-      state.db.ref(DEFINITIONS_ROOT).on("value", (snapshot) => { state.definitions = snapshot.val() || {}; });
+      state.db.ref(DEFINITIONS_ROOT).on("value", (snapshot) => { state.definitions = snapshot.val() || {}; syncDmSkillPreviews(); });
     }
     if (!state.grantsBound) {
       state.grantsBound = true;
-      state.db.ref(GRANTS_ROOT).on("value", (snapshot) => { state.grants = snapshot.val() || {}; });
+      state.db.ref(GRANTS_ROOT).on("value", (snapshot) => { state.grants = snapshot.val() || {}; syncDmSkillPreviews(); });
     }
     bindPlayer();
     return true;
@@ -542,6 +550,11 @@
       .forEach((name) => global.addEventListener?.(name, tick));
     global.addEventListener?.("luminous:theatre-rolls-ready", tick);
     global.addEventListener?.("load", tick, { once: true });
+    doc.addEventListener?.("change", (event) => {
+      if (event.target?.id?.startsWith?.("dm-player-") || event.target?.closest?.("#dashboard-jugadores")) {
+        global.queueMicrotask?.(tick);
+      }
+    }, true);
   }
 
   const api = Object.freeze({
@@ -561,6 +574,7 @@
     syncPlayerSkillPreviews,
     syncPlayerAbilityPreviews,
     syncDmSkillPreviews,
+    resolvedDmTraits,
     installResolvedCheckBridge,
     installPlayerRollBridge,
     rawRollBase,
