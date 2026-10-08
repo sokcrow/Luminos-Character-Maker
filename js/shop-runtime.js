@@ -6,7 +6,7 @@
     return;
   }
 
-  const VERSION = 8;
+  const VERSION = 9;
   const CURRENCY = "AHN";
   const BASE_PURCHASE_MARKUP = 1.40;
   const BASE_SELLBACK_MULTIPLIER = 0.80;
@@ -22,6 +22,17 @@
       description: "Restaura puntos de Durabilidad pagando material y mano de obra.",
       markup: REPAIR_SERVICE_MARKUP,
     }),
+    enchant: Object.freeze({ id:"enchant", label:"Encantar", description:"Aplica un Encantamiento conocido mediante un proveedor arcano." }),
+    strengthen: Object.freeze({ id:"strengthen", label:"Potenciar Encantamiento", description:"Fortalece un Encantamiento instalado cuando la receta y el proveedor lo permiten." }),
+    remove_rewrite: Object.freeze({ id:"remove_rewrite", label:"Remover / Reescribir Encantamiento", description:"Trabaja el Encantamiento desde el Item sin confundirlo con la extracción destructiva del Anchor." }),
+    identify: Object.freeze({ id:"identify", label:"Identificar", description:"Revela propiedades mágicas ordinarias según las reglas de conocimiento." }),
+    curse_analysis: Object.freeze({ id:"curse_analysis", label:"Analizar Maldición", description:"Estudia información maldita que Identify no revela por completo." }),
+    remove_curse: Object.freeze({ id:"remove_curse", label:"Remover Maldición", description:"Servicio separado para Maldiciones removibles; no afecta drawbacks inseparables de Reliquias." }),
+    magical_repair: Object.freeze({ id:"magical_repair", label:"Reparación Mágica", description:"Restaura Durabilidad Mágica sin reparar la Durabilidad Física." }),
+    bind: Object.freeze({ id:"bind", label:"Bind", description:"Trabajo especializado para intentar un Bind intencional." }),
+    curse: Object.freeze({ id:"curse", label:"Maldecir", description:"Trabajo ocultista especializado para una Maldición intencional." }),
+    mount_gem: Object.freeze({ id:"mount_gem", label:"Montar Gema", description:"Instala una gema como Gem Anchor cuando el Item y la receta son compatibles." }),
+    extract_gem: Object.freeze({ id:"extract_gem", label:"Extraer Gema", description:"Retira una gema mediante el procedimiento apropiado cuando no está bloqueada por Bind." }),
   });
 
   const SHOP_TYPE_SERVICES = Object.freeze({
