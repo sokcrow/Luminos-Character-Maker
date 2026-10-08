@@ -105,12 +105,13 @@ const rankTwo = Engine.applyEnchantment(
 );
 assert.strictEqual(rankTwo.applied, true);
 const attuneUser = {id:"attune_user"};
-const suppressed = Magic.enchantmentEffectResolution(attuneUser, rankTwo.item, {trigger:"on_skill"});
+const mutableRankTwo = JSON.parse(JSON.stringify(rankTwo.item));
+const suppressed = Magic.enchantmentEffectResolution(attuneUser, mutableRankTwo, {trigger:"on_skill"});
 assert.strictEqual(suppressed.resolved, false);
 assert.strictEqual(suppressed.suppressed, true);
 assert.strictEqual(suppressed.reason, "item_not_attuned");
-assert.strictEqual(Magic.attuneItem(attuneUser, rankTwo.item).attuned, true);
-const activeRankTwo = Magic.enchantmentEffectResolution(attuneUser, rankTwo.item, {trigger:"on_skill"});
+assert.strictEqual(Magic.attuneItem(attuneUser, mutableRankTwo).attuned, true);
+const activeRankTwo = Magic.enchantmentEffectResolution(attuneUser, mutableRankTwo, {trigger:"on_skill"});
 assert.strictEqual(activeRankTwo.resolved, true);
 assert.strictEqual(activeRankTwo.effects[0].value, 15);
 
