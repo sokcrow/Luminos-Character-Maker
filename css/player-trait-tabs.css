@@ -710,3 +710,28 @@ body:not(.on-game-dashboard) #stats-modal .player-background-trait-note{
     padding:17px 16px;
   }
 }
+
+/* Functional Trait family: independent from race/class/archetype source. */
+body:not(.on-game-dashboard) #stats-modal .player-trait-card__header {
+  flex-wrap:wrap;
+}
+body:not(.on-game-dashboard) #stats-modal .player-trait-family {
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:4px 8px;
+  border:1px solid rgba(192,153,97,.48);
+  border-radius:999px;
+  background:rgba(15,12,9,.78);
+  color:#f2d7aa;
+  font:700 10px/1.25 Arial,Helvetica,sans-serif;
+  letter-spacing:.04em;
+  white-space:nowrap;
+}
+body:not(.on-game-dashboard) #stats-modal .player-trait-family__icon {
+  display:block;
+  width:24px;
+  height:24px;
+  object-fit:contain;
+  flex:0 0 24px;
+}
