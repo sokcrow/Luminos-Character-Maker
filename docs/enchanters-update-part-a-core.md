@@ -242,16 +242,18 @@ The Item keeps its normal Physical Durability and gains a separate **Magical Dur
 
 At zero Magical Durability, the Enchantment is depleted/inactive rather than permanently erased. It may be repaired/recharged by the appropriate magical service. Player self-repair materials remain deferred to the **Magic Loot Update**.
 
-Initial runtime durability baseline:
+Initial auto-managed runtime durability baseline:
 
 ```text
-Direct/pure Enchanted Item -> 100 Magical Durability
-Item using Gem Anchors     -> 150 Magical Durability
+Direct/pure Enchanted Item -> 50% of Physical Durability Max
+Item using Gem Anchors     -> 75% of Physical Durability Max
 ```
 
-These values are auto-managed defaults only. Authored Magic Items/Relics may provide their own Magical Durability maximum and the runtime preserves that authored value. Physical Durability remains unchanged by enchanting.
+The result is rounded to the nearest whole point. This deliberately scales magical endurance to the actual Item instead of giving every Item an oversized flat magical pool.
 
-Bound Enchantments do not discharge through the normal Magical Durability cycle, although the physical Item itself can still be damaged or destroyed.
+Authored Magic Items/Relics may provide their own Magical Durability maximum and the runtime preserves that authored value. Physical Durability remains unchanged by enchanting.
+
+Bound Enchantments ignore ordinary/background Magical Durability wear. Special activated powers may still spend authored magical resource, and the physical Item itself can still be damaged or destroyed.
 
 ## 10. Removal, replacement, Bind and Curse
 
