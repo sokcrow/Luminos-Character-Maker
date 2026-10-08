@@ -293,6 +293,32 @@
         3: R(3, [{ type:"damage_percent", trigger:"on_skill", value:DAMAGE_PERCENT_BY_RANK[3], damageType:"cold" }]),
       },
     }),
+    enchantment({
+      id: "stormbound",
+      name: "Stormbound",
+      description: "Channels an authored lightning resonance through the equipped Item.",
+      catalogStatus: "core_seed",
+      tags: ["elemental", "lightning", "energy", "damage"],
+      categories: ["offensive", "elemental"],
+      eligibleItemKinds: ["weapon"],
+      interaction: {
+        exclusiveChannel: "elemental_weapon",
+        exclusivePerAction: true,
+        synergizesWith: ["lightning", "energy", "speed"],
+      },
+      compatibility: {
+        primaryResonances: ["lightning"],
+        acceptedResonances: ["energy", "speed"],
+      },
+      recipe: {
+        requiredTags: ["enchantment_material"],
+      },
+      rankData: {
+        1: R(1, [{ type:"damage_percent", trigger:"on_skill", value:DAMAGE_PERCENT_BY_RANK[1], damageType:"lightning" }]),
+        2: R(2, [{ type:"damage_percent", trigger:"on_skill", value:DAMAGE_PERCENT_BY_RANK[2], damageType:"lightning" }]),
+        3: R(3, [{ type:"damage_percent", trigger:"on_skill", value:DAMAGE_PERCENT_BY_RANK[3], damageType:"lightning" }]),
+      },
+    }),
   ]);
 
   const BY_ID = Object.freeze(Object.fromEntries(DEFINITIONS.map((def) => [def.id, def])));
