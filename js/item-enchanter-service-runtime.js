@@ -19,7 +19,7 @@
     throw new Error("Enchantment Catalog, Enchantment Engine and Magic Runtime are required before Enchanter Service Runtime.");
   }
 
-  const VERSION = 1;
+  const VERSION = 2;
   const MAX_REPRODUCIBLE_RANK = 3;
   const SERVICE_IDS = Object.freeze([
     "enchant",
@@ -560,6 +560,47 @@
     });
   }
 
+
+  function quoteGemProcedure(provider={},item={},anchorId,procedure="safe_extract",options={}) {
+    const profile=provider.maxRank?provider:normalizeProviderProfile(provider,options);
+    const mode=normalizeId(procedure || "safe_extract");
+    const service=mode==="rewrite" || mode==="item_side_remove" ? "remove_rewrite" : "extract_gem";
+    const gate=providerCanService(profile,service,{});
+    if (!gate.allowed) return Object.freeze({quoted:false,...gate});
+
+    const link=Engine.gemAnchorLink(item,anchorId);
+    if (!link.found) return Object.freeze({quoted:false,reason:link.reason || "gem_anchor_not_found"});
+    const bound=link.reference.properties.includes("bind");
+
+    if ((mode==="safe_extract" || mode==="item_side_remove" || mode==="rewrite") && !bound) {
+      const qualityAfter=normalizeId(options.gemQualityAfter || options.qualityAfter || "");
+      if (!qualityAfter) {
+        return Object.freeze({
+          quoted:false,
+          reason:"gem_quality_downgrade_unresolved",
+          requiresAuthoredGemQualityAfter:true,
+          anchor:link.anchor,
+        });
+      }
+    }
+
+    const fixed=quoteFixedService(profile,service,options);
+    if (!fixed.quoted) return fixed;
+
+    return Object.freeze({
+      ...fixed,
+      anchorId:String(anchorId),
+      procedure:mode,
+      bound,
+      destructive:bound || mode==="destroy_anchor",
+      destroysItem:bound,
+      destroysGem:!bound && mode==="destroy_anchor",
+      gemQualityAfter:normalizeId(options.gemQualityAfter || options.qualityAfter || "") || null,
+      nextDefinitionId:normalizeId(options.nextDefinitionId || options.enchantmentId || "") || null,
+      rank:Number(options.rank || link.reference.rank),
+    });
+  }
+
   function beginService(provider={},item={},quote={},options={}) {
     if (!quote?.quoted) return Object.freeze({started:false,reason:"invalid_quote"});
     const durationHours=Number.isFinite(Number(options.durationHours))
@@ -621,6 +662,46 @@
       const result=Magic.restoreMagicalDurability(target,quote.restorePoints,{full:true});
       return Object.freeze({executed:result.restored===true || quote.restorePoints===0,result,item:Object.freeze(target)});
     }
+    if (quote.service==="remove_rewrite") {
+      const procedure=normalizeId(quote.procedure || options.procedure || "direct_remove");
+      if (procedure==="direct_remove") {
+        const result=Engine.removeEnchantment(item,quote.definitionId || options.definitionId);
+        return Object.freeze({executed:result.removed===true,result});
+      }
+      if (procedure==="item_side_remove" || procedure==="safe_extract") {
+        const result=Engine.itemSideRemoveGemEnchantment(item,quote.anchorId || options.anchorId,{
+          ...options,
+          gemQualityAfter:quote.gemQualityAfter || options.gemQualityAfter,
+          confirmDestruction:options.confirmDestruction===true,
+        });
+        return Object.freeze({executed:result.removed===true || result.catastrophic===true,result});
+      }
+      if (procedure==="rewrite") {
+        const result=Engine.rewriteGemAnchoredEnchantment(
+          item,
+          quote.anchorId || options.anchorId,
+          quote.nextDefinitionId || options.nextDefinitionId,
+          {
+            ...options,
+            rank:quote.rank || options.rank,
+            gemQualityAfter:quote.gemQualityAfter || options.gemQualityAfter,
+          }
+        );
+        return Object.freeze({executed:result.rewritten===true,result});
+      }
+    }
+    if (quote.service==="extract_gem") {
+      const procedure=normalizeId(quote.procedure || options.procedure || "safe_extract");
+      const common={
+        ...options,
+        gemQualityAfter:quote.gemQualityAfter || options.gemQualityAfter,
+        confirmDestruction:options.confirmDestruction===true,
+      };
+      const result=procedure==="destroy_anchor"
+        ? Engine.anchorSideDestroyGemEnchantment(item,quote.anchorId || options.anchorId,common)
+        : Engine.itemSideRemoveGemEnchantment(item,quote.anchorId || options.anchorId,common);
+      return Object.freeze({executed:result.removed===true || result.catastrophic===true,result});
+    }
     return Object.freeze({executed:false,reason:"service_execution_not_implemented"});
   }
 
@@ -646,6 +727,7 @@
     quoteStrengthenService,
     quoteMagicalRepair,
     quoteFixedService,
+    quoteGemProcedure,
     beginService,
     serviceReady,
     executeControlledResult,
