@@ -88,4 +88,6 @@ assert.ok(playerHtml.includes('src="js/check-trait-bonus-runtime.js"'));
 assert.ok(dmHtml.includes('src="js/check-trait-bonus-runtime.js"'));
 assert.match(runtime, /applyClassCheckBonuses/);
 assert.match(patch, /previewCheck/);
+assert.ok(patch.includes("resolveTheatreCheck?.(descriptor.check)"),
+  "An actual player click must execute one-use Traits; the preview may not.");
 console.log("All Trait Check Bonuses smoke: preview, actual check, classes, proficiency, one-use safety and idempotence OK.");
