@@ -25,7 +25,7 @@
   const normalizeId = (value) => base()?.normalizeId?.(value) || String(value ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 
   const SCHEMA_VERSION = 3;
-  const DEFAULT_ACTIVE_SLOT_LIMIT = 20;
+  const DEFAULT_ACTIVE_SLOT_LIMIT = 24;
   const DEFAULT_STASH_SLOT_LIMIT = 80;
   const DEFAULT_ACTIVE_STACK_LIMIT = 5;
   const DEFAULT_STASH_STACK_LIMIT = 99;
@@ -308,7 +308,9 @@
   }
 
   function activeSlotLimit(unit = {}) {
-    return Math.max(0, intOr(unit.activeSlotLimit ?? unit.inventoryRules?.activeSlotLimit, DEFAULT_ACTIVE_SLOT_LIMIT));
+    // Migrate only the former 20-slot default. Explicit DM limits (including 0) and larger bonuses keep their meaning.
+    const configured = intOr(unit.activeSlotLimit ?? unit.inventoryRules?.activeSlotLimit, DEFAULT_ACTIVE_SLOT_LIMIT);
+    return Math.max(0, configured === 20 ? DEFAULT_ACTIVE_SLOT_LIMIT : configured);
   }
 
   function stashSlotLimit(unit = {}) {
