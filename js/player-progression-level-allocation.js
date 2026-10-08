@@ -18,6 +18,7 @@
     renderSignature: "",
     addedClassIds: new Set(),
     reviewOpen: false,
+    allocationExpanded: null,
     feedback: "",
     feedbackKind: "",
     host: null,
@@ -396,6 +397,9 @@
     const pending = pendingDraftLevels();
     const rows = draftRows();
     const changed = core().allocationChanges(character(), draftForValidation(), classDefinitions());
+    const expanded = state.allocationExpanded === null
+      ? pending > 0 || changed.length > 0 || state.reviewOpen
+      : state.allocationExpanded || state.reviewOpen;
     const availableClasses = classDefinitions().filter((entry) => !state.draft.has(normalizeId(entry.id)));
     const nextRenderSignature = JSON.stringify({
       info,
@@ -412,12 +416,15 @@
 
     host.replaceChildren();
     const panel = doc.createElement("section");
-    panel.className = `player-level-allocation${pending > 0 ? " has-pending" : ""}`;
+    panel.className = `player-level-allocation${pending > 0 ? " has-pending" : ""}${expanded ? "" : " is-collapsed"}`;
     panel.innerHTML = `
       <header class="player-level-allocation__header">
-        <div>
-          <span>CLASS LEVEL ALLOCATION</span>
-          <h3>${pending > 0 ? `${pending} NIVEL${pending === 1 ? "" : "ES"} SIN ASIGNAR` : "NIVELES ASIGNADOS"}</h3>
+        <div class="player-level-allocation__overview">
+          <div>
+            <span>REPARTO DE NIVELES</span>
+            <h3>${pending > 0 ? `${pending} NIVEL${pending === 1 ? "" : "ES"} POR REPARTIR` : "NIVELES ASIGNADOS"}</h3>
+          </div>
+          <button type="button" class="player-level-allocation__toggle" data-toggle-allocation aria-controls="player-level-allocation-body" aria-expanded="${expanded ? "true" : "false"}">${expanded ? "OCULTAR" : "VER NIVELES"}</button>
         </div>
         <div class="player-level-allocation__totals">
           <span>PERSONAJE <b>LV.${info.earnedLevel}</b></span>
@@ -425,9 +432,9 @@
           <span>PENDIENTES <b>${pending}</b></span>
         </div>
       </header>
+      <div class="player-level-allocation__body" id="player-level-allocation-body" ${expanded ? "" : "hidden"}>
       <p class="player-level-allocation__help">
-        Arrastrar o usar +/− sólo modifica un borrador local. Nada se guarda hasta revisar y confirmar toda la distribución.
-        Los niveles ya confirmados no se pueden reducir desde el Player.
+        Ajusta los niveles con +/− o deslizando. Los cambios son un borrador hasta que los revises y confirmes.
       </p>
       <div class="player-level-allocation__rows"></div>
       <div class="player-level-allocation__add">
@@ -442,7 +449,19 @@
         <button type="button" data-reset-draft ${changed.length ? "" : "disabled"}>DESCARTAR BORRADOR</button>
         <button type="button" class="is-primary" data-review-allocation ${pending === 0 && changed.length ? "" : "disabled"}>REVISAR CAMBIOS</button>
       </div>
+      </div>
     `;
+
+    panel.querySelector("[data-toggle-allocation]")?.addEventListener("click", (event) => {
+      const body = panel.querySelector("#player-level-allocation-body");
+      if (!body) return;
+      const willExpand = body.hidden;
+      body.hidden = !willExpand;
+      state.allocationExpanded = willExpand;
+      panel.classList.toggle("is-collapsed", !willExpand);
+      event.currentTarget.setAttribute("aria-expanded", String(willExpand));
+      event.currentTarget.textContent = willExpand ? "OCULTAR" : "VER NIVELES";
+    });
 
     const rowsHost = panel.querySelector(".player-level-allocation__rows");
     if (!rows.length) {
