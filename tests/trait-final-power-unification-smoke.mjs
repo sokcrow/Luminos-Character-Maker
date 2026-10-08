@@ -15,6 +15,7 @@ load("js/bard-class-runtime.js");
 load("js/rogue-class-runtime.js");
 load("js/champion-archetype-runtime.js");
 load("js/banneret-archetype-runtime.js");
+load("js/samurai-archetype-runtime.js");
 load("js/bladesinger-archetype-runtime.js");
 load("js/skill-trait-breakdown-patch.js");
 
@@ -74,6 +75,17 @@ const persuasion = { kind: "skill", abilityId: "cha", skillId: "persuasion" };
 assert.equal(sum(preview.specialFinalPowerContributions([envoyTrait], banneret, persuasion)), 2);
 assert.equal(preview.applySpecialArmedCheck({ ...persuasion, finalPower: 0 }, [envoyTrait], banneret).finalPower, 2);
 assert.equal(sum(preview.specialFinalPowerContributions([envoyTrait], banneret, { ...persuasion, skillId: "intimidation" })), 0);
+
+const samuraiRuntime = globalThis.LuminousSamuraiArchetypeRuntime;
+const courtier = samuraiRuntime.DEFINITIONS.elegant_courtier;
+const samurai = {
+  level: 35, classes: [{ id: "fighter", levels: 35 }],
+  characterBuild: { archetypes: [{ classId: "fighter", archetypeId: "samurai" }] },
+  stats: { sabiduria: 14 }, abilityProficiency: {},
+};
+assert.equal(sum(preview.specialFinalPowerContributions([courtier], samurai, persuasion)), 2, "Elegant Courtier's WIS modifier increases Persuasion.");
+assert.equal(sum(preview.specialFinalPowerContributions([courtier], samurai, { kind: "save", abilityId: "wis" })), 2, "Elegant Courtier grants WIS save proficiency.");
+assert.equal(sum(preview.specialFinalPowerContributions([courtier], samurai, { kind: "skill", abilityId: "cha", skillId: "deception" })), 0);
 
 const bladeRuntime = globalThis.LuminousBladesingerArchetypeRuntime;
 const bladesong = bladeRuntime.DEFINITIONS.bladesong;
