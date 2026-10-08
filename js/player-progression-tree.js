@@ -81,6 +81,31 @@
       .trim();
   }
 
+  // Class identity icons are committed assets; archetypes keep their own sigils.
+  const CLASS_ICON_IDS = new Set([
+    "barbarian", "fighter", "druid", "cleric", "monk", "bard", "warlock",
+    "sorcerer", "paladin", "artificer", "ranger", "wizard", "rogue",
+  ]);
+
+  function classIconPath(classId) {
+    const id = clean(classId).toLowerCase();
+    const canonicalId = ({ mage: "wizard", rouge: "rogue" })[id] || id;
+    return CLASS_ICON_IDS.has(canonicalId) ? `Assets/Icons/classes/${canonicalId}.png` : "";
+  }
+
+  function classSealMarkup(classModel, fallbackKind) {
+    const path = classIconPath(classModel?.classId);
+    if (!path) return sigilSvg(fallbackKind);
+    return `<img class="player-progression-class-icon" src="${path}" alt="" aria-hidden="true" loading="lazy" decoding="async">`;
+  }
+
+  function bindClassIconFallback(container, fallbackKind) {
+    const image = container.querySelector(".player-progression-class-icon");
+    image?.addEventListener("error", () => {
+      image.outerHTML = sigilSvg(fallbackKind);
+    }, { once: true });
+  }
+
   // Hand-drawn-style vector sigils are decorative only; the names and
   // unlock rules always come from the real character progression model.
   const SIGILS = Object.freeze({
@@ -278,11 +303,13 @@
     button.setAttribute("aria-controls", "player-progression-detail");
     button.setAttribute("aria-pressed", "false");
     button.setAttribute("aria-label", `Ver hito de ${classModel.className} nivel ${node.level}: ${nodeTitle(node)}`);
+    const fallbackSigil = sigilFor(nodeTitle(node), node.level);
     button.innerHTML = `
-      <span class="player-progression-node__seal">${sigilSvg(sigilFor(nodeTitle(node), node.level))}</span>
+      <span class="player-progression-node__seal">${classSealMarkup(classModel, fallbackSigil)}</span>
       <span class="player-progression-node__level">LV. ${node.level}</span>
       <strong>${escapeHtml(nodeTitle(node))}</strong>
       <small>${escapeHtml(statusLabel(node.status))}</small>`;
+    bindClassIconFallback(button, fallbackSigil);
     const inspect = () => showNodeDetail(classModel, node, branch, button);
     button.__inspect = inspect;
     button.addEventListener("click", inspect);
@@ -464,9 +491,10 @@
     const root = doc.createElement("div");
     root.className = "player-progression-root";
     root.innerHTML = `
-      <span class="player-progression-root__seal">${sigilSvg("compass")}</span>
+      <span class="player-progression-root__seal">${classSealMarkup(classModel, "compass")}</span>
       <small>✦ NÚCLEO DE CLASE ✦</small>
       <strong>${escapeHtml(classModel.className)}</strong>`;
+    bindClassIconFallback(root, "compass");
     tree.appendChild(root);
 
     const trunk = doc.createElement("section");
