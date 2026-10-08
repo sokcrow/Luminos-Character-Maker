@@ -580,7 +580,7 @@
       ...source,
       __bladesingerArchetypeIntegrated: true,
       armCheck(check = {}) {
-        return originalArmCheck(applyAcrobaticsBonus(check, currentCharacter()));
+        return originalArmCheck(global.LuminousPlayerTraitRuntime?.resolveTheatreCheck ? check : applyAcrobaticsBonus(check, currentCharacter()));
       },
     });
     return true;
