@@ -26,8 +26,15 @@
 
   function milestoneChoiceAt(player, classId, level) {
     const api = global.LuminousClassMilestones;
-    if (api?.choiceAt) return api.choiceAt(player?.characterBuild?.classMilestones, classId, level);
-    const store = player?.characterBuild?.classMilestones || {};
+    if (api?.mergeMilestoneChoices && api?.choiceAt) {
+      try {
+        // Read legacy top-level AND canonical claims; fail closed on conflicts.
+        return api.choiceAt(api.mergeMilestoneChoices(player), classId, level);
+      } catch (_) {
+        return null;
+      }
+    }
+    const store = player?.characterBuild?.classMilestones || player?.classMilestones || {};
     const cid = normalizeId(classId), milestoneLevel = integerOr(level, 0);
     return store?.[cid]?.[String(milestoneLevel)] || store?.[`${cid}:${milestoneLevel}`] || null;
   }
@@ -78,7 +85,16 @@
   function revertMilestoneState(player, classId, level) {
     const current = clone(player);
     if (!current || typeof current !== "object") return { valid: false, error: "El jugador ya no existe." };
-    const choice = milestoneChoiceAt(current, classId, level);
+    const api = global.LuminousClassMilestones;
+    let canonical;
+    try {
+      canonical = api?.mergeMilestoneChoices
+        ? api.mergeMilestoneChoices(current)
+        : clone(current?.characterBuild?.classMilestones || current?.classMilestones || {});
+    } catch (error) {
+      return { valid: false, error: error?.message || "Los Milestones existentes tienen datos incompatibles." };
+    }
+    const choice = api?.choiceAt?.(canonical, classId, level) || milestoneChoiceAt(current, classId, level);
     if (!choice) return { valid: false, error: "Ese milestone ya no está reclamado." };
     const type = normalizeId(choice.type || choice.choiceType || choice.mode);
     if (["stats", "stat"].includes(type)) {
@@ -95,13 +111,31 @@
         const after = before - amount;
         if (after < 1) return { valid: false, error: `No se puede revertir ${stat}: el resultado sería menor que 1.` };
         current.stats[existingKey] = after;
+        // DM Studio reads baseStats preferentially and recreates stats from
+        // that source. Undo the base increase as well or the bonus returns.
+        if (current.baseStats && typeof current.baseStats === "object" && !Array.isArray(current.baseStats)) {
+          const baseKey = Object.keys(current.baseStats).find((key) => canonicalStatKey(key) === stat);
+          const storedBase = baseKey ? current.baseStats[baseKey] : undefined;
+          const beforeBase = Number(storedBase);
+          if (storedBase == null || String(storedBase).trim() === "" || !Number.isInteger(beforeBase)) {
+            return { valid: false, error: `No se puede revertir ${stat}: el Stat base no es válido.` };
+          }
+          if (beforeBase - amount < 1) {
+            return { valid: false, error: `No se puede revertir ${stat}: el Stat base quedaría menor que 1.` };
+          }
+          current.baseStats[stat] = beforeBase - amount;
+          if (baseKey !== stat && baseKey) delete current.baseStats[baseKey];
+        }
       }
     } else if (!["trait", "general_trait", "generaltrait"].includes(type)) {
       return { valid: false, error: "El tipo de milestone guardado no es compatible con reversión." };
     }
     current.characterBuild = current.characterBuild && typeof current.characterBuild === "object" ? current.characterBuild : {};
-    current.characterBuild.classMilestones = current.characterBuild.classMilestones && typeof current.characterBuild.classMilestones === "object" ? current.characterBuild.classMilestones : {};
+    current.characterBuild.classMilestones = canonical;
     removeMilestoneChoice(current.characterBuild.classMilestones, classId, level);
+    // Other legacy claims were preserved in the canonical map; do not leave
+    // duplicate shadow entries that would resurrect a reverted reward.
+    delete current.classMilestones;
     return { valid: true, player: current, choice: clone(choice), summary: milestoneRevertSummary(choice) };
   }
 
