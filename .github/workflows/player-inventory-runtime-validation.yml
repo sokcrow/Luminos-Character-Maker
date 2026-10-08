@@ -68,6 +68,7 @@ on:
       - js/item-weapon-composition-engine.js
       - js/item-equipment-bridge.js
       - js/item-inventory-runtime.js
+      - js/item-magic-runtime.js
       - js/item-persistence-runtime.js
       - js/item-realtime-sync.js
       - js/player-ux-polish.js
@@ -109,6 +110,7 @@ on:
       - tests/item-catalog-ore-ingot-gem-smoke.cjs
       - tests/item-enchantment-engine-smoke.cjs
       - tests/item-enchantment-inventory-smoke.cjs
+      - tests/item-enchantment-magic-runtime-smoke.cjs
       - tests/item-catalog-tools-smoke.cjs
       - tests/item-catalog-craft-components-smoke.cjs
       - tests/item-catalog-weapons-smoke.cjs
@@ -196,6 +198,7 @@ jobs:
           node --check js/item-catalog-weapon-components.js
           node --check js/item-weapon-composition-engine.js
           node --check js/item-inventory-runtime.js
+          node --check js/item-magic-runtime.js
           node --check js/item-equipment-bridge.js
           node --check js/item-persistence-runtime.js
           node --check js/item-realtime-sync.js
@@ -276,6 +279,8 @@ jobs:
         run: node tests/item-enchantment-engine-smoke.cjs
       - name: Enchantment inventory persistence smoke
         run: node tests/item-enchantment-inventory-smoke.cjs
+      - name: Enchantment Magic Item attunement bridge smoke
+        run: node tests/item-enchantment-magic-runtime-smoke.cjs
       - name: Tool catalog smoke
         run: node tests/item-catalog-tools-smoke.cjs
       - name: Craft component catalog smoke
