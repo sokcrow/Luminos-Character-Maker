@@ -433,11 +433,17 @@
       state.pendingCheckResolution = null;
       // Final Power belongs to the post-coin bridge and must never be part of
       // the starting roll modifier (where it would be counted twice).
-      global.LuminousTraitStandardizationRuntime?.armPlayerCheck?.(resolvedCheck);
+      const standard = global.LuminousTraitStandardizationRuntime;
+      const hasPostCoinBridge = typeof standard?.armPlayerCheck === "function";
+      if (hasPostCoinBridge) standard.armPlayerCheck(resolvedCheck);
       event.preventDefault();
       event.stopPropagation();
       event.stopImmediatePropagation();
-      stats.triggerCoinRoll(descriptor.ability, descriptor.label, rawRollBase(descriptor, data, stats) + checkPowerValue(resolvedCheck));
+      // If the asynchronous post-coin bridge has not loaded yet, include the
+      // final bonus in the initial roll so a player's Check still works.
+      const fallbackFinalPower = hasPostCoinBridge ? 0 : finalPowerValue(resolvedCheck);
+      stats.triggerCoinRoll(descriptor.ability, descriptor.label,
+        rawRollBase(descriptor, data, stats) + checkPowerValue(resolvedCheck) + fallbackFinalPower);
     }, true);
     return true;
   }
