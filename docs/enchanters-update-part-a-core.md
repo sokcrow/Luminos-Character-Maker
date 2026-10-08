@@ -338,7 +338,7 @@ Effect values, interaction rules, Magic Hit grants, Bind/Curse modifiers and aut
 - [x] Create `js/item-enchantment-engine.js`.
 - [x] Define canonical Enchantment schema: stable ID, Rank data, slot cost, effects, compatibility, interaction channels, material compatibility, properties and baseline Rank economy metadata.
 - [x] Validate malformed definitions and unsupported effect payloads.
-- [ ] Bridge positive Enchantment state into `LuminousItemMagicRuntime.isMagicItem()`.
+- [x] Bridge positive Enchantment state into `LuminousItemMagicRuntime.isMagicItem()`.
 - [ ] Remove the old assumption that generic `enhancementLevel +1/+2/+3` is the player-facing universal Enchantment identity.
 
 ### Capacity / validation
@@ -353,11 +353,11 @@ Effect values, interaction rules, Magic Hit grants, Bind/Curse modifiers and aut
 
 ### Item Instance / persistence
 
-- [ ] Add canonical `magic.enchantments[]` Item Instance state.
-- [ ] Add used/max Enchantment Slot state.
+- [x] Add canonical `magic.enchantments[]` Item Instance state.
+- [x] Add used/max Enchantment Slot state.
 - [ ] Preserve normal Physical Durability and add separate Magical Durability / magical-power integrity state.
-- [ ] Preserve enchantment state through inventory, stash, transfer, equip/unequip and save/load.
-- [ ] Prevent stack merging when magical state differs.
+- [x] Preserve enchantment state through inventory, stash, transfer, equip/unequip and save/load.
+- [x] Prevent stack merging when magical state differs.
 - [ ] Keep player knowledge/identification state separate from Item truth.
 
 ### Identification / display
