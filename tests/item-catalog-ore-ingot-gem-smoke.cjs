@@ -13,7 +13,7 @@ const { pathToFileURL } = require('node:url');
 
   const catalog = globalThis.LuminousOreIngotGemCatalog;
   assert.ok(catalog);
-  assert.equal(catalog.VERSION, 5);
+  assert.equal(catalog.VERSION, 6);
   assert.equal(catalog.FAMILY, 'ore_ingot_gem');
   assert.equal(catalog.MATERIAL_UNIT, 'material_unit');
   assert.equal(catalog.MATERIAL_UNIT_ABBREVIATION, 'MU');
