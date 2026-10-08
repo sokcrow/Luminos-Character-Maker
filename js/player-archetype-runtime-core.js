@@ -528,7 +528,8 @@
     if (["str", "strength", "fuerza"].includes(ability) && thresholdKey) {
       check[thresholdKey] = numberOr(check[thresholdKey]) + strengthThresholdModifier(character);
     }
-    if (skill === "performance") check.finalPower = numberOr(check.finalPower) + statMod(character, "strength");
+    // Jackpot's Performance bonus is resolved by the canonical Trait Engine
+    // as check.checkPower; applying finalPower here would double-count it.
     const jumpCheck = skill === "jump" || tags.includes("jump");
     if (jumpCheck && thresholdKey && hasStatus(character, "rage")) check[thresholdKey] = numberOr(check[thresholdKey]) / 2;
     Object.defineProperty(check, "__archetypeAdjusted", { value: true, enumerable: false, configurable: true });
