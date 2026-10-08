@@ -475,27 +475,27 @@ Part C only guarantees that generated enchanted equipment can be represented, id
 
 ### Service runtime
 
-- [ ] Create canonical Enchanter Service runtime on top of the existing Shop/Workshop service architecture.
+- [x] Create canonical Enchanter Service runtime on top of the existing Shop/Workshop service architecture.
 - [ ] Implement the full service list: Enchant, Strengthen, Remove/Rewrite, Identify, Curse analysis, Magical Repair/Recharge, Bind, Curse, Mount Gem and Extract Gem.
 - [ ] Keep Item-side removal and Gem-Anchor destructive removal as separate service operations.
-- [ ] Support Player-supplied, mixed-supply and provider-supplied material quotes.
-- [ ] Return unused/recoverable Player materials without refunding ritual-consumed materials.
-- [ ] Implement delivery-time state so Items can remain in service for hours/days instead of resolving every service instantly.
+- [x] Support Player-supplied, mixed-supply and provider-supplied material quotes.
+- [x] Keep unallocated Player materials untouched, consume only allocated ritual requirements at service start, and return recoverable extracted gems through the procedure result.
+- [x] Implement delivery-time job state so Items can remain in service for authored hours/days instead of resolving every service instantly.
 
 ### Provider profile
 
-- [ ] Add max reproducible Rank with hard cap III.
-- [ ] Add known Enchantments / Compendium knowledge.
-- [ ] Add resonance and equipment specializations.
-- [ ] Add controlled-result reliability profile instead of NPC crafting Checks.
-- [ ] Modify reliability/time when the provider works outside known recipe/specialization.
-- [ ] Add Bind/Curse capability flags.
-- [ ] Link Enchanter provider profiles to existing Shop/Workshop/NPC identities.
-- [ ] Consume existing Workshop Tier/specialization/reputation/quality rather than duplicating Workshop state.
+- [x] Add max reproducible Rank with hard cap III.
+- [x] Add provider known-Enchantment repertoire; shared Compendium/source authoring remains a separate task.
+- [x] Add resonance and equipment specializations.
+- [x] Add controlled-result reliability profile instead of NPC crafting Checks.
+- [x] Support authored unknown-recipe reliability and independent authored delivery-time profiles; unknown instructions do not inherit specialty mastery.
+- [x] Add Bind/Curse capability flags.
+- [x] Add Shop/Workshop/NPC identity linkage fields and expose Enchanter service IDs through the existing Shop service architecture.
+- [x] Reuse existing Workshop Tier/specialization/reputation price context rather than duplicating Workshop state.
 
 ### Relics / Compendium
 
-- [ ] Block Player/NPC reproduction of Rank IV/V.
+- [x] Block normal Player/NPC service reproduction of Rank IV/V.
 - [ ] Add Relic Enchantment metadata and lower-rank derivation/knowledge seam.
 - [ ] Add Enchantment Compendium entries with source/provenance.
 - [ ] Add readable recipe books/manuals/tablets with language-aware obfuscation.
@@ -519,12 +519,12 @@ Part C only guarantees that generated enchanted equipment can be represented, id
 
 ### Magical outcome resolution
 
-- [ ] Replace binary NPC success/failure with controlled/altered magical outcome resolution.
+- [x] Replace binary NPC success/failure with authored reliability-based controlled/altered magical outcome selection.
 - [ ] Support authored unexpected/abstract outcomes.
 - [ ] Support accidental Bind and Curse outcomes.
 - [ ] Support Anchor crack/depletion/loss outcomes.
-- [ ] Ensure provider specialization/reliability changes outcome distribution.
-- [ ] Ensure an unknown recipe does not become guaranteed merely because the Player supplies instructions.
+- [x] Ensure provider specialization/reliability changes controlled-result probability.
+- [x] Ensure an unknown recipe does not become guaranteed merely because the Player supplies instructions.
 
 ### Magical Durability / maintenance
 
@@ -535,8 +535,8 @@ Part C only guarantees that generated enchanted equipment can be represented, id
 - [x] Make depleted rune visuals stop glowing.
 - [x] Keep magical wear isolated from Physical Durability so magical integrity is consumed without silently damaging the physical Item.
 - [x] Exempt Bound Enchantments from normal/background magical discharge while permitting authored special-use spend.
-- [ ] Add Magical Repair/Recharge pricing contract.
-- [ ] Keep physical repair and magical repair authoritative to their respective resources.
+- [x] Add Magical Repair/Recharge pricing seam: missing Magical Durability × authored provider rate, then provider/facility modifiers, with no automatic Shop retail markup.
+- [x] Keep existing Shop physical repair and Enchanter magical repair authoritative to their respective resources.
 
 ### Gem Socket service rules
 
@@ -547,19 +547,19 @@ Part C only guarantees that generated enchanted equipment can be represented, id
 - [x] Finalize/test Rank III Gem coexistence: Rank III cannot coexist with lower-rank Gem Anchors.
 - [x] Block/warn normal fourth-gem installation.
 - [x] Implement catastrophic fourth-gem forced outcome: Item and prior Gem Anchors destroyed, last inserted gem survives.
-- [ ] Destroy the Item 100% when removing a Bound Gem Anchor.
-- [ ] Support safe extraction of removable/non-Bound Gem Anchors.
-- [ ] Implement gem magical-quality/rarity degradation after safe de-enchant/rewrite.
-- [ ] Implement destructive Anchor-side Enchantment removal that can destroy the gem while preserving the Item.
+- [x] Destroy the Item 100% when a confirmed Bound Gem Anchor removal procedure is executed.
+- [x] Support safe extraction of removable/non-Bound Gem Anchors.
+- [x] Require and apply an authored post-writing gem quality on safe de-enchant/rewrite; the runtime refuses to invent the downgrade amount.
+- [x] Implement destructive Anchor-side Enchantment removal that destroys the gem while preserving the Item.
 
 ### Economy / time
 
-- [ ] Apply material discounts only for valid Player-supplied requirements.
-- [ ] Keep labor/facility cost separate from provider-supplied materials.
-- [ ] Do not double-apply normal Shop retail markup to service labor.
-- [ ] Implement Rank I hours / Rank II 1-3 days / Rank III one-week-plus baseline durations.
+- [x] Apply material discounts only for Player materials actually allocated to valid recipe requirements.
+- [x] Keep labor/facility cost separate from provider-supplied materials.
+- [x] Do not double-apply normal Shop retail markup to Enchanter service labor.
+- [x] Implement Rank I hours / Rank II 1-3 days / Rank III one-week-plus duration bands with exact duration authored by provider/definition.
 - [ ] Add Enchantment rarity as a provider knowledge/time/availability/economy input.
-- [ ] Support provider/facility speed-versus-reliability profiles without exposing debug controls.
+- [x] Support independently authored provider/facility duration and reliability profiles without exposing them as Player debug controls.
 
 ### DM / Player UX
 
@@ -572,14 +572,14 @@ Part C only guarantees that generated enchanted equipment can be represented, id
 
 ### Tests / handoff
 
-- [ ] Add NPC controlled-outcome tests with specialization differences.
+- [x] Add NPC controlled-outcome tests with specialization and unknown-recipe differences.
 - [ ] Add Compendium/language/rune tests.
 - [x] Add Passive Arcana and 1-SP active study tests.
 - [x] Add Identify vs hidden-Curse regression tests.
-- [ ] Add delivery-time tests.
-- [ ] Add partial-material/full-material quote tests.
+- [x] Add delivery-time job-state tests.
+- [x] Add mixed Player/provider material quote tests.
 - [x] Add Magical Durability depletion/recharge/Bind tests.
 - [x] Add Gem Socket capacity and catastrophic fourth-gem tests.
-- [ ] Add Bound Gem removal destroys-Item test.
-- [ ] Add Rank IV/V reproduction rejection tests.
+- [x] Add Bound Gem removal destroys-Item test.
+- [x] Add Rank IV/V reproduction rejection tests.
 - [ ] Preserve Magic Loot generation rates as deferred handoff data, not Enchanter Service behavior.
