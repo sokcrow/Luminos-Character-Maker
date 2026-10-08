@@ -374,7 +374,13 @@
           if(currentLimit!==proposed.length){abortReason="Tu límite de maniobras cambió. Actualiza Avance.";return;}
           if (prior.length > currentLimit) {
             // The DM may have reverted Superior Technique. Permit ONLY
-            // discarding the excess from the previously learned set.
+            // discarding the excess from the previously learned set. If
+            // somebody changed the learned list since the picker opened,
+            // require a refresh instead of silently removing their choices.
+            if (!needsReduction || prior.length !== existing.length
+              || prior.some(key=>!existing.includes(key))) {
+              abortReason="Las maniobras cambiaron. Vuelve a abrir el selector antes de reducirlas.";return;
+            }
             if (proposed.some(key=>!prior.includes(key))) {
               abortReason="Al reducir maniobras sólo puedes conservar las ya aprendidas.";return;
             }
