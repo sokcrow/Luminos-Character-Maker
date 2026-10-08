@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 
 await import('../js/trait-engine.js');
@@ -262,7 +263,7 @@ assert.match(progressionRuntime, /player-progression-milestone-list/);
 assert.match(progressionRuntime, /player-progression-branch-milestones/);
 assert.match(progressionRuntime, /function branchMilestones\(/);
 assert.match(progressionRuntime, /branch\.traitLevels/);
-assert.match(progressionRuntime, /sigilSvg\("compass"\)/);
+assert.match(progressionRuntime, /classSealMarkup\(classModel, "compass"\)/);
 assert.match(progressionRuntime, /player-progression-mystic-stylesheet/);
 assert.match(progressionRuntime, /player-progression-tree-arrow/);
 assert.match(progressionRuntime, /viewport\.scrollLeft = previous/);
@@ -299,4 +300,41 @@ assert.ok(scrollCapture > noOpGuard && scrollCapture < hostClear, 'Save horizont
 assert.match(html, /Selecciona un nivel o arquetipo para ver sus mejoras/);
 assert.doesNotMatch(html, /Recorre la clase con la rueda del mouse/);
 
+// Class identity images replace milestone/root sigils, with SVG retained on failures.
+const runtimeWithIconHooks = progressionRuntime.replace(
+  "  global.LuminousPlayerProgressionTree = api;",
+  "  global.__testClassIcons = { classIconPath, classSealMarkup, bindClassIconFallback };\n  global.LuminousPlayerProgressionTree = api;",
+);
+assert.notEqual(runtimeWithIconHooks, progressionRuntime);
+const iconSandbox = { document: { readyState: "loading", addEventListener() {} } };
+vm.runInNewContext(runtimeWithIconHooks, iconSandbox);
+const { classIconPath, classSealMarkup, bindClassIconFallback } = iconSandbox.__testClassIcons;
+const pngHeader = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+for (const { id } of classDefinitions) {
+  const iconPath = classIconPath(id);
+  assert.equal(iconPath, `Assets/Icons/classes/${id}.png`, `Class ${id} must resolve a local PNG`);
+  const icon = fs.readFileSync(path.join(here, "..", iconPath));
+  assert.ok(icon.subarray(0, 8).equals(pngHeader), `${id} must be a valid PNG`);
+  assert.match(classSealMarkup({ classId: id }, "sword"), /<img class="player-progression-class-icon"/);
+}
+assert.equal(classIconPath("mage"), "Assets/Icons/classes/wizard.png");
+assert.equal(classIconPath("rouge"), "Assets/Icons/classes/rogue.png");
+assert.equal(classIconPath("unknown"), "");
+assert.match(classSealMarkup({ classId: "unknown" }, "sword"), /player-progression-sigil/);
+let fallbackHandler;
+const badImage = {
+  addEventListener(event, callback) {
+    assert.equal(event, "error");
+    fallbackHandler = callback;
+  },
+  outerHTML: "",
+};
+bindClassIconFallback({ querySelector: () => badImage }, "sword");
+assert.equal(typeof fallbackHandler, "function");
+fallbackHandler();
+assert.match(badImage.outerHTML, /player-progression-sigil/);
+assert.match(progressionRuntime, /classSealMarkup\(classModel, fallbackSigil\)/);
+assert.match(progressionRuntime, /bindClassIconFallback\(button, fallbackSigil\)/);
+assert.match(progressionRuntime, /bindClassIconFallback\(root, "compass"\)/);
+assert.match(mysticCss, /\.player-progression-class-icon/);
 console.log('player-progression-tree-smoke: ok');
