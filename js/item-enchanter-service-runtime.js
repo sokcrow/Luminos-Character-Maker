@@ -21,7 +21,7 @@
     throw new Error("Enchantment Catalog, Enchantment Engine and Magic Runtime are required before Enchanter Service Runtime.");
   }
 
-  const VERSION = 4;
+  const VERSION = 5;
   const MAX_REPRODUCIBLE_RANK = 3;
   const SERVICE_IDS = Object.freeze([
     "enchant",
@@ -960,6 +960,184 @@
     });
   }
 
+
+  function quoteAdjustment(options={}) {
+    const multiplier = Number.isFinite(Number(options.servicePriceMultiplier))
+      ? Math.max(0,Number(options.servicePriceMultiplier))
+      : 1;
+    const discount = clamp(numberOr(options.discountPercent,0),0,100);
+    const surcharge = Math.max(0,numberOr(options.surchargePercent,0));
+    return Object.freeze({
+      multiplier,
+      discountPercent:discount,
+      surchargePercent:surcharge,
+      effectiveMultiplier:Math.max(0,multiplier*(1-discount/100)*(1+surcharge/100)),
+    });
+  }
+
+  function adjustedQuoteTotal(totalAhn,options={}) {
+    const adjustment=quoteAdjustment(options);
+    return Object.freeze({
+      adjustment,
+      totalAhn:roundAhn(Math.max(0,numberOr(totalAhn,0))*adjustment.effectiveMultiplier),
+    });
+  }
+
+  function walletBalance(target={},options={}) {
+    if (options.freeService===true) return Object.freeze({resolved:true,field:null,balance:Infinity});
+    const fields=[options.currencyField,"ahn","balanceAhn","moneyAhn","dinero","money"].filter(Boolean);
+    for(const field of fields){
+      if (Number.isFinite(Number(target?.[field]))) {
+        return Object.freeze({resolved:true,field:String(field),balance:Math.max(0,Number(target[field]))});
+      }
+    }
+    return Object.freeze({resolved:false,field:null,balance:0});
+  }
+
+  function stableTransactionId(item={},quote={},options={}) {
+    if (options.transactionId) return String(options.transactionId);
+    const stamp=Number.isFinite(Number(options.startedAt))?Number(options.startedAt):Date.now();
+    const itemId=String(item.instanceId || item.id || "item");
+    const rank=quote.rank ?? quote.targetRank ?? "x";
+    return `enchanter:${stamp}:${normalizeId(quote.service || "service")}:${itemId}:${normalizeId(quote.definitionId || "general")}:${rank}`;
+  }
+
+  function transactionStore(owner={},create=false) {
+    if (owner.enchanterTransactions && typeof owner.enchanterTransactions==="object" && !Array.isArray(owner.enchanterTransactions)) {
+      return owner.enchanterTransactions;
+    }
+    if (!create) return {};
+    owner.enchanterTransactions={};
+    return owner.enchanterTransactions;
+  }
+
+  function previewServiceResult(item={},quote={},options={}) {
+    if (!quote?.quoted) return Object.freeze({previewed:false,reason:"invalid_quote"});
+    const target=clone(item);
+    const execution=executeControlledResult(target,quote,{
+      ...options,
+      applicationId:options.applicationId || "preview",
+      appliedBy:options.appliedBy || "preview",
+      appliedAt:options.appliedAt || 0,
+      provenance:{...(options.provenance||{}),preview:true},
+    });
+    if (!execution.executed) return Object.freeze({previewed:false,reason:execution.reason || execution.result?.reason || "preview_failed",execution});
+    const resultingItem=clone(execution.item || execution.result?.item || target);
+    return Object.freeze({previewed:true,item:Object.freeze(resultingItem),execution});
+  }
+
+  function applyObjectSnapshot(target={},snapshot={}) {
+    if (!target || typeof target!=="object") return false;
+    Object.keys(target).forEach((key)=>delete target[key]);
+    Object.assign(target,clone(snapshot));
+    return true;
+  }
+
+  function commitMaterialSnapshots(originals=[],snapshots=[]) {
+    for(let index=0;index<originals.length;index+=1){
+      const original=originals[index];
+      const snapshot=snapshots[index];
+      if (!original || !snapshot || typeof original!=="object") continue;
+      applyObjectSnapshot(original,snapshot);
+    }
+  }
+
+  function commitServiceTransaction(owner={},item={},quote={},options={}) {
+    if (!owner || typeof owner!=="object") return Object.freeze({committed:false,reason:"missing_transaction_owner"});
+    if (!item || typeof item!=="object") return Object.freeze({committed:false,reason:"missing_item"});
+    if (!quote?.quoted) return Object.freeze({committed:false,reason:"invalid_quote"});
+
+    const transactionId=stableTransactionId(item,quote,options);
+    if (transactionStore(owner)[transactionId]) {
+      return Object.freeze({committed:false,reason:"duplicate_transaction",transactionId});
+    }
+
+    const freeService=options.freeService===true || options.dmFreeService===true;
+    const wallet=walletBalance(owner,{...options,freeService});
+    if (!wallet.resolved) return Object.freeze({committed:false,reason:"currency_balance_unresolved",transactionId});
+
+    const adjustment=adjustedQuoteTotal(quote.totalAhn,options);
+    const chargeAhn=freeService?0:adjustment.totalAhn;
+    if (wallet.balance<chargeAhn) {
+      return Object.freeze({committed:false,reason:"insufficient_ahn",requiredAhn:chargeAhn,availableAhn:wallet.balance,transactionId});
+    }
+
+    const playerMaterials=asArray(options.playerMaterials);
+    const providerMaterials=asArray(options.providerMaterials);
+    const playerCopies=playerMaterials.map(clone);
+    const providerCopies=providerMaterials.map(clone);
+    let materialConsumption=Object.freeze({consumed:true,skipped:true,reason:"no_ritual_consumption"});
+    if (quote.definitionId && (playerCopies.length || providerCopies.length)) {
+      materialConsumption=Engine.consumeRecipeMaterials(
+        quote.definitionId,
+        [...playerCopies,...providerCopies],
+        {
+          properties:quote.properties,
+          gem:quote.gem,
+          anchorGemInstanceId:quote.gem?.instanceId,
+        }
+      );
+      if (!materialConsumption.consumed) {
+        return Object.freeze({committed:false,reason:materialConsumption.reason || "material_consumption_failed",transactionId,materialConsumption});
+      }
+    } else if (quote.materials?.plan?.valid===false) {
+      return Object.freeze({committed:false,reason:"required_materials_missing",transactionId});
+    }
+
+    const applicationId=String(options.applicationId || transactionId);
+    const actorId=String(options.appliedBy || options.actorId || owner.id || owner.playerId || owner.npcId || (freeService?"dm":"unknown"));
+    const execution=executeControlledResult(clone(item),quote,{
+      ...options,
+      applicationId,
+      appliedBy:actorId,
+      appliedAt:Number.isFinite(Number(options.startedAt))?Number(options.startedAt):Date.now(),
+      provenance:{
+        ...(options.provenance||{}),
+        transactionId,
+        service:quote.service,
+        providerId:options.providerId || quote.providerId || null,
+        encounterId:options.encounterId || null,
+        locationId:options.locationId || null,
+        freeService,
+      },
+    });
+    if (!execution.executed) {
+      return Object.freeze({
+        committed:false,
+        reason:execution.reason || execution.result?.reason || "service_execution_failed",
+        transactionId,
+        execution,
+      });
+    }
+
+    const resultingItem=clone(execution.item || execution.result?.item || item);
+    if (!freeService && wallet.field) owner[wallet.field]=Math.max(0,wallet.balance-chargeAhn);
+    commitMaterialSnapshots(playerMaterials,playerCopies);
+    commitMaterialSnapshots(providerMaterials,providerCopies);
+    applyObjectSnapshot(item,resultingItem);
+
+    const receipt=Object.freeze({
+      transactionId,
+      committed:true,
+      service:quote.service,
+      itemInstanceId:String(item.instanceId || item.id || ""),
+      definitionId:quote.definitionId || null,
+      rank:quote.rank ?? quote.targetRank ?? null,
+      chargedAhn:chargeAhn,
+      freeService,
+      appliedBy:actorId,
+      timestamp:Number.isFinite(Number(options.startedAt))?Number(options.startedAt):Date.now(),
+      adjustment:adjustment.adjustment,
+    });
+    transactionStore(owner,true)[transactionId]=clone(receipt);
+    return Object.freeze({
+      ...receipt,
+      item:Object.freeze(clone(item)),
+      materialConsumption,
+      execution,
+    });
+  }
+
   function beginService(provider={},item={},quote={},options={}) {
     if (!quote?.quoted) return Object.freeze({started:false,reason:"invalid_quote"});
     const durationHours=Number.isFinite(Number(options.durationHours))
@@ -1097,6 +1275,12 @@
     attemptPlayerStrengthen,
     safeEffectPreview,
     playerServicePreview,
+    quoteAdjustment,
+    adjustedQuoteTotal,
+    walletBalance,
+    stableTransactionId,
+    previewServiceResult,
+    commitServiceTransaction,
     quoteGemProcedure,
     beginService,
     serviceReady,
