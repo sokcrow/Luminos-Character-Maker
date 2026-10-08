@@ -15,6 +15,7 @@
   const intOr = (value, fallback = 0) => Number.isFinite(Number(value)) ? Math.trunc(Number(value)) : fallback;
   const normalizeId = (value) => String(value ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
   const asArray = (value) => value == null ? [] : (Array.isArray(value) ? value : [value]);
+  const VERSION = 2;
   const DEFAULT_ATTUNEMENT_CAPACITY = 3;
 
   function itemRuntimeFor(method) {
@@ -29,6 +30,10 @@
 
   function spellRuntime() {
     return global.LuminousSpellcastingRuntime || safeRequire("./spellcasting-runtime.js");
+  }
+
+  function enchantmentEngine() {
+    return global.LuminousItemEnchantmentEngine || safeRequire("./item-enchantment-engine.js");
   }
 
   function emit(name, detail) {
@@ -103,6 +108,175 @@
       runtime.requiresAttunement === true || runtime.requires_attunement === true;
   }
 
+
+  function magicOrigin(item = {}) {
+    const profile = magicProfile(item);
+    const explicit = normalizeId(profile.origin || profile.magicOrigin || item.magicOrigin || item.magic_origin);
+    if (explicit) return explicit;
+    if (item.relic === true || item.artifact === true || profile.relic === true || profile.artifact === true) return "relic";
+    if (enchantmentRefs(item).length) return "enchantment";
+    if (isSpellScroll(item)) return "scroll";
+    if (profile.enabled === true || profile.nativeMagic === true || profile.native_magic === true || spellProfiles(item).length) return "native";
+    return "mundane";
+  }
+
+  function isNativeMagicItem(item = {}) {
+    return magicOrigin(item) === "native";
+  }
+
+  function magicalDurabilityState(item = {}) {
+    const profile = magicProfile(item);
+    const raw = profile.magicalDurability || profile.magical_durability || null;
+    if (!raw || typeof raw !== "object") {
+      return Object.freeze({ current:null, max:null, depleted:false, profile:null, autoManaged:false });
+    }
+    const max = Math.max(0, Number(raw.max ?? raw.maximum ?? 0) || 0);
+    const current = Math.max(0, Math.min(max, Number(raw.current ?? max) || 0));
+    return Object.freeze({
+      current,
+      max,
+      depleted:max > 0 && current <= 0,
+      profile:normalizeId(raw.profile || "") || null,
+      autoManaged:raw.autoManaged === true,
+    });
+  }
+
+  function ensureMagicObject(item) {
+    if (!item || typeof item !== "object") return null;
+    if (!item.magic || typeof item.magic !== "object") item.magic = {};
+    return item.magic;
+  }
+
+  function setMagicalDurability(item, current, max = null, options = {}) {
+    const magic = ensureMagicObject(item);
+    if (!magic) return { changed:false, reason:"missing_item" };
+    const previous = magicalDurabilityState(item);
+    const resolvedMax = Math.max(0, Number(max ?? previous.max ?? options.max ?? 0) || 0);
+    const resolvedCurrent = Math.max(0, Math.min(resolvedMax, Number(current) || 0));
+    magic.magicalDurability = {
+      ...(magic.magicalDurability && typeof magic.magicalDurability === "object" ? magic.magicalDurability : {}),
+      max:resolvedMax,
+      current:resolvedCurrent,
+      depleted:resolvedMax > 0 && resolvedCurrent <= 0,
+      autoManaged:options.autoManaged ?? magic.magicalDurability?.autoManaged ?? false,
+      profile:normalizeId(options.profile || magic.magicalDurability?.profile || "") || null,
+    };
+    return {
+      changed:previous.current !== resolvedCurrent || previous.max !== resolvedMax,
+      before:previous,
+      after:magicalDurabilityState(item),
+    };
+  }
+
+  function cursePersistsAtZero(item = {}) {
+    if (isBoundItem(item)) return true;
+    const explicit = runtimeOf(item).curse || magicProfile(item).curse || item.curse || null;
+    return explicit?.ignoreMagicalDepletion === true ||
+      explicit?.persistentAtZero === true ||
+      explicit?.selfPreserving === true ||
+      explicit?.self_preserving === true;
+  }
+
+  function magicalPowerActive(item = {}, options = {}) {
+    const state = magicalDurabilityState(item);
+    if (state.current == null || state.max == null) return true;
+    if (state.current > 0) return true;
+    if (options.specialUse !== true && cursePersistsAtZero(item)) return true;
+    return false;
+  }
+
+  function itemBenefitsActive(unit, item, options = {}) {
+    if (!item) return Object.freeze({active:false,reason:"missing_item"});
+    if (requiresAttunement(item) && !isAttuned(unit || {}, item)) {
+      return Object.freeze({active:false,reason:"item_not_attuned"});
+    }
+    if (!magicalPowerActive(item, options)) {
+      return Object.freeze({active:false,reason:"magical_durability_depleted"});
+    }
+    return Object.freeze({active:true,reason:null});
+  }
+
+  function spendMagicalDurability(item, amount, options = {}) {
+    if (!item) return { spent:false, reason:"missing_item" };
+    const normalWear = options.normalWear !== false && options.specialUse !== true;
+    if (normalWear && isBoundItem(item)) {
+      return { spent:true, skipped:true, reason:"bound_ignores_normal_magical_wear", state:magicalDurabilityState(item) };
+    }
+    const state = magicalDurabilityState(item);
+    if (state.current == null || state.max == null) return { spent:false, reason:"item_has_no_magical_durability" };
+    const multiplier = Math.max(0, Number(options.wearMultiplier ?? 1) || 0);
+    const cost = Math.max(0, Number(amount) || 0) * multiplier;
+    if (cost <= 0) return { spent:true, amount:0, before:state.current, after:state.current, state };
+    if (state.current < cost && options.allowPartial !== true) {
+      return { spent:false, reason:"insufficient_magical_durability", cost, state };
+    }
+    const actual = options.allowPartial === true ? Math.min(state.current, cost) : cost;
+    const after = Math.max(0, state.current - actual);
+    const changed = setMagicalDurability(item, after, state.max, {
+      autoManaged:state.autoManaged,
+      profile:state.profile,
+    });
+    const result = { spent:true, amount:actual, cost, before:state.current, after, depleted:after <= 0, state:changed.after };
+    emit("luminous:item-magical-durability-spent", { item, ...result });
+    return result;
+  }
+
+  function restoreMagicalDurability(item, amount, options = {}) {
+    if (!item) return { restored:false, reason:"missing_item" };
+    const state = magicalDurabilityState(item);
+    if (state.current == null || state.max == null) return { restored:false, reason:"item_has_no_magical_durability" };
+    const restore = options.full === true ? state.max : Math.max(0, Number(amount) || 0);
+    const after = Math.min(state.max, options.full === true ? state.max : state.current + restore);
+    const changed = setMagicalDurability(item, after, state.max, {
+      autoManaged:state.autoManaged,
+      profile:state.profile,
+    });
+    const result = { restored:after > state.current, amount:after - state.current, before:state.current, after, state:changed.after };
+    if (result.restored) emit("luminous:item-magical-durability-restored", { item, ...result });
+    return result;
+  }
+
+  function processMagicalRecharge(item, trigger, options = {}) {
+    if (!item) return { recharged:false, reason:"missing_item" };
+    const profile = magicProfile(item);
+    const rule = options.rule || profile.magicalRecharge || profile.magical_recharge || profile.rechargeRule || profile.recharge_rule;
+    if (!rule) return { recharged:false, reason:"no_magical_recharge_rule" };
+    const wanted = normalizeId(trigger);
+    const ruleTrigger = normalizeId(typeof rule === "string" ? rule : rule.trigger);
+    if (ruleTrigger && ruleTrigger !== wanted) return { recharged:false, reason:"trigger_mismatch" };
+    const state = magicalDurabilityState(item);
+    if (state.max == null) return { recharged:false, reason:"item_has_no_magical_durability" };
+    let amount = typeof rule === "object" && Number.isFinite(Number(rule.amount)) ? Number(rule.amount) : state.max;
+    if (typeof rule === "object" && Number.isFinite(Number(rule.percent))) amount = state.max * Number(rule.percent) / 100;
+    if (isBoundItem(item) && typeof rule === "object" && Number.isFinite(Number(rule.boundMultiplier))) {
+      amount *= Math.max(0, Number(rule.boundMultiplier));
+    }
+    const restored = restoreMagicalDurability(item, amount, { full:typeof rule === "object" && rule.full === true });
+    return { recharged:restored.restored, trigger:wanted, rule:clone(rule), ...restored };
+  }
+
+  function boundEmergencyRecharge(user, item, options = {}) {
+    if (!user || !item) return { recharged:false, reason:"missing_user_or_item" };
+    if (!isBoundItem(item)) return { recharged:false, reason:"item_not_bound" };
+    const state = magicalDurabilityState(item);
+    if (state.current == null || state.max == null) return { recharged:false, reason:"item_has_no_magical_durability" };
+    if (state.current > 0) return { recharged:false, reason:"bound_emergency_recharge_requires_zero" };
+    const profile = magicProfile(item);
+    const rule = options.rule || profile.boundRecharge || profile.bound_recharge || profile.curse?.boundRecharge || null;
+    if (!rule || typeof rule !== "object") return { recharged:false, reason:"missing_authored_life_recharge_rule" };
+    const maxHp = Math.max(0, Number(user.maxHp ?? user.maxHP ?? user.hpMax ?? user.hp ?? 0) || 0);
+    let hpCost = Number(rule.hpCost);
+    if (!Number.isFinite(hpCost) && Number.isFinite(Number(rule.hpCostPercent))) hpCost = maxHp * Number(rule.hpCostPercent) / 100;
+    if (!Number.isFinite(hpCost) || hpCost <= 0) return { recharged:false, reason:"missing_authored_life_cost" };
+    hpCost = Math.max(1, Math.ceil(hpCost));
+    const hp = Math.max(0, Number(user.hp) || 0);
+    if (options.allowLethal !== true && hp <= hpCost) return { recharged:false, reason:"insufficient_life_for_bound_recharge", hpCost, hp };
+    if (hp < hpCost) return { recharged:false, reason:"insufficient_life_for_bound_recharge", hpCost, hp };
+    user.hp = Math.max(0, hp - hpCost);
+    const restored = restoreMagicalDurability(item, state.max, { full:true });
+    return { recharged:restored.restored, hpCost, hpBefore:hp, hpAfter:user.hp, ...restored };
+  }
+
   function spellProfiles(item = {}) {
     const runtime = runtimeOf(item);
     const profile = magicProfile(item);
@@ -110,10 +284,15 @@
       (profile.spellId || runtime.spellId || item.spellId ? [{ spellId: profile.spellId || runtime.spellId || item.spellId }] : []);
     return asArray(raw).map((entry) => {
       if (typeof entry === "string") return { spellId: entry, chargeCost: 1 };
+      const resource = normalizeId(entry?.resource || entry?.chargeResource || entry?.charge_resource || magicProfile(item).chargeResource || "");
       return {
         ...clone(entry),
         spellId: entry?.spellId || entry?.spell_id || entry?.id || null,
         chargeCost: Math.max(0, intOr(entry?.chargeCost ?? entry?.charge_cost, 1)),
+        resource:resource || (entry?.magicalDurabilityCost != null ? "magical_durability" : "charges"),
+        magicalDurabilityCost:entry?.magicalDurabilityCost == null ? null : Math.max(0, Number(entry.magicalDurabilityCost) || 0),
+        usesWielderSpellSlot:entry?.usesWielderSpellSlot === true || entry?.uses_wielder_spell_slot === true,
+        spCost:Math.max(0, Number(entry?.spCost ?? entry?.sp_cost ?? 0) || 0),
       };
     }).filter((entry) => entry.spellId);
   }
@@ -123,9 +302,11 @@
     const runtime = runtimeOf(item);
     return Boolean(
       item.isMagicItem === true || item.magic === true || profile.enabled === true ||
+      profile.nativeMagic === true || profile.native_magic === true ||
       enchantmentRefs(item).length > 0 ||
       requiresAttunement(item) || spellProfiles(item).length ||
-      runtime.curse || runtime.cursed === true || item.cursed === true || isBoundItem(item)
+      runtime.curse || runtime.cursed === true || item.cursed === true || isBoundItem(item) ||
+      item.relic === true || item.artifact === true || profile.relic === true || profile.artifact === true
     );
   }
 
@@ -248,7 +429,103 @@
     };
   }
 
-  function chargeState(item) {
+  function enchantmentEffectResolution(user, item, context = {}) {
+    const engine = enchantmentEngine();
+    if (!engine?.resolveEffectsForAction) return { resolved:false, reason:"enchantment_engine_unavailable", effects:[] };
+    const active = itemBenefitsActive(user, item, { specialUse:context.specialUse === true });
+    if (!active.active) return { resolved:false, reason:active.reason, effects:[], suppressed:true };
+    const result = engine.resolveEffectsForAction(item, {
+      trigger:context.trigger,
+      selectedChannels:context.selectedChannels || context.channels || {},
+      magicActive:true,
+    });
+    return { ...result, active:true };
+  }
+
+  function enchantmentCombatSummary(user, item, context = {}) {
+    const resolution = enchantmentEffectResolution(user, item, context);
+    const effects = asArray(resolution.effects);
+    const damagePercent = effects
+      .filter((effect) => normalizeId(effect.type) === "damage_percent")
+      .reduce((sum,effect)=>sum + (Number(effect.value) || 0),0);
+    const secondaryDamagePercent = effects
+      .filter((effect) => normalizeId(effect.type) === "secondary_damage_percent")
+      .reduce((sum,effect)=>sum + (Number(effect.value) || 0),0);
+    const magicHit = effects.some((effect) => normalizeId(effect.type) === "magic_hit" && effect.value !== false);
+    return {
+      ...resolution,
+      damagePercent,
+      secondaryDamagePercent,
+      totalDamagePercent:damagePercent + secondaryDamagePercent,
+      magicHit,
+    };
+  }
+
+  function spendResolvedEnchantmentWear(item, resolution, options = {}) {
+    if (!item) return { spent:false, reason:"missing_item" };
+    const groups = new Map();
+    for (const effect of asArray(resolution?.effects)) {
+      const sourceId = String(effect.sourceEnchantmentId || "");
+      if (!sourceId) continue;
+      const properties = asArray(effect.sourceProperties).map(normalizeId);
+      const bound = properties.includes("bind");
+      if (bound && options.specialUse !== true) continue;
+      const baseWear = Math.max(0, Number(effect.sourceMagicalWear ?? effect.magicalWear ?? 0) || 0);
+      const multiplier = Math.max(0, Number(effect.materialWearMultiplier ?? 1) || 1);
+      const total = baseWear * multiplier;
+      const previous = groups.get(sourceId) || 0;
+      groups.set(sourceId, Math.max(previous,total));
+    }
+    const amount = [...groups.values()].reduce((sum,value)=>sum+value,0);
+    if (amount <= 0) return { spent:true, amount:0, skipped:true, reason:"no_authored_magical_wear" };
+    return spendMagicalDurability(item, amount, { specialUse:options.specialUse === true, normalWear:options.specialUse !== true });
+  }
+
+  function nonMagicHitDefenseMultiplier(defender = {}) {
+    const value =
+      defender.nonMagicHitDamageMultiplier ??
+      defender.non_magic_hit_damage_multiplier ??
+      defender.defenses?.nonMagicHitDamageMultiplier ??
+      defender.magicDefense?.nonMagicHitDamageMultiplier ??
+      defender.magicDefense?.non_magic_hit_damage_multiplier;
+    if (Number.isFinite(Number(value))) return Math.max(0, Math.min(1, Number(value)));
+    const enabled = defender.reduceNonMagicHits === true ||
+      defender.reduce_non_magic_hits === true ||
+      defender.defenses?.reduceNonMagicHits === true ||
+      defender.magicDefense?.reduceNonMagicHits === true;
+    return enabled ? 0.5 : null;
+  }
+
+  function applyNonMagicHitDefense(damage, defender = {}, context = {}) {
+    const original = Math.max(0, Number(damage) || 0);
+    if (context.magicHit === true) return { damage:original, original, multiplier:1, bypassed:true, reason:"magic_hit" };
+    const delivery = normalizeId(context.delivery || context.deliveryType || context.rangeType || "");
+    if (delivery && !["melee","ranged"].includes(delivery)) {
+      return { damage:original, original, multiplier:1, bypassed:false, reason:"delivery_not_eligible" };
+    }
+    const multiplier = nonMagicHitDefenseMultiplier(defender);
+    if (multiplier == null) return { damage:original, original, multiplier:1, bypassed:false, reason:"no_non_magic_hit_defense" };
+    return {
+      damage:Math.max(0, Math.floor(original * multiplier)),
+      original,
+      multiplier,
+      bypassed:false,
+      reason:"non_magic_hit_reduction",
+    };
+  }
+
+  function passiveEnchantmentModifiers(user, item) {
+    const resolution = enchantmentEffectResolution(user, item, { trigger:"passive" });
+    const modifiers = {};
+    for (const effect of asArray(resolution.effects)) {
+      const type = normalizeId(effect.type);
+      if (!["resistance_percent","status_resistance_percent","max_hp_percent","max_sp_percent","speed_percent","initiative_flat"].includes(type)) continue;
+      modifiers[type] = (modifiers[type] || 0) + (Number(effect.value) || 0);
+    }
+    return { ...resolution, modifiers };
+  }
+
+  function chargeState(item, spellProfile = null) {
     const runtime = itemRuntimeFor("getCharges");
     if (runtime) return runtime.getCharges(item);
     const max = item.chargesMax ?? item.maxCharges ?? null;
@@ -260,14 +537,24 @@
     if (!item) return { allowed: false, reason: "missing_item" };
     const casting = resolveItemSpellcasting(user, item, spellRef, options);
     if (!casting.resolved) return { allowed: false, reason: casting.reason };
-    if (requiresAttunement(item) && !isAttuned(user || {}, item)) return { allowed: false, reason: "item_not_attuned", casting };
+    const active = itemBenefitsActive(user || {}, item, { specialUse:true });
+    if (!active.active) return { allowed:false, reason:active.reason, casting };
+    const profile = casting.profile || {};
     const chargeCost = Math.max(0, intOr(options.chargeCost ?? casting.chargeCost, 0));
-    if (chargeCost > 0) {
-      const charges = chargeState(item);
+    const resource = profile.usesWielderSpellSlot === true ? "wielder_spell_slot" : normalizeId(profile.resource || "charges");
+    const magicalDurabilityCost = Math.max(0, Number(options.magicalDurabilityCost ?? profile.magicalDurabilityCost ?? (resource === "magical_durability" ? chargeCost : 0)) || 0);
+    if (resource === "magical_durability" && magicalDurabilityCost > 0) {
+      const state = magicalDurabilityState(item);
+      if (state.current == null) return { allowed:false, reason:"item_has_no_magical_durability", casting, resource, magicalDurabilityCost };
+      if (state.current < magicalDurabilityCost) return { allowed:false, reason:"insufficient_magical_durability", casting, resource, magicalDurabilityCost };
+    } else if (resource === "charges" && chargeCost > 0) {
+      const charges = chargeState(item, profile);
       if (charges.current == null) return { allowed: false, reason: "item_has_no_charges", casting };
-      if (Number(charges.current) < chargeCost) return { allowed: false, reason: "insufficient_charges", casting, chargeCost };
+      if (Number(charges.current) < chargeCost) return { allowed: false, reason: "insufficient_charges", casting, chargeCost, resource };
     }
-    return { allowed: true, casting, chargeCost };
+    const spCost = Math.max(0, Number(options.spCost ?? profile.spCost ?? 0) || 0);
+    if (spCost > 0 && Math.max(0, Number(user?.sp) || 0) < spCost) return { allowed:false, reason:"insufficient_sp", casting, spCost, resource };
+    return { allowed: true, casting, chargeCost, magicalDurabilityCost, spCost, resource };
   }
 
   function executeSpellHook(user, item, casting, options = {}) {
@@ -282,6 +569,8 @@
       target: options.target || null,
       context: options.context || {},
       source: "item",
+      resourcePayment: options.resourcePayment || casting.profile?.resource || (casting.profile?.usesWielderSpellSlot === true ? "wielder_spell_slot" : "charges"),
+      useWielderSpellSlot: casting.profile?.usesWielderSpellSlot === true,
     };
     if (typeof executor !== "function") {
       emit("luminous:item-spell-cast-requested", payload);
@@ -301,12 +590,21 @@
     if (!execution.executed) return { cast: false, ...gate, ...execution };
 
     let charges = null;
-    if (gate.chargeCost > 0) {
+    let magicalDurability = null;
+    if (gate.resource === "magical_durability" && gate.magicalDurabilityCost > 0) {
+      magicalDurability = spendMagicalDurability(item, gate.magicalDurabilityCost, { specialUse:true, normalWear:false });
+      if (!magicalDurability?.spent) return { cast:false, reason:magicalDurability?.reason || "magical_durability_spend_failed", execution, magicalDurability };
+    } else if (gate.resource === "charges" && gate.chargeCost > 0) {
       const runtime = itemRuntimeFor("spendCharges");
       charges = runtime?.spendCharges?.(item, gate.chargeCost) || null;
       if (!charges?.spent) return { cast: false, reason: charges?.reason || "charge_spend_failed", execution, charges };
     }
-    const result = { cast: true, casting: gate.casting, execution, charges };
+    let spSpent = 0;
+    if (gate.spCost > 0) {
+      user.sp = Math.max(0, Number(user.sp) - gate.spCost);
+      spSpent = gate.spCost;
+    }
+    const result = { cast: true, casting: gate.casting, execution, charges, magicalDurability, spSpent, resource:gate.resource };
     emit("luminous:item-spell-cast", { user, item, ...result });
     return result;
   }
@@ -381,15 +679,27 @@
   }
 
   const api = Object.freeze({
-    version: 1,
+    version: VERSION,
+    VERSION,
     DEFAULT_ATTUNEMENT_CAPACITY,
     magicProfile,
+    magicOrigin,
+    isNativeMagicItem,
     enchantmentRefs,
     highestEnchantmentRank,
     boundEnchantmentRefs,
     isBoundItem,
     isMagicItem,
     requiresAttunement,
+    magicalDurabilityState,
+    setMagicalDurability,
+    cursePersistsAtZero,
+    magicalPowerActive,
+    itemBenefitsActive,
+    spendMagicalDurability,
+    restoreMagicalDurability,
+    processMagicalRecharge,
+    boundEmergencyRecharge,
     getAttunementCapacity,
     getAttunedItems,
     isAttuned,
@@ -400,6 +710,13 @@
     spellProfiles,
     findSpellProfile,
     resolveItemSpellcasting,
+    enchantmentEffectResolution,
+    enchantmentCombatSummary,
+    spendResolvedEnchantmentWear,
+    nonMagicHitDefenseMultiplier,
+    applyNonMagicHitDefense,
+    passiveEnchantmentModifiers,
+    chargeState,
     canActivateSpellFromItem,
     castSpellFromItem,
     isSpellScroll,
