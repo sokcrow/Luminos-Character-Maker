@@ -119,6 +119,8 @@
   }
   function skillUsesItem(skill, item) {
     if (!skill || typeof skill !== "object") return false;
+    const weaponLink = global.LuminousEnchantmentCombatLink;
+    if (weaponLink?.isWeaponSkill && !weaponLink.isWeaponSkill(skill)) return false;
     const ref = skill.sourceItemInstanceId || skill.weaponInstanceId || skill.itemInstanceId ||
       skill.equipmentInstanceId || skill.equipmentId || skill.equipment_id;
     return Boolean(ref && String(ref) === itemId(item));
