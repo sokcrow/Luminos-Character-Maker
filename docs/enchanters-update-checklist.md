@@ -43,9 +43,9 @@ Design decisions are marked complete here; implementation remains open.
 
 ### Part A implementation gate
 
-- [ ] Add canonical Enchantment catalog/schema.
-- [ ] Add Enchantment engine/runtime.
-- [ ] Add Tier/Rank slot validation and conflict/channel resolution.
+- [x] Add canonical Enchantment catalog/schema.
+- [x] Add Enchantment engine/runtime.
+- [x] Add Tier/Rank slot validation and conflict/channel resolution.
 - [ ] Add Item Instance persistence/hydration for enchantments plus separate Magical Durability.
 - [ ] Add Arcana/Identify/Curse knowledge resolution and rune-obfuscated display.
 - [ ] Add Magic Item vs Magic Hit combat bridge.
@@ -54,6 +54,7 @@ Design decisions are marked complete here; implementation remains open.
 - [ ] Add Bind and Curse runtime behavior.
 - [ ] Add physical/magical repair authority.
 - [ ] Add regression/smoke tests and CI path coverage.
+  - [x] Initial Enchantment core schema/engine smoke is wired into Inventory Runtime Validation CI.
 
 ## Part B — Resonance, Gem Anchors and Enchantment Recipes (design frozen)
 
@@ -259,25 +260,25 @@ Canonical contract: [`docs/enchanters-update-part-d-magic-items.md`](./enchanter
 
 ## 2. Canonical Enchantment definition contract
 
-- [ ] Create a canonical Enchantment registry/runtime.
+- [x] Create a canonical Enchantment registry/runtime.
 - [x] Give every Enchantment a stable internal ID.
 - [x] Store player-facing name and description separately from internal IDs.
 - [x] Define Enchantment tier/power level.
-- [ ] Define Enchantment tags/categories.
-- [ ] Define eligible Item families/categories/types.
-- [ ] Define explicit ineligible Item families/categories/types.
-- [ ] Define allowed equipment slots where relevant.
+- [x] Define Enchantment tags/categories.
+- [x] Define eligible Item families/categories/types.
+- [x] Define explicit ineligible Item families/categories/types.
+- [x] Define allowed equipment slots where relevant.
 - [x] Define conflict/exclusion groups.
 - [x] Define stacking policy.
-- [ ] Define maximum copies per Item.
+- [x] Define maximum copies per Item.
 - [x] Define whether the Enchantment is permanent, removable or replaceable.
 - [ ] Define charges/uses when an Enchantment is charge-based.
-- [ ] Define activation trigger when an Enchantment is conditional.
+- [x] Define activation trigger when an Enchantment is conditional.
 - [x] Define canonical effect payloads without arbitrary eval/script execution.
 - [ ] Define canonical icon/visual metadata.
 - [ ] Define economy metadata: AHN cost/value contribution.
 - [x] Define material/reagent requirements.
-- [ ] Validate malformed Enchantment definitions before runtime use.
+- [x] Validate malformed Enchantment definitions before runtime use.
 
 ## 3. Item Instance integration
 
@@ -301,16 +302,16 @@ Canonical contract: [`docs/enchanters-update-part-d-magic-items.md`](./enchanter
 - [ ] Allow Item definitions to override default enchantment capacity.
 - [x] Support zero-capacity Items.
 - [ ] Support Item-family defaults for enchantment capacity.
-- [ ] Validate slot/capacity before application.
-- [ ] Prevent applying more Enchantments than allowed.
-- [ ] Prevent conflict-group combinations.
-- [ ] Prevent duplicate non-stackable Enchantments.
-- [ ] Allow compatible multi-Enchantment Items where capacity permits.
+- [x] Validate slot/capacity before application.
+- [x] Prevent applying more Enchantments than allowed.
+- [x] Prevent conflict-group combinations.
+- [x] Prevent duplicate non-stackable Enchantments.
+- [x] Allow compatible multi-Enchantment Items where capacity permits.
 - [ ] Expose capacity/used slots to player-facing Enchanter UI.
 
 ## 5. Canonical effect model
 
-- [ ] Define a whitelist of supported Enchantment effect types.
+- [x] Define a whitelist of supported Enchantment effect types.
 - [ ] Support flat Item stat modifiers where applicable.
 - [ ] Support percentage Item stat modifiers where applicable.
 - [ ] Support damage-type additions/modifiers where applicable.
