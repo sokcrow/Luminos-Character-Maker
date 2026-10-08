@@ -17,7 +17,7 @@ const Magic = globalThis.LuminousItemMagicRuntime;
 
 assert.ok(Catalog && Engine && Inventory && Magic);
 assert.strictEqual(Catalog.VERSION, 4);
-assert.strictEqual(Engine.VERSION, 5);
+assert.strictEqual(Engine.VERSION, 6);
 assert.strictEqual(Magic.VERSION, 3);
 
 const baseWeapon = {
@@ -34,11 +34,13 @@ const baseWeapon = {
 const direct = Engine.applyEnchantment(baseWeapon, "flamebound", 1);
 assert.strictEqual(direct.applied, true);
 assert.deepStrictEqual(direct.item.magic.magicalDurability, {
-  max:100,
-  current:100,
+  max:50,
+  current:50,
   depleted:false,
   autoManaged:true,
   profile:"direct",
+  physicalDurabilityMax:100,
+  physicalRatio:0.5,
 });
 assert.strictEqual(direct.item.condition, 73, "Enchanting does not divide or reduce Physical Durability");
 
@@ -50,13 +52,33 @@ const gemmed = Engine.mountGemAnchor(
 );
 assert.strictEqual(gemmed.mounted, true);
 assert.deepStrictEqual(gemmed.item.magic.magicalDurability, {
-  max:150,
-  current:150,
+  max:75,
+  current:75,
   depleted:false,
   autoManaged:true,
   profile:"gem_anchored",
+  physicalDurabilityMax:100,
+  physicalRatio:0.75,
 });
 assert.strictEqual(gemmed.item.condition, 73);
+
+const sixtyPhysical = {
+  ...baseWeapon,
+  instanceId:"sixty_physical",
+  conditionMax:60,
+  condition:60,
+};
+const sixtyDirect = Engine.applyEnchantment(sixtyPhysical,"flamebound",1);
+assert.strictEqual(sixtyDirect.item.magic.magicalDurability.max,30,"direct magic scales to 50% of Physical Durability Max");
+const sixtyGem = Engine.mountGemAnchor(
+  {...sixtyPhysical,instanceId:"sixty_gem"},
+  {instanceId:"ruby_sixty",definitionId:"ruby",quality:"fine"},
+  "flamebound",
+  1
+);
+assert.strictEqual(sixtyGem.item.magic.magicalDurability.max,45,"Gem-Anchored magic scales to 75% of Physical Durability Max");
+const oddPhysical = Engine.applyEnchantment({...baseWeapon,instanceId:"odd_physical",conditionMax:37,condition:37},"flamebound",1);
+assert.strictEqual(oddPhysical.item.magic.magicalDurability.max,19,"proportional Magical Durability rounds to the nearest whole point");
 
 const authoredDurabilityItem = {
   ...baseWeapon,
@@ -120,13 +142,13 @@ const wearResolution = Magic.enchantmentEffectResolution(rankOneUser, wearItem, 
 const wear = Magic.spendResolvedEnchantmentWear(wearItem, wearResolution);
 assert.strictEqual(wear.spent, true);
 assert.strictEqual(wear.amount, 1);
-assert.strictEqual(Magic.magicalDurabilityState(wearItem).current, 99);
+assert.strictEqual(Magic.magicalDurabilityState(wearItem).current, 49);
 assert.strictEqual(wearItem.condition, 73, "Magical wear does not silently damage Physical Durability");
 
 const doubled = Magic.spendMagicalDurability(wearItem, 2, {wearMultiplier:2});
 assert.strictEqual(doubled.spent, true);
 assert.strictEqual(doubled.amount, 4);
-assert.strictEqual(Magic.magicalDurabilityState(wearItem).current, 95);
+assert.strictEqual(Magic.magicalDurabilityState(wearItem).current, 45);
 
 Magic.setMagicalDurability(wearItem, 0, 100, {autoManaged:true,profile:"direct"});
 const depletedEffects = Magic.enchantmentEffectResolution(rankOneUser, wearItem, {trigger:"on_skill"});
@@ -145,7 +167,7 @@ const boundItem = JSON.parse(JSON.stringify(bound.item));
 const boundWear = Magic.spendMagicalDurability(boundItem, 10, {normalWear:true});
 assert.strictEqual(boundWear.spent, true);
 assert.strictEqual(boundWear.skipped, true);
-assert.strictEqual(Magic.magicalDurabilityState(boundItem).current, 100);
+assert.strictEqual(Magic.magicalDurabilityState(boundItem).current, 50);
 Magic.setMagicalDurability(boundItem, 0, 100, {autoManaged:true,profile:"direct"});
 assert.strictEqual(Magic.magicalPowerActive(boundItem), true, "Bound baseline magic persists at zero");
 assert.strictEqual(Magic.magicalPowerActive(boundItem, {specialUse:true}), false, "Bound special powers still need authored resource");
@@ -279,9 +301,9 @@ const skill = {skillRange:1};
 const context = {};
 const firstDamage = globalThis.CombatEngine.calculateCoinDamage(attacker,defender,skill,10,false,0,context);
 assert.strictEqual(firstDamage,55,"+10% Flamebound damage is then reduced by the authored Non-Magic Hit defense");
-assert.strictEqual(Magic.magicalDurabilityState(combatItem).current,99);
+assert.strictEqual(Magic.magicalDurabilityState(combatItem).current,49);
 const secondCoin = globalThis.CombatEngine.calculateCoinDamage(attacker,defender,skill,10,false,0,context);
 assert.strictEqual(secondCoin,55);
-assert.strictEqual(Magic.magicalDurabilityState(combatItem).current,99,"Magical wear is charged once per action context, not once per coin");
+assert.strictEqual(Magic.magicalDurabilityState(combatItem).current,49,"Magical wear is charged once per action context, not once per coin");
 
 console.log("Magical Durability + activation/combat bridge smoke: OK");
