@@ -504,10 +504,6 @@
     if (!channel.valid) return Object.freeze({ allowed:false, reason:channel.reason || "gem_rank_invalid", channel });
 
     const refs = appliedEnchantments(item);
-    if (existingIndex(refs, definition.id) >= 0 && definition.stacking === "non_stackable") {
-      return Object.freeze({ allowed:false, reason:"enchantment_already_installed", definitionId:definition.id });
-    }
-
     const anchors = gemAnchors(item);
     const capacity = gemSocketCapacity(item);
     if (anchors.length >= capacity) {
@@ -517,6 +513,10 @@
         catastrophicAvailable:anchors.length >= GEM_SOCKET_HARD_MAX,
         sockets:Object.freeze({used:anchors.length,max:capacity}),
       });
+    }
+
+    if (existingIndex(refs, definition.id) >= 0 && definition.stacking === "non_stackable") {
+      return Object.freeze({ allowed:false, reason:"enchantment_already_installed", definitionId:definition.id });
     }
 
     const socketIndex = options.socketIndex == null ? nextGemSocketIndex(item) : Math.max(0, Math.trunc(Number(options.socketIndex) || 0));
