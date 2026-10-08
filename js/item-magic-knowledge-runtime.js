@@ -52,6 +52,7 @@
   }
 
   function arcanaModifier(viewer = {}) {
+    const nested = viewer.characterData || viewer.playerData || viewer.character || {};
     const direct = [
       viewer.arcanaMod,
       viewer.arcanaModifier,
@@ -67,6 +68,20 @@
       viewer.dndStats?.skills?.arcana?.modifier,
       viewer.dndStats?.skills?.arcana?.mod,
       viewer.dndStats?.skills?.arcana,
+      nested.arcanaMod,
+      nested.arcanaModifier,
+      nested.arcana_mod,
+      nested.skillModifiers?.arcana,
+      nested.skill_modifiers?.arcana,
+      nested.skills?.arcana?.modifier,
+      nested.skills?.arcana?.mod,
+      nested.skills?.arcana,
+      nested.habilidades?.arcana?.modifier,
+      nested.habilidades?.arcana?.mod,
+      nested.habilidades?.arcana,
+      nested.dndStats?.skills?.arcana?.modifier,
+      nested.dndStats?.skills?.arcana?.mod,
+      nested.dndStats?.skills?.arcana,
     ].find((value) => Number.isFinite(Number(value)));
     return numberOr(direct, 0);
   }
@@ -368,15 +383,8 @@
     });
 
     const curseLines = [];
-    if (actual.cursed) {
-      if (!knowledge.curseFlagKnown) {
-        curseLines.push(Object.freeze({
-          tone:"curse",
-          known:false,
-          hidden:true,
-          text:arcaneRunes("Hidden curse", `${inscriptionSeed}:curse`),
-        }));
-      } else if (!knowledge.curseDetailsKnown) {
+    if (actual.cursed && knowledge.curseFlagKnown) {
+      if (!knowledge.curseDetailsKnown) {
         curseLines.push(Object.freeze({
           tone:"curse",
           known:false,
