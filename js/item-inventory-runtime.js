@@ -48,7 +48,8 @@
     "transplantMode", "transplantableByAnatomy", "transplantMedicalValueRangeAhn", "physicalMode",
     "modularCoverageMaterial", "discreteStructuralPart", "canAggregateCoverage", "canMergeForLargerPart", "canDownsizeForSmallerUse",
     "primitiveHardMaterial", "lineageValueMultiplier",
-    "unitValueAhn", "totalValueAhn", "productionValueAhn", "productionValue", "retailValueAhn"
+    "unitValueAhn", "totalValueAhn", "productionValueAhn", "productionValue", "retailValueAhn",
+    "enhancementLevel", "enhancementSource", "enchanted", "enchantment", "enchantmentReady"
   ]);
   let instanceCounter = 0;
 
@@ -853,7 +854,9 @@
     if (!global.document) return;
     loadExtension("LuminousWorkshopRuntime", "workshop-runtime-script", "js/workshop-runtime.js", () => {
       loadExtension("LuminousItemMagicRuntime", "item-magic-runtime-script", "js/item-magic-runtime.js", () => {
-        loadExtension("LuminousItemPersistenceRuntime", "item-persistence-runtime-script", "js/item-persistence-runtime.js");
+        loadExtension("LuminousItemEnchantmentRuntime", "item-enchantment-runtime-script", "js/item-enchantment-runtime.js", () => {
+          loadExtension("LuminousItemPersistenceRuntime", "item-persistence-runtime-script", "js/item-persistence-runtime.js");
+        });
       });
     });
   }
