@@ -373,11 +373,16 @@
       resolveTheatreCheck(input = {}) {
         const result = originalResolveTheatreCheck ? originalResolveTheatreCheck(input) : { check: { ...(input.check || {}) }, state: input.state, outcomes: [] };
         const character = input.character || input.self || {};
-        const bonus = reliableTalentFinalPower(character, result.check || input.check || {}, source);
-        // The Theatre Coin bridge applies check.finalPower to the rolled total.
-        // finalPowerBonus is only legacy metadata and never fed into that bridge.
         const baseCheck = result.check || input.check || {};
-        result.check = { ...baseCheck, finalPower: numberOr(baseCheck.finalPower, 0) + bonus };
+        const bonus = baseCheck.__rogueReliableTalentApplied
+          ? 0 : reliableTalentFinalPower(character, baseCheck, source);
+        // The Theatre Coin bridge consumes finalPower; keep this one-shot
+        // marker when Check payloads are copied by class/runtime wrappers.
+        result.check = {
+          ...baseCheck,
+          finalPower: numberOr(baseCheck.finalPower, 0) + bonus,
+          ...(bonus ? { __rogueReliableTalentApplied: true } : {}),
+        };
         if (bonus) result.outcomes = [...(result.outcomes || []), { type: "rogue_reliable_talent", traitId: "reliable_talent", finalPowerBonus: bonus }];
         return result;
       },
