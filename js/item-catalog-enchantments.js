@@ -6,7 +6,7 @@
     return;
   }
 
-  const VERSION = 1;
+  const VERSION = 2;
   const FAMILY = "enchantments";
   const SUPPORTED_RANKS = Object.freeze([1, 2, 3]);
   const BASE_SLOT_COST_BY_RANK = Object.freeze({ 1: 1, 2: 2, 3: 3 });
@@ -153,6 +153,9 @@
       compatibility: Object.freeze({
         primaryResonances: normalizeIds(def.compatibility?.primaryResonances),
         acceptedResonances: normalizeIds(def.compatibility?.acceptedResonances),
+        acceptedAffinities: normalizeIds(def.compatibility?.acceptedAffinities),
+        incompatibleResonances: normalizeIds(def.compatibility?.incompatibleResonances),
+        incompatibleAffinities: normalizeIds(def.compatibility?.incompatibleAffinities),
         materialTags: normalizeIds(def.compatibility?.materialTags),
       }),
       recipe: Object.freeze({
@@ -256,7 +259,7 @@
       },
       compatibility: {
         primaryResonances: ["fire"],
-        acceptedResonances: ["heat", "vigor"],
+        acceptedResonances: ["heat"],
       },
       recipe: {
         requiredTags: ["enchantment_material"],
@@ -282,7 +285,7 @@
       },
       compatibility: {
         primaryResonances: ["cold"],
-        acceptedResonances: ["ice", "focus"],
+        acceptedResonances: ["ice"],
       },
       recipe: {
         requiredTags: ["enchantment_material"],
@@ -308,7 +311,7 @@
       },
       compatibility: {
         primaryResonances: ["lightning"],
-        acceptedResonances: ["energy", "speed"],
+        acceptedResonances: ["energy"],
       },
       recipe: {
         requiredTags: ["enchantment_material"],
