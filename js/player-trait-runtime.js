@@ -178,7 +178,8 @@
   }
 
   function getRuntime(overrides = {}) {
-    const character = getCharacter();
+    // Grant resolution and formula evaluation must see the same class allocation.
+    const character = normalizeCharacterForGrantResolution(getCharacter());
     const input = overrides || {};
     const context = normalizeId(input.context || inferContext()) || "any";
     const self = Object.prototype.hasOwnProperty.call(input, "self")
