@@ -62,6 +62,13 @@ assert.strictEqual(first.item.magic.enchantments[0].anchorId, first.item.magic.g
 
 const second = Engine.mountGemAnchor(first.item, sapphireFine, "frostbound", 2);
 assert.strictEqual(second.mounted, true);
+const gemChannelUnresolved = Engine.resolveEffectsForAction(second.item);
+assert.strictEqual(gemChannelUnresolved.resolved, false, "Gem-Anchored Fire/Frost still require per-action channel choice");
+assert.deepStrictEqual(gemChannelUnresolved.unresolvedChannels, ["elemental_weapon"]);
+const gemFireChosen = Engine.resolveEffectsForAction(second.item, {selectedChannels:{elemental_weapon:"flamebound"}});
+assert.strictEqual(gemFireChosen.resolved, true);
+assert.strictEqual(gemFireChosen.effects.length, 1);
+assert.strictEqual(gemFireChosen.effects[0].sourceEnchantmentId, "flamebound");
 const third = Engine.mountGemAnchor(second.item, topazFine, "stormbound", 2);
 assert.strictEqual(third.mounted, true);
 assert.deepStrictEqual(third.item.magic.gemSockets, {max:3,used:3});
