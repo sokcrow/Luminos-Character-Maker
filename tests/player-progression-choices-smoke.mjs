@@ -90,6 +90,10 @@ selected.characterBuild.classes[0].levels=90;
 assert.equal(choices.maneuverLimit(selected),5);
 selected.characterBuild.classMilestones={fighter:{20:{type:'trait',traitId:'superior_technique'}}};
 assert.equal(choices.maneuverLimit(selected),6);
+globalThis.LuminousBattleMasterArchetypeRuntime = { maneuverCapacity:()=>5 };
+assert.equal(choices.maneuverLimit(selected),6,
+  'Superior Technique from class milestone grants its slot even when BM runtime is loaded');
+delete globalThis.LuminousBattleMasterArchetypeRuntime;
 selected.characterBuild.archetypes=[];
 assert.equal(choices.maneuverLimit(selected),0);
 
