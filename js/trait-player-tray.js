@@ -947,6 +947,7 @@
     const id = String(build.backgroundId || character.backgroundId || "").trim();
     const rule = global.LuminousCharacterBuildRules?.getBackground?.(id) || null;
     const narrative = global.LuminousBackgroundNarratives?.get?.(id) || null;
+    const legacy = global.LuminousLegacyBackgroundCatalog?.get?.(id) || null;
     const custom = character.backgroundNarrative && typeof character.backgroundNarrative === "object" ? character.backgroundNarrative : {};
     const choices = {
       ...(build.backgroundChoices && typeof build.backgroundChoices === "object" ? build.backgroundChoices : {}),
@@ -955,10 +956,10 @@
     };
     const label = (value) => String(value ?? "").replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
     const fallbackName = id ? label(id).replace(/\b\w/g, (match) => match.toUpperCase()) : "";
-    const name = narrative?.name || rule?.name || String(character.backgroundName || "").trim() || fallbackName;
+    const name = narrative?.name || rule?.name || legacy?.name || String(character.backgroundName || "").trim() || fallbackName;
     const rawBonus = build?.breakdown?.backgroundHpCoefBonus ?? rule?.hpCoefBonus;
     const bonus = rawBonus == null || rawBonus === "" || !Number.isFinite(Number(rawBonus)) ? null : Number(rawBonus);
-    return { id, name, rule, narrative, choices, bonus, character };
+    return { id, name, rule, narrative, legacy, choices, bonus, character };
   }
 
   function choiceText(value, options = []) {
@@ -1097,7 +1098,8 @@
         createElement("span", "player-background-eyebrow", "TU HISTORIA"),
         createElement("h2", "player-background-name", profile.name),
       );
-      if (profile.narrative?.overview) hero.appendChild(createElement("p", "player-background-overview", profile.narrative.overview));
+      const overview = profile.narrative?.overview || profile.legacy?.description;
+      if (overview) hero.appendChild(createElement("p", "player-background-overview", overview));
       if (profile.bonus !== null) {
         const bonus = (profile.bonus >= 0 ? "+" : "") + profile.bonus.toFixed(2);
         hero.appendChild(createElement("span", "player-background-hp-bonus", "HP COEF " + bonus));
@@ -1115,6 +1117,20 @@
           feature.appendChild(createElement("p", "player-background-feature__limits", profile.narrative.feature.limits));
         }
         panel.appendChild(feature);
+      }
+
+      if (profile.legacy) {
+        const origin = createElement("section", "player-background-feature");
+        origin.append(
+          createElement("span", "player-background-eyebrow", "ORIGEN · CREACIÓN DE PERSONAJE"),
+          createElement("h3", "player-background-feature__title", "Beneficios iniciales"),
+          createElement("p", "player-background-feature__description", profile.legacy.benefit),
+          createElement("p", "player-background-feature__limits", "Estos valores pertenecen al sistema de creación original y ya se incorporaron a los modificadores guardados. No se vuelven a aplicar desde Background."),
+        );
+        panel.appendChild(origin);
+        if (profile.legacy.initialFunds) {
+          addBackgroundDetail(panel, "FONDOS AL CREAR EL PERSONAJE (NO SALDO ACTUAL)", profile.legacy.initialFunds, "player-background-origin-funds");
+        }
       }
 
       const choices = profile.choices;
@@ -1151,8 +1167,9 @@
     }
 
     renderNarrativeBackgroundTrait(profile) {
-      if (!profile.narrative?.trait?.name) return null;
-      const trait = profile.narrative.trait;
+      const trait = profile.narrative?.trait?.name ? profile.narrative.trait : profile.legacy?.benefit
+        ? { name: "Beneficios del trasfondo original", description: profile.legacy.benefit } : null;
+      if (!trait) return null;
       const card = createElement("article", "player-trait-card player-background-narrative-trait");
       card.dataset.traitCategory = "background";
       card.append(
@@ -1160,9 +1177,11 @@
         createElement("h3", "player-trait-card__name", trait.name),
         createElement("p", "player-trait-card__description", trait.description),
       );
-      const note = /(?:^|[^a-z])X(?:[^a-z]|$)/.test(trait.description)
-        ? "Trait narrativo: el valor X está pendiente de balance. No modifica las tiradas automáticamente."
-        : "Trait narrativo de tu Background. No tiene automatización de efectos.";
+      const note = profile.legacy
+        ? "Beneficios registrados durante la creación antigua del personaje. Esta ficha es informativa: Trait Engine no los concede ni los aplica nuevamente."
+        : /(?:^|[^a-z])X(?:[^a-z]|$)/.test(trait.description)
+          ? "Trait narrativo: el valor X está pendiente de balance. No modifica las tiradas automáticamente."
+          : "Trait narrativo de tu Background. No tiene automatización de efectos.";
       card.appendChild(createElement("p", "player-background-trait-note", note));
       return card;
     }
