@@ -15,6 +15,7 @@
     root: null,
     detail: null,
     detailAnchor: null,
+    selectedKey: null,
     signature: "",
     retryTimer: null,
     booted: false,
@@ -73,25 +74,34 @@
   function clearDetail() {
     if (!state.detail) return;
     state.detail.hidden = true;
+    state.detailAnchor?.classList?.remove("is-inspected");
+    state.detailAnchor?.setAttribute?.("aria-pressed", "false");
     state.detailAnchor = null;
+    state.selectedKey = null;
     state.detail.replaceChildren();
   }
 
   function syncDetailPlacement() {
     if (!state.detail || state.detail.hidden) return;
     const anchor = state.detailAnchor;
-    if (mobileLayout?.matches && anchor && state.root?.contains(anchor) && anchor.parentElement) {
-      // The mobile grid shows the detail after the tapped milestone.
+    // The detail is always inline, irrespective of screen width or rotation.
+    if (anchor && state.root?.contains(anchor) && anchor.parentElement) {
       anchor.after(state.detail);
     } else if (state.root?.parentElement) {
-      // On desktop the detail spans the full width, never a 150px tree track.
       state.root.after(state.detail);
     }
   }
 
   function placeDetail(anchor) {
-    if (!state.detail) return;
+    if (!state.detail || !anchor) return;
+    if (state.detailAnchor !== anchor) {
+      state.detailAnchor?.classList?.remove("is-inspected");
+      state.detailAnchor?.setAttribute?.("aria-pressed", "false");
+    }
     state.detailAnchor = anchor;
+    state.selectedKey = anchor.dataset.progressionKey || null;
+    anchor.classList.add("is-inspected");
+    anchor.setAttribute("aria-pressed", "true");
     state.detail.hidden = false;
     syncDetailPlacement();
   }
@@ -123,36 +133,35 @@
       <header class="player-progression-detail__header">
         <div>
           <span>${escapeHtml(classModel.className)}${branch ? ` · ${escapeHtml(branch.name)}` : ""}</span>
-          <h3>CLASS LV.${node.level}</h3>
+          <h3>Hito · Nivel ${node.level}</h3>
         </div>
         <b class="player-progression-state is-${escapeHtml(node.status)}">${escapeHtml(statusLabel(node.status))}</b>
       </header>
-      <div class="player-progression-detail__items">${items || "<p>Sin recompensas registradas en este nodo.</p>"}</div>`;
+      <p class="player-progression-detail__guidance">Los hitos se obtienen automáticamente al alcanzar el nivel. Aquí puedes consultar sus recompensas.</p>
+      <div class="player-progression-detail__items">${items || "<p>Sin recompensas registradas en este hito.</p>"}</div>`;
   }
 
   function showBranchDetail(classModel, branch, anchor = null) {
     if (!state.detail || !branch) return;
     placeDetail(anchor);
-    const stateCopy = branch.status === "selected"
-      ? `Elegido en Class LV.${branch.selectedAtClassLevel || branch.unlockLevel}. Esta elección queda fijada salvo reset del DM.`
+    const message = branch.status === "selected"
+      ? "Este arquetipo ya está elegido para tu clase."
       : branch.status === "locked"
-        ? "Bloqueado porque esta clase ya eligió otro arquetipo. Puedes seguir inspeccionando esta rama."
+        ? "Ya elegiste otro arquetipo para esta clase. El DM debe restablecer la elección para cambiarla."
         : branch.status === "available"
-          ? "Este arquetipo está disponible para elegir ahora."
-          : `Se desbloquea en Class LV.${branch.unlockLevel}.`;
-
+          ? "Puedes elegir este arquetipo ahora con el botón de su tarjeta."
+          : `Disponible al alcanzar el nivel ${branch.unlockLevel} en ${classModel.className}.`;
+    const milestones = (branch.nodes || []).map(node => `
+      <li><b>LV. ${node.level}</b><span>${(node.items || []).map(item=>escapeHtml(item.name)).join(", ") || "Mejora del arquetipo"}</span></li>`).join("");
     state.detail.innerHTML = `
       <header class="player-progression-detail__header">
-        <div>
-          <span>${escapeHtml(classModel.className)} · ARCHETYPE</span>
-          <h3>${escapeHtml(branch.name)}</h3>
-        </div>
+        <div><span>${escapeHtml(classModel.className)} · ARQUETIPO</span><h3>${escapeHtml(branch.name)}</h3></div>
         <b class="player-progression-state is-${escapeHtml(branch.status)}">${escapeHtml(statusLabel(branch.status))}</b>
       </header>
       <div class="player-progression-detail__branch">
-        <p>${escapeHtml(branch.description || "Sin descripción registrada.")}</p>
-        <p><strong>Unlock:</strong> Class LV.${branch.unlockLevel}</p>
-        <p>${escapeHtml(stateCopy)}</p>
+        ${branch.description ? `<p>${escapeHtml(branch.description)}</p>` : ""}
+        <p class="player-progression-detail__guidance">${escapeHtml(message)}</p>
+        ${milestones ? `<strong>Hitos de esta rama</strong><ul class="player-progression-archetype-rewards">${milestones}</ul>` : ""}
       </div>`;
   }
 
@@ -171,14 +180,16 @@
     button.className = `player-progression-node is-${node.status}`;
     button.dataset.progressionLevel = String(node.level);
     button.dataset.progressionStatus = node.status;
-    button.innerHTML = `
-      <span class="player-progression-node__level">LV.${node.level}</span>
-      <strong>${escapeHtml(nodeTitle(node))}</strong>
-      <small>${escapeHtml(statusLabel(node.status))}</small>`;
+    button.dataset.progressionKey = `${classModel.classId}:milestone:${branch?.id || "base"}:${node.level}`;
     button.setAttribute("aria-controls", "player-progression-detail");
+    button.setAttribute("aria-pressed", "false");
+    button.setAttribute("aria-label", `Ver hito de ${classModel.className} nivel ${node.level}: ${nodeTitle(node)}`);
+    button.innerHTML = `
+      <span class="player-progression-node__level">LV. ${node.level}</span>
+      <strong>${escapeHtml(nodeTitle(node))}</strong>
+      <small>${escapeHtml(statusLabel(node.status))} · VER DETALLES</small>`;
     const inspect = () => showNodeDetail(classModel, node, branch, button);
-    button.addEventListener("mouseenter", inspect);
-    button.addEventListener("focus", inspect);
+    button.__inspect = inspect;
     button.addEventListener("click", inspect);
     return button;
   }
@@ -356,8 +367,13 @@
       return true;
     }
 
+    const previousSelection = state.selectedKey;
     model.classes.forEach((classModel) => host.appendChild(renderClassTree(classModel)));
-    clearDetail();
+    const selected = previousSelection
+      ? [...host.querySelectorAll("[data-progression-key]")].find(item=>item.dataset.progressionKey===previousSelection)
+      : null;
+    if (selected?.__inspect) selected.__inspect();
+    else clearDetail();
     return true;
   }
 
