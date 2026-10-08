@@ -1,0 +1,38 @@
+name: Trait Check Power Smoke
+
+on:
+  pull_request:
+    paths:
+      - "js/archetype-trait-catalog.js"
+      - "js/player-archetype-runtime-core.js"
+      - "js/player-stats-ability-bar.js"
+      - "js/skill-trait-breakdown-patch.js"
+      - "js/trait-engine.js"
+      - "hoja_personaje.html"
+      - "tests/trait-check-power-smoke.mjs"
+      - ".github/workflows/trait-check-power-smoke.yml"
+  push:
+    branches: [main]
+    paths:
+      - "js/archetype-trait-catalog.js"
+      - "js/player-archetype-runtime-core.js"
+      - "js/player-stats-ability-bar.js"
+      - "js/skill-trait-breakdown-patch.js"
+      - "js/trait-engine.js"
+      - "hoja_personaje.html"
+      - "tests/trait-check-power-smoke.mjs"
+      - ".github/workflows/trait-check-power-smoke.yml"
+
+jobs:
+  trait-check-power:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node --check js/archetype-trait-catalog.js
+      - run: node --check js/player-archetype-runtime-core.js
+      - run: node --check js/player-stats-ability-bar.js
+      - run: node --check js/skill-trait-breakdown-patch.js
+      - run: node tests/trait-check-power-smoke.mjs
