@@ -7,6 +7,12 @@ on:
       - 'js/character-build-rules.js'
       - 'js/player-progression-tree-core.js'
       - 'js/player-progression-tree.js'
+      - 'js/player-progression-choices.js'
+      - 'js/archetype-progression-preview-catalog.js'
+      - 'js/class-milestone-engine.js'
+      - 'js/fighter-maneuver-catalog.js'
+      - 'css/player-progression-mystic.css'
+      - 'tests/player-progression-choices-smoke.mjs'
       - 'js/player-skills-hud.js'
       - 'js/player-progression-level-allocation.js'
       - 'js/player-trait-runtime.js'
@@ -38,6 +44,12 @@ on:
       - 'js/character-build-rules.js'
       - 'js/player-progression-tree-core.js'
       - 'js/player-progression-tree.js'
+      - 'js/player-progression-choices.js'
+      - 'js/archetype-progression-preview-catalog.js'
+      - 'js/class-milestone-engine.js'
+      - 'js/fighter-maneuver-catalog.js'
+      - 'css/player-progression-mystic.css'
+      - 'tests/player-progression-choices-smoke.mjs'
       - 'js/player-skills-hud.js'
       - 'js/player-progression-level-allocation.js'
       - 'js/player-trait-runtime.js'
@@ -75,6 +87,10 @@ jobs:
           node --check js/character-build-rules.js
           node --check js/player-progression-tree-core.js
           node --check js/player-progression-tree.js
+          node --check js/player-progression-choices.js
+          node --check js/archetype-progression-preview-catalog.js
+          node --check js/class-milestone-engine.js
+          node --check js/fighter-maneuver-catalog.js
           node --check js/player-skills-hud.js
           node --check js/player-progression-level-allocation.js
           node --check js/player-trait-runtime.js
@@ -88,6 +104,8 @@ jobs:
           node --check js/battle-viewer-player-entry-074.js
       - name: Progression tree smoke
         run: node tests/player-progression-tree-smoke.mjs
+      - name: Player Milestone, maneuvers and preview regression
+        run: node tests/player-progression-choices-smoke.mjs
       - name: Player combat skills HUD smoke
         run: node tests/player-skills-hud-smoke.mjs
       - name: DM Player loadout smoke
