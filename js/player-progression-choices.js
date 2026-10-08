@@ -238,7 +238,9 @@
             const applied = api().applyPlayerStatAllocation(current,checked.choice.allocation);
             if (!applied.valid) { abortReason=applied.errors.join(" ");return; }
             current.stats = current.stats && typeof current.stats==="object" ? current.stats : {};
-            Object.keys(applied.allocation).forEach(key=>{ current.stats[key] = applied.stats[key]; });
+            Object.keys(applied.allocation).forEach(key=>{
+              api().writeCanonicalStat(current.stats,key,applied.stats[key]);
+            });
             if (applied.baseStats) current.baseStats = applied.baseStats;
             baseStatsApplied = Boolean(applied.baseStats);
           }
