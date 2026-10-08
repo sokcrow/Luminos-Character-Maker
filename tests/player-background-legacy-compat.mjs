@@ -71,7 +71,7 @@ for (const original of creatorEntries) {
   assert.ok(summary.includes(original.desc), "Missing description: " + original.id);
   assert.ok(summary.includes(original.benefit), "Missing original benefit: " + original.id);
   assert.ok(summary.includes(original.funds), "Missing starting funds: " + original.id);
-  assert.ok(summary.includes("NO SALDO ACTUAL"), "Do not report original funds as current balance");
+  assert.ok(summary.includes("NO REPRESENTA EL SALDO ACTUAL"), "Do not report original funds as current balance");
   assert.ok(summary.includes("Valentía"), "Saved psychological choices should be visible");
   assert.ok(!summary.includes("HP COEF +0.00"), "Legacy creator does not grant HP Coef");
 
@@ -79,7 +79,7 @@ for (const original of creatorEntries) {
   assert.ok(trait, "Legacy background must have visible Background Trait: " + original.id);
   const traitText = textContent(trait);
   assert.ok(traitText.includes(original.benefit));
-  assert.ok(traitText.includes("no los concede ni los aplica nuevamente"), "Never double-apply legacy modifiers");
+  assert.ok(traitText.includes("no las suma de nuevo"), "Never double-apply legacy modifiers");
   tray.root = node("section");
   tray.render();
   const filters = tray.root.children[0];
