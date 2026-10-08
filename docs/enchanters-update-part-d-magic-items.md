@@ -417,46 +417,46 @@ Recommended representative validation coverage:
 - [x] Make each Item consume one Attunement Slot regardless of Enchantment/Gem count.
 - [x] Make normal Enchanted Items require Attunement when any installed Enchantment is Rank II+.
 - [x] Keep Rank I Enchanted Items unattuned by default unless another property requires Attunement.
-- [ ] Suppress attunement-gated Enchantment benefits while unattuned without deleting Item magic.
-- [ ] Add Native Magic Item origin support without forcing Enchantment Slot/Gem Socket semantics.
+- [x] Suppress attunement-gated Enchantment benefits while unattuned without deleting Item magic.
+- [x] Add Native Magic Item origin support without forcing Enchantment Slot/Gem Socket semantics.
 
 ### Activation / effects
 
-- [ ] Add whitelisted activation trigger families for passive, hit, Skill, Spell, reaction, action, manual and channel-driven effects.
-- [ ] Keep installed Enchantment identity fixed during normal gameplay.
-- [ ] Preserve per-action choice between already-installed exclusive channels.
+- [x] Add whitelisted activation trigger families and trigger-filtered runtime resolution for passive, hit, Skill, Spell, reaction, action, manual and channel-driven effects.
+- [x] Keep installed Enchantment identity fixed during normal gameplay; activation selects effects/channels rather than rewriting the Enchantment.
+- [x] Preserve per-action choice between already-installed exclusive channels.
 - [ ] Permit practical activation knowledge without requiring full Arcana identification.
-- [ ] Keep passive effects automatic when otherwise active/eligible.
+- [x] Keep passive effects automatically resolvable when otherwise active/eligible.
 
 ### Magical Durability / Charges
 
-- [ ] Refactor Item Charges so they can be backed by canonical Magical Durability instead of a separate unrelated battery.
-- [ ] Add per-property Charge -> Magical Durability cost mapping.
-- [ ] Support Items that spend Magical Durability only on special activated powers.
-- [ ] Add definition-driven recharge hooks.
-- [ ] Keep depleted enchanted physical Items usable mundanely when Physical Durability permits.
-- [ ] Ensure 0 Physical Durability uses existing damaged/broken Item rules rather than automatic destruction.
+- [x] Refactor Item Charges so authored properties can be backed by canonical Magical Durability instead of a separate unrelated battery.
+- [x] Add per-property Charge -> Magical Durability cost mapping.
+- [x] Support Items that spend Magical Durability only on special activated powers.
+- [x] Add definition-driven Magical Durability recharge hooks.
+- [x] Keep depleted enchanted physical Items usable mundanely when Physical Durability permits.
+- [x] Ensure 0 Physical Durability uses existing damaged/broken Item rules rather than automatic destruction.
 
 ### Item Spells
 
-- [ ] Preserve Item-bound Spell casting through the existing Spell runtime/executor.
-- [ ] Support Item-paid Spell casts that spend Item Charges/Magical Durability and no user Spell Slot.
-- [ ] Support conduit/enabler Items that use the wielder's normal Spell Slot/resource.
-- [ ] Support authored Item Spell Attack / Spell DC or explicitly wielder-derived values.
-- [ ] Spend SP only when the Item/Curse/property explicitly requires it.
+- [x] Preserve Item-bound Spell casting through the existing Spell runtime/executor.
+- [x] Support Item-paid Spell casts that spend Item Charges/Magical Durability and no user Spell Slot.
+- [x] Support conduit/enabler Items that mark the cast as using the wielder's normal Spell Slot/resource.
+- [x] Support authored Item Spell Attack / Spell DC or explicitly wielder-derived values through the existing resolver.
+- [x] Spend SP only when the Item/Curse/property explicitly requires it.
 
 ### Bind / Curse
 
 - [x] Migrate Bind to a Curse-family state while preserving intentional/accidental creation support.
 - [ ] Block normal unequip and unattune for Bound Items.
   - [x] Normal Bound unattunement is blocked in `LuminousItemMagicRuntime`; equipment unequip lock remains pending.
-- [ ] Lock the occupied Attunement Slot for an attuned Bound Item.
-- [ ] Preserve x1.25 Bound positive-effect multiplier.
-- [ ] Ignore ordinary/background Magical Durability wear for Bound magic.
-- [ ] Allow authored special-use resource spend on Bound Items.
-- [ ] Add faster definition-driven Bound recharge.
-- [ ] Add life/HP-backed full recharge at zero for Bound Items according to authored profile.
-- [ ] Allow persistent Curses to ignore normal magical depletion and author self-preservation/recharge effects.
+- [x] Lock the occupied Attunement Slot for an attuned Bound Item by blocking normal unattune/removal from the Attunement store.
+- [x] Preserve x1.25 Bound positive-effect multiplier.
+- [x] Ignore ordinary/background Magical Durability wear for Bound magic.
+- [x] Allow authored special-use resource spend on Bound Items.
+- [x] Add definition-driven Bound recharge multipliers.
+- [x] Add life/HP-backed full recharge at zero for Bound Items according to authored profile.
+- [x] Allow authored persistent Curses to ignore normal magical depletion and support self-preservation/recharge behavior.
 - [ ] Distinguish normal Curse, Bound Curse and inseparable Relic drawback.
 
 ### Relics
@@ -471,8 +471,8 @@ Recommended representative validation coverage:
 
 ### Future Magic Items compatibility
 
-- [ ] Support Native Wondrous/utility Magic Items without Enchantment Slots.
-- [ ] Preserve/support Spell Scroll runtime.
+- [x] Support Native Wondrous/utility Magic Items without Enchantment Slots.
+- [x] Preserve/support the existing Spell Scroll runtime.
 - [ ] Add generic hooks for talismans and enchanted ammunition.
 - [ ] Keep Potions out of the priority adaptation scope.
 - [ ] Provide an adapter path for classic +1/+2/+3 items into named Enchantment/Rank definitions.
@@ -480,14 +480,15 @@ Recommended representative validation coverage:
 
 ### Tests / handoff
 
-- [ ] Add Rank I no-attunement and Rank II+ attunement regression tests.
-- [ ] Add one-Item/one-Attunement-Slot multi-Enchantment test.
-- [ ] Add unattuned-benefit suppression test.
-- [ ] Add Magical-Durability-backed Charge tests.
-- [ ] Add Item-paid vs wielder-paid Spell cast tests.
+- [x] Add Rank I no-attunement and Rank II+ attunement regression tests.
+- [x] Add one-Item/one-Attunement-Slot multi-Enchantment test.
+- [x] Add unattuned-benefit suppression test.
+- [x] Add Magical-Durability-backed Charge tests.
+- [x] Add Item-paid vs wielder-paid Spell cast tests.
 - [ ] Add Bound equip/unattune lock and life-recharge tests.
-- [ ] Add persistent Curse/self-preservation tests.
-- [ ] Add Native Magic Item/Wondrous Item fixture.
+  - [x] Bound unattune lock and life-backed recharge are covered; equipment unequip lock remains pending.
+- [x] Add persistent Curse/self-preservation tests.
+- [x] Add Native Magic Item/Wondrous Item fixture.
 - [ ] Add Relic Rank IV/V and 5% Identify breakthrough tests.
-- [ ] Add 0-Durability damaged-not-annihilated regression coverage.
+- [x] Add 0-Durability damaged-not-annihilated regression coverage.
 - [ ] Add Magic Items Update handoff document after Enchantment runtime integration is validated.
