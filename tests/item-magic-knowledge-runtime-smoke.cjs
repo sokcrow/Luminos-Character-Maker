@@ -102,7 +102,7 @@ const cursedUser = {id:"cursed_user",arcanaMod:0,sp:2};
 const beforeIdentify = Knowledge.presentation(cursedUser,cursed);
 assert.strictEqual(beforeIdentify.displayName,"Enchanted Longsword");
 assert.strictEqual(beforeIdentify.cursed,false);
-assert.strictEqual(beforeIdentify.curseLines[0].hidden,true);
+assert.strictEqual(beforeIdentify.curseLines.length,0,"undetected Curse must not leak a separate inscription or UI line");
 
 const identifiedCursed = Knowledge.identifyItem(cursedUser,cursed);
 assert.strictEqual(identifiedCursed.identified,true);
