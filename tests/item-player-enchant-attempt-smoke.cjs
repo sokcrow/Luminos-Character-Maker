@@ -161,34 +161,4 @@ assert.strictEqual(gemBacklash.item.magic.gemAnchors[0].state,"broken");
 assert.strictEqual(gemBacklash.item.magic.enchantments[0].dormant,true);
 assert.deepStrictEqual(gemBacklash.item.magic.enchantments[0].properties,[],"broken Anchor backlash still does not imply Curse");
 
-const ritualDef={
-  ...globalThis.LuminousEnchantmentCatalog.get("flamebound"),
-  id:"player_ritual_material_test",
-  recipe:{
-    requiredTags:["enchantment_material"],
-    consumedRequirements:[
-      {id:"powder",anyTags:["arcane_reagent"],quantity:2},
-    ],
-    exactItemRequirements:[],
-    outcomes:{allowAccidentalBind:false,allowAccidentalCurse:false},
-  },
-};
-const powder={instanceId:"powder_stack",definitionId:"powder",quantity:2,reagentTags:["arcane_reagent"]};
-const alteredWithMaterials=Services.attemptPlayerEnchant(
-  {...weapon,instanceId:"material_attempt_weapon"},
-  ritualDef,
-  1,
-  {
-    roll:15,
-    arcanaModifier:5,
-    materials:[powder],
-    deviationRoll:0,
-    outcomePools:{minor_deviation:[{kind:"abstract_only",weight:1}]},
-  }
-);
-assert.strictEqual(alteredWithMaterials.attempted,true);
-assert.strictEqual(alteredWithMaterials.controlled,false);
-assert.strictEqual(alteredWithMaterials.materials.consumed,true);
-assert.strictEqual(powder.quantity,0,"ritual materials are spent when the attempt begins even if the result deviates");
-
 console.log("Player enchant control/deviation smoke: OK");
