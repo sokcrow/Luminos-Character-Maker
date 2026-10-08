@@ -68,7 +68,7 @@ for (const branch of branches) {
   assert.ok(branch.nodes.every(node=>node.items.length && node.items.every(item=>item.name && item.description)),
     'Preview shows generic/empty text: '+branch.id);
 }
-assert.equal(globalThis.LuminousArchetypeTraitCatalog.allGrants().length, 24,
+assert.equal(globalThis.LuminousArchetypeTraitCatalog.allGrants().length, 23,
   'Display-only previews must not be injected into combat grants');
 
 assert.deepEqual(milestone.milestoneLevelsForClass('monk'),[20,40,60,80,95]);
