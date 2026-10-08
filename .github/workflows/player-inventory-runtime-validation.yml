@@ -108,6 +108,7 @@ on:
       - tests/item-catalog-plant-produce-smoke.cjs
       - tests/item-catalog-ore-ingot-gem-smoke.cjs
       - tests/item-enchantment-engine-smoke.cjs
+      - tests/item-enchantment-inventory-smoke.cjs
       - tests/item-catalog-tools-smoke.cjs
       - tests/item-catalog-craft-components-smoke.cjs
       - tests/item-catalog-weapons-smoke.cjs
@@ -273,6 +274,8 @@ jobs:
         run: node tests/item-catalog-ore-ingot-gem-smoke.cjs
       - name: Enchantment core engine smoke
         run: node tests/item-enchantment-engine-smoke.cjs
+      - name: Enchantment inventory persistence smoke
+        run: node tests/item-enchantment-inventory-smoke.cjs
       - name: Tool catalog smoke
         run: node tests/item-catalog-tools-smoke.cjs
       - name: Craft component catalog smoke
