@@ -7,6 +7,10 @@ load("js/skill-trait-breakdown-patch.js");
 load("js/rogue-class-runtime.js");
 load("js/archetype-engine.js");
 load("js/archetype-trait-catalog.js");
+load("js/champion-archetype-runtime.js");
+load("js/banneret-archetype-runtime.js");
+load("js/samurai-archetype-runtime.js");
+load("js/bladesinger-archetype-runtime.js");
 
 const patch = globalThis.LuminousSkillTraitBreakdownPatch;
 const engine = globalThis.LuminousTraitEngine;
@@ -61,6 +65,8 @@ const gifted = { ...ch, saveProficiency: { wis: "proficient" },
   traitChoices: { elegant_courtier_save: "cha" } };
 assert.equal(amount([courtier], gifted, { kind: "save", abilityId: "wis" }), 0);
 assert.equal(amount([courtier], gifted, { kind: "save", abilityId: "cha" }), 4);
+assert.equal(amount([courtier], { ...ch, abilityProficiency: { wis: "half" } },
+  { kind: "save", abilityId: "wis" }), 2);
 
 // Bladesinger conditional Acrobatics: status on -> +4, off -> 0.
 const bladesong = trait("bladesong", { acrobaticsBonus: 4 });
@@ -88,6 +94,52 @@ alreadyApplied.finalPower = 4;
 alreadyApplied.__banneretRoyalEnvoyAdjusted = true;
 patch.applySpecialCheckBonuses([envoy, courtier], ch, alreadyApplied);
 assert.equal(alreadyApplied.finalPower, 8, "Legacy armCheck pre-bonus must not be counted twice");
+
+
+const fighter = (archetypeId, proficiency = "half") => ({
+  characterBuild: {
+    classes: [{ classId: "fighter", levels: 35 }],
+    archetypes: [{ classId: "fighter", archetypeId }],
+  },
+  classes: [{ classId: "fighter", levels: 35 }],
+  level: 41,
+  stats: { fuerza: 18, sabiduria: 16, carisma: 14 },
+  skillProficiency: { persuasion: proficiency },
+  abilityProficiency: { wis: "half" },
+});
+const realEnvoy = fighter("banneret");
+const envoyCheck = globalThis.LuminousBanneretArchetypeRuntime.applyRoyalEnvoyCheck(
+  skill("persuasion", "cha"), realEnvoy);
+assert.equal(envoyCheck.finalPower, 2, "Banneret rounds half proficiency before upgrading it.");
+assert.equal(amount([envoy], realEnvoy, skill("persuasion", "cha")), 2);
+assert.equal(patch.applySpecialCheckBonuses([envoy], realEnvoy, envoyCheck).length, 0);
+assert.equal(envoyCheck.finalPower, 2);
+
+const realChampion = fighter("champion");
+const athleteCheck = globalThis.LuminousChampionArchetypeRuntime.applyRemarkableAthleteCheck(
+  skill("athletics", "str"), realChampion);
+assert.equal(athleteCheck.finalPower, 1);
+assert.equal(patch.applySpecialCheckBonuses([athlete], realChampion, athleteCheck).length, 0);
+assert.equal(athleteCheck.finalPower, 1);
+
+const realSamurai = fighter("samurai");
+const courtierCheck = globalThis.LuminousSamuraiArchetypeRuntime.applyElegantCourtierCheck(
+  { kind: "save", abilityId: "wis" }, realSamurai);
+assert.equal(courtierCheck.finalPower, 2, "Samurai grants missing proficiency, not half plus full.");
+assert.equal(amount([courtier], realSamurai, { kind: "save", abilityId: "wis" }), 2);
+assert.equal(patch.applySpecialCheckBonuses([courtier], realSamurai, courtierCheck).length, 0);
+
+const realBladesinger = {
+  characterBuild: { classes: [{ classId: "wizard", levels: 10 }],
+    archetypes: [{ classId: "wizard", archetypeId: "bladesinger" }] },
+  classes: [{ classId: "wizard", levels: 10 }],
+  level: 10, stats: { destreza: 16 }, statusEffects: { bladesong: { count: 1 } },
+};
+const bladeCheck = globalThis.LuminousBladesingerArchetypeRuntime.applyAcrobaticsBonus(
+  skill("acrobatics", "dex"), realBladesinger);
+assert.equal(bladeCheck.finalPower, 4);
+assert.equal(patch.applySpecialCheckBonuses([bladesong], realBladesinger, bladeCheck).length, 0);
+assert.equal(bladeCheck.finalPower, 4, "Bladesong is idempotent after the specialised runtime.");
 
 // Jackpot is declarative check.checkPower and must remain distinct from finalPower.
 const jackpot = globalThis.LuminousArchetypeTraitCatalog.getDefinition("devil_lineage_jackpot");
