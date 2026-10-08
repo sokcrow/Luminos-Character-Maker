@@ -6,7 +6,7 @@
     return;
   }
 
-  const VERSION = 5;
+  const VERSION = 6;
   const FAMILY = "ore_ingot_gem";
   const CURRENCY = "AHN";
   const AHN_ECONOMY_SCALE = 2.5;
@@ -41,6 +41,73 @@
     resonant: Object.freeze({ id:"resonant", multiplier:2.50, tier:"workshop" }),
     precious: Object.freeze({ id:"precious", multiplier:2.75, tier:"workshop" }),
     exotic: Object.freeze({ id:"exotic", multiplier:3.00, tier:"corp_wing" }),
+  });
+
+  const GEM_STABLE_RANK_BY_QUALITY = Object.freeze({
+    ruined: 0,
+    poor: 1,
+    standard: 1,
+    fine: 2,
+    exceptional: 3,
+  });
+
+  const GEM_QUALITY_STABILITY = Object.freeze({
+    ruined: "depleted",
+    poor: "unstable",
+    standard: "stable",
+    fine: "stable",
+    exceptional: "stable",
+  });
+
+  const GEM_MAGIC_PROFILES = Object.freeze({
+    ruby: Object.freeze({
+      resonances:Object.freeze(["fire","heat"]),
+      enchantmentAffinities:Object.freeze(["fire","heat","vigor","hp","regeneration","fire_resistance"]),
+    }),
+    sapphire: Object.freeze({
+      resonances:Object.freeze(["cold","ice"]),
+      enchantmentAffinities:Object.freeze(["cold","ice","sp","intelligence","focus","cold_resistance","control"]),
+    }),
+    aquamarine: Object.freeze({
+      resonances:Object.freeze(["water","flow"]),
+      enchantmentAffinities:Object.freeze(["water","flow","mobility","dodge","recovery","cleansing","water_resistance"]),
+    }),
+    topaz: Object.freeze({
+      resonances:Object.freeze(["lightning","energy"]),
+      enchantmentAffinities:Object.freeze(["lightning","energy","speed","initiative","movement","acceleration","lightning_resistance"]),
+    }),
+    garnet: Object.freeze({
+      resonances:Object.freeze(["blood","physical"]),
+      enchantmentAffinities:Object.freeze(["blood","physical","strength","physical_damage","bleed","max_hp","endurance"]),
+    }),
+    emerald: Object.freeze({
+      resonances:Object.freeze(["vitality","nature"]),
+      enchantmentAffinities:Object.freeze(["vitality","nature","max_hp","healing","regeneration","poison_resistance","recovery"]),
+    }),
+    amethyst: Object.freeze({
+      resonances:Object.freeze(["arcane","mental"]),
+      enchantmentAffinities:Object.freeze(["arcane","mental","intelligence","sp","spell_power","focus","mental_resistance"]),
+    }),
+    onyx: Object.freeze({
+      resonances:Object.freeze(["shadow","necrotic"]),
+      enchantmentAffinities:Object.freeze(["shadow","necrotic","life_drain","stealth","necrotic_resistance","curse"]),
+    }),
+    moonstone: Object.freeze({
+      resonances:Object.freeze(["spirit"]),
+      enchantmentAffinities:Object.freeze(["spirit","sp","sanity","spirit_resistance","attunement","support"]),
+    }),
+    opal: Object.freeze({
+      resonances:Object.freeze(["prismatic"]),
+      enchantmentAffinities:Object.freeze(["prismatic","adaptive_resistance","multi_element","resonance_blend"]),
+    }),
+    diamond: Object.freeze({
+      resonances:Object.freeze(["light","force"]),
+      enchantmentAffinities:Object.freeze(["light","force","defense","barrier","armor","light_resistance","force_resistance"]),
+    }),
+    starstone_exotic_gem: Object.freeze({
+      resonances:Object.freeze(["exotic"]),
+      enchantmentAffinities:Object.freeze(["exotic","rare_enchantment","relic_interaction","anomalous_magic"]),
+    }),
   });
 
   function safeRequire(path) {
@@ -152,9 +219,14 @@
     const profileId = normalizeId(def.profile || "resonant");
     const profile = LAPIDARY_PROFILES[profileId];
     if (!profile) throw new Error(`Unknown lapidary profile: ${profileId}`);
+    const magicProfile = GEM_MAGIC_PROFILES[baseId];
+    if (!magicProfile) throw new Error(`Missing Gem Magic Profile: ${baseId}`);
     const roughValueAhn = Math.max(0, Math.round(Number(def.roughValueAhn) || 0));
     const cutValueAhn = Math.round(roughValueAhn * profile.multiplier);
     const resonanceTags = (def.resonanceTags || []).map(normalizeId).filter(Boolean);
+    if (JSON.stringify(resonanceTags) !== JSON.stringify(magicProfile.resonances)) {
+      throw new Error(`Gem resonance mismatch for ${baseId}`);
+    }
     return [
       material({
         id: `rough_${baseId}`,
@@ -175,6 +247,12 @@
         lapidaryMultiplier: profile.multiplier,
         processTier: profile.tier,
         enchantmentReady: false,
+        gemMagicProfile: Object.freeze({
+          resonances: Object.freeze([...magicProfile.resonances]),
+          enchantmentAffinities: Object.freeze([...magicProfile.enchantmentAffinities]),
+          canAnchorEnchantment: false,
+          enchantmentFeedstock: true,
+        }),
         useTags: ["lapidary_input", "enchantment_material", "enchantment_feedstock"],
         tags: ["ingredient", "gemstone", "rough_gem", "resonant", "creature_mineral_harvest"],
       }),
@@ -198,6 +276,12 @@
         lapidaryMultiplier: profile.multiplier,
         processTier: profile.tier,
         enchantmentReady: true,
+        gemMagicProfile: Object.freeze({
+          resonances: Object.freeze([...magicProfile.resonances]),
+          enchantmentAffinities: Object.freeze([...magicProfile.enchantmentAffinities]),
+          canAnchorEnchantment: true,
+          enchantmentFeedstock: false,
+        }),
         useTags: ["enchantment_material", "accessory_socket", "armor_socket", "weapon_socket"],
         tags: ["ingredient", "gemstone", "cut_gem", "resonant", "enchantment"],
       }),
@@ -365,6 +449,80 @@
     return { id: normalizeId(quality || DEFAULT_QUALITY), effectMultiplier: 1, valueMultiplier: 1 };
   }
 
+  function canonicalGemId(itemOrId) {
+    const entry = typeof itemOrId === "string" ? get(itemOrId) : clone(itemOrId);
+    if (!entry || entry.materialClass !== "gemstone") return "";
+    return normalizeId(entry.form === "rough_gem" ? String(entry.id || "").replace(/^rough_/, "") : entry.id);
+  }
+
+  function gemMagicProfile(itemOrId) {
+    const entry = typeof itemOrId === "string" ? get(itemOrId) : clone(itemOrId);
+    if (!entry || entry.materialClass !== "gemstone") return null;
+    const baseId = canonicalGemId(entry);
+    const base = GEM_MAGIC_PROFILES[baseId];
+    if (!base) return null;
+    return Object.freeze({
+      gemId: baseId,
+      resonances: Object.freeze([...base.resonances]),
+      enchantmentAffinities: Object.freeze([...base.enchantmentAffinities]),
+      canAnchorEnchantment: entry.form === "cut_gem" && entry.enchantmentReady === true,
+      enchantmentFeedstock: entry.form === "rough_gem",
+    });
+  }
+
+  function gemStableRankForQuality(quality = DEFAULT_QUALITY) {
+    const engine = qualityEngine();
+    const qualityId = engine?.canonicalQualityId
+      ? engine.canonicalQualityId(quality)
+      : normalizeId(quality || DEFAULT_QUALITY);
+    return GEM_STABLE_RANK_BY_QUALITY[qualityId] ?? 0;
+  }
+
+  function gemQualityStability(quality = DEFAULT_QUALITY) {
+    const engine = qualityEngine();
+    const qualityId = engine?.canonicalQualityId
+      ? engine.canonicalQualityId(quality)
+      : normalizeId(quality || DEFAULT_QUALITY);
+    return GEM_QUALITY_STABILITY[qualityId] || "depleted";
+  }
+
+  function validateGemChannelRank(itemOrId, rank, quality = null) {
+    const entry = typeof itemOrId === "string" ? get(itemOrId) : clone(itemOrId);
+    if (!entry || entry.materialClass !== "gemstone") {
+      return Object.freeze({ valid:false, reason:"not_a_gemstone", stableRank:0, overchannel:false, unstable:false });
+    }
+    const profile = gemMagicProfile(entry);
+    if (!profile?.canAnchorEnchantment) {
+      return Object.freeze({ valid:false, reason:"gem_not_anchor_ready", stableRank:0, overchannel:false, unstable:false, gemId:profile?.gemId || null });
+    }
+    const targetRank = Math.trunc(Number(rank) || 0);
+    if (targetRank < 1 || targetRank > 3) {
+      return Object.freeze({ valid:false, reason:"unsupported_enchantment_rank", stableRank:0, overchannel:false, unstable:false, gemId:profile.gemId });
+    }
+    const resolvedQuality = quality ?? entry.quality ?? entry.baseQuality ?? DEFAULT_QUALITY;
+    const engine = qualityEngine();
+    const qualityId = engine?.canonicalQualityId
+      ? engine.canonicalQualityId(resolvedQuality)
+      : normalizeId(resolvedQuality);
+    const stableRank = gemStableRankForQuality(qualityId);
+    const stability = gemQualityStability(qualityId);
+    if (stableRank <= 0) {
+      return Object.freeze({ valid:false, reason:"gem_quality_cannot_channel", quality:qualityId, stableRank, targetRank, overchannel:false, unstable:true, gemId:profile.gemId });
+    }
+    const overchannel = targetRank > stableRank;
+    return Object.freeze({
+      valid:true,
+      reason:overchannel ? "overchannel" : (stability === "unstable" ? "unstable_quality" : null),
+      quality:qualityId,
+      stability,
+      stableRank,
+      targetRank,
+      overchannel,
+      unstable:overchannel || stability === "unstable",
+      gemId:profile.gemId,
+    });
+  }
+
   function unitValueForQuality(itemOrId, quality = DEFAULT_QUALITY) {
     const entry = typeof itemOrId === "string" ? get(itemOrId) : clone(itemOrId);
     if (!entry) return null;
@@ -403,6 +561,7 @@
       lineageId: lineage.lineageId, lineageName: lineage.lineageName, materialName, displayName: materialName,
       unitValueAhn, totalValueAhn: Math.round(unitValueAhn * quantity),
       resonanceTags: clone(entry.resonanceTags), useTags: clone(entry.useTags),
+      gemMagicProfile: entry.materialClass === "gemstone" ? clone(gemMagicProfile(entry)) : null,
       origin: normalizeId(options.origin || "inventory"),
     };
   }
@@ -415,8 +574,9 @@
 
   const API = Object.freeze({
     VERSION, FAMILY, CURRENCY, DEFAULT_QUALITY, MATERIAL_UNIT, MATERIAL_UNIT_ABBREVIATION, MATERIAL_WEIGHT_FACTOR, RAW_MINERAL_PRICING_MODEL, REFINED_PRICING_MODEL, REFINEMENT_PROFILES, GEM_PRICING_MODEL, LAPIDARY_PROFILES,
+    GEM_STABLE_RANK_BY_QUALITY, GEM_QUALITY_STABILITY, GEM_MAGIC_PROFILES,
     RAW_MINERALS, REFINED_METALS, ALLOYS, ROUGH_GEMS, CUT_GEMS, ITEMS, ALIASES,
-    CREATURE_MINERAL_HARVEST_RULE, get, list, unitValueForQuality, canSourceFromCreatureBody, createStack, createCreatureHarvestStack,
+    CREATURE_MINERAL_HARVEST_RULE, get, list, qualityInfo, canonicalGemId, gemMagicProfile, gemStableRankForQuality, gemQualityStability, validateGemChannelRank, unitValueForQuality, canSourceFromCreatureBody, createStack, createCreatureHarvestStack,
   });
 
   global.LuminousOreIngotGemCatalog = API;
