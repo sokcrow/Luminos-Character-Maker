@@ -898,7 +898,7 @@
     if (desc) {
       const magic = enchantmentInfo(item);
       const magicDescription = magic ? `Encantamiento +${magic.tier}: +${magic.value} ${magic.label.toLowerCase()}. ${magic.requiresAttunement ? (magic.attuned ? "Sintonizado." : "Requiere sintonización para estar activo.") : "Se activa al equipar el objeto compatible."}` : "";
-      desc.textContent = [itemDescription(item), magicDescription].filter(Boolean).join("\\n\\n");
+      desc.textContent = [itemDescription(item), magicDescription].filter(Boolean).join("\n\n");
     }
     const detailEffects = doc.getElementById("inventory-v2-detail-effects");
     if (detailEffects) {
