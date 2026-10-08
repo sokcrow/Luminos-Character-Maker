@@ -126,9 +126,17 @@
     const runtime = skillLoadoutRuntime();
     if (runtime?.resolveSkillForCombatant) {
       const result = runtime.resolveSkillForCombatant(actor, skillId);
-      return result.ok
-        ? { ok: true, reason: null, skillId, skill: result.skill, legacy: false }
-        : { ok: false, reason: String(result.reason || "skill_unavailable").toLowerCase(), skillId, skill: null };
+      if (!result.ok) return { ok: false, reason: String(result.reason || "skill_unavailable").toLowerCase(), skillId, skill: null };
+      const link = global.LuminousEnchantmentCombatLink;
+      if (!link?.bindTrustedSkill) return { ok: true, reason: null, skillId, skill: result.skill, legacy: false };
+      const binding = link.bindTrustedSkill(actor, result.skill, plan.weaponInstanceId || null);
+      if (link.isWeaponSkill(result.skill) && !binding.bound) {
+        return { ok: false, reason: binding.reason || "weapon_not_equipped", skillId, skill: null };
+      }
+      if (!link.isWeaponSkill(result.skill) && plan.weaponInstanceId) {
+        return { ok: false, reason: "weapon_not_allowed_for_skill", skillId, skill: null };
+      }
+      return { ok: true, reason: null, skillId, skill: binding.skill, legacy: false };
     }
     if (declaredSkillLoadout(actor) || plan.__ownerPlayerId) return { ok: false, reason: "skill_loadout_runtime_required", skillId, skill: null };
     return { ok: true, reason: null, skillId, skill: data, legacy: true };
