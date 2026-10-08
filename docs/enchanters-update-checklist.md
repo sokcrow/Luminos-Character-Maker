@@ -118,6 +118,7 @@ Canonical contract: [`docs/enchanters-update-part-b-resonance.md`](./enchanters-
   - [x] Bound equipment/unattune lock smoke is wired into CI.
   - [x] Enchanter provider/quote/delivery + gem procedure smokes are wired into CI.
   - [x] Player self-enchant control/deviation + cursed market value coverage is implemented; player-attempt smoke is wired into CI.
+  - [x] Compendium language/relic-derivation + knowledge-gated service preview smokes are wired into CI.
 
 ## Part C — Enchanter Services, Knowledge and Magical Maintenance (design frozen)
 
@@ -166,10 +167,10 @@ Canonical contract: [`docs/enchanters-update-part-c-services.md`](./enchanters-u
 - [x] Create canonical Enchanter Service runtime on top of Shop/Workshop service architecture.
 - [x] Add provider profile: known Enchantments, specialties, Rank cap III, reliability, delivery time, material supply, Bind/Curse capability and price modifiers.
 - [x] Implement controlled/altered NPC magical outcome selection instead of NPC crafting Checks.
-- [ ] Add Enchantment Compendium with language-aware recipe sources and Relic-derived lower-rank knowledge.
+- [x] Add Enchantment Compendium with language-aware recipe sources and Relic-derived lower-rank knowledge.
 - [x] Block Player/NPC service reproduction of Rank IV/V Relic Enchantments.
 - [x] Implement Passive Arcana information tiers and repeatable 1-SP active Arcana study.
-- [ ] Implement knowledge-gated service preview with rune obfuscation.
+- [x] Implement knowledge-gated service preview with rune obfuscation.
 - [x] Implement Identify -> Cursed flag without Curse drawback leakage and dedicated Curse-detail resolution.
 - [x] Implement Player/mixed/provider material quote paths, consume only allocated ritual materials, and return recoverable procedure outputs.
 - [x] Implement in-world delivery job state for Rank I/II/III services.
