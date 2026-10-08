@@ -47,11 +47,11 @@ Design decisions are marked complete here; implementation remains open.
 - [x] Add Enchantment engine/runtime.
 - [x] Add Tier/Rank slot validation and conflict/channel resolution.
 - [x] Persist/hydrate canonical Enchantment state, slot state and existing separate Magical Durability through Item Instances.
-- [ ] Add Arcana/Identify/Curse knowledge resolution and rune-obfuscated display.
-- [ ] Add Magic Item vs Magic Hit combat bridge.
-- [ ] Add equipment-Trait effect resolution and authored damage/buff support.
+- [x] Add Arcana/Identify/Curse knowledge resolution and rune-obfuscated display.
+- [x] Add Magic Item vs Magic Hit combat bridge.
+- [x] Add equipment-Trait effect resolution and authored damage/buff support.
 - [ ] Add strengthening TH, AHN/material economy and failure resolution.
-- [ ] Add Bind and Curse runtime behavior.
+- [x] Add Bind and Curse runtime behavior.
 - [ ] Add physical/magical repair authority.
 - [ ] Add regression/smoke tests and CI path coverage.
   - [x] Initial Enchantment core schema/engine smoke is wired into Inventory Runtime Validation CI.
@@ -114,6 +114,8 @@ Canonical contract: [`docs/enchanters-update-part-b-resonance.md`](./enchanters-
   - [x] Gem compatibility/Specialization/Hybrid/TH-cap smoke is wired into CI.
   - [x] Ritual material consumption + Overchannel + Bind/Curse outcome smoke is wired into CI.
   - [x] Magical Durability/activation/CombatEngine bridge smoke is wired into CI.
+  - [x] Arcana/Identify/Curse knowledge + player rune presentation smoke is wired into CI.
+  - [x] Bound equipment/unattune lock smoke is wired into CI.
 
 ## Part C — Enchanter Services, Knowledge and Magical Maintenance (design frozen)
 
@@ -164,15 +166,15 @@ Canonical contract: [`docs/enchanters-update-part-c-services.md`](./enchanters-u
 - [ ] Implement controlled/altered NPC magical outcome resolution instead of NPC crafting Checks.
 - [ ] Add Enchantment Compendium with language-aware recipe sources and Relic-derived lower-rank knowledge.
 - [ ] Block Player/NPC reproduction of Rank IV/V Relic Enchantments.
-- [ ] Implement Passive Arcana information tiers and repeatable 1-SP active Arcana study.
+- [x] Implement Passive Arcana information tiers and repeatable 1-SP active Arcana study.
 - [ ] Implement knowledge-gated service preview with rune obfuscation.
-- [ ] Implement Identify -> Cursed flag without Curse drawback leakage and dedicated Curse-detail resolution.
+- [x] Implement Identify -> Cursed flag without Curse drawback leakage and dedicated Curse-detail resolution.
 - [ ] Implement Player/mixed/provider material quote paths and recoverable-material return rules.
 - [ ] Implement in-world delivery time for Rank I/II/III services.
-- [ ] Replace obsolete 50/50 Durability logic with full Physical Durability + separate Magical Durability.
+- [x] Replace obsolete 50/50 Durability logic with full Physical Durability + separate proportional Magical Durability.
 - [ ] Add Magical Durability wear, depletion, recharge/repair and rune-glow state.
-- [ ] Give Gem-Anchored Enchantments greater magical endurance than equivalent direct/pure Enchantments.
-- [ ] Exempt Bound Enchantments from normal magical discharge.
+- [x] Give Gem-Anchored Enchantments greater proportional magical endurance than equivalent direct/pure Enchantments (75% vs 50% of Physical Durability Max).
+- [x] Exempt Bound Enchantments from normal magical discharge.
 - [ ] Implement separate Item-side removal/rewrite and Gem-Anchor destructive removal flows.
 - [ ] Implement Bound Gem Anchor removal -> 100% Item destruction.
 - [ ] Implement gem magical-quality/rarity degradation after safe de-enchant/rewrite.
@@ -231,26 +233,26 @@ Canonical contract: [`docs/enchanters-update-part-d-magic-items.md`](./enchanter
 - [x] Implement Rank II+ automatic Attunement requirement for normal Enchanted Items.
 - [x] Preserve base Attunement capacity 3 plus Trait/effect modifiers.
 - [x] Enforce one Item = one Attunement Slot regardless of Enchantment/Gem count.
-- [ ] Suppress attunement-gated Enchantment benefits when unattuned without deleting magic state.
-- [ ] Add Native Magic Item origin support through the same runtime.
-- [ ] Add whitelisted activation trigger families and practical activation-knowledge handling.
-- [ ] Keep installed Enchantment identity fixed outside proper service rewrite/removal.
-- [ ] Refactor Charges to project from/spend canonical Magical Durability.
-- [ ] Add per-property Charge -> Magical Durability mapping and definition-driven recharge.
-- [ ] Preserve Item-bound Spell casting without user Spell Slot cost when the Item provides its own resource.
-- [ ] Support conduit Items that use the wielder's normal Spell Slots/resources.
-- [ ] Spend SP only when explicitly authored.
-- [ ] Keep depleted enchanted physical Items mundanely usable when physically intact.
+- [x] Suppress attunement-gated Enchantment benefits when unattuned without deleting magic state.
+- [x] Add Native Magic Item origin support through the same runtime.
+- [x] Add whitelisted activation trigger families; practical activation does not require full Arcana identification.
+- [x] Keep installed Enchantment identity fixed outside proper service rewrite/removal.
+- [x] Refactor Charges to project from/spend canonical Magical Durability.
+- [x] Add per-property Charge -> Magical Durability mapping and definition-driven recharge.
+- [x] Preserve Item-bound Spell casting without user Spell Slot cost when the Item provides its own resource.
+- [x] Support conduit Items that use the wielder's normal Spell Slots/resources.
+- [x] Spend SP only when explicitly authored.
+- [x] Keep depleted enchanted physical Items mundanely usable when physically intact.
 - [x] Migrate Bind to Curse-family runtime behavior.
-- [ ] Block normal unequip/unattune for Bound Items and lock their occupied Attunement Slot.
-  - [x] Normal Bound unattunement is blocked; equipment unequip lock remains open.
-- [ ] Add Bound accelerated recharge and authored life/HP-backed full recharge at zero.
-- [ ] Add persistent Curse self-preservation/recharge hooks.
+- [x] Block normal unequip/unattune for Bound Items and lock their occupied Attunement Slot.
+- [x] Add Bound accelerated recharge and authored life/HP-backed full recharge at zero.
+- [x] Add persistent Curse self-preservation/recharge hooks.
 - [ ] Distinguish normal Curse, Bound Curse and inseparable Relic drawback.
 - [ ] Add Rank IV/V Relic support without normal reproduction.
 - [ ] Add Relic maintenance/repair knowledge gates and 5% Identify breakthrough.
 - [ ] Add unique-instance/provenance support for Relics/Artifacts.
 - [ ] Preserve Native Wondrous Item, Scroll, talisman and enchanted-ammunition seams for the Magic Items Update.
+  - [x] Native Wondrous Item and existing Scroll seams are preserved; talisman/ammunition generic hooks remain pending.
 - [ ] Add validated DM Magic Item creation/editing.
 - [ ] Add representative Part D regression fixtures/tests before starting mass Magic Item content adaptation.
 
