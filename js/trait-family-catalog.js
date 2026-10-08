@@ -66,7 +66,7 @@
     ["magia", /\b(spellcast|spell_slot|spellbook|cantrip|conjuration|evocation|metamagic|magic_damage|arcane|hechizo|conjuro|magical|magia)\b/i],
     ["instinto", /\b(perception|insight|observation|analyse_check|analyze|sense|scent|darkvision|blindsight|truesight|tracking|intuition|awareness|olfato|rastrear|percepci[oó]n)\b/i],
     ["recursos", /\b(superiority|ki_points?|mana|spell_points?|resource_gain|resource_recovery|resource_max|regain_sp|recover_sp|restore_sp|energy|ammunition|ammo|supplies|currency|coin_gain|rage_charges?)\b/i],
-    ["movilidad", /\b(movement_speed|move_speed|speed_bonus|walking_speed|dash|disengage|teleport|haste|flight|climb|swim_speed|extra_movement|mobility|evasion_movement|desplazamiento|velocidad)\b/i],
+    ["movilidad", /\b(movement_speed|move_speed|speed_bonus|walking_speed|dash|disengage|teleport|haste|flight|climb|swim_speed|extra_movement|speed|mobility|evasion_movement|desplazamiento|velocidad)\b/i],
     ["precision", /\b(accuracy|hit_chance|critical|crit_damage|crit_chance|poise|aim|target_lock|precision|attack_roll_bonus|punteria|acierto)\b/i],
     ["apoyo", /\b(ally_heal|heal_allies|healing_allies|restore_ally|team_heal|party_heal|ally_buff|allies_gain|allies_receive|chosen_ally|random_ally|teamwide|inspire|inspiration|aid_ally|healing_word|curar_aliado|apoyo)\b/i],
     ["supervivencia", /\b(regeneration|revive|death_save|death_saving|relentless_endurance|second_wind|self_heal|self_recovery|regain_hp|recover_hp|hit_points?_recovery|survival|resurrection|undying|supervivencia|revivir)\b/i],
