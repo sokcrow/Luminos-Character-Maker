@@ -318,6 +318,7 @@
           }
         }
 
+        let baseStatsApplied = false;
         if (validation.choice.type === "stats") {
           const applied = api.applyPlayerStatAllocation(current, validation.choice.allocation);
           if (!applied.valid) {
@@ -327,6 +328,7 @@
           current.stats = current.stats && typeof current.stats === "object" ? current.stats : {};
           Object.entries(applied.allocation).forEach(([stat]) => { current.stats[stat] = applied.stats[stat]; });
           if (applied.baseStats) current.baseStats = applied.baseStats;
+          baseStatsApplied = Boolean(applied.baseStats);
           resultingStats = applied.stats;
           committedAllocation = applied.allocation;
         }
@@ -340,6 +342,7 @@
           milestoneLevel,
           ...validation.choice,
           selectedAt: Date.now(),
+          ...(validation.choice.type === "stats" ? { baseStatsApplied } : {}),
         };
         // Atomic migration: do not leave top-level legacy claims that can
         // reappear after the DM reverses a canonical milestone.
