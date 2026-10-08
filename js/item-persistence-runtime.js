@@ -138,6 +138,7 @@
       equipmentRefs: equipmentRefs(unit),
       attunedItemInstanceIds: [...new Set((unit.attunedItemInstanceIds || []).map(String).filter(Boolean))],
       itemMagicKnowledge: clone(unit.itemMagicKnowledge || {}),
+      enchantmentCompendium: clone(unit.enchantmentCompendium || {}),
     };
   }
 
@@ -168,6 +169,7 @@
       equipmentRefs: clone(snapshot.equipmentRefs || snapshot.itemEquipmentRefs || {}),
       attunedItemInstanceIds: [...new Set((snapshot.attunedItemInstanceIds || snapshot.attunedItems || []).map(String).filter(Boolean))],
       itemMagicKnowledge: clone(snapshot.itemMagicKnowledge || snapshot.magicItemKnowledge || {}),
+      enchantmentCompendium: clone(snapshot.enchantmentCompendium || {}),
       migratedFromVersion: intOr(snapshot.schemaVersion, 0),
     };
   }
@@ -198,6 +200,7 @@
     unit.itemInventorySchemaVersion = SCHEMA_VERSION;
     unit.attunedItemInstanceIds = state.attunedItemInstanceIds;
     unit.itemMagicKnowledge = clone(state.itemMagicKnowledge || {});
+    unit.enchantmentCompendium = clone(state.enchantmentCompendium || {});
     restoreEquipmentRefs(unit, state);
     const result = { applied: true, state, activeCount: Object.keys(state.inventario_activo).length, stashCount: Object.keys(state.inventario_stash).length };
     emit("luminous:inventory-state-applied", { unit, ...result });
@@ -217,6 +220,7 @@
       equipmentRefs: `${base}/itemEquipmentRefs`,
       attunement: `${base}/attunedItemInstanceIds`,
       magicKnowledge: `${base}/itemMagicKnowledge`,
+      enchantmentCompendium: `${base}/enchantmentCompendium`,
     };
   }
 
@@ -228,13 +232,14 @@
     if (!requireDb(db)) return { loaded: false, reason: "firebase_db_unavailable" };
     const paths = playerPaths(playerId, options);
     if (!paths) return { loaded: false, reason: "missing_player_id" };
-    const [activeSnap, stashSnap, versionSnap, equipmentSnap, attunementSnap, magicKnowledgeSnap] = await Promise.all([
+    const [activeSnap, stashSnap, versionSnap, equipmentSnap, attunementSnap, magicKnowledgeSnap, compendiumSnap] = await Promise.all([
       db.ref(paths.active).once("value"),
       db.ref(paths.stash).once("value"),
       db.ref(paths.schemaVersion).once("value"),
       db.ref(paths.equipmentRefs).once("value"),
       db.ref(paths.attunement).once("value"),
       db.ref(paths.magicKnowledge).once("value"),
+      db.ref(paths.enchantmentCompendium).once("value"),
     ]);
     const raw = {
       schemaVersion: versionSnap?.val?.() || 0,
@@ -243,6 +248,7 @@
       equipmentRefs: equipmentSnap?.val?.() || {},
       attunedItemInstanceIds: attunementSnap?.val?.() || [],
       itemMagicKnowledge: magicKnowledgeSnap?.val?.() || {},
+      enchantmentCompendium: compendiumSnap?.val?.() || {},
     };
     const state = deserializeInventoryState(raw, options);
     const migrated = intOr(raw.schemaVersion, 0) < SCHEMA_VERSION;
@@ -262,6 +268,7 @@
       equipmentRefs: clone(unitOrState.equipmentRefs || {}),
       attunedItemInstanceIds: clone(unitOrState.attunedItemInstanceIds || []),
       itemMagicKnowledge: clone(unitOrState.itemMagicKnowledge || {}),
+      enchantmentCompendium: clone(unitOrState.enchantmentCompendium || {}),
     };
   }
 
@@ -277,6 +284,7 @@
       itemEquipmentRefs: clone(state.equipmentRefs || {}),
       attunedItemInstanceIds: clone(state.attunedItemInstanceIds || []),
       itemMagicKnowledge: clone(state.itemMagicKnowledge || {}),
+      enchantmentCompendium: clone(state.enchantmentCompendium || {}),
     };
     const ref = db.ref(paths.base);
     if (typeof ref.update === "function") await ref.update(updates);
@@ -297,13 +305,14 @@
     let equipment = {};
     let attunement = [];
     let magicKnowledge = {};
+    let enchantmentCompendium = {};
     let scheduled = false;
     const publish = () => {
       if (scheduled) return;
       scheduled = true;
       Promise.resolve().then(() => {
         scheduled = false;
-        callback(deserializeInventoryState({ schemaVersion, inventario_activo: active, inventario_stash: stash, equipmentRefs: equipment, attunedItemInstanceIds: attunement, itemMagicKnowledge: magicKnowledge }, options));
+        callback(deserializeInventoryState({ schemaVersion, inventario_activo: active, inventario_stash: stash, equipmentRefs: equipment, attunedItemInstanceIds: attunement, itemMagicKnowledge: magicKnowledge, enchantmentCompendium }, options));
       });
     };
     const handlers = [
@@ -313,6 +322,7 @@
       [paths.equipmentRefs, (snap) => { equipment = snap?.val?.() || {}; publish(); }],
       [paths.attunement, (snap) => { attunement = snap?.val?.() || []; publish(); }],
       [paths.magicKnowledge, (snap) => { magicKnowledge = snap?.val?.() || {}; publish(); }],
+      [paths.enchantmentCompendium, (snap) => { enchantmentCompendium = snap?.val?.() || {}; publish(); }],
     ];
     handlers.forEach(([path, handler]) => db.ref(path).on("value", handler));
     return () => handlers.forEach(([path, handler]) => db.ref(path).off?.("value", handler));
