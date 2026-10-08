@@ -311,6 +311,8 @@
       button.tabIndex = active ? 0 : -1;
     });
     renderSkills(panel, ability, data);
+    // Keep Trait-adjusted Skill totals visible after every Stats redraw/tab change.
+    global.LuminousSkillTraitBreakdownPatch?.syncPlayerSkillPreviews?.();
     return true;
   }
   function activate(panel, abilityId, focus = false) {
