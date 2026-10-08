@@ -63,9 +63,41 @@
     return explicit && typeof explicit === "object" ? explicit : {};
   }
 
+  function enchantmentRefs(item = {}) {
+    const runtime = runtimeOf(item);
+    const profile = magicProfile(item);
+    const raw = profile.enchantments || runtime.enchantments || item.enchantments || [];
+    return asArray(raw)
+      .filter((entry) => entry && typeof entry === "object")
+      .map((entry) => clone(entry));
+  }
+
+  function highestEnchantmentRank(item = {}) {
+    return enchantmentRefs(item).reduce((highest, entry) => {
+      const rank = Math.max(0, intOr(entry.rank, 0));
+      return Math.max(highest, rank);
+    }, 0);
+  }
+
+  function boundEnchantmentRefs(item = {}) {
+    return enchantmentRefs(item).filter((entry) => {
+      const properties = asArray(entry.properties).map(normalizeId);
+      return properties.includes("bind") || normalizeId(entry.curseType || entry.curse_type) === "bind";
+    });
+  }
+
+  function isBoundItem(item = {}) {
+    const profile = magicProfile(item);
+    const runtime = runtimeOf(item);
+    const explicit = item.bound === true || profile.bound === true || runtime.bound === true ||
+      normalizeId(profile.curse?.kind || profile.curse?.type || runtime.curse?.kind || runtime.curse?.type || item.curse?.kind || item.curse?.type) === "bind";
+    return explicit || boundEnchantmentRefs(item).length > 0;
+  }
+
   function requiresAttunement(item = {}) {
     const profile = magicProfile(item);
     const runtime = runtimeOf(item);
+    if (highestEnchantmentRank(item) >= 2) return true;
     return item.requiresAttunement === true || item.requires_attunement === true ||
       profile.requiresAttunement === true || profile.requires_attunement === true ||
       runtime.requiresAttunement === true || runtime.requires_attunement === true;
@@ -91,8 +123,9 @@
     const runtime = runtimeOf(item);
     return Boolean(
       item.isMagicItem === true || item.magic === true || profile.enabled === true ||
+      enchantmentRefs(item).length > 0 ||
       requiresAttunement(item) || spellProfiles(item).length ||
-      runtime.curse || runtime.cursed === true || item.cursed === true
+      runtime.curse || runtime.cursed === true || item.cursed === true || isBoundItem(item)
     );
   }
 
@@ -163,8 +196,11 @@
     return result;
   }
 
-  function unattuneItem(unit, item) {
+  function unattuneItem(unit, item, options = {}) {
     if (!unit || !item) return { unattuned: false, reason: "missing_unit_or_item" };
+    if (typeof item === "object" && isBoundItem(item) && options.force !== true) {
+      return { unattuned: false, reason: "bound_attunement_locked", itemInstanceId: instanceIdOf(item) };
+    }
     const id = typeof item === "string" ? item : instanceIdOf(item);
     const store = attunementStore(unit, true);
     const before = store.value.length;
@@ -294,7 +330,7 @@
   function isCursed(item = {}) {
     const runtime = runtimeOf(item);
     const profile = magicProfile(item);
-    return item.cursed === true || runtime.cursed === true || Boolean(runtime.curse || profile.curse || item.curse);
+    return item.cursed === true || runtime.cursed === true || Boolean(runtime.curse || profile.curse || item.curse) || isBoundItem(item);
   }
 
   function revealCurse(item) {
@@ -306,7 +342,19 @@
   }
 
   function curseProfile(item = {}) {
-    return clone(runtimeOf(item).curse || magicProfile(item).curse || item.curse || null);
+    const explicit = runtimeOf(item).curse || magicProfile(item).curse || item.curse || null;
+    if (explicit) return clone(explicit);
+    const boundRefs = boundEnchantmentRefs(item);
+    if (boundRefs.length) {
+      return {
+        kind: "bind",
+        source: "enchantment",
+        enchantmentDefinitionIds: boundRefs.map((entry) => String(entry.definitionId || entry.enchantmentId || entry.id || "")).filter(Boolean),
+        attunementLocked: true,
+        unequipLocked: true,
+      };
+    }
+    return null;
   }
 
   function applyCurse(user, item, options = {}) {
@@ -336,6 +384,10 @@
     version: 1,
     DEFAULT_ATTUNEMENT_CAPACITY,
     magicProfile,
+    enchantmentRefs,
+    highestEnchantmentRank,
+    boundEnchantmentRefs,
+    isBoundItem,
     isMagicItem,
     requiresAttunement,
     getAttunementCapacity,
