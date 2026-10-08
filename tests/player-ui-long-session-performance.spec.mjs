@@ -1692,6 +1692,12 @@ for (const width of [390, 1280]) {
     await expect(shrinkPanel.getByRole("button",{name:"GUARDAR MANIOBRAS"})).toBeDisabled();
     await shrinkPanel.locator('input[value="ambush"]').uncheck();
     await expect(shrinkPanel.locator(".player-progression-maneuver-counter")).toContainText("3 / 3");
+    // A concurrent addition must not be silently discarded by an open editor.
+    await page.evaluate(()=>window.__server.characterBuild.maneuvers.battle_master.push("feinting_attack"));
+    await shrinkPanel.getByRole("button",{name:"GUARDAR MANIOBRAS"}).click();
+    await expect(shrinkPanel.locator(".player-progression-choice-feedback")).toContainText("Las maniobras cambiaron");
+    expect(await page.evaluate(()=>window.__server.characterBuild.maneuvers.battle_master.length)).toBe(5);
+    await page.evaluate(()=>window.__server.characterBuild.maneuvers.battle_master.pop());
     await shrinkPanel.getByRole("button",{name:"GUARDAR MANIOBRAS"}).click();
     expect(await page.evaluate(()=>window.__server.characterBuild.maneuvers.battle_master.sort()))
       .toEqual(["bait_and_switch","parry","rally"]);
