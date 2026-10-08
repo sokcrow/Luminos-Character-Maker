@@ -685,3 +685,27 @@
     min-height:98px;
   }
 }
+
+
+/* Enchanter's Update: player-facing magical inscription knowledge */
+.inventory-v2-magic-inscription {
+  display: inline-block;
+  margin-top: 0.35rem;
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  letter-spacing: 0.08em;
+}
+.inventory-v2-enchantment-inscription {
+  color: #70b8ff;
+  text-shadow: 0 0 8px rgba(112, 184, 255, 0.35);
+}
+.inventory-v2-enchantment-inscription.is-depleted {
+  opacity: 0.45;
+  text-shadow: none;
+}
+.inventory-v2-curse-inscription {
+  color: #c17cff;
+  text-shadow: 0 0 9px rgba(193, 124, 255, 0.4);
+}
+.inventory-v2-mundane-description {
+  color: inherit;
+}
