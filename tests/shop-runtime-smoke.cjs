@@ -8,7 +8,7 @@ const { pathToFileURL } = require("node:url");
 
   const shops = globalThis.LuminousShopRuntime;
   assert.ok(shops);
-  assert.equal(shops.VERSION, 8);
+  assert.equal(shops.VERSION, 9);
   assert.equal(shops.BASE_PURCHASE_MARKUP, 1.40);
   assert.equal(shops.BASE_SELLBACK_MULTIPLIER, 0.80);
 
@@ -454,6 +454,16 @@ const { pathToFileURL } = require("node:url");
   };
   assert.equal(shops.serviceEnabled({ shop_type: "workshop" }, "repair"), true);
   assert.equal(shops.serviceEnabled({ shop_type: "restaurant" }, "repair"), false);
+  assert.equal(
+    shops.serviceEnabled({ shop_type: "jeweler" }, "enchant"),
+    false,
+    "Enchanter services must not appear automatically without an authored provider/service profile",
+  );
+  assert.equal(
+    shops.serviceEnabled({ shop_type: "jeweler", services: { enchant: { enabled: true } } }, "enchant"),
+    true,
+    "DM-authored Shops may explicitly expose Enchanter services through the common Shop service architecture",
+  );
   assert.equal(
     shops.serviceEnabled({ shop_type: "workshop", services: { repair: { enabled: false } } }, "repair"),
     false,
