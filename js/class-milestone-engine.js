@@ -265,6 +265,32 @@
     return { valid: true, errors: [], stats: next, allocation: validation.allocation };
   }
 
+  // Stats saved by the DM studio are derived from baseStats + racial bonuses.
+  // A claimed milestone must increase BOTH the effective Stats and the base
+  // Stats when that base source exists, or the next unrelated DM save will
+  // recalculate the effective score and silently erase the milestone reward.
+  // For older characters without baseStats, leave the field absent: the
+  // studio already derives its base from effective stats minus racial bonuses.
+  function applyPlayerStatAllocation(character = {}, allocation = {}) {
+    const applied = applyStatAllocation(character?.stats || {}, allocation);
+    if (!applied.valid) return applied;
+    const hasBase = character?.baseStats && typeof character.baseStats === "object" && !Array.isArray(character.baseStats);
+    if (!hasBase) return { ...applied, baseStats: null };
+    const nextBase = { ...character.baseStats };
+    for (const [stat, amount] of Object.entries(applied.allocation)) {
+      const key = Object.keys(nextBase).find((value) => canonicalStatKey(value) === stat);
+      const raw = key ? nextBase[key] : undefined;
+      const before = Number(raw);
+      if (raw == null || String(raw).trim() === "" || !Number.isInteger(before)) {
+        return { valid: false, errors: [`El Stat base ${stat} no es válido; corrígelo en el estudio del DM antes de aplicar el Milestone.`] };
+      }
+      // The studio explicitly reads the Spanish canonical key on load.
+      nextBase[stat] = before + amount;
+      if (key !== stat && key) delete nextBase[key];
+    }
+    return { ...applied, baseStats: nextBase };
+  }
+
   function isGeneralTraitDefinition(definition = {}) {
     const sourceType = normalizeId(definition?.source?.type || definition?.sourceType);
     const category = normalizeId(definition?.category || definition?.traitCategory);
@@ -321,6 +347,7 @@
     validateStatAllocation,
     validateChoice,
     applyStatAllocation,
+    applyPlayerStatAllocation,
     isGeneralTraitDefinition,
     selectedGeneralTraitIds,
     resolveSelectedGeneralTraits,
