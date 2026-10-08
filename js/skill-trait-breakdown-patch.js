@@ -125,6 +125,7 @@
     ["remarkable_athlete", "LuminousChampionArchetypeRuntime", "applyRemarkableAthleteCheck"],
     ["royal_envoy", "LuminousBanneretArchetypeRuntime", "applyRoyalEnvoyCheck"],
     ["bladesong", "LuminousBladesingerArchetypeRuntime", "applyAcrobaticsBonus"],
+    ["elegant_courtier", "LuminousSamuraiArchetypeRuntime", "applyElegantCourtierCheck"],
   ]);
 
   function specialFinalPowerContributions(traits = [], character = {}, check = {}) {
