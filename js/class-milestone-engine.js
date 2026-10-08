@@ -119,6 +119,34 @@
     return output;
   }
 
+  // Legacy Firebase builds may store claimed milestones as an array.
+  // Copy every existing claim, including metadata (selectedAt, notes, etc.),
+  // before a new claim is written into the canonical nested map.
+  // Fail closed rather than silently erase malformed or duplicate claims.
+  function migrateMilestoneChoices(choices) {
+    if (!Array.isArray(choices)) {
+      return choices && typeof choices === "object" ? choices : {};
+    }
+    const migrated = {};
+    for (const raw of choices) {
+      // Sparse Firebase arrays can contain empty slots, not claims.
+      if (raw == null) continue;
+      const classId = normalizeId(raw?.classId);
+      const level = int(raw?.milestoneLevel ?? raw?.level, 0);
+      if (!raw || typeof raw !== "object" || Array.isArray(raw)
+        || !classId || !/^[a-z][a-z0-9_]*$/.test(classId) || level <= 0) {
+        throw new Error("Hay un Milestone antiguo con datos incompletos; no se guardó para evitar borrar elecciones.");
+      }
+      if (!Object.prototype.hasOwnProperty.call(migrated, classId)) migrated[classId] = {};
+      const key = String(level);
+      if (Object.prototype.hasOwnProperty.call(migrated[classId], key)) {
+        throw new Error("Hay Milestones duplicados en los datos anteriores; no se guardó para evitar perder elecciones.");
+      }
+      migrated[classId][key] = { ...raw };
+    }
+    return migrated;
+  }
+
   function pendingMilestones(classes, choices) {
     return earnedMilestones(classes).filter((entry) => !choiceAt(choices, entry.classId, entry.milestoneLevel));
   }
@@ -231,6 +259,7 @@
     normalizeChoice,
     choiceAt,
     allChoices,
+    migrateMilestoneChoices,
     normalizeStats,
     validateStatAllocation,
     validateChoice,
