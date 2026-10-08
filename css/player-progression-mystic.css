@@ -913,3 +913,46 @@ body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-
     padding:12px 10px 18px;
   }
 }
+
+/* Trait function badges, separate from the class and archetype identity seals. */
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-family {
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  min-width:0;
+  padding:3px 6px;
+  border:1px solid rgba(195,147,82,.5);
+  border-radius:999px;
+  background:rgba(15,12,10,.85);
+  color:#e9cfa8;
+  font:700 10px/1.2 Arial,Helvetica,sans-serif;
+  white-space:nowrap;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-family img {
+  display:block;
+  width:23px;
+  height:23px;
+  object-fit:contain;
+  flex:0 0 23px;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-node__families {
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:center;
+  align-items:center;
+  gap:4px;
+  max-width:100%;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-node__families .player-progression-family {
+  padding:3px;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-node__families .player-progression-family span {
+  display:none;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-family__more {
+  color:#e9cfa8;
+  font:700 10px Arial,Helvetica,sans-serif;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-detail__item-head {
+  flex-wrap:wrap;
+}
