@@ -312,10 +312,87 @@ for (const baseStatsApplied of [true,false]) {
     'Base source must be reversed for tracked awards, including ones later added by the studio');
   assert.equal(milestone.choiceAt(reversed.player.characterBuild.classMilestones,'fighter',20),null);
 }
+// Codex P2: a legacy aliases such as stats.str must never survive an
+// applied award next to stats.fuerza. Both award paths and DM reversal share
+// canonical writes. Other stats and custom player fields must be preserved.
+const aliasAwardPlayer = {
+  stats:{str:14,dex:12,customScore:"keep"},
+  baseStats:{str:12,dex:11,customBase:"keep"},
+  characterBuild:{classMilestones:{}},
+};
+const aliasApplied = milestone.applyPlayerStatAllocation(aliasAwardPlayer,{fuerza:2});
+assert.equal(aliasApplied.valid,true);
+assert.equal(aliasApplied.stats.fuerza,16);
+assert.equal(aliasApplied.baseStats.fuerza,14);
+assert.equal('str' in aliasApplied.baseStats,false);
+assert.equal(aliasAwardPlayer.stats.str,14,'Player cannot be mutated before transaction commits');
+const aliasCommitted=structuredClone(aliasAwardPlayer);
+milestone.writeCanonicalStat(aliasCommitted.stats,'fuerza',aliasApplied.stats.fuerza);
+aliasCommitted.baseStats=aliasApplied.baseStats;
+aliasCommitted.characterBuild.classMilestones.fighter={20:{
+  classId:'fighter',milestoneLevel:20,type:'stats',allocation:{fuerza:2},baseStatsApplied:true,
+}};
+assert.equal(aliasCommitted.stats.fuerza,16);
+assert.equal('str' in aliasCommitted.stats,false,'Save removes stale strength alias');
+assert.equal(aliasCommitted.stats.dex,12,'Unrelated dex alias is untouched');
+assert.equal(aliasCommitted.stats.customScore,'keep','Unknown score metadata is preserved');
+assert.equal(aliasCommitted.baseStats.customBase,'keep','Unknown base metadata is preserved');
+const aliasReverted=revert.revertMilestoneState(aliasCommitted,'fighter',20);
+assert.equal(aliasReverted.valid,true);
+assert.equal(aliasReverted.player.stats.fuerza,14);
+assert.equal(aliasReverted.player.baseStats.fuerza,12);
+assert.equal('str' in aliasReverted.player.stats,false);
+assert.equal('str' in aliasReverted.player.baseStats,false);
+assert.equal(aliasReverted.player.stats.dex,12);
+
+// Legacy records with BOTH alias and canonical fields must prefer canonical
+// values even if the alias appears first in insertion order.
+const duplicateScores={str:14,fuerza:16,unknown:"intact"};
+assert.equal(milestone.normalizeStats(duplicateScores).fuerza,16);
+assert.equal(milestone.validateStatAllocation(duplicateScores,{fuerza:2}).valid,true);
+milestone.writeCanonicalStat(duplicateScores,'fuerza',18);
+assert.deepEqual(duplicateScores,{fuerza:18,unknown:"intact"});
+const historicalDuplicate={
+  stats:{str:14,fuerza:16,unrelated:77},
+  baseStats:{str:12,fuerza:14,unrelated:"base"},
+  characterBuild:{classMilestones:{fighter:{'20':{
+    classId:'fighter',milestoneLevel:20,type:'stats',allocation:{fuerza:2},baseStatsApplied:true,
+  }}}},
+};
+const historicalRevert=revert.revertMilestoneState(historicalDuplicate,'fighter',20);
+assert.equal(historicalRevert.valid,true);
+assert.deepEqual(historicalRevert.player.stats,{fuerza:14,unrelated:77});
+assert.deepEqual(historicalRevert.player.baseStats,{fuerza:12,unrelated:"base"});
+assert.equal(historicalDuplicate.stats.fuerza,16,'Do not mutate snapshot on failed transaction');
+
+const splitLegacy={
+  stats:{dex:12,constitution:13,unrelated:"meta"},
+  baseStats:{dex:11,constitution:11,unrelated:"base"},
+  characterBuild:{classMilestones:{}},
+};
+const splitApplied=milestone.applyPlayerStatAllocation(splitLegacy,{dex:1,con:1});
+assert.equal(splitApplied.valid,true);
+assert.equal(splitApplied.stats.destreza,13);
+assert.equal(splitApplied.stats.constitucion,14);
+assert.equal(splitApplied.baseStats.destreza,12);
+assert.equal(splitApplied.baseStats.constitucion,12);
+assert.equal('dex' in splitApplied.baseStats,false);
+assert.equal('constitution' in splitApplied.baseStats,false);
+for (const key of Object.keys(splitApplied.allocation)) {
+  milestone.writeCanonicalStat(splitLegacy.stats,key,splitApplied.stats[key]);
+}
+assert.equal('dex' in splitLegacy.stats,false);
+assert.equal('constitution' in splitLegacy.stats,false);
+assert.equal(splitLegacy.stats.unrelated,'meta');
+
 const dmContract=fs.readFileSync(path.join(root,'js/dm-player-class-milestones.js'),'utf8');
 const playerContract=fs.readFileSync(path.join(root,'js/player-progression-choices.js'),'utf8');
 const revertContract=fs.readFileSync(path.join(root,'js/milestone-revert-patch.js'),'utf8');
 assert.match(dmContract,/applyPlayerStatAllocation\(current,/);
+assert.match(dmContract,/writeCanonicalStat\(current\.stats/);
+assert.match(playerContract,/writeCanonicalStat\(current\.stats/);
+assert.match(revertContract,/writeCanonicalStoredStat\(current\.stats/);
+assert.match(revertContract,/writeCanonicalStoredStat\(current\.baseStats/);
 assert.match(playerContract,/applyPlayerStatAllocation\(current,/);
 assert.match(dmContract,/delete current\.classMilestones;/);
 assert.match(playerContract,/delete current\.classMilestones;/);
