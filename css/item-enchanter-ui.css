@@ -1,0 +1,24 @@
+.enchanter-ui-overlay{position:fixed;inset:0;z-index:15000;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(2,3,5,.88);backdrop-filter:blur(5px);font-family:"Share Tech Mono",monospace;color:#dfe8f3}
+.enchanter-ui-overlay.active{display:flex}
+.enchanter-ui-shell{width:min(1180px,97vw);max-height:94vh;display:grid;grid-template-rows:auto minmax(0,1fr) auto;background:#080b10;border:1px solid #2e6d9e;box-shadow:0 28px 90px rgba(0,0,0,.85),0 0 30px rgba(54,145,216,.18)}
+.enchanter-ui-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #1d3b55;background:linear-gradient(90deg,#0a1825,#090d12)}
+.enchanter-ui-header span{display:block;color:#718ea6;font-size:9px;letter-spacing:.16em}.enchanter-ui-header strong{display:block;margin-top:3px;color:#7bc5ff;font-size:18px;letter-spacing:.08em}
+.enchanter-ui-close{width:34px;height:34px;border:1px solid #315c7c;background:#08121a;color:#91d1ff;font-size:21px;cursor:pointer}
+.enchanter-ui-body{min-height:0;display:grid;grid-template-columns:minmax(210px,.8fr) minmax(360px,1.25fr) minmax(260px,1fr);gap:12px;padding:12px;overflow:hidden}
+.enchanter-ui-items,.enchanter-ui-service,.enchanter-ui-preview{min-height:0;overflow:auto;border:1px solid #1c3346;background:#0b1017;padding:12px}
+.enchanter-ui-items h3,.enchanter-ui-preview h3{margin:0 0 10px;color:#72bdf2;font-size:11px;letter-spacing:.14em}
+#enchanter-ui-item-list{display:grid;gap:7px}#enchanter-ui-item-list button{display:grid;gap:3px;text-align:left;padding:10px;border:1px solid #263c4d;background:#0d151d;color:#cbd7e1;cursor:pointer}
+#enchanter-ui-item-list button.active{border-color:#6bb9ee;background:#102536;box-shadow:inset 3px 0 #6bb9ee}
+#enchanter-ui-item-list button strong{font-size:12px}#enchanter-ui-item-list button span{font-size:9px;color:#71899d;letter-spacing:.08em}
+.enchanter-ui-unavailable{margin-top:12px;border-top:1px solid #243646;padding-top:8px;color:#738292}.enchanter-ui-unavailable summary{cursor:pointer;font-size:9px;letter-spacing:.12em}
+.enchanter-ui-disabled{padding:8px 0;border-bottom:1px solid #172531}.enchanter-ui-disabled strong,.enchanter-ui-disabled span{display:block}.enchanter-ui-disabled strong{font-size:10px;color:#8b99a5}.enchanter-ui-disabled span{margin-top:2px;font-size:9px;color:#6e7680}
+.enchanter-ui-controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-bottom:10px}.enchanter-ui-controls label{display:grid;gap:4px;color:#6f91aa;font-size:9px;letter-spacing:.1em}
+.enchanter-ui-controls select{min-width:0;padding:8px;border:1px solid #28445a;background:#080d12;color:#d8e8f4;font:inherit}
+.enchanter-ui-card{margin-bottom:10px;padding:11px;border:1px solid #213a4e;background:#0a121a}.enchanter-ui-card h4{margin:0 0 8px;color:#94d2ff;font-size:12px}.enchanter-ui-card p{margin:4px 0;color:#9fb0bc;font-size:10px;line-height:1.45}
+.enchanter-ui-card ul,.enchanter-ui-preview ul{margin:6px 0 0;padding-left:17px}.enchanter-ui-card li,.enchanter-ui-preview li{margin:4px 0;color:#b9c7d1;font-size:10px}
+.enchanter-ui-card li span{color:#7493aa}.enchanter-ui-slotbar{margin:6px 0 9px;color:#71bbed;font-size:10px;letter-spacing:.08em}.enchanter-ui-card .danger{color:#ff8179}
+.enchanter-ui-price{margin-bottom:12px;color:#8ed4ff;font-size:24px;font-weight:700}.enchanter-ui-preview dl{display:grid;grid-template-columns:auto 1fr;gap:6px 10px;margin:0 0 12px;font-size:10px}.enchanter-ui-preview dt{color:#68879e}.enchanter-ui-preview dd{margin:0;text-align:right;color:#d4e1ea}
+.enchanter-ui-preview h4{margin:12px 0 4px;color:#7fbde8;font-size:10px;letter-spacing:.1em}
+.enchanter-ui-footer{display:flex;align-items:center;gap:12px;padding:12px 14px;border-top:1px solid #1d3b55;background:#090e14}.enchanter-ui-footer #enchanter-ui-status{margin-right:auto;color:#7b9ab0;font-size:10px}.enchanter-ui-confirm{display:flex;align-items:center;gap:7px;color:#a5b9c8;font-size:10px}
+#enchanter-ui-commit{padding:9px 16px;border:1px solid #5eb5ef;background:#0d2636;color:#9ddaff;font:700 10px "Share Tech Mono",monospace;letter-spacing:.1em;cursor:pointer}#enchanter-ui-commit:disabled{opacity:.35;cursor:not-allowed}
+@media(max-width:850px){.enchanter-ui-body{grid-template-columns:1fr;overflow:auto}.enchanter-ui-shell{height:96vh}.enchanter-ui-items,.enchanter-ui-service,.enchanter-ui-preview{overflow:visible}.enchanter-ui-controls{grid-template-columns:1fr}.enchanter-ui-footer{flex-wrap:wrap}}
