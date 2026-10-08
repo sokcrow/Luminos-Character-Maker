@@ -81,8 +81,28 @@
       return global.LuminousBladesingerArchetypeRuntime?.applyAcrobaticsBonus?.(current, actor) || current;
     });
 
+    // Training in War and Song grants Performance Proficiency on acquisition.
+    // A fresh player record can have the Trait before its stored proficiency
+    // has been synchronized, so calculate the missing step from the Trait.
+    if (skill === "performance" && hasTrait(traits, "training_in_war_and_song")) {
+      const state = proficiencyState(character, "performance");
+      const oldMultiplier = state === "expertise" ? 2 : state === "proficient" ? 1 : state === "half" ? 0.5 : 0;
+      const bonus = Math.floor(proficiencyBonus(character) * (1 - Math.min(1, oldMultiplier)));
+      if (bonus) {
+        check.checkPower = numberOr(check.checkPower) + bonus;
+        contributions.push({ traitId: "training_in_war_and_song", name: "Training in War and Song", amount: bonus, channel: "check_power" });
+      }
+    }
+
     // Rogue's class wrapper sets finalPowerBonus, not finalPower. The Coin Check
     // completion runtime only consumes finalPower, so normalize that channel.
+    if (hasTrait(traits, "reliable_talent") && !global.LuminousTraitEngine?.__rogueClassRuntimeWrapped) {
+      const state = proficiencyState(character, skill, "skill");
+      if (kind === "skill" && ["proficient", "expertise"].includes(state)) {
+        check.finalPower = numberOr(check.finalPower) + 3;
+        contributions.push({ traitId: "reliable_talent", name: "Reliable Talent", amount: 3, channel: "final_power" });
+      }
+    }
     const extra = numberOr(check.finalPowerBonus);
     if (extra && !check.__finalPowerBonusFolded) {
       check.finalPower = numberOr(check.finalPower) + extra;
