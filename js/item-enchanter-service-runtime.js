@@ -600,14 +600,15 @@
     const recipeKnown=Boolean(definition && compendium?.knowsRecipe?.(viewer,definition.id,rank));
     const itemKnowledge=knowledge?.knowledgeOf ? knowledge.knowledgeOf(viewer,item) : {};
     const basicDifficultyVisible=passive>=10 || recipeKnown;
-    const deepVisible=recipeKnown || itemKnowledge?.effectsKnown===true || (Number.isFinite(thresholdValue) && passive>=thresholdValue);
+    const arcanaDeepVisible=itemKnowledge?.effectsKnown===true || (Number.isFinite(thresholdValue) && passive>=thresholdValue);
+    const recipeDetailVisible=recipeKnown || arcanaDeepVisible;
     const runes=(label)=>knowledge?.arcaneRunes
       ? knowledge.arcaneRunes(label,`service:${quote.service}:${definition?.id || "general"}:${rank || 0}`)
       : "ᚠᚢᚦᚨᚱᚲ";
 
     let difficulty=null;
     if (Number.isFinite(thresholdValue)) {
-      difficulty=deepVisible
+      difficulty=recipeDetailVisible
         ? Object.freeze({known:true,label:knowledge?.difficultyLabel?.(thresholdValue) || "Arcane",threshold:thresholdValue,text:`${knowledge?.difficultyLabel?.(thresholdValue) || "Arcane"} · TH ${thresholdValue}`})
         : basicDifficultyVisible
           ? Object.freeze({known:false,label:knowledge?.difficultyLabel?.(thresholdValue) || "Arcane",threshold:null,text:knowledge?.difficultyLabel?.(thresholdValue) || "Arcane"})
@@ -617,11 +618,11 @@
     const probability=quote.reliability?.resolved===true ? Number(quote.reliability.probability) : null;
     const probabilityView=probability==null
       ? null
-      : deepVisible
+      : arcanaDeepVisible
         ? Object.freeze({known:true,value:probability,percent:Math.round(probability*100),text:`${Math.round(probability*100)}%`})
         : Object.freeze({known:false,value:null,percent:null,text:runes("Controlled result probability")});
 
-    const materials=deepVisible || recipeKnown
+    const materials=recipeDetailVisible
       ? Object.freeze(asArray(quote.materials?.allocations).map((entry)=>Object.freeze({
           label:String(entry.materialLabel || (entry.suppliedBy==="provider"?"Provider material":"Player material")),
           quantity:Number(entry.quantity)||0,
@@ -629,14 +630,14 @@
         })))
       : Object.freeze([{label:runes("Ritual materials"),quantity:null,suppliedBy:null}]);
 
-    const effects=definition && (deepVisible || recipeKnown)
+    const effects=definition && recipeDetailVisible
       ? safeEffectPreview(definition,rank)
       : definition
         ? Object.freeze([runes("Enchantment effects")])
         : Object.freeze([]);
 
     let projectedMagicalDurability=null;
-    if (deepVisible && definition && ["enchant","bind","curse","mount_gem"].includes(normalizeId(quote.service))) {
+    if (arcanaDeepVisible && definition && ["enchant","bind","curse","mount_gem"].includes(normalizeId(quote.service))) {
       const refs=Engine.appliedEnchantments(item);
       const candidate={
         definitionId:definition.id,
@@ -652,8 +653,8 @@
       available:true,
       serviceLabel:SERVICE_LABELS[quote.service] || String(quote.service || "Service"),
       enchantmentName:definition?.name || null,
-      rank:deepVisible || recipeKnown ? rank || null : null,
-      rankText:rank ? (deepVisible || recipeKnown ? String(["","I","II","III"][rank] || rank) : runes("Rank")) : null,
+      rank:recipeDetailVisible ? rank || null : null,
+      rankText:rank ? (recipeDetailVisible ? String(["","I","II","III"][rank] || rank) : runes("Rank")) : null,
       priceAhn:Number(quote.totalAhn)||0,
       duration:quote.duration?.resolved ? quote.duration : null,
       difficulty,
@@ -662,6 +663,7 @@
       effects,
       projectedMagicalDurability,
       recipeKnown,
+      arcanaDeepVisible,
       arcanaPassive:passive,
       internalIdsExposed:false,
     });
