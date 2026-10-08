@@ -16,7 +16,7 @@
   if (!Catalog) throw new Error("LuminousEnchantmentCatalog is required before LuminousItemEnchantmentEngine.");
   if (!Gems) throw new Error("LuminousOreIngotGemCatalog is required before LuminousItemEnchantmentEngine.");
 
-  const VERSION = 3;
+  const VERSION = 4;
   const TIER_BASE_SLOT_CAPACITY = Object.freeze({ 1: 0, 2: 1, 3: 1, 4: 2, 5: 3 });
   const BIND_POSITIVE_MULTIPLIER = 1.25;
   const CURSE_POSITIVE_MULTIPLIER = 1.50;
@@ -29,6 +29,13 @@
   const GEM_ITEM_STABILIZATION_MAX_REDUCTION = 4;
   const EXTERNAL_TH_SOURCE_TYPES = Object.freeze([
     "enchantment_table", "arcane_workshop", "specialist_tools", "facility", "assistant", "improvised"
+  ]);
+  const INTENTIONAL_BIND_TH_ADJUSTMENT = 4;
+  const INTENTIONAL_CURSE_TH_ADJUSTMENT = 6;
+  const CURSE_REAGENT_TAGS = Object.freeze([
+    "profane", "corrupted", "blood", "ichor", "necrotic", "necrotic_reagent",
+    "decay_reagent", "vitality_drain", "sanity_corruption", "mental_corruption",
+    "atrophy", "paralysis", "death_reagent", "abnormal_process_input"
   ]);
 
   function clone(value) {
@@ -646,6 +653,215 @@
     });
   }
 
+
+  function propertyThresholdAdjustment(properties = []) {
+    const normalized = normalizeProperties(properties);
+    let adjustment = 0;
+    if (normalized.includes("bind")) adjustment += INTENTIONAL_BIND_TH_ADJUSTMENT;
+    if (normalized.includes("curse")) adjustment += INTENTIONAL_CURSE_TH_ADJUSTMENT;
+    return Object.freeze({properties:Object.freeze(normalized),adjustment});
+  }
+
+  function ritualThresholdPreview(item = {}, definitionOrId, rank = 1, options = {}) {
+    const definition = typeof definitionOrId === "string" ? Catalog.get(definitionOrId) : clone(definitionOrId);
+    if (!definition) return Object.freeze({valid:false,reason:"unknown_enchantment"});
+    const rankData = Catalog.resolveRank(definition, rank);
+    if (!rankData) return Object.freeze({valid:false,reason:"unsupported_rank"});
+
+    let base;
+    if (options.gem) {
+      base = gemThresholdPreview(item, definition, options.gem, rank, options);
+      if (!base.valid) return base;
+    } else {
+      const external = externalThresholdAdjustment(options);
+      base = Object.freeze({
+        valid:true,
+        rank:Number(rank),
+        baseThreshold:Number(rankData.threshold),
+        itemGemAdjustment:0,
+        externalAdjustment:external.adjustment,
+        externalModifiers:external.applied,
+        finalThreshold:Number(rankData.threshold) + external.adjustment,
+      });
+    }
+
+    const property = propertyThresholdAdjustment(options.properties);
+    return Object.freeze({
+      ...clone(base),
+      propertyAdjustment:property.adjustment,
+      properties:property.properties,
+      finalThreshold:Number(base.finalThreshold) + property.adjustment,
+    });
+  }
+
+  function materialIdOf(material = {}) {
+    return normalizeId(material.definitionId || material.itemId || material.id || material.canonicalId || material.key);
+  }
+
+  function materialTagsOf(material = {}) {
+    return Object.freeze([...new Set([
+      ...asArray(material.tags),
+      ...asArray(material.useTags),
+      ...asArray(material.reagentTags),
+      ...asArray(material.craftTags),
+      ...asArray(material.requirementTags),
+    ].map(normalizeId).filter(Boolean))]);
+  }
+
+  function materialQuantityField(material = {}) {
+    for (const field of ["quantity","cantidad","materialUnits","bloodUnits","essenceUnits","remainingUnits"]) {
+      if (material[field] != null && Number.isFinite(Number(material[field]))) return field;
+    }
+    return "quantity";
+  }
+
+  function materialQuantityOf(material = {}) {
+    const field = materialQuantityField(material);
+    const value = Number(material[field]);
+    return Number.isFinite(value) ? Math.max(0, value) : 1;
+  }
+
+  function normalizeRecipeRequirement(raw = {}, index = 0) {
+    const source = typeof raw === "string" ? {exactItemId:raw} : (raw || {});
+    return Object.freeze({
+      id:normalizeId(source.id || `requirement_${index + 1}`),
+      quantity:Math.max(1, Number(source.quantity || source.amount || 1)),
+      exactItemId:normalizeId(source.exactItemId || source.itemId || ""),
+      anyItemIds:Object.freeze(asArray(source.anyItemIds || source.itemIds).map(normalizeId).filter(Boolean)),
+      anyTags:Object.freeze(asArray(source.anyTags || source.tagsAny || source.tag).map(normalizeId).filter(Boolean)),
+      allTags:Object.freeze(asArray(source.allTags || source.tagsAll).map(normalizeId).filter(Boolean)),
+    });
+  }
+
+  function requirementMatchesMaterial(requirement, material = {}) {
+    const id = materialIdOf(material);
+    const tags = new Set(materialTagsOf(material));
+    if (requirement.exactItemId && id !== requirement.exactItemId) return false;
+    if (requirement.anyItemIds.length && !requirement.anyItemIds.includes(id)) return false;
+    if (requirement.anyTags.length && !requirement.anyTags.some((tag) => tags.has(tag))) return false;
+    if (requirement.allTags.length && !requirement.allTags.every((tag) => tags.has(tag))) return false;
+    return Boolean(requirement.exactItemId || requirement.anyItemIds.length || requirement.anyTags.length || requirement.allTags.length);
+  }
+
+  function recipeMaterialRequirements(definitionOrId, options = {}) {
+    const definition = typeof definitionOrId === "string" ? Catalog.get(definitionOrId) : clone(definitionOrId);
+    if (!definition) return Object.freeze([]);
+    const recipe = definition.recipe || {};
+    const raw = [...asArray(recipe.consumedRequirements)];
+    for (const exact of asArray(recipe.exactItemRequirements)) {
+      raw.push(typeof exact === "string" ? {exactItemId:exact,quantity:1} : exact);
+    }
+    const properties = normalizeProperties(options.properties);
+    if (properties.includes("curse") && options.accidental !== true) {
+      raw.push({
+        id:"intentional_curse_reagent",
+        anyTags:CURSE_REAGENT_TAGS,
+        quantity:1,
+      });
+    }
+    return Object.freeze(raw.map((entry,index)=>normalizeRecipeRequirement(entry,index)));
+  }
+
+  function protectedMaterialInstanceIds(options = {}) {
+    const ids = [
+      ...asArray(options.protectedInstanceIds),
+      options.anchorGemInstanceId,
+      options.gem?.instanceId,
+      options.gem?.instance_id,
+    ].filter((value)=>value != null).map(String);
+    return new Set(ids);
+  }
+
+  function planRecipeMaterials(definitionOrId, materials = [], options = {}) {
+    const requirements = recipeMaterialRequirements(definitionOrId, options);
+    const protectedIds = protectedMaterialInstanceIds(options);
+    const pools = asArray(materials).map((material,index)=>({
+      index,
+      material,
+      available:materialQuantityOf(material),
+      protected:protectedIds.has(String(material?.instanceId || material?.instance_id || "")),
+    }));
+    const allocations = [];
+    const missing = [];
+
+    for (const requirement of requirements) {
+      let needed = requirement.quantity;
+      for (const pool of pools) {
+        if (needed <= 0) break;
+        if (pool.protected || pool.available <= 0 || !requirementMatchesMaterial(requirement, pool.material)) continue;
+        const amount = Math.min(pool.available, needed);
+        pool.available -= amount;
+        needed -= amount;
+        allocations.push(Object.freeze({
+          requirementId:requirement.id,
+          materialIndex:pool.index,
+          materialId:materialIdOf(pool.material),
+          instanceId:pool.material?.instanceId == null ? null : String(pool.material.instanceId),
+          quantity:amount,
+        }));
+      }
+      if (needed > 0) missing.push(Object.freeze({requirementId:requirement.id,quantityMissing:needed}));
+    }
+
+    return Object.freeze({
+      valid:missing.length === 0,
+      requirements,
+      allocations:Object.freeze(allocations),
+      missing:Object.freeze(missing),
+    });
+  }
+
+  function consumeRecipeMaterials(definitionOrId, materials = [], options = {}) {
+    const plan = planRecipeMaterials(definitionOrId, materials, options);
+    if (!plan.valid) return Object.freeze({consumed:false,reason:"missing_ritual_materials",plan});
+
+    const source = asArray(materials);
+    const spentByIndex = new Map();
+    for (const allocation of plan.allocations) {
+      spentByIndex.set(allocation.materialIndex, (spentByIndex.get(allocation.materialIndex) || 0) + allocation.quantity);
+    }
+
+    const consumed = [];
+    for (const [index, amount] of spentByIndex.entries()) {
+      const material = source[index];
+      const field = materialQuantityField(material);
+      const before = materialQuantityOf(material);
+      const after = Math.max(0, before - amount);
+      material[field] = after;
+      if (field === "quantity" && material.cantidad != null) material.cantidad = after;
+      if (field === "cantidad" && material.quantity != null) material.quantity = after;
+      consumed.push(Object.freeze({
+        materialId:materialIdOf(material),
+        instanceId:material?.instanceId == null ? null : String(material.instanceId),
+        quantity:amount,
+        before,
+        after,
+      }));
+    }
+
+    return Object.freeze({
+      consumed:true,
+      begun:true,
+      outcomeIndependent:true,
+      plan,
+      consumedMaterials:Object.freeze(consumed),
+    });
+  }
+
+  function gemAttemptRiskProfile(gem = {}, rank = 1) {
+    const channel = Gems.validateGemChannelRank(gemDefinitionIdOf(gem), rank, gemQualityOf(gem));
+    if (!channel.valid) return Object.freeze({valid:false,reason:channel.reason || "gem_rank_invalid"});
+    const riskTier = channel.overchannel ? "overchannel" : (channel.unstable ? "unstable" : "normal");
+    return Object.freeze({
+      valid:true,
+      riskTier,
+      overchannel:channel.overchannel,
+      unstable:channel.unstable,
+      anchorDamageEligible:channel.unstable,
+      accidentalCurseEligible:channel.unstable,
+    });
+  }
+
   function validateGemAnchorApplication(item = {}, gem = {}, definitionOrId, rank = 1, options = {}) {
     const definition = typeof definitionOrId === "string" ? Catalog.get(definitionOrId) : clone(definitionOrId);
     if (!definition) return Object.freeze({ allowed:false, reason:"unknown_enchantment" });
@@ -731,7 +947,8 @@
       anchor:candidateAnchor,
       channel,
       compatibility,
-      threshold:gemThresholdPreview(item, definition, gem, rank, options),
+      threshold:ritualThresholdPreview(item, definition, rank, {...options,gem}),
+      risk:gemAttemptRiskProfile(gem, rank),
       validation,
     });
   }
@@ -819,6 +1036,51 @@
       item:Object.freeze(out),
       anchor:anchors[index],
       reference:refs[linkedIndex],
+    });
+  }
+
+
+  function applyGemArcaneOutcome(item = {}, anchorId, outcome, options = {}) {
+    const kind = normalizeId(outcome);
+    if (kind === "anchor_broken") return setGemAnchorState(item, anchorId, "broken");
+    if (kind === "anchor_depleted") return setGemAnchorState(item, anchorId, "depleted");
+    if (kind === "anchor_unstable") return setGemAnchorState(item, anchorId, "unstable");
+
+    if (!["accidental_bind","accidental_curse"].includes(kind)) {
+      return Object.freeze({changed:false,reason:"unsupported_arcane_outcome",item:clone(item)});
+    }
+
+    const refs = appliedEnchantments(item);
+    const index = refs.findIndex((raw)=>normalizeAppliedReference(raw).anchorId === String(anchorId || ""));
+    if (index < 0) return Object.freeze({changed:false,reason:"gem_anchor_enchantment_not_found",item:clone(item)});
+
+    const current = normalizeAppliedReference(refs[index]);
+    const definition = Catalog.get(current.definitionId);
+    if (!definition) return Object.freeze({changed:false,reason:"unknown_enchantment",item:clone(item)});
+    const allowedByRecipe = kind === "accidental_bind"
+      ? definition.recipe?.outcomes?.allowAccidentalBind === true
+      : definition.recipe?.outcomes?.allowAccidentalCurse === true;
+    const allowedByCaller = kind === "accidental_bind"
+      ? options.allowAccidentalBind === true
+      : options.allowAccidentalCurse === true;
+    if (!allowedByRecipe && !allowedByCaller) {
+      return Object.freeze({changed:false,reason:"arcane_outcome_not_permitted",item:clone(item)});
+    }
+
+    const property = kind === "accidental_bind" ? "bind" : "curse";
+    const nextProperties = [...current.properties, property];
+    const propertyValidation = validateAppliedProperties(nextProperties, definition);
+    if (!propertyValidation.valid) {
+      return Object.freeze({changed:false,reason:"invalid_arcane_outcome_properties",errors:propertyValidation.errors,item:clone(item)});
+    }
+
+    refs[index] = normalizeAppliedReference({...current,properties:propertyValidation.properties});
+    const out = withMagicState(item, refs, gemAnchors(item));
+    return Object.freeze({
+      changed:true,
+      outcome:kind,
+      item:Object.freeze(out),
+      reference:refs[index],
     });
   }
 
@@ -936,6 +1198,9 @@
     GEM_SPECIALIZATION_TH_ADJUSTMENT,
     GEM_ITEM_STABILIZATION_MAX_REDUCTION,
     EXTERNAL_TH_SOURCE_TYPES,
+    INTENTIONAL_BIND_TH_ADJUSTMENT,
+    INTENTIONAL_CURSE_TH_ADJUSTMENT,
+    CURSE_REAGENT_TAGS,
     normalizeId,
     itemKindOf,
     tierOf,
@@ -976,6 +1241,18 @@
     resonanceArchitecture,
     externalThresholdAdjustment,
     gemThresholdPreview,
+    propertyThresholdAdjustment,
+    ritualThresholdPreview,
+    materialIdOf,
+    materialTagsOf,
+    materialQuantityOf,
+    normalizeRecipeRequirement,
+    requirementMatchesMaterial,
+    recipeMaterialRequirements,
+    planRecipeMaterials,
+    consumeRecipeMaterials,
+    gemAttemptRiskProfile,
+    applyGemArcaneOutcome,
     positiveEffectMultiplier,
     resolvedEnchantments,
     actionChannels,
