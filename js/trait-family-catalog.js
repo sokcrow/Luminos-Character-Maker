@@ -82,9 +82,10 @@
       trait && trait.id, trait && trait.name, trait && trait.description,
       trait && trait.mechanics, trait && trait.effects, trait && trait.rules,
     ];
-    return parts.map((part) => typeof part === "string" ? part :
+    const text = parts.map((part) => typeof part === "string" ? part :
       part && typeof part === "object" ? JSON.stringify(part) : "").join(" ")
-      .replace(/([a-z])([A-Z])/g, "$1_$2").replace(/[-\s]+/g, "_");
+      .replace(/([a-z])([A-Z])/g, "$1_$2");
+    return text + " " + text.replace(/[_-]/g, " ");
   }
 
   function classify(trait) {
@@ -92,7 +93,7 @@
     if (specified) return specified;
     const subject = semantics(trait || {});
     for (const [id, pattern] of SIGNALS) {
-      // Word-like underscores are intentional: mechanics are often snake_case.
+      // Scan original names and expanded mechanic identifiers.
       if (pattern.test(subject)) return id;
     }
     return "especial"; // Honest catch-all, never mistaken for a source category.
