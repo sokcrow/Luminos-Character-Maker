@@ -29,7 +29,9 @@
     if (api?.mergeMilestoneChoices && api?.choiceAt) {
       try {
         // Read legacy top-level AND canonical claims; fail closed on conflicts.
-        return api.choiceAt(api.mergeMilestoneChoices(player), classId, level);
+        const canonical = api.mergeMilestoneChoices(player);
+        const raw = canonical?.[normalizeId(classId)]?.[String(integerOr(level, 0))];
+        return raw || api.choiceAt(canonical, classId, level);
       } catch (_) {
         return null;
       }
@@ -50,7 +52,12 @@
       .filter(([stat, amount]) => stat && amount > 0)
       .sort(([a], [b]) => a.localeCompare(b))
       .forEach(([stat, amount]) => { allocation[stat] = amount; });
-    return JSON.stringify({ type: ["stats", "stat"].includes(type) ? "stats" : type, allocation, selectedAt: choice.selectedAt ?? null });
+    return JSON.stringify({
+      type: ["stats", "stat"].includes(type) ? "stats" : type,
+      allocation,
+      selectedAt: choice.selectedAt ?? null,
+      baseStatsApplied: typeof choice.baseStatsApplied === "boolean" ? choice.baseStatsApplied : null,
+    });
   }
 
   function sameMilestoneChoice(left, right) {
