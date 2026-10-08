@@ -1419,3 +1419,389 @@ body:not(.on-game-dashboard) #perks-modal #player-progression-traits-host{
     flex-basis:236px;
   }
 }
+
+/* Avance: focused, content-sized layout. This modal is separate from the
+   legacy Traits dossier above, which is intentionally left untouched. */
+body:not(.on-game-dashboard) #perks-modal.modal-progression .hud-modal-content{
+  width:min(92vw,1080px);
+  max-width:1080px;
+  height:min(86vh,820px);
+  height:min(86dvh,820px);
+  max-height:86dvh;
+  border-radius:8px;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .hud-modal-body{
+  box-sizing:border-box;
+  overflow-y:auto;
+  overflow-x:hidden;
+  overscroll-behavior:contain;
+  padding:13px 16px 20px;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-shell{
+  min-height:0;
+  align-content:start;
+  gap:12px;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-heading{
+  align-items:center;
+  gap:12px;
+  padding:0 34px 10px 2px;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-heading h2{
+  font-size:23px;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-heading p{
+  max-width:440px;
+  font:500 12px/1.45 Arial,Helvetica,sans-serif;
+  text-align:right;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression #player-progression-tree-host,
+body:not(.on-game-dashboard) #perks-modal.modal-progression #player-progression-level-allocation-host{
+  gap:10px;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-level-allocation__header{
+  gap:12px;
+  flex-wrap:wrap;
+  padding:9px 12px;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-level-allocation__overview{
+  min-width:0;
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-level-allocation__header h3{
+  font-size:17px;
+  line-height:1.2;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-level-allocation__toggle{
+  appearance:none;
+  min-height:38px;
+  flex:0 0 auto;
+  padding:7px 10px;
+  border:1px solid #8d652d;
+  border-radius:4px;
+  background:#20180e;
+  color:#f6c778;
+  font:700 12px/1 Arial,Helvetica,sans-serif;
+  cursor:pointer;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-level-allocation__toggle:hover,
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-level-allocation__toggle:focus-visible{
+  outline:2px solid #e3a952;
+  outline-offset:2px;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-level-allocation__totals{
+  gap:6px;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-level-allocation__totals span{
+  padding:6px 8px;
+  color:#c3b7a4;
+  font:700 11px/1.25 Arial,Helvetica,sans-serif;
+  letter-spacing:0;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-level-allocation__totals b{
+  font-size:13px;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-level-allocation__body[hidden],
+body:not(.on-game-dashboard) #perks-modal.modal-progression #player-progression-detail[hidden]{
+  display:none!important;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-level-allocation__help{
+  padding:8px 12px;
+  color:#b2a491;
+  font:500 12px/1.5 Arial,Helvetica,sans-serif;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-level-allocation__row{
+  grid-template-columns:minmax(130px,1.2fr) 40px minmax(80px,1.4fr) 40px 64px 40px;
+  gap:7px;
+  min-height:0;
+  padding:7px 12px;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-level-allocation__identity strong{
+  font-size:14px;
+  white-space:normal;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-level-allocation__identity small{
+  color:#b9a88f;
+  font-size:10px;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-level-allocation__step,
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-level-allocation__remove{
+  width:40px;
+  height:40px;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-level-allocation__number{
+  box-sizing:border-box;
+  width:64px;
+  height:40px;
+  font-size:15px;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-level-allocation__lock{
+  font-size:10px;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-level-allocation__add{
+  flex-wrap:wrap;
+  padding:8px 12px;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-level-allocation__add select{
+  min-height:40px;
+  height:40px;
+  font:600 13px Arial,Helvetica,sans-serif;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-level-allocation__add button,
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-level-allocation__footer button,
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-level-review__actions button{
+  min-height:40px;
+  font-size:12px;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-level-allocation__footer{
+  min-height:0;
+  padding:8px 12px;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-level-allocation__feedback{
+  color:#b2a392;
+  font-size:12px;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-class__header{
+  gap:12px;
+  padding:9px 12px;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-class__header h2{
+  font-size:19px;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-class__header>b{
+  flex:0 0 auto;
+  font-size:12px;
+  letter-spacing:0;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-grid{
+  grid-template-rows:30px;
+  grid-auto-rows:minmax(76px,auto);
+  padding:0 8px 8px 0;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-level-marker,
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-grid__corner{
+  min-height:30px;
+  font-size:11px;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-lane-label,
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-branch-label{
+  min-width:0;
+  gap:4px;
+  padding:8px 10px;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-branch-label strong,
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-lane-label strong{
+  font-size:13px;
+  overflow-wrap:anywhere;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-branch-label>small{
+  font-size:10px;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-rail{
+  min-width:150px;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-node{
+  box-sizing:border-box;
+  width:128px;
+  min-height:62px;
+  gap:4px;
+  padding:7px 9px;
+  border-radius:5px;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-node strong{
+  overflow:visible;
+  font:700 13px/1.25 Georgia,"Times New Roman",serif;
+  text-overflow:clip;
+  white-space:normal;
+  overflow-wrap:anywhere;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-node__level{
+  font-size:11px;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-node small{
+  font-size:10px;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-branch-choose{
+  min-height:38px;
+  font-size:11px;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression #player-progression-detail{
+  min-height:0;
+  border-radius:6px;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-detail__header{
+  padding:10px 12px;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-detail__items{
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));
+  gap:8px;
+  padding:9px;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-detail__item{
+  padding:10px;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-detail__item-head strong{
+  font-size:14px;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-detail__item p,
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-detail__branch p{
+  color:#c3b5a0;
+  font:500 13px/1.55 Arial,Helvetica,sans-serif;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-formulas li{
+  font-size:12px;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-formulas code{
+  overflow-wrap:anywhere;
+  white-space:normal;
+  text-overflow:clip;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-state{
+  font-size:11px;
+}
+@media (max-width:760px){
+  body:not(.on-game-dashboard) #perks-modal.modal-progression .hud-modal-content{
+    box-sizing:border-box;
+    width:calc(100vw - 12px);
+    max-width:none;
+    height:calc(100dvh - 12px);
+    max-height:calc(100dvh - 12px);
+  }
+  body:not(.on-game-dashboard) #perks-modal.modal-progression .hud-modal-body{
+    padding:10px 11px 16px;
+  }
+  body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-heading{
+    align-items:flex-start;
+    gap:4px;
+    padding:0 35px 8px 2px;
+  }
+  body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-heading h2{
+    font-size:21px;
+  }
+  body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-heading p{
+    max-width:100%;
+    font-size:12px;
+    text-align:left;
+  }
+  body:not(.on-game-dashboard) #perks-modal.modal-progression .player-level-allocation__header{
+    flex-direction:column;
+    align-items:stretch;
+    gap:8px;
+  }
+  body:not(.on-game-dashboard) #perks-modal.modal-progression .player-level-allocation__overview{
+    justify-content:space-between;
+    gap:7px;
+  }
+  body:not(.on-game-dashboard) #perks-modal.modal-progression .player-level-allocation__header h3{
+    font-size:16px;
+  }
+  body:not(.on-game-dashboard) #perks-modal.modal-progression .player-level-allocation__toggle{
+    min-height:44px;
+    font-size:11px;
+  }
+  body:not(.on-game-dashboard) #perks-modal.modal-progression .player-level-allocation__totals{
+    justify-content:flex-start;
+    gap:5px;
+  }
+  body:not(.on-game-dashboard) #perks-modal.modal-progression .player-level-allocation__totals span{
+    padding:5px 6px;
+    font-size:11px;
+  }
+  body:not(.on-game-dashboard) #perks-modal.modal-progression .player-level-allocation__row{
+    grid-template-columns:40px minmax(0,1fr) 40px 64px 40px;
+    gap:6px;
+    padding:8px 9px;
+  }
+  body:not(.on-game-dashboard) #perks-modal.modal-progression .player-level-allocation__identity{
+    grid-column:1/-1;
+  }
+  body:not(.on-game-dashboard) #perks-modal.modal-progression .player-level-allocation__lock,
+  body:not(.on-game-dashboard) #perks-modal.modal-progression .player-level-allocation__remove{
+    grid-column:5;
+  }
+  body:not(.on-game-dashboard) #perks-modal.modal-progression .player-level-allocation__footer{
+    align-items:stretch;
+    flex-direction:column;
+  }
+  body:not(.on-game-dashboard) #perks-modal.modal-progression .player-level-allocation__feedback{
+    margin-right:0;
+    line-height:1.4;
+  }
+  body:not(.on-game-dashboard) #perks-modal.modal-progression .player-level-allocation__footer button{
+    width:100%;
+    min-height:44px;
+  }
+  body:not(.on-game-dashboard) #perks-modal.modal-progression .player-level-allocation__add button,
+  body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-branch-choose{
+    min-height:44px;
+  }
+  body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-tree-scroll{
+    overflow-x:hidden;
+    overflow-y:visible;
+  }
+  body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-grid{
+    box-sizing:border-box;
+    min-width:0;
+    width:100%;
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    grid-template-rows:none;
+    grid-auto-rows:auto;
+    gap:8px;
+    padding:10px;
+  }
+  body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-grid__corner,
+  body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-level-marker,
+  body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-rail{
+    display:none;
+  }
+  body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-lane-label,
+  body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-branch-label{
+    position:static;
+    grid-column:1/-1!important;
+    grid-row:auto!important;
+    gap:3px;
+    padding:8px 10px;
+    border:1px solid #4b3927;
+    border-radius:5px;
+    min-width:0;
+  }
+  body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-node{
+    grid-column:auto!important;
+    grid-row:auto!important;
+    justify-self:stretch;
+    align-self:stretch;
+    width:100%;
+    min-width:0;
+    min-height:66px;
+    padding:10px;
+    box-shadow:none;
+  }
+  body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-node:hover,
+  body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-node:focus-visible{
+    transform:none;
+  }
+  body:not(.on-game-dashboard) #perks-modal.modal-progression #player-progression-detail{
+    box-sizing:border-box;
+    grid-column:1/-1!important;
+    grid-row:auto!important;
+    min-width:0;
+    width:100%;
+  }
+  body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-formulas li{
+    grid-template-columns:1fr;
+    gap:5px;
+  }
+}
+@media (max-width:380px){
+  body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-grid{
+    grid-template-columns:minmax(0,1fr)!important;
+  }
+}
+@media(prefers-reduced-motion:reduce){
+  body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-node{
+    transition:none;
+  }
+}
