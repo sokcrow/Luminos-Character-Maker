@@ -115,6 +115,7 @@
         ensureScript("universal-action-economy-script", "js/universal-action-economy.js", () => Boolean(global.LuminousActionEconomy)),
         ensureScript("trait-standardization-runtime-script", "js/trait-standardization-runtime.js", () => Boolean(global.LuminousTraitStandardizationRuntime)),
         ensureBackgroundNarratives().catch((error) => { console.warn("Background narrative catalog unavailable:", error); }),
+        ensureScript("legacy-background-catalog-script", "js/legacy-background-catalog.js", () => Boolean(global.LuminousLegacyBackgroundCatalog?.get?.("alta_cuna"))),
       ]));
     return state.dependencyPromise;
   }
