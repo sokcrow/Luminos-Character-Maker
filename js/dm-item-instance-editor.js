@@ -603,7 +603,10 @@
     }
 
     const original = clone(latest.item);
-    const migrated = inventory()?.migrateLegacyItem?.(original, latest.key, { currentOwnerId: state.playerId }) || original;
+    // The modern migrateLegacyItem returns its input unchanged. Keep a distinct
+    // untouched rollback copy so a failed save never leaves staged magic live.
+    const working = clone(original);
+    const migrated = inventory()?.migrateLegacyItem?.(working, latest.key, { currentOwnerId: state.playerId }) || working;
     const listType = state.selected.listType;
     const quantity = Math.max(1, intOr(fieldValue("dm-item-field-quantity"), 1));
     const stackLimit = Math.max(1, intOr(inventory()?.stackLimit?.(migrated, listType), listType === "stash" ? 99 : 2));
