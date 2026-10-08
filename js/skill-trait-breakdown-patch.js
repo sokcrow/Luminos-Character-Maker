@@ -381,7 +381,7 @@
     state.playerListener = null;
     if (!nextId) return false;
     state.playerRef = state.db.ref(`${PLAYER_ROOT}/${nextId}`);
-    state.playerListener = (snapshot) => { state.player = snapshot.val() || null; };
+    state.playerListener = (snapshot) => { state.player = snapshot.val() || null; syncDmSkillPreviews(); };
     state.playerRef.on("value", state.playerListener);
     return true;
   }
@@ -391,11 +391,11 @@
     if (!state.db) state.db = global.firebase.database();
     if (!state.definitionsBound) {
       state.definitionsBound = true;
-      state.db.ref(DEFINITIONS_ROOT).on("value", (snapshot) => { state.definitions = snapshot.val() || {}; });
+      state.db.ref(DEFINITIONS_ROOT).on("value", (snapshot) => { state.definitions = snapshot.val() || {}; syncDmSkillPreviews(); });
     }
     if (!state.grantsBound) {
       state.grantsBound = true;
-      state.db.ref(GRANTS_ROOT).on("value", (snapshot) => { state.grants = snapshot.val() || {}; });
+      state.db.ref(GRANTS_ROOT).on("value", (snapshot) => { state.grants = snapshot.val() || {}; syncDmSkillPreviews(); });
     }
     bindPlayer();
     return true;
@@ -416,6 +416,12 @@
       .forEach((name) => global.addEventListener?.(name, tick));
     global.addEventListener?.("luminous:theatre-rolls-ready", tick);
     global.addEventListener?.("load", tick, { once: true });
+    doc.addEventListener?.("change", (event) => {
+      const element = event.target;
+      if (element?.id?.startsWith?.("dm-player-") || element?.closest?.("#dashboard-jugadores")) {
+        global.queueMicrotask?.(tick);
+      }
+    }, true);
   }
 
   const api = Object.freeze({
