@@ -356,9 +356,14 @@
       const engine = global.LuminousTraitEngine;
       const traits = global.LuminousPlayerTraitRuntime?.getTraits?.() || [];
       const character = global.LuminousPlayerTraitRuntime?.getCharacter?.() || data;
-      const preview = !hasResolved ? resolver?.previewCheck?.(engine, traits, character, descriptor.check) : null;
+      // A button click is an actual Check, unlike the pure Stats preview:
+      // resolve one-use and target-dependent Traits exactly once on this path.
+      const live = !hasResolved ? global.LuminousPlayerTraitRuntime?.resolveTheatreCheck?.(descriptor.check) : null;
+      const preview = !hasResolved && !live?.check
+        ? resolver?.previewCheck?.(engine, traits, character, descriptor.check) : null;
+      const effective = live?.check || preview?.check || null;
       const previewPower = hasResolved ? resolvedPower
-        : preview ? checkPowerValue(preview.check) + finalPowerValue(preview.check)
+        : effective ? checkPowerValue(effective) + finalPowerValue(effective)
           : playerCheckPower(descriptor.check, data).total;
       if (!previewPower) return;
 
