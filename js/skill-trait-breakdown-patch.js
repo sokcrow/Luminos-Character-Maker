@@ -22,6 +22,7 @@
     definitionsBound: false,
     grantsBound: false,
     resolvedBridgeBound: false,
+    pendingCheckResolution: null,
   };
 
   const normalizeId = (value) => String(value ?? "").trim().toLowerCase().replace(/\s+/g, "_");
@@ -113,13 +114,78 @@
     return checkPowerContributions(engine, traits, character, check);
   }
 
+
+  function traitByBaseId(traits = [], id) {
+    return (traits || []).find((trait) => normalizeId(trait?.baseTraitId || trait?.id || trait?.name).split("__")[0] === id) || null;
+  }
+
+  // Class runtimes provide conditional Final Power without declarative rules.
+  // Consult their own helpers rather than duplicating formulas.
+  const SPECIAL_CHECK_APPLIERS = Object.freeze([
+    ["remarkable_athlete", "LuminousChampionArchetypeRuntime", "applyRemarkableAthleteCheck"],
+    ["royal_envoy", "LuminousBanneretArchetypeRuntime", "applyRoyalEnvoyCheck"],
+    ["bladesong", "LuminousBladesingerArchetypeRuntime", "applyAcrobaticsBonus"],
+  ]);
+
+  function specialFinalPowerContributions(traits = [], character = {}, check = {}) {
+    return SPECIAL_CHECK_APPLIERS.flatMap(([id, owner, method]) => {
+      const trait = traitByBaseId(traits, id);
+      const apply = global[owner]?.[method];
+      if (!trait || typeof apply !== "function") return [];
+      try {
+        const checked = apply({ ...(clone(check) || {}), finalPower: 0 }, character);
+        const amount = numberOr(checked?.finalPower, 0);
+        return amount ? [{ traitId: id, name: trait.name || id, amount, channel: "final_power" }] : [];
+      } catch (_) { return []; }
+    });
+  }
+
+  function applySpecialArmedCheck(check = {}, traits = [], character = {}) {
+    let result = { ...(check || {}) };
+    SPECIAL_CHECK_APPLIERS.forEach(([id, owner, method]) => {
+      const apply = global[owner]?.[method];
+      if (!traitByBaseId(traits, id) || typeof apply !== "function") return;
+      result = apply(result, character) || result;
+    });
+    return result;
+  }
+
+  // Simulate the canonical check engine on copies. Captures declarative effects
+  // and specialized class wrappers such as Bard Jack, Rogue Reliable Talent,
+  // Ranger Favored Enemy without consuming real character resources.
+  function evaluatedCheckBonuses(engine, traits = [], character = {}, check = {}) {
+    const checkPower = checkPowerContributions(engine, traits, character, check);
+    const finalPower = finalPowerContributions(engine, traits, character, check);
+    const sum = (entries) => entries.reduce((total, entry) => total + entry.amount, 0);
+    let checked = null;
+    try {
+      checked = engine?.resolveTheatreCheck?.({
+        character: clone(character) || {}, traits: clone(traits) || [],
+        check: { abilityPower: 0, checkPower: 0, power: 0, finalPower: 0, ...(clone(check) || {}) },
+      });
+    } catch (_) {}
+    if (checked?.check) {
+      const extraCheck = checkPowerValue(checked.check) - sum(checkPower);
+      const extraFinal = finalPowerValue(checked.check) - sum(finalPower);
+      const outcomes = checked.outcomes || [];
+      const label = () => {
+        const match = outcomes.find((entry) => entry?.traitId && numberOr(entry?.finalPowerBonus ?? entry?.bonus, 0));
+        return traitByBaseId(traits, normalizeId(match?.traitId))?.name || match?.traitId || "Class Trait runtime";
+      };
+      if (extraCheck) checkPower.push({ traitId: "runtime", name: "Class Trait runtime", amount: extraCheck, channel: "check_power" });
+      if (extraFinal) finalPower.push({ traitId: "runtime", name: label(), amount: extraFinal, channel: "final_power" });
+    }
+    finalPower.push(...specialFinalPowerContributions(traits, character, check));
+    return { checkPower, finalPower, checkPowerTotal: sum(checkPower), finalPowerTotal: sum(finalPower) };
+  }
+
   function tooltip(skill, ability, breakdown) {
-    const lines = [`${skill.name} Check Power: ${formatSigned(breakdown.total)}`];
+    const lines = [`${skill.name} · resultado efectivo: ${formatSigned(breakdown.total)}`];
     if (breakdown.abilityMod) lines.push(`${formatSigned(breakdown.abilityMod)} ${ability.code} Mod`);
     if (breakdown.proficiency) lines.push(`${formatSigned(breakdown.proficiency)} Proficiency`);
     breakdown.contributions.forEach((entry) => lines.push(`${formatSigned(entry.amount)} ${entry.name}`));
     if (breakdown.finalPowerContributions?.length) {
-      lines.push("Final Power · se aplica después de la tirada");
+      lines.push("Final Power · aplicado una sola vez después de las monedas");
       breakdown.finalPowerContributions.forEach((entry) => lines.push(`${formatSigned(entry.amount)} ${entry.name}`));
     }
     return lines.join("\n");
@@ -145,10 +211,13 @@
     const base = stats.skillValue(skill, ability, data);
     const character = runtime.getCharacter?.() || data;
     const check = { kind: "skill", abilityId: ability.id, skillId: skill.id };
-    const contributions = checkPowerContributions(engine, runtime.getTraits(), character, check);
-    const finalPower = finalPowerContributions(engine, runtime.getTraits(), character, check);
-    const traitBonus = contributions.reduce((sum, entry) => sum + entry.amount, 0);
-    return { base, abilityMod, proficiency, contributions, finalPowerContributions: finalPower, traitBonus, total: base + traitBonus };
+    const bonuses = evaluatedCheckBonuses(engine, runtime.getTraits(), character, check);
+    return {
+      base, abilityMod, proficiency,
+      contributions: bonuses.checkPower, finalPowerContributions: bonuses.finalPower,
+      traitBonus: bonuses.checkPowerTotal + bonuses.finalPowerTotal,
+      total: base + bonuses.checkPowerTotal + bonuses.finalPowerTotal,
+    };
   }
 
   function syncPlayerSkillPreviews() {
@@ -189,7 +258,8 @@
   function mergedDefinitions() {
     const core = global.LuminousTraitCatalogCore?.allDefinitions?.() || {};
     const racial = global.LuminousRacialTraitCatalog?.allDefinitions?.() || {};
-    return { ...core, ...racial, ...(state.definitions || {}) };
+    const archetype = global.LuminousArchetypeTraitCatalog?.allDefinitions?.() || {};
+    return { ...core, ...racial, ...archetype, ...(state.definitions || {}) };
   }
 
   function mergedGrants() {
@@ -203,9 +273,10 @@
     const normalized = normalizeCharacter(character);
     const granted = engine.resolveTraitGrants(normalized, mergedGrants(), definitions);
     const racial = global.LuminousRacialTraitCatalog?.resolveTraitGrants?.(normalized, definitions) || [];
+    const archetype = global.LuminousArchetypeTraitCatalog?.resolveTraitGrants?.(normalized, definitions) || [];
     const selected = global.LuminousClassMilestones?.resolveSelectedGeneralTraits?.(character, definitions) || [];
     const byId = new Map();
-    [...granted, ...racial, ...selected].forEach((trait) => {
+    [...granted, ...racial, ...archetype, ...selected].forEach((trait) => {
       const id = normalizeId(trait?.id || trait?.name);
       if (id && !byId.has(id)) byId.set(id, trait);
     });
@@ -243,9 +314,10 @@
       (ability.skills || []).forEach((skill) => {
         const proficiency = studio.proficiencyContribution?.(level, doc.getElementById(`dm-player-skill-${skill.id}`)?.value || "none") || 0;
         const check = { kind: "skill", abilityId: ability.id, skillId: skill.id };
-        const contributions = checkPowerContributions(engine, traits, character, check);
-        const finalPower = finalPowerContributions(engine, traits, character, check);
-        const total = abilityMod + proficiency + contributions.reduce((sum, entry) => sum + entry.amount, 0);
+        const bonuses = evaluatedCheckBonuses(engine, traits, character, check);
+        const contributions = bonuses.checkPower;
+        const finalPower = bonuses.finalPower;
+        const total = abilityMod + proficiency + bonuses.checkPowerTotal + bonuses.finalPowerTotal;
         const node = doc.querySelector(`[data-skill-total="${skill.id}"]`);
         if (!node) return;
         const value = formatSigned(total);
@@ -391,6 +463,9 @@
     traitCheckContribution,
     checkPowerContributions,
     finalPowerContributions,
+    specialFinalPowerContributions,
+    evaluatedCheckBonuses,
+    applySpecialArmedCheck,
     skillTraitContributions,
     playerCheckPower,
     playerSkillBreakdown,
