@@ -15,7 +15,7 @@ const Engine=globalThis.LuminousItemEnchantmentEngine;
 const Services=globalThis.LuminousItemEnchanterServiceRuntime;
 
 assert.ok(Engine && Services);
-assert.strictEqual(Services.VERSION,3);
+assert.strictEqual(Services.VERSION,4);
 assert.strictEqual(Services.MAX_REPRODUCIBLE_RANK,3);
 
 const provider=Services.normalizeProviderProfile({
