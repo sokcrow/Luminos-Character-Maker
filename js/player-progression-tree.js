@@ -196,6 +196,8 @@
   }
 
   function familyForItem(item) {
+    // Class-milestone choices are placeholders, not Trait definitions.
+    if (!item || item.kind === "milestone_choice") return null;
     return global.LuminousTraitFamilies?.resolve?.(
       item?.definition || { id: item?.id, name: item?.name, description: item?.description }
     ) || null;
