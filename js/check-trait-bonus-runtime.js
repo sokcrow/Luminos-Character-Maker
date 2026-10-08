@@ -146,7 +146,8 @@
     const id = normalizeId(checkInput.skillId || checkInput.skill);
     const kind = normalizeId(checkInput.kind);
     const prof = proficiencyState(actor, kind === "skill" ? id : abilityId(checkInput.abilityId), kind === "skill" ? "skill" : "save");
-    if (hasTrait(traits, "reliable_talent") && kind === "skill" && ["proficient", "expertise"].includes(prof)) {
+    if (hasTrait(traits, "reliable_talent") && global.LuminousTraitEngine?.__rogueClassRuntimeWrapped
+        && kind === "skill" && ["proficient", "expertise"].includes(prof)) {
       adjusted.finalPower += 3;
       contributions.push({ traitId: "reliable_talent", name: "Reliable Talent", amount: 3, channel: "final_power" });
     }
