@@ -96,6 +96,12 @@
     }
     const choice = api?.choiceAt?.(canonical, classId, level) || milestoneChoiceAt(current, classId, level);
     if (!choice) return { valid: false, error: "Ese milestone ya no está reclamado." };
+    // Before this fix, historical milestone claims only modified effective
+    // stats. Their baseStats must NOT be blindly decremented on revert.
+    // New claims record whether a base source existed at award time; false
+    // means the studio may have subsequently constructed one from stats.
+    const recordedChoice = canonical?.[normalizeId(classId)]?.[String(integerOr(level, 0))];
+    const baseSourceTracked = typeof recordedChoice?.baseStatsApplied === "boolean";
     const type = normalizeId(choice.type || choice.choiceType || choice.mode);
     if (["stats", "stat"].includes(type)) {
       const allocation = choice.allocation || choice.stats || choice.statAllocation || {};
@@ -111,9 +117,11 @@
         const after = before - amount;
         if (after < 1) return { valid: false, error: `No se puede revertir ${stat}: el resultado sería menor que 1.` };
         current.stats[existingKey] = after;
-        // DM Studio reads baseStats preferentially and recreates stats from
-        // that source. Undo the base increase as well or the bonus returns.
-        if (current.baseStats && typeof current.baseStats === "object" && !Array.isArray(current.baseStats)) {
+        // Reverse the DM base source only for claims recorded with the new
+        // baseStats bookkeeping. An old, unmarked claim updated stats ONLY;
+        // subtracting its baseStats would remove a bonus it never applied.
+        if (baseSourceTracked && current.baseStats
+          && typeof current.baseStats === "object" && !Array.isArray(current.baseStats)) {
           const baseKey = Object.keys(current.baseStats).find((key) => canonicalStatKey(key) === stat);
           const storedBase = baseKey ? current.baseStats[baseKey] : undefined;
           const beforeBase = Number(storedBase);
