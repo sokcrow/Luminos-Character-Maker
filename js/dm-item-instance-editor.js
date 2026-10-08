@@ -234,19 +234,19 @@
     overlay.innerHTML = `
       <div class="dm-item-editor-shell" role="dialog" aria-modal="true" aria-labelledby="dm-item-editor-title">
         <header class="dm-item-editor-header">
-          <div><span>CANONICAL ITEMINSTANCE // SCHEMA V2</span><strong id="dm-item-editor-title">ITEM INSTANCE</strong></div>
+          <div><span>TALLER DEL DIRECTOR</span><strong id="dm-item-editor-title">Objeto</strong></div>
           <button type="button" class="dm-item-editor-close" id="dm-item-editor-close" aria-label="Cerrar">×</button>
         </header>
         <div class="dm-item-editor-body">
           <section class="dm-item-editor-section">
-            <h4>Identity / Stack</h4>
+            <h4>Estado del objeto</h4>
             <div class="dm-item-editor-grid">
-              <div class="dm-item-editor-field wide"><label>Instance ID</label><input id="dm-item-field-instance" readonly></div>
-              <div class="dm-item-editor-field wide"><label>Definition ID</label><input id="dm-item-field-definition" readonly></div>
-              <div class="dm-item-editor-field"><label>Quantity</label><input id="dm-item-field-quantity" type="number" min="1" step="1"></div>
-              <div class="dm-item-editor-field"><label>Quality</label><select id="dm-item-field-quality"><option value="1">I · Low</option><option value="2">II · Standard</option><option value="3">III · Good</option><option value="4">IV · Fine</option><option value="5">V · Exceptional</option></select></div>
-              <div class="dm-item-editor-field"><label>Condition</label><input id="dm-item-field-condition" type="number" min="0" step="1"></div>
-              <div class="dm-item-editor-field"><label>Condition Max</label><input id="dm-item-field-condition-max" type="number" min="0" step="1"></div>
+              <input id="dm-item-field-instance" type="hidden">
+              <input id="dm-item-field-definition" type="hidden">
+              <div class="dm-item-editor-field"><label>Cantidad</label><input id="dm-item-field-quantity" type="number" min="1" step="1"></div>
+              <div class="dm-item-editor-field"><label>Calidad</label><select id="dm-item-field-quality"><option value="1">I · Low</option><option value="2">II · Standard</option><option value="3">III · Good</option><option value="4">IV · Fine</option><option value="5">V · Exceptional</option></select></div>
+              <div class="dm-item-editor-field"><label>Estado actual</label><input id="dm-item-field-condition" type="number" min="0" step="1"></div>
+              <div class="dm-item-editor-field"><label>Estado máximo</label><input id="dm-item-field-condition-max" type="number" min="0" step="1"></div>
             </div>
             <div class="dm-item-editor-meta" id="dm-item-editor-condition-meta"></div>
           </section>
@@ -572,7 +572,7 @@
   async function saveUnit(message) {
     if (!state.peer?.bound || state.saving) return false;
     state.saving = true;
-    announce("SYNCING ITEM RUNTIME...", "working");
+    announce("Guardando los cambios...", "working");
     try {
       const result = await state.peer.save(state.unit);
       if (!result?.saved) throw new Error(result?.reason || "save_failed");
@@ -580,7 +580,7 @@
       state.dirty = false;
       return true;
     } catch (error) {
-      announce(`ERROR // ${error.message || error}`, "error");
+      announce("No se pudieron guardar los cambios. Comprueba la conexión y vuelve a intentarlo.", "error");
       return false;
     } finally {
       state.saving = false;
@@ -1046,8 +1046,8 @@
           button.className = "dm-item-instance-edit";
           button.dataset.key = key;
           button.dataset.list = listType;
-          button.textContent = "INSTANCE";
-          button.title = "Editar ItemInstance canónico";
+          button.textContent = "Editar";
+          button.title = "Editar estado y propiedades del objeto";
           row.appendChild(button);
         }
       });
