@@ -126,4 +126,72 @@ assert.equal(tray.host.hidden, false);
 tray.setStatsView("stats");
 assert.equal(content.hidden, false);
 
+
+load("js/character-build-rules.js");
+const realRules = scope.LuminousCharacterBuildRules;
+const archivedIds = ["house_spiders_apprentice", "house_spiders_survivor"];
+const selectableIds = new Set(realRules.backgroundGroups().flatMap((group) => group.entries.map((entry) => entry.id)));
+
+for (const id of archivedIds) {
+  assert.ok(!selectableIds.has(id), "Archived background must not be offered to new builds: " + id);
+  const original = realRules.getBackground(id);
+  assert.ok(original?.retired, "Archived background must remain resolvable: " + id);
+  assert.ok(original.hpCoefBonus > 0, "Archived HP Coef must be retained");
+  const calculation = realRules.calculateBuild({
+    level: 1,
+    raceId: "human",
+    backgroundId: id,
+    classes: [{ classId: realRules.CLASSES[0].id, levels: 1 }],
+  });
+  assert.ok(calculation.valid, "Saved archived builds must remain valid for calculation: " + id);
+  assert.equal(calculation.backgroundHpCoefBonus, original.hpCoefBonus);
+
+  const archivedCharacter = { characterBuild: { backgroundId: id } };
+  const archivedTray = new trayApi.TraitPlayerTray({
+    getRuntime: () => ({ character: archivedCharacter }),
+    getTraits: () => [],
+  });
+  archivedTray.backgroundPanel = node("section");
+  archivedTray.renderBackground();
+  const archivedSummary = textContent(archivedTray.backgroundPanel);
+  assert.ok(archivedSummary.includes(original.name), "Archived character name must be visible: " + id);
+  assert.ok(archivedSummary.includes("TRASFONDO ARCHIVADO"), "Archive explanation is required");
+  assert.ok(archivedSummary.includes("HP COEF +" + original.hpCoefBonus.toFixed(2)), "Keep archived HP Coef");
+  assert.ok(!archivedSummary.includes("VER TRAIT DE BACKGROUND"), "Do not link to a missing Trait");
+  assert.equal(archivedTray.renderNarrativeBackgroundTrait(archivedTray.currentBackground()), null);
+  archivedTray.root = node("section");
+  archivedTray.render();
+  assert.ok(!archivedTray.root.children[0].children.some((item) => item.dataset.traitFilter === "background"),
+    "Do not offer an empty Background Trait filter");
+}
+
+// Exercise the original DM selection helper independently of Firebase and the dashboard UI.
+const dmSource = fs.readFileSync("js/dm-player-dnd-studio.js", "utf8");
+const archivedSelectorSource = dmSource.match(/  function setSavedBackgroundSelection\([\s\S]*?\n  \}\n\n  function backgroundOptions\(\)/);
+assert.ok(archivedSelectorSource, "DM archived-background selection helper must exist");
+const options = [];
+const select = {
+  value: "",
+  appendChild(option) { options.push(option); },
+  querySelectorAll() { return options.filter((option) => option.dataset.retiredBackground === "true"); },
+};
+const getField = (id) => id === "dm-player-build-background" ? select : null;
+const dmDoc = {
+  createElement() {
+    return { dataset: {}, value: "", remove() { options.splice(options.indexOf(this), 1); } };
+  },
+};
+const setSavedBackgroundSelection = new Function("field", "rules", "doc",
+  archivedSelectorSource[0].replace(/\n  function backgroundOptions\(\)$/, "") + "\nreturn setSavedBackgroundSelection;",
+)(getField, () => realRules, dmDoc);
+setSavedBackgroundSelection("house_spiders_apprentice");
+assert.equal(select.value, "house_spiders_apprentice", "The saved archived selection must be preserved in DM editor");
+assert.equal(options.length, 1, "The archived selection must be scoped to the current character");
+assert.ok(options[0].textContent.includes("TRASFONDO ARCHIVADO"));
+setSavedBackgroundSelection("street_medic");
+assert.equal(select.value, "street_medic");
+assert.equal(options.length, 0, "Archived option must disappear when a current background is selected");
+
+console.log("PASS: 2/2 House of Spiders origins hidden for new builds, saved coefficients preserved, missing Trait links hidden, and DM replacement remains possible.");
+
 console.log("PASS: 18/18 legacy backgrounds match saved creation data, Background and Traits render, and canonical Stats/Traits/Background tabs remain intact.");
