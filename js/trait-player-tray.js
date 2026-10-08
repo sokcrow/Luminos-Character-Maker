@@ -443,6 +443,15 @@
       return new RegExp("(?:\\(\\s*" + variable + "\\s*\\)\\s*%|" + variable + "\\s*%)", "i");
     }
 
+    // A capped class-level percentage can be worded as "(Monk Class Level)% (Max 50%)".
+    // Replace the variable with the evaluated capped formula, not the raw level.
+    const cappedLevel = normalized.match(/^min\(\s*(\d+(?:\.\d+)?)\s*,\s*ClassLevel\s*\)$/i);
+    if (cappedLevel && normalizeId(unit) === "percent") {
+      const variable = formulaVariablePattern("ClassLevel", trait);
+      const cap = escapeFormulaRegExp(cappedLevel[1]);
+      return new RegExp("(?:\\(\\s*" + variable + "\\s*\\)\\s*%|" + variable + "\\s*%)(?=\\s*\\(\\s*Max\\s*" + cap + "\\s*%\\s*\\))", "i");
+    }
+
     const parts = [];
     tokens.forEach((token) => {
       if (token === "(" || token === ")" || token === ",") return;
