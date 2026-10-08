@@ -252,7 +252,13 @@
       const ability = checkAbility(check);
       const wisAlreadyProficient = hasSaveProficiency(character, "wis");
       const grantedAbility = wisAlreadyProficient ? elegantCourtierChoice(character) : "wis";
-      if (grantedAbility && ability === grantedAbility && !hasSaveProficiency(character, grantedAbility)) bonus += proficiencyBonus(character);
+      if (grantedAbility && ability === grantedAbility && !hasSaveProficiency(character, grantedAbility)) {
+        const current = normalizeId(character.abilityProficiency?.[ability]
+          ?? character.saveProficiency?.[ability] ?? character.savingThrowProficiency?.[ability]
+          ?? character.savingThrowProficiencies?.[ability]);
+        const half = ["half", "half_proficiency"].includes(current) ? Math.floor(proficiencyBonus(character) / 2) : 0;
+        bonus += proficiencyBonus(character) - half;
+      }
     }
 
     check.finalPower = numberOr(check.finalPower, 0) + bonus;
