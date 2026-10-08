@@ -956,3 +956,59 @@ body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-
 body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-detail__item-head {
   flex-wrap:wrap;
 }
+
+/* The icon of the Trait family IS the milestone seal, not a tiny badge
+   below an unrelated decorative sigil. Several rewards may share a level. */
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-node__seal .player-progression-node__families {
+  position:relative;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:100%;
+  height:100%;
+  max-width:100%;
+  margin:0;
+  gap:0;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-node__seal .player-progression-node__families .player-progression-family {
+  display:grid;
+  place-items:center;
+  border:0;
+  border-radius:0;
+  padding:0;
+  background:transparent;
+  min-width:0;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-node__seal .player-progression-node__families.is-single .player-progression-family img {
+  display:block;
+  width:54px;
+  height:54px;
+  max-width:100%;
+  object-fit:contain;
+  flex:unset;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-node__seal .player-progression-node__families.is-multiple {
+  display:grid;
+  width:68px;
+  height:auto;
+  grid-template-columns:repeat(2,32px);
+  grid-auto-rows:32px;
+  gap:1px 2px;
+  place-content:center;
+  justify-items:center;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-node__seal .player-progression-node__families.is-multiple .player-progression-family img {
+  display:block;
+  width:30px;
+  height:30px;
+  max-width:100%;
+  object-fit:contain;
+  flex:unset;
+}
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-node__seal .player-progression-node__families.is-multiple .player-progression-family__more {
+  align-self:center;
+  justify-self:center;
+  font:800 12px/1 Arial,Helvetica,sans-serif;
+  color:#f2d6aa;
+  text-shadow:0 0 4px #000;
+}
