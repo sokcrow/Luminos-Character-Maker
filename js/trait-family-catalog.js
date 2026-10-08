@@ -63,7 +63,7 @@
   const SIGNALS = Object.freeze([
     // Strong indicators of what the Trait does, rather than who grants it.
     ["social", /\b(persuasion|deception|intimidation|charisma_check|dialogue|diplomacy|negotiat|reputation|conversation|persuad|persuasi[oó]n|engañ|convencer)\b/i],
-    ["magia", /\b(spellcast|spell_slot|spellbook|cantrip|conjuration|evocation|metamagic|magic_damage|arcane|hechizo|conjuro|magical|magia)\b/i],
+    ["magia", /\b(spellcast|spell_slot|spellbook|spell|magic|cantrip|conjuration|evocation|metamagic|magic_damage|arcane|hechizo|conjuro|magical|magia)\b/i],
     ["instinto", /\b(perception|insight|observation|analyse_check|analyze|sense|scent|darkvision|blindsight|truesight|tracking|intuition|awareness|olfato|rastrear|percepci[oó]n)\b/i],
     ["recursos", /\b(superiority|ki_points?|mana|spell_points?|resource_gain|resource_recovery|resource_max|regain_sp|recover_sp|restore_sp|energy|ammunition|ammo|supplies|currency|coin_gain|rage_charges?)\b/i],
     ["movilidad", /\b(movement_speed|move_speed|speed_bonus|walking_speed|dash|disengage|teleport|haste|flight|climb|swim_speed|extra_movement|speed|mobility|evasion_movement|desplazamiento|velocidad)\b/i],
