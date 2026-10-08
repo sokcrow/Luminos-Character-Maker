@@ -60,3 +60,8 @@ enchantmentReady
 An Enchantment price multiplier must operate on `enchantmentBaseValueAhn`. This prevents metal, Quality or gemstone input value from being counted twice.
 
 The final multiplier values for +1/+2/+3 remain intentionally undefined by this contract.
+
+
+## Enchanter's Update — Core V1 implementation
+
+The previously reserved +1/+2/+3 namespace now has **explicit opt-in magical focus rules** documented in [`enchanters-update-core-v1.md`](./enchanters-update-core-v1.md). That document (not the mundane equipment contract) defines the Tier 1–3 effects and Item Instance persistence. No universal price multiplier, elemental enchantment or magic loot rarity is authorized by this migration.
