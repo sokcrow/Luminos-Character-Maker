@@ -8,14 +8,16 @@ require("../js/item-catalog-enchantments.js");
 require("../js/item-enchantment-engine.js");
 require("../js/item-runtime-engine.js");
 require("../js/item-inventory-runtime.js");
+require("../js/item-persistence-runtime.js");
 require("../js/item-magic-runtime.js");
 require("../js/item-magic-knowledge-runtime.js");
 
 const Engine = globalThis.LuminousItemEnchantmentEngine;
 const Magic = globalThis.LuminousItemMagicRuntime;
+const Persistence = globalThis.LuminousItemPersistenceRuntime;
 const Knowledge = globalThis.LuminousItemMagicKnowledgeRuntime;
 
-assert.ok(Engine && Magic && Knowledge);
+assert.ok(Engine && Magic && Persistence && Knowledge);
 assert.strictEqual(Magic.VERSION, 3);
 assert.strictEqual(Knowledge.VERSION, 1);
 assert.deepStrictEqual(Knowledge.ARCANA_IDENTIFY_TH, {1:22,2:28,3:34});
@@ -135,6 +137,16 @@ depleted.magic.magicalDurability.current=0;
 depleted.magic.magicalDurability.depleted=true;
 const depletedPresentation=Knowledge.presentation(baselineArcana,depleted,{syncPassive:false});
 assert.strictEqual(depletedPresentation.inscriptionGlowing,false,"depleted magical runes stop glowing");
+
+const knowledgeSnapshot = Persistence.serializeInventoryState({
+  inventario_activo:{knowledge_blade:JSON.parse(JSON.stringify(enchanted))},
+  inventario_stash:{},
+  itemMagicKnowledge:JSON.parse(JSON.stringify(studyUser.itemMagicKnowledge)),
+});
+assert.deepStrictEqual(knowledgeSnapshot.itemMagicKnowledge,studyUser.itemMagicKnowledge);
+const knowledgeTarget={inventario_activo:{},inventario_stash:{},equipment:{accessories:[]}};
+Persistence.applyInventoryState(knowledgeTarget,knowledgeSnapshot);
+assert.deepStrictEqual(knowledgeTarget.itemMagicKnowledge,studyUser.itemMagicKnowledge,"per-player Magic Item knowledge survives persistence hydration");
 
 const rankTwo = Engine.applyEnchantment({...base,instanceId:"rank_two_knowledge"},"flamebound",2).item;
 assert.strictEqual(Knowledge.identifyThreshold(rankTwo),28);
