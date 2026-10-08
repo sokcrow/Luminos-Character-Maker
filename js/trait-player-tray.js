@@ -1317,6 +1317,20 @@
       const header = createElement("div", "player-trait-card__header");
       const source = createElement("span", `player-trait-source player-trait-source--${meta.category}`, meta.detail);
       header.appendChild(source);
+      const family = global.LuminousTraitFamilies?.resolve?.(trait);
+      if (family) {
+        card.dataset.traitFamily = family.id;
+        const marker = createElement("span", "player-trait-family");
+        marker.title = "Familia funcional: " + family.label;
+        const image = createElement("img", "player-trait-family__icon");
+        image.src = family.icon;
+        image.alt = "";
+        image.setAttribute("aria-hidden", "true");
+        image.loading = "lazy";
+        image.addEventListener("error", () => image.remove(), { once: true });
+        marker.append(image, createElement("span", "player-trait-family__label", family.label));
+        header.appendChild(marker);
+      }
       if (activationLabel(trait) === "AUTO") {
         header.appendChild(createElement("span", "player-trait-activation", "AUTO"));
       }
