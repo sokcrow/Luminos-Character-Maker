@@ -61,6 +61,7 @@ on:
       - js/item-catalog-ore-ingot-gem.js
       - js/item-catalog-enchantments.js
       - js/item-enchantment-engine.js
+      - js/item-enchantment-combat-runtime.js
       - js/item-catalog-tools.js
       - js/item-catalog-craft-components.js
       - js/item-catalog-weapons.js
@@ -112,6 +113,7 @@ on:
       - tests/item-gem-anchor-runtime-smoke.cjs
       - tests/item-gem-resonance-th-smoke.cjs
       - tests/item-enchantment-ritual-smoke.cjs
+      - tests/item-magical-durability-runtime-smoke.cjs
       - tests/item-enchantment-engine-smoke.cjs
       - tests/item-enchantment-inventory-smoke.cjs
       - tests/item-enchantment-magic-runtime-smoke.cjs
@@ -196,6 +198,7 @@ jobs:
           node --check js/item-catalog-ore-ingot-gem.js
           node --check js/item-catalog-enchantments.js
           node --check js/item-enchantment-engine.js
+          node --check js/item-enchantment-combat-runtime.js
           node --check js/item-catalog-tools.js
           node --check js/item-catalog-craft-components.js
           node --check js/item-catalog-weapons.js
@@ -287,6 +290,8 @@ jobs:
         run: node tests/item-gem-resonance-th-smoke.cjs
       - name: Enchantment ritual materials Bind Curse smoke
         run: node tests/item-enchantment-ritual-smoke.cjs
+      - name: Magical Durability activation combat smoke
+        run: node tests/item-magical-durability-runtime-smoke.cjs
       - name: Enchantment core engine smoke
         run: node tests/item-enchantment-engine-smoke.cjs
       - name: Enchantment inventory persistence smoke
