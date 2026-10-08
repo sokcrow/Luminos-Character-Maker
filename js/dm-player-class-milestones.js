@@ -326,7 +326,9 @@
             return;
           }
           current.stats = current.stats && typeof current.stats === "object" ? current.stats : {};
-          Object.entries(applied.allocation).forEach(([stat]) => { current.stats[stat] = applied.stats[stat]; });
+          Object.entries(applied.allocation).forEach(([stat]) => {
+            api.writeCanonicalStat(current.stats,stat,applied.stats[stat]);
+          });
           if (applied.baseStats) current.baseStats = applied.baseStats;
           baseStatsApplied = Boolean(applied.baseStats);
           resultingStats = applied.stats;
