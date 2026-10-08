@@ -246,7 +246,7 @@
       trait.atLevel,
     ].map((value) => Number(value)).find((value) => Number.isFinite(value) && value > 0) || null;
 
-    let detail = CATEGORY_LABELS[category].toUpperCase();
+    let detail = normalizeId(source.kind) === "maneuver" ? "MANEUVER" : CATEGORY_LABELS[category].toUpperCase();
     if (sourceName) detail += ` • ${sourceName.toUpperCase()}`;
     if (category === "archetype" && parent) detail += ` · ${parent.toUpperCase()}`;
     if (level != null) detail += ` LV.${level}`;
