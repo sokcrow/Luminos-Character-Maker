@@ -147,6 +147,57 @@
     return migrated;
   }
 
+
+  // Canonicalize every supported Milestone storage format before appending.
+  // Old players may have a top-level store, a nested store, or both. Merge
+  // them by class+level instead of favoring one and hiding older claims.
+  // A conflicting duplicate must block writes rather than re-award stats.
+  function mergeMilestoneChoices(character = {}) {
+    const merged = {};
+    const stores = [
+      migrateMilestoneChoices(character?.classMilestones),
+      migrateMilestoneChoices(character?.characterBuild?.classMilestones),
+    ];
+    for (const store of stores) {
+      for (const [key, value] of Object.entries(store)) {
+        const entries = key.includes(":")
+          ? [[key.split(":")[0], key.split(":")[1], value]]
+          : value && typeof value === "object" && !Array.isArray(value)
+            ? Object.entries(value).map(([level, claim]) => [key, level, claim])
+            : null;
+        if (!entries || (key.includes(":") && key.split(":").length !== 2)) {
+          throw new Error("Hay Milestones antiguos con estructura inválida; no se guardó para conservar elecciones.");
+        }
+        for (const [classKey, levelKey, raw] of entries) {
+          const classId = normalizeId(classKey);
+          const level = int(levelKey, 0);
+          const choice = raw && typeof raw === "object" && !Array.isArray(raw) ? normalizeChoice(raw) : null;
+          if (!classId || !/^[a-z][a-z0-9_]*$/.test(classId)
+            || !/^[1-9][0-9]*$/.test(String(levelKey)) || level <= 0
+            || !choice || !["stats", "trait"].includes(choice.type)
+            || (choice.type === "trait" && !choice.traitId)
+            || (choice.type === "stats" && !Object.keys(choice.allocation || {}).length)
+            || (raw.classId && normalizeId(raw.classId) !== classId)
+            || ((raw.milestoneLevel != null || raw.level != null)
+              && int(raw.milestoneLevel ?? raw.level, 0) !== level)) {
+            throw new Error("Hay un Milestone antiguo con datos incompletos; no se guardó para conservar elecciones.");
+          }
+          if (!Object.prototype.hasOwnProperty.call(merged, classId)) merged[classId] = {};
+          const existing = merged[classId][String(level)];
+          if (existing) {
+            if (JSON.stringify(existing) !== JSON.stringify(raw)) {
+              throw new Error("Hay Milestones duplicados incompatibles; no se guardó para evitar perder elecciones.");
+            }
+          } else {
+            // Preserve all original fields (selectedAt, notes, stats, etc.).
+            merged[classId][String(level)] = { ...raw };
+          }
+        }
+      }
+    }
+    return merged;
+  }
+
   function pendingMilestones(classes, choices) {
     return earnedMilestones(classes).filter((entry) => !choiceAt(choices, entry.classId, entry.milestoneLevel));
   }
@@ -221,8 +272,13 @@
   }
 
   function selectedGeneralTraitIds(character = {}) {
-    const choices = character?.characterBuild?.classMilestones || character?.classMilestones || {};
-    return [...new Set(allChoices(choices)
+    // Both locations can coexist on legacy Firebase records. Reading only
+    // the first one hides older General Traits until a claim is migrated.
+    const choices = [
+      ...allChoices(character?.classMilestones),
+      ...allChoices(character?.characterBuild?.classMilestones),
+    ];
+    return [...new Set(choices
       .filter((choice) => choice.type === "trait" && choice.traitId)
       .map((choice) => normalizeId(choice.traitId))
       .filter(Boolean))];
@@ -260,6 +316,7 @@
     choiceAt,
     allChoices,
     migrateMilestoneChoices,
+    mergeMilestoneChoices,
     normalizeStats,
     validateStatAllocation,
     validateChoice,
