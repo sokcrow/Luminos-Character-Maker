@@ -1125,11 +1125,11 @@
           createElement("span", "player-background-eyebrow", "ORIGEN · CREACIÓN DE PERSONAJE"),
           createElement("h3", "player-background-feature__title", "Beneficios iniciales"),
           createElement("p", "player-background-feature__description", profile.legacy.benefit),
-          createElement("p", "player-background-feature__limits", "Estos valores pertenecen al sistema de creación original y ya se incorporaron a los modificadores guardados. No se vuelven a aplicar desde Background."),
+          createElement("p", "player-background-feature__limits", "Estas bonificaciones ya forman parte de tus estadísticas."),
         );
         panel.appendChild(origin);
         if (profile.legacy.initialFunds) {
-          addBackgroundDetail(panel, "FONDOS AL CREAR EL PERSONAJE (NO SALDO ACTUAL)", profile.legacy.initialFunds, "player-background-origin-funds");
+          addBackgroundDetail(panel, "FONDOS INICIALES · NO REPRESENTA EL SALDO ACTUAL", profile.legacy.initialFunds, "player-background-origin-funds");
         }
       }
 
@@ -1168,7 +1168,7 @@
 
     renderNarrativeBackgroundTrait(profile) {
       const trait = profile.narrative?.trait?.name ? profile.narrative.trait : profile.legacy?.benefit
-        ? { name: "Beneficios del trasfondo original", description: profile.legacy.benefit } : null;
+        ? { name: "Bonificaciones de origen", description: profile.legacy.benefit } : null;
       if (!trait) return null;
       const card = createElement("article", "player-trait-card player-background-narrative-trait");
       card.dataset.traitCategory = "background";
@@ -1178,7 +1178,7 @@
         createElement("p", "player-trait-card__description", trait.description),
       );
       const note = profile.legacy
-        ? "Beneficios registrados durante la creación antigua del personaje. Esta ficha es informativa: Trait Engine no los concede ni los aplica nuevamente."
+        ? "Estas ventajas ya están reflejadas en tus estadísticas. Consultarlas aquí no las suma de nuevo."
         : /(?:^|[^a-z])X(?:[^a-z]|$)/.test(trait.description)
           ? "Trait narrativo: el valor X está pendiente de balance. No modifica las tiradas automáticamente."
           : "Trait narrativo de tu Background. No tiene automatización de efectos.";
