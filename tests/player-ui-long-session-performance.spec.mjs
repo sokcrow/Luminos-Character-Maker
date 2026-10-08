@@ -1387,7 +1387,7 @@ for (const width of [390, 1280]) {
 
     const champion = fighter.locator(".player-progression-branch-label").filter({hasText:"Champion"});
     await champion.locator(".player-progression-branch-preview").click();
-    const preview = page.locator("#player-progression-detail .player-progression-preview-features");
+    const preview = page.locator("#player-progression-detail .player-progression-preview-features").first();
     await expect(preview).toContainText("Improved Critical");
     await expect(preview).toContainText("Crit Damage");
     await expect(fighter.locator(".player-progression-mystic-scroll")).toHaveCount(1);
