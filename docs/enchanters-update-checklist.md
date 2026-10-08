@@ -50,10 +50,10 @@ Design decisions are marked complete here; implementation remains open.
 - [x] Add Arcana/Identify/Curse knowledge resolution and rune-obfuscated display.
 - [x] Add Magic Item vs Magic Hit combat bridge.
 - [x] Add equipment-Trait effect resolution and authored damage/buff support.
-- [ ] Add strengthening TH, AHN/material economy and failure resolution.
+- [x] Add strengthening TH, AHN/material economy and Player control/deviation resolution.
 - [x] Add Bind and Curse runtime behavior.
-- [ ] Add physical/magical repair authority.
-- [ ] Add regression/smoke tests and CI path coverage.
+- [x] Add physical/magical repair authority.
+- [x] Add regression/smoke tests and CI path coverage.
   - [x] Initial Enchantment core schema/engine smoke is wired into Inventory Runtime Validation CI.
   - [x] Enchantment inventory persistence + Magic Item Attunement bridge smokes are wired into CI.
 
@@ -117,6 +117,7 @@ Canonical contract: [`docs/enchanters-update-part-b-resonance.md`](./enchanters-
   - [x] Arcana/Identify/Curse knowledge + player rune presentation smoke is wired into CI.
   - [x] Bound equipment/unattune lock smoke is wired into CI.
   - [x] Enchanter provider/quote/delivery + gem procedure smokes are wired into CI.
+  - [x] Player self-enchant control/deviation + cursed market value coverage is implemented; player-attempt smoke is wired into CI.
 
 ## Part C — Enchanter Services, Knowledge and Magical Maintenance (design frozen)
 
@@ -173,7 +174,7 @@ Canonical contract: [`docs/enchanters-update-part-c-services.md`](./enchanters-u
 - [x] Implement Player/mixed/provider material quote paths, consume only allocated ritual materials, and return recoverable procedure outputs.
 - [x] Implement in-world delivery job state for Rank I/II/III services.
 - [x] Replace obsolete 50/50 Durability logic with full Physical Durability + separate proportional Magical Durability.
-- [ ] Add Magical Durability wear, depletion, recharge/repair and rune-glow state.
+- [x] Add Magical Durability wear, depletion, recharge/repair and rune-glow state.
 - [x] Give Gem-Anchored Enchantments greater proportional magical endurance than equivalent direct/pure Enchantments (75% vs 50% of Physical Durability Max).
 - [x] Exempt Bound Enchantments from normal magical discharge.
 - [x] Implement separate Item-side removal/rewrite and Gem-Anchor destructive removal flows.
