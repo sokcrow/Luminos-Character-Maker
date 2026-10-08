@@ -12,12 +12,14 @@ await import('../js/player-progression-tree-core.js');
 await import('../js/class-milestone-engine.js');
 await import('../js/fighter-maneuver-catalog.js');
 await import('../js/player-progression-choices.js');
+await import('../js/milestone-revert-patch.js');
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const previews = globalThis.LuminousArchetypeProgressionPreviews;
 const engine = globalThis.LuminousPlayerProgressionTreeCore;
 const milestone = globalThis.LuminousClassMilestones;
 const choices = globalThis.LuminousPlayerProgressionChoices;
+const revert = globalThis.LuminousMilestoneRevertPatch;
 const html = fs.readFileSync(path.join(root, 'hoja_personaje.html'), 'utf8');
 
 assert.ok(previews && engine && milestone && choices, 'Required APIs are loaded');
@@ -230,6 +232,74 @@ const noSelection={characterBuild:{
   classes:{fighter:{levels:40}},archetypes:{fighter:{archetypeId:'champion'}},
 }};
 assert.equal(choices.maneuverLimit(noSelection),0,'Other fighter specialization must not unlock maneuvers');
+
+
+// Codex P1: Stats chosen by the player must update the DM studio's actual
+// baseStats source in the SAME transaction as effective stats.
+const studioPlayer = {
+  stats:{fuerza:14,destreza:12},
+  baseStats:{fuerza:12,destreza:11},
+  characterBuild:{classes:[{classId:'fighter',levels:40}],classMilestones:{}},
+};
+const awarded = milestone.applyPlayerStatAllocation(studioPlayer,{fuerza:2});
+assert.equal(awarded.valid,true);
+assert.equal(awarded.stats.fuerza,16);
+assert.equal(awarded.baseStats.fuerza,14);
+assert.equal(studioPlayer.stats.fuerza,14,'No mutation before Firebase commit');
+assert.equal(studioPlayer.baseStats.fuerza,12,'No mutation of base before commit');
+assert.equal(awarded.baseStats.fuerza+2,awarded.stats.fuerza,
+  'Unrelated DM edits recomputing Stats from baseStats+racial bonus preserve the milestone');
+const legacyAward = milestone.applyPlayerStatAllocation({stats:{fuerza:14}},{fuerza:2});
+assert.equal(legacyAward.valid,true);
+assert.equal(legacyAward.baseStats,null,'Do not create a fake baseStats source on legacy player');
+assert.equal(milestone.applyPlayerStatAllocation(
+  {stats:{fuerza:14},baseStats:{fuerza:'invalid'}},{fuerza:2}).valid,false,
+  'Corrupt studio stat must abort instead of writing half a reward');
+
+const oldClaim = {
+  classId:'fighter',milestoneLevel:20,type:'stats',
+  allocation:{fuerza:2},selectedAt:111,notes:'pre-migration claim',
+};
+const remainingTopClaim = {
+  classId:'fighter',milestoneLevel:30,type:'trait',
+  traitId:'general_keen',selectedAt:222,
+};
+const remainingNestedClaim = {
+  classId:'fighter',milestoneLevel:40,type:'stats',
+  allocation:{destreza:2},selectedAt:333,
+};
+const doubleStore = {
+  stats:{fuerza:16,destreza:14},
+  baseStats:{fuerza:14,destreza:13},
+  classMilestones:[oldClaim,remainingTopClaim],
+  characterBuild:{classMilestones:{fighter:{'40':remainingNestedClaim}}},
+};
+assert.equal(revert.milestoneChoiceAt(doubleStore,'fighter',20)?.type,'stats');
+const revertedLegacy = revert.revertMilestoneState(doubleStore,'fighter',20);
+assert.equal(revertedLegacy.valid,true,'DM revert works on top-level legacy claims');
+assert.equal(revertedLegacy.player.stats.fuerza,14);
+assert.equal(revertedLegacy.player.baseStats.fuerza,12);
+assert.equal(revertedLegacy.player.classMilestones,undefined,
+  'No top-level shadow claims remain after canonical migration and reversion');
+assert.equal(milestone.choiceAt(revertedLegacy.player.characterBuild.classMilestones,'fighter',20),null,
+  'Reverted reward stays absent and can be claimed again');
+assert.deepEqual(revertedLegacy.player.characterBuild.classMilestones.fighter['30'],remainingTopClaim,
+  'Other legacy claims survive reversion');
+assert.deepEqual(revertedLegacy.player.characterBuild.classMilestones.fighter['40'],remainingNestedClaim,
+  'Existing canonical claims survive reversion');
+assert.ok(milestone.selectedGeneralTraitIds(revertedLegacy.player).includes('general_keen'));
+assert.equal(doubleStore.stats.fuerza,16,'Revert does not mutate input');
+const revertedTrait = revert.revertMilestoneState(revertedLegacy.player,'fighter',30);
+assert.equal(revertedTrait.valid,true);
+assert.ok(!milestone.selectedGeneralTraitIds(revertedTrait.player).includes('general_keen'),
+  'A reverted legacy General Trait does not remain active');
+assert.equal(revertedTrait.player.stats.fuerza,14,'Reverting Trait does not modify Stats');
+const conflictRevert = revert.revertMilestoneState({
+  stats:{fuerza:16},
+  classMilestones:{fighter:{20:{...oldClaim,allocation:{fuerza:2}}}},
+  characterBuild:{classMilestones:{fighter:{20:{...oldClaim,allocation:{destreza:2}}}}},
+},'fighter',20);
+assert.equal(conflictRevert.valid,false,'Conflicting duplicate rewards must fail closed');
 
 const script=fs.readFileSync(path.join(root,'js/player-progression-tree.js'),'utf8');
 assert.match(script,/renderMilestone\?\.\(/);
