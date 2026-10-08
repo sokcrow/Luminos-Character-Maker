@@ -62,6 +62,8 @@ Books, tablets, manuals and similar recipe sources are readable through the norm
 
 Arcane magical inscriptions remain their own identification/Arcana layer even when the surrounding book language is understood.
 
+Compendium knowledge persists with the Player. Recipe sources use normal language knowledge; an unread source returns deterministic rune-like obfuscation without leaking Rank, material or resonance data. Relic study may add only derived Rank I-III recipes to the reproducible Compendium.
+
 ## 4. Provider knowledge and specialization
 
 NPC Enchanters do **not** make a normal Player-style crafting Check.
