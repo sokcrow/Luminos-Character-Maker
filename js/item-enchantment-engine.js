@@ -655,15 +655,6 @@
     if (!gemProfile) return Object.freeze({ allowed:false, reason:"not_a_gemstone" });
     if (!gemProfile.canAnchorEnchantment) return Object.freeze({ allowed:false, reason:"gem_not_anchor_ready", gemDefinitionId });
 
-    const compatibility = gemCompatibility(definition, gem);
-    if (!compatibility.compatible) {
-      return Object.freeze({ allowed:false, reason:"incompatible_gem", compatibility, gemDefinitionId });
-    }
-
-    const quality = gemQualityOf(gem);
-    const channel = Gems.validateGemChannelRank(gemDefinitionId, rank, quality);
-    if (!channel.valid) return Object.freeze({ allowed:false, reason:channel.reason || "gem_rank_invalid", channel });
-
     const refs = appliedEnchantments(item);
     const anchors = gemAnchors(item);
     const capacity = gemSocketCapacity(item);
@@ -675,6 +666,15 @@
         sockets:Object.freeze({used:anchors.length,max:capacity}),
       });
     }
+
+    const compatibility = gemCompatibility(definition, gem);
+    if (!compatibility.compatible) {
+      return Object.freeze({ allowed:false, reason:"incompatible_gem", compatibility, gemDefinitionId });
+    }
+
+    const quality = gemQualityOf(gem);
+    const channel = Gems.validateGemChannelRank(gemDefinitionId, rank, quality);
+    if (!channel.valid) return Object.freeze({ allowed:false, reason:channel.reason || "gem_rank_invalid", channel });
 
     if (existingIndex(refs, definition.id) >= 0 && definition.stacking === "non_stackable") {
       return Object.freeze({ allowed:false, reason:"enchantment_already_installed", definitionId:definition.id });
@@ -785,6 +785,8 @@
       reference:gate.reference,
       anchor:gate.anchor,
       channel:gate.channel,
+      compatibility:gate.compatibility,
+      threshold:gate.threshold,
       gemSockets:gate.validation.gemSockets,
     });
   }
