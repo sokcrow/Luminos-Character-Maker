@@ -255,7 +255,7 @@ Canonical Gem Socket rules:
 - one Gem Anchor channels one Enchantment;
 - strengthening a Gem-Anchored Enchantment does not automatically consume another physical Gem Socket;
 - up to three Rank II Gem-Anchored Enchantments may coexist where all three sockets are valid;
-- only one Rank III Gem-Anchored Enchantment may exist on the Item;
+- a Rank III Gem-Anchored Enchantment is **exclusive**: when one exists, no other Gem-Anchored Enchantment may coexist on that Item;
 - attempting to install a fourth Enchantment Gem is catastrophic: the Item and prior Gem Anchors are destroyed and the last inserted gem is the only gem left by that event.
 
 Mundane decorative gemstone composition in Jewelry is not the same thing as an Enchantment Gem Socket.
@@ -266,7 +266,7 @@ Gem Anchors are intentionally more valuable/flexible than direct Enchantments be
 
 This does **not** make one gem grant every affinity it possesses: one Gem Anchor still channels one installed Enchantment.
 
-The exact validation of a Rank III Gem Anchor coexisting with lower-rank Gem Anchors must be explicit in the catalog/runtime tests before implementation is considered complete.
+Rank III Gem pressure is now explicit: a Rank III Gem Anchor must be the Item's only active Gem Anchor. Strengthening a Gem-Anchored Enchantment to Rank III is rejected while any other Gem Anchor remains installed.
 
 ## 12. Per-action channel choice remains authoritative
 
@@ -425,12 +425,12 @@ An Enchantment selects one authored route. The gemstone does not grant all affin
 
 ### Gem Anchors
 
-- [ ] Add physical Gem Anchor linkage between mounted gemstone instance/composition and one installed Enchantment.
-- [ ] Enforce one active anchored Enchantment per Gem Anchor.
-- [ ] Preserve Gem Anchor identity through save/load, transfer and equipment flows.
-- [ ] Implement broken/depleted/unstable Gem Anchor states.
-- [ ] Make overflow-dependent Enchantments Dormant when their Anchor support disappears.
-- [ ] Prevent removal/replacement flows from silently deleting dependent Enchantments.
+- [x] Add physical Gem Anchor linkage between mounted gemstone instance/composition and one installed Enchantment.
+- [x] Enforce one active anchored Enchantment per Gem Anchor.
+- [x] Preserve Gem Anchor identity through save/load, transfer and equipment flows.
+- [x] Implement broken/depleted/unstable Gem Anchor states.
+- [x] Make a Gem-Anchored Enchantment Dormant when its Anchor becomes broken/depleted, without deleting the Enchantment.
+- [x] Prevent generic removal/replacement flows from silently deleting dependent Gem-Anchored Enchantments.
 
 ### Recipe/resonance validation
 
@@ -439,7 +439,7 @@ An Enchantment selects one authored route. The gemstone does not grant all affin
 - [ ] Add semantic consumed-material requirements.
 - [ ] Allow exact Item requirements for exceptional recipes.
 - [ ] Consume non-gem ritual materials once an application attempt begins, success or failure.
-- [ ] Keep mounted Gem Anchors on successful application.
+- [x] Keep mounted Gem Anchors on successful application.
 - [ ] Apply failure outcomes that can break/deplete/corrupt the Gem Anchor.
 
 ### Specialization / hybrid resolution
@@ -454,14 +454,14 @@ An Enchantment selects one authored route. The gemstone does not grant all affin
 
 ### Gem Socket capacity
 
-- [ ] Keep direct/pure Base Enchantment Slots separate from Enchantment Gem Sockets.
-- [ ] Add explicit per-Item Enchantment Gem Socket capacity with hard maximum 3.
-- [ ] Enforce one Gem Anchor / one Enchantment per socket.
-- [ ] Allow up to three Rank II Gem-Anchored Enchantments where valid.
-- [ ] Enforce only one Rank III Gem-Anchored Enchantment per Item.
-- [ ] Finalize/test exact Rank III coexistence with lower-rank Gem Anchors.
-- [ ] Block/warn ordinary fourth-gem installation and implement the authored catastrophic forced outcome.
-- [ ] Keep mundane Jewelry gemstone composition separate from Enchantment Gem Sockets.
+- [x] Keep direct/pure Base Enchantment Slots separate from Enchantment Gem Sockets.
+- [x] Add explicit per-Item Enchantment Gem Socket capacity with hard maximum 3.
+- [x] Enforce one Gem Anchor / one Enchantment per socket.
+- [x] Allow up to three Rank II Gem-Anchored Enchantments where valid.
+- [x] Enforce Rank III Gem-Anchored magic as exclusive: one Rank III Anchor and no other Gem Anchors.
+- [x] Finalize/test Rank III coexistence rule: Rank III is exclusive and cannot coexist with lower-rank Gem Anchors.
+- [x] Block/warn ordinary fourth-gem installation and implement the authored catastrophic forced outcome.
+- [x] Keep mundane Jewelry gemstone composition separate from Enchantment Gem Sockets.
 
 ### Bind / Curse recipe integration
 
@@ -475,15 +475,15 @@ An Enchantment selects one authored route. The gemstone does not grant all affin
 ### Tests / CI
 
 - [x] Add 12-gem profile validation tests.
-- [ ] Add one-anchor/one-Enchantment tests.
+- [x] Add one-anchor/one-Enchantment tests.
 - [x] Add Gem Quality Rank-cap tests.
 - [ ] Add Overchannel failure tests.
 - [ ] Add compatible/accepted/incompatible resonance tests.
 - [ ] Add specialization versus hybrid TH tests.
 - [ ] Add Item/Gem TH cap tests and external-tool separation tests.
 - [ ] Add ritual-consumable loss tests on success/failure.
-- [ ] Add Gem Anchor break/depletion/Dormant tests.
-- [ ] Add separate Base Enchantment Slot vs Enchantment Gem Socket capacity tests, including Rank II multi-anchor, Rank III exclusivity and fourth-gem catastrophe.
-- [ ] Add per-action Fire/Cold channel-choice regression tests.
+- [x] Add Gem Anchor break/depletion/Dormant tests.
+- [x] Add separate Base Enchantment Slot vs Enchantment Gem Socket capacity tests, including Rank II multi-anchor, Rank III exclusivity and fourth-gem catastrophe.
+- [x] Add per-action Fire/Cold channel-choice regression tests, including Gem-Anchored channels.
 - [ ] Add intentional/accidental Bind tests.
 - [ ] Add intentional/accidental Curse recipe tests.
