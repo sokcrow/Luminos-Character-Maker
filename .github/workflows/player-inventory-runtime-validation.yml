@@ -62,6 +62,7 @@ on:
       - js/item-catalog-enchantments.js
       - js/item-enchantment-engine.js
       - js/item-enchantment-combat-runtime.js
+      - js/item-enchanter-service-runtime.js
       - js/item-catalog-tools.js
       - js/item-catalog-craft-components.js
       - js/item-catalog-weapons.js
@@ -117,6 +118,7 @@ on:
       - tests/item-magical-durability-runtime-smoke.cjs
       - tests/item-magic-knowledge-runtime-smoke.cjs
       - tests/item-bound-equipment-lock-smoke.cjs
+      - tests/item-enchanter-service-runtime-smoke.cjs
       - tests/item-enchantment-engine-smoke.cjs
       - tests/item-enchantment-inventory-smoke.cjs
       - tests/item-enchantment-magic-runtime-smoke.cjs
@@ -202,6 +204,7 @@ jobs:
           node --check js/item-catalog-enchantments.js
           node --check js/item-enchantment-engine.js
           node --check js/item-enchantment-combat-runtime.js
+          node --check js/item-enchanter-service-runtime.js
           node --check js/item-catalog-tools.js
           node --check js/item-catalog-craft-components.js
           node --check js/item-catalog-weapons.js
@@ -300,6 +303,8 @@ jobs:
         run: node tests/item-magic-knowledge-runtime-smoke.cjs
       - name: Bound Item equipment lock smoke
         run: node tests/item-bound-equipment-lock-smoke.cjs
+      - name: Enchanter service provider quote smoke
+        run: node tests/item-enchanter-service-runtime-smoke.cjs
       - name: Enchantment core engine smoke
         run: node tests/item-enchantment-engine-smoke.cjs
       - name: Enchantment inventory persistence smoke
