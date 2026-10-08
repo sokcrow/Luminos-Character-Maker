@@ -60,6 +60,124 @@
     return "";
   }
 
+  // Canonical family for known class-granted Traits. Trait IDs, not display names,
+  // define the icon: localization and free-text descriptions cannot change it.
+  // An explicit family stored on the Trait still takes precedence.
+  const CLASS_TRAIT_FAMILIES = Object.freeze(Object.fromEntries(
+    Object.entries({
+        "defensa": [
+            "armorless_defense",
+            "unarmored_defense",
+            "patient_defense",
+            "deflect_missiles",
+            "uncanny_dodge",
+            "slippery_mind"
+        ],
+        "supervivencia": [
+            "unstoppable_rage",
+            "second_wind",
+            "indomitable",
+            "stillness_of_mind",
+            "purity_of_body",
+            "diamond_soul",
+            "timeless_body"
+        ],
+        "ofensiva": [
+            "reckless_attack",
+            "additional_attack",
+            "additional_attack_plus",
+            "additional_attack_plus_plus",
+            "flurry_of_blows",
+            "stunning_strike",
+            "sneak_attack",
+            "foe_slayer"
+        ],
+        "precision": [
+            "brutal_critical",
+            "stroke_of_luck"
+        ],
+        "movilidad": [
+            "fast_movement",
+            "step_of_the_wind",
+            "unarmored_movement",
+            "slow_fall",
+            "evasion",
+            "unarmored_movement_plus",
+            "unarmored_movement_plus_plus",
+            "cunning_action",
+            "nimble_reflexes",
+            "elusive",
+            "lands_stride",
+            "hide_in_plain_sight",
+            "vanish"
+        ],
+        "instinto": [
+            "danger_senses",
+            "wild_instincts",
+            "blindsense",
+            "favored_enemy",
+            "primeval_awareness",
+            "feral_senses"
+        ],
+        "potenciacion": [
+            "rage",
+            "persistent_rage",
+            "unstoppable_strength",
+            "primordial_champion",
+            "action_surge",
+            "ki_empowered_strikes"
+        ],
+        "magia": [
+            "spellcasting",
+            "spellbook",
+            "ritual_casting_wizard",
+            "sorcerous_origin",
+            "metamagic",
+            "empty_body",
+            "careful_spell",
+            "distant_spell",
+            "empowered_spell",
+            "extended_spell",
+            "heightened_spell",
+            "quickened_spell",
+            "subtle_spell",
+            "twinned_spell",
+            "seeking_spell",
+            "transmuted_spell"
+        ],
+        "recursos": [
+            "ki",
+            "perfect_self",
+            "font_of_inspiration",
+            "superior_inspiration",
+            "arcane_recovery",
+            "spell_mastery",
+            "signature_spells",
+            "font_of_magic",
+            "sorcerous_restoration"
+        ],
+        "apoyo": [
+            "bardic_inspiration",
+            "resting_song",
+            "countercharm"
+        ],
+        "tecnica": [
+            "fighting_style",
+            "martial_arts",
+            "jack_of_all_trades",
+            "expertise",
+            "rogue_expertise",
+            "reliable_talent",
+            "natural_explorer"
+        ],
+        "social": [
+            "thieves_cant",
+            "tongue_of_the_sun_and_moon"
+        ]
+    }).flatMap(([family, ids]) =>
+      ids.map((id) => [id, family]))
+  ));
+
   const SIGNALS = Object.freeze([
     // Strong indicators of what the Trait does, rather than who grants it.
     ["social", /\b(persuasion|deception|intimidation|charisma_check|dialogue|diplomacy|negotiat|reputation|conversation|persuad|persuasi[oó]n|engañ|convencer)\b/i],
@@ -91,6 +209,8 @@
   function classify(trait) {
     const specified = explicitFamily(trait);
     if (specified) return specified;
+    const knownClassTrait = CLASS_TRAIT_FAMILIES[clean(trait?.id)];
+    if (knownClassTrait) return knownClassTrait;
     const subject = semantics(trait || {});
     for (const [id, pattern] of SIGNALS) {
       // Scan original names and expanded mechanic identifiers.
@@ -109,6 +229,19 @@
     });
   }
 
-  global.LuminousTraitFamilies = Object.freeze({ FAMILIES, normalize, classify, resolve });
+  // One node may grant several Traits from different families. Keep each
+  // distinct family and never classify the synthetic class-choice placeholder.
+  function forMilestone(node) {
+    const unique = new Map();
+    for (const item of node?.items || []) {
+      if (!item || item.kind === "milestone_choice") continue;
+      const definition = item.definition || { id: item.id, name: item.name, description: item.description };
+      const family = resolve(definition);
+      if (!unique.has(family.id)) unique.set(family.id, family);
+    }
+    return [...unique.values()];
+  }
+
+  global.LuminousTraitFamilies = Object.freeze({ FAMILIES, CLASS_TRAIT_FAMILIES, normalize, classify, resolve, forMilestone });
   if (typeof module !== "undefined" && module.exports) module.exports = global.LuminousTraitFamilies;
 })(typeof window !== "undefined" ? window : globalThis);
