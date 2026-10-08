@@ -169,6 +169,8 @@ const traitRuntime = fs.readFileSync(path.join(here, '..', 'js', 'player-trait-r
 const tray = fs.readFileSync(path.join(here, '..', 'js', 'trait-player-tray.js'), 'utf8');
 const archetypeRuntime = fs.readFileSync(path.join(here, '..', 'js', 'player-archetype-runtime-core.js'), 'utf8');
 const levelAllocationRuntime = fs.readFileSync(path.join(here, '..', 'js', 'player-progression-level-allocation.js'), 'utf8');
+const progressionRuntime = fs.readFileSync(path.join(here, '..', 'js', 'player-progression-tree.js'), 'utf8');
+const progressionCss = fs.readFileSync(path.join(here, '..', 'css', 'player-progression-tree.css'), 'utf8');
 const traitCss = fs.readFileSync(path.join(here, '..', 'css', 'player-trait-tabs.css'), 'utf8');
 const statsCss = fs.readFileSync(path.join(here, '..', 'css', 'player-stats-ability-bar.css'), 'utf8');
 
@@ -199,5 +201,31 @@ assert.match(archetypeRuntime, /getElementById\("player-progression-tree-host"\)
 assert.match(levelAllocationRuntime, /REVISAR CAMBIOS/);
 assert.match(levelAllocationRuntime, /\.transaction\(/);
 assert.match(levelAllocationRuntime, /No puedes reducir|validateClassAllocation/);
+
+// The Avance panel is compact when no levels need allocating, but its
+// controls and confirmation flow remain available on disclosure.
+assert.match(levelAllocationRuntime, /allocationExpanded: null/);
+assert.match(levelAllocationRuntime, /data-toggle-allocation aria-controls="player-level-allocation-body"/);
+assert.match(levelAllocationRuntime, /state\.allocationExpanded = willExpand/);
+assert.match(levelAllocationRuntime, /class="player-level-allocation__body"/);
+assert.match(progressionCss, /#player-progression-detail\[hidden\]/);
+assert.match(progressionCss, /\.player-level-allocation__body\[hidden\]/);
+
+// Shrink the former 1500px modal and 190px tracks. On mobile, cards are
+// presented in a two-column stack instead of forcing sideways traversal.
+assert.match(progressionCss, /width:min\(92vw,1080px\)/);
+assert.match(progressionRuntime, /148px repeat\(\$\{levels\.length\}, 150px\)/);
+assert.match(progressionCss, /grid-template-columns:repeat\(2,minmax\(0,1fr\)\)!important/);
+assert.match(progressionCss, /\.player-progression-rail\{\s*display:none/);
+assert.match(progressionRuntime, /button\.addEventListener\("click", inspect\)/);
+assert.match(progressionRuntime, /wrap\.addEventListener\("keydown"/);
+assert.match(progressionRuntime, /host\.contains\(state\.detail\)/);
+assert.match(progressionRuntime, /mobileLayout\?\.addEventListener\?\.\("change", syncDetailPlacement\)/);
+assert.match(progressionRuntime, /state\.root\?\.contains\(anchor\)/);
+const noOpGuard = progressionRuntime.indexOf('if (!force && signature === state.signature) return true;');
+const rehome = progressionRuntime.indexOf('if (state.detail && host.contains(state.detail)) host.after(state.detail);');
+assert.ok(noOpGuard >= 0 && rehome > noOpGuard, 'No-op data refresh must leave inline details in place');
+assert.match(html, /Selecciona un nivel o arquetipo para ver sus mejoras/);
+assert.doesNotMatch(html, /Recorre la clase con la rueda del mouse/);
 
 console.log('player-progression-tree-smoke: ok');

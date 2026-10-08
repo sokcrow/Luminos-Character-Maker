@@ -14,6 +14,7 @@
     playerListener: null,
     root: null,
     detail: null,
+    detailAnchor: null,
     signature: "",
     retryTimer: null,
     booted: false,
@@ -21,6 +22,7 @@
 
   const clean = (value) => String(value ?? "").trim();
   const core = () => global.LuminousPlayerProgressionTreeCore || null;
+  const mobileLayout = global.matchMedia?.("(max-width: 760px)") || null;
 
   function ensureStyles() {
     if (doc.getElementById("player-progression-tree-stylesheet")) return;
@@ -70,15 +72,33 @@
 
   function clearDetail() {
     if (!state.detail) return;
-    state.detail.innerHTML = `
-      <div class="player-progression-detail__empty">
-        <strong>INSPECCIONA EL ÁRBOL</strong>
-        <span>Pasa el mouse o enfoca un nodo para ver exactamente lo que concede en ese nivel.</span>
-      </div>`;
+    state.detail.hidden = true;
+    state.detailAnchor = null;
+    state.detail.replaceChildren();
   }
 
-  function showNodeDetail(classModel, node, branch = null) {
+  function syncDetailPlacement() {
+    if (!state.detail || state.detail.hidden) return;
+    const anchor = state.detailAnchor;
+    if (mobileLayout?.matches && anchor && state.root?.contains(anchor) && anchor.parentElement) {
+      // The mobile grid shows the detail after the tapped milestone.
+      anchor.after(state.detail);
+    } else if (state.root?.parentElement) {
+      // On desktop the detail spans the full width, never a 150px tree track.
+      state.root.after(state.detail);
+    }
+  }
+
+  function placeDetail(anchor) {
+    if (!state.detail) return;
+    state.detailAnchor = anchor;
+    state.detail.hidden = false;
+    syncDetailPlacement();
+  }
+
+  function showNodeDetail(classModel, node, branch = null, anchor = null) {
     if (!state.detail || !node) return;
+    placeDetail(anchor);
     const items = (node.items || []).map((item) => {
       const formulas = (item.formulas || []).map((formula) => {
         const value = formula.value == null ? "—" : String(Number.isFinite(Number(formula.value)) ? Math.round(Number(formula.value) * 100) / 100 : formula.value);
@@ -110,8 +130,9 @@
       <div class="player-progression-detail__items">${items || "<p>Sin recompensas registradas en este nodo.</p>"}</div>`;
   }
 
-  function showBranchDetail(classModel, branch) {
+  function showBranchDetail(classModel, branch, anchor = null) {
     if (!state.detail || !branch) return;
+    placeDetail(anchor);
     const stateCopy = branch.status === "selected"
       ? `Elegido en Class LV.${branch.selectedAtClassLevel || branch.unlockLevel}. Esta elección queda fijada salvo reset del DM.`
       : branch.status === "locked"
@@ -154,9 +175,11 @@
       <span class="player-progression-node__level">LV.${node.level}</span>
       <strong>${escapeHtml(nodeTitle(node))}</strong>
       <small>${escapeHtml(statusLabel(node.status))}</small>`;
-    const inspect = () => showNodeDetail(classModel, node, branch);
+    button.setAttribute("aria-controls", "player-progression-detail");
+    const inspect = () => showNodeDetail(classModel, node, branch, button);
     button.addEventListener("mouseenter", inspect);
     button.addEventListener("focus", inspect);
+    button.addEventListener("click", inspect);
     return button;
   }
 
@@ -189,9 +212,16 @@
       <span>ARCHETYPE · LV.${branch.unlockLevel}</span>
       <strong>${escapeHtml(branch.name)}</strong>
       <small>${escapeHtml(statusLabel(branch.status))}</small>`;
-    const inspect = () => showBranchDetail(classModel, branch);
+    wrap.setAttribute("aria-controls", "player-progression-detail");
+    const inspect = () => showBranchDetail(classModel, branch, wrap);
     wrap.addEventListener("mouseenter", inspect);
     wrap.addEventListener("focus", inspect);
+    wrap.addEventListener("click", inspect);
+    wrap.addEventListener("keydown", (event) => {
+      if (event.target !== wrap || !["Enter", " "].includes(event.key)) return;
+      event.preventDefault();
+      inspect();
+    });
 
     if (branch.status === "available") {
       const choose = doc.createElement("button");
@@ -251,7 +281,7 @@
     const columnIndex = new Map(levels.map((level, index) => [level, index + 2]));
     const grid = doc.createElement("div");
     grid.className = "player-progression-grid";
-    grid.style.gridTemplateColumns = `180px repeat(${levels.length}, 190px)`;
+    grid.style.gridTemplateColumns = `148px repeat(${levels.length}, 150px)`;
 
     const corner = doc.createElement("div");
     corner.className = "player-progression-grid__corner";
@@ -324,7 +354,7 @@
     const host = doc.getElementById("player-progression-tree-host");
     if (!host || !core()) return false;
     state.root = host;
-    state.detail = doc.getElementById("player-progression-detail");
+    state.detail = doc.getElementById("player-progression-detail") || state.detail;
     removeLegacyArchetypeSelector();
 
     const character = currentCharacter();
@@ -342,6 +372,10 @@
     if (!force && signature === state.signature) return true;
     state.signature = signature;
 
+    // Only move the shared panel before actually replacing the tree.
+    // Otherwise an unrelated HP/player-data update would displace an open
+    // mobile detail from its selected milestone.
+    if (state.detail && host.contains(state.detail)) host.after(state.detail);
     host.replaceChildren();
     if (!model.classes.length) {
       const empty = doc.createElement("div");
@@ -395,6 +429,7 @@
     bindPlayer();
     render(true);
     global.addEventListener?.("luminous:player-data", handlePlayerData);
+    mobileLayout?.addEventListener?.("change", syncDetailPlacement);
 
     [
       "luminous:traits-refreshed",
