@@ -153,8 +153,8 @@ const gemBacklash=Services.attemptPlayerStrengthen(
   }
 );
 assert.strictEqual(gemBacklash.attempted,true);
-assert.strictEqual(gemBacklash.check.threshold,25,"Fine compatible Ruby stabilizes Rank II from TH28 to TH25");
-assert.strictEqual(gemBacklash.check.margin,-10);
+assert.strictEqual(gemBacklash.check.threshold,24,"Fine Ruby plus existing same-family specialization stabilizes Rank II from TH28 to TH24");
+assert.strictEqual(gemBacklash.check.margin,-9);
 assert.strictEqual(gemBacklash.band,"arcane_backlash");
 assert.strictEqual(gemBacklash.resolved,true);
 assert.strictEqual(gemBacklash.item.magic.gemAnchors[0].state,"broken");
