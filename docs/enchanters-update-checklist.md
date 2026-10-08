@@ -116,6 +116,7 @@ Canonical contract: [`docs/enchanters-update-part-b-resonance.md`](./enchanters-
   - [x] Magical Durability/activation/CombatEngine bridge smoke is wired into CI.
   - [x] Arcana/Identify/Curse knowledge + player rune presentation smoke is wired into CI.
   - [x] Bound equipment/unattune lock smoke is wired into CI.
+  - [x] Enchanter provider/quote/delivery + gem procedure smokes are wired into CI.
 
 ## Part C — Enchanter Services, Knowledge and Magical Maintenance (design frozen)
 
@@ -161,23 +162,23 @@ Canonical contract: [`docs/enchanters-update-part-c-services.md`](./enchanters-u
 
 ### Part C implementation gate
 
-- [ ] Create canonical Enchanter Service runtime on top of Shop/Workshop service architecture.
-- [ ] Add provider profile: known Enchantments, specialties, Rank cap III, reliability, delivery time, material supply, Bind/Curse capability and price modifiers.
-- [ ] Implement controlled/altered NPC magical outcome resolution instead of NPC crafting Checks.
+- [x] Create canonical Enchanter Service runtime on top of Shop/Workshop service architecture.
+- [x] Add provider profile: known Enchantments, specialties, Rank cap III, reliability, delivery time, material supply, Bind/Curse capability and price modifiers.
+- [x] Implement controlled/altered NPC magical outcome selection instead of NPC crafting Checks.
 - [ ] Add Enchantment Compendium with language-aware recipe sources and Relic-derived lower-rank knowledge.
-- [ ] Block Player/NPC reproduction of Rank IV/V Relic Enchantments.
+- [x] Block Player/NPC service reproduction of Rank IV/V Relic Enchantments.
 - [x] Implement Passive Arcana information tiers and repeatable 1-SP active Arcana study.
 - [ ] Implement knowledge-gated service preview with rune obfuscation.
 - [x] Implement Identify -> Cursed flag without Curse drawback leakage and dedicated Curse-detail resolution.
-- [ ] Implement Player/mixed/provider material quote paths and recoverable-material return rules.
-- [ ] Implement in-world delivery time for Rank I/II/III services.
+- [x] Implement Player/mixed/provider material quote paths, consume only allocated ritual materials, and return recoverable procedure outputs.
+- [x] Implement in-world delivery job state for Rank I/II/III services.
 - [x] Replace obsolete 50/50 Durability logic with full Physical Durability + separate proportional Magical Durability.
 - [ ] Add Magical Durability wear, depletion, recharge/repair and rune-glow state.
 - [x] Give Gem-Anchored Enchantments greater proportional magical endurance than equivalent direct/pure Enchantments (75% vs 50% of Physical Durability Max).
 - [x] Exempt Bound Enchantments from normal magical discharge.
-- [ ] Implement separate Item-side removal/rewrite and Gem-Anchor destructive removal flows.
-- [ ] Implement Bound Gem Anchor removal -> 100% Item destruction.
-- [ ] Implement gem magical-quality/rarity degradation after safe de-enchant/rewrite.
+- [x] Implement separate Item-side removal/rewrite and Gem-Anchor destructive removal flows.
+- [x] Implement Bound Gem Anchor removal -> 100% Item destruction once the destructive procedure is confirmed.
+- [x] Implement authored post-writing gem quality degradation handling after safe de-enchant/rewrite without hard-coding the balance step.
 - [x] Implement explicit max-3 Enchantment Gem Sockets separately from Base Enchantment Slots.
 - [x] Support up to three Rank II Gem-Anchored Enchantments; Rank III Gem-Anchored magic is exclusive.
 - [x] Finalize/test Rank III Gem-Anchor coexistence: Rank III cannot coexist with lower-rank Gem Anchors.
