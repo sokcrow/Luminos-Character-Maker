@@ -1391,5 +1391,41 @@ for (const width of [390, 1280]) {
     await expect(preview).toContainText("Improved Critical");
     await expect(preview).toContainText("Crit Damage");
     await expect(fighter.locator(".player-progression-mystic-scroll")).toHaveCount(1);
+
+    // The saved character can use all supported legacy map formats. The class
+    // tree, choice form, transaction, and maneuver capacity must all agree.
+    for (const format of ["build_class_levels", "top_class_levels", "classes_by_id", "build_classes_map"]) {
+      await page.evaluate((kind) => {
+        const char = {
+          level: 40,
+          stats:{fuerza:14,destreza:12,constitucion:13,inteligencia:10,sabiduria:11,carisma:12},
+          characterBuild:{
+            archetypes:{fighter:{archetypeId:"battle_master"}},
+            classMilestones:{},
+            maneuvers:{}
+          },
+        };
+        const fighterEntry = {fighter:{levels:40}};
+        if (kind === "build_class_levels") char.characterBuild.classLevels = fighterEntry;
+        else if (kind === "top_class_levels") char.classLevels = fighterEntry;
+        else if (kind === "classes_by_id") char.classesById = fighterEntry;
+        else char.characterBuild.classes = fighterEntry;
+        window.datosJugador = char;
+        window.__server = structuredClone(char);
+        window.LuminousPlayerProgressionTree.refresh();
+      }, format);
+      await expect(page.locator(".player-progression-class")).toContainText("CLASS LV. 40");
+      await expect(page.locator(".player-progression-branch-label.is-selected")).toContainText("MANIOBRAS 0/3");
+      const milestone20 = page.locator('[data-progression-key="fighter:milestone:base:20"]');
+      await milestone20.click();
+      const choicePanel = page.locator("#player-progression-detail .player-progression-choice-panel");
+      await expect(choicePanel).toContainText("MEJORA DE CLASE");
+      await expect(choicePanel).not.toContainText("Se desbloquea al alcanzar");
+      await choicePanel.locator(".player-progression-choice-stat").selectOption("fuerza");
+      await choicePanel.getByRole("button",{name:"CONFIRMAR MEJORA"}).click();
+      await expect(choicePanel).toContainText("GUARDADO");
+      expect(await page.evaluate(()=>window.__server.characterBuild.classMilestones.fighter["20"].type)).toBe("stats");
+      expect(await page.evaluate(()=>window.__server.stats.fuerza)).toBe(16);
+    }
   });
 }
