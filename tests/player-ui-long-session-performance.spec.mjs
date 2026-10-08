@@ -1516,7 +1516,7 @@ for (const width of [390, 1280]) {
         oldTrait:player.characterBuild.classMilestones.fighter["30"],
         newStat:player.characterBuild.classMilestones.fighter["40"],
         selectedGeneral:api.selectedGeneralTraitIds(player),
-        originalTopCount:player.classMilestones.length,
+        legacyTopCleared:!Object.prototype.hasOwnProperty.call(player,'classMilestones'),
         fuerza:player.stats.fuerza,
         constitucion:player.stats.constitucion
       };
@@ -1527,7 +1527,7 @@ for (const width of [390, 1280]) {
     expect(preserved.oldTrait.selectedAt).toBe(202);
     expect(preserved.newStat.allocation.constitucion).toBe(2);
     expect(preserved.selectedGeneral).toContain("general_keen");
-    expect(preserved.originalTopCount).toBe(2);
+    expect(preserved.legacyTopCleared).toBe(true);
     expect(preserved.fuerza).toBe(16);
     expect(preserved.constitucion).toBe(15);
 
@@ -1557,5 +1557,50 @@ for (const width of [390, 1280]) {
     await expect(conflict.locator(".player-progression-choice-feedback")).toContainText("duplicados incompatibles");
     expect(await page.evaluate(() => window.__server.characterBuild.classMilestones.fighter["40"])).toBeUndefined();
     expect(await page.evaluate(() => window.__server.stats.constitucion)).toBe(13);
+
+    // Codex P1: DM Studio persists effective Stats from baseStats + racial.
+    // Claiming a Milestone must update both scores AND migrate legacy claims.
+    await page.evaluate(() => {
+      const char = {
+        level:40,
+        stats:{fuerza:14,destreza:12,constitucion:13,inteligencia:10,sabiduria:11,carisma:12},
+        baseStats:{fuerza:12,destreza:12,constitucion:13,inteligencia:10,sabiduria:11,carisma:12},
+        classMilestones:[
+          {classId:"fighter",milestoneLevel:30,type:"trait",traitId:"general_keen",
+            selectedAt:121,notes:"keep-this-trait"}
+        ],
+        characterBuild:{
+          classes:[{classId:"fighter",levels:40}],
+          archetypes:[{classId:"fighter",archetypeId:"battle_master"}],
+          breakdown:{racialStatBonuses:{str:2}},
+          classMilestones:{}
+        }
+      };
+      window.datosJugador=char;
+      window.__server=structuredClone(char);
+      window.LuminousPlayerProgressionTree.refresh();
+    });
+    await level20.click();
+    const studioClaim = page.locator("#player-progression-detail .player-progression-choice-panel");
+    await studioClaim.locator(".player-progression-choice-stat").selectOption("fuerza");
+    await studioClaim.getByRole("button",{name:"CONFIRMAR MEJORA"}).click();
+    await expect(studioClaim).toContainText("GUARDADO");
+    const studioPersistence = await page.evaluate(() => {
+      const c=window.__server,api=window.LuminousClassMilestones;
+      return {
+        effective:c.stats.fuerza,
+        base:c.baseStats.fuerza,
+        recomputedFromStudio:c.baseStats.fuerza+c.characterBuild.breakdown.racialStatBonuses.str,
+        legacyRemoved:!Object.hasOwn(c,"classMilestones"),
+        oldTrait:api.choiceAt(c.characterBuild.classMilestones,"fighter",30),
+        savedMilestone:api.choiceAt(c.characterBuild.classMilestones,"fighter",20)
+      };
+    });
+    expect(studioPersistence.effective).toBe(16);
+    expect(studioPersistence.base).toBe(14);
+    expect(studioPersistence.recomputedFromStudio).toBe(16);
+    expect(studioPersistence.legacyRemoved).toBe(true);
+    expect(studioPersistence.oldTrait?.notes).toBe("keep-this-trait");
+    expect(studioPersistence.savedMilestone?.allocation?.fuerza).toBe(2);
   });
 }
