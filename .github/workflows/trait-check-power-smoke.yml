@@ -11,6 +11,11 @@ on:
       - "js/trait-standardization-runtime.js"
       - "js/rogue-class-runtime.js"
       - "js/samurai-archetype-runtime.js"
+      - "js/champion-archetype-runtime.js"
+      - "js/banneret-archetype-runtime.js"
+      - "js/bladesinger-archetype-runtime.js"
+      - "js/ranger-class-runtime.js"
+      - "js/player-archetype-runtime-core.js"
       - "pantalla_dm.html"
       - "tests/trait-final-power-unification-smoke.mjs"
       - "js/derived-stats-engine.js"
@@ -28,6 +33,11 @@ on:
       - "js/trait-standardization-runtime.js"
       - "js/rogue-class-runtime.js"
       - "js/samurai-archetype-runtime.js"
+      - "js/champion-archetype-runtime.js"
+      - "js/banneret-archetype-runtime.js"
+      - "js/bladesinger-archetype-runtime.js"
+      - "js/ranger-class-runtime.js"
+      - "js/player-archetype-runtime-core.js"
       - "pantalla_dm.html"
       - "tests/trait-final-power-unification-smoke.mjs"
       - "js/derived-stats-engine.js"
@@ -57,3 +67,4 @@ jobs:
       - run: node tests/banneret-archetype-runtime-smoke.mjs
       - run: node tests/bladesinger-archetype-runtime-smoke.mjs
       - run: node tests/samurai-archetype-runtime-smoke.mjs
+      - run: node tests/ranger-class-runtime-smoke.mjs
