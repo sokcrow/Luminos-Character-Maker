@@ -334,21 +334,21 @@ Effect values, interaction rules, Magic Hit grants, Bind/Curse modifiers and aut
 
 ### Registry / schema
 
-- [ ] Create `js/item-catalog-enchantments.js`.
-- [ ] Create `js/item-enchantment-engine.js`.
-- [ ] Define canonical Enchantment schema: stable ID, Rank data, slot cost, effects, compatibility, interaction channels, material compatibility, properties and economy metadata.
-- [ ] Validate malformed definitions and unsupported effect payloads.
+- [x] Create `js/item-catalog-enchantments.js`.
+- [x] Create `js/item-enchantment-engine.js`.
+- [x] Define canonical Enchantment schema: stable ID, Rank data, slot cost, effects, compatibility, interaction channels, material compatibility, properties and baseline Rank economy metadata.
+- [x] Validate malformed definitions and unsupported effect payloads.
 - [ ] Bridge positive Enchantment state into `LuminousItemMagicRuntime.isMagicItem()`.
 - [ ] Remove the old assumption that generic `enhancementLevel +1/+2/+3` is the player-facing universal Enchantment identity.
 
 ### Capacity / validation
 
-- [ ] Implement canonical Tier I-V Enchantment Slot capacity.
-- [ ] Implement Rank I/II/III slot consumption.
-- [ ] Enforce hard maximum of 3 Base Slots for direct/pure Item Enchantments; validate Gem-Anchored capacity separately through Part C Gem Sockets.
-- [ ] Validate available capacity before application/strengthening.
-- [ ] Implement hard conflicts.
-- [ ] Implement exclusive per-action channel conflicts.
+- [x] Implement canonical Tier I-V Enchantment Slot capacity.
+- [x] Implement Rank I/II/III slot consumption.
+- [x] Enforce hard maximum of 3 Base Slots for direct/pure Item Enchantments; Gem-Anchored capacity remains a separate Part C implementation task.
+- [x] Validate available capacity before application/strengthening.
+- [x] Implement hard conflicts.
+- [x] Implement exclusive per-action channel conflicts.
 - [ ] Implement material compatibility lookup and x2 Magical Durability wear for incompatible materials.
 
 ### Item Instance / persistence
