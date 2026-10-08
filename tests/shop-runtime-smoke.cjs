@@ -8,9 +8,10 @@ const { pathToFileURL } = require("node:url");
 
   const shops = globalThis.LuminousShopRuntime;
   assert.ok(shops);
-  assert.equal(shops.VERSION, 9);
+  assert.equal(shops.VERSION, 10);
   assert.equal(shops.BASE_PURCHASE_MARKUP, 1.40);
   assert.equal(shops.BASE_SELLBACK_MULTIPLIER, 0.80);
+  assert.equal(shops.CURSED_MARKET_VALUE_MULTIPLIER, 0.60);
 
   assert.deepEqual(Object.keys(shops.SHOP_TYPES), [
     "general",
@@ -442,6 +443,27 @@ const { pathToFileURL } = require("node:url");
   assert.equal(rebalanced.stock_actual, 8);
   assert.equal(rebalanced.shop_stock_auto, true);
 
+
+  const curseMarketClean = {
+    definitionId:"curse_market_clean",
+    baseValueAhn:100000,
+    unitValueAhn:100000,
+    tier:1,
+  };
+  const curseMarketCursed = {
+    ...curseMarketClean,
+    definitionId:"curse_market_cursed",
+    magic:{
+      enabled:true,
+      enchantments:[{definitionId:"flamebound",rank:1,source:"direct",properties:["curse"]}],
+    },
+  };
+  assert.equal(shops.resolveBaseValueAhn(curseMarketCursed).value,100000,"Curse must not rewrite intrinsic/creation value");
+  assert.equal(shops.priceBreakdown(curseMarketClean,{shop_type:"general",shop_tier:1}).priceAhn,140000);
+  assert.equal(shops.priceBreakdown(curseMarketCursed,{shop_type:"general",shop_tier:1}).priceAhn,84000,"cursed market value must be 60% before normal retail markup");
+  assert.equal(shops.sellBreakdown(curseMarketClean,{shop_type:"general"}).priceAhn,80000);
+  assert.equal(shops.sellBreakdown(curseMarketCursed,{shop_type:"general"}).priceAhn,48000,"cursed sellback must use the same 60% market baseline");
+  assert.equal(shops.cursedMarketState(curseMarketCursed).cursed,true);
 
   // Repair is a service economy, not a resale calculation:
   // (durability points repaired × material value per point) × 1.40.
