@@ -207,15 +207,31 @@
     STAT_KEYS.forEach((key) => { output[key] = 10; });
     Object.entries(stats || {}).forEach(([key, rawValue]) => {
       const stat = canonicalStatKey(key);
-      if (!stat) return;
+      // A canonical score is the source of truth if a legacy alias still
+      // exists. Object insertion order must never decide the current score.
+      if (!stat || (key !== stat && Object.prototype.hasOwnProperty.call(stats, stat))) return;
       output[stat] = int(rawValue, output[stat]);
     });
     return output;
   }
 
   function rawStatValue(stats, stat) {
+    if (Object.prototype.hasOwnProperty.call(stats || {}, stat)) return stats[stat];
     const entry = Object.entries(stats || {}).find(([key]) => canonicalStatKey(key) === stat);
     return entry ? entry[1] : undefined;
+  }
+
+  // Keep unrelated/unknown player fields untouched while migrating only the
+  // awarded stat. This is shared by Player, DM and milestone reversion: a
+  // duplicate alias must not survive as a second effective score.
+  function writeCanonicalStat(stats, statKey, value) {
+    const canonical = canonicalStatKey(statKey);
+    if (!canonical || !stats || typeof stats !== "object" || Array.isArray(stats)) return false;
+    Object.keys(stats).forEach((key) => {
+      if (key !== canonical && canonicalStatKey(key) === canonical) delete stats[key];
+    });
+    stats[canonical] = value;
+    return true;
   }
 
   function validateStatAllocation(stats, allocation) {
@@ -278,15 +294,13 @@
     if (!hasBase) return { ...applied, baseStats: null };
     const nextBase = { ...character.baseStats };
     for (const [stat, amount] of Object.entries(applied.allocation)) {
-      const key = Object.keys(nextBase).find((value) => canonicalStatKey(value) === stat);
-      const raw = key ? nextBase[key] : undefined;
+      const raw = rawStatValue(nextBase, stat);
       const before = Number(raw);
       if (raw == null || String(raw).trim() === "" || !Number.isInteger(before)) {
         return { valid: false, errors: [`El Stat base ${stat} no es válido; corrígelo en el estudio del DM antes de aplicar el Milestone.`] };
       }
       // The studio explicitly reads the Spanish canonical key on load.
-      nextBase[stat] = before + amount;
-      if (key !== stat && key) delete nextBase[key];
+      writeCanonicalStat(nextBase, stat, before + amount);
     }
     return { ...applied, baseStats: nextBase };
   }
@@ -331,6 +345,7 @@
     STAT_KEYS,
     STAT_ALIASES,
     canonicalStatKey,
+    writeCanonicalStat,
     normalizeClasses,
     milestoneKey,
     milestonePath,
