@@ -53,7 +53,24 @@ Examples already approved by design:
 - **Sapphire** may support Cold/Ice and compatible SP/Intelligence/Focus/Cold Resistance branches.
 - **Topaz** may support Lightning/Energy and compatible Speed/Initiative/Movement/acceleration branches.
 
-The complete 12-gem affinity matrix remains catalog authoring work, but every added affinity must remain coherent with the gem's canonical resonance identity.
+The canonical 12-gem affinity matrix is now:
+
+| Gem | Enchantment affinities |
+| --- | --- |
+| Ruby | fire, heat, vigor, HP, regeneration, fire resistance |
+| Sapphire | cold, ice, SP, Intelligence, focus, cold resistance, control |
+| Aquamarine | water, flow, mobility, dodge, recovery, cleansing, water resistance |
+| Topaz | lightning, energy, Speed, initiative, movement, acceleration, lightning resistance |
+| Garnet | blood, physical, Strength, physical damage, Bleed, Max HP, endurance |
+| Emerald | vitality, nature, Max HP, healing, regeneration, poison resistance, recovery |
+| Amethyst | arcane, mental, Intelligence, SP, spell power, focus, mental resistance |
+| Onyx | shadow, necrotic, life drain, stealth, necrotic resistance, Curse interaction |
+| Moonstone | spirit, SP, Sanity, spirit resistance, Attunement, support |
+| Opal | prismatic, adaptive resistance, multi-element, resonance blend |
+| Diamond | light, force, defense, barrier, armor, light resistance, force resistance |
+| Starstone / Exotic Gem | exotic, rare Enchantment, Relic interaction, anomalous magic |
+
+These are **compatibility routes**, not automatic bonuses. A mounted gem still channels only one installed Enchantment at a time.
 
 ## 3. One Gem Anchor channels one Enchantment
 
@@ -114,6 +131,7 @@ Baseline:
 
 | Gem Quality | Stable channel capacity |
 | --- | ---: |
+| Ruined | none; cannot sustain an Enchantment |
 | Poor | Rank I, unstable |
 | Standard | Rank I |
 | Fine | up to Rank II |
@@ -397,12 +415,13 @@ An Enchantment selects one authored route. The gemstone does not grant all affin
 
 ### Gem magic profile
 
-- [ ] Add canonical `gemMagicProfile` data to all 12 gemstone identities.
-- [ ] Preserve existing `resonanceTags` as the core resonance source of truth.
-- [ ] Author the full 12-gem Enchantment Affinity matrix.
-- [ ] Validate that added affinities remain coherent with each gem's canonical resonance identity.
-- [ ] Add Gem Quality -> stable Rank capacity resolution.
+- [x] Add canonical `gemMagicProfile` data to all 12 gemstone identities.
+- [x] Preserve existing `resonanceTags` as the core resonance source of truth.
+- [x] Author the full 12-gem Enchantment Affinity matrix.
+- [x] Validate that added affinities remain coherent with each gem's canonical resonance identity.
+- [x] Add Gem Quality -> stable Rank capacity resolution.
 - [ ] Add Overchannel state and failure-risk hooks.
+  - [x] Overchannel state/resolution is implemented; failure-risk/outcome integration remains pending.
 
 ### Gem Anchors
 
@@ -455,9 +474,9 @@ An Enchantment selects one authored route. The gemstone does not grant all affin
 
 ### Tests / CI
 
-- [ ] Add 12-gem profile validation tests.
+- [x] Add 12-gem profile validation tests.
 - [ ] Add one-anchor/one-Enchantment tests.
-- [ ] Add Gem Quality Rank-cap tests.
+- [x] Add Gem Quality Rank-cap tests.
 - [ ] Add Overchannel failure tests.
 - [ ] Add compatible/accepted/incompatible resonance tests.
 - [ ] Add specialization versus hybrid TH tests.
