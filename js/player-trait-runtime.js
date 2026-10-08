@@ -179,6 +179,45 @@
     return mergeTraitLists([...granted, ...racialGranted], selected);
   }
 
+  // Maneuvers are selectable combat features, not additional Trait grants.
+  // Adapt their descriptions for the Stats catalog only: never feed these
+  // display-only cards into combat dispatch, stat modifiers or persistent data.
+  function resolveManeuverDisplayTraits(character = getCharacter()) {
+    const choices = global.LuminousPlayerProgressionChoices;
+    const battleMaster = global.LuminousBattleMasterArchetypeRuntime;
+    const eligible = Number(choices?.maneuverLimit?.(character) || 0) > 0
+      || Boolean(battleMaster?.hasBattleMasterLevel?.(character, 15));
+    if (!eligible) return [];
+    const selected = choices?.chosenManeuvers?.(character)
+      || character?.characterBuild?.maneuvers?.battle_master;
+    const catalog = global.LuminousFighterManeuverCatalog;
+    if (!Array.isArray(selected) || !catalog?.get) return [];
+    const seen = new Set();
+    return selected.map((value) => {
+      const maneuver = catalog.get(value);
+      if (!maneuver || seen.has(maneuver.id)) return null;
+      seen.add(maneuver.id);
+      return {
+        schemaVersion: 1,
+        id: `known_fighter_maneuver_${maneuver.id}`,
+        name: maneuver.name,
+        description: maneuver.description,
+        source: {
+          type: "archetype", kind: "maneuver", id: "battle_master",
+          archetypeId: "battle_master", archetypeName: "Battle Master",
+          classId: "fighter", className: "Fighter",
+        },
+        contexts: ["combat"],
+        activation: { type: "passive", actionCost: "none" },
+        effects: [], rules: [], mechanics: {},
+      };
+    }).filter(Boolean);
+  }
+
+  function resolveDisplayTraits() {
+    return mergeTraitLists(resolveTraits(), resolveManeuverDisplayTraits());
+  }
+
   function inferContext() {
     const explicit = normalizeId(global.LuminousGameContext || doc.body?.dataset?.traitContext);
     if (["combat", "theatre", "any"].includes(explicit)) return explicit;
@@ -505,7 +544,7 @@ ${response}`);
         host,
         title: "TRAITS",
         state: state.traitState,
-        getTraits: resolveTraits,
+        getTraits: resolveDisplayTraits,
         getRuntime: () => getRuntime(),
         prepareRuntime: prepareTraitRuntime,
         onActivated: handleTraitActivated,
@@ -806,6 +845,7 @@ ${response}`);
   global.LuminousPlayerTraitRuntime = Object.freeze({
     getCharacter,
     getTraits: resolveTraits,
+    getDisplayTraits: resolveDisplayTraits,
     getTraitState: () => state.traitState,
     getRuntime,
     dispatch,
