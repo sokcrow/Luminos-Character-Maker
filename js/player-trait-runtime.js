@@ -650,6 +650,12 @@ ${response}`);
     if (hadThreshold && finiteNumber(result?.check?.difficulty) != null) {
       result.check.thresholdRaw = Number(result.check.difficulty);
     }
+    // The same resolver powers Stats previews and the authorised Coin result.
+    // Dedicated archetype hooks mark bonuses applied before this stage, so
+    // mixed class/race/General Traits cannot double-count them.
+    if (result?.check) global.LuminousSkillTraitBreakdownPatch?.applySpecialCheckBonuses?.(
+      resolveTraits(), character, result.check,
+    );
     return result;
   }
 
