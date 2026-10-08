@@ -29,12 +29,12 @@ const global = {
 };
 const numberOr = (v, fallback = 0) => Number.isFinite(Number(v)) ? Number(v) : fallback;
 const normalizeProfState = (v) => String(v || "none").toLowerCase();
-const make = new Function("global", "abilityById", "numberOr", "normalizeProfState",
+const make = new Function("global", "abilityById", "skillById", "numberOr", "normalizeProfState",
   "playerProficiencyBonus", "PROFICIENCY_MULTIPLIER", "clamp",
   coordinator.slice(start, end) + "\nreturn playerRollPreview;");
 const dmPreview = make(global, () => ({
   id: "cha", key: "carisma", skills: [{ id: "performance", name: "Performance" }],
-}), numberOr, normalizeProfState, () => 3, { none: 0, proficient: 1, expertise: 2, half: 0.5 },
+}), (ability, id) => ability.skills.find((skill) => skill.id === id), numberOr, normalizeProfState, () => 3, { none: 0, proficient: 1, expertise: 2, half: 0.5 },
 (value, low, high) => Math.max(low, Math.min(high, value)));
 
 const player = { level: 41, stats: { carisma: 12 },
