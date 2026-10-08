@@ -72,7 +72,7 @@
     item.enhancementSource = "enchantment";
     item.enchanted = true;
     item.enchantment = enchantment;
-    emit("luminous:item-enchanted", { itemInstanceId: itemId(item), enchantment: clone(enchantment) });
+    if (options.emit !== false) emit("luminous:item-enchanted", { itemInstanceId: itemId(item), enchantment: clone(enchantment) });
     return { applied: true, kind: gate.kind, enchantment: clone(enchantment), item };
   }
   function activeEnchantment(item) {
@@ -83,13 +83,13 @@
     if (!CHANNELS_BY_KIND[ench.kind]?.includes(ench.focus?.channel) || ench.focus?.value !== ench.tier) return null;
     return ench;
   }
-  function removeEnchantment(item) {
+  function removeEnchantment(item, options = {}) {
     if (!activeEnchantment(item)) return { removed: false, reason: "item_not_enchanted" };
     item.enchantment = null;
     item.enhancementLevel = 0;
     item.enhancementSource = "mundane";
     item.enchanted = false;
-    emit("luminous:item-enchantment-removed", { itemInstanceId: itemId(item) });
+    if (options.emit !== false) emit("luminous:item-enchantment-removed", { itemInstanceId: itemId(item) });
     return { removed: true, item };
   }
   function lookup(unit, ref) {
