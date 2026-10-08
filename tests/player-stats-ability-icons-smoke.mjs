@@ -21,6 +21,10 @@ assert.match(runtime, /class="player-ability-icon"/);
 assert.match(runtime, /class="player-ability-name"/);
 assert.match(runtime, /class="player-prof-indicator"/);
 assert.match(runtime, /role="tab"/);
+assert.match(runtime, /data-stat="\\$\\{ability\\.id\\}"/);
+assert.match(runtime, /aria-selected="\\$\\{index === 0/);
+// The original bar's dimensions, click bindings and tab state remain unchanged.
+assert.match(css, /\\.player-ability-bar\\{flex:0 0 98px/);
 assert.match(runtime, /button\.addEventListener\("click", \(\) => activate\(panel, button\.dataset\.stat\)\)/);
 assert.match(runtime, /image\.addEventListener\("error", \(\) => \{ image\.hidden = true; \}/);
 assert.match(css, /\.player-ability-icon\[hidden\]/);
