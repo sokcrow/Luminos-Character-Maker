@@ -3,9 +3,9 @@ import fs from "node:fs";
 import vm from "node:vm";
 
 const legacyCreator = fs.readFileSync("creacion_personaje.html", "utf8");
-const match = legacyCreator.match(/const backgroundsData\\s*=\\s*(\\[[\\s\\S]*?\\]);/);
+const match = legacyCreator.match(/const backgroundsData\s*=\s*(\[[\s\S]*?\]);/);
 assert.ok(match, "Legacy creation data must be present");
-const creatorEntries = JSON.parse(match[1].replace(/^\\s*\\/\\/.*$/gm, ""));
+const creatorEntries = JSON.parse(match[1].replace(/^\s*\/\/.*$/gm, ""));
 
 function node(tag = "div", className = "") {
   return {
