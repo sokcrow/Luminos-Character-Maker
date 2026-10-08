@@ -167,6 +167,9 @@
     const link = itemWeaponLink();
     const trustedSkill = loadout?.skillLibrary?.()?.[selectedSkillId] || null;
     let binding = null;
+    if (weaponInstanceId && (!link || !trustedSkill)) {
+      return { ok: false, reason: "SKILL_WEAPON_VALIDATION_UNAVAILABLE", payload: null };
+    }
     if (link && trustedSkill) {
       const source = trustedWeaponContext(resolved.unit, player.player || state.players?.[player.playerId] || {});
       binding = link.bindTrustedSkill(source.unit, trustedSkill, weaponInstanceId);
