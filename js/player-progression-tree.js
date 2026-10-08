@@ -170,6 +170,36 @@
     syncDetailPlacement();
   }
 
+  function familyForItem(item) {
+    return global.LuminousTraitFamilies?.resolve?.(
+      item?.definition || { id: item?.id, name: item?.name, description: item?.description }
+    ) || null;
+  }
+
+  function familyIconMarkup(family, extraClass = "") {
+    if (!family) return "";
+    return '<span class="player-progression-family ' + extraClass + '" title="Familia funcional: ' +
+      escapeHtml(family.label) + '">' +
+      '<img src="' + escapeHtml(family.icon) + '" alt="" loading="lazy" aria-hidden="true">' +
+      '<span>' + escapeHtml(family.label) + '</span></span>';
+  }
+
+  function nodeFamilyMarkup(node) {
+    const families = [...new Map((node?.items || []).map(familyForItem).filter(Boolean)
+      .map((family) => [family.id, family])).values()];
+    if (!families.length) return "";
+    const items = families.slice(0, 3).map((family) => familyIconMarkup(family)).join("");
+    const remaining = families.length - 3;
+    return '<span class="player-progression-node__families" aria-label="Familias funcionales">' +
+      items + (remaining > 0 ? '<span class="player-progression-family__more">+' + remaining + '</span>' : '') + '</span>';
+  }
+
+  function bindMissingFamilyIcons(root) {
+    root?.querySelectorAll?.(".player-progression-family img")?.forEach((image) => {
+      image.addEventListener("error", () => image.remove(), { once: true });
+    });
+  }
+
   function showNodeDetail(classModel, node, branch = null, anchor = null) {
     if (!state.detail || !node) return;
     placeDetail(anchor);
@@ -182,6 +212,7 @@
         <article class="player-progression-detail__item">
           <div class="player-progression-detail__item-head">
             <span class="player-progression-kind">${escapeHtml(item.kind)}</span>
+            ${familyIconMarkup(familyForItem(item))}
             <strong>${escapeHtml(item.name)}</strong>
           </div>
           ${item.description ? `<p>${escapeHtml(item.description)}</p>` : ""}
@@ -205,6 +236,7 @@
         ? "Este Milestone requiere que elijas y guardes tu mejora de clase."
         : "Los hitos automáticos se obtienen al alcanzar el nivel. Aquí puedes consultar sus recompensas."}</p>
       <div class="player-progression-detail__items">${items || "<p>No hay recompensas adicionales registradas en este nivel.</p>"}</div>`;
+    bindMissingFamilyIcons(state.detail);
     if (node.choiceMilestone && !branch) {
       const editor = doc.createElement("div");
       editor.className = "player-progression-inline-choice";
@@ -280,9 +312,11 @@
     button.setAttribute("aria-label", `Ver hito de ${classModel.className} nivel ${node.level}: ${nodeTitle(node)}`);
     button.innerHTML = `
       <span class="player-progression-node__seal">${sigilSvg(sigilFor(nodeTitle(node), node.level))}</span>
+      ${nodeFamilyMarkup(node)}
       <span class="player-progression-node__level">LV. ${node.level}</span>
       <strong>${escapeHtml(nodeTitle(node))}</strong>
       <small>${escapeHtml(statusLabel(node.status))}</small>`;
+    bindMissingFamilyIcons(button);
     const inspect = () => showNodeDetail(classModel, node, branch, button);
     button.__inspect = inspect;
     button.addEventListener("click", inspect);
