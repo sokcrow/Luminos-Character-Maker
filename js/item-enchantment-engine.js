@@ -16,7 +16,7 @@
   if (!Catalog) throw new Error("LuminousEnchantmentCatalog is required before LuminousItemEnchantmentEngine.");
   if (!Gems) throw new Error("LuminousOreIngotGemCatalog is required before LuminousItemEnchantmentEngine.");
 
-  const VERSION = 8;
+  const VERSION = 9;
   const TIER_BASE_SLOT_CAPACITY = Object.freeze({ 1: 0, 2: 1, 3: 1, 4: 2, 5: 3 });
   const BIND_POSITIVE_MULTIPLIER = 1.25;
   const CURSE_POSITIVE_MULTIPLIER = 1.50;
@@ -76,6 +76,14 @@
   }
 
   function baseSlotCapacity(itemOrTier) {
+    if (itemOrTier && typeof itemOrTier === "object") {
+      const explicit = itemOrTier.enchantmentSlotCapacity ??
+        itemOrTier.enchantmentSlotsMax ??
+        itemOrTier.magic?.enchantmentSlots?.max ??
+        itemOrTier.equipment?.enchantmentSlotCapacity ??
+        itemOrTier.equipment?.enchantmentSlotsMax;
+      if (Number.isFinite(Number(explicit))) return Math.max(0, Math.min(3, Math.trunc(Number(explicit))));
+    }
     const tier = typeof itemOrTier === "number" || typeof itemOrTier === "string"
       ? tierOf({ tier:itemOrTier })
       : tierOf(itemOrTier || {});
@@ -292,6 +300,10 @@
       anchorId: raw.anchorId == null ? null : String(raw.anchorId),
       dormant: raw.dormant === true,
       disabled: raw.disabled === true,
+      applicationId: raw.applicationId == null ? null : String(raw.applicationId),
+      appliedBy: raw.appliedBy == null ? null : String(raw.appliedBy),
+      appliedAt: Number.isFinite(Number(raw.appliedAt)) ? Number(raw.appliedAt) : null,
+      provenance: raw.provenance && typeof raw.provenance === "object" ? Object.freeze(clone(raw.provenance)) : null,
     });
   }
 
@@ -429,6 +441,10 @@
       rank,
       source,
       properties:propertyValidation.properties,
+      applicationId:options.applicationId,
+      appliedBy:options.appliedBy,
+      appliedAt:options.appliedAt,
+      provenance:options.provenance,
     });
     const refValidation = validateAppliedReference(candidate);
     if (!refValidation.valid) {
@@ -470,12 +486,40 @@
     return out;
   }
 
+
+  function historyEntry(kind, reference = null, options = {}) {
+    return Object.freeze({
+      kind:normalizeId(kind),
+      definitionId:reference?.definitionId || normalizeId(options.definitionId || ""),
+      rank:reference?.rank ?? (Number.isFinite(Number(options.rank)) ? Number(options.rank) : null),
+      applicationId:reference?.applicationId || (options.applicationId == null ? null : String(options.applicationId)),
+      actorId:options.actorId == null ? (reference?.appliedBy || null) : String(options.actorId),
+      timestamp:Number.isFinite(Number(options.timestamp)) ? Number(options.timestamp) : Date.now(),
+      context:options.context && typeof options.context === "object" ? Object.freeze(clone(options.context)) : null,
+    });
+  }
+
+  function appendEnchantmentHistory(item = {}, entry = {}) {
+    const out=clone(item || {});
+    if (!out.magic || typeof out.magic!=="object") out.magic={};
+    const previous=asArray(out.magic.enchantmentHistory).filter((row)=>row && typeof row==="object").map(clone);
+    previous.push(clone(entry));
+    out.magic.enchantmentHistory=previous.slice(-100);
+    return out;
+  }
+
   function applyEnchantment(item = {}, definitionOrId, rank = 1, options = {}) {
     const gate = validateApplication(item, definitionOrId, rank, options);
     if (!gate.allowed) return Object.freeze({ applied:false, ...clone(gate), item:clone(item) });
     const refs = appliedEnchantments(item);
     refs.push(gate.reference);
-    const out = withMagicState(item, refs, gate.candidateAnchors || gemAnchors(item), options);
+    let out = withMagicState(item, refs, gate.candidateAnchors || gemAnchors(item), options);
+    out = appendEnchantmentHistory(out,historyEntry("apply",gate.reference,{
+      applicationId:gate.reference.applicationId,
+      actorId:gate.reference.appliedBy,
+      timestamp:gate.reference.appliedAt,
+      context:gate.reference.provenance,
+    }));
     return Object.freeze({
       applied:true,
       item:Object.freeze(out),
@@ -537,7 +581,12 @@
 
     const refs = appliedEnchantments(item);
     refs[gate.index] = gate.next;
-    const out = withMagicState(item, refs, gate.candidateAnchors || gemAnchors(item), options);
+    let out = withMagicState(item, refs, gate.candidateAnchors || gemAnchors(item), options);
+    out = appendEnchantmentHistory(out,historyEntry("strengthen",gate.next,{
+      actorId:options.appliedBy || options.actorId,
+      timestamp:options.appliedAt,
+      context:options.provenance || options.context,
+    }));
     return Object.freeze({
       strengthened:true,
       item:Object.freeze(out),
@@ -566,8 +615,9 @@
     if (!gate.allowed) return Object.freeze({ removed:false, ...clone(gate), item:clone(item) });
     const refs = appliedEnchantments(item);
     refs.splice(gate.index, 1);
-    const out = withMagicState(item, refs);
+    let out = withMagicState(item, refs);
     if (!refs.length) out.magic.enabled = false;
+    out = appendEnchantmentHistory(out,historyEntry("remove",gate.reference,{}));
     return Object.freeze({ removed:true, item:Object.freeze(out), removedReference:gate.reference });
   }
 
@@ -1599,6 +1649,8 @@
     tierOf,
     baseSlotCapacity,
     magicStateOf,
+    historyEntry,
+    appendEnchantmentHistory,
     physicalDurabilityMaxOf,
     inferredMagicalDurabilityMax,
     normalizeMagicalDurability,
