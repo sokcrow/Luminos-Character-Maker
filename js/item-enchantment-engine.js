@@ -16,7 +16,7 @@
   if (!Catalog) throw new Error("LuminousEnchantmentCatalog is required before LuminousItemEnchantmentEngine.");
   if (!Gems) throw new Error("LuminousOreIngotGemCatalog is required before LuminousItemEnchantmentEngine.");
 
-  const VERSION = 10;
+  const VERSION = 11;
   const TIER_BASE_SLOT_CAPACITY = Object.freeze({ 1: 0, 2: 1, 3: 1, 4: 2, 5: 3 });
   const ITEM_KIND_SLOT_CAPACITY_LIMIT = Object.freeze({
     weapon:3,
@@ -668,6 +668,29 @@
       reference:gate.reference,
       recoveredMaterials:Object.freeze([]),
     });
+  }
+
+
+  function removeEnchantmentProperty(item = {}, definitionId, property, options = {}) {
+    const refs=appliedEnchantments(item).map(normalizeAppliedReference);
+    const wantedDefinition=normalizeId(definitionId);
+    const wantedProperty=normalizeId(property);
+    const wantedAnchor=options.anchorId == null ? null : String(options.anchorId);
+    const index=refs.findIndex((ref)=>ref.definitionId===wantedDefinition && (wantedAnchor==null || ref.anchorId===wantedAnchor));
+    if(index<0) return Object.freeze({changed:false,reason:"enchantment_not_installed",item:clone(item)});
+    if(wantedProperty==="bind") return Object.freeze({changed:false,reason:"bound_property_not_removable",item:clone(item)});
+    if(refs[index].properties.includes("bind")) return Object.freeze({changed:false,reason:"bound_enchantment_not_removable",item:clone(item)});
+    if(!refs[index].properties.includes(wantedProperty)) return Object.freeze({changed:false,reason:"property_not_present",item:clone(item)});
+
+    const nextProperties=refs[index].properties.filter((entry)=>entry!==wantedProperty);
+    refs[index]=normalizeAppliedReference({...refs[index],properties:nextProperties});
+    let out=withMagicState(item,refs,gemAnchors(item));
+    out=appendEnchantmentHistory(out,historyEntry("remove_property",refs[index],{
+      actorId:options.appliedBy || options.actorId,
+      timestamp:options.appliedAt,
+      context:{...(options.provenance || options.context || {}),removedProperty:wantedProperty},
+    }));
+    return Object.freeze({changed:true,item:Object.freeze(out),reference:refs[index],removedProperty:wantedProperty});
   }
 
   function addEnchantmentProperty(item = {}, definitionId, property, options = {}) {
@@ -1755,6 +1778,7 @@
     canRemoveEnchantment,
     removeEnchantment,
     replaceEnchantment,
+    removeEnchantmentProperty,
     addEnchantmentProperty,
     validateGemAnchorApplication,
     catastrophicFourthGem,
