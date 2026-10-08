@@ -270,6 +270,18 @@ body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-
   width:68%;
   height:68%;
 }
+/* Imported class identity art stays inside the ritual seals on every node. */
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-class-icon {
+  position:relative;
+  z-index:1;
+  display:block;
+  box-sizing:border-box;
+  width:78%;
+  height:78%;
+  border-radius:50%;
+  object-fit:contain;
+  pointer-events:none;
+}
 body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-root small{
   margin-top:12px;
   color:#a98e6d;
