@@ -242,6 +242,15 @@ The Item keeps its normal Physical Durability and gains a separate **Magical Dur
 
 At zero Magical Durability, the Enchantment is depleted/inactive rather than permanently erased. It may be repaired/recharged by the appropriate magical service. Player self-repair materials remain deferred to the **Magic Loot Update**.
 
+Initial runtime durability baseline:
+
+```text
+Direct/pure Enchanted Item -> 100 Magical Durability
+Item using Gem Anchors     -> 150 Magical Durability
+```
+
+These values are auto-managed defaults only. Authored Magic Items/Relics may provide their own Magical Durability maximum and the runtime preserves that authored value. Physical Durability remains unchanged by enchanting.
+
 Bound Enchantments do not discharge through the normal Magical Durability cycle, although the physical Item itself can still be damaged or destroyed.
 
 ## 10. Removal, replacement, Bind and Curse
@@ -349,13 +358,13 @@ Effect values, interaction rules, Magic Hit grants, Bind/Curse modifiers and aut
 - [x] Validate available capacity before application/strengthening.
 - [x] Implement hard conflicts.
 - [x] Implement exclusive per-action channel conflicts.
-- [ ] Implement material compatibility lookup and x2 Magical Durability wear for incompatible materials.
+- [x] Implement material compatibility lookup and x2 Magical Durability wear for incompatible materials.
 
 ### Item Instance / persistence
 
 - [x] Add canonical `magic.enchantments[]` Item Instance state.
 - [x] Add used/max Enchantment Slot state.
-- [ ] Preserve normal Physical Durability and add separate Magical Durability / magical-power integrity state.
+- [x] Preserve normal Physical Durability and add separate Magical Durability / magical-power integrity state.
 - [x] Preserve enchantment state through inventory, stash, transfer, equip/unequip and save/load.
 - [x] Prevent stack merging when magical state differs.
 - [ ] Keep player knowledge/identification state separate from Item truth.
@@ -373,14 +382,14 @@ Effect values, interaction rules, Magic Hit grants, Bind/Curse modifiers and aut
 
 ### Effects / combat
 
-- [ ] Implement authored Magic Hit grants independently from Magic Item status.
-- [ ] Integrate Magic Hit with Non-Magic Hit damage-reduction bypass.
-- [ ] Implement damage-focused 10%/15%/25% Rank baseline.
-- [ ] Support optional secondary 4%/8%/18% damage scaling only when authored.
-- [ ] Implement equipment-Trait style effect resolution.
-- [ ] Add accessory defensive/buff effect support.
-- [ ] Add action-time Enchantment channel choice when mutually exclusive compatible properties are available.
-- [ ] Ensure inactive/broken magical state cannot contribute effects.
+- [x] Implement authored Magic Hit grants independently from Magic Item status.
+- [x] Integrate Magic Hit with Non-Magic Hit damage-reduction bypass through the Enchantment combat bridge.
+- [x] Implement damage-focused 10%/15%/25% Rank baseline in action-time combat resolution.
+- [x] Support optional secondary 4%/8%/18% damage scaling only when authored.
+- [x] Implement equipment-Trait style effect resolution with trigger filtering and Attunement/depletion gates.
+- [x] Add accessory defensive/buff effect aggregation support for resistance/HP/SP/Speed/Initiative payloads.
+- [x] Add action-time Enchantment channel choice when mutually exclusive compatible properties are available.
+- [x] Ensure depleted Magical Durability and Dormant/broken Anchor state cannot contribute normal effects.
 
 ### Strengthening / economy
 
@@ -394,14 +403,14 @@ Effect values, interaction rules, Magic Hit grants, Bind/Curse modifiers and aut
 
 ### Bind / Curse
 
-- [ ] Implement Bind property and x1.25 positive-effect multiplier.
-- [ ] Block normal removal/replacement/transfer procedure for Bound Enchantments.
-- [ ] Allow Bound Enchantments to strengthen.
+- [x] Implement Bind property and x1.25 positive-effect multiplier.
+- [x] Block normal Enchantment removal/replacement for Bound Enchantments; Item transfer ownership remains allowed while the Bind stays on the Item.
+- [x] Allow Bound Enchantments to strengthen.
 - [ ] Implement Curse hidden naming/knowledge behavior.
-- [ ] Implement x1.50 positive-effect multiplier for Cursed Enchantments.
+- [x] Implement x1.50 positive-effect multiplier for Cursed Enchantments.
 - [ ] Support scaling authored Curse penalties.
 - [ ] Implement initial x0.60 cursed market-value baseline independently from creation/service cost.
-- [ ] Allow Cursed Enchantments to strengthen.
+- [x] Allow Cursed Enchantments to strengthen.
 
 ### Maintenance
 
@@ -416,15 +425,16 @@ Effect values, interaction rules, Magic Hit grants, Bind/Curse modifiers and aut
 - [ ] Add Enchantment schema smoke tests.
 - [ ] Add Tier/slot/rank-capacity tests.
 - [ ] Add hard-conflict and channel-choice tests.
-- [ ] Add material compatibility / doubled magical wear tests.
-- [ ] Add Magic Item versus Magic Hit tests.
-- [ ] Add damage scaling tests.
+- [x] Add material compatibility / doubled magical wear tests.
+- [x] Add Magic Item versus Magic Hit and Non-Magic Hit bypass tests.
+- [x] Add damage scaling tests through the combat bridge.
 - [ ] Add physical/magical Durability split and repair-authority tests.
+  - [x] Physical vs Magical Durability separation/depletion/recharge is covered; service repair authority remains pending.
 - [ ] Add strengthening TH/economy/failure tests.
-- [ ] Add Bind tests.
+- [x] Add Bind power, wear-exemption and life-recharge tests.
 - [ ] Add Curse knowledge/power/value tests.
 - [ ] Add Arcana/Identify/rune-obfuscation tests.
-- [ ] Add inventory persistence/transfer/stacking tests.
+- [x] Add inventory persistence/transfer/stacking tests.
 - [ ] Add Enchanter's Update CI workflow/path coverage.
 
 ## 13. Deferred from Part A
