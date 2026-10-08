@@ -113,6 +113,7 @@ Canonical contract: [`docs/enchanters-update-part-b-resonance.md`](./enchanters-
   - [x] Gem Anchor/Gem Socket persistence, Dormant-state, Rank pressure, catastrophe and channel-choice smoke is wired into CI.
   - [x] Gem compatibility/Specialization/Hybrid/TH-cap smoke is wired into CI.
   - [x] Ritual material consumption + Overchannel + Bind/Curse outcome smoke is wired into CI.
+  - [x] Magical Durability/activation/CombatEngine bridge smoke is wired into CI.
 
 ## Part C — Enchanter Services, Knowledge and Magical Maintenance (design frozen)
 
