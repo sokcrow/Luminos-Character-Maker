@@ -432,6 +432,7 @@
     playerSkillBreakdown,
     syncPlayerSkillPreviews,
     syncDmSkillPreviews,
+    resolvedDmTraits,
     installResolvedCheckBridge,
     installPlayerRollBridge,
     rawRollBase,
