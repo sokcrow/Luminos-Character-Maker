@@ -220,6 +220,11 @@ assert.match(progressionCss, /\.player-progression-rail\{\s*display:none/);
 assert.match(progressionRuntime, /button\.addEventListener\("click", inspect\)/);
 assert.match(progressionRuntime, /wrap\.addEventListener\("keydown"/);
 assert.match(progressionRuntime, /host\.contains\(state\.detail\)/);
+assert.match(progressionRuntime, /mobileLayout\?\.addEventListener\?\.\("change", syncDetailPlacement\)/);
+assert.match(progressionRuntime, /state\.root\?\.contains\(anchor\)/);
+const noOpGuard = progressionRuntime.indexOf('if (!force && signature === state.signature) return true;');
+const rehome = progressionRuntime.indexOf('if (state.detail && host.contains(state.detail)) host.after(state.detail);');
+assert.ok(noOpGuard >= 0 && rehome > noOpGuard, 'No-op data refresh must leave inline details in place');
 assert.match(html, /Selecciona un nivel o arquetipo para ver sus mejoras/);
 assert.doesNotMatch(html, /Recorre la clase con la rueda del mouse/);
 
