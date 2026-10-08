@@ -21,7 +21,7 @@
     throw new Error("Enchantment Catalog, Enchantment Engine and Magic Runtime are required before Enchanter Service Runtime.");
   }
 
-  const VERSION = 5;
+  const VERSION = 6;
   const MAX_REPRODUCIBLE_RANK = 3;
   const SERVICE_IDS = Object.freeze([
     "enchant",
@@ -1088,6 +1088,7 @@
     const actorId=String(options.appliedBy || options.actorId || owner.id || owner.playerId || owner.npcId || (freeService?"dm":"unknown"));
     const execution=executeControlledResult(clone(item),quote,{
       ...options,
+      viewer:options.viewer || owner,
       applicationId,
       appliedBy:actorId,
       appliedAt:Number.isFinite(Number(options.startedAt))?Number(options.startedAt):Date.now(),
@@ -1198,6 +1199,36 @@
       const target=clone(item);
       const result=Magic.restoreMagicalDurability(target,quote.restorePoints,{full:true});
       return Object.freeze({executed:result.restored===true || quote.restorePoints===0,result,item:Object.freeze(target)});
+    }
+    if (quote.service==="identify") {
+      const viewer=options.viewer || options.owner || null;
+      const knowledge=knowledgeRuntime();
+      if(!viewer || !knowledge?.identifyItem) return Object.freeze({executed:false,reason:"knowledge_runtime_or_viewer_unavailable"});
+      const result=knowledge.identifyItem(viewer,item,{revealDurability:options.revealDurability===true});
+      return Object.freeze({executed:result.identified===true,result,item:Object.freeze(clone(item))});
+    }
+    if (quote.service==="curse_analysis") {
+      const viewer=options.viewer || options.owner || null;
+      const knowledge=knowledgeRuntime();
+      if(!viewer || !knowledge?.identifyCurse) return Object.freeze({executed:false,reason:"knowledge_runtime_or_viewer_unavailable"});
+      const result=knowledge.identifyCurse(viewer,item,{source:"enchanter_service"});
+      return Object.freeze({executed:result.identified===true,result,item:Object.freeze(clone(item))});
+    }
+    if (quote.service==="remove_curse") {
+      if(item?.magic?.relic?.inseparableDrawback===true || item?.relic?.inseparableDrawback===true) {
+        return Object.freeze({executed:false,reason:"relic_drawback_inseparable"});
+      }
+      const curseRef=Engine.appliedEnchantments(item).find((ref)=>asArray(ref.properties).map(normalizeId).includes("curse"));
+      if(!curseRef) return Object.freeze({executed:false,reason:"removable_curse_not_found"});
+      if(asArray(curseRef.properties).map(normalizeId).includes("bind")) return Object.freeze({executed:false,reason:"bound_curse_not_removable"});
+      const result=Engine.removeEnchantmentProperty(item,curseRef.definitionId,"curse",{
+        anchorId:curseRef.anchorId,
+        appliedBy:options.appliedBy,
+        appliedAt:options.appliedAt,
+        provenance:options.provenance,
+      });
+      if(result.changed && options.viewer) Magic.removeCurse(options.viewer,item);
+      return Object.freeze({executed:result.changed===true,result,item:result.item || Object.freeze(clone(item))});
     }
     if (quote.service==="remove_rewrite") {
       const procedure=normalizeId(quote.procedure || options.procedure || "direct_remove");
