@@ -92,6 +92,15 @@ Part D does **not** treat Charges as a completely independent magical battery.
 
 Magical Durability / magical-power integrity is the underlying resource.
 
+For ordinary auto-managed enchanted physical Items, the current baseline is:
+
+```text
+Direct/pure Enchantment -> 50% of Physical Durability Max
+Gem-Anchored magic      -> 75% of Physical Durability Max
+```
+
+Authored Native Magic Items and Relics may override that capacity.
+
 An Item may expose player-facing **Charges** as a convenient activation budget, but those Charges are backed by the Item's magical resource.
 
 Example concept:
@@ -448,8 +457,7 @@ Recommended representative validation coverage:
 ### Bind / Curse
 
 - [x] Migrate Bind to a Curse-family state while preserving intentional/accidental creation support.
-- [ ] Block normal unequip and unattune for Bound Items.
-  - [x] Normal Bound unattunement is blocked in `LuminousItemMagicRuntime`; equipment unequip lock remains pending.
+- [x] Block normal unequip and unattune for Bound Items.
 - [x] Lock the occupied Attunement Slot for an attuned Bound Item by blocking normal unattune/removal from the Attunement store.
 - [x] Preserve x1.25 Bound positive-effect multiplier.
 - [x] Ignore ordinary/background Magical Durability wear for Bound magic.
@@ -485,8 +493,7 @@ Recommended representative validation coverage:
 - [x] Add unattuned-benefit suppression test.
 - [x] Add Magical-Durability-backed Charge tests.
 - [x] Add Item-paid vs wielder-paid Spell cast tests.
-- [ ] Add Bound equip/unattune lock and life-recharge tests.
-  - [x] Bound unattune lock and life-backed recharge are covered; equipment unequip lock remains pending.
+- [x] Add Bound equip/unattune lock and life-recharge tests.
 - [x] Add persistent Curse/self-preservation tests.
 - [x] Add Native Magic Item/Wondrous Item fixture.
 - [ ] Add Relic Rank IV/V and 5% Identify breakthrough tests.
