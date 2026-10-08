@@ -16,7 +16,7 @@ const Services=globalThis.LuminousItemEnchanterServiceRuntime;
 
 assert.ok(Engine && Services);
 assert.strictEqual(Engine.VERSION,8);
-assert.strictEqual(Services.VERSION,3);
+assert.strictEqual(Services.VERSION,4);
 
 const provider=Services.normalizeProviderProfile({
   id:"gemwright",
