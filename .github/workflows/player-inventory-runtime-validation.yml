@@ -108,6 +108,7 @@ on:
       - tests/item-catalog-essence-core-smoke.cjs
       - tests/item-catalog-plant-produce-smoke.cjs
       - tests/item-catalog-ore-ingot-gem-smoke.cjs
+      - tests/item-gem-magic-profile-smoke.cjs
       - tests/item-enchantment-engine-smoke.cjs
       - tests/item-enchantment-inventory-smoke.cjs
       - tests/item-enchantment-magic-runtime-smoke.cjs
@@ -275,6 +276,8 @@ jobs:
         run: node tests/item-catalog-plant-produce-smoke.cjs
       - name: Ore ingot gem catalog smoke
         run: node tests/item-catalog-ore-ingot-gem-smoke.cjs
+      - name: Gem magic profile and rank capacity smoke
+        run: node tests/item-gem-magic-profile-smoke.cjs
       - name: Enchantment core engine smoke
         run: node tests/item-enchantment-engine-smoke.cjs
       - name: Enchantment inventory persistence smoke
