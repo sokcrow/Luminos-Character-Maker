@@ -650,31 +650,12 @@ ${response}`);
     if (hadThreshold && finiteNumber(result?.check?.difficulty) != null) {
       result.check.thresholdRaw = Number(result.check.difficulty);
     }
-    // Adapt legacy Check hooks into one canonical finalPower field. Some
-    // archetype armCheck wrappers can run before this bridge; their markers
-    // prevent applying the same bonus twice.
-    const legacy = global.LuminousSkillTraitBreakdownPatch?.specialCheckContributions?.(
-      resolveTraits(), character, result?.check || preparedCheck,
-    ) || [];
-    if (result?.check && legacy.length) {
-      const markers = {
-        jack_of_all_trades: "__jackOfAllTradesApplied",
-        reliable_talent: "__rogueReliableTalentApplied",
-        remarkable_athlete: "__championRemarkableAthleteAdjusted",
-        royal_envoy: "__banneretRoyalEnvoyAdjusted",
-        elegant_courtier: "__samuraiElegantCourtierAdjusted",
-        bladesong: "__bladesongAcrobaticsAdjusted",
-      };
-      const applied = new Set(result.check.__luminousSpecialTraitsApplied || []);
-      legacy.forEach((entry) => {
-        const marker = markers[entry.marker];
-        if (applied.has(entry.marker) || (marker && result.check[marker])) return;
-        result.check.finalPower = (Number(result.check.finalPower || 0) || 0) + entry.amount;
-        if (marker) result.check[marker] = true;
-        applied.add(entry.marker);
-      });
-      result.check.__luminousSpecialTraitsApplied = [...applied];
-    }
+    // The same resolver powers Stats previews and the authorised Coin result.
+    // Dedicated archetype hooks mark bonuses applied before this stage, so
+    // mixed class/race/General Traits cannot double-count them.
+    if (result?.check) global.LuminousSkillTraitBreakdownPatch?.applySpecialCheckBonuses?.(
+      resolveTraits(), character, result.check,
+    );
     return result;
   }
 
