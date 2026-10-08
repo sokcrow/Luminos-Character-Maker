@@ -15,11 +15,13 @@
   const Engine = global.LuminousItemEnchantmentEngine || safeRequire("./item-enchantment-engine.js");
   const Magic = global.LuminousItemMagicRuntime || safeRequire("./item-magic-runtime.js");
   const Workshop = global.LuminousWorkshopRuntime || safeRequire("./workshop-runtime.js");
+  const knowledgeRuntime = () => global.LuminousItemMagicKnowledgeRuntime || safeRequire("./item-magic-knowledge-runtime.js");
+  const compendiumRuntime = () => global.LuminousEnchantmentCompendiumRuntime || safeRequire("./item-enchantment-compendium-runtime.js");
   if (!Enchantments || !Engine || !Magic) {
     throw new Error("Enchantment Catalog, Enchantment Engine and Magic Runtime are required before Enchanter Service Runtime.");
   }
 
-  const VERSION = 3;
+  const VERSION = 4;
   const MAX_REPRODUCIBLE_RANK = 3;
   const SERVICE_IDS = Object.freeze([
     "enchant",
@@ -388,6 +390,7 @@
       return Object.freeze({
         ...clone(allocation),
         suppliedBy:providerSupplied?"provider":"player",
+        materialLabel:String(material?.displayName || material?.name || material?.nombre || (providerSupplied ? "Provider material" : "Player material")).trim(),
         unitValueAhn:unitValue==null?null:roundAhn(unitValue),
         chargedAhn:roundAhn(cost),
       });
@@ -443,6 +446,7 @@
 
     const duration=serviceDuration(profile,rank,definition,options);
     const reliability=effectiveReliability(profile,definition,item,options);
+    const threshold=Engine.ritualThresholdPreview(item,definition,rank,{...options,properties,gem:options.gem || null});
     const total=roundAhn(labor.laborAhn+materials.providerMaterialsAhn);
 
     return Object.freeze({
@@ -457,6 +461,7 @@
       materials,
       duration,
       reliability,
+      threshold,
       totalAhn:total,
       normalShopRetailMarkupApplied:false,
     });
@@ -561,6 +566,106 @@
   }
 
 
+
+
+  function safeEffectPreview(definitionOrId,rank) {
+    const definition=typeof definitionOrId==="string"?Enchantments.get(definitionOrId):definitionOrId;
+    const rankData=Enchantments.resolveRank(definition,rank);
+    return Object.freeze(asArray(rankData?.effects).map((effect)=>{
+      const type=normalizeId(effect.type);
+      const value=Number(effect.value);
+      if (type==="damage_percent") return `Damage +${Number.isFinite(value)?value:0}%${effect.damageType?` (${String(effect.damageType)})`:""}`;
+      if (type==="secondary_damage_percent") return `Secondary Damage +${Number.isFinite(value)?value:0}%`;
+      if (type==="magic_hit") return "Magic Hit";
+      if (type==="resistance_percent") return `Resistance +${Number.isFinite(value)?value:0}%`;
+      if (type==="status_resistance_percent") return `Status Resistance +${Number.isFinite(value)?value:0}%`;
+      if (type==="max_hp_percent") return `Max HP +${Number.isFinite(value)?value:0}%`;
+      if (type==="max_sp_percent") return `Max SP +${Number.isFinite(value)?value:0}%`;
+      if (type==="speed_percent") return `Speed +${Number.isFinite(value)?value:0}%`;
+      if (type==="initiative_flat") return `Initiative +${Number.isFinite(value)?value:0}`;
+      if (type==="spell_grant") return "Grants an Item-bound Spell";
+      if (type==="passive_flag") return "Passive magical property";
+      return "Magical property";
+    }));
+  }
+
+  function playerServicePreview(viewer={},provider={},item={},quote={},options={}) {
+    if (!quote?.quoted) return Object.freeze({available:false,reason:"invalid_quote"});
+    const knowledge=knowledgeRuntime();
+    const compendium=compendiumRuntime();
+    const definition=quote.definitionId?Enchantments.get(quote.definitionId):null;
+    const rank=Number(quote.rank ?? quote.targetRank ?? 0) || 0;
+    const passive=knowledge?.passiveArcana ? knowledge.passiveArcana(viewer) : 0;
+    const thresholdValue=Number(quote.threshold?.finalThreshold ?? quote.threshold?.threshold ?? NaN);
+    const recipeKnown=Boolean(definition && compendium?.knowsRecipe?.(viewer,definition.id,rank));
+    const itemKnowledge=knowledge?.knowledgeOf ? knowledge.knowledgeOf(viewer,item) : {};
+    const basicDifficultyVisible=passive>=10 || recipeKnown;
+    const deepVisible=recipeKnown || itemKnowledge?.effectsKnown===true || (Number.isFinite(thresholdValue) && passive>=thresholdValue);
+    const runes=(label)=>knowledge?.arcaneRunes
+      ? knowledge.arcaneRunes(label,`service:${quote.service}:${definition?.id || "general"}:${rank || 0}`)
+      : "ᚠᚢᚦᚨᚱᚲ";
+
+    let difficulty=null;
+    if (Number.isFinite(thresholdValue)) {
+      difficulty=deepVisible
+        ? Object.freeze({known:true,label:knowledge?.difficultyLabel?.(thresholdValue) || "Arcane",threshold:thresholdValue,text:`${knowledge?.difficultyLabel?.(thresholdValue) || "Arcane"} · TH ${thresholdValue}`})
+        : basicDifficultyVisible
+          ? Object.freeze({known:false,label:knowledge?.difficultyLabel?.(thresholdValue) || "Arcane",threshold:null,text:knowledge?.difficultyLabel?.(thresholdValue) || "Arcane"})
+          : Object.freeze({known:false,label:null,threshold:null,text:runes("Service difficulty")});
+    }
+
+    const probability=quote.reliability?.resolved===true ? Number(quote.reliability.probability) : null;
+    const probabilityView=probability==null
+      ? null
+      : deepVisible
+        ? Object.freeze({known:true,value:probability,percent:Math.round(probability*100),text:`${Math.round(probability*100)}%`})
+        : Object.freeze({known:false,value:null,percent:null,text:runes("Controlled result probability")});
+
+    const materials=deepVisible || recipeKnown
+      ? Object.freeze(asArray(quote.materials?.allocations).map((entry)=>Object.freeze({
+          label:String(entry.materialLabel || (entry.suppliedBy==="provider"?"Provider material":"Player material")),
+          quantity:Number(entry.quantity)||0,
+          suppliedBy:entry.suppliedBy==="provider"?"Provider":"Player",
+        })))
+      : Object.freeze([{label:runes("Ritual materials"),quantity:null,suppliedBy:null}]);
+
+    const effects=definition && (deepVisible || recipeKnown)
+      ? safeEffectPreview(definition,rank)
+      : definition
+        ? Object.freeze([runes("Enchantment effects")])
+        : Object.freeze([]);
+
+    let projectedMagicalDurability=null;
+    if (deepVisible && definition && ["enchant","bind","curse","mount_gem"].includes(normalizeId(quote.service))) {
+      const refs=Engine.appliedEnchantments(item);
+      const candidate={
+        definitionId:definition.id,
+        rank,
+        source:quote.gem?"gem":"direct",
+        properties:quote.properties || [],
+        anchorId:quote.gem?"preview_anchor":null,
+      };
+      projectedMagicalDurability=Engine.inferredMagicalDurabilityMax(item,[...refs,candidate]);
+    }
+
+    return Object.freeze({
+      available:true,
+      serviceLabel:SERVICE_LABELS[quote.service] || String(quote.service || "Service"),
+      enchantmentName:definition?.name || null,
+      rank:deepVisible || recipeKnown ? rank || null : null,
+      rankText:rank ? (deepVisible || recipeKnown ? String(["","I","II","III"][rank] || rank) : runes("Rank")) : null,
+      priceAhn:Number(quote.totalAhn)||0,
+      duration:quote.duration?.resolved ? quote.duration : null,
+      difficulty,
+      controlledResult:probabilityView,
+      materials,
+      effects,
+      projectedMagicalDurability,
+      recipeKnown,
+      arcanaPassive:passive,
+      internalIdsExposed:false,
+    });
+  }
 
   function rollD20(options={}) {
     if (Number.isFinite(Number(options.roll))) return clamp(Math.trunc(Number(options.roll)),1,20);
@@ -988,6 +1093,8 @@
     resolvePlayerControlCheck,
     attemptPlayerEnchant,
     attemptPlayerStrengthen,
+    safeEffectPreview,
+    playerServicePreview,
     quoteGemProcedure,
     beginService,
     serviceReady,
