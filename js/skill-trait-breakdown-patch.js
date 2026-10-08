@@ -505,8 +505,7 @@
       if (Object.prototype.hasOwnProperty.call(target.dataset, "resolvedCheckPower")) delete target.dataset.resolvedCheckPower;
       state.pendingCheckResolution = null;
       const standard = global.LuminousTraitStandardizationRuntime;
-      const hasPostCoinBridge = typeof standard?.armPlayerCheck === "function";
-      if (hasPostCoinBridge) standard.armPlayerCheck(resolvedCheck);
+      const hasPostCoinBridge = Boolean(standard?.armPlayerCheck?.(resolvedCheck));
       // Never add finalPower here if it is already applied after the coins.
       // If the async bridge is not ready, add it as a one-time fallback.
       const fallbackFinalPower = hasPostCoinBridge ? 0 : finalPowerValue(resolvedCheck);
