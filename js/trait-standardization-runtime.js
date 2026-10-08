@@ -941,6 +941,13 @@
     return true;
   }
 
+  // Self-initiated rolls need the same post-coin Check pipeline as DM checks.
+  // Do not arm TheatreRolls here: that would schedule an unrelated DM request.
+  function armPlayerCheck(check = {}) {
+    state.activeCheck = { ...(check || {}) };
+    return { ...state.activeCheck };
+  }
+
   function applyCheckRetosses(result, options, check) {
     const playerRuntime = global.LuminousPlayerTraitRuntime;
     const coinEngine = state.coinEngineSource || global.LuminousCoinEngine;
@@ -1165,6 +1172,7 @@
     skillCheckBonus,
     resolveTraitRuntimeResolutions,
     applyCheckFinalPower,
+    armPlayerCheck,
     completedCheckDetail,
     emitCompletedCheck,
     equipmentLevelModifier,
