@@ -16,7 +16,7 @@
   if (!Catalog) throw new Error("LuminousEnchantmentCatalog is required before LuminousItemEnchantmentEngine.");
   if (!Gems) throw new Error("LuminousOreIngotGemCatalog is required before LuminousItemEnchantmentEngine.");
 
-  const VERSION = 9;
+  const VERSION = 10;
   const TIER_BASE_SLOT_CAPACITY = Object.freeze({ 1: 0, 2: 1, 3: 1, 4: 2, 5: 3 });
   const BIND_POSITIVE_MULTIPLIER = 1.25;
   const CURSE_POSITIVE_MULTIPLIER = 1.50;
@@ -76,18 +76,24 @@
   }
 
   function baseSlotCapacity(itemOrTier) {
-    if (itemOrTier && typeof itemOrTier === "object") {
-      const explicit = itemOrTier.enchantmentSlotCapacity ??
-        itemOrTier.enchantmentSlotsMax ??
-        itemOrTier.magic?.enchantmentSlots?.max ??
-        itemOrTier.equipment?.enchantmentSlotCapacity ??
-        itemOrTier.equipment?.enchantmentSlotsMax;
-      if (Number.isFinite(Number(explicit))) return Math.max(0, Math.min(3, Math.trunc(Number(explicit))));
-    }
+    const item = itemOrTier && typeof itemOrTier === "object" ? itemOrTier : null;
     const tier = typeof itemOrTier === "number" || typeof itemOrTier === "string"
       ? tierOf({ tier:itemOrTier })
-      : tierOf(itemOrTier || {});
-    return tier == null ? null : TIER_BASE_SLOT_CAPACITY[tier];
+      : tierOf(item || {});
+    if (tier == null) return null;
+    const tierCap = TIER_BASE_SLOT_CAPACITY[tier];
+    if (!item) return tierCap;
+    const kind = itemKindOf(item);
+    const familyCap = ITEM_KIND_SLOT_CAPACITY_LIMIT[kind] ?? 0;
+    const explicit = item.enchantmentSlotCapacity ??
+      item.enchantmentSlotsMax ??
+      item.enchantmentRules?.slotCapacity ??
+      item.equipment?.enchantmentSlotCapacity ??
+      item.equipment?.enchantmentSlotsMax;
+    if (Number.isFinite(Number(explicit))) {
+      return Math.max(0, Math.min(tierCap, familyCap, Math.trunc(Number(explicit))));
+    }
+    return Math.max(0, Math.min(tierCap, familyCap));
   }
 
   function magicStateOf(item = {}) {
@@ -623,6 +629,39 @@
 
 
 
+
+
+  function replaceEnchantment(item = {}, currentDefinitionId, nextDefinitionOrId, rank = 1, options = {}) {
+    const removal = canRemoveEnchantment(item,currentDefinitionId);
+    if (!removal.allowed) return Object.freeze({replaced:false,reason:removal.reason,item:clone(item)});
+    if (removal.definition?.replaceable === false) return Object.freeze({replaced:false,reason:"enchantment_not_replaceable",item:clone(item)});
+    const nextDefinition = typeof nextDefinitionOrId === "string" ? Catalog.get(nextDefinitionOrId) : clone(nextDefinitionOrId);
+    if (!nextDefinition) return Object.freeze({replaced:false,reason:"unknown_enchantment",item:clone(item)});
+
+    const refs=appliedEnchantments(item);
+    refs.splice(removal.index,1);
+    const interim=withMagicState(item,refs,gemAnchors(item));
+    const gate=validateApplication(interim,nextDefinition,rank,options);
+    if (!gate.allowed) return Object.freeze({replaced:false,reason:gate.reason,validation:gate.validation,item:clone(item)});
+
+    refs.push(gate.reference);
+    let out=withMagicState(item,refs,gate.candidateAnchors || gemAnchors(item),options);
+    out=appendEnchantmentHistory(out,historyEntry("replace",gate.reference,{
+      actorId:options.appliedBy || options.actorId,
+      timestamp:options.appliedAt,
+      context:{
+        ...(options.provenance || options.context || {}),
+        replacedDefinitionId:removal.reference.definitionId,
+      },
+    }));
+    return Object.freeze({
+      replaced:true,
+      item:Object.freeze(out),
+      removedReference:removal.reference,
+      reference:gate.reference,
+      recoveredMaterials:Object.freeze([]),
+    });
+  }
 
   function addEnchantmentProperty(item = {}, definitionId, property, options = {}) {
     const refs = appliedEnchantments(item).map(normalizeAppliedReference);
@@ -1567,6 +1606,27 @@
     return Object.freeze(results);
   }
 
+
+  function enchantmentValueContribution(item = {}) {
+    let flat=0;
+    let multiplier=1;
+    const details=[];
+    for(const entry of resolvedEnchantments(item,{includeDormant:true,magicActive:true})) {
+      const rankData=entry.rankData || entry.definition?.rankData?.[entry.reference.rank] || Catalog.resolveRank?.(entry.definition,entry.reference.rank);
+      const valueAhn=Number(rankData?.valueContributionAhn);
+      const valueMultiplier=Number(rankData?.valueMultiplier);
+      if (Number.isFinite(valueAhn) && valueAhn>0) flat+=valueAhn;
+      if (Number.isFinite(valueMultiplier) && valueMultiplier>=0) multiplier*=valueMultiplier;
+      details.push(Object.freeze({
+        definitionId:entry.definition.id,
+        rank:entry.reference.rank,
+        valueContributionAhn:Number.isFinite(valueAhn)?Math.max(0,valueAhn):null,
+        valueMultiplier:Number.isFinite(valueMultiplier)?Math.max(0,valueMultiplier):null,
+      }));
+    }
+    return Object.freeze({flatAhn:Math.round(flat),multiplier,details:Object.freeze(details)});
+  }
+
   function actionChannels(item = {}, context = {}) {
     const groups = new Map();
     for (const entry of resolvedEnchantments(item, { trigger:context.trigger, magicActive:context.magicActive })) {
@@ -1618,6 +1678,14 @@
       }
     }
 
+    effects.sort((a,b) => {
+      const ao=Number.isFinite(Number(a.order)) ? Number(a.order) : 0;
+      const bo=Number.isFinite(Number(b.order)) ? Number(b.order) : 0;
+      if (ao!==bo) return ao-bo;
+      const sourceCmp=String(a.sourceEnchantmentId || "").localeCompare(String(b.sourceEnchantmentId || ""));
+      if (sourceCmp) return sourceCmp;
+      return String(a.type || "").localeCompare(String(b.type || ""));
+    });
     return Object.freeze({
       resolved:unresolvedChannels.length === 0,
       unresolvedChannels:Object.freeze(unresolvedChannels),
@@ -1628,6 +1696,7 @@
   const API = Object.freeze({
     VERSION,
     TIER_BASE_SLOT_CAPACITY,
+    ITEM_KIND_SLOT_CAPACITY_LIMIT,
     BIND_POSITIVE_MULTIPLIER,
     CURSE_POSITIVE_MULTIPLIER,
     SUPPORTED_APPLICATION_SOURCES,
@@ -1678,6 +1747,7 @@
     strengthenEnchantment,
     canRemoveEnchantment,
     removeEnchantment,
+    replaceEnchantment,
     addEnchantmentProperty,
     validateGemAnchorApplication,
     catastrophicFourthGem,
@@ -1714,6 +1784,7 @@
     effectTriggerMatches,
     positiveEffectMultiplier,
     resolvedEnchantments,
+    enchantmentValueContribution,
     actionChannels,
     resolveEffectsForAction,
   });
