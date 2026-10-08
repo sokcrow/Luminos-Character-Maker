@@ -9,8 +9,8 @@ const Catalog = globalThis.LuminousEnchantmentCatalog;
 const Engine = globalThis.LuminousItemEnchantmentEngine;
 
 assert.ok(Catalog && Engine);
-assert.strictEqual(Catalog.VERSION, 2);
-assert.strictEqual(Engine.VERSION, 3);
+assert.strictEqual(Catalog.VERSION, 3);
+assert.strictEqual(Engine.VERSION, 4);
 
 assert.deepStrictEqual(Catalog.SUPPORTED_RANKS, [1,2,3]);
 assert.deepStrictEqual(Catalog.BASE_SLOT_COST_BY_RANK, {1:1,2:2,3:3});
