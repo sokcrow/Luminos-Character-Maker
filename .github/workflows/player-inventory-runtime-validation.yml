@@ -59,6 +59,8 @@ on:
       - js/item-catalog-essence-core.js
       - js/item-catalog-plant-produce.js
       - js/item-catalog-ore-ingot-gem.js
+      - js/item-catalog-enchantments.js
+      - js/item-enchantment-engine.js
       - js/item-catalog-tools.js
       - js/item-catalog-craft-components.js
       - js/item-catalog-weapons.js
@@ -105,6 +107,7 @@ on:
       - tests/item-catalog-essence-core-smoke.cjs
       - tests/item-catalog-plant-produce-smoke.cjs
       - tests/item-catalog-ore-ingot-gem-smoke.cjs
+      - tests/item-enchantment-engine-smoke.cjs
       - tests/item-catalog-tools-smoke.cjs
       - tests/item-catalog-craft-components-smoke.cjs
       - tests/item-catalog-weapons-smoke.cjs
@@ -184,6 +187,8 @@ jobs:
           node --check js/item-catalog-essence-core.js
           node --check js/item-catalog-plant-produce.js
           node --check js/item-catalog-ore-ingot-gem.js
+          node --check js/item-catalog-enchantments.js
+          node --check js/item-enchantment-engine.js
           node --check js/item-catalog-tools.js
           node --check js/item-catalog-craft-components.js
           node --check js/item-catalog-weapons.js
@@ -266,6 +271,8 @@ jobs:
         run: node tests/item-catalog-plant-produce-smoke.cjs
       - name: Ore ingot gem catalog smoke
         run: node tests/item-catalog-ore-ingot-gem-smoke.cjs
+      - name: Enchantment core engine smoke
+        run: node tests/item-enchantment-engine-smoke.cjs
       - name: Tool catalog smoke
         run: node tests/item-catalog-tools-smoke.cjs
       - name: Craft component catalog smoke
