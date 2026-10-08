@@ -8,6 +8,10 @@ on:
       - "js/player-stats-ability-bar.js"
       - "js/skill-trait-breakdown-patch.js"
       - "js/trait-engine.js"
+      - "js/trait-standardization-runtime.js"
+      - "js/rogue-class-runtime.js"
+      - "pantalla_dm.html"
+      - "tests/trait-final-power-unification-smoke.mjs"
       - "js/derived-stats-engine.js"
       - "hoja_personaje.html"
       - "tests/trait-check-power-smoke.mjs"
@@ -20,6 +24,10 @@ on:
       - "js/player-stats-ability-bar.js"
       - "js/skill-trait-breakdown-patch.js"
       - "js/trait-engine.js"
+      - "js/trait-standardization-runtime.js"
+      - "js/rogue-class-runtime.js"
+      - "pantalla_dm.html"
+      - "tests/trait-final-power-unification-smoke.mjs"
       - "js/derived-stats-engine.js"
       - "hoja_personaje.html"
       - "tests/trait-check-power-smoke.mjs"
@@ -39,3 +47,10 @@ jobs:
       - run: node --check js/derived-stats-engine.js
       - run: node --check js/skill-trait-breakdown-patch.js
       - run: node tests/trait-check-power-smoke.mjs
+      - run: node --check js/trait-standardization-runtime.js
+      - run: node --check js/rogue-class-runtime.js
+      - run: node tests/trait-final-power-unification-smoke.mjs
+      - run: node tests/rogue-class-runtime-smoke.mjs
+      - run: node tests/champion-archetype-runtime-smoke.mjs
+      - run: node tests/banneret-archetype-runtime-smoke.mjs
+      - run: node tests/bladesinger-archetype-runtime-smoke.mjs
