@@ -15,7 +15,7 @@
   const intOr = (value, fallback = 0) => Number.isFinite(Number(value)) ? Math.trunc(Number(value)) : fallback;
   const normalizeId = (value) => String(value ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
   const asArray = (value) => value == null ? [] : (Array.isArray(value) ? value : [value]);
-  const VERSION = 3;
+  const VERSION = 4;
   const DEFAULT_ATTUNEMENT_CAPACITY = 3;
 
   function itemRuntimeFor(method) {
@@ -437,9 +437,82 @@
     };
   }
 
+
+  function sameItemReference(a = {}, b = {}) {
+    const aid=String(a?.instanceId || a?.id || "");
+    const bid=String(b?.instanceId || b?.id || "");
+    return Boolean(a && b && (a===b || (aid && bid && aid===bid)));
+  }
+
+  function itemEquippedBy(user = {}, item = {}) {
+    if (!item) return false;
+    if (item.equipped === true) return true;
+    const equipment=user?.equipment || {};
+    const candidates=[
+      equipment.mainHand,equipment.offHand,equipment.armor,equipment.shield,
+      ...asArray(equipment.accessories),
+    ];
+    return candidates.some((entry)=>sameItemReference(entry,item));
+  }
+
+  function actorCanEmitMagic(user = {}) {
+    if (!user || typeof user!=="object") return true;
+    if (user.dead === true || user.defeated === true || user.isDead === true || user.isDefeated === true) return false;
+    if (Number.isFinite(Number(user.hp)) && Number(user.hp)<=0) return false;
+    return true;
+  }
+
+  function stackedNumericValue(effects = []) {
+    let additive=0;
+    let highest=null;
+    let multiplier=1;
+    for(const effect of asArray(effects)){
+      const value=Number(effect?.value);
+      if (!Number.isFinite(value)) continue;
+      const stacking=normalizeId(effect?.stacking || "additive") || "additive";
+      if (stacking==="highest") highest=highest==null?value:Math.max(highest,value);
+      else if (stacking==="multiplicative") multiplier*=1+(value/100);
+      else additive+=value;
+    }
+    const multiplicativePercent=(multiplier-1)*100;
+    return additive+(highest==null?0:highest)+multiplicativePercent;
+  }
+
+  function aggregateEffectValues(effects = []) {
+    const groups=new Map();
+    for(const effect of asArray(effects)){
+      const type=normalizeId(effect?.type);
+      const stat=normalizeId(effect?.stat || "");
+      const damageType=normalizeId(effect?.damageType || "");
+      if (!type) continue;
+      const key=[type,stat,damageType].join(":");
+      if (!groups.has(key)) groups.set(key,[]);
+      groups.get(key).push(effect);
+    }
+    const out={};
+    for(const [key,entries] of groups.entries()) out[key]=stackedNumericValue(entries);
+    return Object.freeze(out);
+  }
+
+  function equippedMagicItems(user = {}) {
+    const equipment=user?.equipment || {};
+    const raw=[equipment.mainHand,equipment.offHand,equipment.armor,equipment.shield,...asArray(equipment.accessories)].filter(Boolean);
+    const seen=new Set();
+    const out=[];
+    for(const item of raw){
+      const key=String(item?.instanceId || item?.id || "");
+      if (key && seen.has(key)) continue;
+      if (key) seen.add(key);
+      if (isMagicItem(item)) out.push(item);
+    }
+    return Object.freeze(out);
+  }
+
   function enchantmentEffectResolution(user, item, context = {}) {
     const engine = enchantmentEngine();
     if (!engine?.resolveEffectsForAction) return { resolved:false, reason:"enchantment_engine_unavailable", effects:[] };
+    if (context.requireLivingActor===true && !actorCanEmitMagic(user)) return {resolved:false,reason:"actor_cannot_emit_magic",effects:[],suppressed:true};
+    if (context.requireEquipped===true && !itemEquippedBy(user,item)) return {resolved:false,reason:"item_not_equipped",effects:[],suppressed:true};
     const active = itemBenefitsActive(user, item, { specialUse:context.specialUse === true });
     if (!active.active) return { resolved:false, reason:active.reason, effects:[], suppressed:true };
     const result = engine.resolveEffectsForAction(item, {
@@ -453,20 +526,107 @@
   function enchantmentCombatSummary(user, item, context = {}) {
     const resolution = enchantmentEffectResolution(user, item, context);
     const effects = asArray(resolution.effects);
-    const damagePercent = effects
-      .filter((effect) => normalizeId(effect.type) === "damage_percent")
-      .reduce((sum,effect)=>sum + (Number(effect.value) || 0),0);
-    const secondaryDamagePercent = effects
-      .filter((effect) => normalizeId(effect.type) === "secondary_damage_percent")
-      .reduce((sum,effect)=>sum + (Number(effect.value) || 0),0);
+    const damagePercent = stackedNumericValue(effects.filter((effect)=>normalizeId(effect.type)==="damage_percent"));
+    const secondaryDamagePercent = stackedNumericValue(effects.filter((effect)=>normalizeId(effect.type)==="secondary_damage_percent"));
+    const damageFlat = stackedNumericValue(effects.filter((effect)=>normalizeId(effect.type)==="damage_flat"));
     const magicHit = effects.some((effect) => normalizeId(effect.type) === "magic_hit" && effect.value !== false);
     return {
       ...resolution,
+      damageFlat,
       damagePercent,
       secondaryDamagePercent,
       totalDamagePercent:damagePercent + secondaryDamagePercent,
       magicHit,
+      aggregated:Object.freeze(aggregateEffectValues(effects)),
     };
+  }
+
+
+  function activationResourcePlan(resolution = {}) {
+    const bySource=new Map();
+    for(const effect of asArray(resolution?.effects)){
+      const source=String(effect.sourceEnchantmentId || "item");
+      if(!bySource.has(source)) bySource.set(source,{charges:0,magicalDurability:0,sp:0});
+      const row=bySource.get(source);
+      const resource=normalizeId(effect.resource || "");
+      const chargeCost=Math.max(0,Number(effect.chargeCost)||0);
+      const mdCost=Math.max(0,Number(effect.magicalDurabilityCost ?? (resource==="magical_durability"?chargeCost:0))||0);
+      const spCost=Math.max(0,Number(effect.spCost)||0);
+      row.charges=Math.max(row.charges,resource==="charges"?chargeCost:0);
+      row.magicalDurability=Math.max(row.magicalDurability,mdCost);
+      row.sp=Math.max(row.sp,spCost);
+    }
+    const totals=[...bySource.values()].reduce((acc,row)=>({
+      charges:acc.charges+row.charges,
+      magicalDurability:acc.magicalDurability+row.magicalDurability,
+      sp:acc.sp+row.sp,
+    }),{charges:0,magicalDurability:0,sp:0});
+    return Object.freeze({...totals,bySource:Object.freeze([...bySource.entries()].map(([source,cost])=>Object.freeze({source,...cost})))});
+  }
+
+  function canPayActivationResources(user,item,plan={}) {
+    const charges=chargeState(item);
+    const md=magicalDurabilityState(item);
+    if (plan.charges>0 && (charges.current==null || Number(charges.current)<plan.charges)) {
+      return Object.freeze({allowed:false,reason:"insufficient_charges",plan,charges,magicalDurability:md});
+    }
+    if (plan.magicalDurability>0 && (md.current==null || Number(md.current)<plan.magicalDurability)) {
+      return Object.freeze({allowed:false,reason:"insufficient_magical_durability",plan,charges,magicalDurability:md});
+    }
+    if (plan.sp>0 && Math.max(0,Number(user?.sp)||0)<plan.sp) {
+      return Object.freeze({allowed:false,reason:"insufficient_sp",plan,charges,magicalDurability:md});
+    }
+    return Object.freeze({allowed:true,plan,charges,magicalDurability:md});
+  }
+
+  function activateEnchantmentEffects(user,item,context={}) {
+    const resolution=enchantmentEffectResolution(user,item,{...context,specialUse:true});
+    if(!resolution.resolved) return Object.freeze({activated:false,reason:resolution.reason || "effect_resolution_failed",resolution});
+    const plan=activationResourcePlan(resolution);
+    const gate=canPayActivationResources(user,item,plan);
+    if(!gate.allowed) return Object.freeze({activated:false,...gate,resolution});
+
+    const before={
+      chargesCurrent:item.chargesCurrent,
+      charges:item.charges,
+      magicalDurability:clone(magicProfile(item).magicalDurability || null),
+      sp:user?.sp,
+    };
+    let chargeSpend=null;
+    let magicalDurabilitySpend=null;
+    try{
+      if(plan.charges>0){
+        const runtime=itemRuntimeFor("spendCharges");
+        chargeSpend=runtime?.spendCharges?.(item,plan.charges) || {spent:false,reason:"charge_runtime_unavailable"};
+        if(!chargeSpend.spent) throw new Error(chargeSpend.reason || "charge_spend_failed");
+      }
+      if(plan.magicalDurability>0){
+        magicalDurabilitySpend=spendMagicalDurability(item,plan.magicalDurability,{specialUse:true,normalWear:false});
+        if(!magicalDurabilitySpend.spent) throw new Error(magicalDurabilitySpend.reason || "magical_durability_spend_failed");
+      }
+      if(plan.sp>0 && user) user.sp=Math.max(0,Number(user.sp)-plan.sp);
+    }catch(error){
+      if(before.chargesCurrent!==undefined) item.chargesCurrent=before.chargesCurrent;
+      if(before.charges!==undefined) item.charges=before.charges;
+      if(before.magicalDurability){
+        if(!item.magic || typeof item.magic!=="object") item.magic={};
+        item.magic.magicalDurability=clone(before.magicalDurability);
+      }
+      if(user && before.sp!==undefined) user.sp=before.sp;
+      return Object.freeze({activated:false,reason:String(error?.message || error),resolution,plan,rolledBack:true});
+    }
+
+    const result=Object.freeze({
+      activated:true,
+      resolution,
+      effects:resolution.effects,
+      plan,
+      chargeSpend,
+      magicalDurabilitySpend,
+      spSpent:plan.sp,
+    });
+    emit("luminous:enchantment-effects-activated",{user,item,...result});
+    return result;
   }
 
   function spendResolvedEnchantmentWear(item, resolution, options = {}) {
@@ -523,14 +683,33 @@
   }
 
   function passiveEnchantmentModifiers(user, item) {
-    const resolution = enchantmentEffectResolution(user, item, { trigger:"passive" });
+    const resolution = enchantmentEffectResolution(user, item, { trigger:"passive", requireEquipped:true, requireLivingActor:true });
     const modifiers = {};
     for (const effect of asArray(resolution.effects)) {
       const type = normalizeId(effect.type);
-      if (!["resistance_percent","status_resistance_percent","max_hp_percent","max_sp_percent","speed_percent","initiative_flat"].includes(type)) continue;
-      modifiers[type] = (modifiers[type] || 0) + (Number(effect.value) || 0);
+      if (!["item_stat_flat","item_stat_percent","defense_flat","defense_percent","resistance_percent","status_resistance_percent","max_hp_percent","max_sp_percent","speed_percent","initiative_flat"].includes(type)) continue;
+      const key=["item_stat_flat","item_stat_percent"].includes(type)
+        ? `${type}:${normalizeId(effect.stat || "unknown")}`
+        : type;
+      if(!modifiers[key]) modifiers[key]=[];
+      modifiers[key].push(effect);
     }
-    return { ...resolution, modifiers };
+    const aggregated={};
+    Object.entries(modifiers).forEach(([key,effects])=>{aggregated[key]=stackedNumericValue(effects);});
+    return { ...resolution, modifiers:Object.freeze(aggregated) };
+  }
+
+  function aggregateEquippedPassiveModifiers(user = {}) {
+    const items=equippedMagicItems(user);
+    const modifiers={};
+    const sources=[];
+    for(const item of items){
+      const result=passiveEnchantmentModifiers(user,item);
+      if(!result.resolved) continue;
+      sources.push(Object.freeze({itemInstanceId:String(item.instanceId || item.id || ""),effects:result.effects}));
+      for(const [key,value] of Object.entries(result.modifiers || {})) modifiers[key]=(modifiers[key]||0)+Number(value||0);
+    }
+    return Object.freeze({resolved:true,items,sources:Object.freeze(sources),modifiers:Object.freeze(modifiers)});
   }
 
   function chargeState(item, spellProfile = null) {
@@ -731,12 +910,22 @@
     spellProfiles,
     findSpellProfile,
     resolveItemSpellcasting,
+    sameItemReference,
+    itemEquippedBy,
+    actorCanEmitMagic,
+    stackedNumericValue,
+    aggregateEffectValues,
+    equippedMagicItems,
     enchantmentEffectResolution,
     enchantmentCombatSummary,
+    activationResourcePlan,
+    canPayActivationResources,
+    activateEnchantmentEffects,
     spendResolvedEnchantmentWear,
     nonMagicHitDefenseMultiplier,
     applyNonMagicHitDefense,
     passiveEnchantmentModifiers,
+    aggregateEquippedPassiveModifiers,
     chargeState,
     canActivateSpellFromItem,
     castSpellFromItem,
