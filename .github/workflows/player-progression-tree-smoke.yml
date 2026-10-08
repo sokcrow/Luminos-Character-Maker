@@ -10,6 +10,8 @@ on:
       - 'js/player-progression-choices.js'
       - 'js/archetype-progression-preview-catalog.js'
       - 'js/class-milestone-engine.js'
+      - 'js/milestone-revert-patch.js'
+      - 'js/dm-player-class-milestones.js'
       - 'js/fighter-maneuver-catalog.js'
       - 'css/player-progression-mystic.css'
       - 'tests/player-progression-choices-smoke.mjs'
@@ -47,6 +49,8 @@ on:
       - 'js/player-progression-choices.js'
       - 'js/archetype-progression-preview-catalog.js'
       - 'js/class-milestone-engine.js'
+      - 'js/milestone-revert-patch.js'
+      - 'js/dm-player-class-milestones.js'
       - 'js/fighter-maneuver-catalog.js'
       - 'css/player-progression-mystic.css'
       - 'tests/player-progression-choices-smoke.mjs'
@@ -90,6 +94,8 @@ jobs:
           node --check js/player-progression-choices.js
           node --check js/archetype-progression-preview-catalog.js
           node --check js/class-milestone-engine.js
+          node --check js/milestone-revert-patch.js
+          node --check js/dm-player-class-milestones.js
           node --check js/fighter-maneuver-catalog.js
           node --check js/player-skills-hud.js
           node --check js/player-progression-level-allocation.js
