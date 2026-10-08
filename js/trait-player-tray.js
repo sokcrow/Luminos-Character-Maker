@@ -1106,6 +1106,16 @@
       }
       panel.appendChild(hero);
 
+      if (profile.rule?.retired) {
+        const retired = createElement("section", "player-background-feature player-background-retired");
+        retired.append(
+          createElement("span", "player-background-eyebrow", "TRASFONDO ARCHIVADO"),
+          createElement("h3", "player-background-feature__title", "Este origen ya no está disponible para personajes nuevos"),
+          createElement("p", "player-background-feature__description", "Tu personaje conserva su trasfondo y HP Coef. El DM puede elegir un trasfondo vigente para reemplazarlo. Este origen no tiene Trait narrativo asignado."),
+        );
+        panel.appendChild(retired);
+      }
+
       if (profile.narrative?.feature?.name) {
         const feature = createElement("section", "player-background-feature");
         feature.append(
@@ -1156,14 +1166,18 @@
         panel.appendChild(psychology);
       }
 
-      const openTrait = createElement("button", "player-background-trait-link", "VER TRAIT DE BACKGROUND →");
-      openTrait.type = "button";
-      openTrait.addEventListener("click", () => {
-        this.filter = "background";
-        this.render();
-        this.setStatsView("traits");
-      });
-      panel.appendChild(openTrait);
+      const hasBackgroundTrait = Boolean(this.renderNarrativeBackgroundTrait(profile))
+        || this.normalizedTraits().some((trait) => sourceCategory(trait) === "background");
+      if (hasBackgroundTrait) {
+        const openTrait = createElement("button", "player-background-trait-link", "VER TRAIT DE BACKGROUND →");
+        openTrait.type = "button";
+        openTrait.addEventListener("click", () => {
+          this.filter = "background";
+          this.render();
+          this.setStatsView("traits");
+        });
+        panel.appendChild(openTrait);
+      }
     }
 
     renderNarrativeBackgroundTrait(profile) {
@@ -1347,7 +1361,7 @@
       const actions = this.actionMap();
       const filters = createElement("nav", "player-trait-filters");
       filters.setAttribute("aria-label", "Filter Traits by source");
-      this.renderFilterBar(filters, traits, hasNarrativeTrait, Boolean(profile.id));
+      this.renderFilterBar(filters, traits, hasNarrativeTrait, hasGrantedBackgroundTrait || hasNarrativeTrait);
 
       const list = createElement("div", "luminous-trait-tray__list player-trait-card-list");
       const visible = filterTraits(traits, this.filter);
