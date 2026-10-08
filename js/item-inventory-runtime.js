@@ -308,8 +308,9 @@
   }
 
   function activeSlotLimit(unit = {}) {
-    // Older character records may retain the former 20-slot setting. Preserve larger bonuses, but guarantee 24 active slots.
-    return Math.max(DEFAULT_ACTIVE_SLOT_LIMIT, intOr(unit.activeSlotLimit ?? unit.inventoryRules?.activeSlotLimit, DEFAULT_ACTIVE_SLOT_LIMIT));
+    // Migrate only the former 20-slot default. Explicit DM limits (including 0) and larger bonuses keep their meaning.
+    const configured = intOr(unit.activeSlotLimit ?? unit.inventoryRules?.activeSlotLimit, DEFAULT_ACTIVE_SLOT_LIMIT);
+    return Math.max(0, configured === 20 ? DEFAULT_ACTIVE_SLOT_LIMIT : configured);
   }
 
   function stashSlotLimit(unit = {}) {
