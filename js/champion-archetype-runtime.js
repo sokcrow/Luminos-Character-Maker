@@ -321,7 +321,7 @@
     const originalArmCheck = source.armCheck.bind(source);
     global.LuminousTheatreRolls = Object.freeze({
       ...source, __championArchetypeIntegrated: true,
-      armCheck(check = {}) { return originalArmCheck(applyRemarkableAthleteCheck(check, currentCharacter())); },
+      armCheck(check = {}) { return originalArmCheck(global.LuminousPlayerTraitRuntime?.resolveTheatreCheck ? check : applyRemarkableAthleteCheck(check, currentCharacter())); },
     });
     return true;
   }
