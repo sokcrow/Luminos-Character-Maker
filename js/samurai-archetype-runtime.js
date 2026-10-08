@@ -488,7 +488,7 @@
     const originalArmCheck = source.armCheck.bind(source);
     global.LuminousTheatreRolls = Object.freeze({
       ...source, __samuraiArchetypeIntegrated: true,
-      armCheck(check = {}) { return originalArmCheck(applyElegantCourtierCheck(check, currentCharacter())); },
+      armCheck(check = {}) { return originalArmCheck(global.LuminousPlayerTraitRuntime?.resolveTheatreCheck ? check : applyElegantCourtierCheck(check, currentCharacter())); },
     });
     return true;
   }
