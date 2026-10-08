@@ -90,14 +90,6 @@
       .filter(entry => entry.id && !selected.has(entry.id))
       .sort((a,b)=>a.name.localeCompare(b.name,"es"));
   };
-  const readTransaction = async (playerRef, updater) => {
-    if (typeof playerRef.transaction !== "function") {
-      throw new Error("Tu sesión no permite guardar elecciones de forma segura.");
-    }
-    const result = await playerRef.transaction(updater);
-    if (!result?.committed) throw new Error(updater.reason || "La elección no pudo guardarse.");
-    return result.snapshot?.val?.() || null;
-  };
   const updateLocal = (character, saved) => {
     if (character && saved && typeof saved === "object") Object.assign(character,saved);
   };
@@ -243,6 +235,7 @@
         if (!result?.committed) throw new Error(abortReason);
         updateLocal(character,result.snapshot?.val?.());
         say(notice,"Mejora guardada.","success");
+        global.LuminousPlayerTraitRuntime?.refresh?.();
         onSaved?.();
       } catch (error) {
         say(notice,error?.message || abortReason);
@@ -266,6 +259,7 @@
     const runtime = global.LuminousBattleMasterArchetypeRuntime;
     if (runtime?.maneuverCapacity) return Math.max(base,Number(runtime.maneuverCapacity(character))||base);
     const extra = character?.superiorTechnique === true || character?.characterBuild?.superiorTechnique === true ||
+      (api()?.selectedGeneralTraitIds?.(character) || []).includes("superior_technique") ||
       [character.traits,character.traitDefinitions,character.characterBuild?.traits].some(list=>
         Array.isArray(list)&&list.some(entry=>id(typeof entry==="string"?entry:entry?.id||entry?.name)==="superior_technique"));
     return base + (extra?1:0);
@@ -351,7 +345,8 @@
             abortReason="La selección contiene una maniobra desconocida.";return;
           }
           current.characterBuild = current.characterBuild && typeof current.characterBuild==="object" ? current.characterBuild : {};
-          current.characterBuild.maneuvers = current.characterBuild.maneuvers && typeof current.characterBuild.maneuvers==="object"
+          current.characterBuild.maneuvers = current.characterBuild.maneuvers
+            && typeof current.characterBuild.maneuvers==="object" && !Array.isArray(current.characterBuild.maneuvers)
             ? current.characterBuild.maneuvers : {};
           current.characterBuild.maneuvers.battle_master=proposed;
           return current;
