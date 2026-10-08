@@ -149,7 +149,7 @@
     const resolver = global.LuminousCheckTraitBonusRuntime;
     const contributions = checkPowerContributions(engine, traits, character, check);
     const finalPower = finalPowerContributions(engine, traits, character, check);
-    const resolved = resolver?.resolveCheck?.(engine, traits, character, check);
+    const resolved = resolver?.previewCheck?.(engine, traits, character, check);
     const declaredFinal = finalPower.reduce((sum, entry) => sum + entry.amount, 0);
     const resolvedFinal = resolved ? numberOr(resolved.check.finalPower, 0) : declaredFinal;
     const extraFinal = resolvedFinal - declaredFinal;
@@ -261,7 +261,7 @@
         const check = { kind: "skill", abilityId: ability.id, skillId: skill.id };
         const contributions = checkPowerContributions(engine, traits, character, check);
         const finalPower = finalPowerContributions(engine, traits, character, check);
-        const preview = global.LuminousCheckTraitBonusRuntime?.resolveCheck?.(engine, traits, character, check);
+        const preview = global.LuminousCheckTraitBonusRuntime?.previewCheck?.(engine, traits, character, check);
         const declaredFinal = finalPower.reduce((sum, entry) => sum + entry.amount, 0);
         const effectiveFinal = preview ? numberOr(preview.check.finalPower, 0) : declaredFinal;
         const specials = preview?.specialContributions || [];
@@ -352,7 +352,7 @@
       const engine = global.LuminousTraitEngine;
       const traits = global.LuminousPlayerTraitRuntime?.getTraits?.() || [];
       const character = global.LuminousPlayerTraitRuntime?.getCharacter?.() || data;
-      const preview = !hasResolved ? resolver?.resolveCheck?.(engine, traits, character, descriptor.check) : null;
+      const preview = !hasResolved ? resolver?.previewCheck?.(engine, traits, character, descriptor.check) : null;
       const previewPower = hasResolved ? resolvedPower
         : preview ? checkPowerValue(preview.check) + finalPowerValue(preview.check)
           : playerCheckPower(descriptor.check, data).total;
