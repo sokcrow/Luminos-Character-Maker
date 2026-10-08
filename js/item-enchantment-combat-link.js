@@ -66,12 +66,17 @@
   }
   function bindTrustedSkill(unit, skillInput = {}, requestedInstanceId = null) {
     const skill = clone(skillInput);
-    const supplied = clean(requestedInstanceId || skill.sourceItemInstanceId || skill.weaponInstanceId || skill.equipmentInstanceId);
+    const authored = clean(skill.sourceItemInstanceId || skill.weaponInstanceId || skill.equipmentInstanceId);
+    const requested = clean(requestedInstanceId);
+    const supplied = clean(requested || authored);
     delete skill.sourceItemInstanceId;
     delete skill.weaponInstanceId;
     delete skill.equipmentInstanceId;
     // Never turn generic class/spell Skills into weapon Skills merely because a weapon is equipped.
     if (!isWeaponSkill(skill)) return { skill, bound: false, reason: "not_weapon_skill" };
+    if (authored && requested && authored !== requested) {
+      return { skill, bound: false, reason: "weapon_source_conflicts_with_skill" };
+    }
     const weapons = equippedWeapons(unit);
     const slot = normalize(skill.weaponSlot || skill.weapon_slot);
     const requiredDef = clean(skill.weaponDefinitionId || skill.weapon_definition_id);
