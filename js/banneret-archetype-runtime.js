@@ -546,7 +546,7 @@
       ...source,
       __banneretArchetypeIntegrated: true,
       armCheck(check = {}) {
-        return originalArmCheck(applyRoyalEnvoyCheck(check, currentCharacter()));
+        return originalArmCheck(global.LuminousPlayerTraitRuntime?.resolveTheatreCheck ? check : applyRoyalEnvoyCheck(check, currentCharacter()));
       },
     });
     return true;
