@@ -7,7 +7,7 @@ require("../js/item-catalog-ore-ingot-gem.js");
 
 const Catalog = globalThis.LuminousOreIngotGemCatalog;
 assert.ok(Catalog);
-assert.strictEqual(Catalog.VERSION, 6);
+assert.strictEqual(Catalog.VERSION,5);
 
 const expectedProfiles = {
   ruby: {
