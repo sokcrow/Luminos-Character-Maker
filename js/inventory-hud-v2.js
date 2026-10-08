@@ -970,6 +970,7 @@
       itemEquipmentRefs: inv.equipmentRefs || {},
       attunedItemInstanceIds: inv.attunedItemInstanceIds || [],
       itemMagicKnowledge: JSON.parse(JSON.stringify(unit?.itemMagicKnowledge || {})),
+      enchantmentCompendium: JSON.parse(JSON.stringify(unit?.enchantmentCompendium || {})),
       ...vitals.persistencePatch(unit || {}),
     };
     [
