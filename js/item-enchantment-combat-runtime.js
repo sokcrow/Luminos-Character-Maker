@@ -14,7 +14,7 @@
   const Magic = global.LuminousItemMagicRuntime || safeRequire("./item-magic-runtime.js");
   if (!Magic) throw new Error("LuminousItemMagicRuntime is required before LuminousItemEnchantmentCombatRuntime.");
 
-  const VERSION = 1;
+  const VERSION = 2;
   const BRIDGE_FLAG = "__luminousItemEnchantmentCombatBridge";
   const normalizeId = (value) => String(value ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 
@@ -57,11 +57,36 @@
       selectedChannels:selectedChannels(skill, context),
       skill,
       defender,
+      requireEquipped:true,
+      requireLivingActor:true,
     });
+    if (summary.resolved === false) {
+      return {...summary,item,delivery:deliveryType(skill)};
+    }
+    const resourcePlan=Magic.activationResourcePlan?.(summary) || {charges:0,magicalDurability:0,sp:0};
+    const resourceGate=Magic.canPayActivationResources?.(attacker || {},item,resourcePlan) || {allowed:true};
+    if (!resourceGate.allowed) {
+      return {
+        active:false,
+        resolved:false,
+        suppressed:true,
+        reason:resourceGate.reason,
+        effects:[],
+        magicHit:false,
+        damageFlat:0,
+        totalDamagePercent:0,
+        item,
+        delivery:deliveryType(skill),
+        resourcePlan,
+        resourceGate,
+      };
+    }
     return {
       ...summary,
       item,
       delivery:deliveryType(skill),
+      resourcePlan,
+      resourceGate,
     };
   }
 
@@ -71,6 +96,8 @@
     let damage = Math.max(0, Number(baseDamage) || 0);
 
     if (resolution.active && resolution.resolved !== false) {
+      const flat = Number(resolution.damageFlat) || 0;
+      if (flat) damage += flat;
       const percent = Number(resolution.totalDamagePercent) || 0;
       if (percent) damage *= 1 + percent / 100;
     }
@@ -88,6 +115,22 @@
       resolution,
       defense,
     };
+  }
+
+
+  function spendActivationOnce(attacker,item,resolution,skill={},context={}) {
+    if (!item || !resolution?.effects?.length) return {activated:false,reason:"no_enchantment_effects"};
+    if (context && context.__luminousEnchantmentActivationSpent===true) {
+      return {activated:true,skipped:true,reason:"activation_resources_already_spent_for_action"};
+    }
+    const result=Magic.activateEnchantmentEffects?.(attacker || {},item,{
+      trigger:"on_skill",
+      selectedChannels:selectedChannels(skill,context),
+      requireEquipped:true,
+      requireLivingActor:true,
+    }) || {activated:true,skipped:true,reason:"activation_runtime_unavailable"};
+    if (context && result?.activated) context.__luminousEnchantmentActivationSpent=true;
+    return result;
   }
 
   function spendWearOnce(item, resolution, context = {}) {
@@ -112,6 +155,8 @@
       const runtimeContext = context && typeof context === "object" ? context : {};
       const adjusted = adjustedDamage(base, attacker, defender, skill, runtimeContext);
       if (adjusted.item && adjusted.resolution?.effects?.length && adjusted.damage > 0) {
+        adjusted.activation = spendActivationOnce(attacker,adjusted.item,adjusted.resolution,skill,runtimeContext);
+        if (adjusted.activation?.activated === false) return base;
         adjusted.wear = spendWearOnce(adjusted.item, adjusted.resolution, runtimeContext);
       }
       if (context && typeof context === "object") {
@@ -146,6 +191,7 @@
     selectedChannels,
     resolve,
     adjustedDamage,
+    spendActivationOnce,
     spendWearOnce,
     patchCombatEngine,
     uninstallCombatEngine,
