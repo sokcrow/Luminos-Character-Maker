@@ -21,7 +21,7 @@
     throw new Error("Enchantment Catalog, Enchantment Engine and Magic Runtime are required before Enchanter Service Runtime.");
   }
 
-  const VERSION = 6;
+  const VERSION = 7;
   const MAX_REPRODUCIBLE_RANK = 3;
   const SERVICE_IDS = Object.freeze([
     "enchant",
@@ -984,14 +984,38 @@
   }
 
   function walletBalance(target={},options={}) {
-    if (options.freeService===true) return Object.freeze({resolved:true,field:null,balance:Infinity});
+    if (options.freeService===true) return Object.freeze({resolved:true,field:null,fieldPath:null,balance:Infinity});
+    const financeBalance=target?.finance?.currentBalance;
+    if (Number.isFinite(Number(financeBalance))) {
+      return Object.freeze({resolved:true,field:"currentBalance",fieldPath:"finance.currentBalance",balance:Math.max(0,Number(financeBalance)),canonical:true});
+    }
     const fields=[options.currencyField,"ahn","balanceAhn","moneyAhn","dinero","money"].filter(Boolean);
     for(const field of fields){
       if (Number.isFinite(Number(target?.[field]))) {
-        return Object.freeze({resolved:true,field:String(field),balance:Math.max(0,Number(target[field]))});
+        return Object.freeze({resolved:true,field:String(field),fieldPath:String(field),balance:Math.max(0,Number(target[field])),canonical:field==="ahn"});
       }
     }
-    return Object.freeze({resolved:false,field:null,balance:0});
+    return Object.freeze({resolved:false,field:null,fieldPath:null,balance:0});
+  }
+
+  function setWalletBalance(target={},wallet={},nextBalance=0) {
+    if (!target || typeof target!=="object") return false;
+    const next=Math.max(0,Math.trunc(Number(nextBalance)||0));
+    if (wallet?.fieldPath==="finance.currentBalance" || target.finance?.currentBalance!=null) {
+      if (!target.finance || typeof target.finance!=="object" || Array.isArray(target.finance)) target.finance={};
+      target.finance.currentBalance=next;
+      target.ahn=next;
+      return true;
+    }
+    if (wallet?.field) {
+      target[wallet.field]=next;
+      if (wallet.field==="ahn") {
+        if (!target.finance || typeof target.finance!=="object" || Array.isArray(target.finance)) target.finance={};
+        target.finance.currentBalance=next;
+      }
+      return true;
+    }
+    return false;
   }
 
   function stableTransactionId(item={},quote={},options={}) {
@@ -1112,7 +1136,7 @@
     }
 
     const resultingItem=clone(execution.item || execution.result?.item || item);
-    if (!freeService && wallet.field) owner[wallet.field]=Math.max(0,wallet.balance-chargeAhn);
+    if (!freeService) setWalletBalance(owner,wallet,wallet.balance-chargeAhn);
     commitMaterialSnapshots(playerMaterials,playerCopies);
     commitMaterialSnapshots(providerMaterials,providerCopies);
     applyObjectSnapshot(item,resultingItem);
@@ -1309,6 +1333,7 @@
     quoteAdjustment,
     adjustedQuoteTotal,
     walletBalance,
+    setWalletBalance,
     stableTransactionId,
     previewServiceResult,
     commitServiceTransaction,
