@@ -644,12 +644,15 @@ ${response}`);
     // Threshold reductions (e.g. Devil Lineage STR checks) are Check rules,
     // not Ability Score changes. Preserve them in the resolved check object.
     const withThresholdTraits = global.LuminousArchetypeRuntime?.applyTheatreCheckMechanics?.(preparedCheck) || preparedCheck;
-    applyApprovedDmEffects(withThresholdTraits, runtimeInput);
+    const target = runtimeInput.target || withThresholdTraits.target || state.theatreTarget || null;
+    if (target && !withThresholdTraits.target) withThresholdTraits.target = target;
+    applyApprovedDmEffects(withThresholdTraits, { ...runtimeInput, target });
     const hadThreshold = finiteNumber(preparedCheck.thresholdRaw ?? preparedCheck.threshold) != null;
     const result = traitEngine.resolveTheatreCheck({
       character,
       traits,
       check: withThresholdTraits,
+      target,
       state: state.traitState,
     });
     if (result?.check && resolver?.applyClassCheckBonuses) {
