@@ -627,6 +627,11 @@
     return slot;
   }
 
+  function activeInventoryLimit() {
+    const configured = Number(inventory()?.activeSlotLimit?.(state.unit) ?? inventory()?.DEFAULT_ACTIVE_SLOT_LIMIT ?? 24);
+    return Number.isFinite(configured) ? Math.max(0, Math.trunc(configured)) : 24;
+  }
+
   function renderGrid(containerType) {
     const active = containerType === "active";
     const grid = doc.getElementById(active ? "inv-active-grid" : "inv-stash-grid");
@@ -638,7 +643,7 @@
 
     visibleEntries.forEach(([key, item]) => fragment.appendChild(createItemSlot(key, item, containerType)));
     if (active) {
-      const limit = Math.max(0, Number(inventory()?.activeSlotLimit?.(state.unit) ?? inventory()?.DEFAULT_ACTIVE_SLOT_LIMIT ?? 24) || 24);
+      const limit = activeInventoryLimit();
       for (let index = visibleEntries.length + 1; index <= limit; index += 1) fragment.appendChild(createEmptySlot(index));
     }
     grid.appendChild(fragment);
@@ -651,7 +656,7 @@
 
   function renderCarryCount() {
     const count = entries(state.unit?.inventario_activo).filter(([, item]) => item && quantityOf(item) > 0).length;
-    const limit = Number(inventory()?.activeSlotLimit?.(state.unit) ?? inventory()?.DEFAULT_ACTIVE_SLOT_LIMIT ?? 24) || 24;
+    const limit = activeInventoryLimit();
     const el = doc.getElementById("inventory-v2-carry-count");
     if (el) el.textContent = `${String(count).padStart(2, "0")} / ${limit}`;
   }
@@ -681,8 +686,9 @@
     const raw = player.combatSprite || player.sprite_combate || player.combat_sprite ||
       player.tokenImage || player.sprite || player.idle_sprite ||
       player.combatVisual?.spriteUrl || player.visual?.spriteUrl || "";
-    const src = String(raw || "").trim();
-    return /^(https?:\/\/|\/(?!\/)|Assets\/)/i.test(src) ? src : "";
+    // Combat editor persists the sprite URL verbatim, including relative and data: URLs.
+    // This is assigned directly to an image.src property, never interpolated as HTML.
+    return String(raw || "").trim();
   }
 
   function hydrateCombatSprite(player = {}) {
