@@ -20,6 +20,8 @@ on:
       - "js/ranger-class-runtime.js"
       - "pantalla_dm.html"
       - "tests/trait-manual-dm-integration-smoke.mjs"
+      - "tests/trait-dm-composer-target-smoke.mjs"
+      - "js/theatre-check-coordinator.js"
       - "hoja_personaje.html"
       - "tests/trait-check-power-smoke.mjs"
       - ".github/workflows/trait-check-power-smoke.yml"
@@ -43,6 +45,8 @@ on:
       - "js/ranger-class-runtime.js"
       - "pantalla_dm.html"
       - "tests/trait-manual-dm-integration-smoke.mjs"
+      - "tests/trait-dm-composer-target-smoke.mjs"
+      - "js/theatre-check-coordinator.js"
       - "hoja_personaje.html"
       - "tests/trait-check-power-smoke.mjs"
       - ".github/workflows/trait-check-power-smoke.yml"
@@ -71,4 +75,6 @@ jobs:
       - run: node --check js/trait-standardization-runtime.js
       - run: node --check js/ranger-class-runtime.js
       - run: node tests/trait-manual-dm-integration-smoke.mjs
+      - run: node --check js/theatre-check-coordinator.js
+      - run: node tests/trait-dm-composer-target-smoke.mjs
       - run: node tests/ranger-class-runtime-smoke.mjs

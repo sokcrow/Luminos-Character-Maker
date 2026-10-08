@@ -287,7 +287,7 @@
   function playerRollPreview(player, spec) {
     if (!player || !spec) return { base: 0, headsChance: 50 };
     const ability = abilityById(spec.abilityId);
-    const score = numberOr(player?.stats?.[ability.key], 10);
+    const score = numberOr(global.LuminousDerivedStats?.resolveAbility?.(player, ability.id)?.score ?? player?.stats?.[ability.key], 10);
     const modifier = global.LuminousProficiencyRuntime?.abilityModifier?.(score) ?? Math.floor((score - 10) / 2);
     const profBonus = playerProficiencyBonus(player);
     const abilityState = normalizeProfState(player?.abilityProficiency?.[ability.id] ?? player?.abilityProficiency?.[ability.key]);
@@ -302,6 +302,23 @@
         const skillState = normalizeProfState(player?.skillProficiency?.[skill?.id] ?? player?.dndSkills?.[skill?.id]?.proficiency ?? player?.dndSkills?.[skill?.id]?.proficiencyState);
         base = modifier + (global.LuminousProficiencyRuntime?.contribution?.(player?.level, skillState) ?? Math.floor(profBonus * PROFICIENCY_MULTIPLIER[skillState]));
       }
+    }
+    // Composer previews are side-effect-free. They share the exact pure
+    // contribution functions used by the player and DM Skill breakdowns.
+    const patch = global.LuminousSkillTraitBreakdownPatch;
+    const engine = global.LuminousTraitEngine;
+    if (patch?.resolvedDmTraits && engine) {
+      const traits = patch.resolvedDmTraits(player);
+      const check = { kind: spec.kind, abilityId: ability.id,
+        ...(spec.kind === "skill" ? { skillId: spec.skillId } : {}) };
+      const proficiencyState = spec.kind === "skill"
+        ? normalizeProfState(player?.skillProficiency?.[spec.skillId] ?? player?.dndSkills?.[spec.skillId]?.proficiency)
+        : abilityState;
+      base += [
+        ...(patch.checkPowerContributions?.(engine, traits, player, check) || []),
+        ...(patch.finalPowerContributions?.(engine, traits, player, check) || []),
+        ...(patch.specialCheckContributions?.(traits, player, { ...check, proficiencyState }) || []),
+      ].reduce((sum, value) => sum + numberOr(value.amount, 0), 0);
     }
     const sp = numberOr(player?.combatStats?.sp_actual ?? player?.sp, 0);
     return { base, headsChance: clamp(50 + sp, 5, 95) };

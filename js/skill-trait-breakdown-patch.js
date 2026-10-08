@@ -539,11 +539,11 @@
     if (!state.db) state.db = global.firebase.database();
     if (!state.definitionsBound) {
       state.definitionsBound = true;
-      state.db.ref(DEFINITIONS_ROOT).on("value", (snapshot) => { state.definitions = snapshot.val() || {}; });
+      state.db.ref(DEFINITIONS_ROOT).on("value", (snapshot) => { state.definitions = snapshot.val() || {}; syncDmSkillPreviews(); });
     }
     if (!state.grantsBound) {
       state.grantsBound = true;
-      state.db.ref(GRANTS_ROOT).on("value", (snapshot) => { state.grants = snapshot.val() || {}; });
+      state.db.ref(GRANTS_ROOT).on("value", (snapshot) => { state.grants = snapshot.val() || {}; syncDmSkillPreviews(); });
     }
     bindPlayer();
     return true;
@@ -566,6 +566,11 @@
     global.addEventListener?.("luminous:theatre-rolls-ready", tick);
     global.addEventListener?.("load", tick, { once: true });
     doc.addEventListener?.("change", (event) => {
+      if (event.target?.id?.startsWith?.("dm-player-") || event.target?.closest?.("#dashboard-jugadores")) {
+        global.queueMicrotask?.(tick);
+      }
+    }, true);
+    doc.addEventListener?.("change", (event) => {
       if (event.target?.closest?.("#dashboard-jugadores")) tick();
     });
   }
@@ -587,6 +592,7 @@
     syncPlayerSkillPreviews,
     syncPlayerAbilityPreviews,
     syncDmSkillPreviews,
+    resolvedDmTraits,
     installResolvedCheckBridge,
     installPlayerRollBridge,
     rawRollBase,
