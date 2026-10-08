@@ -412,6 +412,9 @@
           ? "Se retirará el encantamiento actual al guardar. El objeto conservará su calidad y mejoras físicas."
           : `Preparado: +${staged.level} en ${studio.CHANNEL_LABELS[staged.channel] || staged.channel}. Pulsa Guardar objeto para aplicar.`
         : available.eligible ? preview.message : studio.errorMessage(available.reason);
+      if (global.LuminousItemMagicRuntime?.requiresAttunement?.(item)) {
+        target.textContent += " El efecto solo estará activo cuando el objeto esté sintonizado.";
+      }
       target.dataset.tone = staged ? "ready" : preview.valid && available.eligible ? "normal" : "warning";
     }
     if (level) level.disabled = !available.eligible;
@@ -664,7 +667,8 @@
       migrated.rechargeRule = null;
     }
 
-    if (state.enchantmentDraft) {
+    const enchantmentAction = state.enchantmentDraft?.action || null;
+    if (enchantmentAction) {
       const result = enchanterStudio()?.applyDraft?.(migrated, state.enchantmentDraft);
       if (!result?.changed) {
         return announce(enchanterStudio()?.errorMessage?.(result?.reason) || "No fue posible encantar el objeto.", "error");
@@ -682,7 +686,7 @@
     }
     if (state.selected === session) {
       fillEditor({ key: latest.key, item: migrated }, listType);
-      announce("Objeto y encantamiento guardados correctamente.", "success");
+      announce(enchantmentAction ? "Objeto y encantamiento guardados correctamente." : "Objeto guardado correctamente.", "success");
     }
     decorateRows();
   }
