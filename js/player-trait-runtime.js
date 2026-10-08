@@ -75,6 +75,34 @@
     });
   }
 
+
+  // Narrative background text is optional gameplay content, not an automated Trait grant.
+  function ensureBackgroundNarratives() {
+    const root = "js/background-narratives/";
+    const packs = [
+      ["associations-workshops", "hana_fixer"],
+      ["backstreets-fixers", "protected_backstreets"],
+      ["civilian-labor", "nest_heir"],
+      ["greatlake-outskirts", "great_lake_fisher"],
+      ["hcorp-social", "nest_family_servant"],
+      ["lobotomy-anomaly", "lcorp_clerk"],
+      ["syndicates-fingers", "minor_syndicate"],
+      ["wings-war", "wing_military_recruit"],
+    ];
+    return ensureScript("background-narratives-catalog-script", root + "catalog.js", () => Boolean(global.LuminousBackgroundNarratives))
+      .then(() => Promise.all([
+        ensureScript("background-narratives-meta-script", root + "templates-meta.js", () => Boolean(global.LuminousBackgroundNarrativeMeta)),
+        ensureScript("background-narratives-ideal-script", root + "templates-ideal.js", () => Boolean(global.LuminousBackgroundIdealTemplates)),
+        ensureScript("background-narratives-other-script", root + "templates-other.js", () => Boolean(global.LuminousBackgroundBondTemplates && global.LuminousBackgroundFlawTemplates)),
+      ]))
+      .then(() => ensureScript("background-narratives-runtime-script", root + "templates-runtime.js", () => Boolean(global.LuminousBackgroundNarrativeData)))
+      .then(() => Promise.all(packs.map(([file, firstId]) => ensureScript(
+        "background-narratives-" + file + "-script",
+        root + file + ".js",
+        () => Boolean(global.LuminousBackgroundNarratives?.get?.(firstId)),
+      ))));
+  }
+
   function ensureDependencies() {
     if (state.dependencyPromise) return state.dependencyPromise;
     state.dependencyPromise = Promise.resolve()
@@ -86,6 +114,8 @@
         ensureScript("trait-player-tray-script", "js/trait-player-tray.js", () => Boolean(global.LuminousTraitPlayerTray)),
         ensureScript("universal-action-economy-script", "js/universal-action-economy.js", () => Boolean(global.LuminousActionEconomy)),
         ensureScript("trait-standardization-runtime-script", "js/trait-standardization-runtime.js", () => Boolean(global.LuminousTraitStandardizationRuntime)),
+        ensureBackgroundNarratives().catch((error) => { console.warn("Background narrative catalog unavailable:", error); }),
+        ensureScript("legacy-background-catalog-script", "js/legacy-background-catalog.js", () => Boolean(global.LuminousLegacyBackgroundCatalog?.get?.("alta_cuna"))),
       ]));
     return state.dependencyPromise;
   }

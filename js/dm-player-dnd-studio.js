@@ -342,6 +342,24 @@
     }).join("");
   }
 
+
+  // Retired origins remain valid for existing saved builds, but are not new selections.
+  function setSavedBackgroundSelection(backgroundId) {
+    const select = field("dm-player-build-background");
+    if (!select) return;
+    select.querySelectorAll("option[data-retired-background]").forEach((option) => option.remove());
+    const id = String(backgroundId || "").trim();
+    const definition = rules()?.getBackground?.(id);
+    if (id && definition?.retired) {
+      const option = doc.createElement("option");
+      option.value = id;
+      option.dataset.retiredBackground = "true";
+      option.textContent = definition.name + " · TRASFONDO ARCHIVADO";
+      select.appendChild(option);
+    }
+    select.value = id;
+  }
+
   function backgroundOptions() {
     const api = rules();
     if (!api) return '<option value="">— Motor no disponible —</option>';
@@ -458,6 +476,11 @@
       control.addEventListener("change", () => {
         markDirty();
         if (control.id === "dm-player-build-race") renderRaceSubtypeOptions();
+        if (control.id === "dm-player-build-background") {
+          control.querySelectorAll("option[data-retired-background]").forEach((option) => {
+            if (option.value !== control.value) option.remove();
+          });
+        }
         updatePreviewFromForm();
       });
     });
@@ -617,7 +640,12 @@
 
     if (calculation.valid) {
       if (mode) mode.value = "AUTO / BUILD V1";
-      if (feedback) feedback.textContent = `AUTO: Coef natural ${formatCoef(calculation.intrinsicHpCoef)} · HP Base ${calculation.hpBase} · OFF Clase ${formatSigned(calculation.classOffMod)} · DEF Clase ${formatSigned(calculation.classDefMod)} · DEF Raza ${formatSigned(calculation.raceDefMod)}.`;
+      if (feedback) {
+        feedback.textContent = `AUTO: Coef natural ${formatCoef(calculation.intrinsicHpCoef)} · HP Base ${calculation.hpBase} · OFF Clase ${formatSigned(calculation.classOffMod)} · DEF Clase ${formatSigned(calculation.classDefMod)} · DEF Raza ${formatSigned(calculation.raceDefMod)}.`;
+        if (api?.getBackground(calculation.backgroundId)?.retired) {
+          feedback.textContent += " Este trasfondo fue archivado: su HP Coef permanece guardado. Elige uno vigente cuando quieras reemplazarlo.";
+        }
+      }
     } else {
       if (mode) mode.value = "BUILD INCOMPLETO";
       if (feedback) feedback.textContent = calculation.errors.join(" ");
@@ -714,7 +742,7 @@
       if (input) input.value = "0";
     });
     if (field("dm-player-build-race")) field("dm-player-build-race").value = api?.SETTINGS?.defaultRaceId || "";
-    if (field("dm-player-build-background")) field("dm-player-build-background").value = "";
+    setSavedBackgroundSelection("");
     renderRaceSubtypeOptions();
   }
 
@@ -729,7 +757,7 @@
       if (input) input.value = String(entry.levels);
     });
 
-    if (field("dm-player-build-background")) field("dm-player-build-background").value = String(build.backgroundId || "");
+    setSavedBackgroundSelection(build.backgroundId);
     if (field("dm-player-build-race")) field("dm-player-build-race").value = String(build.raceId || api.SETTINGS.defaultRaceId || "");
     renderRaceSubtypeOptions(String(build.raceSubtypeId || ""));
     restoreRacialStatChoices(build.racialStatChoices || []);

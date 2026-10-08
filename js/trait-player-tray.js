@@ -940,6 +940,47 @@
     doc.head?.appendChild(link);
   }
 
+
+  // Background selections are read from the saved character, never guessed from catalog options.
+  function backgroundProfile(character = {}) {
+    const build = character.characterBuild && typeof character.characterBuild === "object" ? character.characterBuild : {};
+    const id = String(build.backgroundId || character.backgroundId || "").trim();
+    const rule = global.LuminousCharacterBuildRules?.getBackground?.(id) || null;
+    const narrative = global.LuminousBackgroundNarratives?.get?.(id) || null;
+    const legacy = global.LuminousLegacyBackgroundCatalog?.get?.(id) || null;
+    const custom = character.backgroundNarrative && typeof character.backgroundNarrative === "object" ? character.backgroundNarrative : {};
+    const choices = {
+      ...(build.backgroundChoices && typeof build.backgroundChoices === "object" ? build.backgroundChoices : {}),
+      ...(character.backgroundChoices && typeof character.backgroundChoices === "object" ? character.backgroundChoices : {}),
+      ...custom,
+    };
+    const label = (value) => String(value ?? "").replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
+    const fallbackName = id ? label(id).replace(/\b\w/g, (match) => match.toUpperCase()) : "";
+    const name = narrative?.name || rule?.name || legacy?.name || String(character.backgroundName || "").trim() || fallbackName;
+    const rawBonus = build?.breakdown?.backgroundHpCoefBonus ?? rule?.hpCoefBonus;
+    const bonus = rawBonus == null || rawBonus === "" || !Number.isFinite(Number(rawBonus)) ? null : Number(rawBonus);
+    return { id, name, rule, narrative, legacy, choices, bonus, character };
+  }
+
+  function choiceText(value, options = []) {
+    const raw = typeof value === "object" && value !== null
+      ? String(value.label || value.name || value.description || value.id || "")
+      : String(value ?? "");
+    if (!raw.trim()) return "";
+    const matched = options.find((option) => normalizeId(option.id) === normalizeId(raw) || normalizeId(option.label) === normalizeId(raw));
+    return matched?.label || raw.replace(/[_-]+/g, " ").trim();
+  }
+
+  function addBackgroundDetail(target, title, content, className = "") {
+    if (!content) return;
+    const card = createElement("article", "player-background-detail " + className);
+    card.append(
+      createElement("h3", "player-background-detail__title", title),
+      createElement("p", "player-background-detail__value", content),
+    );
+    target.appendChild(card);
+  }
+
   class TraitPlayerTray {
     constructor(options = {}) {
       this.host = resolveHost(options.host);
@@ -956,6 +997,7 @@
       this.filter = "all";
       this.root = null;
       this.statsConsole = null;
+      this.backgroundPanel = null;
       ensureStyles();
       if (this.host && global.document) this.mount();
     }
@@ -1035,17 +1077,145 @@
       return result;
     }
 
+
+    currentBackground() {
+      const runtime = this.getRuntime() || {};
+      return backgroundProfile(runtime.character || global.datosJugador || {});
+    }
+
+    renderBackground() {
+      if (!this.backgroundPanel) return;
+      const profile = this.currentBackground();
+      const panel = this.backgroundPanel;
+      panel.replaceChildren();
+      if (!profile.id) {
+        panel.appendChild(createElement("div", "player-background-empty", "Aún no tienes un Background asignado."));
+        return;
+      }
+
+      const hero = createElement("header", "player-background-hero");
+      hero.append(
+        createElement("span", "player-background-eyebrow", "TU HISTORIA"),
+        createElement("h2", "player-background-name", profile.name),
+      );
+      const overview = profile.narrative?.overview || profile.legacy?.description;
+      if (overview) hero.appendChild(createElement("p", "player-background-overview", overview));
+      if (profile.bonus !== null) {
+        const bonus = (profile.bonus >= 0 ? "+" : "") + profile.bonus.toFixed(2);
+        hero.appendChild(createElement("span", "player-background-hp-bonus", "HP COEF " + bonus));
+      }
+      panel.appendChild(hero);
+
+      if (profile.rule?.retired) {
+        const retired = createElement("section", "player-background-feature player-background-retired");
+        retired.append(
+          createElement("span", "player-background-eyebrow", "TRASFONDO ARCHIVADO"),
+          createElement("h3", "player-background-feature__title", "Este origen ya no está disponible para personajes nuevos"),
+          createElement("p", "player-background-feature__description", "Tu personaje conserva su trasfondo y HP Coef. El DM puede elegir un trasfondo vigente para reemplazarlo. Este origen no tiene Trait narrativo asignado."),
+        );
+        panel.appendChild(retired);
+      }
+
+      if (profile.narrative?.feature?.name) {
+        const feature = createElement("section", "player-background-feature");
+        feature.append(
+          createElement("span", "player-background-eyebrow", "FEATURE · TRASFONDO"),
+          createElement("h3", "player-background-feature__title", profile.narrative.feature.name),
+          createElement("p", "player-background-feature__description", profile.narrative.feature.description),
+        );
+        if (profile.narrative.feature.limits) {
+          feature.appendChild(createElement("p", "player-background-feature__limits", profile.narrative.feature.limits));
+        }
+        panel.appendChild(feature);
+      }
+
+      if (profile.legacy) {
+        const origin = createElement("section", "player-background-feature");
+        origin.append(
+          createElement("span", "player-background-eyebrow", "ORIGEN · CREACIÓN DE PERSONAJE"),
+          createElement("h3", "player-background-feature__title", "Beneficios iniciales"),
+          createElement("p", "player-background-feature__description", profile.legacy.benefit),
+          createElement("p", "player-background-feature__limits", "Estas bonificaciones ya forman parte de tus estadísticas."),
+        );
+        panel.appendChild(origin);
+        if (profile.legacy.initialFunds) {
+          addBackgroundDetail(panel, "FONDOS INICIALES · NO REPRESENTA EL SALDO ACTUAL", profile.legacy.initialFunds, "player-background-origin-funds");
+        }
+      }
+
+      const choices = profile.choices;
+      const decisions = createElement("section", "player-background-decisions");
+      decisions.appendChild(createElement("h3", "player-background-section-title", "TUS DECISIONES"));
+      const grid = createElement("div", "player-background-decision-grid");
+      const ideal = choiceText(choices.ideal || choices.idealId || profile.character.psychologicalIdeal, profile.narrative?.ideals);
+      const bond = choiceText(choices.bond || choices.bondId || choices.vinculo || profile.character.psychologicalVinculo, profile.narrative?.bonds);
+      const flaw = choiceText(choices.flaw || choices.flawId || choices.grieta || profile.character.psychologicalGrieta, profile.narrative?.flaws);
+      addBackgroundDetail(grid, "IDEAL", ideal || "Sin elección registrada");
+      addBackgroundDetail(grid, "VÍNCULO", bond || "Sin elección registrada");
+      addBackgroundDetail(grid, "DEFECTO / GRIETA", flaw || "Sin elección registrada");
+      const personality = choices.personality || choices.personalityTraits;
+      const personalityText = Array.isArray(personality) ? personality.map((entry) => choiceText(entry)).filter(Boolean).join(" · ") : choiceText(personality);
+      if (personalityText) addBackgroundDetail(grid, "PERSONALIDAD", personalityText);
+      decisions.appendChild(grid);
+      panel.appendChild(decisions);
+
+      const psychologyId = String(profile.character.psychologicalBackgroundId || "").trim();
+      if (psychologyId) {
+        const psychology = createElement("section", "player-background-psychology");
+        addBackgroundDetail(psychology, "TRASFONDO PSICOLÓGICO", psychologyId.replace(/[_-]+/g, " ").replace(/\b\w/g, (match) => match.toUpperCase()));
+        panel.appendChild(psychology);
+      }
+
+      const hasBackgroundTrait = Boolean(this.renderNarrativeBackgroundTrait(profile))
+        || this.normalizedTraits().some((trait) => sourceCategory(trait) === "background");
+      if (hasBackgroundTrait) {
+        const openTrait = createElement("button", "player-background-trait-link", "VER TRAIT DE BACKGROUND →");
+        openTrait.type = "button";
+        openTrait.addEventListener("click", () => {
+          this.filter = "background";
+          this.render();
+          this.setStatsView("traits");
+        });
+        panel.appendChild(openTrait);
+      }
+    }
+
+    renderNarrativeBackgroundTrait(profile) {
+      const trait = profile.narrative?.trait?.name ? profile.narrative.trait : profile.legacy?.benefit
+        ? { name: "Bonificaciones de origen", description: profile.legacy.benefit } : null;
+      if (!trait) return null;
+      const card = createElement("article", "player-trait-card player-background-narrative-trait");
+      card.dataset.traitCategory = "background";
+      const description = profile.legacy ? trait.description : String(trait.description)
+        .replace(/Reduce en X el Threshold/gi, "Reduce el Threshold")
+        .replace(/\+X\b/gi, "un bono de");
+      card.append(
+        createElement("span", "player-trait-source player-trait-source--background", "BACKGROUND · " + profile.name),
+        createElement("h3", "player-trait-card__name", trait.name),
+        createElement("p", "player-trait-card__description", description),
+      );
+      const note = profile.legacy
+        ? "Estas ventajas ya están reflejadas en tus estadísticas. Consultarlas aquí no las suma de nuevo."
+        : /(?:^|[^a-z])X(?:[^a-z]|$)/.test(trait.description)
+          ? "El valor concreto de esta ventaja se determina durante la partida."
+          : "Esta ventaja se utiliza según las circunstancias y las reglas de la partida.";
+      card.appendChild(createElement("p", "player-background-trait-note", note));
+      return card;
+    }
+
     setStatsView(view) {
       const consoleRoot = this.statsConsole || global.document?.querySelector("#stats-modal .player-ability-console");
       if (!consoleRoot) return false;
-      const nextView = view === "traits" ? "traits" : "stats";
+      const nextView = ["stats", "traits", "background"].includes(view) ? view : "stats";
       consoleRoot.dataset.playerStatsView = nextView;
 
       const abilityBar = consoleRoot.querySelector(":scope .player-ability-bar");
       const statContent = consoleRoot.querySelector(":scope .player-stat-content");
-      if (abilityBar) abilityBar.hidden = nextView === "traits";
-      if (statContent) statContent.hidden = nextView === "traits";
+      if (abilityBar) abilityBar.hidden = nextView !== "stats";
+      if (statContent) statContent.hidden = nextView !== "stats";
       if (this.host) this.host.hidden = nextView !== "traits";
+      if (this.backgroundPanel) this.backgroundPanel.hidden = nextView !== "background";
+      if (nextView === "background") this.renderBackground();
 
       consoleRoot.querySelectorAll("[data-player-stats-view]").forEach((button) => {
         const active = button.dataset.playerStatsView === nextView;
@@ -1075,6 +1245,7 @@
         [
           ["stats", "Stats"],
           ["traits", "Traits"],
+          ["background", "Background"],
         ].forEach(([view, label], index) => {
           const button = createElement("button", `player-stats-tab player-stats-view-tab${index === 0 ? " active is-active" : ""}`, label);
           button.type = "button";
@@ -1086,9 +1257,13 @@
           button.addEventListener("keydown", (event) => {
             if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
             event.preventDefault();
-            const targetView = event.key === "ArrowLeft" || event.key === "Home" ? "stats" : "traits";
+            const order = ["stats", "traits", "background"];
+            const position = order.indexOf(view);
+            const targetView = event.key === "Home" ? order[0]
+              : event.key === "End" ? order[order.length - 1]
+              : order[(position + (event.key === "ArrowLeft" ? -1 : 1) + order.length) % order.length];
             this.setStatsView(targetView);
-            tabs.querySelector(`[data-player-stats-view="${targetView}"]`)?.focus();
+            tabs.querySelector('[data-player-stats-view="' + targetView + '"]')?.focus();
           });
           tabs.appendChild(button);
         });
@@ -1097,24 +1272,33 @@
 
       if (this.host.parentElement !== infoPanel) infoPanel.appendChild(this.host);
       this.host.classList.add("player-traits-panel");
-      const current = consoleRoot.dataset.playerStatsView === "traits" ? "traits" : "stats";
+      if (!this.backgroundPanel || !this.backgroundPanel.isConnected) {
+        this.backgroundPanel = createElement("section", "player-background-panel");
+        this.backgroundPanel.id = "player-background-panel";
+        this.backgroundPanel.setAttribute("role", "tabpanel");
+        this.backgroundPanel.setAttribute("aria-label", "Background del personaje");
+        infoPanel.appendChild(this.backgroundPanel);
+      }
+      const current = ["stats", "traits", "background"].includes(consoleRoot.dataset.playerStatsView)
+        ? consoleRoot.dataset.playerStatsView : "stats";
       this.setStatsView(current);
       return true;
     }
 
-    renderFilterBar(container, traits) {
+    renderFilterBar(container, traits, hasNarrativeTrait = false, hasBackground = false) {
       const counts = Object.fromEntries(CATEGORY_ORDER.map((category) => [category, 0]));
-      counts.all = traits.length;
+      counts.all = traits.length + Number(hasNarrativeTrait);
       traits.forEach((trait) => { counts[sourceCategory(trait)] += 1; });
-      if (this.filter !== "all" && !counts[this.filter]) this.filter = "all";
+      if (hasNarrativeTrait) counts.background += 1;
+      if (this.filter !== "all" && !counts[this.filter] && !(this.filter === "background" && hasBackground)) this.filter = "all";
 
       CATEGORY_ORDER.forEach((category) => {
-        if (category !== "all" && counts[category] === 0) return;
+        if (category !== "all" && counts[category] === 0 && !(category === "background" && hasBackground)) return;
         const button = createElement("button", `player-trait-filter${this.filter === category ? " is-active" : ""}`);
         button.type = "button";
         button.dataset.traitFilter = category;
         button.setAttribute("aria-pressed", this.filter === category ? "true" : "false");
-        button.textContent = CATEGORY_LABELS[category];
+        button.textContent = category === "background" ? "Background Trait" : CATEGORY_LABELS[category];
         button.addEventListener("click", () => {
           this.filter = category;
           this.render();
@@ -1166,20 +1350,26 @@
     render() {
       if (!this.root) return;
       this.setupStatsTabs();
+      this.renderBackground();
       this.root.replaceChildren();
 
       const traits = this.normalizedTraits();
+      const profile = this.currentBackground();
+      const hasGrantedBackgroundTrait = traits.some((trait) => sourceCategory(trait) === "background");
+      const narrativeTraitCard = hasGrantedBackgroundTrait ? null : this.renderNarrativeBackgroundTrait(profile);
+      const hasNarrativeTrait = Boolean(narrativeTraitCard);
       const actions = this.actionMap();
       const filters = createElement("nav", "player-trait-filters");
       filters.setAttribute("aria-label", "Filter Traits by source");
-      this.renderFilterBar(filters, traits);
+      this.renderFilterBar(filters, traits, hasNarrativeTrait, hasGrantedBackgroundTrait || hasNarrativeTrait);
 
       const list = createElement("div", "luminous-trait-tray__list player-trait-card-list");
       const visible = filterTraits(traits, this.filter);
-      if (!visible.length) {
-        list.appendChild(createElement("div", "luminous-trait-tray__empty player-traits-empty", traits.length ? "NO TRAITS IN THIS CATEGORY" : "NO TRAITS ASSIGNED"));
-      } else {
-        visible.forEach((trait) => list.appendChild(this.renderTraitCard(trait, actions.get(normalizeId(trait.id)))));
+      visible.forEach((trait) => list.appendChild(this.renderTraitCard(trait, actions.get(normalizeId(trait.id)))));
+      if (narrativeTraitCard && ["all", "background"].includes(this.filter)) list.appendChild(narrativeTraitCard);
+      if (!list.childElementCount) {
+        const message = this.filter === "background" ? "No hay Trait de Background disponible." : traits.length ? "NO TRAITS IN THIS CATEGORY" : "NO TRAITS ASSIGNED";
+        list.appendChild(createElement("div", "luminous-trait-tray__empty player-traits-empty", message));
       }
 
       this.root.append(filters, list);
