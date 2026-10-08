@@ -22,6 +22,7 @@
     definitionsBound: false,
     grantsBound: false,
     resolvedBridgeBound: false,
+    pendingCheckResolution: null,
   };
 
   const normalizeId = (value) => String(value ?? "").trim().toLowerCase().replace(/\s+/g, "_");
@@ -348,7 +349,8 @@
   function mergedDefinitions() {
     const core = global.LuminousTraitCatalogCore?.allDefinitions?.() || {};
     const racial = global.LuminousRacialTraitCatalog?.allDefinitions?.() || {};
-    return { ...core, ...racial, ...(state.definitions || {}) };
+    const archetype = global.LuminousArchetypeTraitCatalog?.allDefinitions?.() || {};
+    return { ...core, ...racial, ...archetype, ...(state.definitions || {}) };
   }
 
   function mergedGrants() {
@@ -362,9 +364,10 @@
     const normalized = normalizeCharacter(character);
     const granted = engine.resolveTraitGrants(normalized, mergedGrants(), definitions);
     const racial = global.LuminousRacialTraitCatalog?.resolveTraitGrants?.(normalized, definitions) || [];
+    const archetype = global.LuminousArchetypeTraitCatalog?.resolveTraitGrants?.(normalized, definitions) || [];
     const selected = global.LuminousClassMilestones?.resolveSelectedGeneralTraits?.(character, definitions) || [];
     const byId = new Map();
-    [...granted, ...racial, ...selected].forEach((trait) => {
+    [...granted, ...racial, ...archetype, ...selected].forEach((trait) => {
       const id = normalizeId(trait?.id || trait?.name);
       if (id && !byId.has(id)) byId.set(id, trait);
     });
@@ -439,6 +442,7 @@
       const target = findPlayerRollTarget(check);
       if (!target) return;
       target.dataset.resolvedCheckPower = String(checkPowerValue(check));
+      state.pendingCheckResolution = { target, check: { ...(check || {}) } };
     });
     return true;
   }
@@ -481,16 +485,35 @@
       if (!descriptor) return;
 
       const data = global.datosJugador || global.LuminousPlayerTraitRuntime?.getCharacter?.() || {};
-      const hasResolved = Object.prototype.hasOwnProperty.call(target.dataset, "resolvedCheckPower");
-      const resolvedPower = hasResolved ? numberOr(target.dataset.resolvedCheckPower, 0) : null;
-      if (hasResolved) delete target.dataset.resolvedCheckPower;
-      const previewPower = hasResolved ? resolvedPower : playerCheckPower(descriptor.check, data).total;
-      if (!previewPower) return;
-
+      const runtime = global.LuminousPlayerTraitRuntime;
+      const engine = global.LuminousTraitEngine;
+      const character = runtime?.getCharacter?.() || data;
+      const traits = runtime?.getTraits?.() || [];
+      const pending = state.pendingCheckResolution;
+      // The DM's authorisation already passed through the full trait pipeline.
+      // A normal player click must also resolve it, even with no DM request.
+      const fromDm = pending?.target === target;
+      let resolvedCheck = fromDm ? { ...pending.check } : null;
+      if (!resolvedCheck && typeof runtime?.resolveTheatreCheck === "function") {
+        resolvedCheck = runtime.resolveTheatreCheck(descriptor.check)?.check || null;
+      }
+      if (!resolvedCheck && typeof engine?.resolveTheatreCheck === "function") {
+        resolvedCheck = engine.resolveTheatreCheck({ character, traits, check: descriptor.check })?.check || null;
+        if (resolvedCheck) applySpecialCheckBonuses(traits, character, resolvedCheck);
+      }
+      if (!resolvedCheck) return;
+      if (Object.prototype.hasOwnProperty.call(target.dataset, "resolvedCheckPower")) delete target.dataset.resolvedCheckPower;
+      state.pendingCheckResolution = null;
+      const standard = global.LuminousTraitStandardizationRuntime;
+      const hasPostCoinBridge = Boolean(standard?.armPlayerCheck?.(resolvedCheck));
+      // Never add finalPower here if it is already applied after the coins.
+      // If the async bridge is not ready, add it as a one-time fallback.
+      const fallbackFinalPower = hasPostCoinBridge ? 0 : finalPowerValue(resolvedCheck);
       event.preventDefault();
       event.stopPropagation();
       event.stopImmediatePropagation();
-      stats.triggerCoinRoll(descriptor.ability, descriptor.label, rawRollBase(descriptor, data, stats) + previewPower);
+      stats.triggerCoinRoll(descriptor.ability, descriptor.label,
+        rawRollBase(descriptor, data, stats) + checkPowerValue(resolvedCheck) + fallbackFinalPower);
     }, true);
     return true;
   }
@@ -506,7 +529,7 @@
     state.playerListener = null;
     if (!nextId) return false;
     state.playerRef = state.db.ref(`${PLAYER_ROOT}/${nextId}`);
-    state.playerListener = (snapshot) => { state.player = snapshot.val() || null; };
+    state.playerListener = (snapshot) => { state.player = snapshot.val() || null; syncDmSkillPreviews(); };
     state.playerRef.on("value", state.playerListener);
     return true;
   }
@@ -542,6 +565,9 @@
       .forEach((name) => global.addEventListener?.(name, tick));
     global.addEventListener?.("luminous:theatre-rolls-ready", tick);
     global.addEventListener?.("load", tick, { once: true });
+    doc.addEventListener?.("change", (event) => {
+      if (event.target?.closest?.("#dashboard-jugadores")) tick();
+    });
   }
 
   const api = Object.freeze({
