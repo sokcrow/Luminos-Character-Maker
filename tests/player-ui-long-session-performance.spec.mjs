@@ -1592,7 +1592,7 @@ for (const width of [390, 1280]) {
         base:c.baseStats.fuerza,
         recomputedFromStudio:c.baseStats.fuerza+c.characterBuild.breakdown.racialStatBonuses.str,
         legacyRemoved:!Object.hasOwn(c,"classMilestones"),
-        oldTrait:api.choiceAt(c.characterBuild.classMilestones,"fighter",30),
+        oldTrait:c.characterBuild.classMilestones.fighter["30"],
         savedMilestone:api.choiceAt(c.characterBuild.classMilestones,"fighter",20)
       };
     });
