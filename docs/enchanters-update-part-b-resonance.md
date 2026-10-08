@@ -141,7 +141,13 @@ Trying to channel above the gemstone's stable capacity is **Overchanneling**.
 
 Overchanneling increases difficulty and makes serious failure more likely to damage/deplete the gemstone or produce an accidental Curse.
 
-The exact Overchannel TH penalty belongs to implementation/balance data and must be tested against Part A thresholds.
+Initial implementation baseline:
+
+```text
+Overchannel -> +2 TH per Rank above the gem's stable Rank
+```
+
+Overchannel also exposes elevated-risk outcome hooks for Anchor instability, break/depletion and recipe-authorized accidental Curse results.
 
 ## 7. Resonance compatibility
 
@@ -327,6 +333,10 @@ recipe: {
 
 Specific Enchantments may still require exact named Items when their fiction/mechanics demand it.
 
+The runtime now supports both semantic requirements such as `anyTags` / `allTags` and exact-Item requirements. A mounted Gem Anchor may be explicitly protected from the consumption plan.
+
+Ritual materials are consumed **when the ritual begins**. Their consumption does not depend on whether the later magical outcome is clean, altered, Bound, Cursed or otherwise unfavorable.
+
 ## 14. Bind construction
 
 Bind is a special Curse-family Enchantment state. It may occur accidentally or be intentionally attempted; Part D defines its equip/Attunement lock and recharge behavior.
@@ -425,8 +435,7 @@ An Enchantment selects one authored route. The gemstone does not grant all affin
 - [x] Author the full 12-gem Enchantment Affinity matrix.
 - [x] Validate that added affinities remain coherent with each gem's canonical resonance identity.
 - [x] Add Gem Quality -> stable Rank capacity resolution.
-- [ ] Add Overchannel state and failure-risk hooks.
-  - [x] Overchannel state/resolution is implemented; failure-risk/outcome integration remains pending.
+- [x] Add Overchannel state, +2 TH/Rank difficulty pressure and elevated failure-risk hooks.
 
 ### Gem Anchors
 
@@ -441,11 +450,11 @@ An Enchantment selects one authored route. The gemstone does not grant all affin
 
 - [x] Add primary/accepted/incompatible resonance compatibility.
 - [x] Add non-elemental Enchantment affinity compatibility (HP, SP, INT, Speed, resistance, regeneration, etc.).
-- [ ] Add semantic consumed-material requirements.
-- [ ] Allow exact Item requirements for exceptional recipes.
-- [ ] Consume non-gem ritual materials once an application attempt begins, success or failure.
+- [x] Add semantic consumed-material requirements.
+- [x] Allow exact Item requirements for exceptional recipes.
+- [x] Consume ritual materials once an application attempt begins, independent of later success/altered outcome, while allowing the mounted Anchor to be protected.
 - [x] Keep mounted Gem Anchors on successful application.
-- [ ] Apply failure outcomes that can break/deplete/corrupt the Gem Anchor.
+- [x] Apply authored outcome hooks that can make the Gem Anchor unstable/broken/depleted or apply a permitted accidental Curse/Bind.
 
 ### Specialization / hybrid resolution
 
@@ -470,25 +479,25 @@ An Enchantment selects one authored route. The gemstone does not grant all affin
 
 ### Bind / Curse recipe integration
 
-- [ ] Add intentional Bind modifier flow with initial +4 TH baseline.
-- [ ] Add accidental beneficial Bind outcome hook.
-- [ ] Add intentional Curse modifier flow with initial +6 TH baseline.
-- [ ] Add profane/corrupted semantic reagent requirements for authored Curses.
-- [ ] Allow instability/backlash to create accidental Curse only when the relevant recipe/outcome permits it.
-- [ ] Preserve Part A x1.25 Bound and x1.50 Curse positive-effect modifiers while applying Part D Curse-family runtime behavior.
+- [x] Add intentional Bind modifier flow with +4 TH baseline.
+- [x] Add accidental beneficial Bind outcome hook gated by recipe/caller permission.
+- [x] Add intentional Curse modifier flow with +6 TH baseline.
+- [x] Add profane/corrupted/macabre semantic reagent requirement for intentional Curse rituals.
+- [x] Allow instability/backlash to create accidental Curse only when the relevant recipe/outcome permits it.
+- [x] Preserve Part A x1.25 Bound and x1.50 Curse positive-effect modifiers while applying Part D Curse-family runtime behavior.
 
 ### Tests / CI
 
 - [x] Add 12-gem profile validation tests.
 - [x] Add one-anchor/one-Enchantment tests.
 - [x] Add Gem Quality Rank-cap tests.
-- [ ] Add Overchannel failure tests.
+- [x] Add Overchannel difficulty/risk tests.
 - [x] Add compatible/accepted/incompatible resonance tests.
 - [x] Add specialization versus hybrid TH tests.
 - [x] Add Item/Gem TH cap tests and external-tool separation tests.
-- [ ] Add ritual-consumable loss tests on success/failure.
+- [x] Add ritual-consumable loss-at-start tests independent from later outcome.
 - [x] Add Gem Anchor break/depletion/Dormant tests.
 - [x] Add separate Base Enchantment Slot vs Enchantment Gem Socket capacity tests, including Rank II multi-anchor, Rank III exclusivity and fourth-gem catastrophe.
 - [x] Add per-action Fire/Cold channel-choice regression tests, including Gem-Anchored channels.
-- [ ] Add intentional/accidental Bind tests.
-- [ ] Add intentional/accidental Curse recipe tests.
+- [x] Add intentional/accidental Bind tests.
+- [x] Add intentional/accidental Curse recipe tests.
