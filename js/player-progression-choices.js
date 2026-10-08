@@ -12,6 +12,14 @@
   const text = value => String(value ?? "").trim();
   const id = value => text(value).toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"");
   const api = () => global.LuminousClassMilestones;
+  const progressionCore = () => global.LuminousPlayerProgressionTreeCore;
+  // Use the same sources and map normalization as the visible class/archetype
+  // tree. Every eligibility check must agree with what the player sees.
+  const normalizedClasses = character => progressionCore()?.normalizeClasses?.(character) || [];
+  const normalizedSelections = character => progressionCore()?.normalizeSelections?.(character) || [];
+  const earnedMilestone = (character, classId, level) =>
+    !!api()?.earnedMilestones(normalizedClasses(character))
+      .some(entry => entry.classId === id(classId) && entry.milestoneLevel === Number(level));
   const make = (tag, className, label) => {
     const element = doc.createElement(tag);
     if (className) element.className = className;
@@ -38,9 +46,7 @@
     if (!db?.ref || !text(playerId)) throw new Error("No hay conexión para guardar estas elecciones.");
     return db.ref(`${PLAYER_ROOT}/${text(playerId)}`);
   };
-  const isEarned = (character, classId, level) =>
-    !!api()?.earnedMilestones(character?.characterBuild?.classes || character?.classes || [])
-      .some(entry => entry.classId === id(classId) && entry.milestoneLevel === Number(level));
+  const isEarned = earnedMilestone;
   const savedChoice = (character, classId, level) =>
     api()?.choiceAt(character?.characterBuild?.classMilestones, classId, level) || null;
   const choiceLabel = (choice, definitions = {}) => {
@@ -204,8 +210,7 @@
             abortReason = "No se encontró el personaje."; return;
           }
           const build = current.characterBuild || {};
-          const classes = build.classes || current.classes || [];
-          if (!api().earnedMilestones(classes).some(entry=>entry.classId===id(classId)&&entry.milestoneLevel===Number(level))) {
+          if (!earnedMilestone(current, classId, level)) {
             abortReason = "Aún no alcanzaste el nivel requerido para esta mejora.";return;
           }
           if (api().choiceAt(build.classMilestones,classId,level)) {
@@ -249,12 +254,10 @@
   }
 
   function maneuverLimit(character = {}) {
-    const classes = character?.characterBuild?.classes || character?.classes || [];
-    const fighter = Array.isArray(classes) ? classes.find(entry=>id(entry.classId || entry.id)==="fighter") : null;
-    const fighterLevel = Math.max(0,Number(fighter?.levels ?? fighter?.level ?? classes.fighter ?? 0)||0);
-    const chosen = character?.characterBuild?.archetypes || character?.archetypes || [];
-    const entries = Array.isArray(chosen) ? chosen : Object.entries(chosen).map(([classId,archetypeId])=>({classId,archetypeId}));
-    if (!entries.some(entry=>id(entry.classId)==="fighter"&&id(entry.archetypeId)==="battle_master")||fighterLevel<15) return 0;
+    const fighterLevel = normalizedClasses(character).find(entry => entry.classId === "fighter")?.levels || 0;
+    const selectedBattleMaster = normalizedSelections(character).some(
+      entry => entry.classId === "fighter" && entry.archetypeId === "battle_master");
+    if (!selectedBattleMaster || fighterLevel < 15) return 0;
     const base = fighterLevel>=90?5:fighterLevel>=50?4:3;
     const runtime = global.LuminousBattleMasterArchetypeRuntime;
     const extra = character?.superiorTechnique === true || character?.characterBuild?.superiorTechnique === true ||
