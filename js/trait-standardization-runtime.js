@@ -941,6 +941,14 @@
     return true;
   }
 
+  // A player's own click may initiate a Check without the DM first calling
+  // LuminousTheatreRolls.armCheck. Keep exactly the same post-coin Final Power
+  // contract for both routes, without scheduling a second Check.
+  function armPlayerCheck(check = {}) {
+    state.activeCheck = { ...(check || {}) };
+    return { ...state.activeCheck };
+  }
+
   function applyCheckRetosses(result, options, check) {
     const playerRuntime = global.LuminousPlayerTraitRuntime;
     const coinEngine = state.coinEngineSource || global.LuminousCoinEngine;
@@ -1165,6 +1173,7 @@
     skillCheckBonus,
     resolveTraitRuntimeResolutions,
     applyCheckFinalPower,
+    armPlayerCheck,
     completedCheckDetail,
     emitCompletedCheck,
     equipmentLevelModifier,
