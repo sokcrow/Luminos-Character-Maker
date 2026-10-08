@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url';
 
 await import('../js/trait-engine.js');
 await import('../js/character-build-rules.js');
+await import('../js/archetype-engine.js');
+await import('../js/archetype-trait-catalog.js');
 await import('../js/player-progression-tree-core.js');
 
 const core = globalThis.LuminousPlayerProgressionTreeCore;
@@ -177,6 +179,21 @@ const statsCss = fs.readFileSync(path.join(here, '..', 'css', 'player-stats-abil
 assert.match(html, /title="Progresión"/);
 assert.match(html, /id="player-progression-level-allocation-host"/);
 assert.match(html, /id="player-progression-tree-host"/);
+// The Player sheet must load choice metadata even when no Archetype is selected.
+// Class-runtime-bootstrap alone loads only the active build graph.
+const engineScript = html.indexOf('src="js/archetype-engine.js"');
+const catalogScript = html.indexOf('src="js/archetype-trait-catalog.js"');
+const treeScript = html.indexOf('src="js/player-progression-tree-core.js"');
+assert.ok(engineScript > 0 && engineScript < catalogScript && catalogScript < treeScript);
+const unselectedBarbarian = core.buildProgressionModel(
+  { level:15, characterBuild:{ classes:[{classId:'barbarian',levels:15}], archetypes:[] } },
+  { archetypeCatalog:globalThis.LuminousArchetypeTraitCatalog, traitGrants:[], archetypeGrants:[], definitions:{} },
+);
+assert.equal(
+  unselectedBarbarian.classes[0].branches.find(entry=>entry.id==='path_of_the_devil_lineage')?.status,
+  'available',
+  'Eligible archetypes must appear without having an archetype runtime selected first',
+);
 // Traits are a primary Stats/Desktop surface. Progression must not own or duplicate them.
 assert.doesNotMatch(html, /id="player-progression-traits-host"/);
 assert.doesNotMatch(html, /player-progression-traits-dossier/);
