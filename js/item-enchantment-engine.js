@@ -12,13 +12,17 @@
   }
 
   const Catalog = global.LuminousEnchantmentCatalog || safeRequire("./item-catalog-enchantments.js");
+  const Gems = global.LuminousOreIngotGemCatalog || safeRequire("./item-catalog-ore-ingot-gem.js");
   if (!Catalog) throw new Error("LuminousEnchantmentCatalog is required before LuminousItemEnchantmentEngine.");
+  if (!Gems) throw new Error("LuminousOreIngotGemCatalog is required before LuminousItemEnchantmentEngine.");
 
-  const VERSION = 1;
+  const VERSION = 2;
   const TIER_BASE_SLOT_CAPACITY = Object.freeze({ 1: 0, 2: 1, 3: 1, 4: 2, 5: 3 });
   const BIND_POSITIVE_MULTIPLIER = 1.25;
   const CURSE_POSITIVE_MULTIPLIER = 1.50;
-  const SUPPORTED_APPLICATION_SOURCES = Object.freeze(["direct"]);
+  const SUPPORTED_APPLICATION_SOURCES = Object.freeze(["direct", "gem"]);
+  const GEM_SOCKET_HARD_MAX = 3;
+  const GEM_ANCHOR_STATES = Object.freeze(["stable", "unstable", "depleted", "broken"]);
 
   function clone(value) {
     return value == null ? value : JSON.parse(JSON.stringify(value));
@@ -71,6 +75,113 @@
     return clone(state);
   }
 
+  function gemSocketCapacity(item = {}) {
+    const magic = magicStateOf(item);
+    const explicit = magic.gemSockets?.max ?? item.enchantmentGemSocketCapacity ?? item.gemSocketCapacity;
+    if (Number.isFinite(Number(explicit))) return Math.max(0, Math.min(GEM_SOCKET_HARD_MAX, Math.trunc(Number(explicit))));
+    return Catalog.ELIGIBLE_ITEM_KINDS.includes(itemKindOf(item)) ? GEM_SOCKET_HARD_MAX : 0;
+  }
+
+  function gemAnchors(item = {}) {
+    const magic = magicStateOf(item);
+    return asArray(magic.gemAnchors).filter((entry) => entry && typeof entry === "object").map(clone);
+  }
+
+  function gemDefinitionIdOf(gem = {}) {
+    return normalizeId(gem.definitionId || gem.itemId || gem.id || gem.canonicalId);
+  }
+
+  function gemInstanceIdOf(gem = {}) {
+    const value = gem.instanceId || gem.instance_id || gem.sourceInstanceId || null;
+    return value == null ? null : String(value);
+  }
+
+  function gemQualityOf(gem = {}) {
+    return normalizeId(gem.quality || gem.baseQuality || "standard") || "standard";
+  }
+
+  function normalizeGemAnchor(raw = {}) {
+    const state = normalizeId(raw.state || "stable") || "stable";
+    return Object.freeze({
+      anchorId:String(raw.anchorId || raw.id || ""),
+      socketIndex:Math.max(0, Math.trunc(Number(raw.socketIndex) || 0)),
+      gemDefinitionId:normalizeId(raw.gemDefinitionId || raw.gemId || raw.definitionId),
+      gemInstanceId:raw.gemInstanceId == null ? null : String(raw.gemInstanceId),
+      gemQuality:normalizeId(raw.gemQuality || raw.quality || "standard") || "standard",
+      state:GEM_ANCHOR_STATES.includes(state) ? state : "stable",
+      enchantmentDefinitionId:normalizeId(raw.enchantmentDefinitionId || raw.enchantmentId),
+      rank:Math.max(0, Math.trunc(Number(raw.rank) || 0)),
+      overchannel:raw.overchannel === true,
+    });
+  }
+
+  function nextGemSocketIndex(item = {}) {
+    const used = new Set(gemAnchors(item).map((anchor) => normalizeGemAnchor(anchor).socketIndex));
+    for (let index = 0; index < gemSocketCapacity(item); index += 1) {
+      if (!used.has(index)) return index;
+    }
+    return -1;
+  }
+
+  function anchorStateSupportsMagic(state) {
+    return !["broken", "depleted"].includes(normalizeId(state));
+  }
+
+  function gemAnchoredRefs(refs = []) {
+    return asArray(refs).map(normalizeAppliedReference).filter((ref) => ref.source === "gem");
+  }
+
+  function validateGemSocketLoadout(item = {}, refs = appliedEnchantments(item), anchors = gemAnchors(item)) {
+    const errors = [];
+    const normalizedAnchors = asArray(anchors).map(normalizeGemAnchor);
+    const normalizedRefs = gemAnchoredRefs(refs);
+    const capacity = gemSocketCapacity(item);
+
+    if (normalizedAnchors.length > capacity || normalizedRefs.length > capacity) errors.push("gem_socket_capacity_exceeded");
+
+    const anchorIds = new Set();
+    const socketIndexes = new Set();
+    for (const anchor of normalizedAnchors) {
+      if (!anchor.anchorId) errors.push("gem_anchor_missing_id");
+      if (anchorIds.has(anchor.anchorId)) errors.push("duplicate_gem_anchor_id");
+      anchorIds.add(anchor.anchorId);
+      if (socketIndexes.has(anchor.socketIndex)) errors.push("duplicate_gem_socket_index");
+      socketIndexes.add(anchor.socketIndex);
+      if (anchor.socketIndex >= capacity) errors.push("gem_socket_index_out_of_range");
+      if (!GEM_ANCHOR_STATES.includes(anchor.state)) errors.push("invalid_gem_anchor_state");
+    }
+
+    const refAnchorIds = new Set();
+    for (const ref of normalizedRefs) {
+      if (!ref.anchorId) errors.push("gem_enchantment_missing_anchor");
+      if (refAnchorIds.has(ref.anchorId)) errors.push("multiple_enchantments_same_gem_anchor");
+      refAnchorIds.add(ref.anchorId);
+    }
+
+    for (const anchor of normalizedAnchors) {
+      const linked = normalizedRefs.filter((ref) => ref.anchorId === anchor.anchorId);
+      if (linked.length !== 1) errors.push(linked.length ? "multiple_enchantments_same_gem_anchor" : "gem_anchor_missing_enchantment");
+      if (linked[0] && (linked[0].definitionId !== anchor.enchantmentDefinitionId || linked[0].rank !== anchor.rank)) {
+        errors.push("gem_anchor_enchantment_link_mismatch");
+      }
+    }
+
+    for (const ref of normalizedRefs) {
+      if (!anchorIds.has(ref.anchorId)) errors.push("gem_enchantment_anchor_not_found");
+    }
+
+    const rankThreeRefs = normalizedRefs.filter((ref) => ref.rank === 3);
+    if (rankThreeRefs.length > 1) errors.push("multiple_rank_three_gem_enchantments");
+    if (rankThreeRefs.length === 1 && normalizedRefs.length > 1) errors.push("rank_three_gem_anchor_exclusive");
+
+    return Object.freeze({
+      valid:errors.length === 0,
+      errors:Object.freeze([...new Set(errors)]),
+      sockets:Object.freeze({used:normalizedAnchors.length,max:capacity}),
+      anchors:Object.freeze(normalizedAnchors.map(clone)),
+    });
+  }
+
   function appliedEnchantments(item = {}) {
     const magic = magicStateOf(item);
     return asArray(magic.enchantments).filter((entry) => entry && typeof entry === "object").map(clone);
@@ -115,9 +226,8 @@
     if (!definition) errors.push("unknown_enchantment");
     if (!Catalog.SUPPORTED_RANKS.includes(ref.rank)) errors.push("unsupported_rank");
     if (!Catalog.APPLIED_SOURCES.includes(ref.source)) errors.push("unsupported_application_source");
-    if (!SUPPORTED_APPLICATION_SOURCES.includes(ref.source) && options.allowFutureSource !== true) {
-      errors.push("application_source_runtime_not_ready");
-    }
+    if (!SUPPORTED_APPLICATION_SOURCES.includes(ref.source)) errors.push("application_source_runtime_not_ready");
+    if (ref.source === "gem" && !ref.anchorId) errors.push("gem_enchantment_requires_anchor_id");
 
     if (definition) {
       if (!definition.rankData?.[ref.rank]) errors.push("rank_not_authored");
@@ -194,12 +304,16 @@
     const used = slotsUsed(normalized);
     if (capacity != null && used > capacity) errors.push("base_enchantment_slots_exceeded");
 
+    const gemValidation = validateGemSocketLoadout(item, normalized, options.gemAnchors ?? gemAnchors(item));
+    if (!gemValidation.valid) errors.push(...gemValidation.errors);
+
     return Object.freeze({
       valid: errors.length === 0,
       errors:Object.freeze([...new Set(errors)]),
       itemKind:kind,
       itemTier:tier,
       slots:Object.freeze({ used, max:capacity }),
+      gemSockets:gemValidation.sockets,
       enchantments:Object.freeze(normalized.map(clone)),
     });
   }
@@ -257,16 +371,19 @@
     });
   }
 
-  function withMagicState(item, refs) {
+  function withMagicState(item, refs, anchors = gemAnchors(item)) {
     const out = clone(item || {});
     const current = magicStateOf(out);
     const capacity = baseSlotCapacity(out);
     const used = slotsUsed(refs);
+    const normalizedAnchors = asArray(anchors).map(normalizeGemAnchor);
     out.magic = {
       ...current,
-      enabled:true,
+      enabled:refs.length > 0,
       enchantments:refs.map((entry) => clone(normalizeAppliedReference(entry))),
       enchantmentSlots:{ max:capacity, used },
+      gemSockets:{ max:gemSocketCapacity(out), used:normalizedAnchors.length },
+      gemAnchors:normalizedAnchors.map(clone),
     };
     return out;
   }
@@ -276,7 +393,7 @@
     if (!gate.allowed) return Object.freeze({ applied:false, ...clone(gate), item:clone(item) });
     const refs = appliedEnchantments(item);
     refs.push(gate.reference);
-    const out = withMagicState(item, refs);
+    const out = withMagicState(item, refs, gate.candidateAnchors || gemAnchors(item));
     return Object.freeze({
       applied:true,
       item:Object.freeze(out),
@@ -305,12 +422,31 @@
     const next = normalizeAppliedReference({ ...current, rank:nextRank });
     const candidateRefs = refs.slice();
     candidateRefs[index] = next;
-    const validation = validateLoadout(item, candidateRefs, options);
+    const candidateAnchors = gemAnchors(item).map((anchor) => {
+      const normalized = normalizeGemAnchor(anchor);
+      if (normalized.anchorId !== current.anchorId) return normalized;
+      return normalizeGemAnchor({...normalized, rank:nextRank});
+    });
+    const gemChannel = current.source === "gem"
+      ? Gems.validateGemChannelRank(candidateAnchors.find((anchor) => anchor.anchorId === current.anchorId)?.gemDefinitionId, nextRank, candidateAnchors.find((anchor) => anchor.anchorId === current.anchorId)?.gemQuality)
+      : null;
+    if (current.source === "gem" && !gemChannel?.valid) {
+      return Object.freeze({ allowed:false, reason:gemChannel?.reason || "gem_rank_invalid", currentRank:current.rank, targetRank:nextRank });
+    }
+    if (current.source === "gem") {
+      const anchorIndex = candidateAnchors.findIndex((anchor) => anchor.anchorId === current.anchorId);
+      candidateAnchors[anchorIndex] = normalizeGemAnchor({
+        ...candidateAnchors[anchorIndex],
+        state:gemChannel.unstable ? "unstable" : candidateAnchors[anchorIndex].state,
+        overchannel:gemChannel.overchannel,
+      });
+    }
+    const validation = validateLoadout(item, candidateRefs, { ...options, gemAnchors:candidateAnchors });
     if (!validation.valid) {
       return Object.freeze({ allowed:false, reason:validation.errors[0] || "invalid_enchantment_loadout", validation });
     }
 
-    return Object.freeze({ allowed:true, index, current, next, definition:Object.freeze(definition), validation });
+    return Object.freeze({ allowed:true, index, current, next, definition:Object.freeze(definition), validation, candidateAnchors:Object.freeze(candidateAnchors.map(clone)) });
   }
 
   function strengthenEnchantment(item = {}, definitionId, targetRank, options = {}) {
@@ -330,6 +466,8 @@
   }
 
   function canRemoveEnchantment(item = {}, definitionId) {
+    const anchored = canRemoveGemAnchoredEnchantment(item, definitionId);
+    if (anchored) return Object.freeze({ allowed:false, ...anchored });
     const refs = appliedEnchantments(item);
     const index = existingIndex(refs, definitionId);
     if (index < 0) return Object.freeze({ allowed:false, reason:"enchantment_not_installed" });
@@ -349,6 +487,184 @@
     const out = withMagicState(item, refs);
     if (!refs.length) out.magic.enabled = false;
     return Object.freeze({ removed:true, item:Object.freeze(out), removedReference:gate.reference });
+  }
+
+
+  function validateGemAnchorApplication(item = {}, gem = {}, definitionOrId, rank = 1, options = {}) {
+    const definition = typeof definitionOrId === "string" ? Catalog.get(definitionOrId) : clone(definitionOrId);
+    if (!definition) return Object.freeze({ allowed:false, reason:"unknown_enchantment" });
+
+    const gemDefinitionId = gemDefinitionIdOf(gem);
+    const gemProfile = Gems.gemMagicProfile(gemDefinitionId);
+    if (!gemProfile) return Object.freeze({ allowed:false, reason:"not_a_gemstone" });
+    if (!gemProfile.canAnchorEnchantment) return Object.freeze({ allowed:false, reason:"gem_not_anchor_ready", gemDefinitionId });
+
+    const quality = gemQualityOf(gem);
+    const channel = Gems.validateGemChannelRank(gemDefinitionId, rank, quality);
+    if (!channel.valid) return Object.freeze({ allowed:false, reason:channel.reason || "gem_rank_invalid", channel });
+
+    const refs = appliedEnchantments(item);
+    if (existingIndex(refs, definition.id) >= 0 && definition.stacking === "non_stackable") {
+      return Object.freeze({ allowed:false, reason:"enchantment_already_installed", definitionId:definition.id });
+    }
+
+    const anchors = gemAnchors(item);
+    const capacity = gemSocketCapacity(item);
+    if (anchors.length >= capacity) {
+      return Object.freeze({
+        allowed:false,
+        reason:"gem_socket_capacity_exceeded",
+        catastrophicAvailable:anchors.length >= GEM_SOCKET_HARD_MAX,
+        sockets:Object.freeze({used:anchors.length,max:capacity}),
+      });
+    }
+
+    const socketIndex = options.socketIndex == null ? nextGemSocketIndex(item) : Math.max(0, Math.trunc(Number(options.socketIndex) || 0));
+    if (socketIndex < 0 || socketIndex >= capacity) return Object.freeze({ allowed:false, reason:"gem_socket_index_out_of_range" });
+    if (anchors.some((anchor) => normalizeGemAnchor(anchor).socketIndex === socketIndex)) {
+      return Object.freeze({ allowed:false, reason:"gem_socket_occupied", socketIndex });
+    }
+
+    const gemInstanceId = gemInstanceIdOf(gem);
+    const anchorId = String(options.anchorId || `${gemInstanceId || gemDefinitionId}_anchor_${socketIndex + 1}`);
+    if (anchors.some((anchor) => normalizeGemAnchor(anchor).anchorId === anchorId)) {
+      return Object.freeze({ allowed:false, reason:"duplicate_gem_anchor_id", anchorId });
+    }
+
+    const propertyValidation = validateAppliedProperties(options.properties, definition);
+    if (!propertyValidation.valid) {
+      return Object.freeze({ allowed:false, reason:"invalid_enchantment_properties", errors:propertyValidation.errors });
+    }
+
+    const state = channel.unstable ? "unstable" : "stable";
+    const candidateRef = normalizeAppliedReference({
+      definitionId:definition.id,
+      rank,
+      source:"gem",
+      anchorId,
+      properties:propertyValidation.properties,
+    });
+    const candidateAnchor = normalizeGemAnchor({
+      anchorId,
+      socketIndex,
+      gemDefinitionId,
+      gemInstanceId,
+      gemQuality:quality,
+      state,
+      enchantmentDefinitionId:definition.id,
+      rank,
+      overchannel:channel.overchannel,
+    });
+
+    const candidateRefs = [...refs, candidateRef];
+    const candidateAnchors = [...anchors, candidateAnchor];
+    const validation = validateLoadout(item, candidateRefs, { gemAnchors:candidateAnchors });
+    if (!validation.valid) {
+      return Object.freeze({ allowed:false, reason:validation.errors[0] || "invalid_enchantment_loadout", validation });
+    }
+
+    return Object.freeze({
+      allowed:true,
+      definition:Object.freeze(definition),
+      reference:candidateRef,
+      anchor:candidateAnchor,
+      channel,
+      validation,
+    });
+  }
+
+  function catastrophicFourthGem(item = {}, gem = {}, options = {}) {
+    const out = clone(item || {});
+    const previousAnchors = gemAnchors(out).map(normalizeGemAnchor);
+    const survivingGem = clone(gem);
+    out.destroyed = true;
+    out.condition = 0;
+    if (out.currentDurability !== undefined) out.currentDurability = 0;
+    if (out.durability !== undefined) out.durability = 0;
+    const current = magicStateOf(out);
+    out.magic = {
+      ...current,
+      enabled:false,
+      enchantments:[],
+      enchantmentSlots:{max:baseSlotCapacity(out),used:0},
+      gemSockets:{max:gemSocketCapacity(out),used:0},
+      gemAnchors:[],
+      destroyedByGemCatastrophe:true,
+    };
+    return Object.freeze({
+      catastrophic:true,
+      destroyedItem:true,
+      reason:"forced_fourth_gem_catastrophe",
+      item:Object.freeze(out),
+      survivingGem:Object.freeze(survivingGem),
+      destroyedAnchors:Object.freeze(previousAnchors.map(clone)),
+      trigger:normalizeId(options.trigger || "forced_fourth_gem"),
+    });
+  }
+
+  function mountGemAnchor(item = {}, gem = {}, definitionOrId, rank = 1, options = {}) {
+    const currentAnchors = gemAnchors(item);
+    if (currentAnchors.length >= GEM_SOCKET_HARD_MAX && options.forceFourth === true) {
+      return catastrophicFourthGem(item, gem, options);
+    }
+
+    const gate = validateGemAnchorApplication(item, gem, definitionOrId, rank, options);
+    if (!gate.allowed) return Object.freeze({ mounted:false, ...clone(gate), item:clone(item) });
+
+    const refs = appliedEnchantments(item);
+    const anchors = currentAnchors;
+    refs.push(gate.reference);
+    anchors.push(gate.anchor);
+    const out = withMagicState(item, refs, anchors);
+    return Object.freeze({
+      mounted:true,
+      item:Object.freeze(out),
+      reference:gate.reference,
+      anchor:gate.anchor,
+      channel:gate.channel,
+      gemSockets:gate.validation.gemSockets,
+    });
+  }
+
+  function setGemAnchorState(item = {}, anchorId, state) {
+    const wanted = String(anchorId || "");
+    const normalizedState = normalizeId(state);
+    if (!GEM_ANCHOR_STATES.includes(normalizedState)) {
+      return Object.freeze({ changed:false, reason:"invalid_gem_anchor_state", item:clone(item) });
+    }
+
+    const anchors = gemAnchors(item).map(normalizeGemAnchor);
+    const index = anchors.findIndex((anchor) => anchor.anchorId === wanted);
+    if (index < 0) return Object.freeze({ changed:false, reason:"gem_anchor_not_found", item:clone(item) });
+
+    const refs = appliedEnchantments(item);
+    const linkedIndex = refs.findIndex((ref) => normalizeAppliedReference(ref).anchorId === wanted);
+    if (linkedIndex < 0) return Object.freeze({ changed:false, reason:"gem_anchor_enchantment_not_found", item:clone(item) });
+
+    anchors[index] = normalizeGemAnchor({...anchors[index], state:normalizedState});
+    const linked = normalizeAppliedReference(refs[linkedIndex]);
+    refs[linkedIndex] = normalizeAppliedReference({
+      ...linked,
+      dormant:!anchorStateSupportsMagic(normalizedState),
+    });
+
+    const out = withMagicState(item, refs, anchors);
+    return Object.freeze({
+      changed:true,
+      item:Object.freeze(out),
+      anchor:anchors[index],
+      reference:refs[linkedIndex],
+    });
+  }
+
+  function canRemoveGemAnchoredEnchantment(item = {}, definitionId) {
+    const refs = appliedEnchantments(item);
+    const index = existingIndex(refs, definitionId);
+    if (index < 0) return null;
+    const ref = normalizeAppliedReference(refs[index]);
+    return ref.source === "gem"
+      ? Object.freeze({blocked:true,reason:"gem_anchored_enchantment_requires_anchor_procedure",reference:ref})
+      : null;
   }
 
   function positiveEffectMultiplier(ref) {
@@ -448,11 +764,23 @@
     BIND_POSITIVE_MULTIPLIER,
     CURSE_POSITIVE_MULTIPLIER,
     SUPPORTED_APPLICATION_SOURCES,
+    GEM_SOCKET_HARD_MAX,
+    GEM_ANCHOR_STATES,
     normalizeId,
     itemKindOf,
     tierOf,
     baseSlotCapacity,
     magicStateOf,
+    gemSocketCapacity,
+    gemAnchors,
+    gemDefinitionIdOf,
+    gemInstanceIdOf,
+    gemQualityOf,
+    normalizeGemAnchor,
+    nextGemSocketIndex,
+    anchorStateSupportsMagic,
+    gemAnchoredRefs,
+    validateGemSocketLoadout,
     appliedEnchantments,
     normalizeAppliedReference,
     validateAppliedProperties,
@@ -467,6 +795,11 @@
     strengthenEnchantment,
     canRemoveEnchantment,
     removeEnchantment,
+    validateGemAnchorApplication,
+    catastrophicFourthGem,
+    mountGemAnchor,
+    setGemAnchorState,
+    canRemoveGemAnchoredEnchantment,
     positiveEffectMultiplier,
     resolvedEnchantments,
     actionChannels,
