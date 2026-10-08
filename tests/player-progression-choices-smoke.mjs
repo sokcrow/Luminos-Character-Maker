@@ -278,7 +278,8 @@ assert.equal(revert.milestoneChoiceAt(doubleStore,'fighter',20)?.type,'stats');
 const revertedLegacy = revert.revertMilestoneState(doubleStore,'fighter',20);
 assert.equal(revertedLegacy.valid,true,'DM revert works on top-level legacy claims');
 assert.equal(revertedLegacy.player.stats.fuerza,14);
-assert.equal(revertedLegacy.player.baseStats.fuerza,12);
+assert.equal(revertedLegacy.player.baseStats.fuerza,14,
+  'Historical stat-only claims must not subtract baseStats they never increased');
 assert.equal(revertedLegacy.player.classMilestones,undefined,
   'No top-level shadow claims remain after canonical migration and reversion');
 assert.equal(milestone.choiceAt(revertedLegacy.player.characterBuild.classMilestones,'fighter',20),null,
@@ -294,6 +295,34 @@ assert.equal(revertedTrait.valid,true);
 assert.ok(!milestone.selectedGeneralTraitIds(revertedTrait.player).includes('general_keen'),
   'A reverted legacy General Trait does not remain active');
 assert.equal(revertedTrait.player.stats.fuerza,14,'Reverting Trait does not modify Stats');
+// New tracked awards DO update baseStats. Their DM reversion must undo
+// both effective and base scores without restoring a shadow legacy claim.
+for (const baseStatsApplied of [true,false]) {
+  const tagged = {
+    stats:{fuerza:16,destreza:12},
+    baseStats:{fuerza:14,destreza:11},
+    characterBuild:{classMilestones:{fighter:{'20':{
+      ...oldClaim,baseStatsApplied,
+    }}}},
+  };
+  const reversed = revert.revertMilestoneState(tagged,'fighter',20);
+  assert.equal(reversed.valid,true);
+  assert.equal(reversed.player.stats.fuerza,14);
+  assert.equal(reversed.player.baseStats.fuerza,12,
+    'Base source must be reversed for tracked awards, including ones later added by the studio');
+  assert.equal(milestone.choiceAt(reversed.player.characterBuild.classMilestones,'fighter',20),null);
+}
+const dmContract=fs.readFileSync(path.join(root,'js/dm-player-class-milestones.js'),'utf8');
+const playerContract=fs.readFileSync(path.join(root,'js/player-progression-choices.js'),'utf8');
+const revertContract=fs.readFileSync(path.join(root,'js/milestone-revert-patch.js'),'utf8');
+assert.match(dmContract,/applyPlayerStatAllocation\(current,/);
+assert.match(playerContract,/applyPlayerStatAllocation\(current,/);
+assert.match(dmContract,/delete current\.classMilestones;/);
+assert.match(playerContract,/delete current\.classMilestones;/);
+assert.match(revertContract,/delete current\.classMilestones;/);
+assert.match(dmContract,/baseStatsApplied/);
+assert.match(playerContract,/baseStatsApplied/);
+
 const conflictRevert = revert.revertMilestoneState({
   stats:{fuerza:16},
   classMilestones:{fighter:{20:{...oldClaim,allocation:{fuerza:2}}}},
