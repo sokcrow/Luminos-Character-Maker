@@ -569,7 +569,7 @@
       return Object.freeze({started:false,reason:"delivery_time_unresolved",duration:quote.duration||null});
     }
 
-    if (quote.definitionId && options.materials) {
+    if (quote.definitionId && (asArray(options.playerMaterials).length || asArray(options.providerMaterials).length)) {
       const allMaterials=[...asArray(options.playerMaterials),...asArray(options.providerMaterials)];
       const consumption=Engine.consumeRecipeMaterials(quote.definitionId,allMaterials,{
         properties:quote.properties,
