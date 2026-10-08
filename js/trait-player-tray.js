@@ -767,9 +767,8 @@
         }
       }
 
-      seenFormula.add(formulaKey);
-      values[resolved.id] = resolved;
-      extras.push(resolved);
+      // Values that appear only in internal mechanics are not player-facing
+      // summaries. Only show calculated values that match the description.
     });
 
     let descriptionSequence = 0;
@@ -815,9 +814,6 @@
       );
       tooltip.appendChild(line);
     });
-    const formula = createElement("span", "player-trait-formula-tooltip__formula");
-    formula.append(createElement("span", "", "Formula:"), createElement("code", "", resolved.formula));
-    tooltip.appendChild(formula);
     const total = createElement("span", "player-trait-formula-tooltip__total");
     total.append(
       createElement("span", "", resolved.pending ? "Result:" : "Total:"),
@@ -832,20 +828,49 @@
     control.type = "button";
     control.appendChild(createElement("span", "player-trait-resolved-value__display", resolved.display));
     control.dataset.traitResolvedValue = resolved.id;
-    control.setAttribute("aria-expanded", "false");
     control.dataset.traitFormulaPending = resolved.pending ? "true" : "false";
-    control.setAttribute("aria-label", `${resolved.label}: ${resolved.pending ? "waiting for contextual input" : resolved.display}. Hold Shift to inspect formula inputs, or activate this value for touch access.`);
-    control.title = "Hold Shift to inspect calculation";
+    control.setAttribute("aria-expanded", "false");
+    control.setAttribute("aria-label", `${resolved.label}: ${resolved.pending ? "waiting for context" : resolved.display}. Activate to show the calculation.`);
+    control.title = "Show calculation";
 
-    const tooltip = createElement("span", "player-trait-formula-tooltip");
-    tooltip.id = `player-trait-formula-tooltip-${++tooltipSequence}`;
-    tooltip.setAttribute("role", "tooltip");
-    control.setAttribute("aria-describedby", tooltip.id);
-    appendTooltipRows(tooltip, resolved);
-    wrapper.append(control, tooltip);
+    // Put the calculation beneath its card when expanded. A floating tooltip
+    // gets clipped by the scrollable Traits panel, especially on mobile.
+    const details = createElement("span", "player-trait-formula-tooltip");
+    details.id = `player-trait-formula-tooltip-${++tooltipSequence}`;
+    details.hidden = true;
+    details.setAttribute("role", "region");
+    control.setAttribute("aria-controls", details.id);
+    details.setAttribute("aria-label", `${resolved.label} calculation`);
+    appendTooltipRows(details, resolved);
+    wrapper.append(control, details);
 
     const setOpen = (open) => {
+      const card = control.closest(".player-trait-card");
+      if (!card) return;
       const active = Boolean(open);
+
+      if (active) {
+        // A card should expose only one calculation at a time.
+        const previous = card.querySelector(".player-trait-formula-tooltip.is-open");
+        if (previous && previous !== details) {
+          const oldControl = card.querySelector(`[aria-controls="${previous.id}"]`);
+          oldControl?.setAttribute("aria-expanded", "false");
+          oldControl?.classList.remove("is-open");
+          const oldWrapper = oldControl?.closest(".player-trait-resolved-control");
+          oldWrapper?.classList.remove("is-open");
+          previous.classList.remove("is-open");
+          previous.hidden = true;
+          oldWrapper?.appendChild(previous);
+        }
+        const next = card.querySelector(".player-trait-card__meta, .player-trait-card__footer");
+        details.hidden = false;
+        details.classList.add("is-open");
+        card.insertBefore(details, next || null);
+      } else {
+        details.classList.remove("is-open");
+        details.hidden = true;
+        wrapper.appendChild(details);
+      }
       wrapper.classList.toggle("is-open", active);
       control.classList.toggle("is-open", active);
       control.setAttribute("aria-expanded", active ? "true" : "false");
@@ -860,7 +885,6 @@
       setOpen(false);
       control.blur();
     });
-    control.addEventListener("blur", () => setOpen(false));
     return wrapper;
   }
 
@@ -1092,18 +1116,16 @@
       if (this.filter !== "all" && !counts[this.filter]) this.filter = "all";
 
       CATEGORY_ORDER.forEach((category) => {
+        if (category !== "all" && counts[category] === 0) return;
         const button = createElement("button", `player-trait-filter${this.filter === category ? " is-active" : ""}`);
         button.type = "button";
         button.dataset.traitFilter = category;
-        button.disabled = category !== "all" && counts[category] === 0;
         button.setAttribute("aria-pressed", this.filter === category ? "true" : "false");
-        button.append(
-          createElement("span", "player-trait-filter__label", CATEGORY_LABELS[category]),
-          createElement("b", "player-trait-filter__count", counts[category]),
-        );
+        button.textContent = CATEGORY_LABELS[category];
         button.addEventListener("click", () => {
           this.filter = category;
           this.render();
+          this.root?.querySelector(`[data-trait-filter="${category}"]`)?.focus();
         });
         container.appendChild(button);
       });
@@ -1117,14 +1139,15 @@
 
       const header = createElement("div", "player-trait-card__header");
       const source = createElement("span", `player-trait-source player-trait-source--${meta.category}`, meta.detail);
-      const activation = createElement("span", "player-trait-activation", activationLabel(trait));
-      header.append(source, activation);
+      header.appendChild(source);
+      if (activationLabel(trait) === "AUTO") {
+        header.appendChild(createElement("span", "player-trait-activation", "AUTO"));
+      }
 
       const name = createElement("h3", "player-trait-card__name", trait.name || trait.id || "Unnamed Trait");
       const description = renderTraitDescription(trait, this.getRuntime() || {});
       const metaRow = createElement("div", "player-trait-card__meta");
       contextLabels(trait).forEach((context) => metaRow.appendChild(createElement("span", "player-trait-context", context)));
-      if (meta.level != null) metaRow.appendChild(createElement("span", "player-trait-context", `LEVEL ${meta.level}`));
 
       const footer = createElement("div", "player-trait-card__footer");
       if (action) {
@@ -1137,20 +1160,13 @@
         button.addEventListener("click", () => this.activate(action));
         footer.appendChild(button);
         const uses = useLabel(action);
-        if (uses) footer.appendChild(createElement("b", "luminous-trait-tray__uses", uses));
+        if (uses) footer.appendChild(createElement("b", "luminous-trait-tray__uses", `Uses ${uses}`));
         if (!action.available) footer.appendChild(createElement("small", "luminous-trait-tray__reason", reasonLabel(action)));
-      } else {
-        const passiveCopy = activationLabel(trait) === "PASSIVE"
-          ? "Always applied when its conditions are met."
-          : activationLabel(trait) === "AUTO"
-            ? "Activates automatically when its trigger is met."
-            : "No manual action is currently available.";
-        footer.appendChild(createElement("small", "player-trait-card__passive", passiveCopy));
       }
 
       card.append(header, name, description);
       if (metaRow.childElementCount) card.appendChild(metaRow);
-      card.appendChild(footer);
+      if (footer.childElementCount) card.appendChild(footer);
       return card;
     }
 
@@ -1161,16 +1177,6 @@
 
       const traits = this.normalizedTraits();
       const actions = this.actionMap();
-      const header = createElement("header", "player-traits-catalog__header");
-      const titleWrap = createElement("div", "player-traits-catalog__title");
-      titleWrap.append(
-        createElement("h2", "", this.title),
-        createElement("p", "", "Racial, Class, Archetype, Background and General Traits assigned to this character."),
-      );
-      const total = createElement("div", "player-traits-catalog__total");
-      total.append(createElement("strong", "", traits.length), createElement("span", "", "TOTAL"));
-      header.append(titleWrap, total);
-
       const filters = createElement("nav", "player-trait-filters");
       filters.setAttribute("aria-label", "Filter Traits by source");
       this.renderFilterBar(filters, traits);
@@ -1183,7 +1189,7 @@
         visible.forEach((trait) => list.appendChild(this.renderTraitCard(trait, actions.get(normalizeId(trait.id)))));
       }
 
-      this.root.append(header, filters, list);
+      this.root.append(filters, list);
     }
 
     refresh() { this.render(); }
