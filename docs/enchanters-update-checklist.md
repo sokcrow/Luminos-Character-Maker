@@ -98,18 +98,19 @@ Canonical contract: [`docs/enchanters-update-part-b-resonance.md`](./enchanters-
 - [x] Add canonical `gemMagicProfile` data for all 12 gemstone identities.
 - [x] Author and validate the full 12-gem Enchantment Affinity matrix.
 - [x] Add Gem Quality -> stable Rank capacity and Overchannel resolution.
-- [ ] Add one-Gem-Anchor -> one-Enchantment linkage and persistence.
-- [ ] Add Gem Anchor broken/depleted/unstable states and Dormant overflow-dependent Enchantments.
+- [x] Add one-Gem-Anchor -> one-Enchantment linkage and persistence.
+- [x] Add Gem Anchor broken/depleted/unstable states and Dormant dependent Enchantments.
 - [ ] Add primary/accepted/incompatible resonance and affinity recipe validation.
 - [ ] Add semantic consumed-material requirements and exact-Item recipe escape hatch.
 - [ ] Add Resonance Specialization versus Hybrid Resonance resolution.
 - [ ] Add compatible-gem/quality/specialization TH stabilization with Item/Gem cap.
 - [ ] Add external Enchantment Table / Arcane Workshop / tool modifier seam.
-- [ ] Add separate max-3 Enchantment Gem Socket validation, Rank II multi-anchor support, Rank III exclusivity and fourth-gem catastrophe handling.
+- [x] Add separate max-3 Enchantment Gem Socket validation, Rank II multi-anchor support, exclusive Rank III handling and fourth-gem catastrophe handling.
 - [ ] Add Bind recipe modifier / accidental Bind outcome flow.
 - [ ] Add intentional/accidental Curse recipe flow with profane reagent tags.
 - [ ] Add Gem Anchor, recipe, specialization/hybrid, Gem Socket, Bind/Curse and channel-choice regression tests.
   - [x] Gem profile/Quality-Rank smoke is wired into Inventory Runtime Validation CI.
+  - [x] Gem Anchor/Gem Socket persistence, Dormant-state, Rank pressure, catastrophe and channel-choice smoke is wired into CI.
 
 ## Part C — Enchanter Services, Knowledge and Magical Maintenance (design frozen)
 
@@ -172,10 +173,10 @@ Canonical contract: [`docs/enchanters-update-part-c-services.md`](./enchanters-u
 - [ ] Implement separate Item-side removal/rewrite and Gem-Anchor destructive removal flows.
 - [ ] Implement Bound Gem Anchor removal -> 100% Item destruction.
 - [ ] Implement gem magical-quality/rarity degradation after safe de-enchant/rewrite.
-- [ ] Implement explicit max-3 Enchantment Gem Sockets separately from Base Enchantment Slots.
-- [ ] Support up to three Rank II Gem-Anchored Enchantments and only one Rank III Gem-Anchored Enchantment.
-- [ ] Finalize/test exact Rank III Gem-Anchor coexistence with lower-rank Gem Anchors.
-- [ ] Block/warn normal fourth-gem installation and implement catastrophic forced fourth-gem outcome.
+- [x] Implement explicit max-3 Enchantment Gem Sockets separately from Base Enchantment Slots.
+- [x] Support up to three Rank II Gem-Anchored Enchantments; Rank III Gem-Anchored magic is exclusive.
+- [x] Finalize/test Rank III Gem-Anchor coexistence: Rank III cannot coexist with lower-rank Gem Anchors.
+- [x] Block/warn normal fourth-gem installation and implement catastrophic forced fourth-gem outcome.
 - [ ] Add DM Enchanter authoring and Player service UI without internal IDs/debug schema.
 - [ ] Add Part C regression tests for services, knowledge, outcomes, durability, gem removal, Relics, time and economy.
 
