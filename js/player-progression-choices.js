@@ -216,6 +216,15 @@
           if (api().choiceAt(build.classMilestones,classId,level)) {
             abortReason = "Esta mejora ya fue reclamada.";return;
           }
+          let preservedMilestones;
+          try {
+            // Never replace a legacy array with {}: doing so destroys all
+            // earlier selections and may allow the same milestone to be paid twice.
+            preservedMilestones = api().migrateMilestoneChoices(build.classMilestones);
+          } catch (error) {
+            abortReason = error?.message || "No fue posible conservar los Milestones anteriores.";
+            return;
+          }
           const checked = api().validateChoice(proposed,current.stats || {});
           if (!checked.valid) { abortReason=checked.errors.join(" ");return; }
           if (checked.choice.type === "trait" && api().selectedGeneralTraitIds(current).includes(id(proposed.traitId))) {
@@ -228,7 +237,7 @@
             Object.keys(applied.allocation).forEach(key=>{ current.stats[key] = applied.stats[key]; });
           }
           current.characterBuild = build;
-          if (!build.classMilestones || Array.isArray(build.classMilestones)) build.classMilestones = {};
+          build.classMilestones = preservedMilestones;
           if (!build.classMilestones[id(classId)] || typeof build.classMilestones[id(classId)] !== "object")
             build.classMilestones[id(classId)] = {};
           build.classMilestones[id(classId)][String(level)] = {
