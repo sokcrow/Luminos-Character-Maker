@@ -211,21 +211,26 @@ Baseline:
 
 ```text
 Compatible Gem Anchor -> -2 TH
+Fine Gem             -> additional -1 TH
+Exceptional Gem      -> additional -2 TH
+Existing same-family Resonance Specialization -> additional -1 TH
 ```
 
-Gem quality and same-branch specialization may provide further stabilization.
+Poor/Standard gems provide no additional quality reduction beyond the compatible-anchor baseline. Poor remains unstable by its Quality rule.
 
-The total reduction supplied by the gemstone/resonance side of the Item is capped so that a Rank I base TH 22 can reach **TH 18** from ideal gem compatibility/quality/specialization.
+The total Item/Gem-side reduction is capped at **-4 TH**. Therefore a Rank I base TH 22 can reach **TH 18** from ideal gem compatibility/quality/specialization, but cannot go lower from Item/Gem stabilization alone.
 
 This is a cap on the **Item/Gem stabilization contribution**, not a global minimum TH.
 
-External factors may reduce TH further, including authored:
+External factors are resolved separately from the Item/Gem cap and may reduce TH further, including authored:
 
 - Enchantment Table;
 - Arcane Workshop;
 - proper specialist tools;
 - specialized Enchanter facilities;
 - assistants or other approved ritual infrastructure.
+
+The runtime exposes these as whitelisted external TH sources so the future service/workshop layer can contribute without rewriting Gem logic.
 
 Improvised/poor conditions may likewise increase TH.
 
@@ -434,8 +439,8 @@ An Enchantment selects one authored route. The gemstone does not grant all affin
 
 ### Recipe/resonance validation
 
-- [ ] Add primary/accepted/incompatible resonance compatibility.
-- [ ] Add non-elemental Enchantment affinity compatibility (HP, SP, INT, Speed, resistance, regeneration, etc.).
+- [x] Add primary/accepted/incompatible resonance compatibility.
+- [x] Add non-elemental Enchantment affinity compatibility (HP, SP, INT, Speed, resistance, regeneration, etc.).
 - [ ] Add semantic consumed-material requirements.
 - [ ] Allow exact Item requirements for exceptional recipes.
 - [ ] Consume non-gem ritual materials once an application attempt begins, success or failure.
@@ -444,13 +449,13 @@ An Enchantment selects one authored route. The gemstone does not grant all affin
 
 ### Specialization / hybrid resolution
 
-- [ ] Detect same-branch Resonance Specialization.
-- [ ] Detect Hybrid Resonance when different Gem Anchor families coexist.
-- [ ] Apply compatible Gem Anchor baseline -2 TH.
-- [ ] Apply Quality/specialization stabilization up to the approved Item/Gem reduction cap.
-- [ ] Do not grant full specialization stacking to hybrid builds.
-- [ ] Keep external facility/tool TH modifiers separate from Item/Gem stabilization.
-- [ ] Add Enchantment Table / Arcane Workshop/tool integration seam.
+- [x] Detect same-branch Resonance Specialization.
+- [x] Detect Hybrid Resonance when different Gem Anchor families coexist.
+- [x] Apply compatible Gem Anchor baseline -2 TH.
+- [x] Apply Quality/specialization stabilization up to the approved Item/Gem reduction cap.
+- [x] Do not grant specialization bonus to hybrid builds.
+- [x] Keep external facility/tool TH modifiers separate from Item/Gem stabilization.
+- [x] Add Enchantment Table / Arcane Workshop/tool integration seam through whitelisted external TH modifiers.
 
 ### Gem Socket capacity
 
@@ -478,9 +483,9 @@ An Enchantment selects one authored route. The gemstone does not grant all affin
 - [x] Add one-anchor/one-Enchantment tests.
 - [x] Add Gem Quality Rank-cap tests.
 - [ ] Add Overchannel failure tests.
-- [ ] Add compatible/accepted/incompatible resonance tests.
-- [ ] Add specialization versus hybrid TH tests.
-- [ ] Add Item/Gem TH cap tests and external-tool separation tests.
+- [x] Add compatible/accepted/incompatible resonance tests.
+- [x] Add specialization versus hybrid TH tests.
+- [x] Add Item/Gem TH cap tests and external-tool separation tests.
 - [ ] Add ritual-consumable loss tests on success/failure.
 - [x] Add Gem Anchor break/depletion/Dormant tests.
 - [x] Add separate Base Enchantment Slot vs Enchantment Gem Socket capacity tests, including Rank II multi-anchor, Rank III exclusivity and fourth-gem catastrophe.
