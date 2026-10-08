@@ -27,6 +27,7 @@
   const GEM_QUALITY_TH_ADJUSTMENT = Object.freeze({ ruined:0, poor:0, standard:0, fine:-1, exceptional:-2 });
   const GEM_SPECIALIZATION_TH_ADJUSTMENT = -1;
   const GEM_ITEM_STABILIZATION_MAX_REDUCTION = 4;
+  const OVERCHANNEL_TH_PER_RANK = 2;
   const EXTERNAL_TH_SOURCE_TYPES = Object.freeze([
     "enchantment_table", "arcane_workshop", "specialist_tools", "facility", "assistant", "improvised"
   ]);
@@ -630,7 +631,9 @@
     const itemGemAdjustment = Math.max(-GEM_ITEM_STABILIZATION_MAX_REDUCTION, rawItemGemAdjustment);
     const external = externalThresholdAdjustment(options);
     const baseThreshold = Number(rankData.threshold);
-    const finalThreshold = baseThreshold + itemGemAdjustment + external.adjustment;
+    const overchannelSteps = Math.max(0, Number(rank) - Number(channel.stableRank || 0));
+    const overchannelAdjustment = overchannelSteps * OVERCHANNEL_TH_PER_RANK;
+    const finalThreshold = baseThreshold + itemGemAdjustment + overchannelAdjustment + external.adjustment;
 
     return Object.freeze({
       valid:true,
@@ -648,6 +651,8 @@
       externalAdjustment:external.adjustment,
       externalModifiers:external.applied,
       overchannel:channel.overchannel,
+      overchannelSteps,
+      overchannelAdjustment,
       unstable:channel.unstable,
       finalThreshold,
     });
@@ -1197,6 +1202,7 @@
     GEM_QUALITY_TH_ADJUSTMENT,
     GEM_SPECIALIZATION_TH_ADJUSTMENT,
     GEM_ITEM_STABILIZATION_MAX_REDUCTION,
+    OVERCHANNEL_TH_PER_RANK,
     EXTERNAL_TH_SOURCE_TYPES,
     INTENTIONAL_BIND_TH_ADJUSTMENT,
     INTENTIONAL_CURSE_TH_ADJUSTMENT,
