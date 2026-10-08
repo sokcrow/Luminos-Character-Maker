@@ -37,6 +37,9 @@
     proficient: Object.freeze({ label: "Proficient", multiplier: 1 }),
     expertise: Object.freeze({ label: "Expertise", multiplier: 2 }),
   });
+  // One derived-stat calculation per panel render avoids recalculating the
+  // entire character sheet for each skill in the selected Ability tab.
+  let renderDerivedStats = null;
   const rollAdjustment = {
     bonus: 0,
     ignoreNextMutation: false,
@@ -119,7 +122,9 @@
     // Persisted background/Trait score bonuses are part of the actual Ability
     // Score, not just the preview. Use the canonical derived-stat resolver for
     // both the displayed score and the skill/Coin roll modifier.
-    const derived = global.LuminousDerivedStats?.resolveAbility?.(data, ability?.id);
+    const derived = renderDerivedStats?.data === data
+      ? renderDerivedStats.abilities?.[ability?.id]
+      : global.LuminousDerivedStats?.resolveAbility?.(data, ability?.id);
     if (derived && Number.isFinite(Number(derived.score))) return Number(derived.score);
     const effective = global.LuminousRacialStatRuntime?.abilityScore?.(ability?.id, data);
     if (Number.isFinite(Number(effective))) return Number(effective);
@@ -284,7 +289,10 @@
     const panel = doc.querySelector("#stats-modal .player-ability-console");
     if (!panel) return false;
     const data = playerData();
-    syncOverview(panel, data);
+    const resolved = global.LuminousDerivedStats?.resolveCharacterStats?.(data);
+    renderDerivedStats = resolved ? { data, abilities: resolved.abilities } : null;
+    try {
+      syncOverview(panel, data);
     ABILITIES.forEach((ability) => {
       const profState = abilityProficiencyState(ability, data);
       const button = panel.querySelector(`.player-ability[data-stat="${ability.id}"]`);
@@ -319,6 +327,9 @@
     // Keep Trait-adjusted Skill totals visible after every Stats redraw/tab change.
     global.LuminousSkillTraitBreakdownPatch?.syncPlayerSkillPreviews?.();
     return true;
+    } finally {
+      renderDerivedStats = null;
+    }
   }
   function activate(panel, abilityId, focus = false) {
     if (!panel || !ABILITIES.some((ability) => ability.id === abilityId)) return;
