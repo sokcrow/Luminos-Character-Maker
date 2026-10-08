@@ -198,7 +198,8 @@
     heading.append(title, element("small", saved ? "is-saved" : "is-unsaved", saved ? "NIVEL GUARDADO" : "GUARDA EL BUILD PARA RECLAMAR"));
     row.appendChild(heading);
 
-    const existing = api.choiceAt(state.player?.characterBuild?.classMilestones, milestone.classId, milestone.milestoneLevel);
+    const existing = api.choiceAt(state.player?.characterBuild?.classMilestones, milestone.classId, milestone.milestoneLevel)
+      || api.choiceAt(state.player?.classMilestones, milestone.classId, milestone.milestoneLevel);
     if (existing) {
       row.classList.add("is-complete");
       row.appendChild(element("div", "dm-player-milestone-complete", choiceLabel(existing)));
@@ -289,16 +290,17 @@
           return;
         }
 
-        if (api.choiceAt(current.characterBuild.classMilestones, classId, milestoneLevel)) {
-          abortReason = "Ese milestone ya fue reclamado.";
-          return;
-        }
         let preservedMilestones;
         try {
-          // DM and Player must preserve the same legacy array-backed claims.
-          preservedMilestones = api.migrateMilestoneChoices(current.characterBuild.classMilestones);
+          // DM and Player must include the top-level legacy claims AND
+          // characterBuild claims before checking if this reward was paid.
+          preservedMilestones = api.mergeMilestoneChoices(current);
         } catch (error) {
           abortReason = error?.message || "No fue posible conservar los Milestones anteriores.";
+          return;
+        }
+        if (api.choiceAt(preservedMilestones, classId, milestoneLevel)) {
+          abortReason = "Ese milestone ya fue reclamado.";
           return;
         }
 
@@ -310,7 +312,7 @@
 
         if (validation.choice.type === "trait") {
           const traitId = normalizeId(validation.choice.traitId);
-          if (api.selectedGeneralTraitIds(current).includes(traitId)) {
+          if (api.selectedGeneralTraitIds({characterBuild:{classMilestones:preservedMilestones}}).includes(traitId)) {
             abortReason = "Ese Trait General ya fue elegido en otro milestone.";
             return;
           }
