@@ -1637,7 +1637,7 @@ const CombatEngine = {
 
 
     applyPassiveModifiers: function(unit, contextOptions = null) {
-        if (!unit || !unit.statusEffects) return {};
+        if (!unit) return {};
 
         let modifiers = {
             damage_dealt_multiplier: 0,
@@ -1658,7 +1658,7 @@ const CombatEngine = {
             crit_damage_multiplier: 0
         };
 
-        const activeStatuses = Object.keys(unit.statusEffects);
+        const activeStatuses = Object.keys(unit.statusEffects || {});
 
         for (let statusId of activeStatuses) {
             let statusConfig = null;
@@ -1713,6 +1713,18 @@ const CombatEngine = {
                     }
                     if (rule.operation === 'set') modifiers[affectation] = effectValue;
                 }
+            }
+        }
+        // The legacy Combat engine does not call UniversalModifiers here.
+        // Consume only active per-instance enchanted Traits, without double-counting statuses.
+        const enchanted = (typeof window !== "undefined" ? window.LuminousItemEnchantmentRuntime : null);
+        const traits = enchanted?.collectEquippedTraits?.(unit, { skill: contextOptions?.skill }) || [];
+        for (const trait of traits) {
+            for (const rule of trait.rules || []) {
+                if (rule.trigger !== "passive" || rule.type !== "modifier") continue;
+                if (!Object.prototype.hasOwnProperty.call(modifiers, rule.channel)) continue;
+                const value = Number(rule.value);
+                if (Number.isFinite(value)) modifiers[rule.channel] += value;
             }
         }
         return modifiers;
@@ -2037,7 +2049,7 @@ const CombatEngine = {
 
     getOffensiveLevel: function(unit, skill = {}) {
         const baseLevel = unit && unit.level ? unit.level : 1;
-        let passiveMods = this.applyPassiveModifiers(unit);
+        let passiveMods = this.applyPassiveModifiers(unit, { skill });
         let offLevelMod = passiveMods.offensive_level || 0;
         let statModifier = 0;
         if (unit && unit.stats && skill && skill.scaling_stat) {
@@ -2051,7 +2063,7 @@ const CombatEngine = {
 
     getDefensiveLevel: function(unit, skillOrPart = {}) {
         const baseLevel = unit && unit.level ? unit.level : 1;
-        let passiveMods = this.applyPassiveModifiers(unit);
+        let passiveMods = this.applyPassiveModifiers(unit, { skill: skillOrPart });
         let defLevelMod = passiveMods.defensive_level || 0;
         let statModifier = 0;
         if (unit && unit.stats && skillOrPart && skillOrPart.scaling_stat) {
