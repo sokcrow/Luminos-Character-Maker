@@ -24,6 +24,10 @@
   const persistence = () => global.LuminousItemPersistenceRuntime || null;
   const realtime = () => global.LuminousItemRealtimeSync || null;
   const iconRegistry = () => global.LuminousItemIconRegistry || null;
+  const enchantmentCatalog = () => global.LuminousEnchantmentCatalog || null;
+  const enchantmentEngine = () => global.LuminousItemEnchantmentEngine || null;
+  const magicRuntime = () => global.LuminousItemMagicRuntime || null;
+  const enchanterServices = () => global.LuminousItemEnchanterServiceRuntime || null;
   const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
   const intOr = (value, fallback = 0) => Number.isFinite(Number(value)) ? Math.trunc(Number(value)) : fallback;
 
@@ -50,7 +54,13 @@
     await ensureScript("item-inventory-runtime-script", "js/item-inventory-runtime.js", "LuminousItemInventoryRuntime");
     await ensureScript("item-persistence-runtime-script", "js/item-persistence-runtime.js", "LuminousItemPersistenceRuntime");
     await ensureScript("item-realtime-sync-script", "js/item-realtime-sync.js", "LuminousItemRealtimeSync");
-    return Boolean(inventory() && persistence());
+    await ensureScript("item-quality-engine-script", "js/item-quality-engine.js", "LuminousItemQualityEngine");
+    await ensureScript("item-gem-catalog-script", "js/item-catalog-ore-ingot-gem.js", "LuminousOreIngotGemCatalog");
+    await ensureScript("item-enchantment-catalog-script", "js/item-catalog-enchantments.js", "LuminousEnchantmentCatalog");
+    await ensureScript("item-enchantment-engine-script", "js/item-enchantment-engine.js", "LuminousItemEnchantmentEngine");
+    await ensureScript("item-magic-runtime-script", "js/item-magic-runtime.js", "LuminousItemMagicRuntime");
+    await ensureScript("item-enchanter-service-script", "js/item-enchanter-service-runtime.js", "LuminousItemEnchanterServiceRuntime");
+    return Boolean(inventory() && persistence() && enchantmentCatalog() && enchantmentEngine() && enchanterServices());
   }
 
   function resolveDb() {
@@ -269,6 +279,35 @@
               <div class="dm-item-editor-field full"><label>Signature Technology IDs</label><textarea id="dm-item-field-signature-tech" placeholder="structural_tech_a"></textarea></div>
             </div>
           </section>
+          <section class="dm-item-editor-section dm-item-magic-authoring">
+            <h4>Magic / Enchantments</h4>
+            <div id="dm-item-enchantment-current" class="dm-item-enchantment-current"></div>
+            <div class="dm-item-editor-grid">
+              <div class="dm-item-editor-field wide">
+                <label>Enchantment</label>
+                <select id="dm-item-enchantment-definition"></select>
+              </div>
+              <div class="dm-item-editor-field">
+                <label>Rank</label>
+                <select id="dm-item-enchantment-rank">
+                  <option value="1">I</option>
+                  <option value="2">II</option>
+                  <option value="3">III</option>
+                </select>
+              </div>
+              <div class="dm-item-editor-field wide">
+                <label>Properties</label>
+                <div class="dm-item-editor-check-row">
+                  <label class="dm-item-editor-check"><input id="dm-item-enchantment-bind" type="checkbox"><span>BIND</span></label>
+                  <label class="dm-item-editor-check"><input id="dm-item-enchantment-curse" type="checkbox"><span>CURSE</span></label>
+                </div>
+              </div>
+            </div>
+            <div id="dm-item-enchantment-validation" class="dm-item-editor-meta">Select an Enchantment to validate.</div>
+            <div class="dm-item-enchantment-actions">
+              <button type="button" class="dm-item-editor-btn" id="dm-item-enchantment-apply">APPLY FREE SERVICE</button>
+            </div>
+          </section>
         </div>
         <footer class="dm-item-editor-footer">
           <div class="dm-item-editor-status" id="dm-item-editor-status">READY</div>
@@ -281,6 +320,10 @@
     doc.getElementById("dm-item-editor-close")?.addEventListener("click", closeEditor);
     doc.getElementById("dm-item-editor-cancel")?.addEventListener("click", closeEditor);
     doc.getElementById("dm-item-editor-save")?.addEventListener("click", saveEditor);
+    doc.getElementById("dm-item-enchantment-apply")?.addEventListener("click", applyDmEnchantment);
+    ["dm-item-enchantment-definition","dm-item-enchantment-rank","dm-item-enchantment-bind","dm-item-enchantment-curse"].forEach((id) => {
+      doc.getElementById(id)?.addEventListener("change", updateMagicValidation);
+    });
     overlay.addEventListener("click", (event) => { if (event.target === overlay) closeEditor(); });
     overlay.querySelectorAll("input,select,textarea").forEach((field) => field.addEventListener("input", () => {
       state.dirty = true;
@@ -319,6 +362,172 @@
     if (meta) meta.innerHTML = `CONDITION <b>${pct}% // ${id}</b>${stackLimit ? ` · STACK LIMIT <b>${stackLimit}</b>` : ""}`;
   }
 
+
+  function dmEnchantmentProperties() {
+    const properties = [];
+    if (doc.getElementById("dm-item-enchantment-bind")?.checked === true) properties.push("bind");
+    if (doc.getElementById("dm-item-enchantment-curse")?.checked === true) properties.push("curse");
+    return properties;
+  }
+
+  function friendlyMagicReason(reason) {
+    const labels = {
+      ineligible_equipment_kind:"Este Item no acepta Encantamientos normales.",
+      missing_or_invalid_item_tier:"El Item no tiene un Tier válido.",
+      base_enchantment_slots_exceeded:"No hay suficientes Slots de Encantamiento.",
+      duplicate_non_stackable_enchantment:"Ese Encantamiento ya está instalado.",
+      hard_conflict:"El Encantamiento entra en conflicto con magia instalada.",
+      invalid_enchantment_properties:"La combinación de propiedades no es válida.",
+      bound_enchantment_not_removable:"Un Bind impide retirar este Encantamiento.",
+      enchantment_not_removable:"Este Encantamiento no puede retirarse normalmente.",
+      unknown_enchantment:"La definición seleccionada ya no existe.",
+    };
+    return labels[reason] || String(reason || "No disponible").replace(/_/g," ").toUpperCase();
+  }
+
+  function populateDmEnchantmentDefinitions(item = {}) {
+    const select = doc.getElementById("dm-item-enchantment-definition");
+    if (!select) return;
+    const previous = select.value;
+    const definitions = enchantmentCatalog()?.list?.() || [];
+    select.innerHTML = "";
+    definitions.forEach((definition) => {
+      const option = doc.createElement("option");
+      option.value = definition.id;
+      option.textContent = definition.name;
+      select.appendChild(option);
+    });
+    if (previous && definitions.some((definition) => definition.id === previous)) select.value = previous;
+    else if (definitions.length) select.value = definitions[0].id;
+    updateMagicValidation();
+  }
+
+  function renderDmEnchantments(item = {}) {
+    const host = doc.getElementById("dm-item-enchantment-current");
+    if (!host) return;
+    const refs = enchantmentEngine()?.appliedEnchantments?.(item) || [];
+    if (!refs.length) {
+      host.innerHTML = '<div class="dm-item-editor-meta">No Enchantments installed.</div>';
+      return;
+    }
+    host.innerHTML = "";
+    refs.forEach((ref) => {
+      const definition = enchantmentCatalog()?.get?.(ref.definitionId);
+      const row = doc.createElement("div");
+      row.className = "dm-item-enchantment-row";
+      const properties = Array.isArray(ref.properties) && ref.properties.length
+        ? ` · ${ref.properties.map((value) => String(value).toUpperCase()).join(" / ")}`
+        : "";
+      row.innerHTML = `<span><strong>${definition?.name || "Unknown Enchantment"}</strong> · Rank ${["","I","II","III"][Number(ref.rank)] || ref.rank}${properties}</span>`;
+      const remove = doc.createElement("button");
+      remove.type = "button";
+      remove.className = "dm-item-editor-btn danger";
+      remove.textContent = "REMOVE";
+      remove.addEventListener("click", () => removeDmEnchantment(ref.definitionId));
+      row.appendChild(remove);
+      host.appendChild(row);
+    });
+  }
+
+  function updateMagicValidation() {
+    const item = state.selected?.item;
+    const target = doc.getElementById("dm-item-enchantment-validation");
+    const apply = doc.getElementById("dm-item-enchantment-apply");
+    if (!item || !target || !apply) return;
+    const definitionId = fieldValue("dm-item-enchantment-definition");
+    const rank = Math.max(1, Math.min(3, intOr(fieldValue("dm-item-enchantment-rank"), 1)));
+    const gate = enchantmentEngine()?.validateApplication?.(
+      item,
+      definitionId,
+      rank,
+      { properties:dmEnchantmentProperties(), appliedBy:"dm" },
+    );
+    const allowed = gate?.allowed === true;
+    target.textContent = allowed
+      ? "VALID // This free DM service passes the same Item/slot/conflict contract."
+      : `BLOCKED // ${friendlyMagicReason(gate?.reason || gate?.validation?.errors?.[0])}`;
+    target.dataset.tone = allowed ? "success" : "error";
+    apply.disabled = !allowed || state.saving;
+  }
+
+  async function applyDmEnchantment() {
+    if (!state.selected || !(await ensurePeer()) || state.saving) return;
+    const latest = findEntry(state.selected.listType, state.selected.key);
+    if (!latest) return announce("ITEM NO LONGER EXISTS", "error");
+
+    const definitionId = fieldValue("dm-item-enchantment-definition");
+    const rank = Math.max(1, Math.min(3, intOr(fieldValue("dm-item-enchantment-rank"), 1)));
+    const properties = dmEnchantmentProperties();
+    const gate = enchantmentEngine()?.validateApplication?.(latest.item, definitionId, rank, {properties});
+    if (!gate?.allowed) {
+      announce(`BLOCKED // ${friendlyMagicReason(gate?.reason || gate?.validation?.errors?.[0])}`, "error");
+      updateMagicValidation();
+      return;
+    }
+
+    const quote = {
+      quoted:true,
+      service:"enchant",
+      definitionId,
+      rank,
+      properties,
+      totalAhn:0,
+      materials:{plan:{valid:true}},
+    };
+    const result = enchanterServices()?.commitServiceTransaction?.(state.unit, latest.item, quote, {
+      transactionId:`dm:${Date.now()}:${itemId(latest.item)}:${definitionId}:${rank}`,
+      dmFreeService:true,
+      appliedBy:"dm",
+      providerId:"dm",
+      provenance:{source:"dm_item_editor",playerId:state.playerId},
+    });
+    if (!result?.committed) {
+      announce(`BLOCKED // ${friendlyMagicReason(result?.reason)}`, "error");
+      return;
+    }
+    state.selected.item = latest.item;
+    const saved = await saveUnit(`DM ENCHANTED // ${itemName(latest.item).toUpperCase()}`);
+    if (saved) {
+      renderDmEnchantments(latest.item);
+      updateMagicValidation();
+    }
+  }
+
+  async function removeDmEnchantment(definitionId) {
+    if (!state.selected || !(await ensurePeer()) || state.saving) return;
+    const latest = findEntry(state.selected.listType, state.selected.key);
+    if (!latest) return announce("ITEM NO LONGER EXISTS", "error");
+    const gate = enchantmentEngine()?.canRemoveEnchantment?.(latest.item, definitionId);
+    if (!gate?.allowed) {
+      announce(`BLOCKED // ${friendlyMagicReason(gate?.reason)}`, "error");
+      return;
+    }
+    const quote = {
+      quoted:true,
+      service:"remove_rewrite",
+      procedure:"direct_remove",
+      definitionId,
+      totalAhn:0,
+    };
+    const result = enchanterServices()?.commitServiceTransaction?.(state.unit, latest.item, quote, {
+      transactionId:`dm:${Date.now()}:${itemId(latest.item)}:remove:${definitionId}`,
+      dmFreeService:true,
+      appliedBy:"dm",
+      providerId:"dm",
+      provenance:{source:"dm_item_editor",playerId:state.playerId},
+    });
+    if (!result?.committed) {
+      announce(`BLOCKED // ${friendlyMagicReason(result?.reason)}`, "error");
+      return;
+    }
+    state.selected.item = latest.item;
+    const saved = await saveUnit(`DM MAGIC UPDATED // ${itemName(latest.item).toUpperCase()}`);
+    if (saved) {
+      renderDmEnchantments(latest.item);
+      updateMagicValidation();
+    }
+  }
+
   function fillEditor(entry, listType) {
     const item = entry?.item;
     if (!item) return;
@@ -354,6 +563,8 @@
     setField("dm-item-field-signature-tech", formatList(item.signatureTechnologyIds || item.signature_technology_ids || []));
     announce(`EDITING // ${entry.key}`, "");
     updateConditionMeta();
+    populateDmEnchantmentDefinitions(item);
+    renderDmEnchantments(item);
   }
 
   function closeEditor() {
@@ -918,7 +1129,7 @@
   else boot();
 
   global.LuminousDmItemInstanceEditor = Object.freeze({
-    version: 2,
+    version: 3,
     state,
     boot,
     decorateRows,
@@ -930,6 +1141,10 @@
     catalogEntries,
     openEditor,
     saveEditor,
+    renderDmEnchantments,
+    updateMagicValidation,
+    applyDmEnchantment,
+    removeDmEnchantment,
     handleLegacyAction,
     closeEditor,
   });
