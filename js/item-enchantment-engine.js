@@ -16,13 +16,20 @@
   if (!Catalog) throw new Error("LuminousEnchantmentCatalog is required before LuminousItemEnchantmentEngine.");
   if (!Gems) throw new Error("LuminousOreIngotGemCatalog is required before LuminousItemEnchantmentEngine.");
 
-  const VERSION = 2;
+  const VERSION = 3;
   const TIER_BASE_SLOT_CAPACITY = Object.freeze({ 1: 0, 2: 1, 3: 1, 4: 2, 5: 3 });
   const BIND_POSITIVE_MULTIPLIER = 1.25;
   const CURSE_POSITIVE_MULTIPLIER = 1.50;
   const SUPPORTED_APPLICATION_SOURCES = Object.freeze(["direct", "gem"]);
   const GEM_SOCKET_HARD_MAX = 3;
   const GEM_ANCHOR_STATES = Object.freeze(["stable", "unstable", "depleted", "broken"]);
+  const GEM_COMPATIBILITY_BASE_TH_ADJUSTMENT = -2;
+  const GEM_QUALITY_TH_ADJUSTMENT = Object.freeze({ ruined:0, poor:0, standard:0, fine:-1, exceptional:-2 });
+  const GEM_SPECIALIZATION_TH_ADJUSTMENT = -1;
+  const GEM_ITEM_STABILIZATION_MAX_REDUCTION = 4;
+  const EXTERNAL_TH_SOURCE_TYPES = Object.freeze([
+    "enchantment_table", "arcane_workshop", "specialist_tools", "facility", "assistant", "improvised"
+  ]);
 
   function clone(value) {
     return value == null ? value : JSON.parse(JSON.stringify(value));
@@ -490,6 +497,155 @@
   }
 
 
+
+  function intersects(left = [], right = []) {
+    const rightSet = new Set(asArray(right).map(normalizeId).filter(Boolean));
+    return asArray(left).map(normalizeId).filter(Boolean).some((value) => rightSet.has(value));
+  }
+
+  function gemCompatibility(definitionOrId, gem = {}) {
+    const definition = typeof definitionOrId === "string" ? Catalog.get(definitionOrId) : clone(definitionOrId);
+    if (!definition) return Object.freeze({ compatible:false, level:"incompatible", reason:"unknown_enchantment" });
+    const profile = Gems.gemMagicProfile(gemDefinitionIdOf(gem) || gem);
+    if (!profile) return Object.freeze({ compatible:false, level:"incompatible", reason:"not_a_gemstone" });
+
+    const compatibility = definition.compatibility || {};
+    const resonances = profile.resonances || [];
+    const affinities = profile.enchantmentAffinities || [];
+
+    if (
+      intersects(resonances, compatibility.incompatibleResonances) ||
+      intersects(affinities, compatibility.incompatibleAffinities)
+    ) {
+      return Object.freeze({
+        compatible:false,
+        level:"incompatible",
+        reason:"explicitly_incompatible",
+        matched:Object.freeze([]),
+      });
+    }
+
+    const primaryMatches = resonances.filter((value) => asArray(compatibility.primaryResonances).map(normalizeId).includes(normalizeId(value)));
+    if (primaryMatches.length) {
+      return Object.freeze({
+        compatible:true,
+        level:"primary",
+        reason:null,
+        matched:Object.freeze(primaryMatches.map(normalizeId)),
+      });
+    }
+
+    const acceptedResonanceMatches = resonances.filter((value) => asArray(compatibility.acceptedResonances).map(normalizeId).includes(normalizeId(value)));
+    const acceptedAffinityMatches = affinities.filter((value) => asArray(compatibility.acceptedAffinities).map(normalizeId).includes(normalizeId(value)));
+    const acceptedMatches = [...new Set([...acceptedResonanceMatches, ...acceptedAffinityMatches].map(normalizeId))];
+    if (acceptedMatches.length) {
+      return Object.freeze({
+        compatible:true,
+        level:"accepted",
+        reason:null,
+        matched:Object.freeze(acceptedMatches),
+      });
+    }
+
+    return Object.freeze({
+      compatible:false,
+      level:"incompatible",
+      reason:"no_compatible_resonance_or_affinity",
+      matched:Object.freeze([]),
+    });
+  }
+
+  function gemResonanceFamily(gem = {}) {
+    const profile = Gems.gemMagicProfile(gemDefinitionIdOf(gem) || gem);
+    return normalizeId(profile?.resonances?.[0] || "");
+  }
+
+  function resonanceArchitecture(item = {}, candidateGem = null) {
+    const families = [];
+    for (const anchor of gemAnchors(item)) {
+      const family = gemResonanceFamily(anchor.gemDefinitionId);
+      if (family) families.push(family);
+    }
+    if (candidateGem) {
+      const candidateFamily = gemResonanceFamily(candidateGem);
+      if (candidateFamily) families.push(candidateFamily);
+    }
+    const unique = [...new Set(families)];
+    return Object.freeze({
+      families:Object.freeze(families),
+      uniqueFamilies:Object.freeze(unique),
+      mode:unique.length <= 1 ? (families.length ? "specialized" : "none") : "hybrid",
+      specialized:families.length > 0 && unique.length === 1,
+      hybrid:unique.length > 1,
+    });
+  }
+
+  function externalThresholdAdjustment(options = {}) {
+    let adjustment = Number(options.externalThresholdAdjustment || 0);
+    if (!Number.isFinite(adjustment)) adjustment = 0;
+    const applied = [];
+    for (const entry of asArray(options.externalModifiers)) {
+      if (!entry || typeof entry !== "object") continue;
+      const sourceType = normalizeId(entry.sourceType || entry.type);
+      if (!EXTERNAL_TH_SOURCE_TYPES.includes(sourceType)) continue;
+      const value = Number(entry.adjustment || 0);
+      if (!Number.isFinite(value) || value === 0) continue;
+      adjustment += value;
+      applied.push(Object.freeze({sourceType,adjustment:value}));
+    }
+    return Object.freeze({adjustment,applied:Object.freeze(applied)});
+  }
+
+  function gemThresholdPreview(item = {}, definitionOrId, gem = {}, rank = 1, options = {}) {
+    const definition = typeof definitionOrId === "string" ? Catalog.get(definitionOrId) : clone(definitionOrId);
+    if (!definition) return Object.freeze({ valid:false, reason:"unknown_enchantment" });
+    const rankData = Catalog.resolveRank(definition, rank);
+    if (!rankData) return Object.freeze({ valid:false, reason:"unsupported_rank" });
+
+    const compatibility = gemCompatibility(definition, gem);
+    if (!compatibility.compatible) {
+      return Object.freeze({ valid:false, reason:"incompatible_gem", compatibility });
+    }
+
+    const quality = gemQualityOf(gem);
+    const channel = Gems.validateGemChannelRank(gemDefinitionIdOf(gem), rank, quality);
+    if (!channel.valid) return Object.freeze({ valid:false, reason:channel.reason || "gem_rank_invalid", compatibility, channel });
+
+    const architectureBefore = resonanceArchitecture(item);
+    const candidateFamily = gemResonanceFamily(gem);
+    const sameFamilyExisting = architectureBefore.families.filter((family) => family === candidateFamily).length;
+    const wouldBeHybrid = architectureBefore.families.some((family) => family !== candidateFamily);
+    const specializationApplied = sameFamilyExisting > 0 && !wouldBeHybrid;
+
+    const qualityAdjustment = GEM_QUALITY_TH_ADJUSTMENT[quality] ?? 0;
+    const specializationAdjustment = specializationApplied ? GEM_SPECIALIZATION_TH_ADJUSTMENT : 0;
+    const rawItemGemAdjustment = GEM_COMPATIBILITY_BASE_TH_ADJUSTMENT + qualityAdjustment + specializationAdjustment;
+    const itemGemAdjustment = Math.max(-GEM_ITEM_STABILIZATION_MAX_REDUCTION, rawItemGemAdjustment);
+    const external = externalThresholdAdjustment(options);
+    const baseThreshold = Number(rankData.threshold);
+    const finalThreshold = baseThreshold + itemGemAdjustment + external.adjustment;
+
+    return Object.freeze({
+      valid:true,
+      rank:Number(rank),
+      baseThreshold,
+      compatibility,
+      quality,
+      qualityAdjustment,
+      specializationApplied,
+      specializationAdjustment,
+      architectureBefore,
+      architectureAfter:resonanceArchitecture(item, gem),
+      itemGemAdjustment,
+      itemGemReductionCap:GEM_ITEM_STABILIZATION_MAX_REDUCTION,
+      externalAdjustment:external.adjustment,
+      externalModifiers:external.applied,
+      overchannel:channel.overchannel,
+      unstable:channel.unstable,
+      finalThreshold,
+    });
+  }
+
   function validateGemAnchorApplication(item = {}, gem = {}, definitionOrId, rank = 1, options = {}) {
     const definition = typeof definitionOrId === "string" ? Catalog.get(definitionOrId) : clone(definitionOrId);
     if (!definition) return Object.freeze({ allowed:false, reason:"unknown_enchantment" });
@@ -498,6 +654,11 @@
     const gemProfile = Gems.gemMagicProfile(gemDefinitionId);
     if (!gemProfile) return Object.freeze({ allowed:false, reason:"not_a_gemstone" });
     if (!gemProfile.canAnchorEnchantment) return Object.freeze({ allowed:false, reason:"gem_not_anchor_ready", gemDefinitionId });
+
+    const compatibility = gemCompatibility(definition, gem);
+    if (!compatibility.compatible) {
+      return Object.freeze({ allowed:false, reason:"incompatible_gem", compatibility, gemDefinitionId });
+    }
 
     const quality = gemQualityOf(gem);
     const channel = Gems.validateGemChannelRank(gemDefinitionId, rank, quality);
@@ -569,6 +730,8 @@
       reference:candidateRef,
       anchor:candidateAnchor,
       channel,
+      compatibility,
+      threshold:gemThresholdPreview(item, definition, gem, rank, options),
       validation,
     });
   }
@@ -766,6 +929,11 @@
     SUPPORTED_APPLICATION_SOURCES,
     GEM_SOCKET_HARD_MAX,
     GEM_ANCHOR_STATES,
+    GEM_COMPATIBILITY_BASE_TH_ADJUSTMENT,
+    GEM_QUALITY_TH_ADJUSTMENT,
+    GEM_SPECIALIZATION_TH_ADJUSTMENT,
+    GEM_ITEM_STABILIZATION_MAX_REDUCTION,
+    EXTERNAL_TH_SOURCE_TYPES,
     normalizeId,
     itemKindOf,
     tierOf,
@@ -800,6 +968,12 @@
     mountGemAnchor,
     setGemAnchorState,
     canRemoveGemAnchoredEnchantment,
+    intersects,
+    gemCompatibility,
+    gemResonanceFamily,
+    resonanceArchitecture,
+    externalThresholdAdjustment,
+    gemThresholdPreview,
     positiveEffectMultiplier,
     resolvedEnchantments,
     actionChannels,
