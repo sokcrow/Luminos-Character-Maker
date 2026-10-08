@@ -185,65 +185,84 @@
 
   async function selectArchetype(classId, archetypeId) {
     const character = currentCharacter();
-    const runtime = global.LuminousArchetypeRuntime;
-    if (runtime?.persistArchetypeSelection) {
-      await runtime.persistArchetypeSelection(classId, archetypeId);
-      return true;
-    }
-
     const engine = global.LuminousArchetypeEngine;
     const catalog = global.LuminousArchetypeTraitCatalog;
     const playerId = currentPlayerId();
-    if (!engine?.selectArchetype || !catalog?.allArchetypes || !state.db || !playerId) {
-      throw new Error("Archetype runtime is not ready.");
+    const db = state.db || global.firebase?.database?.();
+    if (!engine?.selectArchetype || !catalog?.allArchetypes) {
+      throw new Error("El catálogo de arquetipos todavía no está disponible.");
+    }
+    if (!db?.ref || !playerId) {
+      throw new Error("No hay conexión para guardar el arquetipo. Comprueba tu sesión.");
     }
     const selections = engine.selectArchetype(character, classId, archetypeId, catalog.allArchetypes());
-    await state.db.ref(`${PLAYER_ROOT}/${playerId}/characterBuild/archetypes`).set(selections);
+    // Persist first. Do not pretend a local-only choice was saved.
+    await db.ref(`${PLAYER_ROOT}/${playerId}/characterBuild/archetypes`).set(selections);
+    if (!character.characterBuild || typeof character.characterBuild !== "object") character.characterBuild = {};
+    character.characterBuild.archetypes = selections;
+    global.LuminousPlayerTraitRuntime?.refresh?.();
     return true;
   }
 
   function branchCell(classModel, branch) {
-    const wrap = doc.createElement("div");
-    wrap.className = `player-progression-branch-label is-${branch.status}`;
-    wrap.tabIndex = 0;
-    wrap.setAttribute("role", "group");
-    wrap.setAttribute("aria-label", `${branch.name}, ${statusLabel(branch.status)}`);
-    wrap.innerHTML = `
-      <span>ARCHETYPE · LV.${branch.unlockLevel}</span>
+    const card = doc.createElement("article");
+    card.className = `player-progression-branch-label is-${branch.status}`;
+    card.dataset.progressionKey = `${classModel.classId}:archetype:${branch.id}`;
+    card.setAttribute("aria-pressed", "false");
+    const header = doc.createElement("div");
+    header.className = "player-progression-branch-label__identity";
+    header.innerHTML = `
+      <span>LV. ${branch.unlockLevel} REQUERIDO</span>
       <strong>${escapeHtml(branch.name)}</strong>
       <small>${escapeHtml(statusLabel(branch.status))}</small>`;
-    wrap.setAttribute("aria-controls", "player-progression-detail");
-    const inspect = () => showBranchDetail(classModel, branch, wrap);
-    wrap.addEventListener("mouseenter", inspect);
-    wrap.addEventListener("focus", inspect);
-    wrap.addEventListener("click", inspect);
-    wrap.addEventListener("keydown", (event) => {
-      if (event.target !== wrap || !["Enter", " "].includes(event.key)) return;
-      event.preventDefault();
-      inspect();
-    });
-
+    const actions = doc.createElement("div");
+    actions.className = "player-progression-branch-label__actions";
+    const preview = doc.createElement("button");
+    preview.type = "button";
+    preview.className = "player-progression-branch-preview";
+    preview.textContent = "VER HITOS";
+    preview.setAttribute("aria-controls", "player-progression-detail");
+    const inspect = () => showBranchDetail(classModel, branch, card);
+    card.__inspect = inspect;
+    preview.addEventListener("click", inspect);
+    actions.appendChild(preview);
+    card.append(header, actions);
     if (branch.status === "available") {
       const choose = doc.createElement("button");
       choose.type = "button";
       choose.className = "player-progression-branch-choose";
-      choose.textContent = "ELEGIR RAMA";
-      choose.addEventListener("click", async (event) => {
-        event.stopPropagation();
+      choose.textContent = "ELEGIR ARQUETIPO";
+      choose.setAttribute("aria-label", `Elegir ${branch.name} para ${classModel.className}`);
+      const feedback = doc.createElement("p");
+      feedback.className = "player-progression-choose-error";
+      feedback.setAttribute("role", "alert");
+      feedback.hidden = true;
+      choose.addEventListener("click", async () => {
         choose.disabled = true;
-        choose.textContent = "GUARDANDO...";
+        choose.textContent = "GUARDANDO…";
+        feedback.hidden = true;
         try {
           await selectArchetype(classModel.classId, branch.id);
+          state.selectedKey = card.dataset.progressionKey;
+          render(true);
         } catch (error) {
-          global.alert?.(error?.message || "No se pudo elegir el arquetipo.");
-        } finally {
+          feedback.textContent = error?.message || "No se pudo guardar el arquetipo.";
+          feedback.hidden = false;
           choose.disabled = false;
-          choose.textContent = "ELEGIR RAMA";
+          choose.textContent = "ELEGIR ARQUETIPO";
         }
       });
-      wrap.appendChild(choose);
+      actions.appendChild(choose);
+      card.appendChild(feedback);
+    } else {
+      const status = doc.createElement("span");
+      status.className = "player-progression-branch-status";
+      status.textContent = branch.status === "selected" ? "ELEGIDO"
+        : branch.status === "locked" ? "OTRA RAMA ELEGIDA"
+        : `DISPONIBLE EN LV. ${branch.unlockLevel}`;
+      actions.appendChild(status);
     }
-    return wrap;
+    return card;
   }
 
   function installHorizontalWheel(scroller) {
@@ -262,87 +281,38 @@
     const section = doc.createElement("section");
     section.className = "player-progression-class";
     section.dataset.classId = classModel.classId;
-
     const heading = doc.createElement("header");
     heading.className = "player-progression-class__header";
-    heading.innerHTML = `
-      <div>
-        <span>CLASS PROGRESSION</span>
-        <h2>${escapeHtml(classModel.className)}</h2>
-      </div>
-      <b>CLASS LV.${classModel.classLevel}</b>`;
+    heading.innerHTML = `<div><span>AVANCE DE CLASE</span><h2>${escapeHtml(classModel.className)}</h2></div><b>LV. ${classModel.classLevel}</b>`;
     section.appendChild(heading);
-
-    const scroller = doc.createElement("div");
-    scroller.className = "player-progression-tree-scroll";
-    installHorizontalWheel(scroller);
-
-    const levels = classModel.levels.length ? classModel.levels : [1];
-    const columnIndex = new Map(levels.map((level, index) => [level, index + 2]));
-    const grid = doc.createElement("div");
-    grid.className = "player-progression-grid";
-    grid.style.gridTemplateColumns = `148px repeat(${levels.length}, 150px)`;
-
-    const corner = doc.createElement("div");
-    corner.className = "player-progression-grid__corner";
-    corner.textContent = "RUTA";
-    grid.appendChild(corner);
-
-    levels.forEach((level) => {
-      const marker = doc.createElement("div");
-      marker.className = "player-progression-level-marker";
-      marker.textContent = `LV.${level}`;
-      grid.appendChild(marker);
-    });
-
-    const baseLabel = doc.createElement("div");
-    baseLabel.className = "player-progression-lane-label is-base";
-    baseLabel.innerHTML = "<span>BASE CLASS</span><strong>TRONCO COMÚN</strong>";
-    grid.appendChild(baseLabel);
-    levels.forEach(() => {
-      const rail = doc.createElement("div");
-      rail.className = "player-progression-rail";
-      grid.appendChild(rail);
-    });
-    classModel.commonNodes.forEach((node) => {
-      const item = createNode(classModel, node);
-      item.style.gridColumn = String(columnIndex.get(node.level));
-      item.style.gridRow = "2";
-      grid.appendChild(item);
-    });
-
-    classModel.branches.forEach((branch, branchIndex) => {
-      const row = branchIndex + 3;
-      const label = branchCell(classModel, branch);
-      label.style.gridColumn = "1";
-      label.style.gridRow = String(row);
-      grid.appendChild(label);
-
-      levels.forEach((level) => {
-        const rail = doc.createElement("div");
-        rail.className = `player-progression-rail is-branch ${level < branch.unlockLevel ? "is-before-unlock" : ""}`;
-        rail.style.gridRow = String(row);
-        rail.style.gridColumn = String(columnIndex.get(level));
-        grid.appendChild(rail);
-      });
-
-      branch.nodes.forEach((node) => {
-        const item = createNode(classModel, node, branch);
-        item.style.gridColumn = String(columnIndex.get(node.level));
-        item.style.gridRow = String(row);
-        grid.appendChild(item);
-      });
-    });
-
-    if (!classModel.commonNodes.length && !classModel.branches.length) {
-      const empty = doc.createElement("div");
+    const milestones = doc.createElement("section");
+    milestones.className = "player-progression-milestones";
+    milestones.innerHTML = `<header class="player-progression-section-title"><h3>Hitos</h3><span>Selecciona un nivel para ver sus mejoras</span></header>`;
+    const list = doc.createElement("div");
+    list.className = "player-progression-grid player-progression-milestone-list";
+    const nodes = [
+      ...classModel.commonNodes.map(node=>({node,branch:null})),
+      ...classModel.branches.filter(b=>b.status==="selected").flatMap(branch=>branch.nodes.map(node=>({node,branch})))
+    ].sort((a,b)=>a.node.level-b.node.level);
+    nodes.forEach(({node,branch})=>list.appendChild(createNode(classModel,node,branch)));
+    if (!nodes.length) {
+      const empty = doc.createElement("p");
       empty.className = "player-progression-class__empty";
-      empty.textContent = "Esta clase todavía no tiene una progresión registrada en los catálogos.";
-      grid.appendChild(empty);
+      empty.textContent = "Sin hitos de clase registrados. Revisa los arquetipos debajo.";
+      list.appendChild(empty);
     }
-
-    scroller.appendChild(grid);
-    section.appendChild(scroller);
+    milestones.appendChild(list);
+    section.appendChild(milestones);
+    if (classModel.branches.length) {
+      const archetypes = doc.createElement("section");
+      archetypes.className = "player-progression-archetypes";
+      archetypes.innerHTML = `<header class="player-progression-section-title"><h3>Arquetipos</h3><span>Elige uno cuando alcance el nivel requerido</span></header>`;
+      const cards = doc.createElement("div");
+      cards.className = "player-progression-archetype-list";
+      classModel.branches.forEach(branch=>cards.appendChild(branchCell(classModel,branch)));
+      archetypes.appendChild(cards);
+      section.appendChild(archetypes);
+    }
     return section;
   }
 
