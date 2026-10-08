@@ -119,6 +119,7 @@ on:
       - tests/item-magic-knowledge-runtime-smoke.cjs
       - tests/item-bound-equipment-lock-smoke.cjs
       - tests/item-enchanter-service-runtime-smoke.cjs
+      - tests/item-enchanter-gem-procedure-smoke.cjs
       - tests/item-enchantment-engine-smoke.cjs
       - tests/item-enchantment-inventory-smoke.cjs
       - tests/item-enchantment-magic-runtime-smoke.cjs
@@ -305,6 +306,8 @@ jobs:
         run: node tests/item-bound-equipment-lock-smoke.cjs
       - name: Enchanter service provider quote smoke
         run: node tests/item-enchanter-service-runtime-smoke.cjs
+      - name: Enchanter gem procedure smoke
+        run: node tests/item-enchanter-gem-procedure-smoke.cjs
       - name: Enchantment core engine smoke
         run: node tests/item-enchantment-engine-smoke.cjs
       - name: Enchantment inventory persistence smoke
