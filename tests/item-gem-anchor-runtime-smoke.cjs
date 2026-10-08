@@ -15,7 +15,7 @@ const Inventory = globalThis.LuminousItemInventoryRuntime;
 const Persistence = globalThis.LuminousItemPersistenceRuntime;
 
 assert.ok(Engine && Inventory && Persistence);
-assert.strictEqual(Engine.VERSION, 7);
+assert.strictEqual(Engine.VERSION, 8);
 assert.strictEqual(Engine.GEM_SOCKET_HARD_MAX, 3);
 
 const weapon = {
