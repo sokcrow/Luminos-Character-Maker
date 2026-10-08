@@ -1427,5 +1427,59 @@ for (const width of [390, 1280]) {
       expect(await page.evaluate(()=>window.__server.characterBuild.classMilestones.fighter["20"].type)).toBe("stats");
       expect(await page.evaluate(()=>window.__server.stats.fuerza)).toBe(16);
     }
+
+    // Codex P1 regression: legacy milestone arrays must not be replaced by
+    // empty objects when claiming another level. Previously chosen General
+    // Traits, allocated stats, timestamps and arbitrary metadata must survive.
+    await page.evaluate(() => {
+      const char = {
+        level: 40,
+        stats:{fuerza:16,destreza:12,constitucion:13,inteligencia:10,sabiduria:11,carisma:12},
+        characterBuild:{
+          classes:[{classId:"fighter",levels:40}],
+          archetypes:[{classId:"fighter",archetypeId:"battle_master"}],
+          classMilestones:[
+            {classId:"fighter",milestoneLevel:20,type:"stats",allocation:{fuerza:2},selectedAt:111},
+            {classId:"fighter",milestoneLevel:30,type:"trait",traitId:"general_keen",selectedAt:222,notes:"legacy-choice"}
+          ]
+        }
+      };
+      window.datosJugador = char;
+      window.__server = structuredClone(char);
+      window.LuminousPlayerProgressionTree.refresh();
+    });
+    await level20.click();
+    const oldChoice = page.locator("#player-progression-detail .player-progression-choice-panel");
+    await expect(oldChoice).toContainText("GUARDADO");
+    await expect(oldChoice.getByRole("button",{name:"CONFIRMAR MEJORA"})).toHaveCount(0);
+    await level40.click();
+    const newChoice = page.locator("#player-progression-detail .player-progression-choice-panel");
+    await newChoice.locator(".player-progression-choice-stat").selectOption("constitucion");
+    await newChoice.getByRole("button",{name:"CONFIRMAR MEJORA"}).click();
+    await expect(newChoice).toContainText("GUARDADO");
+    const historical = await page.evaluate(() => {
+      const player = window.__server;
+      const api = window.LuminousClassMilestones;
+      return {
+        isArray: Array.isArray(player.characterBuild.classMilestones),
+        previousStat: api.choiceAt(player.characterBuild.classMilestones,"fighter",20),
+        previousTrait: api.choiceAt(player.characterBuild.classMilestones,"fighter",30),
+        newClaim: api.choiceAt(player.characterBuild.classMilestones,"fighter",40),
+        rawTrait: player.characterBuild.classMilestones.fighter["30"],
+        chosenGeneralTraits: api.selectedGeneralTraitIds(player),
+        stats: player.stats,
+      };
+    });
+    expect(historical.isArray).toBe(false);
+    expect(historical.previousStat.allocation.fuerza).toBe(2);
+    expect(historical.previousTrait.traitId).toBe("general_keen");
+    expect(historical.rawTrait.selectedAt).toBe(222);
+    expect(historical.rawTrait.notes).toBe("legacy-choice");
+    expect(historical.chosenGeneralTraits).toContain("general_keen");
+    expect(historical.newClaim.allocation.constitucion).toBe(2);
+    expect(historical.stats.fuerza).toBe(16);
+    expect(historical.stats.constitucion).toBe(15);
+    await level20.click();
+    await expect(page.locator("#player-progression-detail .player-progression-choice-panel")).toContainText("GUARDADO");
   });
 }
