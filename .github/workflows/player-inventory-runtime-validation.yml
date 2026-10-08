@@ -70,6 +70,7 @@ on:
       - js/item-equipment-bridge.js
       - js/item-inventory-runtime.js
       - js/item-magic-runtime.js
+      - js/item-magic-knowledge-runtime.js
       - js/item-persistence-runtime.js
       - js/item-realtime-sync.js
       - js/player-ux-polish.js
@@ -114,6 +115,7 @@ on:
       - tests/item-gem-resonance-th-smoke.cjs
       - tests/item-enchantment-ritual-smoke.cjs
       - tests/item-magical-durability-runtime-smoke.cjs
+      - tests/item-magic-knowledge-runtime-smoke.cjs
       - tests/item-enchantment-engine-smoke.cjs
       - tests/item-enchantment-inventory-smoke.cjs
       - tests/item-enchantment-magic-runtime-smoke.cjs
@@ -206,6 +208,7 @@ jobs:
           node --check js/item-weapon-composition-engine.js
           node --check js/item-inventory-runtime.js
           node --check js/item-magic-runtime.js
+          node --check js/item-magic-knowledge-runtime.js
           node --check js/item-equipment-bridge.js
           node --check js/item-persistence-runtime.js
           node --check js/item-realtime-sync.js
@@ -292,6 +295,8 @@ jobs:
         run: node tests/item-enchantment-ritual-smoke.cjs
       - name: Magical Durability activation combat smoke
         run: node tests/item-magical-durability-runtime-smoke.cjs
+      - name: Magic Item Arcana Identify knowledge smoke
+        run: node tests/item-magic-knowledge-runtime-smoke.cjs
       - name: Enchantment core engine smoke
         run: node tests/item-enchantment-engine-smoke.cjs
       - name: Enchantment inventory persistence smoke
