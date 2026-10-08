@@ -81,6 +81,31 @@
       .trim();
   }
 
+  // Class identity icons are committed assets; archetypes keep their own sigils.
+  const CLASS_ICON_IDS = new Set([
+    "barbarian", "fighter", "druid", "cleric", "monk", "bard", "warlock",
+    "sorcerer", "paladin", "artificer", "ranger", "wizard", "rogue",
+  ]);
+
+  function classIconPath(classId) {
+    const id = clean(classId).toLowerCase();
+    const canonicalId = ({ mage: "wizard", rouge: "rogue" })[id] || id;
+    return CLASS_ICON_IDS.has(canonicalId) ? `Assets/Icons/classes/${canonicalId}.png` : "";
+  }
+
+  function classSealMarkup(classModel, fallbackKind) {
+    const path = classIconPath(classModel?.classId);
+    if (!path) return sigilSvg(fallbackKind);
+    return `<img class="player-progression-class-icon" src="${path}" alt="" aria-hidden="true" loading="lazy" decoding="async">`;
+  }
+
+  function bindClassIconFallback(container, fallbackKind) {
+    const image = container.querySelector(".player-progression-class-icon");
+    image?.addEventListener("error", () => {
+      image.outerHTML = sigilSvg(fallbackKind);
+    }, { once: true });
+  }
+
   // Hand-drawn-style vector sigils are decorative only; the names and
   // unlock rules always come from the real character progression model.
   const SIGILS = Object.freeze({
@@ -203,7 +228,9 @@
         const seal = image.closest?.(".player-progression-node__seal");
         image.closest?.(".player-progression-family")?.remove();
         if (seal && !seal.querySelector(".player-progression-family img")) {
-          seal.innerHTML = sigilSvg("star");
+          const node = seal.closest(".player-progression-node");
+          seal.innerHTML = classSealMarkup({ classId: node?.dataset?.progressionClassId }, "star");
+          if (node) bindClassIconFallback(node, "star");
         }
       }, { once: true });
     });
@@ -315,17 +342,20 @@
     button.className = `player-progression-node is-${node.status} ${branch ? "is-archetype-milestone" : "is-class-milestone"}`;
     button.dataset.progressionLevel = String(node.level);
     button.dataset.progressionStatus = node.status;
+    button.dataset.progressionClassId = classModel.classId;
     button.dataset.progressionKey = `${classModel.classId}:milestone:${branch?.id || "base"}:${node.level}`;
     button.setAttribute("aria-controls", "player-progression-detail");
     button.setAttribute("aria-pressed", "false");
     button.setAttribute("aria-label", `Ver hito de ${classModel.className} nivel ${node.level}: ${nodeTitle(node)}`);
     const familySeal = nodeFamilyMarkup(node);
+    const fallbackSigil = sigilFor(nodeTitle(node), node.level);
     button.innerHTML = `
-      <span class="player-progression-node__seal">${familySeal || sigilSvg(sigilFor(nodeTitle(node), node.level))}</span>
+      <span class="player-progression-node__seal">${familySeal || classSealMarkup(classModel, fallbackSigil)}</span>
       <span class="player-progression-node__level">LV. ${node.level}</span>
       <strong>${escapeHtml(nodeTitle(node))}</strong>
       <small>${escapeHtml(statusLabel(node.status))}</small>`;
     bindMissingFamilyIcons(button);
+    bindClassIconFallback(button, fallbackSigil);
     const inspect = () => showNodeDetail(classModel, node, branch, button);
     button.__inspect = inspect;
     button.addEventListener("click", inspect);
@@ -507,9 +537,10 @@
     const root = doc.createElement("div");
     root.className = "player-progression-root";
     root.innerHTML = `
-      <span class="player-progression-root__seal">${sigilSvg("compass")}</span>
+      <span class="player-progression-root__seal">${classSealMarkup(classModel, "compass")}</span>
       <small>✦ NÚCLEO DE CLASE ✦</small>
       <strong>${escapeHtml(classModel.className)}</strong>`;
+    bindClassIconFallback(root, "compass");
     tree.appendChild(root);
 
     const trunk = doc.createElement("section");
