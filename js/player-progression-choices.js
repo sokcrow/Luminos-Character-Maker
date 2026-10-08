@@ -48,7 +48,8 @@
   };
   const isEarned = earnedMilestone;
   const savedChoice = (character, classId, level) =>
-    api()?.choiceAt(character?.characterBuild?.classMilestones, classId, level) || null;
+    api()?.choiceAt(character?.characterBuild?.classMilestones, classId, level)
+      || api()?.choiceAt(character?.classMilestones, classId, level) || null;
   const choiceLabel = (choice, definitions = {}) => {
     if (!choice) return "";
     if (choice.type === "trait") return "Trait General: " + (definitions[choice.traitId]?.name || choice.traitId);
@@ -213,21 +214,23 @@
           if (!earnedMilestone(current, classId, level)) {
             abortReason = "Aún no alcanzaste el nivel requerido para esta mejora.";return;
           }
-          if (api().choiceAt(build.classMilestones,classId,level)) {
-            abortReason = "Esta mejora ya fue reclamada.";return;
-          }
           let preservedMilestones;
           try {
-            // Never replace a legacy array with {}: doing so destroys all
-            // earlier selections and may allow the same milestone to be paid twice.
-            preservedMilestones = api().migrateMilestoneChoices(build.classMilestones);
+            // Keep BOTH top-level and characterBuild claims, including arrays,
+            // before duplicate checks and before applying any stat bonuses.
+            preservedMilestones = api().mergeMilestoneChoices(current);
           } catch (error) {
             abortReason = error?.message || "No fue posible conservar los Milestones anteriores.";
             return;
           }
+          if (api().choiceAt(preservedMilestones,classId,level)) {
+            abortReason = "Esta mejora ya fue reclamada.";return;
+          }
           const checked = api().validateChoice(proposed,current.stats || {});
           if (!checked.valid) { abortReason=checked.errors.join(" ");return; }
-          if (checked.choice.type === "trait" && api().selectedGeneralTraitIds(current).includes(id(proposed.traitId))) {
+          if (checked.choice.type === "trait"
+            && api().selectedGeneralTraitIds({characterBuild:{classMilestones:preservedMilestones}})
+              .includes(id(proposed.traitId))) {
             abortReason = "Ese Trait General ya se eligió.";return;
           }
           if (checked.choice.type === "stats") {
