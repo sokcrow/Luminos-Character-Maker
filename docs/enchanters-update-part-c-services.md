@@ -519,13 +519,13 @@ Part C only guarantees that generated enchanted equipment can be represented, id
 
 ### Magical Durability / maintenance
 
-- [ ] Replace the obsolete 50/50 Physical/Magical Durability split with separate full Physical Durability + Magical Durability resources.
-- [ ] Add use/passive-wear hooks for Magical Durability.
-- [ ] Make Gem-Anchored Enchantments generally support more Magical Durability than direct/pure Enchantments.
-- [ ] Make depleted Enchantments inactive but repairable/rechargeable instead of permanently erased.
+- [x] Replace the obsolete 50/50 Physical/Magical Durability split with separate full Physical Durability + Magical Durability resources.
+- [x] Add trigger-driven use/passive-wear hooks for Magical Durability.
+- [x] Make Gem-Anchored Enchantments use the higher auto-managed Magical Durability baseline (150 vs direct 100), while preserving authored overrides.
+- [x] Make depleted Enchantments inactive but repairable/rechargeable instead of permanently erased.
 - [ ] Make depleted rune visuals stop glowing.
-- [ ] Resolve magical wear before physical wear where the Enchantment is the protective/consumed layer.
-- [ ] Exempt Bound Enchantments from normal magical discharge.
+- [x] Keep magical wear isolated from Physical Durability so magical integrity is consumed without silently damaging the physical Item.
+- [x] Exempt Bound Enchantments from normal/background magical discharge while permitting authored special-use spend.
 - [ ] Add Magical Repair/Recharge pricing contract.
 - [ ] Keep physical repair and magical repair authoritative to their respective resources.
 
@@ -569,7 +569,7 @@ Part C only guarantees that generated enchanted equipment can be represented, id
 - [ ] Add Identify vs hidden-Curse regression tests.
 - [ ] Add delivery-time tests.
 - [ ] Add partial-material/full-material quote tests.
-- [ ] Add Magical Durability depletion/recharge/Bind tests.
+- [x] Add Magical Durability depletion/recharge/Bind tests.
 - [x] Add Gem Socket capacity and catastrophic fourth-gem tests.
 - [ ] Add Bound Gem removal destroys-Item test.
 - [ ] Add Rank IV/V reproduction rejection tests.
