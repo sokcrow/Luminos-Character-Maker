@@ -240,7 +240,7 @@ assert.match(progressionRuntime, /state\.selectedKey = card\.dataset\.progressio
 assert.match(progressionRuntime, /await db\.ref\(/);
 assert.match(progressionRuntime, /No hay conexión para guardar el arquetipo/);
 assert.match(progressionRuntime, /className = "player-progression-choose-error"/);
-assert.match(progressionRuntime, /selected\?\.__inspect\(\)/);
+assert.match(progressionRuntime, /selected\.__inspect\(\)/);
 assert.match(progressionRuntime, /preview\.addEventListener\("click", inspect\)/);
 assert.match(progressionRuntime, /host\.contains\(state\.detail\)/);
 assert.match(progressionRuntime, /mobileLayout\?\.addEventListener\?\.\("change", syncDetailPlacement\)/);
