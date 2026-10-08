@@ -15,8 +15,8 @@ const Engine=globalThis.LuminousItemEnchantmentEngine;
 const Services=globalThis.LuminousItemEnchanterServiceRuntime;
 
 assert.ok(Engine && Services);
-assert.strictEqual(Engine.VERSION,8);
-assert.strictEqual(Services.VERSION,4);
+assert.strictEqual(Engine.VERSION,10);
+assert.strictEqual(Services.VERSION,5);
 
 const weapon={
   instanceId:"player_enchant_weapon",
