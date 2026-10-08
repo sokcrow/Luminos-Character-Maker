@@ -1254,7 +1254,7 @@
       counts.all = traits.length + Number(hasNarrativeTrait);
       traits.forEach((trait) => { counts[sourceCategory(trait)] += 1; });
       if (hasNarrativeTrait) counts.background += 1;
-      if (this.filter !== "all" && !counts[this.filter]) this.filter = "all";
+      if (this.filter !== "all" && !counts[this.filter] && !(this.filter === "background" && hasBackground)) this.filter = "all";
 
       CATEGORY_ORDER.forEach((category) => {
         if (category !== "all" && counts[category] === 0 && !(category === "background" && hasBackground)) return;
