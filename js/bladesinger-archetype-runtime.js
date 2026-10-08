@@ -367,8 +367,9 @@
   function applyAcrobaticsBonus(checkInput = {}, character = {}) {
     const check = { ...(checkInput || {}) };
     const skill = normalizeId(check.skillId || check.skill || check.actionId || check.name);
-    if (!bladesongActive(character) || !["acrobatics", "acrobacia", "acrobacias"].includes(skill)) return check;
+    if (!bladesongActive(character) || !["acrobatics", "acrobacia", "acrobacias"].includes(skill) || check.__bladesingerAcrobaticsAdjusted) return check;
     check.finalPower = numberOr(check.finalPower, 0) + 4;
+    check.__bladesingerAcrobaticsAdjusted = true;
     return check;
   }
 
