@@ -114,12 +114,12 @@
   }
 
   function tooltip(skill, ability, breakdown) {
-    const lines = [`${skill.name} Check Power: ${formatSigned(breakdown.total)}`];
+    const lines = [`${skill.name} Check total: ${formatSigned(breakdown.total)}`];
     if (breakdown.abilityMod) lines.push(`${formatSigned(breakdown.abilityMod)} ${ability.code} Mod`);
     if (breakdown.proficiency) lines.push(`${formatSigned(breakdown.proficiency)} Proficiency`);
     breakdown.contributions.forEach((entry) => lines.push(`${formatSigned(entry.amount)} ${entry.name}`));
     if (breakdown.finalPowerContributions?.length) {
-      lines.push("Final Power · se aplica después de la tirada");
+      lines.push("Final Power · incluido en el total, aplicado una sola vez");
       breakdown.finalPowerContributions.forEach((entry) => lines.push(`${formatSigned(entry.amount)} ${entry.name}`));
     }
     return lines.join("\n");
@@ -144,11 +144,27 @@
     const proficiency = stats.proficiencyContribution(level, stats.skillProficiencyState(skill, data));
     const base = stats.skillValue(skill, ability, data);
     const character = runtime.getCharacter?.() || data;
+    const traits = runtime.getTraits();
     const check = { kind: "skill", abilityId: ability.id, skillId: skill.id };
-    const contributions = checkPowerContributions(engine, runtime.getTraits(), character, check);
-    const finalPower = finalPowerContributions(engine, runtime.getTraits(), character, check);
+    const resolver = global.LuminousCheckTraitBonusRuntime;
+    const contributions = checkPowerContributions(engine, traits, character, check);
+    const finalPower = finalPowerContributions(engine, traits, character, check);
+    const resolved = resolver?.resolveCheck?.(engine, traits, character, check);
+    const declaredFinal = finalPower.reduce((sum, entry) => sum + entry.amount, 0);
+    const resolvedFinal = resolved ? numberOr(resolved.check.finalPower, 0) : declaredFinal;
+    const extraFinal = resolvedFinal - declaredFinal;
+    if (extraFinal) {
+      const special = resolved?.specialContributions || [];
+      const known = special.reduce((sum, entry) => sum + entry.amount, 0);
+      finalPower.push(...special);
+      if (extraFinal !== known) finalPower.push({ name: "Otros Traits", amount: extraFinal - known });
+    }
     const traitBonus = contributions.reduce((sum, entry) => sum + entry.amount, 0);
-    return { base, abilityMod, proficiency, contributions, finalPowerContributions: finalPower, traitBonus, total: base + traitBonus };
+    const finalBonus = resolvedFinal;
+    // The displayed Skill total is the effective Check result, including
+    // Final Power; coin rolls apply it once, never once per UI refresh.
+    return { base, abilityMod, proficiency, contributions, finalPowerContributions: finalPower,
+      traitBonus, finalBonus, total: base + traitBonus + finalBonus };
   }
 
   function syncPlayerSkillPreviews() {
@@ -278,6 +294,8 @@
       const target = findPlayerRollTarget(check);
       if (!target) return;
       target.dataset.resolvedCheckPower = String(checkPowerValue(check));
+      // Final Power is applied by the shared Coin completion bridge on DM
+      // requests; do not add it to the base roll on this path.
     });
     return true;
   }
@@ -323,7 +341,14 @@
       const hasResolved = Object.prototype.hasOwnProperty.call(target.dataset, "resolvedCheckPower");
       const resolvedPower = hasResolved ? numberOr(target.dataset.resolvedCheckPower, 0) : null;
       if (hasResolved) delete target.dataset.resolvedCheckPower;
-      const previewPower = hasResolved ? resolvedPower : playerCheckPower(descriptor.check, data).total;
+      const resolver = global.LuminousCheckTraitBonusRuntime;
+      const engine = global.LuminousTraitEngine;
+      const traits = global.LuminousPlayerTraitRuntime?.getTraits?.() || [];
+      const character = global.LuminousPlayerTraitRuntime?.getCharacter?.() || data;
+      const preview = !hasResolved ? resolver?.resolveCheck?.(engine, traits, character, descriptor.check) : null;
+      const previewPower = hasResolved ? resolvedPower
+        : preview ? checkPowerValue(preview.check) + finalPowerValue(preview.check)
+          : playerCheckPower(descriptor.check, data).total;
       if (!previewPower) return;
 
       event.preventDefault();
