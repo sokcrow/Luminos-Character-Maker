@@ -207,7 +207,7 @@ assert.match(levelAllocationRuntime, /No puedes reducir|validateClassAllocation/
 assert.match(levelAllocationRuntime, /allocationExpanded: null/);
 assert.match(levelAllocationRuntime, /data-toggle-allocation aria-controls="player-level-allocation-body"/);
 assert.match(levelAllocationRuntime, /state\.allocationExpanded = willExpand/);
-assert.match(levelAllocationRuntime, /\.player-level-allocation__body/); // textual shell has the body class
+assert.match(levelAllocationRuntime, /class="player-level-allocation__body"/);
 assert.match(progressionCss, /#player-progression-detail\[hidden\]/);
 assert.match(progressionCss, /\.player-level-allocation__body\[hidden\]/);
 
