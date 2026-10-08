@@ -14,6 +14,7 @@
     playerListener: null,
     root: null,
     detail: null,
+    detailAnchor: null,
     signature: "",
     retryTimer: null,
     booted: false,
@@ -21,6 +22,7 @@
 
   const clean = (value) => String(value ?? "").trim();
   const core = () => global.LuminousPlayerProgressionTreeCore || null;
+  const mobileLayout = global.matchMedia?.("(max-width: 760px)") || null;
 
   function ensureStyles() {
     if (doc.getElementById("player-progression-tree-stylesheet")) return;
@@ -71,19 +73,27 @@
   function clearDetail() {
     if (!state.detail) return;
     state.detail.hidden = true;
+    state.detailAnchor = null;
     state.detail.replaceChildren();
+  }
+
+  function syncDetailPlacement() {
+    if (!state.detail || state.detail.hidden) return;
+    const anchor = state.detailAnchor;
+    if (mobileLayout?.matches && anchor && state.root?.contains(anchor) && anchor.parentElement) {
+      // The mobile grid shows the detail after the tapped milestone.
+      anchor.after(state.detail);
+    } else if (state.root?.parentElement) {
+      // On desktop the detail spans the full width, never a 150px tree track.
+      state.root.after(state.detail);
+    }
   }
 
   function placeDetail(anchor) {
     if (!state.detail) return;
-    if (global.matchMedia?.("(max-width: 760px)")?.matches && anchor?.parentElement) {
-      // The mobile tree becomes a two-column card list; show details directly
-      // after the chosen card instead of far below every class.
-      anchor.after(state.detail);
-    } else if (state.root?.parentElement) {
-      state.root.after(state.detail);
-    }
+    state.detailAnchor = anchor;
     state.detail.hidden = false;
+    syncDetailPlacement();
   }
 
   function showNodeDetail(classModel, node, branch = null, anchor = null) {
@@ -345,9 +355,6 @@
     if (!host || !core()) return false;
     state.root = host;
     state.detail = doc.getElementById("player-progression-detail") || state.detail;
-    // On mobile the shared details panel is placed inside the tree. Restore
-    // it before clearing the tree so refresh never destroys its DOM node.
-    if (state.detail && host.contains(state.detail)) host.after(state.detail);
     removeLegacyArchetypeSelector();
 
     const character = currentCharacter();
@@ -365,6 +372,10 @@
     if (!force && signature === state.signature) return true;
     state.signature = signature;
 
+    // Only move the shared panel before actually replacing the tree.
+    // Otherwise an unrelated HP/player-data update would displace an open
+    // mobile detail from its selected milestone.
+    if (state.detail && host.contains(state.detail)) host.after(state.detail);
     host.replaceChildren();
     if (!model.classes.length) {
       const empty = doc.createElement("div");
@@ -418,6 +429,7 @@
     bindPlayer();
     render(true);
     global.addEventListener?.("luminous:player-data", handlePlayerData);
+    mobileLayout?.addEventListener?.("change", syncDetailPlacement);
 
     [
       "luminous:traits-refreshed",
