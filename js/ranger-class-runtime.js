@@ -685,11 +685,12 @@
       resolveTheatreCheck(input = {}) {
         const result = originalResolveTheatreCheck ? originalResolveTheatreCheck(input) : { check: clone(input.check || {}), state: input.state, outcomes: [] };
         const traits = input.traits || [];
-        if (hasTrait(traits, "favored_enemy") && isTrackingSurvivalCheck(result.check || input.check || {})) {
+        if (hasTrait(traits, "favored_enemy") && !result.check?.__rangerFavoredEnemyTrackingApplied && isTrackingSurvivalCheck(result.check || input.check || {})) {
           const target = input.target || input.trackingTarget || input.check?.target || null;
           const bonus = target ? survivalTrackingBonus(input.character || {}, target) : 0;
           if (bonus) {
             result.check.finalPower = Number(result.check.finalPower || 0) + bonus;
+            result.check.__rangerFavoredEnemyTrackingApplied = true;
             result.outcomes = [...(result.outcomes || []), { type: "ranger_favored_enemy_tracking", traitId: "favored_enemy", finalPowerBonus: bonus }];
           }
         }
