@@ -16,7 +16,7 @@
   if (!Catalog) throw new Error("LuminousEnchantmentCatalog is required before LuminousItemEnchantmentEngine.");
   if (!Gems) throw new Error("LuminousOreIngotGemCatalog is required before LuminousItemEnchantmentEngine.");
 
-  const VERSION = 7;
+  const VERSION = 8;
   const TIER_BASE_SLOT_CAPACITY = Object.freeze({ 1: 0, 2: 1, 3: 1, 4: 2, 5: 3 });
   const BIND_POSITIVE_MULTIPLIER = 1.25;
   const CURSE_POSITIVE_MULTIPLIER = 1.50;
@@ -572,6 +572,35 @@
   }
 
 
+
+
+  function addEnchantmentProperty(item = {}, definitionId, property, options = {}) {
+    const refs = appliedEnchantments(item).map(normalizeAppliedReference);
+    const wantedDefinition = normalizeId(definitionId);
+    const wantedAnchor = options.anchorId == null ? null : String(options.anchorId);
+    const index = refs.findIndex((ref) =>
+      ref.definitionId === wantedDefinition &&
+      (wantedAnchor == null || ref.anchorId === wantedAnchor)
+    );
+    if (index < 0) return Object.freeze({ changed:false, reason:"enchantment_not_installed", item:clone(item) });
+
+    const definition = Catalog.get(refs[index].definitionId);
+    if (!definition) return Object.freeze({ changed:false, reason:"unknown_enchantment", item:clone(item) });
+    const nextProperties = [...refs[index].properties, normalizeId(property)].filter(Boolean);
+    const validation = validateAppliedProperties(nextProperties,definition);
+    if (!validation.valid) {
+      return Object.freeze({ changed:false, reason:"invalid_enchantment_properties", errors:validation.errors, item:clone(item) });
+    }
+
+    refs[index] = normalizeAppliedReference({...refs[index],properties:validation.properties});
+    const out = withMagicState(item,refs,gemAnchors(item));
+    return Object.freeze({
+      changed:true,
+      item:Object.freeze(out),
+      reference:refs[index],
+      property:normalizeId(property),
+    });
+  }
 
   function intersects(left = [], right = []) {
     const rightSet = new Set(asArray(right).map(normalizeId).filter(Boolean));
@@ -1597,6 +1626,7 @@
     strengthenEnchantment,
     canRemoveEnchantment,
     removeEnchantment,
+    addEnchantmentProperty,
     validateGemAnchorApplication,
     catastrophicFourthGem,
     mountGemAnchor,
