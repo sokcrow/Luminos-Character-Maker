@@ -944,6 +944,10 @@
   // Self-initiated rolls need the same post-coin Check pipeline as DM checks.
   // Do not arm TheatreRolls here: that would schedule an unrelated DM request.
   function armPlayerCheck(check = {}) {
+    // Some lazy-loaded pages have not yet patched the Coin Engine. Do not
+    // claim Final Power will be applied after the coins until that bridge exists.
+    installCoinCheckBridge();
+    if (!global.LuminousCoinEngine?.__universalCheckTraitBridge) return null;
     state.activeCheck = { ...(check || {}) };
     return { ...state.activeCheck };
   }
