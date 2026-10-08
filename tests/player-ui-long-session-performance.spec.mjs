@@ -1138,6 +1138,7 @@ test("trait formula breakdown stays hidden until clicked and closes with Escape"
 
 for (const width of [390, 1280]) {
   test(`Avance milestone and archetype selection at ${width}px`, async ({ page }) => {
+    await page.goto(BASE + "/index.html");
     await page.setViewportSize({ width, height: width < 700 ? 844 : 900 });
     await page.setContent(`
       <!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1">
