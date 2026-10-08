@@ -526,6 +526,8 @@
   }
 
   function chargeState(item, spellProfile = null) {
+    const resource = normalizeId(spellProfile?.resource || "");
+    if (resource === "magical_durability") return magicalDurabilityState(item);
     const runtime = itemRuntimeFor("getCharges");
     if (runtime) return runtime.getCharges(item);
     const max = item.chargesMax ?? item.maxCharges ?? null;
