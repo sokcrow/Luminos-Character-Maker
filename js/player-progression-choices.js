@@ -257,12 +257,14 @@
     if (!entries.some(entry=>id(entry.classId)==="fighter"&&id(entry.archetypeId)==="battle_master")||fighterLevel<15) return 0;
     const base = fighterLevel>=90?5:fighterLevel>=50?4:3;
     const runtime = global.LuminousBattleMasterArchetypeRuntime;
-    if (runtime?.maneuverCapacity) return Math.max(base,Number(runtime.maneuverCapacity(character))||base);
     const extra = character?.superiorTechnique === true || character?.characterBuild?.superiorTechnique === true ||
       (api()?.selectedGeneralTraitIds?.(character) || []).includes("superior_technique") ||
       [character.traits,character.traitDefinitions,character.characterBuild?.traits].some(list=>
         Array.isArray(list)&&list.some(entry=>id(typeof entry==="string"?entry:entry?.id||entry?.name)==="superior_technique"));
-    return base + (extra?1:0);
+    // The Battle Master runtime does not yet examine classMilestones. A Trait
+    // chosen there must still grant its extra slot even after runtime boot.
+    return Math.max(base + (extra?1:0),
+      Number(runtime?.maneuverCapacity?.(character)) || 0);
   }
   const chosenManeuvers = (character = {}) => {
     const stored = character?.characterBuild?.maneuvers?.battle_master;
