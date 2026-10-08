@@ -43,6 +43,7 @@ const talent = rogueRuntime.ROGUE_DEFINITIONS.reliable_talent;
 const perception = { kind: "skill", abilityId: "wis", skillId: "perception" };
 const rogueResult = engine.resolveTheatreCheck({ character: rogue, traits: [talent], check: perception });
 assert.equal(rogueResult.check.finalPower, 3, "Reliable Talent must change the actual post-coin Final Power, not metadata alone.");
+assert.equal(engine.resolveTheatreCheck({ character: rogue, traits: [talent], check: rogueResult.check }).check.finalPower, 3, "Reliable Talent is idempotent after Check cloning.");
 assert.equal(preview.evaluatedCheckBonuses(engine, [talent], rogue, perception).finalPowerTotal, 3);
 assert.equal(preview.evaluatedCheckBonuses(engine, [talent], rogue, { ...perception, skillId: "insight" }).finalPowerTotal, 0, "No proficiency means no Talent bonus.");
 
@@ -62,7 +63,9 @@ const champion = {
 };
 assert.equal(sum(preview.specialFinalPowerContributions([champTrait], champion, { kind: "ability", abilityId: "str" })), 1);
 assert.equal(sum(preview.specialFinalPowerContributions([champTrait], champion, { kind: "ability", abilityId: "cha" })), 0);
-assert.equal(preview.applySpecialArmedCheck({ kind: "ability", abilityId: "str", finalPower: 2 }, [champTrait], champion).finalPower, 3);
+const champArmed = preview.applySpecialArmedCheck({ kind: "ability", abilityId: "str", finalPower: 2 }, [champTrait], champion);
+assert.equal(champArmed.finalPower, 3);
+assert.equal(preview.applySpecialArmedCheck(champArmed, [champTrait], champion).finalPower, 3, "Champion power cannot stack on an already modified Check.");
 
 const banneretRuntime = globalThis.LuminousBanneretArchetypeRuntime;
 const envoyTrait = banneretRuntime.DEFINITIONS.royal_envoy;
@@ -73,7 +76,9 @@ const banneret = {
 };
 const persuasion = { kind: "skill", abilityId: "cha", skillId: "persuasion" };
 assert.equal(sum(preview.specialFinalPowerContributions([envoyTrait], banneret, persuasion)), 2);
-assert.equal(preview.applySpecialArmedCheck({ ...persuasion, finalPower: 0 }, [envoyTrait], banneret).finalPower, 2);
+const envoyArmed = preview.applySpecialArmedCheck({ ...persuasion, finalPower: 0 }, [envoyTrait], banneret);
+assert.equal(envoyArmed.finalPower, 2);
+assert.equal(preview.applySpecialArmedCheck(envoyArmed, [envoyTrait], banneret).finalPower, 2, "Royal Envoy cannot be applied twice.");
 assert.equal(sum(preview.specialFinalPowerContributions([envoyTrait], banneret, { ...persuasion, skillId: "intimidation" })), 0);
 
 const samuraiRuntime = globalThis.LuminousSamuraiArchetypeRuntime;
@@ -86,6 +91,8 @@ const samurai = {
 assert.equal(sum(preview.specialFinalPowerContributions([courtier], samurai, persuasion)), 2, "Elegant Courtier's WIS modifier increases Persuasion.");
 assert.equal(sum(preview.specialFinalPowerContributions([courtier], samurai, { kind: "save", abilityId: "wis" })), 2, "Elegant Courtier grants WIS save proficiency.");
 assert.equal(sum(preview.specialFinalPowerContributions([courtier], samurai, { kind: "skill", abilityId: "cha", skillId: "deception" })), 0);
+const courtierArmed = preview.applySpecialArmedCheck({ ...persuasion, finalPower: 0 }, [courtier], samurai);
+assert.equal(preview.applySpecialArmedCheck(courtierArmed, [courtier], samurai).finalPower, courtierArmed.finalPower);
 
 const bladeRuntime = globalThis.LuminousBladesingerArchetypeRuntime;
 const bladesong = bladeRuntime.DEFINITIONS.bladesong;
@@ -96,7 +103,9 @@ const bladesinger = {
 };
 const acrobatics = { kind: "skill", abilityId: "dex", skillId: "acrobatics" };
 assert.equal(sum(preview.specialFinalPowerContributions([bladesong], bladesinger, acrobatics)), 4);
-assert.equal(preview.applySpecialArmedCheck({ ...acrobatics, finalPower: 2 }, [bladesong], bladesinger).finalPower, 6);
+const bladesongArmed = preview.applySpecialArmedCheck({ ...acrobatics, finalPower: 2 }, [bladesong], bladesinger);
+assert.equal(bladesongArmed.finalPower, 6);
+assert.equal(preview.applySpecialArmedCheck(bladesongArmed, [bladesong], bladesinger).finalPower, 6, "Bladesong Acrobatics cannot stack.");
 assert.equal(sum(preview.specialFinalPowerContributions([bladesong], { ...bladesinger, statusEffects: {} }, acrobatics)), 0);
 
 assert.match(source("js/trait-standardization-runtime.js"), /armPlayerCheck/);
