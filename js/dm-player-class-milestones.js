@@ -289,11 +289,16 @@
           return;
         }
 
-        current.characterBuild.classMilestones = current.characterBuild.classMilestones && typeof current.characterBuild.classMilestones === "object"
-          ? current.characterBuild.classMilestones
-          : {};
         if (api.choiceAt(current.characterBuild.classMilestones, classId, milestoneLevel)) {
           abortReason = "Ese milestone ya fue reclamado.";
+          return;
+        }
+        let preservedMilestones;
+        try {
+          // DM and Player must preserve the same legacy array-backed claims.
+          preservedMilestones = api.migrateMilestoneChoices(current.characterBuild.classMilestones);
+        } catch (error) {
+          abortReason = error?.message || "No fue posible conservar los Milestones anteriores.";
           return;
         }
 
@@ -323,6 +328,7 @@
           committedAllocation = applied.allocation;
         }
 
+        current.characterBuild.classMilestones = preservedMilestones;
         if (!current.characterBuild.classMilestones[classId] || typeof current.characterBuild.classMilestones[classId] !== "object") {
           current.characterBuild.classMilestones[classId] = {};
         }
