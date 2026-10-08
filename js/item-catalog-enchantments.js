@@ -6,7 +6,7 @@
     return;
   }
 
-  const VERSION = 3;
+  const VERSION = 4;
   const FAMILY = "enchantments";
   const SUPPORTED_RANKS = Object.freeze([1, 2, 3]);
   const BASE_SLOT_COST_BY_RANK = Object.freeze({ 1: 1, 2: 2, 3: 3 });
@@ -95,6 +95,8 @@
     const passthrough = [
       "value", "damageType", "statusId", "axis", "spellId", "flag",
       "target", "scope", "duration", "stacks", "magicHitScope",
+      "magicalWear", "magicalDurabilityCost", "chargeCost", "resource",
+      "usesWielderSpellSlot", "spCost",
     ];
     for (const key of passthrough) {
       if (raw[key] !== undefined) effect[key] = clone(raw[key]);
@@ -270,9 +272,9 @@
         requiredTags: ["enchantment_material"],
       },
       rankData: {
-        1: R(1, [{ type:"damage_percent", trigger:"on_skill", value:DAMAGE_PERCENT_BY_RANK[1], damageType:"fire" }]),
-        2: R(2, [{ type:"damage_percent", trigger:"on_skill", value:DAMAGE_PERCENT_BY_RANK[2], damageType:"fire" }]),
-        3: R(3, [{ type:"damage_percent", trigger:"on_skill", value:DAMAGE_PERCENT_BY_RANK[3], damageType:"fire" }]),
+        1: R(1, [{ type:"damage_percent", trigger:"on_skill", value:DAMAGE_PERCENT_BY_RANK[1], damageType:"fire" }], { magicalWear:1 }),
+        2: R(2, [{ type:"damage_percent", trigger:"on_skill", value:DAMAGE_PERCENT_BY_RANK[2], damageType:"fire" }], { magicalWear:1 }),
+        3: R(3, [{ type:"damage_percent", trigger:"on_skill", value:DAMAGE_PERCENT_BY_RANK[3], damageType:"fire" }], { magicalWear:1 }),
       },
     }),
     enchantment({
@@ -296,9 +298,9 @@
         requiredTags: ["enchantment_material"],
       },
       rankData: {
-        1: R(1, [{ type:"damage_percent", trigger:"on_skill", value:DAMAGE_PERCENT_BY_RANK[1], damageType:"cold" }]),
-        2: R(2, [{ type:"damage_percent", trigger:"on_skill", value:DAMAGE_PERCENT_BY_RANK[2], damageType:"cold" }]),
-        3: R(3, [{ type:"damage_percent", trigger:"on_skill", value:DAMAGE_PERCENT_BY_RANK[3], damageType:"cold" }]),
+        1: R(1, [{ type:"damage_percent", trigger:"on_skill", value:DAMAGE_PERCENT_BY_RANK[1], damageType:"cold" }], { magicalWear:1 }),
+        2: R(2, [{ type:"damage_percent", trigger:"on_skill", value:DAMAGE_PERCENT_BY_RANK[2], damageType:"cold" }], { magicalWear:1 }),
+        3: R(3, [{ type:"damage_percent", trigger:"on_skill", value:DAMAGE_PERCENT_BY_RANK[3], damageType:"cold" }], { magicalWear:1 }),
       },
     }),
     enchantment({
@@ -322,9 +324,9 @@
         requiredTags: ["enchantment_material"],
       },
       rankData: {
-        1: R(1, [{ type:"damage_percent", trigger:"on_skill", value:DAMAGE_PERCENT_BY_RANK[1], damageType:"lightning" }]),
-        2: R(2, [{ type:"damage_percent", trigger:"on_skill", value:DAMAGE_PERCENT_BY_RANK[2], damageType:"lightning" }]),
-        3: R(3, [{ type:"damage_percent", trigger:"on_skill", value:DAMAGE_PERCENT_BY_RANK[3], damageType:"lightning" }]),
+        1: R(1, [{ type:"damage_percent", trigger:"on_skill", value:DAMAGE_PERCENT_BY_RANK[1], damageType:"lightning" }], { magicalWear:1 }),
+        2: R(2, [{ type:"damage_percent", trigger:"on_skill", value:DAMAGE_PERCENT_BY_RANK[2], damageType:"lightning" }], { magicalWear:1 }),
+        3: R(3, [{ type:"damage_percent", trigger:"on_skill", value:DAMAGE_PERCENT_BY_RANK[3], damageType:"lightning" }], { magicalWear:1 }),
       },
     }),
   ]);
