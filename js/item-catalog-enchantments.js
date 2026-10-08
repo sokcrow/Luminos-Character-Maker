@@ -6,7 +6,7 @@
     return;
   }
 
-  const VERSION = 2;
+  const VERSION = 3;
   const FAMILY = "enchantments";
   const SUPPORTED_RANKS = Object.freeze([1, 2, 3]);
   const BASE_SLOT_COST_BY_RANK = Object.freeze({ 1: 1, 2: 2, 3: 3 });
@@ -161,6 +161,11 @@
       recipe: Object.freeze({
         requiredTags: normalizeIds(def.recipe?.requiredTags),
         consumedRequirements: Object.freeze(clone(def.recipe?.consumedRequirements || [])),
+        exactItemRequirements: Object.freeze(clone(def.recipe?.exactItemRequirements || [])),
+        outcomes: Object.freeze({
+          allowAccidentalBind: def.recipe?.outcomes?.allowAccidentalBind === true,
+          allowAccidentalCurse: def.recipe?.outcomes?.allowAccidentalCurse === true,
+        }),
       }),
       rankData: Object.freeze(rankData),
     });
