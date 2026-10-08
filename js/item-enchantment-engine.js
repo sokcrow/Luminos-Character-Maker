@@ -16,7 +16,7 @@
   if (!Catalog) throw new Error("LuminousEnchantmentCatalog is required before LuminousItemEnchantmentEngine.");
   if (!Gems) throw new Error("LuminousOreIngotGemCatalog is required before LuminousItemEnchantmentEngine.");
 
-  const VERSION = 6;
+  const VERSION = 7;
   const TIER_BASE_SLOT_CAPACITY = Object.freeze({ 1: 0, 2: 1, 3: 1, 4: 2, 5: 3 });
   const BIND_POSITIVE_MULTIPLIER = 1.25;
   const CURSE_POSITIVE_MULTIPLIER = 1.50;
@@ -1167,6 +1167,237 @@
   }
 
 
+
+  function gemAnchorLink(item = {}, anchorId) {
+    const wanted = String(anchorId || "");
+    const anchors = gemAnchors(item).map(normalizeGemAnchor);
+    const anchorIndex = anchors.findIndex((anchor) => anchor.anchorId === wanted);
+    if (anchorIndex < 0) return Object.freeze({ found:false, reason:"gem_anchor_not_found" });
+
+    const refs = appliedEnchantments(item).map(normalizeAppliedReference);
+    const refIndex = refs.findIndex((ref) => ref.anchorId === wanted);
+    if (refIndex < 0) return Object.freeze({ found:false, reason:"gem_anchor_enchantment_not_found", anchor:anchors[anchorIndex] });
+
+    return Object.freeze({
+      found:true,
+      anchorIndex,
+      refIndex,
+      anchor:anchors[anchorIndex],
+      reference:refs[refIndex],
+    });
+  }
+
+  function gemDescriptorFromAnchor(anchor = {}, options = {}) {
+    const normalized = normalizeGemAnchor(anchor);
+    return Object.freeze({
+      instanceId:normalized.gemInstanceId,
+      definitionId:normalized.gemDefinitionId,
+      itemId:normalized.gemDefinitionId,
+      quality:normalizeId(options.quality || normalized.gemQuality || "standard") || "standard",
+      enchantmentReady:true,
+      magicallyWritten:options.magicallyWritten === true,
+      previousAnchorId:normalized.anchorId,
+    });
+  }
+
+  function boundGemAnchorRemovalCatastrophe(item = {}, anchorId, options = {}) {
+    const link = gemAnchorLink(item, anchorId);
+    if (!link.found) return Object.freeze({ catastrophic:false, destroyedItem:false, ...clone(link), item:clone(item) });
+    if (!link.reference.properties.includes("bind")) {
+      return Object.freeze({ catastrophic:false, destroyedItem:false, reason:"gem_anchor_not_bound", item:clone(item), anchor:link.anchor });
+    }
+    if (options.confirmDestruction !== true) {
+      return Object.freeze({
+        catastrophic:false,
+        destroyedItem:false,
+        blocked:true,
+        reason:"bound_gem_removal_destroys_item",
+        requiresDestructionConfirmation:true,
+        item:clone(item),
+        anchor:link.anchor,
+        reference:link.reference,
+      });
+    }
+
+    const out = clone(item || {});
+    out.destroyed = true;
+    out.condition = 0;
+    if (out.currentCondition !== undefined) out.currentCondition = 0;
+    if (out.currentDurability !== undefined) out.currentDurability = 0;
+    if (typeof out.durability === "number") out.durability = 0;
+    const current = magicStateOf(out);
+    out.magic = {
+      ...current,
+      enabled:false,
+      enchantments:[],
+      enchantmentSlots:{max:baseSlotCapacity(out),used:0},
+      gemSockets:{max:gemSocketCapacity(out),used:0},
+      gemAnchors:[],
+      destroyedByBoundGemRemoval:true,
+    };
+    return Object.freeze({
+      catastrophic:true,
+      destroyedItem:true,
+      reason:"bound_gem_removal_destroyed_item",
+      item:Object.freeze(out),
+      removedAnchor:link.anchor,
+      removedReference:link.reference,
+      gemOutcome:"not_recovered_by_default",
+    });
+  }
+
+  function itemSideRemoveGemEnchantment(item = {}, anchorId, options = {}) {
+    const link = gemAnchorLink(item, anchorId);
+    if (!link.found) return Object.freeze({ removed:false, ...clone(link), item:clone(item) });
+    if (link.reference.properties.includes("bind")) {
+      return boundGemAnchorRemovalCatastrophe(item, anchorId, options);
+    }
+
+    const requestedQuality = normalizeId(options.gemQualityAfter || options.qualityAfter || "");
+    if (!requestedQuality) {
+      return Object.freeze({
+        removed:false,
+        reason:"gem_quality_downgrade_unresolved",
+        requiresAuthoredGemQualityAfter:true,
+        anchor:link.anchor,
+        reference:link.reference,
+        item:clone(item),
+      });
+    }
+    if (!Object.prototype.hasOwnProperty.call(Gems.GEM_STABLE_RANK_BY_QUALITY || {}, requestedQuality)) {
+      return Object.freeze({ removed:false, reason:"invalid_gem_quality_after", item:clone(item), requestedQuality });
+    }
+
+    const refs = appliedEnchantments(item).map(normalizeAppliedReference);
+    const anchors = gemAnchors(item).map(normalizeGemAnchor);
+    refs.splice(link.refIndex,1);
+    anchors.splice(link.anchorIndex,1);
+    const out = withMagicState(item, refs, anchors);
+    if (!refs.length) out.magic.enabled = false;
+
+    const recoveredGem = gemDescriptorFromAnchor(link.anchor,{
+      quality:requestedQuality,
+      magicallyWritten:true,
+    });
+    return Object.freeze({
+      removed:true,
+      procedure:"item_side",
+      item:Object.freeze(out),
+      removedReference:link.reference,
+      removedAnchor:link.anchor,
+      recoveredGem,
+      gemDestroyed:false,
+      itemDestroyed:false,
+    });
+  }
+
+  function anchorSideDestroyGemEnchantment(item = {}, anchorId, options = {}) {
+    const link = gemAnchorLink(item, anchorId);
+    if (!link.found) return Object.freeze({ removed:false, ...clone(link), item:clone(item) });
+    if (link.reference.properties.includes("bind")) {
+      return boundGemAnchorRemovalCatastrophe(item, anchorId, options);
+    }
+
+    const refs = appliedEnchantments(item).map(normalizeAppliedReference);
+    const anchors = gemAnchors(item).map(normalizeGemAnchor);
+    refs.splice(link.refIndex,1);
+    anchors.splice(link.anchorIndex,1);
+    const out = withMagicState(item, refs, anchors);
+    if (!refs.length) out.magic.enabled = false;
+
+    return Object.freeze({
+      removed:true,
+      procedure:"anchor_side",
+      item:Object.freeze(out),
+      removedReference:link.reference,
+      removedAnchor:link.anchor,
+      recoveredGem:null,
+      gemDestroyed:true,
+      itemDestroyed:false,
+    });
+  }
+
+  function rewriteGemAnchoredEnchantment(item = {}, anchorId, nextDefinitionOrId, options = {}) {
+    const link = gemAnchorLink(item, anchorId);
+    if (!link.found) return Object.freeze({ rewritten:false, ...clone(link), item:clone(item) });
+    if (link.reference.properties.includes("bind")) {
+      return Object.freeze({ rewritten:false, reason:"bound_enchantment_not_rewritable", item:clone(item), anchor:link.anchor });
+    }
+
+    const nextDefinition = typeof nextDefinitionOrId === "string" ? Catalog.get(nextDefinitionOrId) : clone(nextDefinitionOrId);
+    if (!nextDefinition) return Object.freeze({ rewritten:false, reason:"unknown_enchantment", item:clone(item) });
+    const nextRank = Number(options.rank ?? link.reference.rank);
+    const requestedQuality = normalizeId(options.gemQualityAfter || options.qualityAfter || "");
+    if (!requestedQuality) {
+      return Object.freeze({
+        rewritten:false,
+        reason:"gem_quality_downgrade_unresolved",
+        requiresAuthoredGemQualityAfter:true,
+        item:clone(item),
+        anchor:link.anchor,
+      });
+    }
+    if (!Object.prototype.hasOwnProperty.call(Gems.GEM_STABLE_RANK_BY_QUALITY || {}, requestedQuality)) {
+      return Object.freeze({ rewritten:false, reason:"invalid_gem_quality_after", item:clone(item), requestedQuality });
+    }
+
+    const gem = {
+      definitionId:link.anchor.gemDefinitionId,
+      instanceId:link.anchor.gemInstanceId,
+      quality:requestedQuality,
+    };
+    const compatibility = gemCompatibility(nextDefinition,gem);
+    if (!compatibility.compatible) {
+      return Object.freeze({ rewritten:false, reason:"incompatible_gem", compatibility, item:clone(item) });
+    }
+    const channel = Gems.validateGemChannelRank(link.anchor.gemDefinitionId,nextRank,requestedQuality);
+    if (!channel.valid) {
+      return Object.freeze({ rewritten:false, reason:channel.reason || "gem_rank_invalid", channel, item:clone(item) });
+    }
+
+    const propertyValidation = validateAppliedProperties(options.properties ?? link.reference.properties,nextDefinition);
+    if (!propertyValidation.valid) {
+      return Object.freeze({ rewritten:false, reason:"invalid_enchantment_properties", errors:propertyValidation.errors, item:clone(item) });
+    }
+
+    const refs = appliedEnchantments(item).map(normalizeAppliedReference);
+    const anchors = gemAnchors(item).map(normalizeGemAnchor);
+    refs[link.refIndex] = normalizeAppliedReference({
+      definitionId:nextDefinition.id,
+      rank:nextRank,
+      source:"gem",
+      anchorId:link.anchor.anchorId,
+      properties:propertyValidation.properties,
+      dormant:false,
+      disabled:false,
+    });
+    anchors[link.anchorIndex] = normalizeGemAnchor({
+      ...link.anchor,
+      gemQuality:requestedQuality,
+      enchantmentDefinitionId:nextDefinition.id,
+      rank:nextRank,
+      state:channel.unstable ? "unstable" : "stable",
+      overchannel:channel.overchannel,
+    });
+
+    const validation = validateLoadout(item,refs,{gemAnchors:anchors});
+    if (!validation.valid) {
+      return Object.freeze({ rewritten:false, reason:validation.errors[0] || "invalid_enchantment_loadout", validation, item:clone(item) });
+    }
+
+    const out = withMagicState(item,refs,anchors);
+    return Object.freeze({
+      rewritten:true,
+      item:Object.freeze(out),
+      previousReference:link.reference,
+      reference:refs[link.refIndex],
+      anchor:anchors[link.anchorIndex],
+      compatibility,
+      channel,
+      gemQualityAfter:requestedQuality,
+    });
+  }
+
   function itemMaterialTags(item = {}) {
     const tags = [
       ...asArray(item.materialTags),
@@ -1389,6 +1620,12 @@
     consumeRecipeMaterials,
     gemAttemptRiskProfile,
     applyGemArcaneOutcome,
+    gemAnchorLink,
+    gemDescriptorFromAnchor,
+    boundGemAnchorRemovalCatastrophe,
+    itemSideRemoveGemEnchantment,
+    anchorSideDestroyGemEnchantment,
+    rewriteGemAnchoredEnchantment,
     itemMaterialTags,
     materialCompatibility,
     materialWearMultiplier,
