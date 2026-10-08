@@ -62,9 +62,20 @@
   }
 
   function classEntries(character = {}) {
-    if (Array.isArray(character.classes)) return character.classes.map((x) => ({ classId: normalizeId(x?.classId || x?.id), levels: Math.max(0, int(x?.levels ?? x?.level)) })).filter((x) => x.classId && x.levels);
-    const source = character.classLevels || character.classesById || {};
-    return Object.entries(source).map(([classId, levels]) => ({ classId: normalizeId(classId), levels: Math.max(0, int(levels?.levels ?? levels?.level ?? levels)) })).filter((x) => x.classId && x.levels);
+    // The character creator stores the authoritative allocation in characterBuild.
+    // Older saves and combat units may instead expose top-level classes/maps.
+    const build = character.characterBuild && typeof character.characterBuild === "object" ? character.characterBuild : {};
+    const sources = [build.classes, character.classes, character.classLevels, build.classLevels, character.classesById];
+    for (const source of sources) {
+      const entries = Array.isArray(source)
+        ? source.map((x) => ({ classId: normalizeId(x?.classId || x?.id), levels: Math.max(0, int(x?.levels ?? x?.level)) }))
+        : source && typeof source === "object"
+          ? Object.entries(source).map(([classId, levels]) => ({ classId: normalizeId(classId), levels: Math.max(0, int(levels?.levels ?? levels?.level ?? levels)) }))
+          : [];
+      const allocated = entries.filter((entry) => entry.classId && entry.levels > 0);
+      if (allocated.length) return allocated;
+    }
+    return [];
   }
 
   function getClassLevel(character = {}, classId) {
@@ -74,9 +85,14 @@
   function statMod(score) { return Math.floor((num(score, 10) - 10) / 2); }
 
   function buildVariables(character = {}, runtime = {}, trait = {}) {
-    const level = Math.max(0, int(runtime.Level ?? runtime.level ?? character.level ?? character.characterBuild?.calculatedAtLevel));
+    const level = Math.max(0, int(runtime.Level ?? runtime.level ?? character.characterBuild?.calculatedAtLevel ?? character.level, classEntries(character).reduce((sum, entry) => sum + entry.levels, 0)));
     const source = trait.source || {};
-    const classId = normalizeId(source.type || trait.sourceType) === "class" ? normalizeId(source.classId || source.id || trait.sourceId) : normalizeId(runtime.sourceClassId);
+    const sourceType = normalizeId(source.type || trait.sourceType);
+    const classId = sourceType === "class"
+      ? normalizeId(source.classId || source.id || trait.sourceId || runtime.sourceClassId)
+      : sourceType === "archetype"
+        ? normalizeId(source.classId || source.parentClassId || runtime.sourceClassId)
+        : normalizeId(runtime.sourceClassId);
     const stats = character.stats || {};
     const combat = character.combatStats || {};
     const skill = runtime.skill || {};
