@@ -1065,7 +1065,7 @@ test("shared trait formula display resolves class and archetype formulas without
   expect(dynamicText).not.toContain("Spell Slot Level");
 });
 
-test("trait formula breakdown stays hidden on hover until Shift inspect mode is active", async ({ page }) => {
+test("trait formula breakdown stays hidden until clicked and closes with Escape", async ({ page }) => {
   await page.setContent(`
     <!doctype html>
     <html>
@@ -1073,12 +1073,12 @@ test("trait formula breakdown stays hidden on hover until Shift inspect mode is 
         <link id="player-trait-tabs-stylesheet" rel="stylesheet" href="${BASE}/css/player-trait-tabs.css">
       </head>
       <body>
-        <div id="perks-modal"><div id="trait-shift-host"></div></div>
+        <div id="stats-modal"><div id="trait-disclosure-host"></div></div>
         <script src="${BASE}/js/trait-engine.js"></script>
         <script src="${BASE}/js/trait-player-tray.js"></script>
         <script>
           window.LuminousTraitPlayerTray.mount({
-            host: "#trait-shift-host",
+            host: "#trait-disclosure-host",
             traits: [{
               schemaVersion: 1,
               id: "shift_formula_trait",
@@ -1105,20 +1105,32 @@ test("trait formula breakdown stays hidden on hover until Shift inspect mode is 
     </html>
   `, { waitUntil: "load" });
 
-  const resolvedControl = page.locator('[data-trait-id="shift_formula_trait"] .player-trait-resolved-control').first();
-  const value = resolvedControl.locator(".player-trait-resolved-value");
-  const tooltip = resolvedControl.locator(".player-trait-formula-tooltip");
-  await expect(value.locator(".player-trait-formula-tooltip")).toHaveCount(0);
-  await expect(value).toHaveAttribute("aria-describedby", await tooltip.getAttribute("id"));
-  await value.hover();
+  const card = page.locator('[data-trait-id="shift_formula_trait"]');
+  const value = card.locator(".player-trait-resolved-value").first();
+  const panel = card.locator(".player-trait-formula-tooltip").first();
+  await expect(value).toHaveAttribute("aria-controls", await panel.getAttribute("id"));
+  await expect(value).toHaveAttribute("aria-expanded", "false");
+  await expect(panel).toBeHidden();
 
-  await expect(tooltip).toHaveCSS("visibility", "hidden");
+  await value.hover();
+  await expect(panel).toBeHidden();
   await page.keyboard.down("Shift");
-  await expect(page.locator("body")).toHaveClass(/player-trait-formula-inspect/);
-  await expect(tooltip).toHaveCSS("visibility", "visible");
-  await expect(tooltip).toContainText("WIS Mod");
-  await expect(tooltip).toContainText("Formula:");
-  await expect(tooltip).toContainText("max(10, 10 * WisdomMod)");
+  await expect(panel).toBeHidden();
   await page.keyboard.up("Shift");
-  await expect(tooltip).toHaveCSS("visibility", "hidden");
+
+  await value.click();
+  await expect(value).toHaveAttribute("aria-expanded", "true");
+  await expect(panel).toBeVisible();
+  await expect(panel).toContainText("WIS Mod");
+  await expect(panel).toContainText("Total:");
+  await expect(panel).not.toContainText("Formula:");
+
+  await page.keyboard.press("Escape");
+  await expect(value).toHaveAttribute("aria-expanded", "false");
+  await expect(panel).toBeHidden();
+
+  await value.click();
+  await expect(panel).toBeVisible();
+  await value.click();
+  await expect(panel).toBeHidden();
 });
