@@ -154,12 +154,14 @@
     const resolvedFinal = resolved ? numberOr(resolved.check.finalPower, 0) : declaredFinal;
     const extraFinal = resolvedFinal - declaredFinal;
     if (extraFinal) {
-      const special = resolved?.specialContributions || [];
+      const special = (resolved?.specialContributions || []).filter((entry) => entry.channel === "final_power");
       const known = special.reduce((sum, entry) => sum + entry.amount, 0);
       finalPower.push(...special);
       if (extraFinal !== known) finalPower.push({ name: "Otros Traits", amount: extraFinal - known });
     }
-    const traitBonus = contributions.reduce((sum, entry) => sum + entry.amount, 0);
+    const specialsCheck = (resolved?.specialContributions || []).filter((entry) => entry.channel === "check_power");
+    contributions.push(...specialsCheck);
+    const traitBonus = resolved ? checkPowerValue(resolved.check) : contributions.reduce((sum, entry) => sum + entry.amount, 0);
     const finalBonus = resolvedFinal;
     // The displayed Skill total is the effective Check result, including
     // Final Power; coin rolls apply it once, never once per UI refresh.
@@ -265,10 +267,12 @@
         const declaredFinal = finalPower.reduce((sum, entry) => sum + entry.amount, 0);
         const effectiveFinal = preview ? numberOr(preview.check.finalPower, 0) : declaredFinal;
         const specials = preview?.specialContributions || [];
-        finalPower.push(...specials);
-        const otherFinal = effectiveFinal - declaredFinal - specials.reduce((sum, item) => sum + item.amount, 0);
+        finalPower.push(...specials.filter((entry) => entry.channel === "final_power"));
+        contributions.push(...specials.filter((entry) => entry.channel === "check_power"));
+        const otherFinal = effectiveFinal - declaredFinal - specials.filter((entry) => entry.channel === "final_power").reduce((sum, item) => sum + item.amount, 0);
         if (otherFinal) finalPower.push({ name: "Otros Traits", amount: otherFinal });
-        const total = abilityMod + proficiency + contributions.reduce((sum, entry) => sum + entry.amount, 0) + effectiveFinal;
+        const checkBonus = preview ? checkPowerValue(preview.check) : contributions.reduce((sum, entry) => sum + entry.amount, 0);
+        const total = abilityMod + proficiency + checkBonus + effectiveFinal;
         const node = doc.querySelector(`[data-skill-total="${skill.id}"]`);
         if (!node) return;
         const value = formatSigned(total);
