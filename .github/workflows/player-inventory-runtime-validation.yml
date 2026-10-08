@@ -63,6 +63,7 @@ on:
       - js/item-enchantment-engine.js
       - js/item-enchantment-combat-runtime.js
       - js/item-enchanter-service-runtime.js
+      - js/item-enchantment-compendium-runtime.js
       - js/item-catalog-tools.js
       - js/item-catalog-craft-components.js
       - js/item-catalog-weapons.js
@@ -121,6 +122,8 @@ on:
       - tests/item-enchanter-service-runtime-smoke.cjs
       - tests/item-enchanter-gem-procedure-smoke.cjs
       - tests/item-player-enchant-attempt-smoke.cjs
+      - tests/item-enchanter-service-preview-smoke.cjs
+      - tests/item-enchantment-compendium-smoke.cjs
       - tests/item-enchantment-engine-smoke.cjs
       - tests/item-enchantment-inventory-smoke.cjs
       - tests/item-enchantment-magic-runtime-smoke.cjs
@@ -207,6 +210,7 @@ jobs:
           node --check js/item-enchantment-engine.js
           node --check js/item-enchantment-combat-runtime.js
           node --check js/item-enchanter-service-runtime.js
+          node --check js/item-enchantment-compendium-runtime.js
           node --check js/item-catalog-tools.js
           node --check js/item-catalog-craft-components.js
           node --check js/item-catalog-weapons.js
@@ -311,6 +315,10 @@ jobs:
         run: node tests/item-enchanter-gem-procedure-smoke.cjs
       - name: Player enchant control deviation smoke
         run: node tests/item-player-enchant-attempt-smoke.cjs
+      - name: Enchantment Compendium smoke
+        run: node tests/item-enchantment-compendium-smoke.cjs
+      - name: Enchanter knowledge-gated service preview smoke
+        run: node tests/item-enchanter-service-preview-smoke.cjs
       - name: Enchantment core engine smoke
         run: node tests/item-enchantment-engine-smoke.cjs
       - name: Enchantment inventory persistence smoke
