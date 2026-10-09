@@ -23,7 +23,8 @@ slots.forEach((s) => addOption(slot, s, s));
 const AXES = [
   ["elemental","Elemental"], ["hp","HP / Healing"], ["sp","SP / Sanity"],
   ["speed","Speed / Haste / Bind"], ["offense","Offensive Level"], ["defense","Defensive Level"],
-  ["scores","STR / DEX / CON / INT / WIS / CHA"]
+  ["scores","STR / DEX / CON / INT / WIS / CHA"], ["maxhp","Max HP"], ["regen","HP / SP Regen"],
+  ["physicalward","Physical damage ward"], ["sinward","SIN damage ward"], ["sploss","SP loss reduction"]
 ];
 AXES.forEach(([id,label]) => addOption(axis,label,id));
 const elementalSchools = new Set(["Infernal","Glacial","Tempest","Corrosive","Venomous","Tidal","Geomantic"]);
@@ -37,6 +38,11 @@ function hasAxis(entry, axisId) {
     case "offense": return /Offensive Level/i.test(text);
     case "defense": return /Defensive Level/i.test(text);
     case "scores": return /\b(?:STR|DEX|CON|INT|WIS|CHA) Score\b/i.test(text);
+    case "maxhp": return /Base Max HP|Max HP/i.test(text);
+    case "regen": return /HP Regeneration|SP Recovery|At Turn Start, recover/i.test(text) || (entry.axes||[]).some(x=>/Regen|Recovery/.test(x));
+    case "physicalward": return entry.resistance?.scope === "physical";
+    case "sinward": return entry.resistance?.scope === "sin";
+    case "sploss": return /SP Loss Reduction/i.test(text);
     default: return true;
   }
 }
@@ -59,6 +65,7 @@ function renderDetail(entry) {
   appendText(target,"h2","",entry.name + " III");
   appendText(target,"p","item-name",displayItem(entry));
   if(Array.isArray(entry.axes)&&entry.axes.length) appendText(target,"p","item-name","Combat axes: " + entry.axes.join(" · "));
+  if(entry.resistance) appendText(target,"p","item-name","Specific resistance: " + entry.resistance.type.toUpperCase() + " (" + entry.resistance.scope + " damage only)");
   appendText(target,"h3","rule-heading","COMPATIBLE CHASSIS IDS");
   appendText(target,"p","limits",entry.allowedChassisIds.join(" · "));
   appendText(target,"p","lore","“" + entry.lore + "”");
