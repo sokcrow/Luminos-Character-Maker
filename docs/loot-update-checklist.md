@@ -269,7 +269,8 @@ This document freezes the current scope and lets the Loot Update be completed in
 ## Follow-up updates outside Loot
 
 - [x] Enchanter's Update V1: magical +1/+2/+3 Item Instance authoring, DM Enchanter Studio, player inventory and Battle Viewer combat integration. Merged to `main` in [PR #957](https://github.com/sokcrow/Luminos-Character-Maker/pull/957) after 30 passing CI checks.
-- [ ] Enchanter's Update V1 — live acceptance: verify DM → Firebase → player equipment/attunement → Battle Viewer → remove enchantment in a real authenticated multi-client session. Automated CI and simulated runtime checks do not replace this acceptance.
+- [x] Enchanter's Update V1.1: AHN labor/Item valuation, Essence Units and core/cut-gem recipes, atomic Firebase ritual crafting, DM Studio price preview and public Enchantments Compendium. Merged to `main` in [PR #960](https://github.com/sokcrow/Luminos-Character-Maker/pull/960) after 6 passing CI checks.
+- [ ] Enchanter's Update — live acceptance: verify authenticated DM → Firebase → player equipment/attunement → Battle Viewer, paid ritual with real player materials/AHN, concurrent attempt, and enchantment removal in a multi-client session. Automated CI and simulated runtime checks do not replace this acceptance.
 - [ ] Magic Loot Update: magical drop pools, magical rarity, random enchantments, cursed loot and magical Encounter modifiers.
 
-Enchantment material recipes, AHN magic-price multipliers, and elemental gem rules require separate design decisions and were not implemented by Enchanter V1.
+Enchanter V1.1 materials and numeric pricing were newly authored and documented in `docs/enchanters-update-economy-compendium-v1.md`. Gemstone resonance is compositional metadata only; elemental enchantments were **not** added.
