@@ -143,6 +143,7 @@
     state.sceneRef.on("value", (snapshot) => {
       state.sceneActors = snapshot.val() || {};
       renderActors();
+      global.LuminousTheatreOpposedChecks?.refreshChallengers?.();
     });
     if (!state.managerUnsubscribe) {
       state.managerUnsubscribe = global.LuminousCharacterManager.subscribeAll?.(() => renderActors()) || null;
@@ -172,6 +173,7 @@
     });
     if (entries.some((entry) => entry.record.actorId === previous)) select.value = previous;
     refreshPreview();
+    global.LuminousTheatreOpposedChecks?.refreshChallengers?.();
   }
 
   function syncSkillField() {
@@ -273,8 +275,8 @@
 
   function listSceneActors() {
     return sceneNpcEntries().map((entry) => ({
-      actorId: entry.sceneActorId,
-      name: String(entry.actor?.nombre || entry.sceneActorId),
+      actorId: entry.record.actorId,
+      name: String(entry.actor?.nombre || entry.record.actorId),
     }));
   }
 
