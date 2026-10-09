@@ -500,7 +500,8 @@
     const coins = Array.isArray(source.coins) ? source.coins.slice(0, COIN_COUNT) : [];
     const heads = countHeadsFromCoins(coins);
     const roomId = getRoomId();
-    const publicRef = db.ref(resolveRollPath(roomId)).push();
+    const rollId = typeof source.rollId === "string" && /^[a-zA-Z0-9_-]{3,120}$/.test(source.rollId) ? source.rollId : null;
+    const publicRef = rollId ? db.ref(resolveRollPath(roomId)).child(rollId) : db.ref(resolveRollPath(roomId)).push();
     const needsPrivateRecord = effectiveConfig.visibility !== VISIBILITY.PUBLIC || check.hiddenThreshold;
     const fullRecord = buildFullRollRecord({
       source,
