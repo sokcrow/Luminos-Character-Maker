@@ -11,6 +11,7 @@
   const COMMAND_ROOT = "theatre_check_commands";
   const LIVE_ROOT = "theatre_check_live";
   const COMMAND_MAX_AGE_MS = 10 * 60 * 1000;
+  const RESULT_NOTICE_MAX_AGE_MS = 25 * 1000;
   const LIVE_MAX_AGE_MS = 20 * 1000;
   const HEAD_SRC = "https://imgur.com/yshLPnQ.png";
   const TAIL_SRC = "https://imgur.com/XDx0ICt.png";
@@ -42,7 +43,9 @@
     authorizedElement: null,
     activeCommand: null,
     commandQueue: [],
+    queuedCommandKeys: new Set(),
     commandPromptOpen: false,
+    playerNoticeTimer: null,
     liveObserver: null,
     liveUpdateTimer: null,
     frontObserver: null,
@@ -134,12 +137,28 @@
     return layer;
   }
 
+  function ensureResultStack(front) {
+    if (isDmSurface()) return front;
+    let stack = front.querySelector(":scope > #theatre-check-result-stack");
+    if (!stack) {
+      stack = doc.createElement("section");
+      stack.id = "theatre-check-result-stack";
+      stack.className = "theatre-check-result-stack";
+      stack.setAttribute("aria-label", "Resultados recientes");
+      front.appendChild(stack);
+    }
+    return stack;
+  }
+
   function moveRollChildrenToFront() {
     const front = ensureFrontLayer();
     if (!front) return;
+    const results = ensureResultStack(front);
     [$("theatre-roll-layer"), $("dm-npc-roll-local-layer")].filter(Boolean).forEach((source) => {
       Array.from(source.children).forEach((child) => {
-        if (child.classList.contains("theatre-check-hud") || child.classList.contains("theatre-roll-result-card") || child.classList.contains("dm-npc-roll-hud")) {
+        if (child.classList.contains("theatre-roll-result-card")) {
+          results.appendChild(child);
+        } else if (child.classList.contains("theatre-check-hud") || child.classList.contains("dm-npc-roll-hud")) {
           front.appendChild(child);
         }
       });
@@ -206,6 +225,13 @@
     const small = doc.createElement("span");
     small.textContent = copy;
     notice.append(strong, small);
+    // Passive feedback expires and never blocks an actionable Check.
+    if (notice.parentElement !== layer) layer.appendChild(notice);
+    if (state.playerNoticeTimer) global.clearTimeout(state.playerNoticeTimer);
+    state.playerNoticeTimer = global.setTimeout(() => {
+      if (notice.isConnected) notice.remove();
+      state.playerNoticeTimer = null;
+    }, mode === "denied" ? 7200 : 5000);
     return notice;
   }
 
@@ -693,7 +719,8 @@
       const age = Date.now() - numberOr(command.clientIssuedAt, Date.now());
       if (age > COMMAND_MAX_AGE_MS) return;
       const seenKey = `luminousTheatreCheck:${snapshot.key}`;
-      if (global.sessionStorage?.getItem(seenKey) === "done") return;
+      if (global.sessionStorage?.getItem(seenKey) === "done" || state.queuedCommandKeys.has(snapshot.key)) return;
+      state.queuedCommandKeys.add(snapshot.key);
       state.commandQueue.push({ key: snapshot.key, command, seenKey });
       showNextPlayerCommand();
     }, (error) => {
@@ -727,12 +754,22 @@
     prompt.id = "theatre-check-command-prompt";
     prompt.className = "theatre-check-command-prompt";
     prompt.dataset.commandKey = item.key;
+    if (item.command.check?.opposedSessionId) {
+      prompt.dataset.opposedSessionId = item.command.check.opposedSessionId;
+      prompt.dataset.opposedPhase = item.command.check.opposedPhase || "";
+    }
     const kicker = doc.createElement("span");
-    kicker.textContent = item.command.requestedBy === "player" ? "DM APROBÓ TU SOLICITUD" : "EL DM SOLICITA UNA TIRADA";
+    kicker.textContent = item.command.check?.opposedPhase === "threshold"
+      ? "VS · RETADOR · GENERA EL THRESHOLD"
+      : item.command.check?.opposedPhase === "resolver"
+      ? "VS · RETADO · RESUELVE EL CHECK"
+      : item.command.requestedBy === "player" ? "DM APROBÓ TU SOLICITUD" : "EL DM SOLICITA UNA TIRADA";
     const title = doc.createElement("strong");
     title.textContent = item.command.rollSpec?.label || "CHECK";
     const meta = doc.createElement("small");
-    meta.textContent = checkDisplay(item.command.check);
+    meta.textContent = item.command.check?.opposedPhase === "threshold"
+      ? "TU RESULTADO SERÁ EL THRESHOLD DEL RETADO"
+      : checkDisplay(item.command.check);
     const button = doc.createElement("button");
     button.type = "button";
     button.textContent = "TIRAR";
@@ -746,12 +783,15 @@
         state.activeCommand = null;
         doc.body?.classList?.remove("theatre-check-active");
         prompt.remove();
+        front.classList.remove("has-check-command-prompt");
         showNextPlayerCommand();
       });
     });
     prompt.append(kicker, title, meta, button);
     $("theatre-check-player-notice")?.remove();
+    front.querySelectorAll(".theatre-check-hud.is-resolved").forEach((hud) => hud.remove());
     front.appendChild(prompt);
+    front.classList.add("has-check-command-prompt");
   }
 
   function findPlayerRollTarget(spec) {
@@ -780,6 +820,7 @@
     state.authorizedElement = target;
     global.sessionStorage?.setItem(item.seenKey, "done");
     $("theatre-check-command-prompt")?.remove();
+    ensureFrontLayer()?.classList.remove("has-check-command-prompt");
     state.commandPromptOpen = false;
     target.click();
     global.setTimeout(() => startPlayerLiveCapture(item.key, command), 80);
@@ -1015,7 +1056,7 @@
     db.ref(`theatre_check_results/${uid}`).limitToLast(20).on("child_added", (snapshot) => {
       const result = snapshot.val() || {};
       if (String(result.roomKey || "default") !== roomKey()) return;
-      if (Date.now() - numberOr(result.clientCompletedAt, 0) > COMMAND_MAX_AGE_MS) return;
+      if (Date.now() - numberOr(result.clientCompletedAt, 0) > RESULT_NOTICE_MAX_AGE_MS) return;
       playerNotice(result.outcome === "passed" ? "CHECK SUPERADO"
         : result.outcome === "failed" ? "CHECK FALLIDO" : "TIRADA FINALIZADA",
       `${result.label || "CHECK"} · Total ${result.total}`,
