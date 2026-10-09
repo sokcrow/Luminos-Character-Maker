@@ -759,6 +759,68 @@ const ADDITIONS=[
     "magicDurabilityRequired": true
   }
 ];
+
+ADDITIONS.push({
+  "id": "sovereign_impact",
+  "name": "Sovereign Impact",
+  "school": "Resonant",
+  "kind": "weapon",
+  "allowedChassisIds": [
+    "longsword",
+    "greatsword",
+    "greataxe",
+    "warhammer",
+    "rapier",
+    "spear",
+    "longbow",
+    "heavy_crossbow",
+    "scimitar",
+    "maul"
+  ],
+  "exampleItem": "Sovereign Impact Greatsword",
+  "lore": "No element, no creed, no singular wound can hold the inscription; every honest strike answers the same command.",
+  "baseEffect": "When a damaging Attack Skill sourced from this equipped weapon deals direct damage, increase that eligible direct damage by {percent}%, regardless of its physical Damage Type or SIN affinity.",
+  "baseMagnitudes": {
+    "percent": 5
+  },
+  "axes": [
+    "Damage",
+    "Universal",
+    "On Hit"
+  ],
+  "limits": "Premium economic category above all specialist +5% boosters. Same 5% base is an editorial proposal pending explicit approval. Applies to direct Skill damage, not Status ticks, post-hit Fixed Damage, or attacks from another Item Instance. One Magic Durability per qualifying property use; multi-Coin frequency needs approval.",
+  "damageBonus": {
+    "scope": "universal",
+    "type": "all_eligible_direct",
+    "priority": "premium",
+    "baseMagnitudeApproval": "pending"
+  },
+  "items": [
+    "Weapon"
+  ],
+  "rankMagnitudes": {
+    "I": {
+      "percent": 5
+    },
+    "II": {
+      "percent": 8
+    },
+    "III": {
+      "percent": 13
+    }
+  },
+  "tiers": {
+    "I": "When a damaging Attack Skill sourced from this equipped weapon deals direct damage, increase that eligible direct damage by 5%, regardless of its physical Damage Type or SIN affinity.",
+    "II": "When a damaging Attack Skill sourced from this equipped weapon deals direct damage, increase that eligible direct damage by 8%, regardless of its physical Damage Type or SIN affinity.",
+    "III": "When a damaging Attack Skill sourced from this equipped weapon deals direct damage, increase that eligible direct damage by 13%, regardless of its physical Damage Type or SIN affinity."
+  },
+  "statuses": "Damage; Universal; On Hit",
+  "scaling": "ceil(baseMagnitude * rankMultiplier)",
+  "reviewStatus": "proposed",
+  "implementation": "design_only",
+  "requiresEngine": true,
+  "magicDurabilityRequired": true
+});
 const ENCHANTMENTS=Object.freeze([...BASE.ENCHANTMENTS,...ADDITIONS]);
 const SCHOOLS=Object.freeze([...BASE.SCHOOLS,...new Set(ADDITIONS.map(e=>e.school).filter(s=>!BASE.SCHOOLS.includes(s)))]);
 const normalize=(v)=>String(v??"").toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_|_$/g,"");
