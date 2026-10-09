@@ -474,14 +474,14 @@
     publicRecord.coinHeadBonus = COIN_HEAD_BONUS;
 
     const check = full?.check || {};
-    if (check.outcome || Number.isFinite(Number(check.thresholdRaw))) {
+    if (check.outcome || (check.thresholdRaw != null && Number.isFinite(Number(check.thresholdRaw)))) {
       publicRecord.check = {
         hiddenThreshold: Boolean(check.hiddenThreshold),
         outcome: check.outcome || null,
       };
       // A hidden threshold is never placed in the authenticated-player-readable tree.
       if (!check.hiddenThreshold) {
-        publicRecord.check.thresholdRaw = Number.isFinite(Number(check.thresholdRaw)) ? Math.trunc(Number(check.thresholdRaw)) : null;
+        publicRecord.check.thresholdRaw = check.thresholdRaw != null && Number.isFinite(Number(check.thresholdRaw)) ? Math.trunc(Number(check.thresholdRaw)) : null;
         publicRecord.check.modifierType = normalizeModifier(check.modifierType);
         publicRecord.check.modifierValue = Math.max(0, Math.trunc(Number(check.modifierValue) || 0));
       }
