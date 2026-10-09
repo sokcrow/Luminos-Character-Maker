@@ -254,77 +254,87 @@
     return matches[0] || null;
   }
 
+  function selectedChallenger() {
+    const value = $("theatre-opposed-rival-player")?.value || "";
+    if (!value.startsWith("npc:")) return selectedPlayerFrom("theatre-opposed-rival-player");
+    const actorId = value.slice(4);
+    const actor = (global.LuminousDmNpcRolls?.listSceneActors?.() || []).find((entry) => entry.actorId === actorId);
+    return actor ? { uid: DM_UID, playerId: actorId, actorId, name: actor.name, isNpc: true } : null;
+  }
+
   async function issueOpposedCheck() {
-    const initiator = selectedPlayerFrom("theatre-check-target-player");
-    const rival = selectedPlayerFrom("theatre-opposed-rival-player");
+    if (state.issuingOpposed) return;
+    const initiator = selectedPlayerFrom("theatre-check-target-player"); // Retado: segundo.
+    const rival = selectedChallenger(); // Retador: genera threshold primero.
     const initiatorSpec = currentInitiatorSpec();
     const rivalSpec = currentRivalSpec();
-    if (!initiator) throw new Error("Selecciona el jugador principal.");
-    if (!rival) throw new Error("Selecciona un rival distinto.");
-    if (initiator.uid === rival.uid) throw new Error("Un jugador no puede enfrentarse a sí mismo.");
-    if (!initiatorSpec || !rivalSpec) throw new Error("Selecciona tiradas válidas para ambos jugadores.");
-
-    const requestMatch = await findMatchingPendingRequest(initiator.uid, initiatorSpec);
-    const sessionRef = db.ref(OPPOSED_ROOT).push();
-    const sessionId = sessionRef.key;
-    const checkTemplate = currentCheckTemplate();
-    const session = {
-      schemaVersion: 1,
-      sessionId,
-      roomKey: roomKey(),
-      status: "awaiting_threshold",
-      initiatorUid: initiator.uid,
-      initiatorPlayerId: initiator.playerId,
-      initiatorName: initiator.name,
-      initiatorRollSpec: initiatorSpec,
-      rivalUid: rival.uid,
-      rivalPlayerId: rival.playerId,
-      rivalName: rival.name,
-      rivalRollSpec: rivalSpec,
-      checkTemplate,
-      requestId: requestMatch?.key || null,
-      createdAt: firebase.database.ServerValue.TIMESTAMP,
-      clientCreatedAt: Date.now(),
-    };
-    await sessionRef.set(session);
-
-    const commandRef = db.ref(`${COMMAND_ROOT}/${rival.uid}`).push();
-    await commandRef.set({
-      schemaVersion: 1,
-      targetUid: rival.uid,
-      targetPlayerId: rival.playerId,
-      targetName: rival.name,
-      roomKey: roomKey(),
-      requestedBy: "opposed",
-      requestId: requestMatch?.key || null,
-      rollSpec: rivalSpec,
-      check: {
-        thresholdRaw: null,
-        hiddenThreshold: false,
-        modifierType: "neutral",
-        modifierValue: 0,
-        tipText: "",
-        opposedSessionId: sessionId,
-        opposedPhase: "threshold",
-      },
-      status: "issued",
-      issuedAt: firebase.database.ServerValue.TIMESTAMP,
-      clientIssuedAt: Date.now(),
-    });
-    await sessionRef.update({ thresholdCommandId: commandRef.key });
-
-    if (requestMatch) {
-      await db.ref(`${REQUEST_ROOT}/${requestMatch.key}`).update({
-        status: "approved",
-        commandId: commandRef.key,
-        opposedSessionId: sessionId,
-        decidedAt: firebase.database.ServerValue.TIMESTAMP,
-      });
+    if (!initiator) throw new Error("Selecciona al retado.");
+    if (!rival) throw new Error("Selecciona un retador.");
+    if (initiator.uid === rival.uid) throw new Error("El retador y el retado deben ser distintos.");
+    if (!initiatorSpec || !rivalSpec) throw new Error("Selecciona tiradas válidas para ambos.");
+    if (rival.isNpc && !global.LuminousDmNpcRolls?.rollOpposedThreshold) {
+      throw new Error("El Coin Engine del NPC no está disponible.");
     }
-
-    showDmFeedback(`${rival.name} GENERARÁ EL THRESHOLD · LUEGO ${initiator.name} RESUELVE`, false);
-    $("theatre-check-mode").value = "individual";
-    syncModeUi();
+    state.issuingOpposed = true;
+    const button = $("theatre-check-send");
+    if (button) { button.disabled = true; button.textContent = "PREPARANDO VS…"; }
+    try {
+      const requestMatch = await findMatchingPendingRequest(initiator.uid, initiatorSpec);
+      const sessionRef = db.ref(OPPOSED_ROOT).push();
+      const sessionId = sessionRef.key;
+      const checkTemplate = currentCheckTemplate();
+      await sessionRef.set({
+        schemaVersion: 2, sessionId, roomKey: roomKey(), status: "awaiting_threshold",
+        initiatorUid: initiator.uid, initiatorPlayerId: initiator.playerId,
+        initiatorName: initiator.name, initiatorRollSpec: initiatorSpec,
+        rivalUid: rival.uid, rivalPlayerId: rival.playerId,
+        rivalName: rival.name, rivalRollSpec: rivalSpec,
+        rivalType: rival.isNpc ? "npc" : "player", rivalActorId: rival.actorId || null,
+        checkTemplate, requestId: requestMatch?.key || null,
+        createdAt: firebase.database.ServerValue.TIMESTAMP, clientCreatedAt: Date.now(),
+      });
+      if (rival.isNpc) {
+        showDmFeedback(`${rival.name} ESTÁ GENERANDO EL THRESHOLD`, false);
+        try {
+          const result = await global.LuminousDmNpcRolls.rollOpposedThreshold({
+            actorId: rival.actorId, rollSpec: rivalSpec,
+          });
+          await sessionRef.child("thresholdResult").set({
+            uid: DM_UID, total: result.total, base: result.base,
+            heads: result.coins.filter((coin) => coin.side === "head").length,
+            coins: result.coins, completedAt: firebase.database.ServerValue.TIMESTAMP,
+            clientCompletedAt: Date.now(),
+          });
+        } catch (error) {
+          await sessionRef.update({ status: "error", errorMessage: "No se completó la tirada del NPC." });
+          throw error;
+        }
+      } else {
+        const commandRef = db.ref(`${COMMAND_ROOT}/${rival.uid}`).push();
+        await commandRef.set({
+          schemaVersion: 2, targetUid: rival.uid, targetPlayerId: rival.playerId,
+          targetName: rival.name, roomKey: roomKey(), requestedBy: "opposed",
+          requestId: requestMatch?.key || null, rollSpec: rivalSpec,
+          check: { thresholdRaw: null, hiddenThreshold: false, modifierType: "neutral",
+            modifierValue: 0, tipText: "", opposedSessionId: sessionId, opposedPhase: "threshold" },
+          status: "issued", issuedAt: firebase.database.ServerValue.TIMESTAMP,
+          clientIssuedAt: Date.now(),
+        });
+        await sessionRef.update({ thresholdCommandId: commandRef.key });
+      }
+      if (requestMatch) {
+        await db.ref(`${REQUEST_ROOT}/${requestMatch.key}`).update({
+          status: "approved", opposedSessionId: sessionId,
+          decidedAt: firebase.database.ServerValue.TIMESTAMP,
+        });
+      }
+      showDmFeedback(`${rival.name} RETA A ${initiator.name} · PRIMERA TIRADA EN CURSO`, false);
+      $("theatre-check-mode").value = "individual";
+      syncModeUi();
+    } finally {
+      state.issuingOpposed = false;
+      if (button) { button.disabled = false; button.textContent = "ENVIAR CHECK"; }
+    }
   }
 
   function showDmFeedback(text, error) {
