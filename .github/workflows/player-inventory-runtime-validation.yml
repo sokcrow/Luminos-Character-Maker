@@ -126,6 +126,7 @@ on:
       - tests/item-bound-equipment-lock-smoke.cjs
       - tests/item-enchanter-service-runtime-smoke.cjs
       - tests/item-enchanter-transaction-smoke.cjs
+      - tests/item-enchanter-ui.spec.cjs
       - tests/item-enchantment-legacy-backend-smoke.cjs
       - tests/item-equipment-enhancement-smoke.cjs
       - tests/item-enchanter-gem-procedure-smoke.cjs
@@ -366,4 +367,4 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - name: Inventory runtime ownership tests
-        run: npx playwright test tests/inventory-runtime-cutover.spec.cjs tests/dm-item-instance-editor.spec.cjs --workers=1
+        run: npx playwright test tests/inventory-runtime-cutover.spec.cjs tests/dm-item-instance-editor.spec.cjs tests/item-enchanter-ui.spec.cjs --workers=1
