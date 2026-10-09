@@ -193,6 +193,9 @@ assert.equal(displayedScore.textContent, "14", "Removing the Trait must remove i
 
 abilityButtons.con.click();
 assert.equal(displayedScore.textContent, "11", "CON bonus must also be removed");
+// The real player sheet may omit derived-stats-runtime.js entirely. In that
+// case the panel must still forward active Traits to the raw stats engine.
+delete window.LuminousDerivedStatsRuntime;
 activeTraits = [{ id: "primordial_champion" }];
 for (const listener of windowListeners.get("luminous:traits-refreshed") || []) listener();
 frames.shift()();
