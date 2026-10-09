@@ -632,36 +632,49 @@
 
   async function issueDmCommand() {
     if (currentUid() !== DM_UID) throw new Error("AUTH_DM_REQUIRED");
+    if (state.sendingDmCommand) return;
     const selected = selectedDmPlayer();
     if (!selected) throw new Error("Selecciona un jugador.");
     const spec = dmRollSpec();
     if (spec.kind === "skill" && !spec.skillId) throw new Error("Selecciona una Skill válida.");
-    const requestId = state.editingRequestId;
-    const commandRef = db.ref(`${COMMAND_ROOT}/${selected.uid}`).push();
-    const command = {
-      schemaVersion: 1,
-      targetUid: selected.uid,
-      targetPlayerId: selected.playerId,
-      targetName: playerLabel(selected.playerId, selected.player),
-      roomKey: roomKey(),
-      requestedBy: requestId ? "player" : "dm",
-      requestId: requestId || null,
-      rollSpec: spec,
-      check: dmCheck(),
-      status: "issued",
-      issuedAt: firebase.database.ServerValue.TIMESTAMP,
-      clientIssuedAt: Date.now(),
-    };
-    await commandRef.set(command);
-    if (requestId) {
-      await db.ref(`${REQUEST_ROOT}/${requestId}`).update({
-        status: "approved",
-        commandId: commandRef.key,
-        decidedAt: firebase.database.ServerValue.TIMESTAMP,
-      });
+    state.sendingDmCommand = true;
+    const button = $("theatre-check-send");
+    if (button) { button.disabled = true; button.textContent = "ENVIANDO…"; }
+    try {
+      const requestId = state.editingRequestId;
+      const commandRef = db.ref(`${COMMAND_ROOT}/${selected.uid}`).push();
+      const check = dmCheck();
+      const playerCheck = check.hiddenThreshold ? { ...check, thresholdRaw: null } : check;
+      const command = {
+        schemaVersion: 2, targetUid: selected.uid, targetPlayerId: selected.playerId,
+        targetName: playerLabel(selected.playerId, selected.player),
+        roomKey: roomKey(), requestedBy: requestId ? "player" : "dm",
+        requestId: requestId || null, rollSpec: spec, check: playerCheck,
+        status: "issued", issuedAt: firebase.database.ServerValue.TIMESTAMP,
+        clientIssuedAt: Date.now(),
+      };
+      const updates = { [`${COMMAND_ROOT}/${selected.uid}/${commandRef.key}`]: command };
+      if (check.hiddenThreshold && check.thresholdRaw !== null) {
+        updates[`dm_private/theatre_check_secrets/${selected.uid}/${commandRef.key}`] = {
+          thresholdRaw: check.thresholdRaw, roomKey: roomKey(),
+          modifierType: check.modifierType, modifierValue: check.modifierValue,
+          thresholdVisibility: check.thresholdVisibility,
+        };
+      }
+      if (requestId) {
+        updates[`${REQUEST_ROOT}/${requestId}/status`] = "approved";
+        updates[`${REQUEST_ROOT}/${requestId}/commandId`] = commandRef.key;
+        updates[`${REQUEST_ROOT}/${requestId}/decidedAt`] = firebase.database.ServerValue.TIMESTAMP;
+      }
+      await db.ref().update(updates);
+      resetDmComposer();
+      dmFeedback("CHECK ENVIADO", `${command.targetName} · ${spec.label}`, "success");
+    } finally {
+      state.sendingDmCommand = false;
+      if (button) button.disabled = false;
+      if (button && state.editingRequestId) button.textContent = "APROBAR Y ENVIAR";
+      else if (button) button.textContent = "ENVIAR CHECK";
     }
-    resetDmComposer();
-    dmFeedback("CHECK ENVIADO", `${command.targetName} · ${spec.label}`, "success");
   }
 
   function bindPlayerCommands() {
