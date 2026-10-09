@@ -47,6 +47,7 @@
     const copy = clone(player);
     const target = findTarget(copy, targetId);
     if (!target) return { crafted: false, reason: "target_not_in_inventory" };
+    if (amount(target.item) !== 1) return { crafted: false, reason: "unique_item_required" };
     const prepared = recipes()?.quote?.(target.item, request);
     if (!prepared?.valid) return { crafted: false, reason: prepared?.reason || "recipe_unavailable", quote: prepared };
     const missing = missingMaterials(copy, prepared, targetId);
