@@ -170,6 +170,78 @@ await assert.rejects(save("different_background", { ideal: "Invalid" }), /Backgr
 state.character.uid = "different_uid";
 await assert.rejects(save("street_medic", { ideal: "Invalid" }), /verificar tu personaje/);
 
+// A Firebase write can overlap the DM's live character update.
+// Never reinsert the character snapshot taken before the await.
+function deferredBackgroundSave(initialCharacter) {
+  let finishWrite;
+  let updateStarted;
+  const started = new Promise((resolve) => { updateStarted = resolve; });
+  const live = {
+    playerId: "p42",
+    character: initialCharacter,
+    db: { ref(path) {
+      assert.equal(path, "campaña/jugadores/p42/backgroundChoices");
+      return { update(payload) {
+        updateStarted(payload);
+        return new Promise((resolve) => { finishWrite = resolve; });
+      } };
+    } },
+  };
+  const savePending = new Function("state", "getCharacter", "currentAuthUid", "connectFirebase",
+    "global", "PLAYER_ID_STORAGE_KEY", "PLAYER_ROOT",
+    runtime.slice(begin, end) + "\nreturn saveBackgroundChoices;",
+  )(live, () => live.character, () => "uid42", () => true, storage, "playerId", "campaña/jugadores");
+  return { live, savePending, started, complete() { finishWrite(); } };
+}
+
+const concurrentSame = deferredBackgroundSave({
+  uid: "uid42",
+  characterBuild: { backgroundId: "street_medic", classes: ["old_class"] },
+  backgroundChoices: { ideal: "old_ideal" },
+  stats: { fuerza: 8 },
+});
+const samePending = concurrentSame.savePending("street_medic", { bond: "Mi contacto" });
+await concurrentSame.started;
+concurrentSame.live.character = {
+  uid: "uid42",
+  characterBuild: { backgroundId: "street_medic", classes: ["new_class"] },
+  backgroundChoices: { ideal: "live_ideal" },
+  stats: { fuerza: 18 },
+  traits: ["new_trait"],
+};
+concurrentSame.complete();
+await samePending;
+assert.deepEqual(concurrentSame.live.character.characterBuild.classes, ["new_class"],
+  "A concurrent DM class edit must not be replaced by the pre-save snapshot");
+assert.equal(concurrentSame.live.character.stats.fuerza, 18);
+assert.deepEqual(concurrentSame.live.character.traits, ["new_trait"]);
+assert.equal(concurrentSame.live.character.backgroundChoices.ideal, "live_ideal",
+  "Keep an unrelated narrative change from the newest listener event");
+assert.equal(concurrentSame.live.character.backgroundChoices.bond, "Mi contacto",
+  "Merge saved narrative fields into the latest character state");
+
+const concurrentChanged = deferredBackgroundSave({
+  uid: "uid42",
+  characterBuild: { backgroundId: "street_medic" },
+  backgroundChoices: { ideal: "old_ideal" },
+});
+const changedPending = concurrentChanged.savePending("street_medic", { bond: "Old background bond" });
+await concurrentChanged.started;
+const newestDmCharacter = {
+  uid: "uid42",
+  characterBuild: { backgroundId: "guardia", classes: ["fighter"], breakdown: { backgroundHpCoefBonus: 0.2 } },
+  backgroundChoices: { backgroundId: "guardia", ideal: "new_background_ideal" },
+  traits: ["guardia_trait"],
+};
+concurrentChanged.live.character = newestDmCharacter;
+concurrentChanged.complete();
+await changedPending;
+assert.equal(concurrentChanged.live.character, newestDmCharacter,
+  "Saving an old Background must not overwrite a DM's new Background after the await");
+assert.equal(concurrentChanged.live.character.backgroundChoices.ideal, "new_background_ideal");
+assert.ok(!("bond" in concurrentChanged.live.character.backgroundChoices),
+  "Do not attach stale narrative choices to a newly selected Background");
+
 // Reusing a saved character with a different Background must not expose previous choices.
 const switchedCharacter = {
   characterBuild: { backgroundId: "street_medic" },
