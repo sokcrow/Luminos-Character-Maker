@@ -126,40 +126,67 @@ window.window = window;
 vm.runInNewContext(coordinatorCode, window);
 window.LuminousTheatreCheckCoordinator.bindAuthorizedData();
 
+const serverOffsetListener = listeners.get(".info/serverTimeOffset:value");
+assert.equal(typeof serverOffsetListener, "function",
+  "Firebase offset must be subscribed before result replay");
+assert.equal(listeners.has("theatre_check_results/player-1:child_added"), false,
+  "The first result replay must wait for a known Firebase server offset");
+const visibleResult = () => document.getElementById("theatre-check-player-notice");
+const useOffset = (offset) => serverOffsetListener({ val: () => offset });
+
+// Player clock is 60 seconds BEHIND Firebase. A result from 90 seconds ago
+// must not appear on reconnect simply because Date.now() is inaccurate.
+useOffset(60_000);
 const resultListener = listeners.get("theatre_check_results/player-1:child_added");
 assert.equal(typeof resultListener, "function");
-const now = Date.now();
 const notifyResult = (data) => resultListener({ val: () => ({
   roomKey: "default", label: "Hidden Threshold Check",
   outcome: "passed", total: 17, ...data,
 }) });
-const visibleResult = () => document.getElementById("theatre-check-player-notice");
+const serverNow = () => Date.now() + 60_000;
 notifyResult({
-  completedAt: now - 2_000,
-  clientCompletedAt: now - 80_000,
-});
-assert.match(visibleResult()?.textContent || visibleResult()?.children[0]?.textContent || "", /CHECK SUPERADO/,
-  "Fresh authoritative server timestamp must prevent skewed DM clocks hiding a Check result");
-visibleResult().remove();
-
-notifyResult({
-  completedAt: now - 90_000,
-  clientCompletedAt: now - 1_000,
+  completedAt: serverNow() - 90_000,
+  clientCompletedAt: Date.now() - 1_000,
 });
 assert.equal(visibleResult(), null,
-  "Old server-confirmed result must not be revived by an incorrect local client clock");
+  "Player clock behind Firebase must not replay an already expired outcome");
+notifyResult({
+  completedAt: serverNow() - 2_000,
+  clientCompletedAt: Date.now() - 80_000,
+});
+assert.match(visibleResult()?.textContent || visibleResult()?.children[0]?.textContent || "", /CHECK SUPERADO/,
+  "Fresh authoritative result must appear even when the DM clock was behind");
+visibleResult().remove();
 
+// Server offset updates must be used dynamically without re-registering
+// duplicate result listeners.
+useOffset(-60_000);
+const aheadServerNow = () => Date.now() - 60_000;
+assert.equal(listeners.get("theatre_check_results/player-1:child_added"), resultListener,
+  "Clock updates must not duplicate the Firebase result subscription");
+notifyResult({
+  completedAt: aheadServerNow() - 90_000,
+  clientCompletedAt: Date.now() - 1_000,
+});
+assert.equal(visibleResult(), null, "Expired results must stay hidden when the player's clock is ahead");
+notifyResult({
+  completedAt: aheadServerNow() - 2_000,
+  clientCompletedAt: Date.now() - 80_000,
+});
+assert.ok(visibleResult(), "Fresh server results must appear when the player's clock is ahead");
+visibleResult().remove();
+
+useOffset(0);
 notifyResult({
   completedAt: null,
-  clientCompletedAt: now - 1_000,
+  clientCompletedAt: Date.now() - 1_000,
 });
 assert.ok(visibleResult(),
   "Older records without a valid completedAt must still use clientCompletedAt");
 visibleResult().remove();
-
 notifyResult({
   completedAt: undefined,
-  clientCompletedAt: now - 90_000,
+  clientCompletedAt: Date.now() - 90_000,
 });
 assert.equal(visibleResult(), null,
   "Stale records without server timestamps must remain filtered");
