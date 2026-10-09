@@ -400,6 +400,9 @@
       // An atomic multi-location update prevents a command existing without its session phase.
       const updates = {};
       updates[`${COMMAND_ROOT}/${session.initiatorUid}/${commandRef.key}`] = command;
+      if (session.thresholdCommandId && session.rivalUid !== DM_UID) {
+        updates[`${COMMAND_ROOT}/${session.rivalUid}/${session.thresholdCommandId}/status`] = "completed";
+      }
       updates[`${OPPOSED_ROOT}/${sessionId}/status`] = "awaiting_resolver";
       updates[`${OPPOSED_ROOT}/${sessionId}/resolverCommandId`] = commandRef.key;
       updates[`${OPPOSED_ROOT}/${sessionId}/thresholdEffective`] = effectiveThreshold(thresholdRaw, session.checkTemplate);
@@ -473,6 +476,7 @@
     const updates = {};
     updates[`${RESULT_ROOT}/${session.initiatorUid}/${sessionId}`] = publicForInitiator;
     updates[`${RESULT_ROOT}/${session.rivalUid}/${sessionId}`] = publicForRival;
+    if (session.resolverCommandId) updates[`${COMMAND_ROOT}/${session.initiatorUid}/${session.resolverCommandId}/status`] = "completed";
     updates[`${OPPOSED_ROOT}/${sessionId}/status`] = "complete";
     updates[`${OPPOSED_ROOT}/${sessionId}/outcome`] = outcome;
     updates[`${OPPOSED_ROOT}/${sessionId}/finalThreshold`] = effective;
