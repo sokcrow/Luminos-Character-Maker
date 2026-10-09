@@ -121,6 +121,68 @@ assert.match(rendered, /La enfermera que me salvó/);
 assert.match(rendered, /Empático/);
 assert.match(rendered, /HP COEF|Médico callejero/);
 
+// A preserved draft must not replay prefilled fields if the DM changes them.
+let concurrentCharacter = {
+  uid: "player-uid",
+  characterBuild: { backgroundId: "street_medic" },
+  backgroundChoices: {
+    backgroundId: "street_medic",
+    ideal: "ideal_1",
+    bond: "bond_1",
+    flaw: "flaw_1",
+    personality: ["Prudente"],
+  },
+};
+const editsOnly = [];
+const concurrentTray = new Tray({
+  getRuntime: () => ({ character: concurrentCharacter }),
+  getTraits: () => [],
+  async saveBackgroundChoices(id, payload) {
+    editsOnly.push({ id, payload });
+    concurrentCharacter = { ...concurrentCharacter, backgroundChoices: { ...concurrentCharacter.backgroundChoices, ...payload } };
+  },
+});
+concurrentTray.backgroundPanel = element("section");
+concurrentTray.renderBackground();
+await concurrentTray.backgroundPanel.querySelector(".player-background-edit-button").fire("click");
+const unchangedForm = concurrentTray.backgroundPanel.querySelector(".player-background-choice-editor");
+await unchangedForm.fire("submit", { preventDefault() {} });
+assert.equal(editsOnly.length, 0, "No edits must not submit stale prefills");
+assert.match(textContent(unchangedForm), /Modifica al menos una decisión/);
+const savedSelects = unchangedForm.querySelectorAll("select");
+assert.equal(savedSelects[0].value, "ideal_1");
+assert.equal(savedSelects[1].value, "bond_1");
+concurrentCharacter = {
+  ...concurrentCharacter,
+  backgroundChoices: {
+    backgroundId: "street_medic",
+    ideal: "ideal_changed_by_dm",
+    bond: "bond_1",
+    flaw: "flaw_changed_by_dm",
+    personality: ["Paciente"],
+  },
+};
+concurrentTray.renderBackground(); // Keep draft while Firebase listener changes saved fields.
+assert.equal(concurrentTray.backgroundPanel.querySelector(".player-background-choice-editor"), unchangedForm);
+savedSelects[1].value = "__custom__";
+unchangedForm.querySelectorAll(".player-background-choice-custom")[1].value = "El amigo del barrio";
+await unchangedForm.fire("submit", { preventDefault() {} });
+assert.equal(editsOnly.length, 1);
+assert.deepEqual(editsOnly[0].payload, { bond: "El amigo del barrio" },
+  "Only player-edited bond may be submitted; no stale ideal, flaw or personality");
+assert.equal(concurrentCharacter.backgroundChoices.ideal, "ideal_changed_by_dm");
+assert.equal(concurrentCharacter.backgroundChoices.flaw, "flaw_changed_by_dm");
+assert.deepEqual(concurrentCharacter.backgroundChoices.personality, ["Paciente"]);
+
+// Explicitly clearing a saved field is a change, not a request to resend other fields.
+await concurrentTray.backgroundPanel.querySelector(".player-background-edit-button").fire("click");
+const clearForm = concurrentTray.backgroundPanel.querySelector(".player-background-choice-editor");
+clearForm.querySelectorAll("select")[0].value = "";
+clearForm.querySelectorAll(".player-background-personality-input")[0].value = "";
+await clearForm.fire("submit", { preventDefault() {} });
+assert.deepEqual(editsOnly[1].payload, { ideal: "", personality: [] });
+assert.equal(concurrentCharacter.backgroundChoices.ideal, "");
+
 // Legacy psychological values are preloaded in the same editor and can be replaced.
 const legacy = new Tray({
   getRuntime: () => ({
@@ -144,68 +206,111 @@ missing.renderBackground();
 assert.match(textContent(missing.backgroundPanel), /Aún no tienes un Background asignado/);
 assert.ok(!missing.backgroundPanel.querySelector(".player-background-edit-button"));
 
-// Validate the actual Firebase save function without mounting the entire runtime.
+// Verify the real Firebase saver: atomic scope replacement and concurrent updates.
 const runtime = fs.readFileSync("js/player-trait-runtime.js", "utf8");
 const begin = runtime.indexOf("  async function saveBackgroundChoices(");
 const end = runtime.indexOf("\n  function mountTray()", begin);
 assert.ok(begin >= 0 && end > begin);
-const state = { playerId: "p42", db: { ref(path) {
-  return { async update(payload) { writes.push({ path, payload }); } };
-} }, character: {
-  uid: "uid42",
-  characterBuild: { backgroundId: "street_medic", breakdown: { backgroundHpCoefBonus: 0.14 } },
-  backgroundChoices: { ideal: "old_ideal" },
-} };
 const storage = { localStorage: { getItem: () => "p42" } };
-const save = new Function("state", "getCharacter", "currentAuthUid", "connectFirebase",
-  "global", "PLAYER_ID_STORAGE_KEY", "PLAYER_ROOT",
-  runtime.slice(begin, end) + "\nreturn saveBackgroundChoices;",
-)(state, () => state.character, () => "uid42", () => true, storage, "playerId", "campaña/jugadores");
+const writes = [];
+function buildSaver(live) {
+  return new Function("state", "getCharacter", "currentAuthUid", "connectFirebase",
+    "global", "PLAYER_ID_STORAGE_KEY", "PLAYER_ROOT",
+    runtime.slice(begin, end) + "\nreturn saveBackgroundChoices;",
+  )(live, () => live.character, () => "uid42", () => true, storage, "playerId", "campaña/jugadores");
+}
+function createDatabase(initial) {
+  let saved = initial;
+  return {
+    get stored() { return saved; },
+    ref(path) {
+      assert.equal(path, "campaña/jugadores/p42/backgroundChoices");
+      return {
+        async transaction(transform, onComplete, applyLocally) {
+          assert.equal(applyLocally, false, "Suppress speculative local events while transaction is pending");
+          saved = transform(saved);
+          writes.push({ path, payload: saved });
+          return { committed: true, snapshot: { val: () => saved } };
+        },
+      };
+    },
+  };
+}
+
+const db = createDatabase({ ideal: "old_ideal" });
+const state = {
+  playerId: "p42", db, character: {
+    uid: "uid42",
+    characterBuild: { backgroundId: "street_medic", breakdown: { backgroundHpCoefBonus: 0.14 } },
+    backgroundChoices: { ideal: "old_ideal" },
+  },
+};
+const save = buildSaver(state);
 await save("street_medic", { bond: "Mi contacto", personality: ["Prudente"] });
 assert.equal(writes.at(-1).path, "campaña/jugadores/p42/backgroundChoices");
-assert.deepEqual(writes.at(-1).payload, { bond: "Mi contacto", personality: ["Prudente"], backgroundId: "street_medic" });
+assert.deepEqual(writes.at(-1).payload, {
+  ideal: "old_ideal", bond: "Mi contacto", personality: ["Prudente"], backgroundId: "street_medic",
+});
 assert.equal(state.character.backgroundChoices.ideal, "old_ideal", "Existing fields must be preserved");
 assert.equal(state.character.characterBuild.breakdown.backgroundHpCoefBonus, 0.14, "Mechanical build unchanged");
 await assert.rejects(save("different_background", { ideal: "Invalid" }), /Background cambió/);
 state.character.uid = "different_uid";
 await assert.rejects(save("street_medic", { ideal: "Invalid" }), /verificar tu personaje/);
 
-// A Firebase write can overlap the DM's live character update.
-// Never reinsert the character snapshot taken before the await.
-function deferredBackgroundSave(initialCharacter) {
+// Background B's first partial save must never revive Background A's other decisions.
+const foreignDb = createDatabase({
+  backgroundId: "old_background", ideal: "old_ideal", bond: "old_bond",
+  flaw: "old_flaw", personality: ["Old trait"],
+});
+const fresh = {
+  playerId: "p42", db: foreignDb,
+  character: {
+    uid: "uid42",
+    characterBuild: { backgroundId: "street_medic" },
+    backgroundChoices: { ...foreignDb.stored },
+  },
+};
+await buildSaver(fresh)("street_medic", { bond: "New bond" });
+assert.deepEqual(foreignDb.stored, { backgroundId: "street_medic", bond: "New bond" },
+  "Remove all previous Background's omitted fields on the first new-scope save");
+assert.deepEqual(fresh.character.backgroundChoices, { backgroundId: "street_medic", bond: "New bond" },
+  "The player UI must also remove the previous Background's decisions");
+
+// Atomic transaction must rebase against changes made by the DM during the save.
+function deferredBackgroundSave(initialCharacter, stored) {
   let finishWrite;
-  let updateStarted;
-  const started = new Promise((resolve) => { updateStarted = resolve; });
+  let transactionStarted;
+  const started = new Promise((resolve) => { transactionStarted = resolve; });
   const live = {
-    playerId: "p42",
-    character: initialCharacter,
+    playerId: "p42", character: initialCharacter,
     db: { ref(path) {
       assert.equal(path, "campaña/jugadores/p42/backgroundChoices");
-      return { update(payload) {
-        updateStarted(payload);
-        return new Promise((resolve) => { finishWrite = resolve; });
+      return { transaction(transform) {
+        transactionStarted();
+        return new Promise((resolve) => {
+          finishWrite = () => {
+            const next = transform(stored);
+            resolve({ committed: true, snapshot: { val: () => next } });
+          };
+        });
       } };
     } },
   };
-  const savePending = new Function("state", "getCharacter", "currentAuthUid", "connectFirebase",
-    "global", "PLAYER_ID_STORAGE_KEY", "PLAYER_ROOT",
-    runtime.slice(begin, end) + "\nreturn saveBackgroundChoices;",
-  )(live, () => live.character, () => "uid42", () => true, storage, "playerId", "campaña/jugadores");
-  return { live, savePending, started, complete() { finishWrite(); } };
+  return { live, savePending: buildSaver(live), started, complete() { finishWrite(); } };
 }
 
 const concurrentSame = deferredBackgroundSave({
   uid: "uid42",
   characterBuild: { backgroundId: "street_medic", classes: ["old_class"] },
-  backgroundChoices: { ideal: "old_ideal" },
+  backgroundChoices: { backgroundId: "street_medic", ideal: "old_ideal" },
   stats: { fuerza: 8 },
-});
+}, { backgroundId: "street_medic", ideal: "live_ideal" });
 const samePending = concurrentSame.savePending("street_medic", { bond: "Mi contacto" });
 await concurrentSame.started;
 concurrentSame.live.character = {
   uid: "uid42",
   characterBuild: { backgroundId: "street_medic", classes: ["new_class"] },
-  backgroundChoices: { ideal: "live_ideal" },
+  backgroundChoices: { backgroundId: "street_medic", ideal: "live_ideal" },
   stats: { fuerza: 18 },
   traits: ["new_trait"],
 };
@@ -223,8 +328,8 @@ assert.equal(concurrentSame.live.character.backgroundChoices.bond, "Mi contacto"
 const concurrentChanged = deferredBackgroundSave({
   uid: "uid42",
   characterBuild: { backgroundId: "street_medic" },
-  backgroundChoices: { ideal: "old_ideal" },
-});
+  backgroundChoices: { backgroundId: "street_medic", ideal: "old_ideal" },
+}, { backgroundId: "street_medic", ideal: "old_ideal" });
 const changedPending = concurrentChanged.savePending("street_medic", { bond: "Old background bond" });
 await concurrentChanged.started;
 const newestDmCharacter = {
