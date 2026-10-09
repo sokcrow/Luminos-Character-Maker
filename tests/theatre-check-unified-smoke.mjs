@@ -148,8 +148,54 @@ check("39 Firebase guards live Check target UID", () => {
   assert.ok(condition.includes("newData.child('targetUid').val() === $uid"));
 });
 
+check("40 DM-authorized live result rejects a cross-target payload", async () => {
+  const listeners = new Map(), writes = [];
+  const command = { targetUid: "player-a", roomKey: "default", status: "issued",
+    rollSpec: { label: "Perception" }, check: { thresholdRaw: 18, hiddenThreshold: false } };
+  const refs = (path = "") => ({
+    on(type, fn) { listeners.set(path + ":" + type, fn); },
+    once: async () => ({ val: () => path === "theatre_check_commands/player-a/c1" ? command : null }),
+    update: async (changes) => { writes.push(changes); },
+  });
+  const database = () => ({ ref: refs });
+  database.ServerValue = { TIMESTAMP: 123 };
+  const document = { readyState: "loading", addEventListener() {},
+    getElementById() { return null; }, querySelector() { return null; },
+    body: { classList: { contains(name) { return name === "on-game-dashboard"; } } } };
+  const dmWorld = { document, firebase: { database,
+    auth: () => ({ currentUser: { uid: "e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1" } }) },
+    LuminousTheatreRolls: {
+      effectiveThreshold: (check) => check.thresholdRaw,
+      checkOutcome: (value, check) => value >= check.thresholdRaw ? "passed" : "failed",
+    }, console };
+  dmWorld.window = dmWorld;
+  vm.runInNewContext(read("js/theatre-check-coordinator.js"), dmWorld);
+  dmWorld.LuminousTheatreCheckCoordinator.bindAuthorizedData();
+  const fire = (targetUid) => listeners.get("theatre_check_live:value")({ val: () => ({
+    "player-a": { c1: { status: "complete", targetUid, roomKey: "default",
+      clientUpdatedAt: Date.now(), total: 14,
+      check: { thresholdRaw: 0 }, rollSpec: { label: "WRONG LABEL" },
+      coins: Array.from({ length: 5 }, (_, index) => ({ index, side: "head" })),
+    } },
+  }) });
+  const settle = async () => {
+    for (let i = 0; i < 4; i++) await new Promise((resolve) => setImmediate(resolve));
+  };
+  fire("player-b");
+  await settle();
+  assert.equal(writes.length, 0, "another UID must never receive a generated result");
+  fire("player-a");
+  await settle();
+  assert.equal(writes.length, 1, "authorized command should complete normally");
+  const result = writes[0]["theatre_check_results/player-a/c1"];
+  assert.equal(result.threshold, 18, "use DM-issued threshold, not live.check");
+  assert.equal(result.label, "Perception", "use DM-issued label, not live.rollSpec");
+  assert.equal(result.outcome, "failed");
+  assert.equal(writes[0]["theatre_check_commands/player-a/c1/status"], "completed");
+});
+
 for (const [label, fn] of tests) {
-  try { fn(); console.log("OK:",label); }
+  try { await fn(); console.log("OK:",label); }
   catch (error) { console.error("FAIL:",label); throw error; }
 }
 console.log(`Theatre Check unification: ${tests.length}/${tests.length} cases passed`);
