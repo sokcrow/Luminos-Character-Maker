@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="es">
+<head><meta charset="utf-8"><title>Performance HUD integration (test only)</title></head>
+<body>
+<div id="stats-modal"><div id="stats-container"></div></div>
+<pre id="browser-test-result">RUNNING</pre>
+<script>
+"use strict";
+// Minimal host services: the actual Player Stats HUD, Trait Engine, catalogs,
+// Player Trait Runtime and preview bridge are loaded below without mocks.
+window.datosJugador = {
+  level: 15,
+  stats: {
+    fuerza: 18, destreza: 10, constitucion: 10,
+    inteligencia: 10, sabiduria: 10, carisma: 16
+  },
+  dndSkills: { performance: { value: 5, proficiency: "proficient" } },
+  characterBuild: {
+    calculatedAtLevel: 15,
+    classes: [{ classId: "barbarian", id: "barbarian", levels: 15, level: 15 }],
+    archetypes: [{ classId: "barbarian", archetypeId: "path_of_the_devil_lineage" }]
+  }
+};
+window.LuminousTraitCatalogCore = { allDefinitions: () => ({}), allGrants: () => [] };
+window.LuminousRacialTraitCatalog = {
+  allDefinitions: () => ({}), resolveTraitGrants: () => []
+};
+window.LuminousRacialStatRuntime = {
+  ensureDependencies() {}, abilityScore() { return NaN; }
+};
+window.LuminousTraitPlayerTray = { mount() { return { refresh() {} }; } };
+window.LuminousActionEconomy = {};
+window.LuminousTraitStandardizationRuntime = { armPlayerCheck() { return null; } };
+window.LuminousLegacyBackgroundCatalog = { get: () => ({}) };
+window.LuminousBackgroundNarratives = { get: () => ({}) };
+window.LuminousBackgroundNarrativeMeta = {};
+window.LuminousBackgroundIdealTemplates = {};
+window.LuminousBackgroundBondTemplates = {};
+window.LuminousBackgroundFlawTemplates = {};
+window.LuminousBackgroundNarrativeData = {};
+try { localStorage.setItem("playerId", "jackpot-browser-test"); } catch (_) {}
+</script>
+<script src="../../js/proficiency-runtime.js"></script>
+<script src="../../js/trait-engine.js"></script>
+<script src="../../js/archetype-engine.js"></script>
+<script src="../../js/archetype-trait-catalog.js"></script>
+<script src="../../js/class-milestone-engine.js"></script>
+<script src="../../js/derived-stats-engine.js"></script>
+<script src="../../js/player-stats-ability-bar.js"></script>
+<script src="../../js/player-trait-runtime.js"></script>
+<script src="../../js/skill-trait-breakdown-patch.js"></script>
+<script>
+(function () {
+  const resultNode = document.getElementById("browser-test-result");
+  const errors = [];
+  window.addEventListener("error", (event) => errors.push(String(event.message)));
+  window.addEventListener("unhandledrejection", (event) => errors.push(String(event.reason)));
+  const fail = (message, details = {}) => {
+    resultNode.textContent = "FAIL " + JSON.stringify({ message, errors, ...details });
+  };
+  const good = (condition, message, details) => {
+    if (!condition) throw Error(message + (details ? ": " + JSON.stringify(details) : ""));
+  };
+  let attempts = 0;
+  const interval = setInterval(() => {
+    attempts += 1;
+    if (!window.LuminousPlayerTraitRuntime?.getTraits ||
+        !window.LuminousPlayerStats?.syncPanel ||
+        !window.LuminousSkillTraitBreakdownPatch?.tick ||
+        !window.LuminousPlayerTraitRuntime.getTraits().some(t => t.id === "devil_lineage_jackpot")) {
+      if (attempts > 65) {
+        clearInterval(interval);
+        fail("The actual Player Trait Runtime did not grant selected Jackpot.", {
+          attempts, ids: window.LuminousPlayerTraitRuntime?.getTraits?.().map(t => t.id) || []
+        });
+      }
+      return;
+    }
+    clearInterval(interval);
+    try {
+      const panel = document.querySelector("#stats-modal .player-ability-console");
+      good(panel, "The actual Player Stats HUD did not mount.");
+      panel.dataset.activeStat = "cha";
+      window.LuminousPlayerStats.syncPanel();
+      window.LuminousSkillTraitBreakdownPatch.tick();
+      const value = () => document.querySelector('[data-skill-id="performance"] .dnd-skill-value')?.textContent.trim();
+      const title = () => document.querySelector('[data-skill-id="performance"]')?.title || "";
+      const first = value();
+      const firstTitle = title();
+      good(first === "+9", "The actual rendered Performance Skill must show base +5 plus Jackpot +4.", { first, firstTitle });
+      good(firstTitle.includes("JACKPOT"), "The actual Performance tooltip must credit Jackpot.", { firstTitle });
+      const check = window.LuminousPlayerTraitRuntime.resolveTheatreCheck({
+        kind: "skill", skillId: "performance", abilityId: "cha"
+      })?.check;
+      good(check?.checkPower === 4 && check?.finalPower === 0,
+        "The Player Trait Runtime roll must award Jackpot +4 before Coins and no Final Power after.", { check });
+      window.LuminousPlayerStats.syncPanel();
+      window.LuminousSkillTraitBreakdownPatch.tick();
+      good(value() === "+9", "Stats redraw must not erase or double Jackpot.", { value: value() });
+      window.datosJugador.characterBuild.archetypes = [];
+      window.LuminousPlayerTraitRuntime.refresh();
+      window.LuminousPlayerStats.syncPanel();
+      window.LuminousSkillTraitBreakdownPatch.tick();
+      const without = value();
+      good(without === "+5", "Unselected Devil Lineage must not grant Jackpot.", { without });
+      window.datosJugador.characterBuild.archetypes = [
+        { classId: "barbarian", archetypeId: "path_of_the_devil_lineage" }
+      ];
+      window.LuminousPlayerTraitRuntime.refresh();
+      window.LuminousPlayerStats.syncPanel();
+      window.LuminousSkillTraitBreakdownPatch.tick();
+      const restored = value();
+      good(restored === "+9", "Reselecting Devil Lineage must visibly restore Jackpot.", { restored });
+      resultNode.textContent = "PASS " + JSON.stringify({
+        visiblePerformance: first, tooltip: firstTitle,
+        coinCheckPower: check.checkPower, postCoinFinalPower: check.finalPower,
+        withoutArchetype: without, restored, errors
+      });
+    } catch (e) {
+      fail(e.message, { stack: e.stack });
+    }
+  }, 80);
+})();
+</script>
+</body>
+</html>
