@@ -344,8 +344,8 @@
     panel.id = "theatre-check-director";
     panel.className = "theatre-check-director";
     panel.innerHTML = `
-      <header class="theatre-check-director-header"><div><strong>CHECK DIRECTOR</strong><span>PLAYER REQUEST / CONTROL</span></div><b id="theatre-check-pending-count">0</b></header>
-      <div id="theatre-check-request-list" class="theatre-check-request-list"><div class="theatre-check-empty">ESPERANDO FIREBASE AUTH…</div></div>
+      <header class="theatre-check-director-header"><div><strong>CHECK DIRECTOR</strong><span>SOLICITUDES · ENFRENTAMIENTOS · RESULTADOS</span></div><b id="theatre-check-pending-count" aria-label="Solicitudes pendientes">0</b></header>
+      <div class="theatre-check-director-workspace"><section class="theatre-check-inbox" aria-label="Solicitudes pendientes"><h3>SOLICITUDES PENDIENTES</h3><div id="theatre-check-request-list" class="theatre-check-request-list" aria-live="polite"><div class="theatre-check-empty">ESPERANDO SOLICITUDES…</div></div></section>
       <div class="theatre-check-compose">
         <div class="theatre-check-compose-title"><span id="theatre-check-compose-mode">NUEVO CHECK</span><button id="theatre-check-compose-reset" type="button">LIMPIAR</button></div>
         <div class="theatre-check-compose-grid">
@@ -356,12 +356,12 @@
           <label><span>THRESHOLD</span><input id="theatre-check-threshold" type="number" min="0" step="1" placeholder="—"></label>
           <label><span>MODIFIER</span><select id="theatre-check-modifier"><option value="neutral">NEUTRAL</option><option value="advantage">ADVANTAGE</option><option value="disadvantage">DISADVANTAGE</option></select></label>
           <label><span>X</span><input id="theatre-check-x" type="number" min="0" step="1" value="0"></label>
-          <label class="theatre-check-hidden"><input id="theatre-check-hidden-threshold" type="checkbox"><span>THRESHOLD OCULTO</span></label>
+          <label class="wide theatre-check-visibility-field"><span>VISIBILIDAD DEL THRESHOLD</span><select id="theatre-check-threshold-visibility"><option value="public">PÚBLICO · MOSTRAR VALOR</option><option value="mystery">?? · VALOR DESCONOCIDO</option><option value="hidden">OCULTO · SIN VALOR</option></select></label>
           <label class="wide"><span>TIP / RAZÓN</span><input id="theatre-check-tip" type="text" maxlength="180" placeholder="Opcional"></label>
         </div>
         <div class="theatre-check-compose-preview"><span id="theatre-check-compose-label">SELECT PLAYER</span><b id="theatre-check-compose-base">—</b><small id="theatre-check-compose-heads">— HEADS</small></div>
         <div class="theatre-check-compose-actions"><button id="theatre-check-deny" type="button" hidden>RECHAZAR</button><button id="theatre-check-send" type="button">ENVIAR CHECK</button></div>
-      </div>`;
+      </div></div>`;
 
     const npcPanel = $("theatre-npc-roll-director");
     const composer = director.querySelector(".theatre-controls");
@@ -568,12 +568,14 @@
   }
 
   function dmCheck() {
+    const visibility = $("theatre-check-threshold-visibility")?.value || "public";
     const rawText = String($("theatre-check-threshold")?.value || "").trim();
     const raw = rawText === "" ? null : Math.max(0, Math.trunc(numberOr(rawText, 0)));
     const x = Math.max(0, Math.trunc(numberOr($("theatre-check-x")?.value, 0)));
     return {
       thresholdRaw: raw,
-      hiddenThreshold: Boolean($("theatre-check-hidden-threshold")?.checked),
+      hiddenThreshold: visibility !== "public",
+      thresholdVisibility: visibility,
       modifierType: x > 0 ? ($("theatre-check-modifier")?.value || "neutral") : "neutral",
       modifierValue: x,
       tipText: x > 0 ? String($("theatre-check-tip")?.value || "").trim().slice(0, 180) : "",
@@ -615,7 +617,7 @@
     $("theatre-check-threshold").value = "";
     $("theatre-check-modifier").value = "neutral";
     $("theatre-check-x").value = "0";
-    $("theatre-check-hidden-threshold").checked = false;
+    $("theatre-check-threshold-visibility").value = "public";
     $("theatre-check-tip").value = "";
     refreshDmPreview();
   }
