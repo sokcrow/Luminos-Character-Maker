@@ -354,14 +354,22 @@
     db.ref(LIVE_ROOT).on("value", (snapshot) => renderDmOpposedLive(snapshot.val() || {}));
   }
 
+  function leaseExpired(status, prefix) {
+    if (typeof status !== "string" || !status.startsWith(prefix + ":")) return false;
+    const startedAt = Number(status.split(":")[1]);
+    return Number.isFinite(startedAt) && Date.now() - startedAt > 30000;
+  }
+
   function processSessionDm(sessionId, session) {
     if (!session || String(session.roomKey || "default") !== roomKey() || state.processingSessions.has(sessionId)) return;
-    if (session.status === "awaiting_threshold" && session.thresholdResult) {
+    if (session.thresholdResult && (session.status === "awaiting_threshold" || leaseExpired(session.status, "issuing_resolver"))) {
       state.processingSessions.add(sessionId);
-      issueResolverCommand(sessionId, session).finally(() => state.processingSessions.delete(sessionId));
+      issueResolverCommand(sessionId, session)
+        .catch((error) => console.warn("No se pudo enviar el segundo Check:", error))
+        .finally(() => state.processingSessions.delete(sessionId));
     } else if (session.resolverResult && (
       session.status === "awaiting_resolver" ||
-      (session.status === "finalizing" && Date.now() - numberOr(session.finalizingStartedAt, 0) > 30000)
+      leaseExpired(session.status, "finalizing")
     )) {
       state.processingSessions.add(sessionId);
       finalizeOpposedSession(sessionId, session)
@@ -374,7 +382,9 @@
     const thresholdRaw = session.thresholdResult?.total == null ? NaN : Number(session.thresholdResult.total);
     if (!Number.isFinite(thresholdRaw)) throw new Error("El retador no produjo un Threshold válido.");
     const statusRef = db.ref(`${OPPOSED_ROOT}/${sessionId}/status`);
-    const claim = await statusRef.transaction((status) => status === "awaiting_threshold" ? "issuing_resolver" : undefined);
+    const lease = `issuing_resolver:${Date.now()}:${Math.random().toString(36).slice(2)}`;
+    const claim = await statusRef.transaction((status) =>
+      status === "awaiting_threshold" || leaseExpired(status, "issuing_resolver") ? lease : undefined);
     if (!claim.committed) return;
     try {
       const hidden = Boolean(session.checkTemplate?.hiddenThreshold);
@@ -409,7 +419,7 @@
       updates[`${OPPOSED_ROOT}/${sessionId}/thresholdCapturedAt`] = firebase.database.ServerValue.TIMESTAMP;
       await db.ref().update(updates);
     } catch (error) {
-      await statusRef.set("awaiting_threshold");
+      await statusRef.transaction((status) => status === lease ? "awaiting_threshold" : undefined);
       throw error;
     }
   }
@@ -419,12 +429,10 @@
     const resolverTotal = Number(session.resolverResult?.total);
     if (!Number.isFinite(thresholdRaw) || !Number.isFinite(resolverTotal)) throw new Error("Resultado enfrentado incompleto.");
     const statusRef = db.ref(`${OPPOSED_ROOT}/${sessionId}/status`);
+    const lease = `finalizing:${Date.now()}:${Math.random().toString(36).slice(2)}`;
     const claim = await statusRef.transaction((status) =>
-      status === "awaiting_resolver" || (status === "finalizing" &&
-        Date.now() - numberOr(session.finalizingStartedAt, 0) > 30000)
-        ? "finalizing" : undefined);
+      status === "awaiting_resolver" || leaseExpired(status, "finalizing") ? lease : undefined);
     if (!claim.committed) return;
-    await db.ref(`${OPPOSED_ROOT}/${sessionId}/finalizingStartedAt`).set(Date.now());
     try {
     const check = {
       thresholdRaw,
@@ -483,7 +491,7 @@
     updates[`${OPPOSED_ROOT}/${sessionId}/finalizedAt`] = firebase.database.ServerValue.TIMESTAMP;
     await db.ref().update(updates);
     } catch (error) {
-      await statusRef.set("awaiting_resolver");
+      await statusRef.transaction((status) => status === lease ? "awaiting_resolver" : undefined);
       throw error;
     }
   }
