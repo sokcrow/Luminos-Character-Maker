@@ -24,7 +24,10 @@ const AXES = [
   ["elemental","Elemental"], ["hp","HP / Healing"], ["sp","SP / Sanity"],
   ["speed","Speed / Haste / Bind"], ["offense","Offensive Level"], ["defense","Defensive Level"],
   ["scores","STR / DEX / CON / INT / WIS / CHA"], ["maxhp","Max HP"], ["regen","HP / SP Regen"],
-  ["physicalward","Physical damage ward"], ["sinward","SIN damage ward"], ["sploss","SP loss reduction"]
+  ["physicalward","Physical damage ward"], ["sinward","SIN damage ward"], ["sploss","SP loss reduction"],
+  ["damageboost","Damage amplification"], ["premium","Premium universal damage"],
+  ["on_turn_start","Turn Start"], ["encounter_start","Encounter Start"],
+  ["on_hit","On Hit"], ["before_getting_hit","Before Getting Hit"]
 ];
 AXES.forEach(([id,label]) => addOption(axis,label,id));
 const elementalSchools = new Set(["Infernal","Glacial","Tempest","Corrosive","Venomous","Tidal","Geomantic"]);
@@ -43,6 +46,12 @@ function hasAxis(entry, axisId) {
     case "physicalward": return entry.resistance?.scope === "physical";
     case "sinward": return entry.resistance?.scope === "sin";
     case "sploss": return /SP Loss Reduction/i.test(text);
+    case "damageboost": return Boolean(entry.damageBonus);
+    case "premium": return entry.damageBonus?.priority==="premium";
+    case "on_turn_start": return entry.event==="turn_start" || /At Turn Start/i.test(entry.baseEffect || "");
+    case "encounter_start": return entry.event==="encounter_start" || /At Encounter Start/i.test(entry.baseEffect || "");
+    case "on_hit": return entry.event==="on_hit" || /weapon-linked Hit|after a Hit|when a Hit/i.test(entry.baseEffect || "");
+    case "before_getting_hit": return entry.event==="before_getting_hit" || /Before Getting Hit/i.test(entry.baseEffect || "");
     default: return true;
   }
 }
@@ -66,6 +75,8 @@ function renderDetail(entry) {
   appendText(target,"p","item-name",displayItem(entry));
   if(Array.isArray(entry.axes)&&entry.axes.length) appendText(target,"p","item-name","Combat axes: " + entry.axes.join(" · "));
   if(entry.resistance) appendText(target,"p","item-name","Specific resistance: " + entry.resistance.type.toUpperCase() + " (" + entry.resistance.scope + " damage only)");
+  if(entry.damageBonus) appendText(target,"p","item-name","Damage amplifier: " + entry.damageBonus.scope.toUpperCase() + " / " + entry.damageBonus.type + (entry.damageBonus.priority === "premium" ? " · PREMIUM / COSTLIER · BASE UNDER REVIEW" : " · SPECIALIST / LOWER COST"));
+  if(entry.magicDurabilityRequired) appendText(target,"p","risk","Magic Durability: 1 point per valid property use; depleted enchantments do not activate. Charge-pool rules for non-weapon items and multi-Coin Skill usage are pending.");
   appendText(target,"h3","rule-heading","COMPATIBLE CHASSIS IDS");
   appendText(target,"p","limits",entry.allowedChassisIds.join(" · "));
   appendText(target,"p","lore","“" + entry.lore + "”");
