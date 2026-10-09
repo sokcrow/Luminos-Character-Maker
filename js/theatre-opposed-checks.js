@@ -29,6 +29,7 @@
     isolatedCloseButton: null,
     processingSessions: new Set(),
     resultKeys: new Set(),
+    issuingOpposed: false,
   };
 
   const $ = (id) => doc.getElementById(id);
@@ -47,7 +48,7 @@
   }
 
   function effectiveThreshold(raw, check) {
-    const threshold = Number(raw);
+    const threshold = raw == null || raw === "" ? NaN : Number(raw);
     if (!Number.isFinite(threshold)) return null;
     const x = Math.max(0, Math.trunc(numberOr(check?.modifierValue, 0)));
     if (check?.modifierType === "advantage") return Math.max(0, threshold - x);
@@ -92,7 +93,8 @@
   function currentCheckTemplate() {
     const x = Math.max(0, Math.trunc(numberOr($("theatre-check-x")?.value, 0)));
     return {
-      hiddenThreshold: Boolean($("theatre-check-hidden-threshold")?.checked),
+      hiddenThreshold: ($("theatre-check-threshold-visibility")?.value || "public") !== "public",
+      thresholdVisibility: $("theatre-check-threshold-visibility")?.value || "public",
       modifierType: x > 0 ? ($("theatre-check-modifier")?.value || "neutral") : "neutral",
       modifierValue: x,
       tipText: x > 0 ? String($("theatre-check-tip")?.value || "").trim().slice(0, 180) : "",
@@ -142,6 +144,12 @@
         option.textContent = playerLabel(playerId, player);
         select.appendChild(option);
       });
+    (global.LuminousDmNpcRolls?.listSceneActors?.() || []).forEach((npc) => {
+      const option = doc.createElement("option");
+      option.value = `npc:${npc.actorId}`;
+      option.textContent = `DM / NPC · ${npc.name}`;
+      select.appendChild(option);
+    });
     if (!select.options.length) {
       const option = doc.createElement("option");
       option.value = "";
@@ -159,7 +167,7 @@
     const threshold = $("theatre-check-threshold");
     if (threshold) {
       threshold.disabled = opposed;
-      threshold.placeholder = opposed ? "LO GENERA EL RIVAL" : "—";
+      threshold.placeholder = opposed ? "LO GENERA EL RETADOR" : "—";
       if (opposed) threshold.value = "";
     }
     if (opposed) populateRivalPlayers();
@@ -182,14 +190,14 @@
     opposed.className = "theatre-opposed-fields";
     opposed.hidden = true;
     opposed.innerHTML = `
-      <div class="theatre-opposed-heading"><strong>RIVAL / GENERADOR DE THRESHOLD</strong><span>EL DM INTERMEDIA AMBAS TIRADAS</span></div>
+      <div class="theatre-opposed-heading"><strong>RETADOR · GENERA EL THRESHOLD</strong><span>EL RETADO ACTÚA DESPUÉS</span></div>
       <div class="theatre-opposed-grid">
-        <label class="wide"><span>RIVAL</span><select id="theatre-opposed-rival-player"></select></label>
+        <label class="wide"><span>RETADOR (JUGADOR O NPC DEL DM)</span><select id="theatre-opposed-rival-player"></select></label>
         <label><span>TIRADA RIVAL</span><select id="theatre-opposed-rival-kind"><option value="ability">ABILITY</option><option value="save">SAVING THROW</option><option value="skill">SKILL</option></select></label>
         <label><span>STAT RIVAL</span><select id="theatre-opposed-rival-ability"></select></label>
         <label class="wide" id="theatre-opposed-rival-skill-field" hidden><span>SKILL RIVAL</span><select id="theatre-opposed-rival-skill"></select></label>
       </div>
-      <div class="theatre-opposed-flow">RIVAL TIRA → THRESHOLD REGISTRADO → JUGADOR PRINCIPAL TIRA → PASS / FAIL</div>`;
+      <div class="theatre-opposed-flow">RETADOR TIRA → THRESHOLD REGISTRADO → RETADO TIRA → RESULTADO</div>`;
     grid.insertAdjacentElement("afterend", opposed);
 
     const abilitySelect = $("theatre-opposed-rival-ability");
