@@ -812,39 +812,48 @@
       }
 
       const liveRef = db.ref(`${LIVE_ROOT}/${uid}/${commandId}`);
+      let completing = false;
       const update = () => {
         const coins = collectResolvedCoins(container);
         const total = parseSigned($("roll-total-score")?.textContent);
         const complete = coins.length >= 5;
+        if (complete && completing) return;
+        if (complete) completing = true;
         const payload = {
           targetUid: uid,
           targetPlayerId: command.targetPlayerId || playerIdentity().playerId || null,
           targetName: command.targetName || playerIdentity().name,
-          roomKey: command.roomKey || roomKey(),
-          rollSpec: command.rollSpec || {},
-          check: command.check || {},
-          total,
-          resolved: coins.length,
-          coinCount: 5,
-          coins,
-          status: complete ? "complete" : "rolling",
-          clientUpdatedAt: Date.now(),
+          roomKey: command.roomKey || roomKey(), rollSpec: command.rollSpec || {},
+          check: command.check || {}, total, resolved: coins.length, coinCount: 5,
+          coins, status: complete ? "complete" : "rolling", clientUpdatedAt: Date.now(),
         };
-        if (complete && global.LuminousTheatreRolls?.checkOutcome) {
-          payload.outcome = global.LuminousTheatreRolls.checkOutcome(total, command.check || {});
+        if (complete) {
+          payload.outcome = global.LuminousTheatreRolls?.checkOutcome?.(total, command.check || {}) || null;
           payload.completedAt = firebase.database.ServerValue.TIMESTAMP;
         }
-        liveRef.update(payload).catch((error) => {
-          console.warn("No se pudo sincronizar el HUD del Check con el DM:", error);
-          if (complete) playerNotice("ERROR DE SINCRONIZACIÓN", firebaseErrorCopy(error, "HUD del DM"), "denied");
-        });
-        if (complete) {
+        liveRef.update(payload).then(() => {
+          if (!complete) return;
           state.liveObserver?.disconnect();
           state.liveObserver = null;
           if (state.liveUpdateTimer) global.clearTimeout(state.liveUpdateTimer);
-          global.setTimeout(() => doc.body?.classList?.remove("theatre-check-active"), 7600);
+          global.setTimeout(() => {
+            // Never re-open Legacy UI if another Check has already started.
+            if (state.activeCommand?.key === commandId) return;
+            const legacy = $("coin-toss-panel");
+            if (legacy) legacy.style.display = "none";
+            if (!state.activeCommand) doc.body?.classList?.remove("theatre-check-active");
+          }, 7600);
           global.setTimeout(() => liveRef.remove().catch(() => {}), 9500);
-        }
+          if (state.activeCommand?.key === commandId) state.activeCommand = null;
+          global.setTimeout(showNextPlayerCommand, 350);
+        }).catch((error) => {
+          console.warn("No se pudo sincronizar el HUD del Check con el DM:", error);
+          if (complete) {
+            completing = false;
+            playerNotice("REINTENTANDO SINCRONIZACIÓN", "La tirada terminó; estamos enviando el resultado al DM.", "pending");
+            global.setTimeout(update, 900);
+          }
+        });
       };
       const schedule = () => {
         if (state.liveUpdateTimer) global.clearTimeout(state.liveUpdateTimer);
