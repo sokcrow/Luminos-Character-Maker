@@ -52,6 +52,7 @@
     dmRequestsBound: false,
     dmLiveBound: false,
     authBound: false,
+    pendingBySpec: new Set(),
   };
 
   const $ = (id) => doc.getElementById(id);
@@ -220,35 +221,37 @@
     const rollSpec = rollSpecFromTarget(target);
     if (!identity.uid) throw new Error("AUTH_NOT_READY");
     if (!rollSpec) throw new Error("ROLL_SPEC_NOT_AVAILABLE");
-
+    const key = [identity.uid, roomKey(), rollSpec.kind, rollSpec.abilityId, rollSpec.skillId || ""].join(":");
+    if (state.pendingBySpec.has(key)) {
+      playerNotice("CHECK YA SOLICITADO", `${rollSpec.label} · esperando al DM`, "pending");
+      return false;
+    }
+    state.pendingBySpec.add(key);
+    playerNotice("ENVIANDO SOLICITUD…", `${rollSpec.label} · contactando al DM`, "sending");
     const requestRef = db.ref(REQUEST_ROOT).push();
-    await requestRef.set({
-      schemaVersion: 1,
-      requesterUid: identity.uid,
-      playerId: identity.playerId || null,
-      actorId: identity.actorId || null,
-      playerName: identity.name,
-      roomKey: roomKey(),
-      status: "pending",
-      rollSpec,
-      createdAt: firebase.database.ServerValue.TIMESTAMP,
-      clientCreatedAt: Date.now(),
-    });
-
-    playerNotice("SOLICITUD ENVIADA AL DM", `${rollSpec.label} · esperando aprobación`, "pending");
+    try {
+      await requestRef.set({
+        schemaVersion: 1, requesterUid: identity.uid, playerId: identity.playerId || null,
+        actorId: identity.actorId || null, playerName: identity.name, roomKey: roomKey(),
+        status: "pending", rollSpec, createdAt: firebase.database.ServerValue.TIMESTAMP,
+        clientCreatedAt: Date.now(),
+      });
+    } catch (error) {
+      state.pendingBySpec.delete(key);
+      throw error;
+    }
+    playerNotice("SOLICITUD RECIBIDA", `${rollSpec.label} · esperando al DM`, "pending");
     const listener = (snapshot) => {
-      const value = snapshot.val() || {};
-      if (value.status === "denied") {
-        playerNotice("SOLICITUD RECHAZADA", `${rollSpec.label} · el DM no autorizó la tirada`, "denied");
-        global.setTimeout(() => $("theatre-check-player-notice")?.remove(), 3200);
-        requestRef.off("value", listener);
-      } else if (value.status === "approved") {
-        playerNotice("TIRADA APROBADA", `${rollSpec.label} · esperando instrucción`, "approved");
-        requestRef.off("value", listener);
-      }
+      const status = snapshot.val()?.status;
+      if (status !== "approved" && status !== "denied") return;
+      state.pendingBySpec.delete(key);
+      playerNotice(status === "approved" ? "CHECK APROBADO" : "SOLICITUD RECHAZADA",
+        status === "approved" ? `${rollSpec.label} · pulsa TIRAR en la solicitud` : `${rollSpec.label} · el DM la rechazó`,
+        status === "approved" ? "approved" : "denied");
+      requestRef.off("value", listener);
     };
     requestRef.on("value", listener, (error) => {
-      console.error("Se perdió el listener de la solicitud de Check:", error);
+      state.pendingBySpec.delete(key);
       playerNotice("ERROR DE COORDINACIÓN", firebaseErrorCopy(error, "Solicitud"), "denied");
     });
     return true;
