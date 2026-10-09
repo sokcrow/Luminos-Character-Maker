@@ -236,7 +236,7 @@ function createDatabase(initial) {
   };
 }
 
-const db = createDatabase({ ideal: "old_ideal" });
+const db = createDatabase({ backgroundId: "street_medic", ideal: "old_ideal" });
 const state = {
   playerId: "p42", db, character: {
     uid: "uid42",
@@ -255,6 +255,33 @@ assert.equal(state.character.characterBuild.breakdown.backgroundHpCoefBonus, 0.1
 await assert.rejects(save("different_background", { ideal: "Invalid" }), /Background cambió/);
 state.character.uid = "different_uid";
 await assert.rejects(save("street_medic", { ideal: "Invalid" }), /verificar tu personaje/);
+
+// Untagged data could have been saved for any older Background. Do not stamp
+// those siblings with the current Background when the first partial save occurs.
+const unscopedDb = createDatabase({
+  ideal: "old_ideal", bond: "old_bond", flaw: "old_flaw",
+  personality: ["Old trait"],
+});
+const unscopedCharacter = {
+  playerId: "p42", db: unscopedDb,
+  character: {
+    uid: "uid42",
+    characterBuild: { backgroundId: "street_medic" },
+    backgroundChoices: { ...unscopedDb.stored },
+  },
+};
+await buildSaver(unscopedCharacter)("street_medic", { bond: "New bond" });
+assert.deepEqual(unscopedDb.stored, { bond: "New bond", backgroundId: "street_medic" },
+  "Unscoped legacy ideal, flaw and personality must not be adopted by a new Background");
+assert.deepEqual(unscopedCharacter.character.backgroundChoices,
+  { bond: "New bond", backgroundId: "street_medic" },
+  "The local sheet must not resurrect unrelated unscoped legacy choices");
+
+// A second partial save for the same explicit origin should preserve siblings.
+await buildSaver(unscopedCharacter)("street_medic", { flaw: "A new flaw" });
+assert.deepEqual(unscopedDb.stored,
+  { bond: "New bond", flaw: "A new flaw", backgroundId: "street_medic" },
+  "Once scoped, later partial saves retain existing choices");
 
 // Background B's first partial save must never revive Background A's other decisions.
 const foreignDb = createDatabase({
