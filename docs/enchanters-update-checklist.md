@@ -6,6 +6,22 @@ The Enchanter's Update is responsible for **authoring, validating, applying, rem
 
 Random magical drops, random affix rolls, cursed random loot and artifact generation remain outside this update and belong to a later **Magic Loot Update**.
 
+## Scope freeze — Owner decision 2026-10-09
+
+**Magic Items is a separate future Update.** This PR #931 must be completed as an **Enchanter-only** update. The current Part D implementation gate is a **retained historical/future Magic Items handoff**, **not** a merge blocker for #931. Its 20 already-checked entries are preserved as existing integration/foundation evidence, and its 7 unchecked entries stay unchecked for the future Update. Do not delete shared Item Instance, Attunement, Bind or Magical Durability foundations already used by Enchantments.
+
+**Magic Loot Update** is independently deferred as before; neither its 7 completed-deferral notes nor its future-provider checkbox are part of #931 acceptance.
+
+| Scope ledger | Checked | Unchecked | Total |
+|---|---:|---:|---:|
+| Entire original checklist, including future handoffs | 356 | 29 | 385 |
+| Future Magic Items: Part D implementation gate (excluded) | 20 | 7 | 27 |
+| Future Magic Loot: section 16 (excluded) | 7 | 1 | 8 |
+| **PR #931, Enchanter in-scope acceptance** | **329** | **21** | **350** |
+
+**Do not misread the scope ledger as a passed quality gate.** The 21 real Enchanter tasks include Part C authoring/testing, enchantment damage/defense/trigger bridges, authoritative service payment and delivery, Magical Durability-backed *Enchanter* activations, UI clarity, and Player/DM/Battle Viewer tests. Native Magic Item/Relic-specific Charge systems and Rank IV/V Relic behavior move to Magic Items. The original Part A–D documents remain historical design references; future work must not accidentally import #963 read-only proposed catalog entries or reintroduce universal Magic Durability wear/recharge.
+
+
 
 ## Part A — Enchantment Core (design frozen)
 
@@ -186,7 +202,7 @@ Canonical contract: [`docs/enchanters-update-part-c-services.md`](./enchanters-u
 - [x] Finalize/test Rank III Gem-Anchor coexistence: Rank III cannot coexist with lower-rank Gem Anchors.
 - [x] Block/warn normal fourth-gem installation and implement catastrophic forced fourth-gem outcome.
 - [ ] Add DM Enchanter authoring and Player service UI without internal IDs/debug schema.
-- [ ] Add Part C regression tests for services, knowledge, outcomes, durability, gem removal, Relics, time and economy.
+- [ ] Add Part C regression tests for services, knowledge, outcomes, durability, gem removal, time and economy. Relic-specific regressions belong to the future Magic Items Update.
 
 ## Part D — Magic Item Runtime Integration (design frozen)
 
@@ -229,7 +245,10 @@ Canonical contract: [`docs/enchanters-update-part-d-magic-items.md`](./enchanter
 - [x] DM tooling must support creating Magic Items from scratch and modifying existing Items through validated canonical effect modules.
 - [x] Full D&D Magic Item content adaptation is deferred to a separate Magic Items Update after this Enchantment framework is ready.
 
-### Part D implementation gate
+### Part D implementation gate — FUTURE MAGIC ITEMS UPDATE (out of #931 acceptance)
+
+> Retained for design handoff only. Checked = already existing shared integrations; unchecked = Magic Items-specific work, not a blocker for the Enchanter PR. No Item/Relic content is promoted here.
+
 
 - [x] Extend `LuminousItemMagicRuntime.isMagicItem()` to recognize applied Enchantments.
 - [x] Keep Magic Item status independent from Magic Hit.
