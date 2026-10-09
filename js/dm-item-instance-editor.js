@@ -17,6 +17,7 @@
     observer: null,
     grantDefinitionId: null,
     catalogPoll: null,
+    enchantmentDraft: null,
   };
 
   const runtime = () => global.LuminousItemRuntime || global.LuminousItemInventoryRuntime || null;
@@ -24,6 +25,8 @@
   const persistence = () => global.LuminousItemPersistenceRuntime || null;
   const realtime = () => global.LuminousItemRealtimeSync || null;
   const iconRegistry = () => global.LuminousItemIconRegistry || null;
+  const enchantmentRuntime = () => global.LuminousItemEnchantmentRuntime || null;
+  const enchanterStudio = () => global.LuminousDmEnchanterStudioModel || null;
   const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
   const intOr = (value, fallback = 0) => Number.isFinite(Number(value)) ? Math.trunc(Number(value)) : fallback;
 
@@ -48,6 +51,8 @@
     await ensureScript("item-icon-registry-script", "js/item-icon-registry.js", "LuminousItemIconRegistry");
     await ensureScript("item-runtime-engine-script", "js/item-runtime-engine.js", "LuminousItemRuntime");
     await ensureScript("item-inventory-runtime-script", "js/item-inventory-runtime.js", "LuminousItemInventoryRuntime");
+    await ensureScript("item-enchantment-runtime-script", "js/item-enchantment-runtime.js", "LuminousItemEnchantmentRuntime");
+    await ensureScript("dm-enchanter-studio-model-script", "js/dm-enchanter-studio-model.js", "LuminousDmEnchanterStudioModel");
     await ensureScript("item-persistence-runtime-script", "js/item-persistence-runtime.js", "LuminousItemPersistenceRuntime");
     await ensureScript("item-realtime-sync-script", "js/item-realtime-sync.js", "LuminousItemRealtimeSync");
     return Boolean(inventory() && persistence());
@@ -83,7 +88,9 @@
   }
 
   function itemName(item = {}) {
-    return String(item.displayName || item.nombre || item.name || runtime()?.resolveItem?.(item)?.displayName || item.definitionId || "ITEM").trim();
+    const base = String(item.displayName || item.nombre || item.name || runtime()?.resolveItem?.(item)?.displayName || item.definitionId || "ITEM").trim();
+    const tier = enchantmentRuntime()?.activeEnchantment?.(item)?.tier;
+    return tier && !new RegExp(`\\s\\+${tier}$`).test(base) ? `${base} +${tier}` : base;
   }
 
   function quantityOf(item = {}) {
@@ -184,6 +191,27 @@
     return null;
   }
 
+  // The saved ItemInstance replaces the inventory object. Keep equipped
+  // pointers bound to that same live instance instead of an obsolete clone.
+  function relinkEquippedInstance(unit, previous, next) {
+    const equipment = unit?.equipment;
+    const instanceId = itemId(previous);
+    if (!equipment || !instanceId || itemId(next) !== instanceId) return 0;
+    let linked = 0;
+    const replace = (value) => {
+      if (!value || typeof value !== "object" || itemId(value) !== instanceId) return value;
+      linked += 1;
+      return next;
+    };
+    for (const slot of ["mainHand", "offHand", "main_hand", "off_hand", "armor", "shield"]) {
+      if (equipment[slot] != null) equipment[slot] = replace(equipment[slot]);
+    }
+    for (const slot of ["accessories", "augments", "augmentations"]) {
+      if (Array.isArray(equipment[slot])) equipment[slot] = equipment[slot].map(replace);
+    }
+    return linked;
+  }
+
   function clearEquipmentReferences(unit, instanceId) {
     if (!unit?.equipment) return;
     const wanted = String(instanceId || "");
@@ -227,19 +255,19 @@
     overlay.innerHTML = `
       <div class="dm-item-editor-shell" role="dialog" aria-modal="true" aria-labelledby="dm-item-editor-title">
         <header class="dm-item-editor-header">
-          <div><span>CANONICAL ITEMINSTANCE // SCHEMA V2</span><strong id="dm-item-editor-title">ITEM INSTANCE</strong></div>
+          <div><span>TALLER DEL DIRECTOR</span><strong id="dm-item-editor-title">Objeto</strong></div>
           <button type="button" class="dm-item-editor-close" id="dm-item-editor-close" aria-label="Cerrar">×</button>
         </header>
         <div class="dm-item-editor-body">
           <section class="dm-item-editor-section">
-            <h4>Identity / Stack</h4>
+            <h4>Estado del objeto</h4>
             <div class="dm-item-editor-grid">
-              <div class="dm-item-editor-field wide"><label>Instance ID</label><input id="dm-item-field-instance" readonly></div>
-              <div class="dm-item-editor-field wide"><label>Definition ID</label><input id="dm-item-field-definition" readonly></div>
-              <div class="dm-item-editor-field"><label>Quantity</label><input id="dm-item-field-quantity" type="number" min="1" step="1"></div>
-              <div class="dm-item-editor-field"><label>Quality</label><select id="dm-item-field-quality"><option value="1">I · Low</option><option value="2">II · Standard</option><option value="3">III · Good</option><option value="4">IV · Fine</option><option value="5">V · Exceptional</option></select></div>
-              <div class="dm-item-editor-field"><label>Condition</label><input id="dm-item-field-condition" type="number" min="0" step="1"></div>
-              <div class="dm-item-editor-field"><label>Condition Max</label><input id="dm-item-field-condition-max" type="number" min="0" step="1"></div>
+              <input id="dm-item-field-instance" type="hidden">
+              <input id="dm-item-field-definition" type="hidden">
+              <div class="dm-item-editor-field"><label>Cantidad</label><input id="dm-item-field-quantity" type="number" min="1" step="1"></div>
+              <div class="dm-item-editor-field"><label>Calidad</label><select id="dm-item-field-quality"><option value="1">I · Low</option><option value="2">II · Standard</option><option value="3">III · Good</option><option value="4">IV · Fine</option><option value="5">V · Exceptional</option></select></div>
+              <div class="dm-item-editor-field"><label>Estado actual</label><input id="dm-item-field-condition" type="number" min="0" step="1"></div>
+              <div class="dm-item-editor-field"><label>Estado máximo</label><input id="dm-item-field-condition-max" type="number" min="0" step="1"></div>
             </div>
             <div class="dm-item-editor-meta" id="dm-item-editor-condition-meta"></div>
           </section>
@@ -269,11 +297,33 @@
               <div class="dm-item-editor-field full"><label>Signature Technology IDs</label><textarea id="dm-item-field-signature-tech" placeholder="structural_tech_a"></textarea></div>
             </div>
           </section>
+          <section class="dm-item-editor-section dm-enchanter-studio" id="dm-item-enchanter-section" aria-labelledby="dm-item-enchanter-title">
+            <h4 id="dm-item-enchanter-title">Enchanter Studio</h4>
+            <p class="dm-enchanter-intro">Otorga un efecto mágico a este objeto individual sin modificar su calidad o mejoras físicas.</p>
+            <div id="dm-enchanter-current" class="dm-enchanter-current" aria-live="polite"></div>
+            <div class="dm-item-editor-grid dm-enchanter-controls">
+              <div class="dm-item-editor-field">
+                <label for="dm-enchanter-level">Nivel mágico</label>
+                <select id="dm-enchanter-level"><option value="1">+1</option><option value="2">+2</option><option value="3">+3</option></select>
+              </div>
+              <div class="dm-item-editor-field wide">
+                <label for="dm-enchanter-channel">Efecto</label>
+                <select id="dm-enchanter-channel"></select>
+              </div>
+            </div>
+            <div id="dm-enchanter-preview" class="dm-enchanter-preview" role="status" aria-live="polite"></div>
+            <div class="dm-enchanter-actions">
+              <button id="dm-enchanter-prepare" class="dm-item-editor-btn primary" type="button">Preparar encantamiento</button>
+              <button id="dm-enchanter-remove" class="dm-item-editor-btn" type="button">Retirar encantamiento</button>
+              <button id="dm-enchanter-discard" class="dm-item-editor-btn" type="button" hidden>Descartar cambio</button>
+            </div>
+            <p class="dm-enchanter-save-hint">Los cambios solo se aplican al pulsar <b>Guardar objeto</b>.</p>
+          </section>
         </div>
         <footer class="dm-item-editor-footer">
           <div class="dm-item-editor-status" id="dm-item-editor-status">READY</div>
           <button type="button" class="dm-item-editor-btn" id="dm-item-editor-cancel">CANCEL</button>
-          <button type="button" class="dm-item-editor-btn primary" id="dm-item-editor-save">SAVE INSTANCE</button>
+          <button type="button" class="dm-item-editor-btn primary" id="dm-item-editor-save">Guardar objeto</button>
         </footer>
       </div>`;
     doc.body.appendChild(overlay);
@@ -281,6 +331,16 @@
     doc.getElementById("dm-item-editor-close")?.addEventListener("click", closeEditor);
     doc.getElementById("dm-item-editor-cancel")?.addEventListener("click", closeEditor);
     doc.getElementById("dm-item-editor-save")?.addEventListener("click", saveEditor);
+    doc.getElementById("dm-enchanter-prepare")?.addEventListener("click", prepareEnchantment);
+    doc.getElementById("dm-enchanter-remove")?.addEventListener("click", prepareEnchantmentRemoval);
+    doc.getElementById("dm-enchanter-discard")?.addEventListener("click", discardEnchantmentDraft);
+    ["dm-enchanter-level", "dm-enchanter-channel"].forEach((id) => {
+      doc.getElementById(id)?.addEventListener("change", () => {
+        state.enchantmentDraft = null;
+        state.dirty = true;
+        refreshEnchanterPreview();
+      });
+    });
     overlay.addEventListener("click", (event) => { if (event.target === overlay) closeEditor(); });
     overlay.querySelectorAll("input,select,textarea").forEach((field) => field.addEventListener("input", () => {
       state.dirty = true;
@@ -319,10 +379,127 @@
     if (meta) meta.innerHTML = `CONDITION <b>${pct}% // ${id}</b>${stackLimit ? ` · STACK LIMIT <b>${stackLimit}</b>` : ""}`;
   }
 
+
+  function renderEnchanter(item) {
+    const studio = enchanterStudio();
+    const section = doc.getElementById("dm-item-enchanter-section");
+    if (!section || !studio) return;
+    const options = studio.available(item);
+    const status = studio.current(item);
+    const level = doc.getElementById("dm-enchanter-level");
+    const channel = doc.getElementById("dm-enchanter-channel");
+    if (level) level.value = String(status.enchanted ? status.tier : 1);
+    if (channel) {
+      channel.replaceChildren();
+      if (!options.defaultChannel && !status.channel) {
+        const placeholder = doc.createElement("option");
+        placeholder.value = "";
+        placeholder.textContent = "Selecciona un efecto";
+        channel.appendChild(placeholder);
+      }
+      options.choices.forEach(({ value, label }) => {
+        const option = doc.createElement("option");
+        option.value = value;
+        option.textContent = label;
+        channel.appendChild(option);
+      });
+      channel.value = status.channel || options.defaultChannel || "";
+    }
+    refreshEnchanterPreview();
+  }
+
+  function refreshEnchanterPreview() {
+    const studio = enchanterStudio();
+    const item = state.selected?.item;
+    if (!studio || !item) return;
+    const available = studio.available(item);
+    const status = studio.current(item);
+    const current = doc.getElementById("dm-enchanter-current");
+    if (current) {
+      current.textContent = status.enchanted
+        ? `Encantamiento actual · +${status.tier} en ${status.label}`
+        : "Este objeto todavía no está encantado.";
+      current.dataset.enchanted = String(status.enchanted);
+    }
+    const level = doc.getElementById("dm-enchanter-level");
+    const channel = doc.getElementById("dm-enchanter-channel");
+    const request = { level: Number(level?.value), channel: channel?.value || "" };
+    const preview = studio.preview(item, request, { allowReplace: true });
+    const target = doc.getElementById("dm-enchanter-preview");
+    if (target) {
+      const staged = state.enchantmentDraft;
+      target.textContent = staged
+        ? staged.action === "remove"
+          ? "Se retirará el encantamiento actual al guardar. El objeto conservará su calidad y mejoras físicas."
+          : `Preparado: +${staged.level} en ${studio.CHANNEL_LABELS[staged.channel] || staged.channel}. Pulsa Guardar objeto para aplicar.`
+        : available.eligible ? preview.message : studio.errorMessage(available.reason);
+      if (global.LuminousItemMagicRuntime?.requiresAttunement?.(item)) {
+        target.textContent += " El efecto solo estará activo cuando el objeto esté sintonizado.";
+      }
+      target.dataset.tone = staged ? "ready" : preview.valid && available.eligible ? "normal" : "warning";
+    }
+    if (level) level.disabled = !available.eligible;
+    if (channel) channel.disabled = !available.eligible;
+    const prepare = doc.getElementById("dm-enchanter-prepare");
+    if (prepare) {
+      prepare.disabled = !available.eligible || !preview.valid;
+      prepare.textContent = status.enchanted ? "Preparar reemplazo" : "Preparar encantamiento";
+    }
+    const remove = doc.getElementById("dm-enchanter-remove");
+    if (remove) remove.disabled = !status.enchanted;
+    const discard = doc.getElementById("dm-enchanter-discard");
+    if (discard) discard.hidden = !state.enchantmentDraft;
+  }
+
+  function prepareEnchantment() {
+    const studio = enchanterStudio();
+    const item = state.selected?.item;
+    if (!studio || !item) return;
+    const original = studio.current(item);
+    let replaceConfirmed = false;
+    if (original.enchanted) {
+      const message = `Este objeto tiene +${original.tier} en ${original.label}. ¿Reemplazar el encantamiento anterior?`;
+      if (typeof global.confirm !== "function" || !global.confirm(message)) return;
+      replaceConfirmed = true;
+    }
+    const result = studio.prepare(item, {
+      action: "apply",
+      level: Number(fieldValue("dm-enchanter-level")),
+      channel: fieldValue("dm-enchanter-channel"),
+    }, { replaceConfirmed });
+    if (!result.prepared) return announce(studio.errorMessage(result.reason), "error");
+    state.enchantmentDraft = result.draft;
+    state.dirty = true;
+    refreshEnchanterPreview();
+    announce("Encantamiento preparado. Guarda el objeto para aplicar.", "");
+  }
+
+  function prepareEnchantmentRemoval() {
+    const studio = enchanterStudio();
+    const item = state.selected?.item;
+    if (!studio || !item) return;
+    const existing = studio.current(item);
+    if (!existing.enchanted) return announce(studio.errorMessage("item_not_enchanted"), "error");
+    if (typeof global.confirm !== "function" || !global.confirm(`¿Retirar el encantamiento +${existing.tier}? La calidad física se conservará.`)) return;
+    const result = studio.prepare(item, { action: "remove" });
+    if (!result.prepared) return announce(studio.errorMessage(result.reason), "error");
+    state.enchantmentDraft = result.draft;
+    state.dirty = true;
+    refreshEnchanterPreview();
+    announce("Retiro preparado. Guarda el objeto para confirmar.", "");
+  }
+
+  function discardEnchantmentDraft() {
+    state.enchantmentDraft = null;
+    refreshEnchanterPreview();
+    announce("Cambio de encantamiento descartado.", "");
+  }
+
   function fillEditor(entry, listType) {
     const item = entry?.item;
     if (!item) return;
-    state.selected = { key: entry.key, item, listType: normalizeListType(listType) };
+    state.selected = { key: entry.key, item, listType: normalizeListType(listType), playerId: state.playerId, enchantmentSnapshot: enchanterStudio()?.snapshot?.(item) };
+    state.enchantmentDraft = null;
     state.dirty = false;
     mountEditor().classList.add("active");
     const title = doc.getElementById("dm-item-editor-title");
@@ -352,13 +529,15 @@
     setField("dm-item-field-recharge-amount", rule.amount || 1);
     setField("dm-item-field-modules", formatList(item.installedModuleIds || item.installed_module_ids || []));
     setField("dm-item-field-signature-tech", formatList(item.signatureTechnologyIds || item.signature_technology_ids || []));
-    announce(`EDITING // ${entry.key}`, "");
+    renderEnchanter(item);
+    announce("Editando objeto", "");
     updateConditionMeta();
   }
 
   function closeEditor() {
     editorElement()?.classList.remove("active");
     state.selected = null;
+    state.enchantmentDraft = null;
     state.dirty = false;
     state.saving = false;
   }
@@ -417,7 +596,7 @@
   async function saveUnit(message) {
     if (!state.peer?.bound || state.saving) return false;
     state.saving = true;
-    announce("SYNCING ITEM RUNTIME...", "working");
+    announce("Guardando los cambios...", "working");
     try {
       const result = await state.peer.save(state.unit);
       if (!result?.saved) throw new Error(result?.reason || "save_failed");
@@ -425,7 +604,7 @@
       state.dirty = false;
       return true;
     } catch (error) {
-      announce(`ERROR // ${error.message || error}`, "error");
+      announce("No se pudieron guardar los cambios. Comprueba la conexión y vuelve a intentarlo.", "error");
       return false;
     } finally {
       state.saving = false;
@@ -433,15 +612,25 @@
   }
 
   async function saveEditor() {
-    if (!state.selected || !(await ensurePeer())) return;
+    const session = state.selected;
+    if (!session || !(await ensurePeer())) return;
+    if (session !== state.selected || session.playerId !== state.playerId) {
+      return announce("El inventario cambió. Abre nuevamente el objeto.", "error");
+    }
     const latest = findEntry(state.selected.listType, state.selected.key);
     if (!latest) {
-      announce("ITEM NO LONGER EXISTS", "error");
+      announce("El objeto ya no está en este inventario.", "error");
       return;
+    }
+    if (enchanterStudio()?.snapshot?.(latest.item) !== session.enchantmentSnapshot) {
+      return announce("El encantamiento de este objeto cambió. Abre el objeto nuevamente.", "error");
     }
 
     const original = clone(latest.item);
-    const migrated = inventory()?.migrateLegacyItem?.(original, latest.key, { currentOwnerId: state.playerId }) || original;
+    // The modern migrateLegacyItem returns its input unchanged. Keep a distinct
+    // untouched rollback copy so a failed save never leaves staged magic live.
+    const working = clone(original);
+    const migrated = inventory()?.migrateLegacyItem?.(working, latest.key, { currentOwnerId: state.playerId }) || working;
     const listType = state.selected.listType;
     const quantity = Math.max(1, intOr(fieldValue("dm-item-field-quantity"), 1));
     const stackLimit = Math.max(1, intOr(inventory()?.stackLimit?.(migrated, listType), listType === "stash" ? 99 : 2));
@@ -499,10 +688,32 @@
       migrated.rechargeRule = null;
     }
 
+    const enchantmentAction = state.enchantmentDraft?.action || null;
+    if (enchantmentAction) {
+      const result = enchanterStudio()?.applyDraft?.(migrated, state.enchantmentDraft);
+      if (!result?.changed) {
+        return announce(enchanterStudio()?.errorMessage?.(result?.reason) || "No fue posible encantar el objeto.", "error");
+      }
+      Object.assign(migrated, result.item);
+    }
+
     latest.container[latest.key] = migrated;
+    relinkEquippedInstance(state.unit, original, migrated);
     state.selected.item = migrated;
-    const saved = await saveUnit(`SAVED // ${itemName(migrated).toUpperCase()}`);
-    if (saved) fillEditor({ key: latest.key, item: migrated }, listType);
+    const saved = await saveUnit("Guardando objeto...");
+    if (!saved) {
+      if (latest.container[latest.key] === migrated) {
+        latest.container[latest.key] = original;
+        relinkEquippedInstance(state.unit, migrated, original);
+      }
+      if (state.selected === session) state.selected.item = original;
+      return;
+    }
+    if (state.selected === session) {
+      fillEditor({ key: latest.key, item: migrated }, listType);
+      announce(enchantmentAction ? "Objeto y encantamiento guardados correctamente." : "Objeto guardado correctamente.", "success");
+    }
+    decorateRows();
   }
 
   async function openEditor(key, listType) {
@@ -832,14 +1043,40 @@
           img.dataset.localItemIcon = "true";
         }
 
+        const eligibility = enchanterStudio()?.available?.(entry?.item || {});
+        const enchanted = enchanterStudio()?.current?.(entry?.item || {});
+        const enchanterButton = row.querySelector(".dm-item-enchanter-open");
+        if (eligibility?.eligible || enchanted?.enchanted) {
+          if (!enchanterButton) {
+            const button = doc.createElement("button");
+            button.type = "button";
+            button.className = "dm-item-enchanter-open";
+            button.dataset.key = key;
+            button.dataset.list = listType;
+            button.textContent = "Encantar";
+            button.title = "Abrir Enchanter Studio";
+            row.appendChild(button);
+          }
+        } else enchanterButton?.remove();
+        const existingBadge = row.querySelector(".dm-item-enchanted-badge");
+        if (enchanted?.enchanted) {
+          if (!existingBadge) {
+            const badge = doc.createElement("span");
+            badge.className = "dm-item-enchanted-badge";
+            badge.textContent = `+${enchanted.tier}`;
+            badge.title = "Encantamiento mágico";
+            row.appendChild(badge);
+          } else if (existingBadge.textContent !== `+${enchanted.tier}`) existingBadge.textContent = `+${enchanted.tier}`;
+        } else existingBadge?.remove();
+
         if (!row.querySelector(".dm-item-instance-edit")) {
           const button = doc.createElement("button");
           button.type = "button";
           button.className = "dm-item-instance-edit";
           button.dataset.key = key;
           button.dataset.list = listType;
-          button.textContent = "INSTANCE";
-          button.title = "Editar ItemInstance canónico";
+          button.textContent = "Editar";
+          button.title = "Editar estado y propiedades del objeto";
           row.appendChild(button);
         }
       });
@@ -883,6 +1120,19 @@
     }, true);
 
     doc.addEventListener("click", (event) => {
+      const enchant = event.target?.closest?.("#modal-inventario-dm .dm-item-enchanter-open");
+      if (!enchant) return;
+      event.preventDefault();
+      event.stopPropagation();
+      openEditor(enchant.dataset.key, enchant.dataset.list).then((opened) => {
+        if (opened) {
+          doc.getElementById("dm-item-enchanter-section")?.scrollIntoView?.({ behavior: "smooth", block: "nearest" });
+          doc.getElementById("dm-enchanter-level")?.focus?.();
+        }
+      }).catch(() => announce("No fue posible abrir Enchanter Studio.", "error"));
+    }, true);
+
+    doc.addEventListener("click", (event) => {
       const legacy = event.target?.closest?.("#modal-inventario-dm .btn-inv-mod");
       if (!legacy || !state.ready) return;
       event.preventDefault();
@@ -918,7 +1168,7 @@
   else boot();
 
   global.LuminousDmItemInstanceEditor = Object.freeze({
-    version: 2,
+    version: 3,
     state,
     boot,
     decorateRows,
@@ -930,6 +1180,10 @@
     catalogEntries,
     openEditor,
     saveEditor,
+    prepareEnchantment,
+    prepareEnchantmentRemoval,
+    discardEnchantmentDraft,
+    refreshEnchanterPreview,
     handleLegacyAction,
     closeEditor,
   });

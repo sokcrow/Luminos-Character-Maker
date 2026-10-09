@@ -48,7 +48,8 @@
     "transplantMode", "transplantableByAnatomy", "transplantMedicalValueRangeAhn", "physicalMode",
     "modularCoverageMaterial", "discreteStructuralPart", "canAggregateCoverage", "canMergeForLargerPart", "canDownsizeForSmallerUse",
     "primitiveHardMaterial", "lineageValueMultiplier",
-    "unitValueAhn", "totalValueAhn", "productionValueAhn", "productionValue", "retailValueAhn"
+    "unitValueAhn", "totalValueAhn", "productionValueAhn", "productionValue", "retailValueAhn",
+    "enhancementLevel", "enhancementSource", "enchanted", "enchantment", "enchantmentReady"
   ]);
   let instanceCounter = 0;
 
@@ -95,6 +96,11 @@
       if (value !== undefined) out[field] = clone(value);
     });
     if (input.variantData && typeof input.variantData === "object") Object.assign(out, clone(input.variantData));
+    // A live Item Instance can be enchanted, replaced or disenchanted after its
+    // previous variantData snapshot was saved. The explicit live state wins.
+    ["enhancementLevel", "enhancementSource", "enchanted", "enchantment", "enchantmentReady"].forEach((field) => {
+      if (input[field] !== undefined) out[field] = clone(input[field]);
+    });
     return out;
   }
 
@@ -853,7 +859,9 @@
     if (!global.document) return;
     loadExtension("LuminousWorkshopRuntime", "workshop-runtime-script", "js/workshop-runtime.js", () => {
       loadExtension("LuminousItemMagicRuntime", "item-magic-runtime-script", "js/item-magic-runtime.js", () => {
-        loadExtension("LuminousItemPersistenceRuntime", "item-persistence-runtime-script", "js/item-persistence-runtime.js");
+        loadExtension("LuminousItemEnchantmentRuntime", "item-enchantment-runtime-script", "js/item-enchantment-runtime.js", () => {
+          loadExtension("LuminousItemPersistenceRuntime", "item-persistence-runtime-script", "js/item-persistence-runtime.js");
+        });
       });
     });
   }

@@ -91,6 +91,7 @@
     const runtime = runtimeOf(item);
     return Boolean(
       item.isMagicItem === true || item.magic === true || profile.enabled === true ||
+      (item.enchanted === true && Number(item.enhancementLevel) > 0 && item.enhancementSource === "enchantment") ||
       requiresAttunement(item) || spellProfiles(item).length ||
       runtime.curse || runtime.cursed === true || item.cursed === true
     );

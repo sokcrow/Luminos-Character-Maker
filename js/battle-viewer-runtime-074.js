@@ -14,6 +14,8 @@
   const WAIT_INTERVAL_MS = 25;
 
   const bootstrapScripts = [
+    ["item-enchantment-runtime-script", "js/item-enchantment-runtime.js", "LuminousItemEnchantmentRuntime"],
+    ["item-enchantment-combat-link-script", "js/item-enchantment-combat-link.js", "LuminousEnchantmentCombatLink"],
     ["content-registry-script", "js/content-registry.js", "LuminousContentRegistry"],
     ["content-registry-bootstrap-script", "js/content-registry-bootstrap.js", "LuminousContentRegistryBootstrap"],
     ["spellcasting-runtime-script", "js/spellcasting-runtime.js", "LuminousSpellcastingRuntime"],

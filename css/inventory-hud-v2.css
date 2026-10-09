@@ -685,3 +685,14 @@
     min-height:98px;
   }
 }
+
+/* Enchanter's Update — player-facing magic, distinct from mundane Item Quality. */
+#inventory-modal .inventory-v2-runtime-slot.inventory-v2-enchanted{border-color:#8356a7;box-shadow:inset 0 0 0 1px rgba(168,118,218,.18)}
+#inventory-modal .inventory-v2-enchantment-badge{display:inline-flex;align-items:center;justify-content:center;gap:4px;min-width:42px;
+  padding:2px 7px;border:1px solid #9872c2;border-radius:12px;background:#251731;color:#edd7ff;
+  font-size:10px;font-weight:700;letter-spacing:.03em;line-height:1.3;white-space:nowrap}
+#inventory-modal .inventory-v2-player-magic{border-color:#8763af;background:#251b31;color:#eccdff}
+#inventory-modal .inventory-v2-eq-slot.inventory-v2-enchanted{border-color:#9973c6}
+@media(max-width:560px){
+  #inventory-modal .inventory-v2-enchantment-badge{font-size:9px;padding:2px 5px}
+}

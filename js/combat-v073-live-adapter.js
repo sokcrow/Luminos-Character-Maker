@@ -198,6 +198,10 @@
       unit.positionAuthority === "manual" || unit.positionAuthority === "dm";
   }
 
+  function enchantmentCombatLink() {
+    return global.LuminousEnchantmentCombatLink || null;
+  }
+
   function normalizedCombatants() {
     const sideIndex = { ally: 0, enemy: 0 };
     const result = [];
@@ -210,6 +214,10 @@
       const maxHp = maxHpFor(raw);
       const humanPlayer = isPlayerUnit(raw);
       const liveActiveInventory = activeInventoryContainer(raw);
+      const authoritativePlayer = playerRecordFor(raw);
+      const linkedEquipment = humanPlayer
+        ? enchantmentCombatLink()?.resolveEquipment?.(raw, authoritativePlayer, liveActiveInventory)
+        : null;
       const playerOwned = state.role === "player" && humanPlayer && canonicalPlayerId(raw) === state.playerId && (!canonicalOwnerUid(raw) || canonicalOwnerUid(raw) === state.uid);
       const controller = playerOwned ? "player" : (humanPlayer ? "remote" : "ai");
       const useFormationSpawn = planningPhase() && !explicitBattlePosition(raw);
@@ -218,6 +226,10 @@
       result.push({
         ...clone(raw),
         inventario_activo: clone(liveActiveInventory),
+        equipment: linkedEquipment ? clone(linkedEquipment.equipment) : clone(raw.equipment || {}),
+        attunedItemInstanceIds: linkedEquipment
+          ? clone(linkedEquipment.attunedItemInstanceIds)
+          : clone(raw.attunedItemInstanceIds || []),
         id,
         name: clean(raw.characterName || raw.character_name || raw.nombre || raw.name || id) || id,
         faction,
@@ -329,6 +341,9 @@
       Number(item.chargesCurrent ?? item.charges_current ?? item.carga_actual ?? 0) || 0,
       Number(item.chargesMax ?? item.charges_max ?? item.carga_max ?? item.carga_maxima ?? 0) || 0,
       item.condition ?? item.currentCondition ?? item.durability ?? null,
+      item.enhancementLevel ?? 0,
+      item.enhancementSource ?? null,
+      item.enchantment ?? null,
     ]);
   }
 
@@ -370,7 +385,9 @@
       unit.proneSpeedRound,
       unit.confusionTurnMode,
       skillIdsFor(unit),
-      inventoryHydrationSignature(unit)
+      inventoryHydrationSignature(unit),
+      playerRecordFor(unit)?.itemEquipmentRefs || unit.itemEquipmentRefs || null,
+      playerRecordFor(unit)?.attunedItemInstanceIds || unit.attunedItemInstanceIds || null
     ]);
     const skillRevision = Object.entries(state.skills || {}).map(([id, skill]) => [id, skill?.updatedAt || skill?.revision || skill?.version || null]);
     return JSON.stringify([state.role, playerId, state.combatState, state.round, summary, skillRevision]);

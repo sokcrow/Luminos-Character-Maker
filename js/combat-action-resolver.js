@@ -42,6 +42,17 @@
   function definitionForEngine(action = {}, actor = null) {
     const definition = sourceDefinition(action);
     definition.id = definition.id || action.source?.id;
+    // Recheck against the current actor equipment at execution, never trust a
+    // client-authored planned weapon reference on its own.
+    const link = global.LuminousEnchantmentCombatLink;
+    const bound = actor && String(action.source?.type || "").toLowerCase() === "skill"
+      ? link?.bindTrustedSkill?.(actor, definition)
+      : null;
+    if (bound) {
+      delete definition.sourceItemInstanceId;
+      delete definition.weaponInstanceId;
+      if (bound.bound) Object.assign(definition, bound.skill);
+    }
     definition.__combatActionFinalPowerBonus = finalPowerBonus(action);
     definition.__combatActionId = action.id || null;
     if (action.targeting?.mode && ["aoe", "multi", "indiscriminate"].includes(action.targeting.mode)) {
