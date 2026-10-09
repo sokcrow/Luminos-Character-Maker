@@ -99,7 +99,9 @@
     return Object.assign({
       Level: level,
       ClassLevel: classId ? getClassLevel(character, classId) : Math.max(0, int(runtime.ClassLevel ?? runtime.classLevel)),
-      Proficiency: num(runtime.Proficiency ?? character.proficiency, Math.ceil(level / 20)),
+      Proficiency: num(runtime.Proficiency ?? character.proficiency,
+        global.LuminousProficiencyRuntime?.proficiencyBonus?.(level)
+          ?? Math.min(6, 2 + Math.floor((Math.max(1, level) - 1) / 20))),
       StrengthMod: num(runtime.StrengthMod, statMod(stats.fuerza ?? stats.strength ?? character.strength)),
       DexterityMod: num(runtime.DexterityMod, statMod(stats.destreza ?? stats.dexterity ?? character.dexterity)),
       ConstitutionMod: num(runtime.ConstitutionMod, statMod(stats.constitucion ?? stats.constitution ?? character.constitution)),
