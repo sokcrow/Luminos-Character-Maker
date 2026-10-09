@@ -86,12 +86,12 @@
     const code = firebaseErrorCode(error);
     const message = String(error?.message || "").trim();
     if (code.includes("permission_denied") || code.includes("permission-denied") || message.toLowerCase().includes("permission denied")) {
-      return `${action}: PERMISSION_DENIED · revisa Database Rules y la cuenta autenticada.`;
+      return `${action}: no tienes permiso para esta acción. Contacta al DM.`;
     }
     if (code.includes("network") || message.toLowerCase().includes("network") || message.toLowerCase().includes("offline")) {
       return `${action}: sin conexión con Firebase.`;
     }
-    return `${action}: ${message || code || "error desconocido de Firebase"}`;
+    return `${action}: no se pudo completar. Intenta de nuevo.`;
   }
 
   function roomKey() {
@@ -345,7 +345,7 @@
     panel.className = "theatre-check-director";
     panel.innerHTML = `
       <header class="theatre-check-director-header"><div><strong>CHECK DIRECTOR</strong><span>SOLICITUDES · ENFRENTAMIENTOS · RESULTADOS</span></div><b id="theatre-check-pending-count" aria-label="Solicitudes pendientes">0</b></header>
-      <div class="theatre-check-director-workspace"><section class="theatre-check-inbox" aria-label="Solicitudes pendientes"><h3>SOLICITUDES PENDIENTES</h3><div id="theatre-check-request-list" class="theatre-check-request-list" aria-live="polite"><div class="theatre-check-empty">ESPERANDO SOLICITUDES…</div></div></section>
+      <div class="theatre-check-director-workspace"><section class="theatre-check-inbox" aria-label="Solicitudes pendientes"><h3>SOLICITUDES PENDIENTES</h3><div id="theatre-check-request-list" class="theatre-check-request-list" aria-live="polite"><div class="theatre-check-empty">ESPERANDO SOLICITUDES…</div></div><section class="theatre-check-activity" aria-live="polite"><h3>ACTIVIDAD EN VIVO</h3><p id="theatre-check-live-state">Sin tiradas activas</p></section></section>
       <div class="theatre-check-compose">
         <div class="theatre-check-compose-title"><span id="theatre-check-compose-mode">NUEVO CHECK</span><button id="theatre-check-compose-reset" type="button">LIMPIAR</button></div>
         <div class="theatre-check-compose-grid">
@@ -741,6 +741,7 @@
       });
     });
     prompt.append(kicker, title, meta, button);
+    $("theatre-check-player-notice")?.remove();
     front.appendChild(prompt);
   }
 
@@ -982,10 +983,15 @@
         });
       });
       entries.sort((a, b) => numberOr(b.clientUpdatedAt) - numberOr(a.clientUpdatedAt));
-      const latest = entries.find((entry) => !entry.check?.opposedSessionId);
-      if (latest?.status === "complete") {
-        resolveDmCheckResult(latest).catch((error) => console.warn("Check DM sin resolución:", error));
-      }
+      const ordinary = entries.filter((entry) => !entry.check?.opposedSessionId);
+      ordinary.filter((entry) => entry.status === "complete").forEach((entry) => {
+        resolveDmCheckResult(entry).catch((error) => console.warn("Check DM sin resolución:", error));
+      });
+      const latest = ordinary[0];
+      const activity = $("theatre-check-live-state");
+      if (activity) activity.textContent = latest
+        ? `${latest.targetName || "Jugador"} · ${latest.rollSpec?.label || "Check"} · ${latest.status === "complete" ? "Tirada terminada" : "Girando monedas"}`
+        : "Sin tiradas activas";
       state.dmLiveHud?.remove();
       state.dmLiveHud = null;
       if (!latest) return;
