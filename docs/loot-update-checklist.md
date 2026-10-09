@@ -266,7 +266,10 @@ This document freezes the current scope and lets the Loot Update be completed in
 - [x] Add a clean player-facing post-combat corpse/action surface after Victory.
 - [x] Add live integration regression coverage for refresh/resume, contested recovery, AHN credit and Battle Viewer bootstrap.
 
-## Explicitly deferred
+## Follow-up updates outside Loot
 
-- [ ] Enchanter's Update: enchanted Item authoring and enchantment mechanics.
+- [x] Enchanter's Update V1: magical +1/+2/+3 Item Instance authoring, DM Enchanter Studio, player inventory and Battle Viewer combat integration. Merged to `main` in [PR #957](https://github.com/sokcrow/Luminos-Character-Maker/pull/957) after 30 passing CI checks.
+- [ ] Enchanter's Update V1 — live acceptance: verify DM → Firebase → player equipment/attunement → Battle Viewer → remove enchantment in a real authenticated multi-client session. Automated CI and simulated runtime checks do not replace this acceptance.
 - [ ] Magic Loot Update: magical drop pools, magical rarity, random enchantments, cursed loot and magical Encounter modifiers.
+
+Enchantment material recipes, AHN magic-price multipliers, and elemental gem rules require separate design decisions and were not implemented by Enchanter V1.
