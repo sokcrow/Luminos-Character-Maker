@@ -66,13 +66,15 @@
     ], { mechanics: { encounterStartHaste: 5, surpriseImmunity: true, invisibleAttackerFinalPowerNegation: 5 } }),
     athlete_strength: definition("athlete_strength", "ATHLETE — Strength", "Theatre / Combat", passive, "None", [
       "Increase Strength by +1, up to 20.",
-      "[Turn Start] Standing from Prone costs 1 Speed instead of forcing Speed to 1.",
-      "Climbing and jumping use the approved Athlete movement exceptions.",
+      "[Turn Start] When Prone, stand without the forced Speed = 1; standing costs 1 Speed instead of half.",
+      "Climbing costs no extra Movement; each foot costs 1 ft.",
+      "Running Long and High Jumps require only 5 ft of movement instead of 10 ft.",
     ], { rules: [stat("strength")], mechanics: { athleteAbilityChoice: "strength", proneStandSpeedCost: 1, climbMovementMultiplier: 1, runningJumpApproachFeet: 5 } }),
     athlete_dexterity: definition("athlete_dexterity", "ATHLETE — Dexterity", "Theatre / Combat", passive, "None", [
       "Increase Dexterity by +1, up to 20.",
-      "[Turn Start] Standing from Prone costs 1 Speed instead of forcing Speed to 1.",
-      "Climbing and jumping use the approved Athlete movement exceptions.",
+      "[Turn Start] When Prone, stand without the forced Speed = 1; standing costs 1 Speed instead of half.",
+      "Climbing costs no extra Movement; each foot costs 1 ft.",
+      "Running Long and High Jumps require only 5 ft of movement instead of 10 ft.",
     ], { rules: [stat("dexterity")], mechanics: { athleteAbilityChoice: "dexterity", proneStandSpeedCost: 1, climbMovementMultiplier: 1, runningJumpApproachFeet: 5 } }),
     charger: definition("charger", "CHARGER", "Combat", passive, "None", [
       "When your Speed is higher than your target's Speed, your Melee Attack Skills deal +5% Damage.",
