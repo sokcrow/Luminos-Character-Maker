@@ -205,3 +205,23 @@ body.theatre-check-active #coin-toss-panel{opacity:0!important;visibility:hidden
 
 @media(max-width:700px){.theatre-check-front-layer .theatre-check-hud{width:min(370px,90vw)!important}.theatre-check-player-notice,.theatre-check-command-prompt{right:10px;width:min(270px,74vw)}.theatre-check-compose-grid{grid-template-columns:1fr}.theatre-check-compose-grid .wide{grid-column:auto}.theatre-check-compose-actions{grid-template-columns:1fr 1fr}}
 @media(prefers-reduced-motion:reduce){.theatre-check-front-layer .theatre-check-hud,.theatre-check-dm-toast,.theatre-check-player-notice,.theatre-check-command-prompt{animation:none!important}}
+
+/* Check request visibility: always above the Stats modal and outside its stacking context. */
+body.player-instance-theatre #theatre-check-front-layer {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 2147483000 !important;
+  pointer-events: none;
+}
+body.player-instance-theatre #theatre-check-front-layer .theatre-check-player-notice,
+body.player-instance-theatre #theatre-check-front-layer .theatre-check-command-prompt {
+  position: fixed !important;
+  top: max(112px, calc(env(safe-area-inset-top) + 96px)) !important;
+  left: 50% !important;
+  right: auto !important;
+  transform: translateX(-50%) !important;
+  width: min(440px, calc(100vw - 32px)) !important;
+  max-width: calc(100vw - 32px) !important;
+  box-sizing: border-box;
+  pointer-events: auto !important;
+}
