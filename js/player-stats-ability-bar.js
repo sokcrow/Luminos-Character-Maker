@@ -321,7 +321,11 @@
     const panel = doc.querySelector("#stats-modal .player-ability-console");
     if (!panel) return false;
     const data = playerData();
-    const resolved = global.LuminousDerivedStats?.resolveCharacterStats?.(data);
+    // The adapter's snapshot applies current runtime Traits (e.g. Primordial
+    // Champion +4 STR/CON) and the same options used by Ability/Skill math.
+    // Calling the raw engine here would cache an incomplete, trait-less view.
+    const resolved = global.LuminousDerivedStatsRuntime?.snapshot?.(data)
+      || global.LuminousDerivedStats?.resolveCharacterStats?.(data);
     panelDerivedStats = { data, abilities: resolved?.abilities || null, resolved };
     renderDerivedStats = panelDerivedStats;
     try {
