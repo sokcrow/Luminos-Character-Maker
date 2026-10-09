@@ -31,12 +31,12 @@ function hasAxis(entry, axisId) {
   const text = [entry.baseEffect || "", entry.tiers.I, entry.statuses || "", ...(entry.axes || [])].join(" ");
   switch (axisId) {
     case "elemental": return elementalSchools.has(entry.school);
-    case "hp": return /\\bHP\\b|healing|recover.*\\bHP\\b/i.test(text);
-    case "sp": return /\\bSP\\b|Sinking|sanity/i.test(text);
-    case "speed": return /\\bSpeed\\b|\\bHaste\\b|\\bBind\\b/i.test(text);
+    case "hp": return /\bHP\b|healing|recover.*\bHP\b/i.test(text);
+    case "sp": return /\bSP\b|Sinking|sanity/i.test(text);
+    case "speed": return /\bSpeed\b|\bHaste\b|\bBind\b/i.test(text);
     case "offense": return /Offensive Level/i.test(text);
     case "defense": return /Defensive Level/i.test(text);
-    case "scores": return /\\b(?:STR|DEX|CON|INT|WIS|CHA) Score\\b/i.test(text);
+    case "scores": return /\b(?:STR|DEX|CON|INT|WIS|CHA) Score\b/i.test(text);
     default: return true;
   }
 }
