@@ -77,6 +77,12 @@
     return reasonLabels[reason] || humanize(reason || "No disponible");
   }
 
+  function invalidateConfirmation(){
+    const checkbox=doc.getElementById("enchanter-ui-confirm");
+    if(checkbox) checkbox.checked=false;
+    state.quote=null;
+  }
+
   function mount(){
     let root=doc.getElementById("luminous-enchanter-ui");
     if(root) return root;
@@ -121,11 +127,11 @@
     doc.body.appendChild(root);
     root.querySelector(".enchanter-ui-close")?.addEventListener("click",close);
     root.addEventListener("click",event=>{if(event.target===root) close();});
-    root.querySelector("#enchanter-ui-service")?.addEventListener("change",event=>{state.service=event.target.value;state.definitionId=null;state.gem=null;state.anchorId=null;render();});
-    root.querySelector("#enchanter-ui-enchantment")?.addEventListener("change",event=>{state.definitionId=event.target.value;render();});
-    root.querySelector("#enchanter-ui-rank")?.addEventListener("change",event=>{state.rank=Math.max(1,Math.min(3,Number(event.target.value)||1));render();});
-    root.querySelector("#enchanter-ui-gem")?.addEventListener("change",event=>{state.gem=state.items.find(item=>itemId(item)===event.target.value)||null;render();});
-    root.querySelector("#enchanter-ui-anchor")?.addEventListener("change",event=>{state.anchorId=event.target.value||null;render();});
+    root.querySelector("#enchanter-ui-service")?.addEventListener("change",event=>{if(state.pending) return;invalidateConfirmation();state.service=event.target.value;state.definitionId=null;state.gem=null;state.anchorId=null;render();});
+    root.querySelector("#enchanter-ui-enchantment")?.addEventListener("change",event=>{if(state.pending) return;invalidateConfirmation();state.definitionId=event.target.value;render();});
+    root.querySelector("#enchanter-ui-rank")?.addEventListener("change",event=>{if(state.pending) return;invalidateConfirmation();state.rank=Math.max(1,Math.min(3,Number(event.target.value)||1));render();});
+    root.querySelector("#enchanter-ui-gem")?.addEventListener("change",event=>{if(state.pending) return;invalidateConfirmation();state.gem=state.items.find(item=>itemId(item)===event.target.value)||null;render();});
+    root.querySelector("#enchanter-ui-anchor")?.addEventListener("change",event=>{if(state.pending) return;invalidateConfirmation();state.anchorId=event.target.value||null;render();});
     root.querySelector("#enchanter-ui-commit")?.addEventListener("click",commit);
     return root;
   }
@@ -250,12 +256,17 @@
   function renderItems(){
     const good=state.items.filter(item=>eligibleForService(item).eligible);
     const bad=state.items.filter(item=>!eligibleForService(item).eligible);
-    if(!state.selectedItem || !good.includes(state.selectedItem)) state.selectedItem=good[0] || null;
+    if(!state.selectedItem || !good.includes(state.selectedItem)) {
+      invalidateConfirmation();
+      state.selectedItem=good[0] || null;
+    }
     const host=doc.getElementById("enchanter-ui-item-list");
     const unavailable=doc.getElementById("enchanter-ui-item-unavailable");
     if(host) host.innerHTML=good.length ? good.map((item,index)=>`<button type="button" data-enchanter-item="${index}" class="${item===state.selectedItem?"active":""}"><strong>${esc(itemName(item))}</strong><span>${esc(humanize(kindOf(item)))}</span></button>`).join("") : "<p>No eligible Items.</p>";
     if(unavailable) unavailable.innerHTML=bad.map(item=>`<div class="enchanter-ui-disabled"><strong>${esc(itemName(item))}</strong><span>${esc(reasonText(eligibleForService(item).reason))}</span></div>`).join("") || "<p>None.</p>";
     host?.querySelectorAll("[data-enchanter-item]").forEach(button=>button.addEventListener("click",()=>{
+      if(state.pending) return;
+      invalidateConfirmation();
       state.selectedItem=good[Number(button.dataset.enchanterItem)] || null;
       state.definitionId=null;state.gem=null;state.anchorId=null;render();
     }));
@@ -445,6 +456,7 @@
     state.onSave=context.onSave || null;state.onClose=context.onClose || null;
     state.status=state.saveUncertain?"SAVE NOT CONFIRMED — RECARGA LA FICHA ANTES DE REINTENTAR":"";
     const root=mount();
+    invalidateConfirmation();
     state.open=true;
     root.classList.add("active");root.setAttribute("aria-hidden","false");
     const title=doc.getElementById("enchanter-ui-title");if(title) title.textContent=providerName().toUpperCase();
