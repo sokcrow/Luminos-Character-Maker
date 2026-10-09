@@ -366,42 +366,44 @@
   }
 
   async function issueResolverCommand(sessionId, session) {
-    const thresholdRaw = Number(session.thresholdResult?.total);
-    if (!Number.isFinite(thresholdRaw)) throw new Error("El rival no produjo un Threshold válido.");
-    await db.ref(`${OPPOSED_ROOT}/${sessionId}`).update({ status: "issuing_resolver" });
-
-    const hidden = Boolean(session.checkTemplate?.hiddenThreshold);
-    const commandRef = db.ref(`${COMMAND_ROOT}/${session.initiatorUid}`).push();
-    await commandRef.set({
-      schemaVersion: 1,
-      targetUid: session.initiatorUid,
-      targetPlayerId: session.initiatorPlayerId,
-      targetName: session.initiatorName,
-      roomKey: session.roomKey || roomKey(),
-      requestedBy: "opposed",
-      requestId: session.requestId || null,
-      rollSpec: session.initiatorRollSpec,
-      check: {
-        thresholdRaw: hidden ? null : thresholdRaw,
-        hiddenThreshold: hidden,
-        thresholdVisibility: session.checkTemplate?.thresholdVisibility || (hidden ? "mystery" : "public"),
-        modifierType: session.checkTemplate?.modifierType || "neutral",
-        modifierValue: Math.max(0, Math.trunc(numberOr(session.checkTemplate?.modifierValue, 0))),
-        tipText: String(session.checkTemplate?.tipText || ""),
-        opposedSessionId: sessionId,
-        opposedPhase: "resolver",
-      },
-      status: "issued",
-      issuedAt: firebase.database.ServerValue.TIMESTAMP,
-      clientIssuedAt: Date.now(),
-    });
-
-    await db.ref(`${OPPOSED_ROOT}/${sessionId}`).update({
-      status: "awaiting_resolver",
-      resolverCommandId: commandRef.key,
-      thresholdEffective: effectiveThreshold(thresholdRaw, session.checkTemplate),
-      thresholdCapturedAt: firebase.database.ServerValue.TIMESTAMP,
-    });
+    const thresholdRaw = session.thresholdResult?.total == null ? NaN : Number(session.thresholdResult.total);
+    if (!Number.isFinite(thresholdRaw)) throw new Error("El retador no produjo un Threshold válido.");
+    const statusRef = db.ref(`${OPPOSED_ROOT}/${sessionId}/status`);
+    const claim = await statusRef.transaction((status) => status === "awaiting_threshold" ? "issuing_resolver" : undefined);
+    if (!claim.committed) return;
+    try {
+      const hidden = Boolean(session.checkTemplate?.hiddenThreshold);
+      const commandRef = db.ref(`${COMMAND_ROOT}/${session.initiatorUid}`).push();
+      const command = {
+        schemaVersion: 2, targetUid: session.initiatorUid,
+        targetPlayerId: session.initiatorPlayerId,
+        targetName: session.initiatorName, roomKey: session.roomKey || roomKey(),
+        requestedBy: "opposed", requestId: session.requestId || null,
+        rollSpec: session.initiatorRollSpec,
+        check: {
+          thresholdRaw: hidden ? null : thresholdRaw,
+          hiddenThreshold: hidden,
+          thresholdVisibility: session.checkTemplate?.thresholdVisibility || (hidden ? "mystery" : "public"),
+          modifierType: session.checkTemplate?.modifierType || "neutral",
+          modifierValue: Math.max(0, Math.trunc(numberOr(session.checkTemplate?.modifierValue, 0))),
+          tipText: String(session.checkTemplate?.tipText || ""),
+          opposedSessionId: sessionId, opposedPhase: "resolver",
+        },
+        status: "issued", issuedAt: firebase.database.ServerValue.TIMESTAMP,
+        clientIssuedAt: Date.now(),
+      };
+      // An atomic multi-location update prevents a command existing without its session phase.
+      const updates = {};
+      updates[`${COMMAND_ROOT}/${session.initiatorUid}/${commandRef.key}`] = command;
+      updates[`${OPPOSED_ROOT}/${sessionId}/status`] = "awaiting_resolver";
+      updates[`${OPPOSED_ROOT}/${sessionId}/resolverCommandId`] = commandRef.key;
+      updates[`${OPPOSED_ROOT}/${sessionId}/thresholdEffective`] = effectiveThreshold(thresholdRaw, session.checkTemplate);
+      updates[`${OPPOSED_ROOT}/${sessionId}/thresholdCapturedAt`] = firebase.database.ServerValue.TIMESTAMP;
+      await db.ref().update(updates);
+    } catch (error) {
+      await statusRef.set("awaiting_threshold");
+      throw error;
+    }
   }
 
   async function finalizeOpposedSession(sessionId, session) {
