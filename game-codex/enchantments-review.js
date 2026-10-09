@@ -10,6 +10,7 @@ const entries = data.ENCHANTMENTS;
 const search = $("search");
 const school = $("school");
 const slot = $("slot");
+const axis = $("axis");
 let selectedId = new URLSearchParams(location.search).get("entry") || "flamebound";
 function addOption(select, text, value) {
   const option = document.createElement("option");
@@ -19,6 +20,26 @@ function addOption(select, text, value) {
 data.SCHOOLS.forEach((s) => addOption(school, s, s));
 const slots = [...new Set(entries.flatMap((entry) => entry.items))].sort();
 slots.forEach((s) => addOption(slot, s, s));
+const AXES = [
+  ["elemental","Elemental"], ["hp","HP / Healing"], ["sp","SP / Sanity"],
+  ["speed","Speed / Haste / Bind"], ["offense","Offensive Level"], ["defense","Defensive Level"],
+  ["scores","STR / DEX / CON / INT / WIS / CHA"]
+];
+AXES.forEach(([id,label]) => addOption(axis,label,id));
+const elementalSchools = new Set(["Infernal","Glacial","Tempest","Corrosive","Venomous","Tidal","Geomantic"]);
+function hasAxis(entry, axisId) {
+  const text = [entry.baseEffect || "", entry.tiers.I, entry.statuses || "", ...(entry.axes || [])].join(" ");
+  switch (axisId) {
+    case "elemental": return elementalSchools.has(entry.school);
+    case "hp": return /\\bHP\\b|healing|recover.*\\bHP\\b/i.test(text);
+    case "sp": return /\\bSP\\b|Sinking|sanity/i.test(text);
+    case "speed": return /\\bSpeed\\b|\\bHaste\\b|\\bBind\\b/i.test(text);
+    case "offense": return /Offensive Level/i.test(text);
+    case "defense": return /Defensive Level/i.test(text);
+    case "scores": return /\\b(?:STR|DEX|CON|INT|WIS|CHA) Score\\b/i.test(text);
+    default: return true;
+  }
+}
 const node = (tag, className, text) => {
   const el = document.createElement(tag);
   if (className) el.className = className;
@@ -37,6 +58,7 @@ function renderDetail(entry) {
   appendText(target,"div","discipline",entry.school + " / Inscription");
   appendText(target,"h2","",entry.name + " III");
   appendText(target,"p","item-name",displayItem(entry));
+  if(Array.isArray(entry.axes)&&entry.axes.length) appendText(target,"p","item-name","Combat axes: " + entry.axes.join(" · "));
   appendText(target,"h3","rule-heading","COMPATIBLE CHASSIS IDS");
   appendText(target,"p","limits",entry.allowedChassisIds.join(" · "));
   appendText(target,"p","lore","“" + entry.lore + "”");
@@ -63,7 +85,7 @@ function renderDetail(entry) {
 }
 function visible() {
   const term=search.value.trim().toLowerCase();
-  return entries.filter(e=>(!school.value||e.school===school.value)&&(!slot.value||e.items.includes(slot.value))&&(!term||[e.name,e.school,e.lore,e.statuses,...Object.values(e.tiers)].join(" ").toLowerCase().includes(term)));
+  return entries.filter(e=>(!school.value||e.school===school.value)&&(!slot.value||e.items.includes(slot.value))&&(!axis.value||hasAxis(e,axis.value))&&(!term||[e.name,e.school,e.lore,e.statuses,e.baseEffect||"",...(e.axes||[]),...Object.values(e.tiers)].join(" ").toLowerCase().includes(term)));
 }
 function render() {
   const list=visible();
@@ -85,6 +107,6 @@ function render() {
   });
   renderDetail(selected);
 }
-[search,school,slot].forEach(control=>control.addEventListener("input",render));
+[search,school,slot,axis].forEach(control=>control.addEventListener("input",render));
 render();
 })();
