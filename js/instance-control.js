@@ -409,6 +409,16 @@
     return { link, script };
   }
 
+  function ensureDmNpcCheckAssets(doc) {
+    const documentRef = doc || global.document;
+    if (!documentRef?.body?.classList.contains("on-game-dashboard")) return;
+    ensureStyle(documentRef, "theatre-dm-npc-stylesheet", "css/dm-npc-rolls.css", "dm-npc-rolls");
+    // Script insertion order keeps the DM roll bridge behind the canonical engines.
+    ensureScript(documentRef, "theatre-coin-engine-core-script", "js/coin-engine-core.js", "dm-npc-rolls");
+    ensureScript(documentRef, "theatre-npc-stats-engine-script", "js/npc-stats-engine.js", "dm-npc-rolls");
+    ensureScript(documentRef, "theatre-dm-npc-roll-script", "js/dm-npc-rolls.js", "dm-npc-rolls");
+  }
+
   function ensureDmLocationControl({ db, doc } = {}) {
     const documentRef = doc || global.document;
     if (!db || !documentRef?.body?.classList.contains("on-game-dashboard")) return null;
@@ -507,6 +517,7 @@
     ensureTheatreRollVisualizerAssets(documentRef);
     ensureTheatreCheckCoordinatorAssets(documentRef);
     ensureTheatreOpposedAssets(documentRef);
+    ensureDmNpcCheckAssets(documentRef);
     ensureDashboardCharacterManager({ db, doc: documentRef });
     ensureDashboardActorStudioAssets(documentRef);
     ensureDmLocationControl({ db, doc: documentRef });
