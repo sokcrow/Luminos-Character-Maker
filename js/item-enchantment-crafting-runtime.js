@@ -10,6 +10,15 @@
   const refId = (item) => String(item?.instanceId || item?.instance_id || "").trim();
   const definitionId = (item) => String(item?.definitionId || item?.definition_id || item?.itemId || item?.item_id || "").trim();
   const amount = (item) => Math.max(0, Math.trunc(Number(item?.quantity ?? item?.cantidad ?? 1) || 0));
+  function materialUnits(item, ingredientId) {
+    if (ingredientId === "arcane_essence") {
+      const essences = item?.remainingEssenceUnits ?? item?.essenceUnits;
+      if (essences != null && Number.isFinite(Number(essences))) {
+        return Math.max(0, Math.trunc(Number(essences)));
+      }
+    }
+    return amount(item);
+  }
   function findTarget(unit, id) {
     for (const key of ["inventario_activo", "inventario_stash"]) {
       for (const [entry, item] of Object.entries(unit?.[key] || {})) {
@@ -24,7 +33,7 @@
       for (const item of Object.values(unit?.[key] || {})) {
         if (!item || refId(item) === String(targetId) || definitionId(item) !== String(ingredientId)) continue;
         if (item.equipped === true) continue;
-        total += amount(item);
+        total += materialUnits(item, ingredientId);
       }
     }
     return total;
@@ -62,13 +71,19 @@
         for (const [itemKey, item] of Object.entries(copy[key] || {})) {
           if (!remaining) break;
           if (refId(item) === String(targetId) || item?.equipped === true || definitionId(item) !== requirement.definitionId) continue;
-          const take = Math.min(remaining, amount(item));
+          const unitCount = materialUnits(item, requirement.definitionId);
+          const take = Math.min(remaining, unitCount);
           if (take <= 0) continue;
-          const next = amount(item) - take;
+          const next = unitCount - take;
           if (next === 0) delete copy[key][itemKey];
           else {
-            item.quantity = next;
-            item.cantidad = next;
+            if (requirement.definitionId === "arcane_essence" && (item.essenceUnits != null || item.remainingEssenceUnits != null)) {
+              item.essenceUnits = next;
+              item.remainingEssenceUnits = next;
+            } else {
+              item.quantity = next;
+              item.cantidad = next;
+            }
             if (item.unitValueAhn != null) item.totalValueAhn = Number(item.unitValueAhn) * next;
           }
           remaining -= take;
