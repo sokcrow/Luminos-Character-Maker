@@ -23,6 +23,12 @@ assert.match(opposedCode, /state\.opposedCommands\.get\(prompt\.dataset\.command
   "VS prompts must bind by exact command key");
 assert.ok(html.includes("v=20261009-check-reconnect-2"),
   "Player must receive fresh Check assets, not cached versions");
+assert.match(coordinatorCode, /statusRef\.on\("value", onAcknowledged/,
+  "Completed live telemetry must be retained until the DM acknowledges the command");
+assert.doesNotMatch(coordinatorCode, /setTimeout\(\(\) => liveRef\.remove\(\)/,
+  "Completed live telemetry must not be erased after a fixed timeout");
+assert.match(coordinatorCode, /live\.status === "complete" \? COMMAND_MAX_AGE_MS : LIVE_MAX_AGE_MS/,
+  "DM must resolve late completed telemetry even after the short HUD display period");
 
 function element(tagName) {
   const classes = new Set();
@@ -76,7 +82,20 @@ const document = {
 };
 
 const listeners = new Map();
-const seen = new Map([["luminousTheatreCheck:interrupted-1", "done"]]);
+const seen = new Map([
+  ["luminousTheatreCheck:interrupted-1", "done"],
+  ["luminousTheatreCheck:completed-1", "done"],
+  ["luminousTheatreCheck:missing-1", "done"],
+  ["luminousTheatreCheck:acked-1", "done"],
+  ["luminousTheatreCheck:unreadable-1", "done"],
+]);
+const liveRecords = new Map([
+  ["theatre_check_live/player-1/interrupted-1", { status: "rolling" }],
+  ["theatre_check_live/player-1/completed-1", { status: "complete" }],
+  ["theatre_check_live/player-1/acked-1", { status: "rolling" }],
+  ["theatre_check_live/player-1/unreadable-1", { status: "rolling" }],
+]);
+const commandStatus = new Map([["acked-1", "completed"]]);
 const sessionStorage = {
   getItem(key) { return seen.get(key) ?? null; },
   setItem(key, value) { seen.set(key, value); },
@@ -85,9 +104,16 @@ const sessionStorage = {
 const refs = (path = "") => ({
   limitToLast() { return this; },
   on(type, listener) { listeners.set(`${path}:${type}`, listener); },
-  once: async () => ({
-    val: () => path.endsWith("/status") ? "issued" : null,
-  }),
+  once: async () => {
+    if (path === "theatre_check_live/player-1/unreadable-1") {
+      throw new Error("simulated Firebase permission/network failure");
+    }
+    const key = path.split("/")[2];
+    return {
+      val: () => path.endsWith("/status") ? (commandStatus.get(key) || "issued")
+        : (liveRecords.get(path) || null),
+    };
+  },
 });
 const database = () => ({ ref: refs });
 database.ServerValue = { TIMESTAMP: 1 };
@@ -146,6 +172,14 @@ const interrupted = {
   clientIssuedAt: Date.now(), rollSpec: { kind: "skill", abilityId: "wis", skillId: "perception", label: "Perception" },
   check: { thresholdRaw: 18, hiddenThreshold: false },
 };
+for (const key of ["completed-1", "missing-1", "acked-1", "unreadable-1"]) {
+  await commandListener({ key, val: () => interrupted });
+  assert.equal(sessionStorage.getItem(`luminousTheatreCheck:${key}`), "done",
+    "Never erase a completion marker without positive evidence of an incomplete roll: " + key);
+  assert.equal(document.getElementById("theatre-check-command-prompt"), null,
+    "Never offer a second roll for completed, missing, acknowledged or unreadable telemetry: " + key);
+}
+
 const snapshot = { key: "interrupted-1", val: () => interrupted };
 await commandListener(snapshot);
 assert.equal(sessionStorage.getItem("luminousTheatreCheck:interrupted-1"), null,
