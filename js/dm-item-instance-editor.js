@@ -27,6 +27,8 @@
   const iconRegistry = () => global.LuminousItemIconRegistry || null;
   const enchantmentRuntime = () => global.LuminousItemEnchantmentRuntime || null;
   const enchanterStudio = () => global.LuminousDmEnchanterStudioModel || null;
+  const enchantmentRecipes = () => global.LuminousEnchantmentRecipeCatalog || null;
+  const enchantmentCrafting = () => global.LuminousEnchantmentCraftingRuntime || null;
   const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
   const intOr = (value, fallback = 0) => Number.isFinite(Number(value)) ? Math.trunc(Number(value)) : fallback;
 
@@ -52,6 +54,11 @@
     await ensureScript("item-runtime-engine-script", "js/item-runtime-engine.js", "LuminousItemRuntime");
     await ensureScript("item-inventory-runtime-script", "js/item-inventory-runtime.js", "LuminousItemInventoryRuntime");
     await ensureScript("item-enchantment-runtime-script", "js/item-enchantment-runtime.js", "LuminousItemEnchantmentRuntime");
+    await ensureScript("item-economy-standard-script", "js/item-economy-standard.js", "LuminousItemEconomyStandard");
+    await ensureScript("item-ore-ingot-gem-script", "js/item-catalog-ore-ingot-gem.js", "LuminousOreIngotGemCatalog");
+    await ensureScript("item-essence-core-script", "js/item-catalog-essence-core.js", "LuminousEssenceCoreCatalog");
+    await ensureScript("enchantment-recipes-script", "js/item-enchantment-recipe-catalog.js", "LuminousEnchantmentRecipeCatalog");
+    await ensureScript("enchantment-crafting-script", "js/item-enchantment-crafting-runtime.js", "LuminousEnchantmentCraftingRuntime");
     await ensureScript("dm-enchanter-studio-model-script", "js/dm-enchanter-studio-model.js", "LuminousDmEnchanterStudioModel");
     await ensureScript("item-persistence-runtime-script", "js/item-persistence-runtime.js", "LuminousItemPersistenceRuntime");
     await ensureScript("item-realtime-sync-script", "js/item-realtime-sync.js", "LuminousItemRealtimeSync");
@@ -310,13 +317,20 @@
                 <label for="dm-enchanter-channel">Efecto</label>
                 <select id="dm-enchanter-channel"></select>
               </div>
+              <div class="dm-item-editor-field wide">
+                <label for="dm-enchanter-gem">Gema catalizadora</label>
+                <select id="dm-enchanter-gem"></select>
+              </div>
             </div>
+            <div id="dm-enchanter-economy" class="dm-enchanter-economy" aria-live="polite"></div>
             <div id="dm-enchanter-preview" class="dm-enchanter-preview" role="status" aria-live="polite"></div>
             <div class="dm-enchanter-actions">
               <button id="dm-enchanter-prepare" class="dm-item-editor-btn primary" type="button">Preparar encantamiento</button>
               <button id="dm-enchanter-remove" class="dm-item-editor-btn" type="button">Retirar encantamiento</button>
               <button id="dm-enchanter-discard" class="dm-item-editor-btn" type="button" hidden>Descartar cambio</button>
+              <button id="dm-enchanter-craft" class="dm-item-editor-btn" type="button">Craftear con recursos y AHN</button>
             </div>
+            <p class="dm-enchanter-save-hint"><a href="game-codex/enchantments.html" target="_blank" rel="noopener noreferrer">Abrir Compendio de Encantamientos</a></p>
             <p class="dm-enchanter-save-hint">Los cambios solo se aplican al pulsar <b>Guardar objeto</b>.</p>
           </section>
         </div>
@@ -334,7 +348,8 @@
     doc.getElementById("dm-enchanter-prepare")?.addEventListener("click", prepareEnchantment);
     doc.getElementById("dm-enchanter-remove")?.addEventListener("click", prepareEnchantmentRemoval);
     doc.getElementById("dm-enchanter-discard")?.addEventListener("click", discardEnchantmentDraft);
-    ["dm-enchanter-level", "dm-enchanter-channel"].forEach((id) => {
+    doc.getElementById("dm-enchanter-craft")?.addEventListener("click", craftEnchantment);
+    ["dm-enchanter-level", "dm-enchanter-channel", "dm-enchanter-gem"].forEach((id) => {
       doc.getElementById(id)?.addEventListener("change", () => {
         state.enchantmentDraft = null;
         state.dirty = true;
@@ -405,6 +420,17 @@
       });
       channel.value = status.channel || options.defaultChannel || "";
     }
+    const gem = doc.getElementById("dm-enchanter-gem");
+    if (gem) {
+      gem.replaceChildren();
+      (enchantmentRecipes()?.cutGems?.() || []).forEach((entry) => {
+        const option = doc.createElement("option");
+        option.value = entry.id;
+        option.textContent = entry.name;
+        gem.appendChild(option);
+      });
+      gem.value = item.enchantment?.economy?.gemstoneId || "ruby";
+    }
     refreshEnchanterPreview();
   }
 
@@ -423,7 +449,8 @@
     }
     const level = doc.getElementById("dm-enchanter-level");
     const channel = doc.getElementById("dm-enchanter-channel");
-    const request = { level: Number(level?.value), channel: channel?.value || "" };
+    const gemId = fieldValue("dm-enchanter-gem") || "ruby";
+    const request = { level: Number(level?.value), channel: channel?.value || "", gemId };
     const preview = studio.preview(item, request, { allowReplace: true });
     const target = doc.getElementById("dm-enchanter-preview");
     if (target) {
@@ -438,6 +465,25 @@
       }
       target.dataset.tone = staged ? "ready" : preview.valid && available.eligible ? "normal" : "warning";
     }
+    const quoted = enchantmentRecipes()?.quote?.(item, {
+      tier: request.level, channel: request.channel, gemId, replace: status.enchanted,
+    });
+    const economyPanel = doc.getElementById("dm-enchanter-economy");
+    const craftButton = doc.getElementById("dm-enchanter-craft");
+    if (economyPanel) {
+      if (quoted?.valid) {
+        const money = (v) => Math.round(v).toLocaleString("es-MX") + " AHN";
+        economyPanel.textContent = "Ritual: " + quoted.materials.map((row) => row.name + " ×" + row.quantity).join(" · ") +
+          " | Taller: " + money(quoted.chargedAhn) + " | Materiales (valor): " + money(quoted.materialValueAhn) +
+          " | Valor encantado: " + money(quoted.enchantedValueAhn) +
+          ". El crafteo consume materiales del jugador y cobra solo el taller.";
+      } else {
+        economyPanel.textContent = quoted?.reason === "unpriced_item"
+          ? "Sin valor de producción mundano: el DM puede crear magia narrativa, pero el ritual con recursos está bloqueado."
+          : "No hay una cotización válida para este objeto y selección.";
+      }
+    }
+    if (craftButton) craftButton.disabled = !quoted?.valid || !available.eligible || state.saving;
     if (level) level.disabled = !available.eligible;
     if (channel) channel.disabled = !available.eligible;
     const prepare = doc.getElementById("dm-enchanter-prepare");
@@ -466,12 +512,64 @@
       action: "apply",
       level: Number(fieldValue("dm-enchanter-level")),
       channel: fieldValue("dm-enchanter-channel"),
+      gemId: fieldValue("dm-enchanter-gem") || "ruby",
     }, { replaceConfirmed });
     if (!result.prepared) return announce(studio.errorMessage(result.reason), "error");
     state.enchantmentDraft = result.draft;
     state.dirty = true;
     refreshEnchanterPreview();
     announce("Encantamiento preparado. Guarda el objeto para aplicar.", "");
+  }
+
+  async function craftEnchantment() {
+    if (state.saving || !(await ensurePeer()) || !state.selected) return;
+    const session = state.selected;
+    const entry = findEntry(session.listType, session.key);
+    if (!entry || session.playerId !== state.playerId ||
+        enchanterStudio()?.snapshot?.(entry.item) !== session.enchantmentSnapshot) {
+      return announce("El objeto cambió. Vuelve a abrirlo antes de craftear.", "error");
+    }
+    const status = enchanterStudio()?.current?.(entry.item);
+    const request = {
+      tier: Number(fieldValue("dm-enchanter-level")),
+      channel: fieldValue("dm-enchanter-channel"),
+      gemId: fieldValue("dm-enchanter-gem") || "ruby",
+      replace: status?.enchanted === true,
+    };
+    const quote = enchantmentRecipes()?.quote?.(entry.item, request);
+    if (!quote?.valid) return announce("Este objeto no tiene un ritual con precio válido.", "error");
+    const materials = quote.materials.map((row) => row.name + " ×" + row.quantity).join(", ");
+    const confirmText = "¿Realizar el ritual de encantamiento +" + quote.tier + "?" +
+      "\nMateriales consumidos: " + materials +
+      "\nCobro al jugador: " + quote.chargedAhn.toLocaleString("es-MX") + " AHN." +
+      "\nEste crafteo no guardará otros cambios pendientes del editor.";
+    if (typeof global.confirm !== "function" || !global.confirm(confirmText)) return;
+    state.saving = true;
+    announce("Comprobando inventario, fondos y ritual...", "working");
+    try {
+      const result = await enchantmentCrafting().craftPlayer(state.db, state.playerId, itemId(entry.item), request);
+      if (!result?.crafted) {
+        const reasons = {
+          insufficient_ahn: "Fondos AHN insuficientes.",
+          missing_materials: "Faltan materiales en el inventario activo o alijo.",
+          finance_balance_missing: "No hay un saldo de AHN válido.",
+          target_not_in_inventory: "Este objeto ya no está en el inventario.",
+          already_enchanted: "El objeto cambió de encantamiento.",
+          transaction_failed: "No pudo confirmarse la transacción en Firebase.",
+        };
+        return announce(reasons[result?.reason] || "No pudo realizarse el ritual: " + String(result?.reason || "Error"), "error");
+      }
+      state.enchantmentDraft = null;
+      const updated = await loadLatestUnit();
+      if (!updated) return announce("Ritual guardado. Actualiza el inventario para ver el nuevo encantamiento.", "success");
+      const latest = findEntry(session.listType, session.key);
+      if (latest) fillEditor(latest, session.listType);
+      decorateRows();
+      announce("Ritual realizado, materiales consumidos y AHN registrados.", "success");
+    } finally {
+      state.saving = false;
+      refreshEnchanterPreview();
+    }
   }
 
   function prepareEnchantmentRemoval() {
