@@ -1306,9 +1306,14 @@
       });
       actions.append(save, cancel);
       container.append(status, actions);
+      // Each form is its own editing session. A save started for an old
+      // Background must never close, reset, or overwrite a newer editor.
+      const isActiveEditor = () => this.backgroundEditing
+        && this.backgroundEditorId === profile.id
+        && this.backgroundPanel?.querySelector?.(".player-background-choice-editor") === container;
       container.addEventListener("submit", async (event) => {
         event.preventDefault();
-        if (this.backgroundSaving) return;
+        if (!isActiveEditor() || this.backgroundSaving) return;
         const payload = {};
         // Submit only choices actually modified by the player. A live DM update
         // can change other fields while this editor deliberately preserves its draft.
@@ -1328,10 +1333,12 @@
         status.textContent = "Guardando tus decisiones…";
         try {
           await this.saveBackgroundChoices(profile.id, payload);
+          if (!isActiveEditor()) return;
           this.backgroundEditing = false;
           this.backgroundSaving = false;
           this.renderBackground(true);
         } catch (error) {
+          if (!isActiveEditor()) return;
           this.backgroundSaving = false;
           save.disabled = false;
           cancel.disabled = false;
