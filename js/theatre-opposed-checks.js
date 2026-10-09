@@ -384,6 +384,7 @@
       check: {
         thresholdRaw: hidden ? null : thresholdRaw,
         hiddenThreshold: hidden,
+        thresholdVisibility: session.checkTemplate?.thresholdVisibility || (hidden ? "mystery" : "public"),
         modifierType: session.checkTemplate?.modifierType || "neutral",
         modifierValue: Math.max(0, Math.trunc(numberOr(session.checkTemplate?.modifierValue, 0))),
         tipText: String(session.checkTemplate?.tipText || ""),
@@ -412,6 +413,7 @@
     const check = {
       thresholdRaw,
       hiddenThreshold: Boolean(session.checkTemplate?.hiddenThreshold),
+      thresholdVisibility: session.checkTemplate?.thresholdVisibility || "public",
       modifierType: session.checkTemplate?.modifierType || "neutral",
       modifierValue: Math.max(0, Math.trunc(numberOr(session.checkTemplate?.modifierValue, 0))),
       tipText: String(session.checkTemplate?.tipText || ""),
@@ -611,12 +613,10 @@
       if (result.role === "initiator") {
         const hud = state.localHud;
         if (hud?.dataset?.sessionId === result.sessionId) {
-          const status = hud.querySelector("[data-opposed-status]");
-          if (status) {
-            status.textContent = result.outcome === "passed" ? "CHECK PASSED" : "CHECK FAILED";
-            status.classList.toggle("is-pass", result.outcome === "passed");
-            status.classList.toggle("is-fail", result.outcome !== "passed");
-          }
+          global.LuminousTheatreRolls?.updateSharedCheckHud?.(hud, {
+            outcome: result.outcome,
+            status: result.outcome === "passed" ? "CHECK PASSED" : "CHECK FAILED",
+          });
           global.setTimeout(clearLocalOpposedHud, 4200);
         }
         cleanupOwnRemoteResult();
