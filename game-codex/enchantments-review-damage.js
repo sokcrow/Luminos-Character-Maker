@@ -134,7 +134,6 @@ const ADDITIONS=[
       "greatclub",
       "club",
       "flail",
-      "morningstar",
       "light_hammer",
       "quarterstaff"
     ],
