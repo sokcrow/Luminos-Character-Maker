@@ -212,7 +212,6 @@ const begin = runtime.indexOf("  async function saveBackgroundChoices(");
 const end = runtime.indexOf("\n  function mountTray()", begin);
 assert.ok(begin >= 0 && end > begin);
 const storage = { localStorage: { getItem: () => "p42" } };
-const writes = [];
 function buildSaver(live) {
   return new Function("state", "getCharacter", "currentAuthUid", "connectFirebase",
     "global", "PLAYER_ID_STORAGE_KEY", "PLAYER_ROOT",
