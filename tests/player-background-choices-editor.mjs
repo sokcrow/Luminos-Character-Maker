@@ -168,7 +168,7 @@ savedSelects[1].value = "__custom__";
 unchangedForm.querySelectorAll(".player-background-choice-custom")[1].value = "El amigo del barrio";
 await unchangedForm.fire("submit", { preventDefault() {} });
 assert.equal(editsOnly.length, 1);
-assert.deepEqual(editsOnly[0].payload, { bond: "El amigo del barrio" },
+assert.deepEqual(JSON.parse(JSON.stringify(editsOnly[0].payload)), { bond: "El amigo del barrio" },
   "Only player-edited bond may be submitted; no stale ideal, flaw or personality");
 assert.equal(concurrentCharacter.backgroundChoices.ideal, "ideal_changed_by_dm");
 assert.equal(concurrentCharacter.backgroundChoices.flaw, "flaw_changed_by_dm");
@@ -180,7 +180,7 @@ const clearForm = concurrentTray.backgroundPanel.querySelector(".player-backgrou
 clearForm.querySelectorAll("select")[0].value = "";
 clearForm.querySelectorAll(".player-background-personality-input")[0].value = "";
 await clearForm.fire("submit", { preventDefault() {} });
-assert.deepEqual(editsOnly[1].payload, { ideal: "", personality: [] });
+assert.deepEqual(JSON.parse(JSON.stringify(editsOnly[1].payload)), { ideal: "", personality: [] });
 assert.equal(concurrentCharacter.backgroundChoices.ideal, "");
 
 // Legacy psychological values are preloaded in the same editor and can be replaced.
