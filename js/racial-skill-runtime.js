@@ -103,7 +103,10 @@
       unit.actor?.dndStats?.proficiencyBonus,
     ];
     const explicit = candidates.find((value) => Number.isFinite(Number(value)));
-    return explicit == null ? Math.ceil(level / 20) : Math.max(0, numberOr(explicit, 0));
+    return explicit == null
+      ? (global.LuminousProficiencyRuntime?.proficiencyBonus?.(level)
+        ?? Math.min(6, 2 + Math.floor((Math.max(1, level) - 1) / 20)))
+      : Math.max(0, numberOr(explicit, 0));
   }
 
   function statContainers(unit = {}) {
