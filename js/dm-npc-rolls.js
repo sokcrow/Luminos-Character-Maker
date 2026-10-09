@@ -240,54 +240,66 @@
     };
   }
 
-  function ensureLocalHud(definition, check) {
-    const stage = $("theatre-stage");
-    if (!stage) return null;
-    let layer = $("dm-npc-roll-local-layer");
-    if (!layer) {
-      layer = doc.createElement("div");
-      layer.id = "dm-npc-roll-local-layer";
-      layer.className = "dm-npc-roll-local-layer";
-      stage.appendChild(layer);
-    }
-    layer.replaceChildren();
-    const threshold = Number.isFinite(Number(check.thresholdRaw))
-      ? global.LuminousTheatreRolls.effectiveThreshold(check)
-      : null;
-    const hud = doc.createElement("article");
-    hud.className = "dm-npc-roll-hud is-rolling";
-    hud.dataset.modifier = check.modifierType || "neutral";
-    hud.innerHTML = `
-      <div class="dm-npc-roll-hud-kicker">NPC ROLL / ${String(definition.actor?.nombre || definition.actorId).toUpperCase()}</div>
-      <div class="dm-npc-roll-hud-label">${definition.label}</div>
-      <div class="dm-npc-roll-hud-coins" data-npc-coins></div>
-      <div class="dm-npc-roll-hud-metrics">
-        ${Number.isFinite(threshold) ? `<div><span>THRESHOLD</span><strong data-npc-threshold>${threshold}</strong></div><b class="dm-npc-roll-vs">VS</b>` : ""}
-        <div><span>OUTCOME</span><strong data-npc-total>${definition.base}</strong></div>
-      </div>
-      <div class="dm-npc-roll-hud-status" data-npc-status>ROLLING...</div>`;
-    layer.appendChild(hud);
+  function ensureLocalHud(definition, check, caption = "NPC CHECK") {
+    const layer = global.LuminousTheatreCheckCoordinator?.ensureFrontLayer?.() || $("theatre-stage");
+    if (!layer) return null;
+    layer.querySelectorAll(".theatre-check-hud--npc").forEach((old) => old.remove());
+    const hud = global.LuminousTheatreRolls.createSharedCheckHud({
+      parent: layer, check,
+      title: `${caption} · ${String(definition.actor?.nombre || definition.actorId)} · ${definition.label}`,
+    });
+    if (hud) hud.classList.add("theatre-check-hud--npc");
     return hud;
   }
 
   function updateHudProgress(hud, detail) {
-    const totalNode = hud?.querySelector("[data-npc-total]");
-    if (totalNode) totalNode.textContent = String(detail.currentTotal);
-    const status = hud?.querySelector("[data-npc-status]");
-    if (status) status.textContent = `${detail.resolved} / ${detail.coinCount} COINS`;
+    global.LuminousTheatreRolls.updateSharedCheckHud(hud, {
+      total: detail.currentTotal,
+      status: `GIRANDO MONEDAS · ${detail.resolved} / ${detail.coinCount}`,
+      renderCoins: false,
+    });
   }
 
-  function resolveHud(hud, total, check) {
+  function resolveHud(hud, total, check, thresholdPhase = false) {
     if (!hud) return;
-    const status = hud.querySelector("[data-npc-status]");
-    const outcome = global.LuminousTheatreRolls.checkOutcome(total, check);
-    if (status) {
-      status.textContent = outcome === "passed" ? "CHECK PASSED" : outcome === "failed" ? "CHECK FAILED" : "ROLL COMPLETE";
-      status.classList.toggle("is-pass", outcome === "passed");
-      status.classList.toggle("is-fail", outcome === "failed");
+    const outcome = thresholdPhase ? null : global.LuminousTheatreRolls.checkOutcome(total, check);
+    global.LuminousTheatreRolls.updateSharedCheckHud(hud, {
+      total, outcome, renderCoins: false,
+      status: thresholdPhase ? "THRESHOLD REGISTRADO"
+        : outcome === "passed" ? "CHECK PASSED"
+        : outcome === "failed" ? "CHECK FAILED" : "TIRADA COMPLETADA",
+    });
+  }
+
+  function listSceneActors() {
+    return sceneNpcEntries().map((entry) => ({
+      actorId: entry.sceneActorId,
+      name: String(entry.actor?.nombre || entry.sceneActorId),
+    }));
+  }
+
+  async function rollOpposedThreshold({ actorId, rollSpec } = {}) {
+    if (state.running) throw new Error("Ya hay una tirada NPC en curso.");
+    const definition = global.LuminousNpcStats.rollDefinition(actorId, rollSpec || {});
+    if (!definition) throw new Error("No se pudo obtener el atributo del NPC retador.");
+    state.running = true;
+    syncButton();
+    const hud = ensureLocalHud(definition, {}, "VS · RETADOR");
+    if (!hud) { state.running = false; syncButton(); throw new Error("HUD del NPC no disponible."); }
+    try {
+      const result = await global.LuminousCoinEngine.runAnimatedRoll({
+        document: doc, container: hud.querySelector("[data-local-coins]"),
+        totalNode: hud.querySelector("[data-local-result]"), base: definition.base,
+        headsChance: definition.headsChance, coinCount: 5, intervalMs: 600, auto: true,
+        onCoinResolved: (detail) => updateHudProgress(hud, detail),
+      });
+      resolveHud(hud, result.total, {}, true);
+      global.setTimeout(() => hud.remove(), 7000);
+      return result;
+    } finally {
+      state.running = false;
+      syncButton();
     }
-    hud.classList.remove("is-rolling");
-    hud.classList.add("is-resolved");
   }
 
   async function runNpcRoll() {
@@ -300,8 +312,8 @@
     feedback("NPC ROLL EN CURSO", "busy");
 
     const hud = ensureLocalHud(definition, check);
-    const coinContainer = hud?.querySelector("[data-npc-coins]");
-    const totalNode = hud?.querySelector("[data-npc-total]");
+    const coinContainer = hud?.querySelector("[data-local-coins]");
+    const totalNode = hud?.querySelector("[data-local-result]");
     if (!coinContainer || !totalNode) throw new Error("No se pudo montar el HUD local del NPC.");
 
     try {
@@ -356,6 +368,8 @@
       if (mount() || attempts > 150) global.clearInterval(timer);
     }, 100);
   }
+
+  global.LuminousDmNpcRolls = Object.freeze({ listSceneActors, rollOpposedThreshold });
 
   if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", start, { once: true });
   else start();
