@@ -1129,6 +1129,42 @@
     await saveUnit(`RELOADED // ${itemName(target).toUpperCase()}`);
   }
 
+  async function toggleSelectedAttunement() {
+    const item = selectedItem();
+    const magic = magicRuntime();
+    if (!item || state.selectedContainer === "stash" || !magic?.requiresAttunement?.(item)) return;
+    const previous = {
+      ids: Array.isArray(state.unit.attunedItemInstanceIds) ? state.unit.attunedItemInstanceIds.slice() : [],
+      attuned: item.attuned,
+      attunedToId: item.attunedToId,
+    };
+    const wasAttuned = magic.isAttuned(state.unit, item);
+    const result = wasAttuned ? magic.unattuneItem(state.unit, item) : magic.attuneItem(state.unit, item);
+    if (wasAttuned ? !result?.unattuned : !result?.attuned) {
+      const reason = String(result?.reason || "sintonización no permitida").replace(/_/g, " ");
+      showStatus("No se pudo cambiar la sintonización: " + reason, "error");
+      return;
+    }
+    const saved = await saveUnit(wasAttuned ? "Sintonización retirada." : "Objeto sintonizado.");
+    if (!saved) {
+      state.unit.attunedItemInstanceIds = previous.ids;
+      if (previous.attuned === undefined) delete item.attuned;
+      else item.attuned = previous.attuned;
+      if (previous.attunedToId === undefined) delete item.attunedToId;
+      else item.attunedToId = previous.attunedToId;
+      renderAll();
+    }
+  }
+
+  function appendAttunementAction(host, item) {
+    const magic = magicRuntime();
+    if (!magic?.requiresAttunement?.(item)) return;
+    const attuned = magic.isAttuned(state.unit, item);
+    const gate = !attuned && magic.canAttune?.(state.unit, item);
+    addAction(host, attuned ? "RETIRAR SINTONIZACIÓN" : "SINTONIZAR",
+      toggleSelectedAttunement, "", Boolean(gate && gate.allowed === false));
+  }
+
   function renderActions(item, equippedSlot) {
     const host = doc.getElementById("inventory-v2-actions");
     if (!host) return;
@@ -1136,6 +1172,7 @@
 
     if (state.selectedContainer === "equipment") {
       addAction(host, "UNEQUIP", unequipSelected, "primary");
+      appendAttunementAction(host, item);
       return;
     }
     if (state.selectedContainer === "stash") {
@@ -1147,6 +1184,7 @@
     const compatible = bridge()?.compatibleSlots?.(item) || [];
     if (equippedSlot) addAction(host, "UNEQUIP", unequipSelected, "primary");
     else if (compatible.length) addAction(host, "EQUIP", equipSelectedAuto, "primary");
+    appendAttunementAction(host, item);
     addAction(host, "STORE / GUARDAR", () => moveSelected("active", "stash"), "", !state.stashUnlocked);
     if (foodRest()?.isFood?.(item)) addAction(host, "EAT / DRINK", eatDrinkSelected, "primary");
     const functionalItem = runtime()?.resolveItem?.(item) || item;
