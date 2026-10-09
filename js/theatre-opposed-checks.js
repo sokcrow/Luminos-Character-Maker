@@ -352,6 +352,7 @@
     db.ref(OPPOSED_ROOT).on("value", (snapshot) => {
       state.sessions = snapshot.val() || {};
       Object.entries(state.sessions).forEach(([sessionId, session]) => processSessionDm(sessionId, session));
+      renderDmSessionSummary();
     });
     db.ref(LIVE_ROOT).on("value", (snapshot) => renderDmOpposedLive(snapshot.val() || {}));
     // Recover a stale phase lease even if no Firebase value-change event arrives.
@@ -361,6 +362,38 @@
           processSessionDm(sessionId, session));
       }, 5000);
     }
+  }
+
+  function renderDmSessionSummary() {
+    const host = $("theatre-opposed-live-state");
+    if (!host) return;
+    const sessions = Object.values(state.sessions || {}).filter((session) =>
+      String(session.roomKey || "default") === roomKey() &&
+      session.status !== "complete" &&
+      Date.now() - numberOr(session.clientCreatedAt, 0) < MAX_AGE_MS);
+    host.replaceChildren();
+    if (!sessions.length) {
+      host.textContent = "Sin enfrentamientos pendientes";
+      return;
+    }
+    sessions.sort((a, b) => numberOr(b.clientCreatedAt) - numberOr(a.clientCreatedAt));
+    sessions.forEach((session) => {
+      const card = doc.createElement("div");
+      card.className = "theatre-opposed-session-card";
+      const phase = session.status === "awaiting_threshold"
+        ? "RETADOR · ESPERANDO THRESHOLD"
+        : session.status === "awaiting_resolver"
+          ? "RETADO · ESPERANDO TIRADA"
+          : session.status === "error"
+            ? "ERROR · NO SE COMPLETÓ LA TIRADA"
+            : "SINCRONIZANDO…";
+      const participants = doc.createElement("strong");
+      participants.textContent = `${session.rivalName || "Retador"} → ${session.initiatorName || "Retado"}`;
+      const status = doc.createElement("span");
+      status.textContent = phase;
+      card.append(participants, status);
+      host.appendChild(card);
+    });
   }
 
   function leaseExpired(status, prefix) {
