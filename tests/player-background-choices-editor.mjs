@@ -163,7 +163,7 @@ const save = new Function("state", "getCharacter", "currentAuthUid", "connectFir
 )(state, () => state.character, () => "uid42", () => true, storage, "playerId", "campaña/jugadores");
 await save("street_medic", { bond: "Mi contacto", personality: ["Prudente"] });
 assert.equal(writes.at(-1).path, "campaña/jugadores/p42/backgroundChoices");
-assert.deepEqual(writes.at(-1).payload, { bond: "Mi contacto", personality: ["Prudente"] });
+assert.deepEqual(writes.at(-1).payload, { bond: "Mi contacto", personality: ["Prudente"], backgroundId: "street_medic" });
 assert.equal(state.character.backgroundChoices.ideal, "old_ideal", "Existing fields must be preserved");
 assert.equal(state.character.characterBuild.breakdown.backgroundHpCoefBonus, 0.14, "Mechanical build unchanged");
 await assert.rejects(save("different_background", { ideal: "Invalid" }), /Background cambió/);
