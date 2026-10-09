@@ -97,7 +97,7 @@
   }
   const currentLevel = (data = playerData()) => Math.max(1, Math.trunc(numberOr(data?.level, 1)));
   function proficiencyBonus(level) {
-    return global.LuminousProficiencyRuntime?.proficiencyBonus?.(level) ?? Math.ceil(Math.max(0, numberOr(level, 0)) / 20);
+    return global.LuminousProficiencyRuntime?.proficiencyBonus?.(level) ?? Math.min(6, 2 + Math.floor((Math.max(1, numberOr(level, 1)) - 1) / 20));
   }
   function normalizeProficiencyState(value) {
     if (global.LuminousProficiencyRuntime?.normalizeState) return global.LuminousProficiencyRuntime.normalizeState(value);
