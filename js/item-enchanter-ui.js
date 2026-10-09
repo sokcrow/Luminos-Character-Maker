@@ -14,6 +14,7 @@
   const engine=()=>global.LuminousItemEnchantmentEngine || null;
   const catalog=()=>global.LuminousEnchantmentCatalog || null;
   const magic=()=>global.LuminousItemMagicRuntime || null;
+  const magicKnowledge=()=>global.LuminousItemMagicKnowledgeRuntime || null;
   const gems=()=>global.LuminousOreIngotGemCatalog || null;
   const clone=v=>v==null?v:JSON.parse(JSON.stringify(v));
   const asArray=v=>v==null?[]:(Array.isArray(v)?v:[v]);
@@ -141,9 +142,13 @@
   function selectedDefinitionOptions(){
     const svc=state.service;
     if(["strengthen","remove_rewrite"].includes(svc)){
-      return installed(state.selectedItem).map(ref=>{
+      const view=magicKnowledge()?.presentation?.(state.viewer,state.selectedItem);
+      return installed(state.selectedItem).map((ref,index)=>{
         const def=catalog()?.get?.(ref.definitionId);
-        return def ? {id:def.id,name:def.name,rank:ref.rank,ref} : null;
+        // Player visibility follows Identify/Arcana knowledge, never raw registry data.
+        const known=view?.enchantmentLines?.[index]?.known===true;
+        const label=view?.enchantmentLines?.[index]?.text || `Inscripción sin identificar ${index+1}`;
+        return def ? {id:def.id,name:known?label:`Inscripción sin identificar ${index+1}`,rank:known&&view?.knowledge?.rankKnown===true?ref.rank:null,ref} : null;
       }).filter(Boolean);
     }
     return asArray(state.provider?.knownEnchantments).map(id=>catalog()?.get?.(id)).filter(Boolean).map(def=>({id:def.id,name:def.name}));
@@ -232,9 +237,11 @@
     if(!item) return "<p>Select an Item.</p>";
     const refs=installed(item);
     const slots=item.magic?.enchantmentSlots || {used:engine()?.slotsUsed?.(refs)||0,max:engine()?.baseSlotCapacity?.(item)||0};
-    const rows=refs.length ? refs.map(ref=>{
-      const def=catalog()?.get?.(ref.definitionId);
-      return `<li><b>${esc(def?.name || "Unknown Magic")}</b> <span>Rank ${esc(roman(ref.rank))}</span></li>`;
+    const view=magicKnowledge()?.presentation?.(state.viewer,item);
+    const rows=refs.length ? refs.map((ref,index)=>{
+      const line=view?.enchantmentLines?.[index];
+      const label=line?.text || `Inscripción sin identificar ${index+1}`;
+      return `<li><b>${esc(label)}</b></li>`;
     }).join("") : "<li>No installed Enchantments.</li>";
     return `<h4>${esc(itemName(item))}</h4><div class="enchanter-ui-slotbar"><span>SLOTS ${esc(slots.used)} / ${esc(slots.max)}</span></div><ul>${rows}</ul>`;
   }
