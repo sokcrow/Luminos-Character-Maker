@@ -51,7 +51,7 @@
   }
 
   function proficiencyBonus(level) {
-    return Math.max(0, Math.ceil(Math.max(0, numberOr(level, 0)) / 20));
+    return Math.min(6, 2 + Math.floor((Math.max(1, numberOr(level, 1)) - 1) / 20));
   }
 
   function abilityId(value) {
