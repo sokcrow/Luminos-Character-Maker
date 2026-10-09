@@ -568,6 +568,7 @@ ${response}`);
       if (cleaned.length) payload.personality = cleaned;
     }
     if (!Object.keys(payload).length) throw new Error("Elige o escribe al menos una decisión para guardar.");
+    payload.backgroundId = selectedBackgroundId;
     await state.db.ref(`${PLAYER_ROOT}/${playerId}/backgroundChoices`).update(payload);
     // Display the confirmed write immediately; the live player listener remains authoritative.
     if (state.playerId === playerId) {
