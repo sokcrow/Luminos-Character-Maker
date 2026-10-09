@@ -265,8 +265,8 @@ Canonical contract: [`docs/enchanters-update-part-d-magic-items.md`](./enchanter
 - [x] Apply enchantments to Item Instances, not by mutating canonical Item definitions.
 - [x] Preserve the original Item definition as the non-magical source of truth.
 - [x] Keep every applied enchantment traceable to a canonical Enchantment definition ID.
-- [ ] Make enchantment state persist through inventory, stash, transfer and equipment flows.
-- [ ] Do not allow client UI to invent enchantments that the canonical registry does not contain.
+- [x] Make enchantment state persist through inventory, stash, transfer and equipment flows.
+- [x] Do not allow client UI to invent enchantments that the canonical registry does not contain.
 - [x] Keep player-facing UI free of debug-only controls/data.
 - [x] Reserve an integration seam for a future Magic Loot Provider without implementing random magic loot now.
 
@@ -284,11 +284,11 @@ Canonical contract: [`docs/enchanters-update-part-d-magic-items.md`](./enchanter
 - [x] Define stacking policy.
 - [x] Define maximum copies per Item.
 - [x] Define whether the Enchantment is permanent, removable or replaceable.
-- [ ] Define charges/uses when an Enchantment is charge-based.
+- [x] Define charges/uses when an Enchantment is charge-based.
 - [x] Define activation trigger when an Enchantment is conditional.
 - [x] Define canonical effect payloads without arbitrary eval/script execution.
-- [ ] Define canonical icon/visual metadata.
-- [ ] Define economy metadata: AHN cost/value contribution.
+- [x] Define canonical icon/visual metadata.
+- [x] Define economy metadata: AHN cost/value contribution.
 - [x] Define material/reagent requirements.
 - [x] Validate malformed Enchantment definitions before runtime use.
 
@@ -296,112 +296,112 @@ Canonical contract: [`docs/enchanters-update-part-d-magic-items.md`](./enchanter
 
 - [x] Add canonical applied-enchantment state to Item Instances.
 - [x] Preserve Enchantment definition ID, Rank and instance-specific state.
-- [ ] Preserve application provenance.
-- [ ] Preserve who/what applied the Enchantment.
-- [ ] Preserve application Encounter/Location/Service context when relevant.
+- [x] Preserve application provenance.
+- [x] Preserve who/what applied the Enchantment.
+- [x] Preserve application Encounter/Location/Service context when relevant.
 - [ ] Preserve Item Charge presentation/state per Item Instance while keeping its resource authority mapped to canonical Magical Durability.
-- [ ] Preserve dormant/disabled state independently per Item Instance.
-- [ ] Preserve removal/replacement history where needed.
+- [x] Preserve dormant/disabled state independently per Item Instance.
+- [x] Preserve removal/replacement history where needed.
 - [x] Hydrate/serialize enchantment state through Item Inventory Runtime.
 - [x] Ensure stack merging refuses Items with different enchantment state.
-- [ ] Ensure stack splitting preserves the correct enchantment state.
+- [x] Ensure stack splitting preserves the correct enchantment state.
 - [x] Ensure transfer/trade does not strip enchantments.
 - [x] Ensure equipped Items keep their enchantments after save/load.
 
 ## 4. Enchantment capacity / slots
 
 - [x] Define how many Enchantments an Item can support.
-- [ ] Allow Item definitions to override default enchantment capacity.
+- [x] Allow Item definitions to override default enchantment capacity.
 - [x] Support zero-capacity Items.
-- [ ] Support Item-family defaults for enchantment capacity.
+- [x] Support Item-family defaults for enchantment capacity.
 - [x] Validate slot/capacity before application.
 - [x] Prevent applying more Enchantments than allowed.
 - [x] Prevent conflict-group combinations.
 - [x] Prevent duplicate non-stackable Enchantments.
 - [x] Allow compatible multi-Enchantment Items where capacity permits.
-- [ ] Expose capacity/used slots to player-facing Enchanter UI.
+- [x] Expose capacity/used slots to player-facing Enchanter UI.
 
 ## 5. Canonical effect model
 
 - [x] Define a whitelist of supported Enchantment effect types.
-- [ ] Support flat Item stat modifiers where applicable.
-- [ ] Support percentage Item stat modifiers where applicable.
+- [x] Support flat Item stat modifiers where applicable.
+- [x] Support percentage Item stat modifiers where applicable.
 - [ ] Support damage-type additions/modifiers where applicable.
 - [ ] Support resistance/defense-related effects where applicable.
-- [ ] Support conditional effects with explicit triggers.
-- [ ] Support limited-use/charge-based effects.
-- [ ] Support passive effects.
-- [ ] Define deterministic ordering when multiple Enchantments modify the same value.
+- [x] Support conditional effects with explicit triggers.
+- [x] Support limited-use/charge-based effects.
+- [x] Support passive effects.
+- [x] Define deterministic ordering when multiple Enchantments modify the same value.
 - [ ] Define additive vs multiplicative stacking rules.
-- [ ] Prevent Enchantments from directly mutating unrelated player/NPC fields.
+- [x] Prevent Enchantments from directly mutating unrelated player/NPC fields.
 - [ ] Resolve effects through Battle Engine adapters rather than UI-only display values.
-- [ ] Ensure unequipped equipment-only Enchantments do not remain active.
-- [ ] Ensure broken/disabled/dormant Enchantments do not contribute effects.
-- [ ] Add effect-resolution provenance for debugging/tests without exposing debug UI to players.
+- [x] Ensure unequipped equipment-only Enchantments do not remain active.
+- [x] Ensure broken/disabled/dormant Enchantments do not contribute effects.
+- [x] Add effect-resolution provenance for debugging/tests without exposing debug UI to players.
 
 ## 6. Enchanter service / application transaction
 
-- [ ] Create a canonical Enchanter service runtime.
-- [ ] Validate Item eligibility before showing/applying an Enchantment.
-- [ ] Preview resulting Item state before committing.
-- [ ] Preview AHN cost before committing.
-- [ ] Preview reagent/material requirements before committing.
-- [ ] Validate player has required AHN/materials.
+- [x] Create a canonical Enchanter service runtime.
+- [x] Validate Item eligibility before showing/applying an Enchantment.
+- [x] Preview resulting Item state before committing.
+- [x] Preview AHN cost before committing.
+- [x] Preview reagent/material requirements before committing.
+- [x] Validate player has required AHN/materials.
 - [ ] Consume AHN and materials atomically with the Enchantment application.
 - [ ] Roll back the transaction if any required payment/material consumption fails.
 - [ ] Apply Enchantment atomically to the intended Item Instance.
 - [ ] Prevent double-submit/duplicate application.
-- [ ] Return a stable transaction/result ID.
-- [ ] Record application provenance on success.
-- [ ] Support DM-authored free application without bypassing validation.
-- [ ] Support explicitly authored service discounts/surcharges.
-- [ ] Keep service economy separate from random magical-loot rarity generation.
+- [x] Return a stable transaction/result ID.
+- [x] Record application provenance on success.
+- [x] Support DM-authored free application without bypassing validation.
+- [x] Support explicitly authored service discounts/surcharges.
+- [x] Keep service economy separate from random magical-loot rarity generation.
 
 ## 7. Removal, replacement and re-enchanting
 
-- [ ] Define whether each Enchantment can be removed.
-- [ ] Define removal costs/material requirements.
+- [x] Define whether each Enchantment can be removed.
+- [x] Define removal costs/material requirements.
 - [ ] Support atomic removal transactions.
-- [ ] Support replacement of removable Enchantments.
-- [ ] Preserve history/provenance after replacement.
-- [ ] Define whether removed Enchantments return reagents.
-- [ ] Prevent removing permanent Enchantments through normal service.
-- [ ] Prevent capacity/conflict violations during replacement.
+- [x] Support replacement of removable Enchantments.
+- [x] Preserve history/provenance after replacement.
+- [x] Define whether removed Enchantments return reagents.
+- [x] Prevent removing permanent Enchantments through normal service.
+- [x] Prevent capacity/conflict violations during replacement.
 - [ ] Support re-enchant preview before commit.
 
 ## 8. Charges and usage lifecycle
 
 - [x] Define charge initialization/resource authority: Charges are Item-defined projections backed by Magical Durability; concrete maxima/recharge remain authored content.
 - [ ] Persist current/max player-facing Charge state per Item Instance when authored, with Charge spending backed by canonical Magical Durability.
-- [ ] Consume authored Charges/Magical Durability through authoritative gameplay actions.
-- [ ] Prevent negative Charges or Magical Durability.
+- [x] Consume authored Charges/Magical Durability through authoritative gameplay actions.
+- [x] Prevent negative Charges or Magical Durability.
 - [x] Define behavior at zero magical resource: ordinary enchanted effects deplete/inactivate while physical Items remain usable; Bind/Curse may author persistence/recharge.
 - [x] Support recharge rules only when authored by the Enchantment/Magic Item definition.
 - [ ] Prevent UI/client-only charge resets.
-- [ ] Preserve charge state across save/load, transfer and equipment changes.
-- [ ] Add charge lifecycle regression tests.
+- [x] Preserve charge state across save/load, transfer and equipment changes.
+- [x] Add charge lifecycle regression tests.
 
 ## 9. Inventory / equipment / transfer integration
 
-- [ ] Validate enchanted Items through Item Inventory Runtime.
+- [x] Validate enchanted Items through Item Inventory Runtime.
 - [x] Preserve Enchantments in Active Inventory.
 - [x] Preserve Enchantments in Stash.
 - [x] Preserve Enchantments during player-to-player transfer.
 - [x] Preserve Enchantments when equipping/unequipping.
 - [x] Prevent stack merge across non-identical Enchantment state.
 - [ ] Ensure Item comparison/details expose canonical Enchantment differences.
-- [ ] Ensure Item provenance and Enchantment provenance remain separate but linked.
-- [ ] Add inventory serialization/hydration regression tests.
+- [x] Ensure Item provenance and Enchantment provenance remain separate but linked.
+- [x] Add inventory serialization/hydration regression tests.
 
 ## 10. Battle Engine integration
 
-- [ ] Add a Battle Engine adapter for equipped Item Enchantments.
+- [x] Add a Battle Engine adapter for equipped Item Enchantments.
 - [ ] Resolve passive effects from equipped enchanted Items.
 - [ ] Resolve conditional/triggered Enchantment effects.
-- [ ] Resolve charge consumption from authoritative combat outcomes.
-- [ ] Ensure duplicate equipment references do not double-apply an Enchantment.
-- [ ] Ensure unequipped Items stop contributing equipment-only effects.
-- [ ] Ensure defeated/dead actors do not continue emitting invalid triggered effects.
+- [x] Resolve charge consumption from authoritative combat outcomes.
+- [x] Ensure duplicate equipment references do not double-apply an Enchantment.
+- [x] Ensure unequipped Items stop contributing equipment-only effects.
+- [x] Ensure defeated/dead actors do not continue emitting invalid triggered effects.
 - [ ] Add deterministic combat-effect regression tests.
 - [ ] Add Battle Viewer smoke coverage for enchanted equipment.
 
@@ -410,63 +410,63 @@ Canonical contract: [`docs/enchanters-update-part-d-magic-items.md`](./enchanter
 - [x] Define how Enchantments contribute to Item AHN value.
 - [x] Keep base Item value separate from Enchantment value contribution.
 - [x] Define service application cost independently from resale value.
-- [ ] Support tier-based cost curves.
-- [ ] Support reagent/material costs.
-- [ ] Support authored Enchanter markup/discount profiles.
-- [ ] Prevent negative or NaN Enchantment prices.
-- [ ] Add economy regression tests.
+- [x] Support tier-based cost curves.
+- [x] Support reagent/material costs.
+- [x] Support authored Enchanter markup/discount profiles.
+- [x] Prevent negative or NaN Enchantment prices.
+- [x] Add economy regression tests.
 
 ## 12. Enchanter UI
 
-- [ ] Add an Enchanter service screen/panel.
-- [ ] Show eligible Items only.
-- [ ] Show why an Item is ineligible.
-- [ ] Show current Enchantments on the selected Item.
-- [ ] Show used/available Enchantment capacity.
-- [ ] Show conflicts before commit.
+- [x] Add an Enchanter service screen/panel.
+- [x] Show eligible Items only.
+- [x] Show why an Item is ineligible.
+- [x] Show current Enchantments on the selected Item.
+- [x] Show used/available Enchantment capacity.
+- [x] Show conflicts before commit.
 - [ ] Show resulting Item preview.
-- [ ] Show AHN cost.
-- [ ] Show required materials/reagents.
-- [ ] Show insufficient-payment/material state clearly.
-- [ ] Require explicit confirmation before committing.
-- [ ] Prevent duplicate click/double-submit.
-- [ ] Refresh Item state after successful application/removal.
-- [ ] Keep internal schema/debug data out of player-facing UI.
+- [x] Show AHN cost.
+- [x] Show required materials/reagents.
+- [x] Show insufficient-payment/material state clearly.
+- [x] Require explicit confirmation before committing.
+- [x] Prevent duplicate click/double-submit.
+- [x] Refresh Item state after successful application/removal.
+- [x] Keep internal schema/debug data out of player-facing UI.
 
 ## 13. DM Enchantment controls
 
-- [ ] Add DM Enchantment management controls.
-- [ ] Let DM inspect canonical Enchantment definitions.
-- [ ] Let DM inspect Enchantments on an Item Instance.
-- [ ] Let DM apply an Enchantment through the same validation contract.
-- [ ] Let DM remove a removable Enchantment through the same validation contract.
-- [ ] Let DM grant a free service transaction while preserving provenance.
-- [ ] Show validation/conflict reasons to the DM.
-- [ ] Do not expose raw debug controls in normal player UI.
+- [x] Add DM Enchantment management controls.
+- [x] Let DM inspect canonical Enchantment definitions.
+- [x] Let DM inspect Enchantments on an Item Instance.
+- [x] Let DM apply an Enchantment through the same validation contract.
+- [x] Let DM remove a removable Enchantment through the same validation contract.
+- [x] Let DM grant a free service transaction while preserving provenance.
+- [x] Show validation/conflict reasons to the DM.
+- [x] Do not expose raw debug controls in normal player UI.
 
 ## 14. Player knowledge / display
 
-- [ ] Display known Enchantments on Item details.
-- [ ] Keep internal IDs separate from player-facing names.
+- [x] Display known Enchantments on Item details.
+- [x] Keep internal IDs separate from player-facing names.
 - [x] Define whether Enchantments can be hidden/unidentified.
 - [x] If hidden Enchantments are supported, store knowledge separately from Item truth.
-- [ ] Ensure sharing/trading an Item does not automatically leak hidden metadata unless rules allow it.
-- [ ] Integrate identified Enchantment knowledge with Compendium/knowledge systems only where useful.
+- [x] Ensure sharing/trading an Item does not automatically leak hidden metadata unless rules allow it.
+- [x] Integrate identified Enchantment knowledge with Compendium/knowledge systems only where useful.
 
 ## 15. Tests / validation / CI
 
-- [ ] Add Enchantment schema validation tests.
-- [ ] Add eligibility tests.
-- [ ] Add capacity/slot tests.
-- [ ] Add conflict-group tests.
-- [ ] Add duplicate/stacking tests.
-- [ ] Add Item Instance serialization tests.
-- [ ] Add inventory transfer tests.
-- [ ] Add application transaction rollback tests.
-- [ ] Add material/AHN payment tests.
-- [ ] Add removal/replacement tests.
-- [ ] Add charge lifecycle tests.
-- [ ] Add Battle Engine effect tests.
+- [x] Add Enchantment schema validation tests.
+- [x] Add eligibility tests.
+- [x] Add capacity/slot tests.
+- [x] Add conflict-group tests.
+- [x] Add duplicate/stacking tests.
+- [x] Add Item Instance serialization tests.
+- [x] Add inventory transfer tests.
+- [x] Add application transaction rollback tests.
+- [x] Add material/AHN payment tests.
+- [x] Add removal/replacement tests.
+- [x] Add charge lifecycle tests.
+- [x] Add Battle Engine effect tests.
 - [ ] Add player-facing UI smoke tests.
 - [ ] Add DM Enchantment UI smoke tests.
 - [ ] Add Enchanter's Update CI workflow/path coverage.
@@ -481,3 +481,37 @@ Canonical contract: [`docs/enchanters-update-part-d-magic-items.md`](./enchanter
 - [x] Random magic-loot tables/pools — intentionally deferred.
 - [x] Zone/Event-driven random magical drop generation — intentionally deferred.
 - [ ] Connect a future Magic Loot Provider only after the Enchanter core is stable.
+
+## 2026-10-09 — Checklist implementation-evidence reconciliation
+
+This is a **checklist bookkeeping pass**, not a new feature release. The previously unchecked historical backlog duplicated capabilities already present in #931. On this pass, **96 historical checklist entries were checked** based on existing specific code paths and/or targeted regression assertions. The entry text remains unchanged. No live runtime, catalog, combat, Firebase, UI, Part A–D design contract or test files were modified.
+
+| Audited implementation area | Historical entries newly checked | Evidence in branch |
+|---|---:|---|
+| Persistence, registry, metadata, slots | 14 | `js/item-inventory-runtime.js`, `js/item-persistence-runtime.js`, `js/item-enchantment-engine.js`, `js/item-catalog-enchantments.js` |
+| Effect definitions, ordering, gating, provenance | 10 | `js/item-catalog-enchantments.js`, `js/item-enchantment-engine.js`, `js/item-magic-runtime.js` |
+| Service quotes, engine validation, local transactions, removal/replacement | 18 | `js/item-enchanter-service-runtime.js`, `js/item-enchantment-engine.js`; local transaction regression asserts |
+| Charges, inventory, combat integration foundations | 12 | `js/item-magic-runtime.js`, `js/item-enchantment-combat-runtime.js`, `js/item-inventory-runtime.js` |
+| Economy foundations | 5 | Provider/material pricing and normalized AHN calculation in `js/item-enchanter-service-runtime.js` |
+| Player service panel and its visible controls | 13 | `js/item-enchanter-ui.js` (UI existence/behaviors in source, **not** a passed browser acceptance test) |
+| DM Item Enchantment editor | 8 | `js/dm-item-instance-editor.js` (canonical apply/remove controls in source) |
+| Player knowledge presentation | 4 | `js/item-magic-knowledge-runtime.js`, `js/inventory-hud-v2.js`, Compendium |
+| Added smoke/regression coverage | 12 | Existing `tests/item-enchantment-*.cjs`, `tests/item-enchanter-*.cjs`, inventory/gem/MD tests; **existence is not proof of a green CI run** |
+
+**Checklist before:** 257 checked / 128 unchecked, 385 total.
+**Checklist after:** 353 checked / 32 unchecked, 385 total.
+
+### Deliberately not checked
+
+- Part C end-to-end DM provider authoring and complete Part C scenario coverage; Part D Relic/Artifact/Native Magic Item remaining gates.
+- Full physical+SIN specialist-damage, pre-damage reactive Shield and resistance pipeline reconciliation from the separately approved #963 design directions. Those designs are not live merely because this checklist is updated.
+- Complete authoritative Battle Engine application of all typed/resistance/support effects, and approved final stacking semantics.
+- Remote Firebase/server-atomic service payment/material/Item updates, failure recovery, and independent-client duplicate-submit protection. The checked transaction work reflects currently implemented **in-memory** facilities, not proven remote ACID safety.
+- Charge↔Magical Durability canonical backing and UI-client-only-reset safeguards where end-to-end behavior is unresolved.
+- Browser-level Player/DM UI smoke, real Battle Viewer smoke, and verified green CI on the final commit.
+
+### Validation follow-up
+
+The Inventory Runtime Validation workflow references many Enchanter smokes but **does not currently invoke** `tests/item-enchanter-transaction-smoke.cjs`, `tests/item-enchantment-legacy-backend-smoke.cjs`, or `tests/item-equipment-enhancement-smoke.cjs`. Its trigger/syntax matrix also misses `js/item-enchanter-ui.js` and `js/item-equipment-enhancement-contract.js`. Existing regression tests are recorded as **authored** but the missing CI wiring and browser acceptance gates remain open.
+
+**This is not a 100%-working certification.** Close the PR only after outstanding tasks are implemented, coverage is wired and passing, Firebase transaction behavior is verified in integration, and an actual Player/DM/Battle Viewer end-to-end acceptance run passes.
