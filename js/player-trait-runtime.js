@@ -537,6 +537,67 @@ ${response}`);
     return host;
   }
 
+  // Narrative choices belong to the authenticated player's record only.
+  // These edits never modify the mechanical build, HP coefficient or Trait grants.
+  async function saveBackgroundChoices(backgroundId, choices = {}) {
+    const playerId = String(state.playerId || "").trim();
+    const storageId = String(global.localStorage?.getItem?.(PLAYER_ID_STORAGE_KEY) || "").trim();
+    const uid = currentAuthUid();
+    const character = getCharacter();
+    const selectedBackgroundId = String(character?.characterBuild?.backgroundId || character?.backgroundId || "").trim();
+    if (!playerId || playerId !== storageId || !uid || String(character?.uid || "") !== uid) {
+      throw new Error("No se pudo verificar tu personaje. Vuelve a iniciar sesión.");
+    }
+    if (!selectedBackgroundId || selectedBackgroundId !== String(backgroundId || "").trim()) {
+      throw new Error("Tu Background cambió. Vuelve a abrir el editor antes de guardar.");
+    }
+    if (!state.db && !connectFirebase()) throw new Error("No hay conexión con la base de datos.");
+    const payload = {};
+    for (const key of ["ideal", "bond", "flaw"]) {
+      if (!Object.prototype.hasOwnProperty.call(choices, key)) continue;
+      const value = String(choices[key] ?? "").trim();
+      if (value.length > 180) throw new Error("Cada elección debe tener 180 caracteres o menos.");
+      payload[key] = value;
+    }
+    if (Object.prototype.hasOwnProperty.call(choices, "personality")) {
+      const list = Array.isArray(choices.personality) ? choices.personality : [];
+      if (list.length > 2 || list.some((item) => typeof item !== "string" || item.trim().length > 120)) {
+        throw new Error("Puedes escribir hasta dos rasgos de personalidad de 120 caracteres.");
+      }
+      const cleaned = list.map((item) => item.trim()).filter(Boolean);
+      payload.personality = cleaned.length ? cleaned : "";
+    }
+    if (!Object.keys(payload).length) throw new Error("Elige o escribe al menos una decisión para guardar.");
+    payload.backgroundId = selectedBackgroundId;
+    // Atomic, scope-aware merge: when the DM assigns a new Background, no field
+    // from the previous Background may be carried into the first partial save.
+    const result = await state.db.ref(`${PLAYER_ROOT}/${playerId}/backgroundChoices`)
+      .transaction((current) => {
+        const saved = current && typeof current === "object" && !Array.isArray(current) ? current : {};
+        // Untagged pre-migration choices cannot be proven to belong to this
+        // Background. Never adopt them as the new origin's saved selections.
+        const sameBackground = saved.backgroundId === selectedBackgroundId;
+        return { ...(sameBackground ? saved : {}), ...payload };
+      }, undefined, false);
+    if (!result?.committed) throw new Error("No se pudieron guardar tus decisiones. Inténtalo de nuevo.");
+    const storedChoices = result.snapshot?.val() || payload;
+    // A realtime DM update may have arrived during the save: never restore the
+    // pre-save character (classes, traits, stats or Background).
+    const latestCharacter = getCharacter();
+    const latestBackgroundId = String(latestCharacter?.characterBuild?.backgroundId || latestCharacter?.backgroundId || "").trim();
+    if (state.playerId === playerId
+        && String(latestCharacter?.uid || "") === uid
+        && latestBackgroundId === selectedBackgroundId) {
+      const newestChoices = latestCharacter.backgroundChoices;
+      const inScope = newestChoices?.backgroundId === selectedBackgroundId ? newestChoices : {};
+      state.character = {
+        ...latestCharacter,
+        backgroundChoices: { ...storedChoices, ...inScope, ...payload },
+      };
+    }
+    return payload;
+  }
+
   function mountTray() {
     const host = ensureHost();
     const traitEngine = global.LuminousTraitEngine;
@@ -550,6 +611,7 @@ ${response}`);
         state: state.traitState,
         getTraits: resolveDisplayTraits,
         getRuntime: () => getRuntime(),
+        saveBackgroundChoices,
         prepareRuntime: prepareTraitRuntime,
         onActivated: handleTraitActivated,
         onBlocked: (result) => emit("luminous:trait-blocked", result),
@@ -868,6 +930,7 @@ ${response}`);
     getDisplayTraits: resolveDisplayTraits,
     getTraitState: () => state.traitState,
     getRuntime,
+    saveBackgroundChoices,
     dispatch,
     resolveTheatreCheck,
     dispatchCombatEvent,
