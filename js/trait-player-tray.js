@@ -949,10 +949,12 @@
     const narrative = global.LuminousBackgroundNarratives?.get?.(id) || null;
     const legacy = global.LuminousLegacyBackgroundCatalog?.get?.(id) || null;
     const custom = character.backgroundNarrative && typeof character.backgroundNarrative === "object" ? character.backgroundNarrative : {};
+    const buildChoices = build.backgroundChoices && typeof build.backgroundChoices === "object" ? build.backgroundChoices : {};
+    const savedChoices = character.backgroundChoices && typeof character.backgroundChoices === "object" ? character.backgroundChoices : {};
     const choices = {
       ...custom,
-      ...(build.backgroundChoices && typeof build.backgroundChoices === "object" ? build.backgroundChoices : {}),
-      ...(character.backgroundChoices && typeof character.backgroundChoices === "object" ? character.backgroundChoices : {}),
+      ...(!buildChoices.backgroundId || buildChoices.backgroundId === id ? buildChoices : {}),
+      ...(!savedChoices.backgroundId || savedChoices.backgroundId === id ? savedChoices : {}),
     };
     const label = (value) => String(value ?? "").replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
     const fallbackName = id ? label(id).replace(/\b\w/g, (match) => match.toUpperCase()) : "";
