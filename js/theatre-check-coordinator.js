@@ -952,36 +952,59 @@
     return hud;
   }
 
-  async function resolveDmCheckResult(live) {
-    const uid = live.targetUid;
-    const commandId = live.commandId;
-    if (!uid || !commandId || live.check?.opposedSessionId) return;
-    if (state.resolvedResults.has(commandId) || state.resolvingResults.has(commandId)) return;
-    state.resolvingResults.add(commandId);
+  // The Firebase subtree's UID and command key determine identity. Live payloads
+  // are player-writable telemetry, NEVER authorization or Check configuration.
+  async function readDmIssuedCommand(uid, commandId) {
+    if (currentUid() !== DM_UID || !uid || !commandId) return null;
+    const snapshot = await db.ref(`${COMMAND_ROOT}/${uid}/${commandId}`).once("value");
+    const command = snapshot.val();
+    if (!command || command.targetUid !== uid || String(command.roomKey || "default") !== roomKey()) return null;
+    return command;
+  }
+
+  async function authoritativeDmCheck(command, uid, commandId) {
+    const check = command?.check || {};
+    if (!check.hiddenThreshold) return check;
+    const snapshot = await db.ref(`dm_private/theatre_check_secrets/${uid}/${commandId}`).once("value");
+    const secret = snapshot.val();
+    if (!secret && check.thresholdRaw == null) throw new Error("Threshold privado no disponible.");
+    // Player-provided live.check is intentionally not used here.
+    return secret ? { ...check, ...secret, hiddenThreshold: true } : check;
+  }
+
+  async function resolveDmCheckResult({ uid, commandId, live }) {
+    if (currentUid() !== DM_UID || !uid || !commandId || !live || live.status !== "complete") return;
+    if (live.targetUid !== uid || !Number.isFinite(live.total) ||
+        !Array.isArray(live.coins) || live.coins.length !== 5 ||
+        live.coins.some((coin) => !["head", "tail"].includes(coin?.side))) return;
+    const id = `${uid}:${commandId}`;
+    if (state.resolvedResults.has(id) || state.resolvingResults.has(id)) return;
+    state.resolvingResults.add(id);
     try {
-      let check = live.check || {};
-      if (check.hiddenThreshold) {
-        const secret = (await db.ref(`dm_private/theatre_check_secrets/${uid}/${commandId}`).once("value")).val();
-        if (secret) check = { ...check, ...secret };
-        else if (check.thresholdRaw == null) throw new Error("Threshold privado no disponible");
-      }
-      const outcome = global.LuminousTheatreRolls?.checkOutcome?.(live.total, check) || null;
-      const threshold = check.hiddenThreshold ? null : (global.LuminousTheatreRolls?.effectiveThreshold?.(check) ?? null);
+      const command = await readDmIssuedCommand(uid, commandId);
+      if (!command || command.status !== "issued" || command.check?.opposedSessionId) return;
+      const check = await authoritativeDmCheck(command, uid, commandId);
+      const outcome = global.LuminousTheatreRolls?.checkOutcome?.(live.total, check) ?? null;
+      const threshold = check.hiddenThreshold ? null :
+        (global.LuminousTheatreRolls?.effectiveThreshold?.(check) ?? null);
       const result = {
-        roomKey: roomKey(), label: live.rollSpec?.label || "CHECK",
-        total: numberOr(live.total, 0), outcome, threshold,
+        roomKey: command.roomKey || "default",
+        label: command.rollSpec?.label || "CHECK",
+        total: live.total, outcome, threshold,
         hiddenThreshold: Boolean(check.hiddenThreshold),
         thresholdVisibility: check.thresholdVisibility || "public",
         completedAt: firebase.database.ServerValue.TIMESTAMP,
         clientCompletedAt: Date.now(),
       };
-      const updates = {};
-      updates[`theatre_check_results/${uid}/${commandId}`] = result;
-      updates[`${COMMAND_ROOT}/${uid}/${commandId}/status`] = "completed";
-      await db.ref().update(updates);
-      state.resolvedResults.add(commandId);
+      // Both the player-facing result and command acknowledgement are DM-owned.
+      // The target, Check configuration and display metadata come from the issued command.
+      await db.ref().update({
+        [`theatre_check_results/${uid}/${commandId}`]: result,
+        [`${COMMAND_ROOT}/${uid}/${commandId}/status`]: "completed",
+      });
+      state.resolvedResults.add(id);
     } finally {
-      state.resolvingResults.delete(commandId);
+      state.resolvingResults.delete(id);
     }
   }
 
