@@ -39,6 +39,7 @@
 
 #### Ashwake III
 
+**Example item:** Ashwake Greatshield  
 **Allowed on:** Shield, Armor  
 **Status:** PROPOSED / NOT IMPLEMENTED  
 **Tags:** Burn; Guard; Shield break
@@ -57,6 +58,7 @@
 
 #### Cinder Requiem III
 
+**Example item:** Cinder Requiem Rapier  
 **Allowed on:** Weapon  
 **Status:** PROPOSED / NOT IMPLEMENTED  
 **Tags:** Burn; Turn End; On Kill; temporary mark
@@ -75,6 +77,7 @@
 
 #### Emberheart III
 
+**Example item:** Emberheart Cuirass  
 **Allowed on:** Armor, Accessory  
 **Status:** PROPOSED / NOT IMPLEMENTED  
 **Tags:** Protection; Shield; Burn; damage taken; resource
@@ -93,6 +96,7 @@
 
 #### Scorchweave III
 
+**Example item:** Scorchweave Brooch  
 **Allowed on:** Accessory, Valuable  
 **Status:** PROPOSED / NOT IMPLEMENTED  
 **Tags:** Evade; Burn; Blinded; condition tag
@@ -111,6 +115,7 @@
 
 #### Pyrelash III
 
+**Example item:** Pyrelash Chainwhip  
 **Allowed on:** Weapon  
 **Status:** PROPOSED / NOT IMPLEMENTED  
 **Tags:** Burn; Clash Lose; On Hit; charges
@@ -131,6 +136,7 @@
 
 #### Frostwrought III
 
+**Example item:** Frostwrought Greatsword  
 **Allowed on:** Weapon  
 **Status:** PROPOSED / NOT IMPLEMENTED  
 **Tags:** Chill; Bind; Frozen; repeated-hit tracking
@@ -149,6 +155,7 @@
 
 #### Whiteout III
 
+**Example item:** Whiteout Breastplate  
 **Allowed on:** Armor  
 **Status:** PROPOSED / NOT IMPLEMENTED  
 **Tags:** Chill; Blinded; Evade; Protection
@@ -167,6 +174,7 @@
 
 #### Permafrost III
 
+**Example item:** Permafrost Tower Shield  
 **Allowed on:** Armor, Shield  
 **Status:** PROPOSED / NOT IMPLEMENTED  
 **Tags:** Guard; Shield; Chill; prevented-damage counter
@@ -185,6 +193,7 @@
 
 #### Rimeglass III
 
+**Example item:** Rimeglass Dagger  
 **Allowed on:** Weapon  
 **Status:** PROPOSED / NOT IMPLEMENTED  
 **Tags:** Chill; Rupture; Tremor Burst; critical hit
@@ -203,6 +212,7 @@
 
 #### Winter's Grasp III
 
+**Example item:** Winter's Grasp Spear  
 **Allowed on:** Weapon, Accessory  
 **Status:** PROPOSED / NOT IMPLEMENTED  
 **Tags:** Bind; Chill; Restrained; resistance Save
@@ -221,6 +231,7 @@
 
 #### Black Ice III
 
+**Example item:** Black Ice Anklet  
 **Allowed on:** Accessory  
 **Status:** PROPOSED / NOT IMPLEMENTED  
 **Tags:** Evade; Chill; Haste; Stagger Threshold
@@ -241,6 +252,7 @@
 
 #### Stormwake III
 
+**Example item:** Stormwake Sabre  
 **Allowed on:** Weapon  
 **Status:** PROPOSED / NOT IMPLEMENTED  
 **Tags:** Shock; Paralysis conversion; single-use charge
@@ -259,6 +271,7 @@
 
 #### Thundercall III
 
+**Example item:** Thundercall Warhammer  
 **Allowed on:** Weapon  
 **Status:** PROPOSED / NOT IMPLEMENTED  
 **Tags:** Shock; Paralysis; Tremor; Clash Win
@@ -277,6 +290,7 @@
 
 #### Stormcage III
 
+**Example item:** Stormcage Buckler  
 **Allowed on:** Shield  
 **Status:** PROPOSED / NOT IMPLEMENTED  
 **Tags:** Guard; Shock; Paralysis; Shield
@@ -295,6 +309,7 @@
 
 #### Static Veil III
 
+**Example item:** Static Veil Mail  
 **Allowed on:** Armor, Accessory  
 **Status:** PROPOSED / NOT IMPLEMENTED  
 **Tags:** Shock; Protection; Shield; damage taken
@@ -313,6 +328,7 @@
 
 #### Galeheart III
 
+**Example item:** Galeheart Bracelet  
 **Allowed on:** Accessory  
 **Status:** PROPOSED / NOT IMPLEMENTED  
 **Tags:** Haste; Bind; Evade; ally targeting
@@ -331,6 +347,7 @@
 
 #### Skybreaker III
 
+**Example item:** Skybreaker Lance  
 **Allowed on:** Weapon  
 **Status:** PROPOSED / NOT IMPLEMENTED  
 **Tags:** Shock; Shields; Tremor Burst; shield-break event
@@ -351,6 +368,7 @@
 
 #### Bloodthorn III
 
+**Example item:** Bloodthorn Stiletto  
 **Allowed on:** Weapon  
 **Status:** PROPOSED / NOT IMPLEMENTED  
 **Tags:** Bleed; Poise/Critical; Rupture
@@ -369,6 +387,7 @@
 
 #### Crimson Oath III
 
+**Example item:** Crimson Oath Longsword  
 **Allowed on:** Weapon  
 **Status:** PROPOSED / NOT IMPLEMENTED  
 **Tags:** Bleed; Rupture; resource expenditure; target sharing
@@ -387,6 +406,7 @@
 
 #### Hollow Fang III
 
+**Example item:** Hollow Fang Kukri  
 **Allowed on:** Weapon  
 **Status:** PROPOSED / NOT IMPLEMENTED  
 **Tags:** Bleed; healing; Shield; Critical
@@ -405,6 +425,7 @@
 
 #### Ruptureloom III
 
+**Example item:** Ruptureloom Pike  
 **Allowed on:** Weapon  
 **Status:** PROPOSED / NOT IMPLEMENTED  
 **Tags:** Rupture; multiple-hit tracking; On Hit
@@ -423,6 +444,7 @@
 
 #### Butcher's Hymn III
 
+**Example item:** Butcher's Hymn Breastplate  
 **Allowed on:** Armor  
 **Status:** PROPOSED / NOT IMPLEMENTED  
 **Tags:** Poise; Bleed; Protection; damage taken
@@ -441,6 +463,7 @@
 
 #### Heartseeker III
 
+**Example item:** Heartseeker Longbow  
 **Allowed on:** Weapon  
 **Status:** PROPOSED / NOT IMPLEMENTED  
 **Tags:** Bleed; Rupture; HP threshold; marked target
@@ -461,6 +484,7 @@
 
 #### Gravewhisper III
 
+**Example item:** Gravewhisper Scythe  
 **Allowed on:** Weapon  
 **Status:** PROPOSED / NOT IMPLEMENTED  
 **Tags:** Sinking; SP; Poise; per-target mark
@@ -479,6 +503,7 @@
 
 #### Drownsong III
 
+**Example item:** Drownsong Signet Ring  
 **Allowed on:** Accessory, Valuable  
 **Status:** PROPOSED / NOT IMPLEMENTED  
 **Tags:** Sinking; SP healing; damage taken; chosen target
@@ -497,6 +522,7 @@
 
 #### Nightfall III
 
+**Example item:** Nightfall Pendant  
 **Allowed on:** Armor, Accessory  
 **Status:** PROPOSED / NOT IMPLEMENTED  
 **Tags:** Evade; Invisible; Sinking; detection
@@ -515,6 +541,7 @@
 
 #### Void Anchor III
 
+**Example item:** Void Anchor Shield  
 **Allowed on:** Shield  
 **Status:** PROPOSED / NOT IMPLEMENTED  
 **Tags:** Bind; Restrained; Guard; Shield; Save
@@ -533,6 +560,7 @@
 
 #### Eclipsed Crown III
 
+**Example item:** Eclipsed Crown Brooch  
 **Allowed on:** Accessory, Valuable  
 **Status:** PROPOSED / NOT IMPLEMENTED  
 **Tags:** Sinking; SP resource; Bind; HP/SP gate
@@ -551,6 +579,7 @@
 
 #### Spectral Covenant III
 
+**Example item:** Spectral Covenant Longsword  
 **Allowed on:** Weapon  
 **Status:** PROPOSED / NOT IMPLEMENTED  
 **Tags:** Stagger; Sinking; Shield; charges
@@ -571,6 +600,7 @@
 
 #### Dawnbound III
 
+**Example item:** Dawnbound Broadsword  
 **Allowed on:** Weapon  
 **Status:** PROPOSED / NOT IMPLEMENTED  
 **Tags:** Radiance; Shields; Protection; marked attacker
@@ -589,6 +619,7 @@
 
 #### Halo of Ash III
 
+**Example item:** Halo of Ash Cuirass  
 **Allowed on:** Armor  
 **Status:** PROPOSED / NOT IMPLEMENTED  
 **Tags:** Protection; Shield; Status cleansing; interception
@@ -607,6 +638,7 @@
 
 #### Mercy's Last Light III
 
+**Example item:** Mercy's Last Light Pendant  
 **Allowed on:** Accessory  
 **Status:** PROPOSED / NOT IMPLEMENTED  
 **Tags:** SP cost; Shield; HP healing; lethal-hit window
@@ -625,6 +657,7 @@
 
 #### Oathkeeper III
 
+**Example item:** Oathkeeper Tower Shield  
 **Allowed on:** Shield  
 **Status:** PROPOSED / NOT IMPLEMENTED  
 **Tags:** interception; Guard; Protection; Shield
@@ -643,6 +676,7 @@
 
 #### Sunpiercer III
 
+**Example item:** Sunpiercer Spear  
 **Allowed on:** Weapon  
 **Status:** PROPOSED / NOT IMPLEMENTED  
 **Tags:** Invisible; Radiance; Shield break; target detection
@@ -661,6 +695,7 @@
 
 #### Radiant Bastion III
 
+**Example item:** Radiant Bastion Shield  
 **Allowed on:** Armor, Shield  
 **Status:** PROPOSED / NOT IMPLEMENTED  
 **Tags:** Guard; Shield; Protection; ally selection
@@ -681,6 +716,7 @@
 
 #### Gravemark III
 
+**Example item:** Gravemark Warhammer  
 **Allowed on:** Weapon  
 **Status:** PROPOSED / NOT IMPLEMENTED  
 **Tags:** Tremor; Tremor Burst; multiple hits
@@ -699,6 +735,7 @@
 
 #### Mirrorheart III
 
+**Example item:** Mirrorheart Pendant  
 **Allowed on:** Accessory, Valuable  
 **Status:** PROPOSED / NOT IMPLEMENTED  
 **Tags:** Burn/Bleed/Sinking; status copy whitelist; remove Status Count
@@ -717,6 +754,7 @@
 
 #### Chains of Ruin III
 
+**Example item:** Chains of Ruin Chainwhip  
 **Allowed on:** Weapon  
 **Status:** PROPOSED / NOT IMPLEMENTED  
 **Tags:** Bind; Rupture; Restrained; Save
@@ -735,6 +773,7 @@
 
 #### Chronolock III
 
+**Example item:** Chronolock Bracelet  
 **Allowed on:** Accessory  
 **Status:** PROPOSED / NOT IMPLEMENTED  
 **Tags:** Quick Action; debt; action economy
@@ -753,6 +792,7 @@
 
 #### Requiem Coil III
 
+**Example item:** Requiem Coil Brigandine  
 **Allowed on:** Armor  
 **Status:** PROPOSED / NOT IMPLEMENTED  
 **Tags:** Guard; stored prevention; Fixed Damage; Shield
@@ -771,6 +811,7 @@
 
 #### Nullwake III
 
+**Example item:** Nullwake Dagger  
 **Allowed on:** Weapon, Accessory  
 **Status:** PROPOSED / NOT IMPLEMENTED  
 **Tags:** temporary beneficial statuses; dispel whitelist; source tracking
