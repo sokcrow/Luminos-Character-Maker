@@ -322,7 +322,7 @@
     if (!panel) return false;
     const data = playerData();
     const resolved = global.LuminousDerivedStats?.resolveCharacterStats?.(data);
-    panelDerivedStats = { data, abilities: resolved?.abilities || null };
+    panelDerivedStats = { data, abilities: resolved?.abilities || null, resolved };
     renderDerivedStats = panelDerivedStats;
     try {
       syncOverview(panel, data);
@@ -601,6 +601,11 @@
     hudScaleForViewport,
     syncHudCanvasScale,
     abilityScore,
+    // The derived runtime's wrappers can reuse the current tab render's
+    // canonical snapshot instead of recalculating it for every Skill/Trait.
+    getRenderDerivedSnapshot(data) {
+      return renderDerivedStats?.data === data ? renderDerivedStats.resolved : null;
+    },
     abilityRollMath,
     abilityModifier,
     proficiencyBonus,
