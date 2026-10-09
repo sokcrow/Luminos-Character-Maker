@@ -225,3 +225,11 @@ body.player-instance-theatre #theatre-check-front-layer .theatre-check-command-p
   box-sizing: border-box;
   pointer-events: auto !important;
 }
+
+/* DM widescreen Check Director */
+@media (min-width: 960px) {
+  .on-game-dashboard #theatre-director-panel { width: min(1120px, calc(100vw - 36px)) !important; }
+  .on-game-dashboard #theatre-check-director { padding: 24px; }
+  .on-game-dashboard #theatre-check-director .theatre-check-compose-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .on-game-dashboard #theatre-check-director .theatre-check-compose-grid .wide { grid-column: span 3; }
+}
