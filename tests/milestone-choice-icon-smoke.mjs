@@ -69,15 +69,24 @@ assert.match(automatic.innerHTML, /Assets\/Icons\/classes\/fighter\.png/);
 const branchNode = makeNode(classModel, node(20, true), { id: "battle_master" });
 assert.doesNotMatch(branchNode.innerHTML, /milestone-choice-icon/, "Archetype milestones do not use choice icon");
 
-const brokenImage = { outerHTML: "", addEventListener(event, fn) {
-  assert.equal(event, "error");
-  this.onError = fn;
-}};
-const badButton = fakeButton();
-badButton.testIcon = brokenImage;
-const fallback = sandbox.__makeProgressionNodeForTest;
-assert.ok(runtime.includes('bindMilestoneChoiceIconFallback(button, fallbackSeal, fallbackSigil)'));
-assert.ok(runtime.includes('icon.outerHTML = fallbackSeal'));
+let onIconError = null;
+let brokenImage = null;
+sandbox.document.createElement = () => {
+  const button = fakeButton();
+  brokenImage = {
+    outerHTML: "",
+    addEventListener(event, fn) {
+      assert.equal(event, "error");
+      onIconError = fn;
+    },
+  };
+  button.testIcon = brokenImage;
+  return button;
+};
+makeNode(classModel, node(20, true));
+assert.equal(typeof onIconError, "function", "Missing PNG must fall back to class artwork");
+onIconError();
+assert.match(brokenImage.outerHTML, /Assets\/Icons\/classes\/fighter\.png/);
 const css = fs.readFileSync(path.join(root, "css/player-progression-mystic.css"), "utf8");
 assert.match(css, /player-progression-milestone-choice-icon/);
 
