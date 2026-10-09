@@ -183,6 +183,81 @@ await clearForm.fire("submit", { preventDefault() {} });
 assert.deepEqual(JSON.parse(JSON.stringify(editsOnly[1].payload)), { ideal: "", personality: [] });
 assert.equal(concurrentCharacter.backgroundChoices.ideal, "");
 
+// An obsolete A save must never close the new B editor or clear B's pending save.
+async function verifyObsoleteEditorCompletion(rejectObsolete) {
+  let currentCharacter = {
+    uid: "player-uid",
+    characterBuild: { backgroundId: "street_medic" },
+    backgroundChoices: { backgroundId: "street_medic" },
+  };
+  const pendingSaves = [];
+  const instance = new Tray({
+    getRuntime: () => ({ character: currentCharacter }),
+    getTraits: () => [],
+    saveBackgroundChoices(id, payload) {
+      return new Promise((resolve, reject) => {
+        pendingSaves.push({
+          id, payload,
+          finish() {
+            currentCharacter = {
+              ...currentCharacter,
+              backgroundChoices: { ...currentCharacter.backgroundChoices, ...payload },
+            };
+            resolve(payload);
+          },
+          fail() { reject(new Error("El guardado anterior no se completó")); },
+        });
+      });
+    },
+  });
+  instance.backgroundPanel = element("section");
+  instance.renderBackground();
+  await instance.backgroundPanel.querySelector(".player-background-edit-button").fire("click");
+  const oldForm = instance.backgroundPanel.querySelector(".player-background-choice-editor");
+  oldForm.querySelectorAll("select")[0].value = "ideal_1";
+  const oldSubmission = oldForm.fire("submit", { preventDefault() {} });
+  assert.equal(pendingSaves[0].id, "street_medic");
+  assert.equal(instance.backgroundSaving, true);
+
+  // DM changes Background A to B before A's save completes.
+  currentCharacter = {
+    uid: "player-uid",
+    characterBuild: { backgroundId: "alta_cuna" },
+    backgroundChoices: { backgroundId: "alta_cuna" },
+  };
+  instance.renderBackground();
+  assert.equal(instance.backgroundSaving, false, "A's old pending save must not block B");
+  await instance.backgroundPanel.querySelector(".player-background-edit-button").fire("click");
+  const newForm = instance.backgroundPanel.querySelector(".player-background-choice-editor");
+  const bondSelect = newForm.querySelectorAll("select")[1];
+  const bondCustom = newForm.querySelectorAll(".player-background-choice-custom")[1];
+  bondSelect.value = "__custom__";
+  bondCustom.value = "Vínculo del nuevo Background";
+  const newSubmission = newForm.fire("submit", { preventDefault() {} });
+  assert.equal(pendingSaves[1].id, "alta_cuna");
+  assert.equal(instance.backgroundSaving, true);
+
+  // A settles while B's newer submission is pending.
+  if (rejectObsolete) pendingSaves[0].fail();
+  else pendingSaves[0].finish();
+  await oldSubmission;
+  assert.equal(instance.backgroundPanel.querySelector(".player-background-choice-editor"), newForm,
+    "Old completion must not destroy the new editor or its unsaved draft");
+  assert.equal(bondCustom.value, "Vínculo del nuevo Background");
+  assert.equal(instance.backgroundSaving, true,
+    "Old completion must not reset the newer B submission's saving state");
+  assert.equal(instance.backgroundEditing, true);
+  assert.equal(instance.backgroundEditorId, "alta_cuna");
+
+  pendingSaves[1].finish();
+  await newSubmission;
+  assert.equal(instance.backgroundSaving, false);
+  assert.equal(instance.backgroundEditing, false);
+  assert.match(textContent(instance.backgroundPanel), /Vínculo del nuevo Background/);
+}
+await verifyObsoleteEditorCompletion(false);
+await verifyObsoleteEditorCompletion(true);
+
 // Legacy psychological values are preloaded in the same editor and can be replaced.
 const legacy = new Tray({
   getRuntime: () => ({
