@@ -1029,45 +1029,58 @@
     db.ref(LIVE_ROOT).on("value", (snapshot) => {
       const root = snapshot.val() || {};
       const entries = [];
-      Object.values(root).forEach((byCommand) => {
+      // Preserve the Firebase key identity; never let a live object's fields
+      // overwrite the actual authenticated writer's UID or commandId.
+      Object.entries(root).forEach(([uid, byCommand]) => {
         Object.entries(byCommand || {}).forEach(([commandId, live]) => {
           if (!live || String(live.roomKey || "default") !== roomKey()) return;
           if (Date.now() - numberOr(live.clientUpdatedAt, 0) > LIVE_MAX_AGE_MS) return;
-          entries.push({ commandId, ...live });
+          entries.push({ uid, commandId, live });
         });
       });
-      entries.sort((a, b) => numberOr(b.clientUpdatedAt) - numberOr(a.clientUpdatedAt));
-      const ordinary = entries.filter((entry) => !entry.check?.opposedSessionId);
-      ordinary.filter((entry) => entry.status === "complete").forEach((entry) => {
+      entries.sort((a, b) => numberOr(b.live.clientUpdatedAt) - numberOr(a.live.clientUpdatedAt));
+      entries.filter(({ live }) => live.status === "complete").forEach((entry) => {
         resolveDmCheckResult(entry).catch((error) => console.warn("Check DM sin resolución:", error));
       });
-      const latest = ordinary[0];
+
       const generation = ++state.dmLiveGeneration;
       const activity = $("theatre-check-live-state");
-      if (!latest) {
-        state.dmLiveHud?.remove();
-        state.dmLiveHud = null;
-        if (activity) activity.textContent = "Sin tiradas activas";
-        return;
-      }
       const render = async () => {
-        let display = latest;
-        if (latest.check?.hiddenThreshold && latest.check.thresholdRaw == null) {
-          const secret = (await db.ref(`dm_private/theatre_check_secrets/${latest.targetUid}/${latest.commandId}`).once("value")).val();
-          if (secret) display = { ...latest, check: { ...latest.check, ...secret } };
+        let display = null;
+        for (const entry of entries.slice(0, 20)) {
+          const { uid, commandId, live } = entry;
+          if (live.targetUid !== uid || !Number.isFinite(live.total)) continue;
+          const command = await readDmIssuedCommand(uid, commandId);
+          if (!command || command.check?.opposedSessionId) continue;
+          const check = await authoritativeDmCheck(command, uid, commandId);
+          const outcome = live.status === "complete"
+            ? global.LuminousTheatreRolls?.checkOutcome?.(live.total, check) ?? null : null;
+          display = {
+            ...live,
+            targetUid: uid,
+            commandId,
+            targetName: command.targetName,
+            rollSpec: command.rollSpec,
+            check,
+            outcome,
+          };
+          break;
         }
         if (generation !== state.dmLiveGeneration) return;
+        state.dmLiveHud?.remove();
+        state.dmLiveHud = null;
+        if (!display) {
+          if (activity) activity.textContent = "Sin tiradas individuales activas";
+          return;
+        }
         const front = ensureFrontLayer();
         if (!front) return;
-        state.dmLiveHud?.remove();
         state.dmLiveHud = buildDmMirrorHud(display);
         front.appendChild(state.dmLiveHud);
-        const outcome = latest.status === "complete"
-          ? global.LuminousTheatreRolls?.checkOutcome?.(display.total, display.check) : null;
         if (activity) activity.textContent =
-          `${display.targetName || "Jugador"} · ${display.rollSpec?.label || "Check"} · ${outcome === "passed" ? "SUPERADO" : outcome === "failed" ? "FALLIDO" : latest.status === "complete" ? "Tirada terminada" : "Girando monedas"}`;
+          `${display.targetName || "Jugador"} · ${display.rollSpec?.label || "Check"} · ${display.outcome === "passed" ? "SUPERADO" : display.outcome === "failed" ? "FALLIDO" : display.status === "complete" ? "Tirada terminada" : "Girando monedas"}`;
       };
-      render().catch((error) => console.warn("No se pudo mostrar el Check privado al DM:", error));
+      render().catch((error) => console.warn("No se pudo mostrar el Check autorizado al DM:", error));
     }, (error) => {
       state.dmLiveBound = false;
       console.error("No se pudo escuchar el HUD en vivo:", error);
