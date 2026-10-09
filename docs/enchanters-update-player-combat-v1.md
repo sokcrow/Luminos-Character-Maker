@@ -54,3 +54,13 @@
 - Catálogo masivo de nuevos encantamientos o reglas elementales aún no diseñadas.
 
 Estas características requieren decisiones de reglas independientes; no deben integrarse implícitamente a la actualización final del núcleo, Studio e inventario/combat.
+
+
+## Auditoría de integración (8 de octubre de 2026)
+
+- **DM Studio CI:** el harness Playwright vuelve a cargar los módulos de Enchanter reales; los 5 checks de PR #949 pasaron tras corregir los 6 timeouts.
+- **Referencias al equipamiento:** guardar encantamiento en un Item Instance equipado actualiza el puntero de equipamiento; un fallo de guardado restaura tanto el objeto como el puntero original. Prueba con el editor real: 5 aserciones satisfactorias.
+- **Battle Viewer:** el CombatEngine real verifica arma concreta, nivel ofensivo +2, armadura +3 condicionada por sintonización, retirada de bono al desintonizar y bloqueo al desactivar el equipamiento. Contratos de persistencia comprobados.
+- **Jugador:** acciones de sintonización y retirada desde el inventario, usando el runtime mágico existente; dos flujos de UI simulada comprobados.
+- **Base main:** las aserciones obsoletas de Proficiency que bloqueaban smoke tests independientes se corrigieron y fusionaron en PR #958 sin alterar reglas.
+- **Integración:** esta rama reúne las tres entregas sobre una única PR contra `main`. Su fusión debe esperar el CI de la combinación actual y aceptación manual DM/jugador + Firebase + Battle Viewer.
