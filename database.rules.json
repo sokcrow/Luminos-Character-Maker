@@ -164,7 +164,8 @@
       "$uid": {
         ".read": "auth != null && ((auth.uid === root.child('campaña').child('config').child('dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1') || auth.uid === $uid)",
         "$commandId": {
-          ".write": "auth != null && ((auth.uid === root.child('campaña').child('config').child('dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1') || auth.uid === $uid)"
+          ".write": "auth != null && ((auth.uid === root.child('campaña').child('config').child('dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1') || auth.uid === $uid)",
+          ".validate": "newData.val() == null || (newData.child('targetUid').val() === $uid && root.child('theatre_check_commands').child($uid).child($commandId).child('targetUid').val() === $uid && newData.child('roomKey').val() === root.child('theatre_check_commands').child($uid).child($commandId).child('roomKey').val())"
         }
       }
     },
