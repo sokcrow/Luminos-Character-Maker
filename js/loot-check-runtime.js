@@ -89,7 +89,8 @@
     const explicit = actor.proficiencyBonus ?? actor.dndProficiencyBonus ?? actor.dnd?.proficiencyBonus;
     if (Number.isFinite(Number(explicit))) return Math.max(0, numberOr(explicit, 0));
     const levelSource = actor.level ?? actor.runtimeLevel ?? actor.baseLevelSelected ?? actor.effectiveLevel ?? actor.mechanics?.runtimeLevel ?? actor.mechanics?.level ?? 1;
-    return Math.ceil(Math.max(1, numberOr(levelSource, 1)) / 20);
+    return global.LuminousProficiencyRuntime?.proficiencyBonus?.(levelSource)
+      ?? Math.min(6, 2 + Math.floor((Math.max(1, numberOr(levelSource, 1)) - 1) / 20));
   }
 
   function proficiencyContribution(actor, state) {
