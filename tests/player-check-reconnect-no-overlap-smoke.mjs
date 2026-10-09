@@ -25,8 +25,8 @@ assert.ok(html.includes("v=20261009-check-reconnect-2"),
   "Player must receive fresh Check assets, not cached versions");
 assert.match(coordinatorCode, /statusRef\.on\("value", onAcknowledged/,
   "Completed live telemetry must be retained until the DM acknowledges the command");
-assert.doesNotMatch(coordinatorCode, /setTimeout\(\(\) => liveRef\.remove\(\)/,
-  "Completed live telemetry must not be erased after a fixed timeout");
+assert.ok(coordinatorCode.indexOf('liveRef.remove()') > coordinatorCode.indexOf('if (snapshot.val() !== "completed") return;'),
+  "Completed live telemetry may only be deleted in the post-acknowledgement branch");
 assert.match(coordinatorCode, /live\.status !== "complete" && age > LIVE_MAX_AGE_MS/,
   "DM must resolve completed telemetry regardless of how long it was offline");
 
