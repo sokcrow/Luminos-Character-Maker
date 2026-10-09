@@ -684,7 +684,7 @@
     state.playerCommandsBound = true;
     db.ref(`${COMMAND_ROOT}/${uid}`).limitToLast(20).on("child_added", (snapshot) => {
       const command = snapshot.val() || {};
-      if (command.targetUid !== uid || String(command.roomKey || "default") !== roomKey()) return;
+      if (command.status !== "issued" || command.targetUid !== uid || String(command.roomKey || "default") !== roomKey()) return;
       const age = Date.now() - numberOr(command.clientIssuedAt, Date.now());
       if (age > COMMAND_MAX_AGE_MS) return;
       const seenKey = `luminousTheatreCheck:${snapshot.key}`;
@@ -700,7 +700,7 @@
   }
 
   function checkDisplay(check) {
-    if (check?.hiddenThreshold) return "THRESHOLD ??";
+    if (check?.hiddenThreshold) return check.thresholdVisibility === "hidden" ? "CHECK OCULTO" : "THRESHOLD ??";
     const raw = check?.thresholdRaw == null ? NaN : Number(check.thresholdRaw);
     if (!Number.isFinite(raw)) return "SIN THRESHOLD";
     const x = Math.max(0, Math.trunc(numberOr(check?.modifierValue, 0)));
@@ -959,14 +959,18 @@
       }
       const outcome = global.LuminousTheatreRolls?.checkOutcome?.(live.total, check) || null;
       const threshold = check.hiddenThreshold ? null : (global.LuminousTheatreRolls?.effectiveThreshold?.(check) ?? null);
-      await db.ref(`theatre_check_results/${uid}/${commandId}`).set({
+      const result = {
         roomKey: roomKey(), label: live.rollSpec?.label || "CHECK",
         total: numberOr(live.total, 0), outcome, threshold,
         hiddenThreshold: Boolean(check.hiddenThreshold),
         thresholdVisibility: check.thresholdVisibility || "public",
         completedAt: firebase.database.ServerValue.TIMESTAMP,
         clientCompletedAt: Date.now(),
-      });
+      };
+      const updates = {};
+      updates[`theatre_check_results/${uid}/${commandId}`] = result;
+      updates[`${COMMAND_ROOT}/${uid}/${commandId}/status`] = "completed";
+      await db.ref().update(updates);
       state.resolvedResults.add(commandId);
     } finally {
       state.resolvingResults.delete(commandId);
