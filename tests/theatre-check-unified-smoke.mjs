@@ -128,6 +128,26 @@ check("35 legacy roll automation remains hidden only during Checks", () => {
   assert.ok(read("css/theatre-check-coordinator.css").includes("body.theatre-check-active #coin-toss-panel"));
 });
 
+check("36 DM result guard sets are initialized", () => {
+  const code = read("js/theatre-check-coordinator.js");
+  assert.ok(code.includes("resolvingResults: new Set()"));
+  assert.ok(code.includes("resolvedResults: new Set()"));
+});
+check("37 DM Check resolution uses the issued command", () => {
+  const code = read("js/theatre-check-coordinator.js");
+  assert.ok(code.includes("readDmIssuedCommand(uid, commandId)"));
+  assert.ok(code.includes("authoritativeDmCheck(command, uid, commandId)"));
+});
+check("38 DM preserves path identity", () => {
+  const code = read("js/theatre-check-coordinator.js");
+  assert.ok(code.includes("entries.push({ uid, commandId, live })"));
+});
+check("39 Firebase guards live Check target UID", () => {
+  const rules = JSON.parse(read("database.rules.json")).rules;
+  const condition = rules.theatre_check_live.$uid.$commandId[".validate"];
+  assert.ok(condition.includes("newData.child('targetUid').val() === $uid"));
+});
+
 for (const [label, fn] of tests) {
   try { fn(); console.log("OK:",label); }
   catch (error) { console.error("FAIL:",label); throw error; }
