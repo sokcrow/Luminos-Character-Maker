@@ -263,6 +263,10 @@ async function bootDmHarness(page) {
     window.db = { ref() { return {}; } };
   });
 
+  // Load the real Enchanter runtime dependencies in the isolated Playwright
+  // about:blank harness; relative <script src> requests cannot resolve there.
+  await page.addScriptTag({ path: path.join(ROOT, "js/item-enchantment-runtime.js") });
+  await page.addScriptTag({ path: path.join(ROOT, "js/dm-enchanter-studio-model.js") });
   await page.addScriptTag({ path: EDITOR });
   await page.waitForFunction(() => window.LuminousDmItemInstanceEditor?.state?.ready === true);
   await expect(page.locator('#modal-inv-lista-activos .dm-item-instance-edit[data-key="sword_1"]')).toHaveCount(1);
