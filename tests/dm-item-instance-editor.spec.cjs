@@ -266,6 +266,11 @@ async function bootDmHarness(page) {
   // Load the real Enchanter runtime dependencies in the isolated Playwright
   // about:blank harness; relative <script src> requests cannot resolve there.
   await page.addScriptTag({ path: path.join(ROOT, "js/item-enchantment-runtime.js") });
+  await page.addScriptTag({ path: path.join(ROOT, "js/item-economy-standard.js") });
+  await page.addScriptTag({ path: path.join(ROOT, "js/item-catalog-ore-ingot-gem.js") });
+  await page.addScriptTag({ path: path.join(ROOT, "js/item-catalog-essence-core.js") });
+  await page.addScriptTag({ path: path.join(ROOT, "js/item-enchantment-recipe-catalog.js") });
+  await page.addScriptTag({ path: path.join(ROOT, "js/item-enchantment-crafting-runtime.js") });
   await page.addScriptTag({ path: path.join(ROOT, "js/dm-enchanter-studio-model.js") });
   await page.addScriptTag({ path: EDITOR });
   await page.waitForFunction(() => window.LuminousDmItemInstanceEditor?.state?.ready === true);
