@@ -191,6 +191,27 @@
     return null;
   }
 
+  // The saved ItemInstance replaces the inventory object. Keep equipped
+  // pointers bound to that same live instance instead of an obsolete clone.
+  function relinkEquippedInstance(unit, previous, next) {
+    const equipment = unit?.equipment;
+    const instanceId = itemId(previous);
+    if (!equipment || !instanceId || itemId(next) !== instanceId) return 0;
+    let linked = 0;
+    const replace = (value) => {
+      if (!value || typeof value !== "object" || itemId(value) !== instanceId) return value;
+      linked += 1;
+      return next;
+    };
+    for (const slot of ["mainHand", "offHand", "main_hand", "off_hand", "armor", "shield"]) {
+      if (equipment[slot] != null) equipment[slot] = replace(equipment[slot]);
+    }
+    for (const slot of ["accessories", "augments", "augmentations"]) {
+      if (Array.isArray(equipment[slot])) equipment[slot] = equipment[slot].map(replace);
+    }
+    return linked;
+  }
+
   function clearEquipmentReferences(unit, instanceId) {
     if (!unit?.equipment) return;
     const wanted = String(instanceId || "");
@@ -677,10 +698,14 @@
     }
 
     latest.container[latest.key] = migrated;
+    relinkEquippedInstance(state.unit, original, migrated);
     state.selected.item = migrated;
     const saved = await saveUnit("Guardando objeto...");
     if (!saved) {
-      if (latest.container[latest.key] === migrated) latest.container[latest.key] = original;
+      if (latest.container[latest.key] === migrated) {
+        latest.container[latest.key] = original;
+        relinkEquippedInstance(state.unit, migrated, original);
+      }
       if (state.selected === session) state.selected.item = original;
       return;
     }
