@@ -1,4 +1,4 @@
-# Enchantment Compendium — English Editorial Review v4
+# Enchantment Compendium — English Editorial Review v5
 
 > **DESIGN ONLY · NOT APPROVED · NOT PLAYABLE.** This document contains candidate inscriptions, not enabled gameplay abilities. No recipe or cost is approved by this catalog.
 
@@ -24,7 +24,7 @@
 | 5 | 5 | 8 | 13 |
 | 6 | 6 | 9 | 15 |
 
-**Total:** 84 draft inscriptions (42 original + 42 new) across 13 schools. Equipment classes: 35 weapon, 12 shield, 14 armor, 23 accessory.
+**Total:** 104 draft inscriptions (42 original + 42 elemental/wearer designs + 20 new passive/ward designs) across 14 schools. Equipment classes: 36 weapon, 16 shield, 19 armor, 33 accessory.
 
 ## Weapon Enchantments (21)
 
@@ -1923,3 +1923,501 @@
 
 ---
 
+
+## Volume III — Fundamental Passives, HP / SP Sustaining, and Typed Resistance Wards (20 new inscriptions)
+
+**IMPORTANT: Editorial only.** These entries are intended to fill baseline gear-enchantment roles that don't require an attack proc: enduring maximum HP, passive HP regeneration, passive SP recovery, reduction of involuntary SP loss, typed physical damage resistance, and seven SIN affinity-specific damage wards.
+
+### Magnitude and rounding contract
+
+| Magnitude | Rank I (Base) | Rank II (Ceil ×1.5) | Rank III (Ceil ×2.5) |
+|---|---:|---:|---:|
+| Base Max HP increase | 5% | 8% | 13% |
+| HP regeneration per Turn Start | 2% | 3% | 5% |
+| SP recovery per Turn Start | 2 | 3 | 5 |
+| Physical or SIN-specific resistance multiplier subtraction | −0.06 | −0.09 | −0.15 |
+| SP loss reduction per qualifying loss event | 1 | 2 | 3 |
+
+**Rounding details:** Percentages store integer percentage points, so `ceil(5 × 1.5) = 8` percentage points. The resistance bonus stores hundredths internally: `ceil(6 × 1.5) = 9 hundredths = 0.09`; there is no accidental `ceil(0.06 × 1.5) = 1` bug. After the rank is resolved, a regeneration tick heals `ceil(effective Max HP × ranked percent / 100)` full HP points. All costs, conditional thresholds, duration, target axes, and per-Turn frequencies remain fixed.
+
+**Physical types**: Slash, Pierce and Blunt, read as a subtraction from the matching incoming physical damage multiplier (not post-damage flat reduction). Armor's 0.30 minimum must be respected. **SIN types**: Wrath, Lust, Sloth, Gluttony, Gloom, Pride, Envy. Each ward affects exactly one incoming matching SIN damage multiplier. A narrative element alone (e.g. Fire) does not imply the Wrath SIN tag. The existing Item Armor runtime establishes the physical resistance calculation; the SIN-specific hook and its lower bound need to be established in gameplay before these wards can be implemented.
+
+**HP Max and Decay:** The percent bonus is computed from the authoritative derived base Max HP; the enchanted Max HP must never use a previous enchanted value as input. Recalculate effective Max HP, current HP clamp, and Stagger Thresholds together with other modifiers including Decay. Equipping does not heal the difference. **SP loss reduction:** Applies to an actual involuntary SP-loss event such as enemy SP damage or status damage, not SP paid to activate a Skill. It cannot turn a loss into a net gain. **Stacking:** The proposal is strongest active same-axis resistance ward wins; additive stacking is not pre-approved.
+
+### New signatures
+
+#### Vital (7)
+
+##### Heartbound · ACCESSORY
+
+**Example:** Heartbound Pendant  
+**Compatible chassis:** `pendant`, `necklace`, `ring`  
+**Axes:** HP, Max HP, Passive  
+**Editorial status:** PROPOSED · NOT PLAYABLE
+
+> The heart's name is carved into a small stone that refuses to forget how many beats remain.
+
+**Base Effect:** While this accessory is equipped, increase the wearer's canonical Base Max HP by 5%. Recalculate effective Max HP and Stagger Thresholds from the final value.
+
+**Rank I (×1):** While this accessory is equipped, increase the wearer's canonical Base Max HP by 5%. Recalculate effective Max HP and Stagger Thresholds from the final value.
+
+**Rank II (Ceil ×1.50):** While this accessory is equipped, increase the wearer's canonical Base Max HP by 8%. Recalculate effective Max HP and Stagger Thresholds from the final value.
+
+**Rank III (Ceil ×2.50):** While this accessory is equipped, increase the wearer's canonical Base Max HP by 13%. Recalculate effective Max HP and Stagger Thresholds from the final value.
+
+**Base scalable magnitudes:** percent: 5.
+
+**Limits and implementation gates:** Base Max HP means the already-derived canonical HP baseline, not current HP or permanent CON. Equipping does not heal; unequipping clamps current HP to effective Max HP. Never compounds from the previous enchanted total.
+
+---
+
+##### Bloodroot · ARMOR
+
+**Example:** Bloodroot Breastplate  
+**Compatible chassis:** `hide_armor`, `scale_mail`, `breastplate`, `half_plate`  
+**Axes:** HP, HP Regeneration, Passive  
+**Editorial status:** PROPOSED · NOT PLAYABLE
+
+> A vein of amber runs beneath the armor, delivering one stubborn heartbeat after another.
+
+**Base Effect:** At Turn Start, if the wearer is alive and below Max HP, recover HP equal to 2% of effective Max HP, rounded up to a whole HP point.
+
+**Rank I (×1):** At Turn Start, if the wearer is alive and below Max HP, recover HP equal to 2% of effective Max HP, rounded up to a whole HP point.
+
+**Rank II (Ceil ×1.50):** At Turn Start, if the wearer is alive and below Max HP, recover HP equal to 3% of effective Max HP, rounded up to a whole HP point.
+
+**Rank III (Ceil ×2.50):** At Turn Start, if the wearer is alive and below Max HP, recover HP equal to 5% of effective Max HP, rounded up to a whole HP point.
+
+**Base scalable magnitudes:** percent: 2.
+
+**Limits and implementation gates:** Turn Start is the proposed timing. No recovery from 0 HP, no over-healing, no healing loop outside normal Turn Start; the integer HP amount uses Ceil after the rank percentage is computed.
+
+---
+
+##### Serenity Well · ACCESSORY
+
+**Example:** Serenity Well Ring  
+**Compatible chassis:** `ring`, `pendant`, `necklace`, `brooch`  
+**Axes:** SP, SP Recovery, Passive  
+**Editorial status:** PROPOSED · NOT PLAYABLE
+
+> In the ring's center, a droplet hangs perfectly still even when the wielder's mind breaks into storm.
+
+**Base Effect:** At Turn Start, recover 2 SP up to the wearer's current maximum SP.
+
+**Rank I (×1):** At Turn Start, recover 2 SP up to the wearer's current maximum SP.
+
+**Rank II (Ceil ×1.50):** At Turn Start, recover 3 SP up to the wearer's current maximum SP.
+
+**Rank III (Ceil ×2.50):** At Turn Start, recover 5 SP up to the wearer's current maximum SP.
+
+**Base scalable magnitudes:** sp: 2.
+
+**Limits and implementation gates:** Turn Start is the proposed timing; no benefit at full SP, no generation above Max SP, and no activation while unable to receive resource recovery.
+
+---
+
+##### Mindward · ACCESSORY
+
+**Example:** Mindward Brooch  
+**Compatible chassis:** `pendant`, `ring`, `brooch`, `hairpin`  
+**Axes:** SP, SP Loss Reduction, Passive  
+**Editorial status:** PROPOSED · NOT PLAYABLE
+
+> Every whispered doubt is forced to pass through the inscription before it can touch its bearer.
+
+**Base Effect:** When the wearer would lose SP from a non-voluntary loss event, reduce that SP loss by 1 (minimum final loss 0).
+
+**Rank I (×1):** When the wearer would lose SP from a non-voluntary loss event, reduce that SP loss by 1 (minimum final loss 0).
+
+**Rank II (Ceil ×1.50):** When the wearer would lose SP from a non-voluntary loss event, reduce that SP loss by 2 (minimum final loss 0).
+
+**Rank III (Ceil ×2.50):** When the wearer would lose SP from a non-voluntary loss event, reduce that SP loss by 3 (minimum final loss 0).
+
+**Base scalable magnitudes:** loss: 1.
+
+**Limits and implementation gates:** Includes enemy-origin direct SP damage and status-caused SP loss. Does not discount voluntarily spent SP costs or grant SP; each actual loss event resolves once, not once per damage subcomponent.
+
+---
+
+##### Soulvault · ACCESSORY
+
+**Example:** Soulvault Necklace  
+**Compatible chassis:** `ring`, `pendant`, `necklace`  
+**Axes:** SP, Max SP, Passive  
+**Editorial status:** PROPOSED · NOT PLAYABLE
+
+> Seven sealed chambers within the pendant guard thoughts the mind has not yet learned how to carry.
+
+**Base Effect:** While equipped, increase the wearer's canonical Base Max SP by 5%, recomputing effective Max SP without restoring the missing SP.
+
+**Rank I (×1):** While equipped, increase the wearer's canonical Base Max SP by 5%, recomputing effective Max SP without restoring the missing SP.
+
+**Rank II (Ceil ×1.50):** While equipped, increase the wearer's canonical Base Max SP by 8%, recomputing effective Max SP without restoring the missing SP.
+
+**Rank III (Ceil ×2.50):** While equipped, increase the wearer's canonical Base Max SP by 13%, recomputing effective Max SP without restoring the missing SP.
+
+**Base scalable magnitudes:** percent: 5.
+
+**Limits and implementation gates:** Additional proposed resource counterpart to Heartbound. Max SP derivation must be verified against character/SP rules; does not permanently change Base Score or heal when equipped.
+
+---
+
+##### Mender's Sigil · ACCESSORY
+
+**Example:** Mender's Sigil Ring  
+**Compatible chassis:** `ring`, `pendant`, `brooch`  
+**Axes:** HP, Healing Received, Passive  
+**Editorial status:** PROPOSED · NOT PLAYABLE
+
+> Its gold lines brighten not when the body breaks, but when another hand begins to mend it.
+
+**Base Effect:** While equipped, increase the HP healed by a valid healing effect received by the wearer by 5%, rounding the final healed HP amount up.
+
+**Rank I (×1):** While equipped, increase the HP healed by a valid healing effect received by the wearer by 5%, rounding the final healed HP amount up.
+
+**Rank II (Ceil ×1.50):** While equipped, increase the HP healed by a valid healing effect received by the wearer by 8%, rounding the final healed HP amount up.
+
+**Rank III (Ceil ×2.50):** While equipped, increase the HP healed by a valid healing effect received by the wearer by 13%, rounding the final healed HP amount up.
+
+**Base scalable magnitudes:** percent: 5.
+
+**Limits and implementation gates:** Healing must already be valid; this does not trigger by itself. No HP beyond Max HP and no repeated boost from the same source; healing-percent interactions await pipeline review.
+
+---
+
+##### Clarity's Return · ACCESSORY
+
+**Example:** Clarity's Return Pendant  
+**Compatible chassis:** `pendant`, `brooch`, `hairpin`  
+**Axes:** SP, SP Recovery, Save  
+**Editorial status:** PROPOSED · NOT PLAYABLE
+
+> A mirrored thought waits just beyond every spell that attempts to scatter the mind.
+
+**Base Effect:** Once per Turn, after successfully passing a Save against an enemy effect that would have caused SP loss, recover 2 SP.
+
+**Rank I (×1):** Once per Turn, after successfully passing a Save against an enemy effect that would have caused SP loss, recover 2 SP.
+
+**Rank II (Ceil ×1.50):** Once per Turn, after successfully passing a Save against an enemy effect that would have caused SP loss, recover 3 SP.
+
+**Rank III (Ceil ×2.50):** Once per Turn, after successfully passing a Save against an enemy effect that would have caused SP loss, recover 5 SP.
+
+**Base scalable magnitudes:** sp: 2.
+
+**Limits and implementation gates:** Only a successful Save against an actual SP-threatening enemy effect qualifies. No self-created tests, recovery above Max SP, or activation from voluntary SP payment.
+
+---
+
+#### Warding (10)
+
+##### Ironbark Inscription · ARMOR
+
+**Example:** Ironbark Inscription Breastplate  
+**Compatible chassis:** `hide_armor`, `scale_mail`, `breastplate`, `half_plate`, `plate_armor`  
+**Axes:** Slash, Physical Resistance, Passive  
+**Editorial status:** PROPOSED · NOT PLAYABLE
+
+> Beneath the armor's grain a thousand crossed branches turn the edge of each slash toward the earth.
+
+**Base Effect:** While this armor is equipped, reduce the incoming Slash damage resistance multiplier by 0.06, applied only to Slash damage.
+
+**Rank I (×1):** While this armor is equipped, reduce the incoming Slash damage resistance multiplier by 0.06, applied only to Slash damage.
+
+**Rank II (Ceil ×1.50):** While this armor is equipped, reduce the incoming Slash damage resistance multiplier by 0.09, applied only to Slash damage.
+
+**Rank III (Ceil ×2.50):** While this armor is equipped, reduce the incoming Slash damage resistance multiplier by 0.15, applied only to Slash damage.
+
+**Typed resistance:** `physical` / `slash` (magnitudes in hundredths).
+
+**Limits and implementation gates:** Resistance delta is a multiplier subtraction, not flat HP damage reduction. Physical resistance must honor the canonical 0.30 minimum; stacking with another ward of the same axis remains blocked pending approval.
+
+---
+
+##### Needlebreaker · ARMOR
+
+**Example:** Needlebreaker Chain Mail  
+**Compatible chassis:** `chain_shirt`, `chain_mail`, `splint_armor`, `plate_armor`  
+**Axes:** Pierce, Physical Resistance, Passive  
+**Editorial status:** PROPOSED · NOT PLAYABLE
+
+> Each ring bends the path of a needle until the narrowest wound finds no road inward.
+
+**Base Effect:** While this armor is equipped, reduce the incoming Pierce damage resistance multiplier by 0.06, applied only to Pierce damage.
+
+**Rank I (×1):** While this armor is equipped, reduce the incoming Pierce damage resistance multiplier by 0.06, applied only to Pierce damage.
+
+**Rank II (Ceil ×1.50):** While this armor is equipped, reduce the incoming Pierce damage resistance multiplier by 0.09, applied only to Pierce damage.
+
+**Rank III (Ceil ×2.50):** While this armor is equipped, reduce the incoming Pierce damage resistance multiplier by 0.15, applied only to Pierce damage.
+
+**Typed resistance:** `physical` / `pierce` (magnitudes in hundredths).
+
+**Limits and implementation gates:** Not general damage immunity. Canonical physical floor 0.30 applies. Does not change Armor Quality, Durability or Shield Guard.
+
+---
+
+##### Gravestone Mantle · ARMOR
+
+**Example:** Gravestone Mantle Half Plate  
+**Compatible chassis:** `padded_armor`, `hide_armor`, `half_plate`, `plate_armor`  
+**Axes:** Blunt, Physical Resistance, Passive  
+**Editorial status:** PROPOSED · NOT PLAYABLE
+
+> A grave's patient weight settles over every blow, making the impact remember it has somewhere else to go.
+
+**Base Effect:** While this armor is equipped, reduce the incoming Blunt damage resistance multiplier by 0.06, applied only to Blunt damage.
+
+**Rank I (×1):** While this armor is equipped, reduce the incoming Blunt damage resistance multiplier by 0.06, applied only to Blunt damage.
+
+**Rank II (Ceil ×1.50):** While this armor is equipped, reduce the incoming Blunt damage resistance multiplier by 0.09, applied only to Blunt damage.
+
+**Rank III (Ceil ×2.50):** While this armor is equipped, reduce the incoming Blunt damage resistance multiplier by 0.15, applied only to Blunt damage.
+
+**Typed resistance:** `physical` / `blunt` (magnitudes in hundredths).
+
+**Limits and implementation gates:** Not a block of Stagger, Fixed Damage, or other unrelated damage. Clamp the physical damage multiplier to the canonical minimum.
+
+---
+
+##### Wrathcinder Aegis · SHIELD
+
+**Example:** Wrathcinder Aegis Heater Shield  
+**Compatible chassis:** `shield_round`, `shield_heater`, `shield_tower`  
+**Axes:** Wrath, SIN Resistance, Passive  
+**Editorial status:** PROPOSED · NOT PLAYABLE
+
+> Flame-drawn letters flare against the shield as fury turns aside from its intended home.
+
+**Base Effect:** While this shield is equipped and its ward is active, reduce the incoming Wrath SIN damage resistance multiplier by 0.06, affecting Wrath damage only.
+
+**Rank I (×1):** While this shield is equipped and its ward is active, reduce the incoming Wrath SIN damage resistance multiplier by 0.06, affecting Wrath damage only.
+
+**Rank II (Ceil ×1.50):** While this shield is equipped and its ward is active, reduce the incoming Wrath SIN damage resistance multiplier by 0.09, affecting Wrath damage only.
+
+**Rank III (Ceil ×2.50):** While this shield is equipped and its ward is active, reduce the incoming Wrath SIN damage resistance multiplier by 0.15, affecting Wrath damage only.
+
+**Typed resistance:** `sin` / `wrath` (magnitudes in hundredths).
+
+**Limits and implementation gates:** Only Wrath affinity. Does not reduce all Fire damage unless the authoritative combat hit is actually assigned Wrath; SIN multiplier hook requires separate integration.
+
+---
+
+##### Roseglass Vow · ACCESSORY
+
+**Example:** Roseglass Vow Brooch  
+**Compatible chassis:** `ring`, `brooch`, `pendant`  
+**Axes:** Lust, SIN Resistance, Passive  
+**Editorial status:** PROPOSED · NOT PLAYABLE
+
+> The rose under the glass has never wilted; it keeps desire from becoming a blade.
+
+**Base Effect:** While this accessory is equipped, reduce the incoming Lust SIN damage resistance multiplier by 0.06, affecting Lust damage only.
+
+**Rank I (×1):** While this accessory is equipped, reduce the incoming Lust SIN damage resistance multiplier by 0.06, affecting Lust damage only.
+
+**Rank II (Ceil ×1.50):** While this accessory is equipped, reduce the incoming Lust SIN damage resistance multiplier by 0.09, affecting Lust damage only.
+
+**Rank III (Ceil ×2.50):** While this accessory is equipped, reduce the incoming Lust SIN damage resistance multiplier by 0.15, affecting Lust damage only.
+
+**Typed resistance:** `sin` / `lust` (magnitudes in hundredths).
+
+**Limits and implementation gates:** Only actual Lust-affinity damage; does not block Charmed or other mental conditions. SIN resistance application requires approved engine integration.
+
+---
+
+##### Hourglass Sanctuary · SHIELD
+
+**Example:** Hourglass Sanctuary Round Shield  
+**Compatible chassis:** `shield_buckler`, `shield_round`, `shield_heater`  
+**Axes:** Sloth, SIN Resistance, Passive  
+**Editorial status:** PROPOSED · NOT PLAYABLE
+
+> The sand inside the ward falls sideways whenever the world attempts to drag its bearer down.
+
+**Base Effect:** While this shield is equipped and its ward is active, reduce the incoming Sloth SIN damage resistance multiplier by 0.06, affecting Sloth damage only.
+
+**Rank I (×1):** While this shield is equipped and its ward is active, reduce the incoming Sloth SIN damage resistance multiplier by 0.06, affecting Sloth damage only.
+
+**Rank II (Ceil ×1.50):** While this shield is equipped and its ward is active, reduce the incoming Sloth SIN damage resistance multiplier by 0.09, affecting Sloth damage only.
+
+**Rank III (Ceil ×2.50):** While this shield is equipped and its ward is active, reduce the incoming Sloth SIN damage resistance multiplier by 0.15, affecting Sloth damage only.
+
+**Typed resistance:** `sin` / `sloth` (magnitudes in hundredths).
+
+**Limits and implementation gates:** Applies to Sloth affinity damage, not loss of actions or Speed. SIN modifiers must be combined in the canonical damage calculation.
+
+---
+
+##### Verdant Covenant · SHIELD
+
+**Example:** Verdant Covenant Tower Shield  
+**Compatible chassis:** `shield_round`, `shield_heater`, `shield_tower`  
+**Axes:** Gluttony, SIN Resistance, Passive  
+**Editorial status:** PROPOSED · NOT PLAYABLE
+
+> Roots of translucent jade drink the greed of any curse that dares come close.
+
+**Base Effect:** While this shield is equipped and its ward is active, reduce the incoming Gluttony SIN damage resistance multiplier by 0.06, affecting Gluttony damage only.
+
+**Rank I (×1):** While this shield is equipped and its ward is active, reduce the incoming Gluttony SIN damage resistance multiplier by 0.06, affecting Gluttony damage only.
+
+**Rank II (Ceil ×1.50):** While this shield is equipped and its ward is active, reduce the incoming Gluttony SIN damage resistance multiplier by 0.09, affecting Gluttony damage only.
+
+**Rank III (Ceil ×2.50):** While this shield is equipped and its ward is active, reduce the incoming Gluttony SIN damage resistance multiplier by 0.15, affecting Gluttony damage only.
+
+**Typed resistance:** `sin` / `gluttony` (magnitudes in hundredths).
+
+**Limits and implementation gates:** Gluttony SIN only, not universal Poison/Acid defense. Requires the correct SIN tag in the authoritative hit.
+
+---
+
+##### Nocturne Shroud · ARMOR
+
+**Example:** Nocturne Shroud Leather Armor  
+**Compatible chassis:** `padded_armor`, `leather_armor`, `hide_armor`, `chain_shirt`  
+**Axes:** Gloom, SIN Resistance, Passive  
+**Editorial status:** PROPOSED · NOT PLAYABLE
+
+> A strip of midnight is sewn into the garment, swallowing only the grief meant to destroy.
+
+**Base Effect:** While this armor is equipped, reduce the incoming Gloom SIN damage resistance multiplier by 0.06, affecting Gloom damage only.
+
+**Rank I (×1):** While this armor is equipped, reduce the incoming Gloom SIN damage resistance multiplier by 0.06, affecting Gloom damage only.
+
+**Rank II (Ceil ×1.50):** While this armor is equipped, reduce the incoming Gloom SIN damage resistance multiplier by 0.09, affecting Gloom damage only.
+
+**Rank III (Ceil ×2.50):** While this armor is equipped, reduce the incoming Gloom SIN damage resistance multiplier by 0.15, affecting Gloom damage only.
+
+**Typed resistance:** `sin` / `gloom` (magnitudes in hundredths).
+
+**Limits and implementation gates:** Does not reduce Sinking SP damage unless combat classifies that damage under the Gloom affinity multiplier. No interaction with permanent despair.
+
+---
+
+##### Crown of Humility · ACCESSORY
+
+**Example:** Crown of Humility Pendant  
+**Compatible chassis:** `ring`, `brooch`, `pendant`  
+**Axes:** Pride, SIN Resistance, Passive  
+**Editorial status:** PROPOSED · NOT PLAYABLE
+
+> The crown bears no jewel, and in its absence the world's proudest words lose their edge.
+
+**Base Effect:** While this accessory is equipped, reduce the incoming Pride SIN damage resistance multiplier by 0.06, affecting Pride damage only.
+
+**Rank I (×1):** While this accessory is equipped, reduce the incoming Pride SIN damage resistance multiplier by 0.06, affecting Pride damage only.
+
+**Rank II (Ceil ×1.50):** While this accessory is equipped, reduce the incoming Pride SIN damage resistance multiplier by 0.09, affecting Pride damage only.
+
+**Rank III (Ceil ×2.50):** While this accessory is equipped, reduce the incoming Pride SIN damage resistance multiplier by 0.15, affecting Pride damage only.
+
+**Typed resistance:** `sin` / `pride` (magnitudes in hundredths).
+
+**Limits and implementation gates:** Pride damage only. Does not negate Radiance or remove buffs. Requires SIN-tagged damage handling.
+
+---
+
+##### Jealousy Mirror · ACCESSORY
+
+**Example:** Jealousy Mirror Ring  
+**Compatible chassis:** `brooch`, `pendant`, `ring`  
+**Axes:** Envy, SIN Resistance, Passive  
+**Editorial status:** PROPOSED · NOT PLAYABLE
+
+> The tiny mirror reflects lightning only when it belongs to someone else.
+
+**Base Effect:** While this accessory is equipped, reduce the incoming Envy SIN damage resistance multiplier by 0.06, affecting Envy damage only.
+
+**Rank I (×1):** While this accessory is equipped, reduce the incoming Envy SIN damage resistance multiplier by 0.06, affecting Envy damage only.
+
+**Rank II (Ceil ×1.50):** While this accessory is equipped, reduce the incoming Envy SIN damage resistance multiplier by 0.09, affecting Envy damage only.
+
+**Rank III (Ceil ×2.50):** While this accessory is equipped, reduce the incoming Envy SIN damage resistance multiplier by 0.15, affecting Envy damage only.
+
+**Typed resistance:** `sin` / `envy` (magnitudes in hundredths).
+
+**Limits and implementation gates:** Envy damage only, not all Shock or Lightning unless canonically tagged as Envy. This is resistance, not damage reflection.
+
+---
+
+#### Runic (3)
+
+##### Silverstep · ACCESSORY
+
+**Example:** Silverstep Anklet  
+**Compatible chassis:** `anklet`, `bracelet`, `earrings`  
+**Axes:** Speed, Haste, Passive  
+**Editorial status:** PROPOSED · NOT PLAYABLE
+
+> A silver footfall is engraved where tomorrow should have been, daring its bearer to arrive early.
+
+**Base Effect:** At Encounter Start, gain 1 Haste for the first Turn of that Encounter.
+
+**Rank I (×1):** At Encounter Start, gain 1 Haste for the first Turn of that Encounter.
+
+**Rank II (Ceil ×1.50):** At Encounter Start, gain 2 Haste for the first Turn of that Encounter.
+
+**Rank III (Ceil ×2.50):** At Encounter Start, gain 3 Haste for the first Turn of that Encounter.
+
+**Base scalable magnitudes:** haste: 1.
+
+**Limits and implementation gates:** Haste is restricted to the first Turn. Does not create Action Slots, add Coins, or grant permanent Speed.
+
+---
+
+##### Warcall Inscription · WEAPON
+
+**Example:** Warcall Inscription Longsword  
+**Compatible chassis:** `longsword`, `rapier`, `spear`, `warhammer`  
+**Axes:** Offensive Level, Passive, Attack  
+**Editorial status:** PROPOSED · NOT PLAYABLE
+
+> The weapon answers the first bell of battle with the certainty of an opening move.
+
+**Base Effect:** At Encounter Start, gain 1 Offensive Level Up for the first Attack Skill sourced from this exact equipped weapon during the first Turn.
+
+**Rank I (×1):** At Encounter Start, gain 1 Offensive Level Up for the first Attack Skill sourced from this exact equipped weapon during the first Turn.
+
+**Rank II (Ceil ×1.50):** At Encounter Start, gain 2 Offensive Level Up for the first Attack Skill sourced from this exact equipped weapon during the first Turn.
+
+**Rank III (Ceil ×2.50):** At Encounter Start, gain 3 Offensive Level Up for the first Attack Skill sourced from this exact equipped weapon during the first Turn.
+
+**Base scalable magnitudes:** offense: 1.
+
+**Limits and implementation gates:** Applies only to the first eligible bound weapon Skill. Not Base Power, Final Power or Clash Power; no global improvement to other weapons.
+
+---
+
+##### Warden's Promise · SHIELD
+
+**Example:** Warden's Promise Tower Shield  
+**Compatible chassis:** `shield_round`, `shield_heater`, `shield_tower`  
+**Axes:** Defensive Level, Passive, Guard  
+**Editorial status:** PROPOSED · NOT PLAYABLE
+
+> One line on the shield is left unfinished until the first impact proves the bearer stayed.
+
+**Base Effect:** At Encounter Start, gain 1 Defensive Level Up for the first Guard Skill sourced from this shield during the first Turn.
+
+**Rank I (×1):** At Encounter Start, gain 1 Defensive Level Up for the first Guard Skill sourced from this shield during the first Turn.
+
+**Rank II (Ceil ×1.50):** At Encounter Start, gain 2 Defensive Level Up for the first Guard Skill sourced from this shield during the first Turn.
+
+**Rank III (Ceil ×2.50):** At Encounter Start, gain 3 Defensive Level Up for the first Guard Skill sourced from this shield during the first Turn.
+
+**Base scalable magnitudes:** defense: 1.
+
+**Limits and implementation gates:** Effect ends when the first Guard is resolved or Turn 1 ends; cannot buff another shield or provide permanent Defensive Level.
+
+---
+
+### Review gates specific to these passives
+
+- [ ] Approve frequency/timing for HP regeneration and SP recovery (Turn Start is a draft assumption).
+- [ ] Confirm interactions between Max HP changes, CON, Decay, temporary HP, Stagger Thresholds and equip changes.
+- [ ] Confirm whether the stated 0.06 is a direct subtraction to an existing resistance multiplier for the matched damage/SIN type (current design), without changing other resistances.
+- [ ] Choose SIN damage multiplier minimum and non-stacking rules before any runtime integration.
+- [ ] Verify whether SP loss mitigation covers every involuntary SP-loss packet, with Costs always excluded (current proposal).
+- [ ] Confirm passive activation and compatibility when equipped/attuned, including accessories and Source Item Instance identity.
+- [ ] Do not silently convert these design proposals into live Item or combat effects, DM prices or production recipes.
