@@ -424,7 +424,7 @@ Canonical contract: [`docs/enchanters-update-part-d-magic-items.md`](./enchanter
 - [x] Show current Enchantments on the selected Item.
 - [x] Show used/available Enchantment capacity.
 - [x] Show conflicts before commit.
-- [ ] Show resulting Item preview.
+- [x] Show resulting Item preview.
 - [x] Show AHN cost.
 - [x] Show required materials/reagents.
 - [x] Show insufficient-payment/material state clearly.
@@ -467,9 +467,9 @@ Canonical contract: [`docs/enchanters-update-part-d-magic-items.md`](./enchanter
 - [x] Add removal/replacement tests.
 - [x] Add charge lifecycle tests.
 - [x] Add Battle Engine effect tests.
-- [ ] Add player-facing UI smoke tests.
+- [x] Add player-facing UI smoke tests.
 - [ ] Add DM Enchantment UI smoke tests.
-- [ ] Add Enchanter's Update CI workflow/path coverage.
+- [x] Add Enchanter's Update CI workflow/path coverage.
 
 ## 16. Explicitly deferred to Magic Loot Update
 
@@ -515,3 +515,13 @@ This is a **checklist bookkeeping pass**, not a new feature release. The previou
 The Inventory Runtime Validation workflow references many Enchanter smokes but **does not currently invoke** `tests/item-enchanter-transaction-smoke.cjs`, `tests/item-enchantment-legacy-backend-smoke.cjs`, or `tests/item-equipment-enhancement-smoke.cjs`. Its trigger/syntax matrix also misses `js/item-enchanter-ui.js` and `js/item-equipment-enhancement-contract.js`. Existing regression tests are recorded as **authored** but the missing CI wiring and browser acceptance gates remain open.
 
 **This is not a 100%-working certification.** Close the PR only after outstanding tasks are implemented, coverage is wired and passing, Firebase transaction behavior is verified in integration, and an actual Player/DM/Battle Viewer end-to-end acceptance run passes.
+
+### 2026-10-09 — Player Enchanter UI + CI integration follow-up
+
+Three previously open **implementation/wiring** entries were closed: projected Item preview, authored Player browser smoke tests, and Enchanter workflow/path coverage.
+
+- `js/item-enchanter-ui.js`: player preview now shows a safe projected Item result (including resulting used Slots) without executing knowledge-writing Identify actions; unknown installed Enchantments and Rank labels respect existing Arcana/Identify presentation. The UI waits for its onSave promise before displaying COMPLETE. When the local operation succeeded but remote save returned an uncertain outcome, it disables re-commit for the page session to avoid accidental repeated charges. **Remote Firebase transactional correctness is still open** and this UI lock is only a protective measure.
+- `tests/item-enchanter-ui.spec.cjs`: four authored Playwright regression cases: preview does not mutate original Item, completion after save, retry blocked on ambiguous remote save, and hidden magic/Rank not leaked while strengthening retains internal Rank.
+- `.github/workflows/player-inventory-runtime-validation.yml`: now triggers for the Player Enchanter UI and stylesheet, equipment enhancement contract, DM/Battle pages and new spec; validates added JS syntax; executes previously omitted transaction, legacy-backend and equipment enhancement smoke tests and the browser UI suite.
+
+**Checklist count:** 356 checked / 29 unchecked (385 total). **Not a green CI claim:** browser tests and Github Actions runs still require execution and confirmation. The 29 remaining entries include authoritative effects/reactions, Firebase-safe atomic transactions, service time/delivery, Charges backing, Part C/D and DM/Battle acceptance testing. No Magic Loot or #963 review-only catalog promotion occurred in this pass.
