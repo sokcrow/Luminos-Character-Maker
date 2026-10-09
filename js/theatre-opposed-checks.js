@@ -659,33 +659,29 @@
     const live = entries[0];
     state.dmHud?.remove();
     state.dmHud = null;
-    doc.body?.classList?.toggle("theatre-opposed-dm-live", Boolean(live));
     if (!live) return;
     const session = state.sessions[live.check.opposedSessionId];
     const front = coordinator()?.ensureFrontLayer?.();
-    if (!front || !session) return;
-    const phase = live.check.opposedPhase;
-    const hud = doc.createElement("article");
-    hud.className = `theatre-opposed-hud theatre-opposed-hud--dm is-${phase}`;
-    if (phase === "threshold") {
-      hud.innerHTML = `
-        <div class="theatre-opposed-caption">DM · ${String(session.rivalName || "RIVAL").toUpperCase()} · GENERA THRESHOLD</div>
-        <div class="theatre-opposed-coins" data-opposed-coins></div>
-        <div class="theatre-opposed-threshold"><span>THRESHOLD</span><strong data-opposed-total>${numberOr(live.total, 0)}</strong></div>
-        <div class="theatre-opposed-status">${live.status === "complete" ? "THRESHOLD REGISTRADO" : `ROLLING ${numberOr(live.resolved, 0)} / 5`}</div>`;
-    } else {
-      const raw = Number(session.thresholdResult?.total);
-      const threshold = effectiveThreshold(raw, session.checkTemplate);
-      const outcome = live.status === "complete" ? outcomeFor(live.total, raw, session.checkTemplate) : null;
-      hud.innerHTML = `
-        <div class="theatre-opposed-caption">DM · ${String(session.initiatorName || "PLAYER").toUpperCase()} · ${String(session.initiatorRollSpec?.label || "CHECK").toUpperCase()}</div>
-        <div class="theatre-opposed-coins" data-opposed-coins></div>
-        <div class="theatre-opposed-compare"><div><span>THRESHOLD</span><strong class="threshold">${threshold ?? "—"}</strong></div><b>${outcome === "passed" ? "≤" : outcome === "failed" ? ">" : "VS"}</b><div><span>OUTCOME</span><strong>${numberOr(live.total, 0)}</strong></div></div>
-        <div class="theatre-opposed-status ${outcome === "passed" ? "is-pass" : outcome === "failed" ? "is-fail" : ""}">${live.status === "complete" ? (outcome === "passed" ? "CHECK PASSED" : "CHECK FAILED") : `ROLLING ${numberOr(live.resolved, 0)} / 5`}</div>`;
-    }
-    renderCoinRow(hud.querySelector("[data-opposed-coins]"), live.coins || []);
-    front.appendChild(hud);
-    state.dmHud = hud;
+    const rolls = global.LuminousTheatreRolls;
+    if (!front || !session || !rolls?.createSharedCheckHud) return;
+    const first = live.check.opposedPhase === "threshold";
+    const check = first ? {} : {
+      ...session.checkTemplate, thresholdRaw: session.thresholdResult?.total ?? null,
+    };
+    state.dmHud = rolls.createSharedCheckHud({
+      parent: front, check,
+      title: first ? `VS · ${session.rivalName} · GENERA THRESHOLD`
+        : `VS · ${session.initiatorName} · ${session.initiatorRollSpec?.label || "CHECK"}`,
+    });
+    const complete = live.status === "complete";
+    const outcome = complete && !first ? outcomeFor(live.total, check.thresholdRaw, check) : null;
+    rolls.updateSharedCheckHud(state.dmHud, {
+      coins: live.coins || [], total: live.total, outcome,
+      status: !complete ? `GIRANDO MONEDAS · ${numberOr(live.resolved, 0)} / 5`
+        : first ? "THRESHOLD REGISTRADO"
+        : outcome === "passed" ? "CHECK PASSED"
+        : outcome === "failed" ? "CHECK FAILED" : "TIRADA COMPLETADA",
+    });
   }
 
   function boot() {
