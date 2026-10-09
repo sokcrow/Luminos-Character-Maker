@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Luminous · Compendio de Encantamientos</title>
+<link rel="stylesheet" href="enchantments.css">
+</head>
+<body>
+<main class="enchanted-compendium">
+  <header class="hero">
+    <div class="kicker">LUMINOUS · COMPENDIO</div>
+    <h1>Encantamientos</h1>
+    <p>Estudia los canales mágicos, los materiales, la sintonización y los costes de un ritual. Cada encantamiento modifica <strong>un solo canal</strong> de un objeto individual.</p>
+    <nav><a href="index.html">← Códice de juego</a><a href="../hoja_personaje.html">Hoja de personaje</a></nav>
+  </header>
+  <section class="intro">
+    <article><h2>+1, +2, +3</h2><p>El valor es un modificador numérico aditivo. Nunca significa daño porcentual ni potencia gratuita en otros canales.</p></article>
+    <article><h2>Objeto individual</h2><p>La Quality, las mejoras físicas y los encantamientos son sistemas diferentes. Solo un foco mágico activo por ejemplar.</p></article>
+    <article><h2>Activación</h2><p>Un arma solo mejora Skills vinculadas a esa arma equipada. Armaduras, escudos y accesorios requieren el equipo adecuado. La sintonización se respeta cuando el objeto la exige.</p></article>
+  </section>
+  <section class="catalog">
+    <h2>Familias y focos permitidos</h2>
+    <div id="enchantment-family-list" class="family-list"></div>
+  </section>
+  <section class="calculadora">
+    <h2>Recetas y economía en AHN</h2>
+    <p>El coste de taller se paga en AHN. Las materias primas se consumen desde el inventario al realizar el ritual. La cotización de compra de materiales es informativa y no se cobra de nuevo si el jugador ya los tiene.</p>
+    <div class="filters">
+      <label>Objeto<select id="enchantment-kind"></select></label>
+      <label>Foco mágico<select id="enchantment-focus"></select></label>
+      <label>Nivel<select id="enchantment-tier"><option value="1">+1</option><option value="2">+2</option><option value="3">+3</option></select></label>
+      <label>Gema tallada<select id="enchantment-gem"></select></label>
+      <label>Valor mundano (AHN)<input type="number" id="enchantment-base" min="1" step="10" value="500000"></label>
+    </div>
+    <div id="enchantment-recipe" class="quote" aria-live="polite"></div>
+  </section>
+  <section class="rules">
+    <h2>Reglas del ritual</h2>
+    <ul>
+      <li>La gema utilizada es un <strong>catalizador consumible</strong>. Su resonancia se conserva como información, pero no otorga fuego, hielo, resistencias ni efectos elementales adicionales.</li>
+      <li>Los niveles superiores requieren más esencias y núcleos. No se permite fabricar +4 o superior.</li>
+      <li>El precio de producción encantado toma el mayor valor entre el multiplicador del nivel y el coste de producción mundano más materiales y taller. Esto evita tasar un encantamiento por debajo del gasto de producción.</li>
+      <li>Reemplazar un encantamiento requiere otro ritual completo. No hay devolución automática de materiales antiguos ni de AHN.</li>
+      <li>El DM puede autorizar un encantamiento narrativamente sin cargar recursos, desde su Studio. El ritual pagado es una acción diferente y necesita inventario, fondos y una transacción válida.</li>
+    </ul>
+  </section>
+  <footer>Compendio de referencia · Encantamientos V1 · Magic Loot y efectos elementales son sistemas aparte.</footer>
+</main>
+<script src="../js/item-economy-standard.js"></script>
+<script src="../js/item-catalog-ore-ingot-gem.js"></script>
+<script src="../js/item-catalog-essence-core.js"></script>
+<script src="../js/item-enchantment-runtime.js"></script>
+<script src="../js/item-enchantment-recipe-catalog.js"></script>
+<script src="enchantments.js"></script>
+</body>
+</html>
