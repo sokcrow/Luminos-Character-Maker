@@ -85,15 +85,25 @@
     copy.finance.currentBalance = nextBalance;
     const receiptKey = String(options.receiptKey || "").trim();
     if (receiptKey) {
-      const history = copy.finance.transactionHistory && typeof copy.finance.transactionHistory === "object" ? copy.finance.transactionHistory : {};
-      history[receiptKey] = {
-        type: "expense",
+      const concept = `Encantamiento +${prepared.tier} · ${target.item.displayName || target.item.nombre || target.item.name || "Objeto"}`;
+      const timestamp = Number(options.now) || Date.now();
+      const entry = {
+        monto: -prepared.chargedAhn,
+        concepto: concept,
+        fecha: timestamp,
+        timestamp,
+        unread: true,
+        // Keep both canonical finance and legacy transaction consumers in sync.
         amount: -prepared.chargedAhn,
-        concept: `Encantamiento +${prepared.tier} · ${target.item.displayName || target.item.nombre || target.item.name || "Objeto"}`,
-        timestamp: Number(options.now) || Date.now(),
+        concept,
+        type: "expense",
         currency: "AHN",
       };
-      copy.finance.transactionHistory = history;
+      const asObject = (value) => value && typeof value === "object"
+        ? (Array.isArray(value) ? Object.fromEntries(value.map((row, i) => [String(i), row])) : value)
+        : {};
+      copy.finance.transactionHistory = { ...asObject(copy.finance.transactionHistory), [receiptKey]: entry };
+      copy.transacciones = { ...asObject(copy.transacciones), [receiptKey]: clone(entry) };
     }
     // A legacy embedded equipment pointer must not reference the old instance clone.
     const equipment = copy.equipment && typeof copy.equipment === "object" ? copy.equipment : null;
