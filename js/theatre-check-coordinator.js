@@ -1086,7 +1086,12 @@
     db.ref(`theatre_check_results/${uid}`).limitToLast(20).on("child_added", (snapshot) => {
       const result = snapshot.val() || {};
       if (String(result.roomKey || "default") !== roomKey()) return;
-      if (Date.now() - numberOr(result.clientCompletedAt, 0) > RESULT_NOTICE_MAX_AGE_MS) return;
+      // DM and player device clocks may disagree. The server's resolved
+      // completion time determines freshness; client time is legacy fallback.
+      const serverCompletedAt = Number(result.completedAt);
+      const finishedAt = Number.isFinite(serverCompletedAt) && serverCompletedAt > 0
+        ? serverCompletedAt : numberOr(result.clientCompletedAt, 0);
+      if (Date.now() - finishedAt > RESULT_NOTICE_MAX_AGE_MS) return;
       playerNotice(result.outcome === "passed" ? "CHECK SUPERADO"
         : result.outcome === "failed" ? "CHECK FALLIDO" : "TIRADA FINALIZADA",
       `${result.label || "CHECK"} · Total ${result.total}`,
