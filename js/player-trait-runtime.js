@@ -140,7 +140,8 @@
   function mergedDefinitions() {
     const core = global.LuminousTraitCatalogCore?.allDefinitions?.() || {};
     const racial = global.LuminousRacialTraitCatalog?.allDefinitions?.() || {};
-    return { ...core, ...racial, ...(state.definitions || {}) };
+    const archetype = global.LuminousArchetypeTraitCatalog?.allDefinitions?.() || {};
+    return { ...core, ...racial, ...archetype, ...(state.definitions || {}) };
   }
 
   function mergedGrants() {
@@ -175,8 +176,11 @@
       definitions,
     );
     const racialGranted = racialCatalog?.resolveTraitGrants?.(normalizedCharacter, definitions) || [];
+    // Core grants do not include all dynamically selected archetype grants.
+    // Resolve them from their own catalog, just as the DM Trait preview does.
+    const archetypeGranted = global.LuminousArchetypeTraitCatalog?.resolveTraitGrants?.(normalizedCharacter, definitions) || [];
     const selected = milestones.resolveSelectedGeneralTraits(character, definitions);
-    return mergeTraitLists([...granted, ...racialGranted], selected);
+    return mergeTraitLists([...granted, ...racialGranted, ...archetypeGranted], selected);
   }
 
   // Maneuvers are selectable combat features, not additional Trait grants.
@@ -658,9 +662,14 @@ ${response}`);
     // The same resolver powers Stats previews and the authorised Coin result.
     // Dedicated archetype hooks mark bonuses applied before this stage, so
     // mixed class/race/General Traits cannot double-count them.
-    if (result?.check) global.LuminousSkillTraitBreakdownPatch?.applySpecialCheckBonuses?.(
-      resolveTraits(), character, result.check,
-    );
+    if (result?.check) {
+      global.LuminousSkillTraitBreakdownPatch?.applySpecialCheckBonuses?.(
+        resolveTraits(), character, result.check,
+      );
+      // Treat the old Check Final Power channel as a bonus to the ability/skill
+      // modifier. Coin completion must never add it a second time.
+      global.LuminousSkillTraitBreakdownPatch?.foldCheckFinalPowerIntoScore?.(result.check);
+    }
     return result;
   }
 

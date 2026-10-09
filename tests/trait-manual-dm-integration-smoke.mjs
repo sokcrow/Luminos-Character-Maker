@@ -72,15 +72,15 @@ function click() {
   assert.equal(canceled, 1);
 }
 click();
-assert.equal(rolls[0][2], 9, "Base +5 and Jackpot +4 before coins; Reliable Talent is post-coin.");
-assert.equal(armed[0].checkPower, 4);
-assert.equal(armed[0].finalPower, 3);
-assert.equal(5 + armed[0].checkPower + armed[0].finalPower, 12);
+assert.equal(rolls[0][2], 12, "Base +5, Jackpot +4 and Reliable Talent +3 are all Skill modifier before coins.");
+assert.equal(armed[0].checkPower, 7);
+assert.equal(armed[0].finalPower, 0, "No post-coin Final Power is allowed for Checks.");
+assert.equal(5 + armed[0].checkPower, 12);
 
-// A lazy-loaded coin bridge must still include Final Power exactly once.
+// A lazy-loaded coin bridge must use the same Skill modifier exactly once.
 globalThis.LuminousTraitStandardizationRuntime.armPlayerCheck = () => null;
 click();
-assert.equal(rolls[1][2], 12, "Without a post-coin bridge, all Trait bonuses affect the roll base once.");
+assert.equal(rolls[1][2], 12, "All Trait bonuses affect the Skill modifier regardless of Coin bridge.");
 
 const dmCheck = { kind: "skill", skillId: "performance", abilityId: "cha", checkPower: 4, finalPower: 3 };
 const requested = [];
@@ -89,8 +89,9 @@ patch.installResolvedCheckBridge();
 const dmEvent = listeners.get("luminous:theatre-traits-applied");
 dmEvent({ detail: { check: dmCheck } });
 click();
-assert.equal(rolls[2][2], 9, "DM-authorised Check must use the actual resolved Check Power.");
-assert.equal(requested[0].finalPower, 3, "DM Final Power cannot be counted twice in roll base.");
+assert.equal(rolls[2][2], 12, "DM-authorised Check must use its complete Skill modifier.");
+assert.equal(requested[0].checkPower, 7, "DM-authored bonus is moved into the Skill modifier.");
+assert.equal(requested[0].finalPower, 0, "DM Check has no post-coin Final Power.");
 
 const sheet = fs.readFileSync("pantalla_dm.html", "utf8");
 assert.match(sheet, /src="js\/trait-engine\.js"/);
@@ -102,4 +103,4 @@ assert.match(standard, /function armPlayerCheck\(/);
 assert.match(standard, /armPlayerCheck,/);
 const ranger = fs.readFileSync("js/ranger-class-runtime.js", "utf8");
 assert.match(ranger, /__rangerFavoredEnemyTrackingApplied/);
-console.log("Trait manual/DM rolls: Jackpot, Reliable Talent, post-coin, lazy fallback, DM Check and HUD loaded OK.");
+console.log("Trait manual/DM rolls: Jackpot, Reliable Talent and all Check bonuses counted in Skill modifier once OK.");
