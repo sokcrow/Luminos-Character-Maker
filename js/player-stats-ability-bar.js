@@ -317,15 +317,27 @@
     return true;
   }
 
+  function traitAwareDerivedSnapshot(data) {
+    const runtime = global.LuminousDerivedStatsRuntime;
+    if (runtime?.snapshot) return runtime.snapshot(data);
+    // The player sheet may not load derived-stats-runtime.js. In that case
+    // preserve exactly the runtime's trait selection instead of caching the
+    // unmodified raw-engine result (Primordial Champion: +4 STR/CON).
+    let traits = [];
+    if (Array.isArray(data?.traitDefinitions)) traits = data.traitDefinitions;
+    else if (Array.isArray(data?.traits) && data.traits.every((entry) => entry && typeof entry === "object")) traits = data.traits;
+    else {
+      try { traits = global.LuminousPlayerTraitRuntime?.getTraits?.() || []; }
+      catch (_) { traits = []; }
+    }
+    return global.LuminousDerivedStats?.resolveCharacterStats?.(data, { traits, unit: data });
+  }
+
   function syncPanel() {
     const panel = doc.querySelector("#stats-modal .player-ability-console");
     if (!panel) return false;
     const data = playerData();
-    // The adapter's snapshot applies current runtime Traits (e.g. Primordial
-    // Champion +4 STR/CON) and the same options used by Ability/Skill math.
-    // Calling the raw engine here would cache an incomplete, trait-less view.
-    const resolved = global.LuminousDerivedStatsRuntime?.snapshot?.(data)
-      || global.LuminousDerivedStats?.resolveCharacterStats?.(data);
+    const resolved = traitAwareDerivedSnapshot(data);
     panelDerivedStats = { data, abilities: resolved?.abilities || null, resolved };
     renderDerivedStats = panelDerivedStats;
     try {
