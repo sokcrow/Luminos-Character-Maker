@@ -557,7 +557,7 @@ ${response}`);
       if (!Object.prototype.hasOwnProperty.call(choices, key)) continue;
       const value = String(choices[key] ?? "").trim();
       if (value.length > 180) throw new Error("Cada elección debe tener 180 caracteres o menos.");
-      if (value) payload[key] = value;
+      payload[key] = value;
     }
     if (Object.prototype.hasOwnProperty.call(choices, "personality")) {
       const list = Array.isArray(choices.personality) ? choices.personality : [];
@@ -565,21 +565,32 @@ ${response}`);
         throw new Error("Puedes escribir hasta dos rasgos de personalidad de 120 caracteres.");
       }
       const cleaned = list.map((item) => item.trim()).filter(Boolean);
-      if (cleaned.length) payload.personality = cleaned;
+      payload.personality = cleaned.length ? cleaned : "";
     }
     if (!Object.keys(payload).length) throw new Error("Elige o escribe al menos una decisión para guardar.");
     payload.backgroundId = selectedBackgroundId;
-    await state.db.ref(`${PLAYER_ROOT}/${playerId}/backgroundChoices`).update(payload);
-    // The realtime listener may have updated the player while Firebase was saving.
-    // Merge only narrative choices into the *latest* character, never a pre-save snapshot.
+    // Atomic, scope-aware merge: when the DM assigns a new Background, no field
+    // from the previous Background may be carried into the first partial save.
+    const result = await state.db.ref(`${PLAYER_ROOT}/${playerId}/backgroundChoices`)
+      .transaction((current) => {
+        const saved = current && typeof current === "object" && !Array.isArray(current) ? current : {};
+        const sameBackground = !saved.backgroundId || saved.backgroundId === selectedBackgroundId;
+        return { ...(sameBackground ? saved : {}), ...payload };
+      }, undefined, false);
+    if (!result?.committed) throw new Error("No se pudieron guardar tus decisiones. Inténtalo de nuevo.");
+    const storedChoices = result.snapshot?.val() || payload;
+    // A realtime DM update may have arrived during the save: never restore the
+    // pre-save character (classes, traits, stats or Background).
     const latestCharacter = getCharacter();
     const latestBackgroundId = String(latestCharacter?.characterBuild?.backgroundId || latestCharacter?.backgroundId || "").trim();
     if (state.playerId === playerId
         && String(latestCharacter?.uid || "") === uid
         && latestBackgroundId === selectedBackgroundId) {
+      const newestChoices = latestCharacter.backgroundChoices;
+      const inScope = newestChoices?.backgroundId === selectedBackgroundId ? newestChoices : {};
       state.character = {
         ...latestCharacter,
-        backgroundChoices: { ...(latestCharacter.backgroundChoices || {}), ...payload },
+        backgroundChoices: { ...storedChoices, ...inScope, ...payload },
       };
     }
     return payload;
