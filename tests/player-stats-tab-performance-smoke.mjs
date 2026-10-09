@@ -65,8 +65,8 @@ const panel = element();
 panel.dataset.activeStat = "str";
 panel.querySelector = (selector) => {
   if (selector === "[data-player-skill-list]") return skillList;
-  const stat = selector.match(/^\\.player-ability\\[data-stat="(\\w+)"\\]$/);
-  return stat ? abilityButtons[stat[1]] : null;
+  const statId = selector.startsWith('.player-ability[data-stat="') ? selector.split('"')[1] : null;
+  return statId ? abilityButtons[statId] : null;
 };
 panel.querySelectorAll = (selector) => selector === ".player-ability" ? Object.values(abilityButtons) : [];
 
