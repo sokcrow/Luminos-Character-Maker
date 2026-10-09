@@ -490,7 +490,9 @@
     const key = statAliases.find((entry) => Object.prototype.hasOwnProperty.call(stats, entry));
     const modifier = Math.floor((numberOr(key ? stats[key] : 10, 10) - 10) / 2);
     const level = Math.max(0, numberOr(unit?.level ?? unit?.characterBuild?.calculatedAtLevel, 0));
-    const proficiency = numberOr(unit?.proficiency, Math.ceil(level / 20));
+    const proficiency = numberOr(unit?.proficiency,
+      global.LuminousProficiencyRuntime?.proficiencyBonus?.(level)
+        ?? Math.min(6, 2 + Math.floor((Math.max(1, level) - 1) / 20)));
     const rawState = normalizeId(unit?.skillProficiency?.[id] ?? unit?.dndSkills?.[id]?.proficiency ?? "none");
     const multiplier = rawState === "expertise" ? 2 : rawState === "proficient" ? 1 : rawState === "half" ? 0.5 : 0;
     return modifier + Math.floor(proficiency * multiplier);
