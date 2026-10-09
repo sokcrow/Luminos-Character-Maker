@@ -1,7 +1,10 @@
 (function (global) {
   "use strict";
   const doc = global.document;
-  if (!doc) return;
+  // utils.js injects this module and hoja_personaje.html also loads it.
+  // Preserve the first instance's handlers and render snapshot; a second
+  // execution would overwrite the public API with a different closure.
+  if (!doc || global.LuminousPlayerStats) return;
   const ABILITIES = Object.freeze([
     { id: "str", key: "fuerza", code: "STR", name: "STRENGTH", spanish: "Fuerza", skills: [{ id: "athletics", name: "Athletics", spanish: "Atletismo" }] },
     { id: "dex", key: "destreza", code: "DEX", name: "DEXTERITY", spanish: "Destreza", skills: [
