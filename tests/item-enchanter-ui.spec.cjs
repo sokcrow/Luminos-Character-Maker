@@ -113,3 +113,28 @@ test("ambiguous remote save failure locks repeat charge until page reload", asyn
     events:window.__enchanterFixture.events,
   }))).toEqual({commits:1,saves:1,events:0});
 });
+
+test("unidentified installed magic stays obfuscated without breaking rank-sensitive service selection", async ({page}) => {
+  await boot(page);
+  await page.evaluate(() => {
+    const {sword} = window.__enchanterFixture;
+    sword.magic = {enchantments:[{definitionId:"flamebound",rank:2}]};
+    window.LuminousItemMagicKnowledgeRuntime = {
+      presentation(){ return {enchantmentLines:[{known:false,text:"ᚠᛉᚻ"}],knowledge:{rankKnown:false}}; },
+    };
+    const provider=window.LuminousEnchanterUi.state.provider;
+    provider.services.push("strengthen");
+    window.LuminousItemEnchanterServiceRuntime.quoteStrengthenService = function(provider,item,definitionId,targetRank) {
+      window.__rankAttempt = {definitionId,targetRank};
+      return {quoted:false,reason:"recipe_knowledge_required"};
+    };
+    window.LuminousEnchanterUi.state.service = "strengthen";
+    window.LuminousEnchanterUi.render();
+  });
+  await expect(page.locator("#enchanter-ui-current")).toContainText("ᚠᛉᚻ");
+  await expect(page.locator("#enchanter-ui-current")).not.toContainText("Flamebound");
+  await expect(page.locator("#enchanter-ui-enchantment option")).toContainText("Inscripción sin identificar");
+  expect(await page.evaluate(() => window.__rankAttempt)).toEqual({
+    definitionId:"flamebound",targetRank:3,
+  });
+});
