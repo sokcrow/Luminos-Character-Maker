@@ -726,17 +726,24 @@
       if (state.queuedCommandKeys.has(snapshot.key)) return;
       let recovered = false;
       if (global.sessionStorage?.getItem(seenKey) === "done") {
-        // A tab closed mid-roll must not strand an issued command forever.
-        // Only completed live rolls (or DM-acknowledged commands) stay dismissed.
+        // An already-attempted roll is not safe to repeat unless Firebase
+        // positively confirms that its live capture was still INCOMPLETE.
+        // Absence of live data (or failed reads) is ambiguous: the DM may
+        // have been offline while a completed record was already cleaned up.
+        let liveStatus;
+        let commandStatus;
         try {
           const [liveSnapshot, statusSnapshot] = await Promise.all([
             db.ref(`${LIVE_ROOT}/${uid}/${snapshot.key}`).once("value"),
             db.ref(`${COMMAND_ROOT}/${uid}/${snapshot.key}/status`).once("value"),
           ]);
-          if (statusSnapshot.val() !== "issued" || liveSnapshot.val()?.status === "complete") return;
+          liveStatus = liveSnapshot.val()?.status;
+          commandStatus = statusSnapshot.val();
         } catch (error) {
           console.warn("No se pudo confirmar el estado del Check interrumpido:", error);
+          return; // Fail closed: never reroll based on an unreadable history.
         }
+        if (commandStatus !== "issued" || liveStatus !== "rolling") return;
         recovered = true;
         global.sessionStorage?.removeItem(seenKey);
       }
@@ -922,7 +929,18 @@
             if (legacy) legacy.style.display = "none";
             doc.body?.classList?.remove("theatre-check-active");
           }, 7600);
-          global.setTimeout(() => liveRef.remove().catch(() => {}), 9500);
+          // Keep completed telemetry until the DM acknowledges the command.
+          // Deleting after a fixed timeout creates ambiguous reconnects and
+          // can let the same completed Check be rolled a second time.
+          const statusRef = db.ref(`${COMMAND_ROOT}/${uid}/${commandId}/status`);
+          const onAcknowledged = (snapshot) => {
+            if (snapshot.val() !== "completed") return;
+            statusRef.off("value", onAcknowledged);
+            global.setTimeout(() => liveRef.remove().catch((error) =>
+              console.warn("No se pudo limpiar el Check confirmado:", error)), 9500);
+          };
+          statusRef.on("value", onAcknowledged, (error) =>
+            console.warn("No se pudo escuchar la confirmación del Check:", error));
           if (state.activeCommand?.key === commandId) state.activeCommand = null;
           global.setTimeout(showNextPlayerCommand, 350);
         }).catch((error) => {
@@ -1110,7 +1128,13 @@
       Object.entries(root).forEach(([uid, byCommand]) => {
         Object.entries(byCommand || {}).forEach(([commandId, live]) => {
           if (!live || String(live.roomKey || "default") !== roomKey()) return;
-          if (Date.now() - numberOr(live.clientUpdatedAt, 0) > LIVE_MAX_AGE_MS) return;
+          const completedAt = Number(live.completedAt);
+          const updatedAt = live.status === "complete" && Number.isFinite(completedAt) && completedAt > 0
+            ? completedAt : numberOr(live.clientUpdatedAt, 0);
+          const age = Date.now() - updatedAt;
+          // DM reconnect must still resolve completed rolls after the short
+          // HUD display window; the issued command is checked authoritatively.
+          if (age > (live.status === "complete" ? COMMAND_MAX_AGE_MS : LIVE_MAX_AGE_MS)) return;
           entries.push({ uid, commandId, live });
         });
       });
@@ -1123,7 +1147,12 @@
       const activity = $("theatre-check-live-state");
       const render = async () => {
         let display = null;
-        for (const entry of entries.slice(0, 20)) {
+        for (const entry of entries.filter(({ live }) => {
+          const completedAt = Number(live.completedAt);
+          const updatedAt = live.status === "complete" && Number.isFinite(completedAt) && completedAt > 0
+            ? completedAt : numberOr(live.clientUpdatedAt, 0);
+          return Date.now() - updatedAt <= LIVE_MAX_AGE_MS;
+        }).slice(0, 20)) {
           const { uid, commandId, live } = entry;
           if (live.targetUid !== uid || !Number.isFinite(live.total)) continue;
           const command = await readDmIssuedCommand(uid, commandId);
