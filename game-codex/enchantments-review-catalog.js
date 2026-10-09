@@ -1,6 +1,7 @@
 (function(global){
 "use strict";
-// Design-only review catalog. No gameplay registration, no enchanting API hooks.
+// READ-ONLY editorial draft. It does not register effects, Items, Traits or Statuses in gameplay.
+const RANK_MULTIPLIERS=Object.freeze({I:1,II:1.5,III:2.5});
 const ENCHANTMENTS=[
   {
     "id": "flamebound",
@@ -11,37 +12,94 @@ const ENCHANTMENTS=[
     ],
     "lore": "The blade remembers every flame that failed to consume it. When drawn, the embers trapped beneath its edge begin searching for something new to burn.",
     "tiers": {
-      "I": "Kindle the Wound — Once per Turn, a weapon-linked hit against an enemy with Burn consumes 1 of its Burn Count to deal Fixed Damage equal to half its Burn Potency (floor), capped at 6.",
-      "II": "Backdraft — Once per Turn, after winning a Clash with this weapon, inflict 3 Burn Potency and 2 Burn Count on the opponent after the Clash has resolved.",
-      "III": "Crown of Cinders — Once per Encounter, killing a target with at least 6 Burn Potency using this weapon transfers 3 Burn Potency and 2 Burn Count to up to two other enemies within effect range."
+      "I": "Once per Turn, when a Skill bound to this weapon hits an enemy already suffering Burn, consume 1 Burn Count to unleash 2 Fixed Damage and inflict 2 Burn Potency / 1 Count.",
+      "II": "Once per Turn, when a Skill bound to this weapon hits an enemy already suffering Burn, consume 1 Burn Count to unleash 3 Fixed Damage and inflict 3 Burn Potency / 2 Count.",
+      "III": "Once per Turn, when a Skill bound to this weapon hits an enemy already suffering Burn, consume 1 Burn Count to unleash 5 Fixed Damage and inflict 5 Burn Potency / 3 Count."
     },
-    "limits": "Ranks cumulative. Only the equipped source weapon triggers it; status immunity applies. Crown requires the weapon itself to deliver the killing hit.",
+    "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
     "statuses": "Burn; fixed damage; Clash Win; On Kill",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
-    "exampleItem": "Flamebound Longsword"
+    "exampleItem": "Flamebound Longsword",
+    "kind": "weapon",
+    "allowedChassisIds": [
+      "longsword",
+      "greatsword",
+      "rapier",
+      "scimitar",
+      "shortsword"
+    ],
+    "baseEffect": "Once per Turn, when a Skill bound to this weapon hits an enemy already suffering Burn, consume 1 Burn Count to unleash {damage} Fixed Damage and inflict {potency} Burn Potency / {count} Count.",
+    "baseMagnitudes": {
+      "damage": 2,
+      "potency": 2,
+      "count": 1
+    },
+    "rankMagnitudes": {
+      "I": {
+        "damage": 2,
+        "potency": 2,
+        "count": 1
+      },
+      "II": {
+        "damage": 3,
+        "potency": 3,
+        "count": 2
+      },
+      "III": {
+        "damage": 5,
+        "potency": 5,
+        "count": 3
+      }
+    },
+    "scaling": "ceil(baseMagnitude * rankMultiplier)"
   },
   {
     "id": "ashwake",
     "name": "Ashwake",
     "school": "Infernal",
     "items": [
-      "Shield",
-      "Armor"
+      "Shield"
     ],
     "lore": "A black furnace sleeps behind the plating, opening its vents only when its bearer stands against the tide.",
     "tiers": {
-      "I": "Furnace Guard — Once per Turn, after taking damage while guarding, inflict 2 Burn Potency and 2 Count on the attacker.",
-      "II": "Coal Armor — If that attacker already has Burn, gain a temporary Shield equal to the Burn Potency applied this Turn, capped at 8 Shield.",
-      "III": "Ashen Riposte — Once per Encounter, when the gained Shield is broken by an Attack Skill, scatter Burn 2 Potency / 1 Count to the attacker and one adjacent foe."
+      "I": "Once per Turn, after a Guard with this shield prevents enemy damage, the attacker suffers 2 Burn Potency / 1 Count.",
+      "II": "Once per Turn, after a Guard with this shield prevents enemy damage, the attacker suffers 3 Burn Potency / 2 Count.",
+      "III": "Once per Turn, after a Guard with this shield prevents enemy damage, the attacker suffers 5 Burn Potency / 3 Count."
     },
-    "limits": "Requires a successful Guard; never triggers from self-damage, damage-over-time, or the reflected Burn. One shield generation per Turn.",
+    "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
     "statuses": "Burn; Guard; Shield break",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
-    "exampleItem": "Ashwake Greatshield"
+    "exampleItem": "Ashwake Tower Shield",
+    "kind": "shield",
+    "allowedChassisIds": [
+      "shield_round",
+      "shield_heater",
+      "shield_tower"
+    ],
+    "baseEffect": "Once per Turn, after a Guard with this shield prevents enemy damage, the attacker suffers {potency} Burn Potency / {count} Count.",
+    "baseMagnitudes": {
+      "potency": 2,
+      "count": 1
+    },
+    "rankMagnitudes": {
+      "I": {
+        "potency": 2,
+        "count": 1
+      },
+      "II": {
+        "potency": 3,
+        "count": 2
+      },
+      "III": {
+        "potency": 5,
+        "count": 3
+      }
+    },
+    "scaling": "ceil(baseMagnitude * rankMultiplier)"
   },
   {
     "id": "cinder_requiem",
@@ -52,58 +110,133 @@ const ENCHANTMENTS=[
     ],
     "lore": "Every life claimed by the weapon leaves one unspoken verse smoldering along its fuller.",
     "tiers": {
-      "I": "Funeral Spark — Your first hit each Turn against a target already carrying Burn extends that target's Burn Count by 1, to the normal cap.",
-      "II": "Dirge of Ash — When that target loses Burn Count to Turn End damage, mark it Requiem-bound until the next Turn End; only one mark can exist.",
-      "III": "Last Verse — Once per Encounter, when a Requiem-bound target is killed by a weapon-linked Skill, transfer up to half its remaining Burn Potency (cap 5) as Burn with 1 Count to another target."
+      "I": "Once per Turn, a weapon-linked Hit against a Burning enemy consumes 1 Burn Count and transfers 2 Burn Potency / 1 Count to one other enemy within valid range.",
+      "II": "Once per Turn, a weapon-linked Hit against a Burning enemy consumes 1 Burn Count and transfers 3 Burn Potency / 2 Count to one other enemy within valid range.",
+      "III": "Once per Turn, a weapon-linked Hit against a Burning enemy consumes 1 Burn Count and transfers 5 Burn Potency / 3 Count to one other enemy within valid range."
     },
-    "limits": "Marks do not stack or persist beyond one Turn. No chain reactions from transferred Burn and no trigger on unrelated kills.",
+    "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
     "statuses": "Burn; Turn End; On Kill; temporary mark",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
-    "exampleItem": "Cinder Requiem Rapier"
+    "exampleItem": "Cinder Requiem Rapier",
+    "kind": "weapon",
+    "allowedChassisIds": [
+      "rapier",
+      "shortsword",
+      "scimitar",
+      "dagger"
+    ],
+    "baseEffect": "Once per Turn, a weapon-linked Hit against a Burning enemy consumes 1 Burn Count and transfers {potency} Burn Potency / {count} Count to one other enemy within valid range.",
+    "baseMagnitudes": {
+      "potency": 2,
+      "count": 1
+    },
+    "rankMagnitudes": {
+      "I": {
+        "potency": 2,
+        "count": 1
+      },
+      "II": {
+        "potency": 3,
+        "count": 2
+      },
+      "III": {
+        "potency": 5,
+        "count": 3
+      }
+    },
+    "scaling": "ceil(baseMagnitude * rankMultiplier)"
   },
   {
     "id": "emberheart",
     "name": "Emberheart",
     "school": "Infernal",
     "items": [
-      "Armor",
-      "Accessory"
+      "Armor"
     ],
     "lore": "There is no warmth in the gem until the wearer has suffered for someone else.",
     "tiers": {
-      "I": "Pain to Cinder — Once per Turn, after losing HP from an enemy attack, gain Ember (1 charge, max 2) instead of an immediate bonus.",
-      "II": "Smoldering Resolve — At the next Turn Start, spend 1 Ember to gain 1 Protection for that Turn; unused charges expire at Encounter End.",
-      "III": "Phoenix Thread — Once per Encounter, when HP falls below 25% from a direct attack, consume all Ember to gain a Shield equal to 6 per charge and inflict Burn 2 Potency / 2 Count on the attacker."
+      "I": "Once per Turn, direct enemy damage to your HP stores one Ember (maximum 2). At next Turn Start, consume the stored Ember to gain 4 temporary Shield per charge.",
+      "II": "Once per Turn, direct enemy damage to your HP stores one Ember (maximum 2). At next Turn Start, consume the stored Ember to gain 6 temporary Shield per charge.",
+      "III": "Once per Turn, direct enemy damage to your HP stores one Ember (maximum 2). At next Turn Start, consume the stored Ember to gain 10 temporary Shield per charge."
     },
-    "limits": "Does not trigger from status damage, self-inflicted costs, or allied attacks; not a resurrection or death prevention below 0 HP.",
+    "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
     "statuses": "Protection; Shield; Burn; damage taken; resource",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
-    "exampleItem": "Emberheart Cuirass"
+    "exampleItem": "Emberheart Breastplate",
+    "kind": "armor",
+    "allowedChassisIds": [
+      "breastplate",
+      "half_plate",
+      "chain_mail",
+      "plate_armor"
+    ],
+    "baseEffect": "Once per Turn, direct enemy damage to your HP stores one Ember (maximum 2). At next Turn Start, consume the stored Ember to gain {shield} temporary Shield per charge.",
+    "baseMagnitudes": {
+      "shield": 4
+    },
+    "rankMagnitudes": {
+      "I": {
+        "shield": 4
+      },
+      "II": {
+        "shield": 6
+      },
+      "III": {
+        "shield": 10
+      }
+    },
+    "scaling": "ceil(baseMagnitude * rankMultiplier)"
   },
   {
     "id": "scorchweave",
     "name": "Scorchweave",
     "school": "Infernal",
     "items": [
-      "Accessory",
-      "Valuable"
+      "Accessory"
     ],
     "lore": "The cloth weighs nothing, yet smoke coils behind every motion its owner refuses to finish.",
     "tiers": {
-      "I": "Smoke Step — Once per Turn after an Evade succeeds, mark the attacker as Exposed to Cinders until Turn End.",
-      "II": "Ember Pursuit — The next weapon-linked hit against the marked target before the mark expires inflicts Burn 2 Potency / 2 Count.",
-      "III": "Blind Furnace — Once per Encounter, after two successful Evades in one Turn, inflict 1 temporary Blinded on one attacker who missed; that attacker may resist using the normal Save rule."
+      "I": "Once per Turn, a successful Evade marks the attacker until Turn End; the first Hit from one of your equipped weapons against that marked attacker inflicts 2 Burn Potency / 1 Count and consumes the mark.",
+      "II": "Once per Turn, a successful Evade marks the attacker until Turn End; the first Hit from one of your equipped weapons against that marked attacker inflicts 3 Burn Potency / 2 Count and consumes the mark.",
+      "III": "Once per Turn, a successful Evade marks the attacker until Turn End; the first Hit from one of your equipped weapons against that marked attacker inflicts 5 Burn Potency / 3 Count and consumes the mark."
     },
-    "limits": "A mark cannot trigger itself; failed Evades give nothing. Blinded must use a bounded duration and successful Save; no permanent loss of actions.",
+    "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
     "statuses": "Evade; Burn; Blinded; condition tag",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
-    "exampleItem": "Scorchweave Brooch"
+    "exampleItem": "Scorchweave Brooch",
+    "kind": "accessory",
+    "allowedChassisIds": [
+      "brooch",
+      "bracelet",
+      "anklet",
+      "pendant"
+    ],
+    "baseEffect": "Once per Turn, a successful Evade marks the attacker until Turn End; the first Hit from one of your equipped weapons against that marked attacker inflicts {potency} Burn Potency / {count} Count and consumes the mark.",
+    "baseMagnitudes": {
+      "potency": 2,
+      "count": 1
+    },
+    "rankMagnitudes": {
+      "I": {
+        "potency": 2,
+        "count": 1
+      },
+      "II": {
+        "potency": 3,
+        "count": 2
+      },
+      "III": {
+        "potency": 5,
+        "count": 3
+      }
+    },
+    "scaling": "ceil(baseMagnitude * rankMultiplier)"
   },
   {
     "id": "pyrelash",
@@ -114,16 +247,42 @@ const ENCHANTMENTS=[
     ],
     "lore": "The lash draws fire from unfinished strikes, collecting the heat of blows that almost landed.",
     "tiers": {
-      "I": "Temper — Once per Turn, when a weapon Skill fails to deal damage after an enemy wins the Clash, store one Spark (max 2).",
-      "II": "Retaliation — On the next hit from this weapon, consume one Spark to inflict Burn 3 Potency / 1 Count.",
-      "III": "Firestorm — Once per Encounter, if two Sparks are stored, spend both after a weapon-linked hit to inflict Burn 2 Potency / 2 Count on the primary target and one secondary valid target."
+      "I": "After losing a Clash with this weapon, store one Spark (maximum 2). Once per Turn, your next weapon-linked Hit may consume one Spark to inflict 2 Burn Potency / 2 Count.",
+      "II": "After losing a Clash with this weapon, store one Spark (maximum 2). Once per Turn, your next weapon-linked Hit may consume one Spark to inflict 3 Burn Potency / 3 Count.",
+      "III": "After losing a Clash with this weapon, store one Spark (maximum 2). Once per Turn, your next weapon-linked Hit may consume one Spark to inflict 5 Burn Potency / 5 Count."
     },
-    "limits": "Sparks vanish at Encounter End; a Miss and a lost Clash cannot each grant a Spark for the same Skill. Never re-triggers from Burn ticks.",
+    "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
     "statuses": "Burn; Clash Lose; On Hit; charges",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
-    "exampleItem": "Pyrelash Chainwhip"
+    "exampleItem": "Pyrelash Whip",
+    "kind": "weapon",
+    "allowedChassisIds": [
+      "whip",
+      "flail",
+      "scimitar"
+    ],
+    "baseEffect": "After losing a Clash with this weapon, store one Spark (maximum 2). Once per Turn, your next weapon-linked Hit may consume one Spark to inflict {potency} Burn Potency / {count} Count.",
+    "baseMagnitudes": {
+      "potency": 2,
+      "count": 2
+    },
+    "rankMagnitudes": {
+      "I": {
+        "potency": 2,
+        "count": 2
+      },
+      "II": {
+        "potency": 3,
+        "count": 3
+      },
+      "III": {
+        "potency": 5,
+        "count": 5
+      }
+    },
+    "scaling": "ceil(baseMagnitude * rankMultiplier)"
   },
   {
     "id": "frostwrought",
@@ -134,16 +293,43 @@ const ENCHANTMENTS=[
     ],
     "lore": "The edge is not cold; it steals the moment in which the victim expected to move.",
     "tiers": {
-      "I": "Rime Cut — Once per Turn, on the first weapon-linked hit, inflict 2 Chill Count.",
-      "II": "Brittle Momentum — If the target had Chill before being hit, extend its Chill by 2 Count and inflict 1 Bind for its next Turn.",
-      "III": "Winter's Seal — Once per Encounter, after landing three hits on the same chilled target in one Encounter, inflict Frozen 1 if the target passes the normal Chill threshold check; otherwise inflict 3 Chill."
+      "I": "Once per Turn, the first weapon-linked Hit inflicts 2 Chill Count; if the target already had Chill before that Hit, also inflict 1 Bind for its next Turn.",
+      "II": "Once per Turn, the first weapon-linked Hit inflicts 3 Chill Count; if the target already had Chill before that Hit, also inflict 2 Bind for its next Turn.",
+      "III": "Once per Turn, the first weapon-linked Hit inflicts 5 Chill Count; if the target already had Chill before that Hit, also inflict 3 Bind for its next Turn."
     },
-    "limits": "Frozen never bypasses Cold Immunity or the size-based Chill threshold. Frozen from this enchant is capped at 1 and cannot chain to annihilation.",
+    "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
     "statuses": "Chill; Bind; Frozen; repeated-hit tracking",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
-    "exampleItem": "Frostwrought Greatsword"
+    "exampleItem": "Frostwrought Greatsword",
+    "kind": "weapon",
+    "allowedChassisIds": [
+      "greatsword",
+      "longsword",
+      "greataxe",
+      "maul"
+    ],
+    "baseEffect": "Once per Turn, the first weapon-linked Hit inflicts {chill} Chill Count; if the target already had Chill before that Hit, also inflict {bind} Bind for its next Turn.",
+    "baseMagnitudes": {
+      "chill": 2,
+      "bind": 1
+    },
+    "rankMagnitudes": {
+      "I": {
+        "chill": 2,
+        "bind": 1
+      },
+      "II": {
+        "chill": 3,
+        "bind": 2
+      },
+      "III": {
+        "chill": 5,
+        "bind": 3
+      }
+    },
+    "scaling": "ceil(baseMagnitude * rankMultiplier)"
   },
   {
     "id": "whiteout",
@@ -154,37 +340,85 @@ const ENCHANTMENTS=[
     ],
     "lore": "The ward sheds snow that is never there, concealing the bearer in the instant before impact.",
     "tiers": {
-      "I": "Hoarfrost — Once per Turn, when a direct attack misses you, inflict 2 Chill on the attacker.",
-      "II": "Snowblind — If the attacker already had at least 6 Chill before missing, inflict 1 temporary Blinded until the next Turn End, subject to its normal Save.",
-      "III": "Fading Figure — Once per Encounter, after a successful Evade against a blinded enemy, gain 1 Protection for the next Turn and clear that enemy's Blinded from this item."
+      "I": "Once per Turn, when a direct enemy Attack Skill misses the wearer, inflict 2 Chill Count on that attacker; if it had Chill before missing, gain 3 temporary Shield.",
+      "II": "Once per Turn, when a direct enemy Attack Skill misses the wearer, inflict 3 Chill Count on that attacker; if it had Chill before missing, gain 5 temporary Shield.",
+      "III": "Once per Turn, when a direct enemy Attack Skill misses the wearer, inflict 5 Chill Count on that attacker; if it had Chill before missing, gain 8 temporary Shield."
     },
-    "limits": "No automatic evasion or guaranteed misses; Blinded is limited and saves are respected. Does not work against Cold-immune targets for Chill.",
+    "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
     "statuses": "Chill; Blinded; Evade; Protection",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
-    "exampleItem": "Whiteout Breastplate"
+    "exampleItem": "Whiteout Leather Armor",
+    "kind": "armor",
+    "allowedChassisIds": [
+      "padded_armor",
+      "leather_armor",
+      "hide_armor",
+      "chain_shirt"
+    ],
+    "baseEffect": "Once per Turn, when a direct enemy Attack Skill misses the wearer, inflict {chill} Chill Count on that attacker; if it had Chill before missing, gain {shield} temporary Shield.",
+    "baseMagnitudes": {
+      "chill": 2,
+      "shield": 3
+    },
+    "rankMagnitudes": {
+      "I": {
+        "chill": 2,
+        "shield": 3
+      },
+      "II": {
+        "chill": 3,
+        "shield": 5
+      },
+      "III": {
+        "chill": 5,
+        "shield": 8
+      }
+    },
+    "scaling": "ceil(baseMagnitude * rankMultiplier)"
   },
   {
     "id": "permafrost",
     "name": "Permafrost",
     "school": "Glacial",
     "items": [
-      "Armor",
       "Shield"
     ],
     "lore": "A sealed glacier is layered into the metal; what it cannot stop it refuses to release.",
     "tiers": {
-      "I": "Cold Vault — Once per Turn after a Guard reduces damage, store the amount prevented, capped at 6.",
-      "II": "Icebound Return — At your next Turn Start, convert stored prevented damage into an equal temporary Shield, capped at 6; stored value then resets.",
-      "III": "Fracture Memory — Once per Encounter, when that temporary Shield breaks, inflict Chill Count equal to half the stored value (floor), capped at 3, on the breaker."
+      "I": "Once per Turn, after this shield successfully prevents direct damage through Guard, store up to 4 prevented damage. At next Turn Start convert the stored damage into equal temporary Shield and clear it.",
+      "II": "Once per Turn, after this shield successfully prevents direct damage through Guard, store up to 6 prevented damage. At next Turn Start convert the stored damage into equal temporary Shield and clear it.",
+      "III": "Once per Turn, after this shield successfully prevents direct damage through Guard, store up to 10 prevented damage. At next Turn Start convert the stored damage into equal temporary Shield and clear it."
     },
-    "limits": "No amplification of full incoming damage; only validated prevented damage counts. No triggering from status damage or self-inflicted damage.",
+    "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
     "statuses": "Guard; Shield; Chill; prevented-damage counter",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
-    "exampleItem": "Permafrost Tower Shield"
+    "exampleItem": "Permafrost Tower Shield",
+    "kind": "shield",
+    "allowedChassisIds": [
+      "shield_round",
+      "shield_heater",
+      "shield_tower"
+    ],
+    "baseEffect": "Once per Turn, after this shield successfully prevents direct damage through Guard, store up to {memory} prevented damage. At next Turn Start convert the stored damage into equal temporary Shield and clear it.",
+    "baseMagnitudes": {
+      "memory": 4
+    },
+    "rankMagnitudes": {
+      "I": {
+        "memory": 4
+      },
+      "II": {
+        "memory": 6
+      },
+      "III": {
+        "memory": 10
+      }
+    },
+    "scaling": "ceil(baseMagnitude * rankMultiplier)"
   },
   {
     "id": "rimeglass",
@@ -195,37 +429,89 @@ const ENCHANTMENTS=[
     ],
     "lore": "Cracks along the glass edge spread inward rather than outward; each wound becomes a map of winter.",
     "tiers": {
-      "I": "Crystal Score — First hit per Turn against a target with Chill marks it Fractured for one Turn.",
-      "II": "Split Reflection — The next hit against that Fractured target inflicts 2 Rupture Potency / 2 Count and removes the mark.",
-      "III": "Shardfall — Once per Encounter, a weapon-linked Critical Hit against a Fractured target triggers Tremor Burst if the target has Tremor, then removes Fractured."
+      "I": "Once per Turn, a weapon-linked Hit on a Chilled target consumes 1 Chill Count to inflict 2 Rupture Potency / 1 Count.",
+      "II": "Once per Turn, a weapon-linked Hit on a Chilled target consumes 1 Chill Count to inflict 3 Rupture Potency / 2 Count.",
+      "III": "Once per Turn, a weapon-linked Hit on a Chilled target consumes 1 Chill Count to inflict 5 Rupture Potency / 3 Count."
     },
-    "limits": "Fractured expires and never stacks; Shardfall is not free Stagger and only bursts existing Tremor. No duplicate triggers from the same Hit.",
+    "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
     "statuses": "Chill; Rupture; Tremor Burst; critical hit",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
-    "exampleItem": "Rimeglass Dagger"
+    "exampleItem": "Rimeglass Dagger",
+    "kind": "weapon",
+    "allowedChassisIds": [
+      "dagger",
+      "rapier",
+      "shortsword"
+    ],
+    "baseEffect": "Once per Turn, a weapon-linked Hit on a Chilled target consumes 1 Chill Count to inflict {potency} Rupture Potency / {count} Count.",
+    "baseMagnitudes": {
+      "potency": 2,
+      "count": 1
+    },
+    "rankMagnitudes": {
+      "I": {
+        "potency": 2,
+        "count": 1
+      },
+      "II": {
+        "potency": 3,
+        "count": 2
+      },
+      "III": {
+        "potency": 5,
+        "count": 3
+      }
+    },
+    "scaling": "ceil(baseMagnitude * rankMultiplier)"
   },
   {
     "id": "winter_s_grasp",
     "name": "Winter's Grasp",
     "school": "Glacial",
     "items": [
-      "Weapon",
-      "Accessory"
+      "Weapon"
     ],
     "lore": "The runes do not bind flesh. They slow the decision that precedes escape.",
     "tiers": {
-      "I": "Cold Pursuit — After striking a faster target, once per Turn, apply 1 Bind for its next Turn.",
-      "II": "Fettered Prey — Against a target already affected by Bind, weapon-linked hits inflict 2 Chill; once per Turn.",
-      "III": "Closing Frost — Once per Encounter, when a Bound and Chilled target loses a Clash against you, it must make a normal resistance Save or gain 1 Restrained for one Turn."
+      "I": "Once per Turn, when this weapon hits an enemy with greater Speed than the wielder, inflict 1 Bind for its next Turn and 2 Chill Count.",
+      "II": "Once per Turn, when this weapon hits an enemy with greater Speed than the wielder, inflict 2 Bind for its next Turn and 3 Chill Count.",
+      "III": "Once per Turn, when this weapon hits an enemy with greater Speed than the wielder, inflict 3 Bind for its next Turn and 5 Chill Count."
     },
-    "limits": "Restrained cannot persist beyond one Turn from this item; no repeated saves on a single Clash, and no bonus to Clash Power is granted.",
+    "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
     "statuses": "Bind; Chill; Restrained; resistance Save",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
-    "exampleItem": "Winter's Grasp Spear"
+    "exampleItem": "Winter's Grasp Spear",
+    "kind": "weapon",
+    "allowedChassisIds": [
+      "spear",
+      "pike",
+      "lance",
+      "trident"
+    ],
+    "baseEffect": "Once per Turn, when this weapon hits an enemy with greater Speed than the wielder, inflict {bind} Bind for its next Turn and {chill} Chill Count.",
+    "baseMagnitudes": {
+      "bind": 1,
+      "chill": 2
+    },
+    "rankMagnitudes": {
+      "I": {
+        "bind": 1,
+        "chill": 2
+      },
+      "II": {
+        "bind": 2,
+        "chill": 3
+      },
+      "III": {
+        "bind": 3,
+        "chill": 5
+      }
+    },
+    "scaling": "ceil(baseMagnitude * rankMultiplier)"
   },
   {
     "id": "black_ice",
@@ -236,16 +522,41 @@ const ENCHANTMENTS=[
     ],
     "lore": "Each step leaves a shadow of ice a heartbeat behind the foot that made it.",
     "tiers": {
-      "I": "Slipstream — After a successful Evade, gain 1 Haste for your next Turn; once per Turn.",
-      "II": "Ice Trail — When you Evade an enemy suffering Chill, add 2 Chill Count to that enemy.",
-      "III": "Last Step — Once per Encounter, when an attack would cause you to cross a Stagger Threshold, you may consume your Haste to reduce that attack's Stagger damage contribution by up to 6; HP damage is unchanged."
+      "I": "Once per Turn, a successful Evade grants 1 Haste next Turn; if the attacker already had Chill, extend that attacker's Chill Count by 2.",
+      "II": "Once per Turn, a successful Evade grants 2 Haste next Turn; if the attacker already had Chill, extend that attacker's Chill Count by 3.",
+      "III": "Once per Turn, a successful Evade grants 3 Haste next Turn; if the attacker already had Chill, extend that attacker's Chill Count by 5."
     },
-    "limits": "Does not prevent the HP loss or negate other stagger sources. The Stagger timing hook needs explicit implementation and review.",
+    "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
     "statuses": "Evade; Chill; Haste; Stagger Threshold",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
-    "exampleItem": "Black Ice Anklet"
+    "exampleItem": "Black Ice Anklet",
+    "kind": "accessory",
+    "allowedChassisIds": [
+      "anklet",
+      "bracelet"
+    ],
+    "baseEffect": "Once per Turn, a successful Evade grants {haste} Haste next Turn; if the attacker already had Chill, extend that attacker's Chill Count by {chill}.",
+    "baseMagnitudes": {
+      "haste": 1,
+      "chill": 2
+    },
+    "rankMagnitudes": {
+      "I": {
+        "haste": 1,
+        "chill": 2
+      },
+      "II": {
+        "haste": 2,
+        "chill": 3
+      },
+      "III": {
+        "haste": 3,
+        "chill": 5
+      }
+    },
+    "scaling": "ceil(baseMagnitude * rankMultiplier)"
   },
   {
     "id": "stormwake",
@@ -256,16 +567,43 @@ const ENCHANTMENTS=[
     ],
     "lore": "The weapon calls lightning only when the wielder dares to finish the exchange.",
     "tiers": {
-      "I": "Static Scar — Once per Turn, the first weapon-linked hit on a target inflicts 2 Shock Count.",
-      "II": "Arc Step — If the target converts Shock into Paralysis at Turn Start, gain one Charge (max 1) on this weapon for the next Turn.",
-      "III": "Thunder's Due — Once per Encounter, spend that Charge after a weapon-linked hit to chain 2 Shock Count to one other visible, valid enemy."
+      "I": "Once per Turn, a weapon-linked Hit inflicts 2 Shock Count. If the target already had Shock before the Hit, move 1 of its Shock Count to one other valid enemy.",
+      "II": "Once per Turn, a weapon-linked Hit inflicts 3 Shock Count. If the target already had Shock before the Hit, move 2 of its Shock Count to one other valid enemy.",
+      "III": "Once per Turn, a weapon-linked Hit inflicts 5 Shock Count. If the target already had Shock before the Hit, move 3 of its Shock Count to one other valid enemy."
     },
-    "limits": "Shock and Paralysis retain canonical conversion. No automatic target selection outside valid range; charges expire after one Turn.",
+    "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
     "statuses": "Shock; Paralysis conversion; single-use charge",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
-    "exampleItem": "Stormwake Sabre"
+    "exampleItem": "Stormwake Scimitar",
+    "kind": "weapon",
+    "allowedChassisIds": [
+      "scimitar",
+      "shortsword",
+      "longsword",
+      "rapier"
+    ],
+    "baseEffect": "Once per Turn, a weapon-linked Hit inflicts {shock} Shock Count. If the target already had Shock before the Hit, move {transfer} of its Shock Count to one other valid enemy.",
+    "baseMagnitudes": {
+      "shock": 2,
+      "transfer": 1
+    },
+    "rankMagnitudes": {
+      "I": {
+        "shock": 2,
+        "transfer": 1
+      },
+      "II": {
+        "shock": 3,
+        "transfer": 2
+      },
+      "III": {
+        "shock": 5,
+        "transfer": 3
+      }
+    },
+    "scaling": "ceil(baseMagnitude * rankMultiplier)"
   },
   {
     "id": "thundercall",
@@ -276,16 +614,43 @@ const ENCHANTMENTS=[
     ],
     "lore": "The hammer announces its arrival long after the blow, when every bone remembers the thunder.",
     "tiers": {
-      "I": "First Peal — A weapon-linked hit against a target with at least 3 Shock Count inflicts 1 Paralysis; once per Turn.",
-      "II": "Rolling Thunder — After winning a Clash against a Shocked target, shift 1 Shock Count from it to a second valid enemy, if any.",
-      "III": "Thunderhead — Once per Encounter, when a target's Shock converts to Paralysis, the next hit from this weapon against that target inflicts Tremor 2 Potency / 1 Count."
+      "I": "Once per Turn, after winning a Clash with this weapon against a Shocked enemy, the next Hit of that Skill inflicts 2 Tremor Potency / 1 Count.",
+      "II": "Once per Turn, after winning a Clash with this weapon against a Shocked enemy, the next Hit of that Skill inflicts 3 Tremor Potency / 2 Count.",
+      "III": "Once per Turn, after winning a Clash with this weapon against a Shocked enemy, the next Hit of that Skill inflicts 5 Tremor Potency / 3 Count."
     },
-    "limits": "Does not bypass existing Paralysis caps; transferred Shock is removed from the first target and cannot cascade.",
+    "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
     "statuses": "Shock; Paralysis; Tremor; Clash Win",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
-    "exampleItem": "Thundercall Warhammer"
+    "exampleItem": "Thundercall Warhammer",
+    "kind": "weapon",
+    "allowedChassisIds": [
+      "warhammer",
+      "maul",
+      "mace",
+      "morningstar"
+    ],
+    "baseEffect": "Once per Turn, after winning a Clash with this weapon against a Shocked enemy, the next Hit of that Skill inflicts {potency} Tremor Potency / {count} Count.",
+    "baseMagnitudes": {
+      "potency": 2,
+      "count": 1
+    },
+    "rankMagnitudes": {
+      "I": {
+        "potency": 2,
+        "count": 1
+      },
+      "II": {
+        "potency": 3,
+        "count": 2
+      },
+      "III": {
+        "potency": 5,
+        "count": 3
+      }
+    },
+    "scaling": "ceil(baseMagnitude * rankMultiplier)"
   },
   {
     "id": "stormcage",
@@ -296,37 +661,89 @@ const ENCHANTMENTS=[
     ],
     "lore": "Copper veins across the shield pulse whenever an enemy mistakes its silence for safety.",
     "tiers": {
-      "I": "Conductive Guard — Once per Turn, after a Guard reduces direct damage, inflict 1 Shock Count on the attacker.",
-      "II": "Cage Circuit — If the attacker already has Shock, add 2 more Shock Count and mark it Conductive until Turn End.",
-      "III": "Judgment Coil — Once per Encounter, when a Conductive attacker triggers its canonical Shock-to-Paralysis conversion, grant the bearer a temporary Shield of 8."
+      "I": "Once per Turn, a successful Guard with this shield inflicts 2 Shock Count on the attacker. When this instance's Shock converts into Paralysis, gain 4 temporary Shield.",
+      "II": "Once per Turn, a successful Guard with this shield inflicts 3 Shock Count on the attacker. When this instance's Shock converts into Paralysis, gain 6 temporary Shield.",
+      "III": "Once per Turn, a successful Guard with this shield inflicts 5 Shock Count on the attacker. When this instance's Shock converts into Paralysis, gain 10 temporary Shield."
     },
-    "limits": "Conductive is a mark, not an unrestricted new status. Reflections cannot loop; Shield value does not scale with party size.",
+    "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
     "statuses": "Guard; Shock; Paralysis; Shield",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
-    "exampleItem": "Stormcage Buckler"
+    "exampleItem": "Stormcage Buckler",
+    "kind": "shield",
+    "allowedChassisIds": [
+      "shield_buckler",
+      "shield_round",
+      "shield_heater"
+    ],
+    "baseEffect": "Once per Turn, a successful Guard with this shield inflicts {shock} Shock Count on the attacker. When this instance's Shock converts into Paralysis, gain {shield} temporary Shield.",
+    "baseMagnitudes": {
+      "shock": 2,
+      "shield": 4
+    },
+    "rankMagnitudes": {
+      "I": {
+        "shock": 2,
+        "shield": 4
+      },
+      "II": {
+        "shock": 3,
+        "shield": 6
+      },
+      "III": {
+        "shock": 5,
+        "shield": 10
+      }
+    },
+    "scaling": "ceil(baseMagnitude * rankMultiplier)"
   },
   {
     "id": "static_veil",
     "name": "Static Veil",
     "school": "Tempest",
     "items": [
-      "Armor",
-      "Accessory"
+      "Armor"
     ],
     "lore": "The air catches against the armor, holding every missed strike like a debt unpaid.",
     "tiers": {
-      "I": "Residual Current — Once per Turn, after an enemy misses you, apply 2 Shock to that enemy.",
-      "II": "Insulated Thread — If that enemy already has Shock, gain 1 Protection until Turn End after the miss.",
-      "III": "Grounding Burst — Once per Encounter, when an attacker with 6 or more Shock hits you, consume 3 Shock Count from it to grant you a Shield of 10."
+      "I": "Once per Turn, when a direct enemy Attack Skill misses the wearer, inflict 2 Shock Count on the attacker. If the attacker already had Shock, gain 3 temporary Shield.",
+      "II": "Once per Turn, when a direct enemy Attack Skill misses the wearer, inflict 3 Shock Count on the attacker. If the attacker already had Shock, gain 5 temporary Shield.",
+      "III": "Once per Turn, when a direct enemy Attack Skill misses the wearer, inflict 5 Shock Count on the attacker. If the attacker already had Shock, gain 8 temporary Shield."
     },
-    "limits": "No effect on ranged or environmental damage without a valid attacker; the Shield does not cancel the hit that triggered it.",
+    "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
     "statuses": "Shock; Protection; Shield; damage taken",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
-    "exampleItem": "Static Veil Mail"
+    "exampleItem": "Static Veil Chain Mail",
+    "kind": "armor",
+    "allowedChassisIds": [
+      "chain_shirt",
+      "scale_mail",
+      "ring_mail",
+      "chain_mail"
+    ],
+    "baseEffect": "Once per Turn, when a direct enemy Attack Skill misses the wearer, inflict {shock} Shock Count on the attacker. If the attacker already had Shock, gain {shield} temporary Shield.",
+    "baseMagnitudes": {
+      "shock": 2,
+      "shield": 3
+    },
+    "rankMagnitudes": {
+      "I": {
+        "shock": 2,
+        "shield": 3
+      },
+      "II": {
+        "shock": 3,
+        "shield": 5
+      },
+      "III": {
+        "shock": 5,
+        "shield": 8
+      }
+    },
+    "scaling": "ceil(baseMagnitude * rankMultiplier)"
   },
   {
     "id": "galeheart",
@@ -337,16 +754,42 @@ const ENCHANTMENTS=[
     ],
     "lore": "A trapped storm beats against the wearer's pulse whenever the battlefield changes direction.",
     "tiers": {
-      "I": "Tailwind — Once per Turn on successful Evade, gain 1 Haste for the next Turn.",
-      "II": "Slip of Fate — If you begin a Turn with Haste from this enchant, the first enemy who misses you suffers 1 Bind for the next Turn.",
-      "III": "Eye of the Storm — Once per Encounter, after two enemies miss you in the same Turn, grant one ally 1 Haste on its next Turn."
+      "I": "Once per Turn, after a successful Evade, gain 1 Haste next Turn. If the attacker already had Bind, extend that Bind by 1.",
+      "II": "Once per Turn, after a successful Evade, gain 2 Haste next Turn. If the attacker already had Bind, extend that Bind by 2.",
+      "III": "Once per Turn, after a successful Evade, gain 3 Haste next Turn. If the attacker already had Bind, extend that Bind by 3."
     },
-    "limits": "Haste is never permanent and cannot grant extra Action Slots; requires two distinct enemy attacks for Rank III.",
+    "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
     "statuses": "Haste; Bind; Evade; ally targeting",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
-    "exampleItem": "Galeheart Bracelet"
+    "exampleItem": "Galeheart Bracelet",
+    "kind": "accessory",
+    "allowedChassisIds": [
+      "bracelet",
+      "anklet",
+      "earrings"
+    ],
+    "baseEffect": "Once per Turn, after a successful Evade, gain {haste} Haste next Turn. If the attacker already had Bind, extend that Bind by {bind}.",
+    "baseMagnitudes": {
+      "haste": 1,
+      "bind": 1
+    },
+    "rankMagnitudes": {
+      "I": {
+        "haste": 1,
+        "bind": 1
+      },
+      "II": {
+        "haste": 2,
+        "bind": 2
+      },
+      "III": {
+        "haste": 3,
+        "bind": 3
+      }
+    },
+    "scaling": "ceil(baseMagnitude * rankMultiplier)"
   },
   {
     "id": "skybreaker",
@@ -357,16 +800,43 @@ const ENCHANTMENTS=[
     ],
     "lore": "The spear never chases the sky. It waits for the sky to fall onto its point.",
     "tiers": {
-      "I": "Thunderpoint — Weapon-linked hits against targets bearing a Shield inflict 2 Shock Count.",
-      "II": "Crack the Canopy — Once per Turn after hitting a Shielded target, the next weapon-linked hit against the same target deals up to 5 additional damage to its Shield only.",
-      "III": "Fallen Star — Once per Encounter, breaking a target's Shield with this weapon triggers Tremor Burst if that target already has Tremor."
+      "I": "Once per Turn, a weapon-linked Hit against an enemy protected by Shield inflicts 2 Shock Count and deals 3 additional damage to the Shield only.",
+      "II": "Once per Turn, a weapon-linked Hit against an enemy protected by Shield inflicts 3 Shock Count and deals 5 additional damage to the Shield only.",
+      "III": "Once per Turn, a weapon-linked Hit against an enemy protected by Shield inflicts 5 Shock Count and deals 8 additional damage to the Shield only."
     },
-    "limits": "Does not increase damage against HP, does not create Tremor, and the Shield-specific effect cannot overflow into HP.",
+    "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
     "statuses": "Shock; Shields; Tremor Burst; shield-break event",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
-    "exampleItem": "Skybreaker Lance"
+    "exampleItem": "Skybreaker Lance",
+    "kind": "weapon",
+    "allowedChassisIds": [
+      "lance",
+      "pike",
+      "halberd",
+      "spear"
+    ],
+    "baseEffect": "Once per Turn, a weapon-linked Hit against an enemy protected by Shield inflicts {shock} Shock Count and deals {shieldDamage} additional damage to the Shield only.",
+    "baseMagnitudes": {
+      "shock": 2,
+      "shieldDamage": 3
+    },
+    "rankMagnitudes": {
+      "I": {
+        "shock": 2,
+        "shieldDamage": 3
+      },
+      "II": {
+        "shock": 3,
+        "shieldDamage": 5
+      },
+      "III": {
+        "shock": 5,
+        "shieldDamage": 8
+      }
+    },
+    "scaling": "ceil(baseMagnitude * rankMultiplier)"
   },
   {
     "id": "bloodthorn",
@@ -377,16 +847,42 @@ const ENCHANTMENTS=[
     ],
     "lore": "Its crimson barbs bloom only where a living heartbeat answers the thrust.",
     "tiers": {
-      "I": "Thorned Cut — Once per Turn, the first Critical Hit with this weapon inflicts Bleed 2 Potency / 2 Count.",
-      "II": "Open Vein — Your next weapon-linked hit against that same Bleeding target increases its Bleed Potency by 2, once per Turn.",
-      "III": "Red Bloom — Once per Encounter, on a weapon-linked Critical Hit against a target with at least 5 Bleed Potency, convert 2 of its Bleed Count into 2 Rupture Potency / 2 Count."
+      "I": "Once per Turn, your first Critical Hit from this weapon inflicts 2 Bleed Potency / 2 Count.",
+      "II": "Once per Turn, your first Critical Hit from this weapon inflicts 3 Bleed Potency / 3 Count.",
+      "III": "Once per Turn, your first Critical Hit from this weapon inflicts 5 Bleed Potency / 5 Count."
     },
-    "limits": "Consumes, not copies, the original Bleed Count. No triggers from Bleed self-damage and no guaranteed Critical Hits.",
+    "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
     "statuses": "Bleed; Poise/Critical; Rupture",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
-    "exampleItem": "Bloodthorn Stiletto"
+    "exampleItem": "Bloodthorn Dagger",
+    "kind": "weapon",
+    "allowedChassisIds": [
+      "dagger",
+      "rapier",
+      "shortsword"
+    ],
+    "baseEffect": "Once per Turn, your first Critical Hit from this weapon inflicts {potency} Bleed Potency / {count} Count.",
+    "baseMagnitudes": {
+      "potency": 2,
+      "count": 2
+    },
+    "rankMagnitudes": {
+      "I": {
+        "potency": 2,
+        "count": 2
+      },
+      "II": {
+        "potency": 3,
+        "count": 3
+      },
+      "III": {
+        "potency": 5,
+        "count": 5
+      }
+    },
+    "scaling": "ceil(baseMagnitude * rankMultiplier)"
   },
   {
     "id": "crimson_oath",
@@ -397,16 +893,43 @@ const ENCHANTMENTS=[
     ],
     "lore": "Each vow carved into the blade is paid for twice: once in blood, once in what remains.",
     "tiers": {
-      "I": "Blood Price — At Turn Start, you may spend 3 HP to mark the weapon Sated until Turn End. The next weapon-linked hit inflicts Bleed 2 Potency / 2 Count.",
-      "II": "Pact of Thorns — If the wielder was below 50% HP when paying, that hit also inflicts 1 Rupture Potency / 1 Count.",
-      "III": "Last Oath — Once per Encounter, when the wielder pays the Blood Price below 25% HP, the next linked hit transfers half its inflicted Bleed Potency (cap 3) to a second valid foe."
+      "I": "At Turn Start, optionally sacrifice 3 HP; this weapon's next Hit during the Turn inflicts 2 Bleed Potency / 2 Count. Once per Turn.",
+      "II": "At Turn Start, optionally sacrifice 3 HP; this weapon's next Hit during the Turn inflicts 3 Bleed Potency / 3 Count. Once per Turn.",
+      "III": "At Turn Start, optionally sacrifice 3 HP; this weapon's next Hit during the Turn inflicts 5 Bleed Potency / 5 Count. Once per Turn."
     },
-    "limits": "Cannot pay if the HP cost would reduce the wielder to 0 or below. Paid HP is real and not refunded if the attack misses.",
+    "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
     "statuses": "Bleed; Rupture; resource expenditure; target sharing",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
-    "exampleItem": "Crimson Oath Longsword"
+    "exampleItem": "Crimson Oath Longsword",
+    "kind": "weapon",
+    "allowedChassisIds": [
+      "longsword",
+      "greatsword",
+      "scimitar",
+      "rapier"
+    ],
+    "baseEffect": "At Turn Start, optionally sacrifice 3 HP; this weapon's next Hit during the Turn inflicts {potency} Bleed Potency / {count} Count. Once per Turn.",
+    "baseMagnitudes": {
+      "potency": 2,
+      "count": 2
+    },
+    "rankMagnitudes": {
+      "I": {
+        "potency": 2,
+        "count": 2
+      },
+      "II": {
+        "potency": 3,
+        "count": 3
+      },
+      "III": {
+        "potency": 5,
+        "count": 5
+      }
+    },
+    "scaling": "ceil(baseMagnitude * rankMultiplier)"
   },
   {
     "id": "hollow_fang",
@@ -417,16 +940,38 @@ const ENCHANTMENTS=[
     ],
     "lore": "The fang drinks only what its prey can still afford to lose.",
     "tiers": {
-      "I": "Feast — Once per Turn, when the weapon hits a Bleeding enemy, recover 2 HP after damage.",
-      "II": "Deep Hunger — If the hit consumed Bleed Count from the target, recover 2 additional HP, capped at 4 total per Turn.",
-      "III": "Starving King — Once per Encounter, a Critical Hit against a Bleeding target gives the wielder a temporary Shield equal to the HP actually recovered this Turn, capped at 8."
+      "I": "Once per Turn, after this weapon hits an enemy already suffering Bleed, restore up to 2 HP, limited by the wearer's missing HP.",
+      "II": "Once per Turn, after this weapon hits an enemy already suffering Bleed, restore up to 3 HP, limited by the wearer's missing HP.",
+      "III": "Once per Turn, after this weapon hits an enemy already suffering Bleed, restore up to 5 HP, limited by the wearer's missing HP."
     },
-    "limits": "Healing never exceeds missing HP; damage-over-time does not trigger Feast. Cannot lifesteal from invalid or immune targets.",
+    "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
     "statuses": "Bleed; healing; Shield; Critical",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
-    "exampleItem": "Hollow Fang Kukri"
+    "exampleItem": "Hollow Fang Dagger",
+    "kind": "weapon",
+    "allowedChassisIds": [
+      "dagger",
+      "shortsword",
+      "sickle"
+    ],
+    "baseEffect": "Once per Turn, after this weapon hits an enemy already suffering Bleed, restore up to {healing} HP, limited by the wearer's missing HP.",
+    "baseMagnitudes": {
+      "healing": 2
+    },
+    "rankMagnitudes": {
+      "I": {
+        "healing": 2
+      },
+      "II": {
+        "healing": 3
+      },
+      "III": {
+        "healing": 5
+      }
+    },
+    "scaling": "ceil(baseMagnitude * rankMultiplier)"
   },
   {
     "id": "ruptureloom",
@@ -437,16 +982,43 @@ const ENCHANTMENTS=[
     ],
     "lore": "Fine cracks in the spearhead widen only when the target attempts to continue fighting.",
     "tiers": {
-      "I": "Seam — The first weapon-linked hit each Turn inflicts Rupture 2 Potency / 2 Count.",
-      "II": "Unravel — If the target already had Rupture, the next weapon-linked hit in the same Turn extends Rupture Count by 1, once per Turn.",
-      "III": "Threadbreaker — Once per Encounter, after three weapon-linked hits on one target, trigger that target's existing Rupture once without removing its full stack, then clear the hit counter."
+      "I": "Once per Turn, the first weapon-linked Hit inflicts 2 Rupture Potency / 2 Count. On the third Hit by this weapon against the same enemy during this Encounter, trigger existing Rupture once, consuming its normal Count.",
+      "II": "Once per Turn, the first weapon-linked Hit inflicts 3 Rupture Potency / 3 Count. On the third Hit by this weapon against the same enemy during this Encounter, trigger existing Rupture once, consuming its normal Count.",
+      "III": "Once per Turn, the first weapon-linked Hit inflicts 5 Rupture Potency / 5 Count. On the third Hit by this weapon against the same enemy during this Encounter, trigger existing Rupture once, consuming its normal Count."
     },
-    "limits": "The extra Rupture trigger consumes its normal Count; cannot trigger from any Rupture damage tick. Three hits must be from this equipped Instance.",
+    "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
     "statuses": "Rupture; multiple-hit tracking; On Hit",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
-    "exampleItem": "Ruptureloom Pike"
+    "exampleItem": "Ruptureloom Pike",
+    "kind": "weapon",
+    "allowedChassisIds": [
+      "pike",
+      "spear",
+      "lance",
+      "war_pick"
+    ],
+    "baseEffect": "Once per Turn, the first weapon-linked Hit inflicts {potency} Rupture Potency / {count} Count. On the third Hit by this weapon against the same enemy during this Encounter, trigger existing Rupture once, consuming its normal Count.",
+    "baseMagnitudes": {
+      "potency": 2,
+      "count": 2
+    },
+    "rankMagnitudes": {
+      "I": {
+        "potency": 2,
+        "count": 2
+      },
+      "II": {
+        "potency": 3,
+        "count": 3
+      },
+      "III": {
+        "potency": 5,
+        "count": 5
+      }
+    },
+    "scaling": "ceil(baseMagnitude * rankMultiplier)"
   },
   {
     "id": "butcher_s_hymn",
@@ -457,16 +1029,43 @@ const ENCHANTMENTS=[
     ],
     "lore": "The plates hum louder with every wound their owner survives, refusing the comfort of silence.",
     "tiers": {
-      "I": "Grim Rhythm — Once per Turn, after losing HP to a direct attack, gain Poise 2 Potency / 2 Count.",
-      "II": "Bloody Cadence — On your next Critical Hit, inflict Bleed 2 Potency / 1 Count on that hit's target.",
-      "III": "Final Chorus — Once per Encounter, when reduced below 30% HP by direct enemy damage, gain 1 Protection until the next Turn End and refresh no Poise already lost."
+      "I": "Once per Turn, when direct enemy damage reduces the wearer's HP, gain 2 Poise Potency / 2 Count.",
+      "II": "Once per Turn, when direct enemy damage reduces the wearer's HP, gain 3 Poise Potency / 3 Count.",
+      "III": "Once per Turn, when direct enemy damage reduces the wearer's HP, gain 5 Poise Potency / 5 Count."
     },
-    "limits": "Critical must come from a normal attack resolution. No Poise from self-damage, poison, Burn, or status ticks.",
+    "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
     "statuses": "Poise; Bleed; Protection; damage taken",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
-    "exampleItem": "Butcher's Hymn Breastplate"
+    "exampleItem": "Butcher's Hymn Breastplate",
+    "kind": "armor",
+    "allowedChassisIds": [
+      "breastplate",
+      "half_plate",
+      "chain_mail",
+      "plate_armor"
+    ],
+    "baseEffect": "Once per Turn, when direct enemy damage reduces the wearer's HP, gain {potency} Poise Potency / {count} Count.",
+    "baseMagnitudes": {
+      "potency": 2,
+      "count": 2
+    },
+    "rankMagnitudes": {
+      "I": {
+        "potency": 2,
+        "count": 2
+      },
+      "II": {
+        "potency": 3,
+        "count": 3
+      },
+      "III": {
+        "potency": 5,
+        "count": 5
+      }
+    },
+    "scaling": "ceil(baseMagnitude * rankMultiplier)"
   },
   {
     "id": "heartseeker",
@@ -477,16 +1076,44 @@ const ENCHANTMENTS=[
     ],
     "lore": "The bowstring tightens around the sound of a failing pulse, not the shape of a target.",
     "tiers": {
-      "I": "Pulse Mark — First weapon-linked hit per Turn marks one target until the next Turn End.",
-      "II": "Follow the Beat — A second hit against that same marked enemy inflicts Bleed 2 Potency / 2 Count and clears the mark.",
-      "III": "Final Pulse — Once per Encounter, when a marked enemy falls below 25% HP due to this weapon, inflict Rupture 3 Potency / 2 Count and clear the mark."
+      "I": "The first Hit each Turn by this weapon marks one target until your next Turn End; the next Hit from this same weapon against that target inflicts 2 Bleed Potency / 2 Count and clears the mark.",
+      "II": "The first Hit each Turn by this weapon marks one target until your next Turn End; the next Hit from this same weapon against that target inflicts 3 Bleed Potency / 3 Count and clears the mark.",
+      "III": "The first Hit each Turn by this weapon marks one target until your next Turn End; the next Hit from this same weapon against that target inflicts 5 Bleed Potency / 5 Count and clears the mark."
     },
-    "limits": "No execute, instant kill, or bypass of damage mitigation. The threshold must be crossed by a legitimate hit from this weapon.",
+    "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
     "statuses": "Bleed; Rupture; HP threshold; marked target",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
-    "exampleItem": "Heartseeker Longbow"
+    "exampleItem": "Heartseeker Longbow",
+    "kind": "weapon",
+    "allowedChassisIds": [
+      "shortbow",
+      "longbow",
+      "light_crossbow",
+      "heavy_crossbow",
+      "hand_crossbow"
+    ],
+    "baseEffect": "The first Hit each Turn by this weapon marks one target until your next Turn End; the next Hit from this same weapon against that target inflicts {potency} Bleed Potency / {count} Count and clears the mark.",
+    "baseMagnitudes": {
+      "potency": 2,
+      "count": 2
+    },
+    "rankMagnitudes": {
+      "I": {
+        "potency": 2,
+        "count": 2
+      },
+      "II": {
+        "potency": 3,
+        "count": 3
+      },
+      "III": {
+        "potency": 5,
+        "count": 5
+      }
+    },
+    "scaling": "ceil(baseMagnitude * rankMultiplier)"
   },
   {
     "id": "gravewhisper",
@@ -497,58 +1124,140 @@ const ENCHANTMENTS=[
     ],
     "lore": "Its edge carries the last thought of those who never found the strength to scream.",
     "tiers": {
-      "I": "Quiet Cut — First weapon-linked hit each Turn inflicts Sinking 2 Potency / 2 Count.",
-      "II": "Afterthought — Hitting a target that already had Sinking this Turn extends its Sinking Count by 1, once per Turn.",
-      "III": "Last Word — Once per Encounter, after a hit drains the final positive SP from a target via Sinking, gain 1 Poise Potency / 2 Count and mark that target for one Turn."
+      "I": "Once per Turn, the first Hit from this weapon inflicts 2 Sinking Potency / 2 Count; if that Hit drains the target's last positive SP, recover up to 2 SP.",
+      "II": "Once per Turn, the first Hit from this weapon inflicts 3 Sinking Potency / 3 Count; if that Hit drains the target's last positive SP, recover up to 3 SP.",
+      "III": "Once per Turn, the first Hit from this weapon inflicts 5 Sinking Potency / 5 Count; if that Hit drains the target's last positive SP, recover up to 5 SP."
     },
-    "limits": "Does not reduce SP past engine bounds; a target with no valid SP cannot award the Last Word bonus repeatedly.",
+    "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
     "statuses": "Sinking; SP; Poise; per-target mark",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
-    "exampleItem": "Gravewhisper Scythe"
+    "exampleItem": "Gravewhisper Sickle",
+    "kind": "weapon",
+    "allowedChassisIds": [
+      "sickle",
+      "glaive",
+      "scimitar",
+      "war_pick"
+    ],
+    "baseEffect": "Once per Turn, the first Hit from this weapon inflicts {potency} Sinking Potency / {count} Count; if that Hit drains the target's last positive SP, recover up to {sp} SP.",
+    "baseMagnitudes": {
+      "potency": 2,
+      "count": 2,
+      "sp": 2
+    },
+    "rankMagnitudes": {
+      "I": {
+        "potency": 2,
+        "count": 2,
+        "sp": 2
+      },
+      "II": {
+        "potency": 3,
+        "count": 3,
+        "sp": 3
+      },
+      "III": {
+        "potency": 5,
+        "count": 5,
+        "sp": 5
+      }
+    },
+    "scaling": "ceil(baseMagnitude * rankMultiplier)"
   },
   {
     "id": "drownsong",
     "name": "Drownsong",
     "school": "Umbral",
     "items": [
-      "Accessory",
-      "Valuable"
+      "Accessory"
     ],
     "lore": "The ring sings beneath running water, but only the wearer hears the drowned choir.",
     "tiers": {
-      "I": "Undertow — After an enemy damages your SP directly, once per Turn, apply Sinking 2 Potency / 1 Count to that attacker.",
-      "II": "Low Tide — If that attacker was already Sinking, recover 2 SP after the attack resolves.",
-      "III": "Abyssal Chorus — Once per Encounter, when two different enemies damage your SP in one Turn, inflict Sinking 2 Potency / 2 Count on one valid attacker of your choice."
+      "I": "Once per Turn, after direct enemy effects lower the wearer's SP, inflict 2 Sinking Potency / 1 Count on the responsible enemy.",
+      "II": "Once per Turn, after direct enemy effects lower the wearer's SP, inflict 3 Sinking Potency / 2 Count on the responsible enemy.",
+      "III": "Once per Turn, after direct enemy effects lower the wearer's SP, inflict 5 Sinking Potency / 3 Count on the responsible enemy."
     },
-    "limits": "Requires actual SP loss, not blocked or absorbed SP damage; never triggers from the wearer's own Sinking.",
+    "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
     "statuses": "Sinking; SP healing; damage taken; chosen target",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
-    "exampleItem": "Drownsong Signet Ring"
+    "exampleItem": "Drownsong Ring",
+    "kind": "accessory",
+    "allowedChassisIds": [
+      "ring",
+      "pendant",
+      "necklace",
+      "brooch"
+    ],
+    "baseEffect": "Once per Turn, after direct enemy effects lower the wearer's SP, inflict {potency} Sinking Potency / {count} Count on the responsible enemy.",
+    "baseMagnitudes": {
+      "potency": 2,
+      "count": 1
+    },
+    "rankMagnitudes": {
+      "I": {
+        "potency": 2,
+        "count": 1
+      },
+      "II": {
+        "potency": 3,
+        "count": 2
+      },
+      "III": {
+        "potency": 5,
+        "count": 3
+      }
+    },
+    "scaling": "ceil(baseMagnitude * rankMultiplier)"
   },
   {
     "id": "nightfall",
     "name": "Nightfall",
     "school": "Umbral",
     "items": [
-      "Armor",
       "Accessory"
     ],
     "lore": "No torch can settle on its silhouette; every witness remembers a different outline.",
     "tiers": {
-      "I": "Second Shadow — On a successful Evade, mark yourself Veiled until Turn End; once per Turn.",
-      "II": "Vanishing Point — If you evade two attacks in one Turn, gain Invisible until the next Turn Start, provided its canonical detection rules are met.",
-      "III": "Starless Return — Once per Encounter, after Invisible ends, your next hit on an already Sinking target inflicts 2 additional Sinking Count."
+      "I": "Once per Turn, after a successful Evade, become Veiled until Turn End. Your next successful Attack Skill against a valid target while Veiled inflicts 2 Sinking Potency / 1 Count and ends Veiled.",
+      "II": "Once per Turn, after a successful Evade, become Veiled until Turn End. Your next successful Attack Skill against a valid target while Veiled inflicts 3 Sinking Potency / 2 Count and ends Veiled.",
+      "III": "Once per Turn, after a successful Evade, become Veiled until Turn End. Your next successful Attack Skill against a valid target while Veiled inflicts 5 Sinking Potency / 3 Count and ends Veiled."
     },
-    "limits": "Invisible is detection-dependent, never guaranteed untargetability. The item grants no free attacks and cannot trigger from an invalid Evade.",
+    "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
     "statuses": "Evade; Invisible; Sinking; detection",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
-    "exampleItem": "Nightfall Pendant"
+    "exampleItem": "Nightfall Pendant",
+    "kind": "accessory",
+    "allowedChassisIds": [
+      "pendant",
+      "anklet",
+      "brooch"
+    ],
+    "baseEffect": "Once per Turn, after a successful Evade, become Veiled until Turn End. Your next successful Attack Skill against a valid target while Veiled inflicts {potency} Sinking Potency / {count} Count and ends Veiled.",
+    "baseMagnitudes": {
+      "potency": 2,
+      "count": 1
+    },
+    "rankMagnitudes": {
+      "I": {
+        "potency": 2,
+        "count": 1
+      },
+      "II": {
+        "potency": 3,
+        "count": 2
+      },
+      "III": {
+        "potency": 5,
+        "count": 3
+      }
+    },
+    "scaling": "ceil(baseMagnitude * rankMultiplier)"
   },
   {
     "id": "void_anchor",
@@ -559,37 +1268,89 @@ const ENCHANTMENTS=[
     ],
     "lore": "The sigil weighs nothing until the moment something tries to escape its reach.",
     "tiers": {
-      "I": "Grasp — Once per Turn, after a successful Guard against a melee attacker, inflict 1 Bind for its next Turn.",
-      "II": "Held Horizon — When a Bound enemy hits you, once per Turn, gain a temporary Shield of 5 after the damage resolves.",
-      "III": "Black Gravity — Once per Encounter, when the Bound enemy loses a Clash against you, it must Save or suffer 1 Restrained for one Turn."
+      "I": "Once per Turn, after a Guard with this shield against a melee attacker, inflict 1 Bind for its next Turn. If that attacker Hits the bearer while Bound, gain 4 temporary Shield after taking the damage.",
+      "II": "Once per Turn, after a Guard with this shield against a melee attacker, inflict 2 Bind for its next Turn. If that attacker Hits the bearer while Bound, gain 6 temporary Shield after taking the damage.",
+      "III": "Once per Turn, after a Guard with this shield against a melee attacker, inflict 3 Bind for its next Turn. If that attacker Hits the bearer while Bound, gain 10 temporary Shield after taking the damage."
     },
-    "limits": "Does not move enemies or erase Action Slots; Restrained can be resisted and expires after one Turn.",
+    "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
     "statuses": "Bind; Restrained; Guard; Shield; Save",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
-    "exampleItem": "Void Anchor Shield"
+    "exampleItem": "Void Anchor Heater Shield",
+    "kind": "shield",
+    "allowedChassisIds": [
+      "shield_round",
+      "shield_heater",
+      "shield_tower"
+    ],
+    "baseEffect": "Once per Turn, after a Guard with this shield against a melee attacker, inflict {bind} Bind for its next Turn. If that attacker Hits the bearer while Bound, gain {shield} temporary Shield after taking the damage.",
+    "baseMagnitudes": {
+      "bind": 1,
+      "shield": 4
+    },
+    "rankMagnitudes": {
+      "I": {
+        "bind": 1,
+        "shield": 4
+      },
+      "II": {
+        "bind": 2,
+        "shield": 6
+      },
+      "III": {
+        "bind": 3,
+        "shield": 10
+      }
+    },
+    "scaling": "ceil(baseMagnitude * rankMultiplier)"
   },
   {
     "id": "eclipsed_crown",
     "name": "Eclipsed Crown",
     "school": "Umbral",
     "items": [
-      "Accessory",
-      "Valuable"
+      "Accessory"
     ],
     "lore": "The crown turns whispers into debts, and demands a memory every time it answers.",
     "tiers": {
-      "I": "Borrowed Thought — At Turn Start, optionally spend 4 SP to mark one visible enemy for one Turn.",
-      "II": "Mental Debt — Your next successful hit against the marked enemy inflicts Sinking 3 Potency / 2 Count, then clears the mark.",
-      "III": "Eclipse — Once per Encounter, when a marked enemy reaches 0 SP due to your attack, recover up to 4 SP and inflict 1 Bind on that enemy for its next Turn."
+      "I": "At Turn Start, pay 4 SP to mark one visible enemy until Turn End. Once per Turn, the next successful Attack Skill against that target inflicts 3 Sinking Potency / 1 Count and clears the mark.",
+      "II": "At Turn Start, pay 4 SP to mark one visible enemy until Turn End. Once per Turn, the next successful Attack Skill against that target inflicts 5 Sinking Potency / 2 Count and clears the mark.",
+      "III": "At Turn Start, pay 4 SP to mark one visible enemy until Turn End. Once per Turn, the next successful Attack Skill against that target inflicts 8 Sinking Potency / 3 Count and clears the mark."
     },
-    "limits": "SP must be available to pay; marks expire without refund and cannot be placed on non-targetable enemies.",
+    "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
     "statuses": "Sinking; SP resource; Bind; HP/SP gate",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
-    "exampleItem": "Eclipsed Crown Brooch"
+    "exampleItem": "Eclipsed Crown Brooch",
+    "kind": "accessory",
+    "allowedChassisIds": [
+      "brooch",
+      "ring",
+      "pendant",
+      "hairpin"
+    ],
+    "baseEffect": "At Turn Start, pay 4 SP to mark one visible enemy until Turn End. Once per Turn, the next successful Attack Skill against that target inflicts {potency} Sinking Potency / {count} Count and clears the mark.",
+    "baseMagnitudes": {
+      "potency": 3,
+      "count": 1
+    },
+    "rankMagnitudes": {
+      "I": {
+        "potency": 3,
+        "count": 1
+      },
+      "II": {
+        "potency": 5,
+        "count": 2
+      },
+      "III": {
+        "potency": 8,
+        "count": 3
+      }
+    },
+    "scaling": "ceil(baseMagnitude * rankMultiplier)"
   },
   {
     "id": "spectral_covenant",
@@ -600,16 +1361,47 @@ const ENCHANTMENTS=[
     ],
     "lore": "A half-forgotten oath follows the weapon from the sheath, waiting for an ally's last stand.",
     "tiers": {
-      "I": "Witness — Once per Turn when an ally crosses a Stagger Threshold, gain one Vow charge (max 2).",
-      "II": "Answer — After your next weapon-linked hit, consume 1 Vow to inflict Sinking 2 Potency / 2 Count.",
-      "III": "Unbroken Circle — Once per Encounter, spend 2 Vow after a weapon-linked hit to grant that Staggered ally a temporary Shield of 8 if it remains targetable."
+      "I": "When an ally crosses a Stagger Threshold, gain one Vow (maximum 2; once per Turn). Your next Hit with this weapon may consume one Vow to inflict 2 Sinking Potency / 1 Count and grant that ally 3 temporary Shield.",
+      "II": "When an ally crosses a Stagger Threshold, gain one Vow (maximum 2; once per Turn). Your next Hit with this weapon may consume one Vow to inflict 3 Sinking Potency / 2 Count and grant that ally 5 temporary Shield.",
+      "III": "When an ally crosses a Stagger Threshold, gain one Vow (maximum 2; once per Turn). Your next Hit with this weapon may consume one Vow to inflict 5 Sinking Potency / 3 Count and grant that ally 8 temporary Shield."
     },
-    "limits": "Only ally Stagger events award Vow, not self-triggered manipulation. Vows expire at Encounter End.",
+    "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
     "statuses": "Stagger; Sinking; Shield; charges",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
-    "exampleItem": "Spectral Covenant Longsword"
+    "exampleItem": "Spectral Covenant Longsword",
+    "kind": "weapon",
+    "allowedChassisIds": [
+      "longsword",
+      "greatsword",
+      "rapier",
+      "spear"
+    ],
+    "baseEffect": "When an ally crosses a Stagger Threshold, gain one Vow (maximum 2; once per Turn). Your next Hit with this weapon may consume one Vow to inflict {potency} Sinking Potency / {count} Count and grant that ally {shield} temporary Shield.",
+    "baseMagnitudes": {
+      "potency": 2,
+      "count": 1,
+      "shield": 3
+    },
+    "rankMagnitudes": {
+      "I": {
+        "potency": 2,
+        "count": 1,
+        "shield": 3
+      },
+      "II": {
+        "potency": 3,
+        "count": 2,
+        "shield": 5
+      },
+      "III": {
+        "potency": 5,
+        "count": 3,
+        "shield": 8
+      }
+    },
+    "scaling": "ceil(baseMagnitude * rankMultiplier)"
   },
   {
     "id": "dawnbound",
@@ -620,16 +1412,43 @@ const ENCHANTMENTS=[
     ],
     "lore": "Light gathers along the blade only where its bearer refuses to strike an already beaten foe.",
     "tiers": {
-      "I": "First Light — Once per Turn, after a weapon-linked hit against a Shielded enemy, inflict 2 Radiance Count.",
-      "II": "Unmask — After breaking a Shield with this weapon, transfer 1 Radiance Count to its owner if it has none.",
-      "III": "Daybreak — Once per Encounter, when a Radiant target damages an ally, gain 1 Protection until your next Turn End and mark the attacker for your next hit."
+      "I": "Once per Turn, a Hit from this weapon against a Shielded enemy inflicts 2 Radiance Count; if the Hit breaks that Shield, additionally inflict 1 Radiance Count.",
+      "II": "Once per Turn, a Hit from this weapon against a Shielded enemy inflicts 3 Radiance Count; if the Hit breaks that Shield, additionally inflict 2 Radiance Count.",
+      "III": "Once per Turn, a Hit from this weapon against a Shielded enemy inflicts 5 Radiance Count; if the Hit breaks that Shield, additionally inflict 3 Radiance Count."
     },
-    "limits": "No doubling of raw damage; Radiance follows its canonical interaction with Shields and cannot overflow HP on its own.",
+    "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
     "statuses": "Radiance; Shields; Protection; marked attacker",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
-    "exampleItem": "Dawnbound Broadsword"
+    "exampleItem": "Dawnbound Longsword",
+    "kind": "weapon",
+    "allowedChassisIds": [
+      "longsword",
+      "greatsword",
+      "rapier",
+      "spear"
+    ],
+    "baseEffect": "Once per Turn, a Hit from this weapon against a Shielded enemy inflicts {radiance} Radiance Count; if the Hit breaks that Shield, additionally inflict {breakBonus} Radiance Count.",
+    "baseMagnitudes": {
+      "radiance": 2,
+      "breakBonus": 1
+    },
+    "rankMagnitudes": {
+      "I": {
+        "radiance": 2,
+        "breakBonus": 1
+      },
+      "II": {
+        "radiance": 3,
+        "breakBonus": 2
+      },
+      "III": {
+        "radiance": 5,
+        "breakBonus": 3
+      }
+    },
+    "scaling": "ceil(baseMagnitude * rankMultiplier)"
   },
   {
     "id": "halo_of_ash",
@@ -640,16 +1459,43 @@ const ENCHANTMENTS=[
     ],
     "lore": "Its halo shines only after the armor has failed to keep another from pain.",
     "tiers": {
-      "I": "Guardian Ember — Once per Turn, after taking damage while shielding an ally, gain 1 Protection for the next Turn.",
-      "II": "Sootbound Mercy — If that ally is below half HP, give the ally a temporary Shield of 5 after the intercepted hit.",
-      "III": "Witness of Dawn — Once per Encounter, after saving an ally from crossing a Stagger Threshold through interception, clear 1 nonpermanent negative Status Count from that ally."
+      "I": "Once per Turn, after legally intercepting direct enemy damage intended for an ally, gain 1 Protection for the next Turn and grant that ally 4 temporary Shield.",
+      "II": "Once per Turn, after legally intercepting direct enemy damage intended for an ally, gain 2 Protection for the next Turn and grant that ally 6 temporary Shield.",
+      "III": "Once per Turn, after legally intercepting direct enemy damage intended for an ally, gain 3 Protection for the next Turn and grant that ally 10 temporary Shield."
     },
-    "limits": "Ally interception must be a supported action and actually prevent damage. Does not resurrect or erase persistent curses.",
+    "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
     "statuses": "Protection; Shield; Status cleansing; interception",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
-    "exampleItem": "Halo of Ash Cuirass"
+    "exampleItem": "Halo of Ash Breastplate",
+    "kind": "armor",
+    "allowedChassisIds": [
+      "breastplate",
+      "half_plate",
+      "chain_mail",
+      "plate_armor"
+    ],
+    "baseEffect": "Once per Turn, after legally intercepting direct enemy damage intended for an ally, gain {protection} Protection for the next Turn and grant that ally {shield} temporary Shield.",
+    "baseMagnitudes": {
+      "protection": 1,
+      "shield": 4
+    },
+    "rankMagnitudes": {
+      "I": {
+        "protection": 1,
+        "shield": 4
+      },
+      "II": {
+        "protection": 2,
+        "shield": 6
+      },
+      "III": {
+        "protection": 3,
+        "shield": 10
+      }
+    },
+    "scaling": "ceil(baseMagnitude * rankMultiplier)"
   },
   {
     "id": "mercy_s_last_light",
@@ -660,16 +1506,38 @@ const ENCHANTMENTS=[
     ],
     "lore": "The glass lantern brightens in proportion to how much its owner cannot bear to lose.",
     "tiers": {
-      "I": "Keep the Flame — Once per Turn, when an ally falls below 30% HP due to direct damage, you may spend 4 SP to give that ally a Shield of 6.",
-      "II": "Shared Light — If that Shield survives until the ally's next Turn Start, restore 3 HP to the ally and remove the Shield.",
-      "III": "Beacon — Once per Encounter, if the guarded ally survives a hit that would otherwise bring it to 0 HP, the lantern may reduce that hit's damage by up to 5 instead of creating the Shield."
+      "I": "Once per Turn, when a nearby ally drops below 30% HP after direct enemy damage, spend 4 SP to grant that ally 6 temporary Shield.",
+      "II": "Once per Turn, when a nearby ally drops below 30% HP after direct enemy damage, spend 4 SP to grant that ally 9 temporary Shield.",
+      "III": "Once per Turn, when a nearby ally drops below 30% HP after direct enemy damage, spend 4 SP to grant that ally 15 temporary Shield."
     },
-    "limits": "Damage reduction is capped, not invulnerability. Does not intercept instant narrative death or revive characters already at 0 HP.",
+    "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
     "statuses": "SP cost; Shield; HP healing; lethal-hit window",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
-    "exampleItem": "Mercy's Last Light Pendant"
+    "exampleItem": "Mercy's Last Light Pendant",
+    "kind": "accessory",
+    "allowedChassisIds": [
+      "pendant",
+      "necklace",
+      "brooch"
+    ],
+    "baseEffect": "Once per Turn, when a nearby ally drops below 30% HP after direct enemy damage, spend 4 SP to grant that ally {shield} temporary Shield.",
+    "baseMagnitudes": {
+      "shield": 6
+    },
+    "rankMagnitudes": {
+      "I": {
+        "shield": 6
+      },
+      "II": {
+        "shield": 9
+      },
+      "III": {
+        "shield": 15
+      }
+    },
+    "scaling": "ceil(baseMagnitude * rankMultiplier)"
   },
   {
     "id": "oathkeeper",
@@ -680,16 +1548,38 @@ const ENCHANTMENTS=[
     ],
     "lore": "Every name carved into the shield is an oath that outlived its author.",
     "tiers": {
-      "I": "Sworn Ward — At Encounter Start choose one ally; once per Turn, while guarding, you may intercept one incoming Attack Skill aimed at that ally.",
-      "II": "Steadfast — After successfully intercepting, gain 1 Protection for the rest of the Turn.",
-      "III": "Endless Watch — Once per Encounter, if the intercepted hit would cross that ally's Stagger Threshold, the bearer gains a temporary Shield of 10 before taking the intercepted damage."
+      "I": "Choose one ally at Encounter Start. Once per Turn, after legally intercepting a direct attack intended for that ally with this shield, gain 4 temporary Shield before receiving the intercepted damage.",
+      "II": "Choose one ally at Encounter Start. Once per Turn, after legally intercepting a direct attack intended for that ally with this shield, gain 6 temporary Shield before receiving the intercepted damage.",
+      "III": "Choose one ally at Encounter Start. Once per Turn, after legally intercepting a direct attack intended for that ally with this shield, gain 10 temporary Shield before receiving the intercepted damage."
     },
-    "limits": "Needs an explicit legal reaction/Guard action and valid range. One protected ally at a time; no unlimited reactive blocks.",
+    "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
     "statuses": "interception; Guard; Protection; Shield",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
-    "exampleItem": "Oathkeeper Tower Shield"
+    "exampleItem": "Oathkeeper Tower Shield",
+    "kind": "shield",
+    "allowedChassisIds": [
+      "shield_round",
+      "shield_heater",
+      "shield_tower"
+    ],
+    "baseEffect": "Choose one ally at Encounter Start. Once per Turn, after legally intercepting a direct attack intended for that ally with this shield, gain {shield} temporary Shield before receiving the intercepted damage.",
+    "baseMagnitudes": {
+      "shield": 4
+    },
+    "rankMagnitudes": {
+      "I": {
+        "shield": 4
+      },
+      "II": {
+        "shield": 6
+      },
+      "III": {
+        "shield": 10
+      }
+    },
+    "scaling": "ceil(baseMagnitude * rankMultiplier)"
   },
   {
     "id": "sunpiercer",
@@ -700,37 +1590,85 @@ const ENCHANTMENTS=[
     ],
     "lore": "Its point does not chase shadows; it makes them confess their shape.",
     "tiers": {
-      "I": "Reveal — On a weapon-linked hit against an enemy with Invisible, cancel one temporary concealment from that source, once per Turn.",
-      "II": "Scorch the Veil — On the first hit each Turn against a target with a Shield, inflict 2 Radiance Count.",
-      "III": "Open Sky — Once per Encounter, breaking a Shield from this weapon clears one temporary Invisible effect from that target and adds 2 Radiance Count."
+      "I": "Once per Turn, when a Hit from this weapon breaks an enemy Shield, inflict 2 Radiance Count on its owner and remove up to 1 removable temporary concealment layers if any exist.",
+      "II": "Once per Turn, when a Hit from this weapon breaks an enemy Shield, inflict 3 Radiance Count on its owner and remove up to 2 removable temporary concealment layers if any exist.",
+      "III": "Once per Turn, when a Hit from this weapon breaks an enemy Shield, inflict 5 Radiance Count on its owner and remove up to 3 removable temporary concealment layers if any exist."
     },
-    "limits": "Invisible remains subject to canonical detection; cannot bypass legal targeting to hit an unseen foe without a successful detection.",
+    "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
     "statuses": "Invisible; Radiance; Shield break; target detection",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
-    "exampleItem": "Sunpiercer Spear"
+    "exampleItem": "Sunpiercer Spear",
+    "kind": "weapon",
+    "allowedChassisIds": [
+      "spear",
+      "lance",
+      "pike",
+      "trident"
+    ],
+    "baseEffect": "Once per Turn, when a Hit from this weapon breaks an enemy Shield, inflict {radiance} Radiance Count on its owner and remove up to {concealment} removable temporary concealment layers if any exist.",
+    "baseMagnitudes": {
+      "radiance": 2,
+      "concealment": 1
+    },
+    "rankMagnitudes": {
+      "I": {
+        "radiance": 2,
+        "concealment": 1
+      },
+      "II": {
+        "radiance": 3,
+        "concealment": 2
+      },
+      "III": {
+        "radiance": 5,
+        "concealment": 3
+      }
+    },
+    "scaling": "ceil(baseMagnitude * rankMultiplier)"
   },
   {
     "id": "radiant_bastion",
     "name": "Radiant Bastion",
     "school": "Sanctified",
     "items": [
-      "Armor",
       "Shield"
     ],
     "lore": "The fortress engraved inside the metal is not a place. It is a promise the bearer must keep.",
     "tiers": {
-      "I": "Shelter — After successfully guarding a direct attack, once per Turn, grant the lowest-HP nearby ally a temporary Shield of 4.",
-      "II": "Consecration — If the ally's Shield persists to Turn Start, grant that ally 1 Protection until Turn End.",
-      "III": "Citadel — Once per Encounter, after three successful Guards in the same Encounter, distribute a total Shield value of 12 among up to three allies."
+      "I": "Once per Turn, when a Guard with this shield prevents enemy damage, distribute 4 total temporary Shield between up to two nearby allies.",
+      "II": "Once per Turn, when a Guard with this shield prevents enemy damage, distribute 6 total temporary Shield between up to two nearby allies.",
+      "III": "Once per Turn, when a Guard with this shield prevents enemy damage, distribute 10 total temporary Shield between up to two nearby allies."
     },
-    "limits": "Guard count resets at Encounter End; no aura without successful Guards, and granted Shields never stack beyond per-target limits.",
+    "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
     "statuses": "Guard; Shield; Protection; ally selection",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
-    "exampleItem": "Radiant Bastion Shield"
+    "exampleItem": "Radiant Bastion Heater Shield",
+    "kind": "shield",
+    "allowedChassisIds": [
+      "shield_round",
+      "shield_heater",
+      "shield_tower"
+    ],
+    "baseEffect": "Once per Turn, when a Guard with this shield prevents enemy damage, distribute {shield} total temporary Shield between up to two nearby allies.",
+    "baseMagnitudes": {
+      "shield": 4
+    },
+    "rankMagnitudes": {
+      "I": {
+        "shield": 4
+      },
+      "II": {
+        "shield": 6
+      },
+      "III": {
+        "shield": 10
+      }
+    },
+    "scaling": "ceil(baseMagnitude * rankMultiplier)"
   },
   {
     "id": "gravemark",
@@ -741,37 +1679,90 @@ const ENCHANTMENTS=[
     ],
     "lore": "Each blow leaves the memory of a second impact that has not happened yet.",
     "tiers": {
-      "I": "Pressure Fracture — Once per Turn, a weapon-linked hit inflicts Tremor 3 Potency / 2 Count.",
-      "II": "Compression — When a target with Tremor loses a Clash against this weapon, extend Tremor Count by 1, once per Turn.",
-      "III": "Collapse — Once per Encounter, after three successful hits on one target, trigger Tremor Burst if Tremor is present, then clear the counter."
+      "I": "Once per Turn, the first Hit from this weapon inflicts 2 Tremor Potency / 2 Count. After the third Hit against the same enemy in this Encounter, trigger Tremor Burst once if it has Tremor.",
+      "II": "Once per Turn, the first Hit from this weapon inflicts 3 Tremor Potency / 3 Count. After the third Hit against the same enemy in this Encounter, trigger Tremor Burst once if it has Tremor.",
+      "III": "Once per Turn, the first Hit from this weapon inflicts 5 Tremor Potency / 5 Count. After the third Hit against the same enemy in this Encounter, trigger Tremor Burst once if it has Tremor."
     },
-    "limits": "Tremor Burst modifies Stagger Thresholds; it is not direct HP damage. No burst without existing Tremor.",
+    "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
     "statuses": "Tremor; Tremor Burst; multiple hits",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
-    "exampleItem": "Gravemark Warhammer"
+    "exampleItem": "Gravemark Warhammer",
+    "kind": "weapon",
+    "allowedChassisIds": [
+      "warhammer",
+      "maul",
+      "mace",
+      "morningstar"
+    ],
+    "baseEffect": "Once per Turn, the first Hit from this weapon inflicts {potency} Tremor Potency / {count} Count. After the third Hit against the same enemy in this Encounter, trigger Tremor Burst once if it has Tremor.",
+    "baseMagnitudes": {
+      "potency": 2,
+      "count": 2
+    },
+    "rankMagnitudes": {
+      "I": {
+        "potency": 2,
+        "count": 2
+      },
+      "II": {
+        "potency": 3,
+        "count": 3
+      },
+      "III": {
+        "potency": 5,
+        "count": 5
+      }
+    },
+    "scaling": "ceil(baseMagnitude * rankMultiplier)"
   },
   {
     "id": "mirrorheart",
     "name": "Mirrorheart",
     "school": "Anomalous",
     "items": [
-      "Accessory",
-      "Valuable"
+      "Accessory"
     ],
     "lore": "The surface reflects the wounds it sees rather than the face that wears it.",
     "tiers": {
-      "I": "Witness — Once per Turn after a direct hit, record one qualifying negative Status from the hit (Burn, Bleed, or Sinking) at up to 2 Potency / 1 Count.",
-      "II": "Reflection — Your next successful Attack Skill inflicts the stored Status on its target, then empties the mirror.",
-      "III": "Shattered Truth — Once per Encounter, after reflection, remove 1 Count of that same Status from yourself."
+      "I": "Once per Turn, after an enemy directly Hits you and inflicts Burn, Bleed, or Sinking, record up to 2 Potency / 1 Count of one such Status. Your next successful Attack Skill inflicts the stored Status on its target and empties the mirror.",
+      "II": "Once per Turn, after an enemy directly Hits you and inflicts Burn, Bleed, or Sinking, record up to 3 Potency / 2 Count of one such Status. Your next successful Attack Skill inflicts the stored Status on its target and empties the mirror.",
+      "III": "Once per Turn, after an enemy directly Hits you and inflicts Burn, Bleed, or Sinking, record up to 5 Potency / 3 Count of one such Status. Your next successful Attack Skill inflicts the stored Status on its target and empties the mirror."
     },
-    "limits": "Only listed statuses can be copied; no copying Frozen, Paralysis, curses, or permanent conditions. Reflection does not trigger itself.",
+    "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
     "statuses": "Burn/Bleed/Sinking; status copy whitelist; remove Status Count",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
-    "exampleItem": "Mirrorheart Pendant"
+    "exampleItem": "Mirrorheart Pendant",
+    "kind": "accessory",
+    "allowedChassisIds": [
+      "pendant",
+      "brooch",
+      "ring",
+      "necklace"
+    ],
+    "baseEffect": "Once per Turn, after an enemy directly Hits you and inflicts Burn, Bleed, or Sinking, record up to {potency} Potency / {count} Count of one such Status. Your next successful Attack Skill inflicts the stored Status on its target and empties the mirror.",
+    "baseMagnitudes": {
+      "potency": 2,
+      "count": 1
+    },
+    "rankMagnitudes": {
+      "I": {
+        "potency": 2,
+        "count": 1
+      },
+      "II": {
+        "potency": 3,
+        "count": 2
+      },
+      "III": {
+        "potency": 5,
+        "count": 3
+      }
+    },
+    "scaling": "ceil(baseMagnitude * rankMultiplier)"
   },
   {
     "id": "chains_of_ruin",
@@ -782,16 +1773,46 @@ const ENCHANTMENTS=[
     ],
     "lore": "The links have no length until their victim tries to move away.",
     "tiers": {
-      "I": "Hook — First weapon-linked hit each Turn inflicts 1 Bind for the next Turn.",
-      "II": "Holdfast — When a target with Bind attacks someone other than the wielder, inflict 2 Rupture Potency / 1 Count on that target, once per Turn.",
-      "III": "Unbroken Chain — Once per Encounter, after winning a Clash against a Bound target, you may apply 1 Restrained for one Turn if the target fails a Save."
+      "I": "Once per Turn, the first weapon-linked Hit inflicts 1 Bind for the target's next Turn. If that Bound enemy attacks an ally before Bind expires, it receives 2 Rupture Potency / 1 Count.",
+      "II": "Once per Turn, the first weapon-linked Hit inflicts 2 Bind for the target's next Turn. If that Bound enemy attacks an ally before Bind expires, it receives 3 Rupture Potency / 2 Count.",
+      "III": "Once per Turn, the first weapon-linked Hit inflicts 3 Bind for the target's next Turn. If that Bound enemy attacks an ally before Bind expires, it receives 5 Rupture Potency / 3 Count."
     },
-    "limits": "No forced movement or aggro override. A target can Save against Restrained; no chain activation from self-damage.",
+    "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
     "statuses": "Bind; Rupture; Restrained; Save",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
-    "exampleItem": "Chains of Ruin Chainwhip"
+    "exampleItem": "Chains of Ruin Whip",
+    "kind": "weapon",
+    "allowedChassisIds": [
+      "whip",
+      "flail",
+      "glaive"
+    ],
+    "baseEffect": "Once per Turn, the first weapon-linked Hit inflicts {bind} Bind for the target's next Turn. If that Bound enemy attacks an ally before Bind expires, it receives {potency} Rupture Potency / {count} Count.",
+    "baseMagnitudes": {
+      "bind": 1,
+      "potency": 2,
+      "count": 1
+    },
+    "rankMagnitudes": {
+      "I": {
+        "bind": 1,
+        "potency": 2,
+        "count": 1
+      },
+      "II": {
+        "bind": 2,
+        "potency": 3,
+        "count": 2
+      },
+      "III": {
+        "bind": 3,
+        "potency": 5,
+        "count": 3
+      }
+    },
+    "scaling": "ceil(baseMagnitude * rankMultiplier)"
   },
   {
     "id": "chronolock",
@@ -802,16 +1823,38 @@ const ENCHANTMENTS=[
     ],
     "lore": "The watch has thirteen hands. The thirteenth moves only when the wearer has made a choice it cannot undo.",
     "tiers": {
-      "I": "Borrowed Second — Once per Encounter, before your Turn's actions resolve, borrow one Quick Action if the action economy permits it.",
-      "II": "Temporal Debt — At the beginning of your next Turn, lose one Quick Action; the debt applies even if the borrowed action was unused.",
-      "III": "Broken Hour — Rank III lets you instead lend that borrowed Quick Action to a willing ally, who incurs the same debt next Turn."
+      "I": "Once per Encounter, borrow one Quick Action this Turn and lose one Quick Action next Turn as an unavoidable debt. When the debt is paid, gain 4 temporary Shield.",
+      "II": "Once per Encounter, borrow one Quick Action this Turn and lose one Quick Action next Turn as an unavoidable debt. When the debt is paid, gain 6 temporary Shield.",
+      "III": "Once per Encounter, borrow one Quick Action this Turn and lose one Quick Action next Turn as an unavoidable debt. When the debt is paid, gain 10 temporary Shield."
     },
-    "limits": "Cannot generate Action Slots, Skill Coins, or extra full Actions. Cannot borrow while in Action debt; must be implemented through action-economy authority.",
+    "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
     "statuses": "Quick Action; debt; action economy",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
-    "exampleItem": "Chronolock Bracelet"
+    "exampleItem": "Chronolock Bracelet",
+    "kind": "accessory",
+    "allowedChassisIds": [
+      "bracelet",
+      "ring",
+      "anklet"
+    ],
+    "baseEffect": "Once per Encounter, borrow one Quick Action this Turn and lose one Quick Action next Turn as an unavoidable debt. When the debt is paid, gain {shield} temporary Shield.",
+    "baseMagnitudes": {
+      "shield": 4
+    },
+    "rankMagnitudes": {
+      "I": {
+        "shield": 4
+      },
+      "II": {
+        "shield": 6
+      },
+      "III": {
+        "shield": 10
+      }
+    },
+    "scaling": "ceil(baseMagnitude * rankMultiplier)"
   },
   {
     "id": "requiem_coil",
@@ -822,41 +1865,90 @@ const ENCHANTMENTS=[
     ],
     "lore": "The coil listens to blows. When it speaks, it repeats only what the bearer survived.",
     "tiers": {
-      "I": "Absorb — Once per Turn, store up to 4 damage actually prevented by a Guard (Memory, maximum 8).",
-      "II": "Retort — The next weapon-linked hit consumes Memory to deal Fixed Damage equal to the consumed amount, capped at 8.",
-      "III": "Echo Chamber — Once per Encounter, after Retort, gain a temporary Shield equal to half the consumed Memory, rounded down."
+      "I": "Once per Turn, when your Guard prevents direct enemy damage while wearing this armor, store up to 4 prevented damage. Your next weapon-linked Hit spends that Memory to deal equal extra Fixed Damage.",
+      "II": "Once per Turn, when your Guard prevents direct enemy damage while wearing this armor, store up to 6 prevented damage. Your next weapon-linked Hit spends that Memory to deal equal extra Fixed Damage.",
+      "III": "Once per Turn, when your Guard prevents direct enemy damage while wearing this armor, store up to 10 prevented damage. Your next weapon-linked Hit spends that Memory to deal equal extra Fixed Damage."
     },
-    "limits": "Only prevented damage counts, not HP lost. Does not reflect status ticks, bypass resistance, or chain from Retort damage.",
+    "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
     "statuses": "Guard; stored prevention; Fixed Damage; Shield",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
-    "exampleItem": "Requiem Coil Brigandine"
+    "exampleItem": "Requiem Coil Breastplate",
+    "kind": "armor",
+    "allowedChassisIds": [
+      "breastplate",
+      "half_plate",
+      "splint_armor",
+      "plate_armor"
+    ],
+    "baseEffect": "Once per Turn, when your Guard prevents direct enemy damage while wearing this armor, store up to {memory} prevented damage. Your next weapon-linked Hit spends that Memory to deal equal extra Fixed Damage.",
+    "baseMagnitudes": {
+      "memory": 4
+    },
+    "rankMagnitudes": {
+      "I": {
+        "memory": 4
+      },
+      "II": {
+        "memory": 6
+      },
+      "III": {
+        "memory": 10
+      }
+    },
+    "scaling": "ceil(baseMagnitude * rankMultiplier)"
   },
   {
     "id": "nullwake",
     "name": "Nullwake",
     "school": "Anomalous",
     "items": [
-      "Weapon",
-      "Accessory"
+      "Weapon"
     ],
     "lore": "Everything near the relic becomes momentarily uncertain of the rules that hold it together.",
     "tiers": {
-      "I": "Interruption — Once per Turn, after hitting a target with a removable positive Status, mark that Status for disruption.",
-      "II": "Unweaving — On the next weapon-linked hit against that target, remove 1 Count of the marked positive Status and clear the mark.",
-      "III": "Stillness — Once per Encounter, if the removed Status was Protection or Haste, prevent that same source from reapplying it until the next Turn Start."
+      "I": "Once per Turn, when this weapon Hits an enemy carrying a removable temporary positive Status, remove up to 1 Count from one such Status of your choice.",
+      "II": "Once per Turn, when this weapon Hits an enemy carrying a removable temporary positive Status, remove up to 2 Count from one such Status of your choice.",
+      "III": "Once per Turn, when this weapon Hits an enemy carrying a removable temporary positive Status, remove up to 3 Count from one such Status of your choice."
     },
-    "limits": "Whitelist removable temporary statuses only; no stripping class Traits, permanent effects, attunement, or equipment. No global magic suppression.",
+    "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
     "statuses": "temporary beneficial statuses; dispel whitelist; source tracking",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
-    "exampleItem": "Nullwake Dagger"
+    "exampleItem": "Nullwake Dagger",
+    "kind": "weapon",
+    "allowedChassisIds": [
+      "dagger",
+      "rapier",
+      "shortsword",
+      "war_pick"
+    ],
+    "baseEffect": "Once per Turn, when this weapon Hits an enemy carrying a removable temporary positive Status, remove up to {count} Count from one such Status of your choice.",
+    "baseMagnitudes": {
+      "count": 1
+    },
+    "rankMagnitudes": {
+      "I": {
+        "count": 1
+      },
+      "II": {
+        "count": 2
+      },
+      "III": {
+        "count": 3
+      }
+    },
+    "scaling": "ceil(baseMagnitude * rankMultiplier)"
   }
 ];
-const SCHOOLS=["Infernal","Glacial","Tempest","Sanguine","Umbral","Sanctified","Anomalous"];
-const API=Object.freeze({version:"review-v2",approved:false,gameplayEnabled:false,ENCHANTMENTS:Object.freeze(ENCHANTMENTS),SCHOOLS:Object.freeze(SCHOOLS)});
+const SCHOOLS=Object.freeze(["Infernal","Glacial","Tempest","Sanguine","Umbral","Sanctified","Anomalous"]);
+const normalize=(v)=>String(v??"").toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_|_$/g,"");
+const scale=(base,rank)=>Number.isInteger(base)&&base>=0&&Object.prototype.hasOwnProperty.call(RANK_MULTIPLIERS,rank)?Math.ceil(base*RANK_MULTIPLIERS[rank]):null;
+// Design-only compatibility preview; fail closed when no authoritative chassis ID exists.
+const eligible=(enchantmentId,item)=>{const e=ENCHANTMENTS.find(x=>x.id===normalize(enchantmentId));if(!e||!item||normalize(item.itemType||item.equipment?.kind||item.kind||item.category)!==e.kind)return false;const chassis=normalize(item.chassisId||item.weaponId||item.baseWeaponId||item.definitionId);return chassis!==""&&e.allowedChassisIds.includes(chassis);};
+const API=Object.freeze({version:"review-v3",approved:false,gameplayEnabled:false,RANK_MULTIPLIERS,ENCHANTMENTS:Object.freeze(ENCHANTMENTS),SCHOOLS,scale,eligible});
 global.LuminousEnchantmentDesignReview=API;
-if(typeof module!=="undefined"&&module.exports) module.exports=API;
+if(typeof module!=="undefined"&&module.exports)module.exports=API;
 })(typeof window!=="undefined"?window:globalThis);
