@@ -221,7 +221,8 @@
     img.className = "theatre-check-coin-image";
     img.alt = coin?.side === "head" ? "Head" : coin?.side === "tail" ? "Tail" : "Coin";
     img.src = coin?.src || (coin?.side === "head" ? HEAD_SRC : TAIL_SRC);
-    img.dataset.side = coin?.side || "unknown";
+    img.dataset.side = coin?.side || "pending";
+    if (!coin) { img.classList.add("is-pending"); img.alt = "Moneda pendiente"; }
     return img;
   }
 
