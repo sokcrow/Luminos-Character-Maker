@@ -1169,6 +1169,10 @@
     const host = doc.getElementById("inventory-v2-actions");
     if (!host) return;
     host.innerHTML = "";
+    if (enchantmentRuntime()?.activeEnchantment?.(item)) {
+      addAction(host, "COMPENDIO DE ENCANTAMIENTOS",
+        () => global.open?.("game-codex/enchantments.html", "_blank", "noopener"));
+    }
 
     if (state.selectedContainer === "equipment") {
       addAction(host, "UNEQUIP", unequipSelected, "primary");
