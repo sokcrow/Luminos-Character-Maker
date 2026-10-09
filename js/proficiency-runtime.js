@@ -37,7 +37,7 @@
   }
 
   function proficiencyBonus(level) {
-    return Math.ceil(Math.max(0, finite(level, 0)) / 20);
+    return Math.min(6, 2 + Math.floor((Math.max(1, finite(level, 1)) - 1) / 20));
   }
 
   function contribution(level, state) {
