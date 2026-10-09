@@ -11,6 +11,7 @@
   const COMMAND_ROOT = "theatre_check_commands";
   const LIVE_ROOT = "theatre_check_live";
   const COMMAND_MAX_AGE_MS = 10 * 60 * 1000;
+  const RESULT_NOTICE_MAX_AGE_MS = 25 * 1000;
   const LIVE_MAX_AGE_MS = 20 * 1000;
   const HEAD_SRC = "https://imgur.com/yshLPnQ.png";
   const TAIL_SRC = "https://imgur.com/XDx0ICt.png";
@@ -42,7 +43,9 @@
     authorizedElement: null,
     activeCommand: null,
     commandQueue: [],
+    queuedCommandKeys: new Set(),
     commandPromptOpen: false,
+    playerNoticeTimer: null,
     liveObserver: null,
     liveUpdateTimer: null,
     frontObserver: null,
@@ -57,6 +60,7 @@
     resolvingResults: new Set(),
     resolvedResults: new Set(),
     playerResultsBound: false,
+    serverTimeOffsetMs: null,
     sendingDmCommand: false,
   };
 
@@ -134,16 +138,36 @@
     return layer;
   }
 
+  function ensureResultStack(front) {
+    if (isDmSurface()) return front;
+    let stack = front.querySelector(":scope > #theatre-check-result-stack");
+    if (!stack) {
+      stack = doc.createElement("section");
+      stack.id = "theatre-check-result-stack";
+      stack.className = "theatre-check-result-stack";
+      stack.setAttribute("aria-label", "Resultados recientes");
+      front.appendChild(stack);
+    }
+    return stack;
+  }
+
   function moveRollChildrenToFront() {
     const front = ensureFrontLayer();
     if (!front) return;
+    const results = ensureResultStack(front);
     [$("theatre-roll-layer"), $("dm-npc-roll-local-layer")].filter(Boolean).forEach((source) => {
       Array.from(source.children).forEach((child) => {
-        if (child.classList.contains("theatre-check-hud") || child.classList.contains("theatre-roll-result-card") || child.classList.contains("dm-npc-roll-hud")) {
+        if (child.classList.contains("theatre-roll-result-card")) {
+          results.appendChild(child);
+        } else if (child.classList.contains("theatre-check-hud") || child.classList.contains("dm-npc-roll-hud")) {
           front.appendChild(child);
         }
       });
     });
+    if (results !== front) {
+      const cards = Array.from(results.querySelectorAll(".theatre-roll-result-card"));
+      cards.slice(0, -3).forEach((card) => card.remove());
+    }
   }
 
   function installFrontLayerBridge() {
@@ -206,6 +230,13 @@
     const small = doc.createElement("span");
     small.textContent = copy;
     notice.append(strong, small);
+    // Passive feedback expires and never blocks an actionable Check.
+    if (notice.parentElement !== layer) layer.appendChild(notice);
+    if (state.playerNoticeTimer) global.clearTimeout(state.playerNoticeTimer);
+    state.playerNoticeTimer = global.setTimeout(() => {
+      if (notice.isConnected) notice.remove();
+      state.playerNoticeTimer = null;
+    }, mode === "denied" ? 7200 : 5000);
     return notice;
   }
 
@@ -687,14 +718,39 @@
     const uid = currentUid();
     if (!uid) return false;
     state.playerCommandsBound = true;
-    db.ref(`${COMMAND_ROOT}/${uid}`).limitToLast(20).on("child_added", (snapshot) => {
+    db.ref(`${COMMAND_ROOT}/${uid}`).limitToLast(20).on("child_added", async (snapshot) => {
       const command = snapshot.val() || {};
       if (command.status !== "issued" || command.targetUid !== uid || String(command.roomKey || "default") !== roomKey()) return;
       const age = Date.now() - numberOr(command.clientIssuedAt, Date.now());
       if (age > COMMAND_MAX_AGE_MS) return;
       const seenKey = `luminousTheatreCheck:${snapshot.key}`;
-      if (global.sessionStorage?.getItem(seenKey) === "done") return;
-      state.commandQueue.push({ key: snapshot.key, command, seenKey });
+      if (state.queuedCommandKeys.has(snapshot.key)) return;
+      let recovered = false;
+      if (global.sessionStorage?.getItem(seenKey) === "done") {
+        // An already-attempted roll is not safe to repeat unless Firebase
+        // positively confirms that its live capture was still INCOMPLETE.
+        // Absence of live data (or failed reads) is ambiguous: the DM may
+        // have been offline while a completed record was already cleaned up.
+        let liveStatus;
+        let commandStatus;
+        try {
+          const [liveSnapshot, statusSnapshot] = await Promise.all([
+            db.ref(`${LIVE_ROOT}/${uid}/${snapshot.key}`).once("value"),
+            db.ref(`${COMMAND_ROOT}/${uid}/${snapshot.key}/status`).once("value"),
+          ]);
+          liveStatus = liveSnapshot.val()?.status;
+          commandStatus = statusSnapshot.val();
+        } catch (error) {
+          console.warn("No se pudo confirmar el estado del Check interrumpido:", error);
+          return; // Fail closed: never reroll based on an unreadable history.
+        }
+        if (commandStatus !== "issued" || liveStatus !== "rolling") return;
+        recovered = true;
+        global.sessionStorage?.removeItem(seenKey);
+      }
+      if (state.queuedCommandKeys.has(snapshot.key)) return;
+      state.queuedCommandKeys.add(snapshot.key);
+      state.commandQueue.push({ key: snapshot.key, command, seenKey, recovered });
       showNextPlayerCommand();
     }, (error) => {
       state.playerCommandsBound = false;
@@ -727,12 +783,22 @@
     prompt.id = "theatre-check-command-prompt";
     prompt.className = "theatre-check-command-prompt";
     prompt.dataset.commandKey = item.key;
+    if (item.command.check?.opposedSessionId) {
+      prompt.dataset.opposedSessionId = item.command.check.opposedSessionId;
+      prompt.dataset.opposedPhase = item.command.check.opposedPhase || "";
+    }
     const kicker = doc.createElement("span");
-    kicker.textContent = item.command.requestedBy === "player" ? "DM APROBÓ TU SOLICITUD" : "EL DM SOLICITA UNA TIRADA";
+    kicker.textContent = item.recovered ? "CHECK INTERRUMPIDO · REINTENTAR TIRADA" : item.command.check?.opposedPhase === "threshold"
+      ? "VS · RETADOR · GENERA EL THRESHOLD"
+      : item.command.check?.opposedPhase === "resolver"
+      ? "VS · RETADO · RESUELVE EL CHECK"
+      : item.command.requestedBy === "player" ? "DM APROBÓ TU SOLICITUD" : "EL DM SOLICITA UNA TIRADA";
     const title = doc.createElement("strong");
     title.textContent = item.command.rollSpec?.label || "CHECK";
     const meta = doc.createElement("small");
-    meta.textContent = checkDisplay(item.command.check);
+    meta.textContent = item.command.check?.opposedPhase === "threshold"
+      ? "TU RESULTADO SERÁ EL THRESHOLD DEL RETADO"
+      : checkDisplay(item.command.check);
     const button = doc.createElement("button");
     button.type = "button";
     button.textContent = "TIRAR";
@@ -741,17 +807,24 @@
       button.textContent = "PREPARANDO…";
       executePlayerCommand(item).catch((error) => {
         console.error("No se pudo iniciar el Check autorizado:", error);
-        playerNotice("ERROR AL INICIAR CHECK", String(error.message || error), "denied");
-        state.commandPromptOpen = false;
+        state.commandPromptOpen = true;
         state.activeCommand = null;
+        state.authorizedElement = null;
+        global.sessionStorage?.removeItem(item.seenKey);
+        global.LuminousTheatreRolls?.clearArmedCheck?.();
         doc.body?.classList?.remove("theatre-check-active");
-        prompt.remove();
-        showNextPlayerCommand();
+        if (!prompt.isConnected) front.appendChild(prompt);
+        front.classList.add("has-check-command-prompt");
+        meta.textContent = "No se pudo iniciar la tirada. Revisa Stats e inténtalo de nuevo.";
+        button.disabled = false;
+        button.textContent = "REINTENTAR";
       });
     });
     prompt.append(kicker, title, meta, button);
     $("theatre-check-player-notice")?.remove();
+    front.querySelectorAll(".theatre-check-hud.is-resolved").forEach((hud) => hud.remove());
     front.appendChild(prompt);
+    front.classList.add("has-check-command-prompt");
   }
 
   function findPlayerRollTarget(spec) {
@@ -780,6 +853,7 @@
     state.authorizedElement = target;
     global.sessionStorage?.setItem(item.seenKey, "done");
     $("theatre-check-command-prompt")?.remove();
+    ensureFrontLayer()?.classList.remove("has-check-command-prompt");
     state.commandPromptOpen = false;
     target.click();
     global.setTimeout(() => startPlayerLiveCapture(item.key, command), 80);
@@ -812,9 +886,14 @@
       if ((!wrappers || !wrappers.length) && attempts < 50) return;
       global.clearInterval(wait);
       if (!container || !wrappers?.length) {
-        playerNotice("TIRADA NO INICIADA", "No se encontraron monedas. Intenta solicitar el Check de nuevo.", "denied");
         state.activeCommand = null;
+        global.sessionStorage?.removeItem(`luminousTheatreCheck:${commandId}`);
+        state.commandQueue.unshift({
+          key: commandId, command,
+          seenKey: `luminousTheatreCheck:${commandId}`, recovered: true,
+        });
         doc.body?.classList?.remove("theatre-check-active");
+        playerNotice("TIRADA INTERRUMPIDA", "No arrancaron las monedas. Puedes reintentar el Check.", "denied");
         showNextPlayerCommand();
         return;
       }
@@ -851,7 +930,18 @@
             if (legacy) legacy.style.display = "none";
             doc.body?.classList?.remove("theatre-check-active");
           }, 7600);
-          global.setTimeout(() => liveRef.remove().catch(() => {}), 9500);
+          // Keep completed telemetry until the DM acknowledges the command.
+          // Deleting after a fixed timeout creates ambiguous reconnects and
+          // can let the same completed Check be rolled a second time.
+          const statusRef = db.ref(`${COMMAND_ROOT}/${uid}/${commandId}/status`);
+          const onAcknowledged = (snapshot) => {
+            if (snapshot.val() !== "completed") return;
+            statusRef.off("value", onAcknowledged);
+            global.setTimeout(() => liveRef.remove().catch((error) =>
+              console.warn("No se pudo limpiar el Check confirmado:", error)), 9500);
+          };
+          statusRef.on("value", onAcknowledged, (error) =>
+            console.warn("No se pudo escuchar la confirmación del Check:", error));
           if (state.activeCommand?.key === commandId) state.activeCommand = null;
           global.setTimeout(showNextPlayerCommand, 350);
         }).catch((error) => {
@@ -1012,15 +1102,34 @@
     const uid = currentUid();
     if (!uid || state.playerResultsBound) return;
     state.playerResultsBound = true;
-    db.ref(`theatre_check_results/${uid}`).limitToLast(20).on("child_added", (snapshot) => {
-      const result = snapshot.val() || {};
-      if (String(result.roomKey || "default") !== roomKey()) return;
-      if (Date.now() - numberOr(result.clientCompletedAt, 0) > COMMAND_MAX_AGE_MS) return;
-      playerNotice(result.outcome === "passed" ? "CHECK SUPERADO"
-        : result.outcome === "failed" ? "CHECK FALLIDO" : "TIRADA FINALIZADA",
-      `${result.label || "CHECK"} · Total ${result.total}`,
-      result.outcome === "passed" ? "approved" : result.outcome === "failed" ? "denied" : "pending");
-    }, (error) => console.warn("Resultados de Checks no disponibles:", error));
+    const bindResultsWithServerClock = () => {
+      db.ref(`theatre_check_results/${uid}`).limitToLast(20).on("child_added", (snapshot) => {
+        const result = snapshot.val() || {};
+        if (String(result.roomKey || "default") !== roomKey()) return;
+        // The completedAt value and the current time must use the SAME clock.
+        // clientCompletedAt supports historical records without a server stamp.
+        const serverCompletedAt = Number(result.completedAt);
+        const finishedAt = Number.isFinite(serverCompletedAt) && serverCompletedAt > 0
+          ? serverCompletedAt : numberOr(result.clientCompletedAt, 0);
+        const serverNow = Date.now() + state.serverTimeOffsetMs;
+        if (serverNow - finishedAt > RESULT_NOTICE_MAX_AGE_MS) return;
+        playerNotice(result.outcome === "passed" ? "CHECK SUPERADO"
+          : result.outcome === "failed" ? "CHECK FALLIDO" : "TIRADA FINALIZADA",
+        `${result.label || "CHECK"} · Total ${result.total}`,
+        result.outcome === "passed" ? "approved" : result.outcome === "failed" ? "denied" : "pending");
+      }, (error) => console.warn("Resultados de Checks no disponibles:", error));
+    };
+
+    // Wait for Firebase's clock estimate BEFORE replaying old child_added
+    // results, otherwise the first snapshot could show an expired Check.
+    db.ref(".info/serverTimeOffset").on("value", (snapshot) => {
+      const rawOffset = snapshot.val();
+      const offset = Number(rawOffset);
+      if (rawOffset == null || !Number.isFinite(offset)) return;
+      const firstEstimate = state.serverTimeOffsetMs === null;
+      state.serverTimeOffsetMs = offset;
+      if (firstEstimate) bindResultsWithServerClock();
+    }, (error) => console.warn("Hora de Firebase no disponible para resultados de Checks:", error));
   }
 
   function bindDmLive() {
@@ -1034,7 +1143,15 @@
       Object.entries(root).forEach(([uid, byCommand]) => {
         Object.entries(byCommand || {}).forEach(([commandId, live]) => {
           if (!live || String(live.roomKey || "default") !== roomKey()) return;
-          if (Date.now() - numberOr(live.clientUpdatedAt, 0) > LIVE_MAX_AGE_MS) return;
+          const completedAt = Number(live.completedAt);
+          const updatedAt = live.status === "complete" && Number.isFinite(completedAt) && completedAt > 0
+            ? completedAt : numberOr(live.clientUpdatedAt, 0);
+          const age = Date.now() - updatedAt;
+          // DM reconnect must still resolve completed rolls after the short
+          // HUD display window; the issued command is checked authoritatively.
+          // Completed telemetry is durable until acknowledged by the DM,
+          // even when the DM was offline longer than the issue window.
+          if (live.status !== "complete" && age > LIVE_MAX_AGE_MS) return;
           entries.push({ uid, commandId, live });
         });
       });
@@ -1047,7 +1164,12 @@
       const activity = $("theatre-check-live-state");
       const render = async () => {
         let display = null;
-        for (const entry of entries.slice(0, 20)) {
+        for (const entry of entries.filter(({ live }) => {
+          const completedAt = Number(live.completedAt);
+          const updatedAt = live.status === "complete" && Number.isFinite(completedAt) && completedAt > 0
+            ? completedAt : numberOr(live.clientUpdatedAt, 0);
+          return Date.now() - updatedAt <= LIVE_MAX_AGE_MS;
+        }).slice(0, 20)) {
           const { uid, commandId, live } = entry;
           if (live.targetUid !== uid || !Number.isFinite(live.total)) continue;
           const command = await readDmIssuedCommand(uid, commandId);

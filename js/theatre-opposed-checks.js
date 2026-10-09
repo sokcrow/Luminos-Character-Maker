@@ -21,6 +21,7 @@
     players: {},
     sessions: {},
     latestOpposedCommand: null,
+    opposedCommands: new Map(),
     activeCommand: null,
     localHud: null,
     dmHud: null,
@@ -544,9 +545,12 @@
     if (!uid) return;
     db.ref(`${COMMAND_ROOT}/${uid}`).limitToLast(20).on("child_added", (snapshot) => {
       const command = snapshot.val() || {};
-      if (!command?.check?.opposedSessionId || String(command.roomKey || "default") !== roomKey()) return;
+      if (!command?.check?.opposedSessionId || command.status !== "issued" || command.targetUid !== uid ||
+          String(command.roomKey || "default") !== roomKey()) return;
       if (Date.now() - numberOr(command.clientIssuedAt, Date.now()) > MAX_AGE_MS) return;
-      state.latestOpposedCommand = { key: snapshot.key, command };
+      const item = { key: snapshot.key, command };
+      state.latestOpposedCommand = item;
+      state.opposedCommands.set(snapshot.key, item);
       decorateExistingPrompt();
     });
   }
@@ -554,8 +558,8 @@
   function decorateExistingPrompt() {
     if (isDm()) return;
     const prompt = $("theatre-check-command-prompt");
-    const active = state.latestOpposedCommand;
-    if (!prompt || !active || prompt.dataset.commandKey !== active.key) return;
+    const active = prompt && state.opposedCommands.get(prompt.dataset.commandKey);
+    if (!prompt || !active) return;
     const phase = active.command?.check?.opposedPhase;
     prompt.dataset.opposedSessionId = active.command.check.opposedSessionId;
     prompt.dataset.opposedPhase = phase;
@@ -583,8 +587,8 @@
     doc.addEventListener("click", (event) => {
       const button = event.target?.closest?.("#theatre-check-command-prompt button");
       const prompt = button?.closest?.("#theatre-check-command-prompt");
-      const active = state.latestOpposedCommand;
-      if (!button || !prompt?.dataset?.opposedSessionId || !active || prompt.dataset.commandKey !== active.key) return;
+      const active = prompt && state.opposedCommands.get(prompt.dataset.commandKey);
+      if (!button || !prompt?.dataset?.opposedSessionId || !active) return;
       prepareOpposedRoll(active);
     }, true);
   }
@@ -695,7 +699,9 @@
       } else {
         const front = coordinator()?.ensureFrontLayer?.();
         if (front) {
+          $("theatre-opposed-result-notice")?.remove();
           const notice = doc.createElement("div");
+          notice.id = "theatre-opposed-result-notice";
           notice.className = `theatre-opposed-result-notice ${result.outcome === "passed" ? "is-pass" : "is-fail"}`;
           notice.textContent = `${result.opponentName || "RIVAL"} · ${result.outcome === "passed" ? "CHECK PASSED" : "CHECK FAILED"}`;
           front.appendChild(notice);

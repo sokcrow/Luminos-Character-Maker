@@ -9,6 +9,7 @@ on:
       - 'css/theatre-*.css'
       - 'database.rules.json'
       - 'tests/theatre-check-unified-smoke.mjs'
+      - 'tests/player-check-reconnect-no-overlap-smoke.mjs'
       - '.github/workflows/theatre-check-unified-smoke.yml'
   workflow_dispatch:
 
@@ -27,3 +28,5 @@ jobs:
           node --check js/instance-control.js
       - name: Check HUD, privacy and VS regression
         run: node tests/theatre-check-unified-smoke.mjs
+      - name: Player Check reconnect and no-overlap regression
+        run: node tests/player-check-reconnect-no-overlap-smoke.mjs
