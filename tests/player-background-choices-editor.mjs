@@ -170,4 +170,14 @@ await assert.rejects(save("different_background", { ideal: "Invalid" }), /Backgr
 state.character.uid = "different_uid";
 await assert.rejects(save("street_medic", { ideal: "Invalid" }), /verificar tu personaje/);
 
+// Reusing a saved character with a different Background must not expose previous choices.
+const switchedCharacter = {
+  characterBuild: { backgroundId: "street_medic" },
+  backgroundChoices: { backgroundId: "old_background", ideal: "wrong_choice" },
+};
+const switched = new Tray({ getRuntime: () => ({ character: switchedCharacter }), getTraits: () => [], saveBackgroundChoices });
+switched.backgroundPanel = element("section");
+switched.renderBackground();
+assert.ok(!textContent(switched.backgroundPanel).includes("wrong_choice"), "Old Background decisions must not leak after a DM change");
+
 console.log("PASS: Inline Background editor (canonical, custom, legacy), live-refresh draft preservation, Firebase paths, auth guards and non-mechanical saves.");
