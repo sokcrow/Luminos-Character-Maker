@@ -27,8 +27,8 @@ assert.match(coordinatorCode, /statusRef\.on\("value", onAcknowledged/,
   "Completed live telemetry must be retained until the DM acknowledges the command");
 assert.doesNotMatch(coordinatorCode, /setTimeout\(\(\) => liveRef\.remove\(\)/,
   "Completed live telemetry must not be erased after a fixed timeout");
-assert.match(coordinatorCode, /live\.status === "complete" \? COMMAND_MAX_AGE_MS : LIVE_MAX_AGE_MS/,
-  "DM must resolve late completed telemetry even after the short HUD display period");
+assert.match(coordinatorCode, /live\.status !== "complete" && age > LIVE_MAX_AGE_MS/,
+  "DM must resolve completed telemetry regardless of how long it was offline");
 
 function element(tagName) {
   const classes = new Set();
