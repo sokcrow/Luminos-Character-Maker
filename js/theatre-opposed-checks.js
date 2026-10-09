@@ -328,6 +328,7 @@
       }
       showDmFeedback(`${rival.name} RETA A ${initiator.name} · PRIMERA TIRADA EN CURSO`, false);
       $("theatre-check-mode").value = "individual";
+      $("theatre-check-compose-reset")?.click();
       syncModeUi();
     } finally {
       state.issuingOpposed = false;
@@ -527,7 +528,7 @@
     } else if (phase === "resolver") {
       if (kicker) kicker.textContent = "TIRADA ENFRENTADA · RESUELVE CHECK";
       if (meta) meta.textContent = active.command.check.hiddenThreshold
-        ? "THRESHOLD ???"
+        ? (active.command.check.thresholdVisibility === "hidden" ? "CHECK OCULTO" : "THRESHOLD ??")
         : `THRESHOLD ${effectiveThreshold(active.command.check.thresholdRaw, active.command.check)}`;
     }
   }
