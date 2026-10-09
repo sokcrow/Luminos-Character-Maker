@@ -1,844 +1,970 @@
-# Enchantment Compendium — English Design Review
+# Enchantment Compendium — English Editorial Review v3
 
-> **DRAFT / NOT APPROVED / NOT PLAYABLE.** These are candidate designs, not enabled combat effects, not new Item definitions, and not canon. None of these may be published to the real Enchanter Studio or gameplay without individual review.
+> **DESIGN ONLY · NOT APPROVED · NOT PLAYABLE.** This document contains candidate inscriptions, not enabled gameplay abilities. No recipe or cost is approved by this catalog.
 
-## Design premise
+## Authoritative design direction (requested correction)
 
-- **An enchantment is not a flat modifier.** No generic +Base Power, +Final Power, +Clash Power, or +Offense Level templates. Identity comes from combat triggers, meaningful decisions, Status interactions, escalation, and opportunity cost.
-- **English player-facing names and tooltips.** Examples: a *Flamebound Longsword* has an *Flamebound III* inscription, not *Longsword +3*.
-- **Rank I–III proposals are cumulative unless revised during review.** A new rank may add behavior rather than multiply a number.
-- **Stay within real Limbus concepts.** Burn, Bleed, Rupture, Tremor, Sinking, Poise, Chill, Shock, Paralysis, Bind, Haste, Protection, Invisible and Radiance have actual project definitions. Specialized counters, target selection, Stagger interception and action debt require engineering design.
-- **Source authority.** Weapon enchantments must only activate on Skills bound to that exact equipped Item Instance. An Armor/Accessory must be equipped; Attunement requirements still apply.
-- **No runaway loops.** Each entry defines caps or once-per-turn/encounter restrictions. No instant kill, permanent stun, recursive procs, free extra actions or unbounded status copying.
-- **Do not accept arbitrary costs by default.** AHN recipes and materials added in Enchanter V1.1 are an *unreviewed economic placeholder*, not canon pricing for these proposed signatures. Unique crafting costs, rarity, availability and attunement come after design approval.
+- **Exactly one Base Effect per named Enchantment.** Rank II and Rank III never unlock additional or unrelated effects.
+- **Rank I = Base × 1; Rank II = Ceil(Base × 1.50); Rank III = Ceil(Base × 2.50).** Each scalable magnitude is rounded upward independently.
+- **The same trigger, conditions and behavior apply at all three Ranks.** Fixed activation limits, resource costs, cooldowns, target caps, thresholds, source identity, type restrictions, and hard mechanical limits do not scale.
+- **Enchantments are exclusive to the equipment kind and compatible chassis IDs listed for the entry.** Weapon effects belong only to their compatible Weapons; Shield, Armor and Accessory effects have separate categories and chassis gates.
+- **Item display name:** e.g. `Flamebound Longsword`; inscription heading `Flamebound III`. No generic `Longsword +3` player-facing design for this catalog.
+- **No flat Base Power, Final Power, Clash Power or Offensive Level filler.** Effects have meaningful triggers, status usage, costs and counterplay.
+- **Compatibility remains design data until an authoritative Item Instance hook enforces it.** This review catalog is not imported into the live runtime. Canonical Status caps/immunities and source-binding/attunement requirements still apply.
+- **Economy needs separate approval:** the V1.1 numerical recipes do not grant approval to enchantment-specific prices or materials.
 
-**Draft coverage:** 42 named enchantments across 7 disciplines (Infernal 6; Glacial 6; Tempest 6; Sanguine 6; Umbral 6; Sanctified 6; Anomalous 6).
+### Rounding examples
 
-## Inscriptions for review
+| Scalable magnitude | Base I | II · Ceil ×1.50 | III · Ceil ×2.50 |
+|:--|--:|--:|--:|
+| 1 | 1 | 2 | 3 |
+| 2 | 2 | 3 | 5 |
+| 3 | 3 | 5 | 8 |
+| 4 | 4 | 6 | 10 |
+| 5 | 5 | 8 | 13 |
+| 6 | 6 | 9 | 15 |
 
-### Infernal
+**Total:** 42 draft inscriptions — 21 weapon, 6 shield, 6 armor, 9 accessory.
 
-#### Flamebound III
+## Weapon Enchantments (21)
+
+### Flamebound — Infernal
 
 **Example item:** Flamebound Longsword  
-**Allowed on:** Weapon  
-**Status:** PROPOSED / NOT IMPLEMENTED  
-**Tags:** Burn; fixed damage; Clash Win; On Kill
+**Equipment kind:** `weapon`  
+**Compatible canonical chassis IDs:** `longsword`, `greatsword`, `rapier`, `scimitar`, `shortsword`  
+**Review status:** PROPOSED · NOT IMPLEMENTED
 
 > The blade remembers every flame that failed to consume it. When drawn, the embers trapped beneath its edge begin searching for something new to burn.
 
-**Rank I —** Kindle the Wound — Once per Turn, a weapon-linked hit against an enemy with Burn consumes 1 of its Burn Count to deal Fixed Damage equal to half its Burn Potency (floor), capped at 6.
+**Base Effect:** Once per Turn, when a Skill bound to this weapon hits an enemy already suffering Burn, consume 1 Burn Count to unleash 2 Fixed Damage and inflict 2 Burn Potency / 1 Count.
 
-**Rank II —** Backdraft — Once per Turn, after winning a Clash with this weapon, inflict 3 Burn Potency and 2 Burn Count on the opponent after the Clash has resolved.
+**Rank I (×1.00):** Once per Turn, when a Skill bound to this weapon hits an enemy already suffering Burn, consume 1 Burn Count to unleash 2 Fixed Damage and inflict 2 Burn Potency / 1 Count.
 
-**Rank III —** Crown of Cinders — Once per Encounter, killing a target with at least 6 Burn Potency using this weapon transfers 3 Burn Potency and 2 Burn Count to up to two other enemies within effect range.
+**Rank II (×1.50, Ceil):** Once per Turn, when a Skill bound to this weapon hits an enemy already suffering Burn, consume 1 Burn Count to unleash 3 Fixed Damage and inflict 3 Burn Potency / 2 Count.
 
-**Counterplay / safety —** Ranks cumulative. Only the equipped source weapon triggers it; status immunity applies. Crown requires the weapon itself to deliver the killing hit.
+**Rank III (×2.50, Ceil):** Once per Turn, when a Skill bound to this weapon hits an enemy already suffering Burn, consume 1 Burn Count to unleash 5 Fixed Damage and inflict 5 Burn Potency / 3 Count.
 
----
-
-#### Ashwake III
-
-**Example item:** Ashwake Greatshield  
-**Allowed on:** Shield, Armor  
-**Status:** PROPOSED / NOT IMPLEMENTED  
-**Tags:** Burn; Guard; Shield break
-
-> A black furnace sleeps behind the plating, opening its vents only when its bearer stands against the tide.
-
-**Rank I —** Furnace Guard — Once per Turn, after taking damage while guarding, inflict 2 Burn Potency and 2 Count on the attacker.
-
-**Rank II —** Coal Armor — If that attacker already has Burn, gain a temporary Shield equal to the Burn Potency applied this Turn, capped at 8 Shield.
-
-**Rank III —** Ashen Riposte — Once per Encounter, when the gained Shield is broken by an Attack Skill, scatter Burn 2 Potency / 1 Count to the attacker and one adjacent foe.
-
-**Counterplay / safety —** Requires a successful Guard; never triggers from self-damage, damage-over-time, or the reflected Burn. One shield generation per Turn.
+**Scaling keys:** damage=2, potency=2, count=1  
+**Restrictions:** Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.
 
 ---
 
-#### Cinder Requiem III
+### Cinder Requiem — Infernal
 
 **Example item:** Cinder Requiem Rapier  
-**Allowed on:** Weapon  
-**Status:** PROPOSED / NOT IMPLEMENTED  
-**Tags:** Burn; Turn End; On Kill; temporary mark
+**Equipment kind:** `weapon`  
+**Compatible canonical chassis IDs:** `rapier`, `shortsword`, `scimitar`, `dagger`  
+**Review status:** PROPOSED · NOT IMPLEMENTED
 
 > Every life claimed by the weapon leaves one unspoken verse smoldering along its fuller.
 
-**Rank I —** Funeral Spark — Your first hit each Turn against a target already carrying Burn extends that target's Burn Count by 1, to the normal cap.
+**Base Effect:** Once per Turn, a weapon-linked Hit against a Burning enemy consumes 1 Burn Count and transfers 2 Burn Potency / 1 Count to one other enemy within valid range.
 
-**Rank II —** Dirge of Ash — When that target loses Burn Count to Turn End damage, mark it Requiem-bound until the next Turn End; only one mark can exist.
+**Rank I (×1.00):** Once per Turn, a weapon-linked Hit against a Burning enemy consumes 1 Burn Count and transfers 2 Burn Potency / 1 Count to one other enemy within valid range.
 
-**Rank III —** Last Verse — Once per Encounter, when a Requiem-bound target is killed by a weapon-linked Skill, transfer up to half its remaining Burn Potency (cap 5) as Burn with 1 Count to another target.
+**Rank II (×1.50, Ceil):** Once per Turn, a weapon-linked Hit against a Burning enemy consumes 1 Burn Count and transfers 3 Burn Potency / 2 Count to one other enemy within valid range.
 
-**Counterplay / safety —** Marks do not stack or persist beyond one Turn. No chain reactions from transferred Burn and no trigger on unrelated kills.
+**Rank III (×2.50, Ceil):** Once per Turn, a weapon-linked Hit against a Burning enemy consumes 1 Burn Count and transfers 5 Burn Potency / 3 Count to one other enemy within valid range.
 
----
-
-#### Emberheart III
-
-**Example item:** Emberheart Cuirass  
-**Allowed on:** Armor, Accessory  
-**Status:** PROPOSED / NOT IMPLEMENTED  
-**Tags:** Protection; Shield; Burn; damage taken; resource
-
-> There is no warmth in the gem until the wearer has suffered for someone else.
-
-**Rank I —** Pain to Cinder — Once per Turn, after losing HP from an enemy attack, gain Ember (1 charge, max 2) instead of an immediate bonus.
-
-**Rank II —** Smoldering Resolve — At the next Turn Start, spend 1 Ember to gain 1 Protection for that Turn; unused charges expire at Encounter End.
-
-**Rank III —** Phoenix Thread — Once per Encounter, when HP falls below 25% from a direct attack, consume all Ember to gain a Shield equal to 6 per charge and inflict Burn 2 Potency / 2 Count on the attacker.
-
-**Counterplay / safety —** Does not trigger from status damage, self-inflicted costs, or allied attacks; not a resurrection or death prevention below 0 HP.
+**Scaling keys:** potency=2, count=1  
+**Restrictions:** Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.
 
 ---
 
-#### Scorchweave III
+### Pyrelash — Infernal
 
-**Example item:** Scorchweave Brooch  
-**Allowed on:** Accessory, Valuable  
-**Status:** PROPOSED / NOT IMPLEMENTED  
-**Tags:** Evade; Burn; Blinded; condition tag
-
-> The cloth weighs nothing, yet smoke coils behind every motion its owner refuses to finish.
-
-**Rank I —** Smoke Step — Once per Turn after an Evade succeeds, mark the attacker as Exposed to Cinders until Turn End.
-
-**Rank II —** Ember Pursuit — The next weapon-linked hit against the marked target before the mark expires inflicts Burn 2 Potency / 2 Count.
-
-**Rank III —** Blind Furnace — Once per Encounter, after two successful Evades in one Turn, inflict 1 temporary Blinded on one attacker who missed; that attacker may resist using the normal Save rule.
-
-**Counterplay / safety —** A mark cannot trigger itself; failed Evades give nothing. Blinded must use a bounded duration and successful Save; no permanent loss of actions.
-
----
-
-#### Pyrelash III
-
-**Example item:** Pyrelash Chainwhip  
-**Allowed on:** Weapon  
-**Status:** PROPOSED / NOT IMPLEMENTED  
-**Tags:** Burn; Clash Lose; On Hit; charges
+**Example item:** Pyrelash Whip  
+**Equipment kind:** `weapon`  
+**Compatible canonical chassis IDs:** `whip`, `flail`, `scimitar`  
+**Review status:** PROPOSED · NOT IMPLEMENTED
 
 > The lash draws fire from unfinished strikes, collecting the heat of blows that almost landed.
 
-**Rank I —** Temper — Once per Turn, when a weapon Skill fails to deal damage after an enemy wins the Clash, store one Spark (max 2).
+**Base Effect:** After losing a Clash with this weapon, store one Spark (maximum 2). Once per Turn, your next weapon-linked Hit may consume one Spark to inflict 2 Burn Potency / 2 Count.
 
-**Rank II —** Retaliation — On the next hit from this weapon, consume one Spark to inflict Burn 3 Potency / 1 Count.
+**Rank I (×1.00):** After losing a Clash with this weapon, store one Spark (maximum 2). Once per Turn, your next weapon-linked Hit may consume one Spark to inflict 2 Burn Potency / 2 Count.
 
-**Rank III —** Firestorm — Once per Encounter, if two Sparks are stored, spend both after a weapon-linked hit to inflict Burn 2 Potency / 2 Count on the primary target and one secondary valid target.
+**Rank II (×1.50, Ceil):** After losing a Clash with this weapon, store one Spark (maximum 2). Once per Turn, your next weapon-linked Hit may consume one Spark to inflict 3 Burn Potency / 3 Count.
 
-**Counterplay / safety —** Sparks vanish at Encounter End; a Miss and a lost Clash cannot each grant a Spark for the same Skill. Never re-triggers from Burn ticks.
+**Rank III (×2.50, Ceil):** After losing a Clash with this weapon, store one Spark (maximum 2). Once per Turn, your next weapon-linked Hit may consume one Spark to inflict 5 Burn Potency / 5 Count.
+
+**Scaling keys:** potency=2, count=2  
+**Restrictions:** Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.
 
 ---
 
-### Glacial
-
-#### Frostwrought III
+### Frostwrought — Glacial
 
 **Example item:** Frostwrought Greatsword  
-**Allowed on:** Weapon  
-**Status:** PROPOSED / NOT IMPLEMENTED  
-**Tags:** Chill; Bind; Frozen; repeated-hit tracking
+**Equipment kind:** `weapon`  
+**Compatible canonical chassis IDs:** `greatsword`, `longsword`, `greataxe`, `maul`  
+**Review status:** PROPOSED · NOT IMPLEMENTED
 
 > The edge is not cold; it steals the moment in which the victim expected to move.
 
-**Rank I —** Rime Cut — Once per Turn, on the first weapon-linked hit, inflict 2 Chill Count.
+**Base Effect:** Once per Turn, the first weapon-linked Hit inflicts 2 Chill Count; if the target already had Chill before that Hit, also inflict 1 Bind for its next Turn.
 
-**Rank II —** Brittle Momentum — If the target had Chill before being hit, extend its Chill by 2 Count and inflict 1 Bind for its next Turn.
+**Rank I (×1.00):** Once per Turn, the first weapon-linked Hit inflicts 2 Chill Count; if the target already had Chill before that Hit, also inflict 1 Bind for its next Turn.
 
-**Rank III —** Winter's Seal — Once per Encounter, after landing three hits on the same chilled target in one Encounter, inflict Frozen 1 if the target passes the normal Chill threshold check; otherwise inflict 3 Chill.
+**Rank II (×1.50, Ceil):** Once per Turn, the first weapon-linked Hit inflicts 3 Chill Count; if the target already had Chill before that Hit, also inflict 2 Bind for its next Turn.
 
-**Counterplay / safety —** Frozen never bypasses Cold Immunity or the size-based Chill threshold. Frozen from this enchant is capped at 1 and cannot chain to annihilation.
+**Rank III (×2.50, Ceil):** Once per Turn, the first weapon-linked Hit inflicts 5 Chill Count; if the target already had Chill before that Hit, also inflict 3 Bind for its next Turn.
 
----
-
-#### Whiteout III
-
-**Example item:** Whiteout Breastplate  
-**Allowed on:** Armor  
-**Status:** PROPOSED / NOT IMPLEMENTED  
-**Tags:** Chill; Blinded; Evade; Protection
-
-> The ward sheds snow that is never there, concealing the bearer in the instant before impact.
-
-**Rank I —** Hoarfrost — Once per Turn, when a direct attack misses you, inflict 2 Chill on the attacker.
-
-**Rank II —** Snowblind — If the attacker already had at least 6 Chill before missing, inflict 1 temporary Blinded until the next Turn End, subject to its normal Save.
-
-**Rank III —** Fading Figure — Once per Encounter, after a successful Evade against a blinded enemy, gain 1 Protection for the next Turn and clear that enemy's Blinded from this item.
-
-**Counterplay / safety —** No automatic evasion or guaranteed misses; Blinded is limited and saves are respected. Does not work against Cold-immune targets for Chill.
+**Scaling keys:** chill=2, bind=1  
+**Restrictions:** Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.
 
 ---
 
-#### Permafrost III
-
-**Example item:** Permafrost Tower Shield  
-**Allowed on:** Armor, Shield  
-**Status:** PROPOSED / NOT IMPLEMENTED  
-**Tags:** Guard; Shield; Chill; prevented-damage counter
-
-> A sealed glacier is layered into the metal; what it cannot stop it refuses to release.
-
-**Rank I —** Cold Vault — Once per Turn after a Guard reduces damage, store the amount prevented, capped at 6.
-
-**Rank II —** Icebound Return — At your next Turn Start, convert stored prevented damage into an equal temporary Shield, capped at 6; stored value then resets.
-
-**Rank III —** Fracture Memory — Once per Encounter, when that temporary Shield breaks, inflict Chill Count equal to half the stored value (floor), capped at 3, on the breaker.
-
-**Counterplay / safety —** No amplification of full incoming damage; only validated prevented damage counts. No triggering from status damage or self-inflicted damage.
-
----
-
-#### Rimeglass III
+### Rimeglass — Glacial
 
 **Example item:** Rimeglass Dagger  
-**Allowed on:** Weapon  
-**Status:** PROPOSED / NOT IMPLEMENTED  
-**Tags:** Chill; Rupture; Tremor Burst; critical hit
+**Equipment kind:** `weapon`  
+**Compatible canonical chassis IDs:** `dagger`, `rapier`, `shortsword`  
+**Review status:** PROPOSED · NOT IMPLEMENTED
 
 > Cracks along the glass edge spread inward rather than outward; each wound becomes a map of winter.
 
-**Rank I —** Crystal Score — First hit per Turn against a target with Chill marks it Fractured for one Turn.
+**Base Effect:** Once per Turn, a weapon-linked Hit on a Chilled target consumes 1 Chill Count to inflict 2 Rupture Potency / 1 Count.
 
-**Rank II —** Split Reflection — The next hit against that Fractured target inflicts 2 Rupture Potency / 2 Count and removes the mark.
+**Rank I (×1.00):** Once per Turn, a weapon-linked Hit on a Chilled target consumes 1 Chill Count to inflict 2 Rupture Potency / 1 Count.
 
-**Rank III —** Shardfall — Once per Encounter, a weapon-linked Critical Hit against a Fractured target triggers Tremor Burst if the target has Tremor, then removes Fractured.
+**Rank II (×1.50, Ceil):** Once per Turn, a weapon-linked Hit on a Chilled target consumes 1 Chill Count to inflict 3 Rupture Potency / 2 Count.
 
-**Counterplay / safety —** Fractured expires and never stacks; Shardfall is not free Stagger and only bursts existing Tremor. No duplicate triggers from the same Hit.
+**Rank III (×2.50, Ceil):** Once per Turn, a weapon-linked Hit on a Chilled target consumes 1 Chill Count to inflict 5 Rupture Potency / 3 Count.
+
+**Scaling keys:** potency=2, count=1  
+**Restrictions:** Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.
 
 ---
 
-#### Winter's Grasp III
+### Winter's Grasp — Glacial
 
 **Example item:** Winter's Grasp Spear  
-**Allowed on:** Weapon, Accessory  
-**Status:** PROPOSED / NOT IMPLEMENTED  
-**Tags:** Bind; Chill; Restrained; resistance Save
+**Equipment kind:** `weapon`  
+**Compatible canonical chassis IDs:** `spear`, `pike`, `lance`, `trident`  
+**Review status:** PROPOSED · NOT IMPLEMENTED
 
 > The runes do not bind flesh. They slow the decision that precedes escape.
 
-**Rank I —** Cold Pursuit — After striking a faster target, once per Turn, apply 1 Bind for its next Turn.
+**Base Effect:** Once per Turn, when this weapon hits an enemy with greater Speed than the wielder, inflict 1 Bind for its next Turn and 2 Chill Count.
 
-**Rank II —** Fettered Prey — Against a target already affected by Bind, weapon-linked hits inflict 2 Chill; once per Turn.
+**Rank I (×1.00):** Once per Turn, when this weapon hits an enemy with greater Speed than the wielder, inflict 1 Bind for its next Turn and 2 Chill Count.
 
-**Rank III —** Closing Frost — Once per Encounter, when a Bound and Chilled target loses a Clash against you, it must make a normal resistance Save or gain 1 Restrained for one Turn.
+**Rank II (×1.50, Ceil):** Once per Turn, when this weapon hits an enemy with greater Speed than the wielder, inflict 2 Bind for its next Turn and 3 Chill Count.
 
-**Counterplay / safety —** Restrained cannot persist beyond one Turn from this item; no repeated saves on a single Clash, and no bonus to Clash Power is granted.
+**Rank III (×2.50, Ceil):** Once per Turn, when this weapon hits an enemy with greater Speed than the wielder, inflict 3 Bind for its next Turn and 5 Chill Count.
 
----
-
-#### Black Ice III
-
-**Example item:** Black Ice Anklet  
-**Allowed on:** Accessory  
-**Status:** PROPOSED / NOT IMPLEMENTED  
-**Tags:** Evade; Chill; Haste; Stagger Threshold
-
-> Each step leaves a shadow of ice a heartbeat behind the foot that made it.
-
-**Rank I —** Slipstream — After a successful Evade, gain 1 Haste for your next Turn; once per Turn.
-
-**Rank II —** Ice Trail — When you Evade an enemy suffering Chill, add 2 Chill Count to that enemy.
-
-**Rank III —** Last Step — Once per Encounter, when an attack would cause you to cross a Stagger Threshold, you may consume your Haste to reduce that attack's Stagger damage contribution by up to 6; HP damage is unchanged.
-
-**Counterplay / safety —** Does not prevent the HP loss or negate other stagger sources. The Stagger timing hook needs explicit implementation and review.
+**Scaling keys:** bind=1, chill=2  
+**Restrictions:** Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.
 
 ---
 
-### Tempest
+### Stormwake — Tempest
 
-#### Stormwake III
-
-**Example item:** Stormwake Sabre  
-**Allowed on:** Weapon  
-**Status:** PROPOSED / NOT IMPLEMENTED  
-**Tags:** Shock; Paralysis conversion; single-use charge
+**Example item:** Stormwake Scimitar  
+**Equipment kind:** `weapon`  
+**Compatible canonical chassis IDs:** `scimitar`, `shortsword`, `longsword`, `rapier`  
+**Review status:** PROPOSED · NOT IMPLEMENTED
 
 > The weapon calls lightning only when the wielder dares to finish the exchange.
 
-**Rank I —** Static Scar — Once per Turn, the first weapon-linked hit on a target inflicts 2 Shock Count.
+**Base Effect:** Once per Turn, a weapon-linked Hit inflicts 2 Shock Count. If the target already had Shock before the Hit, move 1 of its Shock Count to one other valid enemy.
 
-**Rank II —** Arc Step — If the target converts Shock into Paralysis at Turn Start, gain one Charge (max 1) on this weapon for the next Turn.
+**Rank I (×1.00):** Once per Turn, a weapon-linked Hit inflicts 2 Shock Count. If the target already had Shock before the Hit, move 1 of its Shock Count to one other valid enemy.
 
-**Rank III —** Thunder's Due — Once per Encounter, spend that Charge after a weapon-linked hit to chain 2 Shock Count to one other visible, valid enemy.
+**Rank II (×1.50, Ceil):** Once per Turn, a weapon-linked Hit inflicts 3 Shock Count. If the target already had Shock before the Hit, move 2 of its Shock Count to one other valid enemy.
 
-**Counterplay / safety —** Shock and Paralysis retain canonical conversion. No automatic target selection outside valid range; charges expire after one Turn.
+**Rank III (×2.50, Ceil):** Once per Turn, a weapon-linked Hit inflicts 5 Shock Count. If the target already had Shock before the Hit, move 3 of its Shock Count to one other valid enemy.
+
+**Scaling keys:** shock=2, transfer=1  
+**Restrictions:** Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.
 
 ---
 
-#### Thundercall III
+### Thundercall — Tempest
 
 **Example item:** Thundercall Warhammer  
-**Allowed on:** Weapon  
-**Status:** PROPOSED / NOT IMPLEMENTED  
-**Tags:** Shock; Paralysis; Tremor; Clash Win
+**Equipment kind:** `weapon`  
+**Compatible canonical chassis IDs:** `warhammer`, `maul`, `mace`, `morningstar`  
+**Review status:** PROPOSED · NOT IMPLEMENTED
 
 > The hammer announces its arrival long after the blow, when every bone remembers the thunder.
 
-**Rank I —** First Peal — A weapon-linked hit against a target with at least 3 Shock Count inflicts 1 Paralysis; once per Turn.
+**Base Effect:** Once per Turn, after winning a Clash with this weapon against a Shocked enemy, the next Hit of that Skill inflicts 2 Tremor Potency / 1 Count.
 
-**Rank II —** Rolling Thunder — After winning a Clash against a Shocked target, shift 1 Shock Count from it to a second valid enemy, if any.
+**Rank I (×1.00):** Once per Turn, after winning a Clash with this weapon against a Shocked enemy, the next Hit of that Skill inflicts 2 Tremor Potency / 1 Count.
 
-**Rank III —** Thunderhead — Once per Encounter, when a target's Shock converts to Paralysis, the next hit from this weapon against that target inflicts Tremor 2 Potency / 1 Count.
+**Rank II (×1.50, Ceil):** Once per Turn, after winning a Clash with this weapon against a Shocked enemy, the next Hit of that Skill inflicts 3 Tremor Potency / 2 Count.
 
-**Counterplay / safety —** Does not bypass existing Paralysis caps; transferred Shock is removed from the first target and cannot cascade.
+**Rank III (×2.50, Ceil):** Once per Turn, after winning a Clash with this weapon against a Shocked enemy, the next Hit of that Skill inflicts 5 Tremor Potency / 3 Count.
 
----
-
-#### Stormcage III
-
-**Example item:** Stormcage Buckler  
-**Allowed on:** Shield  
-**Status:** PROPOSED / NOT IMPLEMENTED  
-**Tags:** Guard; Shock; Paralysis; Shield
-
-> Copper veins across the shield pulse whenever an enemy mistakes its silence for safety.
-
-**Rank I —** Conductive Guard — Once per Turn, after a Guard reduces direct damage, inflict 1 Shock Count on the attacker.
-
-**Rank II —** Cage Circuit — If the attacker already has Shock, add 2 more Shock Count and mark it Conductive until Turn End.
-
-**Rank III —** Judgment Coil — Once per Encounter, when a Conductive attacker triggers its canonical Shock-to-Paralysis conversion, grant the bearer a temporary Shield of 8.
-
-**Counterplay / safety —** Conductive is a mark, not an unrestricted new status. Reflections cannot loop; Shield value does not scale with party size.
+**Scaling keys:** potency=2, count=1  
+**Restrictions:** Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.
 
 ---
 
-#### Static Veil III
-
-**Example item:** Static Veil Mail  
-**Allowed on:** Armor, Accessory  
-**Status:** PROPOSED / NOT IMPLEMENTED  
-**Tags:** Shock; Protection; Shield; damage taken
-
-> The air catches against the armor, holding every missed strike like a debt unpaid.
-
-**Rank I —** Residual Current — Once per Turn, after an enemy misses you, apply 2 Shock to that enemy.
-
-**Rank II —** Insulated Thread — If that enemy already has Shock, gain 1 Protection until Turn End after the miss.
-
-**Rank III —** Grounding Burst — Once per Encounter, when an attacker with 6 or more Shock hits you, consume 3 Shock Count from it to grant you a Shield of 10.
-
-**Counterplay / safety —** No effect on ranged or environmental damage without a valid attacker; the Shield does not cancel the hit that triggered it.
-
----
-
-#### Galeheart III
-
-**Example item:** Galeheart Bracelet  
-**Allowed on:** Accessory  
-**Status:** PROPOSED / NOT IMPLEMENTED  
-**Tags:** Haste; Bind; Evade; ally targeting
-
-> A trapped storm beats against the wearer's pulse whenever the battlefield changes direction.
-
-**Rank I —** Tailwind — Once per Turn on successful Evade, gain 1 Haste for the next Turn.
-
-**Rank II —** Slip of Fate — If you begin a Turn with Haste from this enchant, the first enemy who misses you suffers 1 Bind for the next Turn.
-
-**Rank III —** Eye of the Storm — Once per Encounter, after two enemies miss you in the same Turn, grant one ally 1 Haste on its next Turn.
-
-**Counterplay / safety —** Haste is never permanent and cannot grant extra Action Slots; requires two distinct enemy attacks for Rank III.
-
----
-
-#### Skybreaker III
+### Skybreaker — Tempest
 
 **Example item:** Skybreaker Lance  
-**Allowed on:** Weapon  
-**Status:** PROPOSED / NOT IMPLEMENTED  
-**Tags:** Shock; Shields; Tremor Burst; shield-break event
+**Equipment kind:** `weapon`  
+**Compatible canonical chassis IDs:** `lance`, `pike`, `halberd`, `spear`  
+**Review status:** PROPOSED · NOT IMPLEMENTED
 
 > The spear never chases the sky. It waits for the sky to fall onto its point.
 
-**Rank I —** Thunderpoint — Weapon-linked hits against targets bearing a Shield inflict 2 Shock Count.
+**Base Effect:** Once per Turn, a weapon-linked Hit against an enemy protected by Shield inflicts 2 Shock Count and deals 3 additional damage to the Shield only.
 
-**Rank II —** Crack the Canopy — Once per Turn after hitting a Shielded target, the next weapon-linked hit against the same target deals up to 5 additional damage to its Shield only.
+**Rank I (×1.00):** Once per Turn, a weapon-linked Hit against an enemy protected by Shield inflicts 2 Shock Count and deals 3 additional damage to the Shield only.
 
-**Rank III —** Fallen Star — Once per Encounter, breaking a target's Shield with this weapon triggers Tremor Burst if that target already has Tremor.
+**Rank II (×1.50, Ceil):** Once per Turn, a weapon-linked Hit against an enemy protected by Shield inflicts 3 Shock Count and deals 5 additional damage to the Shield only.
 
-**Counterplay / safety —** Does not increase damage against HP, does not create Tremor, and the Shield-specific effect cannot overflow into HP.
+**Rank III (×2.50, Ceil):** Once per Turn, a weapon-linked Hit against an enemy protected by Shield inflicts 5 Shock Count and deals 8 additional damage to the Shield only.
+
+**Scaling keys:** shock=2, shieldDamage=3  
+**Restrictions:** Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.
 
 ---
 
-### Sanguine
+### Bloodthorn — Sanguine
 
-#### Bloodthorn III
-
-**Example item:** Bloodthorn Stiletto  
-**Allowed on:** Weapon  
-**Status:** PROPOSED / NOT IMPLEMENTED  
-**Tags:** Bleed; Poise/Critical; Rupture
+**Example item:** Bloodthorn Dagger  
+**Equipment kind:** `weapon`  
+**Compatible canonical chassis IDs:** `dagger`, `rapier`, `shortsword`  
+**Review status:** PROPOSED · NOT IMPLEMENTED
 
 > Its crimson barbs bloom only where a living heartbeat answers the thrust.
 
-**Rank I —** Thorned Cut — Once per Turn, the first Critical Hit with this weapon inflicts Bleed 2 Potency / 2 Count.
+**Base Effect:** Once per Turn, your first Critical Hit from this weapon inflicts 2 Bleed Potency / 2 Count.
 
-**Rank II —** Open Vein — Your next weapon-linked hit against that same Bleeding target increases its Bleed Potency by 2, once per Turn.
+**Rank I (×1.00):** Once per Turn, your first Critical Hit from this weapon inflicts 2 Bleed Potency / 2 Count.
 
-**Rank III —** Red Bloom — Once per Encounter, on a weapon-linked Critical Hit against a target with at least 5 Bleed Potency, convert 2 of its Bleed Count into 2 Rupture Potency / 2 Count.
+**Rank II (×1.50, Ceil):** Once per Turn, your first Critical Hit from this weapon inflicts 3 Bleed Potency / 3 Count.
 
-**Counterplay / safety —** Consumes, not copies, the original Bleed Count. No triggers from Bleed self-damage and no guaranteed Critical Hits.
+**Rank III (×2.50, Ceil):** Once per Turn, your first Critical Hit from this weapon inflicts 5 Bleed Potency / 5 Count.
+
+**Scaling keys:** potency=2, count=2  
+**Restrictions:** Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.
 
 ---
 
-#### Crimson Oath III
+### Crimson Oath — Sanguine
 
 **Example item:** Crimson Oath Longsword  
-**Allowed on:** Weapon  
-**Status:** PROPOSED / NOT IMPLEMENTED  
-**Tags:** Bleed; Rupture; resource expenditure; target sharing
+**Equipment kind:** `weapon`  
+**Compatible canonical chassis IDs:** `longsword`, `greatsword`, `scimitar`, `rapier`  
+**Review status:** PROPOSED · NOT IMPLEMENTED
 
 > Each vow carved into the blade is paid for twice: once in blood, once in what remains.
 
-**Rank I —** Blood Price — At Turn Start, you may spend 3 HP to mark the weapon Sated until Turn End. The next weapon-linked hit inflicts Bleed 2 Potency / 2 Count.
+**Base Effect:** At Turn Start, optionally sacrifice 3 HP; this weapon's next Hit during the Turn inflicts 2 Bleed Potency / 2 Count. Once per Turn.
 
-**Rank II —** Pact of Thorns — If the wielder was below 50% HP when paying, that hit also inflicts 1 Rupture Potency / 1 Count.
+**Rank I (×1.00):** At Turn Start, optionally sacrifice 3 HP; this weapon's next Hit during the Turn inflicts 2 Bleed Potency / 2 Count. Once per Turn.
 
-**Rank III —** Last Oath — Once per Encounter, when the wielder pays the Blood Price below 25% HP, the next linked hit transfers half its inflicted Bleed Potency (cap 3) to a second valid foe.
+**Rank II (×1.50, Ceil):** At Turn Start, optionally sacrifice 3 HP; this weapon's next Hit during the Turn inflicts 3 Bleed Potency / 3 Count. Once per Turn.
 
-**Counterplay / safety —** Cannot pay if the HP cost would reduce the wielder to 0 or below. Paid HP is real and not refunded if the attack misses.
+**Rank III (×2.50, Ceil):** At Turn Start, optionally sacrifice 3 HP; this weapon's next Hit during the Turn inflicts 5 Bleed Potency / 5 Count. Once per Turn.
+
+**Scaling keys:** potency=2, count=2  
+**Restrictions:** Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.
 
 ---
 
-#### Hollow Fang III
+### Hollow Fang — Sanguine
 
-**Example item:** Hollow Fang Kukri  
-**Allowed on:** Weapon  
-**Status:** PROPOSED / NOT IMPLEMENTED  
-**Tags:** Bleed; healing; Shield; Critical
+**Example item:** Hollow Fang Dagger  
+**Equipment kind:** `weapon`  
+**Compatible canonical chassis IDs:** `dagger`, `shortsword`, `sickle`  
+**Review status:** PROPOSED · NOT IMPLEMENTED
 
 > The fang drinks only what its prey can still afford to lose.
 
-**Rank I —** Feast — Once per Turn, when the weapon hits a Bleeding enemy, recover 2 HP after damage.
+**Base Effect:** Once per Turn, after this weapon hits an enemy already suffering Bleed, restore up to 2 HP, limited by the wearer's missing HP.
 
-**Rank II —** Deep Hunger — If the hit consumed Bleed Count from the target, recover 2 additional HP, capped at 4 total per Turn.
+**Rank I (×1.00):** Once per Turn, after this weapon hits an enemy already suffering Bleed, restore up to 2 HP, limited by the wearer's missing HP.
 
-**Rank III —** Starving King — Once per Encounter, a Critical Hit against a Bleeding target gives the wielder a temporary Shield equal to the HP actually recovered this Turn, capped at 8.
+**Rank II (×1.50, Ceil):** Once per Turn, after this weapon hits an enemy already suffering Bleed, restore up to 3 HP, limited by the wearer's missing HP.
 
-**Counterplay / safety —** Healing never exceeds missing HP; damage-over-time does not trigger Feast. Cannot lifesteal from invalid or immune targets.
+**Rank III (×2.50, Ceil):** Once per Turn, after this weapon hits an enemy already suffering Bleed, restore up to 5 HP, limited by the wearer's missing HP.
+
+**Scaling keys:** healing=2  
+**Restrictions:** Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.
 
 ---
 
-#### Ruptureloom III
+### Ruptureloom — Sanguine
 
 **Example item:** Ruptureloom Pike  
-**Allowed on:** Weapon  
-**Status:** PROPOSED / NOT IMPLEMENTED  
-**Tags:** Rupture; multiple-hit tracking; On Hit
+**Equipment kind:** `weapon`  
+**Compatible canonical chassis IDs:** `pike`, `spear`, `lance`, `war_pick`  
+**Review status:** PROPOSED · NOT IMPLEMENTED
 
 > Fine cracks in the spearhead widen only when the target attempts to continue fighting.
 
-**Rank I —** Seam — The first weapon-linked hit each Turn inflicts Rupture 2 Potency / 2 Count.
+**Base Effect:** Once per Turn, the first weapon-linked Hit inflicts 2 Rupture Potency / 2 Count. On the third Hit by this weapon against the same enemy during this Encounter, trigger existing Rupture once, consuming its normal Count.
 
-**Rank II —** Unravel — If the target already had Rupture, the next weapon-linked hit in the same Turn extends Rupture Count by 1, once per Turn.
+**Rank I (×1.00):** Once per Turn, the first weapon-linked Hit inflicts 2 Rupture Potency / 2 Count. On the third Hit by this weapon against the same enemy during this Encounter, trigger existing Rupture once, consuming its normal Count.
 
-**Rank III —** Threadbreaker — Once per Encounter, after three weapon-linked hits on one target, trigger that target's existing Rupture once without removing its full stack, then clear the hit counter.
+**Rank II (×1.50, Ceil):** Once per Turn, the first weapon-linked Hit inflicts 3 Rupture Potency / 3 Count. On the third Hit by this weapon against the same enemy during this Encounter, trigger existing Rupture once, consuming its normal Count.
 
-**Counterplay / safety —** The extra Rupture trigger consumes its normal Count; cannot trigger from any Rupture damage tick. Three hits must be from this equipped Instance.
+**Rank III (×2.50, Ceil):** Once per Turn, the first weapon-linked Hit inflicts 5 Rupture Potency / 5 Count. On the third Hit by this weapon against the same enemy during this Encounter, trigger existing Rupture once, consuming its normal Count.
 
----
-
-#### Butcher's Hymn III
-
-**Example item:** Butcher's Hymn Breastplate  
-**Allowed on:** Armor  
-**Status:** PROPOSED / NOT IMPLEMENTED  
-**Tags:** Poise; Bleed; Protection; damage taken
-
-> The plates hum louder with every wound their owner survives, refusing the comfort of silence.
-
-**Rank I —** Grim Rhythm — Once per Turn, after losing HP to a direct attack, gain Poise 2 Potency / 2 Count.
-
-**Rank II —** Bloody Cadence — On your next Critical Hit, inflict Bleed 2 Potency / 1 Count on that hit's target.
-
-**Rank III —** Final Chorus — Once per Encounter, when reduced below 30% HP by direct enemy damage, gain 1 Protection until the next Turn End and refresh no Poise already lost.
-
-**Counterplay / safety —** Critical must come from a normal attack resolution. No Poise from self-damage, poison, Burn, or status ticks.
+**Scaling keys:** potency=2, count=2  
+**Restrictions:** Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.
 
 ---
 
-#### Heartseeker III
+### Heartseeker — Sanguine
 
 **Example item:** Heartseeker Longbow  
-**Allowed on:** Weapon  
-**Status:** PROPOSED / NOT IMPLEMENTED  
-**Tags:** Bleed; Rupture; HP threshold; marked target
+**Equipment kind:** `weapon`  
+**Compatible canonical chassis IDs:** `shortbow`, `longbow`, `light_crossbow`, `heavy_crossbow`, `hand_crossbow`  
+**Review status:** PROPOSED · NOT IMPLEMENTED
 
 > The bowstring tightens around the sound of a failing pulse, not the shape of a target.
 
-**Rank I —** Pulse Mark — First weapon-linked hit per Turn marks one target until the next Turn End.
+**Base Effect:** The first Hit each Turn by this weapon marks one target until your next Turn End; the next Hit from this same weapon against that target inflicts 2 Bleed Potency / 2 Count and clears the mark.
 
-**Rank II —** Follow the Beat — A second hit against that same marked enemy inflicts Bleed 2 Potency / 2 Count and clears the mark.
+**Rank I (×1.00):** The first Hit each Turn by this weapon marks one target until your next Turn End; the next Hit from this same weapon against that target inflicts 2 Bleed Potency / 2 Count and clears the mark.
 
-**Rank III —** Final Pulse — Once per Encounter, when a marked enemy falls below 25% HP due to this weapon, inflict Rupture 3 Potency / 2 Count and clear the mark.
+**Rank II (×1.50, Ceil):** The first Hit each Turn by this weapon marks one target until your next Turn End; the next Hit from this same weapon against that target inflicts 3 Bleed Potency / 3 Count and clears the mark.
 
-**Counterplay / safety —** No execute, instant kill, or bypass of damage mitigation. The threshold must be crossed by a legitimate hit from this weapon.
+**Rank III (×2.50, Ceil):** The first Hit each Turn by this weapon marks one target until your next Turn End; the next Hit from this same weapon against that target inflicts 5 Bleed Potency / 5 Count and clears the mark.
+
+**Scaling keys:** potency=2, count=2  
+**Restrictions:** Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.
 
 ---
 
-### Umbral
+### Gravewhisper — Umbral
 
-#### Gravewhisper III
-
-**Example item:** Gravewhisper Scythe  
-**Allowed on:** Weapon  
-**Status:** PROPOSED / NOT IMPLEMENTED  
-**Tags:** Sinking; SP; Poise; per-target mark
+**Example item:** Gravewhisper Sickle  
+**Equipment kind:** `weapon`  
+**Compatible canonical chassis IDs:** `sickle`, `glaive`, `scimitar`, `war_pick`  
+**Review status:** PROPOSED · NOT IMPLEMENTED
 
 > Its edge carries the last thought of those who never found the strength to scream.
 
-**Rank I —** Quiet Cut — First weapon-linked hit each Turn inflicts Sinking 2 Potency / 2 Count.
+**Base Effect:** Once per Turn, the first Hit from this weapon inflicts 2 Sinking Potency / 2 Count; if that Hit drains the target's last positive SP, recover up to 2 SP.
 
-**Rank II —** Afterthought — Hitting a target that already had Sinking this Turn extends its Sinking Count by 1, once per Turn.
+**Rank I (×1.00):** Once per Turn, the first Hit from this weapon inflicts 2 Sinking Potency / 2 Count; if that Hit drains the target's last positive SP, recover up to 2 SP.
 
-**Rank III —** Last Word — Once per Encounter, after a hit drains the final positive SP from a target via Sinking, gain 1 Poise Potency / 2 Count and mark that target for one Turn.
+**Rank II (×1.50, Ceil):** Once per Turn, the first Hit from this weapon inflicts 3 Sinking Potency / 3 Count; if that Hit drains the target's last positive SP, recover up to 3 SP.
 
-**Counterplay / safety —** Does not reduce SP past engine bounds; a target with no valid SP cannot award the Last Word bonus repeatedly.
+**Rank III (×2.50, Ceil):** Once per Turn, the first Hit from this weapon inflicts 5 Sinking Potency / 5 Count; if that Hit drains the target's last positive SP, recover up to 5 SP.
 
----
-
-#### Drownsong III
-
-**Example item:** Drownsong Signet Ring  
-**Allowed on:** Accessory, Valuable  
-**Status:** PROPOSED / NOT IMPLEMENTED  
-**Tags:** Sinking; SP healing; damage taken; chosen target
-
-> The ring sings beneath running water, but only the wearer hears the drowned choir.
-
-**Rank I —** Undertow — After an enemy damages your SP directly, once per Turn, apply Sinking 2 Potency / 1 Count to that attacker.
-
-**Rank II —** Low Tide — If that attacker was already Sinking, recover 2 SP after the attack resolves.
-
-**Rank III —** Abyssal Chorus — Once per Encounter, when two different enemies damage your SP in one Turn, inflict Sinking 2 Potency / 2 Count on one valid attacker of your choice.
-
-**Counterplay / safety —** Requires actual SP loss, not blocked or absorbed SP damage; never triggers from the wearer's own Sinking.
+**Scaling keys:** potency=2, count=2, sp=2  
+**Restrictions:** Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.
 
 ---
 
-#### Nightfall III
-
-**Example item:** Nightfall Pendant  
-**Allowed on:** Armor, Accessory  
-**Status:** PROPOSED / NOT IMPLEMENTED  
-**Tags:** Evade; Invisible; Sinking; detection
-
-> No torch can settle on its silhouette; every witness remembers a different outline.
-
-**Rank I —** Second Shadow — On a successful Evade, mark yourself Veiled until Turn End; once per Turn.
-
-**Rank II —** Vanishing Point — If you evade two attacks in one Turn, gain Invisible until the next Turn Start, provided its canonical detection rules are met.
-
-**Rank III —** Starless Return — Once per Encounter, after Invisible ends, your next hit on an already Sinking target inflicts 2 additional Sinking Count.
-
-**Counterplay / safety —** Invisible is detection-dependent, never guaranteed untargetability. The item grants no free attacks and cannot trigger from an invalid Evade.
-
----
-
-#### Void Anchor III
-
-**Example item:** Void Anchor Shield  
-**Allowed on:** Shield  
-**Status:** PROPOSED / NOT IMPLEMENTED  
-**Tags:** Bind; Restrained; Guard; Shield; Save
-
-> The sigil weighs nothing until the moment something tries to escape its reach.
-
-**Rank I —** Grasp — Once per Turn, after a successful Guard against a melee attacker, inflict 1 Bind for its next Turn.
-
-**Rank II —** Held Horizon — When a Bound enemy hits you, once per Turn, gain a temporary Shield of 5 after the damage resolves.
-
-**Rank III —** Black Gravity — Once per Encounter, when the Bound enemy loses a Clash against you, it must Save or suffer 1 Restrained for one Turn.
-
-**Counterplay / safety —** Does not move enemies or erase Action Slots; Restrained can be resisted and expires after one Turn.
-
----
-
-#### Eclipsed Crown III
-
-**Example item:** Eclipsed Crown Brooch  
-**Allowed on:** Accessory, Valuable  
-**Status:** PROPOSED / NOT IMPLEMENTED  
-**Tags:** Sinking; SP resource; Bind; HP/SP gate
-
-> The crown turns whispers into debts, and demands a memory every time it answers.
-
-**Rank I —** Borrowed Thought — At Turn Start, optionally spend 4 SP to mark one visible enemy for one Turn.
-
-**Rank II —** Mental Debt — Your next successful hit against the marked enemy inflicts Sinking 3 Potency / 2 Count, then clears the mark.
-
-**Rank III —** Eclipse — Once per Encounter, when a marked enemy reaches 0 SP due to your attack, recover up to 4 SP and inflict 1 Bind on that enemy for its next Turn.
-
-**Counterplay / safety —** SP must be available to pay; marks expire without refund and cannot be placed on non-targetable enemies.
-
----
-
-#### Spectral Covenant III
+### Spectral Covenant — Umbral
 
 **Example item:** Spectral Covenant Longsword  
-**Allowed on:** Weapon  
-**Status:** PROPOSED / NOT IMPLEMENTED  
-**Tags:** Stagger; Sinking; Shield; charges
+**Equipment kind:** `weapon`  
+**Compatible canonical chassis IDs:** `longsword`, `greatsword`, `rapier`, `spear`  
+**Review status:** PROPOSED · NOT IMPLEMENTED
 
 > A half-forgotten oath follows the weapon from the sheath, waiting for an ally's last stand.
 
-**Rank I —** Witness — Once per Turn when an ally crosses a Stagger Threshold, gain one Vow charge (max 2).
+**Base Effect:** When an ally crosses a Stagger Threshold, gain one Vow (maximum 2; once per Turn). Your next Hit with this weapon may consume one Vow to inflict 2 Sinking Potency / 1 Count and grant that ally 3 temporary Shield.
 
-**Rank II —** Answer — After your next weapon-linked hit, consume 1 Vow to inflict Sinking 2 Potency / 2 Count.
+**Rank I (×1.00):** When an ally crosses a Stagger Threshold, gain one Vow (maximum 2; once per Turn). Your next Hit with this weapon may consume one Vow to inflict 2 Sinking Potency / 1 Count and grant that ally 3 temporary Shield.
 
-**Rank III —** Unbroken Circle — Once per Encounter, spend 2 Vow after a weapon-linked hit to grant that Staggered ally a temporary Shield of 8 if it remains targetable.
+**Rank II (×1.50, Ceil):** When an ally crosses a Stagger Threshold, gain one Vow (maximum 2; once per Turn). Your next Hit with this weapon may consume one Vow to inflict 3 Sinking Potency / 2 Count and grant that ally 5 temporary Shield.
 
-**Counterplay / safety —** Only ally Stagger events award Vow, not self-triggered manipulation. Vows expire at Encounter End.
+**Rank III (×2.50, Ceil):** When an ally crosses a Stagger Threshold, gain one Vow (maximum 2; once per Turn). Your next Hit with this weapon may consume one Vow to inflict 5 Sinking Potency / 3 Count and grant that ally 8 temporary Shield.
+
+**Scaling keys:** potency=2, count=1, shield=3  
+**Restrictions:** Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.
 
 ---
 
-### Sanctified
+### Dawnbound — Sanctified
 
-#### Dawnbound III
-
-**Example item:** Dawnbound Broadsword  
-**Allowed on:** Weapon  
-**Status:** PROPOSED / NOT IMPLEMENTED  
-**Tags:** Radiance; Shields; Protection; marked attacker
+**Example item:** Dawnbound Longsword  
+**Equipment kind:** `weapon`  
+**Compatible canonical chassis IDs:** `longsword`, `greatsword`, `rapier`, `spear`  
+**Review status:** PROPOSED · NOT IMPLEMENTED
 
 > Light gathers along the blade only where its bearer refuses to strike an already beaten foe.
 
-**Rank I —** First Light — Once per Turn, after a weapon-linked hit against a Shielded enemy, inflict 2 Radiance Count.
+**Base Effect:** Once per Turn, a Hit from this weapon against a Shielded enemy inflicts 2 Radiance Count; if the Hit breaks that Shield, additionally inflict 1 Radiance Count.
 
-**Rank II —** Unmask — After breaking a Shield with this weapon, transfer 1 Radiance Count to its owner if it has none.
+**Rank I (×1.00):** Once per Turn, a Hit from this weapon against a Shielded enemy inflicts 2 Radiance Count; if the Hit breaks that Shield, additionally inflict 1 Radiance Count.
 
-**Rank III —** Daybreak — Once per Encounter, when a Radiant target damages an ally, gain 1 Protection until your next Turn End and mark the attacker for your next hit.
+**Rank II (×1.50, Ceil):** Once per Turn, a Hit from this weapon against a Shielded enemy inflicts 3 Radiance Count; if the Hit breaks that Shield, additionally inflict 2 Radiance Count.
 
-**Counterplay / safety —** No doubling of raw damage; Radiance follows its canonical interaction with Shields and cannot overflow HP on its own.
+**Rank III (×2.50, Ceil):** Once per Turn, a Hit from this weapon against a Shielded enemy inflicts 5 Radiance Count; if the Hit breaks that Shield, additionally inflict 3 Radiance Count.
 
----
-
-#### Halo of Ash III
-
-**Example item:** Halo of Ash Cuirass  
-**Allowed on:** Armor  
-**Status:** PROPOSED / NOT IMPLEMENTED  
-**Tags:** Protection; Shield; Status cleansing; interception
-
-> Its halo shines only after the armor has failed to keep another from pain.
-
-**Rank I —** Guardian Ember — Once per Turn, after taking damage while shielding an ally, gain 1 Protection for the next Turn.
-
-**Rank II —** Sootbound Mercy — If that ally is below half HP, give the ally a temporary Shield of 5 after the intercepted hit.
-
-**Rank III —** Witness of Dawn — Once per Encounter, after saving an ally from crossing a Stagger Threshold through interception, clear 1 nonpermanent negative Status Count from that ally.
-
-**Counterplay / safety —** Ally interception must be a supported action and actually prevent damage. Does not resurrect or erase persistent curses.
+**Scaling keys:** radiance=2, breakBonus=1  
+**Restrictions:** Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.
 
 ---
 
-#### Mercy's Last Light III
-
-**Example item:** Mercy's Last Light Pendant  
-**Allowed on:** Accessory  
-**Status:** PROPOSED / NOT IMPLEMENTED  
-**Tags:** SP cost; Shield; HP healing; lethal-hit window
-
-> The glass lantern brightens in proportion to how much its owner cannot bear to lose.
-
-**Rank I —** Keep the Flame — Once per Turn, when an ally falls below 30% HP due to direct damage, you may spend 4 SP to give that ally a Shield of 6.
-
-**Rank II —** Shared Light — If that Shield survives until the ally's next Turn Start, restore 3 HP to the ally and remove the Shield.
-
-**Rank III —** Beacon — Once per Encounter, if the guarded ally survives a hit that would otherwise bring it to 0 HP, the lantern may reduce that hit's damage by up to 5 instead of creating the Shield.
-
-**Counterplay / safety —** Damage reduction is capped, not invulnerability. Does not intercept instant narrative death or revive characters already at 0 HP.
-
----
-
-#### Oathkeeper III
-
-**Example item:** Oathkeeper Tower Shield  
-**Allowed on:** Shield  
-**Status:** PROPOSED / NOT IMPLEMENTED  
-**Tags:** interception; Guard; Protection; Shield
-
-> Every name carved into the shield is an oath that outlived its author.
-
-**Rank I —** Sworn Ward — At Encounter Start choose one ally; once per Turn, while guarding, you may intercept one incoming Attack Skill aimed at that ally.
-
-**Rank II —** Steadfast — After successfully intercepting, gain 1 Protection for the rest of the Turn.
-
-**Rank III —** Endless Watch — Once per Encounter, if the intercepted hit would cross that ally's Stagger Threshold, the bearer gains a temporary Shield of 10 before taking the intercepted damage.
-
-**Counterplay / safety —** Needs an explicit legal reaction/Guard action and valid range. One protected ally at a time; no unlimited reactive blocks.
-
----
-
-#### Sunpiercer III
+### Sunpiercer — Sanctified
 
 **Example item:** Sunpiercer Spear  
-**Allowed on:** Weapon  
-**Status:** PROPOSED / NOT IMPLEMENTED  
-**Tags:** Invisible; Radiance; Shield break; target detection
+**Equipment kind:** `weapon`  
+**Compatible canonical chassis IDs:** `spear`, `lance`, `pike`, `trident`  
+**Review status:** PROPOSED · NOT IMPLEMENTED
 
 > Its point does not chase shadows; it makes them confess their shape.
 
-**Rank I —** Reveal — On a weapon-linked hit against an enemy with Invisible, cancel one temporary concealment from that source, once per Turn.
+**Base Effect:** Once per Turn, when a Hit from this weapon breaks an enemy Shield, inflict 2 Radiance Count on its owner and remove up to 1 removable temporary concealment layers if any exist.
 
-**Rank II —** Scorch the Veil — On the first hit each Turn against a target with a Shield, inflict 2 Radiance Count.
+**Rank I (×1.00):** Once per Turn, when a Hit from this weapon breaks an enemy Shield, inflict 2 Radiance Count on its owner and remove up to 1 removable temporary concealment layers if any exist.
 
-**Rank III —** Open Sky — Once per Encounter, breaking a Shield from this weapon clears one temporary Invisible effect from that target and adds 2 Radiance Count.
+**Rank II (×1.50, Ceil):** Once per Turn, when a Hit from this weapon breaks an enemy Shield, inflict 3 Radiance Count on its owner and remove up to 2 removable temporary concealment layers if any exist.
 
-**Counterplay / safety —** Invisible remains subject to canonical detection; cannot bypass legal targeting to hit an unseen foe without a successful detection.
+**Rank III (×2.50, Ceil):** Once per Turn, when a Hit from this weapon breaks an enemy Shield, inflict 5 Radiance Count on its owner and remove up to 3 removable temporary concealment layers if any exist.
 
----
-
-#### Radiant Bastion III
-
-**Example item:** Radiant Bastion Shield  
-**Allowed on:** Armor, Shield  
-**Status:** PROPOSED / NOT IMPLEMENTED  
-**Tags:** Guard; Shield; Protection; ally selection
-
-> The fortress engraved inside the metal is not a place. It is a promise the bearer must keep.
-
-**Rank I —** Shelter — After successfully guarding a direct attack, once per Turn, grant the lowest-HP nearby ally a temporary Shield of 4.
-
-**Rank II —** Consecration — If the ally's Shield persists to Turn Start, grant that ally 1 Protection until Turn End.
-
-**Rank III —** Citadel — Once per Encounter, after three successful Guards in the same Encounter, distribute a total Shield value of 12 among up to three allies.
-
-**Counterplay / safety —** Guard count resets at Encounter End; no aura without successful Guards, and granted Shields never stack beyond per-target limits.
+**Scaling keys:** radiance=2, concealment=1  
+**Restrictions:** Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.
 
 ---
 
-### Anomalous
-
-#### Gravemark III
+### Gravemark — Anomalous
 
 **Example item:** Gravemark Warhammer  
-**Allowed on:** Weapon  
-**Status:** PROPOSED / NOT IMPLEMENTED  
-**Tags:** Tremor; Tremor Burst; multiple hits
+**Equipment kind:** `weapon`  
+**Compatible canonical chassis IDs:** `warhammer`, `maul`, `mace`, `morningstar`  
+**Review status:** PROPOSED · NOT IMPLEMENTED
 
 > Each blow leaves the memory of a second impact that has not happened yet.
 
-**Rank I —** Pressure Fracture — Once per Turn, a weapon-linked hit inflicts Tremor 3 Potency / 2 Count.
+**Base Effect:** Once per Turn, the first Hit from this weapon inflicts 2 Tremor Potency / 2 Count. After the third Hit against the same enemy in this Encounter, trigger Tremor Burst once if it has Tremor.
 
-**Rank II —** Compression — When a target with Tremor loses a Clash against this weapon, extend Tremor Count by 1, once per Turn.
+**Rank I (×1.00):** Once per Turn, the first Hit from this weapon inflicts 2 Tremor Potency / 2 Count. After the third Hit against the same enemy in this Encounter, trigger Tremor Burst once if it has Tremor.
 
-**Rank III —** Collapse — Once per Encounter, after three successful hits on one target, trigger Tremor Burst if Tremor is present, then clear the counter.
+**Rank II (×1.50, Ceil):** Once per Turn, the first Hit from this weapon inflicts 3 Tremor Potency / 3 Count. After the third Hit against the same enemy in this Encounter, trigger Tremor Burst once if it has Tremor.
 
-**Counterplay / safety —** Tremor Burst modifies Stagger Thresholds; it is not direct HP damage. No burst without existing Tremor.
+**Rank III (×2.50, Ceil):** Once per Turn, the first Hit from this weapon inflicts 5 Tremor Potency / 5 Count. After the third Hit against the same enemy in this Encounter, trigger Tremor Burst once if it has Tremor.
 
----
-
-#### Mirrorheart III
-
-**Example item:** Mirrorheart Pendant  
-**Allowed on:** Accessory, Valuable  
-**Status:** PROPOSED / NOT IMPLEMENTED  
-**Tags:** Burn/Bleed/Sinking; status copy whitelist; remove Status Count
-
-> The surface reflects the wounds it sees rather than the face that wears it.
-
-**Rank I —** Witness — Once per Turn after a direct hit, record one qualifying negative Status from the hit (Burn, Bleed, or Sinking) at up to 2 Potency / 1 Count.
-
-**Rank II —** Reflection — Your next successful Attack Skill inflicts the stored Status on its target, then empties the mirror.
-
-**Rank III —** Shattered Truth — Once per Encounter, after reflection, remove 1 Count of that same Status from yourself.
-
-**Counterplay / safety —** Only listed statuses can be copied; no copying Frozen, Paralysis, curses, or permanent conditions. Reflection does not trigger itself.
+**Scaling keys:** potency=2, count=2  
+**Restrictions:** Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.
 
 ---
 
-#### Chains of Ruin III
+### Chains of Ruin — Anomalous
 
-**Example item:** Chains of Ruin Chainwhip  
-**Allowed on:** Weapon  
-**Status:** PROPOSED / NOT IMPLEMENTED  
-**Tags:** Bind; Rupture; Restrained; Save
+**Example item:** Chains of Ruin Whip  
+**Equipment kind:** `weapon`  
+**Compatible canonical chassis IDs:** `whip`, `flail`, `glaive`  
+**Review status:** PROPOSED · NOT IMPLEMENTED
 
 > The links have no length until their victim tries to move away.
 
-**Rank I —** Hook — First weapon-linked hit each Turn inflicts 1 Bind for the next Turn.
+**Base Effect:** Once per Turn, the first weapon-linked Hit inflicts 1 Bind for the target's next Turn. If that Bound enemy attacks an ally before Bind expires, it receives 2 Rupture Potency / 1 Count.
 
-**Rank II —** Holdfast — When a target with Bind attacks someone other than the wielder, inflict 2 Rupture Potency / 1 Count on that target, once per Turn.
+**Rank I (×1.00):** Once per Turn, the first weapon-linked Hit inflicts 1 Bind for the target's next Turn. If that Bound enemy attacks an ally before Bind expires, it receives 2 Rupture Potency / 1 Count.
 
-**Rank III —** Unbroken Chain — Once per Encounter, after winning a Clash against a Bound target, you may apply 1 Restrained for one Turn if the target fails a Save.
+**Rank II (×1.50, Ceil):** Once per Turn, the first weapon-linked Hit inflicts 2 Bind for the target's next Turn. If that Bound enemy attacks an ally before Bind expires, it receives 3 Rupture Potency / 2 Count.
 
-**Counterplay / safety —** No forced movement or aggro override. A target can Save against Restrained; no chain activation from self-damage.
+**Rank III (×2.50, Ceil):** Once per Turn, the first weapon-linked Hit inflicts 3 Bind for the target's next Turn. If that Bound enemy attacks an ally before Bind expires, it receives 5 Rupture Potency / 3 Count.
 
----
-
-#### Chronolock III
-
-**Example item:** Chronolock Bracelet  
-**Allowed on:** Accessory  
-**Status:** PROPOSED / NOT IMPLEMENTED  
-**Tags:** Quick Action; debt; action economy
-
-> The watch has thirteen hands. The thirteenth moves only when the wearer has made a choice it cannot undo.
-
-**Rank I —** Borrowed Second — Once per Encounter, before your Turn's actions resolve, borrow one Quick Action if the action economy permits it.
-
-**Rank II —** Temporal Debt — At the beginning of your next Turn, lose one Quick Action; the debt applies even if the borrowed action was unused.
-
-**Rank III —** Broken Hour — Rank III lets you instead lend that borrowed Quick Action to a willing ally, who incurs the same debt next Turn.
-
-**Counterplay / safety —** Cannot generate Action Slots, Skill Coins, or extra full Actions. Cannot borrow while in Action debt; must be implemented through action-economy authority.
+**Scaling keys:** bind=1, potency=2, count=1  
+**Restrictions:** Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.
 
 ---
 
-#### Requiem Coil III
-
-**Example item:** Requiem Coil Brigandine  
-**Allowed on:** Armor  
-**Status:** PROPOSED / NOT IMPLEMENTED  
-**Tags:** Guard; stored prevention; Fixed Damage; Shield
-
-> The coil listens to blows. When it speaks, it repeats only what the bearer survived.
-
-**Rank I —** Absorb — Once per Turn, store up to 4 damage actually prevented by a Guard (Memory, maximum 8).
-
-**Rank II —** Retort — The next weapon-linked hit consumes Memory to deal Fixed Damage equal to the consumed amount, capped at 8.
-
-**Rank III —** Echo Chamber — Once per Encounter, after Retort, gain a temporary Shield equal to half the consumed Memory, rounded down.
-
-**Counterplay / safety —** Only prevented damage counts, not HP lost. Does not reflect status ticks, bypass resistance, or chain from Retort damage.
-
----
-
-#### Nullwake III
+### Nullwake — Anomalous
 
 **Example item:** Nullwake Dagger  
-**Allowed on:** Weapon, Accessory  
-**Status:** PROPOSED / NOT IMPLEMENTED  
-**Tags:** temporary beneficial statuses; dispel whitelist; source tracking
+**Equipment kind:** `weapon`  
+**Compatible canonical chassis IDs:** `dagger`, `rapier`, `shortsword`, `war_pick`  
+**Review status:** PROPOSED · NOT IMPLEMENTED
 
 > Everything near the relic becomes momentarily uncertain of the rules that hold it together.
 
-**Rank I —** Interruption — Once per Turn, after hitting a target with a removable positive Status, mark that Status for disruption.
+**Base Effect:** Once per Turn, when this weapon Hits an enemy carrying a removable temporary positive Status, remove up to 1 Count from one such Status of your choice.
 
-**Rank II —** Unweaving — On the next weapon-linked hit against that target, remove 1 Count of the marked positive Status and clear the mark.
+**Rank I (×1.00):** Once per Turn, when this weapon Hits an enemy carrying a removable temporary positive Status, remove up to 1 Count from one such Status of your choice.
 
-**Rank III —** Stillness — Once per Encounter, if the removed Status was Protection or Haste, prevent that same source from reapplying it until the next Turn Start.
+**Rank II (×1.50, Ceil):** Once per Turn, when this weapon Hits an enemy carrying a removable temporary positive Status, remove up to 2 Count from one such Status of your choice.
 
-**Counterplay / safety —** Whitelist removable temporary statuses only; no stripping class Traits, permanent effects, attunement, or equipment. No global magic suppression.
+**Rank III (×2.50, Ceil):** Once per Turn, when this weapon Hits an enemy carrying a removable temporary positive Status, remove up to 3 Count from one such Status of your choice.
+
+**Scaling keys:** count=1  
+**Restrictions:** Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.
 
 ---
 
-## Approval checklist
+## Armor Enchantments (6)
 
-- [ ] Naming and item display composition are accepted.
-- [ ] Lore matches Limbus tone and the item's source.
-- [ ] Trigger timing is unambiguous (On Hit, Clash Win, Turn Start, status conversion, etc.).
-- [ ] Rank I / II / III progression changes the gameplay, not only the numeric value.
-- [ ] Status stacking, Potency/Count, cap, immunity and removals respect canonical rules.
-- [ ] Source Item Instance, equip slot and Attunement gating are specified.
-- [ ] Cooldowns, once-per-Turn caps, target selection and anti-recursion are specified.
-- [ ] The exact hook exists or the required runtime extension is documented.
-- [ ] Rarity, special materials and AHN pricing receive separate approval.
-- [ ] All tooltips remain readable in the inventory / Battle Viewer without dumping engine debug values.
+### Emberheart — Infernal
 
-**Implementation gate:** Until reviewed, the `game-codex/enchantments-review-catalog.js` file is read-only design data; it does not register Traits, Status effects, Item enchantments or recipes, and must not be loaded by active gameplay.
+**Example item:** Emberheart Breastplate  
+**Equipment kind:** `armor`  
+**Compatible canonical chassis IDs:** `breastplate`, `half_plate`, `chain_mail`, `plate_armor`  
+**Review status:** PROPOSED · NOT IMPLEMENTED
+
+> There is no warmth in the gem until the wearer has suffered for someone else.
+
+**Base Effect:** Once per Turn, direct enemy damage to your HP stores one Ember (maximum 2). At next Turn Start, consume the stored Ember to gain 4 temporary Shield per charge.
+
+**Rank I (×1.00):** Once per Turn, direct enemy damage to your HP stores one Ember (maximum 2). At next Turn Start, consume the stored Ember to gain 4 temporary Shield per charge.
+
+**Rank II (×1.50, Ceil):** Once per Turn, direct enemy damage to your HP stores one Ember (maximum 2). At next Turn Start, consume the stored Ember to gain 6 temporary Shield per charge.
+
+**Rank III (×2.50, Ceil):** Once per Turn, direct enemy damage to your HP stores one Ember (maximum 2). At next Turn Start, consume the stored Ember to gain 10 temporary Shield per charge.
+
+**Scaling keys:** shield=4  
+**Restrictions:** Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.
+
+---
+
+### Whiteout — Glacial
+
+**Example item:** Whiteout Leather Armor  
+**Equipment kind:** `armor`  
+**Compatible canonical chassis IDs:** `padded_armor`, `leather_armor`, `hide_armor`, `chain_shirt`  
+**Review status:** PROPOSED · NOT IMPLEMENTED
+
+> The ward sheds snow that is never there, concealing the bearer in the instant before impact.
+
+**Base Effect:** Once per Turn, when a direct enemy Attack Skill misses the wearer, inflict 2 Chill Count on that attacker; if it had Chill before missing, gain 3 temporary Shield.
+
+**Rank I (×1.00):** Once per Turn, when a direct enemy Attack Skill misses the wearer, inflict 2 Chill Count on that attacker; if it had Chill before missing, gain 3 temporary Shield.
+
+**Rank II (×1.50, Ceil):** Once per Turn, when a direct enemy Attack Skill misses the wearer, inflict 3 Chill Count on that attacker; if it had Chill before missing, gain 5 temporary Shield.
+
+**Rank III (×2.50, Ceil):** Once per Turn, when a direct enemy Attack Skill misses the wearer, inflict 5 Chill Count on that attacker; if it had Chill before missing, gain 8 temporary Shield.
+
+**Scaling keys:** chill=2, shield=3  
+**Restrictions:** Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.
+
+---
+
+### Static Veil — Tempest
+
+**Example item:** Static Veil Chain Mail  
+**Equipment kind:** `armor`  
+**Compatible canonical chassis IDs:** `chain_shirt`, `scale_mail`, `ring_mail`, `chain_mail`  
+**Review status:** PROPOSED · NOT IMPLEMENTED
+
+> The air catches against the armor, holding every missed strike like a debt unpaid.
+
+**Base Effect:** Once per Turn, when a direct enemy Attack Skill misses the wearer, inflict 2 Shock Count on the attacker. If the attacker already had Shock, gain 3 temporary Shield.
+
+**Rank I (×1.00):** Once per Turn, when a direct enemy Attack Skill misses the wearer, inflict 2 Shock Count on the attacker. If the attacker already had Shock, gain 3 temporary Shield.
+
+**Rank II (×1.50, Ceil):** Once per Turn, when a direct enemy Attack Skill misses the wearer, inflict 3 Shock Count on the attacker. If the attacker already had Shock, gain 5 temporary Shield.
+
+**Rank III (×2.50, Ceil):** Once per Turn, when a direct enemy Attack Skill misses the wearer, inflict 5 Shock Count on the attacker. If the attacker already had Shock, gain 8 temporary Shield.
+
+**Scaling keys:** shock=2, shield=3  
+**Restrictions:** Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.
+
+---
+
+### Butcher's Hymn — Sanguine
+
+**Example item:** Butcher's Hymn Breastplate  
+**Equipment kind:** `armor`  
+**Compatible canonical chassis IDs:** `breastplate`, `half_plate`, `chain_mail`, `plate_armor`  
+**Review status:** PROPOSED · NOT IMPLEMENTED
+
+> The plates hum louder with every wound their owner survives, refusing the comfort of silence.
+
+**Base Effect:** Once per Turn, when direct enemy damage reduces the wearer's HP, gain 2 Poise Potency / 2 Count.
+
+**Rank I (×1.00):** Once per Turn, when direct enemy damage reduces the wearer's HP, gain 2 Poise Potency / 2 Count.
+
+**Rank II (×1.50, Ceil):** Once per Turn, when direct enemy damage reduces the wearer's HP, gain 3 Poise Potency / 3 Count.
+
+**Rank III (×2.50, Ceil):** Once per Turn, when direct enemy damage reduces the wearer's HP, gain 5 Poise Potency / 5 Count.
+
+**Scaling keys:** potency=2, count=2  
+**Restrictions:** Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.
+
+---
+
+### Halo of Ash — Sanctified
+
+**Example item:** Halo of Ash Breastplate  
+**Equipment kind:** `armor`  
+**Compatible canonical chassis IDs:** `breastplate`, `half_plate`, `chain_mail`, `plate_armor`  
+**Review status:** PROPOSED · NOT IMPLEMENTED
+
+> Its halo shines only after the armor has failed to keep another from pain.
+
+**Base Effect:** Once per Turn, after legally intercepting direct enemy damage intended for an ally, gain 1 Protection for the next Turn and grant that ally 4 temporary Shield.
+
+**Rank I (×1.00):** Once per Turn, after legally intercepting direct enemy damage intended for an ally, gain 1 Protection for the next Turn and grant that ally 4 temporary Shield.
+
+**Rank II (×1.50, Ceil):** Once per Turn, after legally intercepting direct enemy damage intended for an ally, gain 2 Protection for the next Turn and grant that ally 6 temporary Shield.
+
+**Rank III (×2.50, Ceil):** Once per Turn, after legally intercepting direct enemy damage intended for an ally, gain 3 Protection for the next Turn and grant that ally 10 temporary Shield.
+
+**Scaling keys:** protection=1, shield=4  
+**Restrictions:** Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.
+
+---
+
+### Requiem Coil — Anomalous
+
+**Example item:** Requiem Coil Breastplate  
+**Equipment kind:** `armor`  
+**Compatible canonical chassis IDs:** `breastplate`, `half_plate`, `splint_armor`, `plate_armor`  
+**Review status:** PROPOSED · NOT IMPLEMENTED
+
+> The coil listens to blows. When it speaks, it repeats only what the bearer survived.
+
+**Base Effect:** Once per Turn, when your Guard prevents direct enemy damage while wearing this armor, store up to 4 prevented damage. Your next weapon-linked Hit spends that Memory to deal equal extra Fixed Damage.
+
+**Rank I (×1.00):** Once per Turn, when your Guard prevents direct enemy damage while wearing this armor, store up to 4 prevented damage. Your next weapon-linked Hit spends that Memory to deal equal extra Fixed Damage.
+
+**Rank II (×1.50, Ceil):** Once per Turn, when your Guard prevents direct enemy damage while wearing this armor, store up to 6 prevented damage. Your next weapon-linked Hit spends that Memory to deal equal extra Fixed Damage.
+
+**Rank III (×2.50, Ceil):** Once per Turn, when your Guard prevents direct enemy damage while wearing this armor, store up to 10 prevented damage. Your next weapon-linked Hit spends that Memory to deal equal extra Fixed Damage.
+
+**Scaling keys:** memory=4  
+**Restrictions:** Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.
+
+---
+
+## Shield Enchantments (6)
+
+### Ashwake — Infernal
+
+**Example item:** Ashwake Tower Shield  
+**Equipment kind:** `shield`  
+**Compatible canonical chassis IDs:** `shield_round`, `shield_heater`, `shield_tower`  
+**Review status:** PROPOSED · NOT IMPLEMENTED
+
+> A black furnace sleeps behind the plating, opening its vents only when its bearer stands against the tide.
+
+**Base Effect:** Once per Turn, after a Guard with this shield prevents enemy damage, the attacker suffers 2 Burn Potency / 1 Count.
+
+**Rank I (×1.00):** Once per Turn, after a Guard with this shield prevents enemy damage, the attacker suffers 2 Burn Potency / 1 Count.
+
+**Rank II (×1.50, Ceil):** Once per Turn, after a Guard with this shield prevents enemy damage, the attacker suffers 3 Burn Potency / 2 Count.
+
+**Rank III (×2.50, Ceil):** Once per Turn, after a Guard with this shield prevents enemy damage, the attacker suffers 5 Burn Potency / 3 Count.
+
+**Scaling keys:** potency=2, count=1  
+**Restrictions:** Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.
+
+---
+
+### Permafrost — Glacial
+
+**Example item:** Permafrost Tower Shield  
+**Equipment kind:** `shield`  
+**Compatible canonical chassis IDs:** `shield_round`, `shield_heater`, `shield_tower`  
+**Review status:** PROPOSED · NOT IMPLEMENTED
+
+> A sealed glacier is layered into the metal; what it cannot stop it refuses to release.
+
+**Base Effect:** Once per Turn, after this shield successfully prevents direct damage through Guard, store up to 4 prevented damage. At next Turn Start convert the stored damage into equal temporary Shield and clear it.
+
+**Rank I (×1.00):** Once per Turn, after this shield successfully prevents direct damage through Guard, store up to 4 prevented damage. At next Turn Start convert the stored damage into equal temporary Shield and clear it.
+
+**Rank II (×1.50, Ceil):** Once per Turn, after this shield successfully prevents direct damage through Guard, store up to 6 prevented damage. At next Turn Start convert the stored damage into equal temporary Shield and clear it.
+
+**Rank III (×2.50, Ceil):** Once per Turn, after this shield successfully prevents direct damage through Guard, store up to 10 prevented damage. At next Turn Start convert the stored damage into equal temporary Shield and clear it.
+
+**Scaling keys:** memory=4  
+**Restrictions:** Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.
+
+---
+
+### Stormcage — Tempest
+
+**Example item:** Stormcage Buckler  
+**Equipment kind:** `shield`  
+**Compatible canonical chassis IDs:** `shield_buckler`, `shield_round`, `shield_heater`  
+**Review status:** PROPOSED · NOT IMPLEMENTED
+
+> Copper veins across the shield pulse whenever an enemy mistakes its silence for safety.
+
+**Base Effect:** Once per Turn, a successful Guard with this shield inflicts 2 Shock Count on the attacker. When this instance's Shock converts into Paralysis, gain 4 temporary Shield.
+
+**Rank I (×1.00):** Once per Turn, a successful Guard with this shield inflicts 2 Shock Count on the attacker. When this instance's Shock converts into Paralysis, gain 4 temporary Shield.
+
+**Rank II (×1.50, Ceil):** Once per Turn, a successful Guard with this shield inflicts 3 Shock Count on the attacker. When this instance's Shock converts into Paralysis, gain 6 temporary Shield.
+
+**Rank III (×2.50, Ceil):** Once per Turn, a successful Guard with this shield inflicts 5 Shock Count on the attacker. When this instance's Shock converts into Paralysis, gain 10 temporary Shield.
+
+**Scaling keys:** shock=2, shield=4  
+**Restrictions:** Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.
+
+---
+
+### Void Anchor — Umbral
+
+**Example item:** Void Anchor Heater Shield  
+**Equipment kind:** `shield`  
+**Compatible canonical chassis IDs:** `shield_round`, `shield_heater`, `shield_tower`  
+**Review status:** PROPOSED · NOT IMPLEMENTED
+
+> The sigil weighs nothing until the moment something tries to escape its reach.
+
+**Base Effect:** Once per Turn, after a Guard with this shield against a melee attacker, inflict 1 Bind for its next Turn. If that attacker Hits the bearer while Bound, gain 4 temporary Shield after taking the damage.
+
+**Rank I (×1.00):** Once per Turn, after a Guard with this shield against a melee attacker, inflict 1 Bind for its next Turn. If that attacker Hits the bearer while Bound, gain 4 temporary Shield after taking the damage.
+
+**Rank II (×1.50, Ceil):** Once per Turn, after a Guard with this shield against a melee attacker, inflict 2 Bind for its next Turn. If that attacker Hits the bearer while Bound, gain 6 temporary Shield after taking the damage.
+
+**Rank III (×2.50, Ceil):** Once per Turn, after a Guard with this shield against a melee attacker, inflict 3 Bind for its next Turn. If that attacker Hits the bearer while Bound, gain 10 temporary Shield after taking the damage.
+
+**Scaling keys:** bind=1, shield=4  
+**Restrictions:** Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.
+
+---
+
+### Oathkeeper — Sanctified
+
+**Example item:** Oathkeeper Tower Shield  
+**Equipment kind:** `shield`  
+**Compatible canonical chassis IDs:** `shield_round`, `shield_heater`, `shield_tower`  
+**Review status:** PROPOSED · NOT IMPLEMENTED
+
+> Every name carved into the shield is an oath that outlived its author.
+
+**Base Effect:** Choose one ally at Encounter Start. Once per Turn, after legally intercepting a direct attack intended for that ally with this shield, gain 4 temporary Shield before receiving the intercepted damage.
+
+**Rank I (×1.00):** Choose one ally at Encounter Start. Once per Turn, after legally intercepting a direct attack intended for that ally with this shield, gain 4 temporary Shield before receiving the intercepted damage.
+
+**Rank II (×1.50, Ceil):** Choose one ally at Encounter Start. Once per Turn, after legally intercepting a direct attack intended for that ally with this shield, gain 6 temporary Shield before receiving the intercepted damage.
+
+**Rank III (×2.50, Ceil):** Choose one ally at Encounter Start. Once per Turn, after legally intercepting a direct attack intended for that ally with this shield, gain 10 temporary Shield before receiving the intercepted damage.
+
+**Scaling keys:** shield=4  
+**Restrictions:** Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.
+
+---
+
+### Radiant Bastion — Sanctified
+
+**Example item:** Radiant Bastion Heater Shield  
+**Equipment kind:** `shield`  
+**Compatible canonical chassis IDs:** `shield_round`, `shield_heater`, `shield_tower`  
+**Review status:** PROPOSED · NOT IMPLEMENTED
+
+> The fortress engraved inside the metal is not a place. It is a promise the bearer must keep.
+
+**Base Effect:** Once per Turn, when a Guard with this shield prevents enemy damage, distribute 4 total temporary Shield between up to two nearby allies.
+
+**Rank I (×1.00):** Once per Turn, when a Guard with this shield prevents enemy damage, distribute 4 total temporary Shield between up to two nearby allies.
+
+**Rank II (×1.50, Ceil):** Once per Turn, when a Guard with this shield prevents enemy damage, distribute 6 total temporary Shield between up to two nearby allies.
+
+**Rank III (×2.50, Ceil):** Once per Turn, when a Guard with this shield prevents enemy damage, distribute 10 total temporary Shield between up to two nearby allies.
+
+**Scaling keys:** shield=4  
+**Restrictions:** Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.
+
+---
+
+## Accessory Enchantments (9)
+
+### Scorchweave — Infernal
+
+**Example item:** Scorchweave Brooch  
+**Equipment kind:** `accessory`  
+**Compatible canonical chassis IDs:** `brooch`, `bracelet`, `anklet`, `pendant`  
+**Review status:** PROPOSED · NOT IMPLEMENTED
+
+> The cloth weighs nothing, yet smoke coils behind every motion its owner refuses to finish.
+
+**Base Effect:** Once per Turn, a successful Evade marks the attacker until Turn End; the first Hit from one of your equipped weapons against that marked attacker inflicts 2 Burn Potency / 1 Count and consumes the mark.
+
+**Rank I (×1.00):** Once per Turn, a successful Evade marks the attacker until Turn End; the first Hit from one of your equipped weapons against that marked attacker inflicts 2 Burn Potency / 1 Count and consumes the mark.
+
+**Rank II (×1.50, Ceil):** Once per Turn, a successful Evade marks the attacker until Turn End; the first Hit from one of your equipped weapons against that marked attacker inflicts 3 Burn Potency / 2 Count and consumes the mark.
+
+**Rank III (×2.50, Ceil):** Once per Turn, a successful Evade marks the attacker until Turn End; the first Hit from one of your equipped weapons against that marked attacker inflicts 5 Burn Potency / 3 Count and consumes the mark.
+
+**Scaling keys:** potency=2, count=1  
+**Restrictions:** Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.
+
+---
+
+### Black Ice — Glacial
+
+**Example item:** Black Ice Anklet  
+**Equipment kind:** `accessory`  
+**Compatible canonical chassis IDs:** `anklet`, `bracelet`  
+**Review status:** PROPOSED · NOT IMPLEMENTED
+
+> Each step leaves a shadow of ice a heartbeat behind the foot that made it.
+
+**Base Effect:** Once per Turn, a successful Evade grants 1 Haste next Turn; if the attacker already had Chill, extend that attacker's Chill Count by 2.
+
+**Rank I (×1.00):** Once per Turn, a successful Evade grants 1 Haste next Turn; if the attacker already had Chill, extend that attacker's Chill Count by 2.
+
+**Rank II (×1.50, Ceil):** Once per Turn, a successful Evade grants 2 Haste next Turn; if the attacker already had Chill, extend that attacker's Chill Count by 3.
+
+**Rank III (×2.50, Ceil):** Once per Turn, a successful Evade grants 3 Haste next Turn; if the attacker already had Chill, extend that attacker's Chill Count by 5.
+
+**Scaling keys:** haste=1, chill=2  
+**Restrictions:** Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.
+
+---
+
+### Galeheart — Tempest
+
+**Example item:** Galeheart Bracelet  
+**Equipment kind:** `accessory`  
+**Compatible canonical chassis IDs:** `bracelet`, `anklet`, `earrings`  
+**Review status:** PROPOSED · NOT IMPLEMENTED
+
+> A trapped storm beats against the wearer's pulse whenever the battlefield changes direction.
+
+**Base Effect:** Once per Turn, after a successful Evade, gain 1 Haste next Turn. If the attacker already had Bind, extend that Bind by 1.
+
+**Rank I (×1.00):** Once per Turn, after a successful Evade, gain 1 Haste next Turn. If the attacker already had Bind, extend that Bind by 1.
+
+**Rank II (×1.50, Ceil):** Once per Turn, after a successful Evade, gain 2 Haste next Turn. If the attacker already had Bind, extend that Bind by 2.
+
+**Rank III (×2.50, Ceil):** Once per Turn, after a successful Evade, gain 3 Haste next Turn. If the attacker already had Bind, extend that Bind by 3.
+
+**Scaling keys:** haste=1, bind=1  
+**Restrictions:** Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.
+
+---
+
+### Drownsong — Umbral
+
+**Example item:** Drownsong Ring  
+**Equipment kind:** `accessory`  
+**Compatible canonical chassis IDs:** `ring`, `pendant`, `necklace`, `brooch`  
+**Review status:** PROPOSED · NOT IMPLEMENTED
+
+> The ring sings beneath running water, but only the wearer hears the drowned choir.
+
+**Base Effect:** Once per Turn, after direct enemy effects lower the wearer's SP, inflict 2 Sinking Potency / 1 Count on the responsible enemy.
+
+**Rank I (×1.00):** Once per Turn, after direct enemy effects lower the wearer's SP, inflict 2 Sinking Potency / 1 Count on the responsible enemy.
+
+**Rank II (×1.50, Ceil):** Once per Turn, after direct enemy effects lower the wearer's SP, inflict 3 Sinking Potency / 2 Count on the responsible enemy.
+
+**Rank III (×2.50, Ceil):** Once per Turn, after direct enemy effects lower the wearer's SP, inflict 5 Sinking Potency / 3 Count on the responsible enemy.
+
+**Scaling keys:** potency=2, count=1  
+**Restrictions:** Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.
+
+---
+
+### Nightfall — Umbral
+
+**Example item:** Nightfall Pendant  
+**Equipment kind:** `accessory`  
+**Compatible canonical chassis IDs:** `pendant`, `anklet`, `brooch`  
+**Review status:** PROPOSED · NOT IMPLEMENTED
+
+> No torch can settle on its silhouette; every witness remembers a different outline.
+
+**Base Effect:** Once per Turn, after a successful Evade, become Veiled until Turn End. Your next successful Attack Skill against a valid target while Veiled inflicts 2 Sinking Potency / 1 Count and ends Veiled.
+
+**Rank I (×1.00):** Once per Turn, after a successful Evade, become Veiled until Turn End. Your next successful Attack Skill against a valid target while Veiled inflicts 2 Sinking Potency / 1 Count and ends Veiled.
+
+**Rank II (×1.50, Ceil):** Once per Turn, after a successful Evade, become Veiled until Turn End. Your next successful Attack Skill against a valid target while Veiled inflicts 3 Sinking Potency / 2 Count and ends Veiled.
+
+**Rank III (×2.50, Ceil):** Once per Turn, after a successful Evade, become Veiled until Turn End. Your next successful Attack Skill against a valid target while Veiled inflicts 5 Sinking Potency / 3 Count and ends Veiled.
+
+**Scaling keys:** potency=2, count=1  
+**Restrictions:** Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.
+
+---
+
+### Eclipsed Crown — Umbral
+
+**Example item:** Eclipsed Crown Brooch  
+**Equipment kind:** `accessory`  
+**Compatible canonical chassis IDs:** `brooch`, `ring`, `pendant`, `hairpin`  
+**Review status:** PROPOSED · NOT IMPLEMENTED
+
+> The crown turns whispers into debts, and demands a memory every time it answers.
+
+**Base Effect:** At Turn Start, pay 4 SP to mark one visible enemy until Turn End. Once per Turn, the next successful Attack Skill against that target inflicts 3 Sinking Potency / 1 Count and clears the mark.
+
+**Rank I (×1.00):** At Turn Start, pay 4 SP to mark one visible enemy until Turn End. Once per Turn, the next successful Attack Skill against that target inflicts 3 Sinking Potency / 1 Count and clears the mark.
+
+**Rank II (×1.50, Ceil):** At Turn Start, pay 4 SP to mark one visible enemy until Turn End. Once per Turn, the next successful Attack Skill against that target inflicts 5 Sinking Potency / 2 Count and clears the mark.
+
+**Rank III (×2.50, Ceil):** At Turn Start, pay 4 SP to mark one visible enemy until Turn End. Once per Turn, the next successful Attack Skill against that target inflicts 8 Sinking Potency / 3 Count and clears the mark.
+
+**Scaling keys:** potency=3, count=1  
+**Restrictions:** Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.
+
+---
+
+### Mercy's Last Light — Sanctified
+
+**Example item:** Mercy's Last Light Pendant  
+**Equipment kind:** `accessory`  
+**Compatible canonical chassis IDs:** `pendant`, `necklace`, `brooch`  
+**Review status:** PROPOSED · NOT IMPLEMENTED
+
+> The glass lantern brightens in proportion to how much its owner cannot bear to lose.
+
+**Base Effect:** Once per Turn, when a nearby ally drops below 30% HP after direct enemy damage, spend 4 SP to grant that ally 6 temporary Shield.
+
+**Rank I (×1.00):** Once per Turn, when a nearby ally drops below 30% HP after direct enemy damage, spend 4 SP to grant that ally 6 temporary Shield.
+
+**Rank II (×1.50, Ceil):** Once per Turn, when a nearby ally drops below 30% HP after direct enemy damage, spend 4 SP to grant that ally 9 temporary Shield.
+
+**Rank III (×2.50, Ceil):** Once per Turn, when a nearby ally drops below 30% HP after direct enemy damage, spend 4 SP to grant that ally 15 temporary Shield.
+
+**Scaling keys:** shield=6  
+**Restrictions:** Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.
+
+---
+
+### Mirrorheart — Anomalous
+
+**Example item:** Mirrorheart Pendant  
+**Equipment kind:** `accessory`  
+**Compatible canonical chassis IDs:** `pendant`, `brooch`, `ring`, `necklace`  
+**Review status:** PROPOSED · NOT IMPLEMENTED
+
+> The surface reflects the wounds it sees rather than the face that wears it.
+
+**Base Effect:** Once per Turn, after an enemy directly Hits you and inflicts Burn, Bleed, or Sinking, record up to 2 Potency / 1 Count of one such Status. Your next successful Attack Skill inflicts the stored Status on its target and empties the mirror.
+
+**Rank I (×1.00):** Once per Turn, after an enemy directly Hits you and inflicts Burn, Bleed, or Sinking, record up to 2 Potency / 1 Count of one such Status. Your next successful Attack Skill inflicts the stored Status on its target and empties the mirror.
+
+**Rank II (×1.50, Ceil):** Once per Turn, after an enemy directly Hits you and inflicts Burn, Bleed, or Sinking, record up to 3 Potency / 2 Count of one such Status. Your next successful Attack Skill inflicts the stored Status on its target and empties the mirror.
+
+**Rank III (×2.50, Ceil):** Once per Turn, after an enemy directly Hits you and inflicts Burn, Bleed, or Sinking, record up to 5 Potency / 3 Count of one such Status. Your next successful Attack Skill inflicts the stored Status on its target and empties the mirror.
+
+**Scaling keys:** potency=2, count=1  
+**Restrictions:** Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.
+
+---
+
+### Chronolock — Anomalous
+
+**Example item:** Chronolock Bracelet  
+**Equipment kind:** `accessory`  
+**Compatible canonical chassis IDs:** `bracelet`, `ring`, `anklet`  
+**Review status:** PROPOSED · NOT IMPLEMENTED
+
+> The watch has thirteen hands. The thirteenth moves only when the wearer has made a choice it cannot undo.
+
+**Base Effect:** Once per Encounter, borrow one Quick Action this Turn and lose one Quick Action next Turn as an unavoidable debt. When the debt is paid, gain 4 temporary Shield.
+
+**Rank I (×1.00):** Once per Encounter, borrow one Quick Action this Turn and lose one Quick Action next Turn as an unavoidable debt. When the debt is paid, gain 4 temporary Shield.
+
+**Rank II (×1.50, Ceil):** Once per Encounter, borrow one Quick Action this Turn and lose one Quick Action next Turn as an unavoidable debt. When the debt is paid, gain 6 temporary Shield.
+
+**Rank III (×2.50, Ceil):** Once per Encounter, borrow one Quick Action this Turn and lose one Quick Action next Turn as an unavoidable debt. When the debt is paid, gain 10 temporary Shield.
+
+**Scaling keys:** shield=4  
+**Restrictions:** Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.
+
+---
+
+## Approval and engineering checklist
+
+- [ ] Approve the name and lore for each inscription.
+- [ ] Confirm the unique base mechanic (no new effects in higher Ranks).
+- [ ] Confirm each scalable magnitude and the integer Ceil outputs for all three Ranks.
+- [ ] Confirm authoritative equipment kind/chassis compatibility and composed Item Instance IDs.
+- [ ] Confirm on-hit/guard/evade/critical/turn-end event sources and activation timing.
+- [ ] Check for recursion, infinite loops, Status immunity/caps, legal targets, and legal action costs.
+- [ ] Approve item rarity, crafting ingredients, labor AHN and Attunement separately.
+- [ ] Integrate and test a named-enchantment engine *after* all review decisions; do not represent this design dataset as implemented.
