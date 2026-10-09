@@ -128,6 +128,7 @@ on:
       - tests/item-enchanter-transaction-smoke.cjs
       - tests/item-enchanter-ui.spec.cjs
       - tests/item-enchantment-legacy-backend-smoke.cjs
+      - tests/item-enchantment-combat-deterministic-smoke.cjs
       - tests/item-equipment-enhancement-smoke.cjs
       - tests/item-enchanter-gem-procedure-smoke.cjs
       - tests/item-player-enchant-attempt-smoke.cjs
@@ -326,6 +327,8 @@ jobs:
         run: node tests/item-enchanter-transaction-smoke.cjs
       - name: Enchantment legacy backend regression smoke
         run: node tests/item-enchantment-legacy-backend-smoke.cjs
+      - name: Enchanter Skill and Multi-Coin deterministic combat smoke
+        run: node tests/item-enchantment-combat-deterministic-smoke.cjs
       - name: Item equipment enhancement contract smoke
         run: node tests/item-equipment-enhancement-smoke.cjs
       - name: Enchanter gem procedure smoke
