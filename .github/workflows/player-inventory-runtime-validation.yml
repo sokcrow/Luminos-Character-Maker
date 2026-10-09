@@ -5,6 +5,8 @@ on:
     paths:
       - hoja_personaje.js
       - hoja_personaje.html
+      - hoja_de_DM.html
+      - Battle-viewer.html
       - pantalla_dm.html
       - js/injury-engine.js
       - js/inventory-hud-v2.js
@@ -63,6 +65,9 @@ on:
       - js/item-enchantment-engine.js
       - js/item-enchantment-combat-runtime.js
       - js/item-enchanter-service-runtime.js
+      - js/item-enchanter-ui.js
+      - js/item-equipment-enhancement-contract.js
+      - css/item-enchanter-ui.css
       - js/item-enchantment-compendium-runtime.js
       - js/item-catalog-tools.js
       - js/item-catalog-craft-components.js
@@ -120,6 +125,9 @@ on:
       - tests/item-magic-knowledge-runtime-smoke.cjs
       - tests/item-bound-equipment-lock-smoke.cjs
       - tests/item-enchanter-service-runtime-smoke.cjs
+      - tests/item-enchanter-transaction-smoke.cjs
+      - tests/item-enchantment-legacy-backend-smoke.cjs
+      - tests/item-equipment-enhancement-smoke.cjs
       - tests/item-enchanter-gem-procedure-smoke.cjs
       - tests/item-player-enchant-attempt-smoke.cjs
       - tests/item-enchanter-service-preview-smoke.cjs
@@ -210,6 +218,8 @@ jobs:
           node --check js/item-enchantment-engine.js
           node --check js/item-enchantment-combat-runtime.js
           node --check js/item-enchanter-service-runtime.js
+          node --check js/item-enchanter-ui.js
+          node --check js/item-equipment-enhancement-contract.js
           node --check js/item-enchantment-compendium-runtime.js
           node --check js/item-catalog-tools.js
           node --check js/item-catalog-craft-components.js
@@ -311,6 +321,12 @@ jobs:
         run: node tests/item-bound-equipment-lock-smoke.cjs
       - name: Enchanter service provider quote smoke
         run: node tests/item-enchanter-service-runtime-smoke.cjs
+      - name: Enchanter transaction and provenance smoke
+        run: node tests/item-enchanter-transaction-smoke.cjs
+      - name: Enchantment legacy backend regression smoke
+        run: node tests/item-enchantment-legacy-backend-smoke.cjs
+      - name: Item equipment enhancement contract smoke
+        run: node tests/item-equipment-enhancement-smoke.cjs
       - name: Enchanter gem procedure smoke
         run: node tests/item-enchanter-gem-procedure-smoke.cjs
       - name: Player enchant control deviation smoke
