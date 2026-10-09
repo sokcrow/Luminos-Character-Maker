@@ -28,6 +28,7 @@
     processingSessions: new Set(),
     resultKeys: new Set(),
     issuingOpposed: false,
+    dmRecoveryTimer: null,
   };
 
   const $ = (id) => doc.getElementById(id);
@@ -353,6 +354,13 @@
       Object.entries(state.sessions).forEach(([sessionId, session]) => processSessionDm(sessionId, session));
     });
     db.ref(LIVE_ROOT).on("value", (snapshot) => renderDmOpposedLive(snapshot.val() || {}));
+    // Recover a stale phase lease even if no Firebase value-change event arrives.
+    if (!state.dmRecoveryTimer) {
+      state.dmRecoveryTimer = global.setInterval(() => {
+        Object.entries(state.sessions).forEach(([sessionId, session]) =>
+          processSessionDm(sessionId, session));
+      }, 5000);
+    }
   }
 
   function leaseExpired(status, prefix) {
