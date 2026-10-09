@@ -376,3 +376,27 @@ body.player-instance-theatre .theatre-check-front-layer .theatre-check-command-p
   .on-game-dashboard .theatre-check-compose-preview { grid-template-columns: minmax(0, 1fr) auto; }
   .on-game-dashboard .theatre-check-compose-preview small { grid-column: 1 / -1; }
 }
+
+.on-game-dashboard .theatre-opposed-session-summary {
+  display: grid;
+  gap: 9px;
+  margin-top: 11px;
+  color: #b6ab98;
+  font: 12px/1.5 "Roboto", sans-serif;
+}
+.on-game-dashboard .theatre-opposed-session-card {
+  display: grid;
+  gap: 5px;
+  padding: 11px 12px;
+  border: 1px solid #5c492f;
+  border-radius: 7px;
+  background: #23211d;
+}
+.on-game-dashboard .theatre-opposed-session-card strong {
+  color: #e4d7c1;
+  font: 14px/1.3 "Roboto", sans-serif;
+}
+.on-game-dashboard .theatre-opposed-session-card span {
+  color: #d5b478;
+  font: 11px/1.3 "Share Tech Mono", monospace;
+}
