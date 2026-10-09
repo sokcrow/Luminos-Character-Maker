@@ -924,6 +924,50 @@
     return hud;
   }
 
+  async function resolveDmCheckResult(live) {
+    const uid = live.targetUid;
+    const commandId = live.commandId;
+    if (!uid || !commandId || live.check?.opposedSessionId) return;
+    if (state.resolvedResults.has(commandId) || state.resolvingResults.has(commandId)) return;
+    state.resolvingResults.add(commandId);
+    try {
+      let check = live.check || {};
+      if (check.hiddenThreshold) {
+        const secret = (await db.ref(`dm_private/theatre_check_secrets/${uid}/${commandId}`).once("value")).val();
+        if (secret) check = { ...check, ...secret };
+        else if (check.thresholdRaw == null) throw new Error("Threshold privado no disponible");
+      }
+      const outcome = global.LuminousTheatreRolls?.checkOutcome?.(live.total, check) || null;
+      const threshold = check.hiddenThreshold ? null : (global.LuminousTheatreRolls?.effectiveThreshold?.(check) ?? null);
+      await db.ref(`theatre_check_results/${uid}/${commandId}`).set({
+        roomKey: roomKey(), label: live.rollSpec?.label || "CHECK",
+        total: numberOr(live.total, 0), outcome, threshold,
+        hiddenThreshold: Boolean(check.hiddenThreshold),
+        thresholdVisibility: check.thresholdVisibility || "public",
+        completedAt: firebase.database.ServerValue.TIMESTAMP,
+        clientCompletedAt: Date.now(),
+      });
+      state.resolvedResults.add(commandId);
+    } finally {
+      state.resolvingResults.delete(commandId);
+    }
+  }
+
+  function bindPlayerResults() {
+    const uid = currentUid();
+    if (!uid || state.playerResultsBound) return;
+    state.playerResultsBound = true;
+    db.ref(`theatre_check_results/${uid}`).limitToLast(20).on("child_added", (snapshot) => {
+      const result = snapshot.val() || {};
+      if (String(result.roomKey || "default") !== roomKey()) return;
+      if (Date.now() - numberOr(result.clientCompletedAt, 0) > COMMAND_MAX_AGE_MS) return;
+      playerNotice(result.outcome === "passed" ? "CHECK SUPERADO"
+        : result.outcome === "failed" ? "CHECK FALLIDO" : "TIRADA FINALIZADA",
+      `${result.label || "CHECK"} · Total ${result.total}`,
+      result.outcome === "passed" ? "approved" : "denied");
+    }, (error) => console.warn("Resultados de Checks no disponibles:", error));
+  }
+
   function bindDmLive() {
     if (state.dmLiveBound || currentUid() !== DM_UID) return false;
     state.dmLiveBound = true;
@@ -938,7 +982,10 @@
         });
       });
       entries.sort((a, b) => numberOr(b.clientUpdatedAt) - numberOr(a.clientUpdatedAt));
-      const latest = entries[0];
+      const latest = entries.find((entry) => !entry.check?.opposedSessionId);
+      if (latest?.status === "complete") {
+        resolveDmCheckResult(latest).catch((error) => console.warn("Check DM sin resolución:", error));
+      }
       state.dmLiveHud?.remove();
       state.dmLiveHud = null;
       if (!latest) return;
@@ -960,7 +1007,7 @@
     if (isDmSurface()) {
       mountDmConsole();
       if (uid !== DM_UID) {
-        dmFeedback("CUENTA DM NO AUTORIZADA", `UID ${uid} no coincide con el Director configurado.`, "error");
+        dmFeedback("CUENTA DM NO AUTORIZADA", "No tienes permiso para usar Check Director.", "error");
         return false;
       }
       bindDmPlayers();
@@ -968,6 +1015,7 @@
       bindDmLive();
       return true;
     }
+    bindPlayerResults();
     return bindPlayerCommands();
   }
 
