@@ -1,11 +1,15 @@
 "use strict";
 const assert = require("node:assert/strict");
-require("../js/trait-engine.js");
-require("../js/universal-modifier-engine.js");
-require("../js/general-trait-catalog.js");
-require("../js/weapon-property-runtime.js");
-require("../js/character-build-rules.js");
-require("../js/rest-engine.js");
+const path = require("node:path");
+const { pathToFileURL } = require("node:url");
+(async () => {
+  for (const file of [
+    "../js/trait-engine.js", "../js/universal-modifier-engine.js",
+    "../js/general-trait-catalog.js", "../js/weapon-property-runtime.js",
+    "../js/character-build-rules.js", "../js/rest-engine.js",
+  ]) {
+    await import(pathToFileURL(path.resolve(__dirname, file)).href);
+  }
 
 const engine = globalThis.LuminousTraitEngine;
 const catalog = globalThis.LuminousGeneralTraitCatalog;
@@ -89,3 +93,4 @@ assert.equal(recovered.recoverTraitBonusHp, 4);
 assert.equal(recovered.flatHp, 5 + recovered.classBaseHp + 4);
 assert.equal(rest.performRecover({level:5, characterBuild: {classes:[{classId:"fighter",levels:5}]},stats:{constitucion:14},hp:1,maxHp:100}, "fighter", 1, { traits: [] }).recoverTraitBonusHp, 0);
 console.log("General Traits 1-14: catalog, checks, modifiers and Recover smoke OK");
+})().catch((error) => { console.error(error); process.exitCode = 1; });
