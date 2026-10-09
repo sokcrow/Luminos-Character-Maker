@@ -60,6 +60,16 @@
     return numberOr(check?.finalPower, 0);
   }
 
+  // Legacy Check Final Power is now part of the Skill/Ability Check modifier,
+  // not an additional post-coin result. Preserve combat Final Power unchanged.
+  function foldCheckFinalPowerIntoScore(check = {}) {
+    if (!check || typeof check !== "object") return check;
+    const bonus = finalPowerValue(check);
+    if (bonus) check.checkPower = numberOr(check.checkPower, 0) + bonus;
+    check.finalPower = 0;
+    return check;
+  }
+
   function channelValue(check = {}, channel = "check_power") {
     return normalizeId(channel) === "final_power" ? finalPowerValue(check) : checkPowerValue(check);
   }
@@ -235,7 +245,7 @@
     if (breakdown.proficiency) lines.push(`${formatSigned(breakdown.proficiency)} Proficiency`);
     breakdown.contributions.forEach((entry) => lines.push(`${formatSigned(entry.amount)} ${entry.name}`));
     if (breakdown.finalPowerContributions?.length) {
-      lines.push("Final Power · incluido en el total mostrado; se suma después de los Coins");
+      lines.push("Bonos adicionales de Habilidad · incluidos antes de los Coins");
       breakdown.finalPowerContributions.forEach((entry) => lines.push(`${formatSigned(entry.amount)} ${entry.name}`));
     }
     return lines.join("\n");
@@ -321,7 +331,7 @@
       button.title = [`${ability.name} ${kind === "save" ? "Saving Throw" : "Ability Check"}: ${formatSigned(total)}`,
         `Base ${formatSigned(base)}`,
         ...regular.map((entry) => `${formatSigned(entry.amount)} ${entry.name} (Check Power)`),
-        ...final.map((entry) => `${formatSigned(entry.amount)} ${entry.name} (Final Power)`)].join("\n");
+        ...final.map((entry) => `${formatSigned(entry.amount)} ${entry.name} (Bono de Habilidad)`)].join("\n");
       button.dataset.effectiveCheckTotal = String(total);
       if (kind === "save") {
         const node = panel.querySelector("[data-stat-save]");
@@ -502,18 +512,19 @@
         if (resolvedCheck) applySpecialCheckBonuses(traits, character, resolvedCheck);
       }
       if (!resolvedCheck) return;
+      foldCheckFinalPowerIntoScore(resolvedCheck);
       if (Object.prototype.hasOwnProperty.call(target.dataset, "resolvedCheckPower")) delete target.dataset.resolvedCheckPower;
       state.pendingCheckResolution = null;
       const standard = global.LuminousTraitStandardizationRuntime;
       const hasPostCoinBridge = Boolean(standard?.armPlayerCheck?.(resolvedCheck));
-      // Never add finalPower here if it is already applied after the coins.
-      // If the async bridge is not ready, add it as a one-time fallback.
-      const fallbackFinalPower = hasPostCoinBridge ? 0 : finalPowerValue(resolvedCheck);
+      // All Check bonuses are already in checkPower, so the Coin engine must
+      // not apply another post-roll Final Power correction.
+      void hasPostCoinBridge;
       event.preventDefault();
       event.stopPropagation();
       event.stopImmediatePropagation();
       stats.triggerCoinRoll(descriptor.ability, descriptor.label,
-        rawRollBase(descriptor, data, stats) + checkPowerValue(resolvedCheck) + fallbackFinalPower);
+        rawRollBase(descriptor, data, stats) + checkPowerValue(resolvedCheck));
     }, true);
     return true;
   }
@@ -581,6 +592,7 @@
     relevantCheckTrait,
     checkPowerValue,
     finalPowerValue,
+    foldCheckFinalPowerIntoScore,
     traitCheckContribution,
     checkPowerContributions,
     finalPowerContributions,
