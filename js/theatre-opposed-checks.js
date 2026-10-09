@@ -25,8 +25,6 @@
     localHud: null,
     dmHud: null,
     promptObserver: null,
-    panelObserver: null,
-    isolatedCloseButton: null,
     processingSessions: new Set(),
     resultKeys: new Set(),
     issuingOpposed: false,
@@ -483,7 +481,7 @@
     if (isDm()) return;
     const prompt = $("theatre-check-command-prompt");
     const active = state.latestOpposedCommand;
-    if (!prompt || !active) return;
+    if (!prompt || !active || prompt.dataset.commandKey !== active.key) return;
     const phase = active.command?.check?.opposedPhase;
     prompt.dataset.opposedSessionId = active.command.check.opposedSessionId;
     prompt.dataset.opposedPhase = phase;
@@ -512,37 +510,9 @@
       const button = event.target?.closest?.("#theatre-check-command-prompt button");
       const prompt = button?.closest?.("#theatre-check-command-prompt");
       const active = state.latestOpposedCommand;
-      if (!button || !prompt?.dataset?.opposedSessionId || !active) return;
+      if (!button || !prompt?.dataset?.opposedSessionId || !active || prompt.dataset.commandKey !== active.key) return;
       prepareOpposedRoll(active);
     }, true);
-  }
-
-  function beginVisualizerIsolation() {
-    endVisualizerIsolation();
-    const panel = $("coin-toss-panel");
-    const original = $("coin-toss-close-btn");
-    if (panel) {
-      panel.style.display = "none";
-      state.panelObserver = new MutationObserver(() => {
-        if (doc.body?.classList?.contains("theatre-opposed-roll-active") && panel.style.display !== "none") {
-          panel.style.display = "none";
-        }
-      });
-      state.panelObserver.observe(panel, { attributes: true, attributeFilter: ["style"] });
-    }
-    if (original?.parentNode) {
-      const clone = original.cloneNode(true);
-      original.parentNode.replaceChild(clone, original);
-      state.isolatedCloseButton = { original, clone };
-    }
-  }
-
-  function endVisualizerIsolation() {
-    state.panelObserver?.disconnect();
-    state.panelObserver = null;
-    const isolated = state.isolatedCloseButton;
-    if (isolated?.clone?.parentNode) isolated.clone.parentNode.replaceChild(isolated.original, isolated.clone);
-    state.isolatedCloseButton = null;
   }
 
   function prepareOpposedRoll(active) {
@@ -550,64 +520,22 @@
     doc.body?.classList?.add("theatre-opposed-roll-active");
     doc.body?.classList?.toggle("theatre-opposed-threshold-active", active.command.check.opposedPhase === "threshold");
     doc.body?.classList?.toggle("theatre-opposed-resolver-active", active.command.check.opposedPhase === "resolver");
-    beginVisualizerIsolation();
-    global.setTimeout(() => global.LuminousTheatreRolls?.clearArmedCheck?.(), 0);
     renderLocalHud(active.command);
-  }
-
-  function coinImage(side, pending) {
-    const img = doc.createElement("img");
-    img.className = `theatre-opposed-coin${pending ? " is-pending" : ""}`;
-    img.src = side === "head" ? HEAD_SRC : TAIL_SRC;
-    img.alt = pending ? "Pending coin" : side === "head" ? "Head" : "Tail";
-    return img;
-  }
-
-  function renderCoinRow(container, coins) {
-    if (!container) return;
-    const map = new Map((coins || []).map((coin) => [Number(coin.index), coin]));
-    container.replaceChildren();
-    for (let index = 0; index < 5; index += 1) {
-      const coin = map.get(index);
-      container.appendChild(coinImage(coin?.side || "tail", !coin));
-    }
   }
 
   function renderLocalHud(command) {
     const front = coordinator()?.ensureFrontLayer?.();
-    if (!front) return;
+    const rolls = global.LuminousTheatreRolls;
+    if (!front || !rolls?.createSharedCheckHud) return;
     state.localHud?.remove();
-    const phase = command.check?.opposedPhase;
-    const hud = doc.createElement("article");
-    hud.className = `theatre-opposed-hud is-${phase}`;
-    hud.dataset.sessionId = command.check.opposedSessionId;
-    if (phase === "threshold") {
-      hud.innerHTML = `
-        <div class="theatre-opposed-caption">ENFRENTADA · GENERANDO THRESHOLD</div>
-        <div class="theatre-opposed-coins" data-opposed-coins></div>
-        <div class="theatre-opposed-threshold"><span>THRESHOLD</span><strong data-opposed-total>—</strong></div>
-        <div class="theatre-opposed-status" data-opposed-status>ROLLING 0 / 5</div>`;
-    } else {
-      const threshold = command.check.hiddenThreshold ? "??" : effectiveThreshold(command.check.thresholdRaw, command.check);
-      hud.innerHTML = `
-        <div class="theatre-opposed-caption">ENFRENTADA · ${String(command.rollSpec?.label || "CHECK").toUpperCase()}</div>
-        <div class="theatre-opposed-coins" data-opposed-coins></div>
-        <div class="theatre-opposed-compare">
-          <div><span>THRESHOLD</span><strong class="threshold" data-opposed-threshold>${threshold ?? "—"}</strong></div>
-          <b>VS</b>
-          <div><span>OUTCOME</span><strong data-opposed-total>—</strong></div>
-        </div>
-        <div class="theatre-opposed-status" data-opposed-status>ROLLING 0 / 5</div>`;
-      if (numberOr(command.check.modifierValue, 0) > 0 && command.check.tipText) {
-        const tip = doc.createElement("div");
-        tip.className = "theatre-opposed-tip";
-        const sign = command.check.modifierType === "advantage" ? "-" : "+";
-        tip.textContent = `${command.check.modifierType === "advantage" ? "ADVANTAGE" : "DISADVANTAGE"} ${sign}${command.check.modifierValue} · ${command.check.tipText}`;
-        hud.prepend(tip);
-      }
-    }
-    front.appendChild(hud);
-    state.localHud = hud;
+    const first = command.check?.opposedPhase === "threshold";
+    state.localHud = rolls.createSharedCheckHud({
+      parent: front,
+      check: first ? {} : command.check,
+      title: first ? `VS · RETADOR · ${command.rollSpec?.label || "CHECK"}`
+        : `VS · RETADO · ${command.rollSpec?.label || "CHECK"}`,
+    });
+    if (state.localHud) state.localHud.dataset.sessionId = command.check.opposedSessionId;
   }
 
   function bindOwnLive() {
@@ -628,23 +556,14 @@
   }
 
   function updateLocalHud(live) {
-    const hud = state.localHud;
-    if (!hud) return;
-    renderCoinRow(hud.querySelector("[data-opposed-coins]"), live.coins || []);
-    const total = hud.querySelector("[data-opposed-total]");
-    if (total) total.textContent = String(numberOr(live.total, 0));
-    const status = hud.querySelector("[data-opposed-status]");
-    if (!status) return;
-    if (live.status !== "complete") {
-      status.textContent = `ROLLING ${numberOr(live.resolved, 0)} / 5`;
-      return;
-    }
-    if (live.check?.opposedPhase === "threshold") {
-      status.textContent = "THRESHOLD REGISTRADO";
-      status.classList.add("is-pass");
-    } else {
-      status.textContent = "ESPERANDO RESULTADO DEL DM";
-    }
+    if (!state.localHud) return;
+    const first = live.check?.opposedPhase === "threshold";
+    const complete = live.status === "complete";
+    global.LuminousTheatreRolls?.updateSharedCheckHud?.(state.localHud, {
+      coins: live.coins || [], total: live.total,
+      status: !complete ? `GIRANDO MONEDAS · ${numberOr(live.resolved, 0)} / 5`
+        : first ? "THRESHOLD REGISTRADO" : "ESPERANDO RESULTADO DEL DM",
+    });
   }
 
   async function persistOpposedPhaseResult(live) {
@@ -667,7 +586,6 @@
     const child = phase === "threshold" ? "thresholdResult" : "resolverResult";
     await db.ref(`${OPPOSED_ROOT}/${sessionId}/${child}`).set(result);
     global.sessionStorage?.setItem(marker, "1");
-    endVisualizerIsolation();
     if (phase === "threshold") {
       global.setTimeout(clearLocalOpposedHud, 2200);
     }
