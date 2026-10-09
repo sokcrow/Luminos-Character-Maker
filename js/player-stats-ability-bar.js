@@ -444,7 +444,7 @@
             </header>
             <div class="player-stats-tabline"><span class="player-stats-tab active">Stats</span><span class="player-stats-engine">5 COINS · <b data-player-heads-chance>50%</b> HEADS · +4 / HEAD</span></div>
             <div class="player-ability-bar" role="tablist" aria-label="D&D abilities">
-              ${ABILITIES.map((ability, index) => `<button type="button" class="player-ability${index === 0 ? " active" : ""}" data-stat="${ability.id}" role="tab" aria-selected="${index === 0 ? "true" : "false"}" tabindex="${index === 0 ? "0" : "-1"}"><span class="player-prof-indicator" data-prof-state="none"></span><span class="player-ability-name">${ability.code}</span><span class="player-ability-subtitle">${ability.name.charAt(0) + ability.name.slice(1).toLowerCase()}</span></button>`).join("")}
+              ${ABILITIES.map((ability, index) => `<button type="button" class="player-ability${index === 0 ? " active" : ""}" data-stat="${ability.id}" role="tab" aria-selected="${index === 0 ? "true" : "false"}" tabindex="${index === 0 ? "0" : "-1"}"><span class="player-prof-indicator" data-prof-state="none"></span><img class="player-ability-icon" src="Assets/Icons/stats/${ability.id}.png" alt="" aria-hidden="true" width="28" height="28" loading="lazy" decoding="async"><span class="player-ability-name">${ability.code}</span><span class="player-ability-subtitle">${ability.name.charAt(0) + ability.name.slice(1).toLowerCase()}</span></button>`).join("")}
             </div>
             <div class="player-stat-content">
               <div class="player-stat-header">
@@ -473,6 +473,10 @@
           <button type="action" name="act_roll_skill_fuerza" class="sheet-roll-skill-btn" tabindex="-1">ROLL</button>
         </div>`;
       statsContainer.prepend(panel);
+      // The Stats tabs retain their labels and hit areas if an image is missing.
+      panel.querySelectorAll(".player-ability-icon").forEach((image) => {
+        image.addEventListener("error", () => { image.hidden = true; }, { once: true });
+      });
       panel.querySelectorAll(".player-ability").forEach((button) => {
         button.addEventListener("click", () => activate(panel, button.dataset.stat));
         button.addEventListener("keydown", (event) => {

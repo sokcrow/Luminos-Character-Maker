@@ -1,0 +1,31 @@
+name: Stats Ability Icons Smoke
+
+on:
+  push:
+    branches:
+      - feat/stats-ability-png-icons
+    paths:
+      - 'Assets/Icons/stats/**'
+      - 'js/player-stats-ability-bar.js'
+      - 'css/player-stats-ability-bar.css'
+      - 'tests/player-stats-ability-icons-smoke.mjs'
+  pull_request:
+    paths:
+      - 'Assets/Icons/stats/**'
+      - 'js/player-stats-ability-bar.js'
+      - 'css/player-stats-ability-bar.css'
+      - 'tests/player-stats-ability-icons-smoke.mjs'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check Stats runtime syntax and verify icons
+        run: |
+          node --check js/player-stats-ability-bar.js
+          node --check tests/player-stats-ability-icons-smoke.mjs
+          node tests/player-stats-ability-icons-smoke.mjs
