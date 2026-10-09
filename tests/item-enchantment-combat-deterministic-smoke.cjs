@@ -74,6 +74,25 @@ assert.strictEqual(globalThis.CombatEngine.calculateCoinDamage(
   wielder,nonMagicDefender,skill,10,false,0,{}),55,
   "non-Magic Hit defense still applies after an ordinary Damage Enchantment");
 
+const finalPointWeapon=JSON.parse(JSON.stringify(applied.item));
+finalPointWeapon.instanceId="last_point_weapon";
+finalPointWeapon.magic.magicalDurability.current=1;
+wielder.equipment={mainHand:finalPointWeapon};
+const finalPointSkillContext={};
+assert.strictEqual(globalThis.CombatEngine.calculateCoinDamage(
+  wielder,defender,skill,10,false,0,finalPointSkillContext),110,
+  "the first Coin of the Skill can use the final available Magical Durability point");
+assert.strictEqual(Magic.magicalDurabilityState(finalPointWeapon).current,0);
+assert.strictEqual(globalThis.CombatEngine.calculateCoinDamage(
+  wielder,defender,skill,10,false,0,finalPointSkillContext),110,
+  "the second Coin keeps the already-activated Enchantment even after MD hits zero");
+assert.strictEqual(Magic.magicalDurabilityState(finalPointWeapon).current,0,
+  "the final point cannot be spent a second time by the same Skill");
+assert.strictEqual(globalThis.CombatEngine.calculateCoinDamage(
+  wielder,defender,skill,10,false,0,{}),100,
+  "a new Skill cannot activate depleted magic");
+wielder.equipment={mainHand:blade};
+
 blade.magic.magicalDurability.current=0;
 blade.magic.magicalDurability.depleted=true;
 assert.strictEqual(globalThis.CombatEngine.calculateCoinDamage(
