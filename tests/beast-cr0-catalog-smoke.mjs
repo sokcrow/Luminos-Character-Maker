@@ -207,8 +207,8 @@ for (const unit of units.list()) {
 }
 
 const eagle65 = units.resolve("eagle", { level: 65 });
-assert.equal(eagle65.proficiencyBonus, 4);
-assert.equal(prof.skillBonus(eagle65, "perception"), 10);
+assert.equal(eagle65.proficiencyBonus, 5);
+assert.equal(prof.skillBonus(eagle65, "perception"), 12);
 assert.equal(eagle65.maxHp, 9);
 assert.equal(eagle65.speedProfileMode, "fly");
 
