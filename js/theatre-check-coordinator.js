@@ -114,14 +114,17 @@
   function ensureFrontLayer() {
     const root = theatreRoot();
     if (!root) return null;
-    let layer = root.querySelector(":scope > #theatre-check-front-layer");
+    // Player prompts must escape the theatre stacking context (below Stats).
+    // DM keeps the original theatre-local positioning.
+    const host = isDmSurface() ? root : doc.body;
+    let layer = doc.getElementById("theatre-check-front-layer");
     if (!layer) {
       layer = doc.createElement("div");
       layer.id = "theatre-check-front-layer";
       layer.className = "theatre-check-front-layer";
       layer.setAttribute("aria-live", "polite");
-      root.appendChild(layer);
     }
+    if (layer.parentElement !== host) host.appendChild(layer);
     return layer;
   }
 
