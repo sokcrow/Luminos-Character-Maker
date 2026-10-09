@@ -710,7 +710,7 @@
   }
 
   function showNextPlayerCommand() {
-    if (state.commandPromptOpen || !state.commandQueue.length) return;
+    if (state.commandPromptOpen || state.activeCommand || !state.commandQueue.length) return;
     const item = state.commandQueue.shift();
     state.commandPromptOpen = true;
     const front = ensureFrontLayer();
@@ -721,6 +721,7 @@
     const prompt = doc.createElement("section");
     prompt.id = "theatre-check-command-prompt";
     prompt.className = "theatre-check-command-prompt";
+    prompt.dataset.commandKey = item.key;
     const kicker = doc.createElement("span");
     kicker.textContent = item.command.requestedBy === "player" ? "DM APROBÓ TU SOLICITUD" : "EL DM SOLICITA UNA TIRADA";
     const title = doc.createElement("strong");
@@ -732,10 +733,13 @@
     button.textContent = "TIRAR";
     button.addEventListener("click", () => {
       button.disabled = true;
+      button.textContent = "PREPARANDO…";
       executePlayerCommand(item).catch((error) => {
         console.error("No se pudo iniciar el Check autorizado:", error);
         playerNotice("ERROR AL INICIAR CHECK", String(error.message || error), "denied");
         state.commandPromptOpen = false;
+        state.activeCommand = null;
+        doc.body?.classList?.remove("theatre-check-active");
         prompt.remove();
         showNextPlayerCommand();
       });
@@ -771,7 +775,7 @@
     state.commandPromptOpen = false;
     target.click();
     global.setTimeout(() => startPlayerLiveCapture(item.key, command), 80);
-    global.setTimeout(showNextPlayerCommand, 120);
+    // A second Check is offered only after this one is fully resolved.
   }
 
   function sideFromImage(image) {
@@ -799,7 +803,13 @@
       const wrappers = container?.querySelectorAll?.(".coin-toss-item");
       if ((!wrappers || !wrappers.length) && attempts < 50) return;
       global.clearInterval(wait);
-      if (!container || !wrappers?.length) return;
+      if (!container || !wrappers?.length) {
+        playerNotice("TIRADA NO INICIADA", "No se encontraron monedas. Intenta solicitar el Check de nuevo.", "denied");
+        state.activeCommand = null;
+        doc.body?.classList?.remove("theatre-check-active");
+        showNextPlayerCommand();
+        return;
+      }
 
       const liveRef = db.ref(`${LIVE_ROOT}/${uid}/${commandId}`);
       const update = () => {
@@ -849,7 +859,7 @@
 
   function effectiveThreshold(check) {
     if (global.LuminousTheatreRolls?.effectiveThreshold) return global.LuminousTheatreRolls.effectiveThreshold(check || {});
-    const raw = Number(check?.thresholdRaw);
+    const raw = check?.thresholdRaw == null ? NaN : Number(check.thresholdRaw);
     if (!Number.isFinite(raw)) return null;
     const x = Math.max(0, Math.trunc(numberOr(check?.modifierValue, 0)));
     return check?.modifierType === "advantage" ? Math.max(0, raw - x) : check?.modifierType === "disadvantage" ? raw + x : raw;
