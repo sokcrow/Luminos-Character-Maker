@@ -38,6 +38,7 @@
   });
   const clone = (v) => v == null ? v : JSON.parse(JSON.stringify(v));
   const engine = () => global.LuminousItemEnchantmentRuntime || null;
+  const recipes = () => global.LuminousEnchantmentRecipeCatalog || null;
   function errorMessage(reason) { return MESSAGES[reason] || "No fue posible realizar este cambio."; }
   function snapshot(item = {}) {
     return JSON.stringify({
@@ -50,6 +51,10 @@
       enchanted: item.enchanted ?? null,
       enchantment: item.enchantment ?? null,
       enchantmentReady: item.enchantmentReady ?? null,
+      baseMundaneValueAhn: item.baseMundaneValueAhn ?? null,
+      enchantmentBaseValueAhn: item.enchantmentBaseValueAhn ?? null,
+      enchantmentValueAhn: item.enchantmentValueAhn ?? null,
+      productionValueAhn: item.productionValueAhn ?? null,
     });
   }
   function available(item = {}) {
@@ -88,7 +93,7 @@
     if (!gate.valid) return { prepared: false, reason: gate.reason };
     return {
       prepared: true,
-      draft: { action: "apply", level: gate.tier, channel: gate.channel, replace: existing },
+      draft: { action: "apply", level: gate.tier, channel: gate.channel, gemId: request.gemId || "ruby", replace: existing },
       message: `Encantamiento +${gate.tier}: ${CHANNEL_LABELS[gate.channel] || gate.channel}. Guardar para confirmar.`,
     };
   }
@@ -112,10 +117,20 @@
     const copy = clone(item);
     if (draft.action === "remove") {
       const result = api.removeEnchantment(copy, { emit: false });
+      if (result.removed) recipes()?.restoreMundaneValue?.(copy);
       return result.removed ? { changed: true, item: copy } : { changed: false, reason: result.reason || "invalid_change" };
     }
     if (draft.action === "apply") {
+      const quoted = recipes()?.quote?.(item, {
+        tier: draft.level, channel: draft.channel, gemId: draft.gemId || "ruby", replace: draft.replace === true,
+      }) || null;
+      // Narrative DM authoring is permitted without an authored AHN base price.
+      // A paid ritual, by contrast, must have a complete valid quote.
+      if (quoted && !quoted.valid && quoted.reason !== "unpriced_item") {
+        return { changed: false, reason: quoted.reason };
+      }
       const result = api.applyEnchantment(copy, { level: draft.level, channel: draft.channel }, { replace: draft.replace === true, emit: false });
+      if (result.applied && quoted?.valid) recipes()?.applyValuation?.(copy, quoted, { mode: "dm_authoring" });
       return result.applied ? { changed: true, item: copy } : { changed: false, reason: result.reason || "invalid_change" };
     }
     return { changed: false, reason: "invalid_change" };
