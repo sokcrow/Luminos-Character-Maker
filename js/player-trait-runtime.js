@@ -570,11 +570,16 @@ ${response}`);
     if (!Object.keys(payload).length) throw new Error("Elige o escribe al menos una decisión para guardar.");
     payload.backgroundId = selectedBackgroundId;
     await state.db.ref(`${PLAYER_ROOT}/${playerId}/backgroundChoices`).update(payload);
-    // Display the confirmed write immediately; the live player listener remains authoritative.
-    if (state.playerId === playerId) {
+    // The realtime listener may have updated the player while Firebase was saving.
+    // Merge only narrative choices into the *latest* character, never a pre-save snapshot.
+    const latestCharacter = getCharacter();
+    const latestBackgroundId = String(latestCharacter?.characterBuild?.backgroundId || latestCharacter?.backgroundId || "").trim();
+    if (state.playerId === playerId
+        && String(latestCharacter?.uid || "") === uid
+        && latestBackgroundId === selectedBackgroundId) {
       state.character = {
-        ...character,
-        backgroundChoices: { ...(character.backgroundChoices || {}), ...payload },
+        ...latestCharacter,
+        backgroundChoices: { ...(latestCharacter.backgroundChoices || {}), ...payload },
       };
     }
     return payload;
