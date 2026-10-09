@@ -721,5 +721,6 @@
     RESULT_ROOT,
     effectiveThreshold,
     outcomeFor,
+    refreshChallengers: populateRivalPlayers,
   });
 })(window);
