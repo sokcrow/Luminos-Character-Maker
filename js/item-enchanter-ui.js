@@ -374,8 +374,9 @@
 
   function render(){
     if(!state.open) return;
-    renderControls();
+    // Choose a service-eligible Item before building the dependent definition selectors.
     renderItems();
+    renderControls();
     const current=doc.getElementById("enchanter-ui-current");
     if(current) current.innerHTML=currentCard();
     renderPreview();
