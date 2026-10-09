@@ -84,3 +84,10 @@
   #dm-enchanter-prepare{grid-column:1/-1}
   #modal-inventario-dm .dm-item-enchanter-open{margin-left:0}
 }
+
+/* Enchanter V1: crafting quote + compendium link */
+.dm-enchanter-economy{padding:11px 13px;margin-bottom:10px;border:1px solid #5e4d75;border-left:3px solid #b995d5;background:#1a1321;color:#e0cfea;font-size:10px;line-height:1.7}
+.dm-enchanter-save-hint a{color:#e2bafb;text-decoration:underline;text-underline-offset:3px}
+#dm-enchanter-craft{border-color:#b69667;background:#312619;color:#f4dfb7}
+#dm-enchanter-craft:hover:not(:disabled){background:#4a3420;border-color:#ebc48e}
+#dm-enchanter-craft:disabled{opacity:.35;cursor:not-allowed}
