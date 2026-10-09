@@ -338,7 +338,11 @@
     // A projected copy is safe for this subset of services. Never run Identify,
     // Curse Analysis or other knowledge-writing actions while previewing.
     const projectable=["enchant","mount_gem","strengthen","remove_rewrite","extract_gem","magical_repair"].includes(state.service);
-    const projected=projectable ? services()?.previewServiceResult?.(state.selectedItem,state.quote) : null;
+    let projected=null;
+    if(projectable){
+      try { projected=services()?.previewServiceResult?.(state.selectedItem,state.quote) || null; }
+      catch (_) { projected=null; } // UI preview failure cannot commit or rewrite knowledge.
+    }
     const itemAfter=projected?.previewed===true ? projected.item : null;
     const beforeSlots=engine()?.baseSlotCapacity?.(state.selectedItem);
     const afterSlots=itemAfter ? engine()?.slotsUsed?.(engine()?.appliedEnchantments?.(itemAfter)||[]) : null;
@@ -437,7 +441,8 @@
     state.service=context.service && profile.services.includes(context.service)?context.service:profile.services[0];
     state.definitionId=null;state.rank=1;state.gem=null;state.anchorId=null;state.quote=null;state.pending=false;
     // Do not clear saveUncertain across panel reopenings in this page session.
-    state.onSave=context.onSave || null;state.onClose=context.onClose || null;state.status="";
+    state.onSave=context.onSave || null;state.onClose=context.onClose || null;
+    state.status=state.saveUncertain?"SAVE NOT CONFIRMED — RECARGA LA FICHA ANTES DE REINTENTAR":"";
     const root=mount();
     state.open=true;
     root.classList.add("active");root.setAttribute("aria-hidden","false");
