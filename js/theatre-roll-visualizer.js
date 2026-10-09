@@ -297,6 +297,10 @@
     }
     const result = hud.querySelector("[data-local-result]");
     if (result && total !== undefined && total !== null) result.textContent = String(total);
+    const comparison = hud.querySelector("[data-local-operator]");
+    if (comparison && (outcome === "passed" || outcome === "failed")) {
+      comparison.textContent = outcome === "passed" ? "≤" : ">";
+    }
     const label = hud.querySelector("[data-local-status]");
     if (label && status) label.textContent = status;
     if (label && (outcome === "passed" || outcome === "failed")) {
