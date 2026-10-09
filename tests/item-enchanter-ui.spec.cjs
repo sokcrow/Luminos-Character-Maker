@@ -138,3 +138,32 @@ test("unidentified installed magic stays obfuscated without breaking rank-sensit
     definitionId:"flamebound",targetRank:3,
   });
 });
+
+
+test("changing Rank or Item invalidates previous payment confirmation", async ({page}) => {
+  await boot(page);
+  const confirm=page.locator("#enchanter-ui-confirm");
+  const commit=page.locator("#enchanter-ui-commit");
+  await confirm.check();
+  await expect(commit).toBeEnabled();
+  await page.locator("#enchanter-ui-rank").selectOption("2");
+  await expect(confirm).not.toBeChecked();
+  await expect(commit).toBeDisabled();
+
+  await page.evaluate(() => {
+    const other={
+      instanceId:"sword_2",definitionId:"sword_2",nombre:"Second Sword",
+      itemType:"weapon",category:"weapon",tier:5,condition:100,conditionMax:100,
+    };
+    window.__enchanterFixture.viewer.inventario_activo.sword_2=other;
+    window.LuminousEnchanterUi.state.items.push(other);
+    window.LuminousEnchanterUi.render();
+  });
+  await confirm.check();
+  await expect(commit).toBeEnabled();
+  await page.locator('[data-enchanter-item="1"]').click();
+  await expect(confirm).not.toBeChecked();
+  await expect(commit).toBeDisabled();
+  await expect(page.locator("#enchanter-ui-current")).toContainText("Second Sword");
+  expect(await page.evaluate(() => window.__enchanterFixture.commits)).toBe(0);
+});
