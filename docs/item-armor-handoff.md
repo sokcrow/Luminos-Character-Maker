@@ -36,7 +36,7 @@ Mundane chassis resistance budgets:
 
 Mundane Armor has no `-3..+3` Grade axis. Physical resistance comes from material affinity, component geometry, chassis budget, physical Upgrades, CON and Proficiency. Armor-generated physical multipliers remain clamped to 0.30..1.50. Legacy `armorGrade` inputs are ignored rather than translated into another mundane bonus.
 
-Normal CON adjustment is `0.03 * CON MOD`. Armorless Defense does not grant a 1.10 baseline; while unarmored it uses the normal 1.35 physical baseline and changes the CON rate to `0.05 * CON MOD`. Armor Proficiency contributes another `-0.02` only for an equipped Armor chassis for which the character is proficient.
+Normal CON adjustment is `0.03 * CON MOD`. Armorless Defense does not grant a 1.10 baseline; while unarmored it uses the normal 1.35 physical baseline and changes the CON rate to `0.05 * CON MOD`. Armor Proficiency contributes `-(0.02 * Proficiency Bonus)` to Slash, Pierce and Blunt multipliers for a proficient equipped Armor chassis. It also grants `floor(Proficiency Bonus / 2)` Defensive Level. The runtime exposes `defensiveLevelBonus`; applying it to live combat-derived Defensive Level still requires the combat bridge to consume it.
 
 ## Speed and Weight
 
