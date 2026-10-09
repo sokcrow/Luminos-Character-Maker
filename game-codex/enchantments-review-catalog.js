@@ -17,7 +17,7 @@ const ENCHANTMENTS=[
       "III": "Once per Turn, when a Skill bound to this weapon hits an enemy already suffering Burn, consume 1 Burn Count to unleash 5 Fixed Damage and inflict 5 Burn Potency / 3 Count."
     },
     "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
-    "statuses": "Burn; fixed damage; Clash Win; On Kill",
+    "statuses": "Burn; Fixed Damage",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
@@ -69,7 +69,7 @@ const ENCHANTMENTS=[
       "III": "Once per Turn, after a Guard with this shield prevents enemy damage, the attacker suffers 5 Burn Potency / 3 Count."
     },
     "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
-    "statuses": "Burn; Guard; Shield break",
+    "statuses": "Burn; Shield; Guard",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
@@ -115,7 +115,7 @@ const ENCHANTMENTS=[
       "III": "Once per Turn, a weapon-linked Hit against a Burning enemy consumes 1 Burn Count and transfers 5 Burn Potency / 3 Count to one other enemy within valid range."
     },
     "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
-    "statuses": "Burn; Turn End; On Kill; temporary mark",
+    "statuses": "Burn",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
@@ -162,7 +162,7 @@ const ENCHANTMENTS=[
       "III": "Once per Turn, direct enemy damage to your HP stores one Ember (maximum 2). At next Turn Start, consume the stored Ember to gain 10 temporary Shield per charge."
     },
     "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
-    "statuses": "Protection; Shield; Burn; damage taken; resource",
+    "statuses": "Shield",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
@@ -205,7 +205,7 @@ const ENCHANTMENTS=[
       "III": "Once per Turn, a successful Evade marks the attacker until Turn End; the first Hit from one of your equipped weapons against that marked attacker inflicts 5 Burn Potency / 3 Count and consumes the mark."
     },
     "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
-    "statuses": "Evade; Burn; Blinded; condition tag",
+    "statuses": "Burn; Evade",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
@@ -252,7 +252,7 @@ const ENCHANTMENTS=[
       "III": "After losing a Clash with this weapon, store one Spark (maximum 2). Once per Turn, your next weapon-linked Hit may consume one Spark to inflict 5 Burn Potency / 5 Count."
     },
     "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
-    "statuses": "Burn; Clash Lose; On Hit; charges",
+    "statuses": "Burn",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
@@ -298,7 +298,7 @@ const ENCHANTMENTS=[
       "III": "Once per Turn, the first weapon-linked Hit inflicts 5 Chill Count; if the target already had Chill before that Hit, also inflict 3 Bind for its next Turn."
     },
     "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
-    "statuses": "Chill; Bind; Frozen; repeated-hit tracking",
+    "statuses": "Chill; Bind",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
@@ -345,7 +345,7 @@ const ENCHANTMENTS=[
       "III": "Once per Turn, when a direct enemy Attack Skill misses the wearer, inflict 5 Chill Count on that attacker; if it had Chill before missing, gain 8 temporary Shield."
     },
     "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
-    "statuses": "Chill; Blinded; Evade; Protection",
+    "statuses": "Chill; Shield",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
@@ -392,7 +392,7 @@ const ENCHANTMENTS=[
       "III": "Once per Turn, after this shield successfully prevents direct damage through Guard, store up to 10 prevented damage. At next Turn Start convert the stored damage into equal temporary Shield and clear it."
     },
     "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
-    "statuses": "Guard; Shield; Chill; prevented-damage counter",
+    "statuses": "Shield; Guard",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
@@ -434,7 +434,7 @@ const ENCHANTMENTS=[
       "III": "Once per Turn, a weapon-linked Hit on a Chilled target consumes 1 Chill Count to inflict 5 Rupture Potency / 3 Count."
     },
     "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
-    "statuses": "Chill; Rupture; Tremor Burst; critical hit",
+    "statuses": "Rupture; Chill",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
@@ -480,7 +480,7 @@ const ENCHANTMENTS=[
       "III": "Once per Turn, when this weapon hits an enemy with greater Speed than the wielder, inflict 3 Bind for its next Turn and 5 Chill Count."
     },
     "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
-    "statuses": "Bind; Chill; Restrained; resistance Save",
+    "statuses": "Chill; Bind",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
@@ -527,7 +527,7 @@ const ENCHANTMENTS=[
       "III": "Once per Turn, a successful Evade grants 3 Haste next Turn; if the attacker already had Chill, extend that attacker's Chill Count by 5."
     },
     "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
-    "statuses": "Evade; Chill; Haste; Stagger Threshold",
+    "statuses": "Chill; Haste; Evade",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
@@ -572,7 +572,7 @@ const ENCHANTMENTS=[
       "III": "Once per Turn, a weapon-linked Hit inflicts 5 Shock Count. If the target already had Shock before the Hit, move 3 of its Shock Count to one other valid enemy."
     },
     "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
-    "statuses": "Shock; Paralysis conversion; single-use charge",
+    "statuses": "Shock",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
@@ -619,7 +619,7 @@ const ENCHANTMENTS=[
       "III": "Once per Turn, after winning a Clash with this weapon against a Shocked enemy, the next Hit of that Skill inflicts 5 Tremor Potency / 3 Count."
     },
     "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
-    "statuses": "Shock; Paralysis; Tremor; Clash Win",
+    "statuses": "Tremor",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
@@ -666,7 +666,7 @@ const ENCHANTMENTS=[
       "III": "Once per Turn, a successful Guard with this shield inflicts 5 Shock Count on the attacker. When this instance's Shock converts into Paralysis, gain 10 temporary Shield."
     },
     "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
-    "statuses": "Guard; Shock; Paralysis; Shield",
+    "statuses": "Shock; Paralysis; Shield; Guard",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
@@ -712,7 +712,7 @@ const ENCHANTMENTS=[
       "III": "Once per Turn, when a direct enemy Attack Skill misses the wearer, inflict 5 Shock Count on the attacker. If the attacker already had Shock, gain 8 temporary Shield."
     },
     "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
-    "statuses": "Shock; Protection; Shield; damage taken",
+    "statuses": "Shock; Shield",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
@@ -759,7 +759,7 @@ const ENCHANTMENTS=[
       "III": "Once per Turn, after a successful Evade, gain 3 Haste next Turn. If the attacker already had Bind, extend that Bind by 3."
     },
     "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
-    "statuses": "Haste; Bind; Evade; ally targeting",
+    "statuses": "Bind; Haste; Evade",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
@@ -805,7 +805,7 @@ const ENCHANTMENTS=[
       "III": "Once per Turn, a weapon-linked Hit against an enemy protected by Shield inflicts 5 Shock Count and deals 8 additional damage to the Shield only."
     },
     "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
-    "statuses": "Shock; Shields; Tremor Burst; shield-break event",
+    "statuses": "Shock; Shield",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
@@ -852,7 +852,7 @@ const ENCHANTMENTS=[
       "III": "Once per Turn, your first Critical Hit from this weapon inflicts 5 Bleed Potency / 5 Count."
     },
     "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
-    "statuses": "Bleed; Poise/Critical; Rupture",
+    "statuses": "Bleed; Critical Hit",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
@@ -898,7 +898,7 @@ const ENCHANTMENTS=[
       "III": "At Turn Start, optionally sacrifice 3 HP; this weapon's next Hit during the Turn inflicts 5 Bleed Potency / 5 Count. Once per Turn."
     },
     "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
-    "statuses": "Bleed; Rupture; resource expenditure; target sharing",
+    "statuses": "Bleed",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
@@ -945,7 +945,7 @@ const ENCHANTMENTS=[
       "III": "Once per Turn, after this weapon hits an enemy already suffering Bleed, restore up to 5 HP, limited by the wearer's missing HP."
     },
     "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
-    "statuses": "Bleed; healing; Shield; Critical",
+    "statuses": "Bleed",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
@@ -987,7 +987,7 @@ const ENCHANTMENTS=[
       "III": "Once per Turn, the first weapon-linked Hit inflicts 5 Rupture Potency / 5 Count. On the third Hit by this weapon against the same enemy during this Encounter, trigger existing Rupture once, consuming its normal Count."
     },
     "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
-    "statuses": "Rupture; multiple-hit tracking; On Hit",
+    "statuses": "Rupture",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
@@ -1034,7 +1034,7 @@ const ENCHANTMENTS=[
       "III": "Once per Turn, when direct enemy damage reduces the wearer's HP, gain 5 Poise Potency / 5 Count."
     },
     "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
-    "statuses": "Poise; Bleed; Protection; damage taken",
+    "statuses": "Poise",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
@@ -1081,7 +1081,7 @@ const ENCHANTMENTS=[
       "III": "The first Hit each Turn by this weapon marks one target until your next Turn End; the next Hit from this same weapon against that target inflicts 5 Bleed Potency / 5 Count and clears the mark."
     },
     "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
-    "statuses": "Bleed; Rupture; HP threshold; marked target",
+    "statuses": "Bleed",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
@@ -1129,7 +1129,7 @@ const ENCHANTMENTS=[
       "III": "Once per Turn, the first Hit from this weapon inflicts 5 Sinking Potency / 5 Count; if that Hit drains the target's last positive SP, recover up to 5 SP."
     },
     "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
-    "statuses": "Sinking; SP; Poise; per-target mark",
+    "statuses": "Sinking; SP",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
@@ -1180,7 +1180,7 @@ const ENCHANTMENTS=[
       "III": "Once per Turn, after direct enemy effects lower the wearer's SP, inflict 5 Sinking Potency / 3 Count on the responsible enemy."
     },
     "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
-    "statuses": "Sinking; SP healing; damage taken; chosen target",
+    "statuses": "Sinking; SP",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
@@ -1227,7 +1227,7 @@ const ENCHANTMENTS=[
       "III": "Once per Turn, after a successful Evade, become Veiled until Turn End. Your next successful Attack Skill against a valid target while Veiled inflicts 5 Sinking Potency / 3 Count and ends Veiled."
     },
     "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
-    "statuses": "Evade; Invisible; Sinking; detection",
+    "statuses": "Sinking; Evade",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
@@ -1273,7 +1273,7 @@ const ENCHANTMENTS=[
       "III": "Once per Turn, after a Guard with this shield against a melee attacker, inflict 3 Bind for its next Turn. If that attacker Hits the bearer while Bound, gain 10 temporary Shield after taking the damage."
     },
     "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
-    "statuses": "Bind; Restrained; Guard; Shield; Save",
+    "statuses": "Bind; Shield; Guard",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
@@ -1319,7 +1319,7 @@ const ENCHANTMENTS=[
       "III": "At Turn Start, pay 4 SP to mark one visible enemy until Turn End. Once per Turn, the next successful Attack Skill against that target inflicts 8 Sinking Potency / 3 Count and clears the mark."
     },
     "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
-    "statuses": "Sinking; SP resource; Bind; HP/SP gate",
+    "statuses": "Sinking; SP",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
@@ -1366,7 +1366,7 @@ const ENCHANTMENTS=[
       "III": "When an ally crosses a Stagger Threshold, gain one Vow (maximum 2; once per Turn). Your next Hit with this weapon may consume one Vow to inflict 5 Sinking Potency / 3 Count and grant that ally 8 temporary Shield."
     },
     "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
-    "statuses": "Stagger; Sinking; Shield; charges",
+    "statuses": "Sinking; Shield; Stagger",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
@@ -1417,7 +1417,7 @@ const ENCHANTMENTS=[
       "III": "Once per Turn, a Hit from this weapon against a Shielded enemy inflicts 5 Radiance Count; if the Hit breaks that Shield, additionally inflict 3 Radiance Count."
     },
     "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
-    "statuses": "Radiance; Shields; Protection; marked attacker",
+    "statuses": "Radiance; Shield",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
@@ -1464,7 +1464,7 @@ const ENCHANTMENTS=[
       "III": "Once per Turn, after legally intercepting direct enemy damage intended for an ally, gain 3 Protection for the next Turn and grant that ally 10 temporary Shield."
     },
     "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
-    "statuses": "Protection; Shield; Status cleansing; interception",
+    "statuses": "Protection; Shield",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
@@ -1511,7 +1511,7 @@ const ENCHANTMENTS=[
       "III": "Once per Turn, when a nearby ally drops below 30% HP after direct enemy damage, spend 4 SP to grant that ally 15 temporary Shield."
     },
     "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
-    "statuses": "SP cost; Shield; HP healing; lethal-hit window",
+    "statuses": "Shield; SP",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
@@ -1553,7 +1553,7 @@ const ENCHANTMENTS=[
       "III": "Choose one ally at Encounter Start. Once per Turn, after legally intercepting a direct attack intended for that ally with this shield, gain 10 temporary Shield before receiving the intercepted damage."
     },
     "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
-    "statuses": "interception; Guard; Protection; Shield",
+    "statuses": "Shield",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
@@ -1595,7 +1595,7 @@ const ENCHANTMENTS=[
       "III": "Once per Turn, when a Hit from this weapon breaks an enemy Shield, inflict 5 Radiance Count on its owner and remove up to 3 removable temporary concealment layers if any exist."
     },
     "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
-    "statuses": "Invisible; Radiance; Shield break; target detection",
+    "statuses": "Radiance; Shield",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
@@ -1642,7 +1642,7 @@ const ENCHANTMENTS=[
       "III": "Once per Turn, when a Guard with this shield prevents enemy damage, distribute 10 total temporary Shield between up to two nearby allies."
     },
     "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
-    "statuses": "Guard; Shield; Protection; ally selection",
+    "statuses": "Shield; Guard",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
@@ -1684,7 +1684,7 @@ const ENCHANTMENTS=[
       "III": "Once per Turn, the first Hit from this weapon inflicts 5 Tremor Potency / 5 Count. After the third Hit against the same enemy in this Encounter, trigger Tremor Burst once if it has Tremor."
     },
     "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
-    "statuses": "Tremor; Tremor Burst; multiple hits",
+    "statuses": "Tremor; Tremor Burst",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
@@ -1731,7 +1731,7 @@ const ENCHANTMENTS=[
       "III": "Once per Turn, after an enemy directly Hits you and inflicts Burn, Bleed, or Sinking, record up to 5 Potency / 3 Count of one such Status. Your next successful Attack Skill inflicts the stored Status on its target and empties the mirror."
     },
     "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
-    "statuses": "Burn/Bleed/Sinking; status copy whitelist; remove Status Count",
+    "statuses": "Burn; Bleed; Sinking",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
@@ -1778,7 +1778,7 @@ const ENCHANTMENTS=[
       "III": "Once per Turn, the first weapon-linked Hit inflicts 3 Bind for the target's next Turn. If that Bound enemy attacks an ally before Bind expires, it receives 5 Rupture Potency / 3 Count."
     },
     "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
-    "statuses": "Bind; Rupture; Restrained; Save",
+    "statuses": "Rupture; Bind",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
@@ -1828,7 +1828,7 @@ const ENCHANTMENTS=[
       "III": "Once per Encounter, borrow one Quick Action this Turn and lose one Quick Action next Turn as an unavoidable debt. When the debt is paid, gain 10 temporary Shield."
     },
     "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
-    "statuses": "Quick Action; debt; action economy",
+    "statuses": "Shield; Quick Action",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
@@ -1870,7 +1870,7 @@ const ENCHANTMENTS=[
       "III": "Once per Turn, when your Guard prevents direct enemy damage while wearing this armor, store up to 10 prevented damage. Your next weapon-linked Hit spends that Memory to deal equal extra Fixed Damage."
     },
     "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
-    "statuses": "Guard; stored prevention; Fixed Damage; Shield",
+    "statuses": "Guard; Fixed Damage",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
@@ -1913,7 +1913,7 @@ const ENCHANTMENTS=[
       "III": "Once per Turn, when this weapon Hits an enemy carrying a removable temporary positive Status, remove up to 3 Count from one such Status of your choice."
     },
     "limits": "Compatible chassis only. The trigger, activation frequency, threshold, resource costs, valid targets, and any 'one charge' requirements do not scale. Existing Status caps, immunity, source binding and attunement still apply. No recursive self-triggering.",
-    "statuses": "temporary beneficial statuses; dispel whitelist; source tracking",
+    "statuses": "conditional combat effect",
     "reviewStatus": "proposed",
     "implementation": "design_only",
     "requiresEngine": true,
