@@ -338,6 +338,20 @@
       .replace(/'/g, "&#039;");
   }
 
+  const MILESTONE_CHOICE_ICON = "Assets/Icons/milestones/stat-or-trait.png";
+
+  function milestoneChoiceIconMarkup() {
+    return `<img class="player-progression-milestone-choice-icon" src="${MILESTONE_CHOICE_ICON}" alt="" aria-hidden="true" loading="lazy" decoding="async">`;
+  }
+
+  function bindMilestoneChoiceIconFallback(button, fallbackSeal, fallbackSigil) {
+    const icon = button.querySelector(".player-progression-milestone-choice-icon");
+    icon?.addEventListener("error", () => {
+      icon.outerHTML = fallbackSeal;
+      bindMissingFamilyIcons(button);
+      bindClassIconFallback(button, fallbackSigil);
+    }, { once: true });
+  }
   function createNode(classModel, node, branch = null) {
     const button = doc.createElement("button");
     button.type = "button";
@@ -345,19 +359,23 @@
     button.dataset.progressionLevel = String(node.level);
     button.dataset.progressionStatus = node.status;
     button.dataset.progressionClassId = classModel.classId;
+    if (node.choiceMilestone && !branch) button.dataset.choiceMilestone = "stat-or-trait";
     button.dataset.progressionKey = `${classModel.classId}:milestone:${branch?.id || "base"}:${node.level}`;
     button.setAttribute("aria-controls", "player-progression-detail");
     button.setAttribute("aria-pressed", "false");
     button.setAttribute("aria-label", `Ver hito de ${classModel.className} nivel ${node.level}: ${nodeTitle(node)}`);
+    const isChoiceMilestone = Boolean(node.choiceMilestone && !branch);
     const familySeal = nodeFamilyMarkup(node);
     const fallbackSigil = sigilFor(nodeTitle(node), node.level);
+    const fallbackSeal = familySeal || classSealMarkup(classModel, fallbackSigil);
     button.innerHTML = `
-      <span class="player-progression-node__seal">${familySeal || classSealMarkup(classModel, fallbackSigil)}</span>
+      <span class="player-progression-node__seal">${isChoiceMilestone ? milestoneChoiceIconMarkup() : fallbackSeal}</span>
       <span class="player-progression-node__level">LV. ${node.level}</span>
       <strong>${escapeHtml(nodeTitle(node))}</strong>
       <small>${escapeHtml(statusLabel(node.status))}</small>`;
     bindMissingFamilyIcons(button);
     bindClassIconFallback(button, fallbackSigil);
+    if (isChoiceMilestone) bindMilestoneChoiceIconFallback(button, fallbackSeal, fallbackSigil);
     const inspect = () => showNodeDetail(classModel, node, branch, button);
     button.__inspect = inspect;
     button.addEventListener("click", inspect);

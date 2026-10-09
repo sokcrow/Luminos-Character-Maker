@@ -1024,3 +1024,17 @@ body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-
   color:#f2d6aa;
   text-shadow:0 0 4px #000;
 }
+
+/* Class Milestones where the player chooses Stats or a General Trait
+   use their own pictogram instead of class or Trait-family artwork. */
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-node__seal .player-progression-milestone-choice-icon {
+  position:relative;
+  z-index:1;
+  display:block;
+  width:66%;
+  height:66%;
+  max-width:100%;
+  border-radius:50%;
+  object-fit:contain;
+  pointer-events:none;
+}
