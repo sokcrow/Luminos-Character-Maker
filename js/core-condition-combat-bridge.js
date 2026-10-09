@@ -33,7 +33,9 @@
   function proficiencyBonus(unit = {}) {
     const explicit = unit?.dndStats?.proficiencyBonus ?? unit?.proficiencyBonus ?? unit?.proficiency_bonus;
     if (Number.isFinite(Number(explicit))) return Number(explicit);
-    return Math.max(2, Math.ceil(Math.max(1, numberOr(unit.level ?? unit.characterBuild?.calculatedAtLevel, 1)) / 20));
+    const level = unit.level ?? unit.characterBuild?.calculatedAtLevel ?? 1;
+    return global.LuminousProficiencyRuntime?.proficiencyBonus?.(level)
+      ?? Math.min(6, 2 + Math.floor((Math.max(1, numberOr(level, 1)) - 1) / 20));
   }
   function checkBonus(unit, check = {}) {
     const ability = normalizeId(check.abilityId || check.ability || "str");
