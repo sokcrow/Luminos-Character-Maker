@@ -60,6 +60,7 @@
     resolvingResults: new Set(),
     resolvedResults: new Set(),
     playerResultsBound: false,
+    serverTimeOffsetMs: null,
     sendingDmCommand: false,
   };
 
@@ -1101,20 +1102,34 @@
     const uid = currentUid();
     if (!uid || state.playerResultsBound) return;
     state.playerResultsBound = true;
-    db.ref(`theatre_check_results/${uid}`).limitToLast(20).on("child_added", (snapshot) => {
-      const result = snapshot.val() || {};
-      if (String(result.roomKey || "default") !== roomKey()) return;
-      // DM and player device clocks may disagree. The server's resolved
-      // completion time determines freshness; client time is legacy fallback.
-      const serverCompletedAt = Number(result.completedAt);
-      const finishedAt = Number.isFinite(serverCompletedAt) && serverCompletedAt > 0
-        ? serverCompletedAt : numberOr(result.clientCompletedAt, 0);
-      if (Date.now() - finishedAt > RESULT_NOTICE_MAX_AGE_MS) return;
-      playerNotice(result.outcome === "passed" ? "CHECK SUPERADO"
-        : result.outcome === "failed" ? "CHECK FALLIDO" : "TIRADA FINALIZADA",
-      `${result.label || "CHECK"} · Total ${result.total}`,
-      result.outcome === "passed" ? "approved" : result.outcome === "failed" ? "denied" : "pending");
-    }, (error) => console.warn("Resultados de Checks no disponibles:", error));
+    const bindResultsWithServerClock = () => {
+      db.ref(`theatre_check_results/${uid}`).limitToLast(20).on("child_added", (snapshot) => {
+        const result = snapshot.val() || {};
+        if (String(result.roomKey || "default") !== roomKey()) return;
+        // The completedAt value and the current time must use the SAME clock.
+        // clientCompletedAt supports historical records without a server stamp.
+        const serverCompletedAt = Number(result.completedAt);
+        const finishedAt = Number.isFinite(serverCompletedAt) && serverCompletedAt > 0
+          ? serverCompletedAt : numberOr(result.clientCompletedAt, 0);
+        const serverNow = Date.now() + state.serverTimeOffsetMs;
+        if (serverNow - finishedAt > RESULT_NOTICE_MAX_AGE_MS) return;
+        playerNotice(result.outcome === "passed" ? "CHECK SUPERADO"
+          : result.outcome === "failed" ? "CHECK FALLIDO" : "TIRADA FINALIZADA",
+        `${result.label || "CHECK"} · Total ${result.total}`,
+        result.outcome === "passed" ? "approved" : result.outcome === "failed" ? "denied" : "pending");
+      }, (error) => console.warn("Resultados de Checks no disponibles:", error));
+    };
+
+    // Wait for Firebase's clock estimate BEFORE replaying old child_added
+    // results, otherwise the first snapshot could show an expired Check.
+    db.ref(".info/serverTimeOffset").on("value", (snapshot) => {
+      const rawOffset = snapshot.val();
+      const offset = Number(rawOffset);
+      if (rawOffset == null || !Number.isFinite(offset)) return;
+      const firstEstimate = state.serverTimeOffsetMs === null;
+      state.serverTimeOffsetMs = offset;
+      if (firstEstimate) bindResultsWithServerClock();
+    }, (error) => console.warn("Hora de Firebase no disponible para resultados de Checks:", error));
   }
 
   function bindDmLive() {
