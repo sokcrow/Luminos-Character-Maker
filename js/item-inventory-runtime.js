@@ -99,7 +99,7 @@
     if (input.variantData && typeof input.variantData === "object") Object.assign(out, clone(input.variantData));
     // A live Item Instance can be enchanted, replaced or disenchanted after its
     // previous variantData snapshot was saved. The explicit live state wins.
-    ["enhancementLevel", "enhancementSource", "enchanted", "enchantment", "enchantmentReady"].forEach((field) => {
+    ["enhancementLevel", "enhancementSource", "enchanted", "enchantment", "enchantmentReady", "baseMundaneValueAhn", "enchantmentBaseValueAhn", "enchantmentMultiplier", "enchantmentValueAhn", "enchantmentPricingStatus", "productionValueAhn", "unitValueAhn", "totalValueAhn"].forEach((field) => {
       if (input[field] !== undefined) out[field] = clone(input[field]);
     });
     return out;
