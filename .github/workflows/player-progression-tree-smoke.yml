@@ -26,6 +26,8 @@ on:
       - 'css/player-skills-hud.css'
       - 'css/player-trait-tabs.css'
       - 'tests/player-progression-tree-smoke.mjs'
+      - 'tests/milestone-choice-icon-smoke.mjs'
+      - 'Assets/Icons/milestones/stat-or-trait.png'
       - 'tests/player-skills-hud-smoke.mjs'
       - 'Assets/Images/Buttons/Spells.png'
       - 'js/dm-player-loadout-core.js'
@@ -67,6 +69,8 @@ on:
       - 'css/player-skills-hud.css'
       - 'css/player-trait-tabs.css'
       - 'tests/player-progression-tree-smoke.mjs'
+      - 'tests/milestone-choice-icon-smoke.mjs'
+      - 'Assets/Icons/milestones/stat-or-trait.png'
       - 'tests/player-skills-hud-smoke.mjs'
       - 'Assets/Images/Buttons/Spells.png'
       - 'js/dm-player-loadout-core.js'
@@ -95,6 +99,7 @@ jobs:
           node --check js/character-build-rules.js
           node --check js/player-progression-tree-core.js
           node --check js/player-progression-tree.js
+          node --check tests/milestone-choice-icon-smoke.mjs
           node --check js/player-progression-choices.js
           node --check js/archetype-progression-preview-catalog.js
           node --check js/class-milestone-engine.js
@@ -115,6 +120,8 @@ jobs:
           node --check js/battle-viewer-player-entry-074.js
       - name: Progression tree smoke
         run: node tests/player-progression-tree-smoke.mjs
+      - name: Milestone Stat or Trait icon smoke
+        run: node tests/milestone-choice-icon-smoke.mjs
       - name: Player Milestone, maneuvers and preview regression
         run: node tests/player-progression-choices-smoke.mjs
       - name: Battle Master stacking and combat smoke
