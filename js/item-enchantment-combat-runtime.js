@@ -92,7 +92,26 @@
 
   function adjustedDamage(baseDamage, attacker, defender, skill = {}, context = {}) {
     const item = sourceItem(attacker, skill, context);
-    const resolution = resolve(item, attacker, defender, skill, context);
+    // A Skill's activation is decided once. If its first Coin spends the last
+    // point of Magical Durability, its remaining Coins keep the same approved
+    // snapshot; a NEW Skill must resolve again and can see depletion.
+    const actionContext = context && typeof context === "object" ? context : null;
+    const cached = actionContext?.__luminousEnchantmentSkillSnapshot || null;
+    const sameAction = cached?.skill === skill &&
+      cached?.item === item &&
+      cached?.attacker === attacker;
+    if (actionContext && cached && !sameAction) {
+      delete actionContext.__luminousEnchantmentActivationSpent;
+      delete actionContext.__luminousEnchantmentWearSpent;
+    }
+    const actorStillActive = Magic.actorCanEmitMagic?.(attacker) !== false;
+    const itemStillEquipped = !item || Magic.itemEquippedBy?.(attacker, item) !== false;
+    const resolution = sameAction && actorStillActive && itemStillEquipped
+      ? cached.resolution
+      : resolve(item, attacker, defender, skill, context);
+    if (actionContext && (!sameAction || !actorStillActive || !itemStillEquipped)) {
+      actionContext.__luminousEnchantmentSkillSnapshot = {skill,item,attacker,resolution};
+    }
     let damage = Math.max(0, Number(baseDamage) || 0);
 
     if (resolution.active && resolution.resolved !== false) {
