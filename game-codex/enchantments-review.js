@@ -29,7 +29,7 @@ function appendText(host,tag,className,text) {
   const el=node(tag,className,text);host.appendChild(el);return el;
 }
 function displayItem(e) {
-  return "Example Item: " + e.exampleItem + "  ·  Compatible with: " + e.items.join(" / ");
+  return "Example Item: " + e.exampleItem + "  ·  Equipment: " + e.kind.toUpperCase();
 }
 function renderDetail(entry) {
   const target=$("detail");
@@ -37,14 +37,18 @@ function renderDetail(entry) {
   appendText(target,"div","discipline",entry.school + " / Inscription");
   appendText(target,"h2","",entry.name + " III");
   appendText(target,"p","item-name",displayItem(entry));
+  appendText(target,"h3","rule-heading","COMPATIBLE CHASSIS IDS");
+  appendText(target,"p","limits",entry.allowedChassisIds.join(" · "));
   appendText(target,"p","lore","“" + entry.lore + "”");
   const ranks=appendText(target,"section","ranks","");
   ["I","II","III"].forEach((tier) => {
     const wrap=node("article","rank");
-    appendText(wrap,"h3","","RANK " + tier + (tier==="III" ? " — FINAL INSCRIPTION" : ""));
+    appendText(wrap,"h3","","RANK " + tier + " — " + ({I:"BASE ×1.00",II:"BASE ×1.50 (CEIL)",III:"BASE ×2.50 (CEIL)"}[tier]));
     appendText(wrap,"p","",entry.tiers[tier]);
     ranks.appendChild(wrap);
   });
+  appendText(target,"h3","rule-heading","ONE BASE EFFECT · THREE SCALED RANKS");
+  appendText(target,"p","limits","Every Rank retains the same trigger and behavior. Only named effect magnitudes are scaled with ceil(Base × Multiplier).");
   appendText(target,"h3","rule-heading","CONSTRAINTS & COUNTERPLAY");
   appendText(target,"p","limits",entry.limits);
   appendText(target,"h3","rule-heading","MECHANICAL REFERENCES");
@@ -54,7 +58,7 @@ function renderDetail(entry) {
   appendText(target,"p","risk","Requires engine work: " + (entry.requiresEngine ? "Yes — concept has not been implemented or QA tested." : "Review required."));
   const review=node("div","review");
   appendText(review,"strong","","PROPOSED · NOT APPROVED · NOT PLAYABLE");
-  appendText(review,"p","","Design pass needed: name, fantasy, trigger timing, stack caps, exclusions, interaction with other enchants, attunement, recipes, production cost and rarity.");
+  appendText(review,"p","","Design pass needed: name, compatible chassis, base effect, magnitude caps, trigger timing, source binding, attunement, recipes, production cost and rarity. Ranks cannot unlock extra abilities.");
   target.appendChild(review);
 }
 function visible() {
