@@ -43,7 +43,7 @@
     "originRaceId", "originSubtypeId", "provenance",
     "displayName", "materialName", "measure", "partSize", "creatureSize", "anatomicalPart", "anatomicalIdentity", "anatomicalLabel", "form",
     "hideUnits", "remainingUnits", "bloodUnits", "remainingBloodUnits", "secretionUnits", "remainingSecretionUnits",
-    "oozeUnits", "remainingOozeUnits", "fiberUnits", "remainingFiberUnits", "hungerPerUnit", "rationEquivalentPerUnit",
+    "oozeUnits", "remainingOozeUnits", "fiberUnits", "remainingFiberUnits", "essenceUnits", "remainingEssenceUnits", "hungerPerUnit", "rationEquivalentPerUnit",
     "harvestIntegrityFamily", "integritySnapshot", "rawCraftingReagent", "reagentTags", "specialProperties",
     "transplantMode", "transplantableByAnatomy", "transplantMedicalValueRangeAhn", "physicalMode",
     "modularCoverageMaterial", "discreteStructuralPart", "canAggregateCoverage", "canMergeForLargerPart", "canDownsizeForSmallerUse",
@@ -99,7 +99,7 @@
     if (input.variantData && typeof input.variantData === "object") Object.assign(out, clone(input.variantData));
     // A live Item Instance can be enchanted, replaced or disenchanted after its
     // previous variantData snapshot was saved. The explicit live state wins.
-    ["enhancementLevel", "enhancementSource", "enchanted", "enchantment", "enchantmentReady", "baseMundaneValueAhn", "enchantmentBaseValueAhn", "enchantmentMultiplier", "enchantmentValueAhn", "enchantmentPricingStatus", "productionValueAhn", "unitValueAhn", "totalValueAhn"].forEach((field) => {
+    ["enhancementLevel", "enhancementSource", "enchanted", "enchantment", "enchantmentReady", "baseMundaneValueAhn", "enchantmentBaseValueAhn", "enchantmentMultiplier", "enchantmentValueAhn", "enchantmentPricingStatus", "productionValueAhn", "unitValueAhn", "totalValueAhn", "essenceUnits", "remainingEssenceUnits"].forEach((field) => {
       if (input[field] !== undefined) out[field] = clone(input[field]);
     });
     return out;
