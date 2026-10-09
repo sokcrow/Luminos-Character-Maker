@@ -540,6 +540,7 @@
     if (!quote?.valid) return announce("Este objeto no tiene un ritual con precio válido.", "error");
     const materials = quote.materials.map((row) => row.name + " ×" + row.quantity).join(", ");
     const confirmText = "¿Realizar el ritual de encantamiento +" + quote.tier + "?" +
+      (status?.enchanted ? "\nREEMPLAZO: se perderá el encantamiento +" + status.tier + " anterior; no se reembolsan materiales." : "") +
       "\nMateriales consumidos: " + materials +
       "\nCobro al jugador: " + quote.chargedAhn.toLocaleString("es-MX") + " AHN." +
       "\nEste crafteo no guardará otros cambios pendientes del editor.";
