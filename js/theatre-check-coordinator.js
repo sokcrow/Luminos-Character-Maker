@@ -838,10 +838,10 @@
           if (state.liveUpdateTimer) global.clearTimeout(state.liveUpdateTimer);
           global.setTimeout(() => {
             // Never re-open Legacy UI if another Check has already started.
-            if (state.activeCommand?.key === commandId) return;
+            if (state.activeCommand) return;
             const legacy = $("coin-toss-panel");
             if (legacy) legacy.style.display = "none";
-            if (!state.activeCommand) doc.body?.classList?.remove("theatre-check-active");
+            doc.body?.classList?.remove("theatre-check-active");
           }, 7600);
           global.setTimeout(() => liveRef.remove().catch(() => {}), 9500);
           if (state.activeCommand?.key === commandId) state.activeCommand = null;
