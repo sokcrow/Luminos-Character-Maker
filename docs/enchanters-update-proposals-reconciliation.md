@@ -45,3 +45,66 @@ The entire imported standalone preview remains **read-only**: `game-codex/enchan
 **Next gate**: compare and explicitly approve the disputed numerical and event contracts above; only then migrate selected Enchantment definitions into the canonical #931 catalog/schema and smoke tests. The absence of a live hook is not fixed by displaying a design in the preview.
 
 **Do not revive PR #963 as a second Enchanter workstream.** Keep the single issue/PR history under #931.
+
+## 2026-10-09 — Owner-approved selective recovery decisions (design record only)
+
+> **Scope and authority:** The owner explicitly approved the decisions recorded in this section while requesting **no canonical runtime changes yet**. This section is a design decision log and supersedes inconsistent assumptions *in the imported #963 review materials*. It does not silently change the frozen Part A–D implementation contracts, turn the 119 review entries into live definitions, or approve a complete #963 merge. Follow-up implementation must reconcile documents, author definitions individually, and pass gameplay regression checks.
+
+### Earlier seven design directions, reaffirmed
+
+1. **Individual Rank values:** preserve explicitly authored values for each Enchantment/Rank; reject a mandatory global `×1 / Ceil(×1.5) / Ceil(×2.5)` curve.
+2. **Independent specialist damage family:** distinguish physical Damage Type and SIN affinity specialists from Part A's existing main-damage and optional secondary-damage families.
+3. **Resistance reductions:** subtract approved `0.06 / 0.09 / 0.15` from the matching incoming-damage resistance input/multiplier, never from flat HP.
+4. **Support/activation concepts:** accept the proposed HP/SP/Speed/Offensive Level/Defensive Level/Ability Score and event families as design scope; their exact triggers and stacking must be authored.
+5. **Magical Durability capacity unchanged:** direct/pure `50%` and Gem-Anchored `75%` of Physical Max Durability, rounded to nearest whole point; preserve authored native Magic Item/Relic exceptions.
+6. **Usage/recharge unchanged:** per-definition wear, charges and recharge; reject universal 1 point/activation, universal 10%/30% Rest recharge and blanket Spell Slot-based recharge. Keep Part A material incompatibility wear ×2, Bound ordinary-wear exemption, and authored activated costs.
+7. **Rounding/edge cases:** keep existing canonical defaults for now; any novel rounding, resource-zero and exception behavior remains subject to tests, not automatically imported from #963.
+
+### Thirteen explicit owner decisions
+
+| # | Subject | Approved design decision | Implementation/test boundary |
+|---|---|---|---|
+| 1 | Specialist damage magnitude | Rank I/II/III = **+5% / +8% / +13%** | Distinct from existing main +10/15/25 and optional secondary +4/8/18 |
+| 2 | Attack source | Only Skills **sourced from the enchanted weapon** qualify | Check actual Item Instance and Skill origin; do not boost unrelated attacks |
+| 3 | Matching physical + SIN channels | **Choose one** eligible specialist bonus **per Skill** | Do not add or multiply a physical and SIN specialist on that Skill; follow Part A channel-choice contract |
+| 4 | Main + specialist damage | **Use the largest applicable bonus** on the same eligible damage contribution | Do not globally rewrite the original Rank curves; preserve unrelated effects and resolve ties deterministically during implementation |
+| 5 | Universal Sovereign Impact | **Keep as unapproved draft** | No approved base percentage, price, costs or live behavior |
+| 6 | Defensive stacking | For the same resistance axis, use **only the greatest eligible reduction** | Different axes can coexist subject to Item slot/conflict rules |
+| 7 | Resistance limits | Preserve physical input floor **0.30**; SIN uses its **own** established domain limits | Unify adapter semantics; do not force a 0.30 SIN floor without canonical support |
+| 8 | Support numbers | **Finalize** HP Max +5/8/13%; HP regen 2/3/5%; SP restoration 2/3/5 points; involuntary SP loss mitigation 1/2/3 points | These are family-specific approved numbers, **not** universal scaling for other Enchantments; timing/rounding/gates remain per-effect |
+| 9 | HP regeneration | **Turn Start**, no resurrection at **0 HP** | Apply only to living targets with missing HP; no overheal; verify one trigger per Turn |
+| 10 | Buff duration/duplication | **Individually authored duration; avoid duplicates** | Define source identity, precedence, expiry and non-stacking for each buff |
+| 11 | Before Getting Hit reaction | **Allow a player-selected defensive reaction** | Must occur before incoming damage, not at Damage Taken; see shield-wear interpretation below |
+| 12 | Multi-Coin Skills | **One activation per eligible Skill** | Never implicitly pay once per Coin; any separately authored per-Hit effect needs its own explicit definition |
+| 13 | Continuous passives | **Only expressly authored Magical Durability wear** | No automatic per-Turn or per-Encounter charge for every passive |
+
+### Owner note on the defensive shield
+
+Original owner wording: **“Al recibir daño en ese umbral agregado si baja ahí se consume”.**
+
+**Working interpretation, awaiting precise implementation semantics:** if an opted-in defensive reaction adds temporary Shield, its special magical-resource wear occurs **when that added Shield actually loses points while absorbing incoming damage**, not automatically on presenting/choosing the reaction. Thus attacks that fail to reduce this added Shield should not generate the proposed shield-absorption wear. Do **not** assume an unconditional 1-point charge, apply an event after damage, or silently deduct on granting Shield as proposed in the #963 draft.
+
+The wording does not yet conclusively fix (a) whether the resource consumed is exactly one Magical Durability point or a variable amount, (b) whether a pre-existing Shield absorbs first, (c) behavior if the Item has 0 Magical Durability at reaction time, or (d) whether a reaction can be canceled. These are **test/authoring questions, not permissions to invent behavior**. Reconcile the imported `Threshold Aegis` preview text that currently says to pay 1 point upon shield grant, even on a miss.
+
+### Compatibility review against Part A–D
+
+- **Part A §4:** Keep baseline dedicated damage `+10%/+15%/+25%` and explicitly authored secondary `+4%/+8%/+18%`. New +5/8/13 specialist category must be separately identified. Highest-applicable non-stacking is a new interaction rule for overlap; test how eligible scopes and independent damage adders are separated.
+- **Part A §7:** Physical versus SIN choice follows the existing per-action exclusive-channel selection model. Highest-applicable damage across main and specialist must be resolved consistently with that chosen channel and hard conflicts.
+- **Part A §§8–9 / Part C §12:** Preserve incompatible-material wear ×2 and independent Physical/Magical Durability; **do not** import #963's rank-based capacity or universal wear.
+- **Part B:** Gem Anchor affinities, one-Enchantment-per-Anchor rules, Rank restrictions, Base Slots vs Gem Sockets, and resonance checks remain unchanged. A compatible affinity alone does not grant a damage booster.
+- **Part C:** Service TH, material/reagent costs, AHN labor floors, recipe/compendium knowledge and delivery authority remain untouched. No invented specialist/universal prices.
+- **Part D §§5–10:** Definition-driven hooks, Attunement, backed Charges, Spell Slot authority, and recharge remain unchanged. A chosen Before Getting Hit reaction is a future authoritative pre-damage interaction, not an existing proven hook.
+- **Part D §§11–13:** Depleted enchanted Items remain physically usable; Bind and Curse exemptions and special-authorized resource costs take precedence over generic assumptions.
+- **Damage implementation mismatch:** `js/item-armor-runtime.js` treats physical resistances as direct multipliers with a 0.30 minimum, whereas `js/combatEngine.js` converts `physRes` and `sinRes` through its scalar resistance modifier. Approving reductions does not approve applying raw `-0.06` to an already converted output.
+
+### Remaining explicit test / authoring gates (not blockers for recording decisions)
+
+- Resolve actual same-Skill physical/SIN channel selection and the strongest-applicable damage rule in multi-Coin, critical, Clash, mixed-damage and separate damage-event cases.
+- Verify equipment-only source identity, Attunement state, unequipping, multiple Item Instances and deterministic stacking.
+- Verify resistance-floor preservation, stronger-only stacking, SIN-specific limits and stagger paths.
+- Verify HP regeneration at Turn Start (including 0 HP, max HP, absent combat/duplicate event), approved support magnitudes, expiry and same-effect buff duplication.
+- Design a **real pre-damage reaction hook and player-facing selection** for Threshold Aegis; ensure missed attacks, damage absorbed by old Shield, partial/no absorption, Magical Durability 0, reconnects and turn frequency behave consistently. No raw debug UI.
+- Confirm individual activation cost/wear, shield wear interpretation, and rounding where not explicitly approved. For Magic Durability capacity, retain current nearest-whole-point behavior.
+- Keep Sovereign Impact editorial only and leave Curse Update and Magic Loot Update out of this task.
+
+**Implementation status:** Design approvals recorded only; **no live canonical catalog, Part A–D runtime, combat, rest, inventory, persistence, UI, or balancing values were changed by this review.**
