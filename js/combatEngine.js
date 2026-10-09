@@ -1717,8 +1717,12 @@ const CombatEngine = {
         }
         // The legacy Combat engine does not call UniversalModifiers here.
         // Consume only active per-instance enchanted Traits, without double-counting statuses.
-        const enchanted = (typeof window !== "undefined" ? window.LuminousItemEnchantmentRuntime : null);
-        const traits = enchanted?.collectEquippedTraits?.(unit, { skill: contextOptions?.skill }) || [];
+        const game = typeof window !== "undefined" ? window : null;
+        const enchanted = game?.LuminousItemEnchantmentRuntime;
+        const equipmentInactive = game?.LuminousUniversalModifiers?.resolveEquipment?.(unit)?.equipmentInactive === true
+            || game?.LuminousStatusEngine?.hasStatus?.(unit, "moonfae_rabbit_form") === true
+            || (unit.statusEffects?.moonfae_rabbit_form != null && unit.statusEffects.moonfae_rabbit_form !== false);
+        const traits = equipmentInactive ? [] : enchanted?.collectEquippedTraits?.(unit, { skill: contextOptions?.skill }) || [];
         for (const trait of traits) {
             for (const rule of trait.rules || []) {
                 if (rule.trigger !== "passive" || rule.type !== "modifier") continue;
