@@ -964,6 +964,13 @@
     return { id, name, rule, narrative, legacy, choices, bonus, character };
   }
 
+  function backgroundChoiceValue(choices, name, aliases, fallback) {
+    for (const key of [name, ...aliases]) {
+      if (Object.prototype.hasOwnProperty.call(choices, key)) return choices[key];
+    }
+    return fallback;
+  }
+
   function choiceText(value, options = []) {
     const raw = typeof value === "object" && value !== null
       ? String(value.label || value.name || value.description || value.id || "")
@@ -1158,10 +1165,10 @@
       const choices = profile.choices;
       const decisions = createElement("section", "player-background-decisions");
       decisions.appendChild(createElement("h3", "player-background-section-title", "TUS DECISIONES"));
-      const ideal = choiceText(choices.ideal || choices.idealId || profile.character.psychologicalIdeal, profile.narrative?.ideals);
-      const bond = choiceText(choices.bond || choices.bondId || choices.vinculo || profile.character.psychologicalVinculo, profile.narrative?.bonds);
-      const flaw = choiceText(choices.flaw || choices.flawId || choices.grieta || profile.character.psychologicalGrieta, profile.narrative?.flaws);
-      const personality = choices.personality || choices.personalityTraits;
+      const ideal = choiceText(backgroundChoiceValue(choices, "ideal", ["idealId"], profile.character.psychologicalIdeal), profile.narrative?.ideals);
+      const bond = choiceText(backgroundChoiceValue(choices, "bond", ["bondId", "vinculo"], profile.character.psychologicalVinculo), profile.narrative?.bonds);
+      const flaw = choiceText(backgroundChoiceValue(choices, "flaw", ["flawId", "grieta"], profile.character.psychologicalGrieta), profile.narrative?.flaws);
+      const personality = backgroundChoiceValue(choices, "personality", ["personalityTraits"], []);
       const personalityText = Array.isArray(personality) ? personality.map((entry) => choiceText(entry)).filter(Boolean).join(" · ") : choiceText(personality);
       if (this.backgroundEditing && this.saveBackgroundChoices) {
         decisions.appendChild(this.renderBackgroundEditor(profile));
@@ -1216,9 +1223,9 @@
       container.setAttribute("aria-label", "Editar decisiones de Background");
       const fields = [];
       const configs = [
-        { id: "ideal", label: "IDEAL", saved: choices.ideal || choices.idealId || profile.character.psychologicalIdeal, options: profile.narrative?.ideals || [] },
-        { id: "bond", label: "VÍNCULO", saved: choices.bond || choices.bondId || choices.vinculo || profile.character.psychologicalVinculo, options: profile.narrative?.bonds || [] },
-        { id: "flaw", label: "DEFECTO / GRIETA", saved: choices.flaw || choices.flawId || choices.grieta || profile.character.psychologicalGrieta, options: profile.narrative?.flaws || [] },
+        { id: "ideal", label: "IDEAL", saved: backgroundChoiceValue(choices, "ideal", ["idealId"], profile.character.psychologicalIdeal), options: profile.narrative?.ideals || [] },
+        { id: "bond", label: "VÍNCULO", saved: backgroundChoiceValue(choices, "bond", ["bondId", "vinculo"], profile.character.psychologicalVinculo), options: profile.narrative?.bonds || [] },
+        { id: "flaw", label: "DEFECTO / GRIETA", saved: backgroundChoiceValue(choices, "flaw", ["flawId", "grieta"], profile.character.psychologicalGrieta), options: profile.narrative?.flaws || [] },
       ];
       configs.forEach((config) => {
         const wrapper = createElement("div", "player-background-choice-field");
@@ -1262,10 +1269,11 @@
         fields.push({
           id: config.id,
           read: () => select.value === "__custom__" ? custom.value.trim() : select.value.trim(),
+          initial: select.value === "__custom__" ? custom.value.trim() : select.value.trim(),
         });
       });
 
-      const oldPersonality = choices.personality || choices.personalityTraits || [];
+      const oldPersonality = backgroundChoiceValue(choices, "personality", ["personalityTraits"], []);
       const personality = (Array.isArray(oldPersonality) ? oldPersonality : [oldPersonality]).map((item) => choiceText(item));
       const personalityWrap = createElement("fieldset", "player-background-personality-field");
       const personalityTitle = createElement("legend", "player-background-choice-label", "PERSONALIDAD · HASTA 2 RASGOS");
@@ -1281,6 +1289,7 @@
         return input;
       });
       container.appendChild(personalityWrap);
+      const initialPersonality = personalityInputs.map((input) => input.value.trim()).filter(Boolean);
       container.appendChild(createElement("p", "player-background-edit-hint", "Son decisiones narrativas. No modifican tu HP Coef, Traits ni bonificaciones."));
       const status = createElement("p", "player-background-save-status");
       status.setAttribute("role", "status");
@@ -1301,14 +1310,16 @@
         event.preventDefault();
         if (this.backgroundSaving) return;
         const payload = {};
+        // Submit only choices actually modified by the player. A live DM update
+        // can change other fields while this editor deliberately preserves its draft.
         fields.forEach((field) => {
           const value = field.read();
-          if (value) payload[field.id] = value;
+          if (value !== field.initial) payload[field.id] = value;
         });
         const traits = personalityInputs.map((input) => input.value.trim()).filter(Boolean);
-        if (traits.length) payload.personality = traits;
+        if (JSON.stringify(traits) !== JSON.stringify(initialPersonality)) payload.personality = traits;
         if (!Object.keys(payload).length) {
-          status.textContent = "Selecciona al menos una opción o escribe un rasgo.";
+          status.textContent = "Modifica al menos una decisión antes de guardar.";
           return;
         }
         this.backgroundSaving = true;
