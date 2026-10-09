@@ -19,7 +19,8 @@ const ENCHANTMENTS=[
     "statuses": "Burn; fixed damage; Clash Win; On Kill",
     "reviewStatus": "proposed",
     "implementation": "design_only",
-    "requiresEngine": true
+    "requiresEngine": true,
+    "exampleItem": "Flamebound Longsword"
   },
   {
     "id": "ashwake",
@@ -39,7 +40,8 @@ const ENCHANTMENTS=[
     "statuses": "Burn; Guard; Shield break",
     "reviewStatus": "proposed",
     "implementation": "design_only",
-    "requiresEngine": true
+    "requiresEngine": true,
+    "exampleItem": "Ashwake Greatshield"
   },
   {
     "id": "cinder_requiem",
@@ -58,7 +60,8 @@ const ENCHANTMENTS=[
     "statuses": "Burn; Turn End; On Kill; temporary mark",
     "reviewStatus": "proposed",
     "implementation": "design_only",
-    "requiresEngine": true
+    "requiresEngine": true,
+    "exampleItem": "Cinder Requiem Rapier"
   },
   {
     "id": "emberheart",
@@ -78,7 +81,8 @@ const ENCHANTMENTS=[
     "statuses": "Protection; Shield; Burn; damage taken; resource",
     "reviewStatus": "proposed",
     "implementation": "design_only",
-    "requiresEngine": true
+    "requiresEngine": true,
+    "exampleItem": "Emberheart Cuirass"
   },
   {
     "id": "scorchweave",
@@ -98,7 +102,8 @@ const ENCHANTMENTS=[
     "statuses": "Evade; Burn; Blinded; condition tag",
     "reviewStatus": "proposed",
     "implementation": "design_only",
-    "requiresEngine": true
+    "requiresEngine": true,
+    "exampleItem": "Scorchweave Brooch"
   },
   {
     "id": "pyrelash",
@@ -117,7 +122,8 @@ const ENCHANTMENTS=[
     "statuses": "Burn; Clash Lose; On Hit; charges",
     "reviewStatus": "proposed",
     "implementation": "design_only",
-    "requiresEngine": true
+    "requiresEngine": true,
+    "exampleItem": "Pyrelash Chainwhip"
   },
   {
     "id": "frostwrought",
@@ -136,7 +142,8 @@ const ENCHANTMENTS=[
     "statuses": "Chill; Bind; Frozen; repeated-hit tracking",
     "reviewStatus": "proposed",
     "implementation": "design_only",
-    "requiresEngine": true
+    "requiresEngine": true,
+    "exampleItem": "Frostwrought Greatsword"
   },
   {
     "id": "whiteout",
@@ -155,7 +162,8 @@ const ENCHANTMENTS=[
     "statuses": "Chill; Blinded; Evade; Protection",
     "reviewStatus": "proposed",
     "implementation": "design_only",
-    "requiresEngine": true
+    "requiresEngine": true,
+    "exampleItem": "Whiteout Breastplate"
   },
   {
     "id": "permafrost",
@@ -175,7 +183,8 @@ const ENCHANTMENTS=[
     "statuses": "Guard; Shield; Chill; prevented-damage counter",
     "reviewStatus": "proposed",
     "implementation": "design_only",
-    "requiresEngine": true
+    "requiresEngine": true,
+    "exampleItem": "Permafrost Tower Shield"
   },
   {
     "id": "rimeglass",
@@ -194,7 +203,8 @@ const ENCHANTMENTS=[
     "statuses": "Chill; Rupture; Tremor Burst; critical hit",
     "reviewStatus": "proposed",
     "implementation": "design_only",
-    "requiresEngine": true
+    "requiresEngine": true,
+    "exampleItem": "Rimeglass Dagger"
   },
   {
     "id": "winter_s_grasp",
@@ -214,7 +224,8 @@ const ENCHANTMENTS=[
     "statuses": "Bind; Chill; Restrained; resistance Save",
     "reviewStatus": "proposed",
     "implementation": "design_only",
-    "requiresEngine": true
+    "requiresEngine": true,
+    "exampleItem": "Winter's Grasp Spear"
   },
   {
     "id": "black_ice",
@@ -233,7 +244,8 @@ const ENCHANTMENTS=[
     "statuses": "Evade; Chill; Haste; Stagger Threshold",
     "reviewStatus": "proposed",
     "implementation": "design_only",
-    "requiresEngine": true
+    "requiresEngine": true,
+    "exampleItem": "Black Ice Anklet"
   },
   {
     "id": "stormwake",
@@ -252,7 +264,8 @@ const ENCHANTMENTS=[
     "statuses": "Shock; Paralysis conversion; single-use charge",
     "reviewStatus": "proposed",
     "implementation": "design_only",
-    "requiresEngine": true
+    "requiresEngine": true,
+    "exampleItem": "Stormwake Sabre"
   },
   {
     "id": "thundercall",
@@ -271,7 +284,8 @@ const ENCHANTMENTS=[
     "statuses": "Shock; Paralysis; Tremor; Clash Win",
     "reviewStatus": "proposed",
     "implementation": "design_only",
-    "requiresEngine": true
+    "requiresEngine": true,
+    "exampleItem": "Thundercall Warhammer"
   },
   {
     "id": "stormcage",
@@ -290,7 +304,8 @@ const ENCHANTMENTS=[
     "statuses": "Guard; Shock; Paralysis; Shield",
     "reviewStatus": "proposed",
     "implementation": "design_only",
-    "requiresEngine": true
+    "requiresEngine": true,
+    "exampleItem": "Stormcage Buckler"
   },
   {
     "id": "static_veil",
@@ -310,7 +325,8 @@ const ENCHANTMENTS=[
     "statuses": "Shock; Protection; Shield; damage taken",
     "reviewStatus": "proposed",
     "implementation": "design_only",
-    "requiresEngine": true
+    "requiresEngine": true,
+    "exampleItem": "Static Veil Mail"
   },
   {
     "id": "galeheart",
@@ -329,7 +345,8 @@ const ENCHANTMENTS=[
     "statuses": "Haste; Bind; Evade; ally targeting",
     "reviewStatus": "proposed",
     "implementation": "design_only",
-    "requiresEngine": true
+    "requiresEngine": true,
+    "exampleItem": "Galeheart Bracelet"
   },
   {
     "id": "skybreaker",
@@ -348,7 +365,8 @@ const ENCHANTMENTS=[
     "statuses": "Shock; Shields; Tremor Burst; shield-break event",
     "reviewStatus": "proposed",
     "implementation": "design_only",
-    "requiresEngine": true
+    "requiresEngine": true,
+    "exampleItem": "Skybreaker Lance"
   },
   {
     "id": "bloodthorn",
@@ -367,7 +385,8 @@ const ENCHANTMENTS=[
     "statuses": "Bleed; Poise/Critical; Rupture",
     "reviewStatus": "proposed",
     "implementation": "design_only",
-    "requiresEngine": true
+    "requiresEngine": true,
+    "exampleItem": "Bloodthorn Stiletto"
   },
   {
     "id": "crimson_oath",
@@ -386,7 +405,8 @@ const ENCHANTMENTS=[
     "statuses": "Bleed; Rupture; resource expenditure; target sharing",
     "reviewStatus": "proposed",
     "implementation": "design_only",
-    "requiresEngine": true
+    "requiresEngine": true,
+    "exampleItem": "Crimson Oath Longsword"
   },
   {
     "id": "hollow_fang",
@@ -405,7 +425,8 @@ const ENCHANTMENTS=[
     "statuses": "Bleed; healing; Shield; Critical",
     "reviewStatus": "proposed",
     "implementation": "design_only",
-    "requiresEngine": true
+    "requiresEngine": true,
+    "exampleItem": "Hollow Fang Kukri"
   },
   {
     "id": "ruptureloom",
@@ -424,7 +445,8 @@ const ENCHANTMENTS=[
     "statuses": "Rupture; multiple-hit tracking; On Hit",
     "reviewStatus": "proposed",
     "implementation": "design_only",
-    "requiresEngine": true
+    "requiresEngine": true,
+    "exampleItem": "Ruptureloom Pike"
   },
   {
     "id": "butcher_s_hymn",
@@ -443,7 +465,8 @@ const ENCHANTMENTS=[
     "statuses": "Poise; Bleed; Protection; damage taken",
     "reviewStatus": "proposed",
     "implementation": "design_only",
-    "requiresEngine": true
+    "requiresEngine": true,
+    "exampleItem": "Butcher's Hymn Breastplate"
   },
   {
     "id": "heartseeker",
@@ -462,7 +485,8 @@ const ENCHANTMENTS=[
     "statuses": "Bleed; Rupture; HP threshold; marked target",
     "reviewStatus": "proposed",
     "implementation": "design_only",
-    "requiresEngine": true
+    "requiresEngine": true,
+    "exampleItem": "Heartseeker Longbow"
   },
   {
     "id": "gravewhisper",
@@ -481,7 +505,8 @@ const ENCHANTMENTS=[
     "statuses": "Sinking; SP; Poise; per-target mark",
     "reviewStatus": "proposed",
     "implementation": "design_only",
-    "requiresEngine": true
+    "requiresEngine": true,
+    "exampleItem": "Gravewhisper Scythe"
   },
   {
     "id": "drownsong",
@@ -501,7 +526,8 @@ const ENCHANTMENTS=[
     "statuses": "Sinking; SP healing; damage taken; chosen target",
     "reviewStatus": "proposed",
     "implementation": "design_only",
-    "requiresEngine": true
+    "requiresEngine": true,
+    "exampleItem": "Drownsong Signet Ring"
   },
   {
     "id": "nightfall",
@@ -521,7 +547,8 @@ const ENCHANTMENTS=[
     "statuses": "Evade; Invisible; Sinking; detection",
     "reviewStatus": "proposed",
     "implementation": "design_only",
-    "requiresEngine": true
+    "requiresEngine": true,
+    "exampleItem": "Nightfall Pendant"
   },
   {
     "id": "void_anchor",
@@ -540,7 +567,8 @@ const ENCHANTMENTS=[
     "statuses": "Bind; Restrained; Guard; Shield; Save",
     "reviewStatus": "proposed",
     "implementation": "design_only",
-    "requiresEngine": true
+    "requiresEngine": true,
+    "exampleItem": "Void Anchor Shield"
   },
   {
     "id": "eclipsed_crown",
@@ -560,7 +588,8 @@ const ENCHANTMENTS=[
     "statuses": "Sinking; SP resource; Bind; HP/SP gate",
     "reviewStatus": "proposed",
     "implementation": "design_only",
-    "requiresEngine": true
+    "requiresEngine": true,
+    "exampleItem": "Eclipsed Crown Brooch"
   },
   {
     "id": "spectral_covenant",
@@ -579,7 +608,8 @@ const ENCHANTMENTS=[
     "statuses": "Stagger; Sinking; Shield; charges",
     "reviewStatus": "proposed",
     "implementation": "design_only",
-    "requiresEngine": true
+    "requiresEngine": true,
+    "exampleItem": "Spectral Covenant Longsword"
   },
   {
     "id": "dawnbound",
@@ -598,7 +628,8 @@ const ENCHANTMENTS=[
     "statuses": "Radiance; Shields; Protection; marked attacker",
     "reviewStatus": "proposed",
     "implementation": "design_only",
-    "requiresEngine": true
+    "requiresEngine": true,
+    "exampleItem": "Dawnbound Broadsword"
   },
   {
     "id": "halo_of_ash",
@@ -617,7 +648,8 @@ const ENCHANTMENTS=[
     "statuses": "Protection; Shield; Status cleansing; interception",
     "reviewStatus": "proposed",
     "implementation": "design_only",
-    "requiresEngine": true
+    "requiresEngine": true,
+    "exampleItem": "Halo of Ash Cuirass"
   },
   {
     "id": "mercy_s_last_light",
@@ -636,7 +668,8 @@ const ENCHANTMENTS=[
     "statuses": "SP cost; Shield; HP healing; lethal-hit window",
     "reviewStatus": "proposed",
     "implementation": "design_only",
-    "requiresEngine": true
+    "requiresEngine": true,
+    "exampleItem": "Mercy's Last Light Pendant"
   },
   {
     "id": "oathkeeper",
@@ -655,7 +688,8 @@ const ENCHANTMENTS=[
     "statuses": "interception; Guard; Protection; Shield",
     "reviewStatus": "proposed",
     "implementation": "design_only",
-    "requiresEngine": true
+    "requiresEngine": true,
+    "exampleItem": "Oathkeeper Tower Shield"
   },
   {
     "id": "sunpiercer",
@@ -674,7 +708,8 @@ const ENCHANTMENTS=[
     "statuses": "Invisible; Radiance; Shield break; target detection",
     "reviewStatus": "proposed",
     "implementation": "design_only",
-    "requiresEngine": true
+    "requiresEngine": true,
+    "exampleItem": "Sunpiercer Spear"
   },
   {
     "id": "radiant_bastion",
@@ -694,7 +729,8 @@ const ENCHANTMENTS=[
     "statuses": "Guard; Shield; Protection; ally selection",
     "reviewStatus": "proposed",
     "implementation": "design_only",
-    "requiresEngine": true
+    "requiresEngine": true,
+    "exampleItem": "Radiant Bastion Shield"
   },
   {
     "id": "gravemark",
@@ -713,7 +749,8 @@ const ENCHANTMENTS=[
     "statuses": "Tremor; Tremor Burst; multiple hits",
     "reviewStatus": "proposed",
     "implementation": "design_only",
-    "requiresEngine": true
+    "requiresEngine": true,
+    "exampleItem": "Gravemark Warhammer"
   },
   {
     "id": "mirrorheart",
@@ -733,7 +770,8 @@ const ENCHANTMENTS=[
     "statuses": "Burn/Bleed/Sinking; status copy whitelist; remove Status Count",
     "reviewStatus": "proposed",
     "implementation": "design_only",
-    "requiresEngine": true
+    "requiresEngine": true,
+    "exampleItem": "Mirrorheart Pendant"
   },
   {
     "id": "chains_of_ruin",
@@ -752,7 +790,8 @@ const ENCHANTMENTS=[
     "statuses": "Bind; Rupture; Restrained; Save",
     "reviewStatus": "proposed",
     "implementation": "design_only",
-    "requiresEngine": true
+    "requiresEngine": true,
+    "exampleItem": "Chains of Ruin Chainwhip"
   },
   {
     "id": "chronolock",
@@ -771,7 +810,8 @@ const ENCHANTMENTS=[
     "statuses": "Quick Action; debt; action economy",
     "reviewStatus": "proposed",
     "implementation": "design_only",
-    "requiresEngine": true
+    "requiresEngine": true,
+    "exampleItem": "Chronolock Bracelet"
   },
   {
     "id": "requiem_coil",
@@ -790,7 +830,8 @@ const ENCHANTMENTS=[
     "statuses": "Guard; stored prevention; Fixed Damage; Shield",
     "reviewStatus": "proposed",
     "implementation": "design_only",
-    "requiresEngine": true
+    "requiresEngine": true,
+    "exampleItem": "Requiem Coil Brigandine"
   },
   {
     "id": "nullwake",
@@ -810,7 +851,8 @@ const ENCHANTMENTS=[
     "statuses": "temporary beneficial statuses; dispel whitelist; source tracking",
     "reviewStatus": "proposed",
     "implementation": "design_only",
-    "requiresEngine": true
+    "requiresEngine": true,
+    "exampleItem": "Nullwake Dagger"
   }
 ];
 const SCHOOLS=["Infernal","Glacial","Tempest","Sanguine","Umbral","Sanctified","Anomalous"];
