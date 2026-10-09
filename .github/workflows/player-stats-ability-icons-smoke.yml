@@ -7,14 +7,18 @@ on:
     paths:
       - 'Assets/Icons/stats/**'
       - 'js/player-stats-ability-bar.js'
+      - 'js/derived-stats-runtime.js'
       - 'css/player-stats-ability-bar.css'
       - 'tests/player-stats-ability-icons-smoke.mjs'
+      - 'tests/player-stats-tab-performance-smoke.mjs'
   pull_request:
     paths:
       - 'Assets/Icons/stats/**'
       - 'js/player-stats-ability-bar.js'
+      - 'js/derived-stats-runtime.js'
       - 'css/player-stats-ability-bar.css'
       - 'tests/player-stats-ability-icons-smoke.mjs'
+      - 'tests/player-stats-tab-performance-smoke.mjs'
 
 jobs:
   validate:
@@ -27,5 +31,8 @@ jobs:
       - name: Check Stats runtime syntax and verify icons
         run: |
           node --check js/player-stats-ability-bar.js
+          node --check js/derived-stats-runtime.js
           node --check tests/player-stats-ability-icons-smoke.mjs
+          node --check tests/player-stats-tab-performance-smoke.mjs
           node tests/player-stats-ability-icons-smoke.mjs
+          node tests/player-stats-tab-performance-smoke.mjs
