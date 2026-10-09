@@ -142,7 +142,8 @@
   function selectedDefinitionOptions(){
     const svc=state.service;
     if(["strengthen","remove_rewrite"].includes(svc)){
-      const view=magicKnowledge()?.presentation?.(state.viewer,state.selectedItem);
+      const view=state.selectedItem && state.viewer
+        ? magicKnowledge()?.presentation?.(state.viewer,state.selectedItem) : null;
       return installed(state.selectedItem).map((ref,index)=>{
         const def=catalog()?.get?.(ref.definitionId);
         // Player visibility follows Identify/Arcana knowledge, never raw registry data.
