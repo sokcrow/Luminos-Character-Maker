@@ -49,7 +49,8 @@
     "modularCoverageMaterial", "discreteStructuralPart", "canAggregateCoverage", "canMergeForLargerPart", "canDownsizeForSmallerUse",
     "primitiveHardMaterial", "lineageValueMultiplier",
     "unitValueAhn", "totalValueAhn", "productionValueAhn", "productionValue", "retailValueAhn",
-    "enhancementLevel", "enhancementSource", "enchanted", "enchantment", "enchantmentReady"
+    "enhancementLevel", "enhancementSource", "enchanted", "enchantment", "enchantmentReady",
+    "baseMundaneValueAhn", "enchantmentBaseValueAhn", "enchantmentMultiplier", "enchantmentValueAhn", "enchantmentPricingStatus"
   ]);
   let instanceCounter = 0;
 
