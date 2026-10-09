@@ -682,9 +682,9 @@
   }
 
   function checkDisplay(check) {
-    const raw = Number(check?.thresholdRaw);
+    if (check?.hiddenThreshold) return "THRESHOLD ??";
+    const raw = check?.thresholdRaw == null ? NaN : Number(check.thresholdRaw);
     if (!Number.isFinite(raw)) return "SIN THRESHOLD";
-    if (check?.hiddenThreshold) return "THRESHOLD ???";
     const x = Math.max(0, Math.trunc(numberOr(check?.modifierValue, 0)));
     const type = String(check?.modifierType || "neutral");
     const effective = type === "advantage" ? Math.max(0, raw - x) : type === "disadvantage" ? raw + x : raw;
