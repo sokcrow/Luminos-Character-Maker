@@ -29,8 +29,7 @@ function appendText(host,tag,className,text) {
   const el=node(tag,className,text);host.appendChild(el);return el;
 }
 function displayItem(e) {
-  if (e.name === "Flamebound") return "Example Item: Flamebound Longsword";
-  return "Compatible with: " + e.items.join(" / ");
+  return "Example Item: " + e.exampleItem + "  ·  Compatible with: " + e.items.join(" / ");
 }
 function renderDetail(entry) {
   const target=$("detail");
