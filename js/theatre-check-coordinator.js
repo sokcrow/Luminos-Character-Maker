@@ -245,7 +245,7 @@
     const listener = (snapshot) => {
       const status = snapshot.val()?.status;
       if (status !== "approved" && status !== "denied") return;
-      state.pendingBySpec.delete(key);
+      if (status === "denied") state.pendingBySpec.delete(key);
       playerNotice(status === "approved" ? "CHECK APROBADO" : "SOLICITUD RECHAZADA",
         status === "approved" ? `${rollSpec.label} · pulsa TIRAR en la solicitud` : `${rollSpec.label} · el DM la rechazó`,
         status === "approved" ? "approved" : "denied");
@@ -763,7 +763,10 @@
 
   async function executePlayerCommand(item) {
     const command = item.command;
-    const target = findPlayerRollTarget(command.rollSpec || {});
+    const identity = playerIdentity();
+    const spec = command.rollSpec || {};
+    state.pendingBySpec.delete([identity.uid, roomKey(), spec.kind, spec.abilityId, spec.skillId || ""].join(":"));
+    const target = findPlayerRollTarget(spec);
     if (!target) throw new Error("La tirada solicitada no está disponible en Stats.");
     const autoToggle = $("auto-toss-toggle");
     if (autoToggle) autoToggle.checked = true;
