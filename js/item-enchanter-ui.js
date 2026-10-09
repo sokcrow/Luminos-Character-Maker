@@ -7,7 +7,7 @@
   const state={
     open:false,provider:null,viewer:null,items:[],providerMaterials:[],selectedItem:null,
     service:null,definitionId:null,rank:1,gem:null,anchorId:null,quote:null,pending:false,
-    onSave:null,onClose:null,status:"",
+    onSave:null,onClose:null,status:"",saveUncertain:false,
   };
 
   const services=()=>global.LuminousItemEnchanterServiceRuntime || null;
@@ -326,10 +326,25 @@
     }
 
     const preview=services()?.playerServicePreview?.(state.viewer,state.provider,state.selectedItem,state.quote) || null;
+    const paymentUnresolved=!wallet.resolved;
     const insufficient=wallet.resolved && wallet.balance<Number(state.quote.totalAhn || 0);
-    if(validation) validation.innerHTML=insufficient
-      ? `<h4>PAYMENT</h4><p class="danger">Insufficient AHN · Need ${esc(ahn(state.quote.totalAhn))}</p>`
-      : `<h4>READY</h4><p>Provider validation passed.</p>`;
+    // A projected copy is safe for this subset of services. Never run Identify,
+    // Curse Analysis or other knowledge-writing actions while previewing.
+    const projectable=["enchant","mount_gem","strengthen","remove_rewrite","extract_gem","magical_repair"].includes(state.service);
+    const projected=projectable ? services()?.previewServiceResult?.(state.selectedItem,state.quote) : null;
+    const itemAfter=projected?.previewed===true ? projected.item : null;
+    const beforeSlots=engine()?.baseSlotCapacity?.(state.selectedItem);
+    const afterSlots=itemAfter ? engine()?.slotsUsed?.(engine()?.appliedEnchantments?.(itemAfter)||[]) : null;
+    const projectedSlots=Number.isFinite(Number(afterSlots)) && Number.isFinite(Number(beforeSlots))
+      ? `<p>Slots ocupados después del servicio: ${esc(afterSlots)} / ${esc(beforeSlots)}</p>`
+      : "";
+    if(validation) validation.innerHTML=state.saveUncertain
+      ? `<h4>SAVE NOT CONFIRMED</h4><p class="danger">El resultado local no pudo confirmarse en la base de datos. Recarga la ficha antes de intentar pagar otra vez.</p>`
+      : paymentUnresolved
+        ? `<h4>PAYMENT</h4><p class="danger">No se pudo verificar el saldo AHN.</p>`
+        : insufficient
+          ? `<h4>PAYMENT</h4><p class="danger">AHN insuficiente · Se necesitan ${esc(ahn(state.quote.totalAhn))}</p>`
+          : `<h4>READY</h4><p>Provider validation passed.</p>`;
 
     const materials=asArray(preview?.materials).map(row=>`<li>${esc(row.label)}${row.quantity!=null?` ×${esc(row.quantity)}`:""}${row.suppliedBy?` · ${esc(row.suppliedBy)}`:""}</li>`).join("");
     const effects=asArray(preview?.effects).map(text=>`<li>${esc(text)}</li>`).join("");
@@ -342,16 +357,18 @@
         <dt>Controlled Result</dt><dd>${esc(preview?.controlledResult?.text || "—")}</dd>
         <dt>Projected Magic</dt><dd>${preview?.projectedMagicalDurability!=null?`${esc(preview.projectedMagicalDurability)} MD`:"—"}</dd>
       </dl>
+      <h4>Resultado previsto</h4>
+      <p>${esc(itemName(state.selectedItem))} · ${esc(services()?.SERVICE_LABELS?.[state.service] || humanize(state.service))}</p>
+      ${projectedSlots || "<p>El resultado se confirmará al ejecutar el servicio.</p>"}
       <h4>Effects</h4><ul>${effects || "<li>—</li>"}</ul>
       <h4>Materials</h4><ul>${materials || "<li>None</li>"}</ul>`;
-    if(commitButton) commitButton.disabled=state.pending || insufficient || confirm?.checked!==true;
+    if(commitButton) commitButton.disabled=state.pending || state.saveUncertain || paymentUnresolved || insufficient || confirm?.checked!==true;
   }
 
   function render(){
     if(!state.open) return;
     renderControls();
     renderItems();
-    renderControls();
     const current=doc.getElementById("enchanter-ui-current");
     if(current) current.innerHTML=currentCard();
     renderPreview();
@@ -365,11 +382,12 @@
   }
 
   async function commit(){
-    if(state.pending || !state.quote?.quoted || !state.selectedItem) return;
+    if(state.pending || state.saveUncertain || !state.quote?.quoted || !state.selectedItem) return;
     const confirm=doc.getElementById("enchanter-ui-confirm");
     if(!confirm?.checked){state.status="CONFIRM SERVICE FIRST";render();return;}
     state.pending=true;state.status="PROCESSING SERVICE…";render();
     const tx=`ui:${Date.now()}:${itemId(state.selectedItem)}:${state.service}`;
+    let locallyCommitted=false;
     try{
       const result=services().commitServiceTransaction(state.viewer,state.selectedItem,state.quote,{
         transactionId:tx,
@@ -381,12 +399,19 @@
         locationId:state.provider?.locationId || null,
       });
       if(!result.committed) throw new Error(reasonText(result.reason));
-      state.status=`COMPLETE // ${services()?.SERVICE_LABELS?.[state.service] || humanize(state.service)}`;
+      locallyCommitted=true;
       confirm.checked=false;
+      // A local service receipt is not proof of persisted payment or item state.
       if(typeof state.onSave==="function") await state.onSave({result,item:state.selectedItem,viewer:state.viewer});
+      state.status=`COMPLETE // ${services()?.SERVICE_LABELS?.[state.service] || humanize(state.service)}`;
       global.dispatchEvent?.(new CustomEvent("luminous:enchanter-service-committed",{detail:{result,item:state.selectedItem}}));
     }catch(error){
-      state.status=`BLOCKED // ${error.message || error}`;
+      // Remote writes may have succeeded despite an ambiguous network error.
+      // Do not re-charge on this page until authoritative state is reloaded.
+      if(locallyCommitted) state.saveUncertain=true;
+      state.status=locallyCommitted
+        ? "SAVE NOT CONFIRMED — RECARGA LA FICHA ANTES DE REINTENTAR"
+        : `BLOCKED // ${error.message || error}`;
     }finally{
       state.pending=false;render();
     }
@@ -403,6 +428,7 @@
     state.selectedItem=context.item || state.items[0] || null;
     state.service=context.service && profile.services.includes(context.service)?context.service:profile.services[0];
     state.definitionId=null;state.rank=1;state.gem=null;state.anchorId=null;state.quote=null;state.pending=false;
+    // Do not clear saveUncertain across panel reopenings in this page session.
     state.onSave=context.onSave || null;state.onClose=context.onClose || null;state.status="";
     const root=mount();
     state.open=true;
