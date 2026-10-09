@@ -574,7 +574,9 @@ ${response}`);
     const result = await state.db.ref(`${PLAYER_ROOT}/${playerId}/backgroundChoices`)
       .transaction((current) => {
         const saved = current && typeof current === "object" && !Array.isArray(current) ? current : {};
-        const sameBackground = !saved.backgroundId || saved.backgroundId === selectedBackgroundId;
+        // Untagged pre-migration choices cannot be proven to belong to this
+        // Background. Never adopt them as the new origin's saved selections.
+        const sameBackground = saved.backgroundId === selectedBackgroundId;
         return { ...(sameBackground ? saved : {}), ...payload };
       }, undefined, false);
     if (!result?.committed) throw new Error("No se pudieron guardar tus decisiones. Inténtalo de nuevo.");
