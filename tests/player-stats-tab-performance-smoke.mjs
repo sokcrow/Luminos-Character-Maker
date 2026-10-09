@@ -14,6 +14,7 @@ let derivedCalculations = 0;
 let skillPreviews = 0;
 let abilityPreviews = 0;
 let currentPanel = null;
+let activeTraits = [{ id: "primordial_champion" }];
 
 function element() {
   const attrs = new Map();
@@ -61,10 +62,14 @@ const abilityButtons = Object.fromEntries(abilityIds.map((id) => {
   return [id, button];
 }));
 const skillList = element();
+const displayedScore = element();
+const displayedModifier = element();
 const panel = element();
 panel.dataset.activeStat = "str";
 panel.querySelector = (selector) => {
   if (selector === "[data-player-skill-list]") return skillList;
+  if (selector === "[data-stat-score]") return displayedScore;
+  if (selector === "[data-stat-modifier]") return displayedModifier;
   const statId = selector.startsWith('.player-ability[data-stat="') ? selector.split('"')[1] : null;
   return statId ? abilityButtons[statId] : null;
 };
@@ -116,11 +121,29 @@ const window = {
     normalizeState: (state) => state || "none",
     contribution: () => 0,
   },
+  LuminousPlayerTraitRuntime: { getTraits() { return activeTraits; } },
   LuminousDerivedStats: {
-    resolveCharacterStats(data) {
+    resolveCharacterStats(data, options = {}) {
       derivedCalculations += 1;
       const keys = ["fuerza", "destreza", "constitucion", "inteligencia", "sabiduria", "carisma"];
-      return { abilities: Object.fromEntries(abilityIds.map((id, i) => [id, { score: data.stats[keys[i]] }])) };
+      const champion = options.traits?.some((trait) => trait.id === "primordial_champion");
+      return {
+        abilities: Object.fromEntries(abilityIds.map((id, i) => {
+          const score = data.stats[keys[i]] + (champion && (id === "str" || id === "con") ? 4 : 0);
+          return [id, { score, modifier: Math.floor((score - 10) / 2) }];
+        })),
+        proficiency: { bonus: 2 },
+      };
+    },
+  },
+  // Use the same contract as derived-stats-runtime.snapshot(): the resolved
+  // snapshot must include runtime Traits and unit options, not raw stats only.
+  LuminousDerivedStatsRuntime: {
+    snapshot(data) {
+      return window.LuminousDerivedStats.resolveCharacterStats(data, {
+        traits: window.LuminousPlayerTraitRuntime.getTraits(),
+        unit: data,
+      });
     },
   },
   LuminousSkillTraitBreakdownPatch: {
@@ -135,12 +158,15 @@ for (const callback of domListeners.get("DOMContentLoaded") || []) callback();
 assert.equal(derivedCalculations, 1, "Boot must calculate the derived stats exactly once");
 assert.equal(skillPreviews, 1);
 assert.equal(abilityPreviews, 1);
+assert.equal(displayedScore.textContent, "18", "Primordial Champion must add +4 STR in the HUD");
+assert.equal(displayedModifier.textContent, "+4", "A trait-adjusted STR 18 has modifier +4");
 
 for (const id of ["dex", "wis", "cha", "str"]) {
   abilityButtons[id].click();
   assert.equal(panel.dataset.activeStat, id, "Tab selection must update immediately");
   assert.equal(abilityButtons[id].getAttribute("aria-selected"), "true");
   assert.equal(derivedCalculations, 1, "Tab switching must reuse the derived stats snapshot");
+  if (id === "str") assert.equal(displayedScore.textContent, "18", "STR bonus must survive changing tabs");
 }
 assert.equal(skillPreviews, 5, "Only the visible Skill previews should refresh per selected tab");
 assert.equal(abilityPreviews, 5);
@@ -155,5 +181,21 @@ for (const event of ["luminous:player-data", "luminous:traits-refreshed", "lumin
 assert.equal(frames.length, 1, "Data refreshes must be batched into one animation frame");
 frames.shift()();
 assert.equal(derivedCalculations, 2, "Batched data changes should recompute the character once");
+
+// An in-place trait refresh must invalidate the cached scores even if the
+// player data object has not changed identity.
+activeTraits = [];
+for (const listener of windowListeners.get("luminous:traits-refreshed") || []) listener();
+assert.equal(frames.length, 1);
+frames.shift()();
+assert.equal(derivedCalculations, 3);
+assert.equal(displayedScore.textContent, "14", "Removing the Trait must remove its STR bonus");
+
+abilityButtons.con.click();
+assert.equal(displayedScore.textContent, "11", "CON bonus must also be removed");
+activeTraits = [{ id: "primordial_champion" }];
+for (const listener of windowListeners.get("luminous:traits-refreshed") || []) listener();
+frames.shift()();
+assert.equal(displayedScore.textContent, "15", "Restoring Primordial Champion must grant +4 CON");
 
 console.log("player-stats-tab-performance-smoke: ok");
