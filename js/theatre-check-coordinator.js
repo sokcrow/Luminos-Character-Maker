@@ -281,7 +281,7 @@
   }
 
   function playerProficiencyBonus(player) {
-    return global.LuminousProficiencyRuntime?.proficiencyBonus?.(player?.level) ?? Math.ceil(Math.max(0, numberOr(player?.level, 1)) / 20);
+    return global.LuminousProficiencyRuntime?.proficiencyBonus?.(player?.level) ?? Math.min(6, 2 + Math.floor((Math.max(1, numberOr(player?.level, 1)) - 1) / 20));
   }
 
   function playerRollPreview(player, spec) {
