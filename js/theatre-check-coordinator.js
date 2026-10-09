@@ -47,6 +47,7 @@
     liveUpdateTimer: null,
     frontObserver: null,
     dmLiveHud: null,
+    dmLiveGeneration: 0,
     playerCommandsBound: false,
     dmPlayersBound: false,
     dmRequestsBound: false,
@@ -988,7 +989,7 @@
       playerNotice(result.outcome === "passed" ? "CHECK SUPERADO"
         : result.outcome === "failed" ? "CHECK FALLIDO" : "TIRADA FINALIZADA",
       `${result.label || "CHECK"} · Total ${result.total}`,
-      result.outcome === "passed" ? "approved" : "denied");
+      result.outcome === "passed" ? "approved" : result.outcome === "failed" ? "denied" : "pending");
     }, (error) => console.warn("Resultados de Checks no disponibles:", error));
   }
 
@@ -1011,17 +1012,32 @@
         resolveDmCheckResult(entry).catch((error) => console.warn("Check DM sin resolución:", error));
       });
       const latest = ordinary[0];
+      const generation = ++state.dmLiveGeneration;
       const activity = $("theatre-check-live-state");
-      if (activity) activity.textContent = latest
-        ? `${latest.targetName || "Jugador"} · ${latest.rollSpec?.label || "Check"} · ${latest.status === "complete" ? "Tirada terminada" : "Girando monedas"}`
-        : "Sin tiradas activas";
-      state.dmLiveHud?.remove();
-      state.dmLiveHud = null;
-      if (!latest) return;
-      const front = ensureFrontLayer();
-      if (!front) return;
-      state.dmLiveHud = buildDmMirrorHud(latest);
-      front.appendChild(state.dmLiveHud);
+      if (!latest) {
+        state.dmLiveHud?.remove();
+        state.dmLiveHud = null;
+        if (activity) activity.textContent = "Sin tiradas activas";
+        return;
+      }
+      const render = async () => {
+        let display = latest;
+        if (latest.check?.hiddenThreshold && latest.check.thresholdRaw == null) {
+          const secret = (await db.ref(`dm_private/theatre_check_secrets/${latest.targetUid}/${latest.commandId}`).once("value")).val();
+          if (secret) display = { ...latest, check: { ...latest.check, ...secret } };
+        }
+        if (generation !== state.dmLiveGeneration) return;
+        const front = ensureFrontLayer();
+        if (!front) return;
+        state.dmLiveHud?.remove();
+        state.dmLiveHud = buildDmMirrorHud(display);
+        front.appendChild(state.dmLiveHud);
+        const outcome = latest.status === "complete"
+          ? global.LuminousTheatreRolls?.checkOutcome?.(display.total, display.check) : null;
+        if (activity) activity.textContent =
+          `${display.targetName || "Jugador"} · ${display.rollSpec?.label || "Check"} · ${outcome === "passed" ? "SUPERADO" : outcome === "failed" ? "FALLIDO" : latest.status === "complete" ? "Tirada terminada" : "Girando monedas"}`;
+      };
+      render().catch((error) => console.warn("No se pudo mostrar el Check privado al DM:", error));
     }, (error) => {
       state.dmLiveBound = false;
       console.error("No se pudo escuchar el HUD en vivo:", error);
