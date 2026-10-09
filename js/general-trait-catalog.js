@@ -32,7 +32,9 @@
       description: lines.map((line, i) => `${i + 1}. ${line}`).join("\n"),
       display: { type: "General Trait", activation: activation.display, context, prerequisites, effects: lines },
       contexts: context === "Theatre / Combat" ? ["theatre", "combat"] : [context.toLowerCase()],
-      activation: { type: activation.type, actionCost: activation.actionCost },
+      activation: { type: activation.type, actionCost: activation.actionCost,
+        ...(extras.activationConditions ? { conditions: extras.activationConditions } : {}),
+      },
       requirements: { text: prerequisites },
       effects: extras.effects || [],
       rules: extras.rules || [],
@@ -84,7 +86,7 @@
     ], { mechanics: { autoReloadAtTurnEnd: ["crossbow", "firearm"], rangedAgainstMeleeClashPower: 1 } }),
     defensive_duelist: definition("defensive_duelist", "DEFENSIVE DUELIST", "Combat", manualReaction, "Dexterity 13", [
       "[Reaction] While wielding a proficient Finesse Weapon, spend 1 Reaction to perform a Guard with +4 Defense Power against that Melee Attack Skill. (Once per Turn)",
-    ], { mechanics: { guardDefensePower: 4, requiresProficientFinesseWeapon: true, targetAttackMode: "melee", oncePerTurn: true, requiresGuardResolver: true } }),
+    ], { mechanics: { guardDefensePower: 4, requiresProficientFinesseWeapon: true, targetAttackMode: "melee", oncePerTurn: true, requiresGuardResolver: true }, activationConditions: [{ path: "generalTraitManualResolverReady", operator: "eq", value: true }] }),
     dual_wielder: definition("dual_wielder", "DUAL WIELDER", "Combat", passive, "None", [
       "While wielding a one-handed Melee Weapon in each hand, gain +1 Defensive Level.",
       "While dual-wielding, every 2nd Coin deals +5% Damage.",
@@ -123,7 +125,7 @@
     grappler: definition("grappler", "GRAPPLER", "Combat", manualAction, "Strength 13", [
       "Deal +5% Damage to targets Grappled by you.",
       "[Action] While Grappling a target, spend 1 Action to perform another Grapple Check. On success, apply Restrained to both Units until the Grapple ends.",
-    ], { mechanics: { grappledBySelfDamagePercent: 5, retrainOpposedGrappleCheck: true, restrainBothUntilGrappleEnd: true } }),
+    ], { mechanics: { grappledBySelfDamagePercent: 5, repeatOpposedGrappleCheck: true, restrainBothUntilGrappleEnd: true }, activationConditions: [{ path: "generalTraitManualResolverReady", operator: "eq", value: true }] }),
     great_weapon_master: definition("great_weapon_master", "GREAT WEAPON MASTER", "Combat", passive, "None", [
       "[Before Skill] With a proficient Heavy Melee Weapon, you may take -2 Clash Power to deal +15% Damage with that Skill.",
       "[On Crit / On Kill] Gain +1 Attack Power Up next Turn. (Once per Turn)",
