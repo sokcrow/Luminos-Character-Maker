@@ -163,6 +163,10 @@
         }
       });
     });
+    if (results !== front) {
+      const cards = Array.from(results.querySelectorAll(".theatre-roll-result-card"));
+      cards.slice(0, -3).forEach((card) => card.remove());
+    }
   }
 
   function installFrontLayerBridge() {
@@ -713,15 +717,32 @@
     const uid = currentUid();
     if (!uid) return false;
     state.playerCommandsBound = true;
-    db.ref(`${COMMAND_ROOT}/${uid}`).limitToLast(20).on("child_added", (snapshot) => {
+    db.ref(`${COMMAND_ROOT}/${uid}`).limitToLast(20).on("child_added", async (snapshot) => {
       const command = snapshot.val() || {};
       if (command.status !== "issued" || command.targetUid !== uid || String(command.roomKey || "default") !== roomKey()) return;
       const age = Date.now() - numberOr(command.clientIssuedAt, Date.now());
       if (age > COMMAND_MAX_AGE_MS) return;
       const seenKey = `luminousTheatreCheck:${snapshot.key}`;
-      if (global.sessionStorage?.getItem(seenKey) === "done" || state.queuedCommandKeys.has(snapshot.key)) return;
+      if (state.queuedCommandKeys.has(snapshot.key)) return;
+      let recovered = false;
+      if (global.sessionStorage?.getItem(seenKey) === "done") {
+        // A tab closed mid-roll must not strand an issued command forever.
+        // Only completed live rolls (or DM-acknowledged commands) stay dismissed.
+        try {
+          const [liveSnapshot, statusSnapshot] = await Promise.all([
+            db.ref(`${LIVE_ROOT}/${uid}/${snapshot.key}`).once("value"),
+            db.ref(`${COMMAND_ROOT}/${uid}/${snapshot.key}/status`).once("value"),
+          ]);
+          if (statusSnapshot.val() !== "issued" || liveSnapshot.val()?.status === "complete") return;
+        } catch (error) {
+          console.warn("No se pudo confirmar el estado del Check interrumpido:", error);
+        }
+        recovered = true;
+        global.sessionStorage?.removeItem(seenKey);
+      }
+      if (state.queuedCommandKeys.has(snapshot.key)) return;
       state.queuedCommandKeys.add(snapshot.key);
-      state.commandQueue.push({ key: snapshot.key, command, seenKey });
+      state.commandQueue.push({ key: snapshot.key, command, seenKey, recovered });
       showNextPlayerCommand();
     }, (error) => {
       state.playerCommandsBound = false;
@@ -759,7 +780,7 @@
       prompt.dataset.opposedPhase = item.command.check.opposedPhase || "";
     }
     const kicker = doc.createElement("span");
-    kicker.textContent = item.command.check?.opposedPhase === "threshold"
+    kicker.textContent = item.recovered ? "CHECK INTERRUMPIDO · REINTENTAR TIRADA" : item.command.check?.opposedPhase === "threshold"
       ? "VS · RETADOR · GENERA EL THRESHOLD"
       : item.command.check?.opposedPhase === "resolver"
       ? "VS · RETADO · RESUELVE EL CHECK"
@@ -778,13 +799,17 @@
       button.textContent = "PREPARANDO…";
       executePlayerCommand(item).catch((error) => {
         console.error("No se pudo iniciar el Check autorizado:", error);
-        playerNotice("ERROR AL INICIAR CHECK", String(error.message || error), "denied");
-        state.commandPromptOpen = false;
+        state.commandPromptOpen = true;
         state.activeCommand = null;
+        state.authorizedElement = null;
+        global.sessionStorage?.removeItem(item.seenKey);
+        global.LuminousTheatreRolls?.clearArmedCheck?.();
         doc.body?.classList?.remove("theatre-check-active");
-        prompt.remove();
-        front.classList.remove("has-check-command-prompt");
-        showNextPlayerCommand();
+        if (!prompt.isConnected) front.appendChild(prompt);
+        front.classList.add("has-check-command-prompt");
+        meta.textContent = "No se pudo iniciar la tirada. Revisa Stats e inténtalo de nuevo.";
+        button.disabled = false;
+        button.textContent = "REINTENTAR";
       });
     });
     prompt.append(kicker, title, meta, button);
@@ -853,9 +878,14 @@
       if ((!wrappers || !wrappers.length) && attempts < 50) return;
       global.clearInterval(wait);
       if (!container || !wrappers?.length) {
-        playerNotice("TIRADA NO INICIADA", "No se encontraron monedas. Intenta solicitar el Check de nuevo.", "denied");
         state.activeCommand = null;
+        global.sessionStorage?.removeItem(`luminousTheatreCheck:${commandId}`);
+        state.commandQueue.unshift({
+          key: commandId, command,
+          seenKey: `luminousTheatreCheck:${commandId}`, recovered: true,
+        });
         doc.body?.classList?.remove("theatre-check-active");
+        playerNotice("TIRADA INTERRUMPIDA", "No arrancaron las monedas. Puedes reintentar el Check.", "denied");
         showNextPlayerCommand();
         return;
       }
