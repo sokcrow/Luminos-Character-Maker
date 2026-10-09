@@ -14,10 +14,10 @@ Random magical drops, random affix rolls, cursed random loot and artifact genera
 
 | Scope ledger | Checked | Unchecked | Total |
 |---|---:|---:|---:|
-| Entire original checklist, including future handoffs | 356 | 29 | 385 |
+| Entire original checklist, including future handoffs | 357 | 28 | 385 |
 | Future Magic Items: Part D implementation gate (excluded) | 20 | 7 | 27 |
 | Future Magic Loot: section 16 (excluded) | 7 | 1 | 8 |
-| **PR #931, Enchanter in-scope acceptance** | **329** | **21** | **350** |
+| **PR #931, Enchanter in-scope acceptance** | **330** | **20** | **350** |
 
 **Do not misread the scope ledger as a passed quality gate.** The 21 real Enchanter tasks include Part C authoring/testing, enchantment damage/defense/trigger bridges, authoritative service payment and delivery, Magical Durability-backed *Enchanter* activations, UI clarity, and Player/DM/Battle Viewer tests. Native Magic Item/Relic-specific Charge systems and Rank IV/V Relic behavior move to Magic Items. The original Part A–D documents remain historical design references; future work must not accidentally import #963 read-only proposed catalog entries or reintroduce universal Magic Durability wear/recharge.
 
@@ -421,7 +421,7 @@ Canonical contract: [`docs/enchanters-update-part-d-magic-items.md`](./enchanter
 - [x] Ensure duplicate equipment references do not double-apply an Enchantment.
 - [x] Ensure unequipped Items stop contributing equipment-only effects.
 - [x] Ensure defeated/dead actors do not continue emitting invalid triggered effects.
-- [ ] Add deterministic combat-effect regression tests.
+- [x] Add deterministic combat-effect regression tests.
 - [ ] Add Battle Viewer smoke coverage for enchanted equipment.
 
 ## 11. Economy / value
@@ -544,3 +544,12 @@ Three previously open **implementation/wiring** entries were closed: projected I
 - `.github/workflows/player-inventory-runtime-validation.yml`: now triggers for the Player Enchanter UI and stylesheet, equipment enhancement contract, DM/Battle pages and new spec; validates added JS syntax; executes previously omitted transaction, legacy-backend and equipment enhancement smoke tests and the browser UI suite.
 
 **Checklist count:** 356 checked / 29 unchecked (385 total). **Not a green CI claim:** browser tests and Github Actions runs still require execution and confirmation. The 29 remaining entries include authoritative effects/reactions, Firebase-safe atomic transactions, service time/delivery, Charges backing, Part C/D and DM/Battle acceptance testing. No Magic Loot or #963 review-only catalog promotion occurred in this pass.
+
+### 2026-10-09 — In-scope combat continuity and confirmation fixes
+
+- **Skill/Multi-Coin:** `js/item-enchantment-combat-runtime.js` now caches the authorized per-Skill effect resolution in the Skill action context. If the first Coin exhausts Magical Durability, subsequent Coins of **that same Skill** continue to use the already-authorized effect without duplicate wear. A separate Skill resolves again and sees the depletion. Dead actors and unequipped Items are still re-checked. This does **not** implement new specialist/SIN damage or Before Getting Hit; those remain distinct gates.
+- **Deterministic regression:** `tests/item-enchantment-combat-deterministic-smoke.cjs` was authored and wired into the Inventory Runtime Validation workflow, checking one wear spend per Skill context, distinct Skills, suppression on death or unequip, no passive inspection wear, Non-Magic Hit mitigation, durability-zero suppression, and the last-MD-point mid-Skill edge case. The historical “Add deterministic combat-effect regression tests” box is therefore checked as **authored coverage**, not as a claim of passed CI.
+- **Player consent:** `js/item-enchanter-ui.js` now clears prior confirmation whenever Item, Rank, service, Enchantment, Gem or Gem Socket selection changes. `tests/item-enchanter-ui.spec.cjs` now includes the confirmation-invalidation browser test, alongside the earlier four cases.
+- **Explicit scope:** Magic Items Part D (27 entries) and Magic Loot Section 16 (8 entries) remain separate future Updates and are excluded from #931 acceptance. Checked existing integration seams are retained.
+
+**Current checklist:** 357 checked / 28 unchecked overall; **330 checked / 20 unchecked out of 350 Enchanter-only tasks**. CI, full Player/DM/browser, Firebase atomic payments, timed services, specialist damage/resistance, reaction hooks and support effect tests **are not green-certified by this documentation update**.
