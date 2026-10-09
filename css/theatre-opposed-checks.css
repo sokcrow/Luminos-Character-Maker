@@ -31,7 +31,8 @@
 .theatre-opposed-result-notice{position:absolute;top:22px;right:24px;width:min(260px,34vw);padding:10px 12px;border:1px solid #806338;border-left:4px solid #7c1f1d;background:rgba(13,12,10,.97);box-shadow:0 10px 22px rgba(0,0,0,.5);color:#d9cdb9;font:14px "BebasKai","Arial Narrow",sans-serif;letter-spacing:.8px}
 .theatre-opposed-result-notice.is-pass{border-left-color:#b08c3d;color:#dfc777}.theatre-opposed-result-notice.is-fail{border-left-color:#a72d28;color:#cf6860}
 
-body.theatre-opposed-roll-active #coin-toss-panel{display:none!important}
+/* The canonical Coin Engine stays mounted, but Legacy controls remain invisible in VS Checks. */
+body.theatre-opposed-roll-active #coin-toss-panel{visibility:hidden!important;opacity:0!important;pointer-events:none!important}
 body.theatre-opposed-dm-live .theatre-check-hud--dm-mirror{display:none!important}
 
 @media(max-width:700px){.theatre-opposed-grid{grid-template-columns:1fr}.theatre-opposed-grid .wide{grid-column:auto}.theatre-opposed-hud{width:min(370px,90vw)}.theatre-opposed-result-notice{right:10px;width:min(260px,74vw)}}
