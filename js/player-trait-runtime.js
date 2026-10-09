@@ -662,9 +662,14 @@ ${response}`);
     // The same resolver powers Stats previews and the authorised Coin result.
     // Dedicated archetype hooks mark bonuses applied before this stage, so
     // mixed class/race/General Traits cannot double-count them.
-    if (result?.check) global.LuminousSkillTraitBreakdownPatch?.applySpecialCheckBonuses?.(
-      resolveTraits(), character, result.check,
-    );
+    if (result?.check) {
+      global.LuminousSkillTraitBreakdownPatch?.applySpecialCheckBonuses?.(
+        resolveTraits(), character, result.check,
+      );
+      // Treat the old Check Final Power channel as a bonus to the ability/skill
+      // modifier. Coin completion must never add it a second time.
+      global.LuminousSkillTraitBreakdownPatch?.foldCheckFinalPowerIntoScore?.(result.check);
+    }
     return result;
   }
 
