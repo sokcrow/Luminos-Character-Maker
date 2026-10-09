@@ -42,6 +42,11 @@ function element(tagName) {
       return child;
     },
     append(...children) { children.forEach((child) => this.appendChild(child)); },
+    replaceChildren(...children) {
+      this.children.forEach((child) => { child.parentElement = null; });
+      this.children = [];
+      this.append(...children);
+    },
     remove() {
       if (this.parentElement) {
         const siblings = this.parentElement.children;
@@ -88,11 +93,50 @@ const database = () => ({ ref: refs });
 database.ServerValue = { TIMESTAMP: 1 };
 const window = {
   document, sessionStorage, console,
+  setTimeout: () => 1, clearTimeout() {},
   firebase: { database, auth: () => ({ currentUser: { uid: "player-1" } }) },
 };
 window.window = window;
 vm.runInNewContext(coordinatorCode, window);
 window.LuminousTheatreCheckCoordinator.bindAuthorizedData();
+
+const resultListener = listeners.get("theatre_check_results/player-1:child_added");
+assert.equal(typeof resultListener, "function");
+const now = Date.now();
+const notifyResult = (data) => resultListener({ val: () => ({
+  roomKey: "default", label: "Hidden Threshold Check",
+  outcome: "passed", total: 17, ...data,
+}) });
+const visibleResult = () => document.getElementById("theatre-check-player-notice");
+notifyResult({
+  completedAt: now - 2_000,
+  clientCompletedAt: now - 80_000,
+});
+assert.match(visibleResult()?.textContent || visibleResult()?.children[0]?.textContent || "", /CHECK SUPERADO/,
+  "Fresh authoritative server timestamp must prevent skewed DM clocks hiding a Check result");
+visibleResult().remove();
+
+notifyResult({
+  completedAt: now - 90_000,
+  clientCompletedAt: now - 1_000,
+});
+assert.equal(visibleResult(), null,
+  "Old server-confirmed result must not be revived by an incorrect local client clock");
+
+notifyResult({
+  completedAt: null,
+  clientCompletedAt: now - 1_000,
+});
+assert.ok(visibleResult(),
+  "Older records without a valid completedAt must still use clientCompletedAt");
+visibleResult().remove();
+
+notifyResult({
+  completedAt: undefined,
+  clientCompletedAt: now - 90_000,
+});
+assert.equal(visibleResult(), null,
+  "Stale records without server timestamps must remain filtered");
 
 const commandListener = listeners.get("theatre_check_commands/player-1:child_added");
 assert.equal(typeof commandListener, "function");
