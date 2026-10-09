@@ -1,4 +1,4 @@
-# Enchantment Compendium — English Editorial Review v5
+# Enchantment Compendium — English Editorial Review v6
 
 > **DESIGN ONLY · NOT APPROVED · NOT PLAYABLE.** This document contains candidate inscriptions, not enabled gameplay abilities. No recipe or cost is approved by this catalog.
 
@@ -24,7 +24,7 @@
 | 5 | 5 | 8 | 13 |
 | 6 | 6 | 9 | 15 |
 
-**Total:** 104 draft inscriptions (42 original + 42 elemental/wearer designs + 20 new passive/ward designs) across 14 schools. Equipment classes: 36 weapon, 16 shield, 19 armor, 33 accessory.
+**Total:** 119 draft inscriptions (42 original + 42 elemental/wearer + 20 passive/ward + 15 damage/event signatures), across 16 schools. Equipment classes: 48 weapon, 16 shield, 20 armor, 35 accessory.
 
 ## Weapon Enchantments (21)
 
@@ -2421,3 +2421,415 @@
 - [ ] Verify whether SP loss mitigation covers every involuntary SP-loss packet, with Costs always excluded (current proposal).
 - [ ] Confirm passive activation and compatibility when equipped/attuned, including accessories and Source Item Instance identity.
 - [ ] Do not silently convert these design proposals into live Item or combat effects, DM prices or production recipes.
+
+## Volume IV — Typed Damage, Universal Damage and Magic Durability (15 inscriptions)
+
+> **Design only.** None of the following effects, durability rules, or prices are live. Rules explicitly given by the product owner are distinguished from suggested integration assumptions.
+
+### Damage amplification · desired design
+
+- **Specialized amplifier:** increase only one specified physical Damage Type (Slash, Pierce, Blunt) OR one specified SIN affinity (Wrath, Lust, Sloth, Gluttony, Gloom, Pride, Envy). Proposed base **+5% direct eligible damage**. Rank I +5%; Rank II Ceil(5×1.5)=+8%; Rank III Ceil(5×2.5)=+13%. Ten specialist candidates appear below.
+- **Universal amplifier:** enhances eligible direct damage irrespective of Damage Type or SIN affinity; **premium / most expensive** enchanting family. `Sovereign Impact` has a **provisional +5% base for review**, not an owner-approved global magnitude. The owner specifically established +5% as the base for specialist amplifiers; universal base is an editorial proposal pending confirmation.
+- **Economic priority:** any universal damage effect costs more than a comparable one-Damage-Type or one-SIN amplifier. Do **not** invent fixed AHN amounts, recipes or material prices yet.
+- **Scope must be explicit:** amplification applies to the Skill sourced from the actual enchanted Item Instance. It does not automatically enhance Poison, Rupture, Bleed or Burn Status ticks, Fixed Damage adder or another weapon. Targeting must use the Skill's actual type and SIN fields; a narrative elemental name is not an authoritative SIN tag.
+- **Damage math insertion point needs reconciliation:** `js/combatEngine.js:2112-2215` calculates Coin damage using `damage_dealt_multiplier`, context coin percent and modifiers; the Item Armor pipeline applies direct physical multiplier in `js/item-armor-runtime.js`. Global and typed damage bonuses must be applied exactly once, at an agreed stage, avoiding multiplication of already-added fixed damage.
+
+### Typed resistance clarification
+
+- **Lower resistance is better.** An enchanted ward **subtracts −0.06 / −0.09 / −0.15** from the specific physical or SIN resistance input for its one type; it is **not +0.06** and not an after-the-fact subtraction of 6/9/15 damage.
+- `js/item-armor-runtime.js:24-35` derives and multiplies physical resistance by type, with a physical armor floor of 0.30. `js/combatEngine.js:2436-2465` converts physRes/sinRes through a piecewise modifier and the direct attack routine reads scalar `defender.physRes` and `defender.sinRes`. This is an integration discrepancy: the same ward must be applied in the authoritative pipeline once, not independently patched into conflicting paths.
+- The proper SIN resistance floor, stacking, and the mapping from current scalar defender.sinRes to seven SIN types need an engine contract before implementation.
+
+### Magic Durability · owner-specified mechanics
+
+- **Separate resource:** `Magic Durability` is independent of physical `currentDurability`; using an enchantment property does not replace or subtract the ordinary physical wear cost.
+- **Rank-based cap:** Rank I = **75%**, Rank II = **100%**, Rank III = **125%** of the weapon's reference **physical Max Durability**. The physical weapon already has `maxDurability` and `currentDurability` built from components (`js/item-weapon-composition-engine.js`).
+- **Use cost:** every valid use of the enchantment's magical property consumes **1 Magic Durability point**. The property requires at least **1 point** to activate; at 0, it cannot activate, but the mundane weapon remains usable.
+- **Short Rest recovery:** **10% of Max Magic Durability**.
+- **Long Rest recovery:** **30% of Max Magic Durability**.
+- **Spell Slot recharge:** spending a Spell Slot of level L contributes an **additional 5 × L% of Max Magic Durability**. The slot must be valid and actually consumed through the canonical spell slot authority; no free slot creation.
+- **Cap:** restoration never exceeds Max Magic Durability. Rest rewards are not multiplicative rank boosts and do not alter physical durability.
+
+### Explicitly provisional implementation assumptions (not owner-approved)
+
+- **Round integer Magic Durability caps and recovery points UP** with `ceil`. The owner explicitly requested `Ceil` for effect ranks, not necessarily for durability recharge; this choice awaits confirmation.
+- **Use `maxDurability`, not `currentDurability`**, as the stable physical reference when generating Magic Durability. This avoids current weapon damage unexpectedly shrinking the magic capacity mid-Encounter. This interpretation awaits confirmation.
+- **Count Spell Slot recharge as part of Short/Long Rest:** each actually spent slot at level L adds 5L% recovery. The owner said 'additional' recovery but has not yet fixed whether a slot can also recharge outside rests or how many slots may be used at one rest.
+- **Recovery from exactly zero Magic Durability is permitted in the preview model**, but the owner has only made activation require at least one point; recovery from zero is still open.
+- **Non-weapon Magic Durability caps are not specified.** Armor, Shields and Accessories have enchantments too; their capacity formula needs an explicit decision rather than silently using weapon durability or making magic charges infinite.
+- **Activation accounting:** 1 point per use is certain; whether a multi-Coin Skill is one use or multiple uses, and how continuously passive Max HP/Resistance effects consume Magic Durability, need an explicit rule. One charge per Skill activation is a suggested bounded option but **not approved**.
+- **Conflict policy:** same-typed offensive amplifiers plus universal boosters may stack or use strongest-wins; not yet approved. Costs and available recipes likewise pending.
+
+### Worked Magic Durability example (reference weapon with physical Max Durability = 80)
+
+| Enchantment Rank | Magic Durability Max | Short Rest +10% | Long Rest +30% | Slot level 2 adds 10% |
+|---|---:|---:|---:|---:|
+| I · 75% | 60 | +6 | +18 | +6 |
+| II · 100% | 80 | +8 | +24 | +8 |
+| III · 125% | 100 | +10 | +30 | +10 |
+
+The illustrative values all happen to be integers; the ceiling assumption only matters for nondivisible values. If Magic Durability is 20/60 and a Short Rest and a level-2 Slot are used together, the preview yields `min(60, 20 + 6 + 6) = 32/60`.
+
+### Event-driven expansion
+
+- **Encounter Start:** one once-per-Encounter grant (e.g. `First Dawn Covenant`, 5/8/13 temporary Shield).
+- **Turn Start:** one condition-dependent grant (e.g. `Pulsekeeper`, 4/6/10 Shield while below 50% HP).
+- **On Hit:** a verified weapon-linked hit that triggers its enchantment's unique effect.
+- **Before Getting Hit:** a pre-damage reaction (e.g. `Threshold Aegis`), requiring a new authoritative pre-damage event. The Trait Engine has `damage_taken` and `before_attack` but **does not currently publish a canonical `before_getting_hit` trigger**; engine work is required before implementation.
+
+### New signatures
+
+#### Martial (3)
+
+##### Sundering Script · WEAPON
+
+**Example:** Sundering Script Longsword  
+**Compatible chassis:** `longsword`, `greatsword`, `scimitar`, `battleaxe`, `greataxe`, `halberd`  
+**Axes:** Damage, Slash, On Hit  
+**Editorial status:** PROPOSED / NOT PLAYABLE  
+**Magic Durability:** 1 point per eligible property use; engine hook pending.
+
+> The edge is engraved with every fault its maker ever found in steel.
+
+**Base Effect:** When a damaging Attack Skill sourced from this equipped weapon deals Slash damage, increase that Slash damage by 5%.
+
+**Rank I:** When a damaging Attack Skill sourced from this equipped weapon deals Slash damage, increase that Slash damage by 5%.
+
+**Rank II (Ceil ×1.50):** When a damaging Attack Skill sourced from this equipped weapon deals Slash damage, increase that Slash damage by 8%.
+
+**Rank III (Ceil ×2.50):** When a damaging Attack Skill sourced from this equipped weapon deals Slash damage, increase that Slash damage by 13%.
+
+**Limitations:** Only Slash damage; no bonus for Pierce, Blunt or unrelated Skills. Charge one Magic Durability point per qualifying property use; multi-Coin accounting awaits engine review.
+
+---
+
+##### Needlefall · WEAPON
+
+**Example:** Needlefall Rapier  
+**Compatible chassis:** `dagger`, `rapier`, `shortsword`, `spear`, `pike`, `lance`, `longbow`, `shortbow`, `heavy_crossbow`, `hand_crossbow`, `light_crossbow`, `war_pick`  
+**Axes:** Damage, Pierce, On Hit  
+**Editorial status:** PROPOSED / NOT PLAYABLE  
+**Magic Durability:** 1 point per eligible property use; engine hook pending.
+
+> Each etched needle in the fuller seeks a weakness too narrow to be seen.
+
+**Base Effect:** When a damaging Attack Skill sourced from this equipped weapon deals Pierce damage, increase that Pierce damage by 5%.
+
+**Rank I:** When a damaging Attack Skill sourced from this equipped weapon deals Pierce damage, increase that Pierce damage by 5%.
+
+**Rank II (Ceil ×1.50):** When a damaging Attack Skill sourced from this equipped weapon deals Pierce damage, increase that Pierce damage by 8%.
+
+**Rank III (Ceil ×2.50):** When a damaging Attack Skill sourced from this equipped weapon deals Pierce damage, increase that Pierce damage by 13%.
+
+**Limitations:** Only Pierce damage; actual resolved physical type must match. A single damage type does not imply a matching SIN bonus.
+
+---
+
+##### Colossus Echo · WEAPON
+
+**Example:** Colossus Echo Warhammer  
+**Compatible chassis:** `warhammer`, `maul`, `mace`, `greatclub`, `club`, `flail`, `light_hammer`, `quarterstaff`  
+**Axes:** Damage, Blunt, On Hit  
+**Editorial status:** PROPOSED / NOT PLAYABLE  
+**Magic Durability:** 1 point per eligible property use; engine hook pending.
+
+> When it strikes, the weapon repeats the weight of mountains forgotten by the gods.
+
+**Base Effect:** When a damaging Attack Skill sourced from this equipped weapon deals Blunt damage, increase that Blunt damage by 5%.
+
+**Rank I:** When a damaging Attack Skill sourced from this equipped weapon deals Blunt damage, increase that Blunt damage by 5%.
+
+**Rank II (Ceil ×1.50):** When a damaging Attack Skill sourced from this equipped weapon deals Blunt damage, increase that Blunt damage by 8%.
+
+**Rank III (Ceil ×2.50):** When a damaging Attack Skill sourced from this equipped weapon deals Blunt damage, increase that Blunt damage by 13%.
+
+**Limitations:** Only Blunt damage. Fixed damage, Rupture and other unrelated damage do not gain extra amplification.
+
+---
+
+#### Resonant (8)
+
+##### Wrathflare · WEAPON
+
+**Example:** Wrathflare Longsword  
+**Compatible chassis:** `longsword`, `greatsword`, `greataxe`, `scimitar`, `warhammer`  
+**Axes:** Damage, Wrath, SIN  
+**Editorial status:** PROPOSED / NOT PLAYABLE  
+**Magic Durability:** 1 point per eligible property use; engine hook pending.
+
+> A scarlet seal ignites when anger finds a name worth striking.
+
+**Base Effect:** When a damaging Attack Skill sourced from this equipped weapon has Wrath SIN affinity, increase that Skill's eligible direct damage by 5%.
+
+**Rank I:** When a damaging Attack Skill sourced from this equipped weapon has Wrath SIN affinity, increase that Skill's eligible direct damage by 5%.
+
+**Rank II (Ceil ×1.50):** When a damaging Attack Skill sourced from this equipped weapon has Wrath SIN affinity, increase that Skill's eligible direct damage by 8%.
+
+**Rank III (Ceil ×2.50):** When a damaging Attack Skill sourced from this equipped weapon has Wrath SIN affinity, increase that Skill's eligible direct damage by 13%.
+
+**Limitations:** Only Wrath-affinity Skills linked to the equipped Item Instance qualify; does not boost all Fire by default.
+
+---
+
+##### Velvet Vice · WEAPON
+
+**Example:** Velvet Vice Rapier  
+**Compatible chassis:** `rapier`, `dagger`, `shortsword`, `scimitar`  
+**Axes:** Damage, Lust, SIN  
+**Editorial status:** PROPOSED / NOT PLAYABLE  
+**Magic Durability:** 1 point per eligible property use; engine hook pending.
+
+> The inscription sings of wants so sweet that an enemy mistakes pain for consent.
+
+**Base Effect:** When a damaging Attack Skill sourced from this equipped weapon has Lust SIN affinity, increase that Skill's eligible direct damage by 5%.
+
+**Rank I:** When a damaging Attack Skill sourced from this equipped weapon has Lust SIN affinity, increase that Skill's eligible direct damage by 5%.
+
+**Rank II (Ceil ×1.50):** When a damaging Attack Skill sourced from this equipped weapon has Lust SIN affinity, increase that Skill's eligible direct damage by 8%.
+
+**Rank III (Ceil ×2.50):** When a damaging Attack Skill sourced from this equipped weapon has Lust SIN affinity, increase that Skill's eligible direct damage by 13%.
+
+**Limitations:** Only Lust-affinity Skills from this weapon. Does not grant Charmed, seduction or universal psychic damage.
+
+---
+
+##### Stillhour Edge · WEAPON
+
+**Example:** Stillhour Edge Longsword  
+**Compatible chassis:** `longsword`, `warhammer`, `maul`, `spear`  
+**Axes:** Damage, Sloth, SIN  
+**Editorial status:** PROPOSED / NOT PLAYABLE  
+**Magic Durability:** 1 point per eligible property use; engine hook pending.
+
+> Time thickens around the blade as the weight of a forgotten hour returns.
+
+**Base Effect:** When a damaging Attack Skill sourced from this equipped weapon has Sloth SIN affinity, increase that Skill's eligible direct damage by 5%.
+
+**Rank I:** When a damaging Attack Skill sourced from this equipped weapon has Sloth SIN affinity, increase that Skill's eligible direct damage by 5%.
+
+**Rank II (Ceil ×1.50):** When a damaging Attack Skill sourced from this equipped weapon has Sloth SIN affinity, increase that Skill's eligible direct damage by 8%.
+
+**Rank III (Ceil ×2.50):** When a damaging Attack Skill sourced from this equipped weapon has Sloth SIN affinity, increase that Skill's eligible direct damage by 13%.
+
+**Limitations:** Only Sloth-affinity attack damage; does not multiply Slow/Bind or remove enemy Actions.
+
+---
+
+##### Devourer's Sigil · WEAPON
+
+**Example:** Devourer's Sigil Spear  
+**Compatible chassis:** `spear`, `pike`, `trident`, `dagger`, `rapier`  
+**Axes:** Damage, Gluttony, SIN  
+**Editorial status:** PROPOSED / NOT PLAYABLE  
+**Magic Durability:** 1 point per eligible property use; engine hook pending.
+
+> The glyph is an open mouth carved into the tip, always hungry but never sated.
+
+**Base Effect:** When a damaging Attack Skill sourced from this equipped weapon has Gluttony SIN affinity, increase that Skill's eligible direct damage by 5%.
+
+**Rank I:** When a damaging Attack Skill sourced from this equipped weapon has Gluttony SIN affinity, increase that Skill's eligible direct damage by 5%.
+
+**Rank II (Ceil ×1.50):** When a damaging Attack Skill sourced from this equipped weapon has Gluttony SIN affinity, increase that Skill's eligible direct damage by 8%.
+
+**Rank III (Ceil ×2.50):** When a damaging Attack Skill sourced from this equipped weapon has Gluttony SIN affinity, increase that Skill's eligible direct damage by 13%.
+
+**Limitations:** Only Gluttony-affinity direct damage; does not automatically multiply Poison or Corrosion damage-over-time.
+
+---
+
+##### Duskshard · WEAPON
+
+**Example:** Duskshard Dagger  
+**Compatible chassis:** `dagger`, `scimitar`, `sickle`, `glaive`  
+**Axes:** Damage, Gloom, SIN  
+**Editorial status:** PROPOSED / NOT PLAYABLE  
+**Magic Durability:** 1 point per eligible property use; engine hook pending.
+
+> Night settles in each cut as if the wound itself had forgotten where the sun went.
+
+**Base Effect:** When a damaging Attack Skill sourced from this equipped weapon has Gloom SIN affinity, increase that Skill's eligible direct damage by 5%.
+
+**Rank I:** When a damaging Attack Skill sourced from this equipped weapon has Gloom SIN affinity, increase that Skill's eligible direct damage by 5%.
+
+**Rank II (Ceil ×1.50):** When a damaging Attack Skill sourced from this equipped weapon has Gloom SIN affinity, increase that Skill's eligible direct damage by 8%.
+
+**Rank III (Ceil ×2.50):** When a damaging Attack Skill sourced from this equipped weapon has Gloom SIN affinity, increase that Skill's eligible direct damage by 13%.
+
+**Limitations:** Only Gloom-affinity direct damage; no separate bonus to Sinking SP damage from Status resolution.
+
+---
+
+##### Crownbreaker · WEAPON
+
+**Example:** Crownbreaker Greatsword  
+**Compatible chassis:** `longsword`, `greatsword`, `rapier`, `halberd`  
+**Axes:** Damage, Pride, SIN  
+**Editorial status:** PROPOSED / NOT PLAYABLE  
+**Magic Durability:** 1 point per eligible property use; engine hook pending.
+
+> The gold runes cut through boasts before they ever reach the enemy.
+
+**Base Effect:** When a damaging Attack Skill sourced from this equipped weapon has Pride SIN affinity, increase that Skill's eligible direct damage by 5%.
+
+**Rank I:** When a damaging Attack Skill sourced from this equipped weapon has Pride SIN affinity, increase that Skill's eligible direct damage by 5%.
+
+**Rank II (Ceil ×1.50):** When a damaging Attack Skill sourced from this equipped weapon has Pride SIN affinity, increase that Skill's eligible direct damage by 8%.
+
+**Rank III (Ceil ×2.50):** When a damaging Attack Skill sourced from this equipped weapon has Pride SIN affinity, increase that Skill's eligible direct damage by 13%.
+
+**Limitations:** Only Pride-affinity Skills. Cannot boost all Radiance or overwrite the attack's SIN type.
+
+---
+
+##### Storm of Envy · WEAPON
+
+**Example:** Storm of Envy Scimitar  
+**Compatible chassis:** `scimitar`, `shortsword`, `rapier`, `warhammer`  
+**Axes:** Damage, Envy, SIN  
+**Editorial status:** PROPOSED / NOT PLAYABLE  
+**Magic Durability:** 1 point per eligible property use; engine hook pending.
+
+> The veins of silver glow every time lightning answers a name other than the wielder's.
+
+**Base Effect:** When a damaging Attack Skill sourced from this equipped weapon has Envy SIN affinity, increase that Skill's eligible direct damage by 5%.
+
+**Rank I:** When a damaging Attack Skill sourced from this equipped weapon has Envy SIN affinity, increase that Skill's eligible direct damage by 5%.
+
+**Rank II (Ceil ×1.50):** When a damaging Attack Skill sourced from this equipped weapon has Envy SIN affinity, increase that Skill's eligible direct damage by 8%.
+
+**Rank III (Ceil ×2.50):** When a damaging Attack Skill sourced from this equipped weapon has Envy SIN affinity, increase that Skill's eligible direct damage by 13%.
+
+**Limitations:** Only Envy-affinity direct attacks linked to this weapon; Shock Status ticks are not included.
+
+---
+
+##### Sovereign Impact · WEAPON
+
+**Example:** Sovereign Impact Greatsword  
+**Compatible chassis:** `longsword`, `greatsword`, `greataxe`, `warhammer`, `rapier`, `spear`, `longbow`, `heavy_crossbow`, `scimitar`, `maul`  
+**Axes:** Damage, Universal, On Hit  
+**Editorial status:** PROPOSED / NOT PLAYABLE  
+**Magnitude approval:** PENDING · a +5% base is a provisional assumption, not a confirmed global rule.
+
+> No element, no creed, no singular wound can hold the inscription; every honest strike answers the same command.
+
+**Base Effect:** When a damaging Attack Skill sourced from this equipped weapon deals direct damage, increase that eligible direct damage by 5%, regardless of its physical Damage Type or SIN affinity.
+
+**Rank I:** When a damaging Attack Skill sourced from this equipped weapon deals direct damage, increase that eligible direct damage by 5%, regardless of its physical Damage Type or SIN affinity.
+
+**Rank II (Ceil ×1.50):** When a damaging Attack Skill sourced from this equipped weapon deals direct damage, increase that eligible direct damage by 8%, regardless of its physical Damage Type or SIN affinity.
+
+**Rank III (Ceil ×2.50):** When a damaging Attack Skill sourced from this equipped weapon deals direct damage, increase that eligible direct damage by 13%, regardless of its physical Damage Type or SIN affinity.
+
+**Limitations:** Premium economic category above all specialist +5% boosters. Same 5% base is an editorial proposal pending explicit approval. Applies to direct Skill damage, not Status ticks, post-hit Fixed Damage, or attacks from another Item Instance. One Magic Durability per qualifying property use; multi-Coin frequency needs approval.
+
+---
+
+#### Runic (1)
+
+##### First Dawn Covenant · ACCESSORY
+
+**Example:** First Dawn Covenant Pendant  
+**Compatible chassis:** `pendant`, `brooch`, `ring`  
+**Axes:** Encounter Start, Shield, Before Hit  
+**Editorial status:** PROPOSED / NOT PLAYABLE  
+**Magic Durability:** 1 point per eligible property use; engine hook pending.
+
+> A dawn sealed in a gemstone breaks open the instant a new battle begins.
+
+**Base Effect:** At Encounter Start, grant 5 temporary Shield to the wearer, lasting until the end of the first Turn.
+
+**Rank I:** At Encounter Start, grant 5 temporary Shield to the wearer, lasting until the end of the first Turn.
+
+**Rank II (Ceil ×1.50):** At Encounter Start, grant 8 temporary Shield to the wearer, lasting until the end of the first Turn.
+
+**Rank III (Ceil ×2.50):** At Encounter Start, grant 13 temporary Shield to the wearer, lasting until the end of the first Turn.
+
+**Limitations:** One property activation per Encounter; 1 Magic Durability is spent when the Shield is granted. Cannot stack from reconnects/repeated Encounter Start events.
+
+---
+
+#### Vital (1)
+
+##### Pulsekeeper · ACCESSORY
+
+**Example:** Pulsekeeper Ring  
+**Compatible chassis:** `ring`, `pendant`, `necklace`  
+**Axes:** Turn Start, Shield, HP  
+**Editorial status:** PROPOSED / NOT PLAYABLE  
+**Magic Durability:** 1 point per eligible property use; engine hook pending.
+
+> The ring listens for the pulse the world cannot hear, and answers only when it grows faint.
+
+**Base Effect:** At Turn Start, if the wearer has less than 50% of Max HP, grant 4 temporary Shield until the next Turn Start.
+
+**Rank I:** At Turn Start, if the wearer has less than 50% of Max HP, grant 4 temporary Shield until the next Turn Start.
+
+**Rank II (Ceil ×1.50):** At Turn Start, if the wearer has less than 50% of Max HP, grant 6 temporary Shield until the next Turn Start.
+
+**Rank III (Ceil ×2.50):** At Turn Start, if the wearer has less than 50% of Max HP, grant 10 temporary Shield until the next Turn Start.
+
+**Limitations:** The 50% threshold is fixed; each activation spends 1 Magic Durability. No bonus if the wearer is at 0 HP or cannot receive a Shield.
+
+---
+
+#### Sanguine (1)
+
+##### Arterial Hex · WEAPON
+
+**Example:** Arterial Hex Dagger  
+**Compatible chassis:** `dagger`, `rapier`, `shortsword`  
+**Axes:** On Hit, Fragile, Offensive Level  
+**Editorial status:** PROPOSED / NOT PLAYABLE  
+**Magic Durability:** 1 point per eligible property use; engine hook pending.
+
+> The writing along the blade tightens when the victim is more dangerous than the hand that holds it.
+
+**Base Effect:** Once per Turn, when a Hit from this weapon damages an enemy whose Offensive Level exceeds the wielder's, inflict 1 Fragile Count on that enemy.
+
+**Rank I:** Once per Turn, when a Hit from this weapon damages an enemy whose Offensive Level exceeds the wielder's, inflict 1 Fragile Count on that enemy.
+
+**Rank II (Ceil ×1.50):** Once per Turn, when a Hit from this weapon damages an enemy whose Offensive Level exceeds the wielder's, inflict 2 Fragile Count on that enemy.
+
+**Rank III (Ceil ×2.50):** Once per Turn, when a Hit from this weapon damages an enemy whose Offensive Level exceeds the wielder's, inflict 3 Fragile Count on that enemy.
+
+**Limitations:** Requires a real weapon-linked Hit and valid Level comparison. Each activation costs 1 Magic Durability; canonical Fragile caps apply.
+
+---
+
+#### Warding (1)
+
+##### Threshold Aegis · ARMOR
+
+**Example:** Threshold Aegis Breastplate  
+**Compatible chassis:** `breastplate`, `half_plate`, `plate_armor`, `chain_mail`  
+**Axes:** Before Getting Hit, Shield, Defense  
+**Editorial status:** PROPOSED / NOT PLAYABLE  
+**Magic Durability:** 1 point per eligible property use; engine hook pending.
+
+> A pale barrier only becomes visible in the smallest interval before the wound.
+
+**Base Effect:** Once per Turn, immediately Before Getting Hit by a direct enemy Attack Skill, gain 5 temporary Shield which can absorb that incoming Hit.
+
+**Rank I:** Once per Turn, immediately Before Getting Hit by a direct enemy Attack Skill, gain 5 temporary Shield which can absorb that incoming Hit.
+
+**Rank II (Ceil ×1.50):** Once per Turn, immediately Before Getting Hit by a direct enemy Attack Skill, gain 8 temporary Shield which can absorb that incoming Hit.
+
+**Rank III (Ceil ×2.50):** Once per Turn, immediately Before Getting Hit by a direct enemy Attack Skill, gain 13 temporary Shield which can absorb that incoming Hit.
+
+**Limitations:** The defensive reaction must resolve before damage; 1 Magic Durability is consumed when Shield is granted, even if the attack then misses. No triggers from status ticks or self-harm.
+
+---
+
+### Gates before implementing this volume
+
+- [ ] Confirm universal amplifier's Base magnitude and cost category.
+- [ ] Confirm whether typing filters are based on resolved physical Damage Type, SIN affinity, or both and whether the same attack may receive two different booster sources.
+- [ ] Confirm Magic Durability `Ceil` rounding, physical maximum reference, and recharge from 0.
+- [ ] Confirm a Spell Slot of level L adds 5L% and whether charging outside rests or using multiple slots is allowed.
+- [ ] Define Magic Durability capacity for enchanted Armor / Shield / Accessory / Valuable.
+- [ ] Specify consumption of 1 Magic Durability for continuous passives and multi-Coin Skill property uses.
+- [ ] Wire an authoritative pre-damage event for `Before Getting Hit`, without reusing `Damage Taken` after the Hit.
+- [ ] Reconcile physical and SIN resistance damage pipelines and verify nonstacking/caps and enchantment price/crafting separately.
+- [ ] Leave Curse Update untouched until Enchantment Update is reviewed and ready.
+
