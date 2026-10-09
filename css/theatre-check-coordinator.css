@@ -233,3 +233,146 @@ body.player-instance-theatre #theatre-check-front-layer .theatre-check-command-p
   .on-game-dashboard #theatre-check-director .theatre-check-compose-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .on-game-dashboard #theatre-check-director .theatre-check-compose-grid .wide { grid-column: span 3; }
 }
+
+/* Production Check Director: clear hierarchy, substantial desktop workspace. */
+.on-game-dashboard #theatre-check-director {
+  padding: clamp(14px, 2vw, 28px);
+  border: 1px solid #5c492f;
+  border-radius: 12px;
+  background: linear-gradient(155deg, #171613, #0c0e11 64%);
+}
+.on-game-dashboard .theatre-check-director-header {
+  margin-bottom: 18px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #463b2c;
+}
+.on-game-dashboard .theatre-check-director-header strong {
+  font-size: clamp(23px, 2vw, 31px);
+}
+.on-game-dashboard .theatre-check-director-header span {
+  font-size: 11px;
+  letter-spacing: .07em;
+}
+.on-game-dashboard .theatre-check-director-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+.on-game-dashboard .theatre-check-inbox {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid #37342e;
+  border-radius: 10px;
+  background: #111315;
+}
+.on-game-dashboard .theatre-check-inbox h3,
+.on-game-dashboard .theatre-check-activity h3 {
+  margin: 0 0 12px;
+  color: #d5b478;
+  font: 16px "BebasKai", "Arial Narrow", sans-serif;
+  letter-spacing: .05em;
+}
+.on-game-dashboard .theatre-check-request-list { max-height: 330px; gap: 10px; }
+.on-game-dashboard .theatre-check-request-card {
+  padding: 12px;
+  border-radius: 7px;
+  gap: 14px;
+}
+.on-game-dashboard .theatre-check-request-card strong { font-size: 14px; }
+.on-game-dashboard .theatre-check-request-card span { font-size: 12px; }
+.on-game-dashboard .theatre-check-empty { font-size: 12px; padding: 16px; }
+.on-game-dashboard .theatre-check-request-card button,
+.on-game-dashboard .theatre-check-compose-title button {
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 5px;
+  font-size: 12px;
+}
+.on-game-dashboard .theatre-check-activity {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #34302a;
+}
+.on-game-dashboard .theatre-check-activity p {
+  color: #d0c4af;
+  font: 13px/1.5 "Roboto", sans-serif;
+}
+.on-game-dashboard .theatre-check-compose {
+  min-width: 0;
+  padding: 18px;
+  border-radius: 10px;
+  background: #121416;
+}
+.on-game-dashboard .theatre-check-compose-title { margin-bottom: 16px; font-size: 19px; }
+.on-game-dashboard .theatre-check-compose-grid { gap: 12px; }
+.on-game-dashboard .theatre-check-compose-grid label,
+.on-game-dashboard .theatre-opposed-grid label {
+  gap: 6px;
+  color: #c0b49c;
+  font-size: 12px;
+  letter-spacing: .025em;
+}
+.on-game-dashboard .theatre-check-compose-grid select,
+.on-game-dashboard .theatre-check-compose-grid input,
+.on-game-dashboard .theatre-opposed-grid select {
+  min-height: 44px;
+  border-radius: 5px;
+  font-size: 13px;
+  padding: 0 12px;
+}
+.on-game-dashboard .theatre-opposed-fields { padding: 16px; border-radius: 8px; margin-top: 16px; }
+.on-game-dashboard .theatre-opposed-heading strong { font-size: 17px; }
+.on-game-dashboard .theatre-opposed-heading span,
+.on-game-dashboard .theatre-opposed-flow { font-size: 11px; line-height: 1.5; }
+.on-game-dashboard .theatre-check-compose-preview { margin-top: 15px; padding: 14px; gap: 12px; }
+.on-game-dashboard .theatre-check-compose-preview span { font-size: 13px; }
+.on-game-dashboard .theatre-check-compose-preview b { font-size: 28px; }
+.on-game-dashboard .theatre-check-compose-preview small { font-size: 11px; }
+.on-game-dashboard .theatre-check-compose-actions button {
+  min-height: 48px;
+  border-radius: 7px;
+  font-size: 16px;
+}
+.on-game-dashboard .theatre-check-sent-feedback,
+.on-game-dashboard .theatre-opposed-feedback { font-size: 12px; line-height: 1.5; }
+.on-game-dashboard #theatre-check-director button:focus-visible,
+.on-game-dashboard #theatre-check-director select:focus-visible,
+.on-game-dashboard #theatre-check-director input:focus-visible {
+  outline: 2px solid #eac782;
+  outline-offset: 2px;
+}
+body.player-instance-theatre .theatre-check-front-layer .theatre-check-player-notice,
+body.player-instance-theatre .theatre-check-front-layer .theatre-check-command-prompt {
+  font-size: 13px;
+  border-radius: 9px;
+  padding: 16px;
+  max-height: calc(100dvh - 140px);
+  overflow: auto;
+}
+body.player-instance-theatre .theatre-check-front-layer .theatre-check-command-prompt button {
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 6px;
+}
+body.player-instance-theatre .theatre-check-front-layer .theatre-check-player-notice strong,
+body.player-instance-theatre .theatre-check-front-layer .theatre-check-command-prompt strong { font-size: 19px; }
+body.player-instance-theatre .theatre-check-front-layer .theatre-check-player-notice span,
+body.player-instance-theatre .theatre-check-front-layer .theatre-check-command-prompt small { font-size: 13px; }
+@media (min-width: 960px) {
+  .on-game-dashboard #theatre-director-panel { width: min(1120px, calc(100vw - 36px)) !important; }
+  .on-game-dashboard .theatre-check-director-workspace { grid-template-columns: minmax(275px, 0.9fr) minmax(0, 1.8fr); }
+  .on-game-dashboard .theatre-check-compose-grid { grid-template-columns: repeat(3, minmax(0,1fr)); }
+  .on-game-dashboard .theatre-check-compose-grid .wide { grid-column: 1 / -1; }
+}
+@media (max-width: 959px) {
+  .on-game-dashboard .theatre-check-director-workspace { grid-template-columns: minmax(0,1fr); }
+  .on-game-dashboard .theatre-check-compose-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
+@media (max-width: 580px) {
+  .on-game-dashboard .theatre-check-compose-grid,
+  .on-game-dashboard .theatre-opposed-grid { grid-template-columns: minmax(0, 1fr); }
+  .on-game-dashboard .theatre-check-compose-grid .wide { grid-column: auto; }
+  .on-game-dashboard .theatre-check-compose-preview { grid-template-columns: minmax(0, 1fr) auto; }
+  .on-game-dashboard .theatre-check-compose-preview small { grid-column: 1 / -1; }
+}
