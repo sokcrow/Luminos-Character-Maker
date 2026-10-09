@@ -140,7 +140,8 @@
   function mergedDefinitions() {
     const core = global.LuminousTraitCatalogCore?.allDefinitions?.() || {};
     const racial = global.LuminousRacialTraitCatalog?.allDefinitions?.() || {};
-    return { ...core, ...racial, ...(state.definitions || {}) };
+    const archetype = global.LuminousArchetypeTraitCatalog?.allDefinitions?.() || {};
+    return { ...core, ...racial, ...archetype, ...(state.definitions || {}) };
   }
 
   function mergedGrants() {
@@ -175,8 +176,11 @@
       definitions,
     );
     const racialGranted = racialCatalog?.resolveTraitGrants?.(normalizedCharacter, definitions) || [];
+    // Core grants do not include all dynamically selected archetype grants.
+    // Resolve them from their own catalog, just as the DM Trait preview does.
+    const archetypeGranted = global.LuminousArchetypeTraitCatalog?.resolveTraitGrants?.(normalizedCharacter, definitions) || [];
     const selected = milestones.resolveSelectedGeneralTraits(character, definitions);
-    return mergeTraitLists([...granted, ...racialGranted], selected);
+    return mergeTraitLists([...granted, ...racialGranted, ...archetypeGranted], selected);
   }
 
   // Maneuvers are selectable combat features, not additional Trait grants.
