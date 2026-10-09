@@ -346,7 +346,7 @@
     panel.className = "theatre-check-director";
     panel.innerHTML = `
       <header class="theatre-check-director-header"><div><strong>CHECK DIRECTOR</strong><span>SOLICITUDES · ENFRENTAMIENTOS · RESULTADOS</span></div><b id="theatre-check-pending-count" aria-label="Solicitudes pendientes">0</b></header>
-      <div class="theatre-check-director-workspace"><section class="theatre-check-inbox" aria-label="Solicitudes pendientes"><h3>SOLICITUDES PENDIENTES</h3><div id="theatre-check-request-list" class="theatre-check-request-list" aria-live="polite"><div class="theatre-check-empty">ESPERANDO SOLICITUDES…</div></div><section class="theatre-check-activity" aria-live="polite"><h3>ACTIVIDAD EN VIVO</h3><p id="theatre-check-live-state">Sin tiradas activas</p></section></section>
+      <div class="theatre-check-director-workspace"><section class="theatre-check-inbox" aria-label="Solicitudes pendientes"><h3>SOLICITUDES PENDIENTES</h3><div id="theatre-check-request-list" class="theatre-check-request-list" aria-live="polite"><div class="theatre-check-empty">ESPERANDO SOLICITUDES…</div></div><section class="theatre-check-activity" aria-live="polite"><h3>ACTIVIDAD EN VIVO</h3><p id="theatre-check-live-state">Sin tiradas individuales activas</p><div id="theatre-opposed-live-state" class="theatre-opposed-session-summary">Sin enfrentamientos pendientes</div></section></section>
       <div class="theatre-check-compose">
         <div class="theatre-check-compose-title"><span id="theatre-check-compose-mode">NUEVO CHECK</span><button id="theatre-check-compose-reset" type="button">LIMPIAR</button></div>
         <div class="theatre-check-compose-grid">
