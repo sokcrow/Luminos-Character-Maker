@@ -1134,7 +1134,9 @@
           const age = Date.now() - updatedAt;
           // DM reconnect must still resolve completed rolls after the short
           // HUD display window; the issued command is checked authoritatively.
-          if (age > (live.status === "complete" ? COMMAND_MAX_AGE_MS : LIVE_MAX_AGE_MS)) return;
+          // Completed telemetry is durable until acknowledged by the DM,
+          // even when the DM was offline longer than the issue window.
+          if (live.status !== "complete" && age > LIVE_MAX_AGE_MS) return;
           entries.push({ uid, commandId, live });
         });
       });
