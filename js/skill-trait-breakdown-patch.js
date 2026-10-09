@@ -145,7 +145,7 @@
       return source == null ? 10 : Number(source);
     };
     const proficiency = Math.max(0, Math.floor(numberOr(character.proficiency ?? character.proficiencyBonus,
-      Math.ceil(numberOr(character.characterBuild?.calculatedAtLevel ?? character.level, 1) / 20))));
+      Math.min(6, 2 + Math.floor((Math.max(1, numberOr(character.characterBuild?.calculatedAtLevel ?? character.level, 1)) - 1) / 20)))));
     const normalizeProficiency = (value) => {
       if (value === true) return "proficient";
       const id = normalizeId(value);
