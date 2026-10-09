@@ -153,6 +153,14 @@ const window = {
 };
 
 vm.runInNewContext(source, { window, MutationObserver: class {} }, { filename: "player-stats-ability-bar.js" });
+const initialRuntime = window.LuminousPlayerStats;
+const firstLoadDomReadyListeners = domListeners.get("DOMContentLoaded")?.length || 0;
+// hoja_personaje.html loads this module directly AND utils.js injects it.
+// Repeated execution must not replace the original closure or double-bind.
+vm.runInNewContext(source, { window, MutationObserver: class {} }, { filename: "player-stats-ability-bar.js (second load)" });
+assert.equal(window.LuminousPlayerStats, initialRuntime, "Repeated script loading must preserve the original public runtime");
+assert.equal(domListeners.get("DOMContentLoaded")?.length || 0, firstLoadDomReadyListeners,
+  "Repeated script loading must not register additional boot listeners");
 for (const callback of domListeners.get("DOMContentLoaded") || []) callback();
 
 assert.equal(derivedCalculations, 1, "Boot must calculate the derived stats exactly once");
@@ -160,6 +168,26 @@ assert.equal(skillPreviews, 1);
 assert.equal(abilityPreviews, 1);
 assert.equal(displayedScore.textContent, "18", "Primordial Champion must add +4 STR in the HUD");
 assert.equal(displayedModifier.textContent, "+4", "A trait-adjusted STR 18 has modifier +4");
+// The API accessor used by the derived-stats adapter must refer to the
+// exact closure that owns the tab handlers, even after both script loads.
+const sharedStats = window.LuminousPlayerStats;
+assert.equal(sharedStats.getRenderDerivedSnapshot(character), null,
+  "Snapshot must only be exposed during a render");
+const nestedRenderSnapshot = () => window.LuminousPlayerStats.getRenderDerivedSnapshot(character);
+const originalPreview = window.LuminousSkillTraitBreakdownPatch.syncPlayerSkillPreviews;
+let activeSnapshotVisible = false;
+window.LuminousSkillTraitBreakdownPatch.syncPlayerSkillPreviews = () => {
+  activeSnapshotVisible = !!nestedRenderSnapshot()?.abilities?.dex;
+  originalPreview();
+};
+abilityButtons.dex.click();
+assert.ok(activeSnapshotVisible, "Trait preview must see the same render snapshot after duplicate script execution");
+assert.equal(derivedCalculations, 1);
+abilityButtons.str.click();
+assert.equal(derivedCalculations, 1);
+window.LuminousSkillTraitBreakdownPatch.syncPlayerSkillPreviews = originalPreview;
+skillPreviews = 1;
+abilityPreviews = 1;
 
 for (const id of ["dex", "wis", "cha", "str"]) {
   abilityButtons[id].click();
