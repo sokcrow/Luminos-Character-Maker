@@ -1,7 +1,10 @@
 (function (global) {
   "use strict";
   const doc = global.document;
-  if (!doc) return;
+  // utils.js injects this module and hoja_personaje.html also loads it.
+  // Preserve the first instance's handlers and render snapshot; a second
+  // execution would overwrite the public API with a different closure.
+  if (!doc || global.LuminousPlayerStats) return;
   const ABILITIES = Object.freeze([
     { id: "str", key: "fuerza", code: "STR", name: "STRENGTH", spanish: "Fuerza", skills: [{ id: "athletics", name: "Athletics", spanish: "Atletismo" }] },
     { id: "dex", key: "destreza", code: "DEX", name: "DEXTERITY", spanish: "Destreza", skills: [
@@ -285,25 +288,11 @@
       list.appendChild(row);
     });
   }
-  function syncPanel() {
-    const panel = doc.querySelector("#stats-modal .player-ability-console");
-    if (!panel) return false;
-    const data = playerData();
-    const resolved = global.LuminousDerivedStats?.resolveCharacterStats?.(data);
-    renderDerivedStats = resolved ? { data, abilities: resolved.abilities } : null;
-    try {
-      syncOverview(panel, data);
-    ABILITIES.forEach((ability) => {
-      const profState = abilityProficiencyState(ability, data);
-      const button = panel.querySelector(`.player-ability[data-stat="${ability.id}"]`);
-      if (!button) return;
-      const indicator = button.querySelector(".player-prof-indicator");
-      if (indicator) {
-        indicator.dataset.profState = profState;
-        indicator.title = PROFICIENCY_STATES[profState].label;
-        indicator.setAttribute("aria-label", PROFICIENCY_STATES[profState].label);
-      }
-    });
+  // Updated only on a real character/trait refresh. Switching the visible
+  // ability never needs to recalculate the whole derived character sheet.
+  let panelDerivedStats = null;
+
+  function syncSelectedAbility(panel, data) {
     const ability = selectedAbility(panel);
     const math = abilityRollMath(ability, data);
     const stateDefinition = PROFICIENCY_STATES[math.state];
@@ -324,18 +313,73 @@
       button.tabIndex = active ? 0 : -1;
     });
     renderSkills(panel, ability, data);
-    // Keep Trait-adjusted Skill totals visible after every Stats redraw/tab change.
+    // Trait bonuses are still applied, but only to the currently visible
+    // ability and its skills, not to the entire character panel.
     global.LuminousSkillTraitBreakdownPatch?.syncPlayerSkillPreviews?.();
     global.LuminousSkillTraitBreakdownPatch?.syncPlayerAbilityPreviews?.();
     return true;
+  }
+
+  function traitAwareDerivedSnapshot(data) {
+    const runtime = global.LuminousDerivedStatsRuntime;
+    if (runtime?.snapshot) return runtime.snapshot(data);
+    // The player sheet may not load derived-stats-runtime.js. In that case
+    // preserve exactly the runtime's trait selection instead of caching the
+    // unmodified raw-engine result (Primordial Champion: +4 STR/CON).
+    let traits = [];
+    if (Array.isArray(data?.traitDefinitions)) traits = data.traitDefinitions;
+    else if (Array.isArray(data?.traits) && data.traits.every((entry) => entry && typeof entry === "object")) traits = data.traits;
+    else {
+      try { traits = global.LuminousPlayerTraitRuntime?.getTraits?.() || []; }
+      catch (_) { traits = []; }
+    }
+    return global.LuminousDerivedStats?.resolveCharacterStats?.(data, { traits, unit: data });
+  }
+
+  function syncPanel() {
+    const panel = doc.querySelector("#stats-modal .player-ability-console");
+    if (!panel) return false;
+    const data = playerData();
+    const resolved = traitAwareDerivedSnapshot(data);
+    panelDerivedStats = { data, abilities: resolved?.abilities || null, resolved };
+    renderDerivedStats = panelDerivedStats;
+    try {
+      syncOverview(panel, data);
+      ABILITIES.forEach((ability) => {
+        const profState = abilityProficiencyState(ability, data);
+        const button = panel.querySelector(`.player-ability[data-stat="${ability.id}"]`);
+        if (!button) return;
+        const indicator = button.querySelector(".player-prof-indicator");
+        if (indicator) {
+          indicator.dataset.profState = profState;
+          indicator.title = PROFICIENCY_STATES[profState].label;
+          indicator.setAttribute("aria-label", PROFICIENCY_STATES[profState].label);
+        }
+      });
+      return syncSelectedAbility(panel, data);
     } finally {
       renderDerivedStats = null;
     }
   }
+
   function activate(panel, abilityId, focus = false) {
     if (!panel || !ABILITIES.some((ability) => ability.id === abilityId)) return;
-    panel.dataset.activeStat = abilityId;
-    syncPanel();
+    if (panel.dataset.activeStat !== abilityId) {
+      panel.dataset.activeStat = abilityId;
+      const data = playerData();
+      // If player data changed before the data event arrived, do a full
+      // refresh once rather than using stale derived Ability Scores.
+      if (panelDerivedStats?.data !== data) {
+        syncPanel();
+      } else {
+        renderDerivedStats = panelDerivedStats;
+        try {
+          syncSelectedAbility(panel, data);
+        } finally {
+          renderDerivedStats = null;
+        }
+      }
+    }
     if (focus) panel.querySelector(`.player-ability[data-stat="${abilityId}"]`)?.focus();
   }
   function removeLegacyStats(statsContainer) {
@@ -528,10 +572,21 @@
   }
   function syncRuntimeSurface() {
     ensureRacialStatRuntime();
+    // buildPanel already calls syncPanel; do not calculate/render twice.
     buildPanel();
-    syncPanel();
     syncHudCanvasScale();
     installCoinResultAdjustment();
+  }
+
+  let refreshScheduled = false;
+  function scheduleRuntimeRefresh() {
+    if (refreshScheduled) return;
+    refreshScheduled = true;
+    const schedule = global.requestAnimationFrame || ((callback) => global.setTimeout(callback, 0));
+    schedule(() => {
+      refreshScheduled = false;
+      syncRuntimeSurface();
+    });
   }
 
   function boot() {
@@ -544,10 +599,15 @@
       "luminous:traits-refreshed",
       "luminous:class-runtime-loaded",
       "luminous:player-instance-changed",
-    ].forEach((name) => global.addEventListener?.(name, syncRuntimeSurface));
+    ].forEach((name) => global.addEventListener?.(name, scheduleRuntimeRefresh));
+    // Do not listen to every click inside Stats: it used to rerender the
+    // panel three times even for a simple tab or Skill click.
     doc.addEventListener("click", (event) => {
-      if (event.target?.closest?.('[name="act_hud_stats"], #stats-modal, [data-dnd-roll]')) {
-        global.queueMicrotask?.(syncRuntimeSurface);
+      if (event.target?.closest?.('[name="act_hud_stats"]')) {
+        global.queueMicrotask?.(() => {
+          syncHudCanvasScale();
+          installCoinResultAdjustment();
+        });
       }
     }, true);
   }
@@ -560,6 +620,11 @@
     hudScaleForViewport,
     syncHudCanvasScale,
     abilityScore,
+    // The derived runtime's wrappers can reuse the current tab render's
+    // canonical snapshot instead of recalculating it for every Skill/Trait.
+    getRenderDerivedSnapshot(data) {
+      return renderDerivedStats?.data === data ? renderDerivedStats.resolved : null;
+    },
     abilityRollMath,
     abilityModifier,
     proficiencyBonus,

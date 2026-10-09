@@ -65,6 +65,10 @@
     const api = ensureEngine();
     if (!current || !api || patched.has(current)) return false;
     const original = current;
+    // The Stats panel resolves its full snapshot once per real data refresh.
+    // Reuse that snapshot while rendering Skill/Trait previews; outside the
+    // panel render, keep resolving fresh values as before.
+    const panelSnapshot = (data) => original.getRenderDerivedSnapshot?.(data) || snapshot(data);
     const wrapped = Object.freeze({
       ...original,
       __derivedStatsV1: true,
@@ -72,12 +76,12 @@
       proficiencyBonus: api.proficiencyBonus,
       abilityScore(ability, data) {
         const id = api.abilityId(ability?.id || ability?.key || ability);
-        return snapshot(data)?.abilities?.[id]?.score ?? original.abilityScore?.(ability, data) ?? 10;
+        return panelSnapshot(data)?.abilities?.[id]?.score ?? original.abilityScore?.(ability, data) ?? 10;
       },
       abilityRollMath(ability, data) {
         const legacy = original.abilityRollMath?.(ability, data) || {};
         const id = api.abilityId(ability?.id || ability?.key || ability);
-        const resolved = snapshot(data);
+        const resolved = panelSnapshot(data);
         const abilitySnapshot = resolved?.abilities?.[id];
         if (!abilitySnapshot) return legacy;
         const proficiency = resolved.proficiency.bonus;
