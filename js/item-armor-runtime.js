@@ -21,16 +21,24 @@
     let min=Math.max(1,Math.floor(base.min+effective.min+Number(nonWeightMin||0))),max=Math.max(2,Math.floor(base.max+effective.max+Number(nonWeightMax||0)));if(min>max)min=max;
     return Object.freeze({base,rawWeightEffect:Object.freeze({min:Number(raw.min||0),max:Number(raw.max||0)}),strengthRelief:relief,effectiveWeightEffect:Object.freeze(effective),min,max});
   }
-  function resolvePhysicalResistance({armor=null,constitutionMod=0,proficient=false,armorlessDefense=false}={}){
+  function resolveProficiencyBenefits({proficient=false,proficiencyBonus=undefined,level=1}={}){
+    const baseLevel=Math.max(1,Math.floor(Number(level)||1));
+    const bonus=Number.isFinite(Number(proficiencyBonus))&&proficiencyBonus!==undefined&&proficiencyBonus!==null
+      ? Math.max(0,Math.floor(Number(proficiencyBonus)))
+      : Math.min(6,2+Math.floor((baseLevel-1)/20));
+    return Object.freeze({proficiencyBonus:bonus,resistanceReduction:proficient?0.02*bonus:0,defensiveLevelBonus:proficient?Math.floor(bonus/2):0});
+  }
+  function resolvePhysicalResistance({armor=null,constitutionMod=0,proficient=false,armorlessDefense=false,proficiencyBonus=undefined,level=1}={}){
     const con=Number(constitutionMod)||0;
     const armorlessEligible=!!armorlessDefense&&(!armor||armor.classification==="clothing");
     const base=armorlessEligible||!armor?UNARMORED_BASE:armor.physicalResistanceProfile;
     const conRate=armorlessEligible?ARMORLESS_CON_RATE:NORMAL_CON_RATE;
     const conAdjustment=con*conRate;
-    const proficiencyAdjustment=armor?.isArmor&&proficient&&!armorlessEligible?ARMOR_PROFICIENCY_BONUS:0;
+    const proficiency=resolveProficiencyBenefits({proficient:Boolean(armor?.isArmor&&proficient&&!armorlessEligible),proficiencyBonus,level});
+    const proficiencyAdjustment=proficiency.resistanceReduction;
     const final={};
     for(const type of ["slash","pierce","blunt"]){const raw=Number(base?.[type]??1.35)-conAdjustment-proficiencyAdjustment;final[type]=roundResistance(armor?.isArmor&&!armorlessEligible?clamp(raw,ARMOR_RESISTANCE_MIN,ARMOR_RESISTANCE_MAX):Math.max(0,raw));}
-    return Object.freeze({base:Object.freeze({...base}),conRate,conAdjustment,proficiencyAdjustment,armorlessDefenseApplied:armorlessEligible,final:Object.freeze(final)});
+    return Object.freeze({base:Object.freeze({...base}),conRate,conAdjustment,proficiencyAdjustment,proficiencyBonus:proficiency.proficiencyBonus,defensiveLevelBonus:proficiency.defensiveLevelBonus,armorlessDefenseApplied:armorlessEligible,final:Object.freeze(final)});
   }
   function applyPhysicalDamage(amount,damageType,resistance){const n=Math.max(0,Number(amount)||0),type=String(damageType||"").toLowerCase(),profile=resistance?.final||resistance||UNARMORED_BASE,m=Number(profile[type]??1);return n*m;}
   function resolveDurabilityWear({damage=0,damageType="",armor=null}={}){
@@ -41,7 +49,7 @@
     const factor=Number(armor?.elementalWear?.[type]||1);
     return Math.max(1,Math.floor(base*1.25*factor));
   }
-  const API=Object.freeze({VERSION,UNARMORED_BASE,NORMAL_CON_RATE,ARMORLESS_CON_RATE,ARMOR_PROFICIENCY_BONUS,ARMOR_RESISTANCE_MIN,ARMOR_RESISTANCE_MAX,STR_RELIEF_THRESHOLD,baseSpeed,hasStrengthRelief,relieveWeightEffect,resolveSpeed,resolvePhysicalResistance,applyPhysicalDamage,resolveDurabilityWear});
+  const API=Object.freeze({VERSION,UNARMORED_BASE,NORMAL_CON_RATE,ARMORLESS_CON_RATE,ARMOR_PROFICIENCY_BONUS,ARMOR_RESISTANCE_MIN,ARMOR_RESISTANCE_MAX,STR_RELIEF_THRESHOLD,baseSpeed,hasStrengthRelief,relieveWeightEffect,resolveSpeed,resolveProficiencyBenefits,resolvePhysicalResistance,applyPhysicalDamage,resolveDurabilityWear});
   global.LuminousArmorRuntime=API;
   if(typeof module!=="undefined"&&module.exports)module.exports=API;
 })(typeof globalThis!=="undefined"?globalThis:window);
