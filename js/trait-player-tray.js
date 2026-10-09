@@ -950,9 +950,9 @@
     const legacy = global.LuminousLegacyBackgroundCatalog?.get?.(id) || null;
     const custom = character.backgroundNarrative && typeof character.backgroundNarrative === "object" ? character.backgroundNarrative : {};
     const choices = {
+      ...custom,
       ...(build.backgroundChoices && typeof build.backgroundChoices === "object" ? build.backgroundChoices : {}),
       ...(character.backgroundChoices && typeof character.backgroundChoices === "object" ? character.backgroundChoices : {}),
-      ...custom,
     };
     const label = (value) => String(value ?? "").replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
     const fallbackName = id ? label(id).replace(/\b\w/g, (match) => match.toUpperCase()) : "";
@@ -993,6 +993,10 @@
       this.resolveInputs = typeof options.resolveInputs === "function" ? options.resolveInputs : null;
       this.prepareRuntime = typeof options.prepareRuntime === "function" ? options.prepareRuntime : null;
       this.title = options.title || "TRAITS";
+      this.saveBackgroundChoices = typeof options.saveBackgroundChoices === "function" ? options.saveBackgroundChoices : null;
+      this.backgroundEditing = false;
+      this.backgroundSaving = false;
+      this.backgroundEditorId = "";
       this.expanded = options.expanded !== false;
       this.filter = "all";
       this.root = null;
@@ -1083,10 +1087,16 @@
       return backgroundProfile(runtime.character || global.datosJugador || {});
     }
 
-    renderBackground() {
+    renderBackground(force = false) {
       if (!this.backgroundPanel) return;
       const profile = this.currentBackground();
       const panel = this.backgroundPanel;
+      if (this.backgroundEditing && this.backgroundEditorId !== profile.id) {
+        this.backgroundEditing = false;
+        this.backgroundSaving = false;
+      }
+      // Trait refreshes and live Firebase events must not erase unsaved typing.
+      if (this.backgroundEditing && !force && panel.querySelector?.(".player-background-choice-editor")) return;
       panel.replaceChildren();
       if (!profile.id) {
         panel.appendChild(createElement("div", "player-background-empty", "Aún no tienes un Background asignado."));
@@ -1146,17 +1156,33 @@
       const choices = profile.choices;
       const decisions = createElement("section", "player-background-decisions");
       decisions.appendChild(createElement("h3", "player-background-section-title", "TUS DECISIONES"));
-      const grid = createElement("div", "player-background-decision-grid");
       const ideal = choiceText(choices.ideal || choices.idealId || profile.character.psychologicalIdeal, profile.narrative?.ideals);
       const bond = choiceText(choices.bond || choices.bondId || choices.vinculo || profile.character.psychologicalVinculo, profile.narrative?.bonds);
       const flaw = choiceText(choices.flaw || choices.flawId || choices.grieta || profile.character.psychologicalGrieta, profile.narrative?.flaws);
-      addBackgroundDetail(grid, "IDEAL", ideal || "Sin elección registrada");
-      addBackgroundDetail(grid, "VÍNCULO", bond || "Sin elección registrada");
-      addBackgroundDetail(grid, "DEFECTO / GRIETA", flaw || "Sin elección registrada");
       const personality = choices.personality || choices.personalityTraits;
       const personalityText = Array.isArray(personality) ? personality.map((entry) => choiceText(entry)).filter(Boolean).join(" · ") : choiceText(personality);
-      if (personalityText) addBackgroundDetail(grid, "PERSONALIDAD", personalityText);
-      decisions.appendChild(grid);
+      if (this.backgroundEditing && this.saveBackgroundChoices) {
+        decisions.appendChild(this.renderBackgroundEditor(profile));
+      } else {
+        const grid = createElement("div", "player-background-decision-grid");
+        addBackgroundDetail(grid, "IDEAL", ideal || "Sin elección registrada");
+        addBackgroundDetail(grid, "VÍNCULO", bond || "Sin elección registrada");
+        addBackgroundDetail(grid, "DEFECTO / GRIETA", flaw || "Sin elección registrada");
+        addBackgroundDetail(grid, "PERSONALIDAD", personalityText || "Sin elección registrada");
+        decisions.appendChild(grid);
+        if (this.saveBackgroundChoices) {
+          const missing = [ideal, bond, flaw, personalityText].filter((value) => !value).length;
+          if (missing) decisions.appendChild(createElement("p", "player-background-edit-hint", "Puedes completar las " + missing + " decisiones pendientes sin salir de tu ficha."));
+          const editButton = createElement("button", "player-background-edit-button", missing ? "COMPLETAR BACKGROUND" : "EDITAR MIS DECISIONES");
+          editButton.type = "button";
+          editButton.addEventListener("click", () => {
+            this.backgroundEditing = true;
+            this.backgroundEditorId = profile.id;
+            this.renderBackground(true);
+          });
+          decisions.appendChild(editButton);
+        }
+      }
       panel.appendChild(decisions);
 
       const psychologyId = String(profile.character.psychologicalBackgroundId || "").trim();
@@ -1178,6 +1204,128 @@
         });
         panel.appendChild(openTrait);
       }
+    }
+
+
+    renderBackgroundEditor(profile) {
+      const doc = global.document;
+      const choices = profile.choices || {};
+      const container = createElement("form", "player-background-choice-editor");
+      container.setAttribute("aria-label", "Editar decisiones de Background");
+      const fields = [];
+      const configs = [
+        { id: "ideal", label: "IDEAL", saved: choices.ideal || choices.idealId || profile.character.psychologicalIdeal, options: profile.narrative?.ideals || [] },
+        { id: "bond", label: "VÍNCULO", saved: choices.bond || choices.bondId || choices.vinculo || profile.character.psychologicalVinculo, options: profile.narrative?.bonds || [] },
+        { id: "flaw", label: "DEFECTO / GRIETA", saved: choices.flaw || choices.flawId || choices.grieta || profile.character.psychologicalGrieta, options: profile.narrative?.flaws || [] },
+      ];
+      configs.forEach((config) => {
+        const wrapper = createElement("div", "player-background-choice-field");
+        const title = createElement("label", "player-background-choice-label", config.label);
+        const select = createElement("select", "player-background-choice-select");
+        select.name = config.id;
+        select.id = "player-background-choice-" + config.id;
+        title.htmlFor = select.id;
+        const empty = doc.createElement("option");
+        empty.value = "";
+        empty.textContent = "— Selecciona una opción —";
+        select.appendChild(empty);
+        (config.options || []).forEach((item) => {
+          const option = doc.createElement("option");
+          option.value = String(item.id || item.label);
+          option.textContent = item.label;
+          select.appendChild(option);
+        });
+        const customOption = doc.createElement("option");
+        customOption.value = "__custom__";
+        customOption.textContent = "Escribir mi propia opción";
+        select.appendChild(customOption);
+        const custom = createElement("input", "player-background-choice-custom");
+        custom.type = "text";
+        custom.maxLength = 180;
+        custom.placeholder = "Describe tu " + config.label.toLowerCase() + " (máx. 180 caracteres)";
+        custom.setAttribute("aria-label", "Personalizar " + config.label);
+        const raw = typeof config.saved === "object" && config.saved !== null
+          ? String(config.saved.id || config.saved.label || "")
+          : String(config.saved || "");
+        const match = config.options.find((entry) => normalizeId(entry.id) === normalizeId(raw) || normalizeId(entry.label) === normalizeId(raw));
+        select.value = match ? String(match.id || match.label) : raw ? "__custom__" : "";
+        custom.value = !match ? choiceText(config.saved) : "";
+        custom.hidden = select.value !== "__custom__";
+        select.addEventListener("change", () => {
+          custom.hidden = select.value !== "__custom__";
+          if (!custom.hidden) custom.focus?.();
+        });
+        wrapper.append(title, select, custom);
+        container.appendChild(wrapper);
+        fields.push({
+          id: config.id,
+          read: () => select.value === "__custom__" ? custom.value.trim() : select.value.trim(),
+        });
+      });
+
+      const oldPersonality = choices.personality || choices.personalityTraits || [];
+      const personality = (Array.isArray(oldPersonality) ? oldPersonality : [oldPersonality]).map((item) => choiceText(item));
+      const personalityWrap = createElement("fieldset", "player-background-personality-field");
+      const personalityTitle = createElement("legend", "player-background-choice-label", "PERSONALIDAD · HASTA 2 RASGOS");
+      personalityWrap.appendChild(personalityTitle);
+      const personalityInputs = [0, 1].map((index) => {
+        const input = createElement("input", "player-background-personality-input");
+        input.type = "text";
+        input.maxLength = 120;
+        input.value = personality[index] || "";
+        input.placeholder = "Rasgo " + (index + 1) + " (máx. 120 caracteres)";
+        input.setAttribute("aria-label", "Rasgo de personalidad " + (index + 1));
+        personalityWrap.appendChild(input);
+        return input;
+      });
+      container.appendChild(personalityWrap);
+      container.appendChild(createElement("p", "player-background-edit-hint", "Son decisiones narrativas. No modifican tu HP Coef, Traits ni bonificaciones."));
+      const status = createElement("p", "player-background-save-status");
+      status.setAttribute("role", "status");
+      status.setAttribute("aria-live", "polite");
+      const actions = createElement("div", "player-background-editor-actions");
+      const save = createElement("button", "player-background-edit-button", "GUARDAR DECISIONES");
+      save.type = "submit";
+      const cancel = createElement("button", "player-background-cancel-button", "CANCELAR");
+      cancel.type = "button";
+      cancel.addEventListener("click", () => {
+        if (this.backgroundSaving) return;
+        this.backgroundEditing = false;
+        this.renderBackground(true);
+      });
+      actions.append(save, cancel);
+      container.append(status, actions);
+      container.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        if (this.backgroundSaving) return;
+        const payload = {};
+        fields.forEach((field) => {
+          const value = field.read();
+          if (value) payload[field.id] = value;
+        });
+        const traits = personalityInputs.map((input) => input.value.trim()).filter(Boolean);
+        if (traits.length) payload.personality = traits;
+        if (!Object.keys(payload).length) {
+          status.textContent = "Selecciona al menos una opción o escribe un rasgo.";
+          return;
+        }
+        this.backgroundSaving = true;
+        save.disabled = true;
+        cancel.disabled = true;
+        status.textContent = "Guardando tus decisiones…";
+        try {
+          await this.saveBackgroundChoices(profile.id, payload);
+          this.backgroundEditing = false;
+          this.backgroundSaving = false;
+          this.renderBackground(true);
+        } catch (error) {
+          this.backgroundSaving = false;
+          save.disabled = false;
+          cancel.disabled = false;
+          status.textContent = error?.message || "No se pudieron guardar las decisiones. Inténtalo de nuevo.";
+        }
+      });
+      return container;
     }
 
     renderNarrativeBackgroundTrait(profile) {
