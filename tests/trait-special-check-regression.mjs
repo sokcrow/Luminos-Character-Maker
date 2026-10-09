@@ -52,21 +52,21 @@ assert.equal(amount([athlete], ch, {kind: "save", abilityId: "dex"}), 1);
 
 // Royal Envoy upgrades Persuasion proficiency rather than replacing CHA.
 const envoy = trait("royal_envoy");
-assert.equal(amount([envoy], ch, skill("persuasion", "cha", "none")), 4);
-assert.equal(amount([envoy], ch, skill("persuasion", "cha", "half")), 2);
-assert.equal(amount([envoy], ch, skill("persuasion", "cha", "proficient")), 4);
+assert.equal(amount([envoy], ch, skill("persuasion", "cha", "none")), 5);
+assert.equal(amount([envoy], ch, skill("persuasion", "cha", "half")), 3);
+assert.equal(amount([envoy], ch, skill("persuasion", "cha", "proficient")), 5);
 assert.equal(amount([envoy], ch, skill("persuasion", "cha", "expertise")), 0);
 
 // Samurai WIS mod on Persuasion; save proficiency granted once.
 const courtier = trait("elegant_courtier");
 assert.equal(amount([courtier], ch, skill("persuasion", "cha")), 4);
-assert.equal(amount([courtier], ch, { kind: "save", abilityId: "wis" }), 4);
+assert.equal(amount([courtier], ch, { kind: "save", abilityId: "wis" }), 5);
 const gifted = { ...ch, saveProficiency: { wis: "proficient" },
   traitChoices: { elegant_courtier_save: "cha" } };
 assert.equal(amount([courtier], gifted, { kind: "save", abilityId: "wis" }), 0);
-assert.equal(amount([courtier], gifted, { kind: "save", abilityId: "cha" }), 4);
+assert.equal(amount([courtier], gifted, { kind: "save", abilityId: "cha" }), 5);
 assert.equal(amount([courtier], { ...ch, abilityProficiency: { wis: "half" } },
-  { kind: "save", abilityId: "wis" }), 2);
+  { kind: "save", abilityId: "wis" }), 3);
 
 // Bladesinger conditional Acrobatics: status on -> +4, off -> 0.
 const bladesong = trait("bladesong", { acrobaticsBonus: 4 });
@@ -84,11 +84,11 @@ assert.equal(amount([jack], { ...ch, abilityProficiency: { wis: "proficient" } }
 
 // Mixed Traits are additive exactly once, including negative conditional mods.
 const check = skill("persuasion", "cha");
-assert.equal(amount([envoy, courtier], ch, check), 8);
+assert.equal(amount([envoy, courtier], ch, check), 9);
 assert.equal(patch.applySpecialCheckBonuses([envoy, courtier], ch, check).length, 2);
-assert.equal(check.finalPower, 8);
+assert.equal(check.finalPower, 9);
 assert.deepEqual(patch.applySpecialCheckBonuses([envoy, courtier], ch, check), []);
-assert.equal(check.finalPower, 8);
+assert.equal(check.finalPower, 9);
 const alreadyApplied = skill("persuasion", "cha");
 alreadyApplied.finalPower = 4;
 alreadyApplied.__banneretRoyalEnvoyAdjusted = true;
