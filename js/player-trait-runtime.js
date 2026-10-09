@@ -569,6 +569,13 @@ ${response}`);
     }
     if (!Object.keys(payload).length) throw new Error("Elige o escribe al menos una decisión para guardar.");
     await state.db.ref(`${PLAYER_ROOT}/${playerId}/backgroundChoices`).update(payload);
+    // Display the confirmed write immediately; the live player listener remains authoritative.
+    if (state.playerId === playerId) {
+      state.character = {
+        ...character,
+        backgroundChoices: { ...(character.backgroundChoices || {}), ...payload },
+      };
+    }
     return payload;
   }
 
