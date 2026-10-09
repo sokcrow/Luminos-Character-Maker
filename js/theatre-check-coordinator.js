@@ -54,6 +54,10 @@
     dmLiveBound: false,
     authBound: false,
     pendingBySpec: new Set(),
+    resolvingResults: new Set(),
+    resolvedResults: new Set(),
+    playerResultsBound: false,
+    sendingDmCommand: false,
   };
 
   const $ = (id) => doc.getElementById(id);
