@@ -20,6 +20,7 @@
 
 #### Flamebound III
 
+**Example item:** Flamebound Longsword  
 **Allowed on:** Weapon  
 **Status:** PROPOSED / NOT IMPLEMENTED  
 **Tags:** Burn; fixed damage; Clash Win; On Kill
