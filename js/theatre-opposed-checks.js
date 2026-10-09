@@ -359,9 +359,14 @@
     if (session.status === "awaiting_threshold" && session.thresholdResult) {
       state.processingSessions.add(sessionId);
       issueResolverCommand(sessionId, session).finally(() => state.processingSessions.delete(sessionId));
-    } else if (session.status === "awaiting_resolver" && session.resolverResult) {
+    } else if (session.resolverResult && (
+      session.status === "awaiting_resolver" ||
+      (session.status === "finalizing" && Date.now() - numberOr(session.finalizingStartedAt, 0) > 30000)
+    )) {
       state.processingSessions.add(sessionId);
-      finalizeOpposedSession(sessionId, session).finally(() => state.processingSessions.delete(sessionId));
+      finalizeOpposedSession(sessionId, session)
+        .catch((error) => console.warn("Reintentando resolución enfrentada:", error))
+        .finally(() => state.processingSessions.delete(sessionId));
     }
   }
 
@@ -410,8 +415,14 @@
     const thresholdRaw = Number(session.thresholdResult?.total);
     const resolverTotal = Number(session.resolverResult?.total);
     if (!Number.isFinite(thresholdRaw) || !Number.isFinite(resolverTotal)) throw new Error("Resultado enfrentado incompleto.");
-    await db.ref(`${OPPOSED_ROOT}/${sessionId}`).update({ status: "finalizing" });
-
+    const statusRef = db.ref(`${OPPOSED_ROOT}/${sessionId}/status`);
+    const claim = await statusRef.transaction((status) =>
+      status === "awaiting_resolver" || (status === "finalizing" &&
+        Date.now() - numberOr(session.finalizingStartedAt, 0) > 30000)
+        ? "finalizing" : undefined);
+    if (!claim.committed) return;
+    await db.ref(`${OPPOSED_ROOT}/${sessionId}/finalizingStartedAt`).set(Date.now());
+    try {
     const check = {
       thresholdRaw,
       hiddenThreshold: Boolean(session.checkTemplate?.hiddenThreshold),
@@ -424,6 +435,7 @@
     const effective = effectiveThreshold(thresholdRaw, check);
 
     const published = await global.LuminousTheatreRolls?.publishRoll?.({
+      rollId: `vs_${sessionId}`,
       roller: {
         uid: session.initiatorUid,
         actorId: session.initiatorPlayerId || null,
@@ -435,7 +447,7 @@
       coins: Array.isArray(session.resolverResult?.coins) ? session.resolverResult.coins : [],
       check,
     });
-    if (published && published.published === false) throw new Error(`No se pudo publicar el resultado: ${published.reason || "unknown"}`);
+    if (!published?.published) throw new Error(`No se pudo publicar el resultado: ${published?.reason || "sin conexión"}`);
 
     const publicForInitiator = {
       sessionId,
@@ -466,6 +478,10 @@
     updates[`${OPPOSED_ROOT}/${sessionId}/finalThreshold`] = effective;
     updates[`${OPPOSED_ROOT}/${sessionId}/finalizedAt`] = firebase.database.ServerValue.TIMESTAMP;
     await db.ref().update(updates);
+    } catch (error) {
+      await statusRef.set("awaiting_resolver");
+      throw error;
+    }
   }
 
   function bindPlayerCommands() {
