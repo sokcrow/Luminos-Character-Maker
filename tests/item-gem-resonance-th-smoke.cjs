@@ -12,7 +12,7 @@ const Engine = globalThis.LuminousItemEnchantmentEngine;
 
 assert.ok(Catalog && Engine);
 assert.strictEqual(Catalog.VERSION,5);
-assert.strictEqual(Engine.VERSION,10);
+assert.strictEqual(Engine.VERSION,11);
 
 const rubyStandard = {definitionId:"ruby",itemId:"ruby",quality:"standard"};
 const rubyFine = {definitionId:"ruby",itemId:"ruby",quality:"fine"};
