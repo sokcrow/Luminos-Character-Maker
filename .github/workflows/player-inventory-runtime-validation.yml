@@ -129,6 +129,8 @@ on:
       - tests/item-enchanter-ui.spec.cjs
       - tests/item-enchantment-legacy-backend-smoke.cjs
       - tests/item-enchantment-combat-deterministic-smoke.cjs
+      - tests/item-enchantment-resistance-adapter-smoke.cjs
+      - tests/item-enchantment-passive-aggregation-smoke.cjs
       - tests/item-equipment-enhancement-smoke.cjs
       - tests/item-enchanter-gem-procedure-smoke.cjs
       - tests/item-player-enchant-attempt-smoke.cjs
@@ -329,6 +331,10 @@ jobs:
         run: node tests/item-enchantment-legacy-backend-smoke.cjs
       - name: Enchanter Skill and Multi-Coin deterministic combat smoke
         run: node tests/item-enchantment-combat-deterministic-smoke.cjs
+      - name: Enchanter physical/SIN resistance adapter smoke
+        run: node tests/item-enchantment-resistance-adapter-smoke.cjs
+      - name: Enchanter passive Item aggregation smoke
+        run: node tests/item-enchantment-passive-aggregation-smoke.cjs
       - name: Item equipment enhancement contract smoke
         run: node tests/item-equipment-enhancement-smoke.cjs
       - name: Enchanter gem procedure smoke
