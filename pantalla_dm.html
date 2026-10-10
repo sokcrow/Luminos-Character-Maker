@@ -8234,6 +8234,58 @@ window.processEntitiesData = function(entities) {
           }
         });
 
+        function renderShopEnchanterOptions(serviceSelection = [], recipeSelection = []) {
+          const serviceHost=document.getElementById("tienda-enchanter-servicios");
+          const recipeHost=document.getElementById("tienda-enchanter-recetas");
+          const makeChoice=(host,id,title,selected,group)=>{
+            const label=document.createElement("label");
+            label.style.cssText="display:flex;align-items:center;gap:6px;color:#ddd;font-size:12px;cursor:pointer;";
+            const input=document.createElement("input");
+            input.type="checkbox";
+            input.value=id;
+            input.className=group;
+            input.checked=selected.includes(id);
+            const name=document.createElement("span");
+            name.textContent=title;
+            label.append(input,name);
+            host.appendChild(label);
+          };
+          if(serviceHost){
+            serviceHost.replaceChildren();
+            Object.entries(window.LuminousShopRuntime?.SERVICE_TYPES || {})
+              .filter(([id])=>id!=="repair")
+              .forEach(([id,definition])=>makeChoice(serviceHost,id,definition.label || id,serviceSelection,"tienda-enchanter-service-option"));
+          }
+          if(recipeHost){
+            recipeHost.replaceChildren();
+            const definitions=window.LuminousEnchantmentCatalog?.list?.() || [];
+            for(const definition of definitions){
+              if(!definition?.id || !definition?.name) continue;
+              makeChoice(recipeHost,definition.id,definition.name,recipeSelection,"tienda-enchanter-recipe-option");
+            }
+            if(!definitions.length){
+              const unavailable=document.createElement("span");
+              unavailable.textContent="El catálogo de encantamientos no está disponible.";
+              unavailable.style.cssText="color:#eaa;font-size:12px;";
+              recipeHost.appendChild(unavailable);
+            }
+          }
+        }
+
+        function syncShopEnchanterOptions() {
+          const enabled=document.getElementById("tienda-enchanter-activa")?.checked===true;
+          const choices=document.getElementById("tienda-enchanter-opciones");
+          if(choices) choices.style.display=enabled?"grid":"none";
+        }
+
+        function shopEnchanterSelectedValues(group) {
+          return [...document.querySelectorAll("." + group + ":checked")].map(input=>input.value);
+        }
+
+        renderShopEnchanterOptions();
+        document.getElementById("tienda-enchanter-activa")?.addEventListener("change",syncShopEnchanterOptions);
+        syncShopEnchanterOptions();
+
         function resetTiendaForm() {
           document.getElementById("tienda-nombre").value = "";
           document.getElementById("tienda-icono").value = "";
@@ -8255,6 +8307,11 @@ window.processEntitiesData = function(entities) {
           document.getElementById("tienda-cliente-frecuente-compras").value = "10";
           document.getElementById("tienda-cliente-frecuente-descuento").value = "5";
           document.getElementById("tienda-descuento-confianza").value = "10";
+          document.getElementById("tienda-enchanter-activa").checked = false;
+          document.getElementById("tienda-enchanter-nombre").value = "";
+          document.getElementById("tienda-enchanter-rango").value = "1";
+          renderShopEnchanterOptions();
+          syncShopEnchanterOptions();
           document.getElementById("tienda-lealtad-activa").checked = false;
           document.getElementById("tienda-lealtad-nombre").value = "";
           document.getElementById("tienda-lealtad-compras").value = "9";
@@ -8308,6 +8365,19 @@ window.processEntitiesData = function(entities) {
               document.getElementById("tienda-cadena-nombre").value.trim();
             const repairEnabled =
               document.getElementById("tienda-servicio-reparacion").checked;
+            const enchanterEnabled=document.getElementById("tienda-enchanter-activa").checked;
+            const enchanterName=document.getElementById("tienda-enchanter-nombre").value.trim();
+            const enchanterMaxRank=Math.max(1,Math.min(3,parseInt(document.getElementById("tienda-enchanter-rango").value,10)||1));
+            const enchanterServices=enchanterEnabled
+              ? shopEnchanterSelectedValues("tienda-enchanter-service-option") : [];
+            const enchanterRecipes=enchanterEnabled
+              ? shopEnchanterSelectedValues("tienda-enchanter-recipe-option") : [];
+            if(enchanterEnabled && !enchanterServices.length){
+              alert("Selecciona al menos un servicio de Enchanter.");
+              return;
+            }
+            const authoredServiceSettings={repair:{enabled:repairEnabled}};
+            for(const service of enchanterServices) authoredServiceSettings[service]={enabled:true};
             const loyaltyEnabled =
               document.getElementById("tienda-lealtad-activa").checked;
             const loyaltyName =
@@ -8417,9 +8487,13 @@ window.processEntitiesData = function(entities) {
               authorized_uids: authorizedUids,
               dia_restock: diaRestock,
               mod_venta: modVenta,
-              services: {
-                repair: { enabled: repairEnabled },
-              },
+              services: authoredServiceSettings,
+              enchanterProvider: enchanterEnabled ? {
+                name:enchanterName || merchantName || nombre,
+                maxRank:enchanterMaxRank,
+                knownEnchantments:enchanterRecipes,
+                services:enchanterServices,
+              } : null,
               merchant_npc: merchantNpc,
               chain: chainName
                 ? {
@@ -8610,6 +8684,14 @@ window.processEntitiesData = function(entities) {
                   chain?.name || "";
                 document.getElementById("tienda-servicio-reparacion").checked =
                   window.LuminousShopRuntime?.serviceEnabled?.(data, "repair") || false;
+                const existingEnchanter=data.enchanterProvider || data.enchanterProfile || data.enchanter || {};
+                const enchanterIds=Object.keys(window.LuminousShopRuntime?.SERVICE_TYPES || {})
+                  .filter(id=>id!=="repair" && window.LuminousShopRuntime?.serviceEnabled?.(data,id)===true);
+                document.getElementById("tienda-enchanter-activa").checked=enchanterIds.length>0;
+                document.getElementById("tienda-enchanter-nombre").value=existingEnchanter.name || "";
+                document.getElementById("tienda-enchanter-rango").value=String(Math.max(1,Math.min(3,Number(existingEnchanter.maxRank)||1)));
+                renderShopEnchanterOptions(enchanterIds,existingEnchanter.knownEnchantments || []);
+                syncShopEnchanterOptions();
                 document.getElementById("tienda-cliente-frecuente-compras").value =
                   merchant?.frequentCustomerMinPurchases ?? 10;
                 document.getElementById("tienda-cliente-frecuente-descuento").value =
