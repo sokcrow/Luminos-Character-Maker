@@ -542,7 +542,9 @@
   }
 
 
-  function activationResourcePlan(resolution = {}) {
+  function activationResourcePlan(resolution = {}, item = null) {
+    const enchantmentBacked=item && magicOrigin(item)==="enchantment";
+    let unmappedEnchantmentCharges=false;
     const bySource=new Map();
     for(const effect of asArray(resolution?.effects)){
       const source=String(effect.sourceEnchantmentId || "item");
@@ -551,8 +553,13 @@
       const resource=normalizeId(effect.resource || "");
       const chargeCost=Math.max(0,Number(effect.chargeCost)||0);
       const mdCost=Math.max(0,Number(effect.magicalDurabilityCost ?? (resource==="magical_durability"?chargeCost:0))||0);
+      if(enchantmentBacked && resource==="charges" && chargeCost>0 && mdCost<=0) {
+        unmappedEnchantmentCharges=true;
+      }
       const spCost=Math.max(0,Number(effect.spCost)||0);
-      row.charges=Math.max(row.charges,resource==="charges"?chargeCost:0);
+      // Enchanter activated Charges can only be a presentation over an
+      // expressly authored Magical Durability cost, never a second battery.
+      row.charges=Math.max(row.charges,resource==="charges" && !enchantmentBacked?chargeCost:0);
       row.magicalDurability=Math.max(row.magicalDurability,mdCost);
       row.sp=Math.max(row.sp,spCost);
     }
@@ -561,10 +568,13 @@
       magicalDurability:acc.magicalDurability+row.magicalDurability,
       sp:acc.sp+row.sp,
     }),{charges:0,magicalDurability:0,sp:0});
-    return Object.freeze({...totals,bySource:Object.freeze([...bySource.entries()].map(([source,cost])=>Object.freeze({source,...cost})))});
+    return Object.freeze({...totals,unmappedEnchantmentCharges,bySource:Object.freeze([...bySource.entries()].map(([source,cost])=>Object.freeze({source,...cost})))});
   }
 
   function canPayActivationResources(user,item,plan={}) {
+    if(plan.unmappedEnchantmentCharges===true) return Object.freeze({
+      allowed:false,reason:"enchantment_charge_md_mapping_required",plan,
+    });
     const charges=chargeState(item);
     const md=magicalDurabilityState(item);
     if (plan.charges>0 && (charges.current==null || Number(charges.current)<plan.charges)) {
@@ -617,7 +627,7 @@
   function activateEnchantmentEffects(user,item,context={}) {
     const resolution=enchantmentEffectResolution(user,item,{...context,specialUse:true});
     if(!resolution.resolved) return Object.freeze({activated:false,reason:resolution.reason || "effect_resolution_failed",resolution});
-    const plan=activationResourcePlan(resolution);
+    const plan=activationResourcePlan(resolution,item);
     const payment=payActivationResourcePlan(user,item,plan);
     if(!payment.paid) return Object.freeze({activated:false,...payment,resolution});
     const result=Object.freeze({
