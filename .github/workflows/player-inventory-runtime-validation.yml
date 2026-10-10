@@ -5,6 +5,8 @@ on:
     paths:
       - hoja_personaje.js
       - hoja_personaje.html
+      - hoja_de_DM.html
+      - Battle-viewer.html
       - pantalla_dm.html
       - js/injury-engine.js
       - js/inventory-hud-v2.js
@@ -59,6 +61,14 @@ on:
       - js/item-catalog-essence-core.js
       - js/item-catalog-plant-produce.js
       - js/item-catalog-ore-ingot-gem.js
+      - js/item-catalog-enchantments.js
+      - js/item-enchantment-engine.js
+      - js/item-enchantment-combat-runtime.js
+      - js/item-enchanter-service-runtime.js
+      - js/item-enchanter-ui.js
+      - js/item-equipment-enhancement-contract.js
+      - css/item-enchanter-ui.css
+      - js/item-enchantment-compendium-runtime.js
       - js/item-catalog-tools.js
       - js/item-catalog-craft-components.js
       - js/item-catalog-weapons.js
@@ -66,6 +76,8 @@ on:
       - js/item-weapon-composition-engine.js
       - js/item-equipment-bridge.js
       - js/item-inventory-runtime.js
+      - js/item-magic-runtime.js
+      - js/item-magic-knowledge-runtime.js
       - js/item-persistence-runtime.js
       - js/item-realtime-sync.js
       - js/player-ux-polish.js
@@ -105,6 +117,29 @@ on:
       - tests/item-catalog-essence-core-smoke.cjs
       - tests/item-catalog-plant-produce-smoke.cjs
       - tests/item-catalog-ore-ingot-gem-smoke.cjs
+      - tests/item-gem-magic-profile-smoke.cjs
+      - tests/item-gem-anchor-runtime-smoke.cjs
+      - tests/item-gem-resonance-th-smoke.cjs
+      - tests/item-enchantment-ritual-smoke.cjs
+      - tests/item-magical-durability-runtime-smoke.cjs
+      - tests/item-magic-knowledge-runtime-smoke.cjs
+      - tests/item-bound-equipment-lock-smoke.cjs
+      - tests/item-enchanter-service-runtime-smoke.cjs
+      - tests/item-enchanter-transaction-smoke.cjs
+      - tests/item-enchanter-ui.spec.cjs
+      - tests/enchanter-battle-viewer.spec.cjs
+      - tests/item-enchantment-legacy-backend-smoke.cjs
+      - tests/item-enchantment-combat-deterministic-smoke.cjs
+      - tests/item-enchantment-resistance-adapter-smoke.cjs
+      - tests/item-enchantment-passive-aggregation-smoke.cjs
+      - tests/item-equipment-enhancement-smoke.cjs
+      - tests/item-enchanter-gem-procedure-smoke.cjs
+      - tests/item-player-enchant-attempt-smoke.cjs
+      - tests/item-enchanter-service-preview-smoke.cjs
+      - tests/item-enchantment-compendium-smoke.cjs
+      - tests/item-enchantment-engine-smoke.cjs
+      - tests/item-enchantment-inventory-smoke.cjs
+      - tests/item-enchantment-magic-runtime-smoke.cjs
       - tests/item-catalog-tools-smoke.cjs
       - tests/item-catalog-craft-components-smoke.cjs
       - tests/item-catalog-weapons-smoke.cjs
@@ -184,12 +219,21 @@ jobs:
           node --check js/item-catalog-essence-core.js
           node --check js/item-catalog-plant-produce.js
           node --check js/item-catalog-ore-ingot-gem.js
+          node --check js/item-catalog-enchantments.js
+          node --check js/item-enchantment-engine.js
+          node --check js/item-enchantment-combat-runtime.js
+          node --check js/item-enchanter-service-runtime.js
+          node --check js/item-enchanter-ui.js
+          node --check js/item-equipment-enhancement-contract.js
+          node --check js/item-enchantment-compendium-runtime.js
           node --check js/item-catalog-tools.js
           node --check js/item-catalog-craft-components.js
           node --check js/item-catalog-weapons.js
           node --check js/item-catalog-weapon-components.js
           node --check js/item-weapon-composition-engine.js
           node --check js/item-inventory-runtime.js
+          node --check js/item-magic-runtime.js
+          node --check js/item-magic-knowledge-runtime.js
           node --check js/item-equipment-bridge.js
           node --check js/item-persistence-runtime.js
           node --check js/item-realtime-sync.js
@@ -266,6 +310,48 @@ jobs:
         run: node tests/item-catalog-plant-produce-smoke.cjs
       - name: Ore ingot gem catalog smoke
         run: node tests/item-catalog-ore-ingot-gem-smoke.cjs
+      - name: Gem magic profile and rank capacity smoke
+        run: node tests/item-gem-magic-profile-smoke.cjs
+      - name: Gem Anchor and Gem Socket runtime smoke
+        run: node tests/item-gem-anchor-runtime-smoke.cjs
+      - name: Gem resonance compatibility and TH smoke
+        run: node tests/item-gem-resonance-th-smoke.cjs
+      - name: Enchantment ritual materials Bind Curse smoke
+        run: node tests/item-enchantment-ritual-smoke.cjs
+      - name: Magical Durability activation combat smoke
+        run: node tests/item-magical-durability-runtime-smoke.cjs
+      - name: Magic Item Arcana Identify knowledge smoke
+        run: node tests/item-magic-knowledge-runtime-smoke.cjs
+      - name: Bound Item equipment lock smoke
+        run: node tests/item-bound-equipment-lock-smoke.cjs
+      - name: Enchanter service provider quote smoke
+        run: node tests/item-enchanter-service-runtime-smoke.cjs
+      - name: Enchanter transaction and provenance smoke
+        run: node tests/item-enchanter-transaction-smoke.cjs
+      - name: Enchantment legacy backend regression smoke
+        run: node tests/item-enchantment-legacy-backend-smoke.cjs
+      - name: Enchanter Skill and Multi-Coin deterministic combat smoke
+        run: node tests/item-enchantment-combat-deterministic-smoke.cjs
+      - name: Enchanter physical/SIN resistance adapter smoke
+        run: node tests/item-enchantment-resistance-adapter-smoke.cjs
+      - name: Enchanter passive Item aggregation smoke
+        run: node tests/item-enchantment-passive-aggregation-smoke.cjs
+      - name: Item equipment enhancement contract smoke
+        run: node tests/item-equipment-enhancement-smoke.cjs
+      - name: Enchanter gem procedure smoke
+        run: node tests/item-enchanter-gem-procedure-smoke.cjs
+      - name: Player enchant control deviation smoke
+        run: node tests/item-player-enchant-attempt-smoke.cjs
+      - name: Enchantment Compendium smoke
+        run: node tests/item-enchantment-compendium-smoke.cjs
+      - name: Enchanter knowledge-gated service preview smoke
+        run: node tests/item-enchanter-service-preview-smoke.cjs
+      - name: Enchantment core engine smoke
+        run: node tests/item-enchantment-engine-smoke.cjs
+      - name: Enchantment inventory persistence smoke
+        run: node tests/item-enchantment-inventory-smoke.cjs
+      - name: Enchantment Magic Item attunement bridge smoke
+        run: node tests/item-enchantment-magic-runtime-smoke.cjs
       - name: Tool catalog smoke
         run: node tests/item-catalog-tools-smoke.cjs
       - name: Craft component catalog smoke
@@ -291,4 +377,4 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - name: Inventory runtime ownership tests
-        run: npx playwright test tests/inventory-runtime-cutover.spec.cjs tests/dm-item-instance-editor.spec.cjs --workers=1
+        run: npx playwright test tests/inventory-runtime-cutover.spec.cjs tests/dm-item-instance-editor.spec.cjs tests/item-enchanter-ui.spec.cjs tests/enchanter-battle-viewer.spec.cjs --workers=1

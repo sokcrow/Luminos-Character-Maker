@@ -6,7 +6,7 @@
     return;
   }
 
-  const VERSION = 8;
+  const VERSION = 10;
   const CURRENCY = "AHN";
   const BASE_PURCHASE_MARKUP = 1.40;
   const BASE_SELLBACK_MULTIPLIER = 0.80;
@@ -14,6 +14,7 @@
   const MAX_TIER = 10;
 
   const REPAIR_SERVICE_MARKUP = 1.40;
+  const CURSED_MARKET_VALUE_MULTIPLIER = 0.60;
 
   const SERVICE_TYPES = Object.freeze({
     repair: Object.freeze({
@@ -22,6 +23,17 @@
       description: "Restaura puntos de Durabilidad pagando material y mano de obra.",
       markup: REPAIR_SERVICE_MARKUP,
     }),
+    enchant: Object.freeze({ id:"enchant", label:"Encantar", description:"Aplica un Encantamiento conocido mediante un proveedor arcano." }),
+    strengthen: Object.freeze({ id:"strengthen", label:"Potenciar Encantamiento", description:"Fortalece un Encantamiento instalado cuando la receta y el proveedor lo permiten." }),
+    remove_rewrite: Object.freeze({ id:"remove_rewrite", label:"Remover / Reescribir Encantamiento", description:"Trabaja el Encantamiento desde el Item sin confundirlo con la extracción destructiva del Anchor." }),
+    identify: Object.freeze({ id:"identify", label:"Identificar", description:"Revela propiedades mágicas ordinarias según las reglas de conocimiento." }),
+    curse_analysis: Object.freeze({ id:"curse_analysis", label:"Analizar Maldición", description:"Estudia información maldita que Identify no revela por completo." }),
+    remove_curse: Object.freeze({ id:"remove_curse", label:"Remover Maldición", description:"Servicio separado para Maldiciones removibles; no afecta drawbacks inseparables de Reliquias." }),
+    magical_repair: Object.freeze({ id:"magical_repair", label:"Reparación Mágica", description:"Restaura Durabilidad Mágica sin reparar la Durabilidad Física." }),
+    bind: Object.freeze({ id:"bind", label:"Bind", description:"Trabajo especializado para intentar un Bind intencional." }),
+    curse: Object.freeze({ id:"curse", label:"Maldecir", description:"Trabajo ocultista especializado para una Maldición intencional." }),
+    mount_gem: Object.freeze({ id:"mount_gem", label:"Montar Gema", description:"Instala una gema como Gem Anchor cuando el Item y la receta son compatibles." }),
+    extract_gem: Object.freeze({ id:"extract_gem", label:"Extraer Gema", description:"Retira una gema mediante el procedimiento apropiado cuando no está bloqueada por Bind." }),
   });
 
   const SHOP_TYPE_SERVICES = Object.freeze({
@@ -1295,6 +1307,26 @@
     return Math.max(0.10, 1 + marketEventPercent(shop) / 100);
   }
 
+
+  function cursedMarketState(item = {}) {
+    const refs = Array.isArray(item?.magic?.enchantments)
+      ? item.magic.enchantments
+      : Array.isArray(item?.enchantments)
+        ? item.enchantments
+        : [];
+    const propertyCurse = refs.some((entry) => {
+      const properties = Array.isArray(entry?.properties) ? entry.properties.map(normalizeToken) : [];
+      return properties.includes("curse") || properties.includes("bind");
+    });
+    const explicit = item.cursed === true || item.bound === true ||
+      Boolean(item.curse || item?.magic?.curse) ||
+      normalizeToken(item?.magic?.curse?.kind || item?.curse?.kind || item?.curse?.type) === "bind";
+    return Object.freeze({
+      cursed:Boolean(explicit || propertyCurse),
+      multiplier:Boolean(explicit || propertyCurse) ? CURSED_MARKET_VALUE_MULTIPLIER : 1,
+    });
+  }
+
   function priceBreakdown(item = {}, shop = {}, options = {}) {
     const type = shopType(shop);
     const resolution = resolveBaseValueAhn(item);
@@ -1302,9 +1334,11 @@
     const localMultiplier = localPriceMultiplier(shop);
     const eventPercent = options.ignoreMarketEvent ? 0 : marketEventPercent(shop);
     const eventMultiplier = options.ignoreMarketEvent ? 1 : marketEventMultiplier(shop);
+    const curseMarket = cursedMarketState(item);
     const listPrice = resolution.resolved
       ? roundAhn(
           resolution.value *
+          curseMarket.multiplier *
           BASE_PURCHASE_MARKUP *
           type.priceMultiplier *
           tierMultiplier *
@@ -1348,6 +1382,7 @@
       marketEventPercent: eventPercent,
       marketEventMultiplier: eventMultiplier,
       marketEventId: activeMarketEvent?.id || null,
+      cursedMarketMultiplier:curseMarket.multiplier,
       listPriceAhn: listPrice,
       promotionDiscountPercent: promotionBreakdown.percent,
       appliedPromotions: promotionBreakdown.promotions,
@@ -1367,8 +1402,9 @@
 
   function sellBreakdown(item = {}, shop = {}) {
     const resolution = resolveSellUnitValueAhn(item);
+    const curseMarket = cursedMarketState(item);
     const final = resolution.resolved
-      ? roundAhn(resolution.value * BASE_SELLBACK_MULTIPLIER)
+      ? roundAhn(resolution.value * curseMarket.multiplier * BASE_SELLBACK_MULTIPLIER)
       : null;
     return Object.freeze({
       currency: CURRENCY,
@@ -1376,7 +1412,8 @@
       baseValueSource: resolution.field,
       priceResolved: resolution.resolved,
       sellbackMultiplier: BASE_SELLBACK_MULTIPLIER,
-      discountFromBase: 1 - BASE_SELLBACK_MULTIPLIER,
+      cursedMarketMultiplier:curseMarket.multiplier,
+      discountFromBase: 1 - (BASE_SELLBACK_MULTIPLIER * curseMarket.multiplier),
       shopType: shopTypeId(shop),
       shopTier: shopTier(shop),
       priceAhn: final,
@@ -1531,6 +1568,7 @@
     SHOP_TIER_PRICE_STEP,
     MAX_TIER,
     REPAIR_SERVICE_MARKUP,
+    CURSED_MARKET_VALUE_MULTIPLIER,
     SERVICE_TYPES,
     SHOP_TYPE_SERVICES,
     PROMOTION_TYPES,
@@ -1592,6 +1630,7 @@
     getMarketEvent,
     marketEventPercent,
     marketEventMultiplier,
+    cursedMarketState,
     priceBreakdown,
     purchasePrice,
     sellBreakdown,

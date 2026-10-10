@@ -70,6 +70,31 @@
       attuned,
     };
   }
+  const magicKnowledge = () => global.LuminousItemMagicKnowledgeRuntime || null;
+
+  function knowledgeViewer() {
+    if (!state.unit || typeof state.unit !== "object") return {};
+    const characterData = global.datosJugador || global.currentCharacterData || global.currentPlayerData || global.playerData || null;
+    if (characterData) {
+      try {
+        Object.defineProperty(state.unit, "characterData", {
+          value:characterData,
+          writable:true,
+          configurable:true,
+          enumerable:false,
+        });
+      } catch (_) {}
+    }
+    return state.unit;
+  }
+
+  function magicPresentation(item = {}, options = {}) {
+    const knowledge = magicKnowledge();
+    const magic = magicRuntime();
+    if (!knowledge?.presentation || !magic?.isMagicItem?.(item)) return null;
+    try { return knowledge.presentation(knowledgeViewer(), item, options); }
+    catch (_) { return null; }
+  }
 
   function resolveDb() {
     try { if (typeof db !== "undefined" && db?.ref) return db; } catch (_) {}
@@ -97,6 +122,8 @@
   }
 
   function itemName(item = {}) {
+    const magical = magicPresentation(item);
+    if (magical?.displayName) return String(magical.displayName).trim();
     const explicit = item.displayName || item.nombre || item.name;
     const resolved = explicit ? item : runtime()?.resolveItem?.(item) || item;
     const base = String(explicit || resolved?.displayName || resolved?.nombre || resolved?.name || item.definitionId || item.id || "ITEM").trim();
@@ -252,7 +279,31 @@
     return "";
   }
 
+  function mundaneDescription(item = {}) {
+    const sanitized = JSON.parse(JSON.stringify(item || {}));
+    delete sanitized.magic;
+    delete sanitized.magicItem;
+    delete sanitized.magic_item;
+    delete sanitized.enchantments;
+    delete sanitized.curse;
+    delete sanitized.cursed;
+    delete sanitized.bound;
+    delete sanitized.description;
+    delete sanitized.descripcion;
+    delete sanitized.desc;
+    sanitized.displayName = magicKnowledge()?.baseItemName?.(item) || sanitized.displayName;
+    const generated = global.LuminousItemDescriptionEngine?.describe?.(sanitized);
+    return String(generated || "Objeto sin descripción disponible.");
+  }
+
   function itemDescription(item = {}) {
+    const magical = magicPresentation(item);
+    if (magical?.magical) {
+      const lines = [mundaneDescription(item)];
+      magical.enchantmentLines?.forEach((entry) => lines.push(entry.text));
+      magical.curseLines?.forEach((entry) => lines.push(entry.text));
+      return lines.filter(Boolean).join("\n");
+    }
     const explicit = item.descripcion || item.description || item.desc;
     if (explicit) return String(explicit);
     const resolved = runtime()?.resolveItem?.(item) || item;
@@ -261,6 +312,20 @@
     const generated = global.LuminousItemDescriptionEngine?.describe?.(resolved)
       || global.LuminousItemDescriptionEngine?.describe?.(item);
     return String(generated || "Objeto sin descripción disponible.");
+  }
+
+  function itemDescriptionHtml(item = {}) {
+    const magical = magicPresentation(item);
+    if (!magical?.magical) return escapeHtml(itemDescription(item)).replace(/\n/g, "<br>");
+    const chunks = [`<span class="inventory-v2-mundane-description">${escapeHtml(mundaneDescription(item))}</span>`];
+    magical.enchantmentLines?.forEach((entry) => {
+      const glow = magical.inscriptionGlowing ? " is-glowing" : " is-depleted";
+      chunks.push(`<span class="inventory-v2-magic-inscription inventory-v2-enchantment-inscription${glow}">${escapeHtml(entry.text)}</span>`);
+    });
+    magical.curseLines?.forEach((entry) => {
+      chunks.push(`<span class="inventory-v2-magic-inscription inventory-v2-curse-inscription">${escapeHtml(entry.text)}</span>`);
+    });
+    return chunks.join("<br>");
   }
 
   function itemEffectIndicators(item = {}) {
@@ -895,11 +960,7 @@
     const title = doc.getElementById("detail-title");
     if (title) title.textContent = itemName(item);
     const desc = doc.getElementById("detail-desc");
-    if (desc) {
-      const magic = enchantmentInfo(item);
-      const magicDescription = magic ? `Encantamiento +${magic.tier}: +${magic.value} ${magic.label.toLowerCase()}. ${magic.requiresAttunement ? (magic.attuned ? "Sintonizado." : "Requiere sintonización para estar activo.") : "Se activa al equipar el objeto compatible."}` : "";
-      desc.textContent = [itemDescription(item), magicDescription].filter(Boolean).join("\n\n");
-    }
+    if (desc) desc.innerHTML = itemDescriptionHtml(item);
     const detailEffects = doc.getElementById("inventory-v2-detail-effects");
     if (detailEffects) {
       const indicators = itemEffectIndicators(item);
@@ -930,6 +991,42 @@
       const magic = enchantmentInfo(item);
       if (magic) {
         facts.push(`<span class="inventory-v2-player-fact inventory-v2-player-magic"><b>ENCANTAMIENTO +${magic.tier}</b> +${magic.value} ${escapeHtml(magic.label)}${magic.requiresAttunement ? (magic.attuned ? " · SINTONIZADO" : " · REQUIERE SINTONIZACIÓN") : ""}</span>`);
+      }
+      const magical = magicPresentation(item);
+      // Item-instance-specific Enchantments may only be compared after the
+      // player's own knowledge rules reveal their identities.
+      if (magical?.magicDetected) {
+        const known = magical.enchantmentLines?.filter(line => line.known === true) || [];
+        const hidden = (magical.enchantmentLines?.length || 0) - known.length;
+        const label = known.length
+          ? `${known.length} identificados${hidden ? ` · ${hidden} sin identificar` : ""}`
+          : "Magia sin identificar";
+        facts.push(`<span class="inventory-v2-player-fact"><b>ENCHANTMENTS</b> ${escapeHtml(label)}</span>`);
+      }
+      const mainHand=state.unit?.equipment?.mainHand || null;
+      const sameKind=mainHand && itemCategory(mainHand)===itemCategory(item);
+      const differentInstance=mainHand && itemId(mainHand)!==itemId(item);
+      const equippedMagic=sameKind && differentInstance ? magicPresentation(mainHand) : null;
+      if (magical?.identified && equippedMagic?.identified) {
+        const itemKnown=new Set((magical.enchantmentLines || [])
+          .filter(line=>line.known).map(line=>line.text));
+        const equippedKnown=new Set((equippedMagic.enchantmentLines || [])
+          .filter(line=>line.known).map(line=>line.text));
+        const added=[...itemKnown].filter(line=>!equippedKnown.has(line));
+        const missing=[...equippedKnown].filter(line=>!itemKnown.has(line));
+        if (added.length || missing.length) {
+          const delta = [
+            ...added.map(line=>`+ ${line}`),
+            ...missing.map(line=>`− ${line}`),
+          ].join(" / ");
+          facts.push(`<span class="inventory-v2-player-fact"><b>VS EQUIPPED MAGIC</b> ${escapeHtml(delta)}</span>`);
+        }
+      }
+      if (magical?.difficulty) {
+        facts.push(`<span class="inventory-v2-player-fact"><b>ARCANA</b> ${escapeHtml(magical.difficulty.label)} · TH ${escapeHtml(String(magical.difficulty.threshold ?? "—"))}</span>`);
+      }
+      if (magical?.magicalDurability?.current != null) {
+        facts.push(`<span class="inventory-v2-player-fact"><b>MAGIC</b> ${escapeHtml(String(magical.magicalDurability.current))} / ${escapeHtml(String(magical.magicalDurability.max ?? "—"))}</span>`);
       }
       if (equippedSlot) {
         facts.push(`<span class="inventory-v2-player-fact"><b>EQUIPPED</b> ${escapeHtml(String(equippedSlot).replace(/([a-z])([A-Z])/g, "$1 $2").toUpperCase())}</span>`);
@@ -1026,6 +1123,8 @@
       itemInventorySchemaVersion: persist.schemaVersion || inv.schemaVersion || 1,
       itemEquipmentRefs: inv.equipmentRefs || {},
       attunedItemInstanceIds: inv.attunedItemInstanceIds || [],
+      itemMagicKnowledge: JSON.parse(JSON.stringify(unit?.itemMagicKnowledge || {})),
+      enchantmentCompendium: JSON.parse(JSON.stringify(unit?.enchantmentCompendium || {})),
       ...vitals.persistencePatch(unit || {}),
     };
     [
@@ -1165,6 +1264,26 @@
       toggleSelectedAttunement, "", Boolean(gate && gate.allowed === false));
   }
 
+  async function studySelectedArcana() {
+    const item = selectedItem();
+    const knowledge = magicKnowledge();
+    if (!item || !knowledge?.studyArcana || !state.unit) return;
+    if (!state.vitalsReady) {
+      showStatus("SYNCING PLAYER VITALS...", "working");
+      return;
+    }
+    const result = knowledge.studyArcana(knowledgeViewer(), item);
+    if (!result?.studied) {
+      const reason = result?.reason === "insufficient_sp" ? "NOT ENOUGH SP" : String(result?.reason || "ARCANA STUDY FAILED").replace(/_/g, " ").toUpperCase();
+      showStatus(`BLOCKED // ${reason}`, "error");
+      return;
+    }
+    const message = result.success
+      ? `ARCANA ${result.total} VS TH ${result.target} // INSCRIPTION UNDERSTOOD`
+      : `ARCANA ${result.total} VS TH ${result.target ?? "?"} // RUNES REMAIN UNCLEAR`;
+    await saveUnitWithVitals(message);
+  }
+
   function renderActions(item, equippedSlot) {
     const host = doc.getElementById("inventory-v2-actions");
     if (!host) return;
@@ -1173,14 +1292,19 @@
       addAction(host, "COMPENDIO DE ENCANTAMIENTOS",
         () => global.open?.("game-codex/enchantments.html", "_blank", "noopener"));
     }
+    const magical = magicRuntime()?.isMagicItem?.(item) === true;
+    const presentation = magical ? magicPresentation(item) : null;
+    const canStudy = magical && presentation?.identified !== true;
 
     if (state.selectedContainer === "equipment") {
       addAction(host, "UNEQUIP", unequipSelected, "primary");
       appendAttunementAction(host, item);
+      if (canStudy) addAction(host, "STUDY ARCANA · 1 SP", studySelectedArcana);
       return;
     }
     if (state.selectedContainer === "stash") {
       addAction(host, "CARRY / LLEVAR", () => moveSelected("stash", "active"), "primary", !state.stashUnlocked);
+      if (canStudy) addAction(host, "STUDY ARCANA · 1 SP", studySelectedArcana, "", !state.stashUnlocked);
       if (foodRest()?.isFood?.(item)) addAction(host, "EAT / DRINK", eatDrinkSelected, "primary", !state.stashUnlocked);
       return;
     }
@@ -1195,6 +1319,7 @@
     const canUse = runtime()?.hasFunction?.(functionalItem, "use") === true;
     if (canUse) addAction(host, "USE", useSelected);
     if (reloadProfile(item)) addAction(host, "RELOAD", reloadSelected);
+    if (canStudy) addAction(host, "STUDY ARCANA · 1 SP", studySelectedArcana);
   }
 
   async function equipSelectedTo(slotId) {

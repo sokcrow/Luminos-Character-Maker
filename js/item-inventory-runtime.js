@@ -176,6 +176,7 @@
       chargesCurrent: chargesCurrent == null ? null : Math.max(0, intOr(chargesCurrent, 0)),
       chargesMax: chargesMax == null ? null : Math.max(0, intOr(chargesMax, 0)),
       rechargeRule: input.rechargeRule ?? input.recharge_rule ?? def.rechargeRule ?? def.recharge_rule ?? null,
+      magic: clone(input.magic ?? input.runtime?.magic ?? input.runtimeState?.magic ?? def.magic ?? def.runtime?.magic ?? null),
       stolen: input.stolen === true || options.stolen === true,
       originMarketId: input.originMarketId ?? input.origin_market_id ?? options.originMarketId ?? null,
       equipped: input.equipped === true,
@@ -375,6 +376,7 @@
       chargesCurrent: item.chargesCurrent ?? item.charges ?? null,
       chargesMax: item.chargesMax ?? null,
       rechargeRule: clone(item.rechargeRule || item.recharge_rule || null),
+      magic: clone(item.magic || item.runtime?.magic || item.runtimeState?.magic || null),
       stolen: item.stolen === true,
       runtimeState: clone(item.runtimeState || item.runtime_state || {}),
       customData: clone(item.customData || item.custom_data || {}),
@@ -745,6 +747,9 @@
     rawItem.cantidad = remaining;
     if (functionalItem.runtimeState && typeof functionalItem.runtimeState === "object") {
       rawItem.runtimeState = clone(functionalItem.runtimeState);
+    }
+    if (functionalItem.magic && typeof functionalItem.magic === "object") {
+      rawItem.magic = clone(functionalItem.magic);
     }
   }
 

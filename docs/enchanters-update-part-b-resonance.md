@@ -1,0 +1,503 @@
+# Enchanter's Update — Part B: Resonance, Gem Anchors and Enchantment Recipes
+
+Status: **design contract frozen for implementation**.
+
+This document extends Part A for PR #931 with the canonical rules for gemstone resonance, physical Gem Anchors, specialization/hybrid builds, consumed ritual materials and Enchantment recipe compatibility.
+
+It does **not** author the full final Enchantment catalog or the full Magic Loot reagent catalog. Those remain content passes built on this contract.
+
+## 1. Core model
+
+Enchantment construction distinguishes four different concepts:
+
+```text
+Physical Item Material
+!= Gem Anchor
+!= Consumed Ritual Material
+!= Enchantment Effect
+```
+
+They may interact, but they are not interchangeable.
+
+- **Physical Item Material** determines the mundane structure and may be more or less compatible with magical wear.
+- **Gem Anchor** is a physical gemstone mounted into the Item and used to channel one installed Enchantment.
+- **Consumed Ritual Material** is spent during application/strengthening whether the attempt succeeds or fails.
+- **Enchantment Effect** is the canonical magical Trait/effect definition installed on the Item.
+
+## 2. Existing gemstone resonance remains canonical
+
+The current gemstone catalog keeps its existing core resonances:
+
+| Gem | Core resonance |
+| --- | --- |
+| Ruby | fire, heat |
+| Sapphire | cold, ice |
+| Aquamarine | water, flow |
+| Topaz | lightning, energy |
+| Garnet | blood, physical |
+| Emerald | vitality, nature |
+| Amethyst | arcane, mental |
+| Onyx | shadow, necrotic |
+| Moonstone | spirit |
+| Opal | prismatic |
+| Diamond | light, force |
+| Starstone / Exotic Gem | exotic |
+
+Part B does not replace these tags.
+
+Gemstones may additionally expose **Enchantment Affinities**: broader magical branches compatible with their identity.
+
+Examples already approved by design:
+
+- **Ruby** may support Fire/Heat Enchantments and compatible HP/Vigor/Regeneration/Fire Resistance branches.
+- **Sapphire** may support Cold/Ice and compatible SP/Intelligence/Focus/Cold Resistance branches.
+- **Topaz** may support Lightning/Energy and compatible Speed/Initiative/Movement/acceleration branches.
+
+The canonical 12-gem affinity matrix is now:
+
+| Gem | Enchantment affinities |
+| --- | --- |
+| Ruby | fire, heat, vigor, HP, regeneration, fire resistance |
+| Sapphire | cold, ice, SP, Intelligence, focus, cold resistance, control |
+| Aquamarine | water, flow, mobility, dodge, recovery, cleansing, water resistance |
+| Topaz | lightning, energy, Speed, initiative, movement, acceleration, lightning resistance |
+| Garnet | blood, physical, Strength, physical damage, Bleed, Max HP, endurance |
+| Emerald | vitality, nature, Max HP, healing, regeneration, poison resistance, recovery |
+| Amethyst | arcane, mental, Intelligence, SP, spell power, focus, mental resistance |
+| Onyx | shadow, necrotic, life drain, stealth, necrotic resistance, Curse interaction |
+| Moonstone | spirit, SP, Sanity, spirit resistance, Attunement, support |
+| Opal | prismatic, adaptive resistance, multi-element, resonance blend |
+| Diamond | light, force, defense, barrier, armor, light resistance, force resistance |
+| Starstone / Exotic Gem | exotic, rare Enchantment, Relic interaction, anomalous magic |
+
+These are **compatibility routes**, not automatic bonuses. A mounted gem still channels only one installed Enchantment at a time.
+
+## 3. One Gem Anchor channels one Enchantment
+
+A gemstone can have many compatible magical affinities, but one mounted Gem Anchor channels **one installed Enchantment at a time**.
+
+Example:
+
+```text
+Ruby affinities:
+- fire
+- heat
+- vigor
+- hp
+- regeneration
+- fire_resistance
+
+Installed on Item:
+Ruby -> Flamebound II
+```
+
+That Ruby does not simultaneously grant HP, regeneration and fire resistance.
+
+To obtain another Gem-Anchored effect, the Item requires another valid Gem Anchor and another Enchantment allocation.
+
+This prevents one gemstone from becoming a bundle of every effect in its affinity family.
+
+## 4. Gem Anchors are not consumed on successful application
+
+When a gemstone is used as the channel for a Gem-Anchored Enchantment, the gemstone remains physically mounted in the Item.
+
+The Enchantment resides/can be traced through that Gem Anchor.
+
+Non-gem ritual components such as formulas, powders, essences, creature components, blood, arcane reagents or other authored materials are normally **consumed** by the ritual.
+
+Consumed ritual materials are lost whether the attempt succeeds or fails once the application attempt begins.
+
+## 5. Gem failure and depletion
+
+A failed or unstable Enchantment attempt can damage the Gem Anchor.
+
+Depending on failure severity and authored recipe behavior, a gemstone may:
+
+- crack/break;
+- lose its magical properties;
+- become magically depleted;
+- become unstable;
+- become the source of an accidental Curse.
+
+A broken/depleted Anchor cannot continue providing its anchored Enchantment normally.
+
+If removal/breakage causes the Item to exceed its remaining Enchantment capacity, the dependent Enchantment becomes **Dormant** rather than being silently deleted.
+
+## 6. Gem quality determines stable channel capacity
+
+Gem quality determines how much Enchantment Rank a gemstone can safely channel.
+
+Baseline:
+
+| Gem Quality | Stable channel capacity |
+| --- | ---: |
+| Ruined | none; cannot sustain an Enchantment |
+| Poor | Rank I, unstable |
+| Standard | Rank I |
+| Fine | up to Rank II |
+| Exceptional | up to Rank III |
+
+Trying to channel above the gemstone's stable capacity is **Overchanneling**.
+
+Overchanneling increases difficulty and makes serious failure more likely to damage/deplete the gemstone or produce an accidental Curse.
+
+Initial implementation baseline:
+
+```text
+Overchannel -> +2 TH per Rank above the gem's stable Rank
+```
+
+Overchannel also exposes elevated-risk outcome hooks for Anchor instability, break/depletion and recipe-authorized accidental Curse results.
+
+## 7. Resonance compatibility
+
+An Enchantment recipe may define multiple compatible resonance/affinity routes.
+
+The engine must distinguish:
+
+- **primary / ideal compatibility**;
+- **accepted compatibility**;
+- **incompatible**.
+
+A gem does not need to match only an elemental word. Non-elemental affinities such as HP, regeneration, Speed, SP, Intelligence, resistance, Force, Spirit and similar authored branches are valid when the Enchantment definition accepts them.
+
+Opal and Starstone are **not universal substitutes**.
+
+- Opal serves Prismatic-compatible Enchantments or authored Prismatic functions.
+- Starstone serves Exotic-compatible Enchantments or authored Exotic functions.
+
+Their value/rarity does not make them valid for every Enchantment.
+
+## 8. Specialization versus hybrid builds
+
+Gem composition determines the magical architecture of an Item.
+
+### Resonance Specialization
+
+An Item specializing in one compatible resonance/affinity family receives additional stabilization when installing or strengthening another Enchantment in that same branch.
+
+Example:
+
+```text
+Ruby -> Flamebound I
+later:
+another Fire-compatible Enchantment
+```
+
+The existing Fire specialization helps reduce the Threshold.
+
+### Hybrid Resonance
+
+An Item with different Gem Anchor families becomes a hybrid build.
+
+Example:
+
+```text
+Ruby     -> Flamebound
+Sapphire -> Frostbound
+```
+
+Hybrid Items gain access to both branches but do not receive the same accumulated specialization benefit as a pure single-branch build.
+
+Hybridization is not automatically penalized; it simply does not receive the full specialization bonus.
+
+## 9. Threshold stabilization from Gem Anchors
+
+Part A baseline application/strengthening Thresholds remain:
+
+| Rank | Base TH |
+| --- | ---: |
+| I | 22 |
+| II | 28 |
+| III | 34 |
+
+A compatible Gem Anchor reduces the Enchantment TH.
+
+Baseline:
+
+```text
+Compatible Gem Anchor -> -2 TH
+Fine Gem             -> additional -1 TH
+Exceptional Gem      -> additional -2 TH
+Existing same-family Resonance Specialization -> additional -1 TH
+```
+
+Poor/Standard gems provide no additional quality reduction beyond the compatible-anchor baseline. Poor remains unstable by its Quality rule.
+
+The total Item/Gem-side reduction is capped at **-4 TH**. Therefore a Rank I base TH 22 can reach **TH 18** from ideal gem compatibility/quality/specialization, but cannot go lower from Item/Gem stabilization alone.
+
+This is a cap on the **Item/Gem stabilization contribution**, not a global minimum TH.
+
+External factors are resolved separately from the Item/Gem cap and may reduce TH further, including authored:
+
+- Enchantment Table;
+- Arcane Workshop;
+- proper specialist tools;
+- specialized Enchanter facilities;
+- assistants or other approved ritual infrastructure.
+
+The runtime exposes these as whitelisted external TH sources so the future service/workshop layer can contribute without rewriting Gem logic.
+
+Improvised/poor conditions may likewise increase TH.
+
+## 10. Base Enchantment Slots and Enchantment Gem Sockets
+
+Part C clarifies that direct/pure Item Enchantments and physical Gem-Anchored Enchantments use **separate capacity tracks**.
+
+```text
+Base Enchantment Slots
+!=
+Enchantment Gem Sockets
+```
+
+Direct/pure Item Enchantments continue to use Part A Base Slot rules:
+
+- Rank I -> 1 Base Slot;
+- Rank II -> 2 Base Slots;
+- Rank III -> 3 Base Slots;
+- maximum Base Slots = 3.
+
+Physical Gem-Anchored Enchantments use explicit **Enchantment Gem Sockets** instead.
+
+Canonical Gem Socket rules:
+
+- an enchantable chassis may support up to 3 Enchantment Gem Sockets;
+- one physical Gem Anchor occupies one Gem Socket;
+- one Gem Anchor channels one Enchantment;
+- strengthening a Gem-Anchored Enchantment does not automatically consume another physical Gem Socket;
+- up to three Rank II Gem-Anchored Enchantments may coexist where all three sockets are valid;
+- a Rank III Gem-Anchored Enchantment is **exclusive**: when one exists, no other Gem-Anchored Enchantment may coexist on that Item;
+- attempting to install a fourth Enchantment Gem is catastrophic: the Item and prior Gem Anchors are destroyed and the last inserted gem is the only gem left by that event.
+
+Mundane decorative gemstone composition in Jewelry is not the same thing as an Enchantment Gem Socket.
+
+## 11. Gem Rank pressure
+
+Gem Anchors are intentionally more valuable/flexible than direct Enchantments because physical channeling gives them their own socket capacity and generally better Magical Durability.
+
+This does **not** make one gem grant every affinity it possesses: one Gem Anchor still channels one installed Enchantment.
+
+Rank III Gem pressure is now explicit: a Rank III Gem Anchor must be the Item's only active Gem Anchor. Strengthening a Gem-Anchored Enchantment to Rank III is rejected while any other Gem Anchor remains installed.
+
+## 12. Per-action channel choice remains authoritative
+
+Multiple installed Enchantments may coexist even when their active properties conflict.
+
+When compatible Enchantments belong to an exclusive action channel, the wielder chooses which one participates in that Skill/Spell/action.
+
+Example:
+
+```text
+Gauntlets:
+Flamebound
+Frostbound
+
+Current Skill:
+choose Fire OR Cold
+```
+
+The Item does not automatically apply both contradictory branches to the same action.
+
+This rule also supports cases where one branch applies Burn and another applies a different Status/effect: only the chosen channel participates when the definitions conflict.
+
+## 13. Consumed ritual materials and recipe semantics
+
+Gem Anchors are only one possible Enchantment route.
+
+Enchantment recipes may also consume:
+
+- magical formulas;
+- powders/dust;
+- essences;
+- creature-derived components;
+- blood/ichor;
+- organs/glands;
+- arcane reagents;
+- profane/corrupted components;
+- other future Magic Loot materials.
+
+Recipes should primarily use semantic requirements/tags so future content can expand without rewriting the engine.
+
+Example contract:
+
+```js
+recipe: {
+  requiredResonances: ["fire"],
+  acceptedAffinities: ["fire", "heat", "vigor"],
+  requiredTags: ["enchantment_material"],
+  consumedRequirements: [
+    { anyTags: ["fire_essence", "arcane_formula"], quantity: 1 }
+  ]
+}
+```
+
+Specific Enchantments may still require exact named Items when their fiction/mechanics demand it.
+
+The runtime now supports both semantic requirements such as `anyTags` / `allTags` and exact-Item requirements. A mounted Gem Anchor may be explicitly protected from the consumption plan.
+
+Ritual materials are consumed **when the ritual begins**. Their consumption does not depend on whether the later magical outcome is clean, altered, Bound, Cursed or otherwise unfavorable.
+
+## 14. Bind construction
+
+Bind is a special Curse-family Enchantment state. It may occur accidentally or be intentionally attempted; Part D defines its equip/Attunement lock and recharge behavior.
+
+Bind may occur as an **accidental beneficial outcome** or be intentionally attempted.
+
+Intentional Bind:
+
+- increases the Enchantment Threshold;
+- requires additional authored materials/work;
+- retains the Part A x1.25 positive-effect multiplier;
+- makes the Enchantment non-removable through normal procedure;
+- remains strengthen-able.
+
+Initial design baseline:
+
+```text
+Intentional Bind -> +4 TH
+```
+
+This value is implementation/balance data and should receive regression/economy testing.
+
+Bind does not need to appear in the Item display name.
+
+## 15. Curse construction
+
+Curse may be accidental through instability/backlash or intentionally authored.
+
+Intentional Curse uses questionable/profane/macabre materials appropriate to the Curse's drawback.
+
+Examples of semantic Curse reagent families:
+
+- blood/profane;
+- vitality drain;
+- sanity/mental corruption;
+- weakness/atrophy;
+- paralysis/slowness;
+- cognitive impairment;
+- necrotic/death;
+- other authored corrupted components.
+
+A Curse's negative effect is defined by the specific cursed Enchantment. Examples may include HP drain, SP/Sanity drain, reduced Strength, reduced Dexterity, reduced Intelligence or other authored penalties.
+
+Part A still applies:
+
+- positive Enchantment effect x1.50;
+- Curse penalties may scale with Rank;
+- Curse can strengthen;
+- Curse remains hidden until detected;
+- cursed market value is lower than the clean equivalent.
+
+Initial intentional-curse difficulty baseline:
+
+```text
+Intentional Curse -> +6 TH
+```
+
+Intentional Curse also requires its profane/corrupted recipe materials.
+
+## 16. Gem affinity catalog rule
+
+Gemstones should provide **multiple coherent Enchantment routes**, not one hard-coded Enchantment each.
+
+The catalog must therefore separate:
+
+```text
+core resonance
+from
+enchantment affinities
+```
+
+Example schema:
+
+```js
+gemMagicProfile: {
+  resonances: ["lightning", "energy"],
+  enchantmentAffinities: [
+    "speed",
+    "initiative",
+    "movement",
+    "lightning_damage",
+    "lightning_resistance"
+  ],
+  canAnchorEnchantment: true
+}
+```
+
+An Enchantment selects one authored route. The gemstone does not grant all affinities simultaneously.
+
+## 17. Part B implementation tasks
+
+### Gem magic profile
+
+- [x] Add canonical `gemMagicProfile` data to all 12 gemstone identities.
+- [x] Preserve existing `resonanceTags` as the core resonance source of truth.
+- [x] Author the full 12-gem Enchantment Affinity matrix.
+- [x] Validate that added affinities remain coherent with each gem's canonical resonance identity.
+- [x] Add Gem Quality -> stable Rank capacity resolution.
+- [x] Add Overchannel state, +2 TH/Rank difficulty pressure and elevated failure-risk hooks.
+
+### Gem Anchors
+
+- [x] Add physical Gem Anchor linkage between mounted gemstone instance/composition and one installed Enchantment.
+- [x] Enforce one active anchored Enchantment per Gem Anchor.
+- [x] Preserve Gem Anchor identity through save/load, transfer and equipment flows.
+- [x] Implement broken/depleted/unstable Gem Anchor states.
+- [x] Make a Gem-Anchored Enchantment Dormant when its Anchor becomes broken/depleted, without deleting the Enchantment.
+- [x] Prevent generic removal/replacement flows from silently deleting dependent Gem-Anchored Enchantments.
+
+### Recipe/resonance validation
+
+- [x] Add primary/accepted/incompatible resonance compatibility.
+- [x] Add non-elemental Enchantment affinity compatibility (HP, SP, INT, Speed, resistance, regeneration, etc.).
+- [x] Add semantic consumed-material requirements.
+- [x] Allow exact Item requirements for exceptional recipes.
+- [x] Consume ritual materials once an application attempt begins, independent of later success/altered outcome, while allowing the mounted Anchor to be protected.
+- [x] Keep mounted Gem Anchors on successful application.
+- [x] Apply authored outcome hooks that can make the Gem Anchor unstable/broken/depleted or apply a permitted accidental Curse/Bind.
+
+### Specialization / hybrid resolution
+
+- [x] Detect same-branch Resonance Specialization.
+- [x] Detect Hybrid Resonance when different Gem Anchor families coexist.
+- [x] Apply compatible Gem Anchor baseline -2 TH.
+- [x] Apply Quality/specialization stabilization up to the approved Item/Gem reduction cap.
+- [x] Do not grant specialization bonus to hybrid builds.
+- [x] Keep external facility/tool TH modifiers separate from Item/Gem stabilization.
+- [x] Add Enchantment Table / Arcane Workshop/tool integration seam through whitelisted external TH modifiers.
+
+### Gem Socket capacity
+
+- [x] Keep direct/pure Base Enchantment Slots separate from Enchantment Gem Sockets.
+- [x] Add explicit per-Item Enchantment Gem Socket capacity with hard maximum 3.
+- [x] Enforce one Gem Anchor / one Enchantment per socket.
+- [x] Allow up to three Rank II Gem-Anchored Enchantments where valid.
+- [x] Enforce Rank III Gem-Anchored magic as exclusive: one Rank III Anchor and no other Gem Anchors.
+- [x] Finalize/test Rank III coexistence rule: Rank III is exclusive and cannot coexist with lower-rank Gem Anchors.
+- [x] Block/warn ordinary fourth-gem installation and implement the authored catastrophic forced outcome.
+- [x] Keep mundane Jewelry gemstone composition separate from Enchantment Gem Sockets.
+
+### Bind / Curse recipe integration
+
+- [x] Add intentional Bind modifier flow with +4 TH baseline.
+- [x] Add accidental beneficial Bind outcome hook gated by recipe/caller permission.
+- [x] Add intentional Curse modifier flow with +6 TH baseline.
+- [x] Add profane/corrupted/macabre semantic reagent requirement for intentional Curse rituals.
+- [x] Allow instability/backlash to create accidental Curse only when the relevant recipe/outcome permits it.
+- [x] Preserve Part A x1.25 Bound and x1.50 Curse positive-effect modifiers while applying Part D Curse-family runtime behavior.
+
+### Tests / CI
+
+- [x] Add 12-gem profile validation tests.
+- [x] Add one-anchor/one-Enchantment tests.
+- [x] Add Gem Quality Rank-cap tests.
+- [x] Add Overchannel difficulty/risk tests.
+- [x] Add compatible/accepted/incompatible resonance tests.
+- [x] Add specialization versus hybrid TH tests.
+- [x] Add Item/Gem TH cap tests and external-tool separation tests.
+- [x] Add ritual-consumable loss-at-start tests independent from later outcome.
+- [x] Add Gem Anchor break/depletion/Dormant tests.
+- [x] Add separate Base Enchantment Slot vs Enchantment Gem Socket capacity tests, including Rank II multi-anchor, Rank III exclusivity and fourth-gem catastrophe.
+- [x] Add per-action Fire/Cold channel-choice regression tests, including Gem-Anchored channels.
+- [x] Add intentional/accidental Bind tests.
+- [x] Add intentional/accidental Curse recipe tests.

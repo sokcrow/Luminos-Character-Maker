@@ -6393,6 +6393,102 @@ window.abrirVentaTiendaDinamica = async function(
   }
 };
 
+function luminousShopEnchanterBundle(shopData = {}, tiendaId = "") {
+  const serviceRuntime = window.LuminousItemEnchanterServiceRuntime;
+  const shopRuntime = window.LuminousShopRuntime;
+  if (!serviceRuntime || !shopRuntime) return null;
+
+  const offeredServices = serviceRuntime.SERVICE_IDS.filter((serviceId) =>
+    shopRuntime.serviceEnabled?.(shopData, serviceId) === true
+  );
+  if (!offeredServices.length) return null;
+
+  const authored =
+    shopData.enchanterProvider ||
+    shopData.enchanterProfile ||
+    shopData.enchanter ||
+    {};
+  const merchant =
+    shopData.merchant ||
+    shopData.encargado ||
+    shopData.shopkeeper ||
+    {};
+
+  const profile = serviceRuntime.normalizeProviderProfile({
+    ...authored,
+    id:
+      authored.id ||
+      authored.providerId ||
+      merchant.id ||
+      merchant.npcId ||
+      `shop:${tiendaId}`,
+    name:
+      authored.name ||
+      authored.nombre ||
+      merchant.name ||
+      merchant.nombre ||
+      shopData.nombre ||
+      "Enchanter",
+    hostType: "shop",
+    shopId: tiendaId,
+    services: offeredServices,
+    workshop: authored.workshop || shopData.workshop || null,
+  });
+
+  const providerMaterials = Array.isArray(authored.providerMaterials)
+    ? authored.providerMaterials.map((entry) => ({ ...entry }))
+    : Array.isArray(authored.materials)
+      ? authored.materials.map((entry) => ({ ...entry }))
+      : [];
+
+  return { profile, providerMaterials };
+}
+
+async function persistShopEnchanterState(playerData, tiendaId, result) {
+  if (!playerId || !db?.ref) throw new Error("PLAYER DATABASE NOT READY");
+  const persistence = window.LuminousItemPersistenceRuntime;
+  if (!persistence?.serializeInventoryState) throw new Error("ITEM PERSISTENCE RUNTIME NOT READY");
+
+  const inventoryState = persistence.serializeInventoryState(playerData || {});
+  const balance =
+    playerData?.finance?.currentBalance !== undefined
+      ? Math.max(0, Math.trunc(Number(playerData.finance.currentBalance) || 0))
+      : Math.max(0, Math.trunc(Number(playerData?.ahn) || 0));
+  const base = `campaña/jugadores/${playerId}`;
+  const updates = {
+    [`${base}/inventario_activo`]: inventoryState.inventario_activo || {},
+    [`${base}/inventario_stash`]: inventoryState.inventario_stash || {},
+    [`${base}/itemInventorySchemaVersion`]: persistence.schemaVersion || inventoryState.schemaVersion || 1,
+    [`${base}/itemEquipmentRefs`]: inventoryState.equipmentRefs || {},
+    [`${base}/attunedItemInstanceIds`]: inventoryState.attunedItemInstanceIds || [],
+    [`${base}/itemMagicKnowledge`]: inventoryState.itemMagicKnowledge || {},
+    [`${base}/enchantmentCompendium`]: inventoryState.enchantmentCompendium || {},
+    [`${base}/enchanterTransactions`]: inventoryState.enchanterTransactions || {},
+    [`${base}/ahn`]: balance,
+    [`${base}/finance/currentBalance`]: balance,
+  };
+
+  if (Number(result?.chargedAhn) > 0) {
+    const tx = {
+      monto: -Math.max(0, Math.trunc(Number(result.chargedAhn) || 0)),
+      concepto: `Servicio de Enchanter: ${window.LuminousItemEnchanterServiceRuntime?.SERVICE_LABELS?.[result.service] || result.service || "Arcano"}`,
+      timestamp: Date.now(),
+      unread: true,
+      shopId: tiendaId,
+      enchanterTransactionId: result.transactionId || null,
+    };
+    const financeKey = db.ref(`${base}/finance/transactionHistory`).push().key;
+    const legacyKey = db.ref(`${base}/transacciones`).push().key;
+    if (financeKey) updates[`${base}/finance/transactionHistory/${financeKey}`] = tx;
+    if (legacyKey) updates[`${base}/transacciones/${legacyKey}`] = tx;
+  }
+
+  await db.ref().update(updates);
+  const balanceDisplay = document.getElementById("shop-player-balance");
+  if (balanceDisplay) balanceDisplay.innerText = balance;
+  return { saved: true, balance };
+}
+
 window.abrirServiciosTiendaDinamica = async function(
   tiendaId = window.__luminousActiveTheaterShopId,
 ) {
@@ -6419,6 +6515,10 @@ window.abrirServiciosTiendaDinamica = async function(
       playerData.finance?.currentBalance !== undefined
         ? Number(playerData.finance.currentBalance) || 0
         : Number(playerData.ahn) || 0;
+    if (!playerData.finance || typeof playerData.finance !== "object") playerData.finance = {};
+    playerData.finance.currentBalance = currentBalance;
+    playerData.ahn = currentBalance;
+
     const balanceDisplay = document.getElementById("shop-player-balance");
     if (balanceDisplay) balanceDisplay.innerText = currentBalance;
     window.LuminousRenderShopMerchantPresence?.(shopData, tiendaId, "theater");
@@ -6435,9 +6535,13 @@ window.abrirServiciosTiendaDinamica = async function(
     document.getElementById("panel-item-name").innerText = "---";
     document.getElementById("panel-item-qty").innerText = "--";
 
-    if (!runtime?.serviceEnabled?.(shopData, "repair")) {
+    const hasRepair = runtime?.serviceEnabled?.(shopData, "repair") === true;
+    const enchanterBundle = luminousShopEnchanterBundle(shopData, tiendaId);
+    const hasArcane = Boolean(enchanterBundle?.profile?.services?.length);
+
+    if (!hasRepair && !hasArcane) {
       document.getElementById("panel-item-desc").innerHTML =
-        "<span style='color:#777;'>Este establecimiento no ofrece reparaciones.</span>";
+        "<span style='color:#777;'>Este establecimiento no ofrece servicios disponibles para tu personaje.</span>";
       lista.innerHTML =
         "<span style='color:#888;padding:20px;'>No hay servicios disponibles.</span>";
       document.getElementById("tienda-overlay").style.display = "flex";
@@ -6445,87 +6549,142 @@ window.abrirServiciosTiendaDinamica = async function(
     }
 
     document.getElementById("panel-item-desc").innerHTML =
-      "<span style='color:#888;'>Selecciona equipo dañado para ver el costo de reparación.</span>";
+      "<span style='color:#888;'>Selecciona un servicio.</span>";
 
     const context = window.LuminousShopCommerceContext
       ? window.LuminousShopCommerceContext(playerData, shopData, tiendaId)
       : {};
-    const entries = [
-      ...Object.entries(playerData.inventario_activo || {}).map(([key, item]) => ({
-        key,
-        item,
-        inventory: "inventario_activo",
-        label: "ACTIVO",
-      })),
-      ...Object.entries(playerData.inventario_stash || {}).map(([key, item]) => ({
-        key,
-        item,
-        inventory: "inventario_stash",
-        label: "STASH",
-      })),
-    ].filter(({ item }) => {
-      const state = runtime.durabilityState?.(item);
-      return state?.resolved && state.missing > 0;
-    });
 
-    if (!entries.length) {
-      lista.innerHTML =
-        "<span style='color:#888;padding:20px;'>No tienes equipo dañado.</span>";
-    }
-
-    for (const { key, item, inventory, label } of entries) {
-      const quote = runtime.repairBreakdown(item, shopData, { context });
-      const unavailable = !quote?.available;
-      const free =
-        quote?.available &&
-        quote.loyaltyRewardApplied === true &&
-        Number(quote.priceAhn) === 0;
+    if (hasArcane) {
+      window.LuminousActiveEnchanterProvider = enchanterBundle.profile;
       const row = document.createElement("div");
       row.className = "item-row";
+      row.dataset.serviceKind = "enchanter";
       row.innerHTML = `
         <div class="icon-slot">
-          <span class="tier">${label}</span>
-          <span class="icono-img" style="width:100%;height:100%;display:flex;justify-content:center;align-items:center;">
-            ${item.icono ? `<img src="${item.icono}" style="width:100%;height:100%;object-fit:contain;">` : "🔧"}
-          </span>
+          <span class="tier">ARCANE</span>
+          <span class="icono-img" style="width:100%;height:100%;display:flex;justify-content:center;align-items:center;color:#79caff;font-size:24px;">✦</span>
         </div>
         <div class="item-details">
-          <span class="item-name">${item.nombre || item.name || "Equipo"}</span>
-          <span class="item-cost">
-            ${unavailable ? "NO DISPONIBLE" : free ? "GRATIS" : Number(quote.priceAhn).toLocaleString() + ' <span style="color:var(--brillo-ambar);">₳</span>'}
-          </span>
-          <span style="font-size:11px;color:${unavailable ? "#aa5555" : "#888"};">
-            Durabilidad ${quote?.currentDurability ?? "?"}/${quote?.maxDurability ?? "?"} · ${quote?.missingDurability ?? "?"} PD por reparar
+          <span class="item-name">${enchanterBundle.profile.name || "Enchanter"}</span>
+          <span class="item-cost">ENCHANTER SERVICES</span>
+          <span style="font-size:11px;color:#888;">
+            ${enchanterBundle.profile.services.map((id) => window.LuminousItemEnchanterServiceRuntime?.SERVICE_LABELS?.[id] || id).join(" · ")}
           </span>
         </div>
       `;
-
       row.onclick = () => {
         document
           .querySelectorAll("#lista-items-tienda .item-row")
           .forEach((entry) => entry.classList.remove("selected"));
         row.classList.add("selected");
         document.getElementById("panel-item-name").innerText =
-          item.nombre || item.name || "Equipo";
+          enchanterBundle.profile.name || "Enchanter";
         document.getElementById("panel-item-qty").innerText =
-          quote?.missingDurability ?? "--";
+          `RANK I–${Math.max(1, Number(enchanterBundle.profile.maxRank) || 1)}`;
         document.getElementById("panel-item-desc").innerText =
-          unavailable
-            ? "No se pudo determinar el material necesario para esta reparación."
-            : `Reparación completa: ${quote.points} PD. Material/PD: ₳${Number(quote.materialValuePerPointAhn).toLocaleString()}. Mano de obra incluida.`;
+          "Abre el terminal de servicios arcanos para seleccionar Item, Encantamiento, materiales y procedimiento.";
         btnAccion.style.display = "block";
-        btnAccion.disabled = unavailable;
-        btnAccion.innerHTML = unavailable
-          ? "NO DISPONIBLE"
-          : free
-            ? "CANJEAR REPARACIÓN"
-            : `REPARAR [${Number(quote.priceAhn).toLocaleString()} ₳]`;
-        btnAccion.onclick = unavailable
-          ? null
-          : () => window.repararItemTienda(tiendaId, inventory, key);
+        btnAccion.disabled = false;
+        btnAccion.innerHTML = "ABRIR ENCHANTER";
+        btnAccion.onclick = () => {
+          const ui = window.LuminousEnchanterUi;
+          if (!ui?.open) return alert("El terminal de Enchanter no está disponible.");
+          ui.open({
+            provider: enchanterBundle.profile,
+            providerMaterials: enchanterBundle.providerMaterials,
+            viewer: playerData,
+            items: [
+              ...Object.values(playerData.inventario_activo || {}),
+              ...Object.values(playerData.inventario_stash || {}),
+            ],
+            onSave: async ({ result }) => {
+              await persistShopEnchanterState(playerData, tiendaId, result);
+            },
+          });
+        };
       };
-
       lista.appendChild(row);
+    }
+
+    if (hasRepair) {
+      const entries = [
+        ...Object.entries(playerData.inventario_activo || {}).map(([key, item]) => ({
+          key,
+          item,
+          inventory: "inventario_activo",
+          label: "ACTIVO",
+        })),
+        ...Object.entries(playerData.inventario_stash || {}).map(([key, item]) => ({
+          key,
+          item,
+          inventory: "inventario_stash",
+          label: "STASH",
+        })),
+      ].filter(({ item }) => {
+        const state = runtime.durabilityState?.(item);
+        return state?.resolved && state.missing > 0;
+      });
+
+      if (!entries.length && !hasArcane) {
+        lista.innerHTML =
+          "<span style='color:#888;padding:20px;'>No tienes equipo dañado.</span>";
+      }
+
+      for (const { key, item, inventory, label } of entries) {
+        const quote = runtime.repairBreakdown(item, shopData, { context });
+        const unavailable = !quote?.available;
+        const free =
+          quote?.available &&
+          quote.loyaltyRewardApplied === true &&
+          Number(quote.priceAhn) === 0;
+        const row = document.createElement("div");
+        row.className = "item-row";
+        row.innerHTML = `
+          <div class="icon-slot">
+            <span class="tier">${label}</span>
+            <span class="icono-img" style="width:100%;height:100%;display:flex;justify-content:center;align-items:center;">
+              ${item.icono ? `<img src="${item.icono}" style="width:100%;height:100%;object-fit:contain;">` : "🔧"}
+            </span>
+          </div>
+          <div class="item-details">
+            <span class="item-name">${item.nombre || item.name || "Equipo"}</span>
+            <span class="item-cost">
+              ${unavailable ? "NO DISPONIBLE" : free ? "GRATIS" : Number(quote.priceAhn).toLocaleString() + ' <span style="color:var(--brillo-ambar);">₳</span>'}
+            </span>
+            <span style="font-size:11px;color:${unavailable ? "#aa5555" : "#888"};">
+              Durabilidad ${quote?.currentDurability ?? "?"}/${quote?.maxDurability ?? "?"} · ${quote?.missingDurability ?? "?"} PD por reparar
+            </span>
+          </div>
+        `;
+
+        row.onclick = () => {
+          document
+            .querySelectorAll("#lista-items-tienda .item-row")
+            .forEach((entry) => entry.classList.remove("selected"));
+          row.classList.add("selected");
+          document.getElementById("panel-item-name").innerText =
+            item.nombre || item.name || "Equipo";
+          document.getElementById("panel-item-qty").innerText =
+            quote?.missingDurability ?? "--";
+          document.getElementById("panel-item-desc").innerText =
+            unavailable
+              ? "No se pudo determinar el material necesario para esta reparación."
+              : `Reparación completa: ${quote.points} PD. Material/PD: ₳${Number(quote.materialValuePerPointAhn).toLocaleString()}. Mano de obra incluida.`;
+          btnAccion.style.display = "block";
+          btnAccion.disabled = unavailable;
+          btnAccion.innerHTML = unavailable
+            ? "NO DISPONIBLE"
+            : free
+              ? "CANJEAR REPARACIÓN"
+              : `REPARAR [${Number(quote.priceAhn).toLocaleString()} ₳]`;
+          btnAccion.onclick = unavailable
+            ? null
+            : () => window.repararItemTienda(tiendaId, inventory, key);
+        };
+
+        lista.appendChild(row);
+      }
     }
 
     document.getElementById("tienda-overlay").style.display = "flex";
