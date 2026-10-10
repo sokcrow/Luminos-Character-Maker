@@ -2680,6 +2680,28 @@ window.processEntitiesData = function(entities) {
                   </label>
                 </div>
 
+                <section id="tienda-enchanter-panel" style="border-top:1px solid #333;padding-top:10px;display:grid;gap:8px;">
+                  <label style="color:#ddd;font-size:12px;cursor:pointer;">
+                    <input type="checkbox" id="tienda-enchanter-activa" />
+                    Ofrecer servicios de Enchanter
+                  </label>
+                  <div id="tienda-enchanter-opciones" style="display:none;gap:8px;">
+                    <input id="tienda-enchanter-nombre" maxlength="80" type="text" placeholder="Nombre del encantador (opcional)" />
+                    <label style="color:#ccc;font-size:12px;">Rango máximo que puede trabajar
+                      <select id="tienda-enchanter-rango">
+                        <option value="1">Rango I</option>
+                        <option value="2">Rango II</option>
+                        <option value="3">Rango III</option>
+                      </select>
+                    </label>
+                    <div style="color:#ccc;font-size:12px;">Servicios que ofrece</div>
+                    <div id="tienda-enchanter-servicios" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:7px;"></div>
+                    <div style="color:#ccc;font-size:12px;">Encantamientos que conoce</div>
+                    <div id="tienda-enchanter-recetas" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:7px;"></div>
+                    <div style="font-size:11px;color:#999;">Sólo se ofrecen los servicios y las recetas seleccionados. Las aplicaciones siguen exigiendo materiales, requisitos y pago.</div>
+                  </div>
+                </section>
+
                 <div id="tienda-lealtad-opciones" style="display:none;grid-template-columns:1fr 120px 150px;gap:8px;align-items:center;">
                   <input type="text" id="tienda-lealtad-nombre" maxlength="80" placeholder="Nombre de la tarjeta" />
                   <input
@@ -4450,6 +4472,7 @@ window.processEntitiesData = function(entities) {
     <script src="js/item-catalog-medicinal-raw.js"></script>
     <script src="js/item-catalog-ooze-gel.js"></script>
     <script src="js/item-catalog-ore-ingot-gem.js"></script>
+    <script src="js/item-catalog-enchantments.js"></script>
     <script src="js/item-catalog-organ-gland.js"></script>
     <script src="js/item-catalog-plant-produce.js"></script>
     <script src="js/item-catalog-ranged-weapon-components.js"></script>
