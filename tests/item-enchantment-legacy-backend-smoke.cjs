@@ -94,6 +94,27 @@ assert.strictEqual(Math.round(Magic.stackedNumericValue([
   {value:20,stacking:"multiplicative"},
 ])),32);
 
+const backedChargeItem=JSON.parse(JSON.stringify(applied.item));
+const backedPlan=Magic.activationResourcePlan({effects:[{
+  sourceEnchantmentId:"flamebound",resource:"charges",chargeCost:2,
+  magicalDurabilityCost:4,
+}]},backedChargeItem);
+assert.strictEqual(backedPlan.charges,0,"Enchanter Charges must not create an independent Item battery");
+assert.strictEqual(backedPlan.magicalDurability,4,"explicit Charge cost maps to canonical MD");
+assert.strictEqual(backedPlan.unmappedEnchantmentCharges,false);
+const backedUser={sp:10};
+const backedSpend=Magic.payActivationResourcePlan(backedUser,backedChargeItem,backedPlan);
+assert.strictEqual(backedSpend.paid,true);
+assert.strictEqual(Magic.magicalDurabilityState(backedChargeItem).current,46,
+  "two presented Charges consume the one authored 4-MD cost");
+const invalidPlan=Magic.activationResourcePlan({effects:[{
+  sourceEnchantmentId:"flamebound",resource:"charges",chargeCost:2,
+}]},backedChargeItem);
+assert.strictEqual(invalidPlan.unmappedEnchantmentCharges,true);
+assert.strictEqual(Magic.canPayActivationResources(backedUser,backedChargeItem,invalidPlan).reason,
+  "enchantment_charge_md_mapping_required",
+  "unmapped Enchanter charges are rejected rather than debited from unrelated legacy Charges");
+
 const equippedItem=JSON.parse(JSON.stringify(applied.item));
 const actor={id:"actor",hp:10,equipment:{mainHand:equippedItem,offHand:equippedItem,accessories:[]}};
 assert.strictEqual(Magic.itemEquippedBy(actor,equippedItem),true);
