@@ -134,6 +134,7 @@ on:
       - tests/item-enchantment-passive-aggregation-smoke.cjs
       - tests/item-enchantment-charge-mapping-smoke.cjs
       - tests/item-enchanter-firebase-transaction-smoke.cjs
+      - tests/dm-enchanter-provider-authoring-smoke.cjs
       - tests/item-equipment-enhancement-smoke.cjs
       - tests/item-enchanter-gem-procedure-smoke.cjs
       - tests/item-player-enchant-attempt-smoke.cjs
@@ -342,6 +343,8 @@ jobs:
         run: node tests/item-enchantment-charge-mapping-smoke.cjs
       - name: Enchanter Firebase atomic payment, Item and duplicate smoke
         run: node tests/item-enchanter-firebase-transaction-smoke.cjs
+      - name: DM Enchanter provider authoring and Player service seam smoke
+        run: node tests/dm-enchanter-provider-authoring-smoke.cjs
       - name: Item equipment enhancement contract smoke
         run: node tests/item-equipment-enhancement-smoke.cjs
       - name: Enchanter gem procedure smoke
