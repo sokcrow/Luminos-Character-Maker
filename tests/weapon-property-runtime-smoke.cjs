@@ -70,6 +70,23 @@ const { pathToFileURL } = require("node:url");
     coinIndex:2,
   }), 5);
 
+  assert.deepEqual(runtime.resolveWeaponProficiency({proficient:true,proficiencyBonus:2}), {
+    proficiencyBonus:2, damageBonusPercent:4, offensiveLevelBonus:1,
+  });
+  assert.deepEqual(runtime.resolveWeaponProficiency({proficient:true,proficiencyBonus:4}), {
+    proficiencyBonus:4, damageBonusPercent:8, offensiveLevelBonus:2,
+  });
+  assert.deepEqual(runtime.resolveWeaponProficiency({proficient:true,proficiencyBonus:6}), {
+    proficiencyBonus:6, damageBonusPercent:12, offensiveLevelBonus:3,
+  });
+  assert.equal(runtime.resolveWeaponProficiency({proficient:false,proficiencyBonus:6}).damageBonusPercent,0);
+  assert.equal(runtime.resolveWeaponProficiency({proficient:false,proficiencyBonus:6}).offensiveLevelBonus,0);
+  const trainedStrike = runtime.resolvePowerModifiers({
+    weapon:dagger, wielder:{level:41}, target:{level:41}, proficient:true,
+  });
+  assert.equal(trainedStrike.damageBonusPercent,8);
+  assert.equal(trainedStrike.offensiveLevelBonus,2);
+
   assert.equal(runtime.canBenefitFromAdditionalAttack({properties:["loading"]}), false);
   assert.equal(runtime.canBenefitFromAdditionalAttack({properties:["loading"]}, {ignoreLoading:true}), true);
 

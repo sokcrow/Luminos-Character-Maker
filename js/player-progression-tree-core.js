@@ -13,7 +13,11 @@
 
   function normalizeClasses(character = {}) {
     const build = character?.characterBuild && typeof character.characterBuild === "object" ? character.characterBuild : {};
-    const candidates = [build.classes, character.classes, character.classLevels, character.classesById, character?.dnd?.classes];
+    const candidates = [
+      build.classes, build.classLevels, build.classesById,
+      character.classes, character.classLevels, character.classesById,
+      character?.dnd?.classes,
+    ];
     let source = candidates.find((value) => Array.isArray(value) ? value.length > 0 : (value && typeof value === "object" && Object.keys(value).length > 0));
     if (!source) return [];
 
@@ -196,7 +200,11 @@
   function resolvedCatalogSources(options = {}) {
     const traitCatalog = options.traitCatalog || global.LuminousTraitCatalogCore || null;
     const archetypeCatalog = options.archetypeCatalog || global.LuminousArchetypeTraitCatalog || null;
+    // Separate preview source: these feature descriptions NEVER enter the live
+    // trait grant catalog and cannot grant a non-selected archetype's effects.
+    const previews = options.progressionPreviews || global.LuminousArchetypeProgressionPreviews || null;
     const definitions = {
+      ...(previews?.allDefinitions?.() || {}),
       ...(global.LuminousSpellCatalog || {}),
       ...(global.LuminousPlayerSignatureSkillCatalog?.DEFINITIONS || {}),
       ...(traitCatalog?.allDefinitions?.() || traitCatalog?.DEFINITIONS || {}),
@@ -204,7 +212,13 @@
       ...(options.definitions || {}),
     };
     const traitGrants = options.traitGrants || traitCatalog?.allGrants?.() || traitCatalog?.GRANTS || [];
-    const archetypeGrants = options.archetypeGrants || archetypeCatalog?.allGrants?.() || archetypeCatalog?.GRANTS || [];
+    const liveArchetypeGrants = options.archetypeGrants || archetypeCatalog?.allGrants?.() || archetypeCatalog?.GRANTS || [];
+    const uniqueGrants = new Map();
+    [...(previews?.allGrants?.() || []), ...liveArchetypeGrants].forEach((grant) => {
+      const key = [normalizeId(grant.archetypeId || grant.sourceId), int(grant.atLevel ?? grant.level,0),normalizeId(grant.traitId || grant.id)].join(":");
+      if (key) uniqueGrants.set(key, grant);
+    });
+    const archetypeGrants = [...uniqueGrants.values()];
     const archetypes = options.archetypes || archetypeCatalog?.allArchetypes?.() || archetypeCatalog?.ARCHETYPES || {};
     const classDefinitions = options.classDefinitions || global.LuminousCharacterBuildRules?.CLASSES || [];
     return { definitions, traitGrants, archetypeGrants, archetypes, classDefinitions };

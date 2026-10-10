@@ -249,7 +249,9 @@
     const runtime = { context, character, self: unit, skill, equipment, target: options.target || null, targetedByAlly: Boolean(options.targetedByAlly), variables: options.variables || {}, traitState };
     const output = emptyModifiers();
 
-    (options.traits || []).forEach((trait) => {
+    const enchantments = global.LuminousItemEnchantmentRuntime || (typeof require === "function" ? require("./item-enchantment-runtime.js") : null);
+    const equipmentTraits = enchantments?.collectEquippedTraits?.(unit, { skill, equipment }) || [];
+    [...(options.traits || []), ...equipmentTraits].forEach((trait) => {
       if (!traitContextsMatch(trait, context)) return;
       (trait.rules || []).forEach((rule) => {
         if (normalizeId(rule.type) !== "modifier" || normalizeId(rule.trigger || "passive") !== "passive") return;

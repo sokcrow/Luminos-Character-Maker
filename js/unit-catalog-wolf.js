@@ -10,9 +10,15 @@
   const rankRuntime = global.LuminousUnitRankRuntime || safeRequire('./unit-rank-runtime.js');
   const skillCatalog = global.LuminousWolfSkillCatalog || safeRequire('./skill-catalog-wolf.js');
   const wolfRuntime = global.LuminousWolfUnitRuntime || safeRequire('./wolf-unit-runtime.js');
+  const movementRuntime = global.LuminousMovementSpeedRuntime || safeRequire('./movement-speed-runtime.js');
   const lootContract = global.LuminousUnitLootProfileContract || safeRequire('./unit-loot-profile-contract.js');
   const STAGGER_THRESHOLDS = Object.freeze([75, 50, 25]);
   const PACK_TACTICS_ID = 'pack_tactics';
+  const WOLF_SCORES = Object.freeze({ str: 14, dex: 15, con: 12, int: 3, wis: 12, cha: 6 });
+  const DIRE_WOLF_SCORES = Object.freeze({ str: 17, dex: 15, con: 15, int: 3, wis: 12, cha: 7 });
+  const WOLF_PROFICIENCIES = Object.freeze({ savingThrows: Object.freeze({}), skills: Object.freeze({ perception: 'expertise', stealth: 'proficient' }) });
+  const WOLF_SENSES = Object.freeze({ darkvision: 60, darkvisionFt: 60, passivePerception: 15 });
+  const DARKVISION_RULES = Object.freeze({ ignoresDarkness: true });
 
   const WOLF_LOOT_PROFILES = lootContract?.createProfiles ? lootContract.createProfiles({
     bodyProfile: {
@@ -77,6 +83,10 @@
     wolf: Object.freeze({
       id: 'wolf', name: 'Wolf', species: 'wolf', variant: 'standard', unitType: 'enemy', actorCategory: 'enemy', faction: 'enemy', isPlayer: false,
       naturalWorldLevel: Object.freeze({ min: 2, max: 4 }), baseLevel: Object.freeze({ min: 2, max: 4 }),
+      scores: WOLF_SCORES, proficiencies: WOLF_PROFICIENCIES,
+      creatureType: 'beast', size: 'medium',
+      movement: Object.freeze({ ground: 40 }), movementFeet: Object.freeze({ ground: 40 }), preferredMovementMode: 'ground',
+      senses: WOLF_SENSES,
       bodyProfile: Object.freeze({ ...WOLF_LOOT_PROFILES.bodyProfile, sizeClass: 'medium' }), lootProfile: WOLF_LOOT_PROFILES.lootProfile,
       hpBase: 11, hpCoefficient: null,
       traitIds: Object.freeze([PACK_TACTICS_ID, MEANING.id, HUNTING_HOWLING.id]),
@@ -89,19 +99,24 @@
       action_slots: Object.freeze(skillRefs('wolf')),
       mechanics: Object.freeze({
         hpBase: 11, hpCoefficient: null, hpGrowthPendingCanonicalCoefficient: true,
+        movementFeet: Object.freeze({ ground: 40 }), preferredMovementMode: 'ground', darkvision: DARKVISION_RULES,
         naturalWeapon: 'fangs', build: Object.freeze(['bleed', 'sinking']),
         packTacticsTraitId: PACK_TACTICS_ID, meaningTraitId: MEANING.id,
         huntingHowling: Object.freeze({ requiredRank: 'captain', economy: 'quick_action', spRecovery: 5, attackPowerUp: 1, backupUnitId: 'wolf', backupAmount: 3, backupOncePerEncounter: true }),
         encounterComposition: Object.freeze({ requiredRank: 'captain', minimum: 1 }),
         skills: Object.freeze(skillRefs('wolf')), staggerThresholds: STAGGER_THRESHOLDS,
       }),
-      metadata: Object.freeze({ canonicalUnit: true, catalog: 'wolf-batch', oneCaptainPerEncounter: true, physicalProfilePending: true, speedPending: true, scoresPending: true }),
+      metadata: Object.freeze({ canonicalUnit: true, catalog: 'wolf-batch', oneCaptainPerEncounter: true, physicalProfilePending: false, speedPending: false, scoresPending: false, speedModel: 'movement_feet_plus_size', canonicalSourceName: 'Wolf', canonicalSourceBook: 'Monster Manual (2025)', canonicalScores: true, canonicalProficiencies: true }),
       schemaVersion: 3,
     }),
 
     dire_wolf: Object.freeze({
       id: 'dire_wolf', name: 'Dire Wolf', species: 'dire_wolf', variant: 'dire', unitType: 'enemy', actorCategory: 'enemy', faction: 'enemy', isPlayer: false,
       naturalWorldLevel: Object.freeze({ min: 5, max: 5 }), baseLevel: Object.freeze({ min: 5, max: 5 }),
+      scores: DIRE_WOLF_SCORES, proficiencies: WOLF_PROFICIENCIES,
+      creatureType: 'beast', size: 'large',
+      movement: Object.freeze({ ground: 50 }), movementFeet: Object.freeze({ ground: 50 }), preferredMovementMode: 'ground',
+      senses: WOLF_SENSES,
       bodyProfile: Object.freeze({ ...WOLF_LOOT_PROFILES.bodyProfile, sizeClass: 'large' }), lootProfile: WOLF_LOOT_PROFILES.lootProfile,
       hpBase: 37, hpCoefficient: null,
       traitIds: Object.freeze([PACK_TACTICS_ID, MEANING.id, HUNTING_HOWLING.id]),
@@ -114,13 +129,14 @@
       action_slots: Object.freeze(skillRefs('dire_wolf')),
       mechanics: Object.freeze({
         hpBase: 37, hpCoefficient: null, hpGrowthPendingCanonicalCoefficient: true,
+        movementFeet: Object.freeze({ ground: 50 }), preferredMovementMode: 'ground', darkvision: DARKVISION_RULES,
         naturalWeapon: 'fangs', build: Object.freeze(['bleed', 'sinking']),
         packTacticsTraitId: PACK_TACTICS_ID, meaningTraitId: MEANING.id,
         huntingHowling: Object.freeze({ requiredRank: 'leader', economy: 'quick_action', spRecovery: 5, attackPowerUp: 1, backupUnitId: 'wolf', backupAmount: 3, backupOncePerEncounter: true }),
         encounterComposition: Object.freeze({ requiredRank: 'leader', minimum: 1 }),
         skills: Object.freeze(skillRefs('dire_wolf')), staggerThresholds: STAGGER_THRESHOLDS,
       }),
-      metadata: Object.freeze({ canonicalUnit: true, catalog: 'wolf-batch', oneLeaderPerEncounter: true, physicalProfilePending: true, speedPending: true, scoresPending: true }),
+      metadata: Object.freeze({ canonicalUnit: true, catalog: 'wolf-batch', oneLeaderPerEncounter: true, physicalProfilePending: false, speedPending: false, scoresPending: false, speedModel: 'movement_feet_plus_size', canonicalSourceName: 'Dire Wolf', canonicalSourceBook: 'Monster Manual (2025)', canonicalScores: true, canonicalProficiencies: true }),
       schemaVersion: 3,
     }),
   });
@@ -159,11 +175,16 @@
     const profile = UNIVERSAL_RANKS[rank];
     const effectiveLevel = rankRuntime?.effectiveLevel ? rankRuntime.effectiveLevel(level, rank) : level * Number(profile.levelMultiplier || 1);
     const maxHp = unit.hpCoefficient == null ? Number(unit.hpBase) : Math.floor(Number(unit.hpBase) + effectiveLevel * Number(unit.hpCoefficient));
+    const baseSpeed = movementRuntime?.rangeForEntity?.(unit);
+    if (!baseSpeed) throw new Error('MOVEMENT_SPEED_RUNTIME_REQUIRED:wolf');
+    const minSpeed = Math.max(1, Number(baseSpeed.min || 1) + Number(profile.minSpeedBonus || 0));
+    const maxSpeed = Math.max(2, minSpeed, Number(baseSpeed.max || 6) + Number(profile.maxSpeedBonus || 0));
     unit.rank = rank; unit.runtimeLevel = level; unit.baseLevelSelected = level; unit.effectiveLevel = effectiveLevel; unit.rankBonuses = clone(profile);
     unit.commandProfile = { commandLevel: profile.commandLevel, aiCoordination: profile.aiCoordination, targetPriority: profile.targetPriority, turnEndSpRecovery: profile.turnEndSpRecovery };
     unit.hp = maxHp; unit.maxHp = maxHp;
+    unit.speedRange = [minSpeed, maxSpeed]; unit.speedMin = minSpeed; unit.speedMax = maxSpeed; unit.speedProfileMode = baseSpeed.mode || 'ground';
     unit.resolvedSkills = unit.mechanics.skills.map((skillId) => resolveSkill(skillId, rank));
-    unit.mechanics = { ...unit.mechanics, hp: maxHp, maxHp, level: effectiveLevel, runtimeLevel: level, rank, statusApplyBonus: profile.applyBonus, basePowerBonus: profile.basePowerBonus, commandLevel: profile.commandLevel, turnEndSpRecovery: profile.turnEndSpRecovery };
+    unit.mechanics = { ...unit.mechanics, hp: maxHp, maxHp, level: effectiveLevel, runtimeLevel: level, rank, speedRange: [minSpeed, maxSpeed], minSpeed, maxSpeed, speed: `${minSpeed}-${maxSpeed}`, speedProfileMode: unit.speedProfileMode, statusApplyBonus: profile.applyBonus, basePowerBonus: profile.basePowerBonus, commandLevel: profile.commandLevel, turnEndSpRecovery: profile.turnEndSpRecovery };
     if (options.initializeEncounter === true) wolfRuntime?.resetEncounter?.(unit, options);
     return unit;
   }
@@ -171,7 +192,7 @@
   function firebaseSkillPayload(schema) { if (!skillCatalog?.firebasePayload) throw new Error('WOLF_SKILL_CATALOG_REQUIRED'); return skillCatalog.firebasePayload(schema); }
 
   const api = Object.freeze({
-    version: '1.1.0', STAGGER_THRESHOLDS, PACK_TACTICS_ID, UNIVERSAL_RANKS, MEANING, HUNTING_HOWLING,
+    version: '1.2.0', STAGGER_THRESHOLDS, PACK_TACTICS_ID, WOLF_SCORES, DIRE_WOLF_SCORES, WOLF_PROFICIENCIES, WOLF_SENSES, UNIVERSAL_RANKS, MEANING, HUNTING_HOWLING,
     DEFINITIONS, get, list, resolve, resolveSkill, firebasePayload, firebaseSkillPayload,
   });
   global.LuminousWolfUnitCatalog = api;

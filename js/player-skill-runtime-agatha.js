@@ -233,7 +233,11 @@
   function proficiency(unit = {}) {
     const direct = [unit.proficiency, unit.proficiencyBonus, unit.proficiency_bonus, unit.stats?.proficiency, unit.stats?.proficiencyBonus]
       .map(Number).find(Number.isFinite);
-    return direct == null ? 0 : direct;
+    const level = unit.characterBuild?.calculatedAtLevel ?? unit.level ?? unit.actor?.level ?? 1;
+    return direct == null
+      ? (global.LuminousProficiencyRuntime?.proficiencyBonus?.(level)
+        ?? Math.min(6, 2 + Math.floor((Math.max(1, numberOr(level, 1)) - 1) / 20)))
+      : direct;
   }
 
   function offensiveLevel(unit, skill, engine) {

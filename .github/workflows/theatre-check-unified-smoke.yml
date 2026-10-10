@@ -1,0 +1,32 @@
+name: Theatre Checks unified regression
+
+on:
+  pull_request:
+    paths:
+      - 'js/theatre-*.js'
+      - 'js/dm-npc-rolls.js'
+      - 'js/instance-control.js'
+      - 'css/theatre-*.css'
+      - 'database.rules.json'
+      - 'tests/theatre-check-unified-smoke.mjs'
+      - 'tests/player-check-reconnect-no-overlap-smoke.mjs'
+      - '.github/workflows/theatre-check-unified-smoke.yml'
+  workflow_dispatch:
+
+jobs:
+  check-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax validation
+        run: |
+          node --check js/theatre-check-coordinator.js
+          node --check js/theatre-roll-visualizer.js
+          node --check js/theatre-opposed-checks.js
+          node --check js/dm-npc-rolls.js
+          node --check js/instance-control.js
+      - name: Check HUD, privacy and VS regression
+        run: node tests/theatre-check-unified-smoke.mjs
+      - name: Player Check reconnect and no-overlap regression
+        run: node tests/player-check-reconnect-no-overlap-smoke.mjs

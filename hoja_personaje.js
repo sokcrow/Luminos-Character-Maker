@@ -2623,61 +2623,68 @@ function initializeCharacterSheet() {
     });
   }
 
-  // --- NUEVO SISTEMA DE NAVEGACIÓN DE VENTANAS (VANILLA JS) ---
-    // Buscar todos los botones de acción del HUD y Codex
-    document.querySelectorAll('button[type="action"]').forEach((btn) => {
-      btn.addEventListener("click", function () {
-        const actionName = this.getAttribute("name");
-        if (!actionName) return;
+  // --- NAVEGACIÓN DE VENTANAS DEL JUGADOR ---
+  // Delegada por name, no por el legacy type="action". Esto mantiene el HUD
+  // funcional aunque el botón sea un <button type="button"> normal.
+  if (!document.documentElement.dataset.playerHudNavigationBound) {
+    document.documentElement.dataset.playerHudNavigationBound = "true";
 
-        // Lógica para abrir los modales principales (Stats, Perks, Skills, etc.)
-        if (
-          actionName.startsWith("act_hud_") &&
-          actionName !== "act_hud_close"
-        ) {
-          const modalName = actionName.replace("act_hud_", "");
+    const syncHudModalState = (value) => {
+      document.querySelectorAll(".sheet-state-hud-modal").forEach((input) => {
+        input.value = value || "";
+        input.setAttribute("value", value || "");
+      });
+    };
 
-          // 1. Ocultar todos los modales
-          document
-            .querySelectorAll(".sheet-modal-container, .sheet-modal")
-            .forEach((m) => {
-              m.style.display = "none";
-            });
+    const closeHudModals = () => {
+      document.querySelectorAll(".hud-modal").forEach((modal) => {
+        modal.classList.remove("active");
+        modal.style.removeProperty("display");
+        modal.setAttribute("aria-hidden", "true");
+      });
+      syncHudModalState("");
+    };
 
-          // 2. Buscar y mostrar el modal correcto
-          const targetModal =
-            document.getElementById(`modal-${modalName}`) ||
-            document.querySelector(`.modal-${modalName}`);
-          if (targetModal) {
-            targetModal.style.display = "block";
-          }
-        }
+    document.addEventListener("click", (event) => {
+      const button = event.target.closest("button[name]");
+      if (!button) return;
+      const actionName = button.getAttribute("name") || "";
 
-        // Lógica para cerrar ventanas
-
-        // Lógica para pestañas del Codex
-        if (actionName.startsWith("act_codex_")) {
-          const tabName = actionName.replace("act_codex_", "");
-          const codexStateInputs = document.querySelectorAll(
-            ".sheet-state-codex-tab",
-          );
-          codexStateInputs.forEach((input) => {
-            input.value = tabName;
-            input.setAttribute("value", tabName);
-          });
-        }
+      if (actionName.startsWith("act_hud_")) {
+        event.preventDefault();
+        event.stopPropagation();
 
         if (actionName === "act_hud_close") {
-          document
-            .querySelectorAll(
-              ".sheet-modal-container, .sheet-modal, .hud-modal",
-            )
-            .forEach((m) => {
-              m.style.display = "none";
-            });
+          closeHudModals();
+          return;
         }
-      });
+
+        const modalName = actionName.replace("act_hud_", "");
+        const targetModal =
+          document.getElementById(`${modalName}-modal`) ||
+          document.getElementById(`modal-${modalName}`) ||
+          document.querySelector(`.modal-${modalName}`);
+
+        if (!targetModal) return;
+
+        closeHudModals();
+        syncHudModalState(modalName);
+        targetModal.classList.add("active");
+        targetModal.style.display = "flex";
+        targetModal.setAttribute("aria-hidden", "false");
+        return;
+      }
+
+      if (actionName.startsWith("act_codex_")) {
+        event.preventDefault();
+        const tabName = actionName.replace("act_codex_", "");
+        document.querySelectorAll(".sheet-state-codex-tab").forEach((input) => {
+          input.value = tabName;
+          input.setAttribute("value", tabName);
+        });
+      }
     });
+  }
   }
 
   // --- GLOBALS FOR CHAT ---

@@ -21,14 +21,15 @@
     players: {},
     sessions: {},
     latestOpposedCommand: null,
+    opposedCommands: new Map(),
     activeCommand: null,
     localHud: null,
     dmHud: null,
     promptObserver: null,
-    panelObserver: null,
-    isolatedCloseButton: null,
     processingSessions: new Set(),
     resultKeys: new Set(),
+    issuingOpposed: false,
+    dmRecoveryTimer: null,
   };
 
   const $ = (id) => doc.getElementById(id);
@@ -47,7 +48,7 @@
   }
 
   function effectiveThreshold(raw, check) {
-    const threshold = Number(raw);
+    const threshold = raw == null || raw === "" ? NaN : Number(raw);
     if (!Number.isFinite(threshold)) return null;
     const x = Math.max(0, Math.trunc(numberOr(check?.modifierValue, 0)));
     if (check?.modifierType === "advantage") return Math.max(0, threshold - x);
@@ -92,7 +93,8 @@
   function currentCheckTemplate() {
     const x = Math.max(0, Math.trunc(numberOr($("theatre-check-x")?.value, 0)));
     return {
-      hiddenThreshold: Boolean($("theatre-check-hidden-threshold")?.checked),
+      hiddenThreshold: ($("theatre-check-threshold-visibility")?.value || "public") !== "public",
+      thresholdVisibility: $("theatre-check-threshold-visibility")?.value || "public",
       modifierType: x > 0 ? ($("theatre-check-modifier")?.value || "neutral") : "neutral",
       modifierValue: x,
       tipText: x > 0 ? String($("theatre-check-tip")?.value || "").trim().slice(0, 180) : "",
@@ -142,6 +144,12 @@
         option.textContent = playerLabel(playerId, player);
         select.appendChild(option);
       });
+    (global.LuminousDmNpcRolls?.listSceneActors?.() || []).forEach((npc) => {
+      const option = doc.createElement("option");
+      option.value = `npc:${npc.actorId}`;
+      option.textContent = `DM / NPC · ${npc.name}`;
+      select.appendChild(option);
+    });
     if (!select.options.length) {
       const option = doc.createElement("option");
       option.value = "";
@@ -159,7 +167,7 @@
     const threshold = $("theatre-check-threshold");
     if (threshold) {
       threshold.disabled = opposed;
-      threshold.placeholder = opposed ? "LO GENERA EL RIVAL" : "—";
+      threshold.placeholder = opposed ? "LO GENERA EL RETADOR" : "—";
       if (opposed) threshold.value = "";
     }
     if (opposed) populateRivalPlayers();
@@ -182,14 +190,14 @@
     opposed.className = "theatre-opposed-fields";
     opposed.hidden = true;
     opposed.innerHTML = `
-      <div class="theatre-opposed-heading"><strong>RIVAL / GENERADOR DE THRESHOLD</strong><span>EL DM INTERMEDIA AMBAS TIRADAS</span></div>
+      <div class="theatre-opposed-heading"><strong>RETADOR · GENERA EL THRESHOLD</strong><span>EL RETADO ACTÚA DESPUÉS</span></div>
       <div class="theatre-opposed-grid">
-        <label class="wide"><span>RIVAL</span><select id="theatre-opposed-rival-player"></select></label>
+        <label class="wide"><span>RETADOR (JUGADOR O NPC DEL DM)</span><select id="theatre-opposed-rival-player"></select></label>
         <label><span>TIRADA RIVAL</span><select id="theatre-opposed-rival-kind"><option value="ability">ABILITY</option><option value="save">SAVING THROW</option><option value="skill">SKILL</option></select></label>
         <label><span>STAT RIVAL</span><select id="theatre-opposed-rival-ability"></select></label>
         <label class="wide" id="theatre-opposed-rival-skill-field" hidden><span>SKILL RIVAL</span><select id="theatre-opposed-rival-skill"></select></label>
       </div>
-      <div class="theatre-opposed-flow">RIVAL TIRA → THRESHOLD REGISTRADO → JUGADOR PRINCIPAL TIRA → PASS / FAIL</div>`;
+      <div class="theatre-opposed-flow">RETADOR TIRA → THRESHOLD REGISTRADO → RETADO TIRA → RESULTADO</div>`;
     grid.insertAdjacentElement("afterend", opposed);
 
     const abilitySelect = $("theatre-opposed-rival-ability");
@@ -246,77 +254,88 @@
     return matches[0] || null;
   }
 
+  function selectedChallenger() {
+    const value = $("theatre-opposed-rival-player")?.value || "";
+    if (!value.startsWith("npc:")) return selectedPlayerFrom("theatre-opposed-rival-player");
+    const actorId = value.slice(4);
+    const actor = (global.LuminousDmNpcRolls?.listSceneActors?.() || []).find((entry) => entry.actorId === actorId);
+    return actor ? { uid: DM_UID, playerId: actorId, actorId, name: actor.name, isNpc: true } : null;
+  }
+
   async function issueOpposedCheck() {
-    const initiator = selectedPlayerFrom("theatre-check-target-player");
-    const rival = selectedPlayerFrom("theatre-opposed-rival-player");
+    if (state.issuingOpposed) return;
+    const initiator = selectedPlayerFrom("theatre-check-target-player"); // Retado: segundo.
+    const rival = selectedChallenger(); // Retador: genera threshold primero.
     const initiatorSpec = currentInitiatorSpec();
     const rivalSpec = currentRivalSpec();
-    if (!initiator) throw new Error("Selecciona el jugador principal.");
-    if (!rival) throw new Error("Selecciona un rival distinto.");
-    if (initiator.uid === rival.uid) throw new Error("Un jugador no puede enfrentarse a sí mismo.");
-    if (!initiatorSpec || !rivalSpec) throw new Error("Selecciona tiradas válidas para ambos jugadores.");
-
-    const requestMatch = await findMatchingPendingRequest(initiator.uid, initiatorSpec);
-    const sessionRef = db.ref(OPPOSED_ROOT).push();
-    const sessionId = sessionRef.key;
-    const checkTemplate = currentCheckTemplate();
-    const session = {
-      schemaVersion: 1,
-      sessionId,
-      roomKey: roomKey(),
-      status: "awaiting_threshold",
-      initiatorUid: initiator.uid,
-      initiatorPlayerId: initiator.playerId,
-      initiatorName: initiator.name,
-      initiatorRollSpec: initiatorSpec,
-      rivalUid: rival.uid,
-      rivalPlayerId: rival.playerId,
-      rivalName: rival.name,
-      rivalRollSpec: rivalSpec,
-      checkTemplate,
-      requestId: requestMatch?.key || null,
-      createdAt: firebase.database.ServerValue.TIMESTAMP,
-      clientCreatedAt: Date.now(),
-    };
-    await sessionRef.set(session);
-
-    const commandRef = db.ref(`${COMMAND_ROOT}/${rival.uid}`).push();
-    await commandRef.set({
-      schemaVersion: 1,
-      targetUid: rival.uid,
-      targetPlayerId: rival.playerId,
-      targetName: rival.name,
-      roomKey: roomKey(),
-      requestedBy: "opposed",
-      requestId: requestMatch?.key || null,
-      rollSpec: rivalSpec,
-      check: {
-        thresholdRaw: null,
-        hiddenThreshold: false,
-        modifierType: "neutral",
-        modifierValue: 0,
-        tipText: "",
-        opposedSessionId: sessionId,
-        opposedPhase: "threshold",
-      },
-      status: "issued",
-      issuedAt: firebase.database.ServerValue.TIMESTAMP,
-      clientIssuedAt: Date.now(),
-    });
-    await sessionRef.update({ thresholdCommandId: commandRef.key });
-
-    if (requestMatch) {
-      await db.ref(`${REQUEST_ROOT}/${requestMatch.key}`).update({
-        status: "approved",
-        commandId: commandRef.key,
-        opposedSessionId: sessionId,
-        decidedAt: firebase.database.ServerValue.TIMESTAMP,
-      });
+    if (!initiator) throw new Error("Selecciona al retado.");
+    if (!rival) throw new Error("Selecciona un retador.");
+    if (initiator.uid === rival.uid) throw new Error("El retador y el retado deben ser distintos.");
+    if (!initiatorSpec || !rivalSpec) throw new Error("Selecciona tiradas válidas para ambos.");
+    if (rival.isNpc && !global.LuminousDmNpcRolls?.rollOpposedThreshold) {
+      throw new Error("El Coin Engine del NPC no está disponible.");
     }
-
-    showDmFeedback(`${rival.name} GENERARÁ EL THRESHOLD · LUEGO ${initiator.name} RESUELVE`, false);
-    $("theatre-check-mode").value = "individual";
-    syncModeUi();
+    state.issuingOpposed = true;
+    const button = $("theatre-check-send");
+    if (button) { button.disabled = true; button.textContent = "PREPARANDO VS…"; }
+    try {
+      const requestMatch = await findMatchingPendingRequest(initiator.uid, initiatorSpec);
+      const sessionRef = db.ref(OPPOSED_ROOT).push();
+      const sessionId = sessionRef.key;
+      const checkTemplate = currentCheckTemplate();
+      await sessionRef.set({
+        schemaVersion: 2, sessionId, roomKey: roomKey(), status: "awaiting_threshold",
+        initiatorUid: initiator.uid, initiatorPlayerId: initiator.playerId,
+        initiatorName: initiator.name, initiatorRollSpec: initiatorSpec,
+        rivalUid: rival.uid, rivalPlayerId: rival.playerId,
+        rivalName: rival.name, rivalRollSpec: rivalSpec,
+        rivalType: rival.isNpc ? "npc" : "player", rivalActorId: rival.actorId || null,
+        checkTemplate, requestId: requestMatch?.key || null,
+        createdAt: firebase.database.ServerValue.TIMESTAMP, clientCreatedAt: Date.now(),
+      });
+      if (rival.isNpc) {
+        showDmFeedback(`${rival.name} ESTÁ GENERANDO EL THRESHOLD`, false);
+        try {
+          const result = await global.LuminousDmNpcRolls.rollOpposedThreshold({
+            actorId: rival.actorId, rollSpec: rivalSpec,
+          });
+          await sessionRef.child("thresholdResult").set({
+            uid: DM_UID, total: result.total, base: result.base,
+            heads: result.coins.filter((coin) => coin.side === "head").length,
+            coins: result.coins, completedAt: firebase.database.ServerValue.TIMESTAMP,
+            clientCompletedAt: Date.now(),
+          });
+        } catch (error) {
+          await sessionRef.update({ status: "error", errorMessage: "No se completó la tirada del NPC." });
+          throw error;
+        }
+      } else {
+        const commandRef = db.ref(`${COMMAND_ROOT}/${rival.uid}`).push();
+        await commandRef.set({
+          schemaVersion: 2, targetUid: rival.uid, targetPlayerId: rival.playerId,
+          targetName: rival.name, roomKey: roomKey(), requestedBy: "opposed",
+          requestId: requestMatch?.key || null, rollSpec: rivalSpec,
+          check: { thresholdRaw: null, hiddenThreshold: false, modifierType: "neutral",
+            modifierValue: 0, tipText: "", opposedSessionId: sessionId, opposedPhase: "threshold" },
+          status: "issued", issuedAt: firebase.database.ServerValue.TIMESTAMP,
+          clientIssuedAt: Date.now(),
+        });
+        await sessionRef.update({ thresholdCommandId: commandRef.key });
+      }
+      if (requestMatch) {
+        await db.ref(`${REQUEST_ROOT}/${requestMatch.key}`).update({
+          status: "approved", opposedSessionId: sessionId,
+          decidedAt: firebase.database.ServerValue.TIMESTAMP,
+        });
+      }
+      showDmFeedback(`${rival.name} RETA A ${initiator.name} · PRIMERA TIRADA EN CURSO`, false);
+      $("theatre-check-mode").value = "individual";
+      $("theatre-check-compose-reset")?.click();
+      syncModeUi();
+    } finally {
+      state.issuingOpposed = false;
+      if (button) { button.disabled = false; button.textContent = "ENVIAR CHECK"; }
+    }
   }
 
   function showDmFeedback(text, error) {
@@ -334,68 +353,134 @@
     db.ref(OPPOSED_ROOT).on("value", (snapshot) => {
       state.sessions = snapshot.val() || {};
       Object.entries(state.sessions).forEach(([sessionId, session]) => processSessionDm(sessionId, session));
+      renderDmSessionSummary();
     });
     db.ref(LIVE_ROOT).on("value", (snapshot) => renderDmOpposedLive(snapshot.val() || {}));
+    // Recover a stale phase lease even if no Firebase value-change event arrives.
+    if (!state.dmRecoveryTimer) {
+      state.dmRecoveryTimer = global.setInterval(() => {
+        Object.entries(state.sessions).forEach(([sessionId, session]) =>
+          processSessionDm(sessionId, session));
+      }, 5000);
+    }
+  }
+
+  function renderDmSessionSummary() {
+    const host = $("theatre-opposed-live-state");
+    if (!host) return;
+    const sessions = Object.values(state.sessions || {}).filter((session) =>
+      String(session.roomKey || "default") === roomKey() &&
+      session.status !== "complete" &&
+      Date.now() - numberOr(session.clientCreatedAt, 0) < MAX_AGE_MS);
+    host.replaceChildren();
+    if (!sessions.length) {
+      host.textContent = "Sin enfrentamientos pendientes";
+      return;
+    }
+    sessions.sort((a, b) => numberOr(b.clientCreatedAt) - numberOr(a.clientCreatedAt));
+    sessions.forEach((session) => {
+      const card = doc.createElement("div");
+      card.className = "theatre-opposed-session-card";
+      const phase = session.status === "awaiting_threshold"
+        ? "RETADOR · ESPERANDO THRESHOLD"
+        : session.status === "awaiting_resolver"
+          ? "RETADO · ESPERANDO TIRADA"
+          : session.status === "error"
+            ? "ERROR · NO SE COMPLETÓ LA TIRADA"
+            : "SINCRONIZANDO…";
+      const participants = doc.createElement("strong");
+      participants.textContent = `${session.rivalName || "Retador"} → ${session.initiatorName || "Retado"}`;
+      const status = doc.createElement("span");
+      status.textContent = phase;
+      card.append(participants, status);
+      host.appendChild(card);
+    });
+  }
+
+  function leaseExpired(status, prefix) {
+    if (typeof status !== "string" || !status.startsWith(prefix + ":")) return false;
+    const startedAt = Number(status.split(":")[1]);
+    return Number.isFinite(startedAt) && Date.now() - startedAt > 30000;
   }
 
   function processSessionDm(sessionId, session) {
     if (!session || String(session.roomKey || "default") !== roomKey() || state.processingSessions.has(sessionId)) return;
-    if (session.status === "awaiting_threshold" && session.thresholdResult) {
+    if (session.thresholdResult && (session.status === "awaiting_threshold" || leaseExpired(session.status, "issuing_resolver"))) {
       state.processingSessions.add(sessionId);
-      issueResolverCommand(sessionId, session).finally(() => state.processingSessions.delete(sessionId));
-    } else if (session.status === "awaiting_resolver" && session.resolverResult) {
+      issueResolverCommand(sessionId, session)
+        .catch((error) => console.warn("No se pudo enviar el segundo Check:", error))
+        .finally(() => state.processingSessions.delete(sessionId));
+    } else if (session.resolverResult && (
+      session.status === "awaiting_resolver" ||
+      leaseExpired(session.status, "finalizing")
+    )) {
       state.processingSessions.add(sessionId);
-      finalizeOpposedSession(sessionId, session).finally(() => state.processingSessions.delete(sessionId));
+      finalizeOpposedSession(sessionId, session)
+        .catch((error) => console.warn("Reintentando resolución enfrentada:", error))
+        .finally(() => state.processingSessions.delete(sessionId));
     }
   }
 
   async function issueResolverCommand(sessionId, session) {
-    const thresholdRaw = Number(session.thresholdResult?.total);
-    if (!Number.isFinite(thresholdRaw)) throw new Error("El rival no produjo un Threshold válido.");
-    await db.ref(`${OPPOSED_ROOT}/${sessionId}`).update({ status: "issuing_resolver" });
-
-    const hidden = Boolean(session.checkTemplate?.hiddenThreshold);
-    const commandRef = db.ref(`${COMMAND_ROOT}/${session.initiatorUid}`).push();
-    await commandRef.set({
-      schemaVersion: 1,
-      targetUid: session.initiatorUid,
-      targetPlayerId: session.initiatorPlayerId,
-      targetName: session.initiatorName,
-      roomKey: session.roomKey || roomKey(),
-      requestedBy: "opposed",
-      requestId: session.requestId || null,
-      rollSpec: session.initiatorRollSpec,
-      check: {
-        thresholdRaw: hidden ? null : thresholdRaw,
-        hiddenThreshold: hidden,
-        modifierType: session.checkTemplate?.modifierType || "neutral",
-        modifierValue: Math.max(0, Math.trunc(numberOr(session.checkTemplate?.modifierValue, 0))),
-        tipText: String(session.checkTemplate?.tipText || ""),
-        opposedSessionId: sessionId,
-        opposedPhase: "resolver",
-      },
-      status: "issued",
-      issuedAt: firebase.database.ServerValue.TIMESTAMP,
-      clientIssuedAt: Date.now(),
-    });
-
-    await db.ref(`${OPPOSED_ROOT}/${sessionId}`).update({
-      status: "awaiting_resolver",
-      resolverCommandId: commandRef.key,
-      thresholdEffective: effectiveThreshold(thresholdRaw, session.checkTemplate),
-      thresholdCapturedAt: firebase.database.ServerValue.TIMESTAMP,
-    });
+    const thresholdRaw = session.thresholdResult?.total == null ? NaN : Number(session.thresholdResult.total);
+    if (!Number.isFinite(thresholdRaw)) throw new Error("El retador no produjo un Threshold válido.");
+    const statusRef = db.ref(`${OPPOSED_ROOT}/${sessionId}/status`);
+    const lease = `issuing_resolver:${Date.now()}:${Math.random().toString(36).slice(2)}`;
+    const claim = await statusRef.transaction((status) =>
+      status === "awaiting_threshold" || leaseExpired(status, "issuing_resolver") ? lease : undefined);
+    if (!claim.committed) return;
+    try {
+      const hidden = Boolean(session.checkTemplate?.hiddenThreshold);
+      const commandRef = db.ref(`${COMMAND_ROOT}/${session.initiatorUid}`).push();
+      const command = {
+        schemaVersion: 2, targetUid: session.initiatorUid,
+        targetPlayerId: session.initiatorPlayerId,
+        targetName: session.initiatorName, roomKey: session.roomKey || roomKey(),
+        requestedBy: "opposed", requestId: session.requestId || null,
+        rollSpec: session.initiatorRollSpec,
+        check: {
+          thresholdRaw: hidden ? null : thresholdRaw,
+          hiddenThreshold: hidden,
+          thresholdVisibility: session.checkTemplate?.thresholdVisibility || (hidden ? "mystery" : "public"),
+          modifierType: session.checkTemplate?.modifierType || "neutral",
+          modifierValue: Math.max(0, Math.trunc(numberOr(session.checkTemplate?.modifierValue, 0))),
+          tipText: String(session.checkTemplate?.tipText || ""),
+          opposedSessionId: sessionId, opposedPhase: "resolver",
+        },
+        status: "issued", issuedAt: firebase.database.ServerValue.TIMESTAMP,
+        clientIssuedAt: Date.now(),
+      };
+      // An atomic multi-location update prevents a command existing without its session phase.
+      const updates = {};
+      updates[`${COMMAND_ROOT}/${session.initiatorUid}/${commandRef.key}`] = command;
+      if (session.thresholdCommandId && session.rivalUid !== DM_UID) {
+        updates[`${COMMAND_ROOT}/${session.rivalUid}/${session.thresholdCommandId}/status`] = "completed";
+      }
+      updates[`${OPPOSED_ROOT}/${sessionId}/status`] = "awaiting_resolver";
+      updates[`${OPPOSED_ROOT}/${sessionId}/resolverCommandId`] = commandRef.key;
+      updates[`${OPPOSED_ROOT}/${sessionId}/thresholdEffective`] = effectiveThreshold(thresholdRaw, session.checkTemplate);
+      updates[`${OPPOSED_ROOT}/${sessionId}/thresholdCapturedAt`] = firebase.database.ServerValue.TIMESTAMP;
+      await db.ref().update(updates);
+    } catch (error) {
+      await statusRef.transaction((status) => status === lease ? "awaiting_threshold" : undefined);
+      throw error;
+    }
   }
 
   async function finalizeOpposedSession(sessionId, session) {
     const thresholdRaw = Number(session.thresholdResult?.total);
     const resolverTotal = Number(session.resolverResult?.total);
     if (!Number.isFinite(thresholdRaw) || !Number.isFinite(resolverTotal)) throw new Error("Resultado enfrentado incompleto.");
-    await db.ref(`${OPPOSED_ROOT}/${sessionId}`).update({ status: "finalizing" });
-
+    const statusRef = db.ref(`${OPPOSED_ROOT}/${sessionId}/status`);
+    const lease = `finalizing:${Date.now()}:${Math.random().toString(36).slice(2)}`;
+    const claim = await statusRef.transaction((status) =>
+      status === "awaiting_resolver" || leaseExpired(status, "finalizing") ? lease : undefined);
+    if (!claim.committed) return;
+    try {
     const check = {
       thresholdRaw,
       hiddenThreshold: Boolean(session.checkTemplate?.hiddenThreshold),
+      thresholdVisibility: session.checkTemplate?.thresholdVisibility || "public",
       modifierType: session.checkTemplate?.modifierType || "neutral",
       modifierValue: Math.max(0, Math.trunc(numberOr(session.checkTemplate?.modifierValue, 0))),
       tipText: String(session.checkTemplate?.tipText || ""),
@@ -404,6 +489,7 @@
     const effective = effectiveThreshold(thresholdRaw, check);
 
     const published = await global.LuminousTheatreRolls?.publishRoll?.({
+      rollId: `vs_${sessionId}`,
       roller: {
         uid: session.initiatorUid,
         actorId: session.initiatorPlayerId || null,
@@ -415,7 +501,7 @@
       coins: Array.isArray(session.resolverResult?.coins) ? session.resolverResult.coins : [],
       check,
     });
-    if (published && published.published === false) throw new Error(`No se pudo publicar el resultado: ${published.reason || "unknown"}`);
+    if (!published?.published) throw new Error(`No se pudo publicar el resultado: ${published?.reason || "sin conexión"}`);
 
     const publicForInitiator = {
       sessionId,
@@ -441,11 +527,16 @@
     const updates = {};
     updates[`${RESULT_ROOT}/${session.initiatorUid}/${sessionId}`] = publicForInitiator;
     updates[`${RESULT_ROOT}/${session.rivalUid}/${sessionId}`] = publicForRival;
+    if (session.resolverCommandId) updates[`${COMMAND_ROOT}/${session.initiatorUid}/${session.resolverCommandId}/status`] = "completed";
     updates[`${OPPOSED_ROOT}/${sessionId}/status`] = "complete";
     updates[`${OPPOSED_ROOT}/${sessionId}/outcome`] = outcome;
     updates[`${OPPOSED_ROOT}/${sessionId}/finalThreshold`] = effective;
     updates[`${OPPOSED_ROOT}/${sessionId}/finalizedAt`] = firebase.database.ServerValue.TIMESTAMP;
     await db.ref().update(updates);
+    } catch (error) {
+      await statusRef.transaction((status) => status === lease ? "awaiting_resolver" : undefined);
+      throw error;
+    }
   }
 
   function bindPlayerCommands() {
@@ -454,9 +545,12 @@
     if (!uid) return;
     db.ref(`${COMMAND_ROOT}/${uid}`).limitToLast(20).on("child_added", (snapshot) => {
       const command = snapshot.val() || {};
-      if (!command?.check?.opposedSessionId || String(command.roomKey || "default") !== roomKey()) return;
+      if (!command?.check?.opposedSessionId || command.status !== "issued" || command.targetUid !== uid ||
+          String(command.roomKey || "default") !== roomKey()) return;
       if (Date.now() - numberOr(command.clientIssuedAt, Date.now()) > MAX_AGE_MS) return;
-      state.latestOpposedCommand = { key: snapshot.key, command };
+      const item = { key: snapshot.key, command };
+      state.latestOpposedCommand = item;
+      state.opposedCommands.set(snapshot.key, item);
       decorateExistingPrompt();
     });
   }
@@ -464,7 +558,7 @@
   function decorateExistingPrompt() {
     if (isDm()) return;
     const prompt = $("theatre-check-command-prompt");
-    const active = state.latestOpposedCommand;
+    const active = prompt && state.opposedCommands.get(prompt.dataset.commandKey);
     if (!prompt || !active) return;
     const phase = active.command?.check?.opposedPhase;
     prompt.dataset.opposedSessionId = active.command.check.opposedSessionId;
@@ -479,7 +573,7 @@
     } else if (phase === "resolver") {
       if (kicker) kicker.textContent = "TIRADA ENFRENTADA · RESUELVE CHECK";
       if (meta) meta.textContent = active.command.check.hiddenThreshold
-        ? "THRESHOLD ???"
+        ? (active.command.check.thresholdVisibility === "hidden" ? "CHECK OCULTO" : "THRESHOLD ??")
         : `THRESHOLD ${effectiveThreshold(active.command.check.thresholdRaw, active.command.check)}`;
     }
   }
@@ -493,38 +587,10 @@
     doc.addEventListener("click", (event) => {
       const button = event.target?.closest?.("#theatre-check-command-prompt button");
       const prompt = button?.closest?.("#theatre-check-command-prompt");
-      const active = state.latestOpposedCommand;
+      const active = prompt && state.opposedCommands.get(prompt.dataset.commandKey);
       if (!button || !prompt?.dataset?.opposedSessionId || !active) return;
       prepareOpposedRoll(active);
     }, true);
-  }
-
-  function beginVisualizerIsolation() {
-    endVisualizerIsolation();
-    const panel = $("coin-toss-panel");
-    const original = $("coin-toss-close-btn");
-    if (panel) {
-      panel.style.display = "none";
-      state.panelObserver = new MutationObserver(() => {
-        if (doc.body?.classList?.contains("theatre-opposed-roll-active") && panel.style.display !== "none") {
-          panel.style.display = "none";
-        }
-      });
-      state.panelObserver.observe(panel, { attributes: true, attributeFilter: ["style"] });
-    }
-    if (original?.parentNode) {
-      const clone = original.cloneNode(true);
-      original.parentNode.replaceChild(clone, original);
-      state.isolatedCloseButton = { original, clone };
-    }
-  }
-
-  function endVisualizerIsolation() {
-    state.panelObserver?.disconnect();
-    state.panelObserver = null;
-    const isolated = state.isolatedCloseButton;
-    if (isolated?.clone?.parentNode) isolated.clone.parentNode.replaceChild(isolated.original, isolated.clone);
-    state.isolatedCloseButton = null;
   }
 
   function prepareOpposedRoll(active) {
@@ -532,64 +598,22 @@
     doc.body?.classList?.add("theatre-opposed-roll-active");
     doc.body?.classList?.toggle("theatre-opposed-threshold-active", active.command.check.opposedPhase === "threshold");
     doc.body?.classList?.toggle("theatre-opposed-resolver-active", active.command.check.opposedPhase === "resolver");
-    beginVisualizerIsolation();
-    global.setTimeout(() => global.LuminousTheatreRolls?.clearArmedCheck?.(), 0);
     renderLocalHud(active.command);
-  }
-
-  function coinImage(side, pending) {
-    const img = doc.createElement("img");
-    img.className = `theatre-opposed-coin${pending ? " is-pending" : ""}`;
-    img.src = side === "head" ? HEAD_SRC : TAIL_SRC;
-    img.alt = pending ? "Pending coin" : side === "head" ? "Head" : "Tail";
-    return img;
-  }
-
-  function renderCoinRow(container, coins) {
-    if (!container) return;
-    const map = new Map((coins || []).map((coin) => [Number(coin.index), coin]));
-    container.replaceChildren();
-    for (let index = 0; index < 5; index += 1) {
-      const coin = map.get(index);
-      container.appendChild(coinImage(coin?.side || "tail", !coin));
-    }
   }
 
   function renderLocalHud(command) {
     const front = coordinator()?.ensureFrontLayer?.();
-    if (!front) return;
+    const rolls = global.LuminousTheatreRolls;
+    if (!front || !rolls?.createSharedCheckHud) return;
     state.localHud?.remove();
-    const phase = command.check?.opposedPhase;
-    const hud = doc.createElement("article");
-    hud.className = `theatre-opposed-hud is-${phase}`;
-    hud.dataset.sessionId = command.check.opposedSessionId;
-    if (phase === "threshold") {
-      hud.innerHTML = `
-        <div class="theatre-opposed-caption">ENFRENTADA · GENERANDO THRESHOLD</div>
-        <div class="theatre-opposed-coins" data-opposed-coins></div>
-        <div class="theatre-opposed-threshold"><span>THRESHOLD</span><strong data-opposed-total>—</strong></div>
-        <div class="theatre-opposed-status" data-opposed-status>ROLLING 0 / 5</div>`;
-    } else {
-      const threshold = command.check.hiddenThreshold ? "??" : effectiveThreshold(command.check.thresholdRaw, command.check);
-      hud.innerHTML = `
-        <div class="theatre-opposed-caption">ENFRENTADA · ${String(command.rollSpec?.label || "CHECK").toUpperCase()}</div>
-        <div class="theatre-opposed-coins" data-opposed-coins></div>
-        <div class="theatre-opposed-compare">
-          <div><span>THRESHOLD</span><strong class="threshold" data-opposed-threshold>${threshold ?? "—"}</strong></div>
-          <b>VS</b>
-          <div><span>OUTCOME</span><strong data-opposed-total>—</strong></div>
-        </div>
-        <div class="theatre-opposed-status" data-opposed-status>ROLLING 0 / 5</div>`;
-      if (numberOr(command.check.modifierValue, 0) > 0 && command.check.tipText) {
-        const tip = doc.createElement("div");
-        tip.className = "theatre-opposed-tip";
-        const sign = command.check.modifierType === "advantage" ? "-" : "+";
-        tip.textContent = `${command.check.modifierType === "advantage" ? "ADVANTAGE" : "DISADVANTAGE"} ${sign}${command.check.modifierValue} · ${command.check.tipText}`;
-        hud.prepend(tip);
-      }
-    }
-    front.appendChild(hud);
-    state.localHud = hud;
+    const first = command.check?.opposedPhase === "threshold";
+    state.localHud = rolls.createSharedCheckHud({
+      parent: front,
+      check: first ? {} : command.check,
+      title: first ? `VS · RETADOR · ${command.rollSpec?.label || "CHECK"}`
+        : `VS · RETADO · ${command.rollSpec?.label || "CHECK"}`,
+    });
+    if (state.localHud) state.localHud.dataset.sessionId = command.check.opposedSessionId;
   }
 
   function bindOwnLive() {
@@ -610,23 +634,14 @@
   }
 
   function updateLocalHud(live) {
-    const hud = state.localHud;
-    if (!hud) return;
-    renderCoinRow(hud.querySelector("[data-opposed-coins]"), live.coins || []);
-    const total = hud.querySelector("[data-opposed-total]");
-    if (total) total.textContent = String(numberOr(live.total, 0));
-    const status = hud.querySelector("[data-opposed-status]");
-    if (!status) return;
-    if (live.status !== "complete") {
-      status.textContent = `ROLLING ${numberOr(live.resolved, 0)} / 5`;
-      return;
-    }
-    if (live.check?.opposedPhase === "threshold") {
-      status.textContent = "THRESHOLD REGISTRADO";
-      status.classList.add("is-pass");
-    } else {
-      status.textContent = "ESPERANDO RESULTADO DEL DM";
-    }
+    if (!state.localHud) return;
+    const first = live.check?.opposedPhase === "threshold";
+    const complete = live.status === "complete";
+    global.LuminousTheatreRolls?.updateSharedCheckHud?.(state.localHud, {
+      coins: live.coins || [], total: live.total,
+      status: !complete ? `GIRANDO MONEDAS · ${numberOr(live.resolved, 0)} / 5`
+        : first ? "THRESHOLD REGISTRADO" : "ESPERANDO RESULTADO DEL DM",
+    });
   }
 
   async function persistOpposedPhaseResult(live) {
@@ -649,7 +664,6 @@
     const child = phase === "threshold" ? "thresholdResult" : "resolverResult";
     await db.ref(`${OPPOSED_ROOT}/${sessionId}/${child}`).set(result);
     global.sessionStorage?.setItem(marker, "1");
-    endVisualizerIsolation();
     if (phase === "threshold") {
       global.setTimeout(clearLocalOpposedHud, 2200);
     }
@@ -675,19 +689,19 @@
       if (result.role === "initiator") {
         const hud = state.localHud;
         if (hud?.dataset?.sessionId === result.sessionId) {
-          const status = hud.querySelector("[data-opposed-status]");
-          if (status) {
-            status.textContent = result.outcome === "passed" ? "CHECK PASSED" : "CHECK FAILED";
-            status.classList.toggle("is-pass", result.outcome === "passed");
-            status.classList.toggle("is-fail", result.outcome !== "passed");
-          }
+          global.LuminousTheatreRolls?.updateSharedCheckHud?.(hud, {
+            outcome: result.outcome,
+            status: result.outcome === "passed" ? "CHECK PASSED" : "CHECK FAILED",
+          });
           global.setTimeout(clearLocalOpposedHud, 4200);
         }
         cleanupOwnRemoteResult();
       } else {
         const front = coordinator()?.ensureFrontLayer?.();
         if (front) {
+          $("theatre-opposed-result-notice")?.remove();
           const notice = doc.createElement("div");
+          notice.id = "theatre-opposed-result-notice";
           notice.className = `theatre-opposed-result-notice ${result.outcome === "passed" ? "is-pass" : "is-fail"}`;
           notice.textContent = `${result.opponentName || "RIVAL"} · ${result.outcome === "passed" ? "CHECK PASSED" : "CHECK FAILED"}`;
           front.appendChild(notice);
@@ -723,33 +737,29 @@
     const live = entries[0];
     state.dmHud?.remove();
     state.dmHud = null;
-    doc.body?.classList?.toggle("theatre-opposed-dm-live", Boolean(live));
     if (!live) return;
     const session = state.sessions[live.check.opposedSessionId];
     const front = coordinator()?.ensureFrontLayer?.();
-    if (!front || !session) return;
-    const phase = live.check.opposedPhase;
-    const hud = doc.createElement("article");
-    hud.className = `theatre-opposed-hud theatre-opposed-hud--dm is-${phase}`;
-    if (phase === "threshold") {
-      hud.innerHTML = `
-        <div class="theatre-opposed-caption">DM · ${String(session.rivalName || "RIVAL").toUpperCase()} · GENERA THRESHOLD</div>
-        <div class="theatre-opposed-coins" data-opposed-coins></div>
-        <div class="theatre-opposed-threshold"><span>THRESHOLD</span><strong data-opposed-total>${numberOr(live.total, 0)}</strong></div>
-        <div class="theatre-opposed-status">${live.status === "complete" ? "THRESHOLD REGISTRADO" : `ROLLING ${numberOr(live.resolved, 0)} / 5`}</div>`;
-    } else {
-      const raw = Number(session.thresholdResult?.total);
-      const threshold = effectiveThreshold(raw, session.checkTemplate);
-      const outcome = live.status === "complete" ? outcomeFor(live.total, raw, session.checkTemplate) : null;
-      hud.innerHTML = `
-        <div class="theatre-opposed-caption">DM · ${String(session.initiatorName || "PLAYER").toUpperCase()} · ${String(session.initiatorRollSpec?.label || "CHECK").toUpperCase()}</div>
-        <div class="theatre-opposed-coins" data-opposed-coins></div>
-        <div class="theatre-opposed-compare"><div><span>THRESHOLD</span><strong class="threshold">${threshold ?? "—"}</strong></div><b>${outcome === "passed" ? "≤" : outcome === "failed" ? ">" : "VS"}</b><div><span>OUTCOME</span><strong>${numberOr(live.total, 0)}</strong></div></div>
-        <div class="theatre-opposed-status ${outcome === "passed" ? "is-pass" : outcome === "failed" ? "is-fail" : ""}">${live.status === "complete" ? (outcome === "passed" ? "CHECK PASSED" : "CHECK FAILED") : `ROLLING ${numberOr(live.resolved, 0)} / 5`}</div>`;
-    }
-    renderCoinRow(hud.querySelector("[data-opposed-coins]"), live.coins || []);
-    front.appendChild(hud);
-    state.dmHud = hud;
+    const rolls = global.LuminousTheatreRolls;
+    if (!front || !session || !rolls?.createSharedCheckHud) return;
+    const first = live.check.opposedPhase === "threshold";
+    const check = first ? {} : {
+      ...session.checkTemplate, thresholdRaw: session.thresholdResult?.total ?? null,
+    };
+    state.dmHud = rolls.createSharedCheckHud({
+      parent: front, check,
+      title: first ? `VS · ${session.rivalName} · GENERA THRESHOLD`
+        : `VS · ${session.initiatorName} · ${session.initiatorRollSpec?.label || "CHECK"}`,
+    });
+    const complete = live.status === "complete";
+    const outcome = complete && !first ? outcomeFor(live.total, check.thresholdRaw, check) : null;
+    rolls.updateSharedCheckHud(state.dmHud, {
+      coins: live.coins || [], total: live.total, outcome,
+      status: !complete ? `GIRANDO MONEDAS · ${numberOr(live.resolved, 0)} / 5`
+        : first ? "THRESHOLD REGISTRADO"
+        : outcome === "passed" ? "CHECK PASSED"
+        : outcome === "failed" ? "CHECK FAILED" : "TIRADA COMPLETADA",
+    });
   }
 
   function boot() {
@@ -789,5 +799,6 @@
     RESULT_ROOT,
     effectiveThreshold,
     outcomeFor,
+    refreshChallengers: populateRivalPlayers,
   });
 })(window);

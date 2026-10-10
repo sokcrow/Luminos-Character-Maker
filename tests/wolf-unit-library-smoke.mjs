@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 
+await import('../js/movement-speed-runtime.js');
 await import('../js/status-engine.js');
 await import('../js/status-library.js');
 await import('../js/universal-action-economy.js');

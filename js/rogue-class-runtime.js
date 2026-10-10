@@ -373,9 +373,16 @@
       resolveTheatreCheck(input = {}) {
         const result = originalResolveTheatreCheck ? originalResolveTheatreCheck(input) : { check: { ...(input.check || {}) }, state: input.state, outcomes: [] };
         const character = input.character || input.self || {};
-        const bonus = reliableTalentFinalPower(character, result.check || input.check || {}, source);
-        result.check = { ...(result.check || input.check || {}), finalPowerBonus: numberOr(result.check?.finalPowerBonus, 0) + bonus };
-        if (bonus) result.outcomes = [...(result.outcomes || []), { type: "rogue_reliable_talent", traitId: "reliable_talent", finalPowerBonus: bonus }];
+        const raw = result.check || input.check || {};
+        const granted = (input.traits || []).some((trait) => normalizeId(trait?.baseTraitId || String(trait?.id || "").split("__class__")[0]) === "reliable_talent");
+        const bonus = granted && !raw.__rogueReliableTalentApplied && normalizeId(raw.kind || raw.checkKind) === "skill"
+          ? reliableTalentFinalPower(character, raw, source) : 0;
+        result.check = { ...raw };
+        if (bonus) {
+          result.check.finalPower = numberOr(result.check.finalPower, 0) + bonus;
+          result.check.__rogueReliableTalentApplied = true;
+          result.outcomes = [...(result.outcomes || []), { type: "rogue_reliable_talent", traitId: "reliable_talent", finalPowerBonus: bonus }];
+        }
         return result;
       },
       activateTrait(trait, runtime = {}, state) {

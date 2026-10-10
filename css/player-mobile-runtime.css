@@ -566,7 +566,7 @@ body.player-mobile-runtime #player-instance-blackout {
   body.player-mobile-runtime.player-instance-theatre:not(.player-cellphone-surface-open) #theatre-view-player {
     position: fixed !important;
     inset: 0 !important;
-    z-index: 12000 !important;
+    z-index: 4000 !important;
     display: flex !important;
     visibility: visible !important;
     opacity: 1 !important;
@@ -579,10 +579,48 @@ body.player-mobile-runtime #player-instance-blackout {
   }
 
   body.player-mobile-runtime.player-instance-theatre:not(.player-cellphone-surface-open) .hud-sidebar-right {
-    z-index: 13000 !important;
+    z-index: 19500 !important;
     display: flex !important;
     visibility: visible !important;
     opacity: 1 !important;
+  }
+
+  body.player-mobile-runtime.player-instance-theatre:not(.player-cellphone-surface-open) .hud-sidebar-right.is-open #hud-menu-dropdown {
+    visibility: visible !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    transform: translateX(0) !important;
+  }
+
+  body.player-mobile-runtime.player-instance-theatre:not(.player-cellphone-surface-open) .hud-sidebar-right.is-open #hud-menu-dropdown .hud-menu-item {
+    visibility: visible !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+
+  /* Mobile interaction contract:
+     game surface < gameplay HUD/panels < command rail < cellphone/entry gates.
+     Theatre must never cover a menu the player intentionally opened. */
+  body.player-mobile-runtime.player-instance-theatre:not(.player-cellphone-surface-open) .hud-modal,
+  body.player-mobile-runtime.player-instance-theatre:not(.player-cellphone-surface-open) .inventory-modal {
+    z-index: 20000 !important;
+  }
+
+  body.player-mobile-runtime.player-instance-theatre:not(.player-cellphone-surface-open) .hud-modal.active,
+  body.player-mobile-runtime.player-instance-theatre:not(.player-cellphone-surface-open) .inventory-modal.active,
+  body.player-mobile-runtime.player-instance-theatre:not(.player-cellphone-surface-open) input.sheet-state-hud-modal[value="stats"] ~ .modal-stats,
+  body.player-mobile-runtime.player-instance-theatre:not(.player-cellphone-surface-open) input.sheet-state-hud-modal[value="perks"] ~ .modal-perks,
+  body.player-mobile-runtime.player-instance-theatre:not(.player-cellphone-surface-open) input.sheet-state-hud-modal[value="skills"] ~ .modal-skills,
+  body.player-mobile-runtime.player-instance-theatre:not(.player-cellphone-surface-open) input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
+    pointer-events: auto !important;
+  }
+
+  body.player-mobile-runtime.player-instance-theatre:not(.player-cellphone-surface-open) #player-combat-hud {
+    z-index: 19000 !important;
+  }
+
+  body.player-mobile-runtime.player-instance-theatre:not(.player-cellphone-surface-open) #modal-escritura-teatro {
+    z-index: 21000 !important;
   }
 
   body.player-mobile-runtime.player-instance-theatre:not(.player-cellphone-surface-open) #theatre-view-player > #theatre-stage,
@@ -590,5 +628,22 @@ body.player-mobile-runtime #player-instance-blackout {
   body.player-mobile-runtime.player-instance-theatre:not(.player-cellphone-surface-open) #theatre-view-player .theatre-location {
     visibility: visible !important;
     opacity: 1 !important;
+  }
+}
+
+
+/* Real touch contract for the mobile command rail.
+   These controls must behave as controls, not as horizontal-scroll content. */
+@media (orientation: landscape) and (pointer: coarse) {
+  body.player-mobile-runtime:not(.player-cellphone-surface-open) .hud-sidebar-right,
+  body.player-mobile-runtime:not(.player-cellphone-surface-open) .hud-menu-toggle,
+  body.player-mobile-runtime:not(.player-cellphone-surface-open) #hud-menu-dropdown .hud-menu-item {
+    touch-action: manipulation !important;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body.player-mobile-runtime:not(.player-cellphone-surface-open) .hud-menu-toggle,
+  body.player-mobile-runtime:not(.player-cellphone-surface-open) #hud-menu-dropdown .hud-menu-item {
+    pointer-events: auto !important;
   }
 }

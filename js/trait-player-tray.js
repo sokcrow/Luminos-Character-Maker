@@ -246,7 +246,7 @@
       trait.atLevel,
     ].map((value) => Number(value)).find((value) => Number.isFinite(value) && value > 0) || null;
 
-    let detail = CATEGORY_LABELS[category].toUpperCase();
+    let detail = normalizeId(source.kind) === "maneuver" ? "MANEUVER" : CATEGORY_LABELS[category].toUpperCase();
     if (sourceName) detail += ` • ${sourceName.toUpperCase()}`;
     if (category === "archetype" && parent) detail += ` · ${parent.toUpperCase()}`;
     if (level != null) detail += ` LV.${level}`;
@@ -343,7 +343,6 @@
     "targetlevel", "targetmaxhp", "targetcurrenthp", "targetoffensivelevel", "targetdefensivelevel",
     "aliveallies", "aliveenemies", "turnnumber", "roundnumber",
   ]);
-  let formulaInspectModeBound = false;
 
   function escapeFormulaRegExp(value) {
     return String(value || "").replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
@@ -441,6 +440,15 @@
       if (normalizeId(unit) !== "percent") return null;
       const variable = formulaVariablePattern("ClassLevel", trait);
       return new RegExp("(?:\\(\\s*" + variable + "\\s*\\)\\s*%|" + variable + "\\s*%)", "i");
+    }
+
+    // A capped class-level percentage can be worded as "(Monk Class Level)% (Max 50%)".
+    // Replace the variable with the evaluated capped formula, not the raw level.
+    const cappedLevel = normalized.match(/^min\(\s*(\d+(?:\.\d+)?)\s*,\s*ClassLevel\s*\)$/i);
+    if (cappedLevel && normalizeId(unit) === "percent") {
+      const variable = formulaVariablePattern("ClassLevel", trait);
+      const cap = escapeFormulaRegExp(cappedLevel[1]);
+      return new RegExp("(?:\\(\\s*" + variable + "\\s*\\)\\s*%|" + variable + "\\s*%)(?=\\s*\\(\\s*Max\\s*" + cap + "\\s*%\\s*\\))", "i");
     }
 
     const parts = [];
@@ -767,9 +775,8 @@
         }
       }
 
-      seenFormula.add(formulaKey);
-      values[resolved.id] = resolved;
-      extras.push(resolved);
+      // Values that appear only in internal mechanics are not player-facing
+      // summaries. Only show calculated values that match the description.
     });
 
     let descriptionSequence = 0;
@@ -815,9 +822,6 @@
       );
       tooltip.appendChild(line);
     });
-    const formula = createElement("span", "player-trait-formula-tooltip__formula");
-    formula.append(createElement("span", "", "Formula:"), createElement("code", "", resolved.formula));
-    tooltip.appendChild(formula);
     const total = createElement("span", "player-trait-formula-tooltip__total");
     total.append(
       createElement("span", "", resolved.pending ? "Result:" : "Total:"),
@@ -832,20 +836,49 @@
     control.type = "button";
     control.appendChild(createElement("span", "player-trait-resolved-value__display", resolved.display));
     control.dataset.traitResolvedValue = resolved.id;
-    control.setAttribute("aria-expanded", "false");
     control.dataset.traitFormulaPending = resolved.pending ? "true" : "false";
-    control.setAttribute("aria-label", `${resolved.label}: ${resolved.pending ? "waiting for contextual input" : resolved.display}. Hold Shift to inspect formula inputs, or activate this value for touch access.`);
-    control.title = "Hold Shift to inspect calculation";
+    control.setAttribute("aria-expanded", "false");
+    control.setAttribute("aria-label", `${resolved.label}: ${resolved.pending ? "waiting for context" : resolved.display}. Activate to show the calculation.`);
+    control.title = "Show calculation";
 
-    const tooltip = createElement("span", "player-trait-formula-tooltip");
-    tooltip.id = `player-trait-formula-tooltip-${++tooltipSequence}`;
-    tooltip.setAttribute("role", "tooltip");
-    control.setAttribute("aria-describedby", tooltip.id);
-    appendTooltipRows(tooltip, resolved);
-    wrapper.append(control, tooltip);
+    // Put the calculation beneath its card when expanded. A floating tooltip
+    // gets clipped by the scrollable Traits panel, especially on mobile.
+    const details = createElement("span", "player-trait-formula-tooltip");
+    details.id = `player-trait-formula-tooltip-${++tooltipSequence}`;
+    details.hidden = true;
+    details.setAttribute("role", "region");
+    control.setAttribute("aria-controls", details.id);
+    details.setAttribute("aria-label", `${resolved.label} calculation`);
+    appendTooltipRows(details, resolved);
+    wrapper.append(control, details);
 
     const setOpen = (open) => {
+      const card = control.closest(".player-trait-card");
+      if (!card) return;
       const active = Boolean(open);
+
+      if (active) {
+        // A card should expose only one calculation at a time.
+        const previous = card.querySelector(".player-trait-formula-tooltip.is-open");
+        if (previous && previous !== details) {
+          const oldControl = card.querySelector(`[aria-controls="${previous.id}"]`);
+          oldControl?.setAttribute("aria-expanded", "false");
+          oldControl?.classList.remove("is-open");
+          const oldWrapper = oldControl?.closest(".player-trait-resolved-control");
+          oldWrapper?.classList.remove("is-open");
+          previous.classList.remove("is-open");
+          previous.hidden = true;
+          oldWrapper?.appendChild(previous);
+        }
+        const next = card.querySelector(".player-trait-card__meta, .player-trait-card__footer");
+        details.hidden = false;
+        details.classList.add("is-open");
+        card.insertBefore(details, next || null);
+      } else {
+        details.classList.remove("is-open");
+        details.hidden = true;
+        wrapper.appendChild(details);
+      }
       wrapper.classList.toggle("is-open", active);
       control.classList.toggle("is-open", active);
       control.setAttribute("aria-expanded", active ? "true" : "false");
@@ -860,7 +893,6 @@
       setOpen(false);
       control.blur();
     });
-    control.addEventListener("blur", () => setOpen(false));
     return wrapper;
   }
 
@@ -896,24 +928,9 @@
     return description;
   }
 
-  function bindFormulaInspectMode() {
-    const doc = global.document;
-    if (!doc || formulaInspectModeBound) return;
-    formulaInspectModeBound = true;
-    const setInspect = (active) => doc.body?.classList.toggle("player-trait-formula-inspect", Boolean(active));
-    doc.addEventListener("keydown", (event) => {
-      if (event.key === "Shift") setInspect(true);
-    });
-    doc.addEventListener("keyup", (event) => {
-      if (event.key === "Shift") setInspect(false);
-    });
-    global.addEventListener?.("blur", () => setInspect(false));
-  }
-
   function ensureStyles() {
     const doc = global.document;
     if (!doc) return;
-    bindFormulaInspectMode();
     if (doc.getElementById("player-trait-tabs-stylesheet")) return;
     const link = doc.createElement("link");
     link.id = "player-trait-tabs-stylesheet";
@@ -921,6 +938,56 @@
     link.href = "css/player-trait-tabs.css";
     link.dataset.ui = "player-trait-tabs";
     doc.head?.appendChild(link);
+  }
+
+
+  // Background selections are read from the saved character, never guessed from catalog options.
+  function backgroundProfile(character = {}) {
+    const build = character.characterBuild && typeof character.characterBuild === "object" ? character.characterBuild : {};
+    const id = String(build.backgroundId || character.backgroundId || "").trim();
+    const rule = global.LuminousCharacterBuildRules?.getBackground?.(id) || null;
+    const narrative = global.LuminousBackgroundNarratives?.get?.(id) || null;
+    const legacy = global.LuminousLegacyBackgroundCatalog?.get?.(id) || null;
+    const custom = character.backgroundNarrative && typeof character.backgroundNarrative === "object" ? character.backgroundNarrative : {};
+    const buildChoices = build.backgroundChoices && typeof build.backgroundChoices === "object" ? build.backgroundChoices : {};
+    const savedChoices = character.backgroundChoices && typeof character.backgroundChoices === "object" ? character.backgroundChoices : {};
+    const choices = {
+      ...custom,
+      ...(!buildChoices.backgroundId || buildChoices.backgroundId === id ? buildChoices : {}),
+      ...(!savedChoices.backgroundId || savedChoices.backgroundId === id ? savedChoices : {}),
+    };
+    const label = (value) => String(value ?? "").replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
+    const fallbackName = id ? label(id).replace(/\b\w/g, (match) => match.toUpperCase()) : "";
+    const name = narrative?.name || rule?.name || legacy?.name || String(character.backgroundName || "").trim() || fallbackName;
+    const rawBonus = build?.breakdown?.backgroundHpCoefBonus ?? rule?.hpCoefBonus;
+    const bonus = rawBonus == null || rawBonus === "" || !Number.isFinite(Number(rawBonus)) ? null : Number(rawBonus);
+    return { id, name, rule, narrative, legacy, choices, bonus, character };
+  }
+
+  function backgroundChoiceValue(choices, name, aliases, fallback) {
+    for (const key of [name, ...aliases]) {
+      if (Object.prototype.hasOwnProperty.call(choices, key)) return choices[key];
+    }
+    return fallback;
+  }
+
+  function choiceText(value, options = []) {
+    const raw = typeof value === "object" && value !== null
+      ? String(value.label || value.name || value.description || value.id || "")
+      : String(value ?? "");
+    if (!raw.trim()) return "";
+    const matched = options.find((option) => normalizeId(option.id) === normalizeId(raw) || normalizeId(option.label) === normalizeId(raw));
+    return matched?.label || raw.replace(/[_-]+/g, " ").trim();
+  }
+
+  function addBackgroundDetail(target, title, content, className = "") {
+    if (!content) return;
+    const card = createElement("article", "player-background-detail " + className);
+    card.append(
+      createElement("h3", "player-background-detail__title", title),
+      createElement("p", "player-background-detail__value", content),
+    );
+    target.appendChild(card);
   }
 
   class TraitPlayerTray {
@@ -935,10 +1002,15 @@
       this.resolveInputs = typeof options.resolveInputs === "function" ? options.resolveInputs : null;
       this.prepareRuntime = typeof options.prepareRuntime === "function" ? options.prepareRuntime : null;
       this.title = options.title || "TRAITS";
+      this.saveBackgroundChoices = typeof options.saveBackgroundChoices === "function" ? options.saveBackgroundChoices : null;
+      this.backgroundEditing = false;
+      this.backgroundSaving = false;
+      this.backgroundEditorId = "";
       this.expanded = options.expanded !== false;
       this.filter = "all";
       this.root = null;
       this.statsConsole = null;
+      this.backgroundPanel = null;
       ensureStyles();
       if (this.host && global.document) this.mount();
     }
@@ -1018,17 +1090,300 @@
       return result;
     }
 
+
+    currentBackground() {
+      const runtime = this.getRuntime() || {};
+      return backgroundProfile(runtime.character || global.datosJugador || {});
+    }
+
+    renderBackground(force = false) {
+      if (!this.backgroundPanel) return;
+      const profile = this.currentBackground();
+      const panel = this.backgroundPanel;
+      if (this.backgroundEditing && this.backgroundEditorId !== profile.id) {
+        this.backgroundEditing = false;
+        this.backgroundSaving = false;
+      }
+      // Trait refreshes and live Firebase events must not erase unsaved typing.
+      if (this.backgroundEditing && !force && panel.querySelector?.(".player-background-choice-editor")) return;
+      panel.replaceChildren();
+      if (!profile.id) {
+        panel.appendChild(createElement("div", "player-background-empty", "Aún no tienes un Background asignado."));
+        return;
+      }
+
+      const hero = createElement("header", "player-background-hero");
+      hero.append(
+        createElement("span", "player-background-eyebrow", "TU HISTORIA"),
+        createElement("h2", "player-background-name", profile.name),
+      );
+      const overview = profile.narrative?.overview || profile.legacy?.description;
+      if (overview) hero.appendChild(createElement("p", "player-background-overview", overview));
+      if (profile.bonus !== null) {
+        const bonus = (profile.bonus >= 0 ? "+" : "") + profile.bonus.toFixed(2);
+        hero.appendChild(createElement("span", "player-background-hp-bonus", "HP COEF " + bonus));
+      }
+      panel.appendChild(hero);
+
+      if (profile.rule?.retired) {
+        const retired = createElement("section", "player-background-feature player-background-retired");
+        retired.append(
+          createElement("span", "player-background-eyebrow", "TRASFONDO ARCHIVADO"),
+          createElement("h3", "player-background-feature__title", "Este origen ya no está disponible para personajes nuevos"),
+          createElement("p", "player-background-feature__description", "Tu personaje conserva su trasfondo y HP Coef. El DM puede elegir un trasfondo vigente para reemplazarlo. Este origen no tiene Trait narrativo asignado."),
+        );
+        panel.appendChild(retired);
+      }
+
+      if (profile.narrative?.feature?.name) {
+        const feature = createElement("section", "player-background-feature");
+        feature.append(
+          createElement("span", "player-background-eyebrow", "FEATURE · TRASFONDO"),
+          createElement("h3", "player-background-feature__title", profile.narrative.feature.name),
+          createElement("p", "player-background-feature__description", profile.narrative.feature.description),
+        );
+        if (profile.narrative.feature.limits) {
+          feature.appendChild(createElement("p", "player-background-feature__limits", profile.narrative.feature.limits));
+        }
+        panel.appendChild(feature);
+      }
+
+      if (profile.legacy) {
+        const origin = createElement("section", "player-background-feature");
+        origin.append(
+          createElement("span", "player-background-eyebrow", "ORIGEN · CREACIÓN DE PERSONAJE"),
+          createElement("h3", "player-background-feature__title", "Beneficios iniciales"),
+          createElement("p", "player-background-feature__description", profile.legacy.benefit),
+          createElement("p", "player-background-feature__limits", "Estas bonificaciones ya forman parte de tus estadísticas."),
+        );
+        panel.appendChild(origin);
+        if (profile.legacy.initialFunds) {
+          addBackgroundDetail(panel, "FONDOS INICIALES · NO REPRESENTA EL SALDO ACTUAL", profile.legacy.initialFunds, "player-background-origin-funds");
+        }
+      }
+
+      const choices = profile.choices;
+      const decisions = createElement("section", "player-background-decisions");
+      decisions.appendChild(createElement("h3", "player-background-section-title", "TUS DECISIONES"));
+      const ideal = choiceText(backgroundChoiceValue(choices, "ideal", ["idealId"], profile.character.psychologicalIdeal), profile.narrative?.ideals);
+      const bond = choiceText(backgroundChoiceValue(choices, "bond", ["bondId", "vinculo"], profile.character.psychologicalVinculo), profile.narrative?.bonds);
+      const flaw = choiceText(backgroundChoiceValue(choices, "flaw", ["flawId", "grieta"], profile.character.psychologicalGrieta), profile.narrative?.flaws);
+      const personality = backgroundChoiceValue(choices, "personality", ["personalityTraits"], []);
+      const personalityText = Array.isArray(personality) ? personality.map((entry) => choiceText(entry)).filter(Boolean).join(" · ") : choiceText(personality);
+      if (this.backgroundEditing && this.saveBackgroundChoices) {
+        decisions.appendChild(this.renderBackgroundEditor(profile));
+      } else {
+        const grid = createElement("div", "player-background-decision-grid");
+        addBackgroundDetail(grid, "IDEAL", ideal || "Sin elección registrada");
+        addBackgroundDetail(grid, "VÍNCULO", bond || "Sin elección registrada");
+        addBackgroundDetail(grid, "DEFECTO / GRIETA", flaw || "Sin elección registrada");
+        addBackgroundDetail(grid, "PERSONALIDAD", personalityText || "Sin elección registrada");
+        decisions.appendChild(grid);
+        if (this.saveBackgroundChoices) {
+          const missing = [ideal, bond, flaw, personalityText].filter((value) => !value).length;
+          if (missing) decisions.appendChild(createElement("p", "player-background-edit-hint", "Puedes completar las " + missing + " decisiones pendientes sin salir de tu ficha."));
+          const editButton = createElement("button", "player-background-edit-button", missing ? "COMPLETAR BACKGROUND" : "EDITAR MIS DECISIONES");
+          editButton.type = "button";
+          editButton.addEventListener("click", () => {
+            this.backgroundEditing = true;
+            this.backgroundEditorId = profile.id;
+            this.renderBackground(true);
+          });
+          decisions.appendChild(editButton);
+        }
+      }
+      panel.appendChild(decisions);
+
+      const psychologyId = String(profile.character.psychologicalBackgroundId || "").trim();
+      if (psychologyId) {
+        const psychology = createElement("section", "player-background-psychology");
+        addBackgroundDetail(psychology, "TRASFONDO PSICOLÓGICO", psychologyId.replace(/[_-]+/g, " ").replace(/\b\w/g, (match) => match.toUpperCase()));
+        panel.appendChild(psychology);
+      }
+
+      const hasBackgroundTrait = Boolean(this.renderNarrativeBackgroundTrait(profile))
+        || this.normalizedTraits().some((trait) => sourceCategory(trait) === "background");
+      if (hasBackgroundTrait) {
+        const openTrait = createElement("button", "player-background-trait-link", "VER TRAIT DE BACKGROUND →");
+        openTrait.type = "button";
+        openTrait.addEventListener("click", () => {
+          this.filter = "background";
+          this.render();
+          this.setStatsView("traits");
+        });
+        panel.appendChild(openTrait);
+      }
+    }
+
+
+    renderBackgroundEditor(profile) {
+      const doc = global.document;
+      const choices = profile.choices || {};
+      const container = createElement("form", "player-background-choice-editor");
+      container.setAttribute("aria-label", "Editar decisiones de Background");
+      const fields = [];
+      const configs = [
+        { id: "ideal", label: "IDEAL", saved: backgroundChoiceValue(choices, "ideal", ["idealId"], profile.character.psychologicalIdeal), options: profile.narrative?.ideals || [] },
+        { id: "bond", label: "VÍNCULO", saved: backgroundChoiceValue(choices, "bond", ["bondId", "vinculo"], profile.character.psychologicalVinculo), options: profile.narrative?.bonds || [] },
+        { id: "flaw", label: "DEFECTO / GRIETA", saved: backgroundChoiceValue(choices, "flaw", ["flawId", "grieta"], profile.character.psychologicalGrieta), options: profile.narrative?.flaws || [] },
+      ];
+      configs.forEach((config) => {
+        const wrapper = createElement("div", "player-background-choice-field");
+        const title = createElement("label", "player-background-choice-label", config.label);
+        const select = createElement("select", "player-background-choice-select");
+        select.name = config.id;
+        select.id = "player-background-choice-" + config.id;
+        title.htmlFor = select.id;
+        const empty = doc.createElement("option");
+        empty.value = "";
+        empty.textContent = "— Selecciona una opción —";
+        select.appendChild(empty);
+        (config.options || []).forEach((item) => {
+          const option = doc.createElement("option");
+          option.value = String(item.id || item.label);
+          option.textContent = item.label;
+          select.appendChild(option);
+        });
+        const customOption = doc.createElement("option");
+        customOption.value = "__custom__";
+        customOption.textContent = "Escribir mi propia opción";
+        select.appendChild(customOption);
+        const custom = createElement("input", "player-background-choice-custom");
+        custom.type = "text";
+        custom.maxLength = 180;
+        custom.placeholder = "Describe tu " + config.label.toLowerCase() + " (máx. 180 caracteres)";
+        custom.setAttribute("aria-label", "Personalizar " + config.label);
+        const raw = typeof config.saved === "object" && config.saved !== null
+          ? String(config.saved.id || config.saved.label || "")
+          : String(config.saved || "");
+        const match = config.options.find((entry) => normalizeId(entry.id) === normalizeId(raw) || normalizeId(entry.label) === normalizeId(raw));
+        select.value = match ? String(match.id || match.label) : raw ? "__custom__" : "";
+        custom.value = !match ? choiceText(config.saved) : "";
+        custom.hidden = select.value !== "__custom__";
+        select.addEventListener("change", () => {
+          custom.hidden = select.value !== "__custom__";
+          if (!custom.hidden) custom.focus?.();
+        });
+        wrapper.append(title, select, custom);
+        container.appendChild(wrapper);
+        fields.push({
+          id: config.id,
+          read: () => select.value === "__custom__" ? custom.value.trim() : select.value.trim(),
+          initial: select.value === "__custom__" ? custom.value.trim() : select.value.trim(),
+        });
+      });
+
+      const oldPersonality = backgroundChoiceValue(choices, "personality", ["personalityTraits"], []);
+      const personality = (Array.isArray(oldPersonality) ? oldPersonality : [oldPersonality]).map((item) => choiceText(item));
+      const personalityWrap = createElement("fieldset", "player-background-personality-field");
+      const personalityTitle = createElement("legend", "player-background-choice-label", "PERSONALIDAD · HASTA 2 RASGOS");
+      personalityWrap.appendChild(personalityTitle);
+      const personalityInputs = [0, 1].map((index) => {
+        const input = createElement("input", "player-background-personality-input");
+        input.type = "text";
+        input.maxLength = 120;
+        input.value = personality[index] || "";
+        input.placeholder = "Rasgo " + (index + 1) + " (máx. 120 caracteres)";
+        input.setAttribute("aria-label", "Rasgo de personalidad " + (index + 1));
+        personalityWrap.appendChild(input);
+        return input;
+      });
+      container.appendChild(personalityWrap);
+      const initialPersonality = personalityInputs.map((input) => input.value.trim()).filter(Boolean);
+      container.appendChild(createElement("p", "player-background-edit-hint", "Son decisiones narrativas. No modifican tu HP Coef, Traits ni bonificaciones."));
+      const status = createElement("p", "player-background-save-status");
+      status.setAttribute("role", "status");
+      status.setAttribute("aria-live", "polite");
+      const actions = createElement("div", "player-background-editor-actions");
+      const save = createElement("button", "player-background-edit-button", "GUARDAR DECISIONES");
+      save.type = "submit";
+      const cancel = createElement("button", "player-background-cancel-button", "CANCELAR");
+      cancel.type = "button";
+      cancel.addEventListener("click", () => {
+        if (this.backgroundSaving) return;
+        this.backgroundEditing = false;
+        this.renderBackground(true);
+      });
+      actions.append(save, cancel);
+      container.append(status, actions);
+      // Each form is its own editing session. A save started for an old
+      // Background must never close, reset, or overwrite a newer editor.
+      const isActiveEditor = () => this.backgroundEditing
+        && this.backgroundEditorId === profile.id
+        && this.backgroundPanel?.querySelector?.(".player-background-choice-editor") === container;
+      container.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        if (!isActiveEditor() || this.backgroundSaving) return;
+        const payload = {};
+        // Submit only choices actually modified by the player. A live DM update
+        // can change other fields while this editor deliberately preserves its draft.
+        fields.forEach((field) => {
+          const value = field.read();
+          if (value !== field.initial) payload[field.id] = value;
+        });
+        const traits = personalityInputs.map((input) => input.value.trim()).filter(Boolean);
+        if (JSON.stringify(traits) !== JSON.stringify(initialPersonality)) payload.personality = traits;
+        if (!Object.keys(payload).length) {
+          status.textContent = "Modifica al menos una decisión antes de guardar.";
+          return;
+        }
+        this.backgroundSaving = true;
+        save.disabled = true;
+        cancel.disabled = true;
+        status.textContent = "Guardando tus decisiones…";
+        try {
+          await this.saveBackgroundChoices(profile.id, payload);
+          if (!isActiveEditor()) return;
+          this.backgroundEditing = false;
+          this.backgroundSaving = false;
+          this.renderBackground(true);
+        } catch (error) {
+          if (!isActiveEditor()) return;
+          this.backgroundSaving = false;
+          save.disabled = false;
+          cancel.disabled = false;
+          status.textContent = error?.message || "No se pudieron guardar las decisiones. Inténtalo de nuevo.";
+        }
+      });
+      return container;
+    }
+
+    renderNarrativeBackgroundTrait(profile) {
+      const trait = profile.narrative?.trait?.name ? profile.narrative.trait : profile.legacy?.benefit
+        ? { name: "Bonificaciones de origen", description: profile.legacy.benefit } : null;
+      if (!trait) return null;
+      const card = createElement("article", "player-trait-card player-background-narrative-trait");
+      card.dataset.traitCategory = "background";
+      const description = profile.legacy ? trait.description : String(trait.description)
+        .replace(/Reduce en X el Threshold/gi, "Reduce el Threshold")
+        .replace(/\+X\b/gi, "un bono de");
+      card.append(
+        createElement("span", "player-trait-source player-trait-source--background", "BACKGROUND · " + profile.name),
+        createElement("h3", "player-trait-card__name", trait.name),
+        createElement("p", "player-trait-card__description", description),
+      );
+      const note = profile.legacy
+        ? "Estas ventajas ya están reflejadas en tus estadísticas. Consultarlas aquí no las suma de nuevo."
+        : /(?:^|[^a-z])X(?:[^a-z]|$)/.test(trait.description)
+          ? "El valor concreto de esta ventaja se determina durante la partida."
+          : "Esta ventaja se utiliza según las circunstancias y las reglas de la partida.";
+      card.appendChild(createElement("p", "player-background-trait-note", note));
+      return card;
+    }
+
     setStatsView(view) {
       const consoleRoot = this.statsConsole || global.document?.querySelector("#stats-modal .player-ability-console");
       if (!consoleRoot) return false;
-      const nextView = view === "traits" ? "traits" : "stats";
+      const nextView = ["stats", "traits", "background"].includes(view) ? view : "stats";
       consoleRoot.dataset.playerStatsView = nextView;
 
       const abilityBar = consoleRoot.querySelector(":scope .player-ability-bar");
       const statContent = consoleRoot.querySelector(":scope .player-stat-content");
-      if (abilityBar) abilityBar.hidden = nextView === "traits";
-      if (statContent) statContent.hidden = nextView === "traits";
+      if (abilityBar) abilityBar.hidden = nextView !== "stats";
+      if (statContent) statContent.hidden = nextView !== "stats";
       if (this.host) this.host.hidden = nextView !== "traits";
+      if (this.backgroundPanel) this.backgroundPanel.hidden = nextView !== "background";
+      if (nextView === "background") this.renderBackground();
 
       consoleRoot.querySelectorAll("[data-player-stats-view]").forEach((button) => {
         const active = button.dataset.playerStatsView === nextView;
@@ -1058,6 +1413,7 @@
         [
           ["stats", "Stats"],
           ["traits", "Traits"],
+          ["background", "Background"],
         ].forEach(([view, label], index) => {
           const button = createElement("button", `player-stats-tab player-stats-view-tab${index === 0 ? " active is-active" : ""}`, label);
           button.type = "button";
@@ -1069,9 +1425,13 @@
           button.addEventListener("keydown", (event) => {
             if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
             event.preventDefault();
-            const targetView = event.key === "ArrowLeft" || event.key === "Home" ? "stats" : "traits";
+            const order = ["stats", "traits", "background"];
+            const position = order.indexOf(view);
+            const targetView = event.key === "Home" ? order[0]
+              : event.key === "End" ? order[order.length - 1]
+              : order[(position + (event.key === "ArrowLeft" ? -1 : 1) + order.length) % order.length];
             this.setStatsView(targetView);
-            tabs.querySelector(`[data-player-stats-view="${targetView}"]`)?.focus();
+            tabs.querySelector('[data-player-stats-view="' + targetView + '"]')?.focus();
           });
           tabs.appendChild(button);
         });
@@ -1080,30 +1440,37 @@
 
       if (this.host.parentElement !== infoPanel) infoPanel.appendChild(this.host);
       this.host.classList.add("player-traits-panel");
-      const current = consoleRoot.dataset.playerStatsView === "traits" ? "traits" : "stats";
+      if (!this.backgroundPanel || !this.backgroundPanel.isConnected) {
+        this.backgroundPanel = createElement("section", "player-background-panel");
+        this.backgroundPanel.id = "player-background-panel";
+        this.backgroundPanel.setAttribute("role", "tabpanel");
+        this.backgroundPanel.setAttribute("aria-label", "Background del personaje");
+        infoPanel.appendChild(this.backgroundPanel);
+      }
+      const current = ["stats", "traits", "background"].includes(consoleRoot.dataset.playerStatsView)
+        ? consoleRoot.dataset.playerStatsView : "stats";
       this.setStatsView(current);
       return true;
     }
 
-    renderFilterBar(container, traits) {
+    renderFilterBar(container, traits, hasNarrativeTrait = false, hasBackground = false) {
       const counts = Object.fromEntries(CATEGORY_ORDER.map((category) => [category, 0]));
-      counts.all = traits.length;
+      counts.all = traits.length + Number(hasNarrativeTrait);
       traits.forEach((trait) => { counts[sourceCategory(trait)] += 1; });
-      if (this.filter !== "all" && !counts[this.filter]) this.filter = "all";
+      if (hasNarrativeTrait) counts.background += 1;
+      if (this.filter !== "all" && !counts[this.filter] && !(this.filter === "background" && hasBackground)) this.filter = "all";
 
       CATEGORY_ORDER.forEach((category) => {
+        if (category !== "all" && counts[category] === 0 && !(category === "background" && hasBackground)) return;
         const button = createElement("button", `player-trait-filter${this.filter === category ? " is-active" : ""}`);
         button.type = "button";
         button.dataset.traitFilter = category;
-        button.disabled = category !== "all" && counts[category] === 0;
         button.setAttribute("aria-pressed", this.filter === category ? "true" : "false");
-        button.append(
-          createElement("span", "player-trait-filter__label", CATEGORY_LABELS[category]),
-          createElement("b", "player-trait-filter__count", counts[category]),
-        );
+        button.textContent = category === "background" ? "Background Trait" : CATEGORY_LABELS[category];
         button.addEventListener("click", () => {
           this.filter = category;
           this.render();
+          this.root?.querySelector(`[data-trait-filter="${category}"]`)?.focus();
         });
         container.appendChild(button);
       });
@@ -1117,14 +1484,29 @@
 
       const header = createElement("div", "player-trait-card__header");
       const source = createElement("span", `player-trait-source player-trait-source--${meta.category}`, meta.detail);
-      const activation = createElement("span", "player-trait-activation", activationLabel(trait));
-      header.append(source, activation);
+      header.appendChild(source);
+      const family = global.LuminousTraitFamilies?.resolve?.(trait);
+      if (family) {
+        card.dataset.traitFamily = family.id;
+        const marker = createElement("span", "player-trait-family");
+        marker.title = "Familia funcional: " + family.label;
+        const image = createElement("img", "player-trait-family__icon");
+        image.src = family.icon;
+        image.alt = "";
+        image.setAttribute("aria-hidden", "true");
+        image.loading = "lazy";
+        image.addEventListener("error", () => image.remove(), { once: true });
+        marker.append(image, createElement("span", "player-trait-family__label", family.label));
+        header.appendChild(marker);
+      }
+      if (activationLabel(trait) === "AUTO") {
+        header.appendChild(createElement("span", "player-trait-activation", "AUTO"));
+      }
 
       const name = createElement("h3", "player-trait-card__name", trait.name || trait.id || "Unnamed Trait");
       const description = renderTraitDescription(trait, this.getRuntime() || {});
       const metaRow = createElement("div", "player-trait-card__meta");
       contextLabels(trait).forEach((context) => metaRow.appendChild(createElement("span", "player-trait-context", context)));
-      if (meta.level != null) metaRow.appendChild(createElement("span", "player-trait-context", `LEVEL ${meta.level}`));
 
       const footer = createElement("div", "player-trait-card__footer");
       if (action) {
@@ -1137,53 +1519,42 @@
         button.addEventListener("click", () => this.activate(action));
         footer.appendChild(button);
         const uses = useLabel(action);
-        if (uses) footer.appendChild(createElement("b", "luminous-trait-tray__uses", uses));
+        if (uses) footer.appendChild(createElement("b", "luminous-trait-tray__uses", `Uses ${uses}`));
         if (!action.available) footer.appendChild(createElement("small", "luminous-trait-tray__reason", reasonLabel(action)));
-      } else {
-        const passiveCopy = activationLabel(trait) === "PASSIVE"
-          ? "Always applied when its conditions are met."
-          : activationLabel(trait) === "AUTO"
-            ? "Activates automatically when its trigger is met."
-            : "No manual action is currently available.";
-        footer.appendChild(createElement("small", "player-trait-card__passive", passiveCopy));
       }
 
       card.append(header, name, description);
       if (metaRow.childElementCount) card.appendChild(metaRow);
-      card.appendChild(footer);
+      if (footer.childElementCount) card.appendChild(footer);
       return card;
     }
 
     render() {
       if (!this.root) return;
       this.setupStatsTabs();
+      this.renderBackground();
       this.root.replaceChildren();
 
       const traits = this.normalizedTraits();
+      const profile = this.currentBackground();
+      const hasGrantedBackgroundTrait = traits.some((trait) => sourceCategory(trait) === "background");
+      const narrativeTraitCard = hasGrantedBackgroundTrait ? null : this.renderNarrativeBackgroundTrait(profile);
+      const hasNarrativeTrait = Boolean(narrativeTraitCard);
       const actions = this.actionMap();
-      const header = createElement("header", "player-traits-catalog__header");
-      const titleWrap = createElement("div", "player-traits-catalog__title");
-      titleWrap.append(
-        createElement("h2", "", this.title),
-        createElement("p", "", "Racial, Class, Archetype, Background and General Traits assigned to this character."),
-      );
-      const total = createElement("div", "player-traits-catalog__total");
-      total.append(createElement("strong", "", traits.length), createElement("span", "", "TOTAL"));
-      header.append(titleWrap, total);
-
       const filters = createElement("nav", "player-trait-filters");
       filters.setAttribute("aria-label", "Filter Traits by source");
-      this.renderFilterBar(filters, traits);
+      this.renderFilterBar(filters, traits, hasNarrativeTrait, hasGrantedBackgroundTrait || hasNarrativeTrait);
 
       const list = createElement("div", "luminous-trait-tray__list player-trait-card-list");
       const visible = filterTraits(traits, this.filter);
-      if (!visible.length) {
-        list.appendChild(createElement("div", "luminous-trait-tray__empty player-traits-empty", traits.length ? "NO TRAITS IN THIS CATEGORY" : "NO TRAITS ASSIGNED"));
-      } else {
-        visible.forEach((trait) => list.appendChild(this.renderTraitCard(trait, actions.get(normalizeId(trait.id)))));
+      visible.forEach((trait) => list.appendChild(this.renderTraitCard(trait, actions.get(normalizeId(trait.id)))));
+      if (narrativeTraitCard && ["all", "background"].includes(this.filter)) list.appendChild(narrativeTraitCard);
+      if (!list.childElementCount) {
+        const message = this.filter === "background" ? "No hay Trait de Background disponible." : traits.length ? "NO TRAITS IN THIS CATEGORY" : "NO TRAITS ASSIGNED";
+        list.appendChild(createElement("div", "luminous-trait-tray__empty player-traits-empty", message));
       }
 
-      this.root.append(header, filters, list);
+      this.root.append(filters, list);
     }
 
     refresh() { this.render(); }

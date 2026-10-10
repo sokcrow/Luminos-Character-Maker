@@ -191,6 +191,18 @@
     return speed(target) < speed(user);
   }
 
+  function resolveWeaponProficiency({proficient=false,proficiencyBonus=undefined,level=1}={}) {
+    const baseLevel=Math.max(1,Math.floor(finite(level,1)));
+    const bonus=Number.isFinite(Number(proficiencyBonus))&&proficiencyBonus!==undefined&&proficiencyBonus!==null
+      ? Math.max(0,Math.floor(Number(proficiencyBonus)))
+      : Math.min(6,2+Math.floor((baseLevel-1)/20));
+    return Object.freeze({
+      proficiencyBonus:bonus,
+      damageBonusPercent:proficient?2*bonus:0,
+      offensiveLevelBonus:proficient?Math.floor(bonus/2):0,
+    });
+  }
+
   function resolvePowerModifiers(options = {}) {
     const weapon = options.weapon || {};
     const wielder = options.wielder || options.user || {};
@@ -208,7 +220,16 @@
     const handsUsed = Math.max(0, Math.trunc(finite(options.handsUsed, properties.has("two_handed") ? 2 : 1)));
     if (properties.has("versatile") && handsUsed >= 2) finalPower += 1;
 
-    return Object.freeze({ clashPower, finalPower, power });
+    const proficiency = resolveWeaponProficiency({
+      proficient: options.proficient === true,
+      proficiencyBonus: options.proficiencyBonus,
+      level: options.level ?? wielder.effectiveLevel ?? wielder.level ?? 1,
+    });
+    return Object.freeze({
+      clashPower, finalPower, power,
+      damageBonusPercent: proficiency.damageBonusPercent,
+      offensiveLevelBonus: proficiency.offensiveLevelBonus,
+    });
   }
 
   function lightCoinDamagePercent(options = {}) {
@@ -262,6 +283,7 @@
     speed,
     isWeakerUnit,
     isSlowerUnit,
+    resolveWeaponProficiency,
     resolvePowerModifiers,
     lightCoinDamagePercent,
     requiresAmmunition,

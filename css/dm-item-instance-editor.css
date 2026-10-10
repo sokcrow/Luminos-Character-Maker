@@ -41,6 +41,58 @@
 @media(max-width:560px){.dm-item-grant-results{grid-template-columns:1fr}.dm-item-grant-header{align-items:flex-start;flex-direction:column}.dm-item-grant-player{white-space:normal}}
 
 
+/* Enchanter Studio: DM gameplay authoring controls, no raw runtime fields. */
+#modal-inventario-dm .dm-item-enchanter-open{
+  margin-left:5px;padding:5px 10px;border:1px solid #8764ac;background:#1b1424;
+  color:#dfbcfa;font:700 10px "Share Tech Mono",monospace;letter-spacing:.06em;
+  cursor:pointer;text-transform:uppercase
+}
+#modal-inventario-dm .dm-item-enchanter-open:hover,
+#modal-inventario-dm .dm-item-enchanter-open:focus-visible{
+  border-color:#c396e3;background:#2d1f3c;box-shadow:0 0 10px rgba(162,102,226,.22)
+}
+#modal-inventario-dm .dm-item-enchanted-badge{
+  display:inline-flex;align-items:center;justify-content:center;min-width:25px;padding:5px 7px;
+  border:1px solid #9168be;color:#f2d3ff;background:#392451;
+  font:700 10px "Share Tech Mono",monospace
+}
+.dm-enchanter-studio{position:relative;border-color:#4f345f;background:linear-gradient(120deg,#160f1d,#0f0c13)}
+.dm-enchanter-studio>h4{color:#d6a8fd}
+.dm-enchanter-studio>h4::before{content:"✦";color:#a57cd1;margin-right:8px}
+.dm-enchanter-intro{margin:0 0 11px;color:#b8a5c1;font-size:10px;line-height:1.6}
+.dm-enchanter-current{padding:10px 12px;border-left:3px solid #69547f;background:#14101b;color:#ada2b5;font-size:11px;line-height:1.5}
+.dm-enchanter-current[data-enchanted="true"]{border-color:#c296ed;background:#25192e;color:#e8cdf9}
+.dm-enchanter-controls{margin:13px 0}
+.dm-enchanter-studio .dm-item-editor-field label{color:#b394c6}
+.dm-enchanter-studio .dm-item-editor-field select{border-color:#5a446a;background:#100b16;color:#eddcf5}
+.dm-enchanter-studio .dm-item-editor-field select:focus-visible{outline:2px solid #bb89e0;outline-offset:1px}
+.dm-enchanter-preview{min-height:44px;padding:11px 13px;border:1px solid #554468;background:#160f1c;
+  color:#c2b6cd;font-size:10px;line-height:1.6}
+.dm-enchanter-preview[data-tone="ready"]{border-color:#c19c62;color:#f4deaf;background:#261e14}
+.dm-enchanter-preview[data-tone="warning"]{border-color:#684f3a;color:#cfae84;background:#20170f}
+.dm-enchanter-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:10px}
+.dm-enchanter-actions .dm-item-editor-btn{min-height:36px;border-color:#74518d;color:#edd7fb;background:#22182d}
+.dm-enchanter-actions .dm-item-editor-btn:hover:not(:disabled){border-color:#ba8de0;background:#372347}
+.dm-enchanter-actions .dm-item-editor-btn.primary{border-color:#ae83d7;color:#120b19;background:#c494ec}
+.dm-enchanter-actions .dm-item-editor-btn.primary:hover:not(:disabled){background:#e1b5ff}
+.dm-enchanter-actions [hidden]{display:none!important}
+.dm-enchanter-save-hint{margin:9px 0 0;color:#8a7893;font-size:9px;line-height:1.5}
+.dm-enchanter-save-hint b{color:#e0bbef;font-weight:600}
+@media(max-width:520px){
+  .dm-enchanter-actions{display:grid;grid-template-columns:1fr 1fr}
+  .dm-enchanter-actions .dm-item-editor-btn{min-width:0;white-space:normal}
+  #dm-enchanter-prepare{grid-column:1/-1}
+  #modal-inventario-dm .dm-item-enchanter-open{margin-left:0}
+}
+
+/* Enchanter V1: crafting quote + compendium link */
+.dm-enchanter-economy{padding:11px 13px;margin-bottom:10px;border:1px solid #5e4d75;border-left:3px solid #b995d5;background:#1a1321;color:#e0cfea;font-size:10px;line-height:1.7}
+.dm-enchanter-save-hint a{color:#e2bafb;text-decoration:underline;text-underline-offset:3px}
+#dm-enchanter-craft{border-color:#b69667;background:#312619;color:#f4dfb7}
+#dm-enchanter-craft:hover:not(:disabled){background:#4a3420;border-color:#ebc48e}
+#dm-enchanter-craft:disabled{opacity:.35;cursor:not-allowed}
+
+
 /* Enchanter's Update: validated DM magic authoring */
 .dm-item-magic-authoring{border-color:#3a3152;background:#0d0a13}
 .dm-item-magic-authoring>h4{color:#b696e8}

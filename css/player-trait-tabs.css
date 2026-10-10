@@ -7,7 +7,7 @@ body:not(.on-game-dashboard) #stats-modal .player-stats-view-tabs{
   height:42px;
 }
 body:not(.on-game-dashboard) #stats-modal .player-stats-view-tab{
-  min-width:126px;
+  min-width:105px;
   height:42px;
   appearance:none;
   border:2px solid #57462f;
@@ -120,23 +120,33 @@ body:not(.on-game-dashboard) #stats-modal .player-traits-catalog__total strong{
 body:not(.on-game-dashboard) #stats-modal .player-trait-filters{
   flex:0 0 auto;
   display:flex;
-  flex-wrap:wrap;
-  gap:6px;
-  padding:10px 0 9px;
+  flex-wrap:nowrap;
+  gap:8px;
+  padding:12px 2px 14px;
+  min-width:0;
+  overflow-x:auto;
+  overflow-y:hidden;
+  scrollbar-width:thin;
+  scrollbar-color:#675339 transparent;
+  overscroll-behavior-x:contain;
+  -webkit-overflow-scrolling:touch;
 }
 body:not(.on-game-dashboard) #stats-modal .player-trait-filter{
   appearance:none;
-  min-height:26px;
-  padding:4px 9px;
+  min-height:42px;
+  padding:9px 14px;
   border:1px solid #4a4034;
   background:#0c0b09;
-  color:#8c8274;
-  font-size:8px;
+  color:#cbbba7;
+  font-size:13px;
   font-weight:700;
-  letter-spacing:.08em;
+  letter-spacing:.035em;
   text-transform:uppercase;
   cursor:pointer;
   transition:.15s;
+  flex:0 0 auto;
+  white-space:nowrap;
+  border-radius:5px;
 }
 body:not(.on-game-dashboard) #stats-modal .player-trait-filter b{
   margin-left:5px;
@@ -162,13 +172,15 @@ body:not(.on-game-dashboard) #stats-modal .player-trait-card-list{
   flex:1 1 auto;
   min-height:0;
   display:grid;
-  grid-template-columns:repeat(2,minmax(0,1fr));
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));
   align-content:start;
-  gap:9px;
+  gap:14px;
   overflow-y:auto;
-  padding:1px 6px 18px 0;
+  padding:2px 10px 22px 1px;
   scrollbar-width:thin;
   scrollbar-color:#705532 #0c0b09;
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
 }
 body:not(.on-game-dashboard) #stats-modal .player-trait-card-list::-webkit-scrollbar{width:8px}
 body:not(.on-game-dashboard) #stats-modal .player-trait-card-list::-webkit-scrollbar-track{background:#0c0b09}
@@ -179,12 +191,14 @@ body:not(.on-game-dashboard) #stats-modal .player-trait-card{
   min-width:0;
   display:flex;
   flex-direction:column;
-  gap:7px;
-  padding:11px 12px 10px 14px;
+  gap:11px;
+  padding:17px 19px;
   border:1px solid #42392e;
   border-left:4px solid var(--trait-accent);
   background:radial-gradient(circle at 92% 0,rgba(157,116,55,.09),transparent 37%),linear-gradient(180deg,#171512,#0e0d0b);
   box-shadow:inset 0 0 18px rgba(0,0,0,.28);
+  border-radius:7px;
+  overflow-wrap:anywhere;
 }
 body:not(.on-game-dashboard) #stats-modal .player-trait-card[data-trait-category="racial"]{--trait-accent:#c59a50}
 body:not(.on-game-dashboard) #stats-modal .player-trait-card[data-trait-category="class"]{--trait-accent:#db852e}
@@ -194,43 +208,47 @@ body:not(.on-game-dashboard) #stats-modal .player-trait-card[data-trait-category
 body:not(.on-game-dashboard) #stats-modal .player-trait-card[data-trait-category="other"]{--trait-accent:#706b64}
 body:not(.on-game-dashboard) #stats-modal .player-trait-card__header{
   display:flex;
-  align-items:center;
+  align-items:flex-start;
   justify-content:space-between;
-  gap:8px;
+  gap:12px;
   min-width:0;
 }
 body:not(.on-game-dashboard) #stats-modal .player-trait-source{
   min-width:0;
-  overflow:hidden;
+  overflow:visible;
   color:var(--trait-accent);
-  font-size:8px;
-  font-weight:800;
-  letter-spacing:.08em;
-  text-overflow:ellipsis;
+  font-size:12px;
+  font-weight:700;
+  letter-spacing:.045em;
+  text-overflow:clip;
   text-transform:uppercase;
-  white-space:nowrap;
+  white-space:normal;
+  line-height:1.45;
+  overflow-wrap:anywhere;
 }
 body:not(.on-game-dashboard) #stats-modal .player-trait-activation{
   flex:0 0 auto;
-  padding:2px 5px;
+  padding:5px 9px;
   border:1px solid #453d33;
   background:#090807;
-  color:#756c60;
-  font-size:7px;
+  color:#c9bdaa;
+  font-size:11px;
   font-weight:700;
-  letter-spacing:.08em;
+  letter-spacing:.04em;
 }
 body:not(.on-game-dashboard) #stats-modal .player-trait-card__name{
   margin:0;
-  color:#e7dac3;
-  font:700 16px/1.15 Georgia,"Times New Roman",serif;
+  color:#f0e4d0;
+  font:700 21px/1.25 Georgia,"Times New Roman",serif;
   letter-spacing:.02em;
 }
 body:not(.on-game-dashboard) #stats-modal .player-trait-card__description{
   margin:0;
-  color:#aaa095;
-  font-size:10px;
-  line-height:1.45;
+  color:#d1c6b6;
+  font-size:16px;
+  line-height:1.6;
+  white-space:pre-line;
+  overflow-wrap:anywhere;
 }
 body:not(.on-game-dashboard) #stats-modal .player-trait-resolved-control{
   position:relative;
@@ -242,16 +260,17 @@ body:not(.on-game-dashboard) #stats-modal .player-trait-resolved-value{
   display:inline;
   appearance:none;
   margin:0;
-  padding:0 1px;
+  padding:1px 4px;
   border:0;
   border-bottom:1px dotted currentColor;
   background:transparent;
-  color:#f0b64e;
+  color:#ffd17b;
   font:inherit;
   font-weight:800;
   line-height:inherit;
   cursor:help;
   vertical-align:baseline;
+  border-radius:3px;
 }
 body:not(.on-game-dashboard) #stats-modal .player-trait-resolved-value:hover,
 body:not(.on-game-dashboard) #stats-modal .player-trait-resolved-value:focus-visible,
@@ -276,26 +295,31 @@ body:not(.on-game-dashboard) .player-trait-resolved-control.is-open .player-trai
   visibility:visible;
 }
 body:not(.on-game-dashboard) #stats-modal .player-trait-formula-tooltip{
-  position:absolute;
-  z-index:40;
-  left:50%;
-  top:calc(100% + 7px);
-  width:240px;
-  max-width:min(240px,calc(100vw - 48px));
-  padding:9px 10px;
+  position:relative;
+  z-index:auto;
+  left:auto;
+  top:auto;
+  width:100%;
+  max-width:100%;
+  padding:14px 16px;
   border:1px solid #8a632c;
   background:linear-gradient(180deg,#201a12,#0b0907);
-  color:#c6b9a6;
+  color:#e0d6c7;
   box-shadow:0 10px 24px rgba(0,0,0,.65),inset 0 0 14px rgba(235,164,52,.07);
   text-align:left;
-  font:500 9px/1.35 Arial,sans-serif;
+  font:500 14px/1.55 Arial,sans-serif;
   letter-spacing:.015em;
   white-space:normal;
-  pointer-events:none;
-  opacity:0;
-  visibility:hidden;
-  transform:translate(-50%,-3px);
-  transition:opacity .12s ease,transform .12s ease,visibility .12s ease;
+  pointer-events:auto;
+  opacity:1;
+  visibility:visible;
+  transform:none;
+  transition:none;
+  display:block;
+  box-sizing:border-box;
+  margin:4px 0 7px;
+  border-radius:6px;
+  overflow-wrap:anywhere;
 }
 body.player-trait-formula-inspect:not(.on-game-dashboard) #stats-modal .player-trait-resolved-control:hover .player-trait-formula-tooltip,
 body.player-trait-formula-inspect:not(.on-game-dashboard) #stats-modal .player-trait-resolved-control:focus-within .player-trait-formula-tooltip,
@@ -306,9 +330,9 @@ body:not(.on-game-dashboard) #stats-modal .player-trait-resolved-control.is-open
 }
 body:not(.on-game-dashboard) #stats-modal .player-trait-formula-tooltip__title{
   display:block;
-  margin-bottom:6px;
-  color:#f0c171;
-  font:700 10px/1.2 Georgia,"Times New Roman",serif;
+  margin-bottom:9px;
+  color:#f7cc83;
+  font:700 15px/1.3 Georgia,"Times New Roman",serif;
 }
 body:not(.on-game-dashboard) #stats-modal .player-trait-formula-tooltip__row,
 body:not(.on-game-dashboard) #stats-modal .player-trait-formula-tooltip__formula,
@@ -316,8 +340,8 @@ body:not(.on-game-dashboard) #stats-modal .player-trait-formula-tooltip__total{
   display:flex;
   align-items:baseline;
   justify-content:space-between;
-  gap:8px;
-  margin-top:3px;
+  gap:12px;
+  margin-top:6px;
 }
 body:not(.on-game-dashboard) #stats-modal .player-trait-formula-tooltip__key{
   color:#918574;
@@ -345,7 +369,7 @@ body:not(.on-game-dashboard) #stats-modal .player-trait-formula-tooltip__total{
 }
 body:not(.on-game-dashboard) #stats-modal .player-trait-formula-tooltip__total b{
   color:#ffc65f;
-  font-size:10px;
+  font-size:16px;
 }
 body:not(.on-game-dashboard) #stats-modal .player-trait-resolved-summary{
   display:flex;
@@ -378,54 +402,59 @@ body:not(.on-game-dashboard) #stats-modal .player-trait-contexts{
   margin-top:auto;
 }
 body:not(.on-game-dashboard) #stats-modal .player-trait-context{
-  padding:2px 5px;
+  padding:5px 8px;
   border:1px solid #38332d;
   background:#0a0908;
-  color:#746c61;
-  font-size:7px;
+  color:#c5b69f;
+  font-size:11px;
   font-weight:700;
-  letter-spacing:.09em;
+  letter-spacing:.04em;
+  border-radius:4px;
 }
 body:not(.on-game-dashboard) #stats-modal .player-trait-card__meta{
   display:flex;
   flex-wrap:wrap;
   align-items:center;
-  gap:5px;
+  gap:7px;
   min-width:0;
 }
 body:not(.on-game-dashboard) #stats-modal .player-trait-card__footer{
   display:flex;
   align-items:center;
   justify-content:space-between;
-  gap:10px;
-  margin-top:2px;
-  padding-top:7px;
+  gap:12px;
+  margin-top:7px;
+  padding-top:12px;
   border-top:1px solid #302a23;
+  flex-wrap:wrap;
+  align-items:center;
 }
 body:not(.on-game-dashboard) #stats-modal .player-trait-card__passive,
 body:not(.on-game-dashboard) #stats-modal .luminous-trait-tray__reason{
   min-width:0;
-  color:#696258;
-  font-size:8px;
-  line-height:1.35;
-  letter-spacing:.025em;
+  color:#d5a28b;
+  font-size:13px;
+  line-height:1.45;
+  letter-spacing:0;
 }
 body:not(.on-game-dashboard) #stats-modal .luminous-trait-tray__reason{
   color:#9a6a56;
 }
 body:not(.on-game-dashboard) #stats-modal .player-trait-use{
   flex:0 0 auto;
-  min-width:106px;
-  padding:7px 9px;
+  min-width:158px;
+  padding:11px 16px;
   border:1px solid #d79529;
   background:linear-gradient(180deg,#342512,#171008);
-  color:#ffc45b;
-  font-size:8px;
+  color:#ffd282;
+  font-size:13px;
   font-weight:800;
-  letter-spacing:.07em;
+  letter-spacing:.04em;
   text-transform:uppercase;
   cursor:pointer;
   box-shadow:inset 0 0 9px rgba(237,157,38,.11);
+  min-height:44px;
+  border-radius:5px;
 }
 body:not(.on-game-dashboard) #stats-modal .player-trait-use:hover,
 body:not(.on-game-dashboard) #stats-modal .player-trait-use:focus-visible{
@@ -443,8 +472,9 @@ body:not(.on-game-dashboard) #stats-modal .player-trait-use:disabled{
 body:not(.on-game-dashboard) #stats-modal .luminous-trait-tray__uses{
   display:block;
   margin-top:2px;
-  color:#a1875e;
-  font-size:7px;
+  color:#e8c58c;
+  font-size:13px;
+  font-weight:700;
 }
 body:not(.on-game-dashboard) #stats-modal .player-traits-empty{
   grid-column:1/-1;
@@ -453,10 +483,10 @@ body:not(.on-game-dashboard) #stats-modal .player-traits-empty{
   place-items:center;
   padding:24px;
   border:1px dashed #493e30;
-  color:#71695f;
+  color:#c7b9a7;
   text-align:center;
-  font:700 12px Georgia,"Times New Roman",serif;
-  letter-spacing:.08em;
+  font:700 16px Georgia,"Times New Roman",serif;
+  letter-spacing:.04em;
 }
 
 @media (prefers-reduced-motion:reduce){
@@ -468,4 +498,353 @@ body:not(.on-game-dashboard) #stats-modal .player-traits-empty{
   body:not(.on-game-dashboard) #stats-modal .player-stats-engine{display:none}
   body:not(.on-game-dashboard) #stats-modal .player-stats-view-tabs{min-width:0;width:100%}
   body:not(.on-game-dashboard) #stats-modal .player-stats-view-tab{flex:1;min-width:0}
+}
+
+/* Expanded calculations belong in the card flow: no clipped floating tooltips. */
+body:not(.on-game-dashboard) #stats-modal .player-trait-formula-tooltip[hidden]{
+  display:none!important;
+}
+body:not(.on-game-dashboard) #stats-modal .player-trait-card > .player-trait-formula-tooltip.is-open{
+  position:relative;
+  display:block;
+  opacity:1;
+  visibility:visible;
+  transform:none;
+}
+body:not(.on-game-dashboard) #stats-modal .player-trait-resolved-value:focus-visible,
+body:not(.on-game-dashboard) #stats-modal .player-trait-filter:focus-visible,
+body:not(.on-game-dashboard) #stats-modal .player-trait-use:focus-visible{
+  outline:2px solid #f4b851;
+  outline-offset:3px;
+}
+@media(max-width:680px){
+  body:not(.on-game-dashboard) #stats-modal .player-trait-card-list{
+    grid-template-columns:minmax(0,1fr);
+    gap:12px;
+    padding:2px 3px 22px 1px;
+  }
+  body:not(.on-game-dashboard) #stats-modal .player-trait-card{
+    padding:15px 14px;
+  }
+  body:not(.on-game-dashboard) #stats-modal .player-trait-card__name{
+    font-size:20px;
+  }
+  body:not(.on-game-dashboard) #stats-modal .player-trait-card__description{
+    font-size:16px;
+    line-height:1.65;
+  }
+  body:not(.on-game-dashboard) #stats-modal .player-trait-filter{
+    min-height:44px;
+    padding:10px 14px;
+  }
+  body:not(.on-game-dashboard) #stats-modal .player-trait-card__footer{
+    align-items:stretch;
+    flex-direction:column;
+  }
+  body:not(.on-game-dashboard) #stats-modal .player-trait-use{
+    width:100%;
+    min-width:0;
+  }
+  body:not(.on-game-dashboard) #stats-modal .luminous-trait-tray__uses{
+    text-align:center;
+  }
+  body:not(.on-game-dashboard) #stats-modal .player-trait-formula-tooltip{
+    padding:12px;
+  }
+}
+
+
+/* Stats > Background: the player's saved choices, not a character editor. */
+body:not(.on-game-dashboard) #stats-modal #player-background-panel[hidden]{
+  display:none!important;
+}
+body:not(.on-game-dashboard) #stats-modal .player-background-panel{
+  box-sizing:border-box;
+  display:flex;
+  flex:1 1 auto;
+  flex-direction:column;
+  gap:18px;
+  min-width:0;
+  min-height:0;
+  width:100%;
+  overflow-y:auto;
+  padding:10px 12px 26px 2px;
+  color:#e4d5bd;
+  scrollbar-width:thin;
+  scrollbar-color:#725637 #0d0b09;
+}
+body:not(.on-game-dashboard) #stats-modal .player-background-hero{
+  border:1px solid #6b4b2c;
+  border-left:4px solid #d29333;
+  background:radial-gradient(circle at 90% 10%,rgba(196,138,49,.15),transparent 56%),linear-gradient(145deg,#261d15,#100e0c);
+  padding:23px 25px;
+}
+body:not(.on-game-dashboard) #stats-modal .player-background-eyebrow{
+  display:block;
+  color:#c39b62;
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.14em;
+}
+body:not(.on-game-dashboard) #stats-modal .player-background-name{
+  margin:10px 0 9px;
+  color:#ffe0a3;
+  font:700 clamp(23px,2.4vw,32px)/1.2 Georgia,"Times New Roman",serif;
+}
+body:not(.on-game-dashboard) #stats-modal .player-background-overview,
+body:not(.on-game-dashboard) #stats-modal .player-background-feature__description{
+  max-width:76ch;
+  margin:9px 0;
+  color:#ddd1c1;
+  font-size:15px;
+  line-height:1.65;
+}
+body:not(.on-game-dashboard) #stats-modal .player-background-hp-bonus{
+  display:inline-block;
+  margin-top:9px;
+  padding:7px 11px;
+  border:1px solid #7b5b34;
+  color:#f5cc83;
+  background:#110d09;
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:.04em;
+}
+body:not(.on-game-dashboard) #stats-modal .player-background-feature{
+  border:1px solid #4e473b;
+  border-left:4px solid #4c8b8e;
+  background:linear-gradient(180deg,#1a1b19,#11110f);
+  padding:19px 22px;
+}
+body:not(.on-game-dashboard) #stats-modal .player-background-feature__title{
+  margin:9px 0;
+  color:#b4d1ca;
+  font:700 23px Georgia,"Times New Roman",serif;
+}
+body:not(.on-game-dashboard) #stats-modal .player-background-feature__limits{
+  margin:10px 0 0;
+  color:#bdab8f;
+  font-size:13px;
+  line-height:1.55;
+}
+body:not(.on-game-dashboard) #stats-modal .player-background-section-title{
+  margin:0 0 12px;
+  padding-bottom:10px;
+  border-bottom:1px solid #624b2f;
+  color:#e8c98f;
+  font:700 20px Georgia,"Times New Roman",serif;
+}
+body:not(.on-game-dashboard) #stats-modal .player-background-decision-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));
+  gap:12px;
+}
+body:not(.on-game-dashboard) #stats-modal .player-background-detail{
+  min-width:0;
+  padding:16px 18px;
+  border:1px solid #514334;
+  background:linear-gradient(160deg,#1e1914,#100e0b);
+}
+body:not(.on-game-dashboard) #stats-modal .player-background-detail__title{
+  margin:0 0 12px;
+  color:#b99561;
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.12em;
+}
+body:not(.on-game-dashboard) #stats-modal .player-background-detail__value{
+  margin:0;
+  color:#e9e0d1;
+  font-size:15px;
+  line-height:1.6;
+  overflow-wrap:anywhere;
+}
+body:not(.on-game-dashboard) #stats-modal .player-background-trait-link{
+  align-self:flex-start;
+  margin-top:4px;
+  padding:12px 18px;
+  border:1px solid #68a4a3;
+  background:linear-gradient(180deg,#173536,#102021);
+  color:#d0eeee;
+  font-size:13px;
+  font-weight:800;
+  letter-spacing:.05em;
+  cursor:pointer;
+}
+body:not(.on-game-dashboard) #stats-modal .player-background-trait-link:hover,
+body:not(.on-game-dashboard) #stats-modal .player-background-trait-link:focus-visible{
+  outline:2px solid #8bc8c3;
+  outline-offset:2px;
+}
+body:not(.on-game-dashboard) #stats-modal .player-background-empty{
+  padding:36px 24px;
+  border:1px dashed #6b5439;
+  color:#d2b995;
+  text-align:center;
+  font:700 18px Georgia,"Times New Roman",serif;
+}
+body:not(.on-game-dashboard) #stats-modal .player-background-narrative-trait{
+  --trait-accent:#4c8b8e;
+}
+body:not(.on-game-dashboard) #stats-modal .player-background-trait-note{
+  margin:12px 0 0;
+  padding:11px 13px;
+  border:1px solid #61523a;
+  background:#18140e;
+  color:#dcc69c;
+  font-size:13px;
+  line-height:1.5;
+}
+@media(max-width:680px){
+  body:not(.on-game-dashboard) #stats-modal .player-stats-view-tabs{gap:5px}
+  body:not(.on-game-dashboard) #stats-modal .player-stats-view-tab{
+    padding:0 4px;
+    font-size:clamp(12px,3.5vw,16px);
+  }
+  body:not(.on-game-dashboard) #stats-modal .player-background-panel{
+    gap:12px;
+    padding:8px 3px 22px;
+  }
+  body:not(.on-game-dashboard) #stats-modal .player-background-hero,
+  body:not(.on-game-dashboard) #stats-modal .player-background-feature{
+    padding:17px 16px;
+  }
+}
+
+
+/* Editable narrative decisions stay inside Stats > Background, never in a floating dialog. */
+body:not(.on-game-dashboard) #stats-modal .player-background-edit-hint{
+  color:#cbb89b;
+  font-size:13px;
+  line-height:1.55;
+  margin:14px 0 10px;
+}
+body:not(.on-game-dashboard) #stats-modal .player-background-choice-editor{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr));
+  align-items:start;
+  gap:14px;
+  min-width:0;
+  padding:18px;
+  background:linear-gradient(165deg,#201a13,#12100e);
+  border:1px solid #685035;
+}
+body:not(.on-game-dashboard) #stats-modal .player-background-choice-field,
+body:not(.on-game-dashboard) #stats-modal .player-background-personality-field{
+  display:flex;
+  min-width:0;
+  flex-direction:column;
+  gap:8px;
+}
+body:not(.on-game-dashboard) #stats-modal .player-background-personality-field{
+  border:0;
+  padding:0;
+  margin:0;
+}
+body:not(.on-game-dashboard) #stats-modal .player-background-choice-label{
+  color:#dec28c;
+  font:800 12px/1.45 Arial,sans-serif;
+  letter-spacing:.08em;
+  padding:0;
+}
+body:not(.on-game-dashboard) #stats-modal .player-background-choice-select,
+body:not(.on-game-dashboard) #stats-modal .player-background-choice-custom,
+body:not(.on-game-dashboard) #stats-modal .player-background-personality-input{
+  width:100%;
+  box-sizing:border-box;
+  min-width:0;
+  min-height:44px;
+  padding:11px 12px;
+  border:1px solid #745b3b;
+  border-radius:4px;
+  background:#100e0c;
+  color:#f1e4ca;
+  font:500 14px/1.4 Arial,sans-serif;
+}
+body:not(.on-game-dashboard) #stats-modal .player-background-choice-custom[hidden]{
+  display:none!important;
+}
+body:not(.on-game-dashboard) #stats-modal .player-background-editor-actions{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  grid-column:1/-1;
+}
+body:not(.on-game-dashboard) #stats-modal .player-background-edit-button,
+body:not(.on-game-dashboard) #stats-modal .player-background-cancel-button{
+  min-height:44px;
+  padding:11px 16px;
+  border:1px solid #b48545;
+  border-radius:4px;
+  background:linear-gradient(180deg,#4c321a,#281a10);
+  color:#ffe4ae;
+  font:800 12px/1.3 Arial,sans-serif;
+  letter-spacing:.05em;
+  cursor:pointer;
+}
+body:not(.on-game-dashboard) #stats-modal .player-background-cancel-button{
+  border-color:#726456;
+  color:#ddd1c1;
+  background:#24201b;
+}
+body:not(.on-game-dashboard) #stats-modal .player-background-edit-button:disabled,
+body:not(.on-game-dashboard) #stats-modal .player-background-cancel-button:disabled{
+  opacity:.6;
+  cursor:wait;
+}
+body:not(.on-game-dashboard) #stats-modal .player-background-edit-button:focus-visible,
+body:not(.on-game-dashboard) #stats-modal .player-background-cancel-button:focus-visible,
+body:not(.on-game-dashboard) #stats-modal .player-background-choice-select:focus-visible,
+body:not(.on-game-dashboard) #stats-modal .player-background-choice-custom:focus-visible,
+body:not(.on-game-dashboard) #stats-modal .player-background-personality-input:focus-visible{
+  outline:2px solid #f1c17e;
+  outline-offset:2px;
+}
+body:not(.on-game-dashboard) #stats-modal .player-background-choice-editor > .player-background-edit-hint,
+body:not(.on-game-dashboard) #stats-modal .player-background-save-status{
+  grid-column:1/-1;
+  margin:0;
+}
+body:not(.on-game-dashboard) #stats-modal .player-background-save-status{
+  color:#eac889;
+  font-size:13px;
+  line-height:1.5;
+}
+@media(max-width:680px){
+  body:not(.on-game-dashboard) #stats-modal .player-background-choice-editor{
+    grid-template-columns:minmax(0,1fr);
+    padding:14px;
+  }
+  body:not(.on-game-dashboard) #stats-modal .player-background-editor-actions{
+    flex-direction:column;
+  }
+  body:not(.on-game-dashboard) #stats-modal .player-background-edit-button,
+  body:not(.on-game-dashboard) #stats-modal .player-background-cancel-button{
+    width:100%;
+  }
+}
+
+/* Functional Trait family: independent from race/class/archetype source. */
+body:not(.on-game-dashboard) #stats-modal .player-trait-card__header {
+  flex-wrap:wrap;
+}
+body:not(.on-game-dashboard) #stats-modal .player-trait-family {
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:4px 8px;
+  border:1px solid rgba(192,153,97,.48);
+  border-radius:999px;
+  background:rgba(15,12,9,.78);
+  color:#f2d7aa;
+  font:700 10px/1.25 Arial,Helvetica,sans-serif;
+  letter-spacing:.04em;
+  white-space:nowrap;
+}
+body:not(.on-game-dashboard) #stats-modal .player-trait-family__icon {
+  display:block;
+  width:24px;
+  height:24px;
+  object-fit:contain;
+  flex:0 0 24px;
 }

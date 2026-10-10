@@ -100,12 +100,22 @@ assert.ok(medic.guaranteedEquipmentTags.includes("medical_kit"));
 assert.ok(medic.carriedCategoryWeights.medicine > soldier.carriedCategoryWeights.medicine);
 
 const canonicalUnits = [...kobolds.list(), ...goblins.list(), ...wolves.list()];
-const humanoids = canonicalUnits.filter((unit) => social.isHumanoidEligible(unit));
-const beasts = canonicalUnits.filter((unit) => !social.isHumanoidEligible(unit));
-assert.equal(humanoids.length, 7);
+const creatureTypes = globalThis.LuminousCreatureTypeCatalog;
+const socialProfileUnits = canonicalUnits.filter((unit) => unit.wealthProfile || unit.roleProfile);
+const humanoidEligible = canonicalUnits.filter((unit) => social.isHumanoidEligible(unit));
+const beasts = canonicalUnits.filter(
+  (unit) => creatureTypes.profileForUnit(unit, { required: false })?.creatureType === "beast",
+);
+
+assert.equal(socialProfileUnits.length, 7, "all authored sapient enemy units must carry social loot profiles");
+assert.deepEqual(
+  humanoidEligible.map((unit) => unit.id),
+  ["scale_sorcerer_kobold"],
+  "humanoid eligibility must follow canonical creatureType, not species assumptions",
+);
 assert.equal(beasts.length, 2);
 
-for (const unit of humanoids) {
+for (const unit of socialProfileUnits) {
   assert.ok(unit.wealthProfile, `${unit.id} must have wealthProfile`);
   assert.ok(unit.roleProfile, `${unit.id} must have roleProfile`);
   assert.ok(Number(unit.schemaVersion) >= 4, `${unit.id} must migrate to social loot schema`);

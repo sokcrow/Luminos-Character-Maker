@@ -262,10 +262,13 @@
     if (skillId !== "persuasion") return check;
     const before = persuasionProficiency(character);
     const after = effectivePersuasionProficiency(character);
-    const bonus = Math.floor(proficiencyBonus(character) * (proficiencyMultiplier(after) - proficiencyMultiplier(before)));
+    // Calculate from the actual rounded proficiency contributions. This
+    // matters when upgrading Half Proficiency at odd proficiency bonuses.
+    const bonus = Math.floor(proficiencyBonus(character) * proficiencyMultiplier(after))
+      - Math.floor(proficiencyBonus(character) * proficiencyMultiplier(before));
     check.finalPower = numberOr(check.finalPower, 0) + bonus;
     check.royalEnvoyProficiency = after;
-    Object.defineProperty(check, "__banneretRoyalEnvoyAdjusted", { value: true, enumerable: false, configurable: true });
+    Object.defineProperty(check, "__banneretRoyalEnvoyAdjusted", { value: true, enumerable: true, configurable: true });
     return check;
   }
 

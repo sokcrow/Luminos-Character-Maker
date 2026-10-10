@@ -14,6 +14,7 @@
     playerVitalsRef: null,
     playerVitalsHandler: null,
     vitalsReady: false,
+    combatSprite: { src: "", x: 0, y: 0, scale: 1 },
     stashUnlocked: false,
     selected: null,
     selectedContainer: "active",
@@ -22,14 +23,14 @@
 
   const romanTiers = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
   const slotSpecs = [
-    { id: "mainHand", label: "MAIN HAND", hint: "WEAPON / SHIELD", className: "inv2-eq-main" },
-    { id: "offHand", label: "OFF HAND", hint: "WEAPON / SHIELD", className: "inv2-eq-off" },
-    { id: "armor", label: "ARMOR", hint: "BODY", className: "inv2-eq-armor" },
-    { id: "shield", label: "SHIELD SOURCE", hint: "ACTIVE DEFENSE", className: "inv2-eq-shield" },
-    { id: "accessory0", label: "ACCESSORY A", hint: "ACCESSORY", className: "inv2-eq-acc-a" },
-    { id: "accessory1", label: "ACCESSORY B", hint: "ACCESSORY", className: "inv2-eq-acc-b" },
-    { id: "augment0", label: "AUGMENT A", hint: "BODY / TECH", className: "inv2-eq-aug-a" },
-    { id: "augment1", label: "AUGMENT B", hint: "BODY / TECH", className: "inv2-eq-aug-b" },
+    { id: "mainHand", label: "MANO PRINCIPAL", hint: "ARMA / ESCUDO", className: "inv2-eq-main" },
+    { id: "offHand", label: "MANO SECUNDARIA", hint: "ARMA / ESCUDO", className: "inv2-eq-off" },
+    { id: "armor", label: "ARMADURA", hint: "CUERPO", className: "inv2-eq-armor" },
+    { id: "shield", label: "ESCUDO", hint: "DEFENSA ACTIVA", className: "inv2-eq-shield" },
+    { id: "accessory0", label: "ACCESORIO I", hint: "ACCESORIO", className: "inv2-eq-acc-a" },
+    { id: "accessory1", label: "ACCESORIO II", hint: "ACCESORIO", className: "inv2-eq-acc-b" },
+    { id: "augment0", label: "AUMENTO I", hint: "CUERPO / TÉCNICA", className: "inv2-eq-aug-a" },
+    { id: "augment1", label: "AUMENTO II", hint: "CUERPO / TÉCNICA", className: "inv2-eq-aug-b" },
   ];
 
   const categoryLabels = Object.freeze({
@@ -48,7 +49,27 @@
   const workshop = () => global.LuminousWorkshopRuntime || null;
   const foodRest = () => global.LuminousFoodRestRuntime || null;
   const effectIndicator = () => global.LuminousItemEffectIndicator || null;
+  const enchantmentRuntime = () => global.LuminousItemEnchantmentRuntime || null;
   const magicRuntime = () => global.LuminousItemMagicRuntime || null;
+  const enchantmentLabels = Object.freeze({
+    offensive_level: "Nivel ofensivo", defensive_level: "Nivel defensivo",
+    base_power: "Poder base", final_power: "Poder final",
+    clash_power: "Poder de choque", guard_power: "Poder de guardia",
+    speed: "Velocidad", min_speed: "Velocidad mínima", max_speed: "Velocidad máxima",
+  });
+  function enchantmentInfo(item = {}) {
+    const ench = enchantmentRuntime()?.activeEnchantment?.(item) || null;
+    if (!ench) return null;
+    const requires = magicRuntime()?.requiresAttunement?.(item) === true;
+    const attuned = requires && magicRuntime()?.isAttuned?.(state.unit, item) === true;
+    return {
+      tier: ench.tier,
+      label: enchantmentLabels[ench.focus.channel] || "Efecto mágico",
+      value: ench.focus.value,
+      requiresAttunement: requires,
+      attuned,
+    };
+  }
   const magicKnowledge = () => global.LuminousItemMagicKnowledgeRuntime || null;
 
   function knowledgeViewer() {
@@ -104,9 +125,10 @@
     const magical = magicPresentation(item);
     if (magical?.displayName) return String(magical.displayName).trim();
     const explicit = item.displayName || item.nombre || item.name;
-    if (explicit) return String(explicit).trim();
-    const resolved = runtime()?.resolveItem?.(item) || item;
-    return String(resolved?.displayName || resolved?.nombre || resolved?.name || item.definitionId || item.id || "ITEM").trim();
+    const resolved = explicit ? item : runtime()?.resolveItem?.(item) || item;
+    const base = String(explicit || resolved?.displayName || resolved?.nombre || resolved?.name || item.definitionId || item.id || "ITEM").trim();
+    const ench = enchantmentInfo(item);
+    return ench && !new RegExp("\\s\\+" + ench.tier + "$").test(base) ? base + " +" + ench.tier : base;
   }
 
   function itemCategory(item = {}) {
@@ -439,28 +461,37 @@
     equipment.className = "inventory-v2-equipment";
     equipment.innerHTML = `
       <header class="inventory-v2-equipment-header">
-        <div><span>ANATOMY / EQUIPMENT MAP</span><strong>EQUIPPED LOADOUT</strong></div>
-        <div class="inventory-v2-sync" id="inventory-v2-sync-state">SYNC // WAITING</div>
+        <div><span>ARSENAL / PERSONAJE</span><strong>EQUIPAMIENTO</strong></div>
+        <span class="inventory-v2-crest" aria-hidden="true">✥</span>
       </header>
       <div class="inventory-v2-equipment-field">
         <div class="inventory-v2-body-silhouette" aria-hidden="true"></div>
+        <div class="inventory-v2-combat-stage" role="img" aria-label="Sprite de combate del personaje">
+          <div class="inventory-v2-combat-halo" aria-hidden="true"></div>
+          <img class="inventory-v2-combat-sprite" alt="" hidden />
+          <span class="inventory-v2-sprite-fallback" aria-hidden="true">✦</span>
+        </div>
         ${slotSpecs.map((slot) => `
           <button type="button" class="inventory-v2-eq-slot ${slot.className}" data-equipment-slot="${slot.id}" aria-label="${slot.label}">
             <span class="inventory-v2-eq-label">${slot.label}</span>
-            <span class="inventory-v2-eq-name">EMPTY</span>
+            <span class="inventory-v2-eq-icon" aria-hidden="true"></span>
+            <span class="inventory-v2-eq-name">LIBRE</span>
             <span class="inventory-v2-eq-hint">${slot.hint}</span>
           </button>`).join("")}
         <div class="inventory-v2-augment-summary" id="inventory-v2-augment-summary">
-          <span>AUGMENTS</span><strong>NO INSTALLED AUGMENTS</strong>
+          <span>AUMENTOS</span><strong>SIN AUMENTOS</strong>
         </div>
+      </div>
+      <div class="inventory-v2-vitals-strip" aria-label="Estado del personaje">
+        <span data-inv-vital="level"></span><span data-inv-vital="hp"></span><span data-inv-vital="sp"></span>
       </div>`;
 
     const carry = doc.createElement("section");
     carry.className = "inventory-v2-carry";
     carry.innerHTML = `
       <header class="inventory-v2-carry-header">
-        <div><span>FIELD CARRY // QUICK ACCESS</span><strong>ACTIVE INVENTORY</strong></div>
-        <b id="inventory-v2-carry-count">00 / 20</b>
+        <div><span>PERTENENCIAS / ACCESO RÁPIDO</span><strong>INVENTARIO ACTIVO</strong></div>
+        <b id="inventory-v2-carry-count">00 / 24</b>
       </header>
       <div class="inventory-v2-grid-host"></div>`;
     carry.querySelector(".inventory-v2-grid-host").appendChild(grid);
@@ -524,14 +555,24 @@
         detail: { open: Boolean(openState) },
       }));
     };
-    const openInventory = () => {
+    const openInventory = (event) => {
+      const menu = doc.querySelector(".hud-sidebar-right");
+      menu?.classList.remove("is-open");
+      const menuButton = doc.getElementById("btn-toggle-hud-menu");
+      menuButton?.setAttribute("aria-expanded", "false");
+      menuButton?.setAttribute("aria-label", "Mostrar menú de personaje");
+      if (menuButton) menuButton.title = "Mostrar menú";
+      event?.preventDefault?.();
+      event?.stopPropagation?.();
       modal.classList.add("active");
       bindRealtime();
       state.ready = true;
       renderAll();
       emitVisibility(true);
     };
-    const closeInventory = () => {
+    const closeInventory = (event) => {
+      event?.preventDefault?.();
+      event?.stopPropagation?.();
       modal.classList.remove("active");
       suspendRealtime();
       emitVisibility(false);
@@ -541,6 +582,9 @@
     close?.addEventListener("click", closeInventory);
     modal.addEventListener("click", (event) => {
       if (event.target === modal) closeInventory();
+    });
+    doc.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && modal.classList.contains("active")) closeInventory(event);
     });
 
     modal.querySelectorAll(".inv-tab-btn").forEach((button) => {
@@ -635,7 +679,9 @@
     const value = itemValue(item);
     const effectIndicators = itemEffectIndicators(item);
     const effectIndicatorHtml = renderEffectIndicators(effectIndicators);
+    const enchantment = enchantmentInfo(item);
     const activeCard = containerType === "active";
+    slot.classList.toggle("inventory-v2-enchanted", Boolean(enchantment));
     slot.classList.toggle("inventory-v2-has-effect-indicator", effectIndicators.length > 0);
     slot.classList.toggle("inventory-v2-active-card", activeCard);
     slot.innerHTML = `
@@ -646,6 +692,7 @@
           ${gemOverlayIcon ? `<span class="inventory-v2-gem-overlay" aria-hidden="true" style="background-image:url(&quot;${escapeHtml(gemOverlayIcon)}&quot;)"></span>` : ""}
         </div>
         <span class="item-name">${escapeHtml(itemName(item))}</span>
+        ${enchantment ? `<span class="inventory-v2-enchantment-badge" title="Encantamiento mágico +${enchantment.tier}: ${escapeHtml(enchantment.label)}">✦ +${enchantment.tier}</span>` : ""}
         ${activeCard ? `<span class="inventory-v2-card-meta"><span class="inventory-v2-card-value">₳ ${escapeHtml(String(value))}</span><span class="inventory-v2-card-qty">x${escapeHtml(String(quantity))}</span></span>` : ""}
       </div>
       ${equipable ? '<span class="inventory-v2-equip-marker">EQUIP</span>' : ""}
@@ -670,6 +717,11 @@
     return slot;
   }
 
+  function activeInventoryLimit() {
+    const configured = Number(inventory()?.activeSlotLimit?.(state.unit) ?? inventory()?.DEFAULT_ACTIVE_SLOT_LIMIT ?? 24);
+    return Number.isFinite(configured) ? Math.max(0, Math.trunc(configured)) : 24;
+  }
+
   function renderGrid(containerType) {
     const active = containerType === "active";
     const grid = doc.getElementById(active ? "inv-active-grid" : "inv-stash-grid");
@@ -681,7 +733,7 @@
 
     visibleEntries.forEach(([key, item]) => fragment.appendChild(createItemSlot(key, item, containerType)));
     if (active) {
-      const limit = Math.max(0, Number(inventory()?.activeSlotLimit?.(state.unit) ?? inventory()?.DEFAULT_ACTIVE_SLOT_LIMIT ?? 20) || 20);
+      const limit = activeInventoryLimit();
       for (let index = visibleEntries.length + 1; index <= limit; index += 1) fragment.appendChild(createEmptySlot(index));
     }
     grid.appendChild(fragment);
@@ -694,7 +746,7 @@
 
   function renderCarryCount() {
     const count = entries(state.unit?.inventario_activo).filter(([, item]) => item && quantityOf(item) > 0).length;
-    const limit = Number(inventory()?.activeSlotLimit?.(state.unit) ?? inventory()?.DEFAULT_ACTIVE_SLOT_LIMIT ?? 20) || 20;
+    const limit = activeInventoryLimit();
     const el = doc.getElementById("inventory-v2-carry-count");
     if (el) el.textContent = `${String(count).padStart(2, "0")} / ${limit}`;
   }
@@ -719,6 +771,67 @@
     return bridge()?.getSlotItem?.(state.unit || {}, slotId) || null;
   }
 
+  function combatSpriteSource(player = {}) {
+    // Same canonical priority as the combat field; never substitute the small HUD portrait.
+    const raw = player.combatSprite || player.sprite_combate || player.combat_sprite ||
+      player.tokenImage || player.sprite || player.idle_sprite ||
+      player.combatVisual?.spriteUrl || player.visual?.spriteUrl || "";
+    // Combat editor persists the sprite URL verbatim, including relative and data: URLs.
+    // This is assigned directly to an image.src property, never interpolated as HTML.
+    return String(raw || "").trim();
+  }
+
+  function hydrateCombatSprite(player = {}) {
+    const visual = player.combatVisual || {};
+    const bound = (value, fallback, min, max) => {
+      const n = Number(value);
+      return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback;
+    };
+    state.combatSprite = {
+      src: combatSpriteSource(player),
+      x: bound(player.spriteX ?? player.combatSpriteX ?? visual.x, 0, -80, 80),
+      y: bound(player.spriteY ?? player.combatSpriteY ?? visual.y, 0, -80, 80),
+      scale: bound(player.visualScale ?? player.combatScale ?? player.scale ?? visual.scale, 1, 0.5, 2.5),
+    };
+  }
+
+  function renderCombatSprite() {
+    const image = doc.querySelector(".inventory-v2-combat-sprite");
+    const fallback = doc.querySelector(".inventory-v2-sprite-fallback");
+    if (!image || !fallback) return;
+    const visual = state.combatSprite || {};
+    const src = visual.src || combatSpriteSource(state.unit);
+    image.style.transform = `translate(${visual.x || 0}px, ${visual.y || 0}px) scale(${visual.scale || 1})`;
+    if (!src) {
+      image.hidden = true;
+      image.dataset.url = "";
+      image.removeAttribute("src");
+      fallback.hidden = false;
+      return;
+    }
+    if (image.dataset.url === src) return;
+    image.dataset.url = src;
+    image.hidden = true;
+    fallback.hidden = false;
+    image.onload = () => { if (image.dataset.url === src) { image.hidden = false; fallback.hidden = true; } };
+    image.onerror = () => { image.hidden = true; fallback.hidden = false; };
+    image.src = src;
+  }
+
+  function renderEquipmentVitals() {
+    const unit = state.unit || {};
+    const data = unit.combatStats || {};
+    const level = doc.querySelector("[data-inv-vital=level]");
+    const hp = doc.querySelector("[data-inv-vital=hp]");
+    const sp = doc.querySelector("[data-inv-vital=sp]");
+    if (level) level.textContent = `NV. ${unit.level ?? unit.nivel ?? 1}`;
+    const hpCurrent = unit.hp ?? data.hp_actual;
+    const hpMax = unit.hp_max ?? data.hp_max;
+    const spCurrent = unit.sp ?? data.sp_actual;
+    const spMax = unit.sp_max ?? data.sp_max;
+    if (hp) hp.textContent = `HP ${hpCurrent == null ? "—" : hpCurrent}${hpMax == null ? "" : ` / ${hpMax}`}`;
+    if (sp) sp.textContent = `SP ${spCurrent == null ? "—" : spCurrent}${spMax == null ? "" : ` / ${spMax}`}`;
+  }
   function renderEquipment() {
     const equipment = doc.querySelector(".inventory-v2-equipment");
     if (!equipment || !state.unit) return;
@@ -729,6 +842,12 @@
       const slotId = button.dataset.equipmentSlot;
       const item = slotData(slotId);
       const name = button.querySelector(".inventory-v2-eq-name");
+      const icon = button.querySelector(".inventory-v2-eq-icon");
+      const url = item ? itemIcon(item) : "";
+      if (icon) {
+        icon.style.backgroundImage = url ? `url("${String(url).replace(/["\\]/g, "")}")` : "";
+        icon.classList.toggle("has-icon", Boolean(url));
+      }
       const hint = button.querySelector(".inventory-v2-eq-hint");
       button.classList.toggle("is-filled", Boolean(item));
       button.classList.toggle("is-compatible", Boolean(activeSelected) && compatible.includes(slotId));
@@ -738,12 +857,13 @@
       );
       if (item) {
         name.textContent = itemName(item);
+        button.classList.toggle("inventory-v2-enchanted", Boolean(enchantmentInfo(item)));
         const condition = runtime()?.getCondition?.(item);
         const percent = condition?.percent ?? (item.condition != null ? Math.round(Number(item.condition)) : null);
         hint.textContent = `${item.tier ? `TIER ${tierRoman(item)}` : itemCategory(item).toUpperCase()} // ${percent != null ? `${percent}%` : "READY"}`;
         button.draggable = false;
       } else {
-        name.textContent = "EMPTY";
+        name.textContent = "LIBRE";
         hint.textContent = compatible.includes(slotId) ? "CLICK / DROP TO EQUIP" : (slotSpecs.find((entry) => entry.id === slotId)?.hint || "AVAILABLE");
         button.draggable = false;
       }
@@ -755,8 +875,8 @@
       const strong = summary.querySelector("strong");
       if (strong) strong.textContent = augments.length ? augments.slice(0, 2).map(itemName).join(" // ") : "NO INSTALLED AUGMENTS";
     }
-    const sync = doc.getElementById("inventory-v2-sync-state");
-    if (sync) sync.textContent = state.peer?.bound ? "SYNC // REALTIME" : "SYNC // WAITING";
+    renderCombatSprite();
+    renderEquipmentVitals();
   }
 
   function decorateGrid(containerType) {
@@ -868,6 +988,10 @@
       if (charges?.current != null) {
         facts.push(`<span class="inventory-v2-player-fact"><b>CHARGES</b> ${escapeHtml(String(charges.current))} / ${escapeHtml(String(charges.max ?? "∞"))}</span>`);
       }
+      const magic = enchantmentInfo(item);
+      if (magic) {
+        facts.push(`<span class="inventory-v2-player-fact inventory-v2-player-magic"><b>ENCANTAMIENTO +${magic.tier}</b> +${magic.value} ${escapeHtml(magic.label)}${magic.requiresAttunement ? (magic.attuned ? " · SINTONIZADO" : " · REQUIERE SINTONIZACIÓN") : ""}</span>`);
+      }
       const magical = magicPresentation(item);
       // Item-instance-specific Enchantments may only be compared after the
       // player's own knowledge rules reveal their identities.
@@ -949,6 +1073,7 @@
   }
 
   function hydratePlayerVitals(player = {}) {
+    hydrateCombatSprite(player);
     const vitals = global.LuminousPlayerVitalsHud?.resolveVitals?.(player);
     if (!vitals) return false;
     state.unit.playerId = state.playerId;
@@ -1103,6 +1228,42 @@
     await saveUnit(`RELOADED // ${itemName(target).toUpperCase()}`);
   }
 
+  async function toggleSelectedAttunement() {
+    const item = selectedItem();
+    const magic = magicRuntime();
+    if (!item || state.selectedContainer === "stash" || !magic?.requiresAttunement?.(item)) return;
+    const previous = {
+      ids: Array.isArray(state.unit.attunedItemInstanceIds) ? state.unit.attunedItemInstanceIds.slice() : [],
+      attuned: item.attuned,
+      attunedToId: item.attunedToId,
+    };
+    const wasAttuned = magic.isAttuned(state.unit, item);
+    const result = wasAttuned ? magic.unattuneItem(state.unit, item) : magic.attuneItem(state.unit, item);
+    if (wasAttuned ? !result?.unattuned : !result?.attuned) {
+      const reason = String(result?.reason || "sintonización no permitida").replace(/_/g, " ");
+      showStatus("No se pudo cambiar la sintonización: " + reason, "error");
+      return;
+    }
+    const saved = await saveUnit(wasAttuned ? "Sintonización retirada." : "Objeto sintonizado.");
+    if (!saved) {
+      state.unit.attunedItemInstanceIds = previous.ids;
+      if (previous.attuned === undefined) delete item.attuned;
+      else item.attuned = previous.attuned;
+      if (previous.attunedToId === undefined) delete item.attunedToId;
+      else item.attunedToId = previous.attunedToId;
+      renderAll();
+    }
+  }
+
+  function appendAttunementAction(host, item) {
+    const magic = magicRuntime();
+    if (!magic?.requiresAttunement?.(item)) return;
+    const attuned = magic.isAttuned(state.unit, item);
+    const gate = !attuned && magic.canAttune?.(state.unit, item);
+    addAction(host, attuned ? "RETIRAR SINTONIZACIÓN" : "SINTONIZAR",
+      toggleSelectedAttunement, "", Boolean(gate && gate.allowed === false));
+  }
+
   async function studySelectedArcana() {
     const item = selectedItem();
     const knowledge = magicKnowledge();
@@ -1127,12 +1288,17 @@
     const host = doc.getElementById("inventory-v2-actions");
     if (!host) return;
     host.innerHTML = "";
+    if (enchantmentRuntime()?.activeEnchantment?.(item)) {
+      addAction(host, "COMPENDIO DE ENCANTAMIENTOS",
+        () => global.open?.("game-codex/enchantments.html", "_blank", "noopener"));
+    }
     const magical = magicRuntime()?.isMagicItem?.(item) === true;
     const presentation = magical ? magicPresentation(item) : null;
     const canStudy = magical && presentation?.identified !== true;
 
     if (state.selectedContainer === "equipment") {
       addAction(host, "UNEQUIP", unequipSelected, "primary");
+      appendAttunementAction(host, item);
       if (canStudy) addAction(host, "STUDY ARCANA · 1 SP", studySelectedArcana);
       return;
     }
@@ -1146,6 +1312,7 @@
     const compatible = bridge()?.compatibleSlots?.(item) || [];
     if (equippedSlot) addAction(host, "UNEQUIP", unequipSelected, "primary");
     else if (compatible.length) addAction(host, "EQUIP", equipSelectedAuto, "primary");
+    appendAttunementAction(host, item);
     addAction(host, "STORE / GUARDAR", () => moveSelected("active", "stash"), "", !state.stashUnlocked);
     if (foodRest()?.isFood?.(item)) addAction(host, "EAT / DRINK", eatDrinkSelected, "primary");
     const functionalItem = runtime()?.resolveItem?.(item) || item;

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
+await import('../js/movement-speed-runtime.js');
 await import('../js/unit-rank-runtime.js');
 await import('../js/universal-ranged-ammo-runtime.js');
 await import('../js/creature-type-catalog.js');
@@ -26,8 +27,8 @@ assert.ok(goblin.skillIds.length >= 6, 'canonical Goblin must deploy with its Ti
 assert.ok(goblin.skillIds.includes('goblin_scimitar_slash'));
 assert.ok(goblin.skillIds.includes('goblin_shortbow_shot'));
 assert.equal(goblin.runtimeDiagnostics.catalogResolved, true);
-assert.deepEqual(goblin.speedRange, [1, 6], 'pending canonical Goblin Speed must use the explicit runtime fallback rather than zero');
-assert.equal(goblin.runtimeDiagnostics.speedFallback, true);
+assert.deepEqual(goblin.speedRange, [1, 8], 'canonical Goblin Warrior must derive Speed from 30 ft Small movement');
+assert.equal(goblin.runtimeDiagnostics.speedFallback, false);
 
 const customDefinition = {
   name: 'Field Test Custom Unit',

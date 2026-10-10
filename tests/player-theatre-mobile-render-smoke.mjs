@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 
 const html = fs.readFileSync(new URL('../hoja_personaje.html', import.meta.url), 'utf8');
 const mobileCss = fs.readFileSync(new URL('../css/player-mobile-runtime.css', import.meta.url), 'utf8');
+const checkCss = fs.readFileSync(new URL('../css/theatre-check-coordinator.css', import.meta.url), 'utf8');
 const engine = fs.readFileSync(new URL('../js/theatre-engine.js', import.meta.url), 'utf8');
+const hudNavigation = fs.readFileSync(new URL('../js/player-hud-navigation.js', import.meta.url), 'utf8');
 
 for (const id of ['dialogue-title','dialogue-name','dialogue-text','theatre-stage']) {
   assert.match(html, new RegExp(`id=["']${id}["']`), `Player Theatre DOM must expose #${id}`);
@@ -18,6 +20,92 @@ assert.match(
   html,
   /<script src=["']js\/theatre-engine\.js[^"']*["']><\/script>/,
   'Player sheet must load the canonical Theatre Engine'
+);
+
+for (const stylesheet of [
+  'css/theatre-roll-visualizer.css',
+  'css/theatre-opposed-checks.css',
+  'css/theatre-check-coordinator.css',
+]) {
+  assert.equal(
+    html.includes(stylesheet),
+    true,
+    `Player sheet must load ${stylesheet}`,
+  );
+}
+
+for (const script of [
+  'js/theatre-roll-visualizer.js',
+  'js/theatre-check-coordinator.js',
+  'js/theatre-opposed-checks.js',
+]) {
+  assert.equal(
+    html.includes(script),
+    true,
+    `Player sheet must load ${script}`,
+  );
+}
+
+assert.match(
+  html,
+  /id=["']btn-toggle-theatre-self-actor["'][\s\S]{0,900}Assets\/Images\/Buttons\/Player\.svg/,
+  'Player Theatre self visibility must live in the hamburger menu'
+);
+assert.match(
+  engine,
+  /getElementById\(["']btn-toggle-theatre-self-actor["']\)/,
+  'Theatre Engine must bind the hamburger self-visibility toggle'
+);
+assert.match(
+  hudNavigation,
+  /#btn-toggle-theatre-self-actor/,
+  'Mobile touch bridge must include the Theatre self-visibility toggle'
+);
+assert.equal(
+  engine.includes("position:absolute;right:16px;top:16px"),
+  false,
+  'Legacy floating self-visibility checkbox must not return'
+);
+assert.match(
+  checkCss,
+  /--theatre-player-menu-safe-top:[^;]+;/,
+  'Player checks must reserve a safe vertical zone below the hamburger rail'
+);
+assert.match(
+  checkCss,
+  /body\.player-instance-theatre \.theatre-check-front-layer \.theatre-check-command-prompt[\s\S]{0,500}top:var\(--theatre-player-menu-safe-top\)!important;/,
+  'Player check prompts must stay below the hamburger rail'
+);
+
+assert.match(
+  checkCss,
+  /body\.player-instance-theatre \.theatre-check-front-layer \.theatre-roll-result-card[\s\S]{0,220}top:var\(--theatre-player-menu-safe-top\)!important;/,
+  'Remote roll-result cards must also stay below the hamburger rail'
+);
+assert.match(
+  checkCss,
+  /@media\(max-height:430px\) and \(orientation:landscape\)[\s\S]{0,1400}\.theatre-check-hud,[\s\S]{0,200}\.theatre-opposed-hud[\s\S]{0,700}max-height:calc\(100dvh - var\(--theatre-player-menu-safe-top\) - 8px\)[\s\S]{0,500}overflow-y:auto;[\s\S]{0,300}pointer-events:auto;[\s\S]{0,200}touch-action:pan-y;/,
+  'Compact landscape check and opposed HUDs must remain scrollable and touch-reachable'
+);
+assert.match(
+  checkCss,
+  /@media\(max-height:430px\) and \(orientation:landscape\)[\s\S]{0,3200}\.theatre-opposed-coins\{min-height:40px!important;[\s\S]{0,1200}\.theatre-opposed-compare\{min-height:66px!important;[\s\S]{0,1200}\.theatre-opposed-status\{min-height:20px!important;/,
+  'Compact landscape Theatre must shrink opposed-check content so results stay visible'
+);
+assert.match(
+  checkCss,
+  /@media\(max-height:430px\) and \(orientation:landscape\)[\s\S]{0,500}--theatre-player-menu-safe-top:max\(92px,calc\(env\(safe-area-inset-top\) \+ 76px\)\);/,
+  'Compact landscape Theatre must shrink the menu-safe offset instead of forcing 104px'
+);
+assert.match(
+  checkCss,
+  /\.theatre-roll-result-card:nth-of-type\(2\)\{[\s\S]{0,120}top:calc\(var\(--theatre-player-menu-safe-top\) \+ 64px\)!important;/,
+  'Compact landscape second roll result must use the short-stack offset'
+);
+assert.match(
+  checkCss,
+  /\.theatre-roll-result-card:nth-of-type\(3\)\{[\s\S]{0,120}top:calc\(var\(--theatre-player-menu-safe-top\) \+ 128px\)!important;/,
+  'Compact landscape third roll result must stay inside short Theatre viewports'
 );
 
 assert.match(engine, /scene:\s*["']campaña\/estado_mundo\/escena_actual["']/);
@@ -36,14 +124,26 @@ for (const legacyPath of [
 
 assert.match(
   mobileCss,
-  /player-instance-theatre:not\(\.player-cellphone-surface-open\) #theatre-view-player[\s\S]*z-index:\s*12000\s*!important/,
+  /player-instance-theatre:not\(\.player-cellphone-surface-open\) #theatre-view-player[\s\S]*z-index:\s*4000\s*!important/,
   'Mobile Theatre must stack above the dormant cellphone wrapper'
 );
 
 assert.match(
   mobileCss,
-  /player-instance-theatre:not\(\.player-cellphone-surface-open\) \.hud-sidebar-right[\s\S]*z-index:\s*13000\s*!important/,
+  /player-instance-theatre:not\(\.player-cellphone-surface-open\) \.hud-sidebar-right[\s\S]*z-index:\s*19500\s*!important/,
   'Mobile Theatre HUD must stack above the Theatre surface'
 );
 
 console.log('player theatre mobile render contract: ok');
+
+assert.match(
+  mobileCss,
+  /player-instance-theatre:not\(\.player-cellphone-surface-open\) \.hud-modal[\s\S]*z-index:\s*20000\s*!important/,
+  'Mobile Theatre menus must stack above the Theatre surface'
+);
+
+assert.match(
+  mobileCss,
+  /player-instance-theatre:not\(\.player-cellphone-surface-open\) \.inventory-modal[\s\S]*z-index:\s*20000\s*!important/,
+  'Mobile Theatre inventory must stack above the Theatre surface'
+);

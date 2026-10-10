@@ -110,12 +110,15 @@
 
   function normalizeCheckContext(value) {
     const source = value || {};
-    const raw = Number(source.thresholdRaw ?? source.threshold);
+    const rawValue = source.thresholdRaw ?? source.threshold;
+    const raw = rawValue === null || rawValue === undefined || rawValue === "" ? NaN : Number(rawValue);
     const modifierValue = Math.max(0, Math.trunc(Number(source.modifierValue ?? source.x) || 0));
     const modifierType = modifierValue > 0 ? normalizeModifier(source.modifierType) : MODIFIER.NEUTRAL;
     return {
       thresholdRaw: Number.isFinite(raw) ? Math.trunc(raw) : null,
       hiddenThreshold: Boolean(source.hiddenThreshold),
+      thresholdVisibility: ["public", "hidden", "mystery"].includes(source.thresholdVisibility)
+        ? source.thresholdVisibility : (source.hiddenThreshold ? "mystery" : "public"),
       modifierType,
       modifierValue,
       tipText: modifierValue > 0 ? String(source.tipText || source.tip || "").trim().slice(0, 180) : "",
@@ -218,73 +221,103 @@
     img.className = "theatre-check-coin-image";
     img.alt = coin?.side === "head" ? "Head" : coin?.side === "tail" ? "Tail" : "Coin";
     img.src = coin?.src || (coin?.side === "head" ? HEAD_SRC : TAIL_SRC);
-    img.dataset.side = coin?.side || "unknown";
+    img.dataset.side = coin?.side || "pending";
+    if (!coin) { img.classList.add("is-pending"); img.alt = "Moneda pendiente"; }
     return img;
   }
 
-  function createLocalHud(check) {
-    const layer = ensureLayer();
+  // Single production HUD shared by player Checks, VS and automated NPC rolls.
+  function createSharedCheckHud({ check = {}, title = "", parent = null } = {}) {
+    const layer = parent || ensureLayer();
     if (!layer) return null;
-    localHud?.remove();
-    if (localHudTimer) global.clearTimeout(localHudTimer);
-
     const normalized = normalizeCheckContext(check);
     const hud = doc.createElement("article");
     hud.className = "theatre-check-hud is-rolling";
     hud.dataset.modifier = normalized.modifierType;
-
+    hud.setAttribute("role", "status");
+    hud.setAttribute("aria-live", "polite");
+    if (title) hud.appendChild(textNode("theatre-check-dm-mirror-caption", title));
     if (normalized.modifierValue > 0 && normalized.tipText) {
       const tip = doc.createElement("section");
       tip.className = "theatre-check-tip";
       const sign = normalized.modifierType === MODIFIER.ADVANTAGE ? "-" : "+";
       const label = normalized.modifierType === MODIFIER.ADVANTAGE ? "ADVANTAGE" : "DISADVANTAGE";
-      tip.appendChild(textNode("theatre-check-tip-title", `${label} ${sign}${normalized.modifierValue}`));
-      tip.appendChild(textNode("theatre-check-tip-copy", normalized.tipText));
+      tip.append(textNode("theatre-check-tip-title", `${label} ${sign}${normalized.modifierValue}`),
+        textNode("theatre-check-tip-copy", normalized.tipText));
       hud.appendChild(tip);
     }
-
     const body = doc.createElement("section");
     body.className = "theatre-check-body";
-
     const coins = doc.createElement("div");
     coins.className = "theatre-check-coins";
     coins.dataset.localCoins = "true";
     body.appendChild(coins);
-
     const comparison = doc.createElement("div");
     comparison.className = "theatre-check-comparison";
-
-    const thresholdBlock = doc.createElement("div");
-    thresholdBlock.className = `theatre-check-block theatre-check-threshold ${normalized.modifierType}`;
-    thresholdBlock.appendChild(textNode("theatre-check-block-label", "Threshold"));
-    const thresholdValue = textNode("theatre-check-block-value", normalized.hiddenThreshold ? "??" : (effectiveThreshold(normalized) ?? "—"));
-    thresholdValue.dataset.localThreshold = "true";
-    thresholdBlock.appendChild(thresholdValue);
-    const thresholdSub = textNode("theatre-check-block-sub", "");
-    thresholdSub.dataset.localThresholdSub = "true";
-    thresholdBlock.appendChild(thresholdSub);
-
-    const operator = textNode("theatre-check-operator", "VS");
-    operator.dataset.localOperator = "true";
-
+    const showThreshold = normalized.hiddenThreshold || Number.isFinite(normalized.thresholdRaw);
+    if (!showThreshold) comparison.classList.add("is-roll-only");
+    if (showThreshold) {
+      const thresholdBlock = doc.createElement("div");
+      thresholdBlock.className = `theatre-check-block theatre-check-threshold ${normalized.modifierType}`;
+      thresholdBlock.appendChild(textNode("theatre-check-block-label", "Threshold"));
+      const value = normalized.hiddenThreshold
+        ? (normalized.thresholdVisibility === "hidden" ? "OCULTO" : "??")
+        : effectiveThreshold(normalized);
+      const thresholdValue = textNode("theatre-check-block-value", value ?? "—");
+      thresholdValue.dataset.localThreshold = "true";
+      thresholdBlock.appendChild(thresholdValue);
+      const thresholdSub = textNode("theatre-check-block-sub", "");
+      thresholdSub.dataset.localThresholdSub = "true";
+      thresholdBlock.appendChild(thresholdSub);
+      comparison.append(thresholdBlock, textNode("theatre-check-operator", "VS"));
+      comparison.lastElementChild.dataset.localOperator = "true";
+    }
     const resultBlock = doc.createElement("div");
     resultBlock.className = "theatre-check-block theatre-check-result";
-    resultBlock.appendChild(textNode("theatre-check-block-label", "Outcome"));
+    resultBlock.appendChild(textNode("theatre-check-block-label", showThreshold ? "Resultado" : "Total"));
     const resultValue = textNode("theatre-check-block-value", "—");
     resultValue.dataset.localResult = "true";
-    resultBlock.appendChild(resultValue);
-    resultBlock.appendChild(textNode("theatre-check-block-sub", ""));
-
-    comparison.append(thresholdBlock, operator, resultBlock);
+    resultBlock.append(resultValue, textNode("theatre-check-block-sub", ""));
+    comparison.appendChild(resultBlock);
     body.appendChild(comparison);
-
-    const status = textNode("theatre-check-status", "ROLLING...");
+    const status = textNode("theatre-check-status", "PREPARANDO TIRADA…");
     status.dataset.localStatus = "true";
     body.appendChild(status);
     hud.appendChild(body);
     layer.appendChild(hud);
-    localHud = hud;
     return hud;
+  }
+
+  function updateSharedCheckHud(hud, { coins, total, status, outcome, renderCoins = true } = {}) {
+    if (!hud) return;
+    const row = hud.querySelector("[data-local-coins]");
+    if (row && Array.isArray(coins) && renderCoins) {
+      const indexed = new Map(coins.map((coin, index) => [Number.isFinite(Number(coin.index)) ? Number(coin.index) : index, coin]));
+      row.replaceChildren(...Array.from({ length: COIN_COUNT }, (_, index) => buildCoinImage(indexed.get(index) || null)));
+    }
+    const result = hud.querySelector("[data-local-result]");
+    if (result && total !== undefined && total !== null) result.textContent = String(total);
+    const comparison = hud.querySelector("[data-local-operator]");
+    if (comparison && (outcome === "passed" || outcome === "failed")) {
+      comparison.textContent = outcome === "passed" ? "≤" : ">";
+    }
+    const label = hud.querySelector("[data-local-status]");
+    if (label && status) label.textContent = status;
+    if (label && (outcome === "passed" || outcome === "failed")) {
+      label.classList.toggle("is-pass", outcome === "passed");
+      label.classList.toggle("is-fail", outcome === "failed");
+    }
+    if (status === "CHECK PASSED" || status === "CHECK FAILED" || status === "TIRADA COMPLETADA" || status === "THRESHOLD REGISTRADO") {
+      hud.classList.remove("is-rolling");
+      hud.classList.add("is-resolved");
+    }
+  }
+
+  function createLocalHud(check) {
+    localHud?.remove();
+    if (localHudTimer) global.clearTimeout(localHudTimer);
+    localHud = createSharedCheckHud({ check });
+    return localHud;
   }
 
   function syncLocalCoinsFromEngine() {
@@ -339,13 +372,19 @@
       try {
         if (pendingLocalRoll) return;
         const check = normalizeCheckContext(armedCheck);
+        const opposed = Boolean(doc.body?.classList?.contains("theatre-opposed-roll-active"));
         pendingLocalRoll = {
           base: numberFromText(result),
           startedAt: Date.now(),
           check,
+          opposed,
         };
-        createLocalHud(check);
-        syncLocalCoinsFromEngine();
+        // Opposed renders through the same shared component from its live phase;
+        // never create a second HUD for the underlying legacy Coin Engine.
+        if (!opposed) {
+          createLocalHud(check);
+          syncLocalCoinsFromEngine();
+        }
 
         coinObserver?.disconnect();
         const coinContainer = doc.getElementById("coin-toss-coins-container");
@@ -439,14 +478,14 @@
     publicRecord.coinHeadBonus = COIN_HEAD_BONUS;
 
     const check = full?.check || {};
-    if (check.outcome || Number.isFinite(Number(check.thresholdRaw))) {
+    if (check.outcome || (check.thresholdRaw != null && Number.isFinite(Number(check.thresholdRaw)))) {
       publicRecord.check = {
         hiddenThreshold: Boolean(check.hiddenThreshold),
         outcome: check.outcome || null,
       };
       // A hidden threshold is never placed in the authenticated-player-readable tree.
       if (!check.hiddenThreshold) {
-        publicRecord.check.thresholdRaw = Number.isFinite(Number(check.thresholdRaw)) ? Math.trunc(Number(check.thresholdRaw)) : null;
+        publicRecord.check.thresholdRaw = check.thresholdRaw != null && Number.isFinite(Number(check.thresholdRaw)) ? Math.trunc(Number(check.thresholdRaw)) : null;
         publicRecord.check.modifierType = normalizeModifier(check.modifierType);
         publicRecord.check.modifierValue = Math.max(0, Math.trunc(Number(check.modifierValue) || 0));
       }
@@ -465,7 +504,8 @@
     const coins = Array.isArray(source.coins) ? source.coins.slice(0, COIN_COUNT) : [];
     const heads = countHeadsFromCoins(coins);
     const roomId = getRoomId();
-    const publicRef = db.ref(resolveRollPath(roomId)).push();
+    const rollId = typeof source.rollId === "string" && /^[a-zA-Z0-9_-]{3,120}$/.test(source.rollId) ? source.rollId : null;
+    const publicRef = rollId ? db.ref(resolveRollPath(roomId)).child(rollId) : db.ref(resolveRollPath(roomId)).push();
     const needsPrivateRecord = effectiveConfig.visibility !== VISIBILITY.PUBLIC || check.hiddenThreshold;
     const fullRecord = buildFullRollRecord({
       source,
@@ -506,6 +546,7 @@
     rollStartPending = false;
     if (!Number.isFinite(total)) return;
 
+    if (pending.opposed) return; // VS final result is published exactly once by the DM phase coordinator.
     syncLocalCoinsFromEngine();
     const coins = captureCoinImages();
     syncLocalResult(total, pending.check);
@@ -764,6 +805,8 @@
     clearArmedCheck,
     publishRoll,
     renderIncomingRoll,
+    createSharedCheckHud,
+    updateSharedCheckHud,
     getClientId: () => CLIENT_ID,
     getConfig: () => Object.assign({}, config),
   });

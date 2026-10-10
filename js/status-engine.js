@@ -85,6 +85,9 @@
     }
     if (Number.isFinite(Number(definition.maxCount))) next.count = Math.min(Number(definition.maxCount), next.count);
     store[id] = next;
+    if (id === "prone") {
+      try { global.LuminousUnitCombatMechanics?.onKnockedDown?.(unit); } catch (_) {}
+    }
     return next;
   }
 

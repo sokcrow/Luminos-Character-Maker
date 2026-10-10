@@ -95,9 +95,21 @@ assert.strictEqual(normalUnarmored.final.slash,1.20);
 const armorless=Runtime.resolvePhysicalResistance({constitutionMod:5,armorlessDefense:true});
 assert.strictEqual(armorless.final.slash,1.10);
 const proficientPlate=Runtime.resolvePhysicalResistance({armor:steelPlate,constitutionMod:3,proficient:true});
-assert.strictEqual(Number(proficientPlate.final.slash.toFixed(2)),0.54);
-assert.strictEqual(Number(proficientPlate.final.pierce.toFixed(2)),0.74);
-assert.strictEqual(Number(proficientPlate.final.blunt.toFixed(2)),1.24);
+assert.strictEqual(Number(proficientPlate.final.slash.toFixed(2)),0.52);
+assert.strictEqual(Number(proficientPlate.final.pierce.toFixed(2)),0.72);
+assert.strictEqual(Number(proficientPlate.final.blunt.toFixed(2)),1.22);
+assert.strictEqual(proficientPlate.defensiveLevelBonus,1);
+assert.strictEqual(proficientPlate.proficiencyAdjustment,0.04);
+const profFourPlate=Runtime.resolvePhysicalResistance({armor:steelPlate,constitutionMod:3,proficient:true,proficiencyBonus:4});
+assert.strictEqual(profFourPlate.final.slash,0.48);
+assert.strictEqual(profFourPlate.defensiveLevelBonus,2);
+const profSixPlate=Runtime.resolvePhysicalResistance({armor:steelPlate,constitutionMod:3,proficient:true,proficiencyBonus:6});
+assert.strictEqual(profSixPlate.final.slash,0.44);
+assert.strictEqual(profSixPlate.defensiveLevelBonus,3);
+const untrainedPlate=Runtime.resolvePhysicalResistance({armor:steelPlate,constitutionMod:3,proficient:false,proficiencyBonus:6});
+assert.strictEqual(untrainedPlate.final.slash,0.56);
+assert.strictEqual(untrainedPlate.defensiveLevelBonus,0);
+assert.strictEqual(Runtime.resolveProficiencyBenefits({proficient:true,level:41}).proficiencyBonus,4);
 
 const legacyGradeIgnored=Armor.resolvePreset("plate_armor",{
   armor_plate:{body:"hardened_steel"},armor_reinforcement:{body:"hardened_steel"}

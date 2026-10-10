@@ -17,7 +17,7 @@
   const DEFINITIONS = Object.freeze({
     combat_superiority: Object.freeze({
       schemaVersion: 1, id: "combat_superiority", name: "Combat Superiority",
-      description: "Learn 3 Maneuvers from the Fighter Maneuver list. You can gain Superiority. [On Clash Win] Gain +3 Superiority. [On Hit] Gain +1 Superiority. Maneuver Damage Cap is 10%.",
+      description: "Learn 3 Maneuvers from the Fighter Maneuver list. You can gain Superiority. [On Clash Win] Gain +3 Superiority. [On Hit] Gain +1 Superiority. Maneuver Damage Cap is 10%. When multiple Maneuver Damage bonuses apply to the same attack, their combined bonus cannot exceed this cap. Non-Damage effects use their own limits.",
       source: SOURCE, contexts: ["combat", "any"], activation: { type: "passive", actionCost: "none" }, effects: [], rules: [],
       mechanics: { maneuverCatalog: "fighter", learnManeuvers: 3, superiority: { clashWinGain: 3, onHitGain: 1 }, maneuverDamageCap: 0.10, superiorTechniqueManeuverCountsAgainstLimit: false },
     }),
@@ -33,7 +33,7 @@
     }),
     combat_superiority_plus: Object.freeze({
       schemaVersion: 1, id: "combat_superiority_plus", name: "Combat Superiority+",
-      description: "Learn +1 additional Maneuver. [On Clash Win] Gain +4 Superiority. [On Hit] Gain +2 Superiority. Maneuver Damage Cap becomes 15%.",
+      description: "Learn +1 additional Maneuver. [On Clash Win] Gain +4 Superiority. [On Hit] Gain +2 Superiority. Maneuver Damage Cap becomes 15% (shared by combined Maneuver Damage bonuses on the same attack).",
       source: SOURCE, contexts: ["combat", "any"], activation: { type: "passive", actionCost: "none" }, effects: [], rules: [],
       mechanics: { additionalManeuvers: 1, superiority: { clashWinGain: 4, onHitGain: 2 }, maneuverDamageCap: 0.15 },
     }),
@@ -45,7 +45,7 @@
     }),
     combat_superiority_plus_plus: Object.freeze({
       schemaVersion: 1, id: "combat_superiority_plus_plus", name: "Combat Superiority++",
-      description: "Learn +1 additional Maneuver. [On Clash Win] Gain +5 Superiority. [On Hit] Gain +3 Superiority. Maneuver Damage Cap becomes 20%.",
+      description: "Learn +1 additional Maneuver. [On Clash Win] Gain +5 Superiority. [On Hit] Gain +3 Superiority. Maneuver Damage Cap becomes 20% (shared by combined Maneuver Damage bonuses on the same attack).",
       source: SOURCE, contexts: ["combat", "any"], activation: { type: "passive", actionCost: "none" }, effects: [], rules: [],
       mechanics: { additionalManeuvers: 1, superiority: { clashWinGain: 5, onHitGain: 3 }, maneuverDamageCap: 0.20 },
     }),
@@ -136,6 +136,130 @@
   function maneuverDefinition(id) {
     const catalog = global.LuminousFighterManeuverCatalog;
     return catalog?.get ? catalog.get(id) : maneuverCatalog()[normalizeId(id)] || null;
+  }
+
+  // Combat units can be snapshots of the player character without its saved build.
+  // Only borrow the live player's build when their identities actually match.
+  function characterForCombatUnit(unit = {}) {
+    const player = global.LuminousPlayerTraitRuntime?.getCharacter?.() || global.datosJugador;
+    if (!player || unit === player) return unit || {};
+    const keys = (value) => [
+      value?.combatId, value?.combat_id, value?.unitId, value?.unit_id,
+      value?.id, value?.playerId, value?.player_id, value?.characterId,
+      value?.character_id, value?.actorId, value?.actor_id, value?.uid,
+    ].filter((id) => id != null && String(id).trim()).map(String);
+    const playerKeys = new Set([...keys(player), String(global.localStorage?.getItem?.("playerId") || "")].filter(Boolean));
+    const sameId = keys(unit).some((id) => playerKeys.has(id));
+    const name = (value) => normalizeId(value?.characterName || value?.character_name || value?.nombre || value?.name);
+    if (!sameId && !(name(unit) && name(unit) === name(player))) return unit || {};
+    return {
+      ...player, ...unit,
+      characterBuild: Object.keys(unit?.characterBuild || {}).length ? unit.characterBuild : (player.characterBuild || {}),
+    };
+  }
+
+  const finiteCount = (value) => {
+    const count = Number(value && typeof value === "object" ? value.count : value);
+    return Number.isFinite(count) ? Math.max(0, Math.trunc(count)) : 0;
+  };
+
+  function superiorityCount(unit = {}) {
+    const stored = unit?.resources?.superiority
+      ?? unit?.superiorityCount
+      ?? unit?.superiority_count
+      ?? unit?.statusEffects?.superiority;
+    return finiteCount(stored);
+  }
+
+  function setSuperiorityCount(unit = {}, count = 0) {
+    if (!unit || typeof unit !== "object") return 0;
+    const next = finiteCount(count);
+    if (!unit.resources || typeof unit.resources !== "object" || Array.isArray(unit.resources)) unit.resources = {};
+    unit.resources.superiority = next;
+    unit.superiorityCount = next;
+    return next;
+  }
+
+  function gainCombatSuperiority(unit = {}, trigger) {
+    const gain = superiorityGain(characterForCombatUnit(unit), trigger);
+    if (!gain) return superiorityCount(unit);
+    return setSuperiorityCount(unit, superiorityCount(unit) + gain);
+  }
+
+  // Only actually learned Maneuvers contribute, and every learned instance is
+  // counted once. The shared cap applies AFTER stacking per-Count percentages.
+  function maneuverDamageBonus(character = {}, unit = character) {
+    if (!hasBattleMasterLevel(character, 15)) return 0;
+    const learned = character?.characterBuild?.maneuvers?.battle_master;
+    if (!Array.isArray(learned) || !learned.length) return 0;
+    const count = superiorityCount(unit);
+    if (!count) return 0;
+    const seen = new Set();
+    let damagePerCount = 0;
+    for (const rawId of learned) {
+      const id = normalizeId(rawId);
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      const rate = Number(maneuverDefinition(id)?.mechanics?.damagePerSuperiority);
+      if (Number.isFinite(rate) && rate > 0) damagePerCount += rate;
+    }
+    return Math.min(maneuverDamageCap(character, unit), damagePerCount * count * maneuverEffectMultiplier(character, unit));
+  }
+
+  // Use the CombatEngine's own percentage_damage channel. Inject into a copy
+  // of the current coin context so there is no persistent status modifier,
+  // no double application on subsequent coins, and no bonus on fixed adders.
+  function patchCombatEngine() {
+    const engine = global.CombatEngine;
+    if (!engine) return false;
+    if (engine.__battleMasterSuperiorityCombatIntegrated) return true;
+    const originalDamage = engine.calculateCoinDamage;
+    const originalClash = engine.resolveStandardClash;
+    const originalEvent = engine.triggerEvent;
+    if (typeof originalDamage !== "function" || typeof originalClash !== "function" || typeof originalEvent !== "function") return false;
+
+    engine.calculateCoinDamage = function (attacker, defender, skill, power, critical, clashCount, context = null) {
+      const bonus = maneuverDamageBonus(characterForCombatUnit(attacker), attacker);
+      if (!(bonus > 0)) return originalDamage.call(this, attacker, defender, skill, power, critical, clashCount, context);
+      const currentCoin = context?.currentCoin || {};
+      const effects = Array.isArray(currentCoin.effects) ? currentCoin.effects : [];
+      const enriched = {
+        ...(context || {}),
+        currentCoin: {
+          ...currentCoin,
+          effects: [...effects, { type: "percentage_damage", potency: bonus * 100 }],
+        },
+      };
+      return originalDamage.call(this, attacker, defender, skill, power, critical, clashCount, enriched);
+    };
+
+    // One gain per resolved Clash, not per "[On Clash Win]" repeated by each
+    // winning coin during resolveUnilateralWithCounter.
+    engine.resolveStandardClash = function (unitA, skillA, unitB, skillB, ...rest) {
+      const result = originalClash.call(this, unitA, skillA, unitB, skillB, ...rest);
+      if (result?.winner === "A") gainCombatSuperiority(unitA, "clash_win");
+      else if (result?.winner === "B") gainCombatSuperiority(unitB, "clash_win");
+      return result;
+    };
+
+    engine.triggerEvent = function (tag, context, targetsHit) {
+      const result = originalEvent.call(this, tag, context, targetsHit);
+      if (tag === "[On Hit]") gainCombatSuperiority(context?.attacker || context?.unitAttacker, "on_hit");
+      return result;
+    };
+
+    // Superiority is an encounter resource and never carries into the next.
+    if (typeof engine.triggerEncounterStart === "function") {
+      const originalStart = engine.triggerEncounterStart;
+      engine.triggerEncounterStart = function (units = [], ...rest) {
+        for (const unit of Array.isArray(units) ? units : []) {
+          if (hasBattleMasterLevel(characterForCombatUnit(unit), 15)) setSuperiorityCount(unit, 0);
+        }
+        return originalStart.call(this, units, ...rest);
+      };
+    }
+    Object.defineProperty(engine, "__battleMasterSuperiorityCombatIntegrated", { value: true, configurable: true });
+    return true;
   }
 
   function knowYourEnemyUnlockDue(character = {}, turnNumber) {
@@ -236,13 +360,14 @@
     return true;
   }
 
-  function install() { patchArchetypeCatalog(); patchCoreCatalog(); patchTraitEngine(); patchArchetypeRuntime(); return true; }
+  function install() { patchArchetypeCatalog(); patchCoreCatalog(); patchTraitEngine(); patchArchetypeRuntime(); patchCombatEngine(); return true; }
 
   const api = Object.freeze({
     ARCHETYPE_ID, ARCHETYPE_NAME, CLASS_ID, CLASS_NAME, ARCHETYPE, SOURCE, DEFINITIONS, GRANTS,
     fighterLevel, selectedBattleMaster, hasBattleMasterLevel, hasSuperiorTechnique, combatSuperiorityProfile,
     maneuverCapacity, superiorityGain, hpRatio, relentlessActive, maneuverEffectMultiplier, maneuverDamageCap,
-    maneuverCatalog, maneuverDefinition, knowYourEnemyUnlockDue, knowYourEnemyRequest,
+    maneuverCatalog, maneuverDefinition, characterForCombatUnit, superiorityCount, setSuperiorityCount,
+    gainCombatSuperiority, maneuverDamageBonus, patchCombatEngine, knowYourEnemyUnlockDue, knowYourEnemyRequest,
     patchArchetypeCatalog, patchCoreCatalog, patchTraitEngine, patchArchetypeRuntime, install,
   });
 

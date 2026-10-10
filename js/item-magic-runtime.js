@@ -310,6 +310,7 @@
     const runtime = runtimeOf(item);
     return Boolean(
       item.isMagicItem === true || item.magic === true || profile.enabled === true ||
+      (item.enchanted === true && Number(item.enhancementLevel) > 0 && item.enhancementSource === "enchantment") ||
       profile.nativeMagic === true || profile.native_magic === true ||
       enchantmentRefs(item).length > 0 ||
       requiresAttunement(item) || spellProfiles(item).length ||

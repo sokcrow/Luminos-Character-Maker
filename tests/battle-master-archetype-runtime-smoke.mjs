@@ -73,4 +73,84 @@ assert.equal(normalAnalyze.type, "check");
 assert.deepEqual(normalAnalyze.check, { stat: "wis", skill: "perception", threshold: 15 });
 assert.match(g.LuminousArchetypeTraitCatalog.getDefinition("know_your_enemy").description, /Analyse Check/);
 
+
+// Integration: percentage Damage bonuses from every learned Maneuver stack per
+// Superiority Count but stop at the single Combat Superiority damage cap.
+const engine = {
+  currentClashWinner: "A",
+  calculateCoinDamage(attacker, defender, skill, power, critical, count, context) {
+    const pct = (context?.currentCoin?.effects || [])
+      .filter((effect) => effect.type === "percentage_damage")
+      .reduce((sum, effect) => sum + Number(effect.potency || 0), 0);
+    return Math.floor(power * (1 + pct / 100) + 1e-9);
+  },
+  resolveStandardClash(unitA, skillA, unitB, skillB) {
+    const winner = this.currentClashWinner;
+    // The standard Clash emits the event; the winning attack also emits it
+    // for every Coin. The Count grant must not be duplicated.
+    this.triggerEvent("[On Clash Win]", { attacker: winner === "A" ? unitA : unitB, skill: winner === "A" ? skillA : skillB });
+    return { winner };
+  },
+  triggerEvent() { return null; },
+  triggerEncounterStart(units) { return units; },
+};
+g.CombatEngine = engine;
+assert.equal(runtime.patchCombatEngine(), true);
+assert.equal(runtime.patchCombatEngine(), true, "Installation is idempotent");
+
+const three = makeCharacter(15);
+three.characterBuild.maneuvers = { battle_master: ["disarming_attack", "distracting_attack", "feinting_attack"] };
+runtime.setSuperiorityCount(three, 1);
+assert.equal(runtime.maneuverDamageBonus(three), 0.03, "Three +1% Maneuvers provide +3% per Count");
+assert.equal(engine.calculateCoinDamage(three, {}, {}, 100, false, 0), 103);
+runtime.setSuperiorityCount(three, 3);
+assert.equal(engine.calculateCoinDamage(three, {}, {}, 100, false, 0), 109, "Three Count produce +9%");
+runtime.setSuperiorityCount(three, 4);
+assert.equal(engine.calculateCoinDamage(three, {}, {}, 100, false, 0), 110, "Fighter 15 caps combined bonus at +10%");
+
+// Existing Coin percentage effects must survive, without mutating the source
+// context or accidentally accumulating additional synthetic Coin effects.
+const baseContext = { currentCoin: { effects: [{ type: "percentage_damage", potency: 5 }] } };
+assert.equal(engine.calculateCoinDamage(three, {}, {}, 100, false, 0, baseContext), 115);
+assert.equal(engine.calculateCoinDamage(three, {}, {}, 100, false, 0, baseContext), 115);
+assert.equal(baseContext.currentCoin.effects.length, 1);
+
+const four = makeCharacter(50);
+four.characterBuild.maneuvers = { battle_master: ["disarming_attack", "distracting_attack", "feinting_attack"] };
+runtime.setSuperiorityCount(four, 5);
+assert.equal(engine.calculateCoinDamage(four, {}, {}, 100, false, 0), 115, "Fighter 50 has a +15% shared cap");
+const five = makeCharacter(90);
+five.characterBuild.maneuvers = { battle_master: ["disarming_attack", "distracting_attack", "feinting_attack"] };
+runtime.setSuperiorityCount(five, 7);
+assert.equal(engine.calculateCoinDamage(five, {}, {}, 100, false, 0), 120, "Fighter 90 has a +20% shared cap");
+five.hp = 25;
+assert.equal(engine.calculateCoinDamage(five, {}, {}, 100, false, 0), 140, "Relentless doubles the bonuses and cap");
+five.hp = 26;
+assert.equal(engine.calculateCoinDamage(five, {}, {}, 100, false, 0), 120, "Relentless ends above 25% Max HP");
+
+// A +2%-per-Count Maneuver adds its own rate; duplicates don't count twice.
+const precision = makeCharacter(15);
+precision.characterBuild.maneuvers = { battle_master: ["precision_attack", "disarming_attack", "disarming_attack"] };
+runtime.setSuperiorityCount(precision, 2);
+assert.equal(engine.calculateCoinDamage(precision, {}, {}, 100, false, 0), 106);
+const empty = makeCharacter(15);
+runtime.setSuperiorityCount(empty, 10);
+assert.equal(engine.calculateCoinDamage(empty, {}, {}, 100, false, 0), 100, "Unlearned Maneuvers give no damage");
+const foreign = { ...three, characterBuild: { ...three.characterBuild, archetypes: [] } };
+assert.equal(engine.calculateCoinDamage(foreign, {}, {}, 100, false, 0), 100, "Other archetypes gain no bonus");
+
+engine.triggerEncounterStart([three]);
+assert.equal(runtime.superiorityCount(three), 0, "Superiority resets at encounter start");
+engine.resolveStandardClash(three, {}, {}, {});
+assert.equal(runtime.superiorityCount(three), 3, "Clash Win awards one +3 grant");
+engine.triggerEvent("[On Clash Win]", { attacker: three });
+engine.triggerEvent("[On Clash Win]", { attacker: three });
+assert.equal(runtime.superiorityCount(three), 3, "Repeated per-Coin Clash Win hooks never duplicate the grant");
+engine.triggerEvent("[On Hit]", { attacker: three });
+assert.equal(runtime.superiorityCount(three), 4, "On Hit awards +1 after damage");
+assert.equal(engine.calculateCoinDamage(three, {}, {}, 100, false, 0), 110);
+runtime.setSuperiorityCount(four, 0);
+engine.triggerEvent("[On Hit]", { attacker: four });
+assert.equal(runtime.superiorityCount(four), 2, "Combat Superiority+ gains +2 On Hit");
+
 console.log("Battle Master archetype smoke passed.");

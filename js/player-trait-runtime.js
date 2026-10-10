@@ -75,6 +75,34 @@
     });
   }
 
+
+  // Narrative background text is optional gameplay content, not an automated Trait grant.
+  function ensureBackgroundNarratives() {
+    const root = "js/background-narratives/";
+    const packs = [
+      ["associations-workshops", "hana_fixer"],
+      ["backstreets-fixers", "protected_backstreets"],
+      ["civilian-labor", "nest_heir"],
+      ["greatlake-outskirts", "great_lake_fisher"],
+      ["hcorp-social", "nest_family_servant"],
+      ["lobotomy-anomaly", "lcorp_clerk"],
+      ["syndicates-fingers", "minor_syndicate"],
+      ["wings-war", "wing_military_recruit"],
+    ];
+    return ensureScript("background-narratives-catalog-script", root + "catalog.js", () => Boolean(global.LuminousBackgroundNarratives))
+      .then(() => Promise.all([
+        ensureScript("background-narratives-meta-script", root + "templates-meta.js", () => Boolean(global.LuminousBackgroundNarrativeMeta)),
+        ensureScript("background-narratives-ideal-script", root + "templates-ideal.js", () => Boolean(global.LuminousBackgroundIdealTemplates)),
+        ensureScript("background-narratives-other-script", root + "templates-other.js", () => Boolean(global.LuminousBackgroundBondTemplates && global.LuminousBackgroundFlawTemplates)),
+      ]))
+      .then(() => ensureScript("background-narratives-runtime-script", root + "templates-runtime.js", () => Boolean(global.LuminousBackgroundNarrativeData)))
+      .then(() => Promise.all(packs.map(([file, firstId]) => ensureScript(
+        "background-narratives-" + file + "-script",
+        root + file + ".js",
+        () => Boolean(global.LuminousBackgroundNarratives?.get?.(firstId)),
+      ))));
+  }
+
   function ensureDependencies() {
     if (state.dependencyPromise) return state.dependencyPromise;
     state.dependencyPromise = Promise.resolve()
@@ -86,6 +114,8 @@
         ensureScript("trait-player-tray-script", "js/trait-player-tray.js", () => Boolean(global.LuminousTraitPlayerTray)),
         ensureScript("universal-action-economy-script", "js/universal-action-economy.js", () => Boolean(global.LuminousActionEconomy)),
         ensureScript("trait-standardization-runtime-script", "js/trait-standardization-runtime.js", () => Boolean(global.LuminousTraitStandardizationRuntime)),
+        ensureBackgroundNarratives().catch((error) => { console.warn("Background narrative catalog unavailable:", error); }),
+        ensureScript("legacy-background-catalog-script", "js/legacy-background-catalog.js", () => Boolean(global.LuminousLegacyBackgroundCatalog?.get?.("alta_cuna"))),
       ]));
     return state.dependencyPromise;
   }
@@ -110,7 +140,8 @@
   function mergedDefinitions() {
     const core = global.LuminousTraitCatalogCore?.allDefinitions?.() || {};
     const racial = global.LuminousRacialTraitCatalog?.allDefinitions?.() || {};
-    return { ...core, ...racial, ...(state.definitions || {}) };
+    const archetype = global.LuminousArchetypeTraitCatalog?.allDefinitions?.() || {};
+    return { ...core, ...racial, ...archetype, ...(state.definitions || {}) };
   }
 
   function mergedGrants() {
@@ -145,8 +176,50 @@
       definitions,
     );
     const racialGranted = racialCatalog?.resolveTraitGrants?.(normalizedCharacter, definitions) || [];
+    // Core grants do not include all dynamically selected archetype grants.
+    // Resolve them from their own catalog, just as the DM Trait preview does.
+    const archetypeGranted = global.LuminousArchetypeTraitCatalog?.resolveTraitGrants?.(normalizedCharacter, definitions) || [];
     const selected = milestones.resolveSelectedGeneralTraits(character, definitions);
-    return mergeTraitLists([...granted, ...racialGranted], selected);
+    return mergeTraitLists([...granted, ...racialGranted, ...archetypeGranted], selected);
+  }
+
+  // Maneuvers are selectable combat features, not additional Trait grants.
+  // Adapt their descriptions for the Stats catalog only: never feed these
+  // display-only cards into combat dispatch, stat modifiers or persistent data.
+  function resolveManeuverDisplayTraits(character = getCharacter()) {
+    const choices = global.LuminousPlayerProgressionChoices;
+    const battleMaster = global.LuminousBattleMasterArchetypeRuntime;
+    const eligible = Number(choices?.maneuverLimit?.(character) || 0) > 0
+      || Boolean(battleMaster?.hasBattleMasterLevel?.(character, 15));
+    if (!eligible) return [];
+    const selected = choices?.chosenManeuvers?.(character)
+      || character?.characterBuild?.maneuvers?.battle_master;
+    const catalog = global.LuminousFighterManeuverCatalog;
+    if (!Array.isArray(selected) || !catalog?.get) return [];
+    const seen = new Set();
+    return selected.map((value) => {
+      const maneuver = catalog.get(value);
+      if (!maneuver || seen.has(maneuver.id)) return null;
+      seen.add(maneuver.id);
+      return {
+        schemaVersion: 1,
+        id: `known_fighter_maneuver_${maneuver.id}`,
+        name: maneuver.name,
+        description: maneuver.description,
+        source: {
+          type: "archetype", kind: "maneuver", id: "battle_master",
+          archetypeId: "battle_master", archetypeName: "Battle Master",
+          classId: "fighter", className: "Fighter",
+        },
+        contexts: ["combat"],
+        activation: { type: "passive", actionCost: "none" },
+        effects: [], rules: [], mechanics: {},
+      };
+    }).filter(Boolean);
+  }
+
+  function resolveDisplayTraits() {
+    return mergeTraitLists(resolveTraits(), resolveManeuverDisplayTraits());
   }
 
   function inferContext() {
@@ -178,13 +251,15 @@
   }
 
   function getRuntime(overrides = {}) {
+    // Trait actions must mutate the live character, not a grant-resolution snapshot.
+    // buildVariables reads class allocations from characterBuild.classes directly.
     const character = getCharacter();
     const input = overrides || {};
     const context = normalizeId(input.context || inferContext()) || "any";
     const self = Object.prototype.hasOwnProperty.call(input, "self")
       ? input.self
       : (context === "combat" ? currentCombatUnit() : character);
-    const level = Number(input.Level ?? input.level ?? character?.level ?? character?.characterBuild?.calculatedAtLevel ?? 0) || 0;
+    const level = Number(input.Level ?? input.level ?? character?.characterBuild?.calculatedAtLevel ?? character?.level ?? 0) || 0;
     const completed = context === "theatre" ? state.lastCompletedCheck : null;
     const check = Object.prototype.hasOwnProperty.call(input, "check") ? input.check : completed?.check;
     const target = Object.prototype.hasOwnProperty.call(input, "target") ? input.target : (completed?.target || state.theatreTarget || null);
@@ -462,6 +537,67 @@ ${response}`);
     return host;
   }
 
+  // Narrative choices belong to the authenticated player's record only.
+  // These edits never modify the mechanical build, HP coefficient or Trait grants.
+  async function saveBackgroundChoices(backgroundId, choices = {}) {
+    const playerId = String(state.playerId || "").trim();
+    const storageId = String(global.localStorage?.getItem?.(PLAYER_ID_STORAGE_KEY) || "").trim();
+    const uid = currentAuthUid();
+    const character = getCharacter();
+    const selectedBackgroundId = String(character?.characterBuild?.backgroundId || character?.backgroundId || "").trim();
+    if (!playerId || playerId !== storageId || !uid || String(character?.uid || "") !== uid) {
+      throw new Error("No se pudo verificar tu personaje. Vuelve a iniciar sesión.");
+    }
+    if (!selectedBackgroundId || selectedBackgroundId !== String(backgroundId || "").trim()) {
+      throw new Error("Tu Background cambió. Vuelve a abrir el editor antes de guardar.");
+    }
+    if (!state.db && !connectFirebase()) throw new Error("No hay conexión con la base de datos.");
+    const payload = {};
+    for (const key of ["ideal", "bond", "flaw"]) {
+      if (!Object.prototype.hasOwnProperty.call(choices, key)) continue;
+      const value = String(choices[key] ?? "").trim();
+      if (value.length > 180) throw new Error("Cada elección debe tener 180 caracteres o menos.");
+      payload[key] = value;
+    }
+    if (Object.prototype.hasOwnProperty.call(choices, "personality")) {
+      const list = Array.isArray(choices.personality) ? choices.personality : [];
+      if (list.length > 2 || list.some((item) => typeof item !== "string" || item.trim().length > 120)) {
+        throw new Error("Puedes escribir hasta dos rasgos de personalidad de 120 caracteres.");
+      }
+      const cleaned = list.map((item) => item.trim()).filter(Boolean);
+      payload.personality = cleaned.length ? cleaned : "";
+    }
+    if (!Object.keys(payload).length) throw new Error("Elige o escribe al menos una decisión para guardar.");
+    payload.backgroundId = selectedBackgroundId;
+    // Atomic, scope-aware merge: when the DM assigns a new Background, no field
+    // from the previous Background may be carried into the first partial save.
+    const result = await state.db.ref(`${PLAYER_ROOT}/${playerId}/backgroundChoices`)
+      .transaction((current) => {
+        const saved = current && typeof current === "object" && !Array.isArray(current) ? current : {};
+        // Untagged pre-migration choices cannot be proven to belong to this
+        // Background. Never adopt them as the new origin's saved selections.
+        const sameBackground = saved.backgroundId === selectedBackgroundId;
+        return { ...(sameBackground ? saved : {}), ...payload };
+      }, undefined, false);
+    if (!result?.committed) throw new Error("No se pudieron guardar tus decisiones. Inténtalo de nuevo.");
+    const storedChoices = result.snapshot?.val() || payload;
+    // A realtime DM update may have arrived during the save: never restore the
+    // pre-save character (classes, traits, stats or Background).
+    const latestCharacter = getCharacter();
+    const latestBackgroundId = String(latestCharacter?.characterBuild?.backgroundId || latestCharacter?.backgroundId || "").trim();
+    if (state.playerId === playerId
+        && String(latestCharacter?.uid || "") === uid
+        && latestBackgroundId === selectedBackgroundId) {
+      const newestChoices = latestCharacter.backgroundChoices;
+      const inScope = newestChoices?.backgroundId === selectedBackgroundId ? newestChoices : {};
+      state.character = {
+        ...latestCharacter,
+        backgroundChoices: { ...storedChoices, ...inScope, ...payload },
+      };
+    }
+    return payload;
+  }
+
   function mountTray() {
     const host = ensureHost();
     const traitEngine = global.LuminousTraitEngine;
@@ -473,8 +609,9 @@ ${response}`);
         host,
         title: "TRAITS",
         state: state.traitState,
-        getTraits: resolveTraits,
+        getTraits: resolveDisplayTraits,
         getRuntime: () => getRuntime(),
+        saveBackgroundChoices,
         prepareRuntime: prepareTraitRuntime,
         onActivated: handleTraitActivated,
         onBlocked: (result) => emit("luminous:trait-blocked", result),
@@ -568,16 +705,32 @@ ${response}`);
     if (!state.traitState) state.traitState = traitEngine.createState();
     const character = getCharacter();
     const preparedCheck = normalizeTheatreCheckInput(check, runtimeInput);
-    applyApprovedDmEffects(preparedCheck, runtimeInput);
+    // Context-dependent racial Traits (e.g. Orosh Emotional Echo) must see
+    // the selected Theatre target on the actual Check, never in a pure preview.
+    const target = runtimeInput.target || preparedCheck.target || state.theatreTarget || null;
+    if (target && !preparedCheck.target) preparedCheck.target = target;
+    applyApprovedDmEffects(preparedCheck, { ...runtimeInput, target });
     const hadThreshold = finiteNumber(preparedCheck.thresholdRaw ?? preparedCheck.threshold) != null;
     const result = traitEngine.resolveTheatreCheck({
       character,
       traits: resolveTraits(),
       check: preparedCheck,
+      target,
       state: state.traitState,
     });
     if (hadThreshold && finiteNumber(result?.check?.difficulty) != null) {
       result.check.thresholdRaw = Number(result.check.difficulty);
+    }
+    // The same resolver powers Stats previews and the authorised Coin result.
+    // Dedicated archetype hooks mark bonuses applied before this stage, so
+    // mixed class/race/General Traits cannot double-count them.
+    if (result?.check) {
+      global.LuminousSkillTraitBreakdownPatch?.applySpecialCheckBonuses?.(
+        resolveTraits(), character, result.check,
+      );
+      // Treat the old Check Final Power channel as a bonus to the ability/skill
+      // modifier. Coin completion must never add it a second time.
+      global.LuminousSkillTraitBreakdownPatch?.foldCheckFinalPowerIntoScore?.(result.check);
     }
     return result;
   }
@@ -774,8 +927,10 @@ ${response}`);
   global.LuminousPlayerTraitRuntime = Object.freeze({
     getCharacter,
     getTraits: resolveTraits,
+    getDisplayTraits: resolveDisplayTraits,
     getTraitState: () => state.traitState,
     getRuntime,
+    saveBackgroundChoices,
     dispatch,
     resolveTheatreCheck,
     dispatchCombatEvent,

@@ -123,11 +123,15 @@
   }
 
   function speedRangeFor(record = {}) {
-    return parseRange(record.speedRange) ||
-      ((finite(record.speedMin, null) != null || finite(record.speedMax, null) != null)
+    const explicit = parseRange(record.speedRange) || parseRange(record.mechanics?.speedRange);
+    if (explicit) return explicit;
+    const movementRuntime = global.LuminousMovementSpeedRuntime || safeRequire('./movement-speed-runtime.js');
+    const derived = movementRuntime?.rangeForEntity?.(record) || null;
+    if (derived) return [derived.min, derived.max];
+    return ((finite(record.speedMin, null) != null || finite(record.speedMax, null) != null)
         ? [finite(record.speedMin, finite(record.speedMax, 1)), finite(record.speedMax, finite(record.speedMin, 6))]
         : null) ||
-      parseRange(record.mechanics?.speedRange) || parseRange(record.mechanics?.speed) || parseRange(record.speed);
+      parseRange(record.mechanics?.speed) || parseRange(record.speed);
   }
 
   function normalizeDefinition(unitId, definition = {}, options = {}) {
@@ -145,7 +149,11 @@
       speedRange = [1, 6];
       speedFallback = true;
     }
-    speedRange = [Math.trunc(Math.min(...speedRange)), Math.trunc(Math.max(...speedRange))];
+    speedRange = [
+      Math.max(1, Math.trunc(Math.min(...speedRange))),
+      Math.max(2, Math.trunc(Math.max(...speedRange))),
+    ];
+    if (speedRange[1] < speedRange[0]) speedRange[1] = speedRange[0];
     const sprite = spriteFor(material);
     const scale = firstNumber(material, ['visualScale', 'scale', 'combatScale', 'combatVisual.scale', 'visual.scale'], 1) || 1;
     const spriteX = firstNumber(material, ['spriteX', 'combatSpriteX', 'combatVisual.x', 'visual.spriteX'], 0) || 0;

@@ -243,8 +243,8 @@
     { id: "family_strife_survivor", name: "Superviviente de luchas familiares", hpCoefBonus: 0.30, category: "district8" },
     { id: "heishou_trainee", name: "Heishou trainee", hpCoefBonus: 0.31, category: "district8" },
     { id: "heishou_veteran", name: "Heishou veterano", hpCoefBonus: 0.35, category: "district8" },
-    { id: "house_spiders_apprentice", name: "House of Spiders Apprentice", hpCoefBonus: 0.40, category: "special" },
-    { id: "house_spiders_survivor", name: "House of Spiders Survivor", hpCoefBonus: 0.43, category: "special" },
+    { id: "house_spiders_apprentice", name: "House of Spiders Apprentice", hpCoefBonus: 0.40, category: "special", retired: true },
+    { id: "house_spiders_survivor", name: "House of Spiders Survivor", hpCoefBonus: 0.43, category: "special", retired: true },
   ]);
 
   const CATEGORY_LABELS = Object.freeze({
@@ -411,6 +411,8 @@
   function backgroundGroups() {
     const groups = {};
     BACKGROUNDS.forEach((entry) => {
+      // Keep retired definitions for saved builds/HP math, but do not offer them as new choices.
+      if (entry.retired) return;
       const key = entry.category || "other";
       if (!groups[key]) groups[key] = [];
       groups[key].push(entry);

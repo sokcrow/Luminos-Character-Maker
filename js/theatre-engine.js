@@ -630,34 +630,44 @@
     }
 
     function syncSelfVisibilityControl() {
-        const checkbox = document.getElementById("theatre-show-own-actor");
-        if (!checkbox) return;
+        const button = document.getElementById("btn-toggle-theatre-self-actor");
+        if (!button) return;
         const actorId = getAssignedActorId();
-        checkbox.dataset.actorId = comparableId(actorId);
-        checkbox.disabled = !actorId;
-        checkbox.checked = actorId ? shouldShowOwnActor(actorId) : false;
+        const visible = actorId ? shouldShowOwnActor(actorId) : false;
+        const actionLabel = visible ? "Ocultar personaje" : "Mostrar personaje";
+
+        button.dataset.actorId = comparableId(actorId);
+        button.disabled = !actorId;
+        button.setAttribute("aria-pressed", visible ? "true" : "false");
+        button.setAttribute("aria-label", `${actionLabel} en escena`);
+        button.title = visible ? "Ocultar mi personaje" : "Mostrar mi personaje";
+        button.classList.toggle("is-active", visible);
+
+        const text = button.querySelector("[data-theatre-self-visibility-label]");
+        if (text) text.textContent = actionLabel;
     }
 
     function ensureSelfVisibilityControl() {
         if (isDmView()) return;
-        if (document.getElementById("theatre-self-visibility-control")) {
-            syncSelfVisibilityControl();
-            return;
+
+        // Remove the obsolete floating checkbox if a stale cached runtime left it behind.
+        document.getElementById("theatre-self-visibility-control")?.remove();
+        document.getElementById("theatre-show-own-actor")?.closest("label")?.remove();
+
+        const button = document.getElementById("btn-toggle-theatre-self-actor");
+        if (!button) return;
+
+        if (button.dataset.selfVisibilityBound !== "true") {
+            button.dataset.selfVisibilityBound = "true";
+            button.addEventListener("click", () => {
+                const actorId = button.dataset.actorId || getAssignedActorId();
+                if (!actorId) return;
+                const currentlyVisible = button.getAttribute("aria-pressed") === "true";
+                setShowOwnActor(!currentlyVisible, actorId);
+            });
         }
-        const theatre = document.getElementById("theatre-view-player");
-        if (!theatre) return;
 
-        const label = document.createElement("label");
-        label.id = "theatre-self-visibility-control";
-        label.style.cssText = "position:absolute;right:16px;top:16px;z-index:9005;padding:6px 9px;background:rgba(0,0,0,.72);border:1px solid rgba(255,255,255,.25);font:12px 'Share Tech Mono',monospace;color:#fff;display:flex;gap:6px;align-items:center;";
-        label.innerHTML = '<input type="checkbox" id="theatre-show-own-actor"> Mostrar mi personaje en escena';
-        theatre.appendChild(label);
-
-        const checkbox = label.querySelector("#theatre-show-own-actor");
         syncSelfVisibilityControl();
-        checkbox.addEventListener("change", () => {
-            setShowOwnActor(checkbox.checked, checkbox.dataset.actorId || getAssignedActorId());
-        });
     }
 
     function removeLegacyPrototypePanels() {

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 
+await import('../js/movement-speed-runtime.js');
 await import('../js/combat-action-schema.js');
 const schema = globalThis.LuminousCombatAction;
 await import('../js/combat-action-adapters.js');

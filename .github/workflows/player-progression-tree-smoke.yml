@@ -7,15 +7,29 @@ on:
       - 'js/character-build-rules.js'
       - 'js/player-progression-tree-core.js'
       - 'js/player-progression-tree.js'
+      - 'js/player-progression-choices.js'
+      - 'js/archetype-progression-preview-catalog.js'
+      - 'js/class-milestone-engine.js'
+      - 'js/milestone-revert-patch.js'
+      - 'js/dm-player-class-milestones.js'
+      - 'js/fighter-maneuver-catalog.js'
+      - 'js/battle-master-archetype-runtime.js'
+      - 'tests/battle-master-archetype-runtime-smoke.mjs'
+      - 'css/player-progression-mystic.css'
+      - 'tests/player-progression-choices-smoke.mjs'
       - 'js/player-skills-hud.js'
       - 'js/player-progression-level-allocation.js'
       - 'js/player-trait-runtime.js'
       - 'js/trait-player-tray.js'
+      - 'tests/player-background-legacy-compat.mjs'
+      - 'tests/player-background-choices-editor.mjs'
       - 'js/player-archetype-runtime-core.js'
       - 'css/player-progression-tree.css'
       - 'css/player-skills-hud.css'
       - 'css/player-trait-tabs.css'
       - 'tests/player-progression-tree-smoke.mjs'
+      - 'tests/milestone-choice-icon-smoke.mjs'
+      - 'Assets/Icons/milestones/stat-or-trait.png'
       - 'tests/player-skills-hud-smoke.mjs'
       - 'Assets/Images/Buttons/Spells.png'
       - 'js/dm-player-loadout-core.js'
@@ -38,15 +52,29 @@ on:
       - 'js/character-build-rules.js'
       - 'js/player-progression-tree-core.js'
       - 'js/player-progression-tree.js'
+      - 'js/player-progression-choices.js'
+      - 'js/archetype-progression-preview-catalog.js'
+      - 'js/class-milestone-engine.js'
+      - 'js/milestone-revert-patch.js'
+      - 'js/dm-player-class-milestones.js'
+      - 'js/fighter-maneuver-catalog.js'
+      - 'js/battle-master-archetype-runtime.js'
+      - 'tests/battle-master-archetype-runtime-smoke.mjs'
+      - 'css/player-progression-mystic.css'
+      - 'tests/player-progression-choices-smoke.mjs'
       - 'js/player-skills-hud.js'
       - 'js/player-progression-level-allocation.js'
       - 'js/player-trait-runtime.js'
       - 'js/trait-player-tray.js'
+      - 'tests/player-background-legacy-compat.mjs'
+      - 'tests/player-background-choices-editor.mjs'
       - 'js/player-archetype-runtime-core.js'
       - 'css/player-progression-tree.css'
       - 'css/player-skills-hud.css'
       - 'css/player-trait-tabs.css'
       - 'tests/player-progression-tree-smoke.mjs'
+      - 'tests/milestone-choice-icon-smoke.mjs'
+      - 'Assets/Icons/milestones/stat-or-trait.png'
       - 'tests/player-skills-hud-smoke.mjs'
       - 'Assets/Images/Buttons/Spells.png'
       - 'js/dm-player-loadout-core.js'
@@ -75,10 +103,20 @@ jobs:
           node --check js/character-build-rules.js
           node --check js/player-progression-tree-core.js
           node --check js/player-progression-tree.js
+          node --check tests/milestone-choice-icon-smoke.mjs
+          node --check js/player-progression-choices.js
+          node --check js/archetype-progression-preview-catalog.js
+          node --check js/class-milestone-engine.js
+          node --check js/milestone-revert-patch.js
+          node --check js/dm-player-class-milestones.js
+          node --check js/fighter-maneuver-catalog.js
+          node --check js/battle-master-archetype-runtime.js
           node --check js/player-skills-hud.js
           node --check js/player-progression-level-allocation.js
           node --check js/player-trait-runtime.js
           node --check js/trait-player-tray.js
+          node --check tests/player-background-legacy-compat.mjs
+          node --check tests/player-background-choices-editor.mjs
           node --check js/player-archetype-runtime-core.js
           node --check js/dm-player-loadout-core.js
           node --check js/dm-player-dnd-studio-tabs.js
@@ -88,6 +126,16 @@ jobs:
           node --check js/battle-viewer-player-entry-074.js
       - name: Progression tree smoke
         run: node tests/player-progression-tree-smoke.mjs
+      - name: Milestone Stat or Trait icon smoke
+        run: node tests/milestone-choice-icon-smoke.mjs
+      - name: Player Milestone, maneuvers and preview regression
+        run: node tests/player-progression-choices-smoke.mjs
+      - name: Battle Master stacking and combat smoke
+        run: node tests/battle-master-archetype-runtime-smoke.mjs
+      - name: Background compatibility and inline editor regression
+        run: |
+          node tests/player-background-legacy-compat.mjs
+          node tests/player-background-choices-editor.mjs
       - name: Player combat skills HUD smoke
         run: node tests/player-skills-hud-smoke.mjs
       - name: DM Player loadout smoke
