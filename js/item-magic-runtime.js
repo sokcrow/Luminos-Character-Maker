@@ -733,10 +733,10 @@
     const modifiers = {};
     for (const effect of asArray(resolution.effects)) {
       const type = normalizeId(effect.type);
-      if (!["item_stat_flat","item_stat_percent","defense_flat","defense_percent","resistance_percent","status_resistance_percent","max_hp_percent","max_sp_percent","speed_percent","initiative_flat"].includes(type)) continue;
+      if (!["item_stat_flat","item_stat_percent","defense_flat","defense_percent","resistance_percent","status_resistance_percent","resistance_multiplier_reduction","max_hp_percent","max_sp_percent","speed_percent","initiative_flat"].includes(type)) continue;
       const key=["item_stat_flat","item_stat_percent"].includes(type)
         ? `${type}:${normalizeId(effect.stat || "unknown")}`
-        : ["resistance_percent","status_resistance_percent"].includes(type)
+        : ["resistance_percent","status_resistance_percent","resistance_multiplier_reduction"].includes(type)
           ? `${type}:${normalizeId(effect.axis || effect.damageType || "general")}`
           : type;
       if(!modifiers[key]) modifiers[key]=[];
@@ -757,10 +757,10 @@
       sources.push(Object.freeze({itemInstanceId:String(item.instanceId || item.id || ""),effects:result.effects}));
       for(const effect of asArray(result.effects)){
         const type=normalizeId(effect.type);
-        if(!["item_stat_flat","item_stat_percent","defense_flat","defense_percent","resistance_percent","status_resistance_percent","max_hp_percent","max_sp_percent","speed_percent","initiative_flat"].includes(type)) continue;
+        if(!["item_stat_flat","item_stat_percent","defense_flat","defense_percent","resistance_percent","status_resistance_percent","resistance_multiplier_reduction","max_hp_percent","max_sp_percent","speed_percent","initiative_flat"].includes(type)) continue;
         const axis=["item_stat_flat","item_stat_percent"].includes(type)
           ? normalizeId(effect.stat || "unknown")
-          : ["resistance_percent","status_resistance_percent"].includes(type)
+          : ["resistance_percent","status_resistance_percent","resistance_multiplier_reduction"].includes(type)
             ? normalizeId(effect.axis || effect.damageType || "general") : "";
         const key=axis ? `${type}:${axis}` : type;
         if(!effectGroups.has(key)) effectGroups.set(key,[]);
