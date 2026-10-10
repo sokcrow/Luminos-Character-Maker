@@ -1,6 +1,7 @@
 "use strict";
 const assert=require("node:assert/strict");
-const Atomic=require("../js/item-enchanter-firebase-transaction.js");
+require("../js/item-enchanter-firebase-transaction.js");
+const Atomic=globalThis.LuminousEnchanterFirebaseTransaction;
 
 const clone=x=>JSON.parse(JSON.stringify(x));
 const persistence={
