@@ -79,6 +79,10 @@ assert.deepStrictEqual(flameI.item.magic.enchantments[0], {
   anchorId:null,
   dormant:false,
   disabled:false,
+  applicationId:null,
+  appliedBy:null,
+  appliedAt:0,
+  provenance:null,
 });
 
 const overCapacity = Engine.applyEnchantment(flameI.item, "frostbound", 1);
