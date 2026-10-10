@@ -94,6 +94,8 @@ assert.strictEqual(Math.round(Magic.stackedNumericValue([
   {value:20,stacking:"multiplicative"},
 ])),32);
 
+assert.deepStrictEqual(Catalog.SPECIALIZED_DAMAGE_PERCENT_BY_RANK,{1:5,2:8,3:13},
+  "specialized bonuses use the owner-approved Rank I/II/III values");
 const specialist={
   instanceId:"specialist_weapon",itemType:"weapon",category:"weapon",
 };
