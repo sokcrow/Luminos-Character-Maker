@@ -57,6 +57,9 @@
       selectedChannels:selectedChannels(skill, context),
       skill,
       defender,
+      sourceItem:context.sourceItem || context.item || context.weapon || null,
+      sourceItemInstanceId:context.sourceItemInstanceId || null,
+      selectedDamageChannel:context.selectedDamageChannel || skill.selectedDamageChannel || null,
       requireEquipped:true,
       requireLivingActor:true,
     });
