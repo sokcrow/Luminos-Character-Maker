@@ -94,6 +94,33 @@ assert.strictEqual(Math.round(Magic.stackedNumericValue([
   {value:20,stacking:"multiplicative"},
 ])),32);
 
+const specialist={
+  instanceId:"specialist_weapon",itemType:"weapon",category:"weapon",
+};
+const specialistEffects=[
+  {type:"specialized_damage_percent",axis:"physical",damageType:"slash",value:13},
+  {type:"specialized_damage_percent",axis:"sin",damageType:"wrath",value:8},
+];
+assert.strictEqual(Catalog.validateEffect(specialistEffects[0]).valid,true,
+  "an explicit physical specialist is a valid authored effect");
+assert.strictEqual(Catalog.validateEffect(specialistEffects[1]).valid,true,
+  "SIN specialist effects require an explicit SIN axis and affinity");
+assert.strictEqual(Catalog.validateEffect({
+  type:"specialized_damage_percent",value:13,damageType:"slash",
+}).valid,false,"untyped specialist effects cannot enter the live catalog");
+const weaponSkill={sourceItemInstanceId:"specialist_weapon",attackType:"Slash",sinAffinity:"Wrath"};
+assert.strictEqual(Magic.specializedDamageForSkill(specialistEffects,specialist,weaponSkill).requiresChoice,true,
+  "matching physical and SIN specialist bonuses require a chosen channel");
+const physical=Magic.specializedDamageForSkill(specialistEffects,specialist,weaponSkill,{selectedDamageChannel:"physical"});
+assert.strictEqual(physical.value,13);
+assert.strictEqual(physical.channel,"physical");
+const affinity=Magic.specializedDamageForSkill(specialistEffects,specialist,weaponSkill,{selectedDamageChannel:"sin"});
+assert.strictEqual(affinity.value,8);
+assert.strictEqual(Magic.specializedDamageForSkill(specialistEffects,specialist,{
+  attackType:"Slash",sinAffinity:"Wrath",
+},{selectedDamageChannel:"physical"}).value,0,
+  "an unrelated Skill must not inherit the main-hand Item's specialist bonus");
+
 const backedChargeItem=JSON.parse(JSON.stringify(applied.item));
 const backedPlan=Magic.activationResourcePlan({effects:[{
   sourceEnchantmentId:"flamebound",resource:"charges",chargeCost:2,
