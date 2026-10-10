@@ -2,6 +2,8 @@
 
 const assert = require("assert");
 
+require("../js/item-quality-engine.js");
+require("../js/item-catalog-ore-ingot-gem.js");
 require("../js/item-catalog-enchantments.js");
 require("../js/item-enchantment-engine.js");
 
