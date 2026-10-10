@@ -14,10 +14,10 @@ Random magical drops, random affix rolls, cursed random loot and artifact genera
 
 | Scope ledger | Checked | Unchecked | Total |
 |---|---:|---:|---:|
-| Entire original checklist, including future handoffs | 357 | 28 | 385 |
+| Entire original checklist, including future handoffs | 367 | 18 | 385 |
 | Future Magic Items: Part D implementation gate (excluded) | 20 | 7 | 27 |
 | Future Magic Loot: section 16 (excluded) | 7 | 1 | 8 |
-| **PR #931, Enchanter in-scope acceptance** | **330** | **20** | **350** |
+| **PR #931, Enchanter in-scope acceptance** | **340** | **10** | **350** |
 
 **Do not misread the scope ledger as a passed quality gate.** The 21 real Enchanter tasks include Part C authoring/testing, enchantment damage/defense/trigger bridges, authoritative service payment and delivery, Magical Durability-backed *Enchanter* activations, UI clarity, and Player/DM/Battle Viewer tests. Native Magic Item/Relic-specific Charge systems and Rank IV/V Relic behavior move to Magic Items. The original Part A–D documents remain historical design references; future work must not accidentally import #963 read-only proposed catalog entries or reintroduce universal Magic Durability wear/recharge.
 
@@ -202,7 +202,7 @@ Canonical contract: [`docs/enchanters-update-part-c-services.md`](./enchanters-u
 - [x] Finalize/test Rank III Gem-Anchor coexistence: Rank III cannot coexist with lower-rank Gem Anchors.
 - [x] Block/warn normal fourth-gem installation and implement catastrophic forced fourth-gem outcome.
 - [ ] Add DM Enchanter authoring and Player service UI without internal IDs/debug schema.
-- [ ] Add Part C regression tests for services, knowledge, outcomes, durability, gem removal, time and economy. Relic-specific regressions belong to the future Magic Items Update.
+- [x] Add Part C regression tests for services, knowledge, outcomes, durability, gem removal, time and economy. Relic-specific regressions belong to the future Magic Items Update.
 
 ## Part D — Magic Item Runtime Integration (design frozen)
 
@@ -345,15 +345,15 @@ Canonical contract: [`docs/enchanters-update-part-d-magic-items.md`](./enchanter
 - [x] Define a whitelist of supported Enchantment effect types.
 - [x] Support flat Item stat modifiers where applicable.
 - [x] Support percentage Item stat modifiers where applicable.
-- [ ] Support damage-type additions/modifiers where applicable.
-- [ ] Support resistance/defense-related effects where applicable.
+- [x] Support damage-type additions/modifiers where applicable.
+- [x] Support resistance/defense-related effects where applicable.
 - [x] Support conditional effects with explicit triggers.
 - [x] Support limited-use/charge-based effects.
 - [x] Support passive effects.
 - [x] Define deterministic ordering when multiple Enchantments modify the same value.
-- [ ] Define additive vs multiplicative stacking rules.
+- [x] Define additive vs multiplicative stacking rules.
 - [x] Prevent Enchantments from directly mutating unrelated player/NPC fields.
-- [ ] Resolve effects through Battle Engine adapters rather than UI-only display values.
+- [x] Resolve effects through Battle Engine adapters rather than UI-only display values.
 - [x] Ensure unequipped equipment-only Enchantments do not remain active.
 - [x] Ensure broken/disabled/dormant Enchantments do not contribute effects.
 - [x] Add effect-resolution provenance for debugging/tests without exposing debug UI to players.
@@ -386,7 +386,7 @@ Canonical contract: [`docs/enchanters-update-part-d-magic-items.md`](./enchanter
 - [x] Define whether removed Enchantments return reagents.
 - [x] Prevent removing permanent Enchantments through normal service.
 - [x] Prevent capacity/conflict violations during replacement.
-- [ ] Support re-enchant preview before commit.
+- [x] Support re-enchant preview before commit.
 
 ## 8. Charges and usage lifecycle
 
@@ -408,21 +408,21 @@ Canonical contract: [`docs/enchanters-update-part-d-magic-items.md`](./enchanter
 - [x] Preserve Enchantments during player-to-player transfer.
 - [x] Preserve Enchantments when equipping/unequipping.
 - [x] Prevent stack merge across non-identical Enchantment state.
-- [ ] Ensure Item comparison/details expose canonical Enchantment differences.
+- [x] Ensure Item comparison/details expose canonical Enchantment differences.
 - [x] Ensure Item provenance and Enchantment provenance remain separate but linked.
 - [x] Add inventory serialization/hydration regression tests.
 
 ## 10. Battle Engine integration
 
 - [x] Add a Battle Engine adapter for equipped Item Enchantments.
-- [ ] Resolve passive effects from equipped enchanted Items.
+- [x] Resolve passive effects from equipped enchanted Items.
 - [ ] Resolve conditional/triggered Enchantment effects.
 - [x] Resolve charge consumption from authoritative combat outcomes.
 - [x] Ensure duplicate equipment references do not double-apply an Enchantment.
 - [x] Ensure unequipped Items stop contributing equipment-only effects.
 - [x] Ensure defeated/dead actors do not continue emitting invalid triggered effects.
 - [x] Add deterministic combat-effect regression tests.
-- [ ] Add Battle Viewer smoke coverage for enchanted equipment.
+- [x] Add Battle Viewer smoke coverage for enchanted equipment.
 
 ## 11. Economy / value
 
@@ -487,7 +487,7 @@ Canonical contract: [`docs/enchanters-update-part-d-magic-items.md`](./enchanter
 - [x] Add charge lifecycle tests.
 - [x] Add Battle Engine effect tests.
 - [x] Add player-facing UI smoke tests.
-- [ ] Add DM Enchantment UI smoke tests.
+- [x] Add DM Enchantment UI smoke tests.
 - [x] Add Enchanter's Update CI workflow/path coverage.
 
 ## 16. Explicitly deferred to Magic Loot Update
@@ -553,3 +553,28 @@ Three previously open **implementation/wiring** entries were closed: projected I
 - **Explicit scope:** Magic Items Part D (27 entries) and Magic Loot Section 16 (8 entries) remain separate future Updates and are excluded from #931 acceptance. Checked existing integration seams are retained.
 
 **Current checklist:** 357 checked / 28 unchecked overall; **330 checked / 20 unchecked out of 350 Enchanter-only tasks**. CI, full Player/DM/browser, Firebase atomic payments, timed services, specialist damage/resistance, reaction hooks and support effect tests **are not green-certified by this documentation update**.
+
+## 2026-10-09 — Second ten-task implementation reconciliation
+
+**These ten boxes mean implemented or test-authored, NOT full green CI or browser certification.** The source files and existing smoke test cases were inspected. An isolated JavaScript module-loader assertion run passed 15 focused regression test bodies during this pass; it is not a substitute for actual Node/Chromium/Firebase CI.
+
+| Completed checklist entry | Specific evidence |
+|---|---|
+| Part C regression tests | Existing service/quote, Knowledge Arcana/Identify, outcome, Gem procedure, Magical Durability, time/economy, Player Enchant and transaction test coverage |
+| Damage type modifiers | Typed physical/SIN specialist effects and origin validation, explicit physical-or-SIN channel choice, strongest eligible main/specialist; approved scale 5/8/13 recorded in Catalog |
+| Resistance/defense-related effects | Typed passive reduction per physical/SIN axis; largest eligible only; physical multiplier floor 0.30; combat input adapter |
+| Stacking semantics | Passive effects from multiple Items now honor additive/multiplicative/highest semantics globally instead of summing per-Item highest values |
+| Battle Engine adapter | Actual Coin damage adjustment and temporary resistance inputs, not UI display-only; deterministic smoke coverage |
+| Re-enchant preview | `previewServiceResult` and the UI's projected Item state; preview of removal/rewrite is copy-based and tested against live Item mutation |
+| Item comparison/details | Player inventory exposes known magic differences versus equipped Items without revealing unidentified enchantments |
+| Equipped passive effects | `aggregateEquippedPassiveModifiers` with equipped Item dedupe and passive resolution gates; regression authored and passed in isolated check |
+| Battle Viewer smoke | New `tests/enchanter-battle-viewer.spec.cjs` loads CombatEngine/Enchanter browser bridge; CI trigger/run wired, NOT YET RUN in Chromium |
+| DM Enchantment UI smoke | Browser test in `tests/dm-item-instance-editor.spec.cjs` for validation, apply/save/remove via DM service seam; CI wired, NOT YET RUN in Chromium |
+
+### Kept open intentionally
+
+Firebase **server-atomic** AHN/material/Item commits, rollback, idempotency, removal and multi-client race handling remain open despite passing synchronous local transaction smokes. DM **Enchanter provider authoring** is separate from editing magic on an Item. Full per-Item Charge state/MD-backed lifecycle and protection from client-only reset remain open. Non-Skill conditional/triggered effects, including optional Before Getting Hit defensive reaction, remain open. The owner-approved Threshold Aegis wear quantity is still not invented.
+
+Magic Items Part D and Magic Loot remain future Updates. No runtime content from the 119 #963 proposals was promoted. **Final CI and browser/production acceptance have not been certified; GitHub PR mergeability must also be resolved.**
+
+**Authoritative totals after this reconciliation:** Entire historical checklist 367/385 checked, 18 unchecked (including eight future-update entries). Enchanter-only acceptance **340/350 checked, 10 unchecked**.
