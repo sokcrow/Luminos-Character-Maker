@@ -411,6 +411,8 @@
     if(!confirm?.checked){state.status="CONFIRM SERVICE FIRST";render();return;}
     state.pending=true;state.status="PROCESSING SERVICE…";render();
     const tx=`ui:${Date.now()}:${itemId(state.selectedItem)}:${state.service}`;
+    const beforePlayer=clone(state.viewer);
+    const providerMaterialsBefore=clone(state.providerMaterials);
     let locallyCommitted=false;
     try{
       const result=services().commitServiceTransaction(state.viewer,state.selectedItem,state.quote,{
@@ -426,7 +428,7 @@
       locallyCommitted=true;
       confirm.checked=false;
       // A local service receipt is not proof of persisted payment or item state.
-      if(typeof state.onSave==="function") await state.onSave({result,item:state.selectedItem,viewer:state.viewer});
+      if(typeof state.onSave==="function") await state.onSave({result,item:state.selectedItem,viewer:state.viewer,beforePlayer,providerMaterialsBefore,providerMaterialsAfter:clone(state.providerMaterials)});
       state.status=`COMPLETE // ${services()?.SERVICE_LABELS?.[state.service] || humanize(state.service)}`;
       global.dispatchEvent?.(new CustomEvent("luminous:enchanter-service-committed",{detail:{result,item:state.selectedItem}}));
     }catch(error){
