@@ -5,6 +5,8 @@ const assert = require("assert");
 require("../js/item-runtime-engine.js");
 require("../js/item-inventory-runtime.js");
 require("../js/item-persistence-runtime.js");
+require("../js/item-quality-engine.js");
+require("../js/item-catalog-ore-ingot-gem.js");
 require("../js/item-catalog-enchantments.js");
 require("../js/item-enchantment-engine.js");
 
