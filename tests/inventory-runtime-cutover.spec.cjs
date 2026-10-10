@@ -499,3 +499,49 @@ test("player source no longer contains the removed inventory implementation", as
   expect(html).toContain('id="inv-stash-grid"');
   expect(html).toContain('id="inv-sintesis"');
 });
+
+test("player item details compare identified Enchantments without revealing unidentified magic", async ({page}) => {
+  await bootHarness(page);
+  await page.evaluate(() => {
+    const hud=window.LuminousInventoryHudV2;
+    const unit=hud.state.unit;
+    const original=unit.inventario_activo.blade_1;
+    const candidate=unit.inventario_activo.coat_1;
+    candidate.category="weapon";
+    candidate.itemType="weapon";
+    original.magic={enabled:true,enchantments:[{definitionId:"flamebound",rank:1}]};
+    candidate.magic={enabled:true,enchantments:[{definitionId:"frostbound",rank:1}]};
+    unit.equipment.mainHand=original;
+    window.LuminousItemMagicRuntime={isMagicItem:item=>Boolean(item?.magic)};
+    window.LuminousItemMagicKnowledgeRuntime={
+      presentation(viewer,item) {
+        const identified=item.instanceId==="blade_1" || item.instanceId==="coat_1";
+        const name=item.instanceId==="blade_1"?"Flamebound I":"Frostbound I";
+        return {
+          displayName:item.nombre,magical:true,magicDetected:true,identified,
+          inscriptionGlowing:true,enchantmentLines:[{known:identified,text:name}],
+          curseLines:[],difficulty:null,magicalDurability:null,
+        };
+      },
+    };
+    hud.state.selectedContainer="active";
+    hud.state.selected={key:"coat_1",item:candidate};
+    hud.renderDetail();
+  });
+  const facts=page.locator('[data-v2-detail="facts"]');
+  await expect(facts).toContainText("VS EQUIPPED MAGIC");
+  await expect(facts).toContainText("+ Frostbound I");
+  await expect(facts).toContainText("− Flamebound I");
+  await page.evaluate(() => {
+    const knowledge=window.LuminousItemMagicKnowledgeRuntime;
+    knowledge.presentation=(viewer,item)=>({
+      displayName:item.nombre,magical:true,magicDetected:true,identified:false,
+      inscriptionGlowing:true,enchantmentLines:[{known:false,text:"ᚠᛉᚻ"}],
+      curseLines:[],difficulty:null,magicalDurability:null,
+    });
+    window.LuminousInventoryHudV2.renderDetail();
+  });
+  await expect(facts).not.toContainText("VS EQUIPPED MAGIC");
+  await expect(facts).toContainText("Magia sin identificar");
+  await expect(facts).not.toContainText("Flamebound I");
+});
