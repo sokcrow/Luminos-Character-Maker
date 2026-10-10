@@ -272,6 +272,20 @@ async function bootDmHarness(page) {
   await page.addScriptTag({ path: path.join(ROOT, "js/item-enchantment-recipe-catalog.js") });
   await page.addScriptTag({ path: path.join(ROOT, "js/item-enchantment-crafting-runtime.js") });
   await page.addScriptTag({ path: path.join(ROOT, "js/dm-enchanter-studio-model.js") });
+  // This is an about:blank fixture: editor runtime dependencies must be
+  // explicitly available. A relative script URL cannot load from about:blank.
+  // Individual Enchanter UI tests override these seams with authored cases.
+  await page.evaluate(() => {
+    window.LuminousEnchantmentCatalog = {
+      list: () => [], get: () => null, ELIGIBLE_ITEM_KINDS: ["weapon","armor","shield","accessory"],
+    };
+    window.LuminousItemEnchantmentEngine = {
+      appliedEnchantments: () => [], validateApplication: () => ({ allowed:false,reason:"no_fixture_enchantment" }),
+      canRemoveEnchantment: () => ({allowed:false,reason:"no_fixture_enchantment"}),
+    };
+    window.LuminousItemMagicRuntime = { isMagicItem: () => false };
+    window.LuminousItemEnchanterServiceRuntime = { commitServiceTransaction: () => ({committed:false}) };
+  });
   await page.addScriptTag({ path: EDITOR });
   await page.waitForFunction(() => window.LuminousDmItemInstanceEditor?.state?.ready === true);
   await expect(page.locator('#modal-inv-lista-activos .dm-item-instance-edit[data-key="sword_1"]')).toHaveCount(1);
