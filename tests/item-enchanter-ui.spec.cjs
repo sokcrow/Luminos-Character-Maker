@@ -30,7 +30,8 @@ async function boot(page, shouldSave = true) {
       magic:{enchantments:[{definitionId:"flamebound",rank:1}]},
     });
     window.LuminousItemEnchanterServiceRuntime = {
-      SERVICE_LABELS:{ enchant:"Enchant" },
+      SERVICE_LABELS:{ enchant:"Enchant", strengthen:"Strengthen" },
+      SERVICE_IDS:["enchant","strengthen"],
       normalizeProviderProfile(provider){ return provider; },
       walletBalance(owner){ return {resolved:true,balance:owner.ahn}; },
       quoteEnchantService(provider,item,id,rank) {
