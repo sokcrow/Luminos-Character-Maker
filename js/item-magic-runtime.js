@@ -523,10 +523,41 @@
     return { ...result, active:true };
   }
 
+  function specializedDamageForSkill(effects=[],item={},skill={},context={}) {
+    const candidate=context.sourceItem || context.weapon || skill.sourceItem || skill.item || skill.weapon || null;
+    const originId=String(context.sourceItemInstanceId || skill.sourceItemInstanceId || skill.weaponInstanceId || "");
+    const itemId=instanceIdOf(item);
+    const sourcedFromWeapon=Boolean(
+      (candidate && (candidate===item || (itemId && instanceIdOf(candidate)===itemId))) ||
+      (itemId && originId===itemId)
+    );
+    if (!sourcedFromWeapon) return Object.freeze({value:0,channel:null,requiresChoice:false,reason:"skill_not_sourced_from_item"});
+    const phys=normalizeId(skill.attackType || skill.physicalDamageType);
+    const sin=normalizeId(skill.sinAffinity || skill.sin);
+    const eligible=asArray(effects).filter(effect=>{
+      if(normalizeId(effect.type)!=="specialized_damage_percent") return false;
+      const axis=normalizeId(effect.axis),kind=normalizeId(effect.damageType);
+      return (axis==="physical" && kind===phys) || (axis==="sin" && kind===sin);
+    });
+    const channels=[...new Set(eligible.map(effect=>normalizeId(effect.axis)))];
+    const choice=normalizeId(context.selectedDamageChannel || skill.selectedDamageChannel);
+    if(channels.length>1 && !channels.includes(choice)) return Object.freeze({
+      value:0,channel:null,requiresChoice:true,reason:"choose_physical_or_sin_specialist",
+    });
+    const channel=channels.length>1?choice:channels[0] || null;
+    const selected=eligible.filter(effect=>normalizeId(effect.axis)===channel);
+    const value=selected.reduce((max,effect)=>Math.max(max,Number(effect.value)||0),0);
+    return Object.freeze({value,channel,requiresChoice:false,reason:null});
+  }
+
   function enchantmentCombatSummary(user, item, context = {}) {
     const resolution = enchantmentEffectResolution(user, item, context);
     const effects = asArray(resolution.effects);
-    const damagePercent = stackedNumericValue(effects.filter((effect)=>normalizeId(effect.type)==="damage_percent"));
+    const primary=stackedNumericValue(effects.filter((effect)=>normalizeId(effect.type)==="damage_percent"));
+    const specialist=specializedDamageForSkill(effects,item,context.skill || {},context);
+    // The main damage family and a matching specialist never add: choose
+    // the larger permitted bonus for the originating weapon Skill.
+    const damagePercent=Math.max(primary,specialist.value);
     const secondaryDamagePercent = stackedNumericValue(effects.filter((effect)=>normalizeId(effect.type)==="secondary_damage_percent"));
     const damageFlat = stackedNumericValue(effects.filter((effect)=>normalizeId(effect.type)==="damage_flat"));
     const magicHit = effects.some((effect) => normalizeId(effect.type) === "magic_hit" && effect.value !== false);
@@ -534,6 +565,7 @@
       ...resolution,
       damageFlat,
       damagePercent,
+      specializedDamage:specialist,
       secondaryDamagePercent,
       totalDamagePercent:damagePercent + secondaryDamagePercent,
       magicHit,
@@ -948,6 +980,7 @@
     equippedMagicItems,
     enchantmentEffectResolution,
     enchantmentCombatSummary,
+    specializedDamageForSkill,
     activationResourcePlan,
     canPayActivationResources,
     payActivationResourcePlan,
