@@ -63,7 +63,7 @@
     if (summary.resolved === false) {
       return {...summary,item,delivery:deliveryType(skill)};
     }
-    const resourcePlan=Magic.activationResourcePlan?.(summary) || {charges:0,magicalDurability:0,sp:0};
+    const resourcePlan=Magic.activationResourcePlan?.(summary,item) || {charges:0,magicalDurability:0,sp:0};
     const resourceGate=Magic.canPayActivationResources?.(attacker || {},item,resourcePlan) || {allowed:true};
     if (!resourceGate.allowed) {
       return {
