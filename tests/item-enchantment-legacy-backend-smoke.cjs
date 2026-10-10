@@ -18,7 +18,7 @@ const Persistence=globalThis.LuminousItemPersistenceRuntime;
 const Magic=globalThis.LuminousItemMagicRuntime;
 
 assert.strictEqual(Catalog.VERSION,5);
-assert.strictEqual(Engine.VERSION,10);
+assert.strictEqual(Engine.VERSION,11);
 assert.strictEqual(Magic.VERSION,5);
 
 const schema={
@@ -130,9 +130,10 @@ assert.strictEqual(backedPlan.charges,0,"Enchanter Charges must not create an in
 assert.strictEqual(backedPlan.magicalDurability,4,"explicit Charge cost maps to canonical MD");
 assert.strictEqual(backedPlan.unmappedEnchantmentCharges,false);
 const backedUser={sp:10};
+const beforeBackedCharges=Magic.magicalDurabilityState(backedChargeItem).current;
 const backedSpend=Magic.payActivationResourcePlan(backedUser,backedChargeItem,backedPlan);
 assert.strictEqual(backedSpend.paid,true);
-assert.strictEqual(Magic.magicalDurabilityState(backedChargeItem).current,46,
+assert.strictEqual(Magic.magicalDurabilityState(backedChargeItem).current,beforeBackedCharges-4,
   "two presented Charges consume the one authored 4-MD cost");
 const invalidPlan=Magic.activationResourcePlan({effects:[{
   sourceEnchantmentId:"flamebound",resource:"charges",chargeCost:2,
