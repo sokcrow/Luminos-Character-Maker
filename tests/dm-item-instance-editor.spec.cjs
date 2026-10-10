@@ -410,3 +410,58 @@ test("DM bootstrap loads the ItemInstance editor assets", async () => {
   expect(hotfix).toContain("dm-item-instance-editor-script");
   expect(hotfix).toContain("js/dm-item-instance-editor.js");
 });
+
+test("DM Enchantment authoring validates, applies, persists and removes through canonical service seam", async ({page}) => {
+  await bootDmHarness(page);
+  await page.evaluate(() => {
+    window.LuminousEnchantmentCatalog = {
+      list(){ return [{id:"flamebound",name:"Flamebound",rankData:{1:{}}}]; },
+      get(id){ return id==="flamebound" ? {id,name:"Flamebound"} : null; },
+    };
+    window.LuminousItemEnchantmentEngine = {
+      appliedEnchantments(item){ return item.magic?.enchantments || []; },
+      validateApplication(item,id,rank){
+        if(id!=="flamebound" || item.magic?.enchantments?.length) {
+          return {allowed:false,reason:"enchantment_already_installed"};
+        }
+        return {allowed:rank===1};
+      },
+      canRemoveEnchantment(item,id){
+        return {allowed:item.magic?.enchantments?.some(x=>x.definitionId===id)===true};
+      },
+    };
+    window.LuminousItemEnchanterServiceRuntime = {
+      commitServiceTransaction(owner,item,quote,options){
+        if(!options.dmFreeService) return {committed:false,reason:"dm_only"};
+        if(quote.service==="enchant"){
+          item.magic={enchantments:[{definitionId:quote.definitionId,rank:quote.rank,properties:[]}]};
+        } else if(quote.procedure==="direct_remove") {
+          item.magic={enchantments:[]};
+        } else return {committed:false,reason:"invalid_service"};
+        owner.enchanterTransactions ||= {};
+        owner.enchanterTransactions[options.transactionId]={committed:true};
+        return {committed:true,chargedAhn:0};
+      },
+    };
+  });
+  await page.locator('#modal-inv-lista-activos .dm-item-instance-edit[data-key="sword_1"]').click();
+  await page.evaluate(() => {
+    const dm=window.LuminousDmItemInstanceEditor;
+    const select=document.getElementById("dm-item-enchantment-definition");
+    select.innerHTML='<option value="flamebound">Flamebound</option>';
+    dm.updateMagicValidation();
+  });
+  await expect(page.locator("#dm-item-enchantment-validation")).toContainText("VALID");
+  await page.locator("#dm-item-enchantment-apply").click();
+  await page.waitForFunction(() => window.__saves.length === 1);
+  await expect(page.locator("#dm-item-enchantment-current")).toContainText("Flamebound");
+  expect(await page.evaluate(() =>
+    window.__saves[0].active.sword_1.magic.enchantments[0].definitionId
+  )).toBe("flamebound");
+  await page.locator("#dm-item-enchantment-current button").click();
+  await page.waitForFunction(() => window.__saves.length === 2);
+  await expect(page.locator("#dm-item-enchantment-current")).toContainText("No Enchantments installed");
+  expect(await page.evaluate(() =>
+    window.__saves[1].active.sword_1.magic.enchantments.length
+  )).toBe(0);
+});
