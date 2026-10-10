@@ -126,4 +126,39 @@ assert.strictEqual(dmItem.magic.enchantments[0].provenance.freeService,true);
 const adjusted=Services.adjustedQuoteTotal(1000000,{discountPercent:10,surchargePercent:20});
 assert.strictEqual(adjusted.totalAhn,1080000);
 
+// A removal must obey the same transaction preflight and preview isolation
+// as the initial application; it must not strip magic on an unpaid service.
+const removable=JSON.parse(JSON.stringify(committed.item));
+const paidRemoveQuote={
+  quoted:true,service:"remove_rewrite",procedure:"direct_remove",
+  definitionId:"flamebound",totalAhn:1000,
+  materials:{plan:{valid:true}},
+};
+const removalPreview=Services.previewServiceResult(removable,paidRemoveQuote);
+assert.strictEqual(removalPreview.previewed,true);
+assert.strictEqual(removalPreview.item.magic.enchantments.length,0);
+assert.strictEqual(removable.magic.enchantments.length,1,
+  "re-enchant/removal preview must not mutate its Item Instance");
+const unpaidRemovalOwner={ahn:0};
+const removalDenied=Services.commitServiceTransaction(unpaidRemovalOwner,removable,paidRemoveQuote,{
+  transactionId:"unpaid_remove",
+});
+assert.strictEqual(removalDenied.committed,false);
+assert.strictEqual(removalDenied.reason,"insufficient_ahn");
+assert.strictEqual(removable.magic.enchantments.length,1,
+  "failed removal must preserve the installed enchantment");
+const removalOwner={ahn:5000};
+const removalDone=Services.commitServiceTransaction(removalOwner,removable,paidRemoveQuote,{
+  transactionId:"paid_remove",appliedBy:"enchanter",
+});
+assert.strictEqual(removalDone.committed,true);
+assert.strictEqual(removalOwner.ahn,4000);
+assert.strictEqual(removable.magic.enchantments.length,0);
+assert.strictEqual(removable.magic.enchantmentHistory.at(-1).kind,"remove");
+const removeTwice=Services.commitServiceTransaction(removalOwner,removable,paidRemoveQuote,{
+  transactionId:"paid_remove",
+});
+assert.strictEqual(removeTwice.reason,"duplicate_transaction");
+assert.strictEqual(removalOwner.ahn,4000,"duplicated removal must not charge twice");
+
 console.log("Enchanter atomic transaction/provenance smoke: OK");
