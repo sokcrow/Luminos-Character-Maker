@@ -17,8 +17,8 @@ const Magic = globalThis.LuminousItemMagicRuntime;
 
 assert.ok(Catalog && Engine && Inventory && Magic);
 assert.strictEqual(Catalog.VERSION,5);
-assert.strictEqual(Engine.VERSION,10);
-assert.strictEqual(Magic.VERSION,4);
+assert.strictEqual(Engine.VERSION, 11);
+assert.strictEqual(Magic.VERSION, 5);
 
 const baseWeapon = {
   instanceId:"md_weapon",
