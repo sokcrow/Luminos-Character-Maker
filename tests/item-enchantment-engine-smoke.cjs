@@ -54,12 +54,12 @@ const invalidType = {
 };
 assert.strictEqual(Catalog.validateDefinition(invalidType).valid, false);
 
-assert.strictEqual(Engine.baseSlotCapacity({tier:1}), 0);
-assert.strictEqual(Engine.baseSlotCapacity({tier:"II"}), 1);
-assert.strictEqual(Engine.baseSlotCapacity({tier:3}), 1);
-assert.strictEqual(Engine.baseSlotCapacity({tier:"IV"}), 2);
-assert.strictEqual(Engine.baseSlotCapacity({tier:5}), 3);
-assert.strictEqual(Engine.baseSlotCapacity({tier:6}), null);
+assert.strictEqual(Engine.baseSlotCapacity({itemType:"weapon",tier:1}), 0);
+assert.strictEqual(Engine.baseSlotCapacity({itemType:"weapon",tier:"II"}), 1);
+assert.strictEqual(Engine.baseSlotCapacity({itemType:"weapon",tier:3}), 1);
+assert.strictEqual(Engine.baseSlotCapacity({itemType:"weapon",tier:"IV"}), 2);
+assert.strictEqual(Engine.baseSlotCapacity({itemType:"weapon",tier:5}), 3);
+assert.strictEqual(Engine.baseSlotCapacity({itemType:"weapon",tier:6}), null);
 
 const tierThreeWeapon = {
   definitionId:"test_blade",
