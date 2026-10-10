@@ -44,8 +44,16 @@
       return {committed:false,reason:"receipt_or_target_item_mismatch"};
 
     const base=`campaña/jugadores/${playerId}`;
-    const newTransactionKey=db.ref(`${base}/finance/transactionHistory`).push?.().key;
-    const legacyTransactionKey=db.ref(`${base}/transacciones`).push?.().key;
+    let newTransactionKey=null;
+    let legacyTransactionKey=null;
+    try {
+      if(charge>0){
+        newTransactionKey=db.ref(`${base}/finance/transactionHistory`).push?.().key;
+        legacyTransactionKey=db.ref(`${base}/transacciones`).push?.().key;
+      }
+    }catch(error) {
+      return {committed:false,reason:"atomic_database_error",error:String(error?.message||error)};
+    }
     if(charge>0 && (!newTransactionKey || !legacyTransactionKey))
       return {committed:false,reason:"transaction_history_id_unavailable"};
 
