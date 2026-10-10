@@ -165,6 +165,54 @@
     return result;
   }
 
+  function approvedResistanceReductions(defender={}, skill={}) {
+    const results={physical:0,sin:0};
+    if(!defender?.equipment || Magic.actorCanEmitMagic?.(defender)===false) return results;
+    let passive=null;
+    try { passive=Magic.aggregateEquippedPassiveModifiers?.(defender); } catch (_) { return results; }
+    const phys=String(skill?.attackType || skill?.physicalDamageType || "").trim().toLowerCase();
+    const sin=String(skill?.sinAffinity || skill?.sin || "").trim().toLowerCase();
+    for(const source of passive?.sources || []){
+      for(const effect of source.effects || []){
+        if(String(effect.type)!=="resistance_multiplier_reduction") continue;
+        const axis=String(effect.axis || "").trim().toLowerCase();
+        const kind=String(effect.damageType || "").trim().toLowerCase();
+        const value=Number(effect.value);
+        if(!Number.isFinite(value) || value<=0 || value>1) continue;
+        if(axis==="physical" && kind===phys) results.physical=Math.max(results.physical,value);
+        if(axis==="sin" && kind===sin) results.sin=Math.max(results.sin,value);
+      }
+    }
+    return results;
+  }
+
+  function withDefenderResistanceInput(defender={},skill={},calculate) {
+    // Apply before the canonical resistance calculation, not as post-HP damage
+    // reduction. Never silently apply the physical 0.30 cap to SIN.
+    const strongest=approvedResistanceReductions(defender,skill);
+    const edits=[];
+    const set=(key,next)=>{
+      const own=Object.prototype.hasOwnProperty.call(defender,key);
+      edits.push({key,own,old:defender[key]});
+      defender[key]=next;
+    };
+    if(strongest.physical>0 && defender.isStaggered!==true) {
+      const raw=Number(defender.physRes ?? 1);
+      if(Number.isFinite(raw)) set("physRes",Math.max(0.30,raw-strongest.physical));
+    }
+    if(strongest.sin>0) {
+      const raw=Number(defender.sinRes ?? 1);
+      if(Number.isFinite(raw)) set("sinRes",Math.max(0,raw-strongest.sin));
+    }
+    try { return calculate(); }
+    finally {
+      for(const edit of edits){
+        if(edit.own) defender[edit.key]=edit.old;
+        else delete defender[edit.key];
+      }
+    }
+  }
+
   function patchCombatEngine(engine = global.CombatEngine) {
     if (!engine || typeof engine.calculateCoinDamage !== "function") {
       return { installed:false, reason:"combat_engine_unavailable" };
@@ -173,7 +221,7 @@
 
     const original = engine.calculateCoinDamage;
     engine.calculateCoinDamage = function (attacker, defender, skill, coinFinalPower, isCritical, clashCount, context = null) {
-      const base = original.call(this, attacker, defender, skill, coinFinalPower, isCritical, clashCount, context);
+      const base = withDefenderResistanceInput(defender,skill,()=>original.call(this, attacker, defender, skill, coinFinalPower, isCritical, clashCount, context));
       const runtimeContext = context && typeof context === "object" ? context : {};
       const adjusted = adjustedDamage(base, attacker, defender, skill, runtimeContext);
       if (adjusted.item && adjusted.resolution?.effects?.length && adjusted.damage > 0) {
@@ -215,6 +263,8 @@
     adjustedDamage,
     spendActivationOnce,
     spendWearOnce,
+    approvedResistanceReductions,
+    withDefenderResistanceInput,
     patchCombatEngine,
     uninstallCombatEngine,
   });
