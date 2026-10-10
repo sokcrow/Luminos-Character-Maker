@@ -6444,49 +6444,32 @@ function luminousShopEnchanterBundle(shopData = {}, tiendaId = "") {
   return { profile, providerMaterials };
 }
 
-async function persistShopEnchanterState(playerData, tiendaId, result) {
+async function persistShopEnchanterState(playerData, tiendaId, result, snapshots = {}) {
+  // The UI's local quote/result are provisional until a single authoritative
+  // RTDB transaction commits wallet, Player material inventory, Item and receipt.
   if (!playerId || !db?.ref) throw new Error("PLAYER DATABASE NOT READY");
+  const adapter = window.LuminousEnchanterFirebaseTransaction;
   const persistence = window.LuminousItemPersistenceRuntime;
-  if (!persistence?.serializeInventoryState) throw new Error("ITEM PERSISTENCE RUNTIME NOT READY");
-
-  const inventoryState = persistence.serializeInventoryState(playerData || {});
-  const balance =
-    playerData?.finance?.currentBalance !== undefined
-      ? Math.max(0, Math.trunc(Number(playerData.finance.currentBalance) || 0))
-      : Math.max(0, Math.trunc(Number(playerData?.ahn) || 0));
-  const base = `campaña/jugadores/${playerId}`;
-  const updates = {
-    [`${base}/inventario_activo`]: inventoryState.inventario_activo || {},
-    [`${base}/inventario_stash`]: inventoryState.inventario_stash || {},
-    [`${base}/itemInventorySchemaVersion`]: persistence.schemaVersion || inventoryState.schemaVersion || 1,
-    [`${base}/itemEquipmentRefs`]: inventoryState.equipmentRefs || {},
-    [`${base}/attunedItemInstanceIds`]: inventoryState.attunedItemInstanceIds || [],
-    [`${base}/itemMagicKnowledge`]: inventoryState.itemMagicKnowledge || {},
-    [`${base}/enchantmentCompendium`]: inventoryState.enchantmentCompendium || {},
-    [`${base}/enchanterTransactions`]: inventoryState.enchanterTransactions || {},
-    [`${base}/ahn`]: balance,
-    [`${base}/finance/currentBalance`]: balance,
-  };
-
-  if (Number(result?.chargedAhn) > 0) {
-    const tx = {
-      monto: -Math.max(0, Math.trunc(Number(result.chargedAhn) || 0)),
-      concepto: `Servicio de Enchanter: ${window.LuminousItemEnchanterServiceRuntime?.SERVICE_LABELS?.[result.service] || result.service || "Arcano"}`,
-      timestamp: Date.now(),
-      unread: true,
-      shopId: tiendaId,
-      enchanterTransactionId: result.transactionId || null,
-    };
-    const financeKey = db.ref(`${base}/finance/transactionHistory`).push().key;
-    const legacyKey = db.ref(`${base}/transacciones`).push().key;
-    if (financeKey) updates[`${base}/finance/transactionHistory/${financeKey}`] = tx;
-    if (legacyKey) updates[`${base}/transacciones/${legacyKey}`] = tx;
+  if (!adapter?.commitPlayerEnchanterService || !persistence?.serializeInventoryState) {
+    throw new Error("ENCHANTER ATOMIC SAVE UNAVAILABLE");
   }
-
-  await db.ref().update(updates);
+  const saved = await adapter.commitPlayerEnchanterService({
+    db,
+    playerId,
+    before: snapshots.beforePlayer,
+    after: playerData,
+    result,
+    shopId: tiendaId,
+    providerMaterialsBefore: snapshots.providerMaterialsBefore,
+    providerMaterialsAfter: snapshots.providerMaterialsAfter,
+    persistence,
+  });
+  if (!saved?.committed) {
+    throw new Error(`ENCHANTER SAVE BLOCKED // ${saved?.reason || "atomic_transaction_failed"}`);
+  }
   const balanceDisplay = document.getElementById("shop-player-balance");
-  if (balanceDisplay) balanceDisplay.innerText = balance;
-  return { saved: true, balance };
+  if (balanceDisplay) balanceDisplay.innerText = saved.balance;
+  return { saved: true, balance:saved.balance, transactionId:saved.transactionId };
 }
 
 window.abrirServiciosTiendaDinamica = async function(
@@ -6598,8 +6581,10 @@ window.abrirServiciosTiendaDinamica = async function(
               ...Object.values(playerData.inventario_activo || {}),
               ...Object.values(playerData.inventario_stash || {}),
             ],
-            onSave: async ({ result }) => {
-              await persistShopEnchanterState(playerData, tiendaId, result);
+            onSave: async ({ result, beforePlayer, providerMaterialsBefore, providerMaterialsAfter }) => {
+              await persistShopEnchanterState(playerData, tiendaId, result, {
+                beforePlayer, providerMaterialsBefore, providerMaterialsAfter,
+              });
             },
           });
         };
