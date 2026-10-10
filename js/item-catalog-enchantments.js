@@ -25,6 +25,7 @@
     "damage_percent",
     "secondary_damage_percent",
     "specialized_damage_percent",
+    "resistance_multiplier_reduction",
     "item_stat_flat",
     "item_stat_percent",
     "defense_flat",
@@ -194,11 +195,14 @@
     if (!EFFECT_TYPES.includes(type)) errors.push("unsupported_effect_type");
     if (!ACTIVATION_TRIGGERS.includes(trigger)) errors.push("unsupported_activation_trigger");
     if (hasExecutablePayload(effect)) errors.push("executable_effect_payload_forbidden");
-    if (["damage_flat","damage_percent","secondary_damage_percent","specialized_damage_percent","item_stat_flat","item_stat_percent","defense_flat","defense_percent","resistance_percent","status_resistance_percent","max_hp_percent","max_sp_percent","speed_percent","initiative_flat"].includes(type)) {
+    if (["damage_flat","damage_percent","secondary_damage_percent","specialized_damage_percent","resistance_multiplier_reduction","item_stat_flat","item_stat_percent","defense_flat","defense_percent","resistance_percent","status_resistance_percent","max_hp_percent","max_sp_percent","speed_percent","initiative_flat"].includes(type)) {
       if (!Number.isFinite(Number(effect.value))) errors.push("effect_value_must_be_numeric");
     }
     if (type==="specialized_damage_percent" && !["physical","sin"].includes(normalizeId(effect.axis))) errors.push("specialist_requires_physical_or_sin_axis");
     if (type==="specialized_damage_percent" && !normalizeId(effect.damageType)) errors.push("specialist_requires_damage_type");
+    if (type==="resistance_multiplier_reduction" && !["physical","sin"].includes(normalizeId(effect.axis))) errors.push("resistance_reduction_requires_axis");
+    if (type==="resistance_multiplier_reduction" && !normalizeId(effect.damageType)) errors.push("resistance_reduction_requires_damage_type");
+    if (type==="resistance_multiplier_reduction" && (Number(effect.value)<0 || Number(effect.value)>1)) errors.push("resistance_reduction_out_of_range");
     if (["item_stat_flat","item_stat_percent"].includes(type) && !normalizeId(effect.stat)) errors.push("item_stat_effect_requires_stat");
     if (effect.stacking !== undefined && !["additive","multiplicative","highest"].includes(normalizeId(effect.stacking))) errors.push("unsupported_effect_stacking");
     if (effect.order !== undefined && !Number.isFinite(Number(effect.order))) errors.push("effect_order_must_be_numeric");
