@@ -14,10 +14,10 @@ Random magical drops, random affix rolls, cursed random loot and artifact genera
 
 | Scope ledger | Checked | Unchecked | Total |
 |---|---:|---:|---:|
-| Entire original checklist, including future handoffs | 367 | 18 | 385 |
+| Entire original checklist, including future handoffs | 370 | 15 | 385 |
 | Future Magic Items: Part D implementation gate (excluded) | 20 | 7 | 27 |
 | Future Magic Loot: section 16 (excluded) | 7 | 1 | 8 |
-| **PR #931, Enchanter in-scope acceptance** | **340** | **10** | **350** |
+| **PR #931, Enchanter in-scope acceptance** | **343** | **7** | **350** |
 
 **Do not misread the scope ledger as a passed quality gate.** The 21 real Enchanter tasks include Part C authoring/testing, enchantment damage/defense/trigger bridges, authoritative service payment and delivery, Magical Durability-backed *Enchanter* activations, UI clarity, and Player/DM/Battle Viewer tests. Native Magic Item/Relic-specific Charge systems and Rank IV/V Relic behavior move to Magic Items. The original Part A–D documents remain historical design references; future work must not accidentally import #963 read-only proposed catalog entries or reintroduce universal Magic Durability wear/recharge.
 
@@ -318,7 +318,7 @@ Canonical contract: [`docs/enchanters-update-part-d-magic-items.md`](./enchanter
 - [x] Preserve application provenance.
 - [x] Preserve who/what applied the Enchantment.
 - [x] Preserve application Encounter/Location/Service context when relevant.
-- [ ] Preserve Item Charge presentation/state per Item Instance while keeping its resource authority mapped to canonical Magical Durability.
+- [x] Preserve Item Charge presentation/state per Item Instance while keeping its resource authority mapped to canonical Magical Durability.
 - [x] Preserve dormant/disabled state independently per Item Instance.
 - [x] Preserve removal/replacement history where needed.
 - [x] Hydrate/serialize enchantment state through Item Inventory Runtime.
@@ -391,12 +391,12 @@ Canonical contract: [`docs/enchanters-update-part-d-magic-items.md`](./enchanter
 ## 8. Charges and usage lifecycle
 
 - [x] Define charge initialization/resource authority: Charges are Item-defined projections backed by Magical Durability; concrete maxima/recharge remain authored content.
-- [ ] Persist current/max player-facing Charge state per Item Instance when authored, with Charge spending backed by canonical Magical Durability.
+- [x] Persist current/max player-facing Charge state per Item Instance when authored, with Charge spending backed by canonical Magical Durability.
 - [x] Consume authored Charges/Magical Durability through authoritative gameplay actions.
 - [x] Prevent negative Charges or Magical Durability.
 - [x] Define behavior at zero magical resource: ordinary enchanted effects deplete/inactivate while physical Items remain usable; Bind/Curse may author persistence/recharge.
 - [x] Support recharge rules only when authored by the Enchantment/Magic Item definition.
-- [ ] Prevent UI/client-only charge resets.
+- [x] Prevent UI/client-only charge resets.
 - [x] Preserve charge state across save/load, transfer and equipment changes.
 - [x] Add charge lifecycle regression tests.
 
@@ -578,3 +578,14 @@ Firebase **server-atomic** AHN/material/Item commits, rollback, idempotency, rem
 Magic Items Part D and Magic Loot remain future Updates. No runtime content from the 119 #963 proposals was promoted. **Final CI and browser/production acceptance have not been certified; GitHub PR mergeability must also be resolved.**
 
 **Authoritative totals after this reconciliation:** Entire historical checklist 367/385 checked, 18 unchecked (including eight future-update entries). Enchanter-only acceptance **340/350 checked, 10 unchecked**.
+
+## 2026-10-10 — Authored Enchanter Charges on Item Instances
+
+**Three in-scope implementation gates closed.** This applies only to Items explicitly authored with `item.magic.chargeMapping = {maxCharges, magicalDurabilityPerCharge}`; native Magic Items/Relics and Magic Loot remain separate Updates. No arbitrary Charge/MD conversion rate or automatic recovery was introduced.
+
+- `LuminousItemMagicRuntime.enchantmentChargeState` derives player-visible current/max Charges from **canonical Magical Durability** and explicit per-Item mapping. Invalid mappings fail closed; unmapped legacy/native Items retain existing behavior.
+- `LuminousItemInventoryRuntime` resolves mapped Charges by the canonical projection, spends by decrementing Magical Durability, disallows direct `restoreCharges`, and delegates `processRecharge` solely to an explicitly authored magical recharge rule.
+- `LuminousItemPersistenceRuntime` refreshes the Charge mirror at serialization and hydration: manually changing a stale `chargesCurrent` cannot grant extra Charges. `setMagicalDurability` synchronizes per-Instance Charge mirrors after authoritative wear/recharge.
+- `tests/item-enchantment-charge-mapping-smoke.cjs` validates spending, mapping validity, no generic recovery, authored recovery, per-Item persistence and tampered mirror rejection. It passed in a focused JS module-loader test and **the Inventory Runtime Validation run 38091591824 completed successfully** with the new test connected to CI.
+
+**Scope ledger: 343/350 in-scope checked, 7 open.** The remaining blockers are DM Enchanter provider authoring, a trusted multi-resource AHN/material/Item transaction (payment, rollback, instance target, idempotency and removal), and conditional/triggered combat effects. No claim is made that a green UI workflow alone resolves these remaining services or that server-side transactional authority is implemented.
