@@ -19,7 +19,7 @@ const Compendium=globalThis.LuminousEnchantmentCompendiumRuntime;
 const Services=globalThis.LuminousItemEnchanterServiceRuntime;
 
 assert.ok(Persistence && Compendium && Services);
-assert.strictEqual(Services.VERSION,5);
+assert.strictEqual(Services.VERSION, 7);
 
 const provider=Services.normalizeProviderProfile({
   id:"preview_enchanter",
