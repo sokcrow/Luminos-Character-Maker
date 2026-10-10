@@ -694,7 +694,9 @@
       if (!["item_stat_flat","item_stat_percent","defense_flat","defense_percent","resistance_percent","status_resistance_percent","max_hp_percent","max_sp_percent","speed_percent","initiative_flat"].includes(type)) continue;
       const key=["item_stat_flat","item_stat_percent"].includes(type)
         ? `${type}:${normalizeId(effect.stat || "unknown")}`
-        : type;
+        : ["resistance_percent","status_resistance_percent"].includes(type)
+          ? `${type}:${normalizeId(effect.axis || effect.damageType || "general")}`
+          : type;
       if(!modifiers[key]) modifiers[key]=[];
       modifiers[key].push(effect);
     }
@@ -705,14 +707,28 @@
 
   function aggregateEquippedPassiveModifiers(user = {}) {
     const items=equippedMagicItems(user);
-    const modifiers={};
     const sources=[];
+    const effectGroups=new Map();
     for(const item of items){
       const result=passiveEnchantmentModifiers(user,item);
       if(!result.resolved) continue;
       sources.push(Object.freeze({itemInstanceId:String(item.instanceId || item.id || ""),effects:result.effects}));
-      for(const [key,value] of Object.entries(result.modifiers || {})) modifiers[key]=(modifiers[key]||0)+Number(value||0);
+      for(const effect of asArray(result.effects)){
+        const type=normalizeId(effect.type);
+        if(!["item_stat_flat","item_stat_percent","defense_flat","defense_percent","resistance_percent","status_resistance_percent","max_hp_percent","max_sp_percent","speed_percent","initiative_flat"].includes(type)) continue;
+        const axis=["item_stat_flat","item_stat_percent"].includes(type)
+          ? normalizeId(effect.stat || "unknown")
+          : ["resistance_percent","status_resistance_percent"].includes(type)
+            ? normalizeId(effect.axis || effect.damageType || "general") : "";
+        const key=axis ? `${type}:${axis}` : type;
+        if(!effectGroups.has(key)) effectGroups.set(key,[]);
+        effectGroups.get(key).push(effect);
+      }
     }
+    // Aggregate at the unit level: highest-only effects must not become
+    // additive just because they originate from different equipped Items.
+    const modifiers={};
+    for(const [key,effects] of effectGroups) modifiers[key]=stackedNumericValue(effects);
     return Object.freeze({resolved:true,items,sources:Object.freeze(sources),modifiers:Object.freeze(modifiers)});
   }
 
