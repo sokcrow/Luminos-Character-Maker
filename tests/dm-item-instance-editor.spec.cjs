@@ -265,6 +265,7 @@ async function bootDmHarness(page) {
 
   // Load the real Enchanter runtime dependencies in the isolated Playwright
   // about:blank harness; relative <script src> requests cannot resolve there.
+  await page.addScriptTag({ path: path.join(ROOT, "js/item-quality-engine.js") });
   await page.addScriptTag({ path: path.join(ROOT, "js/item-enchantment-runtime.js") });
   await page.addScriptTag({ path: path.join(ROOT, "js/item-economy-standard.js") });
   await page.addScriptTag({ path: path.join(ROOT, "js/item-catalog-ore-ingot-gem.js") });
@@ -287,7 +288,11 @@ async function bootDmHarness(page) {
     window.LuminousItemEnchanterServiceRuntime = { commitServiceTransaction: () => ({committed:false}) };
   });
   await page.addScriptTag({ path: EDITOR });
-  await page.waitForFunction(() => window.LuminousDmItemInstanceEditor?.state?.ready === true);
+  // Invoke boot explicitly so missing dependencies fail with a diagnostic
+  // instead of silently waiting 30s on the editor's DOM-ready boot attempt.
+  const dmBooted = await page.evaluate(async () => await window.LuminousDmItemInstanceEditor?.boot());
+  expect(dmBooted).toBe(true);
+  await expect.poll(() => page.evaluate(() => window.LuminousDmItemInstanceEditor?.state?.ready)).toBe(true);
   await expect(page.locator('#modal-inv-lista-activos .dm-item-instance-edit[data-key="sword_1"]')).toHaveCount(1);
 }
 
