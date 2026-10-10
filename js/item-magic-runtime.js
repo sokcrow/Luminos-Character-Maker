@@ -149,6 +149,33 @@
     });
   }
 
+  // The authored per-Instance display mapping is never an independent pool.
+  // Absent a valid mapping, native/legacy Charges keep their own rules.
+  function enchantmentChargeState(item = {}) {
+    const mapping=magicProfile(item).chargeMapping || magicProfile(item).charge_mapping || null;
+    if(magicOrigin(item)!=="enchantment" || !mapping || typeof mapping!=="object")
+      return Object.freeze({mapped:false});
+    const perCharge=Number(mapping.magicalDurabilityPerCharge);
+    const authoredMax=Number(mapping.maxCharges);
+    const md=magicalDurabilityState(item);
+    if(!Number.isFinite(perCharge) || perCharge<=0 ||
+       !Number.isSafeInteger(authoredMax) || authoredMax<=0 ||
+       md.current==null || md.max==null)
+      return Object.freeze({mapped:true,valid:false,current:null,max:null,reason:"invalid_enchanter_charge_mapping"});
+    const max=Math.max(0,Math.min(authoredMax,Math.floor(md.max/perCharge)));
+    const current=Math.max(0,Math.min(max,Math.floor(md.current/perCharge)));
+    return Object.freeze({mapped:true,valid:true,current,max,magicalDurabilityPerCharge:perCharge});
+  }
+
+  function syncEnchantmentChargeProjection(item) {
+    const charges=enchantmentChargeState(item);
+    if(!charges.mapped || !charges.valid || !item || typeof item!=="object") return charges;
+    item.chargesCurrent=charges.current;
+    item.chargesMax=charges.max;
+    item.charges=charges.current;
+    return charges;
+  }
+
   function ensureMagicObject(item) {
     if (!item || typeof item !== "object") return null;
     if (!item.magic || typeof item.magic !== "object") item.magic = {};
@@ -169,6 +196,7 @@
       autoManaged:options.autoManaged ?? magic.magicalDurability?.autoManaged ?? false,
       profile:normalizeId(options.profile || magic.magicalDurability?.profile || "") || null,
     };
+    syncEnchantmentChargeProjection(item);
     return {
       changed:previous.current !== resolvedCurrent || previous.max !== resolvedMax,
       before:previous,
@@ -778,6 +806,8 @@
   function chargeState(item, spellProfile = null) {
     const resource = normalizeId(spellProfile?.resource || "");
     if (resource === "magical_durability") return magicalDurabilityState(item);
+    const projected=enchantmentChargeState(item);
+    if(projected.mapped) return projected;
     const runtime = itemRuntimeFor("getCharges");
     if (runtime) return runtime.getCharges(item);
     const max = item.chargesMax ?? item.maxCharges ?? null;
@@ -955,6 +985,8 @@
     isMagicItem,
     requiresAttunement,
     magicalDurabilityState,
+    enchantmentChargeState,
+    syncEnchantmentChargeProjection,
     setMagicalDurability,
     cursePersistsAtZero,
     magicalPowerActive,
