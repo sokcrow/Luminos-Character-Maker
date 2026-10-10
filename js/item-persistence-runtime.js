@@ -108,6 +108,9 @@
       const serialized = runtime?.serializeItemInstance?.(item) || clone(item);
       preserveLegacyHudFields(serialized, item);
       syncLegacyRuntimeMirrors(serialized, item);
+      // Persist an authored per-Instance Charge view from its single MD source,
+      // not a potentially stale UI-side charge counter.
+      global.LuminousItemMagicRuntime?.syncEnchantmentChargeProjection?.(serialized);
       const instanceId = String(serialized.instanceId || key);
       serialized.instanceId = instanceId;
       out[instanceId] = serialized;
@@ -155,6 +158,8 @@
         : (runtime?.migrateLegacyItem?.(normalized, key, options) || clone(normalized));
       preserveLegacyHudFields(instance, item);
       syncLegacyRuntimeMirrors(instance, item);
+      // Hydration must never regrant spent Charges through the legacy mirror.
+      global.LuminousItemMagicRuntime?.syncEnchantmentChargeProjection?.(instance);
       const instanceId = String(instance.instanceId || key);
       instance.instanceId = instanceId;
       out[instanceId] = instance;
