@@ -596,7 +596,13 @@
     return { removed: true, host, moduleRef: wanted, installedModuleIds: installedModuleIds(host) };
   }
 
+  function authoredEnchanterCharges(item) {
+    return global.LuminousItemMagicRuntime?.enchantmentChargeState?.(item) || null;
+  }
+
   function getCharges(item = {}) {
+    const mapped=authoredEnchanterCharges(item);
+    if(mapped?.mapped) return {current:mapped.current,max:mapped.max};
     const max = item.chargesMax ?? item.maxCharges ?? item.charges_max ?? null;
     const current = item.chargesCurrent ?? item.charges_current ?? item.charges ?? max;
     return {
@@ -613,6 +619,17 @@
 
   function spendCharges(item, amount = 1) {
     if (!item) return { spent: false, reason: "missing_item" };
+    const mapped=authoredEnchanterCharges(item);
+    if(mapped?.mapped) {
+      if(!mapped.valid) return {spent:false,reason:mapped.reason};
+      const cost=Math.max(0,intOr(amount,1));
+      if(mapped.current<cost) return {spent:false,reason:"insufficient_charges",before:mapped.current,after:mapped.current};
+      const md=global.LuminousItemMagicRuntime?.spendMagicalDurability?.(item,cost*mapped.magicalDurabilityPerCharge,
+        {specialUse:true,normalWear:false});
+      if(!md?.spent) return {spent:false,reason:md?.reason||"magical_durability_spend_failed"};
+      const next=authoredEnchanterCharges(item);
+      return {spent:true,amount:cost,before:mapped.current,after:next?.current,magicalDurabilitySpend:md};
+    }
     const state = getCharges(item);
     const cost = Math.max(0, intOr(amount, 1));
     if (state.current == null) return { spent: false, reason: "item_has_no_charges" };
@@ -625,6 +642,9 @@
 
   function restoreCharges(item, amount) {
     if (!item) return { restored: false, reason: "missing_item" };
+    if(authoredEnchanterCharges(item)?.mapped) return {
+      restored:false,reason:"enchanter_charges_require_magical_durability_recharge",
+    };
     const state = getCharges(item);
     if (state.current == null || state.max == null) return { restored: false, reason: "item_has_no_charge_capacity" };
     const after = clamp(state.current + Math.max(0, intOr(amount, 0)), 0, state.max);
@@ -635,6 +655,10 @@
 
   function processRecharge(item, trigger, options = {}) {
     if (!item) return { recharged: false, reason: "missing_item" };
+    if(authoredEnchanterCharges(item)?.mapped) {
+      const magical=global.LuminousItemMagicRuntime?.processMagicalRecharge?.(item,trigger,options);
+      return magical || {recharged:false,reason:"magical_recharge_runtime_unavailable"};
+    }
     const rule = item.rechargeRule || item.recharge_rule || options.rechargeRule;
     if (!rule) return { recharged: false, reason: "no_recharge_rule" };
     const normalizedTrigger = normalizeId(trigger);
