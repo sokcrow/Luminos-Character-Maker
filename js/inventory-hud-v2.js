@@ -869,6 +869,35 @@
         facts.push(`<span class="inventory-v2-player-fact"><b>CHARGES</b> ${escapeHtml(String(charges.current))} / ${escapeHtml(String(charges.max ?? "∞"))}</span>`);
       }
       const magical = magicPresentation(item);
+      // Item-instance-specific Enchantments may only be compared after the
+      // player's own knowledge rules reveal their identities.
+      if (magical?.magicDetected) {
+        const known = magical.enchantmentLines?.filter(line => line.known === true) || [];
+        const hidden = (magical.enchantmentLines?.length || 0) - known.length;
+        const label = known.length
+          ? `${known.length} identificados${hidden ? ` · ${hidden} sin identificar` : ""}`
+          : "Magia sin identificar";
+        facts.push(`<span class="inventory-v2-player-fact"><b>ENCHANTMENTS</b> ${escapeHtml(label)}</span>`);
+      }
+      const mainHand=state.unit?.equipment?.mainHand || null;
+      const sameKind=mainHand && itemCategory(mainHand)===itemCategory(item);
+      const differentInstance=mainHand && itemId(mainHand)!==itemId(item);
+      const equippedMagic=sameKind && differentInstance ? magicPresentation(mainHand) : null;
+      if (magical?.identified && equippedMagic?.identified) {
+        const itemKnown=new Set((magical.enchantmentLines || [])
+          .filter(line=>line.known).map(line=>line.text));
+        const equippedKnown=new Set((equippedMagic.enchantmentLines || [])
+          .filter(line=>line.known).map(line=>line.text));
+        const added=[...itemKnown].filter(line=>!equippedKnown.has(line));
+        const missing=[...equippedKnown].filter(line=>!itemKnown.has(line));
+        if (added.length || missing.length) {
+          const delta = [
+            ...added.map(line=>`+ ${line}`),
+            ...missing.map(line=>`− ${line}`),
+          ].join(" / ");
+          facts.push(`<span class="inventory-v2-player-fact"><b>VS EQUIPPED MAGIC</b> ${escapeHtml(delta)}</span>`);
+        }
+      }
       if (magical?.difficulty) {
         facts.push(`<span class="inventory-v2-player-fact"><b>ARCANA</b> ${escapeHtml(magical.difficulty.label)} · TH ${escapeHtml(String(magical.difficulty.threshold ?? "—"))}</span>`);
       }
