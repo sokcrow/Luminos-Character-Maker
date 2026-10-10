@@ -15,6 +15,8 @@
   const RANK_FACTOR_BY_RANK = Object.freeze({ 1: 0.75, 2: 1.50, 3: 3.00 });
   const DAMAGE_PERCENT_BY_RANK = Object.freeze({ 1: 10, 2: 15, 3: 25 });
   const SECONDARY_DAMAGE_PERCENT_BY_RANK = Object.freeze({ 1: 4, 2: 8, 3: 18 });
+  // Owner-approved specialized physical/SIN damage baseline; definition authors opt in.
+  const SPECIALIZED_DAMAGE_PERCENT_BY_RANK = Object.freeze({ 1: 5, 2: 8, 3: 13 });
 
   const ELIGIBLE_ITEM_KINDS = Object.freeze(["weapon", "armor", "shield", "accessory", "valuable"]);
   const APPLIED_SOURCES = Object.freeze(["direct", "gem"]);
@@ -396,6 +398,7 @@
     RANK_FACTOR_BY_RANK,
     DAMAGE_PERCENT_BY_RANK,
     SECONDARY_DAMAGE_PERCENT_BY_RANK,
+    SPECIALIZED_DAMAGE_PERCENT_BY_RANK,
     ELIGIBLE_ITEM_KINDS,
     APPLIED_SOURCES,
     APPLIED_PROPERTIES,
