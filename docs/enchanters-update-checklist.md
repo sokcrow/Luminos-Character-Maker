@@ -14,10 +14,10 @@ Random magical drops, random affix rolls, cursed random loot and artifact genera
 
 | Scope ledger | Checked | Unchecked | Total |
 |---|---:|---:|---:|
-| Entire original checklist, including future handoffs | 370 | 15 | 385 |
+| Entire original checklist, including future handoffs | 371 | 14 | 385 |
 | Future Magic Items: Part D implementation gate (excluded) | 20 | 7 | 27 |
 | Future Magic Loot: section 16 (excluded) | 7 | 1 | 8 |
-| **PR #931, Enchanter in-scope acceptance** | **343** | **7** | **350** |
+| **PR #931, Enchanter in-scope acceptance** | **344** | **6** | **350** |
 
 **Do not misread the scope ledger as a passed quality gate.** The 21 real Enchanter tasks include Part C authoring/testing, enchantment damage/defense/trigger bridges, authoritative service payment and delivery, Magical Durability-backed *Enchanter* activations, UI clarity, and Player/DM/Battle Viewer tests. Native Magic Item/Relic-specific Charge systems and Rank IV/V Relic behavior move to Magic Items. The original Part A–D documents remain historical design references; future work must not accidentally import #963 read-only proposed catalog entries or reintroduce universal Magic Durability wear/recharge.
 
@@ -201,7 +201,7 @@ Canonical contract: [`docs/enchanters-update-part-c-services.md`](./enchanters-u
 - [x] Support up to three Rank II Gem-Anchored Enchantments; Rank III Gem-Anchored magic is exclusive.
 - [x] Finalize/test Rank III Gem-Anchor coexistence: Rank III cannot coexist with lower-rank Gem Anchors.
 - [x] Block/warn normal fourth-gem installation and implement catastrophic forced fourth-gem outcome.
-- [ ] Add DM Enchanter authoring and Player service UI without internal IDs/debug schema.
+- [x] Add DM Enchanter authoring and Player service UI without internal IDs/debug schema.
 - [x] Add Part C regression tests for services, knowledge, outcomes, durability, gem removal, time and economy. Relic-specific regressions belong to the future Magic Items Update.
 
 ## Part D — Magic Item Runtime Integration (design frozen)
@@ -589,3 +589,12 @@ Magic Items Part D and Magic Loot remain future Updates. No runtime content from
 - `tests/item-enchantment-charge-mapping-smoke.cjs` validates spending, mapping validity, no generic recovery, authored recovery, per-Item persistence and tampered mirror rejection. It passed in a focused JS module-loader test and **the Inventory Runtime Validation run 38091591824 completed successfully** with the new test connected to CI.
 
 **Scope ledger: 343/350 in-scope checked, 7 open.** The remaining blockers are DM Enchanter provider authoring, a trusted multi-resource AHN/material/Item transaction (payment, rollback, instance target, idempotency and removal), and conditional/triggered combat effects. No claim is made that a green UI workflow alone resolves these remaining services or that server-side transactional authority is implemented.
+
+## 2026-10-10 — DM Enchanter shop authoring and Firebase safeguard
+
+- **DM provider authoring in the existing shop editor** (`pantalla_dm.html`): choose the Enchanter's displayed name, Rank I–III, individual services, and learned Enchantment recipes by their player-facing names. Both creating and editing a shop now save/restore `services` and `enchanterProvider`; the Player service terminal already consumes these fields. No IDs, debug text, or raw schema editor are exposed. Catalog and inline-script syntax verified, and `tests/dm-enchanter-provider-authoring-smoke.cjs` passed in the real Inventory Runtime Validation CI run `38092265600`. The Part C DM/Player UI checkbox is closed as implemented/test-authored.
+- **Firebase Player-subtree compare-and-commit guard** (`js/item-enchanter-firebase-transaction.js`): the character sheet no longer uses its unsafe root multipath update for Enchanter; it uses one RTDB transaction over the Player record, atomically including wallet, Item Instance, Player materials, knowledge, history, and Enchanter receipt. The callback aborts on stale inventory, wallet mismatch, missing target, duplicate receipt or failed payment. A self-contained fake-RTDB race/rollback/removal regression passed in real CI `38092265600`, as did all other Node/Chromium suites in that workflow. This prevents normal multi-tab overwrites within one Player subtree.
+- **Limits that are NOT silently marked complete:** the adapter explicitly **rejects cross-shop finite provider material consumption**, because that stock sits under a different Firebase subtree and cannot be atomically debited by a Player-subtree transaction. A simulated RTDB test is not Firebase Emulator or production permission testing; client-side quote validation is not trusted server validation. The five general paid service atomicity/removal gates remain open until a trusted cross-entity backend and real integration tests cover all resource sources.
+- **Combat:** generic conditional/reaction hooks also remain open. In particular, the approved `Before Getting Hit` reaction requires the defender's explicit selection before damage; neither autonomous use nor invented Threshold Aegis shield values have been introduced.
+
+**Current Enchanter acceptance: 344/350 checked, 6 open.** Historical checklist 371/385 checked, 14 open (8 are future Magic Items / Magic Loot).
