@@ -132,6 +132,7 @@ on:
       - tests/item-enchantment-combat-deterministic-smoke.cjs
       - tests/item-enchantment-resistance-adapter-smoke.cjs
       - tests/item-enchantment-passive-aggregation-smoke.cjs
+      - tests/item-enchantment-charge-mapping-smoke.cjs
       - tests/item-equipment-enhancement-smoke.cjs
       - tests/item-enchanter-gem-procedure-smoke.cjs
       - tests/item-player-enchant-attempt-smoke.cjs
@@ -336,6 +337,8 @@ jobs:
         run: node tests/item-enchantment-resistance-adapter-smoke.cjs
       - name: Enchanter passive Item aggregation smoke
         run: node tests/item-enchantment-passive-aggregation-smoke.cjs
+      - name: Enchanter per-Item MD-backed Charges and persistence smoke
+        run: node tests/item-enchantment-charge-mapping-smoke.cjs
       - name: Item equipment enhancement contract smoke
         run: node tests/item-equipment-enhancement-smoke.cjs
       - name: Enchanter gem procedure smoke
