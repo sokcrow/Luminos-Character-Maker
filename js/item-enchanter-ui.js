@@ -39,10 +39,25 @@
     });
   }
 
+  function providerJobs(){
+    return Object.values(state.viewer?.enchanterJobs || {}).filter(job=>
+      job?.status==="in_service" && job.itemBefore
+      && (!job.providerId || String(job.providerId)===String(state.provider?.id || "")));
+  }
+  function serviceItems(items=allViewerItems(state.viewer)){
+    const all=[...items.filter(Boolean)];
+    const seen=new Set(all.map(itemId));
+    for(const job of providerJobs()){
+      if(!seen.has(job.itemInstanceId)){
+        all.push(clone(job.itemBefore));
+        seen.add(job.itemInstanceId);
+      }
+    }
+    return all;
+  }
   function pendingJob(){
     const id=itemId(state.selectedItem);
-    return Object.values(state.viewer?.enchanterJobs || {}).find(job=>
-      job?.status==="in_service" && job.itemInstanceId===id) || null;
+    return providerJobs().find(job=>job.itemInstanceId===id) || null;
   }
 
   function applyPlayerSnapshot(snapshot){
@@ -53,7 +68,7 @@
       "itemMagicKnowledge","enchantmentCompendium","enchanterTransactions","enchanterJobs"]){
       if(Object.prototype.hasOwnProperty.call(snapshot,key)) state.viewer[key]=clone(snapshot[key]);
     }
-    state.items=allViewerItems(state.viewer);
+    state.items=serviceItems();
     state.selectedItem=state.items.find(item=>itemId(item)===itemId(state.selectedItem)) || null;
   }
 
@@ -97,6 +112,10 @@
     service_item_changed_during_delivery:"El Item cambió mientras estaba en servicio; no se puede entregar automáticamente.",
     service_knowledge_changed_during_delivery:"El conocimiento del Item cambió; la entrega necesita revisión.",
     service_not_ready:"El Item todavía no está listo para retirarse.",
+    service_item_must_be_unequipped:"Desequipa el Item antes de entregarlo al Enchanter.",
+    service_item_identity_collision:"Ya existe otro Item con esa identidad; no se puede entregar.",
+    service_inventory_full:"Libera un espacio en el inventario o alijo para retirar tu Item.",
+    invalid_service_escrow:"El encargo no tiene un Item válido para entregar.",
     removable_curse_not_found:"No hay una Maldición removible en este Item.",
     relic_drawback_inseparable:"Ese drawback de Reliquia es inseparable.",
   });
@@ -233,7 +252,9 @@
     const S=services();
     if(!S || !state.selectedItem || !svc) return {quoted:false,reason:"missing_selection"};
     const playerMaterials=materialsForTransaction();
-    const common={playerMaterials,providerMaterials:state.providerMaterials,recipeProvided:false};
+    // Shop-provider stock is in a separate Firebase subtree and cannot be
+    // atomically spent here. Never quote a Player service using that stock.
+    const common={playerMaterials,providerMaterials:[],recipeProvided:false};
     const choice=definitionChoice();
 
     if(["enchant","bind","curse","mount_gem"].includes(svc)){
@@ -281,16 +302,19 @@
     return `<h4>${esc(itemName(item))}</h4><div class="enchanter-ui-slotbar"><span>SLOTS ${esc(slots.used)} / ${esc(slots.max)}</span></div><ul>${rows}</ul>`;
   }
 
+  function pendingJobForItem(item){
+    return providerJobs().find(job=>job.itemInstanceId===itemId(item)) || null;
+  }
   function renderItems(){
-    const good=state.items.filter(item=>eligibleForService(item).eligible);
-    const bad=state.items.filter(item=>!eligibleForService(item).eligible);
+    const good=state.items.filter(item=>pendingJobForItem(item) || eligibleForService(item).eligible);
+    const bad=state.items.filter(item=>!pendingJobForItem(item) && !eligibleForService(item).eligible);
     if(!state.selectedItem || !good.includes(state.selectedItem)) {
       invalidateConfirmation();
       state.selectedItem=good[0] || null;
     }
     const host=doc.getElementById("enchanter-ui-item-list");
     const unavailable=doc.getElementById("enchanter-ui-item-unavailable");
-    if(host) host.innerHTML=good.length ? good.map((item,index)=>`<button type="button" data-enchanter-item="${index}" class="${item===state.selectedItem?"active":""}"><strong>${esc(itemName(item))}</strong><span>${esc(humanize(kindOf(item)))}</span></button>`).join("") : "<p>No eligible Items.</p>";
+    if(host) host.innerHTML=good.length ? good.map((item,index)=>`<button type="button" data-enchanter-item="${index}" class="${item===state.selectedItem?"active":""}"><strong>${esc(itemName(item))}</strong><span>${esc(pendingJobForItem(item)?"EN SERVICIO":humanize(kindOf(item)))}</span></button>`).join("") : "<p>No eligible Items.</p>";
     if(unavailable) unavailable.innerHTML=bad.map(item=>`<div class="enchanter-ui-disabled"><strong>${esc(itemName(item))}</strong><span>${esc(reasonText(eligibleForService(item).reason))}</span></div>`).join("") || "<p>None.</p>";
     host?.querySelectorAll("[data-enchanter-item]").forEach(button=>button.addEventListener("click",()=>{
       if(state.pending) return;
@@ -463,7 +487,7 @@
       const common={
         transactionId:tx,
         playerMaterials:materialsForTransaction(),
-        providerMaterials:state.providerMaterials,
+        providerMaterials:[],
         providerId:state.provider?.id || null,
         provider:state.provider,
         viewer:state.viewer,
@@ -487,7 +511,7 @@
       confirm.checked=false;
       // A local service receipt is not proof of persisted payment or item state.
       if(typeof state.onSave==="function") await state.onSave({result,item:state.selectedItem,viewer:state.viewer,beforePlayer,providerMaterialsBefore,providerMaterialsAfter:clone(state.providerMaterials)});
-      state.items=allViewerItems(state.viewer);
+      state.items=serviceItems();
       state.gem=null;
       state.quote=null;
       state.status=result.started
@@ -512,7 +536,7 @@
     if(!profile.services.length) return {opened:false,reason:"provider_has_no_enchanter_services"};
     state.provider=profile;
     state.viewer=context.viewer || context.unit || {};
-    state.items=context.items || allViewerItems(state.viewer);
+    state.items=serviceItems(context.items || allViewerItems(state.viewer));
     state.providerMaterials=asArray(context.providerMaterials || context.provider?.providerMaterials).map(item=>item);
     state.selectedItem=context.item || state.items[0] || null;
     state.service=context.service && profile.services.includes(context.service)?context.service:profile.services[0];
