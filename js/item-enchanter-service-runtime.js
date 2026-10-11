@@ -984,6 +984,8 @@
   function quoteGemProcedure(provider={},item={},anchorId,procedure="safe_extract",options={}) {
     const profile=provider.maxRank?provider:normalizeProviderProfile(provider,options);
     const mode=normalizeId(procedure || "safe_extract");
+    if(!["safe_extract","destroy_anchor","rewrite","item_side_remove"].includes(mode))
+      return Object.freeze({quoted:false,reason:"unknown_rewrite_procedure"});
     const service=mode==="rewrite" || mode==="item_side_remove" ? "remove_rewrite" : "extract_gem";
     const gate=providerCanService(profile,service,{});
     if (!gate.allowed) return Object.freeze({quoted:false,...gate});
