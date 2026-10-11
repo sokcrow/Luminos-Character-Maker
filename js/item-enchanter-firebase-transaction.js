@@ -48,6 +48,21 @@
     const pickup=result?.delivered===true && result?.started!==true;
     const inBefore=itemExists(initial,itemInstanceId);
     const inAfter=itemExists(next,itemInstanceId);
+    // World-calendar time is authoritative for all newly scheduled jobs.
+    // Read it from Firebase, not the Player's machine or the submitted quote.
+    const clockJob=intake?next.enchanterJobs?.[transactionId]:jobBefore;
+    let worldTimestampMs=null;
+    if((intake||pickup) && clockJob?.clockSource==="campaign"){
+      let raw;
+      try{
+        raw=(await db.ref("campaña/calendario/timestamp").once("value")).val();
+      }catch(error){
+        return {committed:false,reason:"service_world_time_unavailable",error:String(error?.message||error)};
+      }
+      worldTimestampMs=typeof raw==="number"?raw:(raw?Date.parse(String(raw)):NaN);
+      if(!Number.isFinite(worldTimestampMs))
+        return {committed:false,reason:"service_world_time_unavailable"};
+    }
     const refs=initial.equipmentRefs || {};
     const equipped=[refs.mainHand,refs.offHand,refs.armor,refs.shield,
       ...(Array.isArray(refs.accessoryIds)?refs.accessoryIds:[])].some(id=>String(id||"")===itemInstanceId);
@@ -55,14 +70,21 @@
       const started=next.enchanterJobs?.[transactionId];
       if(!inBefore || inAfter || equipped || !started || started.status!=="in_service"
           || started.itemInstanceId!==itemInstanceId
-          || receipt.status!=="in_service")
+          || receipt.status!=="in_service"
+          || (started.clockSource==="campaign" &&
+            (!Number.isFinite(Number(started.readyAt))
+            || !Number.isFinite(Number(started.startedAt))
+            || Number(started.startedAt)!==worldTimestampMs
+            || Number(started.readyAt)<=worldTimestampMs)))
         return {committed:false,reason:"invalid_service_intake"};
     }else if(pickup){
       if(inBefore || !inAfter || !jobBefore || jobBefore.status!=="in_service"
           || !jobAfter || jobAfter.status!=="completed"
           || jobBefore.itemInstanceId!==itemInstanceId
           || receipt.deliveryOf!==result.deliveryOf || charge!==0
-          || Number(jobBefore.readyAt)>Date.now())
+          || !Number.isFinite(Number(jobBefore.readyAt))
+          || Number(jobBefore.readyAt)>
+            (jobBefore.clockSource==="campaign"?worldTimestampMs:Date.now()))
         return {committed:false,reason:"invalid_service_delivery"};
     }else if(!inBefore || !inAfter){
       return {committed:false,reason:"receipt_or_target_item_mismatch"};
