@@ -452,4 +452,126 @@ assert.equal(analysisOwner.itemMagicKnowledge.clean_magic_item.curseChecked,true
 assert.equal(analysisOwner.itemMagicKnowledge.clean_magic_item.curseFlagKnown,false);
 assert.equal(analysisOwner.enchanterTransactions.negative_curse_analysis.chargedAhn,350);
 
+// Strengthening must consume *both* the normal ingredient and the curse
+// reagent already installed on the enchantment, not merely quote that reagent.
+const repairSmith=Services.normalizeProviderProfile({
+  id:"properties_smith",maxRank:3,services:["strengthen","remove_rewrite","enchant","mount_gem"],
+  knownEnchantments:["flamebound","frostbound"],reliability:1,
+  servicePriceAhn:{remove_rewrite:500},
+});
+const cursedBase={...item,instanceId:"cursed_strengthen"};
+const cursedApplied=Engine.applyEnchantment(cursedBase,"flamebound",1,{properties:["curse"]});
+assert.equal(cursedApplied.applied,true);
+const cursedItem=JSON.parse(JSON.stringify(cursedApplied.item));
+const strengthDust=reagent("cursed_strength_dust");
+const strengthBlood={...profane,instanceId:"cursed_strength_blood"};
+const strengtheningOwner={ahn:5000000,inventario_activo:{
+  cursed_strengthen:cursedItem,cursed_strength_dust:strengthDust,cursed_strength_blood:strengthBlood,
+}};
+const strengtheningQuote=Services.quoteStrengthenService(repairSmith,cursedItem,"flamebound",2,{
+  playerMaterials:[strengthDust,strengthBlood],
+});
+assert.equal(strengtheningQuote.quoted,true);
+assert.deepStrictEqual(strengtheningQuote.properties,["curse"]);
+assert.ok(strengtheningQuote.materials.plan.requirements.some(row=>
+  row.id==="intentional_curse_reagent"));
+const strengtheningDone=Services.commitServiceTransaction(strengtheningOwner,cursedItem,
+  strengtheningQuote,{transactionId:"cursetest",playerMaterials:[strengthDust,strengthBlood]});
+assert.equal(strengtheningDone.committed,true);
+assert.equal(strengtheningOwner.inventario_activo.cursed_strength_dust,undefined);
+assert.equal(strengtheningOwner.inventario_activo.cursed_strength_blood,undefined);
+assert.equal(cursedItem.magic.enchantments[0].rank,2);
+assert.deepStrictEqual(cursedItem.magic.enchantments[0].properties,["curse"]);
+
+// New NPC altered Enchant and Mount Gem outcomes must create a candidate
+// inscription already carrying accidental Curse/Bind, not try to edit nothing.
+for(const kind of ["accidental_bind","accidental_curse"]){
+  const failureProvider=Services.normalizeProviderProfile({
+    id:"accidental_"+kind,maxRank:3,
+    services:["enchant","mount_gem"],knownEnchantments:["flamebound"],
+    reliability:0,outcomeTable:[{kind,weight:1}],
+  });
+  const target={...item,instanceId:"new_"+kind};
+  const powder=reagent("new_dust_"+kind);
+  const owner={ahn:3000000,inventario_activo:{
+    [target.instanceId]:target,[powder.instanceId]:powder,
+  }};
+  const quote=Services.quoteEnchantService(failureProvider,target,"flamebound",1,{
+    playerMaterials:[powder],
+  });
+  assert.equal(quote.quoted,true);
+  const done=Services.commitServiceTransaction(owner,target,quote,{
+    provider:failureProvider,npcRoll:0.8,transactionId:"new_"+kind,
+    playerMaterials:[powder],
+  });
+  assert.equal(done.committed,true,`new Enchant outcome ${kind}: ${done.reason}`);
+  assert.equal(done.npcOutcomeKind,kind);
+  assert.ok(target.magic.enchantments[0].properties.includes(kind==="accidental_bind"?"bind":"curse"));
+  assert.equal(owner.inventario_activo[powder.instanceId],undefined);
+}
+const gemProvider=Services.normalizeProviderProfile({
+  id:"accidental_gem",maxRank:3,services:["mount_gem"],knownEnchantments:["flamebound"],
+  reliability:0,outcomeTable:[{kind:"accidental_curse",weight:1}],
+});
+const gemWeapon={...item,instanceId:"npc_gem_weapon"};
+const looseGem={instanceId:"npc_gem",definitionId:"ruby",quality:"fine",quantity:1};
+const gemDust=reagent("npc_gem_dust");
+const npcGemOwner={ahn:3000000,inventario_activo:{
+  npc_gem_weapon:gemWeapon,npc_gem:looseGem,npc_gem_dust:gemDust,
+}};
+const gemQuote=Services.quoteEnchantService(gemProvider,gemWeapon,"flamebound",2,{
+  serviceId:"mount_gem",gem:looseGem,playerMaterials:[gemDust],
+});
+assert.equal(gemQuote.quoted,true);
+const gemDone=Services.commitServiceTransaction(npcGemOwner,gemWeapon,gemQuote,{
+  provider:gemProvider,npcRoll:0.8,transactionId:"npc_gem_curse",playerMaterials:[gemDust],
+});
+assert.equal(gemDone.committed,true,`new gem candidate: ${gemDone.reason}`);
+assert.ok(gemWeapon.magic.enchantments[0].properties.includes("curse"));
+
+// Direct replacement is one atomic transaction (removal + validated install)
+// and costs the replacement recipe materials.
+const originalDirect=Engine.applyEnchantment({...item,instanceId:"direct_rewrite_item"},"flamebound",1);
+assert.equal(originalDirect.applied,true);
+const directItem=JSON.parse(JSON.stringify(originalDirect.item));
+const directDust=reagent("direct_rewrite_dust");
+const directOwner={ahn:3000000,inventario_activo:{
+  direct_rewrite_item:directItem,direct_rewrite_dust:directDust,
+}};
+const directQuote=Services.quoteDirectRewriteService(repairSmith,directItem,
+  "flamebound","frostbound",{rank:1,playerMaterials:[directDust]});
+assert.equal(directQuote.quoted,true,`direct replacement quote: ${directQuote.reason}`);
+const directDone=Services.commitServiceTransaction(directOwner,directItem,directQuote,{
+  transactionId:"direct_rewrite",playerMaterials:[directDust],
+});
+assert.equal(directDone.committed,true,`direct replacement: ${directDone.reason}`);
+assert.equal(directItem.magic.enchantments.length,1);
+assert.equal(directItem.magic.enchantments[0].definitionId,"frostbound");
+assert.equal(directOwner.inventario_activo.direct_rewrite_dust,undefined);
+assert.equal(directOwner.enchanterTransactions.direct_rewrite.chargedAhn,directQuote.totalAhn);
+
+// Gem rewrite follows the same supported service procedure, preserving the
+// physical anchor while switching inscription rank and written gem quality.
+const gemWork=Engine.mountGemAnchor({...item,instanceId:"gem_rewrite_item"},
+  {instanceId:"gem_rewrite_ruby",definitionId:"ruby",quality:"fine"},"flamebound",2);
+assert.equal(gemWork.mounted,true);
+const gemWriteItem=JSON.parse(JSON.stringify(gemWork.item));
+const rewriteDust=reagent("gem_rewrite_dust");
+const rewriteOwner={ahn:3000000,inventario_activo:{
+  gem_rewrite_item:gemWriteItem,gem_rewrite_dust:rewriteDust,
+}};
+const rewriteQuote=Services.quoteGemProcedure(repairSmith,gemWriteItem,
+  gemWork.anchor.anchorId,"rewrite",{
+    nextDefinitionId:"flamebound",rank:1,gemQualityAfter:"standard",
+    playerMaterials:[rewriteDust],
+  });
+assert.equal(rewriteQuote.quoted,true,`gem rewrite quote: ${rewriteQuote.reason}`);
+const rewriteDone=Services.commitServiceTransaction(rewriteOwner,gemWriteItem,rewriteQuote,{
+  transactionId:"gem_rewrite",playerMaterials:[rewriteDust],
+});
+assert.equal(rewriteDone.committed,true,`gem rewrite: ${rewriteDone.reason}`);
+assert.equal(gemWriteItem.magic.enchantments[0].rank,1);
+assert.equal(gemWriteItem.magic.gemAnchors[0].gemQuality,"standard");
+assert.equal(rewriteOwner.inventario_activo.gem_rewrite_dust,undefined);
+
 console.log("Enchanter atomic transaction/provenance smoke: OK");
