@@ -124,7 +124,12 @@
   async function sealRound(){
     const s=adapterState();if(!s?.db?.ref||!isDm())throw new Error('DM_AUTHORITY_REQUIRED');const round=Math.max(1,Math.trunc(Number(s.round)||1));
     const [ready,plans]=await Promise.all([read(ROOT.ready),read(ROOT.plans)]),check=readyComplete(ready||{},plans||{},round);if(!check.complete)throw new Error(`ROUND_NOT_READY:${check.missing.join(',')}`);validateSpellPlans(plans||{});
-    const seed=makeSeed(round),payload={schemaVersion:1,engineVersion:'0.7.3-authority.7-player-state',round,phase:'sealed',seed,authorityUid:s.uid,plans:clone(plans||{}),aiPlans:collectAiPlans(),createdAt:serverTime(),checkpoint:null};
+    // Ready-player reactions are authenticated planning choices; DM verifies
+    // Item equipment and effects again before arming their combat runtime.
+    const defensiveReactions=Object.fromEntries(activePlayerIds()
+      .map(playerId=>[playerId,clean(ready?.[playerId]?.enchantmentReactionItemInstanceId)])
+      .filter(([,id])=>id));
+    const seed=makeSeed(round),payload={schemaVersion:1,engineVersion:'0.7.3-authority.7-player-state',round,phase:'sealed',seed,authorityUid:s.uid,plans:clone(plans||{}),aiPlans:collectAiPlans(),defensiveReactions,createdAt:serverTime(),checkpoint:null};
     const updates={};updates[ROOT.current]=payload;updates[ROOT.state]={phase:'COMBAT_SEALED',round,authorityUid:s.uid,seed,updatedAt:serverTime()};await s.db.ref().update(updates);state.current={...payload,createdAt:Date.now()};resetRandom(seed,0);applyAuthority(payload);return payload;
   }
 
@@ -135,6 +140,18 @@
     if(s.role==='player'&&s.playerId&&data.plans?.[s.playerId]){const own=Object.values(units).find(unit=>unit?.controlled==='player'||canonicalPlayerId(unit)===s.playerId);replaceLocalPlans(planRowsToArray(data.plans[s.playerId],own));}else if(s.role==='dm')replaceLocalPlans([]);
     for(const ownerRows of Object.values(data.plans||{})){const sample=Object.values(ownerRows||{})[0];if(!sample)continue;const unit=sample.unitId&&units[sample.unitId]?units[sample.unitId]:Object.values(units).find(row=>canonicalPlayerId(row)===clean(sample.scheduledBy));if(unit?.controlled==='remote')unit.autoPlans=planRowsToArray(ownerRows,unit);}
     for(const [unitId,rows] of Object.entries(data.aiPlans||{})){const unit=units[unitId];if(unit?.controlled==='ai')unit.autoPlans=planRowsToArray(rows,unit);}
+    if(s.role==='dm'){
+      const bridge=global.LuminousItemEnchantmentCombatRuntime;
+      for(const [owner,id] of Object.entries(data.defensiveReactions||{})){
+        const unit=Object.values(units).find(row=>canonicalPlayerId(row)===owner && row.battleActive!==false && !row.isBackup);
+        if(!unit || unit.__luminousEnchantmentReactionArmedRound===Number(data.round))continue;
+        const result=bridge?.queueDefensiveReaction?.(unit,id);
+        if(result?.queued)
+          Object.defineProperty(unit,'__luminousEnchantmentReactionArmedRound',{
+            configurable:true,writable:true,enumerable:false,value:Number(data.round),
+          });
+      }
+    }
     combat.render?.();global.LuminousWebGL2Renderer?.requestRender?.(80);return true;
   }
   function applySnapshot(snapshot={}){
