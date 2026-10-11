@@ -188,7 +188,9 @@ test("timed service remains pending across panel reopening and only delivers whe
       };
       const job={jobId:options.transactionId,status:"in_service",
         itemInstanceId:item.instanceId,service:"enchant",totalAhn:100,
-        readyAt:Date.now()+8*60*60*1000};
+        readyAt:Date.now()+8*60*60*1000,
+        itemBefore:JSON.parse(JSON.stringify(item)),providerId:"tester"};
+      delete player.inventario_activo[item.instanceId];
       player.enchanterJobs[job.jobId]=job;
       return {committed:true,started:true,transactionId:job.jobId,chargedAhn:100,
         itemInstanceId:item.instanceId,service:"enchant",job,player};
@@ -197,8 +199,8 @@ test("timed service remains pending across panel reopening and only delivers whe
       const job=owner.enchanterJobs[id];
       if(!S.serviceReady(job))return {committed:false,reason:"service_not_ready"};
       const player=JSON.parse(JSON.stringify(owner));
-      player.inventario_activo.sword_1.magic={
-        enchantments:[{definitionId:"flamebound",rank:1}],
+      player.inventario_activo.sword_1={
+        ...job.itemBefore,magic:{enchantments:[{definitionId:"flamebound",rank:1}]},
       };
       player.enchanterJobs[id].status="completed";
       player.enchanterTransactions[id+":delivery"]={committed:true,chargedAhn:0};
@@ -213,9 +215,9 @@ test("timed service remains pending across panel reopening and only delivers whe
   await expect(page.locator("#enchanter-ui-commit")).toBeDisabled();
   expect(await page.evaluate(() => ({
     ahn:window.__enchanterFixture.viewer.ahn,
-    magical:!!window.__enchanterFixture.viewer.inventario_activo.sword_1.magic,
+    escrowed:window.__enchanterFixture.viewer.inventario_activo.sword_1===undefined,
     saves:window.__enchanterFixture.saves,
-  }))).toEqual({ahn:900,magical:false,saves:1});
+  }))).toEqual({ahn:900,escrowed:true,saves:1});
   await page.evaluate(() => {
     window.LuminousEnchanterUi.close();
     window.__openEnchanter();
@@ -235,4 +237,35 @@ test("timed service remains pending across panel reopening and only delivers whe
     magic:window.__enchanterFixture.viewer.inventario_activo.sword_1.magic,
     saves:window.__enchanterFixture.saves,
   }))).toMatchObject({ahn:900,magic:{enchantments:[{definitionId:"flamebound",rank:1}]},saves:2});
+});
+
+test("shop terminal never quotes or consumes provider-stock reagents", async ({page}) => {
+  await boot(page);
+  await page.evaluate(() => {
+    const S=window.LuminousItemEnchanterServiceRuntime;
+    window.__providerMaterialsSeen=[];
+    const quote=S.quoteEnchantService;
+    S.quoteEnchantService=(provider,item,id,rank,opts)=>{
+      window.__providerMaterialsSeen.push(opts.providerMaterials.length);
+      if(opts.providerMaterials.length) return {quoted:false,reason:"provider_stock_requires_server_atomic_commit"};
+      return quote(provider,item,id,rank,opts);
+    };
+    window.LuminousEnchanterUi.close();
+    window.__openEnchanter = () => window.LuminousEnchanterUi.open({
+      viewer:window.__enchanterFixture.viewer,
+      provider:{id:"tester",name:"Testing Enchanter",services:["enchant"],
+        maxRank:3,knownEnchantments:["flamebound"]},
+      providerMaterials:[{instanceId:"shop_reagent",definitionId:"ruby",quantity:2}],
+      onSave:async()=>{window.__enchanterFixture.saves++;},
+    });
+    window.__openEnchanter();
+  });
+  await expect(page.locator("#enchanter-ui-preview-content")).toContainText("Resultado previsto");
+  await page.locator("#enchanter-ui-confirm").check();
+  await page.locator("#enchanter-ui-commit").click();
+  expect(await page.evaluate(()=>({
+    seen:window.__providerMaterialsSeen,
+    spent:window.LuminousEnchanterUi.state.providerMaterials[0].quantity,
+  }))).toMatchObject({spent:2});
+  expect(await page.evaluate(()=>window.__providerMaterialsSeen.every(n=>n===0))).toBe(true);
 });
