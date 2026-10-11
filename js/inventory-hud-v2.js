@@ -58,6 +58,8 @@
     speed: "Velocidad", min_speed: "Velocidad mínima", max_speed: "Velocidad máxima",
   });
   function enchantmentInfo(item = {}) {
+    const detection = magicPresentation(item);
+    if (detection && !detection.magicDetected) return null;
     const ench = enchantmentRuntime()?.activeEnchantment?.(item) || null;
     if (!ench) return null;
     const requires = magicRuntime()?.requiresAttunement?.(item) === true;
@@ -1292,12 +1294,13 @@
     const host = doc.getElementById("inventory-v2-actions");
     if (!host) return;
     host.innerHTML = "";
-    if (enchantmentRuntime()?.activeEnchantment?.(item)) {
+    const magical = magicRuntime()?.isMagicItem?.(item) === true;
+    const presentation = magical ? magicPresentation(item) : null;
+    if (enchantmentRuntime()?.activeEnchantment?.(item)
+        && (!magical || presentation?.magicDetected===true)) {
       addAction(host, "COMPENDIO DE ENCANTAMIENTOS",
         () => global.open?.("game-codex/enchantments.html", "_blank", "noopener"));
     }
-    const magical = magicRuntime()?.isMagicItem?.(item) === true;
-    const presentation = magical ? magicPresentation(item) : null;
     const canStudy = magical && presentation?.identified !== true;
 
     if (state.selectedContainer === "equipment") {
