@@ -307,18 +307,24 @@
     const paths = playerPaths(playerId, options);
     if (!paths) return { saved: false, reason: "missing_player_id" };
     const state = normalizeStateForSave(unitOrState || {}, options);
-    const updates = {
-      inventario_activo: serializeContainer(state.inventario_activo),
-      inventario_stash: serializeContainer(state.inventario_stash),
-      itemInventorySchemaVersion: SCHEMA_VERSION,
-      itemEquipmentRefs: clone(state.equipmentRefs || {}),
-      attunedItemInstanceIds: clone(state.attunedItemInstanceIds || []),
-    };
+    // Partial combat projections also omit the Stash and sometimes
+    // Attunement/Equipment. Never write their serializer defaults to Firebase.
+    // A present empty container is still an intentional explicit update.
+    const supplied = unitOrState && typeof unitOrState === "object" ? unitOrState : {};
+    const has = (...names) => names.some(key=>Object.prototype.hasOwnProperty.call(supplied,key));
+    const updates = {itemInventorySchemaVersion:SCHEMA_VERSION};
+    if(has("inventario_activo","activeInventory","inventory"))
+      updates.inventario_activo=serializeContainer(state.inventario_activo);
+    if(has("inventario_stash","stashInventory","stash"))
+      updates.inventario_stash=serializeContainer(state.inventario_stash);
+    if(has("equipment","itemEquipmentRefs","equipmentRefs"))
+      updates.itemEquipmentRefs=clone(state.equipmentRefs || {});
+    if(has("attunedItemInstanceIds","attunedItems"))
+      updates.attunedItemInstanceIds=clone(state.attunedItemInstanceIds || []);
     // Combat and other narrow callers save a partially hydrated Player. Do
     // not serialize missing Enchanter knowledge, receipts or escrowed Items as
     // empty maps: RTDB.update({enchanterJobs:{}}) would erase live work.
     // An explicitly owned empty map remains an intentional clear.
-    const supplied = unitOrState && typeof unitOrState === "object" ? unitOrState : {};
     for (const field of ["itemMagicKnowledge","enchantmentCompendium",
                          "enchanterTransactions","enchanterJobs"]) {
       if (Object.prototype.hasOwnProperty.call(supplied,field) && supplied[field] != null)
