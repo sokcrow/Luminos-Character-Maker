@@ -409,6 +409,36 @@
         quantity: quantityOf(raw),
       });
     }).filter(Boolean);
+    // A defensive Enchantment is a prepared Reaction, not a consumable Item
+    // action. Put it in the existing Items > REACTION tab, not an overlay.
+    const magic=global.LuminousItemMagicRuntime;
+    for(const equipped of magic?.equippedMagicItems?.(unit)||[]){
+      const instanceId=clean(equipped?.instanceId||equipped?.instance_id);
+      if(!instanceId)continue;
+      const canonical=inventoryEntries(unit.inventario_activo||{})
+        .map(([,entry])=>entry)
+        .find(entry=>clean(entry?.instanceId||entry?.instance_id)===instanceId) || equipped;
+      const resolution=magic.enchantmentEffectResolution?.(unit,canonical,{
+        trigger:"before_getting_hit",requireEquipped:true,requireLivingActor:true,
+        specialUse:true,
+      });
+      if(!resolution?.resolved || !asArray(resolution.effects).length ||
+        asArray(resolution.effects).some(effect=>normalizeId(effect.type)!=="status_apply"))continue;
+      const rowKey="enchantment_reaction:"+instanceId;
+      seen.add(rowKey);
+      rows.push(stableItemRow(rowKey,{
+        id:instanceId,itemId:instanceId,instanceId,
+        definitionId:clean(canonical.definitionId||canonical.definition_id),
+        kind:"item",sourceType:"item",enchantmentReaction:true,
+        actionCost:ECONOMY.REACTION,economyCost:ECONOMY.REACTION,
+        reaction:{trigger:"before_getting_hit"},
+        targetMode:"self",inventoryContainer:"inventario_activo",
+        name:clean(canonical.displayName||canonical.nombre||canonical.name||"Item")+" · Reacción",
+        description:"Preparar este encantamiento para el próximo golpe recibido.",
+        iconFamily:canonical.iconFamily,iconId:canonical.iconId,
+        quantity:1,
+      }));
+    }
     for (const key of [...state.itemRowByInstanceId.keys()]) if (!seen.has(key)) state.itemRowByInstanceId.delete(key);
     return rows;
   }
@@ -746,7 +776,7 @@
       const qty = Math.max(0, Number(row.quantity) || 0);
       const iconUrl = itemIconUrl(row);
       const icon = iconUrl ? `<span class="combat-item-icon"><img src="${htmlEscape(iconUrl)}" alt=""></span>` : "";
-      button.innerHTML = `${icon}<span class="clean-name">${htmlEscape(row.name)}</span><span class="clean-cost">x${qty} · ${htmlEscape(costLabel(row))}</span>`;
+      button.innerHTML = `${icon}<span class="clean-name">${htmlEscape(row.name)}</span><span class="clean-cost">${row.enchantmentReaction?"PREPARAR":("x"+qty)} · ${htmlEscape(costLabel(row))}</span>`;
       button.onclick = () => api.selectAction({ type: "items", slotIndex: selectedSlotIndex(), data: row });
       list.appendChild(button);
     });
@@ -1323,6 +1353,14 @@
     if (!unit || !economy) return false;
     const gate = economy.availability?.(unit, ECONOMY.REACTION, { phase: "combat" });
     if (gate?.available === false) { lexical("setStatus", () => {})(`REACTION · ${gate.reason || "UNAVAILABLE"}`); return false; }
+    if(sel.data?.enchantmentReaction===true){
+      const result=global.LuminousItemEnchantmentCombatRuntime?.queueDefensiveReaction?.(
+        unit,sel.data?.instanceId);
+      if(!result?.queued){
+        lexical("setStatus",()=>{})("REACTION · ITEM NO DISPONIBLE");
+        return false;
+      }
+    }
     const action = compilerFor(sel, null);
     if (!action) return false;
     action.reaction = { ...(action.reaction || {}), mode: "prepared", trigger: clone(sel.data?.reaction?.trigger || sel.data?.trigger || sel.data?.activation?.trigger || null) };
