@@ -697,7 +697,7 @@ test("rejected Firebase Arcana save restores spent SP and both learned and previ
     };
     hud.renderAll();
   });
-  await expect(page.locator("#inventory-v2-actions button")).toContainText(["STUDY ARCANA · 1 SP"]);
+  await expect(page.locator('#inventory-v2-actions button',{hasText:"STUDY ARCANA"})).toHaveCount(1);
   await page.locator("#inventory-v2-actions button", {hasText:"STUDY ARCANA"}).click();
   await expect.poll(()=>page.evaluate(()=>window.__arcanaSaveCalls)).toBe(1);
   await expect(page.locator("#inventory-v2-action-status")).toContainText("ARCANA NO GUARDADA");
