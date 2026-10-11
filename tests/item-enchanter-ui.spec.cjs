@@ -72,6 +72,11 @@ async function boot(page, shouldSave = true) {
       onSave: async () => {
         window.__enchanterFixture.saves += 1;
         if (window.__enchanterSaveFails) throw new Error("network save did not confirm");
+        if (window.__enchanterReturnServerSnapshot) {
+          const snapshot=JSON.parse(JSON.stringify(viewer));
+          snapshot.enchanterTransactions.server_receipt={committed:true,source:"firebase"};
+          return {snapshot};
+        }
       },
     });
     window.__enchanterSaveFails = !shouldSave;
@@ -100,6 +105,18 @@ test("player confirmation only reports COMPLETE after the save callback resolves
     events:window.__enchanterFixture.events,
     ahn:window.__enchanterFixture.viewer.ahn,
   }))).toEqual({commits:1,saves:1,events:1,ahn:900});
+});
+
+test("confirmed service updates the player from Firebase's authoritative snapshot", async ({page}) => {
+  await boot(page);
+  await page.evaluate(() => { window.__enchanterReturnServerSnapshot=true; });
+  await page.locator("#enchanter-ui-confirm").check();
+  await page.locator("#enchanter-ui-commit").click();
+  await expect(page.locator("#enchanter-ui-status")).toContainText("COMPLETE");
+  expect(await page.evaluate(() => ({
+    ahn:window.__enchanterFixture.viewer.ahn,
+    source:window.__enchanterFixture.viewer.enchanterTransactions?.server_receipt?.source,
+  }))).toEqual({ahn:900,source:"firebase"});
 });
 
 test("ambiguous remote save failure locks repeat charge until page reload", async ({page}) => {
