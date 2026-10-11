@@ -221,6 +221,7 @@
   }
   function decorate(root,{mode="card"}={}) {
     if (!doc?.createTreeWalker || !root) return 0;
+    if (active && !active.isConnected) dismiss();
     ensureStyles();
     const walker=doc.createTreeWalker(root,4), nodes=[];
     while(walker.nextNode()){
