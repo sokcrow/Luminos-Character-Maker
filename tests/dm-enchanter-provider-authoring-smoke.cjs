@@ -13,6 +13,16 @@ for(const element of [
   "tienda-enchanter-servicios","tienda-enchanter-recetas",
 ]) assert.ok(dm.includes(`id="${element}"`),`DM shop editor missing ${element}`);
 assert.ok(dm.includes("renderShopEnchanterOptions(enchanterIds"),"editing a shop must refill the service and recipe checks");
+for(const element of ["tienda-enchanter-fiabilidad","tienda-enchanter-tarifas",
+  "tienda-enchanter-reparacion-precio","tienda-enchanter-extraccion-calidad"]){
+  assert.ok(dm.includes(`id="${element}"`),`DM shop editor missing ${element}`);
+}
+for(const field of ["servicePriceAhn:enchanterPrices","magicalRepairAhnPerPoint:needsRepairPrice",
+  "safeExtractionGemQuality:enchanterServices.includes","reliability:reliabilityPercent/100",
+  "renderShopEnchanterPriceFields(existingEnchanter.servicePriceAhn"]){
+  assert.ok(dm.includes(field),`DM provider authoring must persist/refill ${field}`);
+}
+
 assert.ok(dm.includes("authoredServiceSettings"),"shop creation must store individually offered Enchanter services");
 assert.ok(dm.includes("enchanterProvider: enchanterEnabled"),"DM shop editor must save provider details");
 assert.ok(dm.includes('src="js/item-catalog-enchantments.js"'),"DM provider must populate known recipes from the real catalog");
