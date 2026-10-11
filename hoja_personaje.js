@@ -6469,7 +6469,7 @@ async function persistShopEnchanterState(playerData, tiendaId, result, snapshots
   }
   const balanceDisplay = document.getElementById("shop-player-balance");
   if (balanceDisplay) balanceDisplay.innerText = saved.balance;
-  return { saved: true, balance:saved.balance, transactionId:saved.transactionId };
+  return { saved:true, balance:saved.balance, transactionId:saved.transactionId, snapshot:saved.snapshot };
 }
 
 window.abrirServiciosTiendaDinamica = async function(
