@@ -1140,6 +1140,10 @@
       source:"gem",
       anchorId,
       properties:propertyValidation.properties,
+      applicationId:options.applicationId,
+      appliedBy:options.appliedBy,
+      appliedAt:options.appliedAt,
+      provenance:options.provenance,
     });
     const candidateAnchor = normalizeGemAnchor({
       anchorId,
@@ -1215,7 +1219,13 @@
     const anchors = currentAnchors;
     refs.push(gate.reference);
     anchors.push(gate.anchor);
-    const out = withMagicState(item, refs, anchors, options);
+    let out = withMagicState(item, refs, anchors, options);
+    out = appendEnchantmentHistory(out,historyEntry("apply",gate.reference,{
+      applicationId:gate.reference.applicationId,
+      actorId:gate.reference.appliedBy,
+      timestamp:gate.reference.appliedAt,
+      context:gate.reference.provenance,
+    }));
     return Object.freeze({
       mounted:true,
       item:Object.freeze(out),
