@@ -439,6 +439,13 @@
         quantity:1,
       }));
     }
+    if(clean(unit.__luminousSelectedEnchantmentReaction)){
+      rows.push({
+        id:"cancel_enchantment_reaction",name:"Cancelar reacción preparada",
+        cancelEnchantmentReaction:true,economyCost:ECONOMY.REACTION,
+        actionCost:ECONOMY.REACTION,quantity:1,kind:"item",
+      });
+    }
     for (const key of [...state.itemRowByInstanceId.keys()]) if (!seen.has(key)) state.itemRowByInstanceId.delete(key);
     return rows;
   }
@@ -777,7 +784,20 @@
       const iconUrl = itemIconUrl(row);
       const icon = iconUrl ? `<span class="combat-item-icon"><img src="${htmlEscape(iconUrl)}" alt=""></span>` : "";
       button.innerHTML = `${icon}<span class="clean-name">${htmlEscape(row.name)}</span><span class="clean-cost">${row.enchantmentReaction?"PREPARAR":("x"+qty)} · ${htmlEscape(costLabel(row))}</span>`;
-      button.onclick = () => api.selectAction({ type: "items", slotIndex: selectedSlotIndex(), data: row });
+      button.onclick = () => {
+        if(row.cancelEnchantmentReaction){
+          const unit=playerUnit();
+          if(unit)delete unit.__luminousSelectedEnchantmentReaction;
+          state.preparedReaction=null;
+          try{global.dispatchEvent(new CustomEvent("luminous:combat073-reaction-prepared",{
+            detail:{version:VERSION,action:null,source:{}},
+          }));}catch(_){}
+          lexical("setStatus",()=>{})("REACTION · CANCELADA");
+          renderItems();
+          return;
+        }
+        api.selectAction({ type: "items", slotIndex: selectedSlotIndex(), data: row });
+      };
       list.appendChild(button);
     });
     body.appendChild(list);
@@ -1373,6 +1393,8 @@
       lexical("goRoot",()=>{})();
       return true;
     }
+    // Preparing any other Reaction replaces an earlier enchantment choice.
+    if(unit)delete unit.__luminousSelectedEnchantmentReaction;
     const action = compilerFor(sel, null);
     if (!action) return false;
     action.reaction = { ...(action.reaction || {}), mode: "prepared", trigger: clone(sel.data?.reaction?.trigger || sel.data?.trigger || sel.data?.activation?.trigger || null) };
