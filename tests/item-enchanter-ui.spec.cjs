@@ -394,6 +394,8 @@ test("Remove / Rewrite terminal exposes direct replacement and Gem anchored proc
   });
   await expect(page.locator("#enchanter-ui-procedure")).toHaveValue("item_side_remove");
   await expect(page.locator("#enchanter-ui-gem-quality-wrap")).toBeVisible();
+  await expect(page.locator('#enchanter-ui-gem-quality option[value="fine"]')).toHaveCount(0);
+  await expect(page.locator('#enchanter-ui-gem-quality option[value="exceptional"]')).toHaveCount(0);
   await page.locator("#enchanter-ui-gem-quality").selectOption("standard");
   expect(await page.evaluate(()=>window.LuminousEnchanterUi.state.quote)).toMatchObject({
     quoted:true,procedure:"item_side_remove",anchorId:"socket_one",gemQualityAfter:"standard",
@@ -425,8 +427,11 @@ test("Remove / Rewrite terminal exposes direct replacement and Gem anchored proc
   });
   await expect(page.locator("#enchanter-ui-enchantment option")).toHaveCount(2);
   await page.locator("#enchanter-ui-enchantment").selectOption("anchor:socket_two");
+  await expect(page.locator('#enchanter-ui-gem-quality option[value="standard"]')).toHaveCount(0);
+  await expect(page.locator('#enchanter-ui-gem-quality option[value="fine"]')).toHaveCount(0);
+  await page.locator("#enchanter-ui-gem-quality").selectOption("poor");
   expect(await page.evaluate(()=>window.LuminousEnchanterUi.state.quote)).toMatchObject({
-    quoted:true,anchorId:"socket_two",procedure:"item_side_remove",
+    quoted:true,anchorId:"socket_two",procedure:"item_side_remove",gemQualityAfter:"poor",
   });
 });
 
