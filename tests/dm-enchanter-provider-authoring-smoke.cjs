@@ -14,7 +14,7 @@ for(const element of [
 ]) assert.ok(dm.includes(`id="${element}"`),`DM shop editor missing ${element}`);
 assert.ok(dm.includes("renderShopEnchanterOptions(enchanterIds"),"editing a shop must refill the service and recipe checks");
 for(const element of ["tienda-enchanter-fiabilidad","tienda-enchanter-tarifas",
-  "tienda-enchanter-reparacion-precio","tienda-enchanter-extraccion-calidad"]){
+  "tienda-enchanter-reparacion-precio","tienda-enchanter-extraccion-calidad","tienda-enchanter-fallo"]){
   assert.ok(dm.includes(`id="${element}"`),`DM shop editor missing ${element}`);
 }
 for(const field of ["servicePriceAhn:enchanterPrices","magicalRepairAhnPerPoint:needsRepairPrice",
