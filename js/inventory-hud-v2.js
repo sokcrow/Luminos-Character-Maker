@@ -298,7 +298,11 @@
 
   function itemDescription(item = {}) {
     const magical = magicPresentation(item);
-    if (magical?.magical) {
+    // A failed passive Arcana check must reveal neither the magical nature nor
+    // the number of installed inscriptions. Do not fall back to authored
+    // descriptions, which may contain hidden enchantment details.
+    if (magical && !magical.magicDetected) return mundaneDescription(item);
+    if (magical?.magicDetected) {
       const lines = [mundaneDescription(item)];
       magical.enchantmentLines?.forEach((entry) => lines.push(entry.text));
       magical.curseLines?.forEach((entry) => lines.push(entry.text));
@@ -316,7 +320,7 @@
 
   function itemDescriptionHtml(item = {}) {
     const magical = magicPresentation(item);
-    if (!magical?.magical) return escapeHtml(itemDescription(item)).replace(/\n/g, "<br>");
+    if (!magical?.magicDetected) return escapeHtml(itemDescription(item)).replace(/\n/g, "<br>");
     const chunks = [`<span class="inventory-v2-mundane-description">${escapeHtml(mundaneDescription(item))}</span>`];
     magical.enchantmentLines?.forEach((entry) => {
       const glow = magical.inscriptionGlowing ? " is-glowing" : " is-depleted";
@@ -1022,10 +1026,10 @@
           facts.push(`<span class="inventory-v2-player-fact"><b>VS EQUIPPED MAGIC</b> ${escapeHtml(delta)}</span>`);
         }
       }
-      if (magical?.difficulty) {
+      if (magical?.magicDetected && magical.difficulty) {
         facts.push(`<span class="inventory-v2-player-fact"><b>ARCANA</b> ${escapeHtml(magical.difficulty.label)} · TH ${escapeHtml(String(magical.difficulty.threshold ?? "—"))}</span>`);
       }
-      if (magical?.magicalDurability?.current != null) {
+      if (magical?.magicDetected && magical.magicalDurability?.current != null) {
         facts.push(`<span class="inventory-v2-player-fact"><b>MAGIC</b> ${escapeHtml(String(magical.magicalDurability.current))} / ${escapeHtml(String(magical.magicalDurability.max ?? "—"))}</span>`);
       }
       if (equippedSlot) {
