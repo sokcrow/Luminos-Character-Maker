@@ -120,13 +120,24 @@
 
   function equipmentRefs(unit = {}) {
     const equipment = unit.equipment && typeof unit.equipment === "object" ? unit.equipment : {};
-    const refOf = (item) => item && typeof item === "object" ? (item.instanceId || item.instance_id || null) : (typeof item === "string" ? item : null);
+    // Firebase player snapshots carry itemEquipmentRefs, not a hydrated equipment
+    // object. An Enchanter save must never silently replace those refs with nulls.
+    const persisted = unit.itemEquipmentRefs && typeof unit.itemEquipmentRefs === "object"
+      ? unit.itemEquipmentRefs : {};
+    const refOf = (item) => item && typeof item === "object"
+      ? (item.instanceId || item.instance_id || null)
+      : (typeof item === "string" ? item : null);
+    const owns = (key) => Object.prototype.hasOwnProperty.call(equipment, key);
+    const slot = (key) => owns(key) ? refOf(equipment[key]) : refOf(persisted[key]);
+    const accessories = owns("accessories")
+      ? (Array.isArray(equipment.accessories) ? equipment.accessories.map(refOf).filter(Boolean) : [])
+      : (Array.isArray(persisted.accessoryIds) ? persisted.accessoryIds.map(refOf).filter(Boolean) : []);
     return {
-      mainHand: refOf(equipment.mainHand),
-      offHand: refOf(equipment.offHand),
-      armor: refOf(equipment.armor),
-      shield: refOf(equipment.shield),
-      accessoryIds: Array.isArray(equipment.accessories) ? equipment.accessories.map(refOf).filter(Boolean) : [],
+      mainHand: slot("mainHand"),
+      offHand: slot("offHand"),
+      armor: slot("armor"),
+      shield: slot("shield"),
+      accessoryIds: accessories,
     };
   }
 
