@@ -334,3 +334,74 @@ test("Bound gem extraction needs separate irreversible Item destruction approval
   await expect(page.locator("#enchanter-ui-status")).toContainText("COMPLETE");
   expect(await page.evaluate(()=>window.__destructionConfirmedByEngine)).toBe(true);
 });
+
+test("Remove / Rewrite terminal exposes direct replacement and Gem anchored procedures",async({page})=>{
+  await boot(page);
+  await page.evaluate(()=>{
+    const S=window.LuminousItemEnchanterServiceRuntime;
+    const E=window.LuminousItemEnchantmentEngine;
+    const ui=window.LuminousEnchanterUi;
+    const sword=window.__enchanterFixture.sword;
+    window.LuminousEnchantmentCatalog.get=id=>
+      ["flamebound","frostbound"].includes(id)?{id,name:id}:null;
+    window.LuminousItemMagicKnowledgeRuntime={
+      presentation:()=>({magicDetected:true,
+        enchantmentLines:[{known:true,text:"Flamebound"}],
+        knowledge:{rankKnown:true}}),
+    };
+    E.canRemoveEnchantment=()=>({allowed:true});
+    E.gemAnchors=()=>[];
+    S.SERVICE_IDS.push("remove_rewrite");
+    S.SERVICE_LABELS.remove_rewrite="Remove / Rewrite Enchantment";
+    S.quoteFixedService=()=>({quoted:true,service:"remove_rewrite",totalAhn:100,
+      materials:{plan:{valid:true}}});
+    S.quoteDirectRewriteService=(provider,item,originalId,nextId,opts)=>({
+      quoted:true,service:"remove_rewrite",procedure:"direct_rewrite",
+      originalDefinitionId:originalId,nextDefinitionId:nextId,
+      rank:opts.rank,totalAhn:100,materials:{plan:{valid:true}},
+    });
+    S.quoteGemProcedure=(provider,item,anchorId,procedure,opts)=>({
+      quoted:true,service:"remove_rewrite",procedure,anchorId,
+      nextDefinitionId:opts.nextDefinitionId,
+      gemQualityAfter:opts.gemQualityAfter,rank:opts.rank,
+      totalAhn:100,materials:{plan:{valid:true}},
+    });
+    ui.state.provider.services.push("remove_rewrite");
+    ui.state.provider.knownEnchantments=["flamebound","frostbound"];
+    sword.magic={enchantments:[{definitionId:"flamebound",rank:1,source:"direct",properties:[]}]};
+    ui.state.service="remove_rewrite";
+    ui.render();
+  });
+  await expect(page.locator("#enchanter-ui-procedure-wrap")).toBeVisible();
+  await expect(page.locator("#enchanter-ui-procedure option")).toHaveCount(2);
+  await page.locator("#enchanter-ui-procedure").selectOption("direct_rewrite");
+  await expect(page.locator("#enchanter-ui-replacement-wrap")).toBeVisible();
+  await expect(page.locator("#enchanter-ui-rewrite-rank-wrap")).toBeVisible();
+  await page.locator("#enchanter-ui-replacement").selectOption("frostbound");
+  expect(await page.evaluate(()=>window.LuminousEnchanterUi.state.quote)).toMatchObject({
+    quoted:true,procedure:"direct_rewrite",nextDefinitionId:"frostbound",
+    originalDefinitionId:"flamebound",
+  });
+
+  await page.evaluate(()=>{
+    const sword=window.__enchanterFixture.sword;
+    sword.magic.enchantments[0].source="gem";
+    sword.magic.enchantments[0].anchorId="socket_one";
+    window.LuminousItemEnchantmentEngine.gemAnchors=()=>[{
+      anchorId:"socket_one",gemDefinitionId:"ruby",gemQuality:"fine",
+    }];
+    window.LuminousEnchanterUi.render();
+  });
+  await expect(page.locator("#enchanter-ui-procedure")).toHaveValue("item_side_remove");
+  await expect(page.locator("#enchanter-ui-gem-quality-wrap")).toBeVisible();
+  await page.locator("#enchanter-ui-gem-quality").selectOption("standard");
+  expect(await page.evaluate(()=>window.LuminousEnchanterUi.state.quote)).toMatchObject({
+    quoted:true,procedure:"item_side_remove",anchorId:"socket_one",gemQualityAfter:"standard",
+  });
+  await page.locator("#enchanter-ui-procedure").selectOption("rewrite");
+  await page.locator("#enchanter-ui-replacement").selectOption("frostbound");
+  expect(await page.evaluate(()=>window.LuminousEnchanterUi.state.quote)).toMatchObject({
+    quoted:true,procedure:"rewrite",anchorId:"socket_one",
+    nextDefinitionId:"frostbound",gemQualityAfter:"standard",
+  });
+});
