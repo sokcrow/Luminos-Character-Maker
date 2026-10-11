@@ -111,6 +111,73 @@ const request=(transactionId,overrides={})=>({
   assert.deepEqual(noMoneyDb.store.campaign.jugadores.hero.finance,{currentBalance:50});
   assert.equal(noMoneyDb.store.campaign.tiendas.forge.enchanterProvider.providerMaterials[0].quantity,2);
 
+  const timedServices={
+    ...Services,
+    quoteEnchantService(...args){
+      return {...Services.quoteEnchantService(...args),
+        duration:{resolved:true,hours:8}};
+    },
+    startDeferredServiceTransaction(player,item,quote,opts){
+      const before=clone(item);
+      const paid=Services.commitServiceTransaction(player,item,quote,opts);
+      if(!paid.committed)return paid;
+      const after=clone(item);
+      delete player.inventario_activo.sword;
+      player.enchanterJobs={
+        [opts.transactionId]:{
+          jobId:opts.transactionId,itemInstanceId:"sword",providerId:"npc",
+          service:"enchant",status:"in_service",clockSource:"campaign",
+          startedAt:opts.worldTimestamp,readyAt:opts.worldTimestamp+3600000,
+          itemBefore:before,itemAfter:after,
+        },
+      };
+      return {...paid,started:true,player:clone(player),
+        providerMaterialsAfter:clone(opts.providerMaterials)};
+    },
+    completeDeferredServiceTransaction(player,jobId,opts){
+      const job=player.enchanterJobs?.[jobId];
+      if(!job || job.status!=="in_service")
+        return {committed:false,reason:"service_job_not_pending"};
+      if(opts.worldTimestamp<job.readyAt)
+        return {committed:false,reason:"service_not_ready"};
+      player.inventario_activo.sword=clone(job.itemAfter);
+      job.status="completed";
+      const receipt={committed:true,transactionId:jobId+":delivery",
+        chargedAhn:0,service:"enchant",itemInstanceId:"sword"};
+      player.enchanterTransactions[receipt.transactionId]=receipt;
+      return {...receipt,delivered:true,player:clone(player)};
+    },
+  };
+  const timedDb=db({...campaign,calendario:{timestamp:1710000000000}});
+  const timedArgs=(intent)=>commitEnchanterAtomic({
+    database:timedDb,authUid:"player_uid",request:intent,
+    Services:timedServices,Shop,Engine,
+  });
+  const escrow=await timedArgs(request("timed_one"));
+  assert.equal(escrow.committed,true);
+  assert.equal(timedDb.store.campaign.jugadores.hero.inventario_activo.sword,undefined);
+  assert.equal(timedDb.store.campaign.jugadores.hero.enchanterJobs.timed_one.status,"in_service");
+  assert.equal(timedDb.store.campaign.tiendas.forge.enchanterProvider.providerMaterials[0].quantity,1,
+    "a timed intake must debit the vendor in the same atomic commit");
+  const early=await timedArgs(request("timed_one:delivery",{
+    operation:"pickup",jobId:"timed_one",
+  }));
+  assert.equal(early.committed,false);
+  assert.equal(early.reason,"service_not_ready");
+  assert.equal(timedDb.store.campaign.jugadores.hero.inventario_activo.sword,undefined);
+  timedDb.store.campaign.calendario.timestamp=1710003600000;
+  const delivered=await timedArgs(request("timed_one:delivery",{
+    operation:"pickup",jobId:"timed_one",
+  }));
+  assert.equal(delivered.committed,true);
+  assert.equal(delivered.balance,400,"pickup must never charge the Player twice");
+  assert.equal(timedDb.store.campaign.jugadores.hero.enchanterJobs.timed_one.status,"completed");
+  assert.equal(timedDb.store.campaign.jugadores.hero.inventario_activo.sword.magic.enchantments.length,1);
+  const replayDelivery=await timedArgs(request("timed_one:delivery",{
+    operation:"pickup",jobId:"timed_one",
+  }));
+  assert.equal(replayDelivery.reason,"duplicate_transaction");
+
   const rejectedPickup=await pay(request("fake:delivery",{
     operation:"pickup",jobId:"different",
   }));
