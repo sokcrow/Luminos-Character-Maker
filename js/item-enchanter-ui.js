@@ -224,7 +224,9 @@
         // Player visibility follows Identify/Arcana knowledge, never raw registry data.
         const known=view?.enchantmentLines?.[index]?.known===true;
         const label=view?.enchantmentLines?.[index]?.text || `Inscripción sin identificar ${index+1}`;
-        return def ? {id:def.id,name:known?label:`Inscripción sin identificar ${index+1}`,rank:ref.rank,displayRank:known&&view?.knowledge?.rankKnown===true?ref.rank:null,ref} : null;
+        return def ? {id:def.id,key:ref.anchorId?`anchor:${ref.anchorId}`:`direct:${index}`,
+          name:known?label:`Inscripción sin identificar ${index+1}`,
+          rank:ref.rank,displayRank:known&&view?.knowledge?.rankKnown===true?ref.rank:null,ref} : null;
       }).filter(Boolean);
     }
     return asArray(state.provider?.knownEnchantments).map(id=>catalog()?.get?.(id)).filter(Boolean).map(def=>({id:def.id,name:def.name}));
@@ -260,8 +262,8 @@
 
   function definitionChoice(){
     const opts=selectedDefinitionOptions();
-    if(!state.definitionId && opts.length) state.definitionId=opts[0].id;
-    return opts.find(entry=>entry.id===state.definitionId) || opts[0] || null;
+    if(!state.definitionId && opts.length) state.definitionId=opts[0].key || opts[0].id;
+    return opts.find(entry=>(entry.key || entry.id)===state.definitionId) || opts[0] || null;
   }
 
   function gemOptions(){
@@ -388,8 +390,9 @@
     const needsDef=["enchant","bind","curse","mount_gem","strengthen","remove_rewrite"].includes(state.service);
     if(defWrap) defWrap.hidden=!needsDef;
     if(needsDef && defSelect){
-      if(!state.definitionId || !options.some(x=>x.id===state.definitionId)) state.definitionId=options[0]?.id || null;
-      defSelect.innerHTML=options.map(entry=>`<option value="${esc(entry.id)}">${esc(entry.name)}${entry.displayRank?` · ${esc(roman(entry.displayRank))}`:""}</option>`).join("");
+      if(!state.definitionId || !options.some(x=>(x.key || x.id)===state.definitionId))
+        state.definitionId=options[0]?.key || options[0]?.id || null;
+      defSelect.innerHTML=options.map(entry=>`<option value="${esc(entry.key || entry.id)}">${esc(entry.name)}${entry.displayRank?` · ${esc(roman(entry.displayRank))}`:""}</option>`).join("");
       defSelect.value=state.definitionId || "";
     }
 
