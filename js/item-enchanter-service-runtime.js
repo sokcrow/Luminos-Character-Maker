@@ -1318,6 +1318,125 @@
     return Object.freeze({started:true,job});
   }
 
+  // A timed service is paid/reserved at intake. Its resulting Item and any
+  // newly discovered knowledge remain sealed in the persistent job until ready.
+  // The caller persists the returned player snapshot through the same atomic
+  // Firebase Player-subtree adapter as immediate service receipts.
+  function startDeferredServiceTransaction(owner={},item={},quote={},options={}) {
+    const transactionId=stableTransactionId(item,quote,options);
+    if (!inventoryEntry(owner,String(item.instanceId || item.id || "")))
+      return Object.freeze({committed:false,reason:"service_item_not_in_inventory"});
+    if (Object.values(owner.enchanterJobs || {}).some(job=>
+      job?.status==="in_service" && job.itemInstanceId===String(item.instanceId || item.id || "")))
+      return Object.freeze({committed:false,reason:"item_already_in_service"});
+    const start=beginService(options.provider || {},item,quote,{
+      jobId:transactionId,startedAt:options.startedAt,
+    });
+    if (!start.started) return Object.freeze({committed:false,reason:start.reason});
+    const simulated=clone(owner);
+    const target=inventoryEntry(simulated,String(item.instanceId || item.id || ""));
+    if(!target) return Object.freeze({committed:false,reason:"service_item_not_in_inventory"});
+    const beforeItem=clone(target.entry);
+    const materialCopies=asArray(options.playerMaterials).map(entry=>
+      inventoryEntry(simulated,String(entry?.instanceId || entry?.id || ""))?.entry).filter(Boolean);
+    const providerBefore=clone(asArray(options.providerMaterials));
+    const providerMaterials=clone(providerBefore);
+    const result=commitServiceTransaction(simulated,target.entry,quote,{
+      ...options,transactionId,playerMaterials:materialCopies,providerMaterials,
+    });
+    if(!result.committed) return Object.freeze({committed:false,reason:result.reason});
+    if(JSON.stringify(providerMaterials)!==JSON.stringify(providerBefore))
+      return Object.freeze({committed:false,reason:"provider_stock_requires_server_atomic_commit"});
+    const deliveredItem=clone(target.entry);
+    const discoveredKnowledge=clone(simulated.itemMagicKnowledge || {});
+    const discoveredCompendium=clone(simulated.enchantmentCompendium || {});
+    // Payment/materials are final at intake; the Item's actual transformation,
+    // recovered gem and knowledge must not be visible before delivery.
+    const recoveredGemId=String(result.recoveredGem?.instanceId || "");
+    if(recoveredGemId && !inventoryEntry(owner,recoveredGemId)){
+      const recovered=inventoryEntry(simulated,recoveredGemId);
+      if(recovered) delete recovered.container[recovered.key];
+    }
+    const currentTarget=inventoryEntry(simulated,String(item.instanceId || item.id || ""));
+    currentTarget.container[currentTarget.key]=clone(beforeItem);
+    simulated.itemMagicKnowledge=clone(owner.itemMagicKnowledge || {});
+    simulated.enchantmentCompendium=clone(owner.enchantmentCompendium || {});
+    const job={
+      ...start.job,
+      transactionId,
+      itemBefore:beforeItem,
+      itemAfter:deliveredItem,
+      discoveredKnowledge,
+      discoveredCompendium,
+      knowledgeBefore:clone(owner.itemMagicKnowledge || {}),
+      compendiumBefore:clone(owner.enchantmentCompendium || {}),
+      recoveredGem:result.recoveredGem ? clone(result.recoveredGem) : null,
+    };
+    simulated.enchanterJobs={...(simulated.enchanterJobs || {}),[transactionId]:job};
+    const receipt=simulated.enchanterTransactions?.[transactionId];
+    if(receipt) receipt.status="in_service";
+    return Object.freeze({
+      committed:true,started:true,transactionId,
+      chargedAhn:Number(result.chargedAhn)||0,
+      itemInstanceId:String(item.instanceId || item.id || ""),
+      service:quote.service,timestamp:start.job.startedAt,
+      job:Object.freeze(clone(job)),player:Object.freeze(simulated),
+    });
+  }
+
+  function completeDeferredServiceTransaction(owner={},jobId,options={}) {
+    const id=String(jobId || "");
+    const job=owner.enchanterJobs?.[id];
+    if(!job || job.status!=="in_service")
+      return Object.freeze({committed:false,reason:"service_job_not_pending"});
+    const now=Number.isFinite(Number(options.now))?Number(options.now):Date.now();
+    if(!serviceReady(job,now))
+      return Object.freeze({committed:false,reason:"service_not_ready",readyAt:job.readyAt});
+    const target=inventoryEntry(owner,job.itemInstanceId);
+    if(!target || JSON.stringify(target.entry)!==JSON.stringify(job.itemBefore))
+      return Object.freeze({committed:false,reason:"service_item_changed_during_delivery"});
+    const deliveryId=id+":delivery";
+    if(transactionStore(owner)[deliveryId])
+      return Object.freeze({committed:false,reason:"duplicate_transaction"});
+    const copy=clone(owner);
+    const targetCopy=inventoryEntry(copy,job.itemInstanceId);
+    targetCopy.container[targetCopy.key]=clone(job.itemAfter);
+    if(job.recoveredGem){
+      const recovery=recoveredGemDestination(copy,job.recoveredGem);
+      if(!recovery.valid) return Object.freeze({committed:false,reason:recovery.reason});
+      recovery.container[recovery.instanceId]={
+        ...clone(job.recoveredGem),instanceId:recovery.instanceId,quantity:1,cantidad:1,
+        itemType:"gem",category:"gem",
+      };
+    }
+    // Merge only the knowledge entries changed by this service; unrelated
+    // identification progress since intake must survive the delivery.
+    for(const [field,before,after] of [
+      ["itemMagicKnowledge",job.knowledgeBefore,job.discoveredKnowledge],
+      ["enchantmentCompendium",job.compendiumBefore,job.discoveredCompendium],
+    ]){
+      const current=copy[field] && typeof copy[field]==="object"?copy[field]:{};
+      const baseline=before && typeof before==="object"?before:{};
+      const future=after && typeof after==="object"?after:{};
+      for(const key of new Set([...Object.keys(baseline),...Object.keys(future)])){
+        if(JSON.stringify(baseline[key])===JSON.stringify(future[key])) continue;
+        if(JSON.stringify(current[key])!==JSON.stringify(baseline[key]))
+          return Object.freeze({committed:false,reason:"service_knowledge_changed_during_delivery"});
+        if(Object.prototype.hasOwnProperty.call(future,key)) current[key]=clone(future[key]);
+        else delete current[key];
+      }
+      copy[field]=current;
+    }
+    copy.enchanterJobs[id]={...clone(job),status:"completed",completedAt:now};
+    const receipt={
+      committed:true,transactionId:deliveryId,service:job.service,
+      itemInstanceId:job.itemInstanceId,chargedAhn:0,freeService:true,
+      deliveryOf:id,timestamp:now,
+    };
+    copy.enchanterTransactions={...(copy.enchanterTransactions||{}),[deliveryId]:receipt};
+    return Object.freeze({...receipt,player:Object.freeze(copy),delivered:true});
+  }
+
   function serviceReady(job={},now=Date.now()) {
     if (!job || normalizeId(job.status)!=="in_service") return false;
     return Number.isFinite(Number(job.readyAt)) && Number(now)>=Number(job.readyAt);
@@ -1457,6 +1576,8 @@
     quoteGemProcedure,
     beginService,
     serviceReady,
+    startDeferredServiceTransaction,
+    completeDeferredServiceTransaction,
     executeControlledResult,
   });
 
