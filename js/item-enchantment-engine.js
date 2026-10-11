@@ -971,6 +971,13 @@
     for (const exact of asArray(recipe.exactItemRequirements)) {
       raw.push(typeof exact === "string" ? {exactItemId:exact,quantity:1} : exact);
     }
+    // Canonical elemental recipes author only requiredTags; without an
+    // allocation they previously cost zero materials. Explicit multi-reagent
+    // recipes have their own consumedRequirements; avoid duplicating those.
+    if(!raw.length && asArray(recipe.requiredTags).length){
+      raw.push({id:"canonical_enchantment_material",
+        allTags:asArray(recipe.requiredTags),quantity:1});
+    }
     const properties = normalizeProperties(options.properties);
     if (properties.includes("curse") && options.accidental !== true) {
       raw.push({
