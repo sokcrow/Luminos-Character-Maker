@@ -1411,6 +1411,18 @@
     });
   }
 
+  // Catalog stability Ranks do not define a strict gem quality order
+  // (Poor and Standard both channel Rank I). Extract/Rewrite outcomes must
+  // lower physical gem quality, never duplicate or upgrade its value.
+  const GEM_QUALITY_GRADES = Object.freeze(["ruined","poor","standard","fine","exceptional"]);
+  function gemQualityDowngradeFailure(current, requested) {
+    const from = GEM_QUALITY_GRADES.indexOf(normalizeId(current));
+    const to = GEM_QUALITY_GRADES.indexOf(normalizeId(requested));
+    if (to < 0 || from < 0) return "invalid_gem_quality_after";
+    if (to >= from) return "gem_quality_downgrade_required";
+    return null;
+  }
+
   function itemSideRemoveGemEnchantment(item = {}, anchorId, options = {}) {
     const link = gemAnchorLink(item, anchorId);
     if (!link.found) return Object.freeze({ removed:false, ...clone(link), item:clone(item) });
@@ -1429,8 +1441,9 @@
         item:clone(item),
       });
     }
-    if (!Object.prototype.hasOwnProperty.call(Gems.GEM_STABLE_RANK_BY_QUALITY || {}, requestedQuality)) {
-      return Object.freeze({ removed:false, reason:"invalid_gem_quality_after", item:clone(item), requestedQuality });
+    const qualityFailure = gemQualityDowngradeFailure(link.anchor.gemQuality,requestedQuality);
+    if (qualityFailure) {
+      return Object.freeze({ removed:false, reason:qualityFailure, item:clone(item), requestedQuality });
     }
 
     const refs = appliedEnchantments(item).map(normalizeAppliedReference);
@@ -1502,8 +1515,9 @@
         anchor:link.anchor,
       });
     }
-    if (!Object.prototype.hasOwnProperty.call(Gems.GEM_STABLE_RANK_BY_QUALITY || {}, requestedQuality)) {
-      return Object.freeze({ rewritten:false, reason:"invalid_gem_quality_after", item:clone(item), requestedQuality });
+    const qualityFailure = gemQualityDowngradeFailure(link.anchor.gemQuality,requestedQuality);
+    if (qualityFailure) {
+      return Object.freeze({ rewritten:false, reason:qualityFailure, item:clone(item), requestedQuality });
     }
 
     const gem = {
