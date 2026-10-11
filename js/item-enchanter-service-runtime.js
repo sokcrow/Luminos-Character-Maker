@@ -1324,8 +1324,18 @@
   // Firebase Player-subtree adapter as immediate service receipts.
   function startDeferredServiceTransaction(owner={},item={},quote={},options={}) {
     const transactionId=stableTransactionId(item,quote,options);
-    if (!inventoryEntry(owner,String(item.instanceId || item.id || "")))
-      return Object.freeze({committed:false,reason:"service_item_not_in_inventory"});
+    const instanceId=String(item.instanceId || item.id || "");
+    const originalSlot=inventoryEntry(owner,instanceId);
+    if (!originalSlot) return Object.freeze({committed:false,reason:"service_item_not_in_inventory"});
+    const refs=owner.itemEquipmentRefs || {};
+    const slots=[refs.mainHand,refs.offHand,refs.armor,refs.shield,
+      ...asArray(refs.accessoryIds)];
+    const hydrated=owner.equipment || {};
+    const hydratedItems=[hydrated.mainHand,hydrated.offHand,hydrated.armor,
+      hydrated.shield,...asArray(hydrated.accessories)];
+    if(slots.some(ref=>String(ref||"")===instanceId)
+        || hydratedItems.some(ref=>String(ref?.instanceId||ref?.id||ref||"")===instanceId))
+      return Object.freeze({committed:false,reason:"service_item_must_be_unequipped"});
     if (Object.values(owner.enchanterJobs || {}).some(job=>
       job?.status==="in_service" && job.itemInstanceId===String(item.instanceId || item.id || "")))
       return Object.freeze({committed:false,reason:"item_already_in_service"});
@@ -1357,8 +1367,11 @@
       const recovered=inventoryEntry(simulated,recoveredGemId);
       if(recovered) delete recovered.container[recovered.key];
     }
-    const currentTarget=inventoryEntry(simulated,String(item.instanceId || item.id || ""));
-    currentTarget.container[currentTarget.key]=clone(beforeItem);
+    const currentTarget=inventoryEntry(simulated,instanceId);
+    if(!currentTarget) return Object.freeze({committed:false,reason:"service_item_not_in_inventory"});
+    // The Enchanter retains the actual Item in escrow. It is no longer usable,
+    // equippable, movable or sellable through either inventory container.
+    delete currentTarget.container[currentTarget.key];
     simulated.itemMagicKnowledge=clone(owner.itemMagicKnowledge || {});
     simulated.enchantmentCompendium=clone(owner.enchantmentCompendium || {});
     const job={
@@ -1366,6 +1379,8 @@
       transactionId,
       itemBefore:beforeItem,
       itemAfter:deliveredItem,
+      originalContainer:originalSlot.container===owner.inventario_stash?"inventario_stash":"inventario_activo",
+      originalKey:String(originalSlot.key),
       discoveredKnowledge,
       discoveredCompendium,
       knowledgeBefore:clone(owner.itemMagicKnowledge || {}),
@@ -1423,16 +1438,26 @@
     const now=Number.isFinite(Number(options.now))?Number(options.now):Date.now();
     if(!serviceReady(job,now))
       return Object.freeze({committed:false,reason:"service_not_ready",readyAt:job.readyAt});
-    const target=inventoryEntry(owner,job.itemInstanceId);
-    if(!target) return Object.freeze({committed:false,reason:"service_item_changed_during_delivery"});
-    const merged=mergeDeliveredItem(target.entry,job.itemBefore,job.itemAfter);
-    if(!merged.merged) return Object.freeze({committed:false,reason:merged.reason});
+    if(inventoryEntry(owner,job.itemInstanceId))
+      return Object.freeze({committed:false,reason:"service_item_identity_collision"});
+    if(!job.itemBefore || !job.itemAfter
+        || String(job.itemAfter.instanceId || job.itemAfter.id || "")!==job.itemInstanceId)
+      return Object.freeze({committed:false,reason:"invalid_service_escrow"});
     const deliveryId=id+":delivery";
     if(transactionStore(owner)[deliveryId])
       return Object.freeze({committed:false,reason:"duplicate_transaction"});
     const copy=clone(owner);
-    const targetCopy=inventoryEntry(copy,job.itemInstanceId);
-    targetCopy.container[targetCopy.key]=merged.item;
+    const preferred=job.originalContainer==="inventario_stash"?"inventario_stash":"inventario_activo";
+    const alternate=preferred==="inventario_activo"?"inventario_stash":"inventario_activo";
+    const destination=[preferred,alternate].find(name=>{
+      const container=copy[name];
+      const max=name==="inventario_activo"?24:80;
+      return container && typeof container==="object"
+        && Object.keys(container).length<max
+        && !Object.prototype.hasOwnProperty.call(container,job.itemInstanceId);
+    });
+    if(!destination) return Object.freeze({committed:false,reason:"service_inventory_full"});
+    copy[destination][job.itemInstanceId]=clone(job.itemAfter);
     if(job.recoveredGem){
       const recovery=recoveredGemDestination(copy,job.recoveredGem);
       if(!recovery.valid) return Object.freeze({committed:false,reason:recovery.reason});
