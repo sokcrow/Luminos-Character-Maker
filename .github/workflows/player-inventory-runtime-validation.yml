@@ -133,6 +133,7 @@ on:
       - tests/item-enchantment-combat-deterministic-smoke.cjs
       - tests/item-enchantment-triggered-combat-smoke.cjs
       - tests/enchanter-server-atomic-smoke.cjs
+      - tests/enchanter-server-canonical-smoke.cjs
       - functions/**
       - firebase.json
       - tests/item-enchantment-resistance-adapter-smoke.cjs
@@ -344,6 +345,8 @@ jobs:
         run: node tests/item-enchantment-triggered-combat-smoke.cjs
       - name: Enchanter privileged Player and Shop atomic regression smoke
         run: node tests/enchanter-server-atomic-smoke.cjs
+      - name: Enchanter canonical timed service and escrow regression
+        run: node tests/enchanter-server-canonical-smoke.cjs
       - name: Firebase Enchanter Function packaging and syntax
         run: |
           node --check functions/enchanter-atomic.cjs
