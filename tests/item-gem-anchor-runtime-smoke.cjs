@@ -47,6 +47,21 @@ const sapphireFine = gem("sapphire_fine_1","sapphire","fine");
 const topazFine = gem("topaz_fine_1","topaz","fine");
 const diamondExceptional = gem("diamond_exceptional_1","diamond","exceptional");
 
+const provenance = {
+  applicationId:"receipt_gem_42",appliedBy:"enchanter_npc",
+  appliedAt:1710000000000,provenance:{transactionId:"receipt_gem_42",service:"mount_gem"},
+};
+const withProvenance = Engine.mountGemAnchor(weapon,rubyFine,"flamebound",2,provenance);
+assert.strictEqual(withProvenance.mounted,true);
+assert.strictEqual(withProvenance.reference.applicationId,provenance.applicationId);
+assert.strictEqual(withProvenance.reference.appliedBy,provenance.appliedBy);
+assert.strictEqual(withProvenance.reference.appliedAt,provenance.appliedAt);
+assert.deepStrictEqual(withProvenance.reference.provenance,provenance.provenance);
+assert.deepStrictEqual(withProvenance.item.magic.enchantmentHistory.slice(-1)[0],{
+  kind:"apply",definitionId:"flamebound",rank:2,
+  applicationId:"receipt_gem_42",actorId:"enchanter_npc",
+  timestamp:1710000000000,context:provenance.provenance,
+});
 const first = Engine.mountGemAnchor(weapon, rubyFine, "flamebound", 2);
 assert.strictEqual(first.mounted, true);
 assert.strictEqual(first.item.magic.enchantmentSlots.used, 0, "Gem Enchantments do not consume direct Base Enchantment Slots");
