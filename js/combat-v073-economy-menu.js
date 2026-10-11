@@ -1393,10 +1393,10 @@
       lexical("goRoot",()=>{})();
       return true;
     }
-    // Preparing any other Reaction replaces an earlier enchantment choice.
-    if(unit)delete unit.__luminousSelectedEnchantmentReaction;
     const action = compilerFor(sel, null);
     if (!action) return false;
+    // Preparing another valid Reaction replaces the previous Item selection.
+    if(unit)delete unit.__luminousSelectedEnchantmentReaction;
     action.reaction = { ...(action.reaction || {}), mode: "prepared", trigger: clone(sel.data?.reaction?.trigger || sel.data?.trigger || sel.data?.activation?.trigger || null) };
     state.preparedReaction = { sel: clone(sel), action };
     try { global.dispatchEvent(new CustomEvent("luminous:combat073-reaction-prepared", { detail: { version: VERSION, action: clone(action), source: clone(sel.data || {}) } })); } catch (_) {}
