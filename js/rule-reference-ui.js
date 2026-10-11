@@ -257,19 +257,25 @@
   function createReference(part,mode) {
     const info=resolve(part.kind,part.id);
     if (!info) return doc.createTextNode(part.text);
-    const ref=doc.createElement(mode==="tooltip"?"span":"button");
+    // A real button works on touch AND with Enter/Space on a keyboard.
+    const ref=doc.createElement("button");
+    ref.type="button";
     ref.className="luminous-rule-reference is-"+mode;
     ref.dataset.refKind=part.kind;ref.dataset.refId=part.id;
+    ref.setAttribute("aria-haspopup","dialog");
+    ref.setAttribute("aria-expanded","false");
+    ref.setAttribute("aria-controls","luminous-rule-reference-panel");
+    ref.setAttribute("aria-label","Consultar "+info.name);
+    ref.addEventListener("click",()=>show(ref,{pin:true}));
     if (mode==="tooltip") {
-      ref.tabIndex=0;ref.setAttribute("role","note");
-      ref.title=info.name+" — "+info.description;
-      ref.dataset.tooltip=info.description;
-      ref.setAttribute("aria-label",info.name+". "+info.description);
-    } else {
-      ref.type="button";ref.setAttribute("aria-haspopup","dialog");
-      ref.setAttribute("aria-expanded","false");
-      ref.setAttribute("aria-label","Consultar "+info.name);
-      ref.addEventListener("click",()=>show(ref));
+      // Hover explains the Stat/Skill; click pins the same body-level card.
+      // Touch pointerenter is intentionally ignored: only the tap opens it.
+      ref.addEventListener("pointerenter",event=>{
+        if (event.pointerType==="mouse") show(ref,{pin:false});
+      });
+      ref.addEventListener("pointerleave",event=>{
+        if (event.pointerType==="mouse" && active===ref && !pinned) dismiss();
+      });
     }
     if(info.icon){
       const image=doc.createElement("img");image.src=info.icon;image.alt="";
