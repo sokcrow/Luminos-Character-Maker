@@ -113,9 +113,45 @@
       regex:new RegExp("\\b(?:" + save + "|" + alternative + ")\\b","gi")};
     return matcherCache;
   }
-  function tokenize(source) {
+  // References need context. Ordinary words may mean damage types, narrative
+  // concepts or English nouns, not the named status/Skill with the same name.
+  // Catalog authors can opt in explicitly with {references:[{kind,id}]}.
+  function isContextualReference(entry, value, start, end, explicitReferences) {
+    const canonical = entry.kind + ":" + entry.id;
+    if (explicitReferences.some(ref =>
+      ref && ref.kind + ":" + normalize(ref.id) === canonical)) return true;
+    if (entry.kind === "spell_effect") return true; // Registered deliberately.
+    const clauseStart = Math.max(value.lastIndexOf(".",start-1),
+      value.lastIndexOf(";",start-1),value.lastIndexOf("\n",start-1));
+    const before = value.slice(Math.max(clauseStart+1,start-85),start);
+    const after = value.slice(end,end+42);
+    // "Fire/Burn damage type" and similar labels are NOT status effects.
+    if (entry.kind === "status") {
+      if (/^\s*(?:damage\s+type|type\s+damage|damage\s+element|type|element|resistance|immunity)\b/i.test(after)) return false;
+      if (/(?:fire|cold|lightning|acid|radiant|necrotic|damage)\s*\/\s*$/i.test(before)) return false;
+      if (/\b(?:damage\s+type|elemental\s+type|damage\s+category)\s*[:/]\s*$/i.test(before)) return false;
+      // Never interpret "nature", "protection", "illusion", etc. out of context.
+      const directStatus = /\b(?:status|effect|potency|count|stacks?)\s*(?:of\s+)?$/i.test(before)
+        || /^\s+(?:status|effect|potency|count|stacks?)\b/i.test(after);
+      const action = /\b(?:inflict|apply|gain|receive|suffer|trigger|remove|lose|cleanse|purge|grant|aplicar|infligir|ganar|recibir|perder|eliminar|aplica|inflige|gana|pierde|otorga)\b/i.test(before);
+      const numeric = /\b\d+(?:\s+(?:potency|count|stacks?))?\s*(?:of\s+)?$/i.test(before);
+      // A deliberate status action or a named quantity, not isolated English.
+      return directStatus || (action && (numeric || !/\b(?:nature|protection|illusion)\b/i.test(entry.id)));
+    }
+    if (entry.kind === "skill") {
+      // Explicit check wording or a verb indicating a skill is being rolled.
+      const prompt = /\b(?:skill|check|checks|roll|rolling|try|use|attempt|make|test|tirar|tira|prueba|usar|usa|intenta|realiza|haz|habilidad)\b/i.test(before);
+      const suffix = /^\s*(?:skill|check|roll|test|ability\s+check|prueba|habilidad)\b/i.test(after);
+      const slashAbility = /(?:STR|DEX|CON|INT|WIS|CHA)\s*\/\s*$/i.test(before);
+      // Compound checks: "Try Athletics or Sleight of Hand".
+      return prompt || suffix || slashAbility;
+    }
+    return false;
+  }
+  function tokenize(source,{references=[]}={}) {
     const value=String(source || ""), {byName,regex}=compiledMatcher();
     regex.lastIndex=0;
+    const explicitReferences=Array.isArray(references) ? references : [];
     const result=[];let last=0,hit;
     while ((hit=regex.exec(value))) {
       const word=hit[0];let found=null;
@@ -129,6 +165,7 @@
         if (entry) found={kind:entry.kind,id:entry.id};
       }
       if (!found || !resolve(found.kind,found.id)) continue;
+      if (!stat && !isContextualReference(found,value,hit.index,hit.index+word.length,explicitReferences)) continue;
       if (hit.index>last) result.push({text:value.slice(last,hit.index)});
       result.push({text:word,kind:found.kind,id:found.id});
       last=hit.index+word.length;
@@ -231,7 +268,7 @@
     const label=doc.createElement("span");label.textContent=part.text;ref.appendChild(label);
     return ref;
   }
-  function decorate(root,{mode="card"}={}) {
+  function decorate(root,{mode="card",references=[]}={}) {
     if (!doc?.createTreeWalker || !root) return 0;
     if (active && !active.isConnected) dismiss();
     ensureStyles();
@@ -244,7 +281,7 @@
     }
     let count=0;
     nodes.forEach(node=>{
-      const parts=tokenize(node.nodeValue);
+      const parts=tokenize(node.nodeValue,{references});
       if(!parts.some(p=>p.kind))return;
       const fragment=doc.createDocumentFragment();
       parts.forEach(part=>fragment.appendChild(part.kind?createReference(part,mode):doc.createTextNode(part.text)));
