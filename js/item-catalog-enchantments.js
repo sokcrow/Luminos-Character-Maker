@@ -50,6 +50,7 @@
     "on_skill",
     "on_spell",
     "on_damage_received",
+    "before_getting_hit",
     "action",
     "bonus_action",
     "reaction",
