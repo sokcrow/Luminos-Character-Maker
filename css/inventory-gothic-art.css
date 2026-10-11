@@ -210,13 +210,20 @@
 #inventory-modal.inventory-v2-ready .inventory-v2-carry{overflow:hidden}
 #inventory-modal.inventory-v2-ready .inventory-v2-grid-host{
   flex:1 1 auto;min-height:0;overflow:auto;padding:12px;
+  display:flex;flex-direction:column;align-items:center;justify-content:safe center;
   scrollbar-color:#765438 #150e0b;
 }
 #inventory-modal.inventory-v2-ready #inv-active-grid.inv-grid{
-  display:grid;width:100%;max-width:none;min-height:0;
-  grid-template-columns:repeat(6,minmax(0,1fr));
-  grid-template-rows:none;grid-auto-rows:minmax(86px,1fr);
-  align-content:start;gap:8px;padding:0;background:transparent;border:0;
+  display:grid;flex:0 0 auto;width:min(100%,680px);max-width:680px;min-height:0;
+  margin-block:auto;
+  grid-template-columns:repeat(auto-fit,minmax(100px,1fr));
+  grid-template-rows:none;grid-auto-rows:minmax(86px,auto);
+  align-content:center;justify-content:center;
+  gap:8px;padding:0;background:transparent;border:0;
+}
+#inventory-modal.inventory-v2-ready #inv-stash-grid{
+  grid-template-columns:repeat(auto-fit,minmax(105px,144px));
+  justify-content:center;
 }
 #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-runtime-slot{
   height:100%;min-height:86px;min-width:0;width:100%;
@@ -282,6 +289,7 @@
   }
 }
 @media(max-width:890px){
+  #inventory-modal.inventory-v2-ready #inv-active-grid.inv-grid{width:min(100%,620px)}
   #inventory-modal.inventory-v2-ready .inventory-v2-active-stack{
     display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto;
     height:auto;min-height:0;
@@ -297,6 +305,7 @@
 /* Preserve the established readable two-column inventory on phone-size screens. */
 @media(max-width:760px){
   #inventory-modal.inventory-v2-ready #inv-active-grid.inv-grid{
+    width:min(100%,360px);
     grid-template-columns:repeat(2,minmax(0,1fr));
   }
 }
