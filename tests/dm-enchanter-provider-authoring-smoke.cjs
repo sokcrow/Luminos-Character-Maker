@@ -10,6 +10,7 @@ const playerHtml=fs.readFileSync(path.join(ROOT,"hoja_personaje.html"),"utf8");
 for(const element of [
   "tienda-enchanter-activa","tienda-enchanter-opciones",
   "tienda-enchanter-nombre","tienda-enchanter-rango",
+  "tienda-enchanter-duracion-1","tienda-enchanter-duracion-2","tienda-enchanter-duracion-3",
   "tienda-enchanter-servicios","tienda-enchanter-recetas",
 ]) assert.ok(dm.includes(`id="${element}"`),`DM shop editor missing ${element}`);
 assert.ok(dm.includes("renderShopEnchanterOptions(enchanterIds"),"editing a shop must refill the service and recipe checks");
@@ -19,7 +20,9 @@ for(const element of ["tienda-enchanter-fiabilidad","tienda-enchanter-tarifas",
 }
 for(const field of ["servicePriceAhn:enchanterPrices","magicalRepairAhnPerPoint:needsRepairPrice",
   "safeExtractionGemQuality:enchanterServices.includes","reliability:reliabilityPercent/100",
-  "renderShopEnchanterPriceFields(existingEnchanter.servicePriceAhn"]){
+  "renderShopEnchanterPriceFields(existingEnchanter.servicePriceAhn",
+  "durationHoursByRank:enchanterDurationHours",
+  "existingEnchanter.durationHoursByRank?.[rank]"]){
   assert.ok(dm.includes(field),`DM provider authoring must persist/refill ${field}`);
 }
 
@@ -43,6 +46,22 @@ assert.equal(Shop.serviceEnabled(shop,"enchant"),true);
 assert.equal(Shop.serviceEnabled(shop,"identify"),true);
 assert.equal(Shop.serviceEnabled(shop,"remove_rewrite"),false);
 assert.equal(shop.enchanterProvider.maxRank,2);
+require("../js/item-quality-engine.js");
+require("../js/item-catalog-ore-ingot-gem.js");
+require("../js/item-catalog-enchantments.js");
+require("../js/item-enchantment-engine.js");
+require("../js/item-runtime-engine.js");
+require("../js/item-inventory-runtime.js");
+require("../js/item-magic-runtime.js");
+require("../js/item-enchanter-service-runtime.js");
+const service=globalThis.LuminousItemEnchanterServiceRuntime;
+const author=service.normalizeProviderProfile({
+  maxRank:3,durationHoursByRank:{1:8,2:48,3:192},
+  services:["enchant"],knownEnchantments:["flamebound"],
+});
+assert.equal(service.serviceDuration(author,1).hours,8);
+assert.equal(service.serviceDuration(author,2).hours,48);
+assert.equal(service.serviceDuration(author,3).hours,192);
 assert.deepEqual(shop.enchanterProvider.knownEnchantments,["flamebound"]);
 
 // Each user-facing control is real form markup, not an uneditable raw schema.
