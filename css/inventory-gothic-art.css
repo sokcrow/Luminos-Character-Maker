@@ -54,11 +54,13 @@
 #inventory-modal.inventory-v2-ready #inv-active{height:100%;min-height:0;padding:0}
 #inventory-modal.inventory-v2-ready .inventory-v2-active-stack{
   display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
-  grid-template-rows:minmax(0,1fr);gap:13px;height:100%;min-height:0;align-content:stretch;
+  grid-template-rows:minmax(0,1fr);gap:13px;height:100%;min-height:0;align-content:start;
+  width:100%;max-width:1280px;margin-inline:auto;align-items:start;justify-items:center;
 }
 #inventory-modal.inventory-v2-ready .inventory-v2-equipment,
 #inventory-modal.inventory-v2-ready .inventory-v2-carry{
   min-height:0;min-width:0;position:relative;
+  width:100%;max-width:620px;aspect-ratio:1/1;box-sizing:border-box;
   display:flex;flex-direction:column;
   border:3px double #735539;
   background:
@@ -154,7 +156,8 @@
 #inventory-modal.inventory-v2-ready .inventory-v2-eq-slot{
   left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;
   transform:none!important;position:relative!important;
-  width:auto;min-width:0;min-height:0;height:100%;
+  width:min(100%,92px);min-width:0;min-height:0;height:auto;aspect-ratio:1/1;
+  justify-self:center;align-self:center;box-sizing:border-box;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
   padding:7px 5px;gap:2px;text-align:center;
   border:2px solid #705339;border-radius:0;
@@ -210,17 +213,17 @@
 #inventory-modal.inventory-v2-ready .inventory-v2-carry{overflow:hidden}
 #inventory-modal.inventory-v2-ready .inventory-v2-grid-host{
   flex:1 1 auto;min-height:0;overflow:auto;padding:12px;
-  display:flex;flex-direction:column;align-items:center;justify-content:safe center;
+  display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
   scrollbar-color:#765438 #150e0b;
 }
 #inventory-modal.inventory-v2-ready #inv-active-grid.inv-grid{
   display:grid;flex:0 0 auto;width:min(100%,680px);max-width:680px;min-height:0;
   /* Legacy #inv-active-grid height:74px otherwise pushes the first rows behind the HUD header. */
   height:auto;
-  margin-block:auto;
+  margin-block:0;
   grid-template-columns:repeat(auto-fit,minmax(100px,1fr));
-  grid-template-rows:none;grid-auto-rows:minmax(86px,auto);
-  align-content:start;justify-content:center;
+  grid-template-rows:none;grid-auto-rows:auto;
+  align-items:start;align-content:start;justify-content:center;
   gap:8px;padding:0;background:transparent;border:0;
 }
 #inventory-modal.inventory-v2-ready #inv-stash-grid{
@@ -228,8 +231,8 @@
   justify-content:center;
 }
 #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-runtime-slot{
-  height:100%;min-height:86px;min-width:0;width:100%;
-  aspect-ratio:1/1;border:2px solid #634933;
+  height:auto;min-height:0;min-width:0;width:100%;
+  aspect-ratio:1/1;box-sizing:border-box;align-self:start;border:2px solid #634933;
   background:
     radial-gradient(circle at 50% 35%,rgba(97,22,28,.2),transparent 75%),
     linear-gradient(140deg,#1a1110,#080706 73%);
@@ -240,13 +243,15 @@
   border-color:#e9bd79;box-shadow:inset 0 0 0 2px #0c0908,0 0 9px rgba(195,134,67,.35);
 }
 #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-active-card .item-display{
-  position:absolute;inset:14px 3px 13px;display:flex;flex-direction:column;
-  gap:2px;align-items:center;justify-content:center;
+  /* Reset legacy width/height:100% on .item-display: it overflows inset cards. */
+  position:absolute;inset:14px 5px 13px;width:auto;height:auto;box-sizing:border-box;
+  display:flex;flex-direction:column;gap:2px;align-items:center;justify-content:center;
   grid-template-columns:none;grid-template-rows:none;
 }
 #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-active-card .item-icon{
   display:grid;place-items:center;flex:0 0 auto;width:clamp(32px,3vw,49px);height:clamp(32px,3vw,49px);
-  grid-column:auto;grid-row:auto;align-self:center;
+  grid-column:auto;grid-row:auto;align-self:center;margin-inline:auto;
+  background-position:center;background-size:contain;background-repeat:no-repeat;
   background-color:transparent;border:0;
 }
 #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-active-card .item-name{
@@ -296,7 +301,7 @@
     display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto;
     height:auto;min-height:0;
   }
-  #inventory-modal.inventory-v2-ready .inventory-v2-equipment-field{min-height:320px;overflow:visible}
+  #inventory-modal.inventory-v2-ready .inventory-v2-equipment-field{min-height:0;overflow:auto}
   #inventory-modal.inventory-v2-ready .inventory-v2-carry{min-height:350px}
   #inventory-modal.inventory-v2-ready .inventory-v2-vitals-strip{padding:7px}
   #inventory-modal.inventory-v2-ready .inventory-v2-eq-label{font-size:9px}
@@ -325,18 +330,18 @@
   #inventory-modal.inventory-v2-ready .inventory-v2-equipment-field{
     grid-template-columns:minmax(0,1fr) minmax(82px,34%) minmax(0,1fr);
     min-height:300px;gap:5px;padding:7px 6px;
-    grid-template-rows:repeat(4,minmax(67px,1fr));
+    grid-template-rows:repeat(4,minmax(64px,1fr));
   }
-  #inventory-modal.inventory-v2-ready .inventory-v2-eq-slot{padding:4px 2px}
+  #inventory-modal.inventory-v2-ready .inventory-v2-eq-slot{width:min(100%,64px);padding:4px 2px}
   #inventory-modal.inventory-v2-ready .inventory-v2-eq-label{font-size:7px}
   #inventory-modal.inventory-v2-ready .inventory-v2-eq-icon{width:30px;height:30px}
   #inventory-modal.inventory-v2-ready .inventory-v2-eq-name{font-size:9px}
   #inventory-modal.inventory-v2-ready .inventory-v2-grid-host{padding:8px}
   #inventory-modal.inventory-v2-ready #inv-active-grid.inv-grid{
     grid-template-columns:repeat(2,minmax(0,1fr));
-    grid-auto-rows:minmax(112px,auto);gap:7px;
+    grid-auto-rows:auto;gap:7px;
   }
-  #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-runtime-slot{min-height:94px}
+  #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-runtime-slot{min-height:0}
   #inventory-modal.inventory-v2-ready .item-detail-card.active{max-height:37%}
 }
 @media(max-width:360px){
@@ -349,7 +354,7 @@
     flex:1 1 auto;overflow:auto;padding:5px max(6px,env(safe-area-inset-right)) 6px max(6px,env(safe-area-inset-left));
   }
   #inventory-modal.inventory-v2-ready .inventory-v2-active-stack{height:auto;min-height:0}
-  #inventory-modal.inventory-v2-ready .inventory-v2-equipment-field{min-height:260px}
+  #inventory-modal.inventory-v2-ready .inventory-v2-equipment-field{min-height:0}
   #inventory-modal.inventory-v2-ready .item-detail-card.active{
     width:100%;min-width:0;max-width:none;max-height:45%;height:auto;
     flex:0 0 auto;overflow:auto;border-left:0;border-top:2px double #8b693f;
