@@ -152,26 +152,35 @@ const request=(db,before=original,after=paid,extra={})=>
   assert.equal(rejectedEquipment.committed,false);
   assert.equal(rejectedEquipment.reason,"inventory_or_knowledge_changed");
 
-  const scheduled=clone(original);
+  const unequipped=clone(original);
+  unequipped.itemEquipmentRefs.mainHand=null;
+  const scheduled=clone(unequipped);
+  delete scheduled.inventario_activo.sword;
   scheduled.ahn=900;
   scheduled.finance.currentBalance=900;
   scheduled.enchanterJobs={tx_enchant:{jobId:"tx_enchant",status:"in_service",
     itemInstanceId:"sword",readyAt:1710028800000}};
   scheduled.enchanterTransactions={tx_enchant:{committed:true,status:"in_service",chargedAhn:100}};
-  const timedDb=fakeDatabase(original);
-  const intake=await request(timedDb,original,scheduled);
+  const timedDb=fakeDatabase(unequipped);
+  const intake=await request(timedDb,unequipped,scheduled,{
+    result:{committed:true,started:true,transactionId:"tx_enchant",
+      itemInstanceId:"sword",chargedAhn:100,service:"enchant"},
+  });
   assert.equal(intake.committed,true);
-  assert.equal(timedDb.store.value.itemEquipmentRefs.mainHand,"sword");
-  assert.equal(timedDb.store.value.inventario_activo.sword.magic.enchantments.length,0);
+  assert.equal(timedDb.store.value.itemEquipmentRefs.mainHand,null);
+  assert.equal(timedDb.store.value.inventario_activo.sword,undefined,
+    "pending Item must never remain usable in persisted inventory");
   assert.equal(timedDb.store.value.enchanterJobs.tx_enchant.status,"in_service");
   const received=clone(scheduled);
+  received.inventario_activo.sword=clone(original.inventario_activo.sword);
   received.inventario_activo.sword.magic.enchantments=[{definitionId:"flamebound",rank:1}];
   received.enchanterJobs.tx_enchant.status="completed";
   received.enchanterTransactions["tx_enchant:delivery"]={
     committed:true,chargedAhn:0,deliveryOf:"tx_enchant",
   };
   const pickup=await request(timedDb,scheduled,received,{
-    result:{committed:true,transactionId:"tx_enchant:delivery",itemInstanceId:"sword",
+    result:{committed:true,delivered:true,deliveryOf:"tx_enchant",
+      transactionId:"tx_enchant:delivery",itemInstanceId:"sword",
       chargedAhn:0,service:"enchant",timestamp:1710028800000},
   });
   assert.equal(pickup.committed,true);
@@ -179,11 +188,25 @@ const request=(db,before=original,after=paid,extra={})=>
   assert.equal(timedDb.store.value.enchanterJobs.tx_enchant.status,"completed");
   assert.equal(timedDb.store.value.inventario_activo.sword.magic.enchantments.length,1);
   const duplicatePickup=await request(timedDb,scheduled,received,{
-    result:{committed:true,transactionId:"tx_enchant:delivery",itemInstanceId:"sword",
+    result:{committed:true,delivered:true,deliveryOf:"tx_enchant",
+      transactionId:"tx_enchant:delivery",itemInstanceId:"sword",
       chargedAhn:0,service:"enchant"},
   });
   assert.equal(duplicatePickup.committed,false);
   assert.equal(duplicatePickup.reason,"duplicate_transaction");
+
+  const falselyEscrowed=await request(fakeDatabase(unequipped),unequipped,{
+    ...scheduled,inventario_activo:clone(unequipped.inventario_activo),
+  },{result:{committed:true,started:true,transactionId:"tx_enchant",
+    itemInstanceId:"sword",chargedAhn:100,service:"enchant"}});
+  assert.equal(falselyEscrowed.committed,false);
+  assert.equal(falselyEscrowed.reason,"invalid_service_intake",
+    "atomic persistence must reject any paid job that leaves the Item usable");
+  const equippedIntake=await request(fakeDatabase(original),original,scheduled,{
+    result:{committed:true,started:true,transactionId:"tx_enchant",
+      itemInstanceId:"sword",chargedAhn:100,service:"enchant"}});
+  assert.equal(equippedIntake.committed,false);
+  assert.equal(equippedIntake.reason,"invalid_service_intake");
 
   const unavailable=await request({ref(){throw Error("NETWORK ERROR");}});
   assert.equal(unavailable.committed,false);
