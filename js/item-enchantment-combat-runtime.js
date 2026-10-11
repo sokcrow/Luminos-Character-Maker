@@ -256,11 +256,11 @@
 
   function triggerCombatEffects(actor,item,target,trigger,context={}) {
     const kind=normalizeId(trigger);
-    if(!["on_hit","on_damage_received"].includes(kind))
+    if(!["on_hit","on_damage_received","before_getting_hit"].includes(kind))
       return {activated:false,reason:"unsupported_combat_trigger"};
     if(!actor || !item || Magic.actorCanEmitMagic?.(actor)===false)
       return {activated:false,reason:"actor_cannot_emit_magic"};
-    const channels=kind==="on_damage_received"
+    const channels=["on_damage_received","before_getting_hit"].includes(kind)
       ? (context.defenderSelectedEnchantmentChannels || {})
       : selectedChannels(context.skill || {},context);
     const resolution=Magic.enchantmentEffectResolution?.(actor,item,{
@@ -332,7 +332,73 @@
     }
   }
 
-  function dispatchCombatEvent(tag,context={}) {
+  // The selection is an intentional combat action, never a passive reaction.
+  // It is stored only on the live combat unit and is consumed at first use.
+  function queueDefensiveReaction(defender,itemInstanceId){
+    const id=String(itemInstanceId||"");
+    if(!defender || !id || Magic.actorCanEmitMagic?.(defender)===false)
+      return {queued:false,reason:"reaction_actor_unavailable"};
+    const item=(Magic.equippedMagicItems?.(defender)||[])
+      .map(entry=>canonicalEquippedItem(defender,entry))
+      .find(entry=>String(entry?.instanceId||entry?.instance_id||"")===id);
+    if(!item)return {queued:false,reason:"reaction_item_not_equipped"};
+    const effect=Magic.enchantmentEffectResolution?.(defender,item,{
+      trigger:"before_getting_hit",requireEquipped:true,requireLivingActor:true,
+      specialUse:true,
+    });
+    if(!effect?.resolved || !effect.effects?.length)
+      return {queued:false,reason:effect?.reason||"no_authored_predamage_reaction"};
+    if(effect.effects.some(row=>normalizeId(row.type)!=="status_apply"))
+      return {queued:false,reason:"unsupported_reaction_effect"};
+    Object.defineProperty(defender,"__luminousSelectedEnchantmentReaction",{
+      configurable:true,writable:true,enumerable:false,value:id,
+    });
+    return {queued:true,itemInstanceId:id};
+  }
+
+  function dispatchSelectedDefensiveReaction(context={},engine=null){
+    if(context.enchantmentPreDamageWindow!==true || !context.defender ||
+      !Number.isFinite(Number(context.incomingDamage)) ||
+      Number(context.incomingDamage)<=0)return {activated:false,reason:"no_positive_predamage"};
+    const defender=context.defender,attacker=context.attacker;
+    const selected=String(defender.__luminousSelectedEnchantmentReaction||"");
+    if(!selected)return {activated:false,reason:"defensive_reaction_not_selected"};
+    // Consume the selection at this actual incoming hit. It cannot repeat for
+    // every Coin in a Multi-Coin Skill or on a second simultaneous action.
+    delete defender.__luminousSelectedEnchantmentReaction;
+    const item=(Magic.equippedMagicItems?.(defender)||[])
+      .map(entry=>canonicalEquippedItem(defender,entry))
+      .find(entry=>String(entry?.instanceId||entry?.instance_id||"")===selected);
+    if(!item)return {activated:false,reason:"reaction_item_no_longer_equipped"};
+    const economy=global.LuminousActionEconomy || safeRequire("./universal-action-economy.js");
+    if(!economy?.availability || !economy?.consume)
+      return {activated:false,reason:"authoritative_reaction_budget_unavailable"};
+    const phase=engine?.currentState || "COMBAT";
+    const gate=economy.availability(defender,"reaction",{phase});
+    if(!gate.available)return {activated:false,reason:gate.reason||"reaction_unavailable"};
+    const originalState=defender.__luminousActionEconomyState;
+    const savedState=originalState?JSON.parse(JSON.stringify(originalState)):null;
+    if(!economy.consume(defender,"reaction",{phase}))
+      return {activated:false,reason:"reaction_spend_failed"};
+    let result;
+    try{
+      result=triggerCombatEffects(defender,item,attacker,"before_getting_hit",context);
+    }catch(error){
+      result={activated:false,reason:String(error?.message||error)};
+    }
+    if(!result?.activated){
+      // Recover the Action Economy if a status, MD, SP or wear gate failed.
+      if(savedState && defender.__luminousActionEconomyState)
+        Object.assign(defender.__luminousActionEconomyState,savedState);
+      return {activated:false,rolledBack:true,reason:result?.reason||"reaction_effect_failed"};
+    }
+    return {...result,reactionSpent:true};
+  }
+
+  function dispatchCombatEvent(tag,context={},engine=null) {
+    if(tag==="[Before Getting Hit]" && context?.enchantmentPreDamageWindow===true)
+      return dispatchSelectedDefensiveReaction(context,engine);
+
     if(tag!=="[On Hit]" || !context || !context.attacker || !context.defender ||
       !Number.isFinite(Number(context.damageDealt)) || Number(context.damageDealt)<=0)
       return [];
@@ -369,7 +435,7 @@
     if(originalTriggerEvent){
       engine.triggerEvent=function(tag,context,targetsHit) {
         const result=originalTriggerEvent.call(this,tag,context,targetsHit);
-        dispatchCombatEvent(tag,context);
+        dispatchCombatEvent(tag,context,this);
         return result;
       };
     }
@@ -421,6 +487,8 @@
     spendWearOnce,
     canonicalEquippedItem,
     triggerCombatEffects,
+    queueDefensiveReaction,
+    dispatchSelectedDefensiveReaction,
     dispatchCombatEvent,
     approvedResistanceReductions,
     withDefenderResistanceInput,
