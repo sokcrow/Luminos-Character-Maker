@@ -183,19 +183,40 @@
   }
 
   function setMagicalDurability(item, current, max = null, options = {}) {
-    const magic = ensureMagicObject(item);
-    if (!magic) return { changed:false, reason:"missing_item" };
+    if (!item || typeof item !== "object") return {changed:false,reason:"missing_item"};
     const previous = magicalDurabilityState(item);
+    const legacy = magicProfile(item);
+    // Imported Items may put their authoritative magic under runtime.magic,
+    // magicItem or magic_item. Preserve its non-durability data in the canonical
+    // Item profile and update every existing alias, so later reads and saves
+    // cannot resurrect already-spent Magical Durability.
+    const magic = ensureMagicObject(item);
+    if (legacy !== magic) {
+      for (const [key,value] of Object.entries(legacy)) {
+        if (!Object.prototype.hasOwnProperty.call(magic,key)) magic[key]=clone(value);
+      }
+    }
+    const raw = legacy.magicalDurability || legacy.magical_durability ||
+      magic.magicalDurability || magic.magical_durability || {};
     const resolvedMax = Math.max(0, Number(max ?? previous.max ?? options.max ?? 0) || 0);
     const resolvedCurrent = Math.max(0, Math.min(resolvedMax, Number(current) || 0));
-    magic.magicalDurability = {
-      ...(magic.magicalDurability && typeof magic.magicalDurability === "object" ? magic.magicalDurability : {}),
+    const next = {
+      ...(raw && typeof raw==="object"?clone(raw):{}),
       max:resolvedMax,
       current:resolvedCurrent,
       depleted:resolvedMax > 0 && resolvedCurrent <= 0,
-      autoManaged:options.autoManaged ?? magic.magicalDurability?.autoManaged ?? false,
-      profile:normalizeId(options.profile || magic.magicalDurability?.profile || "") || null,
+      autoManaged:options.autoManaged ?? raw.autoManaged ?? false,
+      profile:normalizeId(options.profile || raw.profile || "") || null,
     };
+    const runtime=runtimeOf(item);
+    const profiles=new Set([magic,legacy,runtime.magic,runtime.magicItem,runtime.magic_item,
+      item.magicItem,item.magic_item]);
+    for (const profile of profiles) {
+      if (!profile || typeof profile!=="object") continue;
+      profile.magicalDurability=clone(next);
+      if (Object.prototype.hasOwnProperty.call(profile,"magical_durability"))
+        profile.magical_durability=clone(next);
+    }
     syncEnchantmentChargeProjection(item);
     return {
       changed:previous.current !== resolvedCurrent || previous.max !== resolvedMax,
@@ -656,7 +677,8 @@
     const before={
       chargesCurrent:item?.chargesCurrent,
       charges:item?.charges,
-      magicalDurability:clone(magicProfile(item).magicalDurability || null),
+      magicalDurability:clone(magicProfile(item).magicalDurability ||
+        magicProfile(item).magical_durability || null),
       sp:user?.sp,
     };
     let chargeSpend=null;
@@ -673,12 +695,15 @@
       }
       if(plan.sp>0 && user) user.sp=Math.max(0,Number(user.sp)-plan.sp);
     }catch(error){
+      if(item && before.magicalDurability){
+        const original=before.magicalDurability;
+        setMagicalDurability(item,original.current ?? original.max ?? original.maximum,
+          original.max ?? original.maximum,{
+            autoManaged:original.autoManaged,profile:original.profile,
+          });
+      }
       if(item && before.chargesCurrent!==undefined) item.chargesCurrent=before.chargesCurrent;
       if(item && before.charges!==undefined) item.charges=before.charges;
-      if(item && before.magicalDurability){
-        if(!item.magic || typeof item.magic!=="object") item.magic={};
-        item.magic.magicalDurability=clone(before.magicalDurability);
-      }
       if(user && before.sp!==undefined) user.sp=before.sp;
       return Object.freeze({paid:false,reason:String(error?.message || error),plan,rolledBack:true});
     }
