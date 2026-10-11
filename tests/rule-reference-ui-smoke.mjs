@@ -40,6 +40,31 @@ assert.deepEqual(summary,["status:rupture","save:con","skill:athletics","skill:s
 assert.equal(tokens.map(x=>x.text).join(""),
   "On Hit: inflict Rupture, then make a CON Save. Try Athletics or Sleight of Hand.",
   "Linkification must not rewrite the underlying rule text");
+// Codex finding #1: ordinary uses of canonical names must stay ordinary text.
+for (const phrase of [
+  "Sacred Breath does Fire/Burn damage type.",
+  "Gain protection from weather.",
+  "The Nature of Illusion is mysterious.",
+  "History teaches many lessons.",
+  "Performance optimization was successful.",
+  "Our natural perception of events is imperfect."
+]) {
+  assert.equal(references.tokenize(phrase).filter(x => x.kind).length, 0,
+    "Ambiguous narrative/damage terms must not become rules: " + phrase);
+}
+assert.deepEqual(references.tokenize("Inflict 2 Burn and 1 Rupture.")
+  .filter(x => x.kind).map(x => x.kind + ":" + x.id),
+  ["status:burn", "status:rupture"]);
+assert.deepEqual(references.tokenize("Apply Poison and gain 5 Protection.")
+  .filter(x => x.kind).map(x => x.kind + ":" + x.id),
+  ["status:poison", "status:protection"]);
+assert.deepEqual(references.tokenize("Burn")
+  .filter(x => x.kind).map(x => x.kind + ":" + x.id), []);
+assert.deepEqual(references.tokenize("Burn",{references:[{kind:"status",id:"burn"}]})
+  .filter(x => x.kind).map(x => x.kind + ":" + x.id), ["status:burn"]);
+assert.deepEqual(references.tokenize("Nature",{references:[{kind:"skill",id:"nature"}]})
+  .filter(x => x.kind).map(x => x.kind + ":" + x.id), ["skill:nature"]);
+
 const more=references.tokenize("Use WIS Saving Throw and DEX Check, or Percepción.");
 assert.deepEqual(more.filter(x=>x.kind).map(x=>x.kind+":"+x.id),
   ["save:wis","check:dex","skill:perception"]);
@@ -64,6 +89,9 @@ assert.ok(html.indexOf('src="js/rule-reference-ui.js"') < html.indexOf('src="js/
 assert.match(stats,/LuminousRuleReferences\?\.decorate\?\.\(description, \{ mode: "tooltip" \}\)/);
 assert.match(progression,/LuminousRuleReferences\?\.decorate\?\.\(state\.detail, \{ mode: "card" \}\)/);
 assert.match(skillHud,/LuminousRuleReferences\?\.decorate\?\.\(detail, \{ mode: "card" \}\)/);
+assert.doesNotMatch(css,/\.is-tooltip:hover::after/, "Pseudo-tooltips inside scrolling Traits were removed");
+assert.match(css,/\.luminous-rule-card\s*\{[^}]*position:fixed/s,
+  "Tooltips must render in the document body, outside overflow-hidden ancestors");
 assert.match(css,/max-width:760px/);
 assert.match(css,/prefers-reduced-motion/);
 
