@@ -487,8 +487,16 @@
     const qualitySelect=doc.getElementById("enchanter-ui-gem-quality");
     if(qualityWrap)qualityWrap.hidden=!qualityNeeded;
     if(qualityNeeded && qualitySelect){
-      const choices=Object.keys(gems()?.GEM_STABLE_RANK_BY_QUALITY ||
-        {ruined:0,poor:1,standard:1,fine:2,exceptional:3});
+      const grades=["ruined","poor","standard","fine","exceptional"];
+      const original=engine()?.gemAnchors?.(state.selectedItem)?.find(anchor=>
+        anchor.anchorId===current?.ref?.anchorId)?.gemQuality;
+      const oldGrade=grades.indexOf(original);
+      const catalogGrades=gems()?.GEM_STABLE_RANK_BY_QUALITY || {};
+      const choices=grades.filter((id,index)=>index<oldGrade &&
+        Object.prototype.hasOwnProperty.call(catalogGrades,id));
+      // Only show physically degraded outputs; Standard and Poor share a
+      // channel Rank but Standard is still a higher-quality Gem.
+      if(!choices.includes(state.gemQualityAfter))state.gemQualityAfter=null;
       if(!state.gemQualityAfter){
         const authored=state.provider?.gemQualityAfter || state.provider?.safeExtractionGemQuality;
         if(choices.includes(authored))state.gemQualityAfter=authored;
