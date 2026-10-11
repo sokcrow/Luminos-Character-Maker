@@ -82,6 +82,8 @@ async function commitEnchanterAtomic({database,authUid,request,Services,Engine,S
   const transactionId=key(request?.transactionId);
   const itemId=key(request?.itemInstanceId),auth=String(authUid||"");
   const pickup=String(request?.operation||"")==="pickup";
+  if(pickup && (!key(request?.jobId) || transactionId!==String(request.jobId)+":delivery"))
+    return {committed:false,reason:"pickup_transaction_id_mismatch"};
   if(!database?.ref||!playerId||!shopId||!transactionId||!itemId||!auth)
     return {committed:false,reason:"invalid_authenticated_service_request"};
   if(!Services?.commitServiceTransaction||!Engine?.canRemoveEnchantment||!Shop?.serviceEnabled)
