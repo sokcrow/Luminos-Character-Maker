@@ -22,3 +22,7 @@
 .enchanter-ui-footer{display:flex;align-items:center;gap:12px;padding:12px 14px;border-top:1px solid #1d3b55;background:#090e14}.enchanter-ui-footer #enchanter-ui-status{margin-right:auto;color:#7b9ab0;font-size:10px}.enchanter-ui-confirm{display:flex;align-items:center;gap:7px;color:#a5b9c8;font-size:10px}
 #enchanter-ui-commit{padding:9px 16px;border:1px solid #5eb5ef;background:#0d2636;color:#9ddaff;font:700 10px "Share Tech Mono",monospace;letter-spacing:.1em;cursor:pointer}#enchanter-ui-commit:disabled{opacity:.35;cursor:not-allowed}
 @media(max-width:850px){.enchanter-ui-body{grid-template-columns:1fr;overflow:auto}.enchanter-ui-shell{height:96vh}.enchanter-ui-items,.enchanter-ui-service,.enchanter-ui-preview{overflow:visible}.enchanter-ui-controls{grid-template-columns:1fr}.enchanter-ui-footer{flex-wrap:wrap}}
+
+/* The extra confirmation is shown only for a destructive Bound extraction. */
+#enchanter-ui-destruction-wrap[hidden]{display:none}
+#enchanter-ui-destruction-wrap{color:#f3a39b;max-width:275px}
