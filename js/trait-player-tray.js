@@ -902,6 +902,7 @@
     const resolved = resolveTraitDisplay(trait, runtime);
     if (!resolved) {
       description.textContent = fallback;
+      global.LuminousRuleReferences?.decorate?.(description, { mode: "tooltip" });
       return description;
     }
     const pattern = /\{([A-Za-z0-9_-]+)\}/g;
@@ -925,6 +926,7 @@
       });
       description.appendChild(summary);
     }
+    global.LuminousRuleReferences?.decorate?.(description, { mode: "tooltip" });
     return description;
   }
 
