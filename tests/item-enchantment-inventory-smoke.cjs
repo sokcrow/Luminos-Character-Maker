@@ -141,6 +141,16 @@ assert.deepStrictEqual(engineSerialized.magic.enchantments, appliedByEngine.item
   assert.deepStrictEqual(saved.itemMagicKnowledge,{[base.instanceId]:{magicDetected:true}});
   assert.deepStrictEqual(saved.enchantmentCompendium,{flamebound:{knownRanks:[1]}});
   assert.equal(Object.hasOwn(result.state,"enchanterJobs"),false);
+  assert.equal(Object.hasOwn(result.state,"inventario_stash"),true,
+    "explicitly present empty stash is still a deliberate write");
+  const partialWithoutStash={inventario_activo:combatProjection.inventario_activo};
+  saved.inventario_stash={kept:{instanceId:"kept",definitionId:"kept"}};
+  const combatOnly=await Persistence.saveInventoryState(db,"test_player",partialWithoutStash);
+  assert.equal(Object.hasOwn(combatOnly.state,"inventario_stash"),false,
+    "missing stash must never be rewritten to empty by Battle Viewer saves");
+  assert.deepStrictEqual(saved.inventario_stash,{kept:{instanceId:"kept",definitionId:"kept"}});
+  assert.equal(Object.hasOwn(combatOnly.state,"itemEquipmentRefs"),false);
+  assert.equal(Object.hasOwn(combatOnly.state,"attunedItemInstanceIds"),false);
   // A fully hydrated Player can still intentionally clear its own jobs.
   await Persistence.saveInventoryState(db,"test_player",{...combatProjection,
     enchanterJobs:{},enchanterTransactions:{},itemMagicKnowledge:{},enchantmentCompendium:{}});
