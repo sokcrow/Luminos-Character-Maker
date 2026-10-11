@@ -688,10 +688,18 @@
         detail:{result:confirmed.receipt,item:state.selectedItem},
       }));
     }catch(error){
-      // A callable can commit and lose its response. Never retry from this
-      // page session until Firebase is reloaded and the receipt is inspected.
-      state.saveUncertain=true;
-      state.status="SAVE NOT CONFIRMED — RECARGA LA FICHA ANTES DE REINTENTAR";
+      const code=String(error?.code||"").toLowerCase();
+      const rejection=["failed-precondition","invalid-argument","unauthenticated",
+        "permission-denied","not-found"].some(part=>code.includes(part));
+      // A validated Firebase rejection proves that no checkout was committed.
+      // A network timeout can occur AFTER commit; that ambiguity must lock
+      // retry until the authoritative receipt is reloaded.
+      if(rejection){
+        state.status="SERVICIO RECHAZADO — "+reasonText(error?.message||"service_rejected");
+      }else{
+        state.saveUncertain=true;
+        state.status="SAVE NOT CONFIRMED — RECARGA LA FICHA ANTES DE REINTENTAR";
+      }
     }
   }
 
