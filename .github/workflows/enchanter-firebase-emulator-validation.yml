@@ -1,0 +1,41 @@
+name: Enchanter Firebase Emulator Validation
+
+on:
+  pull_request:
+    paths:
+      - functions/**
+      - firebase.json
+      - database.rules.json
+      - js/item-enchanter-service-runtime.js
+      - js/item-enchantment-engine.js
+      - js/item-catalog-enchantments.js
+      - js/shop-runtime.js
+      - tests/enchanter-firebase-emulator-smoke.cjs
+      - .github/workflows/enchanter-firebase-emulator-validation.yml
+  workflow_dispatch:
+
+jobs:
+  enchanter-firebase-emulator:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install isolated Firebase Admin test dependencies
+        run: npm install --prefix functions --no-audit --no-fund
+      - name: Firebase Auth and Realtime Database emulator integration
+        env:
+          CI: 'true'
+        run: >
+          npx --yes firebase-tools emulators:exec
+          --only auth,database
+          --project demo-enchanter-atomic
+          -- "node tests/enchanter-firebase-emulator-smoke.cjs"
