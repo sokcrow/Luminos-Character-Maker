@@ -74,6 +74,26 @@
     state.selectedItem=state.items.find(item=>itemId(item)===itemId(state.selectedItem)) || null;
   }
 
+  function restoreUnconfirmedService(beforePlayer, beforeProviderMaterials){
+    if(!beforePlayer || !state.viewer) return;
+    // A failed/ambiguous Firebase write must never leave provisional AHN,
+    // Enchantments or transaction receipts inside the live Player object:
+    // unrelated saves could otherwise accidentally persist them later.
+    const fields=["inventario_activo","inventario_stash","ahn","finance",
+      "itemMagicKnowledge","enchantmentCompendium","enchanterTransactions","enchanterJobs"];
+    const selectedId=itemId(state.selectedItem);
+    for(const key of fields){
+      if(Object.prototype.hasOwnProperty.call(beforePlayer,key))
+        state.viewer[key]=clone(beforePlayer[key]);
+      else delete state.viewer[key];
+    }
+    state.providerMaterials=clone(beforeProviderMaterials || []);
+    state.items=serviceItems();
+    state.selectedItem=state.items.find(item=>itemId(item)===selectedId) || null;
+    state.gem=null;
+    state.quote=null;
+  }
+
   function providerName(){
     return String(state.provider?.name || "Enchanter");
   }
@@ -626,7 +646,10 @@
     const beforePlayer=clone(state.viewer);
     const providerMaterialsBefore=clone(state.providerMaterials);
     let locallyCommitted=false;
+    let saveConfirmed=false;
     try{
+      if(typeof state.onSave!=="function")
+        throw new Error("El servicio no está disponible sin una conexión para guardar los cambios.");
       const common={
         transactionId:tx,
         playerMaterials:materialsForTransaction(),
@@ -668,7 +691,8 @@
       locallyCommitted=true;
       confirm.checked=false;
       // A local service receipt is not proof of persisted payment or item state.
-      if(typeof state.onSave==="function") await state.onSave({result,item:state.selectedItem,viewer:state.viewer,beforePlayer,providerMaterialsBefore,providerMaterialsAfter:clone(state.providerMaterials)});
+      await state.onSave({result,item:state.selectedItem,viewer:state.viewer,beforePlayer,providerMaterialsBefore,providerMaterialsAfter:clone(state.providerMaterials)});
+      saveConfirmed=true;
       state.items=serviceItems();
       state.gem=null;
       state.quote=null;
@@ -679,8 +703,11 @@
     }catch(error){
       // Remote writes may have succeeded despite an ambiguous network error.
       // Do not re-charge on this page until authoritative state is reloaded.
-      if(locallyCommitted) state.saveUncertain=true;
-      state.status=locallyCommitted
+      if(locallyCommitted && !saveConfirmed){
+        restoreUnconfirmedService(beforePlayer,providerMaterialsBefore);
+        state.saveUncertain=true;
+      }
+      state.status=locallyCommitted && !saveConfirmed
         ? "SAVE NOT CONFIRMED — RECARGA LA FICHA ANTES DE REINTENTAR"
         : `BLOCKED // ${error.message || error}`;
     }finally{
