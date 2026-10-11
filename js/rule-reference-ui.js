@@ -133,7 +133,7 @@
       // Never interpret "nature", "protection", "illusion", etc. out of context.
       const directStatus = /\b(?:status|effect|potency|count|stacks?)\s*(?:of\s+)?$/i.test(before)
         || /^\s+(?:status|effect|potency|count|stacks?)\b/i.test(after);
-      const action = /\b(?:inflict|apply|gain|receive|suffer|trigger|remove|lose|cleanse|purge|grant|aplicar|infligir|ganar|recibir|perder|eliminar|aplica|inflige|gana|pierde|otorga)\b/i.test(before);
+      const action = /\b(?:inflict(?:s|ed|ing)?|appl(?:y|ies|ied|ying)|gain(?:s|ed|ing)?|receiv(?:e|es|ed|ing)|suffer(?:s|ed|ing)?|trigger(?:s|ed|ing)?|remov(?:e|es|ed|ing)|los(?:e|es|ing)|lost|cleans(?:e|es|ed|ing)|purg(?:e|es|ed|ing)|grant(?:s|ed|ing)?|aplicar|infligir|ganar|recibir|perder|eliminar|aplica|inflige|gana|pierde|otorga)\b/i.test(before);
       const numeric = /\b\d+(?:\s+(?:potency|count|stacks?))?\s*(?:of\s+)?$/i.test(before);
       // A deliberate status action or a named quantity, not isolated English.
       return directStatus || (action && (numeric || !/\b(?:nature|protection|illusion)\b/i.test(entry.id)));
@@ -141,10 +141,11 @@
     if (entry.kind === "skill") {
       // Explicit check wording or a verb indicating a skill is being rolled.
       const prompt = /\b(?:skill|check|checks|roll|rolling|try|use|attempt|make|test|tirar|tira|prueba|usar|usa|intenta|realiza|haz|habilidad)\b/i.test(before);
-      const suffix = /^\s*(?:skill|check|roll|test|ability\s+check|prueba|habilidad)\b/i.test(after);
+      const proficiency = /\b(?:proficiency|expertise|proficient|trained|competencia|pericia)\s+(?:in|with|en)\s*$/i.test(before);
+      const suffix = /^\s*(?:skill|check|roll|test|ability\s+check|prueba|habilidad|threshold|dc)\b/i.test(after);
       const slashAbility = /(?:STR|DEX|CON|INT|WIS|CHA)\s*\/\s*$/i.test(before);
       // Compound checks: "Try Athletics or Sleight of Hand".
-      return prompt || suffix || slashAbility;
+      return prompt || proficiency || suffix || slashAbility;
     }
     return false;
   }
