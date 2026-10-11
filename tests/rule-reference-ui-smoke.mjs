@@ -65,6 +65,32 @@ assert.deepEqual(references.tokenize("Burn",{references:[{kind:"status",id:"burn
 assert.deepEqual(references.tokenize("Nature",{references:[{kind:"skill",id:"nature"}]})
   .filter(x => x.kind).map(x => x.kind + ":" + x.id), ["skill:nature"]);
 
+// Codex follow-up P2: catalog text uses inflected status verbs.
+for (const [sentence, expected] of [
+  ["A trait gains 3 Bind and 3 Clash Power Down.", ["status:bind", "status:clash_power_down"]],
+  ["Pass removes Confusion.", ["status:confusion"]],
+  ["The target grants 1 Protection and applies 2 Burn.", ["status:protection", "status:burn"]],
+  ["Gain 2 Poison then lose 1 Burn.", ["status:poison", "status:burn"]],
+]) {
+  assert.deepEqual(references.tokenize(sentence).filter(x => x.kind).map(x => x.kind + ":" + x.id),
+    expected, "Inflected status rule action not recognized: " + sentence);
+  assert.equal(references.tokenize(sentence).map(x => x.text).join(""), sentence);
+}
+// Codex follow-up P2: proficiency and Threshold are unambiguous Skill contexts.
+for (const [sentence, expected] of [
+  ["Gain Proficiency in Perception.", ["skill:perception"]],
+  ["Gain Expertise in Sleight of Hand.", ["skill:sleight_of_hand"]],
+  ["Persuasion Threshold -2; Deception Threshold -2.", ["skill:persuasion", "skill:deception"]],
+  ["Proficient in Acrobatics.", ["skill:acrobatics"]],
+]) {
+  assert.deepEqual(references.tokenize(sentence).filter(x => x.kind).map(x => x.kind + ":" + x.id),
+    expected, "Skill proficiency/Threshold not recognized: " + sentence);
+  assert.equal(references.tokenize(sentence).map(x => x.text).join(""), sentence);
+}
+assert.deepEqual(references.tokenize("Nature is an important part of History."),
+  [{text:"Nature is an important part of History."}],
+  "Contextual matching must still preserve natural-language references.");
+
 const more=references.tokenize("Use WIS Saving Throw and DEX Check, or Percepción.");
 assert.deepEqual(more.filter(x=>x.kind).map(x=>x.kind+":"+x.id),
   ["save:wis","check:dex","skill:perception"]);
