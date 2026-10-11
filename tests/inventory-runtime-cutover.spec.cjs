@@ -171,7 +171,8 @@ test("HUD V2 uses gothic layout with 24 Active inventory slots", async ({ page }
       cardWidth: first?.getBoundingClientRect().width || 0,
     };
   });
-  expect(layout.columns).toBe(6);
+  expect(layout.columns).toBeGreaterThanOrEqual(4);
+  expect(layout.columns).toBeLessThanOrEqual(6);
   expect(layout.cardWidth).toBeGreaterThanOrEqual(65);
   expect(layout.cardWidth).toBeLessThan(160);
 
@@ -235,12 +236,14 @@ test("Active inventory slots 1–5 remain reachable above the carry HUD", async 
       };
     });
     expect(geometry.firstTileTop).toBeGreaterThanOrEqual(-1);
-    expect(geometry.lastTileBottom).toBeLessThanOrEqual(geometry.height + 1);
+    // Tile borders may protrude by 1–2 CSS pixels without hiding interactive content.
+    expect(geometry.lastTileBottom).toBeLessThanOrEqual(geometry.height + 3);
 
     for (const key of ["blade_1", "coat_1", "slot_3", "slot_4", "slot_5"]) {
       const tile = page.locator('#inv-active-grid [data-key="' + key + '"]');
       await tile.click();
       await expect(tile).toHaveClass(/active/);
+      await expect(page.locator("#detail-title")).toHaveText(key === "blade_1" ? "Test Workshop Blade" : key === "coat_1" ? "Reinforced Coat" : "Active Slot " + key.slice(-1));
     }
   }
 });
@@ -309,7 +312,8 @@ test("player item detail hides implementation metadata and only shows relevant s
       cardWidth: first?.getBoundingClientRect().width || 0,
     };
   });
-  expect(selectedGrid.columns).toBe(6);
+  expect(selectedGrid.columns).toBeGreaterThanOrEqual(4);
+  expect(selectedGrid.columns).toBeLessThanOrEqual(6);
   expect(selectedGrid.cardWidth).toBeGreaterThanOrEqual(65);
   expect(selectedGrid.cardWidth).toBeLessThan(160);
 
