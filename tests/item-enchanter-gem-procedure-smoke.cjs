@@ -23,6 +23,7 @@ const provider=Services.normalizeProviderProfile({
   name:"Gemwright",
   maxRank:3,
   services:["remove_rewrite","extract_gem"],
+  knownEnchantments:["flamebound"],
   servicePriceAhn:{
     remove_rewrite:250000,
     extract_gem:180000,
