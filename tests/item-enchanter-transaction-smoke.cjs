@@ -328,12 +328,15 @@ assert.equal(timedQuote.quoted,true);
 const timedWithDuration={...timedQuote,duration:{resolved:true,hours:8}};
 const startedAt=1710000000000;
 const delayed=Services.startDeferredServiceTransaction(timedOwner,timedItem,timedWithDuration,{
-  transactionId:"timed_enchant_once",startedAt,provider,
+  transactionId:"timed_enchant_once",worldTimestamp:startedAt,provider,
   playerMaterials:[timedCatalyst],
 });
 assert.equal(delayed.committed,true,"valid order must reserve and persist a job");
 assert.equal(delayed.started,true);
 assert.equal(delayed.job.readyAt,startedAt+8*60*60*1000);
+assert.equal(delayed.job.clockSource,"campaign");
+assert.equal(Services.serviceReady(delayed.job),false,
+  "no calendar timestamp must never unlock the Item based on wall clock");
 assert.equal(timedOwner.ahn,2000000,"simulation must not mutate the source Player");
 assert.equal(timedItem.magic,undefined,"source Item cannot be enchanted at intake");
 assert.equal(delayed.player.inventario_activo.timed_weapon,undefined,
@@ -347,16 +350,21 @@ assert.equal(delayed.player.inventario_activo.timed_ritual,undefined,
 assert.equal(timedOwner.inventario_activo.timed_ritual.quantity,1,
   "simulation does not spend the original Player reagent");
 assert.equal(Services.serviceReady(delayed.job,startedAt),false);
+const withoutCalendar=Services.startDeferredServiceTransaction(timedOwner,timedItem,timedWithDuration,{
+  transactionId:"timed_clock_missing",provider,playerMaterials:[timedCatalyst],
+});
+assert.equal(withoutCalendar.committed,false);
+assert.equal(withoutCalendar.reason,"service_world_time_unavailable");
 const pendingPlayer=JSON.parse(JSON.stringify(delayed.player));
 const early=Services.completeDeferredServiceTransaction(pendingPlayer,"timed_enchant_once",{
-  now:startedAt+7*60*60*1000,
+  worldTimestamp:startedAt+7*60*60*1000,
 });
 assert.equal(early.committed,false);
 assert.equal(early.reason,"service_not_ready");
 assert.equal(pendingPlayer.ahn,delayed.player.ahn);
 assert.equal(pendingPlayer.inventario_activo.timed_weapon,undefined);
 const delivered=Services.completeDeferredServiceTransaction(pendingPlayer,"timed_enchant_once",{
-  now:delayed.job.readyAt,
+  worldTimestamp:delayed.job.readyAt,
 });
 assert.equal(delivered.committed,true);
 assert.equal(delivered.chargedAhn,0,"collection cannot double-charge");
@@ -374,21 +382,21 @@ const restoredOwner={...delayed.player,...restoredState};
 assert.equal(restoredOwner.inventario_activo.timed_weapon,undefined,
   "Item must still be in escrow after serialization and hydration");
 const deliveredAfterReload=Services.completeDeferredServiceTransaction(
-  restoredOwner,"timed_enchant_once",{now:delayed.job.readyAt});
+  restoredOwner,"timed_enchant_once",{worldTimestamp:delayed.job.readyAt});
 assert.equal(deliveredAfterReload.committed,true,"loaded orders must still be deliverable");
 assert.equal(Persistence.serializeInventoryState(deliveredAfterReload.player)
   .inventario_activo.timed_weapon.schemaVersion,3,
   "delivered Item must survive a subsequent save/hydration");
 assert.equal(deliveredAfterReload.player.inventario_activo.timed_weapon.magic.enchantments.length,1);
 assert.equal(Services.completeDeferredServiceTransaction(delivered.player,"timed_enchant_once",{
-  now:delayed.job.readyAt,
+  worldTimestamp:delayed.job.readyAt,
 }).committed,false,"a finished job cannot be collected twice");
 const alteredDuringService=JSON.parse(JSON.stringify(delayed.player));
 alteredDuringService.inventario_activo.timed_weapon={
   ...timedItem,condition:45,
 };
 const alteredDelivery=Services.completeDeferredServiceTransaction(alteredDuringService,
-  "timed_enchant_once",{now:delayed.job.readyAt});
+  "timed_enchant_once",{worldTimestamp:delayed.job.readyAt});
 assert.equal(alteredDelivery.committed,false);
 assert.equal(alteredDelivery.reason,"service_item_identity_collision");
 assert.equal(alteredDuringService.ahn,delayed.player.ahn,"rejected delivery cannot charge");
@@ -410,7 +418,7 @@ filled.inventario_activo=Object.fromEntries(Array.from({length:24},(_,i)=>[
 ]));
 filled.inventario_stash={};
 const overflowPickup=Services.completeDeferredServiceTransaction(filled,
-  "timed_enchant_once",{now:delayed.job.readyAt});
+  "timed_enchant_once",{worldTimestamp:delayed.job.readyAt});
 assert.equal(overflowPickup.committed,true);
 assert.equal(overflowPickup.player.inventario_activo.timed_weapon,undefined);
 assert.equal(overflowPickup.player.inventario_stash.timed_weapon.magic.enchantments.length,1);
@@ -419,9 +427,29 @@ full.inventario_stash=Object.fromEntries(Array.from({length:80},(_,i)=>[
   "stash_"+i,{instanceId:"stash_"+i,definitionId:"stash"},
 ]));
 const blockedFull=Services.completeDeferredServiceTransaction(full,
-  "timed_enchant_once",{now:delayed.job.readyAt});
+  "timed_enchant_once",{worldTimestamp:delayed.job.readyAt});
 assert.equal(blockedFull.committed,false);
 assert.equal(blockedFull.reason,"service_inventory_full");
 assert.equal(full.enchanterJobs.timed_enchant_once.status,"in_service");
+
+// A non-cursed magical Item still receives a conclusive, billable Curse Analysis.
+require("../js/item-magic-knowledge-runtime.js");
+const analysisProvider=Services.normalizeProviderProfile({
+  id:"curse_reader",maxRank:3,services:["curse_analysis"],
+  servicePriceAhn:{curse_analysis:350},
+});
+const analysisItem=JSON.parse(JSON.stringify(committed.item));
+analysisItem.instanceId="clean_magic_item";
+const analysisOwner={ahn:900,itemMagicKnowledge:{},inventario_activo:{clean_magic_item:analysisItem}};
+const analysisQuote=Services.quoteFixedService(analysisProvider,"curse_analysis");
+assert.equal(analysisQuote.quoted,true);
+const analysis=Services.commitServiceTransaction(analysisOwner,analysisItem,analysisQuote,{
+  transactionId:"negative_curse_analysis",viewer:analysisOwner,
+});
+assert.equal(analysis.committed,true,"conclusive negative Curse Analysis must be chargeable");
+assert.equal(analysisOwner.ahn,550);
+assert.equal(analysisOwner.itemMagicKnowledge.clean_magic_item.curseChecked,true);
+assert.equal(analysisOwner.itemMagicKnowledge.clean_magic_item.curseFlagKnown,false);
+assert.equal(analysisOwner.enchanterTransactions.negative_curse_analysis.chargedAhn,350);
 
 console.log("Enchanter atomic transaction/provenance smoke: OK");
