@@ -229,6 +229,10 @@ async function bootDmHarness(page) {
       applyInventoryState(unit, snapshot) {
         unit.inventario_activo = clone(snapshot.inventario_activo || {});
         unit.inventario_stash = clone(snapshot.inventario_stash || {});
+        unit.itemMagicKnowledge=clone(snapshot.itemMagicKnowledge||{});
+        unit.enchantmentCompendium=clone(snapshot.enchantmentCompendium||{});
+        unit.enchanterTransactions=clone(snapshot.enchanterTransactions||{});
+        unit.enchanterJobs=clone(snapshot.enchanterJobs||{});
         unit.equipment = { accessories: [] };
         if (snapshot.equipmentRefs?.mainHand) unit.equipment.mainHand = unit.inventario_activo[snapshot.equipmentRefs.mainHand];
         return { applied: true };
