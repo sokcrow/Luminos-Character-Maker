@@ -2706,10 +2706,10 @@ window.processEntitiesData = function(entities) {
                     <div style="color:#ccc;font-size:12px;">Horas de entrega de servicios por rango (tiempo de juego)</div>
                     <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;">
                       <label style="color:#ccc;font-size:12px;">Rango I · horas
-                        <input id="tienda-enchanter-duracion-1" type="number" min="1" step="1" placeholder="Horas" />
+                        <input id="tienda-enchanter-duracion-1" type="number" min="1" max="23" step="1" placeholder="Horas" />
                       </label>
                       <label style="color:#ccc;font-size:12px;">Rango II · 1–3 días
-                        <input id="tienda-enchanter-duracion-2" type="number" min="24" step="1" placeholder="Horas" />
+                        <input id="tienda-enchanter-duracion-2" type="number" min="24" max="72" step="1" placeholder="Horas" />
                       </label>
                       <label style="color:#ccc;font-size:12px;">Rango III · 7+ días
                         <input id="tienda-enchanter-duracion-3" type="number" min="168" step="1" placeholder="Horas" />
@@ -8457,8 +8457,9 @@ window.processEntitiesData = function(entities) {
               if(raw!==""){
                 const hours=Number(raw);
                 const minimum=rank===3?168:rank===2?24:1;
-                if(!Number.isSafeInteger(hours) || hours<minimum){
-                  alert(`Indica un tiempo válido para rango ${rank}: mínimo ${minimum} horas.`);
+                const maximum=rank===1?23:rank===2?72:Infinity;
+                if(!Number.isSafeInteger(hours) || hours<minimum || hours>maximum){
+                  alert(`Duración de rango ${rank} fuera de banda: ${minimum}${Number.isFinite(maximum)?"–"+maximum:"+"} horas.`);
                   return;
                 }
                 enchanterDurationHours[rank]=hours;
