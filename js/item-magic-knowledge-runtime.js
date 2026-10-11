@@ -315,9 +315,27 @@
     return actual.enchantments.map((entry) => entry.definition?.name).filter(Boolean);
   }
 
-  function displayName(viewer, item, options = {}) {
-    if (options.syncPassive !== false) syncPassiveKnowledge(viewer,item);
+  // Passive reading is a projection, not a persistence operation. Rendering
+  // an Item must never rewrite updatedAt in the Player's Firebase knowledge.
+  function observedKnowledge(viewer, item, includePassive = true) {
     const knowledge = knowledgeOf(viewer,item);
+    if(!includePassive) return knowledge;
+    const passive=passiveObservation(viewer,item);
+    if(!passive.magicDetected && !passive.identified) return knowledge;
+    knowledge.magicDetected=Boolean(knowledge.magicDetected || passive.magicDetected);
+    knowledge.difficultyKnown=Boolean(knowledge.difficultyKnown || passive.difficultyVisible);
+    knowledge.lastPassiveArcana=passive.score;
+    if(passive.identified){
+      knowledge.enchantmentIdentified=true;
+      knowledge.rankKnown=true;
+      knowledge.effectsKnown=true;
+    }
+    if(passive.durabilityKnown) knowledge.magicalDurabilityKnown=true;
+    return knowledge;
+  }
+
+  function displayName(viewer, item, options = {}) {
+    const knowledge = options.knowledge || observedKnowledge(viewer,item,options.syncPassive !== false);
     const actual = truth(item);
     const base = baseItemName(item);
     if (!actual.magical || !knowledge.magicDetected) return base;
@@ -358,10 +376,9 @@
   }
 
   function presentation(viewer, item, options = {}) {
-    if (options.syncPassive !== false) syncPassiveKnowledge(viewer,item);
-    const knowledge = knowledgeOf(viewer,item);
+    const knowledge = observedKnowledge(viewer,item,options.syncPassive !== false);
     const actual = truth(item);
-    const name = displayName(viewer,item,{syncPassive:false});
+    const name = displayName(viewer,item,{syncPassive:false,knowledge});
     const active = Magic.magicalPowerActive?.(item) !== false;
     const inscriptionSeed = instanceIdOf(item) || baseItemName(item);
     const target = identifyThreshold(item);
