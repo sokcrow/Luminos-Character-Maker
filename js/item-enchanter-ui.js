@@ -673,6 +673,8 @@
       if(confirmed?.committed!==true || !confirmed.player)
         throw new Error("El servidor no confirmó el servicio.");
       applyPlayerSnapshot(confirmed.player);
+      if(Array.isArray(confirmed.providerMaterials))
+        state.providerMaterials=clone(confirmed.providerMaterials);
       state.items=serviceItems();
       state.selectedItem=state.items.find(item=>itemId(item)===selectedId) || null;
       state.gem=null;
