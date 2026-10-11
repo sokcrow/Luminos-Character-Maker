@@ -276,6 +276,31 @@ assert.equal(extractOwner.inventario_activo.ruby_recovered.quantity,1);
 assert.equal(Engine.gemAnchors(extracting).length,0);
 assert.equal(extractOwner.ahn,9000);
 
+// A recovered Gem must respect Active 24 / Stash 80 capacities, even
+// when its Item was already occupying one of the Active slots.
+const filledActive=Object.fromEntries(Array.from({length:23},(_,i)=>[
+  "other_"+i,{instanceId:"other_"+i,definitionId:"other"},
+]));
+const fullActiveOwner={ahn:10000,inventario_activo:{
+  extract_sword:JSON.parse(JSON.stringify(embedded.item)),...filledActive,
+},inventario_stash:{}};
+const extractWithFullActive=Services.commitServiceTransaction(fullActiveOwner,
+  fullActiveOwner.inventario_activo.extract_sword,extractQuote,{transactionId:"extract_full_active"});
+assert.equal(extractWithFullActive.committed,true,"full Active should spill recovered gem into Stash");
+assert.equal(Object.keys(fullActiveOwner.inventario_activo).length,24);
+assert.equal(fullActiveOwner.inventario_stash.ruby_recovered.quality,"standard");
+const fullStashOwner={ahn:10000,inventario_activo:{
+  extract_sword:JSON.parse(JSON.stringify(embedded.item)),...filledActive,
+},inventario_stash:Object.fromEntries(Array.from({length:80},(_,i)=>[
+  "stored_"+i,{instanceId:"stored_"+i,definitionId:"stored"},
+]))};
+const blockedGemRecovery=Services.commitServiceTransaction(fullStashOwner,
+  fullStashOwner.inventario_activo.extract_sword,extractQuote,{transactionId:"extract_full_both"});
+assert.equal(blockedGemRecovery.committed,false);
+assert.equal(blockedGemRecovery.reason,"recovered_gem_inventory_full");
+assert.equal(fullStashOwner.ahn,10000,"full recovery cannot charge the Player");
+assert.equal(Engine.gemAnchors(fullStashOwner.inventario_activo.extract_sword).length,1);
+
 // A pre-existing loose Item with this same instance ID cannot be overwritten.
 const conflictItem=JSON.parse(JSON.stringify(embedded.item));
 const conflictOwner={ahn:10000,inventario_activo:{
@@ -317,6 +342,10 @@ assert.equal(delayed.job.itemAfter.magic.enchantments.length,1,
   "the completed magical result must be sealed in the job");
 assert.equal(delayed.player.ahn,2000000-timedWithDuration.totalAhn);
 assert.equal(delayed.player.enchanterTransactions.timed_enchant_once.status,"in_service");
+assert.equal(delayed.player.inventario_activo.timed_ritual,undefined,
+  "a fully consumed reagent cannot occupy an inventory slot");
+assert.equal(timedOwner.inventario_activo.timed_ritual.quantity,1,
+  "simulation does not spend the original Player reagent");
 assert.equal(Services.serviceReady(delayed.job,startedAt),false);
 const pendingPlayer=JSON.parse(JSON.stringify(delayed.player));
 const early=Services.completeDeferredServiceTransaction(pendingPlayer,"timed_enchant_once",{
