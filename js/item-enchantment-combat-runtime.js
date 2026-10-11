@@ -260,8 +260,11 @@
       return {activated:false,reason:"unsupported_combat_trigger"};
     if(!actor || !item || Magic.actorCanEmitMagic?.(actor)===false)
       return {activated:false,reason:"actor_cannot_emit_magic"};
+    const channels=kind==="on_damage_received"
+      ? (context.defenderSelectedEnchantmentChannels || {})
+      : selectedChannels(context.skill || {},context);
     const resolution=Magic.enchantmentEffectResolution?.(actor,item,{
-      trigger:kind,selectedChannels:selectedChannels(context.skill || {},context),
+      trigger:kind,selectedChannels:channels,
       requireEquipped:true,requireLivingActor:true,specialUse:true,
     });
     if(!resolution?.resolved)return {activated:false,reason:resolution?.reason || "effect_resolution_failed"};
@@ -335,7 +338,10 @@
       return [];
     const results=[];
     const attacker=context.attacker,defender=context.defender;
-    const weapon=sourceItem(attacker,context.skill || {},context);
+    const combatLink=global.LuminousEnchantmentCombatLink || safeRequire("./item-enchantment-combat-link.js");
+    const authoredWeapon=Boolean(context.skill?.sourceItemInstanceId || context.skill?.weaponInstanceId);
+    const weaponSkill=combatLink?.isWeaponSkill?.(context.skill || {})===true || authoredWeapon;
+    const weapon=weaponSkill?sourceItem(attacker,context.skill || {},context):null;
     if(weapon){
       const result=triggerCombatEffects(attacker,weapon,defender,"on_hit",context);
       if(result.activated)results.push(result);
