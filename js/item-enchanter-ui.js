@@ -704,6 +704,8 @@
       confirm.checked=false;
       // A local service receipt is not proof of persisted payment or item state.
       const persisted=await state.onSave({result,item:state.selectedItem,viewer:state.viewer,beforePlayer,providerMaterialsBefore,providerMaterialsAfter:clone(state.providerMaterials)});
+      if(persisted===false || persisted?.saved===false || persisted?.committed===false)
+        throw new Error("La base de datos no confirmó el servicio.");
       if(persisted?.snapshot) applyPlayerSnapshot(persisted.snapshot);
       saveConfirmed=true;
       state.items=serviceItems();
