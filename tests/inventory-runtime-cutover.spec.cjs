@@ -50,9 +50,12 @@ async function bootHarness(page) {
     </div></div>
   </body></html>`);
   // Reproduce the production cascade: the old sheet still declares a 74px Active grid.
-  const legacyActiveGridRule = fs.readFileSync(SHEET_CSS, "utf8").match(/#inv-active-grid\s*\{[^}]*height:\s*74px;[^}]*\}/)?.[0];
+  const legacySheetCss = fs.readFileSync(SHEET_CSS, "utf8");
+  const legacyActiveGridRule = legacySheetCss.match(/#inv-active-grid\s*\{[^}]*height:\s*74px;[^}]*\}/)?.[0];
+  const legacyItemDisplayRule = legacySheetCss.match(/\.item-display\s*\{[^}]*width:\s*100%;[^}]*height:\s*100%;[^}]*\}/)?.[0];
   expect(legacyActiveGridRule).toBeTruthy();
-  await page.addStyleTag({ content: legacyActiveGridRule });
+  expect(legacyItemDisplayRule).toBeTruthy();
+  await page.addStyleTag({ content: legacyActiveGridRule + "\n" + legacyItemDisplayRule });
   await page.addStyleTag({ path: CSS });
   await page.addStyleTag({ path: GOTHIC_CSS });
 
@@ -200,6 +203,96 @@ test("HUD V2 uses gothic layout with 24 Active inventory slots", async ({ page }
   expect(geometry.metaWidth).toBeGreaterThan(50);
   expect(geometry.nameBelowIcon).toBe(true);
   expect(geometry.metaBelowName).toBe(true);
+});
+
+test("Active inventory and equipment remain square with centered item icons", async ({ page }) => {
+  await bootHarness(page);
+  for (const viewport of [
+    { width: 1500, height: 950 },
+    { width: 1200, height: 720 },
+    { width: 820, height: 850 },
+    { width: 390, height: 800 },
+    { width: 320, height: 700 },
+    { width: 812, height: 375 },
+  ]) {
+    await page.setViewportSize(viewport);
+    const geometry = await page.evaluate(() => {
+      const measure = (selector) => {
+        const el = document.querySelector(selector);
+        const rect = el.getBoundingClientRect();
+        return { width: rect.width, height: rect.height, left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom, centerX: (rect.left + rect.right) / 2 };
+      };
+      return {
+        equipment: measure(".inventory-v2-equipment"),
+        carry: measure(".inventory-v2-carry"),
+        equipmentSlot: measure('[data-equipment-slot="mainHand"]'),
+        itemCard: measure('#inv-active-grid [data-key="blade_1"]'),
+        itemIcon: measure('#inv-active-grid [data-key="blade_1"] .item-icon'),
+        itemName: measure('#inv-active-grid [data-key="blade_1"] .item-name'),
+        gridHost: measure(".inventory-v2-grid-host"),
+      };
+    });
+
+    for (const panel of [geometry.equipment, geometry.carry]) {
+      expect(panel.width, JSON.stringify(viewport)).toBeGreaterThan(200);
+      expect(Math.abs(panel.width - panel.height), JSON.stringify(viewport)).toBeLessThanOrEqual(4);
+    }
+    expect(Math.abs(geometry.equipmentSlot.width - geometry.equipmentSlot.height), JSON.stringify(viewport)).toBeLessThanOrEqual(4);
+    expect(Math.abs(geometry.itemCard.width - geometry.itemCard.height), JSON.stringify(viewport)).toBeLessThanOrEqual(4);
+    expect(Math.abs(geometry.itemIcon.centerX - geometry.itemCard.centerX), JSON.stringify(viewport)).toBeLessThanOrEqual(4);
+    expect(Math.abs(geometry.itemName.centerX - geometry.itemCard.centerX), JSON.stringify(viewport)).toBeLessThanOrEqual(4);
+    expect(geometry.itemCard.top, JSON.stringify(viewport)).toBeGreaterThanOrEqual(geometry.gridHost.top - 1);
+    await page.locator('#inv-active-grid [data-key="blade_1"]').click();
+    await expect(page.locator("#detail-title")).toHaveText("Test Workshop Blade");
+  }
+});
+
+test("Phone equipment keeps fourth row and vitals reachable within its square", async ({ page }) => {
+  await bootHarness(page);
+  for (const width of [320, 375, 390, 430, 475]) {
+    await page.setViewportSize({ width, height: 800 });
+    const measured = await page.evaluate(() => {
+      const equipment = document.querySelector(".inventory-v2-equipment");
+      const field = document.querySelector(".inventory-v2-equipment-field");
+      const vitals = document.querySelector(".inventory-v2-vitals-strip");
+      field.scrollTop = 0;
+      const outer = equipment.getBoundingClientRect();
+      const scrollArea = field.getBoundingClientRect();
+      const status = vitals.getBoundingClientRect();
+      return {
+        panelWidth: outer.width,
+        panelHeight: outer.height,
+        fieldMinHeight: getComputedStyle(field).minHeight,
+        fieldOverflow: getComputedStyle(field).overflowY,
+        scrollHeight: field.scrollHeight,
+        clientHeight: field.clientHeight,
+        fieldBottom: scrollArea.bottom,
+        vitalsTop: status.top,
+        vitalsBottom: status.bottom,
+        panelBottom: outer.bottom,
+      };
+    });
+
+    expect(measured.fieldMinHeight, `phone width ${width}`).toBe("0px");
+    expect(measured.fieldOverflow, `phone width ${width}`).toBe("auto");
+    expect(Math.abs(measured.panelWidth - measured.panelHeight), `phone width ${width}`).toBeLessThanOrEqual(4);
+    expect(measured.clientHeight, `phone width ${width}`).toBeGreaterThan(10);
+    expect(measured.scrollHeight, `phone width ${width}`).toBeGreaterThanOrEqual(measured.clientHeight);
+    expect(measured.fieldBottom, `phone width ${width}`).toBeLessThanOrEqual(measured.vitalsTop + 2);
+    expect(measured.vitalsBottom, `phone width ${width}`).toBeLessThanOrEqual(measured.panelBottom + 2);
+
+    const lastSlot = page.locator('[data-equipment-slot="augment1"]');
+    await lastSlot.evaluate((element) => {
+      element.dataset.clicked = "false";
+      element.addEventListener("click", () => { element.dataset.clicked = "true"; }, { once: true });
+    });
+    await lastSlot.click();
+    await expect(lastSlot).toHaveAttribute("data-clicked", "true");
+    const scrolled = await page.locator(".inventory-v2-equipment-field").evaluate((el) => el.scrollTop);
+    if (measured.scrollHeight > measured.clientHeight + 1) {
+      expect(scrolled, `phone width ${width}`).toBeGreaterThan(0);
+    }
+  }
 });
 
 test("Active inventory slots 1–5 remain reachable above the carry HUD", async ({ page }) => {
