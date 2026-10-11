@@ -45,6 +45,8 @@ assert.strictEqual(mounted.mounted,true);
 assert.strictEqual(mounted.item.magic.magicalDurability.max,45);
 const anchorId=mounted.anchor.anchorId;
 
+assert.strictEqual(Services.quoteGemProcedure(provider,mounted.item,anchorId,
+  "mystery_procedure").reason,"unknown_rewrite_procedure");
 const unresolved=Services.quoteGemProcedure(provider,mounted.item,anchorId,"safe_extract");
 assert.strictEqual(unresolved.quoted,false);
 assert.strictEqual(unresolved.reason,"gem_quality_downgrade_unresolved","safe extraction cannot invent the gem's post-writing quality");
