@@ -227,7 +227,10 @@
   }
 
   function materialsForTransaction(){
-    return state.items.filter(item=>item!==state.selectedItem && item!==state.gem);
+    // Escrowed Items exist only in service-job cards, never as consumable inputs.
+    return allViewerItems(state.viewer).filter(item=>
+      itemId(item)!==itemId(state.selectedItem)
+      && itemId(item)!==itemId(state.gem));
   }
 
   function definitionChoice(){
@@ -237,7 +240,7 @@
   }
 
   function gemOptions(){
-    return state.items.filter(item=>{
+    return allViewerItems(state.viewer).filter(item=>{
       const id=String(item.definitionId || item.id || "");
       return Boolean(gems()?.gemMagicProfile?.(id)) && item!==state.selectedItem;
     });
