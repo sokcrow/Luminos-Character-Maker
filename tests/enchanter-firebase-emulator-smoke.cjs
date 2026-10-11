@@ -120,7 +120,33 @@ if(!host||!authHost||host.includes("googleapis.com")){
         procedure:"direct_remove",definitionId:"flamebound",
       });
       assert.equal(duplicateRemoval.reason,"duplicate_transaction");
-      console.log("Enchanter real Firebase Auth/RTDB emulator: ownership, security rules, concurrent stock, rollback and removal OK");
+
+      // A shared Shop supply is not scoped to one Player wallet. Two
+      // independently authenticated players racing for one catalyst must
+      // produce exactly one committed checkout, never a negative stock count.
+      await db.ref("campaña/jugadores/hero/inventario_activo/sword_c").set(item("sword_c"));
+      await db.ref("campaña/jugadores/stranger").set({
+        uid:stranger.uid,ahn:4000000,finance:{currentBalance:4000000},
+        inventario_activo:{sword_d:item("sword_d")},
+        inventario_stash:{},enchanterTransactions:{},
+      });
+      await db.ref("campaña/tiendas/forge/enchanterProvider/providerMaterials/0/quantity").set(1);
+      const [ownerRace,strangerRace]=await Promise.all([
+        call(intent("sword_c","owner_race")),
+        call({...intent("sword_d","stranger_race"),playerId:"stranger"},stranger.uid),
+      ]);
+      assert.equal([ownerRace,strangerRace].filter(entry=>entry.committed).length,1,
+        "one Shop catalyst must not be spent by two different authenticated Players");
+      const shared=(await db.ref("campaña").get()).val();
+      assert.equal(shared.tiendas.forge.enchanterProvider.providerMaterials[0].quantity,0);
+      assert.equal(Number(Boolean(shared.jugadores.hero.enchanterTransactions?.owner_race))+
+        Number(Boolean(shared.jugadores.stranger.enchanterTransactions?.stranger_race)),1);
+      assert.equal(shared.jugadores.stranger.ahn,
+        strangerRace.committed?4000000-755000:4000000,
+        "a losing Player must keep their AHN and untouched Item");
+      if(!strangerRace.committed)
+        assert.equal(shared.jugadores.stranger.inventario_activo.sword_d.magic,undefined);
+      console.log("Enchanter real Firebase Auth/RTDB emulator: ownership, rules, two-player concurrency and removal OK");
     }finally{
       await db.ref("campaña").remove();
       await app.delete();
