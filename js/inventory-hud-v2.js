@@ -311,6 +311,31 @@
     return `<span class="inventory-v2-effect-rail" aria-hidden="true">${chunks.join("")}</span>`;
   }
 
+  // Active Inventory is a glanceable action surface: show effect families, not numerical effects.
+  function activeEffectCode(entry = {}) {
+    const kind = normalizeId(entry.kind || entry.tone);
+    if (kind === "hp" || kind === "hp_regen") return "HP";
+    if (kind === "sp" || kind === "sp_regen") return "SP";
+    if (kind === "cleanse") return "CUR";
+    return String(entry.label || kind || "").trim().replace(/[^a-z0-9]/gi, "").slice(0, 3).toUpperCase();
+  }
+
+  function activeEffectCodes(indicators = []) {
+    return [...new Set(indicators.map(activeEffectCode).filter(Boolean))];
+  }
+
+  function renderActiveEffectMarkers(indicators = []) {
+    const codes = activeEffectCodes(indicators);
+    if (!codes.length) return "";
+    const visible = codes.slice(0, 3);
+    return `<span class="inventory-v2-icon-effects" aria-hidden="true">${visible.map((code) => {
+      const type = code === "HP" ? "hp" : code === "SP" ? "sp" : code === "CUR" ? "cleanse" : "other";
+      const details = indicators.filter((entry) => activeEffectCode(entry) === code)
+        .map((entry) => entry.detail || entry.label).filter(Boolean).join(" · ");
+      return `<span class="inventory-v2-icon-effect inventory-v2-icon-effect-${type}" title="${escapeHtml(details || code)}">${escapeHtml(code)}</span>`;
+    }).join("")}</span>`;
+  }
+
   function renderDetailEffectIndicators(indicators = []) {
     if (!indicators.length) return "";
     return indicators.map((entry) => {
@@ -606,32 +631,33 @@
     slot.style.position = "relative";
     slot.draggable = containerType === "active";
     slot.title = itemName(item);
-    slot.setAttribute("aria-label", `${itemName(item)}, ${categoryLabel(category)}, quantity ${quantityOf(item)}`);
 
     const icon = itemIcon(item);
     const gemOverlayIcon = itemGemOverlayIcon(item);
     const quantity = quantityOf(item);
-    const value = itemValue(item);
     const effectIndicators = itemEffectIndicators(item);
     const effectIndicatorHtml = renderEffectIndicators(effectIndicators);
     const enchantment = enchantmentInfo(item);
     const activeCard = containerType === "active";
+    const effectCodes = activeCard ? activeEffectCodes(effectIndicators) : [];
+    slot.setAttribute("aria-label", `${itemName(item)}, ${categoryLabel(category)}, quantity ${quantity}${effectCodes.length ? ", effects " + effectCodes.join(", ") : ""}`);
+    const iconHtml = `
+      <span class="item-icon${icon ? " has-icon" : ""}"${icon ? ` style="background-image:url(&quot;${escapeHtml(icon)}&quot;)"` : ""}>
+        <span class="inventory-v2-icon-fallback">${escapeHtml(categoryLabel(category).slice(0, 3))}</span>
+        ${gemOverlayIcon ? `<span class="inventory-v2-gem-overlay" aria-hidden="true" style="background-image:url(&quot;${escapeHtml(gemOverlayIcon)}&quot;)"></span>` : ""}
+      </span>`;
     slot.classList.toggle("inventory-v2-enchanted", Boolean(enchantment));
     slot.classList.toggle("inventory-v2-has-effect-indicator", effectIndicators.length > 0);
     slot.classList.toggle("inventory-v2-active-card", activeCard);
     slot.innerHTML = `
       <span class="tier">${escapeHtml(tierRoman(item))}</span>
       <div class="item-display">
-        <div class="item-icon${icon ? " has-icon" : ""}"${icon ? ` style="background-image:url(&quot;${escapeHtml(icon)}&quot;)"` : ""}>
-          <span class="inventory-v2-icon-fallback">${escapeHtml(categoryLabel(category).slice(0, 3))}</span>
-          ${gemOverlayIcon ? `<span class="inventory-v2-gem-overlay" aria-hidden="true" style="background-image:url(&quot;${escapeHtml(gemOverlayIcon)}&quot;)"></span>` : ""}
-        </div>
+        ${activeCard ? `<span class="inventory-v2-icon-holder">${iconHtml}${renderActiveEffectMarkers(effectIndicators)}</span>` : iconHtml}
         <span class="item-name">${escapeHtml(itemName(item))}</span>
-        ${enchantment ? `<span class="inventory-v2-enchantment-badge" title="Encantamiento mágico +${enchantment.tier}: ${escapeHtml(enchantment.label)}">✦ +${enchantment.tier}</span>` : ""}
-        ${activeCard ? `<span class="inventory-v2-card-meta"><span class="inventory-v2-card-value">₳ ${escapeHtml(String(value))}</span><span class="inventory-v2-card-qty">x${escapeHtml(String(quantity))}</span></span>` : ""}
+        ${enchantment && !activeCard ? `<span class="inventory-v2-enchantment-badge" title="Encantamiento mágico +${enchantment.tier}: ${escapeHtml(enchantment.label)}">✦ +${enchantment.tier}</span>` : ""}
       </div>
-      ${equipable ? '<span class="inventory-v2-equip-marker">EQUIP</span>' : ""}
-      ${effectIndicatorHtml}
+      ${equipable && !activeCard ? '<span class="inventory-v2-equip-marker">EQUIP</span>' : ""}
+      ${activeCard ? "" : effectIndicatorHtml}
       ${activeCard ? "" : `<div class="item-quantity">x${quantity}</div>`}`;
 
     if (containerType === "active") {
@@ -839,7 +865,7 @@
       }
       if (state.selectedContainer === containerType && state.selected?.key === slot.dataset.key) slot.classList.add("active");
       else slot.classList.remove("active");
-      if (flags.length) {
+      if (flags.length && containerType !== "active") {
         const badge = doc.createElement("span");
         badge.className = "inventory-v2-item-state";
         badge.textContent = flags.join(" / ");

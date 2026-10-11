@@ -183,26 +183,117 @@ test("HUD V2 uses gothic layout with 24 Active inventory slots", async ({ page }
   const name = card.locator(".item-name");
   await expect(name).toHaveText("Test Workshop Blade");
   await expect(name).toBeVisible();
-  await expect(card.locator(".inventory-v2-card-value")).toHaveText("₳ 120");
-  await expect(card.locator(".inventory-v2-card-qty")).toHaveText("x1");
+  await expect(card.locator(".tier")).toHaveText("III");
+  await expect(card.locator(".inventory-v2-icon-holder")).toHaveCount(1);
+  await expect(card.locator(".inventory-v2-card-meta")).toHaveCount(0);
+  await expect(card.locator(".inventory-v2-card-value")).toHaveCount(0);
+  await expect(card.locator(".inventory-v2-card-qty")).toHaveCount(0);
+  await expect(card.locator(".item-quantity")).toHaveCount(0);
+  await expect(card.locator(".inventory-v2-equip-marker")).toHaveCount(0);
+  await expect(card.locator(".inventory-v2-item-state")).toHaveCount(0);
 
   const geometry = await card.evaluate((el) => {
+    const box = el.getBoundingClientRect();
     const icon = el.querySelector(".item-icon").getBoundingClientRect();
+    const holder = el.querySelector(".inventory-v2-icon-holder").getBoundingClientRect();
     const name = el.querySelector(".item-name").getBoundingClientRect();
-    const meta = el.querySelector(".inventory-v2-card-meta").getBoundingClientRect();
     return {
+      cardWidth: box.width,
+      cardHeight: box.height,
       iconWidth: icon.width,
       nameWidth: name.width,
-      metaWidth: meta.width,
-      nameBelowIcon: name.top >= icon.top,
-      metaBelowName: meta.top >= name.top,
+      iconCentered: Math.abs((icon.left + icon.right) / 2 - (box.left + box.right) / 2) <= 4,
+      holderCentered: Math.abs((holder.left + holder.right) / 2 - (box.left + box.right) / 2) <= 4,
+      nameCentered: Math.abs((name.left + name.right) / 2 - (box.left + box.right) / 2) <= 4,
+      nameBelowIcon: name.top >= icon.bottom - 2,
     };
   });
+  expect(Math.abs(geometry.cardWidth - geometry.cardHeight)).toBeLessThanOrEqual(4);
   expect(geometry.iconWidth).toBeGreaterThanOrEqual(30);
   expect(geometry.nameWidth).toBeGreaterThan(50);
-  expect(geometry.metaWidth).toBeGreaterThan(50);
+  expect(geometry.iconCentered).toBe(true);
+  expect(geometry.holderCentered).toBe(true);
+  expect(geometry.nameCentered).toBe(true);
   expect(geometry.nameBelowIcon).toBe(true);
-  expect(geometry.metaBelowName).toBe(true);
+});
+
+test("Pertenencias uses compact effect letters in the icon corner, never prices", async ({ page }) => {
+  await bootHarness(page);
+  await page.evaluate(() => {
+    window.LuminousItemEffectIndicator = {
+      indicators(item) {
+        if (item.instanceId === "hybrid_1") return [
+          { kind: "hp", tone: "hp", label: "HP +12", detail: "Restore 12 HP" },
+          { kind: "hp_regen", tone: "hp", label: "HP REGEN +2", detail: "Regenerates HP" },
+          { kind: "sp", tone: "sp", label: "SP +4", detail: "Restore 4 SP" },
+          { kind: "cleanse", tone: "cleanse", label: "Bleeding", detail: "Cleanses Bleeding" },
+        ];
+        if (item.instanceId === "med_1") return [
+          { kind: "hp", tone: "hp", label: "HP +8", detail: "Restore 8 HP" },
+        ];
+        return [];
+      },
+    };
+    window.LuminousInventoryHudV2.state.unit.inventario_activo.hybrid_1 = {
+      instanceId: "hybrid_1", definitionId: "hybrid", nombre: "Hybrid Restoration Ampoule",
+      category: "consumable", tier: 4, quantity: 3, valorBase: 999,
+    };
+    window.LuminousInventoryHudV2.renderAll();
+  });
+
+  const hybrid = page.locator('#inv-active-grid [data-key="hybrid_1"]');
+  await expect(hybrid.locator(".tier")).toHaveText("IV");
+  await expect(hybrid.locator(".item-name")).toHaveText("Hybrid Restoration Ampoule");
+  await expect(hybrid.locator(".inventory-v2-icon-effect")).toHaveText(["HP", "SP", "CUR"]);
+  await expect(hybrid.locator(".inventory-v2-icon-effect-hp")).toHaveAttribute("title", /Restore 12 HP/);
+  const hpMarker = hybrid.locator(".inventory-v2-icon-effect-hp");
+  const hitTest = await hpMarker.evaluate((marker) => {
+    const rect = marker.getBoundingClientRect();
+    return document.elementFromPoint((rect.left + rect.right) / 2, (rect.top + rect.bottom) / 2) === marker;
+  });
+  expect(hitTest).toBe(true);
+  await hpMarker.click();
+  await expect(page.locator("#detail-title")).toHaveText("Hybrid Restoration Ampoule");
+  await expect(hybrid).toHaveAttribute("aria-label", /effects HP, SP, CUR/);
+  await expect(hybrid.locator(".inventory-v2-card-meta, .inventory-v2-card-value, .inventory-v2-card-qty, .item-quantity")).toHaveCount(0);
+  await expect(hybrid.locator(".inventory-v2-effect-rail")).toHaveCount(0);
+  const stash = page.locator('#inv-stash-grid [data-key="med_1"]');
+  await expect(stash.locator(".inventory-v2-effect-rail")).toHaveCount(1);
+  await expect(stash.locator(".inventory-v2-icon-effects")).toHaveCount(0);
+
+  for (const viewport of [
+    { width: 1500, height: 950 },
+    { width: 800, height: 700 },
+    { width: 390, height: 800 },
+    { width: 320, height: 700 },
+    { width: 812, height: 375 },
+  ]) {
+    await page.setViewportSize(viewport);
+    const layout = await hybrid.evaluate((tile) => {
+      const card = tile.getBoundingClientRect();
+      const holder = tile.querySelector(".inventory-v2-icon-holder").getBoundingClientRect();
+      const icon = tile.querySelector(".item-icon").getBoundingClientRect();
+      const name = tile.querySelector(".item-name").getBoundingClientRect();
+      const marker = tile.querySelector(".inventory-v2-icon-effect").getBoundingClientRect();
+      const mid = (r) => (r.left + r.right) / 2;
+      return {
+        square: Math.abs(card.width - card.height),
+        iconCenter: Math.abs(mid(card) - mid(icon)),
+        nameCenter: Math.abs(mid(card) - mid(name)),
+        nameBelow: name.top >= icon.bottom - 2,
+        badgeNearTopRight: marker.right >= holder.right - 20 && marker.right <= holder.right + 8 &&
+          marker.top >= holder.top - 8 && marker.top <= holder.top + 13,
+      };
+    });
+    expect(layout.square, JSON.stringify(viewport)).toBeLessThanOrEqual(4);
+    expect(layout.iconCenter, JSON.stringify(viewport)).toBeLessThanOrEqual(4);
+    expect(layout.nameCenter, JSON.stringify(viewport)).toBeLessThanOrEqual(4);
+    expect(layout.nameBelow, JSON.stringify(viewport)).toBe(true);
+    expect(layout.badgeNearTopRight, JSON.stringify(viewport)).toBe(true);
+    await hybrid.click();
+    await expect(page.locator("#detail-title")).toHaveText("Hybrid Restoration Ampoule");
+    await expect(page.locator("#detail-cost-val")).toHaveText("999");
+  }
 });
 
 test("Active inventory and equipment remain square with centered item icons", async ({ page }) => {
