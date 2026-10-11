@@ -1384,6 +1384,37 @@
     });
   }
 
+  // Inventory hydration adds default fields (schemaVersion, quantity,
+  // variantData, magic:null). Compare gameplay state instead of the complete
+  // JSON object so a legitimate reload does not block delivery.
+  function deliveryItemState(item={}) {
+    return {
+      instanceId:String(item.instanceId || item.id || ""),
+      definitionId:String(item.definitionId || item.itemId || ""),
+      magic:clone(item.magic || null),
+      condition:item.condition ?? null,
+      conditionMax:item.conditionMax ?? null,
+      durability:item.durability ?? null,
+      currentDurability:item.currentDurability ?? null,
+      destroyed:item.destroyed===true,
+      tier:item.tier ?? item.variantData?.tier ?? null,
+    };
+  }
+
+  function mergeDeliveredItem(current={},before={},after={}) {
+    if(JSON.stringify(deliveryItemState(current))!==JSON.stringify(deliveryItemState(before)))
+      return {merged:false,reason:"service_item_changed_during_delivery"};
+    const output=clone(current);
+    for(const key of new Set([...Object.keys(before),...Object.keys(after)])){
+      if(JSON.stringify(before[key])===JSON.stringify(after[key])) continue;
+      if(JSON.stringify(current[key] ?? null)!==JSON.stringify(before[key] ?? null))
+        return {merged:false,reason:"service_item_changed_during_delivery"};
+      if(Object.prototype.hasOwnProperty.call(after,key)) output[key]=clone(after[key]);
+      else delete output[key];
+    }
+    return {merged:true,item:output};
+  }
+
   function completeDeferredServiceTransaction(owner={},jobId,options={}) {
     const id=String(jobId || "");
     const job=owner.enchanterJobs?.[id];
@@ -1393,14 +1424,15 @@
     if(!serviceReady(job,now))
       return Object.freeze({committed:false,reason:"service_not_ready",readyAt:job.readyAt});
     const target=inventoryEntry(owner,job.itemInstanceId);
-    if(!target || JSON.stringify(target.entry)!==JSON.stringify(job.itemBefore))
-      return Object.freeze({committed:false,reason:"service_item_changed_during_delivery"});
+    if(!target) return Object.freeze({committed:false,reason:"service_item_changed_during_delivery"});
+    const merged=mergeDeliveredItem(target.entry,job.itemBefore,job.itemAfter);
+    if(!merged.merged) return Object.freeze({committed:false,reason:merged.reason});
     const deliveryId=id+":delivery";
     if(transactionStore(owner)[deliveryId])
       return Object.freeze({committed:false,reason:"duplicate_transaction"});
     const copy=clone(owner);
     const targetCopy=inventoryEntry(copy,job.itemInstanceId);
-    targetCopy.container[targetCopy.key]=clone(job.itemAfter);
+    targetCopy.container[targetCopy.key]=merged.item;
     if(job.recoveredGem){
       const recovery=recoveredGemDestination(copy,job.recoveredGem);
       if(!recovery.valid) return Object.freeze({committed:false,reason:recovery.reason});
