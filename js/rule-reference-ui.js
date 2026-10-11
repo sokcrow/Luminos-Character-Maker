@@ -95,15 +95,27 @@
     });
     return entries.filter(x => x.name.length >= 4).sort((a,b) => b.name.length-a.name.length);
   }
-  function tokenize(source) {
-    const value=String(source || ""), list=names(), byName=new Map();
-    list.forEach(item => {const k=item.name.toLowerCase();if(!byName.has(k))byName.set(k,item);});
+  let matcherCache=null;
+  function compiledMatcher() {
+    const library=global.LuminousStatusLibrary;
+    const statusCount=library?.list?.().length || 0;
+    if (matcherCache && matcherCache.library===library &&
+      matcherCache.statusCount===statusCount && matcherCache.spellCount===spellEffects.size)
+      return matcherCache;
+    const byName=new Map();
+    names().forEach(item => {const k=item.name.toLowerCase();if(!byName.has(k))byName.set(k,item);});
     const escaped = [...byName.keys()].map(x => [...x].map(ch =>
       "\\^$.*+?()[]{}|".includes(ch) ? "\\" + ch : ch).join(""));
     const alternative=escaped.length ? "(?:" + escaped.join("|") + ")" : "(?!)";
     const statName="(?:STR|DEX|CON|INT|WIS|CHA|Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma)";
     const save=statName + "\\s+(?:Saving\\s+Throws?|Saves?|Checks?)";
-    const regex=new RegExp("\\b(?:" + save + "|" + alternative + ")\\b","gi");
+    matcherCache={library,statusCount,spellCount:spellEffects.size,byName,
+      regex:new RegExp("\\b(?:" + save + "|" + alternative + ")\\b","gi")};
+    return matcherCache;
+  }
+  function tokenize(source) {
+    const value=String(source || ""), {byName,regex}=compiledMatcher();
+    regex.lastIndex=0;
     const result=[];let last=0,hit;
     while ((hit=regex.exec(value))) {
       const word=hit[0];let found=null;
