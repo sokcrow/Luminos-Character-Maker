@@ -13,6 +13,7 @@
 .enchanter-ui-unavailable{margin-top:12px;border-top:1px solid #243646;padding-top:8px;color:#738292}.enchanter-ui-unavailable summary{cursor:pointer;font-size:9px;letter-spacing:.12em}
 .enchanter-ui-disabled{padding:8px 0;border-bottom:1px solid #172531}.enchanter-ui-disabled strong,.enchanter-ui-disabled span{display:block}.enchanter-ui-disabled strong{font-size:10px;color:#8b99a5}.enchanter-ui-disabled span{margin-top:2px;font-size:9px;color:#6e7680}
 .enchanter-ui-controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-bottom:10px}.enchanter-ui-controls label{display:grid;gap:4px;color:#6f91aa;font-size:9px;letter-spacing:.1em}
+.enchanter-ui-controls label[hidden]{display:none}
 .enchanter-ui-controls select{min-width:0;padding:8px;border:1px solid #28445a;background:#080d12;color:#d8e8f4;font:inherit}
 .enchanter-ui-card{margin-bottom:10px;padding:11px;border:1px solid #213a4e;background:#0a121a}.enchanter-ui-card h4{margin:0 0 8px;color:#94d2ff;font-size:12px}.enchanter-ui-card p{margin:4px 0;color:#9fb0bc;font-size:10px;line-height:1.45}
 .enchanter-ui-card ul,.enchanter-ui-preview ul{margin:6px 0 0;padding-left:17px}.enchanter-ui-card li,.enchanter-ui-preview li{margin:4px 0;color:#b9c7d1;font-size:10px}
