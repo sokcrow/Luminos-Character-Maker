@@ -726,8 +726,24 @@
       }
       if (kind==="accidental_bind" || kind==="accidental_curse") {
         const property=kind==="accidental_bind"?"bind":"curse";
+        // Fresh Enchant/Mount Gem outcomes cannot mutate a property on an
+        // inscription that does not exist yet. Build the candidate with the
+        // accidental property, using the same Item/Gem validation as a normal
+        // application. Strengthening an installed inscription still mutates it.
+        const newApplication=options.newEnchantment===true ||
+          (options.newEnchantment!==false && !currentInstalledRef(item,definitionId));
+        if(newApplication){
+          const rank=Math.max(1,Math.trunc(numberOr(options.rank,1)));
+          const properties=[...new Set([...asArray(options.properties).map(normalizeId),property])];
+          const result=options.gem
+            ? Engine.mountGemAnchor(item,options.gem,definitionId,rank,{...options,properties})
+            : Engine.applyEnchantment(item,definitionId,rank,{...options,properties});
+          return Object.freeze({applied:result.applied===true || result.mounted===true,
+            kind,reason:result.reason || null,result,item:result.item || clone(item)});
+        }
         const result=Engine.addEnchantmentProperty(item,definitionId,property);
-        return Object.freeze({ applied:result.changed===true, kind, result, item:result.item || clone(item) });
+        return Object.freeze({ applied:result.changed===true, kind,reason:result.reason || null,
+          result, item:result.item || clone(item) });
       }
       return Object.freeze({ applied:false, kind, reason:"gem_anchor_required_for_outcome", item:clone(item) });
     }
@@ -856,7 +872,9 @@
         item:Object.freeze(clone(item)),
       });
     }
-    const deviation=applyPlayerDeviation(item,definition.id,outcome,{...options,rank});
+    const deviation=applyPlayerDeviation(item,definition.id,outcome,{
+      ...options,rank,newEnchantment:true,
+    });
     return Object.freeze({
       attempted:true,
       controlled:false,
@@ -1172,6 +1190,7 @@
           const preflight=applyPlayerDeviation(clone(item),quote.definitionId,outcome,{
             ...options,gem:effectiveQuote.gem,
             rank:quote.targetRank ?? quote.rank,properties:quote.properties,
+            newEnchantment:quote.service!=="strengthen",
           });
           if(!preflight.applied)
             return Object.freeze({committed:false,reason:"npc_altered_outcome_unresolved",transactionId});
@@ -1234,6 +1253,7 @@
           ...executionOptions,gem:effectiveQuote.gem,
           rank:quote.targetRank ?? quote.rank,
           properties:quote.properties,
+          newEnchantment:quote.service!=="strengthen",
         });
       execution=Object.freeze({executed:deviation.applied===true,
         reason:deviation.reason || (deviation.applied?"":"npc_altered_outcome_unresolved"),
