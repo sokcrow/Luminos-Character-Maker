@@ -7,6 +7,7 @@
   const state={
     open:false,provider:null,viewer:null,items:[],providerMaterials:[],selectedItem:null,
     service:null,definitionId:null,rank:1,gem:null,anchorId:null,quote:null,pending:false,
+    rewriteProcedure:null,nextDefinitionId:null,rewriteRank:1,gemQualityAfter:null,
     onSave:null,onClose:null,getWorldTimestamp:null,unsubscribeWorldTime:null,
     worldTimestamp:null,status:"",saveUncertain:false,
   };
@@ -120,6 +121,12 @@
     service_inventory_full:"Libera un espacio en el inventario o alijo para retirar tu Item.",
     invalid_service_escrow:"El encargo no tiene un Item válido para entregar.",
     removable_curse_not_found:"No hay una Maldición removible en este Item.",
+    replacement_enchantment_required:"Selecciona un Encantamiento de reemplazo.",
+    direct_enchantment_required:"Esta inscripción requiere un procedimiento de gema.",
+    service_duration_out_of_band:"La entrega supera los límites permitidos para este Rango.",
+    unknown_rewrite_procedure:"El procedimiento de reescritura no está disponible.",
+    gem_quality_downgrade_unresolved:"Selecciona la calidad final de la gema después de reescribir.",
+    bound_enchantment_not_rewritable:"Un Bind impide reescribir esta gema.",
     relic_drawback_inseparable:"Ese drawback de Reliquia es inseparable.",
   });
 
@@ -161,6 +168,10 @@
               <label id="enchanter-ui-rank-wrap">RANK<select id="enchanter-ui-rank"><option value="1">I</option><option value="2">II</option><option value="3">III</option></select></label>
               <label id="enchanter-ui-gem-wrap" hidden>GEM ANCHOR<select id="enchanter-ui-gem"></select></label>
               <label id="enchanter-ui-anchor-wrap" hidden>GEM SOCKET<select id="enchanter-ui-anchor"></select></label>
+              <label id="enchanter-ui-procedure-wrap" hidden>PROCEDURE<select id="enchanter-ui-procedure"></select></label>
+              <label id="enchanter-ui-replacement-wrap" hidden>REPLACEMENT ENCHANTMENT<select id="enchanter-ui-replacement"></select></label>
+              <label id="enchanter-ui-rewrite-rank-wrap" hidden>REPLACEMENT RANK<select id="enchanter-ui-rewrite-rank"><option value="1">I</option><option value="2">II</option><option value="3">III</option></select></label>
+              <label id="enchanter-ui-gem-quality-wrap" hidden>GEM QUALITY AFTER REWRITE<select id="enchanter-ui-gem-quality"></select></label>
             </div>
             <section id="enchanter-ui-current" class="enchanter-ui-card"></section>
             <section id="enchanter-ui-validation" class="enchanter-ui-card"></section>
@@ -180,11 +191,15 @@
     doc.body.appendChild(root);
     root.querySelector(".enchanter-ui-close")?.addEventListener("click",close);
     root.addEventListener("click",event=>{if(event.target===root) close();});
-    root.querySelector("#enchanter-ui-service")?.addEventListener("change",event=>{if(state.pending) return;invalidateConfirmation();state.service=event.target.value;state.definitionId=null;state.gem=null;state.anchorId=null;render();});
-    root.querySelector("#enchanter-ui-enchantment")?.addEventListener("change",event=>{if(state.pending) return;invalidateConfirmation();state.definitionId=event.target.value;render();});
+    root.querySelector("#enchanter-ui-service")?.addEventListener("change",event=>{if(state.pending) return;invalidateConfirmation();state.service=event.target.value;state.definitionId=null;state.gem=null;state.anchorId=null;state.rewriteProcedure=null;state.nextDefinitionId=null;state.gemQualityAfter=null;render();});
+    root.querySelector("#enchanter-ui-enchantment")?.addEventListener("change",event=>{if(state.pending) return;invalidateConfirmation();state.definitionId=event.target.value;state.rewriteProcedure=null;state.nextDefinitionId=null;state.gemQualityAfter=null;render();});
     root.querySelector("#enchanter-ui-rank")?.addEventListener("change",event=>{if(state.pending) return;invalidateConfirmation();state.rank=Math.max(1,Math.min(3,Number(event.target.value)||1));render();});
     root.querySelector("#enchanter-ui-gem")?.addEventListener("change",event=>{if(state.pending) return;invalidateConfirmation();state.gem=state.items.find(item=>itemId(item)===event.target.value)||null;render();});
     root.querySelector("#enchanter-ui-anchor")?.addEventListener("change",event=>{if(state.pending) return;invalidateConfirmation();state.anchorId=event.target.value||null;render();});
+    root.querySelector("#enchanter-ui-procedure")?.addEventListener("change",event=>{if(state.pending)return;invalidateConfirmation();state.rewriteProcedure=event.target.value;render();});
+    root.querySelector("#enchanter-ui-replacement")?.addEventListener("change",event=>{if(state.pending)return;invalidateConfirmation();state.nextDefinitionId=event.target.value;render();});
+    root.querySelector("#enchanter-ui-rewrite-rank")?.addEventListener("change",event=>{if(state.pending)return;invalidateConfirmation();state.rewriteRank=Number(event.target.value)||1;render();});
+    root.querySelector("#enchanter-ui-gem-quality")?.addEventListener("change",event=>{if(state.pending)return;invalidateConfirmation();state.gemQualityAfter=event.target.value||null;render();});
     root.querySelector("#enchanter-ui-commit")?.addEventListener("click",commit);
     return root;
   }
@@ -336,7 +351,7 @@
       if(state.pending) return;
       invalidateConfirmation();
       state.selectedItem=good[Number(button.dataset.enchanterItem)] || null;
-      state.definitionId=null;state.gem=null;state.anchorId=null;render();
+      state.definitionId=null;state.gem=null;state.anchorId=null;state.rewriteProcedure=null;state.nextDefinitionId=null;state.gemQualityAfter=null;render();
     }));
   }
 
@@ -593,6 +608,7 @@
     state.selectedItem=context.item || state.items[0] || null;
     state.service=context.service && profile.services.includes(context.service)?context.service:profile.services[0];
     state.definitionId=null;state.rank=1;state.gem=null;state.anchorId=null;state.quote=null;state.pending=false;
+    state.rewriteProcedure=null;state.nextDefinitionId=null;state.rewriteRank=1;state.gemQualityAfter=null;
     // Do not clear saveUncertain across panel reopenings in this page session.
     state.onSave=context.onSave || null;state.onClose=context.onClose || null;
     state.status=state.saveUncertain?"SAVE NOT CONFIRMED — RECARGA LA FICHA ANTES DE REINTENTAR":"";
