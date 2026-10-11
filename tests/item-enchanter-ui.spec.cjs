@@ -128,8 +128,9 @@ test("ambiguous remote save failure locks repeat charge until page reload", asyn
   expect(await page.evaluate(() => ({
     ahn:window.__enchanterFixture.viewer.ahn,
     enchantment:window.__enchanterFixture.viewer.inventario_activo.sword_1.magic || null,
+    originalItemMagic:window.__enchanterFixture.sword.magic || null,
     receipts:window.__enchanterFixture.viewer.enchanterTransactions || null,
-  }))).toEqual({ahn:1000,enchantment:null,receipts:null});
+  }))).toEqual({ahn:1000,enchantment:null,originalItemMagic:null,receipts:null});
   await page.evaluate(() => {
     window.LuminousEnchanterUi.close();
     window.__openEnchanter();
