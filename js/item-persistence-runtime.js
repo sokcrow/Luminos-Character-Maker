@@ -313,11 +313,17 @@
       itemInventorySchemaVersion: SCHEMA_VERSION,
       itemEquipmentRefs: clone(state.equipmentRefs || {}),
       attunedItemInstanceIds: clone(state.attunedItemInstanceIds || []),
-      itemMagicKnowledge: clone(state.itemMagicKnowledge || {}),
-      enchantmentCompendium: clone(state.enchantmentCompendium || {}),
-      enchanterTransactions: clone(state.enchanterTransactions || {}),
-      enchanterJobs: clone(state.enchanterJobs || {}),
     };
+    // Combat and other narrow callers save a partially hydrated Player. Do
+    // not serialize missing Enchanter knowledge, receipts or escrowed Items as
+    // empty maps: RTDB.update({enchanterJobs:{}}) would erase live work.
+    // An explicitly owned empty map remains an intentional clear.
+    const supplied = unitOrState && typeof unitOrState === "object" ? unitOrState : {};
+    for (const field of ["itemMagicKnowledge","enchantmentCompendium",
+                         "enchanterTransactions","enchanterJobs"]) {
+      if (Object.prototype.hasOwnProperty.call(supplied,field) && supplied[field] != null)
+        updates[field] = clone(state[field] || {});
+    }
     const ref = db.ref(paths.base);
     if (typeof ref.update === "function") await ref.update(updates);
     else if (typeof ref.set === "function") await Promise.all(Object.entries(updates).map(([key, value]) => db.ref(`${paths.base}/${key}`).set(value)));
