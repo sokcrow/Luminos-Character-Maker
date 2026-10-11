@@ -949,6 +949,38 @@
     });
   }
 
+  function quoteDirectRewriteService(provider={},item={},originalDefinitionId,nextDefinitionId,options={}) {
+    const profile=provider.maxRank?provider:normalizeProviderProfile(provider,options);
+    const gate=providerCanService(profile,"remove_rewrite",{});
+    if(!gate.allowed) return Object.freeze({quoted:false,...gate});
+    const original=currentInstalledRef(item,originalDefinitionId);
+    if(!original || original.source==="gem")
+      return Object.freeze({quoted:false,reason:"direct_enchantment_required"});
+    const removal=Engine.canRemoveEnchantment(item,originalDefinitionId);
+    if(!removal?.allowed)
+      return Object.freeze({quoted:false,reason:removal?.reason || "enchantment_not_removable"});
+    const replacement=Enchantments.get(nextDefinitionId);
+    if(!replacement) return Object.freeze({quoted:false,reason:"unknown_enchantment"});
+    const rank=Math.trunc(numberOr(options.rank ?? original.rank,0));
+    if(rank<1 || rank>profile.maxRank || rank>MAX_REPRODUCIBLE_RANK)
+      return Object.freeze({quoted:false,reason:"provider_rank_cap"});
+    if(!providerKnows(profile,replacement.id) && options.recipeProvided!==true)
+      return Object.freeze({quoted:false,reason:"provider_does_not_know_recipe"});
+    const removed=Engine.removeEnchantment(item,originalDefinitionId);
+    if(!removed.removed) return Object.freeze({quoted:false,reason:removed.reason || "enchantment_not_removable"});
+    const properties=asArray(original.properties).map(normalizeId).filter(Boolean);
+    const trial=Engine.applyEnchantment(removed.item,replacement.id,rank,{...options,properties});
+    if(!trial.applied) return Object.freeze({quoted:false,reason:trial.reason || "invalid_enchantment_application"});
+    const materials=materialQuote(replacement,profile,{...options,properties});
+    if(!materials.resolved) return Object.freeze({quoted:false,reason:materials.reason,materials});
+    const fixed=quoteFixedService(profile,"remove_rewrite",options);
+    if(!fixed.quoted) return fixed;
+    return Object.freeze({...fixed,service:"remove_rewrite",procedure:"direct_rewrite",
+      originalDefinitionId:String(originalDefinitionId),nextDefinitionId:replacement.id,
+      definitionId:replacement.id,rank,properties:Object.freeze(properties),
+      materials,totalAhn:roundAhn(fixed.totalAhn+materials.providerMaterialsAhn)});
+  }
+
   function quoteGemProcedure(provider={},item={},anchorId,procedure="safe_extract",options={}) {
     const profile=provider.maxRank?provider:normalizeProviderProfile(provider,options);
     const mode=normalizeId(procedure || "safe_extract");
@@ -974,6 +1006,31 @@
 
     const fixed=quoteFixedService(profile,service,options);
     if (!fixed.quoted) return fixed;
+    if(mode==="rewrite"){
+      const nextDefinition=Enchantments.get(options.nextDefinitionId || options.enchantmentId);
+      if(!nextDefinition)return Object.freeze({quoted:false,reason:"unknown_enchantment"});
+      const rank=Math.trunc(numberOr(options.rank ?? link.reference.rank,0));
+      if(rank<1 || rank>profile.maxRank || rank>MAX_REPRODUCIBLE_RANK)
+        return Object.freeze({quoted:false,reason:"provider_rank_cap"});
+      if(!providerKnows(profile,nextDefinition.id) && options.recipeProvided!==true)
+        return Object.freeze({quoted:false,reason:"provider_does_not_know_recipe"});
+      const gemQualityAfter=normalizeId(options.gemQualityAfter || options.qualityAfter || "");
+      const validation=Engine.rewriteGemAnchoredEnchantment(item,anchorId,nextDefinition.id,{
+        rank,gemQualityAfter,
+      });
+      if(!validation.rewritten)
+        return Object.freeze({quoted:false,reason:validation.reason || "gem_rewrite_not_available"});
+      const properties=asArray(link.reference.properties).map(normalizeId).filter(Boolean);
+      const materials=materialQuote(nextDefinition,profile,{...options,properties});
+      if(!materials.resolved)
+        return Object.freeze({quoted:false,reason:materials.reason,materials});
+      return Object.freeze({...fixed,service:"remove_rewrite",procedure:"rewrite",
+        originalDefinitionId:link.reference.definitionId,definitionId:nextDefinition.id,
+        nextDefinitionId:nextDefinition.id,anchorId:String(anchorId),rank,
+        gemQualityAfter,properties:Object.freeze(properties),materials,
+        bound:false,destroysItem:false,destructive:false,
+        totalAhn:roundAhn(fixed.totalAhn+materials.providerMaterialsAhn)});
+    }
 
     return Object.freeze({
       ...fixed,
@@ -1578,6 +1635,16 @@
         const result=Engine.removeEnchantment(item,quote.definitionId || options.definitionId);
         return Object.freeze({executed:result.removed===true,result});
       }
+      if(procedure==="direct_rewrite"){
+        const removed=Engine.removeEnchantment(item,quote.originalDefinitionId);
+        if(!removed.removed)
+          return Object.freeze({executed:false,reason:removed.reason || "enchantment_not_removable",result:removed});
+        const applied=Engine.applyEnchantment(removed.item,quote.nextDefinitionId,
+          quote.rank,{...options,properties:quote.properties || []});
+        return Object.freeze({executed:applied.applied===true,
+          reason:applied.applied?"":(applied.reason || "invalid_enchantment_application"),
+          result:{rewritten:applied.applied===true,removed,applied,item:applied.item || clone(item)}});
+      }
       if (procedure==="item_side_remove" || procedure==="safe_extract") {
         const result=Engine.itemSideRemoveGemEnchantment(item,quote.anchorId || options.anchorId,{
           ...options,
@@ -1656,6 +1723,7 @@
     previewServiceResult,
     commitServiceTransaction,
     quoteGemProcedure,
+    quoteDirectRewriteService,
     beginService,
     serviceReady,
     startDeferredServiceTransaction,
