@@ -108,6 +108,11 @@ test("ambiguous remote save failure locks repeat charge until page reload", asyn
   await page.locator("#enchanter-ui-commit").click();
   await expect(page.locator("#enchanter-ui-status")).toContainText("SAVE NOT CONFIRMED");
   await expect(page.locator("#enchanter-ui-commit")).toBeDisabled();
+  expect(await page.evaluate(() => ({
+    ahn:window.__enchanterFixture.viewer.ahn,
+    enchantment:window.__enchanterFixture.viewer.inventario_activo.sword_1.magic || null,
+    receipts:window.__enchanterFixture.viewer.enchanterTransactions || null,
+  }))).toEqual({ahn:1000,enchantment:null,receipts:null});
   await page.evaluate(() => {
     window.LuminousEnchanterUi.close();
     window.__openEnchanter();
@@ -119,6 +124,28 @@ test("ambiguous remote save failure locks repeat charge until page reload", asyn
     saves:window.__enchanterFixture.saves,
     events:window.__enchanterFixture.events,
   }))).toEqual({commits:1,saves:1,events:0});
+});
+
+test("service terminal refuses payment when no persistence callback is configured", async ({page}) => {
+  await boot(page);
+  await page.evaluate(() => {
+    const {viewer} = window.__enchanterFixture;
+    window.LuminousEnchanterUi.open({
+      viewer,
+      items:Object.values(viewer.inventario_activo),
+      provider:{id:"tester",name:"Testing Enchanter",services:["enchant"],maxRank:3,
+        knownEnchantments:["flamebound"]},
+      onSave:null,
+    });
+  });
+  await expect(page.locator("#enchanter-ui-validation")).toContainText("SERVICIO NO DISPONIBLE");
+  await page.locator("#enchanter-ui-confirm").check();
+  await expect(page.locator("#enchanter-ui-commit")).toBeDisabled();
+  expect(await page.evaluate(() => ({
+    commits:window.__enchanterFixture.commits,
+    ahn:window.__enchanterFixture.viewer.ahn,
+    magic:window.__enchanterFixture.viewer.inventario_activo.sword_1.magic || null,
+  }))).toEqual({commits:0,ahn:1000,magic:null});
 });
 
 test("unidentified installed magic stays obfuscated without breaking rank-sensitive service selection", async ({page}) => {
