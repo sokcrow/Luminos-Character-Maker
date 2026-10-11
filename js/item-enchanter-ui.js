@@ -694,7 +694,8 @@
       locallyCommitted=true;
       confirm.checked=false;
       // A local service receipt is not proof of persisted payment or item state.
-      await state.onSave({result,item:state.selectedItem,viewer:state.viewer,beforePlayer,providerMaterialsBefore,providerMaterialsAfter:clone(state.providerMaterials)});
+      const persisted=await state.onSave({result,item:state.selectedItem,viewer:state.viewer,beforePlayer,providerMaterialsBefore,providerMaterialsAfter:clone(state.providerMaterials)});
+      if(persisted?.snapshot) applyPlayerSnapshot(persisted.snapshot);
       saveConfirmed=true;
       state.items=serviceItems();
       state.gem=null;
