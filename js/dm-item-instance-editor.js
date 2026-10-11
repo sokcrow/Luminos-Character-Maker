@@ -18,6 +18,7 @@
     grantDefinitionId: null,
     catalogPoll: null,
     enchantmentDraft: null,
+    saveUncertain:false,
   };
 
   const runtime = () => global.LuminousItemRuntime || global.LuminousItemInventoryRuntime || null;
@@ -725,6 +726,24 @@
     apply.disabled = !allowed || state.saving;
   }
 
+
+  // A failed save may have reached Firebase. Reload authoritative state;
+  // otherwise restore the local snapshot and block subsequent writes.
+  async function recoverDmMagicSaveFailure(unitBefore,selection) {
+    let reloaded=false;
+    try { reloaded=await loadLatestUnit(); } catch (_) {}
+    if(!reloaded) {
+      for(const key of Object.keys(state.unit)) delete state.unit[key];
+      Object.assign(state.unit,clone(unitBefore));
+      state.saveUncertain=true;
+      announce("SAVE NO CONFIRMADO // Inventario bloqueado hasta recargar Firebase.", "error");
+    }
+    const latest=selection && findEntry(selection.listType,selection.key);
+    if(latest && state.selected?.key===selection.key && state.selected?.listType===selection.listType)
+      fillEditor(latest,selection.listType);
+    return reloaded;
+  }
+
   async function applyDmEnchantment() {
     if (!state.selected || !(await ensurePeer()) || state.saving) return;
     const latest = findEntry(state.selected.listType, state.selected.key);
@@ -749,6 +768,8 @@
       totalAhn:0,
       materials:{plan:{valid:true}},
     };
+    const beforeUnit=clone(state.unit);
+    const selection={key:latest.key,listType:state.selected.listType};
     const result = enchanterServices()?.commitServiceTransaction?.(state.unit, latest.item, quote, {
       transactionId:`dm:${Date.now()}:${itemId(latest.item)}:${definitionId}:${rank}`,
       dmFreeService:true,
@@ -765,6 +786,8 @@
     if (saved) {
       renderDmEnchantments(latest.item);
       updateMagicValidation();
+    } else {
+      await recoverDmMagicSaveFailure(beforeUnit,selection);
     }
   }
 
@@ -800,6 +823,8 @@
     if (saved) {
       renderDmEnchantments(latest.item);
       updateMagicValidation();
+    } else {
+      await recoverDmMagicSaveFailure(beforeUnit,selection);
     }
   }
 
@@ -897,6 +922,10 @@
     const playerId = resolvePlayerId();
     if (!state.db || !playerId) return false;
     if (!bindPeer(playerId)) return false;
+    if (state.saveUncertain) {
+      try { if (!(await loadLatestUnit())) return false; state.saveUncertain=false; }
+      catch (_) { return false; }
+    }
     if (!Object.keys(state.unit.inventario_activo || {}).length && !Object.keys(state.unit.inventario_stash || {}).length) {
       await loadLatestUnit();
     }
@@ -904,6 +933,10 @@
   }
 
   async function saveUnit(message) {
+    if (state.saveUncertain) {
+      announce("SAVE NO CONFIRMADO // Recarga los datos desde Firebase.", "error");
+      return false;
+    }
     if (!state.peer?.bound || state.saving) return false;
     state.saving = true;
     announce("Guardando los cambios...", "working");
