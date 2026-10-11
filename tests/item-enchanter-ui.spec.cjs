@@ -404,4 +404,28 @@ test("Remove / Rewrite terminal exposes direct replacement and Gem anchored proc
     quoted:true,procedure:"rewrite",anchorId:"socket_one",
     nextDefinitionId:"frostbound",gemQualityAfter:"standard",
   });
+
+  // Two Gem sockets can share one recipe. Selecting the second option must
+  // quote the second anchor, not silently rewrite the first.
+  await page.evaluate(()=>{
+    const sword=window.__enchanterFixture.sword;
+    sword.magic.enchantments.push({
+      definitionId:"flamebound",rank:1,source:"gem",anchorId:"socket_two",properties:[],
+    });
+    window.LuminousItemEnchantmentEngine.gemAnchors=()=>[
+      {anchorId:"socket_one",gemDefinitionId:"ruby",gemQuality:"fine"},
+      {anchorId:"socket_two",gemDefinitionId:"ruby",gemQuality:"standard"},
+    ];
+    window.LuminousItemMagicKnowledgeRuntime.presentation=()=>({
+      magicDetected:true,
+      enchantmentLines:[{known:true,text:"Flamebound socket one"},{known:true,text:"Flamebound socket two"}],
+      knowledge:{rankKnown:true},
+    });
+    window.LuminousEnchanterUi.render();
+  });
+  await expect(page.locator("#enchanter-ui-enchantment option")).toHaveCount(2);
+  await page.locator("#enchanter-ui-enchantment").selectOption("anchor:socket_two");
+  expect(await page.evaluate(()=>window.LuminousEnchanterUi.state.quote)).toMatchObject({
+    quoted:true,anchorId:"socket_two",procedure:"item_side_remove",
+  });
 });
