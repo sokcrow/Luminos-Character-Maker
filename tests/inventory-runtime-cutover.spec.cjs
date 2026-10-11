@@ -658,3 +658,102 @@ test("player item details compare identified Enchantments without revealing unid
   await expect(facts).toContainText("Magia sin identificar");
   await expect(facts).not.toContainText("Flamebound I");
 });
+
+
+test("rejected Firebase Arcana save restores spent SP and both learned and previous knowledge", async ({ page }) => {
+  await bootHarness(page);
+  await page.locator('#inv-active-grid [data-key="blade_1"]').click();
+  await page.evaluate(() => {
+    const hud=window.LuminousInventoryHudV2;
+    const unit=hud.state.unit;
+    unit.sp=3;
+    unit.itemMagicKnowledge={blade_1:{magicDetected:true,updatedAt:1234},coat_1:{difficultyKnown:true}};
+    unit.inventario_activo.blade_1.magic={enabled:true,enchantments:[{definitionId:"flamebound",rank:1}]};
+    hud.state.vitalsReady=true;
+    window.__arcanaSaveCalls=0;
+    hud.state.db={ref(path){ return {async update(patch){
+      window.__arcanaSaveCalls++;
+      window.__arcanaAttempted=JSON.parse(JSON.stringify(patch));
+      throw Error("permission_denied");
+    }};}};
+    window.LuminousItemPersistenceRuntime.serializeInventoryState=()=>({
+      schemaVersion:3,inventario_activo:unit.inventario_activo,
+      inventario_stash:unit.inventario_stash,equipmentRefs:{},attunedItemInstanceIds:[],
+    });
+    window.LuminousPlayerVitalsHud={persistencePatch:viewer=>({
+      sp:viewer.sp,combatStats:{sp_actual:viewer.sp},
+    })};
+    window.LuminousItemMagicRuntime={isMagicItem:item=>!!item.magic};
+    window.LuminousItemMagicKnowledgeRuntime={
+      presentation:()=>({magical:true,magicDetected:true,identified:false,
+        displayName:"Enchanted Test Workshop Blade",enchantmentLines:[],curseLines:[]}),
+      studyArcana(viewer,item){
+        viewer.sp-=1;
+        viewer.itemMagicKnowledge[item.instanceId]={
+          magicDetected:true,enchantmentIdentified:true,updatedAt:9999,
+        };
+        return {studied:true,success:true,total:30,target:22,spSpent:1};
+      },
+    };
+    hud.renderAll();
+  });
+  await expect(page.locator("#inventory-v2-actions button")).toContainText(["STUDY ARCANA · 1 SP"]);
+  await page.locator("#inventory-v2-actions button", {hasText:"STUDY ARCANA"}).click();
+  await expect.poll(()=>page.evaluate(()=>window.__arcanaSaveCalls)).toBe(1);
+  await expect(page.locator("#inventory-v2-action-status")).toContainText("ARCANA NO GUARDADA");
+  const state=await page.evaluate(()=>{
+    const unit=window.LuminousInventoryHudV2.state.unit;
+    return {sp:unit.sp,knowledge:unit.itemMagicKnowledge,
+      attemptedSp:window.__arcanaAttempted.sp,
+      attemptedKnowledge:window.__arcanaAttempted.itemMagicKnowledge,
+      pending:window.LuminousInventoryHudV2.state.arcanaStudyPending};
+  });
+  expect(state.sp).toBe(3);
+  expect(state.knowledge).toEqual({
+    blade_1:{magicDetected:true,updatedAt:1234},
+    coat_1:{difficultyKnown:true},
+  });
+  expect(state.attemptedSp).toBe(2);
+  expect(state.attemptedKnowledge.blade_1.enchantmentIdentified).toBe(true);
+  expect(state.pending).toBe(false);
+});
+
+test("successful Arcana save spends one SP and retains its learned knowledge",async ({page})=>{
+  await bootHarness(page);
+  await page.locator('#inv-active-grid [data-key="blade_1"]').click();
+  await page.evaluate(()=>{
+    const hud=window.LuminousInventoryHudV2;
+    const unit=hud.state.unit;
+    unit.sp=3;
+    delete unit.itemMagicKnowledge;
+    unit.inventario_activo.blade_1.magic={enabled:true,enchantments:[{definitionId:"flamebound",rank:1}]};
+    hud.state.vitalsReady=true;
+    window.__arcanaSaveCalls=0;
+    hud.state.db={ref(){return {async update(){
+      window.__arcanaSaveCalls++;
+    }}}};
+    window.LuminousItemPersistenceRuntime.serializeInventoryState=()=>({
+      schemaVersion:3,inventario_activo:unit.inventario_activo,
+      inventario_stash:unit.inventario_stash,equipmentRefs:{},attunedItemInstanceIds:[],
+    });
+    window.LuminousPlayerVitalsHud={persistencePatch:viewer=>({sp:viewer.sp})};
+    window.LuminousItemMagicRuntime={isMagicItem:item=>!!item.magic};
+    window.LuminousItemMagicKnowledgeRuntime={
+      presentation:()=>({magical:true,magicDetected:true,identified:false,
+        displayName:"Enchanted Sword",enchantmentLines:[],curseLines:[]}),
+      studyArcana(viewer,item){
+        viewer.sp-=1;
+        viewer.itemMagicKnowledge||={};
+        viewer.itemMagicKnowledge[item.instanceId]={enchantmentIdentified:true};
+        return {studied:true,success:true,total:28,target:22};
+      },
+    };
+    hud.renderAll();
+  });
+  await page.locator("#inventory-v2-actions button",{hasText:"STUDY ARCANA"}).click();
+  await expect.poll(()=>page.evaluate(()=>window.__arcanaSaveCalls)).toBe(1);
+  expect(await page.evaluate(()=>{
+    const u=window.LuminousInventoryHudV2.state.unit;
+    return {sp:u.sp,knowledge:u.itemMagicKnowledge,pending:window.LuminousInventoryHudV2.state.arcanaStudyPending};
+  })).toEqual({sp:2,knowledge:{blade_1:{enchantmentIdentified:true}},pending:false});
+});
