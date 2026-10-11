@@ -182,6 +182,66 @@ test("service terminal refuses payment when no persistence callback is configure
   }))).toEqual({commits:0,ahn:1000,magic:null});
 });
 
+test("authenticated server checkout does not commit or charge locally", async ({page}) => {
+  await boot(page);
+  await page.evaluate(() => {
+    const {viewer,sword} = window.__enchanterFixture;
+    window.__enchanterFixture.serverCalls=[];
+    window.LuminousEnchanterUi.open({
+      viewer,items:[sword],
+      provider:{id:"tester",name:"Testing Enchanter",services:["enchant"],maxRank:3,
+        knownEnchantments:["flamebound"]},
+      providerMaterials:[{instanceId:"shop_dust",quantity:2}],
+      onAtomicService:async intent=>{
+        window.__enchanterFixture.serverCalls.push(intent);
+        const player=JSON.parse(JSON.stringify(viewer));
+        player.ahn=800;
+        player.inventario_activo.sword_1.magic={enchantments:[{definitionId:"flamebound",rank:1}]};
+        return {committed:true,
+          receipt:{service:"enchant",chargedAhn:200},
+          player,providerMaterials:[{instanceId:"shop_dust",quantity:1}]};
+      },
+      onSave:async()=>{throw new Error("local path must not run");},
+    });
+  });
+  await page.locator("#enchanter-ui-confirm").check();
+  await page.locator("#enchanter-ui-commit").click();
+  await expect(page.locator("#enchanter-ui-status")).toContainText("COMPLETE");
+  expect(await page.evaluate(() => ({
+    localCommits:window.__enchanterFixture.commits,
+    localSaves:window.__enchanterFixture.saves,
+    remoteCalls:window.__enchanterFixture.serverCalls.length,
+    service:window.__enchanterFixture.serverCalls[0]?.service,
+    ahn:window.__enchanterFixture.viewer.ahn,
+    vendorQuantity:window.LuminousEnchanterUi.state.providerMaterials[0].quantity,
+  }))).toEqual({
+    localCommits:0,localSaves:0,remoteCalls:1,
+    service:"enchant",ahn:800,vendorQuantity:1,
+  });
+});
+
+test("ambiguous server response locks checkout without provisional mutations", async ({page}) => {
+  await boot(page);
+  await page.evaluate(() => {
+    const {viewer,sword}=window.__enchanterFixture;
+    window.LuminousEnchanterUi.open({
+      viewer,items:[sword],
+      provider:{id:"tester",name:"Testing Enchanter",services:["enchant"],maxRank:3,
+        knownEnchantments:["flamebound"]},
+      onAtomicService:async()=>{throw new Error("network timed out");},
+    });
+  });
+  await page.locator("#enchanter-ui-confirm").check();
+  await page.locator("#enchanter-ui-commit").click();
+  await expect(page.locator("#enchanter-ui-status")).toContainText("SAVE NOT CONFIRMED");
+  await expect(page.locator("#enchanter-ui-commit")).toBeDisabled();
+  expect(await page.evaluate(() => ({
+    ahn:window.__enchanterFixture.viewer.ahn,
+    originalItemMagic:window.__enchanterFixture.sword.magic||null,
+    localCommits:window.__enchanterFixture.commits,
+  }))).toEqual({ahn:1000,originalItemMagic:null,localCommits:0});
+});
+
 test("unidentified installed magic stays obfuscated without breaking rank-sensitive service selection", async ({page}) => {
   await boot(page);
   await page.evaluate(() => {
