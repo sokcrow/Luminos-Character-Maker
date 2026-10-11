@@ -23,6 +23,46 @@ Random magical drops, random affix rolls, cursed random loot and artifact genera
 
 
 
+## 2026-10-11 — Authenticated atomic checkout + triggered combat implementation
+
+**Source work authored on PR #931; not a production acceptance signoff.**
+The historical/current in-scope count stays at **344/350** until the remote
+Firebase authorization, deployment, concurrent-client load and browser
+acceptance tests pass. Do not infer completion from checked CI runs alone.
+
+- `functions/enchanter-atomic.cjs`: server-side canonical quote recalculation,
+  Player UID ownership checks, provider availability/stock, RTDB Admin
+  transaction spanning `campaña/jugadores` and `campaña/tiendas`, replay-safe
+  receipt IDs, deferred Item escrow, pickup and wallet journals. Client-supplied
+  roll, free service, Item snapshot and AHN adjustments are ignored.
+- `functions/index.cjs`, `functions/build-enchanter-bundle.cjs`,
+  `functions/package.json` and `firebase.json`: authenticated callable,
+  reproducible deployment bundle and packaging. Shop/Player permissions were
+  **not** widened. Enable the backend route only **after** the deploy and
+  Emulator/security validation in
+  `docs/enchanter-server-atomic-deployment.md`.
+- `js/item-enchanter-ui.js`, `hoja_personaje.js` and
+  `hoja_personaje.html`: optional trusted checkout with server-committed
+  Player and provider-stock hydration. The existing legacy Player-only
+  transaction still refuses unsafe finite cross-Shop stock.
+- `js/item-enchantment-combat-runtime.js` and `Battle-viewer.html`:
+  wired native CombatEngine `[On Hit]` events to explicit `on_hit` and
+  `on_damage_received` Status effects with equipped/Attunement/depleted/dead
+  gates, authoritative Magical Durability resource spending, deduplication
+  and rollback. This does **not** automatically select an enchantment
+  `Before Getting Hit` reaction or invent Threshold Aegis shield values.
+- New CI tests include `item-enchantment-triggered-combat-smoke.cjs`,
+  `enchanter-server-atomic-smoke.cjs`,
+  `enchanter-server-canonical-smoke.cjs`, and Player UI server checkout
+  cases. Direct V8 harness checks passed 27 triggered-combat assertions,
+  48 cross-entity mock-server assertions and canonical timed intake/pickup.
+  GitHub Actions and actual Firebase Emulator/deployment remain separate gates.
+
+**Open acceptance:** Five complete production atomicity/removal/idempotency
+requirements and the wider conditional/reaction bridge are intentionally
+unchecked. They require deployed Firebase permission/performance evidence and
+user-selected reactive actions, rather than a misleading checkbox closure.
+
 ## Part A — Enchantment Core (design frozen)
 
 Canonical contract: [`docs/enchanters-update-part-a-core.md`](./enchanters-update-part-a-core.md)
