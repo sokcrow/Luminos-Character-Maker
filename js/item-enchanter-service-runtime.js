@@ -1489,7 +1489,7 @@
     if (!job || normalizeId(job.status)!=="in_service") return false;
     const now=job.clockSource==="campaign"
       ? campaignTimeMs(timestamp)
-      : (timestamp==null?Date.now():Number(timestamp));
+      : (typeof timestamp==="number" && Number.isFinite(timestamp)?timestamp:Date.now());
     return now!=null && Number.isFinite(Number(job.readyAt)) && now>=Number(job.readyAt);
   }
 
