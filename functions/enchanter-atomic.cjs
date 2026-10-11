@@ -17,6 +17,17 @@ function itemLocation(player,id){
   }
   return null;
 }
+function uniqueItemLocation(player,id){
+  let found=null;
+  for(const bucket of ["inventario_activo","inventario_stash"]){
+    for(const [name,item] of Object.entries(player?.[bucket]||{})){
+      if(!item || String(item.instanceId||item.id||"")!==id)continue;
+      if(found)return {duplicate:true,reason:"duplicate_item_instance_identity"};
+      found={bucket,name,item};
+    }
+  }
+  return found;
+}
 function providerForShop(shop,shopId,service,Services,Shop){
   if(!Shop.serviceEnabled?.(shop,service))return null;
   const authored=shop.enchanterProvider || shop.enchanterProfile || shop.enchanter || {};
@@ -115,10 +126,12 @@ async function commitEnchanterAtomic({database,authUid,request,Services,Engine,S
         String(owner.shopAccessKey||owner.nombre||owner.name||playerId))===false){
         reason="shop_access_denied";return;
       }
-      const target=itemLocation(owner,itemId);
+      const target=uniqueItemLocation(owner,itemId);
+      if(target?.duplicate){reason=target.reason;return;}
       if(!pickup&&!target){reason="item_not_in_inventory";return;}
       if(pickup && (!job||String(job.itemInstanceId)!==itemId||
-          String(job.providerId||"")!==String(pack.provider.id))){
+          String(job.providerId||"")!==String(pack.provider.id)||
+          (job.shopId!=null && String(job.shopId)!==shopId))){
         reason="invalid_service_pickup";return;
       }
       const playerMaterials=[
@@ -203,4 +216,4 @@ async function commitEnchanterAtomic({database,authUid,request,Services,Engine,S
     player:clone(saved.jugadores[playerId]),
     providerMaterials:clone(materialStock)};
 }
-module.exports={commitEnchanterAtomic,quoteForIntent,providerForShop,itemLocation};
+module.exports={commitEnchanterAtomic,quoteForIntent,providerForShop,itemLocation,uniqueItemLocation};
