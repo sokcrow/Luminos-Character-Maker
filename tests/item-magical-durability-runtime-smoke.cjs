@@ -306,4 +306,58 @@ const secondCoin = globalThis.CombatEngine.calculateCoinDamage(attacker,defender
 assert.strictEqual(secondCoin,55);
 assert.strictEqual(Magic.magicalDurabilityState(combatItem).current,49,"Magical wear is charged once per action context, not once per coin");
 
+// The authoritative magic profile of imported legacy Items can live under
+// runtime.magic instead of item.magic. All spending and restoration must
+// update both, and a save/load roundtrip must not regenerate spent MD.
+const legacyMagicItem={
+  instanceId:"legacy_magic_spender",
+  definitionId:"old_staff",
+  runtime:{magic:{
+    enabled:true,nativeMagic:true,origin:"native",
+    magicalDurability:{max:9,current:9,authored:true},
+    spells:[{spellId:"legacy_bolt",resource:"magical_durability",magicalDurabilityCost:3,chargeCost:0}],
+  }},
+};
+assert.strictEqual(Magic.magicalDurabilityState(legacyMagicItem).current,9);
+const legacyUser={sp:4};
+for(const remaining of [6,3,0]){
+  const cast=Magic.castSpellFromItem(legacyUser,legacyMagicItem,"legacy_bolt",{
+    executeSpell:()=>({executed:true}),
+  });
+  assert.strictEqual(cast.cast,true);
+  assert.strictEqual(Magic.magicalDurabilityState(legacyMagicItem).current,remaining,
+    "legacy runtime profile cannot restore spent spell resources");
+  assert.strictEqual(legacyMagicItem.runtime.magic.magicalDurability.current,remaining);
+  assert.strictEqual(legacyMagicItem.magic.magicalDurability.current,remaining);
+}
+assert.strictEqual(Magic.canActivateSpellFromItem(legacyUser,legacyMagicItem,"legacy_bolt").allowed,false,
+  "legacy Item cannot cast again after depleting resources");
+const serializedLegacy=Inventory.serializeItemInstance(legacyMagicItem);
+const reloadedLegacy=Inventory.deserializeItemInstance(serializedLegacy);
+assert.strictEqual(Magic.magicalDurabilityState(reloadedLegacy).current,0,
+  "spent MD must persist across legacy Item serialization");
+assert.strictEqual(Magic.restoreMagicalDurability(legacyMagicItem,4).restored,true);
+assert.strictEqual(Magic.magicalDurabilityState(legacyMagicItem).current,4);
+assert.strictEqual(legacyMagicItem.runtime.magic.magicalDurability.current,4);
+assert.strictEqual(legacyMagicItem.magic.magicalDurability.current,4);
+
+// Snake-case legacy profiles and an existing (outdated) canonical profile
+// must agree after a new wear, including their authored metadata.
+const legacySnake={
+  instanceId:"legacy_magic_snake",
+  magic:{enabled:true,customNote:"canonical"},
+  runtime:{magic_item:{
+    enabled:true,nativeMagic:true,
+    magical_durability:{max:7,current:7,profile:"native",authored:true},
+    customLegacyField:"keep",
+  }},
+};
+assert.strictEqual(Magic.spendMagicalDurability(legacySnake,2,{specialUse:true}).spent,true);
+assert.strictEqual(Magic.magicalDurabilityState(legacySnake).current,5);
+assert.strictEqual(legacySnake.runtime.magic_item.magical_durability.current,5);
+assert.strictEqual(legacySnake.runtime.magic_item.magicalDurability.current,5);
+assert.strictEqual(legacySnake.magic.magicalDurability.current,5);
+assert.strictEqual(legacySnake.magic.customLegacyField,"keep");
+assert.strictEqual(legacySnake.magic.customNote,"canonical");
+
 console.log("Magical Durability + activation/combat bridge smoke: OK");
