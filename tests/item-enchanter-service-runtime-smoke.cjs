@@ -100,6 +100,31 @@ assert.strictEqual(quote.duration.resolved,true);
 assert.strictEqual(quote.duration.hours,8);
 assert.strictEqual(quote.reliability.probability,0.90);
 
+// Each rank has a strict delivery band, enforced by the runtime even when
+// the DM form is bypassed by an API or existing provider record.
+for(const [rank,low,high] of [[1,1,23],[2,24,72],[3,168,null]]){
+  const profile=Services.normalizeProviderProfile({
+    maxRank:3,durationHoursByRank:{[rank]:low},
+  });
+  assert.strictEqual(Services.serviceDuration(profile,rank).hours,low);
+  if(high!=null){
+    assert.strictEqual(Services.serviceDuration(profile,rank,null,{durationHours:high}).hours,high);
+    for(const outside of [low-1,high+1]){
+      const forbidden=Services.serviceDuration(profile,rank,null,{durationHours:outside});
+      assert.strictEqual(forbidden.resolved,false);
+      assert.strictEqual(forbidden.reason,"service_duration_out_of_band");
+    }
+  }else{
+    assert.strictEqual(Services.serviceDuration(profile,rank,null,{durationHours:low+500}).resolved,true);
+    assert.strictEqual(Services.serviceDuration(profile,rank,null,{durationHours:low-1}).resolved,false);
+  }
+}
+const invalidRankOne=Services.normalizeProviderProfile({...provider,
+  durationHoursByRank:{1:168,2:100,3:192}});
+assert.strictEqual(Services.quoteEnchantService(invalidRankOne,weapon,"flamebound",1,{
+  playerMaterials:[canonicalMaterial],
+}).reason,"service_duration_out_of_band");
+
 assert.strictEqual(Services.beginService(provider,weapon,quote,{}).reason,
   "service_world_time_unavailable","timed orders must not use browser Date.now");
 const job=Services.beginService(provider,weapon,quote,{worldTimestamp:1000});
