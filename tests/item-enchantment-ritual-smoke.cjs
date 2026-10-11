@@ -14,6 +14,21 @@ assert.ok(Catalog && Engine);
 assert.strictEqual(Catalog.VERSION,5);
 assert.strictEqual(Engine.VERSION, 11);
 
+// Canonical recipes with only requiredTags must require one actual reagent,
+// rather than silently accepting a zero-material Enchant/Strengthen.
+for (const id of ["flamebound","frostbound","stormbound"]) {
+  const missing=Engine.planRecipeMaterials(id,[]);
+  assert.strictEqual(missing.valid,false,`${id} must not be free of materials`);
+  assert.ok(missing.missing.some(row=>row.requirementId==="canonical_enchantment_material"));
+  const ingredient={instanceId:id+"_dust",definitionId:"arcane_dust",
+    quantity:1,useTags:["enchantment_material"]};
+  const planned=Engine.planRecipeMaterials(id,[ingredient]);
+  assert.strictEqual(planned.valid,true);
+  assert.strictEqual(planned.allocations[0].quantity,1);
+  assert.strictEqual(Engine.consumeRecipeMaterials(id,[ingredient]).consumed,true);
+  assert.strictEqual(ingredient.quantity,0,`${id} consumes its canonical reagent`);
+}
+
 const ritualDefinition = {
   ...Catalog.get("flamebound"),
   id:"ritual_material_test",
