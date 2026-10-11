@@ -20,12 +20,16 @@ const persistence={
     };
   },
 };
-function fakeDatabase(value) {
-  const store={value:clone(value),requests:0,historyId:0};
+function fakeDatabase(value,worldTimestamp=null) {
+  const store={value:clone(value),requests:0,historyId:0,worldTimestamp};
   return {
     store,
     ref(path) {
       return {
+        async once(){
+          if(path==="campaña/calendario/timestamp")return {val:()=>store.worldTimestamp};
+          throw Error("unexpected database clock read: "+path);
+        },
         push() {return {key:"journal_"+(++store.historyId)};},
         async transaction(update) {
           store.requests++;
@@ -159,9 +163,10 @@ const request=(db,before=original,after=paid,extra={})=>
   scheduled.ahn=900;
   scheduled.finance.currentBalance=900;
   scheduled.enchanterJobs={tx_enchant:{jobId:"tx_enchant",status:"in_service",
-    itemInstanceId:"sword",readyAt:1710028800000}};
+    itemInstanceId:"sword",clockSource:"campaign",
+    startedAt:1710000000000,readyAt:1710028800000}};
   scheduled.enchanterTransactions={tx_enchant:{committed:true,status:"in_service",chargedAhn:100}};
-  const timedDb=fakeDatabase(unequipped);
+  const timedDb=fakeDatabase(unequipped,1710000000000);
   const intake=await request(timedDb,unequipped,scheduled,{
     result:{committed:true,started:true,transactionId:"tx_enchant",
       itemInstanceId:"sword",chargedAhn:100,service:"enchant"},
@@ -178,6 +183,16 @@ const request=(db,before=original,after=paid,extra={})=>
   received.enchanterTransactions["tx_enchant:delivery"]={
     committed:true,chargedAhn:0,deliveryOf:"tx_enchant",
   };
+  const blockedEarlyPickup=await request(timedDb,scheduled,received,{
+    result:{committed:true,delivered:true,deliveryOf:"tx_enchant",
+      transactionId:"tx_enchant:delivery",itemInstanceId:"sword",
+      chargedAhn:0,service:"enchant"},
+  });
+  assert.equal(blockedEarlyPickup.committed,false);
+  assert.equal(blockedEarlyPickup.reason,"invalid_service_delivery",
+    "moving browser Date.now cannot unlock before DM calendar advances");
+  assert.equal(timedDb.store.value.inventario_activo.sword,undefined);
+  timedDb.store.worldTimestamp=1710028800000;
   const pickup=await request(timedDb,scheduled,received,{
     result:{committed:true,delivered:true,deliveryOf:"tx_enchant",
       transactionId:"tx_enchant:delivery",itemInstanceId:"sword",
@@ -195,14 +210,27 @@ const request=(db,before=original,after=paid,extra={})=>
   assert.equal(duplicatePickup.committed,false);
   assert.equal(duplicatePickup.reason,"duplicate_transaction");
 
-  const falselyEscrowed=await request(fakeDatabase(unequipped),unequipped,{
+  const staleWorldIntake=await request(fakeDatabase(unequipped,1710003600000),
+    unequipped,scheduled,{result:{committed:true,started:true,transactionId:"tx_enchant",
+    itemInstanceId:"sword",chargedAhn:100,service:"enchant"}});
+  assert.equal(staleWorldIntake.committed,false);
+  assert.equal(staleWorldIntake.reason,"invalid_service_intake",
+    "intake timestamp must match the canonical DM calendar");
+  const calendarMissing=await request(fakeDatabase(unequipped),unequipped,scheduled,{
+    result:{committed:true,started:true,transactionId:"tx_enchant",
+      itemInstanceId:"sword",chargedAhn:100,service:"enchant"},
+  });
+  assert.equal(calendarMissing.committed,false);
+  assert.equal(calendarMissing.reason,"service_world_time_unavailable");
+
+  const falselyEscrowed=await request(fakeDatabase(unequipped,1710000000000),unequipped,{
     ...scheduled,inventario_activo:clone(unequipped.inventario_activo),
   },{result:{committed:true,started:true,transactionId:"tx_enchant",
     itemInstanceId:"sword",chargedAhn:100,service:"enchant"}});
   assert.equal(falselyEscrowed.committed,false);
   assert.equal(falselyEscrowed.reason,"invalid_service_intake",
     "atomic persistence must reject any paid job that leaves the Item usable");
-  const equippedIntake=await request(fakeDatabase(original),original,scheduled,{
+  const equippedIntake=await request(fakeDatabase(original,1710000000000),original,scheduled,{
     result:{committed:true,started:true,transactionId:"tx_enchant",
       itemInstanceId:"sword",chargedAhn:100,service:"enchant"}});
   assert.equal(equippedIntake.committed,false);
