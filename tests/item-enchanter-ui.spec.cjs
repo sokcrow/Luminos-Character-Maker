@@ -429,3 +429,57 @@ test("Remove / Rewrite terminal exposes direct replacement and Gem anchored proc
     quoted:true,anchorId:"socket_two",procedure:"item_side_remove",
   });
 });
+
+
+test("undetected magic stays indistinguishable from mundane gear in service eligibility",async ({page})=>{
+  await boot(page);
+  await page.evaluate(()=>{
+    const ui=window.LuminousEnchanterUi;
+    const service=window.LuminousItemEnchanterServiceRuntime;
+    const engine=window.LuminousItemEnchantmentEngine;
+    const magical=window.__enchanterFixture.sword;
+    magical.magic={enchantments:[{definitionId:"flamebound",rank:1,source:"gem",
+      anchorId:"secret_socket",properties:[]}]};
+    const mundane={instanceId:"ordinary_sword",definitionId:"sword",nombre:"Ordinary Sword",
+      itemType:"weapon",category:"weapon",tier:5};
+    window.__enchanterFixture.viewer.inventario_activo.ordinary_sword=mundane;
+    window.LuminousItemMagicRuntime={isMagicItem:item=>!!item.magic};
+    window.LuminousItemMagicKnowledgeRuntime={presentation:()=>({magicDetected:false,
+      enchantmentLines:[],knowledge:{}})};
+    engine.gemAnchors=item=>item.magic?[{anchorId:"secret_socket",
+      gemDefinitionId:"ruby",gemQuality:"fine"}]:[];
+    service.SERVICE_IDS.push("identify","curse_analysis","remove_curse","magical_repair","extract_gem");
+    service.SERVICE_LABELS.identify="Identify";
+    service.SERVICE_LABELS.curse_analysis="Curse Analysis";
+    service.SERVICE_LABELS.remove_curse="Remove Curse";
+    service.SERVICE_LABELS.magical_repair="Magical Repair";
+    service.SERVICE_LABELS.extract_gem="Extract Gem";
+    service.quoteFixedService=(_provider,name)=>({quoted:true,service:name,totalAhn:100});
+    service.quoteGemProcedure=()=>({quoted:false,reason:"gem_anchor_not_found"});
+    ui.state.provider.services.push("identify","curse_analysis","remove_curse","magical_repair","extract_gem");
+    ui.state.items=[magical,mundane];
+    ui.state.selectedItem=magical;
+  });
+  for(const service of ["identify","curse_analysis","remove_curse","magical_repair","extract_gem"]){
+    await page.evaluate(id=>{
+      const ui=window.LuminousEnchanterUi;
+      ui.state.service=id;
+      ui.render();
+    },service);
+    const eligible=await page.evaluate(()=>{
+      const ui=window.LuminousEnchanterUi;
+      return ui.state.items.map(item=>ui.eligibleForService(item));
+    });
+    expect(eligible.every(entry=>entry.eligible===true)).toBe(true);
+    await expect(page.locator("#enchanter-ui-item-list button")).toHaveCount(2);
+    await expect(page.locator("#enchanter-ui-item-unavailable .enchanter-ui-disabled")).toHaveCount(0);
+    await expect(page.locator("#enchanter-ui-current")).not.toContainText("SLOTS");
+    if(service==="extract_gem"){
+      await expect(page.locator("#enchanter-ui-anchor option")).toHaveCount(0);
+      await expect(page.locator("#enchanter-ui-validation")).not.toContainText("GEM ANCHOR");
+    }
+    if(["remove_curse","magical_repair","extract_gem"].includes(service)){
+      await expect(page.locator("#enchanter-ui-commit")).toBeDisabled();
+    }
+  }
+});
