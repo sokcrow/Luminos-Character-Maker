@@ -114,4 +114,37 @@ const engineSerialized = Inventory.serializeItemInstance({
 });
 assert.deepStrictEqual(engineSerialized.magic.enchantments, appliedByEngine.item.magic.enchantments, "engine-created Enchantment refs must serialize unchanged");
 
-console.log("Enchantment inventory persistence smoke: OK");
+// Combat uses an intentionally partial Player projection. Its inventory
+// update must never erase active Enchanter jobs, receipts or magic knowledge.
+(async()=>{
+  const saved={
+    inventario_activo:{[base.instanceId]:JSON.parse(JSON.stringify(base))},
+    inventario_stash:{},
+    itemMagicKnowledge:{[base.instanceId]:{magicDetected:true}},
+    enchantmentCompendium:{flamebound:{knownRanks:[1]}},
+    enchanterTransactions:{work_1:{committed:true}},
+    enchanterJobs:{work_1:{status:"in_service",itemInstanceId:"other_item"}},
+  };
+  const db={ref(){
+    return {async update(changes){Object.assign(saved,changes);}};
+  }};
+  const combatProjection={
+    inventario_activo:{[base.instanceId]:JSON.parse(JSON.stringify(base))},
+    inventario_stash:{},equipment:{mainHand:{instanceId:base.instanceId}},
+  };
+  combatProjection.inventario_activo[base.instanceId].magic.magicalDurability.current=60;
+  const result=await Persistence.saveInventoryState(db,"test_player",combatProjection);
+  assert.equal(result.saved,true);
+  assert.equal(saved.inventario_activo[base.instanceId].magic.magicalDurability.current,60);
+  assert.deepStrictEqual(saved.enchanterJobs,{work_1:{status:"in_service",itemInstanceId:"other_item"}});
+  assert.deepStrictEqual(saved.enchanterTransactions,{work_1:{committed:true}});
+  assert.deepStrictEqual(saved.itemMagicKnowledge,{[base.instanceId]:{magicDetected:true}});
+  assert.deepStrictEqual(saved.enchantmentCompendium,{flamebound:{knownRanks:[1]}});
+  assert.equal(Object.hasOwn(result.state,"enchanterJobs"),false);
+  // A fully hydrated Player can still intentionally clear its own jobs.
+  await Persistence.saveInventoryState(db,"test_player",{...combatProjection,
+    enchanterJobs:{},enchanterTransactions:{},itemMagicKnowledge:{},enchantmentCompendium:{}});
+  assert.deepStrictEqual(saved.enchanterJobs,{});
+  assert.deepStrictEqual(saved.itemMagicKnowledge,{});
+  console.log("Enchantment inventory persistence smoke: OK");
+})().catch(error=>{console.error(error);process.exitCode=1;});
