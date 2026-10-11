@@ -166,7 +166,7 @@ test("HUD V2 uses gothic layout with 24 Active inventory slots", async ({ page }
       cardWidth: first?.getBoundingClientRect().width || 0,
     };
   });
-  expect(layout.columns).toBe(6);
+  expect(layout.columns).toBe(5);
   expect(layout.cardWidth).toBeGreaterThanOrEqual(65);
   expect(layout.cardWidth).toBeLessThan(160);
 
@@ -260,7 +260,7 @@ test("player item detail hides implementation metadata and only shows relevant s
       cardWidth: first?.getBoundingClientRect().width || 0,
     };
   });
-  expect(selectedGrid.columns).toBe(6);
+  expect(selectedGrid.columns).toBe(5);
   expect(selectedGrid.cardWidth).toBeGreaterThanOrEqual(65);
   expect(selectedGrid.cardWidth).toBeLessThan(160);
 
