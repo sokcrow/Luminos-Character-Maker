@@ -50,9 +50,12 @@ async function bootHarness(page) {
     </div></div>
   </body></html>`);
   // Reproduce the production cascade: the old sheet still declares a 74px Active grid.
-  const legacyActiveGridRule = fs.readFileSync(SHEET_CSS, "utf8").match(/#inv-active-grid\s*\{[^}]*height:\s*74px;[^}]*\}/)?.[0];
+  const legacySheetCss = fs.readFileSync(SHEET_CSS, "utf8");
+  const legacyActiveGridRule = legacySheetCss.match(/#inv-active-grid\s*\{[^}]*height:\s*74px;[^}]*\}/)?.[0];
+  const legacyItemDisplayRule = legacySheetCss.match(/\.item-display\s*\{[^}]*width:\s*100%;[^}]*height:\s*100%;[^}]*\}/)?.[0];
   expect(legacyActiveGridRule).toBeTruthy();
-  await page.addStyleTag({ content: legacyActiveGridRule });
+  expect(legacyItemDisplayRule).toBeTruthy();
+  await page.addStyleTag({ content: legacyActiveGridRule + "\n" + legacyItemDisplayRule });
   await page.addStyleTag({ path: CSS });
   await page.addStyleTag({ path: GOTHIC_CSS });
 
