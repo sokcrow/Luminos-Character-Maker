@@ -551,7 +551,7 @@
         <p>Entrega: ${esc(finish)}.</p><p>Pagado al iniciar: ${esc(ahn(job.totalAhn))}.</p>`;
       if(commitButton){
         commitButton.textContent=ready?"RETIRAR ITEM":"EN PROCESO";
-        commitButton.disabled=state.pending || state.saveUncertain || !ready || confirm?.checked!==true;
+        commitButton.disabled=state.pending || state.saveUncertain || typeof state.onSave!=="function" || !ready || confirm?.checked!==true;
       }
       return;
     }
@@ -565,6 +565,7 @@
     }
 
     const preview=services()?.playerServicePreview?.(state.viewer,state.provider,state.selectedItem,state.quote) || null;
+    const persistenceReady=typeof state.onSave==="function";
     const paymentUnresolved=!wallet.resolved;
     const insufficient=wallet.resolved && wallet.balance<Number(state.quote.totalAhn || 0);
     // A projected copy is safe for this subset of services. Never run Identify,
@@ -586,7 +587,9 @@
       : "";
     if(validation) validation.innerHTML=state.saveUncertain
       ? `<h4>SAVE NOT CONFIRMED</h4><p class="danger">El resultado local no pudo confirmarse en la base de datos. Recarga la ficha antes de intentar pagar otra vez.</p>`
-      : paymentUnresolved
+      : !persistenceReady
+        ? `<h4>SERVICIO NO DISPONIBLE</h4><p class="danger">No hay una conexión de guardado segura. El Item y los AHN no serán modificados.</p>`
+        : paymentUnresolved
         ? `<h4>PAYMENT</h4><p class="danger">No se pudo verificar el saldo AHN.</p>`
         : insufficient
           ? `<h4>PAYMENT</h4><p class="danger">AHN insuficiente · Se necesitan ${esc(ahn(state.quote.totalAhn))}</p>`
@@ -608,10 +611,10 @@
       ${projectedSlots || "<p>El resultado se confirmará al ejecutar el servicio.</p>"}
       <h4>Effects</h4><ul>${effects || "<li>—</li>"}</ul>
       <h4>Materials</h4><ul>${materials || "<li>None</li>"}</ul>`;
-    if(needsDestruction && validation && !state.saveUncertain && !paymentUnresolved && !insufficient){
+    if(needsDestruction && validation && persistenceReady && !state.saveUncertain && !paymentUnresolved && !insufficient){
       validation.innerHTML='<h4>DESTRUCCIÓN IRREVERSIBLE</h4><p>Extraer esta gema Bound destruirá el Item. Debes confirmar la pérdida para continuar.</p>';
     }
-    if(commitButton) commitButton.disabled=state.pending || state.saveUncertain || paymentUnresolved || insufficient || confirm?.checked!==true || !destructionConfirmed;
+    if(commitButton) commitButton.disabled=state.pending || state.saveUncertain || !persistenceReady || paymentUnresolved || insufficient || confirm?.checked!==true || !destructionConfirmed;
   }
 
   function render(){
