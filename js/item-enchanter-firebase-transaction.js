@@ -40,8 +40,33 @@
     if(startingWallet===null || afterWallet!==startingWallet-charge)
       return {committed:false,reason:"invalid_wallet_delta"};
     const receipt=next.enchanterTransactions?.[transactionId];
-    if(!receipt || receipt.committed!==true || !itemExists(next,itemInstanceId) || !itemExists(initial,itemInstanceId))
+    if(!receipt || receipt.committed!==true)
       return {committed:false,reason:"receipt_or_target_item_mismatch"};
+    const jobBefore=initial.enchanterJobs?.[result?.deliveryOf || ""] || null;
+    const jobAfter=next.enchanterJobs?.[result?.deliveryOf || ""] || null;
+    const intake=result?.started===true && result?.delivered!==true;
+    const pickup=result?.delivered===true && result?.started!==true;
+    const inBefore=itemExists(initial,itemInstanceId);
+    const inAfter=itemExists(next,itemInstanceId);
+    const refs=initial.equipmentRefs || {};
+    const equipped=[refs.mainHand,refs.offHand,refs.armor,refs.shield,
+      ...(Array.isArray(refs.accessoryIds)?refs.accessoryIds:[])].some(id=>String(id||"")===itemInstanceId);
+    if(intake){
+      const started=next.enchanterJobs?.[transactionId];
+      if(!inBefore || inAfter || equipped || !started || started.status!=="in_service"
+          || started.itemInstanceId!==itemInstanceId
+          || receipt.status!=="in_service")
+        return {committed:false,reason:"invalid_service_intake"};
+    }else if(pickup){
+      if(inBefore || !inAfter || !jobBefore || jobBefore.status!=="in_service"
+          || !jobAfter || jobAfter.status!=="completed"
+          || jobBefore.itemInstanceId!==itemInstanceId
+          || receipt.deliveryOf!==result.deliveryOf || charge!==0
+          || Number(jobBefore.readyAt)>Date.now())
+        return {committed:false,reason:"invalid_service_delivery"};
+    }else if(!inBefore || !inAfter){
+      return {committed:false,reason:"receipt_or_target_item_mismatch"};
+    }
 
     const base=`campaña/jugadores/${playerId}`;
     let newTransactionKey=null;
