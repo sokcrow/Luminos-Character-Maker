@@ -59,6 +59,7 @@ if(!host||!authHost||host.includes("googleapis.com")){
         }},
         tiendas:{forge:{
           nombre:"Arcane Forge",
+          services:{enchant:true,remove_rewrite:true},
           enchanterProvider:{id:"npc",name:"Enchanter",maxRank:3,
             knownEnchantments:["flamebound"],services:["enchant","remove_rewrite"],
             reliability:1,servicePriceAhn:{remove_rewrite:12500},
