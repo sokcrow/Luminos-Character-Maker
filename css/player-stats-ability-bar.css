@@ -173,3 +173,22 @@ body:not(.on-game-dashboard) #stats-modal .player-ability-bar .player-ability-ic
 body:not(.on-game-dashboard) #stats-modal .player-ability-bar .player-ability-icon[hidden] {
   display:none;
 }
+
+/* Skill images in Stats: the existing proficiency mark, name, score and
+   click-to-roll row remain in the same order and retain their semantics. */
+body:not(.on-game-dashboard) #stats-modal .player-skill-list .dnd-skill:not(.dnd-skill--empty) {
+  grid-template-columns:18px 38px minmax(0,1fr) 58px;
+  column-gap:6px;
+}
+body:not(.on-game-dashboard) #stats-modal .player-skill-list .player-stat-skill-icon {
+  display:block;
+  box-sizing:border-box;
+  width:36px;
+  height:36px;
+  max-width:100%;
+  object-fit:contain;
+  pointer-events:none;
+}
+body:not(.on-game-dashboard) #stats-modal .player-skill-list .player-stat-skill-icon[hidden] {
+  display:none;
+}
