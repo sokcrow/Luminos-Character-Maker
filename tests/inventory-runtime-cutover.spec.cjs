@@ -202,6 +202,47 @@ test("HUD V2 uses gothic layout with 24 Active inventory slots", async ({ page }
   expect(geometry.metaBelowName).toBe(true);
 });
 
+test("Active inventory and equipment remain square with centered item icons", async ({ page }) => {
+  await bootHarness(page);
+  for (const viewport of [
+    { width: 1500, height: 950 },
+    { width: 1200, height: 720 },
+    { width: 820, height: 850 },
+    { width: 390, height: 800 },
+    { width: 812, height: 375 },
+  ]) {
+    await page.setViewportSize(viewport);
+    const geometry = await page.evaluate(() => {
+      const measure = (selector) => {
+        const el = document.querySelector(selector);
+        const rect = el.getBoundingClientRect();
+        return { width: rect.width, height: rect.height, left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom, centerX: (rect.left + rect.right) / 2 };
+      };
+      return {
+        equipment: measure(".inventory-v2-equipment"),
+        carry: measure(".inventory-v2-carry"),
+        equipmentSlot: measure('[data-equipment-slot="mainHand"]'),
+        itemCard: measure('#inv-active-grid [data-key="blade_1"]'),
+        itemIcon: measure('#inv-active-grid [data-key="blade_1"] .item-icon'),
+        itemName: measure('#inv-active-grid [data-key="blade_1"] .item-name'),
+        gridHost: measure(".inventory-v2-grid-host"),
+      };
+    });
+
+    for (const panel of [geometry.equipment, geometry.carry]) {
+      expect(panel.width, JSON.stringify(viewport)).toBeGreaterThan(200);
+      expect(Math.abs(panel.width - panel.height), JSON.stringify(viewport)).toBeLessThanOrEqual(4);
+    }
+    expect(Math.abs(geometry.equipmentSlot.width - geometry.equipmentSlot.height), JSON.stringify(viewport)).toBeLessThanOrEqual(4);
+    expect(Math.abs(geometry.itemCard.width - geometry.itemCard.height), JSON.stringify(viewport)).toBeLessThanOrEqual(4);
+    expect(Math.abs(geometry.itemIcon.centerX - geometry.itemCard.centerX), JSON.stringify(viewport)).toBeLessThanOrEqual(4);
+    expect(Math.abs(geometry.itemName.centerX - geometry.itemCard.centerX), JSON.stringify(viewport)).toBeLessThanOrEqual(4);
+    expect(geometry.itemCard.top, JSON.stringify(viewport)).toBeGreaterThanOrEqual(geometry.gridHost.top - 1);
+    await page.locator('#inv-active-grid [data-key="blade_1"]').click();
+    await expect(page.locator("#detail-title")).toHaveText("Test Workshop Blade");
+  }
+});
+
 test("Active inventory slots 1–5 remain reachable above the carry HUD", async ({ page }) => {
   await page.setViewportSize({ width: 1200, height: 720 });
   await bootHarness(page);
