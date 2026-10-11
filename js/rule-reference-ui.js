@@ -174,7 +174,9 @@
     return result.length ? result : [{text:value}];
   }
 
-  let popover=null,active=null;
+  // Tooltip and cards share one portal below document.body: no tooltip is
+  // clipped by .player-trait-card-list (overflow-y:auto).
+  let popover=null,active=null,pinned=false;
   function ensureStyles() {
     if (!doc?.head || doc.getElementById("luminous-rule-references-css")) return;
     const css=doc.createElement("link");
@@ -184,14 +186,15 @@
   function dismiss(restore=false) {
     if (!popover) return;
     const old=active;
-    popover.hidden=true;active=null;
+    popover.hidden=true;active=null;pinned=false;
     old?.setAttribute?.("aria-expanded","false");
-    if (restore) old?.focus?.();
+    if (restore && old?.isConnected) old.focus?.();
   }
   function ensurePopover() {
     if (!doc?.body) return null;
     if (popover?.isConnected) return popover;
     popover=doc.createElement("section");
+    popover.id="luminous-rule-reference-panel";
     popover.className="luminous-rule-card";popover.hidden=true;
     popover.setAttribute("role","dialog");popover.setAttribute("aria-modal","false");
     popover.setAttribute("aria-label","Referencia de reglas");
@@ -216,12 +219,19 @@
       if(!popover.hidden && !popover.contains(event.target)
         && !event.target?.closest?.(".luminous-rule-reference"))dismiss();
     });
+    // A stale tooltip should not float over an unrelated scrolled Trait.
+    doc.addEventListener("scroll",()=>{if(popover && !popover.hidden)dismiss();},true);
+    global.addEventListener?.("resize",()=>{if(popover && !popover.hidden)dismiss();});
     return popover;
   }
-  function show(trigger) {
+  function show(trigger,{pin=true}={}) {
     const info=resolve(trigger.dataset.refKind,trigger.dataset.refId);
     if (!info) return;
-    if (active===trigger && popover && !popover.hidden) {dismiss();return;}
+    if (active===trigger && popover && !popover.hidden) {
+      if (!pin) return;
+      if (pinned) {dismiss();return;}
+      pinned=true;return; // The pointer hover opened it; tap/click keeps it open.
+    }
     dismiss();ensureStyles();
     const card=ensurePopover();if (!card) return;
     const image=card.querySelector(".luminous-rule-card__icon");
@@ -230,12 +240,14 @@
     card.querySelector("small").textContent=info.category;
     card.querySelector("strong").textContent=info.name;
     card.querySelector("p").textContent=info.description;
-    card.hidden=false;active=trigger;trigger.setAttribute("aria-expanded","true");
+    card.classList.toggle("is-tooltip",trigger.classList.contains("is-tooltip"));
+    card.hidden=false;active=trigger;pinned=pin;
+    trigger.setAttribute("aria-expanded","true");
     const rect=trigger.getBoundingClientRect();
     const vw=doc.documentElement.clientWidth || global.innerWidth || 800;
     const vh=doc.documentElement.clientHeight || global.innerHeight || 700;
     if (vw>760) {
-      const width=Math.min(390,vw-20);
+      const width=Math.min(card.classList.contains("is-tooltip")?330:390,vw-20);
       card.style.width=width+"px";
       card.style.left=Math.max(10,Math.min(vw-width-10,rect.left))+"px";
       const height=Math.min(card.offsetHeight,vh-20);
