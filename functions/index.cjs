@@ -4,17 +4,17 @@ const admin=require("firebase-admin");
 const {commitEnchanterAtomic}=require("./enchanter-atomic.cjs");
 if(!admin.apps.length)admin.initializeApp();
 for(const path of [
-  "../js/item-quality-engine.js",
-  "../js/item-catalog-ore-ingot-gem.js",
-  "../js/item-catalog-enchantments.js",
-  "../js/item-enchantment-engine.js",
-  "../js/item-runtime-engine.js",
-  "../js/item-inventory-runtime.js",
-  "../js/item-magic-runtime.js",
-  "../js/item-magic-knowledge-runtime.js",
-  "../js/item-enchantment-compendium-runtime.js",
-  "../js/item-enchanter-service-runtime.js",
-  "../js/shop-runtime.js",
+  "./vendor/js/item-quality-engine.js",
+  "./vendor/js/item-catalog-ore-ingot-gem.js",
+  "./vendor/js/item-catalog-enchantments.js",
+  "./vendor/js/item-enchantment-engine.js",
+  "./vendor/js/item-runtime-engine.js",
+  "./vendor/js/item-inventory-runtime.js",
+  "./vendor/js/item-magic-runtime.js",
+  "./vendor/js/item-magic-knowledge-runtime.js",
+  "./vendor/js/item-enchantment-compendium-runtime.js",
+  "./vendor/js/item-enchanter-service-runtime.js",
+  "./vendor/js/shop-runtime.js",
 ])require(path);
 const Services=globalThis.LuminousItemEnchanterServiceRuntime;
 const Engine=globalThis.LuminousItemEnchantmentEngine;
