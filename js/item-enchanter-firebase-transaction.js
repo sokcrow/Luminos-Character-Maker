@@ -58,7 +58,7 @@
       return {committed:false,reason:"transaction_history_id_unavailable"};
 
     const tracked=["inventario_activo","inventario_stash","equipmentRefs",
-      "attunedItemInstanceIds","itemMagicKnowledge","enchantmentCompendium"];
+      "attunedItemInstanceIds","itemMagicKnowledge","enchantmentCompendium","enchanterJobs"];
     const currentValue=player=>persistence.serializeInventoryState(player || {});
     const log={
       monto:-charge,
@@ -100,6 +100,7 @@
           ...(player.enchanterTransactions || {}),
           [transactionId]:clone(receipt),
         };
+        player.enchanterJobs=clone(next.enchanterJobs || {});
         player.ahn=afterWallet;
         player.finance={...(player.finance||{}),currentBalance:afterWallet};
         if(charge>0){
