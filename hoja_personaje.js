@@ -6591,7 +6591,7 @@ window.abrirServiciosTiendaDinamica = async function(
               ...Object.values(playerData.inventario_stash || {}),
             ],
             onSave: async ({ result, beforePlayer, providerMaterialsBefore, providerMaterialsAfter }) => {
-              await persistShopEnchanterState(playerData, tiendaId, result, {
+              return persistShopEnchanterState(playerData, tiendaId, result, {
                 beforePlayer, providerMaterialsBefore, providerMaterialsAfter,
               });
             },
