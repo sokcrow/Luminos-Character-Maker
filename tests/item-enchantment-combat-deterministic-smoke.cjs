@@ -99,6 +99,37 @@ assert.strictEqual(globalThis.CombatEngine.calculateCoinDamage(
   wielder,defender,skill,10,false,0,{}),100,
   "depleted Magical Durability disables the enchantment, not the weapon's physical damage");
 
+// Battle Viewer hydrates equipped and inventory Items into distinct objects.
+// A weapon Skill must reduce the *persisted inventory instance*, only once
+// per multi-Coin action, and the reduced MD must survive reload.
+const canonical=JSON.parse(JSON.stringify(applied.item));
+canonical.instanceId="combat_live_inventory_sword";
+const equippedClone=JSON.parse(JSON.stringify(canonical));
+const combatPlayer={id:"combat_live",hp:100,
+  inventario_activo:{combat_live_inventory_sword:canonical},
+  equipment:{mainHand:equippedClone},
+};
+const initialMd=Magic.magicalDurabilityState(canonical).current;
+const liveSkillContext={};
+assert.equal(globalThis.CombatEngine.calculateCoinDamage(
+  combatPlayer,defender,skill,10,false,0,liveSkillContext),110);
+assert.equal(Magic.magicalDurabilityState(canonical).current,initialMd-1,
+  "canonical inventory Item must pay enchantment wear");
+assert.equal(Magic.magicalDurabilityState(equippedClone).current,initialMd,
+  "equipped clone must not be the only object modified");
+assert.equal(combatPlayer.__luminousEnchantmentInventoryDirty,true,
+  "Skill resource payment must notify combat persistence");
+assert.equal(globalThis.CombatEngine.calculateCoinDamage(
+  combatPlayer,defender,skill,10,false,0,liveSkillContext),110);
+assert.equal(Magic.magicalDurabilityState(canonical).current,initialMd-1,
+  "multi-Coin Skill must still pay exactly once");
+require("../js/item-persistence-runtime.js");
+const persistedCombat=globalThis.LuminousItemPersistenceRuntime.serializeInventoryState(combatPlayer);
+const reloadedCombat=globalThis.LuminousItemPersistenceRuntime.deserializeInventoryState(persistedCombat);
+assert.equal(Magic.magicalDurabilityState(
+  reloadedCombat.inventario_activo.combat_live_inventory_sword).current,initialMd-1,
+  "spent wear must survive Firebase inventory serialization");
+
 assert.strictEqual(Combat.uninstallCombatEngine(globalThis.CombatEngine),true);
 assert.strictEqual(globalThis.CombatEngine.calculateCoinDamage(wielder,defender,skill,10,false,0,{}),100);
 console.log("Enchanter deterministic Skill/Multi-Coin suppression combat smoke: OK");
