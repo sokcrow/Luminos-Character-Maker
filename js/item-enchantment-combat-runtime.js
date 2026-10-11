@@ -232,6 +232,126 @@
     }
   }
 
+  // Non-Skill effects run only from canonical CombatEngine events. No UI or
+  // arbitrary Item metadata may choose a trigger, apply a Status or spend MD.
+  function canonicalEquippedItem(user={},equipped=null) {
+    if(!equipped || typeof equipped!=="object") return null;
+    const id=String(equipped.instanceId || equipped.instance_id || "");
+    if(!id)return equipped;
+    for(const container of [user.inventario_activo,user.inventario_stash]){
+      if(!container || typeof container!=="object")continue;
+      const item=container[id] || Object.values(container).find(entry=>
+        entry && String(entry.instanceId || entry.instance_id || "")===id);
+      if(item)return item;
+    }
+    return equipped;
+  }
+
+  function triggerStatusTarget(effect,actor,target,trigger) {
+    const where=normalizeId(effect.target || (trigger==="on_damage_received"?"self":"target"));
+    if(["self","wielder","wearer","owner"].includes(where))return actor;
+    if(["target","enemy","defender"].includes(where))return target;
+    return null;
+  }
+
+  function triggerCombatEffects(actor,item,target,trigger,context={}) {
+    const kind=normalizeId(trigger);
+    if(!["on_hit","on_damage_received"].includes(kind))
+      return {activated:false,reason:"unsupported_combat_trigger"};
+    if(!actor || !item || Magic.actorCanEmitMagic?.(actor)===false)
+      return {activated:false,reason:"actor_cannot_emit_magic"};
+    const resolution=Magic.enchantmentEffectResolution?.(actor,item,{
+      trigger:kind,selectedChannels:selectedChannels(context.skill || {},context),
+      requireEquipped:true,requireLivingActor:true,specialUse:true,
+    });
+    if(!resolution?.resolved)return {activated:false,reason:resolution?.reason || "effect_resolution_failed"};
+    if(!resolution.effects?.length)return {activated:false,reason:"no_triggered_effects"};
+    const status=global.LuminousStatusEngine || safeRequire("./status-engine.js");
+    if(!status?.applyStatus)return {activated:false,reason:"status_runtime_unavailable"};
+    const actions=[];
+    for(const effect of resolution.effects){
+      if(normalizeId(effect.type)!=="status_apply" || !normalizeId(effect.statusId))
+        return {activated:false,reason:"unsupported_trigger_effect"};
+      const destination=triggerStatusTarget(effect,actor,target,kind);
+      if(!destination || typeof destination!=="object")
+        return {activated:false,reason:"invalid_trigger_target"};
+      if(global.LuminousConditionRuntime?.canApplyStatus?.(destination,effect.statusId,{
+        sourceUnitId:actor.id,sourceTraitId:effect.sourceEnchantmentId,
+      })?.allowed===false) return {activated:false,reason:"trigger_status_blocked"};
+      actions.push({effect,destination});
+    }
+    const plan=Magic.activationResourcePlan?.(resolution,item) || {};
+    const gate=Magic.canPayActivationResources?.(actor,item,plan);
+    if(gate?.allowed!==true)return {activated:false,reason:gate?.reason || "trigger_resources_unavailable"};
+    // Preserve all affected Item/actor/target resources, including legacy
+    // mirrors. A Status adapter failure must not leave a partial activation.
+    const clone=value=>value==null?value:JSON.parse(JSON.stringify(value));
+    const savedItem=clone(item);
+    const savedSp=actor.sp;
+    const targets=[...new Set(actions.map(action=>action.destination))];
+    const savedTargets=targets.map(unit=>({
+      unit,had:Object.prototype.hasOwnProperty.call(unit,"statusEffects"),
+      statusEffects:clone(unit.statusEffects),
+    }));
+    const restore=()=>{
+      for(const key of Object.keys(item))delete item[key];
+      Object.assign(item,savedItem);
+      if(savedSp===undefined)delete actor.sp;
+      else actor.sp=savedSp;
+      for(const row of savedTargets){
+        if(!row.had)delete row.unit.statusEffects;
+        else row.unit.statusEffects=clone(row.statusEffects);
+      }
+    };
+    const payment=Magic.payActivationResourcePlan?.(actor,item,plan);
+    if(!payment?.paid)return {activated:false,reason:payment?.reason || "trigger_payment_failed"};
+    try{
+      for(const {effect,destination} of actions){
+        const applied=status.applyStatus(destination,effect.statusId,{
+          mode:"gain",
+          count:Number.isFinite(Number(effect.stacks))?Math.max(0,Number(effect.stacks)):1,
+          potency:Number.isFinite(Number(effect.value))?Number(effect.value):0,
+          ...(effect.duration?{duration:effect.duration}:{}),
+          sourceTraitId:effect.sourceEnchantmentId || null,
+          sourceUnitId:actor.id || null,
+        });
+        if(!applied)throw new Error("trigger_status_application_failed");
+      }
+      const wear=Magic.spendResolvedEnchantmentWear?.(item,resolution,{specialUse:false});
+      if(wear?.spent===false)throw new Error(wear.reason || "trigger_wear_failed");
+      if(Number(plan.magicalDurability)>0 || Number(plan.charges)>0 ||
+        (wear?.spent && Number(wear.amount)>0))
+        actor.__luminousEnchantmentInventoryDirty=true;
+      return {activated:true,trigger:kind,applied:actions.length,plan,wear};
+    }catch(error){
+      restore();
+      return {activated:false,rolledBack:true,reason:String(error?.message || error)};
+    }
+  }
+
+  function dispatchCombatEvent(tag,context={}) {
+    if(tag!=="[On Hit]" || !context || !context.attacker || !context.defender ||
+      !Number.isFinite(Number(context.damageDealt)) || Number(context.damageDealt)<=0)
+      return [];
+    const results=[];
+    const attacker=context.attacker,defender=context.defender;
+    const weapon=sourceItem(attacker,context.skill || {},context);
+    if(weapon){
+      const result=triggerCombatEffects(attacker,weapon,defender,"on_hit",context);
+      if(result.activated)results.push(result);
+    }
+    const seen=new Set();
+    for(const equipped of Magic.equippedMagicItems?.(defender) || []){
+      const item=canonicalEquippedItem(defender,equipped);
+      const id=String(item?.instanceId || item?.instance_id || "");
+      if((id && seen.has(id)) || !item)continue;
+      if(id)seen.add(id);
+      const result=triggerCombatEffects(defender,item,attacker,"on_damage_received",context);
+      if(result.activated)results.push(result);
+    }
+    return results;
+  }
+
   function patchCombatEngine(engine = global.CombatEngine) {
     if (!engine || typeof engine.calculateCoinDamage !== "function") {
       return { installed:false, reason:"combat_engine_unavailable" };
@@ -239,6 +359,14 @@
     if (engine[BRIDGE_FLAG]) return { installed:true, alreadyInstalled:true };
 
     const original = engine.calculateCoinDamage;
+    const originalTriggerEvent=typeof engine.triggerEvent==="function"?engine.triggerEvent:null;
+    if(originalTriggerEvent){
+      engine.triggerEvent=function(tag,context,targetsHit) {
+        const result=originalTriggerEvent.call(this,tag,context,targetsHit);
+        dispatchCombatEvent(tag,context);
+        return result;
+      };
+    }
     engine.calculateCoinDamage = function (attacker, defender, skill, coinFinalPower, isCritical, clashCount, context = null) {
       const base = withDefenderResistanceInput(defender,skill,()=>original.call(this, attacker, defender, skill, coinFinalPower, isCritical, clashCount, context));
       const runtimeContext = context && typeof context === "object" ? context : {};
@@ -259,7 +387,7 @@
     };
 
     Object.defineProperty(engine, BRIDGE_FLAG, {
-      value:Object.freeze({originalCalculateCoinDamage:original}),
+      value:Object.freeze({originalCalculateCoinDamage:original,originalTriggerEvent}),
       configurable:true,
       enumerable:false,
     });
@@ -270,6 +398,7 @@
     const state = engine?.[BRIDGE_FLAG];
     if (!engine || !state?.originalCalculateCoinDamage) return false;
     engine.calculateCoinDamage = state.originalCalculateCoinDamage;
+    if(state.originalTriggerEvent)engine.triggerEvent=state.originalTriggerEvent;
     try { delete engine[BRIDGE_FLAG]; } catch (_) {}
     return true;
   }
@@ -284,6 +413,9 @@
     adjustedDamage,
     spendActivationOnce,
     spendWearOnce,
+    canonicalEquippedItem,
+    triggerCombatEffects,
+    dispatchCombatEvent,
     approvedResistanceReductions,
     withDefenderResistanceInput,
     patchCombatEngine,
