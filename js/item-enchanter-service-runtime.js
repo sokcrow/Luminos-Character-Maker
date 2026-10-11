@@ -1470,7 +1470,8 @@
       ...options,transactionId,playerMaterials:materialCopies,providerMaterials,
     });
     if(!result.committed) return Object.freeze({committed:false,reason:result.reason});
-    if(JSON.stringify(providerMaterials)!==JSON.stringify(providerBefore))
+    if(JSON.stringify(providerMaterials)!==JSON.stringify(providerBefore)
+      && options.serverAtomicShopCommit!==true)
       return Object.freeze({committed:false,reason:"provider_stock_requires_server_atomic_commit"});
     const deliveredItem=clone(target.entry);
     const discoveredKnowledge=clone(simulated.itemMagicKnowledge || {});
@@ -1511,6 +1512,7 @@
       itemInstanceId:String(item.instanceId || item.id || ""),
       service:quote.service,timestamp:start.job.startedAt,
       job:Object.freeze(clone(job)),player:Object.freeze(simulated),
+      providerMaterialsAfter:Object.freeze(clone(providerMaterials)),
     });
   }
 
