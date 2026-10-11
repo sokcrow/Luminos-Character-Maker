@@ -100,9 +100,12 @@ assert.strictEqual(quote.duration.resolved,true);
 assert.strictEqual(quote.duration.hours,8);
 assert.strictEqual(quote.reliability.probability,0.90);
 
-const job=Services.beginService(provider,weapon,quote,{startedAt:1000});
+assert.strictEqual(Services.beginService(provider,weapon,quote,{}).reason,
+  "service_world_time_unavailable","timed orders must not use browser Date.now");
+const job=Services.beginService(provider,weapon,quote,{worldTimestamp:1000});
 assert.strictEqual(job.started,true);
 assert.strictEqual(job.job.status,"in_service");
+assert.strictEqual(job.job.clockSource,"campaign");
 assert.strictEqual(job.job.readyAt,1000+(8*60*60*1000));
 assert.strictEqual(Services.serviceReady(job.job,job.job.readyAt-1),false);
 assert.strictEqual(Services.serviceReady(job.job,job.job.readyAt),true);
