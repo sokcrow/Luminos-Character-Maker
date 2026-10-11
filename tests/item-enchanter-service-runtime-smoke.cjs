@@ -84,7 +84,11 @@ const relicBlocked=Services.providerCanService(provider,"enchant",{
 assert.strictEqual(relicBlocked.allowed,false);
 assert.strictEqual(relicBlocked.reason,"relic_rank_not_reproducible");
 
-const quote=Services.quoteEnchantService(provider,weapon,"flamebound",1,{});
+const canonicalMaterial={instanceId:"canonical_reagent",definitionId:"enchanted_dust",quantity:2,
+  useTags:["enchantment_material"]};
+const quote=Services.quoteEnchantService(provider,weapon,"flamebound",1,{
+  playerMaterials:[canonicalMaterial],
+});
 assert.strictEqual(quote.quoted,true);
 assert.strictEqual(quote.labor.floorAhn,750000);
 assert.strictEqual(quote.labor.rawLaborAhn,750000);
@@ -116,7 +120,9 @@ assert.strictEqual(applied.result.applied,true);
 assert.strictEqual(applied.result.item.magic.magicalDurability.max,30,"service application uses 50% proportional Magical Durability");
 
 const rankOneItem=applied.result.item;
-const strengthen=Services.quoteStrengthenService(provider,rankOneItem,"flamebound",2,{});
+const strengthen=Services.quoteStrengthenService(provider,rankOneItem,"flamebound",2,{
+  playerMaterials:[canonicalMaterial],
+});
 assert.strictEqual(strengthen.quoted,true);
 assert.strictEqual(strengthen.currentRank,1);
 assert.strictEqual(strengthen.targetRank,2);
