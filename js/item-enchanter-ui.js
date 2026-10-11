@@ -69,6 +69,10 @@
     bound_enchantment_not_removable:"Un Bind impide retirar ese Encantamiento.",
     gem_quality_downgrade_unresolved:"El proveedor debe definir la calidad de la gema después del procedimiento.",
     bound_gem_removal_destroys_item:"Extraer una gema Bound destruye el Item.",
+    gem_not_in_loose_inventory:"La gema ya no está disponible en el inventario del jugador.",
+    recovered_gem_inventory_collision:"No se puede devolver la gema: existe otro Item con la misma identidad.",
+    recovered_gem_inventory_unavailable:"No se puede devolver la gema al inventario.",
+    npc_altered_outcome_unresolved:"El encantador no tiene configurado un resultado alternativo para este intento.",
     removable_curse_not_found:"No hay una Maldición removible en este Item.",
     relic_drawback_inseparable:"Ese drawback de Reliquia es inseparable.",
   });
@@ -420,6 +424,7 @@
         playerMaterials:materialsForTransaction(),
         providerMaterials:state.providerMaterials,
         providerId:state.provider?.id || null,
+        provider:state.provider,
         viewer:state.viewer,
         appliedBy:state.provider?.id || state.provider?.name || "enchanter",
         locationId:state.provider?.locationId || null,
@@ -429,6 +434,9 @@
       confirm.checked=false;
       // A local service receipt is not proof of persisted payment or item state.
       if(typeof state.onSave==="function") await state.onSave({result,item:state.selectedItem,viewer:state.viewer,beforePlayer,providerMaterialsBefore,providerMaterialsAfter:clone(state.providerMaterials)});
+      state.items=allViewerItems(state.viewer);
+      state.gem=null;
+      state.quote=null;
       state.status=`COMPLETE // ${services()?.SERVICE_LABELS?.[state.service] || humanize(state.service)}`;
       global.dispatchEvent?.(new CustomEvent("luminous:enchanter-service-committed",{detail:{result,item:state.selectedItem}}));
     }catch(error){
