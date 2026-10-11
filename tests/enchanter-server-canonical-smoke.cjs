@@ -76,5 +76,43 @@ const params={database:db,authUid:"auth_owner",Services:S,Engine:E,Shop};
       operation:"pickup",jobId:"canonical_timed"}});
   assert.equal(duplicate.reason,"duplicate_transaction",
     "canonical pickup must be idempotent across browser reconnects");
-  console.log("Enchanter canonical Firebase server timed quote, stock, escrow and pickup: OK");
+  // Removal uses the same privileged transaction as application. No client
+  // may bypass cost, choose a second Item Instance or repay a processed receipt.
+  const provider=state.campaña.tiendas.forge.enchanterProvider;
+  provider.services.push("remove_rewrite");
+  provider.servicePriceAhn={remove_rewrite:12500};
+  state.campaña.jugadores.hero.inventario_stash.spare={
+    instanceId:"spare",definitionId:"sword",itemType:"weapon",category:"weapon",tier:5,
+  };
+  const removeRequest={...intent,service:"remove_rewrite",procedure:"direct_remove",
+    transactionId:"canonical_remove",definitionId:"flamebound"};
+  const originalBalance=state.campaña.jugadores.hero.ahn;
+  const originalStock=provider.providerMaterials[0].quantity;
+  state.campaña.jugadores.hero.ahn=0;
+  state.campaña.jugadores.hero.finance.currentBalance=0;
+  const beforeFailure=clone(state.campaña);
+  const failRemoval=await commitEnchanterAtomic({...params,request:removeRequest});
+  assert.equal(failRemoval.committed,false);
+  assert.equal(failRemoval.reason,"insufficient_ahn");
+  assert.deepEqual(state.campaña,beforeFailure,
+    "failed removal must preserve currency, Enchantment and vendor stock");
+  state.campaña.jugadores.hero.ahn=originalBalance;
+  state.campaña.jugadores.hero.finance.currentBalance=originalBalance;
+  const removed=await commitEnchanterAtomic({...params,request:removeRequest});
+  assert.equal(removed.committed,true,removed.reason);
+  assert.equal(state.campaña.jugadores.hero.inventario_activo.sword.magic.enchantments.length,0);
+  assert.equal(state.campaña.jugadores.hero.inventario_stash.spare.instanceId,"spare",
+    "removal must not mutate another Item Instance");
+  assert.ok(state.campaña.jugadores.hero.ahn<originalBalance);
+  assert.equal(state.campaña.tiendas.forge.enchanterProvider.providerMaterials[0].quantity,
+    originalStock,"removal does not silently consume enchantment catalysts");
+  const afterRemoval=clone(state.campaña);
+  const replayRemoval=await commitEnchanterAtomic({...params,request:removeRequest});
+  assert.equal(replayRemoval.reason,"duplicate_transaction");
+  assert.deepEqual(state.campaña,afterRemoval,"removal replay must not double charge");
+  const wrongInstance=await commitEnchanterAtomic({...params,
+    request:{...removeRequest,transactionId:"wrong_item",itemInstanceId:"spare"}});
+  assert.equal(wrongInstance.committed,false);
+  assert.equal(state.campaña.jugadores.hero.inventario_stash.spare.magic,undefined);
+  console.log("Enchanter canonical Firebase server timed quote, stock, escrow, pickup and removal: OK");
 })().catch(err=>{console.error(err);process.exitCode=1;});
