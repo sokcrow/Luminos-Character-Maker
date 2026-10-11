@@ -182,6 +182,33 @@ test("service terminal refuses payment when no persistence callback is configure
   }))).toEqual({commits:0,ahn:1000,magic:null});
 });
 
+test("confirmed Firebase precondition rejection does not lock out an honest retry", async ({page}) => {
+  await boot(page);
+  await page.evaluate(() => {
+    const {viewer,sword}=window.__enchanterFixture;
+    window.LuminousEnchanterUi.open({
+      viewer,items:[sword],
+      provider:{id:"tester",name:"Testing Enchanter",services:["enchant"],maxRank:3,
+        knownEnchantments:["flamebound"]},
+      onAtomicService:async ()=>{
+        const error=new Error("insufficient_ahn");
+        error.code="functions/failed-precondition";
+        throw error;
+      },
+    });
+  });
+  await page.locator("#enchanter-ui-confirm").check();
+  await page.locator("#enchanter-ui-commit").click();
+  await expect(page.locator("#enchanter-ui-status")).toContainText("SERVICIO RECHAZADO");
+  await expect(page.locator("#enchanter-ui-commit")).toBeEnabled();
+  expect(await page.evaluate(() => ({
+    ahn:window.__enchanterFixture.viewer.ahn,
+    magic:window.__enchanterFixture.sword.magic||null,
+    commits:window.__enchanterFixture.commits,
+    events:window.__enchanterFixture.events,
+  }))).toEqual({ahn:1000,magic:null,commits:0,events:0});
+});
+
 test("authenticated server checkout does not commit or charge locally", async ({page}) => {
   await boot(page);
   await page.evaluate(() => {
