@@ -6577,6 +6577,15 @@ window.abrirServiciosTiendaDinamica = async function(
             provider: enchanterBundle.profile,
             providerMaterials: enchanterBundle.providerMaterials,
             viewer: playerData,
+            getWorldTimestamp: async () => {
+              const snapshot=await db.ref("campaña/calendario/timestamp").once("value");
+              return snapshot.val();
+            },
+            subscribeWorldTimestamp: (notify) => {
+              const ref=db.ref("campaña/calendario/timestamp");
+              const listener=ref.on("value",snap=>notify(snap.val()));
+              return ()=>ref.off("value",listener);
+            },
             items: [
               ...Object.values(playerData.inventario_activo || {}),
               ...Object.values(playerData.inventario_stash || {}),
