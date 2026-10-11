@@ -1278,9 +1278,18 @@
     const playerCopies=playerMaterials.map(clone);
     const providerCopies=providerMaterials.map(clone);
     let materialConsumption=Object.freeze({consumed:true,skipped:true,reason:"no_ritual_consumption"});
-    if (quote.definitionId && (playerCopies.length || providerCopies.length)) {
+    // Removal/Identify/Repair must never silently consume Enchantment
+    // recipe catalysts just because the removed definition has an id.
+    // Rewriting counts as applying the NEW definition and must still pay
+    // its separately quoted recipe and reagent requirements.
+    const applyingRecipe=["enchant","mount_gem","strengthen","bind","curse"]
+      .includes(normalizeId(quote.service)) ||
+      (normalizeId(quote.service)==="remove_rewrite" &&
+        ["direct_rewrite","rewrite"].includes(normalizeId(quote.procedure)));
+    const recipeDefinitionId=applyingRecipe?String(quote.definitionId||""):"";
+    if (recipeDefinitionId && (playerCopies.length || providerCopies.length)) {
       materialConsumption=Engine.consumeRecipeMaterials(
-        quote.definitionId,
+        recipeDefinitionId,
         [...playerCopies,...providerCopies],
         {
           properties:quote.properties,
