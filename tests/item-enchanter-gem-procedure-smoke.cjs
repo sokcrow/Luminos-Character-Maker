@@ -51,6 +51,39 @@ const unresolved=Services.quoteGemProcedure(provider,mounted.item,anchorId,"safe
 assert.strictEqual(unresolved.quoted,false);
 assert.strictEqual(unresolved.reason,"gem_quality_downgrade_unresolved","safe extraction cannot invent the gem's post-writing quality");
 
+// No extraction or rewrite can turn a mounted Gem into an equal or
+// better-quality loose Item (Standard and Poor even share a stable Rank).
+for(const quality of ["fine","exceptional"]){
+  const extraction=Engine.itemSideRemoveGemEnchantment(mounted.item,anchorId,{
+    gemQualityAfter:quality,
+  });
+  assert.equal(extraction.removed,false);
+  assert.equal(extraction.reason,"gem_quality_downgrade_required");
+  assert.equal(Services.quoteGemProcedure(provider,mounted.item,anchorId,"safe_extract",{
+    gemQualityAfter:quality,
+  }).reason,"gem_quality_downgrade_required");
+  const rewrite=Engine.rewriteGemAnchoredEnchantment(mounted.item,anchorId,"flamebound",{
+    gemQualityAfter:quality,rank:2,
+  });
+  assert.equal(rewrite.rewritten,false);
+  assert.equal(rewrite.reason,"gem_quality_downgrade_required");
+  assert.equal(Services.quoteGemProcedure(provider,mounted.item,anchorId,"rewrite",{
+    nextDefinitionId:"flamebound",gemQualityAfter:quality,rank:2,
+  }).reason,"gem_quality_downgrade_required");
+}
+const poorMounted=Engine.mountGemAnchor(
+  {...weapon,instanceId:"poor_anchored_gem"},
+  {instanceId:"poor_gem",definitionId:"ruby",quality:"poor"},
+  "flamebound",1
+);
+assert.equal(poorMounted.mounted,true);
+assert.equal(Engine.itemSideRemoveGemEnchantment(poorMounted.item,
+  poorMounted.anchor.anchorId,{gemQualityAfter:"standard"}).reason,
+  "gem_quality_downgrade_required",
+  "same channel Rank must still count as physical quality upgrade");
+assert.equal(Engine.itemSideRemoveGemEnchantment(poorMounted.item,
+  poorMounted.anchor.anchorId,{gemQualityAfter:"ruined"}).removed,true);
+
 const safeQuote=Services.quoteGemProcedure(provider,mounted.item,anchorId,"safe_extract",{
   gemQualityAfter:"standard",
 });
