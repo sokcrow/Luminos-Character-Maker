@@ -299,11 +299,29 @@
     if(svc==="magical_repair") return S.quoteMagicalRepair(state.provider,state.selectedItem,common);
     if(["identify","curse_analysis","remove_curse"].includes(svc)) return S.quoteFixedService(state.provider,svc,common);
     if(svc==="remove_rewrite"){
-      if(!choice) return {quoted:false,reason:"enchantment_not_installed"};
+      if(!choice)return {quoted:false,reason:"enchantment_not_installed"};
+      const gemAnchored=choice.ref?.source==="gem";
+      const procedure=state.rewriteProcedure || (gemAnchored?"item_side_remove":"direct_remove");
+      if(gemAnchored){
+        if(!["item_side_remove","rewrite"].includes(procedure))
+          return {quoted:false,reason:"gem_anchored_enchantment_requires_anchor_procedure"};
+        return S.quoteGemProcedure(state.provider,state.selectedItem,choice.ref.anchorId,procedure,{
+          ...common,nextDefinitionId:procedure==="rewrite"?state.nextDefinitionId:null,
+          rank:state.rewriteRank,
+          gemQualityAfter:state.gemQualityAfter || state.provider?.gemQualityAfter ||
+            state.provider?.safeExtractionGemQuality || null,
+        });
+      }
+      if(procedure==="direct_rewrite"){
+        if(!state.nextDefinitionId)return {quoted:false,reason:"replacement_enchantment_required"};
+        return S.quoteDirectRewriteService(state.provider,state.selectedItem,choice.id,
+          state.nextDefinitionId,{...common,rank:state.rewriteRank});
+      }
+      if(procedure!=="direct_remove")return {quoted:false,reason:"unknown_rewrite_procedure"};
       const gate=engine()?.canRemoveEnchantment?.(state.selectedItem,choice.id);
-      if(!gate?.allowed) return {quoted:false,reason:gate?.reason || "enchantment_not_removable"};
+      if(!gate?.allowed)return {quoted:false,reason:gate?.reason || "enchantment_not_removable"};
       const fixed=S.quoteFixedService(state.provider,"remove_rewrite",common);
-      return fixed.quoted ? {...fixed,definitionId:choice.id,procedure:"direct_remove"} : fixed;
+      return fixed.quoted?{...fixed,definitionId:choice.id,procedure:"direct_remove"}:fixed;
     }
     if(svc==="extract_gem"){
       const list=anchors();
@@ -409,6 +427,62 @@
         return `<option value="${esc(anchor.anchorId)}">${esc(label)} · ${esc(humanize(anchor.gemQuality))}</option>`;
       }).join("");
       anchorSelect.value=state.anchorId || "";
+    }
+
+    const rewriting=state.service==="remove_rewrite";
+    const current=rewriting?definitionChoice():null;
+    const gemAnchored=current?.ref?.source==="gem";
+    const procedures=gemAnchored
+      ? [["item_side_remove","Extraer gema · reescritura en Item"],["rewrite","Reescribir encantamiento de gema"]]
+      : [["direct_remove","Retirar encantamiento"],["direct_rewrite","Reemplazar encantamiento"]];
+    if(rewriting && (!state.rewriteProcedure || !procedures.some(([id])=>id===state.rewriteProcedure))){
+      state.rewriteProcedure=procedures[0][0];
+      state.nextDefinitionId=null;state.gemQualityAfter=null;
+    }
+    const procedureWrap=doc.getElementById("enchanter-ui-procedure-wrap");
+    const procedureSelect=doc.getElementById("enchanter-ui-procedure");
+    if(procedureWrap) procedureWrap.hidden=!rewriting;
+    if(rewriting && procedureSelect){
+      procedureSelect.innerHTML=procedures.map(([id,label])=>
+        `<option value="${esc(id)}">${esc(label)}</option>`).join("");
+      procedureSelect.value=state.rewriteProcedure;
+    }
+    const replacing=rewriting && ["direct_rewrite","rewrite"].includes(state.rewriteProcedure);
+    const replacementWrap=doc.getElementById("enchanter-ui-replacement-wrap");
+    const replacementSelect=doc.getElementById("enchanter-ui-replacement");
+    if(replacementWrap)replacementWrap.hidden=!replacing;
+    if(replacing && replacementSelect){
+      const known=asArray(state.provider?.knownEnchantments)
+        .map(id=>catalog()?.get?.(id)).filter(Boolean);
+      if(!known.some(def=>def.id===state.nextDefinitionId))state.nextDefinitionId=null;
+      replacementSelect.innerHTML='<option value="">SELECCIONA...</option>'+
+        known.map(def=>`<option value="${esc(def.id)}">${esc(def.name)}</option>`).join("");
+      replacementSelect.value=state.nextDefinitionId || "";
+    }
+    const rewriteRankWrap=doc.getElementById("enchanter-ui-rewrite-rank-wrap");
+    const rewriteRankSelect=doc.getElementById("enchanter-ui-rewrite-rank");
+    if(rewriteRankWrap)rewriteRankWrap.hidden=!replacing;
+    if(replacing && rewriteRankSelect){
+      const maxRank=Number(state.provider?.maxRank || 1);
+      if(state.rewriteRank>maxRank || state.rewriteRank<1)
+        state.rewriteRank=Math.min(maxRank,Number(current?.rank)||1);
+      [...rewriteRankSelect.options].forEach(option=>option.disabled=Number(option.value)>maxRank);
+      rewriteRankSelect.value=String(state.rewriteRank);
+    }
+    const qualityNeeded=rewriting && gemAnchored;
+    const qualityWrap=doc.getElementById("enchanter-ui-gem-quality-wrap");
+    const qualitySelect=doc.getElementById("enchanter-ui-gem-quality");
+    if(qualityWrap)qualityWrap.hidden=!qualityNeeded;
+    if(qualityNeeded && qualitySelect){
+      const choices=Object.keys(gems()?.GEM_STABLE_RANK_BY_QUALITY ||
+        {ruined:0,poor:1,standard:1,fine:2,exceptional:3});
+      if(!state.gemQualityAfter){
+        const authored=state.provider?.gemQualityAfter || state.provider?.safeExtractionGemQuality;
+        if(choices.includes(authored))state.gemQualityAfter=authored;
+      }
+      qualitySelect.innerHTML='<option value="">ELIGE CALIDAD FINAL...</option>'+
+        choices.map(id=>`<option value="${esc(id)}">${esc(humanize(id))}</option>`).join("");
+      qualitySelect.value=state.gemQualityAfter || "";
     }
   }
 
