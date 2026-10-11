@@ -46,7 +46,7 @@ const original={
     ruby:{instanceId:"ruby",quantity:2},
   },
   inventario_stash:{},
-  itemEquipmentRefs:{},
+  itemEquipmentRefs:{mainHand:"sword",offHand:null,armor:null,shield:null,accessoryIds:["ruby"]},
   attunedItemInstanceIds:[],
   itemMagicKnowledge:{},
   enchantmentCompendium:{},
@@ -74,6 +74,8 @@ const request=(db,before=original,after=paid,extra={})=>
   assert.equal(db.store.requests,1);
   assert.equal(db.store.value.ahn,900);
   assert.equal(db.store.value.finance.currentBalance,900);
+  assert.equal(db.store.value.itemEquipmentRefs.mainHand,"sword","Enchanter must not unequip the weapon");
+  assert.deepStrictEqual(db.store.value.itemEquipmentRefs.accessoryIds,["ruby"]);
   assert.equal(db.store.value.inventario_activo.ruby.quantity,1);
   assert.equal(db.store.value.inventario_activo.sword.magic.enchantments.length,1);
   assert.equal(db.store.value.finance.transactionHistory.journal_1.monto,-100);
@@ -126,6 +128,28 @@ const request=(db,before=original,after=paid,extra={})=>
   assert.equal(removed.committed,true);
   assert.equal(removed.snapshot.ahn,850);
   assert.equal(removed.snapshot.inventario_activo.sword.magic.enchantments.length,0);
+
+  // Regression: the production serializer must read Firebase itemEquipmentRefs
+  // even when the snapshot has no hydrated equipment object.
+  require("../js/item-persistence-runtime.js");
+  const realPersistence=globalThis.LuminousItemPersistenceRuntime;
+  const serialized=realPersistence.serializeInventoryState(original);
+  assert.deepStrictEqual(serialized.equipmentRefs,original.itemEquipmentRefs);
+  const withHydratedOverride=realPersistence.serializeInventoryState({
+    ...original,equipment:{mainHand:null,offHand:"ruby"},
+  });
+  assert.equal(withHydratedOverride.equipmentRefs.mainHand,null,"Explicit unequip must win over persisted refs");
+  assert.equal(withHydratedOverride.equipmentRefs.offHand,"ruby");
+  assert.deepStrictEqual(withHydratedOverride.equipmentRefs.accessoryIds,["ruby"]);
+  const persisted=await request(fakeDatabase(original),original,paid,{persistence:realPersistence});
+  assert.equal(persisted.committed,true);
+  assert.deepStrictEqual(persisted.snapshot.itemEquipmentRefs,original.itemEquipmentRefs);
+
+  const equipmentRace=fakeDatabase(original);
+  equipmentRace.store.value.itemEquipmentRefs.mainHand=null;
+  const rejectedEquipment=await request(equipmentRace,original,paid,{persistence:realPersistence});
+  assert.equal(rejectedEquipment.committed,false);
+  assert.equal(rejectedEquipment.reason,"inventory_or_knowledge_changed");
 
   const unavailable=await request({ref(){throw Error("NETWORK ERROR");}});
   assert.equal(unavailable.committed,false);
