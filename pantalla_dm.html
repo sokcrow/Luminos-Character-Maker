@@ -2694,8 +2694,24 @@ window.processEntitiesData = function(entities) {
                         <option value="3">Rango III</option>
                       </select>
                     </label>
+                    <label style="color:#ccc;font-size:12px;">Fiabilidad del resultado controlado (%)
+                      <input id="tienda-enchanter-fiabilidad" type="number" min="0" max="100" step="1" placeholder="0 a 100" />
+                    </label>
                     <div style="color:#ccc;font-size:12px;">Servicios que ofrece</div>
                     <div id="tienda-enchanter-servicios" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:7px;"></div>
+                    <div id="tienda-enchanter-tarifas" style="display:grid;gap:7px;"></div>
+                    <label id="tienda-enchanter-reparacion-wrap" style="display:none;color:#ccc;font-size:12px;">Tarifa de reparación mágica (AHN por punto)
+                      <input id="tienda-enchanter-reparacion-precio" type="number" min="0" step="1" placeholder="AHN por punto" />
+                    </label>
+                    <label id="tienda-enchanter-extraccion-wrap" style="display:none;color:#ccc;font-size:12px;">Calidad de gema tras extracción segura
+                      <select id="tienda-enchanter-extraccion-calidad">
+                        <option value="">Elegir calidad resultante</option>
+                        <option value="poor">Poor</option>
+                        <option value="standard">Standard</option>
+                        <option value="fine">Fine</option>
+                        <option value="exceptional">Exceptional</option>
+                      </select>
+                    </label>
                     <div style="color:#ccc;font-size:12px;">Encantamientos que conoce</div>
                     <div id="tienda-enchanter-recetas" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:7px;"></div>
                     <div style="font-size:11px;color:#999;">Sólo se ofrecen los servicios y las recetas seleccionados. Las aplicaciones siguen exigiendo materiales, requisitos y pago.</div>
@@ -8272,6 +8288,39 @@ window.processEntitiesData = function(entities) {
           }
         }
 
+        const fixedEnchanterPriceServices=new Set(["identify","curse_analysis","remove_curse","remove_rewrite","extract_gem"]);
+        function currentShopEnchanterPrices(){
+          const prices={};
+          document.querySelectorAll(".tienda-enchanter-tarifa").forEach(input=>{
+            if(input.value!=="") prices[input.dataset.serviceId]=input.value;
+          });
+          return prices;
+        }
+        function renderShopEnchanterPriceFields(savedPrices=currentShopEnchanterPrices()){
+          const pricesHost=document.getElementById("tienda-enchanter-tarifas");
+          if(!pricesHost) return;
+          pricesHost.replaceChildren();
+          const selected=shopEnchanterSelectedValues("tienda-enchanter-service-option");
+          for(const service of selected.filter(id=>fixedEnchanterPriceServices.has(id))){
+            const label=document.createElement("label");
+            label.style.cssText="display:grid;gap:4px;color:#ccc;font-size:12px;";
+            const name=window.LuminousShopRuntime?.SERVICE_TYPES?.[service]?.label || service.replace(/_/g," ");
+            label.textContent="Tarifa fija de "+name+" (AHN)";
+            const input=document.createElement("input");
+            input.type="number";input.min="0";input.step="1";
+            input.className="tienda-enchanter-tarifa";
+            input.dataset.serviceId=service;
+            input.placeholder="AHN";
+            input.value=savedPrices?.[service] ?? "";
+            label.appendChild(input);
+            pricesHost.appendChild(label);
+          }
+          const repair=document.getElementById("tienda-enchanter-reparacion-wrap");
+          const extraction=document.getElementById("tienda-enchanter-extraccion-wrap");
+          if(repair) repair.style.display=selected.includes("magical_repair")?"grid":"none";
+          if(extraction) extraction.style.display=selected.includes("extract_gem")?"grid":"none";
+        }
+
         function syncShopEnchanterOptions() {
           const enabled=document.getElementById("tienda-enchanter-activa")?.checked===true;
           const choices=document.getElementById("tienda-enchanter-opciones");
@@ -8283,6 +8332,9 @@ window.processEntitiesData = function(entities) {
         }
 
         renderShopEnchanterOptions();
+        document.getElementById("tienda-enchanter-servicios")?.addEventListener("change",()=>{
+          renderShopEnchanterPriceFields(currentShopEnchanterPrices());
+        });
         document.getElementById("tienda-enchanter-activa")?.addEventListener("change",syncShopEnchanterOptions);
         syncShopEnchanterOptions();
 
@@ -8310,7 +8362,11 @@ window.processEntitiesData = function(entities) {
           document.getElementById("tienda-enchanter-activa").checked = false;
           document.getElementById("tienda-enchanter-nombre").value = "";
           document.getElementById("tienda-enchanter-rango").value = "1";
+          document.getElementById("tienda-enchanter-fiabilidad").value = "";
+          document.getElementById("tienda-enchanter-reparacion-precio").value = "";
+          document.getElementById("tienda-enchanter-extraccion-calidad").value = "";
           renderShopEnchanterOptions();
+          renderShopEnchanterPriceFields({});
           syncShopEnchanterOptions();
           document.getElementById("tienda-lealtad-activa").checked = false;
           document.getElementById("tienda-lealtad-nombre").value = "";
@@ -8372,6 +8428,33 @@ window.processEntitiesData = function(entities) {
               ? shopEnchanterSelectedValues("tienda-enchanter-service-option") : [];
             const enchanterRecipes=enchanterEnabled
               ? shopEnchanterSelectedValues("tienda-enchanter-recipe-option") : [];
+            const reliabilityInput=document.getElementById("tienda-enchanter-fiabilidad").value.trim();
+            const reliabilityPercent=Number(reliabilityInput);
+            if(enchanterEnabled && (reliabilityInput==="" || !Number.isInteger(reliabilityPercent) || reliabilityPercent<0 || reliabilityPercent>100)){
+              alert("Indica la fiabilidad del encantador entre 0 y 100%.");
+              return;
+            }
+            const enchanterPrices={};
+            for(const service of enchanterServices.filter(id=>fixedEnchanterPriceServices.has(id))){
+              const field=[...document.querySelectorAll(".tienda-enchanter-tarifa")].find(input=>input.dataset.serviceId===service);
+              const amount=field?.value?.trim();
+              if(amount==null || amount==="" || !Number.isFinite(Number(amount)) || Number(amount)<0){
+                alert("Falta una tarifa AHN válida para el servicio "+service.replace(/_/g," ")+".");
+                return;
+              }
+              enchanterPrices[service]=Number(amount);
+            }
+            const repairPriceField=document.getElementById("tienda-enchanter-reparacion-precio").value.trim();
+            const needsRepairPrice=enchanterServices.includes("magical_repair");
+            if(needsRepairPrice && (repairPriceField==="" || !Number.isFinite(Number(repairPriceField)) || Number(repairPriceField)<0)){
+              alert("Indica el precio AHN por punto de reparación mágica.");
+              return;
+            }
+            const extractionQuality=document.getElementById("tienda-enchanter-extraccion-calidad").value;
+            if(enchanterServices.includes("extract_gem") && !extractionQuality){
+              alert("Elige la calidad resultante para una extracción segura.");
+              return;
+            }
             if(enchanterEnabled && !enchanterServices.length){
               alert("Selecciona al menos un servicio de Enchanter.");
               return;
@@ -8493,6 +8576,10 @@ window.processEntitiesData = function(entities) {
                 maxRank:enchanterMaxRank,
                 knownEnchantments:enchanterRecipes,
                 services:enchanterServices,
+                reliability:reliabilityPercent/100,
+                servicePriceAhn:enchanterPrices,
+                magicalRepairAhnPerPoint:needsRepairPrice?Number(repairPriceField):null,
+                safeExtractionGemQuality:enchanterServices.includes("extract_gem")?extractionQuality:null,
               } : null,
               merchant_npc: merchantNpc,
               chain: chainName
@@ -8690,7 +8777,14 @@ window.processEntitiesData = function(entities) {
                 document.getElementById("tienda-enchanter-activa").checked=enchanterIds.length>0;
                 document.getElementById("tienda-enchanter-nombre").value=existingEnchanter.name || "";
                 document.getElementById("tienda-enchanter-rango").value=String(Math.max(1,Math.min(3,Number(existingEnchanter.maxRank)||1)));
+                document.getElementById("tienda-enchanter-fiabilidad").value=
+                  existingEnchanter.reliability==null?"":String(Math.round(Number(existingEnchanter.reliability)*100));
+                document.getElementById("tienda-enchanter-reparacion-precio").value=
+                  existingEnchanter.magicalRepairAhnPerPoint ?? "";
+                document.getElementById("tienda-enchanter-extraccion-calidad").value=
+                  existingEnchanter.safeExtractionGemQuality || existingEnchanter.gemQualityAfter || "";
                 renderShopEnchanterOptions(enchanterIds,existingEnchanter.knownEnchantments || []);
+                renderShopEnchanterPriceFields(existingEnchanter.servicePriceAhn || {});
                 syncShopEnchanterOptions();
                 document.getElementById("tienda-cliente-frecuente-compras").value =
                   merchant?.frequentCustomerMinPurchases ?? 10;
