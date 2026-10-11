@@ -39,6 +39,24 @@
     });
   }
 
+  function pendingJob(){
+    const id=itemId(state.selectedItem);
+    return Object.values(state.viewer?.enchanterJobs || {}).find(job=>
+      job?.status==="in_service" && job.itemInstanceId===id) || null;
+  }
+
+  function applyPlayerSnapshot(snapshot){
+    if(!snapshot || typeof snapshot!=="object") return;
+    // Keep the surrounding Player runtime object (listeners/nonenumerable state)
+    // while committing only Enchanter-owned Player fields locally.
+    for(const key of ["inventario_activo","inventario_stash","ahn","finance",
+      "itemMagicKnowledge","enchantmentCompendium","enchanterTransactions","enchanterJobs"]){
+      if(Object.prototype.hasOwnProperty.call(snapshot,key)) state.viewer[key]=clone(snapshot[key]);
+    }
+    state.items=allViewerItems(state.viewer);
+    state.selectedItem=state.items.find(item=>itemId(item)===itemId(state.selectedItem)) || null;
+  }
+
   function providerName(){
     return String(state.provider?.name || "Enchanter");
   }
@@ -74,6 +92,11 @@
     recovered_gem_inventory_unavailable:"No se puede devolver la gema al inventario.",
     npc_altered_outcome_unresolved:"El encantador no tiene configurado un resultado alternativo para este intento.",
     npc_outcome_not_authored:"El DM debe definir qué sucede si este encantador pierde el control.",
+    timed_service_requires_persistence:"Este servicio requiere guardar el encargo antes de comenzar.",
+    item_already_in_service:"Este Item ya está en servicio.",
+    service_item_changed_during_delivery:"El Item cambió mientras estaba en servicio; no se puede entregar automáticamente.",
+    service_knowledge_changed_during_delivery:"El conocimiento del Item cambió; la entrega necesita revisión.",
+    service_not_ready:"El Item todavía no está listo para retirarse.",
     removable_curse_not_found:"No hay una Maldición removible en este Item.",
     relic_drawback_inseparable:"Ese drawback de Reliquia es inseparable.",
   });
@@ -335,12 +358,28 @@
   }
 
   function renderPreview(){
-    state.quote=buildQuote();
+    const job=pendingJob();
+    state.quote=job?null:buildQuote();
     const validation=doc.getElementById("enchanter-ui-validation");
     const previewHost=doc.getElementById("enchanter-ui-preview-content");
     const commitButton=doc.getElementById("enchanter-ui-commit");
     const confirm=doc.getElementById("enchanter-ui-confirm");
     const wallet=services()?.walletBalance?.(state.viewer) || {resolved:false,balance:0};
+    if(job){
+      const ready=services()?.serviceReady?.(job)===true;
+      const finish=new Date(Number(job.readyAt)).toLocaleString("es");
+      if(validation) validation.innerHTML=ready
+        ? "<h4>LISTO PARA RETIRAR</h4><p>El trabajo del Enchanter ha terminado.</p>"
+        : "<h4>EN SERVICIO</h4><p>El Item permanece con el Enchanter hasta la fecha de entrega.</p>";
+      if(previewHost) previewHost.innerHTML=`<h4>${esc(services()?.SERVICE_LABELS?.[job.service] || humanize(job.service))}</h4>
+        <p>Entrega: ${esc(finish)}.</p><p>Pagado al iniciar: ${esc(ahn(job.totalAhn))}.</p>`;
+      if(commitButton){
+        commitButton.textContent=ready?"RETIRAR ITEM":"EN PROCESO";
+        commitButton.disabled=state.pending || state.saveUncertain || !ready || confirm?.checked!==true;
+      }
+      return;
+    }
+    if(commitButton) commitButton.textContent="CONFIRM SERVICE";
 
     if(!state.quote?.quoted){
       if(validation) validation.innerHTML=`<h4>BLOCKED</h4><p>${esc(reasonText(state.quote?.reason))}</p>`;
@@ -411,7 +450,8 @@
   }
 
   async function commit(){
-    if(state.pending || state.saveUncertain || !state.quote?.quoted || !state.selectedItem) return;
+    const job=pendingJob();
+    if(state.pending || state.saveUncertain || !state.selectedItem || (!job && !state.quote?.quoted)) return;
     const confirm=doc.getElementById("enchanter-ui-confirm");
     if(!confirm?.checked){state.status="CONFIRM SERVICE FIRST";render();return;}
     state.pending=true;state.status="PROCESSING SERVICE…";render();
@@ -420,7 +460,7 @@
     const providerMaterialsBefore=clone(state.providerMaterials);
     let locallyCommitted=false;
     try{
-      const result=services().commitServiceTransaction(state.viewer,state.selectedItem,state.quote,{
+      const common={
         transactionId:tx,
         playerMaterials:materialsForTransaction(),
         providerMaterials:state.providerMaterials,
@@ -429,8 +469,20 @@
         viewer:state.viewer,
         appliedBy:state.provider?.id || state.provider?.name || "enchanter",
         locationId:state.provider?.locationId || null,
-      });
+      };
+      const timed=state.quote?.duration?.resolved===true && Number(state.quote.duration.hours)>0;
+      if((job || timed) && typeof state.onSave!=="function")
+        throw new Error(reasonText("timed_service_requires_persistence"));
+      let result;
+      if(job){
+        result=services().completeDeferredServiceTransaction(state.viewer,job.jobId);
+      }else if(timed){
+        result=services().startDeferredServiceTransaction(state.viewer,state.selectedItem,state.quote,common);
+      }else{
+        result=services().commitServiceTransaction(state.viewer,state.selectedItem,state.quote,common);
+      }
       if(!result.committed) throw new Error(reasonText(result.reason));
+      if(result.player) applyPlayerSnapshot(result.player);
       locallyCommitted=true;
       confirm.checked=false;
       // A local service receipt is not proof of persisted payment or item state.
@@ -438,7 +490,9 @@
       state.items=allViewerItems(state.viewer);
       state.gem=null;
       state.quote=null;
-      state.status=`COMPLETE // ${services()?.SERVICE_LABELS?.[state.service] || humanize(state.service)}`;
+      state.status=result.started
+        ? "EN SERVICIO — ENTREGA PROGRAMADA"
+        : `COMPLETE // ${services()?.SERVICE_LABELS?.[result.service] || humanize(result.service)}`;
       global.dispatchEvent?.(new CustomEvent("luminous:enchanter-service-committed",{detail:{result,item:state.selectedItem}}));
     }catch(error){
       // Remote writes may have succeeded despite an ambiguous network error.
