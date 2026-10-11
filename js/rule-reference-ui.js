@@ -98,7 +98,8 @@
   function tokenize(source) {
     const value=String(source || ""), list=names(), byName=new Map();
     list.forEach(item => {const k=item.name.toLowerCase();if(!byName.has(k))byName.set(k,item);});
-    const escaped = [...byName.keys()].map(x => x.replace(/[\^$*+?.()|[\]{}]/g,"\\$&"));
+    const escaped = [...byName.keys()].map(x => [...x].map(ch =>
+      "\\^$.*+?()[]{}|".includes(ch) ? "\\" + ch : ch).join(""));
     const alternative=escaped.length ? "(?:" + escaped.join("|") + ")" : "(?!)";
     const statName="(?:STR|DEX|CON|INT|WIS|CHA|Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma)";
     const save=statName + "\\s+(?:Saving\\s+Throws?|Saves?|Checks?)";
@@ -201,6 +202,7 @@
     if (mode==="tooltip") {
       ref.tabIndex=0;ref.setAttribute("role","note");
       ref.title=info.name+" — "+info.description;
+      ref.dataset.tooltip=info.description;
       ref.setAttribute("aria-label",info.name+". "+info.description);
     } else {
       ref.type="button";ref.setAttribute("aria-haspopup","dialog");
