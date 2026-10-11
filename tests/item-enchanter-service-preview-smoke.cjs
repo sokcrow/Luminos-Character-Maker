@@ -42,7 +42,11 @@ const item={
   condition:60,
 };
 
-const quote=Services.quoteEnchantService(provider,item,"flamebound",1,{});
+const ritualMaterial={instanceId:"preview_dust",definitionId:"enchantment_dust",
+  quantity:1,useTags:["enchantment_material"]};
+const quote=Services.quoteEnchantService(provider,item,"flamebound",1,{
+  playerMaterials:[ritualMaterial],
+});
 assert.strictEqual(quote.quoted,true);
 assert.strictEqual(quote.threshold.finalThreshold,22);
 
