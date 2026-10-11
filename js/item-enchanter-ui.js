@@ -73,6 +73,7 @@
     recovered_gem_inventory_collision:"No se puede devolver la gema: existe otro Item con la misma identidad.",
     recovered_gem_inventory_unavailable:"No se puede devolver la gema al inventario.",
     npc_altered_outcome_unresolved:"El encantador no tiene configurado un resultado alternativo para este intento.",
+    npc_outcome_not_authored:"El DM debe definir qué sucede si este encantador pierde el control.",
     removable_curse_not_found:"No hay una Maldición removible en este Item.",
     relic_drawback_inseparable:"Ese drawback de Reliquia es inseparable.",
   });
