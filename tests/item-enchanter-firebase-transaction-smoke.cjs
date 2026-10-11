@@ -16,6 +16,7 @@ const persistence={
       itemMagicKnowledge:clone(unit.itemMagicKnowledge || {}),
       enchantmentCompendium:clone(unit.enchantmentCompendium || {}),
       enchanterTransactions:clone(unit.enchanterTransactions || {}),
+      enchanterJobs:clone(unit.enchanterJobs || {}),
     };
   },
 };
@@ -150,6 +151,39 @@ const request=(db,before=original,after=paid,extra={})=>
   const rejectedEquipment=await request(equipmentRace,original,paid,{persistence:realPersistence});
   assert.equal(rejectedEquipment.committed,false);
   assert.equal(rejectedEquipment.reason,"inventory_or_knowledge_changed");
+
+  const scheduled=clone(original);
+  scheduled.ahn=900;
+  scheduled.finance.currentBalance=900;
+  scheduled.enchanterJobs={tx_enchant:{jobId:"tx_enchant",status:"in_service",
+    itemInstanceId:"sword",readyAt:1710028800000}};
+  scheduled.enchanterTransactions={tx_enchant:{committed:true,status:"in_service",chargedAhn:100}};
+  const timedDb=fakeDatabase(original);
+  const intake=await request(timedDb,original,scheduled);
+  assert.equal(intake.committed,true);
+  assert.equal(timedDb.store.value.itemEquipmentRefs.mainHand,"sword");
+  assert.equal(timedDb.store.value.inventario_activo.sword.magic.enchantments.length,0);
+  assert.equal(timedDb.store.value.enchanterJobs.tx_enchant.status,"in_service");
+  const received=clone(scheduled);
+  received.inventario_activo.sword.magic.enchantments=[{definitionId:"flamebound",rank:1}];
+  received.enchanterJobs.tx_enchant.status="completed";
+  received.enchanterTransactions["tx_enchant:delivery"]={
+    committed:true,chargedAhn:0,deliveryOf:"tx_enchant",
+  };
+  const pickup=await request(timedDb,scheduled,received,{
+    result:{committed:true,transactionId:"tx_enchant:delivery",itemInstanceId:"sword",
+      chargedAhn:0,service:"enchant",timestamp:1710028800000},
+  });
+  assert.equal(pickup.committed,true);
+  assert.equal(timedDb.store.value.ahn,900,"pickup must not charge a second time");
+  assert.equal(timedDb.store.value.enchanterJobs.tx_enchant.status,"completed");
+  assert.equal(timedDb.store.value.inventario_activo.sword.magic.enchantments.length,1);
+  const duplicatePickup=await request(timedDb,scheduled,received,{
+    result:{committed:true,transactionId:"tx_enchant:delivery",itemInstanceId:"sword",
+      chargedAhn:0,service:"enchant"},
+  });
+  assert.equal(duplicatePickup.committed,false);
+  assert.equal(duplicatePickup.reason,"duplicate_transaction");
 
   const unavailable=await request({ref(){throw Error("NETWORK ERROR");}});
   assert.equal(unavailable.committed,false);
