@@ -10,6 +10,7 @@ on:
       - "js/player-progression-tree.js"
       - "hoja_personaje.html"
       - "tests/rule-reference-ui-smoke.mjs"
+      - "tests/rule-reference-interaction-smoke.mjs"
       - ".github/workflows/rule-reference-ui-smoke.yml"
   push:
     branches:
@@ -22,6 +23,7 @@ on:
       - "js/player-progression-tree.js"
       - "hoja_personaje.html"
       - "tests/rule-reference-ui-smoke.mjs"
+      - "tests/rule-reference-interaction-smoke.mjs"
       - ".github/workflows/rule-reference-ui-smoke.yml"
   workflow_dispatch:
 
@@ -41,9 +43,11 @@ jobs:
           node --check js/player-skills-hud.js
           node --check js/player-progression-tree.js
           node --check tests/rule-reference-ui-smoke.mjs
+          node --check tests/rule-reference-interaction-smoke.mjs
       - name: Inline references and established gameplay regressions
         run: |
           node tests/rule-reference-ui-smoke.mjs
+          node tests/rule-reference-interaction-smoke.mjs
           node tests/player-progression-tree-smoke.mjs
           node tests/player-skills-hud-smoke.mjs
           node tests/trait-skill-score-visibility-smoke.mjs
