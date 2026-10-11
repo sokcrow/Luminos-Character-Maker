@@ -268,4 +268,54 @@ assert.equal(conflictOwner.ahn,10000);
 assert.equal(Engine.gemAnchors(conflictItem).length,1);
 assert.equal(conflictOwner.inventario_activo.ruby_recovered.quantity,1);
 
+// A timed Enchanter order charges/material-reserves at intake but must not
+// reveal or mutate its magical result until the persisted readyAt is reached.
+const timedItem={...item,instanceId:"timed_weapon"};
+const timedOwner={ahn:2000000,inventario_activo:{timed_weapon:timedItem},
+  enchanterTransactions:{},enchanterJobs:{}};
+const timedQuote=Services.quoteEnchantService(provider,timedItem,"flamebound",1,{serviceId:"enchant"});
+assert.equal(timedQuote.quoted,true);
+const timedWithDuration={...timedQuote,duration:{resolved:true,hours:8}};
+const startedAt=1710000000000;
+const delayed=Services.startDeferredServiceTransaction(timedOwner,timedItem,timedWithDuration,{
+  transactionId:"timed_enchant_once",startedAt,provider,
+});
+assert.equal(delayed.committed,true,"valid order must reserve and persist a job");
+assert.equal(delayed.started,true);
+assert.equal(delayed.job.readyAt,startedAt+8*60*60*1000);
+assert.equal(timedOwner.ahn,2000000,"simulation must not mutate the source Player");
+assert.equal(timedItem.magic,undefined,"source Item cannot be enchanted at intake");
+assert.equal(delayed.player.inventario_activo.timed_weapon.magic,undefined,
+  "paid Item remains unenchanted in the persistable intake snapshot");
+assert.equal(delayed.player.ahn,2000000-timedWithDuration.totalAhn);
+assert.equal(delayed.player.enchanterTransactions.timed_enchant_once.status,"in_service");
+assert.equal(Services.serviceReady(delayed.job,startedAt),false);
+const pendingPlayer=JSON.parse(JSON.stringify(delayed.player));
+const early=Services.completeDeferredServiceTransaction(pendingPlayer,"timed_enchant_once",{
+  now:startedAt+7*60*60*1000,
+});
+assert.equal(early.committed,false);
+assert.equal(early.reason,"service_not_ready");
+assert.equal(pendingPlayer.ahn,delayed.player.ahn);
+assert.equal(pendingPlayer.inventario_activo.timed_weapon.magic,undefined);
+const delivered=Services.completeDeferredServiceTransaction(pendingPlayer,"timed_enchant_once",{
+  now:delayed.job.readyAt,
+});
+assert.equal(delivered.committed,true);
+assert.equal(delivered.chargedAhn,0,"collection cannot double-charge");
+assert.equal(delivered.player.ahn,delayed.player.ahn);
+assert.equal(delivered.player.inventario_activo.timed_weapon.magic.enchantments.length,1);
+assert.equal(delivered.player.enchanterJobs.timed_enchant_once.status,"completed");
+assert.equal(delivered.player.enchanterTransactions["timed_enchant_once:delivery"].chargedAhn,0);
+assert.equal(Services.completeDeferredServiceTransaction(delivered.player,"timed_enchant_once",{
+  now:delayed.job.readyAt,
+}).committed,false,"a finished job cannot be collected twice");
+const alteredDuringService=JSON.parse(JSON.stringify(delayed.player));
+alteredDuringService.inventario_activo.timed_weapon.condition=45;
+const alteredDelivery=Services.completeDeferredServiceTransaction(alteredDuringService,
+  "timed_enchant_once",{now:delayed.job.readyAt});
+assert.equal(alteredDelivery.committed,false);
+assert.equal(alteredDelivery.reason,"service_item_changed_during_delivery");
+assert.equal(alteredDuringService.ahn,delayed.player.ahn,"rejected delivery cannot charge");
+
 console.log("Enchanter atomic transaction/provenance smoke: OK");
