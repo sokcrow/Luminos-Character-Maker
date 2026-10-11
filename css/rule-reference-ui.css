@@ -37,29 +37,8 @@
   outline:2px solid transparent;
 }
 .luminous-rule-reference:focus-visible {outline:2px solid #efbc59;outline-offset:1px}
-.luminous-rule-reference.is-tooltip {cursor:help;position:relative}
-.luminous-rule-reference.is-tooltip:hover::after,
-.luminous-rule-reference.is-tooltip:focus-visible::after {
-  content:attr(data-tooltip);
-  position:absolute;
-  z-index:2147483000;
-  left:0;
-  bottom:calc(100% + 6px);
-  width:min(300px,70vw);
-  max-height:145px;
-  overflow:auto;
-  box-sizing:border-box;
-  padding:9px 11px;
-  border:1px solid #be9252;
-  border-radius:5px;
-  background:#1b1712;
-  color:#efe1c9;
-  font:400 12px/1.5 Arial,Helvetica,sans-serif;
-  white-space:normal;
-  text-align:left;
-  box-shadow:0 9px 28px rgba(0,0,0,.75);
-  pointer-events:none;
-}
+/* Tooltips live in the body-level card, never in clipped scroll containers. */
+.luminous-rule-reference.is-tooltip {cursor:help}
 .luminous-rule-card {
   position:fixed;
   box-sizing:border-box;
@@ -74,6 +53,17 @@
   color:#e9dbc7;
   font-family:Arial,Helvetica,sans-serif;
 }
+.luminous-rule-card.is-tooltip {
+  padding:10px 12px 12px;
+  max-height:min(240px,65dvh);
+}
+.luminous-rule-card.is-tooltip .luminous-rule-card__icon {
+  width:30px;height:30px;flex-basis:30px;
+}
+.luminous-rule-card.is-tooltip header strong {font-size:15px}
+.luminous-rule-card.is-tooltip .luminous-rule-card__description {
+  margin-top:8px;font-size:12px;line-height:1.45;
+}
 .luminous-rule-card[hidden] {display:none!important}
 .luminous-rule-card header {display:flex;align-items:center;gap:12px;min-width:0}
 .luminous-rule-card__icon {width:42px;height:42px;flex:0 0 42px;object-fit:contain}
@@ -86,7 +76,6 @@
 .luminous-rule-card__description {margin:12px 0 0;color:#e6d5bd;font:400 13px/1.62 Arial,Helvetica,sans-serif;white-space:pre-line;overflow-wrap:anywhere}
 @media(max-width:760px) {
   .luminous-rule-card {left:8px!important;right:8px!important;top:auto!important;bottom:max(8px,env(safe-area-inset-bottom))!important;width:auto!important;max-width:none;max-height:min(50dvh,360px);padding:13px 13px 15px}
-  .luminous-rule-reference.is-tooltip:hover::after,.luminous-rule-reference.is-tooltip:focus-visible::after {left:auto;right:0;max-width:85vw}
 }
 @media(prefers-reduced-motion:reduce) {
   .luminous-rule-reference,.luminous-rule-card {scroll-behavior:auto}
