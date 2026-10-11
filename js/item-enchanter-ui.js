@@ -8,7 +8,7 @@
     open:false,provider:null,viewer:null,items:[],providerMaterials:[],selectedItem:null,
     service:null,definitionId:null,rank:1,gem:null,anchorId:null,quote:null,pending:false,
     rewriteProcedure:null,nextDefinitionId:null,rewriteRank:1,gemQualityAfter:null,
-    onSave:null,onClose:null,getWorldTimestamp:null,unsubscribeWorldTime:null,
+    onSave:null,onAtomicService:null,onClose:null,getWorldTimestamp:null,unsubscribeWorldTime:null,
     worldTimestamp:null,status:"",saveUncertain:false,
   };
 
@@ -320,7 +320,9 @@
     const playerMaterials=materialsForTransaction();
     // Shop-provider stock is in a separate Firebase subtree and cannot be
     // atomically spent here. Never quote a Player service using that stock.
-    const common={playerMaterials,providerMaterials:[],recipeProvided:false};
+    const common={playerMaterials,
+      providerMaterials:state.onAtomicService?state.providerMaterials:[],
+      recipeProvided:false};
     const choice=definitionChoice();
 
     if(["enchant","bind","curse","mount_gem"].includes(svc)){
@@ -560,7 +562,9 @@
         <p>Entrega: ${esc(finish)}.</p><p>Pagado al iniciar: ${esc(ahn(job.totalAhn))}.</p>`;
       if(commitButton){
         commitButton.textContent=ready?"RETIRAR ITEM":"EN PROCESO";
-        commitButton.disabled=state.pending || state.saveUncertain || typeof state.onSave!=="function" || !ready || confirm?.checked!==true;
+        commitButton.disabled=state.pending || state.saveUncertain ||
+          (typeof state.onSave!=="function" && typeof state.onAtomicService!=="function") ||
+          !ready || confirm?.checked!==true;
       }
       return;
     }
@@ -574,7 +578,7 @@
     }
 
     const preview=services()?.playerServicePreview?.(state.viewer,state.provider,state.selectedItem,state.quote) || null;
-    const persistenceReady=typeof state.onSave==="function";
+    const persistenceReady=typeof state.onSave==="function" || typeof state.onAtomicService==="function";
     const paymentUnresolved=!wallet.resolved;
     const insufficient=wallet.resolved && wallet.balance<Number(state.quote.totalAhn || 0);
     // A projected copy is safe for this subset of services. Never run Identify,
@@ -644,6 +648,51 @@
     if(status) status.textContent=state.status || (state.pending?"PROCESSING…":"READY");
   }
 
+  async function commitAtomic(job,transactionId){
+    const selectedId=itemId(state.selectedItem);
+    const quote=state.quote || {};
+    const intent={
+      transactionId,
+      operation:job?"pickup":"apply",
+      ...(job?{jobId:job.jobId}:{}),
+      itemInstanceId:selectedId,
+      service:job?.service || state.service,
+      definitionId:quote.definitionId || quote.originalDefinitionId || state.definitionId,
+      nextDefinitionId:quote.nextDefinitionId || state.nextDefinitionId || null,
+      rank:quote.rank ?? state.rank,
+      targetRank:quote.targetRank ?? null,
+      gemInstanceId:itemId(state.gem) || null,
+      anchorId:quote.anchorId || state.anchorId || null,
+      procedure:quote.procedure || state.rewriteProcedure || null,
+      gemQualityAfter:quote.gemQualityAfter || state.gemQualityAfter || null,
+      confirmDestruction:quote.destroysItem===true &&
+        doc.getElementById("enchanter-ui-confirm-destruction")?.checked===true,
+    };
+    try{
+      const confirmed=await state.onAtomicService(intent);
+      if(confirmed?.committed!==true || !confirmed.player)
+        throw new Error("El servidor no confirmó el servicio.");
+      applyPlayerSnapshot(confirmed.player);
+      state.items=serviceItems();
+      state.selectedItem=state.items.find(item=>itemId(item)===selectedId) || null;
+      state.gem=null;
+      state.quote=null;
+      state.status=confirmed.receipt?.started
+        ? "EN SERVICIO — ENTREGA PROGRAMADA"
+        : `COMPLETE // ${services()?.SERVICE_LABELS?.[intent.service] || humanize(intent.service)}`;
+      const checkbox=doc.getElementById("enchanter-ui-confirm");
+      if(checkbox)checkbox.checked=false;
+      global.dispatchEvent?.(new CustomEvent("luminous:enchanter-service-committed",{
+        detail:{result:confirmed.receipt,item:state.selectedItem},
+      }));
+    }catch(error){
+      // A callable can commit and lose its response. Never retry from this
+      // page session until Firebase is reloaded and the receipt is inspected.
+      state.saveUncertain=true;
+      state.status="SAVE NOT CONFIRMED — RECARGA LA FICHA ANTES DE REINTENTAR";
+    }
+  }
+
   async function commit(){
     const job=pendingJob();
     if(state.pending || state.saveUncertain || !state.selectedItem || (!job && !state.quote?.quoted)) return;
@@ -654,7 +703,13 @@
       state.status="CONFIRMA LA DESTRUCCIÓN DEL ITEM";render();return;
     }
     state.pending=true;state.status="PROCESSING SERVICE…";render();
-    const tx=`ui:${Date.now()}:${itemId(state.selectedItem)}:${state.service}`;
+    const tx=job?`${job.jobId}:delivery`:
+      `ui:${Date.now()}:${itemId(state.selectedItem)}:${state.service}`;
+    if(typeof state.onAtomicService==="function"){
+      try { await commitAtomic(job,tx); }
+      finally { state.pending=false;render(); }
+      return;
+    }
     const beforePlayer=clone(state.viewer);
     const providerMaterialsBefore=clone(state.providerMaterials);
     let locallyCommitted=false;
@@ -748,7 +803,9 @@
     state.definitionId=null;state.rank=1;state.gem=null;state.anchorId=null;state.quote=null;state.pending=false;
     state.rewriteProcedure=null;state.nextDefinitionId=null;state.rewriteRank=1;state.gemQualityAfter=null;
     // Do not clear saveUncertain across panel reopenings in this page session.
-    state.onSave=context.onSave || null;state.onClose=context.onClose || null;
+    state.onSave=context.onSave || null;
+    state.onAtomicService=typeof context.onAtomicService==="function"?context.onAtomicService:null;
+    state.onClose=context.onClose || null;
     state.status=state.saveUncertain?"SAVE NOT CONFIRMED — RECARGA LA FICHA ANTES DE REINTENTAR":"";
     const root=mount();
     invalidateConfirmation();
