@@ -212,6 +212,7 @@ test("Active inventory and equipment remain square with centered item icons", as
     { width: 1200, height: 720 },
     { width: 820, height: 850 },
     { width: 390, height: 800 },
+    { width: 320, height: 700 },
     { width: 812, height: 375 },
   ]) {
     await page.setViewportSize(viewport);
