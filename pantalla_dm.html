@@ -2703,6 +2703,18 @@ window.processEntitiesData = function(entities) {
                         <option value="unchanged_existing">El Item no cambia; se cobra el intento y se consumen los materiales</option>
                       </select>
                     </label>
+                    <div style="color:#ccc;font-size:12px;">Horas de entrega de servicios por rango (tiempo de juego)</div>
+                    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;">
+                      <label style="color:#ccc;font-size:12px;">Rango I · horas
+                        <input id="tienda-enchanter-duracion-1" type="number" min="1" step="1" placeholder="Horas" />
+                      </label>
+                      <label style="color:#ccc;font-size:12px;">Rango II · 1–3 días
+                        <input id="tienda-enchanter-duracion-2" type="number" min="24" step="1" placeholder="Horas" />
+                      </label>
+                      <label style="color:#ccc;font-size:12px;">Rango III · 7+ días
+                        <input id="tienda-enchanter-duracion-3" type="number" min="168" step="1" placeholder="Horas" />
+                      </label>
+                    </div>
                     <div style="color:#ccc;font-size:12px;">Servicios que ofrece</div>
                     <div id="tienda-enchanter-servicios" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:7px;"></div>
                     <div id="tienda-enchanter-tarifas" style="display:grid;gap:7px;"></div>
@@ -8370,6 +8382,7 @@ window.processEntitiesData = function(entities) {
           document.getElementById("tienda-enchanter-nombre").value = "";
           document.getElementById("tienda-enchanter-rango").value = "1";
           document.getElementById("tienda-enchanter-fiabilidad").value = "";
+          for(const rank of [1,2,3]) document.getElementById(`tienda-enchanter-duracion-${rank}`).value="";
           document.getElementById("tienda-enchanter-fallo").value = "";
           shopEnchanterOriginalOutcomeTable=[];
           document.getElementById("tienda-enchanter-reparacion-precio").value = "";
@@ -8437,6 +8450,26 @@ window.processEntitiesData = function(entities) {
               ? shopEnchanterSelectedValues("tienda-enchanter-service-option") : [];
             const enchanterRecipes=enchanterEnabled
               ? shopEnchanterSelectedValues("tienda-enchanter-recipe-option") : [];
+            const enchanterDurationHours={};
+            for(const rank of [1,2,3]){
+              const input=document.getElementById(`tienda-enchanter-duracion-${rank}`);
+              const raw=input.value.trim();
+              if(raw!==""){
+                const hours=Number(raw);
+                const minimum=rank===3?168:rank===2?24:1;
+                if(!Number.isSafeInteger(hours) || hours<minimum){
+                  alert(`Indica un tiempo válido para rango ${rank}: mínimo ${minimum} horas.`);
+                  return;
+                }
+                enchanterDurationHours[rank]=hours;
+              }
+            }
+            if(enchanterEnabled && enchanterServices.some(service=>
+              ["enchant","strengthen","bind","curse","mount_gem"].includes(service))
+              && [1,2,3].some(rank=>rank<=enchanterMaxRank && !enchanterDurationHours[rank])){
+              alert("Indica horas de entrega para cada rango de encantamientos ofrecido.");
+              return;
+            }
             const reliabilityInput=document.getElementById("tienda-enchanter-fiabilidad").value.trim();
             const reliabilityPercent=Number(reliabilityInput);
             if(enchanterEnabled && (reliabilityInput==="" || !Number.isInteger(reliabilityPercent) || reliabilityPercent<0 || reliabilityPercent>100)){
@@ -8593,6 +8626,7 @@ window.processEntitiesData = function(entities) {
                 maxRank:enchanterMaxRank,
                 knownEnchantments:enchanterRecipes,
                 services:enchanterServices,
+                durationHoursByRank:enchanterDurationHours,
                 reliability:reliabilityPercent/100,
                 outcomeTable:enchanterOutcomeTable,
                 servicePriceAhn:enchanterPrices,
@@ -8795,6 +8829,11 @@ window.processEntitiesData = function(entities) {
                 document.getElementById("tienda-enchanter-activa").checked=enchanterIds.length>0;
                 document.getElementById("tienda-enchanter-nombre").value=existingEnchanter.name || "";
                 document.getElementById("tienda-enchanter-rango").value=String(Math.max(1,Math.min(3,Number(existingEnchanter.maxRank)||1)));
+                for(const rank of [1,2,3]){
+                  document.getElementById(`tienda-enchanter-duracion-${rank}`).value=
+                    existingEnchanter.durationHoursByRank?.[rank] ??
+                    existingEnchanter.duration_hours_by_rank?.[rank] ?? "";
+                }
                 document.getElementById("tienda-enchanter-fiabilidad").value=
                   existingEnchanter.reliability==null?"":String(Math.round(Number(existingEnchanter.reliability)*100));
                 shopEnchanterOriginalOutcomeTable=Array.isArray(existingEnchanter.outcomeTable)
