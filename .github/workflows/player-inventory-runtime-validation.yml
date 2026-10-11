@@ -134,6 +134,11 @@ on:
       - tests/item-enchantment-triggered-combat-smoke.cjs
       - tests/enchanter-server-atomic-smoke.cjs
       - tests/enchanter-server-canonical-smoke.cjs
+      - tests/enchanter-reaction-planning-authority-smoke.cjs
+      - js/combat-v073-economy-menu.js
+      - js/combat-v073-plan-sync.js
+      - js/combat-v073-authority.js
+      - js/combatEngine.js
       - functions/**
       - firebase.json
       - tests/item-enchantment-resistance-adapter-smoke.cjs
@@ -347,6 +352,8 @@ jobs:
         run: node tests/enchanter-server-atomic-smoke.cjs
       - name: Enchanter canonical timed service and escrow regression
         run: node tests/enchanter-server-canonical-smoke.cjs
+      - name: Enchanter player-selected reaction plan and DM authority
+        run: node tests/enchanter-reaction-planning-authority-smoke.cjs
       - name: Firebase Enchanter Function packaging and syntax
         run: |
           node --check functions/enchanter-atomic.cjs
