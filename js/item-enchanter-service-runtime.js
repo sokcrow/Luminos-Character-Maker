@@ -307,13 +307,17 @@
     const definitionHours=definition?.serviceDurationHours ?? definition?.service_duration_hours;
     const providerHours=profile.durationHoursByRank?.[r] ?? profile.durationHoursByRank?.[String(r)];
     const requested=options.durationHours;
-    const hours=[requested,definitionHours,providerHours].find((value)=>Number.isFinite(Number(value)) && Number(value)>0);
-    return Object.freeze({
-      resolved:hours!=null,
-      hours:hours==null?null:Number(hours),
-      band,
-      source:hours==null?null:(requested!=null?"request":definitionHours!=null?"definition":"provider"),
-    });
+    const candidates=[["request",requested],["definition",definitionHours],["provider",providerHours]];
+    const supplied=candidates.find(([,value])=>value!==undefined && value!==null && value!=="");
+    if(!supplied) return Object.freeze({resolved:false,reason:"service_duration_unavailable",rank:r,band,hours:null});
+    const [source,value]=supplied;
+    const hours=Number(value);
+    if(!Number.isSafeInteger(hours) || hours<band.minHours ||
+       (band.maxHours!=null && hours>band.maxHours)){
+      return Object.freeze({resolved:false,reason:"service_duration_out_of_band",rank:r,band,
+        hours:null,requestedHours:value,source});
+    }
+    return Object.freeze({resolved:true,hours,band,source});
   }
 
   function itemEnchantmentBaseValueAhn(item={}) {
@@ -447,6 +451,8 @@
     if (!materials.resolved) return Object.freeze({quoted:false,reason:materials.reason,labor,materials});
 
     const duration=serviceDuration(profile,rank,definition,options);
+    if(duration.reason==="service_duration_out_of_band")
+      return Object.freeze({quoted:false,reason:duration.reason,duration});
     const reliability=effectiveReliability(profile,definition,item,options);
     const threshold=Engine.ritualThresholdPreview(item,definition,rank,{...options,properties,gem:options.gem || null});
     const total=roundAhn(labor.laborAhn+materials.providerMaterialsAhn);
@@ -497,6 +503,8 @@
     });
     if (!materials.resolved) return Object.freeze({quoted:false,reason:materials.reason,labor,materials});
     const duration=serviceDuration(profile,targetRank,definition,options);
+    if(duration.reason==="service_duration_out_of_band")
+      return Object.freeze({quoted:false,reason:duration.reason,duration});
     const reliability=effectiveReliability(profile,definition,item,options);
 
     return Object.freeze({
@@ -506,6 +514,7 @@
       definitionId:definition.id,
       currentRank:Number(current.rank),
       targetRank:Number(targetRank),
+      properties:Object.freeze(asArray(current.properties).map(normalizeId).filter(Boolean)),
       labor,
       materials,
       duration,
