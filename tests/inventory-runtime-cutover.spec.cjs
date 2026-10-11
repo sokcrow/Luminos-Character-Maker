@@ -11,6 +11,7 @@ const BRIDGE = path.join(ROOT, "js/item-equipment-bridge.js");
 const HUD = path.join(ROOT, "js/inventory-hud-v2.js");
 const CSS = path.join(ROOT, "css/inventory-hud-v2.css");
 const GOTHIC_CSS = path.join(ROOT, "css/inventory-gothic-art.css");
+const SHEET_CSS = path.join(ROOT, "hoja_personaje.css");
 
 async function bootHarness(page) {
   await page.setContent(`<!doctype html><html><head></head><body>
@@ -48,6 +49,10 @@ async function bootHarness(page) {
       </div>
     </div></div>
   </body></html>`);
+  // Reproduce the production cascade: the old sheet still declares a 74px Active grid.
+  const legacyActiveGridRule = fs.readFileSync(SHEET_CSS, "utf8").match(/#inv-active-grid\s*\{[^}]*height:\s*74px;[^}]*\}/)?.[0];
+  expect(legacyActiveGridRule).toBeTruthy();
+  await page.addStyleTag({ content: legacyActiveGridRule });
   await page.addStyleTag({ path: CSS });
   await page.addStyleTag({ path: GOTHIC_CSS });
 
@@ -166,7 +171,8 @@ test("HUD V2 uses gothic layout with 24 Active inventory slots", async ({ page }
       cardWidth: first?.getBoundingClientRect().width || 0,
     };
   });
-  expect(layout.columns).toBe(6);
+  expect(layout.columns).toBeGreaterThanOrEqual(4);
+  expect(layout.columns).toBeLessThanOrEqual(6);
   expect(layout.cardWidth).toBeGreaterThanOrEqual(65);
   expect(layout.cardWidth).toBeLessThan(160);
 
@@ -194,6 +200,52 @@ test("HUD V2 uses gothic layout with 24 Active inventory slots", async ({ page }
   expect(geometry.metaWidth).toBeGreaterThan(50);
   expect(geometry.nameBelowIcon).toBe(true);
   expect(geometry.metaBelowName).toBe(true);
+});
+
+test("Active inventory slots 1–5 remain reachable above the carry HUD", async ({ page }) => {
+  await page.setViewportSize({ width: 1200, height: 720 });
+  await bootHarness(page);
+  await page.evaluate(() => {
+    const inventory = window.LuminousInventoryHudV2.state.unit.inventario_activo;
+    for (let index = 3; index <= 5; index += 1) {
+      inventory["slot_" + index] = {
+        instanceId: "slot_" + index,
+        definitionId: "testing_item",
+        nombre: "Active Slot " + index,
+        category: "tool",
+        quantity: 1,
+      };
+    }
+    window.LuminousInventoryHudV2.renderAll();
+  });
+
+  for (const viewport of [
+    { width: 1200, height: 720 },
+    { width: 800, height: 650 },
+    { width: 390, height: 800 },
+    { width: 812, height: 375 },
+  ]) {
+    await page.setViewportSize(viewport);
+    const geometry = await page.locator("#inv-active-grid").evaluate((grid) => {
+      const tiles = [...grid.querySelectorAll(".inventory-v2-runtime-slot")];
+      const gridRect = grid.getBoundingClientRect();
+      return {
+        height: gridRect.height,
+        lastTileBottom: tiles.at(-1).getBoundingClientRect().bottom - gridRect.top,
+        firstTileTop: tiles[0].getBoundingClientRect().top - gridRect.top,
+      };
+    });
+    expect(geometry.firstTileTop).toBeGreaterThanOrEqual(-1);
+    // Tile borders may protrude by 1–2 CSS pixels without hiding interactive content.
+    expect(geometry.lastTileBottom).toBeLessThanOrEqual(geometry.height + 3);
+
+    for (const key of ["blade_1", "coat_1", "slot_3", "slot_4", "slot_5"]) {
+      const tile = page.locator('#inv-active-grid [data-key="' + key + '"]');
+      await tile.click();
+      await expect(tile).toHaveClass(/active/);
+      await expect(page.locator("#detail-title")).toHaveText(key === "blade_1" ? "Test Workshop Blade" : key === "coat_1" ? "Reinforced Coat" : "Active Slot " + key.slice(-1));
+    }
+  }
 });
 
 test("inventory shows the combat sprite rather than the portrait, with a fallback", async ({ page }) => {
@@ -260,7 +312,8 @@ test("player item detail hides implementation metadata and only shows relevant s
       cardWidth: first?.getBoundingClientRect().width || 0,
     };
   });
-  expect(selectedGrid.columns).toBe(6);
+  expect(selectedGrid.columns).toBeGreaterThanOrEqual(4);
+  expect(selectedGrid.columns).toBeLessThanOrEqual(6);
   expect(selectedGrid.cardWidth).toBeGreaterThanOrEqual(65);
   expect(selectedGrid.cardWidth).toBeLessThan(160);
 

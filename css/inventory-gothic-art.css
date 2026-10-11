@@ -215,10 +215,12 @@
 }
 #inventory-modal.inventory-v2-ready #inv-active-grid.inv-grid{
   display:grid;flex:0 0 auto;width:min(100%,680px);max-width:680px;min-height:0;
+  /* Legacy #inv-active-grid height:74px otherwise pushes the first rows behind the HUD header. */
+  height:auto;
   margin-block:auto;
   grid-template-columns:repeat(auto-fit,minmax(100px,1fr));
   grid-template-rows:none;grid-auto-rows:minmax(86px,auto);
-  align-content:center;justify-content:center;
+  align-content:start;justify-content:center;
   gap:8px;padding:0;background:transparent;border:0;
 }
 #inventory-modal.inventory-v2-ready #inv-stash-grid{
