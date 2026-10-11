@@ -58,6 +58,21 @@ const request=(transactionId,overrides={})=>({
   ...overrides,
 });
 (async()=>{
+  const duplicateIdentityDb=db({
+    ...campaign,
+    jugadores:{hero:{...campaign.jugadores.hero,
+      inventario_stash:{duplicate_sword:{instanceId:"sword",itemType:"weapon",tier:5}},
+    }},
+  });
+  const ambiguous=await commitEnchanterAtomic({
+    database:duplicateIdentityDb,authUid:"player_uid",
+    request:request("ambiguous"),Services,Shop,Engine,
+  });
+  assert.equal(ambiguous.committed,false);
+  assert.equal(ambiguous.reason,"duplicate_item_instance_identity");
+  assert.equal(duplicateIdentityDb.store.campaign.tiendas.forge.enchanterProvider.providerMaterials[0].quantity,2,
+    "ambiguous Item source cannot consume vendor stock");
+
   const a=db(campaign);
   const pay=args=>commitEnchanterAtomic({
     database:a,authUid:"player_uid",request:args,Services,Shop,Engine,
