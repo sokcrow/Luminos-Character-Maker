@@ -141,6 +141,8 @@
       }))),
       durationHoursByRank:Object.freeze({...clone(raw.durationHoursByRank || raw.duration_hours_by_rank || {})}),
       servicePriceAhn:Object.freeze({...clone(raw.servicePriceAhn || raw.service_price_ahn || {})}),
+      gemQualityAfter:normalizeId(raw.gemQualityAfter || raw.safeExtractionGemQuality || raw.safe_extraction_gem_quality || "") || null,
+      safeExtractionGemQuality:normalizeId(raw.safeExtractionGemQuality || raw.gemQualityAfter || raw.safe_extraction_gem_quality || "") || null,
       materialSupply:normalizeId(raw.materialSupply || raw.material_supply || "mixed") || "mixed",
       canInferUnknownRecipes:raw.canInferUnknownRecipes === true || raw.can_infer_unknown_recipes === true,
       bindCapable:raw.bindCapable === true || raw.bind_capable === true || services.includes("bind"),
@@ -1066,6 +1068,45 @@
     }
   }
 
+
+  // Only a concrete, loose player Item may be used as a Gem Anchor.
+  function inventoryEntry(owner={},instanceId) {
+    const id=String(instanceId || "");
+    if(!id) return null;
+    for(const containerName of ["inventario_activo","inventario_stash"]){
+      const container=owner?.[containerName];
+      if(!container || typeof container!=="object") continue;
+      for(const [key,entry] of Object.entries(container)){
+        if(entry && String(entry.instanceId || entry.id || "")===id)
+          return {container,key,entry};
+      }
+    }
+    return null;
+  }
+
+  function looseGemQuantity(item={}) {
+    const count=item.quantity ?? item.cantidad ?? 1;
+    return Number.isSafeInteger(Number(count)) ? Number(count) : 0;
+  }
+
+  function setLooseGemQuantity(item={},value) {
+    if(item.quantity!=null || item.cantidad==null) item.quantity=value;
+    if(item.cantidad!=null) item.cantidad=value;
+  }
+
+  function recoveredGemDestination(owner={},gem={}) {
+    const instanceId=String(gem.instanceId || "");
+    if(!instanceId) return {valid:false,reason:"recovered_gem_missing_instance_id"};
+    if(inventoryEntry(owner,instanceId)) return {valid:false,reason:"recovered_gem_inventory_collision"};
+    const container=owner.inventario_activo && typeof owner.inventario_activo==="object"
+      ? owner.inventario_activo
+      : owner.inventario_stash && typeof owner.inventario_stash==="object"
+        ? owner.inventario_stash : null;
+    if(!container || Object.prototype.hasOwnProperty.call(container,instanceId))
+      return {valid:false,reason:"recovered_gem_inventory_unavailable"};
+    return {valid:true,container,instanceId};
+  }
+
   function commitServiceTransaction(owner={},item={},quote={},options={}) {
     if (!owner || typeof owner!=="object") return Object.freeze({committed:false,reason:"missing_transaction_owner"});
     if (!item || typeof item!=="object") return Object.freeze({committed:false,reason:"missing_item"});
@@ -1088,6 +1129,34 @@
 
     const playerMaterials=asArray(options.playerMaterials);
     const providerMaterials=asArray(options.providerMaterials);
+    const mounting=normalizeId(quote.service)==="mount_gem";
+    const gemSlot=mounting?inventoryEntry(owner,quote.gem?.instanceId):null;
+    if(mounting && (!gemSlot || looseGemQuantity(gemSlot.entry)<1
+        || String(gemSlot.entry.definitionId || gemSlot.entry.itemId || gemSlot.entry.id || "")!==String(quote.gem?.definitionId || quote.gem?.itemId || quote.gem?.id || ""))) {
+      return Object.freeze({committed:false,reason:"gem_not_in_loose_inventory",transactionId});
+    }
+    const effectiveQuote=clone(quote);
+    if(mounting && looseGemQuantity(gemSlot.entry)>1){
+      effectiveQuote.gem.instanceId=`${String(gemSlot.entry.instanceId)}_mounted_${transactionId.replace(/[^a-zA-Z0-9_-]/g,"_")}`;
+      if(inventoryEntry(owner,effectiveQuote.gem.instanceId))
+        return Object.freeze({committed:false,reason:"mounted_gem_instance_collision",transactionId});
+    }
+    // An NPC's authored reliability must determine the committed outcome.
+    const npcService=["enchant","mount_gem","bind","curse","strengthen"].includes(normalizeId(quote.service));
+    let npcOutcome=null;
+    if(npcService && quote.reliability?.resolved===true){
+      if(options.provider){
+        npcOutcome=resolveNpcOutcome(options.provider,quote.definitionId,item,{
+          roll:options.npcRoll,recipeProvided:options.recipeProvided===true,
+        });
+      }else{
+        const roll=clamp(numberOr(options.npcRoll,Math.random()),0,0.999999999);
+        npcOutcome=Object.freeze({resolved:true,kind:roll<quote.reliability.probability?"controlled":"altered",
+          roll,probability:quote.reliability.probability});
+      }
+      if(!npcOutcome.resolved)
+        return Object.freeze({committed:false,reason:npcOutcome.reason || "npc_outcome_unresolved",transactionId,npcOutcome});
+    }
     const playerCopies=playerMaterials.map(clone);
     const providerCopies=providerMaterials.map(clone);
     let materialConsumption=Object.freeze({consumed:true,skipped:true,reason:"no_ritual_consumption"});
@@ -1097,8 +1166,8 @@
         [...playerCopies,...providerCopies],
         {
           properties:quote.properties,
-          gem:quote.gem,
-          anchorGemInstanceId:quote.gem?.instanceId,
+          gem:effectiveQuote.gem,
+          anchorGemInstanceId:effectiveQuote.gem?.instanceId,
         }
       );
       if (!materialConsumption.consumed) {
@@ -1110,7 +1179,7 @@
 
     const applicationId=String(options.applicationId || transactionId);
     const actorId=String(options.appliedBy || options.actorId || owner.id || owner.playerId || owner.npcId || (freeService?"dm":"unknown"));
-    const execution=executeControlledResult(clone(item),quote,{
+    const executionOptions={
       ...options,
       viewer:options.viewer || owner,
       applicationId,
@@ -1125,7 +1194,21 @@
         locationId:options.locationId || null,
         freeService,
       },
-    });
+    };
+    let execution;
+    if(npcOutcome && npcOutcome.kind!=="controlled"){
+      const deviation=applyPlayerDeviation(clone(item),quote.definitionId,
+        npcOutcome.outcome || {kind:npcOutcome.kind}, {
+          ...executionOptions,gem:effectiveQuote.gem,
+          rank:quote.targetRank ?? quote.rank,
+          properties:quote.properties,
+        });
+      execution=Object.freeze({executed:deviation.applied===true,
+        reason:deviation.reason || (deviation.applied?"":"npc_altered_outcome_unresolved"),
+        result:deviation,item:deviation.item,kind:npcOutcome.kind});
+    }else{
+      execution=executeControlledResult(clone(item),effectiveQuote,executionOptions);
+    }
     if (!execution.executed) {
       return Object.freeze({
         committed:false,
@@ -1136,10 +1219,26 @@
     }
 
     const resultingItem=clone(execution.item || execution.result?.item || item);
+    const recoveredGem=execution.result?.recoveredGem || execution.result?.result?.recoveredGem || null;
+    const recovery=recoveredGem?recoveredGemDestination(owner,recoveredGem):null;
+    if(recovery && !recovery.valid)
+      return Object.freeze({committed:false,reason:recovery.reason,transactionId});
+    const gemMounted=mounting && (execution.result?.mounted===true || execution.result?.result?.mounted===true);
     if (!freeService) setWalletBalance(owner,wallet,wallet.balance-chargeAhn);
     commitMaterialSnapshots(playerMaterials,playerCopies);
     commitMaterialSnapshots(providerMaterials,providerCopies);
     applyObjectSnapshot(item,resultingItem);
+    if(gemMounted){
+      const remainder=looseGemQuantity(gemSlot.entry)-1;
+      if(remainder===0) delete gemSlot.container[gemSlot.key];
+      else setLooseGemQuantity(gemSlot.entry,remainder);
+    }
+    if(recovery){
+      recovery.container[recovery.instanceId]={
+        ...clone(recoveredGem),instanceId:recovery.instanceId,quantity:1,cantidad:1,
+        itemType:"gem",category:"gem",
+      };
+    }
 
     const receipt=Object.freeze({
       transactionId,
@@ -1150,6 +1249,7 @@
       rank:quote.rank ?? quote.targetRank ?? null,
       chargedAhn:chargeAhn,
       freeService,
+      npcOutcomeKind:npcOutcome?.kind || null,
       appliedBy:actorId,
       timestamp:Number.isFinite(Number(options.startedAt))?Number(options.startedAt):Date.now(),
       adjustment:adjustment.adjustment,
@@ -1159,6 +1259,8 @@
       ...receipt,
       item:Object.freeze(clone(item)),
       materialConsumption,
+      recoveredGem:recoveredGem?Object.freeze(clone(recoveredGem)):null,
+      npcOutcome,
       execution,
     });
   }
