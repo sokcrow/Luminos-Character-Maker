@@ -491,7 +491,8 @@
       const original=engine()?.gemAnchors?.(state.selectedItem)?.find(anchor=>
         anchor.anchorId===current?.ref?.anchorId)?.gemQuality;
       const oldGrade=grades.indexOf(original);
-      const catalogGrades=gems()?.GEM_STABLE_RANK_BY_QUALITY || {};
+      const catalogGrades=gems()?.GEM_STABLE_RANK_BY_QUALITY ||
+        {ruined:0,poor:1,standard:1,fine:2,exceptional:3};
       const choices=grades.filter((id,index)=>index<oldGrade &&
         Object.prototype.hasOwnProperty.call(catalogGrades,id));
       // Only show physically degraded outputs; Standard and Poor share a
