@@ -114,6 +114,7 @@
     service_knowledge_changed_during_delivery:"El conocimiento del Item cambió; la entrega necesita revisión.",
     service_not_ready:"El Item todavía no está listo para retirarse.",
     service_world_time_unavailable:"No se pudo consultar el reloj oficial de campaña.",
+    magic_not_detected:"Hay que detectar primero las propiedades mágicas del Item.",
     service_item_must_be_unequipped:"Desequipa el Item antes de entregarlo al Enchanter.",
     service_item_identity_collision:"Ya existe otro Item con esa identidad; no se puede entregar.",
     service_inventory_full:"Libera un espacio en el inventario o alijo para retirar tu Item.",
@@ -202,6 +203,7 @@
     if(["strengthen","remove_rewrite"].includes(svc)){
       const view=state.selectedItem && state.viewer
         ? magicKnowledge()?.presentation?.(state.viewer,state.selectedItem) : null;
+      if(view?.magicDetected!==true) return [];
       return installed(state.selectedItem).map((ref,index)=>{
         const def=catalog()?.get?.(ref.definitionId);
         // Player visibility follows Identify/Arcana knowledge, never raw registry data.
@@ -221,8 +223,11 @@
       if((engine()?.baseSlotCapacity?.(item) ?? 0)<=0 && svc!=="mount_gem") return {eligible:false,reason:"base_enchantment_slots_exceeded"};
       return {eligible:true};
     }
-    if(svc==="strengthen") return installed(item).length ? {eligible:true}:{eligible:false,reason:"enchantment_not_installed"};
-    if(svc==="remove_rewrite") return installed(item).length ? {eligible:true}:{eligible:false,reason:"enchantment_not_installed"};
+    if(["strengthen","remove_rewrite"].includes(svc)){
+      const detected=magicKnowledge()?.presentation?.(state.viewer,item)?.magicDetected===true;
+      if(!detected) return {eligible:false,reason:"magic_not_detected"};
+      return installed(item).length ? {eligible:true}:{eligible:false,reason:"enchantment_not_installed"};
+    }
     if(["identify","curse_analysis","remove_curse","magical_repair","extract_gem"].includes(svc)){
       if(!magic()?.isMagicItem?.(item)) return {eligible:false,reason:"item_has_no_magic"};
       if(svc==="extract_gem" && !(engine()?.gemAnchors?.(item)?.length)) return {eligible:false,reason:"gem_anchor_not_found"};
@@ -442,7 +447,10 @@
     const itemAfter=projected?.previewed===true ? projected.item : null;
     const beforeSlots=engine()?.baseSlotCapacity?.(state.selectedItem);
     const afterSlots=itemAfter ? engine()?.slotsUsed?.(engine()?.appliedEnchantments?.(itemAfter)||[]) : null;
-    const projectedSlots=Number.isFinite(Number(afterSlots)) && Number.isFinite(Number(beforeSlots))
+    const itemWasMagic=magic()?.isMagicItem?.(state.selectedItem)===true;
+    const originalMagicVisible=!itemWasMagic ||
+      magicKnowledge()?.presentation?.(state.viewer,state.selectedItem)?.magicDetected===true;
+    const projectedSlots=originalMagicVisible && Number.isFinite(Number(afterSlots)) && Number.isFinite(Number(beforeSlots))
       ? `<p>Slots ocupados después del servicio: ${esc(afterSlots)} / ${esc(beforeSlots)}</p>`
       : "";
     if(validation) validation.innerHTML=state.saveUncertain
