@@ -76,16 +76,35 @@ const params={database:db,authUid:"auth_owner",Services:S,Engine:E,Shop};
       operation:"pickup",jobId:"canonical_timed"}});
   assert.equal(duplicate.reason,"duplicate_transaction",
     "canonical pickup must be idempotent across browser reconnects");
-  // Removal uses the same privileged transaction as application. No client
-  // may bypass cost, choose a second Item Instance or repay a processed receipt.
+  // A direct rewrite must remove Flamebound before applying the new authored
+  // Frostbound definition, and charge for the replacement ritual exactly once.
   const provider=state.campaña.tiendas.forge.enchanterProvider;
   provider.services.push("remove_rewrite");
+  provider.knownEnchantments.push("frostbound");
   provider.servicePriceAhn={remove_rewrite:12500};
+  const initialReagents=provider.providerMaterials[0].quantity;
+  const beforeRewrite=state.campaña.jugadores.hero.ahn;
+  const rewritten=await commitEnchanterAtomic({...params,request:{
+    ...intent,service:"remove_rewrite",procedure:"direct_rewrite",
+    definitionId:"flamebound",nextDefinitionId:"frostbound",
+    transactionId:"canonical_rewrite",rank:1,
+  }});
+  assert.equal(rewritten.committed,true,rewritten.reason);
+  assert.equal(state.campaña.jugadores.hero.inventario_activo.sword.magic.enchantments.length,1);
+  assert.equal(state.campaña.jugadores.hero.inventario_activo.sword.magic.enchantments[0].definitionId,"frostbound");
+  assert.ok(state.campaña.jugadores.hero.ahn<beforeRewrite);
+  assert.equal(provider.providerMaterials[0].quantity,initialReagents-1,
+    "rewriting pays the new recipe, unlike removal");
+  // Restore one catalyst to prove that plain removal leaves it untouched.
+  provider.providerMaterials[0].quantity=1;
+
+  // Removal uses the same privileged transaction as application. No client
+  // may bypass cost, choose a second Item Instance or repay a processed receipt.
   state.campaña.jugadores.hero.inventario_stash.spare={
     instanceId:"spare",definitionId:"sword",itemType:"weapon",category:"weapon",tier:5,
   };
   const removeRequest={...intent,service:"remove_rewrite",procedure:"direct_remove",
-    transactionId:"canonical_remove",definitionId:"flamebound"};
+    transactionId:"canonical_remove",definitionId:"frostbound"};
   const originalBalance=state.campaña.jugadores.hero.ahn;
   const originalStock=provider.providerMaterials[0].quantity;
   state.campaña.jugadores.hero.ahn=0;
