@@ -161,4 +161,111 @@ const removeTwice=Services.commitServiceTransaction(removalOwner,removable,paidR
 assert.strictEqual(removeTwice.reason,"duplicate_transaction");
 assert.strictEqual(removalOwner.ahn,4000,"duplicated removal must not charge twice");
 
+
+// Codex P1: the committed NPC roll must not bypass authored reliability.
+const unreliableProvider=Services.normalizeProviderProfile({
+  id:"unreliable",services:["enchant"],maxRank:3,
+  knownEnchantments:["flamebound"],reliability:0,
+});
+const npcItem={...item,instanceId:"unreliable_sword"};
+const npcQuote=Services.quoteEnchantService(unreliableProvider,npcItem,"flamebound",1);
+assert.equal(npcQuote.quoted,true);
+const npcOwner={ahn:2000000,inventario_activo:{unreliable_sword:npcItem}};
+const npcDenied=Services.commitServiceTransaction(npcOwner,npcItem,npcQuote,{
+  provider:unreliableProvider,npcRoll:0.5,transactionId:"npc_no_outcome",
+});
+assert.equal(npcDenied.committed,false,"reliability zero must not produce a controlled Enchantment");
+assert.equal(npcItem.magic,undefined,"an unresolved NPC outcome cannot install magic");
+assert.equal(npcOwner.ahn,2000000,"unresolved NPC outcomes cannot charge the player");
+const authoredFailureProvider=Services.normalizeProviderProfile({
+  id:"authored_failure",services:["enchant"],maxRank:3,
+  knownEnchantments:["flamebound"],reliability:0,
+  outcomeTable:[{kind:"unchanged_existing",weight:1}],
+});
+const authoredItem={...item,instanceId:"authored_failure_sword"};
+const authoredOwner={ahn:2000000,inventario_activo:{authored_failure_sword:authoredItem}};
+const authoredQuote=Services.quoteEnchantService(authoredFailureProvider,authoredItem,"flamebound",1);
+const altered=Services.commitServiceTransaction(authoredOwner,authoredItem,authoredQuote,{
+  provider:authoredFailureProvider,npcRoll:0.5,transactionId:"npc_authored_failure",
+});
+assert.equal(altered.committed,true,"an explicit NPC outcome can be committed");
+assert.equal(altered.npcOutcome.kind,"unchanged_existing");
+assert.equal(authoredItem.magic,undefined,"authored failure must not install requested magic");
+assert.equal(altered.npcOutcomeKind,"unchanged_existing");
+
+// Codex P1: a socketed Gem Anchor consumes the loose gem; stacked gems yield
+// a unique mounted Item identity without destroying the rest of the stack.
+const mountProvider=Services.normalizeProviderProfile({
+  id:"mount_smith",services:["mount_gem"],maxRank:3,
+  knownEnchantments:["flamebound"],reliability:1,
+});
+const mountItem={...item,instanceId:"mount_weapon"};
+const gemStack={instanceId:"ruby_stack",definitionId:"ruby",quality:"fine",quantity:2};
+const mountOwner={ahn:2000000,inventario_activo:{mount_weapon:mountItem,ruby_stack:gemStack}};
+const mountQuote=Services.quoteEnchantService(mountProvider,mountItem,"flamebound",1,{
+  serviceId:"mount_gem",gem:gemStack,
+});
+assert.equal(mountQuote.quoted,true);
+const mountDone=Services.commitServiceTransaction(mountOwner,mountItem,mountQuote,{
+  provider:mountProvider,npcRoll:0,transactionId:"mount_once",
+});
+assert.equal(mountDone.committed,true,"valid loose gem should mount successfully");
+assert.equal(mountOwner.inventario_activo.ruby_stack.quantity,1);
+const anchor=Engine.gemAnchors(mountItem)[0];
+assert.ok(anchor);
+assert.notEqual(anchor.gemInstanceId,"ruby_stack","stack remainder and mounted gem cannot share a unique instance ID");
+
+const singleItem={...item,instanceId:"single_mount_weapon"};
+const singleGem={instanceId:"ruby_single",definitionId:"ruby",quality:"fine",quantity:1};
+const singleOwner={ahn:2000000,inventario_activo:{single_mount_weapon:singleItem,ruby_single:singleGem}};
+const singleQuote=Services.quoteEnchantService(mountProvider,singleItem,"flamebound",1,{
+  serviceId:"mount_gem",gem:singleGem,
+});
+assert.equal(singleQuote.quoted,true);
+const singleDone=Services.commitServiceTransaction(singleOwner,singleItem,singleQuote,{
+  provider:mountProvider,npcRoll:0,transactionId:"mount_single",
+});
+assert.equal(singleDone.committed,true);
+assert.equal(singleOwner.inventario_activo.ruby_single,undefined,"mounted singleton gem must leave loose inventory");
+
+// Codex P1/P2: successful non-destructive extraction returns the Gem to
+// the player and preserves the provider's explicit post-extraction quality.
+const extractProvider=Services.normalizeProviderProfile({
+  id:"gem_recovery",services:["extract_gem"],maxRank:3,
+  servicePriceAhn:{extract_gem:1000},safeExtractionGemQuality:"standard",
+});
+assert.equal(extractProvider.gemQualityAfter,"standard");
+const extractItem={...item,instanceId:"extract_sword"};
+const embedded=Engine.mountGemAnchor(extractItem,
+  {instanceId:"ruby_recovered",definitionId:"ruby",quality:"fine"},"flamebound",1);
+assert.equal(embedded.mounted,true);
+const extracting=JSON.parse(JSON.stringify(embedded.item));
+const extractOwner={ahn:10000,inventario_activo:{extract_sword:extracting}};
+const extractQuote=Services.quoteGemProcedure(extractProvider,extracting,
+  embedded.anchor.anchorId,"safe_extract",{gemQualityAfter:extractProvider.safeExtractionGemQuality});
+assert.equal(extractQuote.quoted,true);
+const extractDone=Services.commitServiceTransaction(extractOwner,extracting,extractQuote,{
+  transactionId:"safe_extract_once",
+});
+assert.equal(extractDone.committed,true);
+assert.equal(extractOwner.inventario_activo.ruby_recovered.quality,"standard");
+assert.equal(extractOwner.inventario_activo.ruby_recovered.magicallyWritten,true);
+assert.equal(extractOwner.inventario_activo.ruby_recovered.quantity,1);
+assert.equal(Engine.gemAnchors(extracting).length,0);
+assert.equal(extractOwner.ahn,9000);
+
+// A pre-existing loose Item with this same instance ID cannot be overwritten.
+const conflictItem=JSON.parse(JSON.stringify(embedded.item));
+const conflictOwner={ahn:10000,inventario_activo:{
+  extract_sword:conflictItem,ruby_recovered:{instanceId:"ruby_recovered",definitionId:"ruby",quantity:1},
+}};
+const conflict=Services.commitServiceTransaction(conflictOwner,conflictItem,extractQuote,{
+  transactionId:"safe_extract_conflict",
+});
+assert.equal(conflict.committed,false);
+assert.equal(conflict.reason,"recovered_gem_inventory_collision");
+assert.equal(conflictOwner.ahn,10000);
+assert.equal(Engine.gemAnchors(conflictItem).length,1);
+assert.equal(conflictOwner.inventario_activo.ruby_recovered.quantity,1);
+
 console.log("Enchanter atomic transaction/provenance smoke: OK");
