@@ -72,6 +72,7 @@ async function boot(page, shouldSave = true) {
       onSave: async () => {
         window.__enchanterFixture.saves += 1;
         if (window.__enchanterSaveFails) throw new Error("network save did not confirm");
+        if (window.__enchanterSaveReturnsFalse) return {saved:false};
         if (window.__enchanterReturnServerSnapshot) {
           const snapshot=JSON.parse(JSON.stringify(viewer));
           snapshot.enchanterTransactions.server_receipt={committed:true,source:"firebase"};
@@ -142,6 +143,21 @@ test("ambiguous remote save failure locks repeat charge until page reload", asyn
     saves:window.__enchanterFixture.saves,
     events:window.__enchanterFixture.events,
   }))).toEqual({commits:1,saves:1,events:0});
+});
+
+test("explicit negative save acknowledgement also restores the provisional Player state", async ({page}) => {
+  await boot(page);
+  await page.evaluate(() => { window.__enchanterSaveReturnsFalse=true; });
+  await page.locator("#enchanter-ui-confirm").check();
+  await page.locator("#enchanter-ui-commit").click();
+  await expect(page.locator("#enchanter-ui-status")).toContainText("SAVE NOT CONFIRMED");
+  await expect(page.locator("#enchanter-ui-commit")).toBeDisabled();
+  expect(await page.evaluate(() => ({
+    ahn:window.__enchanterFixture.viewer.ahn,
+    originalMagic:window.__enchanterFixture.sword.magic || null,
+    receipts:window.__enchanterFixture.viewer.enchanterTransactions || null,
+    events:window.__enchanterFixture.events,
+  }))).toEqual({ahn:1000,originalMagic:null,receipts:null,events:0});
 });
 
 test("service terminal refuses payment when no persistence callback is configured", async ({page}) => {
