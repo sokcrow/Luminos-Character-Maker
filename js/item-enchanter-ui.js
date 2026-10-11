@@ -657,7 +657,9 @@
       ...(job?{jobId:job.jobId}:{}),
       itemInstanceId:selectedId,
       service:job?.service || state.service,
-      definitionId:quote.definitionId || quote.originalDefinitionId || state.definitionId,
+      // Direct Rewrite quotes describe the replacement as definitionId;
+      // the server must first remove the ORIGINAL installed definition.
+      definitionId:quote.originalDefinitionId || quote.definitionId || state.definitionId,
       nextDefinitionId:quote.nextDefinitionId || state.nextDefinitionId || null,
       rank:quote.rank ?? state.rank,
       targetRank:quote.targetRank ?? null,
