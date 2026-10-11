@@ -176,9 +176,15 @@
             return {skipped:true,reason:'owner_not_in_field',ownerId:adjusted?.ownerId||null};
           }
           const result=await original.call(scope,adjusted,...rest);
-          if(isDm()&&isItemQueueEntry(adjusted)&&canonicalPlayerId(owner)){
-            try{await persistPlayerInventory(owner,adjusted?.ownerId);}
-            catch(error){console.error('[Combat073 Authority inventory persistence]',error);throw error;}
+          // Skill-driven Enchantment wear touches the canonical inventory,
+          // even though the combat queue entry itself is not an Item action.
+          if(isDm()&&canonicalPlayerId(owner)&&
+              (isItemQueueEntry(adjusted)||owner.__luminousEnchantmentInventoryDirty===true)){
+            try{
+              const saved=await persistPlayerInventory(owner,adjusted?.ownerId);
+              if(!saved?.saved)throw new Error(saved?.reason||'inventory_save_failed');
+              owner.__luminousEnchantmentInventoryDirty=false;
+            }catch(error){console.error('[Combat073 Authority inventory persistence]',error);throw error;}
           }
           return result;
         }
