@@ -285,8 +285,10 @@ assert.equal(delayed.started,true);
 assert.equal(delayed.job.readyAt,startedAt+8*60*60*1000);
 assert.equal(timedOwner.ahn,2000000,"simulation must not mutate the source Player");
 assert.equal(timedItem.magic,undefined,"source Item cannot be enchanted at intake");
-assert.equal(delayed.player.inventario_activo.timed_weapon.magic,undefined,
-  "paid Item remains unenchanted in the persistable intake snapshot");
+assert.equal(delayed.player.inventario_activo.timed_weapon,undefined,
+  "an escrowed Item cannot be used, equipped, moved, stashed or sold");
+assert.equal(delayed.job.itemAfter.magic.enchantments.length,1,
+  "the completed magical result must be sealed in the job");
 assert.equal(delayed.player.ahn,2000000-timedWithDuration.totalAhn);
 assert.equal(delayed.player.enchanterTransactions.timed_enchant_once.status,"in_service");
 assert.equal(Services.serviceReady(delayed.job,startedAt),false);
@@ -297,7 +299,7 @@ const early=Services.completeDeferredServiceTransaction(pendingPlayer,"timed_enc
 assert.equal(early.committed,false);
 assert.equal(early.reason,"service_not_ready");
 assert.equal(pendingPlayer.ahn,delayed.player.ahn);
-assert.equal(pendingPlayer.inventario_activo.timed_weapon.magic,undefined);
+assert.equal(pendingPlayer.inventario_activo.timed_weapon,undefined);
 const delivered=Services.completeDeferredServiceTransaction(pendingPlayer,"timed_enchant_once",{
   now:delayed.job.readyAt,
 });
@@ -314,22 +316,57 @@ const Persistence=globalThis.LuminousItemPersistenceRuntime;
 const savedPending=Persistence.serializeInventoryState(delayed.player);
 const restoredState=Persistence.deserializeInventoryState(savedPending);
 const restoredOwner={...delayed.player,...restoredState};
-assert.equal(restoredOwner.inventario_activo.timed_weapon.schemaVersion,3);
+assert.equal(restoredOwner.inventario_activo.timed_weapon,undefined,
+  "Item must still be in escrow after serialization and hydration");
 const deliveredAfterReload=Services.completeDeferredServiceTransaction(
   restoredOwner,"timed_enchant_once",{now:delayed.job.readyAt});
 assert.equal(deliveredAfterReload.committed,true,"loaded orders must still be deliverable");
-assert.equal(deliveredAfterReload.player.inventario_activo.timed_weapon.schemaVersion,3,
-  "delivery must preserve hydrated Item fields");
+assert.equal(Persistence.serializeInventoryState(deliveredAfterReload.player)
+  .inventario_activo.timed_weapon.schemaVersion,3,
+  "delivered Item must survive a subsequent save/hydration");
 assert.equal(deliveredAfterReload.player.inventario_activo.timed_weapon.magic.enchantments.length,1);
 assert.equal(Services.completeDeferredServiceTransaction(delivered.player,"timed_enchant_once",{
   now:delayed.job.readyAt,
 }).committed,false,"a finished job cannot be collected twice");
 const alteredDuringService=JSON.parse(JSON.stringify(delayed.player));
-alteredDuringService.inventario_activo.timed_weapon.condition=45;
+alteredDuringService.inventario_activo.timed_weapon={
+  ...timedItem,condition:45,
+};
 const alteredDelivery=Services.completeDeferredServiceTransaction(alteredDuringService,
   "timed_enchant_once",{now:delayed.job.readyAt});
 assert.equal(alteredDelivery.committed,false);
-assert.equal(alteredDelivery.reason,"service_item_changed_during_delivery");
+assert.equal(alteredDelivery.reason,"service_item_identity_collision");
 assert.equal(alteredDuringService.ahn,delayed.player.ahn,"rejected delivery cannot charge");
+// Equipped Items cannot leave the Player's inventory without unequipping.
+const equippedOwner={...timedOwner,itemEquipmentRefs:{
+  mainHand:"timed_weapon",offHand:null,armor:null,shield:null,accessoryIds:[],
+}};
+const blockedEquipped=Services.startDeferredServiceTransaction(
+  equippedOwner,timedItem,timedWithDuration,{transactionId:"equipped_job",provider});
+assert.equal(blockedEquipped.committed,false);
+assert.equal(blockedEquipped.reason,"service_item_must_be_unequipped");
+assert.equal(equippedOwner.ahn,2000000);
+assert.ok(equippedOwner.inventario_activo.timed_weapon);
+// If the original inventory is full when collecting, the Item is returned
+// to the alternate container, without creating a duplicate.
+const filled=JSON.parse(JSON.stringify(delayed.player));
+filled.inventario_activo=Object.fromEntries(Array.from({length:24},(_,i)=>[
+  "filler_"+i,{instanceId:"filler_"+i,definitionId:"filler"},
+]));
+filled.inventario_stash={};
+const overflowPickup=Services.completeDeferredServiceTransaction(filled,
+  "timed_enchant_once",{now:delayed.job.readyAt});
+assert.equal(overflowPickup.committed,true);
+assert.equal(overflowPickup.player.inventario_activo.timed_weapon,undefined);
+assert.equal(overflowPickup.player.inventario_stash.timed_weapon.magic.enchantments.length,1);
+const full=JSON.parse(JSON.stringify(filled));
+full.inventario_stash=Object.fromEntries(Array.from({length:80},(_,i)=>[
+  "stash_"+i,{instanceId:"stash_"+i,definitionId:"stash"},
+]));
+const blockedFull=Services.completeDeferredServiceTransaction(full,
+  "timed_enchant_once",{now:delayed.job.readyAt});
+assert.equal(blockedFull.committed,false);
+assert.equal(blockedFull.reason,"service_inventory_full");
+assert.equal(full.enchanterJobs.timed_enchant_once.status,"in_service");
 
 console.log("Enchanter atomic transaction/provenance smoke: OK");
