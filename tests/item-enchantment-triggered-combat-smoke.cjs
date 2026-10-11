@@ -115,6 +115,68 @@ try {
   assert.equal(md(armor),beforeUnmapped,"unmapped charge effects must not pay a hidden second battery");
   armor.mockEffects=[onReceived];
 
+  const beforeHit={type:"status_apply",trigger:"before_getting_hit",
+    statusId:"warded",target:"self",stacks:1,
+    sourceEnchantmentId:"flamebound",sourceMagicalWear:1};
+  armor.mockEffects=[beforeHit];
+  const economyBefore=globalThis.LuminousActionEconomy;
+  globalThis.LuminousActionEconomy={
+    availability(unit,cost){
+      assert.equal(cost,"reaction");
+      return {available:unit.__luminousActionEconomyState?.reactionRemaining>0,
+        reason:"reaction_spent"};
+    },
+    consume(unit,cost){
+      if(unit.__luminousActionEconomyState?.reactionRemaining<=0)return false;
+      unit.__luminousActionEconomyState.reactionRemaining-=1;return true;
+    },
+  };
+  try{
+    enemy.__luminousActionEconomyState={reactionRemaining:1,quickActionRemaining:1};
+    const mdPre=md(armor),spPre=enemy.sp;
+    const ready=Combat.queueDefensiveReaction(enemy,"trig_armor");
+    assert.equal(ready.queued,true,"Player must explicitly select an equipped authored reaction");
+    assert.equal(Combat.queueDefensiveReaction(enemy,"missing").queued,false);
+    assert.equal(enemy.__luminousActionEconomyState.reactionRemaining,1,
+      "arming a Reaction cannot spend it early");
+
+    const incoming=ctx();
+    incoming.enchantmentPreDamageWindow=true;
+    incoming.incomingDamage=13;
+    globalThis.CombatEngine.triggerEvent("[Before Getting Hit]",incoming,[enemy]);
+    assert.equal(enemy.statusEffects.warded.count,1,
+      "selected Reaction applies the authored pre-damage status");
+    assert.equal(enemy.__luminousActionEconomyState.reactionRemaining,0);
+    assert.equal(md(armor),mdPre-1,"an authored pre-damage effect spends MD exactly once");
+    assert.equal(enemy.sp,spPre);
+    globalThis.CombatEngine.triggerEvent("[Before Getting Hit]",incoming,[enemy]);
+    assert.equal(enemy.statusEffects.warded.count,1,
+      "same selection cannot fire twice during a Multi-Coin action");
+    assert.equal(md(armor),mdPre-1);
+
+    const selectAfterSpend=Combat.queueDefensiveReaction(enemy,"trig_armor");
+    assert.equal(selectAfterSpend.queued,true);
+    const priorMd=md(armor);
+    globalThis.CombatEngine.triggerEvent("[Before Getting Hit]",incoming,[enemy]);
+    assert.equal(md(armor),priorMd,"spent Reaction cannot pay an Item resource");
+
+    enemy.__luminousActionEconomyState.reactionRemaining=1;
+    enemy.blockStatus=true;
+    assert.equal(Combat.queueDefensiveReaction(enemy,"trig_armor").queued,true);
+    const failedPredamage=Combat.dispatchSelectedDefensiveReaction(incoming,globalThis.CombatEngine);
+    assert.equal(failedPredamage.activated,false);
+    assert.equal(failedPredamage.rolledBack,true);
+    assert.equal(enemy.__luminousActionEconomyState.reactionRemaining,1,
+      "failed Status application refunds the Reaction action");
+    assert.equal(md(armor),priorMd,"failed predamage Status refunds MD");
+    enemy.blockStatus=false;
+    assert.equal(Combat.dispatchSelectedDefensiveReaction(incoming).activated,false,
+      "failed reaction selection must not auto-repeat");
+  }finally{
+    globalThis.LuminousActionEconomy=economyBefore;
+    armor.mockEffects=[onReceived];
+  }
+
   const oldEvent=globalThis.CombatEngine.triggerEvent;
   assert.notEqual(oldEvent,initialEvent);
   assert.equal(Combat.uninstallCombatEngine(globalThis.CombatEngine),true);
