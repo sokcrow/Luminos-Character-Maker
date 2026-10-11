@@ -6590,6 +6590,21 @@ window.abrirServiciosTiendaDinamica = async function(
               ...Object.values(playerData.inventario_activo || {}),
               ...Object.values(playerData.inventario_stash || {}),
             ],
+            // Enable only after the authenticated callable is deployed and
+            // verified. The legacy Player-only path continues to reject
+            // cross-Shop finite stock instead of writing it unsafely.
+            onAtomicService:window.LuminousEnchanterServerEnabled===true &&
+              typeof firebase.functions==="function"
+              ? async intent=>{
+                  const fn=firebase.functions("us-central1").httpsCallable("commitEnchanterService");
+                  const response=await fn({...intent,playerId,shopId:tiendaId});
+                  const data=response?.data;
+                  if(!data?.committed)throw new Error("ENCHANTER SERVER DID NOT CONFIRM");
+                  const balanceDisplay=document.getElementById("shop-player-balance");
+                  if(balanceDisplay)balanceDisplay.innerText=String(data.balance);
+                  return data;
+                }
+              : null,
             onSave: async ({ result, beforePlayer, providerMaterialsBefore, providerMaterialsAfter }) => {
               return persistShopEnchanterState(playerData, tiendaId, result, {
                 beforePlayer, providerMaterialsBefore, providerMaterialsAfter,
