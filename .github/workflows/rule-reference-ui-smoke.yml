@@ -1,0 +1,49 @@
+name: Universal Rule References Smoke
+
+on:
+  pull_request:
+    paths:
+      - "js/rule-reference-ui.js"
+      - "css/rule-reference-ui.css"
+      - "js/trait-player-tray.js"
+      - "js/player-skills-hud.js"
+      - "js/player-progression-tree.js"
+      - "hoja_personaje.html"
+      - "tests/rule-reference-ui-smoke.mjs"
+      - ".github/workflows/rule-reference-ui-smoke.yml"
+  push:
+    branches:
+      - feat/universal-inline-rule-references
+    paths:
+      - "js/rule-reference-ui.js"
+      - "css/rule-reference-ui.css"
+      - "js/trait-player-tray.js"
+      - "js/player-skills-hud.js"
+      - "js/player-progression-tree.js"
+      - "hoja_personaje.html"
+      - "tests/rule-reference-ui-smoke.mjs"
+      - ".github/workflows/rule-reference-ui-smoke.yml"
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Syntax checks
+        run: |
+          node --check js/rule-reference-ui.js
+          node --check js/trait-player-tray.js
+          node --check js/player-skills-hud.js
+          node --check js/player-progression-tree.js
+          node --check tests/rule-reference-ui-smoke.mjs
+      - name: Inline references and established gameplay regressions
+        run: |
+          node tests/rule-reference-ui-smoke.mjs
+          node tests/player-progression-tree-smoke.mjs
+          node tests/player-skills-hud-smoke.mjs
+          node tests/trait-skill-score-visibility-smoke.mjs
