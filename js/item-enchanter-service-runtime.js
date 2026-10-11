@@ -1059,12 +1059,19 @@
     return true;
   }
 
-  function commitMaterialSnapshots(originals=[],snapshots=[]) {
+  function commitMaterialSnapshots(originals=[],snapshots=[],owner=null) {
     for(let index=0;index<originals.length;index+=1){
       const original=originals[index];
       const snapshot=snapshots[index];
       if (!original || !snapshot || typeof original!=="object") continue;
+      const before=looseGemQuantity(original);
       applyObjectSnapshot(original,snapshot);
+      // A spent stack is not an inventory slot. Delete only the material that
+      // actually reached zero (not another Item with a similar definition).
+      if(owner && before>0 && looseGemQuantity(original)===0){
+        const slot=inventoryEntry(owner,original.instanceId);
+        if(slot?.entry===original) delete slot.container[slot.key];
+      }
     }
   }
 
@@ -1098,13 +1105,14 @@
     const instanceId=String(gem.instanceId || "");
     if(!instanceId) return {valid:false,reason:"recovered_gem_missing_instance_id"};
     if(inventoryEntry(owner,instanceId)) return {valid:false,reason:"recovered_gem_inventory_collision"};
-    const container=owner.inventario_activo && typeof owner.inventario_activo==="object"
-      ? owner.inventario_activo
-      : owner.inventario_stash && typeof owner.inventario_stash==="object"
-        ? owner.inventario_stash : null;
-    if(!container || Object.prototype.hasOwnProperty.call(container,instanceId))
-      return {valid:false,reason:"recovered_gem_inventory_unavailable"};
-    return {valid:true,container,instanceId};
+    for(const [name,capacity] of [["inventario_activo",24],["inventario_stash",80]]){
+      const container=owner[name];
+      if(container && typeof container==="object"
+          && !Object.prototype.hasOwnProperty.call(container,instanceId)
+          && Object.keys(container).length<capacity)
+        return {valid:true,container,instanceId};
+    }
+    return {valid:false,reason:"recovered_gem_inventory_full"};
   }
 
   function commitServiceTransaction(owner={},item={},quote={},options={}) {
@@ -1240,7 +1248,7 @@
       return Object.freeze({committed:false,reason:recovery.reason,transactionId});
     const gemMounted=mounting && (execution.result?.mounted===true || execution.result?.result?.mounted===true);
     if (!freeService) setWalletBalance(owner,wallet,wallet.balance-chargeAhn);
-    commitMaterialSnapshots(playerMaterials,playerCopies);
+    commitMaterialSnapshots(playerMaterials,playerCopies,owner);
     commitMaterialSnapshots(providerMaterials,providerCopies);
     applyObjectSnapshot(item,resultingItem);
     if(gemMounted){
