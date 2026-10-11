@@ -246,6 +246,14 @@ test("Pertenencias uses compact effect letters in the icon corner, never prices"
   await expect(hybrid.locator(".item-name")).toHaveText("Hybrid Restoration Ampoule");
   await expect(hybrid.locator(".inventory-v2-icon-effect")).toHaveText(["HP", "SP", "CUR"]);
   await expect(hybrid.locator(".inventory-v2-icon-effect-hp")).toHaveAttribute("title", /Restore 12 HP/);
+  const hpMarker = hybrid.locator(".inventory-v2-icon-effect-hp");
+  const hitTest = await hpMarker.evaluate((marker) => {
+    const rect = marker.getBoundingClientRect();
+    return document.elementFromPoint((rect.left + rect.right) / 2, (rect.top + rect.bottom) / 2) === marker;
+  });
+  expect(hitTest).toBe(true);
+  await hpMarker.click();
+  await expect(page.locator("#detail-title")).toHaveText("Hybrid Restoration Ampoule");
   await expect(hybrid).toHaveAttribute("aria-label", /effects HP, SP, CUR/);
   await expect(hybrid.locator(".inventory-v2-card-meta, .inventory-v2-card-value, .inventory-v2-card-qty, .item-quantity")).toHaveCount(0);
   await expect(hybrid.locator(".inventory-v2-effect-rail")).toHaveCount(0);
