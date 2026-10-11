@@ -2697,6 +2697,12 @@ window.processEntitiesData = function(entities) {
                     <label style="color:#ccc;font-size:12px;">Fiabilidad del resultado controlado (%)
                       <input id="tienda-enchanter-fiabilidad" type="number" min="0" max="100" step="1" placeholder="0 a 100" />
                     </label>
+                    <label style="color:#ccc;font-size:12px;">Desenlace si el encantador pierde el control
+                      <select id="tienda-enchanter-fallo">
+                        <option value="">Conservar desenlaces existentes (si los hay)</option>
+                        <option value="unchanged_existing">El Item no cambia; se cobra el intento y se consumen los materiales</option>
+                      </select>
+                    </label>
                     <div style="color:#ccc;font-size:12px;">Servicios que ofrece</div>
                     <div id="tienda-enchanter-servicios" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:7px;"></div>
                     <div id="tienda-enchanter-tarifas" style="display:grid;gap:7px;"></div>
@@ -8288,6 +8294,7 @@ window.processEntitiesData = function(entities) {
           }
         }
 
+        let shopEnchanterOriginalOutcomeTable=[];
         const fixedEnchanterPriceServices=new Set(["identify","curse_analysis","remove_curse","remove_rewrite","extract_gem"]);
         function currentShopEnchanterPrices(){
           const prices={};
@@ -8363,6 +8370,8 @@ window.processEntitiesData = function(entities) {
           document.getElementById("tienda-enchanter-nombre").value = "";
           document.getElementById("tienda-enchanter-rango").value = "1";
           document.getElementById("tienda-enchanter-fiabilidad").value = "";
+          document.getElementById("tienda-enchanter-fallo").value = "";
+          shopEnchanterOriginalOutcomeTable=[];
           document.getElementById("tienda-enchanter-reparacion-precio").value = "";
           document.getElementById("tienda-enchanter-extraccion-calidad").value = "";
           renderShopEnchanterOptions();
@@ -8434,6 +8443,14 @@ window.processEntitiesData = function(entities) {
               alert("Indica la fiabilidad del encantador entre 0 y 100%.");
               return;
             }
+            const selectedNpcFailure=document.getElementById("tienda-enchanter-fallo").value;
+            if(enchanterEnabled && reliabilityPercent<100 && !selectedNpcFailure && !shopEnchanterOriginalOutcomeTable.length){
+              alert("Configura el desenlace de un intento sin control antes de ofrecer el servicio.");
+              return;
+            }
+            const enchanterOutcomeTable=selectedNpcFailure==="unchanged_existing"
+              ? [{kind:"unchanged_existing",weight:1}]
+              : JSON.parse(JSON.stringify(shopEnchanterOriginalOutcomeTable));
             const enchanterPrices={};
             for(const service of enchanterServices.filter(id=>fixedEnchanterPriceServices.has(id))){
               const field=[...document.querySelectorAll(".tienda-enchanter-tarifa")].find(input=>input.dataset.serviceId===service);
@@ -8577,6 +8594,7 @@ window.processEntitiesData = function(entities) {
                 knownEnchantments:enchanterRecipes,
                 services:enchanterServices,
                 reliability:reliabilityPercent/100,
+                outcomeTable:enchanterOutcomeTable,
                 servicePriceAhn:enchanterPrices,
                 magicalRepairAhnPerPoint:needsRepairPrice?Number(repairPriceField):null,
                 safeExtractionGemQuality:enchanterServices.includes("extract_gem")?extractionQuality:null,
@@ -8779,6 +8797,12 @@ window.processEntitiesData = function(entities) {
                 document.getElementById("tienda-enchanter-rango").value=String(Math.max(1,Math.min(3,Number(existingEnchanter.maxRank)||1)));
                 document.getElementById("tienda-enchanter-fiabilidad").value=
                   existingEnchanter.reliability==null?"":String(Math.round(Number(existingEnchanter.reliability)*100));
+                shopEnchanterOriginalOutcomeTable=Array.isArray(existingEnchanter.outcomeTable)
+                  ? JSON.parse(JSON.stringify(existingEnchanter.outcomeTable)) : [];
+                document.getElementById("tienda-enchanter-fallo").value=
+                  shopEnchanterOriginalOutcomeTable.length===1 &&
+                  shopEnchanterOriginalOutcomeTable[0].kind==="unchanged_existing"
+                    ? "unchanged_existing" : "";
                 document.getElementById("tienda-enchanter-reparacion-precio").value=
                   existingEnchanter.magicalRepairAhnPerPoint ?? "";
                 document.getElementById("tienda-enchanter-extraccion-calidad").value=
