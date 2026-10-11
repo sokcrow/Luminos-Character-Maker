@@ -1,0 +1,39 @@
+name: Player Stat Skill Icons Smoke
+
+on:
+  pull_request:
+    paths:
+      - "Assets/Icons/skills/**"
+      - "js/player-stats-ability-bar.js"
+      - "css/player-stats-ability-bar.css"
+      - "tests/player-stat-skill-icons-smoke.mjs"
+      - ".github/workflows/player-stat-skill-icons-smoke.yml"
+  push:
+    branches:
+      - feat/player-stat-skill-icons
+    paths:
+      - "Assets/Icons/skills/**"
+      - "js/player-stats-ability-bar.js"
+      - "css/player-stats-ability-bar.css"
+      - "tests/player-stat-skill-icons-smoke.mjs"
+      - ".github/workflows/player-stat-skill-icons-smoke.yml"
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: JS syntax and local PNGs
+        run: |
+          node --check js/player-stats-ability-bar.js
+          node --check tests/player-stat-skill-icons-smoke.mjs
+          node tests/player-stat-skill-icons-smoke.mjs
+      - name: Existing Stats and Skill regressions
+        run: |
+          node tests/player-stats-ability-icons-smoke.mjs
+          node tests/player-stats-tab-performance-smoke.mjs
+          node tests/trait-skill-score-visibility-smoke.mjs

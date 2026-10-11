@@ -283,8 +283,12 @@
       row.title = `Tirar ${skill.name} · ${definition.label} · Base ${formatModifier(value)} · Coin Engine`;
       row.innerHTML = `
         <span class="skill-proficiency" data-prof-state="${profState}" aria-label="${definition.label}"></span>
+        <img class="player-stat-skill-icon" src="Assets/Icons/skills/${skill.id}.png"
+          alt="" aria-hidden="true" width="36" height="36" loading="lazy" decoding="async">
         <div class="dnd-skill-name">${skill.name}<span>${skill.spanish} · click to roll</span></div>
         <div class="dnd-skill-value">${formatModifier(value)}</div>`;
+      const skillIcon = row.querySelector(".player-stat-skill-icon");
+      skillIcon?.addEventListener("error", () => { skillIcon.hidden = true; }, { once: true });
       list.appendChild(row);
     });
   }
