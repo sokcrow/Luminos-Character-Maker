@@ -39,7 +39,23 @@
       attacker.equipment?.mainHand,
       attacker.equipment?.main_hand,
     ];
-    return candidates.find((entry) => entry && typeof entry === "object") || null;
+    const equipped=candidates.find((entry) => entry && typeof entry === "object") || null;
+    if(!equipped) return null;
+    // Combat hydration clones equipped slots separately from the Player inventory.
+    // Enchantment activation MUST consume the canonical inventory Item, not the
+    // decorative equipment clone that Firebase will never serialize.
+    const id=String(equipped.instanceId || equipped.instance_id || "");
+    const active=attacker?.inventario_activo;
+    const stash=attacker?.inventario_stash;
+    if(id){
+      for(const container of [active,stash]){
+        if(!container || typeof container!=="object")continue;
+        const canonical=container[id] || Object.values(container).find(row=>
+          row && typeof row==="object" && String(row.instanceId || row.instance_id || "")===id);
+        if(canonical) return canonical;
+      }
+    }
+    return equipped;
   }
 
   function selectedChannels(skill = {}, context = {}) {
@@ -152,6 +168,9 @@
       requireLivingActor:true,
     }) || {activated:true,skipped:true,reason:"activation_runtime_unavailable"};
     if (context && result?.activated) context.__luminousEnchantmentActivationSpent=true;
+    if(result?.activated && !result?.skipped && (
+      Number(result?.plan?.charges)>0 || Number(result?.plan?.magicalDurability)>0
+    )) attacker.__luminousEnchantmentInventoryDirty=true;
     return result;
   }
 
@@ -228,6 +247,8 @@
         adjusted.activation = spendActivationOnce(attacker,adjusted.item,adjusted.resolution,skill,runtimeContext);
         if (adjusted.activation?.activated === false) return base;
         adjusted.wear = spendWearOnce(adjusted.item, adjusted.resolution, runtimeContext);
+        if(adjusted.wear?.spent && !adjusted.wear?.skipped && Number(adjusted.wear?.amount)>0)
+          attacker.__luminousEnchantmentInventoryDirty=true;
       }
       if (context && typeof context === "object") {
         context.enchantmentMagicHit = adjusted.resolution?.magicHit === true;
