@@ -36,7 +36,7 @@ async function boot(page, shouldSave = true) {
       walletBalance(owner){ return {resolved:true,balance:owner.ahn}; },
       quoteEnchantService(provider,item,id,rank) {
         return {quoted:true,service:"enchant",definitionId:id,rank,totalAhn:100,
-          materials:{plan:{valid:true}},duration:{resolved:true,hours:8}};
+          materials:{plan:{valid:true}},duration:{resolved:false,hours:8}};
       },
       playerServicePreview() {
         return {
@@ -167,4 +167,72 @@ test("changing Rank or Item invalidates previous payment confirmation", async ({
   await expect(commit).toBeDisabled();
   await expect(page.locator("#enchanter-ui-current")).toContainText("Second Sword");
   expect(await page.evaluate(() => window.__enchanterFixture.commits)).toBe(0);
+});
+
+test("timed service remains pending across panel reopening and only delivers when ready", async ({page}) => {
+  await boot(page);
+  await page.evaluate(() => {
+    const S=window.LuminousItemEnchanterServiceRuntime;
+    const quote=S.quoteEnchantService;
+    S.quoteEnchantService=(...args)=>({
+      ...quote(...args),duration:{resolved:true,hours:8},
+    });
+    S.serviceReady=(job)=>Date.now()>=job.readyAt;
+    S.startDeferredServiceTransaction=(owner,item,serviceQuote,options)=>{
+      const player=JSON.parse(JSON.stringify(owner));
+      player.ahn-=100;
+      player.enchanterTransactions ||= {};
+      player.enchanterJobs ||= {};
+      player.enchanterTransactions[options.transactionId]={
+        committed:true,status:"in_service",chargedAhn:100,
+      };
+      const job={jobId:options.transactionId,status:"in_service",
+        itemInstanceId:item.instanceId,service:"enchant",totalAhn:100,
+        readyAt:Date.now()+8*60*60*1000};
+      player.enchanterJobs[job.jobId]=job;
+      return {committed:true,started:true,transactionId:job.jobId,chargedAhn:100,
+        itemInstanceId:item.instanceId,service:"enchant",job,player};
+    };
+    S.completeDeferredServiceTransaction=(owner,id)=>{
+      const job=owner.enchanterJobs[id];
+      if(!S.serviceReady(job))return {committed:false,reason:"service_not_ready"};
+      const player=JSON.parse(JSON.stringify(owner));
+      player.inventario_activo.sword_1.magic={
+        enchantments:[{definitionId:"flamebound",rank:1}],
+      };
+      player.enchanterJobs[id].status="completed";
+      player.enchanterTransactions[id+":delivery"]={committed:true,chargedAhn:0};
+      return {committed:true,delivered:true,transactionId:id+":delivery",
+        chargedAhn:0,itemInstanceId:job.itemInstanceId,service:job.service,player};
+    };
+    window.LuminousEnchanterUi.render();
+  });
+  await page.locator("#enchanter-ui-confirm").check();
+  await page.locator("#enchanter-ui-commit").click();
+  await expect(page.locator("#enchanter-ui-preview-content")).toContainText("Entrega:");
+  await expect(page.locator("#enchanter-ui-commit")).toBeDisabled();
+  expect(await page.evaluate(() => ({
+    ahn:window.__enchanterFixture.viewer.ahn,
+    magical:!!window.__enchanterFixture.viewer.inventario_activo.sword_1.magic,
+    saves:window.__enchanterFixture.saves,
+  }))).toEqual({ahn:900,magical:false,saves:1});
+  await page.evaluate(() => {
+    window.LuminousEnchanterUi.close();
+    window.__openEnchanter();
+  });
+  await expect(page.locator("#enchanter-ui-preview-content")).toContainText("Entrega:");
+  await page.evaluate(() => {
+    const job=Object.values(window.__enchanterFixture.viewer.enchanterJobs)[0];
+    job.readyAt=Date.now()-1;
+    window.LuminousEnchanterUi.render();
+  });
+  await page.locator("#enchanter-ui-confirm").check();
+  await expect(page.locator("#enchanter-ui-commit")).toHaveText("RETIRAR ITEM");
+  await page.locator("#enchanter-ui-commit").click();
+  await expect(page.locator("#enchanter-ui-status")).toContainText("COMPLETE");
+  expect(await page.evaluate(() => ({
+    ahn:window.__enchanterFixture.viewer.ahn,
+    magic:window.__enchanterFixture.viewer.inventario_activo.sword_1.magic,
+    saves:window.__enchanterFixture.saves,
+  }))).toMatchObject({ahn:900,magic:{enchantments:[{definitionId:"flamebound",rank:1}]},saves:2});
 });
