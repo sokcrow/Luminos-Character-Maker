@@ -246,8 +246,12 @@
       return installed(item).length ? {eligible:true}:{eligible:false,reason:"enchantment_not_installed"};
     }
     if(["identify","curse_analysis","remove_curse","magical_repair","extract_gem"].includes(svc)){
-      if(!magic()?.isMagicItem?.(item)) return {eligible:false,reason:"item_has_no_magic"};
-      if(svc==="extract_gem" && !(engine()?.gemAnchors?.(item)?.length)) return {eligible:false,reason:"gem_anchor_not_found"};
+      // Eligibility is visible before the Player pays or studies Arcana.
+      // Never partition unknown objects using the true isMagicItem/anchor state.
+      const detected=magicKnowledge()?.presentation?.(state.viewer,item)?.magicDetected===true;
+      if(!detected) return {eligible:true};
+      if(svc==="extract_gem" && !(engine()?.gemAnchors?.(item)?.length))
+        return {eligible:false,reason:"gem_anchor_not_found"};
       return {eligible:true};
     }
     return {eligible:true};
@@ -274,6 +278,9 @@
   }
 
   function anchors(){
+    // Socket counts are themselves hidden magical information.
+    if(magicKnowledge()?.presentation?.(state.viewer,state.selectedItem)?.magicDetected!==true)
+      return [];
     return engine()?.gemAnchors?.(state.selectedItem) || [];
   }
 
@@ -298,6 +305,9 @@
       if(!choice) return {quoted:false,reason:"enchantment_not_installed"};
       return S.quoteStrengthenService(state.provider,state.selectedItem,choice.id,Number(choice.rank)+1,common);
     }
+    if(["magical_repair","remove_curse","extract_gem"].includes(svc)
+       && magicKnowledge()?.presentation?.(state.viewer,state.selectedItem)?.magicDetected!==true)
+      return {quoted:false,reason:"magic_not_detected"};
     if(svc==="magical_repair") return S.quoteMagicalRepair(state.provider,state.selectedItem,common);
     if(["identify","curse_analysis","remove_curse"].includes(svc)) return S.quoteFixedService(state.provider,svc,common);
     if(svc==="remove_rewrite"){
