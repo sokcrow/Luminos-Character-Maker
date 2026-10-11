@@ -1360,6 +1360,18 @@
         lexical("setStatus",()=>{})("REACTION · ITEM NO DISPONIBLE");
         return false;
       }
+      // The DM-authoritative Item bridge resolves this at the real pre-damage
+      // window. Do not also register it with the legacy generic Reaction
+      // runner, which would spend the same Reaction a second time.
+      state.preparedReaction=null;
+      const action={kind:"item",itemInstanceId:clean(sel.data.instanceId),
+        reaction:{mode:"prepared",trigger:"before_getting_hit"}};
+      try { global.dispatchEvent(new CustomEvent("luminous:combat073-reaction-prepared",{
+        detail:{version:VERSION,action,source:clone(sel.data)},
+      })); } catch (_) {}
+      lexical("setStatus",()=>{})(`REACTION · ${sel.data.name} · PREPARADA`);
+      lexical("goRoot",()=>{})();
+      return true;
     }
     const action = compilerFor(sel, null);
     if (!action) return false;
