@@ -193,9 +193,14 @@ async function commitEnchanterAtomic({database,authUid,request,Services,Engine,S
   if(!saved?.jugadores?.[playerId]?.enchanterTransactions?.[transactionId]){
     return {committed:false,reason:"server_receipt_not_confirmed"};
   }
+  const shopSaved=saved.tiendas?.[shopId]||{};
+  const authored=shopSaved.enchanterProvider || shopSaved.enchanterProfile ||
+    shopSaved.enchanter || {};
+  const materialStock=authored.providerMaterials || authored.materials || [];
   return {committed:true,transactionId,
     receipt:outcome.receipt,balance:outcome.balance,
-    // Only expose the authenticated player's data; not campaign/shop internals.
-    player:clone(saved.jugadores[playerId])};
+    // Only expose the authenticated player's state and this Shop's inventory.
+    player:clone(saved.jugadores[playerId]),
+    providerMaterials:clone(materialStock)};
 }
 module.exports={commitEnchanterAtomic,quoteForIntent,providerForShop,itemLocation};
