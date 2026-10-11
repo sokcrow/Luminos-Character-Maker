@@ -247,6 +247,52 @@ test("Active inventory and equipment remain square with centered item icons", as
   }
 });
 
+test("Phone equipment keeps fourth row and vitals reachable within its square", async ({ page }) => {
+  await bootHarness(page);
+  for (const width of [320, 375, 390, 430, 475]) {
+    await page.setViewportSize({ width, height: 800 });
+    const measured = await page.evaluate(() => {
+      const equipment = document.querySelector(".inventory-v2-equipment");
+      const field = document.querySelector(".inventory-v2-equipment-field");
+      const vitals = document.querySelector(".inventory-v2-vitals-strip");
+      field.scrollTop = 0;
+      const outer = equipment.getBoundingClientRect();
+      const scrollArea = field.getBoundingClientRect();
+      const status = vitals.getBoundingClientRect();
+      return {
+        panelWidth: outer.width,
+        panelHeight: outer.height,
+        fieldMinHeight: getComputedStyle(field).minHeight,
+        fieldOverflow: getComputedStyle(field).overflowY,
+        scrollHeight: field.scrollHeight,
+        clientHeight: field.clientHeight,
+        fieldBottom: scrollArea.bottom,
+        vitalsTop: status.top,
+        vitalsBottom: status.bottom,
+        panelBottom: outer.bottom,
+      };
+    });
+
+    expect(measured.fieldMinHeight, `phone width ${width}`).toBe("0px");
+    expect(measured.fieldOverflow, `phone width ${width}`).toBe("auto");
+    expect(Math.abs(measured.panelWidth - measured.panelHeight), `phone width ${width}`).toBeLessThanOrEqual(4);
+    expect(measured.clientHeight, `phone width ${width}`).toBeGreaterThan(10);
+    expect(measured.scrollHeight, `phone width ${width}`).toBeGreaterThan(measured.clientHeight);
+    expect(measured.fieldBottom, `phone width ${width}`).toBeLessThanOrEqual(measured.vitalsTop + 2);
+    expect(measured.vitalsBottom, `phone width ${width}`).toBeLessThanOrEqual(measured.panelBottom + 2);
+
+    const lastSlot = page.locator('[data-equipment-slot="augment1"]');
+    await lastSlot.evaluate((element) => {
+      element.dataset.clicked = "false";
+      element.addEventListener("click", () => { element.dataset.clicked = "true"; }, { once: true });
+    });
+    await lastSlot.click();
+    await expect(lastSlot).toHaveAttribute("data-clicked", "true");
+    const scrolled = await page.locator(".inventory-v2-equipment-field").evaluate((el) => el.scrollTop);
+    expect(scrolled, `phone width ${width}`).toBeGreaterThan(0);
+  }
+});
+
 test("Active inventory slots 1–5 remain reachable above the carry HUD", async ({ page }) => {
   await page.setViewportSize({ width: 1200, height: 720 });
   await bootHarness(page);
