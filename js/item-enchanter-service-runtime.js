@@ -1004,6 +1004,14 @@
           anchor:link.anchor,
         });
       }
+      if(mode==="safe_extract" || mode==="item_side_remove"){
+        const check=Engine.itemSideRemoveGemEnchantment(item,anchorId,{
+          gemQualityAfter:qualityAfter,
+        });
+        if(!check.removed) return Object.freeze({
+          quoted:false,reason:check.reason || "gem_quality_downgrade_required",
+        });
+      }
     }
 
     const fixed=quoteFixedService(profile,service,options);
