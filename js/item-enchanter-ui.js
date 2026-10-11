@@ -7,7 +7,8 @@
   const state={
     open:false,provider:null,viewer:null,items:[],providerMaterials:[],selectedItem:null,
     service:null,definitionId:null,rank:1,gem:null,anchorId:null,quote:null,pending:false,
-    onSave:null,onClose:null,status:"",saveUncertain:false,
+    onSave:null,onClose:null,getWorldTimestamp:null,unsubscribeWorldTime:null,
+    worldTimestamp:null,status:"",saveUncertain:false,
   };
 
   const services=()=>global.LuminousItemEnchanterServiceRuntime || null;
@@ -112,6 +113,7 @@
     service_item_changed_during_delivery:"El Item cambió mientras estaba en servicio; no se puede entregar automáticamente.",
     service_knowledge_changed_during_delivery:"El conocimiento del Item cambió; la entrega necesita revisión.",
     service_not_ready:"El Item todavía no está listo para retirarse.",
+    service_world_time_unavailable:"No se pudo consultar el reloj oficial de campaña.",
     service_item_must_be_unequipped:"Desequipa el Item antes de entregarlo al Enchanter.",
     service_item_identity_collision:"Ya existe otro Item con esa identidad; no se puede entregar.",
     service_inventory_full:"Libera un espacio en el inventario o alijo para retirar tu Item.",
@@ -127,6 +129,8 @@
   function invalidateConfirmation(){
     const checkbox=doc.getElementById("enchanter-ui-confirm");
     if(checkbox) checkbox.checked=false;
+    const destruction=doc.getElementById("enchanter-ui-confirm-destruction");
+    if(destruction) destruction.checked=false;
     state.quote=null;
   }
 
@@ -167,6 +171,7 @@
         </div>
         <footer class="enchanter-ui-footer">
           <div id="enchanter-ui-status">READY</div>
+          <label id="enchanter-ui-destruction-wrap" class="enchanter-ui-confirm" hidden><input id="enchanter-ui-confirm-destruction" type="checkbox"> CONFIRMO LA DESTRUCCIÓN IRREVERSIBLE DEL ITEM</label>
           <label class="enchanter-ui-confirm"><input id="enchanter-ui-confirm" type="checkbox"> CONFIRM SERVICE</label>
           <button id="enchanter-ui-commit" type="button">COMMIT</button>
         </footer>
@@ -297,6 +302,9 @@
     const refs=installed(item);
     const slots=item.magic?.enchantmentSlots || {used:engine()?.slotsUsed?.(refs)||0,max:engine()?.baseSlotCapacity?.(item)||0};
     const view=magicKnowledge()?.presentation?.(state.viewer,item);
+    if(view?.magicDetected!==true) {
+      return `<h4>${esc(itemName(item))}</h4><p>Inscripciones mágicas no detectadas.</p>`;
+    }
     const rows=refs.length ? refs.map((ref,index)=>{
       const line=view?.enchantmentLines?.[index];
       const label=line?.text || `Inscripción sin identificar ${index+1}`;
@@ -391,9 +399,14 @@
     const previewHost=doc.getElementById("enchanter-ui-preview-content");
     const commitButton=doc.getElementById("enchanter-ui-commit");
     const confirm=doc.getElementById("enchanter-ui-confirm");
+    const destruction=doc.getElementById("enchanter-ui-confirm-destruction");
+    const destructionWrap=doc.getElementById("enchanter-ui-destruction-wrap");
+    if(destructionWrap) destructionWrap.hidden=!state.quote?.destroysItem || Boolean(job);
+    const needsDestruction=state.quote?.destroysItem===true && !job;
+    const destructionConfirmed=!needsDestruction || destruction?.checked===true;
     const wallet=services()?.walletBalance?.(state.viewer) || {resolved:false,balance:0};
     if(job){
-      const ready=services()?.serviceReady?.(job)===true;
+      const ready=services()?.serviceReady?.(job,state.worldTimestamp)===true;
       const finish=new Date(Number(job.readyAt)).toLocaleString("es");
       if(validation) validation.innerHTML=ready
         ? "<h4>LISTO PARA RETIRAR</h4><p>El trabajo del Enchanter ha terminado.</p>"
@@ -456,7 +469,10 @@
       ${projectedSlots || "<p>El resultado se confirmará al ejecutar el servicio.</p>"}
       <h4>Effects</h4><ul>${effects || "<li>—</li>"}</ul>
       <h4>Materials</h4><ul>${materials || "<li>None</li>"}</ul>`;
-    if(commitButton) commitButton.disabled=state.pending || state.saveUncertain || paymentUnresolved || insufficient || confirm?.checked!==true;
+    if(needsDestruction && validation && !state.saveUncertain && !paymentUnresolved && !insufficient){
+      validation.innerHTML='<h4>DESTRUCCIÓN IRREVERSIBLE</h4><p>Extraer esta gema Bound destruirá el Item. Debes confirmar la pérdida para continuar.</p>';
+    }
+    if(commitButton) commitButton.disabled=state.pending || state.saveUncertain || paymentUnresolved || insufficient || confirm?.checked!==true || !destructionConfirmed;
   }
 
   function render(){
@@ -471,6 +487,7 @@
     if(confirm && !confirm.dataset.bound){
       confirm.dataset.bound="true";
       confirm.addEventListener("change",renderPreview);
+      doc.getElementById("enchanter-ui-confirm-destruction")?.addEventListener("change",renderPreview);
     }
     const status=doc.getElementById("enchanter-ui-status");
     if(status) status.textContent=state.status || (state.pending?"PROCESSING…":"READY");
@@ -481,6 +498,10 @@
     if(state.pending || state.saveUncertain || !state.selectedItem || (!job && !state.quote?.quoted)) return;
     const confirm=doc.getElementById("enchanter-ui-confirm");
     if(!confirm?.checked){state.status="CONFIRM SERVICE FIRST";render();return;}
+    if(state.quote?.destroysItem===true
+      && doc.getElementById("enchanter-ui-confirm-destruction")?.checked!==true){
+      state.status="CONFIRMA LA DESTRUCCIÓN DEL ITEM";render();return;
+    }
     state.pending=true;state.status="PROCESSING SERVICE…";render();
     const tx=`ui:${Date.now()}:${itemId(state.selectedItem)}:${state.service}`;
     const beforePlayer=clone(state.viewer);
@@ -498,15 +519,30 @@
         locationId:state.provider?.locationId || null,
       };
       const timed=state.quote?.duration?.resolved===true && Number(state.quote.duration.hours)>0;
+      if(job?.clockSource==="campaign" || timed){
+        if(typeof state.getWorldTimestamp!=="function")
+          throw new Error(reasonText("service_world_time_unavailable"));
+        const worldTimestamp=await state.getWorldTimestamp();
+        if(worldTimestamp==null || worldTimestamp==="")
+          throw new Error(reasonText("service_world_time_unavailable"));
+        common.worldTimestamp=worldTimestamp;
+        state.worldTimestamp=worldTimestamp;
+      }
       if((job || timed) && typeof state.onSave!=="function")
         throw new Error(reasonText("timed_service_requires_persistence"));
       let result;
       if(job){
-        result=services().completeDeferredServiceTransaction(state.viewer,job.jobId);
+        result=services().completeDeferredServiceTransaction(state.viewer,job.jobId,{
+          worldTimestamp:common.worldTimestamp,
+        });
       }else if(timed){
         result=services().startDeferredServiceTransaction(state.viewer,state.selectedItem,state.quote,common);
       }else{
-        result=services().commitServiceTransaction(state.viewer,state.selectedItem,state.quote,common);
+        result=services().commitServiceTransaction(state.viewer,state.selectedItem,state.quote,{
+          ...common,
+          confirmDestruction:state.quote.destroysItem===true
+            && doc.getElementById("enchanter-ui-confirm-destruction")?.checked===true,
+        });
       }
       if(!result.committed) throw new Error(reasonText(result.reason));
       if(result.player) applyPlayerSnapshot(result.player);
@@ -539,6 +575,11 @@
     if(!profile.services.length) return {opened:false,reason:"provider_has_no_enchanter_services"};
     state.provider=profile;
     state.viewer=context.viewer || context.unit || {};
+    state.unsubscribeWorldTime?.();
+    state.unsubscribeWorldTime=null;
+    state.worldTimestamp=null;
+    state.getWorldTimestamp=typeof context.getWorldTimestamp==="function"
+      ? context.getWorldTimestamp:null;
     state.items=serviceItems(context.items || allViewerItems(state.viewer));
     state.providerMaterials=asArray(context.providerMaterials || context.provider?.providerMaterials).map(item=>item);
     state.selectedItem=context.item || state.items[0] || null;
@@ -550,6 +591,18 @@
     const root=mount();
     invalidateConfirmation();
     state.open=true;
+    if(typeof context.subscribeWorldTimestamp==="function"){
+      state.unsubscribeWorldTime=context.subscribeWorldTimestamp(timestamp=>{
+        state.worldTimestamp=timestamp;
+        if(state.open && !state.pending) render();
+      });
+    }else if(state.getWorldTimestamp){
+      Promise.resolve().then(()=>state.getWorldTimestamp()).then(timestamp=>{
+        if(!state.open) return;
+        state.worldTimestamp=timestamp;
+        render();
+      }).catch(()=>{});
+    }
     root.classList.add("active");root.setAttribute("aria-hidden","false");
     const title=doc.getElementById("enchanter-ui-title");if(title) title.textContent=providerName().toUpperCase();
     render();
@@ -560,6 +613,8 @@
     const root=mount();
     root.classList.remove("active");root.setAttribute("aria-hidden","true");
     state.open=false;
+    state.unsubscribeWorldTime?.();
+    state.unsubscribeWorldTime=null;
     if(typeof state.onClose==="function") state.onClose();
   }
 
