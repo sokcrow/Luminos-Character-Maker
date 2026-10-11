@@ -302,7 +302,7 @@
     height:auto;min-height:0;
   }
   #inventory-modal.inventory-v2-ready .inventory-v2-equipment-field{min-height:0;overflow:auto}
-  #inventory-modal.inventory-v2-ready .inventory-v2-carry{min-height:350px}
+  #inventory-modal.inventory-v2-ready .inventory-v2-carry{min-height:0}
   #inventory-modal.inventory-v2-ready .inventory-v2-vitals-strip{padding:7px}
   #inventory-modal.inventory-v2-ready .inventory-v2-eq-label{font-size:9px}
   #inventory-modal.inventory-v2-ready .inventory-v2-equipment-header strong,
