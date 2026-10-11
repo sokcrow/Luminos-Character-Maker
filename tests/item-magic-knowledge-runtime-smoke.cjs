@@ -47,8 +47,17 @@ assert.strictEqual(lowPresentation.enchantmentLines[0].known,false);
 assert.ok(lowPresentation.enchantmentLines[0].text.includes("ᚠ") || lowPresentation.enchantmentLines[0].text.length > 5);
 assert.ok(!lowPresentation.enchantmentLines[0].text.includes("Flamebound"),"unknown rune text must not leak canonical Enchantment name");
 
-const baselineArcana = {id:"baseline_arcana",arcanaMod:0,sp:3};
+const baselineArcana = {id:"baseline_arcana",arcanaMod:0,sp:3,itemMagicKnowledge:{}};
+const beforeRead=JSON.stringify(baselineArcana);
 const baselinePresentation = Knowledge.presentation(baselineArcana,enchanted);
+assert.strictEqual(JSON.stringify(baselineArcana),beforeRead,
+  "passive item presentation must never mutate Player knowledge or timestamps");
+Knowledge.displayName(baselineArcana,enchanted);
+Knowledge.presentation(baselineArcana,enchanted);
+assert.strictEqual(JSON.stringify(baselineArcana),beforeRead,
+  "repeated previews must not trigger a knowledge write or break Firebase CAS");
+assert.strictEqual(baselinePresentation.magicDetected,true,
+  "read-only passive Arcana must still reveal the appropriate information");
 assert.strictEqual(baselinePresentation.displayName,"Enchanted Longsword");
 assert.strictEqual(baselinePresentation.magicDetected,true);
 assert.strictEqual(baselinePresentation.difficulty.threshold,22);
