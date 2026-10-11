@@ -736,11 +736,13 @@
       for(const key of Object.keys(state.unit)) delete state.unit[key];
       Object.assign(state.unit,clone(unitBefore));
       state.saveUncertain=true;
-      announce("SAVE NO CONFIRMADO // Inventario bloqueado hasta recargar Firebase.", "error");
     }
     const latest=selection && findEntry(selection.listType,selection.key);
     if(latest && state.selected?.key===selection.key && state.selected?.listType===selection.listType)
       fillEditor(latest,selection.listType);
+    announce(reloaded
+      ? "SAVE NO CONFIRMADO // Se recargó el estado real del inventario."
+      : "SAVE NO CONFIRMADO // Inventario bloqueado hasta recargar Firebase.", "error");
     return reloaded;
   }
 
