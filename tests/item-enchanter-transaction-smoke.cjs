@@ -47,10 +47,16 @@ const profane={
   unitValueAhn:50000,
   tags:["ingredient","blood","profane"],
 };
+const reagent=(id,quantity=1)=>({
+  instanceId:id,definitionId:"enchanted_dust",quantity,
+  unitValueAhn:5000,useTags:["enchantment_material"],
+});
+const ritualMaterial=reagent("ritual_catalyst");
+
 
 const quote=Services.quoteEnchantService(provider,item,"flamebound",1,{
   serviceId:"curse",
-  providerMaterials:[profane],
+  providerMaterials:[ritualMaterial,profane],
 });
 assert.strictEqual(quote.quoted,true);
 assert.deepStrictEqual(quote.properties,["curse"]);
@@ -65,7 +71,7 @@ const poorMaterial={...profane};
 const poorItem=JSON.parse(JSON.stringify(item));
 const failed=Services.commitServiceTransaction(poorOwner,poorItem,quote,{
   transactionId:"tx_atomic_fail",
-  providerMaterials:[poorMaterial],
+  providerMaterials:[{...ritualMaterial},poorMaterial],
   appliedBy:"atomic_enchanter",
   providerId:"atomic_enchanter",
 });
@@ -80,7 +86,7 @@ const material={...profane};
 const mutableItem=JSON.parse(JSON.stringify(item));
 const committed=Services.commitServiceTransaction(owner,mutableItem,quote,{
   transactionId:"tx_atomic_success",
-  providerMaterials:[material],
+  providerMaterials:[{...ritualMaterial},material],
   appliedBy:"atomic_enchanter",
   providerId:"atomic_enchanter",
   encounterId:"enc_42",
@@ -105,19 +111,21 @@ assert.strictEqual(owner.enchanterTransactions.tx_atomic_success.transactionId,"
 
 const duplicate=Services.commitServiceTransaction(owner,mutableItem,quote,{
   transactionId:"tx_atomic_success",
-  providerMaterials:[material],
+  providerMaterials:[{...ritualMaterial},material],
 });
 assert.strictEqual(duplicate.committed,false);
 assert.strictEqual(duplicate.reason,"duplicate_transaction");
 
 const dmOwner={id:"dm"};
 const dmItem={...item,instanceId:"dm_free_weapon"};
-const freeQuote=Services.quoteEnchantService(provider,dmItem,"flamebound",1,{});
+const freeReagent=reagent("free_ritual");
+const freeQuote=Services.quoteEnchantService(provider,dmItem,"flamebound",1,{playerMaterials:[freeReagent]});
 assert.strictEqual(freeQuote.quoted,true);
 const free=Services.commitServiceTransaction(dmOwner,dmItem,freeQuote,{
   transactionId:"tx_dm_free",
   dmFreeService:true,
   appliedBy:"dm",
+  playerMaterials:[freeReagent],
 });
 assert.strictEqual(free.committed,true);
 assert.strictEqual(free.chargedAhn,0);
@@ -168,11 +176,14 @@ const unreliableProvider=Services.normalizeProviderProfile({
   knownEnchantments:["flamebound"],reliability:0,
 });
 const npcItem={...item,instanceId:"unreliable_sword"};
-const npcQuote=Services.quoteEnchantService(unreliableProvider,npcItem,"flamebound",1);
+const npcCatalyst=reagent("npc_ritual");
+const npcQuote=Services.quoteEnchantService(unreliableProvider,npcItem,"flamebound",1,
+  {playerMaterials:[npcCatalyst]});
 assert.equal(npcQuote.quoted,true);
-const npcOwner={ahn:2000000,inventario_activo:{unreliable_sword:npcItem}};
+const npcOwner={ahn:2000000,inventario_activo:{unreliable_sword:npcItem,npc_ritual:npcCatalyst}};
 const npcDenied=Services.commitServiceTransaction(npcOwner,npcItem,npcQuote,{
   provider:unreliableProvider,npcRoll:0.5,transactionId:"npc_no_outcome",
+  playerMaterials:[npcCatalyst],
 });
 assert.equal(npcDenied.committed,false,"reliability zero must not produce a controlled Enchantment");
 assert.equal(npcItem.magic,undefined,"an unresolved NPC outcome cannot install magic");
@@ -183,10 +194,15 @@ const authoredFailureProvider=Services.normalizeProviderProfile({
   outcomeTable:[{kind:"unchanged_existing",weight:1}],
 });
 const authoredItem={...item,instanceId:"authored_failure_sword"};
-const authoredOwner={ahn:2000000,inventario_activo:{authored_failure_sword:authoredItem}};
-const authoredQuote=Services.quoteEnchantService(authoredFailureProvider,authoredItem,"flamebound",1);
+const authoredCatalyst=reagent("authored_ritual");
+const authoredOwner={ahn:2000000,inventario_activo:{
+  authored_failure_sword:authoredItem,authored_ritual:authoredCatalyst,
+}};
+const authoredQuote=Services.quoteEnchantService(authoredFailureProvider,authoredItem,"flamebound",1,
+  {playerMaterials:[authoredCatalyst]});
 const altered=Services.commitServiceTransaction(authoredOwner,authoredItem,authoredQuote,{
   provider:authoredFailureProvider,npcRoll:0.5,transactionId:"npc_authored_failure",
+  playerMaterials:[authoredCatalyst],
 });
 assert.equal(altered.committed,true,"an explicit NPC outcome can be committed");
 assert.equal(altered.npcOutcome.kind,"unchanged_existing");
@@ -201,13 +217,16 @@ const mountProvider=Services.normalizeProviderProfile({
 });
 const mountItem={...item,instanceId:"mount_weapon"};
 const gemStack={instanceId:"ruby_stack",definitionId:"ruby",quality:"fine",quantity:2};
-const mountOwner={ahn:2000000,inventario_activo:{mount_weapon:mountItem,ruby_stack:gemStack}};
+const mountCatalyst=reagent("mount_ritual");
+const mountOwner={ahn:2000000,inventario_activo:{mount_weapon:mountItem,ruby_stack:gemStack,
+  mount_ritual:mountCatalyst}};
 const mountQuote=Services.quoteEnchantService(mountProvider,mountItem,"flamebound",1,{
-  serviceId:"mount_gem",gem:gemStack,
+  serviceId:"mount_gem",gem:gemStack,playerMaterials:[mountCatalyst],
 });
 assert.equal(mountQuote.quoted,true);
 const mountDone=Services.commitServiceTransaction(mountOwner,mountItem,mountQuote,{
   provider:mountProvider,npcRoll:0,transactionId:"mount_once",
+  playerMaterials:[mountCatalyst],
 });
 assert.equal(mountDone.committed,true,"valid loose gem should mount successfully");
 assert.equal(mountOwner.inventario_activo.ruby_stack.quantity,1);
@@ -217,13 +236,16 @@ assert.notEqual(anchor.gemInstanceId,"ruby_stack","stack remainder and mounted g
 
 const singleItem={...item,instanceId:"single_mount_weapon"};
 const singleGem={instanceId:"ruby_single",definitionId:"ruby",quality:"fine",quantity:1};
-const singleOwner={ahn:2000000,inventario_activo:{single_mount_weapon:singleItem,ruby_single:singleGem}};
+const singleCatalyst=reagent("single_ritual");
+const singleOwner={ahn:2000000,inventario_activo:{single_mount_weapon:singleItem,
+  ruby_single:singleGem,single_ritual:singleCatalyst}};
 const singleQuote=Services.quoteEnchantService(mountProvider,singleItem,"flamebound",1,{
-  serviceId:"mount_gem",gem:singleGem,
+  serviceId:"mount_gem",gem:singleGem,playerMaterials:[singleCatalyst],
 });
 assert.equal(singleQuote.quoted,true);
 const singleDone=Services.commitServiceTransaction(singleOwner,singleItem,singleQuote,{
   provider:mountProvider,npcRoll:0,transactionId:"mount_single",
+  playerMaterials:[singleCatalyst],
 });
 assert.equal(singleDone.committed,true);
 assert.equal(singleOwner.inventario_activo.ruby_single,undefined,"mounted singleton gem must leave loose inventory");
@@ -271,14 +293,18 @@ assert.equal(conflictOwner.inventario_activo.ruby_recovered.quantity,1);
 // A timed Enchanter order charges/material-reserves at intake but must not
 // reveal or mutate its magical result until the persisted readyAt is reached.
 const timedItem={...item,instanceId:"timed_weapon"};
-const timedOwner={ahn:2000000,inventario_activo:{timed_weapon:timedItem},
+const timedCatalyst=reagent("timed_ritual");
+const timedOwner={ahn:2000000,inventario_activo:{timed_weapon:timedItem,timed_ritual:timedCatalyst},
   enchanterTransactions:{},enchanterJobs:{}};
-const timedQuote=Services.quoteEnchantService(provider,timedItem,"flamebound",1,{serviceId:"enchant"});
+const timedQuote=Services.quoteEnchantService(provider,timedItem,"flamebound",1,{
+  serviceId:"enchant",playerMaterials:[timedCatalyst],
+});
 assert.equal(timedQuote.quoted,true);
 const timedWithDuration={...timedQuote,duration:{resolved:true,hours:8}};
 const startedAt=1710000000000;
 const delayed=Services.startDeferredServiceTransaction(timedOwner,timedItem,timedWithDuration,{
   transactionId:"timed_enchant_once",startedAt,provider,
+  playerMaterials:[timedCatalyst],
 });
 assert.equal(delayed.committed,true,"valid order must reserve and persist a job");
 assert.equal(delayed.started,true);
