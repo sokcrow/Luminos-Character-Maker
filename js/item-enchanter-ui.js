@@ -82,6 +82,15 @@
     const fields=["inventario_activo","inventario_stash","ahn","finance",
       "itemMagicKnowledge","enchantmentCompendium","enchanterTransactions","enchanterJobs"];
     const selectedId=itemId(state.selectedItem);
+    const beforeItem=[...Object.values(beforePlayer.inventario_activo || {}),
+      ...Object.values(beforePlayer.inventario_stash || {})]
+      .find(item=>itemId(item)===selectedId);
+    // Restore the original Item object too: equipment/HUD views may still hold
+    // that reference even after we restore the inventory containers.
+    if(beforeItem && state.selectedItem && typeof state.selectedItem==="object"){
+      for(const key of Object.keys(state.selectedItem)) delete state.selectedItem[key];
+      Object.assign(state.selectedItem,clone(beforeItem));
+    }
     for(const key of fields){
       if(Object.prototype.hasOwnProperty.call(beforePlayer,key))
         state.viewer[key]=clone(beforePlayer[key]);
