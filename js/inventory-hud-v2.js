@@ -19,6 +19,7 @@
     selected: null,
     selectedContainer: "active",
     ready: false,
+    arcanaStudyPending: false,
   };
 
   const romanTiers = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
@@ -1273,21 +1274,51 @@
   async function studySelectedArcana() {
     const item = selectedItem();
     const knowledge = magicKnowledge();
-    if (!item || !knowledge?.studyArcana || !state.unit) return;
+    if (!item || !knowledge?.studyArcana || !state.unit || state.arcanaStudyPending) return;
     if (!state.vitalsReady) {
       showStatus("SYNCING PLAYER VITALS...", "working");
       return;
     }
-    const result = knowledge.studyArcana(knowledgeViewer(), item);
-    if (!result?.studied) {
-      const reason = result?.reason === "insufficient_sp" ? "NOT ENOUGH SP" : String(result?.reason || "ARCANA STUDY FAILED").replace(/_/g, " ").toUpperCase();
-      showStatus(`BLOCKED // ${reason}`, "error");
-      return;
+    state.arcanaStudyPending = true;
+    const unit = state.unit;
+    // Study mutates SP and one of three supported knowledge stores before the
+    // Firebase write. A failed save must not leave either mutation available
+    // for an unrelated inventory/vitals save to publish later.
+    const keys = ["sp","itemMagicKnowledge","magicItemKnowledge","conocimientoItemsMagicos"];
+    const previous = Object.fromEntries(keys.map(key => [key,{
+      present:Object.prototype.hasOwnProperty.call(unit,key),
+      value:unit[key] === undefined ? undefined : JSON.parse(JSON.stringify(unit[key])),
+    }]));
+    const restore = () => {
+      // A realtime refresh may have supplied a newer authoritative unit.
+      if (state.unit !== unit) return;
+      for (const [key,snapshot] of Object.entries(previous)) {
+        if (snapshot.present) unit[key] = snapshot.value;
+        else delete unit[key];
+      }
+      renderAll();
+    };
+    try {
+      const result = knowledge.studyArcana(knowledgeViewer(), item);
+      if (!result?.studied) {
+        restore();
+        const reason = result?.reason === "insufficient_sp" ? "NOT ENOUGH SP" : String(result?.reason || "ARCANA STUDY FAILED").replace(/_/g, " ").toUpperCase();
+        showStatus(`BLOCKED // ${reason}`, "error");
+        return;
+      }
+      const message = result.success
+        ? `ARCANA ${result.total} VS TH ${result.target} // INSCRIPTION UNDERSTOOD`
+        : `ARCANA ${result.total} VS TH ${result.target ?? "?"} // RUNES REMAIN UNCLEAR`;
+      if (!(await saveUnitWithVitals(message))) {
+        restore();
+        showStatus("ERROR // ARCANA NO GUARDADA. SP Y CONOCIMIENTO RESTAURADOS.", "error");
+      }
+    } catch (error) {
+      restore();
+      showStatus(`ERROR // ARCANA NO GUARDADA: ${error?.message || error}`, "error");
+    } finally {
+      state.arcanaStudyPending = false;
     }
-    const message = result.success
-      ? `ARCANA ${result.total} VS TH ${result.target} // INSCRIPTION UNDERSTOOD`
-      : `ARCANA ${result.total} VS TH ${result.target ?? "?"} // RUNES REMAIN UNCLEAR`;
-    await saveUnitWithVitals(message);
   }
 
   function renderActions(item, equippedSlot) {
