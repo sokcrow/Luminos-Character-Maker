@@ -1145,6 +1145,21 @@
     const npcService=["enchant","mount_gem","bind","curse","strengthen"].includes(normalizeId(quote.service));
     let npcOutcome=null;
     if(npcService && quote.reliability?.resolved===true){
+      // Do not offer free rerolls when an uncontrolled outcome lacks authored
+      // resolution. Every non-controlled possibility must be executable.
+      if(quote.reliability.probability<1){
+        const table=asArray(options.provider?.outcomeTable).filter(entry=>numberOr(entry?.weight,0)>0);
+        if(!table.length)
+          return Object.freeze({committed:false,reason:"npc_outcome_not_authored",transactionId});
+        for(const outcome of table){
+          const preflight=applyPlayerDeviation(clone(item),quote.definitionId,outcome,{
+            ...options,gem:effectiveQuote.gem,
+            rank:quote.targetRank ?? quote.rank,properties:quote.properties,
+          });
+          if(!preflight.applied)
+            return Object.freeze({committed:false,reason:"npc_altered_outcome_unresolved",transactionId});
+        }
+      }
       if(options.provider){
         npcOutcome=resolveNpcOutcome(options.provider,quote.definitionId,item,{
           roll:options.npcRoll,recipeProvided:options.recipeProvided===true,
