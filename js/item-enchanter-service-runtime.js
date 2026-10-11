@@ -1288,6 +1288,15 @@
     });
   }
 
+  // The DM's canonical campaign calendar is a persisted ISO timestamp. A
+  // timed job must never fall back to the browser clock or to an arbitrary
+  // client-side startedAt.
+  function campaignTimeMs(value) {
+    if(value==null || value==="") return null;
+    const parsed=typeof value==="number"?value:Date.parse(String(value));
+    return Number.isFinite(parsed)?parsed:null;
+  }
+
   function beginService(provider={},item={},quote={},options={}) {
     if (!quote?.quoted) return Object.freeze({started:false,reason:"invalid_quote"});
     const durationHours=Number.isFinite(Number(options.durationHours))
@@ -1307,11 +1316,13 @@
       if (!consumption.consumed) return Object.freeze({started:false,reason:consumption.reason||"material_consumption_failed",consumption});
     }
 
-    const startedAt=Number.isFinite(Number(options.startedAt))?Number(options.startedAt):Date.now();
+    const startedAt=campaignTimeMs(options.worldTimestamp);
+    if(startedAt==null) return Object.freeze({started:false,reason:"service_world_time_unavailable"});
     const readyAt=startedAt+Math.round(durationHours*60*60*1000);
     const job=Object.freeze({
       jobId:String(options.jobId || `enchanter_${startedAt}_${normalizeId(quote.service)}`),
       status:"in_service",
+      clockSource:"campaign",
       providerId:String((provider.id || provider.providerId || "")??""),
       itemInstanceId:String(item?.instanceId || item?.id || ""),
       service:quote.service,
@@ -1348,7 +1359,7 @@
       job?.status==="in_service" && job.itemInstanceId===String(item.instanceId || item.id || "")))
       return Object.freeze({committed:false,reason:"item_already_in_service"});
     const start=beginService(options.provider || {},item,quote,{
-      jobId:transactionId,startedAt:options.startedAt,
+      jobId:transactionId,worldTimestamp:options.worldTimestamp,
     });
     if (!start.started) return Object.freeze({committed:false,reason:start.reason});
     const simulated=clone(owner);
@@ -1412,7 +1423,10 @@
     const job=owner.enchanterJobs?.[id];
     if(!job || job.status!=="in_service")
       return Object.freeze({committed:false,reason:"service_job_not_pending"});
-    const now=Number.isFinite(Number(options.now))?Number(options.now):Date.now();
+    const now=job.clockSource==="campaign"
+      ? campaignTimeMs(options.worldTimestamp)
+      : (Number.isFinite(Number(options.now))?Number(options.now):Date.now());
+    if(now==null) return Object.freeze({committed:false,reason:"service_world_time_unavailable"});
     if(!serviceReady(job,now))
       return Object.freeze({committed:false,reason:"service_not_ready",readyAt:job.readyAt});
     if(inventoryEntry(owner,job.itemInstanceId))
@@ -1471,9 +1485,12 @@
     return Object.freeze({...receipt,player:Object.freeze(copy),delivered:true});
   }
 
-  function serviceReady(job={},now=Date.now()) {
+  function serviceReady(job={},timestamp) {
     if (!job || normalizeId(job.status)!=="in_service") return false;
-    return Number.isFinite(Number(job.readyAt)) && Number(now)>=Number(job.readyAt);
+    const now=job.clockSource==="campaign"
+      ? campaignTimeMs(timestamp)
+      : (timestamp==null?Date.now():Number(timestamp));
+    return now!=null && Number.isFinite(Number(job.readyAt)) && now>=Number(job.readyAt);
   }
 
   function executeControlledResult(item={},quote={},options={}) {
@@ -1506,7 +1523,9 @@
       const knowledge=knowledgeRuntime();
       if(!viewer || !knowledge?.identifyCurse) return Object.freeze({executed:false,reason:"knowledge_runtime_or_viewer_unavailable"});
       const result=knowledge.identifyCurse(viewer,item,{source:"enchanter_service"});
-      return Object.freeze({executed:result.identified===true,result,item:Object.freeze(clone(item))});
+      // A conclusive negative is a completed, billable diagnosis too.
+      return Object.freeze({executed:result.identified===true ||
+        result.knowledge?.curseChecked===true,result,item:Object.freeze(clone(item))});
     }
     if (quote.service==="remove_curse") {
       if(item?.magic?.relic?.inseparableDrawback===true || item?.relic?.inseparableDrawback===true) {
