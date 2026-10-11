@@ -65,6 +65,7 @@ on:
       - js/item-enchantment-engine.js
       - js/item-enchantment-combat-runtime.js
       - js/item-enchanter-service-runtime.js
+      - js/item-enchanter-firebase-transaction.js
       - js/item-enchanter-ui.js
       - js/item-equipment-enhancement-contract.js
       - css/item-enchanter-ui.css
