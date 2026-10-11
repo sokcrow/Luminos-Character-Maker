@@ -438,7 +438,7 @@ const analysisProvider=Services.normalizeProviderProfile({
   id:"curse_reader",maxRank:3,services:["curse_analysis"],
   servicePriceAhn:{curse_analysis:350},
 });
-const analysisItem=JSON.parse(JSON.stringify(committed.item));
+const analysisItem=JSON.parse(JSON.stringify(dmItem));
 analysisItem.instanceId="clean_magic_item";
 const analysisOwner={ahn:900,itemMagicKnowledge:{},inventario_activo:{clean_magic_item:analysisItem}};
 const analysisQuote=Services.quoteFixedService(analysisProvider,"curse_analysis");
