@@ -132,6 +132,9 @@ on:
       - tests/item-enchantment-legacy-backend-smoke.cjs
       - tests/item-enchantment-combat-deterministic-smoke.cjs
       - tests/item-enchantment-triggered-combat-smoke.cjs
+      - tests/enchanter-server-atomic-smoke.cjs
+      - functions/**
+      - firebase.json
       - tests/item-enchantment-resistance-adapter-smoke.cjs
       - tests/item-enchantment-passive-aggregation-smoke.cjs
       - tests/item-enchantment-charge-mapping-smoke.cjs
@@ -339,6 +342,15 @@ jobs:
         run: node tests/item-enchantment-combat-deterministic-smoke.cjs
       - name: Enchanter on-hit and damage-received trigger regression smoke
         run: node tests/item-enchantment-triggered-combat-smoke.cjs
+      - name: Enchanter privileged Player and Shop atomic regression smoke
+        run: node tests/enchanter-server-atomic-smoke.cjs
+      - name: Firebase Enchanter Function packaging and syntax
+        run: |
+          node --check functions/enchanter-atomic.cjs
+          node --check functions/index.cjs
+          node --check functions/build-enchanter-bundle.cjs
+          node functions/build-enchanter-bundle.cjs
+          node --check functions/vendor/js/item-enchanter-service-runtime.js
       - name: Enchanter physical/SIN resistance adapter smoke
         run: node tests/item-enchantment-resistance-adapter-smoke.cjs
       - name: Enchanter passive Item aggregation smoke
