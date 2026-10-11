@@ -807,6 +807,8 @@
       definitionId,
       totalAhn:0,
     };
+    const beforeUnit=clone(state.unit);
+    const selection={key:latest.key,listType:state.selected.listType};
     const result = enchanterServices()?.commitServiceTransaction?.(state.unit, latest.item, quote, {
       transactionId:`dm:${Date.now()}:${itemId(latest.item)}:remove:${definitionId}`,
       dmFreeService:true,
