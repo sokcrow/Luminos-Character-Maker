@@ -63,6 +63,49 @@ requirements and the wider conditional/reaction bridge are intentionally
 unchecked. They require deployed Firebase permission/performance evidence and
 user-selected reactive actions, rather than a misleading checkbox closure.
 
+## 2026-10-11 — Closure pass: canonical removal, player-selected Reaction and Emulator gate
+
+**Current acceptance remains 344/350 until production-level evidence exists.**
+This pass addresses code gaps rather than silently approving future Magic Items
+or Magic Loot systems.
+
+- Canonical removal accidentally consumed `flamebound` application catalysts
+  because every service with `definitionId` entered the same recipe-consumption
+  branch. The service runtime now spends catalysts for application,
+  strengthening and new-definition rewrites only, not ordinary removal.
+  `tests/enchanter-server-canonical-smoke.cjs` validates priced removal,
+  failed-payment rollback, exact Item identity, unchanged reagent stock,
+  one-time receipt and replay rejection. The direct canonical test passed
+  **35 assertions** after correction.
+- Combat now emits a guarded per-Coin `[Before Getting Hit]` pre-damage hook.
+  The Enchantment bridge supports a **selected** equipped Item reaction:
+  it pays one Reaction only on actual triggering, rolls back a failed Status
+  application and cannot reuse the same selection for every Coin.
+  `tests/item-enchantment-triggered-combat-smoke.cjs` passed **47 assertions**.
+- The existing **Items → REACTION** Battle Viewer menu displays equipped
+  reactions only when an actual `before_getting_hit` Status definition exists.
+  It allows preparation, replacement and cancellation; the prepared Item ID
+  is included in the authenticated Player READY payload. The DM authority
+  revalidates/arms the equipped Item from sealed planning, once per round.
+  `tests/enchanter-reaction-planning-authority-smoke.cjs` passed
+  **14 direct harness assertions**. No floating debug controls were added.
+- The privileged backend rejects ambiguous Item Instance identities and
+  cross-Shop escrow pickup; it distinguishes client-side retryable rejected
+  preconditions from uncertain network outcomes.
+- `.github/workflows/enchanter-firebase-emulator-validation.yml` now
+  runs dedicated real Firebase Auth + RTDB emulators and tests Player-vs-Shop
+  rules, stolen ownership, two-client and two-owner contention, idempotent
+  receipts and atomic removal. **A newly authored emulator test or a queued CI
+  run is not proof that the emulator actually passed.**
+
+**Final gating remains:** obtain a green real-emulator run; perform end-to-end
+Player/DM/browser and actual callable deployment verification; measure root
+`campaña` contention; and approve any additional reactive Shield numerical
+and absorption-wear behavior before publishing that content. The existing
+Player-subtree write permissions also need review as a broader economy-trust
+boundary; the callable itself does not automatically secure all unrelated
+legacy ways of editing the Player wallet.
+
 ## Part A — Enchantment Core (design frozen)
 
 Canonical contract: [`docs/enchanters-update-part-a-core.md`](./enchanters-update-part-a-core.md)
