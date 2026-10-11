@@ -329,7 +329,8 @@
   #inventory-modal.inventory-v2-ready .inventory-left-panel{padding:6px}
   #inventory-modal.inventory-v2-ready .inventory-v2-equipment-field{
     grid-template-columns:minmax(0,1fr) minmax(82px,34%) minmax(0,1fr);
-    min-height:300px;gap:5px;padding:7px 6px;
+    /* Let the square panel allocate its remaining height; scroll the four equipment rows. */
+    min-height:0;gap:5px;padding:7px 6px;
     grid-template-rows:repeat(4,minmax(64px,1fr));
   }
   #inventory-modal.inventory-v2-ready .inventory-v2-eq-slot{width:min(100%,64px);padding:4px 2px}
