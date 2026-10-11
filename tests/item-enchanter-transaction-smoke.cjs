@@ -307,6 +307,20 @@ assert.equal(delivered.player.ahn,delayed.player.ahn);
 assert.equal(delivered.player.inventario_activo.timed_weapon.magic.enchantments.length,1);
 assert.equal(delivered.player.enchanterJobs.timed_enchant_once.status,"completed");
 assert.equal(delivered.player.enchanterTransactions["timed_enchant_once:delivery"].chargedAhn,0);
+// Firebase serializers add schema defaults, which must not invalidate a
+// legitimate job or erase the normalized Item at collection time.
+require("../js/item-persistence-runtime.js");
+const Persistence=globalThis.LuminousItemPersistenceRuntime;
+const savedPending=Persistence.serializeInventoryState(delayed.player);
+const restoredState=Persistence.deserializeInventoryState(savedPending);
+const restoredOwner={...delayed.player,...restoredState};
+assert.equal(restoredOwner.inventario_activo.timed_weapon.schemaVersion,3);
+const deliveredAfterReload=Services.completeDeferredServiceTransaction(
+  restoredOwner,"timed_enchant_once",{now:delayed.job.readyAt});
+assert.equal(deliveredAfterReload.committed,true,"loaded orders must still be deliverable");
+assert.equal(deliveredAfterReload.player.inventario_activo.timed_weapon.schemaVersion,3,
+  "delivery must preserve hydrated Item fields");
+assert.equal(deliveredAfterReload.player.inventario_activo.timed_weapon.magic.enchantments.length,1);
 assert.equal(Services.completeDeferredServiceTransaction(delivered.player,"timed_enchant_once",{
   now:delayed.job.readyAt,
 }).committed,false,"a finished job cannot be collected twice");
