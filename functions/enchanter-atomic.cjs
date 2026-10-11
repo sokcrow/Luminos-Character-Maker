@@ -108,7 +108,16 @@ async function commitEnchanterAtomic({database,authUid,request,Services,Engine,S
   let response;
   try{
     response=await database.ref("campaña").transaction(current=>{
-      if(!current || typeof current!=="object"){reason="campaign_unavailable";return;}
+      if(current===null){
+        // RTDB may call the update function with an uncached null snapshot
+        // before retrying with the server's actual non-null campaign state.
+        // Returning undefined here aborts prematurely. A null no-op write
+        // conflicts with a populated server snapshot and is retried with it;
+        // an actually empty campaign still cannot produce a valid receipt.
+        reason="campaign_unavailable";
+        return null;
+      }
+      if(typeof current!=="object"){reason="campaign_unavailable";return;}
       const player=current.jugadores?.[playerId],shop=current.tiendas?.[shopId];
       if(!player||!shop){reason="player_or_shop_not_found";return;}
       if(String(player.uid||"")!==auth){reason="player_not_authorized";return;}
