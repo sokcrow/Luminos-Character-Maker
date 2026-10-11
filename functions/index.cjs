@@ -37,5 +37,6 @@ exports.commitEnchanterService=onCall({
       String(result.reason||"service_rejected"));
   }
   return {committed:true,transactionId:result.transactionId,
-    balance:result.balance,player:result.player,receipt:result.receipt};
+    balance:result.balance,player:result.player,receipt:result.receipt,
+    providerMaterials:result.providerMaterials};
 });
