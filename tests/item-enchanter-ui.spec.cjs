@@ -12,7 +12,7 @@ async function boot(page, shouldSave = true) {
       category:"weapon", tier:5, condition:100, conditionMax:100,
     };
     const viewer = { id:"player", ahn:1000, inventario_activo:{ sword_1:sword } };
-    window.__enchanterFixture = { sword, viewer, commits:0, saves:0, events:0 };
+    window.__enchanterFixture = { sword, viewer, commits:0, saves:0, events:0,clock:1710000000000 };
     window.addEventListener("luminous:enchanter-service-committed", () => {
       window.__enchanterFixture.events += 1;
     });
@@ -63,6 +63,12 @@ async function boot(page, shouldSave = true) {
       items:[sword],
       provider:{ id:"tester", name:"Testing Enchanter",services:["enchant"],maxRank:3,
         knownEnchantments:["flamebound"] },
+      getWorldTimestamp:async()=>window.__enchanterFixture.clock,
+      subscribeWorldTimestamp:listener=>{
+        window.__enchanterClockListener=listener;
+        listener(window.__enchanterFixture.clock);
+        return ()=>{window.__enchanterClockListener=null;};
+      },
       onSave: async () => {
         window.__enchanterFixture.saves += 1;
         if (window.__enchanterSaveFails) throw new Error("network save did not confirm");
@@ -121,7 +127,7 @@ test("unidentified installed magic stays obfuscated without breaking rank-sensit
     const {sword} = window.__enchanterFixture;
     sword.magic = {enchantments:[{definitionId:"flamebound",rank:2}]};
     window.LuminousItemMagicKnowledgeRuntime = {
-      presentation(){ return {enchantmentLines:[{known:false,text:"ᚠᛉᚻ"}],knowledge:{rankKnown:false}}; },
+      presentation(){ return {magicDetected:true,enchantmentLines:[{known:false,text:"ᚠᛉᚻ"}],knowledge:{rankKnown:false}}; },
     };
     const provider=window.LuminousEnchanterUi.state.provider;
     provider.services.push("strengthen");
@@ -177,7 +183,7 @@ test("timed service remains pending across panel reopening and only delivers whe
     S.quoteEnchantService=(...args)=>({
       ...quote(...args),duration:{resolved:true,hours:8},
     });
-    S.serviceReady=(job)=>Date.now()>=job.readyAt;
+    S.serviceReady=(job,world)=>Number(world)>=Number(job.readyAt);
     S.startDeferredServiceTransaction=(owner,item,serviceQuote,options)=>{
       const player=JSON.parse(JSON.stringify(owner));
       player.ahn-=100;
@@ -188,16 +194,16 @@ test("timed service remains pending across panel reopening and only delivers whe
       };
       const job={jobId:options.transactionId,status:"in_service",
         itemInstanceId:item.instanceId,service:"enchant",totalAhn:100,
-        readyAt:Date.now()+8*60*60*1000,
+        clockSource:"campaign",readyAt:Number(options.worldTimestamp)+8*60*60*1000,
         itemBefore:JSON.parse(JSON.stringify(item)),providerId:"tester"};
       delete player.inventario_activo[item.instanceId];
       player.enchanterJobs[job.jobId]=job;
       return {committed:true,started:true,transactionId:job.jobId,chargedAhn:100,
         itemInstanceId:item.instanceId,service:"enchant",job,player};
     };
-    S.completeDeferredServiceTransaction=(owner,id)=>{
+    S.completeDeferredServiceTransaction=(owner,id,options)=>{
       const job=owner.enchanterJobs[id];
-      if(!S.serviceReady(job))return {committed:false,reason:"service_not_ready"};
+      if(!S.serviceReady(job,options.worldTimestamp))return {committed:false,reason:"service_not_ready"};
       const player=JSON.parse(JSON.stringify(owner));
       player.inventario_activo.sword_1={
         ...job.itemBefore,magic:{enchantments:[{definitionId:"flamebound",rank:1}]},
@@ -225,8 +231,8 @@ test("timed service remains pending across panel reopening and only delivers whe
   await expect(page.locator("#enchanter-ui-preview-content")).toContainText("Entrega:");
   await page.evaluate(() => {
     const job=Object.values(window.__enchanterFixture.viewer.enchanterJobs)[0];
-    job.readyAt=Date.now()-1;
-    window.LuminousEnchanterUi.render();
+    window.__enchanterFixture.clock=job.readyAt;
+    window.__enchanterClockListener(job.readyAt);
   });
   await page.locator("#enchanter-ui-confirm").check();
   await expect(page.locator("#enchanter-ui-commit")).toHaveText("RETIRAR ITEM");
@@ -268,4 +274,63 @@ test("shop terminal never quotes or consumes provider-stock reagents", async ({p
     spent:window.LuminousEnchanterUi.state.providerMaterials[0].quantity,
   }))).toMatchObject({spent:2});
   expect(await page.evaluate(()=>window.__providerMaterialsSeen.every(n=>n===0))).toBe(true);
+});
+
+test("undetected enchantment does not expose occupied slots or inscription count",async ({page})=>{
+  await boot(page);
+  await page.evaluate(()=>{
+    const sword=window.__enchanterFixture.sword;
+    sword.magic={enchantments:[{definitionId:"flamebound",rank:2}],
+      enchantmentSlots:{used:2,max:3}};
+    window.LuminousItemMagicKnowledgeRuntime={presentation:()=>({
+      magicDetected:false,enchantmentLines:[{known:false,text:"ᚠᛉᚻ"}],
+    })};
+    window.LuminousEnchanterUi.render();
+  });
+  const card=page.locator("#enchanter-ui-current");
+  await expect(card).toContainText("Inscripciones mágicas no detectadas.");
+  await expect(card).not.toContainText("SLOTS");
+  await expect(card).not.toContainText("ᚠᛉᚻ");
+  await expect(card.locator("li")).toHaveCount(0);
+});
+
+test("Bound gem extraction needs separate irreversible Item destruction approval",async ({page})=>{
+  await boot(page);
+  await page.evaluate(()=>{
+    const S=window.LuminousItemEnchanterServiceRuntime;
+    const E=window.LuminousItemEnchantmentEngine;
+    E.gemAnchors=()=>[{anchorId:"socket_1",gemDefinitionId:"ruby",gemQuality:"fine"}];
+    window.LuminousOreIngotGemCatalog={gemMagicProfile:()=>({displayName:"Ruby"})};
+    window.LuminousItemMagicRuntime={isMagicItem:()=>true};
+    window.LuminousItemMagicKnowledgeRuntime={presentation:()=>({
+      magicDetected:true,enchantmentLines:[],knowledge:{},
+    })};
+    S.SERVICE_IDS.push("extract_gem");
+    S.quoteGemProcedure=()=>({quoted:true,service:"extract_gem",procedure:"safe_extract",
+      destroysItem:true,bound:true,totalAhn:100,materials:{plan:{valid:true}}});
+    S.commitServiceTransaction=(owner,item,quote,options)=>{
+      window.__destructionConfirmedByEngine=options.confirmDestruction===true;
+      if(!window.__destructionConfirmedByEngine)
+        return {committed:false,reason:"bound_gem_removal_destroys_item"};
+      owner.ahn-=100;
+      item.destroyed=true;
+      owner.enchanterTransactions ||= {};
+      owner.enchanterTransactions[options.transactionId]={committed:true,chargedAhn:100};
+      return {committed:true,transactionId:options.transactionId,chargedAhn:100,
+        itemInstanceId:item.instanceId,service:"extract_gem"};
+    };
+    const ui=window.LuminousEnchanterUi;
+    ui.state.provider.services.push("extract_gem");
+    ui.state.service="extract_gem";
+    ui.render();
+  });
+  await expect(page.locator("#enchanter-ui-destruction-wrap")).toBeVisible();
+  await expect(page.locator("#enchanter-ui-validation")).toContainText("DESTRUCCIÓN IRREVERSIBLE");
+  await page.locator("#enchanter-ui-confirm").check();
+  await expect(page.locator("#enchanter-ui-commit")).toBeDisabled();
+  await page.locator("#enchanter-ui-confirm-destruction").check();
+  await expect(page.locator("#enchanter-ui-commit")).toBeEnabled();
+  await page.locator("#enchanter-ui-commit").click();
+  await expect(page.locator("#enchanter-ui-status")).toContainText("COMPLETE");
+  expect(await page.evaluate(()=>window.__destructionConfirmedByEngine)).toBe(true);
 });
