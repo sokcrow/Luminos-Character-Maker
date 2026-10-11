@@ -796,7 +796,7 @@
           renderItems();
           return;
         }
-        api.selectAction({ type: "items", slotIndex: selectedSlotIndex(), data: row });
+        return api.selectAction({ type: "items", slotIndex: selectedSlotIndex(), data: row });
       };
       list.appendChild(button);
     });
