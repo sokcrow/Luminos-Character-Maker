@@ -104,7 +104,8 @@ if(!auth||!database||!functions||/[.]googleapis[.]com/.test(auth+database+functi
       assert.equal(removal.status,200,JSON.stringify(removal.body));
       assert.equal(removal.body.result?.committed,true);
       const removed=(await db.ref("campaña").get()).val();
-      assert.equal(removed.jugadores.hero.inventario_activo.sword_1.magic.enchantments.length,0);
+      assert.equal(removed.jugadores.hero.inventario_activo.sword_1.magic?.enchantments?.length||0,0,
+        "removal may prune the empty Enchantments array instead of persisting []");
       assert.equal(removed.tiendas.forge.enchanterProvider.providerMaterials[0].quantity,0);
       assert.ok(removed.jugadores.hero.ahn<after.jugadores.hero.ahn);
       console.log("Enchanter real Functions v2 callable: Auth, ownership, replay, finite stock, rollback, removal OK");
