@@ -251,6 +251,18 @@
         event.stopImmediatePropagation?.();
         close();
       }
+      if (event.key === "Tab") {
+        const focusable = Array.from(modal.querySelectorAll("button:not([disabled])"));
+        const first = focusable[0], last = focusable[focusable.length - 1];
+        if (!first || !last) return;
+        if (event.shiftKey && doc.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && doc.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
     });
     return modal;
   }
@@ -555,9 +567,16 @@
     });
   }
   function boot() { return Boolean(ensureUi()); }
+  function refreshIfOpen() {
+    const modal = doc?.getElementById("cooking-v1-modal");
+    if (modal && !modal.hidden && !state.working) render();
+  }
   if (doc) {
     if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", boot, { once: true });
     else boot();
+    for (const eventName of [
+      "luminous:player-data", "luminous:inventory-realtime", "luminous:stash-access-changed"
+    ]) global.addEventListener?.(eventName, refreshIfOpen);
   }
   const API = Object.freeze({
     VERSION: VERSION, boot: boot, open: open, close: close,
