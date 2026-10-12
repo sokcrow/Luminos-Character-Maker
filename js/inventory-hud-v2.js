@@ -1588,10 +1588,32 @@
 
     const persist = persistence();
     if (!persist?.subscribePlayerInventory || !persist?.applyInventoryState || !persist?.saveInventoryState) return false;
-    const unsubscribeInventory = persist.subscribePlayerInventory(state.db, state.playerId, (snapshot) => {
+    let fallbackConfirmedSave = null;
+    let fallbackRejectedEcho = null;
+    let fallbackRevision = 0;
+    let fallbackDisposed = false;
+    const inventorySignature = (snapshot) => {
+      const raw = persist.serializeInventoryState?.(snapshot) || snapshot || {};
+      return JSON.stringify({ active:raw.inventario_activo || {}, stash:raw.inventario_stash || {} });
+    };
+    const applyConfirmedInventory = (snapshot) => {
+      if (fallbackDisposed) return;
       const applied = persist.applyInventoryState(state.unit, snapshot);
       if (!applied?.applied) return;
+      fallbackRevision += 1;
       renderAll();
+    };
+    const unsubscribeInventory = persist.subscribePlayerInventory(state.db, state.playerId, (snapshot) => {
+      if (fallbackDisposed) return;
+      if (fallbackConfirmedSave) {
+        fallbackConfirmedSave.pending = snapshot;
+        return;
+      }
+      if (fallbackRejectedEcho) {
+        if (inventorySignature(snapshot) === fallbackRejectedEcho) return;
+        fallbackRejectedEcho = null;
+      }
+      applyConfirmedInventory(snapshot);
     });
     let unsubscribeAccess = () => {};
     if (realtime()?.subscribeStashAccess) {
@@ -1614,8 +1636,39 @@
     }
     state.peer = {
       bound: true,
-      async save(unit) { return persist.saveInventoryState(state.db, state.playerId, unit); },
-      dispose() { unsubscribeInventory?.(); unsubscribeAccess?.(); },
+      get revision() { return fallbackRevision; },
+      async save(unit) {
+        if (fallbackConfirmedSave) return { saved:false, reason:"confirmed_inventory_save_in_progress" };
+        return persist.saveInventoryState(state.db, state.playerId, unit);
+      },
+      async saveConfirmed(unit) {
+        if (fallbackDisposed) return { saved:false, reason:"peer_disposed" };
+        if (fallbackConfirmedSave) return { saved:false, reason:"confirmed_inventory_save_in_progress" };
+        const barrier = { pending:null };
+        fallbackConfirmedSave = barrier;
+        fallbackRejectedEcho = null;
+        let success = false;
+        try {
+          const result = await persist.saveInventoryState(state.db, state.playerId, unit);
+          success = result?.saved === true;
+          return result;
+        } finally {
+          await Promise.resolve();
+          if (fallbackConfirmedSave === barrier) fallbackConfirmedSave = null;
+          if (success && !fallbackDisposed) {
+            if (barrier.pending) applyConfirmedInventory(barrier.pending);
+          } else {
+            fallbackRejectedEcho = inventorySignature(unit);
+          }
+        }
+      },
+      dispose() {
+        fallbackDisposed = true;
+        fallbackConfirmedSave = null;
+        fallbackRejectedEcho = null;
+        unsubscribeInventory?.();
+        unsubscribeAccess?.();
+      },
     };
     return true;
   }
