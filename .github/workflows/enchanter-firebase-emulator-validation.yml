@@ -31,11 +31,14 @@ jobs:
           node-version: '22'
       - name: Install isolated Firebase Admin test dependencies
         run: npm install --prefix functions --no-audit --no-fund
-      - name: Firebase Auth and Realtime Database emulator integration
+      - name: Package canonical Enchanter callable dependencies
+        run: npm --prefix functions run build
+      - name: Firebase Auth, RTDB and actual Functions v2 callable integration
         env:
           CI: 'true'
+          FIREBASE_FUNCTIONS_EMULATOR_HOST: 127.0.0.1:5001
         run: >
           npx --yes firebase-tools emulators:exec
-          --only auth,database
+          --only auth,database,functions
           --project demo-enchanter-atomic
-          -- "node tests/enchanter-firebase-emulator-smoke.cjs"
+          -- "node tests/enchanter-firebase-emulator-smoke.cjs && node tests/enchanter-callable-emulator-smoke.cjs"
