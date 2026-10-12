@@ -176,6 +176,9 @@
     if (magicRuntime()?.isBoundItem?.(item) === true && options.force !== true) {
       return { unequipped:false, reason:"bound_item_unequip_locked", item, unit };
     }
+    if (global.LuminousCurseRuntime?.itemUnequipLocked?.(item) === true && options.force !== true) {
+      return { unequipped:false, reason:"curse_item_unequip_locked", item, unit };
+    }
     const runtime = itemRuntime();
     const result = runtime?.unequipItem ? runtime.unequipItem(unit, item) : { unequipped: true, item };
     clearPointer(unit, item);
