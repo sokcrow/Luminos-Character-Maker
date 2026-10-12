@@ -23,8 +23,12 @@ for(const id of Object.keys(icons)){
   assert.ok(width>=32 && height>=32 && width<=8192 && height<=8192,
     "Unexpected Fighter icon dimensions: "+id+" "+width+"x"+height);
 }
-assert.deepEqual(fs.readdirSync(directory).filter(x=>x.endsWith(".png")).sort(),
-  Object.keys(icons).map(id=>id+".png").sort());
+// This is a shared archetype directory. Other classes may add their own
+// artwork without invalidating the four required Fighter assets.
+for (const id of Object.keys(icons)) {
+  assert.ok(fs.readdirSync(directory).includes(id+".png"),
+    "Required Fighter archetype icon must remain present: "+id);
+}
 
 const importer=fs.readFileSync(path.join(base,"scripts/import-fighter-archetype-icons.py"),"utf8");
 for(const [id,imgurId] of Object.entries(icons)){
