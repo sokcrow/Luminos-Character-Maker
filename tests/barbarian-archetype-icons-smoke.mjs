@@ -22,7 +22,7 @@ for(const id of Object.keys(icons)){
     "Unexpected Barbarian icon dimensions: "+id+" "+width+"x"+height);
 }
 // This is a shared archetype directory. Other classes may add their own
-// artwork without invalidating the four required Barbarian assets.
+// artwork without invalidating the two required Barbarian assets.
 for (const id of Object.keys(icons)) {
   assert.ok(fs.readdirSync(directory).includes(id+".png"),
     "Required Barbarian archetype icon must remain present: "+id);
@@ -77,4 +77,4 @@ assert.equal(typeof onError,"function","Broken art must have an SVG fallback");
 onError();
 assert.match(image.outerHTML,/player-progression-sigil/,
   "Missing images should be replaced by their original sigil");
-console.log("barbarian-archetype-icons-smoke: 4 bundled PNGs, tree wiring, SVG fallback and other classes preserved");
+console.log("barbarian-archetype-icons-smoke: 2 bundled PNGs, tree wiring, SVG fallback and other classes preserved");
