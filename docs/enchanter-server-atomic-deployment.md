@@ -1,6 +1,6 @@
 # Enchanter's Update — privileged atomic checkout
 
-**Status: real Firebase Auth/RTDB Emulator checkout validated; not production-certified or enabled.**
+**Status: implementation complete; Firebase Auth/RTDB/Functions emulator acceptance in CI; the production checkout remains disabled until separate security approval.**
 
 This is an implementation of the missing trusted cross-entity payment path,
 separate from the **Player-subtree-only** browser RTDB transaction. It does not
@@ -36,24 +36,27 @@ Magic Loot or native Relics into PR #931.
 1. Provision a Firebase Functions-compatible project with Node.js 22 support
    and the required billing plan; install the dependencies from
    `functions/package.json`.
-2. Run the automated
-   `tests/enchanter-server-atomic-smoke.cjs`,
-   `tests/item-enchantment-triggered-combat-smoke.cjs`, and Player UI/browser
-   tests. The dedicated **Enchanter Firebase Emulator Validation** workflow now
-   verifies real Auth/RTDB security rules, same-ID double-submit, two-owner
-   stock races, insufficient-AHN rollback, Item identity and removal. Timed
-   intake/pickup is covered by the canonical service regression, not a
-   production deployed-callable run.
+2. Run the automated Node and Chromium regressions. **Enchanter Firebase
+   Emulator Validation** now runs Auth, RTDB and actual Functions v2 emulators
+   together. It calls the callable over HTTPS with a Firebase ID token and
+   tests unauthenticated/stolen identity, concurrent same-ID submissions,
+   charged application, unchanged Shop/Player state on rejection, removal,
+   and a small six-client campaign-root contention fixture. The dedicated
+   server release-guard smoke separately verifies default-off behavior.
+   Timed intake/pickup has canonical service regression coverage; a deployed
+   production checkout has NOT been certified.
 3. Deploy using
    `firebase deploy --only functions:commitEnchanterService --project luminous-system`.
    Do **not** deploy if the build fails, security checks fail or service
    reliability/economy fixtures are not green.
-4. Only after successful backend verification, enable the non-UI application
-   flag `window.LuminousEnchanterServerEnabled = true` from controlled app
-   configuration **before opening** the Enchanter terminal. The character
-   sheet includes Firebase Functions SDK v8.10.1. With the flag off, the
-   existing Player-subtree save path remains active and rejects finite
-   cross-Shop provider-stock consumption instead of allowing unsafe debits.
+4. After security, performance and live-flow sign-off, deliberately set
+   `LUMINOUS_ENCHANTER_SERVER_ENABLED=true` on the deployed Functions
+   environment **and** the controlled client configuration flag
+   `window.LuminousEnchanterServerEnabled = true` before opening the
+   Enchanter terminal. The callable now **fails closed by default** even if
+   deployed accidentally. CI only enables the server variable inside the
+   isolated Emulator process. The Player-subtree fallback remains active with
+   both flags off and still rejects finite cross-Shop Shop stock consumption.
 5. Verify Player AHN, material stock, receipts, permanent and timed Item
    mutations, duplicate submissions and shop balance display after reload.
 
@@ -69,21 +72,25 @@ authoritative payment/stock/Item ledger to a compact shared subtree or another
 trusted transactional database; do not replace the atomic operation with two
 best-effort client writes.
 
-## Remaining acceptance
+## Merge-ready code versus production activation
 
-Five Section 6/7 transaction implementation gates are now accepted on the
-real Firebase Emulator, with authenticated ownership checks and concurrent
-Shop stock tests. **One Enchanter-specific checklist gate is still open:**
-complete conditional/triggered effect integration. The combat bridge now
-supports a Player-selected pre-damage Status reaction and wearer-default
-reaction targeting, but other typed triggers and numerical Shield absorption
-are not validated. Do not invent the Threshold Aegis shield value.
+The **Enchanter implementation checklist is 350/350**. Its canonical
+`on_skill`, `on_hit`, `on_damage_received` and selected
+`before_getting_hit` trigger paths have real Chromium and Node regression
+coverage. Unapproved Shield/Threshold Aegis numerical wear is not shipped as
+authored Enchanter content; Magic Items and Magic Loot remain separate.
 
-**Separate production release gates:** Deploy and verify the callable in its
-live environment before enabling the server feature flag; run a complete
-Player/DM/Battle Viewer flow and measure campaign-root transaction contention.
-Most importantly, owner-writable Player finance/inventory fields in existing
-RTDB rules remain a **broader economy integrity vulnerability**: the privileged
-checkout prevents partial cross-Shop payment, but cannot stop other legacy
-Player writes from modifying wallet state. Coordinate those rules with the
-existing Shop/P2P persistence contracts before claiming financial security.
+The PR may be reviewed as a **feature-gated code merge** if all required CI
+checks pass. Neither the merge nor deployment may be interpreted as permission
+to activate privileged monetary checkout. Both opt-in switches must remain
+off by default. `tests/enchanter-safe-merge-policy-smoke.cjs` enforces this
+default and exposes the economic trust boundary rather than hiding it.
+
+**Live enablement remains blocked** until: (1) owner-writable Player wallet
+and inventory data in `database.rules.json` is made authoritative without
+breaking Shops, contracts and P2P; (2) the deployed Cloud Function, Firebase
+permissions, Player/DM/browser round trip and reload receipts are verified;
+and (3) real campaign-scale root-`campaña` contention and latency are
+measured and accepted. The six-client emulator contention check is only an
+isolated functional stress regression, not a production load certification.
+Never invent Threshold Aegis Shield wear or an unapproved recharge rate.
