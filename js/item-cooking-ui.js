@@ -18,7 +18,7 @@
   const STAT_NAMES = { dex: "destreza", int: "inteligencia", wis: "sabiduria" };
   const state = {
     category: "all", recipeId: null, quantity: 1, working: false,
-    message: "", messageType: "", lastDish: null, focusReturn: null
+    message: "", messageType: "", lastDish: null, focusReturn: null, stationId: null
   };
 
   function recipes() { return global.LuminousCookingRecipeCatalog || null; }
@@ -76,7 +76,27 @@
     return hud()?.state?.stashUnlocked === true;
   }
   function currentStation(u) {
-    return u?.currentCookingStationId || u?.cookingStationId || "";
+    const selected = state.stationId == null
+      ? (u?.currentCookingStationId || u?.cookingStationId || "")
+      : state.stationId;
+    return equipment()?.canonicalStationId?.(selected) || id(selected);
+  }
+  function stationSelector(u, disabled) {
+    const selected = currentStation(u);
+    const stations = Object.values(equipment()?.STATIONS || {});
+    const known = stations.some(function (station) { return station.id === selected; });
+    const choices = [{ id: "", label: "Sin estación" }, ...stations];
+    if (selected && !known) choices.push({ id: selected, label: label(selected) });
+    return '<label class="cooking-book-station">' +
+      '<span>ESTACIÓN UTILIZADA</span>' +
+      '<select id="cooking-v2-station" data-cook-station aria-label="Estación utilizada para cocinar" ' +
+      (disabled ? 'disabled ' : '') + '>' +
+      choices.map(function (station) {
+        return '<option value="' + esc(station.id) + '"' +
+          (station.id === selected ? ' selected' : '') +
+          '>' + esc(station.label) + '</option>';
+      }).join("") +
+      '</select></label>';
   }
   // Only equipment in an accessible container may modify the cooking TH.
   // The equipment engine otherwise scans stashInventory/stash unconditionally.
@@ -250,6 +270,16 @@
       }
       if (event.target.closest("[data-cook-confirm]")) execute();
     });
+    modal.addEventListener("change", function (event) {
+      if (!event.target?.matches?.("[data-cook-station]") || state.working) return;
+      const selected = id(event.target.value);
+      const canonical = equipment()?.canonicalStationId?.(selected) || selected;
+      if (canonical && !Object.prototype.hasOwnProperty.call(equipment()?.STATIONS || {}, canonical)) return;
+      state.stationId = canonical;
+      state.quantity = 1;
+      message("", "");
+      renderDetail();
+    });
     modal.addEventListener("error", function (event) {
       const img = event.target;
       if (img?.tagName !== "IMG" || !img.dataset.fallback) return;
@@ -382,7 +412,6 @@
     const count = preview.valid ? maxQuantity(recipe, data.rows) : 0;
     state.quantity = Math.max(1, Math.min(state.quantity, count || 1));
     const stationId = currentStation(u);
-    const stationName = equipment()?.STATIONS?.[id(stationId)]?.label || (stationId ? label(stationId) : "Sin estación");
     const eq = preview.equipment;
     const warnings = [
       ...(eq?.missingToolIds || []).map(function (x) { return 'Herramienta no disponible: ' + label(x); }),
@@ -404,8 +433,8 @@
             '<div class="cooking-book-meta">' +
               '<span>' + esc(ABILITY_NAMES[recipe.ability] || label(recipe.ability)) + '</span>' +
               (preview.valid ? '<span>Dificultad ' + esc(preview.effectiveTh) + '</span>' : '') +
-              '<span>' + esc(stationName) + '</span>' +
             '</div>' +
+            stationSelector(u, state.working) +
           '</div>' +
           '<div class="cooking-book-hero-art">' +
             image(known ? iconFor(recipe) : fallbackFor(recipe), fallbackFor(recipe), "cooking-book-dish-art") +
@@ -563,6 +592,7 @@
     const modal = ensureUi();
     if (!modal) return false;
     state.focusReturn = doc.activeElement;
+    state.stationId = null;
     state.message = "";
     state.messageType = "";
     modal.hidden = false;
@@ -593,7 +623,8 @@
   const API = Object.freeze({
     VERSION: VERSION, boot: boot, open: open, close: close,
     craftable: craftable, renderPreview: renderDetail,
-    categoryFor: categoryFor, maxQuantity: maxQuantity, abilityBase: abilityBase, headsChance: headsChance
+    categoryFor: categoryFor, maxQuantity: maxQuantity, abilityBase: abilityBase, headsChance: headsChance,
+    currentStation: currentStation
   });
   global.LuminousCookingUi = API;
   if (typeof module !== "undefined" && module.exports) module.exports = API;
