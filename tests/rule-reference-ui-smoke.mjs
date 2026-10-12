@@ -285,20 +285,6 @@ for (const [phrase, expected] of [
   assert.equal(bits.map(x=>x.text).join(""),phrase);
 }
 
-// The choice editor is populated after branch details: decorate maneuver
-// descriptions only once the synchronous renderManeuvers call has completed.
-const maneuverRender=progression.indexOf("renderManeuvers?.(editor,");
-const maneuverDecorate=progression.indexOf(
-  'global.LuminousRuleReferences?.decorate?.(editor, { mode: "card" });',maneuverRender);
-assert.ok(maneuverRender>=0 && maneuverDecorate>maneuverRender &&
-  maneuverDecorate-maneuverRender<600,
-  "Battle Master descriptions must be decorated after the editor renders");
-const maneuverChoices=fs.readFileSync(path.join(base,"js/player-progression-choices.js"),"utf8");
-assert.match(maneuverChoices,/make\("small","",maneuver\.description\)/,
-  "Maneuver descriptions must be part of the rendered editor");
-assert.deepEqual(references.tokenize("Menacing Attack: inflict 2 Frightened.")
-  .filter(x=>x.kind).map(x=>x.kind+":"+x.id),["status:frightened"]);
-
 const more=references.tokenize("Use WIS Saving Throw and DEX Check, or Percepción.");
 assert.deepEqual(more.filter(x=>x.kind).map(x=>x.kind+":"+x.id),
   ["save:wis","check:dex","skill:perception"]);
@@ -318,6 +304,20 @@ const html=fs.readFileSync(path.join(base,"hoja_personaje.html"),"utf8");
 const stats=fs.readFileSync(path.join(base,"js/trait-player-tray.js"),"utf8");
 const progression=fs.readFileSync(path.join(base,"js/player-progression-tree.js"),"utf8");
 const skillHud=fs.readFileSync(path.join(base,"js/player-skills-hud.js"),"utf8");
+// The choice editor is populated after branch details: decorate maneuver
+// descriptions only once the synchronous renderManeuvers call has completed.
+const maneuverRender=progression.indexOf("renderManeuvers?.(editor,");
+const maneuverDecorate=progression.indexOf(
+  'global.LuminousRuleReferences?.decorate?.(editor, { mode: "card" });',maneuverRender);
+assert.ok(maneuverRender>=0 && maneuverDecorate>maneuverRender &&
+  maneuverDecorate-maneuverRender<600,
+  "Battle Master descriptions must be decorated after the editor renders");
+const maneuverChoices=fs.readFileSync(path.join(base,"js/player-progression-choices.js"),"utf8");
+assert.match(maneuverChoices,/make\("small","",maneuver\.description\)/,
+  "Maneuver descriptions must be part of the rendered editor");
+assert.deepEqual(references.tokenize("Menacing Attack: inflict 2 Frightened.")
+  .filter(x=>x.kind).map(x=>x.kind+":"+x.id),["status:frightened"]);
+
 const css=fs.readFileSync(path.join(base,"css/rule-reference-ui.css"),"utf8");
 assert.ok(html.indexOf('src="js/rule-reference-ui.js"') < html.indexOf('src="js/player-progression-tree.js"'));
 assert.match(stats,/LuminousRuleReferences\?\.decorate\?\.\(description, \{ mode: "tooltip" \}\)/);
