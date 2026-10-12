@@ -85,10 +85,20 @@
     let revision = 0;
     let stashUnlocked = null;
     let lastState = null;
+    let confirmedSave = null;
+    let rejectedEcho = null;
     const disposers = [];
 
-    const unsubscribeInventory = runtime.subscribePlayerInventory(db, playerId, (state) => {
-      if (disposed) return;
+    function inventorySignature(value) {
+      const serialized = runtime.serializeInventoryState?.(value);
+      const data = serialized || value || {};
+      return JSON.stringify({
+        active: data.inventario_activo || {},
+        stash: data.inventario_stash || {},
+      });
+    }
+
+    function publishInventory(state) {
       const applied = runtime.applyInventoryState(unit, state, options);
       if (!applied?.applied) {
         options.onError?.({ source: "inventory", reason: applied?.reason || "inventory_apply_failed", state });
@@ -99,6 +109,23 @@
       const detail = { role, playerId, revision, state: clone(state), unit, source: "firebase" };
       options.onInventory?.(detail);
       emit("luminous:inventory-realtime", detail);
+    }
+
+    const unsubscribeInventory = runtime.subscribePlayerInventory(db, playerId, (state) => {
+      if (disposed) return;
+      // RTDB emits speculative local events before update() resolves. Keep them
+      // out of the canonical HUD and out of all inventory-realtime consumers.
+      if (confirmedSave) {
+        confirmedSave.pending = clone(state);
+        return;
+      }
+      // A rejected update's optimistic aggregate can still be queued on the
+      // microtask boundary. Never surface the rejected inventory snapshot.
+      if (rejectedEcho) {
+        if (inventorySignature(state) === rejectedEcho) return;
+        rejectedEcho = null;
+      }
+      publishInventory(state);
     }, options);
     disposers.push(unsubscribeInventory);
 
@@ -116,13 +143,47 @@
 
     async function save(unitOrState = unit, saveOptions = {}) {
       if (disposed) return { saved: false, reason: "peer_disposed" };
+      if (confirmedSave) return { saved: false, reason: "confirmed_inventory_save_in_progress" };
       const result = await runtime.saveInventoryState(db, playerId, unitOrState, { ...options, ...saveOptions });
       if (result?.saved) emit("luminous:inventory-realtime-write", { role, playerId, result });
       return result;
     }
 
+    // Cooking must use this opt-in write barrier rather than save(): it stages
+    // the entire recipe batch, and neither the HUD nor other inventory consumers
+    // may see Firebase's local optimistic event until the server acknowledges.
+    async function saveConfirmed(unitOrState, saveOptions = {}) {
+      if (disposed) return { saved:false, reason:"peer_disposed" };
+      if (confirmedSave) return { saved:false, reason:"confirmed_inventory_save_in_progress" };
+      const barrier = { pending:null };
+      confirmedSave = barrier;
+      rejectedEcho = null;
+      let result = null;
+      let succeeded = false;
+      try {
+        result = await runtime.saveInventoryState(db, playerId, unitOrState, { ...options, ...saveOptions });
+        succeeded = result?.saved === true;
+        return result;
+      } finally {
+        // Drain already queued subscribePlayerInventory aggregation microtasks
+        // before releasing the barrier (even after a rejected Firebase write).
+        await Promise.resolve();
+        if (confirmedSave === barrier) confirmedSave = null;
+        if (succeeded && !disposed) {
+          if (barrier.pending) publishInventory(barrier.pending);
+          emit("luminous:inventory-realtime-write", { role, playerId, result });
+        } else {
+          // On rejection, leave the previously confirmed HUD state intact.
+          // A late speculative echo is ignored until a different state arrives
+          // (rollback or independent confirmed change).
+          rejectedEcho = inventorySignature(unitOrState);
+        }
+      }
+    }
+
     async function move(ref, direction, amount = null, moveOptions = {}) {
       if (disposed) return { moved: false, saved: false, reason: "peer_disposed" };
+      if (confirmedSave) return { moved:false, saved:false, reason:"confirmed_inventory_save_in_progress" };
       const itemRuntime = inventory();
       if (!itemRuntime) return { moved: false, saved: false, reason: "item_inventory_runtime_unavailable" };
       const normalized = String(direction || "").trim().toLowerCase();
@@ -146,6 +207,8 @@
     function dispose() {
       if (disposed) return;
       disposed = true;
+      confirmedSave = null;
+      rejectedEcho = null;
       while (disposers.length) {
         try { disposers.pop()?.(); } catch (_) {}
       }
@@ -162,6 +225,7 @@
       get state() { return clone(lastState); },
       get stashUnlocked() { return stashUnlocked; },
       save,
+      saveConfirmed,
       move,
       setStashUnlocked,
       dispose,
