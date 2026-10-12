@@ -746,8 +746,12 @@
         };
         try {
           const peer = session.peer;
-          if (!peer?.bound || !peer.save) throw new Error("SAVE_NOT_AVAILABLE");
-          const saved = await peer.save(pendingSave);
+          // The production peer must quarantine RTDB optimistic listener
+          // snapshots until the write has been acknowledged by Firebase.
+          if (!peer?.bound || typeof peer.saveConfirmed !== "function") {
+            throw new Error("CONFIRMED_SAVE_NOT_AVAILABLE");
+          }
+          const saved = await peer.saveConfirmed(pendingSave);
           if (saved?.saved !== true) throw new Error(saved?.reason || "SAVE_FAILED");
           // Firebase can deliver an updated snapshot while the save awaits.
           // Do not overwrite those authoritative containers with stale copies.
