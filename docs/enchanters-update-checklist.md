@@ -449,10 +449,10 @@ Canonical contract: [`docs/enchanters-update-part-d-magic-items.md`](./enchanter
 - [x] Preview AHN cost before committing.
 - [x] Preview reagent/material requirements before committing.
 - [x] Validate player has required AHN/materials.
-- [ ] Consume AHN and materials atomically with the Enchantment application.
-- [ ] Roll back the transaction if any required payment/material consumption fails.
-- [ ] Apply Enchantment atomically to the intended Item Instance.
-- [ ] Prevent double-submit/duplicate application.
+- [x] Consume AHN and materials atomically with the Enchantment application.
+- [x] Roll back the transaction if any required payment/material consumption fails.
+- [x] Apply Enchantment atomically to the intended Item Instance.
+- [x] Prevent double-submit/duplicate application.
 - [x] Return a stable transaction/result ID.
 - [x] Record application provenance on success.
 - [x] Support DM-authored free application without bypassing validation.
@@ -463,7 +463,7 @@ Canonical contract: [`docs/enchanters-update-part-d-magic-items.md`](./enchanter
 
 - [x] Define whether each Enchantment can be removed.
 - [x] Define removal costs/material requirements.
-- [ ] Support atomic removal transactions.
+- [x] Support atomic removal transactions.
 - [x] Support replacement of removable Enchantments.
 - [x] Preserve history/provenance after replacement.
 - [x] Define whether removed Enchantments return reagents.
@@ -681,3 +681,54 @@ Magic Items Part D and Magic Loot remain future Updates. No runtime content from
 - **Combat:** generic conditional/reaction hooks also remain open. In particular, the approved `Before Getting Hit` reaction requires the defender's explicit selection before damage; neither autonomous use nor invented Threshold Aegis shield values have been introduced.
 
 **Current Enchanter acceptance: 344/350 checked, 6 open.** Historical checklist 371/385 checked, 14 open (8 are future Magic Items / Magic Loot).
+
+## 2026-10-12 — Cross-entity Enchanter payment acceptance, real RTDB Emulator
+
+The five Section 6/7 **implementation** transaction checkboxes were closed
+after a successful real Firebase Authentication + Realtime Database Emulator
+run, not on simulated in-memory tests alone. The production feature flag
+remains **off** and no Firebase Cloud Function was deployed or approved for
+production in this pass.
+
+- `functions/enchanter-atomic.cjs` applies one privileged RTDB transaction at
+  `campaña`, atomically moving the AHN ledger, material stock, the exact
+  Item Instance and its receipt together. It denies cross-player access,
+  duplicate Item instance identities, double-submit receipts and pickup
+  outside an authorized Shop/escrow.
+- `tests/enchanter-firebase-emulator-smoke.cjs` verifies actual emulator
+  transactions and RTDB rules with two authenticated owners: finite Shop
+  catalyst races, correct Item, paid removal, blocked forged shop writes,
+  failed-payment whole-state rollback, concurrent **same-transaction-ID**
+  requests committing exactly once, and Active/Stash identity ambiguity
+  producing no state change. The dedicated Enchanter Firebase Emulator
+  Validation CI workflow **passed on code commit
+  `651ee1561079ca0a470fd631225972fdce2e4d14`**.
+- `tests/enchanter-server-canonical-smoke.cjs` covers deferred service
+  escrow, campaign-clock pickup, re-enchantment and removal; the browser
+  Enchanter UI smoke covers authenticated callable intent and explicit
+  negative acknowledgements. These are regression coverage, **not a
+  claim that the callable was deployed or exercised in production**.
+
+**In-scope acceptance after these five closures: 349/350 checked, 1 open.**
+**Entire historical checklist: 376/385 checked, 9 open** (one Enchanter
+combat trigger task and eight separately deferred Magic Items/Magic Loot
+tasks). The remaining combat task is *Resolve conditional/triggered
+Enchantment effects*; `on_hit`, `on_damage_received` and explicitly
+selected `before_getting_hit` Status reactions are supported, but other
+catalog-accepted trigger variants and numerical Shield absorption behavior
+remain unverified or require approved authoring.
+
+**Separate live-release blockers must not be mistaken for checklist checks:**
+
+1. The `commitEnchanterService` Firebase callable is not deployed/verified
+   in the production project, and `LuminousEnchanterServerEnabled` is off.
+2. `database.rules.json` continues allowing a Player to write much of their
+   own `campaña/jugadores/{player}` subtree, including legacy AHN/wallet and
+   inventory fields. The server's atomic checkout does **not** alone make
+   that broader Player finance surface tamper-proof. Harden or migrate the
+   shared economy write policy with the other shop/p2p systems before enabling
+   a production-grade monetary security claim.
+3. RTDB contention/performance at the broad `campaña` transaction root has
+   not been load-tested at campaign scale.
+4. A full deployed Player/DM/Battle Viewer workflow and the pending defensive
+   Shield/Threshold Aegis rules still require final acceptance.
