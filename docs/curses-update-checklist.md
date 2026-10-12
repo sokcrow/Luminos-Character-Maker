@@ -1,6 +1,6 @@
-# Curse's Update — Implementation Checklist (planning)
+# Curse's Update — Implementation Checklist (V1 en desarrollo)
 
-> **Estado: diseño y seguimiento de implementación.** Este commit **solo crea el tracker**: no implementa Curses nuevas, no publica definiciones y no habilita servicios en producción.
+> **Estado: Fase A definida; primer tramo ejecutable sobre Items integrado y validado en CI.** La rama incluye Curse Runtime, Magic/Equipment bridges, Curse Studio del DM y tests. El PR permanece **Draft**: no están implementados aún todas las familias/objetivos ni hay servicios de Curse productivos.
 >
 > Fecha de línea base: **2026-10-12** · Repositorio: `sokcrow/Luminos-Character-Maker` · Dependencia: [Enchanter's Update #931](https://github.com/sokcrow/Luminos-Character-Maker/pull/931) (ya fusionado a `main`).
 
@@ -27,7 +27,7 @@ La **V1 definida por el propietario** cubre cinco objetivos (`item`, `creature`,
 | Pista | Marcadas [x] | Pendientes [ ] | Total |
 |---|---:|---:|---:|
 | Infraestructura preexistente verificada (referencia, NO trabajo del PR) | 13 | 0 | 13 |
-| **Curse's Update V1 (tareas propias; diseño + ejecución + nuevos objetivos)** | **11** | **115** | **126** |
+| **Curse's Update V1 (tareas propias; diseño + ejecución + nuevos objetivos)** | **12** | **114** | **126** |
 
 **Regla del tracker:** no trasladar las `[x]` de Enchanter a las tareas propias de Curse. Una tarea V1 pasa a `[x]` solamente al estar implementada y verificada en la rama del PR, con referencias a cambios/tests. Para decisiones de diseño, `[x]` solo al existir aprobación explícita registrada. Mantener este ledger actualizado cuando cambien tareas o alcance.
 
@@ -35,7 +35,7 @@ La **V1 definida por el propietario** cubre cinco objetivos (`item`, `creature`,
 
 **Código ya escrito en esta rama (no confundir con V1 completa):** `js/curse-runtime.js` implementa un catálogo inicial de la Binding Curse autónoma `cursed_binding`, instancia persistente separada de Enchantments, estados activo/suprimido/sellado/resuelto, operaciones de Apply/Suppress/Seal/Break/Transfer y bloqueo de desequipamiento ejecutable vía `js/item-equipment-bridge.js`. `js/item-magic-runtime.js` detecta maldiciones autónomas sin convertirlas en `bind` canónico; la hoja del Player y Battle Viewer cargan el nuevo runtime. El editor existente `js/dm-item-instance-editor.js` incluye Curse Studio, cambios preparados y guardado en el Item Instance original. `css/dm-item-instance-editor.css` incorpora la UI responsive.
 
-**Evidencia:** `tests/curse-item-runtime-smoke.cjs` y `.github/workflows/curse-runtime-integration.yml`, [CI de Curse Runtime verde](https://github.com/sokcrow/Luminos-Character-Maker/actions/runs/38311384954). Dos pruebas Playwright se agregaron al suite de DM `tests/dm-item-instance-editor.spec.cjs`, pero **no se deben considerar aprobadas hasta que termine su corrida real**. Los componentes no certificados siguen abiertos como `[ ]`.
+**Evidencia:** `tests/curse-item-runtime-smoke.cjs` y `.github/workflows/curse-runtime-integration.yml`, [CI de Curse Runtime verde](https://github.com/sokcrow/Luminos-Character-Maker/actions/runs/38311384954). Dos pruebas Playwright se agregaron al suite del DM `tests/dm-item-instance-editor.spec.cjs` y **pasaron en Chromium real**: [DM Inventory Grant GUI](https://github.com/sokcrow/Luminos-Character-Maker/actions/runs/38311384748). También pasó [Inventory Runtime Validation](https://github.com/sokcrow/Luminos-Character-Maker/actions/runs/38311384860). Los componentes no certificados siguen abiertos como `[ ]`.
 
 **Todavía NO implementado:** Curse sobre personajes, lugares, linajes o entidades colectivas; efectos negativos generales de HP/SP/Sanity; authoring abierto de todas las familias; operaciones colectivas; transferencia pagada/atómica entre dos inventarios; Curse UI para jugador más allá de detección/lectura existente; deploy productivo.
 
@@ -146,7 +146,7 @@ La **V1 definida por el propietario** cubre cinco objetivos (`item`, `creature`,
 
 ### H — Curse Studio del DM
 
-- [ ] Integrar un editor Curse Studio en los flujos reales del DM sin duplicar el editor de Item o Character.
+- [x] Integrar un editor Curse Studio en los flujos reales del DM sin duplicar el editor de Item o Character. — `js/dm-item-instance-editor.js`, `css/dm-item-instance-editor.css`, [Chromium CI aprobado](https://github.com/sokcrow/Luminos-Character-Maker/actions/runs/38311384748).
 - [ ] Crear catálogo legible de Curse con filtros por familia, target y estado, sin IDs técnicos en interfaz de juego.
 - [ ] Permitir crear/editar definiciones con módulos de efectos validados, no JSON/script arbitrario.
 - [ ] Permitir aplicar, inspeccionar, suprimir y retirar Curse Instances con confirmación y autorizaciones DM.
