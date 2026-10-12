@@ -75,6 +75,49 @@
   function includeStash() {
     return hud()?.state?.stashUnlocked === true;
   }
+  function inventorySession() {
+    const inventory = inventoryUnit();
+    const peer = hud()?.state?.peer;
+    if (!inventory || !peer?.bound) return null;
+    const revision = Number(peer.revision);
+    const snapshot = {
+      active: inventory.inventario_activo,
+      stash: inventory.inventario_stash,
+      equipment: inventory.equipment
+    };
+    return {
+      inventory, peer,
+      playerId: hud()?.state?.playerId,
+      revision: Number.isFinite(revision) ? revision : null,
+      active: snapshot.active, stash: snapshot.stash, equipment: snapshot.equipment,
+      stashUnlocked: includeStash(),
+      signature: JSON.stringify(snapshot)
+    };
+  }
+  function inventorySessionCurrent(session) {
+    if (!session) return false;
+    const inventory = inventoryUnit();
+    const peer = hud()?.state?.peer;
+    if (inventory !== session.inventory || peer !== session.peer || !peer?.bound ||
+        hud()?.state?.playerId !== session.playerId ||
+        inventory?.inventario_activo !== session.active ||
+        inventory?.inventario_stash !== session.stash ||
+        inventory?.equipment !== session.equipment ||
+        includeStash() !== session.stashUnlocked) return false;
+    if (session.revision !== null && Number(peer.revision) !== session.revision) return false;
+    // Realtime snapshots replace containers. The signature also notices local
+    // in-place inventory edits while a five-coin animation is playing.
+    return JSON.stringify({ active:inventory.inventario_activo,
+      stash:inventory.inventario_stash, equipment:inventory.equipment }) === session.signature;
+  }
+  function stagedCookingUnit(u, session) {
+    return {
+      ...u,
+      inventario_activo: JSON.parse(JSON.stringify(session.active || {})),
+      inventario_stash: JSON.parse(JSON.stringify(session.stash || {})),
+      equipment: JSON.parse(JSON.stringify(session.equipment || {}))
+    };
+  }
   function currentStation(u) {
     const selected = state.stationId == null
       ? (u?.currentCookingStationId || u?.cookingStationId || "")
@@ -609,7 +652,24 @@
     const bonus = Math.min(6, 2 + Math.floor((Math.max(1, level) - 1) / 20));
     const extra = proficiency?.contribution?.(level, normalized) ??
       Math.floor(bonus * multiplier);
-    return modifier + extra;
+    return modifier + extra + checkTraitBonus(u, abilityId, normalized);
+  }
+  // Apply the identical pure contribution pipeline used by the normal player
+  // ability Check preview and Skill/Ability breakdown. Bonuses are pre-coin.
+  function checkTraitBonus(u, abilityId, proficiencyState) {
+    const patch = global.LuminousSkillTraitBreakdownPatch;
+    const engine = global.LuminousTraitEngine;
+    if (!patch?.resolvedDmTraits || !engine) return 0;
+    const traits = patch.resolvedDmTraits(u);
+    const check = { kind:"ability", abilityId:id(abilityId), proficiencyState };
+    return [
+      ...(patch.checkPowerContributions?.(engine, traits, u, check) || []),
+      ...(patch.finalPowerContributions?.(engine, traits, u, check) || []),
+      ...(patch.specialCheckContributions?.(traits, u, check) || [])
+    ].reduce(function (sum, row) {
+      const amount = Number(row?.amount);
+      return sum + (Number.isFinite(amount) ? amount : 0);
+    }, 0);
   }
   function headsChance(u) {
     const raw = Number(u?.sp ?? u?.sp_actual ?? u?.combatStats?.sp_actual ?? 0);
@@ -635,6 +695,14 @@
       return;
     }
 
+    const session = inventorySession();
+    if (!session) {
+      message("La conexión del inventario no está disponible.", "error");
+      return;
+    }
+    // Stage all portions off the live containers. A realtime refresh during any
+    // animation discards the entire batch instead of losing cooked dishes.
+    const staged = stagedCookingUnit(u, session);
     state.working = true;
     state.lastDish = null;
     renderDetail();
@@ -645,13 +713,15 @@
     const made = [];
     try {
       for (let index = 0; index < requested; index += 1) {
-        if (!recipePreview(u, recipe).valid) break;
+        if (!inventorySessionCurrent(session)) throw new Error("COOKING_INVENTORY_CHANGED");
+        if (!recipePreview(staged, recipe).valid) break;
         message("Preparando " + (index + 1) + " de " + requested + "…", "pending");
         const rolling = await coins().runAnimatedRoll({
           container: coinHost, coinCount: 5, base: abilityBase(u, recipe.ability),
           headsChance: headsChance(u), intervalMs: 350, auto: true
         });
-        const outcome = runtime().executeCook(u, recipe.id, rolling.total, cookingOptions(u));
+        if (!inventorySessionCurrent(session)) throw new Error("COOKING_INVENTORY_CHANGED");
+        const outcome = runtime().executeCook(staged, recipe.id, rolling.total, cookingOptions(staged));
         if (!outcome.cooked) {
           message(outcome.reason === "output_inventory_full"
             ? "No hay espacio en el inventario activo."
@@ -664,10 +734,16 @@
       }
 
       if (made.length) {
+        if (!inventorySessionCurrent(session)) throw new Error("COOKING_INVENTORY_CHANGED");
+        // Do not publish staged changes until every roll completed against
+        // exactly the same inventory revision and accessible containers.
+        const live = inventoryUnit();
+        live.inventario_activo = staged.inventario_activo;
+        live.inventario_stash = staged.inventario_stash;
         try {
-          const peer = hud()?.state?.peer;
+          const peer = session.peer;
           if (!peer?.bound || !peer.save) throw new Error("SAVE_NOT_AVAILABLE");
-          const saved = await peer.save(inventoryUnit());
+          const saved = await peer.save(live);
           if (saved?.saved !== true) throw new Error(saved?.reason || "SAVE_FAILED");
           hud()?.renderAll?.();
           state.lastDish = made[made.length - 1].displayName + " · " +
@@ -680,8 +756,10 @@
       } else if (state.messageType !== "error") {
         message("No se pudo cocinar. Comprueba ingredientes y espacio libre.", "error");
       }
-    } catch (_) {
-      message("La tirada no se completó. No se han consumido ingredientes para esa tirada.", "error");
+    } catch (error) {
+      message(error?.message === "COOKING_INVENTORY_CHANGED"
+        ? "El inventario cambió durante la preparación. Se canceló el lote sin consumir ingredientes; revisa las existencias y vuelve a intentarlo."
+        : "La tirada no se completó. No se han consumido ingredientes para esa tirada.", "error");
     } finally {
       state.working = false;
       render();
@@ -731,7 +809,8 @@
     VERSION: VERSION, boot: boot, open: open, close: close,
     craftable: craftable, renderPreview: renderDetail,
     categoryFor: categoryFor, maxQuantity: maxQuantity, abilityBase: abilityBase, headsChance: headsChance,
-    currentStation: currentStation, ingredientAvailability: ingredientAvailability
+    currentStation: currentStation, ingredientAvailability: ingredientAvailability,
+    checkTraitBonus: checkTraitBonus, inventorySession: inventorySession, inventorySessionCurrent: inventorySessionCurrent
   });
   global.LuminousCookingUi = API;
   if (typeof module !== "undefined" && module.exports) module.exports = API;
