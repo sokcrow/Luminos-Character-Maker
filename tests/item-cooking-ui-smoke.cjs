@@ -109,6 +109,42 @@ const { pathToFileURL } = require("node:url");
   assert.ok(ui.craftable().some(row => row.recipeId === "burger"));
   assert.equal(resolver.resolveRecipe("burger", runtime.inventoryView(unit).rows).valid, true);
 
+  // Codex P2 regression: one onion matches curry vegetable AND aromatic roles,
+  // but its one unit can only fulfill one requirement.
+  const curry = recipes.get("curry");
+  const curryStock = [
+    { itemId:"onion", name:"Onion", quantity:1, tags:["vegetable","aromatic"] },
+    { itemId:"curry_sauce", quantity:2, tags:["sauce_base"], processedForm:"sauce_base", processed:true },
+    { itemId:"curry_spice", quantity:2, tags:["spice"] }
+  ];
+  const firstCurry = resolver.resolveRecipe(curry, curryStock);
+  assert.equal(firstCurry.valid,false);
+  assert.ok(firstCurry.missing.some(row => row.requirement === "aromatic"));
+  const firstAvailability = ui.ingredientAvailability(curry,curryStock,1);
+  const byRequirement = (results,requirement) => results.find(row => row.requirement === requirement);
+  assert.equal(byRequirement(firstAvailability,"meat_or_vegetable").allocated,1);
+  assert.equal(byRequirement(firstAvailability,"aromatic").allocated,0);
+  assert.equal(byRequirement(firstAvailability,"aromatic").missing,true);
+  assert.equal(byRequirement(firstAvailability,"sauce_base").missing,false);
+  assert.equal(curryStock[0].quantity,1,"availability preview must not mutate actual inventory");
+
+  const twoOnions = curryStock.map(row => ({...row, quantity:row.itemId === "onion" ? 2 : row.quantity}));
+  const twoPortions = ui.ingredientAvailability(curry,twoOnions,2);
+  assert.equal(byRequirement(twoPortions,"meat_or_vegetable").allocated,1);
+  assert.equal(byRequirement(twoPortions,"aromatic").allocated,1);
+  assert.equal(byRequirement(twoPortions,"meat_or_vegetable").required,2);
+  assert.equal(byRequirement(twoPortions,"aromatic").required,2);
+  assert.equal(byRequirement(twoPortions,"sauce_base").allocated,2,
+    "other ingredients still count even when one portion is incomplete");
+  assert.equal(byRequirement(twoPortions,"spice").allocated,2);
+  assert.equal(twoOnions[0].quantity,2,"multi-portion preview must not consume actual stock");
+
+  const fourOnions = curryStock.map(row => ({...row, quantity:row.itemId === "onion" ? 4 : row.quantity}));
+  const completeBatch = ui.ingredientAvailability(curry,fourOnions,2);
+  assert.equal(byRequirement(completeBatch,"meat_or_vegetable").allocated,2);
+  assert.equal(byRequirement(completeBatch,"aromatic").allocated,2);
+  assert.equal(completeBatch.some(row => row.missing),false);
+
   assert.equal(ui.boot(), true);
   assert.equal(ui.open(), true);
   const modal = elements["cooking-v1-modal"];
@@ -259,5 +295,30 @@ const { pathToFileURL } = require("node:url");
     ),"HUD art must be a repository asset: " + art);
   }
 
-  console.log("Cooking recipe book UI smoke: OK (full sheet, station selection and TH, short landscape, Escape, stash tools, coins, save)");
+  // Exercise the rendered menu, not just the availability helper.
+  globalThis.LuminousInventoryHudV2.state.stashUnlocked = false;
+  inventoryState.inventario_activo = {
+    onion: { ...curryStock[0] },
+    sauce: { ...curryStock[1] },
+    spice: { ...curryStock[2] }
+  };
+  assert.equal(ui.open(),true);
+  click("[data-cook-recipe]",{cookRecipe:"curry"});
+  const limitedCurryHtml = elements["cooking-v2-detail"].innerHTML;
+  assert.equal((limitedCurryHtml.match(/cooking-book-ingredient is-missing/g)||[]).length,1,
+    "exactly the aromatic row must be highlighted when the only onion is reserved as vegetable");
+  assert.match(limitedCurryHtml,/0 \/ 1/);
+  assert.match(limitedCurryHtml,/Necesitas reunir los ingredientes señalados/);
+  inventoryState.inventario_activo.onion.quantity = 4;
+  ui.renderPreview();
+  click("[data-cook-quantity]",{cookQuantity:"1"});
+  const batchCurryHtml = elements["cooking-v2-detail"].innerHTML;
+  assert.match(batchCurryHtml,/<strong>2<\/strong>/);
+  assert.equal((batchCurryHtml.match(/cooking-book-ingredient is-missing/g)||[]).length,0,
+    "two curry portions are fully assigned when there are four onions");
+  assert.equal((batchCurryHtml.match(/2 \/ 2/g)||[]).length,4,
+    "every recipe requirement must be resolved across both portions");
+  assert.equal(ui.close(),true);
+
+  console.log("Cooking recipe book UI smoke: OK (full sheet, shared-ingredient allocations, multi-portion stock, station TH, landscape, Escape, stash tools, coins, save)");
 })().catch(error => { console.error(error); process.exitCode = 1; });
