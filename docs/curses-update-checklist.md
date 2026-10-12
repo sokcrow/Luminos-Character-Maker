@@ -8,7 +8,7 @@
 
 Curse's Update complementa Enchanter's Update aportando contratos para **maldiciones como entidades persistentes con origen, objetivo, activación, conocimiento y vías de resolución**. Una Curse **puede provocar** Status negativos, pero **no es** por defecto un Status. No se duplican Item Runtime, Status Engine, Trait Engine, Spell runtime, Combat Engine, Shops ni persistencia.
 
-La primera entrega **propuesta (todavía pendiente de aprobación)** cubre maldiciones vinculadas a Items y aflicciones directas sobre personajes/criaturas. Las técnicas de supresión, ruptura y transferencia quedan sujetas a diseño/autoría aprobada; no se asumen automáticamente.
+La **V1 definida por el propietario** cubre cinco objetivos (`item`, `creature`, `place`, `lineage`, `entity`) y cinco familias (`item`, `affliction`, `binding`, `ritual`, `pact`). La implementación es incremental: la **primera entrega funcional solo cubre Item Curses autónomas de atadura** y no representa la implementación completa del alcance. El contrato íntegro de Fase A está en [`curses-update-phase-a-contract.md`](./curses-update-phase-a-contract.md).
 
 ## Principios y límites heredados (NO son tareas completadas de Curse's Update)
 
@@ -20,16 +20,24 @@ La primera entrega **propuesta (todavía pendiente de aprobación)** cubre maldi
 - `Remove Curse` existente no es garantía de purificación universal. Bind/Gem ligada/Relic conservan sus bloqueos.
 - Nada de probabilidades, costes, DC/TH, escalados, recharge, castigos HP/SP/Sanity ni fórmulas universales no aprobadas.
 - Nada de controles de debug, IDs internos, JSON crudo o paneles duplicados en la UI del jugador/DM.
-- **Magic Loot**, afijos aleatorios, generación de objetos malditos en drops, sistemas territoriales/ambientales, maldiciones hereditarias y el catálogo de Relics se mantienen **fuera del alcance V1**, salvo aprobación posterior independiente.
+- **Magic Loot**, afijos aleatorios, generación de objetos malditos en drops y el catálogo de Relics se mantienen **fuera del alcance V1**. Territorios, linajes, organizaciones y pactos **sí forman parte del alcance elegido**, pero sus adaptadores no existen todavía.
 
 ## Ledger inicial
 
 | Pista | Marcadas [x] | Pendientes [ ] | Total |
 |---|---:|---:|---:|
 | Infraestructura preexistente verificada (referencia, NO trabajo del PR) | 13 | 0 | 13 |
-| **Curse's Update V1 (tareas nuevas y aceptación del PR)** | **0** | **112** | **112** |
+| **Curse's Update V1 (tareas propias; diseño + ejecución + nuevos objetivos)** | **11** | **115** | **126** |
 
 **Regla del tracker:** no trasladar las `[x]` de Enchanter a las tareas propias de Curse. Una tarea V1 pasa a `[x]` solamente al estar implementada y verificada en la rama del PR, con referencias a cambios/tests. Para decisiones de diseño, `[x]` solo al existir aprobación explícita registrada. Mantener este ledger actualizado cuando cambien tareas o alcance.
+
+## Primer incremento real del PR #978 (2026-10-12)
+
+**Código ya escrito en esta rama (no confundir con V1 completa):** `js/curse-runtime.js` implementa un catálogo inicial de la Binding Curse autónoma `cursed_binding`, instancia persistente separada de Enchantments, estados activo/suprimido/sellado/resuelto, operaciones de Apply/Suppress/Seal/Break/Transfer y bloqueo de desequipamiento ejecutable vía `js/item-equipment-bridge.js`. `js/item-magic-runtime.js` detecta maldiciones autónomas sin convertirlas en `bind` canónico; la hoja del Player y Battle Viewer cargan el nuevo runtime. El editor existente `js/dm-item-instance-editor.js` incluye Curse Studio, cambios preparados y guardado en el Item Instance original. `css/dm-item-instance-editor.css` incorpora la UI responsive.
+
+**Evidencia:** `tests/curse-item-runtime-smoke.cjs` y `.github/workflows/curse-runtime-integration.yml`, [CI de Curse Runtime verde](https://github.com/sokcrow/Luminos-Character-Maker/actions/runs/38311384954). Dos pruebas Playwright se agregaron al suite de DM `tests/dm-item-instance-editor.spec.cjs`, pero **no se deben considerar aprobadas hasta que termine su corrida real**. Los componentes no certificados siguen abiertos como `[ ]`.
+
+**Todavía NO implementado:** Curse sobre personajes, lugares, linajes o entidades colectivas; efectos negativos generales de HP/SP/Sanity; authoring abierto de todas las familias; operaciones colectivas; transferencia pagada/atómica entre dos inventarios; Curse UI para jugador más allá de detección/lectura existente; deploy productivo.
 
 ## 0 — Inventario comprobado en `main` (solo referencia)
 
@@ -51,20 +59,20 @@ La primera entrega **propuesta (todavía pendiente de aprobación)** cubre maldi
 
 ### A — Contrato y decisiones de diseño
 
-- [ ] Definir y aprobar alcance V1: Curse sobre Item Instances y personajes; otros objetivos quedan diferidos.
-- [ ] Distinguir formalmente `Curse`, `Bind` mágico, Status negativo, debuff temporal y desventaja inseparable de Relic.
-- [ ] Definir qué familias de Curse entran a V1 (objeto, aflicción personal, atadura) sin asumir familias opcionales aprobadas.
-- [ ] Decidir si puede maldecirse un Item sin encantamiento normal y cómo se representa sin inventar slots de Enchanter.
-- [ ] Definir niveles/severidad de Curse independientes del Rank de Enchantment cuando corresponda; ninguna curva universal automática.
-- [ ] Definir permanencia, duración, desencadenantes, expiración y condiciones para una maldición sin regla global.
-- [ ] Definir reglas de acumulación, fuentes múltiples, refresh/reapply y conflictos entre Curses y efectos de equipo.
-- [ ] Definir inmunidad, resistencia, Saving Throws o Checks solamente mediante perfiles autorizados y sin DC inventados.
-- [ ] Definir qué sucede cuando la fuente muere, se destruye, se desequipa, cambia de propietario o se desconecta.
-- [ ] Aprobar políticas de supresión, ruptura, transferencia y remoción por tipo, antes de implementar servicios nuevos.
+- [x] Definir y aprobar alcance V1: los cinco objetivos elegidos por el propietario, con implementación por etapas.
+- [x] Distinguir formalmente `Curse`, `Bind` mágico, Status negativo, debuff temporal y desventaja inseparable de Relic.
+- [x] Definir qué familias de Curse entran a V1: Item, Affliction, Binding, Ritual y Pact.
+- [x] Decidir si puede maldecirse un Item sin encantamiento normal y cómo se representa sin inventar slots de Enchanter.
+- [x] Definir niveles/severidad de Curse independientes del Rank de Enchantment cuando corresponda; ninguna curva universal automática.
+- [x] Definir permanencia, duración, desencadenantes, expiración y condiciones para una maldición sin regla global.
+- [x] Definir reglas de acumulación, fuentes múltiples, refresh/reapply y conflictos entre Curses y efectos de equipo.
+- [x] Definir inmunidad, resistencia, Saving Throws o Checks solamente mediante perfiles autorizados y sin DC inventados.
+- [x] Definir qué sucede cuando la fuente muere, se destruye, se desequipa, cambia de propietario o se desconecta.
+- [x] Aprobar políticas de supresión, ruptura, transferencia y remoción por tipo, antes de implementar servicios nuevos.
 
 ### B — Curse Catalog, Instance y Runtime
 
-- [ ] Crear un documento de contrato canónico de Curse V1 con esquema, vocabulario y ejemplos aprobados.
+- [x] Crear un documento de contrato canónico de Curse V1 con esquema, vocabulario y ejemplos aprobados. — `docs/curses-update-phase-a-contract.md`
 - [ ] Crear registro versionado de definiciones de Curse con ID estable, nombre, descripción, familias y targets elegibles.
 - [ ] Separar definición de Curse de instancia activa, estado de conocimiento y Status secundarios.
 - [ ] Definir un `Curse Instance` con ID propio, origen, fuente, objetivo, timestamps, condiciones y provenance.
@@ -197,10 +205,26 @@ La primera entrega **propuesta (todavía pendiente de aprobación)** cubre maldi
 - [ ] Registrar limitaciones de deploy, flags y permisos sin confundir merge con activación en producción.
 - [ ] Exigir revisión final del alcance: Curse's Update no puede introducir de contrabando Magic Loot, Relics o sistemas ambientales diferidos.
 
+### M — Objetivos colectivos, territoriales y heredables (aceptados para V1)
+
+- [ ] Definir target resolver para `place` con identidad de estructura, área y duración de pertenencia sin mutar Curse por render.
+- [ ] Definir asociaciones `lineage` desde árbol genealógico real y autorización de heredabilidad.
+- [ ] Definir pertenencia a `entity` para organizaciones y pactos, con altas, bajas y cambios de membresía.
+- [ ] Definir Curse colectiva con instancia fuente y proyección de consecuencias por miembros elegibles.
+- [ ] Definir Curse individual transferida/heredada desde colectiva que no desaparezca por abandonar el grupo.
+- [ ] Autorizar objetivos de Ritual Curse sin inventar automáticamente círculos, DC ni materiales.
+- [ ] Implementar API de Curse Instance autónoma para criaturas con control de recursos y Stats existente.
+- [ ] Implementar contrato de Curse para `place` sin duplicar Theatre/Scene Time ni tiles de combate.
+- [ ] Implementar contrato de Curse para `lineage` y propagación solo cuando su definición lo autorice.
+- [ ] Implementar contrato de Curse para `entity` y membresías, incluidos pactos vinculantes.
+- [ ] Mostrar Curse colectivas conocidas en vistas correspondientes del DM y Player sin revelar secretos.
+- [ ] Probar altas/bajas de membresía, herencia, traslados, destrucción de la fuente y persistencia.
+- [ ] Verificar que todo tipo de objetivo respete estados activo/suprimido/sellado/resuelto y sus métodos autorizados.
+- [ ] Agregar pruebas de persistencia, autoridad e idempotencia para cada objetivo no-Item.
+
 ## Diferidos expresamente: no bloquear V1
 
-- Curse ambiental, regiones, lugares, áreas persistentes y propagación entre celdas del mundo.
-- Curse hereditaria, de linajes, pactos narrativos o contagio epidemiológico.
+- La propagación automática ambiental entre áreas, contagio epidemiológico o maldiciones generadas por tablas aleatorias no está autorizada por el solo hecho de incluir Places y Lineages: requiere contratos particulares.
 - Tablas de drop, affixes aleatorios, maldición procedural de loot (Magic Loot Update).
 - Relics Rank IV/V, mantenimiento de Relic e identificación excepcional (Magic Items Update).
 - Rebalance o migración masiva de hechizos, Traits o familias de Status no relacionadas.
