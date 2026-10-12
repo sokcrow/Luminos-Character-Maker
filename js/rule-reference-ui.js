@@ -117,11 +117,15 @@
     const skillNames = namesFor("skill"), statusNames = namesFor("status");
     const statName="(?:STR|DEX|CON|INT|WIS|CHA|Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma)";
     const checkSuffix="\\s+(?:skills?|checks?|rolls?|tests?|ability\\s+checks?|pruebas?|habilidades?|threshold|dc)\\b";
+    // Save suffixes are shared across ability lists (e.g. INT or CHA Save Checks).
+    const saveSuffix="\\s+(?:saving\\s+throws?|saves?(?:\\s+checks?)?)\\b";
     // Shared suffixes work for mixed ability/Skill lists, not free-floating
     // references: "Strength or Athletics Check".
     const checkNames="(?:" + skillNames + "|" + statName + ")";
     const checkGroup = new RegExp(
       "^(?:" + REFERENCE_CONJUNCTION + checkNames + ")+" + checkSuffix, "i");
+    const saveGroup = new RegExp(
+      "^(?:" + REFERENCE_CONJUNCTION + statName + ")+" + saveSuffix, "i");
     const precedingCheckGroup = new RegExp(
       "\\b" + checkNames + REFERENCE_CONJUNCTION + "$", "i");
     // A status in a mechanical condition list may follow an unregistered
@@ -140,7 +144,7 @@
       REFERENCE_CONJUNCTION + ")*$", "i");
     const save=statName + "\\s+(?:Saving\\s+Throws?|Saves?|Checks?)";
     matcherCache={library,statusCount,spellCount:spellEffects.size,byName,
-      checkGroup,precedingCheckGroup,statusCondition,statusImmunityList,statusDamageList,
+      checkGroup,saveGroup,precedingCheckGroup,statusCondition,statusImmunityList,statusDamageList,
       regex:new RegExp("\\b(?:" + save + "|" + statName + "|" + alternative + ")\\b","gi")};
     return matcherCache;
   }
@@ -172,6 +176,8 @@
       // Becoming a registered condition is explicit status wording; do not
       // expand generic action matching into prose such as "become stronger".
       const becoming = /\b(?:become|becomes|became|becoming)\s+(?:[a-z-]+\s+){0,2}$/i.test(before);
+      // Possession has to be immediately adjacent to a registered Status.
+      const possession = /\b(?:have|has|having)\s+$/i.test(before);
       const numeric = /\b\d+(?:\s+(?:potency|count|stacks?))?\s*(?:of\s+)?$/i.test(before);
       // Quantified statuses are unambiguous even when the sentence omits an
       // action verb, e.g. "Failed Save: 2 Bind + 2 Fragile". Keep the
@@ -179,6 +185,7 @@
       return directStatus || statusImmunity || numeric || matcher.statusCondition.test(before) ||
         matcher.statusImmunityList.test(before) || matcher.statusDamageList.test(before) ||
         (becoming && !/\b(?:nature|protection|illusion)\b/i.test(entry.id)) ||
+        (possession && !/\b(?:nature|protection|illusion)\b/i.test(entry.id)) ||
         (action && !/\b(?:nature|protection|illusion)\b/i.test(entry.id));
     }
     if (entry.kind === "skill") {
@@ -219,7 +226,9 @@
             const before=value.slice(Math.max(0,hit.index-85),hit.index);
             const after=value.slice(hit.index+word.length,hit.index+word.length+100);
             // A bare ability is a Check only when sharing a mechanical suffix.
-            if (matcher.checkGroup.test(after) ||
+            if (matcher.saveGroup.test(after))
+              found={kind:"save",id:key};
+            else if (matcher.checkGroup.test(after) ||
                 (/^\s+(?:checks?|ability\s+checks?)\b/i.test(after) &&
                  matcher.precedingCheckGroup.test(before)))
               found={kind:"check",id:key};
