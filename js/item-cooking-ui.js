@@ -735,23 +735,34 @@
 
       if (made.length) {
         if (!inventorySessionCurrent(session)) throw new Error("COOKING_INVENTORY_CHANGED");
-        // Do not publish staged changes until every roll completed against
-        // exactly the same inventory revision and accessible containers.
-        const live = inventoryUnit();
-        live.inventario_activo = staged.inventario_activo;
-        live.inventario_stash = staged.inventario_stash;
+        // Persist a detached snapshot first. Never expose cooked items or
+        // consumed ingredients in the live HUD when persistence may still fail.
+        // Preserve other inventory-owned metadata and equipment references.
+        const pendingSave = {
+          ...session.inventory,
+          inventario_activo: staged.inventario_activo,
+          inventario_stash: staged.inventario_stash,
+          equipment: staged.equipment
+        };
         try {
           const peer = session.peer;
           if (!peer?.bound || !peer.save) throw new Error("SAVE_NOT_AVAILABLE");
-          const saved = await peer.save(live);
+          const saved = await peer.save(pendingSave);
           if (saved?.saved !== true) throw new Error(saved?.reason || "SAVE_FAILED");
+          // Firebase can deliver an updated snapshot while the save awaits.
+          // Do not overwrite those authoritative containers with stale copies.
+          if (inventorySessionCurrent(session)) {
+            const live = inventoryUnit();
+            live.inventario_activo = staged.inventario_activo;
+            live.inventario_stash = staged.inventario_stash;
+          }
           hud()?.renderAll?.();
           state.lastDish = made[made.length - 1].displayName + " · " +
             made[made.length - 1].stars + "★";
           message("¡" + made.length + (made.length === 1 ? " plato preparado" : " platos preparados") +
             " y guardados en el inventario!", "success");
         } catch (_) {
-          message("Se preparó el plato, pero no se pudo guardar. Reintenta al recuperar la conexión.", "error");
+          message("No se pudo guardar la preparación. El inventario no cambió; vuelve a intentarlo cuando haya conexión.", "error");
         }
       } else if (state.messageType !== "error") {
         message("No se pudo cocinar. Comprueba ingredientes y espacio libre.", "error");
