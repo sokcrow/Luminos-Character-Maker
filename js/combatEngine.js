@@ -736,8 +736,11 @@ const CombatEngine = {
             // before Shield and HP are reduced by applyDamage.
             context.enchantmentPreDamageWindow = true;
             context.incomingDamage = finalDamage;
-            this.triggerEvent('[Before Getting Hit]', context, [unitDefender]);
-            context.enchantmentPreDamageWindow = false;
+            try {
+                this.triggerEvent('[Before Getting Hit]', context, [unitDefender]);
+            } finally {
+                context.enchantmentPreDamageWindow = false;
+            }
             let hpBeforeHit = unitDefender.hp;
             let applyDmgResult = this.applyDamage(unitDefender, finalDamage, 'directo', isCritical, attackSkill);
             this.processStatusEffects(unitDefender, 'getting_hit', context);
