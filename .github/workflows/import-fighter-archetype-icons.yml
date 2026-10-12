@@ -33,7 +33,11 @@ jobs:
       - name: Commit images to the feature branch
         shell: bash
         run: |
-          test "$(find Assets/Icons/archetypes -maxdepth 1 -name '*.png' -type f | wc -l)" -eq 4
+          # Other classes may also store icons in this shared directory.
+          # Require only the four Fighter files and preserve future artwork.
+          for id in champion battle_master samurai banneret; do
+            test -f "Assets/Icons/archetypes/$id.png"
+          done
           git add -- Assets/Icons/archetypes/
           if ! git diff --cached --quiet; then
             git config user.name "github-actions[bot]"
