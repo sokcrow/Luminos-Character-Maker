@@ -13,6 +13,7 @@
   function inventoryRuntime() { return global.LuminousItemInventoryRuntime || itemRuntime(); }
   function persistenceRuntime() { return global.LuminousItemPersistenceRuntime || null; }
   function augmentationRuntime() { return global.LuminousItemAugmentationRuntime || null; }
+  function magicRuntime() { return global.LuminousItemMagicRuntime || null; }
 
   function emit(name, detail) {
     try {
@@ -170,8 +171,11 @@
     return { allowed: true, item, slot: normalized };
   }
 
-  function unequipItemEverywhere(unit, item) {
+  function unequipItemEverywhere(unit, item, options = {}) {
     if (!item) return { unequipped: false, reason: "missing_item" };
+    if (magicRuntime()?.isBoundItem?.(item) === true && options.force !== true) {
+      return { unequipped:false, reason:"bound_item_unequip_locked", item, unit };
+    }
     const runtime = itemRuntime();
     const result = runtime?.unequipItem ? runtime.unequipItem(unit, item) : { unequipped: true, item };
     clearPointer(unit, item);
@@ -207,13 +211,13 @@
 
     const occupied = getSlotItem(unit, normalized);
     if (occupied && !sameItem(occupied, item)) {
-      const removed = unequipItemEverywhere(unit, occupied);
+      const removed = unequipItemEverywhere(unit, occupied, options);
       if (removed.unequipped === false) return { equipped: false, reason: removed.reason || "equipment_slot_occupied", item, slot: normalized };
     }
 
     if (kind === "weapon" && Number(schema.handCost || item.handCost || item.handsRequired || 1) >= 2) {
       [store.mainHand, store.offHand].filter(Boolean).forEach((entry) => {
-        if (!sameItem(entry, item)) unequipItemEverywhere(unit, entry);
+        if (!sameItem(entry, item)) unequipItemEverywhere(unit, entry, options);
       });
     }
 
@@ -265,7 +269,7 @@
       return { unequipped: true, unit, item, slot: normalized, augmentation: true, result };
     }
 
-    const result = unequipItemEverywhere(unit, item);
+    const result = unequipItemEverywhere(unit, item, options);
     if (result.unequipped === false) return { ...result, slot: normalized };
     emit("luminous:item-equipment-bridge-unequipped", { unit, item, slot: normalized });
     return { unequipped: true, unit, item, slot: normalized, result };
@@ -285,7 +289,10 @@
     const inventory = inventoryRuntime();
     if (!inventory?.moveItem) return { moved: false, reason: "inventory_runtime_unavailable" };
     const item = inventory.findItem?.(unit, ref, { container: from }) || findActiveItem(unit, ref);
-    if (normalizeId(from) === "active" && normalizeId(to) === "stash" && item && itemEquippedSlot(unit, item)) unequipItemEverywhere(unit, item);
+    if (normalizeId(from) === "active" && normalizeId(to) === "stash" && item && itemEquippedSlot(unit, item)) {
+      const unequipped = unequipItemEverywhere(unit, item, options);
+      if (unequipped.unequipped === false) return { moved:false, reason:unequipped.reason || "equipped_item_cannot_move", item };
+    }
     return inventory.moveItem(unit, ref, from, to, amount, options);
   }
 
@@ -296,7 +303,7 @@
   }
 
   const api = Object.freeze({
-    version: 2,
+    version: 3,
     normalizeSlot,
     categoryOf,
     schemaOf,

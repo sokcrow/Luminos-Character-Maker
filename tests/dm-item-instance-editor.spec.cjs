@@ -229,6 +229,10 @@ async function bootDmHarness(page) {
       applyInventoryState(unit, snapshot) {
         unit.inventario_activo = clone(snapshot.inventario_activo || {});
         unit.inventario_stash = clone(snapshot.inventario_stash || {});
+        unit.itemMagicKnowledge=clone(snapshot.itemMagicKnowledge||{});
+        unit.enchantmentCompendium=clone(snapshot.enchantmentCompendium||{});
+        unit.enchanterTransactions=clone(snapshot.enchanterTransactions||{});
+        unit.enchanterJobs=clone(snapshot.enchanterJobs||{});
         unit.equipment = { accessories: [] };
         if (snapshot.equipmentRefs?.mainHand) unit.equipment.mainHand = unit.inventario_activo[snapshot.equipmentRefs.mainHand];
         return { applied: true };
@@ -265,6 +269,7 @@ async function bootDmHarness(page) {
 
   // Load the real Enchanter runtime dependencies in the isolated Playwright
   // about:blank harness; relative <script src> requests cannot resolve there.
+  await page.addScriptTag({ path: path.join(ROOT, "js/item-quality-engine.js") });
   await page.addScriptTag({ path: path.join(ROOT, "js/item-enchantment-runtime.js") });
   await page.addScriptTag({ path: path.join(ROOT, "js/item-economy-standard.js") });
   await page.addScriptTag({ path: path.join(ROOT, "js/item-catalog-ore-ingot-gem.js") });
@@ -272,8 +277,26 @@ async function bootDmHarness(page) {
   await page.addScriptTag({ path: path.join(ROOT, "js/item-enchantment-recipe-catalog.js") });
   await page.addScriptTag({ path: path.join(ROOT, "js/item-enchantment-crafting-runtime.js") });
   await page.addScriptTag({ path: path.join(ROOT, "js/dm-enchanter-studio-model.js") });
+  // This is an about:blank fixture: editor runtime dependencies must be
+  // explicitly available. A relative script URL cannot load from about:blank.
+  // Individual Enchanter UI tests override these seams with authored cases.
+  await page.evaluate(() => {
+    window.LuminousEnchantmentCatalog = {
+      list: () => [], get: () => null, ELIGIBLE_ITEM_KINDS: ["weapon","armor","shield","accessory"],
+    };
+    window.LuminousItemEnchantmentEngine = {
+      appliedEnchantments: () => [], validateApplication: () => ({ allowed:false,reason:"no_fixture_enchantment" }),
+      canRemoveEnchantment: () => ({allowed:false,reason:"no_fixture_enchantment"}),
+    };
+    window.LuminousItemMagicRuntime = { isMagicItem: () => false };
+    window.LuminousItemEnchanterServiceRuntime = { commitServiceTransaction: () => ({committed:false}) };
+  });
   await page.addScriptTag({ path: EDITOR });
-  await page.waitForFunction(() => window.LuminousDmItemInstanceEditor?.state?.ready === true);
+  // Invoke boot explicitly so missing dependencies fail with a diagnostic
+  // instead of silently waiting 30s on the editor's DOM-ready boot attempt.
+  const dmBooted = await page.evaluate(async () => await window.LuminousDmItemInstanceEditor?.boot());
+  expect(dmBooted).toBe(true);
+  await expect.poll(() => page.evaluate(() => window.LuminousDmItemInstanceEditor?.state?.ready)).toBe(true);
   await expect(page.locator('#modal-inv-lista-activos .dm-item-instance-edit[data-key="sword_1"]')).toHaveCount(1);
 }
 
@@ -418,4 +441,139 @@ test("DM bootstrap loads the ItemInstance editor assets", async () => {
   expect(hotfix).toContain("css/dm-item-instance-editor.css");
   expect(hotfix).toContain("dm-item-instance-editor-script");
   expect(hotfix).toContain("js/dm-item-instance-editor.js");
+});
+
+test("DM Enchantment authoring validates, applies, persists and removes through canonical service seam", async ({page}) => {
+  await bootDmHarness(page);
+  await page.evaluate(() => {
+    window.LuminousEnchantmentCatalog = {
+      list(){ return [{id:"flamebound",name:"Flamebound",rankData:{1:{}}}]; },
+      get(id){ return id==="flamebound" ? {id,name:"Flamebound"} : null; },
+    };
+    window.LuminousItemEnchantmentEngine = {
+      appliedEnchantments(item){ return item.magic?.enchantments || []; },
+      validateApplication(item,id,rank){
+        if(id!=="flamebound" || item.magic?.enchantments?.length) {
+          return {allowed:false,reason:"enchantment_already_installed"};
+        }
+        return {allowed:rank===1};
+      },
+      canRemoveEnchantment(item,id){
+        return {allowed:item.magic?.enchantments?.some(x=>x.definitionId===id)===true};
+      },
+    };
+    window.LuminousItemEnchanterServiceRuntime = {
+      commitServiceTransaction(owner,item,quote,options){
+        if(!options.dmFreeService) return {committed:false,reason:"dm_only"};
+        if(quote.service==="enchant"){
+          item.magic={enchantments:[{definitionId:quote.definitionId,rank:quote.rank,properties:[]}]};
+        } else if(quote.procedure==="direct_remove") {
+          item.magic={enchantments:[]};
+        } else return {committed:false,reason:"invalid_service"};
+        owner.enchanterTransactions ||= {};
+        owner.enchanterTransactions[options.transactionId]={committed:true};
+        return {committed:true,chargedAhn:0};
+      },
+    };
+  });
+  await page.locator('#modal-inv-lista-activos .dm-item-instance-edit[data-key="sword_1"]').click();
+  await page.evaluate(() => {
+    const dm=window.LuminousDmItemInstanceEditor;
+    const select=document.getElementById("dm-item-enchantment-definition");
+    select.innerHTML='<option value="flamebound">Flamebound</option>';
+    dm.updateMagicValidation();
+  });
+  await expect(page.locator("#dm-item-enchantment-validation")).toContainText("VALID");
+  await page.locator("#dm-item-enchantment-apply").click();
+  await page.waitForFunction(() => window.__saves.length === 1);
+  await expect(page.locator("#dm-item-enchantment-current")).toContainText("Flamebound");
+  expect(await page.evaluate(() =>
+    window.__saves[0].active.sword_1.magic.enchantments[0].definitionId
+  )).toBe("flamebound");
+  await page.locator("#dm-item-enchantment-current button").click();
+  await page.waitForFunction(() => window.__saves.length === 2);
+  await expect(page.locator("#dm-item-enchantment-current")).toContainText("No Enchantments installed");
+  expect(await page.evaluate(() =>
+    window.__saves[1].active.sword_1.magic.enchantments.length
+  )).toBe(0);
+});
+
+
+test("failed DM magic saves restore the Firebase Item and cannot leak pending receipts",async ({page})=>{
+  await bootDmHarness(page);
+  await page.evaluate(()=>{
+    window.LuminousEnchantmentCatalog={
+      list:()=>[{id:"flamebound",name:"Flamebound",rankData:{1:{}}}],
+      get:id=>id==="flamebound"?{id,name:"Flamebound"}:null,
+    };
+    window.LuminousItemEnchantmentEngine={
+      appliedEnchantments:item=>item.magic?.enchantments||[],
+      validateApplication:(item,id)=>({allowed:id==="flamebound"&&!item.magic?.enchantments?.length}),
+      canRemoveEnchantment:(item,id)=>({allowed:item.magic?.enchantments?.some(ref=>ref.definitionId===id)===true}),
+    };
+    window.LuminousItemEnchanterServiceRuntime={
+      commitServiceTransaction(owner,item,quote,options){
+        item.magic={enchantments:quote.service==="enchant"
+          ? [{definitionId:"flamebound",rank:1,properties:[]}]:[]};
+        owner.enchanterTransactions||={};
+        owner.enchanterTransactions[options.transactionId]={committed:true};
+        return {committed:true,chargedAhn:0};
+      },
+    };
+    const peer=window.LuminousDmItemInstanceEditor.state.peer;
+    peer.save=async()=>{throw new Error("firebase_unavailable");};
+  });
+  await page.locator('#modal-inv-lista-activos .dm-item-instance-edit[data-key="sword_1"]').click();
+  await page.evaluate(()=>{
+    const dm=window.LuminousDmItemInstanceEditor;
+    document.getElementById("dm-item-enchantment-definition").innerHTML=
+      '<option value="flamebound">Flamebound</option>';
+    dm.updateMagicValidation();
+  });
+  await page.locator("#dm-item-enchantment-apply").click();
+  await expect(page.locator("#dm-item-enchantment-current")).toContainText("No Enchantments installed");
+  const state=await page.evaluate(()=>{
+    const unit=window.LuminousDmItemInstanceEditor.state.unit;
+    return {enchanted:!!unit.inventario_activo.sword_1.magic?.enchantments?.length,
+      receipts:Object.keys(unit.enchanterTransactions||{}).length,
+      firebaseEnchanted:!!window.__source.inventario_activo.sword_1.magic};
+  });
+  expect(state).toEqual({enchanted:false,receipts:0,firebaseEnchanted:false});
+
+  // Removal fails after local mutation too: authoritative reload restores magic.
+  await page.evaluate(()=>{
+    const dm=window.LuminousDmItemInstanceEditor;
+    const magic={enchantments:[{definitionId:"flamebound",rank:1,properties:[]}]};
+    window.__source.inventario_activo.sword_1.magic=JSON.parse(JSON.stringify(magic));
+    dm.state.unit.inventario_activo.sword_1.magic=JSON.parse(JSON.stringify(magic));
+    const item=dm.state.unit.inventario_activo.sword_1;
+    dm.state.selected.item=item;
+    dm.renderDmEnchantments(item);
+  });
+  await page.locator("#dm-item-enchantment-current button").click();
+  await expect(page.locator("#dm-item-enchantment-current")).toContainText("Flamebound");
+  expect(await page.evaluate(()=>{
+    const u=window.LuminousDmItemInstanceEditor.state.unit;
+    return {enchanted:u.inventario_activo.sword_1.magic.enchantments.length,
+      receipts:Object.keys(u.enchanterTransactions||{}).length};
+  })).toEqual({enchanted:1,receipts:0});
+
+  // If the server cannot be reloaded, rollback and prevent unrelated writes.
+  await page.evaluate(()=>{
+    const dm=window.LuminousDmItemInstanceEditor;
+    window.LuminousItemPersistenceRuntime.loadPlayerInventory=async()=>({loaded:false});
+    const item=dm.state.unit.inventario_activo.sword_1;
+    delete item.magic;
+    dm.state.selected.item=item;
+    dm.renderDmEnchantments(item);
+    dm.updateMagicValidation();
+  });
+  await page.locator("#dm-item-enchantment-apply").click();
+  await expect.poll(()=>page.evaluate(
+    ()=>window.LuminousDmItemInstanceEditor.state.saveUncertain)).toBe(true);
+  expect(await page.evaluate(()=>{
+    const dm=window.LuminousDmItemInstanceEditor;
+    return {enchanted:!!dm.state.unit.inventario_activo.sword_1.magic,
+      receipts:Object.keys(dm.state.unit.enchanterTransactions||{}).length};
+  })).toEqual({enchanted:false,receipts:0});
 });

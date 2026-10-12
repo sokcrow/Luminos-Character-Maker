@@ -730,6 +730,17 @@ const CombatEngine = {
 
             let finalDamage = this.calculateCoinDamage(unitAttacker, unitDefender, attackSkill, attackPower, isCritical, clashCount, context);
 
+            // A true pre-damage window for opt-in, server-authorized defensive
+            // item reactions. Do not silently choose a reaction for the player.
+            // The canonical Item bridge may spend an available Reaction here,
+            // before Shield and HP are reduced by applyDamage.
+            context.enchantmentPreDamageWindow = true;
+            context.incomingDamage = finalDamage;
+            try {
+                this.triggerEvent('[Before Getting Hit]', context, [unitDefender]);
+            } finally {
+                context.enchantmentPreDamageWindow = false;
+            }
             let hpBeforeHit = unitDefender.hp;
             let applyDmgResult = this.applyDamage(unitDefender, finalDamage, 'directo', isCritical, attackSkill);
             this.processStatusEffects(unitDefender, 'getting_hit', context);

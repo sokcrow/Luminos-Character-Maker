@@ -22,7 +22,7 @@ const WeaponComposition=globalThis.LuminousWeaponCompositionEngine;
 const Shields=globalThis.LuminousShieldCompositionEngine;
 
 assert.ok(Enhancement&&Armor&&Weapons&&WeaponComposition&&Shields);
-assert.strictEqual(Enhancement.VERSION,2);
+assert.strictEqual(Enhancement.VERSION,3);
 assert.deepStrictEqual(Enhancement.ENCHANTMENT_LEVELS,[1,2,3]);
 assert.ok(Enhancement.ELIGIBLE_KINDS.includes("accessory"));
 assert.ok(Enhancement.ELIGIBLE_KINDS.includes("valuable"));
@@ -35,6 +35,17 @@ assert.deepStrictEqual(Enhancement.validate({itemType:"weapon"}),{valid:true,kin
 assert.strictEqual(Enhancement.validate({itemType:"armor",enhancementLevel:1,enhancementSource:"mundane"}).valid,false);
 assert.strictEqual(Enhancement.validate({itemType:"armor",enhancementLevel:1,enhancementSource:"enchantment"}).valid,true);
 assert.strictEqual(Enhancement.displayName({itemType:"shield",name:"Hardened Steel Tower Shield",enhancementLevel:3,enhancementSource:"enchantment"}),"Hardened Steel Tower Shield +3");
+assert.strictEqual(
+  Enhancement.displayName({
+    itemType:"weapon",
+    name:"Longsword",
+    enhancementLevel:3,
+    enhancementSource:"enchantment",
+    magic:{enchantments:[{definitionId:"flamebound",rank:3,source:"direct",properties:[]}]},
+  }),
+  "Longsword",
+  "canonical Enchantment presentation must suppress legacy +N naming so viewer-knowledge runtime can name the Item",
+);
 
 const plate=Armor.resolvePreset("plate_armor",{
   armor_plate:{body:"hardened_steel"},armor_reinforcement:{body:"hardened_steel"}

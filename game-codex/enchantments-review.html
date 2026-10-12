@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Luminous enchantment concept compendium: lore, escalating tiers, combat conditions, and design limits. Draft only.">
+<title>Luminous — Enchantment Compendium / Design Review</title>
+<link rel="stylesheet" href="enchantments-review.css">
+</head>
+<body>
+<div class="compendium">
+  <header class="masthead">
+    <div class="overline">LUMINOUS // ARCANE ARCHIVE // DESIGN REVIEW</div>
+    <h1>Enchantment <em>Compendium</em></h1>
+    <p class="lead">119 UNAPPROVED draft inscriptions · 16 disciplines · 5% specialist damage amplification, a premium universal concept, and Magic Durability review.</p>
+    <div class="review-warning" role="status">
+      <strong>UNAPPROVED DESIGN CONCEPTS</strong>
+      Every entry is a design draft, not playable. Rank I = Base, Rank II = Ceil(Base × 1.5), Rank III = Ceil(Base × 2.5).
+    </div>
+    <a class="back" href="index.html">← Return to the Game Codex</a>
+  </header>
+  <div class="browser">
+    <aside class="index">
+      <div class="index-title"><h2>The Archive</h2><span id="count"></span></div>
+      <label class="field">Search the archive<input id="search" type="search" placeholder="Name, lore, status, or mechanic…" autocomplete="off"></label>
+      <div class="filters">
+        <label class="field">Discipline<select id="school"><option value="">All disciplines</option></select></label>
+        <label class="field">Item type<select id="slot"><option value="">All item types</option></select></label>
+        <label class="field">Mechanical axis<select id="axis"><option value="">All axes</option></select></label>
+      </div>
+      <nav class="entries" id="entries" aria-label="Enchantment entries"></nav>
+    </aside>
+    <main class="detail" id="detail" tabindex="-1" aria-live="polite">
+      <div class="detail-placeholder">Choose an inscription to inspect its lore, binding ranks, triggers, and limitations.</div>
+    </main>
+  </div>
+  <footer>
+    <strong>DESIGN RULE:</strong> No generic Base Power, Final Power or Clash Power buffs. One base mechanic per enchantment; its numerical magnitudes scale ×1 / ×1.5 / ×2.5 with Ceil. Triggers, costs, targets and restrictions stay fixed.<br>
+    Source-weapon binding, Status semantics, caps, and one-focus-per-item remain hard constraints. Damage-bonus pricing, universal bonus magnitude, Magic Durability recovery rounding, Spell Slot recharging and combination rules need approval before implementation.
+  </footer>
+</div>
+<script src="enchantments-review-catalog.js"></script>
+<script src="enchantments-review-expansion.js"></script>
+<script src="enchantments-review-passives.js"></script>
+<script src="enchantments-review-damage.js"></script>
+<script src="enchantment-magic-durability-review.js"></script>
+<script src="enchantments-review.js"></script>
+</body>
+</html>
