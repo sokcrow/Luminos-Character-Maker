@@ -133,9 +133,14 @@
     const statusImmunityList = new RegExp(
       "\\b(?:immunit(?:y|ies)|resistan(?:ce|ces)|immune|resistant)\\s+(?:to|against)\\s+" +
       "(?:" + conditionName + REFERENCE_CONJUNCTION + ")*$", "i");
+    // "Take Half Damage from Burn and Poison": only registered statuses in
+    // a bounded damage-source list receive cards, never an ordinary damage type.
+    const statusDamageList = new RegExp(
+      "\\b(?:damage|dmg)\\s+from\\s+(?:(?:" + statusNames + ")" +
+      REFERENCE_CONJUNCTION + ")*$", "i");
     const save=statName + "\\s+(?:Saving\\s+Throws?|Saves?|Checks?)";
     matcherCache={library,statusCount,spellCount:spellEffects.size,byName,
-      checkGroup,precedingCheckGroup,statusCondition,statusImmunityList,
+      checkGroup,precedingCheckGroup,statusCondition,statusImmunityList,statusDamageList,
       regex:new RegExp("\\b(?:" + save + "|" + statName + "|" + alternative + ")\\b","gi")};
     return matcherCache;
   }
@@ -172,7 +177,7 @@
       // action verb, e.g. "Failed Save: 2 Bind + 2 Fragile". Keep the
       // damage-type exclusions above and require verbs for unquantified names.
       return directStatus || statusImmunity || numeric || matcher.statusCondition.test(before) ||
-        matcher.statusImmunityList.test(before) ||
+        matcher.statusImmunityList.test(before) || matcher.statusDamageList.test(before) ||
         (becoming && !/\b(?:nature|protection|illusion)\b/i.test(entry.id)) ||
         (action && !/\b(?:nature|protection|illusion)\b/i.test(entry.id));
     }
@@ -184,7 +189,7 @@
       // proficiency list (e.g. "proficiency with Light Armor, Performance").
       // Require an explicit proficiency prefix and short, uninterrupted items.
       const proficiencyList = /\b(?:proficiency|expertise|proficient|trained|competencia|pericia)\s+(?:in|with|en)\s+(?:(?:[a-z][a-z-]*(?:\s+[a-z][a-z-]*){0,4})\s*(?:,\s*(?:(?:and|or|y|o)\s+)?|\s+(?:and|or|y|o)\s+))+$/i.test(before);
-      const suffix = /^\s*(?:skills?|checks?|rolls?|tests?|ability\s+checks?|pruebas?|habilidades?|threshold|dc|power)\b/i.test(after);
+      const suffix = /^\s*(?:skills?|checks?|rolls?|tests?|ability\s+checks?|pruebas?|habilidades?|threshold|dc|power|proficiency|expertise|competencia|pericia)\b/i.test(after);
       // A Skill with a bounded "against ... reduces Threshold" phrase is
       // mechanical, although Threshold is separated from the Skill name.
       const conditionedThreshold = /^\s+against\s+(?:[a-z][a-z'-]*\s+){1,12}(?:reduces?|lowers?|decreases?|increases?|raises?|modif(?:y|ies))\s+(?:the\s+)?(?:check\s+)?(?:threshold|dc)\b/i.test(after);
@@ -280,7 +285,13 @@
         && !event.target?.closest?.(".luminous-rule-reference"))dismiss();
     });
     // A stale tooltip should not float over an unrelated scrolled Trait.
-    doc.addEventListener("scroll",()=>{if(popover && !popover.hidden)dismiss();},true);
+    doc.addEventListener("scroll",event=>{
+      if(!popover || popover.hidden) return;
+      // Long rule explanations must remain readable inside their own
+      // scrollable card. Scrolling the Traits panel still closes stale help.
+      if(event.target && popover.contains(event.target)) return;
+      dismiss();
+    },true);
     global.addEventListener?.("resize",()=>{if(popover && !popover.hidden)dismiss();});
     return popover;
   }
