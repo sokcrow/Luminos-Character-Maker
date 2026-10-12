@@ -59,6 +59,11 @@ const { pathToFileURL } = require("node:url");
     },
     renderAll() { renderCalls++; }
   };
+  // The unit smoke uses a stub peer; the real quarantined save is exercised
+  // separately against the actual realtime-sync module.
+  globalThis.LuminousInventoryHudV2.state.peer.saveConfirmed = function (snapshot) {
+    return this.save(snapshot);
+  };
   globalThis.LuminousCoinEngine = {
     async runAnimatedRoll() {
       return onRoll ? onRoll() : { total: 20, heads: 5 };
