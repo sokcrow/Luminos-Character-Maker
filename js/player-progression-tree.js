@@ -106,16 +106,16 @@
     }, { once: true });
   }
 
-  // Bundled artwork for Fighter Archetypes; other classes keep their sigils.
-  const FIGHTER_ARCHETYPE_ICON_IDS = new Set([
-    "champion", "battle_master", "samurai", "banneret",
-  ]);
+  // Archetype artwork is bundled by parent Class. Unknown branches retain
+  // the SVG sigils; never show another Class's icon on a different branch.
+  const ARCHETYPE_ICON_IDS_BY_CLASS = Object.freeze({
+    fighter: new Set(["champion", "battle_master", "samurai", "banneret"]),
+    barbarian: new Set(["path_of_the_devil_lineage", "path_of_the_zealot"]),
+  });
   function archetypeIconPath(classId, archetypeId) {
-    const fighter = clean(classId).toLowerCase() === "fighter";
+    const classIcons = ARCHETYPE_ICON_IDS_BY_CLASS[clean(classId).toLowerCase()];
     const id = clean(archetypeId).toLowerCase();
-    return fighter && FIGHTER_ARCHETYPE_ICON_IDS.has(id)
-      ? `Assets/Icons/archetypes/${id}.png`
-      : "";
+    return classIcons?.has(id) ? `Assets/Icons/archetypes/${id}.png` : "";
   }
   function archetypeSealMarkup(classModel, branch, fallbackKind) {
     const src = archetypeIconPath(classModel?.classId, branch?.id);
