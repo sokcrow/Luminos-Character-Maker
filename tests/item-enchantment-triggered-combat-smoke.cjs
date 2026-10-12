@@ -116,7 +116,7 @@ try {
   armor.mockEffects=[onReceived];
 
   const beforeHit={type:"status_apply",trigger:"before_getting_hit",
-    statusId:"warded",target:"self",stacks:1,
+    statusId:"warded",stacks:1,
     sourceEnchantmentId:"flamebound",sourceMagicalWear:1};
   armor.mockEffects=[beforeHit];
   const economyBefore=globalThis.LuminousActionEconomy;
@@ -145,7 +145,9 @@ try {
     incoming.incomingDamage=13;
     globalThis.CombatEngine.triggerEvent("[Before Getting Hit]",incoming,[enemy]);
     assert.equal(enemy.statusEffects.warded.count,1,
-      "selected Reaction applies the authored pre-damage status");
+      "defensive trigger defaults to wearer even without an explicit target");
+    assert.equal(fighter.statusEffects?.warded,undefined,
+      "a defensive enchantment cannot accidentally buff the incoming attacker");
     assert.equal(enemy.__luminousActionEconomyState.reactionRemaining,0);
     assert.equal(md(armor),mdPre-1,"an authored pre-damage effect spends MD exactly once");
     assert.equal(enemy.sp,spPre);
