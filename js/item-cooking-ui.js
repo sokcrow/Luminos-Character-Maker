@@ -401,17 +401,59 @@
     if (count) count.textContent = selectionData.filtered.filter(function (recipe) { return knows(u, recipe); }).length + " RECETAS DESCUBIERTAS";
   }
 
-  function renderIngredients(recipe, resolution, rows) {
-    return (recipe.ingredients || []).map(function (ingredient, index) {
-      const assignment = resolution?.assignments?.[index];
-      const sources = rows || [];
-      const candidates = sources.filter(function (row) {
-        return resolver()?.matchRequirement?.(ingredient, row.item || row)?.matches;
+  // Reserve ingredients through the same greedy resolver as executeCook, one
+  // portion at a time. Summing independent candidates is incorrect when one
+  // stack can satisfy multiple recipe requirements (e.g. onion as vegetable
+  // and aromatic). Keep this reservation preview read-only.
+  function ingredientAvailability(recipe, rows, quantity) {
+    const requirements = recipe?.ingredients || [];
+    const requested = Math.max(1, Math.min(5, Math.trunc(Number(quantity) || 1)));
+    const available = (Array.isArray(rows) ? rows : []).map(function (row) {
+      const amount = Number(row.quantity ?? row.qty ?? row.cantidad ?? 0);
+      return { ...row, quantity: Number.isFinite(amount) ? Math.max(0, amount) : 0 };
+    });
+    const assigned = requirements.map(function () { return 0; });
+    const firstItems = requirements.map(function () { return null; });
+    for (let portion = 0; portion < requested; portion += 1) {
+      const result = resolve(recipe, available);
+      if (!result?.assignments) break;
+      for (let index = 0; index < requirements.length; index += 1) {
+        for (const allocation of result.assignments[index]?.allocations || []) {
+          const units = Math.max(0, Number(allocation.units) || 0);
+          assigned[index] += units;
+          if (!firstItems[index]) firstItems[index] = allocation.item;
+          if (available[allocation.inventoryIndex]) {
+            available[allocation.inventoryIndex].quantity = Math.max(
+              0, available[allocation.inventoryIndex].quantity - units
+            );
+          }
+        }
+      }
+      if (!result.valid) break;
+    }
+    return requirements.map(function (ingredient, index) {
+      const required = Math.max(1, Math.trunc(Number(ingredient.quantity) || 1)) * requested;
+      return Object.freeze({
+        requirement: ingredient.requirement,
+        allocated: assigned[index],
+        required: required,
+        missing: ingredient.optional !== true && assigned[index] < required,
+        firstItem: firstItems[index]
       });
-      const have = candidates.reduce(function (sum, row) { return sum + Math.max(0, Number(row.quantity || 0)); }, 0);
-      const required = Math.max(1, Number(ingredient.quantity) || 1) * state.quantity;
-      const good = have >= required || ingredient.optional === true;
-      const first = assignment?.allocations?.[0]?.item || candidates[0]?.item || null;
+    });
+  }
+
+  function renderIngredients(recipe, resolution, rows) {
+    const allocations = ingredientAvailability(recipe, rows, state.quantity);
+    return (recipe.ingredients || []).map(function (ingredient, index) {
+      const availability = allocations[index];
+      const have = availability.allocated;
+      const required = availability.required;
+      const good = !availability.missing;
+      const first = availability.firstItem ||
+        resolution?.assignments?.[index]?.allocations?.[0]?.item ||
+        resolver()?.candidatesForRequirement?.(ingredient.requirement, rows || [])?.[0]?.item ||
+        null;
       const name = first?.displayName || first?.name || label(ingredient.requirement);
       const art = ingredientIcon(first, ingredient.requirement);
       return '<div class="cooking-book-ingredient' + (good ? '' : ' is-missing') + '">' +
@@ -688,7 +730,7 @@
     VERSION: VERSION, boot: boot, open: open, close: close,
     craftable: craftable, renderPreview: renderDetail,
     categoryFor: categoryFor, maxQuantity: maxQuantity, abilityBase: abilityBase, headsChance: headsChance,
-    currentStation: currentStation
+    currentStation: currentStation, ingredientAvailability: ingredientAvailability
   });
   global.LuminousCookingUi = API;
   if (typeof module !== "undefined" && module.exports) module.exports = API;
