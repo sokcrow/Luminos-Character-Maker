@@ -207,5 +207,41 @@ const { pathToFileURL } = require("node:url");
     "stash-only Cook's Utensils must not improve checks while stash is locked");
   assert.equal(ui.close(),true);
 
-  console.log("Cooking recipe book UI smoke: OK (full sheet, locked recipes, Escape, stash tools, coins, batch, save rejection)");
+  // The sheet normally has no persisted station. Declaring a real station in the
+  // cookbook must immediately remove exactly the missing-station +3 TH penalty.
+  delete character.currentCookingStationId;
+  delete character.cookingStationId;
+  assert.equal(ui.open(),true);
+  click("[data-cook-recipe]", {cookRecipe:"burger"});
+  assert.match(elements["cooking-v2-detail"].innerHTML, /data-cook-station/,
+    "cooking station selector must be visible and usable");
+  assert.equal(ui.currentStation(character),"");
+  const withoutStationTh = difficulty();
+  const selectStation = value => modal.listeners.change({
+    target: {value, matches(selector){return selector === "[data-cook-station]";}}
+  });
+  selectStation("grill");
+  assert.equal(ui.currentStation(character),"grill");
+  assert.equal(difficulty(),withoutStationTh-3,
+    "choosing a grill must remove the missing-station penalty");
+  selectStation("imaginary_station");
+  assert.equal(ui.currentStation(character),"grill",
+    "unrecognized station IDs cannot be submitted");
+  selectStation("");
+  assert.equal(difficulty(),withoutStationTh,
+    "clearing station must restore the actual penalty");
+  assert.equal(ui.close(),true);
+  assert.equal(ui.open(),true);
+  assert.equal(ui.currentStation(character),"",
+    "new cooking sessions must not retain an old declared station");
+  assert.equal(ui.close(),true);
+
+  // An 844x390 landscape phone must never inherit a 540px minimum book height.
+  const css = require("node:fs").readFileSync(path.resolve(__dirname,"../css/item-cooking-ui.css"),"utf8");
+  assert.match(css, /@media \(max-height: 540px\) and \(min-width: 691px\)/);
+  const compact = css.split("@media (max-height: 540px) and (min-width: 691px)")[1];
+  assert.match(compact, /#cooking-v1-modal \.cooking-book\s*\{[^}]*min-height:\s*0/);
+  assert.match(compact, /height:\s*calc\(100dvh - 8px\)/);
+
+  console.log("Cooking recipe book UI smoke: OK (full sheet, station selection and TH, short landscape, Escape, stash tools, coins, save)");
 })().catch(error => { console.error(error); process.exitCode = 1; });
