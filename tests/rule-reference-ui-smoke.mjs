@@ -159,6 +159,29 @@ for (const [sentence, expected] of [
   assert.equal(parts.map(x=>x.text).join(""), sentence, "Original rule text changed");
 }
 
+// Codex sixth review: grammar from Bladesinger and Mantle of Whispers.
+for (const [sentence, expected] of [
+  ["Gain proficiency with Light Armor, Performance, and one One-Handed Melee Weapon type of your choice.",
+    ["skill:performance"]],
+  ["Gain Expertise in Medicine or Perception.", ["skill:medicine", "skill:perception"]],
+  ["Gain proficiency in Simple Weapons, Medium Armor, and Survival.",
+    ["skill:survival"]],
+  ["Gain +5 Deception Power against Insight Checks.",
+    ["skill:deception", "skill:insight"]],
+  ["Bladesong ends if you become Incapacitated or use incompatible equipment.",
+    ["status:incapacitated"]],
+  ["When they became Frightened, they retreated.", ["status:frightened"]],
+  ["They become more confident after training.", []],
+  ["The Power of Nature.", []],
+  ["Fire/Burn damage type.", []],
+  ["Perform with Light Armor, Performance can help.", []],
+]) {
+  const pieces=references.tokenize(sentence);
+  assert.deepEqual(pieces.filter(x=>x.kind).map(x=>x.kind+":"+x.id), expected,
+    "Rule context should match without treating ordinary prose as a mechanic: "+sentence);
+  assert.equal(pieces.map(x=>x.text).join(""), sentence);
+}
+
 const more=references.tokenize("Use WIS Saving Throw and DEX Check, or Percepción.");
 assert.deepEqual(more.filter(x=>x.kind).map(x=>x.kind+":"+x.id),
   ["save:wis","check:dex","skill:perception"]);
