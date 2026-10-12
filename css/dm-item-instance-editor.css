@@ -104,3 +104,54 @@
 .dm-item-editor-btn.danger{border-color:#673438;background:#211012;color:#e08383}
 .dm-item-magic-authoring .dm-item-editor-meta[data-tone="success"]{color:#92bd83}
 .dm-item-magic-authoring .dm-item-editor-meta[data-tone="error"]{color:#dc746e}
+
+
+/* Curse's Update: first-class cursed Item Instances inside existing DM editor */
+.dm-curse-studio {
+  border-color:#603348;
+  background:linear-gradient(125deg,#180e18,#0d0b13);
+}
+.dm-curse-studio > h4 { color:#efabbf; }
+.dm-curse-studio > h4::before { content:"✧"; color:#e876a9; margin-right:8px; }
+.dm-curse-intro, .dm-curse-description {
+  margin:0 0 12px;
+  color:#c7afbd;
+  font-size:11px;
+  line-height:1.65;
+}
+.dm-curse-studio .dm-item-editor-field { margin-bottom:10px; }
+.dm-curse-studio select {
+  width:100%;
+  min-height:36px;
+  color:#f5dce7;
+  border:1px solid #71435a;
+  background:#140b15;
+}
+.dm-curse-studio select:focus-visible,
+.dm-curse-studio button:focus-visible {
+  outline:2px solid #f1a0c7;
+  outline-offset:2px;
+}
+.dm-curse-studio .dm-item-editor-btn.primary {
+  min-height:36px;
+  color:#1c0912;
+  border-color:#c47d9d;
+  background:#e9a9c7;
+}
+.dm-curse-studio .dm-item-editor-btn.primary:hover:not(:disabled) { background:#f6c7df; }
+.dm-item-curse-current { display:grid;gap:8px;margin-top:13px; }
+.dm-item-curse-row {
+  display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:11px;
+  border:1px solid #6b4052;
+  background:#140c14;
+}
+.dm-item-curse-info { display:flex; flex-direction:column; gap:5px;min-width:0; }
+.dm-item-curse-info strong { font-size:11px;color:#f5c9dc; }
+.dm-item-curse-info span {font-size:10px;color:#c39daa}
+.dm-item-curse-actions { display:flex;flex-wrap:wrap;gap:7px; }
+.dm-item-curse-actions button { min-height:36px; }
+@media(max-width:520px) {
+  .dm-item-curse-row,.dm-item-curse-actions {width:100%}
+  .dm-item-curse-actions button {flex:1 1 42%}
+}
