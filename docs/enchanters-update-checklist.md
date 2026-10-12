@@ -499,7 +499,7 @@ Canonical contract: [`docs/enchanters-update-part-d-magic-items.md`](./enchanter
 
 - [x] Add a Battle Engine adapter for equipped Item Enchantments.
 - [x] Resolve passive effects from equipped enchanted Items.
-- [ ] Resolve conditional/triggered Enchantment effects.
+- [x] Resolve conditional/triggered Enchantment effects.
 - [x] Resolve charge consumption from authoritative combat outcomes.
 - [x] Ensure duplicate equipment references do not double-apply an Enchantment.
 - [x] Ensure unequipped Items stop contributing equipment-only effects.
@@ -732,3 +732,49 @@ remain unverified or require approved authoring.
    not been load-tested at campaign scale.
 4. A full deployed Player/DM/Battle Viewer workflow and the pending defensive
    Shield/Threshold Aegis rules still require final acceptance.
+
+## 2026-10-12 — Enchanter trigger integration accepted (scoped to executable definitions)
+
+The final Enchanter-only Section 10 implementation checkbox is closed for the
+**currently executable and canonically authored** Enchanter effect families.
+This is acceptance of the defined implementation scope, not a claim that every
+whitelisted *future* event family, Magic Item behavior or proposed reactive
+Shield rule is live.
+
+- `on_skill` damage from the shipped Flamebound/Frostbound/Lightning
+  Enchantments resolves through the actual Battle Engine Coin adapter with
+  a single Magical Durability spend per eligible Skill, including Multi-Coin
+  continuity, as verified in `tests/enchanter-battle-viewer.spec.cjs` and
+  `tests/item-enchantment-combat-deterministic-smoke.cjs`.
+- `on_hit` offensive Status, `on_damage_received` equipped defensive Status
+  and **explicitly player-selected** `before_getting_hit` defensive Status
+  were verified against the **real browser CombatEngine's event dispatcher**,
+  not only a dummy Node event callback. The Chromium scenario confirms
+  correct wearer-vs-attacker target, positive damage gating, one Reaction
+  spend, one MD spend, rejection of a second activation from the same
+  selection, and canonical inventory dirty markers. The lower-level combat
+  regression also covers unequip, death, Attunement, insufficient resources,
+  and rollback after failed or partially spent activation.
+- `tests/item-enchantment-triggered-combat-smoke.cjs` now rejects any shipped
+  Enchanter Catalog Rank effect whose event/type has **no implemented
+  executable bridge**. Whitelisting a name for future authoring no longer
+  counts as permission to ship a silent trigger in a published recipe.
+
+**Acceptance scope:** 350/350 Enchanter implementation entries checked;
+eight unchecked historical entries are future **Magic Items** and
+**Magic Loot** work, not PR #931. The trigger whitelist still reserves other
+event names, but *unimplemented event/type combinations cannot silently be
+promoted to current canonical Enchanter content*. They require separately
+approved definitions and executable adapter/regression work.
+
+**Not a production/merge certificate:** The Firebase callable has only been
+verified with real local Auth/RTDB emulators and is not deployed/enabled in
+production. Owner-writable `campaña/jugadores/{player}` wallet and inventory
+fields remain an existing economy integrity weakness that must be reconciled
+with other Shop/P2P flows before a monetary security claim. The root `campaña`
+transaction needs real load/latency monitoring and an actual deployed
+Player/DM/Battle Viewer full-flow acceptance. Threshold Aegis numerical
+Shield absorption/wear is **not** implemented or invented in this closure:
+the unresolved draft belongs to separately approved effect authoring and
+cannot be considered available Enchanter content. These release risks are
+independent of the closed implementation checklist.
