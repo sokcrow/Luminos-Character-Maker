@@ -135,6 +135,85 @@ const plainNode={nodeValue:" Haste",parentElement:parent,
 assert.equal(refs.decorate({textNode:plainNode},{mode:"tooltip"}),0,
   "Haste without a mechanical context stays plain text");
 
+// A general Trait picker renders asynchronously and replaces its description
+// on every change. Exercise the actual milestone renderer with a minimal DOM:
+// previously selected chips must be discarded before redecorating the new text.
+class ChoiceElement {
+  constructor(tag) {
+    this.tag=tag;this.children=[];this.className="";this.value="";this.dataset={};
+    this.hidden=false;this.events={};this._text="";
+  }
+  set textContent(value){this._text=String(value);this.children=[];this.chips=[];}
+  get textContent(){return this._text;}
+  append(...items){this.children.push(...items);}
+  appendChild(item){this.append(item);return item;}
+  replaceChildren(...items){this.children=[...items];}
+  setAttribute(){}
+  addEventListener(name,fn){(this.events[name] ||= []).push(fn);}
+  fire(name){for(const fn of this.events[name] || [])fn();}
+  findByClass(name) {
+    if(this.className.split(/\\s+/).includes(name))return this;
+    for(const child of this.children){const found=child.findByClass?.(name);if(found)return found;}
+    return null;
+  }
+}
+const choiceDoc={createElement:tag=>new ChoiceElement(tag)};
+const decorations=[];
+const choiceWindow={
+  document:choiceDoc,
+  LuminousClassMilestones:{
+    earnedMilestones:()=>[{classId:"fighter",milestoneLevel:20}],
+    choiceAt:()=>null,selectedGeneralTraitIds:()=>[],
+    isGeneralTraitDefinition:definition=>definition.category==="general",
+  },
+  LuminousPlayerProgressionTreeCore:{normalizeClasses:()=>[{classId:"fighter",levels:20}]},
+  LuminousTraitCatalogCore:{allDefinitions:()=>({
+    endurance:{id:"endurance",name:"Endurance",category:"general",
+      description:"Make a CON Save against the effect."},
+    ember_touch:{id:"ember_touch",name:"Ember Touch",category:"general",
+      description:"On Hit: inflict 2 Burn."},
+  })},
+  LuminousRuleReferences:{
+    decorate(node,{mode}) {
+      const chips=refs.tokenize(node.textContent).filter(part=>part.kind)
+        .map(part=>part.kind+":"+part.id);
+      node.chips=chips;
+      decorations.push({mode,text:node.textContent,chips});
+      return chips.length;
+    }
+  }
+};
+vm.runInNewContext(fs.readFileSync(path.join(base,"js/player-progression-choices.js"),"utf8"),
+  {window:choiceWindow});
+const milestoneHost=new ChoiceElement("section");
+assert.equal(choiceWindow.LuminousPlayerProgressionChoices.renderMilestone(milestoneHost,{
+  character:{},classId:"fighter",level:20,
+}),true);
+const pickerMode=milestoneHost.findByClass("player-progression-choice-select");
+assert.ok(pickerMode,"Unlocked milestone exposes its selection mode");
+pickerMode.value="trait";pickerMode.fire("change");
+// allDefinitions() is asynchronous even when backed by a local catalog.
+await new Promise(resolve=>setImmediate(resolve));
+const traitPicker=milestoneHost.findByClass("player-progression-choice-trait");
+const traitDescription=milestoneHost.findByClass("player-progression-choice-trait-description");
+assert.ok(traitPicker && traitDescription,
+  "General Trait picker and its description render after async catalog load");
+traitPicker.value="endurance";traitPicker.fire("change");
+assert.deepEqual(Array.from(traitDescription.chips),["save:con"]);
+assert.equal(traitDescription.textContent,"Make a CON Save against the effect.");
+traitPicker.value="ember_touch";traitPicker.fire("change");
+assert.deepEqual(Array.from(traitDescription.chips),["status:burn"],
+  "Switching Traits replaces the old reference chips");
+traitPicker.value="";traitPicker.fire("change");
+assert.deepEqual(Array.from(traitDescription.chips),[],
+  "The no-selection state clears outdated references");
+traitPicker.value="endurance";traitPicker.fire("change");
+assert.deepEqual(Array.from(traitDescription.chips),["save:con"],
+  "Reselecting a Trait rebuilds its references");
+assert.equal(decorations.length,4);
+assert.ok(decorations.every(item=>item.mode==="card"),
+  "Progression uses rule cards, not trait-panel tooltips");
+
 const css=fs.readFileSync(path.join(base,"css/rule-reference-ui.css"),"utf8");
 assert.doesNotMatch(css,/\.is-tooltip:hover::after/);
 assert.match(css,/position:fixed/);
