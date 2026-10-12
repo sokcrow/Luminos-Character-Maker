@@ -146,7 +146,46 @@ if(!host||!authHost||host.includes("googleapis.com")){
         "a losing Player must keep their AHN and untouched Item");
       if(!strangerRace.committed)
         assert.equal(shared.jugadores.stranger.inventario_activo.sword_d.magic,undefined);
-      console.log("Enchanter real Firebase Auth/RTDB emulator: ownership, rules, two-player concurrency and removal OK");
+      // A losing payment cannot debit either side of the transaction.
+      await db.ref("campaña/tiendas/forge/enchanterProvider/providerMaterials/0/quantity").set(2);
+      await db.ref("campaña/jugadores/stranger/inventario_activo/sword_e").set(item("sword_e"));
+      await db.ref("campaña/jugadores/stranger/ahn").set(0);
+      await db.ref("campaña/jugadores/stranger/finance/currentBalance").set(0);
+      const emptyWalletBefore=(await db.ref("campaña").get()).val();
+      const insufficient=await call({
+        ...intent("sword_e","emulator_insufficient"),playerId:"stranger",
+      },stranger.uid);
+      assert.equal(insufficient.committed,false);
+      assert.equal(insufficient.reason,"insufficient_ahn");
+      const emptyWalletAfter=(await db.ref("campaña").get()).val();
+      assert.deepEqual(emptyWalletAfter,emptyWalletBefore,
+        "rejected payment must change neither player, item, vendor stock nor receipts");
+
+      // The same request from two concurrent sessions must commit exactly once.
+      await db.ref("campaña/jugadores/hero/inventario_activo/sword_f").set(item("sword_f"));
+      const sameIntent=intent("sword_f","emulator_double_submit");
+      const beforeDouble=(await db.ref("campaña").get()).val();
+      const [doubleA,doubleB]=await Promise.all([call(sameIntent),call(sameIntent)]);
+      assert.equal([doubleA,doubleB].filter(result=>result.committed).length,1,
+        "two concurrent calls sharing an idempotency key may commit only once");
+      const afterDouble=(await db.ref("campaña").get()).val();
+      assert.equal(afterDouble.tiendas.forge.enchanterProvider.providerMaterials[0].quantity,1,
+        "concurrent replay must consume one catalyst, not two");
+      assert.equal(afterDouble.jugadores.hero.ahn,beforeDouble.jugadores.hero.ahn-755000);
+      assert.equal(afterDouble.jugadores.hero.inventario_activo.sword_f.magic.enchantments.length,1);
+      assert.ok(afterDouble.jugadores.hero.enchanterTransactions.emulator_double_submit);
+      assert.equal([doubleA,doubleB].filter(result=>result.reason==="duplicate_transaction").length,1);
+
+      // A collision across Active Inventory and Stash must abort before payment.
+      await db.ref("campaña/jugadores/hero/inventario_stash/sword_f_duplicate").set(item("sword_f"));
+      const beforeCollision=(await db.ref("campaña").get()).val();
+      const collision=await call(intent("sword_f","emulator_duplicate_identity"));
+      assert.equal(collision.committed,false);
+      assert.equal(collision.reason,"duplicate_item_instance_identity");
+      assert.deepEqual((await db.ref("campaña").get()).val(),beforeCollision,
+        "ambiguous Item identity must leave all wallets and inventories unchanged");
+
+      console.log("Enchanter Firebase Auth/RTDB: rules, two-owner races, exact item, rollback, concurrent idempotency and removal OK");
     }finally{
       await db.ref("campaña").remove();
       await app.delete();
