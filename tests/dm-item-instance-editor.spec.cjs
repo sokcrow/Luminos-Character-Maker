@@ -277,6 +277,7 @@ async function bootDmHarness(page) {
   await page.addScriptTag({ path: path.join(ROOT, "js/item-enchantment-recipe-catalog.js") });
   await page.addScriptTag({ path: path.join(ROOT, "js/item-enchantment-crafting-runtime.js") });
   await page.addScriptTag({ path: path.join(ROOT, "js/dm-enchanter-studio-model.js") });
+  await page.addScriptTag({ path: path.join(ROOT, "js/curse-runtime.js") });
   // This is an about:blank fixture: editor runtime dependencies must be
   // explicitly available. A relative script URL cannot load from about:blank.
   // Individual Enchanter UI tests override these seams with authored cases.
@@ -576,4 +577,65 @@ test("failed DM magic saves restore the Firebase Item and cannot leak pending re
     return {enchanted:!!dm.state.unit.inventario_activo.sword_1.magic,
       receipts:Object.keys(dm.state.unit.enchanterTransactions||{}).length};
   })).toEqual({enchanted:false,receipts:0});
+});
+
+
+test("DM Curse Studio stages an autonomous Item Curse, persists it, and seals/reactivates via the Item editor", async ({page}) => {
+  await bootDmHarness(page);
+  await page.locator('#modal-inv-lista-activos .dm-item-instance-edit[data-key="sword_1"]').click();
+  await expect(page.locator("#dm-item-curse-definition")).toHaveValue("cursed_binding");
+  await expect(page.locator("#dm-item-curse-current")).toContainText("no tiene maldiciones");
+
+  await page.locator("#dm-item-curse-apply").click();
+  await expect(page.locator("#dm-item-curse-current")).toContainText("Atadura maldita");
+  expect(await page.evaluate(() => window.__saves.length)).toBe(0);
+  await page.locator("#dm-item-editor-save").click();
+  await page.waitForFunction(() => window.__saves.length === 1);
+  const stored = await page.evaluate(() => window.__saves[0].active.sword_1);
+  expect(stored.curseInstances).toHaveLength(1);
+  expect(stored.curseInstances[0].state).toBe("active");
+  expect(stored.magic?.enchantments).toBeUndefined();
+  expect(await page.evaluate(() =>
+    window.LuminousCurseRuntime.itemUnequipLocked(window.__source.inventario_activo.sword_1)
+  )).toBe(true);
+
+  await page.locator('[data-curse-operation="seal"]').click();
+  await expect(page.locator("#dm-item-curse-current")).toContainText("Sellada");
+  await page.locator("#dm-item-editor-save").click();
+  await page.waitForFunction(() => window.__saves.length === 2);
+  expect(await page.evaluate(() => window.__saves[1].active.sword_1.curseInstances[0].state)).toBe("sealed");
+  expect(await page.evaluate(() =>
+    window.LuminousCurseRuntime.itemUnequipLocked(window.__source.inventario_activo.sword_1)
+  )).toBe(false);
+
+  await page.locator('[data-curse-operation="unseal"]').click();
+  await page.locator("#dm-item-editor-save").click();
+  await page.waitForFunction(() => window.__saves.length === 3);
+  expect(await page.evaluate(() => window.__saves[2].active.sword_1.curseInstances[0].state)).toBe("active");
+  await page.locator('[data-curse-operation="break"]').click();
+  await page.locator("#dm-item-editor-save").click();
+  await page.waitForFunction(() => window.__saves.length === 4);
+  expect(await page.evaluate(() => window.__saves[3].active.sword_1.curseInstances[0].state)).toBe("resolved");
+  await expect(page.locator("#dm-item-curse-current")).toContainText("no tiene maldiciones");
+});
+
+test("DM Curse draft is discarded on close and rejected when Item Curse source changed", async ({page}) => {
+  await bootDmHarness(page);
+  await page.locator('#modal-inv-lista-activos .dm-item-instance-edit[data-key="sword_1"]').click();
+  await page.locator("#dm-item-curse-apply").click();
+  await page.locator("#dm-item-editor-cancel").click();
+  expect(await page.evaluate(() => window.__source.inventario_activo.sword_1.curseInstances)).toBeUndefined();
+
+  await page.locator('#modal-inv-lista-activos .dm-item-instance-edit[data-key="sword_1"]').click();
+  await page.locator("#dm-item-curse-apply").click();
+  await page.evaluate(() => {
+    const dm = window.LuminousDmItemInstanceEditor;
+    dm.state.unit.inventario_activo.sword_1.curseInstances = [{
+      schemaVersion:1, instanceId:"external_curse",definitionId:"cursed_binding",
+      targetKind:"item",targetInstanceId:"sword_1",state:"active",intensity:1
+    }];
+  });
+  await page.locator("#dm-item-editor-save").click();
+  await expect(page.locator("#dm-item-editor-status")).toContainText("maldiciones del objeto cambiaron");
+  expect(await page.evaluate(() => window.__saves.length)).toBe(0);
 });
