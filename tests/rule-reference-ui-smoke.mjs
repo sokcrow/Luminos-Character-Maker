@@ -91,6 +91,24 @@ assert.deepEqual(references.tokenize("Nature is an important part of History."),
   [{text:"Nature is an important part of History."}],
   "Contextual matching must still preserve natural-language references.");
 
+// Codex third review: plural Checks and numeric status stacks without verbs.
+for (const [sentence, expected] of [
+  ["Performance Checks", ["skill:performance"]],
+  ["Perception checks", ["skill:perception"]],
+  ["Acrobatics Ability Checks", ["skill:acrobatics"]],
+  ["Arcana Check", ["skill:arcana"]],
+  ["Failed Save: 2 Bind + 2 Fragile", ["status:bind", "status:fragile"]],
+  ["Failed Save: 2 Bind + 2 Fragile; Perception checks", ["status:bind", "status:fragile", "skill:perception"]],
+]) {
+  const parts = references.tokenize(sentence);
+  assert.deepEqual(parts.filter(x => x.kind).map(x => x.kind + ":" + x.id), expected,
+    "Must recognize plural Skill Checks and numeric status stacks: " + sentence);
+  assert.equal(parts.map(x => x.text).join(""), sentence,
+    "Linkification must not alter the rule description");
+}
+assert.deepEqual(references.tokenize("Fire/Burn damage type, Nature of Illusion.")
+  .filter(x => x.kind), [], "Do not reintroduce false positives for damage types or narrative terms");
+
 const more=references.tokenize("Use WIS Saving Throw and DEX Check, or Percepción.");
 assert.deepEqual(more.filter(x=>x.kind).map(x=>x.kind+":"+x.id),
   ["save:wis","check:dex","skill:perception"]);
