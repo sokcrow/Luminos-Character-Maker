@@ -178,6 +178,9 @@
         || /^\s+(?:status|effect|potency|count|stacks?)\b/i.test(after);
       const statusImmunity = /^\s+(?:immunit(?:y|ies)|resistan(?:ce|ces))\b/i.test(after)
         || /\b(?:immune|immunity|resistant|resistance)\s+(?:to|against)\s*$/i.test(before);
+      // A named Status can itself cause damage: "Radiance deals +1% Fixed Damage".
+      // Require a direct damage predicate; do not match narrative "deals with".
+      const statusDealsDamage = /^\s+(?:deals?|causes?|inflicts?)\s+(?:[+-]?\d+(?:\.\d+)?%?\s+)?(?:fixed\s+)?(?:damage|dmg)\b/i.test(after);
       const action = /\b(?:inflict(?:s|ed|ing)?|appl(?:y|ies|ied|ying)|gain(?:s|ed|ing)?|receiv(?:e|es|ed|ing)|suffer(?:s|ed|ing)?|trigger(?:s|ed|ing)?|remov(?:e|es|ed|ing)|los(?:e|es|ing)|lost|cleans(?:e|es|ed|ing)|purg(?:e|es|ed|ing)|grant(?:s|ed|ing)?|aplicar|infligir|ganar|recibir|perder|eliminar|aplica|inflige|gana|pierde|otorga)\b/i.test(before);
       // Becoming a registered condition is explicit status wording; do not
       // expand generic action matching into prose such as "become stronger".
@@ -188,7 +191,7 @@
       // Quantified statuses are unambiguous even when the sentence omits an
       // action verb, e.g. "Failed Save: 2 Bind + 2 Fragile". Keep the
       // damage-type exclusions above and require verbs for unquantified names.
-      return directStatus || statusImmunity || numeric || matcher.statusCondition.test(before) ||
+      return directStatus || statusImmunity || statusDealsDamage || numeric || matcher.statusCondition.test(before) ||
         matcher.statusImmunityList.test(before) || matcher.statusDamageList.test(before) ||
         (becoming && !/\b(?:nature|protection|illusion)\b/i.test(entry.id)) ||
         (possession && !/\b(?:nature|protection|illusion)\b/i.test(entry.id)) ||
@@ -229,13 +232,19 @@
     }
     return positions;
   }
-  function tokenize(source,{references=[]}={}) {
-    const value=String(source || ""), matcher=compiledMatcher(), {byName,regex}=matcher;
+  function tokenize(source,{references=[],contextBefore=""}={}) {
+    const value=String(source || "");
+    // Reassemble only the analysis context; emitted text always comes from
+    // the supplied source. Formula buttons may split "Gain <formula> Haste".
+    const prefix=String(contextBefore || "");
+    const analyzed=prefix+value, boundary=prefix.length;
+    const matcher=compiledMatcher(), {byName,regex}=matcher;
     regex.lastIndex=0;
     const explicitReferences=Array.isArray(references) ? references : [];
-    const labeledChecks=labeledCheckPositions(value,matcher);
-    const result=[];let last=0,hit;
-    while ((hit=regex.exec(value))) {
+    const labeledChecks=labeledCheckPositions(analyzed,matcher);
+    const result=[];let last=boundary,hit;
+    while ((hit=regex.exec(analyzed))) {
+      if (hit.index < boundary) continue;
       const word=hit[0];let found=null;
       const stat=word.match(/^(STR|DEX|CON|INT|WIS|CHA|Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma)\s+(Saving\s+Throws?|Saves?|Checks?)$/i);
       const bareAbility=word.match(/^(STR|DEX|CON|INT|WIS|CHA|Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma)$/i);
@@ -246,8 +255,8 @@
         if (key) {
           if (stat) found={kind:/check/i.test(stat[2]) ? "check" : "save",id:key};
           else {
-            const before=value.slice(Math.max(0,hit.index-85),hit.index);
-            const after=value.slice(hit.index+word.length,hit.index+word.length+100);
+            const before=analyzed.slice(Math.max(0,hit.index-85),hit.index);
+            const after=analyzed.slice(hit.index+word.length,hit.index+word.length+100);
             // A bare ability is a Check only when sharing a mechanical suffix.
             if (matcher.saveGroup.test(after))
               found={kind:"save",id:key};
@@ -263,12 +272,12 @@
       }
       if (!found || !resolve(found.kind,found.id)) continue;
       if (!stat && !bareAbility && !labeledChecks.has(hit.index) &&
-        !isContextualReference(found,value,hit.index,hit.index+word.length,explicitReferences,matcher)) continue;
-      if (hit.index>last) result.push({text:value.slice(last,hit.index)});
+        !isContextualReference(found,analyzed,hit.index,hit.index+word.length,explicitReferences,matcher)) continue;
+      if (hit.index>last) result.push({text:analyzed.slice(last,hit.index)});
       result.push({text:word,kind:found.kind,id:found.id});
       last=hit.index+word.length;
     }
-    if (last<value.length) result.push({text:value.slice(last)});
+    if (last<analyzed.length) result.push({text:analyzed.slice(last)});
     return result.length ? result : [{text:value}];
   }
 
@@ -390,7 +399,7 @@
     const label=doc.createElement("span");label.textContent=part.text;ref.appendChild(label);
     return ref;
   }
-  function decorate(root,{mode="card",references=[]}={}) {
+  function decorate(root,{mode="card",references=[],textContexts=null}={}) {
     if (!doc?.createTreeWalker || !root) return 0;
     if (active && !active.isConnected) dismiss();
     ensureStyles();
@@ -403,7 +412,11 @@
     }
     let count=0;
     nodes.forEach(node=>{
-      const parts=tokenize(node.nodeValue,{references});
+      // Context belongs to template text nodes, not interactive formula
+      // widgets or the calculation details that live beside them.
+      const parts=tokenize(node.nodeValue,{
+        references,contextBefore:textContexts?.get?.(node) || ""
+      });
       if(!parts.some(p=>p.kind))return;
       const fragment=doc.createDocumentFragment();
       parts.forEach(part=>fragment.appendChild(part.kind?createReference(part,mode):doc.createTextNode(part.text)));
