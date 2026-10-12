@@ -8,6 +8,9 @@ const { pathToFileURL } = require("node:url");
   let finishSave = null;
   let calls = 0;
   let events = 0;
+  let reloadCount = 0;
+  let reloadFails = false;
+  let authoritative = null;
   const clone = value => JSON.parse(JSON.stringify(value));
   globalThis.LuminousItemPersistenceRuntime = {
     playerPaths(id) { return {base:"campaña/jugadores/"+id}; },
@@ -21,6 +24,11 @@ const { pathToFileURL } = require("node:url");
       return {applied:true};
     },
     serializeInventoryState: clone,
+    async loadPlayerInventory() {
+      reloadCount++;
+      if (reloadFails) throw new Error("connection_lost_during_reconciliation");
+      return {loaded:true,state:clone(authoritative)};
+    },
     saveInventoryState() {
       calls++;
       return new Promise((resolve,reject) => { finishSave = {resolve,reject}; });
@@ -39,6 +47,7 @@ const { pathToFileURL } = require("node:url");
     },
     inventario_stash: clone(baseline.inventario_stash)
   };
+  authoritative = clone(baseline);
   const unit = clone(baseline);
   const peer = sync.bindPlayerInventory({
     db:{ref(){return {};}},
@@ -63,37 +72,84 @@ const { pathToFileURL } = require("node:url");
   finishSave.resolve({saved:false,reason:"permission_denied"});
   assert.equal((await rejection).saved,false);
   assert.deepEqual(unit.inventario_activo,baseline.inventario_activo);
-  assert.equal(events,1);
+  assert.equal(reloadCount,1,"a rejected write must explicitly reload server inventory");
+  assert.equal(peer.reconciliationRequired,false);
+  assert.equal(events,2,"the authoritative rollback is applied even if its value event was buffered");
   // A late queued speculative callback must not resurrect a rejected write.
   notify(clone(pending));
   assert.deepEqual(unit.inventario_activo,baseline.inventario_activo);
-  assert.equal(events,1);
-  notify(clone(baseline)); // Firebase rolls back its optimistic local cache.
-  assert.deepEqual(unit.inventario_activo,baseline.inventario_activo);
   assert.equal(events,2);
+  notify(clone(baseline)); // A later listener event is still allowed.
+  assert.equal(events,3);
 
   const confirmed = peer.saveConfirmed(clone(pending));
   notify(clone(pending));
   assert.deepEqual(unit.inventario_activo,baseline.inventario_activo);
-  assert.equal(events,2);
+  assert.equal(events,3);
   finishSave.resolve({saved:true});
   assert.equal((await confirmed).saved,true);
   assert.deepEqual(unit.inventario_activo,pending.inventario_activo);
-  assert.equal(events,3,"confirmed event is published once after ack");
-  assert.equal(peer.revision,3);
+  assert.equal(events,4,"confirmed event is published once after ack");
+  assert.equal(peer.revision,4);
 
-  // Rejecting update() as an exception must discard the local write too.
+  // Rejecting update() as an exception must recover authoritative state too.
   const prior = clone(unit);
   const thrown = peer.saveConfirmed({...clone(pending),
     inventario_activo:{curry:{itemId:"curry",quantity:2}}});
   notify({inventario_activo:{curry:{itemId:"curry",quantity:2}},
     inventario_stash:clone(pending.inventario_stash)});
   assert.deepEqual(unit,prior);
+  authoritative = clone(prior);
   finishSave.reject(new Error("firebase_denied"));
   await assert.rejects(thrown,/firebase_denied/);
   assert.deepEqual(unit,prior);
+  assert.equal(reloadCount,2);
+  assert.equal(peer.reconciliationRequired,false);
+
+  // Codex P1 regression: another client updates inventory during our write;
+  // the buffered concurrent snapshot is not replayed after the rejection.
+  // Re-fetch and publish that authoritative state before permitting more saves.
+  const concurrent = clone(prior);
+  concurrent.inventario_activo.remoteGift = {itemId:"gift",quantity:3};
+  const conflict = peer.saveConfirmed(clone(pending));
+  notify(clone(pending)); // Local optimistic cache.
+  notify(clone(concurrent)); // Remote authoritative change while pending.
+  assert.deepEqual(unit,prior,"remote change remains buffered until the write settles");
+  authoritative = clone(concurrent);
+  finishSave.resolve({saved:false,reason:"server_rejected"});
+  assert.equal((await conflict).saved,false);
+  assert.deepEqual(unit,concurrent,"concurrent write must be recovered and published");
+  assert.equal(peer.reconciliationRequired,false);
+  assert.equal(reloadCount,3);
+  notify(clone(pending)); // Late optimistic echo must still be ignored.
+  assert.deepEqual(unit,concurrent);
+
+  // A rollback snapshot arriving before the rejection must not be lost.
+  const restored = clone(concurrent);
+  restored.inventario_activo.remoteGift.quantity = 5;
+  const rollback = peer.saveConfirmed(clone(pending));
+  notify(clone(pending));
+  notify(clone(restored)); // RTDB rollback before the save promise rejects.
+  authoritative = clone(restored);
+  finishSave.resolve({saved:false,reason:"server_rejected"});
+  await rollback;
+  assert.deepEqual(unit,restored);
+  assert.equal(reloadCount,4);
+
+  // Fail closed if Firebase cannot reload the server state. Future writes
+  // must not overwrite someone else's update using the stale HUD snapshot.
+  const unavailable = peer.saveConfirmed(clone(pending));
+  notify(clone(pending));
+  reloadFails = true;
+  finishSave.resolve({saved:false,reason:"offline"});
+  assert.equal((await unavailable).saved,false);
+  assert.equal(peer.reconciliationRequired,true);
+  assert.equal((await peer.save(unit)).reason,"inventory_refresh_required");
+  assert.equal((await peer.move("onion","to_stash")).reason,"inventory_refresh_required");
+  assert.equal((await peer.saveConfirmed(clone(pending))).reason,"inventory_refresh_required");
+  reloadFails = false;
   peer.dispose();
   assert.equal(notify,null);
-  assert.equal(calls,3);
-  console.log("Cooking optimistic realtime barrier smoke: OK (reject, late echo, confirmed, exception)");
+  assert.equal(calls,6);
+  console.log("Cooking optimistic realtime barrier smoke: OK (rollback, concurrent change, server reload, save rejection, blocked stale writes)");
 })().catch(error => { console.error(error); process.exitCode = 1; });
