@@ -122,18 +122,61 @@
       /^(tea|coffee|juice|cocktail|lemonade|soda)_/.test(identity)) return "drinks";
     return "meals";
   }
-  function iconFor(recipe) {
-    const family = id(recipe.iconFamily || recipe.id || "food");
-    return "Assets/Icons/items/consumable/" + family + ".png";
+  const DEMO_ART_DIR = "Assets/Icons/items/cooking_hud/";
+  const COOKING_ICONS = '<svg class="cooking-book-sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>' +
+    '<symbol id="cook-art-utensils" viewBox="0 0 24 24"><path d="M4 2v7a3 3 0 0 0 6 0V2M7 2v20M16 2c-2 3-3 6-3 9a3 3 0 0 0 4 3v8M17 2v20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/></symbol>' +
+    '<symbol id="cook-art-all" viewBox="0 0 24 24"><path d="M3 14h18a8 8 0 0 1-9 7 8 8 0 0 1-9-7ZM4 14c0-4 3-6 8-6s8 2 8 6M8 2c-2 2 2 3 0 5M13 2c-2 2 2 3 0 5M18 2c-2 2 2 3 0 5" stroke="currentColor" fill="none" stroke-width="1.5"/></symbol>' +
+    '<symbol id="cook-art-meals" viewBox="0 0 24 24"><path d="M2 15q2-8 10-8t10 8q0 5-10 5T2 15Z" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M7 13h.1M11 10h.1M16 14h.1" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></symbol>' +
+    '<symbol id="cook-art-soups" viewBox="0 0 24 24"><path d="M2 9h20v8a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V9ZM3 9l4-3h10l4 3M12 2v4" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>' +
+    '<symbol id="cook-art-drinks" viewBox="0 0 24 24"><path d="M3 7h14v11a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V7ZM17 9h4v5a4 4 0 0 1-4 4M6 2l2 3M12 2l-1 3" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>' +
+    '<symbol id="cook-art-desserts" viewBox="0 0 24 24"><path d="M3 12h18l-3 8H6l-3-8ZM2 12q1-6 5-4 1-4 5-2 4-2 5 2M12 2v3" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>' +
+    '<symbol id="cook-art-heart" viewBox="0 0 24 24"><path d="M12 21 3.5 13a5.6 5.6 0 0 1 8.5-7 5.6 5.6 0 0 1 8.5 7L12 21Z" fill="currentColor"/></symbol>' +
+    '<symbol id="cook-art-blade" viewBox="0 0 24 24"><path d="M20 2 9 14l-4-1 1 4-3 4 4-3 4 1-1-4L22 4l-2-2Z" fill="currentColor"/></symbol>' +
+    '<symbol id="cook-art-shield" viewBox="0 0 24 24"><path d="m12 2 9 4v5c0 6-4 10-9 11C7 21 3 17 3 11V6l9-4Z" fill="currentColor"/></symbol>' +
+    '<symbol id="cook-art-flame" viewBox="0 0 24 24"><path d="M12 2q5 6 3 10 3-1 3-5 6 8 1 13-6 5-12 0Q1 14 12 2ZM12 13q-5 5-1 8 5 2 4-2 0-3-3-6Z" fill="currentColor"/></symbol>' +
+    '</defs></svg>';
+  function svgIcon(symbol, className) {
+    return '<svg class="' + esc(className || "") + '" aria-hidden="true"><use href="#cook-art-' + esc(symbol) + '"/></svg>';
   }
-  function fallbackFor(recipe) {
-    const family = categoryFor(recipe);
-    const names = { meals: "food_meal", soups: "food_soup", drinks: "drink", desserts: "food_dessert" };
-    return "Assets/Icons/items/consumable/" + (names[family] || "food") + ".png";
+  function artworkKey(recipe) {
+    const name = id(recipe?.name || recipe?.id);
+    const family = id(recipe?.dishFamily);
+    if (/fish|seafood|crustacean/.test(name)) return "fish";
+    if (/soup|stew|porridge|broth|mushroom/.test(name + " " + family)) return "mushroom";
+    if (/tart|cake|pie|cookie|pastry|pudding|dessert|sweet/.test(name + " " + family)) return "tart";
+    if (/tea|coffee|lemonade|juice|beverage|drink/.test(name)) return "tea";
+    if (/skewer|kebab|spice/.test(name)) return "skewer";
+    if (/ration|jerky/.test(name)) return "ration";
+    if (/bread|loaf|toast|pita|bun|sandwich|burger/.test(name + " " + family)) return "bread";
+    if (/egg|omelet|omelette/.test(name)) return "egg";
+    if (/salad|fruit|vegetable/.test(name)) return "salad";
+    if (/grill|steak|roast|meat|beef|pork|chicken/.test(name)) return "grilled";
+    return ({ soups:"mushroom", desserts:"tart", drinks:"tea", meals:"grilled" })[categoryFor(recipe)] || "grilled";
   }
+  function iconFor(recipe) { return DEMO_ART_DIR + artworkKey(recipe) + ".webp"; }
+  function fallbackFor(recipe) { return DEMO_ART_DIR + ({ soups:"mushroom", desserts:"tart", drinks:"tea", meals:"grilled" })[categoryFor(recipe)] + ".webp"; }
   function ingredientIcon(item, requirement) {
-    const key = id(item?.iconFamily || item?.itemId || item?.definitionId || requirement || "craft_component");
-    return "Assets/Icons/items/material/" + key + ".png";
+    const key = id(item?.itemId || item?.definitionId || requirement);
+    if (/salt/.test(key)) return DEMO_ART_DIR + "salt.webp";
+    if (/herb|aromatic/.test(key)) return DEMO_ART_DIR + "herbs.webp";
+    if (/meat|protein|poultry/.test(key)) return DEMO_ART_DIR + "raw_meat.webp";
+    return "";
+  }
+  function ingredientEmoji(requirement) {
+    const key = id(requirement);
+    if (/fish|seafood/.test(key)) return "🐟";
+    if (/egg/.test(key)) return "🥚";
+    if (/vegetable|plant|leaf/.test(key)) return "🥬";
+    if (/mushroom|fungus/.test(key)) return "🍄";
+    if (/fruit|berry/.test(key)) return "🍎";
+    if (/water|broth|stock/.test(key)) return "💧";
+    if (/flour|grain|dough|corn/.test(key)) return "🌾";
+    if (/bread|baked/.test(key)) return "🍞";
+    if (/milk|cream|dairy/.test(key)) return "🥛";
+    if (/cheese/.test(key)) return "🧀";
+    if (/sweetener|honey/.test(key)) return "🍯";
+    if (/spice|season|sauce/.test(key)) return "🌶";
+    return "✦";
   }
   function image(src, fallback, className) {
     return '<img class="' + esc(className) + '" src="' + esc(src) +
@@ -226,19 +269,20 @@
     modal.setAttribute("aria-modal", "true");
     modal.setAttribute("aria-label", "Recetario de cocina");
     modal.innerHTML =
+      COOKING_ICONS +
       '<div class="cooking-book">' +
         '<header class="cooking-book-header">' +
-          '<div class="cooking-book-brand"><span class="cooking-book-brand-mark" aria-hidden="true">✥</span>' +
-            '<div><span class="cooking-book-eyebrow">EL RECETARIO</span>' +
-            '<h2>COCINA</h2></div></div>' +
+          '<span class="cooking-book-brand-mark">' + svgIcon("utensils") + '</span>' +
+          '<div class="cooking-book-brand-ribbon"><h2>COOKING</h2></div>' +
           '<button type="button" class="cooking-book-close" data-cook-close aria-label="Cerrar recetario">×</button>' +
         '</header>' +
         '<div class="cooking-book-content">' +
-          '<section class="cooking-book-index" aria-label="Elegir receta">' +
+          '<section class="cooking-book-index cooking-book-panel" aria-label="Elegir receta">' +
             '<nav class="cooking-book-categories" id="cooking-v2-categories" aria-label="Categorías"></nav>' +
             '<div class="cooking-book-list" id="cooking-v2-list"></div>' +
+            '<footer class="cooking-book-list-footnote" id="cooking-v2-count"></footer>' +
           '</section>' +
-          '<section class="cooking-book-detail" id="cooking-v2-detail" aria-label="Detalles de la receta"></section>' +
+          '<section class="cooking-book-detail cooking-book-panel" id="cooking-v2-detail" aria-label="Detalles de la receta"></section>' +
         '</div>' +
       '</div>';
     doc.body.appendChild(modal);
@@ -322,8 +366,8 @@
         (state.category === entry.id ? ' is-active' : '') +
         '" data-cook-category="' + entry.id +
         '" aria-pressed="' + (state.category === entry.id) + '">' +
-          '<span aria-hidden="true" class="cooking-book-category-icon">' + entry.symbol + '</span>' +
-          '<span>' + entry.label + '</span><small>' + count + '</small>' +
+          svgIcon(entry.id, "cooking-book-category-icon") +
+          '<span>' + entry.label + '</span>' +
         '</button>';
     }).join("");
   }
@@ -344,29 +388,41 @@
         (selected ? ' is-active' : '') + (!known ? ' is-locked' : '') +
         '" data-cook-recipe="' + esc(recipe.id) + '" aria-pressed="' + selected + '">' +
           image(known ? iconFor(recipe) : fallback, fallback, "cooking-book-recipe-icon") +
-          '<span class="cooking-book-recipe-name">' + (known ? esc(recipe.name) : 'Receta desconocida') +
-          '<small>' + (known ? esc(label(recipe.method)) : 'Sin aprender') + '</small></span>' +
-          '<span class="cooking-book-recipe-ready ' + (ready ? 'is-ready' : '') + '">' +
-            (ready ? 'LISTA' : (known ? 'FALTAN' : '✦')) + '</span>' +
+          '<span class="cooking-book-recipe-name">' + (known ? esc(recipe.name) : 'Receta desconocida') + '</span>' +
+          '<span class="cooking-book-recipe-cross">' + svgIcon("utensils") + '</span>' +
+          '<span class="cooking-book-recipe-status">' +
+            '<span class="cooking-book-stars" aria-label="La calidad se determina al cocinar">☆☆☆</span>' +
+            '<small class="cooking-book-recipe-ready ' + (ready ? 'is-ready' : '') + '">' +
+              (ready ? 'LISTA' : (known ? 'FALTAN' : 'BLOQ.')) + '</small>' +
+          '</span>' +
         '</button>';
     }).join("") : '<p class="cooking-book-empty">No hay recetas en esta categoría.</p>';
+    const count = doc.getElementById("cooking-v2-count");
+    if (count) count.textContent = selectionData.filtered.filter(function (recipe) { return knows(u, recipe); }).length + " RECETAS DESCUBIERTAS";
   }
 
-  function renderIngredients(recipe, resolution) {
+  function renderIngredients(recipe, resolution, rows) {
     return (recipe.ingredients || []).map(function (ingredient, index) {
       const assignment = resolution?.assignments?.[index];
-      const have = (assignment?.allocations || []).reduce(function (sum, row) {
-        return sum + Number(row.units || 0);
-      }, 0);
-      const required = Math.max(1, Number(ingredient.quantity) || 1);
+      const sources = rows || [];
+      const candidates = sources.filter(function (row) {
+        return resolver()?.matchRequirement?.(ingredient, row.item || row)?.matches;
+      });
+      const have = candidates.reduce(function (sum, row) { return sum + Math.max(0, Number(row.quantity || 0)); }, 0);
+      const required = Math.max(1, Number(ingredient.quantity) || 1) * state.quantity;
       const good = have >= required || ingredient.optional === true;
-      const first = assignment?.allocations?.[0]?.item || null;
+      const first = assignment?.allocations?.[0]?.item || candidates[0]?.item || null;
       const name = first?.displayName || first?.name || label(ingredient.requirement);
+      const art = ingredientIcon(first, ingredient.requirement);
       return '<div class="cooking-book-ingredient' + (good ? '' : ' is-missing') + '">' +
-        image(ingredientIcon(first, ingredient.requirement), "Assets/Icons/items/material/craft_component.png", "cooking-book-ingredient-icon") +
+        '<div class="cooking-book-ingredient-icon">' +
+          (art ? image(art, art, "cooking-book-ingredient-art") :
+          '<span class="cooking-book-ingredient-emoji" aria-hidden="true">' + ingredientEmoji(ingredient.requirement) + '</span>') +
+        '</div>' +
         '<span class="cooking-book-ingredient-name">' + esc(name) +
-          (ingredient.optional ? '<small>Opcional</small>' : '') + '</span>' +
-        '<span class="cooking-book-ingredient-count">' + have + ' / ' + required + '</span>' +
+          (ingredient.optional ? '<small>Opcional</small>' : '') +
+          '<span class="cooking-book-ingredient-count">' + have + ' / ' + required + '</span>' +
+        '</span>' +
       '</div>';
     }).join("");
   }
@@ -388,7 +444,9 @@
     if (!effects.length) effects.push('Sustento y restauración al consumir');
     return '<p class="cooking-book-note">Efectos estimados a ★★★. La calidad final depende de tu tirada.</p>' +
       '<div class="cooking-book-effects">' + effects.map(function (effect) {
-        return '<span class="cooking-book-effect"><span aria-hidden="true">✦</span>' + esc(effect) + '</span>';
+        const symbol = /hp|salud|vida/i.test(effect) ? "heart" : /sp|energía|energia/i.test(effect) ? "flame" :
+          /attack|ataque|daño|damage|power/i.test(effect) ? "blade" : "shield";
+        return '<span class="cooking-book-effect">' + svgIcon(symbol) + '<span>' + esc(effect) + '</span></span>';
       }).join("") + '</div>';
   }
 
@@ -423,7 +481,8 @@
       : preview.valid ? "" : "Esta receta no puede prepararse todavía.";
     host.innerHTML =
       '<div class="cooking-book-scroll">' +
-        '<div class="cooking-book-title-ribbon"><h3>' + esc(known ? recipe.name : "Receta desconocida") + '</h3></div>' +
+        '<div class="cooking-book-title-ribbon">' + svgIcon("utensils") +
+          '<h3>' + esc(known ? recipe.name : "Receta desconocida") + '</h3></div>' +
         '<div class="cooking-book-hero">' +
           '<div class="cooking-book-hero-copy">' +
             '<span class="cooking-book-course">' + esc(label(recipe.course)) + '</span>' +
@@ -437,7 +496,8 @@
             stationSelector(u, state.working) +
           '</div>' +
           '<div class="cooking-book-hero-art">' +
-            image(known ? iconFor(recipe) : fallbackFor(recipe), fallbackFor(recipe), "cooking-book-dish-art") +
+            image(known && artworkKey(recipe)==="grilled" ? DEMO_ART_DIR + "hero.webp" :
+              (known ? iconFor(recipe) : fallbackFor(recipe)), fallbackFor(recipe), "cooking-book-dish-art") +
           '</div>' +
         '</div>' +
         '<div class="cooking-book-section-heading"><span>EFECTOS</span></div>' +
@@ -445,7 +505,7 @@
           '<p class="cooking-book-note">Aprende la receta para descubrir sus efectos.</p>') +
         '<div class="cooking-book-section-heading"><span>INGREDIENTES</span></div>' +
         '<div class="cooking-book-ingredients">' +
-          (known ? renderIngredients(recipe, resolved) : '<p class="cooking-book-note">Ingredientes desconocidos.</p>') +
+          (known ? renderIngredients(recipe, resolved, data.rows) : '<p class="cooking-book-note">Ingredientes desconocidos.</p>') +
         '</div>' +
         (known && warnings.length
           ? '<p class="cooking-book-equipment-note">' + warnings.map(esc).join(' · ') +
@@ -458,8 +518,7 @@
       '</div>' +
       '<footer class="cooking-book-actions">' +
         '<div class="cooking-book-quantity">' +
-          '<span>CANTIDAD</span>' +
-          '<div class="cooking-book-counter">' +
+          '<div class="cooking-book-counter" aria-label="Cantidad que cocinar">' +
             '<button type="button" data-cook-quantity="-1" aria-label="Reducir cantidad" ' +
               (state.working || state.quantity <= 1 ? 'disabled' : '') + '>‹</button>' +
             '<strong>' + state.quantity + '</strong>' +
@@ -470,11 +529,16 @@
         '<div class="cooking-book-submit">' +
           '<button type="button" data-cook-confirm ' +
             (!preview.valid || !known || !count || state.working || !coins()?.runAnimatedRoll ? 'disabled' : '') +
-            '>' + (state.working ? 'COCINANDO…' : 'COCINAR') + '</button>' +
-          '<div id="cooking-v2-status" class="cooking-book-status" role="status" aria-live="polite" data-kind="' +
-            esc(state.messageType) + '">' + esc(state.message) + '</div>' +
+            '>' + (state.working ? 'COCINANDO…' : 'COCINAR') + svgIcon("utensils") + '</button>' +
         '</div>' +
-      '</footer>';
+      '</footer>' +
+      '<div class="cooking-book-bottom-status">' +
+        '<span class="' + (preview.valid && count ? 'is-ready' : 'is-blocked') + '">' +
+          (preview.valid && count ? '● LISTO PARA COCINAR · MÁX. ' + count :
+            '● NO SE PUEDE COCINAR') + '</span>' +
+        '<span id="cooking-v2-status" class="cooking-book-status" role="status" aria-live="polite" data-kind="' +
+            esc(state.messageType) + '">' + esc(state.message) + '</span>' +
+      '</div>';
   }
 
   function render() {
