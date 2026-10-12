@@ -183,10 +183,10 @@ const { pathToFileURL } = require("node:url");
   // Tools in a locked stash may not satisfy required equipment or lower TH.
   delete inventoryState.inventario_activo.cooks;
   Object.assign(inventoryState.inventario_activo, {
-    breadTest: {...unit.inventario_stash.bread2, instanceId:"test-bread"},
-    meatTest: {...unit.inventario_stash.meat2, instanceId:"test-meat"},
-    vegTest: {...unit.inventario_stash.veg2, instanceId:"test-veg"},
-    sauceTest: {...unit.inventario_stash.sauce2, instanceId:"test-sauce"}
+    breadTest: {instanceId:"test-bread", itemId:"flatbread_test",recipeId:"flatbread",family:"food",quantity:1},
+    meatTest: {instanceId:"test-meat",itemId:"meat_wolf",tags:["ingredient","meat","wolf"],quantity:1},
+    vegTest: {instanceId:"test-veg",itemId:"carrot",recipeRoles:["vegetable"],itemTags:["ingredient","vegetable"],quantity:1},
+    sauceTest: {instanceId:"test-sauce",itemId:"processed_sauce_base",family:"processed_food",processed:true,processedForm:"sauce_base",tags:["sauce_base","liquid","base"],quantity:1}
   });
   inventoryState.inventario_stash.cooksStash = {
     definitionId:"cooks_utensils", quantity:1, category:"tool"
