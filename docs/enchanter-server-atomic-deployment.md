@@ -1,6 +1,6 @@
 # Enchanter's Update — privileged atomic checkout
 
-**Status: authored backend + deterministic smoke; not production-certified.**
+**Status: real Firebase Auth/RTDB Emulator checkout validated; not production-certified or enabled.**
 
 This is an implementation of the missing trusted cross-entity payment path,
 separate from the **Player-subtree-only** browser RTDB transaction. It does not
@@ -39,9 +39,11 @@ Magic Loot or native Relics into PR #931.
 2. Run the automated
    `tests/enchanter-server-atomic-smoke.cjs`,
    `tests/item-enchantment-triggered-combat-smoke.cjs`, and Player UI/browser
-   tests. Use the Firebase Emulator to validate **real auth, RTDB transactions,
-   Firebase rules, timed intake/pickup and two-client races**. A fake database
-   is not sufficient to certify release readiness.
+   tests. The dedicated **Enchanter Firebase Emulator Validation** workflow now
+   verifies real Auth/RTDB security rules, same-ID double-submit, two-owner
+   stock races, insufficient-AHN rollback, Item identity and removal. Timed
+   intake/pickup is covered by the canonical service regression, not a
+   production deployed-callable run.
 3. Deploy using
    `firebase deploy --only functions:commitEnchanterService --project luminous-system`.
    Do **not** deploy if the build fails, security checks fail or service
@@ -69,8 +71,19 @@ best-effort client writes.
 
 ## Remaining acceptance
 
-No claims are made here that the six outstanding Enchanter-specific checklist
-items are complete in production. In particular, the server callable needs
-a deployed integration run and the combat event system still needs explicit
-Player-selected `Before Getting Hit` reaction support. Do not invent the
-Threshold Aegis shield value or automatically choose reactions.
+Five Section 6/7 transaction implementation gates are now accepted on the
+real Firebase Emulator, with authenticated ownership checks and concurrent
+Shop stock tests. **One Enchanter-specific checklist gate is still open:**
+complete conditional/triggered effect integration. The combat bridge now
+supports a Player-selected pre-damage Status reaction and wearer-default
+reaction targeting, but other typed triggers and numerical Shield absorption
+are not validated. Do not invent the Threshold Aegis shield value.
+
+**Separate production release gates:** Deploy and verify the callable in its
+live environment before enabling the server feature flag; run a complete
+Player/DM/Battle Viewer flow and measure campaign-root transaction contention.
+Most importantly, owner-writable Player finance/inventory fields in existing
+RTDB rules remain a **broader economy integrity vulnerability**: the privileged
+checkout prevents partial cross-Shop payment, but cannot stop other legacy
+Player writes from modifying wallet state. Coordinate those rules with the
+existing Shop/P2P persistence contracts before claiming financial security.
