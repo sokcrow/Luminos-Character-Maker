@@ -10,6 +10,7 @@ const { pathToFileURL } = require("node:url");
   let events = 0;
   let reloadCount = 0;
   let reloadFails = false;
+  let onReload = null;
   let authoritative = null;
   const clone = value => JSON.parse(JSON.stringify(value));
   globalThis.LuminousItemPersistenceRuntime = {
@@ -27,7 +28,7 @@ const { pathToFileURL } = require("node:url");
     async loadPlayerInventory() {
       reloadCount++;
       if (reloadFails) throw new Error("connection_lost_during_reconciliation");
-      return {loaded:true,state:clone(authoritative)};
+      return onReload ? onReload() : {loaded:true,state:clone(authoritative)};
     },
     saveInventoryState() {
       calls++;
@@ -136,6 +137,42 @@ const { pathToFileURL } = require("node:url");
   assert.deepEqual(unit,restored);
   assert.equal(reloadCount,4);
 
+  // Codex P1 regression: a stale multi-path reload resolves AFTER the
+  // listener has already published another client's newer inventory.
+  // Discard that old read, retry, and only then allow future writes.
+  const staleRead = clone(restored);
+  const nextRemote = clone(restored);
+  nextRemote.inventario_activo.remoteGift.quantity = 9;
+  nextRemote.inventario_activo.otherClientItem = {itemId:"gem",quantity:2};
+  let resolveStaleRead = null;
+  let raceReads = 0;
+  const eventsBeforeReloadRace = events;
+  onReload = () => {
+    raceReads++;
+    return raceReads === 1
+      ? new Promise(resolve => { resolveStaleRead = resolve; })
+      : {loaded:true,state:clone(authoritative)};
+  };
+  const raced = peer.saveConfirmed(clone(pending));
+  notify(clone(pending));
+  finishSave.resolve({saved:false,reason:"server_rejected"});
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(raceReads,1,"the first reload is in flight");
+  assert.equal(peer.reconciliationRequired,true);
+  assert.equal((await peer.save(unit)).reason,"inventory_refresh_required",
+    "do not allow unrelated inventory saves during reconciliation");
+  authoritative = clone(nextRemote);
+  notify(clone(nextRemote));
+  assert.deepEqual(unit,nextRemote,"a newer subscription event is published immediately");
+  resolveStaleRead({loaded:true,state:staleRead});
+  assert.equal((await raced).saved,false);
+  assert.equal(raceReads,2,"reconciliation must retry on revision change");
+  assert.deepEqual(unit,nextRemote,"the slow stale reload must never overwrite the newer inventory");
+  assert.equal(events,eventsBeforeReloadRace+2,
+    "only the new subscription event and the retried reload may be published");
+  assert.equal(peer.reconciliationRequired,false);
+  onReload = null;
+
   // Fail closed if Firebase cannot reload the server state. Future writes
   // must not overwrite someone else's update using the stale HUD snapshot.
   const unavailable = peer.saveConfirmed(clone(pending));
@@ -150,6 +187,6 @@ const { pathToFileURL } = require("node:url");
   reloadFails = false;
   peer.dispose();
   assert.equal(notify,null);
-  assert.equal(calls,6);
-  console.log("Cooking optimistic realtime barrier smoke: OK (rollback, concurrent change, server reload, save rejection, blocked stale writes)");
+  assert.equal(calls,7);
+  console.log("Cooking optimistic realtime barrier smoke: OK (revision-safe reload race, rollback, concurrent changes, rejection, blocked stale writes)");
 })().catch(error => { console.error(error); process.exitCode = 1; });
