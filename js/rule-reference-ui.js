@@ -111,8 +111,12 @@
   function compiledMatcher() {
     const library=global.LuminousStatusLibrary;
     const statusCount=library?.list?.().length || 0;
+    // registerExtension() can replace a Status name without changing count.
+    // The library also increments revision on registry deletions.
+    const statusRevision=library?.revision ?? null;
     if (matcherCache && matcherCache.library===library &&
-      matcherCache.statusCount===statusCount && matcherCache.spellCount===spellEffects.size)
+      matcherCache.statusCount===statusCount && matcherCache.statusRevision===statusRevision &&
+      matcherCache.spellCount===spellEffects.size)
       return matcherCache;
     const byName=new Map();
     names().forEach(item => {const k=item.name.toLowerCase();if(!byName.has(k))byName.set(k,item);});
@@ -155,7 +159,7 @@
       "\\b(?:damage|dmg)\\s+from\\s+(?:(?:" + statusNames + ")" +
       REFERENCE_CONJUNCTION + ")*$", "i");
     const save=statName + "\\s+(?:Saving\\s+Throws?|Saves?|Checks?)";
-    matcherCache={library,statusCount,spellCount:spellEffects.size,byName,
+    matcherCache={library,statusCount,statusRevision,spellCount:spellEffects.size,byName,
       checkGroup,saveGroup,labeledCheckLine,precedingCheckGroup,statusCondition,statusImmunityList,statusDamageList,
       regex:new RegExp("\\b(?:" + save + "|" + statName + "|" + alternative + ")\\b","gi")};
     return matcherCache;
