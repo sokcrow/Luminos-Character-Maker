@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "js/rule-reference-ui.js"
+      - "js/status-library.js"
       - "css/rule-reference-ui.css"
       - "js/trait-player-tray.js"
       - "js/player-skills-hud.js"
@@ -18,6 +19,7 @@ on:
       - feat/universal-inline-rule-references
     paths:
       - "js/rule-reference-ui.js"
+      - "js/status-library.js"
       - "css/rule-reference-ui.css"
       - "js/trait-player-tray.js"
       - "js/player-skills-hud.js"
@@ -40,6 +42,7 @@ jobs:
           node-version: "22"
       - name: Syntax checks
         run: |
+          node --check js/status-library.js
           node --check js/rule-reference-ui.js
           node --check js/trait-player-tray.js
           node --check js/player-skills-hud.js
