@@ -109,6 +109,31 @@ for (const [sentence, expected] of [
 assert.deepEqual(references.tokenize("Fire/Burn damage type, Nature of Illusion.")
   .filter(x => x.kind), [], "Do not reintroduce false positives for damage types or narrative terms");
 
+// Codex fourth review: check suffixes and conditions apply to every name in a
+// conjunction, but must NOT promote unrelated narrative words into a rule.
+for (const [sentence, expected] of [
+  ["Gain +2 Final Power on Insight and Perception checks.",
+    ["skill:insight", "skill:perception"]],
+  ["History and Survival checks related to tunnels reduce Threshold by 4.",
+    ["skill:history", "skill:survival"]],
+  ["Insight, Perception, and Nature checks.",
+    ["skill:insight", "skill:perception", "skill:nature"]],
+  ["Checks against Charmed or Frightened reduce Threshold by 4.",
+    ["status:charmed", "status:frightened"]],
+  ["Saving throws against Charmed, Frightened, or Confusion.",
+    ["status:charmed", "status:frightened", "status:confusion"]],
+  ["Insight and Perception are useful in the story.", []],
+  ["Nature and History are academic subjects.", []],
+  ["Fire/Burn damage type and the Nature of Illusion.", []],
+  ["Protection from Frightened is not a check condition.", []],
+]) {
+  const parts = references.tokenize(sentence);
+  assert.deepEqual(parts.filter(x => x.kind).map(x => x.kind + ":" + x.id),
+    expected, "Compound rules are not correctly linked: " + sentence);
+  assert.equal(parts.map(x => x.text).join(""), sentence,
+    "Linkification must preserve all original description text");
+}
+
 const more=references.tokenize("Use WIS Saving Throw and DEX Check, or Percepción.");
 assert.deepEqual(more.filter(x=>x.kind).map(x=>x.kind+":"+x.id),
   ["save:wis","check:dex","skill:perception"]);
