@@ -2,7 +2,22 @@
 const {onCall,HttpsError}=require("firebase-functions/v2/https");
 const admin=require("firebase-admin");
 const {commitEnchanterAtomic}=require("./enchanter-atomic.cjs");
-if(!admin.apps.length)admin.initializeApp();
+if(!admin.apps.length){
+  // Functions Emulator may omit databaseURL from FIREBASE_CONFIG. Resolve
+  // its isolated namespace explicitly; never construct a guessed production
+  // database URL. The normal deployed path keeps Admin SDK discovery intact.
+  const host=process.env.FIREBASE_DATABASE_EMULATOR_HOST;
+  if(host){
+    let config={};
+    try{config=JSON.parse(process.env.FIREBASE_CONFIG||"{}")}catch(_){}
+    const projectId=process.env.GCLOUD_PROJECT||process.env.GCP_PROJECT||config.projectId;
+    if(!projectId)throw new Error("enchanter_emulator_project_id_unavailable");
+    admin.initializeApp({
+      projectId,
+      databaseURL:`http://${host}?ns=${projectId}-default-rtdb`,
+    });
+  }else admin.initializeApp();
+}
 for(const path of [
   "./vendor/js/item-quality-engine.js",
   "./vendor/js/item-catalog-ore-ingot-gem.js",
