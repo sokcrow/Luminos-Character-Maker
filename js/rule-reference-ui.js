@@ -95,6 +95,12 @@
     });
     return entries.filter(x => x.name.length >= 4).sort((a,b) => b.name.length-a.name.length);
   }
+  function escapeReferencePattern(value) {
+    return [...value].map(ch => "\\^$.*+?()[]{}|".includes(ch) ? "\\" + ch : ch).join("");
+  }
+  // Reuse the same bounded list separators for multiple named Skills or Statuses.
+  // Only complete catalog names may appear between a check and its shared suffix.
+  const REFERENCE_CONJUNCTION = String.raw`(?:\s*,\s*(?:(?:and|or|y|o)\s+)?|\s+(?:and|or|y|o)\s+|[/&]\s*)`;
   let matcherCache=null;
   function compiledMatcher() {
     const library=global.LuminousStatusLibrary;
@@ -104,19 +110,30 @@
       return matcherCache;
     const byName=new Map();
     names().forEach(item => {const k=item.name.toLowerCase();if(!byName.has(k))byName.set(k,item);});
-    const escaped = [...byName.keys()].map(x => [...x].map(ch =>
-      "\\^$.*+?()[]{}|".includes(ch) ? "\\" + ch : ch).join(""));
+    const escaped = [...byName.keys()].map(escapeReferencePattern);
     const alternative=escaped.length ? "(?:" + escaped.join("|") + ")" : "(?!)";
+    const namesFor = kind => [...byName.entries()].filter(([,item])=>item.kind===kind)
+      .map(([name])=>escapeReferencePattern(name)).join("|");
+    const skillNames = namesFor("skill"), statusNames = namesFor("status");
+    // "Insight and Perception checks": both names share one mechanical suffix.
+    const skillGroup = new RegExp(
+      "^(?:" + REFERENCE_CONJUNCTION + "(?:" + skillNames + "))+" +
+      "\\s+(?:skills?|checks?|rolls?|tests?|ability\\s+checks?|pruebas?|habilidades?|threshold|dc)\\b", "i");
+    // "Checks against Charmed or Frightened": each name is a check condition.
+    const statusCondition = new RegExp(
+      "\\b(?:checks?|saves?|saving\\s+throws?|rolls?)\\s+against\\s+" +
+      "(?:(?:" + statusNames + ")" + REFERENCE_CONJUNCTION + ")*$", "i");
     const statName="(?:STR|DEX|CON|INT|WIS|CHA|Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma)";
     const save=statName + "\\s+(?:Saving\\s+Throws?|Saves?|Checks?)";
     matcherCache={library,statusCount,spellCount:spellEffects.size,byName,
+      skillGroup,statusCondition,
       regex:new RegExp("\\b(?:" + save + "|" + alternative + ")\\b","gi")};
     return matcherCache;
   }
   // References need context. Ordinary words may mean damage types, narrative
   // concepts or English nouns, not the named status/Skill with the same name.
   // Catalog authors can opt in explicitly with {references:[{kind,id}]}.
-  function isContextualReference(entry, value, start, end, explicitReferences) {
+  function isContextualReference(entry, value, start, end, explicitReferences, matcher) {
     const canonical = entry.kind + ":" + entry.id;
     if (explicitReferences.some(ref =>
       ref && ref.kind + ":" + normalize(ref.id) === canonical)) return true;
@@ -138,7 +155,8 @@
       // Quantified statuses are unambiguous even when the sentence omits an
       // action verb, e.g. "Failed Save: 2 Bind + 2 Fragile". Keep the
       // damage-type exclusions above and require verbs for unquantified names.
-      return directStatus || numeric || (action && !/\b(?:nature|protection|illusion)\b/i.test(entry.id));
+      return directStatus || numeric || matcher.statusCondition.test(before) ||
+        (action && !/\b(?:nature|protection|illusion)\b/i.test(entry.id));
     }
     if (entry.kind === "skill") {
       // Explicit check wording or a verb indicating a skill is being rolled.
@@ -147,12 +165,12 @@
       const suffix = /^\s*(?:skills?|checks?|rolls?|tests?|ability\s+checks?|pruebas?|habilidades?|threshold|dc)\b/i.test(after);
       const slashAbility = /(?:STR|DEX|CON|INT|WIS|CHA)\s*\/\s*$/i.test(before);
       // Compound checks: "Try Athletics or Sleight of Hand".
-      return prompt || proficiency || suffix || slashAbility;
+      return prompt || proficiency || suffix || slashAbility || matcher.skillGroup.test(after);
     }
     return false;
   }
   function tokenize(source,{references=[]}={}) {
-    const value=String(source || ""), {byName,regex}=compiledMatcher();
+    const value=String(source || ""), matcher=compiledMatcher(), {byName,regex}=matcher;
     regex.lastIndex=0;
     const explicitReferences=Array.isArray(references) ? references : [];
     const result=[];let last=0,hit;
@@ -168,7 +186,7 @@
         if (entry) found={kind:entry.kind,id:entry.id};
       }
       if (!found || !resolve(found.kind,found.id)) continue;
-      if (!stat && !isContextualReference(found,value,hit.index,hit.index+word.length,explicitReferences)) continue;
+      if (!stat && !isContextualReference(found,value,hit.index,hit.index+word.length,explicitReferences,matcher)) continue;
       if (hit.index>last) result.push({text:value.slice(last,hit.index)});
       result.push({text:word,kind:found.kind,id:found.id});
       last=hit.index+word.length;
