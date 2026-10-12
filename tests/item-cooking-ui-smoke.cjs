@@ -115,8 +115,14 @@ const { pathToFileURL } = require("node:url");
   assert.equal(modal.hidden, false);
   assert.match(modal.innerHTML, /cooking-book-index/);
   assert.match(modal.innerHTML, /cooking-book-detail/);
+  assert.match(modal.innerHTML, /cooking-book-brand-ribbon/);
+  assert.match(modal.innerHTML, /cook-art-meals/);
+  assert.doesNotMatch(modal.innerHTML, /RESET DEMO INVENTORY|localStorage/);
   assert.match(elements["cooking-v2-categories"].innerHTML, /COMIDAS/);
   assert.match(elements["cooking-v2-categories"].innerHTML, /POSTRES/);
+  assert.match(elements["cooking-v2-list"].innerHTML, /cooking-book-stars/);
+  assert.match(elements["cooking-v2-list"].innerHTML, /Assets\/Icons\/items\/cooking_hud\//);
+  assert.match(elements["cooking-v2-count"].textContent, /RECETAS DESCUBIERTAS/);
   assert.doesNotMatch(elements["cooking-v2-detail"].innerHTML, /Cooking Check Result/);
 
   function click(selector, dataset = {}) {
@@ -134,6 +140,8 @@ const { pathToFileURL } = require("node:url");
   assert.match(elements["cooking-v2-detail"].innerHTML, /1 \/ 1|2 \/ 1/);
   click("[data-cook-quantity]", { cookQuantity: "1" });
   assert.match(elements["cooking-v2-detail"].innerHTML, /<strong>2<\/strong>/);
+  assert.match(elements["cooking-v2-detail"].innerHTML, /2 \/ 2/,
+    "ingredient stock should display amount owned vs selected batch requirements");
 
   click("[data-cook-confirm]");
   await new Promise(resolve => setTimeout(resolve, 30));
@@ -242,6 +250,14 @@ const { pathToFileURL } = require("node:url");
   const compact = css.split("@media (max-height: 540px) and (min-width: 691px)")[1];
   assert.match(compact, /#cooking-v1-modal \.cooking-book\s*\{[^}]*min-height:\s*0/);
   assert.match(compact, /height:\s*calc\(100dvh - 8px\)/);
+  assert.match(css, /grid-template-columns:\s*minmax\(0,45fr\) minmax\(0,55fr\)/);
+  assert.match(css, /cooking-book-brand-ribbon/);
+  assert.match(css, /max-width:\s*920px/);
+  for (const art of ["hero","grilled","tea","herbs","raw_meat"]) {
+    assert.ok(require("node:fs").existsSync(
+      path.resolve(__dirname,"../Assets/Icons/items/cooking_hud/" + art + ".webp")
+    ),"HUD art must be a repository asset: " + art);
+  }
 
   console.log("Cooking recipe book UI smoke: OK (full sheet, station selection and TH, short landscape, Escape, stash tools, coins, save)");
 })().catch(error => { console.error(error); process.exitCode = 1; });
