@@ -175,7 +175,7 @@
       // Skill grants may follow non-Skill equipment in one comma-separated
       // proficiency list (e.g. "proficiency with Light Armor, Performance").
       // Require an explicit proficiency prefix and short, uninterrupted items.
-      const proficiencyList = /\b(?:proficiency|expertise|proficient|trained|competencia|pericia)\s+(?:in|with|en)\s+(?:(?:[a-z][a-z-]*(?:\s+[a-z][a-z-]*){0,4})\s*(?:,\s*|\s+(?:and|or|y|o)\s+))+$/i.test(before);
+      const proficiencyList = /\b(?:proficiency|expertise|proficient|trained|competencia|pericia)\s+(?:in|with|en)\s+(?:(?:[a-z][a-z-]*(?:\s+[a-z][a-z-]*){0,4})\s*(?:,\s*(?:(?:and|or|y|o)\s+)?|\s+(?:and|or|y|o)\s+))+$/i.test(before);
       const suffix = /^\s*(?:skills?|checks?|rolls?|tests?|ability\s+checks?|pruebas?|habilidades?|threshold|dc|power)\b/i.test(after);
       const slashAbility = /(?:STR|DEX|CON|INT|WIS|CHA)\s*\/\s*$/i.test(before);
       // Compound checks: "Try Athletics or Sleight of Hand".
