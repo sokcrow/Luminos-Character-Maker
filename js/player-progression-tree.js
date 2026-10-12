@@ -328,6 +328,9 @@
         character:currentCharacter(),db:state.db || global.firebase?.database?.(),
         playerId:currentPlayerId(),onSaved:()=>refresh(),
       });
+      // Maneuvers are appended synchronously by renderManeuvers; decorating
+      // before this call misses descriptions such as "inflict 2 Frightened".
+      global.LuminousRuleReferences?.decorate?.(editor, { mode: "card" });
     }
   }
 
