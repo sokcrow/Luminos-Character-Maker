@@ -133,6 +133,7 @@ test("Battle Viewer real CombatEngine dispatches authored Status triggers and on
         md:magic.magicalDurabilityState(armor).current};
       core.triggerEvent("[Before Getting Hit]",preHit,[defender]);
       const repeated={warded:defender.statusEffects?.warded||0,
+        attackerWard:attacker.statusEffects?.warded||0,
         reaction:window.LuminousActionEconomy.snapshot(defender,{phase:"combat"}).reaction,
         md:magic.magicalDurabilityState(armor).current};
       return {first,queued,before,activated,repeated,
