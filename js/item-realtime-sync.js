@@ -154,13 +154,23 @@
         return false;
       }
       try {
-        const result = await runtime.loadPlayerInventory(db, playerId, {
-          ...options, writeBackMigration:false
-        });
-        if (!result?.loaded || !result.state || disposed) throw new Error("inventory_reload_failed");
-        publishInventory(result.state);
-        reconciliationRequired = false;
-        return true;
+        // A subscription can deliver a more recent inventory while an older,
+        // multi-path once("value") reload is still in flight. Do not replace
+        // that new state with the stale or torn reload result.
+        for (let attempt = 0; attempt < 3; attempt += 1) {
+          if (disposed) return false;
+          const startedRevision = revision;
+          const result = await runtime.loadPlayerInventory(db, playerId, {
+            ...options, writeBackMigration:false
+          });
+          if (!result?.loaded || !result.state || disposed) throw new Error("inventory_reload_failed");
+          if (revision !== startedRevision) continue;
+          publishInventory(result.state);
+          if (disposed) return false;
+          reconciliationRequired = false;
+          return true;
+        }
+        throw new Error("inventory_changed_during_reconciliation");
       } catch (error) {
         reconciliationRequired = true;
         options.onError?.({ source:"inventory", reason:"confirmed_inventory_reload_failed", error });
