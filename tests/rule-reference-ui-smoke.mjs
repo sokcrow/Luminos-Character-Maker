@@ -207,6 +207,29 @@ for (const [sentence, expected] of [
     "Inline rule labels must preserve the source description verbatim");
 }
 
+// Codex eighth review: damage sourced from canonical statuses is not a
+// damage-type label; a named Skill followed by proficiency/expertise is a rule.
+for (const [sentence, expected] of [
+  ["Take Half Damage from Burn and Poison. At Turn Start, Recover HP.",
+    ["status:burn", "status:poison"]],
+  ["Damage from Burn.", ["status:burn"]],
+  ["Damage from Burn, Poison, and Rupture.",
+    ["status:burn", "status:poison", "status:rupture"]],
+  ["Intimidation proficiency is racial metadata.", ["skill:intimidation"]],
+  ["Athletics expertise is available.", ["skill:athletics"]],
+  ["Gain Intimidation proficiency.", ["skill:intimidation"]],
+  ["Damage from Fire/Burn damage type.", []],
+  ["Fire/Burn damage type.", []],
+  ["Burn and Poison are colorful examples.", []],
+  ["The performance of the algorithm is interesting.", []],
+]) {
+  const parts=references.tokenize(sentence);
+  assert.deepEqual(parts.filter(x=>x.kind).map(x=>x.kind+":"+x.id),expected,
+    "Status damage source or Skill proficiency suffix mismatch: "+sentence);
+  assert.equal(parts.map(x=>x.text).join(""),sentence,
+    "Linkification must preserve all original description text");
+}
+
 const more=references.tokenize("Use WIS Saving Throw and DEX Check, or Percepción.");
 assert.deepEqual(more.filter(x=>x.kind).map(x=>x.kind+":"+x.id),
   ["save:wis","check:dex","skill:perception"]);
