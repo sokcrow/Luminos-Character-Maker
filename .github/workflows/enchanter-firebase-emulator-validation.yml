@@ -37,6 +37,7 @@ jobs:
         env:
           CI: 'true'
           FIREBASE_FUNCTIONS_EMULATOR_HOST: 127.0.0.1:5001
+          LUMINOUS_ENCHANTER_SERVER_ENABLED: 'true'
         run: >
           npx --yes firebase-tools emulators:exec
           --only auth,database,functions
