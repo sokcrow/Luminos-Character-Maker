@@ -78,6 +78,21 @@
   function currentStation(u) {
     return u?.currentCookingStationId || u?.cookingStationId || "";
   }
+  // Only equipment in an accessible container may modify the cooking TH.
+  // The equipment engine otherwise scans stashInventory/stash unconditionally.
+  function cookingOptions(u) {
+    const stashAllowed = includeStash();
+    const accessible = stashAllowed ? u : {
+      ...u, inventario_stash: null, stashInventory: null, stash: null
+    };
+    return {
+      includeStash: stashAllowed,
+      equipment: {
+        stationId: currentStation(u),
+        availableToolIds: equipment()?.carriedToolIds?.(accessible) || []
+      }
+    };
+  }
   function categoryFor(recipe) {
     const course = id(recipe.course), family = id(recipe.dishFamily);
     const identity = id(recipe.id || recipe.name);
@@ -132,9 +147,8 @@
     return resolver()?.resolveRecipe?.(recipe, rows) || null;
   }
   function recipePreview(u, recipe) {
-    return runtime()?.previewCook?.(u, recipe.id, {
-      includeStash: includeStash(), equipment: { stationId: currentStation(u) }
-    }) || { valid: false, reason: "cooking_unavailable" };
+    return runtime()?.previewCook?.(u, recipe.id, cookingOptions(u)) ||
+      { valid: false, reason: "cooking_unavailable" };
   }
   function maxQuantity(recipe, rows) {
     if (!resolver() || !recipe) return 0;
@@ -501,9 +515,7 @@
           container: coinHost, coinCount: 5, base: abilityBase(u, recipe.ability),
           headsChance: headsChance(u), intervalMs: 350, auto: true
         });
-        const outcome = runtime().executeCook(u, recipe.id, rolling.total, {
-          includeStash: includeStash(), equipment: { stationId: currentStation(u) }
-        });
+        const outcome = runtime().executeCook(u, recipe.id, rolling.total, cookingOptions(u));
         if (!outcome.cooked) {
           message(outcome.reason === "output_inventory_full"
             ? "No hay espacio en el inventario activo."
