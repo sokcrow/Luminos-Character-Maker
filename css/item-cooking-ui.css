@@ -138,7 +138,7 @@
 #cooking-v1-modal .cooking-book-close:hover { background: #682019; }
 #cooking-v1-modal .cooking-book-content {
   display: grid;
-  grid-template-columns: minmax(0,45%) minmax(0,55%);
+  grid-template-columns: minmax(0,45fr) minmax(0,55fr);
   gap: 24px;
   align-items: start;
   height: 100%;
