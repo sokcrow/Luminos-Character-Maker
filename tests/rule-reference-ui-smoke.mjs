@@ -306,7 +306,7 @@ for (const [phrase, contextBefore, expected] of [
 const progressionPreviews=fs.readFileSync(
   path.join(base,"js/archetype-progression-preview-catalog.js"),"utf8");
 const divineFury=progressionPreviews.match(
-  /"id": "divine_fury",[\\s\\S]*?"description": "([^"]+)"/
+  /"id": "divine_fury",[\s\S]*?"description": "([^"]+)"/
 )?.[1];
 assert.ok(divineFury,"Divine Fury must be present in the shipped catalog");
 assert.deepEqual(references.tokenize(divineFury).filter(x=>x.kind)
