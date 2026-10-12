@@ -180,5 +180,32 @@ const { pathToFileURL } = require("node:url");
   assert.doesNotMatch(elements["cooking-v2-status"].textContent, /guardados en el inventario/);
   assert.equal(ui.close(), true);
 
-  console.log("Cooking recipe book UI smoke: OK (full sheet, locked recipes, Escape, stash, coins, batch, save rejection)");
+  // Tools in a locked stash may not satisfy required equipment or lower TH.
+  delete inventoryState.inventario_activo.cooks;
+  Object.assign(inventoryState.inventario_activo, {
+    breadTest: {...unit.inventario_stash.bread2, instanceId:"test-bread"},
+    meatTest: {...unit.inventario_stash.meat2, instanceId:"test-meat"},
+    vegTest: {...unit.inventario_stash.veg2, instanceId:"test-veg"},
+    sauceTest: {...unit.inventario_stash.sauce2, instanceId:"test-sauce"}
+  });
+  inventoryState.inventario_stash.cooksStash = {
+    definitionId:"cooks_utensils", quantity:1, category:"tool"
+  };
+  globalThis.LuminousInventoryHudV2.state.stashUnlocked = false;
+  assert.equal(ui.open(), true);
+  click("[data-cook-recipe]", {cookRecipe:"burger"});
+  const difficulty = () => {
+    const result = elements["cooking-v2-detail"].innerHTML.match(/Dificultad (\\d+)/);
+    assert.ok(result,"recipe must display the effective TH");
+    return Number(result[1]);
+  };
+  const lockedTh = difficulty();
+  globalThis.LuminousInventoryHudV2.state.stashUnlocked = true;
+  ui.renderPreview();
+  const unlockedTh = difficulty();
+  assert.ok(lockedTh > unlockedTh,
+    "stash-only Cook's Utensils must not improve checks while stash is locked");
+  assert.equal(ui.close(),true);
+
+  console.log("Cooking recipe book UI smoke: OK (full sheet, locked recipes, Escape, stash tools, coins, batch, save rejection)");
 })().catch(error => { console.error(error); process.exitCode = 1; });
