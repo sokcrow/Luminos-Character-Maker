@@ -126,6 +126,12 @@
       "^(?:" + REFERENCE_CONJUNCTION + checkNames + ")+" + checkSuffix, "i");
     const saveGroup = new RegExp(
       "^(?:" + REFERENCE_CONJUNCTION + statName + ")+" + saveSuffix, "i");
+    // A mechanically introduced labeled Check list can span full sentences:
+    // "one matching Check. Wrath — Strength or Intimidation. Envy — ..."
+    // Recognize only canonical pairs directly following that introduction.
+    const labeledCheckLine = new RegExp(
+      "^(\\s*[A-Za-z][A-Za-z-]{1,35}\\s+[—–]\\s+)(" + checkNames +
+      ")\\s+(?:or|and)\\s+(" + checkNames + ")\\s*\\.", "i");
     const precedingCheckGroup = new RegExp(
       "\\b" + checkNames + REFERENCE_CONJUNCTION + "$", "i");
     // A status in a mechanical condition list may follow an unregistered
@@ -144,7 +150,7 @@
       REFERENCE_CONJUNCTION + ")*$", "i");
     const save=statName + "\\s+(?:Saving\\s+Throws?|Saves?|Checks?)";
     matcherCache={library,statusCount,spellCount:spellEffects.size,byName,
-      checkGroup,saveGroup,precedingCheckGroup,statusCondition,statusImmunityList,statusDamageList,
+      checkGroup,saveGroup,labeledCheckLine,precedingCheckGroup,statusCondition,statusImmunityList,statusDamageList,
       regex:new RegExp("\\b(?:" + save + "|" + statName + "|" + alternative + ")\\b","gi")};
     return matcherCache;
   }
@@ -207,10 +213,27 @@
     }
     return false;
   }
+  function labeledCheckPositions(value, matcher) {
+    const positions = new Set();
+    const introduction = /\bmatching\s+checks?\.\s*/i.exec(value);
+    if (!introduction) return positions;
+    let offset = introduction.index + introduction[0].length;
+    // Stop at the first nonmapping sentence: this cannot reinterpret later
+    // narrative text as a Check just because the trait once mentioned Checks.
+    while (offset < value.length) {
+      const hit = matcher.labeledCheckLine.exec(value.slice(offset));
+      if (!hit) break;
+      positions.add(offset + hit[0].indexOf(hit[2],hit[1].length));
+      positions.add(offset + hit[0].lastIndexOf(hit[3]));
+      offset += hit[0].length;
+    }
+    return positions;
+  }
   function tokenize(source,{references=[]}={}) {
     const value=String(source || ""), matcher=compiledMatcher(), {byName,regex}=matcher;
     regex.lastIndex=0;
     const explicitReferences=Array.isArray(references) ? references : [];
+    const labeledChecks=labeledCheckPositions(value,matcher);
     const result=[];let last=0,hit;
     while ((hit=regex.exec(value))) {
       const word=hit[0];let found=null;
@@ -228,7 +251,7 @@
             // A bare ability is a Check only when sharing a mechanical suffix.
             if (matcher.saveGroup.test(after))
               found={kind:"save",id:key};
-            else if (matcher.checkGroup.test(after) ||
+            else if (labeledChecks.has(hit.index) || matcher.checkGroup.test(after) ||
                 (/^\s+(?:checks?|ability\s+checks?)\b/i.test(after) &&
                  matcher.precedingCheckGroup.test(before)))
               found={kind:"check",id:key};
@@ -239,7 +262,8 @@
         if (entry) found={kind:entry.kind,id:entry.id};
       }
       if (!found || !resolve(found.kind,found.id)) continue;
-      if (!stat && !bareAbility && !isContextualReference(found,value,hit.index,hit.index+word.length,explicitReferences,matcher)) continue;
+      if (!stat && !bareAbility && !labeledChecks.has(hit.index) &&
+        !isContextualReference(found,value,hit.index,hit.index+word.length,explicitReferences,matcher)) continue;
       if (hit.index>last) result.push({text:value.slice(last,hit.index)});
       result.push({text:word,kind:found.kind,id:found.id});
       last=hit.index+word.length;
