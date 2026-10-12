@@ -11,6 +11,8 @@ on:
       - js/item-catalog-enchantments.js
       - js/shop-runtime.js
       - tests/enchanter-firebase-emulator-smoke.cjs
+      - tests/enchanter-callable-emulator-smoke.cjs
+      - tests/enchanter-campaign-contention-emulator-smoke.cjs
       - .github/workflows/enchanter-firebase-emulator-validation.yml
   workflow_dispatch:
 
@@ -42,4 +44,4 @@ jobs:
           npx --yes firebase-tools emulators:exec
           --only auth,database,functions
           --project demo-enchanter-atomic
-          -- "node tests/enchanter-firebase-emulator-smoke.cjs && node tests/enchanter-callable-emulator-smoke.cjs"
+          -- "node tests/enchanter-firebase-emulator-smoke.cjs && node tests/enchanter-callable-emulator-smoke.cjs && node tests/enchanter-campaign-contention-emulator-smoke.cjs"
