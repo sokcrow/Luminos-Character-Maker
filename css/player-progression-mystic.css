@@ -282,6 +282,18 @@ body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-
   object-fit:contain;
   pointer-events:none;
 }
+/* Fighter Archetype portraits occupy the existing ritual seals. */
+body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-branch-preview__seal .player-progression-archetype-icon {
+  position:relative;
+  z-index:1;
+  display:block;
+  box-sizing:border-box;
+  width:82%;
+  height:82%;
+  border-radius:50%;
+  object-fit:contain;
+  pointer-events:none;
+}
 body:not(.on-game-dashboard) #perks-modal.modal-progression .player-progression-root small{
   margin-top:12px;
   color:#a98e6d;
