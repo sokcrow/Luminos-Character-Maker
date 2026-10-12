@@ -218,7 +218,7 @@ const { pathToFileURL } = require("node:url");
 
   click("[data-cook-confirm]");
   await new Promise(resolve => setTimeout(resolve, 30));
-  const produced = Object.values(unit.inventario_activo).filter(row => row.recipeId === "burger");
+  const produced = Object.values(inventoryState.inventario_activo).filter(row => row.recipeId === "burger");
   assert.equal(produced.length, 2, "two portions must be created by the real cooking runtime");
   assert.equal(saveCalls, 1, "a batch saves inventory once");
   assert.equal(renderCalls, 1, "inventory HUD refreshes after cooking");
@@ -241,7 +241,7 @@ const { pathToFileURL } = require("node:url");
 
   // Locked stash cannot supply ingredients, even when the player owns them.
   delete character.cookingKnowledge;
-  Object.assign(unit.inventario_stash, {
+  Object.assign(inventoryState.inventario_stash, {
     bread2: {instanceId:"stash-bread", itemId:"finished_flatbread_s", recipeId:"flatbread",family:"food",quantity:1},
     meat2: {instanceId:"stash-meat",itemId:"meat_wolf",tags:["ingredient","meat","wolf"],quantity:1},
     veg2: {instanceId:"stash-veg",itemId:"carrot",recipeRoles:["vegetable"],itemTags:["ingredient","vegetable"],quantity:1},
