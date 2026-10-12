@@ -106,6 +106,29 @@
     }, { once: true });
   }
 
+  // Bundled artwork for Fighter Archetypes; other classes keep their sigils.
+  const FIGHTER_ARCHETYPE_ICON_IDS = new Set([
+    "champion", "battle_master", "samurai", "banneret",
+  ]);
+  function archetypeIconPath(classId, archetypeId) {
+    const fighter = clean(classId).toLowerCase() === "fighter";
+    const id = clean(archetypeId).toLowerCase();
+    return fighter && FIGHTER_ARCHETYPE_ICON_IDS.has(id)
+      ? `Assets/Icons/archetypes/${id}.png`
+      : "";
+  }
+  function archetypeSealMarkup(classModel, branch, fallbackKind) {
+    const src = archetypeIconPath(classModel?.classId, branch?.id);
+    if (!src) return sigilSvg(fallbackKind);
+    return `<img class="player-progression-archetype-icon" src="${src}" alt="" aria-hidden="true" loading="lazy" decoding="async">`;
+  }
+  function bindArchetypeIconFallback(preview, fallbackKind) {
+    const image = preview.querySelector(".player-progression-archetype-icon");
+    image?.addEventListener("error", () => {
+      image.outerHTML = sigilSvg(fallbackKind);
+    }, { once: true });
+  }
+
   // Hand-drawn-style vector sigils are decorative only; the names and
   // unlock rules always come from the real character progression model.
   const SIGILS = Object.freeze({
@@ -418,10 +441,12 @@
     preview.setAttribute("aria-pressed", "false");
     preview.setAttribute("aria-label", `Ver rama ${branch.name} y sus hitos`);
     preview.dataset.progressionKey = card.dataset.progressionKey;
+    const fallbackKind = sigilFor(branch.name, index);
     preview.innerHTML = `
-      <span class="player-progression-branch-preview__seal">${sigilSvg(sigilFor(branch.name, index))}</span>
+      <span class="player-progression-branch-preview__seal">${archetypeSealMarkup(classModel, branch, fallbackKind)}</span>
       <strong>${escapeHtml(branch.name)}</strong>
       <small>LV. ${branch.unlockLevel} · ${escapeHtml(statusLabel(branch.status))}</small>`;
+    bindArchetypeIconFallback(preview, fallbackKind);
     const inspect = () => showBranchDetail(classModel, branch, preview);
     card.__inspect = inspect;
     preview.__inspect = inspect;
