@@ -340,6 +340,60 @@ assert.match(effect.description,/registered Spell/);
 assert.deepEqual(references.tokenize("Moon Pact remains.").filter(x=>x.kind).map(x=>x.kind+":"+x.id),
   ["spell_effect:moon_pact"]);
 
+// Codex review: explicit Spell registrations must not lose names/aliases
+// below 4 characters. Re-registering a constant ID must invalidate the
+// matcher even though spellEffects.size remains the same.
+const refsOf = value => references.tokenize(value).filter(x=>x.kind)
+  .map(x=>x.kind+":"+x.id);
+assert.deepEqual(refsOf("Hex applies, as described."),[]);
+assert.ok(references.registerSpellEffect({
+  id:"short_hex",name:"Hex",aliases:["Hx","FX"],description:"Original Hex effect."
+}));
+assert.equal(references.resolve("spell_effect","short_hex").name,"Hex");
+assert.deepEqual(refsOf("Hex applies."),["spell_effect:short_hex"]);
+assert.deepEqual(refsOf("Hx applies."),["spell_effect:short_hex"]);
+assert.deepEqual(refsOf("FX applies."),["spell_effect:short_hex"]);
+// Force compiledMatcher() with the old name, then overwrite the same ID.
+assert.ok(references.registerSpellEffect({
+  id:"short_hex",name:"Glyph",aliases:["Sig"],description:"Updated effect rules."
+}));
+assert.equal(references.resolve("spell_effect","short_hex").description,"Updated effect rules.");
+for (const oldText of ["Hex applies.","Hx applies.","FX applies."]) {
+  assert.deepEqual(refsOf(oldText),[],"Stale Spell names must not survive replacement: "+oldText);
+}
+assert.deepEqual(refsOf("Glyph applies."),["spell_effect:short_hex"]);
+assert.deepEqual(refsOf("Sig applies."),["spell_effect:short_hex"]);
+assert.deepEqual(refsOf("Moon Pact remains."),["spell_effect:moon_pact"],
+  "Rebuilding the matcher must preserve other Spell registrations");
+for (const example of ["Glyph applies.","Hex applies.","Sig applies."]) {
+  assert.equal(references.tokenize(example).map(x=>x.text).join(""),example,
+    "Rule chips must preserve the exact Spell description text");
+}
+
+// The actual Aasimar racial trait has a mechanical Frightened check request.
+// This suffix must not turn casual references to a frightened person into
+// Status chips in other descriptions.
+const racialSource=fs.readFileSync(path.join(base,"js/racial-trait-catalog.js"),"utf8");
+const fallenAasimar=racialSource.match(
+  /aasimar_fallen_transformation:\s*\{[\s\S]*?\bdescription:\s*"([^"]+)"/
+)?.[1];
+assert.ok(fallenAasimar,"Aasimar Fallen transformation exists in the catalog");
+assert.deepEqual(refsOf(fallenAasimar),["status:frightened"],
+  "Necrotic Shroud's Frightened check request must expose the Status card");
+for (const [phrase, expected] of [
+  ["Frightened check request.",["status:frightened"]],
+  ["Frightened check requests.",["status:frightened"]],
+  ["Frightened saving throw request.",["status:frightened"]],
+  ["Frightened check is still being reviewed.",[]],
+  ["The creatures looked Frightened.",[]],
+  ["A frightened audience watched the scene.",[]],
+  ["Fire/Burn damage type.",[]],
+]) {
+  assert.deepEqual(refsOf(phrase),expected,
+    "Status check request context is too broad or too narrow: "+phrase);
+  assert.equal(references.tokenize(phrase).map(x=>x.text).join(""),phrase);
+}
+
 const html=fs.readFileSync(path.join(base,"hoja_personaje.html"),"utf8");
 const stats=fs.readFileSync(path.join(base,"js/trait-player-tray.js"),"utf8");
 const progression=fs.readFileSync(path.join(base,"js/player-progression-tree.js"),"utf8");
