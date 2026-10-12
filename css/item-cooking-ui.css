@@ -303,6 +303,36 @@
   font-family: "Share Tech Mono", monospace;
   font-size: 11px;
 }
+#cooking-v1-modal .cooking-book-station {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+  max-width: 275px;
+  color: #d8b996;
+  font: 11px/1.3 "Share Tech Mono", monospace;
+  letter-spacing: .075em;
+}
+#cooking-v1-modal .cooking-book-station select {
+  width: 100%;
+  min-height: 39px;
+  padding: 7px 27px 7px 10px;
+  border: 1px solid #997154;
+  border-radius: 0;
+  outline-offset: 2px;
+  background: #160e0c;
+  color: #f2d9b7;
+  font: 14px "Oswald", "Arial Narrow", sans-serif;
+  letter-spacing: .02em;
+  cursor: pointer;
+}
+#cooking-v1-modal .cooking-book-station select:focus-visible {
+  outline: 2px solid #e8c089;
+}
+#cooking-v1-modal .cooking-book-station select:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
 #cooking-v1-modal .cooking-book-hero-art {
   min-width: 0;
   aspect-ratio: 1.2;
@@ -579,6 +609,47 @@
   #cooking-v1-modal .cooking-book-category { font-size: 9px; }
   #cooking-v1-modal .cooking-book-category-icon { display: none; }
   #cooking-v1-modal .cooking-book-hero { grid-template-columns: minmax(0, 1fr) 88px; }
+}
+/* Short landscape screens must keep close and cook controls reachable. */
+@media (max-height: 540px) and (min-width: 691px) {
+  #cooking-v1-modal.cooking-book-overlay {
+    padding: 4px;
+    place-items: stretch;
+  }
+  #cooking-v1-modal .cooking-book {
+    height: calc(100dvh - 8px);
+    min-height: 0;
+    max-height: calc(100dvh - 8px);
+  }
+  #cooking-v1-modal .cooking-book-header {
+    min-height: 55px;
+    padding: 5px 18px;
+  }
+  #cooking-v1-modal .cooking-book-brand-mark {
+    width: 40px;
+    height: 40px;
+    font-size: 25px;
+  }
+  #cooking-v1-modal .cooking-book-header h2 { font-size: 39px; }
+  #cooking-v1-modal .cooking-book-eyebrow { font-size: 9px; }
+  #cooking-v1-modal .cooking-book-index { padding: 8px; }
+  #cooking-v1-modal .cooking-book-detail { padding: 8px 11px; }
+  #cooking-v1-modal .cooking-book-category { min-height: 49px; padding: 4px 2px; }
+  #cooking-v1-modal .cooking-book-category-icon { font-size: 20px; }
+  #cooking-v1-modal .cooking-book-categories { padding-bottom: 5px; }
+  #cooking-v1-modal .cooking-book-recipe { min-height: 48px; }
+  #cooking-v1-modal .cooking-book-recipe-icon { height: 39px; width: 53px; }
+  #cooking-v1-modal .cooking-book-title-ribbon { min-height: 46px; padding: 7px 16px; }
+  #cooking-v1-modal .cooking-book-title-ribbon h3 { font-size: 29px; }
+  #cooking-v1-modal .cooking-book-hero { min-height: 130px; padding: 7px 0; }
+  #cooking-v1-modal .cooking-book-description { margin: 7px 0; font-size: 13px; }
+  #cooking-v1-modal .cooking-book-station { margin-top: 5px; }
+  #cooking-v1-modal .cooking-book-station select { min-height: 30px; padding: 3px 8px; }
+  #cooking-v1-modal .cooking-book-actions { padding-top: 4px; gap: 8px; }
+  #cooking-v1-modal .cooking-book-submit > button { min-height: 41px; font-size: 27px; }
+  #cooking-v1-modal .cooking-book-counter strong { height: 35px; }
+  #cooking-v1-modal .cooking-book-counter button { height: 35px; }
+  #cooking-v1-modal .cooking-book-status { padding-top: 4px; min-height: 14px; }
 }
 @media (prefers-reduced-motion: reduce) {
   #cooking-v1-modal .cooking-book-category,
