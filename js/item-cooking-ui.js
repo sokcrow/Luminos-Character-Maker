@@ -49,10 +49,11 @@
   }
   function categoryFor(recipe) {
     const course = id(recipe.course), family = id(recipe.dishFamily);
-    const combined = [course, family, ...(recipe.tags || [])].map(id).join(" ");
-    if (/drink|beverage|tea|coffee|juice|cocktail|brew/.test(combined)) return "drinks";
-    if (/soup|stew|porridge|broth/.test(combined)) return "soups";
-    if (/dessert|pastry|cake|cookie|pie|tart|pudding|sweet/.test(combined)) return "desserts";
+    const identity = id(recipe.id || recipe.name);
+    if (course === "dessert" || /dessert|pastry|cake|cookie|pie|tart|pudding/.test(family)) return "desserts";
+    if (course === "soup" || /soup|stew|porridge|broth/.test(family + " " + identity)) return "soups";
+    if (/drink|beverage|tea|coffee|juice|cocktail/.test(course + " " + family) ||
+      /^(tea|coffee|juice|cocktail|lemonade|soda)_/.test(identity)) return "drinks";
     return "meals";
   }
   function iconFor(recipe) {
@@ -76,6 +77,7 @@
     return recipes()?.list?.() || [];
   }
   function knows(u, recipe) {
+    if (!u) return false;
     return !cookingV2()?.hasExplicitKnowledgeStore?.(u) || cookingV2().knowsRecipe(u, recipe);
   }
   function viewFor(u) {
@@ -434,6 +436,7 @@
     const modal = ensureUi();
     const coinHost = modal.querySelector("#cooking-v2-coins");
     const resultHost = modal.querySelector("#cooking-v2-roll-results");
+    coinHost?.scrollIntoView?.({ block: "nearest" });
     const made = [];
     try {
       for (let index = 0; index < requested; index += 1) {
@@ -503,9 +506,9 @@
     const u = unit();
     if (!u || !runtime() || !resolver()) return [];
     const rows = viewFor(u);
-    return allRecipes().filter(function (recipe) {
-      return knows(u, recipe) && resolve(recipe, rows)?.valid;
-    }).map(function (recipe) { return { recipeId: recipe.id, recipe: recipe }; });
+    return (resolver().craftableRecipes(rows) || []).filter(function (result) {
+      return knows(u, result.recipe);
+    });
   }
   function boot() { return Boolean(ensureUi()); }
   if (doc) {
