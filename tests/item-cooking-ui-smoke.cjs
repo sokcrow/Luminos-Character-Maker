@@ -27,6 +27,7 @@ const { pathToFileURL } = require("node:url");
   let saveCalls = 0;
   let renderCalls = 0;
   let rejectSave = false;
+  let onRoll = null;
   const character = {
     playerId:"alice", level:5, sp:12, proficiencyBonus:3,
     stats:{destreza:16,inteligencia:14,sabiduria:12},
@@ -50,7 +51,9 @@ const { pathToFileURL } = require("node:url");
     renderAll() { renderCalls++; }
   };
   globalThis.LuminousCoinEngine = {
-    async runAnimatedRoll() { return { total: 20, heads: 5 }; }
+    async runAnimatedRoll() {
+      return onRoll ? onRoll() : { total: 20, heads: 5 };
+    }
   };
 
   const elements = {};
@@ -105,6 +108,40 @@ const { pathToFileURL } = require("node:url");
   assert.equal(ui.headsChance(unit), 62);
   assert.equal(ui.abilityBase(character, "dex"), 5,
     "ability check includes proficiency even when its helper runtime is not loaded");
+  // Cooking must use the same three Check channels as the normal player
+  // ability Check, with no double-counting of character proficiency.
+  const seenChecks = [];
+  globalThis.LuminousTraitEngine = { testOnly:true };
+  globalThis.LuminousSkillTraitBreakdownPatch = {
+    resolvedDmTraits(player) {
+      assert.equal(player,character);
+      return [{id:"jack_of_all_trades"},{id:"remarkable_athlete"}];
+    },
+    checkPowerContributions(engine,traits,player,check) {
+      assert.equal(engine,globalThis.LuminousTraitEngine);
+      seenChecks.push({...check});
+      return [{amount:2}];
+    },
+    finalPowerContributions(engine,traits,player,check) {
+      seenChecks.push({...check});
+      return [{amount:1}];
+    },
+    specialCheckContributions(traits,player,check) {
+      seenChecks.push({...check});
+      return check.proficiencyState === "none"
+        ? [{amount:1}, {amount:1}] : [{amount:1}];
+    }
+  };
+  assert.equal(ui.abilityBase(character,"dex"),9,
+    "proficient DEX Check adds regular, final and Remarkable Athlete powers");
+  const noProf = {...character,abilityProficiency:{dex:"none"}};
+  globalThis.LuminousSkillTraitBreakdownPatch.resolvedDmTraits = () => [{id:"jack_of_all_trades"},{id:"remarkable_athlete"}];
+  assert.equal(ui.abilityBase(noProf,"dex"),7,
+    "unproficient DEX Check includes Jack of All Trades and Remarkable Athlete");
+  assert.ok(seenChecks.every(check=>check.kind==="ability" && check.abilityId==="dex"));
+  assert.ok(seenChecks.some(check=>check.proficiencyState==="none"));
+  delete globalThis.LuminousSkillTraitBreakdownPatch;
+  delete globalThis.LuminousTraitEngine;
   assert.equal(ui.maxQuantity(recipes.get("burger"), runtime.inventoryView(unit).rows), 2);
   assert.ok(ui.craftable().some(row => row.recipeId === "burger"));
   assert.equal(resolver.resolveRecipe("burger", runtime.inventoryView(unit).rows).valid, true);
@@ -320,5 +357,57 @@ const { pathToFileURL } = require("node:url");
     "every recipe requirement must be resolved across both portions");
   assert.equal(ui.close(),true);
 
-  console.log("Cooking recipe book UI smoke: OK (full sheet, shared-ingredient allocations, multi-portion stock, station TH, landscape, Escape, stash tools, coins, save)");
+  // Real-time snapshot replaces the inventory while coin animation is pending.
+  // Even a successful roll cannot commit stale results to the newly bound unit.
+  rejectSave = false;
+  function newBurgerInventory() {
+    return {
+      cooks:{definitionId:"cooks_utensils",quantity:1,category:"tool"},
+      bread:{instanceId:"fresh-bread",itemId:"finished_flatbread_c",recipeId:"flatbread",family:"food",quantity:2},
+      meat:{instanceId:"fresh-meat",itemId:"meat_wolf",tags:["ingredient","meat","wolf"],quantity:2},
+      veg:{instanceId:"fresh-veg",itemId:"carrot",recipeRoles:["vegetable"],itemTags:["ingredient","vegetable"],quantity:2},
+      sauce:{instanceId:"fresh-sauce",itemId:"processed_sauce_base",family:"processed_food",processed:true,processedForm:"sauce_base",tags:["sauce_base","liquid","base"],quantity:2}
+    };
+  }
+  inventoryState.inventario_activo = newBurgerInventory();
+  const saveCountBeforeConflict = saveCalls;
+  const fresh = JSON.parse(JSON.stringify(inventoryState.inventario_activo));
+  onRoll = async () => {
+    inventoryState.inventario_activo = JSON.parse(JSON.stringify(fresh));
+    return {total:20,heads:5};
+  };
+  assert.equal(ui.open(),true);
+  click("[data-cook-recipe]",{cookRecipe:"burger"});
+  click("[data-cook-confirm]");
+  await new Promise(resolve=>setTimeout(resolve,30));
+  assert.equal(saveCalls,saveCountBeforeConflict,"must not save stale inventory");
+  assert.equal(elements["cooking-v2-status"].dataset.kind,"error");
+  assert.match(elements["cooking-v2-status"].textContent,/inventario cambió/);
+  assert.deepEqual(inventoryState.inventario_activo,fresh,
+    "realtime snapshot must be preserved, with no lost ingredients or phantom dish");
+  assert.equal(ui.close(),true);
+  onRoll = null;
+
+  // A refresh on roll two must also discard staged results from roll one.
+  inventoryState.inventario_activo = newBurgerInventory();
+  const freshSecond = JSON.parse(JSON.stringify(inventoryState.inventario_activo));
+  let rollIndex = 0;
+  onRoll = async () => {
+    if (++rollIndex === 2) inventoryState.inventario_activo = JSON.parse(JSON.stringify(freshSecond));
+    return {total:20,heads:5};
+  };
+  assert.equal(ui.open(),true);
+  click("[data-cook-recipe]",{cookRecipe:"burger"});
+  click("[data-cook-quantity]",{cookQuantity:"1"});
+  click("[data-cook-confirm]");
+  await new Promise(resolve=>setTimeout(resolve,30));
+  assert.equal(rollIndex,2);
+  assert.equal(saveCalls,saveCountBeforeConflict);
+  assert.deepEqual(inventoryState.inventario_activo,freshSecond,
+    "neither first nor second staged portion leaks across a realtime replacement");
+  assert.match(elements["cooking-v2-status"].textContent,/inventario cambió/);
+  assert.equal(ui.close(),true);
+  onRoll = null;
+
+  console.log("Cooking recipe book UI smoke: OK (realtime roll races, Check traits, shared ingredients, multi-portion stock, station TH, responsive UI, Escape, stash, save)");
 })().catch(error => { console.error(error); process.exitCode = 1; });
