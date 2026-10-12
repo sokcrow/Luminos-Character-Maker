@@ -20,6 +20,8 @@ on:
       - 'js/item-food-rest-runtime.js'
       - 'js/item-food-rest-ui.js'
       - 'js/item-cooking-ui.js'
+      - 'css/item-cooking-ui.css'
+      - 'tests/item-cooking-ui-smoke.cjs'
       - 'js/item-runtime-engine.js'
       - 'js/inventory-hud-v2.js'
       - 'hoja_personaje.js'
@@ -68,6 +70,8 @@ on:
       - 'js/item-food-rest-runtime.js'
       - 'js/item-food-rest-ui.js'
       - 'js/item-cooking-ui.js'
+      - 'css/item-cooking-ui.css'
+      - 'tests/item-cooking-ui-smoke.cjs'
       - 'js/item-runtime-engine.js'
       - 'js/inventory-hud-v2.js'
       - 'hoja_personaje.js'
@@ -159,6 +163,8 @@ jobs:
         run: node tests/item-cooking-equipment-smoke.cjs
       - name: Cooking runtime smoke
         run: node tests/item-cooking-runtime-smoke.cjs
+      - name: Cooking recipe book UI smoke
+        run: node tests/item-cooking-ui-smoke.cjs
       - name: Food Rest runtime smoke
         run: node tests/item-food-rest-runtime-smoke.cjs
       - name: Retail food catalog smoke
