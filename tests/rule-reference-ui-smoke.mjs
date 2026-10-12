@@ -285,6 +285,46 @@ for (const [phrase, expected] of [
   assert.equal(bits.map(x=>x.text).join(""),phrase);
 }
 
+// Codex eleventh review: actions separated from a Status by an inline
+// evaluated formula must retain context, without rendering the fake prefix.
+for (const [phrase, contextBefore, expected] of [
+  [" Haste.", "Gain 1", ["status:haste"]],
+  [" Haste.", "", []],
+  [" Haste and +2 Max Speed.", "Gain 3", ["status:haste"]],
+  [" Nature of events.", "The ", []],
+  [" Protection from weather.", "The ", []],
+]) {
+  const parts=references.tokenize(phrase,{contextBefore});
+  assert.deepEqual(parts.filter(x=>x.kind).map(x=>x.kind+":"+x.id),expected,
+    "Split formula context mismatch: "+contextBefore+phrase);
+  assert.equal(parts.map(x=>x.text).join(""),phrase,
+    "Context prefix must never leak into visible trait text");
+}
+
+// Divine Fury is authoritative catalog text: Radiance is the damage source,
+// not a word in prose. Keep previous damage-type exclusions intact.
+const progressionPreviews=fs.readFileSync(
+  path.join(base,"js/archetype-progression-preview-catalog.js"),"utf8");
+const divineFury=progressionPreviews.match(
+  /"id": "divine_fury",[\\s\\S]*?"description": "([^"]+)"/
+)?.[1];
+assert.ok(divineFury,"Divine Fury must be present in the shipped catalog");
+assert.deepEqual(references.tokenize(divineFury).filter(x=>x.kind)
+  .map(x=>x.kind+":"+x.id),["status:radiance"]);
+for (const [phrase, expected] of [
+  ["Radiance deals +1% Fixed Damage.", ["status:radiance"]],
+  ["Burn causes Fixed Damage.", ["status:burn"]],
+  ["Poison inflicts 3 Damage.", ["status:poison"]],
+  ["Radiance deals with adversity.", []],
+  ["The radiance deals with light.", []],
+  ["Fire/Burn damage type.", []],
+]) {
+  const tokens=references.tokenize(phrase);
+  assert.deepEqual(tokens.filter(x=>x.kind).map(x=>x.kind+":"+x.id),expected,
+    "Status damage predicate must be bounded: "+phrase);
+  assert.equal(tokens.map(x=>x.text).join(""),phrase);
+}
+
 const more=references.tokenize("Use WIS Saving Throw and DEX Check, or Percepción.");
 assert.deepEqual(more.filter(x=>x.kind).map(x=>x.kind+":"+x.id),
   ["save:wis","check:dex","skill:perception"]);
@@ -321,6 +361,9 @@ assert.deepEqual(references.tokenize("Menacing Attack: inflict 2 Frightened.")
 const css=fs.readFileSync(path.join(base,"css/rule-reference-ui.css"),"utf8");
 assert.ok(html.indexOf('src="js/rule-reference-ui.js"') < html.indexOf('src="js/player-progression-tree.js"'));
 assert.match(stats,/LuminousRuleReferences\?\.decorate\?\.\(description, \{ mode: "tooltip" \}\)/);
+assert.match(stats,/const textContexts = new WeakMap\(\)/);
+assert.match(stats,/textContexts\.set\(node, before\)/);
+assert.match(stats,/decorate\?\.\(description, \{ mode: "tooltip", textContexts \}\)/);
 assert.match(progression,/LuminousRuleReferences\?\.decorate\?\.\(state\.detail, \{ mode: "card" \}\)/);
 assert.match(skillHud,/LuminousRuleReferences\?\.decorate\?\.\(detail, \{ mode: "card" \}\)/);
 assert.doesNotMatch(css,/\.is-tooltip:hover::after/, "Pseudo-tooltips inside scrolling Traits were removed");
