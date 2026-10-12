@@ -189,6 +189,9 @@
   Object.freeze(core);
 
   const runtimeExtensions = Object.create(null);
+  // Increment only when dynamic definitions actually mutate. The rule-reference
+  // matcher uses this revision to avoid retaining stale names/aliases.
+  let runtimeRevision = 0;
   function get(statusId) {
     const id = resolveId(statusId);
     return core[id] || runtimeExtensions[id] || null;
@@ -199,6 +202,7 @@
     const id = resolveId(statusId);
     if (!id || core[id]) return core[id] || null;
     runtimeExtensions[id] = Object.freeze({ id, icon:null, rules:[], ...clone(definition), canonicalSource:'runtime-extension' });
+    runtimeRevision += 1;
     return runtimeExtensions[id];
   }
 
@@ -216,7 +220,10 @@
     deleteProperty(_target, property) {
       const id = resolveId(property);
       if (!id || core[id]) return true;
-      delete runtimeExtensions[id];
+      if (Object.prototype.hasOwnProperty.call(runtimeExtensions,id)) {
+        delete runtimeExtensions[id];
+        runtimeRevision += 1;
+      }
       return true;
     },
     has(_target, property) { return has(property); },
@@ -292,6 +299,7 @@
 
   const api = Object.freeze({
     version:VERSION,
+    get revision() { return runtimeRevision; },
     registry:registryView,
     definitions:core,
     aliases:ALIASES,
