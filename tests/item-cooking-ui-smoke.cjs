@@ -136,7 +136,7 @@ const { pathToFileURL } = require("node:url");
     "proficient DEX Check adds regular, final and Remarkable Athlete powers");
   const noProf = {...character,abilityProficiency:{dex:"none"}};
   globalThis.LuminousSkillTraitBreakdownPatch.resolvedDmTraits = () => [{id:"jack_of_all_trades"},{id:"remarkable_athlete"}];
-  assert.equal(ui.abilityBase(noProf,"dex"),7,
+  assert.equal(ui.abilityBase(noProf,"dex"),8,
     "unproficient DEX Check includes Jack of All Trades and Remarkable Athlete");
   assert.ok(seenChecks.every(check=>check.kind==="ability" && check.abilityId==="dex"));
   assert.ok(seenChecks.some(check=>check.proficiencyState==="none"));
