@@ -114,6 +114,27 @@ panel.querySelector(".luminous-rule-card__close").fire("click");
 assert.equal(panel.hidden,true,"Touch close button works");
 assert.equal(second.focused,true,"Closing returns keyboard focus");
 
+// A resolved formula is a nested button in the Trait description. A
+// following sibling text node still needs the preceding mechanical context.
+let formulaFragment=null;
+const afterFormula={
+  nodeValue:" Haste and move quickly.",
+  parentElement:parent,
+  parentNode:{replaceChild(fragment){formulaFragment=fragment;}}
+};
+const textContexts=new WeakMap([[afterFormula,"Gain 1"]]);
+assert.equal(refs.decorate({textNode:afterFormula},{mode:"tooltip",textContexts}),1);
+assert.ok(formulaFragment,"Formula-adjacent text is decorated without moving its control");
+const hasteChip=formulaFragment.children.find(child=>child.dataset?.refId==="haste");
+assert.ok(hasteChip && hasteChip.dataset.refKind==="status");
+assert.equal(formulaFragment.children.map(child=>child.tag==="#text"
+  ? child.nodeValue : child.querySelector("span")?.textContent).join(""),
+  " Haste and move quickly.","Analysis prefix must not appear in visible text");
+const plainNode={nodeValue:" Haste",parentElement:parent,
+  parentNode:{replaceChild(){throw Error("Narrative text should not be decorated");}}};
+assert.equal(refs.decorate({textNode:plainNode},{mode:"tooltip"}),0,
+  "Haste without a mechanical context stays plain text");
+
 const css=fs.readFileSync(path.join(base,"css/rule-reference-ui.css"),"utf8");
 assert.doesNotMatch(css,/\.is-tooltip:hover::after/);
 assert.match(css,/position:fixed/);
