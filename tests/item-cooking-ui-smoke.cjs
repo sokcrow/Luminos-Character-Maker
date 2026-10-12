@@ -68,7 +68,7 @@ const { pathToFileURL } = require("node:url");
       }
     };
   }
-  for (const id of ["cooking-v2-categories", "cooking-v2-list",
+  for (const id of ["cooking-v2-categories", "cooking-v2-list", "cooking-v2-count",
     "cooking-v2-detail", "cooking-v2-status", "cooking-v2-coins",
     "cooking-v2-roll-results", "fake-close"]) element(id);
   const tabHost = element("tab-host");
