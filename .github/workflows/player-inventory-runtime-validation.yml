@@ -135,6 +135,7 @@ on:
       - tests/enchanter-server-atomic-smoke.cjs
       - tests/enchanter-server-canonical-smoke.cjs
       - tests/enchanter-server-release-gate-smoke.cjs
+      - tests/enchanter-safe-merge-policy-smoke.cjs
       - functions/index.cjs
       - tests/enchanter-reaction-planning-authority-smoke.cjs
       - js/combat-v073-economy-menu.js
@@ -356,6 +357,8 @@ jobs:
         run: node tests/enchanter-server-canonical-smoke.cjs
       - name: Enchanter default-off privileged callable release gate
         run: node tests/enchanter-server-release-gate-smoke.cjs
+      - name: Enchanter safe-merge policy: no premature production activation
+        run: node tests/enchanter-safe-merge-policy-smoke.cjs
       - name: Enchanter player-selected reaction plan and DM authority
         run: node tests/enchanter-reaction-planning-authority-smoke.cjs
       - name: Firebase Enchanter Function packaging and syntax
