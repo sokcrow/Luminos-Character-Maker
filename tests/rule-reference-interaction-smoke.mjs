@@ -95,8 +95,16 @@ document.fire("keydown",{key:"Escape",preventDefault(){}});
 assert.equal(panel.hidden,true,"Escape closes card");
 trigger.fire("click");
 assert.equal(panel.hidden,false,"Keyboard button activation (click) opens");
-document.fire("scroll");
-assert.equal(panel.hidden,true,"Scrolling the Traits list closes the floating tooltip");
+// Codex P2: the help card has max-height and is independently scrollable;
+// scrolling its long description must not dismiss the card mid-reading.
+const cardDescription=panel.querySelector(".luminous-rule-card__description");
+assert.ok(cardDescription,"Card contains a scrollable explanation");
+document.fire("scroll",{target:cardDescription});
+assert.equal(panel.hidden,false,"Scrolling long rule text inside the card keeps it open");
+document.fire("scroll",{target:panel});
+assert.equal(panel.hidden,false,"Scrolling the card itself keeps the card open");
+document.fire("scroll",{target:new Element("traits-scroll-list")});
+assert.equal(panel.hidden,true,"Scrolling the Traits list still closes stale help");
 
 const second=chips[1];
 second.fire("click");
