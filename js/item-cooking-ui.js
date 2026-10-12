@@ -41,8 +41,39 @@
     return String(value == null ? "" : value).replace(/_/g, " ")
       .replace(/\b[a-z]/g, function (char) { return char.toUpperCase(); });
   }
+  // Inventory realtime is authoritative for item mutation; the character sheet is
+  // authoritative for stats, proficiency, known recipes and station context.
+  // HUD hydration does NOT copy those fields.
+  function inventoryUnit() {
+    const state = hud()?.state;
+    return state?.peer?.bound === true && state?.unit && typeof state.unit === "object"
+      ? state.unit : null;
+  }
   function unit() {
-    return hud()?.state?.unit || global.currentPlayerData || global.datosJugador || null;
+    const inventory = inventoryUnit();
+    const sheet = global.datosJugador;
+    if (!inventory || !sheet || typeof sheet !== "object" || !Object.keys(sheet).length) return null;
+    const boundId = String(hud()?.state?.playerId || "");
+    if (boundId && sheet.playerId && String(sheet.playerId) !== boundId) return null;
+    const combined = { ...sheet, ...inventory };
+    // A HUD snapshot can have legacy/stale values: never mask current sheet rules.
+    [
+      "stats", "scores", "abilityProficiency", "proficiencies", "toolProficiencies",
+      "tool_proficiencies", "cookingKnowledge", "knownRecipes",
+      "knownCookingRecipes", "recipeKnowledge", "currentCookingStationId",
+      "cookingStationId", "cookingProficiencyBonus", "cookProficiencyBonus",
+      "proficiencyBonus", "proficiency", "level", "effectiveLevel",
+    ].forEach(function (key) {
+      if (Object.prototype.hasOwnProperty.call(sheet, key)) combined[key] = sheet[key];
+    });
+    // Always mutate the very containers bound to the inventory realtime peer.
+    combined.inventario_activo = inventory.inventario_activo;
+    combined.inventario_stash = inventory.inventario_stash;
+    combined.equipment = inventory.equipment;
+    return combined;
+  }
+  function includeStash() {
+    return hud()?.state?.stashUnlocked === true;
   }
   function currentStation(u) {
     return u?.currentCookingStationId || u?.cookingStationId || "";
@@ -81,7 +112,7 @@
     return !cookingV2()?.hasExplicitKnowledgeStore?.(u) || cookingV2().knowsRecipe(u, recipe);
   }
   function viewFor(u) {
-    const inventory = runtime()?.inventoryView?.(u, { includeStash: true });
+    const inventory = runtime()?.inventoryView?.(u, { includeStash: includeStash() });
     return inventory?.rows || [];
   }
   function selection(u) {
@@ -102,7 +133,7 @@
   }
   function recipePreview(u, recipe) {
     return runtime()?.previewCook?.(u, recipe.id, {
-      includeStash: true, equipment: { stationId: currentStation(u) }
+      includeStash: includeStash(), equipment: { stationId: currentStation(u) }
     }) || { valid: false, reason: "cooking_unavailable" };
   }
   function maxQuantity(recipe, rows) {
@@ -216,6 +247,8 @@
     modal.addEventListener("keydown", function (event) {
       if (event.key === "Escape") {
         event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation?.();
         close();
       }
     });
@@ -246,13 +279,15 @@
     host.innerHTML = selectionData.filtered.length ? selectionData.filtered.map(function (recipe) {
       const known = knows(u, recipe);
       const resolved = resolve(recipe, rows);
-      const ready = known && resolved?.valid;
+      const goodQuality = !resolved?.valid ||
+        cookingV2()?.checkGourmetComponents?.(recipe, resolved.recipeInputs || [])?.valid !== false;
+      const ready = known && resolved?.valid && goodQuality;
       const selected = recipe.id === state.recipeId;
       const fallback = fallbackFor(recipe);
       return '<button type="button" class="cooking-book-recipe' +
         (selected ? ' is-active' : '') + (!known ? ' is-locked' : '') +
         '" data-cook-recipe="' + esc(recipe.id) + '" aria-pressed="' + selected + '">' +
-          image(iconFor(recipe), fallback, "cooking-book-recipe-icon") +
+          image(known ? iconFor(recipe) : fallback, fallback, "cooking-book-recipe-icon") +
           '<span class="cooking-book-recipe-name">' + (known ? esc(recipe.name) : 'Receta desconocida') +
           '<small>' + (known ? esc(label(recipe.method)) : 'Sin aprender') + '</small></span>' +
           '<span class="cooking-book-recipe-ready ' + (ready ? 'is-ready' : '') + '">' +
@@ -347,7 +382,7 @@
             '</div>' +
           '</div>' +
           '<div class="cooking-book-hero-art">' +
-            image(iconFor(recipe), fallbackFor(recipe), "cooking-book-dish-art") +
+            image(known ? iconFor(recipe) : fallbackFor(recipe), fallbackFor(recipe), "cooking-book-dish-art") +
           '</div>' +
         '</div>' +
         '<div class="cooking-book-section-heading"><span>EFECTOS</span></div>' +
@@ -406,7 +441,12 @@
     const proficiency = global.LuminousProficiencyRuntime;
     const modifier = proficiency?.abilityModifier?.(value) ?? Math.floor((value - 10) / 2);
     const stateValue = u?.abilityProficiency?.[abilityId] ?? u?.abilityProficiency?.[name] ?? "none";
-    const extra = proficiency?.contribution?.(u?.level || 1, stateValue) || 0;
+    const normalized = String(stateValue || "none").toLowerCase();
+    const multiplier = { none: 0, half: .5, proficient: 1, expertise: 2 }[normalized] ?? 0;
+    const level = Number(u?.level) || 1;
+    const bonus = Math.min(6, 2 + Math.floor((Math.max(1, level) - 1) / 20));
+    const extra = proficiency?.contribution?.(level, normalized) ??
+      Math.floor(bonus * multiplier);
     return modifier + extra;
   }
   function headsChance(u) {
@@ -417,7 +457,10 @@
   async function execute() {
     if (state.working) return;
     const u = unit(), recipe = recipes()?.get?.(state.recipeId);
-    if (!u || !recipe || !knows(u, recipe)) return;
+    if (!u || !recipe || !knows(u, recipe)) {
+      message("Espera a que se cargue tu ficha y el inventario.", "error");
+      return;
+    }
     const preview = recipePreview(u, recipe);
     if (!preview.valid || !coins()?.runAnimatedRoll) {
       message("No se puede iniciar esta preparación.", "error");
@@ -447,7 +490,7 @@
           headsChance: headsChance(u), intervalMs: 350, auto: true
         });
         const outcome = runtime().executeCook(u, recipe.id, rolling.total, {
-          includeStash: true, equipment: { stationId: currentStation(u) }
+          includeStash: includeStash(), equipment: { stationId: currentStation(u) }
         });
         if (!outcome.cooked) {
           message(outcome.reason === "output_inventory_full"
@@ -463,8 +506,9 @@
       if (made.length) {
         try {
           const peer = hud()?.state?.peer;
-          if (!peer?.save) throw new Error("SAVE_NOT_AVAILABLE");
-          await peer.save(u);
+          if (!peer?.bound || !peer.save) throw new Error("SAVE_NOT_AVAILABLE");
+          const saved = await peer.save(inventoryUnit());
+          if (saved?.saved !== true) throw new Error(saved?.reason || "SAVE_FAILED");
           hud()?.renderAll?.();
           state.lastDish = made[made.length - 1].displayName + " · " +
             made[made.length - 1].stars + "★";
