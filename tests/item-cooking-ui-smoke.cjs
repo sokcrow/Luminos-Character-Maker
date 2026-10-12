@@ -195,7 +195,7 @@ const { pathToFileURL } = require("node:url");
   assert.equal(ui.open(), true);
   click("[data-cook-recipe]", {cookRecipe:"burger"});
   const difficulty = () => {
-    const result = elements["cooking-v2-detail"].innerHTML.match(/Dificultad (\\d+)/);
+    const result = elements["cooking-v2-detail"].innerHTML.match(/Dificultad (\d+)/);
     assert.ok(result,"recipe must display the effective TH");
     return Number(result[1]);
   };
