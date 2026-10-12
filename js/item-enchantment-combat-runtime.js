@@ -307,8 +307,21 @@
         else row.unit.statusEffects=clone(row.statusEffects);
       }
     };
-    const payment=Magic.payActivationResourcePlan?.(actor,item,plan);
-    if(!payment?.paid)return {activated:false,reason:payment?.reason || "trigger_payment_failed"};
+    // A payment adapter may fail or throw after touching SP/Charges/MD.
+    // Restore every provisional field, not only failed Status applications.
+    let payment;
+    try {
+      payment=Magic.payActivationResourcePlan?.(actor,item,plan);
+    } catch(error) {
+      restore();
+      return {activated:false,rolledBack:true,
+        reason:String(error?.message||"trigger_payment_failed")};
+    }
+    if(!payment?.paid){
+      restore();
+      return {activated:false,rolledBack:true,
+        reason:payment?.reason || "trigger_payment_failed"};
+    }
     try{
       for(const {effect,destination} of actions){
         const applied=status.applyStatus(destination,effect.statusId,{
