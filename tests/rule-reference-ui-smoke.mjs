@@ -252,6 +252,53 @@ for (const [sentence, expected] of [
     "Original rules text must be preserved");
 }
 
+// Codex tenth review: Fragmented Blessing uses a consecutive labeled
+// Check mapping after "matching Check." rather than a suffix on each name.
+// Exercise the real shipped definition, not an invented paraphrase.
+const archetypeSource=fs.readFileSync(path.join(base,"js/archetype-trait-catalog.js"),"utf8");
+const fragmentDescription=archetypeSource.match(
+  /orosh_lineage_fragmented_blessing:\s*\{[\s\S]*?\bdescription:\s*"([^"]+)"/
+)?.[1];
+assert.ok(fragmentDescription,"Fragmented Blessing must exist in the archetype catalog");
+const fragmentTokens=references.tokenize(fragmentDescription);
+assert.deepEqual(fragmentTokens.filter(x=>x.kind).map(x=>x.kind+":"+x.id),[
+  "check:str","skill:intimidation",
+  "skill:deception","skill:stealth",
+  "skill:insight","skill:history",
+  "check:cha","skill:persuasion",
+  "skill:investigation","skill:perception",
+  "skill:arcana","skill:religion",
+  "skill:nature","skill:survival",
+],"The seven canonical Fragmented Blessing Check mappings must be linked");
+assert.equal(fragmentTokens.map(x=>x.text).join(""),fragmentDescription);
+for (const [phrase, expected] of [
+  ["Wrath — Strength or Intimidation.",[]],
+  ["Nature and History are academic subjects.",[]],
+  ["One matching Check. Wrath — Strength or Intimidation. Other prose about Nature and History.",
+    ["check:str","skill:intimidation"]],
+  ["One matching Check. Wrath — Strength or Intimidation. Envy — Deception or Stealth.",
+    ["check:str","skill:intimidation","skill:deception","skill:stealth"]],
+]) {
+  const bits=references.tokenize(phrase);
+  assert.deepEqual(bits.filter(x=>x.kind).map(x=>x.kind+":"+x.id),expected,
+    "Labeled Checks must not link unrelated narrative text: "+phrase);
+  assert.equal(bits.map(x=>x.text).join(""),phrase);
+}
+
+// The choice editor is populated after branch details: decorate maneuver
+// descriptions only once the synchronous renderManeuvers call has completed.
+const maneuverRender=progression.indexOf("renderManeuvers?.(editor,");
+const maneuverDecorate=progression.indexOf(
+  'global.LuminousRuleReferences?.decorate?.(editor, { mode: "card" });',maneuverRender);
+assert.ok(maneuverRender>=0 && maneuverDecorate>maneuverRender &&
+  maneuverDecorate-maneuverRender<600,
+  "Battle Master descriptions must be decorated after the editor renders");
+const maneuverChoices=fs.readFileSync(path.join(base,"js/player-progression-choices.js"),"utf8");
+assert.match(maneuverChoices,/make\("small","",maneuver\.description\)/,
+  "Maneuver descriptions must be part of the rendered editor");
+assert.deepEqual(references.tokenize("Menacing Attack: inflict 2 Frightened.")
+  .filter(x=>x.kind).map(x=>x.kind+":"+x.id),["status:frightened"]);
+
 const more=references.tokenize("Use WIS Saving Throw and DEX Check, or Percepción.");
 assert.deepEqual(more.filter(x=>x.kind).map(x=>x.kind+":"+x.id),
   ["save:wis","check:dex","skill:perception"]);
