@@ -182,6 +182,31 @@ for (const [sentence, expected] of [
   assert.equal(pieces.map(x=>x.text).join(""), sentence);
 }
 
+// Codex seventh review: canonical status immunities and bounded conditioned
+// Skill Threshold text remain mechanical even with intervening prose.
+for (const [sentence, expected] of [
+  ["Persuasion checks reduce Threshold by 4. Magical Sleep immunity is a race property.",
+    ["skill:persuasion", "status:sleep"]],
+  ["Magical Sleep immunity is a race property.", ["status:sleep"]],
+  ["Immunity to Charmed and Frightened.", ["status:charmed", "status:frightened"]],
+  ["Resistance to Poison.", ["status:poison"]],
+  ["Persuasion against injured or frightened creatures reduces Threshold by 4.",
+    ["skill:persuasion"]],
+  ["Persuasion against wounded targets lowers DC by 2.", ["skill:persuasion"]],
+  ["Stealth against alert guards increases Threshold by 3.", ["skill:stealth"]],
+  ["Persuasion against the odds works.", []],
+  ["Persuasion against a guard is usually ineffective.", []],
+  ["Fire/Burn damage type.", []],
+  ["Burn damage type.", []],
+  ["The Nature of Illusion is mysterious.", []],
+]) {
+  const tokens=references.tokenize(sentence);
+  assert.deepEqual(tokens.filter(x=>x.kind).map(x=>x.kind+":"+x.id),expected,
+    "Conditional Skill/Status immunity reference mismatch: "+sentence);
+  assert.equal(tokens.map(x=>x.text).join(""),sentence,
+    "Inline rule labels must preserve the source description verbatim");
+}
+
 const more=references.tokenize("Use WIS Saving Throw and DEX Check, or Percepción.");
 assert.deepEqual(more.filter(x=>x.kind).map(x=>x.kind+":"+x.id),
   ["save:wis","check:dex","skill:perception"]);
