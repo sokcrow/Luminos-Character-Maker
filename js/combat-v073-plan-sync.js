@@ -8,6 +8,7 @@
   const finite=(v,f=0)=>Number.isFinite(Number(v))?Number(v):f;
   const clone=v=>v==null?v:JSON.parse(JSON.stringify(v));
   let chain=Promise.resolve(),lastReadySignature='',lastTargetSignature='';
+  let selectedEnchantmentReaction=null;
   function adapter(){return global.LuminousCombatLiveAdapter073||null;}
   function state(){return adapter()?.state||null;}
   function planning(s){const raw=s?.combatState,phase=raw&&typeof raw==='object'?(raw.phase||raw.state||raw.status):raw;return['pre_combat_planning','planning'].includes(norm(phase));}
@@ -45,9 +46,20 @@
   }
   function targetIndex(ctx){const out={};for(let i=0;i<ctx.slotCount;i+=1){const row=targetPayloadFor(ctx.plans[i],i,ctx.unitId,ctx.s);if(row)out[i]=row;}return out;}
   async function syncReady(detail={}){
-    const ctx=context(detail);if(!ctx)return false;const ready=Boolean(detail.ready),sig=JSON.stringify(['ready',ready,ctx.round,ctx.unitId,ctx.plans]);if(sig===lastReadySignature)return true;
+    const ctx=context(detail);if(!ctx)return false;
+    const ready=Boolean(detail.ready);
+    const reaction=ready && selectedEnchantmentReaction?.round===ctx.round
+      ?selectedEnchantmentReaction.itemInstanceId:null;
+    const sig=JSON.stringify(['ready',ready,ctx.round,ctx.unitId,ctx.plans,reaction]);
+    if(sig===lastReadySignature)return true;
     const updates={};
-    updates[`${ROOT}/readyPlayers/${ctx.owner}`]={ready,round:ctx.round,schedulerUid:ctx.s.uid,unitId:ctx.unitId,plannedSlots:ready?ctx.plans.filter(Boolean).length:0,targetIntents:targetIndex(ctx),updatedAt:global.firebase.database.ServerValue.TIMESTAMP};
+    updates[`${ROOT}/readyPlayers/${ctx.owner}`]={
+      ready,round:ctx.round,schedulerUid:ctx.s.uid,unitId:ctx.unitId,
+      plannedSlots:ready?ctx.plans.filter(Boolean).length:0,
+      targetIntents:targetIndex(ctx),
+      ...(reaction?{enchantmentReactionItemInstanceId:reaction}:{}),
+      updatedAt:global.firebase.database.ServerValue.TIMESTAMP,
+    };
     for(let i=0;i<ctx.slotCount;i+=1)updates[`${ROOT}/plannedActions/${ctx.owner}/${i}`]=ready&&ctx.plans[i]?payloadFor(ctx.plans[i],i,ctx.unitId,ctx.s):null;
     await ctx.s.db.ref().update(updates);lastReadySignature=sig;return true;
   }
@@ -56,6 +68,15 @@
     await ctx.s.db.ref(`${ROOT}/readyPlayers/${ctx.owner}`).set({ready:false,round:ctx.round,schedulerUid:ctx.s.uid,unitId:ctx.unitId,plannedSlots:0,targetIntents:targets,updatedAt:global.firebase.database.ServerValue.TIMESTAMP});lastTargetSignature=sig;return true;
   }
   function queue(detail,mode='ready'){chain=chain.then(()=>mode==='targets'?syncLiveTargets(detail):syncReady(detail)).catch(error=>{console.error('[Combat073 PlanSync]',error);try{const n=global.document?.getElementById?.('status');if(n)n.textContent=`COMBAT · PLAN SYNC FAILED · ${error?.code||error?.message||error}`;}catch(_){}});return chain;}
+  function onReactionPrepared(event){
+    const s=state(),source=event?.detail?.source||{};
+    if(!s||!planning(s))return;
+    const id=source.enchantmentReaction===true?clean(source.instanceId):"";
+    selectedEnchantmentReaction=id?{
+      itemInstanceId:id,round:Math.max(1,Math.trunc(finite(s.round,1))),
+    }:null;
+    lastReadySignature="";
+  }
   function onReady(event){queue(event?.detail||{},'ready');}
   function onPlan(event){queue(event?.detail||{},'targets');}
   function ensureEconomyReviewFixes(){if(global.LuminousCombatEconomyReviewFixes073){global.LuminousCombatEconomyReviewFixes073.install?.();return global.LuminousCombatEconomyReviewFixes073;}if(!global.document||!global.LuminousCombatEconomyMenu073)return null;const id='combat-v073-economy-review-fixes-script';let script=global.document.getElementById(id);if(script)return script;script=global.document.createElement('script');script.id=id;script.src='js/combat-v073-economy-review-fixes.js';script.async=false;global.document.head?.appendChild(script);return script;}
@@ -78,8 +99,9 @@
     await loadBridge('combat-v073-runtime-hotfix-script','js/combat-v073-runtime-hotfix.js',()=>Boolean(global.LuminousCombatRuntimeHotfix073));
     return Boolean(global.LuminousUniversalLibrary&&global.LuminousCombatLibraryClient073&&global.LuminousCombatDeploymentRuntime&&global.LuminousCombatDeploymentBridge073&&global.LuminousUnitRankRuntime&&global.LuminousCombatAuthority073&&global.LuminousCombatRuntimeHotfix073);
   }
+  global.addEventListener('luminous:combat073-reaction-prepared',onReactionPrepared);
   global.addEventListener('luminous:combat073-plan-ready-change',onReady);global.addEventListener('luminous:combat073-plan-change',onPlan);global.addEventListener('luminous:combat073-runtime-ready',ensureEconomyMenu);
-  global.addEventListener('beforeunload',()=>{global.removeEventListener('luminous:combat073-plan-ready-change',onReady);global.removeEventListener('luminous:combat073-plan-change',onPlan);global.removeEventListener('luminous:combat073-runtime-ready',ensureEconomyMenu);},{once:true});
+  global.addEventListener('beforeunload',()=>{global.removeEventListener('luminous:combat073-reaction-prepared',onReactionPrepared);global.removeEventListener('luminous:combat073-plan-ready-change',onReady);global.removeEventListener('luminous:combat073-plan-change',onPlan);global.removeEventListener('luminous:combat073-runtime-ready',ensureEconomyMenu);},{once:true});
   global.LuminousCombatPlanSync073=Object.freeze({version:'0.7.3-plan-sync.12-deployment-lifecycle',ROOT,sync:syncReady,syncReady,syncLivePlans:syncLiveTargets,syncLiveTargets,queue,kindOf,payloadFor,targetPayloadFor,targetIndex,ownCombatant,ensureEconomyMenu,ensureEconomyReviewFixes,ensureCoreBridges});
   ensureEconomyMenu();global.setTimeout(()=>ensureCoreBridges().catch(error=>console.error('[Combat073 core bridges]',error)),0);
 })(window);

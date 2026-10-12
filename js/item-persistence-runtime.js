@@ -108,6 +108,9 @@
       const serialized = runtime?.serializeItemInstance?.(item) || clone(item);
       preserveLegacyHudFields(serialized, item);
       syncLegacyRuntimeMirrors(serialized, item);
+      // Persist an authored per-Instance Charge view from its single MD source,
+      // not a potentially stale UI-side charge counter.
+      global.LuminousItemMagicRuntime?.syncEnchantmentChargeProjection?.(serialized);
       const instanceId = String(serialized.instanceId || key);
       serialized.instanceId = instanceId;
       out[instanceId] = serialized;
@@ -117,13 +120,24 @@
 
   function equipmentRefs(unit = {}) {
     const equipment = unit.equipment && typeof unit.equipment === "object" ? unit.equipment : {};
-    const refOf = (item) => item && typeof item === "object" ? (item.instanceId || item.instance_id || null) : (typeof item === "string" ? item : null);
+    // Firebase player snapshots carry itemEquipmentRefs, not a hydrated equipment
+    // object. An Enchanter save must never silently replace those refs with nulls.
+    const persisted = unit.itemEquipmentRefs && typeof unit.itemEquipmentRefs === "object"
+      ? unit.itemEquipmentRefs : {};
+    const refOf = (item) => item && typeof item === "object"
+      ? (item.instanceId || item.instance_id || null)
+      : (typeof item === "string" ? item : null);
+    const owns = (key) => Object.prototype.hasOwnProperty.call(equipment, key);
+    const slot = (key) => owns(key) ? refOf(equipment[key]) : refOf(persisted[key]);
+    const accessories = owns("accessories")
+      ? (Array.isArray(equipment.accessories) ? equipment.accessories.map(refOf).filter(Boolean) : [])
+      : (Array.isArray(persisted.accessoryIds) ? persisted.accessoryIds.map(refOf).filter(Boolean) : []);
     return {
-      mainHand: refOf(equipment.mainHand),
-      offHand: refOf(equipment.offHand),
-      armor: refOf(equipment.armor),
-      shield: refOf(equipment.shield),
-      accessoryIds: Array.isArray(equipment.accessories) ? equipment.accessories.map(refOf).filter(Boolean) : [],
+      mainHand: slot("mainHand"),
+      offHand: slot("offHand"),
+      armor: slot("armor"),
+      shield: slot("shield"),
+      accessoryIds: accessories,
     };
   }
 
@@ -137,6 +151,10 @@
       inventario_stash: serializeContainer(stash),
       equipmentRefs: equipmentRefs(unit),
       attunedItemInstanceIds: [...new Set((unit.attunedItemInstanceIds || []).map(String).filter(Boolean))],
+      itemMagicKnowledge: clone(unit.itemMagicKnowledge || {}),
+      enchantmentCompendium: clone(unit.enchantmentCompendium || {}),
+      enchanterTransactions: clone(unit.enchanterTransactions || {}),
+      enchanterJobs: clone(unit.enchanterJobs || {}),
     };
   }
 
@@ -152,6 +170,8 @@
         : (runtime?.migrateLegacyItem?.(normalized, key, options) || clone(normalized));
       preserveLegacyHudFields(instance, item);
       syncLegacyRuntimeMirrors(instance, item);
+      // Hydration must never regrant spent Charges through the legacy mirror.
+      global.LuminousItemMagicRuntime?.syncEnchantmentChargeProjection?.(instance);
       const instanceId = String(instance.instanceId || key);
       instance.instanceId = instanceId;
       out[instanceId] = instance;
@@ -166,6 +186,10 @@
       inventario_stash: deserializeContainer(snapshot.inventario_stash || snapshot.stashInventory || snapshot.stash || {}, options),
       equipmentRefs: clone(snapshot.equipmentRefs || snapshot.itemEquipmentRefs || {}),
       attunedItemInstanceIds: [...new Set((snapshot.attunedItemInstanceIds || snapshot.attunedItems || []).map(String).filter(Boolean))],
+      itemMagicKnowledge: clone(snapshot.itemMagicKnowledge || snapshot.magicItemKnowledge || {}),
+      enchantmentCompendium: clone(snapshot.enchantmentCompendium || {}),
+      enchanterTransactions: clone(snapshot.enchanterTransactions || {}),
+      enchanterJobs: clone(snapshot.enchanterJobs || {}),
       migratedFromVersion: intOr(snapshot.schemaVersion, 0),
     };
   }
@@ -195,6 +219,10 @@
     unit.inventario_stash = state.inventario_stash;
     unit.itemInventorySchemaVersion = SCHEMA_VERSION;
     unit.attunedItemInstanceIds = state.attunedItemInstanceIds;
+    unit.itemMagicKnowledge = clone(state.itemMagicKnowledge || {});
+    unit.enchantmentCompendium = clone(state.enchantmentCompendium || {});
+    unit.enchanterTransactions = clone(state.enchanterTransactions || {});
+    unit.enchanterJobs = clone(state.enchanterJobs || {});
     restoreEquipmentRefs(unit, state);
     const result = { applied: true, state, activeCount: Object.keys(state.inventario_activo).length, stashCount: Object.keys(state.inventario_stash).length };
     emit("luminous:inventory-state-applied", { unit, ...result });
@@ -213,6 +241,10 @@
       schemaVersion: `${base}/itemInventorySchemaVersion`,
       equipmentRefs: `${base}/itemEquipmentRefs`,
       attunement: `${base}/attunedItemInstanceIds`,
+      magicKnowledge: `${base}/itemMagicKnowledge`,
+      enchantmentCompendium: `${base}/enchantmentCompendium`,
+      enchanterTransactions: `${base}/enchanterTransactions`,
+      enchanterJobs: `${base}/enchanterJobs`,
     };
   }
 
@@ -224,12 +256,16 @@
     if (!requireDb(db)) return { loaded: false, reason: "firebase_db_unavailable" };
     const paths = playerPaths(playerId, options);
     if (!paths) return { loaded: false, reason: "missing_player_id" };
-    const [activeSnap, stashSnap, versionSnap, equipmentSnap, attunementSnap] = await Promise.all([
+    const [activeSnap, stashSnap, versionSnap, equipmentSnap, attunementSnap, magicKnowledgeSnap, compendiumSnap, transactionsSnap, jobsSnap] = await Promise.all([
       db.ref(paths.active).once("value"),
       db.ref(paths.stash).once("value"),
       db.ref(paths.schemaVersion).once("value"),
       db.ref(paths.equipmentRefs).once("value"),
       db.ref(paths.attunement).once("value"),
+      db.ref(paths.magicKnowledge).once("value"),
+      db.ref(paths.enchantmentCompendium).once("value"),
+      db.ref(paths.enchanterTransactions).once("value"),
+      db.ref(paths.enchanterJobs).once("value"),
     ]);
     const raw = {
       schemaVersion: versionSnap?.val?.() || 0,
@@ -237,6 +273,10 @@
       inventario_stash: stashSnap?.val?.() || {},
       equipmentRefs: equipmentSnap?.val?.() || {},
       attunedItemInstanceIds: attunementSnap?.val?.() || [],
+      itemMagicKnowledge: magicKnowledgeSnap?.val?.() || {},
+      enchantmentCompendium: compendiumSnap?.val?.() || {},
+      enchanterTransactions: transactionsSnap?.val?.() || {},
+      enchanterJobs: jobsSnap?.val?.() || {},
     };
     const state = deserializeInventoryState(raw, options);
     const migrated = intOr(raw.schemaVersion, 0) < SCHEMA_VERSION;
@@ -255,6 +295,10 @@
       inventario_stash: serializeContainer(unitOrState.inventario_stash || {}),
       equipmentRefs: clone(unitOrState.equipmentRefs || {}),
       attunedItemInstanceIds: clone(unitOrState.attunedItemInstanceIds || []),
+      itemMagicKnowledge: clone(unitOrState.itemMagicKnowledge || {}),
+      enchantmentCompendium: clone(unitOrState.enchantmentCompendium || {}),
+      enchanterTransactions: clone(unitOrState.enchanterTransactions || {}),
+      enchanterJobs: clone(unitOrState.enchanterJobs || {}),
     };
   }
 
@@ -263,13 +307,29 @@
     const paths = playerPaths(playerId, options);
     if (!paths) return { saved: false, reason: "missing_player_id" };
     const state = normalizeStateForSave(unitOrState || {}, options);
-    const updates = {
-      inventario_activo: serializeContainer(state.inventario_activo),
-      inventario_stash: serializeContainer(state.inventario_stash),
-      itemInventorySchemaVersion: SCHEMA_VERSION,
-      itemEquipmentRefs: clone(state.equipmentRefs || {}),
-      attunedItemInstanceIds: clone(state.attunedItemInstanceIds || []),
-    };
+    // Partial combat projections also omit the Stash and sometimes
+    // Attunement/Equipment. Never write their serializer defaults to Firebase.
+    // A present empty container is still an intentional explicit update.
+    const supplied = unitOrState && typeof unitOrState === "object" ? unitOrState : {};
+    const has = (...names) => names.some(key=>Object.prototype.hasOwnProperty.call(supplied,key));
+    const updates = {itemInventorySchemaVersion:SCHEMA_VERSION};
+    if(has("inventario_activo","activeInventory","inventory"))
+      updates.inventario_activo=serializeContainer(state.inventario_activo);
+    if(has("inventario_stash","stashInventory","stash"))
+      updates.inventario_stash=serializeContainer(state.inventario_stash);
+    if(has("equipment","itemEquipmentRefs","equipmentRefs"))
+      updates.itemEquipmentRefs=clone(state.equipmentRefs || {});
+    if(has("attunedItemInstanceIds","attunedItems"))
+      updates.attunedItemInstanceIds=clone(state.attunedItemInstanceIds || []);
+    // Combat and other narrow callers save a partially hydrated Player. Do
+    // not serialize missing Enchanter knowledge, receipts or escrowed Items as
+    // empty maps: RTDB.update({enchanterJobs:{}}) would erase live work.
+    // An explicitly owned empty map remains an intentional clear.
+    for (const field of ["itemMagicKnowledge","enchantmentCompendium",
+                         "enchanterTransactions","enchanterJobs"]) {
+      if (Object.prototype.hasOwnProperty.call(supplied,field) && supplied[field] != null)
+        updates[field] = clone(state[field] || {});
+    }
     const ref = db.ref(paths.base);
     if (typeof ref.update === "function") await ref.update(updates);
     else if (typeof ref.set === "function") await Promise.all(Object.entries(updates).map(([key, value]) => db.ref(`${paths.base}/${key}`).set(value)));
@@ -288,13 +348,17 @@
     let schemaVersion = 0;
     let equipment = {};
     let attunement = [];
+    let magicKnowledge = {};
+    let enchantmentCompendium = {};
+    let enchanterTransactions = {};
+    let enchanterJobs = {};
     let scheduled = false;
     const publish = () => {
       if (scheduled) return;
       scheduled = true;
       Promise.resolve().then(() => {
         scheduled = false;
-        callback(deserializeInventoryState({ schemaVersion, inventario_activo: active, inventario_stash: stash, equipmentRefs: equipment, attunedItemInstanceIds: attunement }, options));
+        callback(deserializeInventoryState({ schemaVersion, inventario_activo: active, inventario_stash: stash, equipmentRefs: equipment, attunedItemInstanceIds: attunement, itemMagicKnowledge: magicKnowledge, enchantmentCompendium, enchanterTransactions, enchanterJobs }, options));
       });
     };
     const handlers = [
@@ -303,6 +367,10 @@
       [paths.schemaVersion, (snap) => { schemaVersion = snap?.val?.() || 0; publish(); }],
       [paths.equipmentRefs, (snap) => { equipment = snap?.val?.() || {}; publish(); }],
       [paths.attunement, (snap) => { attunement = snap?.val?.() || []; publish(); }],
+      [paths.magicKnowledge, (snap) => { magicKnowledge = snap?.val?.() || {}; publish(); }],
+      [paths.enchantmentCompendium, (snap) => { enchantmentCompendium = snap?.val?.() || {}; publish(); }],
+      [paths.enchanterTransactions, (snap) => { enchanterTransactions = snap?.val?.() || {}; publish(); }],
+      [paths.enchanterJobs, (snap) => { enchanterJobs = snap?.val?.() || {}; publish(); }],
     ];
     handlers.forEach(([path, handler]) => db.ref(path).on("value", handler));
     return () => handlers.forEach(([path, handler]) => db.ref(path).off?.("value", handler));
