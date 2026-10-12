@@ -1590,6 +1590,7 @@
     if (!persist?.subscribePlayerInventory || !persist?.applyInventoryState || !persist?.saveInventoryState) return false;
     let fallbackConfirmedSave = null;
     let fallbackRejectedEcho = null;
+    let fallbackReconciliationRequired = false;
     let fallbackRevision = 0;
     let fallbackDisposed = false;
     const inventorySignature = (snapshot) => {
@@ -1615,6 +1616,25 @@
       }
       applyConfirmedInventory(snapshot);
     });
+    const reconcileFallbackInventory = async () => {
+      if (fallbackDisposed) return false;
+      if (typeof persist.loadPlayerInventory !== "function") {
+        fallbackReconciliationRequired = true;
+        return false;
+      }
+      try {
+        const latest = await persist.loadPlayerInventory(state.db, state.playerId, {
+          writeBackMigration:false
+        });
+        if (!latest?.loaded || !latest.state || fallbackDisposed) throw new Error("inventory_reload_failed");
+        applyConfirmedInventory(latest.state);
+        fallbackReconciliationRequired = false;
+        return true;
+      } catch (_) {
+        fallbackReconciliationRequired = true;
+        return false;
+      }
+    };
     let unsubscribeAccess = () => {};
     if (realtime()?.subscribeStashAccess) {
       unsubscribeAccess = realtime().subscribeStashAccess(state.db, (unlocked) => {
@@ -1637,13 +1657,16 @@
     state.peer = {
       bound: true,
       get revision() { return fallbackRevision; },
+      get reconciliationRequired() { return fallbackReconciliationRequired; },
       async save(unit) {
         if (fallbackConfirmedSave) return { saved:false, reason:"confirmed_inventory_save_in_progress" };
+        if (fallbackReconciliationRequired) return { saved:false, reason:"inventory_refresh_required" };
         return persist.saveInventoryState(state.db, state.playerId, unit);
       },
       async saveConfirmed(unit) {
         if (fallbackDisposed) return { saved:false, reason:"peer_disposed" };
         if (fallbackConfirmedSave) return { saved:false, reason:"confirmed_inventory_save_in_progress" };
+        if (fallbackReconciliationRequired) return { saved:false, reason:"inventory_refresh_required" };
         const barrier = { pending:null };
         fallbackConfirmedSave = barrier;
         fallbackRejectedEcho = null;
@@ -1657,8 +1680,10 @@
           if (fallbackConfirmedSave === barrier) fallbackConfirmedSave = null;
           if (success && !fallbackDisposed) {
             if (barrier.pending) applyConfirmedInventory(barrier.pending);
-          } else {
+          } else if (!fallbackDisposed) {
             fallbackRejectedEcho = inventorySignature(unit);
+            fallbackReconciliationRequired = true;
+            await reconcileFallbackInventory();
           }
         }
       },
@@ -1666,6 +1691,7 @@
         fallbackDisposed = true;
         fallbackConfirmedSave = null;
         fallbackRejectedEcho = null;
+        fallbackReconciliationRequired = false;
         unsubscribeInventory?.();
         unsubscribeAccess?.();
       },
