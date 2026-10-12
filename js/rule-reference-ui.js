@@ -115,19 +115,25 @@
     const namesFor = kind => [...byName.entries()].filter(([,item])=>item.kind===kind)
       .map(([name])=>escapeReferencePattern(name)).join("|");
     const skillNames = namesFor("skill"), statusNames = namesFor("status");
-    // "Insight and Perception checks": both names share one mechanical suffix.
-    const skillGroup = new RegExp(
-      "^(?:" + REFERENCE_CONJUNCTION + "(?:" + skillNames + "))+" +
-      "\\s+(?:skills?|checks?|rolls?|tests?|ability\\s+checks?|pruebas?|habilidades?|threshold|dc)\\b", "i");
-    // "Checks against Charmed or Frightened": each name is a check condition.
+    const statName="(?:STR|DEX|CON|INT|WIS|CHA|Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma)";
+    const checkSuffix="\\s+(?:skills?|checks?|rolls?|tests?|ability\\s+checks?|pruebas?|habilidades?|threshold|dc)\\b";
+    // Shared suffixes work for mixed ability/Skill lists, not free-floating
+    // references: "Strength or Athletics Check".
+    const checkNames="(?:" + skillNames + "|" + statName + ")";
+    const checkGroup = new RegExp(
+      "^(?:" + REFERENCE_CONJUNCTION + checkNames + ")+" + checkSuffix, "i");
+    const precedingCheckGroup = new RegExp(
+      "\\b" + checkNames + REFERENCE_CONJUNCTION + "$", "i");
+    // A status in a mechanical condition list may follow an unregistered
+    // condition like Disease. Only the recognized status gets a rule chip.
+    const conditionName="(?:" + statusNames + "|[A-Za-z]{3,})";
     const statusCondition = new RegExp(
       "\\b(?:checks?|saves?|saving\\s+throws?|rolls?)\\s+against\\s+" +
-      "(?:(?:" + statusNames + ")" + REFERENCE_CONJUNCTION + ")*$", "i");
-    const statName="(?:STR|DEX|CON|INT|WIS|CHA|Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma)";
+      "(?:" + conditionName + REFERENCE_CONJUNCTION + ")*$", "i");
     const save=statName + "\\s+(?:Saving\\s+Throws?|Saves?|Checks?)";
     matcherCache={library,statusCount,spellCount:spellEffects.size,byName,
-      skillGroup,statusCondition,
-      regex:new RegExp("\\b(?:" + save + "|" + alternative + ")\\b","gi")};
+      checkGroup,precedingCheckGroup,statusCondition,
+      regex:new RegExp("\\b(?:" + save + "|" + statName + "|" + alternative + ")\\b","gi")};
     return matcherCache;
   }
   // References need context. Ordinary words may mean damage types, narrative
@@ -165,7 +171,7 @@
       const suffix = /^\s*(?:skills?|checks?|rolls?|tests?|ability\s+checks?|pruebas?|habilidades?|threshold|dc)\b/i.test(after);
       const slashAbility = /(?:STR|DEX|CON|INT|WIS|CHA)\s*\/\s*$/i.test(before);
       // Compound checks: "Try Athletics or Sleight of Hand".
-      return prompt || proficiency || suffix || slashAbility || matcher.skillGroup.test(after);
+      return prompt || proficiency || suffix || slashAbility || matcher.checkGroup.test(after);
     }
     return false;
   }
@@ -177,16 +183,29 @@
     while ((hit=regex.exec(value))) {
       const word=hit[0];let found=null;
       const stat=word.match(/^(STR|DEX|CON|INT|WIS|CHA|Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma)\s+(Saving\s+Throws?|Saves?|Checks?)$/i);
-      if (stat) {
-        const key=Object.keys(STATS).find(k => k===stat[1].toLowerCase()
-          || STATS[k][0].toLowerCase()===stat[1].toLowerCase());
-        if (key) found={kind:/check/i.test(stat[2]) ? "check" : "save",id:key};
+      const bareAbility=word.match(/^(STR|DEX|CON|INT|WIS|CHA|Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma)$/i);
+      if (stat || bareAbility) {
+        const ability=stat ? stat[1] : bareAbility[1];
+        const key=Object.keys(STATS).find(k => k===ability.toLowerCase()
+          || STATS[k][0].toLowerCase()===ability.toLowerCase());
+        if (key) {
+          if (stat) found={kind:/check/i.test(stat[2]) ? "check" : "save",id:key};
+          else {
+            const before=value.slice(Math.max(0,hit.index-85),hit.index);
+            const after=value.slice(hit.index+word.length,hit.index+word.length+100);
+            // A bare ability is a Check only when sharing a mechanical suffix.
+            if (matcher.checkGroup.test(after) ||
+                (/^\s+(?:checks?|ability\s+checks?)\b/i.test(after) &&
+                 matcher.precedingCheckGroup.test(before)))
+              found={kind:"check",id:key};
+          }
+        }
       } else {
         const entry=byName.get(word.toLowerCase());
         if (entry) found={kind:entry.kind,id:entry.id};
       }
       if (!found || !resolve(found.kind,found.id)) continue;
-      if (!stat && !isContextualReference(found,value,hit.index,hit.index+word.length,explicitReferences,matcher)) continue;
+      if (!stat && !bareAbility && !isContextualReference(found,value,hit.index,hit.index+word.length,explicitReferences,matcher)) continue;
       if (hit.index>last) result.push({text:value.slice(last,hit.index)});
       result.push({text:word,kind:found.kind,id:found.id});
       last=hit.index+word.length;
