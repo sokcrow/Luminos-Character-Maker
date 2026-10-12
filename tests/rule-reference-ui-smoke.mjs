@@ -134,6 +134,31 @@ for (const [sentence, expected] of [
     "Linkification must preserve all original description text");
 }
 
+// Codex fifth review: mixed ability/Skill checks share one suffix; an
+// unregistered check condition must not hide the registered Status beside it.
+for (const [sentence, expected] of [
+  ["On a failed Coin in a Strength or Athletics Check, re-toss the Coin.",
+    ["check:str", "skill:athletics"]],
+  ["Athletics or Strength Check.", ["skill:athletics", "check:str"]],
+  ["Strength or History Checks.", ["check:str", "skill:history"]],
+  ["Dexterity, Strength, or Acrobatics Checks.",
+    ["check:dex", "check:str", "skill:acrobatics"]],
+  ["Checks against Disease or Poison reduce Threshold by 4.", ["status:poison"]],
+  ["Checks against Charmed, Disease, or Poison.",
+    ["status:charmed", "status:poison"]],
+  ["Checks against Charmed or Frightened reduce Threshold by 4.",
+    ["status:charmed", "status:frightened"]],
+  ["Strength or Athletics practice makes you stronger.", []],
+  ["Strength makes Athletics better.", []],
+  ["Disease or Poison is a difficult situation.", []],
+  ["Fire/Burn damage type.", []],
+]) {
+  const parts=references.tokenize(sentence);
+  assert.deepEqual(parts.filter(x=>x.kind).map(x=>x.kind+":"+x.id),
+    expected, "Mixed or ambiguous reference mismatch: "+sentence);
+  assert.equal(parts.map(x=>x.text).join(""), sentence, "Original rule text changed");
+}
+
 const more=references.tokenize("Use WIS Saving Throw and DEX Check, or Percepción.");
 assert.deepEqual(more.filter(x=>x.kind).map(x=>x.kind+":"+x.id),
   ["save:wis","check:dex","skill:perception"]);
