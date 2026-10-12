@@ -29,8 +29,10 @@ on:
       - 'css/player-trait-tabs.css'
       - 'tests/player-progression-tree-smoke.mjs'
       - 'tests/fighter-archetype-icons-smoke.mjs'
+      - 'tests/barbarian-archetype-icons-smoke.mjs'
       - 'Assets/Icons/archetypes/**'
       - 'scripts/import-fighter-archetype-icons.py'
+      - 'scripts/import-barbarian-archetype-icons.py'
       - 'tests/milestone-choice-icon-smoke.mjs'
       - 'Assets/Icons/milestones/stat-or-trait.png'
       - 'tests/player-skills-hud-smoke.mjs'
@@ -77,8 +79,10 @@ on:
       - 'css/player-trait-tabs.css'
       - 'tests/player-progression-tree-smoke.mjs'
       - 'tests/fighter-archetype-icons-smoke.mjs'
+      - 'tests/barbarian-archetype-icons-smoke.mjs'
       - 'Assets/Icons/archetypes/**'
       - 'scripts/import-fighter-archetype-icons.py'
+      - 'scripts/import-barbarian-archetype-icons.py'
       - 'tests/milestone-choice-icon-smoke.mjs'
       - 'Assets/Icons/milestones/stat-or-trait.png'
       - 'tests/player-skills-hud-smoke.mjs'
@@ -111,6 +115,7 @@ jobs:
           node --check js/player-progression-tree.js
           node --check tests/milestone-choice-icon-smoke.mjs
           node --check tests/fighter-archetype-icons-smoke.mjs
+          node --check tests/barbarian-archetype-icons-smoke.mjs
           node --check js/player-progression-choices.js
           node --check js/archetype-progression-preview-catalog.js
           node --check js/class-milestone-engine.js
@@ -137,6 +142,8 @@ jobs:
         run: node tests/milestone-choice-icon-smoke.mjs
       - name: Fighter Archetype icon asset and tree smoke
         run: node tests/fighter-archetype-icons-smoke.mjs
+      - name: Barbarian Archetype icon asset and tree smoke
+        run: node tests/barbarian-archetype-icons-smoke.mjs
       - name: Player Milestone, maneuvers and preview regression
         run: node tests/player-progression-choices-smoke.mjs
       - name: Battle Master stacking and combat smoke
