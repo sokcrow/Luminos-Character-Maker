@@ -27,6 +27,8 @@ const { pathToFileURL } = require("node:url");
   let saveCalls = 0;
   let renderCalls = 0;
   let rejectSave = false;
+  let throwSave = false;
+  let onSave = null;
   let onRoll = null;
   const character = {
     playerId:"alice", level:5, sp:12, proficiencyBonus:3,
@@ -43,8 +45,15 @@ const { pathToFileURL } = require("node:url");
     state: {
       playerId:"alice", unit:inventoryState, stashUnlocked:false,
       peer:{bound:true, async save(savedUnit) {
-        assert.equal(savedUnit, inventoryState, "must save canonical inventory unit");
+        assert.notEqual(savedUnit, inventoryState,
+          "save a detached unit, not a mutated live HUD inventory");
+        assert.notEqual(savedUnit.inventario_activo, inventoryState.inventario_activo,
+          "save must keep active container staged until persistence succeeds");
+        assert.notEqual(savedUnit.inventario_stash, inventoryState.inventario_stash,
+          "save must keep stash staged until persistence succeeds");
         saveCalls++;
+        if (onSave) await onSave(savedUnit);
+        if (throwSave) throw new Error("firebase_write_failed");
         return {saved:!rejectSave, reason:rejectSave ? "offline" : null};
       }}
     },
@@ -251,15 +260,31 @@ const { pathToFileURL } = require("node:url");
   globalThis.LuminousInventoryHudV2.state.stashUnlocked = true;
   assert.equal(ui.craftable().some(row => row.recipeId === "burger"), true);
 
-  // A peer that answers {saved:false} must never display a success message.
+  // A peer that returns {saved:false} must not publish either consumed
+  // ingredients or phantom dishes into the canonical HUD containers.
+  const beforeRejectedSave = JSON.parse(JSON.stringify({
+    active:inventoryState.inventario_activo, stash:inventoryState.inventario_stash
+  }));
+  let stagedSaveSeen = false;
+  onSave = async pending => {
+    stagedSaveSeen = true;
+    assert.ok(Object.values(pending.inventario_activo).some(row => row.recipeId === "burger"),
+      "staged snapshot includes cooked result");
+    assert.deepEqual({active:inventoryState.inventario_activo,stash:inventoryState.inventario_stash},
+      beforeRejectedSave, "live HUD remains unchanged while saving");
+  };
   rejectSave = true;
   assert.equal(ui.open(), true);
   click("[data-cook-recipe]", {cookRecipe:"burger"});
   click("[data-cook-confirm]");
   await new Promise(resolve => setTimeout(resolve, 30));
+  assert.equal(stagedSaveSeen,true);
   assert.equal(elements["cooking-v2-status"].dataset.kind, "error");
   assert.doesNotMatch(elements["cooking-v2-status"].textContent, /guardados en el inventario/);
+  assert.deepEqual({active:inventoryState.inventario_activo,stash:inventoryState.inventario_stash},
+    beforeRejectedSave,"save returning false must never publish a phantom dish");
   assert.equal(ui.close(), true);
+  onSave = null;
 
   // Tools in a locked stash may not satisfy required equipment or lower TH.
   delete inventoryState.inventario_activo.cooks;
@@ -369,6 +394,50 @@ const { pathToFileURL } = require("node:url");
       sauce:{instanceId:"fresh-sauce",itemId:"processed_sauce_base",family:"processed_food",processed:true,processedForm:"sauce_base",tags:["sauce_base","liquid","base"],quantity:2}
     };
   }
+  // A rejected promise also leaves every live inventory container untouched.
+  inventoryState.inventario_activo = newBurgerInventory();
+  globalThis.LuminousInventoryHudV2.state.stashUnlocked = false;
+  const beforeThrownSave = JSON.parse(JSON.stringify({
+    active:inventoryState.inventario_activo, stash:inventoryState.inventario_stash
+  }));
+  onSave = async pending => {
+    assert.equal(Object.values(pending.inventario_activo).filter(row=>row.recipeId==="burger").length,1);
+    assert.deepEqual({active:inventoryState.inventario_activo,stash:inventoryState.inventario_stash},
+      beforeThrownSave,"live inventory is not exposed to unsaved recipe mutations");
+  };
+  rejectSave = false;
+  throwSave = true;
+  assert.equal(ui.open(),true);
+  click("[data-cook-recipe]",{cookRecipe:"burger"});
+  click("[data-cook-confirm]");
+  await new Promise(resolve=>setTimeout(resolve,30));
+  assert.equal(elements["cooking-v2-status"].dataset.kind,"error");
+  assert.deepEqual({active:inventoryState.inventario_activo,stash:inventoryState.inventario_stash},
+    beforeThrownSave,"a thrown save must not leak any staged items into future saves");
+  assert.equal(ui.close(),true);
+  throwSave = false;
+  onSave = null;
+
+  // A realtime update during persistence may replace the canonical inventory.
+  // After success, the UI must not overwrite that authoritative snapshot.
+  inventoryState.inventario_activo = newBurgerInventory();
+  const latestFromFirebase = newBurgerInventory();
+  latestFromFirebase.serverItem = {instanceId:"server_item",itemId:"apple",quantity:1};
+  onSave = async pending => {
+    assert.equal(Object.values(pending.inventario_activo).filter(row=>row.recipeId==="burger").length,1);
+    inventoryState.inventario_activo = latestFromFirebase;
+  };
+  assert.equal(ui.open(),true);
+  click("[data-cook-recipe]",{cookRecipe:"burger"});
+  click("[data-cook-confirm]");
+  await new Promise(resolve=>setTimeout(resolve,30));
+  assert.equal(elements["cooking-v2-status"].dataset.kind,"success",
+    "acknowledged remote save should not be reported as failed");
+  assert.equal(inventoryState.inventario_activo,latestFromFirebase,
+    "never overwrite a newer realtime snapshot while finishing the save");
+  assert.equal(ui.close(),true);
+  onSave = null;
+
   inventoryState.inventario_activo = newBurgerInventory();
   const saveCountBeforeConflict = saveCalls;
   const fresh = JSON.parse(JSON.stringify(inventoryState.inventario_activo));
@@ -409,5 +478,5 @@ const { pathToFileURL } = require("node:url");
   assert.equal(ui.close(),true);
   onRoll = null;
 
-  console.log("Cooking recipe book UI smoke: OK (realtime roll races, Check traits, shared ingredients, multi-portion stock, station TH, responsive UI, Escape, stash, save)");
+  console.log("Cooking recipe book UI smoke: OK (staged save failures and success races, realtime rolls, Check traits, ingredients, station TH, responsive UI)");
 })().catch(error => { console.error(error); process.exitCode = 1; });
