@@ -69,7 +69,9 @@ if(!auth||!database||!functions||/[.]googleapis[.]com/.test(auth+database+functi
       assert.equal(unauth.body.error?.status,"UNAUTHENTICATED");
       const theft=await call(intent("sword_1","stolen"),stranger.token);
       assert.equal(theft.status,400,"other owner must receive a precondition error");
-      assert.equal(theft.body.error?.status,"FAILED_PRECONDITION");
+      assert.equal(theft.body.error?.status,"FAILED_PRECONDITION",JSON.stringify(theft));
+      assert.equal(theft.body.error?.message,"player_not_authorized",
+        "authenticated callable must actually reach the correct player and Shop database");
       const walletBefore=(await db.ref("campaña/jugadores/hero").get()).val();
       assert.equal(walletBefore.ahn,3000000);
       // Two browser sessions, one authenticated identity, the same receipt ID.
@@ -78,7 +80,8 @@ if(!auth||!database||!functions||/[.]googleapis[.]com/.test(auth+database+functi
         call(intent("sword_1","callable_01"),owner.token),
       ]);
       const successes=[a,b].filter(x=>x.status===200&&x.body.result?.committed===true);
-      assert.equal(successes.length,1,"one transaction ID must yield one charged callable receipt");
+      assert.equal(successes.length,1,
+        "one transaction ID must yield one charged callable receipt: "+JSON.stringify({a,b}));
       const replay=[a,b].find(x=>x.status!==200);
       assert.equal(replay?.body?.error?.status,"FAILED_PRECONDITION");
       const after=(await db.ref("campaña").get()).val();
