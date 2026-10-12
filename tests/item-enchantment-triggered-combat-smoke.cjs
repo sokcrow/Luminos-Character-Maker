@@ -185,7 +185,52 @@ try {
   assert.equal(globalThis.CombatEngine.triggerEvent,initialEvent);
   assert.equal(Combat.patchCombatEngine(globalThis.CombatEngine).installed,true);
   assert.equal(Combat.uninstallCombatEngine(globalThis.CombatEngine),true);
-  console.log("Enchanter CombatEngine hit/received triggers, Status, MD, rollback and gates: OK");
+  // Isolate the adapter to simulate a payment implementation that has
+  // already modified SP and MD before returning a rejection or throwing.
+  // This guards against cross-runtime partial costs during a failed Reaction.
+  const vm=require("node:vm");
+  const fs=require("node:fs");
+  const mockActor={id:"mock",hp:20,sp:9};
+  const mockItem={instanceId:"payment_item",magic:{magicalDurability:{current:12,max:12}}};
+  const paymentMagic={
+    actorCanEmitMagic:()=>true,
+    enchantmentEffectResolution:()=>({resolved:true,effects:[{
+      type:"status_apply",statusId:"warded",target:"self",
+    }]}),
+    activationResourcePlan:()=>({sp:1,magicalDurability:2}),
+    canPayActivationResources:()=>({allowed:true}),
+    payActivationResourcePlan(actor,item){
+      actor.sp-=1;
+      item.magic.magicalDurability.current-=2;
+      return {paid:false,reason:"simulated_partial_payment"};
+    },
+  };
+  const isolated={LuminousItemMagicRuntime:paymentMagic,
+    LuminousStatusEngine:{applyStatus(){throw Error("status_not_expected")}},
+    console,
+  };
+  vm.runInNewContext(fs.readFileSync("js/item-enchantment-combat-runtime.js","utf8"),isolated);
+  const testBridge=isolated.LuminousItemEnchantmentCombatRuntime;
+  const deniedPayment=testBridge.triggerCombatEffects(mockActor,mockItem,{},"before_getting_hit",{});
+  assert.equal(deniedPayment.activated,false);
+  assert.equal(deniedPayment.rolledBack,true);
+  assert.equal(deniedPayment.reason,"simulated_partial_payment");
+  assert.equal(mockActor.sp,9,"declined payment refunds provisional SP");
+  assert.equal(mockItem.magic.magicalDurability.current,12,
+    "declined payment refunds provisional MD");
+  paymentMagic.payActivationResourcePlan=(actor,item)=>{
+    actor.sp-=1;
+    item.magic.magicalDurability.current-=2;
+    throw Error("simulated_payment_exception");
+  };
+  const thrownPayment=testBridge.triggerCombatEffects(mockActor,mockItem,{},"before_getting_hit",{});
+  assert.equal(thrownPayment.activated,false);
+  assert.equal(thrownPayment.rolledBack,true);
+  assert.equal(thrownPayment.reason,"simulated_payment_exception");
+  assert.equal(mockActor.sp,9,"thrown payment refunds provisional SP");
+  assert.equal(mockItem.magic.magicalDurability.current,12,
+    "thrown payment refunds provisional MD");
+  console.log("Enchanter CombatEngine hit/received triggers, Status, MD and resource-payment rollback: OK");
 }finally {
   globalThis.LuminousItemEnchantmentEngine=engine;
   globalThis.LuminousStatusEngine=originalStatus;
