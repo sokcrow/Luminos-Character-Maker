@@ -46,6 +46,9 @@
       description:String(def.description),icon:String(def.icon || ""),
       aliases:Array.isArray(def.aliases) ? def.aliases.map(String) : []});
     spellEffects.set(id,entry);
+    // Re-registering an existing ID can change its name/aliases without
+    // changing Map.size. Never keep the old spell matcher after a mutation.
+    matcherCache=null;
     return entry;
   }
   function resolve(kind,id) {
@@ -93,7 +96,10 @@
       entries.push({name:x.name,id:x.id,kind:"spell_effect"});
       x.aliases.forEach(name => entries.push({name,id:x.id,kind:"spell_effect"}));
     });
-    return entries.filter(x => x.name.length >= 4).sort((a,b) => b.name.length-a.name.length);
+    // Spell effects/aliases are intentionally registered, unlike automatically
+    // discovered Skills/Statuses that need a short-word ambiguity guard.
+    return entries.filter(x => x.name.trim() && (x.kind === "spell_effect" || x.name.length >= 4))
+      .sort((a,b) => b.name.length-a.name.length);
   }
   function escapeReferencePattern(value) {
     return [...value].map(ch => "\\^$.*+?()[]{}|".includes(ch) ? "\\" + ch : ch).join("");
@@ -178,6 +184,9 @@
         || /^\s+(?:status|effect|potency|count|stacks?)\b/i.test(after);
       const statusImmunity = /^\s+(?:immunit(?:y|ies)|resistan(?:ce|ces))\b/i.test(after)
         || /\b(?:immune|immunity|resistant|resistance)\s+(?:to|against)\s*$/i.test(before);
+      // e.g. Necrotic Shroud: "Frightened check request" is an explicit
+      // request to resolve the canonical Status, not a narrative mention.
+      const statusCheckRequest = /^\s+(?:checks?|saves?|saving\s+throws?)\s+requests?\b/i.test(after);
       // A named Status can itself cause damage: "Radiance deals +1% Fixed Damage".
       // Require a direct damage predicate; do not match narrative "deals with".
       const statusDealsDamage = /^\s+(?:deals?|causes?|inflicts?)\s+(?:[+-]?\d+(?:\.\d+)?%?\s+)?(?:fixed\s+)?(?:damage|dmg)\b/i.test(after);
@@ -191,7 +200,7 @@
       // Quantified statuses are unambiguous even when the sentence omits an
       // action verb, e.g. "Failed Save: 2 Bind + 2 Fragile". Keep the
       // damage-type exclusions above and require verbs for unquantified names.
-      return directStatus || statusImmunity || statusDealsDamage || numeric || matcher.statusCondition.test(before) ||
+      return directStatus || statusImmunity || statusCheckRequest || statusDealsDamage || numeric || matcher.statusCondition.test(before) ||
         matcher.statusImmunityList.test(before) || matcher.statusDamageList.test(before) ||
         (becoming && !/\b(?:nature|protection|illusion)\b/i.test(entry.id)) ||
         (possession && !/\b(?:nature|protection|illusion)\b/i.test(entry.id)) ||
