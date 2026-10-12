@@ -157,21 +157,29 @@
       const directStatus = /\b(?:status|effect|potency|count|stacks?)\s*(?:of\s+)?$/i.test(before)
         || /^\s+(?:status|effect|potency|count|stacks?)\b/i.test(after);
       const action = /\b(?:inflict(?:s|ed|ing)?|appl(?:y|ies|ied|ying)|gain(?:s|ed|ing)?|receiv(?:e|es|ed|ing)|suffer(?:s|ed|ing)?|trigger(?:s|ed|ing)?|remov(?:e|es|ed|ing)|los(?:e|es|ing)|lost|cleans(?:e|es|ed|ing)|purg(?:e|es|ed|ing)|grant(?:s|ed|ing)?|aplicar|infligir|ganar|recibir|perder|eliminar|aplica|inflige|gana|pierde|otorga)\b/i.test(before);
+      // Becoming a registered condition is explicit status wording; do not
+      // expand generic action matching into prose such as "become stronger".
+      const becoming = /\b(?:become|becomes|became|becoming)\s+(?:[a-z-]+\s+){0,2}$/i.test(before);
       const numeric = /\b\d+(?:\s+(?:potency|count|stacks?))?\s*(?:of\s+)?$/i.test(before);
       // Quantified statuses are unambiguous even when the sentence omits an
       // action verb, e.g. "Failed Save: 2 Bind + 2 Fragile". Keep the
       // damage-type exclusions above and require verbs for unquantified names.
       return directStatus || numeric || matcher.statusCondition.test(before) ||
+        (becoming && !/\b(?:nature|protection|illusion)\b/i.test(entry.id)) ||
         (action && !/\b(?:nature|protection|illusion)\b/i.test(entry.id));
     }
     if (entry.kind === "skill") {
       // Explicit check wording or a verb indicating a skill is being rolled.
       const prompt = /\b(?:skill|check|checks|roll|rolling|try|use|attempt|make|test|tirar|tira|prueba|usar|usa|intenta|realiza|haz|habilidad)\b/i.test(before);
       const proficiency = /\b(?:proficiency|expertise|proficient|trained|competencia|pericia)\s+(?:in|with|en)\s*$/i.test(before);
-      const suffix = /^\s*(?:skills?|checks?|rolls?|tests?|ability\s+checks?|pruebas?|habilidades?|threshold|dc)\b/i.test(after);
+      // Skill grants may follow non-Skill equipment in one comma-separated
+      // proficiency list (e.g. "proficiency with Light Armor, Performance").
+      // Require an explicit proficiency prefix and short, uninterrupted items.
+      const proficiencyList = /\b(?:proficiency|expertise|proficient|trained|competencia|pericia)\s+(?:in|with|en)\s+(?:(?:[a-z][a-z-]*(?:\s+[a-z][a-z-]*){0,4})\s*(?:,\s*|\s+(?:and|or|y|o)\s+))+$/i.test(before);
+      const suffix = /^\s*(?:skills?|checks?|rolls?|tests?|ability\s+checks?|pruebas?|habilidades?|threshold|dc|power)\b/i.test(after);
       const slashAbility = /(?:STR|DEX|CON|INT|WIS|CHA)\s*\/\s*$/i.test(before);
       // Compound checks: "Try Athletics or Sleight of Hand".
-      return prompt || proficiency || suffix || slashAbility || matcher.checkGroup.test(after);
+      return prompt || proficiency || proficiencyList || suffix || slashAbility || matcher.checkGroup.test(after);
     }
     return false;
   }
