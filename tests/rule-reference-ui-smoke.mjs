@@ -230,6 +230,28 @@ for (const [sentence, expected] of [
     "Linkification must preserve all original description text");
 }
 
+// Codex ninth review: Save suffixes propagate to every ability in the
+// compound selection, and possession wording links only canonical statuses.
+for (const [sentence, expected] of [
+  ["choose INT or CHA Save Checks instead", ["save:int", "save:cha"]],
+  ["Choose STR, DEX, or WIS Saves.", ["save:str", "save:dex", "save:wis"]],
+  ["Strength or Charisma Saving Throw", ["save:str", "save:cha"]],
+  ["INT or CHA Checks", ["check:int", "check:cha"]],
+  ["if you have Haste, reload your weapon once.", ["status:haste"]],
+  ["While having Haste, you can reload the weapon.", ["status:haste"]],
+  ["The target has Haste and can react.", ["status:haste"]],
+  ["INT or CHA styles are preferred.", []],
+  ["If you have increased Haste, try again.", []],
+  ["The narrator has Illusion about the scene.", []],
+  ["Fire/Burn damage type.", []],
+]) {
+  const parts=references.tokenize(sentence);
+  assert.deepEqual(parts.filter(x=>x.kind).map(x=>x.kind+":"+x.id),expected,
+    "Shared Save or status-possession context mismatch: "+sentence);
+  assert.equal(parts.map(x=>x.text).join(""),sentence,
+    "Original rules text must be preserved");
+}
+
 const more=references.tokenize("Use WIS Saving Throw and DEX Check, or Percepción.");
 assert.deepEqual(more.filter(x=>x.kind).map(x=>x.kind+":"+x.id),
   ["save:wis","check:dex","skill:perception"]);
