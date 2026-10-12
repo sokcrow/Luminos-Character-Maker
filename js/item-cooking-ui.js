@@ -429,7 +429,8 @@
           }
         }
       }
-      if (!result.valid) break;
+      // Even when a portion is incomplete, reserve the available matches
+      // for later requested portions so unrelated stock is not underreported.
     }
     return requirements.map(function (ingredient, index) {
       const required = Math.max(1, Math.trunc(Number(ingredient.quantity) || 1)) * requested;
