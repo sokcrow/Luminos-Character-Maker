@@ -26,6 +26,7 @@ const { pathToFileURL } = require("node:url");
 
   let saveCalls = 0;
   let renderCalls = 0;
+  let rejectSave = false;
   const character = {
     playerId:"alice", level:5, sp:12, proficiencyBonus:3,
     stats:{destreza:16,inteligencia:14,sabiduria:12},
@@ -43,7 +44,7 @@ const { pathToFileURL } = require("node:url");
       peer:{bound:true, async save(savedUnit) {
         assert.equal(savedUnit, inventoryState, "must save canonical inventory unit");
         saveCalls++;
-        return {saved:true};
+        return {saved:!rejectSave, reason:rejectSave ? "offline" : null};
       }}
     },
     renderAll() { renderCalls++; }
@@ -157,5 +158,27 @@ const { pathToFileURL } = require("node:url");
   assert.equal(ui.craftable().some(row=>row.recipeId==="burger"), false);
   assert.equal(ui.close(), true);
 
-  console.log("Cooking recipe book UI smoke: OK (categories, inventory requirements, coin rolls, batch, save)");
+  // Locked stash cannot supply ingredients, even when the player owns them.
+  delete character.cookingKnowledge;
+  Object.assign(unit.inventario_stash, {
+    bread2: {instanceId:"stash-bread", itemId:"finished_flatbread_s", recipeId:"flatbread",family:"food",quantity:1},
+    meat2: {instanceId:"stash-meat",itemId:"meat_wolf",tags:["ingredient","meat","wolf"],quantity:1},
+    veg2: {instanceId:"stash-veg",itemId:"carrot",recipeRoles:["vegetable"],itemTags:["ingredient","vegetable"],quantity:1},
+    sauce2: {instanceId:"stash-sauce",itemId:"processed_sauce_base",family:"processed_food",processed:true,processedForm:"sauce_base",tags:["sauce_base","liquid","base"],quantity:1}
+  });
+  assert.equal(ui.craftable().some(row => row.recipeId === "burger"), false);
+  globalThis.LuminousInventoryHudV2.state.stashUnlocked = true;
+  assert.equal(ui.craftable().some(row => row.recipeId === "burger"), true);
+
+  // A peer that answers {saved:false} must never display a success message.
+  rejectSave = true;
+  assert.equal(ui.open(), true);
+  click("[data-cook-recipe]", {cookRecipe:"burger"});
+  click("[data-cook-confirm]");
+  await new Promise(resolve => setTimeout(resolve, 30));
+  assert.equal(elements["cooking-v2-status"].dataset.kind, "error");
+  assert.doesNotMatch(elements["cooking-v2-status"].textContent, /guardados en el inventario/);
+  assert.equal(ui.close(), true);
+
+  console.log("Cooking recipe book UI smoke: OK (full sheet, locked recipes, Escape, stash, coins, batch, save rejection)");
 })().catch(error => { console.error(error); process.exitCode = 1; });
