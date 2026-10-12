@@ -26,6 +26,11 @@ exports.commitEnchanterService=onCall({
   timeoutSeconds:120,
   maxInstances:5,
 },async request=>{
+  // Two-sided release gate: a deployed Function must stay inert until the
+  // economy write rules and load testing have been approved. Client-only
+  // flags cannot authorize monetary actions on the privileged server.
+  if(process.env.LUMINOUS_ENCHANTER_SERVER_ENABLED!=="true")
+    throw new HttpsError("failed-precondition","enchanter_server_not_enabled");
   if(!request.auth?.uid)throw new HttpsError("unauthenticated","Inicia sesión para usar este servicio.");
   const result=await commitEnchanterAtomic({
     database:admin.database(),authUid:request.auth.uid,request:request.data,
