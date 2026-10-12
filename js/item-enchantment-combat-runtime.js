@@ -248,7 +248,8 @@
   }
 
   function triggerStatusTarget(effect,actor,target,trigger) {
-    const where=normalizeId(effect.target || (trigger==="on_damage_received"?"self":"target"));
+    const defensive=trigger==="on_damage_received" || trigger==="before_getting_hit";
+    const where=normalizeId(effect.target || (defensive?"self":"target"));
     if(["self","wielder","wearer","owner"].includes(where))return actor;
     if(["target","enemy","defender"].includes(where))return target;
     return null;
