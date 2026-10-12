@@ -1623,13 +1623,23 @@
         return false;
       }
       try {
-        const latest = await persist.loadPlayerInventory(state.db, state.playerId, {
-          writeBackMigration:false
-        });
-        if (!latest?.loaded || !latest.state || fallbackDisposed) throw new Error("inventory_reload_failed");
-        applyConfirmedInventory(latest.state);
-        fallbackReconciliationRequired = false;
-        return true;
+        // The subscription remains active during a multi-path Firebase reload.
+        // Retry if it delivers newer inventory rather than overwriting it with
+        // an older (or torn) reload result.
+        for (let attempt = 0; attempt < 3; attempt += 1) {
+          if (fallbackDisposed) return false;
+          const startedRevision = fallbackRevision;
+          const latest = await persist.loadPlayerInventory(state.db, state.playerId, {
+            writeBackMigration:false
+          });
+          if (!latest?.loaded || !latest.state || fallbackDisposed) throw new Error("inventory_reload_failed");
+          if (fallbackRevision !== startedRevision) continue;
+          applyConfirmedInventory(latest.state);
+          if (fallbackDisposed) return false;
+          fallbackReconciliationRequired = false;
+          return true;
+        }
+        throw new Error("inventory_changed_during_reconciliation");
       } catch (_) {
         fallbackReconciliationRequired = true;
         return false;
