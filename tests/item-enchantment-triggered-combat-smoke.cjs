@@ -7,6 +7,33 @@ require("../js/item-enchantment-engine.js");
 require("../js/item-runtime-engine.js");
 require("../js/item-inventory-runtime.js");
 require("../js/item-magic-runtime.js");
+const Catalog=globalThis.LuminousEnchantmentCatalog;
+// Release contract: no Enchanter recipe may ship with an accepted-but-silent
+// trigger. The catalog may recognize future trigger names for authoring,
+// but a live recipe must have an explicitly executable combat bridge.
+const executableOnSkill=new Set([
+  "damage_percent","secondary_damage_percent","specialized_damage_percent",
+  "damage_flat","magic_hit",
+]);
+const executableStatus=new Set(["on_hit","on_damage_received","before_getting_hit"]);
+let authoredTriggers=0;
+for(const definition of Catalog.DEFINITIONS){
+  assert.equal(Catalog.validateDefinition(definition).valid,true,
+    `Invalid canonical recipe ${definition.id}`);
+  for(const rank of Object.values(definition.rankData||{})){
+    for(const effect of rank.effects||[]){
+      const trigger=Catalog.normalizeId(effect.trigger||"passive");
+      const type=Catalog.normalizeId(effect.type);
+      const executable=trigger==="passive" ||
+        (trigger==="on_skill" && executableOnSkill.has(type)) ||
+        (executableStatus.has(trigger) && type==="status_apply");
+      assert.equal(executable,true,
+        `Recipe ${definition.id}: ${type}/${trigger} has no live Enchanter combat adapter`);
+      if(trigger!=="passive")authoredTriggers++;
+    }
+  }
+}
+assert.ok(authoredTriggers>0,"At least one canonical on-Skill Enchanter definition must be exercised");
 const Magic=globalThis.LuminousItemMagicRuntime;
 const engine=globalThis.LuminousItemEnchantmentEngine;
 const originalStatus=globalThis.LuminousStatusEngine;
