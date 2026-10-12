@@ -394,6 +394,57 @@ for (const [phrase, expected] of [
   assert.equal(references.tokenize(phrase).map(x=>x.text).join(""),phrase);
 }
 
+// Codex: runtime Status replacements keep the same registry/list size.
+// The reference matcher must notice a version bump, drop the old name and
+// match the replacement definition without interfering with combat status IDs.
+const statuses=globalThis.LuminousStatusLibrary;
+const baseStatusCount=statuses.list().length;
+const initialStatusRevision=statuses.revision;
+assert.equal(typeof initialStatusRevision,"number");
+assert.deepEqual(refsOf("Apply Old Mark."),[]);
+assert.equal(statuses.registerExtension("test_rule_mark",{
+  name:"Old Mark",type:"negative",mode:"single",description:"Original runtime marker."
+}).name,"Old Mark");
+assert.equal(statuses.revision,initialStatusRevision+1);
+assert.equal(statuses.list().length,baseStatusCount+1);
+assert.deepEqual(refsOf("Apply Old Mark."),["status:test_rule_mark"]);
+const replacementRevision=statuses.revision;
+assert.equal(statuses.registerExtension("test_rule_mark",{
+  name:"New Mark",type:"negative",mode:"single",description:"Replacement marker."
+}).name,"New Mark");
+assert.equal(statuses.revision,replacementRevision+1,
+  "Replacing the same ID must advance the revision without adding a Status");
+assert.equal(statuses.list().length,baseStatusCount+1);
+assert.deepEqual(refsOf("Apply Old Mark."),[],
+  "Old status name must not link to a replacement's card");
+assert.deepEqual(refsOf("Apply New Mark."),["status:test_rule_mark"]);
+assert.equal(references.resolve("status","test_rule_mark").description,"Replacement marker.");
+// STATUS_REGISTRY uses a Proxy. Its assignment and removal also mutate the
+// library; neither path may leave stale rule-reference names behind.
+const proxyRevision=statuses.revision;
+statuses.registry.test_rule_mark={
+  name:"Third Mark",description:"Definition registered through the registry proxy."
+};
+assert.equal(statuses.revision,proxyRevision+1);
+assert.deepEqual(refsOf("Apply New Mark."),[]);
+assert.deepEqual(refsOf("Apply Third Mark."),["status:test_rule_mark"]);
+const deletionRevision=statuses.revision;
+delete statuses.registry.test_rule_mark;
+assert.equal(statuses.revision,deletionRevision+1);
+assert.equal(statuses.list().length,baseStatusCount);
+assert.deepEqual(refsOf("Apply Third Mark."),[]);
+delete statuses.registry.test_rule_mark;
+assert.equal(statuses.revision,deletionRevision+1,
+  "Deleting a missing extension must not advance the revision");
+statuses.registerExtension("burn",{name:"Wrong Burn",description:"Must not override core"});
+assert.equal(statuses.revision,deletionRevision+1,
+  "Attempting to override an immutable built-in must not mutate the registry");
+assert.deepEqual(refsOf("Inflict 2 Burn."),["status:burn"]);
+for (const sentence of ["Apply Old Mark.","Apply New Mark.","Apply Third Mark."]) {
+  assert.equal(references.tokenize(sentence).map(x=>x.text).join(""),sentence,
+    "Revised registry matcher must never modify original text");
+}
+
 const html=fs.readFileSync(path.join(base,"hoja_personaje.html"),"utf8");
 const stats=fs.readFileSync(path.join(base,"js/trait-player-tray.js"),"utf8");
 const progression=fs.readFileSync(path.join(base,"js/player-progression-tree.js"),"utf8");
