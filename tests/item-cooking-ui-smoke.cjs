@@ -26,8 +26,26 @@ const { pathToFileURL } = require("node:url");
 
   let saveCalls = 0;
   let renderCalls = 0;
+  const character = {
+    playerId:"alice", level:5, sp:12, proficiencyBonus:3,
+    stats:{destreza:16,inteligencia:14,sabiduria:12},
+    currentCookingStationId:"grill", abilityProficiency:{dex:"proficient"}
+  };
+  const inventoryState = {
+    inventario_activo: unit.inventario_activo,
+    inventario_stash: unit.inventario_stash,
+    level:5, sp:12
+  };
+  globalThis.datosJugador = character;
   globalThis.LuminousInventoryHudV2 = {
-    state: { unit, peer: { async save() { saveCalls++; } } },
+    state: {
+      playerId:"alice", unit:inventoryState, stashUnlocked:false,
+      peer:{bound:true, async save(savedUnit) {
+        assert.equal(savedUnit, inventoryState, "must save canonical inventory unit");
+        saveCalls++;
+        return {saved:true};
+      }}
+    },
     renderAll() { renderCalls++; }
   };
   globalThis.LuminousCoinEngine = {
@@ -84,6 +102,8 @@ const { pathToFileURL } = require("node:url");
   assert.equal(ui.categoryFor(recipes.get("apple_pie")), "desserts");
   assert.equal(ui.abilityBase(unit, "dex"), 3);
   assert.equal(ui.headsChance(unit), 62);
+  assert.equal(ui.abilityBase(character, "dex"), 5,
+    "ability check includes proficiency even when its helper runtime is not loaded");
   assert.equal(ui.maxQuantity(recipes.get("burger"), runtime.inventoryView(unit).rows), 2);
   assert.ok(ui.craftable().some(row => row.recipeId === "burger"));
   assert.equal(resolver.resolveRecipe("burger", runtime.inventoryView(unit).rows).valid, true);
@@ -107,6 +127,8 @@ const { pathToFileURL } = require("node:url");
   click("[data-cook-recipe]", { cookRecipe: "burger" });
   assert.match(elements["cooking-v2-detail"].innerHTML, /INGREDIENTES/);
   assert.match(elements["cooking-v2-detail"].innerHTML, /EFECTOS/);
+  assert.match(elements["cooking-v2-detail"].innerHTML, /Grill/,
+    "station must be sourced from the full character, not the inventory-only snapshot");
   assert.match(elements["cooking-v2-detail"].innerHTML, /COCINAR/);
   assert.match(elements["cooking-v2-detail"].innerHTML, /1 \/ 1|2 \/ 1/);
   click("[data-cook-quantity]", { cookQuantity: "1" });
@@ -119,6 +141,20 @@ const { pathToFileURL } = require("node:url");
   assert.equal(saveCalls, 1, "a batch saves inventory once");
   assert.equal(renderCalls, 1, "inventory HUD refreshes after cooking");
   assert.match(elements["cooking-v2-status"].textContent, /2 platos preparados/);
+  let stopped=0, blocked=0;
+  modal.listeners.keydown({
+    key:"Escape", preventDefault(){blocked++;},
+    stopPropagation(){stopped++;}, stopImmediatePropagation(){stopped++;}
+  });
+  assert.equal(blocked,1);
+  assert.equal(stopped,2);
+  assert.equal(modal.hidden,true,"Escape closes only the cookbook");
+  assert.equal(ui.open(),true);
+  character.cookingKnowledge={apple_pie:true};
+  click("[data-cook-recipe]", {cookRecipe:"burger"});
+  assert.match(elements["cooking-v2-detail"].innerHTML,/Todavía no has aprendido esta receta/);
+  assert.doesNotMatch(elements["cooking-v2-detail"].innerHTML,/Dificultad 12/);
+  assert.equal(ui.craftable().some(row=>row.recipeId==="burger"), false);
   assert.equal(ui.close(), true);
 
   console.log("Cooking recipe book UI smoke: OK (categories, inventory requirements, coin rolls, batch, save)");
