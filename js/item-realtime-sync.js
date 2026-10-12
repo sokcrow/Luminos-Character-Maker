@@ -85,10 +85,21 @@
     let revision = 0;
     let stashUnlocked = null;
     let lastState = null;
+    let confirmedSave = null;
+    let rejectedEcho = null;
+    let reconciliationRequired = false;
     const disposers = [];
 
-    const unsubscribeInventory = runtime.subscribePlayerInventory(db, playerId, (state) => {
-      if (disposed) return;
+    function inventorySignature(value) {
+      const serialized = runtime.serializeInventoryState?.(value);
+      const data = serialized || value || {};
+      return JSON.stringify({
+        active: data.inventario_activo || {},
+        stash: data.inventario_stash || {},
+      });
+    }
+
+    function publishInventory(state) {
       const applied = runtime.applyInventoryState(unit, state, options);
       if (!applied?.applied) {
         options.onError?.({ source: "inventory", reason: applied?.reason || "inventory_apply_failed", state });
@@ -99,6 +110,23 @@
       const detail = { role, playerId, revision, state: clone(state), unit, source: "firebase" };
       options.onInventory?.(detail);
       emit("luminous:inventory-realtime", detail);
+    }
+
+    const unsubscribeInventory = runtime.subscribePlayerInventory(db, playerId, (state) => {
+      if (disposed) return;
+      // RTDB emits speculative local events before update() resolves. Keep them
+      // out of the canonical HUD and out of all inventory-realtime consumers.
+      if (confirmedSave) {
+        confirmedSave.pending = clone(state);
+        return;
+      }
+      // A rejected update's optimistic aggregate can still be queued on the
+      // microtask boundary. Never surface the rejected inventory snapshot.
+      if (rejectedEcho) {
+        if (inventorySignature(state) === rejectedEcho) return;
+        rejectedEcho = null;
+      }
+      publishInventory(state);
     }, options);
     disposers.push(unsubscribeInventory);
 
@@ -114,15 +142,90 @@
       disposers.push(unsubscribeAccess);
     }
 
+    // A rejected RTDB write may have overwritten the subscriber's local cache.
+    // Reload after rejection instead of dropping the buffered rollback or
+    // concurrent changes. If reconciliation fails, block future writes so a
+    // stale local inventory cannot overwrite a newer server inventory.
+    async function reconcileInventory() {
+      if (disposed) return false;
+      if (typeof runtime.loadPlayerInventory !== "function") {
+        reconciliationRequired = true;
+        options.onError?.({ source:"inventory", reason:"confirmed_inventory_reload_unavailable" });
+        return false;
+      }
+      try {
+        // A subscription can deliver a more recent inventory while an older,
+        // multi-path once("value") reload is still in flight. Do not replace
+        // that new state with the stale or torn reload result.
+        for (let attempt = 0; attempt < 3; attempt += 1) {
+          if (disposed) return false;
+          const startedRevision = revision;
+          const result = await runtime.loadPlayerInventory(db, playerId, {
+            ...options, writeBackMigration:false
+          });
+          if (!result?.loaded || !result.state || disposed) throw new Error("inventory_reload_failed");
+          if (revision !== startedRevision) continue;
+          publishInventory(result.state);
+          if (disposed) return false;
+          reconciliationRequired = false;
+          return true;
+        }
+        throw new Error("inventory_changed_during_reconciliation");
+      } catch (error) {
+        reconciliationRequired = true;
+        options.onError?.({ source:"inventory", reason:"confirmed_inventory_reload_failed", error });
+        return false;
+      }
+    }
+
     async function save(unitOrState = unit, saveOptions = {}) {
       if (disposed) return { saved: false, reason: "peer_disposed" };
+      if (confirmedSave) return { saved: false, reason: "confirmed_inventory_save_in_progress" };
+      if (reconciliationRequired) return { saved:false, reason:"inventory_refresh_required" };
       const result = await runtime.saveInventoryState(db, playerId, unitOrState, { ...options, ...saveOptions });
       if (result?.saved) emit("luminous:inventory-realtime-write", { role, playerId, result });
       return result;
     }
 
+    // Cooking must use this opt-in write barrier rather than save(): it stages
+    // the entire recipe batch, and neither the HUD nor other inventory consumers
+    // may see Firebase's local optimistic event until the server acknowledges.
+    async function saveConfirmed(unitOrState, saveOptions = {}) {
+      if (disposed) return { saved:false, reason:"peer_disposed" };
+      if (confirmedSave) return { saved:false, reason:"confirmed_inventory_save_in_progress" };
+      if (reconciliationRequired) return { saved:false, reason:"inventory_refresh_required" };
+      const barrier = { pending:null };
+      confirmedSave = barrier;
+      rejectedEcho = null;
+      let result = null;
+      let succeeded = false;
+      try {
+        result = await runtime.saveInventoryState(db, playerId, unitOrState, { ...options, ...saveOptions });
+        succeeded = result?.saved === true;
+        return result;
+      } finally {
+        // Drain already queued subscribePlayerInventory aggregation microtasks
+        // before releasing the barrier (even after a rejected Firebase write).
+        await Promise.resolve();
+        if (confirmedSave === barrier) confirmedSave = null;
+        if (succeeded && !disposed) {
+          if (barrier.pending) publishInventory(barrier.pending);
+          emit("luminous:inventory-realtime-write", { role, playerId, result });
+        } else if (!disposed) {
+          // The buffered snapshot may be a rollback or a concurrent write,
+          // and RTDB is not obliged to send it again. Fetch the current
+          // inventory instead of silently discarding this authoritative data.
+          rejectedEcho = inventorySignature(unitOrState);
+          reconciliationRequired = true;
+          await reconcileInventory();
+        }
+      }
+    }
+
     async function move(ref, direction, amount = null, moveOptions = {}) {
       if (disposed) return { moved: false, saved: false, reason: "peer_disposed" };
+      if (confirmedSave) return { moved:false, saved:false, reason:"confirmed_inventory_save_in_progress" };
+      if (reconciliationRequired) return { moved:false, saved:false, reason:"inventory_refresh_required" };
       const itemRuntime = inventory();
       if (!itemRuntime) return { moved: false, saved: false, reason: "item_inventory_runtime_unavailable" };
       const normalized = String(direction || "").trim().toLowerCase();
@@ -146,6 +249,9 @@
     function dispose() {
       if (disposed) return;
       disposed = true;
+      confirmedSave = null;
+      rejectedEcho = null;
+      reconciliationRequired = false;
       while (disposers.length) {
         try { disposers.pop()?.(); } catch (_) {}
       }
@@ -161,7 +267,9 @@
       get revision() { return revision; },
       get state() { return clone(lastState); },
       get stashUnlocked() { return stashUnlocked; },
+      get reconciliationRequired() { return reconciliationRequired; },
       save,
+      saveConfirmed,
       move,
       setStashUnlocked,
       dispose,

@@ -139,14 +139,25 @@
     });
   }
 
-  function canInsertFinishedItem(unit={},destination="active") {
+  function canInsertFinishedItem(unit={},destination="active",sourcePlan=[],options={}) {
     const inv=inventory();
     if (!inv) return true;
     if (normalizeId(destination)==="stash") return true;
     const container=inv.activeContainer?.(unit,true)?.value;
     if (!container) return true;
     const count=objectEntries(container).filter(([,item])=>item && quantityOf(item)>0).length;
-    return count < (inv.activeSlotLimit?.(unit) ?? 10);
+    const limit=inv.activeSlotLimit?.(unit) ?? 10;
+    if (count < limit) return true;
+
+    // Ingredients consumed entirely free their active slots before inserting the dish.
+    const sources=inventoryView(unit,options).sources;
+    const released=new Set();
+    for(const row of sourcePlan) {
+      const source=sources[row.inventoryIndex];
+      if(source?.containerType!=="active") continue;
+      if(quantityOf(source.item)<=row.units) released.add(String(source.key));
+    }
+    return count-released.size < limit;
   }
 
   function deleteFromContainer(container,key,item) {
@@ -257,7 +268,7 @@
     const preview=previewCook(unit,recipeOrId,options);
     if (!preview.valid) return Object.freeze({cooked:false,...preview});
     const destination=normalizeId(options.destination || "active");
-    if (!canInsertFinishedItem(unit,destination)) return Object.freeze({cooked:false,reason:"output_inventory_full",preview});
+    if (!canInsertFinishedItem(unit,destination,preview.sourcePlan,options)) return Object.freeze({cooked:false,reason:"output_inventory_full",preview});
 
     const prepared=cooking().resolvePreparedItem(preview.concreteRecipe,checkResult,{equipment:preview.equipment});
     const v2Prepared=cookingV2()?.resolvePreparedFunction?.(preview.recipe,prepared.stars,unit,{...options,equipment:preview.equipment}) || null;

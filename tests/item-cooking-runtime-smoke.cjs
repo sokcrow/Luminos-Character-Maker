@@ -90,5 +90,33 @@ const { pathToFileURL } = require("node:url");
   assert.equal(second.valid,false);
   assert.equal(second.reason,"missing_recipe_requirements");
 
+  // An active inventory at capacity may still cook when consumed stacks free space.
+  globalThis.LuminousItemInventoryRuntime = {
+    activeContainer(actor) { return { value:actor.inventario_activo }; },
+    stashContainer(actor) { return { value:actor.inventario_stash }; },
+    activeSlotLimit() { return 10; }
+  };
+  const fullInventory = {
+    hp:50, hp_max:100, sp:0, sp_max:45, proficiencyBonus:3,
+    inventario_activo: {
+      cooks:{definitionId:"cooks_utensils",itemId:"cooks_utensils",quantity:1},
+      bread:{instanceId:"bread-cap",itemId:"finished_flatbread_cap",recipeId:"flatbread",family:"food",quantity:1},
+      meat:{instanceId:"meat-cap",itemId:"meat_wolf",tags:["ingredient","meat","wolf"],quantity:1},
+      veg:{instanceId:"veg-cap",itemId:"carrot",recipeRoles:["vegetable"],itemTags:["ingredient","vegetable"],quantity:1},
+      sauce:{instanceId:"sauce-cap",itemId:"processed_sauce_base",family:"processed_food",processed:true,processedForm:"sauce_base",tags:["sauce_base","liquid","base"],quantity:1},
+      a:{itemId:"a",quantity:1},b:{itemId:"b",quantity:1},
+      c:{itemId:"c",quantity:1},d:{itemId:"d",quantity:1},e:{itemId:"e",quantity:1}
+    },
+    inventario_stash:{}
+  };
+  assert.equal(Object.keys(fullInventory.inventario_activo).length,10);
+  assert.equal(rt.previewCook(fullInventory,"burger",{equipment:{stationId:"grill"}}).valid,true);
+  const atCapacity = rt.executeCook(fullInventory,"burger",20,{
+    equipment:{stationId:"grill"},createdAt:3000,instanceId:"burger-from-full-inventory"
+  });
+  assert.equal(atCapacity.cooked,true,"consuming active ingredients makes room for the finished dish");
+  assert.ok(fullInventory.inventario_activo["burger-from-full-inventory"]);
+  delete globalThis.LuminousItemInventoryRuntime;
+
   console.log("Cooking Runtime V2 smoke: OK (inventory recipe -> TH/equipment -> stars -> balanced recipe functions -> finished food)");
 })().catch((error)=>{ console.error(error); process.exitCode=1; });
