@@ -277,6 +277,7 @@ async function bootDmHarness(page) {
   await page.addScriptTag({ path: path.join(ROOT, "js/item-enchantment-recipe-catalog.js") });
   await page.addScriptTag({ path: path.join(ROOT, "js/item-enchantment-crafting-runtime.js") });
   await page.addScriptTag({ path: path.join(ROOT, "js/dm-enchanter-studio-model.js") });
+  await page.addScriptTag({ path: path.join(ROOT, "js/curse-catalog.js") });
   await page.addScriptTag({ path: path.join(ROOT, "js/curse-runtime.js") });
   // This is an about:blank fixture: editor runtime dependencies must be
   // explicitly available. A relative script URL cannot load from about:blank.
