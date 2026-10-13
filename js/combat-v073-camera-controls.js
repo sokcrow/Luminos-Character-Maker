@@ -68,10 +68,22 @@
     if(!h||!h.contains(event.target))return;
 
     if(event.pointerType==='touch'){
+      // Never capture UI touches: buttons and scrollable menus must receive
+      // their own pointer/click gestures.
+      const target=event.target;
+      const blocked=target?.closest?.(
+        'button,a,input,textarea,select,[role="button"],' +
+        '#category-surface,#command-ring,.player-ready-control,' +
+        '.prototype-controls,.clash-forecast,.clash-hud,.observation-ring'
+      );
+      if(blocked||!(field()?.contains(target)||background()?.contains(target)||target===h))return;
       state.touches.set(event.pointerId,{x:event.clientX,y:event.clientY});
-      h.setPointerCapture?.(event.pointerId);
       if(state.touches.size>=2){
         event.preventDefault();
+        // Capture only during an actual two-finger pinch, never on a tap.
+        for(const pointerId of state.touches.keys()){
+          try{h.setPointerCapture?.(pointerId)}catch(_){}
+        }
         beginPinch();
       }
       return;
@@ -151,8 +163,11 @@
     if(!h||!field())return false;
     state.started=true;
     readState();
-    state.previousTouchAction=h.style.touchAction;
-    h.style.touchAction='none';
+    // touch-action:none on the entire host prevents scrolling category lists.
+    // Restrict non-native gestures to the battlefield alone.
+    const f=field();
+    state.previousTouchAction=f.style.touchAction;
+    f.style.touchAction='none';
     h.addEventListener('wheel',onWheel,{passive:false});
     h.addEventListener('pointerdown',onPointerDown);
     global.addEventListener('pointermove',onPointerMove,{passive:false});
@@ -172,7 +187,8 @@
     global.removeEventListener('pointerup',endDrag);
     global.removeEventListener('pointercancel',endDrag);
     global.removeEventListener('resize',onResize);
-    if(h)h.style.touchAction=state.previousTouchAction||'';
+    const f=field();
+    if(f)f.style.touchAction=state.previousTouchAction||'';
     if(state.restoreTimer)global.clearTimeout(state.restoreTimer);
     state.touches.clear();
     state.pinch=null;
@@ -185,7 +201,7 @@
   global.addEventListener('beforeunload',stop,{once:true});
 
   global.LuminousCombatCameraControls073=Object.freeze({
-    version:'0.7.3-camera-controls.2-touch',
+    version:'0.7.3-camera-controls.3-ui-touch-isolation',
     state,
     start,
     stop,
