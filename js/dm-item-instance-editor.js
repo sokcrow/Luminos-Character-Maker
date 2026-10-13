@@ -73,6 +73,7 @@
     await ensureScript("item-gem-catalog-script", "js/item-catalog-ore-ingot-gem.js", "LuminousOreIngotGemCatalog");
     await ensureScript("item-enchantment-catalog-script", "js/item-catalog-enchantments.js", "LuminousEnchantmentCatalog");
     await ensureScript("item-enchantment-engine-script", "js/item-enchantment-engine.js", "LuminousItemEnchantmentEngine");
+    await ensureScript("curse-catalog-script", "js/curse-catalog.js", "LuminousCurseCatalog");
     await ensureScript("curse-runtime-script", "js/curse-runtime.js", "LuminousCurseRuntime");
     await ensureScript("item-magic-runtime-script", "js/item-magic-runtime.js", "LuminousItemMagicRuntime");
     await ensureScript("item-enchanter-service-script", "js/item-enchanter-service-runtime.js", "LuminousItemEnchanterServiceRuntime");
