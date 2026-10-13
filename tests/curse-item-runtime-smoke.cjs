@@ -5,6 +5,7 @@ const assert = require("node:assert/strict");
 require("../js/item-runtime-engine.js");
 require("../js/item-inventory-runtime.js");
 require("../js/item-catalog-enchantments.js");
+require("../js/curse-catalog.js");
 require("../js/curse-runtime.js");
 require("../js/item-magic-runtime.js");
 require("../js/item-magic-knowledge-runtime.js");
