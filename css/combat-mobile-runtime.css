@@ -185,7 +185,23 @@
     max-width: 26vw;
     font-size: clamp(13px, 2vw, 18px) !important;
   }
-  #game-container .prototype-status { display: none !important; }
+  /* Keep player feedback visible instead of silently hiding action state. */
+  #game-container .prototype-status {
+    display: block !important;
+    top: max(40px, calc(env(safe-area-inset-top) + 37px)) !important;
+    left: max(8px, env(safe-area-inset-left)) !important;
+    right: auto !important;
+    max-width: min(320px, 43vw) !important;
+    max-height: 38px;
+    margin: 0;
+    padding: 4px 6px !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: clamp(10px, 1.5vw, 12px) !important;
+    line-height: 1.25 !important;
+    z-index: 176 !important;
+    pointer-events: none;
+  }
   #game-container #damage-test { display: none !important; }
   #game-container .quick-badge { top: 54px !important; right: max(10px, env(safe-area-inset-right)) !important; font-size: 13px !important; }
   #game-container .combat-economy-tabs { gap: 5px !important; padding: 5px !important; }
@@ -228,6 +244,10 @@
   }
   #game-container .command-ring .command { height: 48px !important; }
   #game-container .command-ring .command .label { font-size: clamp(10px, 2.6vw, 13px) !important; }
+  #game-container .prototype-status {
+    max-width: min(62vw, 270px) !important;
+    max-height: 34px;
+  }
   #game-container .category-surface {
     left: max(8px, env(safe-area-inset-left)) !important;
     right: max(8px, env(safe-area-inset-right)) !important;
