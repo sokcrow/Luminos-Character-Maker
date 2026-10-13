@@ -38,6 +38,19 @@
       return {valid:false,reason:"invalid_curse_instance"};
     }
     if (!Number.isFinite(Number(instance.appliedAt)) || Number(instance.appliedAt) < 0) return {valid:false,reason:"invalid_curse_timestamp"};
+    if (instance.provenance !== undefined && !safeMetadata(instance.provenance)) return {valid:false,reason:"invalid_curse_provenance"};
+    if (instance.stateChangedAt !== undefined &&
+        (!Number.isFinite(Number(instance.stateChangedAt)) || Number(instance.stateChangedAt) < 0)) {
+      return {valid:false,reason:"invalid_curse_timestamp"};
+    }
+    if (instance.conditions !== undefined &&
+        (!plainObject(instance.conditions) ||
+         instance.conditions.persistence !== "explicit_resolution" ||
+         instance.conditions.sourceLoss !== "no_automatic_removal" ||
+         !Array.isArray(instance.conditions.allowedResolutions) ||
+         JSON.stringify(instance.conditions.allowedResolutions) !== JSON.stringify(definition.allowedResolutions))) {
+      return {valid:false,reason:"invalid_curse_conditions"};
+    }
     if (instance.eventIds !== undefined &&
         (!Array.isArray(instance.eventIds) || instance.eventIds.length > 32 ||
          new Set(instance.eventIds).size !== instance.eventIds.length ||
@@ -142,7 +155,14 @@
         intensity:1,
         state:"active",
         origin:clone(options.origin || {source:"dm_item_editor"}),
+        provenance:clone(options.origin || {source:"dm_item_editor"}),
+        conditions:{
+          persistence:"explicit_resolution",
+          sourceLoss:"no_automatic_removal",
+          allowedResolutions:clone(gate.definition.allowedResolutions),
+        },
         appliedAt:Number(options.appliedAt ?? Date.now()),
+        stateChangedAt:Number(options.appliedAt ?? Date.now()),
         ...(eventId ? {eventIds:[eventId]} : {}),
       };
       list.push(instance);
@@ -182,6 +202,7 @@
     const updated = {
       ...list[index],
       state:gate.nextState,
+      stateChangedAt:Number(options.resolvedAt ?? Date.now()),
       ...(gate.nextState === "resolved"
         ? {resolvedBy:gate.operation,resolvedAt:Number(options.resolvedAt ?? Date.now())}
         : {}),
