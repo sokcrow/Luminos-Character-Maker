@@ -178,7 +178,7 @@ function smartTargetForPlan(owner,plan){
     };
     replaceUniqueCombatSource(
       'function playerVisualFocusPoint(viewW,viewH){',
-      "function playerVisualFocusPoint(viewW,viewH){\n  // Anchor the camera to this viewer's actual rendered player sprite.\n  const sprite=$('sprite-'+PLAYER_ID),field=$('battlefield');\n  if(sprite&&field){\n    const rect=sprite.getBoundingClientRect(),world=field.getBoundingClientRect(),\n          actualScale=world.width/Math.max(1,field.offsetWidth);\n    if(rect.width>2&&rect.height>2&&Number.isFinite(actualScale)&&actualScale>0){\n      return{x:(rect.left+rect.width*.5-world.left)/actualScale,\n             y:(rect.top+rect.height*.46-world.top)/actualScale}\n    }\n  }",
+      "function playerVisualFocusPoint(viewW,viewH){\n  // Anchor the camera to this viewer's actual rendered player sprite.\n  const focusSprite=$('sprite-'+PLAYER_ID),field=$('battlefield');\n  if(focusSprite&&field){\n    const rect=focusSprite.getBoundingClientRect(),world=field.getBoundingClientRect(),\n          actualScale=world.width/Math.max(1,field.offsetWidth);\n    if(rect.width>2&&rect.height>2&&Number.isFinite(actualScale)&&actualScale>0){\n      return{x:(rect.left+rect.width*.5-world.left)/actualScale,\n             y:(rect.top+rect.height*.46-world.top)/actualScale}\n    }\n  }",
       'actual-player-camera-anchor'
     );
     replaceUniqueCombatSource(
