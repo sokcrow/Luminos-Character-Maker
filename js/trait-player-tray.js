@@ -899,10 +899,13 @@
   function renderTraitDescription(trait = {}, runtime = {}) {
     const description = createElement("p", "player-trait-card__description");
     const fallback = trait.description || "No description available.";
+    // A Trait may explicitly opt in to otherwise ambiguous rule names.
+    // Preserve those author-provided references in both rendering paths.
+    const references = Array.isArray(trait.references) ? trait.references : [];
     const resolved = resolveTraitDisplay(trait, runtime);
     if (!resolved) {
       description.textContent = fallback;
-      global.LuminousRuleReferences?.decorate?.(description, { mode: "tooltip" });
+      global.LuminousRuleReferences?.decorate?.(description, { mode: "tooltip", references });
       return description;
     }
     const pattern = /\{([A-Za-z0-9_-]+)\}/g;
@@ -938,7 +941,7 @@
       });
       description.appendChild(summary);
     }
-    global.LuminousRuleReferences?.decorate?.(description, { mode: "tooltip", textContexts });
+    global.LuminousRuleReferences?.decorate?.(description, { mode: "tooltip", references, textContexts });
     return description;
   }
 
