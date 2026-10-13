@@ -63,6 +63,12 @@
     touch-action: manipulation;
   }
 
+  /* Never leave an invisible dock blocking a category panel. */
+  #game-container .command-ring.leaving {
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+
   #game-container .command-ring .command .splash { display: none !important; }
   #game-container .command-ring .command .ink,
   #game-container .command-ring .command.radial-left .ink,
@@ -130,6 +136,7 @@
     max-height: none !important;
     padding-bottom: 2px;
     overflow: hidden !important;
+    z-index: 225 !important;
     border: 1px solid rgba(145, 104, 54, .55);
     border-radius: 9px;
     background: rgba(8, 7, 11, .96);
@@ -154,7 +161,7 @@
     left: auto !important;
     width: 112px !important;
     height: 44px !important;
-    z-index: 210 !important;
+    z-index: 230 !important;
     touch-action: manipulation;
   }
   #game-container .category-back:after { top: 14px; }
@@ -172,6 +179,12 @@
     touch-action: manipulation;
   }
 
+  #game-container .prototype-title {
+    top: max(8px, env(safe-area-inset-top)) !important;
+    left: max(8px, env(safe-area-inset-left)) !important;
+    max-width: 26vw;
+    font-size: clamp(13px, 2vw, 18px) !important;
+  }
   #game-container .prototype-status { display: none !important; }
   #game-container #damage-test { display: none !important; }
   #game-container .quick-badge { top: 54px !important; right: max(10px, env(safe-area-inset-right)) !important; font-size: 13px !important; }
