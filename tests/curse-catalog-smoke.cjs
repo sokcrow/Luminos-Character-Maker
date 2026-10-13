@@ -48,6 +48,19 @@ assert.equal(applied.applied,true);
 assert.equal(JSON.stringify(item),unchanged,"apply never mutates caller");
 assert.equal(applied.item.curseInstances.length,1);
 assert.equal(Curse.validateInstance(applied.item,applied.instance).valid,true);
+assert.deepEqual(applied.instance.provenance,{source:"dm_item_editor",createdBy:"test_dm"});
+assert.deepEqual(applied.instance.conditions,{
+  persistence:"explicit_resolution",
+  sourceLoss:"no_automatic_removal",
+  allowedResolutions:["suppress","seal","break","transfer"],
+});
+assert.equal(applied.instance.stateChangedAt,1700000000000);
+const forgedConditions = {...item,curseInstances:[{
+  ...applied.instance,conditions:{...applied.instance.conditions,sourceLoss:"auto_remove"},
+}]};
+assert.equal(Curse.hasCurse(forgedConditions),false,"persistence contract must not be mutable");
+const forgedProvenance = {...item,curseInstances:[{...applied.instance,provenance:{eval:"payload"}}]};
+assert.equal(Curse.hasCurse(forgedProvenance),false,"unsafe provenance must be rejected");
 assert.equal(Curse.canApply(applied.item,"cursed_binding",{eventId:"turn:1:action:7"}).reason,"duplicate_curse_event");
 assert.equal(Curse.canApply(applied.item,"cursed_binding").reason,"curse_intensity_limit_reached");
 assert.equal(Curse.instances(applied.item).length,1);
@@ -84,6 +97,7 @@ assert.equal(Curse.resolveItem(applied.item,applied.instance.instanceId,"remove"
 const sealed = Curse.resolveItem(applied.item,applied.instance.instanceId,"seal");
 assert.equal(sealed.changed,true);
 assert.equal(Curse.itemUnequipLocked(sealed.item),false);
+assert.equal(Number.isFinite(Number(sealed.instance.stateChangedAt)),true);
 assert.equal(Curse.hasCurse(sealed.item),true);
 assert.equal(Curse.resolveItem(sealed.item,applied.instance.instanceId,"seal").reason,"curse_invalid_state_transition");
 const activated = Curse.resolveItem(sealed.item,applied.instance.instanceId,"unseal");
