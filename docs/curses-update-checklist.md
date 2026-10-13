@@ -27,7 +27,7 @@ La **V1 definida por el propietario** cubre cinco objetivos (`item`, `creature`,
 | Pista | Marcadas [x] | Pendientes [ ] | Total |
 |---|---:|---:|---:|
 | Infraestructura preexistente verificada (referencia, NO trabajo del PR) | 13 | 0 | 13 |
-| **Curse's Update V1 (tareas propias; diseño + ejecución + nuevos objetivos)** | **12** | **114** | **126** |
+| **Curse's Update V1 (tareas propias; diseño + ejecución + nuevos objetivos)** | **19** | **107** | **126** |
 
 **Regla del tracker:** no trasladar las `[x]` de Enchanter a las tareas propias de Curse. Una tarea V1 pasa a `[x]` solamente al estar implementada y verificada en la rama del PR, con referencias a cambios/tests. Para decisiones de diseño, `[x]` solo al existir aprobación explícita registrada. Mantener este ledger actualizado cuando cambien tareas o alcance.
 
@@ -38,6 +38,14 @@ La **V1 definida por el propietario** cubre cinco objetivos (`item`, `creature`,
 **Evidencia:** `tests/curse-item-runtime-smoke.cjs` y `.github/workflows/curse-runtime-integration.yml`, [CI de Curse Runtime verde](https://github.com/sokcrow/Luminos-Character-Maker/actions/runs/38311384954). Dos pruebas Playwright se agregaron al suite del DM `tests/dm-item-instance-editor.spec.cjs` y **pasaron en Chromium real**: [DM Inventory Grant GUI](https://github.com/sokcrow/Luminos-Character-Maker/actions/runs/38311384748). También pasó [Inventory Runtime Validation](https://github.com/sokcrow/Luminos-Character-Maker/actions/runs/38311384860). Los componentes no certificados siguen abiertos como `[ ]`.
 
 **Todavía NO implementado:** Curse sobre personajes, lugares, linajes o entidades colectivas; efectos negativos generales de HP/SP/Sanity; authoring abierto de todas las familias; operaciones colectivas; transferencia pagada/atómica entre dos inventarios; Curse UI para jugador más allá de detección/lectura existente; deploy productivo.
+
+## Fase B — Incremento validado de catálogo y runtime
+
+**Implementado:** `js/curse-catalog.js` centraliza definiciones versionadas, valida familias/objetivos/efectos/disparadores/resoluciones y rechaza propiedades o payloads no autorizados; `js/curse-runtime.js` implementa una interfaz inmutable con `canApply`, `applyItem`, `canResolve`, `resolveItem`, `instances`, `activeEffects` y `transferItem`. Guardas de instancia comprueban identidad de target, procedencia básica, estados, intensidad, sello y resolución; protección contra replay por `eventId` y contra maldecir stacks de cantidad >1. La UI real del DM muestra intensidad y desactiva Aplicar cuando el objeto no es elegible.
+
+**Verificado:** `tests/curse-catalog-smoke.cjs`, `tests/curse-item-runtime-smoke.cjs`, regresiones de Bind/Arcana en [Curse Runtime Integration CI](https://github.com/sokcrow/Luminos-Character-Maker/actions/runs/38335190664) (verde). [DM Inventory Grant GUI](https://github.com/sokcrow/Luminos-Character-Maker/actions/runs/38335190661) pasó sobre la rama con estos contratos. La mejora posterior de intensidad visible en la UI tiene suite de navegador adicional en ejecución; no se confunde con la prueba de versión anterior.
+
+**Pendiente B:** metadata completa de fuente, condiciones y provenance de Curse Instance; adapters ejecutables adicionales sobre Trait/Status/Spell/Creature. Declara cinco familias, pero solo `cursed_binding` para Item es contenido funcional publicado. Ver [documentación técnica B](./curses-update-phase-b-core.md).
 
 ## 0 — Inventario comprobado en `main` (solo referencia)
 
@@ -73,15 +81,15 @@ La **V1 definida por el propietario** cubre cinco objetivos (`item`, `creature`,
 ### B — Curse Catalog, Instance y Runtime
 
 - [x] Crear un documento de contrato canónico de Curse V1 con esquema, vocabulario y ejemplos aprobados. — `docs/curses-update-phase-a-contract.md`
-- [ ] Crear registro versionado de definiciones de Curse con ID estable, nombre, descripción, familias y targets elegibles.
-- [ ] Separar definición de Curse de instancia activa, estado de conocimiento y Status secundarios.
+- [x] Crear registro versionado de definiciones de Curse con ID estable, nombre, descripción, familias y targets elegibles. — `js/curse-catalog.js`, `tests/curse-catalog-smoke.cjs`
+- [x] Separar definición de Curse de instancia activa, estado de conocimiento y Status secundarios. — Catálogo `js/curse-catalog.js`, instancias `js/curse-runtime.js`, conocimiento `js/item-magic-knowledge-runtime.js`
 - [ ] Definir un `Curse Instance` con ID propio, origen, fuente, objetivo, timestamps, condiciones y provenance.
-- [ ] Implementar validación cerrada de familias, tipos de efecto, triggers, duración, recursos y referencias.
+- [x] Implementar validación cerrada de familias, tipos de efecto, triggers, duración, recursos y referencias. — Schema fail-closed; efectos/duración/recursos sin adapter se rechazan, [CI verde](https://github.com/sokcrow/Luminos-Character-Maker/actions/runs/38335190664)
 - [ ] Reutilizar Trait/Status/Spell/Item effect adapters donde sean compatibles; no introducir un segundo motor de efectos.
-- [ ] Definir contratos de activación `canApply`, `apply`, `resolve`, `suppress`, `remove` y consulta sin mutaciones accidentales.
-- [ ] Implementar control explícito de stacking, prioridad de fuentes y deduplicación por evento e instancia.
-- [ ] Separar namespace de `item_magic_bind` del Status `bind` sin renombrar o romper el Status existente.
-- [ ] Evitar ejecutar scripts arbitrarios, funciones persistidas o payloads no autorizados desde las definiciones de DM.
+- [x] Definir contratos de activación `canApply`, `apply`, `resolve`, `suppress`, `remove` y consulta sin mutaciones accidentales. — `canApply/applyItem/canResolve/resolveItem` con operaciones whitelisted y consultas puras; eliminar no autorizado para la Curse publicada
+- [x] Implementar control explícito de stacking, prioridad de fuentes y deduplicación por evento e instancia. — maxIntensity, regla de stacking, prioridad determinista, `eventIds`, target instance ID y validación de duplicados
+- [x] Separar namespace de `item_magic_bind` del Status `bind` sin renombrar o romper el Status existente. — `equipment_lock` en Curse Runtime y guardia independiente en Equipment Bridge; Enchanter `bind` intacto
+- [x] Evitar ejecutar scripts arbitrarios, funciones persistidas o payloads no autorizados desde las definiciones de DM. — Validador de definición y de instancia, whitelist de keys y `tests/curse-catalog-smoke.cjs`
 
 ### C — Integración con Item Curses y Enchanter
 
