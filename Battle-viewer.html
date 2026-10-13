@@ -192,13 +192,18 @@ function smartTargetForPlan(owner,plan){
       'visible-battlefield-overview'
     );
     replaceUniqueCombatSource(
+      "function setPlayerMenuZoom(enabled){\n  setCameraFocus('player',enabled);",
+      "function setPlayerMenuZoom(enabled){\n  if($('game-container')?.dataset.viewerRole==='dm')setCameraFocus('full',false);\n  else setCameraFocus('player',enabled);",
+      'dm-overview-preserved'
+    );
+    replaceUniqueCombatSource(
       'function animateCommandToHeader(menu){',
       "function animateCommandToHeader(menu){\n  if(window.matchMedia?.('(pointer: coarse), (max-width: 900px)').matches){\n    // Mobile menus are anchored to the screen, not the moving player.\n    const surface=$('category-surface'),back=$('back');\n    surface.style.visibility='';surface.style.opacity='';\n    surface.classList.add('open');back.classList.add('open');\n    return\n  }",
       'viewport-anchored-category'
     );
     replaceUniqueCombatSource(
       "window.addEventListener('resize',()=>{if(viewModeActive||targetingModeActive){",
-      "window.addEventListener('resize',()=>{if($('game-container')?.classList.contains('intro-running')){setCameraFocus('full',false);return}if(viewModeActive||targetingModeActive){",
+      "window.addEventListener('resize',()=>{if($('game-container')?.classList.contains('intro-running')||$('game-container')?.dataset.viewerRole==='dm'){setCameraFocus('full',false);return}if(viewModeActive||targetingModeActive){",
       'preserve-opening-camera-on-resize'
     );
     // Preload exactly one mobile stylesheet. The economy runtime checks this id.
