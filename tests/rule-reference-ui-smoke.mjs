@@ -445,6 +445,33 @@ for (const sentence of ["Apply Old Mark.","Apply New Mark.","Apply Third Mark."]
     "Revised registry matcher must never modify original text");
 }
 
+// Codex: the shipped Fey Ancestry makes a negated application rule explicit.
+// Load the exact quoted catalog description, rather than a paraphrase.
+const feySource=fs.readFileSync(path.join(base,"js/canonical-racial-traits.js"),"utf8");
+const feyLiteral=feySource.slice(feySource.indexOf("fey_ancestry: threshold("))
+  .match(/"([^"]*Sleep From inflicted by Spells is not applied\.)"/)?.[1];
+assert.ok(feyLiteral,"Fey Ancestry should have its original Sleep wording");
+const feyText=JSON.parse('"' + feyLiteral + '"');
+assert.deepEqual(references.tokenize(feyText).filter(part=>part.kind)
+  .map(part=>part.kind+":"+part.id),["status:charmed","status:sleep"]);
+assert.equal(references.tokenize(feyText).map(part=>part.text).join(""),feyText);
+for (const [description,expected] of [
+  ["Sleep From inflicted by Spells is not applied.",["status:sleep"]],
+  ["Sleep inflicted by Spells is not applied.",["status:sleep"]],
+  ["Sleep is not applied.",["status:sleep"]],
+  ["Charmed is not inflicted.",["status:charmed"]],
+  ["Sleep from an old book is not applied.",[]],
+  ["Sleep is applied.",[]],
+  ["Sleep is not a game status in this story.",[]],
+  ["Nature is not applied to this idea.",[]],
+  ["Fire/Burn damage type.",[]],
+]) {
+  const parts=references.tokenize(description);
+  assert.deepEqual(parts.filter(part=>part.kind).map(part=>part.kind+":"+part.id),expected,
+    "Negated application must link only bounded mechanical uses: "+description);
+  assert.equal(parts.map(part=>part.text).join(""),description);
+}
+
 const html=fs.readFileSync(path.join(base,"hoja_personaje.html"),"utf8");
 const stats=fs.readFileSync(path.join(base,"js/trait-player-tray.js"),"utf8");
 const progression=fs.readFileSync(path.join(base,"js/player-progression-tree.js"),"utf8");
@@ -463,12 +490,84 @@ assert.match(maneuverChoices,/make\("small","",maneuver\.description\)/,
 assert.deepEqual(references.tokenize("Menacing Attack: inflict 2 Frightened.")
   .filter(x=>x.kind).map(x=>x.kind+":"+x.id),["status:frightened"]);
 
+// Exercise the actual Traits renderer, not merely tokenizer metadata. The
+// renderer has an internal function; expose it in this isolated smoke scope
+// without changing the public production API.
+const traitRenderSource=stats.replace(
+  "  ensureStyles();\n  const api = Object.freeze({",
+  "  global.__testRenderTraitDescription = renderTraitDescription;\n" +
+  "  ensureStyles();\n  const api = Object.freeze({");
+assert.notEqual(traitRenderSource,stats,"Renderer smoke hook must be installed");
+class TraitTestNode {
+  constructor(tag) {this.tag=tag;this.children=[];this.dataset={};this.style={};this.hidden=false;this.textContent="";}
+  append(...children) {this.children.push(...children);}
+  appendChild(child) {this.append(child);return child;}
+  setAttribute() {}
+  addEventListener() {}
+}
+const traitDoc={
+  createElement: tag=>new TraitTestNode(tag),
+  createTextNode: value=>({nodeValue:value}),
+  head:new TraitTestNode("head"),
+  getElementById:()=>null,
+};
+const visits=[];
+const traitScope={
+  document:traitDoc,
+  LuminousTraitEngine:{buildVariables:()=>({}),evaluateFormula:()=>2},
+  LuminousRuleReferences:{decorate(root,options){visits.push({root,options});}},
+};
+new Function("window",traitRenderSource)(traitScope);
+assert.equal(typeof traitScope.__testRenderTraitDescription,"function");
+const declaredRefs=[{kind:"skill",id:"nature"}];
+const plainTrait=traitScope.__testRenderTraitDescription({
+  id:"test_explicit_reference",description:"Nature is beautiful.",
+  references:declaredRefs
+});
+assert.equal(plainTrait.textContent,"Nature is beautiful.");
+assert.equal(visits[0].options.mode,"tooltip");
+assert.equal(visits[0].options.references,declaredRefs,
+  "Unresolved Trait must forward the exact author-defined reference metadata");
+assert.deepEqual(references.tokenize(plainTrait.textContent,{
+  references:visits[0].options.references
+}).filter(part=>part.kind).map(part=>part.kind+":"+part.id),["skill:nature"]);
+assert.deepEqual(references.tokenize(plainTrait.textContent).filter(part=>part.kind),[],
+  "Author metadata is required to distinguish Nature from narrative text");
+
+const resolvedTrait=traitScope.__testRenderTraitDescription({
+  id:"test_resolved_reference",description:"Nature is beautiful.",
+  references:declaredRefs,
+  display:{
+    playerDescription:"After {power} rounds, Nature changes.",
+    resolvedValues:[{id:"power",label:"Power",formula:"2",unit:"flat"}],
+  },
+},{});
+assert.ok(resolvedTrait.children.some(child=>child.tag==="span"),
+  "Explicit resolved formula must preserve its interactive value control");
+assert.equal(visits[1].options.mode,"tooltip");
+assert.equal(visits[1].options.references,declaredRefs,
+  "Resolved Trait also forwards explicit reference metadata");
+assert.ok(visits[1].options.textContexts instanceof WeakMap,
+  "Resolved Trait must preserve the per-node formula context");
+const trailing=resolvedTrait.children.find(child=>child.nodeValue?.includes("Nature"));
+assert.ok(trailing);
+assert.deepEqual(references.tokenize(trailing.nodeValue,{
+  references:visits[1].options.references,
+  contextBefore:visits[1].options.textContexts.get(trailing),
+}).filter(part=>part.kind).map(part=>part.kind+":"+part.id),["skill:nature"]);
+const undecorated=traitScope.__testRenderTraitDescription({
+  id:"test_plain",description:"Nature is beautiful."
+});
+assert.deepEqual(references.tokenize(undecorated.textContent,{
+  references:visits[2].options.references
+}).filter(part=>part.kind),[],"Missing metadata must not force ambiguous chips");
+
 const css=fs.readFileSync(path.join(base,"css/rule-reference-ui.css"),"utf8");
 assert.ok(html.indexOf('src="js/rule-reference-ui.js"') < html.indexOf('src="js/player-progression-tree.js"'));
-assert.match(stats,/LuminousRuleReferences\?\.decorate\?\.\(description, \{ mode: "tooltip" \}\)/);
+assert.match(stats,/LuminousRuleReferences\?\.decorate\?\.\(description, \{ mode: "tooltip", references \}\)/);
 assert.match(stats,/const textContexts = new WeakMap\(\)/);
 assert.match(stats,/textContexts\.set\(node, before\)/);
-assert.match(stats,/decorate\?\.\(description, \{ mode: "tooltip", textContexts \}\)/);
+assert.match(stats,/decorate\?\.\(description, \{ mode: "tooltip", references, textContexts \}\)/);
 assert.match(progression,/LuminousRuleReferences\?\.decorate\?\.\(state\.detail, \{ mode: "card" \}\)/);
 assert.match(skillHud,/LuminousRuleReferences\?\.decorate\?\.\(detail, \{ mode: "card" \}\)/);
 assert.doesNotMatch(css,/\.is-tooltip:hover::after/, "Pseudo-tooltips inside scrolling Traits were removed");
