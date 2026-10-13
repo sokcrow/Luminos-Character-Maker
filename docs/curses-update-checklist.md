@@ -27,7 +27,7 @@ La **V1 definida por el propietario** cubre cinco objetivos (`item`, `creature`,
 | Pista | Marcadas [x] | Pendientes [ ] | Total |
 |---|---:|---:|---:|
 | Infraestructura preexistente verificada (referencia, NO trabajo del PR) | 13 | 0 | 13 |
-| **Curse's Update V1 (tareas propias; diseño + ejecución + nuevos objetivos)** | **19** | **107** | **126** |
+| **Curse's Update V1 (tareas propias; diseño + ejecución + nuevos objetivos)** | **20** | **106** | **126** |
 
 **Regla del tracker:** no trasladar las `[x]` de Enchanter a las tareas propias de Curse. Una tarea V1 pasa a `[x]` solamente al estar implementada y verificada en la rama del PR, con referencias a cambios/tests. Para decisiones de diseño, `[x]` solo al existir aprobación explícita registrada. Mantener este ledger actualizado cuando cambien tareas o alcance.
 
@@ -45,7 +45,7 @@ La **V1 definida por el propietario** cubre cinco objetivos (`item`, `creature`,
 
 **Verificado:** `tests/curse-catalog-smoke.cjs`, `tests/curse-item-runtime-smoke.cjs`, regresiones de Bind/Arcana en [Curse Runtime Integration CI](https://github.com/sokcrow/Luminos-Character-Maker/actions/runs/38335190664) (verde). [DM Inventory Grant GUI](https://github.com/sokcrow/Luminos-Character-Maker/actions/runs/38335190661) pasó sobre la rama con estos contratos. La mejora posterior de intensidad visible en la UI tiene suite de navegador adicional en ejecución; no se confunde con la prueba de versión anterior.
 
-**Pendiente B:** metadata completa de fuente, condiciones y provenance de Curse Instance; adapters ejecutables adicionales sobre Trait/Status/Spell/Creature. Declara cinco familias, pero solo `cursed_binding` para Item es contenido funcional publicado. Ver [documentación técnica B](./curses-update-phase-b-core.md).
+**Pendiente B:** adapters ejecutables adicionales sobre Trait/Status/Spell/Creature. El contrato de instancia ya incluye origen, fuente (cuando existe), provenance, condiciones explícitas de persistencia y timestamps; sus verificaciones directas pasaron y la última corrida CI aún se está procesando. Declara cinco familias, pero solo `cursed_binding` para Item es contenido funcional publicado. Ver [documentación técnica B](./curses-update-phase-b-core.md).
 
 ## 0 — Inventario comprobado en `main` (solo referencia)
 
@@ -83,7 +83,7 @@ La **V1 definida por el propietario** cubre cinco objetivos (`item`, `creature`,
 - [x] Crear un documento de contrato canónico de Curse V1 con esquema, vocabulario y ejemplos aprobados. — `docs/curses-update-phase-a-contract.md`
 - [x] Crear registro versionado de definiciones de Curse con ID estable, nombre, descripción, familias y targets elegibles. — `js/curse-catalog.js`, `tests/curse-catalog-smoke.cjs`
 - [x] Separar definición de Curse de instancia activa, estado de conocimiento y Status secundarios. — Catálogo `js/curse-catalog.js`, instancias `js/curse-runtime.js`, conocimiento `js/item-magic-knowledge-runtime.js`
-- [ ] Definir un `Curse Instance` con ID propio, origen, fuente, objetivo, timestamps, condiciones y provenance.
+- [x] Definir un `Curse Instance` con ID propio, origen, fuente, objetivo, timestamps, condiciones y provenance. — `js/curse-runtime.js` + `tests/curse-catalog-smoke.cjs`; prueba directa del código superada; CI final pendiente de ejecución.
 - [x] Implementar validación cerrada de familias, tipos de efecto, triggers, duración, recursos y referencias. — Schema fail-closed; efectos/duración/recursos sin adapter se rechazan, [CI verde](https://github.com/sokcrow/Luminos-Character-Maker/actions/runs/38335190664)
 - [ ] Reutilizar Trait/Status/Spell/Item effect adapters donde sean compatibles; no introducir un segundo motor de efectos.
 - [x] Definir contratos de activación `canApply`, `apply`, `resolve`, `suppress`, `remove` y consulta sin mutaciones accidentales. — `canApply/applyItem/canResolve/resolveItem` con operaciones whitelisted y consultas puras; eliminar no autorizado para la Curse publicada
