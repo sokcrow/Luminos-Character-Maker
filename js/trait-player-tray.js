@@ -899,20 +899,36 @@
   function renderTraitDescription(trait = {}, runtime = {}) {
     const description = createElement("p", "player-trait-card__description");
     const fallback = trait.description || "No description available.";
+    // A Trait may explicitly opt in to otherwise ambiguous rule names.
+    // Preserve those author-provided references in both rendering paths.
+    const references = Array.isArray(trait.references) ? trait.references : [];
     const resolved = resolveTraitDisplay(trait, runtime);
     if (!resolved) {
       description.textContent = fallback;
+      global.LuminousRuleReferences?.decorate?.(description, { mode: "tooltip", references });
       return description;
     }
     const pattern = /\{([A-Za-z0-9_-]+)\}/g;
+    // A resolved formula is a button, which splits the surrounding prose into
+    // separate text nodes. Keep a non-rendered prefix so references after the
+    // control still see the mechanical action (e.g. "Gain 1 Haste").
+    const textContexts = new WeakMap();
+    const appendDescriptionText = (start, end) => {
+      if (end <= start) return;
+      const node = global.document.createTextNode(resolved.template.slice(start, end));
+      const before = resolved.template.slice(0, start)
+        .replace(/\{[A-Za-z0-9_-]+\}/g, "1");
+      textContexts.set(node, before);
+      description.appendChild(node);
+    };
     let cursor = 0;
     let match;
     while ((match = pattern.exec(resolved.template))) {
-      if (match.index > cursor) description.appendChild(global.document.createTextNode(resolved.template.slice(cursor, match.index)));
+      appendDescriptionText(cursor, match.index);
       description.appendChild(createResolvedValueControl(resolved.values[match[1]]));
       cursor = match.index + match[0].length;
     }
-    if (cursor < resolved.template.length) description.appendChild(global.document.createTextNode(resolved.template.slice(cursor)));
+    appendDescriptionText(cursor, resolved.template.length);
     if (Array.isArray(resolved.extras) && resolved.extras.length) {
       const summary = createElement("span", "player-trait-resolved-summary");
       resolved.extras.forEach((value) => {
@@ -925,6 +941,7 @@
       });
       description.appendChild(summary);
     }
+    global.LuminousRuleReferences?.decorate?.(description, { mode: "tooltip", references, textContexts });
     return description;
   }
 

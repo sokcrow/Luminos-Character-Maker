@@ -298,6 +298,7 @@
         : "Los hitos automáticos se obtienen al alcanzar el nivel. Aquí puedes consultar sus recompensas."}</p>
       <div class="player-progression-detail__items">${items || "<p>No hay recompensas adicionales registradas en este nivel.</p>"}</div>`;
     bindMissingFamilyIcons(state.detail);
+    global.LuminousRuleReferences?.decorate?.(state.detail, { mode: "card" });
     if (node.choiceMilestone && !branch) {
       const editor = doc.createElement("div");
       editor.className = "player-progression-inline-choice";
@@ -341,6 +342,7 @@
         <p class="player-progression-detail__guidance">${escapeHtml(message)}</p>
         ${milestones ? `<strong>Hitos de esta rama</strong><ul class="player-progression-archetype-rewards">${milestones}</ul>` : ""}
       </div>`;
+    global.LuminousRuleReferences?.decorate?.(state.detail, { mode: "card" });
     if (branch.id === "battle_master" && branch.status === "selected") {
       const editor = doc.createElement("div");
       editor.className = "player-progression-inline-choice";
@@ -349,6 +351,9 @@
         character:currentCharacter(),db:state.db || global.firebase?.database?.(),
         playerId:currentPlayerId(),onSaved:()=>refresh(),
       });
+      // Maneuvers are appended synchronously by renderManeuvers; decorating
+      // before this call misses descriptions such as "inflict 2 Frightened".
+      global.LuminousRuleReferences?.decorate?.(editor, { mode: "card" });
     }
   }
 

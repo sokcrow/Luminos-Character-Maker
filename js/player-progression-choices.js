@@ -169,7 +169,11 @@
         for (const entry of entries) select.appendChild(option(entry.id,entry.name));
         const description = make("p","player-progression-choice-trait-description");
         select.addEventListener("change",()=>{
+          // Descriptions are populated after the progression detail's first
+          // decoration pass. Rebuild the text and decorate every selection;
+          // this also discards chips from the previously selected Trait.
           description.textContent = entries.find(entry=>entry.id===select.value)?.description || "";
+          global.LuminousRuleReferences?.decorate?.(description,{mode:"card"});
         });
         controls.append(select,description);
       }

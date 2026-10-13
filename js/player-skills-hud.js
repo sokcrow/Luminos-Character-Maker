@@ -464,7 +464,10 @@
 
     const selected = rows.find((skill) => skill.id === state.selectedSkillId) || null;
     const detail = root.querySelector("[data-player-skills-detail]");
-    if (detail) detail.innerHTML = detailMarkup(selected, model);
+    if (detail) {
+      detail.innerHTML = detailMarkup(selected, model);
+      global.LuminousRuleReferences?.decorate?.(detail, { mode: "card" });
+    }
     return model;
   }
 
