@@ -13,6 +13,7 @@ on:
       - 'hoja_personaje.html'
       - 'Battle-viewer.html'
       - 'tests/curse-item-runtime-smoke.cjs'
+      - 'tests/curse-catalog-smoke.cjs'
       - 'tests/dm-item-instance-editor.spec.cjs'
       - '.github/workflows/curse-runtime-integration.yml'
 
@@ -27,12 +28,16 @@ jobs:
           node-version: '22'
       - name: Syntax checks
         run: |
+          node --check js/curse-catalog.js
           node --check js/curse-runtime.js
           node --check js/item-magic-runtime.js
           node --check js/item-equipment-bridge.js
           node --check js/dm-item-instance-editor.js
           node --check tests/curse-item-runtime-smoke.cjs
+          node --check tests/curse-catalog-smoke.cjs
           node --check tests/dm-item-instance-editor.spec.cjs
+      - name: Phase B catalog, schema and lifecycle
+        run: node tests/curse-catalog-smoke.cjs
       - name: Playable Curse Item contract
         run: node tests/curse-item-runtime-smoke.cjs
       - name: Enchanter Bind regression
