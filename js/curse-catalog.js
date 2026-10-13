@@ -15,6 +15,11 @@
   const TRIGGERS = Object.freeze(["passive"]);
   const EFFECTS = Object.freeze(["equipment_lock"]);
   const EFFECT_TARGETS = Object.freeze({equipment_lock:Object.freeze(["item"])});
+  // Unknown policy fields are rejected, not silently interpreted as live mechanics.
+  const DEFINITION_KEYS = Object.freeze([
+    "id","name","description","family","targetKinds","trigger","adverseEffect",
+    "maxIntensity","stacking","priority","sourceDependency","allowedResolutions",
+  ]);
   const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
   const isObject = (value) => value != null && typeof value === "object" && !Array.isArray(value);
   const unsafeKey = (key) => ["__proto__", "prototype", "constructor", "script", "javascript", "eval", "code", "function_body", "handler_function"].includes(String(key).toLowerCase());
@@ -48,6 +53,7 @@
   function validateDefinition(definition) {
     const errors = [];
     if (!isObject(definition) || containsExecutablePayload(definition)) return Object.freeze({valid:false,errors:Object.freeze(["invalid_or_executable_definition"])});
+    if (Object.keys(definition).some(key => !DEFINITION_KEYS.includes(key))) errors.push("unsupported_definition_field");
     if (!/^[a-z][a-z0-9_]{2,79}$/.test(String(definition.id || ""))) errors.push("invalid_definition_id");
     if (typeof definition.name !== "string" || !definition.name.trim() || definition.name.length > 120) errors.push("invalid_name");
     if (typeof definition.description !== "string" || !definition.description.trim() || definition.description.length > 1000) errors.push("invalid_description");
