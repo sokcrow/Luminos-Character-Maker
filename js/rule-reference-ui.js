@@ -191,6 +191,10 @@
       // e.g. Necrotic Shroud: "Frightened check request" is an explicit
       // request to resolve the canonical Status, not a narrative mention.
       const statusCheckRequest = /^\s+(?:checks?|saves?|saving\s+throws?)\s+requests?\b/i.test(after);
+      // Fey Ancestry: "Sleep From inflicted by Spells is not applied".
+      // Accept only a bounded, explicitly negated application predicate
+      // following the registered Status, never ordinary narrative phrases.
+      const statusNotApplied = /^\s+(?:(?:from\s+)?(?:inflicted|applied)\s+by\s+(?:spells?|skills?|effects?|items?)\s+)?(?:is|are)\s+not\s+(?:applied|inflicted)\b/i.test(after);
       // A named Status can itself cause damage: "Radiance deals +1% Fixed Damage".
       // Require a direct damage predicate; do not match narrative "deals with".
       const statusDealsDamage = /^\s+(?:deals?|causes?|inflicts?)\s+(?:[+-]?\d+(?:\.\d+)?%?\s+)?(?:fixed\s+)?(?:damage|dmg)\b/i.test(after);
@@ -204,7 +208,7 @@
       // Quantified statuses are unambiguous even when the sentence omits an
       // action verb, e.g. "Failed Save: 2 Bind + 2 Fragile". Keep the
       // damage-type exclusions above and require verbs for unquantified names.
-      return directStatus || statusImmunity || statusCheckRequest || statusDealsDamage || numeric || matcher.statusCondition.test(before) ||
+      return directStatus || statusImmunity || statusCheckRequest || statusNotApplied || statusDealsDamage || numeric || matcher.statusCondition.test(before) ||
         matcher.statusImmunityList.test(before) || matcher.statusDamageList.test(before) ||
         (becoming && !/\b(?:nature|protection|illusion)\b/i.test(entry.id)) ||
         (possession && !/\b(?:nature|protection|illusion)\b/i.test(entry.id)) ||
