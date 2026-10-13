@@ -169,12 +169,42 @@ function smartTargetForPlan(owner,plan){
     if(!html.includes(formationPointsNeedle))throw new Error("COMBAT_ZIGZAG_FORMATION_PATCH_MISSING");
     html=html.replace(formationPointsNeedle,formationPointsPatch);
 
-    stage('patch-mobile-combat-ux','Applying viewport-anchored touch HUD and opening camera');
-    const mobileUxPatchPairs=[["function playerVisualFocusPoint(viewW,viewH){","function playerVisualFocusPoint(viewW,viewH){\n  // Use the rendered player sprite as the focus target, independent of offsets.\n  const sprite=$('sprite-'+PLAYER_ID),field=$('battlefield');\n  if(sprite&&field){\n    const rect=sprite.getBoundingClientRect(),world=field.getBoundingClientRect(),\n          actualScale=world.width/Math.max(1,field.offsetWidth);\n    if(rect.width>2&&rect.height>2&&Number.isFinite(actualScale)&&actualScale>0){\n      return{x:(rect.left+rect.width*.5-world.left)/actualScale,\n             y:(rect.top+rect.height*.46-world.top)/actualScale}\n    }\n  }"],["scale=mode==='enemy'?1.65:5,","scale=mode==='enemy'?1.65:(window.matchMedia?.('(pointer: coarse), (max-width: 900px)').matches?2.35:5),"],["  game.classList.add('intro-running');\n  setPlayerMenuZoom(false);\n  label.textContent=`TURN ${turnNumber}`;","  game.classList.add('intro-running');\n  setPlayerMenuZoom(false);\n  // Present the complete deployment before moving to this viewer's player.\n  if(initial){\n    const field=$('battlefield'),background=$('webgl2-dom-background');\n    field?.style.setProperty('transition','none','important');\n    background?.style.setProperty('transition','none','important');\n    setCameraFocus('full',false);\n    await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));\n    field?.style.removeProperty('transition');\n    background?.style.removeProperty('transition');\n    await wait(900);\n  }\n  label.textContent=`TURN ${turnNumber}`;"],["function animateCommandToHeader(menu){","function animateCommandToHeader(menu){\n  // Compact menus are viewport-anchored: never fly to the sprite's location.\n  if(window.matchMedia?.('(pointer: coarse), (max-width: 900px)').matches){\n    const surface=$('category-surface'),back=$('back');\n    surface.style.visibility='';surface.style.opacity='';\n    surface.classList.add('open');back.classList.add('open');\n    return\n  }"],["window.addEventListener('resize',()=>{if(viewModeActive||targetingModeActive){","window.addEventListener('resize',()=>{if($('game-container')?.classList.contains('intro-running')){setCameraFocus('full',false);return}if(viewModeActive||targetingModeActive){"]];
-    if(mobileUxPatchPairs.some(([before])=>!html.includes(before)))throw new Error('COMBAT_MOBILE_CAMERA_MENU_PATCH_MISSING');
-    for(const [before,after] of mobileUxPatchPairs)html=html.replace(before,after);
+    stage('patch-mobile-combat-ux','Applying touch HUD and opening-camera fixes');
+    const replaceUniqueCombatSource=(before,after,name)=>{
+      const first=html.indexOf(before);
+      if(first<0||html.indexOf(before,first+before.length)>=0)
+        throw new Error('COMBAT_MOBILE_PATCH_MISMATCH:'+name);
+      html=html.replace(before,after);
+    };
+    replaceUniqueCombatSource(
+      'function playerVisualFocusPoint(viewW,viewH){',
+      "function playerVisualFocusPoint(viewW,viewH){\n  // Anchor the camera to this viewer's actual rendered player sprite.\n  const sprite=$('sprite-'+PLAYER_ID),field=$('battlefield');\n  if(sprite&&field){\n    const rect=sprite.getBoundingClientRect(),world=field.getBoundingClientRect(),\n          actualScale=world.width/Math.max(1,field.offsetWidth);\n    if(rect.width>2&&rect.height>2&&Number.isFinite(actualScale)&&actualScale>0){\n      return{x:(rect.left+rect.width*.5-world.left)/actualScale,\n             y:(rect.top+rect.height*.46-world.top)/actualScale}\n    }\n  }",
+      'actual-player-camera-anchor'
+    );
+    replaceUniqueCombatSource(
+      "scale=mode==='enemy'?1.65:5,",
+      "scale=mode==='enemy'?1.65:(window.matchMedia?.('(pointer: coarse), (max-width: 900px)').matches?2.35:5),",
+      'responsive-player-camera-scale'
+    );
+    replaceUniqueCombatSource(
+      "  game.classList.add('intro-running');\n  setPlayerMenuZoom(false);",
+      "  game.classList.add('intro-running');\n  setPlayerMenuZoom(false);\n  if(initial){\n    // The packed scene starts with an opaque .active turn overlay.\n    // Reveal the full deployment BEFORE the overview hold.\n    overlay.classList.remove('active','show-label','reveal');\n    const field=$('battlefield'),background=$('webgl2-dom-background');\n    field?.style.setProperty('transition','none','important');\n    background?.style.setProperty('transition','none','important');\n    setCameraFocus('full',false);\n    await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));\n    field?.style.removeProperty('transition');\n    background?.style.removeProperty('transition');\n    await wait(850);\n  }",
+      'visible-battlefield-overview'
+    );
+    replaceUniqueCombatSource(
+      'function animateCommandToHeader(menu){',
+      "function animateCommandToHeader(menu){\n  if(window.matchMedia?.('(pointer: coarse), (max-width: 900px)').matches){\n    // Mobile menus are anchored to the screen, not the moving player.\n    const surface=$('category-surface'),back=$('back');\n    surface.style.visibility='';surface.style.opacity='';\n    surface.classList.add('open');back.classList.add('open');\n    return\n  }",
+      'viewport-anchored-category'
+    );
+    replaceUniqueCombatSource(
+      "window.addEventListener('resize',()=>{if(viewModeActive||targetingModeActive){",
+      "window.addEventListener('resize',()=>{if($('game-container')?.classList.contains('intro-running')){setCameraFocus('full',false);return}if(viewModeActive||targetingModeActive){",
+      'preserve-opening-camera-on-resize'
+    );
+    // Preload exactly one mobile stylesheet. The economy runtime checks this id.
     if(!html.includes('</head>'))throw new Error('COMBAT_MOBILE_STYLESHEET_TARGET_MISSING');
-    html=html.replace('</head>','<link rel="stylesheet" href="css/combat-mobile-runtime.css?v=20261012"></head>');
+    html=html.replace('</head>',
+      '<link id="combat-mobile-runtime-stylesheet" rel="stylesheet" href="css/combat-mobile-runtime.css?v=20261012-mobile-combat-2"></head>');
     stage('patch-renderer','Applying Combat renderer patch');
     // Combat-iframe-only renderer patch. It never installs hooks in Theatre runtime code.
     // Mobile/low-power clients keep DOM/CSS sprite compositing and reserve WebGL2 for VFX.
