@@ -872,7 +872,15 @@
     if (definitions.some((definition) => definition.id === selected)) selector.value = selected;
     const chosen = runtime.getDefinition?.(selector.value);
     if (description) description.textContent = chosen?.description || "No hay maldiciones disponibles.";
-    if (apply) apply.disabled = !item || !chosen || state.saving;
+    const curseGate = item && chosen ? runtime.canApply?.(item,chosen.id) : null;
+    if (apply) {
+      apply.disabled = !curseGate?.allowed || state.saving;
+      apply.title = curseGate?.reason === "curse_intensity_limit_reached"
+        ? "Esta maldición alcanzó su intensidad máxima."
+        : curseGate?.reason === "curse_requires_single_item"
+          ? "Separa primero los objetos apilados para maldecir uno."
+          : chosen ? chosen.description : "No hay maldiciones disponibles.";
+    }
 
     host.replaceChildren();
     const curses = item ? runtime.instances?.(item) || [] : [];
@@ -900,7 +908,8 @@
       const heading = doc.createElement("strong");
       heading.textContent = curse.definition?.name || "Maldición desconocida";
       const stateText = doc.createElement("span");
-      stateText.textContent = stateLabels[curse.state] || "Estado desconocido";
+      stateText.textContent = (stateLabels[curse.state] || "Estado desconocido") +
+        " · Intensidad " + String(curse.intensity);
       summary.append(heading, stateText);
       row.appendChild(summary);
       const controls = doc.createElement("div");
