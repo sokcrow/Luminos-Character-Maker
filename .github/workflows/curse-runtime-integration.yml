@@ -4,6 +4,7 @@ on:
   pull_request:
     branches: [main]
     paths:
+      - 'js/curse-catalog.js'
       - 'js/curse-runtime.js'
       - 'js/item-magic-runtime.js'
       - 'js/item-magic-knowledge-runtime.js'
