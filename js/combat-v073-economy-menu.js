@@ -585,7 +585,7 @@
     const link = global.document.createElement("link");
     link.id = "combat-mobile-runtime-stylesheet";
     link.rel = "stylesheet";
-    link.href = "css/combat-mobile-runtime.css?v=20261006-mobile-combat-1";
+    link.href = "css/combat-mobile-runtime.css?v=20261012-mobile-combat-2";
     link.dataset.ui = "combat-mobile-runtime";
     global.document.head.appendChild(link);
   }
@@ -612,50 +612,7 @@
       .economy-action-detail button:disabled{opacity:.4;cursor:default}
       #game-container.economy-targeting .command-ring,#game-container.economy-targeting .category-surface,#game-container.economy-targeting .category-back{pointer-events:none;opacity:.26}
       #game-container.economy-targeting .sprite-container{cursor:crosshair}
-      #game-container.combat-compact-menu.combat-root-menu-active .command-ring{
-        position:absolute!important;
-        left:auto!important;right:8px!important;top:66px!important;bottom:auto!important;
-        width:min(344px,calc(100vw - 16px))!important;height:auto!important;
-        display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
-        grid-auto-rows:54px!important;gap:5px!important;padding:0!important;
-        overflow:visible!important;transform:none!important;z-index:220!important;
-        pointer-events:auto!important;
-      }
-      #game-container.combat-compact-menu.combat-root-menu-active .command-ring button{
-        position:relative!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;
-        width:auto!important;min-width:0!important;height:54px!important;margin:0!important;
-        transform:none!important;visibility:visible!important;opacity:1!important;
-        pointer-events:auto!important;font-size:clamp(7px,1.8vw,10px)!important;
-      }
-      #game-container.combat-compact-menu.combat-root-menu-active .command-ring button img{
-        max-width:30px!important;max-height:30px!important;
-      }
-      #game-container.combat-compact-menu.combat-category-active .command-ring{
-        pointer-events:none!important;opacity:0!important;visibility:hidden!important;
-      }
-      #game-container.combat-compact-menu.combat-category-active .category-surface{
-        position:absolute!important;left:auto!important;right:8px!important;top:54px!important;bottom:8px!important;
-        width:min(330px,calc(100vw - 24px))!important;height:auto!important;max-height:none!important;
-        transform:none!important;overflow:hidden!important;box-sizing:border-box!important;z-index:225!important;
-      }
-      #game-container.combat-compact-menu.combat-category-active #category-body{
-        max-height:calc(100vh - 118px)!important;overflow-y:auto!important;overscroll-behavior:contain;
-      }
-      #game-container.combat-compact-menu.combat-category-active .category-back,
-      #game-container.combat-compact-menu.combat-category-active #back{
-        position:absolute!important;left:auto!important;right:12px!important;top:10px!important;bottom:auto!important;
-        transform:none!important;z-index:230!important;
-      }
-      @media (max-width:520px){
-        #game-container.combat-compact-menu.combat-root-menu-active .command-ring{
-          left:8px!important;right:8px!important;width:auto!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;
-          grid-auto-rows:48px!important;top:58px!important;
-        }
-        #game-container.combat-compact-menu.combat-root-menu-active .command-ring button{height:48px!important}
-        #game-container.combat-compact-menu.combat-category-active .category-surface{
-          left:8px!important;right:8px!important;width:auto!important;top:48px!important;
-        }
-      }
+      /* Responsive Combat HUD geometry is managed by css/combat-mobile-runtime.css. */
     `;
     global.document.head.appendChild(style);
   }
