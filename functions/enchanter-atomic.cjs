@@ -60,7 +60,23 @@ function quoteForIntent(Services,Engine,provider,item,intent,materials){
     return Services.quoteStrengthenService(provider,item,intent.definitionId,intent.targetRank,common);
   if(service==="magical_repair")
     return Services.quoteMagicalRepair(provider,item,common);
-  if(["identify","curse_analysis","remove_curse"].includes(service))
+  if(service==="remove_curse"){
+    const fixed=Services.quoteFixedService(provider,service,common);
+    if(!fixed.quoted)return fixed;
+    // Intent is not a quote. The server reconstructs an exact selector, and
+    // the canonical service revalidates it against the current Item snapshot.
+    const supplied=intent.curseTarget;
+    if(supplied!=null && (typeof supplied!=="object" || Array.isArray(supplied)))
+      return {quoted:false,reason:"invalid_curse_target"};
+    const selected=supplied==null?null:{
+      kind:supplied.kind,
+      definitionId:supplied.definitionId,
+      applicationId:supplied.applicationId,
+      anchorId:supplied.anchorId,
+    };
+    return {...fixed,...(selected?{curseTarget:selected}:{})};
+  }
+  if(["identify","curse_analysis"].includes(service))
     return Services.quoteFixedService(provider,service,common);
   if(service==="extract_gem")
     return Services.quoteGemProcedure(provider,item,intent.anchorId,
