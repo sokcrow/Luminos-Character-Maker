@@ -48,7 +48,7 @@
     height: 46px !important;
     min-height: 44px !important;
     min-width: 0 !important;
-    pointer-events: auto !important;
+    /* Original .leaving animation must still disable clicks. */
     touch-action: manipulation;
     /* Keep radial-left/right transforms, splash cutouts and transitions. */
   }
