@@ -226,4 +226,8 @@ const spellPlannerSource = fs.readFileSync(path.join(here, '..', 'js', 'battle-v
 assert.match(spellPlannerSource, /Assets\/Images\/Buttons\/Spells\.png/);
 assert.equal(fs.existsSync(path.join(here, '..', 'Assets', 'Images', 'Buttons', 'Spells.png')), true);
 
+assert.match(spellPlannerSource,/function spellTooltip/);
+assert.match(spellPlannerSource,/bv074-pspell-coin/);
+assert.match(spellPlannerSource,/bv074-pspell-effect/);
+assert.doesNotMatch(spellPlannerSource,/PLAYER SPELLS · 0\.7\.4/);
 console.log('combat-v074-player-spell-planner-smoke: ok');
