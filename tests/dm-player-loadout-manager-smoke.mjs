@@ -224,6 +224,7 @@ assert.equal(await liveManager.saveDeck(), true, "Pre-deployment saves remain su
 assert.deepEqual(writes.map((write) => write.path), [
   "campaña/jugadores/alice", "campaña/base_datos_unidades/unit-alice",
 ], "Build editor must not create phantom Combatants while no Encounter exists");
+assert.match(deckFeedback.textContent, /PRÓXIMO COMBATE/);
 
 // Changing the selected character during asynchronous Firebase writes must
 // not redirect the remainder of a Save Deck to someone else's Unit/Combatant.
@@ -252,6 +253,6 @@ assert.deepEqual(writes.map((write) => write.path), [
   "campaña/jugadores/alice", "campaña/base_datos_unidades/unit-alice",
   "campaña/combate/combatants/player:alice",
 ], "Mid-save selection changes must never redirect Skills into another Player");
-assert.match(deckFeedback.textContent, /PRÓXIMO COMBATE/);
+assert.equal(deckFeedback.textContent, "SKILLS ACTUALIZADAS EN EL COMBATE");
 
 console.log('dm-player-loadout-manager-smoke: ok');
