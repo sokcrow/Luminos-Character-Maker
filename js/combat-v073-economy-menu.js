@@ -3,7 +3,7 @@
 
   if (global.LuminousCombatEconomyMenu073) return;
 
-  const VERSION = "0.7.3-economy-menu.7-global-back-recovery";
+  const VERSION = "0.7.3-economy-menu.8-original-radial-mobile";
   const TABBED_MENUS = new Set(["global", "skills", "spells", "items"]);
   const ECONOMY = Object.freeze({ ACTION: "action", QUICK: "quick_action", REACTION: "reaction" });
   const state = {
@@ -585,7 +585,7 @@
     const link = global.document.createElement("link");
     link.id = "combat-mobile-runtime-stylesheet";
     link.rel = "stylesheet";
-    link.href = "css/combat-mobile-runtime.css?v=20261012-mobile-combat-2";
+    link.href = "css/combat-mobile-runtime.css?v=20261015-preserved-radial";
     link.dataset.ui = "combat-mobile-runtime";
     global.document.head.appendChild(link);
   }
