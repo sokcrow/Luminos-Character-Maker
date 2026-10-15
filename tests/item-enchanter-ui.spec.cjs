@@ -636,3 +636,79 @@ test("undetected magic stays indistinguishable from mundane gear in service elig
     }
   }
 });
+
+
+test("Remove Curse selects a known specific Enchantment without leaking unknown curse details", async ({page}) => {
+  await boot(page);
+  await page.evaluate(() => {
+    const {sword,viewer} = window.__enchanterFixture;
+    sword.magic={enabled:true,enchantments:[
+      {definitionId:"flamebound",applicationId:"curseA",rank:1,source:"direct",properties:["curse"]},
+      {definitionId:"frostbound",applicationId:"curseB",rank:1,source:"direct",properties:["curse"]},
+    ]};
+    window.LuminousCurseEnchanterBridge={
+      listItemCurses(item) {
+        return (item.magic?.enchantments||[]).map(ref=>({
+          kind:"enchantment_curse",source:"enchantment",
+          definitionId:ref.definitionId,applicationId:ref.applicationId,
+          anchorId:null,removable:true,
+        }));
+      },
+      selectRemoveCurseTarget(item,quote) {
+        const available=this.listItemCurses(item);
+        if(!quote.curseTarget)return {allowed:false,reason:"curse_target_required"};
+        return available.some(entry=>entry.definitionId===quote.curseTarget.definitionId &&
+          entry.applicationId===quote.curseTarget.applicationId)
+          ? {allowed:true,target:quote.curseTarget}:{allowed:false,reason:"curse_target_not_found"};
+      },
+    };
+    window.LuminousItemMagicKnowledgeRuntime={
+      presentation() { return {
+        magicDetected:true,cursed:true,identified:true,knowledge:{rankKnown:true},
+        enchantmentLines:[{known:true,text:"Flamebound"},{known:true,text:"Frostbound"}],
+        curseLines:[{text:"Maldición detectada"}],
+      }; },
+    };
+    const service=window.LuminousItemEnchanterServiceRuntime;
+    service.SERVICE_IDS.push("remove_curse");
+    service.SERVICE_LABELS.remove_curse="Remove Curse";
+    service.quoteFixedService=()=>({quoted:true,service:"remove_curse",totalAhn:100});
+    service.previewServiceResult=(item,quote)=>({previewed:true,item:JSON.parse(JSON.stringify(item))});
+    window.__capturedCurseIntent=null;
+    window.LuminousEnchanterUi.open({
+      viewer,items:[sword],
+      provider:{id:"tester",name:"Testing Enchanter",services:["remove_curse"],
+        servicePriceAhn:{remove_curse:100},maxRank:3,knownEnchantments:["flamebound","frostbound"]},
+      onAtomicService:async(intent)=>{
+        window.__capturedCurseIntent=JSON.parse(JSON.stringify(intent));
+        return {committed:true,player:JSON.parse(JSON.stringify(viewer)),receipt:{committed:true}};
+      },
+    });
+  });
+  await expect(page.locator("#enchanter-ui-curse-target-wrap")).toBeVisible();
+  await expect(page.locator("#enchanter-ui-curse-target option")).toHaveCount(2);
+  await page.locator("#enchanter-ui-curse-target").selectOption("curse-option-1");
+  await page.locator("#enchanter-ui-confirm").check();
+  await page.locator("#enchanter-ui-commit").click();
+  const intent=await page.evaluate(()=>window.__capturedCurseIntent);
+  expect(intent.curseTarget).toEqual({
+    kind:"enchantment_curse",definitionId:"frostbound",applicationId:"curseB",anchorId:null,
+  });
+  expect(intent.service).toBe("remove_curse");
+  await page.evaluate(()=>{
+    const {viewer,sword}=window.__enchanterFixture;
+    window.LuminousItemMagicKnowledgeRuntime.presentation=()=>({
+      magicDetected:true,cursed:false,identified:false,knowledge:{},
+      enchantmentLines:[],curseLines:[],
+    });
+    window.__capturedCurseIntent=null;
+    window.LuminousEnchanterUi.open({
+      viewer,items:[sword],
+      provider:{id:"tester",name:"Testing Enchanter",services:["remove_curse"],
+        maxRank:3,knownEnchantments:["flamebound","frostbound"]},
+      onAtomicService:async()=>{throw new Error("must not be called")},
+    });
+  });
+  await expect(page.locator("#enchanter-ui-curse-target-wrap")).toBeHidden();
+  await expect(page.locator("#enchanter-ui-commit")).toBeDisabled();
+});
