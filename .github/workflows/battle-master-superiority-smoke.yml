@@ -1,0 +1,40 @@
+name: Battle Master Encounter + Status
+
+on:
+  pull_request:
+    paths:
+      - "js/battle-master-archetype-runtime.js"
+      - "js/fighter-maneuver-catalog.js"
+      - "js/class-status-semantics.js"
+      - "js/trait-standardization-runtime.js"
+      - "Assets/Icons/status/superiority.svg"
+      - "tests/battle-master-archetype-runtime-smoke.mjs"
+      - "tests/class-status-semantics-smoke.mjs"
+      - "tests/trait-viewer-encounter-start-smoke.mjs"
+      - ".github/workflows/battle-master-superiority-smoke.yml"
+  push:
+    branches: [main]
+    paths:
+      - "js/battle-master-archetype-runtime.js"
+      - "js/class-status-semantics.js"
+      - "js/trait-standardization-runtime.js"
+      - "Assets/Icons/status/superiority.svg"
+      - "tests/battle-master-archetype-runtime-smoke.mjs"
+      - "tests/class-status-semantics-smoke.mjs"
+      - "tests/trait-viewer-encounter-start-smoke.mjs"
+      - ".github/workflows/battle-master-superiority-smoke.yml"
+
+jobs:
+  battle-master-superiority:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node --check js/battle-master-archetype-runtime.js
+      - run: node --check js/trait-standardization-runtime.js
+      - run: node --check js/class-status-semantics.js
+      - run: node tests/battle-master-archetype-runtime-smoke.mjs
+      - run: node tests/class-status-semantics-smoke.mjs
+      - run: node tests/trait-viewer-encounter-start-smoke.mjs
