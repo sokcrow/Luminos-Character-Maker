@@ -76,6 +76,7 @@
     await ensureScript("curse-catalog-script", "js/curse-catalog.js", "LuminousCurseCatalog");
     await ensureScript("curse-runtime-script", "js/curse-runtime.js", "LuminousCurseRuntime");
     await ensureScript("item-magic-runtime-script", "js/item-magic-runtime.js", "LuminousItemMagicRuntime");
+    await ensureScript("curse-enchanter-bridge-script", "js/curse-enchanter-bridge.js", "LuminousCurseEnchanterBridge");
     await ensureScript("item-enchanter-service-script", "js/item-enchanter-service-runtime.js", "LuminousItemEnchanterServiceRuntime");
     return Boolean(inventory() && persistence() && enchantmentCatalog() && enchantmentEngine() && enchanterServices());
   }
