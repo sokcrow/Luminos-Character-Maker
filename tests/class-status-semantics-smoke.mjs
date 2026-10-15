@@ -53,7 +53,7 @@ assert.equal(library.get('superiority')?.mode, 'single');
 assert.equal(library.get('superiority')?.archetypeId, 'battle_master');
 assert.equal(library.get('superiority')?.icon, 'Assets/Icons/status/superiority.svg');
 const superiorityAsset = fs.readFileSync(path.join(root, 'Assets/Icons/status/superiority.svg'), 'utf8');
-assert.match(superiorityAsset, /<svg\\b/);
+assert.match(superiorityAsset, /<svg\b/);
 assert.match(superiorityAsset, /Superiority/);
 
 // Class resources and Action/Passive implementation markers are not Status Effects.
