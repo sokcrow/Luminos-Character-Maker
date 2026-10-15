@@ -217,4 +217,11 @@ const skillPlannerSource = fs.readFileSync(path.join(here, '..', 'js', 'battle-v
 assert.match(skillPlannerSource, /Assets\/Images\/Buttons\/Skills\.png/);
 assert.equal(fs.existsSync(path.join(here, '..', 'Assets', 'Images', 'Buttons', 'Skills.png')), true);
 
+// Player-facing planner must not reveal internal IDs or raw state in its display.
+assert.match(skillPlannerSource, /class="bv074-coin-meta"/);
+assert.match(skillPlannerSource, /class="bv074-coins"/);
+assert.match(skillPlannerSource, /Acción \${index \+ 1}/);
+assert.match(skillPlannerSource, /Selecciona una habilidad/);
+assert.doesNotMatch(skillPlannerSource, /Selected: \${htmlEscape\(state\.selectedSkillId\)}/);
+assert.doesNotMatch(skillPlannerSource, /title="\${htmlEscape\(skill\.id\)}"/);
 console.log('combat-v074-player-skill-planner-smoke: ok');
