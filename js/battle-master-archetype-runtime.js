@@ -280,6 +280,8 @@
     };
     const library = global.LuminousStatusLibrary;
     if (typeof library?.registerExtension === "function") {
+      // install() retries on a short interval; registration must be idempotent.
+      if (library.get?.("superiority")?.icon === SUPERIORITY_ICON) return true;
       library.registerExtension("superiority", definition);
       return library.get?.("superiority")?.icon === SUPERIORITY_ICON;
     }
