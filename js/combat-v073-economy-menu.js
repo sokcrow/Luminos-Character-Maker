@@ -3,7 +3,7 @@
 
   if (global.LuminousCombatEconomyMenu073) return;
 
-  const VERSION = "0.7.3-economy-menu.8-original-radial-mobile";
+  const VERSION = "0.7.3-economy-menu.9-player-centered-visibility";
   const TABBED_MENUS = new Set(["global", "skills", "spells", "items"]);
   const ECONOMY = Object.freeze({ ACTION: "action", QUICK: "quick_action", REACTION: "reaction" });
   const state = {
@@ -585,7 +585,7 @@
     const link = global.document.createElement("link");
     link.id = "combat-mobile-runtime-stylesheet";
     link.rel = "stylesheet";
-    link.href = "css/combat-mobile-runtime.css?v=20261015-preserved-radial";
+    link.href = "css/combat-mobile-runtime.css?v=20261015-player-centered-v1";
     link.dataset.ui = "combat-mobile-runtime";
     global.document.head.appendChild(link);
   }
@@ -817,34 +817,37 @@
     const compact = coarsePointer || viewportWidth <= 900;
 
     if (compact && viewportWidth > 0 && viewportHeight > 0) {
-      // Keep Limbus' six ink-cut radial commands and their left/right fan
-      // arrangement. Only the geometry changes to remain on-screen.
-      const portrait = viewportHeight > viewportWidth;
-      const sidePadding = Math.max(10, Math.min(20, viewportWidth * .023));
-      const widthScale = portrait
-        ? Math.max(.82, Math.min(1, viewportWidth / 420))
-        : Math.max(.86, Math.min(1.10, viewportWidth / 900));
-      const maxButtonWidth = Math.max(92, Math.min(190, viewportWidth * .42));
-      const centerY = portrait
-        ? viewportHeight - Math.max(142, Math.min(190, viewportHeight * .245))
-        : viewportHeight * .54;
-      const fanY = portrait
-        ? Math.max(52, Math.min(94, viewportHeight * .125))
-        : Math.max(42, Math.min(104, (viewportHeight - 122) * .42));
+      // Same origin as Desktop: the current PLAYER_ID sprite, not the
+      // viewport edges or the first allied combatant in the encounter.
+      const spriteCenter = lexical("spriteCenter", null);
+      let center = null;
+      try { if (typeof spriteCenter === "function") center = spriteCenter(); } catch (_) {}
+      const screenX = Number(center?.x), screenY = Number(center?.y);
+      if (!center || !Number.isFinite(screenX) || !Number.isFinite(screenY)) return result;
+
+      const hostRect = host.getBoundingClientRect();
       const ringRect = ring.getBoundingClientRect();
+      const playerX = screenX - hostRect.left;
+      const playerY = screenY - hostRect.top;
+      const portrait = viewportHeight > viewportWidth;
+      const safeInset = 10;
+      const menuScale = Math.max(.70, Math.min(1.05, viewportWidth / 510));
+      const maxButtonWidth = Math.max(84, (viewportWidth - 3 * safeInset) / 2);
+      const rx = Math.max(96, Math.min(190, viewportWidth * .31));
+      const ry = Math.max(48, Math.min(105, viewportHeight * .135));
 
       global.document.querySelectorAll(".command-ring .command").forEach((button) => {
         const angle = Number(button.dataset?.angle);
         if (!Number.isFinite(angle)) return;
         const radians = angle * Math.PI / 180;
         const leftSide = Math.cos(radians) < 0;
-        const width = Math.min(maxButtonWidth, (Number(button.dataset?.width) || 150) * widthScale);
+        const width = Math.min(maxButtonWidth, (Number(button.dataset?.width) || 150) * menuScale);
         const height = 46;
-        const outward = Math.abs(Math.sin(radians));
-        const side = sidePadding + outward * 8;
-        const x = leftSide ? side : viewportWidth - side - width;
-        const y = Math.max(62, Math.min(viewportHeight - height - 12,
-          centerY + Math.sin(radians) * fanY - height / 2));
+        const naturalX = playerX + rx * Math.cos(radians) - (leftSide ? width : 0);
+        const naturalY = playerY + ry * Math.sin(radians) - height / 2;
+        // Clamp only to avoid clipping: do not replace the player as origin.
+        const x = Math.max(safeInset, Math.min(viewportWidth - width - safeInset, naturalX));
+        const y = Math.max(54, Math.min(viewportHeight - height - safeInset, naturalY));
         const originalRotation = leftSide ? (angle > 90 ? angle - 180 : angle + 180) : angle;
         const rotation = originalRotation * (portrait ? .35 : .42);
 
@@ -854,8 +857,8 @@
         button.classList.toggle("radial-right", !leftSide);
         button.style.setProperty("--rot", `${rotation}deg`);
         button.style.setProperty("--icon-counter-rot", `${-rotation}deg`);
-        button.style.left = `${host.getBoundingClientRect().left - ringRect.left + x}px`;
-        button.style.top = `${host.getBoundingClientRect().top - ringRect.top + y}px`;
+        button.style.left = `${hostRect.left - ringRect.left + x}px`;
+        button.style.top = `${hostRect.top - ringRect.top + y}px`;
       });
       try { lexical("syncReadyControl", () => {})(); } catch (_) {}
       return result;
@@ -1512,7 +1515,11 @@
       assignLexical("goRoot", "window.__luminousEconomyGoRoot");
     }
     installPhaseHooks(); installTargetHandler(); installRootMenuClickHandler(); installActionBackRecovery(); syncPlanningEconomy(false); syncQuickBadge(); syncSpellMenuVisibility(); syncResponsiveMenuLayout();
-    global.addEventListener?.("resize", syncResponsiveMenuLayout);
+    global.addEventListener?.("resize", () => {
+      syncResponsiveMenuLayout();
+      layoutRadialCommandsStable();
+      syncSpellMenuVisibility();
+    });
     if (!state.menuObserver && typeof MutationObserver === "function" && global.document?.body) {
       state.menuObserver = new MutationObserver(() => { syncSpellMenuVisibility(); syncResponsiveMenuLayout(); });
       state.menuObserver.observe(global.document.body, { childList: true, subtree: true });
