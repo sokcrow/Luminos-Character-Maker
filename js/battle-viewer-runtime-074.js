@@ -32,6 +32,7 @@
     ["battle-viewer-runtime-073-script", "js/battle-viewer-runtime-073.js", "LuminousBattleViewerRuntime073"],
     ["angelo-player-skill-runtime-script", "js/player-skill-runtime-angelo.js", "LuminousAngeloPlayerSkillRuntime"],
     ["pierre-player-skill-runtime-script", "js/player-skill-runtime-pierre.js", "LuminousPierrePlayerSkillRuntime"],
+    ["rei-player-skill-runtime-script", "js/player-skill-runtime-rei.js", "LuminousReiPlayerSkillRuntime"],
     ["battle-viewer-spell-adapter-074-script", "js/battle-viewer-spell-adapter-074.js", "LuminousBattleViewerSpellAdapter074"],
     ["battle-viewer-spell-runtime-074-script", "js/battle-viewer-spell-runtime-074.js", "LuminousBattleViewerSpellRuntime074"],
     ["battle-viewer-ownership-074-script", "js/battle-viewer-ownership-074.js", "LuminousBattleViewerOwnership074"],
@@ -310,6 +311,7 @@
     try { if (!global.LuminousBattleViewerRuntime073) require("./battle-viewer-runtime-073.js"); } catch (_) {}
     try { if (!global.LuminousAngeloPlayerSkillRuntime) require("./player-skill-runtime-angelo.js"); } catch (_) {}
     try { if (!global.LuminousPierrePlayerSkillRuntime) require("./player-skill-runtime-pierre.js"); } catch (_) {}
+    try { if (!global.LuminousReiPlayerSkillRuntime) require("./player-skill-runtime-rei.js"); } catch (_) {}
     try { if (!global.LuminousBattleViewerSpellAdapter074) require("./battle-viewer-spell-adapter-074.js"); } catch (_) {}
     try { if (!global.LuminousBattleViewerSpellRuntime074) require("./battle-viewer-spell-runtime-074.js"); } catch (_) {}
     try { if (!global.LuminousBattleViewerOwnership074) require("./battle-viewer-ownership-074.js"); } catch (_) {}
