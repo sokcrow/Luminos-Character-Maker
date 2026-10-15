@@ -279,6 +279,7 @@ async function bootDmHarness(page) {
   await page.addScriptTag({ path: path.join(ROOT, "js/dm-enchanter-studio-model.js") });
   await page.addScriptTag({ path: path.join(ROOT, "js/curse-catalog.js") });
   await page.addScriptTag({ path: path.join(ROOT, "js/curse-runtime.js") });
+  await page.addScriptTag({ path: path.join(ROOT, "js/curse-enchanter-bridge.js") });
   // This is an about:blank fixture: editor runtime dependencies must be
   // explicitly available. A relative script URL cannot load from about:blank.
   // Individual Enchanter UI tests override these seams with authored cases.
