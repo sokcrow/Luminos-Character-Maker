@@ -245,6 +245,9 @@
   function hudScaleForViewport(width, height) {
     const viewportWidth = Math.max(1, Number(width) || 1);
     const viewportHeight = Math.max(1, Number(height) || 1);
+    // Compact screens use an actual responsive layout, never a 1600px
+    // screenshot scaled down to unreadable text and touch targets.
+    if (viewportWidth <= 900) return 1;
     const availableWidth = Math.max(1, viewportWidth - HUD_CANVAS.gutter);
     const availableHeight = Math.max(1, viewportHeight - HUD_CANVAS.gutter);
     return Math.min(1, availableWidth / HUD_CANVAS.width, availableHeight / HUD_CANVAS.height);
