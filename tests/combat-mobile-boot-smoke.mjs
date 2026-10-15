@@ -83,9 +83,66 @@ const camera = load("js/combat-v073-camera-controls.js");
 const css = load("css/combat-mobile-runtime.css");
 new Script(economy);
 new Script(camera);
-assert.ok(!economy.includes("top:66px!important;"), "Legacy economy CSS still overrides the mobile dock");
+assert.ok(!economy.includes("top:66px!important;"), "Legacy compact CSS must not override radial geometry");
+assert.ok(!/grid-template-columns|grid-auto-rows/.test(css), "Mobile Combat must not replace the radial HUD with a grid");
+assert.match(css, /\.command-ring \.command \.label/, "Original radial command labels must remain styled");
+assert.ok(!/\.splash\s*\{\s*display:\s*none/.test(css), "Ink splashes must remain visible");
+assert.match(economy, /const originalRotation = leftSide/, "Responsive geometry must preserve the original left/right radial rotation");
+assert.match(written, /categoryRect=surface\.getBoundingClientRect\(\)/, "Category flight must land on the visible panel");
+
 assert.match(camera, /f\.style\.touchAction='none'/);
 assert.ok(!camera.includes("h.style.touchAction='none'"), "Touch gestures must not disable menu scrolling");
-assert.match(css, /#game-container \.category-surface/);
+assert.match(css, /#game-container\.combat-compact-menu \.category-surface/);
 
-console.log("Combat mobile smoke OK:", scripts.length, "inline scripts parsed, single CSS link, camera and menu guards present.");
+// Validate the actual mobile radial geometry at representative viewport sizes.
+const radialAngles = [-145, 180, 145, -35, 0, 35];
+const simulated = radialAngles.map((angle) => {
+  const properties = new Map();
+  return {
+    dataset: { angle: String(angle), width: String(angle === 180 ? 116 : 138), accent: "#d4ae6d" },
+    classList: { toggle() {} },
+    style: {
+      setProperty(name, value) { properties.set(name, value); },
+      getPropertyValue(name) { return properties.get(name) || ""; },
+      left: "",
+      top: ""
+    },
+  };
+});
+const simulatedHost = { clientWidth: 390, clientHeight: 844, getBoundingClientRect: () => ({left: 0, top: 0}) };
+const simulatedRing = { getBoundingClientRect: () => ({left: 0, top: 0}) };
+const simulatedWindow = {
+  document: {
+    getElementById: () => simulatedHost,
+    querySelector: () => simulatedRing,
+    querySelectorAll: () => simulated,
+  },
+  innerWidth: 390,
+  innerHeight: 844,
+  matchMedia: () => ({ matches: true }),
+  setTimeout() {},
+  addEventListener() {},
+  eval: (expression) => expression.includes("navState") ? "root" : undefined,
+};
+runInNewContext(economy, { window: simulatedWindow });
+const radial = simulatedWindow.LuminousCombatEconomyMenu073;
+assert.ok(radial, "Mobile radial runtime not exposed");
+radial.state.originals.layoutRadialCommands = () => undefined;
+for (const [width, height] of [[390, 844], [780, 360], [320, 568]]) {
+  simulatedHost.clientWidth = width;
+  simulatedHost.clientHeight = height;
+  simulatedWindow.innerWidth = width;
+  simulatedWindow.innerHeight = height;
+  radial.layoutRadialCommandsStable();
+  for (const button of simulated) {
+    const x = parseFloat(button.style.left);
+    const y = parseFloat(button.style.top);
+    const w = parseFloat(button.style.getPropertyValue("--w"));
+    const rotation = parseFloat(button.style.getPropertyValue("--rot"));
+    assert.ok(x >= 0 && x + w <= width, `Radial command outside ${width}px viewport`);
+    assert.ok(y >= 0 && y + 46 <= height, `Radial command outside ${height}px viewport`);
+    assert.ok(Number.isFinite(rotation), "Original radial rotations must remain functional");
+  }
+}
+
+console.log("Combat mobile smoke OK:", scripts.length, "inline scripts parsed, single CSS link, camera/menu checks and radial geometry verified.");
