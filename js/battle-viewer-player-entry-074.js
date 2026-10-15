@@ -87,6 +87,15 @@
 
   const KNOWN_PLAYER_SKILL_LOADOUTS = Object.freeze([
     Object.freeze({
+      id: "rei",
+      aliases: Object.freeze(["rei"]),
+      skillSlotIds: Object.freeze([
+        "rei_twin_fang", "rei_twin_fang", "rei_twin_fang",
+        "rei_crimson_moon_sweep", "rei_crimson_moon_sweep",
+        "rei_heaven_rending_execution",
+      ]),
+    }),
+    Object.freeze({
       id: "pierre_careme_kikunae",
       aliases: Object.freeze(["pierre careme kikunae"]),
       skillSlotIds: Object.freeze([
@@ -138,7 +147,7 @@
     ].map(normalizeKnownPlayerName).filter(Boolean);
     const match = KNOWN_PLAYER_SKILL_LOADOUTS.find((entry) => entry.aliases.some((alias) => {
       const wanted = normalizeKnownPlayerName(alias);
-      return candidates.some((candidate) => candidate === wanted || candidate.startsWith(`${wanted} `));
+      return candidates.some((candidate) => candidate === wanted || (entry.id !== "rei" && candidate.startsWith(`${wanted} `)));
     }));
     return match ? clone(match) : null;
   }
@@ -166,11 +175,15 @@
   function applyKnownSkillLoadoutToCombatant(record = {}, loadout = null) {
     const next = clone(record || {}) || {};
     if (!loadout) return next;
-    const signatureIds = [...new Set((loadout.skillSlotIds || []).map(clean).filter(Boolean))];
+    const signatureSlots = (loadout.skillSlotIds || []).map(clean).filter(Boolean);
+    const signatureIds = [...new Set(signatureSlots)];
     const existingSlots = Array.isArray(next.skillSlotIds)
       ? next.skillSlotIds.map(clean).filter(Boolean)
       : Array.isArray(next.skillIds) ? next.skillIds.map(clean).filter(Boolean) : [];
-    const skillSlotIds = [...signatureIds, ...existingSlots.filter((id) => !signatureIds.includes(id))];
+    // Rei uses the canonical 3/2/1 six-card deck, not a deduplicated set.
+    const skillSlotIds = loadout.id === "rei"
+      ? signatureSlots
+      : [...signatureIds, ...existingSlots.filter((id) => !signatureIds.includes(id))];
     const skillIds = [...new Set(skillSlotIds)];
     next.skillSlotIds = skillSlotIds;
     next.skillIds = skillIds;
