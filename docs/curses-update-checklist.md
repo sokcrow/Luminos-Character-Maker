@@ -27,7 +27,7 @@ La **V1 definida por el propietario** cubre cinco objetivos (`item`, `creature`,
 | Pista | Marcadas [x] | Pendientes [ ] | Total |
 |---|---:|---:|---:|
 | Infraestructura preexistente verificada (referencia, NO trabajo del PR) | 13 | 0 | 13 |
-| **Curse's Update V1 (tareas propias; diseño + ejecución + nuevos objetivos)** | **20** | **106** | **126** |
+| **Curse's Update V1 (tareas propias; diseño + ejecución + nuevos objetivos)** | **29** | **97** | **126** |
 
 **Regla del tracker:** no trasladar las `[x]` de Enchanter a las tareas propias de Curse. Una tarea V1 pasa a `[x]` solamente al estar implementada y verificada en la rama del PR, con referencias a cambios/tests. Para decisiones de diseño, `[x]` solo al existir aprobación explícita registrada. Mantener este ledger actualizado cuando cambien tareas o alcance.
 
@@ -46,6 +46,18 @@ La **V1 definida por el propietario** cubre cinco objetivos (`item`, `creature`,
 **Verificado:** `tests/curse-catalog-smoke.cjs`, `tests/curse-item-runtime-smoke.cjs`, regresiones de Bind/Arcana en [Curse Runtime Integration CI](https://github.com/sokcrow/Luminos-Character-Maker/actions/runs/38335190664) (verde). [DM Inventory Grant GUI](https://github.com/sokcrow/Luminos-Character-Maker/actions/runs/38335190661) pasó sobre la rama con estos contratos. La mejora posterior de intensidad visible en la UI tiene suite de navegador adicional en ejecución; no se confunde con la prueba de versión anterior.
 
 **Pendiente B:** adapters ejecutables adicionales sobre Trait/Status/Spell/Creature. El contrato de instancia ya incluye origen, fuente (cuando existe), provenance, condiciones explícitas de persistencia y timestamps; sus verificaciones directas pasaron y la última corrida CI aún se está procesando. Declara cinco familias, pero solo `cursed_binding` para Item es contenido funcional publicado. Ver [documentación técnica B](./curses-update-phase-b-core.md).
+
+## Fase C — Enchanter y Items integrados (9/9 tareas técnicas)
+
+**Código real:** `js/curse-enchanter-bridge.js` clasifica Enchantment Curse, Bind y Curse autónoma sin migrar propiedades ni ocupar slots. `js/item-enchanter-service-runtime.js` y `js/item-enchantment-engine.js` usan un selector exacto para `remove_curse`; si hay varios objetivos ambiguos, rechaza la operación antes de cobrar. `functions/enchanter-atomic.cjs` reconstruye el quote y valida el objetivo contra la instancia actual con autoridad de Firebase. El bundle de Functions incorpora los módulos de Curse sin activar el gate productivo. La UI existente `js/item-enchanter-ui.js` permite elegir Curse después de `Curse Analysis` sin filtrar desventajas ocultas.
+
+**Error real corregido:** `js/item-inventory-runtime.js` ahora conserva `curseInstances` al serializar/rehidratar y evita fusionar objetos malditos con pilas mundanas; el movimiento directo al Stash respeta el bloqueo de atadura de Curse y Bind. No se introdujo un nuevo gestor de inventarios.
+
+**Evidencia local reproducible:** `tests/curse-enchanter-bridge-smoke.cjs`, `tests/curse-enchanter-server-intent-smoke.cjs`, `tests/curse-inventory-persistence-smoke.cjs` y `tests/item-enchanter-ui.spec.cjs`. Se ejecutaron directamente y pasaron los contratos JS de elección exacta, preservación de magia, stacking/persistencia, deduplicación, transferencia pura y conocimiento por observador. El [CI de Curse Runtime con pruebas de servicio Firebase y regresión](https://github.com/sokcrow/Luminos-Character-Maker/actions/runs/38756243568) cerró verde antes de los ajustes finales de persistencia. La **última revisión GitHub Actions todavía requiere su resultado**; no confundir pruebas directas con la validación final de despliegue. Las pruebas de navegador del menú también están incluidas en los suites existentes.
+
+**Límite:** la Fase C resuelve compatibilidad de sistema y transferencia de instancia **pura**. Transferencia remota atómica entre propietarios, seguridad Firebase de producción y servicios nuevos pagados siguen en las Fases F/J/K y no están habilitados.
+
+[Contrato y cambios de Fase C](./curses-update-phase-c-enchanter.md).
 
 ## 0 — Inventario comprobado en `main` (solo referencia)
 
@@ -93,15 +105,15 @@ La **V1 definida por el propietario** cubre cinco objetivos (`item`, `creature`,
 
 ### C — Integración con Item Curses y Enchanter
 
-- [ ] Conservar los modificadores, TH, costos, reglas de Gems, restricciones de Bind y economía originales de Enchanter.
-- [ ] Exponer un adaptador desde `magic.enchantments[].properties` a la taxonomía Curse sin migración destructiva.
-- [ ] Respetar exclusión actual `bind` + `curse` en una misma referencia; no habilitar combinaciones sin diseño aprobado.
-- [ ] Autorizar por definición cuáles son Curse removibles, Bound o perjuicios inseparables; fallar en cerrado.
-- [ ] Corregir el alcance de `remove_curse` para seleccionar una Curse identificada de forma determinista, sin retirar la primera por defecto en objetos con varias.
-- [ ] Preservar enlace Gem Anchor, restricciones de extracción y destrucción obligatoria de Item ante retirada de Gem ligada por Bind.
-- [ ] Garantizar que la maldición persistente no reaparece duplicada por equipar, transferir, guardar/cargar o abrir inventario.
-- [ ] Verificar que Curse no modifica automáticamente `Magic Hit`, enchants instalados, Physical Durability o Magical Durability.
-- [ ] Conservar conocimiento individual por observador al transferir Items y mostrar solo información legítimamente descubierta.
+- [x] Conservar los modificadores, TH, costos, reglas de Gems, restricciones de Bind y economía originales de Enchanter. — `js/item-enchantment-engine.js` y regresiones `tests/item-enchantment-engine-smoke.cjs`, `tests/item-enchanter-service-runtime-smoke.cjs`.
+- [x] Exponer un adaptador desde `magic.enchantments[].properties` a la taxonomía Curse sin migración destructiva. — `js/curse-enchanter-bridge.js` y `tests/curse-enchanter-bridge-smoke.cjs`.
+- [x] Respetar exclusión actual `bind` + `curse` en una misma referencia; no habilitar combinaciones sin diseño aprobado. — Validador de `js/item-enchantment-engine.js` y prueba de no coexistencia en `tests/curse-enchanter-bridge-smoke.cjs`.
+- [x] Autorizar por definición cuáles son Curse removibles, Bound o perjuicios inseparables; fallar en cerrado. — `selectRemoveCurseTarget` distingue Removable/Bind/Gem/Relic/Autonomous y rechaza incompatibles.
+- [x] Corregir el alcance de `remove_curse` para seleccionar una Curse identificada de forma determinista, sin retirar la primera por defecto en objetos con varias. — `js/item-enchanter-service-runtime.js`, `js/item-enchanter-ui.js`, `functions/enchanter-atomic.cjs`, pruebas de servicio y servidor.
+- [x] Preservar enlace Gem Anchor, restricciones de extracción y destrucción obligatoria de Item ante retirada de Gem ligada por Bind. — Se bloquea `remove_curse` sobre Gem/Bind; `tests/item-enchanter-gem-procedure-smoke.cjs` preserva procedimientos preexistentes.
+- [x] Garantizar que la maldición persistente no reaparece duplicada por equipar, transferir, guardar/cargar o abrir inventario. — `js/curse-runtime.js` e `js/item-inventory-runtime.js`; deduplicación, Curse Instance exclusiva, transferencias puras y persistencia en `tests/curse-inventory-persistence-smoke.cjs`.
+- [x] Verificar que Curse no modifica automáticamente `Magic Hit`, enchants instalados, Physical Durability o Magical Durability. — Comparativas de `item.magic`, Physical Durability y MD en `tests/curse-enchanter-bridge-smoke.cjs`.
+- [x] Conservar conocimiento individual por observador al transferir Items y mostrar solo información legítimamente descubierta. — `js/item-magic-knowledge-runtime.js` y `tests/curse-inventory-persistence-smoke.cjs`: transferencia no copia conocimiento y Curse Analysis es necesaria para revelar detalle.
 
 ### D — Affliction Curses en personajes
 
