@@ -130,4 +130,23 @@ assert.match(skillLoadout, /characterBuild\?\.skillDeck/);
 assert.match(playerEntry, /hasPlayerManagedSkillLoadout/);
 assert.match(playerEntry, /playerSkillSlots\.length \? raw : sourceUnit/);
 
+// Active Encounter snapshots must be updated independently from Player/Unit records.
+const deployed = {
+  'player:alice': { isPlayer: true, canonicalPlayerKey: 'alice', canonicalOwnerUid: 'uid-a' },
+  enemy_1: { category: 'enemy', playerId: 'alice' },
+  'player:bob': { isPlayer: true, canonicalPlayerKey: 'bob', canonicalOwnerUid: 'uid-b' },
+};
+assert.deepEqual(core.activeCombatantForPlayer('alice', deployed, 'uid-a'), {
+  ok: true, reason: null, key: 'player:alice',
+});
+assert.equal(core.activeCombatantForPlayer('alice', deployed, 'wrong-uid').reason, 'NOT_DEPLOYED');
+assert.equal(core.activeCombatantForPlayer('alice', {}, 'uid-a').reason, 'NOT_DEPLOYED');
+assert.equal(core.activeCombatantForPlayer('alice', {
+  a: { isPlayer: true, playerId: 'alice' },
+  b: { isPlayer: true, ownerPlayerId: 'alice' },
+}).reason, 'AMBIGUOUS_ACTIVE_COMBATANTS');
+assert.match(manager, /syncDeployedCombatantUpdates\(unitUpdates\)/);
+assert.match(manager, /syncDeployedCombatantUpdates\(updates\)/);
+assert.match(manager, /campaña\/combate\/combatants/);
+assert.doesNotMatch(manager, /COMBATE USARÁ EL LOADOUT CANÓNICO/);
 console.log('dm-player-loadout-manager-smoke: ok');
