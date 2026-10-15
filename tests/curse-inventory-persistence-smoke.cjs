@@ -61,7 +61,8 @@ assert.equal(Object.values(loadedTransfer.inventario_activo)
   "Curse may exist only once across a transfer and inventory reload");
 assert.equal(Curse.instances(loadedTransfer.inventario_activo.recipient_vial)[0].targetInstanceId,
   "recipient_vial");
-assert.equal(Curse.instances(loadedTransfer.inventario_activo.old_vial).length,0);
+assert.equal(Curse.instances(loadedTransfer.inventario_activo.cursed_vial).length,0,
+  "canonical inventory rekeys by ItemInstance ID, not container aliases");
 
 const sword={instanceId:"equipped_curse",definitionId:"sword",category:"weapon",
   itemType:"weapon",quantity:1,equipped:true};
