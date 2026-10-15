@@ -50,7 +50,7 @@ Los módulos nuevos se añaden al bundle de Firebase. **La callable productiva s
 
 **Archivo:** `js/item-enchanter-ui.js`.
 
-Dentro del menú de servicios de Enchanter, `Remove Curse` muestra un selector real **solo para maldiciones detectadas**. Antes de que el observador conozca la Curse no aparecen nombres, cantidad de penalizaciones ni IDs internos. Cuando se identifica una inscripción, se puede elegir cuál tratar y su selector viaja por el intent de la callable. No se crea un panel flotante ni un menú de debug.
+Dentro del menú de servicios de Enchanter, `Remove Curse` muestra un selector real **solo después del análisis de Curse que revela sus detalles**. Antes de que el observador conozca la Curse no aparecen nombres, cantidad de penalizaciones ni IDs internos. Cuando se identifica una inscripción, se puede elegir cuál tratar y su selector viaja por el intent de la callable. No se crea un panel flotante ni un menú de debug.
 
 ## Pruebas
 
