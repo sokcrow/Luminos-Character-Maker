@@ -249,7 +249,7 @@
     if(state.service!=="remove_curse" || !state.selectedItem || !state.viewer) return [];
     const knowledge=magicKnowledge()?.presentation?.(state.viewer,state.selectedItem);
     // An unknown Curse must not leak the number/names of hidden drawbacks.
-    if(knowledge?.cursed!==true)return [];
+    if(knowledge?.cursed!==true || knowledge?.curseDetailsKnown!==true)return [];
     const entries=(curseBridge()?.listItemCurses?.(state.selectedItem)||[])
       .filter(entry=>entry.kind==="enchantment_curse");
     return entries.map((entry,index)=>{
