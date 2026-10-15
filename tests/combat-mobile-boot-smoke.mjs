@@ -93,13 +93,23 @@ assert.match(written, /categoryRect=surface\.getBoundingClientRect\(\)/, "Catego
 assert.match(camera, /f\.style\.touchAction='none'/);
 assert.ok(!camera.includes("h.style.touchAction='none'"), "Touch gestures must not disable menu scrolling");
 assert.match(css, /#game-container\.combat-compact-menu \.category-surface/);
+assert.match(css, /\.command\[hidden\]/, "Mobile menu must honor hidden class-dependent commands");
+assert.match(css, /\.command\[aria-hidden="true"\]/, "Mobile menu must honor disabled menu visibility");
+
 
 // Validate the actual mobile radial geometry at representative viewport sizes.
 const radialAngles = [-145, 180, 145, -35, 0, 35];
 const simulated = radialAngles.map((angle) => {
   const properties = new Map();
   return {
-    dataset: { angle: String(angle), width: String(angle === 180 ? 116 : 138), accent: "#d4ae6d" },
+    dataset: { angle: String(angle), menu: angle === -35 ? "spells" : "skills", width: String(angle === 180 ? 116 : 138), accent: "#d4ae6d" },
+    tagName: "BUTTON",
+    hidden: false,
+    disabled: false,
+    attributes: new Map(),
+    setAttribute(name, value) { this.attributes.set(name, value); },
+    getAttribute(name) { return this.attributes.get(name) || null; },
+    querySelector() { return null; },
     classList: { toggle() {} },
     style: {
       setProperty(name, value) { properties.set(name, value); },
@@ -110,6 +120,8 @@ const simulated = radialAngles.map((angle) => {
   };
 });
 const simulatedHost = { clientWidth: 390, clientHeight: 844, getBoundingClientRect: () => ({left: 0, top: 0}) };
+const hero = { id: "hero", classes: [{ classId: "fighter", level: 3 }] };
+const center = { x: 195, y: 422 };
 const simulatedRing = { getBoundingClientRect: () => ({left: 0, top: 0}) };
 const simulatedWindow = {
   document: {
@@ -120,9 +132,20 @@ const simulatedWindow = {
   innerWidth: 390,
   innerHeight: 844,
   matchMedia: () => ({ matches: true }),
+  LuminousSpellcastingRuntime: {
+    getClassSpellcastingProfile(id) {
+      return id === "mage" ? { spellcastingStartLimbusLevel: 1 } : null;
+    },
+  },
   setTimeout() {},
   addEventListener() {},
-  eval: (expression) => expression.includes("navState") ? "root" : undefined,
+  eval(expression) {
+    if (expression.includes("spriteCenter")) return () => ({ ...center });
+    if (expression.includes("navState")) return "root";
+    if (expression.includes("PLAYER_ID")) return "hero";
+    if (expression.includes("combatData")) return { hero };
+    return undefined;
+  },
 };
 runInNewContext(economy, { window: simulatedWindow });
 const radial = simulatedWindow.LuminousCombatEconomyMenu073;
@@ -133,6 +156,8 @@ for (const [width, height] of [[390, 844], [780, 360], [320, 568]]) {
   simulatedHost.clientHeight = height;
   simulatedWindow.innerWidth = width;
   simulatedWindow.innerHeight = height;
+  center.x = width / 2;
+  center.y = height / 2;
   radial.layoutRadialCommandsStable();
   for (const button of simulated) {
     const x = parseFloat(button.style.left);
@@ -145,4 +170,41 @@ for (const [width, height] of [[390, 844], [780, 360], [320, 568]]) {
   }
 }
 
-console.log("Combat mobile smoke OK:", scripts.length, "inline scripts parsed, single CSS link, camera/menu checks and radial geometry verified.");
+// Moving the player without changing the viewport must move the radial HUD.
+simulatedHost.clientWidth = 780;
+simulatedHost.clientHeight = 360;
+center.x = 390;
+center.y = 180;
+radial.layoutRadialCommandsStable();
+const initialY = simulated.map((button) => parseFloat(button.style.top));
+const initialX = simulated.map((button) => parseFloat(button.style.left));
+center.x += 24;
+center.y += 21;
+radial.layoutRadialCommandsStable();
+assert.ok(
+  simulated.some((button, i) => Math.abs(parseFloat(button.style.top) - initialY[i]) > 8),
+  "Mobile radial commands must track the actual player position vertically"
+);
+assert.ok(
+  simulated.some((button, i) => Math.abs(parseFloat(button.style.left) - initialX[i]) > 8),
+  "Mobile radial commands must track the actual player position horizontally"
+);
+
+// Fighter (non-spellcaster) must never be offered Spells; a mage must receive it.
+const spellsButton = simulated.find((button) => button.dataset.menu === "spells");
+assert.ok(spellsButton);
+assert.equal(radial.isSpellcaster(hero), false);
+radial.syncSpellMenuVisibility();
+assert.equal(spellsButton.hidden, true);
+assert.equal(spellsButton.style.display, "none");
+assert.equal(spellsButton.attributes.get("aria-hidden"), "true");
+assert.equal(spellsButton.disabled, true);
+hero.classes = [{ classId: "mage", level: 3 }];
+assert.equal(radial.isSpellcaster(hero), true);
+radial.syncSpellMenuVisibility();
+assert.equal(spellsButton.hidden, false);
+assert.equal(spellsButton.style.display, "");
+assert.equal(spellsButton.attributes.get("aria-hidden"), "false");
+assert.equal(spellsButton.disabled, false);
+
+console.log("Combat mobile smoke OK:", scripts.length, "inline scripts parsed, single CSS link, player-centered radial HUD and spell eligibility verified.");
