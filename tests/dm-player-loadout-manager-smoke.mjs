@@ -224,6 +224,34 @@ assert.equal(await liveManager.saveDeck(), true, "Pre-deployment saves remain su
 assert.deepEqual(writes.map((write) => write.path), [
   "campaña/jugadores/alice", "campaña/base_datos_unidades/unit-alice",
 ], "Build editor must not create phantom Combatants while no Encounter exists");
+
+// Changing the selected character during asynchronous Firebase writes must
+// not redirect the remainder of a Save Deck to someone else's Unit/Combatant.
+writes.length = 0;
+deployedCombatants = {
+  "player:alice": { isPlayer: true, canonicalPlayerKey: "alice", canonicalOwnerUid: "uid-a" },
+  "player:bob": { isPlayer: true, canonicalPlayerKey: "bob", canonicalOwnerUid: "uid-b" },
+};
+liveManager.state.playerId = "alice";
+liveManager.state.player = { uid: "uid-a" };
+const previousUpdate = fakeDb.ref.bind(fakeDb);
+fakeDb.ref = function(path) {
+  const ref = previousUpdate(path);
+  if (path === "campaña/jugadores/alice") {
+    const oldUpdate = ref.update;
+    ref.update = async function(value) {
+      await oldUpdate(value);
+      liveManager.state.playerId = "bob";
+      liveManager.state.player = { uid: "uid-b" };
+    };
+  }
+  return ref;
+};
+assert.equal(await liveManager.saveDeck(), true);
+assert.deepEqual(writes.map((write) => write.path), [
+  "campaña/jugadores/alice", "campaña/base_datos_unidades/unit-alice",
+  "campaña/combate/combatants/player:alice",
+], "Mid-save selection changes must never redirect Skills into another Player");
 assert.match(deckFeedback.textContent, /PRÓXIMO COMBATE/);
 
 console.log('dm-player-loadout-manager-smoke: ok');
