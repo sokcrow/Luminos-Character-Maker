@@ -38,7 +38,8 @@ const restored={inventario_activo:{},inventario_stash:{},equipment:{accessories:
 assert.equal(Persistence.applyInventoryState(restored,saved).applied,true);
 assert.equal(Curse.hasCurse(restored.inventario_stash.cursed_vial),true);
 assert.equal(Curse.instances(restored.inventario_stash.cursed_vial)[0].instanceId,"curse_on_vial");
-assert.equal(restored.inventario_stash.cursed_vial.magic,undefined);
+assert.equal(restored.inventario_stash.cursed_vial.magic,null,
+  "canonical Item serialization represents absent normal magic as null");
 assert.equal(restored.inventario_stash.cursed_vial.condition,100);
 
 const sword={instanceId:"equipped_curse",definitionId:"sword",category:"weapon",
