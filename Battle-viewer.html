@@ -212,7 +212,7 @@ function smartTargetForPlan(owner,plan){
     // Preload exactly one mobile stylesheet. The economy runtime checks this id.
     if(!html.includes('</head>'))throw new Error('COMBAT_MOBILE_STYLESHEET_TARGET_MISSING');
     html=html.replace('</head>',
-      '<link id="combat-mobile-runtime-stylesheet" rel="stylesheet" href="css/combat-mobile-runtime.css?v=20261015-preserved-radial"></head>');
+      '<link id="combat-mobile-runtime-stylesheet" rel="stylesheet" href="css/combat-mobile-runtime.css?v=20261015-player-centered-v1"></head>');
     stage('patch-renderer','Applying Combat renderer patch');
     // Combat-iframe-only renderer patch. It never installs hooks in Theatre runtime code.
     // Mobile/low-power clients keep DOM/CSS sprite compositing and reserve WebGL2 for VFX.
