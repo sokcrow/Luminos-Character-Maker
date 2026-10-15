@@ -175,4 +175,13 @@ assert.doesNotMatch(skillDetail, /<small>slash_combo/);
 assert.doesNotMatch(skillDetail, /LOADOUT SOURCE|COMBAT ENGINE/);
 assert.equal(hud.statusEffectsForSkill({ effects: [{ statusId: "rupture" }, { statusId: "rupture" }] }).length, 1);
 
+const coinApplied = hud.statusEffectsForSkill({
+  coins: [{ effects: [{ type: "status", status: "burn", potency: 1, count: 2, target: "target", trigger: "[On Hit]" }] }],
+});
+assert.equal(coinApplied.length, 1);
+assert.equal(coinApplied[0].coinIndex, 1);
+assert.equal(coinApplied[0].potency, 1);
+assert.equal(coinApplied[0].count, 2);
+assert.equal(coinApplied[0].trigger, "Al impactar");
+assert.equal(coinApplied[0].target, "Objetivo");
 console.log("player-skills-hud-smoke: ok");
