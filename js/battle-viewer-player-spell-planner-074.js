@@ -334,6 +334,22 @@
     if (!doc || doc.getElementById(STYLE_ID)) return;
     const style = doc.createElement("style"); style.id = STYLE_ID;
     style.textContent = `#${PANEL_ID}{position:fixed;left:12px;bottom:150px;z-index:16001;width:min(620px,calc(100vw - 24px));background:rgba(8,10,16,.97);border:1px solid #596ca0;box-shadow:0 8px 28px rgba(0,0,0,.65);color:#eee;font:12px Arial,sans-serif;padding:10px;box-sizing:border-box}#${PANEL_ID}[hidden]{display:none!important}.bv074-pspell-title{display:flex;align-items:center;gap:7px;font:700 15px var(--font-limbus,Arial);letter-spacing:.1em;color:#9fc6ff;margin-bottom:7px}.bv074-pspell-title-icon{width:20px;height:20px;object-fit:contain;flex:0 0 auto}.bv074-pspell-meta{color:#aab2c2;font-size:10px;margin-bottom:7px}.bv074-pspell-list{display:flex;gap:5px;flex-wrap:wrap}.bv074-pspell-btn{border:1px solid #485a86;background:#101522;color:#d8e6ff;padding:6px 8px;cursor:pointer}.bv074-pspell-btn.selected{border-color:#9fc6ff;color:#fff;box-shadow:0 0 8px rgba(159,198,255,.3)}.bv074-pspell-btn:disabled{opacity:.45;cursor:not-allowed}.bv074-pspell-cast{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px}.bv074-pspell-cast select,.bv074-pspell-cast input{background:#0b0f18;border:1px solid #485a86;color:#fff;padding:4px}.bv074-pspell-slots{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}.bv074-pspell-slot{border:1px solid #343e59;padding:4px 6px;color:#aab2c2}.bv074-pspell-cancel{border:0;background:#351b25;color:#ff9cb3;cursor:pointer;padding:2px 5px}.bv074-pspell-hint{margin-top:7px;color:#a9c7ef;font-size:10px}`;
+    style.textContent += `
+      #${PANEL_ID}{max-height:70dvh;overflow-y:auto;overscroll-behavior:contain}
+      .bv074-pspell-tooltip{color:#ddd6c9;font:14px/1.5 Arial,sans-serif;margin-top:12px}
+      .bv074-pspell-tooltip header{display:flex;flex-direction:column;gap:5px;background:linear-gradient(90deg,#a45b18,#40271b);padding:10px}
+      .bv074-pspell-tooltip header strong{color:#fff;font:700 20px Georgia,serif}
+      .bv074-pspell-coins{color:#e7b66f;font-size:21px;letter-spacing:3px}
+      .bv074-pspell-math{padding:9px;color:#e7c596;font-weight:700}
+      .bv074-pspell-effect{display:flex;gap:6px;align-items:baseline;margin:6px 0}
+      .bv074-pspell-effect b{color:#59add4;white-space:nowrap}
+      .bv074-pspell-effect img{width:20px;height:20px;object-fit:contain;align-self:center}
+      .bv074-pspell-coin{display:grid;grid-template-columns:36px 1fr;gap:9px;padding:9px 0}
+      .bv074-pspell-coin>span{width:32px;height:32px;border:2px solid #c3c3c3;border-radius:50%;display:grid;place-items:center;color:white;background:#161616;font-weight:700}
+      .bv074-pspell-coin .bv074-pspell-effect b{color:#93c577}
+      .bv074-pspell-list{overflow-x:auto;flex-wrap:nowrap;padding-bottom:8px}
+      .bv074-pspell-btn{min-width:105px;min-height:44px}
+    `;
     doc.head?.appendChild(style);
   }
 
@@ -360,6 +376,42 @@
     return panel;
   }
 
+  function spellTooltip(row) {
+    if (!row?.spell) return "";
+    const spell = row.spell, mechanics = spell.mechanics || {};
+    const coins = Array.isArray(spell.coins) ? spell.coins : Array.isArray(mechanics.coins) ? mechanics.coins : [];
+    const amount = Number(spell.coinAmount ?? mechanics.coinAmount ?? coins.length) || 0;
+    const effects = Array.isArray(spell.effects) ? spell.effects : Array.isArray(mechanics.effects) ? mechanics.effects : [];
+    const lines = (list, fallback) => list.map((effect) => {
+      const trigger = clean(effect?.trigger || effect?.when || fallback).replace(/[\[\]]/g, "");
+      const status = clean(effect?.statusId || effect?.status || effect?.statusEffectId);
+      const lib = status ? global.LuminousStatusLibrary?.get?.(status) : null;
+      const name = clean(lib?.name || status.replace(/[_-]/g, " "));
+      const icon = clean(lib?.icon);
+      const validIcon = /^(https:\/\/|Assets\/)/.test(icon);
+      const potency = effect?.potency == null ? null : Number(effect.potency);
+      const count = effect?.count == null ? null : Number(effect.count);
+      const description = clean(typeof effect === "string" ? effect : effect?.description || effect?.text) ||
+        [name, Number.isFinite(potency) ? "Potency +" + potency : "", Number.isFinite(count) ? "Count +" + count : ""].filter(Boolean).join(" · ");
+      return '<div class="bv074-pspell-effect"><b>[' + htmlEscape(trigger) + ']</b> ' +
+        (validIcon ? '<img src="' + htmlEscape(icon) + '" alt="' + htmlEscape(name) + '">' : "") +
+        '<span>' + htmlEscape(description) + '</span></div>';
+    }).join("");
+    const indices = ["I","II","III","IV","V","VI"];
+    return '<article class="bv074-pspell-tooltip"><header><div class="bv074-pspell-coins">' +
+      "⬡ ".repeat(Math.min(12,amount)) + '</div><strong>' + htmlEscape(row.name) +
+      '</strong><small>Nivel ' + htmlEscape(spell.level ?? spell.spellLevel ?? (spell.cantrip ? 0 : "—")) +
+      ' · ' + htmlEscape(spell.school || spell.type || "Spell") + '</small></header>' +
+      '<div class="bv074-pspell-math">' +
+      (spell.basePower != null ? 'Potencia ' + htmlEscape(spell.basePower) + ' · ' : "") +
+      (amount ? 'Coins ' + amount + ' · Coin Power ' + htmlEscape(spell.coinPower ?? mechanics.coinPower ?? 0) : "") +
+      (spell.cost != null ? ' · Coste ' + htmlEscape(spell.cost) : "") + '</div>' +
+      '<section>' + lines(effects,"On Use") + '</section>' +
+      Array.from({length:amount},(_,i)=>'<section class="bv074-pspell-coin"><span>' + (indices[i] || i+1) +
+        '</span><div>' + lines(Array.isArray(coins[i]?.effects) ? coins[i].effects : [],"On Hit") + '</div></section>').join("") +
+      (spell.description ? '<p>' + htmlEscape(spell.description) + '</p>' : "") + '</article>';
+  }
+
   function render() {
     const panel = mountPanel(); if (!panel) return false;
     const owner = resolveAuthenticatedPlayer();
@@ -378,7 +430,22 @@
     const selectedChoiceHtml = selectedChoiceKey && selectedChoiceValues.length
       ? `<label>${htmlEscape(selectedChoiceKey)} <select id="bv074-spell-choice">${selectedChoiceValues.map((value) => `<option value="${htmlEscape(value)}" ${state.selectedSpellChoiceValue === value ? "selected" : ""}>${htmlEscape(value)}</option>`).join("")}</select></label>`
       : "";
-    panel.innerHTML = `<div class="bv074-pspell-title"><img class="bv074-pspell-title-icon" src="${ICON_SRC}" alt="" aria-hidden="true">PLAYER SPELLS · 0.7.4</div><div class="bv074-pspell-meta">${htmlEscape(owner.playerId)} · ${clean(state.combatState).toUpperCase() || "NO PHASE"} · definitions are resolved from Content Registry.</div><div class="bv074-pspell-list">${spells.map((row) => `<button type="button" class="bv074-pspell-btn${state.selectedSpellId === row.id ? " selected" : ""}" data-bv074-spell="${htmlEscape(row.id)}" ${row.ready ? "" : "disabled"} title="${htmlEscape(row.reason || "")}">${htmlEscape(row.name)}${row.ready ? "" : " · INVALID"}</button>`).join("")}</div>${selected ? `<div class="bv074-pspell-cast"><label>Class <select id="bv074-spell-class">${classes.map((id) => `<option value="${htmlEscape(id)}" ${state.selectedClassId === id ? "selected" : ""}>${htmlEscape(id)}</option>`).join("")}</select></label><label>Slot <input id="bv074-spell-level" type="number" min="${baseLevel}" max="9" value="${Number(state.selectedSlotLevel ?? baseLevel)}" ${selected.spell?.cantrip ? "disabled" : ""}></label><label><input id="bv074-spell-overcast" type="checkbox" ${state.overcast ? "checked" : ""} ${selected.spell?.cantrip ? "disabled" : ""}> Overcast</label>${selectedChoiceHtml}</div>` : ""}<div class="bv074-pspell-slots">${slots.map(({ index, plan }) => `<div class="bv074-pspell-slot">SLOT ${index + 1}: ${plan ? htmlEscape(plan.spellId || plan.skillId || plan.traitId || plan.kind || "reserved") : "free"}${plan && clean(plan.schedulerUid) === currentAuthUid() && clean(plan.status) === "planned" ? ` <button class="bv074-pspell-cancel" data-bv074-spell-cancel="${index}">×</button>` : ""}</div>`).join("")}</div><div class="bv074-pspell-hint">${selected ? `Selected: ${htmlEscape(selected.name)} · ${selected.spell?.mechanics?.slotEnchantment ? "use a Slot that already contains a Melee Attack Skill; the Skill plan is preserved and enchanted." : "drag one of your Action Slots onto a target."}` : spells.some((row) => row.ready) ? "Select a valid Spell, then drag one of your Action Slots onto a target." : "Selected Spell IDs exist, but no canonical Spell definitions are registered yet."}</div>`;
+    panel.innerHTML = '<div class="bv074-pspell-title"><img class="bv074-pspell-title-icon" src="' + ICON_SRC + '" alt="">HECHIZOS</div>' +
+      '<div class="bv074-pspell-list">' + spells.map((row) => '<button type="button" class="bv074-pspell-btn' +
+        (state.selectedSpellId === row.id ? ' selected' : '') + '" data-bv074-spell="' + htmlEscape(row.id) +
+        '" ' + (row.ready ? '' : 'disabled') + '>' + htmlEscape(row.name) + '</button>').join('') + '</div>' +
+      (selected ? spellTooltip(selected) + '<div class="bv074-pspell-cast"><label>Clase <select id="bv074-spell-class">' +
+        classes.map((id) => '<option value="' + htmlEscape(id) + '"' + (state.selectedClassId === id ? ' selected' : '') + '>' + htmlEscape(id) + '</option>').join('') +
+        '</select></label><label>Nivel de Slot <input id="bv074-spell-level" type="number" min="' + baseLevel +
+        '" max="9" value="' + Number(state.selectedSlotLevel ?? baseLevel) + '"' + (selected.spell?.cantrip ? ' disabled' : '') +
+        '></label><label><input id="bv074-spell-overcast" type="checkbox" ' + (state.overcast ? 'checked' : '') +
+        (selected.spell?.cantrip ? ' disabled' : '') + '> Overcast</label>' + selectedChoiceHtml + '</div>' : '') +
+      '<div class="bv074-pspell-slots">' + slots.map(({index,plan})=>'<div class="bv074-pspell-slot">Acción ' +
+        (index+1) + ': ' + (plan ? htmlEscape(spells.find(row=>row.id===plan.spellId)?.name || 'Preparada') : 'Libre') +
+        (plan && clean(plan.schedulerUid)===currentAuthUid() && clean(plan.status)==='planned' ?
+          ' <button class="bv074-pspell-cancel" data-bv074-spell-cancel="'+index+'" title="Cancelar acción">×</button>' : '') + '</div>').join('') + '</div>' +
+      '<div class="bv074-pspell-hint">' + (selected ? 'Seleccionado: ' + htmlEscape(selected.name) +
+        ' · Arrastra un Action Slot al objetivo.' : 'Selecciona un hechizo y arrastra un Action Slot al objetivo.') + '</div>';
     return true;
   }
 
