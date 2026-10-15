@@ -146,8 +146,8 @@ assert.equal(core.activeCombatantForPlayer('alice', {
   a: { isPlayer: true, playerId: 'alice' },
   b: { isPlayer: true, ownerPlayerId: 'alice' },
 }).reason, 'AMBIGUOUS_ACTIVE_COMBATANTS');
-assert.match(manager, /syncDeployedCombatantUpdates\(unitUpdates\)/);
-assert.match(manager, /syncDeployedCombatantUpdates\(updates\)/);
+assert.match(manager, /syncDeployedCombatantUpdates\(unitUpdates, selection\)/);
+assert.match(manager, /syncDeployedCombatantUpdates\(updates, selection\)/);
 assert.match(manager, /campaña\/combate\/combatants/);
 assert.doesNotMatch(manager, /COMBATE USARÁ EL LOADOUT CANÓNICO/);
 
