@@ -182,6 +182,7 @@
       basePower: Number(raw.basePower ?? raw.base_power ?? 0) || 0,
       coinPower: Number(raw.coinPower ?? raw.coin_power ?? 0) || 0,
       coinAmount: Math.max(0, Number.parseInt(raw.coinAmount ?? raw.coinCount ?? raw.coin_count ?? 0, 10) || 0),
+      attackWeight: Number(raw.attackWeight ?? raw.attack_weight ?? 1) || 1,
       sin: clean(raw.sinAffinity || raw.sin || raw.pecado || "sinless"),
       damageType: clean(raw.damageType || raw.tipo_dano || raw.dmgType || ""),
       targetingType: clean(raw.targetingType || raw.targeting_type || ""),
@@ -422,39 +423,64 @@
   }).filter(Boolean);
 }
 
-    function detailMarkup(skill, model) {
-  if (!skill) return '<div class="player-skills-detail-empty"><span>HABILIDADES</span><strong>ELIGE UNA SKILL</strong><p>Consulta potencia, monedas y efectos.</p></div>';
-  const tags = [
-    skill.assigned ? '<span class="is-assigned">EQUIPADA</span>' : "",
-    skill.learned ? '<span class="is-learned">APRENDIDA</span>' : "",
-  ].join("");
-  const count = Math.max(0, Number(skill.coinAmount) || (skill.coins || []).length);
-  const coins = Array.from({ length: Math.min(count, 12) }, () => '<span class="player-skills-coin" aria-hidden="true">●</span>').join("");
-  const statuses = statusEffectsForSkill(skill);
-  return `
-    <header class="player-skills-detail-header">
-      <span>SKILL · TIER ${skill.tier || "—"}</span>
-      <strong>${escapeHtml(skill.name)}</strong>
-      <div class="player-skills-detail-badges">${tags}</div>
-    </header>
-    <section class="player-skills-power-panel" aria-label="Potencia y Coins">
-      <div class="player-skills-power-total"><span>POTENCIA BASE</span><b>${skill.basePower}</b></div>
-      <div class="player-skills-coins"><span>COINS · ${count}</span><div class="player-skills-coin-track" aria-label="${count} Coins">${coins}${count > 12 ? `<small>+${count - 12}</small>` : ""}</div><b>${skill.coinPower >= 0 ? "+" : ""}${skill.coinPower} por cara</b></div>
-    </section>
-    <div class="player-skills-detail-grid">
-      <div><span>TIPO</span><b>${escapeHtml(skill.type || "Skill")}</b></div>
-      <div><span>AFINIDAD</span><b>${escapeHtml(skill.sin || "sinless")}</b></div>
-      <div><span>DAÑO</span><b>${escapeHtml(skill.damageType || "—")}</b></div>
-      <div><span>ALCANCE</span><b>${skill.range || "—"}</b></div>
-    </div>
-    <section class="player-skills-effects-panel">
-      <strong>EFECTOS DE ESTADO</strong>
-      ${statuses.length ? statuses.map((effect) => `<div class="player-skills-status-chip">${effect.icon ? `<img class="player-skills-status-icon" src="${escapeHtml(effect.icon)}" alt="">` : ""}<div><b>${escapeHtml(effect.name)}</b><small>${[effect.coinIndex ? `Coin ${effect.coinIndex}` : "", effect.trigger, effect.target, effect.potency != null ? `Potencia +${effect.potency}` : "", effect.count != null ? `Count +${effect.count}` : ""].filter(Boolean).join(" · ")}</small>${effect.description ? `<small>${escapeHtml(effect.description)}</small>` : ""}</div></div>`).join("") : '<p>Sin efectos de estado registrados.</p>'}
-    </section>
-    <div class="player-skills-detail-description">
-      <span>DESCRIPCIÓN</span><p>${escapeHtml(skill.description || "Esta habilidad no tiene una descripción adicional.")}</p>
-    </div>`;
-}
+
+  function effectLines(skill = {}) {
+    const known = (effect, index) => {
+      if (typeof effect === "string") return { text: effect, trigger: index == null ? "On Use" : "On Hit", icon: "", status: "" };
+      if (!effect || typeof effect !== "object") return null;
+      const status = clean(effect.statusId || effect.statusEffectId || effect.status || effect.status_effect);
+      const definition = status ? global.LuminousStatusLibrary?.get?.(status) : null;
+      const name = clean(definition?.name || effect.statusName || (status ? status.replace(/[_-]+/g, " ") : ""));
+      const sourceText = clean(effect.description || effect.descripcion || effect.text || effect.label || effect.tooltip);
+      const parts = [];
+      const action = clean(effect.action || effect.operation || effect.applyType || effect.mode).toLowerCase();
+      const verb = action === "gain" || clean(effect.target).toLowerCase() === "self" ? "Gain" : "Inflict";
+      const potency = effect.potency == null ? null : Number(effect.potency);
+      const count = effect.count == null ? null : Number(effect.count);
+      if (Number.isFinite(potency)) parts.push(verb + " " + (potency >= 0 ? "+" : "") + potency + " " + name);
+      if (Number.isFinite(count)) parts.push(verb + " " + (count >= 0 ? "+" : "") + count + " " + name + " Count");
+      if (!parts.length && name) parts.push(verb + " " + name);
+      const triggerText = clean(effect.trigger || effect.activation || effect.when || (index == null ? "On Use" : "On Hit"))
+        .replace(/[\[\]]/g, "").replace(/_/g, " ");
+      return { trigger: triggerText || "On Use", text: sourceText || parts.join("; ") || clean(effect.name || effect.type) || "Effect",
+        icon: clean(definition?.icon), status: name };
+    };
+    const general = (Array.isArray(skill.effects) ? skill.effects : []).map((effect) => known(effect, null)).filter(Boolean);
+    const coins = Array.from({ length: Math.max(Number(skill.coinAmount) || 0, Array.isArray(skill.coins) ? skill.coins.length : 0) }, (_, i) => ({
+      index: i + 1, effects: (Array.isArray(skill.coins?.[i]?.effects) ? skill.coins[i].effects : []).map((effect) => known(effect, i + 1)).filter(Boolean)
+    }));
+    return { general, coins };
+  }
+
+  function detailMarkup(skill) {
+    if (!skill) return '<div class="player-skills-detail-empty"><strong>ELIGE UNA HABILIDAD</strong></div>';
+    const count = Math.max(Number(skill.coinAmount) || 0, skill.coins?.length || 0);
+    const icon = (value, alt) => /^(https:\/\/|Assets\/)/.test(value || "")
+      ? '<img class="limbus-effect-icon" src="' + escapeHtml(value) + '" alt="' + escapeHtml(alt) + '">'
+      : "";
+    const richLine = (row) => '<div class="limbus-effect-line"><span class="limbus-effect-trigger">[' +
+      escapeHtml(row.trigger) + ']</span> <span class="limbus-effect-description">' +
+      icon(row.icon, row.status) + escapeHtml(row.text) + '</span></div>';
+    const lines = effectLines(skill);
+    const coinMark = (i) => '<span class="limbus-coin-emblem" aria-label="Coin ' + i + '">' + ["","I","II","III","IV","V","VI"][i % 7] + '</span>';
+    const coinTrack = Array.from({length: Math.min(count,16)},(_,i)=>'<span class="limbus-coin-top" aria-hidden="true">⬡</span>').join("");
+    return '<article class="limbus-skill-tooltip">' +
+      '<header class="limbus-skill-heading"><div class="limbus-skill-top-coins">' + coinTrack + '</div>' +
+      '<div class="limbus-skill-name"><span class="limbus-skill-tier">T' + escapeHtml(skill.tier || "—") +
+      '</span><strong>' + escapeHtml(skill.name) + '</strong></div>' +
+      '<div class="limbus-skill-stats"><span>⚔ ' + escapeHtml(skill.basePower) + ' (' + escapeHtml(skill.basePower) +
+      (skill.coinPower >= 0 ? '+' : '') + escapeHtml(skill.coinPower) + ')</span><span>Atk Weight ' +
+      escapeHtml(skill.attackWeight ?? 1) + '</span></div>' +
+      '<div class="limbus-skill-power"><b>' + escapeHtml(skill.coinPower >= 0 ? "+" + skill.coinPower : skill.coinPower) +
+      '</b><span>Amt. x' + count + '</span><span>' + escapeHtml(skill.sin || "") + '</span></div></header>' +
+      '<div class="limbus-skill-effect-sections"><section class="limbus-effect-general">' +
+      (lines.general.length ? lines.general.map(richLine).join("") : "") + '</section>' +
+      lines.coins.map((coin) => '<section class="limbus-coin-section">' + coinMark(coin.index) +
+        '<div class="limbus-coin-effects">' + (coin.effects.length ? coin.effects.map(richLine).join("") :
+          '<span class="limbus-effect-empty">—</span>') + '</div></section>').join("") +
+      (skill.description ? '<p class="limbus-skill-description">' + escapeHtml(skill.description) + '</p>' : "") +
+      '</div></article>';
+  }
 
   function visibleSelectionId(rows = [], selectedSkillId = null) {
     const selected = normalizeId(selectedSkillId);
@@ -567,6 +593,7 @@
     buildSkillViewModel,
     statusEffectsForSkill,
     detailMarkup,
+    effectLines,
     visibleSelectionId,
     hudScaleForViewport,
     syncHudCanvasScale,
