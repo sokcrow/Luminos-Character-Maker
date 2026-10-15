@@ -451,3 +451,126 @@ body:not(.on-game-dashboard) #skills-modal .hud-modal-close:hover{
 .player-skills-status-chip{flex-direction:row;align-items:flex-start;gap:10px}
 .player-skills-status-chip>div{display:flex;flex:1;min-width:0;flex-direction:column;gap:4px}
 .player-skills-status-icon{width:32px;height:32px;object-fit:contain;flex:0 0 32px}
+
+/* Compact player sheet is real responsive UI, not a 1600px technical canvas
+   shrunk to 20% size. This protects text legibility and touch targets. */
+@media (max-width:900px) {
+  body:not(.on-game-dashboard) #skills-modal{
+    padding:8px!important;
+    align-items:stretch!important;
+    justify-content:stretch!important;
+  }
+  body:not(.on-game-dashboard) #skills-modal .hud-modal-content{
+    width:calc(100vw - 16px)!important;
+    min-width:0!important;
+    max-width:calc(100vw - 16px)!important;
+    height:calc(100dvh - 16px)!important;
+    min-height:0!important;
+    max-height:calc(100dvh - 16px)!important;
+    transform:translate(-50%,-50%)!important;
+    overflow:hidden!important;
+  }
+  body:not(.on-game-dashboard) #skills-modal .hud-modal-close{
+    left:10px!important;top:10px!important;
+    width:42px!important;height:42px!important;
+    font-size:23px!important;border-width:2px!important;
+  }
+  .player-combat-skills-console{
+    grid-template-rows:auto minmax(0,1fr);
+  }
+  .player-skills-header{
+    display:block;
+    padding:14px 12px 14px 62px;
+    min-height:70px;
+  }
+  .player-skills-title>span{font-size:10px;letter-spacing:.08em}
+  .player-skills-title>strong{font-size:22px;white-space:normal}
+  .player-skills-metrics{display:none}
+  .player-skills-main{
+    display:block;
+    min-height:0;
+    height:100%;
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:thin;
+  }
+  .player-skills-deck-panel{
+    display:flex;
+    flex-direction:column;
+    border-right:0;
+    border-bottom:1px solid #4a3826;
+  }
+  .player-skills-deck-panel>header{min-height:47px;padding:9px 12px}
+  .player-skills-deck-panel>header strong{font-size:15px}
+  .player-skills-deck{
+    display:flex;
+    flex-direction:row;
+    align-items:stretch;
+    gap:8px;
+    padding:8px 10px 13px;
+    overflow-x:auto;
+    overflow-y:hidden;
+  }
+  .player-skills-deck-slot{
+    min-width:152px;
+    max-width:180px;
+    min-height:88px;
+    padding:9px;
+  }
+  .player-skills-deck-slot>span{font-size:10px}
+  .player-skills-deck-slot>strong{font-size:14px;white-space:normal;overflow-wrap:anywhere}
+  .player-skills-deck-slot>b{font-size:22px}
+  .player-skills-library-panel{display:block}
+  .player-skills-library-toolbar{
+    display:flex;
+    flex-direction:column;
+    align-items:stretch;
+    gap:9px;
+    padding:12px 10px;
+  }
+  .player-skills-library-toolbar>div strong{font-size:17px}
+  .player-skills-library-toolbar nav{
+    display:flex;
+    flex-wrap:nowrap;
+    overflow-x:auto;
+    width:100%;
+    gap:6px;
+  }
+  .player-skills-library-toolbar button{
+    flex-shrink:0;
+    min-height:42px;
+    height:42px;
+    font-size:11px;
+  }
+  .player-skills-list{
+    min-height:0;
+    overflow:visible;
+    padding:10px;
+  }
+  .player-skills-row{
+    grid-template-columns:38px minmax(0,1fr) auto;
+    min-height:65px;
+    gap:8px;
+    padding:8px;
+  }
+  .player-skills-row-tier{width:36px;height:36px;font-size:12px}
+  .player-skills-row-name strong{font-size:15px;white-space:normal;overflow-wrap:anywhere}
+  .player-skills-row-name small{font-size:10px}
+  .player-skills-row-power{font-size:13px;white-space:nowrap}
+  .player-skills-row-badges{display:none}
+  .player-skills-detail-panel{
+    display:block;
+    border-left:0;
+    border-top:2px solid #4a3826;
+    overflow:visible;
+    min-height:280px;
+    padding:16px 12px 30px;
+  }
+  .player-skills-detail-header>strong{font-size:23px}
+  .player-skills-detail-grid span{font-size:10px}
+  .player-skills-detail-grid b{font-size:13px}
+  .player-skills-effects-panel>strong{font-size:12px}
+  .player-skills-detail-description p{font-size:13px;line-height:1.5}
+  .player-skills-status-chip>div>small{font-size:11px}
+}
