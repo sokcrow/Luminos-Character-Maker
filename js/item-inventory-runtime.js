@@ -177,6 +177,9 @@
       chargesMax: chargesMax == null ? null : Math.max(0, intOr(chargesMax, 0)),
       rechargeRule: input.rechargeRule ?? input.recharge_rule ?? def.rechargeRule ?? def.recharge_rule ?? null,
       magic: clone(input.magic ?? input.runtime?.magic ?? input.runtimeState?.magic ?? def.magic ?? def.runtime?.magic ?? null),
+      // Autonomous Curse history is ItemInstance data, not Enchantment or a
+      // temporary Status. Preserve it at every serialization boundary.
+      ...(Array.isArray(input.curseInstances) ? {curseInstances:clone(input.curseInstances)} : {}),
       stolen: input.stolen === true || options.stolen === true,
       originMarketId: input.originMarketId ?? input.origin_market_id ?? options.originMarketId ?? null,
       equipped: input.equipped === true,
