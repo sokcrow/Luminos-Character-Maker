@@ -40,9 +40,18 @@ assert.equal(Engine.appliedEnchantments(first.item).length,1,"Remove Curse remov
 assert.deepEqual(Engine.appliedEnchantments(first.item)[0].properties,[]);
 assert.equal(first.item.condition,80);
 assert.deepEqual(first.item.curseInstances,undefined);
+assert.deepEqual(first.item.magic.magicalDurability,originalMagic.magicalDurability,
+  "Remove Curse must not create or refill Magical Durability");
 assert.equal(item.magic.enchantments[0].properties[0],"curse","preview must not mutate source");
 
 const standalone=Curse.applyItem(item,"cursed_binding",{instanceId:"curse_standalone"});
+assert.deepEqual(standalone.item.magic,originalMagic,
+  "autonomous Curse must not rewrite installed enchantments, Magic Hit or Magical Durability");
+assert.equal(standalone.item.condition,item.condition,
+  "autonomous Curse must not affect Physical Durability");
+assert.equal(standalone.item.conditionMax,item.conditionMax);
+assert.equal(standalone.item.enchantment,undefined,
+  "autonomous Curse must not create a separate enhancement or an Enchantment Slot");
 assert.equal(standalone.applied,true);
 assert.equal(Bridge.listItemCurses(standalone.item).length,2);
 const coexist=Services.executeControlledResult(standalone.item,{
