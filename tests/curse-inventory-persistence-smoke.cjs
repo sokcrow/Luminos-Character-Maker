@@ -6,11 +6,13 @@ require("../js/curse-catalog.js");
 require("../js/curse-runtime.js");
 require("../js/item-catalog-enchantments.js");
 require("../js/item-magic-runtime.js");
+require("../js/item-magic-knowledge-runtime.js");
 require("../js/item-equipment-bridge.js");
 require("../js/item-persistence-runtime.js");
 const Inventory=globalThis.LuminousItemInventoryRuntime;
 const Curse=globalThis.LuminousCurseRuntime;
 const Magic=globalThis.LuminousItemMagicRuntime;
+const Knowledge=globalThis.LuminousItemMagicKnowledgeRuntime;
 const Persistence=globalThis.LuminousItemPersistenceRuntime;
 const clone=x=>JSON.parse(JSON.stringify(x));
 
@@ -44,6 +46,14 @@ assert.equal(restored.inventario_stash.cursed_vial.condition,100);
 assert.equal(Curse.instances(restored.inventario_stash.cursed_vial).length,1,
   "rehydration must not reapply or duplicate a Curse");
 
+const knower={itemMagicKnowledge:{}};
+const stranger={itemMagicKnowledge:{}};
+assert.equal(Knowledge.identifyCurse(knower,restored.inventario_stash.cursed_vial).identified,true);
+assert.equal(Knowledge.presentation(knower,restored.inventario_stash.cursed_vial,
+  {syncPassive:false}).cursed,true);
+assert.equal(Knowledge.presentation(stranger,restored.inventario_stash.cursed_vial,
+  {syncPassive:false}).cursed,false);
+
 const carried=Curse.transferItem(restored.inventario_stash.cursed_vial,
   {...consumable,instanceId:"recipient_vial"},"curse_on_vial");
 assert.equal(carried.transferred,true);
@@ -63,6 +73,19 @@ assert.equal(Curse.instances(loadedTransfer.inventario_activo.recipient_vial)[0]
   "recipient_vial");
 assert.equal(Curse.instances(loadedTransfer.inventario_activo.cursed_vial).length,0,
   "canonical inventory rekeys by ItemInstance ID, not container aliases");
+assert.equal(Knowledge.presentation(stranger,loadedTransfer.inventario_activo.recipient_vial,
+  {syncPassive:false}).cursed,false,"transfer must not disclose hidden Curse to new viewer");
+assert.equal(Knowledge.presentation(knower,loadedTransfer.inventario_activo.recipient_vial,
+  {syncPassive:false}).cursed,false,"source knowledge does not automatically identify a new instance");
+assert.equal(Knowledge.identifyCurse(stranger,loadedTransfer.inventario_activo.recipient_vial).identified,true);
+assert.equal(Knowledge.presentation(stranger,loadedTransfer.inventario_activo.recipient_vial,
+  {syncPassive:false}).cursed,true);
+assert.equal(Knowledge.presentation(knower,loadedTransfer.inventario_activo.recipient_vial,
+  {syncPassive:false}).cursed,false,"knowledge remains individual to the observer");
+const transferKnowledge=Persistence.serializeInventoryState({
+  ...loadedTransfer,itemMagicKnowledge:stranger.itemMagicKnowledge,
+});
+assert.deepEqual(transferKnowledge.itemMagicKnowledge,stranger.itemMagicKnowledge);
 
 const sword={instanceId:"equipped_curse",definitionId:"sword",category:"weapon",
   itemType:"weapon",quantity:1,equipped:true};
