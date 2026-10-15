@@ -6,6 +6,13 @@ on:
     paths:
       - 'js/curse-catalog.js'
       - 'js/curse-runtime.js'
+      - 'js/curse-enchanter-bridge.js'
+      - 'js/item-enchanter-service-runtime.js'
+      - 'js/item-enchantment-engine.js'
+      - 'js/item-enchanter-ui.js'
+      - 'functions/enchanter-atomic.cjs'
+      - 'functions/build-enchanter-bundle.cjs'
+      - 'functions/index.cjs'
       - 'js/item-magic-runtime.js'
       - 'js/item-magic-knowledge-runtime.js'
       - 'js/item-equipment-bridge.js'
@@ -14,6 +21,7 @@ on:
       - 'Battle-viewer.html'
       - 'tests/curse-item-runtime-smoke.cjs'
       - 'tests/curse-catalog-smoke.cjs'
+      - 'tests/curse-enchanter-bridge-smoke.cjs'
       - 'tests/dm-item-instance-editor.spec.cjs'
       - '.github/workflows/curse-runtime-integration.yml'
 
@@ -30,14 +38,27 @@ jobs:
         run: |
           node --check js/curse-catalog.js
           node --check js/curse-runtime.js
+          node --check js/curse-enchanter-bridge.js
+          node --check js/item-enchanter-service-runtime.js
+          node --check js/item-enchantment-engine.js
+          node --check js/item-enchanter-ui.js
+          node --check functions/enchanter-atomic.cjs
+          node --check functions/build-enchanter-bundle.cjs
           node --check js/item-magic-runtime.js
           node --check js/item-equipment-bridge.js
           node --check js/dm-item-instance-editor.js
           node --check tests/curse-item-runtime-smoke.cjs
           node --check tests/curse-catalog-smoke.cjs
+          node --check tests/curse-enchanter-bridge-smoke.cjs
           node --check tests/dm-item-instance-editor.spec.cjs
       - name: Phase B catalog, schema and lifecycle
         run: node tests/curse-catalog-smoke.cjs
+      - name: Phase C Enchanter selective removal and regression
+        run: |
+          node tests/curse-enchanter-bridge-smoke.cjs
+          node tests/item-enchanter-service-runtime-smoke.cjs
+          node tests/item-enchantment-engine-smoke.cjs
+          node tests/item-enchanter-gem-procedure-smoke.cjs
       - name: Playable Curse Item contract
         run: node tests/curse-item-runtime-smoke.cjs
       - name: Enchanter Bind regression
