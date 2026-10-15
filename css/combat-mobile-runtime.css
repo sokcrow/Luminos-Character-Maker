@@ -1,5 +1,6 @@
-/* Combat HUD for touch devices and narrow viewports.
-   Fixed controls are independent of the camera/sprite positions. */
+/* Limbus Combat — mobile geometry only.
+   The radial ink/splash buttons, icons, type, animation and category artwork
+   come from the original Combat HUD. Never convert them into a grid of cards. */
 @media (pointer: coarse), (max-width: 900px) {
   html, body, #game-container {
     width: 100% !important;
@@ -13,246 +14,150 @@
     overscroll-behavior: none;
   }
 
-  #game-container { padding: 0 !important; box-sizing: border-box !important; }
-  #battlefield { max-width: 100% !important; max-height: 100% !important; transform-origin: 0 0 !important; }
-
-  /* Root actions: six accessible controls in a small, fixed dock.
-     The engine continues positioning its radial buttons for desktop only. */
-  #game-container .command-ring {
-    position: absolute !important;
-    inset: auto max(8px, env(safe-area-inset-right))
-           max(8px, env(safe-area-inset-bottom)) auto !important;
-    z-index: 180 !important;
-    display: grid !important;
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    grid-auto-rows: 48px !important;
-    gap: 5px !important;
-    width: min(278px, 46vw) !important;
-    height: auto !important;
-    max-height: calc(100dvh - 74px) !important;
-    padding: 6px !important;
-    border: 1px solid rgba(163, 121, 71, .52);
-    border-radius: 10px;
-    background: rgba(9, 8, 12, .90);
-    box-shadow: 0 10px 24px rgba(0, 0, 0, .60);
-    overflow-x: hidden !important;
-    overflow-y: auto !important;
-    overscroll-behavior: contain;
-    -webkit-overflow-scrolling: touch;
+  #game-container {
+    box-sizing: border-box !important;
+    padding: 0 !important;
   }
 
-  #game-container .command-ring .command {
-    position: relative !important;
-    inset: auto !important;
-    left: auto !important;
-    top: auto !important;
-    right: auto !important;
-    bottom: auto !important;
+  #battlefield {
+    max-width: 100% !important;
+    max-height: 100% !important;
+    transform-origin: 0 0 !important;
+  }
+
+  /* The underlying radial commands remain absolute and curved.
+     The economy runtime calculates a safe, two-wing arc per viewport. */
+  #game-container.combat-compact-menu .command-ring {
+    position: absolute !important;
+    inset: 0 !important;
     display: block !important;
     width: 100% !important;
-    height: 48px !important;
-    min-width: 0 !important;
-    min-height: 44px !important;
+    height: 100% !important;
     padding: 0 !important;
-    margin: 0 !important;
-    transform: none !important;
-    translate: none !important;
-    scale: 1 !important;
-    animation: none !important;
-    filter: none !important;
-    touch-action: manipulation;
-  }
-
-  /* Never leave an invisible dock blocking a category panel. */
-  #game-container .command-ring.leaving {
-    visibility: hidden !important;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+    z-index: 180 !important;
     pointer-events: none !important;
   }
 
-  #game-container .command-ring .command .splash { display: none !important; }
-  #game-container .command-ring .command .ink,
-  #game-container .command-ring .command.radial-left .ink,
-  #game-container .command-ring .command.radial-right .ink {
-    position: relative !important;
-    inset: auto !important;
-    width: 100% !important;
-    height: 100% !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    gap: 5px !important;
-    padding: 3px 5px 3px 35px !important;
-    border: 1px solid color-mix(in srgb, var(--accent) 60%, #8d785c);
-    border-radius: 6px;
-    clip-path: none !important;
-    text-align: center !important;
-    background: linear-gradient(125deg, #17131c, #09080c) !important;
-  }
-
-  #game-container .command-ring .command .pivot {
+  #game-container.combat-compact-menu .command-ring .command {
     position: absolute !important;
-    inset: auto !important;
-    left: 5px !important;
-    right: auto !important;
-    top: 50% !important;
-    z-index: 2 !important;
-    transform: translateY(-50%) !important;
-    flex: 0 0 24px !important;
-    width: 24px !important;
-    height: 24px !important;
-    border-width: 1px !important;
-  }
-  #game-container .command-ring .command .pivot img {
-    width: 17px !important;
-    height: 17px !important;
-    transform: none !important;
-  }
-  #game-container .command-ring .command .label {
     display: block !important;
-    min-height: 0 !important;
+    height: 46px !important;
+    min-height: 44px !important;
     min-width: 0 !important;
-    font-size: clamp(10px, 1.8vw, 13px) !important;
-    line-height: 1.05 !important;
-    letter-spacing: .15px !important;
-    white-space: normal !important;
-    overflow-wrap: anywhere;
+    pointer-events: auto !important;
+    touch-action: manipulation;
+    /* Keep radial-left/right transforms, splash cutouts and transitions. */
   }
-  #game-container .command-ring .command .sub { display: none !important; }
 
-  /* Secondary menus occupy one bounded region and scroll internally.
-     Inline sprite-relative positions written by layoutCategory are ignored. */
-  #game-container .category-surface {
+  #game-container.combat-compact-menu .command-ring .command .label {
+    font-size: clamp(15px, 2.8vw, 20px) !important;
+    line-height: .94 !important;
+  }
+  #game-container.combat-compact-menu .command-ring .command .sub {
+    display: block !important;
+    font-size: clamp(6px, .85vw, 8px) !important;
+  }
+  #game-container.combat-compact-menu .command-ring .command .pivot {
+    width: 34px !important;
+    height: 34px !important;
+    top: 6px !important;
+  }
+  #game-container.combat-compact-menu .command-ring .command .pivot img {
+    width: 21px !important;
+    height: 21px !important;
+  }
+
+  /* The original parchment/ink category presentation stays intact.
+     Only its bounding area and scrollable contents adapt to the screen. */
+  #game-container.combat-compact-menu .category-surface {
     position: absolute !important;
-    top: max(52px, calc(env(safe-area-inset-top) + 46px)) !important;
-    right: max(8px, env(safe-area-inset-right)) !important;
-    bottom: max(8px, env(safe-area-inset-bottom)) !important;
     left: auto !important;
+    right: max(10px, env(safe-area-inset-right)) !important;
+    top: max(54px, calc(env(safe-area-inset-top) + 44px)) !important;
+    bottom: auto !important;
+    width: min(350px, calc(100vw - 20px)) !important;
+    height: auto !important;
+    max-height: calc(100dvh - 66px - env(safe-area-inset-bottom)) !important;
     display: flex !important;
     flex-direction: column !important;
-    width: min(326px, 52vw) !important;
-    min-width: 0 !important;
-    max-width: calc(100vw - 16px) !important;
-    height: auto !important;
-    max-height: none !important;
-    padding-bottom: 2px;
-    overflow: hidden !important;
+    overflow: visible !important;
     z-index: 225 !important;
-    border: 1px solid rgba(145, 104, 54, .55);
-    border-radius: 9px;
-    background: rgba(8, 7, 11, .96);
-    box-shadow: 0 12px 26px rgba(0, 0, 0, .65);
   }
-  #game-container .category-header { flex: 0 0 auto; min-height: 56px; padding: 9px 24px 7px !important; }
-  #game-container .category-title { font-size: clamp(18px, 3.4vw, 25px) !important; }
-  #game-container .category-context { flex: 0 0 auto; }
-  #game-container #category-body {
-    flex: 1 1 auto !important;
+
+  #game-container.combat-compact-menu .category-header,
+  #game-container.combat-compact-menu .category-context,
+  #game-container.combat-compact-menu .combat-economy-tabs {
+    flex-shrink: 0 !important;
+  }
+  #game-container.combat-compact-menu #category-body {
     min-height: 0 !important;
-    max-height: none !important;
-    padding: 8px 8px max(12px, env(safe-area-inset-bottom)) !important;
+    flex: 1 1 auto !important;
+    max-height: calc(100dvh - 172px - env(safe-area-inset-bottom)) !important;
     overflow-x: hidden !important;
     overflow-y: auto !important;
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
+    padding-bottom: max(12px, env(safe-area-inset-bottom)) !important;
   }
-  #game-container .category-back {
-    top: max(3px, env(safe-area-inset-top)) !important;
-    right: max(8px, env(safe-area-inset-right)) !important;
+  #game-container.combat-compact-menu .category-back {
+    top: max(8px, env(safe-area-inset-top)) !important;
+    right: max(10px, env(safe-area-inset-right)) !important;
     left: auto !important;
-    width: 112px !important;
-    height: 44px !important;
+    min-width: 102px !important;
+    min-height: 44px !important;
     z-index: 230 !important;
     touch-action: manipulation;
   }
-  #game-container .category-back:after { top: 14px; }
 
-  #game-container .player-ready-control {
-    top: max(4px, env(safe-area-inset-top)) !important;
+  #game-container.combat-compact-menu .player-ready-control {
+    top: max(8px, env(safe-area-inset-top)) !important;
     left: 50% !important;
     transform: translateX(-50%) !important;
   }
-  #game-container .player-ready-control .ready {
-    height: 44px !important;
-    min-width: 118px !important;
-    padding-inline: 14px !important;
-    font-size: 19px !important;
+  #game-container.combat-compact-menu .player-ready-control .ready {
+    min-height: 44px !important;
     touch-action: manipulation;
   }
 
-  #game-container .prototype-title {
-    top: max(8px, env(safe-area-inset-top)) !important;
-    left: max(8px, env(safe-area-inset-left)) !important;
-    max-width: 26vw;
-    font-size: clamp(13px, 2vw, 18px) !important;
+  /* Keep real game actions, not diagnostic controls, available to touch. */
+  #game-container.combat-compact-menu #category-body .clean-row,
+  #game-container.combat-compact-menu #category-body .skill-option,
+  #game-container.combat-compact-menu .economy-action-detail button,
+  #game-container.combat-compact-menu .description-actions button,
+  #game-container.combat-compact-menu .combat-economy-tab {
+    min-height: 44px !important;
+    touch-action: manipulation;
   }
-  /* Keep player feedback visible instead of silently hiding action state. */
-  #game-container .prototype-status {
-    display: block !important;
-    top: max(40px, calc(env(safe-area-inset-top) + 37px)) !important;
-    left: max(8px, env(safe-area-inset-left)) !important;
-    right: auto !important;
-    max-width: min(320px, 43vw) !important;
-    max-height: 38px;
-    margin: 0;
-    padding: 4px 6px !important;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    font-size: clamp(10px, 1.5vw, 12px) !important;
-    line-height: 1.25 !important;
-    z-index: 176 !important;
-    pointer-events: none;
-  }
-  #game-container #damage-test { display: none !important; }
-  #game-container .quick-badge { top: 54px !important; right: max(10px, env(safe-area-inset-right)) !important; font-size: 13px !important; }
-  #game-container .combat-economy-tabs { gap: 5px !important; padding: 5px !important; }
-  #game-container .combat-economy-tab { min-height: 44px !important; font-size: 11px !important; padding: 7px 4px !important; }
-  #game-container #category-body .clean-row,
-  #game-container #category-body .skill-option,
-  #game-container .economy-action-detail button,
-  #game-container .category-back { min-height: 44px !important; touch-action: manipulation; }
-  #game-container #category-body .clean-row { padding: 7px 8px !important; }
-  #game-container .economy-action-detail { padding: 8px !important; }
-  #game-container .description-actions button { min-height: 44px !important; }
-  #game-container .skill-option-ink { min-width: 0 !important; grid-template-columns: 38px minmax(0, 1fr) auto !important; }
-  #game-container .skill-main { min-width: 0 !important; }
-}
-
-@media (orientation: landscape) and (max-height: 380px) and (pointer: coarse),
-       (orientation: landscape) and (max-height: 380px) and (max-width: 900px) {
-  #game-container .command-ring {
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-    grid-auto-rows: 44px !important;
-    width: min(345px, 62vw) !important;
-    gap: 4px !important;
-    padding: 5px !important;
-  }
-  #game-container .command-ring .command { height: 44px !important; }
-  #game-container .command-ring .command .pivot { flex-basis: 20px !important; width: 20px !important; height: 20px !important; }
-  #game-container .command-ring .command .pivot img { width: 15px !important; height: 15px !important; }
-  #game-container .category-surface { top: max(48px, calc(env(safe-area-inset-top) + 42px)) !important; }
 }
 
 @media (orientation: portrait) and (pointer: coarse),
        (orientation: portrait) and (max-width: 900px) {
-  #game-container .command-ring {
-    left: max(8px, env(safe-area-inset-left)) !important;
-    right: max(8px, env(safe-area-inset-right)) !important;
-    bottom: max(8px, env(safe-area-inset-bottom)) !important;
-    width: auto !important;
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-    grid-auto-rows: 48px !important;
+  #game-container.combat-compact-menu .command-ring .command .label {
+    font-size: clamp(14px, 3.5vw, 19px) !important;
   }
-  #game-container .command-ring .command { height: 48px !important; }
-  #game-container .command-ring .command .label { font-size: clamp(10px, 2.6vw, 13px) !important; }
-  #game-container .prototype-status {
-    max-width: min(62vw, 270px) !important;
-    max-height: 34px;
-  }
-  #game-container .category-surface {
-    left: max(8px, env(safe-area-inset-left)) !important;
-    right: max(8px, env(safe-area-inset-right)) !important;
-    top: max(72px, 18dvh) !important;
-    bottom: max(8px, env(safe-area-inset-bottom)) !important;
+  #game-container.combat-compact-menu .category-surface {
+    left: max(10px, env(safe-area-inset-left)) !important;
+    right: max(10px, env(safe-area-inset-right)) !important;
+    top: max(86px, 17dvh) !important;
     width: auto !important;
+    max-height: calc(100dvh - max(96px, 18dvh) - env(safe-area-inset-bottom)) !important;
+  }
+  #game-container.combat-compact-menu #category-body {
+    max-height: calc(100dvh - max(190px, 25dvh) - env(safe-area-inset-bottom)) !important;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 340px) and (pointer: coarse),
+       (orientation: landscape) and (max-height: 340px) and (max-width: 900px) {
+  #game-container.combat-compact-menu .category-surface {
+    top: max(46px, calc(env(safe-area-inset-top) + 38px)) !important;
+    max-height: calc(100dvh - 54px - env(safe-area-inset-bottom)) !important;
+  }
+  #game-container.combat-compact-menu #category-body {
+    max-height: calc(100dvh - 148px - env(safe-area-inset-bottom)) !important;
   }
 }
