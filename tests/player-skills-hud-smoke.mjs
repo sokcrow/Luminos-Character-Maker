@@ -164,4 +164,15 @@ assert.equal(hud.hudScaleForViewport(2200, 1300), 1);
 assert.equal(hud.HUD_CANVAS.width, 1600);
 assert.equal(hud.HUD_CANVAS.height, 920);
 
+const skillDetail = hud.detailMarkup({
+  ...fighterModel.skills.find((row) => row.id === "slash_combo"),
+  effects: [{ statusId: "rupture", description: "Aplica Rupture." }],
+}, fighterModel);
+assert.match(skillDetail, /COINS · 2/);
+assert.match(skillDetail, /Rupture/);
+assert.match(skillDetail, /Aplica Rupture/);
+assert.doesNotMatch(skillDetail, /<small>slash_combo/);
+assert.doesNotMatch(skillDetail, /LOADOUT SOURCE|COMBAT ENGINE/);
+assert.equal(hud.statusEffectsForSkill({ effects: [{ statusId: "rupture" }, { statusId: "rupture" }] }).length, 1);
+
 console.log("player-skills-hud-smoke: ok");
