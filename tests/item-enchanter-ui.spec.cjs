@@ -664,7 +664,7 @@ test("Remove Curse selects a known specific Enchantment without leaking unknown 
     };
     window.LuminousItemMagicKnowledgeRuntime={
       presentation() { return {
-        magicDetected:true,cursed:true,identified:true,knowledge:{rankKnown:true},
+        magicDetected:true,cursed:true,curseDetailsKnown:true,identified:true,knowledge:{rankKnown:true},
         enchantmentLines:[{known:true,text:"Flamebound"},{known:true,text:"Frostbound"}],
         curseLines:[{text:"Maldición detectada"}],
       }; },
