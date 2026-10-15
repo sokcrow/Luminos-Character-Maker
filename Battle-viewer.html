@@ -196,10 +196,13 @@ function smartTargetForPlan(owner,plan){
       "function setPlayerMenuZoom(enabled){\n  if($('game-container')?.dataset.viewerRole==='dm')setCameraFocus('full',false);\n  else setCameraFocus('player',enabled);",
       'dm-overview-preserved'
     );
+    // Keep the ink-ghost flight from each radial button to the
+    // category header. Resolve its destination from the rendered panel
+    // because the mobile viewport clamp overrides legacy inline coords.
     replaceUniqueCombatSource(
-      'function animateCommandToHeader(menu){',
-      "function animateCommandToHeader(menu){\n  if(window.matchMedia?.('(pointer: coarse), (max-width: 900px)').matches){\n    // Mobile menus are anchored to the screen, not the moving player.\n    const surface=$('category-surface'),back=$('back');\n    surface.style.visibility='';surface.style.opacity='';\n    surface.classList.add('open');back.classList.add('open');\n    return\n  }",
-      'viewport-anchored-category'
+      "const target={left:parseFloat(surface.style.left),top:parseFloat(surface.style.top),width:surface.offsetWidth,height:100}",
+      "const categoryRect=surface.getBoundingClientRect(),target={left:categoryRect.left,top:categoryRect.top,width:categoryRect.width,height:100}",
+      'mobile-original-category-flight-target'
     );
     replaceUniqueCombatSource(
       "window.addEventListener('resize',()=>{if(viewModeActive||targetingModeActive){",
@@ -209,7 +212,7 @@ function smartTargetForPlan(owner,plan){
     // Preload exactly one mobile stylesheet. The economy runtime checks this id.
     if(!html.includes('</head>'))throw new Error('COMBAT_MOBILE_STYLESHEET_TARGET_MISSING');
     html=html.replace('</head>',
-      '<link id="combat-mobile-runtime-stylesheet" rel="stylesheet" href="css/combat-mobile-runtime.css?v=20261012-mobile-combat-2"></head>');
+      '<link id="combat-mobile-runtime-stylesheet" rel="stylesheet" href="css/combat-mobile-runtime.css?v=20261015-preserved-radial"></head>');
     stage('patch-renderer','Applying Combat renderer patch');
     // Combat-iframe-only renderer patch. It never installs hooks in Theatre runtime code.
     // Mobile/low-power clients keep DOM/CSS sprite compositing and reserve WebGL2 for VFX.
