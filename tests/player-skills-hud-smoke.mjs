@@ -168,8 +168,10 @@ const skillDetail = hud.detailMarkup({
   ...fighterModel.skills.find((row) => row.id === "slash_combo"),
   effects: [{ statusId: "rupture", description: "Aplica Rupture." }],
 }, fighterModel);
-assert.match(skillDetail, /COINS · 2/);
+assert.match(skillDetail, /Amt\. x2/);
 assert.match(skillDetail, /Rupture/);
+assert.match(skillDetail, /\[On Use\]/);
+assert.match(skillDetail, /limbus-coin-section/);
 assert.match(skillDetail, /Aplica Rupture/);
 assert.doesNotMatch(skillDetail, /<small>slash_combo/);
 assert.doesNotMatch(skillDetail, /LOADOUT SOURCE|COMBAT ENGINE/);
@@ -190,4 +192,15 @@ const responsiveCss = (await import("node:fs")).readFileSync(new URL("../css/pla
 assert.match(responsiveCss, /@media \(max-width:900px\)/);
 assert.match(responsiveCss, /grid-template-columns:38px minmax\(0,1fr\) auto/);
 assert.match(responsiveCss, /min-height:42px/);
+const referenced = hud.detailMarkup({name:"Triple",tier:3,basePower:3,coinPower:3,coinAmount:3,attackWeight:1,
+  effects:[{trigger:"[On Use]",description:"Gain Poise Count"}],
+  coins:[{effects:[{trigger:"[On Hit]",description:"Gain 1 Poise"}]},
+         {effects:[{trigger:"[On Crit]",description:"Inflict 1 Burn Count"}]},
+         {effects:[{trigger:"[On Hit]",status:"rupture",potency:2,count:1}]}]});
+assert.match(referenced, /Triple/);
+assert.match(referenced, /\[On Use\]/);
+assert.match(referenced, /\[On Hit\]/);
+assert.match(referenced, /\[On Crit\]/);
+assert.match(referenced, /Coin 3/);
+assert.match(referenced, /Potency|Rupture|rupture/);
 console.log("player-skills-hud-smoke: ok");
