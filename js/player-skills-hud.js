@@ -187,6 +187,8 @@
       targetingType: clean(raw.targetingType || raw.targeting_type || ""),
       range: Number(raw.skillRange ?? raw.range ?? 0) || 0,
       description: clean(raw.description || raw.descripcion || raw.metadata?.description || ""),
+      effects: Array.isArray(raw.effects) ? raw.effects : [],
+      coins: Array.isArray(raw.coins) ? raw.coins : [],
       isDefense: raw.isDefense === true,
       sourceType: clean(raw.sourceType || raw.metadata?.sourceType || ""),
     };
@@ -288,7 +290,7 @@
         <section class="player-combat-skills-console" aria-label="Combat Skills">
           <header class="player-skills-header">
             <div class="player-skills-title">
-              <span>COMBAT LOADOUT // PLAYER</span>
+              <span>HABILIDADES DE COMBATE</span>
               <strong data-player-skills-character>PLAYER</strong>
             </div>
             <div class="player-skills-metrics">
@@ -299,23 +301,20 @@
           </header>
           <div class="player-skills-main">
             <aside class="player-skills-deck-panel">
-              <header><span>COMBAT ENGINE</span><strong>ASSIGNED DECK</strong></header>
+              <header><span>HABILIDADES</span><strong>SKILLS EQUIPADAS</strong></header>
               <div class="player-skills-deck" data-player-skills-deck></div>
-              <div class="player-skills-source-note">
-                <b>LOADOUT SOURCE</b>
-                <span>Assigned Skills come from the same Skill Deck / slot carriers consumed by Combat Engine.</span>
-              </div>
+              
             </aside>
             <main class="player-skills-library-panel">
               <div class="player-skills-library-toolbar">
                 <div>
-                  <span>SKILL ARCHIVE</span>
-                  <strong>AVAILABLE COMBAT SKILLS</strong>
+                  <span>COLECCIÓN</span>
+                  <strong>TUS HABILIDADES</strong>
                 </div>
                 <nav aria-label="Skill filters">
-                  <button type="button" data-player-skills-filter="all">ALL</button>
-                  <button type="button" data-player-skills-filter="assigned">ASSIGNED</button>
-                  <button type="button" data-player-skills-filter="learned">LEARNED</button>
+                  <button type="button" data-player-skills-filter="all">TODAS</button>
+                  <button type="button" data-player-skills-filter="assigned">EQUIPADAS</button>
+                  <button type="button" data-player-skills-filter="learned">APRENDIDAS</button>
                 </nav>
               </div>
               <div class="player-skills-list" data-player-skills-list></div>
@@ -364,7 +363,7 @@
       }).join("");
     }
     if (!model.skills.some((skill) => skill.assigned)) {
-      return '<div class="player-skills-empty"><strong>NO ASSIGNED SKILLS</strong><span>Combat Engine has no active Skill loadout for this Player.</span></div>';
+      return '<div class="player-skills-empty"><strong>SIN SKILLS EQUIPADAS</strong><span>El DM puede equipar tus habilidades en el menú de personaje.</span></div>';
     }
     return model.skills.filter((skill) => skill.assigned).map((skill) => `
       <button type="button" class="player-skills-deck-slot" data-player-skill-id="${escapeHtml(skill.id)}">
@@ -381,8 +380,8 @@
     const power = skill.coinAmount ? `${skill.basePower} + ${skill.coinPower} × ${skill.coinAmount}` : String(skill.basePower || "—");
     return `<button type="button" class="player-skills-row${state.selectedSkillId === skill.id ? " is-selected" : ""}" data-player-skill-id="${escapeHtml(skill.id)}">
       <span class="player-skills-row-tier">${escapeHtml(tier)}</span>
-      <span class="player-skills-row-name"><strong>${escapeHtml(skill.name)}</strong><small>${escapeHtml(skill.id)}</small></span>
-      <span class="player-skills-row-power">${escapeHtml(power)}</span>
+      <span class="player-skills-row-name"><strong>${escapeHtml(skill.name)}</strong><small>${escapeHtml([skill.sin, skill.damageType].filter(Boolean).join(" · "))}</small></span>
+      <span class="player-skills-row-power">${escapeHtml(power)}<small>${" ●".repeat(Math.min(skill.coinAmount, 6))}</small></span>
       <span class="player-skills-row-badges">${badges}</span>
     </button>`;
   }
