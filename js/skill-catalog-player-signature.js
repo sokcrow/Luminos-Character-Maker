@@ -989,6 +989,62 @@
         }),
       }),
     }),
+
+    // Rei · Rupture, Chinese-inspired polearm techniques. Effects are resolved
+    // once by player-skill-runtime-rei.js, never duplicated as coin effects.
+    rei_twin_fang: Object.freeze({
+      id: "rei_twin_fang",
+      name: "Twin Fang [雙牙斬]",
+      type: "Attack", skillFamily: "attack", attackMode: "melee", isMelee: true,
+      tier: 1, basePower: 5, coinPower: 3, coinAmount: 2, coinType: "positive",
+      attackWeight: 1, skillRange: 1, skillAmount: 3,
+      damageType: "cortante", sinAffinity: "gluttony", scalingStat: "Fuerza",
+      targetingType: "Focused Attack", sourceType: "player_signature_skill", sourceId: "rei_twin_fang",
+      isItemSkill: false, isDefense: false, isClashable: true, isUnclashable: false,
+      effects: Object.freeze([]), coins: Object.freeze([coin(0), coin(1)]),
+      schemaVersion: 2,
+      metadata: Object.freeze({
+        ownerCharacterId: "rei", ownerCharacterName: "Rei", signatureSkill: true,
+        statusFamily: "rupture", rawMaxPower: 11, deckCopies: 3,
+        mechanics: Object.freeze({"coin1OnHit":{"rupturePotency":2},"coin2OnHit":{"ruptureCount":2}}),
+      }),
+    }),
+
+    rei_crimson_moon_sweep: Object.freeze({
+      id: "rei_crimson_moon_sweep",
+      name: "Crimson Moon Sweep [赤月橫掃]",
+      type: "Attack", skillFamily: "attack", attackMode: "melee", isMelee: true,
+      tier: 2, basePower: 5, coinPower: 3, coinAmount: 3, coinType: "positive",
+      attackWeight: 2, skillRange: 1, skillAmount: 2,
+      damageType: "cortante", sinAffinity: "envy", scalingStat: "Fuerza",
+      targetingType: "Focused Attack", sourceType: "player_signature_skill", sourceId: "rei_crimson_moon_sweep",
+      isItemSkill: false, isDefense: false, isClashable: true, isUnclashable: false,
+      effects: Object.freeze([]), coins: Object.freeze([coin(0), coin(1), coin(2)]),
+      schemaVersion: 2,
+      metadata: Object.freeze({
+        ownerCharacterId: "rei", ownerCharacterName: "Rei", signatureSkill: true,
+        statusFamily: "rupture", rawMaxPower: 14, deckCopies: 2,
+        mechanics: Object.freeze({"coin1OnHit":{"ruptureCount":1},"coin2OnHit":{"rupturePotency":2},"coin3OnHit":{"ruptureCount":2}}),
+      }),
+    }),
+
+    rei_heaven_rending_execution: Object.freeze({
+      id: "rei_heaven_rending_execution",
+      name: "Heaven-Rending Execution [裂天絕殺]",
+      type: "Attack", skillFamily: "attack", attackMode: "melee", isMelee: true,
+      tier: 3, basePower: 6, coinPower: 4, coinAmount: 3, coinType: "positive",
+      attackWeight: 1, skillRange: 1, skillAmount: 1,
+      damageType: "cortante", sinAffinity: "pride", scalingStat: "Fuerza",
+      targetingType: "Focused Attack", sourceType: "player_signature_skill", sourceId: "rei_heaven_rending_execution",
+      isItemSkill: false, isDefense: false, isClashable: true, isUnclashable: false,
+      effects: Object.freeze([]), coins: Object.freeze([coin(0), coin(1), coin(2)]),
+      schemaVersion: 2,
+      metadata: Object.freeze({
+        ownerCharacterId: "rei", ownerCharacterName: "Rei", signatureSkill: true,
+        statusFamily: "rupture", rawMaxPower: 18, deckCopies: 1,
+        mechanics: Object.freeze({"onUse":{"clashPowerIfTargetHasRupture":1},"coin1OnHit":{"rupturePotency":2},"coin2OnHit":{"ruptureCount":3},"coin3OnHit":{"damagePercentIfRupturePotencyAtLeast":5,"bonus":20}}),
+      }),
+    }),
   });
 
   const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
