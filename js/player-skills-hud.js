@@ -386,38 +386,57 @@
     </button>`;
   }
 
+  function statusEffectsForSkill(skill = {}) {
+  const all = [...(skill.effects || [])];
+  (skill.coins || []).forEach((coin) => { if (Array.isArray(coin?.effects)) all.push(...coin.effects); });
+  const seen = new Set();
+  return all.map((effect) => {
+    if (!effect || typeof effect !== "object") return null;
+    const statusId = clean(effect.statusId || effect.statusEffectId || effect.status || effect.status_effect);
+    const definition = statusId ? global.LuminousStatusLibrary?.get?.(statusId) : null;
+    const explicitName = clean(effect.statusName || effect.name || effect.label || definition?.name);
+    if (!statusId && !explicitName) return null;
+    const name = explicitName || statusId.replace(/[_-]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+    const description = clean(effect.description || effect.descripcion || definition?.description);
+    if (seen.has(name.toLowerCase())) return null;
+    seen.add(name.toLowerCase());
+    return { name, description };
+  }).filter(Boolean);
+}
+
   function detailMarkup(skill, model) {
-    if (!skill) {
-      return `<div class="player-skills-detail-empty"><span>SKILL DATA</span><strong>SELECT A SKILL</strong><p>Inspect the same combat definition used by Combat Engine.</p>${model.spellcaster ? '<em>Spellcaster detected · the menu uses the local Spells icon.</em>' : ""}</div>`;
-    }
-    const tags = [
-      skill.assigned ? '<span class="is-assigned">ASSIGNED</span>' : "",
-      skill.learned ? '<span class="is-learned">LEARNED</span>' : "",
-    ].join("");
-    return `
-      <header class="player-skills-detail-header">
-        <span>COMBAT DEFINITION</span>
-        <strong>${escapeHtml(skill.name)}</strong>
-        <small>${escapeHtml(skill.id)}</small>
-        <div class="player-skills-detail-badges">${tags}</div>
-      </header>
-      <div class="player-skills-detail-grid">
-        <div><span>TYPE</span><b>${escapeHtml(skill.type || "Skill")}</b></div>
-        <div><span>TIER</span><b>${skill.tier || "—"}</b></div>
-        <div><span>BASE POWER</span><b>${skill.basePower}</b></div>
-        <div><span>COIN POWER</span><b>${skill.coinPower}</b></div>
-        <div><span>COINS</span><b>${skill.coinAmount || "—"}</b></div>
-        <div><span>COPIES</span><b>${skill.copies || "—"}</b></div>
-        <div><span>SIN</span><b>${escapeHtml(skill.sin || "sinless")}</b></div>
-        <div><span>DAMAGE</span><b>${escapeHtml(skill.damageType || "—")}</b></div>
-        <div><span>TARGETING</span><b>${escapeHtml(skill.targetingType || "—")}</b></div>
-        <div><span>RANGE</span><b>${skill.range || "—"}</b></div>
-      </div>
-      <div class="player-skills-detail-description">
-        <span>DESCRIPTION</span>
-        <p>${escapeHtml(skill.description || "No additional description registered. Combat values above remain authoritative.")}</p>
-      </div>`;
-  }
+  if (!skill) return '<div class="player-skills-detail-empty"><span>HABILIDADES</span><strong>ELIGE UNA SKILL</strong><p>Consulta potencia, monedas y efectos.</p></div>';
+  const tags = [
+    skill.assigned ? '<span class="is-assigned">EQUIPADA</span>' : "",
+    skill.learned ? '<span class="is-learned">APRENDIDA</span>' : "",
+  ].join("");
+  const count = Math.max(0, Number(skill.coinAmount) || (skill.coins || []).length);
+  const coins = Array.from({ length: Math.min(count, 12) }, () => '<span class="player-skills-coin" aria-hidden="true">●</span>').join("");
+  const statuses = statusEffectsForSkill(skill);
+  return `
+    <header class="player-skills-detail-header">
+      <span>SKILL · TIER ${skill.tier || "—"}</span>
+      <strong>${escapeHtml(skill.name)}</strong>
+      <div class="player-skills-detail-badges">${tags}</div>
+    </header>
+    <section class="player-skills-power-panel" aria-label="Potencia y Coins">
+      <div class="player-skills-power-total"><span>POTENCIA BASE</span><b>${skill.basePower}</b></div>
+      <div class="player-skills-coins"><span>COINS · ${count}</span><div class="player-skills-coin-track" aria-label="${count} Coins">${coins}${count > 12 ? `<small>+${count - 12}</small>` : ""}</div><b>${skill.coinPower >= 0 ? "+" : ""}${skill.coinPower} por cara</b></div>
+    </section>
+    <div class="player-skills-detail-grid">
+      <div><span>TIPO</span><b>${escapeHtml(skill.type || "Skill")}</b></div>
+      <div><span>AFINIDAD</span><b>${escapeHtml(skill.sin || "sinless")}</b></div>
+      <div><span>DAÑO</span><b>${escapeHtml(skill.damageType || "—")}</b></div>
+      <div><span>ALCANCE</span><b>${skill.range || "—"}</b></div>
+    </div>
+    <section class="player-skills-effects-panel">
+      <strong>EFECTOS DE ESTADO</strong>
+      ${statuses.length ? statuses.map((effect) => `<div class="player-skills-status-chip"><b>${escapeHtml(effect.name)}</b>${effect.description ? `<small>${escapeHtml(effect.description)}</small>` : ""}</div>`).join("") : '<p>Sin efectos de estado registrados.</p>'}
+    </section>
+    <div class="player-skills-detail-description">
+      <span>DESCRIPCIÓN</span><p>${escapeHtml(skill.description || "Esta habilidad no tiene una descripción adicional.")}</p>
+    </div>`;
+}
 
   function visibleSelectionId(rows = [], selectedSkillId = null) {
     const selected = normalizeId(selectedSkillId);
@@ -528,6 +547,8 @@
     progressionEarned,
     assignedSkillEntries,
     buildSkillViewModel,
+    statusEffectsForSkill,
+    detailMarkup,
     visibleSelectionId,
     hudScaleForViewport,
     syncHudCanvasScale,
