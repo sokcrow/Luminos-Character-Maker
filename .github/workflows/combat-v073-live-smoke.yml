@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - 'Battle-viewer.html'
+      - 'css/combat-mobile-runtime.css'
       - 'combat/**'
       - 'database.rules.json'
       - 'js/combat-v073-live-adapter.js'
@@ -64,6 +65,7 @@ on:
       - 'tests/combat-v074-dm-console-smoke.mjs'
       - 'tests/combat-v073-live-sync-hotfix-smoke.mjs'
       - 'tests/combat-v073-economy-menu-smoke.mjs'
+      - 'tests/combat-mobile-boot-smoke.mjs'
       - 'tests/combat-v073-player-menu-inventory-click-smoke.mjs'
       - 'tests/combat-player-active-inventory-authority-smoke.mjs'
       - 'tests/item-runtime-canonical-combat-use-smoke.mjs'
@@ -141,6 +143,8 @@ jobs:
         run: node tests/player-vitals-realtime-bridge-smoke.mjs
       - name: Player Action economy menu contract
         run: node tests/combat-v073-economy-menu-smoke.mjs
+      - name: Mobile Combat player-centered HUD and Spells eligibility
+        run: node tests/combat-mobile-boot-smoke.mjs
       - name: Player menu and active inventory click contract
         run: node tests/combat-v073-player-menu-inventory-click-smoke.mjs
       - name: Combat Player Active Inventory authority

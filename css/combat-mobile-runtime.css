@@ -57,6 +57,15 @@
     font-size: clamp(15px, 2.8vw, 20px) !important;
     line-height: .94 !important;
   }
+  /* Build eligibility overrides the generic command display rule.
+     Non-spellcasters must never see or activate Spells on mobile. */
+  #game-container.combat-compact-menu .command-ring .command[hidden],
+  #game-container.combat-compact-menu .command-ring .command[aria-hidden="true"] {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+
   #game-container.combat-compact-menu .command-ring .command .sub {
     display: block !important;
     font-size: clamp(6px, .85vw, 8px) !important;
