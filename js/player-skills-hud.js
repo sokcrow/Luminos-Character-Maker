@@ -387,10 +387,12 @@
   }
 
   function statusEffectsForSkill(skill = {}) {
-  const all = [...(skill.effects || [])];
-  (skill.coins || []).forEach((coin) => { if (Array.isArray(coin?.effects)) all.push(...coin.effects); });
+  const rows = (Array.isArray(skill.effects) ? skill.effects : []).map((effect) => ({ effect, coinIndex: null }));
+  (Array.isArray(skill.coins) ? skill.coins : []).forEach((coin, index) => {
+    if (Array.isArray(coin?.effects)) coin.effects.forEach((effect) => rows.push({ effect, coinIndex: index + 1 }));
+  });
   const seen = new Set();
-  return all.map((effect) => {
+  return rows.map(({ effect, coinIndex }) => {
     if (!effect || typeof effect !== "object") return null;
     const statusId = clean(effect.statusId || effect.statusEffectId || effect.status || effect.status_effect);
     const definition = statusId ? global.LuminousStatusLibrary?.get?.(statusId) : null;
@@ -398,13 +400,26 @@
     if (!statusId && !explicitName) return null;
     const name = explicitName || statusId.replace(/[_-]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
     const description = clean(effect.description || effect.descripcion || definition?.description);
-    if (seen.has(name.toLowerCase())) return null;
-    seen.add(name.toLowerCase());
-    return { name, description };
+    const iconRaw = clean(definition?.icon);
+    const icon = /^(https:\/\/|Assets\/)/.test(iconRaw) ? iconRaw : "";
+    const potency = effect.potency == null ? null : Number(effect.potency);
+    const count = effect.count == null ? null : Number(effect.count);
+    const rawTrigger = clean(effect.trigger).toLowerCase().replace(/[\[\]]/g, "").replace(/[\s-]+/g, "_");
+    const trigger = ["on_hit", "onhit"].includes(rawTrigger) ? "Al impactar" : (["on_use", "onuse"].includes(rawTrigger) ? "Al usar" : "");
+    const target = clean(effect.target).toLowerCase() === "self" ? "Usuario" : (clean(effect.target).toLowerCase() === "target" ? "Objetivo" : "");
+    const key = [name.toLowerCase(), coinIndex, potency, count, trigger, target].join("|");
+    if (seen.has(key)) return null;
+    seen.add(key);
+    return {
+      name, description, icon, coinIndex,
+      potency: Number.isFinite(potency) ? potency : null,
+      count: Number.isFinite(count) ? count : null,
+      trigger, target,
+    };
   }).filter(Boolean);
 }
 
-  function detailMarkup(skill, model) {
+    function detailMarkup(skill, model) {
   if (!skill) return '<div class="player-skills-detail-empty"><span>HABILIDADES</span><strong>ELIGE UNA SKILL</strong><p>Consulta potencia, monedas y efectos.</p></div>';
   const tags = [
     skill.assigned ? '<span class="is-assigned">EQUIPADA</span>' : "",
@@ -431,7 +446,7 @@
     </div>
     <section class="player-skills-effects-panel">
       <strong>EFECTOS DE ESTADO</strong>
-      ${statuses.length ? statuses.map((effect) => `<div class="player-skills-status-chip"><b>${escapeHtml(effect.name)}</b>${effect.description ? `<small>${escapeHtml(effect.description)}</small>` : ""}</div>`).join("") : '<p>Sin efectos de estado registrados.</p>'}
+      ${statuses.length ? statuses.map((effect) => `<div class="player-skills-status-chip">${effect.icon ? `<img class="player-skills-status-icon" src="${escapeHtml(effect.icon)}" alt="">` : ""}<div><b>${escapeHtml(effect.name)}</b><small>${[effect.coinIndex ? `Coin ${effect.coinIndex}` : "", effect.trigger, effect.target, effect.potency != null ? `Potencia +${effect.potency}` : "", effect.count != null ? `Count +${effect.count}` : ""].filter(Boolean).join(" · ")}</small>${effect.description ? `<small>${escapeHtml(effect.description)}</small>` : ""}</div></div>`).join("") : '<p>Sin efectos de estado registrados.</p>'}
     </section>
     <div class="player-skills-detail-description">
       <span>DESCRIPCIÓN</span><p>${escapeHtml(skill.description || "Esta habilidad no tiene una descripción adicional.")}</p>
