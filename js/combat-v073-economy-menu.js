@@ -807,24 +807,69 @@
     const result = typeof original === "function" ? original() : undefined;
     if (clean(lexical("navState", "root")) !== "root") return result;
 
+    const host = global.document?.getElementById?.("game-container");
     const ring = global.document?.querySelector?.(".command-ring");
-    const spriteCenter = lexical("spriteCenter", null);
-    if (!ring || typeof spriteCenter !== "function") return result;
+    if (!host || !ring) return result;
 
+    const coarsePointer = global.matchMedia?.("(pointer: coarse)")?.matches === true;
+    const viewportWidth = Number(host.clientWidth) || Number(global.innerWidth) || 0;
+    const viewportHeight = Number(host.clientHeight) || Number(global.innerHeight) || 0;
+    const compact = coarsePointer || viewportWidth <= 900;
+
+    if (compact && viewportWidth > 0 && viewportHeight > 0) {
+      // Keep Limbus' six ink-cut radial commands and their left/right fan
+      // arrangement. Only the geometry changes to remain on-screen.
+      const portrait = viewportHeight > viewportWidth;
+      const sidePadding = Math.max(10, Math.min(20, viewportWidth * .023));
+      const widthScale = portrait
+        ? Math.max(.82, Math.min(1, viewportWidth / 420))
+        : Math.max(.86, Math.min(1.10, viewportWidth / 900));
+      const maxButtonWidth = Math.max(92, Math.min(190, viewportWidth * .42));
+      const centerY = portrait
+        ? viewportHeight - Math.max(142, Math.min(190, viewportHeight * .245))
+        : viewportHeight * .54;
+      const fanY = portrait
+        ? Math.max(52, Math.min(94, viewportHeight * .125))
+        : Math.max(42, Math.min(104, (viewportHeight - 122) * .42));
+      const ringRect = ring.getBoundingClientRect();
+
+      global.document.querySelectorAll(".command-ring .command").forEach((button) => {
+        const angle = Number(button.dataset?.angle);
+        if (!Number.isFinite(angle)) return;
+        const radians = angle * Math.PI / 180;
+        const leftSide = Math.cos(radians) < 0;
+        const width = Math.min(maxButtonWidth, (Number(button.dataset?.width) || 150) * widthScale);
+        const height = 46;
+        const outward = Math.abs(Math.sin(radians));
+        const side = sidePadding + outward * 8;
+        const x = leftSide ? side : viewportWidth - side - width;
+        const y = Math.max(62, Math.min(viewportHeight - height - 12,
+          centerY + Math.sin(radians) * fanY - height / 2));
+        const originalRotation = leftSide ? (angle > 90 ? angle - 180 : angle + 180) : angle;
+        const rotation = originalRotation * (portrait ? .35 : .42);
+
+        button.style.setProperty("--w", `${width}px`);
+        if (button.dataset?.accent) button.style.setProperty("--accent", button.dataset.accent);
+        button.classList.toggle("radial-left", leftSide);
+        button.classList.toggle("radial-right", !leftSide);
+        button.style.setProperty("--rot", `${rotation}deg`);
+        button.style.setProperty("--icon-counter-rot", `${-rotation}deg`);
+        button.style.left = `${host.getBoundingClientRect().left - ringRect.left + x}px`;
+        button.style.top = `${host.getBoundingClientRect().top - ringRect.top + y}px`;
+      });
+      try { lexical("syncReadyControl", () => {})(); } catch (_) {}
+      return result;
+    }
+
+    // Desktop: retain the established camera-relative fan untouched.
+    const spriteCenter = lexical("spriteCenter", null);
+    if (typeof spriteCenter !== "function") return result;
     const center = spriteCenter();
     const ringRect = ring.getBoundingClientRect();
-    const cx = Number(center?.x);
-    const cy = Number(center?.y);
+    const cx = Number(center?.x), cy = Number(center?.y);
     if (!Number.isFinite(cx) || !Number.isFinite(cy)) return result;
-
-    // spriteCenter() is viewport-relative, while command left/top are local to
-    // command-ring. Camera focus can translate the ring hundreds of pixels, so
-    // using viewport coordinates directly applies the camera offset twice.
-    const localX = cx - ringRect.left;
-    const localY = cy - ringRect.top;
-    const rx = 225;
-    const ry = 145;
-    const menuScale = 1.27;
+    const localX = cx - ringRect.left, localY = cy - ringRect.top;
+    const rx = 225, ry = 145, menuScale = 1.27;
 
     global.document.querySelectorAll(".command").forEach((button) => {
       const angle = Number(button.dataset?.angle);
@@ -855,7 +900,7 @@
     const host = global.document?.getElementById?.("game-container");
     if (!host) return false;
     const coarsePointer = global.matchMedia?.("(pointer: coarse)")?.matches === true;
-    const compact = coarsePointer || Number(global.innerHeight || 0) <= 360 || Number(global.innerWidth || 0) <= 760;
+    const compact = coarsePointer || Number(host.clientWidth || global.innerWidth || 0) <= 900;
     const menu = activeMenu();
     host.classList.toggle("combat-compact-menu", compact);
     host.classList.toggle("combat-root-menu-active", compact && !menu);
@@ -1005,15 +1050,8 @@
       const menu = normalizeId(button.dataset?.menu);
       if (!TABBED_MENUS.has(menu)) return;
 
-      const host = global.document?.getElementById?.("game-container");
-      if (host?.classList?.contains?.("combat-compact-menu")) {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        state.menuRefreshGeneration += 1;
-        openCompactMenu(menu);
-        return;
-      }
-
+      // Preserve the original radial transition for mobile and desktop.
+      // The economy runtime refreshes the canonical list after it settles.
       // Large-layout viewers keep the original radial transition. Refresh live
       // data once that transition has fully settled.
       refreshOpenedMenu(menu, 560);
