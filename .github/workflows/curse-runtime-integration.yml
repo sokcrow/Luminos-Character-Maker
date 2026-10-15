@@ -14,6 +14,8 @@ on:
       - 'functions/build-enchanter-bundle.cjs'
       - 'functions/index.cjs'
       - 'js/item-magic-runtime.js'
+      - 'js/item-inventory-runtime.js'
+      - 'js/item-persistence-runtime.js'
       - 'js/item-magic-knowledge-runtime.js'
       - 'js/item-equipment-bridge.js'
       - 'js/dm-item-instance-editor.js'
@@ -23,6 +25,7 @@ on:
       - 'tests/curse-catalog-smoke.cjs'
       - 'tests/curse-enchanter-bridge-smoke.cjs'
       - 'tests/curse-enchanter-server-intent-smoke.cjs'
+      - 'tests/curse-inventory-persistence-smoke.cjs'
       - 'tests/dm-item-instance-editor.spec.cjs'
       - '.github/workflows/curse-runtime-integration.yml'
 
@@ -46,17 +49,20 @@ jobs:
           node --check functions/enchanter-atomic.cjs
           node --check functions/build-enchanter-bundle.cjs
           node --check js/item-magic-runtime.js
+          node --check js/item-inventory-runtime.js
           node --check js/item-equipment-bridge.js
           node --check js/dm-item-instance-editor.js
           node --check tests/curse-item-runtime-smoke.cjs
           node --check tests/curse-catalog-smoke.cjs
           node --check tests/curse-enchanter-bridge-smoke.cjs
           node --check tests/curse-enchanter-server-intent-smoke.cjs
+          node --check tests/curse-inventory-persistence-smoke.cjs
           node --check tests/dm-item-instance-editor.spec.cjs
       - name: Phase B catalog, schema and lifecycle
         run: node tests/curse-catalog-smoke.cjs
       - name: Phase C Enchanter selective removal and regression
         run: |
+          node tests/curse-inventory-persistence-smoke.cjs
           node tests/curse-enchanter-bridge-smoke.cjs
           node tests/curse-enchanter-server-intent-smoke.cjs
           node tests/enchanter-server-canonical-smoke.cjs
