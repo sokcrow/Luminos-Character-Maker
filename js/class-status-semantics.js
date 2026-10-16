@@ -6,7 +6,7 @@
   const BARDIC_INSPIRATION_ICON = "https://imgur.com/LaZgHYg.png";
   const PSYCHIC_BLADE_ICON = "https://imgur.com/vEDE8Q8.png";
   const SECOND_WIND_ICON = "https://imgur.com/VSxnVEo.png";
-  const SUPERIORITY_ICON = "Assets/Icons/status/superiority.svg";
+  const SUPERIORITY_ICON = "Assets/Icons/status/superiority.png";
   const INTERNAL_EFFECT_IDS = Object.freeze(new Set([
     "reckless_attack_armed",
     "countercharm",
