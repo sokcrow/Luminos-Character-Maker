@@ -51,10 +51,12 @@ assert.equal(library.get('psychic_blade')?.archetypeId, 'college_of_whispers');
 assert.equal(library.has('superiority'), true);
 assert.equal(library.get('superiority')?.mode, 'single');
 assert.equal(library.get('superiority')?.archetypeId, 'battle_master');
-assert.equal(library.get('superiority')?.icon, 'Assets/Icons/status/superiority.svg');
-const superiorityAsset = fs.readFileSync(path.join(root, 'Assets/Icons/status/superiority.svg'), 'utf8');
-assert.match(superiorityAsset, /<svg\b/);
-assert.match(superiorityAsset, /Superiority/);
+assert.equal(library.get('superiority')?.icon, 'Assets/Icons/status/superiority.png');
+const superiorityAsset = fs.readFileSync(path.join(root, 'Assets/Icons/status/superiority.png'));
+assert.ok(superiorityAsset.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10])), 'Superiority must use the downloaded PNG');
+assert.equal(superiorityAsset.toString('ascii', 12, 16), 'IHDR', 'Superiority PNG must contain a valid IHDR');
+assert.ok(superiorityAsset.readUInt32BE(16) > 16 && superiorityAsset.readUInt32BE(20) > 16, 'Superiority icon dimensions must be valid');
+assert.ok(superiorityAsset.length > 256, 'Superiority image cannot be a placeholder');
 
 // Class resources and Action/Passive implementation markers are not Status Effects.
 assert.equal(library.has('sorcery_points'), false, 'Sorcery Points are a Sorcerer class resource, not a Status');
