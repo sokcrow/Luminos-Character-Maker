@@ -8,7 +8,7 @@
   const CLASS_ID = "fighter";
   const CLASS_NAME = "Fighter";
   const PATCH_INTERVAL_MS = 500;
-  const SUPERIORITY_ICON = "Assets/Icons/status/superiority.svg";
+  const SUPERIORITY_ICON = "Assets/Icons/status/superiority.png";
   let encounterStartedUnits = new WeakSet();
   const normalizeId = (value) => String(value ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
   const intOr = (value, fallback = 0) => Number.isFinite(Number.parseInt(value, 10)) ? Number.parseInt(value, 10) : fallback;
