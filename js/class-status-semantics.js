@@ -6,6 +6,7 @@
   const BARDIC_INSPIRATION_ICON = "https://imgur.com/LaZgHYg.png";
   const PSYCHIC_BLADE_ICON = "https://imgur.com/vEDE8Q8.png";
   const SECOND_WIND_ICON = "https://imgur.com/VSxnVEo.png";
+  const SUPERIORITY_ICON = "Assets/Icons/status/superiority.png";
   const INTERNAL_EFFECT_IDS = Object.freeze(new Set([
     "reckless_attack_armed",
     "countercharm",
@@ -70,10 +71,22 @@
       visible: true,
     });
 
+    library.registerExtension("superiority", {
+      name: "Superiority",
+      type: "positive",
+      mode: "single",
+      icon: SUPERIORITY_ICON,
+      description: "Battle Master encounter resource. Count is gained from Clashes, Hits and learned Maneuvers.",
+      classId: "fighter",
+      archetypeId: "battle_master",
+      visible: true,
+    });
+
     return library.get?.("rage")?.icon === RAGE_ICON
       && library.get?.("bardic_inspiration")?.icon === BARDIC_INSPIRATION_ICON
       && library.get?.("psychic_blade")?.icon === PSYCHIC_BLADE_ICON
-      && library.get?.("second_wind")?.icon === SECOND_WIND_ICON;
+      && library.get?.("second_wind")?.icon === SECOND_WIND_ICON
+      && library.get?.("superiority")?.icon === SUPERIORITY_ICON;
   }
 
   function patchRecklessAttack(definition) {
@@ -187,6 +200,7 @@
     BARDIC_INSPIRATION_ICON,
     PSYCHIC_BLADE_ICON,
     SECOND_WIND_ICON,
+    SUPERIORITY_ICON,
     INTERNAL_EFFECT_IDS,
     RESOURCE_ONLY_IDS,
     isInternalEffectId,

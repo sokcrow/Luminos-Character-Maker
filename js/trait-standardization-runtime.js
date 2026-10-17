@@ -21,6 +21,9 @@
     viewerEncounterActive: false,
     viewerEncounterPending: false,
     viewerEncounterRef: null,
+    viewerEncounterStateRef: null,
+    viewerEncounterUnitsPresent: false,
+    viewerEncounterPhaseActive: false,
   };
 
   const normalizeId = (value) => String(value ?? "").trim().toLowerCase().replace(/\s+/g, "_");
@@ -233,16 +236,66 @@
     return registeredCombatUnits().find((unit) => isCurrentPlayerUnit(unit)) || null;
   }
 
+  let viewerBattleMasterLoad = null;
+
+  function viewerBattleMasterSelected(unit) {
+    const character = global.LuminousPlayerTraitRuntime?.getCharacter?.() || null;
+    const id = (value) => normalizeId(value).replace(/-/g, "_");
+    return [unit, character].some((source) => {
+      const archetypes = source?.characterBuild?.archetypes ?? source?.archetypes ?? [];
+      const selected = Array.isArray(archetypes)
+        ? archetypes
+        : Object.entries(archetypes || {}).map(([classId, entry]) =>
+          typeof entry === "string" ? { classId, archetypeId: entry } : { classId, ...(entry || {}) });
+      return selected.some((entry) => id(entry?.classId || entry?.parentClassId) === "fighter"
+        && id(entry?.archetypeId || entry?.subclassId || entry?.id) === "battle_master");
+    });
+  }
+
+  function ensureViewerBattleMasterRuntime() {
+    if (global.LuminousBattleMasterArchetypeRuntime?.applyEncounterStartManeuvers) return true;
+    if (!viewerBattleMasterLoad) {
+      // These runtimes are normally class-manifest-loaded on the player sheet,
+      // but the embedded Battle Viewer can enter an Encounter before that load.
+      viewerBattleMasterLoad = ensureScript(
+        "fighter-maneuver-catalog-script", "js/fighter-maneuver-catalog.js",
+        () => Boolean(global.LuminousFighterManeuverCatalog)
+      ).then(() => ensureScript(
+        "battle-master-archetype-runtime-script", "js/battle-master-archetype-runtime.js",
+        () => Boolean(global.LuminousBattleMasterArchetypeRuntime?.applyEncounterStartManeuvers)
+      )).then(() => {
+        viewerBattleMasterLoad = null;
+        if (global.LuminousBattleMasterArchetypeRuntime?.applyEncounterStartManeuvers) {
+          dispatchPendingEncounterStart();
+        }
+      }).catch((error) => {
+        viewerBattleMasterLoad = null;
+        global.console?.warn?.("[Encounter Start] Battle Master runtime unavailable", error);
+      });
+    }
+    return false;
+  }
+
   function dispatchPendingEncounterStart() {
     if (!state.viewerEncounterPending) return false;
     const runtime = global.LuminousPlayerTraitRuntime;
     const unit = currentRegisteredPlayerUnit();
     if (!runtime?.dispatchCombatEvent || !unit) return false;
+
+    // The Battle Viewer Firebase transition does not invoke CombatEngine's
+    // triggerEncounterStart hook. Execute learned Maneuvers through the same
+    // Battle Master handler before dispatching ordinary class Traits.
+    const battleMasterSelected = viewerBattleMasterSelected(unit);
+    if (battleMasterSelected && !ensureViewerBattleMasterRuntime()) return false;
+    const units = liveCombatUnits({ units: registeredCombatUnits() });
     state.viewerEncounterPending = false;
+    if (battleMasterSelected) {
+      global.LuminousBattleMasterArchetypeRuntime.applyEncounterStartManeuvers(units, global.CombatEngine);
+    }
     runtime.dispatchCombatEvent("encounter_start", {
       context: "combat",
       self: unit,
-      units: registeredCombatUnits(),
+      units,
     });
     return true;
   }
@@ -255,29 +308,52 @@
     return unit;
   }
 
+  function dispatchViewerEncounterStartIfReady() {
+    if (state.viewerEncounterActive || !state.viewerEncounterUnitsPresent || !state.viewerEncounterPhaseActive) return false;
+    state.viewerEncounterActive = true;
+    state.viewerEncounterPending = true;
+    dispatchPendingEncounterStart();
+    return true;
+  }
+
   function installViewerEncounterBridge() {
     if (state.viewerEncounterBound) {
+      dispatchViewerEncounterStartIfReady();
       dispatchPendingEncounterStart();
       return true;
     }
     if (!global.firebase?.database || !global.firebase?.apps?.length) return false;
-    const ref = global.firebase.database().ref("campaña/combate/combatants");
+    const db = global.firebase.database();
+    const combatantsRef = db.ref("campaña/combate/combatants");
+    const stateRef = db.ref("campaña/combate/estado");
     state.viewerEncounterBound = true;
-    state.viewerEncounterRef = ref;
-    ref.on("value", (snapshot) => {
+    state.viewerEncounterRef = combatantsRef;
+    state.viewerEncounterStateRef = stateRef;
+    combatantsRef.on("value", (snapshot) => {
       const combatants = snapshot.val() || {};
-      const active = Object.keys(combatants).length > 0;
-      if (!active) {
-        state.viewerEncounterActive = false;
-        state.viewerEncounterPending = false;
+      state.viewerEncounterUnitsPresent = Object.keys(combatants).length > 0;
+      if (!state.viewerEncounterUnitsPresent) {
         state.combatUnits.clear();
         state.modifierTargets.clear();
-        return;
       }
-      if (state.viewerEncounterActive) return;
-      state.viewerEncounterActive = true;
-      state.viewerEncounterPending = true;
-      dispatchPendingEncounterStart();
+      dispatchViewerEncounterStartIfReady();
+    });
+    stateRef.on("value", (snapshot) => {
+      const raw = snapshot.val() || {};
+      const phase = normalizeId(typeof raw === "string" ? raw : raw.phase || raw.state || raw.status);
+      const round = Math.max(1, Math.trunc(numberOr(typeof raw === "object" ? raw.round ?? raw.turn : 1, 1)));
+      // Deployment and the planning phase are not Encounter Start.
+      // Run once when the first round is sealed/started, never on later rounds.
+      state.viewerEncounterPhaseActive = round === 1 && [
+        "combat_sealed", "combat_running", "combat_active", "combat",
+        "running", "sealed", "combat_resolution",
+      ].includes(phase);
+      if (["setup", "ended", "cancelled", "canceled"].includes(phase) ||
+          (round === 1 && ["pre_combat_planning", "planning"].includes(phase))) {
+        state.viewerEncounterActive = false;
+        state.viewerEncounterPending = false;
+      }
+      dispatchViewerEncounterStartIfReady();
     });
     return true;
   }

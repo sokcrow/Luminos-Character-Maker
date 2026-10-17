@@ -47,6 +47,17 @@ assert.equal(library.get('psychic_blade')?.mode, 'single');
 assert.equal(library.get('psychic_blade')?.icon, 'https://imgur.com/vEDE8Q8.png');
 assert.equal(library.get('psychic_blade')?.archetypeId, 'college_of_whispers');
 
+// Superiority is a visible Battle Master encounter resource with a local icon.
+assert.equal(library.has('superiority'), true);
+assert.equal(library.get('superiority')?.mode, 'single');
+assert.equal(library.get('superiority')?.archetypeId, 'battle_master');
+assert.equal(library.get('superiority')?.icon, 'Assets/Icons/status/superiority.png');
+const superiorityAsset = fs.readFileSync(path.join(root, 'Assets/Icons/status/superiority.png'));
+assert.ok(superiorityAsset.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10])), 'Superiority must use the downloaded PNG');
+assert.equal(superiorityAsset.toString('ascii', 12, 16), 'IHDR', 'Superiority PNG must contain a valid IHDR');
+assert.ok(superiorityAsset.readUInt32BE(16) > 16 && superiorityAsset.readUInt32BE(20) > 16, 'Superiority icon dimensions must be valid');
+assert.ok(superiorityAsset.length > 256, 'Superiority image cannot be a placeholder');
+
 // Class resources and Action/Passive implementation markers are not Status Effects.
 assert.equal(library.has('sorcery_points'), false, 'Sorcery Points are a Sorcerer class resource, not a Status');
 assert.equal(library.has('reckless_attack_armed'), false, 'Reckless Attack arming is internal Trait state');
@@ -85,12 +96,13 @@ const unit = {
     haste: { id: 'haste', count: 2, potency: 0 },
     bardic_inspiration: { id: 'bardic_inspiration', count: 1, potency: 3 },
     psychic_blade: { id: 'psychic_blade', count: 2, potency: 0 },
+    superiority: { id: 'superiority', count: 10, potency: 0 },
     countercharm: { id: 'countercharm', count: 2, potency: 0 },
     reckless_attack_armed: { id: 'reckless_attack_armed', count: 1, potency: 0 },
   },
 };
 const visible = globalThis.LuminousStatusEngine.listStatuses(unit).map((entry) => entry.id).sort();
-assert.deepEqual(visible, ['bardic_inspiration', 'haste', 'psychic_blade', 'rage']);
+assert.deepEqual(visible, ['bardic_inspiration', 'haste', 'psychic_blade', 'rage', 'superiority']);
 
 // Existing Trait runtimes must still reference the same canonical ids.
 const bardSource = fs.readFileSync(path.join(root, 'js/bard-class-runtime.js'), 'utf8');
@@ -107,4 +119,4 @@ assert.doesNotMatch(sorcererSource, /statusId\s*:\s*["']sorcery_points["']/);
 const managerSource = fs.readFileSync(path.join(root, 'js/statusManager.js'), 'utf8');
 assert.match(managerSource, /class-status-semantics\.js/);
 
-console.log('Class Status semantics smoke passed: Rage, Bardic Inspiration, and Psychic Blade visible; internal Action markers hidden; Sorcery Points remain a resource.');
+console.log('Class Status semantics smoke passed: canonical class Statuses including Superiority visible; internal Action markers hidden.');

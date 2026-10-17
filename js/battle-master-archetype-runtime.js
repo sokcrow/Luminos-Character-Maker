@@ -8,6 +8,8 @@
   const CLASS_ID = "fighter";
   const CLASS_NAME = "Fighter";
   const PATCH_INTERVAL_MS = 500;
+  const SUPERIORITY_ICON = "Assets/Icons/status/superiority.png";
+  let encounterStartedUnits = new WeakSet();
   const normalizeId = (value) => String(value ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
   const intOr = (value, fallback = 0) => Number.isFinite(Number.parseInt(value, 10)) ? Number.parseInt(value, 10) : fallback;
 
@@ -177,6 +179,16 @@
     if (!unit.resources || typeof unit.resources !== "object" || Array.isArray(unit.resources)) unit.resources = {};
     unit.resources.superiority = next;
     unit.superiorityCount = next;
+    // The resource remains authoritative; its Status mirror is only the visible Count.
+    if (!unit.statusEffects || typeof unit.statusEffects !== "object" || Array.isArray(unit.statusEffects)) unit.statusEffects = {};
+    if (next > 0) {
+      unit.statusEffects.superiority = {
+        ...(unit.statusEffects.superiority && typeof unit.statusEffects.superiority === "object" ? unit.statusEffects.superiority : {}),
+        id: "superiority", name: "Superiority", count: next, potency: 0, duration: "until_removed",
+      };
+    } else {
+      delete unit.statusEffects.superiority;
+    }
     return next;
   }
 
@@ -184,6 +196,101 @@
     const gain = superiorityGain(characterForCombatUnit(unit), trigger);
     if (!gain) return superiorityCount(unit);
     return setSuperiorityCount(unit, superiorityCount(unit) + gain);
+  }
+
+  function learnedManeuvers(character = {}) {
+    const selected = character?.characterBuild?.maneuvers?.battle_master
+      ?? character?.maneuvers?.battle_master
+      ?? [];
+    return new Set((Array.isArray(selected) ? selected : [])
+      .map((entry) => normalizeId(typeof entry === "string" ? entry : entry?.id || entry?.maneuverId))
+      .filter(Boolean));
+  }
+
+  function gainStatusCount(unit, statusId, count) {
+    const amount = Math.max(0, Math.trunc(Number(count) || 0));
+    if (!unit || !amount) return null;
+    const statusEngine = global.LuminousStatusEngine;
+    if (typeof statusEngine?.applyStatus === "function") {
+      return statusEngine.applyStatus(unit, statusId, { count: amount, mode: "gain" });
+    }
+    if (!unit.statusEffects || typeof unit.statusEffects !== "object" || Array.isArray(unit.statusEffects)) unit.statusEffects = {};
+    const existing = unit.statusEffects[statusId];
+    const nextCount = finiteCount(existing) + amount;
+    const result = { ...(existing && typeof existing === "object" ? existing : {}), id: statusId, count: nextCount, potency: 0 };
+    unit.statusEffects[statusId] = result;
+    return result;
+  }
+
+  function sameEncounterTeam(a, b) {
+    if (!a || !b || a === b) return false;
+    const teamA = normalizeId(a.team || a.faction || a.side || "");
+    const teamB = normalizeId(b.team || b.faction || b.side || "");
+    if (teamA && teamB) return teamA === teamB;
+    if (typeof a.isEnemy === "boolean" && typeof b.isEnemy === "boolean") return a.isEnemy === b.isEnemy;
+    return false;
+  }
+
+  function applyEncounterStartManeuvers(units = [], engine = global.CombatEngine) {
+    const roster = Array.isArray(units) ? units : [];
+    const qualified = roster.filter((unit) => unit && hasBattleMasterLevel(characterForCombatUnit(unit), 15));
+    // Phase 1: reset encounter-only Counts before any [On Encounter Start] modifiers.
+    for (const unit of qualified) setSuperiorityCount(unit, 0);
+
+    // Phase 2: resolve all Ambush grants so order in the combatant roster cannot
+    // change a later Tactical Assessment result.
+    for (const unit of qualified) {
+      if (!learnedManeuvers(characterForCombatUnit(unit)).has("ambush")) continue;
+      const mechanics = maneuverDefinition("ambush")?.mechanics || {};
+      setSuperiorityCount(unit, superiorityCount(unit) + Math.max(0, finiteCount(mechanics.gainSuperiority)));
+      gainStatusCount(unit, "haste", mechanics.gainHaste);
+    }
+
+    // Phase 3: Tactical Assessment consumes the final start-of-encounter Counts.
+    for (const unit of qualified) {
+      if (!learnedManeuvers(characterForCombatUnit(unit)).has("tactical_assessment")) continue;
+      const mechanics = maneuverDefinition("tactical_assessment")?.mechanics || {};
+      const superiority = superiorityCount(unit);
+      const selfAmount = Math.min(
+        Math.max(0, finiteCount(mechanics.selfClashPowerUpCap)),
+        Math.floor(superiority / Math.max(1, finiteCount(mechanics.selfClashPowerUpEverySuperiority)))
+      );
+      gainStatusCount(unit, "clash_power_up", selfAmount);
+      const allyCount = Math.min(
+        Math.max(0, finiteCount(mechanics.maxAllies)),
+        Math.floor(superiority / Math.max(1, finiteCount(mechanics.allyClashPowerUpEverySuperiority)))
+      );
+      const allies = roster.filter((candidate) => sameEncounterTeam(unit, candidate));
+      for (let index = 0; index < allyCount && allies.length; index++) {
+        const randomIndex = typeof engine?.randomIntInclusive === "function"
+          ? engine.randomIntInclusive(0, allies.length - 1)
+          : Math.floor(Math.random() * allies.length);
+        const target = allies.splice(Math.max(0, Math.min(allies.length - 1, Math.trunc(Number(randomIndex) || 0))), 1)[0];
+        gainStatusCount(target, "clash_power_up", mechanics.allyClashPowerUpAmount);
+      }
+    }
+    return qualified;
+  }
+
+  function installSuperiorityStatus() {
+    const definition = {
+      name: "Superiority", type: "positive", mode: "single", visible: true,
+      icon: SUPERIORITY_ICON, classId: "fighter", archetypeId: "battle_master",
+      description: "Battle Master encounter resource. Count is earned by Clash Wins, Hits and selected Maneuvers; spent by Maneuvers.",
+    };
+    const library = global.LuminousStatusLibrary;
+    if (typeof library?.registerExtension === "function") {
+      // install() retries on a short interval; registration must be idempotent.
+      if (library.get?.("superiority")?.icon === SUPERIORITY_ICON) return true;
+      library.registerExtension("superiority", definition);
+      return library.get?.("superiority")?.icon === SUPERIORITY_ICON;
+    }
+    // The standalone Combat viewer can still use its legacy registry.
+    if (global.STATUS_REGISTRY && !global.STATUS_REGISTRY.superiority) {
+      global.STATUS_REGISTRY.superiority = { id: "superiority", ...definition };
+      return true;
+    }
+    return false;
   }
 
   // Only actually learned Maneuvers contribute, and every learned instance is
@@ -248,13 +355,21 @@
       return result;
     };
 
-    // Superiority is an encounter resource and never carries into the next.
+    // One [On Encounter Start] evaluation per unit per Encounter. Re-entrant
+    // phase notifications must not reset earned Superiority or reapply Haste.
     if (typeof engine.triggerEncounterStart === "function") {
       const originalStart = engine.triggerEncounterStart;
       engine.triggerEncounterStart = function (units = [], ...rest) {
-        for (const unit of Array.isArray(units) ? units : []) {
-          if (hasBattleMasterLevel(characterForCombatUnit(unit), 15)) setSuperiorityCount(unit, 0);
+        const phase = normalizeId(this.currentState || "");
+        if (!["combat_active", "active", "in_progress"].includes(phase)) {
+          encounterStartedUnits = new WeakSet();
         }
+        const fresh = (Array.isArray(units) ? units : []).filter((unit) => {
+          if (!unit || typeof unit !== "object" || encounterStartedUnits.has(unit)) return false;
+          encounterStartedUnits.add(unit);
+          return true;
+        });
+        applyEncounterStartManeuvers(fresh, this);
         return originalStart.call(this, units, ...rest);
       };
     }
@@ -360,14 +475,15 @@
     return true;
   }
 
-  function install() { patchArchetypeCatalog(); patchCoreCatalog(); patchTraitEngine(); patchArchetypeRuntime(); patchCombatEngine(); return true; }
+  function install() { installSuperiorityStatus(); patchArchetypeCatalog(); patchCoreCatalog(); patchTraitEngine(); patchArchetypeRuntime(); patchCombatEngine(); return true; }
 
   const api = Object.freeze({
     ARCHETYPE_ID, ARCHETYPE_NAME, CLASS_ID, CLASS_NAME, ARCHETYPE, SOURCE, DEFINITIONS, GRANTS,
     fighterLevel, selectedBattleMaster, hasBattleMasterLevel, hasSuperiorTechnique, combatSuperiorityProfile,
     maneuverCapacity, superiorityGain, hpRatio, relentlessActive, maneuverEffectMultiplier, maneuverDamageCap,
     maneuverCatalog, maneuverDefinition, characterForCombatUnit, superiorityCount, setSuperiorityCount,
-    gainCombatSuperiority, maneuverDamageBonus, patchCombatEngine, knowYourEnemyUnlockDue, knowYourEnemyRequest,
+    gainCombatSuperiority, learnedManeuvers, applyEncounterStartManeuvers, installSuperiorityStatus, SUPERIORITY_ICON,
+    maneuverDamageBonus, patchCombatEngine, knowYourEnemyUnlockDue, knowYourEnemyRequest,
     patchArchetypeCatalog, patchCoreCatalog, patchTraitEngine, patchArchetypeRuntime, install,
   });
 

@@ -78,6 +78,7 @@ assert.match(g.LuminousArchetypeTraitCatalog.getDefinition("know_your_enemy").de
 // Superiority Count but stop at the single Combat Superiority damage cap.
 const engine = {
   currentClashWinner: "A",
+  currentState: "PRE_COMBAT_PLANNING",
   calculateCoinDamage(attacker, defender, skill, power, critical, count, context) {
     const pct = (context?.currentCoin?.effects || [])
       .filter((effect) => effect.type === "percentage_damage")
@@ -92,7 +93,7 @@ const engine = {
     return { winner };
   },
   triggerEvent() { return null; },
-  triggerEncounterStart(units) { return units; },
+  triggerEncounterStart(units) { this.currentState = "COMBAT_ACTIVE"; return units; },
 };
 g.CombatEngine = engine;
 assert.equal(runtime.patchCombatEngine(), true);
@@ -141,6 +142,33 @@ assert.equal(engine.calculateCoinDamage(foreign, {}, {}, 100, false, 0), 100, "O
 
 engine.triggerEncounterStart([three]);
 assert.equal(runtime.superiorityCount(three), 0, "Superiority resets at encounter start");
+assert.equal(three.statusEffects.superiority, undefined, "Zero Count must not produce an empty combat Status");
+
+const ambush = makeCharacter(15, { faction: "ally" });
+ambush.characterBuild.maneuvers = { battle_master: ["ambush", "tactical_assessment"] };
+const ally = { id: "helper", faction: "ally", statusEffects: {} };
+const enemy = { id: "enemy", faction: "enemy", statusEffects: {} };
+engine.currentState = "PRE_COMBAT_PLANNING";
+engine.triggerEncounterStart([ambush, ally, enemy]);
+assert.equal(runtime.superiorityCount(ambush), 10, "Ambush grants 10 Superiority on Encounter Start");
+assert.equal(ambush.resources.superiority, 10, "Resource store remains authoritative");
+assert.equal(ambush.statusEffects.superiority?.count, 10, "Count is mirrored as a visible Status");
+assert.equal(ambush.statusEffects.haste?.count, 5, "Ambush grants 5 Haste");
+assert.equal(ambush.statusEffects.clash_power_up?.count, 2, "Tactical Assessment sees post-Ambush Superiority");
+assert.equal(ally.statusEffects.clash_power_up?.count, 1, "Tactical Assessment buffs one ally");
+assert.equal(enemy.statusEffects.clash_power_up, undefined, "Enemy must not receive allied buff");
+engine.triggerEvent("[On Hit]", { attacker: ambush });
+assert.equal(runtime.superiorityCount(ambush), 11);
+engine.triggerEncounterStart([ambush, ally, enemy]);
+assert.equal(runtime.superiorityCount(ambush), 11, "Duplicate Encounter Start cannot reset or duplicate Superiority");
+assert.equal(ambush.statusEffects.haste?.count, 5, "Duplicate Encounter Start cannot reapply Haste");
+engine.currentState = "PRE_COMBAT_PLANNING";
+engine.triggerEncounterStart([ambush, ally, enemy]);
+assert.equal(runtime.superiorityCount(ambush), 10, "New encounter resets and reapplies the opening grant once");
+assert.equal(ambush.statusEffects.superiority?.count, 10);
+runtime.setSuperiorityCount(ambush, 0);
+assert.equal(ambush.statusEffects.superiority, undefined, "Spending final Count hides resource Status");
+
 engine.resolveStandardClash(three, {}, {}, {});
 assert.equal(runtime.superiorityCount(three), 3, "Clash Win awards one +3 grant");
 engine.triggerEvent("[On Clash Win]", { attacker: three });
