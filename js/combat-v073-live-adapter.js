@@ -4,7 +4,7 @@
   if (global.LuminousCombatLiveAdapter073) return;
   global.LuminousCombatLiveMode = true;
 
-  const VERSION = "0.7.3-live.6-round-safe-hydration";
+  const VERSION = "0.7.3-live.7-pinned-positions";
   const ROOTS = Object.freeze({
     dmUid: "campaña/config/dm_uid",
     players: "campaña/jugadores",
@@ -250,6 +250,7 @@
         y,
         formationRow: pos.y === 42 ? 1 : 0,
         formationColumn: Math.max(0, Math.floor((sideIndex[faction] - 1) / 2)),
+        positionPinned: explicitBattlePosition(raw),
         formationSource: useFormationSpawn ? "pre_combat_zigzag" : "runtime_position",
         scale: finite(raw.scale ?? raw.visualScale ?? raw.escala ?? raw.combatVisual?.scale, 1) || 1,
         spriteX: finite(raw.spriteX ?? raw.combatVisual?.x, 0) || 0,
@@ -375,6 +376,7 @@
       // update from rebuilding Combat and resetting Player planning/menu state.
       unit.x,
       unit.y,
+      unit.positionPinned,
       unit.scale,
       unit.spriteX,
       unit.spriteY,

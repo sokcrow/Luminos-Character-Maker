@@ -52,6 +52,9 @@ a la Fase 2. Forest y el rediseño del HUD siguen fuera de esta fase.
   y activa Stagger en el paso de HP. Antes dependía de temporizadores de la
   barra, cancelables por otro cambio de HP. Es una corrección deliberada de
   dependencia visual; las fórmulas y la ventana de Stagger se conservan.
+- Las posiciones explícitas del DM (pinned, locked o manuales) se normalizan
+  como `positionPinned` y la formación visual por Speed no cambia sus `x/y`.
+  Se conserva la formación automática de las unidades sin posición fijada.
 - El barajado de manos privadas y la planificación de AI usan RNG separado del
   cursor de reglas selladas, incluso si un refresco los invoca durante el turno.
   La escritura de planes se bloquea también con la fase autoritativa, evitando
@@ -111,12 +114,13 @@ no se afirma que la corrección del temporizador replique ese defecto anterior.
 presentar/repetir Coins sin consumir RNG, IDs de Concentration sembrados y
 copias aisladas del journal.
 
-El workflow de la base ejecuta además dos escenarios con Auth y RTDB locales:
-DM + dos Players animados, y DM + dos Players con uno sin presentación.
+El workflow de la base ejecuta además tres escenarios reproducibles con Auth y RTDB locales:
+DM + dos Players con semilla 8, la misma semilla con un Player sin presentación,
+y semilla 42 para el resultado opuesto del Clash.
 Compara sus eventos, cursores y digests locales antes de recargar, además del
 estado final del DM, permisos y persistencia. Evidencia:
-`artifacts/combat-phase0/phase1-steps-animated.json` y
-`phase1-steps-mixed.json`, junto a las capturas del browser.
+`artifacts/combat-phase0/phase1-steps-animated-8.json`,
+`phase1-steps-mixed-8.json` y `phase1-steps-animated-42.json`, junto a las capturas del browser.
 
 La aceptación visual en la app desplegada y los recortes de HUD registrados
 en Fase 0 siguen pendientes. No se despliegan reglas ni aplicación a producción.

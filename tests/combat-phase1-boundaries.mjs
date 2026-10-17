@@ -76,3 +76,13 @@ console.log('Phase 1: logical timeline, pre-resolved/replayed Coin RNG, seeded C
   assert.equal(starts,1);assert.equal(a.state.autoStartedRound,1);
 }
 console.log('Phase 1: rejected optimistic authority write cannot block the real DM turn');
+// Speed formation is presentation: a DM-pinned online position cannot be moved
+// just because one viewer refreshed its HUD before another viewer did.
+for(const [live,pinned,moves] of [[true,true,false],[true,false,true],[false,true,true]]){
+  const u={x:18,y:42,positionPinned:pinned};
+  const move=vm.runInNewContext(functionSource('setUnitFormationPoint')+'\nsetUnitFormationPoint',{
+    window:{LuminousCombatLiveMode:live},$:()=>null
+  });
+  move(u,{x:10,y:18});assert.deepEqual([u.x,u.y],moves?[10,18]:[18,42]);
+}
+console.log('Phase 1: DM-pinned positions survive local visual formation refreshes');

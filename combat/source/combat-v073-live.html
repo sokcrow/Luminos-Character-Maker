@@ -3534,6 +3534,8 @@ function formationSort(a,b){
 }
 function setUnitFormationPoint(unit,point){
   if(!unit||!point)return;
+  // Explicit online placement belongs to the DM, not to local Speed/HUD refreshes.
+  if(window.LuminousCombatLiveMode===true&&unit.positionPinned===true)return;
   unit.x=point.x;
   unit.y=point.y;
   const token=$(`token-${unit.id}`);
