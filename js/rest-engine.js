@@ -278,7 +278,15 @@
       : { rawPercent: 0, appliedPercent: 0, capPercent: SHORT_REST_AUGMENT_MAX_HP_PERCENT_CAP };
     const healTarget = options.healTarget || character;
     const maxHp = readMaxHp(healTarget) ?? readMaxHp(character) ?? 0;
-    const flatHp = RECOVER_FLAT_BONUS + (classBaseHp * count);
+    const engine = traitEngine();
+    const recoverTraitBonusHp = (Array.isArray(options.traits) ? options.traits : [])
+      .reduce((sum, trait) => {
+        const formula = trait?.mechanics?.recoverFlatBonusFormula;
+        if (!formula || !engine?.evaluateFormula || !engine?.buildVariables) return sum;
+        const variables = engine.buildVariables(character, { context: "combat", self: healTarget }, trait);
+        return sum + Math.max(0, Math.floor(engine.evaluateFormula(formula, variables)));
+      }, 0);
+    const flatHp = RECOVER_FLAT_BONUS + (classBaseHp * count) + recoverTraitBonusHp;
     const augmentHp = Math.floor(maxHp * augment.appliedPercent / 100);
     const totalHp = Math.max(0, Math.floor(flatHp + augmentHp));
 
@@ -296,6 +304,7 @@
       classBaseHp,
       slotsUsed: count,
       flatBonus: RECOVER_FLAT_BONUS,
+      recoverTraitBonusHp,
       flatHp,
       augmentPercentRaw: augment.rawPercent,
       augmentPercentApplied: augment.appliedPercent,
@@ -407,6 +416,7 @@
         healTarget: options.healTarget || character,
         augmentations: request?.augmentations || options.augmentations || [],
         includeAugments: true,
+        traits,
       });
       recovers.push(result);
       if (!result.success) return { success: false, type: "short_rest", reason: result.reason, duration, recovers };

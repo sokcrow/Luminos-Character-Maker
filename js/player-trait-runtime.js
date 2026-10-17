@@ -109,6 +109,7 @@
       .then(() => ensureScript("trait-engine-script", "js/trait-engine.js", () => Boolean(global.LuminousTraitEngine)))
       .then(() => Promise.all([
         ensureScript("trait-catalog-core-script", "js/trait-catalog-core.js", () => Boolean(global.LuminousTraitCatalogCore)),
+        ensureScript("general-trait-catalog-script", "js/general-trait-catalog.js", () => Boolean(global.LuminousGeneralTraitCatalog)),
         ensureScript("racial-trait-catalog-script", "js/racial-trait-catalog.js", () => Boolean(global.LuminousRacialTraitCatalog)),
         ensureScript("class-milestone-engine-script", "js/class-milestone-engine.js", () => Boolean(global.LuminousClassMilestones)),
         ensureScript("trait-player-tray-script", "js/trait-player-tray.js", () => Boolean(global.LuminousTraitPlayerTray)),
@@ -141,7 +142,8 @@
     const core = global.LuminousTraitCatalogCore?.allDefinitions?.() || {};
     const racial = global.LuminousRacialTraitCatalog?.allDefinitions?.() || {};
     const archetype = global.LuminousArchetypeTraitCatalog?.allDefinitions?.() || {};
-    return { ...core, ...racial, ...archetype, ...(state.definitions || {}) };
+    const general = global.LuminousGeneralTraitCatalog?.allDefinitions?.() || {};
+    return { ...core, ...racial, ...archetype, ...general, ...(state.definitions || {}) };
   }
 
   function mergedGrants() {

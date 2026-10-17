@@ -16,6 +16,7 @@
   initialCasterSpellcastingRuntime?.wrapCatalog?.();
   const initialRacialCatalog = global.LuminousRacialTraitCatalog || optionalRequire("./racial-trait-catalog.js");
   const initialArchetypeCatalog = global.LuminousArchetypeTraitCatalog || optionalRequire("./archetype-trait-catalog.js");
+  const initialGeneralCatalog = global.LuminousGeneralTraitCatalog || optionalRequire("./general-trait-catalog.js");
 
   const TRAITS_ROOT = "campaña/config/traits";
   const DEFINITIONS_ROOT = `${TRAITS_ROOT}/definitions`;
@@ -56,10 +57,12 @@
     const core = global.LuminousTraitCatalogCore || initialCoreCatalog;
     const racial = global.LuminousRacialTraitCatalog || initialRacialCatalog;
     const archetype = global.LuminousArchetypeTraitCatalog || initialArchetypeCatalog;
+    const general = global.LuminousGeneralTraitCatalog || initialGeneralCatalog;
     return [
       { key: "core", catalog: core, includeGrants: true },
       { key: "racial", catalog: racial, includeGrants: false },
       { key: "archetype", catalog: archetype, includeGrants: false },
+      { key: "general", catalog: general, includeGrants: false },
     ].filter((entry) => entry.catalog?.allDefinitions);
   }
 
@@ -301,6 +304,7 @@
       ensureScript("archetype-engine-script", "js/archetype-engine.js", () => Boolean(global.LuminousArchetypeEngine)),
     ]);
     await ensureScript("archetype-trait-catalog-script", "js/archetype-trait-catalog.js", () => Boolean(global.LuminousArchetypeTraitCatalog));
+    await ensureScript("general-trait-catalog-script", "js/general-trait-catalog.js", () => Boolean(global.LuminousGeneralTraitCatalog));
 
     return catalogProviders();
   }
