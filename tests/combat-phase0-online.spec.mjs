@@ -44,7 +44,7 @@ async function openSession(browser, user) {
       return { bootstrap: window.LuminousCombatBootstrapState, status: document.getElementById('status')?.textContent,
         role: state.role, playerId: state.playerId, firebaseReady: state.firebaseReady, runtimeReady: state.runtimeReady,
         players: Object.keys(state.players || {}), combatants: Object.keys(state.combatants || {}),
-        field: Object.entries(state.combatants || {}).map(([id, unit]) => ({ id, field: adapter.isFieldCombatant(unit), playerId: adapter.canonicalPlayerId(unit) })),
+        field: Object.entries(state.combatants || {}).map(([id, unit]) => ({ id, field: adapter.isFieldCombatant(unit), playerId: unit.canonicalPlayerKey || unit.ownerPlayerId || unit.playerId })),
         runtimeCombatants: Object.keys(window.LuminousCombat073?.combatants?.() || {}),
         database: window.firebase?.app?.().options.databaseURL,
         lifecycleActive: window.LuminousCombatRuntimeHotfix073?.state.active,
