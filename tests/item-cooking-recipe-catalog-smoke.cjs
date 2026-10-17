@@ -19,7 +19,7 @@ const { pathToFileURL } = require("node:url");
   assert.ok(cooking);
   assert.ok(catalog);
   assert.equal(catalog.VERSION, 1);
-  assert.equal(catalog.RECIPES.length, 147, `expected 147 recipes after pie/cake/cookie/muffin variants, got ${catalog.RECIPES.length}`);
+  assert.equal(catalog.RECIPES.length, 151, `expected 151 recipes after removing redundant fruit fallbacks and adding donut variants, got ${catalog.RECIPES.length}`);
 
   const ids = new Set();
   const cuisines = new Set();
@@ -53,6 +53,7 @@ const { pathToFileURL } = require("node:url");
     "apple_pie","pear_pie","banana_cream_pie","dragon_fruit_tart","apple_cake","chocolate_cake","chestnut_cake",
     "butter_cookie","chocolate_chip_cookie","oatmeal_cookie","almond_cookie","coffee_cookie",
     "muffin","blueberry_muffin","chocolate_muffin","banana_muffin","apple_muffin","strawberry_muffin","lemon_muffin","coconut_muffin",
+    "donut","glazed_donut","sugar_donut","chocolate_donut","cinnamon_donut","jam_filled_donut","cream_filled_donut","chocolate_filled_donut",
     "burger","fried_chicken","ramen","sushi_roll","tonkatsu",
     "pizza_margherita","pasta_bolognese","lasagna","tiramisu",
     "tacos","tamales","fried_rice","curry","ration_block"
@@ -64,7 +65,10 @@ const { pathToFileURL } = require("node:url");
   assert.equal(catalog.get("apple_pie").iconFamily, "apple_pie");
   assert.equal(catalog.get("pear_pie").ingredients.some((row)=>row.requirement === "pear"), true);
   assert.equal(catalog.get("banana_cream_pie").ingredients.some((row)=>row.requirement === "cream"), true);
-  assert.equal(catalog.get("chocolate_cake").ingredients.some((row)=>row.requirement === "cacao"), true);
+  assert.equal(catalog.get("chocolate_cake").ingredients.some((row)=>row.requirement === "chocolate"), true);
+  assert.equal(catalog.get("chocolate_cake").ingredients.some((row)=>row.requirement === "cacao"), false);
+  assert.equal(catalog.get("chocolate_cookie").ingredients.some((row)=>row.requirement === "chocolate"), true);
+  assert.equal(catalog.get("chocolate_chip_cookie").ingredients.some((row)=>row.requirement === "chocolate_chips"), true);
   assert.equal(catalog.get("coffee_cake").ingredients.some((row)=>row.requirement === "coffee_bean"), true);
   assert.equal(catalog.get("pineapple_cake").iconFamily, "pineapple_cake");
   assert.equal(catalog.get("butter_cookie").iconFamily, "butter_cookie");
@@ -76,7 +80,7 @@ const { pathToFileURL } = require("node:url");
   const muffinMother = catalog.get("muffin").ingredients.map((row)=>[row.requirement,row.role,row.quantity]);
   for (const [id, extra] of [
     ["blueberry_muffin","blueberry"],
-    ["chocolate_muffin","cacao"],
+    ["chocolate_muffin","chocolate"],
     ["banana_muffin","banana"],
     ["apple_muffin","apple"],
     ["strawberry_muffin","strawberry"],
@@ -90,6 +94,32 @@ const { pathToFileURL } = require("node:url");
       .map((row)=>[row.requirement,row.role,row.quantity]);
     assert.deepEqual(baseRows, muffinMother, id + " must preserve the muffin mother recipe");
     assert.equal(variant.ingredients.some((row)=>row.requirement === extra && row.role === "major"), true, id + " must add its defining ingredient");
+  }
+
+  for (const removed of ["fruit_pie","berry_pie","fruit_tart"]) {
+    assert.equal(catalog.get(removed), null, removed + " is redundant after canonical fruit variants");
+  }
+
+  const donutMother = catalog.get("donut").ingredients.map((row)=>[row.requirement,row.role,row.quantity]);
+  for (const [id, extra, quantity] of [
+    ["glazed_donut","syrup",1],
+    ["sugar_donut","sweetener",1],
+    ["chocolate_donut","chocolate",1],
+    ["cinnamon_donut","cinnamon",1],
+    ["jam_filled_donut","fruit",1],
+    ["cream_filled_donut","cream",1],
+    ["chocolate_filled_donut","chocolate",2],
+  ]) {
+    const variant = catalog.get(id);
+    assert.equal(variant.iconFamily, id, id);
+    assert.deepEqual(
+      variant.ingredients.slice(0, donutMother.length).map((row)=>[row.requirement,row.role,row.quantity]),
+      donutMother,
+      id + " must preserve the donut mother recipe"
+    );
+    const added = variant.ingredients[donutMother.length];
+    assert.equal(added.requirement, extra, id + " defining ingredient");
+    assert.equal(added.quantity, quantity, id + " defining ingredient quantity");
   }
 
   const burger = catalog.resolveReferencePricing("burger", [
