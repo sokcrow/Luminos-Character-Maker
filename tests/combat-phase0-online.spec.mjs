@@ -9,7 +9,7 @@ const BASE = 'http://127.0.0.1:4173';
 const sdkDir = path.dirname(require.resolve('firebase/package.json'));
 const ARTIFACTS = 'artifacts/combat-phase0';
 
-async function openSession(browser, user) {
+async function openSession(browser, user, seed) {
   const hosts = emulatorHosts();
   const context = await browser.newContext({ viewport: { width: 1365, height: 768 } });
   const errors = [];
@@ -20,6 +20,14 @@ async function openSession(browser, user) {
   await context.route('**/*', async (route) => {
     const request = route.request();
     const url = new URL(request.url());
+    if(url.pathname==='/js/combat-v073-authority.js'&&(url.hostname==='127.0.0.1'||url.hostname==='localhost')){
+      let body=fs.readFileSync('js/combat-v073-authority.js','utf8');
+      body=body.replace('function makeSeed(round){',`function makeSeed(round){return ${seed};`);
+      const needle='const snapshot=snapshotRuntime(),localDigest=checkpointDigest(snapshot,state.current.round);';
+      if(!body.includes(needle))throw new Error('Missing checkpoint diagnostic seam');
+      body=body.replace(needle,`const snapshot=snapshotRuntime();(global.__phase1Checkpoints??=[]).push({seq:state.localActionSeq,cursor:state.cursor,snapshot:clone(snapshot)});const localDigest=checkpointDigest(snapshot,state.current.round);`);
+      return route.fulfill({status:200,contentType:'application/javascript',body});
+    }
     if (url.hostname === '127.0.0.1' || url.hostname === 'localhost') return route.continue();
     const script = url.pathname.match(/\/firebase-(app|auth|database)\.js$/)?.[1];
     if (url.hostname === 'www.gstatic.com' && script) {
@@ -136,13 +144,13 @@ async function planAndReady(page) {
   await page.locator('#ready').click();
 }
 
-for (const silentPlayer of [false,true]) test(`authenticated DM and two Players share kit, sealed round and final vitals (silent Player: ${silentPlayer})`, async ({ browser }) => {
+for (const [silentPlayer,seed] of [[false,8],[true,8],[false,42]]) test(`authenticated DM and two Players share kit, sealed round and final vitals (silent Player: ${silentPlayer}, seed: ${seed})`, async ({ browser }) => {
   const fixture = await seedPhase0();
   const sessions = [];
   fs.mkdirSync(ARTIFACTS, { recursive: true });
   try {
     // The DM joins last so initial field/Speed authority does not race fixture setup.
-    for (const role of ['a', 'b', 'dm']) sessions.push({ role, ...await openSession(browser, fixture.users[role]) });
+    for (const role of ['a', 'b', 'dm']) sessions.push({ role, ...await openSession(browser, fixture.users[role],seed) });
     for(const {page} of sessions){
       await page.waitForFunction(()=>window.LuminousCombatAuthority073?.state.authorityRef&&window.LuminousCombatAuthority073.state.originalStartRound);
       await page.evaluate(()=>firebase.database().ref('campaña/combate/authority/current').once('value').then(()=>true));
@@ -168,9 +176,9 @@ for (const silentPlayer of [false,true]) test(`authenticated DM and two Players 
     await planAndReady(playerA);
     await planAndReady(playerB);
     await dm.waitForFunction(()=>window.LuminousCombatStepRuntime.events().some(e=>e.type==='CoinRolled'));
-    await dm.screenshot({path:`${ARTIFACTS}/phase1-${silentPlayer?'mixed':'animated'}-coin.png`});
+    await dm.screenshot({path:`${ARTIFACTS}/phase1-${silentPlayer?'mixed':'animated'}-${seed}-coin.png`});
     await dm.waitForFunction(()=>window.LuminousCombatStepRuntime.events().some(e=>e.type==='HitResolved'));
-    await dm.screenshot({path:`${ARTIFACTS}/phase1-${silentPlayer?'mixed':'animated'}-hit.png`});
+    await dm.screenshot({path:`${ARTIFACTS}/phase1-${silentPlayer?'mixed':'animated'}-${seed}-hit.png`});
     await expect.poll(async () => (await readEmulator('campaña/combate/authority/current'))?.phase, { timeout: 90000 }).toBe('complete');
     const result = await readEmulator('campaña/combate/authority/current');
     fs.writeFileSync(`${ARTIFACTS}/round-diagnostic.json`, JSON.stringify({ result,
@@ -181,6 +189,7 @@ for (const silentPlayer of [false,true]) test(`authenticated DM and two Players 
           units: Object.fromEntries(Object.entries(window.LuminousCombat073.combatants()).map(([id, unit]) => [id, { hp: unit.hp, sp: unit.sp }])) })),
       }))),
     }, null, 2));
+    fs.copyFileSync(`${ARTIFACTS}/round-diagnostic.json`,`${ARTIFACTS}/round-diagnostic-${silentPlayer?'mixed':'animated'}-${seed}.json`);
     expect(result.checkpoint.seq).toBeGreaterThan(0);
     expect(result.checkpoint.combatants['enemy:dummy'].hp).toBeLessThan(150);
     const expectedVitals = Object.fromEntries(Object.entries(result.checkpoint.combatants).map(([id, unit]) => [id, { hp: unit.hp, sp: unit.sp }]));
@@ -194,19 +203,20 @@ for (const silentPlayer of [false,true]) test(`authenticated DM and two Players 
       await expect.poll(() => page.locator('#round').textContent(), { timeout: 10000 }).toBe('2');
       finalViewers.push({ role, round: 2, vitals: expectedVitals });
       expect(errors).toEqual([]);
-      expect(ruleMismatches).toEqual([]);
+
       expect(forbidden).toEqual([]);
     }
     const stepTraces=await Promise.all(sessions.map(async({role,page})=>({role,...await page.evaluate(()=>({
       events:window.LuminousCombatStepRuntime.events(),rngCursor:window.LuminousCombatAuthority073.state.cursor,
       localDigests:[...window.LuminousCombatAuthority073.state.localDigests],
-      lifecycle:window.__phase1Lifecycle,
+      lifecycle:window.__phase1Lifecycle,localCheckpoints:window.__phase1Checkpoints||[],
       execution:{autoStartedRound:window.LuminousCombatAuthority073.state.autoStartedRound,
         actions:window.LuminousCombatAuthority073.state.localActionSeq,active:window.LuminousCombatRuntimeHotfix073.state.active,
         authorityStarted:window.LuminousCombatAuthority073.state.started,visibility:document.visibilityState},
       presentation:window.LuminousCombatStepRuntime.presentationEnabled()
     }))})));
-    fs.writeFileSync(`${ARTIFACTS}/phase1-steps-${silentPlayer?'mixed':'animated'}.json`,JSON.stringify(stepTraces,null,2));
+    fs.writeFileSync(`${ARTIFACTS}/phase1-steps-${silentPlayer?'mixed':'animated'}-${seed}.json`,JSON.stringify(stepTraces,null,2));
+    for(const {ruleMismatches} of sessions)expect(ruleMismatches).toEqual([]);
     const dmTrace=stepTraces.find(s=>s.role==='dm');
     for(const trace of stepTraces){
       expect(trace.events).toEqual(dmTrace.events);
