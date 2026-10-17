@@ -35,7 +35,28 @@ async function openSession(browser, user) {
   const page = await context.newPage();
   page.on('pageerror', (error) => errors.push(String(error.stack || error)));
   await page.goto(`${BASE}/Battle-viewer.html`, { waitUntil: 'domcontentloaded' });
-  await page.waitForFunction(() => window.LuminousCombatLiveAdapter073?.state.firebaseReady && window.LuminousCombat073?.combatants?.()?.['player:a']);
+  try {
+    await page.waitForFunction(() => window.LuminousCombatLiveAdapter073?.state.firebaseReady && window.LuminousCombat073?.combatants?.()?.['player:a'], null, { timeout: 20000 });
+  } catch (error) {
+    const diagnostic = await page.evaluate(() => {
+      const adapter = window.LuminousCombatLiveAdapter073;
+      const state = adapter?.state || {};
+      return { bootstrap: window.LuminousCombatBootstrapState, status: document.getElementById('status')?.textContent,
+        role: state.role, playerId: state.playerId, firebaseReady: state.firebaseReady, runtimeReady: state.runtimeReady,
+        players: Object.keys(state.players || {}), combatants: Object.keys(state.combatants || {}),
+        field: Object.entries(state.combatants || {}).map(([id, unit]) => ({ id, field: adapter.isFieldCombatant(unit), playerId: adapter.canonicalPlayerId(unit) })),
+        runtimeCombatants: Object.keys(window.LuminousCombat073?.combatants?.() || {}),
+        database: window.firebase?.app?.().options.databaseURL,
+        lifecycleActive: window.LuminousCombatRuntimeHotfix073?.state.active,
+      };
+    });
+    fs.mkdirSync(ARTIFACTS, { recursive: true });
+    fs.writeFileSync(`${ARTIFACTS}/boot-diagnostic.json`, JSON.stringify({ ...diagnostic, errors, forbidden, canonicalCombatants: Object.keys(await readEmulator('campaña/combate/combatants') || {}) }, null, 2));
+    console.error('Combat boot diagnostic:', JSON.stringify(diagnostic));
+    await page.screenshot({ path: `${ARTIFACTS}/boot-failure.png` });
+    await context.close();
+    throw error;
+  }
   return { context, page, errors, forbidden };
 }
 
@@ -95,8 +116,10 @@ test('authenticated DM and two Players share kit, sealed round and final vitals'
     await dm.screenshot({ path: `${ARTIFACTS}/dm-desktop.png` });
     await playerA.screenshot({ path: `${ARTIFACTS}/player-desktop.png` });
     await playerA.setViewportSize({ width: 390, height: 844 });
+    await playerA.waitForTimeout(700);
     await playerA.screenshot({ path: `${ARTIFACTS}/player-portrait.png` });
     await playerA.setViewportSize({ width: 844, height: 390 });
+    await playerA.waitForTimeout(700);
     await playerA.screenshot({ path: `${ARTIFACTS}/player-landscape.png` });
     await playerA.setViewportSize({ width: 1365, height: 768 });
     await planAndReady(playerA);
@@ -106,7 +129,10 @@ test('authenticated DM and two Players share kit, sealed round and final vitals'
     expect(result.checkpoint.seq).toBeGreaterThan(0);
     expect(result.checkpoint.combatants['enemy:dummy'].hp).toBeLessThan(150);
     for (const { page, errors, forbidden } of sessions) {
-      await page.waitForFunction(() => window.LuminousCombatAuthority073?.state.current.phase === 'complete');
+      await page.waitForFunction(() => {
+        const state = window.LuminousCombatAuthority073?.state;
+        return state?.current.phase === 'complete' && !state.runningLocal && !state.pendingFinalSnapshot;
+      });
       const vitals = await page.evaluate(() => Object.fromEntries(Object.entries(window.LuminousCombat073.combatants()).map(([id, unit]) => [id, { hp: unit.hp, sp: unit.sp }])));
       for (const [id, unit] of Object.entries(result.checkpoint.combatants)) expect(vitals[id]).toEqual({ hp: unit.hp, sp: unit.sp });
       expect(errors).toEqual([]);
