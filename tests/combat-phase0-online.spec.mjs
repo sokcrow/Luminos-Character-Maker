@@ -13,7 +13,9 @@ async function openSession(browser, user) {
   const hosts = emulatorHosts();
   const context = await browser.newContext({ viewport: { width: 1365, height: 768 } });
   const errors = [];
+  const consoleErrors = [];
   const forbidden = [];
+  const realtime = [];
   await context.route('**/*', async (route) => {
     const request = route.request();
     const url = new URL(request.url());
@@ -28,20 +30,43 @@ async function openSession(browser, user) {
         window.__phase0AuthReady=firebase.auth().signInWithEmailAndPassword(${JSON.stringify(user.email)},${JSON.stringify(PASSWORD)});`;
       return route.fulfill({ status: 200, contentType: 'application/javascript', body });
     }
-    if (/firebaseio\.com|googleapis\.com|firebaseapp\.com/.test(url.hostname)) forbidden.push(url.hostname);
+    if (/(^|\.)(firebaseio\.com|firebaseapp\.com|firebasedatabase\.app)$/.test(url.hostname) || /^(identitytoolkit|securetoken)\.googleapis\.com$/.test(url.hostname)) forbidden.push(url.hostname);
     if (request.resourceType() === 'image') return route.fulfill({ status: 200, contentType: 'image/svg+xml', body: decodeURIComponent(sprite.split(',')[1]) });
     return route.abort();
   });
   const page = await context.newPage();
   page.on('pageerror', (error) => errors.push(String(error.stack || error)));
+  page.on('console', (message) => {
+    if (message.type() === 'error') consoleErrors.push(message.text());
+  });
+  page.on('websocket', (socket) => {
+    const record = (direction, frame) => {
+      try {
+        const packet = JSON.parse(String(frame.payload));
+        const data = packet.d;
+        // Record paths and key names only; never record Auth tokens or payload values.
+        if (data?.a === 'auth' || data?.a === 'gauth') return;
+        realtime.push({ direction, type: packet.t, action: data?.a, request: data?.r,
+          path: data?.b?.p, status: data?.b?.s, keys: Object.keys(data?.b?.d || {}).slice(0, 12) });
+        if (realtime.length > 100) realtime.shift();
+      } catch (_) {}
+    };
+    socket.on('framesent', (frame) => record('sent', frame));
+    socket.on('framereceived', (frame) => record('received', frame));
+  });
   await page.goto(`${BASE}/Battle-viewer.html`, { waitUntil: 'domcontentloaded' });
   try {
     await page.waitForFunction(() => window.LuminousCombatLiveAdapter073?.state.firebaseReady && window.LuminousCombat073?.combatants?.()?.['player:a'], null, { timeout: 20000 });
   } catch (error) {
-    const diagnostic = await page.evaluate(() => {
+    const diagnostic = await page.evaluate(async () => {
       const adapter = window.LuminousCombatLiveAdapter073;
       const state = adapter?.state || {};
+      const direct = await Promise.race([
+        state.db.ref(adapter.ROOTS.combatants).once('value').then((snap) => ({ keys: Object.keys(snap.val() || {}), url: snap.ref.toString() }), (error) => ({ error: String(error) })),
+        new Promise((resolve) => setTimeout(() => resolve({ error: 'direct-read-timeout' }), 2000)),
+      ]);
       return { bootstrap: window.LuminousCombatBootstrapState, status: document.getElementById('status')?.textContent,
+        adapterVersion: adapter.version, roots: adapter.ROOTS, subscriptions: state.unsubscribers.length, direct,
         role: state.role, playerId: state.playerId, firebaseReady: state.firebaseReady, runtimeReady: state.runtimeReady,
         players: Object.keys(state.players || {}), combatants: Object.keys(state.combatants || {}),
         field: Object.entries(state.combatants || {}).map(([id, unit]) => ({ id, field: adapter.isFieldCombatant(unit), playerId: unit.canonicalPlayerKey || unit.ownerPlayerId || unit.playerId })),
@@ -51,7 +76,7 @@ async function openSession(browser, user) {
       };
     });
     fs.mkdirSync(ARTIFACTS, { recursive: true });
-    fs.writeFileSync(`${ARTIFACTS}/boot-diagnostic.json`, JSON.stringify({ ...diagnostic, errors, forbidden, canonicalCombatants: Object.keys(await readEmulator('campaña/combate/combatants') || {}) }, null, 2));
+    fs.writeFileSync(`${ARTIFACTS}/boot-diagnostic.json`, JSON.stringify({ ...diagnostic, errors, consoleErrors, forbidden, realtime, canonicalCombatants: Object.keys(await readEmulator('campaña/combate/combatants') || {}) }, null, 2));
     console.error('Combat boot diagnostic:', JSON.stringify(diagnostic));
     await page.screenshot({ path: `${ARTIFACTS}/boot-failure.png` });
     await context.close();
