@@ -56,6 +56,9 @@ a la Fase 2. Forest y el rediseño del HUD siguen fuera de esta fase.
   cursor de reglas selladas, incluso si un refresco los invoca durante el turno.
   La escritura de planes se bloquea también con la fase autoritativa, evitando
   envíos tardíos cuando el adapter aún muestra Planning.
+- El inicio automático se marca después de validar la orden vigente. Una
+  escritura optimista que Firebase rechaza y revierte no bloquea el siguiente
+  inicio válido del DM; esta secuencia tiene una regresión dedicada.
 - Los IDs de Concentration de un turno sellado usan semilla/cursor y una
   tirada autoritativa, sin hora local. Fuera del turno sellado se mantiene el
   comportamiento previo.

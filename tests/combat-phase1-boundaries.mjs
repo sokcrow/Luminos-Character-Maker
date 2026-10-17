@@ -51,3 +51,28 @@ for(const delayed of [false,true]){
   assert.doesNotThrow(()=>JSON.stringify(h.steps.events()));
 }
 console.log('Phase 1: logical timeline, pre-resolved/replayed Coin RNG, seeded Concentration IDs and event isolation passed');
+// RTDB emits optimistic local writes even when rules later deny them. A rolled-back
+// provisional 'running' must not consume the client's once-per-round start marker.
+{
+  const callbacks=new Map(),timers=[],round={textContent:'1'};let starts=0;
+  const units={a:{id:'a',hp:100,maxHp:100,sp:0}};
+  const s={role:'player',playerId:'a',uid:'uid-a',user:{uid:'uid-a'},round:1,firebaseReady:true,
+    db:{ref(path){return{on(event,callback){callbacks.set(path,callback);},off(){}};}}};
+  const w={Math:Object.create(Math),console,addEventListener(){},setTimeout(fn,ms){timers.push({fn,ms});return timers.length;},clearTimeout(){},
+    document:{getElementById:id=>id==='round'?round:null},
+    LuminousCombatLiveAdapter073:{state:s,scheduleHydrate(){}},
+    LuminousCombat073:{combatants:()=>units,plans:()=>[],render(){}},
+    LuminousCombatHUD:{async startRound(){starts++;round.textContent='2';}}};w.window=w;
+  vm.runInNewContext(fs.readFileSync(new URL('../js/combat-v073-authority.js',import.meta.url),'utf8'),w);
+  const a=w.LuminousCombatAuthority073,onAuthority=callbacks.get(a.ROOT.current);
+  onAuthority({val:()=>({round:1,phase:'running',seed:999})});
+  onAuthority({val:()=>({})}); // denied write rolls back before its scheduled start
+  await timers.find(t=>t.ms===80).fn();
+  assert.equal(a.state.autoStartedRound,0);assert.equal(starts,0);
+  onAuthority({val:()=>({round:1,phase:'running',seed:123,authorityUid:'dm'})});
+  await timers.filter(t=>t.ms===80).at(-1).fn();
+  // The scheduled callback invokes the async compatibility entry point.
+  await a.state.executionChain;await Promise.resolve();
+  assert.equal(starts,1);assert.equal(a.state.autoStartedRound,1);
+}
+console.log('Phase 1: rejected optimistic authority write cannot block the real DM turn');

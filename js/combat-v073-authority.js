@@ -255,7 +255,7 @@
     if(state.runningLocal)return false;const s=adapterState(),original=state.originalStartRound;if(!s?.db?.ref||typeof original!=='function')return false;if(isPlayer()&&!state.remoteStart){setStatus('COMBAT · esperando resolución autoritativa del DM');return false;}state.runningLocal=true;
     try{
       let current=state.current;
-      if(isDm()){if(Number(current?.round)!==Number(s.round)||!['sealed','running'].includes(norm(current?.phase)))current=await sealRound();if(norm(current.phase)!=='running')current=await setRunning(current);}else{state.remoteStart=false;if(Number(current?.round)!==Number(s.round)||norm(current?.phase)!=='running')return false;state.inFlightActions=0;state.executionChain=Promise.resolve();resetRandom(current.seed,0);}
+      if(isDm()){if(Number(current?.round)!==Number(s.round)||!['sealed','running'].includes(norm(current?.phase)))current=await sealRound();if(norm(current.phase)!=='running')current=await setRunning(current);}else{state.remoteStart=false;if(Number(current?.round)!==Number(s.round)||norm(current?.phase)!=='running')return false;state.autoStartedRound=Number(current.round);state.inFlightActions=0;state.executionChain=Promise.resolve();resetRandom(current.seed,0);}
       applyAuthority(current);const completedRound=Number(current.round)||Number(s.round)||1;await original();await state.executionChain;
       const nextRound=domRound(completedRound);
       if(nextRound<=completedRound)throw new Error('No se pudo completar el turno. Vuelve a abrir el combate.');
@@ -269,8 +269,7 @@
   function onAuthority(snapshot){
     const data=snapshot.val()||{},previousSeed=state.current?.seed,previousRound=state.current?.round;state.current=data;if(data.seed&&Number(data.round)===Number(adapterState()?.round)&&!state.runningLocal&&(data.seed!==previousSeed||data.round!==previousRound))resetRandom(data.seed,0);applyAuthority(data);if(data.checkpoint)receiveCheckpoint(data.checkpoint);
     if(isPlayer()&&norm(data.phase)==='running'&&Number(data.round)===Number(adapterState()?.round)&&state.autoStartedRound!==Number(data.round)){
-      state.autoStartedRound=Number(data.round);
-      if(Number(data.checkpoint?.seq)>0&&data.checkpoint?.combatants){applySnapshot(data.checkpoint.combatants);resetRandom(data.seed,Number(data.checkpoint.rngCursor)||0);setStatus(`TURN ${data.round} · COMBAT · sincronizado al checkpoint ${data.checkpoint.seq}`);}
+      if(Number(data.checkpoint?.seq)>0&&data.checkpoint?.combatants){state.autoStartedRound=Number(data.round);applySnapshot(data.checkpoint.combatants);resetRandom(data.seed,Number(data.checkpoint.rngCursor)||0);setStatus(`TURN ${data.round} · COMBAT · sincronizado al checkpoint ${data.checkpoint.seq}`);}
       else{state.remoteStart=true;global.setTimeout(requestStartRound,80);}
     }
     if(isPlayer()&&norm(data.phase)==='complete'&&data.checkpoint?.combatants){if(state.runningLocal)state.pendingFinalSnapshot=clone(data.checkpoint);else{applySnapshot(data.checkpoint.combatants);if(Number.isFinite(Number(data.checkpoint.rngCursor))&&data.seed)resetRandom(data.seed,Number(data.checkpoint.rngCursor));}}
