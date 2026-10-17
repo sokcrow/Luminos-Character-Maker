@@ -8,6 +8,8 @@ This branch reconciles PR #984 (`d6ee776fa0a9e8495dfabdb83e965248b6adc899`) with
 
 Authenticated emulator validation exposed a real round-close failure: `afterRound()` deletes `plannedActions` and `readyPlayers` at their container roots, but their former rules granted DM writes only below those roots. The new DM-only parent grants allow the existing close/reset operation. Player ownership, phase checks and payload validation remain in place. Tests explicitly reject Player deletion of either container, writes to another Player's slot, writes to authority and edits of enemy HP.
 
+Browser validation also exposed a cancelled-listener startup race: RTDB can reject a Combatant listen before authentication reaches the connection, leaving an authenticated viewer permanently empty. The live adapter now refreshes the authenticated token and retries that cancelled listen once. Closing Combat cancels the retry; persistent permission failures remain failures and no read permissions are broadened.
+
 This phase keeps the existing seeded client execution and DM checkpoint protocol. It does not implement result-event playback, change combat formulae, migrate the battlefield to Forest or deploy Firebase rules.
 
 ## Reconciled changes
@@ -17,6 +19,7 @@ This phase keeps the existing seeded client execution and DM checkpoint protocol
 - Fix: `battle-viewer-player-spell-planner-074.js` used an undefined `normalizeId`, preventing leveled Spell planning.
 - Fix: the Spell planner smoke still searched `.write` for validation that belongs to `.validate`; it now checks authentication and validation in their respective rules.
 - Fix: only the DM can clear the two planning containers when a round completes.
+- Fix: one bounded recovery for a realtime listen cancelled during Auth startup (`0.7.3-live.5-auth-listener-recovery`).
 - Foundation: editable packed-runtime source, integrity manifest, roundtrip builder, frozen protocol reference and repeatable validation commands.
 
 ## Runtime and network contract
@@ -57,7 +60,7 @@ Edit `combat/source/combat-v073-live.html`, then run the builder and checks. Do 
 
 | Gate | Status and scope |
 | --- | --- |
-| Local baseline | 33/33 Node checks passed after reconciliation and the rules fix. Covers live bootstrap, loadout, HUD, plans, ownership, Speed, vitals, inventory, deployment and lifecycle. |
+| Local baseline | 34/34 Node checks passed after reconciliation, rules and listener recovery fixes. Covers live bootstrap, loadout, HUD, plans, ownership, Speed, vitals, inventory, deployment and lifecycle. |
 | Build integrity | Source/packed equality, no-op byte preservation, edited-source roundtrip, repeated build and manifest corruption rejection passed. |
 | Real local Auth/RTDB | Production loadout and authority methods exercised through independent DM/Player accounts. The harness provides the DOM and runtime adapter; it does not certify browser choreography. |
 | Browser | `Combat Phase 0 Baseline` runs the real Battle Viewer with emulator Auth/RTDB, two Player contexts and a DM context; screenshot/trace artifacts and a completed-round result are required. Status must be taken from the actual run, not inferred from this document. |

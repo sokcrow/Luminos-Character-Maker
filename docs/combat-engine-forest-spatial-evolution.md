@@ -4,7 +4,7 @@
 
 The integration baseline is recorded in [combat-phase0-baseline.md](combat-phase0-baseline.md), with a machine-readable protocol reference in `combat/runtime-contract.json`.
 
-This branch carries the #984 loadout/HUD/camera work onto current main, restores Spell planning, permits DM round-close cleanup under the existing Firebase authority model, and extracts the editable pre-bootstrap live source. It keeps the seeded client execution + DM checkpoint protocol. The automated Auth/RTDB gate and browser evidence are tracked separately from manual production acceptance.
+This branch carries the #984 loadout/HUD/camera work onto current main, restores Spell planning, permits DM round-close cleanup under the existing Firebase authority model, recovers a listen cancelled during Auth startup, and extracts the editable pre-bootstrap live source. It keeps the seeded client execution + DM checkpoint protocol. The automated Auth/RTDB gate and browser evidence are tracked separately from manual production acceptance.
 
 The **integration Phase 0** is a prerequisite to this document's **spatial P0**. It does not complete the spatial bridge, renderer lifecycle, billboards or targeting checklists below. The later Forest milestone remains 120 × 120 ft, two allies and four enemies, with one active renderer. Verify #843 spell dependencies when preparing Fog Cloud and Grease pilots; do not assume an open PR is already in main.
 
