@@ -19,5 +19,6 @@
   "authorityPhases": ["sealed", "running", "complete"],
   "identity": ["canonicalPlayerKey", "canonicalOwnerUid", "unitId", "sourceSlotIndex"],
   "resolution": "seeded-client-execution-with-dm-checkpoints",
+  "timelineAuthority": "seeded-live-runtime",
   "presentationEvents": "deferred-to-phase-1"
 }

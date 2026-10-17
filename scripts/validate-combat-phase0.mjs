@@ -33,6 +33,7 @@ const tests = [
   "tests/combat-live-build-smoke.mjs",
   "tests/combat-live-subscription-recovery.mjs",
   "tests/combat-authority-round-completion.mjs",
+  "tests/combat-live-timeline-authority.mjs",
   "tests/combat-v074-firebase-contract-smoke.mjs",
   "tests/combat-v074-ownership-smoke.mjs",
   "tests/combat-v074-ownership-resolution-smoke.mjs",
