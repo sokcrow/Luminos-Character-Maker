@@ -11,6 +11,7 @@ on:
       - "tests/battle-master-archetype-runtime-smoke.mjs"
       - "tests/class-status-semantics-smoke.mjs"
       - "tests/trait-viewer-encounter-start-smoke.mjs"
+      - "tests/battle-master-viewer-encounter-integration-smoke.mjs"
       - ".github/workflows/battle-master-superiority-smoke.yml"
   push:
     branches: [main]
@@ -22,6 +23,7 @@ on:
       - "tests/battle-master-archetype-runtime-smoke.mjs"
       - "tests/class-status-semantics-smoke.mjs"
       - "tests/trait-viewer-encounter-start-smoke.mjs"
+      - "tests/battle-master-viewer-encounter-integration-smoke.mjs"
       - ".github/workflows/battle-master-superiority-smoke.yml"
 
 jobs:
@@ -38,3 +40,4 @@ jobs:
       - run: node tests/battle-master-archetype-runtime-smoke.mjs
       - run: node tests/class-status-semantics-smoke.mjs
       - run: node tests/trait-viewer-encounter-start-smoke.mjs
+      - run: node tests/battle-master-viewer-encounter-integration-smoke.mjs
