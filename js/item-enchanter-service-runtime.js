@@ -15,6 +15,7 @@
   const Engine = global.LuminousItemEnchantmentEngine || safeRequire("./item-enchantment-engine.js");
   const Magic = global.LuminousItemMagicRuntime || safeRequire("./item-magic-runtime.js");
   const Workshop = global.LuminousWorkshopRuntime || safeRequire("./workshop-runtime.js");
+  const curseEnchanterBridge = () => global.LuminousCurseEnchanterBridge || safeRequire("./curse-enchanter-bridge.js");
   const knowledgeRuntime = () => global.LuminousItemMagicKnowledgeRuntime || safeRequire("./item-magic-knowledge-runtime.js");
   const compendiumRuntime = () => global.LuminousEnchantmentCompendiumRuntime || safeRequire("./item-enchantment-compendium-runtime.js");
   if (!Enchantments || !Engine || !Magic) {
@@ -1635,20 +1636,30 @@
         result.knowledge?.curseChecked===true,result,item:Object.freeze(clone(item))});
     }
     if (quote.service==="remove_curse") {
-      if(item?.magic?.relic?.inseparableDrawback===true || item?.relic?.inseparableDrawback===true) {
-        return Object.freeze({executed:false,reason:"relic_drawback_inseparable"});
-      }
-      const curseRef=Engine.appliedEnchantments(item).find((ref)=>asArray(ref.properties).map(normalizeId).includes("curse"));
-      if(!curseRef) return Object.freeze({executed:false,reason:"removable_curse_not_found"});
-      if(asArray(curseRef.properties).map(normalizeId).includes("bind")) return Object.freeze({executed:false,reason:"bound_curse_not_removable"});
-      const result=Engine.removeEnchantmentProperty(item,curseRef.definitionId,"curse",{
-        anchorId:curseRef.anchorId,
+      const bridge=curseEnchanterBridge();
+      if(!bridge?.selectRemoveCurseTarget) return Object.freeze({executed:false,reason:"curse_enchanter_bridge_unavailable"});
+      const gate=bridge.selectRemoveCurseTarget(item,quote);
+      if(!gate.allowed) return Object.freeze({executed:false,reason:gate.reason});
+      const ref=gate.target;
+      const result=Engine.removeEnchantmentProperty(item,ref.definitionId,"curse",{
+        anchorId:ref.anchorId,
+        applicationId:ref.applicationId,
         appliedBy:options.appliedBy,
         appliedAt:options.appliedAt,
         provenance:options.provenance,
       });
-      if(result.changed && options.viewer) Magic.removeCurse(options.viewer,item);
-      return Object.freeze({executed:result.changed===true,result,item:result.item || Object.freeze(clone(item))});
+      // The legacy wearer link must survive when other enchanted or
+      // autonomous curses still affect this item.
+      if(result.changed && options.viewer && !Magic.isCursed(result.item)) {
+        Magic.removeCurse(options.viewer,item);
+      }
+      return Object.freeze({
+        executed:result.changed===true,
+        reason:result.changed?null:(result.reason || "curse_removal_failed"),
+        target:Object.freeze(clone(ref)),
+        result,
+        item:result.item || Object.freeze(clone(item)),
+      });
     }
     if (quote.service==="remove_rewrite") {
       const procedure=normalizeId(quote.procedure || options.procedure || "direct_remove");

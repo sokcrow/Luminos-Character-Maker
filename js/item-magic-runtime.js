@@ -364,6 +364,7 @@
       enchantmentRefs(item).length > 0 ||
       requiresAttunement(item) || spellProfiles(item).length ||
       runtime.curse || runtime.cursed === true || item.cursed === true || isBoundItem(item) ||
+      global.LuminousCurseRuntime?.hasCurse?.(item) === true ||
       item.relic === true || item.artifact === true || profile.relic === true || profile.artifact === true
     );
   }
@@ -936,7 +937,8 @@
     const runtime = runtimeOf(item);
     const profile = magicProfile(item);
     return item.cursed === true || runtime.cursed === true || Boolean(runtime.curse || profile.curse || item.curse) ||
-      cursedEnchantmentRefs(item).length > 0 || isBoundItem(item);
+      cursedEnchantmentRefs(item).length > 0 || isBoundItem(item) ||
+      global.LuminousCurseRuntime?.hasCurse?.(item) === true;
   }
 
   function revealCurse(item) {
@@ -967,6 +969,15 @@
         source: "enchantment",
         enchantmentDefinitionIds: curseRefs.map((entry) => String(entry.definitionId || entry.enchantmentId || entry.id || "")).filter(Boolean),
         hiddenDrawback: true,
+      };
+    }
+    const standalone = global.LuminousCurseRuntime?.instances?.(item) || [];
+    if (standalone.length) {
+      return {
+        kind:"autonomous",
+        source:"curse_runtime",
+        instanceCount:standalone.length,
+        hiddenDrawback:true,
       };
     }
     return null;

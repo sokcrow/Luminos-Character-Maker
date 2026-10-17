@@ -676,7 +676,13 @@
     const wantedDefinition=normalizeId(definitionId);
     const wantedProperty=normalizeId(property);
     const wantedAnchor=options.anchorId == null ? null : String(options.anchorId);
-    const index=refs.findIndex((ref)=>ref.definitionId===wantedDefinition && (wantedAnchor==null || ref.anchorId===wantedAnchor));
+    const wantedApplication=options.applicationId == null ? null : String(options.applicationId);
+    const matches=refs.map((ref,index)=>({ref,index})).filter(({ref})=>
+      ref.definitionId===wantedDefinition &&
+      (wantedAnchor==null || ref.anchorId===wantedAnchor) &&
+      (wantedApplication==null || ref.applicationId===wantedApplication));
+    if(matches.length>1) return Object.freeze({changed:false,reason:"enchantment_property_target_ambiguous",item:clone(item)});
+    const index=matches.length ? matches[0].index : -1;
     if(index<0) return Object.freeze({changed:false,reason:"enchantment_not_installed",item:clone(item)});
     if(wantedProperty==="bind") return Object.freeze({changed:false,reason:"bound_property_not_removable",item:clone(item)});
     if(refs[index].properties.includes("bind")) return Object.freeze({changed:false,reason:"bound_enchantment_not_removable",item:clone(item)});

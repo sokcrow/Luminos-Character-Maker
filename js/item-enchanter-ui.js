@@ -6,7 +6,7 @@
 
   const state={
     open:false,provider:null,viewer:null,items:[],providerMaterials:[],selectedItem:null,
-    service:null,definitionId:null,rank:1,gem:null,anchorId:null,quote:null,pending:false,
+    service:null,definitionId:null,curseTargetKey:null,rank:1,gem:null,anchorId:null,quote:null,pending:false,
     rewriteProcedure:null,nextDefinitionId:null,rewriteRank:1,gemQualityAfter:null,
     onSave:null,onAtomicService:null,onClose:null,getWorldTimestamp:null,unsubscribeWorldTime:null,
     worldTimestamp:null,status:"",saveUncertain:false,
@@ -16,6 +16,7 @@
   const engine=()=>global.LuminousItemEnchantmentEngine || null;
   const catalog=()=>global.LuminousEnchantmentCatalog || null;
   const magic=()=>global.LuminousItemMagicRuntime || null;
+  const curseBridge=()=>global.LuminousCurseEnchanterBridge || null;
   const magicKnowledge=()=>global.LuminousItemMagicKnowledgeRuntime || null;
   const gems=()=>global.LuminousOreIngotGemCatalog || null;
   const clone=v=>v==null?v:JSON.parse(JSON.stringify(v));
@@ -194,6 +195,7 @@
             <div class="enchanter-ui-controls">
               <label>SERVICE<select id="enchanter-ui-service"></select></label>
               <label id="enchanter-ui-enchantment-wrap">ENCHANTMENT<select id="enchanter-ui-enchantment"></select></label>
+              <label id="enchanter-ui-curse-target-wrap" hidden>MALDICIÓN DETECTADA<select id="enchanter-ui-curse-target"></select></label>
               <label id="enchanter-ui-rank-wrap">RANK<select id="enchanter-ui-rank"><option value="1">I</option><option value="2">II</option><option value="3">III</option></select></label>
               <label id="enchanter-ui-gem-wrap" hidden>GEM ANCHOR<select id="enchanter-ui-gem"></select></label>
               <label id="enchanter-ui-anchor-wrap" hidden>GEM SOCKET<select id="enchanter-ui-anchor"></select></label>
@@ -220,8 +222,9 @@
     doc.body.appendChild(root);
     root.querySelector(".enchanter-ui-close")?.addEventListener("click",close);
     root.addEventListener("click",event=>{if(event.target===root) close();});
-    root.querySelector("#enchanter-ui-service")?.addEventListener("change",event=>{if(state.pending) return;invalidateConfirmation();state.service=event.target.value;state.definitionId=null;state.gem=null;state.anchorId=null;state.rewriteProcedure=null;state.nextDefinitionId=null;state.gemQualityAfter=null;render();});
+    root.querySelector("#enchanter-ui-service")?.addEventListener("change",event=>{if(state.pending) return;invalidateConfirmation();state.service=event.target.value;state.definitionId=null;state.curseTargetKey=null;state.gem=null;state.anchorId=null;state.rewriteProcedure=null;state.nextDefinitionId=null;state.gemQualityAfter=null;render();});
     root.querySelector("#enchanter-ui-enchantment")?.addEventListener("change",event=>{if(state.pending) return;invalidateConfirmation();state.definitionId=event.target.value;state.rewriteProcedure=null;state.nextDefinitionId=null;state.gemQualityAfter=null;render();});
+    root.querySelector("#enchanter-ui-curse-target")?.addEventListener("change",event=>{if(state.pending)return;invalidateConfirmation();state.curseTargetKey=event.target.value;render();});
     root.querySelector("#enchanter-ui-rank")?.addEventListener("change",event=>{if(state.pending) return;invalidateConfirmation();state.rank=Math.max(1,Math.min(3,Number(event.target.value)||1));render();});
     root.querySelector("#enchanter-ui-gem")?.addEventListener("change",event=>{if(state.pending) return;invalidateConfirmation();state.gem=state.items.find(item=>itemId(item)===event.target.value)||null;render();});
     root.querySelector("#enchanter-ui-anchor")?.addEventListener("change",event=>{if(state.pending) return;invalidateConfirmation();state.anchorId=event.target.value||null;render();});
@@ -240,6 +243,32 @@
 
   function installed(item){
     return engine()?.appliedEnchantments?.(item) || [];
+  }
+
+  function visibleCurseTargets(){
+    if(state.service!=="remove_curse" || !state.selectedItem || !state.viewer) return [];
+    const knowledge=magicKnowledge()?.presentation?.(state.viewer,state.selectedItem);
+    // An unknown Curse must not leak the number/names of hidden drawbacks.
+    if(knowledge?.cursed!==true || knowledge?.curseDetailsKnown!==true)return [];
+    const entries=(curseBridge()?.listItemCurses?.(state.selectedItem)||[])
+      .filter(entry=>entry.kind==="enchantment_curse");
+    return entries.map((entry,index)=>{
+      const refIndex=installed(state.selectedItem).findIndex(ref=>
+        String(ref.definitionId||"")===entry.definitionId &&
+        String(ref.applicationId??"")===String(entry.applicationId??"") &&
+        String(ref.anchorId??"")===String(entry.anchorId??""));
+      const known=knowledge?.enchantmentLines?.[refIndex]?.known===true;
+      return {
+        key:"curse-option-"+String(index),
+        label:known?(knowledge.enchantmentLines[refIndex].text || "Inscripción maldita"):
+          "Inscripción maldita "+String(index+1),
+        target:{
+          kind:"enchantment_curse",definitionId:entry.definitionId,
+          applicationId:entry.applicationId,anchorId:entry.anchorId,
+        },
+        eligible:entry.removable===true,
+      };
+    });
   }
 
   function selectedDefinitionOptions(){
@@ -340,7 +369,17 @@
        && magicKnowledge()?.presentation?.(state.viewer,state.selectedItem)?.magicDetected!==true)
       return {quoted:false,reason:"magic_not_detected"};
     if(svc==="magical_repair") return S.quoteMagicalRepair(state.provider,state.selectedItem,common);
-    if(["identify","curse_analysis","remove_curse"].includes(svc)) return S.quoteFixedService(state.provider,svc,common);
+    if(svc==="remove_curse"){
+      const fixed=S.quoteFixedService(state.provider,svc,common);
+      if(!fixed.quoted)return fixed;
+      const visible=visibleCurseTargets();
+      const selected=visible.find(choice=>choice.key===state.curseTargetKey) || visible[0];
+      const request=selected?{...fixed,curseTarget:selected.target}:fixed;
+      const gate=curseBridge()?.selectRemoveCurseTarget?.(state.selectedItem,request);
+      if(!gate?.allowed)return {quoted:false,reason:gate?.reason||"curse_enchanter_bridge_unavailable"};
+      return request;
+    }
+    if(["identify","curse_analysis"].includes(svc)) return S.quoteFixedService(state.provider,svc,common);
     if(svc==="remove_rewrite"){
       if(!choice)return {quoted:false,reason:"enchantment_not_installed"};
       const gemAnchored=choice.ref?.source==="gem";
@@ -412,7 +451,7 @@
       if(state.pending) return;
       invalidateConfirmation();
       state.selectedItem=good[Number(button.dataset.enchanterItem)] || null;
-      state.definitionId=null;state.gem=null;state.anchorId=null;state.rewriteProcedure=null;state.nextDefinitionId=null;state.gemQualityAfter=null;render();
+      state.definitionId=null;state.curseTargetKey=null;state.gem=null;state.anchorId=null;state.rewriteProcedure=null;state.nextDefinitionId=null;state.gemQualityAfter=null;render();
     }));
   }
 
@@ -435,6 +474,19 @@
         state.definitionId=options[0]?.key || options[0]?.id || null;
       defSelect.innerHTML=options.map(entry=>`<option value="${esc(entry.key || entry.id)}">${esc(entry.name)}${entry.displayRank?` · ${esc(roman(entry.displayRank))}`:""}</option>`).join("");
       defSelect.value=state.definitionId || "";
+    }
+
+    const curseWrap=doc.getElementById("enchanter-ui-curse-target-wrap");
+    const curseSelect=doc.getElementById("enchanter-ui-curse-target");
+    const curseOptions=visibleCurseTargets();
+    if(curseWrap)curseWrap.hidden=state.service!=="remove_curse" || !curseOptions.length;
+    if(curseSelect && state.service==="remove_curse"){
+      if(!curseOptions.some(entry=>entry.key===state.curseTargetKey))
+        state.curseTargetKey=curseOptions[0]?.key || null;
+      curseSelect.innerHTML=curseOptions.map(entry=>
+        `<option value="${esc(entry.key)}">${esc(entry.label)}${entry.eligible?"":" · requiere otro procedimiento"}</option>`
+      ).join("");
+      curseSelect.value=state.curseTargetKey || "";
     }
 
     const rankWrap=doc.getElementById("enchanter-ui-rank-wrap");
@@ -657,6 +709,7 @@
       ...(job?{jobId:job.jobId}:{}),
       itemInstanceId:selectedId,
       service:job?.service || state.service,
+      ...(quote.curseTarget?{curseTarget:clone(quote.curseTarget)}:{}),
       // Direct Rewrite quotes describe the replacement as definitionId;
       // the server must first remove the ORIGINAL installed definition.
       definitionId:quote.originalDefinitionId || quote.definitionId || state.definitionId,
@@ -812,7 +865,7 @@
     state.providerMaterials=asArray(context.providerMaterials || context.provider?.providerMaterials).map(item=>item);
     state.selectedItem=context.item || state.items[0] || null;
     state.service=context.service && profile.services.includes(context.service)?context.service:profile.services[0];
-    state.definitionId=null;state.rank=1;state.gem=null;state.anchorId=null;state.quote=null;state.pending=false;
+    state.definitionId=null;state.curseTargetKey=null;state.rank=1;state.gem=null;state.anchorId=null;state.quote=null;state.pending=false;
     state.rewriteProcedure=null;state.nextDefinitionId=null;state.rewriteRank=1;state.gemQualityAfter=null;
     // Do not clear saveUncertain across panel reopenings in this page session.
     state.onSave=context.onSave || null;

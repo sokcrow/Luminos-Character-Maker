@@ -177,6 +177,9 @@
       chargesMax: chargesMax == null ? null : Math.max(0, intOr(chargesMax, 0)),
       rechargeRule: input.rechargeRule ?? input.recharge_rule ?? def.rechargeRule ?? def.recharge_rule ?? null,
       magic: clone(input.magic ?? input.runtime?.magic ?? input.runtimeState?.magic ?? def.magic ?? def.runtime?.magic ?? null),
+      // Autonomous Curse history is ItemInstance data, not Enchantment or a
+      // temporary Status. Preserve it at every serialization boundary.
+      ...(Array.isArray(input.curseInstances) ? {curseInstances:clone(input.curseInstances)} : {}),
       stolen: input.stolen === true || options.stolen === true,
       originMarketId: input.originMarketId ?? input.origin_market_id ?? options.originMarketId ?? null,
       equipped: input.equipped === true,
@@ -346,6 +349,9 @@
   }
 
   function stackLimit(item, containerType = "active") {
+    // Each autonomous Curse belongs to a physical ItemInstance, never to a
+    // merged commodity stack. Resolved Curses still carry individual history.
+    if (Array.isArray(item?.curseInstances) && item.curseInstances.length) return 1;
     const type = normalizeId(containerType);
     const explicit = type === "stash" ? item?.stashStackLimit ?? item?.limite_alijo : item?.activeStackLimit ?? item?.limite_activo;
     if (Number.isFinite(Number(explicit))) return Math.max(1, intOr(explicit, 1));
@@ -386,6 +392,8 @@
 
   function canStack(a, b) {
     if (!a || !b) return false;
+    if ((Array.isArray(a.curseInstances) && a.curseInstances.length) ||
+        (Array.isArray(b.curseInstances) && b.curseInstances.length)) return false;
     if (a.stackable === false || b.stackable === false) return false;
     if (a.equipped || b.equipped) return false;
     return stackSignature(a) === stackSignature(b);
@@ -474,6 +482,25 @@
     const to = normalizeId(toType) === "stash" ? stashContainer(unit, true) : activeContainer(unit, true);
     const found = findInContainer(from.value, ref);
     if (!found) return { moved: false, reason: "item_not_found_in_source", from: from.key, to: to.key };
+
+    if (normalizeId(fromType)==="active" && normalizeId(toType)==="stash") {
+      const item=found.item;
+      const targetId=itemIdOf(item);
+      const equipment=unit?.equipment || {};
+      const equipmentRefs=unit?.itemEquipmentRefs || {};
+      const equippedRefs=[
+        equipment.mainHand,equipment.offHand,equipment.armor,equipment.shield,
+        ...(Array.isArray(equipment.accessories)?equipment.accessories:[]),
+        equipmentRefs.mainHand,equipmentRefs.offHand,equipmentRefs.armor,equipmentRefs.shield,
+        ...(Array.isArray(equipmentRefs.accessoryIds)?equipmentRefs.accessoryIds:[]),
+      ];
+      const equipped=item.equipped===true || equippedRefs.some(entry=>
+        entry && String(typeof entry==="object"?itemIdOf(entry):entry)===targetId);
+      if(equipped && global.LuminousItemMagicRuntime?.isBoundItem?.(item)===true)
+        return {moved:false,reason:"bound_item_unequip_locked",from:from.key,to:to.key};
+      if(equipped && global.LuminousCurseRuntime?.itemUnequipLocked?.(item)===true)
+        return {moved:false,reason:"curse_item_unequip_locked",from:from.key,to:to.key};
+    }
 
     const before = quantityOf(found.item);
     const requested = amount == null ? before : Math.max(1, intOr(amount, 1));

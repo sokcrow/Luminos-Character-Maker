@@ -18,6 +18,7 @@
     grantDefinitionId: null,
     catalogPoll: null,
     enchantmentDraft: null,
+    curseDraftItem:null,
     saveUncertain:false,
   };
 
@@ -33,6 +34,7 @@
   const enchantmentCatalog = () => global.LuminousEnchantmentCatalog || null;
   const enchantmentEngine = () => global.LuminousItemEnchantmentEngine || null;
   const magicRuntime = () => global.LuminousItemMagicRuntime || null;
+  const curseRuntime = () => global.LuminousCurseRuntime || null;
   const enchanterServices = () => global.LuminousItemEnchanterServiceRuntime || null;
   const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
   const intOr = (value, fallback = 0) => Number.isFinite(Number(value)) ? Math.trunc(Number(value)) : fallback;
@@ -71,7 +73,10 @@
     await ensureScript("item-gem-catalog-script", "js/item-catalog-ore-ingot-gem.js", "LuminousOreIngotGemCatalog");
     await ensureScript("item-enchantment-catalog-script", "js/item-catalog-enchantments.js", "LuminousEnchantmentCatalog");
     await ensureScript("item-enchantment-engine-script", "js/item-enchantment-engine.js", "LuminousItemEnchantmentEngine");
+    await ensureScript("curse-catalog-script", "js/curse-catalog.js", "LuminousCurseCatalog");
+    await ensureScript("curse-runtime-script", "js/curse-runtime.js", "LuminousCurseRuntime");
     await ensureScript("item-magic-runtime-script", "js/item-magic-runtime.js", "LuminousItemMagicRuntime");
+    await ensureScript("curse-enchanter-bridge-script", "js/curse-enchanter-bridge.js", "LuminousCurseEnchanterBridge");
     await ensureScript("item-enchanter-service-script", "js/item-enchanter-service-runtime.js", "LuminousItemEnchanterServiceRuntime");
     return Boolean(inventory() && persistence() && enchantmentCatalog() && enchantmentEngine() && enchanterServices());
   }
@@ -373,6 +378,18 @@
               <button type="button" class="dm-item-editor-btn" id="dm-item-enchantment-apply">APPLY FREE SERVICE</button>
             </div>
           </section>
+          <section class="dm-item-editor-section dm-curse-studio" id="dm-item-curse-section" aria-labelledby="dm-curse-title">
+            <h4 id="dm-curse-title">Curse Studio</h4>
+            <p class="dm-curse-intro">Maldiciones autónomas del objeto. No ocupan Slots de Encantamiento ni sustituyen los servicios de Enchanter.</p>
+            <div class="dm-item-editor-field wide">
+              <label for="dm-item-curse-definition">Maldición</label>
+              <select id="dm-item-curse-definition"></select>
+            </div>
+            <p id="dm-item-curse-description" class="dm-curse-description"></p>
+            <button type="button" class="dm-item-editor-btn primary" id="dm-item-curse-apply">Aplicar maldición</button>
+            <div id="dm-item-curse-current" class="dm-item-curse-current" aria-live="polite"></div>
+            <p id="dm-item-curse-save-hint" class="dm-enchanter-save-hint">Los cambios se confirman con <b>Guardar objeto</b>.</p>
+          </section>
         </div>
         <footer class="dm-item-editor-footer">
           <div class="dm-item-editor-status" id="dm-item-editor-status">READY</div>
@@ -397,6 +414,8 @@
       });
     });
     doc.getElementById("dm-item-enchantment-apply")?.addEventListener("click", applyDmEnchantment);
+    doc.getElementById("dm-item-curse-apply")?.addEventListener("click", stageItemCurse); 
+    doc.getElementById("dm-item-curse-definition")?.addEventListener("change", renderCurseStudio);
     ["dm-item-enchantment-definition","dm-item-enchantment-rank","dm-item-enchantment-bind","dm-item-enchantment-curse"].forEach((id) => {
       doc.getElementById(id)?.addEventListener("change", updateMagicValidation);
     });
@@ -832,11 +851,134 @@
     }
   }
 
+
+  function renderCurseStudio() {
+    const runtime = curseRuntime();
+    const item = state.curseDraftItem || state.selected?.item;
+    const host = doc.getElementById("dm-item-curse-current");
+    const selector = doc.getElementById("dm-item-curse-definition");
+    const description = doc.getElementById("dm-item-curse-description");
+    const apply = doc.getElementById("dm-item-curse-apply");
+    if (!runtime || !host || !selector) return;
+
+    const definitions = runtime.listDefinitions?.("item") || [];
+    const selected = selector.value;
+    selector.replaceChildren();
+    definitions.forEach((definition) => {
+      const option = doc.createElement("option");
+      option.value = definition.id;
+      option.textContent = definition.name;
+      selector.appendChild(option);
+    });
+    if (definitions.some((definition) => definition.id === selected)) selector.value = selected;
+    const chosen = runtime.getDefinition?.(selector.value);
+    if (description) description.textContent = chosen?.description || "No hay maldiciones disponibles.";
+    const curseGate = item && chosen ? runtime.canApply?.(item,chosen.id) : null;
+    if (apply) {
+      apply.disabled = !curseGate?.allowed || state.saving;
+      apply.title = curseGate?.reason === "curse_intensity_limit_reached"
+        ? "Esta maldición alcanzó su intensidad máxima."
+        : curseGate?.reason === "curse_requires_single_item"
+          ? "Separa primero los objetos apilados para maldecir uno."
+          : chosen ? chosen.description : "No hay maldiciones disponibles.";
+    }
+
+    host.replaceChildren();
+    const curses = item ? runtime.instances?.(item) || [] : [];
+    if (!curses.length) {
+      const empty = doc.createElement("p");
+      empty.className = "dm-item-editor-meta";
+      empty.textContent = "Este objeto no tiene maldiciones autónomas.";
+      host.appendChild(empty);
+    }
+    const stateLabels = {active:"Activa",suppressed:"Suprimida",sealed:"Sellada"};
+    const actions = {
+      active:["suppress","seal","break"],
+      suppressed:["resume","seal","break"],
+      sealed:["unseal","break"],
+    };
+    const actionLabels = {
+      suppress:"Suprimir",seal:"Sellar",break:"Romper",
+      resume:"Reactivar",unseal:"Levantar sello",remove:"Retirar",
+    };
+    curses.forEach((curse) => {
+      const row = doc.createElement("div");
+      row.className = "dm-item-curse-row";
+      const summary = doc.createElement("div");
+      summary.className = "dm-item-curse-info";
+      const heading = doc.createElement("strong");
+      heading.textContent = curse.definition?.name || "Maldición desconocida";
+      const stateText = doc.createElement("span");
+      stateText.textContent = (stateLabels[curse.state] || "Estado desconocido") +
+        " · Intensidad " + String(curse.intensity);
+      summary.append(heading, stateText);
+      row.appendChild(summary);
+      const controls = doc.createElement("div");
+      controls.className = "dm-item-curse-actions";
+      (actions[curse.state] || []).forEach((operation) => {
+        const authorizes = curse.definition?.allowedResolutions || [];
+        const allowed = authorizes.includes(operation) ||
+          (operation === "resume" && authorizes.includes("suppress")) ||
+          (operation === "unseal" && authorizes.includes("seal"));
+        if (!allowed) return;
+        const button = doc.createElement("button");
+        button.type = "button";
+        button.className = "dm-item-editor-btn";
+        button.dataset.curseOperation = operation;
+        button.textContent = actionLabels[operation];
+        button.disabled = state.saving;
+        button.addEventListener("click", () => stageItemCurseOperation(curse.instanceId, operation));
+        controls.appendChild(button);
+      });
+      row.appendChild(controls);
+      host.appendChild(row);
+    });
+    const hint = doc.getElementById("dm-item-curse-save-hint");
+    if (hint) hint.textContent = state.curseDraftItem
+      ? "Cambio de maldición preparado. Guardar objeto para confirmar o cerrar para descartar."
+      : "Los cambios de Curse se confirman con Guardar objeto.";
+  }
+
+  function stageItemCurse() {
+    if (!state.selected || state.saving) return;
+    const runtime = curseRuntime();
+    const base = state.curseDraftItem || state.selected.item;
+    const result = runtime?.applyItem?.(base, fieldValue("dm-item-curse-definition"), {
+      origin:{source:"dm_item_editor"},
+    });
+    if (!result?.applied) {
+      const messages = {
+        curse_intensity_limit_reached:"Esta maldición ya alcanzó su intensidad máxima.",
+        missing_item_instance:"Este objeto debe tener una identidad individual guardada.",
+        unsupported_curse_definition:"Esta maldición no puede aplicarse al objeto.",
+      };
+      return announce(messages[result?.reason] || "No se pudo aplicar esta maldición.", "error");
+    }
+    state.curseDraftItem = result.item;
+    state.dirty = true;
+    renderCurseStudio();
+    announce("Maldición preparada. Guarda el objeto para confirmarla.", "");
+  }
+
+  function stageItemCurseOperation(instanceId, operation) {
+    if (!state.selected || state.saving) return;
+    const runtime = curseRuntime();
+    const base = state.curseDraftItem || state.selected.item;
+    const result = runtime?.resolveItem?.(base, instanceId, operation);
+    if (!result?.changed) return announce("Esta operación no está permitida para la maldición.", "error");
+    state.curseDraftItem = result.item;
+    state.dirty = true;
+    renderCurseStudio();
+    announce("Cambio de maldición preparado. Guarda el objeto para confirmarlo.", "");
+  }
+
   function fillEditor(entry, listType) {
     const item = entry?.item;
     if (!item) return;
     state.selected = { key: entry.key, item, listType: normalizeListType(listType), playerId: state.playerId, enchantmentSnapshot: enchanterStudio()?.snapshot?.(item) };
     state.enchantmentDraft = null;
+    state.curseDraftItem = null;
+    state.selected.curseSnapshot = curseRuntime()?.snapshot?.(item) || "[]";
     state.dirty = false;
     mountEditor().classList.add("active");
     const title = doc.getElementById("dm-item-editor-title");
@@ -871,12 +1013,14 @@
     updateConditionMeta();
     populateDmEnchantmentDefinitions(item);
     renderDmEnchantments(item);
+    renderCurseStudio();
   }
 
   function closeEditor() {
     editorElement()?.classList.remove("active");
     state.selected = null;
     state.enchantmentDraft = null;
+    state.curseDraftItem = null;
     state.dirty = false;
     state.saving = false;
   }
@@ -972,6 +1116,9 @@
     if (enchanterStudio()?.snapshot?.(latest.item) !== session.enchantmentSnapshot) {
       return announce("El encantamiento de este objeto cambió. Abre el objeto nuevamente.", "error");
     }
+    if ((curseRuntime()?.snapshot?.(latest.item) || "[]") !== session.curseSnapshot) {
+      return announce("Las maldiciones del objeto cambiaron. Vuelve a abrirlo.", "error");
+    }
 
     const original = clone(latest.item);
     // The modern migrateLegacyItem returns its input unchanged. Keep a distinct
@@ -1042,6 +1189,10 @@
         return announce(enchanterStudio()?.errorMessage?.(result?.reason) || "No fue posible encantar el objeto.", "error");
       }
       Object.assign(migrated, result.item);
+    }
+
+    if (state.curseDraftItem) {
+      migrated.curseInstances = clone(state.curseDraftItem.curseInstances || []);
     }
 
     latest.container[latest.key] = migrated;
@@ -1535,6 +1686,9 @@
     updateMagicValidation,
     applyDmEnchantment,
     removeDmEnchantment,
+    renderCurseStudio,
+    stageItemCurse,
+    stageItemCurseOperation,
     handleLegacyAction,
     closeEditor,
   });
