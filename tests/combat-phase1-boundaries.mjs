@@ -38,6 +38,8 @@ for(const delayed of [false,true]){
   vm.runInContext(fs.readFileSync(new URL('../js/combat-v073-authority.js',import.meta.url),'utf8'),vm.createContext(w));
   const authority=w.LuminousCombatAuthority073;
   authority.state.current={phase:'running',round:1};authority.resetRandom(123);
+  authority.withAuthorityRandom(()=>w.shuffle([1,2,3]));
+  assert.equal(authority.state.cursor,0,'private deck shuffle must not consume sealed rules RNG, even inside a rules scope');
   const first=w.beginConcentration('a','Spell');assert.equal(authority.state.cursor,1);
   h.data.a.concentration=null;authority.resetRandom(123);
   const second=w.beginConcentration('a','Spell');assert.equal(second.id,first.id);

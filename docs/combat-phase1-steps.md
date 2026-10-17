@@ -52,6 +52,10 @@ a la Fase 2. Forest y el rediseño del HUD siguen fuera de esta fase.
   y activa Stagger en el paso de HP. Antes dependía de temporizadores de la
   barra, cancelables por otro cambio de HP. Es una corrección deliberada de
   dependencia visual; las fórmulas y la ventana de Stagger se conservan.
+- El barajado de manos privadas y la planificación de AI usan RNG separado del
+  cursor de reglas selladas, incluso si un refresco los invoca durante el turno.
+  La escritura de planes se bloquea también con la fase autoritativa, evitando
+  envíos tardíos cuando el adapter aún muestra Planning.
 - Los IDs de Concentration de un turno sellado usan semilla/cursor y una
   tirada autoritativa, sin hora local. Fuera del turno sellado se mantiene el
   comportamiento previo.

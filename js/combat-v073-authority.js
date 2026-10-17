@@ -35,6 +35,7 @@
   function resetRandom(seed,cursor=0){state.seed=(Number(seed)||1)>>>0;state.rngState=state.seed;state.cursor=0;for(let i=0;i<Math.max(0,Math.trunc(Number(cursor)||0));i+=1)randomRaw();return state.seed;}
   function random(){return state.seed&&['sealed','running'].includes(norm(state.current?.phase))?randomRaw():nativeRandom();}
   function withAuthorityRandom(callback){if(!state.seed||!['sealed','running'].includes(norm(state.current?.phase)))return callback();const previous=global.Math.random;global.Math.random=random;try{return callback();}finally{global.Math.random=previous;}}
+  function withPrivateRandom(callback){const previous=global.Math.random;global.Math.random=nativeRandom;try{return callback();}finally{global.Math.random=previous;}}
 
   function canonicalPlayerId(unit={}){return clean(unit.canonicalPlayerKey||unit.ownerPlayerId||unit.playerId||unit.characterLink?.playerId);}
   function classEntries(unit={}){
@@ -173,7 +174,7 @@
   }
   function queueCheckpoint(type='state'){return publishActionCheckpoint(type);}
 
-  function wrapSyncMechanic(name,{deterministic=true}={}){const original=global[name];if(typeof original!=='function'||original.__luminousAuthorityWrapped)return false;const wrapped=function(...args){return deterministic?withAuthorityRandom(()=>original.apply(this,args)):original.apply(this,args);};wrapped.__luminousAuthorityWrapped=true;wrapped.__luminousAuthorityOriginal=original;global[name]=wrapped;state.hooks.set(name,original);if(global.LuminousCombatHUD?.[name]===original)global.LuminousCombatHUD[name]=wrapped;return true;}
+  function wrapSyncMechanic(name,{deterministic=true}={}){const original=global[name];if(typeof original!=='function'||original.__luminousAuthorityWrapped)return false;const wrapped=function(...args){return deterministic?withAuthorityRandom(()=>original.apply(this,args)):withPrivateRandom(()=>original.apply(this,args));};wrapped.__luminousAuthorityWrapped=true;wrapped.__luminousAuthorityOriginal=original;global[name]=wrapped;state.hooks.set(name,original);if(global.LuminousCombatHUD?.[name]===original)global.LuminousCombatHUD[name]=wrapped;return true;}
   function wrapAsyncMechanic(name){const original=global[name];if(typeof original!=='function'||original.__luminousAuthorityWrapped)return false;const wrapped=async function(...args){return await original.apply(this,args);};wrapped.__luminousAuthorityWrapped=true;wrapped.__luminousAuthorityOriginal=original;global[name]=wrapped;state.hooks.set(name,original);return true;}
   function patchCoinEngine(){const engine=global.LuminousCoinEngine;if(!engine?.runAnimatedRoll)return false;if(engine.__luminousAuthorityCoinEngine)return true;state.originalCoinEngine=state.originalCoinEngine||engine;global.LuminousCoinEngine=Object.freeze({...engine,__luminousAuthorityCoinEngine:true,rollSide:(headsChance,rng)=>engine.rollSide(headsChance,rng||random),runAnimatedRoll:options=>engine.runAnimatedRoll({...options,rng:options?.rng||random})});return true;}
   function patchExecutionQueue(){
@@ -219,7 +220,7 @@
     };
     wrapped.__luminousAuthorityQueueEntry=true;wrapped.__luminousAuthorityQueueEntryOriginal=original;global.executeQueueEntry=wrapped;return true;
   }
-  function installHooks(){patchCoinEngine();patchExecutionQueue();patchExecuteQueueEntry();['beginConcentration','processConditionTurnStart','rollCriticalHit','randomIntInclusive','rollUnitSpeed','rollPower4Save','rollAbilitySkillCheck','smartTargetScore','assignTargetIntents','autoActionScore','shuffle','damageCombatant','healCombatant','damageCombatantSP','healCombatantSP','applyCombatStatus','removeCombatStatus','consumeStatusCount','setUnitActionSlotCount','rollTurnSpeeds'].forEach(name=>wrapSyncMechanic(name));['resolveSkillClash','resolveUnopposedCoinAction','resolveSaveOnlySpell'].forEach(wrapAsyncMechanic);patchStartRound();return true;}
+  function installHooks(){patchCoinEngine();patchExecutionQueue();patchExecuteQueueEntry();['beginConcentration','processConditionTurnStart','rollCriticalHit','randomIntInclusive','rollUnitSpeed','rollPower4Save','rollAbilitySkillCheck','damageCombatant','healCombatant','damageCombatantSP','healCombatantSP','applyCombatStatus','removeCombatStatus','consumeStatusCount','setUnitActionSlotCount','rollTurnSpeeds'].forEach(name=>wrapSyncMechanic(name));['smartTargetScore','assignTargetIntents','autoActionScore','shuffle'].forEach(name=>wrapSyncMechanic(name,{deterministic:false}));['resolveSkillClash','resolveUnopposedCoinAction','resolveSaveOnlySpell'].forEach(wrapAsyncMechanic);patchStartRound();return true;}
 
   async function setRunning(current){
     const s=adapterState(),startedAt=serverTime(),updates={};updates[`${ROOT.current}/phase`]='running';updates[`${ROOT.current}/startedAt`]=startedAt;updates[ROOT.state]={phase:'COMBAT',round:Number(current.round)||Number(s.round)||1,authorityUid:s.uid,seed:current.seed,updatedAt:serverTime()};await s.db.ref().update(updates);

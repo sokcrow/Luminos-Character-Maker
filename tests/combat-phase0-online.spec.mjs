@@ -14,6 +14,7 @@ async function openSession(browser, user) {
   const context = await browser.newContext({ viewport: { width: 1365, height: 768 } });
   const errors = [];
   const consoleErrors = [];
+  const ruleMismatches = [];
   const forbidden = [];
   const realtime = [];
   await context.route('**/*', async (route) => {
@@ -34,10 +35,22 @@ async function openSession(browser, user) {
     if (request.resourceType() === 'image') return route.fulfill({ status: 200, contentType: 'image/svg+xml', body: decodeURIComponent(sprite.split(',')[1]) });
     return route.abort();
   });
+  await context.addInitScript(()=>{
+    window.__phase1Lifecycle=[];let previous='';
+    setInterval(()=>{
+      const a=window.LuminousCombatAuthority073?.state,s=window.LuminousCombatLiveAdapter073?.state;
+      const value={phase:a?.current?.phase,checkpoint:a?.current?.checkpoint?.seq,round:s?.round,
+        local:a?.runningLocal,autoStartedRound:a?.autoStartedRound,actions:a?.localActionSeq,
+        active:window.LuminousCombatRuntimeHotfix073?.state.active,started:a?.started,visibility:document.visibilityState};
+      const signature=JSON.stringify(value);
+      if(signature!==previous){previous=signature;window.__phase1Lifecycle.push(value);}
+    },100);
+  });
   const page = await context.newPage();
   page.on('pageerror', (error) => errors.push(String(error.stack || error)));
   page.on('console', (message) => {
     if (message.type() === 'error') consoleErrors.push(message.text());
+    if(message.text().includes('deterministic mismatch'))ruleMismatches.push(message.text());
   });
   page.on('websocket', (socket) => {
     const record = (direction, frame) => {
@@ -82,7 +95,7 @@ async function openSession(browser, user) {
     await context.close();
     throw error;
   }
-  return { context, page, errors, forbidden };
+  return { context, page, errors, forbidden, ruleMismatches };
 }
 
 async function saveLiveDeck(page, fixture) {
@@ -130,6 +143,10 @@ for (const silentPlayer of [false,true]) test(`authenticated DM and two Players 
   try {
     // The DM joins last so initial field/Speed authority does not race fixture setup.
     for (const role of ['a', 'b', 'dm']) sessions.push({ role, ...await openSession(browser, fixture.users[role]) });
+    for(const {page} of sessions){
+      await page.waitForFunction(()=>window.LuminousCombatAuthority073?.state.authorityRef&&window.LuminousCombatAuthority073.state.originalStartRound);
+      await page.evaluate(()=>firebase.database().ref('campaña/combate/authority/current').once('value').then(()=>true));
+    }
     const playerA = sessions.find((s) => s.role === 'a').page;
     const playerB = sessions.find((s) => s.role === 'b').page;
     const dm = sessions.find((s) => s.role === 'dm').page;
@@ -150,6 +167,10 @@ for (const silentPlayer of [false,true]) test(`authenticated DM and two Players 
     await playerA.setViewportSize({ width: 1365, height: 768 });
     await planAndReady(playerA);
     await planAndReady(playerB);
+    await dm.waitForFunction(()=>window.LuminousCombatStepRuntime.events().some(e=>e.type==='CoinRolled'));
+    await dm.screenshot({path:`${ARTIFACTS}/phase1-${silentPlayer?'mixed':'animated'}-coin.png`});
+    await dm.waitForFunction(()=>window.LuminousCombatStepRuntime.events().some(e=>e.type==='HitResolved'));
+    await dm.screenshot({path:`${ARTIFACTS}/phase1-${silentPlayer?'mixed':'animated'}-hit.png`});
     await expect.poll(async () => (await readEmulator('campaña/combate/authority/current'))?.phase, { timeout: 90000 }).toBe('complete');
     const result = await readEmulator('campaña/combate/authority/current');
     fs.writeFileSync(`${ARTIFACTS}/round-diagnostic.json`, JSON.stringify({ result,
@@ -164,7 +185,7 @@ for (const silentPlayer of [false,true]) test(`authenticated DM and two Players 
     expect(result.checkpoint.combatants['enemy:dummy'].hp).toBeLessThan(150);
     const expectedVitals = Object.fromEntries(Object.entries(result.checkpoint.combatants).map(([id, unit]) => [id, { hp: unit.hp, sp: unit.sp }]));
     const finalViewers = [];
-    for (const { role, page, errors, forbidden } of sessions) {
+    for (const { role, page, errors, forbidden, ruleMismatches } of sessions) {
       await page.waitForFunction(() => {
         const state = window.LuminousCombatAuthority073?.state;
         return state?.current.phase === 'complete' && !state.runningLocal && !state.pendingFinalSnapshot;
@@ -173,11 +194,16 @@ for (const silentPlayer of [false,true]) test(`authenticated DM and two Players 
       await expect.poll(() => page.locator('#round').textContent(), { timeout: 10000 }).toBe('2');
       finalViewers.push({ role, round: 2, vitals: expectedVitals });
       expect(errors).toEqual([]);
+      expect(ruleMismatches).toEqual([]);
       expect(forbidden).toEqual([]);
     }
     const stepTraces=await Promise.all(sessions.map(async({role,page})=>({role,...await page.evaluate(()=>({
       events:window.LuminousCombatStepRuntime.events(),rngCursor:window.LuminousCombatAuthority073.state.cursor,
       localDigests:[...window.LuminousCombatAuthority073.state.localDigests],
+      lifecycle:window.__phase1Lifecycle,
+      execution:{autoStartedRound:window.LuminousCombatAuthority073.state.autoStartedRound,
+        actions:window.LuminousCombatAuthority073.state.localActionSeq,active:window.LuminousCombatRuntimeHotfix073.state.active,
+        authorityStarted:window.LuminousCombatAuthority073.state.started,visibility:document.visibilityState},
       presentation:window.LuminousCombatStepRuntime.presentationEnabled()
     }))})));
     fs.writeFileSync(`${ARTIFACTS}/phase1-steps-${silentPlayer?'mixed':'animated'}.json`,JSON.stringify(stepTraces,null,2));

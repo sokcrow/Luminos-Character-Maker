@@ -40,6 +40,8 @@
   }
   function context(detail={}){
     const s=state();if(!s?.db?.ref||s.firebaseReady===false||s.role!=='player'||!s.uid||!s.playerId||!planning(s))return null;
+    const authority=global.LuminousCombatAuthority073?.state?.current;
+    if(Number(authority?.round)===Number(s.round)&&['sealed','running','complete'].includes(norm(authority?.phase)))return null;
     const own=ownCombatant(s);if(!own)throw new Error('PLAYER_COMBATANT_NOT_DEPLOYED');
     const unitId=own[0],plans=Array.isArray(detail.plans)?detail.plans:[],owner=safe(s.playerId),slotCount=Math.max(plans.length,Math.trunc(finite(own[1]?.actionSlots??own[1]?.activeSlots,1)),1),round=Math.max(1,Math.trunc(finite(s.round,1)));
     return{s,own,unitId,plans,owner,slotCount,round};
