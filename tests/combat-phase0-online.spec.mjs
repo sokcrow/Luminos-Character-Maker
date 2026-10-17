@@ -151,6 +151,13 @@ test('authenticated DM and two Players share kit, sealed round and final vitals'
     await planAndReady(playerB);
     await expect.poll(async () => (await readEmulator('campaña/combate/authority/current'))?.phase, { timeout: 90000 }).toBe('complete');
     const result = await readEmulator('campaña/combate/authority/current');
+    fs.writeFileSync(`${ARTIFACTS}/round-diagnostic.json`, JSON.stringify({ result,
+      viewers: await Promise.all(sessions.map(async ({ role, page, errors, forbidden }) => ({ role, errors, forbidden,
+        ...await page.evaluate(() => ({ status: document.getElementById('status')?.textContent,
+          round: document.getElementById('round')?.textContent, plans: window.LuminousCombat073.plans(),
+          units: Object.fromEntries(Object.entries(window.LuminousCombat073.combatants()).map(([id, unit]) => [id, { hp: unit.hp, sp: unit.sp }])) })),
+      }))),
+    }, null, 2));
     expect(result.checkpoint.seq).toBeGreaterThan(0);
     expect(result.checkpoint.combatants['enemy:dummy'].hp).toBeLessThan(150);
     for (const { page, errors, forbidden } of sessions) {
