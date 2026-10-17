@@ -236,16 +236,66 @@
     return registeredCombatUnits().find((unit) => isCurrentPlayerUnit(unit)) || null;
   }
 
+  let viewerBattleMasterLoad = null;
+
+  function viewerBattleMasterSelected(unit) {
+    const character = global.LuminousPlayerTraitRuntime?.getCharacter?.() || null;
+    const id = (value) => normalizeId(value).replace(/-/g, "_");
+    return [unit, character].some((source) => {
+      const archetypes = source?.characterBuild?.archetypes ?? source?.archetypes ?? [];
+      const selected = Array.isArray(archetypes)
+        ? archetypes
+        : Object.entries(archetypes || {}).map(([classId, entry]) =>
+          typeof entry === "string" ? { classId, archetypeId: entry } : { classId, ...(entry || {}) });
+      return selected.some((entry) => id(entry?.classId || entry?.parentClassId) === "fighter"
+        && id(entry?.archetypeId || entry?.subclassId || entry?.id) === "battle_master");
+    });
+  }
+
+  function ensureViewerBattleMasterRuntime() {
+    if (global.LuminousBattleMasterArchetypeRuntime?.applyEncounterStartManeuvers) return true;
+    if (!viewerBattleMasterLoad) {
+      // These runtimes are normally class-manifest-loaded on the player sheet,
+      // but the embedded Battle Viewer can enter an Encounter before that load.
+      viewerBattleMasterLoad = ensureScript(
+        "fighter-maneuver-catalog-script", "js/fighter-maneuver-catalog.js",
+        () => Boolean(global.LuminousFighterManeuverCatalog)
+      ).then(() => ensureScript(
+        "battle-master-archetype-runtime-script", "js/battle-master-archetype-runtime.js",
+        () => Boolean(global.LuminousBattleMasterArchetypeRuntime?.applyEncounterStartManeuvers)
+      )).then(() => {
+        viewerBattleMasterLoad = null;
+        if (global.LuminousBattleMasterArchetypeRuntime?.applyEncounterStartManeuvers) {
+          dispatchPendingEncounterStart();
+        }
+      }).catch((error) => {
+        viewerBattleMasterLoad = null;
+        global.console?.warn?.("[Encounter Start] Battle Master runtime unavailable", error);
+      });
+    }
+    return false;
+  }
+
   function dispatchPendingEncounterStart() {
     if (!state.viewerEncounterPending) return false;
     const runtime = global.LuminousPlayerTraitRuntime;
     const unit = currentRegisteredPlayerUnit();
     if (!runtime?.dispatchCombatEvent || !unit) return false;
+
+    // The Battle Viewer Firebase transition does not invoke CombatEngine's
+    // triggerEncounterStart hook. Execute learned Maneuvers through the same
+    // Battle Master handler before dispatching ordinary class Traits.
+    const battleMasterSelected = viewerBattleMasterSelected(unit);
+    if (battleMasterSelected && !ensureViewerBattleMasterRuntime()) return false;
+    const units = liveCombatUnits({ units: registeredCombatUnits() });
     state.viewerEncounterPending = false;
+    if (battleMasterSelected) {
+      global.LuminousBattleMasterArchetypeRuntime.applyEncounterStartManeuvers(units, global.CombatEngine);
+    }
     runtime.dispatchCombatEvent("encounter_start", {
       context: "combat",
       self: unit,
-      units: registeredCombatUnits(),
+      units,
     });
     return true;
   }
