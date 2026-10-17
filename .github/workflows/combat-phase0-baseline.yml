@@ -1,0 +1,62 @@
+name: Combat Phase 0 Baseline
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'Battle-viewer.html'
+      - 'combat/**'
+      - 'js/**'
+      - 'css/player-skills-hud.css'
+      - 'database.rules.json'
+      - 'firebase.combat-phase0.json'
+      - 'scripts/build-combat-live.mjs'
+      - 'scripts/validate-combat-phase0.mjs'
+      - 'tests/**'
+      - 'playwright.combat-phase0.config.cjs'
+      - 'package.json'
+      - 'docs/combat-phase0-baseline.md'
+      - 'docs/combat-engine-forest-spatial-evolution.md'
+      - '.github/workflows/combat-phase0-baseline.yml'
+permissions:
+  contents: read
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm run check:combat-live
+      - run: npm run test:combat-phase0
+  authenticated-browser:
+    needs: contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install isolated test dependencies
+        run: npm install --no-save --no-audit --no-fund @playwright/test@1.58.2 firebase@12.19.0 firebase-tools@14.12.1
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Real local Auth, RTDB and browser sessions
+        env:
+          CI: 'true'
+        run: >-
+          npx firebase emulators:exec --only auth,database
+          --project demo-luminos-combat-phase0 --config firebase.combat-phase0.json
+          -- "node tests/combat-phase0-auth-emulator.mjs && npx playwright test --config playwright.combat-phase0.config.cjs --reporter=line"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: combat-phase0-browser-evidence
+          path: artifacts/combat-phase0/
+          if-no-files-found: ignore

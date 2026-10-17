@@ -8,6 +8,7 @@
     players: "campaña/jugadores",
     skills: "campaña/base_datos_skills",
     units: "campaña/base_datos_unidades",
+    combatants: "campaña/combate/combatants",
   });
 
   const state = {
@@ -271,17 +272,19 @@
     });
   }
 
-  function playerUnitResolution() {
+  function playerUnitResolution(selection = { playerId: state.playerId, player: state.player }) {
     const runtime = global.LuminousCombatSkillLoadout074;
-    if (!runtime?.resolvePlayerUnit || !state.playerId || !state.player) return { ok: false, reason: "UNAVAILABLE" };
+    const playerId = clean(selection.playerId);
+    const player = selection.player;
+    if (!runtime?.resolvePlayerUnit || !playerId || !player) return { ok: false, reason: "UNAVAILABLE" };
     const actor = {
-      playerId: state.playerId,
-      sourceId: state.playerId,
-      ownerUid: state.player?.uid || state.player?.ownerUid || null,
-      linkedActorId: state.player?.actorId || null,
-      actorId: state.player?.actorId || null,
-      unitId: state.player?.unitId || state.player?.unit_id || null,
-      raw: state.player,
+      playerId,
+      sourceId: playerId,
+      ownerUid: player?.uid || player?.ownerUid || null,
+      linkedActorId: player?.actorId || null,
+      actorId: player?.actorId || null,
+      unitId: player?.unitId || player?.unit_id || null,
+      raw: player,
     };
     return runtime.resolvePlayerUnit(actor, state.units);
   }
@@ -324,11 +327,26 @@
     ).join("");
   }
 
-  async function syncUnitUpdates(updates) {
-    const unit = playerUnitResolution();
+  async function syncUnitUpdates(updates, selection) {
+    const unit = playerUnitResolution(selection);
     if (!unit.ok || !state.db) return { synced: false, reason: unit.reason || "PLAYER_UNIT_NOT_FOUND" };
     await state.db.ref(`${ROOTS.units}/${unit.unitId}`).update(updates);
     return { synced: true, unitId: unit.unitId };
+  }
+
+  async function syncDeployedCombatantUpdates(updates, selection) {
+    // Player and Library Unit are not the already deployed Combatant.
+    // Never create a Combatant as a side effect of editing a Build.
+    const snapshot = await state.db.ref(ROOTS.combatants).once("value");
+    const resolution = core()?.activeCombatantForPlayer?.(
+      selection.playerId, snapshot.val() || {}, selection.player?.uid || selection.player?.ownerUid || ""
+    );
+    if (!resolution?.ok) {
+      if (resolution?.reason === "NOT_DEPLOYED") return { synced: false, reason: "NOT_DEPLOYED" };
+      throw new Error(resolution?.reason || "ACTIVE_COMBATANT_UNRESOLVED");
+    }
+    await state.db.ref(`${ROOTS.combatants}/${resolution.key}`).update(updates);
+    return { synced: true, key: resolution.key };
   }
 
   async function saveDeck() {
@@ -343,11 +361,12 @@
       return false;
     }
 
+    const selection = { playerId: state.playerId, player: clone(state.player) };
     const button = doc.getElementById("dm-loadout-save-deck");
     if (button) button.disabled = true;
     if (feedback) feedback.textContent = "GUARDANDO DECK...";
     try {
-      await state.db.ref(`${ROOTS.players}/${state.playerId}`).update(built.updates);
+      await state.db.ref(`${ROOTS.players}/${selection.playerId}`).update(built.updates);
       const unitUpdates = {
         skillDeck: built.validation.deck,
         skillSlotIds: built.validation.skillSlotIds,
@@ -356,10 +375,17 @@
         "characterBuild/skillDeck": built.validation.deck,
         "characterBuild/skillLoadoutSource": "dm_loadout_manager",
       };
-      const unitSync = await syncUnitUpdates(unitUpdates).catch(() => ({ synced: false, reason: "UNIT_SYNC_FAILED" }));
-      if (feedback) feedback.textContent = unitSync.synced
-        ? "DECK GUARDADO · PLAYER + UNIT SINCRONIZADOS"
-        : "DECK GUARDADO EN PLAYER · COMBATE USARÁ EL LOADOUT CANÓNICO";
+      const unitSync = await syncUnitUpdates(unitUpdates, selection).catch(() => ({ synced: false, reason: "UNIT_SYNC_FAILED" }));
+      let activeSync;
+      try { activeSync = await syncDeployedCombatantUpdates(unitUpdates, selection); }
+      catch (error) {
+        console.error("Deck guardado pero no sincronizado con el combate:", error);
+        if (feedback) feedback.textContent = "DECK GUARDADO · NO SE PUDO ACTUALIZAR EL COMBATE";
+        return false;
+      }
+      if (feedback) feedback.textContent = activeSync.synced
+        ? "SKILLS ACTUALIZADAS EN EL COMBATE"
+        : (unitSync.synced ? "SKILLS GUARDADAS · LISTAS PARA EL PRÓXIMO COMBATE" : "SKILLS GUARDADAS EN EL JUGADOR · SIN UNIT VINCULADA");
       return true;
     } catch (error) {
       console.error("No se pudo guardar el Skill Deck:", error);
@@ -377,15 +403,23 @@
       return false;
     }
     const updates = core()?.buildSpellUpdates?.([...state.selectedCombatSpells], [...state.selectedRoleSpells], "dm_loadout_manager");
+    const selection = { playerId: state.playerId, player: clone(state.player) };
     const button = doc.getElementById("dm-loadout-save-spells");
     if (button) button.disabled = true;
     if (feedback) feedback.textContent = "GUARDANDO SPELLS...";
     try {
-      await state.db.ref(`${ROOTS.players}/${state.playerId}`).update(updates);
-      const unitSync = await syncUnitUpdates(updates).catch(() => ({ synced: false, reason: "UNIT_SYNC_FAILED" }));
-      if (feedback) feedback.textContent = unitSync.synced
-        ? "SPELLS GUARDADOS · PLAYER + UNIT SINCRONIZADOS"
-        : "SPELLS GUARDADOS EN PLAYER";
+      await state.db.ref(`${ROOTS.players}/${selection.playerId}`).update(updates);
+      const unitSync = await syncUnitUpdates(updates, selection).catch(() => ({ synced: false, reason: "UNIT_SYNC_FAILED" }));
+      let activeSync;
+      try { activeSync = await syncDeployedCombatantUpdates(updates, selection); }
+      catch (error) {
+        console.error("Spells guardados pero no sincronizados con el combate:", error);
+        if (feedback) feedback.textContent = "SPELLS GUARDADOS · NO SE PUDO ACTUALIZAR EL COMBATE";
+        return false;
+      }
+      if (feedback) feedback.textContent = activeSync.synced
+        ? "SPELLS ACTUALIZADOS EN EL COMBATE"
+        : (unitSync.synced ? "SPELLS GUARDADOS · LISTOS PARA EL PRÓXIMO COMBATE" : "SPELLS GUARDADOS EN EL JUGADOR · SIN UNIT VINCULADA");
       return true;
     } catch (error) {
       console.error("No se pudieron guardar los Spells:", error);
@@ -548,7 +582,7 @@
   }
 
   const api = Object.freeze({
-    version: "0.1.0",
+    version: "0.1.1",
     ROOTS,
     state,
     render,

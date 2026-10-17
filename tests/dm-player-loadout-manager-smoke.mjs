@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { runInNewContext } from 'node:vm';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -129,5 +130,129 @@ assert.match(manager, /campaña\/base_datos_unidades/);
 assert.match(skillLoadout, /characterBuild\?\.skillDeck/);
 assert.match(playerEntry, /hasPlayerManagedSkillLoadout/);
 assert.match(playerEntry, /playerSkillSlots\.length \? raw : sourceUnit/);
+
+// Active Encounter snapshots must be updated independently from Player/Unit records.
+const deployed = {
+  'player:alice': { isPlayer: true, canonicalPlayerKey: 'alice', canonicalOwnerUid: 'uid-a' },
+  enemy_1: { category: 'enemy', playerId: 'alice' },
+  'player:bob': { isPlayer: true, canonicalPlayerKey: 'bob', canonicalOwnerUid: 'uid-b' },
+};
+assert.deepEqual(core.activeCombatantForPlayer('alice', deployed, 'uid-a'), {
+  ok: true, reason: null, key: 'player:alice',
+});
+assert.equal(core.activeCombatantForPlayer('alice', deployed, 'wrong-uid').reason, 'NOT_DEPLOYED');
+assert.equal(core.activeCombatantForPlayer('alice', {}, 'uid-a').reason, 'NOT_DEPLOYED');
+assert.equal(core.activeCombatantForPlayer('alice', {
+  a: { isPlayer: true, playerId: 'alice' },
+  b: { isPlayer: true, ownerPlayerId: 'alice' },
+}).reason, 'AMBIGUOUS_ACTIVE_COMBATANTS');
+assert.match(manager, /syncDeployedCombatantUpdates\(unitUpdates, selection\)/);
+assert.match(manager, /syncDeployedCombatantUpdates\(updates, selection\)/);
+assert.match(manager, /campaña\/combate\/combatants/);
+assert.doesNotMatch(manager, /COMBATE USARÁ EL LOADOUT CANÓNICO/);
+
+const writes = [];
+const deckFeedback = { textContent: "" };
+const spellFeedback = { textContent: "" };
+const deckFields = {
+  "dm-loadout-tier-1": { value: "skill_t1" },
+  "dm-loadout-tier-2": { value: "skill_t2" },
+  "dm-loadout-tier-3": { value: "skill_t3" },
+  "dm-loadout-deck-feedback": deckFeedback,
+  "dm-loadout-spell-feedback": spellFeedback,
+  "dm-loadout-save-deck": { disabled: false },
+  "dm-loadout-save-spells": { disabled: false },
+};
+let deployedCombatants = {
+  "player:alice": { isPlayer: true, canonicalPlayerKey: "alice", canonicalOwnerUid: "uid-a", skillIds: [] },
+  "player:bob": { isPlayer: true, canonicalPlayerKey: "bob", canonicalOwnerUid: "uid-b", skillIds: [] },
+  enemy: { category: "enemy", skillIds: ["claw"] },
+};
+const fakeDb = {
+  ref(refPath) {
+    return {
+      async update(updates) { writes.push({ path: refPath, updates: structuredClone(updates) }); },
+      async once() { return { val() { return structuredClone(deployedCombatants); } }; },
+    };
+  },
+};
+const sandboxWindow = {
+  document: {
+    readyState: "loading",
+    addEventListener() {},
+    getElementById(id) { return deckFields[id] || null; },
+  },
+  LuminousDmPlayerLoadoutCore: core,
+  LuminousCombatSkillLoadout074: {
+    resolvePlayerUnit() { return { ok: true, unitId: "unit-alice" }; },
+  },
+  addEventListener() {},
+  console,
+};
+runInNewContext(manager, { window: sandboxWindow });
+const liveManager = sandboxWindow.LuminousDmPlayerLoadoutManager;
+assert.ok(liveManager, "Real DM manager should be initialized without UI boot");
+liveManager.state.db = fakeDb;
+liveManager.state.playerId = "alice";
+liveManager.state.player = { uid: "uid-a" };
+liveManager.state.skills = skills;
+liveManager.state.units = { "unit-alice": { isPlayer: true } };
+assert.equal(await liveManager.saveDeck(), true);
+assert.deepEqual(writes.map((write) => write.path), [
+  "campaña/jugadores/alice", "campaña/base_datos_unidades/unit-alice",
+  "campaña/combate/combatants/player:alice",
+], "Save Deck must update the deployed Player, not just the Player/Unit Library");
+assert.deepEqual(writes[2].updates.skillSlotIds, validDeck.skillSlotIds);
+assert.deepEqual(writes[2].updates.equippedSkillIndex, validDeck.equippedSkillIndex);
+assert.ok(!writes.some((write) => write.path.includes("player:bob") || write.path.endsWith("/enemy")));
+assert.equal(deckFeedback.textContent, "SKILLS ACTUALIZADAS EN EL COMBATE");
+
+writes.length = 0;
+liveManager.state.selectedCombatSpells = new Set(["shield"]);
+liveManager.state.selectedRoleSpells = new Set(["message"]);
+assert.equal(await liveManager.saveSpells(), true);
+assert.deepEqual(writes.map((write) => write.path), [
+  "campaña/jugadores/alice", "campaña/base_datos_unidades/unit-alice",
+  "campaña/combate/combatants/player:alice",
+]);
+assert.equal(writes[2].updates["characterBuild/spellLoadoutSource"], "dm_loadout_manager");
+assert.equal(spellFeedback.textContent, "SPELLS ACTUALIZADOS EN EL COMBATE");
+
+writes.length = 0;
+deployedCombatants = {};
+assert.equal(await liveManager.saveDeck(), true, "Pre-deployment saves remain supported");
+assert.deepEqual(writes.map((write) => write.path), [
+  "campaña/jugadores/alice", "campaña/base_datos_unidades/unit-alice",
+], "Build editor must not create phantom Combatants while no Encounter exists");
+assert.match(deckFeedback.textContent, /PRÓXIMO COMBATE/);
+
+// Changing the selected character during asynchronous Firebase writes must
+// not redirect the remainder of a Save Deck to someone else's Unit/Combatant.
+writes.length = 0;
+deployedCombatants = {
+  "player:alice": { isPlayer: true, canonicalPlayerKey: "alice", canonicalOwnerUid: "uid-a" },
+  "player:bob": { isPlayer: true, canonicalPlayerKey: "bob", canonicalOwnerUid: "uid-b" },
+};
+liveManager.state.playerId = "alice";
+liveManager.state.player = { uid: "uid-a" };
+const previousUpdate = fakeDb.ref.bind(fakeDb);
+fakeDb.ref = function(path) {
+  const ref = previousUpdate(path);
+  if (path === "campaña/jugadores/alice") {
+    const oldUpdate = ref.update;
+    ref.update = async function(value) {
+      await oldUpdate(value);
+      liveManager.state.playerId = "bob";
+      liveManager.state.player = { uid: "uid-b" };
+    };
+  }
+  return ref;
+};
+assert.equal(await liveManager.saveDeck(), true);
+assert.deepEqual(writes.map((write) => write.path), [
+  "campaña/jugadores/alice", "campaña/base_datos_unidades/unit-alice",
+  "campaña/combate/combatants/player:alice",
+], "Mid-save selection changes must never redirect Skills into another Player");
+assert.equal(deckFeedback.textContent, "SKILLS ACTUALIZADAS EN EL COMBATE");
 
 console.log('dm-player-loadout-manager-smoke: ok');
