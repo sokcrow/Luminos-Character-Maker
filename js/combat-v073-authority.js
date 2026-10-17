@@ -257,7 +257,7 @@
       if(isDm()){if(Number(current?.round)!==Number(s.round)||!['sealed','running'].includes(norm(current?.phase)))current=await sealRound();if(norm(current.phase)!=='running')current=await setRunning(current);}else{state.remoteStart=false;if(Number(current?.round)!==Number(s.round)||norm(current?.phase)!=='running')return false;state.inFlightActions=0;state.executionChain=Promise.resolve();resetRandom(current.seed,0);}
       applyAuthority(current);const completedRound=Number(current.round)||Number(s.round)||1;await original();await state.executionChain;
       const nextRound=domRound(completedRound);
-      if(nextRound<=completedRound)throw new Error('COMBAT_ROUND_DID_NOT_ADVANCE');
+      if(nextRound<=completedRound)throw new Error('No se pudo completar el turno. Vuelve a abrir el combate.');
       if(isDm()){await state.writeChain;await afterRound({completedRound,nextRound});}else if(state.pendingFinalSnapshot){applySnapshot(state.pendingFinalSnapshot.combatants||{});if(Number.isFinite(Number(state.pendingFinalSnapshot.rngCursor)))resetRandom(current.seed,Number(state.pendingFinalSnapshot.rngCursor));state.pendingFinalSnapshot=null;}
       return true;
     }catch(error){console.error('[Combat073 Authority start]',error);setStatus(`COMBAT AUTHORITY · ${error?.message||error}`);return false;}finally{state.runningLocal=false;if(adapterState()?.firebaseReady)adapter()?.scheduleHydrate?.();}

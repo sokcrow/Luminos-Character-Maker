@@ -40,7 +40,7 @@ const authority = window.LuminousCombatAuthority073;
 authority.state.current = { phase: 'running', round: 1, seed: 123 };
 assert.equal(await authority.requestStartRound(), false);
 assert.equal(writes.length, 0, 'an early runtime return must not publish a completed round');
-assert.ok(errors.some((message) => message.includes('COMBAT_ROUND_DID_NOT_ADVANCE')));
+assert.ok(errors.some((message) => message.includes('No se pudo completar el turno.')));
 advance = true;
 assert.equal(await authority.requestStartRound(), true);
 assert.equal(readyCalls, 0, 'playback must not submit Player Ready after sealing');
