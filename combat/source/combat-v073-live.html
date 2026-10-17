@@ -6872,7 +6872,7 @@ function combatStepRuntime(){
       powerEnd(entry,count,power,coins){setFloatingClashHud(entry,count,power,coins);powerHosts.delete(hostKey(entry))},
       hitsStart(entry,remaining){setFloatingClashHud(entry,remaining)},
       hitStart(entry,remaining,coinIndex,coins){
-        const hud=setFloatingClashHud(entry,remaining),data=clashData(entry.plan);
+        const hud=ensureFloatingClashHud(entry),data=clashData(entry.plan);
         setFloatingCoinDetail(hud,data,remaining,coinIndex);
         const strip=renderFloatingClashCoins(hud,data.coinAmount,remaining,null,{rolling:true});
         if(strip)strip.innerHTML=`${coins.map(coinResultMarkup).join('')}<span class="clash-current-roll-host"></span>${Array.from({length:Math.max(0,remaining-coins.length-1)},()=>`<span class="clash-float-coin unresolved-tail"><img src="${window.LuminousCoinEngine.TAIL_SRC}" alt="Tail"></span>`).join('')}`;
