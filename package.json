@@ -11,7 +11,8 @@
     "test:combat-mobile": "node tests/combat-mobile-boot-smoke.mjs",
     "build:combat-live": "node scripts/build-combat-live.mjs",
     "check:combat-live": "node scripts/build-combat-live.mjs --check",
-    "test:combat-phase0": "node scripts/validate-combat-phase0.mjs"
+    "test:combat-phase0": "node scripts/validate-combat-phase0.mjs",
+    "test:combat-phase1": "node tests/combat-phase1-steps.mjs && node tests/combat-phase1-boundaries.mjs"
   },
   "repository": {
     "type": "git",

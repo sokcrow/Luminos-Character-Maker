@@ -8,7 +8,7 @@ const literal = (name) => vm.runInNewContext(bootstrap.match(new RegExp('const '
 const needle = literal('liveDeckNeedle'), patch = literal('liveDeckPatch');
 assert.equal(source.split(needle).length, 2);
 const begin = source.indexOf('function hydrateLiveCombat(payload={}){');
-const hydrate = source.slice(begin, source.indexOf('\nwindow.LuminousCombat073=', begin)).replace(needle, patch);
+const hydrate = source.slice(begin, source.indexOf('\nwindow.LuminousCombatStepRuntime=', begin)).replace(needle, patch);
 const units = {}, roundNode = { textContent: '1' };
 let resets = 0;
 const sandbox = { UNIT_KITS: {}, AUTO_UNIT_IDS: [], PLAYER_ID: '', round: 1, deckSkills: [],

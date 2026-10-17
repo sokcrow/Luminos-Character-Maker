@@ -123,7 +123,7 @@ async function planAndReady(page) {
   await page.locator('#ready').click();
 }
 
-test('authenticated DM and two Players share kit, sealed round and final vitals', async ({ browser }) => {
+for (const silentPlayer of [false,true]) test(`authenticated DM and two Players share kit, sealed round and final vitals (silent Player: ${silentPlayer})`, async ({ browser }) => {
   const fixture = await seedPhase0();
   const sessions = [];
   fs.mkdirSync(ARTIFACTS, { recursive: true });
@@ -133,6 +133,7 @@ test('authenticated DM and two Players share kit, sealed round and final vitals'
     const playerA = sessions.find((s) => s.role === 'a').page;
     const playerB = sessions.find((s) => s.role === 'b').page;
     const dm = sessions.find((s) => s.role === 'dm').page;
+    if(silentPlayer)await playerB.evaluate(()=>window.LuminousCombatStepRuntime.setPresentationEnabled(false));
     expect(await saveLiveDeck(dm, fixture)).toBe(true);
     await playerA.waitForFunction(() => window.LuminousCombat073.combatants()['player:a'].skillIds.includes('phase0_cut'));
     await playerB.waitForFunction(() => window.LuminousCombat073.combatants()['player:a'].skillIds.includes('phase0_cut'));
@@ -174,6 +175,21 @@ test('authenticated DM and two Players share kit, sealed round and final vitals'
       expect(errors).toEqual([]);
       expect(forbidden).toEqual([]);
     }
+    const stepTraces=await Promise.all(sessions.map(async({role,page})=>({role,...await page.evaluate(()=>({
+      events:window.LuminousCombatStepRuntime.events(),rngCursor:window.LuminousCombatAuthority073.state.cursor,
+      localDigests:[...window.LuminousCombatAuthority073.state.localDigests],
+      presentation:window.LuminousCombatStepRuntime.presentationEnabled()
+    }))})));
+    fs.writeFileSync(`${ARTIFACTS}/phase1-steps-${silentPlayer?'mixed':'animated'}.json`,JSON.stringify(stepTraces,null,2));
+    const dmTrace=stepTraces.find(s=>s.role==='dm');
+    for(const trace of stepTraces){
+      expect(trace.events).toEqual(dmTrace.events);
+      expect(trace.rngCursor).toEqual(dmTrace.rngCursor);
+      expect(trace.localDigests).toEqual(dmTrace.localDigests);
+    }
+    expect(dmTrace.events.some(e=>e.type==='CoinRolled')).toBe(true);
+    expect(dmTrace.events.some(e=>e.type==='DamageApplied')).toBe(true);
+    expect(dmTrace.events.at(-1).type).toBe('RoundFinished');
     await playerA.reload({ waitUntil: 'domcontentloaded' });
     await playerA.waitForFunction(() => window.LuminousCombat073?.combatants?.()?.['player:a']);
     const reloaded = await playerA.evaluate(() => ({ hp: window.LuminousCombat073.combatants()['player:a'].hp, sp: window.LuminousCombat073.combatants()['player:a'].sp, round: window.LuminousCombatLiveAdapter073.state.round }));

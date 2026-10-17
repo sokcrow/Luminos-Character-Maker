@@ -2,7 +2,7 @@ name: Combat Phase 0 Baseline
 on:
   workflow_dispatch:
   pull_request:
-    branches: [main]
+    branches: [main, feat/combat-phase0-integration]
     paths:
       - 'Battle-viewer.html'
       - 'combat/**'
@@ -12,6 +12,7 @@ on:
       - 'firebase.combat-phase0.json'
       - 'scripts/build-combat-live.mjs'
       - 'scripts/validate-combat-phase0.mjs'
+      - 'docs/combat-phase1-steps.md'
       - 'tests/**'
       - 'playwright.combat-phase0.config.cjs'
       - 'package.json'
@@ -30,6 +31,7 @@ jobs:
           node-version: '22'
       - run: npm run check:combat-live
       - run: npm run test:combat-phase0
+      - run: npm run test:combat-phase1
   authenticated-browser:
     needs: contracts
     runs-on: ubuntu-latest

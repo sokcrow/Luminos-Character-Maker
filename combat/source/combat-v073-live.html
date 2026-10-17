@@ -2484,13 +2484,14 @@
     container.appendChild(fragment);
     return new Promise((resolve) => {
       const finish = () => { if (completed || resolved < coinCount) return; completed = true; const result = { base, total: currentTotal, heads: coins.filter((coin) => coin.side === "head").length, coinCount, headBonus: HEAD_BONUS, headsChance, coins: coins.slice() }; options.onComplete?.(result); resolve(result); };
-      const resolveCoin = (index) => { const node = nodes[index]; if (!node || node.wrapper.dataset.state === "resolved") return; node.wrapper.dataset.state = "resolved"; node.animation?.cancel?.(); node.image.classList.remove("luminous-core-coin-spinning"); const side = rollSide(headsChance, options.rng); node.wrapper.dataset.side = side; node.image.dataset.side = side; node.image.alt = side === "head" ? "Head" : "Tail"; node.image.src = coinSrc(side); if (side === "head") currentTotal += HEAD_BONUS; if (options.totalNode) options.totalNode.textContent = String(currentTotal); playSideSfx(side, options); const coin = { index, side, src: coinSrc(side) }; coins[index] = coin; resolved += 1; options.onCoinResolved?.({ index, side, src: coin.src, currentTotal, resolved, coinCount, headsChance }); finish(); };
+      const resolveCoin = (index) => { const node = nodes[index]; if (!node || node.wrapper.dataset.state === "resolved") return; node.wrapper.dataset.state = "resolved"; node.animation?.cancel?.(); node.image.classList.remove("luminous-core-coin-spinning"); const side = options.resolvedCoins?.[index]?.side || rollSide(headsChance, options.rng); node.wrapper.dataset.side = side; node.image.dataset.side = side; node.image.alt = side === "head" ? "Head" : "Tail"; node.image.src = coinSrc(side); if (side === "head") currentTotal += HEAD_BONUS; if (options.totalNode) options.totalNode.textContent = String(currentTotal); playSideSfx(side, options); const coin = { index, side, src: coinSrc(side) }; coins[index] = coin; resolved += 1; options.onCoinResolved?.({ index, side, src: coin.src, currentTotal, resolved, coinCount, headsChance }); finish(); };
       nodes.forEach((node, index) => { if (auto) global.setTimeout(() => resolveCoin(index), (index + 1) * intervalMs); else { node.wrapper.style.cursor = "pointer"; node.wrapper.addEventListener("click", () => resolveCoin(index), { once: true }); } });
     });
   }
   global.LuminousCoinEngine = Object.freeze({ HEAD_SRC, TAIL_SRC, HEAD_SFX, TAIL_SFX, DEFAULT_COIN_COUNT, HEAD_BONUS, clampHeadsChance, rollSide, coinSrc, runAnimatedRoll });
 })(window);
 </script>
+<script src="js/combat-v073-steps.js"></script>
 <script>
 let combatData={},round=1,selectedSlotIndex=0,navState='root',activeMenu=null,selected=null,focusedIndex=0,transitionToken=0,plannedActions=[],planReady=false,roundRunning=false,viewModeActive=false,analyseModeActive=false,targetingModeActive=false,pendingTargetPlan=null,pendingTargetSlotIndex=-1,selectedObservationEnemy=null,observationUsedTurn=0,observationRolling=false,clashChoiceSerial=0,clashConfirmationActive=false,pendingClashConfirmation=null,activeGrapples=[],grappleSerial=0,timelineResolutionActive=false;
 const PLAYER_SCORES={
@@ -2671,7 +2672,9 @@ function loseConcentration(unitId,reason='BROKEN'){
 function beginConcentration(unitId,label='Spell'){
   const unit=combatData[unitId];if(!unit)return null;
   if(concentrationState(unit))loseConcentration(unitId,'NEW CONCENTRATION');
-  const id=`conc_${unitId}_${round}_${Date.now()}_${Math.floor(Math.random()*9999)}`;
+  const authority=window.LuminousCombatAuthority073?.state,
+        stamp=authority?.seed&&['sealed','running'].includes(authority.current?.phase)?`${authority.seed}_${authority.cursor}`:Date.now(),
+        id=`conc_${unitId}_${round}_${stamp}_${Math.floor(Math.random()*9999)}`;
   unit.concentration={id,active:true,label,startedRound:round};
   return unit.concentration
 }
@@ -5122,15 +5125,7 @@ function scheduleCrossedStaggerThresholds(id,oldPct,newPct,duration,animToken){
     .map((pct,index)=>({pct:Number(pct),index}))
     .filter(({pct,index})=>oldPct>pct&&newPct<=pct&&!d.triggeredStaggerThresholds.includes(index))
     .sort((a,b)=>b.pct-a.pct);
-  const span=oldPct-newPct||1;
-  crossed.forEach(({pct,index})=>{
-    const progress=(oldPct-pct)/span,
-          delay=Math.max(0,Math.min(duration,Math.round(duration*progress)));
-    d._hpTimers.push(setTimeout(()=>{
-      if(d._hpAnimToken!==animToken)return;
-      triggerStaggerThreshold(id,index)
-    },delay))
-  })
+  crossed.forEach(({index})=>triggerStaggerThreshold(id,index))
 }
 function setCombatantStaggerThresholds(id,nextThresholds){
   const d=combatData[id];
@@ -5288,13 +5283,12 @@ function clearHpAnimation(d){
 function setCombatantHP(id,nextHp,{triggerStagger=true}={}){
   const d=combatData[id],
         token=$(`token-${id}`);
-  if(!d||!token)return false;
+  if(!d)return false;
 
-  const floor=token.querySelector('.diegetic-floor'),
+  const floor=token?.querySelector('.diegetic-floor'),
         main=floor?.querySelector('.hp-fill-line'),
         transition=floor?.querySelector('.hp-transition-line'),
-        number=token.querySelector('.hp-number');
-  if(!main||!transition)return false;
+        number=token?.querySelector('.hp-number');
 
   clearHpAnimation(d);
   const oldHp=Math.max(0,Math.min(d.maxHp,Number(d.hp)||0)),
@@ -5316,6 +5310,9 @@ function setCombatantHP(id,nextHp,{triggerStagger=true}={}){
     syncUnitActionState(id)
   }
 
+  if(triggerStagger&&newPct<oldPct)scheduleCrossedStaggerThresholds(id,oldPct,newPct,0,animToken);
+  if(!main||!transition)return true;
+
   // Reset the auxiliary line to the pre-change HP.
   transition.classList.remove('damage','heal');
   transition.style.opacity='1';
@@ -5330,7 +5327,7 @@ function setCombatantHP(id,nextHp,{triggerStagger=true}={}){
     // Main HP falls first. White residual HP follows a little later.
     transition.classList.add('damage');
     setHpLinePct(main,newPct,240,0);
-    if(triggerStagger) scheduleCrossedStaggerThresholds(id,oldPct,newPct,240,animToken);
+    // Stagger already committed with the HP change, independently of this tween.
 
     d._hpTimers.push(setTimeout(()=>{
       if(d._hpAnimToken!==animToken)return;
@@ -5379,11 +5376,12 @@ function setCombatantSP(id,nextSp){
   const d=combatData[id],
         token=$(`token-${id}`),
         orb=token?.querySelector('.floating-sp-group');
-  if(!d||!orb)return false;
+  if(!d)return false;
   const min=Number.isFinite(Number(d.minSp))?Number(d.minSp):-45,
         max=Number.isFinite(Number(d.maxSp))?Number(d.maxSp):45,
         value=Math.max(min,Math.min(max,Number(nextSp)||0));
   d.sp=value;
+  if(!orb)return true;
   orb.textContent=Math.round(value);
   if(d.faction==='enemy')syncUnitVisibility(id);
   orb.classList.remove('sp-heal-pulse');
@@ -6257,6 +6255,15 @@ async function executeTimelineEvent(event,queue,resolvedKeys){
   }
 }
 async function executeCombatTimeline(queue,resolvedKeys){
+  if(window.LuminousCombatLiveMode===true){
+    try{
+      for(const event of buildTimelineEvents(queue)){
+        setTimelineVisualFocus(event.participants);
+        await executeTimelineEvent(event,queue,resolvedKeys)
+      }
+    }finally{clearTimelineVisualFocus()}
+    return
+  }
   const pending=buildTimelineEvents(queue),active=new Map(),lockedParticipants=new Set(),activeParticipantEvents=new Map();
   if(!pending.length){clearTimelineVisualFocus();return}
   const startedAt=performance.now();
@@ -6820,30 +6827,80 @@ async function animateSkillCoinRoll(unitId,coinCount,container,onCoinResolved=nu
     }
   })
 }
+let combatStepsInstance=null;
+function combatStepRuntime(){
+  if(combatStepsInstance)return combatStepsInstance;
+  const powerHosts=new Map(),hitHosts=new Map(),
+        hostKey=entry=>`${entry.ownerId}:${entry.localIndex??0}`,
+        rollCoin=async(container,coin,onResolved)=>{
+          if(!container)return;
+          await window.LuminousCoinEngine.runAnimatedRoll({document,container,coinCount:1,base:0,
+            headsChance:50,intervalMs:COMBAT_PACE.coinInterval,auto:true,silent:true,
+            resolvedCoins:[coin],onCoinResolved:onResolved})
+        };
+  const names=['coinHeadsChanceForUnit','clashLevelPowerBonus','statusAttackPowerModifier','statusClashPowerModifier',
+    'targetFinalPowerVulnerabilityBonus','statusDefensePowerModifier','conditionCounterPowerModifier',
+    'conditionEvasionPowerModifier','triggerBleedOnCoinFlip','consumeParalysisOnHead','isUnitTargetable',
+    'damageCombatant','healCombatant','triggerGettingHitStatuses','applySkillStatusEffects','triggerTremorBurst',
+    'triggerCounterAfterHit','resolveEvadeAgainstCoin','processConditionRemovalTrigger','markEntryStarted',
+    'healCombatantSP','addEphemeralShield','unitReactionBlocked','disarmEvade'];
+  const rules={data:clashData,unit:id=>combatData[id],
+    rollSide:chance=>window.LuminousCoinEngine.rollSide(chance),coinSrc:side=>window.LuminousCoinEngine.coinSrc(side)};
+  names.forEach(name=>{rules[name]=(...args)=>window[name](...args)});
+  combatStepsInstance=window.LuminousCombatSteps.create({rules,
+    context:()=>{const a=window.LuminousCombatAuthority073?.state;return{
+      encounterId:window.LuminousCombatLiveAdapter073?.state?.encounterId??null,round,
+      roundId:a?.current?.id??`${round}:${a?.seed||0}`,seed:a?.seed||0,rngCursor:a?.cursor??null}},
+    snapshot:()=>window.LuminousCombatAuthority073?.snapshotRuntime?.()||Object.fromEntries(Object.entries(combatData).map(([id,u])=>[id,{
+      hp:u.hp,sp:u.sp,statusEffects:u.statusEffects||{},pendingStatusEffects:u.pendingStatusEffects||[],
+      shieldPools:u.shieldPools||{},staggerStage:u.staggerStage||0}])),
+    presentation:{
+      wait:key=>wait(COMBAT_PACE[key]),
+      powerStart(entry,count,power){
+        const hud=setFloatingClashHud(entry,count,power),strip=prepareFloatingClashRoll(entry,count),hosts=[];
+        if(strip){strip.replaceChildren();for(let i=0;i<count;i++){const node=document.createElement('span');strip.appendChild(node);hosts.push(node)}}
+        powerHosts.set(hostKey(entry),{hud,hosts});
+        const node=hud?.querySelector('.clash-float-power');if(node)node.textContent=power
+      },
+      async powerCoin(entry,coin,power){
+        const state=powerHosts.get(hostKey(entry));
+        // Reactive Evade carries the incoming attack index, but rolls one Coin.
+        const host=state?.hosts[coin.index]||state?.hosts[0];
+        await rollCoin(host,coin,()=>{const node=state?.hud?.querySelector('.clash-float-power');
+          if(node)node.textContent=power;setFloatingPowerCoinState(entry,coin.side)})
+      },
+      powerEnd(entry,count,power,coins){setFloatingClashHud(entry,count,power,coins);powerHosts.delete(hostKey(entry))},
+      hitsStart(entry,remaining){setFloatingClashHud(entry,remaining)},
+      hitStart(entry,remaining,coinIndex,coins){
+        const hud=setFloatingClashHud(entry,remaining),data=clashData(entry.plan);
+        setFloatingCoinDetail(hud,data,remaining,coinIndex);
+        const strip=renderFloatingClashCoins(hud,data.coinAmount,remaining,null,{rolling:true});
+        if(strip)strip.innerHTML=`${coins.map(coinResultMarkup).join('')}<span class="clash-current-roll-host"></span>${Array.from({length:Math.max(0,remaining-coins.length-1)},()=>`<span class="clash-float-coin unresolved-tail"><img src="${window.LuminousCoinEngine.TAIL_SRC}" alt="Tail"></span>`).join('')}`;
+        hitHosts.set(hostKey(entry),{hud,container:hud?.querySelector('.clash-current-roll-host')})
+      },
+      async hitCoin(entry,remaining,coinIndex,coins,power){
+        const state=hitHosts.get(hostKey(entry)),coin=coins[coins.length-1],data=clashData(entry.plan);
+        await rollCoin(state?.container,coin,()=>{setFloatingPowerCoinState(entry,coin.side);setFloatingCoinDetail(state?.hud,data,remaining,coinIndex,coin.side)});
+        const node=state?.hud?.querySelector('.clash-float-power');if(node)node.textContent=power;
+        renderFloatingClashCoins(state?.hud,data.coinAmount,remaining,coins.concat(Array.from({length:remaining-coins.length},()=>null)));
+        hitHosts.delete(hostKey(entry))
+      },
+      hitMotion:(entry,targetId)=>animateHitMotion(entry,targetId),
+      async clashStart(a,b,ra,rb){moveClashUnitsToMidpoint(a,b);setFloatingClashHud(a,ra);setFloatingClashHud(b,rb);await wait(COMBAT_PACE.clashApproach)},
+      async clashContact(a,b,count){showClashCount(a,b,count);await animateClashContact(a,b)},
+      async clashOutcome(a,b,winner,ra,rb,rollA,rollB){
+        setFloatingClashHud(a,ra,rollA.power,rollA.coins);setFloatingClashHud(b,rb,rollB.power,rollB.coins);
+        await animateClashOutcome(a,b,winner);await wait(winner==='tie'?COMBAT_PACE.tieResult:COMBAT_PACE.clashResult)
+      },
+      async clashDefeat(winner,loser){await wait(COMBAT_PACE.spAward);await animateClashDefeat(winner,loser);closeFloatingClashHud(loser)},
+      async clashEnd(a,b,winner){await wait(250);closeFloatingClashHud(winner);hideClashCount(a,b);settleClashUnits(a,b);await wait(COMBAT_PACE.returnFromClash)},
+      async guardEnd(entry){await wait(COMBAT_PACE.totalHold);closeFloatingClashHud(entry)},
+      async evadeEnd(entry){await wait(280);closeFloatingClashHud(entry)}
+    }});
+  return combatStepsInstance
+}
 async function rollClashPower(entry,remaining,opponentEntry=null){
-  const data=clashData(entry.plan),
-        hud=setFloatingClashHud(entry,remaining),
-        powerNode=hud?.querySelector('.clash-float-power'),
-        container=prepareFloatingClashRoll(entry,remaining),
-        unit=combatData[entry.ownerId],
-        opponent=opponentEntry?combatData[opponentEntry.ownerId]:null,
-        levelBonus=data.grappleCheck?0:clashLevelPowerBonus(unit,opponent),
-        attackMod=data.grappleCheck?0:statusAttackPowerModifier(unit),
-        clashMod=data.grappleCheck?0:statusClashPowerModifier(unit),
-        targetBonus=data.grappleCheck?0:targetFinalPowerVulnerabilityBonus(opponent);
-
-  let power=Math.max(0,data.basePower+data.finalPowerBonus+attackMod+clashMod+levelBonus+targetBonus);
-  if(powerNode)powerNode.textContent=power;
-
-  const result=await animateSkillCoinRoll(entry.ownerId,remaining,container,({side:coinSide})=>{
-    const paralyzedHead=!data.grappleCheck&&coinSide==='head'&&consumeParalysisOnHead(entry.ownerId);
-    if(coinSide==='head'&&!paralyzedHead)power+=data.coinPower;
-    if(powerNode)powerNode.textContent=power;
-    setFloatingPowerCoinState(entry,coinSide)
-  },{attackCoin:!data.grappleCheck});
-
-  setFloatingClashHud(entry,remaining,power,result.coins);
-  return{power,heads:result.heads,coins:result.coins}
+  return combatStepRuntime().rollPower(entry,remaining,opponentEntry)
 }
 function setFloatingClashSide(entry,side){
   const hud=ensureFloatingClashHud(entry);
@@ -7166,113 +7223,8 @@ function markEntryStarted(entry){
     applySkillStatusEffects(entry,entry.plan?.targetId,'[On Use]')
   }
 }
-async function resolveRemainingCoinHits(entry,targetId,remaining,{heal=false,clashWinner=false}={}){
-  const data=clashData(entry.plan),
-        target=combatData[targetId];
-
-  if(!target||remaining<=0)return 0;
-
-  const hud=setFloatingClashHud(entry,remaining),
-        powerNode=hud?.querySelector('.clash-float-power');
-
-  let currentPower=Math.max(0,data.basePower+data.finalPowerBonus+(entry._counterReaction?(statusDefensePowerModifier(combatData[entry.ownerId])+conditionCounterPowerModifier(combatData[entry.ownerId])):statusAttackPowerModifier(combatData[entry.ownerId]))+targetFinalPowerVulnerabilityBonus(target)),
-      total=0,
-      resolvedCoins=[];
-  const firstCoinIndex=Math.max(0,data.coinAmount-remaining);
-
-  for(let index=0;index<remaining;index++){
-    const coinIndex=firstCoinIndex+index;
-    setFloatingCoinDetail(hud,data,remaining,coinIndex);
-    if(!isUnitTargetable(combatData[targetId]))break;
-    const activeStrip=renderFloatingClashCoins(hud,data.coinAmount,remaining,null,{rolling:true});
-    if(activeStrip){
-      activeStrip.innerHTML=`${resolvedCoins.map(coinResultMarkup).join('')}<span class="clash-current-roll-host"></span>${Array.from({length:Math.max(0,remaining-index-1)},()=>`<span class="clash-float-coin unresolved-tail"><img src="${window.LuminousCoinEngine?.TAIL_SRC||''}" alt="Tail"></span>`).join('')}`
-    }
-
-    const container=hud?.querySelector('.clash-current-roll-host');
-    if(container){
-      container.style.display='flex';
-      container.style.alignItems='center'
-    }
-
-    let sideResult='tail',
-        resolvedCoin=null;
-
-    const result=await animateSkillCoinRoll(entry.ownerId,1,container,({side,src})=>{
-      sideResult=side;
-      resolvedCoin={side,src};
-      setFloatingPowerCoinState(entry,side);
-      setFloatingCoinDetail(hud,data,remaining,coinIndex,side)
-    });
-
-    resolvedCoin=resolvedCoin||result.coins?.[0]||null;
-    resolvedCoins.push(resolvedCoin);
-
-    const paralyzedHead=sideResult==='head'&&consumeParalysisOnHead(entry.ownerId);
-    if(sideResult==='head'&&!paralyzedHead)currentPower+=data.coinPower;
-
-    const hit=Math.max(0,currentPower);
-
-    if(powerNode)powerNode.textContent=hit;
-
-    renderFloatingClashCoins(
-      hud,
-      data.coinAmount,
-      remaining,
-      resolvedCoins.concat(
-        Array.from({length:Math.max(0,remaining-resolvedCoins.length)},()=>null)
-      )
-    );
-
-    // Evade is a reactive Defense Skill, not a normal Clash. The defender rolls
-    // a fresh Evade Coin against EACH incoming Attack Coin. Ties belong to Evade:
-    // only Attack Power strictly greater than Evade Power lands a Hit.
-    if(!heal){
-      const evadeResult=await resolveEvadeAgainstCoin(targetId,hit,entry,{coinIndex,side:sideResult});
-      if(evadeResult?.evaded){
-        setFloatingClashResult(entry,`EVADED · ${hit} ≤ ${evadeResult.power}`,'tie');
-        await wait(COMBAT_PACE.hitGap);
-        continue
-      }
-    }
-
-    if(!heal){
-      // Every confirmed Hit has physical choreography. Melee advances while the
-      // defender recoils; Range stays planted and only drives the target back.
-      await animateHitMotion(entry,targetId)
-    }
-
-    if(heal){
-      total+=hit;
-      healCombatant(targetId,hit)
-    }else{
-      const damageResult=damageCombatant(targetId,hit,{damageType:data.damageType,attackerId:entry.ownerId,skillData:entry.plan?.data}),
-            finalHit=Number(damageResult?.finalDamage)||0;
-      total+=finalHit;
-      // Existing hit-reactive statuses resolve BEFORE new statuses from this
-      // Coin are inflicted, matching the repository Skill Effect ordering.
-      triggerGettingHitStatuses(targetId,entry);
-      if(damageResult?.critical)applySkillStatusEffects(entry,targetId,'[On Crit]',{coinIndex,side:sideResult,damageResult});
-      if(entry.plan?.data?.tremorBurst)triggerTremorBurst(targetId,entry.ownerId)
-    }
-
-    if(!heal){
-      applySkillStatusEffects(entry,targetId,'[On Hit]',{coinIndex,side:sideResult});
-      applySkillStatusEffects(entry,targetId,sideResult==='head'?'[Heads Hit]':'[Tails Hit]',{coinIndex,side:sideResult});
-      // Counter reacts immediately after a completed Hit. Exactly one armed
-      // Counter Action Slot is consumed per Hit; extra Counter Slots remain for
-      // later Hits in the same Turn.
-      await triggerCounterAfterHit(targetId,entry.ownerId,entry);
-      if(!isUnitTargetable(combatData[entry.ownerId]))break
-    }
-
-    // No HIT / TOTAL DAMAGE text over the unit. The target receives only the
-    // numeric damage popup plus its Slash / Pierce / Blunt icon.
-    await wait(COMBAT_PACE.hitGap)
-  }
-
-  await wait(COMBAT_PACE.totalHold);
-  return total
+async function resolveRemainingCoinHits(entry,targetId,remaining,options={}){
+  return combatStepRuntime().hits(entry,targetId,remaining,options)
 }
 async function resolveGrappleClash(entryA,entryB){
   const dataA=clashData(entryA.plan),dataB=clashData(entryB.plan);
@@ -7284,7 +7236,7 @@ async function resolveGrappleClash(entryA,entryB){
     clashCount++;
     showClashCount(entryA,entryB,clashCount);
     await animateClashContact(entryA,entryB);
-    const [rollA,rollB]=await Promise.all([rollClashPower(entryA,remainingA,entryB),rollClashPower(entryB,remainingB,entryA)]);
+    const [rollA,rollB]=await combatStepRuntime().rollPair(entryA,remainingA,entryB,remainingB);
     if(rollA.power===rollB.power){
       await animateClashOutcome(entryA,entryB,'tie');
       await wait(COMBAT_PACE.tieResult);
@@ -7412,99 +7364,7 @@ function markEscapeAction(entry){
 }
 
 async function resolveSkillClash(entryA,entryB){
-  const dataA=clashData(entryA.plan),
-        dataB=clashData(entryB.plan),
-        totalA=dataA.coinAmount,
-        totalB=dataB.coinAmount;
-
-  processConditionRemovalTrigger(entryA.ownerId,'attack');
-  processConditionRemovalTrigger(entryB.ownerId,'attack');
-  markEntryStarted(entryA);
-  markEntryStarted(entryB);
-
-  // Both Units physically enter the clash point.
-  moveClashUnitsToMidpoint(entryA,entryB);
-
-  let remainingA=totalA,
-      remainingB=totalB,
-      clashCount=0;
-
-  setFloatingClashHud(entryA,remainingA);
-  setFloatingClashHud(entryB,remainingB);
-  await wait(COMBAT_PACE.clashApproach);
-
-  // Automatic clash loop. No player input until one side runs out of Coins.
-  while(remainingA>0&&remainingB>0){
-    clashCount++;
-
-    showClashCount(entryA,entryB,clashCount);
-
-    // CONTACT -> SPARK -> roll/result. This is the shared FX hook for melee,
-    // mixed Range/Melee and Range/Range Clashes.
-    await animateClashContact(entryA,entryB);
-
-    const [rollA,rollB]=await Promise.all([
-      rollClashPower(entryA,remainingA,entryB),
-      rollClashPower(entryB,remainingB,entryA)
-    ]);
-
-    setFloatingClashHud(entryA,remainingA,rollA.power,rollA.coins);
-    setFloatingClashHud(entryB,remainingB,rollB.power,rollB.coins);
-
-    if(rollA.power===rollB.power){
-      await animateClashOutcome(entryA,entryB,'tie');
-      await wait(COMBAT_PACE.tieResult);
-      continue
-    }
-
-    if(rollA.power>rollB.power){
-      remainingB--;
-      // Losing Coins are consumed from the left visually.
-      setFloatingClashHud(entryB,remainingB,rollB.power,rollB.coins);
-      await animateClashOutcome(entryA,entryB,'a')
-    }else{
-      remainingA--;
-      setFloatingClashHud(entryA,remainingA,rollA.power,rollA.coins);
-      await animateClashOutcome(entryA,entryB,'b')
-    }
-
-    await wait(COMBAT_PACE.clashResult)
-  }
-
-  const winner=remainingA>0?entryA:entryB,
-        loser=winner===entryA?entryB:entryA,
-        remaining=winner===entryA?remainingA:remainingB,
-        spGain=10+clashCount;
-
-  // Skill outcome triggers resolve once, after the Clash winner is known and
-  // before surviving Coins begin their hit sequence.
-  applySkillStatusEffects(winner,loser.ownerId,'[Clash Win]',{clashCount});
-  applySkillStatusEffects(loser,winner.ownerId,'[Clash Lose]',{clashCount});
-
-  healCombatantSP(winner.ownerId,spGain);
-  await wait(COMBAT_PACE.spAward);
-
-  // The final Clash loss has a stronger physical consequence. A melee winner
-  // closes to striking range; a ranged winner keeps firing position and knocks
-  // the melee loser farther away.
-  await animateClashDefeat(winner,loser);
-
-  // Loser HUD goes away; winner keeps its floating HUD for the surviving hits.
-  closeFloatingClashHud(loser);
-  await resolveRemainingCoinHits(
-    winner,
-    loser.ownerId,
-    remaining,
-    {heal:false,clashWinner:true}
-  );
-
-  await wait(250);
-  closeFloatingClashHud(winner);
-  hideClashCount(entryA,entryB);
-  settleClashUnits(entryA,entryB);
-  await wait(COMBAT_PACE.returnFromClash);
-
-  return{winner,loser,clashCount,spGain,remaining}
+  return combatStepRuntime().clash(entryA,entryB)
 }
 async function resolveSaveOnlySpell(entry){
   const plan=entry?.plan,data=plan?.data||{};
@@ -7516,9 +7376,9 @@ async function resolveSaveOnlySpell(entry){
   await wait(180);
   for(const targetId of targets){
     if(!isUnitTargetable(combatData[targetId]))continue;
-    const result=resolveSaveEffect(entry.ownerId,targetId,data.save,data.failedSaveEffects||[],{
+    const result=combatStepRuntime().mutate('SaveResolved',entry,{unitId:targetId},()=>resolveSaveEffect(entry.ownerId,targetId,data.save,data.failedSaveEffects||[],{
       sourceType:'magic',sourceElement:normalizeElement(data.element||''),concentrationId:conc?.id||null,sourceLabel:data.name||'Magic',detectThreshold:data.detectThreshold??data.save.threshold
-    });
+    }));
     results.push({targetId,result});
     await wait(260)
   }
@@ -7611,44 +7471,8 @@ function disarmEvade(defenderId,{broken=false}={}){
   entry?.slot?.classList.add('defense-consumed');
   state.evade=null
 }
-async function resolveEvadeAgainstCoin(defenderId,attackPower,attackerEntry,{coinIndex=0,side='tail'}={}){
-  const defender=combatData[defenderId],state=defender?.reactiveDefense,
-        armed=state?.turn===round?state.evade:null;
-  if(!armed?.active)return{evaded:false,active:false};
-  if(unitReactionBlocked(defender)){
-    disarmEvade(defenderId,{broken:true});
-    return{evaded:false,active:false,blocked:true}
-  }
-  const entry=armed.entry,
-        data=entry?.plan?.data||{},
-        base=Math.max(0,(Number(data.basePower)||0)+(Number(entry?.plan?._helpFinalPowerBonus)||0)+statusDefensePowerModifier(defender)+conditionEvasionPowerModifier(defender)),
-        coinPower=Number(data.coinPower)||0,
-        hud=setFloatingClashHud(entry,1),
-        powerNode=hud?.querySelector('.clash-float-power'),
-        container=prepareFloatingClashRoll(entry,1);
-  if(!hud||!container)return{evaded:false,active:true};
-  setFloatingClashResult(entry,'EVADE · REACTIVE','shield');
-  if(powerNode)powerNode.textContent=base;
-  let evadeSide='tail';
-  const result=await animateSkillCoinRoll(defenderId,1,container,({side:rolledSide})=>{
-    evadeSide=rolledSide;
-    setFloatingPowerCoinState(entry,rolledSide)
-  },{attackCoin:false});
-  const paralyzedHead=evadeSide==='head'&&consumeParalysisOnHead(defenderId),
-        evadePower=Math.max(0,base+(evadeSide==='head'&&!paralyzedHead?coinPower:0)),
-        evaded=Number(attackPower)<=evadePower;
-  setFloatingClashHud(entry,1,evadePower,result.coins);
-  setFloatingClashResult(entry,evaded?`EVADE ${evadePower} · SUCCESS`:`EVADE ${evadePower} · BROKEN`,evaded?'shield':'lose');
-  if(evaded){
-    applySkillStatusEffects(entry,attackerEntry?.ownerId,'[On Evade]',{coinIndex,side});
-    await wait(280);
-    closeFloatingClashHud(entry);
-    return{evaded:true,active:true,power:evadePower,side:evadeSide}
-  }
-  disarmEvade(defenderId,{broken:true});
-  await wait(280);
-  closeFloatingClashHud(entry);
-  return{evaded:false,active:false,broken:true,power:evadePower,side:evadeSide}
+async function resolveEvadeAgainstCoin(defenderId,attackPower,attackerEntry,options={}){
+  return combatStepRuntime().evade(defenderId,attackPower,attackerEntry,options)
 }
 function nextArmedCounter(defenderId){
   const unit=combatData[defenderId],state=unit?.reactiveDefense;
@@ -7682,38 +7506,22 @@ function isGuardPlan(plan){
   return Boolean((plan?.type==='defense'||plan?.type==='auto')&&String(data.defenseType||'').toLowerCase()==='guard')
 }
 async function resolveGuardAction(entry){
-  const data=entry?.plan?.data||{},
-        base=Math.max(0,(Number(data.basePower)||0)+(Number(entry?.plan?._helpFinalPowerBonus)||0)+statusDefensePowerModifier(combatData[entry.ownerId])),
-        coinPower=Number(data.coinPower)||0,
-        coinCount=1,
-        hud=setFloatingClashHud(entry,coinCount),
-        powerNode=hud?.querySelector('.clash-float-power'),
-        container=prepareFloatingClashRoll(entry,coinCount);
-
-  if(!hud||!container)return 0;
-  setFloatingClashResult(entry,'GUARD · EPHEMERAL SHIELD','shield');
-  if(powerNode)powerNode.textContent=base;
-
-  let sideResult='tail';
-  const result=await animateSkillCoinRoll(entry.ownerId,coinCount,container,({side})=>{
-    sideResult=side;
-    setFloatingPowerCoinState(entry,side)
-  },{attackCoin:false});
-
-  const shieldAmount=Math.max(0,base+(sideResult==='head'?coinPower:0));
-  setFloatingClashHud(entry,coinCount,shieldAmount,result.coins);
-  addEphemeralShield(entry.ownerId,shieldAmount);
-  setFloatingClashResult(entry,`${sideResult.toUpperCase()} · SHIELD +${shieldAmount}`,'shield');
-  await wait(COMBAT_PACE.totalHold);
-  closeFloatingClashHud(entry);
-  return shieldAmount
+  return combatStepRuntime().guard(entry)
 }
 async function executeQueueEntry(entry,queue,resolvedKeys){
+  const steps=combatStepRuntime(),before=resolvedKeys.has(entryKey(entry));
+  if(before)return;
+  steps.emit('QueueEntryStarted',entry);
+  try{return await executeQueueEntryRules(entry,queue,resolvedKeys)}
+  finally{steps.emit('QueueEntryFinished',entry)}
+}
+async function executeQueueEntryRules(entry,queue,resolvedKeys){
   if(!entry?.plan||!entry.slot)return;
   const key=entryKey(entry);
   if(resolvedKeys.has(key))return;
   const ownerUnit=combatData[entry.ownerId];
   if(unitActionBlocked(ownerUnit,round)){
+    combatStepRuntime().emit('ActionCancelled',entry,{reason:'owner_blocked'});
     resolvedKeys.add(key);
     setExecutingSlot(entry.slot,false);
     setStatus(`TURN ${round} · ${ownerUnit?.name||entry.ownerName} · ${ownerUnit?.incapacitated?'INCAPACITATED':'STAGGERED'} · ACTION CANCELLED`);
@@ -7727,6 +7535,7 @@ async function executeQueueEntry(entry,queue,resolvedKeys){
         targetRule=planTargetRule(plan,ownerUnit);
 
   if(Number(ownerUnit?.grappleLockedRound)===round&&!['grapple','grapple_check'].includes(actionKey)){
+    combatStepRuntime().emit('ActionCancelled',entry,{reason:'grapple_locked'});
     resolvedKeys.add(key);
     setExecutingSlot(slot,false);
     setStatus(`TURN ${round} · ${ownerName} · GRAPPLE · ACTION CANCELLED`);
@@ -7735,6 +7544,7 @@ async function executeQueueEntry(entry,queue,resolvedKeys){
   }
 
   if(targetRule!=='none'&&targetRule!=='self'&&(!plan.targetId||!isUnitTargetable(combatData[plan.targetId]))){
+    combatStepRuntime().emit('ActionCancelled',entry,{reason:'target_unavailable'});
     resolvedKeys.add(key);
     setExecutingSlot(slot,false);
     setStatus(`TURN ${round} · ${ownerName} · target unavailable · ACTION CANCELLED`);
@@ -7834,6 +7644,7 @@ async function startRound(){
   }
 
   roundRunning=true;
+  combatStepRuntime().beginRound();
   syncReadyControl();
   const start=$('start-round'),
         ready=$('ready'),
@@ -7864,9 +7675,12 @@ async function startRound(){
   clearReactiveDefenses();
   // Concentration only sees damage taken during the active Round. Turn-End Status
   // damage resolves afterwards and therefore never raises this Round's DC.
-  processConcentrationChecks(round);
-  processStatusRoundEnd(round);
-  processTurnEndExitActions(round);
+  combatStepRuntime().mutate('RoundEndEffects',null,{},()=>{
+    processConcentrationChecks(round);
+    processStatusRoundEnd(round);
+    processTurnEndExitActions(round)
+  });
+  combatStepRuntime().emit('RoundFinished');
   activeGrapples.filter(state=>state?.active).forEach(state=>{
     const a=combatData[state.attackerId],b=combatData[state.defenderId];
     if(!isUnitTargetable(a)||!isUnitTargetable(b)||a.retreatVacancy||a.escapeVacancy||b.retreatVacancy||b.escapeVacancy)state.releaseAfterRound=true
@@ -8307,6 +8121,12 @@ function hydrateLiveCombat(payload={}){
   initializeBattleSP();rollTurnSpeeds(round);ensureUnknownAISlots();
   return initializeCombatSurface({playIntro:payload.playIntro!==false})
 }
+window.LuminousCombatStepRuntime=Object.freeze({
+  version:window.LuminousCombatSteps.version,
+  events:()=>combatStepRuntime().events(),
+  setPresentationEnabled:value=>combatStepRuntime().setPresentationEnabled(value),
+  presentationEnabled:()=>combatStepRuntime().presentationEnabled()
+});
 window.LuminousCombat073=Object.freeze({
   version:'0.7.3-live',
   hydrate:hydrateLiveCombat,
