@@ -81,12 +81,15 @@
     const liveArrowPatch="Object.values(combatData).filter(unit=>(unit.controlled==='ai'||unit.controlled==='remote')&&isUnitTargetable(unit)).forEach(unit=>{";
     const livePlanRenderNeedle="function renderTargetArrows(){\n  const overlay=$('target-intent-overlay');";
     const livePlanRenderPatch="function renderTargetArrows(){\n  if(window.LuminousCombatLiveMode){const livePlanSignature=JSON.stringify([round,planReady,plannedActions]);if(renderTargetArrows.__luminousLivePlanSignature!==livePlanSignature){renderTargetArrows.__luminousLivePlanSignature=livePlanSignature;window.dispatchEvent(new CustomEvent('luminous:combat073-plan-change',{detail:{version:'0.7.3',playerId:PLAYER_ID,round,ready:planReady,plans:JSON.parse(JSON.stringify(plannedActions))}}))}}\n  const overlay=$('target-intent-overlay');";
-    const liveNeedles=[liveControlNeedle,liveAllPlansNeedle,liveArrowNeedle,livePlanRenderNeedle];
+    const liveRoundReadyNeedle="  if(!planReady){\n    setStatus('START TURN · primero marca READY');";
+    const liveRoundReadyPatch="  const canonicalRound=window.LuminousCombatAuthority073?.state?.current;\n  const authorityReady=window.LuminousCombatLiveMode&&canonicalRound?.phase==='running'&&Number(canonicalRound.round)===Number(round);\n  if(!planReady&&!authorityReady){\n    setStatus('START TURN · primero marca READY');";
+    const liveNeedles=[liveControlNeedle,liveAllPlansNeedle,liveArrowNeedle,livePlanRenderNeedle,liveRoundReadyNeedle];
     if(liveNeedles.some(needle=>!html.includes(needle)))throw new Error("COMBAT_LIVE_REMOTE_CONTROL_PATCH_MISSING");
     html=html.replace(liveControlNeedle,liveControlPatch)
       .replace(liveAllPlansNeedle,liveAllPlansPatch)
       .replace(liveArrowNeedle,liveArrowPatch)
-      .replace(livePlanRenderNeedle,livePlanRenderPatch);
+      .replace(livePlanRenderNeedle,livePlanRenderPatch)
+      .replace(liveRoundReadyNeedle,liveRoundReadyPatch);
 
     stage('patch-enemy-targets','Applying canonical normal-enemy target selection');
     const localPlayerBiasNeedle="  if(owner.faction==='enemy'&&candidate.target.id===PLAYER_ID)score+=8;";
@@ -183,8 +186,8 @@ function smartTargetForPlan(owner,plan){
     );
     replaceUniqueCombatSource(
       "scale=mode==='enemy'?1.65:5,",
-      "scale=mode==='enemy'?1.65:(window.matchMedia?.('(pointer: coarse), (max-width: 900px)').matches?2.35:5),",
-      'responsive-player-camera-scale'
+      "scale=mode==='enemy'?1.65:5,",
+      'player-centered-camera-scale'
     );
     replaceUniqueCombatSource(
       "  game.classList.add('intro-running');\n  setPlayerMenuZoom(false);",

@@ -182,11 +182,14 @@
       basePower: Number(raw.basePower ?? raw.base_power ?? 0) || 0,
       coinPower: Number(raw.coinPower ?? raw.coin_power ?? 0) || 0,
       coinAmount: Math.max(0, Number.parseInt(raw.coinAmount ?? raw.coinCount ?? raw.coin_count ?? 0, 10) || 0),
+      attackWeight: Number(raw.attackWeight ?? raw.attack_weight ?? 1) || 1,
       sin: clean(raw.sinAffinity || raw.sin || raw.pecado || "sinless"),
       damageType: clean(raw.damageType || raw.tipo_dano || raw.dmgType || ""),
       targetingType: clean(raw.targetingType || raw.targeting_type || ""),
       range: Number(raw.skillRange ?? raw.range ?? 0) || 0,
       description: clean(raw.description || raw.descripcion || raw.metadata?.description || ""),
+      effects: Array.isArray(raw.effects) ? raw.effects : [],
+      coins: Array.isArray(raw.coins) ? raw.coins : [],
       isDefense: raw.isDefense === true,
       sourceType: clean(raw.sourceType || raw.metadata?.sourceType || ""),
     };
@@ -243,6 +246,9 @@
   function hudScaleForViewport(width, height) {
     const viewportWidth = Math.max(1, Number(width) || 1);
     const viewportHeight = Math.max(1, Number(height) || 1);
+    // Compact screens use an actual responsive layout, never a 1600px
+    // screenshot scaled down to unreadable text and touch targets.
+    if (viewportWidth <= 900) return 1;
     const availableWidth = Math.max(1, viewportWidth - HUD_CANVAS.gutter);
     const availableHeight = Math.max(1, viewportHeight - HUD_CANVAS.gutter);
     return Math.min(1, availableWidth / HUD_CANVAS.width, availableHeight / HUD_CANVAS.height);
@@ -288,7 +294,7 @@
         <section class="player-combat-skills-console" aria-label="Combat Skills">
           <header class="player-skills-header">
             <div class="player-skills-title">
-              <span>COMBAT LOADOUT // PLAYER</span>
+              <span>HABILIDADES DE COMBATE</span>
               <strong data-player-skills-character>PLAYER</strong>
             </div>
             <div class="player-skills-metrics">
@@ -299,23 +305,20 @@
           </header>
           <div class="player-skills-main">
             <aside class="player-skills-deck-panel">
-              <header><span>COMBAT ENGINE</span><strong>ASSIGNED DECK</strong></header>
+              <header><span>HABILIDADES</span><strong>SKILLS EQUIPADAS</strong></header>
               <div class="player-skills-deck" data-player-skills-deck></div>
-              <div class="player-skills-source-note">
-                <b>LOADOUT SOURCE</b>
-                <span>Assigned Skills come from the same Skill Deck / slot carriers consumed by Combat Engine.</span>
-              </div>
+              
             </aside>
             <main class="player-skills-library-panel">
               <div class="player-skills-library-toolbar">
                 <div>
-                  <span>SKILL ARCHIVE</span>
-                  <strong>AVAILABLE COMBAT SKILLS</strong>
+                  <span>COLECCIÓN</span>
+                  <strong>TUS HABILIDADES</strong>
                 </div>
                 <nav aria-label="Skill filters">
-                  <button type="button" data-player-skills-filter="all">ALL</button>
-                  <button type="button" data-player-skills-filter="assigned">ASSIGNED</button>
-                  <button type="button" data-player-skills-filter="learned">LEARNED</button>
+                  <button type="button" data-player-skills-filter="all">TODAS</button>
+                  <button type="button" data-player-skills-filter="assigned">EQUIPADAS</button>
+                  <button type="button" data-player-skills-filter="learned">APRENDIDAS</button>
                 </nav>
               </div>
               <div class="player-skills-list" data-player-skills-list></div>
@@ -364,7 +367,7 @@
       }).join("");
     }
     if (!model.skills.some((skill) => skill.assigned)) {
-      return '<div class="player-skills-empty"><strong>NO ASSIGNED SKILLS</strong><span>Combat Engine has no active Skill loadout for this Player.</span></div>';
+      return '<div class="player-skills-empty"><strong>SIN SKILLS EQUIPADAS</strong><span>El DM puede equipar tus habilidades en el menú de personaje.</span></div>';
     }
     return model.skills.filter((skill) => skill.assigned).map((skill) => `
       <button type="button" class="player-skills-deck-slot" data-player-skill-id="${escapeHtml(skill.id)}">
@@ -381,43 +384,102 @@
     const power = skill.coinAmount ? `${skill.basePower} + ${skill.coinPower} × ${skill.coinAmount}` : String(skill.basePower || "—");
     return `<button type="button" class="player-skills-row${state.selectedSkillId === skill.id ? " is-selected" : ""}" data-player-skill-id="${escapeHtml(skill.id)}">
       <span class="player-skills-row-tier">${escapeHtml(tier)}</span>
-      <span class="player-skills-row-name"><strong>${escapeHtml(skill.name)}</strong><small>${escapeHtml(skill.id)}</small></span>
-      <span class="player-skills-row-power">${escapeHtml(power)}</span>
+      <span class="player-skills-row-name"><strong>${escapeHtml(skill.name)}</strong><small>${escapeHtml([skill.sin, skill.damageType].filter(Boolean).join(" · "))}</small></span>
+      <span class="player-skills-row-power">${escapeHtml(power)}<small>${" ●".repeat(Math.min(skill.coinAmount, 6))}</small></span>
       <span class="player-skills-row-badges">${badges}</span>
     </button>`;
   }
 
-  function detailMarkup(skill, model) {
-    if (!skill) {
-      return `<div class="player-skills-detail-empty"><span>SKILL DATA</span><strong>SELECT A SKILL</strong><p>Inspect the same combat definition used by Combat Engine.</p>${model.spellcaster ? '<em>Spellcaster detected · the menu uses the local Spells icon.</em>' : ""}</div>`;
-    }
-    const tags = [
-      skill.assigned ? '<span class="is-assigned">ASSIGNED</span>' : "",
-      skill.learned ? '<span class="is-learned">LEARNED</span>' : "",
-    ].join("");
-    return `
-      <header class="player-skills-detail-header">
-        <span>COMBAT DEFINITION</span>
-        <strong>${escapeHtml(skill.name)}</strong>
-        <small>${escapeHtml(skill.id)}</small>
-        <div class="player-skills-detail-badges">${tags}</div>
-      </header>
-      <div class="player-skills-detail-grid">
-        <div><span>TYPE</span><b>${escapeHtml(skill.type || "Skill")}</b></div>
-        <div><span>TIER</span><b>${skill.tier || "—"}</b></div>
-        <div><span>BASE POWER</span><b>${skill.basePower}</b></div>
-        <div><span>COIN POWER</span><b>${skill.coinPower}</b></div>
-        <div><span>COINS</span><b>${skill.coinAmount || "—"}</b></div>
-        <div><span>COPIES</span><b>${skill.copies || "—"}</b></div>
-        <div><span>SIN</span><b>${escapeHtml(skill.sin || "sinless")}</b></div>
-        <div><span>DAMAGE</span><b>${escapeHtml(skill.damageType || "—")}</b></div>
-        <div><span>TARGETING</span><b>${escapeHtml(skill.targetingType || "—")}</b></div>
-        <div><span>RANGE</span><b>${skill.range || "—"}</b></div>
-      </div>
-      <div class="player-skills-detail-description">
-        <span>DESCRIPTION</span>
-        <p>${escapeHtml(skill.description || "No additional description registered. Combat values above remain authoritative.")}</p>
-      </div>`;
+  function statusEffectsForSkill(skill = {}) {
+  const rows = (Array.isArray(skill.effects) ? skill.effects : []).map((effect) => ({ effect, coinIndex: null }));
+  (Array.isArray(skill.coins) ? skill.coins : []).forEach((coin, index) => {
+    if (Array.isArray(coin?.effects)) coin.effects.forEach((effect) => rows.push({ effect, coinIndex: index + 1 }));
+  });
+  const seen = new Set();
+  return rows.map(({ effect, coinIndex }) => {
+    if (!effect || typeof effect !== "object") return null;
+    const statusId = clean(effect.statusId || effect.statusEffectId || effect.status || effect.status_effect);
+    const definition = statusId ? global.LuminousStatusLibrary?.get?.(statusId) : null;
+    const explicitName = clean(effect.statusName || effect.name || effect.label || definition?.name);
+    if (!statusId && !explicitName) return null;
+    const name = explicitName || statusId.replace(/[_-]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+    const description = clean(effect.description || effect.descripcion || definition?.description);
+    const iconRaw = clean(definition?.icon);
+    const icon = /^(https:\/\/|Assets\/)/.test(iconRaw) ? iconRaw : "";
+    const potency = effect.potency == null ? null : Number(effect.potency);
+    const count = effect.count == null ? null : Number(effect.count);
+    const rawTrigger = clean(effect.trigger).toLowerCase().replace(/[\[\]]/g, "").replace(/[\s-]+/g, "_");
+    const trigger = ["on_hit", "onhit"].includes(rawTrigger) ? "Al impactar" : (["on_use", "onuse"].includes(rawTrigger) ? "Al usar" : "");
+    const target = clean(effect.target).toLowerCase() === "self" ? "Usuario" : (clean(effect.target).toLowerCase() === "target" ? "Objetivo" : "");
+    const key = [name.toLowerCase(), coinIndex, potency, count, trigger, target].join("|");
+    if (seen.has(key)) return null;
+    seen.add(key);
+    return {
+      name, description, icon, coinIndex,
+      potency: Number.isFinite(potency) ? potency : null,
+      count: Number.isFinite(count) ? count : null,
+      trigger, target,
+    };
+  }).filter(Boolean);
+}
+
+
+  function effectLines(skill = {}) {
+    const known = (effect, index) => {
+      if (typeof effect === "string") return { text: effect, trigger: index == null ? "On Use" : "On Hit", icon: "", status: "" };
+      if (!effect || typeof effect !== "object") return null;
+      const status = clean(effect.statusId || effect.statusEffectId || effect.status || effect.status_effect);
+      const definition = status ? global.LuminousStatusLibrary?.get?.(status) : null;
+      const name = clean(definition?.name || effect.statusName || (status ? status.replace(/[_-]+/g, " ") : ""));
+      const sourceText = clean(effect.description || effect.descripcion || effect.text || effect.label || effect.tooltip);
+      const parts = [];
+      const action = clean(effect.action || effect.operation || effect.applyType || effect.mode).toLowerCase();
+      const verb = action === "gain" || clean(effect.target).toLowerCase() === "self" ? "Gain" : "Inflict";
+      const potency = effect.potency == null ? null : Number(effect.potency);
+      const count = effect.count == null ? null : Number(effect.count);
+      if (Number.isFinite(potency)) parts.push(verb + " " + (potency >= 0 ? "+" : "") + potency + " " + name);
+      if (Number.isFinite(count)) parts.push(verb + " " + (count >= 0 ? "+" : "") + count + " " + name + " Count");
+      if (!parts.length && name) parts.push(verb + " " + name);
+      const triggerText = clean(effect.trigger || effect.activation || effect.when || (index == null ? "On Use" : "On Hit"))
+        .replace(/[\[\]]/g, "").replace(/_/g, " ");
+      return { trigger: triggerText || "On Use", text: sourceText || parts.join("; ") || clean(effect.name || effect.type) || "Effect",
+        icon: clean(definition?.icon), status: name };
+    };
+    const general = (Array.isArray(skill.effects) ? skill.effects : []).map((effect) => known(effect, null)).filter(Boolean);
+    const coins = Array.from({ length: Math.max(Number(skill.coinAmount) || 0, Array.isArray(skill.coins) ? skill.coins.length : 0) }, (_, i) => ({
+      index: i + 1, effects: (Array.isArray(skill.coins?.[i]?.effects) ? skill.coins[i].effects : []).map((effect) => known(effect, i + 1)).filter(Boolean)
+    }));
+    return { general, coins };
+  }
+
+  function detailMarkup(skill) {
+    if (!skill) return '<div class="player-skills-detail-empty"><strong>ELIGE UNA HABILIDAD</strong></div>';
+    const count = Math.max(Number(skill.coinAmount) || 0, skill.coins?.length || 0);
+    const icon = (value, alt) => /^(https:\/\/|Assets\/)/.test(value || "")
+      ? '<img class="limbus-effect-icon" src="' + escapeHtml(value) + '" alt="' + escapeHtml(alt) + '">'
+      : "";
+    const richLine = (row) => '<div class="limbus-effect-line"><span class="limbus-effect-trigger">[' +
+      escapeHtml(row.trigger) + ']</span> <span class="limbus-effect-description">' +
+      icon(row.icon, row.status) + escapeHtml(row.text) + '</span></div>';
+    const lines = effectLines(skill);
+    const coinMark = (i) => '<span class="limbus-coin-emblem" aria-label="Coin ' + i + '">' + ["","I","II","III","IV","V","VI"][i % 7] + '</span>';
+    const coinTrack = Array.from({length: Math.min(count,16)},(_,i)=>'<span class="limbus-coin-top" aria-hidden="true">⬡</span>').join("");
+    return '<article class="limbus-skill-tooltip">' +
+      '<header class="limbus-skill-heading"><div class="limbus-skill-top-coins">' + coinTrack + '</div>' +
+      '<div class="limbus-skill-name"><span class="limbus-skill-tier">T' + escapeHtml(skill.tier || "—") +
+      '</span><strong>' + escapeHtml(skill.name) + '</strong></div>' +
+      '<div class="limbus-skill-stats"><span>⚔ ' + escapeHtml(skill.basePower) + ' (' + escapeHtml(skill.basePower) +
+      (skill.coinPower >= 0 ? '+' : '') + escapeHtml(skill.coinPower) + ')</span><span>Atk Weight ' +
+      escapeHtml(skill.attackWeight ?? 1) + '</span></div>' +
+      '<div class="limbus-skill-power"><b>' + escapeHtml(skill.coinPower >= 0 ? "+" + skill.coinPower : skill.coinPower) +
+      '</b><span>Amt. x' + count + '</span><span>' + escapeHtml(skill.sin || "") + '</span></div></header>' +
+      '<div class="limbus-skill-effect-sections"><section class="limbus-effect-general">' +
+      (lines.general.length ? lines.general.map(richLine).join("") : "") + '</section>' +
+      lines.coins.map((coin) => '<section class="limbus-coin-section">' + coinMark(coin.index) +
+        '<div class="limbus-coin-effects">' + (coin.effects.length ? coin.effects.map(richLine).join("") :
+          '<span class="limbus-effect-empty">—</span>') + '</div></section>').join("") +
+      (skill.description ? '<p class="limbus-skill-description">' + escapeHtml(skill.description) + '</p>' : "") +
+      '</div></article>';
   }
 
   function visibleSelectionId(rows = [], selectedSkillId = null) {
@@ -529,6 +591,9 @@
     progressionEarned,
     assignedSkillEntries,
     buildSkillViewModel,
+    statusEffectsForSkill,
+    detailMarkup,
+    effectLines,
     visibleSelectionId,
     hudScaleForViewport,
     syncHudCanvasScale,

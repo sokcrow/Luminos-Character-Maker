@@ -238,7 +238,7 @@
       sinAffinity: definition.sinAffinity || definition.affinity || null,
       slotLevel,
       sourceDefinition: clone(definition),
-      spellChoice: clone(plan.choice || (definition.selectedElement ? { element: definition.selectedElement } : null))
+      spellChoice: clone(plan.spellChoice || plan.choice || (definition.selectedElement ? { key: "element", value: definition.selectedElement } : null))
     };
     if (action.targeting) action.targeting.attackWeight = Math.max(1, Number(definition.attackWeight || definition.atkWeight || action.targeting.attackWeight || 1));
     if (normalizeId(definition.castingTime) === "quick_action" && action.economy) action.economy.cost = "quick_action";

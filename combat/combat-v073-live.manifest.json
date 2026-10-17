@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "runtimeVersion": "0.7.3-live",
+  "source": "combat/source/combat-v073-live.html",
+  "bootstrap": "Battle-viewer.html",
+  "encoding": "base64+gzip",
+  "sourceSha256": "971d99dc09e9e4e9618aacb09869e129f7d53641ea895e72c75445d9edb2510f",
+  "compressedSha256": "98840e5c01454f128bda365ccfa90a1f06de6e74a848f0043b6dde1bc39ca5ea",
+  "parts": [
+    {
+      "file": "combat/combat-v073-live.bundle.part01",
+      "encodedChars": 16000
+    },
+    {
+      "file": "combat/combat-v073-live.bundle.part02",
+      "encodedChars": 16000
+    },
+    {
+      "file": "combat/combat-v073-live.bundle.part03",
+      "encodedChars": 16000
+    },
+    {
+      "file": "combat/combat-v073-live.bundle.part04",
+      "encodedChars": 16000
+    },
+    {
+      "file": "combat/combat-v073-live.bundle.part05",
+      "encodedChars": 16000
+    },
+    {
+      "file": "combat/combat-v073-live.bundle.part06",
+      "encodedChars": 16000
+    },
+    {
+      "file": "combat/repair/combat-v073-live.bundle.part07.r1",
+      "encodedChars": 6000
+    },
+    {
+      "file": "combat/repair/combat-v073-live.bundle.part07.r2",
+      "encodedChars": 6000
+    },
+    {
+      "file": "combat/repair/combat-v073-live.bundle.part07.r3",
+      "encodedChars": 4000
+    },
+    {
+      "file": "combat/combat-v073-live.bundle.part08",
+      "encodedChars": 16000
+    },
+    {
+      "file": "combat/combat-v073-live.bundle.part09",
+      "encodedChars": 16000
+    },
+    {
+      "file": "combat/combat-v073-live.bundle.part10",
+      "encodedChars": 16000
+    },
+    {
+      "file": "combat/combat-v073-live.bundle.part11",
+      "encodedChars": 7404
+    }
+  ]
+}

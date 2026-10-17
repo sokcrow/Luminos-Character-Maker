@@ -1,0 +1,24 @@
+{
+  "contractVersion": 1,
+  "liveRuntime": "0.7.3-live",
+  "planSchemaVersion": 2,
+  "planEngineVersion": "0.7.3-live-authority",
+  "authoritySchemaVersion": 1,
+  "authorityEngineVersion": "0.7.3-authority.8-sealed-round-start",
+  "roots": {
+    "dmUid": "campaña/config/dm_uid",
+    "players": "campaña/jugadores",
+    "units": "campaña/base_datos_unidades",
+    "skills": "campaña/base_datos_skills",
+    "combatants": "campaña/combate/combatants",
+    "state": "campaña/combate/estado",
+    "plans": "campaña/combate/plannedActions",
+    "ready": "campaña/combate/readyPlayers",
+    "authority": "campaña/combate/authority/current"
+  },
+  "authorityPhases": ["sealed", "running", "complete"],
+  "identity": ["canonicalPlayerKey", "canonicalOwnerUid", "unitId", "sourceSlotIndex"],
+  "resolution": "seeded-client-execution-with-dm-checkpoints",
+  "timelineAuthority": "seeded-live-runtime",
+  "presentationEvents": "deferred-to-phase-1"
+}

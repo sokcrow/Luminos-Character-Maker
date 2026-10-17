@@ -92,6 +92,7 @@
       },
       "combate": {
         "plannedActions": {
+          ".write": "auth != null && (auth.uid === root.child('campaña').child('config').child('dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1')",
           "$ownerPlayerId": {
             "$slotIndex": {
               ".write": "auth != null && ((auth.uid === root.child('campaña').child('config').child('dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1') || ((root.child('campaña').child('combate').child('estado').val() === 'PRE_COMBAT_PLANNING' || root.child('campaña').child('combate').child('estado').child('phase').val() === 'PRE_COMBAT_PLANNING' || root.child('campaña').child('combate').child('estado').child('state').val() === 'PRE_COMBAT_PLANNING' || root.child('campaña').child('combate').child('estado').child('status').val() === 'PRE_COMBAT_PLANNING') && root.child('campaña').child('jugadores').child($ownerPlayerId).child('uid').val() === auth.uid && ((!newData.exists() && data.child('schedulerUid').val() === auth.uid && data.child('scheduledBy').val() === $ownerPlayerId) || (newData.exists() && newData.child('schedulerUid').val() === auth.uid && newData.child('scheduledBy').val() === $ownerPlayerId && newData.child('status').val() === 'planned'))))",
@@ -100,6 +101,7 @@
           }
         },
         "readyPlayers": {
+          ".write": "auth != null && (auth.uid === root.child('campaña').child('config').child('dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1')",
           "$ownerPlayerId": {
             ".write": "auth != null && ((auth.uid === root.child('campaña').child('config').child('dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1') || ((root.child('campaña').child('combate').child('estado').val() === 'PRE_COMBAT_PLANNING' || root.child('campaña').child('combate').child('estado').child('phase').val() === 'PRE_COMBAT_PLANNING' || root.child('campaña').child('combate').child('estado').child('state').val() === 'PRE_COMBAT_PLANNING' || root.child('campaña').child('combate').child('estado').child('status').val() === 'PRE_COMBAT_PLANNING') && root.child('campaña').child('jugadores').child($ownerPlayerId).child('uid').val() === auth.uid && newData.child('schedulerUid').val() === auth.uid))",
             ".validate": "newData.val() == null || (newData.child('ready').isBoolean() && newData.child('round').isNumber() && newData.child('round').val() >= 1 && newData.child('unitId').isString() && ((auth.uid === root.child('campaña').child('config').child('dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1') || (newData.child('schedulerUid').val() === auth.uid && root.child('campaña').child('combate').child('combatants').child(newData.child('unitId').val()).child('canonicalPlayerKey').val() === $ownerPlayerId && root.child('campaña').child('combate').child('combatants').child(newData.child('unitId').val()).child('canonicalOwnerUid').val() === auth.uid && root.child('campaña').child('combate').child('combatants').child(newData.child('unitId').val()).child('isPlayer').val() === true)))"

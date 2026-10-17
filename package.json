@@ -8,7 +8,10 @@
     "generate:class-runtime-manifest": "node scripts/generate-class-runtime-manifest.mjs",
     "check:class-runtime-manifest": "node scripts/generate-class-runtime-manifest.mjs --check",
     "test:individual-goap": "node tests/individual-goap-combat-ai-smoke.mjs && node tests/individual-goap-combat-ai-real-engine-smoke.mjs && node tests/unit-ai-kit-adapter-smoke.mjs && node tests/unit-ai-kit-adapter-real-engine-smoke.mjs && node tests/enemy-action-slot-allocator-smoke.mjs && node tests/enemy-action-slot-canonical-units-smoke.mjs && node tests/individual-goap-resource-budget-smoke.mjs && node tests/battle-viewer-enemy-planning-074-smoke.mjs && node tests/battle-viewer-enemy-planning-074-e2e-smoke.mjs",
-    "test:combat-mobile": "node tests/combat-mobile-boot-smoke.mjs"
+    "test:combat-mobile": "node tests/combat-mobile-boot-smoke.mjs",
+    "build:combat-live": "node scripts/build-combat-live.mjs",
+    "check:combat-live": "node scripts/build-combat-live.mjs --check",
+    "test:combat-phase0": "node scripts/validate-combat-phase0.mjs"
   },
   "repository": {
     "type": "git",

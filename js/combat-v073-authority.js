@@ -129,7 +129,7 @@
     const defensiveReactions=Object.fromEntries(activePlayerIds()
       .map(playerId=>[playerId,clean(ready?.[playerId]?.enchantmentReactionItemInstanceId)])
       .filter(([,id])=>id));
-    const seed=makeSeed(round),payload={schemaVersion:1,engineVersion:'0.7.3-authority.7-player-state',round,phase:'sealed',seed,authorityUid:s.uid,plans:clone(plans||{}),aiPlans:collectAiPlans(),defensiveReactions,createdAt:serverTime(),checkpoint:null};
+    const seed=makeSeed(round),payload={schemaVersion:1,engineVersion:'0.7.3-authority.8-sealed-round-start',round,phase:'sealed',seed,authorityUid:s.uid,plans:clone(plans||{}),aiPlans:collectAiPlans(),defensiveReactions,createdAt:serverTime(),checkpoint:null};
     const updates={};updates[ROOT.current]=payload;updates[ROOT.state]={phase:'COMBAT_SEALED',round,authorityUid:s.uid,seed,updatedAt:serverTime()};await s.db.ref().update(updates);state.current={...payload,createdAt:Date.now()};resetRandom(seed,0);applyAuthority(payload);return payload;
   }
 
@@ -221,7 +221,6 @@
   }
   function installHooks(){patchCoinEngine();patchExecutionQueue();patchExecuteQueueEntry();['processConditionTurnStart','rollCriticalHit','randomIntInclusive','rollUnitSpeed','rollPower4Save','rollAbilitySkillCheck','smartTargetScore','assignTargetIntents','autoActionScore','shuffle','damageCombatant','healCombatant','damageCombatantSP','healCombatantSP','applyCombatStatus','removeCombatStatus','consumeStatusCount','setUnitActionSlotCount','rollTurnSpeeds'].forEach(name=>wrapSyncMechanic(name));['resolveSkillClash','resolveUnopposedCoinAction','resolveSaveOnlySpell'].forEach(wrapAsyncMechanic);patchStartRound();return true;}
 
-  function armReady(){const button=global.document?.getElementById?.('ready');if(button?.getAttribute('aria-pressed')==='true')return true;if(typeof global.setPlanReady==='function'){global.setPlanReady();return button?.getAttribute('aria-pressed')==='true';}return false;}
   async function setRunning(current){
     const s=adapterState(),startedAt=serverTime(),updates={};updates[`${ROOT.current}/phase`]='running';updates[`${ROOT.current}/startedAt`]=startedAt;updates[ROOT.state]={phase:'COMBAT',round:Number(current.round)||Number(s.round)||1,authorityUid:s.uid,seed:current.seed,updatedAt:serverTime()};await s.db.ref().update(updates);
     state.current={...current,phase:'running',startedAt:Date.now(),checkpoint:null};state.lastCheckpointSeq=0;state.localActionSeq=0;state.localDigests.clear();state.pendingRemoteCheckpoints.clear();state.inFlightActions=0;state.executionChain=Promise.resolve();state.writeChain=Promise.resolve();resetRandom(current.seed,0);return state.current;
@@ -256,8 +255,10 @@
     try{
       let current=state.current;
       if(isDm()){if(Number(current?.round)!==Number(s.round)||!['sealed','running'].includes(norm(current?.phase)))current=await sealRound();if(norm(current.phase)!=='running')current=await setRunning(current);}else{state.remoteStart=false;if(Number(current?.round)!==Number(s.round)||norm(current?.phase)!=='running')return false;state.inFlightActions=0;state.executionChain=Promise.resolve();resetRandom(current.seed,0);}
-      applyAuthority(current);armReady();const completedRound=Number(current.round)||Number(s.round)||1;await original();await state.executionChain;
-      if(isDm()){await state.writeChain;await afterRound({completedRound,nextRound:domRound(completedRound+1)});}else if(state.pendingFinalSnapshot){applySnapshot(state.pendingFinalSnapshot.combatants||{});if(Number.isFinite(Number(state.pendingFinalSnapshot.rngCursor)))resetRandom(current.seed,Number(state.pendingFinalSnapshot.rngCursor));state.pendingFinalSnapshot=null;}
+      applyAuthority(current);const completedRound=Number(current.round)||Number(s.round)||1;await original();await state.executionChain;
+      const nextRound=domRound(completedRound);
+      if(nextRound<=completedRound)throw new Error('COMBAT_ROUND_DID_NOT_ADVANCE');
+      if(isDm()){await state.writeChain;await afterRound({completedRound,nextRound});}else if(state.pendingFinalSnapshot){applySnapshot(state.pendingFinalSnapshot.combatants||{});if(Number.isFinite(Number(state.pendingFinalSnapshot.rngCursor)))resetRandom(current.seed,Number(state.pendingFinalSnapshot.rngCursor));state.pendingFinalSnapshot=null;}
       return true;
     }catch(error){console.error('[Combat073 Authority start]',error);setStatus(`COMBAT AUTHORITY · ${error?.message||error}`);return false;}finally{state.runningLocal=false;}
   }
@@ -278,6 +279,6 @@
   function stop(){if(state.retryTimer)global.clearTimeout(state.retryTimer);if(state.autoStartTimer)global.clearTimeout(state.autoStartTimer);if(state.authorityRef&&state.authorityHandler)state.authorityRef.off('value',state.authorityHandler);if(state.readyRef&&state.readyHandler)state.readyRef.off('value',state.readyHandler);state.authorityRef=state.authorityHandler=state.readyRef=state.readyHandler=null;state.started=false;}
 
   global.addEventListener('luminous:combat073-runtime-ready',()=>{installHooks();applyAuthority();});global.addEventListener('luminous:combat073-hydrated',()=>{installHooks();applyAuthority();});global.addEventListener('beforeunload',stop,{once:true});
-  global.LuminousCombatAuthority073=Object.freeze({version:'0.7.3-authority.7-player-state',ROOT,state,start,stop,isDm,isPlayer,random,resetRandom,withAuthorityRandom,canonicalPlayerId,classEntries,isSpellcaster,validateSpellPlans,queueEntryKind,isItemQueueEntry,persistPlayerInventory,snapshotRuntime,digest,checkpointDigest,queueCheckpoint,sealRound,applyAuthority,applySnapshot,combatantFirebaseUpdates,playerVitalSnapshot,playerVitalFirebaseUpdates,afterRound,installHooks,requestStartRound,serializeRuntimePlan,readyComplete,allReadySnapshot});
+  global.LuminousCombatAuthority073=Object.freeze({version:'0.7.3-authority.8-sealed-round-start',ROOT,state,start,stop,isDm,isPlayer,random,resetRandom,withAuthorityRandom,canonicalPlayerId,classEntries,isSpellcaster,validateSpellPlans,queueEntryKind,isItemQueueEntry,persistPlayerInventory,snapshotRuntime,digest,checkpointDigest,queueCheckpoint,sealRound,applyAuthority,applySnapshot,combatantFirebaseUpdates,playerVitalSnapshot,playerVitalFirebaseUpdates,afterRound,installHooks,requestStartRound,serializeRuntimePlan,readyComplete,allReadySnapshot});
   start();
 })(window);

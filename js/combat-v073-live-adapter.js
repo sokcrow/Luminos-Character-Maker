@@ -4,7 +4,7 @@
   if (global.LuminousCombatLiveAdapter073) return;
   global.LuminousCombatLiveMode = true;
 
-  const VERSION = "0.7.3-live.4-player-inventory-authority";
+  const VERSION = "0.7.3-live.5-auth-listener-recovery";
   const ROOTS = Object.freeze({
     dmUid: "campaña/config/dm_uid",
     players: "campaña/jugadores",
@@ -482,9 +482,34 @@
 
   function subscribe(path, assign) {
     const ref = state.db.ref(path);
+    const uid = state.uid;
+    let closed = false;
+    let retried = false;
+    let retryTimer = null;
     const handler = (snapshot) => { assign(snapshot.val()); scheduleHydrate(); };
-    ref.on("value", handler);
-    state.unsubscribers.push(() => ref.off("value", handler));
+    const failed = () => setStatus("COMBAT · CONNECTION FAILED · REOPEN COMBAT", "realtime-error");
+    const onCancel = (error) => {
+      // A listen opened during Auth restoration can be rejected before the
+      // token reaches RTDB. Cancelled Firebase listens do not resume themselves.
+      if (closed || retried || error?.code !== "PERMISSION_DENIED" || !state.user || state.uid !== uid) {
+        if (!closed) failed();
+        return;
+      }
+      retried = true;
+      Promise.resolve().then(() => state.user.getIdToken?.(true)).then(() => {
+        if (closed || state.uid !== uid) return;
+        retryTimer = global.setTimeout(() => {
+          retryTimer = null;
+          if (!closed && state.uid === uid) ref.on("value", handler, onCancel);
+        }, 250);
+      }).catch(() => { if (!closed) failed(); });
+    };
+    ref.on("value", handler, onCancel);
+    state.unsubscribers.push(() => {
+      closed = true;
+      if (retryTimer) global.clearTimeout(retryTimer);
+      ref.off("value", handler);
+    });
   }
 
   function bindRealtime() {
