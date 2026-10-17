@@ -31,11 +31,11 @@ assert.ok(!speed.includes('runtime()?.render?.()'),'Speed refresh must not call 
 assert.ok(speed.includes('state.refreshTimer=global.setTimeout'),'speed-driven runtime refreshes must be debounced');
 assert.ok(!speed.includes('`${ROOT}/combatants/${key}`'),'speed authority must not issue one transaction per combatant');
 
-assert.ok(viewer.includes('initializeBattleSP();ensureUnknownAISlots();'),'Viewer hydration must initialize SP without rerolling Speed');
 const patchStart=viewer.indexOf('const liveDeckPatch=`');
 const patchEnd=viewer.indexOf('`;',patchStart);
 const liveDeckPatch=patchStart>=0&&patchEnd>patchStart?viewer.slice(patchStart,patchEnd+2):'';
-assert.ok(liveDeckPatch.includes('initializeBattleSP();ensureUnknownAISlots();'),'Patched viewer hydration must keep SP/AI initialization');
+assert.ok(liveDeckPatch.includes('ensureUnknownAISlots();'),'Patched viewer hydration must keep AI slot initialization');
+assert.ok(!liveDeckPatch.includes('initializeBattleSP'),'Patched viewer hydration must preserve canonical SP');
 assert.ok(!liveDeckPatch.includes('rollTurnSpeeds'),'Patched viewer hydration must remove the local rollTurnSpeeds call');
 assert.ok(viewer.includes('speedBaseRoll:Number(d.speedBaseRoll??d.speed)||0,speedRollTurn:Number(d.speedRollTurn)||0,speedTie:Number(d.speedTie)||0'),'Runtime spawn must preserve canonical Speed roll metadata instead of resetting it to zero');
 assert.ok(viewer.includes('confusionTurnMode:d.confusionTurnMode??null,proneSpeedRound:Number(d.proneSpeedRound)||0'),'Runtime spawn must preserve transient forced-Speed condition state');

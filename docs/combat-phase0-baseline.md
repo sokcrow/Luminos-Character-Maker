@@ -12,6 +12,8 @@ Browser validation also exposed a cancelled-listener startup race: RTDB can reje
 
 Full browser rounds exposed an executor conflict: the Action-runtime loader replaced the packed live timeline, but read a different planner and ignored the sealed queue, producing a completed round with no attacks. Live mode now keeps its existing queue executor. The separate Action runtime continues to install outside live mode. A matching canonical `running` round also satisfies the legacy Ready guard without resubmitting Player Ready; authority refuses completion after an early runtime return.
 
+The completed-round comparison then exposed prototype SP initialization during live hydration. Rebuilding the field now preserves canonical SP and updates the displayed round. Firebase-driven rebuilds are deferred during local playback and flushed when authority settles, so a phase change cannot reset combatants or plans during an executing round.
+
 This phase keeps the existing seeded client execution and DM checkpoint protocol. It does not implement result-event playback, change combat formulae, migrate the battlefield to Forest or deploy Firebase rules.
 
 ## Reconciled changes
@@ -21,9 +23,10 @@ This phase keeps the existing seeded client execution and DM checkpoint protocol
 - Fix: `battle-viewer-player-spell-planner-074.js` used an undefined `normalizeId`, preventing leveled Spell planning.
 - Fix: the Spell planner smoke still searched `.write` for validation that belongs to `.validate`; it now checks authentication and validation in their respective rules.
 - Fix: only the DM can clear the two planning containers when a round completes.
-- Fix: one bounded recovery for a realtime listen cancelled during Auth startup (`0.7.3-live.5-auth-listener-recovery`).
+- Fix: one bounded recovery for a realtime listen cancelled during Auth startup, plus deferred refresh during playback (`0.7.3-live.6-round-safe-hydration`).
 - Fix: execute the DM-sealed running round in observer mode and reject false completion after an early runtime return.
 - Fix: prevent the separate Action-runtime loader from replacing the live seeded queue executor.
+- Fix: preserve positive/negative SP and the canonical turn across field rebuilds and reloads.
 - Foundation: editable packed-runtime source, integrity manifest, roundtrip builder, frozen protocol reference and repeatable validation commands.
 
 ## Runtime and network contract
@@ -65,7 +68,7 @@ Edit `combat/source/combat-v073-live.html`, then run the builder and checks. Do 
 
 | Gate | Status and scope |
 | --- | --- |
-| Local baseline | 36/36 Node checks passed after reconciliation, rules, listener recovery and live execution fixes. Covers live bootstrap, loadout, HUD, plans, ownership, Speed, vitals, inventory, deployment and lifecycle. |
+| Local baseline | 37/37 Node checks passed after reconciliation, rules, listener recovery and live execution fixes. Covers live bootstrap, loadout, HUD, plans, ownership, Speed, vitals, inventory, deployment and lifecycle. |
 | Build integrity | Source/packed equality, no-op byte preservation, edited-source roundtrip, repeated build and manifest corruption rejection passed. |
 | Real local Auth/RTDB | Production loadout and authority methods exercised through independent DM/Player accounts. The harness provides the DOM and runtime adapter; it does not certify browser choreography. |
 | Browser | `Combat Phase 0 Baseline` runs the real Battle Viewer with emulator Auth/RTDB, two Player contexts and a DM context; screenshot/trace artifacts and a completed-round result are required. Status must be taken from the actual run, not inferred from this document. |

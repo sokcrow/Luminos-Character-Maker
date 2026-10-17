@@ -152,6 +152,7 @@ test('authenticated DM and two Players share kit, sealed round and final vitals'
     await expect.poll(async () => (await readEmulator('campaña/combate/authority/current'))?.phase, { timeout: 90000 }).toBe('complete');
     const result = await readEmulator('campaña/combate/authority/current');
     fs.writeFileSync(`${ARTIFACTS}/round-diagnostic.json`, JSON.stringify({ result,
+      canonicalCombatants: await readEmulator('campaña/combate/combatants'),
       viewers: await Promise.all(sessions.map(async ({ role, page, errors, forbidden }) => ({ role, errors, forbidden,
         ...await page.evaluate(() => ({ status: document.getElementById('status')?.textContent,
           round: document.getElementById('round')?.textContent, plans: window.LuminousCombat073.plans(),
@@ -160,22 +161,26 @@ test('authenticated DM and two Players share kit, sealed round and final vitals'
     }, null, 2));
     expect(result.checkpoint.seq).toBeGreaterThan(0);
     expect(result.checkpoint.combatants['enemy:dummy'].hp).toBeLessThan(150);
-    for (const { page, errors, forbidden } of sessions) {
+    const expectedVitals = Object.fromEntries(Object.entries(result.checkpoint.combatants).map(([id, unit]) => [id, { hp: unit.hp, sp: unit.sp }]));
+    const finalViewers = [];
+    for (const { role, page, errors, forbidden } of sessions) {
       await page.waitForFunction(() => {
         const state = window.LuminousCombatAuthority073?.state;
         return state?.current.phase === 'complete' && !state.runningLocal && !state.pendingFinalSnapshot;
       });
-      const vitals = await page.evaluate(() => Object.fromEntries(Object.entries(window.LuminousCombat073.combatants()).map(([id, unit]) => [id, { hp: unit.hp, sp: unit.sp }])));
-      for (const [id, unit] of Object.entries(result.checkpoint.combatants)) expect(vitals[id]).toEqual({ hp: unit.hp, sp: unit.sp });
+      await expect.poll(() => page.evaluate(() => Object.fromEntries(Object.entries(window.LuminousCombat073.combatants()).map(([id, unit]) => [id, { hp: unit.hp, sp: unit.sp }]))), { timeout: 10000 }).toEqual(expectedVitals);
+      await expect.poll(() => page.locator('#round').textContent(), { timeout: 10000 }).toBe('2');
+      finalViewers.push({ role, round: 2, vitals: expectedVitals });
       expect(errors).toEqual([]);
       expect(forbidden).toEqual([]);
     }
     await playerA.reload({ waitUntil: 'domcontentloaded' });
     await playerA.waitForFunction(() => window.LuminousCombat073?.combatants?.()?.['player:a']);
-    const reloaded = await playerA.evaluate(() => ({ hp: window.LuminousCombat073.combatants()['player:a'].hp, round: window.LuminousCombatLiveAdapter073.state.round }));
+    const reloaded = await playerA.evaluate(() => ({ hp: window.LuminousCombat073.combatants()['player:a'].hp, sp: window.LuminousCombat073.combatants()['player:a'].sp, round: window.LuminousCombatLiveAdapter073.state.round }));
     expect(reloaded.hp).toBe(result.checkpoint.combatants['player:a'].hp);
+    expect(reloaded.sp).toBe(result.checkpoint.combatants['player:a'].sp);
     expect(reloaded.round).toBe(2);
-    fs.writeFileSync(`${ARTIFACTS}/online-result.json`, JSON.stringify({ project: PROJECT, sessions: 3, round: 1, nextRound: 2, resultDigest: result.resultDigest, checkpointSeq: result.checkpoint.seq }, null, 2));
+    fs.writeFileSync(`${ARTIFACTS}/online-result.json`, JSON.stringify({ project: PROJECT, sessions: 3, round: 1, nextRound: 2, resultDigest: result.resultDigest, checkpointSeq: result.checkpoint.seq, finalViewers, reloaded }, null, 2));
   } finally {
     for (const session of sessions) await session.context.close();
   }

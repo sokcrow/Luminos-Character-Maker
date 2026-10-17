@@ -4,7 +4,7 @@
   if (global.LuminousCombatLiveAdapter073) return;
   global.LuminousCombatLiveMode = true;
 
-  const VERSION = "0.7.3-live.5-auth-listener-recovery";
+  const VERSION = "0.7.3-live.6-round-safe-hydration";
   const ROOTS = Object.freeze({
     dmUid: "campaña/config/dm_uid",
     players: "campaña/jugadores",
@@ -431,6 +431,9 @@
   function hydrateNow() {
     state.hydrateTimer = null;
     if (!state.runtimeReady || !state.firebaseReady || !global.LuminousCombat073) return false;
+    // Rebuilding during playback resets live combatants, plans and the local
+    // round. Authority schedules the deferred refresh when execution settles.
+    if (global.LuminousCombatAuthority073?.state?.runningLocal) return false;
     const identity = resolveIdentity();
     state.role = identity.role;
     state.playerId = identity.playerId;

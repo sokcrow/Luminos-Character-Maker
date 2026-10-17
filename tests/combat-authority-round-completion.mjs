@@ -22,17 +22,17 @@ for (const [phase, sealedRound, localReady, expected] of [
 }
 
 const round = { textContent: '1' }, writes = [], errors = [];
-let advance = false, readyCalls = 0;
+let advance = false, readyCalls = 0, refreshes = 0;
 const units = { 'player:a': { id: 'player:a', isPlayer: true, canonicalPlayerKey: 'a', controlled: 'remote', hp: 90, maxHp: 100, sp: 0 },
   enemy: { id: 'enemy', controlled: 'ai', hp: 145, maxHp: 150, sp: 0 } };
 const db = { ref() { return { on() {}, off() {}, async update(updates) { writes.push(updates); } }; } };
-const adapter = { role: 'dm', uid: 'dm', user: { uid: 'dm' }, db, round: 1, combatants: units };
+const adapter = { role: 'dm', uid: 'dm', user: { uid: 'dm' }, db, round: 1, combatants: units, firebaseReady: true };
 const window = { Math: Object.create(Math), console: { error(...args) { errors.push(args.join(' ')); } },
   document: { getElementById: (id) => id === 'round' ? round : null },
   addEventListener() {}, setTimeout() {}, clearTimeout() {},
   setPlanReady() { readyCalls++; },
   async startRound() { if (advance) round.textContent = '2'; },
-  LuminousCombatLiveAdapter073: { state: adapter },
+  LuminousCombatLiveAdapter073: { state: adapter, scheduleHydrate() { refreshes++; } },
   LuminousCombat073: { combatants: () => units, plans: () => [], render() {} },
 };
 vm.runInNewContext(fs.readFileSync(new URL('../js/combat-v073-authority.js', import.meta.url), 'utf8'), { window, console: window.console });
@@ -44,6 +44,7 @@ assert.ok(errors.some((message) => message.includes('COMBAT_ROUND_DID_NOT_ADVANC
 advance = true;
 assert.equal(await authority.requestStartRound(), true);
 assert.equal(readyCalls, 0, 'playback must not submit Player Ready after sealing');
+assert.equal(refreshes, 2, 'settling playback must flush deferred Firebase hydration');
 const final = writes.at(-1);
 assert.equal(final[authority.ROOT.current + '/phase'], 'complete');
 assert.equal(final[authority.ROOT.current + '/checkpoint'].combatants.enemy.hp, 145);
