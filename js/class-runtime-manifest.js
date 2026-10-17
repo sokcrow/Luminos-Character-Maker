@@ -250,6 +250,19 @@
     "globalName": "LuminousBardClassRuntime"
   },
   {
+    "id": "class:cleric",
+    "kind": "class",
+    "path": "js/cleric-class-runtime.js",
+    "contexts": [
+      "any"
+    ],
+    "dependsOn": [
+      "support:creature-type-catalog",
+      "support:caster-spellcasting-traits-runtime"
+    ],
+    "globalName": "LuminousClericClassRuntime"
+  },
+  {
     "id": "class:fighter",
     "kind": "class",
     "path": "js/fighter-class-runtime.js",
