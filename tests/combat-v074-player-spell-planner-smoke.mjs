@@ -61,7 +61,7 @@ const actor = {
   sp: 30,
 };
 
-assert.deepEqual(loadout.spellIdsFor(actor), ['arc_bolt']);
+assert.deepEqual(loadout.spellIdsFor(actor), ['arc_bolt', 'mode_spell'], 'Selected cantrips must remain available alongside leveled Spells');
 assert.equal(loadout.ownsSpell(actor, 'arc_bolt'), true);
 assert.equal(loadout.ownsSpell(actor, 'other_spell'), false);
 const trusted = loadout.resolveSpellForCombatant(actor, 'arc_bolt');
@@ -226,4 +226,8 @@ const spellPlannerSource = fs.readFileSync(path.join(here, '..', 'js', 'battle-v
 assert.match(spellPlannerSource, /Assets\/Images\/Buttons\/Spells\.png/);
 assert.equal(fs.existsSync(path.join(here, '..', 'Assets', 'Images', 'Buttons', 'Spells.png')), true);
 
+assert.match(spellPlannerSource,/function spellTooltip/);
+assert.match(spellPlannerSource,/bv074-pspell-coin/);
+assert.match(spellPlannerSource,/bv074-pspell-effect/);
+assert.doesNotMatch(spellPlannerSource,/PLAYER SPELLS · 0\.7\.4/);
 console.log('combat-v074-player-spell-planner-smoke: ok');

@@ -183,8 +183,8 @@ function smartTargetForPlan(owner,plan){
     );
     replaceUniqueCombatSource(
       "scale=mode==='enemy'?1.65:5,",
-      "scale=mode==='enemy'?1.65:(window.matchMedia?.('(pointer: coarse), (max-width: 900px)').matches?2.35:5),",
-      'responsive-player-camera-scale'
+      "scale=mode==='enemy'?1.65:5,",
+      'player-centered-camera-scale'
     );
     replaceUniqueCombatSource(
       "  game.classList.add('intro-running');\n  setPlayerMenuZoom(false);",
