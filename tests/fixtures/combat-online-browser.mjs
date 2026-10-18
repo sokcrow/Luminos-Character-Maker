@@ -147,4 +147,3 @@ export async function planAndReady(page) {
   await page.waitForFunction(() => window.LuminousCombat073.plans()[0]?.targetId === 'enemy:dummy');
   await page.locator('#ready').click();
 }
-

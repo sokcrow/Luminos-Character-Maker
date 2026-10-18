@@ -55,6 +55,10 @@ assert.deepEqual(json(h.data), before); assert.equal(h.cursor(), cursor);
   const source=fs.readFileSync(new URL('../combat/source/combat-v073-live.html',import.meta.url),'utf8');
   const start=source.indexOf('window.LuminousCombatStepRuntime=Object.freeze({');
   const facade=source.slice(start,source.indexOf('window.LuminousCombat073=Object.freeze',start));
+  const renderBody=source.slice(source.indexOf('window.LuminousCombat073=Object.freeze')).match(/render:\(\)=>\{([^\n]+)\}/)[1];
+  let rendered=0,sprite=null;const render=vm.runInNewContext('()=>{'+renderBody+'}',{
+    combatData:{a:{}},PLAYER_ID:'a',$:()=>sprite,renderAllPlannedSlots(){rendered++;},renderTargetArrows(){},layoutRadialCommands(){}});
+  assert.equal(render(),false);assert.equal(rendered,0);sprite={};render();assert.equal(rendered,1);
   const node={nodeType:1},liveSlot={nodeType:1},entry={ownerId:'a',localIndex:0,slot:node,plan:{data:{slot:'offHand'}},_onUseStatusApplied:true};
   const win={LuminousCombatSteps:{version:'test'}};
   const c={window:win,combatData:{a:{hp:80,reactiveDefense:{evade:{entry}}}},activeGrapples:[{id:'grapple',active:true}],grappleSerial:4,unitSlots:()=>[liveSlot]};

@@ -8223,7 +8223,7 @@ window.LuminousCombat073=Object.freeze({
   setKits:kits=>{Object.entries(kits||{}).forEach(([id,kit])=>{UNIT_KITS[id]=kit});deckSkills=playerDeckForUnit(PLAYER_ID)},
   setRound:value=>{round=Math.max(1,Number(value)||1);return round},
   camera:(mode='player',enabled=true)=>setCameraFocus(mode,enabled),
-  render:()=>{renderAllPlannedSlots();renderTargetArrows();layoutRadialCommands()}
+  render:()=>{if(!combatData[PLAYER_ID]||!$(`sprite-${PLAYER_ID}`))return false;renderAllPlannedSlots();renderTargetArrows();layoutRadialCommands()}
 });
 window.dispatchEvent(new CustomEvent('luminous:combat073-runtime-ready',{detail:{version:'0.7.3-live'}}));
 if(!window.LuminousCombatLiveMode)initializeCombatSurface();
