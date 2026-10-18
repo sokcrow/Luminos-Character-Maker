@@ -42,6 +42,7 @@ test('phase6 packaged entry: real login, create/deploy, two rounds, safe control
     const [a,b,dm]=sessions.map(s=>s.page);
     await expect(a.locator('#combat-entry-start')).toBeHidden();await expect(a.locator('#combat-entry-message')).toContainText('finalizado');
     await dm.locator('#combat-entry-open').click();
+    await expect.poll(async()=>(await readEmulator('campaña/combate/estado')).encounterId).not.toBe('previous');
     const encounter=(await readEmulator('campaña/combate/estado')).encounterId;expect(encounter).not.toBe('previous');
     for(const key of ['plannedActions','readyPlayers','authority','playback'])expect(await readEmulator(`campaña/combate/${key}`)).toBeNull();
     const dmView=await viewer(dm);await dmView.locator('#c073-dm-setup summary').click();
@@ -64,6 +65,8 @@ test('phase6 packaged entry: real login, create/deploy, two rounds, safe control
       await ready(av,enemy);await ready(bv,enemy);
       await expect.poll(async()=>(await readEmulator('campaña/combate/authority/current'))?.phase,{timeout:45000}).toBe('running');
       await menu(dm);await expect(dm.locator('#combat-entry-end')).toBeDisabled();await expect(dm.locator('#combat-entry-presentation')).toBeDisabled();await dm.locator('#combat-entry-menu summary').click();
+      await expect(dmView.locator('#c073-clear')).toBeDisabled();
+      expect(await dmView.evaluate(()=>window.LuminousCombatDmSetup073.deployPlayer('a').then(()=>null,error=>error.message))).toContain('termine la ronda');
       const denied=await dm.evaluate(()=>window.LuminousCombatSession.end({db:firebase.database(),uid:firebase.auth().currentUser.uid,result:'victory'}).then(()=>null,error=>error.message));expect(denied).toContain('termine la ronda');
       await expect.poll(async()=>{const row=await readEmulator('campaña/combate/authority/current');return row?.phase==='complete'&&row.round===round;},{timeout:100000}).toBe(true);
       const result=await readEmulator('campaña/combate/authority/current');rounds.push({round,digest:result.resultDigest,cursor:result.checkpoint.rngCursor});
@@ -71,6 +74,7 @@ test('phase6 packaged entry: real login, create/deploy, two rounds, safe control
       for(const frame of [av,bv,dmView]){
         await frame.waitForFunction(()=>!window.LuminousCombatAuthority073.state.runningLocal);
         await expect.poll(()=>frame.evaluate(()=>Object.fromEntries(Object.entries(window.LuminousCombat073.combatants()).map(([id,u])=>[id,{hp:u.hp,sp:u.sp}])))).toEqual(expected);
+        await expect(frame.locator('#round')).toHaveText(String(round+1));
       }
       for(const frame of [av,bv])expect(await frame.evaluate(()=>window.LuminousCombatAuthority073.state.localActionSeq)).toBe(0);
     }

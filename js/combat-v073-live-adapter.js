@@ -445,10 +445,11 @@
       return false;
     }
     global.LuminousCombatBootstrapStage?.(`identity-${state.role}`,state.role==="dm"?"Canonical DM identity confirmed":`Player identity confirmed · ${state.playerId||"unknown"}`);
+    setRoleUi();
     const focusEntry = state.role === "player" ? playerCombatantEntry() : dmFocusEntry();
     if (!focusEntry) {
       global.LuminousCombat073.reset();
-      setStatus("COMBAT · WAITING FOR DM TO DEPLOY COMBATANTS","waiting-field");
+      setStatus(state.role === 'dm' ? 'Abre Encuentro para añadir personajes y enemigos.' : 'Esperando a que el DM añada a tu personaje.',"waiting-field");
       return false;
     }
     const [focusKey, focusUnit] = focusEntry;
@@ -457,7 +458,6 @@
     const signature = hydrationSignature(combatants, focusId);
     if (signature === state.lastSignature) return true;
     state.lastSignature = signature;
-    setRoleUi();
     global.LuminousCombat073.hydrate({
       playerId: focusId,
       viewerRole: state.role,

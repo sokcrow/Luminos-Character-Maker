@@ -278,6 +278,7 @@
 
   async function deployPlayer(playerId) {
     if (!isDm()) throw new Error('DM_ONLY');
+    requirePlanning();
     const player = state.players[playerId];
     if (!player) throw new Error('PLAYER_NOT_FOUND');
     const combatant = buildPlayer(playerId, player);
@@ -288,6 +289,7 @@
 
   async function deployUnits(unitId, faction, quantity) {
     if (!isDm()) throw new Error('DM_ONLY');
+    requirePlanning();
     const unit = state.units[unitId];
     if (!unit || isPlayerUnit(unit)) throw new Error('UNIT_NOT_FOUND');
     const count = Math.max(1, Math.min(20, Math.trunc(Number(quantity) || 1)));
@@ -304,11 +306,13 @@
 
   async function removeCombatant(id) {
     if (!isDm()) throw new Error('DM_ONLY');
+    requirePlanning();
     await state.db.ref(`${ROOTS.combatants}/${id}`).remove();
   }
 
   async function clearEncounter() {
     if (!isDm()) throw new Error('DM_ONLY');
+    requirePlanning();
     const next={
       encounterId: null,
       encounterCreatedAt: null,
@@ -345,6 +349,10 @@
 
   function render() {
     if (!state.mounted) return;
+    const locked = !planningPhase();
+    for (const id of ['c073-add-player','c073-enemy','c073-ally','c073-clear']) {
+      const button = global.document.getElementById(id); if (button) button.disabled = locked;
+    }
     const playerSelect = global.document.getElementById('c073-player');
     const unitSelect = global.document.getElementById('c073-unit');
     const roster = global.document.getElementById('c073-roster');
@@ -368,6 +376,7 @@
         ? Object.entries(state.combatants).map(([id, combatant]) => `<div style="display:flex;gap:6px;align-items:center;margin:3px 0"><span style="flex:1">${esc(nameFor(combatant, id))} · ${esc(combatant.faction || '')} · ${skillIdsFor(combatant).length} skills${spriteFor(combatant) ? ' · sprite' : ''}</span><button data-remove="${esc(id)}">×</button></div>`).join('')
         : '<div style="opacity:.65">Aún no hay combatientes desplegados.</div>';
       roster.querySelectorAll('[data-remove]').forEach((button) => {
+        button.disabled = locked;
         button.onclick = () => removeCombatant(button.dataset.remove).catch((error) => setMsg(error.message, true));
       });
     }
@@ -412,8 +421,13 @@
   }
 
   function planningPhase() {
+    if (['sealed','running'].includes(String(state.authorityPhase || global.LuminousCombatAuthority073?.state.current?.phase || '').toLowerCase())) return false;
     const phase = clean(adapterState()?.combatState).toLowerCase().replace(/[\s-]+/g, '_');
     return !['combat','combat_sealed','running','sealed','combat_running','combat_resolution'].includes(phase);
+  }
+
+  function requirePlanning() {
+    if (!planningPhase()) throw new Error('Espera a que termine la ronda antes de cambiar los combatientes.');
   }
 
   function canonicalPlayerId(unit = {}) {
@@ -526,6 +540,8 @@
     subscribe(ROOTS.actors, 'actors');
     subscribe(ROOTS.units, 'units');
     subscribe(ROOTS.combatants, 'combatants');
+    subscribe('campaña/combate/authority/current/phase', 'authorityPhase');
+    subscribe(ROOTS.state, 'encounter');
     mount();
     return true;
   }
