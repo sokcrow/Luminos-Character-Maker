@@ -58,8 +58,22 @@
     return{s,own,unitId,plans,owner,slotCount,round};
   }
   function targetIndex(ctx){const out={};for(let i=0;i<ctx.slotCount;i+=1){const row=targetPayloadFor(ctx.plans[i],i,ctx.unitId,ctx.s);if(row)out[i]=row;}return out;}
+  async function waitForReadyContext(detail){
+    // The playback UI may reach TURN N before the RTDB state subscription.
+    // Keep an authenticated READY choice until its canonical planning round
+    // arrives instead of silently dropping it during the handoff.
+    const requested=Number(detail.round);
+    for(let attempt=0;attempt<50;attempt+=1){
+      const ctx=context(detail);
+      if(ctx)return ctx;
+      const s=state();
+      if(!s||s.role!=='player'||(Number.isFinite(requested)&&Number(s.round)>requested))return null;
+      await new Promise(resolve=>global.setTimeout(resolve,100));
+    }
+    return null;
+  }
   async function syncReady(detail={}){
-    const ctx=context(detail);if(!ctx)return false;
+    const ctx=detail.ready===true?await waitForReadyContext(detail):context(detail);if(!ctx)return false;
     const ready=Boolean(detail.ready);
     const reaction=ready && selectedEnchantmentReaction?.round===ctx.round
       ?selectedEnchantmentReaction.itemInstanceId:null;
@@ -78,9 +92,14 @@
     await ctx.s.db.ref().update(updates);lastReadySignature=sig;return true;
   }
   async function syncLiveTargets(detail={}){
-    // A redraw after READY also emits a plan-change event. It must not reset
-    // Firebase READY while the player visibly remains locked in.
-    if(detail.ready===true)return syncReady(detail);
+    // Late target redraws may carry ready:false captured just before READY.
+    // If the player is now locked in, publish that current intention instead
+    // of overwriting the RTDB record with a stale NOT READY snapshot.
+    const ui=global.LuminousCombat073?.uiState?.();
+    if(detail.ready===true||(ui?.ready===true&&Number(ui.round)===Number(detail.round))){
+      const latest=global.LuminousCombat073?.plans?.();
+      return syncReady({...detail,ready:true,plans:Array.isArray(latest)?clone(latest):detail.plans});
+    }
     const ctx=context(detail);if(!ctx)return false;const targets=targetIndex(ctx),sig=JSON.stringify(['targets',ctx.round,ctx.unitId,targets]);if(sig===lastTargetSignature)return true;
     await ctx.s.db.ref(`${ROOT}/readyPlayers/${ctx.owner}`).set({ready:false,round:ctx.round,schedulerUid:ctx.s.uid,unitId:ctx.unitId,plannedSlots:0,targetIntents:targets,updatedAt:global.firebase.database.ServerValue.TIMESTAMP});lastTargetSignature=sig;return true;
   }
