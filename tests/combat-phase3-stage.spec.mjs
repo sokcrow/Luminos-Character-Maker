@@ -12,6 +12,7 @@ for (const mobile of [false, true]) test(`layered stage: real DM placement and P
     for(const session of sessions) await session.page.waitForFunction(()=>window.LuminousCombatAuthority073?.state.authorityRef && window.LuminousCombatStage073?.state.mounted && !document.getElementById('game-container').classList.contains('intro-running'));
     await expect(player.page.locator('#combat-stage-placement')).toHaveCount(0);
     if(mobile) { await dm.page.setViewportSize({width:390,height:844}); await player.page.setViewportSize({width:390,height:844}); }
+    await dm.page.locator('#c073-dm-setup > summary').click();
     await dm.page.locator('#combat-stage-placement').click();
     await expect(dm.page.locator('#combat-stage-tools')).toBeVisible();
     await dm.page.locator('#combat-stage-unit').selectOption('player:a');

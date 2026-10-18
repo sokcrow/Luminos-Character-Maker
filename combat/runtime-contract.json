@@ -55,5 +55,13 @@
     "layers": "local-dom-shared-with-webgl-and-fallback",
     "rulesRng": "unchanged",
     "forestDependency": false
+  },
+  "hud": {
+    "version": "0.7.3-hud-motion.1",
+    "module": "js/combat-v073-hud-motion.js",
+    "presentation": "optional-read-only-observers-and-dm-cues",
+    "compactInput": "same-actions-and-valid-target-slots",
+    "motion": "generic-sprite-poses-with-reduced-motion",
+    "productionAcceptance": "pending-deployed-user-validation"
   }
 }

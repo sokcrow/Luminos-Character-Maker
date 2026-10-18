@@ -14,7 +14,8 @@
     "test:combat-phase0": "node scripts/validate-combat-phase0.mjs",
     "test:combat-phase1": "node tests/combat-phase1-steps.mjs && node tests/combat-phase1-boundaries.mjs",
     "test:combat-phase2": "node tests/combat-phase2-playback.mjs",
-    "test:combat-phase3": "node tests/combat-phase3-stage.mjs"
+    "test:combat-phase3": "node tests/combat-phase3-stage.mjs",
+    "test:combat-phase4": "node tests/combat-phase4-hud-motion.mjs"
   },
   "repository": {
     "type": "git",

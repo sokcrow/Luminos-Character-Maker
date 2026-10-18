@@ -39,8 +39,8 @@ assert.ok(librarySync.includes('goblins.firebasePayload()'), 'Goblin Units must 
 assert.ok(librarySync.includes('goblins.firebaseSkillPayload(schema)'), 'Goblin Skills must participate in canonical materialization');
 assert.ok(!librarySync.includes('.remove('), 'canonical sync must preserve unrelated Firebase records');
 
-assert.ok(dmSetup.includes('ENCOUNTER SETUP · COMBAT v0.7.3'), 'Viewer must retain Encounter Setup');
-assert.ok(dmSetup.includes('FIELD solamente.'), 'Viewer Encounter Setup must declare field-only responsibility');
+assert.ok(dmSetup.includes('>Encuentro</summary>'), 'Viewer must retain Encounter Setup');
+assert.ok(dmSetup.includes('Añade personajes y unidades al encuentro.'), 'Viewer Encounter Setup must declare field-only responsibility');
 assert.ok(dmSetup.includes('ensureLibraryMaterialized'), 'Viewer DM setup must repair missing canonical Units before deployment');
 assert.ok(!dmSetup.includes('COMBAT ASSET + SKILL EDITOR'), 'duplicate legacy editor must not remain in the Viewer');
 assert.ok(!dmSetup.includes('SAVE EQUIPPED SKILLS') && !dmSetup.includes('SAVE SPRITE'), 'asset/Skill editing belongs only to the realtime DM panel');

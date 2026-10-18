@@ -83,7 +83,7 @@ const legacyNpcWrite = campaignRules.base_datos_npcs?.['.write'] || '';
 assert.ok(actorWrite.includes("child('config').child('dm_uid')"), 'linked Actor saves must accept the configured DM authority');
 assert.ok(legacyNpcWrite.includes("child('config').child('dm_uid')"), 'legacy NPC saves must accept the configured DM authority');
 
-assert.ok(dmSetup.includes('FIELD solamente.'), 'Viewer Encounter Setup must be field deployment only');
+assert.ok(dmSetup.includes('Añade personajes y unidades al encuentro.'), 'Viewer Encounter Setup must be field deployment only');
 assert.ok(dmSetup.includes('ensureLibraryMaterialized'), 'Viewer must repair an empty canonical Unit Library for the DM');
 assert.ok(!dmSetup.includes('COMBAT ASSET + SKILL EDITOR'), 'legacy duplicate asset editor must be removed from Viewer');
 assert.ok(!dmSetup.includes('SAVE EQUIPPED SKILLS'), 'legacy duplicate Skill editor must be removed from Viewer');

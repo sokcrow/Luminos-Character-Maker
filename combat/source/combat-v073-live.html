@@ -2321,6 +2321,7 @@
 </style>
 
 <link rel="stylesheet" href="css/combat-v073-stage.css">
+<link rel="stylesheet" href="css/combat-v073-hud-motion.css">
 </head>
 <body>
 <div id="game-container" class="intro-running">
@@ -2496,6 +2497,7 @@
 <script src="js/combat-v073-playback.js"></script>
 <script src="js/combat-v073-playback-sync.js"></script>
 <script src="js/combat-v073-stage.js"></script>
+<script src="js/combat-v073-hud-motion.js"></script>
 <script>
 let combatData={},round=1,selectedSlotIndex=0,navState='root',activeMenu=null,selected=null,focusedIndex=0,transitionToken=0,plannedActions=[],planReady=false,roundRunning=false,viewModeActive=false,analyseModeActive=false,targetingModeActive=false,pendingTargetPlan=null,pendingTargetSlotIndex=-1,selectedObservationEnemy=null,observationUsedTurn=0,observationRolling=false,clashChoiceSerial=0,clashConfirmationActive=false,pendingClashConfirmation=null,activeGrapples=[],grappleSerial=0,timelineResolutionActive=false;
 const PLAYER_SCORES={
@@ -5965,8 +5967,8 @@ function syncReadyControl(){
   control.style.left=`${c.x-hostRect.left}px`;
   control.style.top=`${Math.max(62,c.y-hostRect.top-118)}px`;
 }
-function layoutRadialCommands(){if(navState!=='root'||viewModeActive||analyseModeActive){syncReadyControl();return}const c=spriteCenter(),rx=225,ry=145,menuScale=1.27;document.querySelectorAll('.command').forEach(btn=>{const angle=Number(btn.dataset.angle),rad=angle*Math.PI/180,w=(Number(btn.dataset.width)||150)*menuScale,h=50,px=c.x+rx*Math.cos(rad),py=c.y+ry*Math.sin(rad),leftSide=Math.cos(rad)<0;btn.style.setProperty('--w',`${w}px`);btn.style.setProperty('--accent',btn.dataset.accent);btn.classList.toggle('radial-left',leftSide);btn.classList.toggle('radial-right',!leftSide);const rot=leftSide?(angle>90?angle-180:angle+180):angle;btn.style.setProperty('--rot',`${rot}deg`);btn.style.setProperty('--icon-counter-rot',`${-rot}deg`);btn.style.left=`${leftSide?px-w:px}px`;btn.style.top=`${py-h/2}px`});syncReadyControl()}
-function layoutCategory(){syncReadyControl();if(navState==='root'||!activeMenu)return;const meta=menuMeta[activeMenu],surface=$('category-surface'),body=$('category-body'),back=$('back'),c=spriteCenter(),w=surface.offsetWidth||390,panelH=Math.min(430,innerHeight*.66),top=Math.max(52,Math.min(innerHeight-panelH-18,c.y-150));let left=meta.side==='left'?c.x-w-82:c.x+82;left=Math.max(28,Math.min(innerWidth-w-28,left));surface.style.left=`${left}px`;surface.style.top=`${top}px`;const available=Math.max(220,innerHeight-top-14),bodyMax=Math.max(150,available-88);surface.style.maxHeight=`${available}px`;if(body)body.style.maxHeight=`${bodyMax}px`;back.style.setProperty('--accent',meta.accent);back.style.top=`${Math.max(18,top-42)}px`;back.style.left=`${meta.side==='left'?left:left+w-132}px`;back.classList.toggle('left-side',meta.side==='left')}
+function layoutRadialCommands(){if(window.LuminousCombatHudMotion073?.layoutCommands()){syncReadyControl();return}if(navState!=='root'||viewModeActive||analyseModeActive){syncReadyControl();return}const c=spriteCenter(),rx=225,ry=145,menuScale=1.27;document.querySelectorAll('.command').forEach(btn=>{const angle=Number(btn.dataset.angle),rad=angle*Math.PI/180,w=(Number(btn.dataset.width)||150)*menuScale,h=50,px=c.x+rx*Math.cos(rad),py=c.y+ry*Math.sin(rad),leftSide=Math.cos(rad)<0;btn.style.setProperty('--w',`${w}px`);btn.style.setProperty('--accent',btn.dataset.accent);btn.classList.toggle('radial-left',leftSide);btn.classList.toggle('radial-right',!leftSide);const rot=leftSide?(angle>90?angle-180:angle+180):angle;btn.style.setProperty('--rot',`${rot}deg`);btn.style.setProperty('--icon-counter-rot',`${-rot}deg`);btn.style.left=`${leftSide?px-w:px}px`;btn.style.top=`${py-h/2}px`});syncReadyControl()}
+function layoutCategory(){syncReadyControl();if(navState==='root'||!activeMenu)return;const meta=menuMeta[activeMenu],surface=$('category-surface'),body=$('category-body'),back=$('back');if(window.LuminousCombatHudMotion073?.layoutCategory({surface,body,back,accent:meta.accent}))return;surface.style.width='';const c=spriteCenter(),w=surface.offsetWidth||390,panelH=Math.min(430,innerHeight*.66),top=Math.max(52,Math.min(innerHeight-panelH-18,c.y-150));let left=meta.side==='left'?c.x-w-82:c.x+82;left=Math.max(28,Math.min(innerWidth-w-28,left));surface.style.left=`${left}px`;surface.style.top=`${top}px`;const available=Math.max(220,innerHeight-top-14),bodyMax=Math.max(150,available-88);surface.style.maxHeight=`${available}px`;if(body)body.style.maxHeight=`${bodyMax}px`;back.style.setProperty('--accent',meta.accent);back.style.top=`${Math.max(18,top-42)}px`;back.style.left=`${meta.side==='left'?left:left+w-132}px`;back.classList.toggle('left-side',meta.side==='left')}
 function commandFor(menu){return document.querySelector(`.command[data-menu="${menu}"]`)}
 function animateCommandToHeader(menu){const src=commandFor(menu).getBoundingClientRect(),surface=$('category-surface'),back=$('back'),meta=menuMeta[menu];layoutCategory();back.classList.remove('open');surface.style.visibility='hidden';surface.style.opacity='0';surface.classList.add(meta.side==='left'?'left-side':'right-side');$('category-title').textContent=meta.title;$('category-subtitle').textContent=meta.subtitle;surface.style.setProperty('--accent',meta.accent);const target={left:parseFloat(surface.style.left),top:parseFloat(surface.style.top),width:surface.offsetWidth,height:100},ghost=document.createElement('div');ghost.className='transition-ghost';ghost.textContent=meta.title;ghost.style.setProperty('--accent',meta.accent);ghost.style.left=`${src.left}px`;ghost.style.top=`${src.top}px`;ghost.style.width=`${src.width}px`;ghost.style.height=`${src.height}px`;document.body.appendChild(ghost);ghost.animate([{left:`${src.left}px`,top:`${src.top}px`,width:`${src.width}px`,height:`${src.height}px`,opacity:1},{left:`${target.left}px`,top:`${target.top}px`,width:`${target.width}px`,height:`${target.height}px`,opacity:1}],{duration:230,easing:'cubic-bezier(.2,.8,.2,1)',fill:'forwards'}).onfinish=()=>{ghost.remove();surface.style.visibility='';surface.style.opacity='';surface.classList.add('open');back.classList.add('open')}}
 function sinInfo(d){return SIN_STYLE[d?.sinAffinity]||SIN_STYLE.sinless}
@@ -6859,6 +6861,8 @@ function combatStepRuntime(){
     rollSide:chance=>window.LuminousCoinEngine.rollSide(chance),coinSrc:side=>window.LuminousCoinEngine.coinSrc(side)};
   names.forEach(name=>{rules[name]=(...args)=>window[name](...args)});
   combatStepsInstance=window.LuminousCombatSteps.create({rules,
+    onEvent:event=>window.LuminousCombatHudMotion073?.event(event),
+    onPresentation:(cue,args)=>window.LuminousCombatHudMotion073?.cue(cue,args),
     assertActive:()=>{
       const a=window.LuminousCombatAuthority073,sync=window.LuminousCombatPlaybackSync;
       if(a?.isDm()&&a.state.runningLocal&&(a.state.executingGeneration||sync?.enabled(a.state.current)))sync.assertOwner(a.state.current)
@@ -7527,6 +7531,7 @@ async function executeQueueEntry(entry,queue,resolvedKeys){
   const steps=combatStepRuntime(),before=resolvedKeys.has(entryKey(entry));
   if(before)return;
   steps.emit('QueueEntryStarted',entry);
+  await steps.show('actionStart',entry);
   try{return await executeQueueEntryRules(entry,queue,resolvedKeys)}
   finally{steps.emit('QueueEntryFinished',entry)}
 }
@@ -8187,7 +8192,7 @@ window.LuminousCombatStepRuntime=Object.freeze({
     }
     $('game-container')?.classList.toggle('round-running',Boolean(locked));
     if($('ready'))$('ready').disabled=Boolean(locked);
-    syncReadyControl()
+    syncReadyControl();window.LuminousCombatHudMotion073?.refresh()
   },
   beginPlayback(turn){
     round=Math.max(1,Number(turn)||1);
@@ -8198,7 +8203,7 @@ window.LuminousCombatStepRuntime=Object.freeze({
     setCameraFocus('full',false)
   },
   refreshPlayback(){
-    window.LuminousCombatStage073?.refresh();
+    window.LuminousCombatStage073?.refresh();window.LuminousCombatHudMotion073?.refresh();
     Object.entries(combatData).forEach(([id,unit])=>{
       syncCombatantVitalNumber(id);
       const token=$(`token-${id}`),pct=combatantHpPct(unit,unit.hp);
@@ -8221,6 +8226,7 @@ window.LuminousCombatStepRuntime=Object.freeze({
 });
 window.LuminousCombat073=Object.freeze({
   version:'0.7.3-live',
+  uiState:()=>({round,running:roundRunning,ready:planReady,view:viewModeActive,analyse:analyseModeActive,targeting:targetingModeActive,nav:navState,menu:activeMenu,selectedSlot:selectedSlotIndex}),
   hydrate:hydrateLiveCombat,
   reset:resetLiveCombatants,
   initialize:initializeCombatSurface,
@@ -8231,7 +8237,7 @@ window.LuminousCombat073=Object.freeze({
   setKits:kits=>{Object.entries(kits||{}).forEach(([id,kit])=>{UNIT_KITS[id]=kit});deckSkills=playerDeckForUnit(PLAYER_ID)},
   setRound:value=>{round=Math.max(1,Number(value)||1);return round},
   camera:(mode='player',enabled=true)=>setCameraFocus(mode,enabled),
-  render:()=>{if(!combatData[PLAYER_ID]||!$(`sprite-${PLAYER_ID}`))return false;window.LuminousCombatStage073?.refresh();renderAllPlannedSlots();renderTargetArrows();layoutRadialCommands()}
+  render:()=>{if(!combatData[PLAYER_ID]||!$(`sprite-${PLAYER_ID}`))return false;window.LuminousCombatStage073?.refresh();window.LuminousCombatHudMotion073?.refresh();renderAllPlannedSlots();renderTargetArrows();layoutRadialCommands()}
 });
 window.dispatchEvent(new CustomEvent('luminous:combat073-runtime-ready',{detail:{version:'0.7.3-live'}}));
 if(!window.LuminousCombatLiveMode)initializeCombatSurface();

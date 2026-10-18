@@ -7,14 +7,17 @@
     if (value && typeof value === 'object') { Object.values(value).forEach(freeze); Object.freeze(value); }
     return value;
   }
-  function create({ rules: r, presentation = {}, context = () => ({}), snapshot = () => ({}), assertActive = () => {} }) {
+  function create({ rules: r, presentation = {}, context = () => ({}), snapshot = () => ({}), assertActive = () => {}, onEvent = () => {}, onPresentation = () => {} }) {
     let enabled = true, capture = false, sequence = 0, journal = [];
+    // A view failure cannot change rule ordering or interrupt the resolver.
+    const notify = (callback, ...args) => { try { callback(...args); } catch (_) {} };
     const action = entry => ({ actionId: `${context().round}:${entry.ownerId}:${entry.localIndex ?? 0}`,
       ownerId: entry.ownerId, slotIndex: entry.localIndex ?? 0, targetId: entry.plan?.targetId ?? null });
     function emit(type, entry, detail = {}) {
       const event = freeze(copy({ schemaVersion: SCHEMA, engineVersion: VERSION, ...context(),
         sequence: ++sequence, type, ...(entry ? action(entry) : {}), ...detail }));
       journal.push(event);
+      notify(onEvent, event);
       return event;
     }
     function mutate(type, entry, detail, callback) {
@@ -49,7 +52,7 @@
     async function show(name, ...args) {
       assertActive();
       if (capture) emit('Presentation', null, { cue: name, args: args.map(presentationValue), combatants: snapshot() });
-      if (enabled) await presentation[name]?.(...args);
+      if (enabled) { notify(onPresentation, name, args); await presentation[name]?.(...args); }
     }
     function powerState(entry, remaining, opponent) {
       const data = r.data(entry.plan), unit = r.unit(entry.ownerId), other = r.unit(opponent?.ownerId);
@@ -188,12 +191,12 @@
       await show('powerCoin', entry, coin, power, 1); await show('powerEnd', entry, 1, power, [coin]); await show('evadeEnd', entry);
       return evaded ? { evaded: true, active: true, power, side: coin.side } : { evaded: false, active: false, broken: true, power, side: coin.side };
     }
-    return Object.freeze({ version: VERSION, rollPower, rollPair, hits, clash, guard, evade, emit, mutate,
+    return Object.freeze({ version: VERSION, rollPower, rollPair, hits, clash, guard, evade, emit, mutate, show,
       beginRound() { sequence = 0; journal = []; emit('RoundSealed'); },
       events: () => copy(journal), setPresentationEnabled(value) { enabled = Boolean(value); }, presentationEnabled: () => enabled,
       capturePresentation(value) { capture = Boolean(value); },
-      async present(cue, args) { if (enabled) await presentation[cue]?.(...args); },
-      acceptEvent(event) { journal.push(freeze(copy(event))); sequence = Math.max(sequence, event.sequence); },
+      async present(cue, args) { if (enabled) { notify(onPresentation, cue, args); await presentation[cue]?.(...args); } },
+      acceptEvent(event) { journal.push(freeze(copy(event))); sequence = Math.max(sequence, event.sequence); notify(onEvent, event); },
       resetJournal(cursor = 0) { journal = []; sequence = Number(cursor) || 0; } });
   }
   global.LuminousCombatSteps = Object.freeze({ version: VERSION, schemaVersion: SCHEMA, create });

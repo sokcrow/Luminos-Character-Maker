@@ -9,7 +9,7 @@ export function functionSource(name, text = source) {
   return first.endsWith('}') ? first : text.slice(start, text.indexOf('\n}', eol) + 2);
 }
 const noop = () => {};
-export function harness({ old = false, enabled = true, seed = 42, values, units = {} } = {}) {
+export function harness({ old = false, enabled = true, seed = 42, values, units = {}, observers = {} } = {}) {
   const data = structuredClone(units), trace = [], randoms = [];
   let cursor = 0, randomState = seed, frames = 0;
   const random = () => {
@@ -78,7 +78,7 @@ export function harness({ old = false, enabled = true, seed = 42, values, units 
   const rules = { data: sandbox.clashData, unit: id => data[id], rollSide: sandbox.LuminousCoinEngine.rollSide, coinSrc: side => side };
   names.forEach(name => rules[name] = (...args) => sandbox[name](...args));
   const presentation = new Proxy({}, { get: () => async () => { frames++; await Promise.resolve(); } });
-  const steps = sandbox.LuminousCombatSteps.create({ rules, presentation, context: () => ({ round: 1, seed, rngCursor: cursor }), snapshot });
+  const steps = sandbox.LuminousCombatSteps.create({ rules, presentation, context: () => ({ round: 1, seed, rngCursor: cursor }), snapshot, ...observers });
   steps.setPresentationEnabled(enabled); steps.beginRound(); sandbox.combatStepRuntime = () => steps;
   if (old) for (const code of Object.values(legacy.functions)) vm.runInContext(code, context);
   return { sandbox, steps, data, trace, randoms, snapshot, cursor: () => cursor, frames: () => frames };
