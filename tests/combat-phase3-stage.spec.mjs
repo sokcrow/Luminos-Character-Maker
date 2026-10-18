@@ -7,8 +7,8 @@ for (const mobile of [false, true]) test(`layered stage: real DM placement and P
   const fixture=await seedPhase0(), sessions=[];
   fs.mkdirSync(ARTIFACTS,{recursive:true});
   try {
-    const player=await openSession(browser,fixture.users.a,8,{compatibility:false});sessions.push(player);
-    const dm=await openSession(browser,fixture.users.dm,8,{compatibility:false});sessions.push(dm);
+    const player=await openSession(browser,fixture.users.a,8,{compatibility:false,hasTouch:mobile});sessions.push(player);
+    const dm=await openSession(browser,fixture.users.dm,8,{compatibility:false,hasTouch:mobile});sessions.push(dm);
     for(const session of sessions) await session.page.waitForFunction(()=>window.LuminousCombatAuthority073?.state.authorityRef && window.LuminousCombatStage073?.state.mounted && !document.getElementById('game-container').classList.contains('intro-running'));
     await expect(player.page.locator('#combat-stage-placement')).toHaveCount(0);
     if(mobile) { await dm.page.setViewportSize({width:390,height:844}); await player.page.setViewportSize({width:390,height:844}); }
@@ -16,7 +16,9 @@ for (const mobile of [false, true]) test(`layered stage: real DM placement and P
     await expect(dm.page.locator('#combat-stage-tools')).toBeVisible();
     await dm.page.locator('#combat-stage-unit').selectOption('player:a');
     const rect=await dm.page.locator('#battlefield').boundingBox();
-    await dm.page.mouse.click(rect.x+rect.width*.50,rect.y+rect.height*.70);
+    const ground=[rect.x+rect.width*.50,rect.y+rect.height*.70];
+    if(mobile)await dm.page.touchscreen.tap(...ground);
+    else await dm.page.mouse.click(...ground);
     await expect.poll(async()=> (await readEmulator('campaña/combate/combatants/player:a'))?.x).toBe(50);
     await expect.poll(async()=> (await readEmulator('campaña/combate/combatants/player:a'))?.y).toBe(30);
     await expect.poll(()=>player.page.evaluate(()=>window.LuminousCombat073.combatants()['player:a'].x)).toBe(50);

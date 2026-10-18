@@ -9,9 +9,9 @@ const BASE = 'http://127.0.0.1:4173';
 const sdkDir = path.dirname(require.resolve('firebase/package.json'));
 export const ARTIFACTS = 'artifacts/combat-phase0';
 
-export async function openSession(browser, user, seed, { compatibility = true } = {}) {
+export async function openSession(browser, user, seed, { compatibility = true, hasTouch = false } = {}) {
   const hosts = emulatorHosts();
-  const context = await browser.newContext({ viewport: { width: 1365, height: 768 } });
+  const context = await browser.newContext({ viewport: { width: 1365, height: 768 }, hasTouch });
   await context.addInitScript(value => { window.LuminousCombatPlaybackCompatibility = value; }, compatibility);
   const errors = [];
   const consoleErrors = [];
