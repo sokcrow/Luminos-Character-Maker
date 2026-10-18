@@ -11,6 +11,7 @@ async function chooseSkill(page,touch){
   const click=async locator=>touch?locator.tap():locator.click();
   await click(page.locator('.command[data-menu="skills"]'));
   await click(page.locator('#category-body .skill-option').first());
+  await expect.poll(()=>page.locator('#game-container').evaluate(node=>({x:node.scrollLeft,y:node.scrollTop}))).toEqual({x:0,y:0});
   await inside(page,'#action-confirm');await click(page.locator('#action-confirm'));
   if(touch){const target=page.locator('#combat-target-list button[data-target-owner="enemy:dummy"]').first();await expect(target).toBeVisible();await inside(page,'#combat-target-list button');await target.tap();}
   else await page.locator('.action-slot-wrapper.target-valid[data-owner-id="enemy:dummy"]').first().click();
@@ -31,7 +32,7 @@ for(const reduced of [false,true])test(`integrated product HUD: menus, Coins and
   try{
     for(const role of ['a','b','dm'])sessions.push({role,...await openSession(browser,fixture.users[role],8,{compatibility:false,hasTouch:!reduced})});
     const a=sessions[0].page,b=sessions[1].page,dm=sessions[2].page;
-    for(const{page}of sessions){await page.emulateMedia({reducedMotion:reduced?'reduce':'no-preference'});await page.waitForFunction(()=>window.LuminousCombatAuthority073?.state.authorityRef&&window.LuminousCombatHudMotion073?.state.mounted&&!document.getElementById('game-container').classList.contains('intro-running'));}
+    for(const{page}of sessions){page.setDefaultTimeout(15000);await page.emulateMedia({reducedMotion:reduced?'reduce':'no-preference'});await page.waitForFunction(()=>window.LuminousCombatAuthority073?.state.authorityRef&&window.LuminousCombatHudMotion073?.state.mounted&&!document.getElementById('game-container').classList.contains('intro-running'));}
     await expect(dm.locator('#c073-dm-setup')).not.toHaveAttribute('open','');
     for(const viewport of reduced?[{width:1365,height:768}]:[{width:390,height:844},{width:844,height:390},{width:390,height:844}]){
       await a.setViewportSize(viewport);await a.waitForTimeout(700);
@@ -72,5 +73,5 @@ for(const reduced of [false,true])test(`integrated product HUD: menus, Coins and
     await a.screenshot({path:`${ARTIFACTS}/phase4-final-${reduced?'reduced':'motion'}.png`});
     fs.writeFileSync(`${ARTIFACTS}/phase4-${reduced?'reduced':'motion'}.json`,JSON.stringify({result,evidence,errors:sessions.map(s=>({role:s.role,errors:s.errors,forbidden:s.forbidden}))},null,2));
     for(const session of sessions){expect(session.errors).toEqual([]);expect(session.forbidden).toEqual([]);}
-  }finally{for(const session of sessions)await session.context.close();}
+  }finally{for(const session of sessions)await session.context.close().catch(()=>{});}
 });

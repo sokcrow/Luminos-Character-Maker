@@ -40,7 +40,7 @@
   function side(entry,count,power){
     if(!entry?.ownerId)return null;
     let row=state.sides.get(entry.ownerId);
-    if(!row){row={id:entry.ownerId,skill:entry.plan?.data?.name||'Habilidad',count:0,power:null,coins:[],types:(entry.plan?.data?.coins||[]).map(coin=>clean(coin.type||coin.coinType).toLowerCase())};state.sides.set(entry.ownerId,row);}
+    if(!row){row={id:entry.ownerId,skill:entry.plan?.data?.name||'Habilidad',count:0,power:null,coins:[],offset:0,latest:0,types:(entry.plan?.data?.coins||[]).map(coin=>clean(coin.type||coin.coinType).toLowerCase())};state.sides.set(entry.ownerId,row);}
     if(count!=null)row.count=Math.max(0,Number(count)||0);
     if(power!=null)row.power=Number(power)||0;
     return row;
@@ -53,30 +53,31 @@
       const results=doc.createElement('div');results.className='combat-action-coins';
       if(readable){
         const power=doc.createElement('b');power.textContent=row.power==null?'—':String(row.power);results.appendChild(power);
-        for(let i=0;i<Math.min(8,row.count);i++){
+        const limit=compact()&&global.innerWidth<500?3:8,start=Math.max(0,Math.min(row.count-limit,row.latest-limit+1));
+        for(let i=start;i<Math.min(row.count,start+limit);i++){
           const coin=doc.createElement('span'),result=row.coins[i];coin.className=`combat-result-coin ${result||'pending'}${row.types[i]==='unbreakable'?' unbreakable':''}`;
           coin.textContent=result==='head'?'●':result==='tail'?'○':'◇';coin.setAttribute('aria-label',`${row.types[i]==='unbreakable'?'Unbreakable Coin':'Coin'} ${i+1}: ${result==='head'?'Heads':result==='tail'?'Tails':'pendiente'}`);results.appendChild(coin);
         }
-        if(row.count>8){const more=doc.createElement('span');more.textContent=`+${row.count-8}`;results.appendChild(more);}
+        if(row.count>limit){const more=doc.createElement('span');more.textContent=`+${row.count-limit}`;results.appendChild(more);}
       }
       node.appendChild(results);container.appendChild(node);
     }
     const panel=byId('combat-action-readout');if(panel)panel.hidden=!ui().running||state.sides.size===0;
   }
-  function cue(cue,args=[]){
-    const [a,b,c,d]=args;
-    if(cue==='actionStart'){state.sides.clear();side(a,a?.plan?.data?.coinAmount);text('combat-action-result','Resolviendo habilidad');pose(a?.ownerId,entryPose(a));}
-    else if(cue==='clashStart'){state.sides.clear();side(a,c);side(b,d);text('combat-action-result','Choque de habilidades');pose(a?.ownerId,'attack');pose(b?.ownerId,'attack');}
-    else if(cue==='powerStart'){const row=side(a,b,c);if(row)row.coins=[];pose(a?.ownerId,entryPose(a));}
-    else if(cue==='powerCoin'){const row=side(a,d,c);if(row)row.coins[b.index]=b.side;}
-    else if(cue==='hitsStart'){state.sides.clear();side(a,b);text('combat-action-result','Resolviendo habilidad');}
-    else if(cue==='hitStart'){side(a,b);pose(a?.ownerId,entryPose(a));}
-    else if(cue==='hitCoin'){const row=side(a,b,args[4]);if(row)row.coins=d.map(coin=>coin.side);}
-    else if(cue==='hitMotion'){pose(a?.ownerId,entryPose(a));pose(b,'hit');}
-    else if(cue==='guardEnd')pose(a?.ownerId,'guard');
-    else if(cue==='evadeEnd')pose(a?.ownerId,'evade');
+  function cue(cue,args=[],options={}){
+    const [a,b,c,d]=args,drawPose=(...values)=>{if(!options.quiet)pose(...values);};
+    if(cue==='actionStart'){state.sides.clear();side(a,a?.plan?.data?.coinAmount);text('combat-action-result','Resolviendo habilidad');drawPose(a?.ownerId,entryPose(a));}
+    else if(cue==='clashStart'){state.sides.clear();side(a,c);side(b,d);text('combat-action-result','Choque de habilidades');drawPose(a?.ownerId,'attack');drawPose(b?.ownerId,'attack');}
+    else if(cue==='powerStart'){const row=side(a,b,c);if(row){row.coins=[];row.offset=0;row.latest=0;}drawPose(a?.ownerId,entryPose(a));}
+    else if(cue==='powerCoin'){const row=side(a,d,c);if(row){row.coins[b.index]=b.side;row.latest=b.index;}}
+    else if(cue==='hitsStart'){state.sides.clear();const row=side(a,b);if(row)row.offset=Math.max(0,Number(a?.plan?.data?.coinAmount)-Number(b));text('combat-action-result','Resolviendo habilidad');}
+    else if(cue==='hitStart'){side(a,b);drawPose(a?.ownerId,entryPose(a));}
+    else if(cue==='hitCoin'){const row=side(a,b,args[4]);if(row){row.coins=d.map(coin=>coin.side);row.latest=Math.max(0,d.length-1);}}
+    else if(cue==='hitMotion'){drawPose(a?.ownerId,entryPose(a));drawPose(b,'hit');}
+    else if(cue==='guardEnd')drawPose(a?.ownerId,'guard');
+    else if(cue==='evadeEnd')drawPose(a?.ownerId,'evade');
     else if(cue==='clashOutcome'){side(a,args[3],args[5]?.power);side(b,args[4],args[6]?.power);}
-    else if(cue==='clashEnd'){pose(a?.ownerId,stablePose(a?.ownerId),{transient:false});pose(b?.ownerId,stablePose(b?.ownerId),{transient:false});}
+    else if(cue==='clashEnd'){drawPose(a?.ownerId,stablePose(a?.ownerId),{transient:false});drawPose(b?.ownerId,stablePose(b?.ownerId),{transient:false});}
     paintAction();
   }
   function event(event){
@@ -84,7 +85,8 @@
     if(generation!==state.generation){state.generation=generation;state.lastSequence=0;state.sides.clear();clearMotion();}
     if(Number(event.sequence)<=state.lastSequence)return;
     state.lastSequence=Number(event.sequence)||0;
-    if(event.type==='CoinRolled'){const row=side({ownerId:event.ownerId});if(row){row.count=Math.max(row.count,Number(event.coinIndex)+1);row.coins[event.coinIndex]=event.side;}}
+    if(event.type==='Presentation')cue(event.cue,event.args||[],{quiet:true});
+    else if(event.type==='CoinRolled'){const known=state.sides.has(event.ownerId),row=side({ownerId:event.ownerId});if(row){if(!known)row.count=Number(event.coinIndex)+1;const index=Math.max(0,Number(event.coinIndex)-row.offset);row.coins[index]=event.side;row.latest=index;}}
     else if(event.type==='HitResolved'){const row=side({ownerId:event.ownerId});if(row)row.power=event.power;}
     else if(event.type==='ClashRoundResolved'){
       text('combat-action-result',[...state.sides.values()].every(row=>canRead(row.id))?(event.winner==='tie'?'Empate':`Choque ${event.clashCount} · ${event.powerA} contra ${event.powerB}`):'Choque en curso');
@@ -100,6 +102,7 @@
     if(!state.mounted)return;
     const host=byId('game-container'),value=ui(),unit=units()[runtime()?.playerId?.()],role=global.LuminousCombatLiveAdapter073?.state?.role;
     const small=compact();if(host.classList.contains('compact-combat-hud')!==small)host.classList.toggle('compact-combat-hud',small);
+    const categoryOpen=value.nav!=='root';if(host.classList.contains('hud-category-open')!==categoryOpen)host.classList.toggle('hud-category-open',categoryOpen);
     const own=byId('combat-own-status');if(own)own.hidden=role==='dm'||!unit;
     if(unit){
       text('combat-own-name',unit.name);text('combat-own-vitals',`HP ${Math.round(unit.hp)} / ${Math.round(unit.maxHp)} · SP ${Math.round(unit.sp)}`);
@@ -128,7 +131,7 @@
     text('combat-phase-label',role==='dm'&&!value.running?'Diriges el encuentro':phase);
     if(!value.running){state.sides.clear();const readout=byId('combat-action-readout');if(readout)readout.hidden=true;}
   }
-  function layoutCommands(){refresh();return compact();}
+  function layoutCommands(){refresh();return false;}
   function layoutCategory({surface,body,back,accent}){
     if(!compact())return false;
     const top=global.innerHeight<=500?54:166,left=10,width=Math.max(240,global.innerWidth-20),height=Math.max(140,global.innerHeight-top-12);

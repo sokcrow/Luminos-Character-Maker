@@ -29,6 +29,7 @@ nodes['game-container']=host;const hidden=new Set();nodes['token-a']={classList:
 assert.equal(hud.compact(),true);assert.equal(hud.canRead('a'),true);hidden.add('invisible-hidden');assert.equal(hud.canRead('a'),false);hidden.clear();classes.add('player-blinded');assert.equal(hud.canRead('enemy'),false);assert.equal(hud.canRead('a'),true);
 assert.equal(hud.entryPose({plan:{type:'spells',data:{name:'Healing'}}}),'cast');assert.equal(hud.entryPose({plan:{data:{defenseType:'guard'}}}),'guard');
 let animations=0;nodes['sprite-a']={dataset:{},animate(){animations++;return{cancel(){}};}};
+const plan={ownerId:'a',plan:{data:{name:'Triple',coinAmount:3}}};hud.cue('hitsStart',[plan,1],{quiet:true});hud.event({roundId:'r1',sequence:1,type:'Presentation',cue:'hitsStart',args:[plan,1]});hud.event({roundId:'r1',sequence:2,type:'CoinRolled',ownerId:'a',coinIndex:2,side:'head'});assert.equal(hud.state.sides.get('a').count,1);assert.equal(hud.state.sides.get('a').coins[0],'head');
 const before=JSON.stringify(units);hud.cue('hitMotion',[{ownerId:'a',plan:{data:{}}},'a']);assert.ok(animations>0);assert.equal(JSON.stringify(units),before);
 window.matchMedia=()=>({matches:true});const previous=animations;hud.cue('hitMotion',[{ownerId:'a',plan:{data:{}}},'a']);assert.equal(animations,previous);
 console.log('Phase 4: observer failures preserve rule state/RNG/journal, presentation replay is read-only, private visibility and reduced motion passed');

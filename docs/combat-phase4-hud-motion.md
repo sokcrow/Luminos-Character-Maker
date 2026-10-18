@@ -6,7 +6,7 @@ Base integrada: #989, `db1fefa39f90fbe62392b15862e316df535c6c5c`, que contiene #
 
 El HUD muestra el personaje propio, HP/SP, Speed, Stagger, efectos actuales y selección de Action Slots. La información propia permanece en pantalla y respeta las restricciones existentes. El texto técnico del prototipo se sustituye por mensajes de fase comprensibles. El DM abre «Encuentro» cuando necesita preparar o administrar el combate; el panel comienza cerrado y la recuperación del DM sigue abriéndolo cuando necesita intervención.
 
-En escritorio se conserva el menú radial. En pantallas estrechas o bajas se utiliza el mismo menú y sus mismos callbacks en una disposición compacta. Las categorías ajustan ancho/alto al viewport, los detalles desplazan su contenido y la confirmación permanece accesible. La elegibilidad de Spells y los servicios canónicos de objetos, economía y reacciones se conservan.
+Se conserva el menú radial y su material de tinta en escritorio y móvil. En pantallas estrechas se reutiliza su disposición de dos alas y los mismos callbacks; el HUD de estado se adapta sin sustituir esos controles. Las categorías ajustan ancho/alto al viewport, los detalles desplazan su contenido y la confirmación permanece accesible. La elegibilidad de Spells y los servicios canónicos de objetos, economía y reacciones se conservan.
 
 Al seleccionar un objetivo en móvil, una lista contextual ofrece los Action Slots que el runtime ya declaró válidos, con botones de al menos 44 px. Cada botón llama al selector de objetivos existente: no decide ni valida otra vez el resultado. La confirmación de Clash y su previsión siguen usando las reglas existentes.
 
