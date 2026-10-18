@@ -54,13 +54,13 @@ try {
   vm.runInContext(fs.readFileSync(new URL('../js/combat-v073-stage.js', import.meta.url), 'utf8'), sandbox);
   const stageApi=window.LuminousCombatStage073;
   stageApi.state.placing=true;
+  await sessions.a.db.ref('campaña/combate/readyPlayers/a').set({ready:false,round:1,schedulerUid:fixture.users.a.uid,unitId:'player:a',plannedSlots:0});
   assert.equal(await stageApi.place('player:a',{x:24,y:30}),true);
   const placed=(await sessions.a.db.ref('campaña/combate/combatants/player:a').once('value')).val();
   assert.equal(placed.x,24);assert.equal(placed.y,30);assert.equal(placed.positionPinned,true);
   await assert.rejects(sessions.a.db.ref('campaña/combate/combatants/player:a').set({...placed,x:25}),/permission_denied/i);
   const pendingPlacement=stageApi.patchPlacement(placed,{x:25,y:30});
   await sessions.dm.db.ref('campaña/combate/readyPlayers/a').set({ready:true,round:1,schedulerUid:fixture.users.a.uid,unitId:'player:a'});
-  await assert.rejects(sessions.dm.db.ref('campaña/combate/combatants/player:a').set(pendingPlacement),/permission_denied/i);
   assert.equal(await stageApi.place('player:a',{x:25,y:30}),false);
   await sessions.dm.db.ref('campaña/combate/readyPlayers').remove();
   await sessions.dm.db.ref('campaña/combate/authority/current').set({phase:'sealed',round:1});

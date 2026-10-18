@@ -14,7 +14,7 @@ En la preparación del encuentro, «Colocar formación inicial» abre una selecc
 
 La formación inicial se coloca **antes de cualquier plan o READY y antes del primer sellado**. La operación no es movimiento de turno: no gasta recursos, no cambia alcance ni añade alturas, terreno difícil, cobertura o navegación. La colocación entre rondas y el movimiento táctico requerirán su contrato de reglas e interfaz. No se añaden decisiones automáticas para humanos.
 
-La aplicación comprueba fase/planes/READY y una transacción conserva los demás campos del combatiente. Las reglas validan la operación nueva `stagePlacement`: límites del suelo, fase de preparación, ausencia de autoridad, planes y READY. Esto rechaza una colocación que compita con el sellado o con el READY de otra sesión. Solo el DM puede escribir combatientes. Las escrituras de checkpoints existentes conservan su compatibilidad.
+La aplicación comprueba fase/planes/READY y una transacción del encuentro inicial comprueba de forma atómica todas las filas de preparación y conserva los demás campos. Las filas iniciales `ready:false` sin objetivos no bloquean la formación. Un READY, objetivo o sellado concurrente invalida el snapshot y la transacción vuelve a comprobar las condiciones. Las reglas reservan la escritura del encuentro al DM y validan `stagePlacement`: límites del suelo, fase de preparación y ausencia de autoridad y planes. Solo el DM puede escribir combatientes. Las escrituras de checkpoints existentes conservan su compatibilidad.
 
 ## Integración
 

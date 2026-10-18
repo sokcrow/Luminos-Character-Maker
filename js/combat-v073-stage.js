@@ -26,7 +26,7 @@
     const phase = String(typeof combat.estado === 'object' ? combat.estado?.phase : combat.estado || '').toLowerCase();
     return ['setup', 'pre_combat_planning', 'planning'].includes(phase) &&
       !combat.authority?.current && !Object.keys(combat.plannedActions || {}).length &&
-      !Object.keys(combat.readyPlayers || {}).length;
+      !Object.values(combat.readyPlayers || {}).some(row => row?.ready === true || Number(row?.plannedSlots) > 0 || Object.keys(row?.targetIntents || {}).length);
   }
   function patchPlacement(unit, point) {
     return { ...unit, x: point.x, y: point.y, positionPinned: true,
@@ -44,7 +44,11 @@
   function refresh() {
     Object.values(unitMap()).forEach(refreshUnit);
     const control = byId('combat-stage-placement');
-    if (control) control.hidden = !isDm();
+    if (control) {
+      control.hidden = !isDm();
+      control.disabled = Boolean(global.LuminousCombatAuthority073?.state.current?.phase);
+      control.title = 'Disponible antes de planificar la primera ronda.';
+    }
     if (state.placing && (!isDm() || global.LuminousCombatAuthority073?.state.current?.id ||
       !['setup', 'pre_combat_planning', 'planning'].includes(String(adapter()?.combatState || '').toLowerCase()))) setPlacing(false);
   }
@@ -82,20 +86,20 @@
     const db = adapter()?.db; if (!db?.ref) return false;
     state.busy = true;
     try {
-      const combat = (await db.ref(ROOT).once('value')).val() || {};
-      if (!canPlace(combat)) throw new Error('Coloca la formación antes de preparar acciones o declarar READY.');
-      const ref = db.ref(`${ROOT}/combatants/${id}`);
-      // Keep the read in the SDK cache until the transaction finishes. A one-off
-      // root read can be evicted before the transaction's first local callback.
-      // Never substitute a stale unit when the server has actually removed it.
+      const ref = db.ref(ROOT);
+      // Observe the whole initial encounter while placing. The transaction
+      // retries against concurrent READY, target selection, seal or removal;
+      // no stale unit snapshot can be restored into a newer encounter.
       let hold;
       try {
         await new Promise((resolve, reject) => { hold = snapshot => resolve(snapshot); ref.on('value', hold, reject); });
-        const result = await ref.transaction(unit => {
+        const result = await ref.transaction(combat => {
+          if (!combat || !canPlace(combat)) return;
+          const unit = combat.combatants?.[id];
           if (!unit || unit.isBackup || unit.battleActive === false) return;
-          return patchPlacement(unit, point);
+          return { ...combat, combatants: { ...combat.combatants, [id]: patchPlacement(unit, point) } };
         }, undefined, false);
-        if (!result.committed) throw new Error('Este combatiente ya no está en el campo.');
+        if (!result.committed) throw new Error('La formación ya no está disponible.');
       } finally { if (hold) ref.off('value', hold); }
       message('Posición guardada. Puedes colocar otro combatiente.');
       return true;

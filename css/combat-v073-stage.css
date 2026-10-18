@@ -28,3 +28,5 @@
 
 .layered-stage.player-blinded #webgl2-dom-background, .layered-stage.player-blinded #combat-stage-foreground { visibility:hidden; }
 .layered-stage.player-blinded { background:#000; }
+
+.stage-placing #battlefield, .stage-placing .combat-stage-layer { transition:none!important; }

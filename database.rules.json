@@ -133,10 +133,11 @@
           ".write": "auth != null && (auth.uid === root.child('campaña').child('config').child('dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1')",
           "$unit": {
             "stagePlacement": {
-              ".validate": "newData.hasChildren(['x','y','revision']) && newData.child('x').isNumber() && newData.child('x').val() >= 5 && newData.child('x').val() <= 95 && newData.child('y').isNumber() && newData.child('y').val() >= 12 && newData.child('y').val() <= 52 && newData.child('revision').isNumber() && newData.child('revision').val() > 0 && ((newData.child('revision').val() === data.child('revision').val() && newData.child('x').val() === data.child('x').val() && newData.child('y').val() === data.child('y').val()) || ((root.child('campaña/combate/estado/phase').val() === 'PRE_COMBAT_PLANNING' || root.child('campaña/combate/estado/phase').val() === 'SETUP' || root.child('campaña/combate/estado').val() === 'PRE_COMBAT_PLANNING') && !root.child('campaña/combate/authority/current').exists() && !root.child('campaña/combate/plannedActions').exists() && !root.child('campaña/combate/readyPlayers').exists()))"
+              ".validate": "newData.hasChildren(['x','y','revision']) && newData.child('x').isNumber() && newData.child('x').val() >= 5 && newData.child('x').val() <= 95 && newData.child('y').isNumber() && newData.child('y').val() >= 12 && newData.child('y').val() <= 52 && newData.child('revision').isNumber() && newData.child('revision').val() > 0 && ((newData.child('revision').val() === data.child('revision').val() && newData.child('x').val() === data.child('x').val() && newData.child('y').val() === data.child('y').val()) || ((root.child('campaña/combate/estado/phase').val() === 'PRE_COMBAT_PLANNING' || root.child('campaña/combate/estado/phase').val() === 'SETUP' || root.child('campaña/combate/estado').val() === 'PRE_COMBAT_PLANNING') && !root.child('campaña/combate/authority/current').exists() && !root.child('campaña/combate/plannedActions').exists()))"
             }
           }
-        }
+        },
+        ".write": "auth != null && (auth.uid === root.child('campaña').child('config').child('dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1')"
       },
       "efectos_dm": {
         "$effectId": {
