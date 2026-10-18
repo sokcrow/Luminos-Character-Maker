@@ -43,7 +43,9 @@ for(const fast of [false,true])test(`phase5 canonical Fire Bolt, effects/audio f
     await fireBolt(a,!fast);await planAndReady(b);
     if(!fast){
       await a.waitForFunction(()=>document.querySelector('#combat-av-layer [data-profile="fire_bolt"][data-marker="impact"]'),null,{timeout:60000});
-      await a.evaluate(()=>{for(const node of document.querySelectorAll('#combat-av-layer [data-marker="impact"]'))for(const animation of node.getAnimations())animation.pause();});
+      await a.evaluate(()=>{for(const node of document.querySelectorAll('#combat-av-layer [data-marker="impact"]'))for(const animation of node.getAnimations()){animation.pause();animation.currentTime=Number(animation.effect.getTiming().duration)*.35;}});
+      await expect(a.locator('#combat-action-sides')).toContainText('Fire Bolt');
+      await expect.poll(()=>a.locator('#combat-av-layer [data-profile="fire_bolt"][data-marker="impact"]').first().evaluate(node=>Number(getComputedStyle(node).opacity))).toBeGreaterThan(.1);
       await a.screenshot({path:`${ARTIFACTS}/phase5-mobile-fire-impact.png`});
       await a.evaluate(()=>{for(const node of document.querySelectorAll('#combat-av-layer [data-marker="impact"]'))for(const animation of node.getAnimations())animation.play();});
     }

@@ -40,7 +40,8 @@
   function side(entry,count,power){
     if(!entry?.ownerId)return null;
     let row=state.sides.get(entry.ownerId);
-    if(!row){row={id:entry.ownerId,skill:entry.plan?.data?.name||'Habilidad',count:0,power:null,coins:[],offset:0,latest:0,types:(entry.plan?.data?.coins||[]).map(coin=>clean(coin.type||coin.coinType).toLowerCase())};state.sides.set(entry.ownerId,row);}
+    if(!row){row={id:entry.ownerId,skill:entry.plan?.data?.name||'Habilidad',count:0,power:null,coins:[],offset:0,latest:0,types:(Array.isArray(entry.plan?.data?.coins)?entry.plan.data.coins:[]).map(coin=>clean(coin.type||coin.coinType).toLowerCase())};state.sides.set(entry.ownerId,row);}
+    if(entry.plan?.data?.name)row.skill=entry.plan.data.name;
     if(count!=null)row.count=Math.max(0,Number(count)||0);
     if(power!=null)row.power=Number(power)||0;
     return row;

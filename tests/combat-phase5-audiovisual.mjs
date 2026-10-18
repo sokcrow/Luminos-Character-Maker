@@ -76,3 +76,11 @@ for(const nav of ['category','action']){
   ensureCategorySurfaceOpen(){},renderActiveMenuBody(){rendered++;},syncTabs(){},updateCategoryContext(){},syncSpellMenuVisibility(){},syncQuickBadge(){},syncResponsiveMenuLayout(){}
  });refresh('spells');scheduled.forEach(fn=>fn());assert.equal(rendered,nav==='category'?1:0);
 }
+
+// Canonical spell catalogs use numeric `coins`; the HUD must still name the Skill.
+const hudWindow={innerWidth:390,innerHeight:844,document:{getElementById:()=>null,querySelectorAll:()=>[]},LuminousCombat073:{combatants:()=>({}),uiState:()=>({running:true})},matchMedia:()=>({matches:false})};
+vm.runInNewContext(fs.readFileSync('js/combat-v073-hud-motion.js','utf8'),{window:hudWindow});
+const hud=hudWindow.LuminousCombatHudMotion073;
+hud.event({roundId:'r',sequence:1,type:'CoinRolled',ownerId:'a',coinIndex:0,side:'head'});
+assert.doesNotThrow(()=>hud.cue('powerStart',[{ownerId:'a',plan:{data:{id:'fire_bolt',name:'Fire Bolt',coins:1,coinAmount:1}}},1,13]));
+assert.equal(hud.state.sides.get('a').skill,'Fire Bolt');
