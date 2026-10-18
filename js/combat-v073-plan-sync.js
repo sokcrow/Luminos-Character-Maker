@@ -53,6 +53,8 @@
     if(Number(authority?.round)===Number(s.round)&&['sealed','running','complete'].includes(norm(authority?.phase)))return null;
     const own=ownCombatant(s);if(!own)throw new Error('PLAYER_COMBATANT_NOT_DEPLOYED');
     const unitId=own[0],plans=Array.isArray(detail.plans)?detail.plans:[],owner=safe(s.playerId),slotCount=Math.max(plans.length,Math.trunc(finite(own[1]?.actionSlots??own[1]?.activeSlots,1)),1),round=Math.max(1,Math.trunc(finite(s.round,1)));
+    // Old queued UI events must never be written into a later round.
+    if(detail.round!=null&&Number(detail.round)!==round)return null;
     return{s,own,unitId,plans,owner,slotCount,round};
   }
   function targetIndex(ctx){const out={};for(let i=0;i<ctx.slotCount;i+=1){const row=targetPayloadFor(ctx.plans[i],i,ctx.unitId,ctx.s);if(row)out[i]=row;}return out;}
@@ -76,6 +78,9 @@
     await ctx.s.db.ref().update(updates);lastReadySignature=sig;return true;
   }
   async function syncLiveTargets(detail={}){
+    // A redraw after READY also emits a plan-change event. It must not reset
+    // Firebase READY while the player visibly remains locked in.
+    if(detail.ready===true)return syncReady(detail);
     const ctx=context(detail);if(!ctx)return false;const targets=targetIndex(ctx),sig=JSON.stringify(['targets',ctx.round,ctx.unitId,targets]);if(sig===lastTargetSignature)return true;
     await ctx.s.db.ref(`${ROOT}/readyPlayers/${ctx.owner}`).set({ready:false,round:ctx.round,schedulerUid:ctx.s.uid,unitId:ctx.unitId,plannedSlots:0,targetIntents:targets,updatedAt:global.firebase.database.ServerValue.TIMESTAMP});lastTargetSignature=sig;return true;
   }
