@@ -84,3 +84,8 @@ const hud=hudWindow.LuminousCombatHudMotion073;
 hud.event({roundId:'r',sequence:1,type:'CoinRolled',ownerId:'a',coinIndex:0,side:'head'});
 assert.doesNotThrow(()=>hud.cue('powerStart',[{ownerId:'a',plan:{data:{id:'fire_bolt',name:'Fire Bolt',coins:1,coinAmount:1}}},1,13]));
 assert.equal(hud.state.sides.get('a').skill,'Fire Bolt');
+
+// Clash emphasis follows the winner; it must not strike the winning participant.
+const clashEnv=environment();clashEnv.av.cue('clashOutcome',[fire,{ownerId:'b',plan:{data:{damageType:'Slash'}}},'b']);
+assert.equal([...clashEnv.av.state.nodes][0].dataset.profile,'slash');clashEnv.av.clear();
+clashEnv.av.cue('clashOutcome',[fire,{ownerId:'b',plan:{data:{damageType:'Slash'}}},'tie']);assert.equal(clashEnv.av.state.nodes.size,0);

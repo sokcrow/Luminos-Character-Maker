@@ -128,7 +128,7 @@
     else if(name==='spellResult'){feature(a);if(c?.success)impact(a,b,profile({plan:{data:{defenseType:'evade'}}}));else hit(a,b);}
     else if(name==='evadeEnd'&&b?.evaded)impact(a,a.ownerId,profile({plan:{data:{defenseType:'evade'}}}));
     else if(name==='guardEnd')impact(a,a.ownerId,profile({plan:{data:{defenseType:'guard'}}}));
-    else if(name==='clashOutcome'&&b?.ownerId&&readable(a?.ownerId)&&readable(b.ownerId))impact(a,b.ownerId,{...profile(a),shape:'burst',sound:'steel',kick:1});
+    else if(name==='clashOutcome'&&b?.ownerId&&c!=='tie'&&readable(a?.ownerId)&&readable(b.ownerId)){const winner=c==='b'?b:a,loser=c==='b'?a:b;impact(winner,loser.ownerId,{...profile(winner),shape:'burst',sound:'steel',kick:1});}
   }
   function event(value){
     const generation=value.roundId||`${value.encounterId||''}:${value.round}`;
