@@ -101,7 +101,7 @@ console.log('Phase 2: ordered/duplicate/late delivery, checkpoint resume, fail-c
 {
   const setup=fs.readFileSync(new URL('../js/combat-v073-dm-setup.js',import.meta.url),'utf8');
   const code=setup.slice(setup.indexOf('  async function clearEncounter()'),setup.indexOf('  function esc(')).trim();
-  const writes=[],c={isDm:()=>true,state:{db:{ref:()=>({update:async value=>writes.push(json(value))})}},
+  const writes=[],c={isDm:()=>true,requirePlanning:()=>{},state:{db:{ref:()=>({update:async value=>writes.push(json(value))})}},
     ROOTS:{combatants:'campaña/combate/combatants',state:'campaña/combate/estado'},global:{}};
   vm.createContext(c);vm.runInContext(code,c);await c.clearEncounter();
   assert.equal(writes.length,1);assert.equal(writes[0]['campaña/combate/authority/current'],null);
