@@ -1,7 +1,7 @@
 const { defineConfig } = require('@playwright/test');
 module.exports = defineConfig({
   testDir: './tests',
-  testMatch: ['combat-phase0-online.spec.mjs', 'combat-phase2-online.spec.mjs'],
+  testMatch: ['combat-phase0-online.spec.mjs', 'combat-phase2-online.spec.mjs', 'combat-phase3-stage.spec.mjs'],
   timeout: 120000,
   workers: 1,
   outputDir: 'artifacts/combat-phase0/playwright',

@@ -474,7 +474,7 @@
     wrap.id = 'c073-dm-setup';
     wrap.open = true;
     wrap.style.cssText = 'position:fixed;z-index:2147483000;right:12px;top:12px;width:min(440px,calc(100vw - 24px));max-height:calc(100vh - 24px);overflow:auto;background:rgba(8,6,12,.97);border:1px solid #735c36;color:#ddd;padding:8px;font:12px system-ui;box-shadow:0 10px 28px #000';
-    wrap.innerHTML = `<summary style="cursor:pointer;color:#d7aa58;font-weight:700">ENCOUNTER SETUP · COMBAT v0.7.3</summary><div style="margin-top:8px;display:grid;gap:8px"><div style="opacity:.72">FIELD solamente. La edición de Combat Sprites y la Unit Library vive en Panel DM → COMBATE.</div><div style="display:flex;gap:6px"><select id="c073-player" style="flex:1;min-width:0"></select><button id="c073-add-player">ADD PLAYER</button></div><div style="display:flex;gap:6px"><select id="c073-unit" style="flex:1;min-width:0"></select><input id="c073-qty" type="number" min="1" max="20" value="1" style="width:46px"><button id="c073-enemy">ENEMY</button><button id="c073-ally">ALLY</button></div><div style="display:flex;justify-content:space-between;align-items:center"><b>FIELD ROSTER</b><button id="c073-clear">CLEAR</button></div><div id="c073-roster"></div><div id="c073-setup-msg" style="min-height:16px;color:#9fd6a8">Verificando Unit Library…</div></div>`;
+    wrap.innerHTML = `<summary style="cursor:pointer;color:#d7aa58;font-weight:700">ENCOUNTER SETUP · COMBAT v0.7.3</summary><div style="margin-top:8px;display:grid;gap:8px"><div style="opacity:.72">FIELD solamente. La edición de Combat Sprites y la Unit Library vive en Panel DM → COMBATE.</div><div style="display:flex;gap:6px"><select id="c073-player" style="flex:1;min-width:0"></select><button id="c073-add-player">ADD PLAYER</button></div><div style="display:flex;gap:6px"><select id="c073-unit" style="flex:1;min-width:0"></select><input id="c073-qty" type="number" min="1" max="20" value="1" style="width:46px"><button id="c073-enemy">ENEMY</button><button id="c073-ally">ALLY</button></div><div style="display:flex;justify-content:space-between;align-items:center"><b>FIELD ROSTER</b><button id="c073-clear">CLEAR</button></div><button id="combat-stage-placement" type="button" aria-pressed="false">Colocar formación inicial</button><div id="c073-roster"></div><div id="c073-setup-msg" style="min-height:16px;color:#9fd6a8">Verificando Unit Library…</div></div>`;
     global.document.body.appendChild(wrap);
     const player = global.document.getElementById('c073-player');
     const unit = global.document.getElementById('c073-unit');
@@ -499,6 +499,7 @@
       try { await clearEncounter(); setMsg('Encounter vacío.'); }
       catch (error) { setMsg(error.message, true); }
     };
+    global.document.getElementById('combat-stage-placement').onclick = () => global.LuminousCombatStage073?.setPlacing(true);
     render();
     ensureLibraryMaterialized();
     return true;

@@ -46,5 +46,14 @@
     "authorityLease": "sealed-dm-tab-session",
     "recovery": "players-from-confirmed-checkpoint; explicit-same-DM-session-takeover-at-confirmed-action-boundary",
     "executorSnapshot": "domain-queue-and-unit-state-without-DOM-handles"
+  },
+  "stage": {
+    "version": "0.7.3-stage.1",
+    "module": "js/combat-v073-stage.js",
+    "coordinates": "existing-flat-field-percentages",
+    "placement": "dm-initial-formation-before-plans-ready-and-first-seal",
+    "layers": "local-dom-shared-with-webgl-and-fallback",
+    "rulesRng": "unchanged",
+    "forestDependency": false
   }
 }

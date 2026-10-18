@@ -50,6 +50,25 @@ try {
   for (const file of ['dm-player-loadout-core.js', 'combat-skill-loadout-074.js', 'dm-player-loadout-manager.js']) {
     vm.runInContext(fs.readFileSync(new URL(`../js/${file}`, import.meta.url), 'utf8'), sandbox, { filename: file });
   }
+  // Real server permissions close the race between initial placement and READY.
+  vm.runInContext(fs.readFileSync(new URL('../js/combat-v073-stage.js', import.meta.url), 'utf8'), sandbox);
+  const stageApi=window.LuminousCombatStage073;
+  stageApi.state.placing=true;
+  assert.equal(await stageApi.place('player:a',{x:24,y:30}),true);
+  const placed=(await sessions.a.db.ref('campaña/combate/combatants/player:a').once('value')).val();
+  assert.equal(placed.x,24);assert.equal(placed.y,30);assert.equal(placed.positionPinned,true);
+  await assert.rejects(sessions.a.db.ref('campaña/combate/combatants/player:a').set({...placed,x:25}),/permission_denied/i);
+  const pendingPlacement=stageApi.patchPlacement(placed,{x:25,y:30});
+  await sessions.dm.db.ref('campaña/combate/readyPlayers/a').set({ready:true,round:1,schedulerUid:fixture.users.a.uid,unitId:'player:a'});
+  await assert.rejects(sessions.dm.db.ref('campaña/combate/combatants/player:a').set(pendingPlacement),/permission_denied/i);
+  assert.equal(await stageApi.place('player:a',{x:25,y:30}),false);
+  await sessions.dm.db.ref('campaña/combate/readyPlayers').remove();
+  await sessions.dm.db.ref('campaña/combate/authority/current').set({phase:'sealed',round:1});
+  await assert.rejects(sessions.dm.db.ref('campaña/combate/combatants/player:a').set(pendingPlacement),/permission_denied/i);
+  await sessions.dm.db.ref('campaña/combate/authority/current').remove();
+  await assert.rejects(sessions.dm.db.ref('campaña/combate/combatants/player:a').set(stageApi.patchPlacement(placed,{x:105,y:30})),/permission_denied/i);
+  await sessions.dm.db.ref('campaña/combate/combatants/player:a').set(fixture.campaign.combate.combatants['player:a']);
+  stageApi.state.placing=false;
   const manager = window.LuminousDmPlayerLoadoutManager;
   Object.assign(manager.state, { db: sessions.dm.db, playerId: 'a', player: fixture.campaign.jugadores.a, skills: fixture.skills, units: fixture.units });
   stage = 'DM loadout write';

@@ -2320,6 +2320,7 @@
 #game-container.player-blinded .sprite-container.invisible-hidden .top-ui-panel{opacity:0!important;pointer-events:none!important}
 </style>
 
+<link rel="stylesheet" href="css/combat-v073-stage.css">
 </head>
 <body>
 <div id="game-container" class="intro-running">
@@ -2494,6 +2495,7 @@
 <script src="js/combat-v073-steps.js"></script>
 <script src="js/combat-v073-playback.js"></script>
 <script src="js/combat-v073-playback-sync.js"></script>
+<script src="js/combat-v073-stage.js"></script>
 <script>
 let combatData={},round=1,selectedSlotIndex=0,navState='root',activeMenu=null,selected=null,focusedIndex=0,transitionToken=0,plannedActions=[],planReady=false,roundRunning=false,viewModeActive=false,analyseModeActive=false,targetingModeActive=false,pendingTargetPlan=null,pendingTargetSlotIndex=-1,selectedObservationEnemy=null,observationUsedTurn=0,observationRolling=false,clashChoiceSerial=0,clashConfirmationActive=false,pendingClashConfirmation=null,activeGrapples=[],grappleSerial=0,timelineResolutionActive=false;
 const PLAYER_SCORES={
@@ -3321,6 +3323,7 @@ function setCameraTransform(field,mode,scale,rawX,rawY){
     backgroundLayer.style.setProperty('--camera-scale',scale);
     backgroundLayer.dataset.cameraMode=mode;
   }
+  window.LuminousCombatStage073?.camera({x:clamped.x,y:clamped.y,scale});
   field.classList.toggle('camera-focus',scale!==1||clamped.x!==0||clamped.y!==0)
 }
 function combatantVisualScale(id){
@@ -3398,8 +3401,8 @@ function isRangeAction(plan){
 }
 function unitBaseCombatAnchor(unit){
   return{
-    x:innerWidth*((Number(unit?.x)||50)/100),
-    y:innerHeight*(1-((Number(unit?.y)||25)/100))
+    x:($('battlefield')?.offsetWidth||innerWidth)*((Number(unit?.x??50))/100),
+    y:($('battlefield')?.offsetHeight||innerHeight)*(1-((Number(unit?.y??25))/100))
   }
 }
 function unitCombatAnchor(unit){
@@ -3419,7 +3422,8 @@ function applyUnitCombatOffset(unit,dx,dy,{active=false,duration=480}={}){
   token.style.setProperty('--clash-dy',`${unit.combatOffsetY}px`);
   token.style.setProperty('--combat-move-ms',`${Math.max(80,Number(duration)||480)}ms`);
   token.classList.add('combat-positioned');
-  token.classList.toggle('clash-moving',Boolean(active))
+  token.classList.toggle('clash-moving',Boolean(active));
+  window.LuminousCombatStage073?.refreshUnit(unit)
 }
 function markUnitCombatActive(unit,active=true){
   const token=$(`token-${unit?.id}`);
@@ -3474,7 +3478,8 @@ function clearTurnCombatPositions(){
     token.style.removeProperty('--clash-dx');
     token.style.removeProperty('--clash-dy');
     token.style.removeProperty('--clash-clear-dx');
-    token.style.removeProperty('--clash-clear-dy')
+    token.style.removeProperty('--clash-clear-dy');
+    window.LuminousCombatStage073?.refreshUnit(unit)
   });
   document.querySelectorAll('.clash-count-pop').forEach(node=>node.remove())
 }
@@ -3543,7 +3548,8 @@ function setUnitFormationPoint(unit,point){
   const token=$(`token-${unit.id}`);
   if(token){
     token.style.left=`${point.x}%`;
-    token.style.bottom=`${point.y}%`
+    token.style.bottom=`${point.y}%`;
+    window.LuminousCombatStage073?.refreshUnit(unit)
   }
 }
 function layoutSpeedFormation(){
@@ -5524,8 +5530,9 @@ function spawnCombatant(d){
   c.id=`token-${d.id}`;
   c.style.left=`${d.x}%`;
   c.style.bottom=`${d.y}%`;
-  c.innerHTML=`<div class="combatant"><svg class="diegetic-floor" viewBox="-100 -100 200 200"><polygon class="floor-bg-poly" points="${h.full}"/><polyline class="hp-track" points="${h.front}"/><polyline class="hp-transition-line" points="${h.front}" pathLength="100" style="stroke-dasharray:100;stroke-dashoffset:${100-pct}"/><polyline class="hp-fill-line" points="${h.front}" pathLength="100" style="stroke-dasharray:100;stroke-dashoffset:${100-pct}"/>${staggerThresholdMarkup(h.frontPoints,thresholds)}<polyline class="shield-fill-line" points="${h.front}" pathLength="100" style="stroke-dasharray:100;stroke-dashoffset:100"/></svg><div class="top-ui-panel" id="ui-panel-${d.id}" style="top:60px"><div class="speed-number">${d.speed}</div><div class="action-slots">${slots}</div></div><div class="sprite-anchor" id="anchor-${d.id}" style="bottom:${d.spriteY}px;margin-left:${d.spriteX}px;transform:scale(${d.scale})"><img src="${d.img}" class="sprite-img" id="sprite-${d.id}" onerror="this.style.opacity='.25'">${staggerGlassMarkup()}</div><div class="stagger-pop" aria-live="polite"></div><div class="floating-hp-group"><div class="name-plate">${d.name}</div><div class="hp-number">${d.hp}</div></div><div class="floating-sp-group sp-neutral">${d.sp}</div><div class="status-effect-strip" id="statuses-${d.id}" aria-label="Status Effects"></div></div>`;
+  c.innerHTML=`<div class="combatant"><svg class="diegetic-floor" viewBox="-100 -100 200 200"><polygon class="floor-bg-poly" points="${h.full}"/><polyline class="hp-track" points="${h.front}"/><polyline class="hp-transition-line" points="${h.front}" pathLength="100" style="stroke-dasharray:100;stroke-dashoffset:${100-pct}"/><polyline class="hp-fill-line" points="${h.front}" pathLength="100" style="stroke-dasharray:100;stroke-dashoffset:${100-pct}"/>${staggerThresholdMarkup(h.frontPoints,thresholds)}<polyline class="shield-fill-line" points="${h.front}" pathLength="100" style="stroke-dasharray:100;stroke-dashoffset:100"/></svg><div class="top-ui-panel" id="ui-panel-${d.id}" style="top:60px"><div class="speed-number">${d.speed}</div><div class="action-slots">${slots}</div></div><div class="sprite-anchor" id="anchor-${d.id}" style="bottom:${d.spriteY}px;margin-left:${d.spriteX}px;transform:scale(calc(${d.scale} * var(--scene-depth-scale,1)))"><img src="${d.img}" class="sprite-img" id="sprite-${d.id}" onerror="this.style.opacity='.25'">${staggerGlassMarkup()}</div><div class="stagger-pop" aria-live="polite"></div><div class="floating-hp-group"><div class="name-plate">${d.name}</div><div class="hp-number">${d.hp}</div></div><div class="floating-sp-group sp-neutral">${d.sp}</div><div class="status-effect-strip" id="statuses-${d.id}" aria-label="Status Effects"></div></div>`;
   field.appendChild(c);
+  window.LuminousCombatStage073?.refreshUnit(combatData[d.id]);
   (combatData[d.id].triggeredStaggerThresholds||[]).forEach(index=>removeStaggerThresholdVisual(d.id,index));
   applyStaggerGlassStage(d.id,combatData[d.id].staggerStage);
   if(controlled==='ai')unitSlots(d.id).forEach(setSlotUnknown);
@@ -8191,6 +8198,7 @@ window.LuminousCombatStepRuntime=Object.freeze({
     setCameraFocus('full',false)
   },
   refreshPlayback(){
+    window.LuminousCombatStage073?.refresh();
     Object.entries(combatData).forEach(([id,unit])=>{
       syncCombatantVitalNumber(id);
       const token=$(`token-${id}`),pct=combatantHpPct(unit,unit.hp);
@@ -8223,7 +8231,7 @@ window.LuminousCombat073=Object.freeze({
   setKits:kits=>{Object.entries(kits||{}).forEach(([id,kit])=>{UNIT_KITS[id]=kit});deckSkills=playerDeckForUnit(PLAYER_ID)},
   setRound:value=>{round=Math.max(1,Number(value)||1);return round},
   camera:(mode='player',enabled=true)=>setCameraFocus(mode,enabled),
-  render:()=>{if(!combatData[PLAYER_ID]||!$(`sprite-${PLAYER_ID}`))return false;renderAllPlannedSlots();renderTargetArrows();layoutRadialCommands()}
+  render:()=>{if(!combatData[PLAYER_ID]||!$(`sprite-${PLAYER_ID}`))return false;window.LuminousCombatStage073?.refresh();renderAllPlannedSlots();renderTargetArrows();layoutRadialCommands()}
 });
 window.dispatchEvent(new CustomEvent('luminous:combat073-runtime-ready',{detail:{version:'0.7.3-live'}}));
 if(!window.LuminousCombatLiveMode)initializeCombatSurface();
@@ -8381,6 +8389,7 @@ if(!window.LuminousCombatLiveMode)initializeCombatSurface();
     }catch(_){return false}
   }
   function requestTexture(url,onReady){
+    if(host.classList.contains('layered-stage')&&url===BG_URL)return null;
     if(!url)return null;
     let entry=textureCache.get(url);
     if(entry){if(entry.ready&&onReady)onReady(entry);return entry}
@@ -8453,7 +8462,7 @@ if(!window.LuminousCombatLiveMode)initializeCombatSurface();
 
   function renderBackground(){
     if(host.classList.contains('player-blinded')){drawTriangles([0,0,cssW,0,0,cssH,0,cssH,cssW,0,cssW,cssH],[0,0,0,1]);return}
-    if(!bg?.ready)return;
+    if(host.classList.contains('layered-stage')||!bg?.ready)return;
     const r=field.getBoundingClientRect(),baseW=field.offsetWidth||cssW,baseH=field.offsetHeight||cssH;
     drawTextured(bg,r.left,r.top,r.width,r.height,{uv:backgroundUV(bg,baseW,baseH)});
     // Preserve the original dark readability wash without a CSS gradient pass.

@@ -1,0 +1,30 @@
+/* Original industrial stage; all layers are local, decorative and pointer transparent. */
+#game-container.layered-stage { --stage-edge:#c0a16a; background:#18242d; }
+.layered-stage #webgl2-dom-background { background:none; transform:none!important; opacity:1!important; overflow:hidden; }
+.layered-stage #battlefield { background:transparent!important; }
+.layered-stage .limbus-divider-plane { display:none; }
+.combat-stage-layer { position:absolute; inset:0; background-position:center bottom; background-size:100% 100%; background-repeat:no-repeat; transform-origin:0 0; transition:transform .52s cubic-bezier(.18,.76,.22,1); pointer-events:none; }
+.stage-horizon { background-image:url('../assets/combat-stage/horizon.svg'); }
+.stage-architecture { background-image:url('../assets/combat-stage/architecture.svg'); }
+.stage-ground { background-image:url('../assets/combat-stage/ground.svg'); }
+.stage-foreground { background-image:url('../assets/combat-stage/foreground.svg'); }
+#combat-stage-foreground { position:absolute; inset:0; z-index:3; overflow:hidden; pointer-events:none; }
+.layered-stage #battlefield > .sprite-container { z-index:var(--scene-order,10)!important; }
+.layered-stage .sprite-container::before { content:''; position:absolute; bottom:-4px; left:50%; width:76px; height:16px; transform:translateX(calc(-50% + var(--clash-dx,0px))) translateY(var(--clash-dy,0px)) scale(var(--scene-depth-scale,1)); background:radial-gradient(ellipse,#030a10a6,transparent 70%); pointer-events:none; transition:transform var(--combat-move-ms,.48s) ease; }
+/* Attack translation belongs to the token; its shadow follows once, with it. */
+.layered-stage .combat-positioned::before { transform:translateX(-50%) scale(var(--scene-depth-scale,1)); }
+#combat-stage-tools { position:absolute; z-index:300; left:50%; bottom:max(16px,env(safe-area-inset-bottom)); transform:translateX(-50%); width:min(580px,calc(100% - 24px)); padding:10px 12px; background:#0b141bf2; border:1px solid #89734d; box-shadow:0 5px 20px #0008; display:flex; flex-wrap:wrap; gap:8px; color:#e5d9bb; font:14px/1.4 system-ui,sans-serif; }
+#combat-stage-tools[hidden], #combat-stage-placement[hidden] { display:none!important; }
+#combat-stage-tools select { flex:1; min-width:140px; }
+#combat-stage-tools select, #combat-stage-tools button, #combat-stage-placement { min-height:44px; background:#1b272d; border:1px solid #89734d; color:#eee3ca; padding:8px 12px; border-radius:3px; font:inherit; cursor:pointer; }
+#combat-stage-tools :focus-visible, #combat-stage-placement:focus-visible { outline:2px solid #f2d69a; outline-offset:2px; }
+#combat-stage-message { flex-basis:100%; }
+.stage-placing #battlefield { cursor:crosshair; }
+.stage-placing .sprite-container, .stage-placing .sprite-container .combatant { pointer-events:auto; }
+.stage-placing .stage-selected .sprite-img { filter:drop-shadow(0 0 9px #efd594); }
+.stage-placing #command-ring, .stage-placing #category-surface, .stage-placing #ready { visibility:hidden; }
+@media (max-width:600px) { #combat-stage-tools { font-size:12px; bottom:max(8px,env(safe-area-inset-bottom)); } }
+@media (prefers-reduced-motion:reduce) { .combat-stage-layer { transition:none; } }
+
+.layered-stage.player-blinded #webgl2-dom-background, .layered-stage.player-blinded #combat-stage-foreground { visibility:hidden; }
+.layered-stage.player-blinded { background:#000; }
