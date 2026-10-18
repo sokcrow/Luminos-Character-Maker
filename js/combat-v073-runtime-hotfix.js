@@ -18,9 +18,9 @@
   function readViewActive(){
     if(isDm())return true;
     if(global.document?.hidden)return false;
-    try{
-      if(global.LuminousWebGL2Renderer?.surfaceActive?.()===false)return false;
-    }catch(_){}
+    // WebGL can be intentionally inactive in the simplified presentation or
+    // in DOM fallback on phones. Network participation follows the visible
+    // encounter iframe, never the graphics renderer's availability.
     try{
       const frameEl=global.frameElement;
       if(!frameEl||global.parent===global)return true;
