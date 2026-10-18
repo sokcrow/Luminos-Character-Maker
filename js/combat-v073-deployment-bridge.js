@@ -86,6 +86,7 @@
 
   function queueUpdate(updates = {}) {
     if (!isDm() || !db()?.ref || !Object.keys(updates).length) return Promise.resolve({ persisted: false, reason: "dm_authority_required_or_no_updates" });
+    if(global.LuminousCombatPlaybackSync?.stageUpdates?.(updates))return Promise.resolve({persisted:false,staged:true});
     const run = async () => {
       await db().ref().update(updates);
       return { persisted: true, updateCount: Object.keys(updates).length };

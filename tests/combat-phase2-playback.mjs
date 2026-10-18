@@ -62,10 +62,33 @@ assert.deepEqual(json(h.data), before); assert.equal(h.cursor(), cursor);
   const saved=win.LuminousCombatStepRuntime.captureExecution([entry],new Set(['a:0']));
   assert.doesNotMatch(JSON.stringify(saved),/nodeType/);
   assert.equal(saved.queue[0].plan.data.slot,'offHand');
-  const queue=[{ownerId:'a',localIndex:0,plan:{}}],keys=new Set();c.combatData.a.hp=1;c.activeGrapples=[];
+  const queue=[{ownerId:'a',localIndex:0,plan:{}},{ownerId:'new-backup',localIndex:0,plan:{}}],keys=new Set();c.combatData.a.hp=1;c.activeGrapples=[];
   win.LuminousCombatStepRuntime.restoreExecution(queue,keys,saved);
   assert.equal(c.combatData.a.hp,80);assert.equal(queue[0].slot,liveSlot);assert.equal(queue[0]._onUseStatusApplied,true);
+  assert.equal(queue.length,1,'recovery retains the frozen queue; a new backup cannot gain a mid-round action');
   assert.equal(c.combatData.a.reactiveDefense.evade.entry.slot,liveSlot);assert.ok(keys.has('a:0'));
   assert.equal(c.activeGrapples[0].id,'grapple');assert.equal(c.grappleSerial,4);
+  const setupStart=source.indexOf('  const queue=buildExecutionQueue(),',source.indexOf('async function startRound(){'));
+  const setup=source.slice(setupStart,source.indexOf('  try{',setupStart));
+  for(const [recovered,expected]of [[null,['arm']],[{queue:[]},['restore','arm']],[{queue:[entry]},['restore']]]){
+    const trace=[];
+    vm.runInNewContext(setup,{recovered,buildExecutionQueue:()=>[],Set,armReactiveDefenses(){trace.push('arm');},
+      window:{LuminousCombatStepRuntime:{restoreExecution(){trace.push('restore');}}}});
+    assert.deepEqual(trace,expected,'confirmed defenses must not repeat their On Use costs/effects');
+  }
 }
 console.log('Phase 2: ordered/duplicate/late delivery, checkpoint resume, fail-closed schema and presentation-only replay passed');
+{
+  const win={Math,Date,console,addEventListener(){},LuminousCombatLiveAdapter073:{state:{role:'dm'}}};win.window=win;
+  vm.runInNewContext(fs.readFileSync(new URL('../js/combat-v073-playback-sync.js',import.meta.url),'utf8'),win);
+  const sync=win.LuminousCombatPlaybackSync;
+  sync.state.authority={state:{runningLocal:true,current:{playback:{session:sync.session}}}};
+  assert.equal(sync.stageUpdates({'campaña/combate/combatants/enemy':null,'campaña/combate/defeated/enemy':{hp:0}}),true);
+  const merged=sync.commitUpdates({'campaña/combate/combatants/enemy/hp':0,'campaña/combate/authority/current/checkpoint':{seq:1}});
+  assert.equal(merged['campaña/combate/combatants/enemy'],null);
+  assert.ok(!Object.hasOwn(merged,'campaña/combate/combatants/enemy/hp'));
+  assert.equal(merged['campaña/combate/defeated/enemy'].hp,0);
+  assert.equal(merged['campaña/combate/authority/current/checkpoint'].seq,1);
+  sync.state.authority.state.current.playback.session='other-tab';
+  assert.throws(()=>sync.stageUpdates({'campaña/combate/combatants/enemy':null}),/otra pestaña/);
+}

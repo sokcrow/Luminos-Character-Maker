@@ -7653,7 +7653,7 @@ async function startRound(){
 
   roundRunning=true;
   const recovered=window.LuminousCombatAuthority073?.state?.resumeRuntime;
-  if(recovered)combatStepRuntime().resetJournal(recovered.eventCursor);
+  if(recovered?.eventCursor>0)combatStepRuntime().resetJournal(recovered.eventCursor);
   else combatStepRuntime().beginRound();
   syncReadyControl();
   const start=$('start-round'),
@@ -7672,8 +7672,10 @@ async function startRound(){
 
   const queue=buildExecutionQueue(),
         resolvedKeys=new Set();
-  armReactiveDefenses(queue);
-  if(recovered)window.LuminousCombatStepRuntime.restoreExecution(queue,resolvedKeys,recovered);
+  if(recovered){
+    window.LuminousCombatStepRuntime.restoreExecution(queue,resolvedKeys,recovered);
+    if(!recovered.queue?.length)armReactiveDefenses(queue)
+  }else armReactiveDefenses(queue);
   try{
     await executeCombatTimeline(queue,resolvedKeys)
   }finally{
@@ -8156,10 +8158,7 @@ window.LuminousCombatStepRuntime=Object.freeze({
       return value
     };
     for(const [id,unit]of Object.entries(saved.units||{}))if(combatData[id])Object.assign(combatData[id],attach(unit));
-    for(const entry of queue){
-      const previous=(saved.queue||[]).find(row=>row.ownerId===entry.ownerId&&row.localIndex===entry.localIndex);
-      if(previous)Object.assign(entry,attach(previous))
-    }
+    if(saved.queue?.length)queue.splice(0,queue.length,...attach(saved.queue));
     for(const key of saved.resolvedKeys||[])resolvedKeys.add(key);
     activeGrapples=attach(saved.activeGrapples||[]);grappleSerial=Number(saved.grappleSerial)||0
   },

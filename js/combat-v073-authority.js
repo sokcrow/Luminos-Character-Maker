@@ -180,7 +180,7 @@
     if(batchMode()&&state.lastExecutionJson)row.executionJson=state.lastExecutionJson;
     const batches=batchMode()?playback().batchUpdates(row):{};
     const updates={[`${ROOT.current}/checkpoint`]:row,...playerVitalFirebaseUpdates(snapshot),...batches,...(batchMode()?resourceFirebaseUpdates(snapshot):{})};
-    state.writeChain=state.writeChain.then(()=>s.db.ref().update(updates));return row;
+    state.writeChain=state.writeChain.then(()=>s.db.ref().update(batchMode()?playback().commitUpdates(updates):updates));return row;
   }
   function queueCheckpoint(type='state'){return publishActionCheckpoint(type);}
 
@@ -241,7 +241,7 @@
     state.current={...current,phase:'running',startedAt:Date.now(),checkpoint:null};state.lastCheckpointSeq=0;state.localActionSeq=0;state.localDigests.clear();state.pendingRemoteCheckpoints.clear();state.inFlightActions=0;state.executionChain=Promise.resolve();state.writeChain=Promise.resolve();resetRandom(current.seed,0);return state.current;
   }
   function domRound(fallback){const node=global.document?.getElementById?.('round'),value=Math.trunc(Number(node?.textContent));return Number.isFinite(value)&&value>0?value:fallback;}
-  function combatantFirebaseUpdates(snapshot){const updates={};for(const [id,row] of Object.entries(snapshot||{})){for(const [key,value] of Object.entries(row||{}))updates[`${ROOT.combatants}/${id}/${key}`]=value;updates[`${ROOT.combatants}/${id}/actionSlotIndex`]=Object.fromEntries(Array.from({length:Math.max(1,Number(row.actionSlots)||1)},(_,i)=>[String(i),true]));}return updates;}
+  function combatantFirebaseUpdates(snapshot){const updates={};for(const [id,row] of Object.entries(snapshot||{})){if(batchMode()&&!adapterState()?.combatants?.[id])continue;for(const [key,value] of Object.entries(row||{}))updates[`${ROOT.combatants}/${id}/${key}`]=value;updates[`${ROOT.combatants}/${id}/actionSlotIndex`]=Object.fromEntries(Array.from({length:Math.max(1,Number(row.actionSlots)||1)},(_,i)=>[String(i),true]));}return updates;}
   function resourceFirebaseUpdates(snapshot){
     const updates={},units=runtime()?.combatants?.()||{};
     for(const [id,row]of Object.entries(snapshot||{})){
@@ -249,7 +249,7 @@
       for(const key of ['inventario_activo','inventario_stash','itemEquipmentRefs','attunedItemInstanceIds','itemInventorySchemaVersion','spellcastingState','classResources','traitUses','resources']){
         if(row[key]===undefined)continue;
         updates[`campaña/jugadores/${playerId}/${key}`]=clone(row[key]);
-        updates[`${ROOT.combatants}/${id}/${key}`]=clone(row[key]);
+        if(!batchMode()||adapterState()?.combatants?.[id])updates[`${ROOT.combatants}/${id}/${key}`]=clone(row[key]);
       }
     }
     return updates;
@@ -275,7 +275,7 @@
   }
   function playerVitalFirebaseUpdates(snapshot){try{return global.LuminousPlayerVitalsRealtimeBridge?.firebaseUpdatesForSnapshot?.(playerVitalSnapshot(snapshot))||{};}catch(error){console.error('[Combat073 Authority vitals]',error);return{};}}
   async function afterRound({completedRound,nextRound}={}){
-    if(!isDm())return false;const s=adapterState();if(!s?.db?.ref)return false;const done=Math.max(1,Number(completedRound)||Number(state.current.round)||1),next=Math.max(done+1,Number(nextRound)||done+1),snapshot=snapshotRuntime(),row={round:done,seq:state.lastCheckpointSeq+1,type:'round_complete',rngCursor:state.cursor,digest:checkpointDigest(snapshot,done),combatants:snapshot,updatedAt:serverTime()};const updates={...combatantFirebaseUpdates(snapshot),...playerVitalFirebaseUpdates(snapshot),...(batchMode()?resourceFirebaseUpdates(snapshot):{}),...(batchMode()?playback().batchUpdates(row):{})};updates[`${ROOT.current}/phase`]='complete';updates[`${ROOT.current}/resultDigest`]=row.digest;updates[`${ROOT.current}/checkpoint`]=row;updates[ROOT.state]={phase:'PRE_COMBAT_PLANNING',round:next,authorityUid:s.uid,updatedAt:serverTime()};updates[ROOT.ready]=null;updates[ROOT.plans]=null;await s.db.ref().update(updates);state.current={...state.current,phase:'complete',resultDigest:row.digest,checkpoint:row};state.lastCheckpointSeq=row.seq;return row;
+    if(!isDm())return false;const s=adapterState();if(!s?.db?.ref)return false;const done=Math.max(1,Number(completedRound)||Number(state.current.round)||1),next=Math.max(done+1,Number(nextRound)||done+1),snapshot=snapshotRuntime(),row={round:done,seq:state.lastCheckpointSeq+1,type:'round_complete',rngCursor:state.cursor,digest:checkpointDigest(snapshot,done),combatants:snapshot,updatedAt:serverTime()};const updates={...combatantFirebaseUpdates(snapshot),...playerVitalFirebaseUpdates(snapshot),...(batchMode()?resourceFirebaseUpdates(snapshot):{}),...(batchMode()?playback().batchUpdates(row):{})};updates[`${ROOT.current}/phase`]='complete';updates[`${ROOT.current}/resultDigest`]=row.digest;updates[`${ROOT.current}/checkpoint`]=row;updates[ROOT.state]={phase:'PRE_COMBAT_PLANNING',round:next,authorityUid:s.uid,updatedAt:serverTime()};updates[ROOT.ready]=null;updates[ROOT.plans]=null;await s.db.ref().update(batchMode()?playback().commitUpdates(updates):updates);state.current={...state.current,phase:'complete',resultDigest:row.digest,checkpoint:row};state.lastCheckpointSeq=row.seq;return row;
   }
   async function requestStartRound(){
     if(state.runningLocal)return false;const s=adapterState(),original=state.originalStartRound;if(!s?.db?.ref||typeof original!=='function')return false;if(isPlayer()&&!state.remoteStart){setStatus('COMBAT · esperando resolución autoritativa del DM');return false;}state.runningLocal=true;

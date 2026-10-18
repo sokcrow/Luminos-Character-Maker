@@ -3,10 +3,11 @@ import fs from 'node:fs';
 import { seedPhase0, readEmulator, writeEmulator } from './fixtures/combat-phase0-fixture.mjs';
 import { openSession, planAndReady, ARTIFACTS } from './fixtures/combat-online-browser.mjs';
 
-for (const recover of [false, true]) test(`DM result playback with two Players: delayed/reloaded=${recover}`, async ({ browser }) => {
+for (const recover of [false, true, 'defeat']) test(`DM result playback with two Players: delayed/reloaded=${recover}`, async ({ browser }) => {
   test.setTimeout(180000);
   const fixture = await seedPhase0(), sessions = [];
   await writeEmulator('campaña/base_datos_skills/old_strike/coinAmount',3);
+  if(recover==='defeat')await writeEmulator('campaña/combate/combatants/enemy:dummy/hp',1);
   fs.mkdirSync(ARTIFACTS, { recursive: true });
   try {
     for (const role of ['a', 'b', 'dm']) sessions.push({ role, ...await openSession(browser, fixture.users[role], 8, { compatibility: false }) });
@@ -55,13 +56,23 @@ for (const recover of [false, true]) test(`DM result playback with two Players: 
       await expect.poll(async()=> (await readEmulator('campaña/combate/authority/current')).playback.session).not.toBe(sealed.playback.session);
     }
     await expect.poll(async () => (await readEmulator('campaña/combate/authority/current'))?.phase, { timeout: 90000 }).toBe('complete');
-    if(recover){
+    if(recover===true){
       await a.waitForFunction(()=>window.LuminousCombatStepRuntime?.events().some(e=>e.type==='HitResolved'),null,{timeout:60000});
       await a.screenshot({path:`${ARTIFACTS}/phase2-mid-skill.png`});
       await a.reload({waitUntil:'domcontentloaded'});
       await a.waitForFunction(()=>window.LuminousCombatLiveAdapter073?.state.hydratedOnce && window.LuminousCombatPlaybackSync?.state.generation);
     }
     const result = await readEmulator('campaña/combate/authority/current');
+    if(recover===true){
+      const baseline=JSON.parse(fs.readFileSync(`${ARTIFACTS}/phase2-complete.json`,'utf8')).result;
+      expect(result.resultDigest).toBe(baseline.resultDigest);
+      expect(result.checkpoint.rngCursor).toBe(baseline.checkpoint.rngCursor);
+      expect(result.checkpoint.combatants).toEqual(baseline.checkpoint.combatants);
+    }
+    if(recover==='defeat'){
+      expect(await readEmulator('campaña/combate/combatants/enemy:dummy')).toBeNull();
+      expect((await readEmulator('campaña/combate/defeated/enemy:dummy')).hp).toBe(0);
+    }
     const stream = await readEmulator('campaña/combate/playback/current');
     const envelopes = Object.values(stream.batches);
     const batches = envelopes.map(row=>({...JSON.parse(row.payload),seq:row.seq}));
@@ -90,7 +101,7 @@ for (const recover of [false, true]) test(`DM result playback with two Players: 
         vitals: Object.fromEntries(Object.entries(window.LuminousCombat073.combatants()).map(([id, u]) => [id, { hp: u.hp, sp: u.sp }])),
         localActions: window.LuminousCombatAuthority073.state.localActionSeq, cursor: window.LuminousCombatAuthority073.state.cursor,
         playbackCursor: window.LuminousCombatPlaybackSync.state.consumer?.cursor(), events: window.LuminousCombatStepRuntime.events() })) }))) };
-    fs.writeFileSync(`${ARTIFACTS}/phase2-${recover ? 'recovered' : 'complete'}.json`, JSON.stringify(evidence, null, 2));
+    fs.writeFileSync(`${ARTIFACTS}/phase2-${recover==='defeat'?'defeat':recover?'recovered':'complete'}.json`, JSON.stringify(evidence, null, 2));
     for (const session of sessions) { expect(session.errors).toEqual([]); expect(session.forbidden).toEqual([]); }
     await a.reload({ waitUntil: 'domcontentloaded' });
     await a.waitForFunction(() => window.LuminousCombatLiveAdapter073?.state.round === 2 && window.LuminousCombat073?.combatants?.()['player:a']);

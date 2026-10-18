@@ -5,7 +5,7 @@
   const session = global.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const state = { generation: null, consumer: null, ref: null, handler: null, eventCursor: 0,
     connected: true, connectionRef: null, connectionHandler: null, offsetRef:null,offsetHandler:null,serverOffset:0,
-    authority: null, starting: false, transmittedSnapshot: {}, recoveryButton:null };
+    authority: null, starting: false, transmittedSnapshot: {}, recoveryButton:null, stagedUpdates:{} };
   const adapter = () => global.LuminousCombatLiveAdapter073?.state;
   const surface = () => global.LuminousCombatStepRuntime;
   const status = text => { const node = global.document?.getElementById?.('status'); if (node) node.textContent = text; };
@@ -34,6 +34,7 @@
   }
   function beginUpdates(data) {
     assertOwner(data); state.eventCursor = 0;
+    state.stagedUpdates={};
     state.transmittedSnapshot=JSON.parse(data.initialStateJson);
     surface().capturePresentation(true);
     return { [ROOT]: { generation: data.id, schemaVersion: 1, engineVersion: protocol().engineVersion } };
@@ -71,6 +72,27 @@
     if (state.ref && state.handler) state.ref.off('child_added', state.handler);
     state.ref = state.handler = null; state.generation = null;
   }
+  function stageUpdates(updates){
+    const a=state.authority;
+    if(adapter()?.role!=='dm'||!a?.state.runningLocal||!enabled(a.state.current))return false;
+    assertOwner(a.state.current);Object.assign(state.stagedUpdates,copy(updates));return true;
+  }
+  function commitUpdates(updates){
+    const result={...updates};
+    for(const [path,raw]of Object.entries(state.stagedUpdates)){
+      let value=copy(raw);
+      for(const key of Object.keys(result))if(key.startsWith(path+'/')){
+        if(value&&typeof value==='object'){
+          const parts=key.slice(path.length+1).split('/');let node=value;
+          for(const part of parts.slice(0,-1))node=node[part]??={};
+          node[parts.at(-1)]=result[key];
+        }
+        delete result[key];
+      }
+      result[path]=value;
+    }
+    state.stagedUpdates={};return result;
+  }
   function refreshRecoveryControl(data=state.authority?.state.current){
     const s=adapter(),visible=s?.role==='dm'&&enabled(data)&&['sealed','running'].includes(data.phase)&&data.playback.session!==session;
     if(!state.recoveryButton&&visible&&global.document?.createElement){
@@ -96,13 +118,14 @@
     if(!claimed.committed)throw new Error('Se confirmaron nuevos resultados. Vuelve a pulsar Reanudar turno.');
     const current=claimed.snapshot.val(),checkpoint=current.checkpoint;
     a.state.current=current;
+    const saved=JSON.parse(checkpoint?.executionJson||current.initialExecutionJson);
+    saved.eventCursor=Number(checkpoint?.eventCursor)||0;
+    a.state.resumeRuntime=saved;
     if(current.phase==='running'){
-      const saved=JSON.parse(checkpoint?.executionJson||current.initialExecutionJson);
-      saved.eventCursor=Number(checkpoint?.eventCursor)||0;
-      a.state.resumeRuntime=saved;
       a.state.lastCheckpointSeq=a.state.localActionSeq=Number(checkpoint?.seq)||0;
       a.state.localDigests.clear();a.state.pendingRemoteCheckpoints.clear();a.state.inFlightActions=0;
       a.state.executionChain=Promise.resolve();a.state.writeChain=Promise.resolve();
+      state.stagedUpdates={};
       a.resetRandom(current.seed,Number(checkpoint?.rngCursor)||0);
       a.applySnapshot(JSON.parse(checkpoint?.stateJson||current.initialStateJson));
       state.eventCursor=saved.eventCursor;state.transmittedSnapshot=a.snapshotRuntime();
@@ -136,7 +159,12 @@
       if (checkpoint?.combatants) { a.applySnapshot(checkpoint.stateJson?JSON.parse(checkpoint.stateJson):checkpoint.combatants); a.state.cursor = Number(checkpoint.rngCursor) || 0; }
       state.consumer = protocol().createConsumer({ generation: data.id, checkpoint,
         apply: snapshot => { a.applySnapshot(snapshot); surface().refreshPlayback(); },
-        onEvent: event => { surface().acceptEvent(event); a.state.cursor = Number(event.rngCursor) || 0; },
+        onEvent: event => {
+          surface().acceptEvent(event); a.state.cursor = Number(event.rngCursor) || 0;
+          if(event.type==='QueueEntryStarted'||event.type==='CoinRolled')status('Resolviendo turno…');
+          else if(event.type==='ClashStarted')status('Choque de habilidades…');
+          else if(event.type==='RoundFinished')status('Preparando el próximo turno…');
+        },
         present: async (cue, args, row) => {
           // Slow/reconnected viewers catch up by applying states, without waiting
           // through old animation holds. Visual mode never changes the result.
@@ -182,7 +210,7 @@
     state.offsetRef=state.offsetHandler=null;
   }
   global.LuminousCombatPlaybackSync = Object.freeze({ ROOT, state, session, enabled, negotiate, seal, assertOwner,
-    beginUpdates, batchUpdates, observe, start, stop, recover, refreshRecoveryControl });
+    beginUpdates, batchUpdates, observe, start, stop, recover, refreshRecoveryControl,stageUpdates,commitUpdates });
   global.addEventListener('luminous:combat073-hydrated', () => {
     const a = state.authority, data = a?.state.current;
     if (enabled(data) && data.phase === 'complete' && data.checkpoint?.combatants) {
