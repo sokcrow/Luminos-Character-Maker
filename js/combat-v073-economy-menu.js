@@ -964,7 +964,8 @@
     global.setTimeout?.(() => {
       if (!stillCurrent()) return;
       ensureCategorySurfaceOpen(menu);
-      renderActiveMenuBody(menu);
+      // Opening recovery must not replace a detail the user already selected.
+      if (clean(lexical("navState", "")) === "category") renderActiveMenuBody(menu);
       syncTabs();
       updateCategoryContext();
       syncSpellMenuVisibility();

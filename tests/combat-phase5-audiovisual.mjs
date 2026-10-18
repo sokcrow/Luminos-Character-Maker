@@ -59,3 +59,20 @@ for(const mode of ['full','low','off','broken']){
 }
 for(const result of results.slice(1))assert.deepEqual(result,results[0]);
 console.log('Phase 5: profiles/fallbacks, privacy, reduced motion, stale playback, bounded VFX/audio cleanup and unchanged rules/RNG passed');
+
+// Live spell plans must name the canonical array key required by RTDB rules.
+const planWindow={document:null,addEventListener(){},setTimeout(){}};
+vm.runInNewContext(fs.readFileSync('js/combat-v073-plan-sync.js','utf8'),{window:planWindow});
+planWindow.firebase={database:{ServerValue:{TIMESTAMP:1}}};
+const plan=planWindow.LuminousCombatPlanSync073.payloadFor({type:'spells',data:{id:'fire_bolt'},targetId:'b'},0,'a',{playerId:'a',uid:'uid-a',round:1,players:{a:{characterBuild:{spellSelections:['ray_of_frost','fire_bolt']}}}});
+assert.equal(plan.spellSelectionKey,'1');assert.equal(plan.spellId,'fire_bolt');
+// A scheduled menu recovery may reveal the surface, never replace a chosen detail.
+const economyText=fs.readFileSync('js/combat-v073-economy-menu.js','utf8');
+const refreshText=economyText.slice(economyText.indexOf('  function refreshOpenedMenu('),economyText.indexOf('  function openCompactMenu('));
+for(const nav of ['category','action']){
+ const scheduled=[];let rendered=0;
+ const refresh=vm.runInNewContext(refreshText+'\nrefreshOpenedMenu',{
+  state:{menuRefreshGeneration:0},global:{setTimeout:fn=>scheduled.push(fn)},activeMenu:()=> 'spells',clean:String,lexical:()=>nav,
+  ensureCategorySurfaceOpen(){},renderActiveMenuBody(){rendered++;},syncTabs(){},updateCategoryContext(){},syncSpellMenuVisibility(){},syncQuickBadge(){},syncResponsiveMenuLayout(){}
+ });refresh('spells');scheduled.forEach(fn=>fn());assert.equal(rendered,nav==='category'?1:0);
+}

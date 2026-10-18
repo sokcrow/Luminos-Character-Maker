@@ -25,13 +25,22 @@
     const out={unitId,scheduledBy:s.playerId,round:Math.max(1,Math.trunc(finite(s.round,1))),sourceSlotIndex:Number.isInteger(plan.sourceSlotIndex)?plan.sourceSlotIndex:index,targetId:targetId||null,targetSlotIndex:plan.targetSlotIndex==null?null:Math.max(0,Number(plan.targetSlotIndex)||0)};
     const targetSide=clean(d.targetSide||d.targetRule||plan.targetSide||plan.targetRule);if(targetSide)out.targetSide=targetSide;if(additionalTargets.length)out.additionalTargets=additionalTargets;return out;
   }
+  function spellSelectionKeyFor(id,data,s){
+    const selections=s?.players?.[s.playerId]?.characterBuild?.spellSelections||{};
+    const requested=clean(data.spellSelectionKey||data.selectionKey);
+    if(requested&&selections[requested]===id)return requested;
+    // RTDB authorizes the canonical selection's key, including numeric array
+    // indices. A spell id is not necessarily that key.
+    const match=Object.entries(selections).find(([,value])=>value===id);
+    return match?match[0]:(requested||id);
+  }
   function payloadFor(plan,index,unitId,s){
     const kind=kindOf(plan),id=idOf(plan,kind),d=clone(plan?.data||{});if(!id)throw new Error(`ACTION_ID_MISSING_SLOT_${index}`);
     const out={schemaVersion:2,engineVersion:'0.7.3-live-authority',kind,unitId,scheduledBy:s.playerId,schedulerUid:s.uid,status:'planned',round:Math.max(1,Math.trunc(finite(s.round,1))),sourceSlotIndex:Number.isInteger(plan?.sourceSlotIndex)?plan.sourceSlotIndex:index,targetId:clean(plan?.targetId)||null,targetSlotIndex:Number.isInteger(plan?.targetSlotIndex)?plan.targetSlotIndex:null,actionData:d,updatedAt:global.firebase.database.ServerValue.TIMESTAMP};
     const targetSide=clean(d.targetSide||d.targetRule||plan?.targetSide||plan?.targetRule);if(targetSide)out.targetSide=targetSide;
     const displayName=clean(d.name||d.nombre||d.label);if(displayName)out.actionName=displayName;
     if(Array.isArray(plan?.additionalTargets)&&plan.additionalTargets.length)out.additionalTargets=plan.additionalTargets.map(t=>({targetId:clean(t?.targetId),targetSlotIndex:Number.isInteger(Number(t?.targetSlotIndex))?Number(t.targetSlotIndex):0})).filter(t=>t.targetId);
-    if(kind==='spell'){out.spellId=id;out.spellSelectionKey=clean(d.spellSelectionKey||d.selectionKey||id);out.classId=clean(d.classId||d.class||'unknown');out.slotLevel=Math.max(0,Math.min(9,Math.trunc(finite(d.slotLevel??d.level,0))));out.overcast=Boolean(d.overcast);}
+    if(kind==='spell'){out.spellId=id;out.spellSelectionKey=spellSelectionKeyFor(id,d,s);out.classId=clean(d.classId||d.class||'unknown');out.slotLevel=Math.max(0,Math.min(9,Math.trunc(finite(d.slotLevel??d.level,0))));out.overcast=Boolean(d.overcast);}
     else if(kind==='trait')out.traitId=id;
     else if(kind==='item'){out.itemId=id;const itemType=clean(d.itemType||d.item_type||d.type);if(itemType)out.itemType=itemType;}
     else if(kind==='global')out.actionKey=id;
