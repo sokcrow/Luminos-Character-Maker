@@ -6854,10 +6854,10 @@ function combatStepRuntime(){
   combatStepsInstance=window.LuminousCombatSteps.create({rules,
     assertActive:()=>{
       const a=window.LuminousCombatAuthority073,sync=window.LuminousCombatPlaybackSync;
-      if(a?.isDm()&&a.state.runningLocal&&sync?.enabled(a.state.current))sync.assertOwner(a.state.current)
+      if(a?.isDm()&&a.state.runningLocal&&(a.state.executingGeneration||sync?.enabled(a.state.current)))sync.assertOwner(a.state.current)
     },
     context:()=>{const a=window.LuminousCombatAuthority073?.state;return{
-      encounterId:window.LuminousCombatLiveAdapter073?.state?.encounterId??null,round,
+      encounterId:a?.current?.encounterId??window.LuminousCombatLiveAdapter073?.state?.encounterId??null,round,
       roundId:a?.current?.id??`${round}:${a?.seed||0}`,seed:a?.seed||0,rngCursor:a?.cursor??null}},
     snapshot:()=>window.LuminousCombatAuthority073?.snapshotRuntime?.()||Object.fromEntries(Object.entries(combatData).map(([id,u])=>[id,{
       hp:u.hp,sp:u.sp,statusEffects:u.statusEffects||{},pendingStatusEffects:u.pendingStatusEffects||[],

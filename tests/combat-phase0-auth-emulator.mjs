@@ -146,6 +146,12 @@ try {
   const fresh={...stale,session:'recovered-tab'};
   await sessions.dm.db.ref().update({[root+'/batches/000002']:fresh,[contract.roots.authority+'/checkpoint']:{...fresh,stateJson:'changed',digest:'recovered'}});
   assert.equal((await readEmulator(contract.roots.authority)).checkpoint.digest,'recovered');
+  const oldScope=await readEmulator(contract.roots.authority);
+  await sessions.dm.db.ref(contract.roots.authority+'/round').set(9);
+  await sessions.dm.db.ref(contract.roots.state).update({encounterId:'next-encounter',round:1,phase:'PRE_COMBAT_PLANNING'});
+  const nextScope=await tabs[owner].seal({round:1,seed:9,phase:'sealed'});
+  assert.equal(nextScope.encounterId,'next-encounter');assert.notEqual(nextScope.id,oldScope.id);
+  await assert.rejects(sessions.dm.db.ref(root+'/batches/000003').set({...fresh,seq:3}),/permission_denied/i);
   console.log('Combat Phase 2 Auth/RTDB: competing DM transactions, atomic retry, immutable batches and Player denial passed');
 } finally {
   stage = 'cleanup';

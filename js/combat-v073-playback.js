@@ -14,6 +14,7 @@
           throw new Error('PLAYBACK_INCOMPATIBLE');
         const events = Object.values(row.events || {});
         for (const event of events) {
+          if(stopped)return;
           if (event.sequence !== eventCursor + 1) throw new Error('PLAYBACK_EVENT_GAP');
           // State is replaced with DM values. Damage, costs and status helpers
           // are never called at a presentation/impact marker.
@@ -23,6 +24,7 @@
           if (event.type === 'Presentation') await present(event.cue, copy(event.args || []), row);
           eventCursor = event.sequence;
         }
+        if(stopped)return;
         if (Number(row.eventCursor) !== eventCursor) throw new Error('PLAYBACK_CHECKPOINT_CURSOR');
         apply(copy(row.combatants || {}));
         pending.delete(row.seq); cursor = row.seq;

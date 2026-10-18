@@ -48,6 +48,6 @@ assert.equal(refreshes, 2, 'settling playback must flush deferred Firebase hydra
 const final = writes.at(-1);
 assert.equal(final[authority.ROOT.current + '/phase'], 'complete');
 assert.equal(final[authority.ROOT.current + '/checkpoint'].combatants.enemy.hp, 145);
-assert.equal(final[authority.ROOT.state].round, 2);
+assert.equal(final[authority.ROOT.state+'/round'], 2);
 authority.stop();
 console.log('Combat authority: early-return rejection and completed-round checkpoint passed');

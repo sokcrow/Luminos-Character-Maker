@@ -309,10 +309,7 @@
 
   async function clearEncounter() {
     if (!isDm()) throw new Error('DM_ONLY');
-    await state.db.ref(ROOTS.combatants).remove();
-    await state.db.ref('campaña/combate/plannedActions').remove();
-    await state.db.ref('campaña/combate/readyPlayers').remove();
-    await state.db.ref(ROOTS.state).update({
+    const next={
       encounterId: null,
       encounterCreatedAt: null,
       result: null,
@@ -323,7 +320,16 @@
       phase: 'SETUP',
       active: false,
       updatedAt: global.firebase?.database?.ServerValue?.TIMESTAMP ?? Date.now(),
-    });
+    };
+    const updates={
+      [ROOTS.combatants]:null,
+      'campaña/combate/plannedActions':null,
+      'campaña/combate/readyPlayers':null,
+      'campaña/combate/authority/current':null,
+      'campaña/combate/playback/current':null,
+    };
+    for(const [key,value]of Object.entries(next))updates[`${ROOTS.state}/${key}`]=value;
+    await state.db.ref().update(updates);
   }
 
   function esc(value) {

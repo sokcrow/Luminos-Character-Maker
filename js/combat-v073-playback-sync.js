@@ -17,19 +17,28 @@
   }
   async function seal(payload) {
     const a = state.authority, s = adapter();
+    const encounterCandidate=`encounter-${global.crypto?.randomUUID?.()||`${session}-${Date.now()}`}`;
+    // Share the encounter identity already used by loot/setup. Claim a missing
+    // identity atomically so competing DM tabs cannot invent different scopes.
+    const identity=await s.db.ref('campaña/combate/estado').transaction(raw=>{
+      const value=raw&&typeof raw==='object'?raw:{phase:typeof raw==='string'?raw:'PRE_COMBAT_PLANNING',round:payload.round};
+      return value.encounterId?value:{...value,encounterId:encounterCandidate,encounterCreatedAt:Date.now()};
+    },undefined,false);
+    payload.encounterId=identity.snapshot.val().encounterId;
     payload.id = `${payload.round}-${payload.seed}-${session}`;
     payload.initialStateJson=JSON.stringify(state.authority.snapshotRuntime());
     payload.initialExecutionJson=JSON.stringify(surface()?.captureExecution?.([],new Set())||{units:state.authority.snapshotRuntime(),queue:[],resolvedKeys:[]});
     payload.playback = { schemaVersion: 1, engineVersion: protocol().engineVersion, session, generation: payload.id };
     const result = await s.db.ref(a.ROOT.current).transaction(current => {
-      if (Number(current?.round) >= payload.round && ['sealed', 'running', 'complete'].includes(current?.phase)) return;
+      if (current?.encounterId===payload.encounterId&&Number(current?.round) >= payload.round && ['sealed', 'running', 'complete'].includes(current?.phase)) return;
       return payload;
     }, undefined, false);
     if (!result.committed) throw new Error('Este turno ya está en resolución en otra pestaña del DM.');
     return result.snapshot.val();
   }
   function assertOwner(data) {
-    if (enabled(data) && data.playback.session !== session)
+    const executing=state.authority?.state?.executingGeneration;
+    if ((enabled(data)||executing) && (data?.playback?.session !== session||(executing&&data.id!==executing)))
       throw new Error('El turno pertenece a otra pestaña del DM. Reabre la pestaña que lo inició para continuar.');
   }
   function beginUpdates(data) {
@@ -210,7 +219,7 @@
     state.offsetRef=state.offsetHandler=null;
   }
   global.LuminousCombatPlaybackSync = Object.freeze({ ROOT, state, session, enabled, negotiate, seal, assertOwner,
-    beginUpdates, batchUpdates, observe, start, stop, recover, refreshRecoveryControl,stageUpdates,commitUpdates });
+    beginUpdates, batchUpdates, observe, start, stop, recover, refreshRecoveryControl,stageUpdates,commitUpdates,disconnectConsumer });
   global.addEventListener('luminous:combat073-hydrated', () => {
     const a = state.authority, data = a?.state.current;
     if (enabled(data) && data.phase === 'complete' && data.checkpoint?.combatants) {

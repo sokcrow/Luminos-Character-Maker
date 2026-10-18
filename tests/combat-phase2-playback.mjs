@@ -91,4 +91,23 @@ console.log('Phase 2: ordered/duplicate/late delivery, checkpoint resume, fail-c
   assert.equal(merged['campaña/combate/authority/current/checkpoint'].seq,1);
   sync.state.authority.state.current.playback.session='other-tab';
   assert.throws(()=>sync.stageUpdates({'campaña/combate/combatants/enemy':null}),/otra pestaña/);
+  sync.state.authority.state.executingGeneration='cleared-round';sync.state.authority.state.current={};
+  assert.throws(()=>sync.assertOwner({}),/otra pestaña/);
+}
+{
+  const setup=fs.readFileSync(new URL('../js/combat-v073-dm-setup.js',import.meta.url),'utf8');
+  const code=setup.slice(setup.indexOf('  async function clearEncounter()'),setup.indexOf('  function esc(')).trim();
+  const writes=[],c={isDm:()=>true,state:{db:{ref:()=>({update:async value=>writes.push(json(value))})}},
+    ROOTS:{combatants:'campaña/combate/combatants',state:'campaña/combate/estado'},global:{}};
+  vm.createContext(c);vm.runInContext(code,c);await c.clearEncounter();
+  assert.equal(writes.length,1);assert.equal(writes[0]['campaña/combate/authority/current'],null);
+  assert.equal(writes[0]['campaña/combate/playback/current'],null);assert.equal(writes[0]['campaña/combate/estado/phase'],'SETUP');
+}
+{
+  let release,started;const begun=new Promise(resolve=>{started=resolve;});let completed=0,applies=0;
+  const c=api.createConsumer({generation:'round-one',apply:()=>{applies++;},finish:()=>{completed++;},
+    present:()=>new Promise(resolve=>{release=resolve;started();})});
+  const task=c.receive(batch(1,[{sequence:1,type:'Presentation',cue:'wait',args:[]},{sequence:2,type:'DamageApplied',changes:[{unitId:'a',after:{hp:0}}]}],{eventCursor:2,type:'round_complete'}));
+  await begun;c.stop();release();await task;
+  assert.equal(completed,0);assert.equal(applies,0,'a cleared encounter cannot continue applying a delayed batch');
 }

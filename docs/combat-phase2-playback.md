@@ -12,6 +12,7 @@ En reproducción, solamente el DM ejecuta la cola. Publica lotes de resultados a
 
 ## Contrato y persistencia
 
+- Se conserva `estado/encounterId`, compartido con setup y botín. Cambiar de fase actualiza sus campos sin borrar los metadatos del encuentro. «Limpiar encuentro» retira autoridad y reproducción junto con los planes.
 - `authority/current`: planes sellados, semilla, identificador/generación y sesión de pestaña DM; checkpoint con `seq`, `eventCursor`, `rngCursor`, digest, estado completo en `stateJson` y estado de reanudación en `executionJson`.
 - `playback/current`: versión, generación y `batches/{seq}`. Es una rama separada del listener de autoridad y conserva solamente la generación actual.
 - Cada sobre tiene versión, generación, secuencia, tiempo de servidor y `payload` JSON. El payload contiene eventos ordenados, cambios de estado, estado final del lote y referencia al checkpoint. La codificación conserva vacíos y nulls: RTDB los eliminaría de un objeto, impidiendo limpiar Status, listas pendientes o recursos agotados.
