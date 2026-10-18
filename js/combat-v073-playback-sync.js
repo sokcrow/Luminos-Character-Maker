@@ -108,11 +108,19 @@
       const button=global.document.createElement('button');button.type='button';button.id='resume-combat-round';
       button.textContent='Reanudar turno aquí';
       button.title='Continúa desde el último resultado confirmado y detiene la resolución en la otra pestaña.';
-      button.style.cssText='position:absolute;right:16px;top:16px;z-index:400;min-height:44px;padding:10px 16px;background:#231d11;color:#f3dfaa;border:1px solid #c4a86b;border-radius:4px;cursor:pointer';
+      button.style.cssText='box-sizing:border-box;min-height:44px;padding:10px 16px;background:#231d11;color:#f3dfaa;border:1px solid #c4a86b;border-radius:4px;cursor:pointer';
       button.onclick=async()=>{button.disabled=true;try{await recover();}catch(error){console.error('[Combat recovery]',error);status(error.message);}finally{button.disabled=false;refreshRecoveryControl();}};
-      global.document.getElementById('game-container')?.appendChild(button);state.recoveryButton=button;
+      const panel=global.document.getElementById('c073-dm-setup');
+      if(panel){
+        button.style.cssText+=';display:block;width:100%;margin-top:8px';
+        panel.querySelector('summary')?.after(button);panel.open=true;
+      }else{
+        button.style.cssText+=';position:fixed;left:16px;top:84px;z-index:2147483001';
+        global.document.body?.appendChild(button);
+      }
+      state.recoveryButton=button;
     }
-    if(state.recoveryButton)state.recoveryButton.hidden=!visible;
+    if(state.recoveryButton){state.recoveryButton.hidden=!visible;state.recoveryButton.style.display=visible?'block':'none';}
   }
   async function recover(){
     const a=state.authority,s=adapter(),expected=copy(a?.state.current);
