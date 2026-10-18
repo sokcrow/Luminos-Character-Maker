@@ -25,7 +25,7 @@
       return value.encounterId?value:{...value,encounterId:encounterCandidate,encounterCreatedAt:Date.now()};
     },undefined,false);
     payload.encounterId=identity.snapshot.val().encounterId;
-    payload.id = `${payload.round}-${payload.seed}-${session}`;
+    payload.id = `${payload.encounterId}-${payload.round}-${payload.seed}-${session}`;
     payload.initialStateJson=JSON.stringify(state.authority.snapshotRuntime());
     payload.initialExecutionJson=JSON.stringify(surface()?.captureExecution?.([],new Set())||{units:state.authority.snapshotRuntime(),queue:[],resolvedKeys:[]});
     payload.playback = { schemaVersion: 1, engineVersion: protocol().engineVersion, session, generation: payload.id };
