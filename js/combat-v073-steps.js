@@ -127,6 +127,7 @@
           return result;
         });
         if (!heal) await show('hitMotion', entry, targetId, outcome);
+        else await show('healingMotion', entry, targetId, outcome);
         if (!heal) {
           await r.triggerCounterAfterHit(targetId, entry.ownerId, entry);
           if (!r.isUnitTargetable(r.unit(entry.ownerId))) { emit('ActionCancelled', entry, { reason: 'owner_unavailable', coinIndex }); break; }
@@ -188,7 +189,7 @@
         if (evaded) r.applySkillStatusEffects(entry, attackerEntry?.ownerId, '[On Evade]', { coinIndex, side });
         else r.disarmEvade(defenderId, { broken: true });
       });
-      await show('powerCoin', entry, coin, power, 1); await show('powerEnd', entry, 1, power, [coin]); await show('evadeEnd', entry);
+      await show('powerCoin', entry, coin, power, 1); await show('powerEnd', entry, 1, power, [coin]); await show('evadeEnd', entry, { evaded });
       return evaded ? { evaded: true, active: true, power, side: coin.side } : { evaded: false, active: false, broken: true, power, side: coin.side };
     }
     return Object.freeze({ version: VERSION, rollPower, rollPair, hits, clash, guard, evade, emit, mutate, show,

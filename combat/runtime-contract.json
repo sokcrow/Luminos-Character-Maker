@@ -63,5 +63,15 @@
     "compactInput": "same-actions-and-valid-target-slots",
     "motion": "generic-sprite-poses-with-reduced-motion",
     "productionAcceptance": "pending-deployed-user-validation"
+  },
+  "audiovisual": {
+    "phase": 5,
+    "base": "phase4-hud-motion",
+    "profiles": "js/combat-v073-animation-profiles.js",
+    "director": "js/combat-v073-audiovisual.js",
+    "input": "ordered presentation cues; no rule execution",
+    "resources": "original inline SVG and local Web Audio synthesis; no remote asset dependency",
+    "preferences": "local sound/volume/quality/rate; respects reduced motion",
+    "acceptance": "emulator integration; production deployment and user acceptance pending"
   }
 }

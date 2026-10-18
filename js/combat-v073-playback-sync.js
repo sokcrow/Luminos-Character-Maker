@@ -77,6 +77,7 @@
     return { [`${ROOT}/batches/${String(row.seq).padStart(6, '0')}`]: batch };
   }
   function disconnectConsumer() {
+    global.LuminousCombatAudiovisual073?.clear();
     state.consumer?.stop(); state.consumer = null;
     if (state.ref && state.handler) state.ref.off('child_added', state.handler);
     state.ref = state.handler = null; state.generation = null;

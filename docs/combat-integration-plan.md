@@ -6,7 +6,7 @@ Fecha de revisión del alcance: 18 de octubre de 2026.
 
 **Decisión propuesta:** conservar Luminos como sistema de juego y plataforma online, y adaptar de Limbus Archive su forma de presentar Clash, Coins, ataques, efectos y personajes. La integración se hará por capas y entregas jugables, con el mismo resultado de combate para DM y jugadores.
 
-La revisión base corresponde al 17 de octubre. Las fases 0, 1, 2 y 3 cuentan con implementaciones encadenadas en los PR #986, #987, #988 y #989, sin fusionar ni desplegar. La Fase 4 se integra en #990 y se valida sobre esa misma cadena. El resto de este documento describe el alcance y los criterios de las entregas siguientes; no certifica su aceptación final.
+La revisión base corresponde al 17 de octubre. Las fases 0, 1, 2 y 3 cuentan con implementaciones encadenadas en los PR #986, #987, #988 y #989, sin fusionar ni desplegar. La Fase 4 se integra en #990 y la Fase 5 continúa sobre ella, conservando la misma cadena. El resto de este documento describe el alcance y los criterios de las entregas siguientes; no certifica su aceptación final.
 
 **1. Base revisada y alcance real**
 

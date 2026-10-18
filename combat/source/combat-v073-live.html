@@ -2322,6 +2322,7 @@
 
 <link rel="stylesheet" href="css/combat-v073-stage.css">
 <link rel="stylesheet" href="css/combat-v073-hud-motion.css">
+<link rel="stylesheet" href="css/combat-v073-audiovisual.css">
 </head>
 <body>
 <div id="game-container" class="intro-running">
@@ -2498,6 +2499,8 @@
 <script src="js/combat-v073-playback-sync.js"></script>
 <script src="js/combat-v073-stage.js"></script>
 <script src="js/combat-v073-hud-motion.js"></script>
+<script src="js/combat-v073-animation-profiles.js"></script>
+<script src="js/combat-v073-audiovisual.js"></script>
 <script>
 let combatData={},round=1,selectedSlotIndex=0,navState='root',activeMenu=null,selected=null,focusedIndex=0,transitionToken=0,plannedActions=[],planReady=false,roundRunning=false,viewModeActive=false,analyseModeActive=false,targetingModeActive=false,pendingTargetPlan=null,pendingTargetSlotIndex=-1,selectedObservationEnemy=null,observationUsedTurn=0,observationRolling=false,clashChoiceSerial=0,clashConfirmationActive=false,pendingClashConfirmation=null,activeGrapples=[],grappleSerial=0,timelineResolutionActive=false;
 const PLAYER_SCORES={
@@ -6130,7 +6133,7 @@ const CLASH_MOTION=Object.freeze({
   rangeHitRecoil:38,
   hitMinGap:76
 });
-function wait(ms){return new Promise(resolve=>setTimeout(resolve,ms))}
+function wait(ms){const delay=roundRunning?(window.LuminousCombatAudiovisual073?.duration(ms)??ms):ms;return new Promise(resolve=>setTimeout(resolve,delay))}
 async function playTurnTransition(turnNumber,{initial=false}={}){
   const game=$('game-container'),
         overlay=$('turn-transition'),
@@ -6848,7 +6851,7 @@ function combatStepRuntime(){
         rollCoin=async(container,coin,onResolved)=>{
           if(!container)return;
           await window.LuminousCoinEngine.runAnimatedRoll({document,container,coinCount:1,base:0,
-            headsChance:50,intervalMs:COMBAT_PACE.coinInterval,auto:true,silent:true,
+            headsChance:50,intervalMs:window.LuminousCombatAudiovisual073?.duration(COMBAT_PACE.coinInterval)??COMBAT_PACE.coinInterval,auto:true,silent:true,
             resolvedCoins:[coin],onCoinResolved:onResolved})
         };
   const names=['coinHeadsChanceForUnit','clashLevelPowerBonus','statusAttackPowerModifier','statusClashPowerModifier',
@@ -6861,8 +6864,8 @@ function combatStepRuntime(){
     rollSide:chance=>window.LuminousCoinEngine.rollSide(chance),coinSrc:side=>window.LuminousCoinEngine.coinSrc(side)};
   names.forEach(name=>{rules[name]=(...args)=>window[name](...args)});
   combatStepsInstance=window.LuminousCombatSteps.create({rules,
-    onEvent:event=>window.LuminousCombatHudMotion073?.event(event),
-    onPresentation:(cue,args)=>window.LuminousCombatHudMotion073?.cue(cue,args),
+    onEvent:event=>{try{window.LuminousCombatHudMotion073?.event(event)}finally{window.LuminousCombatAudiovisual073?.event(event)}},
+    onPresentation:(cue,args)=>{try{window.LuminousCombatHudMotion073?.cue(cue,args)}finally{window.LuminousCombatAudiovisual073?.cue(cue,args)}},
     assertActive:()=>{
       const a=window.LuminousCombatAuthority073,sync=window.LuminousCombatPlaybackSync;
       if(a?.isDm()&&a.state.runningLocal&&(a.state.executingGeneration||sync?.enabled(a.state.current)))sync.assertOwner(a.state.current)
@@ -7399,6 +7402,7 @@ async function resolveSaveOnlySpell(entry){
       sourceType:'magic',sourceElement:normalizeElement(data.element||''),concentrationId:conc?.id||null,sourceLabel:data.name||'Magic',detectThreshold:data.detectThreshold??data.save.threshold
     }));
     results.push({targetId,result});
+    await combatStepRuntime().show('spellResult',entry,targetId,result);
     await wait(260)
   }
   return results
@@ -8149,7 +8153,7 @@ function hydrateLiveCombat(payload={}){
 window.LuminousCombatStepRuntime=Object.freeze({
   version:window.LuminousCombatSteps.version,
   events:()=>combatStepRuntime().events(),
-  setPresentationEnabled:value=>combatStepRuntime().setPresentationEnabled(value),
+  setPresentationEnabled:value=>{if(!value)window.LuminousCombatAudiovisual073?.clear();combatStepRuntime().setPresentationEnabled(value)},
   presentationEnabled:()=>combatStepRuntime().presentationEnabled(),
   capturePresentation:value=>combatStepRuntime().capturePresentation(value),
   acceptEvent:event=>combatStepRuntime().acceptEvent(event),

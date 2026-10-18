@@ -2,7 +2,7 @@ name: Combat Phase 0 Baseline
 on:
   workflow_dispatch:
   pull_request:
-    branches: [main, feat/combat-phase0-integration, feat/combat-phase1-steps, feat/combat-phase2-playback, feat/combat-phase3-layered-stage]
+    branches: [main, feat/combat-phase0-integration, feat/combat-phase1-steps, feat/combat-phase2-playback, feat/combat-phase3-layered-stage, feat/combat-phase4-hud-motion]
     paths:
       - 'Battle-viewer.html'
       - 'combat/**'
@@ -10,6 +10,7 @@ on:
       - 'css/player-skills-hud.css'
       - 'css/combat-v073-stage.css'
       - 'css/combat-v073-hud-motion.css'
+      - 'css/combat-v073-audiovisual.css'
       - 'assets/combat-stage/**'
       - 'database.rules.json'
       - 'firebase.combat-phase0.json'
@@ -38,6 +39,7 @@ jobs:
       - run: npm run test:combat-phase2
       - run: npm run test:combat-phase3
       - run: npm run test:combat-phase4
+      - run: npm run test:combat-phase5
   authenticated-browser:
     needs: contracts
     runs-on: ubuntu-latest
@@ -61,7 +63,7 @@ jobs:
         run: >-
           npx firebase emulators:exec --only auth,database
           --project demo-luminos-combat-phase0 --config firebase.combat-phase0.json
-          -- "node tests/combat-phase0-auth-emulator.mjs && npx playwright test tests/combat-phase4-hud.spec.mjs tests/combat-phase3-stage.spec.mjs --config playwright.combat-phase0.config.cjs --reporter=line && npx playwright test tests/combat-phase0-online.spec.mjs tests/combat-phase2-online.spec.mjs --config playwright.combat-phase0.config.cjs --reporter=line"
+          -- "node tests/combat-phase0-auth-emulator.mjs && npx playwright test tests/combat-phase5-online.spec.mjs --config playwright.combat-phase0.config.cjs --reporter=line && npx playwright test tests/combat-phase4-hud.spec.mjs tests/combat-phase3-stage.spec.mjs --config playwright.combat-phase0.config.cjs --reporter=line && npx playwright test tests/combat-phase0-online.spec.mjs tests/combat-phase2-online.spec.mjs --config playwright.combat-phase0.config.cjs --reporter=line"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
