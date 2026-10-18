@@ -8,7 +8,7 @@
     return value;
   }
   function create({ rules: r, presentation = {}, context = () => ({}), snapshot = () => ({}) }) {
-    let enabled = true, sequence = 0, journal = [];
+    let enabled = true, capture = false, sequence = 0, journal = [];
     const action = entry => ({ actionId: `${context().round}:${entry.ownerId}:${entry.localIndex ?? 0}`,
       ownerId: entry.ownerId, slotIndex: entry.localIndex ?? 0, targetId: entry.plan?.targetId ?? null });
     function emit(type, entry, detail = {}) {
@@ -34,7 +34,21 @@
       }
       return result;
     }
-    async function show(name, ...args) { if (enabled) await presentation[name]?.(...args); }
+    // A presentation command contains domain values only. Queue entries carry
+    // live element handles, so retain the plan/identity and rebuild handles locally.
+    function presentationValue(value) {
+      if (Array.isArray(value)) return value.map(presentationValue);
+      if (value && typeof value === 'object') {
+        if (value.ownerId && value.plan) return copy({ ownerId: value.ownerId, ownerName: value.ownerName,
+          localIndex: value.localIndex ?? 0, controller: value.controller, plan: value.plan });
+        return copy(value);
+      }
+      return value;
+    }
+    async function show(name, ...args) {
+      if (capture) emit('Presentation', null, { cue: name, args: args.map(presentationValue), combatants: snapshot() });
+      if (enabled) await presentation[name]?.(...args);
+    }
     function powerState(entry, remaining, opponent) {
       const data = r.data(entry.plan), unit = r.unit(entry.ownerId), other = r.unit(opponent?.ownerId);
       const power = Math.max(0, data.basePower + data.finalPowerBonus + (data.grappleCheck ? 0 :
@@ -173,7 +187,11 @@
     }
     return Object.freeze({ version: VERSION, rollPower, rollPair, hits, clash, guard, evade, emit, mutate,
       beginRound() { sequence = 0; journal = []; emit('RoundSealed'); },
-      events: () => copy(journal), setPresentationEnabled(value) { enabled = Boolean(value); }, presentationEnabled: () => enabled });
+      events: () => copy(journal), setPresentationEnabled(value) { enabled = Boolean(value); }, presentationEnabled: () => enabled,
+      capturePresentation(value) { capture = Boolean(value); },
+      async present(cue, args) { if (enabled) await presentation[cue]?.(...args); },
+      acceptEvent(event) { journal.push(freeze(copy(event))); sequence = Math.max(sequence, event.sequence); },
+      resetJournal() { journal = []; sequence = 0; } });
   }
   global.LuminousCombatSteps = Object.freeze({ version: VERSION, schemaVersion: SCHEMA, create });
 })(typeof window === 'undefined' ? globalThis : window);

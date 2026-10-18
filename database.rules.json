@@ -109,6 +109,17 @@
         },
         "$other": {
           ".write": "auth != null && (auth.uid === root.child('campaña').child('config').child('dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1')"
+        },
+        "playback": {
+          ".write": "auth != null && (auth.uid === root.child('campaña').child('config').child('dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1')",
+          "current": {
+            ".validate": "newData.hasChildren(['generation','schemaVersion','engineVersion']) && newData.child('generation').isString() && newData.child('schemaVersion').val() === 1 && newData.child('engineVersion').val() === '0.7.3-playback.1'",
+            "batches": {
+              "$seq": {
+                ".validate": "newData.hasChildren(['seq','generation','schemaVersion','engineVersion','payload']) && newData.child('generation').val() === newData.parent().parent().child('generation').val() && newData.child('schemaVersion').val() === 1 && newData.child('engineVersion').val() === '0.7.3-playback.1' && newData.child('seq').isNumber() && newData.child('seq').val() >= 1 && newData.child('payload').isString() && newData.child('payload').val().length <= 2000000 && (!data.exists() || (newData.child('payload').val() === data.child('payload').val() && newData.child('seq').val() === data.child('seq').val() && newData.child('generation').val() === data.child('generation').val()))"
+              }
+            }
+          }
         }
       },
       "efectos_dm": {

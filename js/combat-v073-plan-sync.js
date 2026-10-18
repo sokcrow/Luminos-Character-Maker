@@ -58,6 +58,7 @@
     updates[`${ROOT}/readyPlayers/${ctx.owner}`]={
       ready,round:ctx.round,schedulerUid:ctx.s.uid,unitId:ctx.unitId,
       plannedSlots:ready?ctx.plans.filter(Boolean).length:0,
+      ...(global.LuminousCombatPlayback && !global.LuminousCombatPlaybackCompatibility ? {playback:{schemaVersion:1,engineVersion:global.LuminousCombatPlayback.engineVersion}} : {}),
       targetIntents:targetIndex(ctx),
       ...(reaction?{enchantmentReactionItemInstanceId:reaction}:{}),
       updatedAt:global.firebase.database.ServerValue.TIMESTAMP,

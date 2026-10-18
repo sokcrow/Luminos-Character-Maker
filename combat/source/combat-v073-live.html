@@ -2492,6 +2492,8 @@
 })(window);
 </script>
 <script src="js/combat-v073-steps.js"></script>
+<script src="js/combat-v073-playback.js"></script>
+<script src="js/combat-v073-playback-sync.js"></script>
 <script>
 let combatData={},round=1,selectedSlotIndex=0,navState='root',activeMenu=null,selected=null,focusedIndex=0,transitionToken=0,plannedActions=[],planReady=false,roundRunning=false,viewModeActive=false,analyseModeActive=false,targetingModeActive=false,pendingTargetPlan=null,pendingTargetSlotIndex=-1,selectedObservationEnemy=null,observationUsedTurn=0,observationRolling=false,clashChoiceSerial=0,clashConfirmationActive=false,pendingClashConfirmation=null,activeGrapples=[],grappleSerial=0,timelineResolutionActive=false;
 const PLAYER_SCORES={
@@ -8127,7 +8129,58 @@ window.LuminousCombatStepRuntime=Object.freeze({
   version:window.LuminousCombatSteps.version,
   events:()=>combatStepRuntime().events(),
   setPresentationEnabled:value=>combatStepRuntime().setPresentationEnabled(value),
-  presentationEnabled:()=>combatStepRuntime().presentationEnabled()
+  presentationEnabled:()=>combatStepRuntime().presentationEnabled(),
+  capturePresentation:value=>combatStepRuntime().capturePresentation(value),
+  acceptEvent:event=>combatStepRuntime().acceptEvent(event),
+  resetJournal:()=>combatStepRuntime().resetJournal(),
+  async present(cue,args){
+    const entry=value=>{
+      if(Array.isArray(value))return value.map(entry);
+      if(value?.ownerId&&value?.plan)return {...value,slot:unitSlots(value.ownerId)[value.localIndex??0]||null};
+      return value
+    };
+    await combatStepRuntime().present(cue,args.map(entry))
+  },
+  lockPlanning(locked){
+    roundRunning=Boolean(locked);
+    if(locked){
+      planReady=true;
+      if(navState!=='root')goRoot();
+      if(viewModeActive||analyseModeActive||targetingModeActive)exitSpecialView();
+      hideClashForecast()
+    }
+    $('game-container')?.classList.toggle('round-running',Boolean(locked));
+    if($('ready'))$('ready').disabled=Boolean(locked);
+    syncReadyControl()
+  },
+  beginPlayback(turn){
+    round=Math.max(1,Number(turn)||1);
+    $('round').textContent=round;
+    this.lockPlanning(true);
+    timelineResolutionActive=true;
+    combatStepRuntime().resetJournal();
+    setCameraFocus('full',false)
+  },
+  refreshPlayback(){
+    Object.entries(combatData).forEach(([id,unit])=>{
+      syncCombatantVitalNumber(id);
+      const token=$(`token-${id}`),pct=combatantHpPct(unit,unit.hp);
+      for(const line of token?.querySelectorAll('.hp-fill-line,.hp-transition-line')||[])setHpLinePct(line,pct,0);
+      const orb=token?.querySelector('.floating-sp-group');if(orb)orb.textContent=Math.round(unit.sp);
+      renderStatusEffects(id)
+    })
+  },
+  finishPlayback(next){
+    closeAllFloatingClashHuds();clearTimelineVisualFocus();
+    round=Math.max(1,Number(next)||1);$('round').textContent=round;
+    plannedActions=[];planReady=false;timelineResolutionActive=false;
+    Object.values(combatData).forEach(unit=>{unit.autoPlans=[]});
+    turnStartDeck();
+    this.lockPlanning(false);
+    const ready=$('ready');ready.textContent='READY';ready.classList.remove('locked');ready.setAttribute('aria-pressed','false');
+    renderAllPlannedSlots();
+    setStatus(`TURN ${round} · Planning`)
+  }
 });
 window.LuminousCombat073=Object.freeze({
   version:'0.7.3-live',

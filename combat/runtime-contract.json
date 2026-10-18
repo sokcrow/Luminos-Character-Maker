@@ -6,15 +6,15 @@
   "authoritySchemaVersion": 1,
   "authorityEngineVersion": "0.7.3-authority.9-step-rng",
   "roots": {
-    "dmUid": "campa\u00f1a/config/dm_uid",
-    "players": "campa\u00f1a/jugadores",
-    "units": "campa\u00f1a/base_datos_unidades",
-    "skills": "campa\u00f1a/base_datos_skills",
-    "combatants": "campa\u00f1a/combate/combatants",
-    "state": "campa\u00f1a/combate/estado",
-    "plans": "campa\u00f1a/combate/plannedActions",
-    "ready": "campa\u00f1a/combate/readyPlayers",
-    "authority": "campa\u00f1a/combate/authority/current"
+    "dmUid": "campaña/config/dm_uid",
+    "players": "campaña/jugadores",
+    "units": "campaña/base_datos_unidades",
+    "skills": "campaña/base_datos_skills",
+    "combatants": "campaña/combate/combatants",
+    "state": "campaña/combate/estado",
+    "plans": "campaña/combate/plannedActions",
+    "ready": "campaña/combate/readyPlayers",
+    "authority": "campaña/combate/authority/current"
   },
   "authorityPhases": [
     "sealed",
@@ -27,14 +27,23 @@
     "unitId",
     "sourceSlotIndex"
   ],
-  "resolution": "seeded-client-execution-with-dm-checkpoints",
+  "resolution": "negotiated-dm-batches-with-seeded-client-compatibility",
   "timelineAuthority": "seeded-live-runtime",
   "presentationEvents": {
     "schemaVersion": 1,
     "engineVersion": "0.7.3-steps.1",
-    "transport": "local-only",
+    "transport": "dm-action-batches-v1",
     "module": "js/combat-v073-steps.js",
     "roundOrder": "frozen-speed-then-queue-index",
     "coinOrder": "index-then-clash-side"
+  },
+  "playback": {
+    "schemaVersion": 1,
+    "engineVersion": "0.7.3-playback.1",
+    "root": "campaña/combate/playback/current",
+    "activation": "all-active-players-ready-with-compatible-capability",
+    "history": "current-generation-only",
+    "authorityLease": "sealed-dm-tab-session",
+    "recovery": "players-from-confirmed-checkpoint; same-DM-tab-network-reconnect"
   }
 }

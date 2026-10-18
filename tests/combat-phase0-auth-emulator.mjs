@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import { createRequire } from 'node:module';
-import { emulatorHosts, seedPhase0, readEmulator, PROJECT, NAMESPACE, PASSWORD } from './fixtures/combat-phase0-fixture.mjs';
+import { emulatorHosts, seedPhase0, readEmulator, writeEmulator, PROJECT, NAMESPACE, PASSWORD } from './fixtures/combat-phase0-fixture.mjs';
 
 const require = createRequire(import.meta.url);
 const firebase = require('firebase/compat/app');
@@ -103,6 +103,40 @@ try {
   assert.equal(await readEmulator(contract.roots.ready), null);
   authority.stop();
   console.log('Combat Phase 0 Auth/RTDB: 3 authenticated sessions; loadout isolation, plans, DM seal and checkpoint transport passed');
+  stage = 'phase2-protocol';
+  // Competing tabs use the production transaction and the real DM Auth UID.
+  await writeEmulator(contract.roots.authority, null);
+  const tabs = [0, 1].map(index => {
+    const win = { Math, Date, console, crypto: { randomUUID: () => `test-dm-tab-${index}` }, addEventListener() {},
+      LuminousCombatLiveAdapter073: { state: { db: sessions.dm.db } } };
+    win.window = win;
+    for (const name of ['playback', 'playback-sync']) vm.runInNewContext(fs.readFileSync(new URL(`../js/combat-v073-${name}.js`, import.meta.url), 'utf8'), win);
+    win.LuminousCombatPlaybackSync.state.authority = { ROOT: { current: contract.roots.authority },snapshotRuntime:()=>({'player:a':{hp:100,statusEffects:{},pendingStatusEffects:[]}}) };
+    return win.LuminousCombatPlaybackSync;
+  });
+  const outcomes = await Promise.allSettled(tabs.map(tab => tab.seal({ round: 1, seed: 8, phase: 'sealed' })));
+  assert.equal(outcomes.filter(result => result.status === 'fulfilled').length, 1);
+  assert.equal(outcomes.filter(result => result.status === 'rejected').length, 1);
+  const owner = outcomes.findIndex(result => result.status === 'fulfilled');
+  const seal = outcomes[owner].value;
+  assert.throws(() => tabs[1 - owner].assertOwner(seal), /otra pestaña/);
+  const root = contract.playback.root;
+  const row = { schemaVersion: 1, engineVersion: contract.playback.engineVersion, generation: seal.id,
+    seq: 1, payload:JSON.stringify({eventCursor: 1, rngCursor: 2, digest: 'result-one', type: 'action', combatants: { 'player:a': { hp: 90, arrows: 2, statusEffects:{}, pendingStatusEffects:[] } }}) };
+  const commit = { [root]: { generation: seal.id, schemaVersion: 1, engineVersion: contract.playback.engineVersion, batches: { '000001': row } },
+    [contract.roots.authority + '/checkpoint']: row, ['campaña/jugadores/a/phase2TestArrows']: 2 };
+  await sessions.dm.db.ref().update(commit).catch(error => {throw new Error('phase2 first atomic commit: '+error.message);});
+  await sessions.dm.db.ref().update(commit).catch(error => {throw new Error('phase2 identical retry: '+error.message);}); // exact retry is idempotent
+  assert.equal(JSON.parse((await readEmulator(root)).batches['000001'].payload).combatants['player:a'].arrows, 2);
+  for (const role of ['a', 'b']) {
+    await assert.rejects(sessions[role].db.ref(root + '/batches/000002').set({ ...row, seq: 2 }), /permission_denied/i);
+    await assert.rejects(sessions[role].db.ref(root).remove(), /permission_denied/i);
+  }
+  await assert.rejects(sessions.dm.db.ref(root + '/batches/000001').set({ ...row, payload:JSON.stringify({digest:'rewritten'}) }), /permission_denied/i);
+  await assert.rejects(sessions.dm.db.ref(root + '/batches/000002').set({ ...row, seq: 2, generation: 'old' }), /permission_denied/i);
+  assert.equal((await readEmulator(contract.roots.authority)).checkpoint.payload, row.payload);
+  assert.equal(await readEmulator('campaña/jugadores/a/phase2TestArrows'), 2);
+  console.log('Combat Phase 2 Auth/RTDB: competing DM transactions, atomic retry, immutable batches and Player denial passed');
 } finally {
   stage = 'cleanup';
   for (const timer of timers) clearTimeout(timer);

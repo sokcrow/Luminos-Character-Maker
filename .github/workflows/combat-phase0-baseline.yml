@@ -2,7 +2,7 @@ name: Combat Phase 0 Baseline
 on:
   workflow_dispatch:
   pull_request:
-    branches: [main, feat/combat-phase0-integration]
+    branches: [main, feat/combat-phase0-integration, feat/combat-phase1-steps]
     paths:
       - 'Battle-viewer.html'
       - 'combat/**'
@@ -32,6 +32,7 @@ jobs:
       - run: npm run check:combat-live
       - run: npm run test:combat-phase0
       - run: npm run test:combat-phase1
+      - run: npm run test:combat-phase2
   authenticated-browser:
     needs: contracts
     runs-on: ubuntu-latest
