@@ -9,7 +9,7 @@
     if(raw?.estado?.encounterId&&live(raw))return;
     if(raw?.estado&&live(raw)&&Object.keys(raw.combatants||{}).length)
       return {...raw,estado:{...(typeof raw.estado==='object'?raw.estado:{}),encounterId:id,encounterCreatedAt:time,active:true}};
-    return {...(raw||{}),combatants:null,plannedActions:null,readyPlayers:null,authority:null,playback:null,
+    return {...(raw||{}),combatants:null,reserves:null,departed:null,plannedActions:null,readyPlayers:null,authority:null,playback:null,
       estado:{encounterId:id,encounterCreatedAt:time,phase:'PRE_COMBAT_PLANNING',active:true,round:1,presentation:'full',createdBy:uid,updatedAt:time},
       planningStartedAt:time,planningDuration:60};
   }

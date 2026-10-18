@@ -23,6 +23,7 @@
   async function deployUnits(unitId,faction='enemy',quantity=1,options={}){
     const dmSetup=setup(),api=instantiator();
     if(!isDm())throw new Error('DM_ONLY');
+    dmSetup?.requirePlanning?.();
     if(!dmSetup?.state?.db?.ref)throw new Error('COMBAT_DB_UNAVAILABLE');
     if(!api?.instantiate)throw new Error('UNIT_COMBAT_INSTANTIATOR_UNAVAILABLE');
     const visibleDefinition=dmSetup.state.units?.[unitId];if(!visibleDefinition||visibleDefinition.isPlayer===true)throw new Error('UNIT_NOT_FOUND');
@@ -33,10 +34,11 @@
       combatant.libraryRef=resolved.definition.libraryRef||null;combatant.librarySource=resolved.source;combatant.libraryVersion=resolved.manifest?.version||null;combatant.libraryHash=resolved.manifest?.hash||null;
       combatant.skillIds=[...(resolved.skillIds||combatant.skillIds||[])];combatant.skillSlotIds=[...combatant.skillIds];combatant.action_slots=[...combatant.skillIds];combatant.equippedSkillIndex=Object.fromEntries(combatant.skillIds.map(id=>[id,true]));updates[combatant.id]=combatant;
     }
+    dmSetup.requirePlanning?.();
     await dmSetup.state.db.ref('campaña/combate/combatants').update(updates);return Object.values(updates);
   }
   async function handleButton(button){
-    const select=global.document?.getElementById('c073-unit'),qty=global.document?.getElementById('c073-qty'),unitId=clean(select?.value);if(!unitId)return setMsg('Selecciona una Unit real de la librería.',true);const side=button.id==='c073-ally'?'ally':'enemy';
+    const select=global.document?.getElementById('c073-unit'),qty=global.document?.getElementById('c073-qty'),unitId=clean(select?.value||setup()?.state.selectedUnit);if(!unitId)return setMsg('Selecciona una Unit real de la librería.',true);const side=button.id==='c073-ally'?'ally':'enemy';
     try{setMsg(`Validando Universal Library · ${unitId}…`);const deployed=await deployUnits(unitId,side,qty?.value||1),warnings=deployed[0]?.runtimeDiagnostics||{},notes=[];if(warnings.speedFallback)notes.push('Speed fallback 1–6');if(warnings.missingSprite)notes.push('sin sprite');if(warnings.missingSkills)notes.push('sin Skills');setMsg(`${deployed.length} Unit(s) desplegada(s) · loadout auto-equip${notes.length?` · ${notes.join(' · ')}`:''}.`);}catch(error){setMsg(`No se pudo desplegar: ${error?.message||error}`,true);}
   }
   function capture(event){const target=event.target?.closest?.('#c073-enemy,#c073-ally');if(!target||!isDm()||!instantiator())return;event.preventDefault();event.stopPropagation();event.stopImmediatePropagation();handleButton(target);}

@@ -6,7 +6,7 @@ const api=context.LuminousCombatSession,plain=value=>JSON.parse(JSON.stringify(v
 const options={id:'new',uid:'dm',time:100};
 const ended={estado:{encounterId:'old',phase:'ENDED',active:false},combatants:{old:{hp:3}},authority:{current:{phase:'complete'}},playback:{current:{batches:{old:{}}}},plannedActions:{a:{old:{}}},readyPlayers:{a:{ready:true}},encounterLoot:{old:{items:['sword']}}};
 const next=api.nextEncounter(ended,options);
-assert.equal(next.estado.encounterId,'new');for(const key of ['combatants','authority','playback','plannedActions','readyPlayers'])assert.equal(next[key],null);
+assert.equal(next.estado.encounterId,'new');for(const key of ['combatants','reserves','departed','authority','playback','plannedActions','readyPlayers'])assert.equal(next[key],null);
 assert.deepEqual(plain(next.encounterLoot),ended.encounterLoot);assert.equal(ended.combatants.old.hp,3);
 assert.equal(api.nextEncounter(next,options),undefined);
 const oldWithoutIdentity={estado:{phase:'PRE_COMBAT_PLANNING'},combatants:{a:{hp:43}},plannedActions:{a:{}}};

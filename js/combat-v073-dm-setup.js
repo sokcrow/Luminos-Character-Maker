@@ -357,18 +357,19 @@
     const unitSelect = global.document.getElementById('c073-unit');
     const roster = global.document.getElementById('c073-roster');
     if (playerSelect) {
-      const previous = playerSelect.value;
+      const previous = state.selectedPlayer || playerSelect.value;
       playerSelect.innerHTML = '<option value="">— Campaign Player —</option>' + Object.entries(state.players || {})
         .sort((a, b) => nameFor(a[1], a[0]).localeCompare(nameFor(b[1], b[0])))
         .map(([id, player]) => `<option value="${esc(id)}">${esc(nameFor(player, id))}${state.combatants[`player:${safe(id)}`] ? ' · EN COMBATE' : ''}</option>`).join('');
       if (state.players[previous]) playerSelect.value = previous;
     }
     if (unitSelect) {
-      const previous = unitSelect.value;
-      unitSelect.innerHTML = '<option value="">— Enemy / NPC Unit Library —</option>' + Object.entries(state.units || {})
+      const previous = state.selectedUnit || unitSelect.value;
+      const markup = '<option value="">— Enemy / NPC Unit Library —</option>' + Object.entries(state.units || {})
         .filter(([, unit]) => !isPlayerUnit(unit || {}))
         .sort((a, b) => nameFor(a[1], a[0]).localeCompare(nameFor(b[1], b[0])))
         .map(([id, unit]) => `<option value="${esc(id)}">${esc(nameFor(unit, id))}${spriteFor(unit) ? ' · SPRITE' : ' · SIN SPRITE'}${skillIdsFor(unit).length ? ` · ${skillIdsFor(unit).length} SKILLS` : ''}${unit?.metadata?.weaponSkillsPendingCanonicalCatalog ? ' · WEAPON SKILLS PENDING' : ''}</option>`).join('');
+      if (state.unitOptionsMarkup !== markup) { unitSelect.innerHTML = markup; state.unitOptionsMarkup = markup; }
       if (state.units[previous]) unitSelect.value = previous;
     }
     if (roster) {
@@ -493,6 +494,8 @@
     const player = global.document.getElementById('c073-player');
     const unit = global.document.getElementById('c073-unit');
     const qty = global.document.getElementById('c073-qty');
+    player.onchange = () => { state.selectedPlayer = player.value; };
+    unit.onchange = () => { state.selectedUnit = unit.value; };
     global.document.getElementById('c073-add-player').onclick = async () => {
       if (!player.value) return setMsg('Selecciona un Campaign Player.', true);
       try { setMsg('Desplegando Player…'); await deployPlayer(player.value); setMsg('Player desplegado.'); }
@@ -571,6 +574,7 @@
     deployUnits,
     removeCombatant,
     clearEncounter,
+    requirePlanning,
     ensureLibraryMaterialized,
     repairDeployedPlayerState,
     schedulePlayerStateRepair,
