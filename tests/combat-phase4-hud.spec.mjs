@@ -22,7 +22,12 @@ async function chooseSkill(page,touch){
 for(const reduced of [false,true])test(`integrated product HUD: menus, Coins and same online result (reduced=${reduced})`,async({browser})=>{
   test.setTimeout(180000);fs.mkdirSync(ARTIFACTS,{recursive:true});
   const fixture=await seedPhase0(),sessions=[];
-  if(reduced)await writeEmulator('campaña/combate/combatants/player:b/equippedSkillIndex/Guard',true);
+  if(reduced){
+    await writeEmulator('campaña/base_datos_skills/Guard',{id:'Guard',skillId:'Guard',name:'Guard',kind:'defense',defenseType:'guard',basePower:15,coinPower:3,coinAmount:1,damageType:'Guard',sinAffinity:'sinless',economyCost:'action'});
+    for(const path of ['campaña/jugadores/b','campaña/base_datos_unidades/unit-b','campaña/combate/combatants/player:b']){
+      await writeEmulator(`${path}/skillIds`,['old_strike','Guard']);await writeEmulator(`${path}/skillSlotIds`,['old_strike','Guard']);await writeEmulator(`${path}/equippedSkillIndex/Guard`,true);
+    }
+  }
   try{
     for(const role of ['a','b','dm'])sessions.push({role,...await openSession(browser,fixture.users[role],8,{compatibility:false,hasTouch:!reduced})});
     const a=sessions[0].page,b=sessions[1].page,dm=sessions[2].page;
