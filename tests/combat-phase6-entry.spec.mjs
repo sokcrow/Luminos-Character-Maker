@@ -82,6 +82,13 @@ test('phase6 packaged entry: real login, create/deploy, two rounds, safe control
       }
       await holdDmResolution(dmView);
       await ready(av,enemy);await ready(bv,enemy);
+      // READY must be committed for both players; a later target redraw may
+      // never undo their intent while the HUD still says CANCEL READY.
+      await expect.poll(async()=>{
+        const readyRows=await readEmulator('campaña/combate/readyPlayers')||{};
+        const plans=await readEmulator('campaña/combate/plannedActions')||{};
+        return ['a','b'].every(id=>readyRows[id]?.ready===true&&Number(readyRows[id].round)===round&&Object.keys(plans[id]||{}).length>0);
+      },{timeout:15000}).toBe(true);
       await expect.poll(async()=>(await readEmulator('campaña/combate/authority/current'))?.phase,{timeout:45000}).toBe('running');
       try{
         await menu(dm);await expect(dm.locator('#combat-entry-end')).toBeDisabled();await expect(dm.locator('#combat-entry-presentation')).toBeDisabled();await dm.locator('#combat-entry-menu summary').click();
