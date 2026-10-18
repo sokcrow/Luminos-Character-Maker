@@ -16,16 +16,20 @@ for (const mobile of [false, true]) test(`layered stage: real DM placement and P
     await expect(dm.page.locator('#combat-stage-tools')).toBeVisible();
     await dm.page.locator('#combat-stage-unit').selectOption('player:a');
     const rect=await dm.page.locator('#battlefield').boundingBox();
-    const ground=[rect.x+rect.width*.50,rect.y+rect.height*.70];
+    // Browser click events use integer CSS pixels. Assert the exact canonical
+    // point represented by that pixel, not an unrepresentable fractional pixel.
+    const ground=[Math.round(rect.x+rect.width*.50),Math.round(rect.y+rect.height*.70)];
+    const expected={x:Math.round((ground[0]-rect.x)/rect.width*10000)/100,
+      y:Math.round((1-(ground[1]-rect.y)/rect.height)*10000)/100};
     if(mobile)await dm.page.touchscreen.tap(...ground);
     else await dm.page.mouse.click(...ground);
-    await expect.poll(async()=> (await readEmulator('campaña/combate/combatants/player:a'))?.x).toBe(50);
-    await expect.poll(async()=> (await readEmulator('campaña/combate/combatants/player:a'))?.y).toBe(30);
-    await expect.poll(()=>player.page.evaluate(()=>window.LuminousCombat073.combatants()['player:a'].x)).toBe(50);
+    await expect.poll(async()=> (await readEmulator('campaña/combate/combatants/player:a'))?.x).toBe(expected.x);
+    await expect.poll(async()=> (await readEmulator('campaña/combate/combatants/player:a'))?.y).toBe(expected.y);
+    await expect.poll(()=>player.page.evaluate(()=>window.LuminousCombat073.combatants()['player:a'].x)).toBe(expected.x);
     await dm.page.locator('#combat-stage-done').click();
     await expect(dm.page.locator('#combat-stage-tools')).toBeHidden();
     await player.page.reload({waitUntil:'domcontentloaded'});
-    await player.page.waitForFunction(()=>window.LuminousCombat073?.combatants?.()['player:a']?.x===50 && !document.getElementById('game-container').classList.contains('intro-running'));
+    await player.page.waitForFunction(expected=>{const unit=window.LuminousCombat073?.combatants?.()['player:a'];return unit?.x===expected.x && unit?.y===expected.y && !document.getElementById('game-container').classList.contains('intro-running');},expected);
     // Existing VIEW verb reveals the field; no injected alternate gameplay UI.
     await player.page.keyboard.press('v');
     await player.page.waitForTimeout(650);

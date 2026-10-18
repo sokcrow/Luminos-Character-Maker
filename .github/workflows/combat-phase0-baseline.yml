@@ -59,7 +59,7 @@ jobs:
         run: >-
           npx firebase emulators:exec --only auth,database
           --project demo-luminos-combat-phase0 --config firebase.combat-phase0.json
-          -- "node tests/combat-phase0-auth-emulator.mjs && npx playwright test --config playwright.combat-phase0.config.cjs --reporter=line"
+          -- "node tests/combat-phase0-auth-emulator.mjs && npx playwright test tests/combat-phase3-stage.spec.mjs --config playwright.combat-phase0.config.cjs --reporter=line && npx playwright test tests/combat-phase0-online.spec.mjs tests/combat-phase2-online.spec.mjs --config playwright.combat-phase0.config.cjs --reporter=line"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
