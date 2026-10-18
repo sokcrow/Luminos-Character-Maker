@@ -22,6 +22,23 @@ async function ready(frame,targetId){
   if(await frame.locator('#clash-forecast-confirm').isVisible())await frame.locator('#clash-forecast-confirm').click();
   await frame.locator('#ready').click();
 }
+async function holdDmResolution(frame){
+  // The real round can finish before the browser observes "running".
+  // Pause only the test DM's execution after Firebase enters resolution.
+  await frame.evaluate(()=>{
+    const authority=window.LuminousCombatAuthority073?.state;
+    if(typeof authority?.originalStartRound!=='function')throw Error('DM_ROUND_RUNTIME_UNAVAILABLE');
+    const original=authority.originalStartRound;
+    let release;
+    const gate=new Promise(resolve=>{release=resolve;});
+    authority.originalStartRound=async(...args)=>{await gate;return original(...args);};
+    window.__phase6ReleaseResolution=()=>{
+      authority.originalStartRound=original;
+      release();
+      delete window.__phase6ReleaseResolution;
+    };
+  });
+}
 async function menu(page){if(!await page.locator('#combat-entry-menu').evaluate(n=>n.open))await page.locator('#combat-entry-menu summary').click();}
 test('phase6 packaged entry: real login, create/deploy, two rounds, safe controls, reload and another encounter',async({browser})=>{
   test.setTimeout(300000);fs.mkdirSync(ARTIFACTS,{recursive:true});
@@ -63,13 +80,18 @@ test('phase6 packaged entry: real login, create/deploy, two rounds, safe control
         await expect.poll(async()=>(await readEmulator('campaña/combate/estado')).presentation).toBe('simple');
         for(const frame of [av,bv,dmView])await frame.waitForFunction(()=>window.LuminousCombatStepRuntime.presentationEnabled()===false);
       }
+      await holdDmResolution(dmView);
       await ready(av,enemy);await ready(bv,enemy);
       await expect.poll(async()=>(await readEmulator('campaña/combate/authority/current'))?.phase,{timeout:45000}).toBe('running');
-      await menu(dm);await expect(dm.locator('#combat-entry-end')).toBeDisabled();await expect(dm.locator('#combat-entry-presentation')).toBeDisabled();await dm.locator('#combat-entry-menu summary').click();
-      await expect(dmView.locator('#c073-clear')).toBeDisabled();
-      expect(await dmView.evaluate(()=>window.LuminousCombatDmSetup073.deployPlayer('a').then(()=>null,error=>error.message))).toContain('termine la ronda');
-      expect(await dmView.evaluate(()=>window.LuminousCombat073UnitDeployBridge.deployUnits('training-target').then(()=>null,error=>error.message))).toContain('termine la ronda');
-      const denied=await dm.evaluate(()=>window.LuminousCombatSession.end({db:firebase.database(),uid:firebase.auth().currentUser.uid,result:'victory'}).then(()=>null,error=>error.message));expect(denied).toContain('termine la ronda');
+      try{
+        await menu(dm);await expect(dm.locator('#combat-entry-end')).toBeDisabled();await expect(dm.locator('#combat-entry-presentation')).toBeDisabled();await dm.locator('#combat-entry-menu summary').click();
+        await expect(dmView.locator('#c073-clear')).toBeDisabled();
+        expect(await dmView.evaluate(()=>window.LuminousCombatDmSetup073.deployPlayer('a').then(()=>null,error=>error.message))).toContain('termine la ronda');
+        expect(await dmView.evaluate(()=>window.LuminousCombat073UnitDeployBridge.deployUnits('training-target').then(()=>null,error=>error.message))).toContain('termine la ronda');
+        const denied=await dm.evaluate(()=>window.LuminousCombatSession.end({db:firebase.database(),uid:firebase.auth().currentUser.uid,result:'victory'}).then(()=>null,error=>error.message));expect(denied).toContain('termine la ronda');
+      }finally{
+        await dmView.evaluate(()=>window.__phase6ReleaseResolution?.());
+      }
       await expect.poll(async()=>{const row=await readEmulator('campaña/combate/authority/current');return row?.phase==='complete'&&row.round===round;},{timeout:100000}).toBe(true);
       const result=await readEmulator('campaña/combate/authority/current');rounds.push({round,digest:result.resultDigest,cursor:result.checkpoint.rngCursor});
       const expected=Object.fromEntries(Object.entries(result.checkpoint.combatants).map(([id,u])=>[id,{hp:u.hp,sp:u.sp}]));
