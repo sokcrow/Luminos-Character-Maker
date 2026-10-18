@@ -37,6 +37,8 @@ for(const reduced of [false,true])test(`integrated product HUD: menus, Coins and
     for(const viewport of reduced?[{width:1365,height:768}]:[{width:390,height:844},{width:844,height:390},{width:390,height:844}]){
       await a.setViewportSize(viewport);await a.waitForTimeout(700);
       await expect(a.locator('#combat-own-name')).toHaveText('Agatha');await inside(a,'.command:visible');
+      const focus=await a.locator('[id="sprite-player:a"]').boundingBox();expect(focus).not.toBeNull();
+      expect(focus.x+focus.width/2).toBeGreaterThan(0);expect(focus.x+focus.width/2).toBeLessThan(viewport.width);expect(focus.y+focus.height/2).toBeGreaterThan(0);expect(focus.y+focus.height/2).toBeLessThan(viewport.height);
       await a.screenshot({path:`${ARTIFACTS}/phase4-root-${viewport.width}-${reduced?'reduced':'motion'}.png`});
     }
     for(const menu of ['defense','items','spells']){

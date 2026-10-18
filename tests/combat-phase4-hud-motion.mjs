@@ -33,3 +33,11 @@ const plan={ownerId:'a',plan:{data:{name:'Triple',coinAmount:3}}};hud.cue('hitsS
 const before=JSON.stringify(units);hud.cue('hitMotion',[{ownerId:'a',plan:{data:{}}},'a']);assert.ok(animations>0);assert.equal(JSON.stringify(units),before);
 window.matchMedia=()=>({matches:true});const previous=animations;hud.cue('hitMotion',[{ownerId:'a',plan:{data:{}}},'a']);assert.equal(animations,previous);
 console.log('Phase 4: observer failures preserve rule state/RNG/journal, presentation replay is read-only, private visibility and reduced motion passed');
+// Rotation must not run a director-owned 5x frame through the manual 2.75x cap.
+const resizeListeners=[],cameraValues=new Map([['--camera-scale','5'],['--camera-x','-500px'],['--camera-y','-900px']]);
+const cameraField={dataset:{cameraMode:'player'},offsetWidth:390,offsetHeight:844,classList:{contains:()=>true,toggle(){}},style:{touchAction:'',getPropertyValue:key=>cameraValues.get(key),setProperty:(key,value)=>cameraValues.set(key,value)}};
+const cameraHost={clientWidth:390,clientHeight:844,addEventListener(){},removeEventListener(){}};
+const cameraWindow={document:{getElementById:id=>id==='game-container'?cameraHost:id==='battlefield'?cameraField:null},addEventListener(type,callback){if(type==='resize')resizeListeners.push(callback);},dispatchEvent(){},setTimeout(){},innerWidth:390,innerHeight:844};
+vm.runInNewContext(fs.readFileSync('js/combat-v073-camera-controls.js','utf8'),{window:cameraWindow,getComputedStyle:node=>node.style,CustomEvent:class{}});
+const originalCamera=[...cameraValues];resizeListeners[0]();assert.deepEqual([...cameraValues],originalCamera);
+cameraField.dataset.cameraMode='manual';resizeListeners[0]();assert.equal(cameraValues.get('--camera-scale'),'2.75');
