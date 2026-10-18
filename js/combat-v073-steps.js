@@ -7,7 +7,7 @@
     if (value && typeof value === 'object') { Object.values(value).forEach(freeze); Object.freeze(value); }
     return value;
   }
-  function create({ rules: r, presentation = {}, context = () => ({}), snapshot = () => ({}) }) {
+  function create({ rules: r, presentation = {}, context = () => ({}), snapshot = () => ({}), assertActive = () => {} }) {
     let enabled = true, capture = false, sequence = 0, journal = [];
     const action = entry => ({ actionId: `${context().round}:${entry.ownerId}:${entry.localIndex ?? 0}`,
       ownerId: entry.ownerId, slotIndex: entry.localIndex ?? 0, targetId: entry.plan?.targetId ?? null });
@@ -18,6 +18,7 @@
       return event;
     }
     function mutate(type, entry, detail, callback) {
+      assertActive();
       const before = copy(snapshot()), result = callback(), after = copy(snapshot());
       const changes = Object.keys({ ...before, ...after }).sort().filter(id => JSON.stringify(before[id]) !== JSON.stringify(after[id]))
         .map(unitId => ({ unitId, before: before[unitId] ?? null, after: after[unitId] ?? null }));
@@ -46,6 +47,7 @@
       return value;
     }
     async function show(name, ...args) {
+      assertActive();
       if (capture) emit('Presentation', null, { cue: name, args: args.map(presentationValue), combatants: snapshot() });
       if (enabled) await presentation[name]?.(...args);
     }
@@ -56,6 +58,7 @@
       return { entry, remaining, data, power, coins: [] };
     }
     function toss(entry, index, { attackCoin = true, paralysis = false } = {}) {
+      assertActive();
       // The rules roll and all toss effects commit before any renderer is called.
       const side = r.rollSide(r.coinHeadsChanceForUnit(entry.ownerId));
       let paralyzedHead = false;
@@ -191,7 +194,7 @@
       capturePresentation(value) { capture = Boolean(value); },
       async present(cue, args) { if (enabled) await presentation[cue]?.(...args); },
       acceptEvent(event) { journal.push(freeze(copy(event))); sequence = Math.max(sequence, event.sequence); },
-      resetJournal() { journal = []; sequence = 0; } });
+      resetJournal(cursor = 0) { journal = []; sequence = Number(cursor) || 0; } });
   }
   global.LuminousCombatSteps = Object.freeze({ version: VERSION, schemaVersion: SCHEMA, create });
 })(typeof window === 'undefined' ? globalThis : window);

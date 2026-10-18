@@ -42,6 +42,17 @@ for (const recover of [false, true]) test(`DM result playback with two Players: 
       await a.waitForTimeout(350);
       await a.reload({ waitUntil: 'domcontentloaded' });
       await a.waitForFunction(() => window.LuminousCombatLiveAdapter073?.state.hydratedOnce && window.LuminousCombatPlaybackSync?.state.generation);
+      // Lose the actual executor after its first confirmed action. Recovery is
+      // an explicit game administration control, using the real second DM tab.
+      await dmOwner.waitForFunction(()=>window.LuminousCombatAuthority073.state.current.phase==='running'&&
+        Number(window.LuminousCombatAuthority073.state.current.checkpoint?.seq)>=1);
+      const confirmed=await readEmulator('campaña/combate/authority/current');
+      expect(confirmed.checkpoint.executionJson).toBeTruthy();
+      await dmOwner.close();
+      await expect(dmOther.getByRole('button',{name:'Reanudar turno aquí'})).toBeVisible();
+      await dmOther.screenshot({path:`${ARTIFACTS}/phase2-dm-recovery.png`});
+      await dmOther.getByRole('button',{name:'Reanudar turno aquí'}).click();
+      await expect.poll(async()=> (await readEmulator('campaña/combate/authority/current')).playback.session).not.toBe(sealed.playback.session);
     }
     await expect.poll(async () => (await readEmulator('campaña/combate/authority/current'))?.phase, { timeout: 90000 }).toBe('complete');
     if(recover){
@@ -74,7 +85,7 @@ for (const recover of [false, true]) test(`DM result playback with two Players: 
       expect(await player.evaluate(() => window.__phase2RuleDraws||0)).toBe(0);
     }
     await a.screenshot({ path: `${ARTIFACTS}/phase2-${recover ? 'recovered' : 'complete'}.png` });
-    const evidence = { generation: result.id, batches, result, viewers: await Promise.all(sessions.map(async ({ role, page, errors, forbidden }) => ({ role, errors, forbidden,
+    const evidence = { generation: result.id, batches, result, viewers: await Promise.all(sessions.filter(({page})=>!page.isClosed()).map(async ({ role, page, errors, forbidden }) => ({ role, errors, forbidden,
       ...await page.evaluate(() => ({ status: document.getElementById('status').textContent,
         vitals: Object.fromEntries(Object.entries(window.LuminousCombat073.combatants()).map(([id, u]) => [id, { hp: u.hp, sp: u.sp }])),
         localActions: window.LuminousCombatAuthority073.state.localActionSeq, cursor: window.LuminousCombatAuthority073.state.cursor,

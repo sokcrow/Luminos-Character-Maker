@@ -4,7 +4,8 @@
   const copy = value => JSON.parse(JSON.stringify(value ?? null));
   const session = global.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const state = { generation: null, consumer: null, ref: null, handler: null, eventCursor: 0,
-    connected: true, connectionRef: null, connectionHandler: null, authority: null, starting: false, transmittedSnapshot: {} };
+    connected: true, connectionRef: null, connectionHandler: null, offsetRef:null,offsetHandler:null,serverOffset:0,
+    authority: null, starting: false, transmittedSnapshot: {}, recoveryButton:null };
   const adapter = () => global.LuminousCombatLiveAdapter073?.state;
   const surface = () => global.LuminousCombatStepRuntime;
   const status = text => { const node = global.document?.getElementById?.('status'); if (node) node.textContent = text; };
@@ -18,6 +19,7 @@
     const a = state.authority, s = adapter();
     payload.id = `${payload.round}-${payload.seed}-${session}`;
     payload.initialStateJson=JSON.stringify(state.authority.snapshotRuntime());
+    payload.initialExecutionJson=JSON.stringify(surface()?.captureExecution?.([],new Set())||{units:state.authority.snapshotRuntime(),queue:[],resolvedKeys:[]});
     payload.playback = { schemaVersion: 1, engineVersion: protocol().engineVersion, session, generation: payload.id };
     const result = await s.db.ref(a.ROOT.current).transaction(current => {
       if (Number(current?.round) >= payload.round && ['sealed', 'running', 'complete'].includes(current?.phase)) return;
@@ -54,11 +56,12 @@
     state.eventCursor = events.at(-1)?.sequence || state.eventCursor;
     row.eventCursor = state.eventCursor;
     row.generation = current.id;
+    row.session=session;
     // RTDB removes empty maps/arrays and null properties. Encode the complete
     // domain payload so removing a Status or spending the last charge survives
     // transport exactly; the envelope stays queryable and permission-checked.
     const {updatedAt,...result}=row;
-    const batch = { seq:row.seq, schemaVersion:1,engineVersion:protocol().engineVersion,generation:current.id,updatedAt,
+    const batch = { seq:row.seq, session, schemaVersion:1,engineVersion:protocol().engineVersion,generation:current.id,updatedAt,
       payload:JSON.stringify({...copy(result),events,nextRound:row.type==='round_complete'?Number(current.round)+1:null}) };
     row.stateJson=JSON.stringify(row.combatants);
     return { [`${ROOT}/batches/${String(row.seq).padStart(6, '0')}`]: batch };
@@ -68,8 +71,49 @@
     if (state.ref && state.handler) state.ref.off('child_added', state.handler);
     state.ref = state.handler = null; state.generation = null;
   }
+  function refreshRecoveryControl(data=state.authority?.state.current){
+    const s=adapter(),visible=s?.role==='dm'&&enabled(data)&&['sealed','running'].includes(data.phase)&&data.playback.session!==session;
+    if(!state.recoveryButton&&visible&&global.document?.createElement){
+      const button=global.document.createElement('button');button.type='button';button.id='resume-combat-round';
+      button.textContent='Reanudar turno aquí';
+      button.title='Continúa desde el último resultado confirmado y detiene la resolución en la otra pestaña.';
+      button.style.cssText='position:absolute;right:16px;top:16px;z-index:400;min-height:44px;padding:10px 16px;background:#231d11;color:#f3dfaa;border:1px solid #c4a86b;border-radius:4px;cursor:pointer';
+      button.onclick=async()=>{button.disabled=true;try{await recover();}catch(error){console.error('[Combat recovery]',error);status(error.message);}finally{button.disabled=false;refreshRecoveryControl();}};
+      global.document.getElementById('game-container')?.appendChild(button);state.recoveryButton=button;
+    }
+    if(state.recoveryButton)state.recoveryButton.hidden=!visible;
+  }
+  async function recover(){
+    const a=state.authority,s=adapter(),expected=copy(a?.state.current);
+    if(s?.role!=='dm'||a.state.runningLocal||!enabled(expected)||!['sealed','running'].includes(expected.phase))return false;
+    if(!expected.initialExecutionJson||(expected.checkpoint&&!expected.checkpoint.executionJson))
+      throw new Error('Este turno se inició con un visor anterior. Continúa desde la pestaña que lo inició.');
+    const claimed=await s.db.ref(a.ROOT.current).transaction(current=>{
+      if(current?.id!==expected.id||!['sealed','running'].includes(current.phase)||
+        current.playback.session!==expected.playback.session||Number(current.checkpoint?.seq||0)!==Number(expected.checkpoint?.seq||0))return;
+      return {...current,playback:{...current.playback,session}};
+    },undefined,false);
+    if(!claimed.committed)throw new Error('Se confirmaron nuevos resultados. Vuelve a pulsar Reanudar turno.');
+    const current=claimed.snapshot.val(),checkpoint=current.checkpoint;
+    a.state.current=current;
+    if(current.phase==='running'){
+      const saved=JSON.parse(checkpoint?.executionJson||current.initialExecutionJson);
+      saved.eventCursor=Number(checkpoint?.eventCursor)||0;
+      a.state.resumeRuntime=saved;
+      a.state.lastCheckpointSeq=a.state.localActionSeq=Number(checkpoint?.seq)||0;
+      a.state.localDigests.clear();a.state.pendingRemoteCheckpoints.clear();a.state.inFlightActions=0;
+      a.state.executionChain=Promise.resolve();a.state.writeChain=Promise.resolve();
+      a.resetRandom(current.seed,Number(checkpoint?.rngCursor)||0);
+      a.applySnapshot(JSON.parse(checkpoint?.stateJson||current.initialStateJson));
+      state.eventCursor=saved.eventCursor;state.transmittedSnapshot=a.snapshotRuntime();
+      surface().capturePresentation(true);
+    }
+    status('Reanudando el turno…');refreshRecoveryControl(current);
+    return a.requestStartRound();
+  }
   async function observe(data) {
     const a = state.authority, s = adapter();
+    refreshRecoveryControl(data);
     if (!enabled(data) || s?.role !== 'player' || !surface() || !global.LuminousCombat073?.combatants?.() || !s.hydratedOnce) return;
     if (data.playback.schemaVersion !== 1 || data.playback.engineVersion !== protocol()?.engineVersion) {
       surface().lockPlanning(true); status('Actualiza el visor para continuar este combate.'); return;
@@ -96,7 +140,7 @@
         present: async (cue, args, row) => {
           // Slow/reconnected viewers catch up by applying states, without waiting
           // through old animation holds. Visual mode never changes the result.
-          if (Date.now() - Number(row.updatedAt) < 8000) await surface().present(cue, args);
+          if (Date.now()+state.serverOffset - Number(row.updatedAt) < 8000) await surface().present(cue, args);
         },
         finish: row => {
           a.state.cursor = Number(row.rngCursor) || 0;
@@ -126,14 +170,19 @@
       }
     };
     state.connectionRef.on('value', state.connectionHandler);
+    state.offsetRef=adapter().db.ref('.info/serverTimeOffset');
+    state.offsetHandler=snap=>{state.serverOffset=Number(snap.val())||0;};
+    state.offsetRef.on('value',state.offsetHandler);
   }
   function stop() {
     disconnectConsumer();
     if (state.connectionRef) state.connectionRef.off('value', state.connectionHandler);
     state.connectionRef = state.connectionHandler = null;
+    if(state.offsetRef)state.offsetRef.off('value',state.offsetHandler);
+    state.offsetRef=state.offsetHandler=null;
   }
   global.LuminousCombatPlaybackSync = Object.freeze({ ROOT, state, session, enabled, negotiate, seal, assertOwner,
-    beginUpdates, batchUpdates, observe, start, stop });
+    beginUpdates, batchUpdates, observe, start, stop, recover, refreshRecoveryControl });
   global.addEventListener('luminous:combat073-hydrated', () => {
     const a = state.authority, data = a?.state.current;
     if (enabled(data) && data.phase === 'complete' && data.checkpoint?.combatants) {

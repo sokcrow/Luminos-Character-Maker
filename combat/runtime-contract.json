@@ -44,6 +44,7 @@
     "activation": "all-active-players-ready-with-compatible-capability",
     "history": "current-generation-only",
     "authorityLease": "sealed-dm-tab-session",
-    "recovery": "players-from-confirmed-checkpoint; same-DM-tab-network-reconnect"
+    "recovery": "players-from-confirmed-checkpoint; explicit-same-DM-session-takeover-at-confirmed-action-boundary",
+    "executorSnapshot": "domain-queue-and-unit-state-without-DOM-handles"
   }
 }

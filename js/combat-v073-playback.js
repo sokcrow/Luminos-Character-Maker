@@ -38,7 +38,7 @@
           row={...result,schemaVersion:envelope.schemaVersion,engineVersion:envelope.engineVersion,
             generation:envelope.generation,seq:envelope.seq,updatedAt:envelope.updatedAt};
         } catch(error) { stopped=true;onError(new Error('PLAYBACK_INVALID_PAYLOAD'));return chain; }
-        const seq = Number(row.seq), signature = JSON.stringify(row);
+        const seq = Number(row.seq), signature = JSON.stringify(Object.fromEntries(Object.entries(row).filter(([key])=>key!=='updatedAt')));
         if (!Number.isInteger(seq) || seq < 1 || row.generation !== generation) return chain;
         if (seen.has(seq) && seen.get(seq) !== signature) {
           stopped = true; onError(new Error('PLAYBACK_BATCH_CONFLICT')); return chain;

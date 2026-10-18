@@ -18,7 +18,7 @@
     started:false,current:{},seed:0,cursor:0,rngState:0,
     authorityRef:null,authorityHandler:null,readyRef:null,readyHandler:null,retryTimer:null,autoStartTimer:null,
     lastCheckpointSeq:0,writeChain:Promise.resolve(),executionChain:Promise.resolve(),hooks:new Map(),localActionSeq:0,localDigests:new Map(),pendingRemoteCheckpoints:new Map(),inFlightActions:0,
-    originalStartRound:null,originalBuildQueue:null,originalCoinEngine:null,runningLocal:false,remoteStart:false,autoStartedRound:0,pendingFinalSnapshot:null
+    originalStartRound:null,originalBuildQueue:null,originalCoinEngine:null,runningLocal:false,remoteStart:false,autoStartedRound:0,pendingFinalSnapshot:null,resumeRuntime:null,lastExecutionJson:null
   };
 
   function adapter(){return global.LuminousCombatLiveAdapter073||null;}
@@ -177,6 +177,7 @@
   function receiveCheckpoint(row){const seq=Math.max(0,Number(row?.seq)||0);if(!seq||Number(row.round)!==Number(adapterState()?.round)||isDm())return;state.pendingRemoteCheckpoints.set(seq,clone(row));reconcileCheckpoint(seq);}
   function publishActionCheckpoint(type='action'){
     if(!isDm()||norm(state.current?.phase)!=='running')return false;const s=adapterState();if(!s?.db?.ref)return false;const seq=state.localActionSeq,snapshot=snapshotRuntime(),row={round:Number(state.current.round)||Number(s.round)||1,seq,type,rngCursor:state.cursor,digest:checkpointDigest(snapshot,state.current.round),combatants:snapshot,updatedAt:serverTime()};state.lastCheckpointSeq=Math.max(state.lastCheckpointSeq,seq);state.current.checkpoint=row;
+    if(batchMode()&&state.lastExecutionJson)row.executionJson=state.lastExecutionJson;
     const batches=batchMode()?playback().batchUpdates(row):{};
     const updates={[`${ROOT.current}/checkpoint`]:row,...playerVitalFirebaseUpdates(snapshot),...batches,...(batchMode()?resourceFirebaseUpdates(snapshot):{})};
     state.writeChain=state.writeChain.then(()=>s.db.ref().update(updates));return row;
@@ -223,6 +224,7 @@
           }
           const snapshot=snapshotRuntime(),localDigest=checkpointDigest(snapshot,state.current.round);state.localDigests.set(state.localActionSeq,localDigest);
           if(isDm()){
+            if(batchMode())state.lastExecutionJson=JSON.stringify(global.LuminousCombatStepRuntime.captureExecution(rest[0],rest[1]));
             publishActionCheckpoint(`queue_entry:${adjusted?.ownerId||'unknown'}:${adjusted?.localIndex??0}`);
             if(batchMode())await state.writeChain;
           }else reconcileCheckpoint(state.localActionSeq);
@@ -283,7 +285,7 @@
         if(Number(current?.round)!==Number(s.round)||!['sealed','running'].includes(norm(current?.phase)))current=await sealRound();
         if(playback()?.enabled(current)){
           playback().assertOwner(current);
-          if(norm(current.phase)==='running')throw new Error('Este turno ya fue iniciado. Espera a que la pestaña original confirme los resultados.');
+          if(norm(current.phase)==='running'&&!state.resumeRuntime)throw new Error('Este turno ya fue iniciado. Espera a que la pestaña original confirme los resultados.');
         }
         if(norm(current.phase)!=='running')current=await setRunning(current);
       }else{state.remoteStart=false;if(batchMode())return false;if(Number(current?.round)!==Number(s.round)||norm(current?.phase)!=='running')return false;state.autoStartedRound=Number(current.round);state.inFlightActions=0;state.executionChain=Promise.resolve();resetRandom(current.seed,0);}
@@ -292,13 +294,14 @@
       if(nextRound<=completedRound)throw new Error('No se pudo completar el turno. Vuelve a abrir el combate.');
       if(isDm()){await state.writeChain;await afterRound({completedRound,nextRound});}else if(state.pendingFinalSnapshot){applySnapshot(state.pendingFinalSnapshot.combatants||{});if(Number.isFinite(Number(state.pendingFinalSnapshot.rngCursor)))resetRandom(current.seed,Number(state.pendingFinalSnapshot.rngCursor));state.pendingFinalSnapshot=null;}
       return true;
-    }catch(error){console.error('[Combat073 Authority start]',error);setStatus(`COMBAT AUTHORITY · ${error?.message||error}`);return false;}finally{state.runningLocal=false;if(adapterState()?.firebaseReady)adapter()?.scheduleHydrate?.();}
+    }catch(error){console.error('[Combat073 Authority start]',error);setStatus(error?.message||'No se pudo continuar el turno. Vuelve a abrir el combate.');return false;}finally{state.runningLocal=false;state.resumeRuntime=null;if(adapterState()?.firebaseReady)adapter()?.scheduleHydrate?.();}
   }
   function patchStartRound(){const hud=global.LuminousCombatHUD,original=state.originalStartRound||hud?.startRound||global.startRound;if(typeof original!=='function')return false;state.originalStartRound=original.__luminousAuthorityStartOriginal||original;requestStartRound.__luminousAuthorityStart=true;requestStartRound.__luminousAuthorityStartOriginal=state.originalStartRound;global.startRound=requestStartRound;if(hud)hud.startRound=requestStartRound;const button=global.document?.getElementById?.('start-round');if(button)button.onclick=requestStartRound;return true;}
   function allReadySnapshot(rows={}){const round=Number(adapterState()?.round)||1,ids=activePlayerIds();return ids.length>0&&ids.every(id=>rows?.[id]?.ready===true&&Number(rows[id].round)===round);}
   function maybeAutoStart(rows={}){if(!isDm()||state.runningLocal||!allReadySnapshot(rows))return false;const phase=norm(adapterState()?.combatState);if(!['pre_combat_planning','planning'].includes(phase))return false;if(state.autoStartTimer)return true;state.autoStartTimer=global.setTimeout(async()=>{state.autoStartTimer=null;const latest=await read(ROOT.ready).catch(()=>({}));if(allReadySnapshot(latest||{}))await requestStartRound();},120);return true;}
   function onAuthority(snapshot){
     const data=snapshot.val()||{},previousSeed=state.current?.seed,previousRound=state.current?.round;state.current=data;if(data.seed&&Number(data.round)===Number(adapterState()?.round)&&!state.runningLocal&&(data.seed!==previousSeed||data.round!==previousRound))resetRandom(data.seed,0);applyAuthority(data);if(data.checkpoint)receiveCheckpoint(data.checkpoint);
+    playback()?.refreshRecoveryControl(data);
     if(playback()?.enabled(data)&&isPlayer()){
       playback().observe(data).catch(error=>console.error('[Combat playback]',error));
       return;

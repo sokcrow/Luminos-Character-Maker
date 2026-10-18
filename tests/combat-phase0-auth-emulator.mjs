@@ -121,10 +121,10 @@ try {
   const seal = outcomes[owner].value;
   assert.throws(() => tabs[1 - owner].assertOwner(seal), /otra pestaña/);
   const root = contract.playback.root;
-  const row = { schemaVersion: 1, engineVersion: contract.playback.engineVersion, generation: seal.id,
+  const row = { schemaVersion: 1, engineVersion: contract.playback.engineVersion, generation: seal.id,session:seal.playback.session,
     seq: 1, payload:JSON.stringify({eventCursor: 1, rngCursor: 2, digest: 'result-one', type: 'action', combatants: { 'player:a': { hp: 90, arrows: 2, statusEffects:{}, pendingStatusEffects:[] } }}) };
   const commit = { [root]: { generation: seal.id, schemaVersion: 1, engineVersion: contract.playback.engineVersion, batches: { '000001': row } },
-    [contract.roots.authority + '/checkpoint']: row, ['campaña/jugadores/a/phase2TestArrows']: 2 };
+    [contract.roots.authority + '/checkpoint']: {...row,seq:1,stateJson:'{}',executionJson:'{}',digest:'confirmed'}, ['campaña/jugadores/a/phase2TestArrows']: 2 };
   await sessions.dm.db.ref().update(commit).catch(error => {throw new Error('phase2 first atomic commit: '+error.message);});
   await sessions.dm.db.ref().update(commit).catch(error => {throw new Error('phase2 identical retry: '+error.message);}); // exact retry is idempotent
   assert.equal(JSON.parse((await readEmulator(root)).batches['000001'].payload).combatants['player:a'].arrows, 2);
@@ -136,6 +136,16 @@ try {
   await assert.rejects(sessions.dm.db.ref(root + '/batches/000002').set({ ...row, seq: 2, generation: 'old' }), /permission_denied/i);
   assert.equal((await readEmulator(contract.roots.authority)).checkpoint.payload, row.payload);
   assert.equal(await readEmulator('campaña/jugadores/a/phase2TestArrows'), 2);
+  const recoveryRef=sessions.dm.db.ref(contract.roots.authority),keepRecovery=()=>{};
+  recoveryRef.on('value',keepRecovery);await recoveryRef.once('value');
+  const accepted=await recoveryRef.transaction(current=>({...current,playback:{...current.playback,session:'recovered-tab'}}),undefined,false);
+  assert.equal(accepted.committed,true,'DM can explicitly claim a confirmed checkpoint');
+  recoveryRef.off('value',keepRecovery);
+  const stale={...row,seq:2,payload:JSON.stringify({damage:999})};
+  await assert.rejects(sessions.dm.db.ref().update({[root+'/batches/000002']:stale,[contract.roots.authority+'/checkpoint']:{...row,seq:2,stateJson:'changed',digest:'stale'}}),/permission_denied/i);
+  const fresh={...stale,session:'recovered-tab'};
+  await sessions.dm.db.ref().update({[root+'/batches/000002']:fresh,[contract.roots.authority+'/checkpoint']:{...fresh,stateJson:'changed',digest:'recovered'}});
+  assert.equal((await readEmulator(contract.roots.authority)).checkpoint.digest,'recovered');
   console.log('Combat Phase 2 Auth/RTDB: competing DM transactions, atomic retry, immutable batches and Player denial passed');
 } finally {
   stage = 'cleanup';
