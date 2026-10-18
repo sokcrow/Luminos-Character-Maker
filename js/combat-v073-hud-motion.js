@@ -35,12 +35,12 @@
   function entryPose(entry){
     const d=entry?.plan?.data||{},kind=clean(d.defenseType||d.defenseKind||d.name||entry?.plan?.type).toLowerCase();
     if(/evade|evas/.test(kind))return'evade';if(/guard|block/.test(kind))return'guard';if(/counter/.test(kind))return'counter';
-    return /spell/.test(clean(entry?.plan?.type||d.kind).toLowerCase())?'cast':'attack';
+    return /spell/.test(`${clean(entry?.plan?.type)} ${clean(d.kind)}`.toLowerCase())?'cast':'attack';
   }
   function side(entry,count,power){
     if(!entry?.ownerId)return null;
     let row=state.sides.get(entry.ownerId);
-    if(!row){row={id:entry.ownerId,skill:entry.plan?.data?.name||'Habilidad',count:0,power:null,coins:[]};state.sides.set(entry.ownerId,row);}
+    if(!row){row={id:entry.ownerId,skill:entry.plan?.data?.name||'Habilidad',count:0,power:null,coins:[],types:(entry.plan?.data?.coins||[]).map(coin=>clean(coin.type||coin.coinType).toLowerCase())};state.sides.set(entry.ownerId,row);}
     if(count!=null)row.count=Math.max(0,Number(count)||0);
     if(power!=null)row.power=Number(power)||0;
     return row;
@@ -54,8 +54,8 @@
       if(readable){
         const power=doc.createElement('b');power.textContent=row.power==null?'—':String(row.power);results.appendChild(power);
         for(let i=0;i<Math.min(8,row.count);i++){
-          const coin=doc.createElement('span'),result=row.coins[i];coin.className=`combat-result-coin ${result||'pending'}`;
-          coin.textContent=result==='head'?'●':result==='tail'?'○':'◇';coin.setAttribute('aria-label',`Coin ${i+1}: ${result==='head'?'Heads':result==='tail'?'Tails':'pendiente'}`);results.appendChild(coin);
+          const coin=doc.createElement('span'),result=row.coins[i];coin.className=`combat-result-coin ${result||'pending'}${row.types[i]==='unbreakable'?' unbreakable':''}`;
+          coin.textContent=result==='head'?'●':result==='tail'?'○':'◇';coin.setAttribute('aria-label',`${row.types[i]==='unbreakable'?'Unbreakable Coin':'Coin'} ${i+1}: ${result==='head'?'Heads':result==='tail'?'Tails':'pendiente'}`);results.appendChild(coin);
         }
         if(row.count>8){const more=doc.createElement('span');more.textContent=`+${row.count-8}`;results.appendChild(more);}
       }
@@ -75,6 +75,7 @@
     else if(cue==='hitMotion'){pose(a?.ownerId,entryPose(a));pose(b,'hit');}
     else if(cue==='guardEnd')pose(a?.ownerId,'guard');
     else if(cue==='evadeEnd')pose(a?.ownerId,'evade');
+    else if(cue==='clashOutcome'){side(a,args[3],args[5]?.power);side(b,args[4],args[6]?.power);}
     else if(cue==='clashEnd'){pose(a?.ownerId,stablePose(a?.ownerId),{transient:false});pose(b?.ownerId,stablePose(b?.ownerId),{transient:false});}
     paintAction();
   }
@@ -122,7 +123,7 @@
       }else targets.dataset.choices='';
     }
     const network=byId('status')?.textContent||'';
-    text('combat-own-effects',Object.values(unit?.statusEffects||{}).slice(0,3).map(effect=>`${effect.name||'Efecto'}${effect.count!=null?' '+effect.count:''}`).join(' · '));
+    text('combat-own-effects',Object.values(unit?.statusEffects||{}).filter(effect=>effect&&typeof effect==='object').slice(0,3).map(effect=>`${effect.name||'Efecto'}${effect.count!=null?' '+effect.count:''}`).join(' · '));
     const phase=/reconect/i.test(network)?'Reconectando…':/esperando al dm/i.test(network)?'Esperando al DM':value.running?'Resolviendo turno':value.ready?'Listo · esperando al grupo':value.targeting?'Elige un objetivo':value.view?'Vista del campo':'Planifica tus acciones';
     text('combat-phase-label',role==='dm'&&!value.running?'Diriges el encuentro':phase);
     if(!value.running){state.sides.clear();const readout=byId('combat-action-readout');if(readout)readout.hidden=true;}
