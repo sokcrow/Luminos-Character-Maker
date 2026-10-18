@@ -25,6 +25,7 @@
     mounted: false,
     started: false,
     seedAttempted: false,
+    libraryReady: false,
     repairTimer: null,
     lastRepairDigest: ''
   };
@@ -351,7 +352,7 @@
     if (!state.mounted) return;
     const locked = !planningPhase();
     for (const id of ['c073-add-player','c073-enemy','c073-ally','c073-clear']) {
-      const button = global.document.getElementById(id); if (button) button.disabled = locked;
+      const button = global.document.getElementById(id); if (button) button.disabled = locked || (['c073-enemy','c073-ally'].includes(id) && !state.libraryReady);
     }
     const playerSelect = global.document.getElementById('c073-player');
     const unitSelect = global.document.getElementById('c073-unit');
@@ -411,12 +412,16 @@
       if (!global.LuminousCombatUnitLibrarySync) await loadScript(LIBRARY_SYNC_SCRIPT);
       const api = global.LuminousCombatUnitLibrarySync;
       if (!api) throw new Error('UNIT_LIBRARY_SYNC_UNAVAILABLE');
+      if (!await api.ensureDeploymentRuntime()) throw new Error('UNIT_DEPLOYMENT_UNAVAILABLE');
       const result = await api.ensureMissing(state.db);
-      if (result.unitsWritten || result.skillsWritten) setMsg(`Unit Library reparada · +${result.unitsWritten} Units · +${result.skillsWritten} Skills`);
+      state.libraryReady = true;
+      render();
+      if (result.unitsWritten || result.skillsWritten) setMsg('Biblioteca de unidades actualizada.');
       return result;
     } catch (error) {
       state.seedAttempted = false;
-      setMsg(`Unit Library auto-sync falló · ${error?.message || error}`, true);
+      global.console?.error?.('[Combat unit library]',error);
+      setMsg('No se pudo preparar la biblioteca. Recarga el encuentro para volver a intentarlo.', true);
       return false;
     }
   }
