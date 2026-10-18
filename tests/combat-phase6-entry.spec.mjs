@@ -89,5 +89,8 @@ test('phase6 packaged entry: real login, create/deploy, two rounds, safe control
     await menu(a);await a.locator('#combat-entry-signout').click();await expect(a.locator('#combat-entry-login')).toBeVisible();await expect(a.locator('#combat-entry-view')).toHaveCount(0);
     fs.writeFileSync(`${ARTIFACTS}/phase6-entry.json`,JSON.stringify({rounds,errors:sessions.map(({role,errors,forbidden})=>({role,errors,forbidden})),entry:'combate.html',packaged:process.env.COMBAT_RELEASE_DIR||null},null,2));
     for(const session of sessions){expect(session.errors).toEqual([]);expect(session.forbidden).toEqual([]);}
-  }finally{for(const session of sessions)await session.context.close().catch(()=>{});}
+  }finally{
+    fs.writeFileSync(`${ARTIFACTS}/phase6-last-state.json`,JSON.stringify(await readEmulator('campaña/combate'),null,2));
+    for(const session of sessions)await session.context.close().catch(()=>{});
+  }
 });

@@ -3,6 +3,13 @@
   const doc=global.document,$=id=>doc.getElementById(id),api=global.LuminousCombatSession;
   const state={uid:null,dm:false,player:null,encounter:{},instance:'ninguno',connected:false,subs:[],generation:0,busy:false};
   const say=(text,error=false)=>{$('combat-entry-message').textContent=text;$('combat-entry-card').dataset.error=String(error);};
+  function actionError(error){
+    const code=String(error?.code||'').toLowerCase(),message=String(error?.message||'');
+    if(code.includes('permission'))return 'No tienes permiso para cambiar este encuentro. Entra con la cuenta del DM.';
+    if(code.includes('network')||code.includes('unavailable'))return 'No se pudo conectar. Revisa tu conexión e inténtalo de nuevo.';
+    if(message.startsWith('Espera a que termine la ronda')||message.startsWith('Cambia la presentación entre rondas'))return message;
+    return 'No se pudo completar la acción. Vuelve a intentarlo.';
+  }
   function teardown(){for(const off of state.subs.splice(0))off();$('combat-entry-view')?.remove();}
   function watch(path,handler,generation){const ref=db.ref(path),listener=snap=>{if(generation===state.generation)handler(snap.val());};ref.on('value',listener,error=>say('No se pudo cargar el encuentro. Revisa tu conexión y vuelve a entrar.',true));state.subs.push(()=>ref.off('value',listener));}
   function render(){
@@ -38,7 +45,7 @@
     const frame=$('combat-entry-view');if(frame)frame.hidden=!active;
     if(!active)say(!authorized?'Esta cuenta todavía no tiene un personaje asignado. Pide al DM que lo vincule.':!state.connected?'Reconectando con la campaña…':ended?'Encuentro finalizado. Los resultados se han conservado.':state.dm?'Abre un encuentro y añade los personajes y enemigos desde «Encuentro».':'Esperando a que el DM abra el combate.');
   }
-  async function action(fn){if(state.busy)return;state.busy=true;render();try{await fn();$('combat-entry-menu').open=false;}catch(error){console.error('[Combat entry]',error);global.alert(error.message||'No se pudo completar la acción.');}finally{state.busy=false;render();}}
+  async function action(fn){if(state.busy)return;state.busy=true;render();try{await fn();$('combat-entry-menu').open=false;}catch(error){console.error('[Combat entry]',error);global.alert(actionError(error));}finally{state.busy=false;render();}}
   let auth,db;
   try{if(!global.firebase.apps.length)global.firebase.initializeApp(global.LuminousCombatFirebaseConfig);auth=global.firebase.auth();db=global.firebase.database();}
   catch(error){say('No se pudo conectar con Luminous. Recarga la página para volver a intentarlo.',true);console.error('[Combat entry]',error);return;}
@@ -47,7 +54,7 @@
   $('combat-entry-end').onclick=()=>{$('combat-entry-menu').open=false;$('combat-entry-end-dialog').showModal();};
   $('combat-entry-confirm-end').onclick=()=>action(async()=>{await api.end({db,uid:state.uid,result:$('combat-entry-result').value});$('combat-entry-end-dialog').close();});
   $('combat-entry-presentation').onchange=event=>{const value=event.target.value;return action(()=>api.presentation({db,value}));};
-  $('combat-entry-signout').onclick=()=>auth.signOut();
+  $('combat-entry-signout').onclick=()=>action(()=>auth.signOut());
   auth.onAuthStateChanged(async user=>{
     const generation=++state.generation;teardown();Object.assign(state,{uid:user?.uid||null,dm:false,player:null,encounter:{},connected:false});
     $('combat-entry-card').hidden=false;$('combat-entry-login').hidden=Boolean(user);$('combat-entry-title').textContent=user?'Tu encuentro':'Entra al combate';

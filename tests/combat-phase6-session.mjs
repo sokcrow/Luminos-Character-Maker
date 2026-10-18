@@ -20,6 +20,6 @@ const simple=api.nextPresentation(planning,'simple');assert.equal(simple.estado.
 assert.equal(api.nextPresentation({...planning,plannedActions:{a:{0:{}}}},'simple'),undefined);assert.equal(api.nextPresentation({...planning,readyPlayers:{a:{ready:true}}},'simple'),undefined);
 const finished=api.nextEnd(planning,{...options,result:'victory'});assert.equal(finished.estado.active,false);assert.equal(finished.estado.result,'victory');assert.deepEqual(plain(finished.combatants),planning.combatants);
 // A transaction rejected due to an in-flight round must never change instance.
-let writes=0;const db={ref:()=>({transaction:async()=>({committed:false,snapshot:{val:()=>({authority:{current:{phase:'running'}}})}}),set:async()=>writes++})};
+let writes=0;const db={ref:()=>({on:(_event,listener)=>listener(),off(){},transaction:async()=>({committed:false,snapshot:{val:()=>({authority:{current:{phase:'running'}}})}}),set:async()=>writes++})};
 await assert.rejects(api.start({db,uid:'dm'}),/termine la ronda/);await assert.rejects(api.end({db,uid:'dm',result:'victory'}),/termine la ronda/);assert.equal(writes,0);
 console.log('Phase 6: idempotent encounter entry, canonical reset, safe round boundaries and preserved vitals/loot passed');
