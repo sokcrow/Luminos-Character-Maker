@@ -5,16 +5,21 @@ on:
     branches: [main, feat/combat-phase0-integration, feat/combat-phase1-steps, feat/combat-phase2-playback, feat/combat-phase3-layered-stage, feat/combat-phase4-hud-motion]
     paths:
       - 'Battle-viewer.html'
+      - 'combate.html'
+      - 'hoja_de_DM.html'
+      - 'pantalla_dm.html'
       - 'combat/**'
       - 'js/**'
       - 'css/player-skills-hud.css'
       - 'css/combat-v073-stage.css'
       - 'css/combat-v073-hud-motion.css'
       - 'css/combat-v073-audiovisual.css'
+      - 'css/combat-entry.css'
       - 'assets/combat-stage/**'
       - 'database.rules.json'
       - 'firebase.combat-phase0.json'
       - 'scripts/build-combat-live.mjs'
+      - 'scripts/package-combat-release.mjs'
       - 'scripts/validate-combat-phase0.mjs'
       - 'docs/combat-phase1-steps.md'
       - 'tests/**'
@@ -40,10 +45,11 @@ jobs:
       - run: npm run test:combat-phase3
       - run: npm run test:combat-phase4
       - run: npm run test:combat-phase5
+      - run: npm run test:combat-phase6
   authenticated-browser:
     needs: contracts
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -57,6 +63,16 @@ jobs:
         run: npm install --no-save --no-audit --no-fund @playwright/test@1.58.2 firebase@12.19.0 firebase-tools@14.12.1
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
+      - name: Package the integrated playable release
+        run: npm run package:combat-release
+      - name: Login, encounter creation and rounds from the packaged product
+        env:
+          CI: 'true'
+          COMBAT_RELEASE_DIR: artifacts/combat-release/public
+        run: >-
+          npx firebase emulators:exec --only auth,database
+          --project demo-luminos-combat-phase0 --config firebase.combat-phase0.json
+          -- "npx playwright test tests/combat-phase6-entry.spec.mjs --config playwright.combat-phase0.config.cjs --reporter=line"
       - name: Real local Auth, RTDB and browser sessions
         env:
           CI: 'true'
@@ -70,3 +86,10 @@ jobs:
           name: combat-phase0-browser-evidence
           path: artifacts/combat-phase0/
           if-no-files-found: ignore
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: luminos-combat-playable-release
+          path: artifacts/combat-release/
+          include-hidden-files: true
+          if-no-files-found: error

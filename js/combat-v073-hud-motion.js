@@ -142,7 +142,7 @@
   }
   function applyPreference(){
     const surface=global.LuminousCombatStepRuntime;if(!surface?.setPresentationEnabled)return;
-    if(reduced()){if(state.savedPresentation===null)state.savedPresentation=surface.presentationEnabled();surface.setPresentationEnabled(false);clearMotion();}
+    if(reduced()||global.LuminousCombatLiveAdapter073?.state.presentation==='simple'){if(state.savedPresentation===null)state.savedPresentation=surface.presentationEnabled();surface.setPresentationEnabled(false);clearMotion();}
     else if(state.savedPresentation!==null){surface.setPresentationEnabled(state.savedPresentation);state.savedPresentation=null;}
     refresh();
   }
@@ -154,13 +154,13 @@
     const phase=doc.createElement('div');phase.id='combat-phase-label';phase.setAttribute('role','status');host.appendChild(phase);
     const targets=doc.createElement('div');targets.id='combat-target-list';targets.hidden=true;targets.setAttribute('aria-label','Objetivos disponibles');host.appendChild(targets);
     const action=doc.createElement('section');action.id='combat-action-readout';action.hidden=true;action.setAttribute('aria-label','Resolución de la habilidad');action.innerHTML='<div id="combat-action-result" role="status"></div><div id="combat-action-sides"></div>';host.appendChild(action);
-    global.addEventListener('resize',refresh);global.addEventListener('luminous:combat073-hydrated',()=>{clearMotion();refresh();});
+    global.addEventListener('resize',refresh);global.addEventListener('luminous:combat073-hydrated',()=>{clearMotion();applyPreference();});
     global.addEventListener('luminous:combat073-runtime-ready',applyPreference);
     global.matchMedia?.('(prefers-reduced-motion: reduce)').addEventListener?.('change',applyPreference);
     for(const name of ['luminous:combat073-plan-change','luminous:combat073-plan-ready-change'])global.addEventListener(name,refresh);
     if(global.MutationObserver&&byId('status'))new global.MutationObserver(refresh).observe(byId('status'),{childList:true,characterData:true,subtree:true});
     refresh();
   }
-  global.LuminousCombatHudMotion073=Object.freeze({state,compact,reduced,entryPose,canRead,event,cue,refresh,layoutCommands,layoutCategory,clearMotion,mount});
+  global.LuminousCombatHudMotion073=Object.freeze({state,compact,reduced,entryPose,canRead,event,cue,refresh,layoutCommands,layoutCategory,clearMotion,applyPreference,mount});
   mount();
 })(window);

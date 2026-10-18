@@ -14,7 +14,7 @@
     plannedActions: "campaña/combate/plannedActions",
   });
   const FALLBACK_DM_UID = "e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1";
-  const FIREBASE_CONFIG = Object.freeze({
+  const FIREBASE_CONFIG = global.LuminousCombatFirebaseConfig || Object.freeze({
     apiKey: "AIzaSyAIVIuKgXUsdrb9Mmss9PH7R3FpWAMG2hU",
     authDomain: "luminous-system.firebaseapp.com",
     databaseURL: "https://luminous-system-default-rtdb.firebaseio.com",
@@ -40,6 +40,7 @@
     skills: {},
     combatState: "PRE_COMBAT_PLANNING",
     round: 1,
+    presentation: 'full',
     unsubscribers: [],
     hydrateTimer: null,
     hydratedOnce: false,
@@ -527,6 +528,8 @@
       const parsed = phaseAndRound(value);
       state.combatState = parsed.phase;
       state.round = parsed.round;
+      state.presentation = value?.presentation === 'simple' ? 'simple' : 'full';
+      global.LuminousCombatHudMotion073?.applyPreference?.();
     });
     state.db.ref(ROOTS.dmUid).once("value").then((snapshot) => {
       state.dmUid = clean(snapshot.val()) || FALLBACK_DM_UID;

@@ -234,6 +234,7 @@
     combatView = documentRef.createElement("iframe");
     combatView.id = "player-instance-combat";
     combatView.title = "Combate táctico";
+    combatView.allow = "autoplay";
     combatView.dataset.battleSrc = "Battle-viewer.html";
     combatView.setAttribute("aria-hidden", "false");
     Object.assign(combatView.style, {

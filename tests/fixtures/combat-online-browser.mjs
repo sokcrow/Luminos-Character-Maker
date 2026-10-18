@@ -9,7 +9,7 @@ const BASE = 'http://127.0.0.1:4173';
 const sdkDir = path.dirname(require.resolve('firebase/package.json'));
 export const ARTIFACTS = 'artifacts/combat-phase0';
 
-export async function openSession(browser, user, seed, { compatibility = true, hasTouch = false } = {}) {
+export async function openSession(browser, user, seed, { compatibility = true, hasTouch = false, entry = '/Battle-viewer.html', autoSignIn = true, waitForCombat = true } = {}) {
   const hosts = emulatorHosts();
   const context = await browser.newContext({ viewport: { width: 1365, height: 768 }, hasTouch });
   await context.addInitScript(value => { window.LuminousCombatPlaybackCompatibility = value; }, compatibility);
@@ -40,7 +40,7 @@ export async function openSession(browser, user, seed, { compatibility = true, h
         firebase.initializeApp(${JSON.stringify({ apiKey: 'fake', projectId: PROJECT, databaseURL: `https://${NAMESPACE}.firebaseio.com` })});
         firebase.auth().useEmulator(${JSON.stringify(`http://${hosts.auth}`)}, {disableWarnings:true});
         firebase.database().useEmulator(${JSON.stringify(hosts.database.split(':')[0])},${Number(hosts.database.split(':')[1])});
-        window.__phase0AuthReady=firebase.auth().signInWithEmailAndPassword(${JSON.stringify(user.email)},${JSON.stringify(PASSWORD)});`;
+        ${autoSignIn ? `window.__phase0AuthReady=firebase.auth().signInWithEmailAndPassword(${JSON.stringify(user.email)},${JSON.stringify(PASSWORD)});` : ''}`;
       return route.fulfill({ status: 200, contentType: 'application/javascript', body });
     }
     if (/(^|\.)(firebaseio\.com|firebaseapp\.com|firebasedatabase\.app)$/.test(url.hostname) || /^(identitytoolkit|securetoken)\.googleapis\.com$/.test(url.hostname)) forbidden.push(url.hostname);
@@ -79,7 +79,8 @@ export async function openSession(browser, user, seed, { compatibility = true, h
     socket.on('framesent', (frame) => record('sent', frame));
     socket.on('framereceived', (frame) => record('received', frame));
   });
-  await page.goto(`${BASE}/Battle-viewer.html`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`${BASE}${entry}`, { waitUntil: 'domcontentloaded' });
+  if(!waitForCombat)return {context,page,errors,forbidden,ruleMismatches};
   try {
     await page.waitForFunction(() => window.LuminousCombatLiveAdapter073?.state.firebaseReady && window.LuminousCombat073?.combatants?.()?.['player:a'], null, { timeout: 20000 });
   } catch (error) {

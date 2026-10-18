@@ -74,7 +74,7 @@
     subscribeAdapter(bridge.ROOTS.players,value=>{s.players=value&&typeof value==='object'?value:{};});
     subscribeAdapter(bridge.ROOTS.combatants,value=>{s.combatants=value&&typeof value==='object'?value:{};});
     subscribeAdapter(bridge.ROOTS.skills,value=>{s.skills=value&&typeof value==='object'?value:{};});
-    subscribeAdapter(bridge.ROOTS.state,value=>{const parsed=phaseAndRound(value);s.combatState=parsed.phase;s.round=parsed.round;});
+    subscribeAdapter(bridge.ROOTS.state,value=>{const parsed=phaseAndRound(value);s.combatState=parsed.phase;s.round=parsed.round;s.presentation=value?.presentation==='simple'?'simple':'full';global.LuminousCombatHudMotion073?.applyPreference?.();});
     s.db.ref(bridge.ROOTS.dmUid).once('value').then(snapshot=>{const uid=clean(snapshot.val());if(uid)s.dmUid=uid;bridge.scheduleHydrate?.();}).catch(()=>{});
     s.lastSignature='';
     bridge.scheduleHydrate?.();
