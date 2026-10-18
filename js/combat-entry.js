@@ -34,7 +34,7 @@
     if(!state.uid)return;
     $('combat-entry-card').hidden=Boolean(active);
     const existing=$('combat-entry-view'),encounterId=state.encounter?.estado?.encounterId||'';
-    if(active&&existing&&existing.dataset.encounter!==encounterId)existing.remove();
+    if(active&&existing&&(existing.dataset.ended==='true'||(existing.dataset.encounter&&existing.dataset.encounter!==encounterId)))existing.remove();
     if(active&&!$('combat-entry-view')){
       const frame=doc.createElement('iframe');frame.id='combat-entry-view';frame.title='Encuentro de combate';frame.allow='autoplay';frame.src='Battle-viewer.html';$('combat-entry-main').appendChild(frame);
       frame.dataset.encounter=encounterId;
@@ -42,7 +42,7 @@
     // Keep the ended viewer alive for the normal result/loot lifecycle. It is
     // replaced on the next encounter, or removed when leaving combat/signing out.
     if(!active&&!ended)$('combat-entry-view')?.remove();
-    const frame=$('combat-entry-view');if(frame)frame.hidden=!active;
+    const frame=$('combat-entry-view');if(frame){frame.hidden=!active;frame.dataset.encounter=encounterId;frame.dataset.ended=String(ended);}
     if(!active)say(!authorized?'Esta cuenta todavía no tiene un personaje asignado. Pide al DM que lo vincule.':!state.connected?'Reconectando con la campaña…':ended?'Encuentro finalizado. Los resultados se han conservado.':state.dm?'Abre un encuentro y añade los personajes y enemigos desde «Encuentro».':'Esperando a que el DM abra el combate.');
   }
   async function action(fn){if(state.busy)return;state.busy=true;render();try{await fn();$('combat-entry-menu').open=false;}catch(error){console.error('[Combat entry]',error);global.alert(actionError(error));}finally{state.busy=false;render();}}

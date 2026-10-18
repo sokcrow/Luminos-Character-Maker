@@ -96,3 +96,17 @@ test('phase6 packaged entry: real login, create/deploy, two rounds, safe control
     for(const session of sessions)await session.context.close().catch(()=>{});
   }
 });
+
+test('phase6 opening an existing encounter preserves the viewer, roster and vitals when assigning its identity',async({browser})=>{
+  const fixture=await seedPhase0();
+  const session=await openSession(browser,fixture.users.dm,8,{compatibility:false,entry:'/combate.html',waitForCombat:false});
+  try{
+    const frame=await viewer(session.page);await frame.evaluate(()=>{window.__phase6ExistingViewer=true;});
+    await menu(session.page);await session.page.locator('#combat-entry-start').click();
+    await expect.poll(async()=>Boolean((await readEmulator('campaña/combate/estado')).encounterId)).toBe(true);
+    expect(await frame.evaluate(()=>window.__phase6ExistingViewer)).toBe(true);
+    expect(Object.keys(await readEmulator('campaña/combate/combatants')).sort()).toEqual(Object.keys(fixture.campaign.combate.combatants).sort());
+    expect((await readEmulator('campaña/combate/combatants/player:a')).hp).toBe(100);
+    expect(session.errors).toEqual([]);expect(session.forbidden).toEqual([]);
+  }finally{await session.context.close();}
+});
