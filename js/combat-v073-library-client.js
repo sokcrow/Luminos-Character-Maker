@@ -2,12 +2,13 @@
   'use strict';
   if(global.LuminousCombatLibraryClient073)return;
 
-  const state={started:false,loading:false,bulkDetached:false,lastIds:'',retryTimer:null};
+  const state={started:false,loading:false,bulkDetached:false,lastIds:null,retryTimer:null,pending:null};
   const clean=v=>String(v??'').trim();
   function adapter(){return global.LuminousCombatLiveAdapter073||null;}
   function adapterState(){return adapter()?.state||null;}
   function library(){return global.LuminousUniversalLibrary||null;}
   function skillIdsFor(unit={}){
+    if(global.LuminousCombatSkillLoadout074)return global.LuminousCombatSkillLoadout074.skillIdsFor(unit);
     if(Array.isArray(unit.skillIds))return unit.skillIds.map(clean).filter(Boolean);
     if(Array.isArray(unit.skillSlotIds))return unit.skillSlotIds.map(clean).filter(Boolean);
     if(Array.isArray(unit.action_slots))return unit.action_slots.map(row=>clean(row?.id||row?.skillId||row)).filter(Boolean);
@@ -36,24 +37,34 @@
   }
   async function ensureSkills({force=false}={}){
     const s=adapterState(),lib=library();
-    if(!s?.db?.ref||!lib?.getSkill||state.loading)return false;
+    if(!s?.db?.ref||!lib?.getSkill)return false;
     detachBulkSkills();
     const ids=requiredIds(),signature=ids.join('|');
-    if(!force&&signature===state.lastIds&&ids.every(id=>s.skills?.[id]))return true;
+    if(!force&&signature===state.lastIds)return ids.every(id=>s.skills?.[id]);
+    // A roster/loadout change during an in-flight read must receive its own
+    // pass; the first read must not become the last hydration of the new deck.
+    if(state.loading){await state.pending;return ensureSkills({force});}
     state.loading=true;
-    try{
+    state.pending=(async()=>{
       const next={...(s.skills||{})};
+      const bundled=global.LuminousPlayerSignatureSkillCatalog?.DEFINITIONS||{};
       await Promise.all(ids.map(async id=>{
         if(!force&&next[id])return;
-        const row=await lib.getSkill(s.db,id,{campaignFallback:true}).catch(()=>null);
-        if(row?.record)next[id]=row.record;
+        // This is the same authored catalog used by the DM's assignment UI.
+        // It must work without materializing a duplicate definition in RTDB.
+        if(bundled[id]){next[id]=bundled[id];return;}
+        const row=await lib.getSkill(s.db,id,{campaignFallback:true}).catch(error=>{
+          console.error('[Combat073 Skill load]',id,error);return null;
+        });
+        if(row?.record)next[id]=row.record;else delete next[id];
       }));
       Object.keys(next).forEach(id=>{if(!ids.includes(id))delete next[id];});
       s.skills=next;state.lastIds=signature;
       s.lastSignature='';
       adapter()?.hydrateNow?.();
-      return true;
-    }finally{state.loading=false;}
+      return ids.every(id=>next[id]);
+    })();
+    try{return await state.pending;}finally{state.loading=false;state.pending=null;}
   }
   function start(){
     if(state.started)return true;state.started=true;

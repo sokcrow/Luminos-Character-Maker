@@ -134,6 +134,11 @@
   }
 
   function skillSlotIdsFor(record = {}) {
+    const loadout = global.LuminousCombatSkillLoadout074;
+    if (loadout) {
+      const slots = loadout.skillSlotIdsFor(record);
+      return slots.length ? slots : loadout.skillIdsFor(record);
+    }
     const raw = loadoutSource(record);
     let ids = [];
     if (Array.isArray(raw)) ids = raw.map((value) => clean(value?.id || value?.skillId || value)).filter(Boolean);
@@ -184,8 +189,11 @@
     const unit = unitRow?.unit || {};
     const source = { ...clone(actor), ...clone(unit), ...clone(player) };
     const uid = uidForPlayer(player) || clean(source.uid || source.ownerUid);
-    const unitSlotIds = skillSlotIdsFor(unit);
-    const slotIds = unitSlotIds.length ? unitSlotIds : skillSlotIdsFor(source);
+    // The Player build is authoritative; a linked Unit may contain an older deck.
+    // An explicitly empty Player loadout also must not resurrect that old deck.
+    const hasPlayerLoadout = global.LuminousCombatSkillLoadout074?.hasSkillLoadout(player) ??
+      ['skillDeck','skillSlotIds','skillIds','equippedSkillIndex'].some(key => player[key] != null || player.characterBuild?.[key] != null);
+    const slotIds = hasPlayerLoadout ? skillSlotIdsFor(player) : skillSlotIdsFor(source);
     const ids = [...new Set(slotIds)];
     const slots = slotsFor(source);
     const stats = baseStats(source);
@@ -220,6 +228,7 @@
       actionSlots: slots,
       activeSlots: slots,
       actionSlotIndex: slotIndex(slots),
+      skillDeck: hasPlayerLoadout ? clone(player.characterBuild?.skillDeck || player.skillDeck || null) : clone(source.skillDeck || null),
       skillIds: ids,
       skillSlotIds: slotIds,
       equippedSkillIndex: equipped(ids),
@@ -442,7 +451,7 @@
 
   function syncFieldsFromBuiltPlayer(current = {}, built = {}) {
     const fields = [
-      'skillIds','skillSlotIds','equippedSkillIndex',
+      'skillDeck','skillIds','skillSlotIds','equippedSkillIndex',
       'characterBuild','classes','classLevels',
       'spellIds','spellSelections','knownSpellIds','preparedSpellIds',
       'traitDefinitions','combatTraits','actionTraits','traits','classTraits','archetypeTraits','features',
@@ -472,8 +481,31 @@
     });
     if (!Object.keys(updates).length) return false;
     state.lastRepairDigest = JSON.stringify(Object.entries(updates).sort(([a],[b]) => a.localeCompare(b)));
-    await state.db.ref().update(updates);
-    return true;
+    const ref = state.db.ref('campaña/combate');
+    let hold;
+    try {
+      await new Promise((resolve, reject) => {
+        hold = snapshot => resolve(snapshot);
+        ref.on('value', hold, reject);
+      });
+      const result = await ref.transaction(combat => {
+        if (!combat || ['sealed','running'].includes(combat.authority?.current?.phase)) return;
+        const phase = clean(combat.estado?.phase || combat.estado?.state || combat.estado).toLowerCase();
+        if (!['setup','planning','pre_combat_planning'].includes(phase)) return;
+        let changed = false;
+        const combatants = { ...(combat.combatants || {}) };
+        for (const [key, current] of Object.entries(combatants)) {
+          if (!isPlayerUnit(current || {})) continue;
+          const playerId = canonicalPlayerId(current), player = state.players?.[playerId];
+          if (!player) continue;
+          const patch = syncFieldsFromBuiltPlayer(current, buildPlayer(playerId, player));
+          if (!Object.keys(patch).length) continue;
+          combatants[key] = { ...current, ...patch }; changed = true;
+        }
+        return changed ? { ...combat, combatants } : undefined;
+      }, undefined, false);
+      return result.committed;
+    } finally { if (hold) ref.off('value', hold); }
   }
 
   function schedulePlayerStateRepair() {
@@ -532,7 +564,7 @@
     const handler = (snapshot) => {
       state[key] = snapshot.val() || {};
       render();
-      if (key === 'players' || key === 'actors' || key === 'units' || key === 'combatants') schedulePlayerStateRepair();
+      schedulePlayerStateRepair();
     };
     ref.on('value', handler);
     state.subs.push(() => ref.off('value', handler));

@@ -270,7 +270,7 @@
 
   function coinAmount(skill = {}) {
     if (Array.isArray(skill.coins) && skill.coins.length) return skill.coins.length;
-    return Math.max(1, Math.trunc(finite(skill.coinAmount ?? skill.coin_amount, 1) || 1));
+    return Math.max(1, Math.trunc(finite(skill.coinAmount ?? skill.coin_amount ?? skill.coinCount ?? skill.coin_count ?? (typeof skill.coins === 'number' ? skill.coins : null), 1) || 1));
   }
 
   function normalizeSkill(id, skill = {}) {
@@ -280,7 +280,8 @@
     const affinity = normalizeId(skill.sinAffinity || skill.affinity || skill.sin || "sinless") || "sinless";
     const result = {
       ...clone(skill),
-      id: clean(skill.id || id) || id,
+      id: clean(id),
+      definitionId: clean(skill.id || id),
       name: clean(skill.name || skill.nombre || id) || id,
       kind,
       basePower: finite(skill.basePower ?? skill.base_power, 0) || 0,
@@ -300,6 +301,7 @@
   }
 
   function skillIdsFor(unit = {}) {
+    if (global.LuminousCombatSkillLoadout074) return global.LuminousCombatSkillLoadout074.skillIdsFor(unit);
     if (Array.isArray(unit.skillIds)) return unit.skillIds.map(clean).filter(Boolean);
     if (Array.isArray(unit.skillSlotIds)) return unit.skillSlotIds.map(clean).filter(Boolean);
     if (Array.isArray(unit.equippedSkills)) return unit.equippedSkills.map((row) => clean(row?.id || row)).filter(Boolean);
