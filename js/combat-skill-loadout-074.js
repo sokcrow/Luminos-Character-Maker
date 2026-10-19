@@ -218,6 +218,7 @@
     const skill = {
       ...normalized,
       id,
+      skillId: id,
       sourceId: clean(normalized.sourceId) || id,
       libraryKey: id,
       definitionId,

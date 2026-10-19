@@ -281,6 +281,8 @@
     const result = {
       ...clone(skill),
       id: clean(id),
+      skillId: clean(id),
+      libraryKey: clean(id),
       definitionId: clean(skill.id || id),
       name: clean(skill.name || skill.nombre || id) || id,
       kind,
