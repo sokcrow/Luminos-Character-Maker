@@ -1,5 +1,7 @@
 # Combat integration — Phase 0 baseline
 
+> Validación histórica: los nuevos harness de las Fases 0–6 fueron temporales y se retiraron al cerrar la entrega, según el README. Los comandos de prueba de este documento describen esa revisión; la evidencia queda en la [ejecución integrada](https://github.com/sokcrow/Luminos-Character-Maker/actions/runs/39180398710).
+
 Reviewed 2026-10-17. Base: `main` at `a879160ec397e1b557b53626d0d10b1f191a1da3`.
 
 ## Result and scope

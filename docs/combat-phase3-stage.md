@@ -1,5 +1,7 @@
 # Fase 3: escenario por capas y formación inicial
 
+> Validación histórica: los nuevos harness de las Fases 0–6 fueron temporales y se retiraron al cerrar la entrega, según el README. Los comandos de prueba de este documento describen esa revisión; la evidencia queda en la [ejecución integrada](https://github.com/sokcrow/Luminos-Character-Maker/actions/runs/39180398710).
+
 Base: Fase 2, PR #988 (`28feb4c03d212f748131a44b9d70c106f518e314`). Esta entrega no fusiona ni despliega la aplicación o las reglas.
 
 ## Dirección

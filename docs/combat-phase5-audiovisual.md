@@ -1,5 +1,7 @@
 # Fase 5: perfiles audiovisuales conectados
 
+> Validación histórica: los nuevos harness de las Fases 0–6 fueron temporales y se retiraron al cerrar la entrega, según el README. Los comandos de prueba de este documento describen esa revisión; la evidencia queda en la [ejecución integrada](https://github.com/sokcrow/Luminos-Character-Maker/actions/runs/39180398710).
+
 Esta entrega continúa sobre #990 (`d2fa930bb1fe5037de2623848b03f9cfd3e1f961`) e incluye toda la cadena de Fases 0–4. No fusiona ni despliega esa cadena.
 
 ## Experiencia

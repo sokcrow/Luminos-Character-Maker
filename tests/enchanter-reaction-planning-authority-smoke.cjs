@@ -35,7 +35,7 @@ const adapter={state:{
     id:"player:hero",canonicalPlayerKey:"hero",canonicalOwnerUid:"owner_uid",
     isPlayer:true,actionSlots:1,
   }},
-  db:{ref(){return {update(payload){writes.push(payload);return Promise.resolve()}}}},
+  db:{ref(){return {once(){return Promise.resolve({val:()=>null})},update(payload){writes.push(payload);return Promise.resolve()}}}},
 }};
 const win={
   addEventListener(name,cb){listeners.set(name,cb)},

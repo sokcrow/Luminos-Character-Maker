@@ -1,5 +1,7 @@
 # Fase 1 — resolución incremental del combate live
 
+> Validación histórica: los nuevos harness de las Fases 0–6 fueron temporales y se retiraron al cerrar la entrega, según el README. Los comandos de prueba de este documento describen esa revisión; la evidencia queda en la [ejecución integrada](https://github.com/sokcrow/Luminos-Character-Maker/actions/runs/39180398710).
+
 Base: `eca1c66300de00342adc4adc94cbec1737a95f70`, PR #986 (Fase 0).
 Esta rama depende de esa base; no sustituye su aceptación visual pendiente.
 

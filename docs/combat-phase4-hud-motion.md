@@ -1,5 +1,7 @@
 # Fase 4: HUD de producto y poses genéricas
 
+> Validación histórica: los nuevos harness de las Fases 0–6 fueron temporales y se retiraron al cerrar la entrega, según el README. Los comandos de prueba de este documento describen esa revisión; la evidencia queda en la [ejecución integrada](https://github.com/sokcrow/Luminos-Character-Maker/actions/runs/39180398710).
+
 Base integrada: #989, `db1fefa39f90fbe62392b15862e316df535c6c5c`, que contiene #986/#987/#988. Esta rama continúa sobre esa implementación completa; no fusiona ni despliega aplicación o reglas.
 
 ## Experiencia

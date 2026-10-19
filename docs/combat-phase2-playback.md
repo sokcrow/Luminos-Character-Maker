@@ -1,5 +1,7 @@
 # Fase 2: reproducción online de resultados
 
+> Validación histórica: los nuevos harness de las Fases 0–6 fueron temporales y se retiraron al cerrar la entrega, según el README. Los comandos de prueba de este documento describen esa revisión; la evidencia queda en la [ejecución integrada](https://github.com/sokcrow/Luminos-Character-Maker/actions/runs/39180398710).
+
 Base: Fase 1 (#987), a su vez dependiente de #986. Esta rama no despliega reglas ni aplicación a producción.
 
 ## Comportamiento
