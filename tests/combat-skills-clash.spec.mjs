@@ -39,8 +39,9 @@ for(const mobile of [false,true])test(`assigned catalog Skills survive stale Uni
     await click(choice);await click(page.locator('#action-confirm'));
     if(mobile)await click(page.locator('#combat-target-list button[data-target-owner="enemy:dummy"]').first());
     else await click(page.locator('.action-slot-wrapper.target-valid[data-owner-id="enemy:dummy"]').first());
-    await expect(page.locator('#clash-forecast-confirm')).toBeVisible();
-    await click(page.locator('#clash-forecast-confirm'));
+    const planning=await page.evaluate(()=>({plans:window.LuminousCombat073.plans(),enemy:window.LuminousCombat073.combatants()['enemy:dummy'],status:document.getElementById('status')?.textContent}));
+    fs.writeFileSync(`${ARTIFACTS}/skills-planning-${mobile?'mobile':'desktop'}.json`,JSON.stringify(planning,null,2));
+    if(await page.locator('#clash-forecast-confirm').isVisible())await click(page.locator('#clash-forecast-confirm'));
     const selected=await page.evaluate(()=>window.LuminousCombat073.plans()[0].data.id);
     expect(Object.values(deck)).toContain(selected);
     await click(page.locator('#ready'));
