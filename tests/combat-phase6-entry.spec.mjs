@@ -99,7 +99,18 @@ test('phase6 packaged entry: real login, create/deploy, two rounds, safe control
           planSync:Boolean(window.LuminousCombatPlanSync073),readyText:document.getElementById('ready')?.textContent,
           plans:window.LuminousCombat073?.plans?.()?.length
         }))));
-        throw Error('PHASE6_READY_DIAGNOSTIC '+JSON.stringify({round,ready:await readEmulator('campaña/combate/readyPlayers'),plans:await readEmulator('campaña/combate/plannedActions'),snapshots})+'\n'+error.message);
+        const direct=await av.evaluate(async()=>{
+          try{
+            const runtime=window.LuminousCombat073,bridge=window.LuminousCombatPlanSync073;
+            const response=await Promise.race([
+              bridge.syncReady({ready:true,round:runtime.uiState().round,plans:JSON.parse(JSON.stringify(runtime.plans()))}),
+              new Promise(resolve=>setTimeout(()=>resolve('DIRECT_SYNC_TIMEOUT'),5000))
+            ]);
+            return{response,own:bridge.ownCombatant(window.LuminousCombatLiveAdapter073.state)?.[0]||null};
+          }catch(err){return{error:String(err?.stack||err)};}
+        });
+        const directDatabase=await readEmulator('campaña/combate/readyPlayers/a');
+        throw Error('PHASE6_READY_DIAGNOSTIC '+JSON.stringify({round,ready:await readEmulator('campaña/combate/readyPlayers'),plans:await readEmulator('campaña/combate/plannedActions'),snapshots,direct,directDatabase})+'\n'+error.message);
       }
       await expect.poll(async()=>(await readEmulator('campaña/combate/authority/current'))?.phase,{timeout:45000}).toBe('running');
       try{
