@@ -78,7 +78,8 @@
     const reaction=ready && selectedEnchantmentReaction?.round===ctx.round
       ?selectedEnchantmentReaction.itemInstanceId:null;
     const sig=JSON.stringify(['ready',ready,ctx.round,ctx.unitId,ctx.plans,reaction]);
-    if(sig===lastReadySignature)return true;
+    // A matching local signature is not proof that Firebase still stores READY:
+    // remote/queued plan redraws can race with the authenticated confirmation.
     const updates={};
     updates[`${ROOT}/readyPlayers/${ctx.owner}`]={
       ready,round:ctx.round,schedulerUid:ctx.s.uid,unitId:ctx.unitId,
@@ -101,7 +102,18 @@
       return syncReady({...detail,ready:true,plans:Array.isArray(latest)?clone(latest):detail.plans});
     }
     const ctx=context(detail);if(!ctx)return false;const targets=targetIndex(ctx),sig=JSON.stringify(['targets',ctx.round,ctx.unitId,targets]);if(sig===lastTargetSignature)return true;
-    await ctx.s.db.ref(`${ROOT}/readyPlayers/${ctx.owner}`).set({ready:false,round:ctx.round,schedulerUid:ctx.s.uid,unitId:ctx.unitId,plannedSlots:0,targetIntents:targets,updatedAt:global.firebase.database.ServerValue.TIMESTAMP});lastTargetSignature=sig;return true;
+    // Target previews are NOT READY transitions. Never replace a committed
+    // READY row with ready:false: only the explicit CANCEL READY event may do that.
+    // The transaction also handles an uninitialized planning row safely.
+    await ctx.s.db.ref(`${ROOT}/readyPlayers/${ctx.owner}`).transaction(current=>{
+      if(current?.ready===true&&Number(current.round)===ctx.round)return;
+      return {
+        ready:false,round:ctx.round,schedulerUid:ctx.s.uid,unitId:ctx.unitId,
+        plannedSlots:0,targetIntents:targets,
+        updatedAt:global.firebase.database.ServerValue.TIMESTAMP
+      };
+    },undefined,false);
+    lastTargetSignature=sig;return true;
   }
   function queue(detail,mode='ready'){chain=chain.then(()=>mode==='targets'?syncLiveTargets(detail):syncReady(detail)).catch(error=>{console.error('[Combat073 PlanSync]',error);try{const n=global.document?.getElementById?.('status');if(n)n.textContent=`COMBAT · PLAN SYNC FAILED · ${error?.code||error?.message||error}`;}catch(_){}});return chain;}
   function onReactionPrepared(event){
