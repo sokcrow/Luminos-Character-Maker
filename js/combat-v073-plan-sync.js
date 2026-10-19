@@ -89,7 +89,24 @@
       ...(reaction?{enchantmentReactionItemInstanceId:reaction}:{}),
       updatedAt:global.firebase.database.ServerValue.TIMESTAMP,
     };
-    for(let i=0;i<ctx.slotCount;i+=1)updates[`${ROOT}/plannedActions/${ctx.owner}/${i}`]=ready&&ctx.plans[i]?payloadFor(ctx.plans[i],i,ctx.unitId,ctx.s):null;
+    // A character may gain additional Action Slots between rounds. Deleting
+    // an empty slot is rejected by RTDB rules, which intentionally allow a
+    // player to delete only a previously owned plan. A single invalid null
+    // invalidates the entire atomic READY + plannedActions update.
+    const saved=(await ctx.s.db.ref(`${ROOT}/plannedActions/${ctx.owner}`).once('value')).val()||{};
+    for(let i=0;i<ctx.slotCount;i+=1){
+      if(ready&&ctx.plans[i]){
+        updates[`${ROOT}/plannedActions/${ctx.owner}/${i}`]=payloadFor(ctx.plans[i],i,ctx.unitId,ctx.s);
+      }else if(saved[i]?.schedulerUid===ctx.s.uid&&saved[i]?.scheduledBy===ctx.owner){
+        updates[`${ROOT}/plannedActions/${ctx.owner}/${i}`]=null;
+      }
+    }
+    // Drop leftover owned slots beyond the current slot count as well.
+    for(const [slot,prior] of Object.entries(saved)){
+      if(Number(slot)<ctx.slotCount)continue;
+      if(prior?.schedulerUid===ctx.s.uid&&prior?.scheduledBy===ctx.owner)
+        updates[`${ROOT}/plannedActions/${ctx.owner}/${slot}`]=null;
+    }
     await ctx.s.db.ref().update(updates);lastReadySignature=sig;return true;
   }
   async function syncLiveTargets(detail={}){
