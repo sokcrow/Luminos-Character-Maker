@@ -84,34 +84,11 @@ test('phase6 packaged entry: real login, create/deploy, two rounds, safe control
       await ready(av,enemy);await ready(bv,enemy);
       // READY must be committed for both players; a later target redraw may
       // never undo their intent while the HUD still says CANCEL READY.
-      try{
-        await expect.poll(async()=>{
-          const readyRows=await readEmulator('campaña/combate/readyPlayers')||{};
-          const plans=await readEmulator('campaña/combate/plannedActions')||{};
-          return ['a','b'].every(id=>readyRows[id]?.ready===true&&Number(readyRows[id].round)===round&&Object.keys(plans[id]||{}).length>0);
-        },{timeout:15000}).toBe(true);
-      }catch(error){
-        const snapshots=await Promise.all([av,bv].map(frame=>frame.evaluate(()=>({
-          ui:window.LuminousCombat073?.uiState?.(),
-          adapter:{role:window.LuminousCombatLiveAdapter073?.state?.role,round:window.LuminousCombatLiveAdapter073?.state?.round,phase:window.LuminousCombatLiveAdapter073?.state?.combatState,firebaseReady:window.LuminousCombatLiveAdapter073?.state?.firebaseReady},
-          current:{round:window.LuminousCombatAuthority073?.state?.current?.round,phase:window.LuminousCombatAuthority073?.state?.current?.phase},
-          lifecycle:{active:window.LuminousCombatRuntimeHotfix073?.state?.active,viewActive:window.LuminousCombatRuntimeHotfix073?.readViewActive?.(),hidden:document.hidden},
-          planSync:Boolean(window.LuminousCombatPlanSync073),readyText:document.getElementById('ready')?.textContent,
-          plans:window.LuminousCombat073?.plans?.()?.length
-        }))));
-        const direct=await av.evaluate(async()=>{
-          try{
-            const runtime=window.LuminousCombat073,bridge=window.LuminousCombatPlanSync073;
-            const response=await Promise.race([
-              bridge.syncReady({ready:true,round:runtime.uiState().round,plans:JSON.parse(JSON.stringify(runtime.plans()))}),
-              new Promise(resolve=>setTimeout(()=>resolve('DIRECT_SYNC_TIMEOUT'),5000))
-            ]);
-            return{response,own:bridge.ownCombatant(window.LuminousCombatLiveAdapter073.state)?.[0]||null};
-          }catch(err){return{error:String(err?.stack||err)};}
-        });
-        const directDatabase=await readEmulator('campaña/combate/readyPlayers/a');
-        throw Error('PHASE6_READY_DIAGNOSTIC '+JSON.stringify({round,ready:await readEmulator('campaña/combate/readyPlayers'),plans:await readEmulator('campaña/combate/plannedActions'),snapshots,direct,directDatabase})+'\n'+error.message);
-      }
+      await expect.poll(async()=>{
+        const readyRows=await readEmulator('campaña/combate/readyPlayers')||{};
+        const plans=await readEmulator('campaña/combate/plannedActions')||{};
+        return ['a','b'].every(id=>readyRows[id]?.ready===true&&Number(readyRows[id].round)===round&&Object.keys(plans[id]||{}).length>0);
+      },{timeout:15000}).toBe(true);
       await expect.poll(async()=>(await readEmulator('campaña/combate/authority/current'))?.phase,{timeout:45000}).toBe('running');
       try{
         await menu(dm);await expect(dm.locator('#combat-entry-end')).toBeDisabled();await expect(dm.locator('#combat-entry-presentation')).toBeDisabled();await dm.locator('#combat-entry-menu summary').click();
