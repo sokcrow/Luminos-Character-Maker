@@ -63,24 +63,35 @@
   function firstLoadoutSource(source = {}) {
     const canonicalDeck = skillDeckSlots(source.characterBuild?.skillDeck || source.skillDeck || {});
     if (canonicalDeck.length) return canonicalDeck;
+    if (source.characterBuild?.skillSlotIds != null) return source.characterBuild.skillSlotIds;
     if (source.skillSlotIds != null) return source.skillSlotIds;
+    if (source.characterBuild?.skillIds != null) return source.characterBuild.skillIds;
     if (source.skillIds != null) return source.skillIds;
     if (source.skill_ids != null) return source.skill_ids;
     if (source.action_slots != null) return source.action_slots;
     if (source.mechanics?.skills != null) return source.mechanics.skills;
+    if (source.equippedSkills != null) return source.equippedSkills;
+    if (source.loadout?.skillIds != null) return source.loadout.skillIds;
     return [];
+  }
+
+  function hasSkillLoadout(source = {}) {
+    return ['skillDeck', 'skillSlotIds', 'skillIds', 'equippedSkillIndex'].some(key =>
+      source[key] != null || source.characterBuild?.[key] != null) ||
+      source.skill_ids != null || source.action_slots != null || source.mechanics?.skills != null ||
+      source.equippedSkills != null || source.loadout?.skillIds != null;
   }
 
   function skillSlotEntries(source = {}) {
     const raw = firstLoadoutSource(source);
     if (Array.isArray(raw)) {
       return raw
-        .map((value, index) => ({ index, skillId: clean(value) }))
+        .map((value, index) => ({ index, skillId: clean(value?.skillId || value?.id || value) }))
         .filter((row) => row.skillId);
     }
     if (raw && typeof raw === "object") {
       return Object.entries(raw)
-        .map(([key, value]) => ({ index: Number(key), key, skillId: clean(value) }))
+        .map(([key, value]) => ({ index: Number(key), key, skillId: clean(value?.skillId || value?.id || value) }))
         .filter((row) => Number.isInteger(row.index) && row.index >= 0 && row.skillId)
         .sort((a, b) => a.index - b.index)
         .map(({ index, skillId }) => ({ index, skillId }));
@@ -94,8 +105,9 @@
 
   function skillIdsFor(source = {}) {
     const ids = skillSlotIdsFor(source);
-    if (!ids.length && source.equippedSkillIndex && typeof source.equippedSkillIndex === "object") {
-      return Object.entries(source.equippedSkillIndex)
+    const index = source.characterBuild?.equippedSkillIndex || source.equippedSkillIndex;
+    if (!ids.length && index && typeof index === "object") {
+      return Object.entries(index)
         .filter(([, enabled]) => enabled === true)
         .map(([id]) => clean(id))
         .filter(Boolean);
@@ -206,6 +218,7 @@
     const skill = {
       ...normalized,
       id,
+      skillId: id,
       sourceId: clean(normalized.sourceId) || id,
       libraryKey: id,
       definitionId,
@@ -305,6 +318,7 @@
     version: VERSION,
     ROOTS,
     skillDeckSlots,
+    hasSkillLoadout,
     skillSlotEntries,
     skillSlotIdsFor,
     skillIdsFor,

@@ -1125,7 +1125,13 @@
     const menu = activeMenu();
     const tab = economyTabFor(sel?.data || {});
     const actionItem = menu === "items" && tab === ECONOMY.ACTION && normalizeId(sel?.data?.kind || sel?.data?.sourceType) === "item";
-    if (!TABBED_MENUS.has(menu) || (tab === ECONOMY.ACTION && !actionItem)) return state.originals.selectAction?.(sel);
+    if (!TABBED_MENUS.has(menu) || (tab === ECONOMY.ACTION && !actionItem)) {
+      // Menu rows use domain kinds, while the live planner uses granted/spells.
+      // Passing "skill" through created an attack the Clash preview could not
+      // recognize, even though the online resolver later reconstructed it.
+      const type = sel?.type === "skill" ? "granted" : sel?.type === "spell" ? "spells" : sel?.type;
+      return state.originals.selectAction?.({ ...sel, type });
+    }
 
     global.__luminousEconomySelected = sel;
     try { global.eval("selected=window.__luminousEconomySelected;navState='action'"); } catch (_) {}
