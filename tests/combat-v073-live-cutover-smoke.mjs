@@ -63,7 +63,7 @@ assert.match(dmSetup, /canonicalPlayerKey:\s*playerId/, 'deployed Players must c
 assert.match(dmSetup, /canonicalOwnerUid:\s*uid\s*\|\|\s*null/, 'deployed Players must carry canonical UID ownership');
 assert.match(dmSetup, /actionSlotIndex:\s*slotIndex\(slots\)/, 'deployed combatants must expose canonical action slots');
 assert.match(dmSetup, /equippedSkillIndex:\s*equipped\(ids\)/, 'deployed combatants must expose equipped Skill provenance');
-assert.ok(dmSetup.includes('ENCOUNTER SETUP · COMBAT v0.7.3'), 'DM encounter setup UI must be mounted in the new Viewer');
+assert.ok(dmSetup.includes('>Encuentro</summary>'), 'DM encounter setup UI must be mounted in the new Viewer');
 assert.ok(!dmSetup.includes('LuminousVttActorLibrary') && !dmSetup.includes('js/vtt/'), 'new DM setup must not revive the removed VTT actor library');
 assert.ok(!dmSetup.includes('combatEngine.js') && !dmSetup.includes('CombatEngine'), 'new DM setup must not depend on legacy CombatEngine');
 

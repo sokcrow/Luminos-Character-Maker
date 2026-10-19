@@ -96,7 +96,8 @@ assert.match(planSync, /syncLiveTargets/);
 assert.match(planSync, /readyPlayers\/\$\{ctx\.owner\}/);
 assert.match(planSync, /targetIntents:targets/);
 assert.match(planSync, /plannedActions\/\$\{ctx\.owner\}/);
-assert.match(planSync, /ready&&ctx\.plans\[i\]\?payloadFor/);
+assert.match(planSync, /if\(ready&&ctx\.plans\[i\]\)/);
+assert.match(planSync, /saved\[i\]\?\.schedulerUid===ctx\.s\.uid/);
 assert.doesNotMatch(planSync, /combat_private/);
 
 const remote = read('js/combat-v073-remote-intents.js');

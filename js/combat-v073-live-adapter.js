@@ -4,7 +4,7 @@
   if (global.LuminousCombatLiveAdapter073) return;
   global.LuminousCombatLiveMode = true;
 
-  const VERSION = "0.7.3-live.4-player-inventory-authority";
+  const VERSION = "0.7.3-live.7-pinned-positions";
   const ROOTS = Object.freeze({
     dmUid: "campaña/config/dm_uid",
     players: "campaña/jugadores",
@@ -14,7 +14,7 @@
     plannedActions: "campaña/combate/plannedActions",
   });
   const FALLBACK_DM_UID = "e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1";
-  const FIREBASE_CONFIG = Object.freeze({
+  const FIREBASE_CONFIG = global.LuminousCombatFirebaseConfig || Object.freeze({
     apiKey: "AIzaSyAIVIuKgXUsdrb9Mmss9PH7R3FpWAMG2hU",
     authDomain: "luminous-system.firebaseapp.com",
     databaseURL: "https://luminous-system-default-rtdb.firebaseio.com",
@@ -40,6 +40,7 @@
     skills: {},
     combatState: "PRE_COMBAT_PLANNING",
     round: 1,
+    presentation: 'full',
     unsubscribers: [],
     hydrateTimer: null,
     hydratedOnce: false,
@@ -250,6 +251,7 @@
         y,
         formationRow: pos.y === 42 ? 1 : 0,
         formationColumn: Math.max(0, Math.floor((sideIndex[faction] - 1) / 2)),
+        positionPinned: explicitBattlePosition(raw),
         formationSource: useFormationSpawn ? "pre_combat_zigzag" : "runtime_position",
         scale: finite(raw.scale ?? raw.visualScale ?? raw.escala ?? raw.combatVisual?.scale, 1) || 1,
         spriteX: finite(raw.spriteX ?? raw.combatVisual?.x, 0) || 0,
@@ -375,6 +377,7 @@
       // update from rebuilding Combat and resetting Player planning/menu state.
       unit.x,
       unit.y,
+      unit.positionPinned,
       unit.scale,
       unit.spriteX,
       unit.spriteY,
@@ -431,6 +434,9 @@
   function hydrateNow() {
     state.hydrateTimer = null;
     if (!state.runtimeReady || !state.firebaseReady || !global.LuminousCombat073) return false;
+    // Rebuilding during playback resets live combatants, plans and the local
+    // round. Authority schedules the deferred refresh when execution settles.
+    if (global.LuminousCombatAuthority073?.state?.runningLocal) return false;
     const identity = resolveIdentity();
     state.role = identity.role;
     state.playerId = identity.playerId;
@@ -439,10 +445,11 @@
       return false;
     }
     global.LuminousCombatBootstrapStage?.(`identity-${state.role}`,state.role==="dm"?"Canonical DM identity confirmed":`Player identity confirmed · ${state.playerId||"unknown"}`);
+    setRoleUi();
     const focusEntry = state.role === "player" ? playerCombatantEntry() : dmFocusEntry();
     if (!focusEntry) {
       global.LuminousCombat073.reset();
-      setStatus("COMBAT · WAITING FOR DM TO DEPLOY COMBATANTS","waiting-field");
+      setStatus(state.role === 'dm' ? 'Abre Encuentro para añadir personajes y enemigos.' : 'Esperando a que el DM añada a tu personaje.',"waiting-field");
       return false;
     }
     const [focusKey, focusUnit] = focusEntry;
@@ -451,7 +458,6 @@
     const signature = hydrationSignature(combatants, focusId);
     if (signature === state.lastSignature) return true;
     state.lastSignature = signature;
-    setRoleUi();
     global.LuminousCombat073.hydrate({
       playerId: focusId,
       viewerRole: state.role,
@@ -482,9 +488,34 @@
 
   function subscribe(path, assign) {
     const ref = state.db.ref(path);
+    const uid = state.uid;
+    let closed = false;
+    let retried = false;
+    let retryTimer = null;
     const handler = (snapshot) => { assign(snapshot.val()); scheduleHydrate(); };
-    ref.on("value", handler);
-    state.unsubscribers.push(() => ref.off("value", handler));
+    const failed = () => setStatus("COMBAT · CONNECTION FAILED · REOPEN COMBAT", "realtime-error");
+    const onCancel = (error) => {
+      // A listen opened during Auth restoration can be rejected before the
+      // token reaches RTDB. Cancelled Firebase listens do not resume themselves.
+      if (closed || retried || error?.code !== "PERMISSION_DENIED" || !state.user || state.uid !== uid) {
+        if (!closed) failed();
+        return;
+      }
+      retried = true;
+      Promise.resolve().then(() => state.user.getIdToken?.(true)).then(() => {
+        if (closed || state.uid !== uid) return;
+        retryTimer = global.setTimeout(() => {
+          retryTimer = null;
+          if (!closed && state.uid === uid) ref.on("value", handler, onCancel);
+        }, 250);
+      }).catch(() => { if (!closed) failed(); });
+    };
+    ref.on("value", handler, onCancel);
+    state.unsubscribers.push(() => {
+      closed = true;
+      if (retryTimer) global.clearTimeout(retryTimer);
+      ref.off("value", handler);
+    });
   }
 
   function bindRealtime() {
@@ -497,6 +528,8 @@
       const parsed = phaseAndRound(value);
       state.combatState = parsed.phase;
       state.round = parsed.round;
+      state.presentation = value?.presentation === 'simple' ? 'simple' : 'full';
+      global.LuminousCombatHudMotion073?.applyPreference?.();
     });
     state.db.ref(ROOTS.dmUid).once("value").then((snapshot) => {
       state.dmUid = clean(snapshot.val()) || FALLBACK_DM_UID;

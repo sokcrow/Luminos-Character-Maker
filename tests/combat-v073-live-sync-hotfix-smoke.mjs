@@ -32,7 +32,8 @@ const liveSyncEnd = plans.indexOf('function queue', liveSyncStart);
 const liveSyncBody = plans.slice(liveSyncStart, liveSyncEnd);
 assert.ok(liveSyncBody.includes('targetIntents:targets'), 'non-READY Planning sync must publish target intent');
 assert.ok(!liveSyncBody.includes('plannedActions'), 'non-READY Planning must not stream chosen Skills/Spells/Items/Traits');
-assert.ok(plans.includes('ready&&ctx.plans[i]?payloadFor'), 'full actions must be persisted only when READY seals the choice');
+assert.ok(plans.includes('if(ready&&ctx.plans[i])') && plans.includes('payloadFor(ctx.plans[i],i,ctx.unitId,ctx.s)'), 'full actions must be persisted only when READY seals the choice');
+assert.ok(plans.includes('saved[i]?.schedulerUid===ctx.s.uid'), 'missing Action Slots must never trigger unauthorized Firebase deletions');
 assert.ok(plans.includes('targetSide') && plans.includes('itemType'), 'sealed support-item metadata must survive Firebase plan sync');
 assert.ok(plans.includes("mode==='targets'?syncLiveTargets(detail):syncReady(detail)"), 'READY and live-target writes must stay separated');
 
@@ -83,7 +84,7 @@ const legacyNpcWrite = campaignRules.base_datos_npcs?.['.write'] || '';
 assert.ok(actorWrite.includes("child('config').child('dm_uid')"), 'linked Actor saves must accept the configured DM authority');
 assert.ok(legacyNpcWrite.includes("child('config').child('dm_uid')"), 'legacy NPC saves must accept the configured DM authority');
 
-assert.ok(dmSetup.includes('FIELD solamente.'), 'Viewer Encounter Setup must be field deployment only');
+assert.ok(dmSetup.includes('Añade personajes y unidades al encuentro.'), 'Viewer Encounter Setup must be field deployment only');
 assert.ok(dmSetup.includes('ensureLibraryMaterialized'), 'Viewer must repair an empty canonical Unit Library for the DM');
 assert.ok(!dmSetup.includes('COMBAT ASSET + SKILL EDITOR'), 'legacy duplicate asset editor must be removed from Viewer');
 assert.ok(!dmSetup.includes('SAVE EQUIPPED SKILLS'), 'legacy duplicate Skill editor must be removed from Viewer');

@@ -156,8 +156,9 @@
   }
   function refreshEncounterSelector(){
     const setup=global.LuminousCombatDmSetup073,select=global.document?.getElementById?.('c073-unit');if(!setup?.state||!select)return false;
-    const previous=select.value,rows=Object.entries(setup.state.units||{}).filter(([,unit])=>!isPlayerUnit(unit||{})).sort((a,b)=>unitName(a[1],a[0]).localeCompare(unitName(b[1],b[0])));
+    const previous=setup.state.selectedUnit||select.value,rows=Object.entries(setup.state.units||{}).filter(([,unit])=>!isPlayerUnit(unit||{})).sort((a,b)=>unitName(a[1],a[0]).localeCompare(unitName(b[1],b[0])));
     select.innerHTML='<option value="">— Enemy / NPC Unit Library —</option>'+rows.map(([id,unit])=>`<option value="${String(id).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}">${unitName(unit,id)}${spriteFor(unit)?' · SPRITE':' · SIN SPRITE'}${skillCount(unit)?` · ${skillCount(unit)} SKILLS`:''}</option>`).join('');
+    setup.state.unitOptionsMarkup=null;
     if(setup.state.units?.[previous])select.value=previous;return true;
   }
   function mergeRuntimeUnits(){return{...(clone(state.localUnits)||{}),...(clone(state.remoteCampaignUnits)||{})};}

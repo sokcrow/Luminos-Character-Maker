@@ -18,9 +18,9 @@
   function readViewActive(){
     if(isDm())return true;
     if(global.document?.hidden)return false;
-    try{
-      if(global.LuminousWebGL2Renderer?.surfaceActive?.()===false)return false;
-    }catch(_){}
+    // WebGL can be intentionally inactive in the simplified presentation or
+    // in DOM fallback on phones. Network participation follows the visible
+    // encounter iframe, never the graphics renderer's availability.
     try{
       const frameEl=global.frameElement;
       if(!frameEl||global.parent===global)return true;
@@ -74,7 +74,7 @@
     subscribeAdapter(bridge.ROOTS.players,value=>{s.players=value&&typeof value==='object'?value:{};});
     subscribeAdapter(bridge.ROOTS.combatants,value=>{s.combatants=value&&typeof value==='object'?value:{};});
     subscribeAdapter(bridge.ROOTS.skills,value=>{s.skills=value&&typeof value==='object'?value:{};});
-    subscribeAdapter(bridge.ROOTS.state,value=>{const parsed=phaseAndRound(value);s.combatState=parsed.phase;s.round=parsed.round;});
+    subscribeAdapter(bridge.ROOTS.state,value=>{const parsed=phaseAndRound(value);s.combatState=parsed.phase;s.round=parsed.round;s.presentation=value?.presentation==='simple'?'simple':'full';global.LuminousCombatHudMotion073?.applyPreference?.();});
     s.db.ref(bridge.ROOTS.dmUid).once('value').then(snapshot=>{const uid=clean(snapshot.val());if(uid)s.dmUid=uid;bridge.scheduleHydrate?.();}).catch(()=>{});
     s.lastSignature='';
     bridge.scheduleHydrate?.();

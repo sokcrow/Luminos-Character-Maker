@@ -1,0 +1,77 @@
+{
+  "contractVersion": 1,
+  "liveRuntime": "0.7.3-live",
+  "planSchemaVersion": 2,
+  "planEngineVersion": "0.7.3-live-authority",
+  "authoritySchemaVersion": 1,
+  "authorityEngineVersion": "0.7.3-authority.9-step-rng",
+  "roots": {
+    "dmUid": "campaña/config/dm_uid",
+    "players": "campaña/jugadores",
+    "units": "campaña/base_datos_unidades",
+    "skills": "campaña/base_datos_skills",
+    "combatants": "campaña/combate/combatants",
+    "state": "campaña/combate/estado",
+    "plans": "campaña/combate/plannedActions",
+    "ready": "campaña/combate/readyPlayers",
+    "authority": "campaña/combate/authority/current"
+  },
+  "authorityPhases": [
+    "sealed",
+    "running",
+    "complete"
+  ],
+  "identity": [
+    "canonicalPlayerKey",
+    "canonicalOwnerUid",
+    "unitId",
+    "sourceSlotIndex"
+  ],
+  "resolution": "negotiated-dm-batches-with-seeded-client-compatibility",
+  "timelineAuthority": "seeded-live-runtime",
+  "presentationEvents": {
+    "schemaVersion": 1,
+    "engineVersion": "0.7.3-steps.1",
+    "transport": "dm-action-batches-v1",
+    "module": "js/combat-v073-steps.js",
+    "roundOrder": "frozen-speed-then-queue-index",
+    "coinOrder": "index-then-clash-side"
+  },
+  "playback": {
+    "schemaVersion": 1,
+    "engineVersion": "0.7.3-playback.1",
+    "root": "campaña/combate/playback/current",
+    "activation": "all-active-players-ready-with-compatible-capability",
+    "history": "current-generation-only",
+    "authorityLease": "sealed-dm-tab-session",
+    "recovery": "players-from-confirmed-checkpoint; explicit-same-DM-session-takeover-at-confirmed-action-boundary",
+    "executorSnapshot": "domain-queue-and-unit-state-without-DOM-handles"
+  },
+  "stage": {
+    "version": "0.7.3-stage.1",
+    "module": "js/combat-v073-stage.js",
+    "coordinates": "existing-flat-field-percentages",
+    "placement": "dm-initial-formation-before-plans-ready-and-first-seal",
+    "layers": "local-dom-shared-with-webgl-and-fallback",
+    "rulesRng": "unchanged",
+    "forestDependency": false
+  },
+  "hud": {
+    "version": "0.7.3-hud-motion.1",
+    "module": "js/combat-v073-hud-motion.js",
+    "presentation": "optional-read-only-observers-and-dm-cues",
+    "compactInput": "same-actions-and-valid-target-slots",
+    "motion": "generic-sprite-poses-with-reduced-motion",
+    "productionAcceptance": "pending-deployed-user-validation"
+  },
+  "audiovisual": {
+    "phase": 5,
+    "base": "phase4-hud-motion",
+    "profiles": "js/combat-v073-animation-profiles.js",
+    "director": "js/combat-v073-audiovisual.js",
+    "input": "ordered presentation cues; no rule execution",
+    "resources": "original inline SVG and local Web Audio synthesis; no remote asset dependency",
+    "preferences": "local sound/volume/quality/rate; respects reduced motion",
+    "acceptance": "emulator integration; production deployment and user acceptance pending"
+  }
+}

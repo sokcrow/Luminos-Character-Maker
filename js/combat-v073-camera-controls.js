@@ -155,7 +155,21 @@
   }
 
   function onAuxClick(event){if(event.button===1&&host()?.contains(event.target))event.preventDefault()}
-  function onResize(){readState();apply(state.scale,state.x,state.y,field()?.dataset.cameraMode||'manual')}
+  function onResize(){
+    const f=field();
+    if(!f)return;
+    // The packed Combat director owns automatic player/full camera framing.
+    // Its focus uses scale 5; manual controls cap at 2.75. Do not turn
+    // camera focus into manual camera mode on rotation/resize.
+    const mode=f.dataset?.cameraMode;
+    if((mode&&mode!=='manual'&&mode!=='touch')||
+       (f.classList?.contains('camera-focus')&&!mode)){
+      readState();
+      return;
+    }
+    readState();
+    apply(state.scale,state.x,state.y,f.dataset.cameraMode||'manual');
+  }
 
   function start(){
     if(state.started)return true;

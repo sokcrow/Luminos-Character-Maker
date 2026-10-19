@@ -25,6 +25,7 @@
     mounted: false,
     started: false,
     seedAttempted: false,
+    libraryReady: false,
     repairTimer: null,
     lastRepairDigest: ''
   };
@@ -278,6 +279,7 @@
 
   async function deployPlayer(playerId) {
     if (!isDm()) throw new Error('DM_ONLY');
+    requirePlanning();
     const player = state.players[playerId];
     if (!player) throw new Error('PLAYER_NOT_FOUND');
     const combatant = buildPlayer(playerId, player);
@@ -288,6 +290,7 @@
 
   async function deployUnits(unitId, faction, quantity) {
     if (!isDm()) throw new Error('DM_ONLY');
+    requirePlanning();
     const unit = state.units[unitId];
     if (!unit || isPlayerUnit(unit)) throw new Error('UNIT_NOT_FOUND');
     const count = Math.max(1, Math.min(20, Math.trunc(Number(quantity) || 1)));
@@ -304,15 +307,14 @@
 
   async function removeCombatant(id) {
     if (!isDm()) throw new Error('DM_ONLY');
+    requirePlanning();
     await state.db.ref(`${ROOTS.combatants}/${id}`).remove();
   }
 
   async function clearEncounter() {
     if (!isDm()) throw new Error('DM_ONLY');
-    await state.db.ref(ROOTS.combatants).remove();
-    await state.db.ref('campaña/combate/plannedActions').remove();
-    await state.db.ref('campaña/combate/readyPlayers').remove();
-    await state.db.ref(ROOTS.state).update({
+    requirePlanning();
+    const next={
       encounterId: null,
       encounterCreatedAt: null,
       result: null,
@@ -323,7 +325,16 @@
       phase: 'SETUP',
       active: false,
       updatedAt: global.firebase?.database?.ServerValue?.TIMESTAMP ?? Date.now(),
-    });
+    };
+    const updates={
+      [ROOTS.combatants]:null,
+      'campaña/combate/plannedActions':null,
+      'campaña/combate/readyPlayers':null,
+      'campaña/combate/authority/current':null,
+      'campaña/combate/playback/current':null,
+    };
+    for(const [key,value]of Object.entries(next))updates[`${ROOTS.state}/${key}`]=value;
+    await state.db.ref().update(updates);
   }
 
   function esc(value) {
@@ -339,22 +350,27 @@
 
   function render() {
     if (!state.mounted) return;
+    const locked = !planningPhase();
+    for (const id of ['c073-add-player','c073-enemy','c073-ally','c073-clear']) {
+      const button = global.document.getElementById(id); if (button) button.disabled = locked || (['c073-enemy','c073-ally'].includes(id) && !state.libraryReady);
+    }
     const playerSelect = global.document.getElementById('c073-player');
     const unitSelect = global.document.getElementById('c073-unit');
     const roster = global.document.getElementById('c073-roster');
     if (playerSelect) {
-      const previous = playerSelect.value;
+      const previous = state.selectedPlayer || playerSelect.value;
       playerSelect.innerHTML = '<option value="">— Campaign Player —</option>' + Object.entries(state.players || {})
         .sort((a, b) => nameFor(a[1], a[0]).localeCompare(nameFor(b[1], b[0])))
         .map(([id, player]) => `<option value="${esc(id)}">${esc(nameFor(player, id))}${state.combatants[`player:${safe(id)}`] ? ' · EN COMBATE' : ''}</option>`).join('');
       if (state.players[previous]) playerSelect.value = previous;
     }
     if (unitSelect) {
-      const previous = unitSelect.value;
-      unitSelect.innerHTML = '<option value="">— Enemy / NPC Unit Library —</option>' + Object.entries(state.units || {})
+      const previous = state.selectedUnit || unitSelect.value;
+      const markup = '<option value="">— Enemy / NPC Unit Library —</option>' + Object.entries(state.units || {})
         .filter(([, unit]) => !isPlayerUnit(unit || {}))
         .sort((a, b) => nameFor(a[1], a[0]).localeCompare(nameFor(b[1], b[0])))
         .map(([id, unit]) => `<option value="${esc(id)}">${esc(nameFor(unit, id))}${spriteFor(unit) ? ' · SPRITE' : ' · SIN SPRITE'}${skillIdsFor(unit).length ? ` · ${skillIdsFor(unit).length} SKILLS` : ''}${unit?.metadata?.weaponSkillsPendingCanonicalCatalog ? ' · WEAPON SKILLS PENDING' : ''}</option>`).join('');
+      if (state.unitOptionsMarkup !== markup) { unitSelect.innerHTML = markup; state.unitOptionsMarkup = markup; }
       if (state.units[previous]) unitSelect.value = previous;
     }
     if (roster) {
@@ -362,6 +378,7 @@
         ? Object.entries(state.combatants).map(([id, combatant]) => `<div style="display:flex;gap:6px;align-items:center;margin:3px 0"><span style="flex:1">${esc(nameFor(combatant, id))} · ${esc(combatant.faction || '')} · ${skillIdsFor(combatant).length} skills${spriteFor(combatant) ? ' · sprite' : ''}</span><button data-remove="${esc(id)}">×</button></div>`).join('')
         : '<div style="opacity:.65">Aún no hay combatientes desplegados.</div>';
       roster.querySelectorAll('[data-remove]').forEach((button) => {
+        button.disabled = locked;
         button.onclick = () => removeCombatant(button.dataset.remove).catch((error) => setMsg(error.message, true));
       });
     }
@@ -395,19 +412,28 @@
       if (!global.LuminousCombatUnitLibrarySync) await loadScript(LIBRARY_SYNC_SCRIPT);
       const api = global.LuminousCombatUnitLibrarySync;
       if (!api) throw new Error('UNIT_LIBRARY_SYNC_UNAVAILABLE');
+      if (!await api.ensureDeploymentRuntime()) throw new Error('UNIT_DEPLOYMENT_UNAVAILABLE');
       const result = await api.ensureMissing(state.db);
-      if (result.unitsWritten || result.skillsWritten) setMsg(`Unit Library reparada · +${result.unitsWritten} Units · +${result.skillsWritten} Skills`);
+      state.libraryReady = true;
+      render();
+      if (result.unitsWritten || result.skillsWritten) setMsg('Biblioteca de unidades actualizada.');
       return result;
     } catch (error) {
       state.seedAttempted = false;
-      setMsg(`Unit Library auto-sync falló · ${error?.message || error}`, true);
+      global.console?.error?.('[Combat unit library]',error);
+      setMsg('No se pudo preparar la biblioteca. Recarga el encuentro para volver a intentarlo.', true);
       return false;
     }
   }
 
   function planningPhase() {
+    if (['sealed','running'].includes(String(state.authorityPhase || global.LuminousCombatAuthority073?.state.current?.phase || '').toLowerCase())) return false;
     const phase = clean(adapterState()?.combatState).toLowerCase().replace(/[\s-]+/g, '_');
     return !['combat','combat_sealed','running','sealed','combat_running','combat_resolution'].includes(phase);
+  }
+
+  function requirePlanning() {
+    if (!planningPhase()) throw new Error('Espera a que termine la ronda antes de cambiar los combatientes.');
   }
 
   function canonicalPlayerId(unit = {}) {
@@ -466,13 +492,15 @@
     state.mounted = true;
     const wrap = global.document.createElement('details');
     wrap.id = 'c073-dm-setup';
-    wrap.open = true;
+    wrap.open = false;
     wrap.style.cssText = 'position:fixed;z-index:2147483000;right:12px;top:12px;width:min(440px,calc(100vw - 24px));max-height:calc(100vh - 24px);overflow:auto;background:rgba(8,6,12,.97);border:1px solid #735c36;color:#ddd;padding:8px;font:12px system-ui;box-shadow:0 10px 28px #000';
-    wrap.innerHTML = `<summary style="cursor:pointer;color:#d7aa58;font-weight:700">ENCOUNTER SETUP · COMBAT v0.7.3</summary><div style="margin-top:8px;display:grid;gap:8px"><div style="opacity:.72">FIELD solamente. La edición de Combat Sprites y la Unit Library vive en Panel DM → COMBATE.</div><div style="display:flex;gap:6px"><select id="c073-player" style="flex:1;min-width:0"></select><button id="c073-add-player">ADD PLAYER</button></div><div style="display:flex;gap:6px"><select id="c073-unit" style="flex:1;min-width:0"></select><input id="c073-qty" type="number" min="1" max="20" value="1" style="width:46px"><button id="c073-enemy">ENEMY</button><button id="c073-ally">ALLY</button></div><div style="display:flex;justify-content:space-between;align-items:center"><b>FIELD ROSTER</b><button id="c073-clear">CLEAR</button></div><div id="c073-roster"></div><div id="c073-setup-msg" style="min-height:16px;color:#9fd6a8">Verificando Unit Library…</div></div>`;
+    wrap.innerHTML = `<summary style="cursor:pointer;color:#d7aa58;font-weight:700">Encuentro</summary><div style="margin-top:8px;display:grid;gap:8px"><div style="opacity:.72">Añade personajes y unidades al encuentro. Puedes colocar la formación antes de preparar la primera ronda.</div><div style="display:flex;gap:6px"><select id="c073-player" style="flex:1;min-width:0"></select><button id="c073-add-player">Añadir personaje</button></div><div style="display:flex;gap:6px"><select id="c073-unit" style="flex:1;min-width:0"></select><input id="c073-qty" type="number" min="1" max="20" value="1" style="width:46px"><button id="c073-enemy">Enemigo</button><button id="c073-ally">Aliado</button></div><div style="display:flex;justify-content:space-between;align-items:center"><b>Combatientes</b><button id="c073-clear">Vaciar</button></div><button id="combat-stage-placement" type="button" aria-pressed="false">Colocar formación inicial</button><div id="c073-roster"></div><div id="c073-setup-msg" style="min-height:16px;color:#9fd6a8">Preparando unidades…</div></div>`;
     global.document.body.appendChild(wrap);
     const player = global.document.getElementById('c073-player');
     const unit = global.document.getElementById('c073-unit');
     const qty = global.document.getElementById('c073-qty');
+    player.onchange = () => { state.selectedPlayer = player.value; };
+    unit.onchange = () => { state.selectedUnit = unit.value; };
     global.document.getElementById('c073-add-player').onclick = async () => {
       if (!player.value) return setMsg('Selecciona un Campaign Player.', true);
       try { setMsg('Desplegando Player…'); await deployPlayer(player.value); setMsg('Player desplegado.'); }
@@ -493,6 +521,7 @@
       try { await clearEncounter(); setMsg('Encounter vacío.'); }
       catch (error) { setMsg(error.message, true); }
     };
+    global.document.getElementById('combat-stage-placement').onclick = () => global.LuminousCombatStage073?.setPlacing(true);
     render();
     ensureLibraryMaterialized();
     return true;
@@ -519,6 +548,8 @@
     subscribe(ROOTS.actors, 'actors');
     subscribe(ROOTS.units, 'units');
     subscribe(ROOTS.combatants, 'combatants');
+    subscribe('campaña/combate/authority/current/phase', 'authorityPhase');
+    subscribe(ROOTS.state, 'encounter');
     mount();
     return true;
   }
@@ -548,6 +579,7 @@
     deployUnits,
     removeCombatant,
     clearEncounter,
+    requirePlanning,
     ensureLibraryMaterialized,
     repairDeployedPlayerState,
     schedulePlayerStateRepair,

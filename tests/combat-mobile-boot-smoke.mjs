@@ -76,7 +76,15 @@ assert.match(written, /overlay\.classList\.remove\('active','show-label','reveal
 assert.match(written, /await wait\(850\)/);
 assert.match(written, /focusSprite\.getBoundingClientRect\(\)/);
 assert.match(written, /dataset\.viewerRole==='dm'/);
-assert.match(written, /matches\?2\.35:5/);
+assert.match(written, /scale=mode==='enemy'\?1\.65:5/, "Player camera must restore center-capable zoom");
+assert.doesNotMatch(written, /matches\?2\.35:5/, "Reduced mobile zoom left edge-spawn Players outside the visual center");
+// Leftmost formation x = 10%; 5x camera zoom can position that player
+// in the middle without moving its world coordinates or panning outside map bounds.
+for (const viewWidth of [390, 844, 1280]) {
+  const worldX = viewWidth * 0.10;
+  const naturalPixelX = worldX * 5;
+  assert.ok(naturalPixelX >= viewWidth / 2, "Player spawn must be centerable by camera at " + viewWidth);
+}
 
 const economy = load("js/combat-v073-economy-menu.js");
 const camera = load("js/combat-v073-camera-controls.js");
@@ -92,6 +100,7 @@ assert.match(written, /categoryRect=surface\.getBoundingClientRect\(\)/, "Catego
 
 assert.match(camera, /f\.style\.touchAction='none'/);
 assert.ok(!camera.includes("h.style.touchAction='none'"), "Touch gestures must not disable menu scrolling");
+assert.match(camera, /classList\?\.contains\('camera-focus'\)/, "Manual camera resize must preserve director-owned player focus");
 assert.match(css, /#game-container\.combat-compact-menu \.category-surface/);
 assert.match(css, /\.command\[hidden\]/, "Mobile menu must honor hidden class-dependent commands");
 assert.match(css, /\.command\[aria-hidden="true"\]/, "Mobile menu must honor disabled menu visibility");

@@ -217,4 +217,20 @@ const skillPlannerSource = fs.readFileSync(path.join(here, '..', 'js', 'battle-v
 assert.match(skillPlannerSource, /Assets\/Images\/Buttons\/Skills\.png/);
 assert.equal(fs.existsSync(path.join(here, '..', 'Assets', 'Images', 'Buttons', 'Skills.png')), true);
 
+// Player-facing planner must not reveal internal IDs or raw state in its display.
+assert.match(skillPlannerSource, /class="bv074-coin-meta"/);
+assert.match(skillPlannerSource, /class="bv074-coins"/);
+assert.match(skillPlannerSource, /Acción \${index \+ 1}/);
+assert.match(skillPlannerSource, /Selecciona una habilidad/);
+assert.doesNotMatch(skillPlannerSource, /Selected: \${htmlEscape\(state\.selectedSkillId\)}/);
+assert.doesNotMatch(skillPlannerSource, /title="\${htmlEscape\(skill\.id\)}"/);
+const savedStatusLib = globalThis.LuminousStatusLibrary;
+globalThis.LuminousStatusLibrary = { get(id) { return id === "rupture" ? { name: "Rupture", icon: "Assets/Images/Statuses/Rupture.png" } : null; } };
+const iconMarkup = planner.statusBadgesForSkill({ coins: [{ effects: [{ status: "rupture", potency: 2, count: 3 }] }] });
+assert.match(iconMarkup, /Rupture/);
+assert.match(iconMarkup, /Coin 1/);
+assert.match(iconMarkup, /Potency \+2/);
+assert.match(iconMarkup, /Count \+3/);
+assert.doesNotMatch(iconMarkup, /\[object Object\]/);
+globalThis.LuminousStatusLibrary = savedStatusLib;
 console.log('combat-v074-player-skill-planner-smoke: ok');

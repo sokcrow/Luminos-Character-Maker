@@ -55,6 +55,12 @@
   }
 
   function installTimelineAuthority(timeline) {
+    // The packed live runtime passes a sealed queue to its own executor. The
+    // Action runtime below reads a different planner and must not replace it.
+    if (global.LuminousCombatLiveMode === true) {
+      global.__luminousCombatTimelineAuthority = "v0.7.3-live-seeded-client";
+      return true;
+    }
     if (typeof timeline?.executeCombatTimeline !== "function") return false;
     global.executeCombatTimeline = timeline.executeCombatTimeline;
     try { delete global.__luminousLegacyExecuteCombatTimeline; } catch (_) { global.__luminousLegacyExecuteCombatTimeline = undefined; }
@@ -69,7 +75,8 @@
       ...forecast,
       ...timeline,
       version: VERSION,
-      authority: "combat-action-runtime",
+      authority: global.LuminousCombatLiveMode === true ? "seeded-live-runtime" : "combat-action-runtime",
+      executeCombatTimeline: global.LuminousCombatLiveMode === true ? global.executeCombatTimeline : timeline.executeCombatTimeline,
       actionSchema: global.LuminousCombatAction || null,
       actionResolver: global.LuminousCombatActionResolver || null,
       actionRuntime: global.LuminousCombatRuntimeIntegration || null,

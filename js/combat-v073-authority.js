@@ -18,15 +18,18 @@
     started:false,current:{},seed:0,cursor:0,rngState:0,
     authorityRef:null,authorityHandler:null,readyRef:null,readyHandler:null,retryTimer:null,autoStartTimer:null,
     lastCheckpointSeq:0,writeChain:Promise.resolve(),executionChain:Promise.resolve(),hooks:new Map(),localActionSeq:0,localDigests:new Map(),pendingRemoteCheckpoints:new Map(),inFlightActions:0,
-    originalStartRound:null,originalBuildQueue:null,originalCoinEngine:null,runningLocal:false,remoteStart:false,autoStartedRound:0,pendingFinalSnapshot:null
+    originalStartRound:null,originalBuildQueue:null,originalCoinEngine:null,runningLocal:false,remoteStart:false,autoStartedRound:0,pendingFinalSnapshot:null,resumeRuntime:null,lastExecutionJson:null,executingGeneration:null
   };
 
   function adapter(){return global.LuminousCombatLiveAdapter073||null;}
   function adapterState(){return adapter()?.state||null;}
   function runtime(){return global.LuminousCombat073||null;}
+  function playback(){return global.LuminousCombatPlaybackSync||null;}
+  function batchMode(){return playback()?.enabled(state.current)===true;}
   function isDm(){return adapterState()?.role==='dm';}
   function isPlayer(){return adapterState()?.role==='player';}
   function serverTime(){return global.firebase?.database?.ServerValue?.TIMESTAMP||Date.now();}
+  function stateUpdates(value){return Object.fromEntries(Object.entries(value).map(([key,value])=>[`${ROOT.state}/${key}`,value]));}
   function setStatus(text){try{const node=global.document?.getElementById?.('status');if(node)node.textContent=text;}catch(_){}}
   function stable(value){if(Array.isArray(value))return value.map(stable);if(value&&typeof value==='object'){const out={};Object.keys(value).sort().forEach(key=>{if(value[key]!==undefined)out[key]=stable(value[key]);});return out;}return value;}
   function digest(value){const text=JSON.stringify(stable(value));let h=2166136261;for(let i=0;i<text.length;i+=1){h^=text.charCodeAt(i);h=Math.imul(h,16777619);}return(h>>>0).toString(16).padStart(8,'0');}
@@ -35,6 +38,7 @@
   function resetRandom(seed,cursor=0){state.seed=(Number(seed)||1)>>>0;state.rngState=state.seed;state.cursor=0;for(let i=0;i<Math.max(0,Math.trunc(Number(cursor)||0));i+=1)randomRaw();return state.seed;}
   function random(){return state.seed&&['sealed','running'].includes(norm(state.current?.phase))?randomRaw():nativeRandom();}
   function withAuthorityRandom(callback){if(!state.seed||!['sealed','running'].includes(norm(state.current?.phase)))return callback();const previous=global.Math.random;global.Math.random=random;try{return callback();}finally{global.Math.random=previous;}}
+  function withPrivateRandom(callback){const previous=global.Math.random;global.Math.random=nativeRandom;try{return callback();}finally{global.Math.random=previous;}}
 
   function canonicalPlayerId(unit={}){return clean(unit.canonicalPlayerKey||unit.ownerPlayerId||unit.playerId||unit.characterLink?.playerId);}
   function classEntries(unit={}){
@@ -93,6 +97,9 @@
   }
   function compactUnit(unit={}){
     return{
+      ...Object.fromEntries(['inventario_activo','inventario_stash','itemEquipmentRefs','attunedItemInstanceIds','itemInventorySchemaVersion',
+        'spellcastingState','classResources','traitUses','resources','wakePendingRound','retreatVacancy','escapeVacancy','defeated','dead',
+        'deployedRound','deploymentState','replacementClaimed'].filter(key=>unit[key]!==undefined).map(key=>[key,clone(unit[key])])),
       hp:Math.max(0,finite(unit.hp,0)),maxHp:Math.max(1,finite(unit.maxHp,1)),sp:finite(unit.sp,0),
       speed:finite(unit.speed,0),speedBaseRoll:finite(unit.speedBaseRoll,0),speedTie:finite(unit.speedTie,0),speedRollTurn:Math.max(0,Math.trunc(finite(unit.speedRollTurn,0))),
       actionSlots:Math.max(1,Math.trunc(finite(unit.actionSlots??unit.activeSlots,1))),activeSlots:Math.max(1,Math.trunc(finite(unit.activeSlots??unit.actionSlots,1))),
@@ -129,14 +136,15 @@
     const defensiveReactions=Object.fromEntries(activePlayerIds()
       .map(playerId=>[playerId,clean(ready?.[playerId]?.enchantmentReactionItemInstanceId)])
       .filter(([,id])=>id));
-    const seed=makeSeed(round),payload={schemaVersion:1,engineVersion:'0.7.3-authority.7-player-state',round,phase:'sealed',seed,authorityUid:s.uid,plans:clone(plans||{}),aiPlans:collectAiPlans(),defensiveReactions,createdAt:serverTime(),checkpoint:null};
-    const updates={};updates[ROOT.current]=payload;updates[ROOT.state]={phase:'COMBAT_SEALED',round,authorityUid:s.uid,seed,updatedAt:serverTime()};await s.db.ref().update(updates);state.current={...payload,createdAt:Date.now()};resetRandom(seed,0);applyAuthority(payload);return payload;
+    const seed=makeSeed(round);let payload={schemaVersion:1,engineVersion:'0.7.3-authority.9-step-rng',round,phase:'sealed',seed,authorityUid:s.uid,plans:clone(plans||{}),aiPlans:collectAiPlans(),defensiveReactions,createdAt:serverTime(),checkpoint:null};
+    if(playback()?.negotiate(ready||{},activePlayerIds()))payload=await playback().seal(payload);
+    const updates=stateUpdates({phase:'COMBAT_SEALED',active:true,round,authorityUid:s.uid,seed,updatedAt:serverTime()});if(!payload.playback)updates[ROOT.current]=payload;await s.db.ref().update(updates);state.current={...payload,createdAt:Date.now()};resetRandom(seed,0);applyAuthority(payload);return payload;
   }
 
   function planRowsToArray(rows,unit){const converter=global.LuminousCombatRemoteIntents073?.runtimePlan;if(!converter)return[];const plans=[];Object.entries(rows||{}).forEach(([slot,raw])=>{const index=Math.max(0,Number(raw?.sourceSlotIndex??slot)||0);plans[index]=converter(raw,index,unit);});return plans;}
   function replaceLocalPlans(plans){const list=runtime()?.plans?.();if(!Array.isArray(list))return false;list.splice(0,list.length,...plans);global.renderAllPlannedSlots?.();return true;}
   function applyAuthority(data=state.current){
-    const s=adapterState(),combat=runtime();if(!combat?.combatants||!s||Number(data?.round)!==Number(s.round))return false;const units=combat.combatants();
+    const s=adapterState(),combat=runtime();if(!combat?.combatants||!s||Number(data?.round)!==Number(s.round))return false;const units=combat.combatants();if(!Object.keys(units).length)return false;
     if(s.role==='player'&&s.playerId&&data.plans?.[s.playerId]){const own=Object.values(units).find(unit=>unit?.controlled==='player'||canonicalPlayerId(unit)===s.playerId);replaceLocalPlans(planRowsToArray(data.plans[s.playerId],own));}else if(s.role==='dm')replaceLocalPlans([]);
     for(const ownerRows of Object.values(data.plans||{})){const sample=Object.values(ownerRows||{})[0];if(!sample)continue;const unit=sample.unitId&&units[sample.unitId]?units[sample.unitId]:Object.values(units).find(row=>canonicalPlayerId(row)===clean(sample.scheduledBy));if(unit?.controlled==='remote')unit.autoPlans=planRowsToArray(ownerRows,unit);}
     for(const [unitId,rows] of Object.entries(data.aiPlans||{})){const unit=units[unitId];if(unit?.controlled==='ai')unit.autoPlans=planRowsToArray(rows,unit);}
@@ -169,11 +177,15 @@
   }
   function receiveCheckpoint(row){const seq=Math.max(0,Number(row?.seq)||0);if(!seq||Number(row.round)!==Number(adapterState()?.round)||isDm())return;state.pendingRemoteCheckpoints.set(seq,clone(row));reconcileCheckpoint(seq);}
   function publishActionCheckpoint(type='action'){
-    if(!isDm()||norm(state.current?.phase)!=='running')return false;const s=adapterState();if(!s?.db?.ref)return false;const seq=state.localActionSeq,snapshot=snapshotRuntime(),row={round:Number(state.current.round)||Number(s.round)||1,seq,type,rngCursor:state.cursor,digest:checkpointDigest(snapshot,state.current.round),combatants:snapshot,updatedAt:serverTime()};state.lastCheckpointSeq=Math.max(state.lastCheckpointSeq,seq);state.current.checkpoint=row;const updates={[`${ROOT.current}/checkpoint`]:row,...playerVitalFirebaseUpdates(snapshot)};state.writeChain=state.writeChain.then(()=>s.db.ref().update(updates)).catch(error=>console.error('[Combat073 Authority checkpoint]',error));return row;
+    if(!isDm()||norm(state.current?.phase)!=='running')return false;const s=adapterState();if(!s?.db?.ref)return false;const seq=state.localActionSeq,snapshot=snapshotRuntime(),row={round:Number(state.current.round)||Number(s.round)||1,seq,type,rngCursor:state.cursor,digest:checkpointDigest(snapshot,state.current.round),combatants:snapshot,updatedAt:serverTime()};state.lastCheckpointSeq=Math.max(state.lastCheckpointSeq,seq);state.current.checkpoint=row;
+    if(batchMode()&&state.lastExecutionJson)row.executionJson=state.lastExecutionJson;
+    const batches=batchMode()?playback().batchUpdates(row):{};
+    const updates={[`${ROOT.current}/checkpoint`]:row,...playerVitalFirebaseUpdates(snapshot),...batches,...(batchMode()?resourceFirebaseUpdates(snapshot):{})};
+    state.writeChain=state.writeChain.then(()=>s.db.ref().update(batchMode()?playback().commitUpdates(updates):updates));return row;
   }
   function queueCheckpoint(type='state'){return publishActionCheckpoint(type);}
 
-  function wrapSyncMechanic(name,{deterministic=true}={}){const original=global[name];if(typeof original!=='function'||original.__luminousAuthorityWrapped)return false;const wrapped=function(...args){return deterministic?withAuthorityRandom(()=>original.apply(this,args)):original.apply(this,args);};wrapped.__luminousAuthorityWrapped=true;wrapped.__luminousAuthorityOriginal=original;global[name]=wrapped;state.hooks.set(name,original);if(global.LuminousCombatHUD?.[name]===original)global.LuminousCombatHUD[name]=wrapped;return true;}
+  function wrapSyncMechanic(name,{deterministic=true}={}){const original=global[name];if(typeof original!=='function'||original.__luminousAuthorityWrapped)return false;const wrapped=function(...args){return deterministic?withAuthorityRandom(()=>original.apply(this,args)):withPrivateRandom(()=>original.apply(this,args));};wrapped.__luminousAuthorityWrapped=true;wrapped.__luminousAuthorityOriginal=original;global[name]=wrapped;state.hooks.set(name,original);if(global.LuminousCombatHUD?.[name]===original)global.LuminousCombatHUD[name]=wrapped;return true;}
   function wrapAsyncMechanic(name){const original=global[name];if(typeof original!=='function'||original.__luminousAuthorityWrapped)return false;const wrapped=async function(...args){return await original.apply(this,args);};wrapped.__luminousAuthorityWrapped=true;wrapped.__luminousAuthorityOriginal=original;global[name]=wrapped;state.hooks.set(name,original);return true;}
   function patchCoinEngine(){const engine=global.LuminousCoinEngine;if(!engine?.runAnimatedRoll)return false;if(engine.__luminousAuthorityCoinEngine)return true;state.originalCoinEngine=state.originalCoinEngine||engine;global.LuminousCoinEngine=Object.freeze({...engine,__luminousAuthorityCoinEngine:true,rollSide:(headsChance,rng)=>engine.rollSide(headsChance,rng||random),runAnimatedRoll:options=>engine.runAnimatedRoll({...options,rng:options?.rng||random})});return true;}
   function patchExecutionQueue(){
@@ -186,6 +198,7 @@
     const wrapped=function(entry,...rest){
       const scope=this,adjusted=entry?.controller==='remote'&&entry?.plan?.type==='items'?{...entry,controller:'player'}:entry;
       const run=async()=>{
+        if(state.executingGeneration)playback().assertOwner(state.current);
         state.inFlightActions+=1;
         try{
           const owner=runtime()?.combatants?.()?.[adjusted?.ownerId];
@@ -195,7 +208,7 @@
           const result=await original.call(scope,adjusted,...rest);
           // Skill-driven Enchantment wear touches the canonical inventory,
           // even though the combat queue entry itself is not an Item action.
-          if(isDm()&&canonicalPlayerId(owner)&&
+          if(isDm()&&!batchMode()&&canonicalPlayerId(owner)&&
               (isItemQueueEntry(adjusted)||owner.__luminousEnchantmentInventoryDirty===true)){
             try{
               const saved=await persistPlayerInventory(owner,adjusted?.ownerId);
@@ -207,27 +220,43 @@
         }
         finally{
           state.inFlightActions=Math.max(0,state.inFlightActions-1);state.localActionSeq+=1;
+          if(state.executingGeneration)playback().assertOwner(state.current);
           if(isDm()){
             try{global.LuminousCombatDeploymentBridge073?.reconcileDefeatedRuntime?.({source:'queue_entry',entry:adjusted,round:Number(state.current?.round)||Number(adapterState()?.round)||1});}
             catch(error){console.error('[Combat073 Authority deployment reconcile]',error);}
           }
           const snapshot=snapshotRuntime(),localDigest=checkpointDigest(snapshot,state.current.round);state.localDigests.set(state.localActionSeq,localDigest);
-          if(isDm())publishActionCheckpoint(`queue_entry:${adjusted?.ownerId||'unknown'}:${adjusted?.localIndex??0}`);else reconcileCheckpoint(state.localActionSeq);
+          if(isDm()){
+            if(batchMode())state.lastExecutionJson=JSON.stringify(global.LuminousCombatStepRuntime.captureExecution(rest[0],rest[1]));
+            publishActionCheckpoint(`queue_entry:${adjusted?.ownerId||'unknown'}:${adjusted?.localIndex??0}`);
+            if(batchMode())await state.writeChain;
+          }else reconcileCheckpoint(state.localActionSeq);
         }
       };
       const task=state.executionChain.then(run,run);state.executionChain=task.catch(()=>{});return task;
     };
     wrapped.__luminousAuthorityQueueEntry=true;wrapped.__luminousAuthorityQueueEntryOriginal=original;global.executeQueueEntry=wrapped;return true;
   }
-  function installHooks(){patchCoinEngine();patchExecutionQueue();patchExecuteQueueEntry();['processConditionTurnStart','rollCriticalHit','randomIntInclusive','rollUnitSpeed','rollPower4Save','rollAbilitySkillCheck','smartTargetScore','assignTargetIntents','autoActionScore','shuffle','damageCombatant','healCombatant','damageCombatantSP','healCombatantSP','applyCombatStatus','removeCombatStatus','consumeStatusCount','setUnitActionSlotCount','rollTurnSpeeds'].forEach(name=>wrapSyncMechanic(name));['resolveSkillClash','resolveUnopposedCoinAction','resolveSaveOnlySpell'].forEach(wrapAsyncMechanic);patchStartRound();return true;}
+  function installHooks(){patchCoinEngine();patchExecutionQueue();patchExecuteQueueEntry();['beginConcentration','processConditionTurnStart','rollCriticalHit','randomIntInclusive','rollUnitSpeed','rollPower4Save','rollAbilitySkillCheck','damageCombatant','healCombatant','damageCombatantSP','healCombatantSP','applyCombatStatus','removeCombatStatus','consumeStatusCount','setUnitActionSlotCount','rollTurnSpeeds'].forEach(name=>wrapSyncMechanic(name));['smartTargetScore','assignTargetIntents','autoActionScore','shuffle'].forEach(name=>wrapSyncMechanic(name,{deterministic:false}));['resolveSkillClash','resolveUnopposedCoinAction','resolveSaveOnlySpell'].forEach(wrapAsyncMechanic);patchStartRound();return true;}
 
-  function armReady(){const button=global.document?.getElementById?.('ready');if(button?.getAttribute('aria-pressed')==='true')return true;if(typeof global.setPlanReady==='function'){global.setPlanReady();return button?.getAttribute('aria-pressed')==='true';}return false;}
   async function setRunning(current){
-    const s=adapterState(),startedAt=serverTime(),updates={};updates[`${ROOT.current}/phase`]='running';updates[`${ROOT.current}/startedAt`]=startedAt;updates[ROOT.state]={phase:'COMBAT',round:Number(current.round)||Number(s.round)||1,authorityUid:s.uid,seed:current.seed,updatedAt:serverTime()};await s.db.ref().update(updates);
+    const s=adapterState(),startedAt=serverTime(),updates={};global.LuminousCombatStepRuntime?.capturePresentation?.(false);if(playback()?.enabled(current))Object.assign(updates,playback().beginUpdates(current));updates[`${ROOT.current}/phase`]='running';updates[`${ROOT.current}/startedAt`]=startedAt;Object.assign(updates,stateUpdates({phase:'COMBAT',active:true,round:Number(current.round)||Number(s.round)||1,authorityUid:s.uid,seed:current.seed,updatedAt:serverTime()}));await s.db.ref().update(updates);
     state.current={...current,phase:'running',startedAt:Date.now(),checkpoint:null};state.lastCheckpointSeq=0;state.localActionSeq=0;state.localDigests.clear();state.pendingRemoteCheckpoints.clear();state.inFlightActions=0;state.executionChain=Promise.resolve();state.writeChain=Promise.resolve();resetRandom(current.seed,0);return state.current;
   }
   function domRound(fallback){const node=global.document?.getElementById?.('round'),value=Math.trunc(Number(node?.textContent));return Number.isFinite(value)&&value>0?value:fallback;}
-  function combatantFirebaseUpdates(snapshot){const updates={};for(const [id,row] of Object.entries(snapshot||{})){for(const [key,value] of Object.entries(row||{}))updates[`${ROOT.combatants}/${id}/${key}`]=value;updates[`${ROOT.combatants}/${id}/actionSlotIndex`]=Object.fromEntries(Array.from({length:Math.max(1,Number(row.actionSlots)||1)},(_,i)=>[String(i),true]));}return updates;}
+  function combatantFirebaseUpdates(snapshot){const updates={};for(const [id,row] of Object.entries(snapshot||{})){if(batchMode()&&!adapterState()?.combatants?.[id])continue;for(const [key,value] of Object.entries(row||{}))updates[`${ROOT.combatants}/${id}/${key}`]=value;updates[`${ROOT.combatants}/${id}/actionSlotIndex`]=Object.fromEntries(Array.from({length:Math.max(1,Number(row.actionSlots)||1)},(_,i)=>[String(i),true]));}return updates;}
+  function resourceFirebaseUpdates(snapshot){
+    const updates={},units=runtime()?.combatants?.()||{};
+    for(const [id,row]of Object.entries(snapshot||{})){
+      const playerId=canonicalPlayerId(units[id]);if(!playerId)continue;
+      for(const key of ['inventario_activo','inventario_stash','itemEquipmentRefs','attunedItemInstanceIds','itemInventorySchemaVersion','spellcastingState','classResources','traitUses','resources']){
+        if(row[key]===undefined)continue;
+        updates[`campaña/jugadores/${playerId}/${key}`]=clone(row[key]);
+        if(!batchMode()||adapterState()?.combatants?.[id])updates[`${ROOT.combatants}/${id}/${key}`]=clone(row[key]);
+      }
+    }
+    return updates;
+  }
   function playerVitalSnapshot(snapshot={}){
     const live=runtime()?.combatants?.()||{},out={};
     for(const [id,row] of Object.entries(snapshot||{})){
@@ -249,35 +278,54 @@
   }
   function playerVitalFirebaseUpdates(snapshot){try{return global.LuminousPlayerVitalsRealtimeBridge?.firebaseUpdatesForSnapshot?.(playerVitalSnapshot(snapshot))||{};}catch(error){console.error('[Combat073 Authority vitals]',error);return{};}}
   async function afterRound({completedRound,nextRound}={}){
-    if(!isDm())return false;const s=adapterState();if(!s?.db?.ref)return false;const done=Math.max(1,Number(completedRound)||Number(state.current.round)||1),next=Math.max(done+1,Number(nextRound)||done+1),snapshot=snapshotRuntime(),row={round:done,seq:state.lastCheckpointSeq+1,type:'round_complete',rngCursor:state.cursor,digest:checkpointDigest(snapshot,done),combatants:snapshot,updatedAt:serverTime()};const updates={...combatantFirebaseUpdates(snapshot),...playerVitalFirebaseUpdates(snapshot)};updates[`${ROOT.current}/phase`]='complete';updates[`${ROOT.current}/resultDigest`]=row.digest;updates[`${ROOT.current}/checkpoint`]=row;updates[ROOT.state]={phase:'PRE_COMBAT_PLANNING',round:next,authorityUid:s.uid,updatedAt:serverTime()};updates[ROOT.ready]=null;updates[ROOT.plans]=null;await s.db.ref().update(updates);state.current={...state.current,phase:'complete',resultDigest:row.digest,checkpoint:row};state.lastCheckpointSeq=row.seq;return row;
+    if(state.executingGeneration)playback().assertOwner(state.current);
+    if(!isDm())return false;const s=adapterState();if(!s?.db?.ref)return false;const done=Math.max(1,Number(completedRound)||Number(state.current.round)||1),next=Math.max(done+1,Number(nextRound)||done+1),snapshot=snapshotRuntime(),row={round:done,seq:state.lastCheckpointSeq+1,type:'round_complete',rngCursor:state.cursor,digest:checkpointDigest(snapshot,done),combatants:snapshot,updatedAt:serverTime()};const updates={...combatantFirebaseUpdates(snapshot),...playerVitalFirebaseUpdates(snapshot),...(batchMode()?resourceFirebaseUpdates(snapshot):{}),...(batchMode()?playback().batchUpdates(row):{})};updates[`${ROOT.current}/phase`]='complete';updates[`${ROOT.current}/resultDigest`]=row.digest;updates[`${ROOT.current}/checkpoint`]=row;Object.assign(updates,stateUpdates({phase:'PRE_COMBAT_PLANNING',active:true,round:next,authorityUid:s.uid,updatedAt:serverTime()}));updates[ROOT.ready]=null;updates[ROOT.plans]=null;await s.db.ref().update(batchMode()?playback().commitUpdates(updates):updates);state.current={...state.current,phase:'complete',resultDigest:row.digest,checkpoint:row};state.lastCheckpointSeq=row.seq;return row;
   }
   async function requestStartRound(){
     if(state.runningLocal)return false;const s=adapterState(),original=state.originalStartRound;if(!s?.db?.ref||typeof original!=='function')return false;if(isPlayer()&&!state.remoteStart){setStatus('COMBAT · esperando resolución autoritativa del DM');return false;}state.runningLocal=true;
     try{
       let current=state.current;
-      if(isDm()){if(Number(current?.round)!==Number(s.round)||!['sealed','running'].includes(norm(current?.phase)))current=await sealRound();if(norm(current.phase)!=='running')current=await setRunning(current);}else{state.remoteStart=false;if(Number(current?.round)!==Number(s.round)||norm(current?.phase)!=='running')return false;state.inFlightActions=0;state.executionChain=Promise.resolve();resetRandom(current.seed,0);}
-      applyAuthority(current);armReady();const completedRound=Number(current.round)||Number(s.round)||1;await original();await state.executionChain;
-      if(isDm()){await state.writeChain;await afterRound({completedRound,nextRound:domRound(completedRound+1)});}else if(state.pendingFinalSnapshot){applySnapshot(state.pendingFinalSnapshot.combatants||{});if(Number.isFinite(Number(state.pendingFinalSnapshot.rngCursor)))resetRandom(current.seed,Number(state.pendingFinalSnapshot.rngCursor));state.pendingFinalSnapshot=null;}
+      if(isDm()){
+        if(Number(current?.round)!==Number(s.round)||!['sealed','running'].includes(norm(current?.phase)))current=await sealRound();
+        if(playback()?.enabled(current)){
+          playback().assertOwner(current);
+          if(norm(current.phase)==='running'&&!state.resumeRuntime)throw new Error('Este turno ya fue iniciado. Espera a que la pestaña original confirme los resultados.');
+        }
+        if(norm(current.phase)!=='running')current=await setRunning(current);
+      }else{state.remoteStart=false;if(batchMode())return false;if(Number(current?.round)!==Number(s.round)||norm(current?.phase)!=='running')return false;state.autoStartedRound=Number(current.round);state.inFlightActions=0;state.executionChain=Promise.resolve();resetRandom(current.seed,0);}
+      state.executingGeneration=current.playback?current.id:null;
+      applyAuthority(current);const completedRound=Number(current.round)||Number(s.round)||1;await original();await state.executionChain;
+      const nextRound=domRound(completedRound);
+      if(nextRound<=completedRound)throw new Error('No se pudo completar el turno. Vuelve a abrir el combate.');
+      if(isDm()){await state.writeChain;await afterRound({completedRound,nextRound});}else if(state.pendingFinalSnapshot){applySnapshot(state.pendingFinalSnapshot.combatants||{});if(Number.isFinite(Number(state.pendingFinalSnapshot.rngCursor)))resetRandom(current.seed,Number(state.pendingFinalSnapshot.rngCursor));state.pendingFinalSnapshot=null;}
       return true;
-    }catch(error){console.error('[Combat073 Authority start]',error);setStatus(`COMBAT AUTHORITY · ${error?.message||error}`);return false;}finally{state.runningLocal=false;}
+    }catch(error){console.error('[Combat073 Authority start]',error);setStatus(error?.message||'No se pudo continuar el turno. Vuelve a abrir el combate.');return false;}finally{state.runningLocal=false;state.resumeRuntime=null;state.executingGeneration=null;if(adapterState()?.firebaseReady)adapter()?.scheduleHydrate?.();}
   }
   function patchStartRound(){const hud=global.LuminousCombatHUD,original=state.originalStartRound||hud?.startRound||global.startRound;if(typeof original!=='function')return false;state.originalStartRound=original.__luminousAuthorityStartOriginal||original;requestStartRound.__luminousAuthorityStart=true;requestStartRound.__luminousAuthorityStartOriginal=state.originalStartRound;global.startRound=requestStartRound;if(hud)hud.startRound=requestStartRound;const button=global.document?.getElementById?.('start-round');if(button)button.onclick=requestStartRound;return true;}
   function allReadySnapshot(rows={}){const round=Number(adapterState()?.round)||1,ids=activePlayerIds();return ids.length>0&&ids.every(id=>rows?.[id]?.ready===true&&Number(rows[id].round)===round);}
   function maybeAutoStart(rows={}){if(!isDm()||state.runningLocal||!allReadySnapshot(rows))return false;const phase=norm(adapterState()?.combatState);if(!['pre_combat_planning','planning'].includes(phase))return false;if(state.autoStartTimer)return true;state.autoStartTimer=global.setTimeout(async()=>{state.autoStartTimer=null;const latest=await read(ROOT.ready).catch(()=>({}));if(allReadySnapshot(latest||{}))await requestStartRound();},120);return true;}
   function onAuthority(snapshot){
-    const data=snapshot.val()||{},previousSeed=state.current?.seed,previousRound=state.current?.round;state.current=data;if(data.seed&&Number(data.round)===Number(adapterState()?.round)&&!state.runningLocal&&(data.seed!==previousSeed||data.round!==previousRound))resetRandom(data.seed,0);applyAuthority(data);if(data.checkpoint)receiveCheckpoint(data.checkpoint);
+    const data=snapshot.val()||{},previous=state.current,previousSeed=previous?.seed,previousRound=previous?.round;state.current=data;if(data.seed&&Number(data.round)===Number(adapterState()?.round)&&!state.runningLocal&&(data.seed!==previousSeed||data.round!==previousRound))resetRandom(data.seed,0);applyAuthority(data);if(data.checkpoint)receiveCheckpoint(data.checkpoint);
+    if(previous?.playback&&!data.playback&&isPlayer()){
+      playback()?.disconnectConsumer();state.runningLocal=false;
+      global.LuminousCombatStepRuntime?.lockPlanning(false);adapter()?.scheduleHydrate?.();
+    }
+    playback()?.refreshRecoveryControl(data);
+    if(playback()?.enabled(data)&&isPlayer()){
+      playback().observe(data).catch(error=>console.error('[Combat playback]',error));
+      return;
+    }
     if(isPlayer()&&norm(data.phase)==='running'&&Number(data.round)===Number(adapterState()?.round)&&state.autoStartedRound!==Number(data.round)){
-      state.autoStartedRound=Number(data.round);
-      if(Number(data.checkpoint?.seq)>0&&data.checkpoint?.combatants){applySnapshot(data.checkpoint.combatants);resetRandom(data.seed,Number(data.checkpoint.rngCursor)||0);setStatus(`TURN ${data.round} · COMBAT · sincronizado al checkpoint ${data.checkpoint.seq}`);}
+      if(Number(data.checkpoint?.seq)>0&&data.checkpoint?.combatants){state.autoStartedRound=Number(data.round);applySnapshot(data.checkpoint.combatants);resetRandom(data.seed,Number(data.checkpoint.rngCursor)||0);setStatus(`TURN ${data.round} · COMBAT · sincronizado al checkpoint ${data.checkpoint.seq}`);}
       else{state.remoteStart=true;global.setTimeout(requestStartRound,80);}
     }
     if(isPlayer()&&norm(data.phase)==='complete'&&data.checkpoint?.combatants){if(state.runningLocal)state.pendingFinalSnapshot=clone(data.checkpoint);else{applySnapshot(data.checkpoint.combatants);if(Number.isFinite(Number(data.checkpoint.rngCursor))&&data.seed)resetRandom(data.seed,Number(data.checkpoint.rngCursor));}}
   }
-  function bind(){const s=adapterState();if(!s?.db?.ref||!s.user)return false;if(state.authorityRef)return true;state.authorityRef=s.db.ref(ROOT.current);state.authorityHandler=onAuthority;state.authorityRef.on('value',state.authorityHandler,error=>console.error('[Combat073 Authority]',error));state.readyRef=s.db.ref(ROOT.ready);state.readyHandler=snapshot=>maybeAutoStart(snapshot.val()||{});state.readyRef.on('value',state.readyHandler,error=>console.error('[Combat073 Authority ready]',error));return true;}
+  function bind(){const s=adapterState();if(!s?.db?.ref||!s.user)return false;if(state.authorityRef)return true;playback()?.start(global.LuminousCombatAuthority073);state.authorityRef=s.db.ref(ROOT.current);state.authorityHandler=onAuthority;state.authorityRef.on('value',state.authorityHandler,error=>console.error('[Combat073 Authority]',error));state.readyRef=s.db.ref(ROOT.ready);state.readyHandler=snapshot=>maybeAutoStart(snapshot.val()||{});state.readyRef.on('value',state.readyHandler,error=>console.error('[Combat073 Authority ready]',error));return true;}
   function start(){if(state.started)return true;state.started=true;installHooks();const attempt=()=>{installHooks();if(bind())return true;state.retryTimer=global.setTimeout(attempt,200);return false;};attempt();return true;}
-  function stop(){if(state.retryTimer)global.clearTimeout(state.retryTimer);if(state.autoStartTimer)global.clearTimeout(state.autoStartTimer);if(state.authorityRef&&state.authorityHandler)state.authorityRef.off('value',state.authorityHandler);if(state.readyRef&&state.readyHandler)state.readyRef.off('value',state.readyHandler);state.authorityRef=state.authorityHandler=state.readyRef=state.readyHandler=null;state.started=false;}
+  function stop(){if(state.retryTimer)global.clearTimeout(state.retryTimer);if(state.autoStartTimer)global.clearTimeout(state.autoStartTimer);if(state.authorityRef&&state.authorityHandler)state.authorityRef.off('value',state.authorityHandler);if(state.readyRef&&state.readyHandler)state.readyRef.off('value',state.readyHandler);playback()?.stop();state.authorityRef=state.authorityHandler=state.readyRef=state.readyHandler=null;state.started=false;}
 
   global.addEventListener('luminous:combat073-runtime-ready',()=>{installHooks();applyAuthority();});global.addEventListener('luminous:combat073-hydrated',()=>{installHooks();applyAuthority();});global.addEventListener('beforeunload',stop,{once:true});
-  global.LuminousCombatAuthority073=Object.freeze({version:'0.7.3-authority.7-player-state',ROOT,state,start,stop,isDm,isPlayer,random,resetRandom,withAuthorityRandom,canonicalPlayerId,classEntries,isSpellcaster,validateSpellPlans,queueEntryKind,isItemQueueEntry,persistPlayerInventory,snapshotRuntime,digest,checkpointDigest,queueCheckpoint,sealRound,applyAuthority,applySnapshot,combatantFirebaseUpdates,playerVitalSnapshot,playerVitalFirebaseUpdates,afterRound,installHooks,requestStartRound,serializeRuntimePlan,readyComplete,allReadySnapshot});
+  global.LuminousCombatAuthority073=Object.freeze({version:'0.7.3-authority.9-step-rng',ROOT,state,start,stop,isDm,isPlayer,random,resetRandom,withAuthorityRandom,canonicalPlayerId,classEntries,isSpellcaster,validateSpellPlans,queueEntryKind,isItemQueueEntry,persistPlayerInventory,snapshotRuntime,digest,checkpointDigest,queueCheckpoint,sealRound,applyAuthority,applySnapshot,combatantFirebaseUpdates,playerVitalSnapshot,playerVitalFirebaseUpdates,afterRound,installHooks,requestStartRound,serializeRuntimePlan,readyComplete,allReadySnapshot});
   start();
 })(window);

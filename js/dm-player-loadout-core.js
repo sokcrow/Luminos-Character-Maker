@@ -6,7 +6,7 @@
     return;
   }
 
-  const VERSION = "0.1.0";
+  const VERSION = "0.1.1";
   const TIER_COPIES = Object.freeze({ 1: 3, 2: 2, 3: 1 });
   const clean = (value) => String(value ?? "").trim();
   const normalizeId = (value) => clean(value).toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
@@ -198,6 +198,27 @@
     return deck;
   }
 
+  // Resolve exactly one deployed Player using canonical identity, never by display name.
+  // This is separate from the Unit Library: an active Encounter owns a snapshot.
+  function activeCombatantForPlayer(playerId, combatants = {}, ownerUid = "") {
+    const wanted = clean(playerId);
+    const uid = clean(ownerUid);
+    if (!wanted) return { ok: false, reason: "PLAYER_NOT_SELECTED", key: null };
+    const matches = Object.entries(combatants || {}).filter(([key, unit]) => {
+      if (!unit || typeof unit !== "object") return false;
+      const isPlayer = unit.isPlayer === true || clean(unit.actorCategory || unit.category || unit.type).toLowerCase() === "player" ||
+        clean(unit.canonicalScope).toLowerCase() === "player";
+      if (!isPlayer) return false;
+      const identities = [unit.canonicalPlayerKey, unit.ownerPlayerId, unit.playerId, unit.characterLink?.playerId, unit.actorRef?.scope === "players" ? unit.actorRef?.id : null];
+      if (!identities.map(clean).includes(wanted)) return false;
+      const combatOwnerUid = clean(unit.canonicalOwnerUid || unit.ownerUid || unit.characterLink?.uid);
+      return !(uid && combatOwnerUid && uid !== combatOwnerUid);
+    });
+    if (matches.length > 1) return { ok: false, reason: "AMBIGUOUS_ACTIVE_COMBATANTS", key: null };
+    if (!matches.length) return { ok: false, reason: "NOT_DEPLOYED", key: null };
+    return { ok: true, reason: null, key: matches[0][0] };
+  }
+
   const api = Object.freeze({
     VERSION,
     TIER_COPIES,
@@ -217,6 +238,7 @@
     buildSkillDeckUpdates,
     buildSpellUpdates,
     deckFromPlayer,
+    activeCombatantForPlayer,
   });
 
   global.LuminousDmPlayerLoadoutCore = api;
