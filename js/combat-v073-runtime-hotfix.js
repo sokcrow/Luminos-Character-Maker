@@ -73,10 +73,12 @@
     s.firebaseReady=true;
     subscribeAdapter(bridge.ROOTS.players,value=>{s.players=value&&typeof value==='object'?value:{};});
     subscribeAdapter(bridge.ROOTS.combatants,value=>{s.combatants=value&&typeof value==='object'?value:{};});
-    subscribeAdapter(bridge.ROOTS.skills,value=>{s.skills=value&&typeof value==='object'?value:{};});
     subscribeAdapter(bridge.ROOTS.state,value=>{const parsed=phaseAndRound(value);s.combatState=parsed.phase;s.round=parsed.round;s.presentation=value?.presentation==='simple'?'simple':'full';global.LuminousCombatHudMotion073?.applyPreference?.();});
     s.db.ref(bridge.ROOTS.dmUid).once('value').then(snapshot=>{const uid=clean(snapshot.val());if(uid)s.dmUid=uid;bridge.scheduleHydrate?.();}).catch(()=>{});
     s.lastSignature='';
+    // Resume the same sparse catalog used at boot. A bulk RTDB snapshot here
+    // used to erase bundled assigned Skills when returning to the combat tab.
+    global.LuminousCombatLibraryClient073?.ensureSkills?.({force:true}).catch(error=>console.error('[Combat073 Skill resume]',error));
     bridge.scheduleHydrate?.();
     return true;
   }

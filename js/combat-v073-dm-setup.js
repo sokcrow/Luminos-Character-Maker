@@ -460,6 +460,7 @@
     const patch = {};
     fields.forEach((key) => {
       if (built[key] === undefined) return;
+      if (built[key] === null && current[key] == null) return;
       if (JSON.stringify(current[key]) !== JSON.stringify(built[key])) patch[key] = clone(built[key]);
     });
     return patch;
@@ -494,15 +495,19 @@
         if (!['setup','planning','pre_combat_planning'].includes(phase)) return;
         let changed = false;
         const combatants = { ...(combat.combatants || {}) };
+        const plannedActions = { ...(combat.plannedActions || {}) }, readyPlayers = { ...(combat.readyPlayers || {}) };
         for (const [key, current] of Object.entries(combatants)) {
           if (!isPlayerUnit(current || {})) continue;
           const playerId = canonicalPlayerId(current), player = state.players?.[playerId];
           if (!player) continue;
           const patch = syncFieldsFromBuiltPlayer(current, buildPlayer(playerId, player));
           if (!Object.keys(patch).length) continue;
+          if (['skillDeck','skillIds','skillSlotIds','equippedSkillIndex'].some(field => field in patch)) {
+            delete plannedActions[playerId]; delete readyPlayers[playerId];
+          }
           combatants[key] = { ...current, ...patch }; changed = true;
         }
-        return changed ? { ...combat, combatants } : undefined;
+        return changed ? { ...combat, combatants, plannedActions, readyPlayers } : undefined;
       }, undefined, false);
       return result.committed;
     } finally { if (hold) ref.off('value', hold); }

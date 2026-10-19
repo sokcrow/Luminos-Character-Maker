@@ -56,6 +56,12 @@ for(const mobile of [false,true])test(`assigned catalog Skills survive stale Uni
     expect(result.checkpoint.combatants['enemy:dummy'].hp).toBeLessThan(150);
     await page.reload();await page.waitForFunction(()=>window.LuminousCombat073?.uiState().round===2);
     await page.waitForFunction(ids=>ids.every(id=>window.LuminousCombatLiveAdapter073.state.skills[id]),Object.values(deck));
+    await page.evaluate(()=>{
+      window.LuminousCombatRuntimeHotfix073.clearAdapterRealtime();
+      window.LuminousCombatLiveAdapter073.state.skills={};
+      window.LuminousCombatRuntimeHotfix073.resumeAdapterRealtime();
+    });
+    await page.waitForFunction(ids=>ids.every(id=>window.LuminousCombatLiveAdapter073.state.skills[id]),Object.values(deck));
     for(const s of sessions){expect(s.errors).toEqual([]);expect(s.forbidden).toEqual([]);}
     fs.writeFileSync(`${ARTIFACTS}/skills-clash-${mobile?'mobile':'desktop'}.json`,JSON.stringify({selected,evidence,result,errors:sessions.map(s=>({errors:s.errors,forbidden:s.forbidden}))},null,2));
   }finally{for(const s of sessions)await s.context.close();}
