@@ -32,7 +32,8 @@ const liveSyncEnd = plans.indexOf('function queue', liveSyncStart);
 const liveSyncBody = plans.slice(liveSyncStart, liveSyncEnd);
 assert.ok(liveSyncBody.includes('targetIntents:targets'), 'non-READY Planning sync must publish target intent');
 assert.ok(!liveSyncBody.includes('plannedActions'), 'non-READY Planning must not stream chosen Skills/Spells/Items/Traits');
-assert.ok(plans.includes('ready&&ctx.plans[i]?payloadFor'), 'full actions must be persisted only when READY seals the choice');
+assert.ok(plans.includes('if(ready&&ctx.plans[i])') && plans.includes('payloadFor(ctx.plans[i],i,ctx.unitId,ctx.s)'), 'full actions must be persisted only when READY seals the choice');
+assert.ok(plans.includes('saved[i]?.schedulerUid===ctx.s.uid'), 'missing Action Slots must never trigger unauthorized Firebase deletions');
 assert.ok(plans.includes('targetSide') && plans.includes('itemType'), 'sealed support-item metadata must survive Firebase plan sync');
 assert.ok(plans.includes("mode==='targets'?syncLiveTargets(detail):syncReady(detail)"), 'READY and live-target writes must stay separated');
 
