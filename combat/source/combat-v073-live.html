@@ -6107,9 +6107,9 @@ function setPlanReady(){
   }
   if(unitActionBlocked(combatData[PLAYER_ID],round))plannedActions=[];
   planReady=true;
+  ready.textContent='CANCEL READY';
   $('game-container').classList.add('ready-plan-visible');
   setCameraFocus('full',false);
-  ready.textContent='CANCEL READY';
   ready.classList.add('locked');
   ready.setAttribute('aria-pressed','true');
   renderAllPlannedSlots();
@@ -6168,7 +6168,7 @@ async function playTurnTransition(turnNumber,{initial=false}={}){
   await wait(700);
   overlay.classList.remove('active','show-label','reveal');
   await wait(initial?420:260);
-  setPlayerMenuZoom(true);
+  setPlayerMenuZoom(!planReady);
   await wait(500);
   game.classList.remove('intro-running');
   layoutRadialCommands()
