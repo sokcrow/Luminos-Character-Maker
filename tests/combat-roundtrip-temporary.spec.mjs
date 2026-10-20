@@ -21,7 +21,7 @@ async function seed(){
 }
 async function open(browser,role,viewport,dashboard=false){
  const context=await browser.newContext({viewport,hasTouch:viewport.width<900,isMobile:viewport.width<900});const page=await context.newPage();page.errors=[];page.blocked=[];page.setDefaultTimeout(25000);
- page.on('pageerror',error=>{page.errors.push(error.message);console.log(role,'PAGEERROR',error.message)});page.on('console',m=>{if(m.type()==='error'&&!/Failed to load resource/.test(m.text()))console.log(role,'CONSOLE',m.text())});page.on('dialog',async dialog=>{page.lastDialog=dialog.message();await dialog.accept();});
+ page.on('pageerror',error=>{page.errors.push(error.message);console.log(role,'PAGEERROR',error.stack||error.message)});page.on('console',m=>{if(m.type()==='error'&&!/Failed to load resource/.test(m.text()))console.log(role,'CONSOLE',m.text())});page.on('dialog',async dialog=>{page.lastDialog=dialog.message();await dialog.accept();});
  await page.addInitScript(()=>{window.__qaEvents=[];window.__qaSeen=new Set();window.__qaHud=false;window.__qaAnimation=false;setInterval(()=>{for(const event of window.LuminousCombatStepRuntime?.events?.()||[]){const key=[event.round,event.sequence,event.type].join(':');if(!window.__qaSeen.has(key)){window.__qaSeen.add(key);window.__qaEvents.push(event);}}if(document.querySelector('.clash-float-hud.open'))window.__qaHud=true;if(document.getAnimations().some(a=>a.playState==='running'))window.__qaAnimation=true;},20);});
  await page.route('**/*',async route=>{
   const url=route.request().url();
