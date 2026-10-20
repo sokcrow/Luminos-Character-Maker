@@ -25,7 +25,7 @@ async function seed(){
 }
 async function open(browser,role,viewport,existingContext=null,view='battle'){
  const context=existingContext||await browser.newContext({viewport,hasTouch:viewport.width<900,isMobile:viewport.width<900});const page=await context.newPage();page.setDefaultTimeout(20000);page.errors=[];page.blocked=[];
- page.on('pageerror',e=>page.errors.push(e.message));
+ page.on('pageerror',e=>{page.errors.push(e.message);console.log(role,'PAGEERROR',e.message)});page.on('console',m=>{if(m.type()==='error')console.log(role,'CONSOLE',m.text())});
  await page.route('**/*',async route=>{
   const url=route.request().url();
   if(url.endsWith('/participants-player-harness.html'))return route.fulfill({contentType:'text/html',body:`<!doctype html><html><body><section id="theatre-view-player" style="display:none">TEATRO · Tu escena continúa</section><div id="player-instance-blackout"></div><script src="/js/combat-firebase-config.js"></script><script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script><script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script><script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script><script src="/js/combat-participants.js"></script><script src="/js/instance-control.js"></script><script>window.LuminousGameLoading={waitForTheatre:async()=>true,waitForCombatFrame:async()=>true};LuminousInstanceControl.bindPlayer({db:firebase.database()});</script></body></html>`});
@@ -84,6 +84,6 @@ for(const mobile of [false,true])test(`Eight campaign players, one combat partic
   await expect(dm.locator('.combat-participant-progress')).toContainText('Participantes: 1');await p1.locator('#ready').click();await dm.waitForFunction(()=>LuminousCombat073.uiState().round>=4&&!LuminousCombat073.uiState().running,null,{timeout:120000});
   for(const page of [dm,p1,p2]){expect(page.errors).toEqual([]);expect(page.blocked).toEqual([]);}
   console.log(JSON.stringify({mobile,campaignPlayers:8,initialParticipants:1,soloRoundCompleted:true,lateEntryRequiresReady:true,removalReturnsToTheatre:true,errors:[]}));
- }catch(error){for(const [name,page]of [['dm',dm],['p1',p1],['p2',p2]])if(page&&!page.isClosed()){await page.screenshot({path:`artifacts/shared-planning/${mobile?'mobile':'desktop'}-${name}-failure.png`});console.log(name,await page.evaluate(()=>({state:window.LuminousCombat073?.uiState(),phase:document.getElementById('combat-phase-label')?.textContent,status:document.getElementById('status')?.textContent})));}throw error;}
+ }catch(error){for(const [name,page]of [['dm',dm],['p1',p1],['p2',p2]])if(page&&!page.isClosed()){await page.screenshot({path:`artifacts/shared-planning/${mobile?'mobile':'desktop'}-${name}-failure.png`});console.log(name,await page.evaluate(()=>({auth:window.firebase?.auth?.()?.currentUser?.uid,body:document.body.className,errors:window.__qaErrors,state:window.LuminousCombat073?.uiState(),phase:document.getElementById('combat-phase-label')?.textContent,status:document.getElementById('status')?.textContent})));}throw error;}
  finally{for(const page of [dm,p1,p2,entry])await page?.context().close();}
 });

@@ -29,6 +29,7 @@ globalThis.LuminousCombat073 = {
   reset() {},
 };
 
+await import("../js/combat-participants.js");
 await import("../js/combat-v073-live-adapter.js");
 
 const adapter = globalThis.LuminousCombatLiveAdapter073;

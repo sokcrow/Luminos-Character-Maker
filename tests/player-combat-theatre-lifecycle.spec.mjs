@@ -9,6 +9,7 @@ async function bootHarness(page){
       <div class="sheet-phone-wrapper"></div>
       <div id="theatre-view-player" style="display:none;width:100vw;height:100vh"></div>
       <div id="player-instance-blackout"></div>
+      <script src="/js/combat-participants.js"></script>
       <script src="/js/instance-control.js"></script>
     </body></html>
   `);
@@ -89,6 +90,7 @@ test('DM opening Theater during Combat publishes combat_theatre instead of endin
       <section id="modulo-teatro" class="game-module"></section>
       <section id="modulo-combate" class="game-module"></section>
       <span id="current-output-status"></span>
+      <script src="/js/combat-participants.js"></script>
       <script src="/js/instance-control.js"></script>
     </body></html>
   `);
@@ -135,6 +137,7 @@ test('switching DM output back to Combat preserves an existing round',async({pag
       <section id="modulo-teatro" class="game-module"></section>
       <section id="modulo-combate" class="game-module"></section>
       <span id="current-output-status"></span>
+      <script src="/js/combat-participants.js"></script>
       <script src="/js/instance-control.js"></script>
     </body></html>
   `);
@@ -175,17 +178,15 @@ test('DM instance callback sends Player Combat to Theatre with zero Battle resid
     let instanceHandler=null;
     const db={
       ref(path){
-        if(path!=='campaña/estado_mundo/instancia_activa')return {on(){},off(){}};
+        if(path!=='campaña/estado_mundo/instancia_activa')return {on(event,handler){handler({val:()=>path==='campaña/jugadores'?{p1:{uid:'player-test'}}:path==='campaña/combate/combatants'?{'player:p1':{id:'player:p1',isPlayer:true,canonicalPlayerKey:'p1',canonicalOwnerUid:'player-test',battleActive:true}}:{phase:'PRE_COMBAT_PLANNING',round:1}});},off(){}};
         return {
           on(event,handler){ if(event==='value')instanceHandler=handler; },
           off(){}
         };
       }
     };
-    // page.setContent() replaces the document but preserves window globals from
-    // index.html. Remove the inherited Auth surface so this unit harness binds
-    // data immediately instead of waiting for a real auth restoration event.
-    window.firebase={database:{ServerValue:{TIMESTAMP:12345}}};
+    // Explicitly authenticate the deployed participant before routing.
+    window.firebase={auth:()=>({onAuthStateChanged(callback){callback({uid:'player-test'});}}),database:{ServerValue:{TIMESTAMP:12345}}};
     window.LuminousInstanceControl.bindPlayer({db,doc:document});
     const emit=value=>instanceHandler?.({val:()=>value});
 
