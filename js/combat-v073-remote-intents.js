@@ -121,7 +121,7 @@
     if(applyPlanningAi())return true;
     // Wait until the authored skills are loaded; do not publish placeholder kits.
     const bridge=global.LuminousCombatLiveAdapter073;
-    for(const unit of Object.values(s.combatants||{}))if(bridge?.skillIdsFor?.(unit).some(id=>!s.skills?.[id])){retryPlanningAi();return false;}
+    for(const unit of Object.values(s.combatants||{}).filter(unit=>global.LuminousCombatParticipants?.isField(unit)))if(bridge?.skillIdsFor?.(unit).some(id=>!s.skills?.[id])){retryPlanningAi();return false;}
     const serialize=global.LuminousCombatAuthority073?.serializeRuntimePlan;if(!serialize){retryPlanningAi();return false;}
     const plans={};
     for(const unit of Object.values(runtime()?.combatants?.()||{}))if(unit.controlled==='ai'){
@@ -180,7 +180,18 @@
   function bind(){
     const s=adapterState();if(!s?.db?.ref||!s.user)return false;if(state.readyRef||state.authRef)return true;
     state.readyLoaded=state.plansLoaded=false;state.restoreOwn=true;
-    state.readyRef=s.db.ref(READY_ROOT);state.readyHandler=snapshot=>{state.ready=snapshot.val()||{};state.readyLoaded=true;state.rawTargets=rowsFromReady(state.ready);apply();};listen(state.readyRef,state.readyHandler,'[Combat073 TargetIntents]');
+    state.readyRef=s.db.ref(READY_ROOT);state.readyHandler=snapshot=>{
+      const previous=state.ready[s.playerId];state.ready=snapshot.val()||{};state.readyLoaded=true;
+      const own=state.ready[s.playerId];
+      if(s.role==='player'&&JSON.stringify(previous)!==JSON.stringify(own)){
+        // The same character may be open on a phone and a PC. Both surfaces
+        // follow the shared choice, including an explicit READY cancellation.
+        state.restoreOwn=true;
+        if(previous?.ready===true&&own?.ready===false&&Number(own.round)===Number(s.round)&&!runtime()?.uiState?.().running)
+          runtime()?.restorePlanning?.(runtime()?.plans?.()||[],false);
+      }
+      state.rawTargets=rowsFromReady(state.ready);apply();
+    };listen(state.readyRef,state.readyHandler,'[Combat073 TargetIntents]');
     state.authRef=s.db.ref(AUTH_ROOT);state.authHandler=snapshot=>{state.authority=snapshot.val()||{};apply();};listen(state.authRef,state.authHandler,'[Combat073 AuthorityPlans]');
     for(const [path,key]of [[PLANS_ROOT,'plans'],[AI_ROOT,'planningAi']]){
       const ref=s.db.ref(path),handler=snapshot=>{state[key]=snapshot.val()||{};if(key==='plans')state.plansLoaded=true;apply();};

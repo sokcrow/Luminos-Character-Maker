@@ -24,6 +24,13 @@
       deck=unit.combatDeck={...actor.skillDeck,signature,scope,rngState:hash(`${scope}|${unit.id}|${signature}`)};
     }
     const byId=new Map(rows.map(row=>[id(row),row]));
+    // RTDB removes empty arrays/objects. An exhausted draw pile comes back
+    // without a drawPile property; restore it before DeckEngine inspects it.
+    const cards=value=>Array.isArray(value)?value:Object.values(value||{});
+    deck.slots=deck.slots||{};
+    for(const slot of Object.values(deck.slots)){
+      slot.hand=cards(slot.hand);slot.drawPile=cards(slot.drawPile);
+    }
     for(const card of deck.definition.cards)card.skill=byId.get(card.skillId);
     for(const slot of Object.values(deck.slots||{}))for(const card of [...(slot.hand||[]),...(slot.drawPile||[])])card.skill=byId.get(card.skillId);
     const random=()=>{

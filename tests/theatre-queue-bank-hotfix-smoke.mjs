@@ -39,7 +39,7 @@ assert.ok(
   "Player bank hotfix assets must be cache-busted",
 );
 assert.ok(
-  dmHtml.includes("js/on-game-dashboard.js?v=20261004-theatre-bank-hotfix-1"),
+  dmHtml.includes("js/on-game-dashboard.js?v=20261020-roundtrip-1"),
   "DM Theatre queue consumer must be cache-busted",
 );
 

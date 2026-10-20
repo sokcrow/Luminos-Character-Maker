@@ -470,17 +470,18 @@
         if (btnTriggerCombat.disabled) return;
         btnTriggerCombat.disabled = true;
         try {
-          const timestamp = window.firebase.database.ServerValue.TIMESTAMP;
-          await database.ref("campaña/combate/estado").update({
-            phase: "COMBAT_ACTIVE",
-            active: true,
-            result: null,
-            outcome: null,
-            transition: null,
-            startedAt: timestamp,
-            updatedAt: timestamp
-          });
-          await database.ref("campaña/combate").update({ startedAt: timestamp });
+          const frame = document.getElementById("dm-combat-view");
+          const authority = frame?.contentWindow?.LuminousCombatAuthority073;
+          if (!authority?.isDm?.() || !authority.state.originalStartRound) {
+            window.alert?.("El combate todavía está cargando. Espera a que aparezcan los personajes.");
+            return;
+          }
+          await authority.preparePlanningState();
+          if(authority.state.runningLocal||authority.state.preparingRound)return;
+          if (!await authority.requestStartRound()) {
+            const message=authority.state.lastStartError || '';
+            window.alert?.(message.startsWith('Falta confirmar READY:') ? message : "No se pudo resolver el turno. Revisa que todos los participantes hayan confirmado READY y vuelve a intentarlo.");
+          }
         } catch (error) {
           console.error("No se pudo iniciar Combat:", error);
           window.alert?.("No se pudo iniciar el combate.");

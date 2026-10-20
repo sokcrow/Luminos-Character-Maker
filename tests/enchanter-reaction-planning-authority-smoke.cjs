@@ -33,7 +33,7 @@ const adapter={state:{
   combatState:"PRE_COMBAT_PLANNING",firebaseReady:true,
   combatants:{"player:hero":{
     id:"player:hero",canonicalPlayerKey:"hero",canonicalOwnerUid:"owner_uid",
-    isPlayer:true,actionSlots:1,
+    isPlayer:true,battleActive:true,actionSlots:1,
   }},
   db:{ref(){return {once(){return Promise.resolve({val:()=>null})},update(payload){writes.push(payload);return Promise.resolve()}}}},
 }};
@@ -48,6 +48,8 @@ const win={
 const oldWindow=global.window;
 global.window=win;
 try{
+  const vm=require('node:vm');
+  vm.runInNewContext(read('js/combat-participants.js'),{window:win});
   delete require.cache[require.resolve("../js/combat-v073-plan-sync.js")];
   require("../js/combat-v073-plan-sync.js");
   const plan=win.LuminousCombatPlanSync073;

@@ -107,6 +107,13 @@
       const own=ready[s?.playerId];
       phase=`Listos ${group.ready}/${group.total} · ${names?`Falta: ${names}`:role==='dm'?'Iniciando turno…':'Esperando al DM'}`;
       if(role==='player'&&value.ready&&!(own?.ready===true&&Number(own.round)===Number(value.round)))phase='Guardando tu READY…';
+      const delivery=global.LuminousCombatPlanSync073?.delivery;
+      if(role==='player'&&Number(delivery?.round)===Number(value.round)){
+        const retry=delivery.status==='error',button=byId('ready');
+        if(retry)phase='READY sin confirmar · pulsa READY para reintentar';
+        else if(delivery.status==='saving')phase='Guardando tu READY…';
+        if(button&&value.ready)button.textContent=retry?'REINTENTAR READY':'CANCEL READY';
+      }
     }
     text('combat-phase-label',phase);
     layoutClashHuds();

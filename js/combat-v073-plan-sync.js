@@ -7,7 +7,18 @@
   const safe=v=>clean(v).replace(/[.#$\[\]\/]/g,'_');
   const finite=(v,f=0)=>Number.isFinite(Number(v))?Number(v):f;
   const clone=v=>v==null?v:JSON.parse(JSON.stringify(v));
-  let chain=Promise.resolve(),lastReadySignature='',lastTargetSignature='';
+  let chain=Promise.resolve(),targetChain=Promise.resolve(),lastReadySignature='',lastTargetSignature='';
+  const delivery={status:'idle',round:0,request:0,error:''};
+  const READY_TIMEOUT_MS=8000;
+  function reportDelivery(status,round,request,error=''){
+    if(request!==delivery.request)return;
+    Object.assign(delivery,{status,round:Number(round),error});
+    global.LuminousCombatHudMotion073?.refresh?.();
+  }
+  function bounded(operation){
+    let timer;
+    return Promise.race([operation,new Promise((_,reject)=>{timer=global.setTimeout(()=>reject(new Error('READY_CONFIRMATION_TIMEOUT')),READY_TIMEOUT_MS);})]).finally(()=>global.clearTimeout(timer));
+  }
   let selectedEnchantmentReaction=null;
   let recoveringIntentId='';
   const OUTBOX='luminous:combat-ready-intent:';
@@ -151,10 +162,7 @@
     // of overwriting the RTDB record with a stale NOT READY snapshot.
     const ui=global.LuminousCombat073?.uiState?.();
     if(detail.ready===true&&ui?.ready===false&&Number(ui.round)===Number(detail.round))return false;
-    if(detail.ready===true||(ui?.ready===true&&Number(ui.round)===Number(detail.round))){
-      const latest=global.LuminousCombat073?.plans?.();
-      return syncReady({...detail,ready:true,plans:Array.isArray(latest)?clone(latest):detail.plans});
-    }
+    if(detail.ready===true||(ui?.ready===true&&Number(ui.round)===Number(detail.round)))return false;
     const ctx=context(detail);if(!ctx)return false;const targets=targetIndex(ctx),sig=JSON.stringify(['targets',ctx.round,ctx.unitId,targets]);if(sig===lastTargetSignature)return true;
     // Target previews are NOT READY transitions. Never replace a committed
     // READY row with ready:false: only the explicit CANCEL READY event may do that.
@@ -170,7 +178,39 @@
     },undefined,false);
     lastTargetSignature=sig;return true;
   }
-  function queue(detail,mode='ready'){chain=chain.then(()=>mode==='targets'?syncLiveTargets(detail):syncReady(detail)).catch(error=>{console.error('[Combat073 PlanSync]',error);try{const n=global.document?.getElementById?.('status');if(n)n.textContent=`COMBAT · PLAN SYNC FAILED · ${error?.code||error?.message||error}`;}catch(_){}});return chain;}
+  function queue(detail,mode='ready'){
+    // A long-poll/transaction used only for target previews must never hold up READY.
+    const request=mode==='ready'?++delivery.request:0;
+    if(request)reportDelivery('saving',detail.round,request);
+    const run=async()=>{
+      try{
+        const operation=mode==='targets'?syncLiveTargets(detail):syncReady(detail);
+        // Firebase can acknowledge a queued offline write after the deadline.
+        // Honour that acknowledgment without confusing it with a later choice.
+        if(request)operation.then(saved=>{if(saved&&delivery.status==='error')reportDelivery('saved',detail.round,request);},()=>{});
+        const saved=await bounded(operation);
+        if(request){
+          const s=state(),authority=global.LuminousCombatAuthority073?.state.current;
+          const advanced=Number(s?.round)>Number(detail.round)||(Number(authority?.round)===Number(detail.round)&&['sealed','running','complete'].includes(norm(authority?.phase)));
+          if(!saved&&!advanced)throw new Error('READY_CONTEXT_UNAVAILABLE');
+          reportDelivery(saved?'saved':'idle',detail.round,request);
+        }
+        return saved;
+      }catch(error){
+        console.error('[Combat073 PlanSync]',error);
+        if(request)reportDelivery('error',detail.round,request,error?.code||error?.message||'READY_SAVE_FAILED');
+        return false;
+      }
+    };
+    if(mode==='targets'){targetChain=targetChain.then(run);return targetChain;}
+    chain=chain.then(run);return chain;
+  }
+  function retryReady(event){
+    const combat=global.LuminousCombat073,ui=combat?.uiState?.();
+    if(!event.target?.closest?.('#ready')||delivery.status!=='error'||Number(delivery.round)!==Number(ui?.round)||!ui?.ready)return;
+    event.preventDefault();event.stopImmediatePropagation();
+    onReady({detail:{ready:true,round:ui.round,plans:clone(combat.plans?.()||[])}});
+  }
   function onReactionPrepared(event){
     const s=state(),source=event?.detail?.source||{};
     if(!s||!planning(s))return;
@@ -198,7 +238,7 @@
     await loadBridge('combat-deployment-runtime-script','js/combat-deployment-runtime.js',()=>Boolean(global.LuminousCombatDeploymentRuntime));
     await loadBridge('combat-v073-deployment-bridge-script','js/combat-v073-deployment-bridge.js',()=>Boolean(global.LuminousCombatDeploymentBridge073));
     await loadBridge('unit-rank-runtime-script','js/unit-rank-runtime.js',()=>Boolean(global.LuminousUnitRankRuntime));
-    await loadBridge('combat-v073-authority-script','js/combat-v073-authority.js',()=>Boolean(global.LuminousCombatAuthority073));
+    await loadBridge('combat-v073-authority-script','js/combat-v073-authority.js?v=20261020-roundtrip-1',()=>Boolean(global.LuminousCombatAuthority073));
     await loadBridge('combat-v073-runtime-hotfix-script','js/combat-v073-runtime-hotfix.js',()=>Boolean(global.LuminousCombatRuntimeHotfix073));
     return Boolean(global.LuminousUniversalLibrary&&global.LuminousCombatLibraryClient073&&global.LuminousCombatDeploymentRuntime&&global.LuminousCombatDeploymentBridge073&&global.LuminousUnitRankRuntime&&global.LuminousCombatAuthority073&&global.LuminousCombatRuntimeHotfix073);
   }
@@ -206,7 +246,8 @@
   global.addEventListener('luminous:combat073-hydrated',recoverReady);
   global.addEventListener('online',recoverReady);global.addEventListener('focus',recoverReady);
   global.addEventListener('luminous:combat073-plan-ready-change',onReady);global.addEventListener('luminous:combat073-plan-change',onPlan);global.addEventListener('luminous:combat073-runtime-ready',ensureEconomyMenu);
+  global.document?.addEventListener?.('click',retryReady,true);
   global.addEventListener('beforeunload',()=>{global.removeEventListener('luminous:combat073-reaction-prepared',onReactionPrepared);global.removeEventListener('luminous:combat073-plan-ready-change',onReady);global.removeEventListener('luminous:combat073-plan-change',onPlan);global.removeEventListener('luminous:combat073-runtime-ready',ensureEconomyMenu);},{once:true});
-  global.LuminousCombatPlanSync073=Object.freeze({version:'0.7.3-plan-sync.13-durable-ready',ROOT,sync:syncReady,syncReady,syncLivePlans:syncLiveTargets,syncLiveTargets,queue,kindOf,payloadFor,targetPayloadFor,targetIndex,ownCombatant,ensureEconomyMenu,ensureEconomyReviewFixes,ensureCoreBridges});
+  global.LuminousCombatPlanSync073=Object.freeze({version:'0.7.3-plan-sync.14-bounded-confirmation',ROOT,delivery,READY_TIMEOUT_MS,sync:syncReady,syncReady,syncLivePlans:syncLiveTargets,syncLiveTargets,queue,kindOf,payloadFor,targetPayloadFor,targetIndex,ownCombatant,ensureEconomyMenu,ensureEconomyReviewFixes,ensureCoreBridges});
   ensureEconomyMenu();global.setTimeout(()=>ensureCoreBridges().catch(error=>console.error('[Combat073 core bridges]',error)),0);
 })(window);

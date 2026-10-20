@@ -160,7 +160,7 @@
   }
 
   function maxHpFor(unit = {}) {
-    return Math.max(1, finite(unit.maxHp ?? unit.maxHP ?? unit.hp_max ?? unit.combatStats?.hp_max, finite(unit.hp, 1)) || 1);
+    return Math.max(1, finite(unit.maxHp ?? unit.maxHP ?? unit.hp_max ?? unit.mechanics?.maxHp ?? unit.mechanics?.hp ?? unit.combatStats?.hp_max, finite(unit.hp, 1)) || 1);
   }
 
   function hpFor(unit = {}, maxHp) {

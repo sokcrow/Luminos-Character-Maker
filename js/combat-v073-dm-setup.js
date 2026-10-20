@@ -172,11 +172,11 @@
   function equipped(ids) { return Object.fromEntries(ids.map((id) => [id, true])); }
 
   function baseStats(record = {}) {
-    const maxHp = Math.max(1, firstNumber(record, ['maxHp', 'maxHP', 'hp_max', 'hpMax', 'combatStats.hp_max', 'hp'], 1) || 1);
+    const maxHp = Math.max(1, firstNumber(record, ['maxHp', 'maxHP', 'hp_max', 'hpMax', 'mechanics.maxHp', 'mechanics.hp', 'combatStats.hp_max', 'hp'], 1) || 1);
     return {
       maxHp,
       hp: Math.max(0, firstNumber(record, ['hp', 'currentHp', 'currentHP', 'hp_actual', 'combatStats.hp_actual'], maxHp) ?? maxHp),
-      sp: firstNumber(record, ['sp', 'currentSp', 'currentSP', 'sp_actual', 'combatStats.sp_actual'], 0) || 0,
+      sp: firstNumber(record, ['sp', 'currentSp', 'currentSP', 'sp_actual', 'mechanics.sp', 'combatStats.sp_actual'], 0) || 0,
       speed: firstNumber(record, ['speed', 'currentSpeed', 'speedValue', 'maxSpeed'], 0) || 0,
       level: firstNumber(record, ['level', 'characterBuild.calculatedAtLevel'], 1) || 1
     };
@@ -245,7 +245,9 @@
 
   function buildUnit(unitId, unit = {}, faction = 'enemy', serial = '') {
     const side = faction === 'ally' ? 'ally' : 'enemy';
-    const source = clone(unit) || {};
+    const source = global.LuminousUnitCombatInstantiator?.normalizeDefinition
+      ? global.LuminousUnitCombatInstantiator.normalizeDefinition(unitId,unit,{initializeEncounter:true})
+      : clone(unit) || {};
     const ids = skillIdsFor(source);
     const slots = slotsFor(source);
     const stats = baseStats(source);
@@ -437,6 +439,7 @@
       if (!await api.ensureDeploymentRuntime()) throw new Error('UNIT_DEPLOYMENT_UNAVAILABLE');
       const result = await api.ensureMissing(state.db);
       state.libraryReady = true;
+      schedulePlayerStateRepair();
       render();
       if (result.unitsWritten || result.skillsWritten) setMsg('Biblioteca de unidades actualizada.');
       return result;
@@ -479,11 +482,26 @@
     return patch;
   }
 
+  function initialUnitVitalRepair(current = {}, combat = {}) {
+    // Repair only the historical missing-stat fallback before any round has
+    // resolved. Never heal a damaged creature or replace an authored 1-HP unit.
+    if(isPlayerUnit(current)||Number(current.maxHp)>1||Number(current.hp)!==1||combat.authority?.current||Number(combat.estado?.round||1)!==1)return {};
+    const unitId=current.libraryUnitId||current.unitRef?.id,definition=state.units[unitId];
+    if(!definition||!global.LuminousUnitCombatInstantiator?.normalizeDefinition)return {};
+    const normalized=global.LuminousUnitCombatInstantiator.normalizeDefinition(unitId,definition,{initializeEncounter:false});
+    if(!(normalized.maxHp>1))return {};
+    return {hp:normalized.maxHp,maxHp:normalized.maxHp,originalMaxHp:normalized.maxHp};
+  }
+
   async function repairDeployedPlayerState() {
     if (!state.db?.ref || !isDm() || !planningPhase()) return false;
     const updates = {};
     Object.entries(state.combatants || {}).forEach(([combatantKey, current]) => {
-      if (!isPlayerUnit(current || {})) return;
+      if (!isPlayerUnit(current || {})) {
+        const hasAuthority=typeof state.authorityPhase==='string'&&Boolean(state.authorityPhase);
+        Object.entries(initialUnitVitalRepair(current,{estado:state.encounter,authority:hasAuthority?{current:{phase:state.authorityPhase}}:null})).forEach(([key,value])=>{updates[`${ROOTS.combatants}/${combatantKey}/${key}`]=value;});
+        return;
+      }
       const playerId = canonicalPlayerId(current);
       const player = state.players?.[playerId];
       if (!playerId || !player) return;
@@ -510,7 +528,11 @@
         const combatants = { ...(combat.combatants || {}) };
         const plannedActions = { ...(combat.plannedActions || {}) }, readyPlayers = { ...(combat.readyPlayers || {}) };
         for (const [key, current] of Object.entries(combatants)) {
-          if (!isPlayerUnit(current || {})) continue;
+          if (!isPlayerUnit(current || {})) {
+            const patch=initialUnitVitalRepair(current,combat);
+            if(Object.keys(patch).length){combatants[key]={...current,...patch};changed=true;}
+            continue;
+          }
           const playerId = canonicalPlayerId(current), player = state.players?.[playerId];
           if (!player) continue;
           const patch = syncFieldsFromBuiltPlayer(current, buildPlayer(playerId, player));
