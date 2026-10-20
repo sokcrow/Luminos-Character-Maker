@@ -210,8 +210,8 @@ function smartTargetForPlan(owner,plan){
       'mobile-original-category-flight-target'
     );
     replaceUniqueCombatSource(
-      "window.addEventListener('resize',()=>{if(viewModeActive||targetingModeActive){",
-      "window.addEventListener('resize',()=>{if($('game-container')?.classList.contains('intro-running')||$('game-container')?.dataset.viewerRole==='dm'){setCameraFocus('full',false);return}if(viewModeActive||targetingModeActive){",
+      "window.addEventListener('resize',()=>{if(viewModeActive||targetingModeActive||clashConfirmationActive||roundRunning){",
+      "window.addEventListener('resize',()=>{if($('game-container')?.classList.contains('intro-running')||$('game-container')?.dataset.viewerRole==='dm'){setCameraFocus('full',false);return}if(viewModeActive||targetingModeActive||clashConfirmationActive||roundRunning){",
       'preserve-opening-camera-on-resize'
     );
     // Preload exactly one mobile stylesheet. The economy runtime checks this id.
