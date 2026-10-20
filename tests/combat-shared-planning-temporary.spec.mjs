@@ -24,7 +24,7 @@ async function open(browser,role,viewport){
   const sdk=url.match(/firebase-(app|auth|database)\.js/);
   if(sdk){let body=fs.readFileSync(`.qa-sdk/firebase-${sdk[1]}.js`,'utf8');if(sdk[1]==='database')body+=`\n firebase.initializeApp(window.LuminousCombatFirebaseConfig);firebase.auth().useEmulator('http://127.0.0.1:9099',{disableWarnings:true});firebase.database().useEmulator('127.0.0.1',9000);firebase.auth().signInWithEmailAndPassword('${accounts[role].email}','qa-pass-123');`;return route.fulfill({contentType:'application/javascript',body});}
   if(url.startsWith('http://127.0.0.1:4173')||url.startsWith('http://127.0.0.1:9000')||url.startsWith('http://127.0.0.1:9099'))return route.continue();
-  if(/firebaseio|googleapis/.test(url))page.blocked.push(url);
+  if(/firebaseio|identitytoolkit\.googleapis|securetoken\.googleapis|firebasedatabase/.test(url))page.blocked.push(url);
   return route.abort();
  });
  await page.goto('http://127.0.0.1:4173/Battle-viewer.html',{waitUntil:'domcontentloaded'});
@@ -42,7 +42,10 @@ async function select(page,target){
  await page.locator('#category-body .skill-option').nth(1).click();await page.locator('#action-confirm').click();
  const mobile=page.viewportSize().width<900;
  if(mobile)await page.locator('#combat-target-list button').filter({hasText:target}).first().click();
- else await page.locator('.action-slot-wrapper.target-valid[data-owner-id="'+target.replace('GUARDIAN ','enemy:e')+'"]').first().click();
+ else {
+  // The game's capture handler deliberately resolves slots through overlapping token boxes.
+  await page.waitForTimeout(700);const slot=page.locator('.action-slot-wrapper.target-valid[data-owner-id="'+target.replace('GUARDIAN ','enemy:e')+'"]').first();await expect(slot).toBeVisible();const box=await slot.boundingBox();await page.mouse.click(box.x+box.width/2,box.y+box.height/2);
+ }
  if(await page.locator('#clash-forecast-confirm').isVisible())await page.locator('#clash-forecast-confirm').click();
  await page.waitForTimeout(700);return before;
 }
