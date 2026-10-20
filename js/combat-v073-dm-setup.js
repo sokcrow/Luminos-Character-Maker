@@ -498,7 +498,8 @@
     const updates = {};
     Object.entries(state.combatants || {}).forEach(([combatantKey, current]) => {
       if (!isPlayerUnit(current || {})) {
-        Object.entries(initialUnitVitalRepair(current,{estado:state.encounter,authority:state.authorityPhase?{current:{phase:state.authorityPhase}}:null})).forEach(([key,value])=>{updates[`${ROOTS.combatants}/${combatantKey}/${key}`]=value;});
+        const hasAuthority=typeof state.authorityPhase==='string'&&Boolean(state.authorityPhase);
+        Object.entries(initialUnitVitalRepair(current,{estado:state.encounter,authority:hasAuthority?{current:{phase:state.authorityPhase}}:null})).forEach(([key,value])=>{updates[`${ROOTS.combatants}/${combatantKey}/${key}`]=value;});
         return;
       }
       const playerId = canonicalPlayerId(current);
