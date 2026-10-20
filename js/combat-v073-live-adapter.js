@@ -596,6 +596,7 @@
     normalizeSkill,
     isFieldCombatant,
     playerRecordFor,
+    canonicalPlayerId,
     activeInventoryContainer,
     normalizedCombatants,
     defaultPosition,

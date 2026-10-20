@@ -4550,6 +4550,8 @@ function enterViewMode(){
   $('view-return').textContent=`BACK TO ${combatData[PLAYER_ID]?.name||'PLAYER'}`;
   setCameraFocus('full',false);
   
+  window.LuminousCombatRemoteIntents073?.renderPlanLabels?.();
+  renderTargetArrows();
   setStatus('VIEW · FULL BATTLEFIELD · Allies + Enemies + Slots + Target Intents')
 }
 function exitViewMode(){
@@ -6039,7 +6041,8 @@ function renderPlannedSlot(slotIndex){
 }
 function renderAllPlannedSlots(){
   if(combatData[PLAYER_ID]?.controlled==='player')playerSlots().forEach((_,i)=>renderPlannedSlot(i));
-  syncAllUnitVisibility()
+  syncAllUnitVisibility();
+  window.LuminousCombatRemoteIntents073?.renderPlanLabels?.()
 }
 function defenseTypeOfPlan(plan){
   if(!plan)return null;
