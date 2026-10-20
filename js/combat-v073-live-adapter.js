@@ -117,10 +117,7 @@
   }
 
   function isFieldCombatant(unit = {}) {
-    if (!unit || typeof unit !== "object") return false;
-    if (unit.isBackup === true || unit.battleActive === false || unit.removed === true || unit.escaped === true || unit.defeated === true) return false;
-    const deployment = normalizeId(unit.deploymentState || unit.deployment || unit.positionState || unit.zone || "field");
-    return !["backup", "reserve", "reserves", "retreat", "retreated", "defeated", "dead", "escaped", "departed"].includes(deployment);
+    return global.LuminousCombatParticipants?.isField(unit)===true;
   }
 
   function playerCombatantEntry() {

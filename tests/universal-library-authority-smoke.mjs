@@ -116,8 +116,8 @@ assert.ok(!/subscribe\(ROOTS\.skills/.test(liveAdapter) || /0\.7\.3-live\.2/.tes
 const authoritySource = read('js/combat-v073-authority.js');
 function authorityContext() {
   const combatants = {
-    'player:a': { id: 'player:a', name: 'A', controlled: 'player', isPlayer: true, canonicalPlayerKey: 'a', canonicalOwnerUid: 'uid-a', hp: 30, maxHp: 30, sp: 0, speed: 5, speedTie: 0.2, actionSlots: 1, activeSlots: 1, statusEffects: {} },
-    'player:b': { id: 'player:b', name: 'B', controlled: 'remote', isPlayer: true, canonicalPlayerKey: 'b', canonicalOwnerUid: 'uid-b', hp: 28, maxHp: 28, sp: 0, speed: 4, speedTie: 0.3, actionSlots: 1, activeSlots: 1, statusEffects: {}, autoPlans: [{ type: 'deck', data: { id: 'b_skill' }, sourceSlotIndex: 0 }] },
+    'player:a': { id: 'player:a', name: 'A', controlled: 'player', battleActive: true, isPlayer: true, canonicalPlayerKey: 'a', canonicalOwnerUid: 'uid-a', hp: 30, maxHp: 30, sp: 0, speed: 5, speedTie: 0.2, actionSlots: 1, activeSlots: 1, statusEffects: {} },
+    'player:b': { id: 'player:b', name: 'B', controlled: 'remote', battleActive: true, isPlayer: true, canonicalPlayerKey: 'b', canonicalOwnerUid: 'uid-b', hp: 28, maxHp: 28, sp: 0, speed: 4, speedTie: 0.3, actionSlots: 1, activeSlots: 1, statusEffects: {}, autoPlans: [{ type: 'deck', data: { id: 'b_skill' }, sourceSlotIndex: 0 }] },
     goblin: { id: 'goblin', name: 'Goblin', controlled: 'ai', hp: 20, maxHp: 20, sp: -5, speed: 3, speedTie: 0.4, actionSlots: 1, activeSlots: 1, statusEffects: { bleed: { potency: 2, count: 3 } }, autoPlans: [] },
   };
   const runtime = { combatants: () => combatants, plans: () => [], render() {} };
@@ -153,6 +153,7 @@ function authorityContext() {
   context.window = context;
   context.globalThis = context;
   vm.createContext(context);
+  vm.runInContext(read('js/combat-participants.js'), context);
   vm.runInContext(authoritySource, context, { filename: 'combat-v073-authority.js' });
   return context;
 }

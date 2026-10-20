@@ -19,6 +19,7 @@
   function rememberReady(detail){
     const s=state(),key=pendingKey(s);if(!key||Number(detail.round)!==Number(s.round))return null;
     const row={id:global.crypto?.randomUUID?.()||`${Date.now()}:${Math.random()}`,round:Number(s.round),
+      enteredCombatAt:ownCombatant(s)?.[1]?.enteredCombatAt||null,
       previousIntentId:global.LuminousCombatRemoteIntents073?.state?.ready?.[s.playerId]?.clientIntentId||null,
       detail:clone(detail)};
     try{global.localStorage?.setItem(key,JSON.stringify(row));return row;}catch(_){return null;}
@@ -26,7 +27,7 @@
   function recoverReady(){
     const s=state(),row=pendingReady(),combat=global.LuminousCombat073;
     if(!row||!s?.hydratedOnce||s.role!=='player'||!combat?.restorePlanning||Number(combat.uiState?.().round)!==Number(s.round))return;
-    if(Number(row.round)!==Number(s.round)||!planning(s)){forgetReady(row.id);return;}
+    if(Number(row.round)!==Number(s.round)||!planning(s)||!global.LuminousCombatParticipants?.isField(ownCombatant(s)?.[1])||(row.enteredCombatAt&&row.enteredCombatAt!==ownCombatant(s)?.[1]?.enteredCombatAt)){forgetReady(row.id);return;}
     if(recoveringIntentId===row.id)return;
     recoveringIntentId=row.id;
     queue({...row.detail,readyIntentId:row.id,recovering:true},'ready').then(saved=>{
@@ -78,6 +79,7 @@
     const authority=global.LuminousCombatAuthority073?.state?.current;
     if(Number(authority?.round)===Number(s.round)&&['sealed','running','complete'].includes(norm(authority?.phase)))return null;
     const own=ownCombatant(s);if(!own)throw new Error('PLAYER_COMBATANT_NOT_DEPLOYED');
+    if(!global.LuminousCombatParticipants?.isField(own[1]))return null;
     const unitId=own[0],plans=Array.isArray(detail.plans)?detail.plans:[],owner=safe(s.playerId),slotCount=Math.max(plans.length,Math.trunc(finite(own[1]?.actionSlots??own[1]?.activeSlots,1)),1),round=Math.max(1,Math.trunc(finite(s.round,1)));
     // Old queued UI events must never be written into a later round.
     if(detail.round!=null&&Number(detail.round)!==round)return null;
