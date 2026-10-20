@@ -65,10 +65,10 @@
 
     stage('patch-ready','Applying READY bridge');
     const cancelNeedle="setStatus(`READY CANCELADO · Puedes corregir las acciones del Turn ${round}`);\n    return;";
-    const readyNeedle="planReady=true;\n  ready.textContent='CANCEL READY';";
+    const readyNeedle="planReady=true;\n  $('game-container').classList.add('ready-plan-visible');\n  setCameraFocus('full',false);\n  ready.textContent='CANCEL READY';";
     if(!html.includes(cancelNeedle)||!html.includes(readyNeedle))throw new Error("COMBAT_READY_BRIDGE_PATCH_MISSING");
     html=html.replace(cancelNeedle,"setStatus(`READY CANCELADO · Puedes corregir las acciones del Turn ${round}`);\n    window.dispatchEvent(new CustomEvent('luminous:combat073-plan-ready-change',{detail:{version:'0.7.3',playerId:PLAYER_ID,round,ready:false,plans:JSON.parse(JSON.stringify(plannedActions))}}));\n    return;");
-    html=html.replace(readyNeedle,"planReady=true;\n  window.dispatchEvent(new CustomEvent('luminous:combat073-plan-ready-change',{detail:{version:'0.7.3',playerId:PLAYER_ID,round,ready:true,plans:JSON.parse(JSON.stringify(plannedActions))}}));\n  ready.textContent='CANCEL READY';");
+    html=html.replace(readyNeedle,"planReady=true;\n  $('game-container').classList.add('ready-plan-visible');\n  setCameraFocus('full',false);\n  window.dispatchEvent(new CustomEvent('luminous:combat073-plan-ready-change',{detail:{version:'0.7.3',playerId:PLAYER_ID,round,ready:true,plans:JSON.parse(JSON.stringify(plannedActions))}}));\n  ready.textContent='CANCEL READY';");
 
     stage('patch-live-authority','Applying live multiplayer authority bridge');
     // Live multiplayer authority patch: remote human Players are not local AI.
@@ -210,8 +210,8 @@ function smartTargetForPlan(owner,plan){
       'mobile-original-category-flight-target'
     );
     replaceUniqueCombatSource(
-      "window.addEventListener('resize',()=>{if(viewModeActive||targetingModeActive||clashConfirmationActive||roundRunning){",
-      "window.addEventListener('resize',()=>{if($('game-container')?.classList.contains('intro-running')||$('game-container')?.dataset.viewerRole==='dm'){setCameraFocus('full',false);return}if(viewModeActive||targetingModeActive||clashConfirmationActive||roundRunning){",
+      "window.addEventListener('resize',()=>{if(viewModeActive||targetingModeActive||clashConfirmationActive||roundRunning||planReady){",
+      "window.addEventListener('resize',()=>{if($('game-container')?.classList.contains('intro-running')||$('game-container')?.dataset.viewerRole==='dm'){setCameraFocus('full',false);return}if(viewModeActive||targetingModeActive||clashConfirmationActive||roundRunning||planReady){",
       'preserve-opening-camera-on-resize'
     );
     // Preload exactly one mobile stylesheet. The economy runtime checks this id.

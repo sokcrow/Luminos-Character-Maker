@@ -2445,6 +2445,7 @@
 <script src="js/status-library.js"></script>
 <script src="js/status-engine.js"></script>
 <script src="js/deckEngine.js"></script>
+<script src="js/combat-v073-deck.js"></script>
 <script src="js/skill-catalog-player-signature.js"></script>
 <script src="js/combat-skill-loadout-074.js"></script>
 <script src="js/combat-v073-live-adapter.js"></script>
@@ -3607,7 +3608,7 @@ function ensureUnknownAISlots(){
     .forEach(unit=>unitSlots(unit.id).forEach(setSlotUnknown))
 }
 function observationKnown(unit,fact){
-  return Boolean(unit?.observationKnown?.includes(fact))
+  return window.LuminousCombatLiveAdapter073?.state?.role==='dm'||Boolean(unit?.observationKnown?.includes(fact))
 }
 function observationLinkedUnits(unit){
   if(!unit)return[];
@@ -3660,8 +3661,8 @@ function observationFactValue(unit,fact){
   if(fact==='sp')return `${Math.round(unit.sp)}`;
   if(fact==='speed')return `${Math.round(unit.speed)}`;
   if(fact==='action'){
-    const plans=unit.autoPlans||[];
-    return plans.length?plans.map((plan,i)=>`S${i+1} ${actionCategory(plan)}`).join(' · '):'PENDING'
+    const plans=plansForUnit(unit.id);
+    return plans.length?plans.map((plan,i)=>`S${i+1} ${window.LuminousCombatLiveAdapter073?.state?.role==='dm'?(plan?.data?.name||actionCategory(plan)):actionCategory(plan)}`).join(' · '):'PENDING'
   }
   if(fact==='targeting'){
     const plans=unit.autoPlans||[];
@@ -3675,7 +3676,7 @@ function observationFactValue(unit,fact){
   return'?'
 }
 function syncActionSlotVisibility(unit){
-  if(!unit||unit.controlled!=='ai')return;
+  if(!unit||unit.controlled==='player')return;
   if(unitActionBlocked(unit,round)){
     unitSlots(unit.id).forEach(slot=>{
       slot.querySelector('.slot-plan-icon-svg')?.remove();
@@ -3686,7 +3687,7 @@ function syncActionSlotVisibility(unit){
   }
   unitSlots(unit.id).forEach((slot,index)=>{
     const plan=unit.autoPlans?.[index];
-    if(unit.faction==='enemy'&&observationKnown(unit,'action')&&plan){
+    if(plan&&(unit.controlled==='remote'||observationKnown(unit,'action'))){
       drawPlanIconOnSlot(slot,actionCategoryIcon(plan),`${actionCategory(plan)} · Slot ${index+1}`)
     }else{
       setSlotUnknown(slot)
@@ -3775,7 +3776,7 @@ function renderObservationRing(enemyId){
   const unit=combatData[enemyId],
         ring=$('observation-ring'),
         header=$('observation-header');
-  if(!unit||unit.faction!=='enemy'||!ring||!header)return;
+  if(!unit||(unit.faction!=='enemy'&&window.LuminousCombatLiveAdapter073?.state?.role!=='dm')||!ring||!header)return;
 
   selectedObservationEnemy=enemyId;
   ring.innerHTML='';
@@ -4158,11 +4159,11 @@ function slotPoint(ownerId,slotIndex=0){
 }
 function plannedActionAt(ownerId,slotIndex){
   const index=Math.max(0,Number(slotIndex)||0);
-  if(ownerId===PLAYER_ID)return plannedActions[index]||null;
+  if(ownerId===PLAYER_ID&&combatData[ownerId]?.controlled==='player')return plannedActions[index]||null;
   return combatData[ownerId]?.autoPlans?.[index]||null
 }
 function plansForUnit(ownerId){
-  if(ownerId===PLAYER_ID)return plannedActions;
+  if(ownerId===PLAYER_ID&&combatData[ownerId]?.controlled==='player')return plannedActions;
   return combatData[ownerId]?.autoPlans||[]
 }
 function allPlannedEntries(){
@@ -4531,6 +4532,13 @@ function cancelPlayerTargeting(){
   setPlayerMenuZoom(true);
   setTimeout(layoutRadialCommands,520);
   setStatus(`TARGETING CANCELLED · Slot ${selectedSlotIndex+1}`)
+}
+function inspectDmUnit(id){
+  if(window.LuminousCombatLiveAdapter073?.state?.role!=='dm'||roundRunning||!combatData[id])return false;
+  analyseModeActive=true;
+  $('game-container').classList.add('analyse-mode');
+  $('view-return').textContent='VOLVER AL CAMPO';
+  renderObservationRing(id);return true;
 }
 function enterViewMode(){
   if(roundRunning||analyseModeActive)return;
@@ -5940,10 +5948,12 @@ function resetPlayerDeckForUnit(id){
   }catch(_){deckReady=false}
 }
 function getHand(i){
+  if(window.LuminousCombatLiveMode&&window.LuminousCombatSlotDeck073)return window.LuminousCombatSlotDeck073.hand(PLAYER_ID,i);
   if(deckReady)return Deck.getSlotHand(deckUnit,`${PLAYER_ID}_slot_${i}`);
   return fbEnsureSlot(i).hand
 }
 function getNextSkillPreview(i){
+  if(window.LuminousCombatLiveMode&&window.LuminousCombatSlotDeck073)return null;
   if(deckReady&&Deck?.getSlot){
     const slot=Deck.getSlot(deckUnit,`${PLAYER_ID}_slot_${i}`),
           next=slot?.drawPile?.[0];
@@ -5957,6 +5967,7 @@ function markUsed(i,id){
   fbEnsureSlot(i).used=id
 }
 function turnStartDeck(){
+  if(window.LuminousCombatLiveMode&&window.LuminousCombatSlotDeck073){window.LuminousCombatSlotDeck073.syncAll(round);return}
   const count=playerSlots().length;
   if(deckReady)Deck.onTurnStart(deckUnit,{round,slotCount:count});
   else fbTurn(count)
@@ -6027,7 +6038,8 @@ function renderPlannedSlot(slotIndex){
   drawPlanIconOnSlot(slot,plannedActionIcon(plan),plan.data?.name||'Planned Action')
 }
 function renderAllPlannedSlots(){
-  playerSlots().forEach((_,i)=>renderPlannedSlot(i))
+  if(combatData[PLAYER_ID]?.controlled==='player')playerSlots().forEach((_,i)=>renderPlannedSlot(i));
+  syncAllUnitVisibility()
 }
 function defenseTypeOfPlan(plan){
   if(!plan)return null;
@@ -6083,6 +6095,8 @@ function setPlanReady(){
   const ready=$('ready');
   if(planReady){
     planReady=false;
+    $('game-container').classList.remove('ready-plan-visible');
+    if(!viewModeActive)setPlayerMenuZoom(true);
     ready.textContent='READY';
     ready.classList.remove('locked');
     ready.setAttribute('aria-pressed','false');
@@ -6093,6 +6107,8 @@ function setPlanReady(){
   }
   if(unitActionBlocked(combatData[PLAYER_ID],round))plannedActions=[];
   planReady=true;
+  $('game-container').classList.add('ready-plan-visible');
+  setCameraFocus('full',false);
   ready.textContent='CANCEL READY';
   ready.classList.add('locked');
   ready.setAttribute('aria-pressed','true');
@@ -7244,7 +7260,8 @@ function settleClashUnits(...entries){
   if(!timelineResolutionActive&&entries.some(entry=>entry.ownerId===PLAYER_ID))focusCombatCameraOnPlayer()
 }
 function markEntryStarted(entry){
-  if(entry.controller==='player'&&entry.plan.type==='deck')markUsed(entry.localIndex,entry.plan.drawId);
+  if(window.LuminousCombatLiveMode&&window.LuminousCombatSlotDeck073)window.LuminousCombatSlotDeck073.mark(entry);
+  else if(entry.controller==='player'&&entry.plan.type==='deck')markUsed(entry.localIndex,entry.plan.drawId);
   if(!entry._onUseStatusApplied){
     entry._onUseStatusApplied=true;
     applySkillStatusEffects(entry,entry.plan?.targetId,'[On Use]')
@@ -8114,9 +8131,10 @@ document.addEventListener('pointerdown',e=>{
   e.preventDefault();
   e.stopPropagation();
   choosePlayerTarget(slot)
-},true);$('back').onclick=goBack;$('view-return').onclick=exitSpecialView;$('damage-test').onclick=()=>{damageCombatant(PLAYER_ID,45);setStatus(`TEST EXTERNO · -45 HP a ${combatData[PLAYER_ID]?.name||'Player'}`)};$('ready').onclick=setPlanReady;$('start-round').onclick=startRound;window.addEventListener('resize',()=>{if(viewModeActive||targetingModeActive||clashConfirmationActive||roundRunning){setCameraFocus('full',false)}else if(analyseModeActive){setCameraFocus('enemy',true);if(selectedObservationEnemy)layoutObservationRing(selectedObservationEnemy)}else{setCameraFocus('player',true);navState==='root'?layoutRadialCommands():layoutCategory()}setTimeout(()=>{if(!viewModeActive&&!analyseModeActive&&!targetingModeActive&&!roundRunning){navState==='root'?layoutRadialCommands():layoutCategory()}renderTargetArrows()},560)});window.addEventListener('keydown',e=>{if((e.key==='Escape'||e.key==='Backspace')&&clashConfirmationActive){e.preventDefault();returnClashConfirmationToTargeting();return}if((e.key==='Escape'||e.key==='Backspace')&&(viewModeActive||analyseModeActive||targetingModeActive)){e.preventDefault();exitSpecialView();return}if((e.key==='Escape'||e.key==='Backspace')&&navState!=='root'){e.preventDefault();goBack();return}if(['1','2','3'].includes(e.key)){selectSlot(Number(e.key)-1);return}if(e.key==='['){damageCombatant(PLAYER_ID,45);setStatus(`TEST · -45 HP a ${combatData[PLAYER_ID]?.name||'Player'}`);return}if(navState==='root'){if(e.key.toLowerCase()==='v'){enterViewMode();return}const map={s:'skills',d:'defense',m:'spells',i:'items',g:'global'},m=map[e.key.toLowerCase()];if(m)enterCategory(m)}});window.addEventListener('contextmenu',e=>{if(viewModeActive||analyseModeActive||targetingModeActive){e.preventDefault();exitSpecialView();return}if(navState!=='root'){e.preventDefault();goBack()}});function initializeCombatSurface({playIntro=true}={}){
+},true);$('back').onclick=goBack;$('view-return').onclick=exitSpecialView;$('damage-test').onclick=()=>{damageCombatant(PLAYER_ID,45);setStatus(`TEST EXTERNO · -45 HP a ${combatData[PLAYER_ID]?.name||'Player'}`)};$('ready').onclick=setPlanReady;$('start-round').onclick=startRound;window.addEventListener('resize',()=>{if(viewModeActive||targetingModeActive||clashConfirmationActive||roundRunning||planReady){setCameraFocus('full',false)}else if(analyseModeActive){setCameraFocus('enemy',true);if(selectedObservationEnemy)layoutObservationRing(selectedObservationEnemy)}else{setCameraFocus('player',true);navState==='root'?layoutRadialCommands():layoutCategory()}setTimeout(()=>{if(!viewModeActive&&!analyseModeActive&&!targetingModeActive&&!roundRunning){navState==='root'?layoutRadialCommands():layoutCategory()}renderTargetArrows()},560)});window.addEventListener('keydown',e=>{if((e.key==='Escape'||e.key==='Backspace')&&clashConfirmationActive){e.preventDefault();returnClashConfirmationToTargeting();return}if((e.key==='Escape'||e.key==='Backspace')&&(viewModeActive||analyseModeActive||targetingModeActive)){e.preventDefault();exitSpecialView();return}if((e.key==='Escape'||e.key==='Backspace')&&navState!=='root'){e.preventDefault();goBack();return}if(['1','2','3'].includes(e.key)){selectSlot(Number(e.key)-1);return}if(e.key==='['){damageCombatant(PLAYER_ID,45);setStatus(`TEST · -45 HP a ${combatData[PLAYER_ID]?.name||'Player'}`);return}if(navState==='root'){if(e.key.toLowerCase()==='v'){enterViewMode();return}const map={s:'skills',d:'defense',m:'spells',i:'items',g:'global'},m=map[e.key.toLowerCase()];if(m)enterCategory(m)}});window.addEventListener('contextmenu',e=>{if(viewModeActive||analyseModeActive||targetingModeActive){e.preventDefault();exitSpecialView();return}if(navState!=='root'){e.preventDefault();goBack()}});function initializeCombatSurface({playIntro=true}={}){
   if(!combatData[PLAYER_ID])return false;
   selectedSlotIndex=0;navState='root';activeMenu=null;selected=null;focusedIndex=0;plannedActions=[];planReady=false;roundRunning=false;
+  $('game-container').classList.remove('ready-plan-visible');
   selectSlot(0);
   renderAllPlannedSlots();
   refreshRoundUnitStates(round);
@@ -8166,7 +8184,7 @@ window.LuminousCombatStepRuntime=Object.freeze({
   resetJournal:()=>combatStepRuntime().resetJournal(),
   captureExecution(queue,resolvedKeys){
     const domain=value=>JSON.parse(JSON.stringify(value,(key,value)=>
-      (key==='slot'&&value?.classList)||key.startsWith('_hp')||value?.nodeType||typeof value==='function'?undefined:value));
+      (key==='slot'&&value?.classList)||key.startsWith('_hp')||value?.nodeType||typeof value==='function'?undefined:key==='combatDeck'&&window.LuminousCombatSlotDeck073?window.LuminousCombatSlotDeck073.compact(value):value));
     return domain({units:combatData,queue,resolvedKeys:[...resolvedKeys],activeGrapples,grappleSerial})
   },
   restoreExecution(queue,resolvedKeys,saved){
@@ -8226,6 +8244,7 @@ window.LuminousCombatStepRuntime=Object.freeze({
     closeAllFloatingClashHuds();clearTimelineVisualFocus();
     round=Math.max(1,Number(next)||1);$('round').textContent=round;
     plannedActions=[];planReady=false;timelineResolutionActive=false;
+    $('game-container').classList.remove('ready-plan-visible');
     Object.values(combatData).forEach(unit=>{unit.autoPlans=[]});
     turnStartDeck();
     this.lockPlanning(false);
@@ -8242,7 +8261,15 @@ window.LuminousCombat073=Object.freeze({
   initialize:initializeCombatSurface,
   playerId:()=>PLAYER_ID,
   combatants:()=>combatData,
+  kit:id=>UNIT_KITS[id],
   plans:()=>plannedActions,
+  restorePlanning(plans,ready){
+    plannedActions=plans;planReady=Boolean(ready);
+    $('game-container').classList.toggle('ready-plan-visible',planReady);
+    const button=$('ready');button.textContent=planReady?'CANCEL READY':'READY';button.classList.toggle('locked',planReady);button.setAttribute('aria-pressed',String(planReady));
+    if(planReady)setCameraFocus('full',false);
+    renderAllPlannedSlots();renderTargetArrows();
+  },
   setPlayerId:id=>{PLAYER_ID=String(id||'');deckSkills=playerDeckForUnit(PLAYER_ID);return PLAYER_ID},
   setKits:kits=>{Object.entries(kits||{}).forEach(([id,kit])=>{UNIT_KITS[id]=kit});deckSkills=playerDeckForUnit(PLAYER_ID)},
   setRound:value=>{round=Math.max(1,Number(value)||1);return round},

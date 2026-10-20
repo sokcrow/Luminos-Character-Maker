@@ -196,6 +196,13 @@
     return true;
   }
 
+  function inspectClick(event){
+    if(!isDm())return;
+    const token=event.target?.closest?.('.sprite-container');
+    if(!token||event.target?.closest?.('[data-status-ref],.action-slot-wrapper'))return;
+    if(global.inspectDmUnit?.(token.id.replace(/^token-/,''))){event.preventDefault();event.stopPropagation();}
+  }
+
   function start(){
     patchRuntime();observeRole();observeFacing();observeVisualSurface();scheduleFacing();scheduleVisualSurface();if(isDm())enforceDmView();
     if(state.roleTimer)return true;
@@ -223,5 +230,6 @@
   global.addEventListener('luminous:combat073-hydrated',()=>{observeFacing();observeVisualSurface();scheduleFacing();scheduleVisualSurface();if(isDm())enforceDmView()});
   global.addEventListener('beforeunload',stop,{once:true});
   global.LuminousCombatDmObserver073=Object.freeze({version:'0.7.3-dm-visual-3-transition-clear',state,start,stop,isDm,enforceDmView,clearObserverRestrictions,ensureVisualSurface,scheduleVisualSurface,observeVisualSurface,tuneRenderer,patchRuntime,sourceFacing,desiredFacing,applyLimbusFacing});
+  global.document?.addEventListener?.('click',inspectClick,true);
   start();
 })(window);

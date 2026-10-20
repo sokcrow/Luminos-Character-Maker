@@ -37,6 +37,8 @@
   function payloadFor(plan,index,unitId,s){
     const kind=kindOf(plan),id=idOf(plan,kind),d=clone(plan?.data||{});if(!id)throw new Error(`ACTION_ID_MISSING_SLOT_${index}`);
     const out={schemaVersion:2,engineVersion:'0.7.3-live-authority',kind,unitId,scheduledBy:s.playerId,schedulerUid:s.uid,status:'planned',round:Math.max(1,Math.trunc(finite(s.round,1))),sourceSlotIndex:Number.isInteger(plan?.sourceSlotIndex)?plan.sourceSlotIndex:index,targetId:clean(plan?.targetId)||null,targetSlotIndex:Number.isInteger(plan?.targetSlotIndex)?plan.targetSlotIndex:null,actionData:d,updatedAt:global.firebase.database.ServerValue.TIMESTAMP};
+    for(const key of ['drawId','clashChoice','clashOrder','clashConfirmed'])if(plan?.[key]!=null)out[key]=clone(plan[key]);
+    out.planType=plan?.type||kind;
     const targetSide=clean(d.targetSide||d.targetRule||plan?.targetSide||plan?.targetRule);if(targetSide)out.targetSide=targetSide;
     const displayName=clean(d.name||d.nombre||d.label);if(displayName)out.actionName=displayName;
     if(Array.isArray(plan?.additionalTargets)&&plan.additionalTargets.length)out.additionalTargets=plan.additionalTargets.map(t=>({targetId:clean(t?.targetId),targetSlotIndex:Number.isInteger(Number(t?.targetSlotIndex))?Number(t.targetSlotIndex):0})).filter(t=>t.targetId);

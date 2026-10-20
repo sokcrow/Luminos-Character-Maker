@@ -522,7 +522,12 @@
       return [...globals, ...traits];
     }
     if (menu === "skills") {
-      return liveActions("skill").filter((row) => economyTabFor(row) === tab);
+      const deck=global.LuminousCombatSlotDeck073;
+      if(!deck)return liveActions("skill").filter((row)=>economyTabFor(row)===tab);
+      const unit=playerUnit(),slot=selectedSlotIndex();
+      const hand=unit?deck.hand(unit.id,slot).map(card=>({...card.skill,__deckCard:{drawId:card.drawId,slotIndex:slot}})):[];
+      const granted=liveActions("skill").filter(row=>!deck.eligible(row));
+      return [...hand,...granted].filter(row=>economyTabFor(row)===tab);
     }
     if (menu === "spells") {
       return spellRowsForPlayer().filter((row) => economyTabFor(row) === tab);
@@ -688,7 +693,8 @@
     button.className = "skill-option";
     button.style.setProperty("--sin", sin?.color || "#ff4a22");
     button.innerHTML = markup(row);
-    button.onclick = () => api.selectAction({ type, slotIndex: selectedSlotIndex(), data: row });
+    if(row.__deckCard)button.dataset.deckDrawId=row.__deckCard.drawId;
+    button.onclick = () => api.selectAction({ type:row.__deckCard?"deck":type, slotIndex:selectedSlotIndex(), ...(row.__deckCard?{drawId:row.__deckCard.drawId}:{}), data:row });
     return button;
   }
 
