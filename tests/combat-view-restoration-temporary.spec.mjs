@@ -78,7 +78,7 @@ for(const [width,height] of sizes){
       expect(live.some(r=>r.power==='8')).toBe(true);
       await page.screenshot({path:`artifacts/view-restoration/${width}-clash.png`});
       // Rotating while a Clash is live must not duplicate or lose the nodes.
-      if(width<1000){await page.setViewportSize({width:height,height:width});await page.waitForTimeout(600);await expect(ribbons).toHaveCount(2);await page.screenshot({path:`artifacts/view-restoration/${width}-rotated.png`});}
+      if(width<1000){await page.setViewportSize({width:height,height:width});await page.waitForTimeout(600);await expect(ribbons).toHaveCount(2);expect(await page.locator('#battlefield').evaluate(n=>n.classList.contains('camera-focus'))).toBe(false);await page.screenshot({path:`artifacts/view-restoration/${width}-rotated.png`});}
       await page.evaluate(()=>{const {a,b}=window.__viewQA;window.closeFloatingClashHud(a);window.closeFloatingClashHud(b);window.LuminousCombatStepRuntime.finishPlayback(2);});
       await expect(ribbons).toHaveCount(0);
       expect(errors).toEqual([]);
