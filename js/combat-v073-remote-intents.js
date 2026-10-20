@@ -12,6 +12,21 @@
   function adapter(){return global.LuminousCombatLiveAdapter073||null;}
   function adapterState(){return adapter()?.state||null;}
   function runtime(){return global.LuminousCombat073||null;}
+  function listen(ref,handler,label){
+    let closed=false,retried=false,timer=null;
+    const failed=error=>{
+      const user=adapterState()?.user;
+      if(closed)return;
+      if(error?.code!=='PERMISSION_DENIED'||retried||!user){console.error(label,error);return;}
+      retried=true;
+      Promise.resolve().then(()=>user.getIdToken?.(true)).then(()=>{
+        if(closed||adapterState()?.user!==user)return;
+        timer=global.setTimeout(()=>{timer=null;if(!closed)ref.on('value',handler,failed);},250);
+      }).catch(error=>{if(!closed)console.error(label,error);});
+    };
+    ref.on('value',handler,failed);
+    state.extraSubs.push(()=>{closed=true;if(timer)global.clearTimeout(timer);ref.off('value',handler);});
+  }
   function combatantForPersistedPlan(raw={}){
     const data=runtime()?.combatants?.()||{},explicit=clean(raw.unitId);if(explicit&&data[explicit])return data[explicit];
     const playerId=clean(raw.scheduledBy);if(!playerId)return null;
@@ -140,10 +155,12 @@
   }
   function restoreOwnPlanning(){
     const s=adapterState();if(!state.restoreOwn||s?.role!=='player'||!state.readyLoaded||!state.plansLoaded)return;
-    state.restoreOwn=false;
     const row=state.ready[s.playerId];if(row?.ready!==true||Number(row.round)!==Number(s.round))return;
     const unit=Object.values(runtime()?.combatants?.()||{}).find(unit=>unit.controlled==='player'),plans=[];
+    if(!unit||typeof runtime()?.restorePlanning!=='function'||Number(runtime()?.uiState?.().round)!==Number(s.round))return;
     for(const [index,raw]of Object.entries(state.plans[s.playerId]||{}))if(Number(raw.round)===Number(s.round))plans[Number(index)]=runtimePlan(raw,Number(index),unit);
+    if(plans.filter(Boolean).length<Number(row.plannedSlots||0))return;
+    state.restoreOwn=false;
     runtime()?.restorePlanning?.(plans,true);
   }
   function apply(){
@@ -162,11 +179,12 @@
   }
   function bind(){
     const s=adapterState();if(!s?.db?.ref||!s.user)return false;if(state.readyRef||state.authRef)return true;
-    state.readyRef=s.db.ref(READY_ROOT);state.readyHandler=snapshot=>{state.ready=snapshot.val()||{};state.readyLoaded=true;state.rawTargets=rowsFromReady(state.ready);apply();};state.readyRef.on('value',state.readyHandler,error=>console.error('[Combat073 TargetIntents]',error));
-    state.authRef=s.db.ref(AUTH_ROOT);state.authHandler=snapshot=>{state.authority=snapshot.val()||{};apply();};state.authRef.on('value',state.authHandler,error=>console.error('[Combat073 AuthorityPlans]',error));
+    state.readyLoaded=state.plansLoaded=false;state.restoreOwn=true;
+    state.readyRef=s.db.ref(READY_ROOT);state.readyHandler=snapshot=>{state.ready=snapshot.val()||{};state.readyLoaded=true;state.rawTargets=rowsFromReady(state.ready);apply();};listen(state.readyRef,state.readyHandler,'[Combat073 TargetIntents]');
+    state.authRef=s.db.ref(AUTH_ROOT);state.authHandler=snapshot=>{state.authority=snapshot.val()||{};apply();};listen(state.authRef,state.authHandler,'[Combat073 AuthorityPlans]');
     for(const [path,key]of [[PLANS_ROOT,'plans'],[AI_ROOT,'planningAi']]){
       const ref=s.db.ref(path),handler=snapshot=>{state[key]=snapshot.val()||{};if(key==='plans')state.plansLoaded=true;apply();};
-      ref.on('value',handler,error=>console.error('[Combat073 Shared plans]',error));state.extraSubs.push(()=>ref.off('value',handler));
+      listen(ref,handler,'[Combat073 Shared plans]');
     }
     return true;
   }
@@ -174,7 +192,7 @@
   function start(){if(state.started)return true;state.started=true;const attempt=()=>{if(bind())return true;state.retryTimer=global.setTimeout(attempt,250);return false;};attempt();return true;}
   function stop(){if(state.aiTimer)global.clearTimeout(state.aiTimer);state.aiTimer=null;state.extraSubs.splice(0).forEach(off=>off());if(state.retryTimer)global.clearTimeout(state.retryTimer);if(state.renderTimer)global.clearTimeout(state.renderTimer);state.retryTimer=state.renderTimer=null;if(state.readyRef&&state.readyHandler)state.readyRef.off('value',state.readyHandler);if(state.authRef&&state.authHandler)state.authRef.off('value',state.authHandler);state.readyRef=state.readyHandler=state.authRef=state.authHandler=null;state.started=false;}
   global.addEventListener('luminous:combat073-hydrated',onHydrated);global.addEventListener('luminous:combat073-runtime-ready',apply);global.addEventListener('beforeunload',stop,{once:true});
-  global.LuminousCombatRemoteIntents073=Object.freeze({version:'0.7.3-remote-intents.5-ready-plans',READY_ROOT,AUTH_ROOT,state,start,stop,bind,apply,applyRows,canRenderNow,scheduleRender,rowsFromReady,runtimePlan,intentPlan,inferTargetSide,publishPlanningAi,applyPlanningAi,renderPlanLabels});
+  global.LuminousCombatRemoteIntents073=Object.freeze({version:'0.7.3-remote-intents.6-reentry',READY_ROOT,AUTH_ROOT,state,start,stop,bind,apply,applyRows,canRenderNow,scheduleRender,rowsFromReady,runtimePlan,intentPlan,inferTargetSide,publishPlanningAi,applyPlanningAi,renderPlanLabels});
   global.addEventListener('luminous:combat073-plan-ready-change',scheduleRender);
   start();
 })(window);
