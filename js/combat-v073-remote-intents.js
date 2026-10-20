@@ -148,10 +148,9 @@
   }
   function apply(){
     const s=adapterState(),phase=norm(state.authority?.phase),round=Number(state.authority?.round)||0,full=round===Number(s?.round)&&['sealed','running'].includes(phase);
-    if(full)return applyRows(state.authority?.plans||{},true);
-    restoreOwnPlanning();
-    applyPlanningAi();
-    applyRows(state.rawTargets,false);
+    if(!full){restoreOwnPlanning();applyPlanningAi();}
+    applyRows(full?(state.authority?.plans||{}):state.rawTargets,full);
+    if(full)return true;
     const committed={};
     for(const [owner,row]of Object.entries(state.ready))if(row?.ready===true&&Number(row.round)===Number(s?.round))committed[owner]=state.plans[owner]||{};
     // Targets remain a preview until the owner explicitly marks READY.

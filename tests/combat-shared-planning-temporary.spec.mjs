@@ -2,7 +2,7 @@ import {test,expect} from '@playwright/test';import fs from 'node:fs';
 const DB='http://127.0.0.1:9000/.json?ns=demo-limbus-default-rtdb';
 let accounts={};
 const request=async(url,body,method='POST')=>{const r=await fetch(url,{method,headers:{'Content-Type':'application/json',...(url.startsWith('http://127.0.0.1:9000')?{Authorization:'Bearer owner'}:{})},body:JSON.stringify(body)});const j=await r.json();if(!r.ok)throw Error(JSON.stringify(j));return j;};
-test.beforeAll(async()=>{for(const role of ['dm','p1','p2']){const email=`${role}@shared.local`;const data=await request('http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signUp?key=demo',{email,password:'qa-pass-123',returnSecureToken:true});accounts[role]={email,uid:data.localId};}});
+test.beforeAll(async()=>{for(const role of ['dm','p1','p2']){const email=`${role}@shared.local`;const data=await request('http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signUp?key=demo',{email,password:'qa-pass-123',returnSecureToken:true}).catch(()=>request('http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=demo',{email,password:'qa-pass-123',returnSecureToken:true}));accounts[role]={email,uid:data.localId};}});
 const sprite='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="120" height="220"><circle cx="60" cy="40" r="25" fill="#b5b5bf"/><path d="M25 205 38 85 82 85 95 205" fill="#774b63"/></svg>');
 async function seed(){
  const skills={};for(let tier=1;tier<=3;tier++)skills['s'+tier]={id:'s'+tier,name:'Skill '+tier,kind:'skill',tier,deckCopies:4-tier,basePower:16+tier,coinPower:1,coinAmount:1,damageType:'Blunt',targetSide:'enemy',sinAffinity:'wrath',economyCost:'action'};
@@ -55,7 +55,7 @@ for(const mobile of [false,true])test(`DM and two players share READY Clash and 
   expect(await p1.locator('[id="token-enemy:e1"] .hp-number').innerText()).toBe('???');
   const h1=await hands(p1);expect(h1).toHaveLength(2);
   const dmHand=await dm.evaluate(()=>window.LuminousCombatSlotDeck073.hand('player:p1',0).map(c=>({id:c.skillId,drawId:c.drawId})));expect(dmHand).toEqual(h1);
-  await p1.reload({waitUntil:'domcontentloaded'});await p1.waitForFunction(()=>window.LuminousCombat073?.combatants()?.['enemy:e2']&&window.LuminousCombatLiveAdapter073?.state.hydratedOnce);expect(await hands(p1)).toEqual(h1);
+  await p1.reload({waitUntil:'domcontentloaded'});await p1.waitForFunction(()=>window.LuminousCombat073?.combatants()?.['enemy:e2']&&window.LuminousCombatLiveAdapter073?.state.hydratedOnce&&window.LuminousCombatSlotDeck073?.hand('player:p1',0).length===2);expect(await hands(p1)).toEqual(h1);
   await p1.waitForFunction(()=>!document.querySelector('#turn-transition.active')&&!document.querySelector('#game-container.intro-running'));
   const selected=await select(p1,'GUARDIAN 1');
   await p1.locator('#ready').click();
@@ -72,7 +72,7 @@ for(const mobile of [false,true])test(`DM and two players share READY Clash and 
   for(const page of [dm,p1,p2])await page.waitForFunction(()=>window.LuminousCombat073?.uiState()?.round>=2&&!window.LuminousCombat073?.uiState()?.running,null,{timeout:120000});
   const next=await hands(p1);expect(next).toHaveLength(2);expect(next.every(c=>!selected.some(old=>old.drawId===c.drawId))).toBe(true);
   const canonical=await dm.evaluate(()=>window.LuminousCombatSlotDeck073.hand('player:p1',0).map(c=>({id:c.skillId,drawId:c.drawId})));expect(next).toEqual(canonical);
-  await p1.reload({waitUntil:'domcontentloaded'});await p1.waitForFunction(()=>window.LuminousCombatLiveAdapter073?.state.round===2&&window.LuminousCombat073?.combatants()?.['player:p1']);expect(await hands(p1)).toEqual(next);
+  await p1.reload({waitUntil:'domcontentloaded'});await p1.waitForFunction(()=>window.LuminousCombatLiveAdapter073?.state.round===2&&window.LuminousCombatSlotDeck073?.hand('player:p1',0).length===2);expect(await hands(p1)).toEqual(next);
   for(const page of [dm,p1,p2]){expect(page.errors).toEqual([]);expect(page.blocked).toEqual([]);}
   console.log(JSON.stringify({name,opening:selected,next,errors:[],productionRequests:[]}));
  }catch(error){for(const [role,page]of [['dm',dm],['p1',p1],['p2',p2]])if(page){await page.screenshot({path:`artifacts/shared-planning/${mobile?'mobile':'desktop'}-${role}-failure.png`});console.log(role,await page.evaluate(()=>({state:window.LuminousCombat073?.uiState(),status:document.getElementById('status')?.textContent,network:window.LuminousCombatLiveAdapter073?.state?.combatState,ready:window.LuminousCombatRemoteIntents073?.state?.ready,ai:!!window.LuminousCombatRemoteIntents073?.state?.planningAi?.signature})));}throw error;}
