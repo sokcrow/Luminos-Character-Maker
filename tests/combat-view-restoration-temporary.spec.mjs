@@ -17,16 +17,18 @@ for(const [width,height] of sizes){
       if(url.startsWith('http://127.0.0.1:4173/'))return route.continue();
       if(/firebase-app\.js/.test(url))return route.fulfill({contentType:'application/javascript',body:stub});
       if(/firebase-(auth|database)\.js/.test(url))return route.fulfill({contentType:'application/javascript',body:'/* local fixture */'});
+      if(route.request().resourceType()==='image'&&/https:\/\/(?:i\.)?imgur\.com\/|https:\/\/limbuscompany\.wiki\.gg\//.test(url))return route.continue();
       return route.abort();
     });
     fs.mkdirSync('artifacts/view-restoration',{recursive:true});
     try{
-      await page.goto('http://127.0.0.1:4173/Battle-viewer.html');
+      await page.goto('http://127.0.0.1:4173/Battle-viewer.html',{waitUntil:'domcontentloaded'});
       await page.waitForFunction(()=>window.LuminousCombat073?.combatants()?.['enemy:e1']&&window.LuminousCombatEconomyMenu073?.state.installed,{},{timeout:30000});
       await page.waitForFunction(()=>window.LuminousCombatEconomyMenu073?.liveActions('skill')?.some(s=>s.id==='ci_player_skill'));
       // Skip the intro delay through the existing initialization entry point.
       await page.evaluate(()=>window.LuminousCombat073.initialize({playIntro:false}));
-      await page.waitForTimeout(1000);
+      await page.waitForFunction(()=>!document.querySelector('#game-container.intro-running')&&!document.querySelector('#turn-transition.active'),null,{timeout:10000});
+      await page.waitForTimeout(600);
       expect(await page.locator('#combat-own-status,#combat-action-readout').count()).toBe(0);
       await page.screenshot({path:`artifacts/view-restoration/${width}-root.png`});
       await page.locator('.command[data-menu=view]').click();
@@ -49,6 +51,7 @@ for(const [width,height] of sizes){
       if(width<1000)await page.locator('#combat-target-list button').filter({hasText:'GUARDIAN'}).first().click();
       else await page.locator('[data-owner-id="enemy:e1"].action-slot-wrapper').first().click();
       await expect(page.locator('#clash-forecast-confirm')).toBeVisible();
+      await page.waitForTimeout(500);
       const geometry=await page.locator('#clash-forecast .clash-forecast-skill-hud').evaluateAll(nodes=>nodes.map(n=>{const r=n.getBoundingClientRect(),s=n.closest('.clash-forecast-side').getBoundingClientRect();return{display:getComputedStyle(n).display,x:r.x,right:r.right,width:r.width,sideX:s.x,sideRight:s.right};}));
       for(const r of geometry){expect(r.display).not.toBe('none');expect(r.x).toBeGreaterThanOrEqual(-1);expect(r.right).toBeLessThanOrEqual(width+1);if(width<1000){expect(r.x).toBeGreaterThanOrEqual(r.sideX-1);expect(r.right).toBeLessThanOrEqual(r.sideRight+1);}}
       const button=await page.locator('#clash-forecast-confirm').boundingBox();expect(button.y+button.height).toBeLessThanOrEqual(height);expect(button.height).toBeGreaterThanOrEqual(width<1000?44:34);

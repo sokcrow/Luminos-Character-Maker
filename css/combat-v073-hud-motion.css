@@ -61,7 +61,7 @@ html,body,#game-container.combat-product-hud{overflow:clip!important}
 .compact-combat-hud #clash-forecast .clash-forecast-damage-line{gap:4px!important;flex-wrap:wrap;min-height:32px!important}
 .compact-combat-hud #clash-forecast .clash-forecast-damage-line .min,
 .compact-combat-hud #clash-forecast .clash-forecast-damage-line .max{font-size:24px!important}
-.compact-combat-hud #clash-forecast .clash-forecast-effects{min-height:0!important;max-height:120px!important}
+.compact-combat-hud #clash-forecast .clash-forecast-effects{flex:0 1 auto!important;min-height:0!important;max-height:120px!important}
 .compact-combat-hud #clash-forecast .clash-forecast-effects .skill-rule-row{grid-template-columns:1fr!important}
 .compact-combat-hud #clash-forecast .clash-forecast-effects .skill-rule-copy{font-size:11px!important}
 .compact-combat-hud #clash-forecast .clash-forecast-actions{margin:0!important;width:auto!important}
@@ -89,4 +89,14 @@ html,body,#game-container.combat-product-hud{overflow:clip!important}
 @media(max-height:500px){
   .compact-combat-hud #clash-forecast .clash-forecast-effects{max-height:64px!important}
   .compact-combat-hud #clash-forecast .clash-forecast-effects .skill-rule-copy{font-size:10px!important}
+}
+@media(orientation:landscape) and (max-height:500px){
+  .compact-combat-hud #clash-forecast.open{grid-template-columns:minmax(0,1fr) 132px minmax(0,1fr)!important}
+  .compact-combat-hud #clash-forecast .clash-forecast-side.enemy{grid-column:3}
+  .compact-combat-hud #clash-forecast .clash-forecast-center{
+    grid-column:2;grid-row:1;position:static;align-self:center;
+    flex-direction:column!important;padding:4px!important;background:transparent;
+  }
+  .compact-combat-hud #clash-forecast .clash-forecast-grade{font-size:18px!important}
+  .compact-combat-hud #clash-forecast .clash-forecast-confirm{font-size:12px!important}
 }
