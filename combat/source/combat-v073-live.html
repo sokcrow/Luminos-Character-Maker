@@ -2371,6 +2371,7 @@
   <div class="quick-badge">QUICK ACTION <strong>1 / 1</strong></div>
   <nav class="command-ring" id="command-ring">
     <button class="command" data-menu="skills" data-angle="-145" data-width="138" data-accent="var(--skill)"><span class="splash"></span><span class="ink"><span class="label">SKILLS<span class="sub">Deck + Granted</span></span></span><span class="pivot"><img src="https://limbuscompany.wiki.gg/images/SkillAttack.png?97118e=&format=original" alt="Skills"></span></button>
+    <button class="command" data-menu="view" data-angle="180" data-width="116" data-accent="var(--view)"><span class="splash"></span><span class="ink"><span class="label">VIEW<span class="sub">Targets</span></span></span><span class="pivot"><img src="https://imgur.com/TLrdygM.png" alt="View"></span></button>
     <button class="command" data-menu="defense" data-angle="145" data-width="134" data-accent="var(--defense)"><span class="splash"></span><span class="ink"><span class="label">DEFENSE<span class="sub">Permanent</span></span></span><span class="pivot"><img src="https://limbuscompany.wiki.gg/images/Defense.png?b5e730&format=original" alt="Defense"></span></button>
     <button class="command" data-menu="spells" data-angle="-35" data-width="136" data-accent="var(--spell)"><span class="splash"></span><span class="ink"><span class="label">SPELLS<span class="sub">Spellbook</span></span></span><span class="pivot"><img src="https://imgur.com/DJ5lKid.png" alt="Spells"></span></button>
     <button class="command" data-menu="items" data-angle="0" data-width="128" data-accent="var(--item)"><span class="splash"></span><span class="ink"><span class="label">ITEMS<span class="sub">Inventory</span></span></span><span class="pivot"><img src="https://imgur.com/LA2meL7.png" alt="Items"></span></button>
@@ -6601,6 +6602,7 @@ function showClashForecastForSlot(slotIndex){
   const overwriteMarkup=overwrite?`<div class="clash-forecast-overwrite-title">OVERWRITE CLASH?</div><div class="clash-forecast-overwrite-current">CURRENT · <strong>${htmlEscape(overwrite.existingName)}</strong> ↔ ${htmlEscape(overwrite.targetName)}</div>`:'';
   host.innerHTML=`${clashForecastSideMarkup(playerUnit,plan,enemyUnit,enemyPlan)}<div class="clash-forecast-center">${overwriteMarkup}<div class="clash-forecast-grade ${grade.cls}">${grade.label}</div><div class="clash-forecast-vs">VS</div>${confirming?`<div class="clash-forecast-actions"><button type="button" class="clash-forecast-confirm" id="clash-forecast-confirm">${overwrite?'CONFIRM OVERWRITE':'CONFIRM CLASH'}</button><div class="clash-forecast-change-hint">Click outside = change target</div></div>`:`<div class="clash-forecast-note${confirmed?' confirmed':''}">${confirmed?'Clash confirmed':'Clash forecast'}</div>`}</div>${clashForecastSideMarkup(enemyUnit,enemyPlan,playerUnit,plan,{enemy:true})}`;
   host.classList.add('open');host.setAttribute('aria-hidden','false');host.dataset.grade=grade.cls;activeClashForecastSlot=slotIndex;
+  window.LuminousCombatHudMotion073?.layoutClashForecast();
   if(confirming){const button=$('clash-forecast-confirm');if(button)button.onclick=e=>{e.preventDefault();e.stopPropagation();confirmPendingClash()}}
   return true
 }
@@ -6630,6 +6632,7 @@ function ensureFloatingClashHud(entry){
   if(hud){
     hud.classList.toggle('player-clash-hud',entry.ownerId===PLAYER_ID);
     hud.classList.toggle('npc-clash-hud',entry.ownerId!==PLAYER_ID);
+    window.LuminousCombatHudMotion073?.placeClashHud(entry,hud);
     return hud
   }
 
@@ -6657,6 +6660,7 @@ function ensureFloatingClashHud(entry){
     </div>
     <div class="clash-float-result"></div>`;
   combatant.appendChild(hud);
+  window.LuminousCombatHudMotion073?.placeClashHud(entry,hud);
   return hud
 }
 function openFloatingClashHud(entry){
@@ -7974,7 +7978,7 @@ function selectSlot(i){
   setStatus(`${navState.toUpperCase()} · Slot ${i+1}${activeMenu?` · ${activeMenu.toUpperCase()}`:''}`)
 }
 function executeSelected(){return assignSelectedToSlot()}
-document.querySelectorAll('.command').forEach(b=>b.onclick=()=>{if(viewModeActive||analyseModeActive||targetingModeActive)return;enterCategory(b.dataset.menu)});playerSlots().forEach((s,i)=>s.onclick=()=>selectSlot(i));
+document.querySelectorAll('.command').forEach(b=>b.onclick=()=>{if(viewModeActive||analyseModeActive||targetingModeActive)return;b.dataset.menu==='view'?enterViewMode():enterCategory(b.dataset.menu)});playerSlots().forEach((s,i)=>s.onclick=()=>selectSlot(i));
 
 let activeStatusOverflowUnitId='';
 function statusOverflowPopoverNode(){
@@ -8110,7 +8114,7 @@ document.addEventListener('pointerdown',e=>{
   e.preventDefault();
   e.stopPropagation();
   choosePlayerTarget(slot)
-},true);$('back').onclick=goBack;$('view-return').onclick=exitSpecialView;$('damage-test').onclick=()=>{damageCombatant(PLAYER_ID,45);setStatus(`TEST EXTERNO · -45 HP a ${combatData[PLAYER_ID]?.name||'Player'}`)};$('ready').onclick=setPlanReady;$('start-round').onclick=startRound;window.addEventListener('resize',()=>{if(viewModeActive||targetingModeActive){setCameraFocus('full',false)}else if(analyseModeActive){setCameraFocus('enemy',true);if(selectedObservationEnemy)layoutObservationRing(selectedObservationEnemy)}else{setCameraFocus('player',true);navState==='root'?layoutRadialCommands():layoutCategory()}setTimeout(()=>{if(!viewModeActive&&!analyseModeActive&&!targetingModeActive&&!roundRunning){navState==='root'?layoutRadialCommands():layoutCategory()}renderTargetArrows()},560)});window.addEventListener('keydown',e=>{if((e.key==='Escape'||e.key==='Backspace')&&clashConfirmationActive){e.preventDefault();returnClashConfirmationToTargeting();return}if((e.key==='Escape'||e.key==='Backspace')&&(viewModeActive||analyseModeActive||targetingModeActive)){e.preventDefault();exitSpecialView();return}if((e.key==='Escape'||e.key==='Backspace')&&navState!=='root'){e.preventDefault();goBack();return}if(['1','2','3'].includes(e.key)){selectSlot(Number(e.key)-1);return}if(e.key==='['){damageCombatant(PLAYER_ID,45);setStatus(`TEST · -45 HP a ${combatData[PLAYER_ID]?.name||'Player'}`);return}if(navState==='root'){const map={s:'skills',d:'defense',m:'spells',i:'items',g:'global'},m=map[e.key.toLowerCase()];if(m)enterCategory(m)}});window.addEventListener('contextmenu',e=>{if(viewModeActive||analyseModeActive||targetingModeActive){e.preventDefault();exitSpecialView();return}if(navState!=='root'){e.preventDefault();goBack()}});function initializeCombatSurface({playIntro=true}={}){
+},true);$('back').onclick=goBack;$('view-return').onclick=exitSpecialView;$('damage-test').onclick=()=>{damageCombatant(PLAYER_ID,45);setStatus(`TEST EXTERNO · -45 HP a ${combatData[PLAYER_ID]?.name||'Player'}`)};$('ready').onclick=setPlanReady;$('start-round').onclick=startRound;window.addEventListener('resize',()=>{if(viewModeActive||targetingModeActive){setCameraFocus('full',false)}else if(analyseModeActive){setCameraFocus('enemy',true);if(selectedObservationEnemy)layoutObservationRing(selectedObservationEnemy)}else{setCameraFocus('player',true);navState==='root'?layoutRadialCommands():layoutCategory()}setTimeout(()=>{if(!viewModeActive&&!analyseModeActive&&!targetingModeActive&&!roundRunning){navState==='root'?layoutRadialCommands():layoutCategory()}renderTargetArrows()},560)});window.addEventListener('keydown',e=>{if((e.key==='Escape'||e.key==='Backspace')&&clashConfirmationActive){e.preventDefault();returnClashConfirmationToTargeting();return}if((e.key==='Escape'||e.key==='Backspace')&&(viewModeActive||analyseModeActive||targetingModeActive)){e.preventDefault();exitSpecialView();return}if((e.key==='Escape'||e.key==='Backspace')&&navState!=='root'){e.preventDefault();goBack();return}if(['1','2','3'].includes(e.key)){selectSlot(Number(e.key)-1);return}if(e.key==='['){damageCombatant(PLAYER_ID,45);setStatus(`TEST · -45 HP a ${combatData[PLAYER_ID]?.name||'Player'}`);return}if(navState==='root'){if(e.key.toLowerCase()==='v'){enterViewMode();return}const map={s:'skills',d:'defense',m:'spells',i:'items',g:'global'},m=map[e.key.toLowerCase()];if(m)enterCategory(m)}});window.addEventListener('contextmenu',e=>{if(viewModeActive||analyseModeActive||targetingModeActive){e.preventDefault();exitSpecialView();return}if(navState!=='root'){e.preventDefault();goBack()}});function initializeCombatSurface({playIntro=true}={}){
   if(!combatData[PLAYER_ID])return false;
   selectedSlotIndex=0;navState='root';activeMenu=null;selected=null;focusedIndex=0;plannedActions=[];planReady=false;roundRunning=false;
   selectSlot(0);
@@ -8130,6 +8134,7 @@ document.addEventListener('pointerdown',e=>{
   return true
 }
 function resetLiveCombatants(){
+  $('combat-mobile-clash-layer')?.replaceChildren();
   document.querySelectorAll('#battlefield > .sprite-container').forEach(node=>node.remove());
   Object.keys(combatData).forEach(key=>delete combatData[key]);
   AUTO_UNIT_IDS=[];plannedActions=[];

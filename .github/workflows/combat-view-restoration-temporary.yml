@@ -1,0 +1,31 @@
+name: Combat view restoration temporary QA
+on:
+  pull_request:
+    branches: [main]
+    paths: ['combat/**', 'css/combat-v073-hud-motion.css', 'js/combat-v073-hud-motion.js', 'tests/combat-view-restoration-temporary.spec.mjs', '.github/workflows/combat-view-restoration-temporary.yml']
+jobs:
+  responsive-clash:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '20'}
+      - run: npm install --no-save @playwright/test@1.55.0
+      - run: npx playwright install --with-deps chromium
+      - run: |
+          python3 -m http.server 4173 --bind 127.0.0.1 > /tmp/view-qa-http.log 2>&1 &
+          for i in $(seq 1 20); do
+            curl -fsS http://127.0.0.1:4173/Battle-viewer.html > /dev/null && break
+            sleep 1
+          done
+          npm run check:combat-live
+          npm run test:combat-mobile
+          npx playwright test tests/combat-view-restoration-temporary.spec.mjs --workers=1 --reporter=line
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: combat-view-restoration-evidence
+          path: |
+            artifacts/view-restoration/
+            test-results/
