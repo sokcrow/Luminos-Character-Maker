@@ -597,6 +597,7 @@
     isFieldCombatant,
     playerRecordFor,
     canonicalPlayerId,
+    skillIdsFor,
     activeInventoryContainer,
     normalizedCombatants,
     defaultPosition,
