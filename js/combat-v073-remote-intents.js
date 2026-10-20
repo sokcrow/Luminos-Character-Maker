@@ -121,7 +121,7 @@
     if(applyPlanningAi())return true;
     // Wait until the authored skills are loaded; do not publish placeholder kits.
     const bridge=global.LuminousCombatLiveAdapter073;
-    for(const unit of Object.values(s.combatants||{}))if(bridge?.skillIdsFor?.(unit).some(id=>!s.skills?.[id])){retryPlanningAi();return false;}
+    for(const unit of Object.values(s.combatants||{}).filter(unit=>global.LuminousCombatParticipants?.isField(unit)))if(bridge?.skillIdsFor?.(unit).some(id=>!s.skills?.[id])){retryPlanningAi();return false;}
     const serialize=global.LuminousCombatAuthority073?.serializeRuntimePlan;if(!serialize){retryPlanningAi();return false;}
     const plans={};
     for(const unit of Object.values(runtime()?.combatants?.()||{}))if(unit.controlled==='ai'){

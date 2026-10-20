@@ -19,7 +19,7 @@
     readyRows:{},readyLoaded:false,listenCleanup:[],lastStartError:'',planningRepair:null,
     authorityRef:null,authorityHandler:null,readyRef:null,readyHandler:null,retryTimer:null,autoStartTimer:null,
     lastCheckpointSeq:0,writeChain:Promise.resolve(),executionChain:Promise.resolve(),hooks:new Map(),localActionSeq:0,localDigests:new Map(),pendingRemoteCheckpoints:new Map(),inFlightActions:0,
-    originalStartRound:null,originalBuildQueue:null,originalCoinEngine:null,runningLocal:false,remoteStart:false,autoStartedRound:0,pendingFinalSnapshot:null,resumeRuntime:null,lastExecutionJson:null,executingGeneration:null
+    originalStartRound:null,originalBuildQueue:null,originalCoinEngine:null,runningLocal:false,preparingRound:false,remoteStart:false,autoStartedRound:0,pendingFinalSnapshot:null,resumeRuntime:null,lastExecutionJson:null,executingGeneration:null
   };
 
   function adapter(){return global.LuminousCombatLiveAdapter073||null;}
@@ -323,8 +323,19 @@
   }
   async function requestStartRound(){
     state.lastStartError='';
-    if(state.runningLocal)return false;const s=adapterState(),original=state.originalStartRound;if(!s?.db?.ref||typeof original!=='function')return false;if(isPlayer()&&!state.remoteStart){setStatus('COMBAT · esperando resolución autoritativa del DM');return false;}state.runningLocal=true;
+    if(state.runningLocal||state.preparingRound)return false;const s=adapterState(),original=state.originalStartRound;if(!s?.db?.ref||typeof original!=='function')return false;if(isPlayer()&&!state.remoteStart){setStatus('COMBAT · esperando resolución autoritativa del DM');return false;}
     try{
+      if(isDm()&&global.LuminousCombatRemoteIntents073?.publishPlanningAi){
+        // Keep hydration available while the sparse Skill catalog loads. A
+        // READY received during DM boot must not seal placeholder enemy plans.
+        state.preparingRound=true;let prepared=false;
+        for(let attempt=0;attempt<80;attempt++){
+          if((Number(state.current?.round)===Number(s.round)&&['sealed','running'].includes(norm(state.current?.phase)))||await global.LuminousCombatRemoteIntents073.publishPlanningAi()){prepared=true;break;}
+          await new Promise(resolve=>global.setTimeout(resolve,100));
+        }
+        if(!prepared)throw new Error('No se pudieron cargar las habilidades enemigas. Recarga el encuentro antes de iniciar el turno.');
+      }
+      state.runningLocal=true;state.preparingRound=false;
       let current=state.current;
       if(isDm()){
         if(Number(current?.round)!==Number(s.round)||!['sealed','running'].includes(norm(current?.phase)))current=await sealRound();
@@ -340,7 +351,7 @@
       if(nextRound<=completedRound)throw new Error('No se pudo completar el turno. Vuelve a abrir el combate.');
       if(isDm()){await state.writeChain;await afterRound({completedRound,nextRound});}else if(state.pendingFinalSnapshot){applySnapshot(state.pendingFinalSnapshot.combatants||{});if(Number.isFinite(Number(state.pendingFinalSnapshot.rngCursor)))resetRandom(current.seed,Number(state.pendingFinalSnapshot.rngCursor));state.pendingFinalSnapshot=null;}
       return true;
-    }catch(error){console.error('[Combat073 Authority start]',error);state.lastStartError=error?.message||'No se pudo continuar el turno. Vuelve a abrir el combate.';setStatus(state.lastStartError);return false;}finally{state.runningLocal=false;state.resumeRuntime=null;state.executingGeneration=null;if(adapterState()?.firebaseReady)adapter()?.scheduleHydrate?.();}
+    }catch(error){console.error('[Combat073 Authority start]',error);state.lastStartError=error?.message||'No se pudo continuar el turno. Vuelve a abrir el combate.';setStatus(state.lastStartError);return false;}finally{state.preparingRound=false;state.runningLocal=false;state.resumeRuntime=null;state.executingGeneration=null;if(adapterState()?.firebaseReady)adapter()?.scheduleHydrate?.();}
   }
   function patchStartRound(){const hud=global.LuminousCombatHUD,original=state.originalStartRound||hud?.startRound||global.startRound;if(typeof original!=='function')return false;state.originalStartRound=original.__luminousAuthorityStartOriginal||original;requestStartRound.__luminousAuthorityStart=true;requestStartRound.__luminousAuthorityStartOriginal=state.originalStartRound;global.startRound=requestStartRound;if(hud)hud.startRound=requestStartRound;const button=global.document?.getElementById?.('start-round');if(button)button.onclick=requestStartRound;return true;}
   function allReadySnapshot(rows={}){const round=Number(adapterState()?.round)||1,ids=activePlayerIds();return ids.length>0&&ids.every(id=>rows?.[id]?.ready===true&&Number(rows[id].round)===round);}
