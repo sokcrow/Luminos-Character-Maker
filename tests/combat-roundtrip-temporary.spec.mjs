@@ -21,7 +21,7 @@ async function seed(){
 }
 async function open(browser,role,viewport,dashboard=false){
  const context=await browser.newContext({viewport,hasTouch:viewport.width<900,isMobile:viewport.width<900});const page=await context.newPage();page.errors=[];page.blocked=[];page.setDefaultTimeout(25000);
- page.on('pageerror',error=>{page.errors.push(error.message);console.log(role,'PAGEERROR',error.message)});page.on('dialog',async dialog=>{page.lastDialog=dialog.message();await dialog.accept();});
+ page.on('pageerror',error=>{page.errors.push(error.message);console.log(role,'PAGEERROR',error.message)});page.on('console',m=>{if(m.type()==='error'&&!/Failed to load resource/.test(m.text()))console.log(role,'CONSOLE',m.text())});page.on('dialog',async dialog=>{page.lastDialog=dialog.message();await dialog.accept();});
  await page.addInitScript(()=>{window.__qaEvents=[];window.__qaSeen=new Set();window.__qaHud=false;window.__qaAnimation=false;setInterval(()=>{for(const event of window.LuminousCombatStepRuntime?.events?.()||[]){const key=[event.round,event.sequence,event.type].join(':');if(!window.__qaSeen.has(key)){window.__qaSeen.add(key);window.__qaEvents.push(event);}}if(document.querySelector('.clash-float-hud.open'))window.__qaHud=true;if(document.getAnimations().some(a=>a.playState==='running'))window.__qaAnimation=true;},20);});
  await page.route('**/*',async route=>{
   const url=route.request().url();
@@ -36,7 +36,7 @@ async function open(browser,role,viewport,dashboard=false){
  let battle=page;
  if(dashboard){await expect(page.locator('#dm-combat-view')).toHaveAttribute('src',/Battle-viewer/,{timeout:45000});battle=await page.locator('#dm-combat-view').elementHandle().then(h=>h.contentFrame());}
  await battle.waitForFunction(wanted=>window.LuminousCombatLiveAdapter073?.state.role===wanted&&window.LuminousCombat073?.combatants()?.['enemy:e1']&&window.LuminousCombatEconomyMenu073?.state.installed,role==='dm'?'dm':'player',{timeout:60000});
- await battle.waitForFunction(()=>window.LuminousCombatLiveAdapter073.state.skills.s3&&window.LuminousCombatRemoteIntents073?.state.planningAi.signature,null,{timeout:45000});
+ try{await battle.waitForFunction(()=>window.LuminousCombatLiveAdapter073.state.skills.s3&&window.LuminousCombatRemoteIntents073?.state.planningAi.signature,null,{timeout:45000});}catch(error){console.log('BOOT_FAILURE',await battle.evaluate(()=>({role:window.LuminousCombatLiveAdapter073?.state.role,phase:window.LuminousCombatLiveAdapter073?.state.combatState,skills:Object.keys(window.LuminousCombatLiveAdapter073?.state.skills||{}),authority:window.LuminousCombatAuthority073?.state.current,ai:window.LuminousCombatRemoteIntents073?.state.planningAi,status:document.getElementById('status')?.textContent})));await page.screenshot({path:'artifacts/roundtrip/boot-failure.png'});throw error;}
  await battle.waitForFunction(()=>!document.querySelector('#game-container.intro-running')&&!document.querySelector('#turn-transition.active'),null,{timeout:20000});
  return {page,battle,context};
 }

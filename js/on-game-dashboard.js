@@ -477,6 +477,7 @@
             return;
           }
           await authority.preparePlanningState();
+          if(authority.state.runningLocal)return;
           if (!await authority.requestStartRound()) {
             const message=authority.state.lastStartError || '';
             window.alert?.(message.startsWith('Falta confirmar READY:') ? message : "No se pudo resolver el turno. Revisa que todos los participantes hayan confirmado READY y vuelve a intentarlo.");

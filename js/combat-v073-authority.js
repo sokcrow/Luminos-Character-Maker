@@ -145,6 +145,7 @@
   async function read(path){const s=adapterState();if(!s?.db?.ref)throw new Error('COMBAT_DB_UNAVAILABLE');const snap=await s.db.ref(path).once('value');return snap.val();}
   async function preparePlanningState(){
     const s=adapterState();if(!isDm()||!s?.db?.ref)return false;
+    if(!['combat_active','planning'].includes(norm(s.combatState)))return false;
     if(state.planningRepair)return state.planningRepair;
     // The historical dashboard wrote COMBAT_ACTIVE without sealing a round.
     // Recover that state atomically, retaining the encounter, round and choices.
@@ -365,7 +366,7 @@
   function start(){if(state.started)return true;state.started=true;installHooks();const attempt=()=>{installHooks();if(bind())return true;state.retryTimer=global.setTimeout(attempt,200);return false;};attempt();return true;}
   function stop(){state.listenCleanup.splice(0).forEach(off=>off());state.readyLoaded=false;if(state.retryTimer)global.clearTimeout(state.retryTimer);if(state.autoStartTimer)global.clearTimeout(state.autoStartTimer);if(state.authorityRef&&state.authorityHandler)state.authorityRef.off('value',state.authorityHandler);if(state.readyRef&&state.readyHandler)state.readyRef.off('value',state.readyHandler);playback()?.stop();state.authorityRef=state.authorityHandler=state.readyRef=state.readyHandler=null;state.started=false;}
 
-  global.addEventListener('luminous:combat073-runtime-ready',()=>{installHooks();applyAuthority();});global.addEventListener('luminous:combat073-hydrated',()=>{installHooks();applyAuthority();if(state.readyLoaded)maybeAutoStart(state.readyRows);});global.addEventListener('beforeunload',stop,{once:true});
+  global.addEventListener('luminous:combat073-runtime-ready',()=>{installHooks();applyAuthority();});global.addEventListener('luminous:combat073-hydrated',()=>{installHooks();applyAuthority();void preparePlanningState().catch(error=>console.error('[Combat073 planning recovery]',error));if(state.readyLoaded)maybeAutoStart(state.readyRows);});global.addEventListener('beforeunload',stop,{once:true});
   global.LuminousCombatAuthority073=Object.freeze({version:'0.7.3-authority.9-step-rng',ROOT,state,start,stop,isDm,isPlayer,random,resetRandom,withAuthorityRandom,canonicalPlayerId,classEntries,isSpellcaster,validateSpellPlans,queueEntryKind,isItemQueueEntry,persistPlayerInventory,snapshotRuntime,digest,checkpointDigest,queueCheckpoint,sealRound,applyAuthority,applySnapshot,combatantFirebaseUpdates,playerVitalSnapshot,playerVitalFirebaseUpdates,afterRound,installHooks,requestStartRound,serializeRuntimePlan,preparePlanningState,readyComplete,allReadySnapshot});
   start();
 })(window);
