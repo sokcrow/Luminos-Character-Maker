@@ -16,7 +16,7 @@
   const finite=(v,f=0)=>Number.isFinite(Number(v))?Number(v):f;
   const state={
     started:false,current:{},seed:0,cursor:0,rngState:0,
-    readyRows:{},readyLoaded:false,listenCleanup:[],
+    readyRows:{},readyLoaded:false,listenCleanup:[],lastStartError:'',planningRepair:null,
     authorityRef:null,authorityHandler:null,readyRef:null,readyHandler:null,retryTimer:null,autoStartTimer:null,
     lastCheckpointSeq:0,writeChain:Promise.resolve(),executionChain:Promise.resolve(),hooks:new Map(),localActionSeq:0,localDigests:new Map(),pendingRemoteCheckpoints:new Map(),inFlightActions:0,
     originalStartRound:null,originalBuildQueue:null,originalCoinEngine:null,runningLocal:false,remoteStart:false,autoStartedRound:0,pendingFinalSnapshot:null,resumeRuntime:null,lastExecutionJson:null,executingGeneration:null
@@ -143,13 +143,33 @@
   function collectAiPlans(){const out={};Object.entries(runtime()?.combatants?.()||{}).forEach(([id,unit])=>{if(unit?.controlled!=='ai'||!Array.isArray(unit.autoPlans))return;const rows={};unit.autoPlans.forEach((plan,index)=>{if(plan)rows[index]=serializeRuntimePlan(plan,id,index);});if(Object.keys(rows).length)out[id]=rows;});return out;}
   function activePlayerIds(){return global.LuminousCombatParticipants?.playerIds(adapterState()?.combatants||{})||[];}
   async function read(path){const s=adapterState();if(!s?.db?.ref)throw new Error('COMBAT_DB_UNAVAILABLE');const snap=await s.db.ref(path).once('value');return snap.val();}
+  async function preparePlanningState(){
+    const s=adapterState();if(!isDm()||!s?.db?.ref)return false;
+    if(state.planningRepair)return state.planningRepair;
+    // The historical dashboard wrote COMBAT_ACTIVE without sealing a round.
+    // Recover that state atomically, retaining the encounter, round and choices.
+    state.planningRepair=(async()=>{
+      const ref=s.db.ref('campaña/combate');let hold;
+      try{
+        await new Promise((resolve,reject)=>{hold=()=>resolve();ref.on('value',hold,reject);});
+        const result=await ref.transaction(combat=>{
+          if(!combat||['sealed','running'].includes(norm(combat.authority?.current?.phase)))return;
+          const raw=combat.estado,phase=norm(raw?.phase||raw?.state||raw?.status||raw);
+          if(!['combat_active','planning'].includes(phase))return;
+          return {...combat,estado:{...(raw&&typeof raw==='object'?raw:{}),phase:'PRE_COMBAT_PLANNING',active:true,round:Math.max(1,Number(raw?.round||raw?.turn)||Number(s.round)||1)}};
+        },undefined,false);
+        return result.committed;
+      }finally{if(hold)ref.off('value',hold);}
+    })().finally(()=>{state.planningRepair=null;});
+    return state.planningRepair;
+  }
   function readyComplete(ready,plans,round){const missing=[];activePlayerIds().forEach(playerId=>{const row=ready?.[playerId],rows=plans?.[playerId]||{},planned=Math.max(0,Math.trunc(Number(row?.plannedSlots)||0));if(!row?.ready||Number(row.round)!==Number(round))missing.push(`${playerId}:READY`);else if(Object.keys(rows).filter(key=>rows[key]).length<planned)missing.push(`${playerId}:PLAN`);});return{complete:missing.length===0,missing};}
   async function sealRound(){
     const s=adapterState();if(!s?.db?.ref||!isDm())throw new Error('DM_AUTHORITY_REQUIRED');const round=Math.max(1,Math.trunc(Number(s.round)||1));
     const [ready,rawPlans]=await Promise.all([read(ROOT.ready),read(ROOT.plans)]);
     const members=global.LuminousCombatParticipants?.players(s.combatants)||[];
     const plans=Object.fromEntries(members.map(member=>[member.playerId,Object.fromEntries(Object.entries(rawPlans?.[member.playerId]||{}).filter(([,plan])=>plan?.unitId===member.unitId&&Number(plan.round)===round))]));
-    const check=readyComplete(ready||{},plans,round);if(!check.complete)throw new Error(`ROUND_NOT_READY:${check.missing.join(',')}`);validateSpellPlans(plans||{});global.LuminousCombatSlotDeck073?.validatePlans(plans||{});
+    const check=readyComplete(ready||{},plans,round);if(!check.complete){const waiting=members.filter(member=>check.missing.some(key=>key.startsWith(member.playerId+':'))).map(member=>member.name);throw new Error(`Falta confirmar READY: ${waiting.join(', ')}.`);}validateSpellPlans(plans||{});global.LuminousCombatSlotDeck073?.validatePlans(plans||{});
     // Ready-player reactions are authenticated planning choices; DM verifies
     // Item equipment and effects again before arming their combat runtime.
     const defensiveReactions=Object.fromEntries(activePlayerIds()
@@ -301,6 +321,7 @@
     if(!isDm())return false;const s=adapterState();if(!s?.db?.ref)return false;const done=Math.max(1,Number(completedRound)||Number(state.current.round)||1),next=Math.max(done+1,Number(nextRound)||done+1),snapshot=snapshotRuntime(),row={round:done,seq:state.lastCheckpointSeq+1,type:'round_complete',rngCursor:state.cursor,digest:checkpointDigest(snapshot,done),combatants:snapshot,updatedAt:serverTime()};const updates={...combatantFirebaseUpdates(snapshot),...playerVitalFirebaseUpdates(snapshot),...(batchMode()?resourceFirebaseUpdates(snapshot):{}),...(batchMode()?playback().batchUpdates(row):{})};updates[`${ROOT.current}/phase`]='complete';updates[`${ROOT.current}/resultDigest`]=row.digest;updates[`${ROOT.current}/checkpoint`]=row;Object.assign(updates,stateUpdates({phase:'PRE_COMBAT_PLANNING',active:true,round:next,authorityUid:s.uid,updatedAt:serverTime()}));updates[ROOT.ready]=null;updates[ROOT.plans]=null;await s.db.ref().update(batchMode()?playback().commitUpdates(updates):updates);state.current={...state.current,phase:'complete',resultDigest:row.digest,checkpoint:row};state.lastCheckpointSeq=row.seq;return row;
   }
   async function requestStartRound(){
+    state.lastStartError='';
     if(state.runningLocal)return false;const s=adapterState(),original=state.originalStartRound;if(!s?.db?.ref||typeof original!=='function')return false;if(isPlayer()&&!state.remoteStart){setStatus('COMBAT · esperando resolución autoritativa del DM');return false;}state.runningLocal=true;
     try{
       let current=state.current;
@@ -318,7 +339,7 @@
       if(nextRound<=completedRound)throw new Error('No se pudo completar el turno. Vuelve a abrir el combate.');
       if(isDm()){await state.writeChain;await afterRound({completedRound,nextRound});}else if(state.pendingFinalSnapshot){applySnapshot(state.pendingFinalSnapshot.combatants||{});if(Number.isFinite(Number(state.pendingFinalSnapshot.rngCursor)))resetRandom(current.seed,Number(state.pendingFinalSnapshot.rngCursor));state.pendingFinalSnapshot=null;}
       return true;
-    }catch(error){console.error('[Combat073 Authority start]',error);setStatus(error?.message||'No se pudo continuar el turno. Vuelve a abrir el combate.');return false;}finally{state.runningLocal=false;state.resumeRuntime=null;state.executingGeneration=null;if(adapterState()?.firebaseReady)adapter()?.scheduleHydrate?.();}
+    }catch(error){console.error('[Combat073 Authority start]',error);state.lastStartError=error?.message||'No se pudo continuar el turno. Vuelve a abrir el combate.';setStatus(state.lastStartError);return false;}finally{state.runningLocal=false;state.resumeRuntime=null;state.executingGeneration=null;if(adapterState()?.firebaseReady)adapter()?.scheduleHydrate?.();}
   }
   function patchStartRound(){const hud=global.LuminousCombatHUD,original=state.originalStartRound||hud?.startRound||global.startRound;if(typeof original!=='function')return false;state.originalStartRound=original.__luminousAuthorityStartOriginal||original;requestStartRound.__luminousAuthorityStart=true;requestStartRound.__luminousAuthorityStartOriginal=state.originalStartRound;global.startRound=requestStartRound;if(hud)hud.startRound=requestStartRound;const button=global.document?.getElementById?.('start-round');if(button)button.onclick=requestStartRound;return true;}
   function allReadySnapshot(rows={}){const round=Number(adapterState()?.round)||1,ids=activePlayerIds();return ids.length>0&&ids.every(id=>rows?.[id]?.ready===true&&Number(rows[id].round)===round);}
@@ -340,11 +361,11 @@
     }
     if(isPlayer()&&norm(data.phase)==='complete'&&data.checkpoint?.combatants){if(state.runningLocal)state.pendingFinalSnapshot=clone(data.checkpoint);else{applySnapshot(data.checkpoint.combatants);if(Number.isFinite(Number(data.checkpoint.rngCursor))&&data.seed)resetRandom(data.seed,Number(data.checkpoint.rngCursor));}}
   }
-  function bind(){const s=adapterState();if(!s?.db?.ref||!s.user)return false;if(state.authorityRef)return true;playback()?.start(global.LuminousCombatAuthority073);state.authorityRef=s.db.ref(ROOT.current);state.authorityHandler=onAuthority;listen(state.authorityRef,state.authorityHandler,'[Combat073 Authority]');state.readyLoaded=false;state.readyRef=s.db.ref(ROOT.ready);state.readyHandler=snapshot=>{state.readyRows=snapshot.val()||{};state.readyLoaded=true;global.LuminousCombatHudMotion073?.refresh?.();maybeAutoStart(state.readyRows);};listen(state.readyRef,state.readyHandler,'[Combat073 Authority ready]');return true;}
+  function bind(){const s=adapterState();if(!s?.db?.ref||!s.user)return false;if(state.authorityRef)return true;playback()?.start(global.LuminousCombatAuthority073);state.authorityRef=s.db.ref(ROOT.current);state.authorityHandler=onAuthority;listen(state.authorityRef,state.authorityHandler,'[Combat073 Authority]');state.readyLoaded=false;state.readyRef=s.db.ref(ROOT.ready);state.readyHandler=snapshot=>{state.readyRows=snapshot.val()||{};state.readyLoaded=true;global.LuminousCombatHudMotion073?.refresh?.();maybeAutoStart(state.readyRows);};listen(state.readyRef,state.readyHandler,'[Combat073 Authority ready]');void preparePlanningState().catch(error=>console.error('[Combat073 planning recovery]',error));return true;}
   function start(){if(state.started)return true;state.started=true;installHooks();const attempt=()=>{installHooks();if(bind())return true;state.retryTimer=global.setTimeout(attempt,200);return false;};attempt();return true;}
   function stop(){state.listenCleanup.splice(0).forEach(off=>off());state.readyLoaded=false;if(state.retryTimer)global.clearTimeout(state.retryTimer);if(state.autoStartTimer)global.clearTimeout(state.autoStartTimer);if(state.authorityRef&&state.authorityHandler)state.authorityRef.off('value',state.authorityHandler);if(state.readyRef&&state.readyHandler)state.readyRef.off('value',state.readyHandler);playback()?.stop();state.authorityRef=state.authorityHandler=state.readyRef=state.readyHandler=null;state.started=false;}
 
   global.addEventListener('luminous:combat073-runtime-ready',()=>{installHooks();applyAuthority();});global.addEventListener('luminous:combat073-hydrated',()=>{installHooks();applyAuthority();if(state.readyLoaded)maybeAutoStart(state.readyRows);});global.addEventListener('beforeunload',stop,{once:true});
-  global.LuminousCombatAuthority073=Object.freeze({version:'0.7.3-authority.9-step-rng',ROOT,state,start,stop,isDm,isPlayer,random,resetRandom,withAuthorityRandom,canonicalPlayerId,classEntries,isSpellcaster,validateSpellPlans,queueEntryKind,isItemQueueEntry,persistPlayerInventory,snapshotRuntime,digest,checkpointDigest,queueCheckpoint,sealRound,applyAuthority,applySnapshot,combatantFirebaseUpdates,playerVitalSnapshot,playerVitalFirebaseUpdates,afterRound,installHooks,requestStartRound,serializeRuntimePlan,readyComplete,allReadySnapshot});
+  global.LuminousCombatAuthority073=Object.freeze({version:'0.7.3-authority.9-step-rng',ROOT,state,start,stop,isDm,isPlayer,random,resetRandom,withAuthorityRandom,canonicalPlayerId,classEntries,isSpellcaster,validateSpellPlans,queueEntryKind,isItemQueueEntry,persistPlayerInventory,snapshotRuntime,digest,checkpointDigest,queueCheckpoint,sealRound,applyAuthority,applySnapshot,combatantFirebaseUpdates,playerVitalSnapshot,playerVitalFirebaseUpdates,afterRound,installHooks,requestStartRound,serializeRuntimePlan,preparePlanningState,readyComplete,allReadySnapshot});
   start();
 })(window);
