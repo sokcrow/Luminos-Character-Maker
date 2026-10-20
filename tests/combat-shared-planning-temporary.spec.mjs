@@ -16,7 +16,7 @@ async function seed(){
  await request(DB,{'campaña':{config:{dm_uid:accounts.dm.uid},jugadores:players,base_datos_skills:skills,combate:{estado:{phase:'PRE_COMBAT_PLANNING',round:1,encounterId:'shared-deck-qa'},combatants:units}}},'PUT');
 }
 async function open(browser,role,viewport){
- const context=await browser.newContext({viewport,hasTouch:viewport.width<900,isMobile:viewport.width<900});const page=await context.newPage();page.errors=[];page.blocked=[];
+ const context=await browser.newContext({viewport,hasTouch:viewport.width<900,isMobile:viewport.width<900});const page=await context.newPage();page.setDefaultTimeout(20000);page.errors=[];page.blocked=[];
  page.on('pageerror',e=>page.errors.push(e.message));
  await page.route('**/*',async route=>{
   const url=route.request().url();
@@ -63,7 +63,7 @@ for(const mobile of [false,true])test(`DM and two players share READY Clash and 
   await expect(dm.locator('[id="player:p1_slot_0"] .slot-intent-label')).toContainText('CLASH');
   await p2.locator('.command[data-menu=view]').click();await expect(p2.locator('[id="player:p1_slot_0"] .slot-intent-label')).toContainText('CLASH');
   await dm.screenshot({path:`artifacts/shared-planning/${name}-dm-ready.png`});await p1.screenshot({path:`artifacts/shared-planning/${name}-player-ready.png`});await p2.screenshot({path:`artifacts/shared-planning/${name}-observer-ready.png`});
-  await p1.reload({waitUntil:'domcontentloaded'});await p1.waitForFunction(()=>window.LuminousCombat073?.uiState()?.ready===true);expect(await hands(p1)).toEqual(selected);
+  await p1.reload({waitUntil:'domcontentloaded'});await p1.waitForFunction(()=>window.LuminousCombat073?.uiState()?.ready===true&&window.LuminousCombatSlotDeck073?.hand('player:p1',0).length===2);expect(await hands(p1)).toEqual(selected);
   await p1.locator('#ready').click();await dm.waitForFunction(()=>window.LuminousCombat073.combatants()['player:p1'].autoPlans[0]?.type==='intent');
   await p1.waitForTimeout(700);await p1.locator('#ready').click();
   await p2.locator('#view-return').click();await p2.waitForTimeout(600);await select(p2,'GUARDIAN 2');

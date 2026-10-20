@@ -23,3 +23,9 @@ const card=a.api.hand('u',0)[0];assert.equal(a.api.validatePlans({p:{0:{kind:'sk
 assert.throws(()=>a.api.validatePlans({p:{0:{kind:'skill',unitId:'u',skillId:card.skillId,sourceSlotIndex:0,drawId:'not-in-hand'}}}),/no est/);
 const before=JSON.stringify(a.unit.combatDeck);a.api.syncAll(2);assert.equal(JSON.stringify(a.unit.combatDeck),before);
 console.log('Slot deck: copy weights, two-card private hands, reload, execution, rotation, validation and idempotence OK');
+const net={window:null,document:null,firebase:{database:{ServerValue:{TIMESTAMP:1}}},addEventListener(){},setTimeout(){},LuminousCombatLiveAdapter073:{state:{skills:{},players:{},round:1}}};net.window=net;
+const nc=vm.createContext(net);for(const f of ['js/combat-v073-plan-sync.js','js/combat-v073-remote-intents.js'])vm.runInContext(fs.readFileSync(f,'utf8'),nc);
+const payload=net.LuminousCombatPlanSync073.payloadFor({type:'deck',drawId:'card-2',clashChoice:'force',clashOrder:4,clashConfirmed:true,targetId:'e',targetSlotIndex:0,data:{...rows[1],targetSide:'enemy'}},0,'u',{round:1,uid:'uid',playerId:'p',players:{}});
+const restored=net.LuminousCombatRemoteIntents073.runtimePlan(payload,0,{id:'u'});
+for(const key of ['drawId','clashChoice','clashOrder','clashConfirmed'])assert.equal(restored[key],payload[key]);assert.equal(restored.type,'deck');
+console.log('READY transport preserves card identity, Clash choice and confirmation');
