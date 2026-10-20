@@ -16,6 +16,7 @@
   const finite=(v,f=0)=>Number.isFinite(Number(v))?Number(v):f;
   const state={
     started:false,current:{},seed:0,cursor:0,rngState:0,
+    readyRows:{},readyLoaded:false,listenCleanup:[],
     authorityRef:null,authorityHandler:null,readyRef:null,readyHandler:null,retryTimer:null,autoStartTimer:null,
     lastCheckpointSeq:0,writeChain:Promise.resolve(),executionChain:Promise.resolve(),hooks:new Map(),localActionSeq:0,localDigests:new Map(),pendingRemoteCheckpoints:new Map(),inFlightActions:0,
     originalStartRound:null,originalBuildQueue:null,originalCoinEngine:null,runningLocal:false,remoteStart:false,autoStartedRound:0,pendingFinalSnapshot:null,resumeRuntime:null,lastExecutionJson:null,executingGeneration:null
@@ -24,6 +25,19 @@
   function adapter(){return global.LuminousCombatLiveAdapter073||null;}
   function adapterState(){return adapter()?.state||null;}
   function runtime(){return global.LuminousCombat073||null;}
+  function listen(ref,handler,label){
+    let closed=false,retried=false,timer=null;
+    const failed=error=>{
+      const user=adapterState()?.user;if(closed)return;
+      if(error?.code!=='PERMISSION_DENIED'||retried||!user){console.error(label,error);return;}
+      retried=true;Promise.resolve().then(()=>user.getIdToken?.(true)).then(()=>{
+        if(closed||adapterState()?.user!==user)return;
+        timer=global.setTimeout(()=>{timer=null;if(!closed)ref.on('value',handler,failed);},250);
+      }).catch(error=>{if(!closed)console.error(label,error);});
+    };
+    ref.on('value',handler,failed);
+    state.listenCleanup.push(()=>{closed=true;if(timer)global.clearTimeout(timer);ref.off('value',handler);});
+  }
   function playback(){return global.LuminousCombatPlaybackSync||null;}
   function batchMode(){return playback()?.enabled(state.current)===true;}
   function isDm(){return adapterState()?.role==='dm';}
@@ -323,11 +337,11 @@
     }
     if(isPlayer()&&norm(data.phase)==='complete'&&data.checkpoint?.combatants){if(state.runningLocal)state.pendingFinalSnapshot=clone(data.checkpoint);else{applySnapshot(data.checkpoint.combatants);if(Number.isFinite(Number(data.checkpoint.rngCursor))&&data.seed)resetRandom(data.seed,Number(data.checkpoint.rngCursor));}}
   }
-  function bind(){const s=adapterState();if(!s?.db?.ref||!s.user)return false;if(state.authorityRef)return true;playback()?.start(global.LuminousCombatAuthority073);state.authorityRef=s.db.ref(ROOT.current);state.authorityHandler=onAuthority;state.authorityRef.on('value',state.authorityHandler,error=>console.error('[Combat073 Authority]',error));state.readyRef=s.db.ref(ROOT.ready);state.readyHandler=snapshot=>maybeAutoStart(snapshot.val()||{});state.readyRef.on('value',state.readyHandler,error=>console.error('[Combat073 Authority ready]',error));return true;}
+  function bind(){const s=adapterState();if(!s?.db?.ref||!s.user)return false;if(state.authorityRef)return true;playback()?.start(global.LuminousCombatAuthority073);state.authorityRef=s.db.ref(ROOT.current);state.authorityHandler=onAuthority;listen(state.authorityRef,state.authorityHandler,'[Combat073 Authority]');state.readyLoaded=false;state.readyRef=s.db.ref(ROOT.ready);state.readyHandler=snapshot=>{state.readyRows=snapshot.val()||{};state.readyLoaded=true;maybeAutoStart(state.readyRows);};listen(state.readyRef,state.readyHandler,'[Combat073 Authority ready]');return true;}
   function start(){if(state.started)return true;state.started=true;installHooks();const attempt=()=>{installHooks();if(bind())return true;state.retryTimer=global.setTimeout(attempt,200);return false;};attempt();return true;}
-  function stop(){if(state.retryTimer)global.clearTimeout(state.retryTimer);if(state.autoStartTimer)global.clearTimeout(state.autoStartTimer);if(state.authorityRef&&state.authorityHandler)state.authorityRef.off('value',state.authorityHandler);if(state.readyRef&&state.readyHandler)state.readyRef.off('value',state.readyHandler);playback()?.stop();state.authorityRef=state.authorityHandler=state.readyRef=state.readyHandler=null;state.started=false;}
+  function stop(){state.listenCleanup.splice(0).forEach(off=>off());state.readyLoaded=false;if(state.retryTimer)global.clearTimeout(state.retryTimer);if(state.autoStartTimer)global.clearTimeout(state.autoStartTimer);if(state.authorityRef&&state.authorityHandler)state.authorityRef.off('value',state.authorityHandler);if(state.readyRef&&state.readyHandler)state.readyRef.off('value',state.readyHandler);playback()?.stop();state.authorityRef=state.authorityHandler=state.readyRef=state.readyHandler=null;state.started=false;}
 
-  global.addEventListener('luminous:combat073-runtime-ready',()=>{installHooks();applyAuthority();});global.addEventListener('luminous:combat073-hydrated',()=>{installHooks();applyAuthority();});global.addEventListener('beforeunload',stop,{once:true});
+  global.addEventListener('luminous:combat073-runtime-ready',()=>{installHooks();applyAuthority();});global.addEventListener('luminous:combat073-hydrated',()=>{installHooks();applyAuthority();if(state.readyLoaded)maybeAutoStart(state.readyRows);});global.addEventListener('beforeunload',stop,{once:true});
   global.LuminousCombatAuthority073=Object.freeze({version:'0.7.3-authority.9-step-rng',ROOT,state,start,stop,isDm,isPlayer,random,resetRandom,withAuthorityRandom,canonicalPlayerId,classEntries,isSpellcaster,validateSpellPlans,queueEntryKind,isItemQueueEntry,persistPlayerInventory,snapshotRuntime,digest,checkpointDigest,queueCheckpoint,sealRound,applyAuthority,applySnapshot,combatantFirebaseUpdates,playerVitalSnapshot,playerVitalFirebaseUpdates,afterRound,installHooks,requestStartRound,serializeRuntimePlan,readyComplete,allReadySnapshot});
   start();
 })(window);

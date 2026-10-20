@@ -9,8 +9,32 @@
   const clone=v=>v==null?v:JSON.parse(JSON.stringify(v));
   let chain=Promise.resolve(),lastReadySignature='',lastTargetSignature='';
   let selectedEnchantmentReaction=null;
+  let recoveringIntentId='';
+  const OUTBOX='luminous:combat-ready-intent:';
   function adapter(){return global.LuminousCombatLiveAdapter073||null;}
   function state(){return adapter()?.state||null;}
+  function pendingKey(s=state()){return s?.uid&&s.playerId&&s.encounterId?`${OUTBOX}${s.uid}:${s.playerId}:${s.encounterId}`:null;}
+  function pendingReady(){try{const key=pendingKey();return key?JSON.parse(global.localStorage?.getItem(key)||'null'):null;}catch(_){return null;}}
+  function forgetReady(id){try{const key=pendingKey();if(key&&pendingReady()?.id===id)global.localStorage?.removeItem(key);}catch(_){}}
+  function rememberReady(detail){
+    const s=state(),key=pendingKey(s);if(!key||Number(detail.round)!==Number(s.round))return null;
+    const row={id:global.crypto?.randomUUID?.()||`${Date.now()}:${Math.random()}`,round:Number(s.round),
+      previousIntentId:global.LuminousCombatRemoteIntents073?.state?.ready?.[s.playerId]?.clientIntentId||null,
+      detail:clone(detail)};
+    try{global.localStorage?.setItem(key,JSON.stringify(row));return row;}catch(_){return null;}
+  }
+  function recoverReady(){
+    const s=state(),row=pendingReady(),combat=global.LuminousCombat073;
+    if(!row||!s?.hydratedOnce||s.role!=='player'||!combat?.restorePlanning||Number(combat.uiState?.().round)!==Number(s.round))return;
+    if(Number(row.round)!==Number(s.round)||!planning(s)){forgetReady(row.id);return;}
+    if(recoveringIntentId===row.id)return;
+    recoveringIntentId=row.id;
+    queue({...row.detail,readyIntentId:row.id,recovering:true},'ready').then(saved=>{
+      // Rebuild from the acknowledged selection, never from an empty boot frame.
+      if(saved&&Number(state()?.round)===row.round&&!pendingReady())combat.restorePlanning(clone(row.detail.plans||[]),Boolean(row.detail.ready));
+      global.LuminousCombatRemoteIntents073?.apply?.();
+    }).finally(()=>{if(recoveringIntentId===row.id)recoveringIntentId='';});
+  }
   function planning(s){const raw=s?.combatState,phase=raw&&typeof raw==='object'?(raw.phase||raw.state||raw.status):raw;return['pre_combat_planning','planning'].includes(norm(phase));}
   function ownCombatant(s){
     if(!s?.playerId)return null;const canonical=`player:${safe(s.playerId)}`;
@@ -76,6 +100,14 @@
   }
   async function syncReady(detail={}){
     const ctx=detail.ready===true?await waitForReadyContext(detail):context(detail);if(!ctx)return false;
+    const pending=pendingReady(),intent=detail.readyIntentId?pending:null;
+    if(detail.readyIntentId&&intent?.id!==detail.readyIntentId)return false;
+    const [saved,current]=await Promise.all([
+      ctx.s.db.ref(`${ROOT}/plannedActions/${ctx.owner}`).once('value').then(snapshot=>snapshot.val()||{}),
+      ctx.s.db.ref(`${ROOT}/readyPlayers/${ctx.owner}`).once('value').then(snapshot=>snapshot.val()||{})
+    ]);
+    if(intent&&detail.recovering&&current.clientIntentId&&current.clientIntentId!==intent.id&&current.clientIntentId!==intent.previousIntentId){forgetReady(intent.id);return false;}
+    if(intent&&pendingReady()?.id!==intent.id)return false;
     const ready=Boolean(detail.ready);
     const reaction=ready && selectedEnchantmentReaction?.round===ctx.round
       ?selectedEnchantmentReaction.itemInstanceId:null;
@@ -85,6 +117,7 @@
     const updates={};
     updates[`${ROOT}/readyPlayers/${ctx.owner}`]={
       ready,round:ctx.round,schedulerUid:ctx.s.uid,unitId:ctx.unitId,
+      ...(intent||current.clientIntentId?{clientIntentId:intent?.id||current.clientIntentId}:{}),
       plannedSlots:ready?ctx.plans.filter(Boolean).length:0,
       ...(global.LuminousCombatPlayback && !global.LuminousCombatPlaybackCompatibility ? {playback:{schemaVersion:1,engineVersion:global.LuminousCombatPlayback.engineVersion}} : {}),
       targetIntents:targetIndex(ctx),
@@ -95,7 +128,6 @@
     // an empty slot is rejected by RTDB rules, which intentionally allow a
     // player to delete only a previously owned plan. A single invalid null
     // invalidates the entire atomic READY + plannedActions update.
-    const saved=(await ctx.s.db.ref(`${ROOT}/plannedActions/${ctx.owner}`).once('value')).val()||{};
     for(let i=0;i<ctx.slotCount;i+=1){
       if(ready&&ctx.plans[i]){
         updates[`${ROOT}/plannedActions/${ctx.owner}/${i}`]=payloadFor(ctx.plans[i],i,ctx.unitId,ctx.s);
@@ -109,13 +141,14 @@
       if(prior?.schedulerUid===ctx.s.uid&&prior?.scheduledBy===ctx.owner)
         updates[`${ROOT}/plannedActions/${ctx.owner}/${slot}`]=null;
     }
-    await ctx.s.db.ref().update(updates);lastReadySignature=sig;return true;
+    await ctx.s.db.ref().update(updates);lastReadySignature=sig;if(intent)forgetReady(intent.id);return true;
   }
   async function syncLiveTargets(detail={}){
     // Late target redraws may carry ready:false captured just before READY.
     // If the player is now locked in, publish that current intention instead
     // of overwriting the RTDB record with a stale NOT READY snapshot.
     const ui=global.LuminousCombat073?.uiState?.();
+    if(detail.ready===true&&ui?.ready===false&&Number(ui.round)===Number(detail.round))return false;
     if(detail.ready===true||(ui?.ready===true&&Number(ui.round)===Number(detail.round))){
       const latest=global.LuminousCombat073?.plans?.();
       return syncReady({...detail,ready:true,plans:Array.isArray(latest)?clone(latest):detail.plans});
@@ -127,6 +160,7 @@
     await ctx.s.db.ref(`${ROOT}/readyPlayers/${ctx.owner}`).transaction(current=>{
       if(current?.ready===true&&Number(current.round)===ctx.round)return;
       return {
+        ...(current?.clientIntentId?{clientIntentId:current.clientIntentId}:{}),
         ready:false,round:ctx.round,schedulerUid:ctx.s.uid,unitId:ctx.unitId,
         plannedSlots:0,targetIntents:targets,
         updatedAt:global.firebase.database.ServerValue.TIMESTAMP
@@ -144,7 +178,7 @@
     }:null;
     lastReadySignature="";
   }
-  function onReady(event){queue(event?.detail||{},'ready');}
+  function onReady(event){const detail=clone(event?.detail||{}),pending=rememberReady(detail);queue({...detail,...(pending?{readyIntentId:pending.id}:{})},'ready');}
   function onPlan(event){queue(event?.detail||{},'targets');}
   function ensureEconomyReviewFixes(){if(global.LuminousCombatEconomyReviewFixes073){global.LuminousCombatEconomyReviewFixes073.install?.();return global.LuminousCombatEconomyReviewFixes073;}if(!global.document||!global.LuminousCombatEconomyMenu073)return null;const id='combat-v073-economy-review-fixes-script';let script=global.document.getElementById(id);if(script)return script;script=global.document.createElement('script');script.id=id;script.src='js/combat-v073-economy-review-fixes.js';script.async=false;global.document.head?.appendChild(script);return script;}
   function ensureEconomyMenu(){if(global.LuminousCombatEconomyMenu073){ensureEconomyReviewFixes();return global.LuminousCombatEconomyMenu073;}if(!global.document)return null;const id='combat-v073-economy-menu-script';let script=global.document.getElementById(id);if(script){script.addEventListener('load',ensureEconomyReviewFixes,{once:true});return script;}script=global.document.createElement('script');script.id=id;script.src='js/combat-v073-economy-menu.js';script.async=false;script.addEventListener('load',ensureEconomyReviewFixes,{once:true});global.document.head?.appendChild(script);return script;}
@@ -167,8 +201,10 @@
     return Boolean(global.LuminousUniversalLibrary&&global.LuminousCombatLibraryClient073&&global.LuminousCombatDeploymentRuntime&&global.LuminousCombatDeploymentBridge073&&global.LuminousUnitRankRuntime&&global.LuminousCombatAuthority073&&global.LuminousCombatRuntimeHotfix073);
   }
   global.addEventListener('luminous:combat073-reaction-prepared',onReactionPrepared);
+  global.addEventListener('luminous:combat073-hydrated',recoverReady);
+  global.addEventListener('online',recoverReady);global.addEventListener('focus',recoverReady);
   global.addEventListener('luminous:combat073-plan-ready-change',onReady);global.addEventListener('luminous:combat073-plan-change',onPlan);global.addEventListener('luminous:combat073-runtime-ready',ensureEconomyMenu);
   global.addEventListener('beforeunload',()=>{global.removeEventListener('luminous:combat073-reaction-prepared',onReactionPrepared);global.removeEventListener('luminous:combat073-plan-ready-change',onReady);global.removeEventListener('luminous:combat073-plan-change',onPlan);global.removeEventListener('luminous:combat073-runtime-ready',ensureEconomyMenu);},{once:true});
-  global.LuminousCombatPlanSync073=Object.freeze({version:'0.7.3-plan-sync.12-deployment-lifecycle',ROOT,sync:syncReady,syncReady,syncLivePlans:syncLiveTargets,syncLiveTargets,queue,kindOf,payloadFor,targetPayloadFor,targetIndex,ownCombatant,ensureEconomyMenu,ensureEconomyReviewFixes,ensureCoreBridges});
+  global.LuminousCombatPlanSync073=Object.freeze({version:'0.7.3-plan-sync.13-durable-ready',ROOT,sync:syncReady,syncReady,syncLivePlans:syncLiveTargets,syncLiveTargets,queue,kindOf,payloadFor,targetPayloadFor,targetIndex,ownCombatant,ensureEconomyMenu,ensureEconomyReviewFixes,ensureCoreBridges});
   ensureEconomyMenu();global.setTimeout(()=>ensureCoreBridges().catch(error=>console.error('[Combat073 core bridges]',error)),0);
 })(window);
