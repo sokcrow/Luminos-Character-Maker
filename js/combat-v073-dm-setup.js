@@ -234,6 +234,10 @@
       equippedSkillIndex: equipped(ids),
       statusEffects: clone(source.statusEffects || {}),
       battleActive: true,
+      isBackup: false,
+      deploymentState: 'field',
+      deployment: 'field',
+      removed: false,
       entrySource: 'combat_v073_dm_setup',
       enteredCombatAt: Date.now()
     };
@@ -275,6 +279,10 @@
       equippedSkillIndex: equipped(ids),
       statusEffects: clone(source.statusEffects || {}),
       battleActive: true,
+      isBackup: false,
+      deploymentState: 'field',
+      deployment: 'field',
+      removed: false,
       entrySource: 'combat_v073_dm_setup',
       enteredCombatAt: Date.now()
     };
@@ -317,7 +325,10 @@
   async function removeCombatant(id) {
     if (!isDm()) throw new Error('DM_ONLY');
     requirePlanning();
-    await state.db.ref(`${ROOTS.combatants}/${id}`).remove();
+    const unit=state.combatants[id],owner=global.LuminousCombatParticipants?.isPlayer(unit)?canonicalPlayerId(unit):null;
+    const updates={[`${ROOTS.combatants}/${id}`]:null};
+    if(owner){updates[`campaña/combate/readyPlayers/${owner}`]=null;updates[`campaña/combate/plannedActions/${owner}`]=null;}
+    await state.db.ref().update(updates);
   }
 
   async function clearEncounter() {
@@ -370,7 +381,7 @@
       const previous = state.selectedPlayer || playerSelect.value;
       playerSelect.innerHTML = '<option value="">— Campaign Player —</option>' + Object.entries(state.players || {})
         .sort((a, b) => nameFor(a[1], a[0]).localeCompare(nameFor(b[1], b[0])))
-        .map(([id, player]) => `<option value="${esc(id)}">${esc(nameFor(player, id))}${state.combatants[`player:${safe(id)}`] ? ' · EN COMBATE' : ''}</option>`).join('');
+        .map(([id, player]) => `<option value="${esc(id)}">${esc(nameFor(player, id))}${global.LuminousCombatParticipants?.isField(state.combatants[`player:${safe(id)}`]) ? ' · EN COMBATE' : ''}</option>`).join('');
       if (state.players[previous]) playerSelect.value = previous;
     }
     if (unitSelect) {
@@ -383,9 +394,11 @@
       if (state.units[previous]) unitSelect.value = previous;
     }
     if (roster) {
+      const members=global.LuminousCombatParticipants,progress=members?.progress(state.combatants,state.readyPlayers,state.encounter?.round||1);
       roster.innerHTML = Object.entries(state.combatants || {}).length
-        ? Object.entries(state.combatants).map(([id, combatant]) => `<div style="display:flex;gap:6px;align-items:center;margin:3px 0"><span style="flex:1">${esc(nameFor(combatant, id))} · ${esc(combatant.faction || '')} · ${skillIdsFor(combatant).length} skills${spriteFor(combatant) ? ' · sprite' : ''}</span><button data-remove="${esc(id)}">×</button></div>`).join('')
+        ? Object.entries(state.combatants).map(([id, combatant]) => `<div style="display:flex;gap:6px;align-items:center;margin:3px 0"><span style="flex:1">${esc(nameFor(combatant, id))} · ${esc(combatant.faction || '')}${members?.isPlayer(combatant)?' · '+(members.isField(combatant)?(state.readyPlayers?.[members.playerId(combatant)]?.ready===true&&Number(state.readyPlayers[members.playerId(combatant)].round)===Number(state.encounter?.round||1)?'LISTO':'PREPARANDO'):'FUERA DEL COMBATE'):''} · ${skillIdsFor(combatant).length} skills${spriteFor(combatant) ? ' · sprite' : ''}</span><button data-remove="${esc(id)}">×</button></div>`).join('')
         : '<div style="opacity:.65">Aún no hay combatientes desplegados.</div>';
+      if(progress?.total)roster.insertAdjacentHTML('afterbegin',`<div class="combat-participant-progress">Participantes: ${progress.total} · Listos ${progress.ready}/${progress.total}</div>`);
       roster.querySelectorAll('[data-remove]').forEach((button) => {
         button.disabled = locked;
         button.onclick = () => removeCombatant(button.dataset.remove).catch((error) => setMsg(error.message, true));
@@ -587,6 +600,7 @@
     subscribe(ROOTS.combatants, 'combatants');
     subscribe('campaña/combate/authority/current/phase', 'authorityPhase');
     subscribe(ROOTS.state, 'encounter');
+    subscribe('campaña/combate/readyPlayers','readyPlayers');
     mount();
     return true;
   }

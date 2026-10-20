@@ -99,8 +99,16 @@
       }else targets.dataset.choices='';
     }
     const network=byId('status')?.textContent||'';
-    const phase=/reconect/i.test(network)?'Reconectando…':/esperando al dm/i.test(network)?'Esperando al DM':value.running?'Resolviendo turno':value.ready?'Listo · esperando al grupo':value.targeting?'Elige un objetivo':value.view?'Vista del campo':'Planifica tus acciones';
-    text('combat-phase-label',role==='dm'&&!value.running?'Diriges el encuentro':phase);
+    const s=global.LuminousCombatLiveAdapter073?.state,ready=global.LuminousCombatAuthority073?.state.readyRows||{};
+    const group=global.LuminousCombatParticipants?.progress(s?.combatants,ready,value.round);
+    const waiting=group?.waiting||[],names=waiting.slice(0,2).join(', ')+(waiting.length>2?` y ${waiting.length-2} más`:'');
+    let phase=/reconect/i.test(network)?'Reconectando…':value.running?'Resolviendo turno':value.targeting?'Elige un objetivo':value.view?'Vista del campo':'Planifica tus acciones';
+    if(!value.running&&group?.total){
+      const own=ready[s?.playerId];
+      phase=`Listos ${group.ready}/${group.total} · ${names?`Falta: ${names}`:role==='dm'?'Iniciando turno…':'Esperando al DM'}`;
+      if(role==='player'&&value.ready&&!(own?.ready===true&&Number(own.round)===Number(value.round)))phase='Guardando tu READY…';
+    }
+    text('combat-phase-label',phase);
     layoutClashHuds();
   }
   function layoutCommands(){refresh();return false;}

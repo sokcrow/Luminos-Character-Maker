@@ -170,7 +170,7 @@
       return Promise.resolve();
     }
     return db.ref(INSTANCE_PATH).once('value').then((snap) => {
-      syncTheatreLifecycle(C.clean(snap.val()).toLowerCase() === 'teatro');
+      syncTheatreLifecycle(doc.body?.classList.contains('player-instance-theatre')||C.clean(snap.val()).toLowerCase()==='teatro');
     }).catch(() => {
       syncTheatreLifecycle(false);
     });

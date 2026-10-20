@@ -209,7 +209,7 @@
 
   function syncInitialTheatreState() {
     return db.ref(INSTANCE_PATH).once("value").then((snapshot) => {
-      const instance = String(snapshot.val() || "").trim();
+      const instance = doc.body?.classList.contains("player-instance-theatre")?"teatro":String(snapshot.val() || "").trim();
       setTheatreActive(instance === "teatro" || instance === "combat_theatre");
     }).catch(() => {
       setTheatreActive(false);

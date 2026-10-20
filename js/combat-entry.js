@@ -1,7 +1,7 @@
 (function(global){
   'use strict';
   const doc=global.document,$=id=>doc.getElementById(id),api=global.LuminousCombatSession;
-  const state={uid:null,dm:false,player:null,encounter:{},instance:'ninguno',connected:false,subs:[],generation:0,busy:false};
+  const state={uid:null,dm:false,player:null,playerId:null,encounter:{},instance:'ninguno',connected:false,subs:[],generation:0,busy:false};
   const say=(text,error=false)=>{$('combat-entry-message').textContent=text;$('combat-entry-card').dataset.error=String(error);};
   function actionError(error){
     const code=String(error?.code||'').toLowerCase(),message=String(error?.message||'');
@@ -15,7 +15,8 @@
   function render(){
     const authorized=state.dm||state.player;
     const ended=state.encounter?.estado?.phase==='ENDED'||state.encounter?.estado?.active===false;
-    const active=authorized&&(state.dm||state.instance==='combate')&&!ended&&Boolean(state.encounter?.estado);
+    const participating=global.LuminousCombatParticipants?.includes(state.encounter.combatants,{uid:state.uid,playerId:state.playerId})===true;
+    const active=authorized&&(state.dm||(state.instance==='combate'&&participating))&&!ended&&Boolean(state.encounter?.estado);
     $('combat-entry-bar').hidden=!state.uid;
     $('combat-entry-start').hidden=!state.dm;
     $('combat-entry-end').hidden=!state.dm||!active;
@@ -43,7 +44,7 @@
     // replaced on the next encounter, or removed when leaving combat/signing out.
     if(!active&&!ended)$('combat-entry-view')?.remove();
     const frame=$('combat-entry-view');if(frame){frame.hidden=!active;frame.dataset.encounter=encounterId;frame.dataset.ended=String(ended);}
-    if(!active)say(!authorized?'Esta cuenta todavía no tiene un personaje asignado. Pide al DM que lo vincule.':!state.connected?'Reconectando con la campaña…':ended?'Encuentro finalizado. Los resultados se han conservado.':state.dm?'Abre un encuentro y añade los personajes y enemigos desde «Encuentro».':'Esperando a que el DM abra el combate.');
+    if(!active)say(!authorized?'Esta cuenta todavía no tiene un personaje asignado. Pide al DM que lo vincule.':!state.connected?'Reconectando con la campaña…':ended?'Encuentro finalizado. Los resultados se han conservado.':state.dm?'Abre un encuentro y añade los personajes y enemigos desde «Encuentro».':'Tu personaje permanece en teatro. Entrarás cuando el DM lo añada al encuentro.');
   }
   async function action(fn){if(state.busy)return;state.busy=true;render();try{await fn();$('combat-entry-menu').open=false;}catch(error){console.error('[Combat entry]',error);global.alert(actionError(error));}finally{state.busy=false;render();}}
   let auth,db;
@@ -56,7 +57,7 @@
   $('combat-entry-presentation').onchange=event=>{const value=event.target.value;return action(()=>api.presentation({db,value}));};
   $('combat-entry-signout').onclick=()=>action(()=>auth.signOut());
   auth.onAuthStateChanged(async user=>{
-    const generation=++state.generation;teardown();Object.assign(state,{uid:user?.uid||null,dm:false,player:null,encounter:{},connected:false});
+    const generation=++state.generation;teardown();Object.assign(state,{uid:user?.uid||null,dm:false,player:null,playerId:null,encounter:{},connected:false});
     $('combat-entry-card').hidden=false;$('combat-entry-login').hidden=Boolean(user);$('combat-entry-title').textContent=user?'Tu encuentro':'Entra al combate';
     if(!user){$('combat-entry-end-dialog').close();render();say('Usa la misma cuenta que utilizas en tu ficha de personaje.');return;}
     say('Cargando tu campaña…');
@@ -64,7 +65,8 @@
       const dm=await db.ref('campaña/config/dm_uid').once('value');if(generation!==state.generation)return;
       state.dm=user.uid===dm.val()||user.uid==='e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1';
       watch('.info/connected',value=>{state.connected=value===true;render();},generation);
-      watch('campaña/jugadores',players=>{const matches=Object.values(players||{}).filter(p=>(p.uid||p.vinculado_a||p.vinculo_jugador)===state.uid);state.player=matches.length===1?matches[0]:null;render();},generation);
+      watch('campaña/jugadores',players=>{const matches=Object.entries(players||{}).filter(([,p])=>(p.uid||p.vinculado_a||p.vinculo_jugador)===state.uid);state.player=matches.length===1?matches[0][1]:null;state.playerId=matches.length===1?matches[0][0]:null;render();},generation);
+      watch(`${api.ROOT}/combatants`,value=>{state.encounter.combatants=value||{};render();},generation);
       watch(`${api.ROOT}/estado`,value=>{state.encounter.estado=value||null;render();},generation);
       watch(`${api.ROOT}/authority/current/phase`,value=>{state.encounter.authority={current:{phase:value}};render();},generation);
       watch(api.INSTANCE,instance=>{state.instance=instance||'ninguno';render();},generation);
