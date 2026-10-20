@@ -40,6 +40,7 @@
     skills: {},
     combatState: "PRE_COMBAT_PLANNING",
     round: 1,
+    encounterId: null,
     presentation: 'full',
     unsubscribers: [],
     hydrateTimer: null,
@@ -389,6 +390,7 @@
       unit.img,
       unit.battleActive,
       unit.statusEffects,
+      unit.combatDeck,
       unit.proneSpeedRound,
       unit.confusionTurnMode,
       skillIdsFor(unit),
@@ -397,7 +399,7 @@
       playerRecordFor(unit)?.attunedItemInstanceIds || unit.attunedItemInstanceIds || null
     ]);
     const skillRevision = Object.entries(state.skills || {}).map(([id, skill]) => [id, skill?.updatedAt || skill?.revision || skill?.version || null]);
-    return JSON.stringify([state.role, playerId, state.combatState, state.round, summary, skillRevision]);
+    return JSON.stringify([state.role, playerId, state.combatState, state.round, state.encounterId, summary, skillRevision]);
   }
 
   function setRoleUi() {
@@ -532,6 +534,7 @@
       const parsed = phaseAndRound(value);
       state.combatState = parsed.phase;
       state.round = parsed.round;
+      state.encounterId = value?.encounterId || null;
       state.presentation = value?.presentation === 'simple' ? 'simple' : 'full';
       global.LuminousCombatHudMotion073?.applyPreference?.();
     });
@@ -593,6 +596,8 @@
     normalizeSkill,
     isFieldCombatant,
     playerRecordFor,
+    canonicalPlayerId,
+    skillIdsFor,
     activeInventoryContainer,
     normalizedCombatants,
     defaultPosition,

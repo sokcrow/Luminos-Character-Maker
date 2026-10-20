@@ -100,6 +100,7 @@
       ...Object.fromEntries(['inventario_activo','inventario_stash','itemEquipmentRefs','attunedItemInstanceIds','itemInventorySchemaVersion',
         'spellcastingState','classResources','traitUses','resources','wakePendingRound','retreatVacancy','escapeVacancy','defeated','dead',
         'deployedRound','deploymentState','replacementClaimed'].filter(key=>unit[key]!==undefined).map(key=>[key,clone(unit[key])])),
+      ...(unit.combatDeck?{combatDeck:global.LuminousCombatSlotDeck073?.compact(unit.combatDeck)||clone(unit.combatDeck)}:{}),
       hp:Math.max(0,finite(unit.hp,0)),maxHp:Math.max(1,finite(unit.maxHp,1)),sp:finite(unit.sp,0),
       speed:finite(unit.speed,0),speedBaseRoll:finite(unit.speedBaseRoll,0),speedTie:finite(unit.speedTie,0),speedRollTurn:Math.max(0,Math.trunc(finite(unit.speedRollTurn,0))),
       actionSlots:Math.max(1,Math.trunc(finite(unit.actionSlots??unit.activeSlots,1))),activeSlots:Math.max(1,Math.trunc(finite(unit.activeSlots??unit.actionSlots,1))),
@@ -122,6 +123,7 @@
     const unit=runtime()?.combatants?.()?.[unitId]||{};
     const out={schemaVersion:2,engineVersion:'0.7.3-live-authority',kind,unitId,scheduledBy:canonicalPlayerId(unit)||unitId,schedulerUid:adapterState()?.uid||'',status:'planned',round:Number(adapterState()?.round)||1,sourceSlotIndex:Number.isInteger(plan.sourceSlotIndex)?plan.sourceSlotIndex:slotIndex,targetId:clean(plan.targetId)||null,targetSlotIndex:plan.targetSlotIndex==null?null:Math.max(0,Number(plan.targetSlotIndex)||0),actionData:data};
     const targetSide=clean(data.targetSide||data.targetRule||plan.targetSide||plan.targetRule);if(targetSide)out.targetSide=targetSide;if(Array.isArray(plan.additionalTargets)&&plan.additionalTargets.length)out.additionalTargets=clone(plan.additionalTargets);out.actionName=clean(data.name||data.nombre||data.label||id);
+    for(const key of ['drawId','clashChoice','clashOrder','clashConfirmed'])if(plan[key]!=null)out[key]=clone(plan[key]);out.planType=plan.type||'auto';
     if(kind==='spell'){out.spellId=id;out.spellSelectionKey=clean(data.spellSelectionKey||data.selectionKey||id);out.classId=clean(data.classId||data.class||'unknown');out.slotLevel=Math.max(0,Math.min(9,Math.trunc(finite(data.slotLevel??data.level,0))));out.overcast=Boolean(data.overcast);}else if(kind==='trait')out.traitId=id;else if(kind==='item'){out.itemId=id;const itemType=clean(data.itemType||data.item_type||data.type);if(itemType)out.itemType=itemType;}else if(kind==='global')out.actionKey=id;else out.skillId=id;return out;
   }
   function collectAiPlans(){const out={};Object.entries(runtime()?.combatants?.()||{}).forEach(([id,unit])=>{if(unit?.controlled!=='ai'||!Array.isArray(unit.autoPlans))return;const rows={};unit.autoPlans.forEach((plan,index)=>{if(plan)rows[index]=serializeRuntimePlan(plan,id,index);});if(Object.keys(rows).length)out[id]=rows;});return out;}
@@ -130,7 +132,7 @@
   function readyComplete(ready,plans,round){const missing=[];activePlayerIds().forEach(playerId=>{const row=ready?.[playerId],rows=plans?.[playerId]||{},planned=Math.max(0,Math.trunc(Number(row?.plannedSlots)||0));if(!row?.ready||Number(row.round)!==Number(round))missing.push(`${playerId}:READY`);else if(Object.keys(rows).filter(key=>rows[key]).length<planned)missing.push(`${playerId}:PLAN`);});return{complete:missing.length===0,missing};}
   async function sealRound(){
     const s=adapterState();if(!s?.db?.ref||!isDm())throw new Error('DM_AUTHORITY_REQUIRED');const round=Math.max(1,Math.trunc(Number(s.round)||1));
-    const [ready,plans]=await Promise.all([read(ROOT.ready),read(ROOT.plans)]),check=readyComplete(ready||{},plans||{},round);if(!check.complete)throw new Error(`ROUND_NOT_READY:${check.missing.join(',')}`);validateSpellPlans(plans||{});
+    const [ready,plans]=await Promise.all([read(ROOT.ready),read(ROOT.plans)]),check=readyComplete(ready||{},plans||{},round);if(!check.complete)throw new Error(`ROUND_NOT_READY:${check.missing.join(',')}`);validateSpellPlans(plans||{});global.LuminousCombatSlotDeck073?.validatePlans(plans||{});
     // Ready-player reactions are authenticated planning choices; DM verifies
     // Item equipment and effects again before arming their combat runtime.
     const defensiveReactions=Object.fromEntries(activePlayerIds()
