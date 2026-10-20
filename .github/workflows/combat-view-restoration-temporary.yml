@@ -9,6 +9,14 @@ jobs:
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            combat
+            css
+            js
+            Fonts
+            assets
+            tests
       - uses: actions/setup-node@v4
         with: {node-version: '20'}
       - run: npm install --no-save @playwright/test@1.55.0
