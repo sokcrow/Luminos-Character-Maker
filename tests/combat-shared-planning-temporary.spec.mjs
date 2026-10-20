@@ -62,6 +62,7 @@ for(const mobile of [false,true])test(`DM and two players share READY Clash and 
   for(const page of [dm,p2])await page.waitForFunction(()=>{const u=window.LuminousCombat073.combatants()['player:p1'];return u.autoPlans[0]?.drawId&&u.autoPlans[0]?.clashConfirmed===true;});
   await expect(dm.locator('[id="player:p1_slot_0"] .slot-intent-label')).toContainText('CLASH');
   await p2.locator('.command[data-menu=view]').click();await expect(p2.locator('[id="player:p1_slot_0"] .slot-intent-label')).toContainText('CLASH');
+  if(mobile){const box=await p1.locator('[id="player:p1_slot_0"] .slot-intent-label').boundingBox();expect(box.x).toBeGreaterThanOrEqual(0);expect(box.x+box.width).toBeLessThanOrEqual(390);}
   await dm.screenshot({path:`artifacts/shared-planning/${name}-dm-ready.png`});await p1.screenshot({path:`artifacts/shared-planning/${name}-player-ready.png`});await p2.screenshot({path:`artifacts/shared-planning/${name}-observer-ready.png`});
   await p1.reload({waitUntil:'domcontentloaded'});await p1.waitForFunction(()=>window.LuminousCombat073?.uiState()?.ready===true&&window.LuminousCombatSlotDeck073?.hand('player:p1',0).length===2);expect(await hands(p1)).toEqual(selected);
   await p1.locator('#ready').click();await dm.waitForFunction(()=>window.LuminousCombat073.combatants()['player:p1'].autoPlans[0]?.type==='intent');

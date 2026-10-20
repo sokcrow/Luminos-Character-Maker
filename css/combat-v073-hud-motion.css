@@ -105,3 +105,6 @@ html,body,#game-container.combat-product-hud{overflow:clip!important}
 #game-container.ready-plan-visible .command-ring{opacity:0!important;visibility:hidden!important;pointer-events:none!important}
 .slot-intent-label{display:none;position:absolute;top:calc(100% + var(--intent-row,0)*46px);left:50%;transform:translateX(-50%);width:max-content;max-width:420px;color:#f2db9b;background:#0b0b0ae6;padding:4px 7px;font:30px/1.15 var(--font);text-align:center;white-space:normal;pointer-events:none}
 .view-mode .slot-intent-label,.ready-plan-visible .slot-intent-label,#game-container[data-viewer-role="dm"] .slot-intent-label{display:block}
+.action-slot-wrapper[data-faction="ally"] .slot-intent-label{left:0;transform:none}
+.action-slot-wrapper[data-faction="enemy"] .slot-intent-label{left:auto;right:0;transform:none}
+@media(max-width:600px){.slot-intent-label{font-size:40px}}
