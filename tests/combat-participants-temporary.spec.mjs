@@ -74,6 +74,7 @@ for(const mobile of [false,true])test(`Eight campaign players, one combat partic
   for(const page of [dm,p1])await page.waitForFunction(()=>LuminousCombat073.uiState().round>=2&&!LuminousCombat073.uiState().running,null,{timeout:120000});
   await expect(p2.locator('#player-instance-combat')).toHaveCount(0);await expect(p2.locator('#theatre-view-player')).toBeVisible();
   await dm.screenshot({path:`artifacts/shared-planning/${mobile?'mobile':'desktop'}-one-participant-dm.png`});await p1.screenshot({path:`artifacts/shared-planning/${mobile?'mobile':'desktop'}-one-participant.png`});await p2.screenshot({path:`artifacts/shared-planning/${mobile?'mobile':'desktop'}-nonparticipant-theatre.png`});
+  for(const name of ['one-participant-dm','one-participant','nonparticipant-theatre'])console.log('QA_IMAGE:'+JSON.stringify({mobile,name,data:fs.readFileSync(`artifacts/shared-planning/${mobile?'mobile':'desktop'}-${name}.png`).toString('base64')}));
   await dm.locator('#c073-dm-setup summary').click();await dm.locator('#c073-player').selectOption('p2');await dm.locator('#c073-add-player').click();
   await expect(p2.locator('body')).toHaveClass(/player-instance-combat/);await expect(p2.locator('#player-instance-combat')).toHaveCount(1);
   const f=p2.frameLocator('#player-instance-combat');await expect(f.locator('#ready')).toBeVisible({timeout:45000});
