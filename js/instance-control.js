@@ -533,14 +533,6 @@
       }, presentationMs);
     };
 
-    combatStateRef.on("value", (snapshot) => {
-      combatState = snapshot.val() || {};
-      syncStartLabel();
-      scheduleEndedEncounterTransition();
-    }, (error) => {
-      console.error("No se pudo observar el estado del encounter:", error);
-    });
-
     // A visible, distinct START COMBAT action is required. Selecting Combat
     // used to be the only implicit start, leaving DM with no launch button
     // after P0 removed the legacy duplicate route. Keep both paths wired to
@@ -558,7 +550,8 @@
       const message = String(error?.message || "");
       if (code.includes("permission")) return "Firebase rechazó iniciar el encuentro. Verifica que hayas iniciado sesión con la cuenta del DM.";
       if (code.includes("network") || code.includes("unavailable")) return "No hay conexión con Firebase. Revisa tu conexión y vuelve a intentar.";
-      if (message.startsWith("Ya se está finalizando") || message.startsWith("Espera a que termine") || message.startsWith("Recarga el panel")) return message;
+      if (message.startsWith("Esta cuenta no está autorizada") || message.startsWith("No hay una sesión") ||
+          message.startsWith("Ya se está finalizando") || message.startsWith("Espera a que termine") || message.startsWith("Recarga el panel")) return message;
       return "No se pudo iniciar el combate. Revisa tu sesión de DM y vuelve a intentar.";
     };
     let pendingStart = null;
@@ -593,6 +586,13 @@
     };
     startButton?.addEventListener("click", () => { void openOrResumeCombat().catch(() => {}); });
     syncStartLabel();
+    combatStateRef.on("value", (snapshot) => {
+      combatState = snapshot.val() || {};
+      syncStartLabel();
+      scheduleEndedEncounterTransition();
+    }, (error) => {
+      console.error("No se pudo observar el estado del encounter:", error);
+    });
     documentRef.querySelectorAll('input[name="instancia"]').forEach((radio) => {
       if(radio.value === "combate")radio.addEventListener("click", () => {
         if(currentInstance !== "combate")return; // "change" handles first entry.
