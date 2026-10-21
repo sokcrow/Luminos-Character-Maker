@@ -116,7 +116,7 @@
   }
   async function publishPlanningAi(){
     const s=adapterState(),authority=state.authority;
-    if((s?.role!=='dm'&&!s?.isAuthority)||!s.hydratedOnce||state.publishingAi||!['planning','pre_combat_planning'].includes(norm(s.combatState))||
+    if((s?.role!=='dm'&&!s?.isAuthority)||!s.hydratedOnce||state.publishingAi||global.LuminousCombatAuthority073?.state?.runningLocal||!['planning','pre_combat_planning'].includes(norm(s.combatState))||
        (Number(authority?.round)===Number(s.round)&&['sealed','running'].includes(norm(authority?.phase))))return false;
     if(applyPlanningAi())return true;
     // Wait until the authored skills are loaded; do not publish placeholder kits.
