@@ -63,7 +63,7 @@
 
   function isBattleViewerSurface() {
     const doc = global.document;
-    return Boolean(doc?.getElementById?.("battlefield") && doc?.getElementById?.("combat-log-terminal"));
+    return Boolean(doc?.getElementById?.("battlefield") && (global.LuminousCombat073?.combatants || doc?.getElementById?.("combat-log-terminal")));
   }
 
   function isDmAuthorized() {
@@ -393,6 +393,7 @@
   }
 
   async function finishEncounter(result, options = {}) {
+    if(!state.db?.ref || (global.firebase?.auth && state.authorized!==true))await authorizeAndBoot();
     if (!state.db?.ref) throw new Error("DM console database is not ready.");
     if (!isDmAuthorized()) throw new Error("DM_ONLY");
     const normalized = normalizeEncounterResult(result);
