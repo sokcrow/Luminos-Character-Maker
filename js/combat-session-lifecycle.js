@@ -9,7 +9,7 @@
     if(raw?.estado?.encounterId&&live(raw))return;
     if(raw?.estado&&live(raw)&&Object.keys(raw.combatants||{}).length)
       return {...raw,estado:{...(typeof raw.estado==='object'?raw.estado:{}),encounterId:id,encounterCreatedAt:time,active:true}};
-    return {...(raw||{}),combatants:null,reserves:null,departed:null,plannedActions:null,readyPlayers:null,authority:null,playback:null,
+    return {...(raw||{}),combatants:null,reserves:null,defeated:null,departed:null,participants:null,plannedActions:null,readyPlayers:null,authority:null,playback:null,
       estado:{encounterId:id,encounterCreatedAt:time,phase:'PRE_COMBAT_PLANNING',active:true,round:1,presentation:'full',createdBy:uid,updatedAt:time},
       planningStartedAt:time,planningDuration:60};
   }
@@ -62,6 +62,34 @@
     if(typeof finishEncounter!=='function')throw Error('El visor aún no está listo para finalizar el encuentro.');
     return finishEncounter(result,{confirm:false});
   }
+  function participantIndex(raw={}){
+    const result={...(raw.participants||{})};
+    for(const unit of Object.values({...raw.defeated,...raw.departed,...raw.combatants})){
+      const id=global.LuminousCombatParticipants?.playerId(unit);
+      if(id&&global.LuminousCombatParticipants?.isPlayer(unit))result[id]=true;
+    }
+    return result;
+  }
+  async function deploy({db,units}){
+    const deployment=global.LuminousCombatDeploymentRuntime;
+    if(!deployment)throw Error('Espera a que cargue el encuentro.');
+    const response=await updateRoot(db,raw=>{
+      if(!raw||blocked(raw)||!['PRE_COMBAT_PLANNING','PLANNING','SETUP'].includes(String(raw.estado?.phase||raw.estado).toUpperCase()))return;
+      const combatants={...(raw.combatants||{})},reserves={...(raw.reserves||{})};
+      let changed=false;
+      for(const unit of units){
+        const id=deployment.unitId(unit);if(!id||combatants[id]||reserves[id])continue;
+        changed=true;
+        const side=deployment.sideOf(unit);
+        if(deployment.canEnterField(combatants,side))combatants[id]=deployment.markField(unit,{round:raw.estado?.round||1});
+        else reserves[id]=deployment.markBackup(unit,{queueOrder:deployment.nextQueueOrder(reserves,side),round:raw.estado?.round||1,reason:'field_full'});
+      }
+      return changed?{...raw,combatants,reserves,participants:participantIndex({...raw,combatants}),plannedActions:null,readyPlayers:null}:raw;
+    });
+    if(!response.committed)throw Error('Espera a que termine la ronda antes de cambiar los combatientes.');
+    const saved=response.snapshot.val();
+    return units.map(unit=>saved.combatants?.[unit.id]||saved.reserves?.[unit.id]);
+  }
   function endErrorMessage(error){
     const message=String(error?.message||''),code=String(error?.code||'').toLowerCase();
     if(message.startsWith('Espera a que termine la ronda')||message.startsWith('Ya se está finalizando'))return message;
@@ -87,7 +115,7 @@
       if(raw.estado?.phase==='ENDED')return raw.estado.endedBy===uid&&raw.estado.result===result?raw:undefined;
       const combatants=JSON.parse(JSON.stringify(raw.combatants||{}));
       applyEffects?.(combatants);
-      return {...raw,combatants:JSON.parse(JSON.stringify(combatants)),estado:{...(raw.estado||{}),phase:'ENDING',ending:{token,uid,result,startedAt:Date.now()}},plannedActions:null,readyPlayers:null};
+      return {...raw,participants:participantIndex(raw),combatants:JSON.parse(JSON.stringify(combatants)),estado:{...(raw.estado||{}),phase:'ENDING',ending:{token,uid,result,startedAt:Date.now()}},plannedActions:null,readyPlayers:null};
     });
     if(!response.committed)throw Error('Espera a que termine la ronda antes de finalizar el encuentro.');
     return response.snapshot.val();
@@ -101,7 +129,7 @@
   async function commitEnd({db,uid,result,token}){
     const response=await updateRoot(db,raw=>{
       if(raw?.estado?.phase!=='ENDING'||raw.estado.ending?.token!==token||raw.estado.ending?.uid!==uid||raw.estado.ending?.result!==result)return;
-      return {...raw,estado:{...raw.estado,ending:null,phase:'ENDED',active:false,result,outcome:result,transition:'result',endedBy:uid,endedAt:Date.now(),updatedAt:Date.now()}};
+      return {...raw,estado:{...raw.estado,ending:null,completedRound:raw.estado.completedRound||raw.estado.round||1,round:1,phase:'ENDED',active:false,result,outcome:result,transition:'result',endedBy:uid,endedAt:Date.now(),updatedAt:Date.now()}};
     });
     if(!response.committed)throw Error('El encuentro cambió antes de confirmar el resultado.');
     return response.snapshot.val().estado;
@@ -111,5 +139,5 @@
     if(!response.committed)throw Error('Cambia la presentación entre rondas, antes de elegir acciones.');
     return value;
   }
-  global.LuminousCombatSession=Object.freeze({ROOT,INSTANCE,blocked,live,nextEncounter,nextEnd,nextPresentation,start,end,claimEnd,commitEnd,failEnd,endErrorMessage,updateRoot,canSeal,presentation});
+  global.LuminousCombatSession=Object.freeze({ROOT,INSTANCE,blocked,live,nextEncounter,nextEnd,nextPresentation,start,end,deploy,participantIndex,claimEnd,commitEnd,failEnd,endErrorMessage,updateRoot,canSeal,presentation});
 })(typeof window!=='undefined'?window:globalThis);

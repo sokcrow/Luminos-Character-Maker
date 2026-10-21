@@ -33,7 +33,7 @@
     'js/unit-catalog-goblin.js',
     'js/unit-catalog-wolf.js'
   ]);
-  const DEPLOYMENT_SCRIPTS=Object.freeze(['js/unit-combat-instantiator.js','js/combat-v073-unit-deploy-bridge.js']);
+  const DEPLOYMENT_SCRIPTS=Object.freeze(['js/unit-combat-instantiator.js','js/combat-v073-unit-deploy-bridge.js?v=20261021-encounter-3']);
   const state={loading:null,deploymentLoading:null,localUnits:{},localSkills:{},fallbackDb:null,fallbackUnsubscribers:[],remoteCampaignUnits:{},remoteManifest:{}};
   const clean=v=>String(v??'').trim();
   const clone=v=>v==null?v:JSON.parse(JSON.stringify(v));
@@ -63,7 +63,7 @@
       'js/unit-catalog-goblin.js':()=>Boolean(global.LuminousGoblinUnitCatalog),
       'js/unit-catalog-wolf.js':()=>Boolean(global.LuminousWolfUnitCatalog),
       'js/unit-combat-instantiator.js':()=>Boolean(global.LuminousUnitCombatInstantiator),
-      'js/combat-v073-unit-deploy-bridge.js':()=>Boolean(global.LuminousCombat073UnitDeployBridge)
+      'js/combat-v073-unit-deploy-bridge.js?v=20261021-encounter-3':()=>Boolean(global.LuminousCombat073UnitDeployBridge)
     };
     try{return Boolean(checks[src]?.());}catch(_){return false;}
   }

@@ -340,7 +340,12 @@
   async function requestStartRound(){
     state.lastStartError='';
     if(state.runningLocal||state.preparingRound)return false;const s=adapterState(),original=state.originalStartRound;if(!s?.db?.ref||typeof original!=='function')return false;if(isPlayer()&&!isDm()&&!state.remoteStart){setStatus('COMBAT · esperando resolución autoritativa del DM');return false;}
+    state.preparingRound=true;
     try{
+      // Drain the child transaction before claiming the encounter parent.
+      // Otherwise a reinforcement's new Speed roll can invalidate every seal
+      // retry while both transactions are being replayed by the Firebase SDK.
+      if(isDm())await global.LuminousCombatSpeedAuthority073?.ensureRoundSpeeds?.({preparing:true});
       if(isDm()&&global.LuminousCombatRemoteIntents073?.publishPlanningAi){
         // Keep hydration available while the sparse Skill catalog loads. A
         // READY received during DM boot must not seal placeholder enemy plans.

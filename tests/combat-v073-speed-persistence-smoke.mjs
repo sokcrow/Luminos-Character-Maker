@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import vm from 'node:vm';
 
 const viewer=fs.readFileSync('Battle-viewer.html','utf8');
 const speed=fs.readFileSync('js/combat-v073-speed-authority.js','utf8');
@@ -18,7 +19,7 @@ assert.ok(authority.includes('confusionTurnMode:unit.confusionTurnMode==null?nul
 assert.ok(speed.includes('speedRolledAt:global.firebase.database.ServerValue.TIMESTAMP'),'speed roll must record authoritative timestamp');
 assert.ok(speed.includes("state.db.ref(`${ROOT}/combatants`)"),'speed persistence must transact the canonical combatant collection');
 assert.ok(speed.includes('ref.transaction(current=>'),'speed persistence must use one collection transaction');
-assert.ok(speed.includes('if(rolledTurn===state.round&&speed!=null&&speed>=1&&tie!=null)continue'),'same round refresh must not reroll legal Speed; invalid Speed 0 must be rerolled');
+assert.ok(speed.includes('if(rolledTurn===expectedRound&&speed!=null&&speed>=1&&tie!=null)continue'),'same round refresh must not reroll legal Speed; invalid Speed 0 must be rerolled');
 assert.ok(speed.includes('return changed?next:undefined'),'transaction must abort when every combatant already has this round speed');
 assert.ok(!speed.includes("a.state.lastSignature=''"),'Speed refresh must not invalidate the whole adapter hydration cache');
 assert.ok(!speed.includes('a.hydrateNow()'),'Speed refresh must not rebuild the Combat runtime or reset Player menus');
@@ -47,7 +48,7 @@ assert.ok(!hydrationSource.includes('unit.speedTie'),'speedTie-only changes must
 assert.ok(!hydrationSource.includes('unit.speedRollTurn'),'speedRollTurn-only changes must not invalidate the full Combat hydration signature');
 assert.ok(hydrationSource.includes('unit.proneSpeedRound')&&hydrationSource.includes('unit.confusionTurnMode'),'condition turn-state changes must still invalidate full hydration');
 assert.ok(speed.includes('roundReady:false'),'Speed authority must wait for the canonical round before authoring Speed');
-assert.ok(speed.includes('if(state.rolling||!state.roundReady||!state.db?.ref||!isDm())return false'),'DM Speed rolls must be blocked until Firebase round state is known');
+assert.ok(speed.includes('!state.roundReady||!state.db?.ref||!isDm()'),'DM Speed rolls must be blocked until Firebase round state is known');
 assert.ok(speed.includes('syncRuntimeSpeedsFromCanonical'),'legacy runtime Speed must be overwritten from canonical combatants');
 assert.ok(speed.includes('patchLegacySpeedRollers'),'legacy rollTurnSpeeds/rollUnitSpeed must be patched to canonical reads');
 assert.ok(speed.includes('global.rollTurnSpeeds=function authoritativeSpeedSync'),'legacy turn Speed rolls must not randomize per viewer');
@@ -58,5 +59,20 @@ assert.ok(speed.includes('state.lastFormationRound===expected'),'repeated same-r
 assert.ok(speed.includes('global.layoutSpeedFormation?.()'),'canonical turn Speed sync must preserve formation refresh side effects');
 assert.ok(speed.includes('global.syncAllUnitVisibility?.()'),'canonical turn Speed sync must preserve visibility refresh side effects');
 assert.ok(speed.includes('global.rollUnitSpeed=function authoritativeUnitSpeed'),'legacy unit Speed rolls must not randomize per viewer');
+
+// A round seal and the background Speed listener can request the same roll.
+// Both must await one child transaction; sealed rounds must start none.
+let releaseRoll,transactions=0;
+const gate=new Promise(resolve=>{releaseRoll=resolve;});
+const rows={enemy:{id:'enemy',hp:12,speedRollTurn:1,speed:1,speedTie:0}};
+const db={ref(){return {async transaction(update){transactions++;await gate;const result=update(rows);return {committed:result!==undefined};}};}};
+const sandbox={console,Math,JSON,Number,String,Object,Array,Promise,setInterval:()=>1,clearInterval(){},setTimeout:()=>1,clearTimeout(){},addEventListener(){},firebase:{database:{ServerValue:{TIMESTAMP:1}}},LuminousCombatLiveAdapter073:{state:{role:'dm'}},LuminousCombatAuthority073:{state:{preparingRound:true,runningLocal:false}}};
+sandbox.window=sandbox;vm.runInNewContext(speed,sandbox);
+const api=sandbox.LuminousCombatSpeedAuthority073;Object.assign(api.state,{db,round:2,roundReady:true});
+const sealing=api.ensureRoundSpeeds({preparing:true}),background=api.ensureRoundSpeeds();
+assert.equal(transactions,1,'concurrent requests must share one Speed transaction');releaseRoll();
+assert.deepEqual(await Promise.all([sealing,background]),[true,true]);
+sandbox.LuminousCombatAuthority073.state.runningLocal=true;
+assert.equal(await api.ensureRoundSpeeds(),false,'running/sealing authority must prevent new background writes');assert.equal(transactions,1);
 
 console.log('combat v0.7.3 speed persistence smoke: ok');

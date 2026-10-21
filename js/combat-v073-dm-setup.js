@@ -9,7 +9,7 @@
     combatants: 'campaña/combate/combatants',
     state: 'campaña/combate/estado'
   });
-  const LIBRARY_SYNC_SCRIPT = 'js/combat-unit-library-sync.js';
+  const LIBRARY_SYNC_SCRIPT = 'js/combat-unit-library-sync.js?v=20261021-encounter-3';
   const clean = (value) => String(value ?? '').trim();
   const safe = (value, fallback = 'id') => clean(value).replace(/[.#$\[\]\/]/g, '_') || fallback;
   const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
@@ -298,6 +298,9 @@
   }
 
   async function ensureEncounterIdentity() {
+    const current=(await state.db.ref(ROOTS.state).once('value')).val();
+    if(!current||current.phase==='ENDED'||current.active===false)
+      return global.LuminousCombatSession.start({db:state.db,uid:adapterState()?.uid});
     const runtime = global.LuminousLootLivePostCombatRuntime;
     if (!runtime?.ensureEncounterId) return null;
     return runtime.ensureEncounterId({ db: state.db });
@@ -310,8 +313,7 @@
     if (!player) throw new Error('PLAYER_NOT_FOUND');
     const combatant = buildPlayer(playerId, player);
     await ensureEncounterIdentity();
-    await state.db.ref(`${ROOTS.combatants}/${combatant.id}`).set(combatant);
-    return combatant;
+    return (await global.LuminousCombatSession.deploy({db:state.db,units:[combatant]}))[0];
   }
 
   async function deployUnits(unitId, faction, quantity) {
@@ -327,15 +329,15 @@
       const combatant = buildUnit(unitId, unit, faction, serial);
       updates[combatant.id] = combatant;
     }
-    await state.db.ref(ROOTS.combatants).update(updates);
+    await global.LuminousCombatSession.deploy({db:state.db,units:Object.values(updates)});
     return count;
   }
 
   async function removeCombatant(id) {
     if (!isDm()) throw new Error('DM_ONLY');
     requirePlanning();
-    const unit=state.combatants[id],owner=global.LuminousCombatParticipants?.isPlayer(unit)?canonicalPlayerId(unit):null;
-    const updates={[`${ROOTS.combatants}/${id}`]:null};
+    const unit=state.combatants[id]||state.reserves?.[id],owner=global.LuminousCombatParticipants?.isPlayer(unit)?canonicalPlayerId(unit):null;
+    const updates={[`${ROOTS.combatants}/${id}`]:null,[`campaña/combate/reserves/${id}`]:null};
     if(owner){updates[`campaña/combate/readyPlayers/${owner}`]=null;updates[`campaña/combate/plannedActions/${owner}`]=null;}
     await state.db.ref().update(updates);
   }
@@ -352,11 +354,17 @@
       endedBy: null,
       transition: null,
       phase: 'SETUP',
+      round: 1,
+      completedRound: null,
       active: false,
       updatedAt: global.firebase?.database?.ServerValue?.TIMESTAMP ?? Date.now(),
     };
     const updates={
       [ROOTS.combatants]:null,
+      'campaña/combate/reserves':null,
+      'campaña/combate/defeated':null,
+      'campaña/combate/departed':null,
+      'campaña/combate/participants':null,
       'campaña/combate/plannedActions':null,
       'campaña/combate/readyPlayers':null,
       'campaña/combate/authority/current':null,
@@ -404,9 +412,11 @@
     }
     if (roster) {
       const members=global.LuminousCombatParticipants,progress=members?.progress(state.combatants,state.readyPlayers,state.encounter?.round||1);
+      const reserveRows=Object.entries(state.reserves||{}).map(([id,unit])=>`<div style="display:flex;gap:6px;align-items:center;margin:3px 0"><span style="flex:1">${esc(nameFor(unit,id))} · ${unit.faction==='enemy'?'Enemigo':'Aliado'} · RESERVA</span><button data-remove="${esc(id)}" aria-label="Quitar reserva">×</button></div>`).join('');
       roster.innerHTML = Object.entries(state.combatants || {}).length
         ? Object.entries(state.combatants).map(([id, combatant]) => `<div style="display:flex;gap:6px;align-items:center;margin:3px 0"><span style="flex:1">${esc(nameFor(combatant, id))} · ${esc(combatant.faction || '')}${members?.isPlayer(combatant)?' · '+(members.isField(combatant)?(state.readyPlayers?.[members.playerId(combatant)]?.ready===true&&Number(state.readyPlayers[members.playerId(combatant)].round)===Number(state.encounter?.round||1)?'LISTO':'PREPARANDO'):'FUERA DEL COMBATE'):''} · ${skillIdsFor(combatant).length} skills${spriteFor(combatant) ? ' · sprite' : ''}</span><button data-remove="${esc(id)}">×</button></div>`).join('')
         : '<div style="opacity:.65">Aún no hay combatientes desplegados.</div>';
+      if(reserveRows)roster.insertAdjacentHTML('beforeend',`<div style="margin-top:8px"><b>Refuerzos en reserva</b>${reserveRows}</div>`);
       if(progress?.total)roster.insertAdjacentHTML('afterbegin',`<div class="combat-participant-progress">Participantes: ${progress.total} · Listos ${progress.ready}/${progress.total}</div>`);
       roster.querySelectorAll('[data-remove]').forEach((button) => {
         button.disabled = locked;
@@ -459,6 +469,7 @@
   }
 
   function planningPhase() {
+    if(String(state.encounter?.phase||'').toUpperCase()==='ENDING')return false;
     if (['sealed','running'].includes(String(state.authorityPhase || global.LuminousCombatAuthority073?.state.current?.phase || '').toLowerCase())) return false;
     const phase = clean(adapterState()?.combatState).toLowerCase().replace(/[\s-]+/g, '_');
     return !['combat','combat_sealed','running','sealed','combat_running','combat_resolution'].includes(phase);
@@ -605,7 +616,7 @@
     unit.onchange = () => { state.selectedUnit = unit.value; };
     global.document.getElementById('c073-add-player').onclick = async () => {
       if (!player.value) return setMsg('Selecciona un Campaign Player.', true);
-      try { setMsg('Desplegando Player…'); await deployPlayer(player.value); setMsg('Player desplegado.'); }
+      try { setMsg('Añadiendo personaje…'); const added=await deployPlayer(player.value); setMsg(added.isBackup?'Personaje en reserva. Entrará cuando haya una plaza libre.':'Personaje en campo.'); }
       catch (error) { setMsg(`No se pudo desplegar: ${error.message}`, true); }
     };
     global.document.getElementById('c073-enemy').onclick = async () => {
@@ -650,6 +661,7 @@
     subscribe(ROOTS.actors, 'actors');
     subscribe(ROOTS.units, 'units');
     subscribe(ROOTS.combatants, 'combatants');
+    subscribe('campaña/combate/reserves','reserves');
     subscribe('campaña/combate/authority/current/phase', 'authorityPhase');
     subscribe(ROOTS.state, 'encounter');
     subscribe('campaña/combate/readyPlayers','readyPlayers');
@@ -680,6 +692,7 @@
     buildUnit,
     deployPlayer,
     deployUnits,
+    ensureEncounterIdentity,
     removeCombatant,
     clearEncounter,
     requirePlanning,

@@ -185,10 +185,13 @@
     return true;
   }
 
-  async function ensureRoundSpeeds(){
-    if(state.rolling||!state.roundReady||!state.db?.ref||!isDm())return false;
+  async function ensureRoundSpeeds(options={}){
+    if(state.rollPromise)return state.rollPromise;
+    const authority=global.LuminousCombatAuthority073?.state;
+    if(!state.roundReady||!state.db?.ref||!isDm()||(!options.preparing&&(authority?.preparingRound||authority?.runningLocal)))return false;
     state.rolling=true;
-    try{
+    const expectedRound=state.round;
+    state.rollPromise=(async()=>{try{
       const ref=state.db.ref(`${ROOT}/combatants`);
       const result=await ref.transaction(current=>{
         if(!current||typeof current!=='object')return;
@@ -199,14 +202,15 @@
           const rolledTurn=Math.trunc(finite(unit.speedRollTurn,0)||0);
           const speed=finite(unit.speed,null);
           const tie=finite(unit.speedTie,null);
-          if(rolledTurn===state.round&&speed!=null&&speed>=1&&tie!=null)continue;
+          if(rolledTurn===expectedRound&&speed!=null&&speed>=1&&tie!=null)continue;
           next[key]={...unit,...rollFor(unit)};
           changed=true;
         }
         return changed?next:undefined;
       },undefined,false);
       return Boolean(result?.committed);
-    }finally{state.rolling=false}
+    }finally{state.rolling=false}})();
+    try{return await state.rollPromise;}finally{state.rollPromise=null;}
   }
 
   function parseRound(value){
@@ -259,6 +263,9 @@
     // live updates (for example Player Active Inventory) cannot restore stale x/y.
     if(state.roundReady)state.lastFormationRound=0;
     refreshRuntimeSpeedView();
+    // Round completion can arrive while the authority still owns its final
+    // write. Hydration after it releases that lock must resume planning rolls.
+    ensureRoundSpeeds().catch(error=>console.error('[Combat073 SpeedAuthority] planning roll failed',error));
   });
   global.addEventListener('beforeunload',stop,{once:true});
   global.LuminousCombatSpeedAuthority073=Object.freeze({state,start,stop,rangeFor,rollFor,speedSignature,runtimeCombatants,canonicalRowFor,syncRuntimeSpeedsFromCanonical,canonicalRoundComplete,applyRoundSideEffectsOnce,refreshRuntimeSpeedView,patchLegacySpeedRollers,ensureRoundSpeeds,forceRuntimeRefresh});

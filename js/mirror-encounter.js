@@ -12,6 +12,12 @@
     frame=doc.createElement('iframe');frame.id='mirror-view';frame.title='Encuentro separado';frame.allow='autoplay';
     frame.style.cssText='display:block;position:absolute;inset:0;width:100%;height:100%;border:0';
     frame.src='Battle-viewer.html?encounter='+encounterId+(isLocal?'&mode=local':'');$('mirror-main').appendChild(frame);
+    let lootAttempts=0;const lootTimer=g.setInterval(()=>{
+      const adapter=frame.contentWindow?.LuminousCombatLiveAdapter073?.state;
+      const own=adapter?.playerId||Object.entries(adapter?.players||{}).find(([,p])=>(p.uid||p.vinculado_a||p.vinculo_jugador)===adapter?.uid)?.[0];
+      if(adapter?.db&&own){g.clearInterval(lootTimer);void g.LuminousPlayerPostCombatLoot.install({db:adapter.db,playerId:own}).catch(error=>console.error('[Post-combat]',error));}
+      else if(++lootAttempts>240)g.clearInterval(lootTimer);
+    },100);
     if(host){let attempts=0;const timer=g.setInterval(async()=>{
       const setup=frame.contentWindow?.LuminousCombatDmSetup073;
       if(!setup?.state.started||!Object.keys(setup.state.players).length){if(++attempts>240)g.clearInterval(timer);return;}
@@ -28,8 +34,8 @@
   $('mirror-end').onclick=()=>$('mirror-result').showModal();
   $('mirror-confirm-end').onclick=async()=>{
     const button=$('mirror-confirm-end');button.disabled=true;
-    try{const resolver=frame?.contentWindow?.LuminousBattleViewerDmConsole074;if(!resolver?.finishEncounter)throw Error('Espera a que cargue el encuentro.');await resolver.finishEncounter($('mirror-outcome').value,{confirm:false});$('mirror-result').close();frame.hidden=true;$('mirror-card').hidden=false;$('mirror-create').hidden=true;$('mirror-end').hidden=true;say('Encuentro finalizado. Los resultados se conservaron aquí.');}
-    catch(error){g.alert(error.userMessage||'No se pudo finalizar el encuentro. Vuelve a intentarlo.');}finally{button.disabled=false;}
+    try{const resolver=frame?.contentWindow?.LuminousBattleViewerDmConsole074;if(!resolver?.finishEncounter)throw Error('Espera a que cargue el encuentro.');$('mirror-result').close();await resolver.finishEncounter($('mirror-outcome').value,{confirm:false});frame.hidden=true;$('mirror-card').hidden=false;$('mirror-create').hidden=true;$('mirror-end').hidden=true;say('Encuentro finalizado. Los resultados se conservaron aquí.');}
+    catch(error){$('mirror-result').showModal();g.alert(error.userMessage||'No se pudo finalizar el encuentro. Vuelve a intentarlo.');}finally{button.disabled=false;}
   };
   async function join(){
     if(!/^[A-Za-z0-9_-]{1,100}$/.test(id||''))throw Error('El enlace de encuentro es inválido.');

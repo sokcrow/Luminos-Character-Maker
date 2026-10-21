@@ -6,7 +6,7 @@ const read=(file)=>fs.readFileSync(file,'utf8');
 const source=read('js/combat-v073-runtime-hotfix.js');
 const planSync=read('js/combat-v073-plan-sync.js');
 
-assert.ok(planSync.includes("'js/combat-v073-runtime-hotfix.js'"),'plan sync bootstrap must load the runtime hotfix');
+assert.match(planSync,/['"]js\/combat-v073-runtime-hotfix\.js(?:\?[^'"]*)?['"]/,'plan sync bootstrap must load the runtime hotfix');
 assert.ok(planSync.includes('s.firebaseReady===false'),'hidden Player Combat must reject residual plan-sync writes');
 assert.ok(source.includes('patchTargetIntents'),'runtime hotfix must guard target-intent generation with sealed authority plans');
 assert.ok(source.includes("reason:'blank-webgl-canvas'"),'DM visual recovery must detect active-but-blank WebGL output');

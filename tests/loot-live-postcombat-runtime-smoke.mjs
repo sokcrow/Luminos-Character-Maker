@@ -311,7 +311,7 @@ assert.equal(harvestedMeat.provenance.corpseId, corpse.corpseId);
 assert.equal(harvestedMeat.provenance.acquisitionMethod, "harvest");
 
 const hunterCompendium = getPath(db.data, "campaña/jugadores/hunter/compendium");
-assert.ok(hunterCompendium.units.wolf.facts["loot.known_uses"], "materialized culinary/crafting knowledge must persist into local Compendium");
+assert.ok(Object.values(hunterCompendium.units.wolf.facts).some(fact=>fact.id==="loot.known_uses"), "materialized culinary/crafting knowledge must persist into local Compendium");
 
 const rivalBefore = deepClone(getPath(db.data, "campaña/jugadores/rival"));
 const contested = await live.executeAction({
@@ -443,7 +443,7 @@ const examined = await live.executeAction({
 assert.equal(examined.committed, true);
 const examinedCompendium = getPath(db.data, "campaña/jugadores/searcher/compendium");
 assert.ok(examinedCompendium.units.goblin);
-assert.ok(Object.keys(examinedCompendium.units.goblin.facts).some((id) => id.startsWith("environment.") || id.startsWith("loot.")));
+assert.ok(Object.values(examinedCompendium.units.goblin.facts).some(({id}) => id.startsWith("environment.") || id.startsWith("loot.")));
 
 const battleHtml = fs.readFileSync(new URL("../Battle-viewer.html", import.meta.url), "utf8");
 const playerHtml = fs.readFileSync(new URL("../hoja_personaje.html", import.meta.url), "utf8");

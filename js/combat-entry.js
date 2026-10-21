@@ -73,7 +73,7 @@
       const dm=await db.ref('campaña/config/dm_uid').once('value');if(generation!==state.generation)return;
       state.dm=user.uid===dm.val()||user.uid==='e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1';
       watch('.info/connected',value=>{state.connected=value===true;render();},generation);
-      watch('campaña/jugadores',players=>{const matches=Object.entries(players||{}).filter(([,p])=>(p.uid||p.vinculado_a||p.vinculo_jugador)===state.uid);state.player=matches.length===1?matches[0][1]:null;state.playerId=matches.length===1?matches[0][0]:null;render();},generation);
+      watch('campaña/jugadores',players=>{const matches=Object.entries(players||{}).filter(([,p])=>(p.uid||p.vinculado_a||p.vinculo_jugador)===state.uid);state.player=matches.length===1?matches[0][1]:null;state.playerId=matches.length===1?matches[0][0]:null;if(state.playerId)void global.LuminousPlayerPostCombatLoot?.install({db,playerId:state.playerId}).catch(error=>console.error('[Post-combat]',error));render();},generation);
       watch(`${api.ROOT}/combatants`,value=>{state.encounter.combatants=value||{};render();},generation);
       watch(`${api.ROOT}/estado`,value=>{state.encounter.estado=value||null;render();},generation);
       watch(`${api.ROOT}/authority/current/phase`,value=>{state.encounter.authority={current:{phase:value}};render();},generation);
