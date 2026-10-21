@@ -104,6 +104,8 @@ assert.match(source('pantalla_dm.html'), /id="dm-studio-start-encounter"[^>]*>IN
 assert.match(source('js/instance-control.js'), /startButton\?\.addEventListener\("click"/, 'director start button must have a canonical handler');
 assert.match(source('pantalla_dm.html'), /LuminousCombatSession\.start\(\{db,uid:user\.uid\}\)/, 'studio start must use the canonical encounter session, not a local mock');
 assert.match(source('js/instance-control.js'), /radio\.addEventListener\("click"/, 'already-selected Combat control must respond to another click');
+assert.match(source('js/dm-on-game-startup-gate.js'), /"campaña\/combate",/, 'DM startup gate must not deadlock the Combat-root transaction listener');
+assert.match(source('js/dm-on-game-startup-gate.js'), /"campaña\/combate\/estado",/, 'Combat state must be observed for START and REANUDAR');
 assert.match(source('js/instance-control.js'), /participants\[player\.playerId\]===true/, 'defeated players must remain in Combat for the result seal');
 assert.doesNotMatch(source('js/battle-viewer-dm-console-074.js'), /beginBlackout\?\.\(/, 'result must not trigger an opaque blackout');
 assert.match(source('js/instance-control.js'), /transition === "result" \? 1400/, 'DM result return has a fallback');
