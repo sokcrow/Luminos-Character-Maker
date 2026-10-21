@@ -212,6 +212,18 @@ test('DM dashboard: INICIAR COMBATE starts a fresh fight after a sealed victory 
  await expect(start).toHaveAttribute('data-bound','true',{timeout:20000});
  await expect(start).toBeEnabled();
  await start.click({timeout:10000});
+ await page.waitForTimeout(1400);
+ console.log('DM_START_EVIDENCE',JSON.stringify({
+   ui:await page.evaluate(()=>({
+     authUid:firebase.auth().currentUser?.uid,
+     buttonText:document.getElementById('btn-start-encounter')?.textContent,
+     buttonBound:document.getElementById('btn-start-encounter')?.dataset.bound,
+     status:document.getElementById('dm-encounter-start-status')?.textContent,
+     statusHidden:document.getElementById('dm-encounter-start-status')?.hidden,
+     instance:document.querySelector('input[name="instancia"]:checked')?.value,
+   })),
+   stored:(await admin('campaña/combate/estado')),
+ }));
  await expect.poll(async()=> (await admin('campaña/combate/estado')).phase,{timeout:25000}).toBe('PRE_COMBAT_PLANNING');
  await expect.poll(async()=> (await admin('campaña/estado_mundo/instancia_activa')),{timeout:20000}).toBe('combate');
  const fresh=await admin('campaña/combate');
