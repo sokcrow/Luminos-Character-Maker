@@ -72,7 +72,9 @@
     // Refresh the shared transport together when a cached viewer reopens.
     html=html.replace(/js\/combat-v073-(steps|playback|playback-sync)\.js(?:\?v=[^"']+)?/g,
       'js/combat-v073-$1.js?v=20261021-performance-2');
-    const p1Version='20261021-p1-camera-hud-1';
+    html=html.replace(/js\\/combat-v073-dm-observer\\.js(?:\\?v=[^"']+)?/g,
+      'js/combat-v073-dm-observer.js?v=20261021-performance-2');
+    const p1Version='20261021-performance-2';
     for(const asset of ['css/combat-v073-stage.css','css/combat-v073-hud-motion.css','js/combat-v073-stage.js']){
       if(!html.includes(asset))throw new Error('COMBAT_P1_ASSET_MISSING:'+asset);
       html=html.replace(asset,asset+'?v='+p1Version);
