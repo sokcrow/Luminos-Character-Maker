@@ -8,6 +8,7 @@
 
   const VERSION = "0.7.3";
   const scripts = [
+    ["npc-belongings-script", "js/npc-belongings-runtime.js?v=20261021-1", "./npc-belongings-runtime.js", "LuminousNpcBelongings"],
     ["combat-action-schema-script", "js/combat-action-schema.js", "./combat-action-schema.js", "LuminousCombatAction"],
     ["combat-action-queue-script", "js/combat-action-queue.js", "./combat-action-queue.js", "LuminousCombatActionQueue"],
     ["combat-action-engine-bridge-script", "js/combat-action-engine-bridge.js", "./combat-action-engine-bridge.js", "LuminousCombatActionEngineBridge"],

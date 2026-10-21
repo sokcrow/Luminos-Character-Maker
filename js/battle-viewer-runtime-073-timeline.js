@@ -209,7 +209,9 @@
     if (!liveItem) return { handled: false, reason: "active_inventory_item_missing", instanceId: plannedItem.instanceId || plannedItem.itemId || null };
     const runtime = global.LuminousItemRuntime;
     if (!runtime?.useItem) return { handled: false, reason: "item_runtime_unavailable", item: liveItem };
-    const result = runtime.useItem(actor, liveItem, { phase: "combat", target, ignoreActionCost: true });
+    const result = plannedItem.npcItem && global.LuminousNpcBelongings
+      ? global.LuminousNpcBelongings.useItem(actor, liveItem, target)
+      : runtime.useItem(actor, liveItem, { phase: "combat", target, ignoreActionCost: true });
     return {
       handled: result?.used === true,
       reason: result?.used === true ? null : (result?.reason || "item_use_failed"),

@@ -2937,6 +2937,12 @@ window.processEntitiesData = function(entities) {
 
       <!-- TAB: BOTÍN -->
       <div id="tab-loot" class="dm-tab-pane">
+        <section class="panel-cyber" aria-labelledby="dm-loot-queue-title" style="width:min(1180px,96vw);margin-top:20px;">
+          <h3 id="dm-loot-queue-title">Botines pendientes</h3>
+          <p style="color:#aaa;">Retira los botines que ya no deban reclamarse, incluidos los de encuentros anteriores. Las entregas realizadas se conservan.</p>
+          <div id="dm-loot-queues" aria-live="polite">Cargando botines pendientes…</div>
+        </section>
+
         <!-- DM LOOT STUDIO -->
         <div id="dashboard-loot" class="panel-cyber" style="margin-top: 20px; width:min(1180px,96vw);">
           <h3 style="margin-bottom:6px;">Loot Studio</h3>
@@ -10932,6 +10938,7 @@ window.processEntitiesData = function(entities) {
     <script src="js/loot-ammo-reconciliation.js"></script>
     <script src="js/loot-instance-runtime.js"></script>
     <script src="js/dm-loot-studio.js"></script>
+    <script src="js/dm-loot-queue.js?v=20261021-1"></script>
     <script src="js/skill-trait-breakdown-patch.js"></script>
 
     <div id="dm-modal-new-group" class="dm-modal-overlay">
@@ -10949,6 +10956,6 @@ window.processEntitiesData = function(entities) {
             </div>
         </div>
     </div>
-<script src="js/loot-live-postcombat-runtime.js?v=20261021-recovery-4"></script>
+<script src="js/loot-live-postcombat-runtime.js?v=20261021-belongings-1"></script>
 </body>
 </html>

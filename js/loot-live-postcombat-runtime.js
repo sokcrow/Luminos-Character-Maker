@@ -23,6 +23,8 @@
     "js/content-registry.js",
     "js/item-runtime-engine.js",
     "js/item-inventory-runtime.js",
+    "js/item-catalog-hp-healing.js",
+    "js/item-catalog-culinary-staples.js",
     "js/item-quality-engine.js",
     "js/item-size-lineage-engine.js",
     "js/item-culinary-affinity-data.js",
@@ -221,6 +223,8 @@
     const combatState = clone(options.combatState || await onceValue(db, ROOTS.combatState) || {});
     const combatants = {...clone(options.combatants || await onceValue(db, ROOTS.combatants) || {}),...clone(await onceValue(db, ROOTS.defeated) || {})};
     const authoredUnits = clone(options.units || await onceValue(db, ROOTS.units) || {});
+    const priorMeta = await onceValue(db, `${ROOTS.encounterLoot}/${safeKey(encounterId)}/meta`);
+    if (priorMeta?.closedByDm === true) return deepFreeze({ encounterId, finalized: [], skipped: [], closed: true });
     const context = encounterContextFromState(combatState, options);
     const finalized = [];
     const skipped = [];
@@ -281,14 +285,14 @@
       finalized.push(index);
     }
 
-    await db.ref(`${ROOTS.encounterLoot}/${safeKey(encounterId)}/meta`).update({
+    await transactionValue(db.ref(`${ROOTS.encounterLoot}/${safeKey(encounterId)}/meta`), raw => raw?.closedByDm === true ? raw : ({ ...(raw || {}),
       encounterId,
       result: normalizeId(options.result || combatState.result || combatState.outcome),
       finalizedAt: options.now ?? Date.now(),
       corpseCount: finalized.length,
       open: true,
       participants: clone(options.participants || {}),
-    });
+    }));
 
     return deepFreeze({ encounterId, finalized: deepFreeze(finalized), skipped: deepFreeze(skipped) });
   }

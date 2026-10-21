@@ -9,7 +9,7 @@
     combatants: 'campaña/combate/combatants',
     state: 'campaña/combate/estado'
   });
-  const LIBRARY_SYNC_SCRIPT = 'js/combat-unit-library-sync.js?v=20261021-encounter-3';
+  const LIBRARY_SYNC_SCRIPT = 'js/combat-unit-library-sync.js?v=20261021-belongings-1';
   const clean = (value) => String(value ?? '').trim();
   const safe = (value, fallback = 'id') => clean(value).replace(/[.#$\[\]\/]/g, '_') || fallback;
   const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));

@@ -85,6 +85,7 @@
   async function deploy({db,units}){
     const deployment=global.LuminousCombatDeploymentRuntime;
     if(!deployment)throw Error('Espera a que cargue el encuentro.');
+    units=units.map(unit=>global.LuminousNpcBelongings?.initialize(unit)||unit);
     const response=await updateRoot(db,raw=>{
       if(!raw||blocked(raw)||!['PRE_COMBAT_PLANNING','PLANNING','SETUP'].includes(String(raw.estado?.phase||raw.estado).toUpperCase()))return;
       const combatants={...(raw.combatants||{})},reserves={...(raw.reserves||{})};

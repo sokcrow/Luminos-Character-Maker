@@ -203,7 +203,7 @@
     const faction = options.faction === 'ally' ? 'ally' : 'enemy';
     const serial = clean(options.serial || Date.now().toString(36));
     const combatId = clean(options.combatId) || `${faction}:unit:${safe(unitId)}:${serial}`;
-    return {
+    const combatant = {
       ...normalized,
       id: combatId,
       combatId,
@@ -221,6 +221,7 @@
       entrySource: 'unit_combat_instantiator_v1',
       enteredCombatAt: Date.now()
     };
+    return global.LuminousNpcBelongings?.initialize(combatant, options) || combatant;
   }
 
   function diagnostics(unitId, definition = {}, options = {}) {

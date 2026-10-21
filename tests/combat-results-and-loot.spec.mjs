@@ -367,3 +367,105 @@ test('ENTRAR A SESIÓN EN VIVO really enters Theatre and recovers a stale Direct
    await context.close();
  }
 });
+
+test('DM retires an inaccessible legacy loot queue and Player loses its stale corpse without losing delivered rewards',async({browser},info)=>{
+ test.setTimeout(120000);
+ const campaign=clone(initial),lootId='legacy-kobold-loot';
+ campaign.estado_mundo.instancia_activa='teatro';
+ campaign.combate={estado:{phase:'ENDED',result:'victory',active:false,round:1,encounterId:'legacy-loot'}};
+ campaign.loot_encounters={'legacy-loot':{meta:{open:true,result:'victory',corpseCount:1},corpses:{kobold:{name:'Kobold',lootInstanceId:lootId}}}};
+ campaign.loot_instances={[lootId]:{lootInstanceId:lootId,encounterId:'legacy-loot',locked:true}};
+ campaign.loot_postcombat={[lootId]:{lootInstanceId:lootId,carried:[],currency:{remaining:0},harvest:{resources:[]},attempts:{}}};
+ await admin('campaña','PUT',campaign);
+ const dc=await setupContext(browser),pc=await setupContext(browser,true);
+ try{
+  const studio=await dc.newPage(),pp=await pc.newPage();
+  await studio.goto(base+'/hoja_de_DM.html',{waitUntil:'domcontentloaded'});
+  await studio.evaluate(async credentials=>{
+   await firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+   await firebase.auth().signInWithEmailAndPassword(credentials.email,credentials.password);
+  },dm);
+  await studio.goto(base+'/pantalla_dm.html',{waitUntil:'domcontentloaded'});
+  await studio.waitForFunction(()=>window.__luminousDmAuthReady===true,{},{timeout:25000});
+  await studio.locator('.dm-tab-btn[data-tab="tab-loot"]').click({timeout:25000});
+  await login(pp,player);
+  await pp.locator('#combat-entry-menu > summary').click();
+  await expect(pp.locator('#btn-postcombat-loot')).toBeVisible({timeout:25000});
+  await pp.locator('#btn-postcombat-loot').click();
+  await expect(pp.locator('.loot-corpse')).toHaveCount(1);
+  const access=await pp.evaluate(async lootId=>{
+   try{await window.LuminousLootLivePostCombatRuntime.checkPlayerLootAccess({playerId:'p1',lootInstanceId:lootId});return 'unexpected';}
+   catch(error){return error.message;}
+  },lootId);
+  expect(access).toContain('participantes');
+  const denied=await pp.evaluate(async()=>{
+   try{await firebase.database().ref('campaña/loot_encounters/legacy-loot/meta/open').set(false);return false;}
+   catch(error){return error.code==='PERMISSION_DENIED';}
+  });
+  expect(denied).toBe(true);
+  const playerBefore=await admin('campaña/jugadores/p1');
+  const remove=studio.getByRole('button',{name:'Retirar botín de Kobold',exact:true});
+  await expect(remove).toBeVisible({timeout:25000});
+  await screenshot(studio,info,'dm-legacy-loot-before-removal');
+  studio.once('dialog',dialog=>dialog.dismiss());await remove.click();
+  expect((await admin('campaña/loot_encounters/legacy-loot/meta')).open).toBe(true);
+  studio.once('dialog',dialog=>dialog.accept());await remove.click();
+  await expect.poll(()=>admin('campaña/loot_encounters/legacy-loot/meta/open'),{timeout:15000}).toBe(false);
+  await expect(studio.locator('#dm-loot-queues')).toHaveText('No hay botines pendientes.');
+  await expect(pp.locator('#postcombat-loot-modal')).not.toBeVisible();
+  await expect(pp.locator('#btn-postcombat-loot')).not.toBeVisible();
+  expect(await admin('campaña/jugadores/p1')).toEqual(playerBefore);
+  const reclose=await studio.evaluate(async()=>window.LuminousLootLivePostCombatRuntime.finalizeEncounterLoot({encounterId:'legacy-loot',result:'victory'}));
+  expect(reclose.closed).toBe(true);
+  expect(await admin('campaña/loot_encounters/legacy-loot/meta/open')).toBe(false);
+  await screenshot(studio,info,'dm-legacy-loot-removed');
+ }finally{await Promise.all([dc.close(),pc.close()]);}
+});
+
+test('NPC belongings enter live deployment, AI spends its own dose on a wounded ally and only the remaining bag becomes loot',async({browser},info)=>{
+ test.setTimeout(150000);
+ const campaign=clone(initial),template=corpseCampaign().combate.combatants.kobold;
+ delete campaign.combate.combatants.kobold;
+ campaign.combate.estado.presentation='simple';
+ campaign.base_datos_unidades.qa_carrier={...template,id:'qa_carrier',name:'Goblin de prueba',species:'goblin',creatureType:'humanoid',
+  hp:100,maxHp:100,dead:false,defeated:false,battleActive:true,deploymentState:'field',scores:{int:10,wis:12},
+  actionSlots:1,skillIds:['enemy_s1'],skillSlotIds:['enemy_s1'],action_slots:['enemy_s1'],speedRange:[5,6],
+  lootProfile:{version:1,carried:[{itemId:'hp_generic_pocket_recovery_patch',rarity:'guaranteed',quantity:1}],equipment:{source:'none'},currency:{currencyId:'ahn',min:10,max:20},harvest:{source:'body_profile'},impossibleCategories:[]}};
+ await admin('campaña','PUT',campaign);
+ const dc=await setupContext(browser),pc=await setupContext(browser);
+ try{
+  const dp=await dc.newPage(),pp=await pc.newPage();dp.on('dialog',dialog=>dialog.accept());
+  await login(dp,dm);const df=await frame(dp);
+  await df.waitForFunction(()=>window.LuminousCombat073UnitDeployBridge&&window.LuminousCombatDmSetup073.state.units.qa_carrier);
+  await df.locator('#c073-dm-setup > summary').click();
+  await df.locator('#c073-unit').selectOption('qa_carrier');await df.locator('#c073-qty').fill('2');await df.locator('#c073-enemy').click();
+  await expect.poll(async()=>Object.values((await admin('campaña/combate/combatants'))||{}).filter(unit=>unit.libraryUnitId==='qa_carrier').length,{timeout:25000}).toBe(2);
+  let enemies=Object.values(await admin('campaña/combate/combatants')).filter(unit=>unit.libraryUnitId==='qa_carrier');
+  const [healer,wounded]=enemies;
+  expect(healer.npcBelongings.version).toBe(1);
+  const item=Object.values(healer.inventario_activo).find(row=>row.definitionId==='hp_generic_pocket_recovery_patch');
+  expect(item.quantity).toBe(1);
+  await admin('campaña/combate/combatants/'+wounded.id,'PATCH',{hp:1,scores:{int:5,wis:12}});
+  await df.locator('#c073-dm-setup > summary').click();
+  await login(pp,player);const pf=await frame(pp);
+  await expect.poll(()=>df.evaluate(id=>window.LuminousCombat073.combatants()[id]?.hp,wounded.id),{timeout:20000}).toBe(1);
+  await expect.poll(()=>df.evaluate(id=>window.LuminousCombat073.combatants()[id]?.autoPlans?.[0]?.type,healer.id),{timeout:20000}).toBe('items');
+  await choose(pf);await waitRound(pf,2);
+  await expect.poll(async()=>(await admin('campaña/combate/combatants/'+healer.id+'/inventario_activo/'+item.instanceId+'/quantity')),{timeout:30000}).toBe(0);
+  const survivor=await admin('campaña/combate/combatants/'+wounded.id);
+  expect(survivor.hp).toBeGreaterThan(1);
+  expect(Object.values(survivor.inventario_activo).find(row=>row.definitionId==='hp_generic_pocket_recovery_patch').quantity).toBe(1);
+  await screenshot(dp,info,'npc-heals-ally-with-carried-dose');
+  const spent=await admin('campaña/combate/combatants/'+healer.id);
+  await admin('campaña/combate/defeated/'+healer.id,'PUT',{...spent,hp:0,defeated:true,battleActive:false,deploymentState:'defeated'});
+  await admin('campaña/combate/combatants/'+healer.id,'DELETE');
+  await endEntry(dp,'victory');
+  await expect.poll(()=>admin('campaña/combate/estado/phase'),{timeout:30000}).toBe('ENDED');
+  const corpses=Object.values((await admin('campaña/loot_encounters/story/corpses'))||{});
+  const corpse=corpses.find(row=>row.sourceUnitInstanceId===healer.id);
+  expect(corpse).toBeTruthy();
+  const loot=await admin('campaña/loot_instances/'+corpse.lootInstanceId);
+  expect(loot.carried.some(row=>row.instanceId===item.instanceId)).toBe(false);
+  expect(loot.currency.amount).toBe(spent.carriedCurrency.amount);
+ }finally{await Promise.all([dc.close(),pc.close()]);}
+});
