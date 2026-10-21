@@ -55,9 +55,10 @@ test.afterAll(async()=>{await new Promise(resolve=>server.close(resolve));expect
 test('Story: READY, same-player PC/phone, Clash, damage, items, global actions and canonical end',async({browser},info)=>{
  test.setTimeout(240000);await admin('campaña','PUT',initial);
  const dc=await setupContext(browser),pc=await setupContext(browser),cc=await setupContext(browser,true);
- const dp=await dc.newPage(),pp=await pc.newPage(),cp=await cc.newPage();await login(pp,player);const pf=await frame(pp);await login(cp,player);const cf=await frame(cp);
+ const dp=await dc.newPage(),pp=await pc.newPage(),cp=await cc.newPage();await login(pp,player);let pf=await frame(pp);await login(cp,player);const cf=await frame(cp);
  await choose(cf);await expect.poll(async()=> (await admin('campaña/combate/readyPlayers/p1'))?.ready,{timeout:12000}).toBe(true);
  await expect.poll(()=>pf.evaluate(()=>window.LuminousCombat073.uiState().ready),{timeout:15000}).toBe(true);
+ await pp.reload();pf=await frame(pp);await expect.poll(()=>pf.evaluate(()=>window.LuminousCombat073.uiState().ready),{timeout:15000}).toBe(true);
  await info.attach('phone-ready',{path:await cp.screenshot({path:info.outputPath('phone-ready.png')}).then(()=>info.outputPath('phone-ready.png')),contentType:'image/png'});
  await login(dp,dm);const df=await frame(dp);
  await expect.poll(async()=> (await admin('campaña/combate/estado'))?.round,{timeout:60000}).toBe(2);
@@ -69,8 +70,9 @@ test('Story: READY, same-player PC/phone, Clash, damage, items, global actions a
   await expect.poll(()=>cf.evaluate(()=>window.LuminousCombat073.uiState().round),{timeout:20000}).toBe(round);
   await choose(cf,kind);
   await expect.poll(async()=> (await admin('campaña/combate/estado'))?.round,{timeout:60000}).toBe(round+1);
+  if(kind==='item')expect((await admin('campaña/jugadores/p1/inventario_activo/potion')).quantity).toBe(1);
  }
- const state=await admin('campaña/combate/estado');expect(state.active).toBe(true);expect(state.round).toBe(5);expect(await admin('campaña/combate/readyPlayers')).toBeNull();
+ const state=await admin('campaña/combate/estado');expect(state.active).toBe(true);expect(state.round).toBe(5);expect(Object.values(await admin('campaña/combate/readyPlayers')||{}).every(row=>row.ready!==true)).toBe(true);
  await info.attach('dm-round-five',{path:await dp.screenshot({path:info.outputPath('dm-round-five.png')}).then(()=>info.outputPath('dm-round-five.png')),contentType:'image/png'});
  await df.evaluate(()=>window.LuminousBattleViewerDmConsole074.finishEncounter('cancelled',{confirm:false,displayMs:0,blackoutMs:0}));
  expect((await admin('campaña/combate/estado')).phase).toBe('ENDED');expect(await admin('campaña/estado_mundo/instancia_activa')).toBe('teatro');
