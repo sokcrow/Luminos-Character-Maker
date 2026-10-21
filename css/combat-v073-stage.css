@@ -1,9 +1,9 @@
-/* Original industrial stage; all layers are local, decorative and pointer transparent. */
+/* Combat illustration layers are anchored to the same camera-space as the unit field. */
 #game-container.layered-stage { --stage-edge:#c0a16a; background:#18242d; }
 .layered-stage #webgl2-dom-background { background:none; transform:none!important; opacity:1!important; overflow:hidden; }
 .layered-stage #battlefield { background:transparent!important; }
 .layered-stage .limbus-divider-plane { display:none; }
-.combat-stage-layer { position:absolute; inset:0; background-position:center bottom; background-size:100% 100%; background-repeat:no-repeat; transform-origin:0 0; transition:transform .52s cubic-bezier(.18,.76,.22,1); pointer-events:none; }
+.combat-stage-layer { position:absolute; inset:0; background-position:center bottom; background-size:100% 100%; background-repeat:no-repeat; transform-origin:0 0; transition:transform .52s cubic-bezier(.18,.76,.22,1); will-change:transform; pointer-events:none; }
 .stage-horizon { background-image:url('../assets/combat-stage/horizon.svg'); }
 .stage-architecture { background-image:url('../assets/combat-stage/architecture.svg'); }
 .stage-ground { background-image:url('../assets/combat-stage/ground.svg'); }
@@ -30,3 +30,5 @@
 .layered-stage.player-blinded { background:#000; }
 
 .stage-placing #battlefield, .stage-placing .combat-stage-layer { transition:none!important; }
+/* Manual wheel/middle-drag/pinch moves world and ground in lockstep, not with two competing easing curves. */
+#game-container.camera-manual .combat-stage-layer { transition:none!important; }
