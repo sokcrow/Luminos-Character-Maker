@@ -263,6 +263,9 @@
     // live updates (for example Player Active Inventory) cannot restore stale x/y.
     if(state.roundReady)state.lastFormationRound=0;
     refreshRuntimeSpeedView();
+    // Round completion can arrive while the authority still owns its final
+    // write. Hydration after it releases that lock must resume planning rolls.
+    ensureRoundSpeeds().catch(error=>console.error('[Combat073 SpeedAuthority] planning roll failed',error));
   });
   global.addEventListener('beforeunload',stop,{once:true});
   global.LuminousCombatSpeedAuthority073=Object.freeze({state,start,stop,rangeFor,rollFor,speedSignature,runtimeCombatants,canonicalRowFor,syncRuntimeSpeedsFromCanonical,canonicalRoundComplete,applyRoundSideEffectsOnce,refreshRuntimeSpeedView,patchLegacySpeedRollers,ensureRoundSpeeds,forceRuntimeRefresh});
