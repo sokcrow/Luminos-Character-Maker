@@ -54,7 +54,9 @@
     // one transport sequence. Only completed actions advance the checkpoint.
     row.seq = ++state.batchSeq;
     a.state.lastCheckpointSeq = row.seq;
-    const events = surface().events().filter(event => event.sequence > state.eventCursor).map(event=>{
+    // Read only events newer than the last published cue. Cloning the full
+    // journal on each Coin turns multi-Coin Clashes into quadratic work.
+    const events = surface().events(state.eventCursor).map(event=>{
       if(event.combatants){
         event.changes=Object.entries(event.combatants).filter(([id,value])=>JSON.stringify(state.transmittedSnapshot[id])!==JSON.stringify(value))
           .map(([unitId,after])=>({unitId,after}));
