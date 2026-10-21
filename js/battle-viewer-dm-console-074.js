@@ -63,7 +63,7 @@
 
   function isBattleViewerSurface() {
     const doc = global.document;
-    return Boolean(doc?.getElementById?.("battlefield") && doc?.getElementById?.("combat-log-terminal"));
+    return Boolean(doc?.getElementById?.("battlefield") && (global.LuminousCombat073?.combatants || doc?.getElementById?.("combat-log-terminal")));
   }
 
   function isDmAuthorized() {
@@ -393,6 +393,7 @@
   }
 
   async function finishEncounter(result, options = {}) {
+    if(!state.db?.ref || (global.firebase?.auth && state.authorized!==true))await authorizeAndBoot();
     if (!state.db?.ref) throw new Error("DM console database is not ready.");
     if (!isDmAuthorized()) throw new Error("DM_ONLY");
     const normalized = normalizeEncounterResult(result);
@@ -404,10 +405,10 @@
       if (!accepted) return { cancelled: true, result: normalized };
     }
 
-    const resolved = await mutateCombatants(
-      (working) => runEncounterEndAll(working),
-      { type: "encounter_end", result: normalized, label: `ENCOUNTER END · ${label}` }
-    );
+    const session=global.LuminousCombatSession;
+    if(!session?.claimEnd)throw new Error('Actualiza el visor antes de finalizar el encuentro.');
+    const claimed=await session.claimEnd({db:state.db,uid:currentUid(),result:normalized,applyEffects:runEncounterEndAll});
+    const resolved={combatants:claimed.combatants};
 
     let lootFinalization = null;
     if (normalized === "victory") {
@@ -429,18 +430,7 @@
     }
 
     const timestamp = global.firebase?.database?.ServerValue?.TIMESTAMP ?? Date.now();
-    await state.db.ref().update({
-      [`${ROOTS.state}/phase`]: "ENDED",
-      [`${ROOTS.state}/active`]: false,
-      [`${ROOTS.state}/result`]: normalized,
-      [`${ROOTS.state}/outcome`]: normalized,
-      [`${ROOTS.state}/transition`]: "result",
-      [`${ROOTS.state}/endedAt`]: timestamp,
-      [`${ROOTS.state}/endedBy`]: currentUid(),
-      [`${ROOTS.state}/updatedAt`]: timestamp,
-      [ROOTS.plannedActions]: null,
-      [ROOTS.readyPlayers]: null,
-    });
+    await session.commitEnd({db:state.db,uid:currentUid(),result:normalized,token:claimed.estado.ending.token});
 
     global.LuminousCombatEncounterLifecycle?.showResult?.(normalized, { endedAt: Date.now() });
     appendLog(`${label} · RESULT SEAL`, { result: normalized });

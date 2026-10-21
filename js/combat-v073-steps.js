@@ -142,7 +142,7 @@
       mutate('ActionStarted', a, {}, () => { r.processConditionRemovalTrigger(a.ownerId, 'attack'); r.processConditionRemovalTrigger(b.ownerId, 'attack'); r.markEntryStarted(a); });
       mutate('ActionStarted', b, {}, () => { r.markEntryStarted(b); });
       emit('ClashStarted', a, { opponentActionId: action(b).actionId });
-      let remainingA = da.coinAmount, remainingB = db.coinAmount, clashCount = 0;
+      let remainingA = da.coinAmount, remainingB = db.coinAmount, clashCount = 0, ties = 0;
       await show('clashStart', a, b, remainingA, remainingB);
       while (remainingA > 0 && remainingB > 0) {
         clashCount++;
@@ -153,6 +153,17 @@
         emit('ClashRoundResolved', a, { opponentActionId: action(b).actionId, clashCount, powerA: ra.power, powerB: rb.power, winner, remainingA, remainingB });
         if (winner !== 'tie') emit('CoinBroken', winner === 'a' ? b : a, { clashCount, remaining: winner === 'a' ? remainingB : remainingA });
         await show('clashOutcome', a, b, winner, remainingA, remainingB, ra, rb);
+        ties = winner === 'tie' ? ties + 1 : 0;
+        // Equal fixed powers can never break a Coin. A finite stalemate
+        // cancels both actions without inventing a winner, damage or SP gain.
+        if (ties >= 20) {
+          emit('ClashStalemate', a, { opponentActionId: action(b).actionId, clashCount, remainingA, remainingB });
+          emit('ActionCancelled', a, { reason: 'clash_stalemate' });
+          emit('ActionCancelled', b, { reason: 'clash_stalemate' });
+          await show('clashEnd', a, b, null);
+          emit('ActionFinished', a); emit('ActionFinished', b);
+          return { winner: null, loser: null, stalemate: true, clashCount, spGain: 0, remaining: 0 };
+        }
       }
       const winner = remainingA > 0 ? a : b, loser = winner === a ? b : a,
         remaining = winner === a ? remainingA : remainingB, spGain = 10 + clashCount;

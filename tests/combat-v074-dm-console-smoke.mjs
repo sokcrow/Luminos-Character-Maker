@@ -185,13 +185,16 @@ assert.equal(defeatPng.subarray(0, 8).toString('hex'), pngSignature);
 assert.ok(victoryPng.length > 100000);
 assert.ok(defeatPng.length > 100000);
 
+await import('../js/combat-session-lifecycle.js');
 const encounterWrites = [];
 let encounterCombatants = {
   alpha: { id: 'alpha', hp: 20, maxHp: 20, statusEffects: {} },
   beta: { id: 'beta', hp: 20, maxHp: 20, statusEffects: {} },
 };
+let encounterRaw={estado:{phase:'PRE_COMBAT_PLANNING',round:1,active:true},combatants:encounterCombatants};
 const fakeDb = {
   ref(path) {
+    if(path==='campaña/combate')return {on(_event,handler){handler({val:()=>encounterRaw});},off(){},async transaction(mutator){const next=mutator(encounterRaw);if(!next)return {committed:false,snapshot:{val:()=>encounterRaw}};encounterRaw=next;encounterCombatants=next.combatants;encounterWrites.push({op:'transaction',phase:next.estado.phase});return {committed:true,snapshot:{val:()=>encounterRaw}};}};
     if (path === dmApi.ROOTS.combatants) {
       return {
         async transaction(mutator) {
@@ -256,12 +259,12 @@ assert.equal(lootFinalizationCalls[0].encounterId, 'smoke-encounter');
 assert.equal(lootFinalizationCalls[0].result, 'victory');
 assert.equal(lootFinalizationCalls[0].db, fakeDb);
 assert.equal(lootFinalizationCalls[0].combatants, encounterCombatants);
-const rootUpdates = encounterWrites.filter((entry) => entry.op === 'update' && entry.path == null);
-assert.equal(rootUpdates.length, 1);
-assert.equal(rootUpdates[0].value[`${dmApi.ROOTS.state}/transition`], 'result');
-assert.equal(rootUpdates[0].value[`${dmApi.ROOTS.state}/phase`], 'ENDED');
-assert.equal(rootUpdates[0].value[`${dmApi.ROOTS.state}/active`], false);
-assert.equal(rootUpdates[0].value[`${dmApi.ROOTS.state}/result`], 'victory');
+const endTransactions=encounterWrites.filter(entry=>entry.op==='transaction');
+assert.deepEqual(endTransactions.map(entry=>entry.phase),['ENDING','ENDED']);
+assert.equal(encounterRaw.estado.transition,'result');
+assert.equal(encounterRaw.estado.phase,'ENDED');
+assert.equal(encounterRaw.estado.active,false);
+assert.equal(encounterRaw.estado.result,'victory');
 const stateUpdates = encounterWrites.filter((entry) => entry.op === 'update' && entry.path === dmApi.ROOTS.state);
 assert.equal(stateUpdates.length, 1);
 assert.equal(stateUpdates[0].value.transition, 'blackout');

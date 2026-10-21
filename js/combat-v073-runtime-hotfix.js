@@ -12,8 +12,8 @@
   function authority(){return global.LuminousCombatAuthority073||null;}
   function remote(){return global.LuminousCombatRemoteIntents073||null;}
   function runtime(){return global.LuminousCombat073||null;}
-  function isPlayer(){return adapterState()?.role==='player';}
-  function isDm(){return adapterState()?.role==='dm';}
+  function isPlayer(){return (adapterState()?.role==='player'&&!adapterState()?.isAuthority);}
+  function isDm(){return (adapterState()?.role==='dm'||adapterState()?.isAuthority===true);}
 
   function readViewActive(){
     if(isDm())return true;

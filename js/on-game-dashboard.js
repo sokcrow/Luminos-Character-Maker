@@ -210,7 +210,7 @@
 
       // --- COLA FIFO: SOLO EL DM PUBLICA EL ESTADO DE ESCENA ---
       function theatreOutputIsActive(instanceValue) {
-        return instanceValue === "teatro" || instanceValue === "combat_theatre";
+        return instanceValue === "teatro" || instanceValue === "combat_theatre" || instanceValue === "combate";
       }
 
       function nextQueueItem() {

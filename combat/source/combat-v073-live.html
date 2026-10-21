@@ -2442,6 +2442,8 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+<script src="js/combat-local-store.js?v=20261021-loop-1"></script>
+<script src="js/combat-context.js?v=20261021-loop-1"></script>
 <script src="js/status-library.js"></script>
 <script src="js/status-engine.js"></script>
 <script src="js/deckEngine.js"></script>
@@ -2449,7 +2451,7 @@
 <script src="js/skill-catalog-player-signature.js"></script>
 <script src="js/combat-skill-loadout-074.js"></script>
 <script src="js/combat-participants.js"></script>
-<script src="js/combat-v073-live-adapter.js?v=20261020-roundtrip-1"></script>
+<script src="js/combat-v073-live-adapter.js?v=20261021-loop-1"></script>
 <script>
 (function (global) {
   "use strict";
@@ -2498,11 +2500,12 @@
   global.LuminousCoinEngine = Object.freeze({ HEAD_SRC, TAIL_SRC, HEAD_SFX, TAIL_SFX, DEFAULT_COIN_COUNT, HEAD_BONUS, clampHeadsChance, rollSide, coinSrc, runAnimatedRoll });
 })(window);
 </script>
-<script src="js/combat-v073-steps.js"></script>
+<script src="js/combat-v073-steps.js?v=20261021-loop-1"></script>
 <script src="js/combat-v073-playback.js"></script>
-<script src="js/combat-v073-playback-sync.js"></script>
+<script src="js/combat-session-lifecycle.js?v=20261021-loop-1"></script>
+<script src="js/combat-v073-playback-sync.js?v=20261021-loop-1"></script>
 <script src="js/combat-v073-stage.js"></script>
-<script src="js/combat-v073-hud-motion.js?v=20261021-ready-stability-1"></script>
+<script src="js/combat-v073-hud-motion.js?v=20261021-loop-1"></script>
 <script src="js/combat-v073-animation-profiles.js"></script>
 <script src="js/combat-v073-audiovisual.js"></script>
 <script>
@@ -6940,7 +6943,7 @@ function combatStepRuntime(){
         await animateClashOutcome(a,b,winner);await wait(winner==='tie'?COMBAT_PACE.tieResult:COMBAT_PACE.clashResult)
       },
       async clashDefeat(winner,loser){await wait(COMBAT_PACE.spAward);await animateClashDefeat(winner,loser);closeFloatingClashHud(loser)},
-      async clashEnd(a,b,winner){await wait(250);closeFloatingClashHud(winner);hideClashCount(a,b);settleClashUnits(a,b);await wait(COMBAT_PACE.returnFromClash)},
+      async clashEnd(a,b,winner){await wait(250);closeFloatingClashHud(a);closeFloatingClashHud(b);hideClashCount(a,b);settleClashUnits(a,b);await wait(COMBAT_PACE.returnFromClash)},
       async guardEnd(entry){await wait(COMBAT_PACE.totalHold);closeFloatingClashHud(entry)},
       async evadeEnd(entry){await wait(280);closeFloatingClashHud(entry)}
     }});
@@ -7670,7 +7673,18 @@ async function executeQueueEntryRules(entry,queue,resolvedKeys){
   }else if(isSkillOrSpellPlan(plan)){
     await resolveUnopposedCoinAction(entry)
   }else if(controller==='player'&&plan.type==='items'){
-    if(!consumeItem(plan.data)){
+    if(window.LuminousCombatLiveMode){
+      const itemRuntime=window.LuminousItemRuntime,ref=String(plan.data?.instanceId||plan.data?.itemId||plan.data?.id||''),
+            inventory=ownerUnit.inventario_activo||ownerUnit.activeInventory||ownerUnit.inventory||{},
+            liveItem=Object.entries(inventory).find(([key,item])=>String(item?.instanceId||item?.instance_id||key)===ref)?.[1],
+            target=combatData[plan.targetId]||ownerUnit;
+      if(!itemRuntime?.useItem)throw new Error('ITEM_RUNTIME_UNAVAILABLE');
+      const result=liveItem?itemRuntime.useItem(ownerUnit,liveItem,{phase:'combat',target,ignoreActionCost:true}):{used:false,reason:'active_inventory_item_missing'};
+      combatStepRuntime().emit('ItemUseResolved',entry,{used:result.used===true,reason:result.reason||null,itemId:ref});
+      setCombatantHP(target.id,target.hp);setCombatantSP(target.id,target.sp);
+      setStatus(`TURN ${round} · ${ownerName} · ${name} · ${result.used?'usado':result.reason||'sin efecto'}`);
+      await wait(720)
+    }else if(!consumeItem(plan.data)){
       setStatus(`TURN ${round} · ${ownerName} · ${name} agotado · omitido`);
       await wait(520)
     }else{

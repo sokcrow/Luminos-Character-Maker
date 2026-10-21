@@ -40,7 +40,7 @@
   }
   function playback(){return global.LuminousCombatPlaybackSync||null;}
   function batchMode(){return playback()?.enabled(state.current)===true;}
-  function isDm(){return adapterState()?.role==='dm';}
+  function isDm(){return (adapterState()?.role==='dm'||adapterState()?.isAuthority===true);}
   function isPlayer(){return adapterState()?.role==='player';}
   function serverTime(){return global.firebase?.database?.ServerValue?.TIMESTAMP||Date.now();}
   function stateUpdates(value){return Object.fromEntries(Object.entries(value).map(([key,value])=>[`${ROOT.state}/${key}`,value]));}
@@ -170,15 +170,23 @@
     const [ready,rawPlans]=await Promise.all([read(ROOT.ready),read(ROOT.plans)]);
     const members=global.LuminousCombatParticipants?.players(s.combatants)||[];
     const plans=Object.fromEntries(members.map(member=>[member.playerId,Object.fromEntries(Object.entries(rawPlans?.[member.playerId]||{}).filter(([,plan])=>plan?.unitId===member.unitId&&Number(plan.round)===round))]));
+    const planningWitness=clone(plans);
     const check=readyComplete(ready||{},plans,round);if(!check.complete){const waiting=members.filter(member=>check.missing.some(key=>key.startsWith(member.playerId+':'))).map(member=>member.name);throw new Error(`Falta confirmar READY: ${waiting.join(', ')}.`);}validateSpellPlans(plans||{});global.LuminousCombatSlotDeck073?.validatePlans(plans||{});
     // Ready-player reactions are authenticated planning choices; DM verifies
     // Item equipment and effects again before arming their combat runtime.
     const defensiveReactions=Object.fromEntries(activePlayerIds()
       .map(playerId=>[playerId,clean(ready?.[playerId]?.enchantmentReactionItemInstanceId)])
       .filter(([,id])=>id));
-    const seed=makeSeed(round);let payload={schemaVersion:1,engineVersion:'0.7.3-authority.9-step-rng',round,phase:'sealed',seed,authorityUid:s.uid,plans:clone(plans||{}),aiPlans:collectAiPlans(),defensiveReactions,createdAt:serverTime(),checkpoint:null};
+    const seed=makeSeed(round);let payload={schemaVersion:1,engineVersion:'0.7.3-authority.9-step-rng',round,phase:'sealed',seed,authorityUid:s.uid,planningWitness,plans:clone(plans||{}),aiPlans:collectAiPlans(),defensiveReactions,createdAt:serverTime(),checkpoint:null};
     if(playback()?.negotiate(ready||{},activePlayerIds()))payload=await playback().seal(payload);
-    const updates=stateUpdates({phase:'COMBAT_SEALED',active:true,round,authorityUid:s.uid,seed,updatedAt:serverTime()});if(!payload.playback)updates[ROOT.current]=payload;await s.db.ref().update(updates);state.current={...payload,createdAt:Date.now()};resetRandom(seed,0);applyAuthority(payload);return payload;
+    if(!payload.playback){
+      const sealed=await global.LuminousCombatSession.updateRoot(s.db,raw=>{
+        if(!global.LuminousCombatSession.canSeal(raw,payload)||['sealed','running'].includes(raw.authority?.current?.phase))return;
+        return {...raw,authority:{...(raw.authority||{}),current:payload},estado:{...(typeof raw.estado==='object'?raw.estado:{}),phase:'COMBAT_SEALED',active:true,round,authorityUid:s.uid,seed,updatedAt:serverTime()}};
+      });
+      if(!sealed.committed)throw new Error('El encuentro ya está resolviendo o finalizando.');
+    }
+    state.current={...payload,createdAt:Date.now()};resetRandom(seed,0);applyAuthority(payload);return payload;
   }
 
   function planRowsToArray(rows,unit){const converter=global.LuminousCombatRemoteIntents073?.runtimePlan;if(!converter)return[];const plans=[];Object.entries(rows||{}).forEach(([slot,raw])=>{const index=Math.max(0,Number(raw?.sourceSlotIndex??slot)||0);plans[index]=converter(raw,index,unit);});return plans;}
@@ -188,7 +196,7 @@
     if(s.role==='player'&&s.playerId&&data.plans?.[s.playerId]){const own=Object.values(units).find(unit=>unit?.controlled==='player'||canonicalPlayerId(unit)===s.playerId);replaceLocalPlans(planRowsToArray(data.plans[s.playerId],own));}else if(s.role==='dm')replaceLocalPlans([]);
     for(const ownerRows of Object.values(data.plans||{})){const sample=Object.values(ownerRows||{})[0];if(!sample)continue;const unit=sample.unitId&&units[sample.unitId]?units[sample.unitId]:Object.values(units).find(row=>canonicalPlayerId(row)===clean(sample.scheduledBy));if(unit?.controlled==='remote')unit.autoPlans=planRowsToArray(ownerRows,unit);}
     for(const [unitId,rows] of Object.entries(data.aiPlans||{})){const unit=units[unitId];if(unit?.controlled==='ai')unit.autoPlans=planRowsToArray(rows,unit);}
-    if(s.role==='dm'){
+    if(isDm()){
       const bridge=global.LuminousItemEnchantmentCombatRuntime;
       for(const [owner,id] of Object.entries(data.defensiveReactions||{})){
         const unit=Object.values(units).find(row=>canonicalPlayerId(row)===owner && row.battleActive!==false && !row.isBackup);
@@ -323,7 +331,7 @@
   }
   async function requestStartRound(){
     state.lastStartError='';
-    if(state.runningLocal||state.preparingRound)return false;const s=adapterState(),original=state.originalStartRound;if(!s?.db?.ref||typeof original!=='function')return false;if(isPlayer()&&!state.remoteStart){setStatus('COMBAT · esperando resolución autoritativa del DM');return false;}
+    if(state.runningLocal||state.preparingRound)return false;const s=adapterState(),original=state.originalStartRound;if(!s?.db?.ref||typeof original!=='function')return false;if(isPlayer()&&!isDm()&&!state.remoteStart){setStatus('COMBAT · esperando resolución autoritativa del DM');return false;}
     try{
       if(isDm()&&global.LuminousCombatRemoteIntents073?.publishPlanningAi){
         // Keep hydration available while the sparse Skill catalog loads. A

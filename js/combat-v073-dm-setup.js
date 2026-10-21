@@ -32,7 +32,7 @@
 
   function adapter() { return global.LuminousCombatLiveAdapter073 || null; }
   function adapterState() { return adapter()?.state || null; }
-  function isDm() { return adapterState()?.role === 'dm'; }
+  function isDm() { return (adapterState()?.role === 'dm'||adapterState()?.isAuthority===true); }
 
   function firstNumber(object, keys, fallback) {
     for (const key of keys) {
@@ -171,6 +171,12 @@
 
   function equipped(ids) { return Object.fromEntries(ids.map((id) => [id, true])); }
 
+  function usableItems(source) {
+    const items=source.inventario_activo||source.activeInventory||source.inventory||{};
+    return Object.fromEntries(Object.entries(items).filter(([,item])=>item&&Number(item.quantity??item.qty??item.cantidad??item.stack??item.count??1)>0)
+      .map(([key,item])=>[clean(item.instanceId||item.instance_id||key),true]));
+  }
+
   function baseStats(record = {}) {
     const maxHp = Math.max(1, firstNumber(record, ['maxHp', 'maxHP', 'hp_max', 'hpMax', 'mechanics.maxHp', 'mechanics.hp', 'combatStats.hp_max', 'hp'], 1) || 1);
     return {
@@ -232,6 +238,7 @@
       skillIds: ids,
       skillSlotIds: slotIds,
       equippedSkillIndex: equipped(ids),
+      usableItemIndex: usableItems(source),
       statusEffects: clone(source.statusEffects || {}),
       battleActive: true,
       isBackup: false,
@@ -477,7 +484,7 @@
   function syncFieldsFromBuiltPlayer(current = {}, built = {}) {
     const fields = [
       'skillDeck','skillIds','skillSlotIds','equippedSkillIndex',
-      'canonicalPlayerKey','canonicalOwnerUid','isPlayer',
+      'canonicalPlayerKey','canonicalOwnerUid','isPlayer','usableItemIndex',
       'characterBuild','classes','classLevels',
       'spellIds','spellSelections','knownSpellIds','preparedSpellIds',
       'traitDefinitions','combatTraits','actionTraits','traits','classTraits','archetypeTraits','features',
@@ -551,7 +558,8 @@
           if (!player) continue;
           const patch = syncFieldsFromBuiltPlayer(current, buildPlayer(playerId, player));
           if (!Object.keys(patch).length) continue;
-          if (['skillDeck','skillIds','skillSlotIds','equippedSkillIndex'].some(field => field in patch)) {
+          // Canonical metadata repair must not cancel an unchanged effective deck.
+          if (JSON.stringify(firebaseValue(skillSlotIdsFor(current))) !== JSON.stringify(firebaseValue(skillSlotIdsFor(buildPlayer(playerId, player))))) {
             delete plannedActions[playerId]; delete readyPlayers[playerId];
           }
           combatants[key] = { ...current, ...patch }; changed = true;
@@ -559,6 +567,10 @@
         return changed ? { ...combat, combatants, plannedActions, readyPlayers } : undefined;
       }, undefined, false);
       return result.committed;
+    } catch(error){
+      // A planning preview can supersede this repair on the same SDK client.
+      if(error?.message==='set'){schedulePlayerStateRepair();return false;}
+      throw error;
     } finally { if (hold) ref.off('value', hold); }
   }
 
@@ -581,6 +593,10 @@
     wrap.open = false;
     wrap.style.cssText = 'position:fixed;z-index:2147483000;right:12px;top:12px;width:min(440px,calc(100vw - 24px));max-height:calc(100vh - 24px);overflow:auto;background:rgba(8,6,12,.97);border:1px solid #735c36;color:#ddd;padding:8px;font:12px system-ui;box-shadow:0 10px 28px #000';
     wrap.innerHTML = `<summary style="cursor:pointer;color:#d7aa58;font-weight:700">Encuentro</summary><div style="margin-top:8px;display:grid;gap:8px"><div style="opacity:.72">Añade personajes y unidades al encuentro. Puedes colocar la formación antes de preparar la primera ronda.</div><div style="display:flex;gap:6px"><select id="c073-player" style="flex:1;min-width:0"></select><button id="c073-add-player">Añadir personaje</button></div><div style="display:flex;gap:6px"><select id="c073-unit" style="flex:1;min-width:0"></select><input id="c073-qty" type="number" min="1" max="20" value="1" style="width:46px"><button id="c073-enemy">Enemigo</button><button id="c073-ally">Aliado</button></div><div style="display:flex;justify-content:space-between;align-items:center"><b>Combatientes</b><button id="c073-clear">Vaciar</button></div><button id="combat-stage-placement" type="button" aria-pressed="false">Colocar formación inicial</button><div id="c073-roster"></div><div id="c073-setup-msg" style="min-height:16px;color:#9fd6a8">Preparando unidades…</div></div>`;
+    if(adapterState()?.role==='player'&&adapterState()?.isAuthority){
+      wrap.dataset.playerHost='true';wrap.style.top='68px';
+      const style=global.document.createElement('style');style.textContent='#c073-dm-setup[data-player-host]:not([open]){width:auto!important}';global.document.head.appendChild(style);
+    }
     global.document.body.appendChild(wrap);
     const player = global.document.getElementById('c073-player');
     const unit = global.document.getElementById('c073-unit');
