@@ -87,6 +87,16 @@ try{
  }finally{bridge.stop();}
  const firstId=combat.estado.encounterId;
  await dm.db.ref('campaña/combate/estado/round').set(29);
+ // A mid-fight Theatre interlude must resume the same encounter, including
+ // when authority is sealed (the old start() incorrectly refused this).
+ await dm.db.ref('campaña/combate/authority/current/phase').set('sealed');
+ await dm.db.ref('campaña/estado_mundo/instancia_activa').set('combat_theatre');
+ const beforeInterlude=(await dm.db.ref('campaña/combate').once('value')).val();
+ await session.start({db:dm.db,uid:dm.uid});
+ const afterInterlude=(await dm.db.ref('campaña/combate').once('value')).val();
+ assert.equal((await dm.db.ref('campaña/estado_mundo/instancia_activa').once('value')).val(),'combate');
+ assert.deepEqual(afterInterlude,beforeInterlude,'return to Combat must not reset a sealed turn or wave reserves');
+ await dm.db.ref('campaña/combate/authority/current').remove();
  const closing=await session.claimEnd({db:dm.db,uid:dm.uid,result:'victory'});
  const waveLoot=await live.finalizeEncounterLoot({db:dm.db,encounterId:firstId,participants:closing.participants,result:'victory'});assert.equal(waveLoot.finalized.length,2);
  await session.commitEnd({db:dm.db,uid:dm.uid,result:'victory',token:closing.estado.ending.token});
