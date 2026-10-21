@@ -21,6 +21,11 @@
   const ALWAYS_LIVE_PATHS = new Set([
     ".info/connected",
     "campaña/estado_mundo/instancia_activa",
+    // Encounter start transactions prefetch the full Combat root with on(value)
+    // before transacting; deferring that listener deadlocks the START button.
+    // Keep only the canonical Combat state and transaction root always live.
+    "campaña/combate",
+    "campaña/combate/estado",
   ]);
 
   function normalizePath(value) {
