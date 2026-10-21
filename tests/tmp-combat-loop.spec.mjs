@@ -25,7 +25,7 @@ async function setupContext(browser,phone=false){
   if(!url.startsWith(base)&&!url.startsWith('http://127.0.0.1:9')&&!url.startsWith('data:')){await route.abort();return;}
   await route.continue();
  });
- context.on('page',page=>page.on('pageerror',e=>errors.push(e.message)));return context;
+ context.on('page',page=>{page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error'||m.type()==='warning')console.log('BROWSER',m.type(),m.text());});});return context;
 }
 async function login(page,user,url='/combate.html'){
  await page.goto(base+url);const form=url.startsWith('/mirror')?'mirror':'combat-entry';await page.locator('#'+form+'-email').fill(user.email);await page.locator('#'+form+'-password').fill(user.password);await page.locator('#'+form+'-login button').click();
@@ -44,7 +44,7 @@ async function choose(f,kind='skill'){
   else if(kind==='item'){const item=window.LuminousCombatEconomyMenu073.rowsFor('items')[0];if(!item)throw Error('No active inventory item');plan={type:'items',sourceSlotIndex:0,targetId:unit.id,targetSlotIndex:0,data:item};}
   else plan={type:'global',sourceSlotIndex:0,targetId:unit.id,targetSlotIndex:0,data:{id:'help',actionKey:'help',name:'Help',kind:'global'}};
   r.restorePlanning([plan],false);
- },kind);await expect(f.locator('#ready')).toBeEnabled({timeout:20000});await f.locator('#ready').click({force:true});
+ },kind);await expect(f.locator('#ready')).toBeEnabled({timeout:20000});console.log('READY_BEFORE',JSON.stringify(await f.locator('#ready').evaluate(b=>{const r=b.getBoundingClientRect();return {rect:{x:r.x,y:r.y,width:r.width,height:r.height},handler:String(b.onclick),hit:document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.outerHTML?.slice(0,500)};})));await f.locator('#ready').click({timeout:20000});
  console.log('READY_REQUEST',JSON.stringify(await f.evaluate(()=>({ui:window.LuminousCombat073.uiState(),delivery:window.LuminousCombatPlanSync073.delivery,status:document.getElementById('status')?.textContent}))));
 }
 test.beforeAll(async()=>{

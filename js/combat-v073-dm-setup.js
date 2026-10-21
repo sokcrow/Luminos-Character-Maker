@@ -172,7 +172,7 @@
   function equipped(ids) { return Object.fromEntries(ids.map((id) => [id, true])); }
 
   function usableItems(source) {
-    const items=source.inventario_activo||{};
+    const items=source.inventario_activo||source.activeInventory||source.inventory||{};
     return Object.fromEntries(Object.entries(items).filter(([,item])=>item&&Number(item.quantity??item.qty??item.cantidad??item.stack??item.count??1)>0)
       .map(([key,item])=>[clean(item.instanceId||item.instance_id||key),true]));
   }
