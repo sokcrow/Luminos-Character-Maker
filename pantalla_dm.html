@@ -1921,9 +1921,9 @@
       <button class="dm-tab-btn" data-tab="tab-acceso">
         Control de Acceso
       </button>
-      <button class="dm-tab-btn btn-modo-director" id="btn-modo-director">
+      <a class="dm-tab-btn btn-modo-director" id="btn-modo-director" href="hoja_de_DM.html" target="DirectorDashboard" style="text-decoration:none;">
         ENTRAR A SESIÓN EN VIVO
-      </button>
+      </a>
       </div>
 
     <div
@@ -4467,6 +4467,42 @@ window.processEntitiesData = function(entities) {
       </div>
     </div>
 
+    <!-- Live entry stays usable even if a management/Firebase script fails. -->
+    <script id="dm-live-session-entry">
+      // Theatre and Combat share one live Director window. The link remains a
+      // native navigation fallback when window.open or focus is unavailable.
+      let liveDirectorWindow = null;
+      function openLiveDirector() {
+        try {
+          if (!liveDirectorWindow || liveDirectorWindow.closed) {
+            liveDirectorWindow = window.open('hoja_de_DM.html', 'DirectorDashboard', 'width=1920,height=1080');
+          }
+          if (!liveDirectorWindow) return false;
+          liveDirectorWindow.focus();
+          return true;
+        } catch (error) {
+          liveDirectorWindow = null;
+          console.warn('La sesión en vivo no se pudo enfocar:', error);
+          return false;
+        }
+      }
+      // Explicit entry always navigates the named window, recovering stale pages.
+      // Start Combat above uses the cached window without reloading a live match.
+      document.getElementById('btn-modo-director').addEventListener('click', (event) => {
+        if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+        try {
+          const director = window.open('hoja_de_DM.html', 'DirectorDashboard', 'width=1920,height=1080');
+          if (!director) return;
+          liveDirectorWindow = director;
+          director.focus?.();
+          event.preventDefault();
+        } catch (error) {
+          liveDirectorWindow = null;
+          console.warn('La sesión en vivo no se pudo abrir:', error);
+        }
+      });
+    </script>
+
     <!-- Firebase App (núcleo) -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <!-- Firebase Auth -->
@@ -4558,23 +4594,6 @@ window.processEntitiesData = function(entities) {
       const auth = firebase.auth();
       const db = firebase.database();
 
-      // The Studio is a management screen; Theatre and Combat are two views
-      // of ONE live Director session in hoja_de_DM.html, never separate matches.
-      // Open synchronously from the click (before async Firebase checks) so
-      // browsers cannot silently block the live visor as an async popup.
-      let liveDirectorWindow = null;
-      function openLiveDirector() {
-        try {
-          if (!liveDirectorWindow || liveDirectorWindow.closed) {
-            liveDirectorWindow = window.open('hoja_de_DM.html', 'DirectorDashboard', 'width=1920,height=1080');
-          }
-          liveDirectorWindow?.focus?.();
-          return Boolean(liveDirectorWindow);
-        } catch(error) {
-          console.warn('La sesión en vivo no se pudo enfocar:', error);
-          return false;
-        }
-      }
       const dmStudioStart = document.getElementById('dm-studio-start-encounter');
       const dmStudioStartStatus = document.getElementById('dm-studio-start-encounter-status');
       let dmStudioStartPending = null;
@@ -4609,19 +4628,6 @@ window.processEntitiesData = function(entities) {
             'Firebase denegó iniciar combate: verifica la cuenta del DM.' :
             (error?.message || 'No se pudo abrir el encuentro.');
         }).finally(() => {dmStudioStartPending=null;dmStudioStart.disabled=false;});
-      });
-
-      // Restore the original explicit navigation contract of ENTRAR A SESIÓN
-      // EN VIVO. Focusing a cached Window handle alone can leave the DM stuck
-      // on a stale/blank/error page. window.open with the existing named
-      // target reuses that tab AND navigates it back to the live Director.
-      // Crucially this does not start a Combat encounter or change the scene.
-      document.getElementById('btn-modo-director').addEventListener('click', () => {
-        const director = window.open('hoja_de_DM.html', 'DirectorDashboard', 'width=1920,height=1080');
-        if (director) {
-          liveDirectorWindow = director;
-          director.focus?.();
-        }
       });
 
       const DM_LOADING_SCENES = Object.freeze([
@@ -6072,7 +6078,7 @@ window.processEntitiesData = function(entities) {
         }
 
         // --- LÓGICA DE TABS VISUALIZADOR DE JUEGO ---
-        document.querySelectorAll(".dm-tab-btn").forEach((btn) => {
+        document.querySelectorAll(".dm-tab-btn[data-tab]").forEach((btn) => {
           btn.addEventListener("click", () => {
             // Remove active class from all buttons and panes
             document
