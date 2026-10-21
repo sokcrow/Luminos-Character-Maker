@@ -249,7 +249,7 @@
       const actor = clone(playerSnap.val() || {});
       actor.id = actor.id || playerId;
       const checkResult = await animatedCheck(actor, actionId, { targetResourceId });
-      const result = await live().executeAction({
+      const result = await live().requestAction({
         db: state.db,
         playerId,
         actor,
@@ -264,7 +264,7 @@
         setMessage("Otro intento ya resolvió esta acción o el recurso dejó de estar disponible.", true);
       } else if (result.delivery && !result.delivery.delivered) {
         setMessage("La recuperación quedó reservada. Libera espacio en Inventario o Stash y usa «Recoger pendiente».", false);
-      } else if (checkResult.success) {
+      } else if (result.check?.success) {
         const itemCount = result.materialized?.items?.reduce((sum, item) => sum + Number(item.quantity || 0), 0) || 0;
         const ahn = Number(result.materialized?.currency?.amount || 0);
         const parts = [itemCount ? `${itemCount} unidad(es) recuperadas` : "", ahn ? `${ahn.toLocaleString()} Ahn` : ""].filter(Boolean);
@@ -283,7 +283,7 @@
     if (state.busy) return;
     state.busy = true;
     try {
-      const result = await live().deliverPending({
+      const result = await live().requestAction({
         db: state.db,
         lootInstanceId: clean(button.dataset.lootId),
         deliveryId: clean(button.dataset.pendingId),

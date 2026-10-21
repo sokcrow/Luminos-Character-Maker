@@ -101,6 +101,7 @@ test('Ten enemies use eight field slots and two FIFO reinforcements; Victory sho
  campaign.base_datos_unidades.qa_wolf=authored;
  for(const id of ['s1','s2','s3'])campaign.base_datos_skills[id].basePower=200;
  campaign.combate.estado.presentation='simple';
+ campaign.jugadores.p1.scores={wis:30,int:30};campaign.jugadores.p1.proficiencyBonus=6;campaign.jugadores.p1.proficiencies={skills:{survival:'expertise',investigation:'expertise'}};
  campaign.jugadores.p1.hp=1300;campaign.jugadores.p1.maxHp=1300;campaign.combate.combatants['player:p1'].hp=1300;campaign.combate.combatants['player:p1'].maxHp=1300;
  await admin('campaña','PUT',campaign);
  const dc=await setupContext(browser),pc=await setupContext(browser,true),oc=await setupContext(browser);
@@ -127,7 +128,27 @@ test('Ten enemies use eight field slots and two FIFO reinforcements; Victory sho
  expect((await admin('campaña/combate/estado')).round).toBe(1);
  await expect(pp.locator('#postcombat-loot-modal')).toBeVisible({timeout:20000});await expect(pp.locator('.loot-corpse')).toHaveCount(2);await expect(op.locator('#postcombat-loot-modal')).not.toBeVisible();
  expect((await admin('campaña/loot_encounters/'+firstId+'/meta')).corpseCount).toBe(2);
- await screenshot(pp,info,'phone-victory-loot-two-waves');await pp.locator('.loot-close').click();
+ const lootId=Object.keys(await admin('campaña/loot_postcombat'))[0];
+ const rejection=await op.evaluate(async lootId=>{try{await firebase.database().ref('campaña/loot_postcombat/'+lootId+'/revision').set(999);return false;}catch(error){return error.code==='PERMISSION_DENIED';}},lootId);
+ expect(rejection).toBe(true);
+ const absentRejection=await op.evaluate(async lootId=>{try{await firebase.database().ref('campaña/loot_requests/p2/forbidden').set({uid:firebase.auth().currentUser.uid,playerId:'p2',lootInstanceId:lootId,actionId:'harvest',checkHeads:5,status:'pending',createdAt:Date.now()});return false;}catch(error){return error.code==='PERMISSION_DENIED';}},lootId);
+ expect(absentRejection).toBe(true);
+ await screenshot(pp,info,'phone-victory-loot-two-waves');
+ const recovered=async()=>Object.values((await admin('campaña/jugadores/p1')).inventario_activo||{}).filter(i=>i.definitionId==='meat_wolf').reduce((n,i)=>n+Number(i.quantity||0),0);
+ await pp.locator('[data-loot-action="harvest"]').first().click();
+ await expect.poll(recovered,{timeout:30000}).toBe(1);
+ await expect(pp.locator('#postcombat-loot-message')).toContainText('recuperadas');
+ await pp.reload();await expect(pp.locator('#combat-entry-menu')).toBeVisible();
+ await pp.locator('#combat-entry-menu > summary').click();await pp.locator('#btn-postcombat-loot').click();
+ await expect(pp.locator('[data-loot-action="harvest"]')).toHaveCount(1);
+ expect(await recovered()).toBe(1);
+ await admin('campaña/jugadores/p1/inventoryRules','PUT',{activeSlotLimit:0,stashSlotLimit:0});
+ await pp.locator('[data-loot-action="harvest"]').click();await expect(pp.locator('[data-pending-id]')).toHaveCount(1,{timeout:30000});
+ await expect(pp.locator('#postcombat-loot-message')).toContainText('reservada');
+ await admin('campaña/jugadores/p1/inventoryRules','PUT',{activeSlotLimit:20,stashSlotLimit:80});
+ await pp.locator('[data-pending-id]').click();await expect.poll(recovered,{timeout:30000}).toBe(2);
+ await expect(pp.locator('[data-pending-id]')).toHaveCount(0);
+ await screenshot(pp,info,'phone-loot-recovered-into-inventory');await pp.locator('.loot-close').click();
  await dp.locator('#combat-entry-open').click();
  await expect.poll(async()=>(await admin('campaña/combate/estado')).encounterId).not.toBe(firstId);
  raw=await admin('campaña/combate');expect(raw.estado.round).toBe(1);for(const key of ['combatants','reserves','defeated','departed','authority','playback','readyPlayers','plannedActions'])expect(raw[key]||null).toBeNull();
@@ -141,7 +162,22 @@ test('Ten enemies use eight field slots and two FIFO reinforcements; Victory sho
  await expect(pp.locator('#postcombat-loot-modal')).toBeVisible({timeout:20000});await expect(pp.locator('.loot-corpse')).toHaveCount(1);
  expect((await admin('campaña/loot_encounters/'+firstId+'/meta')).corpseCount).toBe(2);
  expect(Object.keys(await admin('campaña/loot_instances')).length).toBe(3);await screenshot(pp,info,'phone-second-encounter-one-corpse');
- console.log('ROLLOVER_PASS',JSON.stringify({field:8,reserves:2,fifoPromotions:2,firstEncounterCorpses:2,nextEncounterCorpses:1,nextStartsAt:1,absentPlayerPopup:false}));
+ console.log('ROLLOVER_PASS',JSON.stringify({field:8,reserves:2,fifoPromotions:2,firstEncounterCorpses:2,nextEncounterCorpses:1,nextStartsAt:1,absentPlayerPopup:false,inventoryMeat:2,pendingDeliveryResumed:true}));
  await Promise.all([dc.close(),pc.close(),oc.close()]);
 });
 async function frameWaitingForSetup(page){await expect.poll(()=>page.frames().filter(f=>f.url().includes('Battle-viewer')).length,{timeout:30000}).toBeGreaterThan(0);const f=page.frames().find(f=>f.url().includes('Battle-viewer'));await f.waitForFunction(()=>window.LuminousCombatDmSetup073?.state.started,{},{timeout:60000});return f;}
+
+test('Defeat and cancellation finish without loot and permit a fresh encounter',async({browser},info)=>{
+ test.setTimeout(120000);
+ for(const result of ['defeat','cancelled']){
+  await admin('campaña','PUT',initial);const dc=await setupContext(browser),pc=await setupContext(browser);
+  const dp=await dc.newPage(),pp=await pc.newPage();await login(dp,dm);await frame(dp);await login(pp,player);await frame(pp);
+  await endEntry(dp,result);
+  await expect.poll(()=>admin('campaña/estado_mundo/instancia_activa'),{timeout:20000}).toBe('teatro');
+  const state=await admin('campaña/combate/estado');expect(state.result).toBe(result);expect(state.round).toBe(1);
+  expect(await admin('campaña/loot_encounters')).toBeNull();await expect(pp.locator('#postcombat-loot-modal')).not.toBeVisible();
+  await screenshot(dp,info,'ended-'+result);await dp.locator('#combat-entry-open').click();
+  await expect.poll(async()=>(await admin('campaña/combate/estado')).encounterId).not.toBe('story');
+  expect((await admin('campaña/combate/estado')).round).toBe(1);await dc.close();await pc.close();
+ }
+});

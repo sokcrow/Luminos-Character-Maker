@@ -399,6 +399,11 @@
 
   function applyResolvedAction(state = {}, actor = {}, actionId, checkResult = {}, options = {}) {
     if (!state?.lootInstanceId) throw new Error("POST_COMBAT_STATE_REQUIRED");
+    // RTDB omits empty arrays. Restore them before applying the first action
+    // to a persisted corpse, including currency-only search and examination.
+    state = clone(state);
+    for (const key of ['carried','attempts','history','pendingDeliveries']) state[key] = Array.isArray(state[key]) ? state[key] : Object.values(state[key] || {});
+    state.harvest = {...state.harvest,resources:Array.isArray(state.harvest?.resources)?state.harvest.resources:Object.values(state.harvest?.resources||{})};
     const action = normalizeId(actionId);
     if (!ACTION_PROFILES[action]) throw new Error(`UNKNOWN_POST_COMBAT_ACTION:${action}`);
     const actorId = actorIdOf(actor, options);

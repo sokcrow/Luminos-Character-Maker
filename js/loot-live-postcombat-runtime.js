@@ -16,6 +16,7 @@
     lootInstances: "campaña/loot_instances",
     postCombat: "campaña/loot_postcombat",
     encounterLoot: "campaña/loot_encounters",
+    requests: "campaña/loot_requests",
   });
 
   const BROWSER_DEPENDENCIES = Object.freeze([
@@ -48,7 +49,7 @@
     "js/loot-instance-runtime.js",
     "js/loot-check-runtime.js",
     "js/loot-knowledge-runtime.js",
-    "js/loot-postcombat-runtime.js",
+    "js/loot-postcombat-runtime.js?v=20261021-recovery-4",
     "js/loot-recovery-delivery-runtime.js",
   ]);
 
@@ -310,10 +311,18 @@
       await ref.set(clone(next));
       return { committed: true, snapshot: { val: () => clone(next) } };
     }
-    return ref.transaction((raw) => {
-      const result = updater(clone(raw));
-      return result === undefined ? undefined : clone(result);
-    });
+    let failure = null;
+    const response = await ref.transaction((raw) => {
+      // The legacy SDK does not reject its promise when an updater throws on
+      // a server retry. Abort cleanly and propagate the error after completion.
+      try {
+        failure = null;
+        const result = updater(clone(raw));
+        return result === undefined ? undefined : clone(result);
+      } catch (error) { failure = error;return undefined; }
+    }, undefined, false);
+    if (failure) throw failure;
+    return response;
   }
 
   function unitOptions(unitTruth = {}, interaction = {}) {
@@ -525,6 +534,7 @@
       if (prior) return deepFreeze({ delivered: true, duplicate: true, receipt: clone(prior) });
       return deepFreeze({ delivered: false, reason: "pending_delivery_not_found" });
     }
+    if (clean(pending.actorId) !== playerId) throw new Error("LOOT_DELIVERY_OWNER_REQUIRED");
 
     const playerRef = db.ref(`${ROOTS.players}/${playerId}`);
     let result = null;
@@ -556,10 +566,15 @@
     let saved = null;
     const tx = await transactionValue(ref, (raw) => {
       const base = raw && typeof raw === "object" ? raw : knowledge().createCompendium(playerId, { now: options.now });
+      for (const entry of Object.values(base.units || {})) entry.facts = Object.fromEntries(Object.values(entry.facts || {}).map(fact => [fact.id, fact]));
       saved = knowledge().mergeFacts(base, unitId, facts, {
         visibility: options.visibility || "private",
         now: options.now ?? Date.now(),
       });
+      // Fact IDs are semantic names such as loot.known_uses; RTDB forbids dots
+      // in object keys. Keep the ID in the fact and encode only its storage key.
+      saved = clone(saved);
+      for (const entry of Object.values(saved.units || {})) entry.facts = Object.fromEntries(Object.values(entry.facts || {}).map(fact => [encodeURIComponent(fact.id).replace(/\./g,'%2E'), fact]));
       return saved;
     });
     return deepFreeze({ saved: Boolean(tx?.committed), compendium: clone(snapshotValue(tx?.snapshot) || saved) });
@@ -622,6 +637,104 @@
     return deepFreeze(actions);
   }
 
+  // Players submit intentions; only the DM mutates shared corpse resources.
+  // A stable request key and the existing attempt/delivery receipts make retries
+  // safe across reloads, competing players and multiple open DM viewers.
+  async function requestAction(options = {}) {
+    const db = dbFrom(options), user = global.firebase?.auth?.().currentUser;
+    const playerId = clean(options.playerId), lootInstanceId = clean(options.lootInstanceId);
+    if (!db?.ref || !user || !playerId || !lootInstanceId) throw Error('Entra con tu personaje para recuperar el botín.');
+    const actionId = normalizeId(options.actionId || 'claim');
+    const targetResourceId = clean(options.targetResourceId), deliveryId = clean(options.deliveryId);
+    let key = [lootInstanceId, actionId, targetResourceId, deliveryId].map(v => encodeURIComponent(v).replace(/\./g, '%2E')).join('|');
+    let existing = await onceValue(db, `${ROOTS.requests}/${playerId}/${key}`);
+    if (existing?.status === 'rejected' || (actionId === 'claim' && existing?.status === 'resolved' && !existing.response?.delivered)) {
+      key += '|'+db.ref(`${ROOTS.requests}/${playerId}`).push().key;existing=null;
+    }
+    const ref = db.ref(`${ROOTS.requests}/${playerId}/${key}`);
+    if (!existing) await ref.set({uid:user.uid,playerId,lootInstanceId,actionId,targetResourceId,deliveryId,
+      checkHeads: int(options.checkResult?.heads, 0),status:'pending',createdAt:Date.now()});
+    return new Promise((resolve,reject) => {
+      const finish = (error,value) => { global.clearTimeout(timer);ref.off('value',listener);error?reject(error):resolve(value); };
+      const listener = snapshot => {
+        const row = snapshot.val();
+        if (row?.status === 'resolved') finish(null,row.response);
+        if (row?.status === 'rejected') finish(Error(row.message || 'No se pudo recuperar el botín.'));
+      };
+      const timer = global.setTimeout(() => finish(Error('La recuperación sigue pendiente. Mantén abierta la sesión del DM y vuelve a intentarlo.')),30000);
+      ref.on('value',listener,error=>finish(error));
+    });
+  }
+
+  const authorities = new Map();
+  async function resolveRequest(db, playerId, row) {
+    await ensureDependencies();
+    const [actor,locked] = await Promise.all([onceValue(db,`${ROOTS.players}/${playerId}`),onceValue(db,`${ROOTS.lootInstances}/${row.lootInstanceId}`)]);
+    const owner = actor?.uid || actor?.vinculado_a || actor?.vinculo_jugador;
+    const meta = locked && await onceValue(db,`${ROOTS.encounterLoot}/${safeKey(locked.encounterId)}/meta`);
+    if (!owner || owner !== row.uid || row.playerId !== playerId || !locked?.locked || meta?.participants?.[playerId] !== true || meta.open === false || meta.result !== 'victory') throw Error('Tu personaje no participa en este botín.');
+    const options = {db,playerId,actor:{...actor,id:playerId},lootInstanceId:row.lootInstanceId,targetResourceId:row.targetResourceId||undefined};
+    if (row.actionId === 'claim') return deliverPending({...options,deliveryId:row.deliveryId});
+    if (!['search','harvest','extract','salvage','examine','autopsy'].includes(row.actionId)) throw Error('Esta acción de recuperación no está disponible.');
+    const definition = postCombat().checkDefinition(options.actor,row.actionId,options);
+    const heads = Number(row.checkHeads);
+    if (!Number.isInteger(heads) || heads < 0 || heads > definition.coinCount) throw Error('La tirada de recuperación no es válida.');
+    const checkResult = checks().resultFromRoll(definition,{heads,coinCount:definition.coinCount,total:definition.base+heads*definition.headBonus});
+    const result = await executeAction({...options,actionId:row.actionId,checkResult});
+    return {committed:result.committed,check:result.check,materialized:result.materialized||null,
+      delivery:result.delivery?{delivered:result.delivery.delivered,duplicate:result.delivery.duplicate===true}:null};
+  }
+
+  async function installAuthority(options = {}) {
+    const db = dbFrom(options), uid = clean(options.uid || global.firebase?.auth?.().currentUser?.uid);
+    if (!db?.ref || !uid) return false;
+    const dm = await onceValue(db,'campaña/config/dm_uid');
+    if (uid !== dm && uid !== 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1') return false;
+    if (authorities.has(db)) return true;
+    const ref = db.ref(ROOTS.requests), worker = {chain:Promise.resolve(),rows:{},timer:null};
+    const process = async (playerId,key) => {
+      const request = db.ref(`${ROOTS.requests}/${playerId}/${key}`),token = `${uid}:${Math.random()}`;
+      // Keep a cached value while transacting: an uncached null would abort.
+      let hold;await new Promise((resolve,reject)=>{hold=()=>resolve();request.on('value',hold,reject);});
+      try {
+        const claim = await request.transaction(row => {
+          if (!row || (row.status !== 'pending' && !(row.status === 'processing' && Date.now()-Number(row.claimedAt)>60000))) return;
+          return {...row,status:'processing',claimToken:token,claimedAt:Date.now()};
+        },undefined,false);
+        if (!claim.committed) return;
+        let outcome;
+        try { outcome={status:'resolved',response:JSON.parse(JSON.stringify(await resolveRequest(db,playerId,claim.snapshot.val())))}; }
+        catch (error) { console.error('[Loot recovery]',error);outcome={status:'rejected',message:'No se pudo completar la recuperación. Los recursos confirmados se conservan.'}; }
+        await request.transaction(row => row?.claimToken===token?{...row,...outcome,resolvedAt:Date.now()}:undefined,undefined,false);
+      } finally { request.off('value',hold); }
+    };
+    const drain = () => {
+      for (const [playerId,rows] of Object.entries(worker.rows)) for (const [key,row] of Object.entries(rows||{})) {
+        if (row.status==='pending'||(row.status==='processing'&&Date.now()-Number(row.claimedAt)>60000)) worker.chain=worker.chain.then(()=>process(playerId,key)).catch(error=>console.error('[Loot recovery]',error));
+      }
+    };
+    const listener = snapshot => {worker.rows=snapshot.val()||{};drain();};
+    worker.stop=()=>{ref.off('value',listener);global.clearInterval(worker.timer);authorities.delete(db);};
+    authorities.set(db,worker);ref.on('value',listener);worker.timer=global.setInterval(drain,15000);
+    return true;
+  }
+
+  function stopAuthority(db) { authorities.get(db)?.stop(); }
+
+  if (global.document) {
+    let attempts=0;
+    const boot=()=>{
+      if (!global.firebase?.apps?.length || !global.firebase?.auth) return false;
+      global.firebase.auth().onAuthStateChanged(user=>{
+        for (const worker of authorities.values()) worker.stop();
+        if (user) installAuthority({uid:user.uid}).catch(error=>console.error('[Loot recovery]',error));
+      });
+      return true;
+    };
+    if (!boot()) {const timer=global.setInterval(()=>{if(boot()||++attempts>120)global.clearInterval(timer);},250);}
+    global.addEventListener?.('beforeunload',()=>{for(const worker of authorities.values())worker.stop();},{once:true});
+  }
+
   const API = Object.freeze({
     VERSION,
     ROOTS,
@@ -653,6 +766,9 @@
     deliverPending,
     persistKnowledgeFacts,
     executeAction,
+    requestAction,
+    installAuthority,
+    stopAuthority,
     availableActions,
   });
 
