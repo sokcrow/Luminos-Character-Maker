@@ -33,16 +33,19 @@
       stagePlacement: { x: point.x, y: point.y, revision: (finite(unit.stagePlacement?.revision, 0) + 1) } };
   }
   function message(text) { const node = byId('combat-stage-message'); if (node) node.textContent = text; }
-  function refreshUnit(unit) {
+  function refreshUnit(unit, fieldHeight) {
     const token = byId(`token-${unit.id}`);
     if (!token) return;
-    const depth = depthAt(unit.y, unit.combatOffsetY, byId('battlefield')?.offsetHeight);
+    const depth = depthAt(unit.y, unit.combatOffsetY, fieldHeight ?? byId('battlefield')?.offsetHeight);
     const values = { '--scene-depth-scale': String(depth.scale), '--scene-order': String(depth.order) };
     for (const [key, value] of Object.entries(values)) if (token.style.getPropertyValue(key) !== value) token.style.setProperty(key, value);
     token.classList.toggle('stage-selected', state.placing && unit.id === state.selected);
   }
   function refresh() {
-    Object.values(unitMap()).forEach(refreshUnit);
+    // Reading offsetHeight can force a layout flush. Read once per roster,
+    // not once for each combatant (up to sixteen per render).
+    const fieldHeight = byId('battlefield')?.offsetHeight;
+    Object.values(unitMap()).forEach(unit=>refreshUnit(unit,fieldHeight));
     const control = byId('combat-stage-placement');
     if (control) {
       control.hidden = !isDm();
