@@ -525,7 +525,10 @@
       const presentationMs = result === "cancelled" ? 0 : RESULT_PRESENTATION_MS + (transition === "result" ? 1400 : 0);
       endTransitionTimer = global.setTimeout(() => {
         endTransitionTimer = null;
-        if (currentInstance !== "combate") return;
+        // A previous result must never expel the DM from a newly started
+        // encounter if they click START during the presentation timeout.
+        if (currentInstance !== "combate" || !isEncounterEnded(combatState) ||
+            combatResultToken(combatState) !== token) return;
         instanceRef.set("teatro").catch((error) => {
           console.error("No se pudo regresar al Theater después del encounter:", error);
           loadingApi()?.fail?.("instance", error?.message || String(error), documentRef);
@@ -573,6 +576,7 @@
         if (startButton) startButton.disabled = true;
         reportStart("Abriendo encuentro de combate…");
         await global.LuminousCombatSession.start({db,uid:user.uid});
+        if (startButton) startButton.textContent = "REANUDAR COMBATE";
         reportStart("");
       })().catch(error => {
         console.error("No se pudo iniciar el combate:", error);
