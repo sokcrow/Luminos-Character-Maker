@@ -76,11 +76,33 @@ assert.equal(db.combat.estado.round, 1);
 assert.notEqual(db.combat.estado.encounterId, 'campaign-43');
 assert.equal(db.instance, 'combate');
 
+const endedWithStaleAuthority=fakeDatabase({
+  estado:{encounterId:'previous-round-900',phase:'ENDED',active:false,result:'victory',round:1},
+  authority:{current:{phase:'sealed',id:'old-authority'}},
+  combatants:{oldEnemy:{id:'oldEnemy',hp:0}},
+  defeated:{oldEnemy:{id:'oldEnemy',hp:0}},
+  reserves:{waiting:{id:'waiting',hp:10}},
+  plannedActions:{oldPlayer:{0:{kind:'skill'}}},
+  readyPlayers:{oldPlayer:{ready:true}},
+  playback:{oldReplay:true},
+});
+await session.start({db:endedWithStaleAuthority,uid:'dm'});
+assert.equal(endedWithStaleAuthority.instance,'combate');
+assert.equal(endedWithStaleAuthority.combat.estado.phase,'PRE_COMBAT_PLANNING');
+assert.equal(endedWithStaleAuthority.combat.estado.round,1);
+assert.notEqual(endedWithStaleAuthority.combat.estado.encounterId,'previous-round-900');
+for(const key of ['authority','playback','combatants','defeated','reserves','plannedActions','readyPlayers'])
+  assert.equal(endedWithStaleAuthority.combat[key] || null,null,'ended authority must not block a fresh fight: '+key);
+
 const source = name => fs.readFileSync(path.join(process.cwd(), name), 'utf8');
 for (const dmPage of ['hoja_de_DM.html', 'pantalla_dm.html']) {
   assert.doesNotMatch(source(dmPage), /<a[^>]+href="combate\.html"/, 'no redundant DM Combat link: '+dmPage);
 }
 assert.match(source('hoja_de_DM.html'), /RESOLVER RONDA/, 'round resolution must not masquerade as entering Combat');
+assert.match(source('hoja_de_DM.html'), /id="btn-start-encounter"[^>]*>INICIAR COMBATE/, 'director must have an explicit always-visible start action');
+assert.match(source('pantalla_dm.html'), /id="dm-studio-start-encounter"[^>]*>INICIAR COMBATE/, 'DM Studio Combat tab must also initiate a real encounter');
+assert.match(source('js/instance-control.js'), /startButton\?\.addEventListener\("click"/, 'director start button must have a canonical handler');
+assert.match(source('pantalla_dm.html'), /LuminousCombatSession\.start\(\{db,uid:user\.uid\}\)/, 'studio start must use the canonical encounter session, not a local mock');
 assert.match(source('js/instance-control.js'), /radio\.addEventListener\("click"/, 'already-selected Combat control must respond to another click');
 assert.match(source('js/instance-control.js'), /participants\[player\.playerId\]===true/, 'defeated players must remain in Combat for the result seal');
 assert.doesNotMatch(source('js/battle-viewer-dm-console-074.js'), /beginBlackout\?\.\(/, 'result must not trigger an opaque blackout');
