@@ -8,8 +8,8 @@ const playerHtml = fs.readFileSync("hoja_personaje.html", "utf8");
 const dmHtml = fs.readFileSync("hoja_de_DM.html", "utf8");
 
 assert.ok(
-  dashboard.includes('instanceValue === "teatro" || instanceValue === "combat_theatre"'),
-  "Theatre queue consumer must run for both standalone Theatre and Combat Theater",
+  dashboard.includes('instanceValue === "teatro" || instanceValue === "combat_theatre" || instanceValue === "combate"'),
+  "Theatre queue consumer must keep nonparticipants in Theatre during story combat",
 );
 assert.ok(
   dashboard.includes("!theatreOutputIsActive(instanceSnap.val())"),
@@ -39,7 +39,7 @@ assert.ok(
   "Player bank hotfix assets must be cache-busted",
 );
 assert.ok(
-  dmHtml.includes("js/on-game-dashboard.js?v=20261020-roundtrip-1"),
+  dmHtml.includes("js/on-game-dashboard.js?v=20261021-loop-1"),
   "DM Theatre queue consumer must be cache-busted",
 );
 

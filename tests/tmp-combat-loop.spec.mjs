@@ -37,7 +37,7 @@ async function frame(page,query='Battle-viewer'){
 }
 async function choose(f,kind='skill'){
  await expect(f.locator('#ready')).toBeEnabled({timeout:20000});
- await f.waitForFunction(()=>!window.LuminousCombat073.uiState().running&&window.LuminousCombatEconomyMenu073?.rowsFor,{},{timeout:20000});
+ await f.waitForFunction(()=>!document.getElementById('game-container')?.classList.contains('intro-running')&&!window.LuminousCombat073.uiState().running&&window.LuminousCombatEconomyMenu073?.rowsFor,{},{timeout:20000});
  await f.evaluate(kind=>{
   const r=window.LuminousCombat073,s=window.LuminousCombatLiveAdapter073.state,unit=r.combatants()[r.playerId()];let plan;
   if(kind==='skill'){const card=window.LuminousCombatSlotDeck073.hand(unit.id,0)[0];if(!card)throw Error('No deck hand');plan={type:'deck',sourceSlotIndex:0,drawId:card.drawId,targetId:'kobold',targetSlotIndex:0,clashChoice:'clash',clashConfirmed:true,data:card.skill};}

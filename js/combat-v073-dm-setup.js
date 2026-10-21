@@ -558,7 +558,8 @@
           if (!player) continue;
           const patch = syncFieldsFromBuiltPlayer(current, buildPlayer(playerId, player));
           if (!Object.keys(patch).length) continue;
-          if (['skillDeck','skillIds','skillSlotIds','equippedSkillIndex'].some(field => field in patch)) {
+          // Canonical metadata repair must not cancel an unchanged effective deck.
+          if (JSON.stringify(firebaseValue(skillSlotIdsFor(current))) !== JSON.stringify(firebaseValue(skillSlotIdsFor(buildPlayer(playerId, player))))) {
             delete plannedActions[playerId]; delete readyPlayers[playerId];
           }
           combatants[key] = { ...current, ...patch }; changed = true;
@@ -588,6 +589,10 @@
     wrap.open = false;
     wrap.style.cssText = 'position:fixed;z-index:2147483000;right:12px;top:12px;width:min(440px,calc(100vw - 24px));max-height:calc(100vh - 24px);overflow:auto;background:rgba(8,6,12,.97);border:1px solid #735c36;color:#ddd;padding:8px;font:12px system-ui;box-shadow:0 10px 28px #000';
     wrap.innerHTML = `<summary style="cursor:pointer;color:#d7aa58;font-weight:700">Encuentro</summary><div style="margin-top:8px;display:grid;gap:8px"><div style="opacity:.72">Añade personajes y unidades al encuentro. Puedes colocar la formación antes de preparar la primera ronda.</div><div style="display:flex;gap:6px"><select id="c073-player" style="flex:1;min-width:0"></select><button id="c073-add-player">Añadir personaje</button></div><div style="display:flex;gap:6px"><select id="c073-unit" style="flex:1;min-width:0"></select><input id="c073-qty" type="number" min="1" max="20" value="1" style="width:46px"><button id="c073-enemy">Enemigo</button><button id="c073-ally">Aliado</button></div><div style="display:flex;justify-content:space-between;align-items:center"><b>Combatientes</b><button id="c073-clear">Vaciar</button></div><button id="combat-stage-placement" type="button" aria-pressed="false">Colocar formación inicial</button><div id="c073-roster"></div><div id="c073-setup-msg" style="min-height:16px;color:#9fd6a8">Preparando unidades…</div></div>`;
+    if(adapterState()?.role==='player'&&adapterState()?.isAuthority){
+      wrap.dataset.playerHost='true';wrap.style.top='68px';
+      const style=global.document.createElement('style');style.textContent='#c073-dm-setup[data-player-host]:not([open]){width:auto!important}';global.document.head.appendChild(style);
+    }
     global.document.body.appendChild(wrap);
     const player = global.document.getElementById('c073-player');
     const unit = global.document.getElementById('c073-unit');
