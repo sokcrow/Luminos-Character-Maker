@@ -516,12 +516,13 @@
       const result = normalizeCombatResult(combatState?.result || combatState?.outcome);
       if (!result) return;
       const transition = String(combatState?.transition || "").trim().toLowerCase();
-      if (transition === "result" || transition === "blackout") return;
+      // A finished encounter must return to Theatre even when its original
+      // closing page disappears after committing the result.
       const token = combatResultToken(combatState);
       if (!token || token === lastAutoTransitionToken) return;
       lastAutoTransitionToken = token;
       if (endTransitionTimer) global.clearTimeout(endTransitionTimer);
-      const presentationMs = result === "cancelled" ? 0 : RESULT_PRESENTATION_MS;
+      const presentationMs = result === "cancelled" ? 0 : RESULT_PRESENTATION_MS + (transition === "result" ? 1400 : 0);
       endTransitionTimer = global.setTimeout(() => {
         endTransitionTimer = null;
         if (currentInstance !== "combate") return;
