@@ -567,6 +567,10 @@
         return changed ? { ...combat, combatants, plannedActions, readyPlayers } : undefined;
       }, undefined, false);
       return result.committed;
+    } catch(error){
+      // A planning preview can supersede this repair on the same SDK client.
+      if(error?.message==='set'){schedulePlayerStateRepair();return false;}
+      throw error;
     } finally { if (hold) ref.off('value', hold); }
   }
 

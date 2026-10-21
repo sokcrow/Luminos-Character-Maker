@@ -30,7 +30,13 @@
       // subscription while transacting: otherwise the SDK may first invoke the
       // updater with an uncached null and abort a valid between-round action.
       await new Promise((resolve,reject)=>{listener=()=>resolve();ref.on('value',listener,reject);});
-      return await ref.transaction(update,undefined,false);
+      // The SDK cancels an ancestor transaction when this same client writes
+      // an AI preview or speed child with set/update. Re-evaluate the guarded
+      // transition against the latest state instead of failing the combat.
+      for(let attempt=0;attempt<3;attempt++){
+        try{return await ref.transaction(update,undefined,false);}
+        catch(error){if(error?.message!=='set'||attempt===2)throw error;}
+      }
     }finally{if(listener)ref.off('value',listener);}
   }
   function canSeal(raw,payload){
