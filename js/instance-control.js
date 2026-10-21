@@ -540,7 +540,20 @@
       console.error("No se pudo observar el estado del encounter:", error);
     });
 
+    // The existing Combat selector must also work when already selected:
+    // radio inputs do not fire "change" for a second click on the same value.
+    const openOrResumeCombat = async () => {
+      if(!global.LuminousCombatSession?.start)throw Error('Recarga el panel antes de abrir un encuentro.');
+      await global.LuminousCombatSession.start({db,uid:global.firebase.auth().currentUser?.uid});
+    };
     documentRef.querySelectorAll('input[name="instancia"]').forEach((radio) => {
+      if(radio.value === "combate")radio.addEventListener("click", () => {
+        if(currentInstance !== "combate")return; // "change" handles first entry.
+        openOrResumeCombat().catch(error => {
+          console.error("No se pudo reabrir el combate:",error);
+          loadingApi()?.fail?.("instance", error?.message || String(error), documentRef);
+        });
+      });
       radio.addEventListener("change", async (evento) => {
         const requestedInstance = normalizeInstance(evento.target.value);
         const nuevaInstancia = requestedInstance === "teatro" && ["combate", "combat_theatre"].includes(currentInstance)
@@ -549,8 +562,7 @@
 
         try {
           if (nuevaInstancia === "combate") {
-            if(!global.LuminousCombatSession?.start)throw Error('Recarga el panel antes de abrir un encuentro.');
-            await global.LuminousCombatSession.start({db,uid:global.firebase.auth().currentUser?.uid});
+            await openOrResumeCombat();
             return;
           }
           await instanceRef.set(nuevaInstancia);
