@@ -62,18 +62,41 @@
     if(typeof finishEncounter!=='function')throw Error('El visor aún no está listo para finalizar el encuentro.');
     return finishEncounter(result,{confirm:false});
   }
+  function endErrorMessage(error){
+    const message=String(error?.message||''),code=String(error?.code||'').toLowerCase();
+    if(message.startsWith('Espera a que termine la ronda')||message.startsWith('Ya se está finalizando'))return message;
+    if(code.includes('permission'))return 'Firebase rechazó guardar los resultados del encuentro. Publica las reglas actualizadas de combate y botín y vuelve a finalizar.';
+    if(message.startsWith('LOOT_'))return 'No se pudo preparar el botín. Puedes volver a finalizar el encuentro sin repetir sus efectos.';
+    if(message==='DM_ONLY')return 'Entra con la cuenta del DM para finalizar este encuentro.';
+    if(code.includes('network')||code.includes('unavailable'))return 'No se pudo conectar. Revisa tu conexión y vuelve a finalizar el encuentro.';
+    return 'No se pudo finalizar el encuentro. Vuelve a intentarlo; los resultados confirmados se conservan.';
+  }
   async function claimEnd({db,uid,result,applyEffects}){
     const token=global.crypto?.randomUUID?.()||`${Date.now()}-${Math.random()}`;
     const response=await updateRoot(db,raw=>{
       if(!raw||['sealed','running'].includes(String(raw.authority?.current?.phase||'').toLowerCase()))return;
-      if(raw.estado?.phase==='ENDING')return raw.estado.ending?.uid===uid&&raw.estado.ending?.result===result?raw:undefined;
-      if(raw.estado?.phase==='ENDED'||!['victory','defeat','cancelled'].includes(result))return;
+      if(!['victory','defeat','cancelled'].includes(result))return;
+      if(raw.estado?.phase==='ENDING'){
+        const ending=raw.estado.ending;
+        if(ending?.uid!==uid)return;
+        // Failed (and legacy) closing attempts can select another outcome.
+        // Encounter-end effects are already committed and must not run twice.
+        if(ending.result!==result&&ending.failed!==true&&ending.startedAt)return;
+        return {...raw,estado:{...raw.estado,ending:{token:ending.result===result?ending.token:token,uid,result,startedAt:Date.now()}}};
+      }
+      if(raw.estado?.phase==='ENDED')return raw.estado.endedBy===uid&&raw.estado.result===result?raw:undefined;
       const combatants=JSON.parse(JSON.stringify(raw.combatants||{}));
       applyEffects?.(combatants);
-      return {...raw,combatants:JSON.parse(JSON.stringify(combatants)),estado:{...(raw.estado||{}),phase:'ENDING',ending:{token,uid,result}},plannedActions:null,readyPlayers:null};
+      return {...raw,combatants:JSON.parse(JSON.stringify(combatants)),estado:{...(raw.estado||{}),phase:'ENDING',ending:{token,uid,result,startedAt:Date.now()}},plannedActions:null,readyPlayers:null};
     });
     if(!response.committed)throw Error('Espera a que termine la ronda antes de finalizar el encuentro.');
     return response.snapshot.val();
+  }
+  async function failEnd({db,uid,token}){
+    return updateRoot(db,raw=>{
+      if(raw?.estado?.phase!=='ENDING'||raw.estado.ending?.token!==token||raw.estado.ending?.uid!==uid)return;
+      return {...raw,estado:{...raw.estado,ending:{...raw.estado.ending,failed:true}}};
+    });
   }
   async function commitEnd({db,uid,result,token}){
     const response=await updateRoot(db,raw=>{
@@ -88,5 +111,5 @@
     if(!response.committed)throw Error('Cambia la presentación entre rondas, antes de elegir acciones.');
     return value;
   }
-  global.LuminousCombatSession=Object.freeze({ROOT,INSTANCE,blocked,live,nextEncounter,nextEnd,nextPresentation,start,end,claimEnd,commitEnd,updateRoot,canSeal,presentation});
+  global.LuminousCombatSession=Object.freeze({ROOT,INSTANCE,blocked,live,nextEncounter,nextEnd,nextPresentation,start,end,claimEnd,commitEnd,failEnd,endErrorMessage,updateRoot,canSeal,presentation});
 })(typeof window!=='undefined'?window:globalThis);

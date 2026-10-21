@@ -3,7 +3,7 @@
   const ROOT = 'campaña/combate/playback/current';
   const copy = value => JSON.parse(JSON.stringify(value ?? null));
   const session = global.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  const state = { generation: null, consumer: null, ref: null, handler: null, eventCursor: 0,
+  const state = { generation: null, consumer: null, ref: null, handler: null, eventCursor: 0, batchSeq: 0,
     connected: true, connectionRef: null, connectionHandler: null, offsetRef:null,offsetHandler:null,serverOffset:0,
     authority: null, starting: false, transmittedSnapshot: {}, recoveryButton:null, stagedUpdates:{} };
   const adapter = () => global.LuminousCombatLiveAdapter073?.state;
@@ -40,7 +40,7 @@
       throw new Error('El turno pertenece a otra pestaña del DM. Reabre la pestaña que lo inició para continuar.');
   }
   function beginUpdates(data) {
-    assertOwner(data); state.eventCursor = 0;
+    assertOwner(data); state.eventCursor = 0; state.batchSeq = 0;
     state.stagedUpdates={};
     state.transmittedSnapshot=JSON.parse(data.initialStateJson);
     surface().capturePresentation(true);
@@ -50,6 +50,10 @@
     const a = state.authority, current = a.state.current;
     if (!enabled(current)) return {};
     assertOwner(current);
+    // Presentation batches and completed-action recovery checkpoints share
+    // one transport sequence. Only completed actions advance the checkpoint.
+    row.seq = ++state.batchSeq;
+    a.state.lastCheckpointSeq = row.seq;
     const events = surface().events().filter(event => event.sequence > state.eventCursor).map(event=>{
       if(event.combatants){
         event.changes=Object.entries(event.combatants).filter(([id,value])=>JSON.stringify(state.transmittedSnapshot[id])!==JSON.stringify(value))
@@ -129,7 +133,8 @@
     const claimed=await s.db.ref(a.ROOT.current).transaction(current=>{
       if(current?.id!==expected.id||!['sealed','running'].includes(current.phase)||
         current.playback.session!==expected.playback.session||Number(current.checkpoint?.seq||0)!==Number(expected.checkpoint?.seq||0))return;
-      return {...current,playback:{...current.playback,session}};
+      const id=`${current.encounterId}-${current.round}-${current.seed}-${global.crypto?.randomUUID?.()||`${session}-${Date.now()}`}`;
+      return {...current,id,playback:{...current.playback,session,generation:id}};
     },undefined,false);
     if(!claimed.committed)throw new Error('Se confirmaron nuevos resultados. Vuelve a pulsar Reanudar turno.');
     const current=claimed.snapshot.val(),checkpoint=current.checkpoint;
@@ -138,14 +143,18 @@
     saved.eventCursor=Number(checkpoint?.eventCursor)||0;
     a.state.resumeRuntime=saved;
     if(current.phase==='running'){
-      a.state.lastCheckpointSeq=a.state.localActionSeq=Number(checkpoint?.seq)||0;
+      a.state.lastCheckpointSeq=Number(checkpoint?.seq)||0;
+      a.state.localActionSeq=Number(checkpoint?.actionSeq??checkpoint?.seq)||0;
       a.state.localDigests.clear();a.state.pendingRemoteCheckpoints.clear();a.state.inFlightActions=0;
       a.state.executionChain=Promise.resolve();a.state.writeChain=Promise.resolve();
       state.stagedUpdates={};
       a.resetRandom(current.seed,Number(checkpoint?.rngCursor)||0);
       a.applySnapshot(JSON.parse(checkpoint?.stateJson||current.initialStateJson));
-      state.eventCursor=saved.eventCursor;state.transmittedSnapshot=a.snapshotRuntime();
+      state.eventCursor=saved.eventCursor;state.batchSeq=Number(checkpoint?.seq)||0;state.transmittedSnapshot=a.snapshotRuntime();
       surface().capturePresentation(true);
+      // Discard uncommitted presentation from the abandoned attempt. A new
+      // generation makes consumers roll back to the last completed action.
+      await s.db.ref(ROOT).set({generation:current.id,schemaVersion:1,engineVersion:protocol().engineVersion});
     }
     status('Reanudando el turno…');refreshRecoveryControl(current);
     return a.requestStartRound();
@@ -170,6 +179,7 @@
       }
       if (!['running', 'sealed'].includes(data.phase)) return;
       a.state.runningLocal = true;
+      const freshSince=Date.now()+state.serverOffset-8000;
       surface().beginPlayback(data.round);
       if(data.initialStateJson&&!checkpoint)a.applySnapshot(JSON.parse(data.initialStateJson));
       if (checkpoint?.combatants) { a.applySnapshot(checkpoint.stateJson?JSON.parse(checkpoint.stateJson):checkpoint.combatants); a.state.cursor = Number(checkpoint.rngCursor) || 0; }
@@ -184,7 +194,9 @@
         present: async (cue, args, row) => {
           // Slow/reconnected viewers catch up by applying states, without waiting
           // through old animation holds. Visual mode never changes the result.
-          if (Date.now()+state.serverOffset - Number(row.updatedAt) < 8000) await surface().present(cue, args);
+          // A fresh batch stays fresh throughout its own animation. Checking
+          // the clock on every cue used to cut off long Clashes mid-playback.
+          if (Number(row.updatedAt) >= freshSince) await surface().present(cue, args);
         },
         finish: row => {
           a.state.cursor = Number(row.rngCursor) || 0;
@@ -229,7 +241,7 @@
     beginUpdates, batchUpdates, observe, start, stop, recover, refreshRecoveryControl,stageUpdates,commitUpdates,disconnectConsumer });
   global.addEventListener('luminous:combat073-hydrated', () => {
     const a = state.authority, data = a?.state.current;
-    if (enabled(data) && data.phase === 'complete' && data.checkpoint?.combatants) {
+    if (enabled(data) && data.phase === 'complete' && data.checkpoint?.combatants && !a.state.runningLocal) {
       a.applySnapshot(data.checkpoint.stateJson?JSON.parse(data.checkpoint.stateJson):data.checkpoint.combatants); surface()?.refreshPlayback();
     }
     if (a) observe(data).catch(console.error);

@@ -29,7 +29,7 @@
   $('mirror-confirm-end').onclick=async()=>{
     const button=$('mirror-confirm-end');button.disabled=true;
     try{const resolver=frame?.contentWindow?.LuminousBattleViewerDmConsole074;if(!resolver?.finishEncounter)throw Error('Espera a que cargue el encuentro.');await resolver.finishEncounter($('mirror-outcome').value,{confirm:false});$('mirror-result').close();frame.hidden=true;$('mirror-card').hidden=false;$('mirror-create').hidden=true;$('mirror-end').hidden=true;say('Encuentro finalizado. Los resultados se conservaron aquí.');}
-    catch(error){g.alert(error.message);}finally{button.disabled=false;}
+    catch(error){g.alert(error.userMessage||'No se pudo finalizar el encuentro. Vuelve a intentarlo.');}finally{button.disabled=false;}
   };
   async function join(){
     if(!/^[A-Za-z0-9_-]{1,100}$/.test(id||''))throw Error('El enlace de encuentro es inválido.');

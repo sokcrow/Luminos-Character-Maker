@@ -84,7 +84,7 @@
   async function endEncounter({ db, result, reason = "" } = {}) {
     const normalized = normalizeCombatResult(result);
     if (!normalized) throw new Error("INVALID_COMBAT_RESULT");
-    const frame=global.document?.getElementById?.('dm-combat-view')||global.document?.getElementById?.('combat-entry-view');
+    const frame=global.document?.getElementById?.('dm-combat-live-frame')||global.document?.getElementById?.('dm-combat-view')||global.document?.getElementById?.('combat-entry-view');
     const resolver=global.LuminousBattleViewerDmConsole074||frame?.contentWindow?.LuminousBattleViewerDmConsole074;
     if(!resolver?.finishEncounter)throw new Error('El visor aún no está listo para finalizar el encuentro.');
     await resolver.finishEncounter(normalized,{confirm:false});

@@ -287,6 +287,7 @@
       scheduleNudges();
       return false;
     }
+    closeEncounterModal();
     setEncounterBusy(true);
     try{
       setStatus(normalized==='victory'?'CERRANDO ENCOUNTER · VICTORY…':'CERRANDO ENCOUNTER · DEFEAT…');
@@ -296,7 +297,8 @@
       return true;
     }catch(error){
       console.error('[DM Combat Live Viewer] Encounter end failed',error);
-      setStatus('NO SE PUDO CERRAR EL ENCOUNTER',true);
+      setStatus(error.userMessage||'No se pudo finalizar el encuentro. Vuelve a intentarlo.',true);
+      openEncounterModal();
       return false;
     }finally{
       setEncounterBusy(false);
