@@ -7,7 +7,7 @@ let server,dm,player,friend,initial;const errors=[],production=[];
 const clone=v=>JSON.parse(JSON.stringify(v));
 const endpoint=p=>`http://127.0.0.1:9100/${p.split('/').map(encodeURIComponent).join('/')}.json?ns=${ns}`;
 async function admin(p,method='GET',value){const r=await fetch(endpoint(p),{method,headers:{Authorization:'Bearer owner','Content-Type':'application/json'},...(value===undefined?{}:{body:JSON.stringify(value)})});expect(r.ok,await r.clone().text()).toBeTruthy();return r.json();}
-async function account(label){const email=label+'@example.test',password='temporary-password';const r=await fetch('http://127.0.0.1:9199/identitytoolkit.googleapis.com/v1/accounts:signUp?key=fake',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password,returnSecureToken:true})});const data=await r.json();expect(data.localId).toBeTruthy();return {uid:data.localId,email,password,token:data.idToken};}
+async function account(label){const email=label+Date.now()+'@example.test',password='temporary-password';const r=await fetch('http://127.0.0.1:9199/identitytoolkit.googleapis.com/v1/accounts:signUp?key=fake',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password,returnSecureToken:true})});const data=await r.json();expect(data.localId,JSON.stringify(data)).toBeTruthy();return {uid:data.localId,email,password,token:data.idToken};}
 function fixture(){
  const potion={instanceId:'potion',definitionId:'hp_generic_pocket_recovery_patch',category:'consumable',quantity:2,runtime:{actionCost:'action',targetMode:'self',consumeQty:1,healing:{flat:2,maxHpPercent:3,capMaxHpPercent:100}}};
  const p={uid:player.uid,characterName:'LIORA',hp:130,maxHp:130,actionSlots:1,characterBuild:{skillDeck:{tier1:'s1',tier2:'s2',tier3:'s3'}},inventario_activo:{potion}};
@@ -21,7 +21,7 @@ async function setupContext(browser,phone=false){
  await context.route('**/*',async route=>{
   const url=route.request().url();const match=url.match(/firebasejs\/8\.10\.1\/(firebase-[a-z]+\.js)/);
   if(match){let body=fs.readFileSync(path.join(root,'node_modules/firebase',match[1]),'utf8');if(match[1]==='firebase-app.js')body+=`\n(function(){const original=firebase.initializeApp;firebase.initializeApp=function(config,name){const app=original.call(firebase,{...config,apiKey:'fake',projectId:'${project}',databaseURL:'https://${ns}.firebaseio.com'},name);app.auth().useEmulator('http://127.0.0.1:9199',{disableWarnings:true});app.database().useEmulator('127.0.0.1',9100);return app;};})();`;await route.fulfill({contentType:'text/javascript',body});return;}
-  if(/firebaseio\.com|googleapis\.com/.test(url)&&!url.includes('127.0.0.1')){production.push(url);await route.abort();return;}
+  if(/firebaseio\.com|identitytoolkit\.googleapis\.com|securetoken\.googleapis\.com/.test(url)&&!url.includes('127.0.0.1')){production.push(url);await route.abort();return;}
   if(!url.startsWith(base)&&!url.startsWith('http://127.0.0.1:9')&&!url.startsWith('data:')){await route.abort();return;}
   await route.continue();
  });
@@ -36,13 +36,16 @@ async function frame(page,query='Battle-viewer'){
  await f.waitForFunction(()=>window.LuminousCombatAuthority073&&window.LuminousCombatRemoteIntents073&&window.LuminousCombatSlotDeck073&&window.LuminousCombatPlanSync073,{},{timeout:40000});return f;
 }
 async function choose(f,kind='skill'){
+ await expect(f.locator('#ready')).toBeEnabled({timeout:20000});
+ await f.waitForFunction(()=>!window.LuminousCombat073.uiState().running&&window.LuminousCombatEconomyMenu073?.rowsFor,{},{timeout:20000});
  await f.evaluate(kind=>{
   const r=window.LuminousCombat073,s=window.LuminousCombatLiveAdapter073.state,unit=r.combatants()[r.playerId()];let plan;
   if(kind==='skill'){const card=window.LuminousCombatSlotDeck073.hand(unit.id,0)[0];if(!card)throw Error('No deck hand');plan={type:'deck',sourceSlotIndex:0,drawId:card.drawId,targetId:'kobold',targetSlotIndex:0,clashChoice:'clash',clashConfirmed:true,data:card.skill};}
   else if(kind==='item'){const item=window.LuminousCombatEconomyMenu073.rowsFor('items')[0];if(!item)throw Error('No active inventory item');plan={type:'items',sourceSlotIndex:0,targetId:unit.id,targetSlotIndex:0,data:item};}
   else plan={type:'global',sourceSlotIndex:0,targetId:unit.id,targetSlotIndex:0,data:{id:'help',actionKey:'help',name:'Help',kind:'global'}};
   r.restorePlanning([plan],false);
- },kind);await f.locator('#ready').click({force:true});
+ },kind);await expect(f.locator('#ready')).toBeEnabled({timeout:20000});await f.locator('#ready').click({force:true});
+ console.log('READY_REQUEST',JSON.stringify(await f.evaluate(()=>({ui:window.LuminousCombat073.uiState(),delivery:window.LuminousCombatPlanSync073.delivery,status:document.getElementById('status')?.textContent}))));
 }
 test.beforeAll(async()=>{
  server=http.createServer((req,res)=>{const p=path.resolve(root,'.'+decodeURIComponent(new URL(req.url,base).pathname));if(!p.startsWith(root+path.sep)){res.writeHead(403).end();return;}fs.readFile(p,(error,body)=>{if(error){res.writeHead(404).end();return;}const ext=path.extname(p);res.setHeader('Content-Type',({'.html':'text/html','.js':'text/javascript','.css':'text/css','.json':'application/json','.svg':'image/svg+xml','.png':'image/png'})[ext]||'application/octet-stream');res.end(body);});});await new Promise(resolve=>server.listen(4173,'127.0.0.1',resolve));

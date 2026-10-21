@@ -10,7 +10,7 @@
     $('mirror-identity').textContent=isLocal?'Local en este dispositivo':'Online con tu grupo';
     if(!isLocal){$('mirror-share').href=g.location.href.split('?')[0]+'?encounter='+encounterId;$('mirror-share').hidden=false;}
     frame=doc.createElement('iframe');frame.id='mirror-view';frame.title='Encuentro separado';frame.allow='autoplay';
-    frame.style.cssText='display:block;width:100%;height:calc(100dvh - 60px);border:0';
+    frame.style.cssText='display:block;position:absolute;inset:0;width:100%;height:100%;border:0';
     frame.src='Battle-viewer.html?encounter='+encounterId+(isLocal?'&mode=local':'');$('mirror-main').appendChild(frame);
     if(host){let attempts=0;const timer=g.setInterval(async()=>{
       const setup=frame.contentWindow?.LuminousCombatDmSetup073;
