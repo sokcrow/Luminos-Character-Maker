@@ -25,3 +25,22 @@ jobs:
         with:
           name: encounter-rollover-results
           path: test-results
+  npc-belongings-and-loot-queues:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install --no-save @playwright/test@1.55.0 firebase@8.10.1 firebase-tools@14.19.1
+      - run: npx playwright install --with-deps chromium
+      - run: node tests/npc-belongings-smoke.mjs
+      - run: node tests/dm-loot-queue-smoke.mjs
+      - name: Real Firebase legacy cleanup and NPC consumable acceptance
+        run: npx firebase emulators:exec --project demo-combat-results --only auth,database --config combat-results-firebase.json 'npx playwright test tests/combat-results-and-loot.spec.mjs --grep "DM retires|NPC belongings enter" --workers=1 --reporter=line'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: npc-belongings-loot-ui
+          path: test-results
