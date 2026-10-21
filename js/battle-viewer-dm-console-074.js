@@ -421,6 +421,7 @@
         db: state.db,
         encounterId,
         combatants: resolved?.combatants || state.combatants,
+        participants: claimed.participants || {},
         result: normalized,
         now: Date.now(),
       });

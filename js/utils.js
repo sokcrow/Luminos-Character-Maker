@@ -324,7 +324,7 @@ function ensureDmCombatTabManagerAssets(doc) {
     const documentRef = doc || (typeof document !== 'undefined' ? document : null);
     if (!documentRef?.querySelector?.('#tab-combate')) return null;
     const manager = ensureScriptAsset(documentRef, 'dm-combat-tab-manager-script', 'js/dm-combat-tab-manager.js', { ui: 'dm-combat-tab-manager' });
-    const liveViewer = ensureScriptAsset(documentRef, 'dm-combat-live-viewer-script', 'js/dm-combat-live-viewer.js?v=20261021-playback-2', { ui: 'dm-combat-live-viewer' });
+    const liveViewer = ensureScriptAsset(documentRef, 'dm-combat-live-viewer-script', 'js/dm-combat-live-viewer.js?v=20261021-encounter-3', { ui: 'dm-combat-live-viewer' });
     return { manager, liveViewer };
 }
 

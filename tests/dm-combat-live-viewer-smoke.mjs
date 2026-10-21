@@ -9,8 +9,8 @@ const bridge=read('js/dm-combat-live-viewer.js');
 const dmConsole=read('js/battle-viewer-dm-console-074.js');
 
 assert.ok(dmPanel.includes('id="tab-combate"'),'actual pantalla_dm Combat pane must exist');
-assert.ok(dmPanel.includes('<script src="js/utils.js?v=20261021-playback-2"></script>'),'actual pantalla_dm must load the bootstrap that installs Combat assets');
-assert.ok(utils.includes("'js/dm-combat-live-viewer.js?v=20261021-playback-2'"),'real DM bootstrap must load the live Battle bridge');
+assert.ok(dmPanel.includes('<script src="js/utils.js?v=20261021-encounter-3"></script>'),'actual pantalla_dm must load the bootstrap that installs Combat assets');
+assert.ok(utils.includes("'js/dm-combat-live-viewer.js?v=20261021-encounter-3'"),'real DM bootstrap must load the live Battle bridge');
 assert.ok(bridge.includes("getElementById?.('tab-combate')"),'bridge must mount into the exact Combat tab shown to the DM');
 assert.ok(bridge.includes('src="about:blank"'),'DM Battle iframe must not initialize its renderer while the Combat tab is hidden');
 assert.ok(bridge.includes("BATTLE_SRC='Battle-viewer.html'"),'visible DM Combat tab must load the same canonical Battle Viewer as Players');

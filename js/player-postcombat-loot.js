@@ -17,6 +17,9 @@
     message: "",
     error: false,
     listeners: [],
+    combatState: {},
+    instance: null,
+    autoOpened: null,
   };
 
   const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
@@ -74,7 +77,7 @@
     let button = global.document?.getElementById(BUTTON_ID);
     if (button) return button;
     const inventory = global.document?.getElementById("btn-global-inventory");
-    const menu = inventory?.parentElement || global.document?.querySelector(".hud-menu-dropdown");
+    const menu = inventory?.parentElement || global.document?.querySelector(".hud-menu-dropdown") || global.document?.querySelector('#combat-entry-menu nav') || global.document?.getElementById('mirror-bar');
     if (!menu) return null;
     button = global.document.createElement("button");
     button.id = BUTTON_ID;
@@ -125,6 +128,7 @@
   function latestEncounter() {
     return Object.entries(state.encounters || {})
       .map(([id, row]) => ({ id, ...(row || {}) }))
+      .filter(row=>!row.meta?.participants||row.meta.participants[resolvePlayerId()]===true)
       .filter((row) => row.meta?.open !== false && normalizeId(row.meta?.result) === "victory" && Number(row.meta?.corpseCount || Object.keys(row.corpses || {}).length) > 0)
       .sort((a, b) => Number(b.meta?.finalizedAt || 0) - Number(a.meta?.finalizedAt || 0))[0] || null;
   }
@@ -309,6 +313,16 @@
       if (badge) badge.textContent = String(corpseCount);
     }
     if (state.open && state.activeEncounterId) await render();
+    maybeOpenResult();
+  }
+
+  function maybeOpenResult(){
+    const completed=state.combatState,encounter=state.encounters[completed.encounterId];
+    if(state.instance!=='teatro'||completed.phase!=='ENDED'||completed.result!=='victory'||!encounter||encounter.meta?.participants?.[resolvePlayerId()]!==true)return;
+    const key=`luminous:loot-seen:${resolvePlayerId()}:${completed.encounterId}`;
+    if(state.autoOpened===key||global.localStorage?.getItem?.(key)==='true')return;
+    state.activeEncounterId=completed.encounterId;state.autoOpened=key;
+    global.localStorage?.setItem?.(key,'true');open();
   }
 
   function open() {
@@ -340,14 +354,20 @@
       const badge = button?.querySelector(".postcombat-loot-badge");
       if (badge) badge.textContent = String(count);
       if (state.open) render().catch((error) => setMessage(error?.message || String(error), true));
+      maybeOpenResult();
     };
     ref.on("value", handler);
     state.listeners.push(() => ref.off("value", handler));
+    for(const [path,key] of [[live().ROOTS.combatState,'combatState'],['campaña/estado_mundo/instancia_activa','instance']]){
+      const watched=state.db.ref(path),listener=snapshot=>{state[key]=snapshot.val()||{};maybeOpenResult();};
+      watched.on('value',listener);state.listeners.push(()=>watched.off('value',listener));
+    }
     return true;
   }
 
   async function install(options = {}) {
-    if (state.db) return true;
+    if (state.db&&(!options.playerId||options.playerId===state.playerId)&&(!options.db||options.db===state.db)) return true;
+    state.listeners.splice(0).forEach(off=>off());close();state.encounters={};state.combatState={};state.instance=null;state.autoOpened=null;
     state.db = options.db || (global.firebase?.database ? global.firebase.database() : null);
     state.playerId = clean(options.playerId || resolvePlayerId());
     if (!state.db?.ref || !state.playerId) return false;

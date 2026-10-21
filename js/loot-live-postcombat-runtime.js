@@ -10,6 +10,7 @@
   const ROOTS = Object.freeze({
     combatState: "campaña/combate/estado",
     combatants: "campaña/combate/combatants",
+    defeated: "campaña/combate/defeated",
     units: "campaña/base_datos_unidades",
     players: "campaña/jugadores",
     lootInstances: "campaña/loot_instances",
@@ -18,6 +19,9 @@
   });
 
   const BROWSER_DEPENDENCIES = Object.freeze([
+    "js/content-registry.js",
+    "js/item-runtime-engine.js",
+    "js/item-inventory-runtime.js",
     "js/item-quality-engine.js",
     "js/item-size-lineage-engine.js",
     "js/item-culinary-affinity-data.js",
@@ -169,7 +173,7 @@
   }
   function isDefeated(unit = {}) {
     const state = normalizeId(unit.resolutionState ?? unit.deploymentState ?? unit.deployment);
-    return unit.defeated === true || unit.dead === true || unit.isDead === true || state === "defeated";
+    return unit.defeated === true || unit.dead === true || unit.isDead === true || state === "defeated" || (unit.hp != null && Number(unit.hp)<=0 && unit.isBackup!==true && !['backup','reserve','reserves'].includes(state));
   }
   function isLootEligible(unit = {}) {
     return isEnemy(unit) && isDefeated(unit) && unit.lootEligible !== false && unit.escaped !== true && normalizeId(unit.resolutionState) !== "escaped";
@@ -214,7 +218,7 @@
     if (!db?.ref) throw new Error("LOOT_LIVE_DATABASE_REQUIRED");
     const encounterId = clean(options.encounterId) || await ensureEncounterId(options);
     const combatState = clone(options.combatState || await onceValue(db, ROOTS.combatState) || {});
-    const combatants = clone(options.combatants || await onceValue(db, ROOTS.combatants) || {});
+    const combatants = {...clone(options.combatants || await onceValue(db, ROOTS.combatants) || {}),...clone(await onceValue(db, ROOTS.defeated) || {})};
     const authoredUnits = clone(options.units || await onceValue(db, ROOTS.units) || {});
     const context = encounterContextFromState(combatState, options);
     const finalized = [];
@@ -282,6 +286,7 @@
       finalizedAt: options.now ?? Date.now(),
       corpseCount: finalized.length,
       open: true,
+      participants: clone(options.participants || {}),
     });
 
     return deepFreeze({ encounterId, finalized: deepFreeze(finalized), skipped: deepFreeze(skipped) });

@@ -548,26 +548,9 @@
 
         try {
           if (nuevaInstancia === "combate") {
-            const snapshot = await combatStateRef.once("value");
-            const existing = snapshot.val?.() || null;
-            if (!snapshot.exists() || existing?.phase === "ENDED" || existing?.active === false) {
-              await combatStateRef.set({
-                phase: "PRE_COMBAT_PLANNING",
-                round: 1,
-                active: true,
-                result: null,
-                outcome: null,
-                transition: null,
-                endedAt: null,
-                endedBy: null,
-                endReason: null,
-                updatedAt: global.firebase.database.ServerValue.TIMESTAMP
-              });
-              await db.ref("campaña/combate").update({
-                planningStartedAt: global.firebase.database.ServerValue.TIMESTAMP,
-                planningDuration: 60
-              });
-            }
+            if(!global.LuminousCombatSession?.start)throw Error('Recarga el panel antes de abrir un encuentro.');
+            await global.LuminousCombatSession.start({db,uid:global.firebase.auth().currentUser?.uid});
+            return;
           }
           await instanceRef.set(nuevaInstancia);
         } catch (error) {

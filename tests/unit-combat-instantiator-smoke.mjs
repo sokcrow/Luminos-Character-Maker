@@ -82,11 +82,11 @@ assert.ok(syncSource.includes('goblins.firebaseSkillPayload(schema)'), 'live Uni
 assert.ok(syncSource.includes('canonicalUpgradeNeeded'), 'auto-sync must retain canonical-vs-custom discrimination');
 assert.match(syncSource, /existing\?\.metadata\?\.canonicalUnit\s*!==\s*true/, 'custom Firebase Units must not be treated as canonical auto-upgrade candidates');
 assert.ok(syncSource.includes("'js/unit-combat-instantiator.js'"), 'live Unit Library path must load the universal instantiator');
-assert.ok(syncSource.includes("'js/combat-v073-unit-deploy-bridge.js'"), 'live Unit Library path must install the FIELD deployment bridge');
+assert.ok(syncSource.includes("'js/combat-v073-unit-deploy-bridge.js?v=20261021-encounter-3'"), 'live Unit Library path must install the FIELD deployment bridge');
 
 const bridgeSource = fs.readFileSync('js/combat-v073-unit-deploy-bridge.js', 'utf8');
 assert.ok(bridgeSource.includes("'#c073-enemy,#c073-ally'"), 'DM ENEMY/ALLY controls must route through the new bridge');
-assert.ok(bridgeSource.includes("ref('campaña/combate/combatants').update(updates)"), 'instantiated Units must enter the canonical FIELD roster');
+assert.ok(bridgeSource.includes('LuminousCombatSession.deploy('), 'instantiated Units must enter the canonical capped deployment transaction');
 assert.ok(!bridgeSource.includes('combatEngine.js'), 'Unit deployment bridge must not revive legacy CombatEngine');
 
 console.log('Unit Combat Instantiator smoke: OK');
