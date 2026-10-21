@@ -58,8 +58,9 @@
   $('combat-entry-end').onclick=()=>{$('combat-entry-menu').open=false;$('combat-entry-end-dialog').showModal();};
   $('combat-entry-confirm-end').onclick=()=>action(async()=>{
     const consoleApi=$('combat-entry-view')?.contentWindow?.LuminousBattleViewerDmConsole074;
-    await api.end({result:$('combat-entry-result').value,finishEncounter:consoleApi?.finishEncounter});
     $('combat-entry-end-dialog').close();
+    try{await api.end({result:$('combat-entry-result').value,finishEncounter:consoleApi?.finishEncounter});}
+    catch(error){$('combat-entry-end-dialog').showModal();throw error;}
   });
   $('combat-entry-presentation').onchange=event=>{const value=event.target.value;return action(()=>api.presentation({db,value}));};
   $('combat-entry-signout').onclick=()=>action(()=>auth.signOut());

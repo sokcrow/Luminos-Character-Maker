@@ -105,6 +105,8 @@ test('Victory saves a real corpse and both outcomes close through production con
   }else await endEntry(p,result);
   await expect.poll(async()=> (await admin('campaña/combate/estado')).phase,{timeout:40000}).toBe('ENDED');
   await expect.poll(()=>f.evaluate(()=>document.getElementById('combat-encounter-result-overlay')?.dataset.result),{timeout:10000}).toBe(result);
+  if(result==='victory')await expect(p.locator('#combat-entry-end-dialog')).not.toBeVisible();
+  else await expect(p.locator('#dm-combat-end-modal')).not.toBeVisible();
   await screenshot(p,info,result+'-result');
   await expect.poll(()=>admin('campaña/estado_mundo/instancia_activa'),{timeout:15000}).toBe('teatro');
   if(result==='victory'){

@@ -14,6 +14,8 @@ Publica `database.rules.json` de esta versión para habilitar los encuentros sep
 
 `npm run package:combat-release` prepara las páginas, recursos, reglas y un manifiesto de integridad para publicar la versión integrada. No despliega ni modifica la campaña. Consulta [acceso y publicación](docs/combat-phase6-playable-release.md).
 
+La presentación completa transmite cada animación a los jugadores mientras el DM resuelve el turno. Al recuperar una ronda interrumpida se retoma el último punto confirmado, con una nueva generación de reproducción para descartar animaciones parciales. Victoria y Derrota muestran su resultado antes de volver a teatro. Publica las reglas completas de esta versión: el cierre con botín requiere los permisos del DM para `loot_instances`, `loot_postcombat` y `loot_encounters`, también dentro de los encuentros separados. Si un cierre falla, el DM puede reintentarlo sin repetir los efectos de fin de encuentro.
+
 ## Política de pruebas
 
 El repositorio no mantiene una suite de tests permanente. Cuando una tarea necesite validación automatizada, los tests se crean de forma temporal para esa implementación o corrección y se eliminan antes de completar el cambio. No deben agregarse tests, workflows de test ni dependencias de testing persistentes al repositorio.
