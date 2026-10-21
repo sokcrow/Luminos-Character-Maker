@@ -58,10 +58,11 @@ test('Story: READY, same-player PC/phone, Clash, damage, items, global actions a
  const dp=await dc.newPage(),pp=await pc.newPage(),cp=await cc.newPage();await login(pp,player);const pf=await frame(pp);await login(cp,player);const cf=await frame(cp);
  await choose(cf);await expect.poll(async()=> (await admin('campaña/combate/readyPlayers/p1'))?.ready,{timeout:12000}).toBe(true);
  await expect.poll(()=>pf.evaluate(()=>window.LuminousCombat073.uiState().ready),{timeout:15000}).toBe(true);
- await info.attach('phone-ready',{body:await cp.screenshot(),contentType:'image/png'});
+ await info.attach('phone-ready',{path:await cp.screenshot({path:info.outputPath('phone-ready.png')}).then(()=>info.outputPath('phone-ready.png')),contentType:'image/png'});
  await login(dp,dm);const df=await frame(dp);
  await expect.poll(async()=> (await admin('campaña/combate/estado'))?.round,{timeout:60000}).toBe(2);
  expect((await admin('campaña/combate/combatants/kobold')).hp).toBeLessThan(1000);
+ expect(JSON.stringify(await admin('campaña/combate/playback/current'))).toContain('ClashStarted');
  await expect.poll(()=>pf.evaluate(()=>window.LuminousCombat073.uiState().round),{timeout:20000}).toBe(2);
  for(const kind of ['skill','item','global']){
   const round=(await admin('campaña/combate/estado')).round;
@@ -70,7 +71,7 @@ test('Story: READY, same-player PC/phone, Clash, damage, items, global actions a
   await expect.poll(async()=> (await admin('campaña/combate/estado'))?.round,{timeout:60000}).toBe(round+1);
  }
  const state=await admin('campaña/combate/estado');expect(state.active).toBe(true);expect(state.round).toBe(5);expect(await admin('campaña/combate/readyPlayers')).toBeNull();
- await info.attach('dm-round-five',{body:await dp.screenshot(),contentType:'image/png'});
+ await info.attach('dm-round-five',{path:await dp.screenshot({path:info.outputPath('dm-round-five.png')}).then(()=>info.outputPath('dm-round-five.png')),contentType:'image/png'});
  await df.evaluate(()=>window.LuminousBattleViewerDmConsole074.finishEncounter('cancelled',{confirm:false,displayMs:0,blackoutMs:0}));
  expect((await admin('campaña/combate/estado')).phase).toBe('ENDED');expect(await admin('campaña/estado_mundo/instancia_activa')).toBe('teatro');
  console.log('STORY_PASS',JSON.stringify({round:state.round,activeBetweenRounds:state.active,onlyOneOfEightRequired:true,phoneAndPc:true,skillsItemsGlobals:true}));
@@ -83,14 +84,14 @@ test('Online and local encounters keep independent state and authority',async({b
  const context=await setupContext(browser,true),page=await context.newPage();await login(page,player,'/mirror.html?encounter=mirror-a');const f=await frame(page);
  expect(await f.evaluate(()=>window.LuminousCombatLiveAdapter073.state.isAuthority)).toBe(true);
  expect(await f.evaluate(()=>window.LuminousCombatLiveAdapter073.state.role)).toBe('player');
- await choose(f);await expect.poll(async()=> (await admin('campaña/encuentros/mirror-a/state/campaña/combate/estado'))?.round,{timeout:60000}).toBe(2);
+ await page.screenshot({path:info.outputPath('online-host-before-ready.png')});await choose(f);await expect.poll(async()=> (await admin('campaña/encuentros/mirror-a/state/campaña/combate/estado'))?.round,{timeout:60000}).toBe(2);
  expect(await admin('campaña/combate')).toEqual(untouched);expect((await admin('campaña/encuentros/mirror-b/state/campaña/combate/estado')).round).toBe(1);
  const scoped=await admin('campaña/encuentros/mirror-a');scoped.mode='local';scoped.state['campaña'].combate.estado.encounterId='local-a';
  const localContext=await setupContext(browser),lp=await localContext.newPage();await localContext.addInitScript(record=>localStorage.setItem('luminous:encounter:local-a',JSON.stringify(record)),scoped);
  await lp.goto(base+'/mirror.html?encounter=local-a&mode=local');const lf=await frame(lp);const beforeRequests=production.length;
  await choose(lf);await expect.poll(()=>lf.evaluate(()=>window.LuminousCombat073.uiState().round),{timeout:60000}).toBe(3);
  expect(production.length).toBe(beforeRequests);expect(await admin('campaña/combate')).toEqual(untouched);expect((await admin('campaña/encuentros/mirror-a/state/campaña/combate/estado')).round).toBe(2);
- await info.attach('local-next-turn',{body:await lp.screenshot(),contentType:'image/png'});
+ await info.attach('local-next-turn',{path:await lp.screenshot({path:info.outputPath('local-next-turn.png')}).then(()=>info.outputPath('local-next-turn.png')),contentType:'image/png'});
  console.log('ISOLATION_PASS',JSON.stringify({storyUnchanged:true,otherEncounterUnchanged:true,hostCanPlayAndResolve:true,localNextTurn:3}));
  await Promise.all([context.close(),localContext.close()]);
 });
