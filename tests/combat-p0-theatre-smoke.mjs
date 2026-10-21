@@ -103,6 +103,11 @@ assert.match(source('hoja_de_DM.html'), /id="btn-start-encounter"[^>]*>INICIAR C
 assert.match(source('pantalla_dm.html'), /id="dm-studio-start-encounter"[^>]*>INICIAR COMBATE/, 'DM Studio Combat tab must also initiate a real encounter');
 assert.match(source('js/instance-control.js'), /startButton\?\.addEventListener\("click"/, 'director start button must have a canonical handler');
 assert.match(source('pantalla_dm.html'), /LuminousCombatSession\.start\(\{db,uid:user\.uid\}\)/, 'studio start must use the canonical encounter session, not a local mock');
+assert.match(source('pantalla_dm.html'), /const directorOpened = openLiveDirector\(\);[\s\S]*?dmStudioStartPending = \(async/, 'Studio START must open/focus the Director synchronously, not after the Firebase request');
+assert.match(source('pantalla_dm.html'), /window\.open\('hoja_de_DM\.html', 'DirectorDashboard'/, 'Studio must connect to the live Director with Theatre and Combat');
+assert.match(source('pantalla_dm.html'), /btn-modo-director'\)\.addEventListener\('click', openLiveDirector\)/, 'Enter Live Session and Start Combat must share the same popup/window handle');
+assert.match(source('js/instance-control.js'), /\? "combat_theatre"/, 'Theatre must stay an interlude while an encounter is active');
+assert.match(source('js/instance-control.js'), /await instanceRef\.set\(nuevaInstancia\)/, 'Director switches must use the shared campaign instance');
 assert.match(source('js/instance-control.js'), /radio\.addEventListener\("click"/, 'already-selected Combat control must respond to another click');
 assert.match(source('js/dm-on-game-startup-gate.js'), /"campaña\/combate",/, 'DM startup gate must not deadlock the Combat-root transaction listener');
 assert.match(source('js/dm-on-game-startup-gate.js'), /"campaña\/combate\/estado",/, 'Combat state must be observed for START and REANUDAR');

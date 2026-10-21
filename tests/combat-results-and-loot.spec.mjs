@@ -241,3 +241,75 @@ test('DM dashboard: INICIAR COMBATE starts a fresh fight after a sealed victory 
  expect(resumed.combatants['test-ally'].hp).toBe(47);
  await context.close();
 });
+
+test('Studio Combat uses the same live Theatre/Combat Director, retaining encounter while switching views',async({browser})=>{
+ test.setTimeout(120000);
+ const campaign=clone(initial);
+ campaign.estado_mundo.instancia_activa='teatro';
+ campaign.combate.estado.round=6;
+ // The live adapter syncs the sheet's current HP into its corresponding
+ // combatant on initial hydration; seed consistent canonical fixtures.
+ campaign.jugadores.p1.hp=43;
+ campaign.combate.combatants['player:p1'].hp=43;
+ await admin('campaña','PUT',campaign);
+ const context=await setupContext(browser);
+ try {
+ const studio=await context.newPage();
+ // pantalla_dm.html deliberately redirects unauthenticated visitors to index:
+ // sign in from the established Combat entry first, then enter the DM Studio
+ // with the same persisted Firebase auth state.
+ await studio.goto(base+'/hoja_de_DM.html',{waitUntil:'domcontentloaded'});
+ await studio.evaluate(async credentials=>{
+   await firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+   await firebase.auth().signInWithEmailAndPassword(credentials.email,credentials.password);
+ },dm);
+ await studio.waitForFunction(uid=>firebase.auth().currentUser?.uid===uid,dm.uid,{timeout:20000});
+ await studio.goto(base+'/pantalla_dm.html',{waitUntil:'domcontentloaded'});
+ try {
+   await studio.waitForFunction(()=>window.__luminousDmAuthReady===true,{},{timeout:20000});
+ } catch(error) {
+   const reason=await studio.evaluate(()=>({
+     href:location.href,authUid:window.firebase?.auth?.().currentUser?.uid||null,
+     authReady:window.__luminousDmAuthReady,dmLoading:document.querySelector('#dm-loading-overlay')?.textContent?.slice(0,280),
+     studioStartPresent:!!document.getElementById('dm-studio-start-encounter')
+   })).catch(()=>({href:studio.url()}));
+   console.error('STUDIO_AUTH_DIAGNOSTIC',JSON.stringify(reason));
+   throw error;
+ }
+ await studio.locator('button.dm-tab-btn[data-tab="tab-combate"]').click({timeout:25000});
+ const start=studio.locator('#dm-studio-start-encounter');
+ await expect(start).toBeVisible({timeout:25000});
+ const directorPromise=context.waitForEvent('page',{timeout:25000});
+ await start.click({timeout:20000});
+ const director=await directorPromise;
+ await director.waitForLoadState('domcontentloaded');
+ expect(new URL(director.url()).pathname).toBe('/hoja_de_DM.html');
+ await expect.poll(()=>admin('campaña/estado_mundo/instancia_activa'),{timeout:30000}).toBe('combate');
+ await expect(director.locator('#modulo-combate')).toHaveClass(/active-module/,{timeout:30000});
+ const before=await admin('campaña/combate');
+ expect(before.estado.encounterId).toBe('story');
+ expect(before.estado.round).toBe(6);
+ expect(before.combatants['player:p1'].hp).toBe(43);
+ // Theatre is an interlude, not End Combat and not a disconnected second session.
+ await director.locator('input[name="instancia"][value="teatro"]').check({timeout:15000});
+ await expect.poll(()=>admin('campaña/estado_mundo/instancia_activa'),{timeout:20000}).toBe('combat_theatre');
+ await expect(director.locator('#modulo-teatro')).toHaveClass(/active-module/,{timeout:20000});
+ const interlude=await admin('campaña/combate');
+ expect(interlude.estado.encounterId).toBe(before.estado.encounterId);
+ expect(interlude.estado.round).toBe(6);
+ expect(interlude.combatants['player:p1'].hp).toBe(43);
+ await director.locator('input[name="instancia"][value="combate"]').check({timeout:15000});
+ await expect.poll(()=>admin('campaña/estado_mundo/instancia_activa'),{timeout:20000}).toBe('combate');
+ await expect(director.locator('#modulo-combate')).toHaveClass(/active-module/,{timeout:20000});
+ const resumed=await admin('campaña/combate');
+ expect(resumed.estado.encounterId).toBe(before.estado.encounterId);
+ expect(resumed.estado.round).toBe(6);
+ expect(resumed.combatants['player:p1'].hp).toBe(43);
+ const samePages=context.pages().length;
+ await start.click({timeout:15000});
+ expect(context.pages().length).toBe(samePages);
+ await expect.poll(()=>admin('campaña/estado_mundo/instancia_activa'),{timeout:20000}).toBe('combate');
+ } finally {
+   await context.close();
+ }
+});
