@@ -7673,7 +7673,18 @@ async function executeQueueEntryRules(entry,queue,resolvedKeys){
   }else if(isSkillOrSpellPlan(plan)){
     await resolveUnopposedCoinAction(entry)
   }else if(controller==='player'&&plan.type==='items'){
-    if(!consumeItem(plan.data)){
+    if(window.LuminousCombatLiveMode){
+      const itemRuntime=window.LuminousItemRuntime,ref=String(plan.data?.instanceId||plan.data?.itemId||plan.data?.id||''),
+            inventory=ownerUnit.inventario_activo||ownerUnit.activeInventory||ownerUnit.inventory||{},
+            liveItem=Object.entries(inventory).find(([key,item])=>String(item?.instanceId||item?.instance_id||key)===ref)?.[1],
+            target=combatData[plan.targetId]||ownerUnit;
+      if(!itemRuntime?.useItem)throw new Error('ITEM_RUNTIME_UNAVAILABLE');
+      const result=liveItem?itemRuntime.useItem(ownerUnit,liveItem,{phase:'combat',target,ignoreActionCost:true}):{used:false,reason:'active_inventory_item_missing'};
+      combatStepRuntime().emit('ItemUseResolved',entry,{used:result.used===true,reason:result.reason||null,itemId:ref});
+      setCombatantHP(target.id,target.hp);setCombatantSP(target.id,target.sp);
+      setStatus(`TURN ${round} · ${ownerName} · ${name} · ${result.used?'usado':result.reason||'sin efecto'}`);
+      await wait(720)
+    }else if(!consumeItem(plan.data)){
       setStatus(`TURN ${round} · ${ownerName} · ${name} agotado · omitido`);
       await wait(520)
     }else{
