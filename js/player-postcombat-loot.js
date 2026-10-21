@@ -251,12 +251,16 @@
     try {
       await live().ensureDependencies();
       const playerId = resolvePlayerId();
-      const playerSnap = await state.db.ref(`campaña/jugadores/${playerId}`).once("value");
+      // Read the character and validate access simultaneously. These are
+      // independent reads; serial WAN round trips delayed the first loot Coin.
+      const [playerSnap] = await Promise.all([
+        state.db.ref(`campaña/jugadores/${playerId}`).once("value"),
+        // Keep authorization strict: do not start a Coin roll until Firebase
+        // confirms ownership and participation in this victory.
+        live().checkPlayerLootAccess({db:state.db,playerId,lootInstanceId}),
+      ]);
       const actor = clone(playerSnap.val() || {});
       actor.id = actor.id || playerId;
-      // Validate the actual Firebase ownership and encounter record before
-      // showing a coin roll that cannot be submitted by this account.
-      await live().checkPlayerLootAccess({db:state.db,playerId,lootInstanceId});
       const checkResult = await animatedCheck(actor, actionId, { targetResourceId });
       const result = await live().requestAction({
         db: state.db,
