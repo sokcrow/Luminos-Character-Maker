@@ -3093,7 +3093,7 @@ window.processEntitiesData = function(entities) {
         <div class="panel-cyber" style="margin-top: 20px;">
           <h3>Gestión de Combate</h3>
           <div class="dm-combat-start-control" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:10px 0 18px;">
-            <button id="dm-studio-start-encounter" type="button" class="btn-cyber" style="min-height:44px;background:#75301a;color:#fff0ce;border:1px solid #f0a66c;font-weight:bold;">INICIAR COMBATE</button>
+            <button id="dm-studio-start-encounter" type="button" class="btn-cyber" aria-label="Iniciar o reanudar combate y abrir la sesión en vivo con Teatro y Combate" style="min-height:44px;background:#75301a;color:#fff0ce;border:1px solid #f0a66c;font-weight:bold;">INICIAR COMBATE</button>
             <span id="dm-studio-start-encounter-status" role="status" aria-live="polite" style="font:600 12px/1.4 system-ui;color:#ffdda2;"></span>
           </div>
 
@@ -4558,24 +4558,48 @@ window.processEntitiesData = function(entities) {
       const auth = firebase.auth();
       const db = firebase.database();
 
-      // Same canonical encounter entry as the director dashboard; this button
-      // initiates the shared battle, not a local fake 7v7 preview.
+      // The Studio is a management screen; Theatre and Combat are two views
+      // of ONE live Director session in hoja_de_DM.html, never separate matches.
+      // Open synchronously from the click (before async Firebase checks) so
+      // browsers cannot silently block the live visor as an async popup.
+      let liveDirectorWindow = null;
+      function openLiveDirector() {
+        try {
+          if (!liveDirectorWindow || liveDirectorWindow.closed) {
+            liveDirectorWindow = window.open('hoja_de_DM.html', 'DirectorDashboard', 'width=1920,height=1080');
+          }
+          liveDirectorWindow?.focus?.();
+          return Boolean(liveDirectorWindow);
+        } catch(error) {
+          console.warn('La sesión en vivo no se pudo enfocar:', error);
+          return false;
+        }
+      }
       const dmStudioStart = document.getElementById('dm-studio-start-encounter');
       const dmStudioStartStatus = document.getElementById('dm-studio-start-encounter-status');
       let dmStudioStartPending = null;
       dmStudioStart?.addEventListener('click', () => {
-        if(dmStudioStartPending)return;
+        if (dmStudioStartPending) {
+          openLiveDirector();
+          return;
+        }
+        const user = auth.currentUser;
+        if (!user?.uid) {
+          dmStudioStartStatus.textContent = 'Inicia sesión con tu cuenta del DM antes de entrar a la sesión en vivo.';
+          return;
+        }
+        const directorOpened = openLiveDirector();
         dmStudioStartPending = (async () => {
-          const user = auth.currentUser;
-          if(!user?.uid)throw Error('Inicia sesión con tu cuenta del DM.');
           const configured = (await db.ref('campaña/config/dm_uid').once('value')).val();
           if(user.uid !== configured && user.uid !== 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1')
             throw Error('Esta cuenta no tiene permiso de DM para iniciar el combate.');
           if(!window.LuminousCombatSession?.start)throw Error('No se cargó el inicio de combate. Recarga la página.');
           dmStudioStart.disabled = true;
-          dmStudioStartStatus.textContent = 'Iniciando encuentro…';
+          dmStudioStartStatus.textContent = 'Conectando la sesión en vivo con el combate…';
           const result = await window.LuminousCombatSession.start({db,uid:user.uid});
-          dmStudioStartStatus.textContent = 'Combate abierto · usa Modo Director para ver el campo y desplegar unidades.';
+          dmStudioStartStatus.textContent = directorOpened ?
+            'Combate en sesión en vivo. Puedes alternar TEATRO y COMBATE sin terminar el encuentro.' :
+            'Combate abierto. Tu navegador bloqueó la sesión en vivo: pulsa ENTRAR A SESIÓN EN VIVO.';
           dmStudioStart.textContent = 'REANUDAR COMBATE';
           return result;
         })().catch(error => {
@@ -4587,9 +4611,7 @@ window.processEntitiesData = function(entities) {
         }).finally(() => {dmStudioStartPending=null;dmStudioStart.disabled=false;});
       });
 
-      document.getElementById('btn-modo-director').addEventListener('click', () => {
-        window.open('hoja_de_DM.html', 'DirectorDashboard', 'width=1920,height=1080');
-      });
+      document.getElementById('btn-modo-director').addEventListener('click', openLiveDirector);
 
       const DM_LOADING_SCENES = Object.freeze([
         {
