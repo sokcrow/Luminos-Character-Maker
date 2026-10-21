@@ -91,14 +91,22 @@
   async function ensureCatalogs(){
     if(catalogsReady())return true;
     if(state.loading)return state.loading;
-    state.loading=(async()=>{for(const src of CATALOG_SCRIPTS)if(!readyForScript(src))await loadScript(src);if(!catalogsReady())throw new Error('CATALOGS_NOT_READY');return true;})().finally(()=>{state.loading=null;});
+    state.loading=(async()=>{
+      // Ordered classic scripts (async=false) execute in declaration order,
+      // but their downloads can run concurrently instead of one RTT each.
+      await Promise.all(CATALOG_SCRIPTS.map(src=>readyForScript(src)?Promise.resolve():loadScript(src)));
+      if(!catalogsReady())throw new Error('CATALOGS_NOT_READY');return true;
+    })().finally(()=>{state.loading=null;});
     return state.loading;
   }
   async function ensureDeploymentRuntime(){
     await ensureCatalogs();
     if(global.LuminousUnitCombatInstantiator&&global.LuminousCombat073UnitDeployBridge)return true;
     if(state.deploymentLoading)return state.deploymentLoading;
-    state.deploymentLoading=(async()=>{for(const src of DEPLOYMENT_SCRIPTS)if(!readyForScript(src))await loadScript(src);return Boolean(global.LuminousUnitCombatInstantiator&&global.LuminousCombat073UnitDeployBridge);})().finally(()=>{state.deploymentLoading=null;});
+    state.deploymentLoading=(async()=>{
+      await Promise.all(DEPLOYMENT_SCRIPTS.map(src=>readyForScript(src)?Promise.resolve():loadScript(src)));
+      return Boolean(global.LuminousUnitCombatInstantiator&&global.LuminousCombat073UnitDeployBridge);
+    })().finally(()=>{state.deploymentLoading=null;});
     return state.deploymentLoading;
   }
   function mergePayloads(...payloads){
