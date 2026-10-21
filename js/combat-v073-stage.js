@@ -57,6 +57,7 @@
     // Ground, architecture, horizon and foreground must use EXACTLY the same
     // camera matrix as #battlefield; depth-only parallax made the map appear
     // fixed while sprites moved and broke their shared ground coordinates.
+    byId('game-container')?.classList.toggle('camera-manual', ['manual', 'touch'].includes(byId('battlefield')?.dataset.cameraMode));
     const matrix = `translate(${x}px,${y}px) scale(${scale})`;
     for (const layer of global.document?.querySelectorAll('.combat-stage-layer') || []) {
       layer.style.transform = matrix;
