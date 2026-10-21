@@ -34,6 +34,9 @@ await import("../js/loot-knowledge-runtime.js");
 await import("../js/loot-postcombat-runtime.js");
 await import("../js/loot-recovery-delivery-runtime.js");
 await import("../js/loot-live-postcombat-runtime.js");
+await import("../js/combat-participants.js");
+await import("../js/combat-deployment-runtime.js");
+await import("../js/combat-session-lifecycle.js");
 
 
 delete globalThis.window;
@@ -63,5 +66,54 @@ try{
  await assert.rejects(rival.db.ref('campaña/loot_postcombat/'+lootInstanceId+'/revision').set(99),/permission_denied/i);
  await assert.rejects(rival.db.ref('campaña/loot_requests/outsider/forbidden').set({uid:rival.uid,playerId:'outsider',lootInstanceId,actionId:'harvest',checkHeads:5,status:'pending',createdAt:Date.now()}),/permission_denied/i);
  console.log('Authenticated loot authority: archived corpse, inventory, currency, retry receipts and outsider denial passed.');
+ const session=LuminousCombatSession;
+ await session.start({db:dm.db,uid:dm.uid});
+ const units=Array.from({length:10},(_,i)=>({...unit,id:'enemy'+i,combatId:'enemy'+i,hp:12,defeated:false,isPlayer:false}));
+ units.push({id:'player:hunter',isPlayer:true,canonicalPlayerKey:'hunter',hp:1300,maxHp:1300,faction:'ally',uid:player.uid});
+ await session.deploy({db:dm.db,units});
+ let combat=(await dm.db.ref('campaña/combate').once('value')).val();
+ assert.equal(Object.values(combat.combatants).filter(u=>u.faction==='enemy').length,8);assert.equal(Object.keys(combat.reserves).length,2);
+ const reserveIds=Object.keys(combat.reserves).sort((a,b)=>combat.reserves[a].backupQueueOrder-combat.reserves[b].backupQueueOrder);
+ globalThis.LuminousCombatLiveAdapter073={state:{role:'dm',db:dm.db,round:1,combatants:combat.combatants},hydrateNow(){}};
+ globalThis.LuminousCombat073={combatants:()=>LuminousCombatLiveAdapter073.state.combatants};
+ await import('../js/combat-v073-deployment-bridge.js');
+ const bridge=LuminousCombatDeploymentBridge073;bridge.setReserveCache(combat.reserves);
+ try{
+  for(let i=0;i<2;i++){
+   const killed=Object.values(LuminousCombatLiveAdapter073.state.combatants).find(u=>u.faction==='enemy'&&!reserveIds.includes(u.id));killed.hp=0;
+   const transition=bridge.reconcileDefeatedRuntime({round:i+1});assert.equal(transition.transitions[0].replacement.key,reserveIds[i]);
+   await bridge.state.writeChain;combat=(await dm.db.ref('campaña/combate').once('value')).val();assert.equal(Object.keys(combat.defeated).length,i+1);assert.equal(Object.values(combat.combatants).filter(u=>u.faction==='enemy').length,8);
+  }
+ }finally{bridge.stop();}
+ const firstId=combat.estado.encounterId;
+ await dm.db.ref('campaña/combate/estado/round').set(29);
+ const closing=await session.claimEnd({db:dm.db,uid:dm.uid,result:'victory'});
+ const waveLoot=await live.finalizeEncounterLoot({db:dm.db,encounterId:firstId,participants:closing.participants,result:'victory'});assert.equal(waveLoot.finalized.length,2);
+ await session.commitEnd({db:dm.db,uid:dm.uid,result:'victory',token:closing.estado.ending.token});
+ assert.equal((await dm.db.ref('campaña/combate/estado/round').once('value')).val(),1);
+ const secondLootId=waveLoot.finalized[0].lootInstanceId;
+ await dm.db.ref('campaña/jugadores/hunter/inventoryRules').set({activeSlotLimit:0,stashSlotLimit:0});
+ const full=await live.requestAction({...options,lootInstanceId:secondLootId});assert.equal(full.delivery.delivered,false);
+ const interaction=(await dm.db.ref('campaña/loot_postcombat/'+secondLootId).once('value')).val();
+ const deliveryId=interaction.pendingDeliveries[0].id;
+ const claimOptions={...options,lootInstanceId:secondLootId,actionId:'claim',deliveryId};
+ const stillFull=await live.requestAction(claimOptions);assert.equal(stillFull.delivered,false);
+ await dm.db.ref('campaña/jugadores/hunter/inventoryRules').set({activeSlotLimit:20,stashSlotLimit:80});
+ const resumed=await live.requestAction(claimOptions);assert.equal(resumed.delivered,true);
+ const receiptCount=Object.keys((await dm.db.ref('campaña/jugadores/hunter/lootRecoveryReceipts').once('value')).val()).length;
+ await live.requestAction(claimOptions);assert.equal(Object.keys((await dm.db.ref('campaña/jugadores/hunter/lootRecoveryReceipts').once('value')).val()).length,receiptCount);
+ await session.start({db:dm.db,uid:dm.uid});
+ combat=(await dm.db.ref('campaña/combate').once('value')).val();assert.notEqual(combat.estado.encounterId,firstId);assert.equal(combat.estado.round,1);
+ for(const key of ['combatants','reserves','defeated','departed','participants','authority','playback','readyPlayers','plannedActions'])assert.equal(combat[key]||null,null);
+ assert.equal((await dm.db.ref('campaña/loot_encounters/'+firstId+'/meta/corpseCount').once('value')).val(),2);
+ for(const result of ['defeat','cancelled']){
+  const claimed=await session.claimEnd({db:dm.db,uid:dm.uid,result});
+  await session.commitEnd({db:dm.db,uid:dm.uid,result,token:claimed.estado.ending.token});
+  await session.start({db:dm.db,uid:dm.uid});assert.equal((await dm.db.ref('campaña/combate/estado/round').once('value')).val(),1);
+ }
+ console.log('Authenticated encounters: 8 field + 2 FIFO reserves, archived wave loot, capacity resume, round-one rollover, defeat and cancellation passed.');
 }catch(error){console.log('REQUEST_DIAGNOSTIC',JSON.stringify((await dm.db.ref('campaña/loot_requests').once('value')).val()));throw error;}
 finally{clearTimeout(timeout);live.stopAuthority(dm.db);for(const c of [dm,player,rival])c.db.goOffline();await Promise.all([dm,player,rival].map(c=>c.app.delete()));}
+
+// Firebase 8 retains auth refresh handles after deleting its test apps.
+process.exit(0);
