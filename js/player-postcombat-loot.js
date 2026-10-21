@@ -20,6 +20,7 @@
     combatState: {},
     instance: null,
     autoOpened: null,
+    renderGeneration: 0,
   };
 
   const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
@@ -172,11 +173,15 @@
   async function render() {
     const list = global.document?.getElementById("postcombat-loot-list");
     if (!list || !state.db || !state.activeEncounterId) return;
-    list.innerHTML = '<div class="loot-empty">Revisando restos disponibles…</div>';
+    const generation=++state.renderGeneration;
+    if(!list.children.length)list.innerHTML = '<div class="loot-empty">Revisando restos disponibles…</div>';
     const encounter = state.encounters[state.activeEncounterId] || {};
     if (encounter.meta?.open === false) { close(); return; }
-    const corpses = await Promise.all(Object.values(encounter.corpses || {}).map(readCorpse));
-    const playerSnap = await state.db.ref(`campaña/jugadores/${resolvePlayerId()}`).once("value");
+    const [corpses,playerSnap] = await Promise.all([
+      Promise.all(Object.values(encounter.corpses || {}).map(readCorpse)),
+      state.db.ref(`campaña/jugadores/${resolvePlayerId()}`).once("value"),
+    ]);
+    if(generation!==state.renderGeneration||!state.open)return;
     const actor = playerSnap.val() || {};
     actor.id = actor.id || resolvePlayerId();
 
@@ -277,7 +282,6 @@
         setMessage("La acción no tuvo éxito. El cadáver no generó botín nuevo; simplemente no recuperaste nada con este intento.");
       }
       await refreshEncounters();
-      await render();
     } finally {
       state.busy = false;
     }
@@ -297,7 +301,6 @@
       if (result.delivered) setMessage(result.duplicate ? "La recuperación ya estaba acreditada; se confirmó sin duplicarla." : "Recuperación pendiente entregada.");
       else setMessage("Todavía no hay espacio suficiente para recibir esa recuperación.", true);
       await refreshEncounters();
-      await render();
     } finally {
       state.busy = false;
     }
@@ -340,6 +343,7 @@
 
   function close() {
     state.open = false;
+    state.renderGeneration++;
     const modal = global.document?.getElementById(MODAL_ID);
     modal?.classList.remove("open");
     modal?.setAttribute("aria-hidden", "true");

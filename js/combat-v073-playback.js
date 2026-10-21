@@ -13,20 +13,32 @@
         if (row.schemaVersion !== SCHEMA || row.engineVersion !== ENGINE || row.generation !== generation)
           throw new Error('PLAYBACK_INCOMPATIBLE');
         const events = Object.values(row.events || {});
-        for (const event of events) {
+        for (let index=0;index<events.length;) {
           if(stopped)return;
-          if (event.sequence !== eventCursor + 1) throw new Error('PLAYBACK_EVENT_GAP');
-          // State is replaced with DM values. Damage, costs and status helpers
-          // are never called at a presentation/impact marker.
-          if (event.combatants) apply(copy(event.combatants));
-          else for (const change of event.changes || []) if (change.after) apply({ [change.unitId]: copy(change.after) });
-          await onEvent(copy(event));
-          if (event.type === 'Presentation') await present(event.cue, copy(event.args || []), row);
-          eventCursor = event.sequence;
+          const first=events[index],group=[first];index++;
+          // The authority rolls both Clash sides together. Consume their
+          // adjacent Coin cues together too, rather than playing A then B and
+          // accumulating one extra animation per Coin on every viewer.
+          while(first.type==='Presentation'&&first.cue==='powerCoin'&&index<events.length){
+            const next=events[index];
+            if(next.type!=='Presentation'||next.cue!=='powerCoin'||next.args?.[1]?.index!==first.args?.[1]?.index)break;
+            group.push(next);index++;
+          }
+          const presentations=[];
+          for(const event of group){
+            if (event.sequence !== eventCursor + 1) throw new Error('PLAYBACK_EVENT_GAP');
+            if (event.combatants) apply(copy(event.combatants));
+            else if(event.changes?.length) apply(Object.fromEntries(event.changes.filter(change=>change.after).map(change=>[change.unitId,copy(change.after)])));
+            await onEvent(copy(event));
+            if(stopped)return;
+            if (event.type === 'Presentation') presentations.push(present(event.cue, copy(event.args || []), row));
+            eventCursor = event.sequence;
+          }
+          await Promise.all(presentations);
         }
         if(stopped)return;
         if (Number(row.eventCursor) !== eventCursor) throw new Error('PLAYBACK_CHECKPOINT_CURSOR');
-        apply(copy(row.combatants || {}));
+        if(row.combatants) apply(copy(row.combatants));
         pending.delete(row.seq); cursor = row.seq;
         if (row.type === 'round_complete') await finish(row);
       }

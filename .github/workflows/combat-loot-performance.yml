@@ -13,10 +13,19 @@ jobs:
           node-version: '20'
       - run: npm install --no-save @playwright/test@1.55.0 firebase@8.10.1 firebase-tools@14.19.1
       - run: npx playwright install --with-deps chromium
-      - name: Browser combat and loot, 250ms Firebase acknowledgements and 4x CPU
-        run: npx firebase emulators:exec --project demo-combat-results --only auth,database --config combat-results-firebase.json 'PERFORMANCE_BASELINE=1 npx playwright test tests/combat-loot-performance.spec.mjs --workers=1 --reporter=line'
+      - run: node tests/combat-presentation-transport-smoke.mjs
+      - name: Compare shipped baseline and candidate with identical browser workload
+        shell: bash
+        run: |
+          git diff ae3fc18866bf94a47d454e974e5a4f5a10f7a375 HEAD -- js Battle-viewer.html combate.html mirror.html pantalla_dm.html hoja_personaje.html hoja_de_DM.html > /tmp/combat-performance.patch
+          git restore --source=ae3fc18866bf94a47d454e974e5a4f5a10f7a375 -- js Battle-viewer.html combate.html mirror.html pantalla_dm.html hoja_personaje.html hoja_de_DM.html
+          npx firebase emulators:exec --project demo-combat-results --only auth,database --config combat-results-firebase.json 'PERFORMANCE_BASELINE=1 npx playwright test tests/combat-loot-performance.spec.mjs --output=perf-baseline --workers=1 --reporter=line'
+          git apply /tmp/combat-performance.patch
+          npx firebase emulators:exec --project demo-combat-results --only auth,database --config combat-results-firebase.json 'npx playwright test tests/combat-loot-performance.spec.mjs --output=perf-candidate --workers=1 --reporter=line'
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: combat-loot-performance
-          path: test-results
+          path: |
+            perf-baseline
+            perf-candidate

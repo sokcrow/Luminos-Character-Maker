@@ -53,8 +53,8 @@
       assertActive();
       if (capture) {
         emit('Presentation', null, { cue: name, args: args.map(presentationValue), combatants: snapshot() });
-        // Deliver the committed result before its local animation, so every
-        // viewer can present the same cue while the authority presents it.
+        // Enqueue the result before local animation. Transport acknowledgements
+        // are drained at action checkpoints, outside the animation clock.
         await publish();
       }
       if (enabled) { notify(onPresentation, name, args); await presentation[name]?.(...args); }

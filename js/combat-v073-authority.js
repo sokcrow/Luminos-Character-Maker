@@ -18,7 +18,7 @@
     started:false,current:{},seed:0,cursor:0,rngState:0,
     readyRows:{},readyLoaded:false,listenCleanup:[],lastStartError:'',planningRepair:null,
     authorityRef:null,authorityHandler:null,readyRef:null,readyHandler:null,retryTimer:null,autoStartTimer:null,
-    lastCheckpointSeq:0,writeChain:Promise.resolve(),executionChain:Promise.resolve(),hooks:new Map(),localActionSeq:0,localDigests:new Map(),pendingRemoteCheckpoints:new Map(),inFlightActions:0,
+    presentationTimer:null,writeFailure:null,lastCheckpointSeq:0,writeChain:Promise.resolve(),executionChain:Promise.resolve(),hooks:new Map(),localActionSeq:0,localDigests:new Map(),pendingRemoteCheckpoints:new Map(),inFlightActions:0,
     originalStartRound:null,originalBuildQueue:null,originalCoinEngine:null,runningLocal:false,preparingRound:false,remoteStart:false,autoStartedRound:0,pendingFinalSnapshot:null,resumeRuntime:null,lastExecutionJson:null,executingGeneration:null
   };
 
@@ -225,20 +225,37 @@
   }
   function receiveCheckpoint(row){const seq=Math.max(0,Number(row?.seq)||0);if(!seq||Number(row.round)!==Number(adapterState()?.round)||isDm())return;state.pendingRemoteCheckpoints.set(seq,clone(row));reconcileCheckpoint(seq);}
   function publishActionCheckpoint(type='action'){
-    if(!isDm()||norm(state.current?.phase)!=='running')return false;const s=adapterState();if(!s?.db?.ref)return false;const seq=state.localActionSeq,snapshot=snapshotRuntime(),row={round:Number(state.current.round)||Number(s.round)||1,seq,actionSeq:state.localActionSeq,type,rngCursor:state.cursor,digest:checkpointDigest(snapshot,state.current.round),combatants:snapshot,updatedAt:serverTime()};state.lastCheckpointSeq=Math.max(state.lastCheckpointSeq,seq);state.current.checkpoint=row;
+    if(!isDm()||norm(state.current?.phase)!=='running')return false;flushPresentation();const s=adapterState();if(!s?.db?.ref)return false;const seq=state.localActionSeq,snapshot=snapshotRuntime(),row={round:Number(state.current.round)||Number(s.round)||1,seq,actionSeq:state.localActionSeq,type,rngCursor:state.cursor,digest:checkpointDigest(snapshot,state.current.round),combatants:snapshot,updatedAt:serverTime()};state.lastCheckpointSeq=Math.max(state.lastCheckpointSeq,seq);state.current.checkpoint=row;
     if(batchMode()&&state.lastExecutionJson)row.executionJson=state.lastExecutionJson;
     const batches=batchMode()?playback().batchUpdates(row):{};
     const updates={[`${ROOT.current}/checkpoint`]:row,...playerVitalFirebaseUpdates(snapshot),...batches,...(batchMode()?resourceFirebaseUpdates(snapshot):{})};
     state.writeChain=state.writeChain.then(()=>s.db.ref().update(batchMode()?playback().commitUpdates(updates):updates));return row;
   }
   function queueCheckpoint(type='state'){return publishActionCheckpoint(type);}
+  function flushPresentation(){
+    if(state.presentationTimer===null)return;
+    global.clearTimeout(state.presentationTimer);state.presentationTimer=null;
+    if(state.writeFailure)throw state.writeFailure;
+    playback().assertOwner(state.current);
+    // Events carry exact state deltas. A full roster/inventory in every visual
+    // envelope repeats the same data and forces needless consumer renders.
+    const row={round:Number(state.current.round),actionSeq:state.localActionSeq,type:'presentation',rngCursor:state.cursor,updatedAt:serverTime()};
+    const updates=playback().batchUpdates(row);
+    // Firebase queues writes in invocation order. Submit now, while animation
+    // runs; drain acknowledgements at the completed-action recovery barrier.
+    const pending=adapterState().db.ref().update(updates);
+    state.writeChain=Promise.all([state.writeChain,pending]).then(()=>{});
+    state.writeChain.catch(error=>{state.writeFailure=error;});
+  }
   function publishPresentation(){
     if(!isDm()||!batchMode()||!state.runningLocal||!state.executingGeneration)return;
+    if(state.writeFailure)throw state.writeFailure;
     playback().assertOwner(state.current);
-    const row={round:Number(state.current.round),actionSeq:state.localActionSeq,type:'presentation',rngCursor:state.cursor,combatants:snapshotRuntime(),updatedAt:serverTime()};
-    const updates=playback().batchUpdates(row);
-    state.writeChain=state.writeChain.then(()=>adapterState().db.ref().update(updates));
-    return state.writeChain;
+    // Coalesce simultaneous Coin sides and zero-duration cues in one frame.
+    // The animation clock never waits for a network acknowledgement.
+    if(state.presentationTimer===null)state.presentationTimer=global.setTimeout(()=>{
+      try{flushPresentation();}catch(error){state.writeFailure=error;setStatus('No se pudo confirmar el turno. Reanuda desde el último resultado confirmado.');}
+    },16);
   }
 
   function wrapSyncMechanic(name,{deterministic=true}={}){const original=global[name];if(typeof original!=='function'||original.__luminousAuthorityWrapped)return false;const wrapped=function(...args){return deterministic?withAuthorityRandom(()=>original.apply(this,args)):withPrivateRandom(()=>original.apply(this,args));};wrapped.__luminousAuthorityWrapped=true;wrapped.__luminousAuthorityOriginal=original;global[name]=wrapped;state.hooks.set(name,original);if(global.LuminousCombatHUD?.[name]===original)global.LuminousCombatHUD[name]=wrapped;return true;}
@@ -297,7 +314,7 @@
 
   async function setRunning(current){
     const s=adapterState(),startedAt=serverTime(),updates={};global.LuminousCombatStepRuntime?.capturePresentation?.(false);if(playback()?.enabled(current))Object.assign(updates,playback().beginUpdates(current));updates[`${ROOT.current}/phase`]='running';updates[`${ROOT.current}/startedAt`]=startedAt;Object.assign(updates,stateUpdates({phase:'COMBAT',active:true,round:Number(current.round)||Number(s.round)||1,authorityUid:s.uid,seed:current.seed,updatedAt:serverTime()}));await s.db.ref().update(updates);
-    state.current={...current,phase:'running',startedAt:Date.now(),checkpoint:null};state.lastCheckpointSeq=0;state.localActionSeq=0;state.localDigests.clear();state.pendingRemoteCheckpoints.clear();state.inFlightActions=0;state.executionChain=Promise.resolve();state.writeChain=Promise.resolve();resetRandom(current.seed,0);return state.current;
+    state.current={...current,phase:'running',startedAt:Date.now(),checkpoint:null};state.lastCheckpointSeq=0;state.localActionSeq=0;state.localDigests.clear();state.pendingRemoteCheckpoints.clear();state.inFlightActions=0;state.executionChain=Promise.resolve();state.writeChain=Promise.resolve();state.writeFailure=null;resetRandom(current.seed,0);return state.current;
   }
   function domRound(fallback){const node=global.document?.getElementById?.('round'),value=Math.trunc(Number(node?.textContent));return Number.isFinite(value)&&value>0?value:fallback;}
   function combatantFirebaseUpdates(snapshot){const updates={};for(const [id,row] of Object.entries(snapshot||{})){if(batchMode()&&!adapterState()?.combatants?.[id])continue;for(const [key,value] of Object.entries(row||{}))updates[`${ROOT.combatants}/${id}/${key}`]=value;updates[`${ROOT.combatants}/${id}/actionSlotIndex`]=Object.fromEntries(Array.from({length:Math.max(1,Number(row.actionSlots)||1)},(_,i)=>[String(i),true]));}return updates;}
@@ -335,7 +352,7 @@
   function playerVitalFirebaseUpdates(snapshot){try{return global.LuminousPlayerVitalsRealtimeBridge?.firebaseUpdatesForSnapshot?.(playerVitalSnapshot(snapshot))||{};}catch(error){console.error('[Combat073 Authority vitals]',error);return{};}}
   async function afterRound({completedRound,nextRound}={}){
     if(state.executingGeneration)playback().assertOwner(state.current);
-    if(!isDm())return false;const s=adapterState();if(!s?.db?.ref)return false;const done=Math.max(1,Number(completedRound)||Number(state.current.round)||1),next=Math.max(done+1,Number(nextRound)||done+1),snapshot=snapshotRuntime(),row={round:done,seq:state.lastCheckpointSeq+1,type:'round_complete',actionSeq:state.localActionSeq,rngCursor:state.cursor,digest:checkpointDigest(snapshot,done),combatants:snapshot,updatedAt:serverTime()};const updates={...combatantFirebaseUpdates(snapshot),...playerVitalFirebaseUpdates(snapshot),...(batchMode()?resourceFirebaseUpdates(snapshot):{}),...(batchMode()?playback().batchUpdates(row):{})};updates[`${ROOT.current}/phase`]='complete';updates[`${ROOT.current}/resultDigest`]=row.digest;updates[`${ROOT.current}/checkpoint`]=row;Object.assign(updates,stateUpdates({phase:'PRE_COMBAT_PLANNING',active:true,round:next,authorityUid:s.uid,updatedAt:serverTime()}));updates[ROOT.ready]=null;updates[ROOT.plans]=null;await s.db.ref().update(batchMode()?playback().commitUpdates(updates):updates);state.current={...state.current,phase:'complete',resultDigest:row.digest,checkpoint:row};state.lastCheckpointSeq=row.seq;return row;
+    if(!isDm())return false;flushPresentation();await state.writeChain;const s=adapterState();if(!s?.db?.ref)return false;const done=Math.max(1,Number(completedRound)||Number(state.current.round)||1),next=Math.max(done+1,Number(nextRound)||done+1),snapshot=snapshotRuntime(),row={round:done,seq:state.lastCheckpointSeq+1,type:'round_complete',actionSeq:state.localActionSeq,rngCursor:state.cursor,digest:checkpointDigest(snapshot,done),combatants:snapshot,updatedAt:serverTime()};const updates={...combatantFirebaseUpdates(snapshot),...playerVitalFirebaseUpdates(snapshot),...(batchMode()?resourceFirebaseUpdates(snapshot):{}),...(batchMode()?playback().batchUpdates(row):{})};updates[`${ROOT.current}/phase`]='complete';updates[`${ROOT.current}/resultDigest`]=row.digest;updates[`${ROOT.current}/checkpoint`]=row;Object.assign(updates,stateUpdates({phase:'PRE_COMBAT_PLANNING',active:true,round:next,authorityUid:s.uid,updatedAt:serverTime()}));updates[ROOT.ready]=null;updates[ROOT.plans]=null;await s.db.ref().update(batchMode()?playback().commitUpdates(updates):updates);state.current={...state.current,phase:'complete',resultDigest:row.digest,checkpoint:row};state.lastCheckpointSeq=row.seq;return row;
   }
   async function requestStartRound(){
     state.lastStartError='';
@@ -372,7 +389,7 @@
       if(nextRound<=completedRound)throw new Error('No se pudo completar el turno. Vuelve a abrir el combate.');
       if(isDm()){await state.writeChain;await afterRound({completedRound,nextRound});}else if(state.pendingFinalSnapshot){applySnapshot(state.pendingFinalSnapshot.combatants||{});if(Number.isFinite(Number(state.pendingFinalSnapshot.rngCursor)))resetRandom(current.seed,Number(state.pendingFinalSnapshot.rngCursor));state.pendingFinalSnapshot=null;}
       return true;
-    }catch(error){console.error('[Combat073 Authority start]',error);state.lastStartError=error?.message||'No se pudo continuar el turno. Vuelve a abrir el combate.';setStatus(state.lastStartError);return false;}finally{state.preparingRound=false;state.runningLocal=false;state.resumeRuntime=null;state.executingGeneration=null;if(adapterState()?.firebaseReady)adapter()?.scheduleHydrate?.();}
+    }catch(error){console.error('[Combat073 Authority start]',error);state.lastStartError=error?.message||'No se pudo continuar el turno. Vuelve a abrir el combate.';setStatus(state.lastStartError);return false;}finally{if(state.presentationTimer!==null){global.clearTimeout(state.presentationTimer);state.presentationTimer=null;}state.preparingRound=false;state.runningLocal=false;state.resumeRuntime=null;state.executingGeneration=null;if(adapterState()?.firebaseReady)adapter()?.scheduleHydrate?.();}
   }
   function patchStartRound(){const hud=global.LuminousCombatHUD,original=state.originalStartRound||hud?.startRound||global.startRound;if(typeof original!=='function')return false;state.originalStartRound=original.__luminousAuthorityStartOriginal||original;requestStartRound.__luminousAuthorityStart=true;requestStartRound.__luminousAuthorityStartOriginal=state.originalStartRound;global.startRound=requestStartRound;if(hud)hud.startRound=requestStartRound;const button=global.document?.getElementById?.('start-round');if(button)button.onclick=requestStartRound;return true;}
   function allReadySnapshot(rows={}){const round=Number(adapterState()?.round)||1,ids=activePlayerIds();return ids.length>0&&ids.every(id=>rows?.[id]?.ready===true&&Number(rows[id].round)===round);}
