@@ -535,31 +535,74 @@
 
     combatStateRef.on("value", (snapshot) => {
       combatState = snapshot.val() || {};
+      syncStartLabel();
       scheduleEndedEncounterTransition();
     }, (error) => {
       console.error("No se pudo observar el estado del encounter:", error);
     });
 
-    // The existing Combat selector must also work when already selected:
-    // radio inputs do not fire "change" for a second click on the same value.
-    const openOrResumeCombat = async () => {
-      if(!global.LuminousCombatSession?.start)throw Error('Recarga el panel antes de abrir un encuentro.');
-      await global.LuminousCombatSession.start({db,uid:global.firebase.auth().currentUser?.uid});
+    // A visible, distinct START COMBAT action is required. Selecting Combat
+    // used to be the only implicit start, leaving DM with no launch button
+    // after P0 removed the legacy duplicate route. Keep both paths wired to
+    // the same idempotent session.start() (never the round resolver).
+    const startButton = documentRef.getElementById("btn-start-encounter");
+    const startStatus = documentRef.getElementById("dm-encounter-start-status");
+    const reportStart = (message, isError = false) => {
+      if (!startStatus) return;
+      startStatus.textContent = String(message || "");
+      startStatus.hidden = !message;
+      startStatus.dataset.error = String(isError);
     };
+    const startError = error => {
+      const code = String(error?.code || "").toLowerCase();
+      const message = String(error?.message || "");
+      if (code.includes("permission")) return "Firebase rechazó iniciar el encuentro. Verifica que hayas iniciado sesión con la cuenta del DM.";
+      if (code.includes("network") || code.includes("unavailable")) return "No hay conexión con Firebase. Revisa tu conexión y vuelve a intentar.";
+      if (message.startsWith("Ya se está finalizando") || message.startsWith("Espera a que termine") || message.startsWith("Recarga el panel")) return message;
+      return "No se pudo iniciar el combate. Revisa tu sesión de DM y vuelve a intentar.";
+    };
+    let pendingStart = null;
+    const syncStartLabel = () => {
+      if (!startButton) return;
+      const active = combatState?.encounterId && combatState?.active !== false &&
+        !["ENDED", "ENDING"].includes(String(combatState.phase || "").toUpperCase());
+      startButton.textContent = active ? "REANUDAR COMBATE" : "INICIAR COMBATE";
+    };
+    const openOrResumeCombat = () => {
+      if (pendingStart) return pendingStart;
+      pendingStart = (async () => {
+        if (!global.LuminousCombatSession?.start) throw Error("Recarga el panel antes de abrir un encuentro.");
+        const user = global.firebase?.auth?.().currentUser;
+        if (!user?.uid) throw Error("No hay una sesión de DM autenticada.");
+        const configuredDm = (await db.ref("campaña/config/dm_uid").once("value")).val();
+        if (user.uid !== configuredDm && user.uid !== "e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1")
+          throw Error("Esta cuenta no está autorizada como DM.");
+        if (startButton) startButton.disabled = true;
+        reportStart("Abriendo encuentro de combate…");
+        await global.LuminousCombatSession.start({db,uid:user.uid});
+        reportStart("");
+      })().catch(error => {
+        console.error("No se pudo iniciar el combate:", error);
+        reportStart(startError(error), true);
+        throw error;
+      }).finally(() => {
+        pendingStart = null;
+        if (startButton) startButton.disabled = false;
+      });
+      return pendingStart;
+    };
+    startButton?.addEventListener("click", () => { void openOrResumeCombat().catch(() => {}); });
+    syncStartLabel();
     documentRef.querySelectorAll('input[name="instancia"]').forEach((radio) => {
       if(radio.value === "combate")radio.addEventListener("click", () => {
         if(currentInstance !== "combate")return; // "change" handles first entry.
-        openOrResumeCombat().catch(error => {
-          console.error("No se pudo reabrir el combate:",error);
-          loadingApi()?.fail?.("instance", error?.message || String(error), documentRef);
-        });
+        void openOrResumeCombat().catch(() => {});
       });
       radio.addEventListener("change", async (evento) => {
         const requestedInstance = normalizeInstance(evento.target.value);
         const nuevaInstancia = requestedInstance === "teatro" && ["combate", "combat_theatre"].includes(currentInstance)
           ? "combat_theatre"
           : requestedInstance;
-
         try {
           if (nuevaInstancia === "combate") {
             await openOrResumeCombat();
@@ -568,7 +611,7 @@
           await instanceRef.set(nuevaInstancia);
         } catch (error) {
           console.error("Error al transicionar instancia de juego:", error);
-          loadingApi()?.fail?.("instance", error?.message || String(error), documentRef);
+          if (nuevaInstancia !== "combate") reportStart("No se pudo cambiar de instancia. Comprueba tu conexión.", true);
         }
       });
     });
