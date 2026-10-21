@@ -232,10 +232,11 @@ globalThis.document = {
   },
 };
 
+let blackoutCalls = 0;
 globalThis.LuminousCombatEncounterLifecycle = {
   ...EncounterLifecycle,
   showResult() { return true; },
-  beginBlackout() { return true; },
+  beginBlackout() { blackoutCalls++; return true; },
 };
 const lootFinalizationCalls = [];
 globalThis.LuminousLootLivePostCombatRuntime = {
@@ -249,9 +250,9 @@ globalThis.LuminousLootLivePostCombatRuntime = {
   },
 };
 dmApi._state.db = fakeDb;
-const finished = await dmApi.finishEncounter('victory', { confirm: false, displayMs: 0, blackoutMs: 0 });
+const finished = await dmApi.finishEncounter('victory', { confirm: false, displayMs: 0 });
 assert.equal(finished.result, 'victory');
-assert.equal(finished.transition, 'blackout');
+assert.equal(finished.transition, 'result');
 assert.equal(finished.nextInstance, 'teatro');
 assert.deepEqual(finished.lootFinalization, { finalized: [], skipped: [] });
 assert.equal(lootFinalizationCalls.length, 1);
@@ -266,8 +267,8 @@ assert.equal(encounterRaw.estado.phase,'ENDED');
 assert.equal(encounterRaw.estado.active,false);
 assert.equal(encounterRaw.estado.result,'victory');
 const stateUpdates = encounterWrites.filter((entry) => entry.op === 'update' && entry.path === dmApi.ROOTS.state);
-assert.equal(stateUpdates.length, 1);
-assert.equal(stateUpdates[0].value.transition, 'blackout');
+assert.equal(stateUpdates.length, 0, 'the result seal must not be replaced with a blackout');
+assert.equal(blackoutCalls, 0, 'the result seal stays above the finished battlefield');
 assert.ok(encounterWrites.some((entry) => entry.op === 'set' && entry.path === dmApi.ROOTS.instance && entry.value === 'teatro'));
 assert.equal(encounterCombatants.alpha.encounterEnded, true);
 assert.equal(encounterCombatants.beta.encounterEnded, true);

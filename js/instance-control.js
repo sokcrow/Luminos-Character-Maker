@@ -516,12 +516,13 @@
       const result = normalizeCombatResult(combatState?.result || combatState?.outcome);
       if (!result) return;
       const transition = String(combatState?.transition || "").trim().toLowerCase();
-      if (transition === "result" || transition === "blackout") return;
+      // A finished encounter must return to Theatre even when its original
+      // closing page disappears after committing the result.
       const token = combatResultToken(combatState);
       if (!token || token === lastAutoTransitionToken) return;
       lastAutoTransitionToken = token;
       if (endTransitionTimer) global.clearTimeout(endTransitionTimer);
-      const presentationMs = result === "cancelled" ? 0 : RESULT_PRESENTATION_MS;
+      const presentationMs = result === "cancelled" ? 0 : RESULT_PRESENTATION_MS + (transition === "result" ? 1400 : 0);
       endTransitionTimer = global.setTimeout(() => {
         endTransitionTimer = null;
         if (currentInstance !== "combate") return;
@@ -539,7 +540,20 @@
       console.error("No se pudo observar el estado del encounter:", error);
     });
 
+    // The existing Combat selector must also work when already selected:
+    // radio inputs do not fire "change" for a second click on the same value.
+    const openOrResumeCombat = async () => {
+      if(!global.LuminousCombatSession?.start)throw Error('Recarga el panel antes de abrir un encuentro.');
+      await global.LuminousCombatSession.start({db,uid:global.firebase.auth().currentUser?.uid});
+    };
     documentRef.querySelectorAll('input[name="instancia"]').forEach((radio) => {
+      if(radio.value === "combate")radio.addEventListener("click", () => {
+        if(currentInstance !== "combate")return; // "change" handles first entry.
+        openOrResumeCombat().catch(error => {
+          console.error("No se pudo reabrir el combate:",error);
+          loadingApi()?.fail?.("instance", error?.message || String(error), documentRef);
+        });
+      });
       radio.addEventListener("change", async (evento) => {
         const requestedInstance = normalizeInstance(evento.target.value);
         const nuevaInstancia = requestedInstance === "teatro" && ["combate", "combat_theatre"].includes(currentInstance)
@@ -548,8 +562,7 @@
 
         try {
           if (nuevaInstancia === "combate") {
-            if(!global.LuminousCombatSession?.start)throw Error('Recarga el panel antes de abrir un encuentro.');
-            await global.LuminousCombatSession.start({db,uid:global.firebase.auth().currentUser?.uid});
+            await openOrResumeCombat();
             return;
           }
           await instanceRef.set(nuevaInstancia);
@@ -599,7 +612,7 @@
 
   function bindPlayer({ db, doc } = {}) {
     const documentRef=doc||global.document;if(!db||!documentRef)return;
-    let campaignInstance='ninguno',currentInstance='ninguno',combatState={},combatants={},players={},uid='';
+    let campaignInstance='ninguno',currentInstance='ninguno',combatState={},combatants={},participants={},players={},uid='';
     const subscriptions=[];
     ensureTheatreRollVisualizerAssets(documentRef);
     ensureTheatreCheckCoordinatorAssets(documentRef);
@@ -609,8 +622,11 @@
       return{uid:matches.length===1?uid:'',playerId:matches.length===1?matches[0][0]:null};
     };
     const sync=()=>{
-      let next=global.LuminousCombatParticipants?.playerInstance(campaignInstance,combatants,identity())||'teatro';
-      if(['combate','combat_theatre'].includes(next)&&isEncounterEnded(combatState))next='teatro';
+      const player=identity();
+      let next=global.LuminousCombatParticipants?.playerInstance(campaignInstance,combatants,player)||'teatro';
+      // A defeated/removed participant is still part of the encounter and must
+      // see its result seal. The shared instance, not ENDED alone, opens Theatre.
+      if(player.playerId&&participants[player.playerId]===true&&['combate','combat_theatre'].includes(campaignInstance))next=campaignInstance;
       const previous=currentInstance;
       if(next==='teatro'&&['combate','combat_theatre'].includes(previous))
         void beginTheatreLoading({db,doc:documentRef,result:normalizeCombatResult(combatState.result||combatState.outcome),effectiveInstance:next});
@@ -623,10 +639,11 @@
       subscriptions.push(()=>ref.off('value',handler));
     };
     const bindData=user=>{
-      subscriptions.splice(0).forEach(off=>off());uid=String(user?.uid||'');combatants={};players={};combatState={};campaignInstance='ninguno';
+      subscriptions.splice(0).forEach(off=>off());uid=String(user?.uid||'');combatants={};participants={};players={};combatState={};campaignInstance='ninguno';
       if(!uid){applyPlayerInstance('ninguno',documentRef);return;}
       watch('campaña/jugadores',value=>{players=value||{};});
       watch('campaña/combate/combatants',value=>{combatants=value||{};});
+      watch('campaña/combate/participants',value=>{participants=value||{};});
       watch(COMBAT_STATE_PATH,value=>{combatState=value||{};});
       watch(INSTANCE_PATH,value=>{campaignInstance=normalizeInstance(value);});
     };

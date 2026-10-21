@@ -432,25 +432,15 @@
       });
     }
 
-    const timestamp = global.firebase?.database?.ServerValue?.TIMESTAMP ?? Date.now();
     if(!alreadyEnded)await session.commitEnd({db:state.db,uid:currentUid(),result:normalized,token:claimed.estado.ending.token});
 
     global.LuminousCombatEncounterLifecycle?.showResult?.(normalized, { endedAt: Date.now() });
     appendLog(`${label} · RESULT SEAL`, { result: normalized });
 
     const displayMs = options.displayMs == null ? (normalized === "cancelled" ? 900 : 1800) : options.displayMs;
-    const blackoutMs = options.blackoutMs == null ? 650 : options.blackoutMs;
+    // Preserve the finished battlefield behind the result seal. Do not
+    // replace the scene with an opaque blackout before returning to Theatre.
     await waitForResultDisplay(displayMs);
-
-    await state.db.ref(ROOTS.state).update({
-      transition: "blackout",
-      blackoutAt: global.firebase?.database?.ServerValue?.TIMESTAMP ?? Date.now(),
-      updatedAt: global.firebase?.database?.ServerValue?.TIMESTAMP ?? Date.now(),
-    });
-    global.LuminousCombatEncounterLifecycle?.beginBlackout?.();
-    appendLog("ENCOUNTER END · BLACKOUT", { result: normalized });
-
-    await waitForResultDisplay(blackoutMs);
     await state.db.ref(ROOTS.instance).set("teatro");
 
     return {
@@ -458,7 +448,7 @@
       result: normalized,
       resolved: resolved?.result || null,
       lootFinalization,
-      transition: "blackout",
+      transition: "result",
       nextInstance: "teatro",
     };
     }catch(error){

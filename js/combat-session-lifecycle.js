@@ -52,6 +52,14 @@
     });
   }
   async function start({db,uid}){
+    // Returning from a mid-combat Theatre interlude must never create a new
+    // encounter or transact its running/sealed authority state.
+    const current=(await db.ref(`${ROOT}/estado`).once('value')).val();
+    if(current?.encounterId&&current.active!==false&&current.phase!=='ENDED'){
+      if(current.phase==='ENDING')throw Error('Ya se está finalizando este encuentro.');
+      await db.ref(INSTANCE).set('combate');
+      return current;
+    }
     const id=`encounter-${global.crypto?.randomUUID?.()||`${Date.now()}-${Math.random().toString(36).slice(2)}`}`;
     const result=await updateRoot(db,raw=>nextEncounter(raw,{id,uid,time:Date.now()}));
     if(!result.committed&&blocked(result.snapshot.val()))throw Error('Espera a que termine la ronda antes de abrir otro encuentro.');

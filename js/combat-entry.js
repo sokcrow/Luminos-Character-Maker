@@ -18,8 +18,8 @@
     const authorized=state.dm||state.player;
     const ended=state.encounter?.estado?.phase==='ENDED'||state.encounter?.estado?.active===false;
     const showingResult=ended&&state.instance==='combate'&&['result','blackout'].includes(state.encounter?.estado?.transition);
-    const participating=global.LuminousCombatParticipants?.includes(state.encounter.combatants,{uid:state.uid,playerId:state.playerId})===true;
-    const active=authorized&&(state.dm||(state.instance==='combate'&&participating))&&(!ended||showingResult)&&Boolean(state.encounter?.estado);
+    const participating=global.LuminousCombatParticipants?.includes(state.encounter.combatants,{uid:state.uid,playerId:state.playerId})===true||Boolean(state.playerId&&state.encounter.participants?.[state.playerId]===true);
+    const active=authorized&&state.instance==='combate'&&(state.dm||participating)&&(!ended||showingResult)&&Boolean(state.encounter?.estado);
     $('combat-entry-bar').hidden=!state.uid;
     $('combat-entry-start').hidden=!state.dm;
     $('combat-entry-end').hidden=!state.dm||!active||ended;
@@ -47,7 +47,7 @@
     // replaced on the next encounter, or removed when leaving combat/signing out.
     if(!active&&!ended)$('combat-entry-view')?.remove();
     const frame=$('combat-entry-view');if(frame){frame.hidden=!active;frame.dataset.encounter=encounterId;frame.dataset.ended=String(ended);}
-    if(!active)say(!authorized?'Esta cuenta todavía no tiene un personaje asignado. Pide al DM que lo vincule.':!state.connected?'Reconectando con la campaña…':ended?'Encuentro finalizado. Los resultados se han conservado.':state.dm?'Abre un encuentro y añade los personajes y enemigos desde «Encuentro».':'Tu personaje permanece en teatro. Entrarás cuando el DM lo añada al encuentro.');
+    if(!active)say(!authorized?'Esta cuenta todavía no tiene un personaje asignado. Pide al DM que lo vincule.':!state.connected?'Reconectando con la campaña…':ended?'Encuentro finalizado. Los resultados se han conservado.':state.dm?(state.instance==='combat_theatre'?'Interludio de teatro en curso. Vuelve al panel del DM para dirigir la escena.':'Abre un encuentro y añade los personajes y enemigos desde «Encuentro».'):'Tu personaje permanece en teatro. Entrarás cuando el DM lo añada al encuentro.');
   }
   async function action(fn){if(state.busy)return;state.busy=true;render();try{await fn();$('combat-entry-menu').open=false;}catch(error){console.error('[Combat entry]',error);global.alert(actionError(error));}finally{state.busy=false;render();}}
   let auth,db;
@@ -75,6 +75,7 @@
       watch('.info/connected',value=>{state.connected=value===true;render();},generation);
       watch('campaña/jugadores',players=>{const matches=Object.entries(players||{}).filter(([,p])=>(p.uid||p.vinculado_a||p.vinculo_jugador)===state.uid);state.player=matches.length===1?matches[0][1]:null;state.playerId=matches.length===1?matches[0][0]:null;if(state.playerId)void global.LuminousPlayerPostCombatLoot?.install({db,playerId:state.playerId}).catch(error=>console.error('[Post-combat]',error));render();},generation);
       watch(`${api.ROOT}/combatants`,value=>{state.encounter.combatants=value||{};render();},generation);
+      watch(`${api.ROOT}/participants`,value=>{state.encounter.participants=value||{};render();},generation);
       watch(`${api.ROOT}/estado`,value=>{state.encounter.estado=value||null;render();},generation);
       watch(`${api.ROOT}/authority/current/phase`,value=>{state.encounter.authority={current:{phase:value}};render();},generation);
       watch(api.INSTANCE,instance=>{state.instance=instance||'ninguno';render();},generation);
