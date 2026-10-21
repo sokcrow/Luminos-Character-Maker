@@ -32,3 +32,8 @@
 .stage-placing #battlefield, .stage-placing .combat-stage-layer { transition:none!important; }
 /* Manual wheel/middle-drag/pinch moves world and ground in lockstep, not with two competing easing curves. */
 #game-container.camera-manual .combat-stage-layer { transition:none!important; }
+
+/* Match the accelerated Clash camera easing to the exact field timing. */
+#game-container.round-running .combat-stage-layer {
+  transition:transform .46s cubic-bezier(.18,.76,.22,1);
+}
