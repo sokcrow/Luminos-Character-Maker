@@ -392,7 +392,7 @@
     return new Promise((resolve) => (global.setTimeout || setTimeout)(resolve, delay));
   }
 
-  async function finishEncounter(result, options = {}) {
+  async function finishEncounterOnce(result, options = {}) {
     if(!state.db?.ref || (global.firebase?.auth && state.authorized!==true))await authorizeAndBoot();
     if (!state.db?.ref) throw new Error("DM console database is not ready.");
     if (!isDmAuthorized()) throw new Error("DM_ONLY");
@@ -408,10 +408,12 @@
     const session=global.LuminousCombatSession;
     if(!session?.claimEnd)throw new Error('Actualiza el visor antes de finalizar el encuentro.');
     const claimed=await session.claimEnd({db:state.db,uid:currentUid(),result:normalized,applyEffects:runEncounterEndAll});
+    const alreadyEnded=claimed.estado.phase==='ENDED';
+    try{
     const resolved={combatants:claimed.combatants};
 
     let lootFinalization = null;
-    if (normalized === "victory") {
+    if (!alreadyEnded && normalized === "victory") {
       const lootLive = global.LuminousLootLivePostCombatRuntime;
       if (!lootLive?.finalizeEncounterLoot) throw new Error("LOOT_LIVE_POSTCOMBAT_RUNTIME_REQUIRED");
       const encounterId = await lootLive.ensureEncounterId({ db: state.db });
@@ -430,7 +432,7 @@
     }
 
     const timestamp = global.firebase?.database?.ServerValue?.TIMESTAMP ?? Date.now();
-    await session.commitEnd({db:state.db,uid:currentUid(),result:normalized,token:claimed.estado.ending.token});
+    if(!alreadyEnded)await session.commitEnd({db:state.db,uid:currentUid(),result:normalized,token:claimed.estado.ending.token});
 
     global.LuminousCombatEncounterLifecycle?.showResult?.(normalized, { endedAt: Date.now() });
     appendLog(`${label} · RESULT SEAL`, { result: normalized });
@@ -458,6 +460,24 @@
       transition: "blackout",
       nextInstance: "teatro",
     };
+    }catch(error){
+      await session.failEnd({db:state.db,uid:currentUid(),token:claimed.estado.ending?.token}).catch(failure=>console.error('[Encounter end recovery]',failure));
+      throw error;
+    }
+  }
+
+  let finishing=null,finishingResult=null;
+  async function finishEncounter(result,options={}){
+    const normalized=normalizeEncounterResult(result);
+    if(finishing){
+      if(finishingResult!==normalized)throw Error('Ya se está finalizando este encuentro. Espera a que termine.');
+      return finishing;
+    }
+    finishingResult=normalized;
+    finishing=finishEncounterOnce(result,options);
+    try{return await finishing;}
+    catch(error){error.userMessage=global.LuminousCombatSession?.endErrorMessage(error);throw error;}
+    finally{finishing=null;finishingResult=null;}
   }
 
   async function writeAudit(payload = {}) {

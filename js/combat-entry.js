@@ -4,9 +4,11 @@
   const state={uid:null,dm:false,player:null,playerId:null,encounter:{},instance:'ninguno',connected:false,subs:[],generation:0,busy:false};
   const say=(text,error=false)=>{$('combat-entry-message').textContent=text;$('combat-entry-card').dataset.error=String(error);};
   function actionError(error){
+    if(error?.userMessage)return error.userMessage;
     const code=String(error?.code||'').toLowerCase(),message=String(error?.message||'');
     if(code.includes('permission'))return 'No tienes permiso para cambiar este encuentro. Entra con la cuenta del DM.';
     if(code.includes('network')||code.includes('unavailable'))return 'No se pudo conectar. Revisa tu conexión e inténtalo de nuevo.';
+    if(message.startsWith('Firebase rechazó')||message.startsWith('No se pudo preparar el botín'))return message;
     if(message.startsWith('Espera a que termine la ronda')||message.startsWith('Cambia la presentación entre rondas'))return message;
     return 'No se pudo completar la acción. Vuelve a intentarlo.';
   }
@@ -15,14 +17,15 @@
   function render(){
     const authorized=state.dm||state.player;
     const ended=state.encounter?.estado?.phase==='ENDED'||state.encounter?.estado?.active===false;
+    const showingResult=ended&&state.instance==='combate'&&['result','blackout'].includes(state.encounter?.estado?.transition);
     const participating=global.LuminousCombatParticipants?.includes(state.encounter.combatants,{uid:state.uid,playerId:state.playerId})===true;
-    const active=authorized&&(state.dm||(state.instance==='combate'&&participating))&&!ended&&Boolean(state.encounter?.estado);
+    const active=authorized&&(state.dm||(state.instance==='combate'&&participating))&&(!ended||showingResult)&&Boolean(state.encounter?.estado);
     $('combat-entry-bar').hidden=!state.uid;
     $('combat-entry-start').hidden=!state.dm;
-    $('combat-entry-end').hidden=!state.dm||!active;
+    $('combat-entry-end').hidden=!state.dm||!active||ended;
     $('combat-entry-open').hidden=!state.dm||active;
-    $('combat-entry-presentation-label').hidden=!state.dm||!active;
-    const locked=api.blocked(state.encounter);
+    $('combat-entry-presentation-label').hidden=!state.dm||!active||ended;
+    const locked=api.blocked(state.encounter)||showingResult;
     $('combat-entry-start').disabled=state.busy||!state.connected||locked;
     $('combat-entry-end').disabled=state.busy||!state.connected||(locked&&state.encounter?.estado?.phase!=='ENDING');
     $('combat-entry-open').disabled=state.busy||!state.connected;
@@ -35,7 +38,7 @@
     if(!state.uid)return;
     $('combat-entry-card').hidden=Boolean(active);
     const existing=$('combat-entry-view'),encounterId=state.encounter?.estado?.encounterId||'';
-    if(active&&existing&&(existing.dataset.ended==='true'||(existing.dataset.encounter&&existing.dataset.encounter!==encounterId)))existing.remove();
+    if(active&&existing&&((!ended&&existing.dataset.ended==='true')||(existing.dataset.encounter&&existing.dataset.encounter!==encounterId)))existing.remove();
     if(active&&!$('combat-entry-view')){
       const frame=doc.createElement('iframe');frame.id='combat-entry-view';frame.title='Encuentro de combate';frame.allow='autoplay';frame.src='Battle-viewer.html';$('combat-entry-main').appendChild(frame);
       frame.dataset.encounter=encounterId;

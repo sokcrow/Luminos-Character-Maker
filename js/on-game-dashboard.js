@@ -506,7 +506,7 @@
         const probe = () => {
           try {
             const api = combatFrame.contentWindow?.LuminousBattleViewerDmConsole074;
-            if (api?.finishEncounter && api?.isDmAuthorized?.() && api?._state?.db?.ref) {
+            if (api?.finishEncounter) {
               resolve(api);
               return;
             }
@@ -534,7 +534,7 @@
         button.addEventListener("click", () => {
           finishEncounter(result).catch((error) => {
             console.error("No se pudo cerrar el encounter:", error);
-            window.alert?.("No se pudo cerrar el encounter.");
+            window.alert?.(error.userMessage || "No se pudo finalizar el encuentro. Espera a que cargue el visor y vuelve a intentarlo.");
           });
         });
       });

@@ -314,6 +314,15 @@
                     ".validate": "newData.val() == null || (newData.child('at').isNumber() && newData.child('surface').isString())"
                   }
                 }
+              },
+              "loot_instances": {
+                ".write": "auth != null && root.child('campaña/encuentros').child($encounterId).child('members').child(auth.uid).val() === true && (auth != null && (auth.uid === root.child('campaña/encuentros').child($encounterId).child('state/campaña').child('config').child('dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'))"
+              },
+              "loot_postcombat": {
+                ".write": "auth != null && root.child('campaña/encuentros').child($encounterId).child('members').child(auth.uid).val() === true && (auth != null && (auth.uid === root.child('campaña/encuentros').child($encounterId).child('state/campaña').child('config').child('dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'))"
+              },
+              "loot_encounters": {
+                ".write": "auth != null && root.child('campaña/encuentros').child($encounterId).child('members').child(auth.uid).val() === true && (auth != null && (auth.uid === root.child('campaña/encuentros').child($encounterId).child('state/campaña').child('config').child('dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'))"
               }
             },
             "dm_private": {
@@ -379,6 +388,15 @@
             }
           }
         }
+      },
+      "loot_instances": {
+        ".write": "auth != null && (auth.uid === root.child('campaña').child('config').child('dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1')"
+      },
+      "loot_postcombat": {
+        ".write": "auth != null && (auth.uid === root.child('campaña').child('config').child('dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1')"
+      },
+      "loot_encounters": {
+        ".write": "auth != null && (auth.uid === root.child('campaña').child('config').child('dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1')"
       }
     },
     "dm_private": {

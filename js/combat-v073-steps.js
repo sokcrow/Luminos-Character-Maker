@@ -7,7 +7,7 @@
     if (value && typeof value === 'object') { Object.values(value).forEach(freeze); Object.freeze(value); }
     return value;
   }
-  function create({ rules: r, presentation = {}, context = () => ({}), snapshot = () => ({}), assertActive = () => {}, onEvent = () => {}, onPresentation = () => {} }) {
+  function create({ rules: r, presentation = {}, context = () => ({}), snapshot = () => ({}), assertActive = () => {}, publish = async () => {}, onEvent = () => {}, onPresentation = () => {} }) {
     let enabled = true, capture = false, sequence = 0, journal = [];
     // A view failure cannot change rule ordering or interrupt the resolver.
     const notify = (callback, ...args) => { try { callback(...args); } catch (_) {} };
@@ -51,7 +51,12 @@
     }
     async function show(name, ...args) {
       assertActive();
-      if (capture) emit('Presentation', null, { cue: name, args: args.map(presentationValue), combatants: snapshot() });
+      if (capture) {
+        emit('Presentation', null, { cue: name, args: args.map(presentationValue), combatants: snapshot() });
+        // Deliver the committed result before its local animation, so every
+        // viewer can present the same cue while the authority presents it.
+        await publish();
+      }
       if (enabled) { notify(onPresentation, name, args); await presentation[name]?.(...args); }
     }
     function powerState(entry, remaining, opponent) {

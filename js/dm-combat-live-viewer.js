@@ -296,7 +296,7 @@
       return true;
     }catch(error){
       console.error('[DM Combat Live Viewer] Encounter end failed',error);
-      setStatus('NO SE PUDO CERRAR EL ENCOUNTER',true);
+      setStatus(error.userMessage||'No se pudo finalizar el encuentro. Vuelve a intentarlo.',true);
       return false;
     }finally{
       setEncounterBusy(false);
