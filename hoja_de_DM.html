@@ -21,7 +21,6 @@
       <label><input type="radio" name="instancia" value="combate"> COMBATE TÁCTICO</label>
     </div>
     <div class="status-container" style="display: flex; gap: 20px; align-items: center;">
-      <a href="combate.html" style="color:#dfbd7a">Abrir combate</a>
       <span id="current-output-status" style="color: #c49a00; font-weight: bold; letter-spacing: 1px;">SALIDA ACTUAL: PANTALLA NEGRA</span>
       <span id="connection-status" class="connection-status offline">● CONECTANDO</span>
     </div>
@@ -123,8 +122,8 @@
     <section id="modulo-combate" class="game-module hidden" aria-hidden="true">
       <div id="combat-grid"><iframe id="dm-combat-view" data-src="Battle-viewer.html" loading="lazy" title="Cuadrícula de combate táctica"></iframe></div>
       <div id="combat-log-and-controls">
-        <span>FASE INICIAL: 60 s · PRE_COMBAT_PLANNING</span>
-        <button id="btn-trigger-combat" type="button">INICIAR COMBATE (Fin de Planeación)</button>
+        <span>Planeación · Confirma READY para resolver la ronda</span>
+        <button id="btn-trigger-combat" type="button">RESOLVER RONDA</button>
         <button id="btn-end-combat-victory" type="button">TERMINAR · VICTORIA</button>
         <button id="btn-end-combat-defeat" type="button">TERMINAR · DERROTA</button>
         <button id="btn-end-combat-cancel" type="button">CANCELAR ENCOUNTER</button>
