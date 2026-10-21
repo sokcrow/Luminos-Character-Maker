@@ -637,6 +637,27 @@
     return deepFreeze(actions);
   }
 
+  async function checkPlayerLootAccess(options = {}) {
+    const db = dbFrom(options), playerId = clean(options.playerId);
+    const lootId = clean(options.lootInstanceId);
+    const user = global.firebase?.auth?.().currentUser;
+    if (!db?.ref || !user || !playerId) throw Error('Inicia sesión con el personaje que participó en el combate.');
+    const [player,loot] = await Promise.all([
+      onceValue(db, `${ROOTS.players}/${playerId}`),
+      lootId ? onceValue(db, `${ROOTS.lootInstances}/${lootId}`) : Promise.resolve(null),
+    ]);
+    if (![player?.uid,player?.vinculado_a,player?.vinculo_jugador].some(uid=>clean(uid)===user.uid))
+      throw Error('Tu cuenta no está vinculada al personaje seleccionado. El DM debe revisar la vinculación del personaje.');
+    if (!loot?.locked || !loot?.encounterId)
+      throw Error('Este enemigo no tiene un botín confirmado. El DM debe revisar el registro de la victoria.');
+    const meta = await onceValue(db,`${ROOTS.encounterLoot}/${safeKey(loot.encounterId)}/meta`);
+    if (meta?.participants?.[playerId] !== true)
+      throw Error('Este personaje no aparece entre los participantes del encuentro que generó el botín.');
+    if (meta?.open !== true || meta?.result !== 'victory')
+      throw Error('El botín de este encuentro no está abierto como victoria.');
+    return true;
+  }
+
   // Players submit intentions; only the DM mutates shared corpse resources.
   // A stable request key and the existing attempt/delivery receipts make retries
   // safe across reloads, competing players and multiple open DM viewers.
@@ -652,8 +673,17 @@
       key += '|'+db.ref(`${ROOTS.requests}/${playerId}`).push().key;existing=null;
     }
     const ref = db.ref(`${ROOTS.requests}/${playerId}/${key}`);
-    if (!existing) await ref.set({uid:user.uid,playerId,lootInstanceId,actionId,targetResourceId,deliveryId,
-      checkHeads: int(options.checkResult?.heads, 0),status:'pending',createdAt:Date.now()});
+    if (!existing) {
+      try {
+        await ref.set({uid:user.uid,playerId,lootInstanceId,actionId,targetResourceId,deliveryId,
+          checkHeads: int(options.checkResult?.heads, 0),status:'pending',createdAt:Date.now()});
+      } catch(error) {
+        if (/permission[_-]denied/i.test(String(error?.code || error?.message || ''))) {
+          throw Error('Firebase rechazó la solicitud de recuperación aunque el personaje participa en la victoria. El DM debe revisar las condiciones de acceso de Loot en esta campaña.');
+        }
+        throw error;
+      }
+    }
     return new Promise((resolve,reject) => {
       const finish = (error,value) => { global.clearTimeout(timer);ref.off('value',listener);error?reject(error):resolve(value); };
       const listener = snapshot => {
@@ -767,6 +797,7 @@
     persistKnowledgeFacts,
     executeAction,
     requestAction,
+    checkPlayerLootAccess,
     installAuthority,
     stopAuthority,
     availableActions,
