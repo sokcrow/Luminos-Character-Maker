@@ -17,7 +17,8 @@ async function mount(context, { scripts = true, popup = 'normal' } = {}) {
     }
     if (url.pathname === '/stale.html') return route.fulfill({ contentType: 'text/html', body: '<p>Stale Director</p>' });
     if (url.pathname !== '/pantalla_dm.html') return route.fulfill({ status: 204 });
-    const html = studio.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '');
+    const html = studio.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '') +
+      '<style>#dm-loading-overlay,#system-loading-overlay{display:none!important}</style>';
     const override = popup === 'normal' ? '' : popup === 'null' ? 'window.open=()=>null;' :
       popup === 'throws' ? 'window.open=()=>{throw Error("blocked")};' :
       'window.open=()=>({focus(){throw Error("stale window")}});';
@@ -26,10 +27,8 @@ async function mount(context, { scripts = true, popup = 'normal' } = {}) {
       <script>${tabRuntime}</script><script>${legacyTabs}</script>` : '') });
   });
   const page = await context.newPage();
-  await page.goto('http://studio.test/pantalla_dm.html');
-  // The management boot mask is irrelevant to navigation and would normally
-  // be dismissed by the authenticated Firebase boot omitted in this fixture.
-  await page.addStyleTag({ content: '#dm-loading-overlay,#system-loading-overlay{display:none!important}' });
+  await page.goto('http://studio.test/pantalla_dm.html', { waitUntil: 'domcontentloaded', timeout: 10000 });
+  // The boot mask is hidden by fixture HTML, including with JavaScript disabled.
   return page;
 }
 
