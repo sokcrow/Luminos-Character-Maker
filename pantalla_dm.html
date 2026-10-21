@@ -3092,6 +3092,10 @@ window.processEntitiesData = function(entities) {
       <div id="tab-combate" class="dm-tab-pane">
         <div class="panel-cyber" style="margin-top: 20px;">
           <h3>Gestión de Combate</h3>
+          <div class="dm-combat-start-control" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:10px 0 18px;">
+            <button id="dm-studio-start-encounter" type="button" class="btn-cyber" style="min-height:44px;background:#75301a;color:#fff0ce;border:1px solid #f0a66c;font-weight:bold;">INICIAR COMBATE</button>
+            <span id="dm-studio-start-encounter-status" role="status" aria-live="polite" style="font:600 12px/1.4 system-ui;color:#ffdda2;"></span>
+          </div>
 
           <!-- PANEL DE HERRAMIENTAS DE COMBATE (Anterior dm-dashboard) -->
           <div class="form-cyber-container">
@@ -4536,6 +4540,7 @@ window.processEntitiesData = function(entities) {
     <script src="js/dm-local-item-manager-v3.js"></script>
 <script src="js/dm-item-instance-editor.js"></script>
 
+    <script src="js/combat-session-lifecycle.js?v=20261021-dm-start-button-1"></script>
     <script>
       const firebaseConfig = {
         apiKey: "AIzaSyAIVIuKgXUsdrb9Mmss9PH7R3FpWAMG2hU",
@@ -4552,6 +4557,35 @@ window.processEntitiesData = function(entities) {
       firebase.initializeApp(firebaseConfig);
       const auth = firebase.auth();
       const db = firebase.database();
+
+      // Same canonical encounter entry as the director dashboard; this button
+      // initiates the shared battle, not a local fake 7v7 preview.
+      const dmStudioStart = document.getElementById('dm-studio-start-encounter');
+      const dmStudioStartStatus = document.getElementById('dm-studio-start-encounter-status');
+      let dmStudioStartPending = null;
+      dmStudioStart?.addEventListener('click', () => {
+        if(dmStudioStartPending)return;
+        dmStudioStartPending = (async () => {
+          const user = auth.currentUser;
+          if(!user?.uid)throw Error('Inicia sesión con tu cuenta del DM.');
+          const configured = (await db.ref('campaña/config/dm_uid').once('value')).val();
+          if(user.uid !== configured && user.uid !== 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1')
+            throw Error('Esta cuenta no tiene permiso de DM para iniciar el combate.');
+          if(!window.LuminousCombatSession?.start)throw Error('No se cargó el inicio de combate. Recarga la página.');
+          dmStudioStart.disabled = true;
+          dmStudioStartStatus.textContent = 'Iniciando encuentro…';
+          const result = await window.LuminousCombatSession.start({db,uid:user.uid});
+          dmStudioStartStatus.textContent = 'Combate abierto · usa Modo Director para ver el campo y desplegar unidades.';
+          dmStudioStart.textContent = 'REANUDAR COMBATE';
+          return result;
+        })().catch(error => {
+          console.error('No se pudo iniciar el combate desde el menú DM:',error);
+          const code=String(error?.code||'').toLowerCase();
+          dmStudioStartStatus.textContent = code.includes('permission') ?
+            'Firebase denegó iniciar combate: verifica la cuenta del DM.' :
+            (error?.message || 'No se pudo abrir el encuentro.');
+        }).finally(() => {dmStudioStartPending=null;dmStudioStart.disabled=false;});
+      });
 
       document.getElementById('btn-modo-director').addEventListener('click', () => {
         window.open('hoja_de_DM.html', 'DirectorDashboard', 'width=1920,height=1080');
