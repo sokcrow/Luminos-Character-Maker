@@ -45,4 +45,15 @@ assert.deepEqual(events,[1,2]);assert.equal(applied.length,1,'one render for all
 resolvers.forEach(resolve=>resolve());await consumer.idle();assert.equal(finished,true);assert.equal(consumer.cursor(),1);
 consumer.receive(envelope);await consumer.idle();assert.equal(started.length,2,'repeated transport does not replay Coins');
 consumer.receive({...envelope,payload:JSON.stringify({...payload,type:'different'})});await consumer.idle();assert.deepEqual(errors,['PLAYBACK_BATCH_CONFLICT']);
-console.log('Presentation transport: coalescing, nonblocking ACKs, durable barriers, failure propagation, parallel Coins and duplicate/conflict replay passed.');
+// Regression: each flushed transport frame must copy only unsent events,
+// even after many Coins and following a restored journal cursor.
+await import('../js/combat-v073-steps.js');
+const steps=globalThis.LuminousCombatSteps.create({rules:{}});
+for(let i=0;i<250;i++)steps.emit('Presentation',null,{cue:'powerCoin',index:i});
+assert.equal(steps.events().length,250);
+assert.deepEqual(steps.events(248).map(e=>e.sequence),[249,250]);
+assert.deepEqual(steps.events(250),[]);
+steps.resetJournal(400);steps.emit('RoundRestored',null,{});
+assert.deepEqual(steps.events(400).map(e=>e.sequence),[401]);
+assert.deepEqual(steps.events(399).map(e=>e.sequence),[401]);
+console.log('Presentation transport: incremental journal, coalescing, nonblocking ACKs, durable barriers, failure propagation, parallel Coins and duplicate/conflict replay passed.');
