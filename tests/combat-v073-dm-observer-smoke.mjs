@@ -23,7 +23,8 @@ assert.ok(source.includes("img.classList.remove('webgl2-texture-backed')"),'DM s
 assert.ok(source.includes("game.dataset.dmVisualMode='dom-base-webgl-vfx'"),'DM visual mode must explicitly declare DOM base + WebGL VFX composition');
 assert.ok(source.includes('function observeVisualSurface()'),'DM observer must watch for renderer classes being reintroduced after hydration/texture load');
 assert.ok(source.includes("game.classList.contains('webgl2-background-ready')"),'visual observer must detect when WebGL tries to reclaim the DM background');
-assert.ok(source.includes("game.querySelector('.sprite-img.webgl2-texture-backed')"),'visual observer must detect when WebGL tries to reclaim DM sprites');
+assert.ok(source.includes("record.target?.matches?.('.sprite-img.webgl2-texture-backed')"),'visual observer must detect when WebGL tries to reclaim DM sprites without a full-field query');
+assert.ok(source.includes("node.querySelector?.('.sprite-container,.sprite-img')"),'visual observer must refresh newly mounted combat sprites');
 
 assert.ok(source.includes("return value==='left'||value==='right'?value:'right'"),'battle sprites must use a deterministic source-facing convention');
 assert.ok(source.includes("?'left':'right'"),'Limbus battlefield orientation must make enemies face left and allies face right');
