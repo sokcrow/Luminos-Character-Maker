@@ -149,6 +149,7 @@ test('Ten enemies use eight field slots and two FIFO reinforcements; Victory sho
  await pp.locator('[data-pending-id]').click();await expect.poll(recovered,{timeout:30000}).toBe(2);
  await expect(pp.locator('[data-pending-id]')).toHaveCount(0);
  await screenshot(pp,info,'phone-loot-recovered-into-inventory');await pp.locator('.loot-close').click();
+ await pp.locator('#combat-entry-menu > summary').click();await expect.poll(()=>pp.locator('#combat-entry-menu').evaluate(menu=>menu.open)).toBe(false);
  await dp.locator('#combat-entry-open').click();
  await expect.poll(async()=>(await admin('campaña/combate/estado')).encounterId).not.toBe(firstId);
  raw=await admin('campaña/combate');expect(raw.estado.round).toBe(1);for(const key of ['combatants','reserves','defeated','departed','authority','playback','readyPlayers','plannedActions'])expect(raw[key]||null).toBeNull();
