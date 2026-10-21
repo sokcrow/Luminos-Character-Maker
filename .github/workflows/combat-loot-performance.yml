@@ -14,6 +14,7 @@ jobs:
       - run: npm install --no-save @playwright/test@1.55.0 firebase@8.10.1 firebase-tools@14.19.1
       - run: npx playwright install --with-deps chromium
       - run: node tests/combat-presentation-transport-smoke.mjs
+      - run: git fetch --no-tags --depth=1 origin ae3fc18866bf94a47d454e974e5a4f5a10f7a375
       - name: Compare shipped baseline and candidate with identical browser workload
         shell: bash
         run: |

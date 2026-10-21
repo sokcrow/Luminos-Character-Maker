@@ -174,3 +174,20 @@ test('performance: eight corpses and visible loot to confirmed inventory',async(
   if(!process.env.PERFORMANCE_BASELINE){expect(lootMs).toBeLessThan(6000);expect(finalizeMs).toBeLessThan(10000);}
  }finally{await dc.close();await pc.close();}
 });
+
+
+test('performance: cold loot dependencies overlap downloads and retain execution order',async({browser},info)=>{
+ test.setTimeout(60000);
+ const context=await setupContext(browser);
+ let loading=0,maxLoading=0;
+ await context.route('**/__perf_bootstrap.html',route=>route.fulfill({contentType:'text/html',body:'<!doctype html><html><head></head><body></body></html>'}));
+ await context.route('**/js/**',async route=>{loading++;maxLoading=Math.max(loading,maxLoading);await new Promise(resolve=>setTimeout(resolve,100));await route.fallback();loading--;});
+ try{
+  const page=await context.newPage();await throttle(context,page);await page.goto(base+'/__perf_bootstrap.html');
+  await page.addScriptTag({url:base+'/js/loot-live-postcombat-runtime.js'});
+  const dependencyMs=await page.evaluate(async()=>{const t=performance.now();await LuminousLootLivePostCombatRuntime.ensureDependencies();return performance.now()-t;});
+  const metrics={dependencyMs,maxLoading,assetLatencyMs:100,cpuRate:4};
+  fs.writeFileSync(info.outputPath('loot-dependencies.json'),JSON.stringify(metrics,null,2));console.log('PERFORMANCE dependencies',JSON.stringify(metrics));
+  if(!process.env.PERFORMANCE_BASELINE){expect(dependencyMs).toBeLessThan(3000);expect(maxLoading).toBeGreaterThan(4);}
+ }finally{await context.close();}
+});
