@@ -152,7 +152,7 @@ test('Ten enemies use eight field slots and two FIFO reinforcements; Victory sho
  await dp.locator('#combat-entry-open').click();
  await expect.poll(async()=>(await admin('campaña/combate/estado')).encounterId).not.toBe(firstId);
  raw=await admin('campaña/combate');expect(raw.estado.round).toBe(1);for(const key of ['combatants','reserves','defeated','departed','authority','playback','readyPlayers','plannedActions'])expect(raw[key]||null).toBeNull();
- const nextFrame=await frameWaitingForSetup(dp);
+ const nextFrame=await frameWaitingForSetup(dp,raw.estado.encounterId);
  await nextFrame.evaluate(()=>window.LuminousCombatDmSetup073.deployPlayer('p1'));
  await nextFrame.waitForFunction(()=>window.LuminousCombat073UnitDeployBridge&&window.LuminousCombatDmSetup073.state.units.qa_wolf);
  await nextFrame.locator('#c073-dm-setup > summary').click();await nextFrame.locator('#c073-unit').selectOption('qa_wolf');await nextFrame.locator('#c073-qty').fill('1');await nextFrame.locator('#c073-enemy').click();
@@ -165,7 +165,14 @@ test('Ten enemies use eight field slots and two FIFO reinforcements; Victory sho
  console.log('ROLLOVER_PASS',JSON.stringify({field:8,reserves:2,fifoPromotions:2,firstEncounterCorpses:2,nextEncounterCorpses:1,nextStartsAt:1,absentPlayerPopup:false,inventoryMeat:2,pendingDeliveryResumed:true}));
  await Promise.all([dc.close(),pc.close(),oc.close()]);
 });
-async function frameWaitingForSetup(page){await expect.poll(()=>page.frames().filter(f=>f.url().includes('Battle-viewer')).length,{timeout:30000}).toBeGreaterThan(0);const f=page.frames().find(f=>f.url().includes('Battle-viewer'));await f.waitForFunction(()=>window.LuminousCombatDmSetup073?.state.started,{},{timeout:60000});return f;}
+async function frameWaitingForSetup(page,encounterId){
+ const viewer=page.locator('#combat-entry-view');
+ await expect(viewer).toHaveAttribute('data-encounter',encounterId,{timeout:30000});
+ await expect(viewer).toBeVisible();
+ const element=await viewer.elementHandle(),f=await element.contentFrame();
+ expect(f,'the fresh encounter must have its own viewer').toBeTruthy();
+ await f.waitForFunction(()=>window.LuminousCombatDmSetup073?.state.started,{},{timeout:60000});return f;
+}
 
 test('Defeat and cancellation finish without loot and permit a fresh encounter',async({browser},info)=>{
  test.setTimeout(120000);
