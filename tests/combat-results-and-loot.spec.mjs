@@ -209,6 +209,7 @@ test('DM dashboard: INICIAR COMBATE starts a fresh fight after a sealed victory 
  await expect(page.locator('#auth-blocker')).toBeHidden({timeout:20000});
  const start=page.locator('#btn-start-encounter');
  await expect(start).toBeVisible({timeout:20000});
+ await expect(start).toHaveAttribute('data-bound','true',{timeout:20000});
  await expect(start).toBeEnabled();
  await start.click({timeout:10000});
  await expect.poll(async()=> (await admin('campaña/combate/estado')).phase,{timeout:25000}).toBe('PRE_COMBAT_PLANNING');
