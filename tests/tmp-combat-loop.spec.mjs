@@ -94,6 +94,7 @@ test('Online and local encounters keep independent state and authority',async({b
  await choose(lf);await expect.poll(()=>lf.evaluate(()=>window.LuminousCombat073.uiState().round),{timeout:60000}).toBe(3);
  expect(production.length).toBe(beforeRequests);expect(await admin('campaña/combate')).toEqual(untouched);expect((await admin('campaña/encuentros/mirror-a/state/campaña/combate/estado')).round).toBe(2);
  await info.attach('local-next-turn',{path:await lp.screenshot({path:info.outputPath('local-next-turn.png')}).then(()=>info.outputPath('local-next-turn.png')),contentType:'image/png'});
+ await expect.poll(()=>lf.evaluate(()=>JSON.parse(localStorage.getItem('luminous:encounter:local-a')).state['campaña'].combate.authority.current.phase),{timeout:15000}).toBe('complete');
  await lf.evaluate(()=>window.LuminousBattleViewerDmConsole074.finishEncounter('cancelled',{confirm:false,displayMs:0,blackoutMs:0}));
  expect(await lf.evaluate(()=>JSON.parse(localStorage.getItem('luminous:encounter:local-a')).state['campaña'].combate.estado.phase)).toBe('ENDED');
  expect((await admin('campaña/encuentros/mirror-a/state/campaña/combate/estado')).round).toBe(2);
