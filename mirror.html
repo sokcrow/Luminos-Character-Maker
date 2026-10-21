@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Encuentro separado · Luminous</title><link rel="stylesheet" href="css/combat-entry.css"></head>
+<body>
+  <header id="mirror-bar" hidden><strong>ENCUENTRO SEPARADO</strong><span id="mirror-identity"></span><nav><a href="combate.html">Combate de historia</a> <button id="mirror-end" type="button" hidden>Finalizar encuentro</button> <a id="mirror-share" hidden>Enlace para el grupo</a></nav></header>
+  <main id="mirror-main"><section id="mirror-card">
+    <p class="eyebrow">LUMINOUS · MIRROR DUNGEON</p><h1>Tu encuentro</h1>
+    <p id="mirror-message" role="status" aria-live="polite">Restaurando tu sesión…</p>
+    <form id="mirror-login" hidden><label>Correo<input id="mirror-email" type="email" autocomplete="username" required></label><label>Contraseña<input id="mirror-password" type="password" autocomplete="current-password" required></label><button type="submit">Entrar</button></form>
+    <form id="mirror-create" hidden>
+      <label>Modo<select id="mirror-mode"><option value="online">Online con tu grupo</option><option value="local">Local en este dispositivo</option></select></label>
+      <label>Personajes<select id="mirror-party" multiple size="6" required></select></label>
+      <p>En online, selecciona solo a quienes participarán y comparte el enlace. En local, elige un personaje. Puedes añadir aliados y enemigos de la biblioteca desde Encuentro.</p>
+      <p>HP, inventario y resultados se conservan dentro de este encuentro. Tu ficha y el combate de historia mantienen sus datos.</p>
+      <button type="submit">Crear encuentro</button>
+    </form>
+    <a href="combate.html">Volver al combate de historia</a>
+  </section></main>
+  <dialog id="mirror-result"><form method="dialog"><h2>Finalizar encuentro</h2><label>Resultado<select id="mirror-outcome"><option value="victory">Victoria</option><option value="defeat">Derrota</option><option value="cancelled">Cancelado</option></select></label><button value="cancel">Volver</button><button id="mirror-confirm-end" type="button">Finalizar</button></form></dialog>
+  <script src="js/combat-firebase-config.js"></script><script src="js/mirror-encounter.js?v=20261021-loop-1"></script>
+</body></html>

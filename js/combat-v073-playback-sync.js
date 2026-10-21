@@ -20,21 +20,19 @@
     const encounterCandidate=`encounter-${global.crypto?.randomUUID?.()||`${session}-${Date.now()}`}`;
     // Share the encounter identity already used by loot/setup. Claim a missing
     // identity atomically so competing DM tabs cannot invent different scopes.
-    const identity=await s.db.ref('campaña/combate/estado').transaction(raw=>{
-      const value=raw&&typeof raw==='object'?raw:{phase:typeof raw==='string'?raw:'PRE_COMBAT_PLANNING',round:payload.round};
-      return value.encounterId?value:{...value,encounterId:encounterCandidate,encounterCreatedAt:Date.now()};
-    },undefined,false);
-    payload.encounterId=identity.snapshot.val().encounterId;
-    payload.id = `${payload.encounterId}-${payload.round}-${payload.seed}-${session}`;
     payload.initialStateJson=JSON.stringify(state.authority.snapshotRuntime());
     payload.initialExecutionJson=JSON.stringify(surface()?.captureExecution?.([],new Set())||{units:state.authority.snapshotRuntime(),queue:[],resolvedKeys:[]});
-    payload.playback = { schemaVersion: 1, engineVersion: protocol().engineVersion, session, generation: payload.id };
-    const result = await s.db.ref(a.ROOT.current).transaction(current => {
+    const result = await global.LuminousCombatSession.updateRoot(s.db,raw => {
+      if(!global.LuminousCombatSession.canSeal(raw,payload))return;
+      const current=raw.authority?.current;
+      payload.encounterId=raw.estado?.encounterId||encounterCandidate;
+      payload.id = `${payload.encounterId}-${payload.round}-${payload.seed}-${session}`;
+      payload.playback = { schemaVersion: 1, engineVersion: protocol().engineVersion, session, generation: payload.id };
       if (current?.encounterId===payload.encounterId&&Number(current?.round) >= payload.round && ['sealed', 'running', 'complete'].includes(current?.phase)) return;
-      return payload;
-    }, undefined, false);
+      return {...raw,authority:{...(raw.authority||{}),current:payload},estado:{...(typeof raw.estado==='object'?raw.estado:{}),encounterId:payload.encounterId,phase:'COMBAT_SEALED',active:true,round:payload.round}};
+    });
     if (!result.committed) throw new Error('Este turno ya está en resolución en otra pestaña del DM.');
-    return result.snapshot.val();
+    return result.snapshot.val().authority.current;
   }
   function assertOwner(data) {
     const executing=state.authority?.state?.executingGeneration;
@@ -84,7 +82,7 @@
   }
   function stageUpdates(updates){
     const a=state.authority;
-    if(adapter()?.role!=='dm'||!a?.state.runningLocal||!enabled(a.state.current))return false;
+    if((adapter()?.role!=='dm'&&!adapter()?.isAuthority)||!a?.state.runningLocal||!enabled(a.state.current))return false;
     assertOwner(a.state.current);Object.assign(state.stagedUpdates,copy(updates));return true;
   }
   function commitUpdates(updates){
@@ -104,7 +102,7 @@
     state.stagedUpdates={};return result;
   }
   function refreshRecoveryControl(data=state.authority?.state.current){
-    const s=adapter(),visible=s?.role==='dm'&&enabled(data)&&['sealed','running'].includes(data.phase)&&data.playback.session!==session;
+    const s=adapter(),visible=(s?.role==='dm'||s?.isAuthority)&&enabled(data)&&['sealed','running'].includes(data.phase)&&data.playback.session!==session;
     if(!state.recoveryButton&&visible&&global.document?.createElement){
       const button=global.document.createElement('button');button.type='button';button.id='resume-combat-round';
       button.textContent='Reanudar turno aquí';
@@ -125,7 +123,7 @@
   }
   async function recover(){
     const a=state.authority,s=adapter(),expected=copy(a?.state.current);
-    if(s?.role!=='dm'||a.state.runningLocal||!enabled(expected)||!['sealed','running'].includes(expected.phase))return false;
+    if((s?.role!=='dm'&&!s?.isAuthority)||a.state.runningLocal||!enabled(expected)||!['sealed','running'].includes(expected.phase))return false;
     if(!expected.initialExecutionJson||(expected.checkpoint&&!expected.checkpoint.executionJson))
       throw new Error('Este turno se inició con un visor anterior. Continúa desde la pestaña que lo inició.');
     const claimed=await s.db.ref(a.ROOT.current).transaction(current=>{
@@ -155,7 +153,7 @@
   async function observe(data) {
     const a = state.authority, s = adapter();
     refreshRecoveryControl(data);
-    if (!enabled(data) || s?.role !== 'player' || !surface() || !global.LuminousCombat073?.combatants?.() || !s.hydratedOnce) return;
+    if (!enabled(data) || s?.role !== 'player' || s?.isAuthority || !surface() || !global.LuminousCombat073?.combatants?.() || !s.hydratedOnce) return;
     if (data.playback.schemaVersion !== 1 || data.playback.engineVersion !== protocol()?.engineVersion) {
       surface().lockPlanning(true); status('Actualiza el visor para continuar este combate.'); return;
     }

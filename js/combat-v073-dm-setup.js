@@ -32,7 +32,7 @@
 
   function adapter() { return global.LuminousCombatLiveAdapter073 || null; }
   function adapterState() { return adapter()?.state || null; }
-  function isDm() { return adapterState()?.role === 'dm'; }
+  function isDm() { return (adapterState()?.role === 'dm'||adapterState()?.isAuthority===true); }
 
   function firstNumber(object, keys, fallback) {
     for (const key of keys) {
@@ -171,6 +171,12 @@
 
   function equipped(ids) { return Object.fromEntries(ids.map((id) => [id, true])); }
 
+  function usableItems(source) {
+    const items=source.inventario_activo||{};
+    return Object.fromEntries(Object.entries(items).filter(([,item])=>item&&Number(item.quantity??item.qty??item.cantidad??item.stack??item.count??1)>0)
+      .map(([key,item])=>[clean(item.instanceId||item.instance_id||key),true]));
+  }
+
   function baseStats(record = {}) {
     const maxHp = Math.max(1, firstNumber(record, ['maxHp', 'maxHP', 'hp_max', 'hpMax', 'mechanics.maxHp', 'mechanics.hp', 'combatStats.hp_max', 'hp'], 1) || 1);
     return {
@@ -232,6 +238,7 @@
       skillIds: ids,
       skillSlotIds: slotIds,
       equippedSkillIndex: equipped(ids),
+      usableItemIndex: usableItems(source),
       statusEffects: clone(source.statusEffects || {}),
       battleActive: true,
       isBackup: false,
@@ -477,7 +484,7 @@
   function syncFieldsFromBuiltPlayer(current = {}, built = {}) {
     const fields = [
       'skillDeck','skillIds','skillSlotIds','equippedSkillIndex',
-      'canonicalPlayerKey','canonicalOwnerUid','isPlayer',
+      'canonicalPlayerKey','canonicalOwnerUid','isPlayer','usableItemIndex',
       'characterBuild','classes','classLevels',
       'spellIds','spellSelections','knownSpellIds','preparedSpellIds',
       'traitDefinitions','combatTraits','actionTraits','traits','classTraits','archetypeTraits','features',

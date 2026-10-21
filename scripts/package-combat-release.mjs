@@ -12,7 +12,7 @@ export function packageCombatRelease(output='artifacts/combat-release'){
   if(existsSync(destination))throw Error('Release output already exists; use a new empty directory.');
   const files=execFileSync('git',['ls-files','--cached','--others','--exclude-standard','-z'],{cwd:root}).toString().split('\0').filter(Boolean);
   const roots=new Set(['Assets','assets','Fonts','css','js','status-effects','game-codex','game-engine']);
-  const pages=new Set(['index.html','combate.html','Battle-viewer.html','hoja_de_DM.html','hoja_personaje.html','hoja_personaje.js','hoja_personaje.css','pantalla_dm.html','creacion_personaje.html','vinculacion.html','dm-combat-creator.html','dm-skill-creator.html','dm-trait-creator.html']);
+  const pages=new Set(['index.html','mirror.html','combate.html','Battle-viewer.html','hoja_de_DM.html','hoja_personaje.html','hoja_personaje.js','hoja_personaje.css','pantalla_dm.html','creacion_personaje.html','vinculacion.html','dm-combat-creator.html','dm-skill-creator.html','dm-trait-creator.html']);
   const parts=new Set(loaderParts(root));parts.add('combat/combat-v073-live.manifest.json');
   const shipped=files.filter(file=>pages.has(file)||parts.has(file)||(roots.has(file.split('/')[0])&&!/(^|\/)(lab|tests|node_modules)\//.test(file))).sort();
   const missing=shipped.filter(file=>!existsSync(path.join(root,file)));

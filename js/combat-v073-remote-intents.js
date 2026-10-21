@@ -116,7 +116,7 @@
   }
   async function publishPlanningAi(){
     const s=adapterState(),authority=state.authority;
-    if(s?.role!=='dm'||!s.hydratedOnce||state.publishingAi||!['planning','pre_combat_planning'].includes(norm(s.combatState))||
+    if((s?.role!=='dm'&&!s?.isAuthority)||!s.hydratedOnce||state.publishingAi||!['planning','pre_combat_planning'].includes(norm(s.combatState))||
        (Number(authority?.round)===Number(s.round)&&['sealed','running'].includes(norm(authority?.phase))))return false;
     if(applyPlanningAi())return true;
     // Wait until the authored skills are loaded; do not publish placeholder kits.
@@ -137,7 +137,7 @@
     for(const unit of Object.values(combat.combatants?.()||{})){
       const own=unit.controlled==='player',owner=global.LuminousCombatLiveAdapter073?.canonicalPlayerId?.(unit);
       const ready=own?combat.uiState?.().ready:state.ready?.[owner]?.ready===true&&Number(state.ready[owner].round)===Number(s?.round);
-      const known=s?.role==='dm'||(unit.controlled==='ai'&&global.observationKnown?.(unit,'action'))||ready;
+      const known=(s?.role==='dm'||s?.isAuthority)||(unit.controlled==='ai'&&global.observationKnown?.(unit,'action'))||ready;
       for(const [index,slot]of [...(global.unitSlots?.(unit.id)||[])].entries()){
         const plan=global.plannedActionAt?.(unit.id,index);
         const visible=known&&plan&&plan.type!=='intent'&&!combat.uiState?.().running;

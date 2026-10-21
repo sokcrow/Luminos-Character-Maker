@@ -83,8 +83,9 @@
   function resolveIdentity() {
     const uid = clean(state.uid);
     if (!uid) return { role: null, playerId: null };
-    if (uid === state.dmUid || uid === FALLBACK_DM_UID) return { role: "dm", playerId: null };
     const matches = Object.entries(state.players || {}).filter(([, player]) => playerUid(player || {}) === uid);
+    if(global.LuminousCombatContext?.isolated&&uid===state.dmUid&&matches.length===1)return {role:'player',playerId:matches[0][0],isAuthority:true};
+    if (uid === state.dmUid || uid === FALLBACK_DM_UID) return { role: "dm", playerId: null };
     if (matches.length !== 1) return { role: null, playerId: null };
     return { role: "player", playerId: matches[0][0] };
   }
@@ -442,6 +443,7 @@
     if (global.LuminousCombatAuthority073?.state?.runningLocal) return false;
     const identity = resolveIdentity();
     state.role = identity.role;
+    state.isAuthority = identity.isAuthority===true || identity.role==='dm';
     state.playerId = identity.playerId;
     if (!state.role) {
       setStatus("COMBAT · AUTHENTICATED USER IS NOT THE DM OR A LINKED CAMPAIGN PLAYER","identity-unresolved");

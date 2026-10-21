@@ -82,25 +82,12 @@
   }
 
   async function endEncounter({ db, result, reason = "" } = {}) {
-    const database = db || global.firebase?.database?.();
-    if (!database?.ref) throw new Error("DATABASE_UNAVAILABLE");
     const normalized = normalizeCombatResult(result);
     if (!normalized) throw new Error("INVALID_COMBAT_RESULT");
-    const uid = String(global.firebase?.auth?.()?.currentUser?.uid || "").trim();
-    const timestamp = global.firebase?.database?.ServerValue?.TIMESTAMP || Date.now();
-    await database.ref().update({
-      [`${COMBAT_STATE_PATH}/phase`]: "ENDED",
-      [`${COMBAT_STATE_PATH}/active`]: false,
-      [`${COMBAT_STATE_PATH}/result`]: normalized,
-      [`${COMBAT_STATE_PATH}/outcome`]: normalized,
-      [`${COMBAT_STATE_PATH}/transition`]: "auto_theatre",
-      [`${COMBAT_STATE_PATH}/endReason`]: String(reason || ""),
-      [`${COMBAT_STATE_PATH}/endedAt`]: timestamp,
-      [`${COMBAT_STATE_PATH}/endedBy`]: uid || null,
-      [`${COMBAT_STATE_PATH}/updatedAt`]: timestamp,
-      "campaña/combate/plannedActions": null,
-      "campaña/combate/readyPlayers": null,
-    });
+    const frame=global.document?.getElementById?.('dm-combat-view')||global.document?.getElementById?.('combat-entry-view');
+    const resolver=global.LuminousBattleViewerDmConsole074||frame?.contentWindow?.LuminousBattleViewerDmConsole074;
+    if(!resolver?.finishEncounter)throw new Error('El visor aún no está listo para finalizar el encuentro.');
+    await resolver.finishEncounter(normalized,{confirm:false});
     return normalized;
   }
 

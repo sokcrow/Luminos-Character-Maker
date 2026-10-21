@@ -1,7 +1,7 @@
 (function(global){
   'use strict';
   const ROOT='campaña/combate',INSTANCE='campaña/estado_mundo/instancia_activa';
-  const blocked=raw=>['sealed','running'].includes(String(raw?.authority?.current?.phase||'').toLowerCase());
+  const blocked=raw=>['sealed','running'].includes(String(raw?.authority?.current?.phase||'').toLowerCase())||String(raw?.estado?.phase||'').toUpperCase()==='ENDING';
   const live=raw=>raw?.estado?.active!==false&&!['ENDED','SETUP'].includes(String(raw?.estado?.phase||'').toUpperCase());
   function nextEncounter(raw,{id,uid,time}){
     if(blocked(raw))return;
@@ -33,6 +33,18 @@
       return await ref.transaction(update,undefined,false);
     }finally{if(listener)ref.off('value',listener);}
   }
+  function canSeal(raw,payload){
+    if(!raw||!['PRE_COMBAT_PLANNING','PLANNING'].includes(String(raw.estado?.phase||raw.estado).toUpperCase())||Number(raw.estado?.round||1)!==payload.round)return false;
+    const members=global.LuminousCombatParticipants?.players(raw.combatants)||[];
+    if(members.length!==Object.keys(payload.plans||{}).length)return false;
+    const stable=v=>Array.isArray(v)?v.map(stable):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().filter(k=>k!=='updatedAt').map(k=>[k,stable(v[k])])):v;
+    return members.every(member=>{
+      const ready=raw.readyPlayers?.[member.playerId];
+      if(!ready?.ready||Number(ready.round)!==payload.round||ready.unitId!==member.unitId)return false;
+      const plans=Object.fromEntries(Object.entries(raw.plannedActions?.[member.playerId]||{}).filter(([,p])=>p?.unitId===member.unitId&&Number(p.round)===payload.round));
+      return JSON.stringify(stable(plans))===JSON.stringify(stable((payload.planningWitness||payload.plans)[member.playerId]||{}));
+    });
+  }
   async function start({db,uid}){
     const id=`encounter-${global.crypto?.randomUUID?.()||`${Date.now()}-${Math.random().toString(36).slice(2)}`}`;
     const result=await updateRoot(db,raw=>nextEncounter(raw,{id,uid,time:Date.now()}));
@@ -40,16 +52,35 @@
     await db.ref(INSTANCE).set('combate');
     return result.snapshot.val()?.estado;
   }
-  async function end({db,uid,result}){
-    const response=await updateRoot(db,raw=>nextEnd(raw,{result,uid,time:Date.now()}));
+  async function end({result,finishEncounter}){
+    if(typeof finishEncounter!=='function')throw Error('El visor aún no está listo para finalizar el encuentro.');
+    return finishEncounter(result,{confirm:false});
+  }
+  async function claimEnd({db,uid,result,applyEffects}){
+    const token=global.crypto?.randomUUID?.()||`${Date.now()}-${Math.random()}`;
+    const response=await updateRoot(db,raw=>{
+      if(!raw||['sealed','running'].includes(String(raw.authority?.current?.phase||'').toLowerCase()))return;
+      if(raw.estado?.phase==='ENDING')return raw.estado.ending?.uid===uid&&raw.estado.ending?.result===result?raw:undefined;
+      if(raw.estado?.phase==='ENDED'||!['victory','defeat','cancelled'].includes(result))return;
+      const combatants=JSON.parse(JSON.stringify(raw.combatants||{}));
+      applyEffects?.(combatants);
+      return {...raw,combatants:JSON.parse(JSON.stringify(combatants)),estado:{...(raw.estado||{}),phase:'ENDING',ending:{token,uid,result}},plannedActions:null,readyPlayers:null};
+    });
     if(!response.committed)throw Error('Espera a que termine la ronda antes de finalizar el encuentro.');
-    await db.ref(INSTANCE).set('teatro');
-    return response.snapshot.val()?.estado;
+    return response.snapshot.val();
+  }
+  async function commitEnd({db,uid,result,token}){
+    const response=await updateRoot(db,raw=>{
+      if(raw?.estado?.phase!=='ENDING'||raw.estado.ending?.token!==token||raw.estado.ending?.uid!==uid||raw.estado.ending?.result!==result)return;
+      return {...raw,estado:{...raw.estado,ending:null,phase:'ENDED',active:false,result,outcome:result,transition:'result',endedBy:uid,endedAt:Date.now(),updatedAt:Date.now()}};
+    });
+    if(!response.committed)throw Error('El encuentro cambió antes de confirmar el resultado.');
+    return response.snapshot.val().estado;
   }
   async function presentation({db,value}){
     const response=await updateRoot(db,raw=>nextPresentation(raw,value));
     if(!response.committed)throw Error('Cambia la presentación entre rondas, antes de elegir acciones.');
     return value;
   }
-  global.LuminousCombatSession=Object.freeze({ROOT,INSTANCE,blocked,live,nextEncounter,nextEnd,nextPresentation,start,end,presentation});
+  global.LuminousCombatSession=Object.freeze({ROOT,INSTANCE,blocked,live,nextEncounter,nextEnd,nextPresentation,start,end,claimEnd,commitEnd,updateRoot,canSeal,presentation});
 })(typeof window!=='undefined'?window:globalThis);

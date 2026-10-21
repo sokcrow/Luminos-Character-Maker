@@ -10,7 +10,7 @@
 
   function adapter(){return global.LuminousCombatLiveAdapter073||null}
   function adapterState(){return adapter()?.state||null}
-  function isDm(){return adapterState()?.role==='dm'}
+  function isDm(){return (adapterState()?.role==='dm'||adapterState()?.isAuthority===true)}
 
   function rangeFor(unit={}){
     const movementRange=global.LuminousMovementSpeedRuntime?.rangeForEntity?.(unit)||null;

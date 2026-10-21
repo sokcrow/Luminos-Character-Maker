@@ -38,7 +38,7 @@
   function adapter() { return global.LuminousCombatLiveAdapter073 || null; }
   function adapterState() { return adapter()?.state || null; }
   function runtime() { return global.LuminousCombat073 || null; }
-  function isDm() { return adapterState()?.role === "dm"; }
+  function isDm() { return (adapterState()?.role === "dm"||adapterState()?.isAuthority===true); }
   function db() { return adapterState()?.db || null; }
   function round() { return Math.max(1, finiteInt(adapterState()?.round, 1)); }
 

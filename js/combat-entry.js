@@ -24,7 +24,7 @@
     $('combat-entry-presentation-label').hidden=!state.dm||!active;
     const locked=api.blocked(state.encounter);
     $('combat-entry-start').disabled=state.busy||!state.connected||locked;
-    $('combat-entry-end').disabled=state.busy||!state.connected||locked;
+    $('combat-entry-end').disabled=state.busy||!state.connected||(locked&&state.encounter?.estado?.phase!=='ENDING');
     $('combat-entry-open').disabled=state.busy||!state.connected;
     $('combat-entry-presentation').disabled=state.busy||!state.connected||locked;
     $('combat-entry-presentation').value=state.encounter?.estado?.presentation==='simple'?'simple':'full';
@@ -53,7 +53,11 @@
   $('combat-entry-login').onsubmit=async event=>{event.preventDefault();const button=event.currentTarget.querySelector('button');button.disabled=true;try{await auth.signInWithEmailAndPassword($('combat-entry-email').value.trim(),$('combat-entry-password').value);$('combat-entry-password').value='';}catch(error){say(error.code==='auth/network-request-failed'?'No se pudo conectar. Revisa tu conexión.':'No se pudo iniciar sesión. Revisa tu correo y contraseña.',true);}finally{button.disabled=false;}};
   $('combat-entry-open').onclick=$('combat-entry-start').onclick=()=>action(()=>api.start({db,uid:state.uid}));
   $('combat-entry-end').onclick=()=>{$('combat-entry-menu').open=false;$('combat-entry-end-dialog').showModal();};
-  $('combat-entry-confirm-end').onclick=()=>action(async()=>{await api.end({db,uid:state.uid,result:$('combat-entry-result').value});$('combat-entry-end-dialog').close();});
+  $('combat-entry-confirm-end').onclick=()=>action(async()=>{
+    const consoleApi=$('combat-entry-view')?.contentWindow?.LuminousBattleViewerDmConsole074;
+    await api.end({result:$('combat-entry-result').value,finishEncounter:consoleApi?.finishEncounter});
+    $('combat-entry-end-dialog').close();
+  });
   $('combat-entry-presentation').onchange=event=>{const value=event.target.value;return action(()=>api.presentation({db,value}));};
   $('combat-entry-signout').onclick=()=>action(()=>auth.signOut());
   auth.onAuthStateChanged(async user=>{
