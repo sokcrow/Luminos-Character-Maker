@@ -4611,7 +4611,18 @@ window.processEntitiesData = function(entities) {
         }).finally(() => {dmStudioStartPending=null;dmStudioStart.disabled=false;});
       });
 
-      document.getElementById('btn-modo-director').addEventListener('click', openLiveDirector);
+      // Restore the original explicit navigation contract of ENTRAR A SESIÓN
+      // EN VIVO. Focusing a cached Window handle alone can leave the DM stuck
+      // on a stale/blank/error page. window.open with the existing named
+      // target reuses that tab AND navigates it back to the live Director.
+      // Crucially this does not start a Combat encounter or change the scene.
+      document.getElementById('btn-modo-director').addEventListener('click', () => {
+        const director = window.open('hoja_de_DM.html', 'DirectorDashboard', 'width=1920,height=1080');
+        if (director) {
+          liveDirectorWindow = director;
+          director.focus?.();
+        }
+      });
 
       const DM_LOADING_SCENES = Object.freeze([
         {

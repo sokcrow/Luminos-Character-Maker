@@ -105,7 +105,8 @@ assert.match(source('js/instance-control.js'), /startButton\?\.addEventListener\
 assert.match(source('pantalla_dm.html'), /LuminousCombatSession\.start\(\{db,uid:user\.uid\}\)/, 'studio start must use the canonical encounter session, not a local mock');
 assert.match(source('pantalla_dm.html'), /const directorOpened = openLiveDirector\(\);[\s\S]*?dmStudioStartPending = \(async/, 'Studio START must open/focus the Director synchronously, not after the Firebase request');
 assert.match(source('pantalla_dm.html'), /window\.open\('hoja_de_DM\.html', 'DirectorDashboard'/, 'Studio must connect to the live Director with Theatre and Combat');
-assert.match(source('pantalla_dm.html'), /btn-modo-director'\)\.addEventListener\('click', openLiveDirector\)/, 'Enter Live Session and Start Combat must share the same popup/window handle');
+assert.match(source('pantalla_dm.html'), /btn-modo-director'\)\.addEventListener\('click', \(\) => \{[\s\S]*?window\.open\('hoja_de_DM\.html', 'DirectorDashboard'/, 'Enter Live Session must navigate the named Director window on every click, even when stale');
+assert.doesNotMatch(source('pantalla_dm.html'), /btn-modo-director'\)\.addEventListener\('click', openLiveDirector\)/, 'enter live session must never merely focus a stale cached popup');
 assert.match(source('js/instance-control.js'), /\? "combat_theatre"/, 'Theatre must stay an interlude while an encounter is active');
 assert.match(source('js/instance-control.js'), /await instanceRef\.set\(nuevaInstancia\)/, 'Director switches must use the shared campaign instance');
 assert.match(source('js/instance-control.js'), /radio\.addEventListener\("click"/, 'already-selected Combat control must respond to another click');

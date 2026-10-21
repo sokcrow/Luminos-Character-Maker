@@ -313,3 +313,57 @@ test('Studio Combat uses the same live Theatre/Combat Director, retaining encoun
    await context.close();
  }
 });
+
+
+test('ENTRAR A SESIÓN EN VIVO really enters Theatre and recovers a stale Director window without starting combat',async({browser})=>{
+ test.setTimeout(125000);
+ const campaign=clone(initial);
+ campaign.estado_mundo.instancia_activa='teatro';
+ campaign.combate.estado.round=9;
+ campaign.jugadores.p1.hp=57;
+ campaign.combate.combatants['player:p1'].hp=57;
+ await admin('campaña','PUT',campaign);
+ const context=await setupContext(browser);
+ try {
+   const studio=await context.newPage();
+   await studio.goto(base+'/hoja_de_DM.html',{waitUntil:'domcontentloaded'});
+   await studio.evaluate(async credentials=>{
+     await firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+     await firebase.auth().signInWithEmailAndPassword(credentials.email,credentials.password);
+   },dm);
+   await studio.goto(base+'/pantalla_dm.html',{waitUntil:'domcontentloaded'});
+   await studio.waitForFunction(()=>window.__luminousDmAuthReady===true,{},{timeout:25000});
+   const enter=studio.locator('#btn-modo-director');
+   await expect(enter).toBeVisible({timeout:20000});
+   const newWindow=context.waitForEvent('page',{timeout:20000});
+   await enter.click({timeout:20000});
+   const director=await newWindow;
+   await director.waitForLoadState('domcontentloaded');
+   await expect.poll(()=>new URL(director.url()).pathname,{timeout:20000}).toBe('/hoja_de_DM.html');
+   await expect(director.locator('#modulo-teatro')).toHaveClass(/active-module/,{timeout:25000});
+   await expect(director.locator('#auth-blocker')).toBeHidden({timeout:25000});
+   await director.locator('#modulo-teatro > .theatre-dm-menu > summary').click({timeout:20000});
+   await expect(director.locator('#theatre-dialogue-input')).toBeVisible({timeout:25000});
+   expect(await admin('campaña/estado_mundo/instancia_activa')).toBe('teatro');
+   const before=await admin('campaña/combate');
+   expect(before.estado.encounterId).toBe('story');
+   expect(before.estado.round).toBe(9);
+   expect(before.combatants['player:p1'].hp).toBe(57);
+
+   // The regression in #1009: focus() on a stale Window handle was not
+   // navigation. The original button must return it to the real Director.
+   await director.goto(base+'/index.html',{waitUntil:'domcontentloaded'});
+   const existingTabs=context.pages().length;
+   await enter.click({timeout:20000});
+   await expect.poll(()=>new URL(director.url()).pathname,{timeout:20000}).toBe('/hoja_de_DM.html');
+   expect(context.pages().length).toBe(existingTabs);
+   await expect(director.locator('#modulo-teatro')).toHaveClass(/active-module/,{timeout:25000});
+   const after=await admin('campaña/combate');
+   expect(after.estado.encounterId).toBe(before.estado.encounterId);
+   expect(after.estado.round).toBe(before.estado.round);
+   expect(after.combatants['player:p1'].hp).toBe(before.combatants['player:p1'].hp);
+   expect(await admin('campaña/estado_mundo/instancia_activa')).toBe('teatro');
+ } finally {
+   await context.close();
+ }
+});
