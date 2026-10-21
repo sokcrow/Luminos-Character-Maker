@@ -600,7 +600,7 @@
 
   function bindPlayer({ db, doc } = {}) {
     const documentRef=doc||global.document;if(!db||!documentRef)return;
-    let campaignInstance='ninguno',currentInstance='ninguno',combatState={},combatants={},players={},uid='';
+    let campaignInstance='ninguno',currentInstance='ninguno',combatState={},combatants={},participants={},players={},uid='';
     const subscriptions=[];
     ensureTheatreRollVisualizerAssets(documentRef);
     ensureTheatreCheckCoordinatorAssets(documentRef);
@@ -610,8 +610,11 @@
       return{uid:matches.length===1?uid:'',playerId:matches.length===1?matches[0][0]:null};
     };
     const sync=()=>{
-      let next=global.LuminousCombatParticipants?.playerInstance(campaignInstance,combatants,identity())||'teatro';
-      if(['combate','combat_theatre'].includes(next)&&isEncounterEnded(combatState))next='teatro';
+      const player=identity();
+      let next=global.LuminousCombatParticipants?.playerInstance(campaignInstance,combatants,player)||'teatro';
+      // A defeated/removed participant is still part of the encounter and must
+      // see its result seal. The shared instance, not ENDED alone, opens Theatre.
+      if(player.playerId&&participants[player.playerId]===true&&['combate','combat_theatre'].includes(campaignInstance))next=campaignInstance;
       const previous=currentInstance;
       if(next==='teatro'&&['combate','combat_theatre'].includes(previous))
         void beginTheatreLoading({db,doc:documentRef,result:normalizeCombatResult(combatState.result||combatState.outcome),effectiveInstance:next});
@@ -624,10 +627,11 @@
       subscriptions.push(()=>ref.off('value',handler));
     };
     const bindData=user=>{
-      subscriptions.splice(0).forEach(off=>off());uid=String(user?.uid||'');combatants={};players={};combatState={};campaignInstance='ninguno';
+      subscriptions.splice(0).forEach(off=>off());uid=String(user?.uid||'');combatants={};participants={};players={};combatState={};campaignInstance='ninguno';
       if(!uid){applyPlayerInstance('ninguno',documentRef);return;}
       watch('campaña/jugadores',value=>{players=value||{};});
       watch('campaña/combate/combatants',value=>{combatants=value||{};});
+      watch('campaña/combate/participants',value=>{participants=value||{};});
       watch(COMBAT_STATE_PATH,value=>{combatState=value||{};});
       watch(INSTANCE_PATH,value=>{campaignInstance=normalizeInstance(value);});
     };
