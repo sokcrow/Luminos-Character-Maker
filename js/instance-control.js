@@ -594,6 +594,7 @@
       return pendingStart;
     };
     startButton?.addEventListener("click", () => { void openOrResumeCombat().catch(() => {}); });
+    if (startButton) startButton.dataset.bound = "true";
     syncStartLabel();
     combatStateRef.on("value", (snapshot) => {
       combatState = snapshot.val() || {};
