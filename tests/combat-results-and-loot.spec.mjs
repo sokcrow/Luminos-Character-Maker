@@ -189,3 +189,42 @@ test('Defeat and cancellation finish without loot and permit a fresh encounter',
   expect((await admin('campaña/combate/estado')).round).toBe(1);await dc.close();await pc.close();
  }
 });
+
+test('DM dashboard: INICIAR COMBATE starts a fresh fight after a sealed victory and does not reset an active fight',async({browser})=>{
+ test.setTimeout(125000);
+ const campaign=clone(initial);
+ campaign.estado_mundo.instancia_activa='teatro';
+ campaign.combate={
+   estado:{encounterId:'previous-victory',phase:'ENDED',round:1,completedRound:42,result:'victory',active:false},
+   authority:{current:{id:'sealed-from-previous-fight',phase:'sealed'}},
+   combatants:{oldEnemy:{id:'oldEnemy',hp:0}},
+   defeated:{oldEnemy:{id:'oldEnemy',hp:0}},
+   reserves:{waitingEnemy:{id:'waitingEnemy',hp:33}},
+ };
+ await admin('campaña','PUT',campaign);
+ const context=await setupContext(browser,true);
+ const page=await context.newPage();
+ await page.goto(base+'/hoja_de_DM.html');
+ await page.evaluate(async credentials=>firebase.auth().signInWithEmailAndPassword(credentials.email,credentials.password),dm);
+ await expect(page.locator('#auth-blocker')).toBeHidden({timeout:20000});
+ const start=page.locator('#btn-start-encounter');
+ await expect(start).toBeVisible({timeout:20000});
+ await expect(start).toBeEnabled();
+ await start.click({timeout:10000});
+ await expect.poll(async()=> (await admin('campaña/combate/estado')).phase,{timeout:25000}).toBe('PRE_COMBAT_PLANNING');
+ await expect.poll(async()=> (await admin('campaña/estado_mundo/instancia_activa')),{timeout:20000}).toBe('combate');
+ const fresh=await admin('campaña/combate');
+ expect(fresh.estado.encounterId).not.toBe('previous-victory');
+ expect(fresh.estado.round).toBe(1);
+ for(const key of ['authority','playback','combatants','defeated','reserves','readyPlayers','plannedActions'])
+   expect(fresh[key]||null,key+' should not leak into a new fight').toBeNull();
+ // Reopening the active combat must never recreate its round or delete units.
+ await admin('campaña/combate/combatants/test-ally','PUT',{id:'test-ally',faction:'ally',hp:47});
+ await admin('campaña/combate/estado/round','PUT',7);
+ await start.click({timeout:10000});
+ const resumed=await admin('campaña/combate');
+ expect(resumed.estado.encounterId).toBe(fresh.estado.encounterId);
+ expect(resumed.estado.round).toBe(7);
+ expect(resumed.combatants['test-ally'].hp).toBe(47);
+ await context.close();
+});
