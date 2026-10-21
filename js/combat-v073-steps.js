@@ -210,7 +210,14 @@
     }
     return Object.freeze({ version: VERSION, rollPower, rollPair, hits, clash, guard, evade, emit, mutate, show,
       beginRound() { sequence = 0; journal = []; emit('RoundSealed'); },
-      events: () => copy(journal), setPresentationEnabled(value) { enabled = Boolean(value); }, presentationEnabled: () => enabled,
+      // The transport reads many times per round. Never clone already sent
+      // presentation snapshots again: every event has a contiguous sequence.
+      events: (afterSequence = 0) => {
+        const first = journal[0]?.sequence;
+        if (first === undefined) return [];
+        const start = Math.max(0, Math.trunc(Number(afterSequence) || 0) - first + 1);
+        return copy(journal.slice(start));
+      }, setPresentationEnabled(value) { enabled = Boolean(value); }, presentationEnabled: () => enabled,
       capturePresentation(value) { capture = Boolean(value); },
       async present(cue, args) { if (enabled) { notify(onPresentation, cue, args); await presentation[cue]?.(...args); } },
       acceptEvent(event) { journal.push(freeze(copy(event))); sequence = Math.max(sequence, event.sequence); notify(onEvent, event); },
