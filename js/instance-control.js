@@ -523,16 +523,21 @@
       lastAutoTransitionToken = token;
       if (endTransitionTimer) global.clearTimeout(endTransitionTimer);
       const presentationMs = result === "cancelled" ? 0 : RESULT_PRESENTATION_MS + (transition === "result" ? 1400 : 0);
-      endTransitionTimer = global.setTimeout(() => {
+      endTransitionTimer = global.setTimeout(async () => {
         endTransitionTimer = null;
-        // A previous result must never expel the DM from a newly started
-        // encounter if they click START during the presentation timeout.
-        if (currentInstance !== "combate" || !isEncounterEnded(combatState) ||
-            combatResultToken(combatState) !== token) return;
-        instanceRef.set("teatro").catch((error) => {
+        // Check Firebase itself, not only the cached on(value) snapshot: the
+        // Director startup gate may still be deferring the Combat-state listener.
+        // An obsolete victory timer must never evict a fresh encounter.
+        if (currentInstance !== "combate") return;
+        try {
+          const latest=(await combatStateRef.once("value")).val() || {};
+          if (!isEncounterEnded(latest) || combatResultToken(latest) !== token ||
+              currentInstance !== "combate") return;
+          await instanceRef.set("teatro");
+        } catch (error) {
           console.error("No se pudo regresar al Theater después del encounter:", error);
           loadingApi()?.fail?.("instance", error?.message || String(error), documentRef);
-        });
+        }
       }, presentationMs);
     };
 
