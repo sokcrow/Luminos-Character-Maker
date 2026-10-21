@@ -255,9 +255,24 @@ test('Studio Combat uses the same live Theatre/Combat Director, retaining encoun
  // pantalla_dm.html deliberately redirects unauthenticated visitors to index:
  // sign in from the established Combat entry first, then enter the DM Studio
  // with the same persisted Firebase auth state.
- await login(studio,dm);
+ await studio.goto(base+'/hoja_de_DM.html',{waitUntil:'domcontentloaded'});
+ await studio.evaluate(async credentials=>{
+   await firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+   await firebase.auth().signInWithEmailAndPassword(credentials.email,credentials.password);
+ },dm);
+ await studio.waitForFunction(uid=>firebase.auth().currentUser?.uid===uid,dm.uid,{timeout:20000});
  await studio.goto(base+'/pantalla_dm.html',{waitUntil:'domcontentloaded'});
- await studio.waitForFunction(()=>window.__luminousDmAuthReady===true,{},{timeout:30000});
+ try {
+   await studio.waitForFunction(()=>window.__luminousDmAuthReady===true,{},{timeout:20000});
+ } catch(error) {
+   const reason=await studio.evaluate(()=>({
+     href:location.href,authUid:window.firebase?.auth?.().currentUser?.uid||null,
+     authReady:window.__luminousDmAuthReady,dmLoading:document.querySelector('#dm-loading-overlay')?.textContent?.slice(0,280),
+     studioStartPresent:!!document.getElementById('dm-studio-start-encounter')
+   })).catch(()=>({href:studio.url()}));
+   console.error('STUDIO_AUTH_DIAGNOSTIC',JSON.stringify(reason));
+   throw error;
+ }
  await studio.locator('button.dm-tab-btn[data-tab="tab-combate"]').click({timeout:25000});
  const start=studio.locator('#dm-studio-start-encounter');
  await expect(start).toBeVisible({timeout:25000});
