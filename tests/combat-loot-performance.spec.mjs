@@ -90,7 +90,7 @@ async function instrument(context) {
    const proto=firebase.database.Reference.prototype;
    for(const method of ['once','update','set','transaction']){
     const original=proto[method];proto[method]=function(...args){
-     const p=window.__perf,op={method,path:this.toString().split('?')[0],start:performance.now(),bytes:method==='update'||method==='set'?JSON.stringify(args[0]??null).length:0};
+     const p=window.top.__perf?.active?window.top.__perf:window.__perf,op={method,path:this.toString().split('?')[0],start:performance.now(),bytes:method==='update'||method==='set'?JSON.stringify(args[0]??null).length:0};
      if(p.active)p.operations.push(op);
      const result=original.apply(this,args);
      if(!result?.then)return result;
@@ -101,7 +101,7 @@ async function instrument(context) {
 
  });
 }
-async function throttle(context,page){const cdp=await context.newCDPSession(page);await cdp.send('Emulation.setCPUThrottlingRate',{rate:4});}
+async function throttle(context,page){const cdp=await context.newCDPSession(page);await cdp.send('Emulation.setCPUThrottlingRate',{rate:4});return cdp;}
 async function startMeasure(frame){await frame.evaluate(()=>{const p=window.__perf;p.operations=[];p.frames=[];p.longTasks=[];p.publish=[];p.active=true;window.__qaCues=[];});}
 async function stopMeasure(frame){return frame.evaluate(()=>{const p=window.__perf;p.active=false;const sorted=p.frames.slice().sort((a,b)=>a-b);return {...p,frameP95:sorted[Math.floor(sorted.length*.95)]||0,maxFrame:Math.max(0,...sorted),maxLongTask:Math.max(0,...p.longTasks.map(x=>x.duration)),writes:p.operations.filter(o=>o.method==='update'||o.method==='set').length,writeBytes:p.operations.reduce((n,o)=>n+o.bytes,0),cues:window.__qaCues};});}
 function summary(p){return {frameP95:p.frameP95,maxFrame:p.maxFrame,maxLongTask:p.maxLongTask,longTasks:p.longTasks.length,writes:p.writes,writeBytes:p.writeBytes,cues:p.cues.length,publishWaitMs:p.publish.reduce((n,x)=>n+x,0),maxPublishWaitMs:Math.max(0,...p.publish)};}
@@ -119,12 +119,18 @@ test('performance: visible combat with one player, one kobold, 1 and 3 coins, th
   const dc=await setupContext(browser),pc=await setupContext(browser,true);
   await instrument(dc);await instrument(pc);
   try{
-   const dp=await dc.newPage(),pp=await pc.newPage();await throttle(dc,dp);await throttle(pc,pp);
+   const dp=await dc.newPage(),pp=await pc.newPage();const profiler=await throttle(dc,dp);await throttle(pc,pp);
    await login(dp,dm);const df=await frame(dp);await login(pp,player);const pf=await frame(pp);
    await startMeasure(df);await startMeasure(pf);
-   const t=Date.now();await choose(pf);await waitRound(pf,2);await waitRound(df,2);
+   await profiler.send('Profiler.enable');await profiler.send('Profiler.start');
+   const t=Date.now();await choose(pf);
+   await expect.poll(()=>pf.evaluate(()=>window.__qaCues.some(c=>c.cue==='powerCoin')),{timeout:30000}).toBe(true);
+   await screenshot(pp,info,`live-${coins}coins-${enemies}enemies`);
+   await waitRound(pf,2);await waitRound(df,2);
    const authority=await stopMeasure(df),viewer=await stopMeasure(pf);
-   const metrics={wallMs:Date.now()-t,coins,enemies,ackDelayMs:250,cpuRate:4,authority,viewer};
+   const profile=await profiler.send('Profiler.stop');fs.writeFileSync(info.outputPath(`cpu-${coins}coins-${enemies}enemies.json`),JSON.stringify(profile.profile));
+   const cueSkewMs=Math.max(0,...viewer.cues.map((c,i)=>c.at-(authority.cues[i]?.at||c.at)));
+   const metrics={wallMs:Date.now()-t,cueSkewMs,coins,enemies,ackDelayMs:250,cpuRate:4,authority,viewer};
    await saveMetrics(info,`combat-${coins}coins-${enemies}enemies`,metrics);
    await screenshot(pp,info,`combat-${coins}coins-${enemies}enemies`);
    expect(viewer.cues.some(c=>c.cue==='hitMotion')).toBe(true);
@@ -132,6 +138,7 @@ test('performance: visible combat with one player, one kobold, 1 and 3 coins, th
    const view=await pf.evaluate(()=>Object.fromEntries(Object.entries(window.LuminousCombat073.combatants()).map(([id,u])=>[id,u.hp])));
    for(const [id,u]of Object.entries(canonical))expect(view[id]).toBe(u.hp);
    if(!process.env.PERFORMANCE_BASELINE){
+    expect(cueSkewMs,'player animation cannot fall seconds behind the authority').toBeLessThan(2000);
     expect(authority.publish.length).toBeGreaterThan(0);
     expect(Math.max(...authority.publish),'network acknowledgement must not gate each visual cue').toBeLessThan(80);
     expect(authority.maxFrame,'no multi-second authority freeze').toBeLessThan(1000);
