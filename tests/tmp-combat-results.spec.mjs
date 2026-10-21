@@ -101,6 +101,7 @@ test('Ten enemies use eight field slots and two FIFO reinforcements; Victory sho
  campaign.base_datos_unidades.qa_wolf=authored;
  for(const id of ['s1','s2','s3'])campaign.base_datos_skills[id].basePower=200;
  campaign.combate.estado.presentation='simple';
+ campaign.jugadores.p1.hp=1300;campaign.jugadores.p1.maxHp=1300;campaign.combate.combatants['player:p1'].hp=1300;campaign.combate.combatants['player:p1'].maxHp=1300;
  await admin('campaña','PUT',campaign);
  const dc=await setupContext(browser),pc=await setupContext(browser,true),oc=await setupContext(browser);
  const dp=await dc.newPage(),pp=await pc.newPage(),op=await oc.newPage();dp.on('dialog',d=>d.accept());
@@ -115,7 +116,7 @@ test('Ten enemies use eight field slots and two FIFO reinforcements; Victory sho
  await screenshot(dp,info,'eight-field-two-reserves');await df.locator('#c073-dm-setup > summary').click();
  for(let round=1;round<=2;round++){
   await choose(pf);await expect.poll(async()=>(await admin('campaña/combate/estado')).round,{timeout:90000}).toBe(round+1);await waitRound(pf,round+1);
-  raw=await admin('campaña/combate');expect(Object.keys(raw.defeated||{}).length).toBe(round);expect(Object.keys(raw.reserves||{}).length).toBe(2-round);
+  raw=await admin('campaña/combate');console.log('WAVE_STATE',JSON.stringify({round,units:Object.entries(raw.combatants||{}).map(([id,u])=>({id,hp:u.hp,maxHp:u.maxHp,incapacitated:u.incapacitated})),defeated:Object.keys(raw.defeated||{}),reserves:Object.keys(raw.reserves||{})}));expect(Object.keys(raw.defeated||{}).length).toBe(round);expect(Object.keys(raw.reserves||{}).length).toBe(2-round);
   expect(Object.values(raw.combatants).filter(u=>u.faction==='enemy').length).toBe(8);
   const promoted=raw.combatants[reserveIds[round-1]];expect(promoted).toBeTruthy();expect(promoted.isBackup).toBe(false);expect(promoted.battleActive).toBe(true);
  }
