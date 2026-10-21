@@ -105,7 +105,7 @@
     const targets = [actor, ...(wisdom >= 10 ? units.filter(unit => unit.id !== actor.id && side(unit) === side(actor) && active(unit)) : [])];
     const candidates = [];
     for (const [key, item] of rows(actor)) {
-      if (quantity(item) < 1 || !item.runtime?.healing) continue;
+      if (quantity(item) < Math.max(1, number(item.runtime?.consumeQty, 1)) || !item.runtime?.healing) continue;
       for (const target of targets) {
         if (!active(target)) continue;
         const ratio = number(target.hp) / Math.max(1, number(target.maxHp, 1));
@@ -130,7 +130,7 @@
     if (!active(target) || side(target) !== side(actor)) return { used: false, reason: 'npc_item_target_unavailable' };
     if (target.id !== actor.id && score(actor, 'wis', 'wisdom') < 10) return { used: false, reason: 'npc_item_ally_wisdom_required' };
     const owned = rows(actor).find(([key, row]) => (row.instanceId || key) === item.instanceId)?.[1];
-    if (!owned || quantity(owned) < 1 || !owned.runtime?.healing) return { used: false, reason: 'npc_item_unavailable' };
+    if (!owned || quantity(owned) < Math.max(1, number(owned.runtime?.consumeQty, 1)) || !owned.runtime?.healing) return { used: false, reason: 'npc_item_unavailable' };
     return global.LuminousItemRuntime?.useItem?.(actor, owned, { phase: 'combat', target, ignoreActionCost: true }) || { used: false, reason: 'item_runtime_unavailable' };
   }
   function aiSources(actor, options = {}) {

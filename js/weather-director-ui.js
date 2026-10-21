@@ -133,7 +133,7 @@
   }
 
   function selectedBreakdown() {
-    if (!currentState) return [];
+    if (!currentState || typeof engine.getTransitionBreakdown !== "function") return [];
     return engine.getTransitionBreakdown(currentState.actual.tipo, currentState);
   }
 

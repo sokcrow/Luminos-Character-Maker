@@ -465,7 +465,7 @@ test('NPC belongings enter live deployment, AI spends its own dose on a wounded 
   const corpse=corpses.find(row=>row.sourceUnitInstanceId===healer.id);
   expect(corpse).toBeTruthy();
   const loot=await admin('campaña/loot_instances/'+corpse.lootInstanceId);
-  expect(loot.carried.some(row=>row.instanceId===item.instanceId)).toBe(false);
+  expect((loot.carried||[]).some(row=>row.instanceId===item.instanceId)).toBe(false);
   expect(loot.currency.amount).toBe(spent.carriedCurrency.amount);
  }finally{await Promise.all([dc.close(),pc.close()]);}
 });
