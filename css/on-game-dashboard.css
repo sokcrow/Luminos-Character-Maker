@@ -182,3 +182,50 @@ body { margin: 0; overflow: hidden; background: #020304; color: #e8edf2; }
   .master-control-bar .status-container{max-width:70px}
   .master-control-bar #connection-status{font-size:9px;overflow:hidden;text-overflow:ellipsis}
 }
+
+/* P0 regression · Starting an encounter is NOT the same as resolving a READY round.
+   This single director-only action is reachable from Theatre, Standby and Combat. */
+.master-control-bar #btn-start-encounter {
+  flex:0 0 auto;
+  min-height:44px;
+  padding:9px 14px;
+  background:linear-gradient(120deg,#502014,#8c3022);
+  border:1px solid #f0a66c;
+  color:#fff3d8;
+  font:700 12px/1.2 "Share Tech Mono",monospace;
+  letter-spacing:.04em;
+  white-space:nowrap;
+  cursor:pointer;
+  touch-action:manipulation;
+}
+.master-control-bar #btn-start-encounter:disabled{opacity:.52;cursor:wait}
+.master-control-bar #btn-start-encounter:focus-visible{outline:2px solid #fff0b2;outline-offset:2px}
+.master-control-bar #dm-encounter-start-status:not([hidden]){
+  display:block;
+  position:fixed;
+  top:calc(64px + env(safe-area-inset-top,0px));
+  right:10px;
+  z-index:10000;
+  max-width:min(460px,calc(100vw - 20px));
+  box-sizing:border-box;
+  padding:10px 14px;
+  background:#1a1210;
+  border:1px solid #c78355;
+  box-shadow:0 8px 22px #0009;
+  color:#ffe2c1;
+  font:700 12px/1.4 "Share Tech Mono",monospace;
+  overflow-wrap:anywhere;
+}
+.master-control-bar #dm-encounter-start-status[data-error="true"]{
+  border-color:#ff6575;
+  color:#ffadb5;
+}
+@media(max-width:900px){
+  .master-control-bar #btn-start-encounter{
+    min-height:44px;
+    min-width:124px;
+    padding:8px 10px;
+    font-size:10px;
+  }
+  .master-control-bar .instance-toggles{padding-right:2px}
+}
