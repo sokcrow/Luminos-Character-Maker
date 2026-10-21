@@ -174,6 +174,7 @@
     if (!list || !state.db || !state.activeEncounterId) return;
     list.innerHTML = '<div class="loot-empty">Revisando restos disponibles…</div>';
     const encounter = state.encounters[state.activeEncounterId] || {};
+    if (encounter.meta?.open === false) { close(); return; }
     const corpses = await Promise.all(Object.values(encounter.corpses || {}).map(readCorpse));
     const playerSnap = await state.db.ref(`campaña/jugadores/${resolvePlayerId()}`).once("value");
     const actor = playerSnap.val() || {};
@@ -321,7 +322,7 @@
 
   function maybeOpenResult(){
     const completed=state.combatState,encounter=state.encounters[completed.encounterId];
-    if(state.instance!=='teatro'||completed.phase!=='ENDED'||completed.result!=='victory'||!encounter||encounter.meta?.participants?.[resolvePlayerId()]!==true)return;
+    if(encounter?.meta?.open===false||!Object.keys(encounter?.corpses||{}).length||state.instance!=='teatro'||completed.phase!=='ENDED'||completed.result!=='victory'||!encounter||encounter.meta?.participants?.[resolvePlayerId()]!==true)return;
     const key=`luminous:loot-seen:${resolvePlayerId()}:${completed.encounterId}`;
     if(state.autoOpened===key||global.localStorage?.getItem?.(key)==='true')return;
     state.activeEncounterId=completed.encounterId;state.autoOpened=key;
@@ -349,6 +350,7 @@
     const ref = state.db.ref(live().ROOTS.encounterLoot);
     const handler = (snap) => {
       state.encounters = clone(snap.val() || {});
+      if (state.open && state.encounters[state.activeEncounterId]?.meta?.open === false) close();
       const latest = latestEncounter();
       state.activeEncounterId = latest?.id || null;
       const count = latest ? Object.keys(latest.corpses || {}).length : 0;
@@ -356,6 +358,7 @@
       button?.classList.toggle("available", count > 0);
       const badge = button?.querySelector(".postcombat-loot-badge");
       if (badge) badge.textContent = String(count);
+      if (state.open && !state.activeEncounterId) close();
       if (state.open) render().catch((error) => setMessage(error?.message || String(error), true));
       maybeOpenResult();
     };

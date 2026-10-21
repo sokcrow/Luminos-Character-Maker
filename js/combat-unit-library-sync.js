@@ -33,7 +33,7 @@
     'js/unit-catalog-goblin.js',
     'js/unit-catalog-wolf.js'
   ]);
-  const DEPLOYMENT_SCRIPTS=Object.freeze(['js/unit-combat-instantiator.js','js/combat-v073-unit-deploy-bridge.js?v=20261021-encounter-3']);
+  const DEPLOYMENT_SCRIPTS=Object.freeze(['js/item-inventory-runtime.js','js/item-catalog-hp-healing.js','js/item-catalog-culinary-staples.js','js/npc-belongings-runtime.js','js/unit-combat-instantiator.js','js/combat-v073-unit-deploy-bridge.js?v=20261021-encounter-3']);
   const state={loading:null,deploymentLoading:null,localUnits:{},localSkills:{},fallbackDb:null,fallbackUnsubscribers:[],remoteCampaignUnits:{},remoteManifest:{}};
   const clean=v=>String(v??'').trim();
   const clone=v=>v==null?v:JSON.parse(JSON.stringify(v));
@@ -62,6 +62,10 @@
       'js/unit-catalog-kobold-tier1.js':()=>Boolean(global.LuminousKoboldUnitCatalog),
       'js/unit-catalog-goblin.js':()=>Boolean(global.LuminousGoblinUnitCatalog),
       'js/unit-catalog-wolf.js':()=>Boolean(global.LuminousWolfUnitCatalog),
+      'js/item-inventory-runtime.js':()=>Boolean(global.LuminousItemInventoryRuntime),
+      'js/item-catalog-hp-healing.js':()=>Boolean(global.LuminousHpHealingCatalog),
+      'js/item-catalog-culinary-staples.js':()=>Boolean(global.LuminousCulinaryStaplesCatalog),
+      'js/npc-belongings-runtime.js':()=>Boolean(global.LuminousNpcBelongings),
       'js/unit-combat-instantiator.js':()=>Boolean(global.LuminousUnitCombatInstantiator),
       'js/combat-v073-unit-deploy-bridge.js?v=20261021-encounter-3':()=>Boolean(global.LuminousCombat073UnitDeployBridge)
     };
@@ -80,7 +84,7 @@
       script.addEventListener?.('load',onLoad,{once:true});script.addEventListener?.('error',onError,{once:true});
       poll=global.setInterval?.(()=>{if(readyForScript(src)||script.dataset?.loaded==='1'||script.readyState==='complete')finish();},25);
       timer=global.setTimeout?.(()=>{if(readyForScript(src)||script.dataset?.loaded==='1'||script.readyState==='complete')finish();else finish(new Error(`SCRIPT_LOAD_TIMEOUT:${src}`));},timeoutMs);
-      if(!existing){script.src=src;script.async=false;global.document.head.appendChild(script);}else if(readyForScript(src)||existing.dataset?.loaded==='1'||existing.readyState==='complete')finish();
+      if(!existing){script.src=src + (src === 'js/unit-combat-instantiator.js' ? '?v=20261021-belongings-1' : '');script.async=false;global.document.head.appendChild(script);}else if(readyForScript(src)||existing.dataset?.loaded==='1'||existing.readyState==='complete')finish();
     });
   }
   function catalogsReady(){return Boolean(global.LuminousUniversalLibrary&&global.CombatSkillSchema&&global.LuminousProficiencyRuntime&&global.LuminousMovementSpeedRuntime&&global.LuminousBeastCr0SkillCatalog&&global.LuminousBeastCr0UnitCatalog&&global.LuminousKoboldUnitCatalog&&global.LuminousGoblinTier1SkillCatalog&&global.LuminousGoblinUnitCatalog&&global.LuminousWolfUnitCatalog);}

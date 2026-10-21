@@ -635,7 +635,8 @@
     const context = resolveContext(options);
     const social = resolveSocial(unit, options);
     const overrides = normalizeDmOverrides(options.dmOverrides);
-    const source = sourceSnapshot(unit, social, context, overrides, options);
+    const source = clone(sourceSnapshot(unit, social, context, overrides, options));
+    if (unit.npcBelongings?.version === 1) source.belongings = { inventory: clone(unit.inventario_activo || {}), currency: clone(unit.carriedCurrency || {}) };
     const sourceDigest = hashHex(stableStringify(source));
     const seed = String(options.seed || [
       identity.encounterId,
@@ -647,9 +648,17 @@
     ].join("|"));
     const rng = seededRandom(seed);
 
-    const carried = generateCarried(unit, identity, context, social, overrides, generation, rng, options);
-    const equipment = snapshotEquipment(unit, identity, context, generation, overrides, options);
-    const currency = generateCurrency(unit, identity, context, social, overrides, generation, rng);
+    const hasBelongings = unit.npcBelongings?.version === 1;
+    const carried = hasBelongings ? {
+      items: Object.values(unit.inventario_activo || {}).filter(item => item && Number(item.quantity ?? item.qty ?? 1) > 0).map(item => ({
+        ...clone(item), provenance: { ...clone(item.provenance || {}), sourceUnitId: identity.sourceUnitId, encounterId: identity.encounterId, sourceMethod: 'npc_belongings_remaining' },
+      })), rolls: [], unresolved: [], impossible: [],
+    } : generateCarried(unit, identity, context, social, overrides, generation, rng, options);
+    const equipment = unit.npcBelongings?.naturalCreature ? { mode: 'none', items: [] } : snapshotEquipment(unit, identity, context, generation, overrides, options);
+    const currency = hasBelongings ? {
+      currencyId: unit.carriedCurrency?.currencyId || 'ahn', amount: Math.max(0, Math.trunc(finite(unit.carriedCurrency?.amount, 0))),
+      generated: false, source: 'npc_belongings_remaining', provenance: provenanceFor(identity, context, generation, { sourceMethod: 'npc_belongings_remaining' }),
+    } : generateCurrency(unit, identity, context, social, overrides, generation, rng);
     const harvest = generateHarvest(unit, identity, context, overrides, generation, rng, options);
     const lootInstanceId = String(options.lootInstanceId || `loot_${hashHex([
       identity.encounterId,

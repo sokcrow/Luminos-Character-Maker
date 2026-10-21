@@ -346,11 +346,24 @@
     return schema.createCombatAction({ ...base, targeting: options.targeting || {}, resolution: options.resolution || { type: "automatic" } });
   }
 
+  function compileItemToCombatAction(actor, item = {}, options = {}) {
+    const id = item.instanceId || item.id || item.itemId;
+    return schema.createCombatAction({
+      ...baseInput(actor, 'item', id, options),
+      targeting: { allegiance: options.allegiance || 'self', mode: options.allegiance === 'ally' ? 'single' : 'self',
+        mainTargetId: options.mainTargetId || options.targetId || actorIdOf(actor), targetIds: [] },
+      resolution: { type: 'automatic' },
+      effects: [{ type: 'viewer_item', item: clone(item) }],
+      metadata: { ...(options.metadata || {}), name: item.name || id, sourceDefinition: clone(item) },
+    });
+  }
+
   function compileSourceToCombatAction(actor, source = {}, options = {}) {
     const type = normalizeId(options.sourceType || source.sourceType || source.source_type || source.kind || source.type);
     if (type === "skill") return compileSkillToCombatAction(actor, source, options);
     if (type === "spell") return compileSpellToCombatAction(actor, source, options);
     if (type === "trait") return compileTraitToCombatAction(actor, source, options);
+    if (type === "item") return compileItemToCombatAction(actor, source, options);
     if (type === "reaction") return compileReactionToCombatAction(actor, source, options);
     if (type === "universal" || type === "universal_action") return compileUniversalAction(actor, options.actionId || source.actionId || source.id, options);
     return schema.createCombatAction(baseInput(actor, type || "item", source.id || options.sourceId || "action", options));
@@ -360,6 +373,7 @@
     compileSkillToCombatAction,
     compileSpellToCombatAction,
     compileTraitToCombatAction,
+    compileItemToCombatAction,
     compileReactionToCombatAction,
     compileUniversalAction,
     compileSourceToCombatAction,

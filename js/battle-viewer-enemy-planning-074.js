@@ -316,6 +316,7 @@
       const plan = adapter.planUnitTurn({
         ...(options.planOptions || {}),
         actor,
+        allies: units.filter(unit => sideOf(unit) === sideOf(actor)),
         slotIds: row.slotIds.slice(),
         availableSlots: row.slots,
         targets: targets.length ? targets : undefined,

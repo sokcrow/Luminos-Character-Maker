@@ -4131,6 +4131,10 @@ function assignTargetIntents(){
       (unit.autoPlans||[]).forEach((plan,slotIndex)=>{
         if(!plan)return;
         plan.sourceSlotIndex=slotIndex;
+        if(plan.type==='items'&&plan.data?.npcItem){
+          if(!isUnitTargetable(combatData[plan.targetId]))plan.targetId=null;
+          return;
+        }
         let target;
         if(unit.confusionTurnMode==='indiscriminate'){
           const candidates=targetSlotCandidates(unit,plan);
@@ -4857,7 +4861,8 @@ function prepareAutoPlans(){
     }
     let defenseLock=null;
     unit.autoPlans=slots.map((slot,index)=>{
-      const plan=smartAutoPlanFor(id,defenseLock),
+      const itemPlan=index===0?window.LuminousNpcBelongings?.selectItemPlan(unit,Object.values(combatData)):null;
+      const plan=itemPlan||smartAutoPlanFor(id,defenseLock),
             defenseType=defenseTypeOfPlan(plan);
       if(defenseType&&!defenseLock)defenseLock=defenseType;
       slot.classList.add('has-plan');
@@ -7673,14 +7678,14 @@ async function executeQueueEntryRules(entry,queue,resolvedKeys){
     await wait(160)
   }else if(isSkillOrSpellPlan(plan)){
     await resolveUnopposedCoinAction(entry)
-  }else if(controller==='player'&&plan.type==='items'){
+  }else if(plan.type==='items'&&(controller==='player'||plan.data?.npcItem===true)){
     if(window.LuminousCombatLiveMode){
       const itemRuntime=window.LuminousItemRuntime,ref=String(plan.data?.instanceId||plan.data?.itemId||plan.data?.id||''),
             inventory=ownerUnit.inventario_activo||ownerUnit.activeInventory||ownerUnit.inventory||{},
             liveItem=Object.entries(inventory).find(([key,item])=>String(item?.instanceId||item?.instance_id||key)===ref)?.[1],
             target=combatData[plan.targetId]||ownerUnit;
       if(!itemRuntime?.useItem)throw new Error('ITEM_RUNTIME_UNAVAILABLE');
-      const result=liveItem?itemRuntime.useItem(ownerUnit,liveItem,{phase:'combat',target,ignoreActionCost:true}):{used:false,reason:'active_inventory_item_missing'};
+      const result=liveItem?(controller==='ai'?window.LuminousNpcBelongings?.useItem(ownerUnit,liveItem,target):itemRuntime.useItem(ownerUnit,liveItem,{phase:'combat',target,ignoreActionCost:true})):{used:false,reason:'active_inventory_item_missing'};
       combatStepRuntime().emit('ItemUseResolved',entry,{used:result.used===true,reason:result.reason||null,itemId:ref});
       setCombatantHP(target.id,target.hp);setCombatantSP(target.id,target.sp);
       setStatus(`TURN ${round} · ${ownerName} · ${name} · ${result.used?'usado':result.reason||'sin efecto'}`);

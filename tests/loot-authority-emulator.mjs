@@ -65,7 +65,7 @@ try{
  await assert.rejects(live.checkPlayerLootAccess({db:player.db,playerId:'nonparticipant',lootInstanceId}),
    /no aparece entre los participantes/i,'linked but absent characters must not loot');
  assert.match((await import('node:fs')).readFileSync('hoja_de_DM.html','utf8'),
-   /js\/loot-live-postcombat-runtime\.js\?v=20261021-loot-authority-theatre-1/,
+   /js\/loot-live-postcombat-runtime\.js\?v=20261021-belongings-1/,
    'real DM Theatre dashboard must retain Loot authority after Combat iframe closes');
  assert.equal(await live.installAuthority({db:dm.db,uid:dm.uid}),true);
  const options={db:player.db,playerId:'hunter',lootInstanceId,actionId:'harvest',targetResourceId:'meat',checkResult:{heads:5}};

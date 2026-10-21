@@ -374,7 +374,8 @@
       ...collectItems(actor, options, unresolved).map((entry) => ["item", entry]),
     ];
 
-    const allSources = dedupeDescriptors(collected.map(([sourceType, entry]) => descriptorFor(actor, sourceType, entry, options)));
+    const allSources = dedupeDescriptors([...collected.map(([sourceType, entry]) => descriptorFor(actor, sourceType, entry, options)),
+      ...(global.LuminousNpcBelongings?.aiSources(actor, options) || [])]);
     const sources = allSources.filter((source) => source.available !== false);
     const unavailable = allSources
       .filter((source) => source.available === false)
