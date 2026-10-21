@@ -39,12 +39,13 @@
       card.innerHTML = `<div style="flex:1;min-width:180px;"><strong>${esc(title)}</strong><div style="color:#aaa;margin-top:4px;">${corpses.length} cuerpo${corpses.length === 1 ? '' : 's'} · ${queue.meta?.finalizedAt ? esc(new Date(queue.meta.finalizedAt).toLocaleString('es-MX')) : 'Encuentro anterior'}</div></div>`;
       const button = global.document.createElement('button');
       button.type = 'button'; button.className = 'btn-cyber'; button.textContent = 'Retirar botín';
+      button.style.cssText = 'min-height:44px;padding:10px 16px;background:#351915;color:#f6d6bd;border:1px solid #9f634b;font:inherit;font-weight:700;cursor:pointer;';
       button.setAttribute('aria-label', `Retirar botín de ${title}`);
       button.addEventListener('click', async () => {
         if (!global.confirm(`¿Retirar este botín pendiente (${title})?\n\nSe cerrará para nuevas reclamaciones. Los objetos y el dinero ya entregados se conservan.`)) return;
         button.disabled = true;
         try { await closeQueue({ ...options, key: queue.key }); }
-        catch (error) { button.disabled = false; global.alert(error.message || 'No se pudo retirar el botín.'); }
+        catch (error) { button.disabled = false; global.alert(String(error.code || '').toLowerCase().includes('permission') ? 'Tu cuenta no tiene permiso para retirar este botín.' : error.message || 'No se pudo retirar el botín.'); }
       });
       card.appendChild(button); host.appendChild(card);
     }
