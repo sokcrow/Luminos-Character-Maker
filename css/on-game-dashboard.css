@@ -229,3 +229,12 @@ body { margin: 0; overflow: hidden; background: #020304; color: #e8edf2; }
   }
   .master-control-bar .instance-toggles{padding-right:2px}
 }
+
+/* The loading coordinator's fullscreen overlay is above every normal z-index.
+   Reserve the fixed 64px Director bar so START/REANUDAR is not swallowed
+   while Battle Viewer hydrates. Do NOT lower the auth-blocker or make all
+   loading surfaces click-through. */
+body.on-game-dashboard #luminous-game-loading-overlay {
+  top:64px;
+  bottom:0;
+}
