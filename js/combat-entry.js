@@ -18,7 +18,7 @@
     const authorized=state.dm||state.player;
     const ended=state.encounter?.estado?.phase==='ENDED'||state.encounter?.estado?.active===false;
     const showingResult=ended&&state.instance==='combate'&&['result','blackout'].includes(state.encounter?.estado?.transition);
-    const participating=global.LuminousCombatParticipants?.includes(state.encounter.combatants,{uid:state.uid,playerId:state.playerId})===true;
+    const participating=global.LuminousCombatParticipants?.includes(state.encounter.combatants,{uid:state.uid,playerId:state.playerId})===true||Boolean(state.playerId&&state.encounter.participants?.[state.playerId]===true);
     const active=authorized&&state.instance==='combate'&&(state.dm||participating)&&(!ended||showingResult)&&Boolean(state.encounter?.estado);
     $('combat-entry-bar').hidden=!state.uid;
     $('combat-entry-start').hidden=!state.dm;
@@ -75,6 +75,7 @@
       watch('.info/connected',value=>{state.connected=value===true;render();},generation);
       watch('campaña/jugadores',players=>{const matches=Object.entries(players||{}).filter(([,p])=>(p.uid||p.vinculado_a||p.vinculo_jugador)===state.uid);state.player=matches.length===1?matches[0][1]:null;state.playerId=matches.length===1?matches[0][0]:null;if(state.playerId)void global.LuminousPlayerPostCombatLoot?.install({db,playerId:state.playerId}).catch(error=>console.error('[Post-combat]',error));render();},generation);
       watch(`${api.ROOT}/combatants`,value=>{state.encounter.combatants=value||{};render();},generation);
+      watch(`${api.ROOT}/participants`,value=>{state.encounter.participants=value||{};render();},generation);
       watch(`${api.ROOT}/estado`,value=>{state.encounter.estado=value||null;render();},generation);
       watch(`${api.ROOT}/authority/current/phase`,value=>{state.encounter.authority={current:{phase:value}};render();},generation);
       watch(api.INSTANCE,instance=>{state.instance=instance||'ninguno';render();},generation);
