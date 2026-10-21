@@ -106,6 +106,7 @@ assert.match(source('pantalla_dm.html'), /LuminousCombatSession\.start\(\{db,uid
 assert.match(source('js/instance-control.js'), /radio\.addEventListener\("click"/, 'already-selected Combat control must respond to another click');
 assert.match(source('js/dm-on-game-startup-gate.js'), /"campaña\/combate",/, 'DM startup gate must not deadlock the Combat-root transaction listener');
 assert.match(source('js/dm-on-game-startup-gate.js'), /"campaña\/combate\/estado",/, 'Combat state must be observed for START and REANUDAR');
+assert.match(source('css/on-game-dashboard.css'), /body\.on-game-dashboard #luminous-game-loading-overlay\s*\{\s*top:64px;/, 'the loading mask must not block the Director start button');
 assert.match(source('js/instance-control.js'), /participants\[player\.playerId\]===true/, 'defeated players must remain in Combat for the result seal');
 assert.doesNotMatch(source('js/battle-viewer-dm-console-074.js'), /beginBlackout\?\.\(/, 'result must not trigger an opaque blackout');
 assert.match(source('js/instance-control.js'), /transition === "result" \? 1400/, 'DM result return has a fallback');
