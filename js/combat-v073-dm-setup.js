@@ -465,9 +465,19 @@
     return clean(unit.canonicalPlayerKey || unit.ownerPlayerId || unit.playerId || unit.characterLink?.playerId);
   }
 
+  function firebaseValue(value) {
+    if (value == null || typeof value !== 'object') return value ?? null;
+    // RTDB has no empty containers and may return numeric-key objects as
+    // arrays. Object key order is not a change to a character's loadout.
+    const entries = Object.keys(value).sort().map(key => [key, firebaseValue(value[key])])
+      .filter(([, child]) => child !== null);
+    return entries.length ? Object.fromEntries(entries) : null;
+  }
+
   function syncFieldsFromBuiltPlayer(current = {}, built = {}) {
     const fields = [
       'skillDeck','skillIds','skillSlotIds','equippedSkillIndex',
+      'canonicalPlayerKey','canonicalOwnerUid','isPlayer',
       'characterBuild','classes','classLevels',
       'spellIds','spellSelections','knownSpellIds','preparedSpellIds',
       'traitDefinitions','combatTraits','actionTraits','traits','classTraits','archetypeTraits','features',
@@ -477,8 +487,12 @@
     fields.forEach((key) => {
       if (built[key] === undefined) return;
       if (built[key] === null && current[key] == null) return;
-      if (JSON.stringify(current[key]) !== JSON.stringify(built[key])) patch[key] = clone(built[key]);
+      if (JSON.stringify(firebaseValue(current[key])) !== JSON.stringify(firebaseValue(built[key]))) patch[key] = clone(built[key]);
     });
+    // Keep the combat's allocated slot count. A campaign sheet can still
+    // have the initial count while later rounds grant additional slots.
+    const index = slotIndex(slotsFor(current));
+    if (JSON.stringify(firebaseValue(current.actionSlotIndex)) !== JSON.stringify(firebaseValue(index))) patch.actionSlotIndex = index;
     return patch;
   }
 

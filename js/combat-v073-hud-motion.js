@@ -110,7 +110,13 @@
       const delivery=global.LuminousCombatPlanSync073?.delivery;
       if(role==='player'&&Number(delivery?.round)===Number(value.round)){
         const retry=delivery.status==='error',button=byId('ready');
-        if(retry)phase='READY sin confirmar · pulsa READY para reintentar';
+        if(retry){
+          const error=clean(delivery.error).toUpperCase();
+          phase=error.includes('PERMISSION_DENIED')?'Firebase rechazó tu selección · pulsa READY para reintentar':
+            error==='READY_CONTEXT_UNAVAILABLE'?'El encuentro aún no permite confirmar · pulsa READY para reintentar':
+            error==='READY_CONFIRMATION_TIMEOUT'?'Sin confirmación de conexión · pulsa READY para reintentar':
+            'No se pudo guardar tu selección · pulsa READY para reintentar';
+        }
         else if(delivery.status==='saving')phase='Guardando tu READY…';
         if(button&&value.ready)button.textContent=retry?'REINTENTAR READY':'CANCEL READY';
       }
