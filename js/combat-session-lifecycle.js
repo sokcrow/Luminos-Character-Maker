@@ -4,7 +4,11 @@
   const blocked=raw=>['sealed','running'].includes(String(raw?.authority?.current?.phase||'').toLowerCase())||String(raw?.estado?.phase||'').toUpperCase()==='ENDING';
   const live=raw=>raw?.estado?.active!==false&&!['ENDED','SETUP'].includes(String(raw?.estado?.phase||'').toUpperCase());
   function nextEncounter(raw,{id,uid,time}){
-    if(blocked(raw))return;
+    // A finished encounter can still retain its last sealed authority snapshot.
+    // That old seal belongs to the ENDED fight and must never prevent a fresh
+    // round-one encounter; only an *active* sealed/running encounter is locked.
+    const ended=String(raw?.estado?.phase||'').toUpperCase()==='ENDED'||raw?.estado?.active===false;
+    if(!ended&&blocked(raw))return;
     // Reopening is idempotent: do not replace an active encounter or its plans.
     if(raw?.estado?.encounterId&&live(raw))return;
     if(raw?.estado&&live(raw)&&Object.keys(raw.combatants||{}).length)

@@ -6,7 +6,7 @@
   <title>Centro de Mando - ON GAME</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/on-game-dashboard.css?v=20261021-p1-camera-hud-1">
+  <link rel="stylesheet" href="css/on-game-dashboard.css?v=20261021-dm-start-button-1">
   <link rel="stylesheet" href="css/theatre-dialogue.css">
   <link rel="stylesheet" href="css/theatre-hud.css?v=20261004-dm-input-visible-1">
   <link rel="stylesheet" href="css/theatre-message-policy.css?v=20261004-dm-input-visible-1">
@@ -19,10 +19,12 @@
       <label><input type="radio" name="instancia" value="ninguno"> SIN ESCENA</label>
       <label><input type="radio" name="instancia" value="teatro"> TEATRO</label>
       <label><input type="radio" name="instancia" value="combate"> COMBATE</label>
+      <button id="btn-start-encounter" type="button" aria-label="Iniciar o reanudar el encuentro de combate">INICIAR COMBATE</button>
     </div>
     <div class="status-container" style="display: flex; gap: 20px; align-items: center;">
       <span id="current-output-status" style="color: #c49a00; font-weight: bold; letter-spacing: 1px;">SALIDA ACTUAL: PANTALLA NEGRA</span>
       <span id="connection-status" class="connection-status offline">● CONECTANDO</span>
+      <span id="dm-encounter-start-status" role="status" aria-live="polite" hidden></span>
     </div>
   </nav>
 
@@ -140,14 +142,14 @@
   <!-- The DM keeps resolving post-combat Loot requests after the Combat iframe
        closes and the shared instance returns to Theatre. -->
   <script src="js/loot-live-postcombat-runtime.js?v=20261021-loot-authority-theatre-1"></script>
-  <script src="js/dm-on-game-startup-gate.js"></script>
+  <script src="js/dm-on-game-startup-gate.js?v=20261021-dm-start-button-1"></script>
   <script src="js/theatre-director-menu-guard.js"></script>
   <script src="js/weather-readonly-engine.js"></script>
   <script src="js/weather-fx.js"></script>
   <script src="js/game-loading-coordinator.js?v=20261005-real-gates-1"></script>
   <script src="js/combat-participants.js"></script>
-    <script src="js/combat-session-lifecycle.js?v=20261021-p0-theatre-1"></script>
-    <script src="js/instance-control.js?v=20261021-p0-theatre-1"></script>
+    <script src="js/combat-session-lifecycle.js?v=20261021-dm-start-button-1"></script>
+    <script src="js/instance-control.js?v=20261021-dm-start-button-1"></script>
   <script>
     (function () {
       const combatModule = document.getElementById("modulo-combate");
