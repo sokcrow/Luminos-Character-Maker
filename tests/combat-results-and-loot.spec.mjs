@@ -250,9 +250,14 @@ test('Studio Combat uses the same live Theatre/Combat Director, retaining encoun
  campaign.combate.combatants['player:p1'].hp=43;
  await admin('campaña','PUT',campaign);
  const context=await setupContext(browser);
+ try {
  const studio=await context.newPage();
+ // pantalla_dm.html deliberately redirects unauthenticated visitors to index:
+ // sign in from the established Combat entry first, then enter the DM Studio
+ // with the same persisted Firebase auth state.
+ await login(studio,dm);
  await studio.goto(base+'/pantalla_dm.html',{waitUntil:'domcontentloaded'});
- await studio.evaluate(async credentials=>firebase.auth().signInWithEmailAndPassword(credentials.email,credentials.password),dm);
+ await studio.waitForFunction(()=>window.__luminousDmAuthReady===true,{},{timeout:30000});
  await studio.locator('button.dm-tab-btn[data-tab="tab-combate"]').click({timeout:25000});
  const start=studio.locator('#dm-studio-start-encounter');
  await expect(start).toBeVisible({timeout:25000});
@@ -286,5 +291,7 @@ test('Studio Combat uses the same live Theatre/Combat Director, retaining encoun
  await start.click({timeout:15000});
  expect(context.pages().length).toBe(samePages);
  await expect.poll(()=>admin('campaña/estado_mundo/instancia_activa'),{timeout:20000}).toBe('combate');
- await context.close();
+ } finally {
+   await context.close();
+ }
 });
