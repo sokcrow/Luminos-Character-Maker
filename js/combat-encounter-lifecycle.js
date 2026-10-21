@@ -36,14 +36,17 @@
     const style = doc.createElement("style");
     style.id = STYLE_ID;
     style.textContent = `
-#${OVERLAY_ID}{position:fixed;inset:0;z-index:2147483000;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.86);pointer-events:none;opacity:0;transition:opacity .18s ease,background-color .45s ease}
+/* The Encounter result is a transparent seal over the LAST battlefield frame.
+   Never obscure the sprites/arena with a fullscreen black interstitial. */
+#${OVERLAY_ID}{position:fixed;inset:0;z-index:2147483000;display:none;align-items:center;justify-content:center;background:radial-gradient(ellipse at center,transparent 34%,rgba(0,0,0,.22) 100%);pointer-events:none;opacity:0;transition:opacity .18s ease}
 #${OVERLAY_ID}.active{display:flex;opacity:1}
-#${OVERLAY_ID}.blackout{display:flex;opacity:1;background:#000}
-#${OVERLAY_ID} .combat-result-frame{display:grid;place-items:center;max-width:96vw;max-height:92vh;opacity:1;transform:scale(1);transition:opacity .42s ease,transform .42s ease}
-#${OVERLAY_ID}.blackout .combat-result-frame{opacity:0;transform:scale(.985)}
-#${OVERLAY_ID} img{display:block;max-width:92vw;max-height:78vh;object-fit:contain;filter:drop-shadow(0 10px 28px rgba(0,0,0,.9))}
+#${OVERLAY_ID}.blackout{display:flex;opacity:1;background:transparent}
+#${OVERLAY_ID} .combat-result-frame{display:grid;place-items:center;max-width:100%;max-height:100%;opacity:1;transform:scale(1);transition:opacity .42s ease,transform .42s ease}
+#${OVERLAY_ID}.blackout .combat-result-frame{opacity:1;transform:none}
+#${OVERLAY_ID} img{display:block;max-width:min(94vw,1100px);max-height:70vh;object-fit:contain;mix-blend-mode:screen;filter:drop-shadow(0 6px 26px rgba(0,0,0,.65))}
 #${OVERLAY_ID} .combat-result-fallback{position:absolute;font:700 clamp(42px,9vw,120px)/1 var(--font-limbus,'Bebas Neue',Impact,sans-serif);letter-spacing:.08em;color:#ead7b2;text-shadow:0 6px 18px #000;text-transform:uppercase}
-#${OVERLAY_ID} img:not([src=""]) + .combat-result-fallback{opacity:.18}
+#${OVERLAY_ID} img:not([src=""]) + .combat-result-fallback{opacity:.15}
+@media(max-width:600px){#${OVERLAY_ID} img{max-width:98vw;max-height:56vh}}
 `;
     doc.head.appendChild(style);
   }
@@ -112,7 +115,8 @@
     const transition = String(runtime.lastState.transition || "").trim().toLowerCase();
     if (isEncounterEnded(runtime.lastState) && result) {
       showResult(result, runtime.lastState);
-      if (transition === "blackout") beginBlackout();
+      // Legacy blackout flags may persist in older encounters. Present the seal
+      // over the arena anyway; Theatre switching is owned by the P0 lifecycle.
     } else {
       hideResult();
     }

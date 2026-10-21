@@ -53,11 +53,14 @@
       !['setup', 'pre_combat_planning', 'planning'].includes(String(adapter()?.combatState || '').toLowerCase()))) setPlacing(false);
   }
   function camera({ x = 0, y = 0, scale = 1 } = {}) {
-    const reduced = global.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    // This is a 2.5D illustration, not an independent world-coordinate map.
+    // Ground, architecture, horizon and foreground must use EXACTLY the same
+    // camera matrix as #battlefield; depth-only parallax made the map appear
+    // fixed while sprites moved and broke their shared ground coordinates.
+    byId('game-container')?.classList.toggle('camera-manual', ['manual', 'touch'].includes(byId('battlefield')?.dataset.cameraMode));
+    const matrix = `translate(${x}px,${y}px) scale(${scale})`;
     for (const layer of global.document?.querySelectorAll('.combat-stage-layer') || []) {
-      const factor = reduced ? 1 : Number(layer.dataset.depth);
-      const layerScale = 1 + (scale - 1) * factor;
-      layer.style.transform = `translate(${x * factor}px,${y * factor}px) scale(${layerScale})`;
+      layer.style.transform = matrix;
     }
   }
   function setPlacing(value) {

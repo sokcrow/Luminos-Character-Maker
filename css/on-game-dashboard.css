@@ -102,3 +102,83 @@ body { margin: 0; overflow: hidden; background: #020304; color: #e8edf2; }
   color: #aaa;
 }
 
+/* P1 · Director combat HUD: stay visible inside the real viewport on phones.
+   Keep the original production buttons and their handlers; no debug toolbar. */
+#modulo-combate { min-width:0; min-height:0; overflow:hidden; }
+#modulo-combate #combat-grid {
+  flex:1 1 auto; min-width:0; min-height:0; width:100%;
+  display:flex; overflow:hidden;
+}
+#modulo-combate #combat-grid iframe {
+  flex:1; display:block; width:100%; height:100%;
+  min-height:0; min-width:0; border:0;
+}
+#modulo-combate #combat-log-and-controls {
+  flex:0 0 auto; position:relative; z-index:5;
+  width:100%; min-width:0; max-height:min(34dvh,230px);
+  box-sizing:border-box; overflow-x:hidden; overflow-y:auto;
+  padding:8px clamp(8px,1.5vw,18px);
+  gap:8px;
+  background:linear-gradient(100deg,rgba(5,9,13,.98),rgba(18,15,12,.98));
+  border-top:1px solid #9c7844;
+  box-shadow:0 -8px 22px rgba(0,0,0,.36);
+}
+#modulo-combate #combat-log-and-controls > span {
+  flex:1 1 155px; min-width:100px;
+  margin:0; align-self:center;
+  font:600 11px/1.35 "Share Tech Mono",monospace;
+  color:#c7b393;
+}
+#modulo-combate #combat-log-and-controls button {
+  flex:0 1 auto;
+  min-width:0; min-height:44px;
+  padding:9px 12px; font-size:11px;
+  border-radius:2px; white-space:normal;
+  touch-action:manipulation;
+}
+#modulo-combate #combat-log-and-controls button:focus-visible,
+.instance-toggles label:focus-within {
+  outline:2px solid #f1cc78; outline-offset:2px;
+}
+@media(max-width:900px){
+  .master-control-bar {
+    display:flex; flex-wrap:nowrap; align-items:center;
+    height:64px; min-height:64px; padding:7px 10px;
+    gap:8px;
+  }
+  .master-control-bar .instance-toggles {
+    flex:1 1 auto; min-width:0;
+    display:flex; flex-wrap:nowrap; align-items:center;
+    gap:6px; overflow-x:auto; overscroll-behavior-x:contain;
+    scrollbar-width:thin;
+  }
+  .master-control-bar .instance-toggles label {
+    flex:0 0 auto; display:flex; align-items:center;
+    padding:8px; min-height:44px; white-space:nowrap;
+    font-size:11px;
+  }
+  .master-control-bar .status-container {
+    flex:0 0 auto; gap:4px!important;
+    max-width:112px; min-width:0;
+  }
+  .master-control-bar #current-output-status{display:none}
+  .master-control-bar #connection-status{font-size:10px;white-space:nowrap}
+  #modulo-combate #combat-log-and-controls {
+    display:grid; grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:7px; max-height:min(38dvh,225px);
+    padding:8px 9px max(8px,env(safe-area-inset-bottom));
+  }
+  #modulo-combate #combat-log-and-controls > span {
+    grid-column:1/-1; text-align:center;
+    font-size:10px; line-height:1.25;
+  }
+  #modulo-combate #combat-log-and-controls button {
+    width:100%; min-height:44px; padding:7px 6px;
+    font:700 clamp(10px,2.4vw,12px)/1.2 "Share Tech Mono",monospace;
+  }
+}
+@media(max-width:390px){
+  .master-control-bar .instance-toggles label {padding:6px;font-size:10px}
+  .master-control-bar .status-container{max-width:70px}
+  .master-control-bar #connection-status{font-size:9px;overflow:hidden;text-overflow:ellipsis}
+}

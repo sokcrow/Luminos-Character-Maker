@@ -108,3 +108,43 @@ html,body,#game-container.combat-product-hud{overflow:clip!important}
 .action-slot-wrapper[data-faction="ally"] .slot-intent-label{left:0;transform:none}
 .action-slot-wrapper[data-faction="enemy"] .slot-intent-label{left:auto;right:0;transform:none}
 @media(max-width:600px){.slot-intent-label{font-size:40px}}
+
+/* P1 · Real DM encounter setup is a compact drawer, not a screen-height debug menu. */
+#c073-dm-setup:not([open]){
+  width:auto!important;
+  max-height:56px!important;
+  min-width:128px;
+  overflow:hidden!important;
+}
+#c073-dm-setup > summary{
+  display:flex;align-items:center;justify-content:center;
+  min-height:44px;padding:8px 14px;box-sizing:border-box;
+  list-style:none;cursor:pointer;
+}
+#c073-dm-setup > summary::-webkit-details-marker{display:none}
+#c073-dm-setup[open] > summary{
+  position:sticky;top:0;z-index:2;
+  background:#100f0df5;border-bottom:1px solid #7a5a2b;
+}
+#c073-dm-setup button,
+#c073-dm-setup select,
+#c073-dm-setup input{min-height:44px;max-width:100%}
+@media(max-width:680px){
+  #c073-dm-setup{
+    right:8px!important;top:8px!important;
+    max-width:calc(100vw - 16px)!important;
+    padding:6px!important;
+    border-radius:3px;
+  }
+  #c073-dm-setup[open]{
+    top:auto!important;bottom:max(8px,env(safe-area-inset-bottom))!important;
+    width:calc(100vw - 16px)!important;
+    max-height:min(72dvh,640px)!important;
+    overflow-x:hidden!important;overflow-y:auto!important;
+    overscroll-behavior:contain;
+  }
+  #c073-dm-setup > div > div{flex-wrap:wrap}
+  #c073-dm-setup select{flex:1 1 150px!important}
+  #c073-dm-setup button{flex:1 1 auto}
+  #c073-dm-setup #c073-qty{flex:0 0 56px!important;width:56px!important}
+}
