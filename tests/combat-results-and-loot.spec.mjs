@@ -247,6 +247,9 @@ test('Studio Combat uses the same live Theatre/Combat Director, retaining encoun
  const campaign=clone(initial);
  campaign.estado_mundo.instancia_activa='teatro';
  campaign.combate.estado.round=6;
+ // The live adapter syncs the sheet's current HP into its corresponding
+ // combatant on initial hydration; seed consistent canonical fixtures.
+ campaign.jugadores.p1.hp=43;
  campaign.combate.combatants['player:p1'].hp=43;
  await admin('campaña','PUT',campaign);
  const context=await setupContext(browser);
