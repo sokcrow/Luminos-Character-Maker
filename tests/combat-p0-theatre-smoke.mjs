@@ -81,6 +81,8 @@ for (const dmPage of ['hoja_de_DM.html', 'pantalla_dm.html']) {
   assert.doesNotMatch(source(dmPage), /<a[^>]+href="combate\.html"/, 'no redundant DM Combat link: '+dmPage);
 }
 assert.match(source('hoja_de_DM.html'), /RESOLVER RONDA/, 'round resolution must not masquerade as entering Combat');
+assert.match(source('js/instance-control.js'), /radio\.addEventListener\("click"/, 'already-selected Combat control must respond to another click');
+assert.match(source('js/instance-control.js'), /participants\[player\.playerId\]===true/, 'defeated players must remain in Combat for the result seal');
 assert.doesNotMatch(source('js/battle-viewer-dm-console-074.js'), /beginBlackout\?\.\(/, 'result must not trigger an opaque blackout');
 assert.match(source('js/instance-control.js'), /transition === "result" \? 1400/, 'DM result return has a fallback');
 console.log('P0 Combat/Theatre transitions: active-round resume, sealed/running preservation, confirmed closure and single DM entry passed.');
