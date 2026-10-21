@@ -57,6 +57,16 @@ const response=await fetch('http://127.0.0.1:9100/'+encodeURIComponent('campaña
 try{
  const finalized=await live.finalizeEncounterLoot({db:dm.db,encounterId:'authority-test',participants:{hunter:true},result:'victory'});assert.equal(finalized.finalized.length,1);
  const lootInstanceId=finalized.finalized[0].lootInstanceId;
+ assert.equal(await live.checkPlayerLootAccess({db:player.db,playerId:'hunter',lootInstanceId}),true,
+   'a linked victory participant must pass before the coin roll');
+ await assert.rejects(live.checkPlayerLootAccess({db:player.db,playerId:'outsider',lootInstanceId}),
+   /no está vinculada/i,'another account must not loot a different player character');
+ await dm.db.ref('campaña/jugadores/nonparticipant').set({uid:player.uid,name:'No entró al combate'});
+ await assert.rejects(live.checkPlayerLootAccess({db:player.db,playerId:'nonparticipant',lootInstanceId}),
+   /no aparece entre los participantes/i,'linked but absent characters must not loot');
+ assert.match((await import('node:fs')).readFileSync('hoja_de_DM.html','utf8'),
+   /js\/loot-live-postcombat-runtime\.js\?v=20261021-loot-authority-theatre-1/,
+   'real DM Theatre dashboard must retain Loot authority after Combat iframe closes');
  assert.equal(await live.installAuthority({db:dm.db,uid:dm.uid}),true);
  const options={db:player.db,playerId:'hunter',lootInstanceId,actionId:'harvest',targetResourceId:'meat',checkResult:{heads:5}};
  const result=await live.requestAction(options);assert.equal(result.committed,true);assert.equal(result.delivery.delivered,true);
