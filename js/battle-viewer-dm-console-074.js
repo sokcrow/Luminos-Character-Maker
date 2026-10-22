@@ -371,7 +371,9 @@
       // A whole-record transaction prevents repeating the 50% reduction on
       // retries; the marker is scoped to one Encounter, not the current round.
       const path = `campaña/jugadores/${playerId}`;
-      await db.ref(path).transaction(raw => {
+      const ref = db.ref(path);
+      await ref.once("value");
+      await ref.transaction(raw => {
         if (!raw || raw.lastPostCombatSanityEncounterId === encounterId) return;
         const next = {...raw, sp:row.value, sp_actual:row.value,
           combatStats: {...(raw.combatStats || {}), sp_actual:row.value},
