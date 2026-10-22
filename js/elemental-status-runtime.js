@@ -377,9 +377,10 @@
   function sinResistanceValue(unit = {}, sin = "gloom") {
     const key = normalizeId(sin);
     const table = unit.sinResistances || unit.sin_resistances || unit.sinResistance || unit.sin_resistance;
-    if (table && typeof table === "object" && Number.isFinite(Number(table[key] ?? table[sin] ?? table[String(sin).toUpperCase()]))) return Number(table[key] ?? table[sin] ?? table[String(sin).toUpperCase()]);
-    if (Number.isFinite(Number(unit.sinRes))) return Number(unit.sinRes);
-    return 1;
+    const authored = table && typeof table === "object" && Number.isFinite(Number(table[key] ?? table[sin] ?? table[String(sin).toUpperCase()]))
+      ? Number(table[key] ?? table[sin] ?? table[String(sin).toUpperCase()])
+      : (Number.isFinite(Number(unit.sinRes)) ? Number(unit.sinRes) : 1);
+    return global.LuminousEquipmentEffects?.resolveSinResistance?.(unit, key, authored) ?? authored;
   }
 
   function applyGloomDamage(unit, amount, context = {}) {
@@ -404,10 +405,13 @@
     let damage = 0; let damageType = "sp";
     if (potency > 0 && hasSpResource(unit)) {
       const engine = context.engine || global.CombatEngine;
-      if (typeof engine?.applySPDamage === "function") engine.applySPDamage(unit, potency);
-      else if (typeof engine?.applySpDamage === "function") engine.applySpDamage(unit, potency);
-      else writeSp(unit, readSp(unit) - potency);
-      damage = potency;
+      const loss = global.LuminousEquipmentEffects?.mitigateSpLoss?.(unit, potency, { source: "sinking" }) ?? potency;
+      if (loss > 0) {
+        if (typeof engine?.applySPDamage === "function") engine.applySPDamage(unit, loss);
+        else if (typeof engine?.applySpDamage === "function") engine.applySpDamage(unit, loss);
+        else writeSp(unit, readSp(unit) - loss);
+      }
+      damage = loss;
     } else if (potency > 0) {
       damageType = "gloom";
       damage = applyGloomDamage(unit, potency, context);
