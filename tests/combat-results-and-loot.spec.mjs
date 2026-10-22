@@ -147,7 +147,12 @@ test('Ten enemies use eight field slots and two FIFO reinforcements; Victory sho
   const id=await card.getAttribute('data-loot-card');
   expect(id).toBeTruthy();
   await expect.poll(()=>pp.evaluate(()=>window.LuminousPlayerPostCombatLoot?.state?.claiming)).toBe(false);
-  await pp.locator('[data-corpse-select="'+id+'"]').click();
+  // The mobile HUD replaces the desktop corpse sidebar with the real picker.
+  // Follow the visible control rather than waiting on its hidden counterpart.
+  await pp.locator('[data-loot-tab="actions"]').click();
+  const picker=pp.locator('#postcombat-loot-corpse-picker');
+  if(await picker.isVisible())await picker.selectOption(id);
+  else await pp.locator('[data-corpse-select="'+id+'"]').click();
   const action=pp.locator('[data-loot-card="'+id+'"] [data-loot-action="harvest"]');
   await expect(action).toBeVisible({timeout:20000});
   await expect(action).toBeEnabled({timeout:20000});

@@ -14,13 +14,18 @@
   function spellsFor(player = {}) {
     return (loadout()?.selectedIds(player, 'theater') || []).map(id => loadout().definition(id, 'theater')).filter(Boolean);
   }
-  function prepareCast(player, { spellId, actorId, uid, description = '' } = {}) {
+  function castingClassesFor(player, spell) {
+    const rules = global.LuminousCombatSpellLoadout074;
+    return (rules?.castingClassIdsFor(player) || []).filter(id => rules.resolveCastClass(player, spell, id).ok);
+  }
+  function prepareCast(player, { spellId, actorId, uid, classId = null, description = '' } = {}) {
     if (!uid || clean(player?.uid) !== uid) throw new Error('No se pudo verificar tu personaje.');
     if (!assignedActors(player).map(clean).includes(clean(actorId))) throw new Error('Selecciona un actor asignado a tu personaje.');
     const spell = spellsFor(player).find(row => row.id === loadout().idOf(spellId));
     if (!spell) throw new Error('Este hechizo ya no está asignado para Theater.');
     if (!runtime()?.castSpell) throw new Error('Los hechizos todavía están cargando.');
-    const casting = global.LuminousCombatSpellLoadout074?.resolveCastClass(player, spell);
+    const casting = global.LuminousCombatSpellLoadout074?.resolveCastClass(player, spell, classId);
+    if (casting?.reason === 'SPELL_CLASS_AMBIGUOUS') throw new Error('Elige la clase con la que lanzarás este hechizo.');
     if (!casting?.ok) throw new Error('Tu personaje no tiene una clase de lanzamiento válida para este hechizo.');
     const character = copy(player);
     const privateMessage = spell.mechanics?.privateCommunication === true;
@@ -60,11 +65,13 @@
     return deliveryChain;
   }
 
-  async function cast({ db, playerId, uid, spellId, actorId, description = '', paths, requestId } = {}) {
+  async function cast({ db, playerId, uid, spellId, actorId, classId = null, description = '', paths, requestId } = {}) {
     if (!db?.ref || !playerId || !uid || !paths?.queue || !paths?.scene) throw new Error('No se pudo conectar con Theater.');
     const scene = (await db.ref(paths.scene).once('value')).val();
     if (scene?.transitioning) throw new Error('Espera a que termine el cambio de escena.');
-    if (global.LuminousSceneTime?.blockingActionFor?.(actorId)) throw new Error('Tu actor ya está realizando una acción.');
+    const sceneTime = global.LuminousSceneTimeCore;
+    if (!sceneTime?.actorReservationBlocked) throw new Error('Las acciones de Theater todavía están cargando.');
+    const calendar = (await db.ref('campaña/calendario').once('value')).val() || {};
     const key = requestId || db.ref(paths.queue).push().key;
     if (!key || /[.#$\[\]\/]/.test(key)) throw new Error('No se pudo preparar el lanzamiento.');
     let failure = null;
@@ -74,11 +81,19 @@
       if (clean(current.uid) !== uid) { failure = new Error('No se pudo verificar tu personaje.'); return; }
       if (current.theatreSpellCasts?.[key]) return current;
       try {
-        const prepared = prepareCast(current, { spellId, actorId, uid, description });
+        // This check and the Slot spend share the Player transaction. A
+        // second tab sees the reservation even if its Scene Time view is stale.
+        if (sceneTime.actorReservationBlocked(current, calendar, { actorId, roomId: paths.roomId, requestId: key }) ||
+            global.LuminousSceneTime?.blockingActionFor?.(actorId)) throw new Error('Tu actor ya está realizando una acción.');
+        const prepared = prepareCast(current, { spellId, actorId, uid, classId, description });
         const next = prepared.character;
         const message = { ...prepared.message, roomId: paths.roomId || 'default', createdAt: global.firebase?.database?.ServerValue?.TIMESTAMP || Date.now() };
         next.theatreSpellOutbox = { ...(next.theatreSpellOutbox || {}), [key]: { message, queuePath: paths.queue, roomId: paths.roomId || 'default', uid } };
         next.theatreSpellCasts = { ...(next.theatreSpellCasts || {}), [key]: true };
+        const roomId = sceneTime.roomKeyFrom(paths.roomId);
+        const eventId = `theatre_${roomId}_${key}`;
+        next.theatreActionReservations = { ...(next.theatreActionReservations || {}),
+          [sceneTime.safeKey(actorId)]: { requestId: key, roomId, eventId, actionId: `action_${eventId}` } };
         // Keep pending casts and a bounded history of completed request IDs.
         const old = Object.keys(next.theatreSpellCasts).filter(id => !next.theatreSpellOutbox[id]);
         old.slice(0, Math.max(0, old.length - 32)).forEach(id => delete next.theatreSpellCasts[id]);
@@ -104,6 +119,9 @@
       doc.getElementById('input-teatro-modal')?.before(panel);
       panel.querySelector('button').addEventListener('click', send);
       panel.querySelector('select').addEventListener('change', refresh);
+      const field = doc.createElement('div'); field.id = 'theatre-spell-class-field';
+      field.innerHTML = '<label for="theatre-spell-class">Clase de lanzamiento</label><select id="theatre-spell-class"></select>';
+      panel.querySelector('#theatre-spell-description').before(field);
     }
     const player = global.datosJugador || state.player || {};
     const spells = spellsFor(player), select = panel.querySelector('select'), previous = select.value;
@@ -115,11 +133,22 @@
     }
     if (spells.some(spell => spell.id === previous)) select.value = previous;
     const selected = spells.find(spell => spell.id === select.value);
+    const classes = selected ? castingClassesFor(player, selected) : [];
+    const classSelect = panel.querySelector('#theatre-spell-class'), previousClass = classSelect.value;
+    classSelect.replaceChildren();
+    for (const id of classes) {
+      const option = doc.createElement('option'); option.value = id;
+      const definition = global.LuminousCharacterBuildRules?.CLASSES?.find(row => row.id === id);
+      option.textContent = definition?.nombre || definition?.name || id.charAt(0).toUpperCase() + id.slice(1);
+      classSelect.appendChild(option);
+    }
+    if (classes.includes(previousClass)) classSelect.value = previousClass;
+    panel.querySelector('#theatre-spell-class-field').hidden = classes.length < 2;
     panel.querySelector('#theatre-spell-description').textContent = selected?.mechanics?.privateCommunication
       ? 'Sólo se anuncia el lanzamiento. Comunica el mensaje a su destinatario en privado; su contenido no se publica aquí.'
       : 'Describe la acción pública del hechizo para que el DM resuelva su efecto.';
     panel.hidden = !spells.length;
-    panel.querySelector('button').disabled = state.busy || !spells.length;
+    panel.querySelector('button').disabled = state.busy || !spells.length || !classes.length;
     panel.querySelector('#theatre-spell-feedback').textContent = state.error;
   }
   async function send() {
@@ -129,6 +158,7 @@
       const doc = global.document;
       const result = await cast({ db: global.firebase?.database?.(), playerId: state.playerId || global.currentPlayerId || global.localStorage?.getItem('playerId'),
         uid: global.firebase?.auth?.().currentUser?.uid, spellId: doc.getElementById('theatre-assigned-spell')?.value,
+        classId: doc.getElementById('theatre-spell-class')?.value || null,
         actorId: global.getAssignedTheatreActor?.()?.actorId, description: doc.getElementById('input-teatro-modal')?.value,
         paths: global.LuminousTheatreState?.getPaths?.() });
       state.error = result.pending ? 'Lanzamiento guardado. Se enviará al recuperar la conexión.' : 'Hechizo enviado al Theater.';
@@ -136,7 +166,7 @@
     } catch (error) { state.error = error.message; }
     finally { state.busy = false; refresh(); }
   }
-  global.LuminousTheatreSpells = Object.freeze({ spellsFor, prepareCast, cast, flushOutbox, refresh, state });
+  global.LuminousTheatreSpells = Object.freeze({ spellsFor, castingClassesFor, prepareCast, cast, flushOutbox, refresh, state });
   if (global.document) {
     global.addEventListener('luminous:player-data', event => {
       state.playerId = event.detail?.playerId || state.playerId;

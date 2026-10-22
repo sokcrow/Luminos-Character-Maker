@@ -27,7 +27,7 @@ try {
     await page.evaluate(() => {
       const copy = value => value == null ? value : JSON.parse(JSON.stringify(value));
       const player = { uid: 'uid-a', actorId: 'actor-a', characterName: 'Angelo V.', classId: 'bard', level: 10,
-        characterBuild: { classes: [{ classId: 'bard', levels: 10 }] }, spellLoadout: { schemaVersion: 1, spellIds: ['mage_hand', 'distort_value'] } };
+        characterBuild: { classes: [{ classId: 'bard', levels: 10 }, { classId: 'wizard', levels: 10 }] }, spellLoadout: { schemaVersion: 1, spellIds: ['mage_hand', 'distort_value'] } };
       const data = { campaña: { jugadores: { alice: player }, base_datos_unidades: { unit_a: { isPlayer: true } },
         combate: { combatants: { 'player:alice': { isPlayer: true, canonicalPlayerKey: 'alice', canonicalOwnerUid: 'uid-a' } } },
         estado_mundo: { escena_actual: {} }, teatro: {} } };
@@ -50,7 +50,7 @@ try {
       window.getAssignedTheatreActor = () => ({ actorId:'actor-a' });
       window.LuminousTheatreState = { getPaths: () => ({ scene:'campaña/estado_mundo/escena_actual',queue:'campaña/teatro/cola',roomId:'default' }), normalizeAssignedActorIds: id => [id] };
     });
-    for (const file of ['spellcasting-runtime','spellcasting-basic-rules-runtime','spell-catalog-core','role-spell-catalog-core','spell-loadout-core','content-registry','content-registry-bootstrap','combat-spell-loadout-074','dm-player-loadout-core','dm-player-loadout-manager','theatre-spell-loadout']) {
+    for (const file of ['scene-time-core','spellcasting-runtime','spellcasting-basic-rules-runtime','spell-catalog-core','role-spell-catalog-core','spell-loadout-core','content-registry','content-registry-bootstrap','combat-spell-loadout-074','dm-player-loadout-core','dm-player-loadout-manager','theatre-spell-loadout']) {
       await page.addScriptTag({ content: read(`js/${file}.js`) });
     }
     await page.waitForFunction(() => window.LuminousDmPlayerLoadoutManager.state.ready);
@@ -79,10 +79,13 @@ try {
       document.getElementById('modal-escritura-teatro').style.display = 'flex';
     });
     assert.equal(await page.locator('#theatre-assigned-spell option').count(), 1);
+    await page.locator('#theatre-spell-class').selectOption('wizard');
     await page.locator('#input-teatro-modal').fill('Hace parecer más valiosa la joya.');
     await page.locator('#theatre-cast-assigned-spell').click();
     await page.waitForFunction(() => document.getElementById('theatre-spell-feedback').textContent.includes('enviado'));
     assert.equal(await page.evaluate(() => __spellTest.get('campaña/teatro/cola/cast-visual').spellId), 'distort_value');
+    assert.equal(await page.evaluate(() => __spellTest.get('campaña/teatro/cola/cast-visual').spellClassId), 'wizard');
+    assert.equal(await page.evaluate(() => __spellTest.get('campaña/jugadores/alice/spellcastingState/slotsByClass/wizard/levels/1/spent')), 1);
     await checkNoOverflow();
     if (process.env.UNIFIED_SPELL_SCREENSHOTS_DIR) {
       fs.mkdirSync(process.env.UNIFIED_SPELL_SCREENSHOTS_DIR, { recursive: true });

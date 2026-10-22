@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import vm from 'node:vm';
+await import('../js/scene-time-core.js');
 await import('../js/spellcasting-runtime.js');
 await import('../js/spellcasting-basic-rules-runtime.js');
 await import('../js/spell-catalog-core.js');
@@ -13,6 +16,7 @@ const shared = globalThis.LuminousSpellLoadout;
 const combat = globalThis.LuminousCombatSpellLoadout074;
 const theatre = globalThis.LuminousTheatreSpells;
 const entry = globalThis.LuminousBattleViewerPlayerEntry074;
+const sceneTime = globalThis.LuminousSceneTimeCore;
 const copy = value => value == null ? value : structuredClone(value);
 const applyPatch = (record, updates) => {
   for (const [path, value] of Object.entries(updates)) {
@@ -100,6 +104,15 @@ assert.equal(resources.slotsByClass.bard.levels['1'].spent, 1, 'Theatre must act
 await theatre.cast(options);
 assert.deepEqual(get('campaña/jugadores/alice/spellcastingState'), resources, 'same request must not spend another Slot');
 assert.equal(deliveryCount, 1, 'same completed request must not requeue an action');
+// The DM has not consumed the first cast. A new request must keep the Slot.
+await assert.rejects(theatre.cast({ ...options, requestId: 'too-soon' }), /realizando una acción/);
+assert.deepEqual(get('campaña/jugadores/alice/spellcastingState'), resources);
+const firstEvent = get('campaña/teatro/scene_time_requests/default/events/theatre_default_cast-1');
+let calendar = sceneTime.applyEventToCalendar({}, firstEvent, 'default').calendar;
+set('campaña/calendario', calendar);
+await assert.rejects(theatre.cast({ ...options, requestId: 'still-active' }), /realizando una acción/);
+calendar = sceneTime.applyEventToCalendar(calendar, { type: 'action_control', command: 'complete', actorId: 'actor-a', eventId: 'complete-first' }, 'default').calendar;
+set('campaña/calendario', calendar);
 failDelivery = true;
 const originalError = console.error; console.error = () => {};
 const pending = await theatre.cast({ ...options, spellId: 'mage_hand', requestId: 'cast-2' });
@@ -113,6 +126,38 @@ assert.equal(get('campaña/jugadores/alice/theatreSpellOutbox/cast-2'), null);
 set('campaña/estado_mundo/escena_actual', { transitioning: true });
 await assert.rejects(theatre.cast({ ...options, requestId: 'cast-3' }), /cambio de escena/);
 assert.equal(get('campaña/jugadores/alice/theatreSpellCasts/cast-3'), null);
+
+// Two independent tabs sharing RTDB must reserve one actor/Slot, even
+// when both start with the same empty Scene Time snapshot.
+stored = { campaña: { jugadores: { alice: copy(player) }, teatro: {}, calendario: {}, estado_mundo: { escena_actual: {} } } };
+const secondTab = vm.createContext({ console, LuminousSpellLoadout: shared, LuminousSpellcastingRuntime: globalThis.LuminousSpellcastingRuntime,
+  LuminousCombatSpellLoadout074: combat, LuminousSceneTimeCore: sceneTime });
+vm.runInContext(fs.readFileSync('js/theatre-spell-loadout.js', 'utf8'), secondTab);
+const concurrent = await Promise.allSettled([
+  theatre.cast({ ...options, requestId: 'tab-one' }),
+  secondTab.LuminousTheatreSpells.cast({ ...options, requestId: 'tab-two' })
+]);
+assert.equal(concurrent.filter(result => result.status === 'fulfilled').length, 1);
+assert.equal(concurrent.filter(result => result.status === 'rejected').length, 1);
+assert.equal(get('campaña/jugadores/alice/spellcastingState/slotsByClass/bard/levels/1/spent'), 1);
+assert.equal(Object.keys(get('campaña/teatro/cola')).length, 1);
+// A rejected actor action must not advance the world, including explicit durations.
+const action = { type: 'intervention', eventId: 'busy-a', message: { actorId: 'actor-a', tipo_dialogo: 'actuar', mensaje: 'First', actionDurationSeconds: 60 } };
+const activeCalendar = sceneTime.applyEventToCalendar({}, action, 'default').calendar;
+const rejected = sceneTime.applyEventToCalendar(activeCalendar, { ...action, eventId: 'busy-b', message: { ...action.message, sceneTimeSeconds: 30 } }, 'default');
+assert.equal(rejected.result, 'actor_locked');
+assert.equal(rejected.deltaSeconds, 0);
+assert.equal(sceneTime.calendarWorldMs(rejected.calendar), sceneTime.calendarWorldMs(activeCalendar));
+const multi = copy(player);
+multi.characterBuild.classes.push({ classId: 'wizard', levels: 10 });
+assert.deepEqual(theatre.castingClassesFor(multi, shared.definition('mage_hand')), ['bard', 'wizard']);
+assert.throws(() => theatre.prepareCast(multi, { uid: 'uid-a', actorId: 'actor-a', spellId: 'mage_hand' }), /Elige la clase/);
+for (const classId of ['bard', 'wizard']) {
+  const result = theatre.prepareCast(multi, { uid: 'uid-a', actorId: 'actor-a', spellId: 'distort_value', classId });
+  assert.equal(result.message.spellClassId, classId);
+  assert.equal(result.character.spellcastingState.slotsByClass[classId].levels['1'].spent, 1);
+}
+assert.throws(() => theatre.prepareCast(multi, { uid: 'uid-a', actorId: 'actor-a', spellId: 'mage_hand', classId: 'cleric' }), /clase de lanzamiento válida/);
 
 // A spell-only change must invalidate live Combat hydration; stale Unit
 // snapshots cannot hide a newly assigned spell or resurrect a removed one.

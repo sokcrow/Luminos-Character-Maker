@@ -123,6 +123,18 @@
     return next;
   }
   function isActionBlocking(action) { return Boolean(action && BLOCKING.has(action.status)); }
+  function actorReservationBlocked(player, calendar, { actorId, roomId, requestId } = {}) {
+    const room = roomStateFrom(calendar, roomId);
+    if (isActionBlocking(room.actions?.[actorId])) return true;
+    const reservation = player?.theatreActionReservations?.[safeKey(actorId)];
+    if (!reservation || reservation.requestId === requestId) return false;
+    const previous = roomStateFrom(calendar, reservation.roomId);
+    const action = previous.actions?.[actorId];
+    const acknowledged = Boolean(previous.processedEvents?.[reservation.eventId]) || action?.actionId === reservation.actionId;
+    // Keep the cross-tab lock until the DM has consumed this exact request
+    // and its action has finished. Delivery alone must not release the actor.
+    return !acknowledged || isActionBlocking(action);
+  }
   function createActionInstance(message, worldMs, actionId) {
     const durationSeconds = actionDurationSeconds(message), check = normalizeCheck(message?.check);
     return {
@@ -202,7 +214,7 @@
       }
     }
     if (type === 'action_control') applyActionControl(roomState, event, worldMs);
-    const deltaSeconds = eventDeltaSeconds(event, roomState);
+    const deltaSeconds = roomState.__eventResult === 'actor_locked' ? 0 : eventDeltaSeconds(event, roomState);
     if (deltaSeconds > 0) roomState.actions = advanceActions(roomState.actions, deltaSeconds);
     const nextWorldMs = worldMs + deltaSeconds * 1000;
     const sequence = Math.max(0, ...Object.values(roomState.processedEvents).map((v) => num(v?.sequence))) + 1;
@@ -230,7 +242,7 @@
     speechDurationSeconds, explicitSceneSeconds, interventionDurationSeconds, actionBucket,
     actionDurationSeconds, messageLimit, validateMessageLength, canonicalAllowedCheckOption,
     normalizeCheck, calendarWorldMs, writeCalendarWorldMs, roomStateFrom, assignRoomState,
-    isActionBlocking, createActionInstance, advanceActions, nextEventDelta, pruneProcessedEvents,
+    isActionBlocking, actorReservationBlocked, createActionInstance, advanceActions, nextEventDelta, pruneProcessedEvents,
     applyActionControl, eventDeltaSeconds, applyEventToCalendar, visibleActionIdentity, replaceActionIdentity,
   });
 });

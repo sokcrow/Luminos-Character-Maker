@@ -27,6 +27,7 @@ jobs:
       - name: Shared assignment and playback regressions
         run: |
           node tests/unified-spell-loadout-smoke.mjs
+          node tests/spell-catalog-sheet-idle-smoke.mjs
           node tests/combat-playback-catchup-smoke.mjs
           node tests/dm-player-loadout-manager-smoke.mjs
           node tests/combat-v074-player-entry-smoke.mjs

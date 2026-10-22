@@ -11,5 +11,7 @@
 #theatre-assigned-spells :focus-visible{outline:2px solid #e9c77a;outline-offset:3px}
 #theatre-spell-description{color:#c4b99f}
 #theatre-spell-feedback:empty{display:none}
+#theatre-spell-class-field{grid-column:1/-1;display:grid;gap:6px;min-width:0}
+#theatre-spell-class-field[hidden]{display:none}
 @media(max-width:540px){#theatre-assigned-spells{grid-template-columns:minmax(0,1fr)}#theatre-assigned-spells button{width:100%}}
 @media(max-height:450px){#modal-escritura-teatro>div{gap:10px!important;padding:12px!important}}
