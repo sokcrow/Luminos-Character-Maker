@@ -357,7 +357,16 @@
     const kits = {};
     for (const unit of combatants) {
       const source = state.combatants?.[unit.id] || Object.values(state.combatants || {}).find((raw) => clean(raw?.id || raw?.combatId) === unit.id) || unit;
-      const actions = skillIdsFor(source).map((skillId) => state.skills?.[skillId] ? normalizeSkill(skillId, state.skills[skillId]) : null).filter(Boolean);
+      const equippedGrants = new Set(global.LuminousEquipmentEffects?.grantedSkillIds?.(unit) || []);
+      const ids = [...new Set([...skillIdsFor(source), ...equippedGrants])];
+      const actions = ids.map((skillId) => {
+        if (!state.skills?.[skillId]) return null;
+        const skill = normalizeSkill(skillId, state.skills[skillId]);
+        // Granted Skills belong to the equipment, never to a 3/2/1 draw deck.
+        return equippedGrants.has(skillId)
+          ? { ...skill, inDeck: false, availability: { type: "granted" }, deck: { enabled: false } }
+          : skill;
+      }).filter(Boolean);
       const embedded = Array.isArray(source.actions) ? source.actions.map((row, index) => normalizeSkill(clean(row?.id || `${unit.id}:action:${index}`), row || {})) : [];
       kits[unit.id] = {
         role: clean(source.buildRole || source.combatRole || source.role || ""),
